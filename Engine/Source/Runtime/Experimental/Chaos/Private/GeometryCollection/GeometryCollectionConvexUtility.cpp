@@ -1161,6 +1161,55 @@ void CreateNonoverlappingConvexHulls(
 }
 
 
+// helper to compute the volume of an individual piece of geometry
+double ComputeGeometryVolume(
+	const FManagedArrayCollection* Collection,
+	int32 GeometryIdx,
+	const FTransform& GlobalTransform,
+	double ScalePerDimension
+)
+{
+	GeometryCollection::Facades::FCollectionMeshFacade MeshFacade(*Collection);
+	const TManagedArray<int32>& VertexStart = MeshFacade.VertexStartAttribute.Get();
+	const TManagedArray<int32>& VertexCount = MeshFacade.VertexCountAttribute.Get();
+	const TManagedArray<FVector3f>& Vertex = MeshFacade.VertexAttribute.Get();
+	const TManagedArray<int32>& FaceStart = MeshFacade.FaceStartAttribute.Get();
+	const TManagedArray<int32>& FaceCount = MeshFacade.FaceCountAttribute.Get();
+	const TManagedArray<FIntVector>& Indices = MeshFacade.IndicesAttribute.Get();
+	int32 VStart = VertexStart[GeometryIdx];
+	int32 VEnd = VStart + VertexCount[GeometryIdx];
+	if (VStart == VEnd)
+	{
+		return 0.0;
+	}
+	FVector3d Center = FVector::ZeroVector;
+	for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
+	{
+		FVector Pos = GlobalTransform.TransformPosition((FVector)Vertex[VIdx]);
+		Center += (FVector3d)Pos;
+	}
+	Center /= double(VEnd - VStart);
+	int32 FStart = FaceStart[GeometryIdx];
+	int32 FEnd = FStart + FaceCount[GeometryIdx];
+	double VolOut = 0;
+	for (int32 FIdx = FStart; FIdx < FEnd; FIdx++)
+	{
+		FIntVector Tri = Indices[FIdx];
+		FVector3d V0 = (FVector3d)GlobalTransform.TransformPosition((FVector)Vertex[Tri.X]);
+		FVector3d V1 = (FVector3d)GlobalTransform.TransformPosition((FVector)Vertex[Tri.Y]);
+		FVector3d V2 = (FVector3d)GlobalTransform.TransformPosition((FVector)Vertex[Tri.Z]);
+
+		// add volume of the tetrahedron formed by the triangles and the reference point
+		FVector3d V1mRef = (V1 - Center) * ScalePerDimension;
+		FVector3d V2mRef = (V2 - Center) * ScalePerDimension;
+		FVector3d N = V2mRef.Cross(V1mRef);
+
+		VolOut += ((V0 - Center) * ScalePerDimension).Dot(N) / 6.0;
+	}
+	return VolOut;
+}
+
+
 /// Helper to get convex hulls from a geometry collection in the format required by CreateNonoverlappingConvexHulls
 void HullsFromGeometry(
 	FGeometryCollection& Geometry,
@@ -1173,7 +1222,8 @@ void HullsFromGeometry(
 	int32 RigidType,
 	double SimplificationDistanceThreshold,
 	double OverlapRemovalShrinkPercent,
-	TFunction<bool(int32)> SkipBoneFn = nullptr
+	TFunction<bool(int32)> SkipBoneFn = nullptr,
+	const FGeometryCollectionConvexUtility::FConvexDecompositionSettings* OptionalDecompositionSettings = nullptr
 )
 {
 	TArray<FVector> GlobalVertices;
@@ -1226,22 +1276,98 @@ void HullsFromGeometry(
 		}
 		else if (SimulationType[Idx] == RigidType && GeomIdx != INDEX_NONE)
 		{
-			int32 VStart = Geometry.VertexStart[GeomIdx];
-			int32 VCount = Geometry.VertexCount[GeomIdx];
-			int32 VEnd = VStart + VCount;
-			TArray<Chaos::FConvex::FVec3Type> HullPts;
-			HullPts.Reserve(VCount);
-			for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
+			auto ComputeHull = [&Geometry, &GlobalVertices, SimplificationDistanceThreshold, OverlapRemovalShrinkPercent, GeomIdx](FVector& PivotOut) -> TUniquePtr<::Chaos::FConvex>
 			{
-				HullPts.Add(GlobalVertices[VIdx]);
+				int32 VStart = Geometry.VertexStart[GeomIdx];
+				int32 VCount = Geometry.VertexCount[GeomIdx];
+				int32 VEnd = VStart + VCount;
+				TArray<Chaos::FConvex::FVec3Type> HullPts;
+				HullPts.Reserve(VCount);
+				for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
+				{
+					HullPts.Add(GlobalVertices[VIdx]);
+				}
+				ensure(HullPts.Num() > 0);
+				FilterHullPoints(HullPts, SimplificationDistanceThreshold);
+				PivotOut = ScaleHullPoints(HullPts, OverlapRemovalShrinkPercent);
+				return MakeUnique<Chaos::FConvex>(HullPts, UE_KINDA_SMALL_NUMBER);
+			};
+			TUniquePtr<Chaos::FConvex> Hull = nullptr;
+			FVector HullPivot;
+
+			if (OptionalDecompositionSettings)
+			{
+				bool bAttemptDecomposition = OptionalDecompositionSettings->MaxHullsPerGeometry > 1 || OptionalDecompositionSettings->ErrorTolerance > 0.0;
+				double InitialGeoVolume = 0.0, InitialHullVolume = 0.0;
+				if (bAttemptDecomposition && (OptionalDecompositionSettings->MinGeoVolumeToDecompose > 0.0 || OptionalDecompositionSettings->MaxGeoToHullVolumeRatioToDecompose < 1.0))
+				{
+					InitialGeoVolume = ComputeGeometryVolume(&Geometry, GeomIdx, GlobalTransformArray[Idx], 1.0);
+				}
+				if (bAttemptDecomposition && InitialGeoVolume < OptionalDecompositionSettings->MinGeoVolumeToDecompose)
+				{
+					bAttemptDecomposition = false; // too small to consider for decomposition
+				}
+				if (bAttemptDecomposition && OptionalDecompositionSettings->MaxGeoToHullVolumeRatioToDecompose < 1.0)
+				{
+					Hull = ComputeHull(HullPivot);
+					InitialHullVolume = (double)Hull->GetVolume();
+					// Hull was scaled down by the overlap removal shrink percent, so to compute a correct ratio we need to adjust the geo volume in the same way
+					double VolumeScale = ScaleFactor * ScaleFactor * ScaleFactor;
+					if ((VolumeScale * InitialGeoVolume) / InitialHullVolume >= OptionalDecompositionSettings->MaxGeoToHullVolumeRatioToDecompose)
+					{
+						bAttemptDecomposition = false;
+					}
+				}
+
+				if (bAttemptDecomposition)
+				{
+					UE::Geometry::FConvexDecomposition3 Decomposition;
+					int32 VertexStart = Geometry.VertexStart[GeomIdx];
+					TArrayView<const FVector3f> VerticesView(Geometry.Vertex.GetData() + VertexStart, Geometry.VertexCount[GeomIdx]);
+					TArrayView<const FIntVector3> FacesView(Geometry.Indices.GetData() + Geometry.FaceStart[GeomIdx], Geometry.FaceCount[GeomIdx]);
+					Decomposition.InitializeFromIndexMesh(VerticesView, FacesView, true, -VertexStart);
+					Decomposition.Compute(OptionalDecompositionSettings->MaxHullsPerGeometry, OptionalDecompositionSettings->NumAdditionalSplits, 
+						OptionalDecompositionSettings->ErrorTolerance, OptionalDecompositionSettings->MinThicknessTolerance, OptionalDecompositionSettings->MaxHullsPerGeometry);
+					int32 NumHulls = Decomposition.NumHulls();
+					if ((NumHulls > 0 && !Hull) || NumHulls > 1)
+					{
+						TArray<TUniquePtr<::Chaos::FConvex>> DecompHulls; DecompHulls.Reserve(NumHulls);
+						TArray<FVector> Pivots; Pivots.Reserve(NumHulls);
+						for (int32 HullIdx = 0; HullIdx < NumHulls; ++HullIdx)
+						{
+							TArray<FVector3f> OrigDecompVerts = Decomposition.GetVertices<float>(HullIdx);
+							// convert to the vector type expected by Chaos::FConvex
+							TArray<::Chaos::FConvex::FVec3Type> DecompVerts;
+							DecompVerts.SetNumUninitialized(OrigDecompVerts.Num());
+							for (int32 PtIdx = 0; PtIdx < OrigDecompVerts.Num(); ++PtIdx)
+							{
+								DecompVerts[PtIdx] = OrigDecompVerts[PtIdx];
+							}
+							FilterHullPoints(DecompVerts, SimplificationDistanceThreshold);
+							FVector Pivot = ScaleHullPoints(DecompVerts, OverlapRemovalShrinkPercent);
+							Pivots.Add(Pivot);
+							DecompHulls.Add(MakeUnique<::Chaos::FConvex>(DecompVerts, UE_KINDA_SMALL_NUMBER));
+						}
+						HullCS.Lock();
+						for (int32 HullIdx = 0; HullIdx < DecompHulls.Num(); ++HullIdx)
+						{
+							int32 ConvexIdx = Convexes.Add(MoveTemp(DecompHulls[HullIdx]));
+							AddPivot(Convexes, ConvexPivots, Pivots[HullIdx]);
+							TransformToConvexIndices[Idx].Add(ConvexIdx);
+						}
+						HullCS.Unlock();
+						return;
+					}
+				}
 			}
-			ensure(HullPts.Num() > 0);
-			FilterHullPoints(HullPts, SimplificationDistanceThreshold);
-			FVector Pivot = ScaleHullPoints(HullPts, OverlapRemovalShrinkPercent);
-			TUniquePtr Hull = MakeUnique<Chaos::FConvex>(HullPts, UE_KINDA_SMALL_NUMBER);
+			// We don't need a convex decomposition
+			if (!Hull)
+			{
+				Hull = ComputeHull(HullPivot);
+			}
 			HullCS.Lock();
 			int32 ConvexIdx = Convexes.Add(MoveTemp(Hull));
-			AddPivot(Convexes, ConvexPivots, Pivot);
+			AddPivot(Convexes, ConvexPivots, HullPivot);
 			HullCS.Unlock();
 			TransformToConvexIndices[Idx].Add(ConvexIdx);
 		}
@@ -1319,54 +1445,6 @@ bool CopyHulls(
 	return true;
 }
 
-// helper to compute the volume of an individual piece of geometry
-double ComputeGeometryVolume(
-	const FManagedArrayCollection* Collection,
-	int32 GeometryIdx,
-	const FTransform& GlobalTransform,
-	double ScalePerDimension
-)
-{
-	GeometryCollection::Facades::FCollectionMeshFacade MeshFacade(*Collection);
-	const TManagedArray<int32>& VertexStart = MeshFacade.VertexStartAttribute.Get();
-	const TManagedArray<int32>& VertexCount = MeshFacade.VertexCountAttribute.Get();
-	const TManagedArray<FVector3f>& Vertex = MeshFacade.VertexAttribute.Get();
-	const TManagedArray<int32>& FaceStart = MeshFacade.FaceStartAttribute.Get();
-	const TManagedArray<int32>& FaceCount = MeshFacade.FaceCountAttribute.Get();
-	const TManagedArray<FIntVector>& Indices = MeshFacade.IndicesAttribute.Get();
-	int32 VStart = VertexStart[GeometryIdx];
-	int32 VEnd = VStart + VertexCount[GeometryIdx];
-	if (VStart == VEnd)
-	{
-		return 0.0;
-	}
-	FVector3d Center = FVector::ZeroVector;
-	for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
-	{
-		FVector Pos = GlobalTransform.TransformPosition((FVector)Vertex[VIdx]);
-		Center += (FVector3d)Pos;
-	}
-	Center /= double(VEnd - VStart);
-	int32 FStart = FaceStart[GeometryIdx];
-	int32 FEnd = FStart + FaceCount[GeometryIdx];
-	double VolOut = 0;
-	for (int32 FIdx = FStart; FIdx < FEnd; FIdx++)
-	{
-		FIntVector Tri = Indices[FIdx];
-		FVector3d V0 = (FVector3d)GlobalTransform.TransformPosition((FVector)Vertex[Tri.X]);
-		FVector3d V1 = (FVector3d)GlobalTransform.TransformPosition((FVector)Vertex[Tri.Y]);
-		FVector3d V2 = (FVector3d)GlobalTransform.TransformPosition((FVector)Vertex[Tri.Z]);
-
-		// add volume of the tetrahedron formed by the triangles and the reference point
-		FVector3d V1mRef = (V1 - Center) * ScalePerDimension;
-		FVector3d V2mRef = (V2 - Center) * ScalePerDimension;
-		FVector3d N = V2mRef.Cross(V1mRef);
-
-		VolOut += ((V0 - Center) * ScalePerDimension).Dot(N) / 6.0;
-	}
-	return VolOut;
-}
-
 
 }
 
@@ -1390,7 +1468,8 @@ void FGeometryCollectionConvexUtility::CreateConvexHullAttributesIfNeeded(FManag
 }
 
 UE::GeometryCollectionConvexUtility::FConvexHulls
-FGeometryCollectionConvexUtility::ComputeLeafHulls(FGeometryCollection* GeometryCollection, const TArray<FTransform>& GlobalTransformArray, double SimplificationDistanceThreshold, double OverlapRemovalShrinkPercent, TFunction<bool(int32)> SkipBoneFn)
+FGeometryCollectionConvexUtility::ComputeLeafHulls(FGeometryCollection* GeometryCollection, const TArray<FTransform>& GlobalTransformArray, double SimplificationDistanceThreshold, double OverlapRemovalShrinkPercent,
+	TFunction<bool(int32)> SkipBoneFn, const FConvexDecompositionSettings* OptionalDecompositionSettings)
 {
 	check(GeometryCollection);
 
@@ -1407,7 +1486,7 @@ FGeometryCollectionConvexUtility::ComputeLeafHulls(FGeometryCollection* Geometry
 	TFunctionRef<bool(int32)> HasCustomConvexFn = (CustomConvexFlags != nullptr) ? (TFunctionRef<bool(int32)>)ConvexFlagsFromArray : (TFunctionRef<bool(int32)>)ConvexFlagsAlwaysFalse;
 
 	HullsFromGeometry(*GeometryCollection, GlobalTransformArray, HasCustomConvexFn, Hulls.Hulls, Hulls.Pivots, Hulls.TransformToHullsIndices, GeometryCollection->SimulationType,
-		FGeometryCollection::ESimulationTypes::FST_Rigid, SimplificationDistanceThreshold, Hulls.OverlapRemovalShrinkPercent, SkipBoneFn);
+		FGeometryCollection::ESimulationTypes::FST_Rigid, SimplificationDistanceThreshold, Hulls.OverlapRemovalShrinkPercent, SkipBoneFn, OptionalDecompositionSettings);
 
 	return Hulls;
 }
@@ -1463,7 +1542,7 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 	return { TransformToConvexIndices, ConvexHull };
 }
 
-void FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(FGeometryCollection& Collection, bool bRestrictToSelection, const TArrayView<const int32> TransformSubset, double SimplificationDistanceThreshold, EGenerateConvexMethod GenerateMethod, FIntersectionFilters IntersectFilters)
+void FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(FGeometryCollection& Collection, bool bRestrictToSelection, const TArrayView<const int32> TransformSubset, const FLeafConvexHullSettings& Settings)
 {
 	using FSharedImplicit = TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>;
 
@@ -1483,9 +1562,9 @@ void FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(FGeometryCollecti
 			bHasExternalCollision = false;
 		}
 	}
-	bool bUseExternal = bHasExternalCollision && (GenerateMethod == EGenerateConvexMethod::ExternalCollision || GenerateMethod == EGenerateConvexMethod::IntersectExternalWithComputed);
-	bool bUseGenerated = !bUseExternal || GenerateMethod == EGenerateConvexMethod::IntersectExternalWithComputed;
-	bool bUseIntersect = bUseExternal && GenerateMethod == EGenerateConvexMethod::IntersectExternalWithComputed;
+	bool bUseExternal = bHasExternalCollision && (Settings.GenerateMethod == EGenerateConvexMethod::ExternalCollision || Settings.GenerateMethod == EGenerateConvexMethod::IntersectExternalWithComputed);
+	bool bUseGenerated = !bUseExternal || Settings.GenerateMethod == EGenerateConvexMethod::IntersectExternalWithComputed;
+	bool bUseIntersect = bUseExternal && Settings.GenerateMethod == EGenerateConvexMethod::IntersectExternalWithComputed;
 	
 	UE::GeometryCollectionConvexUtility::FConvexHulls ComputedHulls;
 	TArray<FTransformedConvex> ExternalHulls;
@@ -1583,7 +1662,7 @@ void FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(FGeometryCollecti
 				return SelectionSet.Contains(BoneIdx);
 			};
 		}
-		ComputedHulls = ComputeLeafHulls(&Collection, IdentityTransformArray, SimplificationDistanceThreshold, 0, SkipBoneFn);
+		ComputedHulls = ComputeLeafHulls(&Collection, IdentityTransformArray, Settings.SimplificationDistanceThreshold, 0, SkipBoneFn, &Settings.DecompositionSettings);
 
 		if (!bUseIntersect)
 		{
@@ -1595,6 +1674,11 @@ void FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(FGeometryCollecti
 	}
 	if (bUseIntersect)
 	{
+		// TODO: this logic should be rewritten directly in the ComputeLeafHulls function, which should take the external hulls as an optional parameter.
+		// Specifically, ComputeLeafHulls should intersect the union of the external hulls with the geometry of the leaves, and then run convex decomposition on the result.
+		// This will avoid the possible multiplication of hulls if there are multiple external hulls, and also will allow the convex decomposition to focus
+		// only on the geometry that is not removed by the intersection.
+
 		TArray<TUniquePtr<Chaos::FConvex>> FinalHulls;
 		for (int32 SourceTransformIdx : UseTransforms)
 		{
@@ -1605,7 +1689,7 @@ void FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(FGeometryCollecti
 
 			TSet<int32>& GeoHulls = ComputedHulls.TransformToHullsIndices[SourceTransformIdx];
 
-			if (IntersectFilters.OnlyIntersectIfComputedIsSmallerFactor < 1.0 || IntersectFilters.MinExternalVolumeToIntersect > 0.0)
+			if (Settings.IntersectFilters.OnlyIntersectIfComputedIsSmallerFactor < 1.0 || Settings.IntersectFilters.MinExternalVolumeToIntersect > 0.0)
 			{
 				double ComputedVolSum = 0.0;
 				for (int32 GeoHullIdx : GeoHulls)
@@ -1618,8 +1702,8 @@ void FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(FGeometryCollecti
 					ExternalVolSum += (double)ExternalHulls[ExtHull].Convex->GetVolume();
 				}
 				if (
-					(IntersectFilters.OnlyIntersectIfComputedIsSmallerFactor < 1.0 && ComputedVolSum >= ExternalVolSum * IntersectFilters.OnlyIntersectIfComputedIsSmallerFactor) ||
-					(ExternalVolSum < IntersectFilters.MinExternalVolumeToIntersect)
+					(Settings.IntersectFilters.OnlyIntersectIfComputedIsSmallerFactor < 1.0 && ComputedVolSum >= ExternalVolSum * Settings.IntersectFilters.OnlyIntersectIfComputedIsSmallerFactor) ||
+					(ExternalVolSum < Settings.IntersectFilters.MinExternalVolumeToIntersect)
 					)
 				{
 					// Filters allow us to skip computing the intersection and just use the external hulls
@@ -1632,10 +1716,6 @@ void FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(FGeometryCollecti
 				}
 			}
 
-			// Note: Currently computed hulls path only generates one hull per transform. If this changes, and we have multiple
-			// compute hulls AND multiple external hulls, consider running an additional merge step after intersection
-			// to avoid multiplying the number of hulls used.
-			ensure(GeoHulls.Num() < 2);
 			for (int32 GeoHullIdx : GeoHulls)
 			{
 				if (TransformToExternalHullsIndices.IsEmpty())
@@ -1876,7 +1956,7 @@ void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChild
 				};
 				UE::Geometry::FConvexDecomposition3 ConvexDecomposition;
 				ConvexDecomposition.InitializeFromHulls(Hulls.Num(), GetHullVolume, GetHullNumVertices, GetHullVertex, HullProximity);
-				ConvexDecomposition.MergeBest(Settings.ConvexCount, Settings.ErrorToleranceInCm, 0, true /*bAllowCompact*/, false /*bRequireHullTriangles*/, Settings.EmptySpace, &ParentTransform);
+				ConvexDecomposition.MergeBest(Settings.ConvexCount, Settings.ErrorToleranceInCm, 0, true /*bAllowCompact*/, false /*bRequireHullTriangles*/, -1 /*MaxHulls*/, Settings.EmptySpace, &ParentTransform);
 				
 				// reset existing hulls for this transform index
 				for (int32 ConvexIndex : TransformToConvexIndices[TransformIndex])

@@ -23,6 +23,82 @@ enum class EConvexOverlapRemovalMethodEnum : uint8
 	Dataflow_Max                UMETA(Hidden)
 };
 
+USTRUCT()
+struct FDataflowConvexDecompositionSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	// If greater than zero, the minimum geometry size (cube root of volume) to consider for convex decomposition
+	UPROPERTY(EditAnywhere, Category = Filter, meta = (ClampMin = 0.0))
+	float MinSizeToDecompose = 0.f;
+
+	// If the geo volume / hull volume ratio is greater than this, do not consider convex decomposition
+	UPROPERTY(EditAnywhere, Category = Filter, meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float MaxGeoToHullVolumeRatioToDecompose = 1.f;
+
+	// Stop splitting when hulls have error less than this (expressed in cm; will be cubed for volumetric error).
+	// Note: ErrorTolerance must be > 0 or MaxHullsPerGeometry > 1, or decomposition will not be performed.
+	UPROPERTY(EditAnywhere, Category = Decomposition, meta = (ClampMin = 0.0))
+	float ErrorTolerance = 0.f;
+
+	// If greater than zero, maximum number of convex hulls to use in each convex decomposition.
+	//Note: ErrorTolerance must be > 0 or MaxHullsPerGeometry > 1, or decomposition will not be performed.
+	UPROPERTY(EditAnywhere, Category = Decomposition, meta = (ClampMin = -1))
+	int32 MaxHullsPerGeometry = -1;
+
+	// Optionally specify a minimum thickness (in cm) for convex parts; parts below this thickness will always be merged away. Overrides NumOutputHulls and ErrorTolerance when needed.
+	UPROPERTY(EditAnywhere, Category = Decomposition, meta = (ClampMin = 0.0))
+	float MinThicknessTolerance = 0.f;
+
+	// Control the search effort spent per convex decomposition: larger values will require more computation but may find better convex decompositions
+	UPROPERTY(EditAnywhere, Category = Decomposition, meta = (ClampMin = 0))
+	int32 NumAdditionalSplits = 4;
+};
+
+
+//~ TODO: Ideally this would be generated from the above FDataflowConvexDecompositionSettings struct
+// Provide settings for running convex decomposition of geometry
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FMakeDataflowConvexDecompositionSettingsNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FMakeDataflowConvexDecompositionSettingsNode, "MakeConvexDecompositionSettings", "GeometryCollection|Utilities", "")
+
+public:
+	// If greater than zero, the minimum geometry size (cube root of volume) to consider for convex decomposition
+	UPROPERTY(EditAnywhere, Category = Filter, meta = (ClampMin = 0.0, DataflowInput))
+	float MinSizeToDecompose = 0.f;
+	
+	// If the geo volume / hull volume ratio is greater than this, do not consider convex decomposition
+	UPROPERTY(EditAnywhere, Category = Filter, meta = (ClampMin = 0.0, ClampMax = 1.0, DataflowInput))
+	float MaxGeoToHullVolumeRatioToDecompose = 1.f;
+
+	// Stop splitting when hulls have error less than this (expressed in cm; will be cubed for volumetric error).
+	// Note: ErrorTolerance must be > 0 or MaxHullsPerGeometry > 1, or decomposition will not be performed.
+	UPROPERTY(EditAnywhere, Category = Decomposition, meta = (ClampMin = 0.0, DataflowInput))
+	float ErrorTolerance = 0.f;
+
+	// If greater than zero, maximum number of convex hulls to use in each convex decomposition.
+	//Note: ErrorTolerance must be > 0 or MaxHullsPerGeometry > 1, or decomposition will not be performed.
+	UPROPERTY(EditAnywhere, Category = Decomposition, meta = (ClampMin = -1, DataflowInput))
+	int32 MaxHullsPerGeometry = -1;
+
+	// Optionally specify a minimum thickness (in cm) for convex parts; parts below this thickness will always be merged away. Overrides NumOutputHulls and ErrorTolerance when needed.
+	UPROPERTY(EditAnywhere, Category = Decomposition, meta = (ClampMin = 0.0, DataflowInput))
+	float MinThicknessTolerance = 0.f;
+
+	// Control the search effort spent per convex decomposition: larger values will require more computation but may find better convex decompositions
+	UPROPERTY(EditAnywhere, Category = Decomposition, meta = (ClampMin = 0, DataflowInput))
+	int32 NumAdditionalSplits = 4;
+
+	UPROPERTY(meta = (DataflowOutput))
+	FDataflowConvexDecompositionSettings DecompositionSettings;
+
+	FMakeDataflowConvexDecompositionSettingsNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
 
 USTRUCT(meta = (DataflowGeometryCollection))
 struct FCreateLeafConvexHullsDataflowNode : public FDataflowNode
@@ -51,8 +127,11 @@ public:
 	float MinExternalVolumeToIntersect = 0.0f;
 
 	/** Computed convex hulls are simplified to keep points spaced at least this far apart (except where needed to keep the hull from collapsing to zero volume) */
-	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = 0.f, EditCondition = "GenerateMethod != EGenerateConvexMethod::ExternalCollision"))
+	UPROPERTY(EditAnywhere, Category = Convex, meta = (DataflowInput, ClampMin = 0.f, EditCondition = "GenerateMethod != EGenerateConvexMethod::ExternalCollision"))
 	float SimplificationDistanceThreshold = 10.f;
+
+	UPROPERTY(EditAnywhere, Category = Convex, meta = (DataflowInput))
+	FDataflowConvexDecompositionSettings ConvexDecompositionSettings;
 
 	FCreateLeafConvexHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 

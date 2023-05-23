@@ -825,6 +825,25 @@ FConvexDecomposition3::FConvexPart::FConvexPart(const FDynamicMesh3& SourceMesh,
 	// Copy out the source mesh
 	InternalGeo.Copy(SourceMesh, false, false, false, false);
 
+	InitializeFromInternalGeo(bMergeEdges, TransformOut);
+}
+
+FConvexDecomposition3::FConvexPart::FConvexPart(TArrayView<const FVector3f> Vertices, TArrayView<const FIntVector3> Faces, bool bMergeEdges, FTransformSRT3d& TransformOut, int32 FaceVertexOffset)
+{
+	for (const FVector3f& V : Vertices)
+	{
+		InternalGeo.AppendVertex((FVector)V);
+	}
+	for (FIntVector F : Faces)
+	{
+		InternalGeo.AppendTriangle(FIndex3i(F.X + FaceVertexOffset, F.Y + FaceVertexOffset, F.Z + FaceVertexOffset));
+	}
+
+	InitializeFromInternalGeo(bMergeEdges, TransformOut);
+}
+
+void FConvexDecomposition3::FConvexPart::InitializeFromInternalGeo(bool bMergeEdges, FTransformSRT3d& TransformOut)
+{
 	// Transform the mesh to a standard unit-cube-at-origin space, so threshold have a consistent meaning
 	FAxisAlignedBox3d InitialBounds = InternalGeo.GetBounds();
 	double InvScaleFactor = FMath::Clamp(InitialBounds.MaxDim(), KINDA_SMALL_NUMBER, 1e8);
@@ -846,6 +865,19 @@ FConvexDecomposition3::FConvexPart::FConvexPart(const FDynamicMesh3& SourceMesh,
 	// Compute hull and standard measurements (volume, center, bounds, etc)
 	ComputeHull();
 	ComputeStats();
+}
+
+
+void FConvexDecomposition3::InitializeFromIndexMesh(TArrayView<const FVector3f> Vertices, TArrayView<const FIntVector> Faces, bool bMergeEdges, int32 FaceVertexOffset)
+{
+	Decomposition.Empty();
+	FConvexPart* Convex = new FConvexPart(Vertices, Faces, bMergeEdges, ResultTransform, FaceVertexOffset);
+	if (Convex->IsFailed())
+	{
+		delete Convex;
+		return;
+	}
+	Decomposition.Add(Convex);
 }
 
 bool FConvexDecomposition3::FConvexPart::ComputeHull(bool bComputePlanes)
@@ -1292,9 +1324,16 @@ void FConvexDecomposition3::InitializeFromHulls(int32 NumHulls, TFunctionRef<dou
 	}
 }
 
-int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTolerance, double MinThicknessToleranceWorldSpace, bool bAllowCompact, bool bRequireHullTriangles, 
+int32 FConvexDecomposition3::MergeBest(int32 InTargetNumParts, double MaxErrorTolerance, double MinThicknessToleranceWorldSpace, bool bAllowCompact, bool bRequireHullTriangles, int32 MaxOutputHulls,
 	const FSphereCovering* OptionalNegativeSpace, const FTransform* OptionalTransformIntoNegativeSpace)
 {
+	int32 TargetNumParts = InTargetNumParts;
+	const bool bHasValidMaxHulls = MaxOutputHulls > 0;
+	if (bHasValidMaxHulls)
+	{
+		TargetNumParts = FMath::Min(TargetNumParts, MaxOutputHulls);
+	}
+
 	// Support having a max error tolerance
 	double VolumeTolerance = ConvertDistanceToleranceToLocalVolumeTolerance(MaxErrorTolerance);
 	double MinThicknessTolerance = ConvertDistanceToleranceToLocalSpace(MinThicknessToleranceWorldSpace);
@@ -1573,8 +1612,10 @@ int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTole
 				MergeCost = Proximities[ProxIdx].GetMergeCost(Decomposition);
 			}
 
+			bool bAboveMax = bHasValidMaxHulls && Decomposition.Num() > MaxOutputHulls;
+
 			if (!bIncludesMustMergePart && ( // if there's no must-merge part, skip if ...
-					(VolumeTolerance > 0 && MergeCost > VolumeTolerance) // it won't pass the volume tolerance
+					(!bAboveMax && VolumeTolerance > 0 && MergeCost > VolumeTolerance) // it won't pass the volume tolerance, and we already have <= max hulls
 						|| 
 					bOnlyAllowMustMerges // or we're currently only considering must-merge parts (e.g., already at or below desired number of parts)
 				))

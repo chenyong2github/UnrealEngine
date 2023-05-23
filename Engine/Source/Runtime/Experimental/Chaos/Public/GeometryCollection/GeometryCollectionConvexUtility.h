@@ -140,8 +140,70 @@ public:
 		double OnlyIntersectIfComputedIsSmallerFactor;
 		double MinExternalVolumeToIntersect;
 	};
+
+	// Settings to control convex decompositions. Note the default values are set to *not* perform any decomposition
+	struct FConvexDecompositionSettings
+	{
+		FConvexDecompositionSettings() :
+			MinGeoVolumeToDecompose(0.f),
+			MaxGeoToHullVolumeRatioToDecompose(1.f),
+			MaxHullsPerGeometry(1),
+			ErrorTolerance(0.f),
+			MinThicknessTolerance(0.f),
+			NumAdditionalSplits(4)
+		{}
+
+		///
+		/// These settings are filters that control whether convex decomposition is performed
+		///
+		
+		// If greater than zero, the minimum geometry volume to consider for convex decomposition
+		float MinGeoVolumeToDecompose;
+
+		// If the geo volume / hull volume ratio is greater than this, do not consider convex decomposition
+		float MaxGeoToHullVolumeRatioToDecompose;
+
+
+		///
+		/// If we do perform a convex decomposition, these settings control the decomposition process
+		///
+		
+		// If > 0, specify the maximum number of convex hulls to create.  Hull merges will be attempted until this number of hulls remains, or no merges are possible.
+		int32 MaxHullsPerGeometry;
+
+		// Stop splitting when hulls have error less than this (expressed in cm; will be cubed for volumetric error). Overrides NumOutputHulls if non-zero.
+		float ErrorTolerance;
+
+		// Optionally specify a minimum thickness (in cm) for convex parts; parts below this thickness will always be merged away. Will merge hulls with greater error than ErrorTolerance when needed.
+		float MinThicknessTolerance;
+
+		// How far to go beyond the target number of hulls for initial decomposition (before merges) -- larger values will require more computation but can find better convex decompositions
+		int32 NumAdditionalSplits;
+
+	};
+
+	// Settings to control how convex hulls are generated for rigid/leaf nodes, from the geometry and/or imported collision shapes
+	struct FLeafConvexHullSettings
+	{
+		FLeafConvexHullSettings() : SimplificationDistanceThreshold(1.0), GenerateMethod(EGenerateConvexMethod::ExternalCollision)
+		{}
+
+		explicit FLeafConvexHullSettings(double SimplificationDistanceThreshold, EGenerateConvexMethod GenerateMethod = EGenerateConvexMethod::ExternalCollision) :
+			SimplificationDistanceThreshold(SimplificationDistanceThreshold),
+			GenerateMethod(GenerateMethod)
+		{}
+
+		double SimplificationDistanceThreshold;
+		EGenerateConvexMethod GenerateMethod;
+
+		// Intersection filters only apply if GenerateMethod == EGenerateConvexMethod::IntersectExternalWithComputed
+		FIntersectionFilters IntersectFilters;
+
+		// Convex decomposition settings, applied to convex hulls generated from geometry
+		FConvexDecompositionSettings DecompositionSettings;
+	};
 	
-	static void GenerateLeafConvexHulls(FGeometryCollection& Collection, bool bRestrictToSelection, const TArrayView<const int32> TransformSubset, double SimplificationDistanceThreshold, EGenerateConvexMethod GenerateMethod = EGenerateConvexMethod::ExternalCollision, FIntersectionFilters IntersectFilters = FIntersectionFilters());
+	static void GenerateLeafConvexHulls(FGeometryCollection& Collection, bool bRestrictToSelection, const TArrayView<const int32> TransformSubset, const FLeafConvexHullSettings& Settings);
 
 	/** Returns the convex hull of the vertices contained in the specified geometry. */
 	static TUniquePtr<Chaos::FConvex> FindConvexHull(const FGeometryCollection* GeometryCollection, int32 GeometryIndex);
@@ -182,7 +244,7 @@ public:
 	// (TODO: Make auto-embed use this instead of the full hulls?)
 	// @param GlobalTransformArray		GeometryCollection's transforms to global space, as computed by GeometryCollectionAlgo::GlobalMatrices
 	static UE::GeometryCollectionConvexUtility::FConvexHulls ComputeLeafHulls(FGeometryCollection* GeometryCollection, const TArray<FTransform>& GlobalTransformArray, double SimplificationDistanceThreshold = 0.0, double OverlapRemovalShrinkPercent = 0.0,
-		TFunction<bool(int32)> SkipBoneFn = nullptr);
+		TFunction<bool(int32)> SkipBoneFn = nullptr, const FConvexDecompositionSettings* OptionalDecompositionSettings = nullptr);
 
 	struct FTransformedConvex
 	{

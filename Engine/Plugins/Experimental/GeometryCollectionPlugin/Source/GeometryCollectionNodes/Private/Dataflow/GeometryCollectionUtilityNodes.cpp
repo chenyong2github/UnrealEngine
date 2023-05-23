@@ -23,6 +23,7 @@ namespace Dataflow
 	{
 		static const FLinearColor CDefaultNodeBodyTintColor = FLinearColor(0.f, 0.f, 0.f, 0.5f);
 
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeDataflowConvexDecompositionSettingsNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCreateLeafConvexHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSimplifyConvexHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCreateNonOverlappingConvexHullsDataflowNode);
@@ -33,18 +34,46 @@ namespace Dataflow
 	}
 }
 
+FMakeDataflowConvexDecompositionSettingsNode::FMakeDataflowConvexDecompositionSettingsNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
+	: FDataflowNode(InParam, InGuid)
+{
+	RegisterInputConnection(&MinSizeToDecompose);
+	RegisterInputConnection(&MaxGeoToHullVolumeRatioToDecompose);
+	RegisterInputConnection(&ErrorTolerance);
+	RegisterInputConnection(&MaxHullsPerGeometry);
+	RegisterInputConnection(&MinThicknessTolerance);
+	RegisterInputConnection(&NumAdditionalSplits);
+	RegisterOutputConnection(&DecompositionSettings);
+}
+
+void FMakeDataflowConvexDecompositionSettingsNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&DecompositionSettings))
+	{
+		FDataflowConvexDecompositionSettings OutSettings;
+		OutSettings.MinSizeToDecompose = GetValue(Context, &MinSizeToDecompose);
+		OutSettings.MaxGeoToHullVolumeRatioToDecompose = GetValue(Context, &MaxGeoToHullVolumeRatioToDecompose);
+		OutSettings.ErrorTolerance = GetValue(Context, &ErrorTolerance);
+		OutSettings.MaxHullsPerGeometry = GetValue(Context, &MaxHullsPerGeometry);
+		OutSettings.MinThicknessTolerance = GetValue(Context, &MinThicknessTolerance);
+		OutSettings.NumAdditionalSplits = GetValue(Context, &NumAdditionalSplits);
+		SetValue(Context, OutSettings, &DecompositionSettings);
+	}
+}
+
 FCreateLeafConvexHullsDataflowNode::FCreateLeafConvexHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
 	: FDataflowNode(InParam, InGuid)
 {
 	RegisterInputConnection(&Collection);
 	RegisterInputConnection(&OptionalSelectionFilter);
 	RegisterInputConnection(&SimplificationDistanceThreshold);
+	RegisterInputConnection(&ConvexDecompositionSettings);
 	RegisterOutputConnection(&Collection);
 }
 
 void FCreateLeafConvexHullsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA(&Collection) && IsConnected(&Collection))
+	if (Out->IsA(&Collection))
 	{
 		const FManagedArrayCollection& InCollection = GetValue(Context, &Collection);
 		if (InCollection.NumElements(FGeometryCollection::TransformGroup) == 0)
@@ -65,10 +94,18 @@ void FCreateLeafConvexHullsDataflowNode::Evaluate(Dataflow::FContext& Context, c
 			}
 
 			float InSimplificationDistanceThreshold = GetValue(Context, &SimplificationDistanceThreshold);
-			FGeometryCollectionConvexUtility::FIntersectionFilters IntersectionFilters;
-			IntersectionFilters.OnlyIntersectIfComputedIsSmallerFactor = IntersectIfComputedIsSmallerByFactor;
-			IntersectionFilters.MinExternalVolumeToIntersect = MinExternalVolumeToIntersect;
-			FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(*GeomCollection, bRestrictToSelection, SelectedBones, InSimplificationDistanceThreshold, GenerateMethod, IntersectionFilters);
+
+			FGeometryCollectionConvexUtility::FLeafConvexHullSettings LeafSettings(InSimplificationDistanceThreshold, GenerateMethod);
+			LeafSettings.IntersectFilters.OnlyIntersectIfComputedIsSmallerFactor = IntersectIfComputedIsSmallerByFactor;
+			LeafSettings.IntersectFilters.MinExternalVolumeToIntersect = MinExternalVolumeToIntersect;
+			FDataflowConvexDecompositionSettings InDecompSettings = GetValue(Context, &ConvexDecompositionSettings);
+			LeafSettings.DecompositionSettings.MaxGeoToHullVolumeRatioToDecompose = InDecompSettings.MaxGeoToHullVolumeRatioToDecompose;
+			LeafSettings.DecompositionSettings.MinGeoVolumeToDecompose = InDecompSettings.MinSizeToDecompose * InDecompSettings.MinSizeToDecompose * InDecompSettings.MinSizeToDecompose;
+			LeafSettings.DecompositionSettings.ErrorTolerance = InDecompSettings.ErrorTolerance;
+			LeafSettings.DecompositionSettings.MaxHullsPerGeometry = InDecompSettings.MaxHullsPerGeometry;
+			LeafSettings.DecompositionSettings.MinThicknessTolerance = InDecompSettings.MinThicknessTolerance;
+			LeafSettings.DecompositionSettings.NumAdditionalSplits = InDecompSettings.NumAdditionalSplits;
+			FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(*GeomCollection, bRestrictToSelection, SelectedBones, LeafSettings);
 			SetValue(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
 		}
 	}
