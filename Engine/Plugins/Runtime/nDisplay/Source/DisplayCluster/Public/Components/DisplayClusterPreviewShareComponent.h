@@ -5,9 +5,14 @@
 #include "Components/ActorComponent.h"
 #include "Containers/Map.h"
 
+#if WITH_EDITOR
+	#include "UnrealEdMisc.h"
+#endif //WITH_EDITOR
+
 #include "DisplayClusterPreviewShareComponent.generated.h"
 
 
+class ADisplayClusterRootActor;
 class UMediaCapture;
 class UMediaOutput;
 class UMediaPlayer;
@@ -20,14 +25,31 @@ class UTexture;
 UENUM()
 enum class EDisplayClusterPreviewShareMode
 {
-	/** Sharing disabled */
+	/** Preview share disabled. */
 	None,
+
+	/** Pull from Source nDisplay Actor (if set) */
+	PullActor,
 
 	/** Sends the viewport textures for sharing */
 	Send,
 
 	/** Receives textures to replace the viewport textures with */
 	Receive,
+};
+
+/** Available Icvfx camera sync types */
+UENUM()
+enum class EDisplayClusterPreviewShareIcvfxSync
+{
+	/** Icvfx cameras will not be synced */
+	None,
+
+	/** Pull from Source nDisplay Actor */
+	PullActor,
+
+	/** Pushes to source display actor */
+	PushActor,
 };
 
 
@@ -62,9 +84,14 @@ public:
 #endif // WITH_EDITOR
 
 	//~ UObject interface begin
+
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
+
 	//~ UObject interface end
 
 	/** Sets the sharing mode */
@@ -80,12 +107,20 @@ public:
 #if WITH_EDITORONLY_DATA
 
 	/** Current sharing mode of this component */
-	UPROPERTY(Transient, EditAnywhere, Setter=SetMode, BlueprintSetter=SetMode, Category=Sharing)
+	UPROPERTY(EditAnywhere, Setter=SetMode, BlueprintSetter=SetMode, Category=Sharing)
 	EDisplayClusterPreviewShareMode Mode = EDisplayClusterPreviewShareMode::None;
 
 	/** Current unique name of this component, which should match between sender and receiver of viewport textures */
-	UPROPERTY(EditAnywhere, Setter = SetUniqueName, BlueprintSetter = SetUniqueName, Category = Sharing)
+	UPROPERTY(EditAnywhere, Setter = SetUniqueName, BlueprintSetter = SetUniqueName, Category = Sharing, meta = (EditCondition = "Mode == EDisplayClusterPreviewShareMode::Send || Mode == EDisplayClusterPreviewShareMode::Receive"))
 	FString UniqueName;
+
+	/** The source nDisplay actor to pull the preview from */
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "Source nDisplay Actor"), Category = Sharing, meta = (EditCondition = "Mode == EDisplayClusterPreviewShareMode::PullActor"))
+	TSoftObjectPtr<ADisplayClusterRootActor> SourceNDisplayActor;
+
+	/** Type of Icvfx camera sync to be performed between the Source nDisplay actor and the owner of this component */
+	UPROPERTY(EditAnywhere, Category = Sharing, meta = (EditCondition = "Mode == EDisplayClusterPreviewShareMode::PullActor"))
+	EDisplayClusterPreviewShareIcvfxSync IcvfxCamerasSyncType = EDisplayClusterPreviewShareIcvfxSync::PullActor;
 
 #endif // WITH_EDITORONLY_DATA
 
@@ -114,11 +149,23 @@ private:
 	/** Logic that should run every tick when in Receive mode */
 	void TickReceive();
 
+	/** Logic that should run every tick when in Pull Actor mode */
+	void TickPullActor();
+
+	/** Retrieves preview textures from given source nDisplay actor and uses them to drive the preview textures of the owning actor */
+	void PullPreviewFromSourceActor(const ADisplayClusterRootActor* SourceRootActor);
+
+	/** Syncs the Icvfx cameras from the given source nDisplay actor to the given destination nDisplay actor */
+	void SyncIcvxCamerasFromSourceActor(const ADisplayClusterRootActor* SrcRootActor, const ADisplayClusterRootActor* DstRootActor);
+
 	/** Restores settings in the nDisplay actor that were altered by this component to achieve its intended purpose */
 	void RestoreRootActorOriginalSettings();
 
 	/** Enables/Disables component ticking */
 	void SetTickEnable(const bool bEnable);
+
+	/** Called when the editor map is changed. Used to remove unwanted references to external maps. */
+	void HandleMapChanged(UWorld* InWorld, EMapChangeType InMapChangeType);
 
 #endif // WITH_EDITOR
 
