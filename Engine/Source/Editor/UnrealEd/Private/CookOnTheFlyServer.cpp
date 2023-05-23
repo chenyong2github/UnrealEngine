@@ -9373,8 +9373,8 @@ void UCookOnTheFlyServer::ShutdownCookSession()
 		UnregisterCookByTheBookDelegates();
 
 		PrintFinishStats();
-
 		OutputHierarchyTimers();
+		PrintDetailedCookStats();
 	}
 	CookByTheBookOptions->ClearSessionData();
 	PlatformManager->ClearSessionPlatforms(*this);
