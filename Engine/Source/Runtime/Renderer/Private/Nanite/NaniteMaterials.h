@@ -562,6 +562,6 @@ void BuildShadingCommands(
 	TArray<TPimplPtr<FNaniteShadingCommand>>& ShadingCommands
 );
 
-EGBufferLayout GetGBufferLayoutForMaterial(const FMaterial& Material);
+EGBufferLayout GetGBufferLayoutForMaterial(bool bMaterialUsesWorldPositionOffset);
 
 } // namespace Nanite

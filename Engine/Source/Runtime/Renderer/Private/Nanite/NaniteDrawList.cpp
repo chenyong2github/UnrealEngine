@@ -399,7 +399,7 @@ bool FNaniteMeshProcessor::TryAddMeshBatch(
 	const bool bRenderSkylight = Scene && Scene->ShouldRenderSkylightInBasePass(bIsTranslucent) && ShadingModels != MSM_Unlit;
 	ELightMapPolicyType LightMapPolicyType = FBasePassMeshProcessor::GetUniformLightMapPolicyType(FeatureLevel, Scene, MeshBatch, PrimitiveSceneProxy, Material);
 
-	const EGBufferLayout GBufferLayout = Nanite::GetGBufferLayoutForMaterial(Material);
+	const EGBufferLayout GBufferLayout = Nanite::GetGBufferLayoutForMaterial(Material.MaterialUsesWorldPositionOffset_RenderThread());
 
 	TShaderMapRef<FNaniteIndirectMaterialVS> NaniteVertexShader(GetGlobalShaderMap(FeatureLevel));
 	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>> BasePassPixelShader;
@@ -501,7 +501,7 @@ void FNaniteMeshProcessor::CollectPSOInitializersForSkyLight(
 		TShaderMapRef<FNaniteIndirectMaterialVS> NaniteVertexShader(GetGlobalShaderMap(FeatureLevel));
 		TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>> BasePassPixelShader;
 
-		const EGBufferLayout GBufferLayout = Nanite::GetGBufferLayoutForMaterial(Material);
+		const EGBufferLayout GBufferLayout = Nanite::GetGBufferLayoutForMaterial(Material.MaterialUsesWorldPositionOffset_GameThread());
 
 		bool b128BitRequirement = false;
 		bool bShadersValid = GetBasePassShaders<FUniformLightMapPolicy>(

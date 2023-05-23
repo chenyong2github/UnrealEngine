@@ -3453,7 +3453,10 @@ FBinningData FRenderer::AddPass_Rasterize(
 	int32 PassWorkload = FMath::Max(ActiveRasterBinCount, 1);
 	ERDGPassFlags ParallelTranslateFlag = ERDGPassFlags::None;
 
-	const bool bAllowPrecacheSkip = GSkipDrawOnPSOPrecaching != 0;
+	// Disabled for now because this will call PipelineStateCache::IsPrecaching which requires the PSO to have
+	// the minimal state hash computed. Computing this for each PSO each frame is not cheap and ideally the minimal
+	// PSO state can be cached like regular MDCs before activating this (UE-171561)
+	const bool bAllowPrecacheSkip = false;// GSkipDrawOnPSOPrecaching != 0;
 
 	if (!bPatches)
 	{

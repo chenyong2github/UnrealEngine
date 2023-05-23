@@ -728,7 +728,7 @@ void BuildShadingCommands(
 		const bool bRenderSkylight = Scene.ShouldRenderSkylightInBasePass(IsTranslucentBlendMode(ShadingMaterial.GetBlendMode())) && ShadingModels != MSM_Unlit;
 		FUniformLightMapPolicy LightMapPolicy = FUniformLightMapPolicy(LMP_NO_LIGHTMAP);
 
-		const EGBufferLayout GBufferLayout = Nanite::GetGBufferLayoutForMaterial(ShadingMaterial);
+		const EGBufferLayout GBufferLayout = Nanite::GetGBufferLayoutForMaterial(ShadingMaterial.MaterialUsesWorldPositionOffset_RenderThread());
 
 		TShaderRef<TBasePassComputeShaderPolicyParamType<FUniformLightMapPolicy>> BasePassComputeShader;
 		bool bShadersValid = GetBasePassShader<FUniformLightMapPolicy>(
@@ -2483,11 +2483,11 @@ void DrawLumenMeshCapturePass(
 	}
 }
 
-EGBufferLayout GetGBufferLayoutForMaterial(const FMaterial& Material)
+EGBufferLayout GetGBufferLayoutForMaterial(bool bMaterialUsesWorldPositionOffset)
 {
 	// If WPO is enabled and BasePass velocity is disabled, force velocity output in the base pass
 	// (We split the shading pass into two passes for this reason - see Nanite::DrawBasePass above)
-	if (!IsUsingBasePassVelocity(GMaxRHIShaderPlatform) && Material.MaterialUsesWorldPositionOffset_RenderThread())
+	if (!IsUsingBasePassVelocity(GMaxRHIShaderPlatform) && bMaterialUsesWorldPositionOffset)
 	{
 		return GBL_ForceVelocity;
 	}
