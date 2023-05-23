@@ -406,7 +406,7 @@ namespace Nanite
 				check(Data.StagingAuxiliaryDataOffset == INDEX_NONE);
 				Data.StagingAuxiliaryDataOffset = NumAuxiliaryDataEntries;
 
-				NumMeshDataEntries += (3 + 2 * Data.NumSegments); // one entry per mesh
+				NumMeshDataEntries += (sizeof(FStreamOutMeshDataHeader) + sizeof(FStreamOutMeshDataSegment) * Data.NumSegments);
 				NumAuxiliaryDataEntries = NewNumAuxiliaryDataEntries;
 				NumSegmentMappingEntries += Data.SegmentMapping.Num();
 			}
@@ -642,15 +642,19 @@ namespace Nanite
 			{
 				ReadbackBuffersNumPending--;
 
-				const uint32* MeshDataReadbackBufferPtr = (const uint32*)ReadbackData.MeshDataReadbackBuffer->Lock(ReadbackData.NumMeshDataEntries * sizeof(uint32));
+				auto MeshDataReadbackBufferPtr = (const uint32*)ReadbackData.MeshDataReadbackBuffer->Lock(ReadbackData.NumMeshDataEntries * sizeof(uint32));
 
 				for (int32 GeometryIndex = 0; GeometryIndex < ReadbackData.Entries.Num(); ++GeometryIndex)
 				{
 					uint32 GeometryId = ReadbackData.Entries[GeometryIndex];
 					FInternalData& Data = *Geometries[GeometryId];
 
-					const uint32 VertexBufferOffset = MeshDataReadbackBufferPtr[Data.BaseMeshDataOffset + 0];
-					const uint32 IndexBufferOffset = MeshDataReadbackBufferPtr[Data.BaseMeshDataOffset + 1];
+					auto Header = (const FStreamOutMeshDataHeader*)(MeshDataReadbackBufferPtr + Data.BaseMeshDataOffset);
+					auto Segments = (const FStreamOutMeshDataSegment*)(Header + 1);
+
+					const uint32 VertexBufferOffset = Header->VertexBufferOffset;
+					const uint32 IndexBufferOffset = Header->IndexBufferOffset;
+					const uint32 NumVertices = Header->NumVertices;
 
 					if (VertexBufferOffset == 0xFFFFFFFFu || IndexBufferOffset == 0xFFFFFFFFu)
 					{
@@ -669,8 +673,6 @@ namespace Nanite
 						continue;
 					}
 
-					const uint32 NumVertices = MeshDataReadbackBufferPtr[Data.BaseMeshDataOffset + 2];
-
 					FRayTracingGeometryInitializer Initializer;
 					Initializer.DebugName = Data.DebugName;
 // 					Initializer.bFastBuild = false;
@@ -686,8 +688,8 @@ namespace Nanite
 
 					for (uint32 SegmentIndex = 0; SegmentIndex < Data.NumSegments; ++SegmentIndex)
 					{
-						const uint32 NumIndices = MeshDataReadbackBufferPtr[Data.BaseMeshDataOffset + 3 + (SegmentIndex * 2)];
-						const uint32 FirstIndex = MeshDataReadbackBufferPtr[Data.BaseMeshDataOffset + 4 + (SegmentIndex * 2)];
+						const uint32 NumIndices = Segments[SegmentIndex].NumIndices;
+						const uint32 FirstIndex = Segments[SegmentIndex].FirstIndex;
 
 						FRayTracingGeometrySegment& Segment = Initializer.Segments[SegmentIndex];
 						Segment.FirstPrimitive = FirstIndex / 3;

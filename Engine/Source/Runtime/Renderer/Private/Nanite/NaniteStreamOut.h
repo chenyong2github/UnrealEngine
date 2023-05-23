@@ -23,6 +23,19 @@ namespace Nanite
 		uint32 MeshDataOffset;
 	};
 
+	struct FStreamOutMeshDataHeader
+	{
+		uint32 VertexBufferOffset;
+		uint32 IndexBufferOffset;
+		uint32 NumVertices;
+	};
+
+	struct FStreamOutMeshDataSegment
+	{
+		uint32 NumIndices;
+		uint32 FirstIndex;
+	};
+
 	/*
 	* Stream out nanite mesh data into buffers in a uncompressed format
 	* 
