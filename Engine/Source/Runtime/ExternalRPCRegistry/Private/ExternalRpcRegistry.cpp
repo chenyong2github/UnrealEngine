@@ -66,6 +66,11 @@ bool UExternalRpcRegistry::IsActiveRpcCategory(FString InCategory)
 	return false;
 }
 
+UExternalRpcRegistry::~UExternalRpcRegistry()
+{
+	CleanUpAllRoutes();
+}
+
 UExternalRpcRegistry* UExternalRpcRegistry::GetInstance()
 {
 #if WITH_RPC_REGISTRY
@@ -176,6 +181,18 @@ void UExternalRpcRegistry::RegisterNewRoute(FExternalRouteInfo InRouteInfo, cons
 	RouteDesc.InputContentType = InRouteInfo.InputContentType;
 	RouteDesc.ExpectedArguments = InRouteInfo.ExpectedArguments;
 	RegisteredRoutes.Add(InRouteInfo.RouteName, RouteDesc);
+#endif
+}
+
+void UExternalRpcRegistry::CleanUpAllRoutes()
+{
+#if WITH_RPC_REGISTRY
+	TArray<FName> OutRouteKeys;
+	RegisteredRoutes.GetKeys(OutRouteKeys);
+	for (const FName& RouteKey : OutRouteKeys)
+	{
+		CleanUpRoute(RouteKey);
+	}
 #endif
 }
 

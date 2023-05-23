@@ -116,6 +116,8 @@ protected:
 public:
 	static UExternalRpcRegistry * GetInstance();
 
+	~UExternalRpcRegistry();
+
 	int PortToUse = 11223;
 
 	/**
@@ -143,6 +145,10 @@ public:
 	UE_DEPRECATED(5.0, "RegisterNewRoute is deprecated when needing to add arguments, please use RegisterNewRouteWithArguments instead.")
 	void RegisterNewRoute(FName RouteName, const FHttpPath& HttpPath, const EHttpServerRequestVerbs& RequestVerbs, const FHttpRequestHandler& Handler, bool bOverrideIfBound = false, bool bIsAlwaysOn = false, FString OptionalCategory = TEXT("Unknown"), FString OptionalContentType = TEXT(""), FString OptionalExpectedFormat = TEXT(""));
 
+	/**
+	 * Clean up all routes - generally called as part of the destructor to make sure we don't have any function pointers dangling around.
+	 */
+	void CleanUpAllRoutes();
 
 	/**
 	 * Clean up a route.
