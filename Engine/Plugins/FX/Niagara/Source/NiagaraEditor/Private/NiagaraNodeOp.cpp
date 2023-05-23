@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNodeOp.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "GraphEditorSettings.h"
 
 #include "EdGraphSchema_Niagara.h"

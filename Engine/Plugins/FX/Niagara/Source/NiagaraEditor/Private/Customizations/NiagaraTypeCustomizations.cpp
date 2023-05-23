@@ -162,11 +162,11 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(con
 			if (Var.GetType().IsStatic() && !bAllowStatic)
 				continue;
 
-			if (FNiagaraParameterMapHistory::IsAttribute(Var) && bParticles)
+			if (FNiagaraParameterUtilities::IsAttribute(Var) && bParticles)
 			{
 				Bindings.AddUnique(Var);
 			}
-			else if (FNiagaraParameterMapHistory::IsSystemParameter(Var) && bSystem)
+			else if (FNiagaraParameterUtilities::IsSystemParameter(Var) && bSystem)
 			{
 				Bindings.AddUnique(Var);
 			}
@@ -175,7 +175,7 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(con
 				Bindings.AddUnique(FNiagaraUtilities::ResolveAliases(Var, FNiagaraAliasContext()
 					.ChangeEmitterNameToEmitter(Emitter->GetUniqueEmitterName())));
 			}
-			else if (FNiagaraParameterMapHistory::IsAliasedEmitterParameter(Var) && bEmitter)
+			else if (FNiagaraParameterUtilities::IsAliasedEmitterParameter(Var) && bEmitter)
 			{
 				Bindings.AddUnique(Var);
 			}
@@ -183,7 +183,7 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(con
 			{
 				Bindings.AddUnique(Var);
 			}
-			else if (FNiagaraParameterMapHistory::IsUserParameter(Var) && bUser)
+			else if (FNiagaraParameterUtilities::IsUserParameter(Var) && bUser)
 			{
 				Bindings.AddUnique(Var);
 			}
@@ -647,7 +647,7 @@ TArray<FName> FNiagaraUserParameterBindingCustomization::GetNames() const
 		UNiagaraSystem* BaseSystem = BaseSystemWeakPtr.Get();
 		for (const FNiagaraVariable Var : BaseSystem->GetExposedParameters().ReadParameterVariables())
 		{
-			if (FNiagaraParameterMapHistory::IsUserParameter(Var) && Var.GetType() == TargetUserParameterBinding->Parameter.GetType())
+			if (FNiagaraParameterUtilities::IsUserParameter(Var) && Var.GetType() == TargetUserParameterBinding->Parameter.GetType())
 			{
 				Names.AddUnique(Var.GetName());
 			}
@@ -1760,7 +1760,7 @@ TArray<TSharedPtr<FEdGraphSchemaAction>> FNiagaraScriptVariableBindingCustomizat
 	{
 		for (const FNiagaraVariable& Var : History.Variables)
 		{
-			FString Namespace = FNiagaraParameterMapHistory::GetNamespace(Var);
+			FString Namespace = FNiagaraParameterUtilities::GetNamespace(Var);
 			if (Namespace == TEXT("Module."))
 			{
 				// TODO: Skip module inputs for now. Does it make sense to bind module inputs to module inputs?
@@ -1775,7 +1775,7 @@ TArray<TSharedPtr<FEdGraphSchemaAction>> FNiagaraScriptVariableBindingCustomizat
 
 	for (const auto& Var : Graph->GetParameterReferenceMap())
 	{
-		FString Namespace = FNiagaraParameterMapHistory::GetNamespace(Var.Key);
+		FString Namespace = FNiagaraParameterUtilities::GetNamespace(Var.Key);
 		if (Namespace == TEXT("Module."))
 		{
 			// TODO: Skip module inputs for now. Does it make sense to bind module inputs to module inputs?

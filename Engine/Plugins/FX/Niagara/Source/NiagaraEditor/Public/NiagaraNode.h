@@ -260,6 +260,9 @@ protected:
 		}
 	}
 
+	virtual void GetCompilationInputPins(FPinCollectorArray& InputPins) const;
+	virtual void GetCompilationOutputPins(FPinCollectorArray& OutputPins) const;
+
 	/** The current change identifier for this node. Used to sync status with UNiagaraScripts.*/
 	UPROPERTY()
 	FGuid ChangeId;

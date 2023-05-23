@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/HierarchyEditor/NiagaraSummaryViewViewModel.h"
+#include "GraphEditAction.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEmitterEditorData.h"

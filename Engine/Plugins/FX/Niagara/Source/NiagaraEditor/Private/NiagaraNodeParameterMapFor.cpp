@@ -3,7 +3,7 @@
 #include "NiagaraNodeParameterMapFor.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "EdGraph/EdGraphNode.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeParameterMapFor)

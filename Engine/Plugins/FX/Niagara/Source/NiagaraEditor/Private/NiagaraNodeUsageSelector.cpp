@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeUsageSelector.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "NiagaraScriptSource.h"
 #include "Widgets/Layout/SSeparator.h"
 
@@ -298,9 +298,9 @@ void UNiagaraNodeUsageSelector::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> In
 void UNiagaraNodeUsageSelector::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	FPinCollectorArray InputPins;
-	FTranslator::FBridge::GetCompilationInputPins(this, InputPins);
+	GetCompilationInputPins(InputPins);
 	FPinCollectorArray OutputPins;
-	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
+	GetCompilationOutputPins(OutputPins);
 
 	ENiagaraScriptUsage CurrentUsage = Translator->GetCurrentUsage();
 	ENiagaraScriptGroup UsageGroup = ENiagaraScriptGroup::Max;

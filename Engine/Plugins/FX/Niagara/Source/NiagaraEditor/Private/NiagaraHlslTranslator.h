@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 
-#include "INiagaraCompiler.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "INiagaraCompiler.h"
 #include "NiagaraCommon.h"
+#include "NiagaraCompilationBridge.h"
+#include "NiagaraParameterMapHistory.h"
 #include "NiagaraScript.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraShared.h"
@@ -14,7 +16,17 @@
 
 #include "NiagaraHlslTranslator.generated.h"
 
+class FNiagaraCompileOptions;
+class FNiagaraCompileRequestData;
+class FNiagaraCompileRequestDuplicateData;
+struct FNiagaraGraphHelper;
 struct FNiagaraTranslatorOutput;
+class UNiagaraNode;
+class UNiagaraNodeFunctionCall;
+class UNiagaraNodeOutput;
+class UNiagaraNodeParameterMapGet;
+class UNiagaraNodeParameterMapSet;
+class UNiagaraScriptSource;
 
 UENUM()
 enum class ENiagaraDataSetAccessMode : uint8
@@ -562,7 +574,6 @@ class TNiagaraHlslTranslator : public FNiagaraHlslTranslator, private GraphBridg
 {
 	using typename GraphBridge::FGraph;
 	using typename GraphBridge::FPin;
-	using typename GraphBridge::FScopedPin;
 	using typename GraphBridge::FNode;
 	using typename GraphBridge::FParamMapHistory;
 	using typename GraphBridge::FParamMapHistoryBuilder;
@@ -584,9 +595,9 @@ class TNiagaraHlslTranslator : public FNiagaraHlslTranslator, private GraphBridg
 	using typename GraphBridge::FInputPin;
 	using typename GraphBridge::FOutputPin;
 	using typename GraphBridge::FModuleScopedPin;
-	using typename GraphBridge::FGraphTraversalHandle;
 	using typename GraphBridge::FGraphFunctionAliasContext;
 	using typename GraphBridge::FConvertConnection;
+	using typename GraphBridge::FParameterCollection;
 
 public:
 	using FBridge = GraphBridge;
@@ -711,7 +722,7 @@ protected:
 
 	void ValidateFailIfPreviouslyNotSet(const FNiagaraVariable& InVar, bool& bFailIfNotSet);
 
-	void UpdateStaticSwitchConstants(FNode* Node);
+	void UpdateStaticSwitchConstants(const FPin* Pin);
 
 	virtual const FString& GetEmitterUniqueName() const override;
 	virtual TConstArrayView<FNiagaraVariable> GetStaticVariables() const override;

@@ -4,6 +4,7 @@
 
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
+#include "NiagaraParameterMapHistoryFwd.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "AssetRegistry/AssetData.h"
@@ -28,7 +29,6 @@ class UNiagaraStackEditorData;
 class UNiagaraStackErrorItem;
 class FCompileConstantResolver;
 class INiagaraMessage;
-class FNiagaraParameterMapHistoryBuilder;
 class UNiagaraHierarchyModuleInput;
 class UNiagaraSimulationStageBase;
 struct FNiagaraEventScriptProperties;
@@ -93,7 +93,7 @@ namespace FNiagaraStackGraphUtilities
 	FString GenerateStackModuleEditorDataKey(UNiagaraNodeFunctionCall& ModuleNode);
 
 	TArray<FName> StackContextResolution(FVersionedNiagaraEmitter OwningEmitter, UNiagaraNodeOutput* OutputNodeInChain);
-	void BuildParameterMapHistoryWithStackContextResolution(FVersionedNiagaraEmitter OwningEmitter, UNiagaraNodeOutput* OutputNodeInChain, UNiagaraNode* NodeToVisit, FNiagaraParameterMapHistoryBuilder& Builder, bool bRecursive = true, bool bFilterForCompilation = true);
+	void BuildParameterMapHistoryWithStackContextResolution(FVersionedNiagaraEmitter OwningEmitter, UNiagaraNodeOutput* OutputNodeInChain, UNiagaraNode* NodeToVisit, TArray<FNiagaraParameterMapHistory>& OutHistories, bool bRecursive = true, bool bFilterForCompilation = true);
 
 	struct FInputDataCollection
 	{

@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeOutput.h"
 #include "UObject/UnrealType.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
 #include "NiagaraGraph.h"
@@ -307,7 +307,7 @@ void UNiagaraNodeOutput::BuildParameterMapHistory(FNiagaraParameterMapHistoryBui
 			FNiagaraTypeDefinition InputType = Schema->PinToTypeDefinition(Pin);
 			if (InputType.IsStatic())
 			{
-				OutHistory.RegisterConstantFromInputPin(Pin);
+				OutHistory.RegisterConstantFromInputPin(Pin, Pin->DefaultValue);
 			}
 			else if (InputType == FNiagaraTypeDefinition::GetParameterMapDef())
 			{

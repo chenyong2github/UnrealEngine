@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeInput.h"
 #include "UObject/UnrealType.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "NiagaraGraph.h"
 
 #include "NiagaraNodeOutput.h"

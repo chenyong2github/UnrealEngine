@@ -1499,7 +1499,7 @@ TArray<FNiagaraGraphParameterReference> FNiagaraSystemViewModel::GetGraphParamet
 				: FCompileConstantResolver();
 
 			Builder.SetIgnoreDisabled(bIgnoreDisabled);
-			Builder.ConstantResolver = ConstantResolver;
+			*Builder.ConstantResolver = ConstantResolver;
 			FName StageName;
 			ENiagaraScriptUsage StageUsage = OutputNode->GetUsage();
 			if (StageUsage == ENiagaraScriptUsage::ParticleSimulationStageScript && GraphOwningEmitter.Emitter)
@@ -1537,7 +1537,7 @@ TArray<FNiagaraGraphParameterReference> FNiagaraSystemViewModel::GetGraphParamet
 						}
 					}
 
-					for (const FModuleScopedPin& Write : Builder.Histories[0].PerVariableWriteHistory[VariableIndex])
+					for (const FNiagaraParameterMapHistory::FModuleScopedPin& Write : Builder.Histories[0].PerVariableWriteHistory[VariableIndex])
 					{
 						if (Write.Pin->GetOwningNode() != nullptr)
 						{

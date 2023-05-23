@@ -140,6 +140,41 @@ struct FNiagaraGraphFunctionAliasContext
 	TArray<const UEdGraphPin*> StaticSwitchValues;
 };
 
+/** Options for the FindInputNodes function */
+struct FNiagaraFindInputNodeOptions
+{
+	FNiagaraFindInputNodeOptions()
+		: bSort(false)
+		, bIncludeParameters(true)
+		, bIncludeAttributes(true)
+		, bIncludeSystemConstants(true)
+		, bIncludeTranslatorConstants(false)
+		, bFilterDuplicates(false)
+		, bFilterByScriptUsage(false)
+		, TargetScriptUsage(ENiagaraScriptUsage::Function)
+	{
+	}
+
+	/** Whether or not to sort the nodes, defaults to false. */
+	bool bSort;
+	/** Whether or not to include parameters, defaults to true. */
+	bool bIncludeParameters;
+	/** Whether or not to include attributes, defaults to true. */
+	bool bIncludeAttributes;
+	/** Whether or not to include system parameters, defaults to true. */
+	bool bIncludeSystemConstants;
+	/** Whether or not to include translator parameters, defaults to false. */
+	bool bIncludeTranslatorConstants;
+	/** Whether of not to filter out duplicate nodes, defaults to false. */
+	bool bFilterDuplicates;
+	/** Whether or not to limit to nodes connected to an output node of the specified script type.*/
+	bool bFilterByScriptUsage;
+	/** The specified script usage required for an input.*/
+	ENiagaraScriptUsage TargetScriptUsage;
+	/** The specified id within the graph of the script usage*/
+	FGuid TargetScriptUsageId;
+};
+
 UCLASS(MinimalAPI)
 class UNiagaraGraph : public UEdGraph
 {
@@ -180,40 +215,7 @@ class UNiagaraGraph : public UEdGraph
 	void FindOutputNodes(ENiagaraScriptUsage TargetUsageType, TArray<UNiagaraNodeOutput*>& OutputNodes) const;
 	void FindEquivalentOutputNodes(ENiagaraScriptUsage TargetUsageType, TArray<UNiagaraNodeOutput*>& OutputNodes) const;
 
-	/** Options for the FindInputNodes function */
-	struct FFindInputNodeOptions
-	{
-		FFindInputNodeOptions()
-			: bSort(false)
-			, bIncludeParameters(true)
-			, bIncludeAttributes(true)
-			, bIncludeSystemConstants(true)
-			, bIncludeTranslatorConstants(false)
-			, bFilterDuplicates(false)
-			, bFilterByScriptUsage(false)
-			, TargetScriptUsage(ENiagaraScriptUsage::Function)
-		{
-		}
-
-		/** Whether or not to sort the nodes, defaults to false. */
-		bool bSort;
-		/** Whether or not to include parameters, defaults to true. */
-		bool bIncludeParameters;
-		/** Whether or not to include attributes, defaults to true. */
-		bool bIncludeAttributes;
-		/** Whether or not to include system parameters, defaults to true. */
-		bool bIncludeSystemConstants;
-		/** Whether or not to include translator parameters, defaults to false. */
-		bool bIncludeTranslatorConstants;
-		/** Whether of not to filter out duplicate nodes, defaults to false. */
-		bool bFilterDuplicates;
-		/** Whether or not to limit to nodes connected to an output node of the specified script type.*/
-		bool bFilterByScriptUsage;
-		/** The specified script usage required for an input.*/
-		ENiagaraScriptUsage TargetScriptUsage;
-		/** The specified id within the graph of the script usage*/
-		FGuid TargetScriptUsageId;
-	};
+	using FFindInputNodeOptions = FNiagaraFindInputNodeOptions;
 
 	/** Finds input nodes in the graph with. */
 	void FindInputNodes(TArray<class UNiagaraNodeInput*>& OutInputNodes, FFindInputNodeOptions Options = FFindInputNodeOptions()) const;

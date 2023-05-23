@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeWriteDataSet.h"
 #include "UObject/UnrealType.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "NiagaraEvents.h"
 #include "Widgets/SNiagaraGraphNodeWriteDataSet.h"
 #include "EdGraphSchema_Niagara.h"

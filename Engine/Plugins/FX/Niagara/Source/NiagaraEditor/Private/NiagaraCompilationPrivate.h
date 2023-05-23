@@ -11,18 +11,12 @@
 #include "NiagaraTypes.h"
 #include "Templates/SharedPointer.h"
 
-class FNiagaraFixedConstantResolver;
+class FCompileConstantResolver;
 class FNiagaraCompileRequestData;
 class FNiagaraCompileRequestDuplicateData;
+class UNiagaraGraph;
 struct FNiagaraGraphCachedBuiltHistory;
 class UNiagaraScriptSourceBase;
-class UNiagaraGraph;
-class FNiagaraCompilationGraph;
-class FCompileConstantResolver;
-class FNiagaraParameterMapHistoryBuilder;
-class FNiagaraCompilationNodeEmitter;
-enum class ENiagaraFunctionDebugState : uint8;
-template<typename GraphBridge> class TNiagaraHlslTranslator;
 
 struct FNiagaraSimulationStageInfo
 {

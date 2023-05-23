@@ -3,7 +3,7 @@
 #include "NiagaraNode.h"
 #include "NiagaraGraph.h"
 #include "EdGraphSchema_Niagara.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "GraphEditAction.h"
 #include "Widgets/SNiagaraGraphNode.h"
 #include "Misc/SecureHash.h"
@@ -947,7 +947,7 @@ void UNiagaraNode::RegisterPassthroughPin(FNiagaraParameterMapHistoryBuilder& Ou
 {
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 	if (bVisitInputPin)
-		OutHistory.VisitInputPin(InputPin, this, bFilterForCompilation);
+		OutHistory.VisitInputPin(InputPin, bFilterForCompilation);
 
 	FNiagaraTypeDefinition InDef = Schema->PinToTypeDefinition(InputPin);
 	FNiagaraTypeDefinition OutDef = Schema->PinToTypeDefinition(OutputPin);
@@ -1018,5 +1018,27 @@ void UNiagaraNode::GatherForLocalization(FPropertyLocalizationDataGatherer& Prop
 	Super::GatherForLocalization(PropertyLocalizationDataGatherer, GatherTextFlags | EPropertyLocalizationGathererTextFlags::ForceEditorOnly);
 }
 #endif
+
+void UNiagaraNode::GetCompilationInputPins(FPinCollectorArray& InputPins) const
+{
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->Direction == EGPD_Input && !Pin->bOrphanedPin)
+		{
+			InputPins.Add(Pin);
+		}
+	}
+}
+
+void UNiagaraNode::GetCompilationOutputPins(FPinCollectorArray& OutputPins) const
+{
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->Direction == EGPD_Output && !Pin->bOrphanedPin)
+		{
+			OutputPins.Add(Pin);
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

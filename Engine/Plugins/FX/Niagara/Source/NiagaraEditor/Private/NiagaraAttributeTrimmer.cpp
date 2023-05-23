@@ -5,7 +5,7 @@
 #include "Algo/ForEach.h"
 #include "Algo/RemoveIf.h"
 #include "EdGraphSchema_Niagara.h"
-#include "NiagaraCompilationGraphBridge.h"
+#include "NiagaraCompilationBridge.h"
 #include "NiagaraConstants.h"
 #include "NiagaraModule.h"
 #include "NiagaraNodeCustomHlsl.h"
@@ -22,23 +22,23 @@ class FNiagaraAttributeTrimmerHelper<GraphBridge>::FFunctionInputResolver
 public:
 	FFunctionInputResolver(const FGraph* Graph, ENiagaraScriptUsage Usage)
 	{
-		TMap<FName, FScopedPin> UnresolvedInputs;
+		TMap<FName, FModuleScopedPin> UnresolvedInputs;
 
 		Traverse(TEXT(""), Graph, Usage, UnresolvedInputs);
 	}
 
-	FScopedPin ResolveInput(const FScopedPin& Input) const
+	FModuleScopedPin ResolveInput(const FModuleScopedPin& Input) const
 	{
-		if (const FScopedPin* FunctionInput = FunctionInputMap.Find(Input))
+		if (const FModuleScopedPin* FunctionInput = FunctionInputMap.Find(Input))
 		{
 			return *FunctionInput;
 		}
 
-		return FScopedPin();
+		return FModuleScopedPin();
 	}
 
 private:
-	void Traverse(FString Namespace, const FGraph* Graph, ENiagaraScriptUsage Usage, TMap<FName, FScopedPin>& UnresolvedInputs)
+	void Traverse(FString Namespace, const FGraph* Graph, ENiagaraScriptUsage Usage, TMap<FName, FModuleScopedPin>& UnresolvedInputs)
 	{
 		const FString NamespacePrefix = (Namespace.Len() > 0) ? (Namespace + TEXT(".")) : TEXT("");
 
@@ -52,25 +52,25 @@ private:
 
 			for (const FNode* Node : TraversedNodes)
 			{
-				if (const FFunctionCallNode* FunctionNode = GraphBridge::template AsNodeType<FFunctionCallNode>(Node))
+				if (const FFunctionCallNode* FunctionNode = GraphBridge::AsFunctionCallNode(Node))
 				{
 					if (const FGraph* FunctionGraph = GraphBridge::GetFunctionNodeGraph(FunctionNode))
 					{
-						TMap<FName, FScopedPin> FunctionInputs;
+						TMap<FName, FModuleScopedPin> FunctionInputs;
 						Traverse(NamespacePrefix + GraphBridge::GetFunctionName(FunctionNode), FunctionGraph, GraphBridge::GetFunctionUsage(FunctionNode), FunctionInputs);
 
 						// resolve any of the UnresolvedInputs that we've accumulated
 						for (const FInputPin* NodePin : GraphBridge::GetInputPins(FunctionNode))
 						{
-							if (FScopedPin* InnerPin = FunctionInputs.Find(NodePin->PinName))
+							if (FModuleScopedPin* InnerPin = FunctionInputs.Find(NodePin->PinName))
 							{
-								FunctionInputMap.Add(*InnerPin, FScopedPin(NodePin, *Namespace));
+								FunctionInputMap.Add(*InnerPin, FModuleScopedPin(NodePin, *Namespace));
 								FunctionInputs.Remove(NodePin->PinName);
 							}
 						}
 					}
 				}
-				if (const FInputNode* InputNode = GraphBridge::template AsNodeType<FInputNode>(Node))
+				if (const FInputNode* InputNode = GraphBridge::AsInputNode(Node))
 				{
 					int32 OutputPinCount = 0;
 					for (const FOutputPin* InputNodePin : GraphBridge::GetOutputPins(InputNode))
@@ -78,14 +78,14 @@ private:
 						check(OutputPinCount == 0);
 						++OutputPinCount;
 
-						UnresolvedInputs.Add(GraphBridge::GetInputVariable(InputNode).GetName(), FScopedPin(InputNodePin, *Namespace));
+						UnresolvedInputs.Add(GraphBridge::GetInputVariable(InputNode).GetName(), FModuleScopedPin(InputNodePin, *Namespace));
 					}
 				}
 			}
 		}
 	}
 
-	TMap<FScopedPin, FScopedPin> FunctionInputMap;
+	TMap<FModuleScopedPin, FModuleScopedPin> FunctionInputMap;
 };
 
 template<typename GraphBridge>
@@ -97,7 +97,7 @@ public:
 		Traverse(TEXT(""), Graph, Usage);
 	}
 
-	const TArray<FScopedPin>& ReadFunctionInputs() const
+	const TArray<FModuleScopedPin>& ReadFunctionInputs() const
 	{
 		return ImpureFunctionInputs;
 	}
@@ -117,7 +117,7 @@ private:
 
 			for (const FNode* Node : TraversedNodes)
 			{
-				if (const FFunctionCallNode* FunctionNode = GraphBridge::template AsNodeType<FFunctionCallNode>(Node))
+				if (const FFunctionCallNode* FunctionNode = GraphBridge::AsFunctionCallNode(Node))
 				{
 					if (const FGraph* FunctionGraph = GraphBridge::GetFunctionNodeGraph(FunctionNode))
 					{
@@ -148,7 +148,7 @@ private:
 		}
 	}
 
-	TArray<FScopedPin> ImpureFunctionInputs;
+	TArray<FModuleScopedPin> ImpureFunctionInputs;
 };
 
 template<typename GraphBridge>
@@ -166,7 +166,7 @@ public:
 	//		An expression is the set of nodes that define what is being set in a MapSet.  It does not traverse through
 	//		Exec pins as those nodes would be part of another expression
 	//	-generates the list of custom HLSL nodes that are encountered in the traversal
-	void FindDependencies(const FScopedPin& EndPin, FDependencyChain& Dependencies)
+	void FindDependencies(const FModuleScopedPin& EndPin, FDependencyChain& Dependencies)
 	{
 		FindDependenciesInternal(EndPin, Dependencies, nullptr);
 	}
@@ -177,14 +177,14 @@ private:
 	//		An expression is the set of nodes that define what is being set in a MapSet.  It does not traverse through
 	//		Exec pins as those nodes would be part of another expression
 	//	-generates the list of custom HLSL nodes that are encountered in the traversal
-	void FindDependenciesInternal(const FScopedPin& EndPin, FDependencyChain& Dependencies, TArray<const FInputNode*>* InputNodes)
+	void FindDependenciesInternal(const FModuleScopedPin& EndPin, FDependencyChain& Dependencies, TArray<const FInputNode*>* InputNodes)
 	{
 		TStringBuilder<1024> NamespaceBuilder;
 
-		TArray<FScopedPin> PinsToEvaluate;
+		TArray<FModuleScopedPin> PinsToEvaluate;
 		TSet<const FNode*> EvaluatedNodes;
 
-		FScopedPin CurrentPin = EndPin;
+		FModuleScopedPin CurrentPin = EndPin;
 		while (CurrentPin.Pin)
 		{
 			if (CurrentPin.Pin->Direction == EEdGraphPinDirection::EGPD_Output)
@@ -199,11 +199,11 @@ private:
 				bool AlreadyEvaluated = false;
 
 				// record any output pins to a parameter get node
-				if (const FParamMapGetNode* ParamGetNode = GraphBridge::template AsNodeType<FParamMapGetNode>(CurrentNode))
+				if (const FParamMapGetNode* ParamGetNode = GraphBridge::AsParamMapGetNode(CurrentNode))
 				{
-					Dependencies.Pins.Emplace(FScopedPin(TracedPin, CurrentPin.ModuleName));
+					Dependencies.Pins.Emplace(FModuleScopedPin(TracedPin, CurrentPin.ModuleName));
 				}
-				else if (const FFunctionCallNode* FunctionCallNode = GraphBridge::template AsNodeType<FFunctionCallNode>(CurrentNode))
+				else if (const FFunctionCallNode* FunctionCallNode = GraphBridge::AsFunctionCallNode(CurrentNode))
 				{
 					if (const FGraph* NodeGraph = GraphBridge::GetFunctionNodeGraph(FunctionCallNode))
 					{
@@ -227,7 +227,7 @@ private:
 								if (InnerOutputNodePin->PinName == TracedPin->PinName)
 								{
 									TArray<const FInputNode*> InnerInputNodes;
-									FindDependenciesInternal(FScopedPin(InnerOutputNodePin, AggregateModuleName), Dependencies, &InnerInputNodes);
+									FindDependenciesInternal(FModuleScopedPin(InnerOutputNodePin, AggregateModuleName), Dependencies, &InnerInputNodes);
 
 									// map the InputNodes we found to the input pins on the FunctionCallNode
 									for (const FInputNode* InnerInputNode : InnerInputNodes)
@@ -250,7 +250,7 @@ private:
 						AlreadyEvaluated = true;
 					}
 				}
-				else if (const FInputNode* InputNode = GraphBridge::template AsNodeType<FInputNode>(CurrentNode))
+				else if (const FInputNode* InputNode = GraphBridge::AsInputNode(CurrentNode))
 				{
 					if (InputNodes)
 					{
@@ -258,7 +258,7 @@ private:
 					}
 					else
 					{
-						const FScopedPin ResolvedPin = InputResolver.ResolveInput(FScopedPin(TracedPin, CurrentPin.ModuleName));
+						const FModuleScopedPin ResolvedPin = InputResolver.ResolveInput(FModuleScopedPin(TracedPin, CurrentPin.ModuleName));
 						if (ResolvedPin.Pin)
 						{
 							PinsToEvaluate.Add(ResolvedPin);
@@ -288,7 +288,7 @@ private:
 						PinsToEvaluate.Emplace(NodePin, CurrentPin.ModuleName);
 					}
 
-					if (const FCustomHlslNode* CustomHlslNode = GraphBridge::template AsNodeType<FCustomHlslNode>(CurrentNode))
+					if (const FCustomHlslNode* CustomHlslNode = GraphBridge::AsCustomHlslNode(CurrentNode))
 					{
 						if (!Dependencies.CustomNodes.Contains(CustomHlslNode))
 						{
@@ -372,11 +372,11 @@ private:
 // For a specific read of a variable finds the corresponding PreviousWritePin if one exists (only considers actual writes
 // rather than default pins on a MapGet)
 template<typename GraphBridge>
-typename FNiagaraAttributeTrimmerHelper<GraphBridge>::FScopedPin FNiagaraAttributeTrimmerHelper<GraphBridge>::FindWriteForRead(const FParamMapHistory& ParamMap, const FScopedPin& ReadPin, int32* OutVariableIndex)
+typename FNiagaraAttributeTrimmerHelper<GraphBridge>::FModuleScopedPin FNiagaraAttributeTrimmerHelper<GraphBridge>::FindWriteForRead(const FParamMapHistory& ParamMap, const FModuleScopedPin& ReadPin, int32* OutVariableIndex)
 {
 	if (ReadPin.Pin == nullptr)
 	{
-		return FScopedPin();
+		return FModuleScopedPin();
 	}
 
 	int32 VariableCount = ParamMap.Variables.Num();
@@ -398,22 +398,22 @@ typename FNiagaraAttributeTrimmerHelper<GraphBridge>::FScopedPin FNiagaraAttribu
 				if (ReadHistoryEntry.PreviousWritePin.Pin)
 				{
 					// we only care about writes (MapSets).  This will exclude default variables that are set as the input to the MapGet
-					if (const FParamMapSetNode* WriteNode = GraphBridge::template AsNodeType<FParamMapSetNode>(GraphBridge::GetOwningNode(ReadHistoryEntry.PreviousWritePin.Pin)))
+					if (const FParamMapSetNode* WriteNode = GraphBridge::AsParamMapSetNode(GraphBridge::GetOwningNode(ReadHistoryEntry.PreviousWritePin.Pin)))
 					{
 						return ReadHistoryEntry.PreviousWritePin;
 					}
 				}
 
-				return FScopedPin();
+				return FModuleScopedPin();
 			}
 		}
 	}
 
-	return FScopedPin();
+	return FModuleScopedPin();
 }
 
 template<typename GraphBridge>
-int32 FNiagaraAttributeTrimmerHelper<GraphBridge>::FindDefaultBinding(const FParamMapHistory& ParamMap, int32 VariableIndex, const FScopedPin& ReadPin)
+int32 FNiagaraAttributeTrimmerHelper<GraphBridge>::FindDefaultBinding(const FParamMapHistory& ParamMap, int32 VariableIndex, const FModuleScopedPin& ReadPin)
 {
 	if (const FGraph* OwnerGraph = GraphBridge::GetOwningGraph(GraphBridge::GetOwningNode(ReadPin.Pin)))
 	{
@@ -438,7 +438,7 @@ int32 FNiagaraAttributeTrimmerHelper<GraphBridge>::FindDefaultBinding(const FPar
 
 // for a specific read of a variable finds the actual name of the attribute being read
 template<typename GraphBridge>
-FName FNiagaraAttributeTrimmerHelper<GraphBridge>::FindAttributeForRead(const FParamMapHistory& ParamMap, const FScopedPin& ReadPin)
+FName FNiagaraAttributeTrimmerHelper<GraphBridge>::FindAttributeForRead(const FParamMapHistory& ParamMap, const FModuleScopedPin& ReadPin)
 {
 	const int32 VariableCount = ParamMap.Variables.Num();
 
@@ -468,18 +468,18 @@ void FNiagaraAttributeTrimmerHelper<GraphBridge>::ResolveDependencyChain(const F
 	{
 		if (ParamMap.PerVariableWriteHistory[VariableIndex].Num())
 		{
-			const FScopedPin& LastWritePin = ParamMap.PerVariableWriteHistory[VariableIndex].Last();
+			const FModuleScopedPin& LastWritePin = ParamMap.PerVariableWriteHistory[VariableIndex].Last();
 
-			TArray<FScopedPin> PinsToResolve;
+			TArray<FModuleScopedPin> PinsToResolve;
 			PinsToResolve.Add(LastWritePin);
 
 			while (PinsToResolve.Num() > 0)
 			{
-				const FScopedPin PinToResolve = PinsToResolve.Pop(false);
+				const FModuleScopedPin PinToResolve = PinsToResolve.Pop(false);
 
 				if (const FDependencyChain* Dependencies = DependencyData.Find(PinToResolve))
 				{
-					for (const FScopedPin& ReadPin : Dependencies->Pins)
+					for (const FModuleScopedPin& ReadPin : Dependencies->Pins)
 					{
 						bool AlreadyAdded = false;
 						ResolvedDependencies.Pins.Add(ReadPin, &AlreadyAdded);
@@ -487,7 +487,7 @@ void FNiagaraAttributeTrimmerHelper<GraphBridge>::ResolveDependencyChain(const F
 						if (!AlreadyAdded)
 						{
 							int32 SourceVariableIndex = INDEX_NONE;
-							const FScopedPin WritePin = FindWriteForRead(ParamMap, ReadPin, &SourceVariableIndex);
+							const FModuleScopedPin WritePin = FindWriteForRead(ParamMap, ReadPin, &SourceVariableIndex);
 
 							if (WritePin.Pin)
 							{
@@ -509,7 +509,7 @@ void FNiagaraAttributeTrimmerHelper<GraphBridge>::ResolveDependencyChain(const F
 										const int32 VariableWriteCount = ParamMap.PerVariableWriteHistory[DefaultBoundVariable].Num();
 										for (int32 VariableWriteIt = VariableWriteCount - 1; VariableWriteIt >= 0; --VariableWriteIt)
 										{
-											const FScopedPin& DefaultWritePin = ParamMap.PerVariableWriteHistory[DefaultBoundVariable][VariableWriteIt];
+											const FModuleScopedPin& DefaultWritePin = ParamMap.PerVariableWriteHistory[DefaultBoundVariable][VariableWriteIt];
 											const FNode* DefaultWritePinOwningNode = GraphBridge::GetOwningNode(DefaultWritePin.Pin);
 											const int32 DefaultWriteNodeVisitationIndex = ParamMap.MapNodeVisitations.IndexOfByKey(DefaultWritePinOwningNode);
 											if (DefaultWriteNodeVisitationIndex != INDEX_NONE && DefaultWriteNodeVisitationIndex < ReadNodeVisitationIndex)
@@ -561,7 +561,7 @@ void FNiagaraAttributeTrimmerHelper<GraphBridge>::TrimAttributes_Safe(TConstArra
 	{
 		for (const FPin* Pin : ParamMap->MapPinHistory)
 		{
-			if (const FCustomHlslNode* CustomHlslNode = GraphBridge::template AsNodeType<FCustomHlslNode>(GraphBridge::GetOwningNode(Pin)))
+			if (const FCustomHlslNode* CustomHlslNode = GraphBridge::AsCustomHlslNode(GraphBridge::GetOwningNode(Pin)))
 			{
 				CustomHlslNodes.AddUnique(CustomHlslNode);
 			}
@@ -630,7 +630,7 @@ void FNiagaraAttributeTrimmerHelper<GraphBridge>::TrimAttributes_Aggressive(cons
 		{
 			const FNiagaraVariableBase& Var = ParamMap->Variables[VariableIt];
 
-			for (const FScopedPin& WritePin : ParamMap->PerVariableWriteHistory[VariableIt])
+			for (const FModuleScopedPin& WritePin : ParamMap->PerVariableWriteHistory[VariableIt])
 			{
 				FDependencyChain& Dependencies = PerVariableDependencySets.Add(WritePin);
 
@@ -648,14 +648,14 @@ void FNiagaraAttributeTrimmerHelper<GraphBridge>::TrimAttributes_Aggressive(cons
 		}
 
 		FImpureFunctionParser ImpureFunctionParser(GraphBridge::GetGraph(CompileDuplicateData), ParamMap->OriginatingScriptUsage);
-		for (const FScopedPin& RequiredFunctionInput : ImpureFunctionParser.ReadFunctionInputs())
+		for (const FModuleScopedPin& RequiredFunctionInput : ImpureFunctionParser.ReadFunctionInputs())
 		{
 			FDependencyChain Dependencies;
 
 			FExpressionBuilder Builder(*ParamMap, InputResolver);
 			Builder.FindDependencies(RequiredFunctionInput, Dependencies);
 
-			for (const FScopedPin& DependentPin : Dependencies.Pins)
+			for (const FModuleScopedPin& DependentPin : Dependencies.Pins)
 			{
 				// see if this variable corresponds to something in our parameter map's list of variables
 				// if it does then we need to mark it as something that needs to be preserved
@@ -709,7 +709,7 @@ void FNiagaraAttributeTrimmerHelper<GraphBridge>::TrimAttributes_Aggressive(cons
 			FDependencyChain ResolvedChain;
 			ResolveDependencyChain(*ParamMap, PerVariableDependencySets, AttributeName, ResolvedChain);
 
-			for (const FScopedPin& ParameterRead : ResolvedChain.Pins)
+			for (const FModuleScopedPin& ParameterRead : ResolvedChain.Pins)
 			{
 				const FName DependentAttributeName = FindAttributeForRead(*ParamMap, ParameterRead);
 
@@ -724,15 +724,15 @@ void FNiagaraAttributeTrimmerHelper<GraphBridge>::TrimAttributes_Aggressive(cons
 					}
 
 					// if we're dependent on a Previous value, then make sure we add the attribute to the list of things to be preserved as well
-					if (FParamMapHistory::IsPreviousName(DependentAttributeName))
+					if (FNiagaraParameterUtilities::IsPreviousName(DependentAttributeName))
 					{
-						ConditionalAddAttribute(FParamMapHistory::GetSourceForPreviousValue(DependentAttributeName));
+						ConditionalAddAttribute(FNiagaraParameterUtilities::GetSourceForPreviousValue(DependentAttributeName));
 					}
 
 					// likewise for Initial value
-					if (FParamMapHistory::IsInitialName(DependentAttributeName))
+					if (FNiagaraParameterUtilities::IsInitialName(DependentAttributeName))
 					{
-						ConditionalAddAttribute(FParamMapHistory::GetSourceForInitialValue(DependentAttributeName));
+						ConditionalAddAttribute(FNiagaraParameterUtilities::GetSourceForInitialValue(DependentAttributeName));
 					}
 				}
 			}

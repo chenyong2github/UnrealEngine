@@ -7,7 +7,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "NiagaraGraph.h"
 #include "NiagaraScriptVariable.h"
 #include "ScopedTransaction.h"
@@ -195,10 +195,10 @@ bool UNiagaraNodeParameterMapSet::CommitEditablePinName(const FText& InName, UEd
 void UNiagaraNodeParameterMapSet::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	FPinCollectorArray InputPins;
-	FTranslator::FBridge::GetCompilationInputPins(this, InputPins);
+	GetCompilationInputPins(InputPins);
 
 	FPinCollectorArray OutputPins;
-	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
+	GetCompilationOutputPins(OutputPins);
 
 	// Initialize the outputs to invalid values.
 	check(Outputs.Num() == 0);
@@ -267,7 +267,7 @@ void UNiagaraNodeParameterMapSet::BuildParameterMapHistory(FNiagaraParameterMapH
 
 	for (UEdGraphPin* InputPin : InputPins)
 	{
-		OutHistory.VisitInputPin(InputPin, this, bFilterForCompilation);
+		OutHistory.VisitInputPin(InputPin, bFilterForCompilation);
 	}
 
 	if (IsNodeEnabled() || !OutHistory.GetIgnoreDisabled())

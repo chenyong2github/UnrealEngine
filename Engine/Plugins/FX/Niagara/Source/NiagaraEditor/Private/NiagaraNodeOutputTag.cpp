@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeOutputTag.h"
 #include "NiagaraCustomVersion.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "Widgets/SNiagaraGraphNodeCustomHlsl.h"
 #include "EdGraphSchema_Niagara.h"
 #include "ScopedTransaction.h"
@@ -193,7 +193,7 @@ void UNiagaraNodeOutputTag::BuildParameterMapHistory(FNiagaraParameterMapHistory
 			continue;
 		}
 
-		OutHistory.VisitInputPin(InputPin, this, bFilterForCompilation);
+		OutHistory.VisitInputPin(InputPin, bFilterForCompilation);
 
 
 		if (!IsNodeEnabled() && OutHistory.GetIgnoreDisabled())

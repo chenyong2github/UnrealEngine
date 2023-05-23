@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeReroute.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "NiagaraConstants.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeReroute)
@@ -109,10 +109,10 @@ bool UNiagaraNodeReroute::ShouldDrawNodeAsControlPointOnly(int32& OutInputPinInd
 void UNiagaraNodeReroute::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	FPinCollectorArray InputPins;
-	FTranslator::FBridge::GetCompilationInputPins(this, InputPins);
+	GetCompilationInputPins(InputPins);
 
 	FPinCollectorArray OutputPins;
-	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
+	GetCompilationOutputPins(OutputPins);
 
 	// Initialize the outputs to invalid values.
 	check(Outputs.Num() == 0);

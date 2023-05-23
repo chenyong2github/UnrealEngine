@@ -3923,7 +3923,7 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		for (int32 Index = 0; Index < History.VariablesWithOriginalAliasesIntact.Num(); Index++)
 		{
 			const FNiagaraVariable& Parameter = History.VariablesWithOriginalAliasesIntact[Index];
-			for (const FModuleScopedPin& WriteEvent : History.PerVariableWriteHistory[Index])
+			for (const FNiagaraParameterMapHistory::FModuleScopedPin& WriteEvent : History.PerVariableWriteHistory[Index])
 			{
 				if (WriteEvent.Pin->PinType.PinSubCategory == UNiagaraNodeParameterMapBase::ParameterPinSubCategory)
 				{

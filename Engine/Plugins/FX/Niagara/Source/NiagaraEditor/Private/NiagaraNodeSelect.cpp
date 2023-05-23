@@ -6,7 +6,7 @@
 #include "FindInBlueprintManager.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Widgets/SNiagaraPinTypeSelector.h"
 #include "ScopedTransaction.h"

@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraScriptVariable.h"
@@ -567,7 +567,7 @@ void UNiagaraNodeStaticSwitch::Compile(FTranslator* Translator, TArray<int32>& O
 		}
 	}
 	FPinCollectorArray OutputPins;
-	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
+	GetCompilationOutputPins(OutputPins);
 
 	// Initialize the outputs to invalid values.
 	check(Outputs.Num() == 0);
@@ -824,7 +824,7 @@ void UNiagaraNodeStaticSwitch::BuildParameterMapHistory(FNiagaraParameterMapHist
 		if (IsSetByPin())
 		{
 			UEdGraphPin* SelectorPin = GetSelectorPin();
-			OutHistory.VisitInputPin(SelectorPin, this, bFilterForCompilation);
+			OutHistory.VisitInputPin(SelectorPin, bFilterForCompilation);
 
 			OutHistory.SetConstantByStaticVariable(SelectorValue, SelectorPin);
 

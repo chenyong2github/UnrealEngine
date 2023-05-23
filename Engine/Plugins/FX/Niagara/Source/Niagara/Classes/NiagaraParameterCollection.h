@@ -28,6 +28,7 @@ public:
 	UNiagaraParameterCollection* GetParent()const { return Collection; }
 
 	FNiagaraParameterStore& GetParameterStore() { return ParameterStorage; }
+	const FNiagaraParameterStore& GetParameterStore() const { return ParameterStorage; }
 
 	bool AddParameter(const FNiagaraVariable& Parameter);
 	bool RemoveParameter(const FNiagaraVariable& Parameter);
@@ -147,6 +148,7 @@ public:
 	void RenameParameter(FNiagaraVariable& Parameter, FName NewName);
 
 	TArray<FNiagaraVariable>& GetParameters() { return Parameters; }
+	const TArray<FNiagaraVariable>& GetParameters() const { return Parameters; }
 
 	const UMaterialParameterCollection* GetSourceCollection() const { return SourceMaterialCollection; }
 
@@ -154,6 +156,7 @@ public:
 	//TMap<FString, UNiagaraParameterCollectionOverride> PerPlatformOverrides;
 
 	FORCEINLINE UNiagaraParameterCollectionInstance* GetDefaultInstance() { return DefaultInstance; }
+	FORCEINLINE const UNiagaraParameterCollectionInstance* GetDefaultInstance() const { return DefaultInstance; }
 	
 	/**
 	Takes the friendly name presented to the UI and converts to the real parameter name used under the hood.

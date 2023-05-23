@@ -19,6 +19,7 @@
 #include "NiagaraObjectSelection.h"
 #include "NiagaraParameterDefinitions.h"
 #include "NiagaraScriptGraphViewModel.h"
+#include "NiagaraScriptSource.h"
 #include "NiagaraScriptVariable.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraSystem.h"
@@ -1965,7 +1966,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 					: FCompileConstantResolver();
 				 
 				Builder.SetIgnoreDisabled(bIgnoreDisabled);
-				Builder.ConstantResolver = ConstantResolver;
+				*Builder.ConstantResolver = ConstantResolver;
 				FName StageName;
 				ENiagaraScriptUsage StageUsage = OutputNode->GetUsage();
 				if (StageUsage == ENiagaraScriptUsage::ParticleSimulationStageScript && GraphOwningEmitter.Emitter)
@@ -2054,7 +2055,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 						bool bVarOnlyInTopLevelGraph = true;
 						if (!bForceScript)
 						{
-							for (FModuleScopedPin& WritePin : Builder.Histories[0].PerVariableWriteHistory[VariableIndex])
+							for (FNiagaraParameterMapHistory::FModuleScopedPin& WritePin : Builder.Histories[0].PerVariableWriteHistory[VariableIndex])
 							{
 								UEdGraphNode* VariableOwningNode = WritePin.Pin->GetOwningNode();
 								bVarOnlyInTopLevelGraph &= AllGraphs.Contains(static_cast<const UNiagaraGraph*>(VariableOwningNode->GetGraph()));

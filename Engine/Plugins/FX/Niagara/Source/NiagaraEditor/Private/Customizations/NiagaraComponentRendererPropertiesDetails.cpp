@@ -417,7 +417,7 @@ TArray<FNiagaraVariable> FNiagaraComponentRendererPropertiesDetails::GetPossible
 	{
 		for (const FNiagaraVariable& Var : History.Variables)
 		{
-			if (FNiagaraParameterMapHistory::IsAttribute(Var) && UNiagaraComponentRendererProperties::IsConvertible(Var.GetType(), PropertyType))
+			if (FNiagaraParameterUtilities::IsAttribute(Var) && UNiagaraComponentRendererProperties::IsConvertible(Var.GetType(), PropertyType))
 			{
 				Options.AddUnique(Var);
 			}

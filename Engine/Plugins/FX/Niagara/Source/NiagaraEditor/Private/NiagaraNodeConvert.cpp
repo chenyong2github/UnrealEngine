@@ -4,7 +4,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorUtilities.h"
 #include "Widgets/SNiagaraGraphNodeConvert.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "UObject/UnrealType.h"
 #include "Kismet2/StructureEditorUtils.h"
 
@@ -152,7 +152,7 @@ TSharedPtr<SGraphNode> UNiagaraNodeConvert::CreateVisualWidget()
 void UNiagaraNodeConvert::Compile(FTranslator* Translator, TArray<int32>& CompileOutputs) const
 {
 	FPinCollectorArray InputPins;
-	FTranslator::FBridge::GetCompilationInputPins(this, InputPins);
+	GetCompilationInputPins(InputPins);
 
 	TArray<int32, TInlineAllocator<16>> CompileInputs;
 	CompileInputs.Reserve(InputPins.Num());
@@ -176,7 +176,7 @@ void UNiagaraNodeConvert::Compile(FTranslator* Translator, TArray<int32>& Compil
 	check(Schema);
 
 	FPinCollectorArray OutputPins;
-	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
+	GetCompilationOutputPins(OutputPins);
 
 	// Go through all the output nodes and cross-reference them with the connections list. Output errors if any connections are incomplete.
 	{

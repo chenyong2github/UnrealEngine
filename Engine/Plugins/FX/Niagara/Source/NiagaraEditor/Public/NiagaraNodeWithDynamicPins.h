@@ -92,6 +92,9 @@ protected:
 
 	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const override;
 
+	virtual void GetCompilationInputPins(FPinCollectorArray& InputPins) const override;
+	virtual void GetCompilationOutputPins(FPinCollectorArray& OutputPins) const override;
+
 private:
 
 	/** Gets the display text for a pin. */

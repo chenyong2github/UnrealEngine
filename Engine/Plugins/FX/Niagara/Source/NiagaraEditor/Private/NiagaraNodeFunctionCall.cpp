@@ -11,7 +11,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraGraph.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "NiagaraMessages.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
@@ -1290,11 +1290,11 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 			// Make sure to register pin constants
 			if (Pin->LinkedTo.Num() == 0 && Schema->IsPinStatic(Pin) && Pin->DefaultValue.Len() != 0)
 			{
-				OutHistory.RegisterConstantFromInputPin(Pin);
+				OutHistory.RegisterConstantFromInputPin(Pin, Pin->DefaultValue);
 			}
 		}
 
-		FCompileConstantResolver FunctionResolver = OutHistory.ConstantResolver.WithDebugState(DebugState);
+		FCompileConstantResolver FunctionResolver = OutHistory.ConstantResolver->WithDebugState(DebugState);
 		if (OutHistory.HasCurrentUsageContext())
 		{
 			// if we traverse a full emitter graph the usage might change during the traversal, so we need to update the constant resolver
@@ -1391,7 +1391,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 			OutHistory.EndNodeVisitation(ParamMapIdx, NodeIdx);
 		}
 
-		OutHistory.ExitFunction(GetFunctionName(), this);
+		OutHistory.ExitFunction(this);
 
 		if (DoDepthTraversal)
 		{

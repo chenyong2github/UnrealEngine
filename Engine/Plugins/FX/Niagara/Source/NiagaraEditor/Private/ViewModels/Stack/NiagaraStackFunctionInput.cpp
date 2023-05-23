@@ -1593,19 +1593,19 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 			for (int32 i = 1; i < MaxGroupIndex; i++)
 			{
 				UNiagaraNodeFunctionCall* ModuleToCheck = Cast<UNiagaraNodeFunctionCall>(StackGroups[i].EndNode);
-				FNiagaraParameterMapHistoryBuilder Builder;
-				FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolution(Emitter, OutputNode, ModuleToCheck, Builder, false);
+				TArray<FNiagaraParameterMapHistory> Histories;
+				FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolution(Emitter, OutputNode, ModuleToCheck, Histories, false);
 
-				if (Builder.Histories.Num() == 1)
+				if (Histories.Num() == 1)
 				{
-					for (int32 j = 0; j < Builder.Histories[0].Variables.Num(); j++)
+					for (int32 j = 0; j < Histories[0].Variables.Num(); j++)
 					{
-						FNiagaraVariable& HistoryVariable = Builder.Histories[0].Variables[j];
+						FNiagaraVariable& HistoryVariable = Histories[0].Variables[j];
 						FNiagaraParameterHandle AvailableHandle = FNiagaraParameterHandle(HistoryVariable.GetName());
 
 						// check if the variable was written to
 						bool bWritten = false;
-						for (const FModuleScopedPin& WritePin : Builder.Histories[0].PerVariableWriteHistory[j])
+						for (const FNiagaraParameterMapHistory::FModuleScopedPin& WritePin : Histories[0].PerVariableWriteHistory[j])
 						{
 							if (Cast<UNiagaraNodeParameterMapSet>(WritePin.Pin->GetOwningNode()) != nullptr)
 							{

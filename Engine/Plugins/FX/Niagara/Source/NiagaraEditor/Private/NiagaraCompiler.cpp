@@ -339,7 +339,7 @@ void FNiagaraCompileRequestData::SortOutputNodesByDependencies(TArray<class UNia
 
 FName FNiagaraCompileRequestData::ResolveEmitterAlias(FName VariableName) const
 {
-	return FNiagaraParameterMapHistory::ResolveEmitterAlias(VariableName, EmitterUniqueName);
+	return FNiagaraParameterUtilities::ResolveEmitterAlias(VariableName, EmitterUniqueName);
 }
 
 bool FNiagaraCompileRequestDuplicateData::IsDuplicateDataFor(UNiagaraSystem* InSystem, UNiagaraEmitter* InEmitter, UNiagaraScript* InScript) const
@@ -397,7 +397,7 @@ void FNiagaraCompileRequestData::GatherPreCompiledVariables(const FString& InNam
 	{
 		for (const FNiagaraVariable& EncounteredVariable : EncounteredVariables)
 		{
-			if (FNiagaraParameterMapHistory::IsInNamespace(EncounteredVariable, InNamespaceFilter))
+			if (FNiagaraParameterUtilities::IsInNamespace(EncounteredVariable, InNamespaceFilter))
 			{
 				FNiagaraVariable NewVar = EncounteredVariable;
 				if (NewVar.IsDataAllocated() == false && !NewVar.IsDataInterface() && !NewVar.IsUObject())
@@ -643,8 +643,8 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 			if (bStageEnabled)
 			{
 				// Map all for this output node
-				FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
-				Builder.ConstantResolver = ConstantResolver;
+				TNiagaraParameterMapHistoryWithMetaDataBuilder<FNiagaraCompilationGraphBridge> Builder;
+				*Builder.ConstantResolver = ConstantResolver;
 				Builder.AddGraphToCallingGraphContextStack(Source->NodeGraph);
 				Builder.RegisterEncounterableVariables(EncounterableVariables);
 				Builder.RegisterExternalStaticVariables(StaticVariables);
@@ -783,7 +783,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 					{
 						int32 VariableIndex = DataInterfaceVariableIndices[i];
 						const FNiagaraVariable& Variable = History.Variables[VariableIndex];
-						for (const FModuleScopedPin& WritePin : History.PerVariableWriteHistory[VariableIndex])
+						for (const FNiagaraParameterMapHistory::FModuleScopedPin& WritePin : History.PerVariableWriteHistory[VariableIndex])
 						{
 							if (WritePin.Pin != nullptr && WritePin.Pin->LinkedTo.Num() == 1 && WritePin.Pin->LinkedTo[0] != nullptr)
 							{
@@ -884,7 +884,7 @@ void FNiagaraCompileRequestDuplicateData::FinishPrecompileDuplicate(const TArray
 		{
 			// Map all for this output node
 			FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
-			Builder.ConstantResolver = ConstantResolver;
+			*Builder.ConstantResolver = ConstantResolver;
 			Builder.AddGraphToCallingGraphContextStack(NodeGraphDeepCopy.Get());
 			Builder.RegisterEncounterableVariables(EncounterableVariables);
 			Builder.RegisterExternalStaticVariables(InStaticVariables);
@@ -1587,7 +1587,7 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 
 			// Map all for this output node
 			FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
-			Builder.ConstantResolver = ConstantResolver;
+			*Builder.ConstantResolver = ConstantResolver;
 			if (ScriptSource != nullptr)
 			{
 				Builder.AddGraphToCallingGraphContextStack(ScriptSource->NodeGraph);

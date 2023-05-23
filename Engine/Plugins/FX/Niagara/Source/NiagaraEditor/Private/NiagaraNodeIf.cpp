@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeIf.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeIf)
 

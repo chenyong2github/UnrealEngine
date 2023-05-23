@@ -507,5 +507,27 @@ void UNiagaraNodeWithDynamicPins::MoveDynamicPinFromMenu(UEdGraphPin* Pin, int32
 	MoveDynamicPin(Pin, DirectionToMove);
 }
 
+void UNiagaraNodeWithDynamicPins::GetCompilationInputPins(FPinCollectorArray& InputPins) const
+{
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->Direction == EGPD_Input && !Pin->bOrphanedPin && !IsAddPin(Pin))
+		{
+			InputPins.Add(Pin);
+		}
+	}
+}
+
+void UNiagaraNodeWithDynamicPins::GetCompilationOutputPins(FPinCollectorArray& OutputPins) const
+{
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->Direction == EGPD_Output && !Pin->bOrphanedPin && !IsAddPin(Pin))
+		{
+			OutputPins.Add(Pin);
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
 

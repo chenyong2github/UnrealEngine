@@ -4,7 +4,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraGraph.h"
-#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraHlslTranslator.h"
 #include "ScopedTransaction.h"
 #include "Widgets/SNiagaraGraphParameterMapGetNode.h"
 #include "NiagaraEditorModule.h"
@@ -415,7 +415,7 @@ void UNiagaraNodeParameterMapGet::SynchronizeDefaultInputPin(UEdGraphPin* Defaul
 	}
 	
 	FNiagaraVariable Var = Schema->PinToNiagaraVariable(OutputPin);
-	if (FNiagaraParameterMapHistory::IsEngineParameter(Var))
+	if (FNiagaraParameterUtilities::IsEngineParameter(Var))
 	{
 		DefaultPin->bDefaultValueIsIgnored = true;
 		DefaultPin->bNotConnectable = true;
@@ -476,7 +476,7 @@ void UNiagaraNodeParameterMapGet::BuildParameterMapHistory(FNiagaraParameterMapH
 {
 	if (bRecursive)
 	{
-		OutHistory.VisitInputPin(GetInputPin(0), this, bFilterForCompilation);
+		OutHistory.VisitInputPin(GetInputPin(0), bFilterForCompilation);
 	}
 
 	if (!IsNodeEnabled() && OutHistory.GetIgnoreDisabled())
@@ -522,9 +522,9 @@ void UNiagaraNodeParameterMapGet::Compile(FTranslator* Translator, TArray<int32>
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 
 	FPinCollectorArray InputPins;
-	FTranslator::FBridge::GetCompilationInputPins(this, InputPins);
+	GetCompilationInputPins(InputPins);
 	FPinCollectorArray OutputPins;
-	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
+	GetCompilationOutputPins(OutputPins);
 
 	// Initialize the outputs to invalid values.
 	check(Outputs.Num() == 0);
