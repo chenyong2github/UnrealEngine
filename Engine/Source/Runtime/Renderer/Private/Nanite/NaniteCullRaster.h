@@ -96,6 +96,9 @@ struct FRasterResults
 	FRDGTextureRef	MaterialDepth		= nullptr;
 	FRDGTextureRef	ShadingMask			= nullptr;
 
+	FRDGBufferRef	ClearTileArgs		= nullptr;
+	FRDGBufferRef	ClearTileBuffer		= nullptr;
+
 	FNaniteVisibilityResults VisibilityResults;
 
 	TArray<FVisualizeResult, TInlineAllocator<32>> Visualizations;
