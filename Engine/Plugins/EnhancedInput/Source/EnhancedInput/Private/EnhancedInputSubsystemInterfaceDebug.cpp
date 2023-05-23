@@ -306,6 +306,27 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 	ShowMappingContextDebugInfo(Canvas, PlayerInput);
 }
 
+
+void IEnhancedInputSubsystemInterface::GetAllRelevantInputModifiersForDebug(const UEnhancedPlayerInput* PlayerInput, const FInputActionInstance* InstanceData, OUT TArray<UInputModifier*>& OutModifiers)
+{
+	OutModifiers.Reset();
+
+	// Start with the modifiers from the instance data, these will be from the Input Action asset
+	OutModifiers.Append(InstanceData->GetModifiers());	
+	
+	// We also need to check the mappings that have been added via the Input Mapping Context
+	for (const FEnhancedActionKeyMapping& Mapping : PlayerInput->GetEnhancedActionMappings())
+	{
+		if (Mapping.Action == InstanceData->GetSourceAction())
+		{
+			for (const TObjectPtr<UInputModifier>& Modifier : Mapping.Modifiers)
+			{
+				OutModifiers.AddUnique(Modifier.Get());
+			}
+		}
+	}
+}
+
 void IEnhancedInputSubsystemInterface::ShowDebugActionModifiers(UCanvas* Canvas, const UInputAction* Action)
 {
 	FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
@@ -321,7 +342,10 @@ void IEnhancedInputSubsystemInterface::ShowDebugActionModifiers(UCanvas* Canvas,
 	// TODO: Display colored dots to show current sampling locations of valid mappings?
 	// TODO: Invalidate and recalculate textures if sample hash changes? (Rebuild sample data every frame)
 
-	const TArray<UInputModifier*>& Modifiers = ActionData->GetModifiers();
+	static TArray<UInputModifier*> Modifiers;
+
+	IEnhancedInputSubsystemInterface::GetAllRelevantInputModifiersForDebug(PlayerInput, ActionData, OUT Modifiers);
+	
 	if (Modifiers.Num() > 0)
 	{
 		const bool bIs1D = ActionData->GetValue().GetValueType() == EInputActionValueType::Axis1D || ActionData->GetValue().GetValueType() == EInputActionValueType::Boolean;

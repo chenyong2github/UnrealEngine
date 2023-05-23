@@ -476,6 +476,9 @@ private:
 	// Debug visualization for enhanced input local player subsystem
 	virtual void ShowDebugInfo(UCanvas* Canvas);
 	
+	// Gather any UInputModifiers on the given Player Input and Instance data that need to be visualized for debugging
+	static void GetAllRelevantInputModifiersForDebug(const UEnhancedPlayerInput* PlayerInput, const FInputActionInstance* InstanceData, OUT TArray<UInputModifier*>& OutModifiers);
+
 	void ShowDebugActionModifiers(UCanvas* Canvas, const UInputAction* Action);
 	static void PurgeDebugVisualizations();
 };
