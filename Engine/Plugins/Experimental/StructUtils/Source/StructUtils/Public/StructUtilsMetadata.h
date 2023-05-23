@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "UObject/NameTypes.h"
+
 // Metadata used by StructUtils
 namespace UE::StructUtils::Metadata
 {
