@@ -609,15 +609,14 @@ void FMassEntityManager::DestroyEntity(FMassEntityHandle Entity)
 
 	const FEntityData& EntityData = Entities[Entity.Index];
 	FMassArchetypeData* Archetype = EntityData.CurrentArchetype.Get();
-	check(Archetype);
-	Archetype->RemoveEntity(Entity);
+
+	if (Archetype)
+	{
+		ObserverManager.OnPreEntityDestroyed(Archetype->GetCompositionDescriptor(), Entity);
+		Archetype->RemoveEntity(Entity);
+	}
 
 	InternalReleaseEntity(Entity);
-
-	if (Archetype->GetNumEntities() == 0)
-	{
-		//@TODO: Drop our reference to the archetype?
-	}
 }
 
 void FMassEntityManager::BatchDestroyEntities(TConstArrayView<FMassEntityHandle> InEntities)
