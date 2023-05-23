@@ -97,6 +97,16 @@ private:
 
 class CORE_API FCustomVersionRegistration;
 
+/** Flags defining how the Custom Version should be applied */
+enum class ESetCustomVersionFlags : uint8
+{
+	None,
+
+	// If Set, it will not query the versions registry to update the version data if the key is already in the container 
+	SkipUpdateExistingVersion = 0x01,
+};
+ENUM_CLASS_FLAGS(ESetCustomVersionFlags)
+
 /**
  * Container for all available/serialized custom versions.
  */
@@ -135,6 +145,13 @@ public:
 	 * @param FriendlyName A friendly name to assign to this version
 	 */
 	void SetVersion(FGuid CustomKey, int32 Version, FName FriendlyName);
+
+	/**
+	 * Sets a specific custom version in the container. It queries the versions registry to get the version data for the provided key
+	 * @param CustomKey Custom key for which to retrieve the version.
+	 * @param Options Optional flags used to alter the behavior of this method
+	 */
+	void SetVersionUsingRegistry(FGuid CustomKey, ESetCustomVersionFlags Options = ESetCustomVersionFlags::None);
 
 	/** Serialization. */
 	void Serialize(FArchive& Ar, ECustomVersionSerializationFormat::Type Format = ECustomVersionSerializationFormat::Latest);

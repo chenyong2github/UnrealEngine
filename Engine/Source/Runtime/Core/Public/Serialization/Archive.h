@@ -333,6 +333,19 @@ public:
 		return ArShouldSkipCompilingAssets;
 	}
 
+	/** If set true, UsingCurrentVersion will not query the version registry to get the latest version data for the key if the version key is already set in the local container.
+	 * Querying the version registry is not cheap, and the look up time increases as more custom versions are registered, therefore if you don't change the registered custom version data once is set in the archive
+	 * Setting this to true should improve serialization performance by skipping the step entirely.
+	 * @param bShouldSkip Whether we should skip the checking the version registry for new version data if the version key is already set
+	 */
+	void SetShouldSkipUpdateCustomVersion(bool bShouldSkip);
+
+	/** Returns true if this Archive is does not update the custom version data for a given key if has already been set previously in the local custom versions container*/
+	FORCEINLINE bool ShouldSkipUpdateCustomVersion() const
+	{
+		return ArShouldSkipUpdateCustomVersion;
+	}
+
 	/** Returns true if this archive contains errors, which means that further serialization is generally not safe. */
 	FORCEINLINE bool IsError() const
 	{
@@ -784,6 +797,11 @@ private:
 
 	/** Whether or not it is allowed to skip serialization on assets still being compiled to avoid waiting unless strictly necessary. */
 	uint8 ArShouldSkipCompilingAssets : 1;
+
+	/** If true, UsingCurrentVersion will not query the version registry to get the latest version data for the key if the version key is already set in the local container.
+	 * Querying the version registry is not cheap, and the look up time increases as more custom versions are registered, therefore if you don't change the registered custom version data once is set in the archive
+	 * Setting this to true should improve serialization performance by skipping the step entirely */
+	uint8 ArShouldSkipUpdateCustomVersion : 1;
 
 public:
 	/** Quickly tell if an archive contains script code. */
@@ -2078,6 +2096,8 @@ public:
 	using FArchiveState::SetEngineNetVer;
 	using FArchiveState::SetGameNetVer;
 	using FArchiveState::ShouldSkipCompilingAssets;
+	using FArchiveState::SetShouldSkipUpdateCustomVersion;
+	using FArchiveState::ShouldSkipUpdateCustomVersion;
 	
 private:
 	using FArchiveState::ArUEVer;

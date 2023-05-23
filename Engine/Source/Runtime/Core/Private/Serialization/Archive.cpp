@@ -191,6 +191,7 @@ void FArchiveState::Reset()
 	ArIsNetArchive						= false;
 	ArCustomPropertyList				= nullptr;
 	ArUseCustomPropertyList				= false;
+	ArShouldSkipUpdateCustomVersion		= false;
 	CookData							= nullptr;
 	SerializedProperty					= nullptr;
 
@@ -249,6 +250,7 @@ void FArchiveState::CopyTrivialFArchiveStatusMembers(const FArchiveState& Archiv
 	ArIsNetArchive                       = ArchiveToCopy.ArIsNetArchive;
 	ArCustomPropertyList                 = ArchiveToCopy.ArCustomPropertyList;
 	ArUseCustomPropertyList              = ArchiveToCopy.ArUseCustomPropertyList;
+	ArShouldSkipUpdateCustomVersion		 = ArchiveToCopy.ArShouldSkipUpdateCustomVersion;
 	CookData							 = ArchiveToCopy.CookData;
 	SerializedProperty					 = ArchiveToCopy.SerializedProperty;
 #if USE_STABLE_LOCALIZATION_KEYS
@@ -569,8 +571,8 @@ void FArchive::UsingCustomVersion(const FGuid& Key)
 		return;
 	}
 
-	FCustomVersion RegisteredVersion = FCurrentCustomVersions::Get(Key).GetValue();
-	const_cast<FCustomVersionContainer&>(GetCustomVersions()).SetVersion(Key, RegisteredVersion.Version, RegisteredVersion.GetFriendlyName());
+	ESetCustomVersionFlags SetVersionFlags = ArShouldSkipUpdateCustomVersion ? ESetCustomVersionFlags::SkipUpdateExistingVersion : ESetCustomVersionFlags::None;
+	const_cast<FCustomVersionContainer&>(GetCustomVersions()).SetVersionUsingRegistry(Key, SetVersionFlags);
 }
 
 int32 FArchiveState::CustomVer(const FGuid& Key) const
@@ -582,6 +584,11 @@ int32 FArchiveState::CustomVer(const FGuid& Key) const
 	check(IsLoading() || CustomVersion);
 
 	return CustomVersion ? CustomVersion->Version : -1;
+}
+
+void FArchiveState::SetShouldSkipUpdateCustomVersion(bool bShouldSkip)
+{
+	ForEachState([bShouldSkip](FArchiveState& State) { State.ArShouldSkipUpdateCustomVersion = bShouldSkip; });
 }
 
 void FArchiveState::SetCustomVersion(const FGuid& Key, int32 Version, FName FriendlyName)
