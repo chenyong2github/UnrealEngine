@@ -280,6 +280,8 @@ struct FPakInfo
 					ANSICHAR* MethodString = &Methods[Index * CompressionMethodNameLen];
 					if (MethodString[0] != 0)
 					{
+						// Make sure if the file has garbage we don't read off in to lala land.
+						MethodString[CompressionMethodNameLen-1] = 0;
 						CompressionMethods.Add(FName(MethodString));
 					}
 				}
