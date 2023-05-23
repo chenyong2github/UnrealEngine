@@ -305,10 +305,7 @@ public:
 
 	bool IsEnablingStreamingJustified() const { return bEnablingStreamingJustified; }
 
-	UE_DEPRECATED(5.3, "Use GetForceLoadedActors instead.")
-	const TMap<FWorldPartitionReference, AActor*>& GetDirtyActors() const { return ForceLoadedActors; }
-	const TMap<FWorldPartitionReference, AActor*>& GetForceLoadedActors() const { return ForceLoadedActors; }
-
+	const TMap<FWorldPartitionReference, AActor*>& GetDirtyActors() const { return DirtyActors; }
 #endif
 
 public:
@@ -427,7 +424,7 @@ private:
 
 	TArray<FWorldPartitionReference> LoadedSubobjects;
 
-	TMap<FWorldPartitionReference, AActor*> ForceLoadedActors;
+	TMap<FWorldPartitionReference, AActor*> DirtyActors;
 
 	TSet<FString> GeneratedStreamingPackageNames;
 
