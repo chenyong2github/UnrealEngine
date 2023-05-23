@@ -510,7 +510,7 @@ namespace MenuExtension_AnimBlueprint
 
 									FToolUIAction UIAction;
 									UIAction.ExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteCreateTemplate, *SelectedAnimBlueprintPtr);
-									InSection.AddMenuEntry("AnimBlueprint_NewSkeletonChildBlueprint", Label, ToolTip, Icon, UIAction);
+									InSection.AddMenuEntry("AnimBlueprint_CreateTemplate", Label, ToolTip, Icon, UIAction);
 								}
 							}
 						}
