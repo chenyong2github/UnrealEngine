@@ -158,8 +158,6 @@ public:
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
-	
-
 	// UInteractiveTool
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -212,6 +210,9 @@ public:
 	virtual double GetCurrentBrushRadiusLocal() const { return CurrentBrushRadius * WorldToLocalScale; }
 
 	void SetBrushEnabled(bool bIsEnabled);
+
+	// return false to disable the hotkey for adjusting the brush radius and strength in the viewport
+	virtual bool SupportsBrushAdjustmentInput() { return true; }; 
 
 protected:
 
