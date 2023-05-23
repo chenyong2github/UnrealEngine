@@ -331,13 +331,17 @@ void SDatabaseDataDetails::Reconstruct(int32 MaxPreviewActors)
 			.ToolTipText(LOCTEXT("Query_ToolTip", "Query Values")));
 	}
 
-	const int32 PreviewActorNum = FMath::Min(MaxPreviewActors, ViewModel->GetPreviewActors().Num());
+	const TArray<FDatabasePreviewActor>& PreviewActors = ViewModel->GetPreviewActors();
+	const int32 PreviewActorNum = FMath::Min(MaxPreviewActors, PreviewActors.Num());
 	for (int32 PreviewActorIdx = 0; PreviewActorIdx < PreviewActorNum; ++PreviewActorIdx)
 	{
-		const FDatabasePreviewActor& PreviewActor = ViewModel->GetPreviewActors()[PreviewActorIdx];
-		HeaderRow->AddColumn(
-			SHeaderRow::Column(*PreviewActor.Actor->GetName())
-			.DefaultLabel(FText::FromString(PreviewActor.Sampler.GetAsset()->GetName())));
+		const FDatabasePreviewActor& PreviewActor = PreviewActors[PreviewActorIdx];
+		if (PreviewActor.IsValid() && PreviewActor.Sampler.IsInitialized())
+		{
+			HeaderRow->AddColumn(
+				SHeaderRow::Column(*PreviewActor.Actor->GetName())
+				.DefaultLabel(FText::FromString(PreviewActor.Sampler.GetAsset()->GetName())));
+		}
 	}
 
 	ChannelItemsTreeView = SNew(SChannelItemsTreeView)
