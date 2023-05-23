@@ -2,6 +2,7 @@
 
 using UnrealBuildTool;
 
+[SupportedPlatforms("Win64", "Linux")]
 public class NetworkPredictionTestsTarget : TestTargetRules
 {
 	public NetworkPredictionTestsTarget(TargetInfo Target) : base(Target)
