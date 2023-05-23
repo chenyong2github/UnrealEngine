@@ -1049,6 +1049,30 @@ void UnpackSSSProfile(uint In, inout float OutProfileId, inout float OutRadius, 
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Specular profile
+
+uint PackSpecularProfile(float InProfileId)
+{
+	return asuint(InProfileId);
+}
+
+void UnpackSpecularProfile(uint In, inout float OutProfileId)
+{
+	OutProfileId = asfloat(In);
+}
+
+uint GetSpecularProfileId(float In)
+{
+	return abs(In);
+}
+
+// Return 0: View/Light angles, 1: Half angles
+uint GetSpecularProfileParameterization(float In)
+{
+	return In > 0.f ? 0u : 1u;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Fuzz
 
 uint PackFuzz(half3 InColor, half InAmount, half InRoughness, half InDither)
@@ -1583,10 +1607,10 @@ FStrataData GetStrataSlabBSDF(
 		SLAB_GLINT_UVDDY(StrataData.InlinedBSDF)		= ddy(GlintUV);
 	}
 	
-	if (SpecularProfileId > 0.0f)
+	if (SpecularProfileId != 0.0f)
 	{
 		BSDF_SETHASSPECPROFILE	(StrataData.InlinedBSDF, 1);
-		SLAB_SPECPROFILEID		(StrataData.InlinedBSDF) = SpecularProfileId * 255; // Stored as 0-255 slice index
+		SLAB_SPECPROFILEID		(StrataData.InlinedBSDF) = SpecularProfileId * 255; // Stored as 0-255 index, and sign store parametrization type (View/Light or Half-Angle)
 	}
 #endif
 
@@ -4329,7 +4353,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 
 		if (BSDF_GETHASSPECPROFILE(OutBSDF))
 		{
-			SLAB_SPECPROFILEID(OutBSDF)	= StrataLoadUint1(StrataBuffer, StrataAddressing);
+			UnpackSpecularProfile(StrataLoadUint1(StrataBuffer, StrataAddressing), SLAB_SPECPROFILEID(OutBSDF));
 		}
 	#endif
 	}

@@ -686,8 +686,10 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			BRANCH
 			if (BSDF_GETHASSPECPROFILE(BSDFContext.BSDF))
 			{
-				const uint ProfileID = SLAB_SPECPROFILEID(BSDFContext.BSDF);
-				Sample.IntegratedSpecularValue *= View.SpecularProfileTexture.SampleLevel(View.SpecularProfileSampler, float3(BSDFContext.SatNoV, BSDFContext.SatNoL, ProfileID), 0);
+				const uint ProfileID = GetSpecularProfileId(SLAB_SPECPROFILEID(BSDFContext.BSDF));
+				const bool bUseHalfVector = GetSpecularProfileParameterization(SLAB_SPECPROFILEID(BSDFContext.BSDF)) == 1;
+				const float3 ProfileCoord = bUseHalfVector ? float3(BSDFContext.Context.VoH, BSDFContext.Context.NoH, ProfileID) : float3(BSDFContext.SatNoV, BSDFContext.SatNoL, ProfileID);
+				Sample.IntegratedSpecularValue *= View.SpecularProfileTexture.SampleLevel(View.SpecularProfileSampler, ProfileCoord, 0);
 			}
 			#endif
 
@@ -1536,7 +1538,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				BRANCH
 				if (BSDF_GETHASSPECPROFILE(BSDFContext.BSDF))
 				{
-					const uint ProfileID = SLAB_SPECPROFILEID(BSDFContext.BSDF);
+					const uint ProfileID = GetSpecularProfileId(SLAB_SPECPROFILEID(BSDFContext.BSDF));
 					const float NoR = saturate(dot(BSDFContext.R, BSDFContext.N));
 					StrataEnvLightResult.SpecularWeight *= View.SpecularProfileTexture.SampleLevel(View.SpecularProfileSampler, float3(BSDFContext.SatNoV, NoR, ProfileID), 0);
 				}

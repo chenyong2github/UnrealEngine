@@ -109,6 +109,9 @@ public:
 	// return the parameter name for a given profile
 	FName GetParameterName(const USpecularProfile* InProfile) const;
 
+	// Return the parameterization sign
+	float GetParameterizationSign(int32 AllocationId) const;
+
 	// @return can be nullptr if there is no SpecularProfile
 	IPooledRenderTarget* GetAtlasTexture(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform);
 	IPooledRenderTarget* GetAtlasTexture();
@@ -265,6 +268,16 @@ FName FSpecularProfileTextureManager::GetParameterName(const USpecularProfile* I
 		return SpecularProfileEntries[AllocationId].ParameterName;
 	}
 	return FName();
+}
+
+float FSpecularProfileTextureManager::GetParameterizationSign(int32 AllocationId) const
+{
+	float OutSign = 1.f;
+	if (AllocationId != INDEX_NONE)
+	{
+		OutSign = SpecularProfileEntries[AllocationId].Settings.Format == ESpecularProfileFormat::HalfVector ? -1.f : 1.f;
+	}
+	return OutSign;
 }
 
 IPooledRenderTarget* FSpecularProfileTextureManager::GetAtlasTexture()
@@ -426,7 +439,7 @@ namespace SpecularProfileAtlas
 			// can be optimized (cached)
 			AllocationId = GSpecularProfileTextureManager.FindAllocationId(In);
 		}
-		return AllocationId / 255.0f;
+		return GSpecularProfileTextureManager.GetParameterizationSign(AllocationId) * AllocationId / 255.0f;
 	}
 	
 	int32 AddOrUpdateProfile(const USpecularProfile* InProfile, const FGuid& InGuid, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture)

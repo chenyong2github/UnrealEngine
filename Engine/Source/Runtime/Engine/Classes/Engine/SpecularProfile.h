@@ -14,12 +14,26 @@ class UTexture2D;
 class FRDGBuilder;
 class FTextureReference;
 
+/** List of niagara solvers */
+UENUM(BlueprintType)
+enum class ESpecularProfileFormat : uint8
+{
+	ViewLightVector UMETA(DisplayName = "View / Light"),
+	HalfVector UMETA(DisplayName = "Half Angle"),
+};
+
 // struct with all the settings we want in USpecularProfile, separate to make it easer to pass this data around in the engine.
 USTRUCT(BlueprintType)
 struct FSpecularProfileStruct
 {
 	GENERATED_USTRUCT_BODY()
 	
+	/**
+	 * Define the texture used as a specular profile
+	 */
+	UPROPERTY(Category = "Common", EditAnywhere, BlueprintReadOnly, meta=(DisplayName="LUT Format"))
+	ESpecularProfileFormat Format;
+
 	/**
 	* Define the view facing color
 	*/
@@ -38,9 +52,9 @@ struct FSpecularProfileStruct
 	UPROPERTY(Category  ="Texture", EditAnywhere, BlueprintReadOnly, meta=(DisplayName="Texture"))
 	TObjectPtr<UTexture2D> Texture;
 
-	// constructor
 	FSpecularProfileStruct()
 	{
+		Format = ESpecularProfileFormat::ViewLightVector;
 		ViewColor = FLinearColor(1.0f, 1.0f, 1.0f);
 		LightColor = FLinearColor(1.0f, 1.0f, 1.0f);
 		Texture = nullptr;
