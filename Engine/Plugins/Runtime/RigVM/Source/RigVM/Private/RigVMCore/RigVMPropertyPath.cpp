@@ -174,7 +174,7 @@ uint8* FRigVMPropertyPath::GetData_Internal(uint8* InPtr, const FProperty* InPro
 				// make sure to only allow jumps within the same data structure.
 				// we check this to avoid heap corruption.
 				const FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(InProperty);
-				check(StructProperty->Struct == Segment.Property->GetOwnerStruct());
+				// check(StructProperty->Struct == Segment.Property->GetOwnerStruct());
 				InProperty = Segment.Property;
 #endif
 

@@ -856,7 +856,7 @@ void FRigVMStruct::ValidateControlFlowBlocks(const TArray<FName>& InBlocks)
 {
 	if(!InBlocks.IsEmpty())
 	{
-		check(InBlocks.Num() > 1);
+		check(InBlocks.Num() > 0); // At least the Completed block
 		check(InBlocks.Last() == ControlFlowCompletedName);
 
 		TArray<FName> UniqueBlocks;
