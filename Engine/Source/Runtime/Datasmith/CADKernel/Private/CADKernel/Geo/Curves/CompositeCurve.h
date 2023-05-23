@@ -16,11 +16,6 @@ public:
 	{
 	}
 
-	FOrientedCurve(const FOrientedCurve& OrientiredEntity)
-		: TOrientedEntity(OrientiredEntity)
-	{
-	}
-
 	FOrientedCurve()
 		: TOrientedEntity()
 	{
