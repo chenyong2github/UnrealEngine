@@ -198,6 +198,9 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 		bAsyncPhysicsTickEnabled = true;
 		AsyncPhysicsDataClass = UAsyncPhysicsData::StaticClass();
 	}
+#if UE_ENABLE_DEBUG_DRAWING
+	CurrentInputModeDebugString = TEXT("Default");
+#endif	// UE_ENABLE_DEBUG_DRAWING
 }
 
 float APlayerController::GetNetPriority(const FVector& ViewPos, const FVector& ViewDir, AActor* Viewer, AActor* ViewTarget, UActorChannel* InChannel, float Time, bool bLowBandwidth)
@@ -5777,6 +5780,14 @@ void FInputModeDataBase::SetFocusAndLocking(FReply& SlateOperations, TSharedPtr<
 	}
 }
 
+#if UE_ENABLE_DEBUG_DRAWING
+const FString& FInputModeDataBase::GetDebugDisplayName() const
+{
+	static const FString DisplayName = TEXT("Base");
+	return DisplayName;
+}
+#endif	// UE_ENABLE_DEBUG_DRAWING
+
 FInputModeUIOnly& FInputModeUIOnly::SetWidgetToFocus(TSharedPtr<SWidget> InWidgetToFocus)
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -5794,6 +5805,14 @@ FInputModeUIOnly& FInputModeUIOnly::SetLockMouseToViewportBehavior(EMouseLockMod
 	MouseLockMode = InMouseLockMode;
 	return *this;
 }
+
+#if UE_ENABLE_DEBUG_DRAWING
+const FString& FInputModeUIOnly::GetDebugDisplayName() const
+{
+	static const FString DebugName = TEXT("UI Only (Input will only be consumed by the UI, not the player!)");
+	return DebugName;
+}
+#endif	// UE_ENABLE_DEBUG_DRAWING
 
 void FInputModeUIOnly::ApplyInputMode(FReply& SlateOperations, class UGameViewportClient& GameViewportClient) const
 {
@@ -5830,6 +5849,22 @@ void FInputModeGameAndUI::ApplyInputMode(FReply& SlateOperations, class UGameVie
 	}
 }
 
+#if UE_ENABLE_DEBUG_DRAWING
+const FString& FInputModeGameAndUI::GetDebugDisplayName() const
+{
+	static const FString DisplayName = TEXT("Game and UI");
+	return DisplayName;
+}
+#endif	// UE_ENABLE_DEBUG_DRAWING
+
+#if UE_ENABLE_DEBUG_DRAWING
+const FString& FInputModeGameOnly::GetDebugDisplayName() const
+{
+	static const FString DisplayName = TEXT("Game Only (Input will only be consumed by the player, not UI)");
+	return DisplayName;
+}
+#endif	// UE_ENABLE_DEBUG_DRAWING
+
 void FInputModeGameOnly::ApplyInputMode(FReply& SlateOperations, class UGameViewportClient& GameViewportClient) const
 {
 	TSharedPtr<SViewport> ViewportWidget = GameViewportClient.GetGameViewportWidget();
@@ -5853,8 +5888,20 @@ void APlayerController::SetInputMode(const FInputModeDataBase& InData)
 	{
 		InData.ApplyInputMode( LocalPlayer->GetSlateOperations(), *GameViewportClient );
 		bShouldFlushInputWhenViewportFocusChanges = InData.ShouldFlushInputOnViewportFocus();
+
+		// Keep track of the name of this input mode for debug purposes
+#if UE_ENABLE_DEBUG_DRAWING
+		CurrentInputModeDebugString = InData.GetDebugDisplayName();
+#endif
 	}
 }
+
+#if UE_ENABLE_DEBUG_DRAWING
+const FString& APlayerController::GetCurrentInputModeDebugString() const
+{
+	return CurrentInputModeDebugString;
+}
+#endif // #if UE_ENABLE_DEBUG_DRAWING
 
 void APlayerController::UpdateCameraManager(float DeltaSeconds)
 {

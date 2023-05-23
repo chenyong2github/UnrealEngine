@@ -24,6 +24,7 @@
 #include "GenericPlatform/IInputInterface.h"
 #include "Physics/AsyncPhysicsData.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "EngineDefines.h"		// For UE_ENABLE_DEBUG_DRAWING
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Widgets/SWidget.h"
@@ -116,6 +117,13 @@ protected:
 	void SetFocusAndLocking(FReply& SlateOperations, TSharedPtr<class SWidget> InWidgetToFocus, bool bLockMouseToViewport, TSharedRef<class SViewport> InViewportWidget) const;
 
 	friend class APlayerController;
+
+public:
+
+#if UE_ENABLE_DEBUG_DRAWING
+	/** Returns the name of this input mode for debug display when you call the "showdebug input" command. */
+	virtual const FString& GetDebugDisplayName() const;
+#endif	// UE_ENABLE_DEBUG_DRAWING
 };
 
 /** Data structure used to setup an input mode that allows only the UI to respond to user input. */
@@ -131,6 +139,10 @@ struct ENGINE_API FInputModeUIOnly : public FInputModeDataBase
 		: WidgetToFocus()
 		, MouseLockMode(EMouseLockMode::LockInFullscreen)
 	{}
+
+#if UE_ENABLE_DEBUG_DRAWING
+	virtual const FString& GetDebugDisplayName() const override;
+#endif	// UE_ENABLE_DEBUG_DRAWING
 
 protected:
 	TSharedPtr<SWidget> WidgetToFocus;
@@ -190,6 +202,10 @@ struct ENGINE_API FInputModeGameAndUI : public FInputModeDataBase
 		, bHideCursorDuringCapture(true)
 	{}
 
+#if UE_ENABLE_DEBUG_DRAWING
+	virtual const FString& GetDebugDisplayName() const override;
+#endif	// UE_ENABLE_DEBUG_DRAWING
+
 protected:
 
 	TSharedPtr<SWidget> WidgetToFocus;
@@ -209,6 +225,10 @@ struct ENGINE_API FInputModeGameOnly : public FInputModeDataBase
 		: bConsumeCaptureMouseDown(true)
 	{}
 
+#if UE_ENABLE_DEBUG_DRAWING
+	virtual const FString& GetDebugDisplayName() const override;
+#endif	// UE_ENABLE_DEBUG_DRAWING
+	
 protected:
 	bool bConsumeCaptureMouseDown;
 
@@ -2215,6 +2235,11 @@ public:
 	 * Player controllers should always be included in seamless travel
 	 */
 	virtual bool ShouldParticipateInSeamlessTravel() const override { return true; }
+	
+#if UE_ENABLE_DEBUG_DRAWING
+	/** Keep track of the current input mode debug string here. Set in APlayerController::SetInputMode */
+	const FString& GetCurrentInputModeDebugString() const;
+#endif
 
 private:
 	/** If true, prevent any haptic effects from playing */
@@ -2227,6 +2252,11 @@ private:
 	 * up any in-game UI.
 	 */
 	bool bShouldFlushInputWhenViewportFocusChanges : 1;
+
+#if UE_ENABLE_DEBUG_DRAWING
+	/** Keep track of the current input mode debug string here. Set in APlayerController::SetInputMode */
+	FString CurrentInputModeDebugString;
+#endif
 
 public: 
 

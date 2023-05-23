@@ -15,6 +15,10 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/InputSettings.h"
 
+#if UE_ENABLE_DEBUG_DRAWING
+#include "Engine/GameViewportClient.h"	// For grabbing some info about mouse capture for the debug display
+#endif	// UE_ENABLE_DEBUG_DRAWING
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerInput)
 
 DECLARE_CYCLE_STAT(TEXT("    PC Gesture Recognition"), STAT_PC_GestureRecognition, STATGROUP_PlayerController);
@@ -1614,6 +1618,44 @@ void UPlayerInput::DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& 
 	if (Canvas)
 	{
 		FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
+
+#if UE_ENABLE_DEBUG_DRAWING
+		// Show the UI mode of the owning player controller if there is one. This is a very common issue with folks
+		// debugging input. Often times users will set the UI mode to "UI Only", and then never set it back so the 
+		// game can consume input again. 
+		if (const APlayerController* PlayerController = GetOuterAPlayerController())
+		{		
+			DisplayDebugManager.SetDrawColor(FColor::Orange);
+			DisplayDebugManager.DrawString(FString::Printf(TEXT("\t Player Controller Input Settings:  %s"), *GetNameSafe(PlayerController)));
+			
+			// Display whether input is enabled on the player controller or not
+			const bool bIsInputEnabled = PlayerController->InputEnabled();
+			DisplayDebugManager.SetDrawColor(bIsInputEnabled ? FColor::White : FColor::Red);
+			DisplayDebugManager.DrawString(FString::Printf(TEXT("\t PlayerController bIsInputEnabled: %s"), bIsInputEnabled ? TEXT("True") : TEXT("False")));
+
+			DisplayDebugManager.SetDrawColor(FColor::White);
+			DisplayDebugManager.DrawString(FString::Printf(TEXT("\t PlayerController Input Mode: %s"), *PlayerController->GetCurrentInputModeDebugString()));
+
+			const ULocalPlayer* LP = GetOwningLocalPlayer();
+
+			// Display some info about the viewport, all of these settings can affect the input behavior of the mouse
+			if (LP && LP->ViewportClient)
+			{
+				// Show the capture mode of the viewport
+				DisplayDebugManager.DrawString(FString::Printf(TEXT("\t ViewportClient MouseCaptureMode: %s"), *UEnum::GetValueAsString(TEXT("Engine.EMouseCaptureMode"), LP->ViewportClient->GetMouseCaptureMode())));
+				DisplayDebugManager.DrawString(FString::Printf(TEXT("\t ViewportClient MouseLockMode: %s"), *UEnum::GetValueAsString(TEXT("Engine.EMouseLockMode"), LP->ViewportClient->GetMouseLockMode())));
+				
+				const bool bIsIgnoringInput = LP->ViewportClient->IgnoreInput();
+				DisplayDebugManager.SetDrawColor(bIsIgnoringInput ? FColor::Red : FColor::White);
+				DisplayDebugManager.DrawString(FString::Printf(TEXT("\t ViewportClient bIsIgnoringInput: %s"), bIsIgnoringInput ? TEXT("True") : TEXT("False")));
+				
+				const bool bIsUsingMouseForTouch = LP->ViewportClient->GetUseMouseForTouch();
+				DisplayDebugManager.SetDrawColor(bIsUsingMouseForTouch ? FColor::Green : FColor::White);
+				DisplayDebugManager.DrawString(FString::Printf(TEXT("\t ViewportClient bIsUsingMouseForTouch: %s"), bIsUsingMouseForTouch ? TEXT("True") : TEXT("False")));
+			}
+		}
+#endif // #if UE_ENABLE_DEBUG_DRAWING
+
 		DisplayDebugManager.SetDrawColor(FColor::Red);
 		DisplayDebugManager.DrawString(FString::Printf(TEXT("INPUT %s"), *GetName()));
 
