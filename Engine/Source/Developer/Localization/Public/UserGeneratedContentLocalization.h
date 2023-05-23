@@ -196,4 +196,13 @@ LOCALIZATION_API bool CompileLocalization(const FString& PluginName, const FStri
  */
 LOCALIZATION_API ELoadLocalizationResult LoadLocalization(const FString& PluginName, const FString& PluginContentDirectory, TSharedPtr<FLocTextHelper>& OutLocTextHelper, const FUserGeneratedContentLocalizationDescriptor* DefaultDescriptor = nullptr);
 
+/**
+ * Cleanup UGC localization that is no longer relevant based on the given descriptor.
+ *
+ * @param Plugins				The list of plugins to cleanup.
+ * @param DefaultDescriptor		The default UGC localization descriptor to filter existing UGC localization data against (things that don't pass the filter will be cleaned).
+ * @param bSilent				True to silently delete localization data that doesn't pass the filter, or false to confirm with the user (via a dialog).
+ */
+LOCALIZATION_API void CleanupLocalization(TArrayView<const TSharedRef<IPlugin>> Plugins, const FUserGeneratedContentLocalizationDescriptor& DefaultDescriptor, const bool bSilent = false);
+
 }
