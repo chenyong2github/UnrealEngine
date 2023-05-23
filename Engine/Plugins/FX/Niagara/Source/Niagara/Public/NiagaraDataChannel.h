@@ -136,10 +136,10 @@ private:
 	/**
 	Data layout for payloads in Niagara datasets.
 	*/
-	UPROPERTY()
+	UPROPERTY(Transient)
 	mutable FNiagaraDataSetCompiledData CompiledData;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	mutable FNiagaraDataSetCompiledData CompiledDataGPU;
 
 	/** Layout information for any data stored at the "Game" level. i.e. From game code/BP. AoS layout and LWC types. */

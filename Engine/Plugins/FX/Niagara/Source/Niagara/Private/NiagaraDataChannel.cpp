@@ -831,6 +831,10 @@ void UNiagaraDataChannel::PostLoad()
 		}
 	}
 
+	//Init compiled data. These are not currently serialized as we have no mechanism to rebuild then on internal data format changes like those in scripts.
+	GetCompiledData(ENiagaraSimTarget::CPUSim);
+	GetCompiledData(ENiagaraSimTarget::GPUComputeSim);
+
 	//TODO: Can serialize?
 	GameDataLayout.Init(Variables);
 
