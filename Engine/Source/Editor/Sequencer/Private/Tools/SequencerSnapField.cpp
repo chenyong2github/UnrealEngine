@@ -279,7 +279,12 @@ TOptional<FSequencerSnapField::FSnapResult> FSequencerSnapField::Snap(const TArr
 	float MaxSnapWeight = 0.f;
 	for (FFrameTime Time : InTimes)
 	{
-		TOptional<FSnapResult> ThisSnap = Snap(Time, Threshold);
+		TOptional<FSnapResult> ThisSnap;
+		
+		if (bSnapToLikeTypes)
+		{
+			ThisSnap = Snap(Time, Threshold);
+		}
 
 		if (bSnapToInterval)
 		{

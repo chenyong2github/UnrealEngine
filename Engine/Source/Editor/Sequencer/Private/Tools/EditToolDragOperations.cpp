@@ -759,7 +759,7 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 	{
 		return;
 	}
-
+	
 	// Convert the current mouse position to a time
 	FVector2D  VirtualMousePos = VirtualTrackArea.PhysicalToVirtual(LocalMousePos);
 	FFrameTime MouseTime = VirtualTrackArea.PixelToFrame(LocalMousePos.X);
@@ -778,9 +778,10 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 		const bool bSnapToLikeTypes = (KeysAsArray.Num() > 0 && Settings->GetSnapKeyTimesToKeys()) || (Sections.Num() > 0 && Settings->GetSnapSectionTimesToSections());
 
 		SnapField.GetValue().SetSnapToInterval(bSnapToInterval);
+		SnapField.GetValue().SetSnapToLikeTypes(bSnapToLikeTypes);
 
 		// RelativeSnapOffsets contains both our sections and our keys, and we add them all as potential things that can snap to stuff.
-		if (bSnapToLikeTypes)
+		if (bSnapToLikeTypes || bSnapToInterval)
 		{
 			ValidSnapMarkers.SetNumUninitialized(RelativeSnapOffsets.Num());
 			for (int32 Index = 0; Index < RelativeSnapOffsets.Num(); ++Index)
@@ -826,7 +827,7 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 
 	// Update our marked frames by moving them by our delta.
 	HandleMarkedFrameMovement(MaxDeltaX, MouseDeltaTime);
-
+	
 	// Get a list of the unique tracks in this selection and update their easing so previews draw interactively as you drag.
 	TSet<UMovieSceneTrack*> Tracks;
 	FMovieSceneSectionMovedParams SectionMovedParams(EPropertyChangeType::Interactive);

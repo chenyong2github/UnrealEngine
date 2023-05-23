@@ -41,6 +41,8 @@ public:
 
 	void SetSnapToInterval(bool bInSnapToInterval) { bSnapToInterval = bInSnapToInterval; }
 
+	void SetSnapToLikeTypes(bool bInSnapToLikeTypes) { bSnapToLikeTypes = bInSnapToLikeTypes; }
+
 	/** Snap the specified time to this field with the given threshold */
 	TOptional<FSnapResult> Snap(const FFrameTime& InTime, const FFrameTime& Threshold) const;
 
@@ -56,4 +58,5 @@ private:
 	ESequencerScrubberStyle ScrubStyle;
 
 	bool bSnapToInterval = false;
+	bool bSnapToLikeTypes = false;
 };
