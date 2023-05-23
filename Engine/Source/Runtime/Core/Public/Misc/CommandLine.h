@@ -109,14 +109,23 @@ struct FCommandLine
 	CORE_API static FString BuildFromArgV(const WIDECHAR* Prefix, int32 ArgC, WIDECHAR* ArgV[], const WIDECHAR* Suffix);
 	CORE_API static FString BuildFromArgV(const ANSICHAR* Prefix, int32 ArgC, ANSICHAR* ArgV[], const ANSICHAR* Suffix);
 
+	/**
+	* Filter Move parses CLI style arguments in the InLine, filters for commands or keys specified in the AllowedList
+	* and writes the to the OutLine.
+	* OutLine and InLine may be point to the same buffer.
+	* 
+	* @param OutLine [out] the destination of the filtered InLine
+	* @param MaxLen  the maximum length the OutLIne can hold.
+	* @param InLine  the CLI to be filtered.
+	* @param AllowedList  the list of commands or key permitted to pass the filter.
+	* 
+	* Returns true if Outline was large enough to hold the filtered string, Otherwise returns false.
+	*/
+	static bool FilterMove(TCHAR* OutLine, int32 MaxLen, const TCHAR* InLine, const TArrayView<FString>& AllowedList);
 private:
 #if UE_COMMAND_LINE_USES_ALLOW_LIST
 	/** Filters both the original and current command line list for approved only args */
 	static void ApplyCommandLineAllowList();
-	/** Filters any command line args that aren't on the approved list */
-	static TArray<FString> FilterCommandLine(TCHAR* CommandLine);
-	/** Filters any command line args that are on the to-strip list */
-	static TArray<FString> FilterCommandLineForLogging(TCHAR* CommandLine);
 	/** Rebuilds the command line using the filtered args */
 	static void BuildCommandLineAllowList(TCHAR* CommandLine, uint32 Length, const TArray<FString>& FilteredArgs);
 	static TArray<FString> ApprovedArgs;

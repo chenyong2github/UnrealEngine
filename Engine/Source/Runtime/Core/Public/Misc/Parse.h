@@ -143,7 +143,56 @@ struct CORE_API FParse
 
 	/** Parses the scheme name from a URI */
 	static bool SchemeNameFromURI(const TCHAR* InURI, FString& OutSchemeName);
+
+
+	//
+	// CLI string parsing using grammar based parser.
+	//
+
+	enum class EGrammarBasedParseFlags
+	{
+		None				= 0u,
+		AllowQuotedCommands = 1 << 0u,
+	};
+
+	enum class EGrammarBasedParseErrorCode
+	{
+		Succeeded,
+		NotRun,
+		UnBalancedQuote,
+		DisallowedQuotedCommand
+	};
+
+	struct FGrammarBasedParseResult
+	{
+		const TCHAR* At = nullptr;
+		EGrammarBasedParseErrorCode ErrorCode = EGrammarBasedParseErrorCode::NotRun;
+	};
+
+	/** Grammar
+	* 	 Line  -> Cmd*
+	* 	 Cmd   -> "Cmd*"			-- allowed if EGrammaredParseFlags::AllowQuotedCommands is given
+	* 	 	   | Key(=Value)?   -- invokes OnCommandCallback
+	* 	 Key   -> (/|(-?-?))Ident
+	* 	 Value -> -?[0-9]+(.[0-9]+)?
+	* 	       | "[^"]*"
+	* 	 	   | [_a-zA-Z0-9.:/\+-]+
+	* 	 Ident -> [_a-zA-Z][_a-zA-Z0-9.]*
+	* 
+	* Grammar Key
+	*   Expressions
+	*  
+	*   Operators
+	*    * = 0 or more of a expression
+	*    + = 1 or more of a expression
+	*    ? = 0 or 1 of an expression (IE, its optional)
+	*   [] = set of characters
+	*   () = treat enclosed expressions as 1 for purpose of other operators
+	*/
+	static FGrammarBasedParseResult GrammarBasedCLIParse(const TCHAR* Stream, TFunctionRef<void(FStringView, FStringView)> OnCommandCallback, EGrammarBasedParseFlags Flags = EGrammarBasedParseFlags::AllowQuotedCommands);
 };
+
+ENUM_CLASS_FLAGS(FParse::EGrammarBasedParseFlags);
 
 #if !UE_BUILD_SHIPPING
 /** Needed for the console command "DumpConsoleCommands" */

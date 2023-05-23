@@ -108,6 +108,72 @@ bool FCommandLine::IsCommandLineLoggingFiltered()
 #endif
 }
 
+bool FCommandLine::FilterMove(TCHAR* OutLine, int32 MaxLen, const TCHAR* InLine, const TArrayView<FString>& AllowedList)
+{
+	if (MaxLen == 0)
+	{
+		return false;
+	}
+	check(OutLine && MaxLen > 0);
+
+	// If nothing is allowed, then the output is an empty string
+	if (AllowedList.Num() == 0)
+	{
+		*OutLine = TCHAR(0);
+		return true;
+	}
+
+	TCHAR* Write = OutLine;
+	bool bOutOfSpace = false;
+
+	auto OnCmd = [OutLine, MaxLen, &bOutOfSpace , &Write, &AllowedList] (FStringView Key, FStringView Value) mutable
+	{
+		// Filter
+		// Trim the first leading '-'
+		// This brings the behaviour inline with FCommandLine::Parse
+		FStringView ToTest = Key.StartsWith(TEXT("-")) ? Key.RightChop(1) : Key;
+
+		if (!AllowedList.Contains(ToTest))
+		{
+			return;
+		}
+
+		// Destination Accounting
+		int32 WriteLength = Key.Len() + Value.Len() + (Write != OutLine);
+		bOutOfSpace |= (WriteLength >= MaxLen);
+		if (bOutOfSpace)
+		{
+			return;
+		}
+		MaxLen -= WriteLength;
+
+		// Append
+		if (Write != OutLine)
+		{
+			*Write++ = TCHAR(' ');
+		}
+
+		FMemory::Memmove(Write, Key.GetData(), sizeof(TCHAR) * Key.Len());
+		Write += Key.Len();
+		if (!Value.IsEmpty())
+		{
+			*Write++ = TCHAR('=');
+			FMemory::Memmove(Write, Value.GetData(), sizeof(TCHAR) * Value.Len());
+			Write += Value.Len();
+		}
+	};
+	
+	FParse::GrammarBasedCLIParse(InLine, OnCmd, FParse::EGrammarBasedParseFlags::AllowQuotedCommands);
+
+	if (bOutOfSpace)
+	{
+		return false;
+	}
+
+	*Write = TCHAR(0);
+	return true;
+}
+
 #if UE_COMMAND_LINE_USES_ALLOW_LIST
 TArray<FString> FCommandLine::ApprovedArgs;
 TArray<FString> FCommandLine::FilterArgsForLogging;
@@ -159,66 +225,13 @@ void FCommandLine::ApplyCommandLineAllowList()
 		FCommandLine::Parse(FilterForLoggingList, FilterArgsForLogging, Ignored);
 	}
 	// Process the original command line
-	TArray<FString> OriginalList = FilterCommandLine(OriginalCmdLine);
-	BuildCommandLineAllowList(OriginalCmdLine, UE_ARRAY_COUNT(OriginalCmdLine), OriginalList);
+	FCommandLine::FilterMove(OriginalCmdLine, UE_ARRAY_COUNT(OriginalCmdLine), OriginalCmdLine, ApprovedArgs);
 	// Process the current command line
-	TArray<FString> CmdList = FilterCommandLine(CmdLine);
-	BuildCommandLineAllowList(CmdLine, UE_ARRAY_COUNT(CmdLine), CmdList);
+	FCommandLine::FilterMove(CmdLine, UE_ARRAY_COUNT(CmdLine), CmdLine, ApprovedArgs);
 	// Process the command line for logging purposes
-	TArray<FString> LoggingCmdList = FilterCommandLineForLogging(LoggingCmdLine);
-	BuildCommandLineAllowList(LoggingCmdLine, UE_ARRAY_COUNT(LoggingCmdLine), LoggingCmdList);
+	FCommandLine::FilterMove(LoggingCmdLine, UE_ARRAY_COUNT(LoggingCmdLine), LoggingCmdLine, FilterArgsForLogging);
 	// Process the original command line for logging purposes
-	TArray<FString> LoggingOriginalCmdList = FilterCommandLineForLogging(LoggingOriginalCmdLine);
-	BuildCommandLineAllowList(LoggingOriginalCmdLine, UE_ARRAY_COUNT(LoggingOriginalCmdLine), LoggingOriginalCmdList);
-}
-
-TArray<FString> FCommandLine::FilterCommandLine(TCHAR* CommandLine)
-{
-	TArray<FString> Ignored;
-	TArray<FString> ParsedList;
-	// Parse the command line list
-	FCommandLine::Parse(CommandLine, ParsedList, Ignored);
-	// Remove any that are not in our approved list
-	for (int32 Index = 0; Index < ParsedList.Num(); Index++)
-	{
-		bool bFound = false;
-		for (auto ApprovedArg : ApprovedArgs)
-		{
-			if (ParsedList[Index].StartsWith(ApprovedArg))
-			{
-				bFound = true;
-				break;
-			}
-		}
-		if (!bFound)
-		{
-			ParsedList.RemoveAt(Index);
-			Index--;
-		}
-	}
-	return ParsedList;
-}
-
-TArray<FString> FCommandLine::FilterCommandLineForLogging(TCHAR* CommandLine)
-{
-	TArray<FString> Ignored;
-	TArray<FString> ParsedList;
-	// Parse the command line list
-	FCommandLine::Parse(CommandLine, ParsedList, Ignored);
-	// Remove any that are not in our approved list
-	for (int32 Index = 0; Index < ParsedList.Num(); Index++)
-	{
-		for (auto Filter : FilterArgsForLogging)
-		{
-			if (ParsedList[Index].StartsWith(Filter))
-			{
-				ParsedList.RemoveAt(Index);
-				Index--;
-				break;
-			}
-		}
-	}
-	return ParsedList;
+	FCommandLine::FilterMove(LoggingOriginalCmdLine, UE_ARRAY_COUNT(LoggingOriginalCmdLine), LoggingOriginalCmdLine, FilterArgsForLogging);
 }
 
 void FCommandLine::BuildCommandLineAllowList(TCHAR* CommandLine, uint32 ArrayCount, const TArray<FString>& FilteredArgs)

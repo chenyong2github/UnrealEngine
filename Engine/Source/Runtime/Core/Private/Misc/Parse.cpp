@@ -1347,3 +1347,271 @@ bool FParseLineExtendedTest::RunTest(const FString& Parameters)
 }
 
 #endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+
+
+namespace 
+{
+struct FGrammarBasedParser 
+{
+	TFunctionRef<void(FStringView, FStringView)> OnCmd;
+	const TCHAR* Cursor;
+	FParse::EGrammarBasedParseFlags BehaviourFlags;
+
+	FParse::FGrammarBasedParseResult Result;
+
+	FGrammarBasedParser(TFunctionRef<void(FStringView, FStringView)> InOnCmd, const TCHAR* InCursor, FParse::EGrammarBasedParseFlags InBehaviourFlags) : OnCmd{ MoveTemp(InOnCmd) }, Cursor{ InCursor }, BehaviourFlags{ InBehaviourFlags }, Result{} {}
+	
+	const TCHAR* SkipWhitespace() 
+	{
+		while (FChar::IsWhitespace(*Cursor))
+		{
+			++Cursor;
+		}
+		return Cursor;
+	}
+
+	bool MatchChar(TCHAR Char)
+	{
+		if (*Cursor == Char)
+		{
+			++Cursor;
+			return true;
+		}
+		return false;
+	}
+
+	bool MatchBetween(TCHAR Min, TCHAR Max)
+	{
+		if (Min <= *Cursor && *Cursor <= Max)
+		{
+			++Cursor;
+			return true;
+		}
+		return false;
+	}
+
+	bool MatchValueChar()
+	{
+		if (FChar::IsAlnum(*Cursor)
+			|| (*Cursor == TCHAR('_'))
+			|| (*Cursor == TCHAR('.'))
+			|| (*Cursor == TCHAR(':'))
+			|| (*Cursor == TCHAR('-'))
+			|| (*Cursor == TCHAR('+'))
+			|| (*Cursor == TCHAR('/'))
+			|| (*Cursor == TCHAR('\\')))
+		{
+			++Cursor;
+			return true;
+		}
+		return false;
+	}
+
+	bool IsAt(TCHAR Char) const
+	{
+		return *Cursor == Char;
+	}
+
+	bool IsEnd() const
+	{
+		return *Cursor == TCHAR('\0');
+	}
+
+	void SetError(FParse::EGrammarBasedParseErrorCode Code, const TCHAR* At)
+	{
+		Result.At = At;
+		Result.ErrorCode = Code;
+	}
+
+	void SetError(FParse::EGrammarBasedParseErrorCode Code)
+	{
+		SetError(Code, Cursor);
+	}
+
+	bool HasError() const
+	{
+		return Result.ErrorCode > FParse::EGrammarBasedParseErrorCode::NotRun;
+	}
+
+	template<typename OperationType>
+	void ZeroOrMore(OperationType&& ParseExpression)
+	{
+		if (!HasError() && !IsEnd()) {
+			bool bContinue = false;
+			do
+			{
+				bContinue = ParseExpression();
+			} while (!HasError() && !IsEnd() && bContinue);
+		}
+	}
+
+	FStringView ParseLine()
+	{
+		const TCHAR* Start = SkipWhitespace();
+		ZeroOrMore([this]() 
+		{
+			FStringView ResultCmd = ParseCmd();
+			return ResultCmd.Len() != 0;
+		});
+
+		if (!HasError())
+		{
+			SetError(FParse::EGrammarBasedParseErrorCode::Succeeded);
+			return FStringView{ Start,  UE_PTRDIFF_TO_INT32(Cursor - Start) };
+		}
+
+		return {};
+	}
+
+	FStringView ParseCmd()
+	{
+		const TCHAR* Start = Cursor;
+
+		if (MatchChar(TCHAR('"')))
+		{
+			const TCHAR* QuoteAt = Start;
+
+			if (!(BehaviourFlags & FParse::EGrammarBasedParseFlags::AllowQuotedCommands))
+			{
+				SetError(FParse::EGrammarBasedParseErrorCode::DisallowedQuotedCommand, QuoteAt);
+				return {};
+			}
+			
+			Start = Cursor;
+			ZeroOrMore([this]()
+			{
+				SkipWhitespace();
+				if (IsAt(TCHAR('"')))
+				{
+					return false;
+				}
+				FStringView ResultCmd = ParseCmd();
+				return ResultCmd.Len() != 0;
+			});
+
+			if (!MatchChar(TCHAR('"')))
+			{
+				SetError(FParse::EGrammarBasedParseErrorCode::UnBalancedQuote, QuoteAt);
+				return {};
+			}
+			return FStringView{ Start,  UE_PTRDIFF_TO_INT32(Cursor - Start) };
+		}
+
+		FStringView Item = ParseKey();
+		if (HasError())
+		{
+			return {};
+		}
+		SkipWhitespace();
+		if (MatchChar(TCHAR('=')))
+		{
+			FStringView ItemValue = ParseValue();
+			if (HasError())
+			{
+				return {};
+			}
+			OnCmd(Item, ItemValue);
+		}
+		else
+		{
+			OnCmd(Item, FStringView{});
+		}
+		return FStringView{ Start,  UE_PTRDIFF_TO_INT32(Cursor - Start) };
+	}
+
+	FStringView ParseKey()
+	{
+		const TCHAR* Start = SkipWhitespace();
+		if (!MatchChar(TCHAR('/')))
+		{
+			MatchChar(TCHAR('-'));
+			MatchChar(TCHAR('-'));
+		}
+		ParseIdent();
+		return FStringView{ Start,  UE_PTRDIFF_TO_INT32(Cursor - Start) };
+	}
+
+	FStringView ParseValue()
+	{
+		const TCHAR* Start = SkipWhitespace();
+
+		// String literal
+		if (MatchChar(TCHAR('"')))
+		{
+			ZeroOrMore([this]() 
+			{
+				++Cursor;
+				return !IsAt(TCHAR('"'));
+			});
+
+			if (!MatchChar(TCHAR('"')))
+			{
+				SetError(FParse::EGrammarBasedParseErrorCode::UnBalancedQuote, Start);
+				return {};
+			}
+			return FStringView{ Start,  UE_PTRDIFF_TO_INT32(Cursor - Start) };
+		}
+
+		// A number, Starts as an Integer, but can also be a Real
+		if (MatchBetween(TCHAR('0'), TCHAR('9')) || MatchChar(TCHAR('-')))
+		{
+			ZeroOrMore([this]() 
+			{
+				return MatchBetween(TCHAR('0'), TCHAR('9')); 
+			});
+			
+			// Are we real number?
+			if (MatchChar(TCHAR('.')))
+			{
+				ZeroOrMore([this]() 
+				{ 
+					return MatchBetween(TCHAR('0'), TCHAR('9')); 
+				});
+			}
+			return FStringView{ Start,  UE_PTRDIFF_TO_INT32(Cursor - Start) };
+		}
+
+		// Some other word like value
+		// or maybe a file path
+		ZeroOrMore([this]()
+		{
+			return MatchValueChar();
+		});
+		return FStringView{ Start,  UE_PTRDIFF_TO_INT32(Cursor - Start) };
+	}
+
+	
+
+	FStringView ParseIdent()
+	{
+		const TCHAR* Start = Cursor;
+		// [_a-zA-Z]
+		if (FChar::IsAlpha(*Cursor) || (*Cursor == TCHAR('_')))
+		{
+			// [_a-zA-Z0-9.]*
+			ZeroOrMore([this]()
+			{
+				++Cursor;
+				return FChar::IsAlnum(*Cursor) || IsAt(TCHAR('_')) || IsAt(TCHAR('.'));
+			});
+		}
+		return FStringView{ Start,  UE_PTRDIFF_TO_INT32(Cursor - Start) };
+	}
+
+public:
+	static FParse::FGrammarBasedParseResult DoParse(const TCHAR* Stream, TFunctionRef<void(FStringView, FStringView)> OnCommandCallback, FParse::EGrammarBasedParseFlags Flags)
+	{
+		// NOTE: if you modify this parser, please update the Grammar in the header.
+		FGrammarBasedParser Parser{ OnCommandCallback, Stream, Flags };
+		Parser.ParseLine();
+		return MoveTemp(Parser.Result);
+	}
+};
+
+}
+
+FParse::FGrammarBasedParseResult FParse::GrammarBasedCLIParse(const TCHAR* Stream, TFunctionRef<void(FStringView, FStringView)> OnCommandCallback, EGrammarBasedParseFlags Flags)
+{
+	return FGrammarBasedParser::DoParse(Stream, MoveTemp(OnCommandCallback), Flags);
+}
