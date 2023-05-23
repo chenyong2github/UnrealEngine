@@ -25,6 +25,11 @@
 			"LoadingPhase": "PreDefault"
 		},
 		{
+			"Name": "MutableValidation",
+			"Type": "Editor",
+			"LoadingPhase": "PreDefault"
+		},
+		{
 			"Name": "CustomizableObjectEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit"
@@ -47,6 +52,10 @@
 		},
 		{
 			"Name": "StructUtils",
+			"Enabled": true
+		},
+		{
+			"Name": "DataValidation",
 			"Enabled": true
 		}
 	],

@@ -1630,36 +1630,6 @@ public:
 	/** Return the names used by mutable to identify which mu::Image should be considered of LowPriority. */
 	void GetLowPriorityTextureNames(TArray<FString>& OutTextureNames);
 
-#if WITH_EDITOR
-
-	// UObject Interface -> Data validation
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
-	// End of UObject Interface
-
-private:
-
-	/** Cached handle to be able later to remove the bound method from the FEditorDelegates::OnPostAssetValidation delegate */
-	inline static FDelegateHandle OnPostCOValidationHandle;
-	
-	/** Collection with all root objects tested during this IsDataValidRun. Shared with all COs */
-	inline static TArray<UCustomizableObject*> AlreadyValidatedRootObjects;
-	
-	/** Method invoked once the validation of all assets has been completed. */
-	static void OnPostCOsValidation();
-
-public:
-	// UObject Interface -> Asset saving
-	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
-	// End of UObject Interface
-
-private:
-	/** Flag that tells us if the validation of the asset has been triggered by the saving of it.
-	 * It gets consumed by IsDataValid and it is that same function the one that resets the value of this flag.
-	 */
-	bool bIsValidationTriggeredBySave = false;
-
-#endif
-
 	/** Used to prevent GC of MaskOutCache and keep it in memory while it's needed */
 	UPROPERTY(Transient)
 	TObjectPtr<UMutableMaskOutCache> MaskOutCache_HardRef;
