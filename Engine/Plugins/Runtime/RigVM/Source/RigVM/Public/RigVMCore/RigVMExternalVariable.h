@@ -25,7 +25,6 @@ struct RIGVM_API FRigVMExternalVariableDef
 	GENERATED_BODY()
 
 	FRigVMExternalVariableDef() = default;
-	FRigVMExternalVariableDef(const FRigVMExternalVariableDef& Other) = default;
 
 	static void GetTypeFromProperty(const FProperty* InProperty, FName& OutTypeName, UObject*& OutTypeObject)
 	{
