@@ -55,6 +55,12 @@ class UNREALED_API UDEditorParameterValue : public UObject
 		return false;
 	}
 
+	bool IsStaticParameter() const
+	{
+		EMaterialParameterType Type = GetParameterType();
+		return Type == EMaterialParameterType::StaticSwitch || Type == EMaterialParameterType::StaticComponentMask;
+	}
+
 	EMaterialParameterType GetParameterType() const
 	{
 		FMaterialParameterMetadata Result;
