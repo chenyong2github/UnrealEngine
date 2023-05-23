@@ -369,7 +369,7 @@ private:
 
 	void Pack(const FMemberDeclaration& Member)
 	{
-		uint16 RelativeWordOffset = IsIn<StopTypes>(Member.Type) ? Member.Offset : GenerateJumps(Member.Offset);
+		uint16 RelativeWordOffset = IsIn<StopTypes>(Member.Type) ? IntCastChecked<uint16>(Member.Offset) : GenerateJumps(Member.Offset);
 
 		if (TOptional<FStridedLayout> StridedLayout = TrySimplifyStructArray(Member))
 		{
@@ -393,7 +393,7 @@ private:
 		check(ByteOffset % 8 == 0);
 		check(ByteOffset / 8 >= JumpWordPos);
 
-		const uint32 WordOffsetFromJumpPos = ByteOffset / 8 - JumpWordPos;
+		const uint32 WordOffsetFromJumpPos = ByteOffset / 8 - IntCastChecked<uint32>(JumpWordPos);
 
 		// 1 jump unit is OffsetRange words, a max jump is OffsetRange * OffsetRange * 8B = 32MB with 11 offset bits
 		const uint32 JumpUnits = WordOffsetFromJumpPos / OffsetRange;
@@ -497,7 +497,7 @@ FSchemaView FSchemaBuilder::Build(ObjectAROFn ARO)
 	check(Packed.DebugNames.IsEmpty() == !UE_GC_DEBUGNAMES) ;
 
 	// Allocate and initialize schema data
-	const uint32 Bytes = Align(sizeof(FSchemaHeader), sizeof(FMemberWord)) + sizeof(FMemberWord) * Packed.Words.Num() + sizeof(FName) * Packed.DebugNames.Num();
+	const SIZE_T Bytes = Align(sizeof(FSchemaHeader), sizeof(FMemberWord)) + sizeof(FMemberWord) * Packed.Words.Num() + sizeof(FName) * Packed.DebugNames.Num();
 	FSchemaHeader* Header = new (FMemory::Malloc(Bytes)) FSchemaHeader {StructStride};
 	FMemberWord* FirstWord = (FMemberWord*)(Header + 1);
 	FMemory::Memcpy(FirstWord, Packed.Words.GetData(), sizeof(FMemberWord) * Packed.Words.Num());

@@ -531,7 +531,7 @@ class FAsyncPurge : public FRunnable
 
 	/** [PURGE/GAME THREAD] Destroys objects that are unreachable */
 	template <bool bMultithreaded> // Having this template argument lets the compiler strip unnecessary checks
-	bool TickDestroyObjects(bool bUseTimeLimit, float TimeLimit, double StartTime)
+	bool TickDestroyObjects(bool bUseTimeLimit, double TimeLimit, double StartTime)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FAsyncPurge::TickDestroyObjects);
 		const int32 TimeLimitEnforcementGranularityForDeletion = 100;
@@ -582,7 +582,7 @@ class FAsyncPurge : public FRunnable
 	}
 
 	/** [GAME THREAD] Destroys objects that are unreachable and couldn't be destroyed on the worker thread */
-	bool TickDestroyGameThreadObjects(bool bUseTimeLimit, float TimeLimit, double StartTime)
+	bool TickDestroyGameThreadObjects(bool bUseTimeLimit, double TimeLimit, double StartTime)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FAsyncPurge::TickDestroyGameThreadObjects);
 		const int32 TimeLimitEnforcementGranularityForDeletion = 100;
@@ -711,7 +711,7 @@ public:
 	}
 
 	/** [GAME THREAD] Ticks the purge process on the game thread */
-	void TickPurge(bool bUseTimeLimit, float TimeLimit, double StartTime)
+	void TickPurge(bool bUseTimeLimit, double TimeLimit, double StartTime)
 	{
 		bool bCanStartDestroyingGameThreadObjects = true;
 		if (!Thread)
@@ -5415,7 +5415,7 @@ public:
 	{
 		for (FStealableContext& Context : Contexts)
 		{
-			Context.store(InContexts[&Context - Contexts.GetData()], std::memory_order_relaxed);
+			Context.store(InContexts[UE_PTRDIFF_TO_INT32(&Context - Contexts.GetData())], std::memory_order_relaxed);
 		}
 	}
 
