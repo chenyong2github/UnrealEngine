@@ -92,6 +92,7 @@ public:
 		, _MaxSliderValue(NumericType(100))
 		, _SliderExponent(1.f)
 		, _AllowWheel(true)
+		, _BroadcastValueChangesPerKey(false)
 		, _MinDesiredValueWidth(0.f)
 		, _DisplayToggle(false)
 		, _ToggleChecked(ECheckBoxState::Checked)
@@ -158,6 +159,8 @@ public:
 		SLATE_ATTRIBUTE(NumericType, SliderExponentNeutralValue )
 		/** Whether this spin box should have mouse wheel feature enabled, defaults to true */
 		SLATE_ARGUMENT( bool, AllowWheel )
+		/** True to broadcast every time we type */
+		SLATE_ARGUMENT( bool, BroadcastValueChangesPerKey)
 		/** Step to increment or decrement the value by when scrolling the mouse wheel. If not specified will determine automatically */
 		SLATE_ATTRIBUTE( TOptional< NumericType >, WheelStep )
 		/** The minimum desired width for the value portion of the control. */
@@ -263,6 +266,7 @@ public:
 				.SliderExponent(InArgs._SliderExponent)
 				.SliderExponentNeutralValue(InArgs._SliderExponentNeutralValue)
 				.EnableWheel(InArgs._AllowWheel)
+				.BroadcastValueChangesPerKey(InArgs._BroadcastValueChangesPerKey)
 				.WheelStep(InArgs._WheelStep)
 				.OnBeginSliderMovement(InArgs._OnBeginSliderMovement)
 				.OnEndSliderMovement(InArgs._OnEndSliderMovement)
