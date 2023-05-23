@@ -73,7 +73,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RemoteWorkerCpp", "Samples\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde", "Horde\Horde.csproj", "{1995E4FA-DFFF-44BD-A4C8-C2E59D07E468}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Horde.Agent.TrayApp", "Horde.Agent.TrayApp\Horde.Agent.TrayApp.csproj", "{AAA04F58-16A1-4F9E-983D-0C526485D9F5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Agent.TrayApp", "Horde.Agent.TrayApp\Horde.Agent.TrayApp.csproj", "{AAA04F58-16A1-4F9E-983D-0C526485D9F5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -283,8 +283,8 @@ Global
 		{9C9B0CDD-AD2A-4C7E-A5EB-E72ABE538141}.Development|Any CPU.Build.0 = Debug|Any CPU
 		{9C9B0CDD-AD2A-4C7E-A5EB-E72ABE538141}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9C9B0CDD-AD2A-4C7E-A5EB-E72ABE538141}.Release|Any CPU.Build.0 = Release|Any CPU
-		{06AD34BE-74CF-4139-B537-99616D12273F}.Analyze|Any CPU.ActiveCfg = Debug|Any CPU
-		{06AD34BE-74CF-4139-B537-99616D12273F}.Analyze|Any CPU.Build.0 = Debug|Any CPU
+		{06AD34BE-74CF-4139-B537-99616D12273F}.Analyze|Any CPU.ActiveCfg = Analyze|Any CPU
+		{06AD34BE-74CF-4139-B537-99616D12273F}.Analyze|Any CPU.Build.0 = Analyze|Any CPU
 		{06AD34BE-74CF-4139-B537-99616D12273F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{06AD34BE-74CF-4139-B537-99616D12273F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{06AD34BE-74CF-4139-B537-99616D12273F}.Development|Any CPU.ActiveCfg = Development|Any CPU
