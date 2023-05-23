@@ -61,14 +61,14 @@ public:
 
 	/** Adds it to the game's viewport. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface")
-	void AddWidget(UWidget* Widget, FGameViewportWidgetSlot Slot);
+	bool AddWidget(UWidget* Widget, FGameViewportWidgetSlot Slot);
 
 	/**
 	 * Adds the widget to the game's viewport in the section dedicated to the player. This is valuable in a split screen
 	 * game where you need to only show a widget over a player's portion of the viewport.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface")
-	void AddWidgetForPlayer(UWidget* Widget, ULocalPlayer* Player, FGameViewportWidgetSlot Slot);
+	bool AddWidgetForPlayer(UWidget* Widget, ULocalPlayer* Player, FGameViewportWidgetSlot Slot);
 
 	/** Removes the widget from the viewport. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface")
@@ -117,7 +117,7 @@ private:
 	};
 
 private:
-	void AddToScreen(UWidget* Widget, ULocalPlayer* Player, FGameViewportWidgetSlot& Slot);
+	bool AddToScreen(UWidget* Widget, ULocalPlayer* Player, FGameViewportWidgetSlot& Slot);
 	void RemoveWidgetInternal(UWidget* Widget, const TWeakPtr<SConstraintCanvas>& FullScreenWidget, const TWeakObjectPtr<ULocalPlayer>& LocalPlayer);
 	void HandleWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResoures);
 	void HandleRemoveWorld(UWorld* InWorld);

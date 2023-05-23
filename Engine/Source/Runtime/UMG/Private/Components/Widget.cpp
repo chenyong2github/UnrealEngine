@@ -1583,7 +1583,7 @@ UWorld* UWidget::GetWorld() const
 		return OwningTree->GetWorld();
 	}
 
-	return nullptr;
+	return Super::GetWorld();
 }
 
 void UWidget::BeginDestroy()
