@@ -449,10 +449,16 @@ public:
 				OutValue = GetSubsurfaceProfileId(GetSubsurfaceProfileRT());
 				return true;
 			}
-			else if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == SpecularProfileAtlas::GetSpecularProfileParameterName())
+			else if (Type == EMaterialParameterType::Scalar && NumSpecularProfileRT() > 0)
 			{
-				OutValue = SpecularProfileAtlas::GetSpecularProfileId(GetSpecularProfileRT());
-				return true;
+				for (uint32 It=0,Count=NumSpecularProfileRT();It<Count;++It)
+				{
+					if (ParameterInfo.Name == SpecularProfileAtlas::GetSpecularProfileParameterName(GetSpecularProfileRT(It)))
+					{
+						OutValue = SpecularProfileAtlas::GetSpecularProfileId(GetSpecularProfileRT(It));
+						return true;
+					}
+				}
 			}
 
 			return false;
@@ -5072,7 +5078,11 @@ void UMaterial::RebuildShadingModelField()
 		}
 
 		// Set specular profile if any
-		SpecularProfile = StrataMaterialInfo.GetSpecularProfile();
+		SpecularProfiles.SetNum(StrataMaterialInfo.CountSpecularProfiles());
+		for (int32 It = 0, Count = StrataMaterialInfo.CountSpecularProfiles(); It<Count; ++It)
+		{
+			SpecularProfiles[It] = StrataMaterialInfo.GetSpecularProfile(It);
+		}
 	}
 	// If using shading model from material expression, go through the expressions and look for the ShadingModel expression to figure out what shading models need to be supported in this material.
 	// This might not be the same as what is actually compiled in to the shader, since there might be feature switches, static switches etc. that skip certain shading models.
@@ -6621,10 +6631,16 @@ USubsurfaceProfile* UMaterial::GetSubsurfaceProfile_Internal() const
 	return SubsurfaceProfile; 
 }
 
-USpecularProfile* UMaterial::GetSpecularProfile_Internal() const
+uint32 UMaterial::NumSpecularProfile_Internal() const
+{
+	return SpecularProfiles.Num();
+}
+
+USpecularProfile* UMaterial::GetSpecularProfile_Internal(uint32 Index) const
 {
 	checkSlow(IsInGameThread());
-	return SpecularProfile; 
+	check(Index<uint32(SpecularProfiles.Num()));
+	return SpecularProfiles[Index];
 }
 
 bool UMaterial::CastsRayTracedShadows() const

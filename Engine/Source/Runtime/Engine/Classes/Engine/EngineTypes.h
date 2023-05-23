@@ -740,9 +740,10 @@ public:
 	int32 CountSubsurfaceProfiles() const { return SubsurfaceProfiles.Num(); }
 	USubsurfaceProfile* GetSubsurfaceProfile() const { return SubsurfaceProfiles.Num() > 0 ? SubsurfaceProfiles[0] : nullptr; }
 
+	// Specular profiles
 	void AddSpecularProfile(USpecularProfile* InProfile) { if (InProfile) SpecularProfiles.Add(InProfile); }
 	int32 CountSpecularProfiles() const { return SpecularProfiles.Num(); }
-	USpecularProfile* GetSpecularProfile() const { return SpecularProfiles.Num() > 0 ? SpecularProfiles[0] : nullptr; }
+	USpecularProfile* GetSpecularProfile(int32 Index) const { return Index < SpecularProfiles.Num() ? SpecularProfiles[Index] : nullptr; }
 
 	// Shading model from expression
 	void SetShadingModelFromExpression(bool bIn) { bHasShadingModelFromExpression = bIn ? 1u : 0u; }

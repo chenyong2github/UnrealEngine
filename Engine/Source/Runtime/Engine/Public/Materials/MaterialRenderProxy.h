@@ -204,11 +204,14 @@ public:
 	}
 #endif
 
+	// Subsurface profiles
 	void SetSubsurfaceProfileRT(const USubsurfaceProfile* Ptr) { SubsurfaceProfileRT = Ptr; }
 	const USubsurfaceProfile* GetSubsurfaceProfileRT() const { return SubsurfaceProfileRT; }
 
-	void SetSpecularProfileRT(const USpecularProfile* Ptr) { SpecularProfileRT = Ptr; }
-	const USpecularProfile* GetSpecularProfileRT() const { return SpecularProfileRT; }
+	// Specular profiles
+	void AddSpecularProfileRT(const USpecularProfile* Ptr) { SpecularProfilesRT.Add(Ptr); }
+	const USpecularProfile* GetSpecularProfileRT(uint32 Index) const { check(Index<uint32(SpecularProfilesRT.Num())); return SpecularProfilesRT[Index]; }
+	const uint32 NumSpecularProfileRT() const { return SpecularProfilesRT.Num(); }
 
 	static void UpdateDeferredCachedUniformExpressions();
 
@@ -227,7 +230,7 @@ private:
 
 	/** 0 if not set, game thread pointer, do not dereference, only for comparison */
 	const USubsurfaceProfile* SubsurfaceProfileRT;
-	const USpecularProfile* SpecularProfileRT;
+	TArray<const USpecularProfile*> SpecularProfilesRT;
 	FString MaterialName;
 
 	/** Incremented each time UniformExpressionCache is modified */

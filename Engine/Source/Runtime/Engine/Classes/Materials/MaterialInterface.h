@@ -276,9 +276,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
 	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
 
-	/** Specular Profile. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material)
-	TObjectPtr<class USpecularProfile> SpecularProfile;	
+	/** Specular Profile. For internal usage, not editable/visible */
+	UPROPERTY()
+	TArray<TObjectPtr<class USpecularProfile>> SpecularProfiles;
 
 	/** Whether this material interface is included in the base game (and not in a DLC) */
 	UPROPERTY()
@@ -915,7 +915,8 @@ public:
 	ENGINE_API virtual FDisplacementScaling GetDisplacementScaling() const;
 	ENGINE_API virtual float GetMaxWorldPositionOffsetDisplacement() const;
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const;
-	ENGINE_API virtual USpecularProfile* GetSpecularProfile_Internal() const;
+	ENGINE_API virtual uint32 NumSpecularProfile_Internal() const;
+	ENGINE_API virtual USpecularProfile* GetSpecularProfile_Internal(uint32 Index) const;
 	ENGINE_API virtual bool CastsRayTracedShadows() const;
 
 	/**

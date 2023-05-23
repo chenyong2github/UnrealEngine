@@ -7876,6 +7876,7 @@ USpecularProfileFactory::USpecularProfileFactory(const FObjectInitializer& Objec
 UObject* USpecularProfileFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	USpecularProfile* Object = NewObject<USpecularProfile>(InParent, InName, Flags);	
+	Object->Guid = FGuid::NewGuid();
 	return Object;
 }
 

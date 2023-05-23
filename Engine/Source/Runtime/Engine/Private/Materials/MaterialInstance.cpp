@@ -281,12 +281,18 @@ bool FMaterialInstanceResource::GetParameterValue(EMaterialParameterType Type, c
 		OutValue = GetSubsurfaceProfileId(MySubsurfaceProfileRT);
 		bResult = true;
 	}
-	else if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == SpecularProfileAtlas::GetSpecularProfileParameterName())
+	else if (Type == EMaterialParameterType::Scalar && NumSpecularProfileRT() > 0)
 	{
-		check(ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter);
-		const USpecularProfile* MySpecularProfileRT = GetSpecularProfileRT();
-		OutValue = SpecularProfileAtlas::GetSpecularProfileId(MySpecularProfileRT);
-		bResult = true;
+		for (uint32 It=0,Count=NumSpecularProfileRT();It<Count;++It)
+		{
+			if (ParameterInfo.Name == SpecularProfileAtlas::GetSpecularProfileParameterName(GetSpecularProfileRT(It)))
+			{
+				check(ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter);
+				OutValue = SpecularProfileAtlas::GetSpecularProfileId(GetSpecularProfileRT(It));
+				bResult = true;
+				break;
+			}
+		}
 	}
 	if (!bResult)
 	{

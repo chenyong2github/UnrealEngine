@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "Misc/Guid.h"
 #include "RenderResource.h"
 #include "SpecularProfile.generated.h"
 
@@ -65,6 +66,9 @@ class USpecularProfile : public UObject
 	UPROPERTY(Category = USpecularProfile, EditAnywhere, meta = (ShowOnlyInnerProperties))
 	struct FSpecularProfileStruct Settings;
 
+	UPROPERTY()
+	FGuid Guid;
+
 	//~ Begin UObject Interface
 	virtual void BeginDestroy();
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
@@ -83,10 +87,10 @@ ENGINE_API FRHITexture* GetSpecularProfileTextureAtlas();
 ENGINE_API FRHITexture* GetSpecularProfileTextureAtlasWithFallback();
 
 // Profile - Initializes or updates the contents of the specular profile texture.
-ENGINE_API int32 AddOrUpdateProfile(const USpecularProfile* InProfile, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture);
+ENGINE_API int32 AddOrUpdateProfile(const USpecularProfile* InProfile, const FGuid& InGuid, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture);
 
 // Profile - Returns the specular profile ID shader parameter name
-ENGINE_API FName GetSpecularProfileParameterName();
+ENGINE_API FName GetSpecularProfileParameterName(const USpecularProfile* InProfile);
 
 // Profile - Returns the specular profile ID for a given Specular Profile object
 ENGINE_API float GetSpecularProfileId(const USpecularProfile* In);

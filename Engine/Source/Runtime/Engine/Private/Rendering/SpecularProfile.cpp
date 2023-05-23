@@ -62,7 +62,7 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, TargetTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return true;
 	}
@@ -85,41 +85,28 @@ public:
 
 	// convenience, can be optimized 
 	// @param Profile must not be 0, game thread pointer, do not dereference, only for comparison
-	int32 AddOrUpdateProfile(const USpecularProfile* InProfile, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture)
-	{
-		check(InProfile);
-
-		int32 AllocationId = FindAllocationId(InProfile); 
-		
-		if (AllocationId != -1)
-		{
-			UpdateProfile(AllocationId, InSettings, InTexture);
-		}
-		else
-		{
-			AllocationId = AddProfile(InSettings, InProfile, InTexture);
-		}
-
-		return AllocationId;
-	}
+	int32 AddOrUpdateProfile(const USpecularProfile* InProfile, const FGuid& InGuid, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture);
 
 	// O(n) n is a small number
 	// @param InProfile must not be 0, game thread pointer, do not dereference, only for comparison
-	// @return AllocationId -1: no allocation, should be deallocated with DeallocateSpecularProfile()
-	int32 AddProfile(const FSpecularProfileStruct Settings, const USpecularProfile* InProfile, const FTextureReference* InTexture);
+	// @return AllocationId INDEX_NONE: no allocation, should be deallocated with DeallocateSpecularProfile()
+	int32 AddProfile(const USpecularProfile* InProfile, const FGuid& InGuid, const FSpecularProfileStruct Settings, const FTextureReference* InTexture);
 
 	// O(n) to find the element, n is the SSProfile count and usually quite small
 	void RemoveProfile(const USpecularProfile* InProfile);
 
 	// @param InProfile must not be 0, game thread pointer, do not dereference, only for comparison
-	void UpdateProfile(const USpecularProfile* InProfile, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture) { UpdateProfile(FindAllocationId(InProfile), InSettings, InTexture); }
+	void UpdateProfile(const USpecularProfile* InProfile, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture);
 
 	// @param InProfile must not be 0, game thread pointer, do not dereference, only for comparison
 	void UpdateProfile(int32 AllocationId, const FSpecularProfileStruct Settings, const FTextureReference* InTexture);
 
+	// return the parameter name for a given profile
+	FName GetParameterName(const USpecularProfile* InProfile) const;
+
 	// @return can be nullptr if there is no SpecularProfile
-	struct IPooledRenderTarget* GetTexture(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform);
-	struct IPooledRenderTarget* GetTexture();
+	struct IPooledRenderTarget* GetAtlasTexture(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform);
+	struct IPooledRenderTarget* GetAtlasTexture();
 
 	//~ Begin FRenderResource Interface.
 	/**
@@ -128,7 +115,7 @@ public:
 	virtual void ReleaseDynamicRHI() override;
 
 	// @param InProfile must not be 0, game thread pointer, do not dereference, only for comparison
-	// @return -1 if not found
+	// @return INDEX_NONE if not found
 	int32 FindAllocationId(const USpecularProfile* InProfile) const;
 
 private:
@@ -139,6 +126,7 @@ private:
 		const USpecularProfile* Profile = nullptr; // Game thread pointer! Do not dereference, only for comparison.
 		const FTextureReference* Texture = nullptr;
 		FIntPoint CachedResolution = FIntPoint::ZeroValue;
+		FName ParameterName;
 	};
 	TArray<FProfileEntry> SpecularProfileEntries;
 };
@@ -149,21 +137,50 @@ TGlobalResource<FSpecularProfileTextureManager> GSpecularProfileTextureManager;
 // SpecularProfile atlas storing several texture profiles or 0 if there is no user
 static TRefCountPtr<IPooledRenderTarget> GSpecularProfileTextureAtlas;
 
+static FName CreateSpecularProfileParameterName(const FGuid& InGuid)
+{
+	return FName(TEXT("__SpecularProfile") + InGuid.ToString());
+}
+
+FName CreateSpecularProfileParameterName(USpecularProfile* InProfile)
+{
+	return InProfile ? CreateSpecularProfileParameterName(InProfile->Guid) : FName();
+}
+
 FSpecularProfileTextureManager::FSpecularProfileTextureManager()
 {
 	check(IsInGameThread());
 
-	FSpecularProfileStruct DefaultProfile;
-
 	// add element 0, it is used as default profile
-	SpecularProfileEntries.Add( { DefaultProfile, nullptr, nullptr });
+	FProfileEntry& Entry = SpecularProfileEntries.AddDefaulted_GetRef(); 
+	Entry.Settings = FSpecularProfileStruct(); 
+	Entry.Profile = nullptr; 
+	Entry.Texture = nullptr; 
 }
 
 FSpecularProfileTextureManager::~FSpecularProfileTextureManager()
 {
 }
 
-int32 FSpecularProfileTextureManager::AddProfile(const FSpecularProfileStruct InSettings, const USpecularProfile* InProfile, const FTextureReference* InTexture)
+int32 FSpecularProfileTextureManager::AddOrUpdateProfile(const USpecularProfile* InProfile, const FGuid& Guid, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture)
+{
+	check(InProfile);
+
+	int32 AllocationId = FindAllocationId(InProfile); 
+		
+	if (AllocationId != INDEX_NONE)
+	{
+		UpdateProfile(AllocationId, InSettings, InTexture);
+	}
+	else
+	{
+		AllocationId = AddProfile(InProfile, Guid, InSettings, InTexture);
+	}
+
+	return AllocationId;
+}
+
+int32 FSpecularProfileTextureManager::AddProfile(const USpecularProfile* InProfile, const FGuid& Guid, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture)
 {
 	check(InProfile);
 	check(FindAllocationId(InProfile) == INDEX_NONE);
@@ -172,10 +189,13 @@ int32 FSpecularProfileTextureManager::AddProfile(const FSpecularProfileStruct In
 	{
 		for (int32 i = 1; i < SpecularProfileEntries.Num(); ++i)
 		{
-			if (SpecularProfileEntries[i].Profile == 0)
+			if (SpecularProfileEntries[i].Profile == nullptr)
 			{
 				RetAllocationId = i;
-				SpecularProfileEntries[RetAllocationId].Profile = InProfile;
+
+				FProfileEntry& Entry= SpecularProfileEntries[RetAllocationId];
+				Entry.Profile 		= InProfile;
+				Entry.ParameterName = FName(TEXT("__SpecularProfile") + Guid.ToString());
 				break;
 			}
 		}
@@ -183,7 +203,10 @@ int32 FSpecularProfileTextureManager::AddProfile(const FSpecularProfileStruct In
 		if (RetAllocationId == INDEX_NONE)
 		{
 			RetAllocationId = SpecularProfileEntries.Num();
-			SpecularProfileEntries.Add({ InSettings, InProfile, InTexture});
+
+			FProfileEntry& Entry= SpecularProfileEntries.AddDefaulted_GetRef(); 			
+			Entry.Profile 		= InProfile;
+			Entry.ParameterName = FName(TEXT("__SpecularProfile") + Guid.ToString());
 		}
 	}
 
@@ -203,10 +226,16 @@ void FSpecularProfileTextureManager::RemoveProfile(const USpecularProfile* InPro
 		check(SpecularProfileEntries[AllocationId].Profile == InProfile);
 
 		// make it available for reuse
-		SpecularProfileEntries[AllocationId].Profile = 0;
+		SpecularProfileEntries[AllocationId].Profile = nullptr;
 		SpecularProfileEntries[AllocationId].Settings.Invalidate();
 		SpecularProfileEntries[AllocationId].Texture = nullptr;
+		SpecularProfileEntries[AllocationId].ParameterName = FName();
 	}
+}
+
+void FSpecularProfileTextureManager::UpdateProfile(const USpecularProfile* InProfile, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture) 
+{ 
+	UpdateProfile(FindAllocationId(InProfile), InSettings, InTexture); 
 }
 
 void FSpecularProfileTextureManager::UpdateProfile(int32 AllocationId, const FSpecularProfileStruct Settings, const FTextureReference* InTexture)
@@ -222,12 +251,23 @@ void FSpecularProfileTextureManager::UpdateProfile(int32 AllocationId, const FSp
 	}
 }
 
-IPooledRenderTarget* FSpecularProfileTextureManager::GetTexture()
+FName FSpecularProfileTextureManager::GetParameterName(const USpecularProfile* InProfile) const
+{
+	const int32 AllocationId = FindAllocationId(InProfile);
+	if (AllocationId != INDEX_NONE)
+	{
+		// make it available for reuse
+		return SpecularProfileEntries[AllocationId].ParameterName;
+	}
+	return FName();
+}
+
+IPooledRenderTarget* FSpecularProfileTextureManager::GetAtlasTexture()
 {
 	return GSpecularProfileTextureAtlas;
 }
 
-IPooledRenderTarget* FSpecularProfileTextureManager::GetTexture(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform)
+IPooledRenderTarget* FSpecularProfileTextureManager::GetAtlasTexture(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform)
 {
 	if (!Strata::IsStrataEnabled())
 	{
@@ -390,32 +430,26 @@ void USpecularProfile::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 
 namespace SpecularProfileAtlas
 {
-
-	FName GetSpecularProfileParameterName()
+	FName GetSpecularProfileParameterName(const USpecularProfile* In)
 	{
-		static FName NameSpecularProfile(TEXT("__SpecularProfile"));
-		return NameSpecularProfile;
+		return GSpecularProfileTextureManager.GetParameterName(In);
 	}
 
 	float GetSpecularProfileId(const USpecularProfile* In)
 	{
+		// No profile specified means we use the default one (constant one)
 		int32 AllocationId = 0;
 		if (In)
 		{
 			// can be optimized (cached)
 			AllocationId = GSpecularProfileTextureManager.FindAllocationId(In);
 		}
-		else
-		{
-			// no profile specified means we use the default one stored at [0] which is human skin
-			AllocationId = 0;
-		}
 		return AllocationId / 255.0f;
 	}
 	
-	int32 AddOrUpdateProfile(const USpecularProfile* InProfile, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture)
+	int32 AddOrUpdateProfile(const USpecularProfile* InProfile, const FGuid& InGuid, const FSpecularProfileStruct InSettings, const FTextureReference* InTexture)
 	{
-		return GSpecularProfileTextureManager.AddOrUpdateProfile(InProfile, InSettings, InTexture);
+		return GSpecularProfileTextureManager.AddOrUpdateProfile(InProfile, InGuid, InSettings, InTexture);
 	}
 
 	FRHITexture* GetSpecularProfileTextureAtlas()
@@ -430,7 +464,7 @@ namespace SpecularProfileAtlas
 
 	void UpdateSpecularProfileTextureAtlas(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform)
 	{
-		GSpecularProfileTextureManager.GetTexture(GraphBuilder, ShaderPlatform);
+		GSpecularProfileTextureManager.GetAtlasTexture(GraphBuilder, ShaderPlatform);
 	}
 
 } // namespace SpecularProfileAtlas

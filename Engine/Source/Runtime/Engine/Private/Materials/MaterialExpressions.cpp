@@ -23327,6 +23327,7 @@ UMaterialExpressionStrataSlabBSDF::UMaterialExpressionStrataSlabBSDF(const FObje
 }
 
 #if WITH_EDITOR
+FName CreateSpecularProfileParameterName(USpecularProfile* InProfile);
 int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	int32 RoughnessCodeChunk = CompileWithDefaultFloat1(Compiler, Roughness, 0.5f);
@@ -23354,7 +23355,8 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	int32 SpecularProfileCodeChunk = INDEX_NONE;
 	if (bHasSpecularProfile)
 	{
-		SpecularProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(SpecularProfileAtlas::GetSpecularProfileParameterName(), 1.0f), MCT_Float1);
+		const FName SpecularProfileParameterName = CreateSpecularProfileParameterName(SpecularProfile);
+		SpecularProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(SpecularProfileParameterName, 1.0f), MCT_Float1);
 	}
 
 	const float DefaultSpecular = 0.5f;

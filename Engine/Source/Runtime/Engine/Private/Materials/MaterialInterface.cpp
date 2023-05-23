@@ -1312,9 +1312,14 @@ USubsurfaceProfile* UMaterialInterface::GetSubsurfaceProfile_Internal() const
 	return NULL;
 }
 
-USpecularProfile* UMaterialInterface::GetSpecularProfile_Internal() const
+USpecularProfile* UMaterialInterface::GetSpecularProfile_Internal(uint32 Index) const
 {
-	return NULL;
+	return nullptr;
+}
+
+uint32 UMaterialInterface::NumSpecularProfile_Internal() const
+{
+	return 0u;
 }
 
 bool UMaterialInterface::CastsRayTracedShadows() const
@@ -1384,37 +1389,48 @@ void UMaterialInterface::UpdateMaterialRenderProxy(FMaterialRenderProxy& Proxy)
 				const uint32 AllocationId = GSubsurfaceProfileTextureObject.AddOrUpdateProfile(Settings, LocalSubsurfaceProfile);
 				check(AllocationId >= 0 && AllocationId < MAX_SUBSURFACE_PROFILE_COUNT);
 			}
-			InProxy->SetSubsurfaceProfileRT(LocalSubsurfaceProfile);
+			InProxy->SetSubsurfaceProfileRT(LocalSubsurfaceProfile/*, ParameterName */); // how to have a unique identifier?
 		});
 	}
 
 	if (Strata::IsStrataEnabled())
 	{
-		USpecularProfile* LocalSpecularProfile = GetSpecularProfile_Internal();
-
-		FSpecularProfileStruct LocalSettings;
-
-		const FTextureReference* LocalTexture = nullptr;
-		if (LocalSpecularProfile)
+		struct FEntry
 		{
-			LocalSettings = LocalSpecularProfile->Settings;
-
-			if (!LocalSpecularProfile->Settings.IsProcedural())
+			USpecularProfile* Profile = nullptr;
+			FSpecularProfileStruct Settings;
+			const FTextureReference* Texture = nullptr;
+			FGuid Guid;
+		};
+		TArray<FEntry> Entries;
+		for (int32 It = 0, Count = NumSpecularProfile_Internal(); It<Count; ++It)
+		{
+			FEntry& Entry = Entries.AddDefaulted_GetRef();
+			Entry.Profile = GetSpecularProfile_Internal(It);
+			if (Entry.Profile)
 			{
-				LocalTexture = &LocalSpecularProfile->Settings.Texture->TextureReference;
+				Entry.Settings 	= Entry.Profile->Settings;
+				Entry.Guid 		= Entry.Profile->Guid;	
+				if (!Entry.Settings.IsProcedural())
+				{
+					Entry.Texture = &Entry.Profile->Settings.Texture->TextureReference;
+				}
 			}
 		}
 
 		FMaterialRenderProxy* InProxy = &Proxy;
 		ENQUEUE_RENDER_COMMAND(UpdateMaterialRenderProxySpecular)(
-		[LocalSettings, LocalSpecularProfile, InProxy, LocalTexture](FRHICommandListImmediate& RHICmdList)
+		[InProxy, Entries](FRHICommandListImmediate& RHICmdList)
 		{
-			if (LocalSpecularProfile)
+			for (const FEntry& Entry : Entries)
 			{
-				const uint32 AllocationId = SpecularProfileAtlas::AddOrUpdateProfile(LocalSpecularProfile, LocalSettings, LocalTexture);
-				check(AllocationId >= 0 && AllocationId < MAX_SPECULAR_PROFILE_COUNT);
+				if (Entry.Profile)
+				{
+					const uint32 AllocationId = SpecularProfileAtlas::AddOrUpdateProfile(Entry.Profile, Entry.Guid, Entry.Settings, Entry.Texture);
+					check(AllocationId >= 0 && AllocationId < MAX_SPECULAR_PROFILE_COUNT);
+				}
+				InProxy->AddSpecularProfileRT(Entry.Profile);
 			}
-			InProxy->SetSpecularProfileRT(LocalSpecularProfile);
 		});
 	}
 }
