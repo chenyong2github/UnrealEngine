@@ -78,6 +78,11 @@ struct TBounds
 		return (Max - Min) * 0.5f;
 	}
 
+	FORCEINLINE TVector<T> GetSize() const
+	{
+		return (Max - Min);
+	}
+
 	FORCEINLINE T GetSurfaceArea() const
 	{
 		TVector<T> Size = Max - Min;
