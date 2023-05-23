@@ -842,5 +842,10 @@ bool UNiagaraEditorSettings::IsAllowedAssetObjectByClassUsage(const UObject& InA
 	return IsAllowedAssetObjectByClassUsageInternal(InAssetObject, CheckedAssetObjects);
 }
 
+bool UNiagaraEditorSettings::GetUpdateStackValuesOnCommitOnly() const
+{
+	return bUpdateStackValuesOnCommitOnly;
+}
+
 #undef LOCTEXT_NAMESPACE
 
