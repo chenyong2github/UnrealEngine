@@ -100,6 +100,9 @@ private:
 	void OnUndo(const FTransactionContext& TransactionContext, bool Succeeded);
 	void OnRedo(const FTransactionContext& TransactionContext, bool Succeeded);
 
+	/** Invoked after garbage collection. */
+	void OnPostGarbageCollect();
+
 	/** Invoked when a package is deleted. */
 	void OnPackageDeleted(UPackage* Package);
 

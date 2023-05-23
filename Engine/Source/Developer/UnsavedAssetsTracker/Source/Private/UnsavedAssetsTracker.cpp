@@ -23,6 +23,7 @@
 #include "LevelEditor.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "IAssetTools.h"
+#include "UObject/UObjectGlobals.h"
 
 #define LOCTEXT_NAMESPACE "UnsavedAssetsTracker"
 
@@ -148,6 +149,9 @@ FUnsavedAssetsTracker::FUnsavedAssetsTracker()
 	// Register for the package modified callback to catch packages that have been saved
 	UPackage::PackageSavedWithContextEvent.AddRaw(this, &FUnsavedAssetsTracker::OnPackageSaved);
 
+	// Register for post gc to cleanup package list that might have been gced
+	FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FUnsavedAssetsTracker::OnPostGarbageCollect);
+
 	// Register to get notified when something gets deleted
 	FEditorDelegates::OnPackageDeleted.AddRaw(this, &FUnsavedAssetsTracker::OnPackageDeleted);
 	if (GEngine)
@@ -182,6 +186,7 @@ FUnsavedAssetsTracker::~FUnsavedAssetsTracker()
 	UPackage::PackageMarkedDirtyEvent.RemoveAll(this);
 	UPackage::PackageSavedWithContextEvent.RemoveAll(this);
 	FEditorDelegates::OnPackageDeleted.RemoveAll(this);
+	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
 
 	if (GEngine)
 	{
@@ -321,14 +326,13 @@ void FUnsavedAssetsTracker::OnPackageDeleted(UPackage* Package)
 	}
 }
 
+void FUnsavedAssetsTracker::OnPostGarbageCollect()
+{
+	bSyncWithDirtyPackageList = true;
+}
+
 void FUnsavedAssetsTracker::OnActorDeleted(AActor* Actor)
 {
-	UWorld* World = Actor->GetWorld();
-	if (World && World->IsGameWorld())
-	{
-		return;
-	}
-
 	bSyncWithDirtyPackageList = true;
 }
 
@@ -615,6 +619,11 @@ bool FUnsavedAssetsTracker::Tick(float DeltaTime)
 
 	if (bSyncWithDirtyPackageList)
 	{
+		if (GEditor && GEditor->GetPIEWorldContext() != nullptr)
+		{
+			return true; // delay update until PIE ends
+		}
+		
 		SyncWithDirtyPackageList();
 		bSyncWithDirtyPackageList = false;
 	}
