@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraVectorTypeEditorUtilities.h"
+
+#include "NiagaraEditorSettings.h"
 #include "SNiagaraParameterEditor.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraTypes.h"
@@ -79,6 +81,7 @@ private:
 		.OnBeginSliderMovement(this, &SNiagaraVectorParameterEditorBase::BeginSliderMovement)
 		.OnEndSliderMovement(this, &SNiagaraVectorParameterEditorBase::EndSliderMovement)
 		.TypeInterface(GetTypeInterface<float>(DisplayUnit))
+		.BroadcastValueChangesPerKey(!GetDefault<UNiagaraEditorSettings>()->GetUpdateStackValuesOnCommitOnly())
 		.AllowSpin(true)
 		.LabelPadding( FMargin(3) )
 		.LabelLocation( SNumericEntryBox<float>::ELabelLocation::Inside )

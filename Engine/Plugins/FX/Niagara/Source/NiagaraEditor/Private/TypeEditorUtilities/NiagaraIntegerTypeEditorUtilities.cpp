@@ -4,6 +4,7 @@
 
 #include "EdGraphSchema_Niagara.h"
 #include "GraphEditorSettings.h"
+#include "NiagaraEditorSettings.h"
 #include "SNiagaraParameterEditor.h"
 #include "NiagaraTypes.h"
 #include "NiagaraEditorStyle.h"
@@ -72,14 +73,8 @@ public:
 						.MinValue(MinValue)
 						.MaxValue(MaxValue)
 						.Value(this, &SNiagaraIntegerParameterEditor::GetValue)
-						.OnValueChanged_Lambda([this, MinValue, MaxValue](int32 NewVal)
-						{
-							ValueChanged(FMath::Clamp(NewVal, MinValue, MaxValue));
-						})
-						.OnValueCommitted_Lambda([this, MinValue, MaxValue](int32 NewVal, ETextCommit::Type CommitType)
-						{
-							ValueCommitted(FMath::Clamp(NewVal, MinValue, MaxValue), CommitType);
-						})
+						.OnValueChanged(this, &SNiagaraIntegerParameterEditor::ValueChanged)
+						.OnValueCommitted(this, &SNiagaraIntegerParameterEditor::ValueCommitted)
 						.TypeInterface(GetTypeInterface<int32>(DisplayUnit))
 						.AllowSpin(false)
 						.Delta(WidgetCustomization.bHasStepWidth ? WidgetCustomization.StepWidth : 0)
@@ -141,6 +136,7 @@ public:
 				.OnEndSliderMovement(this, &SNiagaraIntegerParameterEditor::EndSliderMovement)
 				.TypeInterface(GetTypeInterface<int32>(DisplayUnit))
 				.AllowSpin(true)
+				.BroadcastValueChangesPerKey(!GetDefault<UNiagaraEditorSettings>()->GetUpdateStackValuesOnCommitOnly())
 				.LabelPadding(FMargin(3))
 				.LabelLocation(SNumericEntryBox<int32>::ELabelLocation::Inside)
 				.Label()

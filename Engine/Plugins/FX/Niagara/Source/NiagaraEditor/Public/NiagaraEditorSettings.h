@@ -409,6 +409,8 @@ public:
 	bool IsAllowedAssetByClassUsage(const FAssetData& InAssetData) const;
 	bool IsAllowedAssetObjectByClassUsage(const UObject& InAssetObject) const;
 
+	bool GetUpdateStackValuesOnCommitOnly() const;
+
 private:
 	bool IsAllowedAssetObjectByClassUsageInternal(const UObject& InAssetObject, TSet<const UObject*>& CheckedAssetObjects) const;
 
@@ -449,6 +451,10 @@ private:
 	/** The maximum amount of asset references that are searched before stopping. Setting this too high can lead to long load times when opening default assets (basically the same as disabling the breadth limit in the reference viewer). */
 	UPROPERTY(config, EditAnywhere, Category=Niagara, meta=(EditCondition="bDisplayAffectedAssetStats", ClampMin=1))
 	int32 AffectedAssetSearchLimit = 25;
+
+	/** This affects numeric inputs for modules. When set to false, the inputs update the simulation while typing. When set to true, the simulation is only updated after submitting the change by pressing Enter. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	bool bUpdateStackValuesOnCommitOnly = false;
 
 	/** Speeds used for slowing down and speeding up the playback speeds */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)

@@ -4,6 +4,7 @@
 
 #include "EdGraphSchema_Niagara.h"
 #include "GraphEditorSettings.h"
+#include "NiagaraEditorSettings.h"
 #include "NiagaraEditorStyle.h"
 #include "SNiagaraParameterEditor.h"
 #include "NiagaraTypes.h"
@@ -26,6 +27,7 @@ public:
 			.MaximumDesiredWidth(DefaultInputSize));
 
 		const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
+		const UNiagaraEditorSettings* NiagaraSettings = GetDefault<UNiagaraEditorSettings>();
 
 		if (WidgetCustomization.WidgetType == ENiagaraInputWidgetType::Slider)
 		{
@@ -74,14 +76,8 @@ public:
 						.MinValue(MinValue)
 						.MaxValue(MaxValue)
 						.Value(this, &SNiagaraFloatParameterEditor::GetValue)
-						.OnValueChanged_Lambda([this, MinValue, MaxValue](float NewVal)
-						{
-							ValueChanged(FMath::Clamp(NewVal, MinValue, MaxValue));
-						})
-						.OnValueCommitted_Lambda([this, MinValue, MaxValue](float NewVal, ETextCommit::Type CommitType)
-						{
-							ValueCommitted(FMath::Clamp(NewVal, MinValue, MaxValue), CommitType);
-						})
+						.OnValueChanged(this, &SNiagaraFloatParameterEditor::ValueChanged)
+						.OnValueCommitted(this, &SNiagaraFloatParameterEditor::ValueCommitted)
 						.TypeInterface(GetTypeInterface<float>(DisplayUnit))
 						.AllowSpin(false)
 						.Delta(WidgetCustomization.bHasStepWidth ? WidgetCustomization.StepWidth : 0)
@@ -164,6 +160,7 @@ public:
 				.OnEndSliderMovement(this, &SNiagaraFloatParameterEditor::EndSliderMovement)
 				.TypeInterface(GetTypeInterface<float>(DisplayUnit))
 				.AllowSpin(true)
+				.BroadcastValueChangesPerKey(!NiagaraSettings->GetUpdateStackValuesOnCommitOnly())
 				.LabelPadding(FMargin(3))
 				.Delta(WidgetCustomization.bHasStepWidth ? WidgetCustomization.StepWidth : 0)
 				.LabelLocation(SNumericEntryBox<float>::ELabelLocation::Inside)
