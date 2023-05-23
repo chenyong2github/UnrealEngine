@@ -7,6 +7,7 @@
 #include "CoreTypes.h"
 #include "HAL/PlatformCrt.h"
 #include "Misc/Build.h"
+#include "Templates/Function.h"
 
 class FExec;
 class FName;
