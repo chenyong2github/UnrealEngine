@@ -7,11 +7,11 @@
 #include "NNECoreRuntime.h"
 #include "NNECoreModelData.h"
 #include "NNECoreRuntimeRDG.h"
+#include "RenderGraphResources.h"
 #include "VertexDeltaModelInstance.generated.h"
 
 class UVertexDeltaModel;
 class UNeuralNetwork;
-class FRDGPooledBuffer;
 
 UCLASS()
 class VERTEXDELTAMODEL_API UVertexDeltaModelInstance
