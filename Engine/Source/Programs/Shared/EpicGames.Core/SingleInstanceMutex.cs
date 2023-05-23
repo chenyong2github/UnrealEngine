@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -52,13 +53,27 @@ namespace EpicGames.Core
 				using Mutex mutex = new Mutex(false, _name);
 				try
 				{
-					WaitHandle[] handles = new WaitHandle[2];
-					handles[0] = _disposing;
-					handles[1] = mutex;
-
-					if (WaitHandle.WaitAny(handles) == 0)
+					// Waiting for multiple handles is only supported on Windows
+					if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 					{
-						return;
+						WaitHandle[] handles = new WaitHandle[2];
+						handles[0] = _disposing;
+						handles[1] = mutex;
+
+						if (WaitHandle.WaitAny(handles) == 0)
+						{
+							return;
+						}
+					}
+					else
+					{
+						while(!mutex.WaitOne(100))
+						{
+							if(_disposing.WaitOne(0))
+							{
+								return;
+							}
+						}
 					}
 				}
 				catch (AbandonedMutexException)
