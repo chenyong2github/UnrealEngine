@@ -752,6 +752,18 @@ public:
 	{
 		BaseType::SetElement(ElementID, Value);
 	}
+
+	/**
+	 * Iterate through triangles connected to VertexID and call ProcessFunc for each per-triangle-vertex Element with its Value.
+	 * ProcessFunc must return true to continue the enumeration, or false to early-terminate it
+	 * 
+	 * @param bFindUniqueElements if true, ProcessFunc is only called once for each ElementID, otherwise it is called once for each Triangle
+	 * @return true if at least one valid Element was found, ie if ProcessFunc was called at least one time
+	 */
+	bool EnumerateVertexElements(
+		int VertexID,
+		TFunctionRef<bool(int TriangleID, int ElementID, const VectorType& Value)> ProcessFunc,
+		bool bFindUniqueElements = true);
 };
 
 
