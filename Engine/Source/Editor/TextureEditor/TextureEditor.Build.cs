@@ -6,6 +6,8 @@ public class TextureEditor : ModuleRules
 {
 	public TextureEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"MainFrame",
