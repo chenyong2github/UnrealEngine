@@ -116,6 +116,9 @@ FInternalNetRefIndex FNetRefHandleManager::InternalCreateNetObject(const FNetRef
 		// When a handle is first created, it is not set to be a subobject
 		SubObjectInternalIndices.ClearBit(InternalIndex);
 
+		// Need a full copy if set, normally only needed for new objects.
+		Data.bNeedsFullCopyAndQuantize = 1U;
+
 		ReplicatedObjectRefCount[InternalIndex] = 0;
 
 		return InternalIndex;

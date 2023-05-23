@@ -96,8 +96,9 @@ public:
 				uint32 bIsDependentObject : 1U;
 				uint32 bHasDependentObjects : 1U;
 				uint32 bAllowDestroyInstanceFromRemote : 1U;
+				uint32 bNeedsFullCopyAndQuantize : 1U;
 				// Padding. Adjust when adding or removing flags.
-				uint32 Padding : 26U;
+				uint32 Padding : 25U;
 			};
 		};
 	

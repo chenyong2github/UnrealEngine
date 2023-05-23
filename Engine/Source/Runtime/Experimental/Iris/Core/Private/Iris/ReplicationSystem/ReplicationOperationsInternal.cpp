@@ -72,7 +72,7 @@ uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStream
 {
 	if (NetRefHandleManager.IsScopableIndex(InternalIndex))
 	{
-		const FNetRefHandleManager::FReplicatedObjectData& Object = NetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalIndex);
+		FNetRefHandleManager::FReplicatedObjectData& Object = NetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalIndex);
 
 		// We cannot copy state data for zero sized objects or objects that no longer has an instance protocol.
 		if (Object.InstanceProtocol && Object.Protocol->InternalTotalSize > 0U)
@@ -82,8 +82,9 @@ uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStream
 			// if the object was scopable prev frame we can do partial copy
 			bool bShouldPropagateChangedStates = Object.bShouldPropagateChangedStates;
 
-			// We do a full CopyAndQunatize if the cvar bCVarForceFullCopyAndQuantize is set or that the object is new
-			const bool bUseFullCopyAndQuantize = bCVarForceFullCopyAndQuantize || !NetRefHandleManager.GetPrevFrameScopableInternalIndices().GetBit(InternalIndex);
+			// We do a full CopyAndQunatize if the cvar bCVarForceFullCopyAndQuantize is set or that the object is marked as needing a FullCopyAndQuantize
+			const bool bUseFullCopyAndQuantize = bCVarForceFullCopyAndQuantize || Object.bNeedsFullCopyAndQuantize;
+			Object.bNeedsFullCopyAndQuantize = 0U;
 
 			// Copy dirty state
 			{
