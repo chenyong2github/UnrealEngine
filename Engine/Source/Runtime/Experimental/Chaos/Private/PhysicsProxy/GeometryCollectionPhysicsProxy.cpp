@@ -2464,13 +2464,6 @@ void FGeometryCollectionPhysicsProxy::SetNotifyBreakings_External(bool bNotify)
 	SetProxyDirty_External();
 }
 
-void FGeometryCollectionPhysicsProxy::SetNotifyGlobalBreakings_External(bool bNotify)
-{
-	check(IsInGameThread());
-	GameThreadPerFrameData.SetNotifyGlobalBreakings(bNotify);
-	SetProxyDirty_External();
-}
-
 void FGeometryCollectionPhysicsProxy::SetNotifyRemovals_External(bool bNotify)
 {
 	check(IsInGameThread());
@@ -2482,6 +2475,27 @@ void FGeometryCollectionPhysicsProxy::SetNotifyCrumblings_External(bool bNotify,
 {
 	check(IsInGameThread());
 	GameThreadPerFrameData.SetNotifyCrumblings(bNotify, bIncludeChildren);
+	SetProxyDirty_External();
+}
+
+void FGeometryCollectionPhysicsProxy::SetNotifyGlobalBreakings_External(bool bNotify)
+{
+	check(IsInGameThread());
+	GameThreadPerFrameData.SetNotifyGlobalBreakings(bNotify);
+	SetProxyDirty_External();
+}
+
+void FGeometryCollectionPhysicsProxy::SetNotifyGlobalRemovals_External(bool bNotify)
+{
+	check(IsInGameThread());
+	GameThreadPerFrameData.SetNotifyGlobalRemovals(bNotify);
+	SetProxyDirty_External();
+}
+
+void FGeometryCollectionPhysicsProxy::SetNotifyGlobalCrumblings_External(bool bNotify, bool bIncludeChildren)
+{
+	check(IsInGameThread());
+	GameThreadPerFrameData.SetNotifyGlobalCrumblings(bNotify, bIncludeChildren);
 	SetProxyDirty_External();
 }
 
@@ -2698,10 +2712,11 @@ void FGeometryCollectionPhysicsProxy::PushStateOnGameThread(Chaos::FPBDRigidsSol
 	if (GameThreadPerFrameData.GetIsNotificationDataDirty())
 	{
 		Parameters.bGenerateBreakingData = GameThreadPerFrameData.GetNotifyBreakings() || GameThreadPerFrameData.GetNotifyGlobalBreakings();
-		Parameters.bDispatchGlobalBreakingData = GameThreadPerFrameData.GetNotifyGlobalBreakings();
-		Parameters.bGenerateRemovalsData = GameThreadPerFrameData.GetNotifyRemovals();
 		Parameters.bGenerateCrumblingData = GameThreadPerFrameData.GetNotifyCrumblings();
 		Parameters.bGenerateCrumblingChildrenData = GameThreadPerFrameData.GetCrumblingEventIncludesChildren();
+		Parameters.bGenerateGlobalBreakingData = GameThreadPerFrameData.GetNotifyGlobalBreakings();
+		Parameters.bGenerateGlobalCrumblingData = GameThreadPerFrameData.GetNotifyGlobalCrumblings();
+		Parameters.bGenerateGlobalCrumblingChildrenData = GameThreadPerFrameData.GetGlobalCrumblingEventIncludesChildren();
 		GameThreadPerFrameData.ResetIsNotificationDataDirty();
 	}
 

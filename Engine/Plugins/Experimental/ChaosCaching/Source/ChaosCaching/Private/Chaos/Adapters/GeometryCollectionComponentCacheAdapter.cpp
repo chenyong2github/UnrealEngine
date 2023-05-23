@@ -184,7 +184,7 @@ namespace Chaos
 			}
 		}
 
-		if (Proxy->GetSimParameters().bGenerateBreakingData && BreakingDataArray && ProxyCachedEventData.ProxyBreakingDataIndices)
+		if ((Proxy->GetSimParameters().bGenerateBreakingData || Proxy->GetSimParameters().bGenerateGlobalBreakingData) && BreakingDataArray && ProxyCachedEventData.ProxyBreakingDataIndices)
 		{
 			for (int32 Index : *ProxyCachedEventData.ProxyBreakingDataIndices)
 			{
@@ -200,7 +200,7 @@ namespace Chaos
 			}
 		}
 		
-		if (Proxy->GetSimParameters().bGenerateCollisionData && CollisionDataArray && ProxyCachedEventData.ProxyCollisionDataIndices)
+		if ((Proxy->GetSimParameters().bGenerateCollisionData || Proxy->GetSimParameters().bGenerateGlobalCollisionData) && CollisionDataArray && ProxyCachedEventData.ProxyCollisionDataIndices)
 		{
 			for (int32 Index : *ProxyCachedEventData.ProxyCollisionDataIndices)
 			{
@@ -347,7 +347,7 @@ namespace Chaos
 			}
 		}
 
-		if (Proxy->GetSimParameters().bGenerateBreakingData && BreakingEvents)
+		if ((Proxy->GetSimParameters().bGenerateBreakingData || Proxy->GetSimParameters().bGenerateGlobalBreakingData) && BreakingEvents)
 		{
 			const FSolverBreakingEventFilter* SolverBreakingEventFilter = Solver->GetEventFilters()->GetBreakingFilter();
 
@@ -375,7 +375,7 @@ namespace Chaos
 							CachedBreak.Mass = Event->Mass;
 							CachedBreak.BoundingBox = TAABB<FReal, 3>(Event->BoundingBoxMin, Event->BoundingBoxMax);
 							CachedBreak.BoundingBox = CachedBreak.BoundingBox.TransformedAABB(ComponentToWorld);
-							CachedBreak.bIsGlobal = Proxy->GetSimParameters().bDispatchGlobalBreakingData;
+							CachedBreak.SetEmitterFlag(Proxy->GetSimParameters().bGenerateBreakingData, Proxy->GetSimParameters().bGenerateGlobalBreakingData);
 
 							if (!SolverBreakingEventFilter->Enabled() || SolverBreakingEventFilter->Pass(CachedBreak))
 							{
@@ -443,7 +443,7 @@ namespace Chaos
 			}
 		}
 
-		if (Proxy->GetSimParameters().bGenerateCollisionData && CollisionEvents)
+		if ((Proxy->GetSimParameters().bGenerateCollisionData || Proxy->GetSimParameters().bGenerateGlobalCollisionData) && CollisionEvents)
 		{
 
 			const FSolverCollisionEventFilter* SolverCollisionEventFilter = Solver->GetEventFilters()->GetCollisionFilter();
@@ -727,12 +727,12 @@ namespace Chaos
 			Chaos::FEventManager* EventManager = Solver->GetEventManager();
 			if (EventManager)
 			{
-				if (SimulationParameters.bGenerateBreakingData)
+				if (SimulationParameters.bGenerateBreakingData || SimulationParameters.bGenerateGlobalBreakingData)
 				{ 
 					EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, const_cast<FGeometryCollectionCacheAdapter*>(this), &FGeometryCollectionCacheAdapter::HandleBreakingEvents);
 				}
 
-				if (SimulationParameters.bGenerateCollisionData)
+				if (SimulationParameters.bGenerateCollisionData || SimulationParameters.bGenerateGlobalCollisionData)
 				{ 
 					EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, const_cast<FGeometryCollectionCacheAdapter*>(this), &FGeometryCollectionCacheAdapter::HandleCollisionEvents);
 				}

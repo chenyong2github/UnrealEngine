@@ -12,11 +12,39 @@ class UPhysicalMaterial;
 
 namespace Chaos
 {
+	// Event Emitter flag
+	enum EventEmitterFlag
+	{
+		EmptyDispatcher = 0,
+		OwnDispatcher = 1,
+		GlobalDispatcher = 2,
+		BothDispatcher = 3,
+	};
 
 	struct FBaseEventFlag
 	{
-		FBaseEventFlag() : bIsGlobal(false) {}
-		bool bIsGlobal;
+		FBaseEventFlag() : EmitterFlag(OwnDispatcher) {}
+
+		void SetEmitterFlag(bool LocalEmitter, bool GlobalEmitter)
+		{
+			EmitterFlag = ComputeEmitterFlag(LocalEmitter, GlobalEmitter);
+		}
+
+		static EventEmitterFlag ComputeEmitterFlag(bool LocalEmitter, bool GlobalEmitter)
+		{
+			EventEmitterFlag EmitterFlagOut = EventEmitterFlag::EmptyDispatcher;
+			if (LocalEmitter)
+			{
+				EmitterFlagOut = EventEmitterFlag::OwnDispatcher;
+			}
+			if (GlobalEmitter)
+			{
+				EmitterFlagOut = EventEmitterFlag(EmitterFlagOut | EventEmitterFlag::GlobalDispatcher);
+			}
+			return EmitterFlagOut;
+		}
+
+		EventEmitterFlag EmitterFlag;
 	};
 
 	/**
@@ -211,10 +239,11 @@ namespace Chaos
 	/*
 	CrumblingData passed from the physics solver to subsystems
 	*/
-	struct FCrumblingData
+	struct FCrumblingData : public FBaseEventFlag
 	{
 		FCrumblingData()
-			: Proxy(nullptr)
+			: FBaseEventFlag()
+			, Proxy(nullptr)
 			, Location(FVec3::ZeroVector)
 			, Orientation(FRotation3::Identity)
 			, LinearVelocity(FVec3::ZeroVector)
@@ -223,17 +252,6 @@ namespace Chaos
 			, LocalBounds(FAABB3(FVec3((FReal)0.0), FVec3((FReal)0.0)))
 		{}
 
-		FCrumblingData(const FCrumblingData& Other)
-			: Proxy(Other.Proxy)
-			, Location(Other.Location)
-			, Orientation(Other.Orientation)
-			, LinearVelocity(Other.LinearVelocity)
-			, AngularVelocity(Other.AngularVelocity)
-			, Mass(Other.Mass)
-			, LocalBounds(Other.LocalBounds)
-			, Children(Other.Children)
-		{}
-		
 		// The pointer to the proxy should be used with caution on the Game Thread.
 		// Ideally we only ever use this as a table key when acquiring related structures.
 		// If we genuinely need to dereference the pointer for any reason, test if it is deleted (nullptr) or

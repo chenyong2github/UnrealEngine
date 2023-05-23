@@ -345,7 +345,7 @@ namespace Chaos
 					{
 						const int32 NewIndex = FilteredBreakingDataArray.Emplace(ClusterBreaking);
 						FilteredBreakingIndicesByPhysicsProxy.FindOrAdd(ClusterBreaking.Proxy).Add(FEventManager::EncodeCollisionIndex(NewIndex, false));
-						BreakingEventData.BreakingData.bHasGlobalEvent |= ClusterBreaking.bIsGlobal;
+						BreakingEventData.BreakingData.bHasGlobalEvent |= (ClusterBreaking.EmitterFlag & EventEmitterFlag::GlobalDispatcher) != 0;
 					}
 				}
 			}
@@ -531,10 +531,8 @@ namespace Chaos
 					int32 NewIdx = AllRemovalDataArray.Add(FRemovalData());
 					FRemovalData& RemovalDataArrayItem = AllRemovalDataArray[NewIdx];
 					RemovalDataArrayItem = RemovalData;
-
 					AllRemovalIndicesByPhysicsProxy.FindOrAdd(RemovalData.Proxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
 				}
-			
 			});
 	}
 
@@ -554,6 +552,7 @@ namespace Chaos
 			if (bResetData)
 			{
 				CrumblingEventData.Reset();
+				CrumblingEventData.CrumblingData.bHasGlobalEvent = false;
 			}
 			CrumblingEventData.SetTimeCreated(Solver->MTime);
 
@@ -564,6 +563,7 @@ namespace Chaos
 			{
 				// todo(chaos) : implement filtering only if necessary as crumbling event should be sparser than breaking ones
 				CrumblingEventData.AddCrumbling(Crumbling);
+				CrumblingEventData.CrumblingData.bHasGlobalEvent |= (Crumbling.EmitterFlag & EventEmitterFlag::GlobalDispatcher) != 0;
 			}
 		});
 	}

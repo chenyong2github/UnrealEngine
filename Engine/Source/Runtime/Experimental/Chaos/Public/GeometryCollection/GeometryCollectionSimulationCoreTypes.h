@@ -202,10 +202,12 @@ struct FSimulationParameters
 		, bGenerateBreakingData(false)
 		, bGenerateCollisionData(false)
 		, bGenerateTrailingData(false)
-		, bGenerateRemovalsData(false)
 		, bGenerateCrumblingData(false)
 		, bGenerateCrumblingChildrenData(false)
-		, bDispatchGlobalBreakingData(false)
+		, bGenerateGlobalBreakingData(false)
+		, bGenerateGlobalCollisionData(false)
+		, bGenerateGlobalCrumblingData(false)
+		, bGenerateGlobalCrumblingChildrenData(false)
 		, EnableGravity(true)
 		, GravityGroupIndex(0)
 		, UseInertiaConditioning(true)
@@ -257,10 +259,12 @@ struct FSimulationParameters
 		, bGenerateBreakingData(Other.bGenerateBreakingData)
 		, bGenerateCollisionData(Other.bGenerateCollisionData)
 		, bGenerateTrailingData(Other.bGenerateTrailingData)
-		, bGenerateRemovalsData(Other.bGenerateRemovalsData)
 		, bGenerateCrumblingData(Other.bGenerateCrumblingData)
 		, bGenerateCrumblingChildrenData(Other.bGenerateCrumblingChildrenData)
-		, bDispatchGlobalBreakingData(Other.bDispatchGlobalBreakingData)
+		, bGenerateGlobalBreakingData(Other.bGenerateGlobalBreakingData)
+		, bGenerateGlobalCollisionData(Other.bGenerateGlobalCollisionData)
+		, bGenerateGlobalCrumblingData(Other.bGenerateGlobalCrumblingData)
+		, bGenerateGlobalCrumblingChildrenData(Other.bGenerateGlobalCrumblingChildrenData)
 		, Shared(Other.Shared)
 		, EnableGravity(Other.EnableGravity)
 		, GravityGroupIndex(Other.GravityGroupIndex)
@@ -340,11 +344,13 @@ struct FSimulationParameters
 	bool bGenerateBreakingData;
 	bool bGenerateCollisionData;
 	bool bGenerateTrailingData;
-	bool bGenerateRemovalsData;
 	bool bGenerateCrumblingData;
 	bool bGenerateCrumblingChildrenData;
 
-	bool bDispatchGlobalBreakingData;
+	bool bGenerateGlobalBreakingData;
+	bool bGenerateGlobalCollisionData;
+	bool bGenerateGlobalCrumblingData;
+	bool bGenerateGlobalCrumblingChildrenData;
 
 	FSharedSimulationParameters Shared;
 

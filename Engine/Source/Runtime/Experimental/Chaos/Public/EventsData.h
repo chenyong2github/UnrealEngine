@@ -158,7 +158,7 @@ namespace Chaos
 	*/
 	struct FAllCrumblingData : public FTimeResource
 	{
-		FAllCrumblingData() : AllCrumblingsArray(FCrumblingDataArray()) {}
+		FAllCrumblingData() : AllCrumblingsArray(FCrumblingDataArray()), bHasGlobalEvent(false) {}
 
 		void Reset()
 		{
@@ -166,6 +166,7 @@ namespace Chaos
 		}
 
 		FCrumblingDataArray AllCrumblingsArray;
+		bool bHasGlobalEvent;
 	};
 
 	struct FCrumblingEventData

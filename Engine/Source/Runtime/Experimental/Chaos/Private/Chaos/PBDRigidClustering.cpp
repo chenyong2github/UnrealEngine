@@ -555,7 +555,7 @@ namespace Chaos
 		if (FGeometryCollectionPhysicsProxy* ConcreteProxy = GetConcreteProxy(ClusteredParticle))
 		{
 			const FSimulationParameters& SimParams = ConcreteProxy->GetSimParameters();
-			if (SimParams.bGenerateBreakingData)
+			if (SimParams.bGenerateBreakingData || SimParams.bGenerateGlobalBreakingData)
 			{
 				FBreakingData& ClusterBreak = MAllClusterBreakings.AddDefaulted_GetRef();
 				ClusterBreak.Proxy = ClusteredParticle->PhysicsProxy();
@@ -569,7 +569,7 @@ namespace Chaos
 				}
 				ClusterBreak.TransformGroupIndex = ConcreteProxy->GetTransformGroupIndexFromHandle(ClusteredParticle);
 				ClusterBreak.bFromCrumble = bFromCrumble;
-				ClusterBreak.bIsGlobal = SimParams.bDispatchGlobalBreakingData;
+				ClusterBreak.SetEmitterFlag(SimParams.bGenerateBreakingData, SimParams.bGenerateGlobalBreakingData);
 			}
 		}
 	}
@@ -581,7 +581,7 @@ namespace Chaos
 		if (FGeometryCollectionPhysicsProxy* ConcreteProxy = GetConcreteProxy(ClusteredParticle))
 		{
 			const FSimulationParameters& SimParams = ConcreteProxy->GetSimParameters(); 
-			if (SimParams.bGenerateCrumblingData)
+			if (SimParams.bGenerateCrumblingData || SimParams.bGenerateGlobalCrumblingData)
 			{
 				FCrumblingData& ClusterCrumbling = MAllClusterCrumblings.AddDefaulted_GetRef();
 				ClusterCrumbling.Proxy = ClusteredParticle->PhysicsProxy();
@@ -590,11 +590,12 @@ namespace Chaos
 				ClusterCrumbling.LinearVelocity = ClusteredParticle->V();
 				ClusterCrumbling.AngularVelocity = ClusteredParticle->W();
 				ClusterCrumbling.Mass = ClusteredParticle->M();
+				ClusterCrumbling.SetEmitterFlag(SimParams.bGenerateCrumblingData, SimParams.bGenerateGlobalCrumblingData);
 				if (ClusteredParticle->Geometry() && ClusteredParticle->Geometry()->HasBoundingBox())
 				{
 					ClusterCrumbling.LocalBounds = ClusteredParticle->Geometry()->BoundingBox();
 				}
-				if (SimParams.bGenerateCrumblingChildrenData)
+				if (SimParams.bGenerateCrumblingChildrenData || SimParams.bGenerateGlobalCrumblingChildrenData)
 				{
 					// when sending this event, children are still attached
 					if (const FRigidHandleArray* Children = MChildren.Find(ClusteredParticle))

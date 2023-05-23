@@ -26,79 +26,28 @@ struct CHAOSSOLVERENGINE_API FChaosBreakEvent : public FBreakChaosEvent
 {
 	GENERATED_BODY()
 	FChaosBreakEvent() : FBreakChaosEvent() {}
+	FChaosBreakEvent(const FBreakChaosEvent& BreakChaosEvent) : FBreakChaosEvent(BreakChaosEvent) {}
 	FChaosBreakEvent(const Chaos::FBreakingData& BreakingData) : FBreakChaosEvent(BreakingData) {}
 };
 
 USTRUCT(BlueprintType)
-struct CHAOSSOLVERENGINE_API FChaosRemovalEvent
+struct CHAOSSOLVERENGINE_API FChaosRemovalEvent : public FRemovalChaosEvent
 {
 	GENERATED_BODY()
-
-public:
-
-	FChaosRemovalEvent();
-
-	UPROPERTY(BlueprintReadOnly, Category = "Removal Event")
-	TObjectPtr<UPrimitiveComponent> Component = nullptr;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Removal Event")
-	FVector Location;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Removal Event")
-	float Mass;
+	FChaosRemovalEvent() : FRemovalChaosEvent() {}
+	FChaosRemovalEvent(const FRemovalChaosEvent& RemovalChaosEvent) : FRemovalChaosEvent(RemovalChaosEvent) {}
 };
-
 
 USTRUCT(BlueprintType)
-struct CHAOSSOLVERENGINE_API FChaosCrumblingEvent
+struct CHAOSSOLVERENGINE_API FChaosCrumblingEvent : public FCrumblingChaosEvent
 {
 	GENERATED_BODY()
-
-public:
-	FChaosCrumblingEvent()
-		: Component(nullptr)
-		, Location(FVector::ZeroVector)
-		, Orientation(FQuat::Identity)
-		, LinearVelocity(FVector::ZeroVector)
-		, AngularVelocity(FVector::ZeroVector)
-		, Mass(0)
-		, LocalBounds(ForceInitToZero)
-	{}
-
-	/** primitive component involved in the crumble event */
-	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
-	TObjectPtr<UPrimitiveComponent> Component = nullptr;
-
-	/** World location of the crumbling cluster */
-	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
-	FVector Location;
-
-	/** World orientation of the crumbling cluster */
-	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
-	FQuat Orientation;
-
-	/** Linear Velocity of the crumbling cluster */
-	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
-	FVector LinearVelocity;
-
-	/** Angular Velocity of the crumbling cluster  */
-	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
-	FVector AngularVelocity;
-
-	/** Mass of the crumbling cluster  */
-	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
-	float Mass;
-
-	/** Local bounding box of the crumbling cluster  */
-	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
-	FBox LocalBounds;
-	
-	/** List of children indices released (optional : see geometry collection component bCrumblingEventIncludesChildren) */
-	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
-	TArray<int32> Children;
+	FChaosCrumblingEvent() : FCrumblingChaosEvent() {}
+	FChaosCrumblingEvent(const FCrumblingChaosEvent& CrumbleChaosEvent) : FCrumblingChaosEvent(CrumbleChaosEvent) {}
 };
 
-typedef TFunction<void(const FChaosBreakEvent&)> FOnBreakEventCallback;
+
+typedef TFunction<void(const FBreakChaosEvent&)> FOnBreakEventCallback;
 
 /** UStruct wrapper so we can store the TFunction in a TMap */
 USTRUCT()
@@ -110,7 +59,7 @@ public:
 	FOnBreakEventCallback BreakEventCallback;
 };
 
-typedef TFunction<void(const FChaosRemovalEvent&)> FOnRemovalEventCallback;
+typedef TFunction<void(const FRemovalChaosEvent&)> FOnRemovalEventCallback;
 
 /** UStruct wrapper so we can store the TFunction in a TMap */
 USTRUCT()
@@ -122,7 +71,7 @@ public:
 	FOnRemovalEventCallback RemovalEventCallback;
 };
 
-typedef TFunction<void(const FChaosCrumblingEvent&)> FOnCrumblingEventCallback;
+typedef TFunction<void(const FCrumblingChaosEvent&)> FOnCrumblingEventCallback;
 
 /** UStruct wrapper so we can store the TFunction in a TMap */
 USTRUCT()

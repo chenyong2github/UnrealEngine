@@ -1111,8 +1111,7 @@ namespace Chaos
 		}
 		
 		// Record removal for event generation
-		const int32 NewIdx = MAllRemovals.Add(FRemovalData());
-		FRemovalData& Removal = MAllRemovals[NewIdx];
+		FRemovalData& Removal = MAllRemovals.AddDefaulted_GetRef();
 		Removal.Proxy = Particle->PhysicsProxy();
 		Removal.Location = Particle->X();
 		

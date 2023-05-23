@@ -114,8 +114,13 @@ public:
 	AActor* GetSolverActor() const;
 
 	void RegisterForCollisionEvents(UPrimitiveComponent* Component);
-
 	void UnRegisterForCollisionEvents(UPrimitiveComponent* Component);
+
+	void RegisterForGlobalCollisionEvents(UPrimitiveComponent* Component);
+	void UnRegisterForGlobalCollisionEvents(UPrimitiveComponent* Component);
+
+	void RegisterForGlobalRemovalEvents(UPrimitiveComponent* Component);
+	void UnRegisterForGlobalRemovalEvents(UPrimitiveComponent* Component);
 
 	void RegisterAsyncPhysicsTickComponent(UActorComponent* Component);
 	void UnregisterAsyncPhysicsTickComponent(UActorComponent* Component);
@@ -249,8 +254,9 @@ public:
 	FPrimitiveComponentReplicationCache ReplicationCache;
 
 private:
-	UPROPERTY()
 	TSet<UPrimitiveComponent*> CollisionEventRegistrations;
+	TSet<UPrimitiveComponent*> GlobalCollisionEventRegistrations;
+	TSet<UPrimitiveComponent*> GlobalRemovalEventRegistrations;
 
 	// contains the set of properties that uniquely identifies a reported collision
 	// Note that order matters, { Body0, Body1 } is not the same as { Body1, Body0 }
@@ -279,10 +285,13 @@ private:
 
 	// Chaos Event Handlers
 	void HandleEachCollisionEvent(const TArray<int32>& CollisionIndices, IPhysicsProxyBase* PhysicsProxy0, UPrimitiveComponent* const Comp0, Chaos::FCollisionDataArray const& CollisionData, Chaos::FReal MinDeltaVelocityThreshold);
+	void HandleGlobalCollisionEvent(Chaos::FCollisionDataArray const& CollisionData);
 	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
 	void DispatchPendingCollisionNotifies();
 
 	void HandleBreakingEvents(const Chaos::FBreakingEventData& Event);
+	void HandleRemovalEvents(const Chaos::FRemovalEventData& Event);
+	void HandleCrumblingEvents(const Chaos::FCrumblingEventData& Event);
 
 	/** Replication manager that updates physics bodies towards replicated physics state */
 	FPhysicsReplication* PhysicsReplication;
@@ -372,6 +381,9 @@ private:
 
 	Chaos::FReal LastEventDispatchTime;
 	Chaos::FReal LastBreakEventDispatchTime;
+	Chaos::FReal LastRemovalEventDispatchTime;
+	Chaos::FReal LastCrumblingEventDispatchTime;
+	
 	class FAsyncPhysicsTickCallback* AsyncPhysicsTickCallback = nullptr;
 
 #if WITH_EDITOR

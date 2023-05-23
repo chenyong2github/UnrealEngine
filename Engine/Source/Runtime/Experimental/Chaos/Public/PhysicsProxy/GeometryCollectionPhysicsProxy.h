@@ -424,6 +424,8 @@ public:
 	void SetNotifyCrumblings_External(bool bNotify, bool bIncludeChildren);
 
 	void SetNotifyGlobalBreakings_External(bool bNotify);
+	void SetNotifyGlobalRemovals_External(bool bNotify);
+	void SetNotifyGlobalCrumblings_External(bool bNotify, bool bIncludeChildren);
 
 	float ComputeMaterialBasedDamageThreshold_Internal(Chaos::FPBDRigidClusteredParticleHandle& ClusteredParticle) const;
 

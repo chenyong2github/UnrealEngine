@@ -56,6 +56,7 @@ enum class EObjectStateTypeEnum : uint8;
 namespace Chaos { enum class EObjectStateType: int8; }
 template<class InElementType> class TManagedArray;
 
+// To deprecate:  to use FBreakChaosEvent from Engine instead of FChaosBreakEvent from ChaosSolverEngine
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosBreakEvent, const FChaosBreakEvent&, BreakEvent);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosRemovalEvent, const FChaosRemovalEvent&, RemovalEvent);
@@ -987,19 +988,31 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetNotifyRemovals(bool bNewNotifyRemovals);
 
-	/** Changes whether or not this component will get future break notifications. */
+	/** Changes whether or not this component will get future crumbling notifications. */
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetNotifyCrumblings(bool bNewNotifyCrumblings, bool bNewCrumblingEventIncludesChildren = false);
 
 	/** Changes whether or not this component will get future global break notifications. */
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetNotifyGlobalBreaks(bool bNewNotifyGlobalBreaks);
+
+	/** Changes whether or not this component will get future global collision notifications. */
+	UFUNCTION(BlueprintCallable, Category = "Physics")
+	void SetNotifyGlobalCollision(bool bNewNotifyGlobalCollisions);
+
+	/** Changes whether or not this component will get future global removal notifications. */
+	UFUNCTION(BlueprintCallable, Category = "Physics")
+	void SetNotifyGlobalRemovals(bool bNewNotifyGlobalRemovals);
+
+	/** Changes whether or not this component will get future global crumbling notifications. */
+	UFUNCTION(BlueprintCallable, Category = "Physics")
+	void SetNotifyGlobalCrumblings(bool bNewNotifyGlobalCrumblings, bool bGlobalNewCrumblingEventIncludesChildren);
 	
 	/** Overrideable native notification */
-	virtual void NotifyBreak(const FChaosBreakEvent& Event) {};
+	virtual void NotifyBreak(const FBreakChaosEvent& Event) {};
 
 	/** Overrideable native notification */
-	virtual void NotifyRemoval(const FChaosRemovalEvent& Event) {};
+	virtual void NotifyRemoval(const FRemovalChaosEvent& Event) {};
 
 	UPROPERTY(BlueprintAssignable, Category = "Chaos")
 	FOnChaosBreakEvent OnChaosBreakEvent;
@@ -1013,11 +1026,11 @@ public:
 	// todo(chaos) remove when no longer necessary
 	FOnChaosBreakEvent OnRootBreakEvent;
 
-	void DispatchBreakEvent(const FChaosBreakEvent& Event);
+	void DispatchBreakEvent(const FBreakChaosEvent& Event);
 
-	void DispatchRemovalEvent(const FChaosRemovalEvent& Event);
+	void DispatchRemovalEvent(const FRemovalChaosEvent& Event);
 
-	void DispatchCrumblingEvent(const FChaosCrumblingEvent& Event);
+	void DispatchCrumblingEvent(const FCrumblingChaosEvent& Event);
 
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Interp, Category = "Chaos")
 	float DesiredCacheTime;
@@ -1105,14 +1118,31 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events")
 	bool bNotifyCrumblings;
 
+	/** If this and bNotifyCrumblings are true, the crumbling events will contain released children indices. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events", meta = (EditCondition = "bNotifyCrumblings"))
+	bool bCrumblingEventIncludesChildren;
+
 	/** If true, this component will generate breaking events that will be listened by the global event relay. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events|Global")
 	bool bNotifyGlobalBreaks;
 
-	/** If this and bNotifyCrumblings are true, the crumbling events will contain released children indices. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events", meta = (EditCondition = "bNotifyCrumblings"))
-	bool bCrumblingEventIncludesChildren;
-	
+	/** If true, this component will generate collision events  that will be listened by the global event relay. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events|Global")
+	bool bNotifyGlobalCollisions;
+
+	/** If true, this component will generate removal events  that will be listened by the global event relay. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events|Global")
+	bool bNotifyGlobalRemovals;
+
+	/** If true, this component will generate crumbling events  that will be listened by the global event relay. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events|Global")
+	bool bNotifyGlobalCrumblings;
+
+	/** If this and bNotifyGlobalCrumblings are true, the crumbling events will contain released children indices. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events|Global", meta = (EditCondition = "bNotifyGlobalCrumblings"))
+	bool bGlobalCrumblingEventIncludesChildren;
+
+
 	/** If true, this component will save linear and angular velocities on its DynamicCollection. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General")
 	bool bStoreVelocities;
@@ -1184,8 +1214,10 @@ protected:
 
 	void RegisterForEvents();
 	void UpdateRBCollisionEventRegistration();
+	void UpdateGlobalCollisionEventRegistration();
 	void UpdateBreakEventRegistration();
 	void UpdateRemovalEventRegistration();
+	void UpdateGlobalRemovalEventRegistration();
 	void UpdateCrumblingEventRegistration();
 	
 	/* Per-instance override to enable/disable replication for the geometry collection */

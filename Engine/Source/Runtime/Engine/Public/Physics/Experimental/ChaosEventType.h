@@ -11,7 +11,73 @@
 namespace Chaos
 {
 	struct FBreakingData;
+	struct FCollidingData;
 }
+
+USTRUCT(BlueprintType)
+struct ENGINE_API FCollisionChaosEventBodyInfo
+{
+	GENERATED_BODY()
+
+public:
+	FCollisionChaosEventBodyInfo();
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	FVector Velocity;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	FVector DeltaVelocity;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	FVector AngularVelocity;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	float Mass;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	TObjectPtr<class UPhysicalMaterial> PhysMaterial;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	TWeakObjectPtr<UPrimitiveComponent> Component;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	int32 BodyIndex;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	FName BoneName;
+};
+
+
+
+USTRUCT(BlueprintType)
+struct ENGINE_API FCollisionChaosEvent
+{
+	GENERATED_BODY()
+
+public:
+	FCollisionChaosEvent();
+	FCollisionChaosEvent(const Chaos::FCollidingData& CollisionData);
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	FVector Location;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	FVector AccumulatedImpulse;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	FVector Normal;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	float PenetrationDepth;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	FCollisionChaosEventBodyInfo Body1;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
+	FCollisionChaosEventBodyInfo Body2;
+
+};
+
 
 USTRUCT(BlueprintType)
 struct ENGINE_API FBreakChaosEvent
@@ -55,4 +121,75 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
 	bool bFromCrumble;
 };
+
+USTRUCT(BlueprintType)
+struct ENGINE_API FRemovalChaosEvent
+{
+	GENERATED_BODY()
+
+public:
+
+	FRemovalChaosEvent();
+
+	UPROPERTY(BlueprintReadOnly, Category = "Removal Event")
+	TObjectPtr<UPrimitiveComponent> Component = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Removal Event")
+	FVector Location;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Removal Event")
+	float Mass;
+};
+
+
+USTRUCT(BlueprintType)
+struct ENGINE_API FCrumblingChaosEvent
+{
+	GENERATED_BODY()
+
+public:
+	FCrumblingChaosEvent()
+		: Component(nullptr)
+		, Location(FVector::ZeroVector)
+		, Orientation(FQuat::Identity)
+		, LinearVelocity(FVector::ZeroVector)
+		, AngularVelocity(FVector::ZeroVector)
+		, Mass(0)
+		, LocalBounds(ForceInitToZero)
+	{}
+
+	/** primitive component involved in the crumble event */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+		TObjectPtr<UPrimitiveComponent> Component = nullptr;
+
+	/** World location of the crumbling cluster */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+		FVector Location;
+
+	/** World orientation of the crumbling cluster */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+		FQuat Orientation;
+
+	/** Linear Velocity of the crumbling cluster */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+		FVector LinearVelocity;
+
+	/** Angular Velocity of the crumbling cluster  */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+		FVector AngularVelocity;
+
+	/** Mass of the crumbling cluster  */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+		float Mass;
+
+	/** Local bounding box of the crumbling cluster  */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+		FBox LocalBounds;
+
+	/** List of children indices released (optional : see geometry collection component bCrumblingEventIncludesChildren) */
+	UPROPERTY(BlueprintReadOnly, Category = "Crumble Event")
+		TArray<int32> Children;
+};
+
+
 

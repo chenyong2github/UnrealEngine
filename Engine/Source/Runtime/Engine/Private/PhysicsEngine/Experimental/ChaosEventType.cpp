@@ -6,6 +6,34 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosEventType)
 
+FCollisionChaosEventBodyInfo::FCollisionChaosEventBodyInfo()
+	: PhysMaterial(nullptr)
+	, Component(nullptr)
+{
+}
+
+FCollisionChaosEvent::FCollisionChaosEvent()
+{
+}
+
+FCollisionChaosEvent::FCollisionChaosEvent(const Chaos::FCollidingData& CollisionData)
+	: Location(CollisionData.Location)
+	, AccumulatedImpulse(CollisionData.AccumulatedImpulse)
+	, Normal(CollisionData.Normal)
+	, PenetrationDepth(CollisionData.PenetrationDepth)
+{
+	Body1.Velocity = CollisionData.Velocity1;
+	Body1.DeltaVelocity = CollisionData.DeltaVelocity1;
+	Body1.AngularVelocity = CollisionData.AngularVelocity1;
+	Body1.Mass = CollisionData.Mass1;
+
+	Body2.Velocity = CollisionData.Velocity2;
+	Body2.DeltaVelocity = CollisionData.DeltaVelocity2;
+	Body2.AngularVelocity = CollisionData.AngularVelocity2;
+	Body2.Mass = CollisionData.Mass2;
+
+}
+
 FBreakChaosEvent::FBreakChaosEvent()
 	: Component(nullptr)
 	, Location(FVector::ZeroVector)
@@ -27,5 +55,12 @@ FBreakChaosEvent::FBreakChaosEvent(const Chaos::FBreakingData& BreakingData)
 	, Mass(BreakingData.Mass)
 	, Index(BreakingData.TransformGroupIndex)
 	, bFromCrumble(BreakingData.bFromCrumble)
+{
+}
+
+FRemovalChaosEvent::FRemovalChaosEvent()
+	: Component(nullptr)
+	, Location(FVector::ZeroVector)
+	, Mass(0.0f)
 {
 }

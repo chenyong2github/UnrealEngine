@@ -163,6 +163,10 @@ public:
 		, bNotifyRemovals(false)
 		, bNotifyCrumblings(false)
 		, bCrumblingEventIncludesChildren(false)
+		, bNotifyGlobalBreakings(false)
+		, bNotifyGlobalRemovals(false)
+		, bNotifyGlobalCrumblings(false)
+		, bGlobalCrumblingEventIncludesChildren(false)
 		, bEnableStrainOnCollision(false)
 	{}
 
@@ -204,13 +208,6 @@ public:
 	}
 	bool GetNotifyBreakings() const { return bNotifyBreakings; }
 
-	void SetNotifyGlobalBreakings(bool bNotify)
-	{
-		bNotifyGlobalBreakings = bNotify;
-		bIsNotificationDataDirty = true;
-	}
-	bool GetNotifyGlobalBreakings() const { return bNotifyGlobalBreakings; }
-
 	void SetNotifyRemovals(bool bNotify)
 	{
 		bNotifyRemovals = bNotify;
@@ -228,6 +225,31 @@ public:
 
 	bool GetNotifyCrumblings() const { return bNotifyCrumblings; }
 	bool GetCrumblingEventIncludesChildren() const { return bCrumblingEventIncludesChildren; }
+
+	void SetNotifyGlobalBreakings(bool bNotify)
+	{
+		bNotifyGlobalBreakings = bNotify;
+		bIsNotificationDataDirty = true;
+	}
+	bool GetNotifyGlobalBreakings() const { return bNotifyGlobalBreakings; }
+
+	void SetNotifyGlobalRemovals(bool bNotify)
+	{
+		bNotifyGlobalRemovals = bNotify;
+		bIsNotificationDataDirty = true;
+	}
+	bool GetNotifyGlobalRemovals() const { return bNotifyGlobalRemovals; }
+
+	void SetNotifyGlobalCrumblings(bool bNotify, bool bIncludeChildren)
+	{
+		bNotifyGlobalCrumblings = bNotify;
+		bGlobalCrumblingEventIncludesChildren = bIncludeChildren;
+		bIsNotificationDataDirty = true;
+	}
+
+	bool GetNotifyGlobalCrumblings() const { return bNotifyGlobalCrumblings; }
+	bool GetGlobalCrumblingEventIncludesChildren() const { return bGlobalCrumblingEventIncludesChildren; }
+
 
 	bool GetIsNotificationDataDirty() const { return bIsNotificationDataDirty; }
 	void ResetIsNotificationDataDirty() { bIsNotificationDataDirty = false; }
@@ -255,6 +277,9 @@ private:
 	uint16 bNotifyCrumblings : 1;
 	uint16 bCrumblingEventIncludesChildren : 1;
 	uint16 bNotifyGlobalBreakings : 1;
+	uint16 bNotifyGlobalRemovals : 1;
+	uint16 bNotifyGlobalCrumblings : 1;
+	uint16 bGlobalCrumblingEventIncludesChildren : 1;
 
 	/** updated when bDamageSettingsDataDirty is set */
 	uint16 bEnableStrainOnCollision : 1;
