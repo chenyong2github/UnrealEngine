@@ -124,7 +124,7 @@ namespace Horde.Server.Jobs
 					{
 						description.Append($" - {Error}");
 					}
-					description.Append($")");
+					description.Append(')');
 				}
 				return description.ToString();
 			}

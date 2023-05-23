@@ -846,7 +846,7 @@ namespace Horde.Server
 		/// Create the default ACL for the server, including all predefined roles.
 		/// </summary>
 		/// <returns></returns>
-		AclConfig GetDefaultAcl()
+		static AclConfig GetDefaultAcl()
 		{
 			AclConfig defaultAcl = new AclConfig();
 			defaultAcl.Entries.Add(new AclEntryConfig(new AclClaimConfig(ClaimTypes.Role, "internal:AgentRegistration"), new[] { AgentAclAction.CreateAgent, SessionAclAction.CreateSession }));

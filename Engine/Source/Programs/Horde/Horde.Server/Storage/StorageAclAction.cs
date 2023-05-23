@@ -12,26 +12,26 @@ namespace Horde.Server.Storage
 		/// <summary>
 		/// Ability to read blobs from the storage service
 		/// </summary>
-		public static AclAction ReadBlobs = new AclAction("ReadBlobs");
+		public static readonly AclAction ReadBlobs = new AclAction("ReadBlobs");
 
 		/// <summary>
 		/// Ability to write blobs to the storage service
 		/// </summary>
-		public static AclAction WriteBlobs = new AclAction("WriteBlobs");
+		public static readonly AclAction WriteBlobs = new AclAction("WriteBlobs");
 
 		/// <summary>
 		/// Ability to read refs from the storage service
 		/// </summary>
-		public static AclAction ReadRefs = new AclAction("ReadRefs");
+		public static readonly AclAction ReadRefs = new AclAction("ReadRefs");
 
 		/// <summary>
 		/// Ability to write refs to the storage service
 		/// </summary>
-		public static AclAction WriteRefs = new AclAction("WriteRefs");
+		public static readonly AclAction WriteRefs = new AclAction("WriteRefs");
 
 		/// <summary>
 		/// Ability to delete refs
 		/// </summary>
-		public static AclAction DeleteRefs = new AclAction("DeleteRefs");
+		public static readonly AclAction DeleteRefs = new AclAction("DeleteRefs");
 	}
 }

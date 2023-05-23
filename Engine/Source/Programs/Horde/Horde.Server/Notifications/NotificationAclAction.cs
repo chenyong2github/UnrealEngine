@@ -12,6 +12,6 @@ namespace Horde.Server.Notifications
 		/// <summary>
 		/// Ability to subscribe to notifications
 		/// </summary>
-		public static AclAction CreateSubscription = new AclAction("CreateSubscription");
+		public static readonly AclAction CreateSubscription = new AclAction("CreateSubscription");
 	}
 }

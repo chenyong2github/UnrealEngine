@@ -12,26 +12,26 @@ namespace Horde.Server.Agents.Pools
 		/// <summary>
 		/// Create a global pool of agents
 		/// </summary>
-		public static AclAction CreatePool = new AclAction("CreatePool");
+		public static readonly AclAction CreatePool = new AclAction("CreatePool");
 
 		/// <summary>
 		/// Modify an agent pool
 		/// </summary>
-		public static AclAction UpdatePool = new AclAction("UpdatePool");
+		public static readonly AclAction UpdatePool = new AclAction("UpdatePool");
 
 		/// <summary>
 		/// Delete an agent pool
 		/// </summary>
-		public static AclAction DeletePool = new AclAction("DeletePool");
+		public static readonly AclAction DeletePool = new AclAction("DeletePool");
 
 		/// <summary>
 		/// Ability to view a pool
 		/// </summary>
-		public static AclAction ViewPool = new AclAction("ViewPool");
+		public static readonly AclAction ViewPool = new AclAction("ViewPool");
 
 		/// <summary>
 		/// View all the available agent pools
 		/// </summary>
-		public static AclAction ListPools = new AclAction("ListPools");
+		public static readonly AclAction ListPools = new AclAction("ListPools");
 	}
 }
