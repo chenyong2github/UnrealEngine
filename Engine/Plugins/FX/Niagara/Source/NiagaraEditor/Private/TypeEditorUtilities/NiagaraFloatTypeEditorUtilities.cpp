@@ -74,8 +74,14 @@ public:
 						.MinValue(MinValue)
 						.MaxValue(MaxValue)
 						.Value(this, &SNiagaraFloatParameterEditor::GetValue)
-						.OnValueChanged(this, &SNiagaraFloatParameterEditor::ValueChanged)
-						.OnValueCommitted(this, &SNiagaraFloatParameterEditor::ValueCommitted)
+						.OnValueChanged_Lambda([this, MinValue, MaxValue](float NewVal)
+						{
+							ValueChanged(FMath::Clamp(NewVal, MinValue, MaxValue));
+						})
+						.OnValueCommitted_Lambda([this, MinValue, MaxValue](float NewVal, ETextCommit::Type CommitType)
+						{
+							ValueCommitted(FMath::Clamp(NewVal, MinValue, MaxValue), CommitType);
+						})
 						.TypeInterface(GetTypeInterface<float>(DisplayUnit))
 						.AllowSpin(false)
 						.Delta(WidgetCustomization.bHasStepWidth ? WidgetCustomization.StepWidth : 0)
@@ -109,7 +115,7 @@ public:
 			TArray<SNiagaraNumericDropDown<float>::FNamedValue> DropDownValues;
 			for (const FWidgetNamedInputValue& Value : WidgetCustomization.InputDropdownValues)
 			{
-				DropDownValues.Add(SNiagaraNumericDropDown<float>::FNamedValue(Value.Value, Value.DisplayName, Value.Tooltip));
+				DropDownValues.Add(SNiagaraNumericDropDown<float>::FNamedValue(Value.Value, Value.DisplayName.IsEmpty() ? FText::AsNumber(Value.Value) : Value.DisplayName, Value.Tooltip));
 			}
 
 			ChildSlot
