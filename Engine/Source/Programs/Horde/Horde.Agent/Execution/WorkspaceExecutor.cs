@@ -129,31 +129,44 @@ namespace Horde.Agent.Execution
 
 	class WorkspaceExecutorFactory : IJobExecutorFactory
 	{
+		private readonly IWorkspaceMaterializerFactory _materializerFactory;
 		private readonly ILoggerFactory _loggerFactory;
 		
 		public string Name => WorkspaceExecutor.Name;
 
-		public WorkspaceExecutorFactory(ILoggerFactory loggerFactory)
+		public WorkspaceExecutorFactory(IWorkspaceMaterializerFactory materializerFactory, ILoggerFactory loggerFactory)
 		{
+			_materializerFactory = materializerFactory;
 			_loggerFactory = loggerFactory;
 		}
 
 		public IJobExecutor CreateExecutor(AgentWorkspace workspaceInfo, AgentWorkspace? autoSdkWorkspaceInfo, JobExecutorOptions options)
 		{
-			IWorkspaceMaterializer workspaceMaterializer;
-			IWorkspaceMaterializer? autoSdkMaterializer = null;
-
-			// Default to ManagedWorkspaceMaterializer for now. Different types of materializer can later be set via AgentWorkspace or JobOptions.
-			workspaceMaterializer = new ManagedWorkspaceMaterializer(
-				workspaceInfo, options.Session.WorkingDir, false, false, _loggerFactory.CreateLogger<ManagedWorkspaceMaterializer>());
+			WorkspaceMaterializerType type = GetMaterializerType(options.JobOptions.WorkspaceMaterializer, WorkspaceMaterializerType.ManagedWorkspace);
+			IWorkspaceMaterializer workspaceMaterializer = _materializerFactory.CreateMaterializer(type, workspaceInfo, options);
 			
+			IWorkspaceMaterializer? autoSdkMaterializer = null;
 			if (autoSdkWorkspaceInfo != null)
 			{
-				autoSdkMaterializer = new ManagedWorkspaceMaterializer(
-					autoSdkWorkspaceInfo, options.Session.WorkingDir, true, true, _loggerFactory.CreateLogger<ManagedWorkspaceMaterializer>());
+				autoSdkMaterializer = _materializerFactory.CreateMaterializer(type, workspaceInfo, options, forAutoSdk: true);
 			}
 			
 			return new WorkspaceExecutor(options, workspaceMaterializer, autoSdkMaterializer, _loggerFactory.CreateLogger<WorkspaceExecutor>());
+		}
+
+		private static WorkspaceMaterializerType GetMaterializerType(string name, WorkspaceMaterializerType defaultValue)
+		{
+			if (String.IsNullOrEmpty(name))
+			{
+				return defaultValue;
+			}
+			
+			if (Enum.TryParse(name, true, out WorkspaceMaterializerType enumType))
+			{
+				return enumType;
+			}
+			
+			throw new ArgumentException($"Unable to find materializer type '{name}'");
 		}
 	}
 }

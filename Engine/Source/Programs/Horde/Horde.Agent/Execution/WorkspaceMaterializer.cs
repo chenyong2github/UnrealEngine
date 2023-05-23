@@ -4,6 +4,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using HordeCommon.Rpc.Messages;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Execution;
 
@@ -126,4 +128,50 @@ public interface IWorkspaceMaterializer
 	/// <exception cref="Horde.Agent.Execution.WorkspaceMaterializationException">Thrown if unshelving fails</exception>
 	/// <returns>Async task</returns>
 	public Task UnshelveAsync(int changeNum, CancellationToken cancellationToken);
+}
+
+enum WorkspaceMaterializerType
+{
+	ManagedWorkspace,
+}
+
+/// <summary>
+/// Factory for creating new workspace materializers
+/// </summary>
+interface IWorkspaceMaterializerFactory
+{
+	/// <summary>
+	/// Creates a new workspace materializer instance
+	/// </summary>
+	/// <param name="type">Type of materializer to instantiate</param>
+	/// <param name="workspaceInfo">Agent workspace</param>
+	/// <param name="options">Job options</param>
+	/// <param name="forAutoSdk">Whether intended for AutoSDK materialization</param>
+	/// <returns>A new workspace materializer instance</returns>
+	IWorkspaceMaterializer CreateMaterializer(WorkspaceMaterializerType type, AgentWorkspace workspaceInfo, JobExecutorOptions options, bool forAutoSdk = false);
+}
+
+class WorkspaceMaterializerFactory : IWorkspaceMaterializerFactory
+{
+	private readonly ILoggerFactory _loggerFactory;
+	
+	public WorkspaceMaterializerFactory(ILoggerFactory loggerFactory)
+	{
+		_loggerFactory = loggerFactory;
+	}
+	
+	/// <inheritdoc/>
+	public IWorkspaceMaterializer CreateMaterializer(WorkspaceMaterializerType type, AgentWorkspace workspaceInfo, JobExecutorOptions options, bool forAutoSdk)
+	{
+		switch (type)
+		{
+			case WorkspaceMaterializerType.ManagedWorkspace:
+				return forAutoSdk
+					? new ManagedWorkspaceMaterializer(workspaceInfo, options.Session.WorkingDir, true, true, _loggerFactory.CreateLogger<ManagedWorkspaceMaterializer>())
+					: new ManagedWorkspaceMaterializer(workspaceInfo, options.Session.WorkingDir, false, false, _loggerFactory.CreateLogger<ManagedWorkspaceMaterializer>());
+
+			default:
+				throw new Exception("Unhandled materializer option: " + type);
+		};
+	}
 }

@@ -194,6 +194,8 @@ namespace Horde.Agent
 			services.AddSingleton<IJobExecutorFactory, WorkspaceExecutorFactory>();
 			services.AddSingleton<IJobExecutorFactory, LocalExecutorFactory>();
 			services.AddSingleton<IJobExecutorFactory, TestExecutorFactory>();
+			
+			services.AddSingleton<IWorkspaceMaterializerFactory, WorkspaceMaterializerFactory>();
 
 			services.AddSingleton<JobHandler>();
 			services.AddSingleton<StatusService>();
