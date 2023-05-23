@@ -1102,11 +1102,11 @@ void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)
 				FText TitleText = NSLOCTEXT("Interchange", "Asynchronous_import_start", "Importing");
 				FAsyncTaskNotificationConfig NotificationConfig;
 				NotificationConfig.bIsHeadless = false;
-				NotificationConfig.bKeepOpenOnFailure = true;
 				NotificationConfig.TitleText = TitleText;
 				NotificationConfig.LogCategory = UE::Interchange::Private::GetLogInterchangePtr();
 				NotificationConfig.bCanCancel.Set(true);
-				NotificationConfig.bKeepOpenOnFailure.Set(true);
+				NotificationConfig.bKeepOpenOnSuccess.Set(false);
+				NotificationConfig.bKeepOpenOnFailure.Set(false);
 
 				Notification = MakeShared<FAsyncTaskNotification>(NotificationConfig);
 				Notification->SetNotificationState(FAsyncNotificationStateData(TitleText, FText::GetEmpty(), EAsyncTaskNotificationState::Pending));
