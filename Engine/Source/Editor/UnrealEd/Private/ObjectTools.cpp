@@ -2410,7 +2410,9 @@ namespace ObjectTools
 			AllPackagesToUnload.Append(PackagesToDelete);
 			AllPackagesToUnload.Append(PackagesToUnload);
 
-			UPackageTools::UnloadPackages(AllPackagesToUnload);
+			UPackageTools::FUnloadPackageParams UnloadParams(AllPackagesToUnload);
+			UnloadParams.bResetTransBuffer = false; // Don't reset the transaction buffer, as we handled that above if needed
+			UPackageTools::UnloadPackages(UnloadParams);
 		}
 		CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
 

@@ -1192,7 +1192,12 @@ void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 }
 
 void UWorldPartition::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
-{	
+{
+	if (PinnedActors)
+	{
+		PinnedActors->RemoveActors({ FWorldPartitionHandle(ActorDesc->GetContainer(), ActorDesc->GetGuid()) });
+	}
+
 	UnhashActorDesc(ActorDesc);
 
 	if (ForceLoadedActors)
