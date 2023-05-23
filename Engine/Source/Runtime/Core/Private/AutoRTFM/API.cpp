@@ -125,26 +125,6 @@ extern "C" void autortfm_register_open_function(void* OriginalFunction, void* Ne
     FunctionMapAdd(OriginalFunction, NewFunction);
 }
 
-void DeferUntilCommit(TFunction<void()>&& Work)
-{
-    if (FContext::IsTransactional())
-    {
-        FContext::Get()->GetCurrentTransaction()->DeferUntilCommit(MoveTemp(Work));
-    }
-    else
-    {
-        Work();
-    }
-}
-
-void DeferUntilAbort(TFunction<void()>&& Work)
-{
-    if (FContext::IsTransactional())
-    {
-        FContext::Get()->GetCurrentTransaction()->DeferUntilAbort(MoveTemp(Work));
-    }
-}
-
 void OpenCommit(TFunction<void()>&& Work)
 {
     Work();
@@ -152,16 +132,6 @@ void OpenCommit(TFunction<void()>&& Work)
 
 void OpenAbort(TFunction<void()>&& Work)
 {
-}
-
-extern "C" void autortfm_defer_until_commit(void (*Work)(void* Arg), void* Arg)
-{
-    DeferUntilCommit([Work, Arg] () { Work(Arg); });
-}
-
-extern "C" void autortfm_defer_until_abort(void (*Work)(void* arg), void* Arg)
-{
-    DeferUntilAbort([Work, Arg] () { Work(Arg); });
 }
 
 extern "C" void autortfm_open_commit(void (*Work)(void* Arg), void* Arg)
@@ -333,20 +303,6 @@ extern "C" void RTFM_autortfm_record_open_write(void*, size_t, FContext*)
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_record_open_write);
 
-void RTFM_DeferUntilCommit(TFunction<void()>&& Work, FContext* Context)
-{
-    ASSERT(Context->GetStatus() == EContextStatus::OnTrack);
-    Context->GetCurrentTransaction()->DeferUntilCommit(MoveTemp(Work));
-}
-UE_AUTORTFM_REGISTER_OPEN_FUNCTION(DeferUntilCommit);
-
-void RTFM_DeferUntilAbort(TFunction<void()>&& Work, FContext* Context)
-{
-    ASSERT(Context->GetStatus() == EContextStatus::OnTrack);
-    Context->GetCurrentTransaction()->DeferUntilAbort(MoveTemp(Work));
-}
-UE_AUTORTFM_REGISTER_OPEN_FUNCTION(DeferUntilAbort);
-
 void RTFM_OpenCommit(TFunction<void()>&& Work, FContext* Context)
 {
     ASSERT(Context->GetStatus() == EContextStatus::OnTrack);
@@ -360,18 +316,6 @@ void RTFM_OpenAbort(TFunction<void()>&& Work, FContext* Context)
     Context->GetCurrentTransaction()->DeferUntilAbort(MoveTemp(Work));
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(OpenAbort);
-
-extern "C" void RTFM_autortfm_defer_until_commit(void (*Work)(void* Arg), void* Arg, FContext* Context)
-{
-    RTFM_DeferUntilCommit([Work, Arg] { Work(Arg); }, Context);
-}
-UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_defer_until_commit);
-
-extern "C" void RTFM_autortfm_defer_until_abort(void (*Work)(void* arg), void* Arg, FContext* Context)
-{
-    RTFM_DeferUntilAbort([Work, Arg] { Work(Arg); }, Context);
-}
-UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_defer_until_abort);
 
 extern "C" void RTFM_autortfm_open_commit(void (*Work)(void* Arg), void* Arg, FContext* Context)
 {

@@ -262,33 +262,6 @@ UE_AUTORTFM_FORCEINLINE void autortfm_register_open_function(void* original_func
 
 // Have some work happen when this transaction commits. For nested transactions,
 // this just adds the work to the work deferred until the outer nest's commit.
-// If this is called outside a transaction then the work happens immediately. An
-// open nest within a transaction will be deferred until commit too.
-#if UE_AUTORTFM
-void autortfm_defer_until_commit(void (*work)(void* arg), void* arg);
-#else
-UE_AUTORTFM_FORCEINLINE void autortfm_defer_until_commit(void (*work)(void* arg), void* arg)
-{
-    work(arg);
-}
-#endif
-
-// Have some work happen when this transaction aborts. For nested transactions,
-// this work will be processed only when the outer nest actually commits or
-// aborts. If this is called outside a transaction then the work is ignored. An
-// open nest within a transaction will be deferred until abort too.
-#if UE_AUTORTFM
-void autortfm_defer_until_abort(void (*work)(void* arg), void* arg);
-#else
-UE_AUTORTFM_FORCEINLINE void autortfm_defer_until_abort(void (*work)(void* arg), void* arg)
-{
-	UE_AUTORTFM_UNUSED(work);
-	UE_AUTORTFM_UNUSED(arg);
-}
-#endif
-
-// Have some work happen when this transaction commits. For nested transactions,
-// this just adds the work to the work deferred until the outer nest's commit.
 // If this is called outside a transaction or from an open nest then the work
 // happens immediately.
 #if UE_AUTORTFM
@@ -515,15 +488,9 @@ UE_AUTORTFM_FORCEINLINE void RegisterOpenFunction(void* OriginalFunction, void* 
 }
 
 #if UE_AUTORTFM
-void DeferUntilCommit(TFunction<void()>&& Work);
-void DeferUntilAbort(TFunction<void()>&& Work);
 void OpenCommit(TFunction<void()>&& Work);
 void OpenAbort(TFunction<void()>&& Work);
 #else
-template<typename TFunctor>
-UE_AUTORTFM_FORCEINLINE void DeferUntilCommit(const TFunctor& Work) { Work(); }
-template<typename TFunctor>
-UE_AUTORTFM_FORCEINLINE void DeferUntilAbort(const TFunctor& Work) { }
 template<typename TFunctor>
 UE_AUTORTFM_FORCEINLINE void OpenCommit(const TFunctor& Work) { Work(); }
 template<typename TFunctor>
