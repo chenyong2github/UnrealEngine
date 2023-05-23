@@ -149,6 +149,8 @@ void FGeometryCollection::Construct()
 
 void FGeometryCollection::SetDefaults(FName Group, uint32 StartSize, uint32 NumElements)
 {
+	Super::SetDefaults(Group, StartSize, NumElements);
+
 	if (Group == FTransformCollection::TransformGroup)
 	{
 		for (uint32 Idx = StartSize; Idx < StartSize + NumElements; ++Idx)
@@ -1591,6 +1593,7 @@ void FGeometryCollection::Init(FGeometryCollection* Collection, const TArray<flo
 		TManagedArray<int32>& MaterialIndex = Collection->MaterialIndex;
 		TManagedArray<bool>& Internal = Collection->Internal;
 		TManagedArray<FTransform>& Transform = Collection->Transform;
+		TManagedArray<int32>& BoneMap = Collection->BoneMap;
 		
 		Collection->SetNumUVLayers(1);
 
@@ -1604,6 +1607,7 @@ void FGeometryCollection::Init(FGeometryCollection* Collection, const TArray<flo
 			(*UV0)[Idx] = FVector2f::ZeroVector;
 
 			Colors[Idx] = FLinearColor::White;
+			BoneMap[Idx] = 0;
 		}
 
 		

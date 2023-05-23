@@ -273,7 +273,7 @@ public:
 	//
 	//
 
-	void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements);
+	virtual void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements) override;
 
 	// Transform Group
 	TManagedArray<int32>		TransformToGeometryIndex;

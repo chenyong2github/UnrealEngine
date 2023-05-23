@@ -177,6 +177,10 @@ protected:
 	*/
 	virtual void CopyRange(const FManagedArrayBase& ConstArray, int32 Start, int32 Stop, int32 Offset = 0) {};
 
+	/**
+	* Set default values. 
+	*/
+	virtual void SetDefaults(uint32 StartSize, uint32 NumElements, bool bHasGroupIndexDependency) {};
 
 	/**
 	* Get allocated memory 
@@ -1113,6 +1117,17 @@ public:
 			}
 		}
 	}
+
+	virtual void SetDefaults(uint32 StartSize, uint32 NumElements, bool bHasGroupIndexDependency) override
+	{
+		if (bHasGroupIndexDependency)
+		{
+			for (uint32 Index = StartSize; Index < StartSize + NumElements; ++Index)
+			{
+				this->operator[](Index) = INDEX_NONE;
+			}
+		}
+	}
 };
 
 
@@ -1253,6 +1268,17 @@ public:
 			}
 		}
 	}
+
+	virtual void SetDefaults(uint32 StartSize, uint32 NumElements, bool bHasGroupIndexDependency) override
+	{
+		if (bHasGroupIndexDependency)
+		{
+			for (uint32 Index = StartSize; Index < StartSize + NumElements; ++Index)
+			{
+				this->operator[](Index) = FIntVector(INDEX_NONE);
+			}
+		}
+	}
 };
 
 template<>
@@ -1316,6 +1342,17 @@ public:
 				{
 					RemapVal[i] = InverseNewOrder[RemapVal[i]];
 				}
+			}
+		}
+	}
+
+	virtual void SetDefaults(uint32 StartSize, uint32 NumElements, bool bHasGroupIndexDependency) override
+	{
+		if (bHasGroupIndexDependency)
+		{
+			for (uint32 Index = StartSize; Index < StartSize + NumElements; ++Index)
+			{
+				this->operator[](Index) = FIntVector2(INDEX_NONE);
 			}
 		}
 	}
@@ -1456,6 +1493,17 @@ public:
 				{
 					RemapVal[i] = InverseNewOrder[RemapVal[i]];
 				}
+			}
+		}
+	}
+
+	virtual void SetDefaults(uint32 StartSize, uint32 NumElements, bool bHasGroupIndexDependency) override
+	{
+		if (bHasGroupIndexDependency)
+		{
+			for (uint32 Index = StartSize; Index < StartSize + NumElements; ++Index)
+			{
+				this->operator[](Index) = FIntVector4(INDEX_NONE);
 			}
 		}
 	}

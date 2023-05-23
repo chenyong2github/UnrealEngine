@@ -41,6 +41,7 @@ namespace GeometryCollection
 		TManagedArray<bool>& Internal = RestCollection->Internal;
 		TManagedArray<FTransform>&  Transform = RestCollection->Transform;
 		TManagedArray<int32>& SimType = RestCollection->SimulationType;
+		TManagedArray<int32>& BoneMap = RestCollection->BoneMap;
 
 		// set the particle information
 		Transform[0] = center;
@@ -85,6 +86,15 @@ namespace GeometryCollection
 		Colors[5] = FLinearColor::White;
 		Colors[6] = FLinearColor::White;
 		Colors[7] = FLinearColor::White;
+
+		BoneMap[0] = 0;
+		BoneMap[1] = 0;
+		BoneMap[2] = 0;
+		BoneMap[3] = 0;
+		BoneMap[4] = 0;
+		BoneMap[5] = 0;
+		BoneMap[6] = 0;
+		BoneMap[7] = 0;
 
 
 		// set the index information

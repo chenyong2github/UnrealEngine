@@ -65,13 +65,15 @@ public:
 	struct FConstructionParameters {
 
 		FConstructionParameters(FName GroupIndexDependencyIn = ""
-			, bool SavedIn = true)
+			, bool SavedIn = true, bool bInAllowCircularDependency = false)
 			: GroupIndexDependency(GroupIndexDependencyIn)
 			, Saved(SavedIn)
+			, bAllowCircularDependency(bInAllowCircularDependency)
 		{}
 
 		FName GroupIndexDependency;
 		bool Saved;
+		bool bAllowCircularDependency;
 	};
 
 	struct FProcessingParameters
@@ -133,7 +135,7 @@ public:
 			FValueType Value(ManagedArrayType<T>(), *(new TManagedArray<T>()));
 			Value.Value->Resize(NumElements(Group));
 			Value.Saved = Parameters.Saved;
-			if (ensure(!IsConnected(Parameters.GroupIndexDependency,Group)))
+			if (ensure(Parameters.bAllowCircularDependency || !IsConnected(Parameters.GroupIndexDependency, Group)))
 			{
 				Value.GroupIndexDependency = Parameters.GroupIndexDependency;
 			}
@@ -212,7 +214,7 @@ public:
 		FValueType Value(ManagedArrayType<T>(), ValueIn);
 		Value.Value->Resize(NumElements(Group));
 		Value.Saved = Parameters.Saved;
-		if (ensure(!IsConnected(Parameters.GroupIndexDependency, Group)))
+		if (ensure(Parameters.bAllowCircularDependency || !IsConnected(Parameters.GroupIndexDependency, Group)))
 		{
 			Value.GroupIndexDependency = Parameters.GroupIndexDependency;
 		}
@@ -451,7 +453,7 @@ public:
 	/**
 	*
 	*/
-	void SetDependency(FName Name, FName Group, FName DependencyGroup);
+	void SetDependency(FName Name, FName Group, FName DependencyGroup, bool bAllowCircularDependency = false);
 
 	/**
 	*
@@ -660,13 +662,14 @@ private:
 
 	};
 
-	virtual void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements) {};
 
 	TMap< FKeyType, FValueType> Map;	//data is owned by the map explicitly
 	TMap< FName, FGroupInfo> GroupInfo;
 	bool bDirty;
 
 protected:
+
+	virtual void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements);
 
 	/**
 	 * Virtual helper function called by CopyMatchingAttributesFrom; adds attributes 'default, but optional' attributes that are present in InCollection

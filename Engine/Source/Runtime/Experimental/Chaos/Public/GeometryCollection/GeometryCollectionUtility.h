@@ -48,6 +48,7 @@ namespace GeometryCollection
 		TManagedArray<bool>& Internal = RestCollection->Internal;
 		TManagedArray<FTransform>& Transform = RestCollection->Transform;
 		TManagedArray<int32>& SimulationType = RestCollection->SimulationType;
+		TManagedArray<int32>& BoneMap = RestCollection->BoneMap;
 
 		// Set particle info
 		Transform[0] = Xf;
@@ -64,6 +65,7 @@ namespace GeometryCollection
 			UV0[Idx] = FVector2f(UV);
 			
 			Colors[Idx] = FLinearColor::White;
+			BoneMap[Idx] = 0;
 		}
 
 		// Set face info

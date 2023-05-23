@@ -341,6 +341,7 @@ TEST(GeometryCollection_CreationTest,ReindexMaterialsTest) { GeometryCollectionT
 TEST(GeometryCollection_CreationTest,ContiguousElementsTest) { GeometryCollectionTest::ContiguousElementsTest(); SUCCEED(); }
 TEST(GeometryCollection_CreationTest, AttributeDependencyTest) { GeometryCollectionTest::AttributeDependencyTest(); SUCCEED(); }
 TEST(GeometryCollection_CreationTest, IntListReindexOnDeletionTest) { GeometryCollectionTest::IntListReindexOnDeletionTest(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest, IntListSelfDependencyTest) { GeometryCollectionTest::IntListSelfDependencyTest(); SUCCEED(); }
 TEST(GeometryCollection_CreationTest, AppendManagedArrayCollectionTest) { GeometryCollectionTest::AppendManagedArrayCollectionTest(); SUCCEED(); }
 TEST(GeometryCollection_CreationTest, AppendTransformCollectionTest) { GeometryCollectionTest::AppendTransformCollectionTest(); SUCCEED(); }
 TEST(GeometryCollection_CreationTest, CollectionCycleTest) { GeometryCollectionTest::CollectionCycleTest(); SUCCEED(); }

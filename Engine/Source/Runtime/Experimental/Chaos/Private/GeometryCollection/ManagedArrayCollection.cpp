@@ -409,12 +409,12 @@ void FManagedArrayCollection::ReorderElements(FName Group, const TArray<int32>& 
 	}
 }
 
-void FManagedArrayCollection::SetDependency(FName Name, FName Group, FName DependencyGroup)
+void FManagedArrayCollection::SetDependency(FName Name, FName Group, FName DependencyGroup, bool bAllowCircularDependency)
 {
 	ensure(HasAttribute(Name, Group));
-	if (ensure(!IsConnected(DependencyGroup, Group)))
+	FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+	if (ensure(bAllowCircularDependency || !IsConnected(DependencyGroup, Group)))
 	{
-		FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
 		Map[Key].GroupIndexDependency = DependencyGroup;
 	}
 }
@@ -427,6 +427,17 @@ void FManagedArrayCollection::RemoveDependencyFor(FName Group)
 		if (Entry.Value.GroupIndexDependency == Group)
 		{
 			Entry.Value.GroupIndexDependency = "";
+		}
+	}
+}
+
+void FManagedArrayCollection::SetDefaults(FName Group, uint32 StartSize, uint32 NumElements)
+{
+	for (TTuple<FKeyType, FValueType>& Entry : Map)
+	{
+		if (Entry.Key.Get<1>() == Group)
+		{
+			Entry.Value.Value->SetDefaults(StartSize, NumElements, Entry.Value.GroupIndexDependency != "");
 		}
 	}
 }
