@@ -178,7 +178,7 @@ FMassActorSpawnRequestHandle UMassActorSpawnerSubsystem::GetNextRequestToSpawn()
 	return BestSpawnRequestHandle;
 }
 
-AActor* UMassActorSpawnerSubsystem::SpawnOrRetrieveFromPool(FConstStructView SpawnRequestView)
+ESpawnRequestStatus UMassActorSpawnerSubsystem::SpawnOrRetrieveFromPool(FConstStructView SpawnRequestView, TObjectPtr<AActor>& OutSpawnedActor)
 {
 	if (UE::MassActors::bUseActorPooling != 0 && bActorPoolingEnabled)
 	{
@@ -201,14 +201,15 @@ AActor* UMassActorSpawnerSubsystem::SpawnOrRetrieveFromPool(FConstStructView Spa
 				AgentComp->SetPuppetHandle(SpawnRequest.MassAgent);
 			}
 
-			return PooledActor;
+			OutSpawnedActor = PooledActor;
+			return ESpawnRequestStatus::Succeeded;
 		}
 	}
 
-	return SpawnActor(SpawnRequestView);
+	return SpawnActor(SpawnRequestView, OutSpawnedActor);
 }
 
-AActor* UMassActorSpawnerSubsystem::SpawnActor(FConstStructView SpawnRequestView) const
+ ESpawnRequestStatus UMassActorSpawnerSubsystem::SpawnActor(FConstStructView SpawnRequestView, TObjectPtr<AActor>& OutSpawnedActor) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMassActorSpawnerSubsystem::SpawnActor);
 
@@ -229,7 +230,8 @@ AActor* UMassActorSpawnerSubsystem::SpawnActor(FConstStructView SpawnRequestView
 			{
 				AgentComp->SetPuppetHandle(SpawnRequest.MassAgent);
 			}
-			return SpawnedActor;
+			OutSpawnedActor = SpawnedActor;
+			return ESpawnRequestStatus::Succeeded;
 		}
 	}
 
@@ -240,7 +242,8 @@ AActor* UMassActorSpawnerSubsystem::SpawnActor(FConstStructView SpawnRequestView
 					SpawnRequest.Transform.GetRotation(),
 					FColor::Red,
 					TEXT("Unable to spawn actor for Mass entity [%s]"), *SpawnRequest.MassAgent.DebugGetDescription());
-	return nullptr;
+
+	return ESpawnRequestStatus::Failed;
 }
 
 void UMassActorSpawnerSubsystem::ProcessPendingSpawningRequest(const double MaxTimeSlicePerTick)
@@ -277,17 +280,18 @@ void UMassActorSpawnerSubsystem::ProcessPendingSpawningRequest(const double MaxT
 			SpawnRequest.ActorPreSpawnDelegate.Execute(SpawnRequestHandle, SpawnRequestView);
 		}
 
-		SpawnRequest.SpawnedActor = SpawnOrRetrieveFromPool(SpawnRequestView);
+		SpawnRequest.SpawnStatus = SpawnOrRetrieveFromPool(SpawnRequestView, SpawnRequest.SpawnedActor);
 
-		SpawnRequest.SpawnStatus = SpawnRequest.SpawnedActor ? ESpawnRequestStatus::Succeeded : ESpawnRequestStatus::Failed;
-
-		// Call the post spawn delegate on the spawn request
-		if (SpawnRequest.ActorPostSpawnDelegate.IsBound())
+		if (SpawnRequest.IsFinished())
 		{
-			if (SpawnRequest.ActorPostSpawnDelegate.Execute(SpawnRequestHandle, SpawnRequestView) == EMassActorSpawnRequestAction::Remove)
+			// Call the post spawn delegate on the spawn request
+			if (SpawnRequest.ActorPostSpawnDelegate.IsBound())
 			{
-				// If notified, remove the spawning request
-				ensureMsgf(SpawnRequestHandleManager.RemoveHandle(SpawnRequestHandle), TEXT("When providing a delegate, the spawn request gets automatically removed, no need to remove it on your side"));
+				if (SpawnRequest.ActorPostSpawnDelegate.Execute(SpawnRequestHandle, SpawnRequestView) == EMassActorSpawnRequestAction::Remove)
+				{
+					// If notified, remove the spawning request
+					ensureMsgf(SpawnRequestHandleManager.RemoveHandle(SpawnRequestHandle), TEXT("When providing a delegate, the spawn request gets automatically removed, no need to remove it on your side"));
+				}
 			}
 		}
 	}
