@@ -71,6 +71,13 @@
 			"Enabled": true
 		},
 		{
+			"Name": "DatasmithCloTranslator",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
+		},
+		{
 			"Name": "ChaosCaching",
 			"Enabled": true
 		}
