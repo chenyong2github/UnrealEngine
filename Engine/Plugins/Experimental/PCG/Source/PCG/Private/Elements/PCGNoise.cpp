@@ -3,6 +3,7 @@
 #include "Elements/PCGNoise.h"
 
 #include "Kismet/KismetMathLibrary.h"
+#include "GameFramework/Actor.h"
 
 #include "PCGComponent.h"
 #include "PCGContext.h"
