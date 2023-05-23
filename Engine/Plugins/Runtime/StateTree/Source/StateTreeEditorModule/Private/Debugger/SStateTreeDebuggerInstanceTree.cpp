@@ -55,6 +55,15 @@ void SStateTreeDebuggerInstanceTree::TreeExpansionChanged(TSharedPtr<RewindDebug
 	OnExpansionChanged.ExecuteIfBound();
 }
 
+TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SStateTreeDebuggerInstanceTree::GetSelection() const
+{
+	TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>> SelectedItems;
+	const int32 NumSelected = TreeView->GetSelectedItems(SelectedItems);
+
+	// TreeView uses 'SelectionMode(ESelectionMode::Single)' so number of selected items is 0 or 1
+	return NumSelected > 0 ? SelectedItems.Top() : nullptr;	
+}
+
 void SStateTreeDebuggerInstanceTree::SetSelection(const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& SelectedItem) const
 {
 	TreeView->SetSelection(SelectedItem);

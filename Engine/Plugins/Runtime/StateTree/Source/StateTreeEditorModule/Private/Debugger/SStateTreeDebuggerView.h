@@ -125,6 +125,9 @@ private:
 	/** Callback used to reflect debugger scrub state in the UI. */
 	void OnDebuggerScrubStateChanged(const UE::StateTreeDebugger::FScrubState& ScrubState);
 
+	/** Recursively sets tree items as expanded. */
+	void ExpandAll(const TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& Items);
+
 	/** Range controlled by the timeline widgets and used to adjust cursor position and track content. */
 	TRange<double> ViewRange = TRange<double>(0, 10);
 

@@ -19,7 +19,6 @@
 #include "StateTreeDebuggerTrack.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeState.h"
-#include "StateTreeTaskBase.h"
 #include "StateTreeViewModel.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBorder.h"
@@ -113,80 +112,20 @@ protected:
 					.Font(FCoreStyle::GetDefaultFontStyle("Mono", 9))
 					.Text_Lambda([&Event=Item->Event, this]()
 					{
-						return GetTextForEvent(Event);
+						FString EventDescription;
+						if (const UStateTree* StateTree = StateTreeViewModel->GetStateTree())
+						{
+							Visit([&EventDescription, StateTree](auto& TypedEvent)
+								{
+									EventDescription = TypedEvent.ToString(*StateTree);
+								}, Event);
+						}
+						return FText::FromString(EventDescription);
 					})
 				];
 		}
 
 		return Contents.ToSharedRef();
-	}
-
-	FText GetTextForEvent(const FStateTreeTraceEventVariantType& Event) const
-	{
-		const UStateTree* StateTree = StateTreeViewModel->GetStateTree();
-
-		// Use log event messages directly
-		if (const FStateTreeTraceLogEvent* LogEvent = Event.TryGet<FStateTreeTraceLogEvent>())
-		{
-			if (LogEvent->Message.Len())
-			{
-				return FText::FromString(*LogEvent->Message);
-			}
-		}
-		// Process state events (index has a different meaning)
-		else if (const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>())
-		{
-			const FStateTreeStateHandle StateHandle(StateEvent->Idx);
-			if (const FCompactStateTreeState* CompactState = StateTree->GetStateFromHandle(StateHandle))
-			{
-				return FText::FromString
-				(FString::Printf
-					(TEXT("%s State '%s'"),
-						*StaticEnum<EStateTreeTraceNodeEventType>()->GetNameStringByValue((int64)StateEvent->EventType),
-						*CompactState->Name.ToString()));
-			}
-		}
-		// Process Tasks events
-		else if (const FStateTreeTraceTaskEvent* TaskEvent = Event.TryGet<FStateTreeTraceTaskEvent>())
-		{
-			const FConstStructView NodeView = StateTree->GetNode(TaskEvent->Idx);
-			const FStateTreeNodeBase* Node = NodeView.GetPtr<const FStateTreeNodeBase>();
-
-			return FText::FromString
-			(FString::Printf
-				(TEXT("%s:%s %s '%s'"),
-					*StaticEnum<EStateTreeTraceNodeEventType>()->GetNameStringByValue((int64)TaskEvent->EventType),
-					*StaticEnum<EStateTreeRunStatus>()->GetNameStringByValue((int64)TaskEvent->Status),
-					*NodeView.GetScriptStruct()->GetName(),
-					Node != nullptr ? *Node->Name.ToString() : *LexToString(TaskEvent->Idx)));
-		}
-		// Process Conditions events
-		else if (const FStateTreeTraceConditionEvent* ConditionEvent = Event.TryGet<FStateTreeTraceConditionEvent>())
-		{
-			const FConstStructView NodeView = StateTree->GetNode(ConditionEvent->Idx);
-			const FStateTreeNodeBase* Node = NodeView.GetPtr<const FStateTreeNodeBase>();
-
-			return FText::FromString
-			(FString::Printf
-				(TEXT("%s %s '%s'"),
-					*StaticEnum<EStateTreeTraceNodeEventType>()->GetNameStringByValue((int64)ConditionEvent->EventType),
-					*NodeView.GetScriptStruct()->GetName(),
-					Node != nullptr ? *Node->Name.ToString() : *LexToString(ConditionEvent->Idx)));
-		}
-		// Process ActiveStates events
-		else if (const FStateTreeTraceActiveStatesEvent* ActiveStatesEvent = Event.TryGet<FStateTreeTraceActiveStatesEvent>())
-		{
-			FString StatePath;
-			for (int32 i = 0; i < ActiveStatesEvent->ActiveStates.Num(); i++)
-			{
-				const FCompactStateTreeState& State = StateTree->GetStates()[ActiveStatesEvent->ActiveStates[i].Index];
-				StatePath.Appendf(TEXT("%s%s"), i == 0 ? TEXT("") : TEXT("."), *State.Name.ToString());
-			}
-
-			return FText::FromString(FString::Printf(TEXT("New active states: '%s'"), *StatePath));
-		}
-
-		return FText();
 	}
 
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
@@ -389,17 +328,12 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 			FString TypePath;
 			FString InstanceDataAsText;
 
-			if (const FStateTreeTraceConditionEvent* ConditionEvent = InSelectedItem->Event.TryGet<FStateTreeTraceConditionEvent>())
-			{
-				TypePath = ConditionEvent->TypePath;
-				InstanceDataAsText = ConditionEvent->InstanceDataAsText;
-			}
-			else if (const FStateTreeTraceTaskEvent* TaskEvent = InSelectedItem->Event.TryGet<FStateTreeTraceTaskEvent>())
-			{
-				TypePath = TaskEvent->TypePath;
-				InstanceDataAsText = TaskEvent->InstanceDataAsText;
-			}
-
+			Visit([&TypePath, &InstanceDataAsText](auto& TypedEvent)
+				{
+					TypePath = TypedEvent.GetDataTypePath();
+					InstanceDataAsText = TypedEvent.GetDataAsText();
+				}, InSelectedItem->Event);
+				
 			if (!TypePath.IsEmpty())
 			{
 				FDetailsViewArgs DetailsViewArgs;
@@ -721,7 +655,6 @@ void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebu
 {
 	// Rebuild frame details from the events of that frame
 	EventsTreeElements.Reset();
-	EventsTreeView->RequestTreeRefresh();
 
 	const UE::StateTreeDebugger::FInstanceEventCollection& EventCollection = ScrubState.GetEventCollection();
 	const TConstArrayView<const FStateTreeTraceEventVariantType> Events = EventCollection.Events;
@@ -735,35 +668,63 @@ void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebu
 	check(Spans.Num());
 	check(StateTree.IsValid());
 
-	TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>, TInlineAllocator<8>> ParentStack;
+	struct FParentInfo
+	{
+		TSharedPtr<UE::StateTreeDebugger::FEventTreeElement> Element;
+		FStateTreeStateHandle State;
+	};
+	TArray<FParentInfo, TInlineAllocator<8>> ParentStack;
 	EStateTreeUpdatePhase LastPhase = EStateTreeUpdatePhase::Unset;
 	EStateTreeUpdatePhase EventPhase = EStateTreeUpdatePhase::Unset;
 
 	const int32 SpanIdx = ScrubState.FrameSpanIndex;
 	const int32 FirstEventIdx = Spans[SpanIdx].EventIdx;
+	const TraceServices::FFrame Frame = Spans[SpanIdx].Frame;
 	const int32 MaxEventIdx = Spans.IsValidIndex(SpanIdx+1) ? Spans[SpanIdx+1].EventIdx : Events.Num();
+	
+	auto CreateParentFunc = [this, &ParentStack, Frame](const EStateTreeUpdatePhase NodePhase, const FStateTreeStateHandle StateHandle)
+		{
+			// Create log event to describe the phase
+			FString NodeDesc;
+			if (StateHandle.IsValid())
+			{
+				const FCompactStateTreeState* CompactState = StateTree->GetStateFromHandle(StateHandle);
+				NodeDesc = FString::Printf(TEXT(" '%s'"), CompactState != nullptr ? *CompactState->Name.ToString() : *StateHandle.Describe());
+			}
 
+			FStateTreeTraceLogEvent LogEvent(NodePhase,	FString::Printf(TEXT("%s%s"), *UEnum::GetDisplayValueAsText(NodePhase).ToString(), *NodeDesc));
+
+			// Create Tree element to hold the event
+			const TSharedPtr<UE::StateTreeDebugger::FEventTreeElement> NewElement = MakeShareable(
+				new UE::StateTreeDebugger::FEventTreeElement(Frame, FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceLogEvent>(), LogEvent)));
+
+			// Push tree element to the proper hierarchy level
+			TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& TreeElements = (ParentStack.IsEmpty()) ? EventsTreeElements : ParentStack.Top().Element->Children;
+			return ParentStack.Push({TreeElements.Add_GetRef(NewElement), StateHandle});
+		};
+	
 	for (int32 EventIdx = FirstEventIdx; EventIdx < MaxEventIdx; EventIdx++)
 	{
 		const FStateTreeTraceEventVariantType& Event = Events[EventIdx];
-		EventPhase = LastPhase;
+		Visit([&EventPhase](auto& TypedEvent)
+		{
+			EventPhase = TypedEvent.Phase;
+		}, Event);
 
-		// Need to test each type explicitly with TVariant even if they are all FStateTreeTracePhaseEvent
-		if (const FStateTreeTraceLogEvent* LogEvent = Event.TryGet<FStateTreeTraceLogEvent>())
+		// Keep track of required state push/pop to be processed after phases
+		FStateTreeStateHandle StateToPush;
+		bool bPopState = false;
+
+		if (const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>())
 		{
-			EventPhase = LogEvent->Phase;
-		}
-		else if (const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>())
-		{
-			EventPhase = StateEvent->Phase;
-		}
-		else if (const FStateTreeTraceTaskEvent* TaskEvent = Event.TryGet<FStateTreeTraceTaskEvent>())
-		{
-			EventPhase = TaskEvent->Phase;
-		}
-		else if (const FStateTreeTraceConditionEvent* ConditionEvent = Event.TryGet<FStateTreeTraceConditionEvent>())
-		{
-			EventPhase = ConditionEvent->Phase;
+			if (StateEvent->EventType == EStateTreeTraceNodeEventType::PushStateSelection)
+			{
+				StateToPush = StateEvent->GetStateHandle();
+			}
+			else if (StateEvent->EventType == EStateTreeTraceNodeEventType::PopStateSelection)
+			{
+				bPopState = true;
+			}
 		}
 
 		// Create a hierarchy level for each update phase
@@ -783,15 +744,7 @@ void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebu
 					if (EnumHasAnyFlags(LastPhase & PhasesDiff, Phase))
 					{
 						check(ParentStack.Num());
-						TSharedPtr<UE::StateTreeDebugger::FEventTreeElement> RemovedElement = ParentStack.Pop();
-						if (RemovedElement->Children.IsEmpty())
-						{
-							if (ParentStack.Num())
-							{
-								ParentStack.Last()->Children.Remove(RemovedElement);
-							}
-						}
-
+						ParentStack.Pop();
 						EnumRemoveFlags(PhasesDiff, Phase);
 						if (EnumHasAnyFlags(LastPhase, PhasesDiff) == false)
 						{
@@ -804,23 +757,13 @@ void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebu
 			// Push required phases from first enum
 			if (EnumHasAnyFlags(EventPhase, PhasesDiff))
 			{
+				const FStateTreeStateHandle StateHandle = ParentStack.IsEmpty() ? FStateTreeStateHandle() : ParentStack.Top().State; 
 				for (int i = 0; i < NumEnum; ++i)
 				{
 					const EStateTreeUpdatePhase Phase = static_cast<EStateTreeUpdatePhase>(PhaseEnum->GetValueByIndex(i));
 					if (EnumHasAnyFlags(EventPhase & PhasesDiff, Phase))
 					{
-						// Create fake log event to describe the phase
-						FStateTreeTraceLogEvent DummyEvent(EStateTreeUpdatePhase::Unset,
-							FString::Printf(TEXT("%s"), *StaticEnum<EStateTreeUpdatePhase>()->GetValueOrBitfieldAsString((int64)Phase)));
-
-						// Create Tree element to hold the event
-						TSharedPtr<UE::StateTreeDebugger::FEventTreeElement> NewElement = MakeShareable(new UE::StateTreeDebugger::FEventTreeElement(
-							Spans[SpanIdx].Frame,
-							FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceLogEvent>(), DummyEvent)));
-
-						// Push tree element to the proper stack level
-						TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& Elements = ParentStack.IsEmpty() ? EventsTreeElements : ParentStack.Last()->Children;
-						ParentStack.Push(Elements.Add_GetRef(NewElement));
+						CreateParentFunc(Phase, StateHandle);
 						
 						EnumRemoveFlags(PhasesDiff, Phase);
 						if (EnumHasAnyFlags(EventPhase, PhasesDiff) == false)
@@ -830,12 +773,39 @@ void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebu
 					}
 				}
 			}
-
-			LastPhase = EventPhase;
 		}
 
-		TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& Elements = ParentStack.IsEmpty() ? EventsTreeElements : ParentStack.Last()->Children;
-		Elements.Add(MakeShareable(new UE::StateTreeDebugger::FEventTreeElement(Spans[SpanIdx].Frame, Event)));
+		LastPhase = EventPhase;
+
+		if (bPopState)
+		{
+			ParentStack.Pop();
+			// We use pop state to maintain the state stack but there is no element to visualize				
+			continue;
+		}
+
+		if (StateToPush.IsValid())
+		{
+			// We use pushed state to create a new parent only
+			CreateParentFunc(EStateTreeUpdatePhase::StateSelection, StateToPush);
+			continue;
+		}
+
+		TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& Elements = ParentStack.IsEmpty() ? EventsTreeElements : ParentStack.Top().Element->Children;
+        Elements.Add(MakeShareable(new UE::StateTreeDebugger::FEventTreeElement(Spans[SpanIdx].Frame, Event)));
+	}
+
+	EventsTreeView->ClearExpandedItems();
+	ExpandAll(EventsTreeElements);
+	EventsTreeView->RequestTreeRefresh();
+}
+
+void SStateTreeDebuggerView::ExpandAll(const TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& Items)
+{
+	for (const TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>& Item : Items)
+	{
+		EventsTreeView->SetItemExpansion(Item, true);
+		ExpandAll(Item->Children);
 	}
 }
 

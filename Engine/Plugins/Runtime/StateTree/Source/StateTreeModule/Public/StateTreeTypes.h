@@ -4,6 +4,7 @@
 
 #include "PropertyBag.h"
 #include "GameplayTagContainer.h"
+#include "StateTreeIndexTypes.h"
 #include "StateTreeTypes.generated.h"
 
 STATETREEMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTree, Warning, All);
@@ -113,13 +114,13 @@ enum class EStateTreeStateSelectionBehavior : uint8
 	None,
 
 	/** When state is considered for selection, it is selected even if it has child states. */
-	TryEnterState,
+	TryEnterState UMETA(DisplayName = "Try Enter"),
 
 	/** When state is considered for selection, try to selects the first child state (in order they appear in the child list). If no child states are present, behaves like SelectState. */
-	TrySelectChildrenInOrder,
+	TrySelectChildrenInOrder UMETA(DisplayName = "Try Select Children In Order"),
 	
 	/** When state is considered for selection, try to trigger the transitions instead. */
-	TryFollowTransitions,
+	TryFollowTransitions UMETA(DisplayName = "Try Follow Transitions"),
 };
 
 
@@ -243,108 +244,6 @@ struct STATETREEMODULE_API FStateTreeStateHandle
 
 	UPROPERTY()
 	uint16 Index = InvalidIndex;
-};
-
-/** uint16 index that can be invalid. */
-USTRUCT(BlueprintType)
-struct STATETREEMODULE_API FStateTreeIndex16
-{
-	GENERATED_BODY()
-
-	static constexpr uint16 InvalidValue = MAX_uint16;
-	static const FStateTreeIndex16 Invalid;
-
-	/** @return true if the given index can be represented by the type. */
-	static bool IsValidIndex(const int32 Index)
-	{
-		return Index >= 0 && Index < (int32)MAX_uint16;
-	}
-
-	FStateTreeIndex16() = default;
-	
-	explicit FStateTreeIndex16(const int32 InIndex)
-	{
-		check(InIndex == INDEX_NONE || IsValidIndex(InIndex));
-		Value = InIndex == INDEX_NONE ? InvalidValue : (uint16)InIndex;
-	}
-
-	/** @retrun value of the index. */
-	uint16 Get() const { return Value; }
-	
-	/** @return the index value as int32, mapping invalid value to INDEX_NONE. */
-	int32 AsInt32() const { return Value == InvalidValue ? INDEX_NONE : Value; }
-
-	/** @return true if the index is valid. */
-	bool IsValid() const { return Value != InvalidValue; }
-
-	bool operator==(const FStateTreeIndex16& RHS) const { return Value == RHS.Value; }
-	bool operator!=(const FStateTreeIndex16& RHS) const { return Value != RHS.Value; }
-
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
-
-protected:
-	UPROPERTY()
-	uint16 Value = InvalidValue;
-};
-
-template<>
-struct TStructOpsTypeTraits<FStateTreeIndex16> : public TStructOpsTypeTraitsBase2<FStateTreeIndex16>
-{
-	enum
-	{
-		WithStructuredSerializeFromMismatchedTag = true,
-	};
-};
-
-/** uint8 index that can be invalid. */
-USTRUCT(BlueprintType)
-struct STATETREEMODULE_API FStateTreeIndex8
-{
-	GENERATED_BODY()
-
-	static constexpr uint8 InvalidValue = MAX_uint8;
-	static const FStateTreeIndex8 Invalid;
-	
-	/** @return true if the given index can be represented by the type. */
-	static bool IsValidIndex(const int32 Index)
-	{
-		return Index >= 0 && Index < (int32)MAX_uint8;
-	}
-	
-	FStateTreeIndex8() = default;
-	
-	explicit FStateTreeIndex8(const int32 InIndex)
-	{
-		check(InIndex == INDEX_NONE || IsValidIndex(InIndex));
-		Value = InIndex == INDEX_NONE ? InvalidValue : (uint8)InIndex;
-	}
-
-	/** @retrun value of the index. */
-	uint8 Get() const { return Value; }
-
-	/** @return the index value as int32, mapping invalid value to INDEX_NONE. */
-	int32 AsInt32() const { return Value == InvalidValue ? INDEX_NONE : Value; }
-	
-	/** @return true if the index is valid. */
-	bool IsValid() const { return Value != InvalidValue; }
-
-	bool operator==(const FStateTreeIndex8& RHS) const { return Value == RHS.Value; }
-	bool operator!=(const FStateTreeIndex8& RHS) const { return Value != RHS.Value; }
-
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
-	
-protected:
-	UPROPERTY()
-	uint8 Value = InvalidValue;
-};
-
-template<>
-struct TStructOpsTypeTraits<FStateTreeIndex8> : public TStructOpsTypeTraitsBase2<FStateTreeIndex8>
-{
-	enum
-	{
-		WithStructuredSerializeFromMismatchedTag = true,
-	};
 };
 
 

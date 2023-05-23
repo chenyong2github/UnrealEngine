@@ -44,6 +44,11 @@ FGuid UStateTree::GetStateIdFromHandle(const FStateTreeStateHandle Handle) const
 	return Entry != nullptr ? Entry->Id : FGuid();
 }
 
+const FCompactStateTransition* UStateTree::GetTransitionFromIndex(const int16 TransitionIndex) const
+{
+	return Transitions.IsValidIndex(TransitionIndex) ? &Transitions[TransitionIndex] : nullptr;
+}
+
 TSharedPtr<FStateTreeInstanceData> UStateTree::GetSharedInstanceData() const
 {
 	// Create a unique index for each thread.
@@ -130,7 +135,7 @@ void UStateTree::OnObjectsReinstanced(const FReplacementObjectMap& ObjectMap)
 
 	for (TMap<UObject*, UObject*>::TConstIterator It(ObjectMap); It; ++It)
 	{
-		if (UObject* ObjectToBeReplaced = It->Value)
+		if (const UObject* ObjectToBeReplaced = It->Value)
 		{
 			if (ObjectToBeReplaced->IsInOuter(this))
 			{
@@ -145,7 +150,7 @@ void UStateTree::OnObjectsReinstanced(const FReplacementObjectMap& ObjectMap)
 		TSet<const UStruct*> Structs;
 		for (TMap<UObject*, UObject*>::TConstIterator It(ObjectMap); It; ++It)
 		{
-			if (UObject* ObjectToBeReplaced = It->Value)
+			if (const UObject* ObjectToBeReplaced = It->Value)
 			{
 				Structs.Add(ObjectToBeReplaced->GetClass());
 			}
@@ -194,10 +199,10 @@ void UStateTree::PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray
 	Super::PostLoadAssetRegistryTags(InAssetData, OutTagsAndValuesToUpdate);
 
 	static const FName SchemaTag(TEXT("Schema"));
-	FString SchemaTagValue = InAssetData.GetTagValueRef<FString>(SchemaTag);
+	const FString SchemaTagValue = InAssetData.GetTagValueRef<FString>(SchemaTag);
 	if (!SchemaTagValue.IsEmpty() && FPackageName::IsShortPackageName(SchemaTagValue))
 	{
-		FTopLevelAssetPath SchemaTagClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(SchemaTagValue, ELogVerbosity::Warning, TEXT("UStateTree::PostLoadAssetRegistryTags"));
+		const FTopLevelAssetPath SchemaTagClassPathName = UClass::TryConvertShortTypeNameToPathName<UStruct>(SchemaTagValue, ELogVerbosity::Warning, TEXT("UStateTree::PostLoadAssetRegistryTags"));
 		if (!SchemaTagClassPathName.IsNull())
 		{
 			OutTagsAndValuesToUpdate.Add(FAssetRegistryTag(SchemaTag, SchemaTagClassPathName.ToString(), FAssetRegistryTag::TT_Alphabetical));
@@ -285,7 +290,7 @@ void UStateTree::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstruc
 }
 #endif
 
-void UStateTree::Serialize(FStructuredArchiveRecord Record)
+void UStateTree::Serialize(const FStructuredArchiveRecord Record)
 {
 	Super::Serialize(Record);
 
@@ -488,7 +493,7 @@ bool UStateTree::Link()
 
 #if WITH_EDITOR
 
-void FStateTreeMemoryUsage::AddUsage(FConstStructView View)
+void FStateTreeMemoryUsage::AddUsage(const FConstStructView View)
 {
 	if (const UScriptStruct* ScriptStruct = View.GetScriptStruct())
 	{

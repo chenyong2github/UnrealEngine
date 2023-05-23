@@ -82,6 +82,7 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	bool IsActiveInstance(double Time, FStateTreeInstanceDebugId InstanceId) const;
 	FText GetInstanceDescription(FStateTreeInstanceDebugId InstanceId) const;
 	void SelectInstance(const FStateTreeInstanceDebugId InstanceId);
+	FStateTreeInstanceDebugId GetSelectedInstance() const { return SelectedInstanceId; }
 
 	static FText DescribeTrace(const FTraceDescriptor& TraceDescriptor);
 	static FText DescribeInstance(const UE::StateTreeDebugger::FInstanceDescriptor& StateTreeInstanceDesc);

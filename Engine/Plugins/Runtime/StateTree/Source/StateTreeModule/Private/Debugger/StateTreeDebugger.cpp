@@ -113,9 +113,6 @@ void FStateTreeDebugger::StopAnalysis()
 void FStateTreeDebugger::Pause()
 {
 	bPaused = true;
-
-	// Force a refresh to make sure most recent traces are processed
-	SyncToCurrentSessionDuration();
 }
 
 void FStateTreeDebugger::Unpause()
@@ -151,9 +148,6 @@ void FStateTreeDebugger::SelectInstance(const FStateTreeInstanceDebugId Instance
 {
 	if (SelectedInstanceId != InstanceId)
 	{
-		HitBreakpointStateIndex = INDEX_NONE;
-		HitBreakpointInstanceId.Reset();
-		
 		SelectedInstanceId = InstanceId;
 
 		// Notify so listener can cleanup anything related to previous instance
@@ -579,6 +573,10 @@ void FStateTreeDebugger::SendNotifications()
 		check(HitBreakpointInstanceId.IsValid());
 		check(StatesWithBreakpoint.IsValidIndex(HitBreakpointStateIndex));
 
+		// Force scrub time to latest read time to reflect most recent events.
+		// This will notify scrub position changed and active states
+		SetScrubTime(LastTraceReadTime);
+
 		// Make sure the instance is selected in case the breakpoint was set for any instances 
 		if (SelectedInstanceId != HitBreakpointInstanceId)
 		{
@@ -642,7 +640,7 @@ bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId
 
 			if (SelectedInstanceId.IsValid() || InstanceStateTree == StateTreeAsset)
 			{
-				HitBreakpointStateIndex = StatesWithBreakpoint.Find(FStateTreeStateHandle(StateEvent->Idx));
+				HitBreakpointStateIndex = StatesWithBreakpoint.Find(StateEvent->GetStateHandle());
 				if (HitBreakpointStateIndex != INDEX_NONE)
 				{
 					HitBreakpointInstanceId = InstanceId;
