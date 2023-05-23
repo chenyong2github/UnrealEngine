@@ -22,6 +22,8 @@ class PCG_API UPCGBaseSubgraphSettings : public UPCGSettings
 public:
 	UPCGGraph* GetSubgraph() const;
 	virtual UPCGGraphInterface* GetSubgraphInterface() const { return nullptr; }
+
+	/** Returns true if the subgraphs nodes were not inlined into the parent graphs tasks during compilation. */
 	virtual bool IsDynamicGraph() const { return false; }
 
 	// Use this method from the outside to set the subgraph, as it will connect editor callbacks

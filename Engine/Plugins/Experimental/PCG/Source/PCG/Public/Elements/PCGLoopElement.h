@@ -27,7 +27,7 @@ protected:
 
 public:
 	//~Begin UPCGBaseSubgraphSettings interface
-	virtual bool IsDynamicGraph() const { return true; }
+	virtual bool IsDynamicGraph() const override { return true; }
 	//~End UPCGBaseSubgraphSettings interface
 
 	/** 

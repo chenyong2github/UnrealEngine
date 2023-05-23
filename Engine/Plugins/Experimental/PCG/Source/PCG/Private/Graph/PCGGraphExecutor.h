@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PCGContext.h"
 #include "PCGElement.h"
 #include "PCGSubsystem.h"
 #include "Graph/PCGGraphCache.h"
@@ -16,6 +17,8 @@ class UPCGGraph;
 class UPCGNode;
 class UPCGComponent;
 class FPCGGraphCompiler;
+class FPCGStack;
+class FPCGStackContext;
 class FTextFormat;
 
 struct FPCGGraphTaskInput
@@ -51,6 +54,9 @@ struct FPCGGraphTask
 	FPCGTaskId NodeId = InvalidPCGTaskId;
 	FPCGTaskId CompiledTaskId = InvalidPCGTaskId; // the task id as it exists when compiled
 	FPCGTaskId ParentId = InvalidPCGTaskId; // represents the parent sub object graph task, if we were called from one
+
+	int32 StackIndex = INDEX_NONE;
+	TSharedPtr<const FPCGStackContext> StackContext;
 };
 
 struct FPCGGraphScheduleTask
@@ -70,6 +76,8 @@ struct FPCGGraphActiveTask
 #if WITH_EDITOR
 	bool bIsBypassed = false;
 #endif
+	int32 StackIndex = INDEX_NONE;
+	TSharedPtr<const FPCGStackContext> StackContext;
 };
 
 class FPCGGraphExecutor
@@ -82,8 +90,8 @@ public:
 	void Compile(UPCGGraph* InGraph);
 
 	/** Schedules the execution of a given graph with specified inputs. This call is threadsafe */
-	FPCGTaskId Schedule(UPCGComponent* InComponent, const TArray<FPCGTaskId>& TaskDependency = TArray<FPCGTaskId>());
-	FPCGTaskId Schedule(UPCGGraph* Graph, UPCGComponent* InSourceComponent, FPCGElementPtr PreGraphElement, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& TaskDependency);
+	FPCGTaskId Schedule(UPCGComponent* InComponent, const TArray<FPCGTaskId>& TaskDependency = TArray<FPCGTaskId>(), const FPCGStack* InFromStack = nullptr);
+	FPCGTaskId Schedule(UPCGGraph* Graph, UPCGComponent* InSourceComponent, FPCGElementPtr PreGraphElement, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& TaskDependency, const FPCGStack* InFromStack);
 
 	/** Cancels all tasks originating from the given component */
 	TArray<UPCGComponent*> Cancel(UPCGComponent* InComponent);

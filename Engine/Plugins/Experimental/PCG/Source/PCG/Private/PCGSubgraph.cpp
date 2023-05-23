@@ -6,6 +6,7 @@
 #include "PCGPin.h"
 #include "PCGSubsystem.h"
 #include "Data/PCGUserParametersData.h"
+#include "Graph/PCGStackContext.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "Algo/Find.h"
@@ -409,7 +410,7 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 	const UPCGSubgraphSettings* Settings = Context->GetInputSettings<UPCGSubgraphSettings>();
 	check(Settings);
 
-	if(Settings->IsDynamicGraph())
+	if (Settings->IsDynamicGraph())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSubgraphElement::Execute);
 
@@ -428,7 +429,11 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 				FPCGDataCollection SubgraphInputData;
 				PrepareSubgraphData(Settings, Context, Context->InputData, SubgraphInputData);
 
-				FPCGTaskId SubgraphTaskId = Subsystem->ScheduleGraph(Subgraph, Context->SourceComponent.Get(), MakeShared<FPCGInputForwardingElement>(PreSubgraphInputData), MakeShared<FPCGInputForwardingElement>(SubgraphInputData), {});
+				// Prepare the invocation stack - which is the stack up to this node, and then this node
+				FPCGStack InvocationStack = ensure(Context->Stack) ? *Context->Stack : FPCGStack();
+				InvocationStack.GetStackFramesMutable().Emplace(Context->Node);
+
+				FPCGTaskId SubgraphTaskId = Subsystem->ScheduleGraph(Subgraph, Context->SourceComponent.Get(), MakeShared<FPCGInputForwardingElement>(PreSubgraphInputData), MakeShared<FPCGInputForwardingElement>(SubgraphInputData), {}, &InvocationStack);
 
 				if (SubgraphTaskId != InvalidPCGTaskId)
 				{

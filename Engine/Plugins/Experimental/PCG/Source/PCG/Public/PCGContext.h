@@ -14,6 +14,7 @@ class UPCGSettingsInterface;
 class UPCGSpatialData;
 struct FPCGGraphCache;
 struct FPCGSettingsOverridableParam;
+class FPCGStack;
 
 namespace PCGContextHelpers
 {
@@ -61,11 +62,14 @@ struct PCG_API FPCGContext
 	FPCGTaskId CompiledTaskId = InvalidPCGTaskId;
 	bool bIsPaused = false;
 
-	// Used to preven settings override being deleted, needs to be false when going through blueprint calls with a context
+	// Used to prevent settings override being deleted, needs to be false when going through blueprint calls with a context
 	bool bShouldUnrootSettingsOnDelete = true;
 
 	EPCGExecutionPhase CurrentPhase = EPCGExecutionPhase::NotExecuted;
 	int32 BypassedOutputCount = 0;
+
+	/** The current call stack. */
+	const FPCGStack* Stack = nullptr;
 
 	const UPCGSettingsInterface* GetInputSettingsInterface() const;
 	

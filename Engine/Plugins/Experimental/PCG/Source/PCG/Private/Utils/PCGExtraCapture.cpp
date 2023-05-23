@@ -169,7 +169,8 @@ PCGUtils::FCallTreeInfo PCGUtils::FExtraCapture::CalculateCallTreeInfo(const UPC
 		return {};
 	}
 
-	TArray<FPCGGraphTask> CompiledTasks = Compiler->GetPrecompiledTasks(Component->GetGraph());
+	FPCGStackContext DummyStackContext;
+	TArray<FPCGGraphTask> CompiledTasks = Compiler->GetPrecompiledTasks(Component->GetGraph(), DummyStackContext);
 	if (CompiledTasks.IsEmpty())
 	{
 		return {};

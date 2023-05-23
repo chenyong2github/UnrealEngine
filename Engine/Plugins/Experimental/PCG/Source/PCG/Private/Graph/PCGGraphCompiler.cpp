@@ -1,20 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGGraphCompiler.h"
-#include "Graph/PCGGraphExecutor.h"
-#include "Misc/ScopeRWLock.h"
+
 #include "PCGGraph.h"
 #include "PCGEdge.h"
 #include "PCGModule.h"
-#include "PCGSubgraph.h"
 #include "PCGPin.h"
+#include "PCGSubgraph.h"
+#include "Graph/PCGGraphExecutor.h"
 
-TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTaskId& NextId)
+#include "Misc/ScopeRWLock.h"
+
+TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTaskId& NextId, FPCGStackContext& InOutStackContext)
 {
 	if (!InGraph)
 	{
 		return TArray<FPCGGraphTask>();
 	}
+
+	InOutStackContext.PushFrame(InGraph);
 
 	TArray<FPCGGraphTask> CompiledTasks;
 	TMap<const UPCGNode*, FPCGTaskId> IdMapping;
@@ -42,7 +46,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 		const UPCGBaseSubgraphSettings* SubgraphSettings = SubgraphNode ? Cast<const UPCGBaseSubgraphSettings>(SubgraphNode->GetSettings()) : nullptr;
 
 		// Only catch immediate infinite recursion.
-		// TODO: Add a better mecanism for detecting more complex cyclic recursions
+		// TODO: Add a better mechanism for detecting more complex cyclic recursions
 		// Like Graph A has subgraph node with Graph B, and Graph B has a subgraph node with Graph A (A -> B -> A)
 		// or A -> B -> C -> A, etc...
 		// NOTE (for the person that would work on it), keeping a stack of all the subgraphs is not enough, as we could already have compiled graph
@@ -61,13 +65,24 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 
 			// 1. Compile the subgraph making sure we don't reuse the same ids
 			// Note that we will not consume the pre or post-execute tasks, ergo bIsTopGraph=false
-			TArray<FPCGGraphTask> Subtasks = GetCompiledTasks(Subgraph, /*bIsTopGraph=*/false);
+			FPCGStackContext SubgraphStackContext;
+			TArray<FPCGGraphTask> Subtasks = GetCompiledTasks(Subgraph, SubgraphStackContext, /*bIsTopGraph=*/false);
 
 #if WITH_EDITOR
 			GraphDependenciesLock.Lock();
 			GraphDependencies.AddUnique(Subgraph, InGraph);
 			GraphDependenciesLock.Unlock();
 #endif // WITH_EDITOR
+
+			// Append all the stack frames from inside the subgraph to my current graph stack
+			InOutStackContext.PushFrame(Node);
+			const int32 StackOffset = InOutStackContext.GetNumStacks();
+			for (FPCGGraphTask& Subtask : Subtasks)
+			{
+				Subtask.StackIndex += StackOffset;
+			}
+			InOutStackContext.AppendStacks(SubgraphStackContext);
+			InOutStackContext.PopFrame();
 
 			OffsetNodeIds(Subtasks, NextId, PreId);
 			NextId += Subtasks.Num();
@@ -88,6 +103,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			FPCGGraphTask& PreTask = CompiledTasks.Emplace_GetRef();
 			PreTask.Node = Node;
 			PreTask.NodeId = PreId;
+			PreTask.StackIndex = InOutStackContext.GetCurrentStackIndex();
 
 			for (const UPCGPin* InputPin : Node->InputPins)
 			{
@@ -135,6 +151,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			FPCGGraphTask& PostTask = CompiledTasks.Emplace_GetRef();
 			PostTask.Node = Node;
 			PostTask.NodeId = PostId;
+			PostTask.StackIndex = InOutStackContext.GetCurrentStackIndex();
 
 			// Add subgraph output node task as input to the post-task
 			if (OutputNodeTask)
@@ -151,6 +168,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			FPCGGraphTask& Task = CompiledTasks.Emplace_GetRef();
 			Task.Node = Node;
 			Task.NodeId = NodeId;
+			Task.StackIndex = InOutStackContext.GetCurrentStackIndex();
 
 			for (const UPCGPin* InputPin : Node->InputPins)
 			{
@@ -164,11 +182,11 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 
 					if (FPCGTaskId* InboundId = IdMapping.Find(InboundEdge->InputPin->Node))
 					{
-						Task.Inputs.Emplace(IdMapping[InboundEdge->InputPin->Node], InboundEdge->InputPin, InboundEdge->OutputPin); 
+						Task.Inputs.Emplace(*InboundId, InboundEdge->InputPin, InboundEdge->OutputPin); 
 					}
 					else
 					{
-						UE_LOG(LogPCG, Error, TEXT("Inconsistent node linkage on node %s"), *Node->GetFName().ToString());
+						UE_LOG(LogPCG, Error, TEXT("Inconsistent node linkage on node '%s'"), *Node->GetFName().ToString());
 						return TArray<FPCGGraphTask>();
 					}
 				}
@@ -235,7 +253,8 @@ void FPCGGraphCompiler::Compile(UPCGGraph* InGraph)
 	// Otherwise, do the compilation; note that we always start at zero since
 	// the caller will offset the ids as needed
 	FPCGTaskId FirstId = 0;
-	TArray<FPCGGraphTask> CompiledTasks = CompileGraph(InGraph, FirstId);
+	FPCGStackContext StackContext;
+	TArray<FPCGGraphTask> CompiledTasks = CompileGraph(InGraph, FirstId, StackContext);
 
 	// TODO: optimize no-ops, etc.
 
@@ -246,22 +265,34 @@ void FPCGGraphCompiler::Compile(UPCGGraph* InGraph)
 		if (!GraphToTaskMap.Contains(InGraph))
 		{
 			GraphToTaskMap.Add(InGraph, MoveTemp(CompiledTasks));
+			GraphToStackContext.Add(InGraph, StackContext);
 		}
 		GraphToTaskMapLock.WriteUnlock();
 	}
 }
 
-TArray<FPCGGraphTask> FPCGGraphCompiler::GetPrecompiledTasks(UPCGGraph* InGraph, bool bIsTopGraph) const
+TArray<FPCGGraphTask> FPCGGraphCompiler::GetPrecompiledTasks(UPCGGraph* InGraph, FPCGStackContext& OutStackContext, bool bIsTopGraph) const
 {
 	// Get compiled tasks in a threadsafe way
 	FReadScopeLock ReadLock(GraphToTaskMapLock);
 
 	const TArray<FPCGGraphTask>* ExistingTasks = (bIsTopGraph ? TopGraphToTaskMap : GraphToTaskMap).Find(InGraph);
 
+	const FPCGStackContext* StackContext = (bIsTopGraph ? TopGraphToStackContext : GraphToStackContext).Find(InGraph);
+	if (StackContext)
+	{
+		OutStackContext = *StackContext;
+	}
+	else
+	{
+		// If we failed to get a context, output a dummy blank one.
+		new(&OutStackContext) FPCGStackContext();
+	}
+
 	return ExistingTasks ? *ExistingTasks : TArray<FPCGGraphTask>();
 }
 
-TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, bool bIsTopGraph)
+TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, FPCGStackContext& OutStackContext, bool bIsTopGraph)
 {
 	TArray<FPCGGraphTask> CompiledTasks;
 
@@ -275,6 +306,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, bo
 		if (TopGraphToTaskMap.Contains(InGraph))
 		{
 			CompiledTasks = TopGraphToTaskMap[InGraph];
+			OutStackContext = TopGraphToStackContext[InGraph];
 		}
 		GraphToTaskMapLock.ReadUnlock();
 	}
@@ -288,6 +320,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, bo
 		if (GraphToTaskMap.Contains(InGraph))
 		{
 			CompiledTasks = GraphToTaskMap[InGraph];
+			OutStackContext = GraphToStackContext[InGraph];
 		}
 		GraphToTaskMapLock.ReadUnlock();
 	}
@@ -329,7 +362,8 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 	}
 
 	// Build from non-top tasks
-	TArray<FPCGGraphTask> CompiledTasks = GetCompiledTasks(InGraph, /*bIsTopGraph=*/false);
+	FPCGStackContext StackContext;
+	TArray<FPCGGraphTask> CompiledTasks = GetCompiledTasks(InGraph, StackContext, /*bIsTopGraph=*/false);
 
 	// Check that the compilation was valid
 	if (CompiledTasks.Num() == 0)
@@ -390,6 +424,7 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 	if (!TopGraphToTaskMap.Contains(InGraph))
 	{
 		TopGraphToTaskMap.Add(InGraph, MoveTemp(CompiledTasks));
+		TopGraphToStackContext.Add(InGraph, StackContext);
 	}
 	GraphToTaskMapLock.WriteUnlock();
 }

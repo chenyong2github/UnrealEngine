@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PCGCommon.h"
+#include "Graph/PCGStackContext.h"
 
 class UPCGGraph;
 struct FPCGGraphTask;
@@ -15,8 +16,8 @@ class FPCGGraphCompiler
 {
 public:
 	void Compile(UPCGGraph* InGraph);
-	TArray<FPCGGraphTask> GetCompiledTasks(UPCGGraph* InGraph, bool bIsTopGraph = true);
-	TArray<FPCGGraphTask> GetPrecompiledTasks(UPCGGraph* InGraph, bool bIsTopGraph = true) const;
+	TArray<FPCGGraphTask> GetCompiledTasks(UPCGGraph* InGraph, FPCGStackContext& OutStackContext, bool bIsTopGraph = true);
+	TArray<FPCGGraphTask> GetPrecompiledTasks(UPCGGraph* InGraph, FPCGStackContext& OutStackContext, bool bIsTopGraph = true) const;
 
 	static void OffsetNodeIds(TArray<FPCGGraphTask>& Tasks, FPCGTaskId Offset, FPCGTaskId ParentId);
 
@@ -25,12 +26,14 @@ public:
 #endif
 
 private:
-	TArray<FPCGGraphTask> CompileGraph(UPCGGraph* InGraph, FPCGTaskId& NextId);
+	TArray<FPCGGraphTask> CompileGraph(UPCGGraph* InGraph, FPCGTaskId& NextId, FPCGStackContext& InOutStackContext);
 	void CompileTopGraph(UPCGGraph* InGraph);
 
 	mutable FRWLock GraphToTaskMapLock;
 	TMap<UPCGGraph*, TArray<FPCGGraphTask>> GraphToTaskMap;
+	TMap<UPCGGraph*, FPCGStackContext> GraphToStackContext;
 	TMap<UPCGGraph*, TArray<FPCGGraphTask>> TopGraphToTaskMap;
+	TMap<UPCGGraph*, FPCGStackContext> TopGraphToStackContext;
 
 #if WITH_EDITOR
 	void RemoveFromCache(UPCGGraph* InGraph);

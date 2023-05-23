@@ -6,6 +6,7 @@
 #include "PCGModule.h"
 #include "PCGPin.h"
 #include "PCGSubsystem.h"
+#include "Graph/PCGStackContext.h"
 #include "Helpers/PCGHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGLoopElement)
@@ -99,7 +100,7 @@ bool FPCGLoopElement::ExecuteInternal(FPCGContext* InContext) const
 
 		// Dispatch the subgraph for each loop entries we have.
 		// Implementation note: even if the execution gets cancelled, these tasks would get cancelled because they are associated to the current source component
-		for(int EntryIndex = 0; EntryIndex < LoopDataCollection[0].TaggedData.Num(); ++EntryIndex)
+		for (int EntryIndex = 0; EntryIndex < LoopDataCollection[0].TaggedData.Num(); ++EntryIndex)
 		{
 			// The final input for a given loop iteration is going to be the fixed data + the entry at the current loop index in all the gathered loop collections
 			FPCGDataCollection InputDataCollection = FixedDataCollection;
@@ -108,7 +109,15 @@ bool FPCGLoopElement::ExecuteInternal(FPCGContext* InContext) const
 				InputDataCollection.TaggedData.Insert(LoopDataCollection[LoopCollectionIndex].TaggedData[EntryIndex], LoopCollectionIndex);
 			}
 
-			FPCGTaskId SubgraphTaskId = Subsystem->ScheduleGraph(Subgraph, Context->SourceComponent.Get(), PreGraphElement, MakeShared<FPCGInputForwardingElement>(InputDataCollection), {});
+			// Prepare the invocation stack - which is the stack up to this node, and then this node, then a loop index
+			FPCGStack InvocationStack = ensure(Context->Stack) ? *Context->Stack : FPCGStack();
+
+			TArray<FPCGStackFrame>& StackFrames = InvocationStack.GetStackFramesMutable();
+			StackFrames.Reserve(StackFrames.Num() + 2);
+			StackFrames.Emplace(Context->Node);
+			StackFrames.Emplace(EntryIndex);
+
+			FPCGTaskId SubgraphTaskId = Subsystem->ScheduleGraph(Subgraph, Context->SourceComponent.Get(), PreGraphElement, MakeShared<FPCGInputForwardingElement>(InputDataCollection), {}, &InvocationStack);
 
 			Context->SubgraphTaskIds.Add(SubgraphTaskId);
 		}

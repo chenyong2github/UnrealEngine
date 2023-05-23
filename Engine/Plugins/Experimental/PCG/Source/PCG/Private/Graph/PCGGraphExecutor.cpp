@@ -13,6 +13,7 @@
 #include "PCGPin.h"
 #include "PCGSubsystem.h"
 #include "Graph/PCGGraphCache.h"
+#include "Graph/PCGStackContext.h"
 #include "Helpers/PCGHelpers.h"
 #include "Metadata/PCGMetadata.h"
 
@@ -84,15 +85,15 @@ void FPCGGraphExecutor::Compile(UPCGGraph* Graph)
 	GraphCompiler->Compile(Graph);
 }
 
-FPCGTaskId FPCGGraphExecutor::Schedule(UPCGComponent* Component, const TArray<FPCGTaskId>& ExternalDependencies)
+FPCGTaskId FPCGGraphExecutor::Schedule(UPCGComponent* Component, const TArray<FPCGTaskId>& ExternalDependencies, const FPCGStack* InFromStack)
 {
 	check(Component);
 	UPCGGraph* Graph = Component->GetGraph();
 
-	return Schedule(Graph, Component, FPCGElementPtr(), GetFetchInputElement(), ExternalDependencies);
+	return Schedule(Graph, Component, FPCGElementPtr(), GetFetchInputElement(), ExternalDependencies, InFromStack);
 }
 
-FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceComponent, FPCGElementPtr PreGraphElement, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& ExternalDependencies)
+FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceComponent, FPCGElementPtr PreGraphElement, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& ExternalDependencies, const FPCGStack* InFromStack)
 {
 	if (SourceComponent && IsGraphCacheDebuggingEnabled())
 	{
@@ -113,12 +114,20 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 	FPCGTaskId ScheduledId = InvalidPCGTaskId;
 
 	// Get compiled tasks from compiler
-	TArray<FPCGGraphTask> CompiledTasks = GraphCompiler->GetCompiledTasks(Graph);
+	TSharedPtr<FPCGStackContext> StackContextPtr = MakeShared<FPCGStackContext>();
+	TArray<FPCGGraphTask> CompiledTasks = GraphCompiler->GetCompiledTasks(Graph, *StackContextPtr);
+
+	// Create the final stack context by including the current stack frames
+	if (InFromStack)
+	{
+		StackContextPtr->PrependParentStack(InFromStack);
+	}
 
 	// Assign this component to the tasks
 	for (FPCGGraphTask& Task : CompiledTasks)
 	{
 		Task.SourceComponent = SourceComponent;
+		Task.StackContext = StackContextPtr;
 	}
 
 	// Prepare scheduled task that will be promoted in the next Execute call.
@@ -648,6 +657,7 @@ void FPCGGraphExecutor::Execute()
 					Task.Context->CompiledTaskId = Task.CompiledTaskId;
 					Task.Context->InputData.Crc = TaskInput.Crc;
 					Task.Context->DependenciesCrc = DependenciesCrc;
+					Task.Context->Stack = (Task.StackContext && Task.StackIndex != INDEX_NONE) ? Task.StackContext->GetStack(Task.StackIndex) : nullptr;
 				}
 
 				// Validate that we can start this task now
@@ -659,6 +669,8 @@ void FPCGGraphExecutor::Execute()
 					ActiveTask.Element = Task.Element;
 					ActiveTask.NodeId = Task.NodeId;
 					ActiveTask.Context = TUniquePtr<FPCGContext>(Task.Context);
+					ActiveTask.StackIndex = Task.StackIndex;
+					ActiveTask.StackContext = Task.StackContext;
 
 #if WITH_EDITOR
 					if (bResultAlreadyInCache)
@@ -1195,7 +1207,9 @@ FPCGElementPtr FPCGGraphExecutor::GetFetchInputElement()
 FPCGTaskId FPCGGraphExecutor::ScheduleDebugWithTaskCallback(UPCGComponent* InComponent, TFunction<void(FPCGTaskId/* TaskId*/, const UPCGNode*/* Node*/, const FPCGDataCollection&/* TaskOutput*/)> TaskCompleteCallback)
 {
 	FPCGTaskId FinalTaskID = Schedule(InComponent, {});
-	TArray<FPCGGraphTask> CompiledTasks = GraphCompiler->GetCompiledTasks(InComponent->GetGraph(), /*bIsTopGraph=*/true);
+
+	FPCGStackContext DummyStackContext;
+	TArray<FPCGGraphTask> CompiledTasks = GraphCompiler->GetCompiledTasks(InComponent->GetGraph(), DummyStackContext, /*bIsTopGraph=*/true);
 	CompiledTasks.Pop(); // Remove the final task
 
 	// Set up all final dependencies for the entire execution
