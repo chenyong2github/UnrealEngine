@@ -740,7 +740,7 @@ namespace Audio
 		{
 			if (FadeInfo.bIsCurrentChain)
 			{
-				if (InIndex < FadeInfo.EffectChain.Num())
+				if (FadeInfo.EffectChain.IsValidIndex(InIndex))
 				{
 					FadeInfo.EffectChain[InIndex] = InEffectInstance;
 				}
