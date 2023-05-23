@@ -37,12 +37,6 @@ namespace SkeletalSimplifier
 				memset(Data, 0, sizeof(Data));
 			}
 
-			ArrayBase(const ArrayBase& other)
-			{
-				//for (int i = 0; i < SIZE; ++i) Data[i] = other.Data[i];
-				memcpy(Data, other.Data, sizeof(Data));
-			}
-
 			// Data access
 			ScalarType& operator() (const int32 idx)
 			{
@@ -271,10 +265,6 @@ namespace SkeletalSimplifier
 				                                Data[5] = a33;
 			}
 
-			SymmetricMatrix(const SymmetricMatrix& other) :
-				MyBase(other)
-			{}
-
 			SymmetricMatrix(const MyBase& base) :
 				MyBase(base)
 			{}
@@ -491,10 +481,6 @@ namespace SkeletalSimplifier
 				Data[3] = Row1[0];  Data[4] = Row1[1];  Data[5] = Row1[2];
 				Data[6] = Row2[0];  Data[7] = Row2[1];  Data[8] = Row2[2];
 			}
-
-			DMatrix(const DMatrix& Other) :
-				MyBase(Other)
-			{}
 
 			/**
 			* Accesses elements in the matrix using standard M(i,j) notation
