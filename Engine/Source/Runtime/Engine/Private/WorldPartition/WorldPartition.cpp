@@ -265,6 +265,7 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	, EditorHash(nullptr)
 	, AlwaysLoadedActors(nullptr)
+	, ForceLoadedActors(nullptr)
 	, PinnedActors(nullptr)
 	, WorldPartitionEditor(nullptr)
 	, bStreamingWasEnabled(true)
@@ -522,12 +523,16 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		if (IsMainWorldPartition())
 		{			
 			PinnedActors = new FLoaderAdapterPinnedActors(OuterWorld);
+		
+			IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+			ForceLoadedActors = WorldPartitionEditorModule.GetDisableLoadingInEditor() ? new FLoaderAdapterActorList(OuterWorld) : nullptr;
 		}
 	}
 
 	check(RuntimeHash);
 	RuntimeHash->SetFlags(RF_Transactional);
 
+	TArray<FGuid> ForceLoadedActorGuids;
 	if (bIsEditor || bIsGame || bPIEWorldTravel || bIsDedicatedServer)
 	{
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
@@ -575,6 +580,11 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 				ActorDescIterator->bIsForcedNonSpatiallyLoaded = !bIsStreamingEnabled;
 
+				if (ForceLoadedActors)
+				{
+					ForceLoadedActorGuids.Add(ActorDescIterator->GetGuid());
+				}
+
 				if (bIsEditor && !bIsCooking)
 				{
 					HashActorDesc(*ActorDescIterator);
@@ -589,6 +599,12 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	DataLayerManager->Initialize();
 
 #if WITH_EDITOR
+	if (ForceLoadedActors && ForceLoadedActorGuids.Num() > 0)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::ForceLoadedActors);
+		ForceLoadedActors->AddActors(ForceLoadedActorGuids);
+	}
+	
 	if (bIsEditor)
 	{
 		// Apply level transform on actors already part of the level
@@ -712,6 +728,12 @@ void UWorldPartition::Uninitialize()
 			PinnedActors = nullptr;
 		}
 
+		if (ForceLoadedActors)
+		{
+			delete ForceLoadedActors;
+			ForceLoadedActors = nullptr;
+		}
+
 		if (RegisteredEditorLoaderAdapters.Num())
 		{
 			for (UWorldPartitionEditorLoaderAdapter* RegisteredEditorLoaderAdapter : RegisteredEditorLoaderAdapters)
@@ -818,8 +840,11 @@ void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Ro
 		const FBox LoadCellsBox(Loc - LoadExtent, Loc + LoadExtent);
 
 		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-		UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, LoadCellsBox, TEXT("BugItGo"));
-		EditorLoaderAdapter->GetLoaderAdapter()->Load();
+		if (!WorldPartitionEditorModule.GetDisableLoadingInEditor())
+		{
+			UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, LoadCellsBox, TEXT("BugItGo"));
+			EditorLoaderAdapter->GetLoaderAdapter()->Load();
+		}
 
 		if (WorldPartitionEditor)
 		{
@@ -1156,6 +1181,11 @@ void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 		ForceLoadedActors.Add(FWorldPartitionReference(NewActorDesc->GetContainer(), NewActorDesc->GetGuid()), NewActor);
 	}
 
+	if (ForceLoadedActors)
+	{
+		ForceLoadedActors->AddActors({ NewActorDesc->GetGuid() });
+	}
+
 	if (WorldPartitionEditor)
 	{
 		WorldPartitionEditor->Refresh();
@@ -1166,6 +1196,11 @@ void UWorldPartition::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
 {	
 	UnhashActorDesc(ActorDesc);
 
+	if (ForceLoadedActors)
+	{
+		ForceLoadedActors->RemoveActors({ ActorDesc->GetGuid() });
+	}
+		
 	if (WorldPartitionEditor)
 	{
 		WorldPartitionEditor->Refresh();
@@ -1873,6 +1908,11 @@ bool UWorldPartition::UnregisterActorDescContainer(UActorDescContainer* InActorD
 		}
 
 		UnpinActors(ActorGuids);
+
+		if (ForceLoadedActors)
+		{
+			ForceLoadedActors->RemoveActors(ActorGuids);
+		}
 
 		OnActorDescContainerUnregistered.Broadcast(InActorDescContainer);
 

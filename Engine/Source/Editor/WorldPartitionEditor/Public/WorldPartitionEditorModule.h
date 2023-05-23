@@ -48,6 +48,12 @@ public:
 	virtual int32 GetMinimapLowQualityWorldUnitsPerPixelThreshold() const override;
 
 	/**
+	 * Returns if loading in the editor is disabled or not.
+	 */
+	virtual bool GetDisableLoadingInEditor() const override;
+	virtual void SetDisableLoadingInEditor(bool bInDisableLoadingInEditor) override;
+
+	/**
 	 * Returns if pie is disabled or not.
 	 */
 	virtual bool GetDisablePIE() const override;
