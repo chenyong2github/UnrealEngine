@@ -430,7 +430,9 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 		Commands.BeginAttributeEditorTool,
 		Commands.BeginEditMeshMaterialsTool,
 
+		Commands.BeginMeshVertexPaintTool,
 		Commands.BeginMeshAttributePaintTool,
+
 		Commands.BeginPhysicsInspectorTool,
 		Commands.BeginSetCollisionGeometryTool,
 		Commands.BeginExtractCollisionGeometryTool

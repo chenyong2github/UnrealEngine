@@ -87,6 +87,7 @@
 #include "LatticeDeformerTool.h"
 #include "SeamSculptTool.h"
 #include "MeshGroupPaintTool.h"
+#include "MeshVertexPaintTool.h"
 #include "TransferMeshTool.h"
 #include "ConvertMeshesTool.h"
 #include "SplitMeshesTool.h"
@@ -619,6 +620,7 @@ void UModelingToolsEditorMode::Enter()
 	MeshGroupPaintToolBuilder->StylusAPI = StylusStateTracker.Get();
 #endif
 	RegisterTool(ToolManagerCommands.BeginMeshGroupPaintTool, TEXT("BeginMeshGroupPaintTool"), MeshGroupPaintToolBuilder);
+	RegisterTool(ToolManagerCommands.BeginMeshVertexPaintTool, TEXT("BeginMeshVertexPaintTool"), NewObject<UMeshVertexPaintToolBuilder>());
 
 	RegisterTool(ToolManagerCommands.BeginPolyEditTool, TEXT("BeginPolyEditTool"), NewObject<UEditMeshPolygonsToolBuilder>());
 	UEditMeshPolygonsToolBuilder* TriEditBuilder = NewObject<UEditMeshPolygonsToolBuilder>();

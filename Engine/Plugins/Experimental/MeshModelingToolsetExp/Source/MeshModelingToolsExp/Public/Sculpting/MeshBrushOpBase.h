@@ -92,6 +92,7 @@ public:
 
 	// support for this is optional, used by UI level to edit brush props via hotkeys/etc
 	virtual void SetStrength(float NewStrength) { }
+	virtual void SetFalloff(float NewFalloff) { }
 };
 
 

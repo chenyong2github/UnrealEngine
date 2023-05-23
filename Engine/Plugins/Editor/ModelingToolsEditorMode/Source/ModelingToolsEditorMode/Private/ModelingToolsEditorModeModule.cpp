@@ -17,6 +17,7 @@
 #include "DetailsCustomizations/MeshTopologySelectionMechanicCustomization.h"
 
 #include "PropertySets/AxisFilterPropertyType.h"
+#include "PropertySets/ColorChannelFilterPropertyType.h"
 #include "Selection/MeshTopologySelectionMechanic.h"
 #include "MeshVertexSculptTool.h"
 #include "BakeMeshAttributeMapsTool.h"
@@ -78,6 +79,8 @@ void FModelingToolsEditorModeModule::OnPostEngineInit()
 	/// Sculpt
 	PropertyModule.RegisterCustomPropertyTypeLayout("ModelingToolsAxisFilter", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FModelingToolsAxisFilterCustomization::MakeInstance));
 	PropertiesToUnregisterOnShutdown.Add(FModelingToolsAxisFilter::StaticStruct()->GetFName());
+	PropertyModule.RegisterCustomPropertyTypeLayout("ModelingToolsColorChannelFilter", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FModelingToolsColorChannelFilterCustomization::MakeInstance));
+	PropertiesToUnregisterOnShutdown.Add(FModelingToolsColorChannelFilter::StaticStruct()->GetFName());
 	PropertyModule.RegisterCustomPropertyTypeLayout("BrushToolRadius", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FModelingToolsBrushSizeCustomization::MakeInstance));
 	PropertiesToUnregisterOnShutdown.Add(FBrushToolRadius::StaticStruct()->GetFName());
 	PropertyModule.RegisterCustomClassLayout("SculptBrushProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FSculptBrushPropertiesDetails::MakeInstance));

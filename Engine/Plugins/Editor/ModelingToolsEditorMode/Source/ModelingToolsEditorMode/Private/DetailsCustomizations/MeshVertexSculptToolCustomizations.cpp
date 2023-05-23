@@ -30,6 +30,11 @@ TSharedRef<IDetailCustomization> FSculptBrushPropertiesDetails::MakeInstance()
 
 void FSculptBrushPropertiesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
+	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
+	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
+	check(ObjectsBeingCustomized.Num() > 0);
+	USculptBrushProperties* BrushProperties = Cast<USculptBrushProperties>(ObjectsBeingCustomized[0]);
+
 	TSharedPtr<IPropertyHandle> FlowRateHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USculptBrushProperties, FlowRate), USculptBrushProperties::StaticClass());
 	ensure(FlowRateHandle->IsValidHandle());
 
@@ -37,20 +42,43 @@ void FSculptBrushPropertiesDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 	ensure(SpacingHandle->IsValidHandle());
 	SpacingHandle->MarkHiddenByCustomization();
 
+	TSharedPtr<IPropertyHandle> FalloffHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USculptBrushProperties, BrushFalloffAmount), USculptBrushProperties::StaticClass());
+	ensure(FalloffHandle->IsValidHandle());
+	FalloffHandle->MarkHiddenByCustomization();
+
 	TSharedPtr<SDynamicNumericEntry::FDataSource> FlowRateSource = SDynamicNumericEntry::MakeSimpleDataSource(
 		FlowRateHandle, TInterval<float>(0.0f, 1.0f), TInterval<float>(0.0f, 1.0f));
-	TSharedPtr<SDynamicNumericEntry::FDataSource> SpacingSource = SDynamicNumericEntry::MakeSimpleDataSource(
-		SpacingHandle, TInterval<float>(0.0f, 1000.0f), TInterval<float>(0.0f, 4.0f));
 
-	DetailBuilder.EditDefaultProperty(FlowRateHandle)->CustomWidget()
-		.OverrideResetToDefault(FResetToDefaultOverride::Hide())
-		.WholeRowContent()
-	[
-		MakeTwoWidgetDetailRowHBox(
-			MakeFixedWidthLabelSliderHBox(FlowRateHandle, FlowRateSource, FSculptToolsUIConstants::SculptShortLabelWidth),
-			MakeFixedWidthLabelSliderHBox(SpacingHandle, SpacingSource, FSculptToolsUIConstants::SculptShortLabelWidth)
-		)
-	];
+	if ( BrushProperties->bShowSpacing )
+	{
+		TSharedPtr<SDynamicNumericEntry::FDataSource> SpacingSource = SDynamicNumericEntry::MakeSimpleDataSource(
+			SpacingHandle, TInterval<float>(0.0f, 1000.0f), TInterval<float>(0.0f, 4.0f));
+
+		DetailBuilder.EditDefaultProperty(FlowRateHandle)->CustomWidget()
+			.OverrideResetToDefault(FResetToDefaultOverride::Hide())
+			.WholeRowContent()
+		[
+			MakeTwoWidgetDetailRowHBox(
+				MakeFixedWidthLabelSliderHBox(FlowRateHandle, FlowRateSource, FSculptToolsUIConstants::SculptShortLabelWidth),
+				MakeFixedWidthLabelSliderHBox(SpacingHandle, SpacingSource, FSculptToolsUIConstants::SculptShortLabelWidth)
+			)
+		];
+	}
+	else   // if bShowFalloff
+	{
+		TSharedPtr<SDynamicNumericEntry::FDataSource> FalloffSource = SDynamicNumericEntry::MakeSimpleDataSource(
+			FalloffHandle, TInterval<float>(0.0f, 1.0f), TInterval<float>(0.0f, 1.0f));
+
+		DetailBuilder.EditDefaultProperty(FlowRateHandle)->CustomWidget()
+			.OverrideResetToDefault(FResetToDefaultOverride::Hide())
+			.WholeRowContent()
+			[
+				MakeTwoWidgetDetailRowHBox(
+					MakeFixedWidthLabelSliderHBox(FalloffHandle, FalloffSource, FSculptToolsUIConstants::SculptShortLabelWidth),
+					MakeFixedWidthLabelSliderHBox(FlowRateHandle, FlowRateSource, FSculptToolsUIConstants::SculptShortLabelWidth)
+				)
+			];
+	}
 
 	TSharedPtr<IPropertyHandle> LazynessHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USculptBrushProperties, Lazyness), USculptBrushProperties::StaticClass());
 	ensure(LazynessHandle->IsValidHandle());

@@ -224,6 +224,7 @@ void FModelingToolsManagerCommands::RegisterCommands()
 		REGISTER_MODELING_TOOL_COMMAND(BeginAttributeEditorTool, "AttrEd", "Edit/configure Mesh attributes");
 		REGISTER_MODELING_TOOL_COMMAND(BeginPolyGroupsTool, "GrpGen", "Generate new PolyGroups");
 		REGISTER_MODELING_TOOL_COMMAND(BeginMeshGroupPaintTool, "GrpPnt", "Paint new PolyGroups");
+		REGISTER_MODELING_TOOL_COMMAND(BeginMeshVertexPaintTool, "VtxPnt", "Paint Mesh Vertices");
 		REGISTER_MODELING_TOOL_COMMAND(BeginMeshAttributePaintTool, "MapPnt", "Paint attribute maps");
 		REGISTER_MODELING_TOOL_COMMAND(BeginEditMeshMaterialsTool, "MatEd", "Assign materials to selected triangles");
 	}
@@ -234,6 +235,7 @@ void FModelingToolsManagerCommands::RegisterCommands()
 		REGISTER_MODELING_TOOL_COMMAND(BeginEditTangentsTool, "Tangents", "Recompute Tangents");
 		REGISTER_MODELING_TOOL_COMMAND(BeginPolyGroupsTool, "Generate PolyGroups", "Generate new PolyGroups");
 		REGISTER_MODELING_TOOL_COMMAND(BeginMeshGroupPaintTool, "Paint PolyGroups", "Paint new PolyGroups");
+		REGISTER_MODELING_TOOL_COMMAND(BeginMeshVertexPaintTool, "Paint Vertex Colors", "Paint Mesh Vertex Colors");
 		REGISTER_MODELING_TOOL_COMMAND(BeginAttributeEditorTool, "Edit Attributes", "Edit/configure Mesh attributes");
 		REGISTER_MODELING_TOOL_COMMAND(BeginMeshAttributePaintTool, "Paint Maps", "Paint attribute maps");
 		REGISTER_MODELING_TOOL_COMMAND(BeginEditMeshMaterialsTool, "Edit Materials", "Assign materials to selected triangles");
