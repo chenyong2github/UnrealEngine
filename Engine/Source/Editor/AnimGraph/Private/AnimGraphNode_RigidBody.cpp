@@ -90,11 +90,11 @@ void UAnimGraphNode_RigidBody::OnPoseWatchChanged(const bool IsPoseWatchEnabled,
 
 	UPoseWatch* const PoseWatch = InPoseWatch.Get();
 
-	if (PoseWatch && !(PoseWatch->Contains(PoseWatchElementBodies.Get()) && PoseWatch->Contains(PoseWatchElementConstraints.Get())))
+	if (PoseWatch)
 	{
 		// A new pose watch has been created for this node - add node specific pose watch components.
-		PoseWatchElementBodies = InPoseWatch.Get()->AddElement(FText(LOCTEXT("PoseWatchElementLabel_RigidBody_PhysicsBodies", "Physics Bodies")), TEXT("PhysicsAssetEditor.Tree.Body"));
-		PoseWatchElementConstraints = InPoseWatch.Get()->AddElement(FText(LOCTEXT("PoseWatchElementLabel__RigidBody_PhysicsConstraints", "Physics Constraints")), TEXT("PhysicsAssetEditor.Tree.Constraint"));
+		PoseWatchElementBodies = InPoseWatch.Get()->FindOrAddElement(FText(LOCTEXT("PoseWatchElementLabel_RigidBody_PhysicsBodies", "Physics Bodies")), TEXT("PhysicsAssetEditor.Tree.Body"));
+		PoseWatchElementConstraints = InPoseWatch.Get()->FindOrAddElement(FText(LOCTEXT("PoseWatchElementLabel__RigidBody_PhysicsConstraints", "Physics Constraints")), TEXT("PhysicsAssetEditor.Tree.Constraint"));
 
 		check(PoseWatchElementConstraints.IsValid()); // Expect to find a valid component;
 		if (PoseWatchElementConstraints.IsValid())

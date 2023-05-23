@@ -759,6 +759,35 @@ TObjectPtr<UPoseWatchElement> UPoseWatch::AddElement(const FText InLabel, const 
 	return AddElement<UPoseWatchElement>(InLabel, InIconName);
 }
 
+TObjectPtr<UPoseWatchElement> UPoseWatch::FindElement(const FText InLabel)
+{
+	TObjectPtr<UPoseWatchElement> Element(nullptr);
+
+	if (TObjectPtr<UPoseWatchElement>* FoundElement = GetElements().FindByPredicate([InLabel](const TObjectPtr<UPoseWatchElement>& Element) { return Element->GetLabel().EqualTo(InLabel); }))
+	{
+		Element = *FoundElement;
+	}
+
+	return Element;
+}
+
+TObjectPtr<UPoseWatchElement> UPoseWatch::FindOrAddElement(const FText InLabel, const FName InIconName)
+{
+	TObjectPtr<UPoseWatchElement> Element = FindElement(InLabel);
+
+	if (!Element)
+	{
+		Element = AddElement(InLabel, InIconName);
+	}
+	else
+	{
+		Element->SetIconName(InIconName);
+	}
+
+	return Element;
+}
+
+
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA

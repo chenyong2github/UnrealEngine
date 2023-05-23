@@ -363,6 +363,12 @@ public:
 	/** Returns a reference to the array of elements stored in this */
 	TArray<TObjectPtr<UPoseWatchElement>>& GetElements() { return Elements; }
 
+	/** Find an element with the supplied label. */
+	TObjectPtr<UPoseWatchElement> FindElement(const FText InLabel);
+
+	/** Find and return and existing element with the supplied label or, if none exists, create a new element and add it to this pose watch. */
+	TObjectPtr<UPoseWatchElement> FindOrAddElement(const FText InLabel, const FName InIconName);
+
 	/** Returns true if this pose watch contains the specified element */
 	bool Contains(const TObjectPtr<UPoseWatchElement> InElement) { return Elements.Contains(InElement); }
 	bool Contains(const UPoseWatchElement* const InElement) { return Elements.ContainsByPredicate([InElement](const TObjectPtr<UPoseWatchElement>& ContainedElement) { return InElement == ContainedElement.Get(); }); }
