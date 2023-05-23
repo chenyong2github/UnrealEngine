@@ -2539,7 +2539,6 @@ namespace ObjectTools
 					if (UPackage* Package = FindPackage(nullptr, *PackageName))
 					{
 						Package->MarkAsNewlyCreated();
-						Package->SetDirtyFlag(true);
 					}
 				}
 			}
