@@ -448,9 +448,9 @@ void UCustomizableObjectNode::RemapPinsData(const TMap<UEdGraphPin*, UEdGraphPin
 	for (const TTuple<UEdGraphPin*, UEdGraphPin*>& Pair : PinsToRemap)
 	{
 		// Move pin data.
-		if (TObjectPtr<UCustomizableObjectNodePinData>* PinDataOldPin = PinsDataId.Find(Pair.Key->PinId))
+		if (const TObjectPtr<UCustomizableObjectNodePinData>* PinDataOldPin = PinsDataId.Find(Pair.Key->PinId))
 		{
-			PinsDataId[Pair.Value->PinId] = *PinDataOldPin;		
+			PinsDataId[Pair.Value->PinId]->Copy(**PinDataOldPin);
 		}
 	}
 }

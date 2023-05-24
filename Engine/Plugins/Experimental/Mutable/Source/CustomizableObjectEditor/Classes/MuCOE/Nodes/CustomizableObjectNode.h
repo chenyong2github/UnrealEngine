@@ -30,6 +30,9 @@ public:
 	
 	virtual bool operator!=(const UCustomizableObjectNodePinData& Other) const;
 
+	/** Virtual function used to copy pin data when remapping pins. */
+	virtual void Copy(const UCustomizableObjectNodePinData& Other) {}
+
 protected:
 	/** Virtual function used to perform comparision between different UCustomizableObjectNodePinData inherited types. */
 	virtual bool Equals(const UCustomizableObjectNodePinData& Other) const;

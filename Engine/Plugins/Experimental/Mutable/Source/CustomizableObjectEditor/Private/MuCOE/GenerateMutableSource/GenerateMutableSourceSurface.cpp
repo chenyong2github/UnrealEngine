@@ -1369,14 +1369,12 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 					ImagePatchNode->SetImage(ImageNode);
 
 					const UEdGraphPin* ImageMaskPin = TypedNodeEdit->GetUsedImageMaskPin(ImageId);
-
-					if (ImageMaskPin)
+					check(ImageMaskPin); // Ensured when reconstructing EditMaterial nodes. If it fails, something is wrong.
+					
+					if (const UEdGraphPin* ConnectedMaskPin = FollowInputPin(*ImageMaskPin))
 					{
-						if (const UEdGraphPin* ConnectedMaskPin = FollowInputPin(*ImageMaskPin))
-						{
-							mu::NodeImagePtr MaskNode = GenerateMutableSourceImage(ConnectedMaskPin, GenerationContext, 0.f);
-							ImagePatchNode->SetMask(MaskNode);
-						}
+						mu::NodeImagePtr MaskNode = GenerateMutableSourceImage(ConnectedMaskPin, GenerationContext, 0.f);
+						ImagePatchNode->SetMask(MaskNode);
 					}
 
 					// Add the block indices

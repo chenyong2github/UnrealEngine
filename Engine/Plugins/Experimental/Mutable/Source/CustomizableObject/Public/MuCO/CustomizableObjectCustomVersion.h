@@ -79,6 +79,8 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectCustomVersion
 		AutomaticNodeSkeletalMeshPinDataOuter,
 
 		AutomaticNodeSkeletalMeshPinDataUProperty,
+
+		EditMaterialMaskPinDesync, // MTBL-979
 		
 		IgnoreDisabledSections,
 

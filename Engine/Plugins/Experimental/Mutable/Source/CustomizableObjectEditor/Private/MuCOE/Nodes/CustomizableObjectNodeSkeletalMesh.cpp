@@ -149,12 +149,6 @@ UCustomizableObjectNodeRemapPins* UCustomizableObjectNodeSkeletalMesh::CreateRem
 }
 
 
-void UCustomizableObjectNodeSkeletalMesh::RemapPinsData(const TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap)
-{
-	// Do not copy pin data from old pins
-}
-
-
 FText UCustomizableObjectNodeSkeletalMesh::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	if (SkeletalMesh)
