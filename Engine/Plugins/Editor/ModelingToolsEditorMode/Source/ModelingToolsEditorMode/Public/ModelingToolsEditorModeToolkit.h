@@ -19,6 +19,7 @@ class STextBlock;
 class UGeometrySelectionManager;
 class UInteractiveToolsPresetCollectionAsset;
 class FRecentPresetCollectionProvider;
+struct FAssetData;
 
 struct FToolPresetOption
 {
@@ -158,7 +159,8 @@ private:
 	// Presets
 	TSharedPtr<SWidget> ToolPresetArea;
 	TSharedPtr<SWidget> MakePresetPanel();
-	FSoftObjectPath CurrentPreset;
+	TSharedPtr<FAssetData> CurrentPreset;
+	FSoftObjectPath CurrentPresetPath;
 	FText CurrentPresetLabel;
 	FToolPresetOption SelectedPresetToEdit;
 	FString NewPresetLabel;
@@ -175,7 +177,7 @@ private:
 	void LoadPresetFromCollection(const int32 PresetIndex, FSoftObjectPath CollectionPath);
 	void UpdatePresetInCollection(const FToolPresetOption& PresetToEditIn, bool bUpdateStoredPresetValues);
 
-	FString GetCurrentPresetPath() { return CurrentPreset.GetAssetPathString(); }
+	FString GetCurrentPresetPath() { return CurrentPresetPath.GetAssetPathString(); }
 	void HandlePresetAssetChanged(const FAssetData& InAssetData);
 	bool HandleFilterPresetAsset(const FAssetData& InAssetData);
 	
