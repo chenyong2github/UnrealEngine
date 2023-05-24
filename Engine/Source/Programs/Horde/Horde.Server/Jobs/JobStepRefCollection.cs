@@ -138,7 +138,8 @@ namespace Horde.Server.Jobs
 					StartTime = startTimeUtc,
 					StreamId = streamId,
 					TemplateId = templateId,
-					UpdateIssues = updateIssues
+					UpdateIssues = updateIssues,
+					Duration = (finishTimeUtc != null) ? (double?)(finishTimeUtc.Value - startTimeUtc).TotalSeconds : null
 				});
 			}
 
