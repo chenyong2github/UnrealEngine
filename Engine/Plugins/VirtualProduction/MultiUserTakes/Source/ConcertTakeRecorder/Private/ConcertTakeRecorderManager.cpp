@@ -358,9 +358,9 @@ void FConcertTakeRecorderManager::OnTakeRecorderStarted(UTakeRecorder* TakeRecor
 void FConcertTakeRecorderManager::OnTakeRecorderStopped(UTakeRecorder* TakeRecorder)
 {
 #if WITH_EDITOR
-	if (GEngine && GEngine->CanTransact())
+	if (GEngine && GEngine->CanTransact() && WeakSession.IsValid())
 	{
-		ensureMsgf(GUndo == nullptr, TEXT("A transaction is pending but we are currently stopping a Take Recorder. Transactions during a Recorder Stop can cause asset locking between Multi-user clients."));
+		UE_LOG(LogConcertTakeRecorder, Warning, TEXT("A transaction is pending but we are currently stopping a Take Recorder. Transactions during a Recorder Stop can cause asset locking between Multi-user clients."));
 	}
 #endif
 }
