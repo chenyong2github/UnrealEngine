@@ -19,6 +19,7 @@ import { StepTestReportPanel } from "./StepDetailTestPanel";
 import { StepErrorPanel } from "./StepErrorPanel";
 import backend from "../../backend";
 import { GetArtifactResponseV2 } from "../../backend/Api";
+import { StepTrendsPanelV2 } from "./JobDetailStepTrendsV2";
 
 
 class StepDetailDataView extends JobDataView {
@@ -169,7 +170,7 @@ const StepDetailViewInner: React.FC<{ jobDetails: JobDetailsV2, stepId: string }
          <TimelinePanel jobDetails={jobDetails} stepId={stepId} />
       </Stack>}
       {!!step && <Stack>
-         <StepTrendsPanel jobDetails={jobDetails} />
+         <StepTrendsPanelV2 jobDetails={jobDetails} stepId={stepId}/>
       </Stack>}
    </Stack>
 });

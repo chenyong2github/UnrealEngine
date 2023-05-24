@@ -309,7 +309,7 @@ const DetailsViewOverview: React.FC<{ jobDetails: JobDetailsV2 }> = ({ jobDetail
       <StepsPanelV2 jobDetails={details} />
       <HealthPanel jobDetails={details} />
       <TimelinePanel jobDetails={details} />
-      <StepTrendsPanel jobDetails={details} />
+      { false &&<StepTrendsPanel jobDetails={details} /> }
 
    </Stack>
 };
