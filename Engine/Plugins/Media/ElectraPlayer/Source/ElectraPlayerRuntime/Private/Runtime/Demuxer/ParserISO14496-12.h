@@ -261,10 +261,10 @@ namespace Electra
 
 			virtual ITrackIterator* CreateIterator() const = 0;
 
-			virtual const TArray<uint8>& GetCodecSpecificData() const = 0;
-			virtual const TArray<uint8>& GetCodecSpecificDataRAW() const = 0;
-			virtual const FStreamCodecInformation& GetCodecInformation() const = 0;
-			virtual const FBitrateInfo& GetBitrateInfo() const = 0;
+			virtual const TArray<uint8> GetCodecSpecificData() const = 0;
+			virtual const TArray<uint8> GetCodecSpecificDataRAW() const = 0;
+			virtual const FStreamCodecInformation GetCodecInformation() const = 0;
+			virtual const FBitrateInfo GetBitrateInfo() const = 0;
 			virtual const FString GetLanguage() const = 0;
 			virtual bool GetEncryptionInfo(FEncryptionInfo& OutEncryptionInfo) const = 0;
 			virtual void GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const = 0;

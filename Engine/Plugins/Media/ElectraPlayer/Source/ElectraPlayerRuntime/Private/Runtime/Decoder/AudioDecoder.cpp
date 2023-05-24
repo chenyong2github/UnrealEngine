@@ -135,6 +135,7 @@ private:
 
 	EAUChangeFlags GetAndPrepareInputAU();
 	void PrepareAU(TSharedPtrTS<FDecoderInput> AU);
+	IElectraDecoder::ECSDCompatibility IsCompatibleWith();
 
 	bool PostError(int32 ApiReturnValue, const FString& Message, uint16 Code, UEMediaError Error = UEMEDIA_ERROR_OK);
 	bool PostError(const IElectraDecoder::FError& InDecoderError);
@@ -649,6 +650,23 @@ FAudioDecoderImpl::EAUChangeFlags FAudioDecoderImpl::GetAndPrepareInputAU()
 	return NewAUFlags;
 }
 
+IElectraDecoder::ECSDCompatibility FAudioDecoderImpl::IsCompatibleWith()
+{
+	IElectraDecoder::ECSDCompatibility Compatibility = IElectraDecoder::ECSDCompatibility::Compatible;
+	if (DecoderInstance.IsValid() && CurrentAccessUnit.IsValid())
+	{
+		TMap<FString, FVariant> CSDOptions;
+		if (CurrentAccessUnit->AccessUnit->AUCodecData.IsValid())
+		{
+			CSDOptions.Emplace(TEXT("csd"), FVariant(CurrentAccessUnit->AccessUnit->AUCodecData->CodecSpecificData));
+			CSDOptions.Emplace(TEXT("dcr"), FVariant(CurrentAccessUnit->AccessUnit->AUCodecData->RawCSD));
+			CurrentAccessUnit->AccessUnit->AUCodecData->ParsedInfo.GetExtras().ConvertTo(CSDOptions, TEXT("$"));
+			Compatibility = DecoderInstance->IsCompatibleWith(CSDOptions);
+		}
+	}
+	return Compatibility;
+}
+
 IElectraDecoder::EOutputStatus FAudioDecoderImpl::HandleOutput()
 {
 	IElectraDecoder::EOutputStatus OutputStatus = IElectraDecoder::EOutputStatus::Available;
@@ -878,6 +896,7 @@ bool FAudioDecoderImpl::HandleDecoding()
 			if (CurrentCodecData.IsValid())
 			{
 				CSDOptions.Emplace(TEXT("csd"), FVariant(CurrentCodecData->CodecSpecificData));
+				CurrentCodecData->ParsedInfo.GetExtras().ConvertTo(CSDOptions, TEXT("$"));
 			}
 
 			IElectraDecoder::EDecoderError DecErr = DecoderInstance->DecodeAccessUnit(DecAU, CSDOptions);
@@ -1102,7 +1121,15 @@ void FAudioDecoderImpl::WorkerThread()
 			// Did the codec specific data change?
 			if ((NewAUFlags & EAUChangeFlags::CSDChanged) != EAUChangeFlags::None)
 			{
-				StartDraining(bIsAdaptiveDecoder ? EDecodingState::NormalDecoding : EDecodingState::NeedsReset);
+				// If the decoder is not adaptive, ask it how we have to handle the change.
+				if (!bIsAdaptiveDecoder)
+				{
+					IElectraDecoder::ECSDCompatibility Compatibility = IsCompatibleWith();
+					if (Compatibility == IElectraDecoder::ECSDCompatibility::Drain || Compatibility == IElectraDecoder::ECSDCompatibility::DrainAndReset)
+					{
+						StartDraining(Compatibility == IElectraDecoder::ECSDCompatibility::Drain ? EDecodingState::NormalDecoding : EDecodingState::NeedsReset);
+					}
+				}
 			}
 			// Is there a discontinuity that requires us to drain the decoder, including a switch to dummy-decoding?
 			else if ((NewAUFlags & EAUChangeFlags::Discontinuity) != EAUChangeFlags::None)

@@ -6,6 +6,7 @@
 
 #include "Demuxer/ParserISO14496-12.h"
 
+#include "Utilities/Utilities.h"
 #include "Utilities/UtilsMPEG.h"
 #include "Utils/MPEG/ElectraUtilsMPEGAudio.h"
 #include "Utils/MPEG/ElectraUtilsMPEGVideo.h"
@@ -5846,10 +5847,10 @@ private:
 			FString GetNameFromHandler() const override;
 			FTimeFraction GetDuration() const override;
 			ITrackIterator* CreateIterator() const override;
-			const TArray<uint8>& GetCodecSpecificData() const override;
-			const TArray<uint8>& GetCodecSpecificDataRAW() const override;
-			const FStreamCodecInformation& GetCodecInformation() const override;
-			const FBitrateInfo& GetBitrateInfo() const override;
+			const TArray<uint8> GetCodecSpecificData() const override;
+			const TArray<uint8> GetCodecSpecificDataRAW() const override;
+			const FStreamCodecInformation GetCodecInformation() const override;
+			const FBitrateInfo GetBitrateInfo() const override;
 			const FString GetLanguage() const override;
 			bool GetEncryptionInfo(FEncryptionInfo& OutEncryptionInfo) const override;
 			void GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const override;
@@ -6088,7 +6089,7 @@ private:
 		return TrackIterator;
 	}
 
-	const TArray<uint8>& FParserISO14496_12::FTrack::GetCodecSpecificData() const
+	const TArray<uint8> FParserISO14496_12::FTrack::GetCodecSpecificData() const
 	{
 		static TArray<uint8> EmptyCSD;
 		switch(CodecInformation.GetCodec())
@@ -6110,6 +6111,18 @@ private:
 			{
 				return CodecSpecificDataRAW;
 			}
+			case FStreamCodecInformation::ECodec::Audio4CC:
+			{
+				if (CodecInformation.GetCodec4CC() == Utils::Make4CC('O','p','u','s'))
+				{
+					FVariantValue dOps = CodecInformation.GetExtras().GetValue(TEXT("dOps_box"));
+					if (dOps.IsType(FVariantValue::EDataType::TypeU8Array))
+					{
+						return dOps.GetArray();
+					}
+				}
+				break;
+			}
 			default:
 			{
 				break;
@@ -6118,7 +6131,7 @@ private:
 		return EmptyCSD;
 	}
 
-	const TArray<uint8>& FParserISO14496_12::FTrack::GetCodecSpecificDataRAW() const
+	const TArray<uint8> FParserISO14496_12::FTrack::GetCodecSpecificDataRAW() const
 	{
 		static TArray<uint8> EmptyCSD;
 		switch(CodecInformation.GetCodec())
@@ -6149,12 +6162,12 @@ private:
 	}
 
 
-	const FStreamCodecInformation& FParserISO14496_12::FTrack::GetCodecInformation() const
+	const FStreamCodecInformation FParserISO14496_12::FTrack::GetCodecInformation() const
 	{
 		return CodecInformation;
 	}
 
-	const FParserISO14496_12::ITrack::FBitrateInfo& FParserISO14496_12::FTrack::GetBitrateInfo() const
+	const FParserISO14496_12::ITrack::FBitrateInfo FParserISO14496_12::FTrack::GetBitrateInfo() const
 	{
 		return BitrateInfo;
 	}

@@ -2750,6 +2750,7 @@ namespace Electra
 			OutCodecInformation.SetMimeType(TEXT("audio/mp4"));
 			OutCodecInformation.SetCodec(FStreamCodecInformation::ECodec::Audio4CC);
 			OutCodecInformation.SetCodec4CC(Utils::Make4CC('O','p','u','s'));
+			OutCodecInformation.SetCodecSpecificData(OpusHead);
 			OutCodecInformation.SetStreamLanguageCode(InFromTrack->GetLanguage());
 			OutCodecInformation.SetCodecSpecifierRFC6381(TEXT("Opus"));
 			OutCodecInformation.SetSamplingRate(Audio->GetOutputSampleRate());

@@ -336,7 +336,14 @@ TSharedPtrTS<IProducerReferenceTimeInfo> FManifestDASH::GetProducerReferenceTime
 TRangeSet<double> FManifestDASH::GetPossiblePlaybackRates(EPlayRateType InForType) const
 {
 	TRangeSet<double> Ranges;
-	Ranges.Add(TRange<double>{1.0}); // normal (real-time) playback rate
+	if (InForType == IManifest::EPlayRateType::UnthinnedRate)
+	{
+		Ranges.Add(TRange<double>::Inclusive(0.1, 4.0));
+	}
+	else
+	{
+		Ranges.Add(TRange<double>{1.0}); // normal (real-time) playback rate
+	}
 	Ranges.Add(TRange<double>{0.0}); // and pause
 	return Ranges;
 }
