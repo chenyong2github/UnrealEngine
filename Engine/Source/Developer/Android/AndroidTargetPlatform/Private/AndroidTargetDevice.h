@@ -149,6 +149,16 @@ public:
 		return FString::Printf(TEXT("%s (%s)"), *Model, *SerialNumber);
 	}
 
+	virtual FString GetModelId() const override
+	{
+		return Model;
+	}
+
+	virtual FString GetOSVersion() const override
+	{
+		return AndroidVersionString;
+	}
+
 	virtual FString GetOperatingSystemName() override;
 
 	virtual int32 GetProcessSnapshot( TArray<FTargetDeviceProcessInfo>& OutProcessInfos ) override;

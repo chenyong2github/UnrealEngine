@@ -112,9 +112,12 @@ public:
 	virtual void Disconnect() override;
 	virtual int32 GetProcessSnapshot(TArray<FTargetDeviceProcessInfo>& OutProcessInfos) override;
 	virtual ETargetDeviceTypes GetDeviceType() const override;
+	virtual ETargetDeviceConnectionTypes GetDeviceConnectionType() const override;
 	virtual FTargetDeviceId GetId() const override;
 	virtual FString GetName() const override;
 	virtual FString GetOperatingSystemName() override;
+	virtual FString GetModelId() const override;
+	virtual FString GetOSVersion() const override;
 	virtual const class ITargetPlatform& GetTargetPlatform() const override;
 	virtual bool IsConnected() override;
 	virtual bool IsDefault() const override;
@@ -180,6 +183,15 @@ private:
 	/** Type of device */
 	ETargetDeviceTypes DeviceType;
 
+	/** The specific model identifier of the device */
+	FString DeviceModelId;
+
+	/** The iOS/tvOS/iPadOS OS version */
+	FString DeviceOSVersion;
+
+	/** Type of device connection (USB or Wifi) */
+	ETargetDeviceConnectionTypes DeviceConnectionType;
+
 public:
 
 	void SetFeature(ETargetDeviceFeatures InFeature, bool bFlag)
@@ -210,11 +222,23 @@ public:
 		DeviceName = InDeviceName;
 	}
 
+	/** Sets the modelId of the device */
+	void SetModelId(const FString InModelId)
+	{
+		DeviceModelId = InModelId;
+	}
+
+	/** Sets the OS version of the device */
+	void SetOSVersion(const FString InOSVersion)
+	{
+		DeviceOSVersion = InOSVersion;
+	}
+
 	/**
- * Sets the device's authorization state.
- *
- * @param bInIsAuthorized - Whether the device is authorized for USB communications.
- */
+	 * Sets the device's authorization state.
+	 *
+	 * @param bInIsAuthorized - Whether the device is authorized for USB communications.
+	 */
 	void SetAuthorized(bool bInIsAuthorized)
 	{
 		bIsDeviceAuthorized = bInIsAuthorized;
@@ -242,6 +266,23 @@ public:
 		else
 		{
 			DeviceType = ETargetDeviceTypes::Indeterminate;
+		}
+	}
+
+	/** Sets the connection type (usb/wifi) of the device */
+	void SetDeviceConnectionType(const FString InDeviceConnectionTypeString)
+	{
+		if (InDeviceConnectionTypeString == TEXT("Network"))
+		{
+			DeviceConnectionType = ETargetDeviceConnectionTypes::Wifi;
+		}
+		else if (InDeviceConnectionTypeString == TEXT("USB"))
+		{
+			DeviceConnectionType = ETargetDeviceConnectionTypes::USB;
+		}
+		else
+		{
+			DeviceConnectionType = ETargetDeviceConnectionTypes::Unknown;
 		}
 	}
 

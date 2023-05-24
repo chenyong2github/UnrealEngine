@@ -933,6 +933,8 @@ static void TurnkeyInstallSdk(FString IniPlatformName, bool bPreferFull, bool bF
 	);
 }
 
+static TMap<FName, FString> PerPlatformLastChosen;
+
 static TAttribute<FText> MakeSdkStatusAttribute(FName IniPlatformName, TSharedPtr< ITargetDeviceProxy> DeviceProxy)
 {
 	FString DisplayString = DeviceProxy ? DeviceProxy->GetName() : IniPlatformName.ToString();
@@ -953,40 +955,59 @@ static TAttribute<FText> MakeSdkStatusAttribute(FName IniPlatformName, TSharedPt
 	}));
 }
 
-//static TAttribute<FSlateIcon> MakePlatformSdkIconAttribute(FName IniPlatformName, TSharedPtr< ITargetDeviceProxy> DeviceProxy)
 static FSlateIcon MakePlatformSdkIconAttribute(FName IniPlatformName, TSharedPtr< ITargetDeviceProxy> DeviceProxy)
 {
 	FString DeviceId = DeviceProxy ? DeviceProxy->GetTargetDeviceId(NAME_None) : FString();
 
-//	return TAttribute<FSlateIcon>::Create(TAttribute<FSlateIcon>::FGetter::CreateLambda([IniPlatformName, DeviceId]()
-		{
-			// get the status, or Unknown if it's not there
-			ETurnkeyPlatformSdkStatus Status = DeviceId.Len() ? ITurnkeySupportModule::Get().GetSdkInfoForDeviceId(DeviceId).Status : ITurnkeySupportModule::Get().GetSdkInfo(IniPlatformName, false).Status;
-			bool bDeviceWarning = (DeviceId.Len() && ITurnkeySupportModule::Get().GetSdkInfoForDeviceId(DeviceId).DeviceStatus != ETurnkeyDeviceStatus::SoftwareValid);
+	// get the status, or Unknown if it's not there
+	ETurnkeyPlatformSdkStatus Status = DeviceId.Len() ? ITurnkeySupportModule::Get().GetSdkInfoForDeviceId(DeviceId).Status : ITurnkeySupportModule::Get().GetSdkInfo(IniPlatformName, false).Status;
+	bool bDeviceWarning = (DeviceId.Len() && ITurnkeySupportModule::Get().GetSdkInfoForDeviceId(DeviceId).DeviceStatus != ETurnkeyDeviceStatus::SoftwareValid);
 
-			if (Status == ETurnkeyPlatformSdkStatus::OutOfDate || Status == ETurnkeyPlatformSdkStatus::NoSdk || bDeviceWarning)
+	if (Status == ETurnkeyPlatformSdkStatus::OutOfDate || Status == ETurnkeyPlatformSdkStatus::NoSdk || bDeviceWarning)
+	{
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.Warning"));
+	}
+	else if (Status == ETurnkeyPlatformSdkStatus::Error)
+	{
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.Error"));
+	}
+	else if (Status == ETurnkeyPlatformSdkStatus::Unknown)
+	{
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.Help"));
+	}
+	else
+	{
+		if (DeviceProxy != nullptr && !DeviceProxy->GetConnectionType().IsEmpty())
+		{
+			FSlateIcon Icon;
+			if (DeviceProxy->GetConnectionType().Contains(TEXT("Network")))
 			{
-				return FSlateIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.Warning"));
+				Icon = FSlateIcon(FAppStyle::Get().GetStyleSetName(), *(TEXT("DeviceDetails.WIFI.") + IniPlatformName.ToString()));
 			}
-			else if (Status == ETurnkeyPlatformSdkStatus::Error)
+			else if (DeviceProxy->GetConnectionType().Contains(TEXT("USB")))
 			{
-				return FSlateIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.Error"));
-			}
-			else if (Status == ETurnkeyPlatformSdkStatus::Unknown)
-			{
-				return FSlateIcon(FAppStyle::Get().GetStyleSetName(), TEXT("Icons.Help"));
+				Icon = FSlateIcon(FAppStyle::Get().GetStyleSetName(), *(TEXT("DeviceDetails.USB.") + IniPlatformName.ToString()));
 			}
 			else
 			{
-				return FSlateIcon(FAppStyle::Get().GetStyleSetName(), FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName).GetIconStyleName(EPlatformIconSize::Normal));
+				UE_LOG(LogTurnkeySupport, Warning, TEXT("Unknown ConnectionType:%s"), *DeviceProxy->GetConnectionType());
+			}
+
+			// Verify that the icon exists by checking it's not using the "DefaultBrush" icon resource
+			const FSlateBrush *brush = FAppStyle::GetBrush(Icon.GetStyleName());
+			if (brush != nullptr && (brush->GetResourceName() != FAppStyle::GetDefaultBrush()->GetResourceName()))
+			{
+				return Icon;
 			}
 		}
-//		));
+
+		// Default to platform icon
+		return FSlateIcon(FAppStyle::Get().GetStyleSetName(), FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName).GetIconStyleName(EPlatformIconSize::Normal));
+	}
 }
 
 static void FormatSdkInfo(const FString& PlatformOrDevice, const FTurnkeySdkInfo& SdkInfo, FText& OutInfo, FText& OutToolTip)
 {
-
 	TArray<FText> Lines;
 
 	for (TPair<FString, FTurnkeySdkInfo::Version> Pair : SdkInfo.SDKVersions)
@@ -1667,6 +1688,7 @@ static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceP
 					DeviceVariantName = *VariantName;
 				}
 
+				PerPlatformLastChosen[PlatformName] = DeviceProxy->GetName();
 				FString DeviceId = DeviceProxy->GetTargetDeviceId(DeviceVariantName);
 				HandleLaunchOnDeviceActionExecute(DeviceId, DeviceProxy->GetName(), true);
 				ExternalOnClickDelegate.ExecuteIfBound(DeviceId);
@@ -1678,10 +1700,22 @@ static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceP
 	FFormatNamedArguments TooltipArguments;
 	TooltipArguments.Add(TEXT("DeviceID"), FText::FromString(DeviceProxy->GetName()));
 	TooltipArguments.Add(TEXT("DisplayName"), FText::FromName(PlatformName));
-	OutTooltip = FText::Format(LOCTEXT("LaunchDeviceToolTipText_ThisDevice", "Launch the game on this {DisplayName} device ({DeviceID})"), TooltipArguments);
+	
 	if (!DeviceProxy->IsAuthorized())
 	{
 		OutTooltip = FText::Format(LOCTEXT("LaunchDeviceToolTipText_UnauthorizedOrLocked", "{DisplayName} device ({DeviceID}) is unauthorized or locked"), TooltipArguments);
+	}
+	else if (!DeviceProxy->GetModel().IsEmpty() && !DeviceProxy->GetOSVersion().IsEmpty())
+	{
+		// Some platforms (ie: iOS/Android) can display additional information on mouse hover
+		TooltipArguments.Add(TEXT("ModelId"), FText::FromString(DeviceProxy->GetModel()));
+		TooltipArguments.Add(TEXT("OSVersion"), FText::FromString(DeviceProxy->GetOSVersion()));
+
+		OutTooltip = FText::Format(LOCTEXT("LaunchDeviceToolTipText_ThisDeviceExtra", "Launch on \"{DeviceID}\" [OSVer:'{OSVersion}' Model:'{ModelId}']"), TooltipArguments);
+	}
+	else
+	{
+		OutTooltip = FText::Format(LOCTEXT("LaunchDeviceToolTipText_ThisDevice", "Launch the game on this {DisplayName} device ({DeviceID})"), TooltipArguments);
 	}
 
 	FProjectStatus ProjectStatus;
@@ -1721,16 +1755,28 @@ void FTurnkeySupportModule::MakeQuickLaunchItems(class UToolMenu* Menu, FOnQuick
 
 			if (DeviceProxies.Num() > 0)
 			{
-				// 					Algo::Sort(DeviceProxies, [](TSharedPtr<ITargetDeviceProxy> A, TSharedPtr<ITargetDeviceProxy> B)
-				// 					{ return A->Name == LastChosen || B->Name != LastChosen && A->IsDefault(); });
-
+				FString LastChosen;
+				if (PerPlatformLastChosen.Contains(PlatformName))
+				{
+					LastChosen = PerPlatformLastChosen[PlatformName];
+				}
+				else
+				{
+					LastChosen = DeviceProxies[0]->GetName();
+					PerPlatformLastChosen.Add(PlatformName, LastChosen);
+				}
+				Algo::Sort(DeviceProxies, [&LastChosen = std::as_const(LastChosen)](TSharedPtr<ITargetDeviceProxy> A, TSharedPtr<ITargetDeviceProxy> B)
+						   { return A->GetName() == LastChosen; });
 
 				// always use the first one, after sorting
 				FUIAction Action;
 				FText Tooltip;
-				GenerateDeviceProxyMenuParams(DeviceProxies[0], PlatformName, Action, Tooltip, ExternalOnClickDelegate);
 
-				if (DeviceProxies.Num() == 1)
+				GenerateDeviceProxyMenuParams(DeviceProxies[0], PlatformName, Action, Tooltip, ExternalOnClickDelegate);
+				
+ 				const ITargetPlatform* Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatformName.ToString());
+				bool bGroupDevices = Platform->SupportsFeature(ETargetPlatformFeatures::ShowAsPlatformGroup);
+				if (DeviceProxies.Num() == 1 && !bGroupDevices)
 				{
 					DynamicSection.AddMenuEntry(
 						NAME_None,
@@ -1744,9 +1790,9 @@ void FTurnkeySupportModule::MakeQuickLaunchItems(class UToolMenu* Menu, FOnQuick
 				{
 					DynamicSection.AddSubMenu(
 						NAME_None,
-						MakeSdkStatusAttribute(PlatformName, DeviceProxies[0]),
+						MakeSdkStatusAttribute(PlatformName, bGroupDevices?nullptr:DeviceProxies[0]),
 						Tooltip,
-						FNewToolMenuDelegate::CreateLambda([TargetDeviceServicesModule, PlatformName, ExternalOnClickDelegate](UToolMenu* SubToolMenu)
+						FNewToolMenuDelegate::CreateLambda([TargetDeviceServicesModule, PlatformName, LastChosen, ExternalOnClickDelegate](UToolMenu* SubToolMenu)
 							{
 								FToolMenuSection& Section = SubToolMenu->AddSection(NAME_None);
 
@@ -1756,6 +1802,12 @@ void FTurnkeySupportModule::MakeQuickLaunchItems(class UToolMenu* Menu, FOnQuick
 								// for each one, put an entry (even the one that was in the outer menu, for less confusion)
 								for (const TSharedPtr<ITargetDeviceProxy>& Proxy : DeviceProxies)
 								{
+									// Skip over the top level menu item
+									if (LastChosen == Proxy->GetName())
+									{
+										continue;
+									}
+									
 									FUIAction SubAction;
 									FText SubTooltip;
 									GenerateDeviceProxyMenuParams(Proxy, PlatformName, SubAction, SubTooltip, ExternalOnClickDelegate);
@@ -1772,13 +1824,13 @@ void FTurnkeySupportModule::MakeQuickLaunchItems(class UToolMenu* Menu, FOnQuick
 						Action,
 						EUserInterfaceActionType::Check,
 						false,
-						MakePlatformSdkIconAttribute(PlatformName, nullptr),
+						MakePlatformSdkIconAttribute(PlatformName, bGroupDevices?nullptr:DeviceProxies[0]),
 						true
 						);
 				}
 
 				ITurnkeySupportModule& TurnkeySupport = ITurnkeySupportModule::Get();
-				// gath	er any unknown status devices to query at the end
+				// gather any unknown status devices to query at the end
 				for (const TSharedPtr<ITargetDeviceProxy>& Proxy : DeviceProxies)
 				{
 					FString DeviceId = Proxy->GetTargetDeviceId(NAME_None);

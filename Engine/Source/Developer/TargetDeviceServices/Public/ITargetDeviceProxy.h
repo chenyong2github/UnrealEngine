@@ -207,6 +207,20 @@ public:
 	virtual const FString& GetType() const = 0;
 
 	/**
+	 * Gets the OS Version of the device
+	 *
+	 * @return Device OS VErsion.
+	 */
+	virtual const FString& GetOSVersion() const = 0;
+
+	/**
+	 * Gets the type of connection for this device.
+	 *
+	 * @return Device type.
+	 */
+	virtual const FString& GetConnectionType() const = 0;
+
+	/**
 	 * Checks whether the device is currently connected.
 	 *
 	 * @return true if the device is connected, false otherwise.

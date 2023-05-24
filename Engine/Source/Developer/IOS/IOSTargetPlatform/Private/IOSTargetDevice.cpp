@@ -22,10 +22,12 @@ FIOSTargetDevice::FIOSTargetDevice(const ITargetPlatform& InTargetPlatform)
 	, bCanPowerOn(false)
 	, bCanPowerOff(false)
 	, DeviceType(ETargetDeviceTypes::Indeterminate)
+	, DeviceModelId(TEXT(""))
 {
 	DeviceId = FTargetDeviceId(TargetPlatform.PlatformName(), FPlatformProcess::ComputerName());
 	DeviceName = FPlatformProcess::ComputerName();
 	MessageEndpoint = FMessageEndpoint::Builder("FIOSTargetDevice").Build();
+	DeviceConnectionType = ETargetDeviceConnectionTypes::USB;
 }
 
 
@@ -51,6 +53,11 @@ ETargetDeviceTypes FIOSTargetDevice::GetDeviceType() const
 	return DeviceType;
 }
 
+ETargetDeviceConnectionTypes FIOSTargetDevice::GetDeviceConnectionType() const
+{
+	return DeviceConnectionType;
+}
+
 FTargetDeviceId FIOSTargetDevice::GetId() const
 {
 	return DeviceId;
@@ -64,6 +71,16 @@ FString FIOSTargetDevice::GetName() const
 FString FIOSTargetDevice::GetOperatingSystemName()
 {
 	return TargetPlatform.PlatformName();
+}
+
+FString FIOSTargetDevice::GetModelId() const
+{
+	return DeviceModelId;
+}
+
+FString FIOSTargetDevice::GetOSVersion() const
+{
+	return DeviceOSVersion;
 }
 
 const class ITargetPlatform& FIOSTargetDevice::GetTargetPlatform() const

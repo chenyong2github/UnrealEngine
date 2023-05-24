@@ -288,6 +288,14 @@ struct FTargetDeviceServicePong
 	UPROPERTY(EditAnywhere, Category="Message")
 	FString Type;
 
+	/** Holds the device OS Version. */
+	UPROPERTY(EditAnywhere, Category="Message")
+	FString OSVersion;
+
+	/** Holds the connection type. */
+	UPROPERTY(EditAnywhere, Category="Message")
+	FString ConnectionType;
+
 	/** Holds the variant name of the default device. */
 	UPROPERTY(EditAnywhere, Category="Message")
 	FName DefaultVariant;

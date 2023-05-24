@@ -156,6 +156,16 @@ public:
 		return Type;
 	}
 
+	virtual const FString& GetOSVersion() const override
+	{
+		return OSVersion;
+	}
+
+	virtual const FString& GetConnectionType() const override
+	{
+		return ConnectionType;
+	}
+
 	virtual bool HasDeviceId(const FString& InDeviceId) const override;
 	virtual bool HasVariant(FName InVariant) const override;
 	virtual bool HasTargetPlatform(FName InTargetPlatformId) const override;
@@ -250,6 +260,12 @@ private:
 
 	/** Holds the device type. */
 	FString Type;
+
+	/** Holds the remote device's OS version. */
+	FString OSVersion;
+
+	/** Holds the type of connection. */
+	FString ConnectionType;
 
 	/** Holds default variant name. */
 	FName DefaultVariant;

@@ -7280,7 +7280,10 @@ void FStarshipEditorStyle::FStyle::SetupAutomationStyles()
 			.SetHoveredForeground(FLinearColor::FromSRGBColor(FColor::FromHex("#868686FF")))
 			.SetPressedForeground(FLinearColor::FromSRGBColor(FColor::FromHex("#868686FF")));
 		
-		Set("DeviceDetails.EditButton", DeviceProfileCellButton);
+		Set( "DeviceDetails.EditButton", DeviceProfileCellButton);
+
+		Set( "DeviceDetails.WIFI.IOS", new IMAGE_BRUSH("Starship/DeviceManager/AppleWifi_128x", Icon128x128));
+		Set( "DeviceDetails.USB.IOS", new IMAGE_BRUSH("Starship/DeviceManager/AppleUsb_128x", Icon128x128));
 	}
 
 	// Settings Editor

@@ -112,7 +112,10 @@ enum class ETargetPlatformFeatures
 	DirectDataExchange,
 
 	/** The platform supports Luminance + Alpha encoding mode for normalmaps */
-	NormalmapLAEncodingMode
+	NormalmapLAEncodingMode,
+
+	/** All devices of this platform should be grouped under one platform group */
+	ShowAsPlatformGroup
 };
 
 enum class EPlatformAuthentication

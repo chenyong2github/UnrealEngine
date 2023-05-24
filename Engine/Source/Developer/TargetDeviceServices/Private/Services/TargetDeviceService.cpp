@@ -425,9 +425,11 @@ void FTargetDeviceService::HandlePingMessage(const FTargetDeviceServicePing& InM
 		Message->HostName = FPlatformProcess::ComputerName();
 		Message->HostUser = FPlatformProcess::UserName(false);
 		Message->Connected = DefaultDevice->IsConnected();
+		Message->ConnectionType = (DefaultDevice->GetDeviceConnectionType() == ETargetDeviceConnectionTypes::Wifi) ? "Network" : "USB";
 		Message->Authorized = DefaultDevice->IsAuthorized();
 		Message->Make = TEXT("@todo");
-		Message->Model = TEXT("@todo");
+		Message->Model = DefaultDevice->GetModelId();
+		Message->OSVersion = DefaultDevice->GetOSVersion();
 		DefaultDevice->GetUserCredentials(Message->DeviceUser, Message->DeviceUserPassword);
 		Message->Shared = Shared;
 		Message->SupportsMultiLaunch = DefaultDevice->SupportsFeature(ETargetDeviceFeatures::MultiLaunch);

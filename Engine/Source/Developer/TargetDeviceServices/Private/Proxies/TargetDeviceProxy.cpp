@@ -63,6 +63,8 @@ void FTargetDeviceProxy::UpdateFromMessage( const FTargetDeviceServicePong& Mess
 	Name = Aggregated? Message.AllDevicesName: Message.Name;
 	DeviceUser = Message.DeviceUser;
 	DeviceUserPassword = Message.DeviceUserPassword;
+	OSVersion = Message.OSVersion;
+	ConnectionType = Message.ConnectionType;
 	Shared = Message.Shared;
 	SupportsMultiLaunch = Message.SupportsMultiLaunch;
 	SupportsPowerOff = Message.SupportsPowerOff;

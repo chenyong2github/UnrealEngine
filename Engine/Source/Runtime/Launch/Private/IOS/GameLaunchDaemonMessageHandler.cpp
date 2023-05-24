@@ -43,9 +43,11 @@ void FGameLaunchDaemonMessageHandler::HandlePingMessage(const FIOSLaunchDaemonPi
 		FMessageAddress MessageSender = Context->GetSender();
 
 		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FIOSLaunchDaemonPong>(FString(FPlatformProperties::PlatformName()) + (TARGET_IPHONE_SIMULATOR ? FString(TEXT("Simulator:")) : FString(TEXT("@"))) + FString(FPlatformProcess::ComputerName())
+			, FString(TEXT("udid"))
 			, FPlatformProcess::ComputerName()
 			, "Game_Running"
 			, [[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone? "Phone" : "Tablet"
+			, FString(TEXT("local"))
 			, false
 			, false
 			, false

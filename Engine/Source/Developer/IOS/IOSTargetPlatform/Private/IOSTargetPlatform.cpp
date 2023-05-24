@@ -366,6 +366,9 @@ void FIOSTargetPlatform::HandlePongMessage( const FIOSLaunchDaemonPong& Message,
 		Device->SetDeviceId(DeviceId);
 		Device->SetDeviceName(Message.DeviceName);
 		Device->SetDeviceType(Message.DeviceType);
+		Device->SetModelId(Message.DeviceModelId);
+		Device->SetOSVersion(Message.DeviceOSVersion);
+		Device->SetDeviceConnectionType(Message.DeviceConnectionType);
 		Device->SetDeviceEndpoint(Context->GetSender());
 		Device->SetIsSimulated(Message.DeviceID.Contains(TEXT("Simulator")));
 
@@ -395,6 +398,9 @@ void FIOSTargetPlatform::HandleDeviceConnected(const FIOSLaunchDaemonPong& Messa
 			Device->SetDeviceName(Message.DeviceName);
 			Device->SetAuthorized(Message.bIsAuthorized);
 			Device->SetDeviceType(Message.DeviceType);
+			Device->SetModelId(Message.DeviceModelId);
+			Device->SetOSVersion(Message.DeviceOSVersion);
+			Device->SetDeviceConnectionType(Message.DeviceConnectionType);
 			Device->SetIsSimulated(Message.DeviceID.Contains(TEXT("Simulator")));
 
 			OnDeviceDiscovered().Broadcast(Device.ToSharedRef());
@@ -493,6 +499,10 @@ bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) cons
 			const bool bUsesARMCompressor = (CompressorCVar ? (CompressorCVar->GetInt() != 0) : false);
 			return bUsesARMCompressor;
 		}
+
+		case ETargetPlatformFeatures::ShowAsPlatformGroup:
+			return false;
+
 		default:
 			break;
 	}

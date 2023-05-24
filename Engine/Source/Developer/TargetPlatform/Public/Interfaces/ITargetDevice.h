@@ -58,6 +58,29 @@ enum class ETargetDeviceTypes
 	HMD
 };
 
+/**
+ * Enumerates how the target device is connected
+ */
+enum class ETargetDeviceConnectionTypes
+{
+	/** It's unknown how the device is connected. */
+	Unknown,
+
+	/** The device is connected through USB. */
+	USB,
+
+	/** The device is connected via Wifi. */
+	Wifi,
+	
+	/** The device is connected via Ethernet. */
+	Ethernet,
+
+	/** The device is running as a simulator on the current Editor. */
+	Simulator,
+
+	/** The device is connected via a proprietary connection. */
+	Proprietary
+};
 
 namespace TargetDeviceTypes
 {
@@ -227,6 +250,27 @@ public:
 	 * @return Device type.
 	 */
 	virtual ETargetDeviceTypes GetDeviceType() const = 0;
+
+	/**
+	 * Gets the device model identifier.
+	 *
+	 * @return ModelId.
+	 */
+	virtual FString GetModelId() const {return FString();};
+
+	/**
+	 * Gets the device OS Version.
+	 *
+	 * @return OSVersion.
+	 */
+	virtual FString GetOSVersion() const {return FString();};
+
+	/**
+	 * Gets the device connection type.
+	 * 
+	 * @return Device connection type.
+	 */
+	virtual ETargetDeviceConnectionTypes GetDeviceConnectionType() const {return ETargetDeviceConnectionTypes::Unknown; };
 
 	/**
 	 * Gets the unique device identifier.

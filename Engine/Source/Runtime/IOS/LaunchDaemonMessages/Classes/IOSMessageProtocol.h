@@ -26,6 +26,9 @@ struct FIOSLaunchDaemonPong
 	FString DeviceID;
 
 	UPROPERTY()
+	FString DeviceUDID;
+
+	UPROPERTY()
 	FString DeviceName;
 
 	UPROPERTY()
@@ -33,6 +36,15 @@ struct FIOSLaunchDaemonPong
 
 	UPROPERTY()
 	FString DeviceType;
+
+	UPROPERTY()
+	FString DeviceOSVersion;
+
+	UPROPERTY()
+	FString DeviceModelId;
+
+	UPROPERTY()
+	FString DeviceConnectionType;
 
 	UPROPERTY()
 	bool bCanPowerOff;
@@ -53,11 +65,13 @@ struct FIOSLaunchDaemonPong
 		, bCanReboot(false)
 	{}
 
-	FIOSLaunchDaemonPong(FString InDeviceID, FString InDeviceName, FString InDeviceStatus, FString InDeviceType, bool bInCanPowerOff, bool bInCanPowerOn, bool bInCanReboot, bool bIsAuthorized)
+	FIOSLaunchDaemonPong(FString InDeviceID, FString InDeviceUDID, FString InDeviceName, FString InDeviceStatus, FString InDeviceType, FString InDeviceConnectionType, bool bInCanPowerOff, bool bInCanPowerOn, bool bInCanReboot, bool bIsAuthorized)
 		: DeviceID(InDeviceID)
+		, DeviceUDID(InDeviceUDID)
 		, DeviceName(InDeviceName)
 		, DeviceStatus(InDeviceStatus)
 		, DeviceType(InDeviceType)
+		, DeviceConnectionType(InDeviceConnectionType)
 		, bCanPowerOff(bInCanPowerOff)
 		, bCanPowerOn(bInCanPowerOn)
 		, bIsAuthorized(bIsAuthorized)

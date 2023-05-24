@@ -25,22 +25,27 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
 
     struct FDeviceNotificationCallbackInformation
     {
-        FString UDID;
+        FString DeviceID;
         FString DeviceName;
+        FString DeviceUDID;
         FString ProductType;
+        FString DeviceOSVersion;
         DeviceConnectionInterface DeviceInterface;
         uint32 msgType;
-		bool isAuthorized;
+		bool IsAuthorized;
     };
 
 
     struct LibIMobileDevice
     {
-        FString DeviceName;
         FString DeviceID;
+        FString DeviceName;
+        FString DeviceUDID;
         FString DeviceType;
-		bool isAuthorized;
+        FString DeviceOSVersion;
         DeviceConnectionInterface DeviceInterface;
+		bool IsAuthorized;
+		bool IsDealtWith;
     };
 
     static TArray<LibIMobileDevice> GetLibIMobileDevices()
@@ -61,7 +66,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
         TArray<FString> DeviceStrings;
         for (int32 StringIndex = 0; StringIndex < OngoingDeviceIds.Num(); ++StringIndex)
         {
-            const FString& DeviceID = OngoingDeviceIds[StringIndex];
+            const FString& DeviceUDID = OngoingDeviceIds[StringIndex];
             DeviceConnectionInterface OngoingDeviceInterface = DeviceConnectionInterface::NoValue;
 
             FString OutStdOutInfo;
@@ -82,11 +87,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
 
             if (OngoingDeviceInterface == DeviceConnectionInterface::USB)
             {
-                Arguments = "-u " + DeviceID;
+                Arguments = "-u " + DeviceUDID;
             }
             else if (OngoingDeviceInterface == DeviceConnectionInterface::Network)
             {
-                Arguments = "-n -u " + DeviceID;
+                Arguments = "-n -u " + DeviceUDID;
             }
 
             FPlatformProcess::ExecProcess(*LibimobileDeviceInfo, *Arguments, &ReturnCodeInfo, &OutStdOutInfo, &OutStdErrInfo, NULL, true);
@@ -101,7 +106,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
 				{
 					UE_LOG(LogIOSDeviceHelper, Warning, TEXT("Could not pair with connected iOS/tvOS device. Trust this computer by accepting the popup on device."));
 					FString LibimobileDevicePair = GetLibImobileDeviceExe("idevicepair");
-					FString PairArguments = "-u " + DeviceID + " pair";
+					FString PairArguments = "-u " + DeviceUDID + " pair";
 					FPlatformProcess::ExecProcess(*LibimobileDevicePair, *PairArguments, &ReturnCodeInfo, &OutStdOutInfo, &OutStdErrInfo, NULL, true);
 				}
 				else
@@ -110,54 +115,81 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
 				}
 				OutStdOutInfo.Empty();
 				OutStdErrInfo.Empty();
-				ToAdd.isAuthorized = false;
+				ToAdd.IsAuthorized = false;
 			}
 			else
 			{
-				ToAdd.isAuthorized = true;
+				ToAdd.IsAuthorized = true;
 			}
 
 			// parse product type and device name
 			FString DeviceName;
-            OutStdOutInfo.Split(TEXT("DeviceName: "), nullptr, &DeviceName, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			OutStdOutInfo.Split(TEXT("DeviceName: "), nullptr, &DeviceName, ESearchCase::CaseSensitive, ESearchDir::FromStart);
 			DeviceName.Split(LINE_TERMINATOR, &DeviceName, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
-			if (!ToAdd.isAuthorized)
-            {
+			if (!ToAdd.IsAuthorized)
+			{
 				DeviceName = LOCTEXT("IosTvosUnauthorizedDevice", "iOS / tvOS (Unauthorized)").ToString();
-	        }
-            FString ProductType;
-            OutStdOutInfo.Split(TEXT("ProductType: "), nullptr, &ProductType, ESearchCase::CaseSensitive, ESearchDir::FromStart);
-            ProductType.Split(LINE_TERMINATOR, &ProductType, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
-            ToAdd.DeviceID = DeviceID;
-            ToAdd.DeviceName = DeviceName;
-            ToAdd.DeviceType = ProductType;
-            ToAdd.DeviceInterface = OngoingDeviceInterface;
-            ToReturn.Add(ToAdd);
-        }
-        return ToReturn;
-    }
+			}
+			else
+			{
+				if (OngoingDeviceInterface == DeviceConnectionInterface::Network)
+				{
+					DeviceName += " [Wifi]";
+				}
+			}
+			
+			FString ProductType;
+			OutStdOutInfo.Split(TEXT("ProductType: "), nullptr, &ProductType, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			ProductType.Split(LINE_TERMINATOR, &ProductType, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			
+			FString OSVersion; // iOS/iPad OS Version
+			OutStdOutInfo.Split(TEXT("ProductVersion: "), nullptr, &OSVersion, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			OSVersion.Split(LINE_TERMINATOR, &OSVersion, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			
+			FString DeviceID = FString::Printf(TEXT("%s@%s"),
+											   ProductType.Contains(TEXT("AppleTV")) ? TEXT("TVOS") : TEXT("IOS"),
+											   *DeviceUDID);
+			
+			ToAdd.DeviceID = DeviceID;
+			ToAdd.DeviceUDID = DeviceUDID;
+			ToAdd.DeviceName = DeviceName;
+			ToAdd.DeviceType = ProductType;
+			ToAdd.DeviceOSVersion = OSVersion;
+			ToAdd.DeviceInterface = OngoingDeviceInterface;
+			ToAdd.IsDealtWith = false;
+			ToReturn.Add(ToAdd);
+		}
+		return ToReturn;
+	}
 
 class FIOSDevice
 {
 public:
-    FIOSDevice(FString InID, FString InName)
-        : UDID(InID)
-        , Name(InName)
-    {
-    }
-    
-    ~FIOSDevice()
-    {
-    }
-
-    FString SerialNumber() const
-    {
-        return UDID;
-    }
-
+	FIOSDevice(FString InID, FString InName, DeviceConnectionInterface InConnectionType)
+		: UDID(InID)
+		, Name(InName)
+		, ConnectionType(InConnectionType)
+	{
+	}
+	
+	~FIOSDevice()
+	{
+	}
+	
+	FString SerialNumber() const
+	{
+		return UDID;
+	}
+	
+	DeviceConnectionInterface ConnectionInterface() const
+	{
+		return ConnectionType;
+	}
+	
 private:
-    FString UDID;
-    FString Name;
+	FString UDID;
+	FString Name;
+	DeviceConnectionInterface ConnectionType;
 };
 
 /**
@@ -284,16 +316,20 @@ private:
 
         if (bAdd)
         {
+            CallbackInfo.DeviceID = Device.DeviceID;
             CallbackInfo.DeviceName = Device.DeviceName;
-            CallbackInfo.UDID = Device.DeviceID;
+            CallbackInfo.DeviceUDID = Device.DeviceUDID;
             CallbackInfo.DeviceInterface = Device.DeviceInterface;
             CallbackInfo.ProductType = Device.DeviceType;
+            CallbackInfo.DeviceOSVersion = Device.DeviceOSVersion;
             CallbackInfo.msgType = 1;
-			CallbackInfo.isAuthorized = Device.isAuthorized;
+			CallbackInfo.IsAuthorized = Device.IsAuthorized;
         }
         else
         {
-            CallbackInfo.UDID = Device.DeviceID;
+            CallbackInfo.DeviceID = Device.DeviceID;
+			CallbackInfo.DeviceUDID = Device.DeviceUDID;
+			CallbackInfo.DeviceInterface = Device.DeviceInterface;
             CallbackInfo.msgType = 2;
             DeviceNotification.Broadcast(&CallbackInfo);
 
@@ -339,16 +375,17 @@ private:
         {
 			LibIMobileDevice* Found = CachedDevices.FindByPredicate(
 				[&](LibIMobileDevice Element) {
-					return Element.DeviceID == ParsedDevices[Index].DeviceID;
+					return (Element.DeviceUDID == ParsedDevices[Index].DeviceUDID &&
+						Element.DeviceInterface == ParsedDevices[Index].DeviceInterface);
 				});
 			if (Found != nullptr)
 			{
-				if (Found->isAuthorized != ParsedDevices[Index].isAuthorized)
+				if (Found->IsAuthorized != ParsedDevices[Index].IsAuthorized)
 				{
 					NotifyDeviceChange(ParsedDevices[Index], false);
 					NotifyDeviceChange(ParsedDevices[Index], true);
 				}
-				Found->DeviceID = "DealtWith";
+				Found->IsDealtWith = true;
 			}
 			else
 			{
@@ -359,7 +396,7 @@ private:
 
         for (int32 Index = 0; Index < CachedDevices.Num(); ++Index)
         {
-            if (CachedDevices[Index].DeviceID != "DealtWith")
+            if (!CachedDevices[Index].IsDealtWith)
             {
                 NotifyDeviceChange(CachedDevices[Index], false);
             }
@@ -448,14 +485,18 @@ void FIOSDeviceHelper::DoDeviceConnect(void* CallbackInfo)
 {
     // connect to the device
     struct FDeviceNotificationCallbackInformation* cbi = (FDeviceNotificationCallbackInformation*)CallbackInfo;
-    FIOSDevice* Device = new FIOSDevice(cbi->UDID, cbi->DeviceName);
+    FIOSDevice* Device = new FIOSDevice(cbi->DeviceUDID, cbi->DeviceName, cbi->DeviceInterface);
 
     // fire the event
     FIOSLaunchDaemonPong Event;
-    Event.DeviceID = FString::Printf(TEXT("%s@%s"), cbi->ProductType.Contains(TEXT("AppleTV")) ? TEXT("TVOS") : TEXT("IOS"), *(cbi->UDID));
+	Event.DeviceID = cbi->DeviceID;
+    Event.DeviceUDID = cbi->DeviceUDID;
     Event.DeviceName = cbi->DeviceName;
     Event.DeviceType = cbi->ProductType;
-	Event.bIsAuthorized = cbi->isAuthorized;
+    Event.DeviceOSVersion = cbi->DeviceOSVersion;
+    Event.DeviceModelId = cbi->ProductType;
+    Event.DeviceConnectionType = (cbi->DeviceInterface == DeviceConnectionInterface::Network) ? "Network" : "USB";
+	Event.bIsAuthorized = cbi->IsAuthorized;
     Event.bCanReboot = false;
     Event.bCanPowerOn = false;
     Event.bCanPowerOff = false;
@@ -467,27 +508,29 @@ void FIOSDeviceHelper::DoDeviceConnect(void* CallbackInfo)
 
 void FIOSDeviceHelper::DoDeviceDisconnect(void* CallbackInfo)
 {
-    struct FDeviceNotificationCallbackInformation* cbi = (FDeviceNotificationCallbackInformation*)CallbackInfo;
-    FIOSDevice* device = NULL;
-    for (auto DeviceIterator = ConnectedDevices.CreateIterator(); DeviceIterator; ++DeviceIterator)
-    {
-        if (DeviceIterator.Key()->SerialNumber() == cbi->UDID)
-        {
-            device = DeviceIterator.Key();
-            break;
-        }
-    }
-    if (device != NULL)
-    {
-        // extract the device id from the connected list
-        FIOSLaunchDaemonPong Event = ConnectedDevices.FindAndRemoveChecked(device);
-
-        // fire the event
-        FIOSDeviceHelper::OnDeviceDisconnected().Broadcast(Event);
-
-        // delete the device
-        delete device;
-    }
+	struct FDeviceNotificationCallbackInformation* cbi = (FDeviceNotificationCallbackInformation*)CallbackInfo;
+	FIOSDevice* device = NULL;
+	for (auto DeviceIterator = ConnectedDevices.CreateIterator(); DeviceIterator; ++DeviceIterator)
+	{
+		if (DeviceIterator.Key()->SerialNumber() == cbi->DeviceUDID &&
+			DeviceIterator.Key()->ConnectionInterface() == cbi->DeviceInterface)
+		{
+			device = DeviceIterator.Key();
+			break;
+		}
+	}
+	
+	if (device != NULL)
+	{
+		// extract the device id from the connected list
+		FIOSLaunchDaemonPong Event = ConnectedDevices.FindAndRemoveChecked(device);
+		
+		// fire the event
+		FIOSDeviceHelper::OnDeviceDisconnected().Broadcast(Event);
+		
+		// delete the device
+		delete device;
+	}
 }
 
 bool FIOSDeviceHelper::InstallIPAOnDevice(const FTargetDeviceId& DeviceId, const FString& IPAPath)
