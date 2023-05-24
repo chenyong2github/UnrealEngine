@@ -1359,9 +1359,11 @@ bool FMeshDrawCommand::SubmitDrawBegin(
 #if PSO_PRECACHING_VALIDATE
 		// Retrieve state from cache - can be be cached on the MeshPipelineState to not retrieve it anymore after the final state is known
 #if MESH_DRAW_COMMAND_DEBUG_DATA
-		PSOPrecacheResult = PSOCollectorStats::CheckPipelineStateInCache(GraphicsPSOInit, MeshDrawCommand.DebugData.MeshPassType, MeshDrawCommand.DebugData.VertexFactoryType);
+		PSOPrecacheResult = PSOCollectorStats::GetFullPSOPrecacheStatsCollector().CheckStateInCache(GraphicsPSOInit, RHIComputePrecachePSOHash(GraphicsPSOInit),
+			MeshDrawCommand.DebugData.MeshPassType, MeshDrawCommand.DebugData.VertexFactoryType);
 #else
-		PSOPrecacheResult = PSOCollectorStats::CheckPipelineStateInCache(GraphicsPSOInit, EMeshPass::Num, nullptr);
+		PSOPrecacheResult = PSOCollectorStats::GetFullPSOPrecacheStatsCollector().CheckStateInCache(GraphicsPSOInit, RHIComputePrecachePSOHash(GraphicsPSOInit),
+			EMeshPass::Num, nullptr);
 #endif // MESH_DRAW_COMMAND_DEBUG_DATA
 #endif // PSO_PRECACHING_VALIDATE
 
@@ -2261,173 +2263,33 @@ void SetupGBufferRenderTargetInfo(const FSceneTexturesConfig& SceneTexturesConfi
 	}
 }
 
+
 #if PSO_PRECACHING_VALIDATE
 
-// Stats for PSO shaders only (no state, only VS/PS/GS usage)
-static FCriticalSection PSOShadersPrecacheLock;
-static PSOCollectorStats::FPrecacheStats PSOShadersPrecacheStats;
-static Experimental::TRobinHoodHashMap<FGraphicsMinimalPipelineStateInitializer, PSOCollectorStats::FShaderStateUsage> PSOShadersPrecacheMap;
-
-// Stats for minimal PSO initializer data during MeshDrawCommand building (doesn't contain render target info)
-static FCriticalSection MinimalPSOPrecacheLock;
-static PSOCollectorStats::FPrecacheStats MinimalPSOPrecacheStats;
-static Experimental::TRobinHoodHashMap<uint64, PSOCollectorStats::FShaderStateUsage> MinimalPSOPrecacheMap;
-
-// Helper function to remove certain members of the PSO initializer to help track down issues with PSO precache misses
-// eg Remove BlendState and check if the misses are gone for example
-static FGraphicsMinimalPipelineStateInitializer PatchMinimalPipelineStateToCheck(const FGraphicsMinimalPipelineStateInitializer& MinimalPSO)
+FGraphicsMinimalPipelineStateInitializer PSOCollectorStats::GetShadersOnlyInitializer(const FGraphicsMinimalPipelineStateInitializer& Initializer)
 {
-	FGraphicsMinimalPipelineStateInitializer PSOInitializeToCheck = MinimalPSO;
-	//PSOInitializeToCheck.DepthStencilState = nullptr;
-	//PSOInitializeToCheck.RasterizerState = nullptr;
-	//PSOInitializeToCheck.BlendState = nullptr;
-	//PSOInitializeToCheck.PrimitiveType = PT_TriangleList;
-	//PSOInitializeToCheck.ImmutableSamplerState = FImmutableSamplerState();
-	//PSOInitializeToCheck.BoundShaderState.VertexDeclarationRHI = nullptr;
-	//PSOInitializeToCheck.UniqueEntry = false;
-	
-	// Recompute the hash when disabling certain states for checks
-	//PSOInitializeToCheck.ComputePrecachePSOHash();
-
-	return PSOInitializeToCheck;
+	FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer;
+	ShadersOnlyInitializer.BoundShaderState = Initializer.BoundShaderState;
+	ShadersOnlyInitializer.BoundShaderState.VertexDeclarationRHI = nullptr;
+	ShadersOnlyInitializer.ComputePrecachePSOHash();
+	return ShadersOnlyInitializer;
 }
 
-void PSOCollectorStats::AddMinimalPipelineStateToCache(const FGraphicsMinimalPipelineStateInitializer& PSOInitialize, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
+FGraphicsMinimalPipelineStateInitializer PSOCollectorStats::PatchMinimalPipelineStateToCheck(const FGraphicsMinimalPipelineStateInitializer& Initializer)
 {
-	if (!IsPrecachingValidationEnabled())
-	{
-		return;
-	}
+	FGraphicsMinimalPipelineStateInitializer PatchedInitializer = Initializer;
+	//PatchedInitializer.DepthStencilState = nullptr;
+	//PatchedInitializer.RasterizerState = nullptr;
+	//PatchedInitializer.BlendState = nullptr;
+	//PatchedInitializer.PrimitiveType = PT_TriangleList;
+	//PatchedInitializer.ImmutableSamplerState = FImmutableSamplerState();
+	//PatchedInitializer.BoundShaderState.VertexDeclarationRHI = nullptr;
+	//PatchedInitializer.UniqueEntry = false;
 
-	check(VertexFactoryType == nullptr || VertexFactoryType->SupportsPSOPrecaching());
+	// Recompute the hash when disabling certain states for checks.
+	//PatchedInitializer.ComputePrecachePSOHash();
 
-	// Update the Shader only stats ignoring all state 
-	{
-		FScopeLock Lock(&PSOShadersPrecacheLock);
-		FGraphicsMinimalPipelineStateInitializer PSOInitializeToCheck;
-		PSOInitializeToCheck.BoundShaderState = PSOInitialize.BoundShaderState;
-		PSOInitializeToCheck.BoundShaderState.VertexDeclarationRHI = nullptr;
-		PSOInitializeToCheck.ComputePrecachePSOHash();
-
-		Experimental::FHashElementId TableId = PSOShadersPrecacheMap.FindId(PSOInitializeToCheck);
-		if (!TableId.IsValid())
-		{
-			TableId = PSOShadersPrecacheMap.FindOrAddId(PSOInitializeToCheck, FShaderStateUsage());
-
-		}
-
-		FShaderStateUsage& Value = PSOShadersPrecacheMap.GetByElementId(TableId).Value;
-		if (!Value.bPrecached)
-		{
-			PSOShadersPrecacheStats.PrecacheData.UpdateStats(MeshPassType, VertexFactoryType);
-			Value.bPrecached = true;
-		}
-	}
-
-	// Update the minimal PSO stats - optionally removing certain fields via PatchMinimalPipelineStateToCheck
-	{
-		FScopeLock Lock(&MinimalPSOPrecacheLock);
-		FGraphicsMinimalPipelineStateInitializer PSOInitializeToCheck  = PatchMinimalPipelineStateToCheck(PSOInitialize);
-		check(PSOInitializeToCheck.PrecachePSOHash != 0);
-
-		Experimental::FHashElementId TableId = MinimalPSOPrecacheMap.FindId(PSOInitializeToCheck.PrecachePSOHash);
-		if (!TableId.IsValid())
-		{
-			TableId = MinimalPSOPrecacheMap.FindOrAddId(PSOInitializeToCheck.PrecachePSOHash, FShaderStateUsage());
-
-		}
-
-		FShaderStateUsage& Value = MinimalPSOPrecacheMap.GetByElementId(TableId).Value;
-		if (!Value.bPrecached)
-		{
-			MinimalPSOPrecacheStats.PrecacheData.UpdateStats(MeshPassType, VertexFactoryType);
-			Value.bPrecached = true;
-		}
-	}
-}
-
-void PSOCollectorStats::CheckMinimalPipelineStateInCache(const FGraphicsMinimalPipelineStateInitializer& PSOInitialize, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
-{
-	if (!IsPrecachingValidationEnabled())
-	{
-		return;
-	}
-
-	const EShadingPath ShadingPath = FSceneInterface::GetShadingPath(GMaxRHIFeatureLevel);
-	bool bCollectPSOs = FPSOCollectorCreateManager::GetCreateFunction(ShadingPath, MeshPassType) != nullptr;
-	bool bTracked = bCollectPSOs && (VertexFactoryType == nullptr || VertexFactoryType->SupportsPSOPrecaching());
-
-	// Enable this when we want to check the actual RHI shader resources during this function - slightly slower and don't need to be retrieved here yet
-	//PSOInitialize.BoundShaderState.AsBoundShaderState();
-	
-	// Update the Shader only stats ignoring all state
-	{
-		FScopeLock Lock(&PSOShadersPrecacheLock);
-		FGraphicsMinimalPipelineStateInitializer PSOInitializeToCheck;
-		PSOInitializeToCheck.BoundShaderState = PSOInitialize.BoundShaderState;
-		PSOInitializeToCheck.BoundShaderState.VertexDeclarationRHI = nullptr;
-		PSOInitializeToCheck.ComputePrecachePSOHash();
-
-		Experimental::FHashElementId TableId = PSOShadersPrecacheMap.FindId(PSOInitializeToCheck);
-		if (!TableId.IsValid())
-		{
-			TableId = PSOShadersPrecacheMap.FindOrAddId(PSOInitializeToCheck, FShaderStateUsage());
-		}
-
-		FShaderStateUsage& Value = PSOShadersPrecacheMap.GetByElementId(TableId).Value;
-		if (!Value.bUsed)
-		{
-			PSOShadersPrecacheStats.UsageData.UpdateStats(MeshPassType, VertexFactoryType);
-			if (!bTracked)
-			{
-				PSOShadersPrecacheStats.UntrackedData.UpdateStats(MeshPassType, VertexFactoryType);
-			}
-			else if (!Value.bPrecached)
-			{
-				PSOShadersPrecacheStats.MissData.UpdateStats(MeshPassType, VertexFactoryType);
-			}
-			else
-			{
-				PSOShadersPrecacheStats.HitData.UpdateStats(MeshPassType, VertexFactoryType);
-			}
-
-			Value.bUsed = true;
-		}
-	}
-
-	// Update the minimal PSO stats - optionally removing certain fields via PatchMinimalPipelineStateToCheck
-	{
-		FScopeLock Lock(&MinimalPSOPrecacheLock);
-		FGraphicsMinimalPipelineStateInitializer PSOInitializeToCheck = PatchMinimalPipelineStateToCheck(PSOInitialize);
-		check(PSOInitializeToCheck.PrecachePSOHash != 0);
-
-		Experimental::FHashElementId TableId = MinimalPSOPrecacheMap.FindId(PSOInitializeToCheck.PrecachePSOHash);
-		if (!TableId.IsValid())
-		{
-			TableId = MinimalPSOPrecacheMap.FindOrAddId(PSOInitializeToCheck.PrecachePSOHash, FShaderStateUsage());
-		}
-
-		FShaderStateUsage& Value = MinimalPSOPrecacheMap.GetByElementId(TableId).Value;
-		if (!Value.bUsed)
-		{
-			MinimalPSOPrecacheStats.UsageData.UpdateStats(MeshPassType, VertexFactoryType);
-			if (!bTracked)
-			{
-				MinimalPSOPrecacheStats.UntrackedData.UpdateStats(MeshPassType, VertexFactoryType);
-			}
-			else if (!Value.bPrecached)
-			{
-				MinimalPSOPrecacheStats.MissData.UpdateStats(MeshPassType, VertexFactoryType);
-			}
-			else
-			{
-				MinimalPSOPrecacheStats.HitData.UpdateStats(MeshPassType, VertexFactoryType);
-			}
-
-			Value.bUsed = true;
-		}
-	}
+	return PatchedInitializer;
 }
 
 #endif // PSO_PRECACHING_VALIDATE
-

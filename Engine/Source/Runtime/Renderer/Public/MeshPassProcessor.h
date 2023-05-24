@@ -2009,9 +2009,8 @@ protected:
 
 namespace PSOCollectorStats
 {
-	// Add, check & track the minimal PSO initializer during precaching and MeshDrawCommand building
-	RENDERER_API extern void AddMinimalPipelineStateToCache(const FGraphicsMinimalPipelineStateInitializer& PipelineStateInitializer, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
-	RENDERER_API extern void CheckMinimalPipelineStateInCache(const FGraphicsMinimalPipelineStateInitializer& PSOInitialize, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
+	RENDERER_API extern FGraphicsMinimalPipelineStateInitializer GetShadersOnlyInitializer(const FGraphicsMinimalPipelineStateInitializer& Initializer);
+	RENDERER_API extern FGraphicsMinimalPipelineStateInitializer PatchMinimalPipelineStateToCheck(const FGraphicsMinimalPipelineStateInitializer& Initializer);
 }
 
 #endif // PSO_PRECACHING_VALIDATE

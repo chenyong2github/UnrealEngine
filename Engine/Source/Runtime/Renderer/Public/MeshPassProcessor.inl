@@ -108,7 +108,10 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	VertexFactory->GetStreams(FeatureLevel, InputStreamType, SharedMeshDrawCommand.VertexStreams);
 
 #if PSO_PRECACHING_VALIDATE
-	PSOCollectorStats::CheckMinimalPipelineStateInCache(PipelineState, (uint32)MeshPassType, VertexFactory->GetType());
+	FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(PipelineState);
+	PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().CheckStateInCacheByHash(ShadersOnlyInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactory->GetType());
+	FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(PipelineState);
+	PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().CheckStateInCacheByHash(PatchedMinimalInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactory->GetType());
 #endif // PSO_PRECACHING_VALIDATE
 
 	SharedMeshDrawCommand.PrimitiveIdStreamIndex = static_cast<int8>(VertexFactory->GetPrimitiveIdStreamIndex(FeatureLevel, InputStreamType));
@@ -275,7 +278,10 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 
 	MinimalPipelineStateInitializer.ComputePrecachePSOHash();
 #if PSO_PRECACHING_VALIDATE
-	PSOCollectorStats::AddMinimalPipelineStateToCache(MinimalPipelineStateInitializer, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
+	FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(MinimalPipelineStateInitializer);
+	PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().AddStateToCacheByHash(ShadersOnlyInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
+	FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(MinimalPipelineStateInitializer);
+	PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().AddStateToCacheByHash(PatchedMinimalInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
 #endif // PSO_PRECACHING_VALIDATE
 
 	// NOTE: AsGraphicsPipelineStateInitializer will create the RHIShaders internally if they are not cached yet

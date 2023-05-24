@@ -13,6 +13,34 @@
 #include "Materials/MaterialInterface.h"
 #include "MaterialShared.h"
 
+/**
+* Different IHVs and drivers can have different opinions on what subset of a PSO
+* matters for caching. We track multiple PSO subsets, ranging from shaders-only
+* to the full PSO created by the RHI. Generally, a precaching miss on a minimal
+* state has worse consequences than a miss on the full state.
+*/
+DECLARE_STATS_GROUP(TEXT("PSOPrecache"), STATGROUP_PSOPrecache, STATCAT_Advanced);
+
+// Stats tracking shaders-only PSOs (everything except shaders is ignored).
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Shaders-only PSO Precache Miss Count"), STAT_ShadersOnlyPSOPrecacheMissCount, STATGROUP_PSOPrecache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Shaders-only PSO Precache Miss (Untracked) Count"), STAT_ShadersOnlyPSOPrecacheUntrackedCount, STATGROUP_PSOPrecache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Shaders-only PSO Precache Hit Count"), STAT_ShadersOnlyPSOPrecacheHitCount, STATGROUP_PSOPrecache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Shaders-only PSO Precache Used Count"), STAT_ShadersOnlyPSOPrecacheUsedCount, STATGROUP_PSOPrecache);
+
+// Stats tracking minimal PSOs (render target state is ignored).
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Minimal PSO Precache Miss Count"), STAT_MinimalPSOPrecacheMissCount, STATGROUP_PSOPrecache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Minimal PSO Precache Miss (Untracked) Count"), STAT_MinimalPSOPrecacheUntrackedCount, STATGROUP_PSOPrecache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Minimal PSO Precache Hit Count"), STAT_MinimalPSOPrecacheHitCount, STATGROUP_PSOPrecache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Minimal PSO Precache Used Count"), STAT_MinimalPSOPrecacheUsedCount, STATGROUP_PSOPrecache);
+
+// Stats tracking full PSOs (the ones used by the RHI).
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Full PSO Precache Miss Count"), STAT_FullPSOPrecacheMissCount, STATGROUP_PSOPrecache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Full PSO Precache Miss (Untracked) Count"), STAT_FullPSOPrecacheUntrackedCount, STATGROUP_PSOPrecache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Full PSO Precache Hit Count"), STAT_FullPSOPrecacheHitCount, STATGROUP_PSOPrecache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Full PSO Precache Used Count"), STAT_FullPSOPrecacheUsedCount, STATGROUP_PSOPrecache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Full PSO Precache Too Late Count"), STAT_FullPSOPrecacheTooLateCount, STATGROUP_PSOPrecache);
+
+
 static TAutoConsoleVariable<int32> CVarPrecacheGlobalComputeShaders(
 	TEXT("r.PSOPrecache.GlobalComputeShaders"),
 	0,
@@ -71,7 +99,7 @@ FPSOPrecacheRequestResultArray PrecachePSOs(const TArray<FPSOPrecacheData>& PSOI
 		case FPSOPrecacheData::EType::Graphics:
 		{
 #if PSO_PRECACHING_VALIDATE
-			PSOCollectorStats::AddPipelineStateToCache(PrecacheData.GraphicsPSOInitializer, PrecacheData.MeshPassType, PrecacheData.VertexFactoryType);
+			PSOCollectorStats::GetFullPSOPrecacheStatsCollector().AddStateToCacheByHash(RHIComputePrecachePSOHash(PrecacheData.GraphicsPSOInitializer), PrecacheData.MeshPassType, PrecacheData.VertexFactoryType);
 #endif // PSO_PRECACHING_VALIDATE
 
 			FPSOPrecacheRequestResult PSOPrecacheResult = PipelineStateCache::PrecacheGraphicsPipelineState(PrecacheData.GraphicsPSOInitializer);
@@ -84,7 +112,9 @@ FPSOPrecacheRequestResultArray PrecachePSOs(const TArray<FPSOPrecacheData>& PSOI
 		case FPSOPrecacheData::EType::Compute:
 		{
 #if PSO_PRECACHING_VALIDATE
-			PSOCollectorStats::AddComputeShaderToCache(PrecacheData.ComputeShader, PrecacheData.MeshPassType);
+			FSHAHash ShaderHash = PrecacheData.ComputeShader->GetHash();
+			uint64 PSOHash = *reinterpret_cast<const uint64*>(&ShaderHash.Hash);
+			PSOCollectorStats::GetFullPSOPrecacheStatsCollector().AddStateToCacheByHash(PSOHash, PrecacheData.MeshPassType, nullptr);
 #endif // PSO_PRECACHING_VALIDATE
 
 			FPSOPrecacheRequestResult PSOPrecacheResult = PipelineStateCache::PrecacheComputePipelineState(PrecacheData.ComputeShader);
@@ -479,182 +509,122 @@ static FAutoConsoleVariableRef CVarValidatePSOPrecaching(
 	ECVF_ReadOnly
 );
 
-// Stats for the complete PSO
-static FCriticalSection FullPSOPrecacheLock;
-static PSOCollectorStats::FPrecacheStats FullPSOPrecacheStats;
-
-// Cache stats on hash - TODO: should use FGraphicsPipelineStateInitializer as key and use FGraphicsPSOInitializerKeyFuncs for search
-static Experimental::TRobinHoodHashMap<uint64, PSOCollectorStats::FShaderStateUsage> FullPSOPrecacheMap;
-
 int32 PSOCollectorStats::IsPrecachingValidationEnabled()
 {
 	return PipelineStateCache::IsPSOPrecachingEnabled() && GValidatePrecaching;
 }
 
-void PSOCollectorStats::AddPipelineStateToCache(const FGraphicsPipelineStateInitializer& PSOInitializer, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
+void PSOCollectorStats::FPrecacheStatsCollector::AddStateToCacheByHash(uint64 PrecacheStateHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
 {
-	if (!GValidatePrecaching)
-	{
+	if (!IsPrecachingValidationEnabled()) {
 		return;
 	}
 
-	uint64 PrecachePSOHash = RHIComputePrecachePSOHash(PSOInitializer);
+	FScopeLock Lock(&StatsLock);
 
-	FScopeLock Lock(&FullPSOPrecacheLock);
-
-	Experimental::FHashElementId TableId = FullPSOPrecacheMap.FindId(PrecachePSOHash);
+	Experimental::FHashElementId TableId = HashedStateMap.FindId(PrecacheStateHash);
 	if (!TableId.IsValid())
 	{
-		TableId = FullPSOPrecacheMap.FindOrAddId(PrecachePSOHash, FShaderStateUsage());
+		TableId = HashedStateMap.FindOrAddId(PrecacheStateHash, FShaderStateUsage());
 	}
 
-	FShaderStateUsage& Value = FullPSOPrecacheMap.GetByElementId(TableId).Value;
+	FShaderStateUsage& Value = HashedStateMap.GetByElementId(TableId).Value;
 	if (!Value.bPrecached)
 	{
-		FullPSOPrecacheStats.PrecacheData.UpdateStats(MeshPassType, VertexFactoryType);
+		Stats.PrecacheData.UpdateStats(MeshPassType, VertexFactoryType);
 		Value.bPrecached = true;
 	}
 }
 
-EPSOPrecacheResult PSOCollectorStats::CheckPipelineStateInCache(const FGraphicsPipelineStateInitializer& PSOInitializer, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
-{
-	if (!GValidatePrecaching)
-	{
-		return EPSOPrecacheResult::Unknown;
-	}
-
-	bool bUpdateStats = false;
+bool PSOCollectorStats::FPrecacheStatsCollector::IsStateTracked(uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType) {
 	bool bTracked = true;
-	if (MeshPassType < FPSOCollectorCreateManager::MaxPSOCollectorCount && VertexFactoryType)
-	{
+	if (MeshPassType < FPSOCollectorCreateManager::MaxPSOCollectorCount) {
 		const EShadingPath ShadingPath = FSceneInterface::GetShadingPath(GMaxRHIFeatureLevel);
 		bool bCollectPSOs = FPSOCollectorCreateManager::GetCreateFunction(ShadingPath, MeshPassType) != nullptr;
-		bTracked = bCollectPSOs && VertexFactoryType->SupportsPSOPrecaching();
-
-		bUpdateStats = true;
+		bTracked = bCollectPSOs && (VertexFactoryType == nullptr || VertexFactoryType->SupportsPSOPrecaching());
 	}
-	EPSOPrecacheResult PrecacheResult = EPSOPrecacheResult::NotSupported;
-
-	// only search the cache if it's tracked
-	if (bTracked)
-	{
-		PrecacheResult = PipelineStateCache::CheckPipelineStateInCache(PSOInitializer);
-	}
-
-	if (bUpdateStats)
-	{
-		uint64 PrecachePSOHash = RHIComputePrecachePSOHash(PSOInitializer);
-
-		FScopeLock Lock(&FullPSOPrecacheLock);
-
-		Experimental::FHashElementId TableId = FullPSOPrecacheMap.FindId(PrecachePSOHash);
-		if (!TableId.IsValid())
-		{
-			TableId = FullPSOPrecacheMap.FindOrAddId(PrecachePSOHash, FShaderStateUsage());
-		}
-
-		FShaderStateUsage& Value = FullPSOPrecacheMap.GetByElementId(TableId).Value;
-		if (!Value.bUsed)
-		{
-			FullPSOPrecacheStats.UsageData.UpdateStats(MeshPassType, VertexFactoryType);
-			if (!bTracked)
-			{
-				FullPSOPrecacheStats.UntrackedData.UpdateStats(MeshPassType, VertexFactoryType);
-			}
-			else if (!Value.bPrecached)
-			{
-				check(PrecacheResult == EPSOPrecacheResult::Missed);
-				FullPSOPrecacheStats.MissData.UpdateStats(MeshPassType, VertexFactoryType);
-			}
-			else if (PrecacheResult == EPSOPrecacheResult::Active)
-			{
-				FullPSOPrecacheStats.TooLateData.UpdateStats(MeshPassType, VertexFactoryType);
-			}
-			else
-			{
-				check(PrecacheResult == EPSOPrecacheResult::Complete);
-				FullPSOPrecacheStats.HitData.UpdateStats(MeshPassType, VertexFactoryType);
-			}
-
-			Value.bUsed = true;
-		}
-	}
-
-	return PrecacheResult;
+	return bTracked;
 }
 
-void PSOCollectorStats::AddComputeShaderToCache(FRHIComputeShader* ComputeShader, uint32 MeshPassType)
-{
-	if (!GValidatePrecaching)
-	{
-		return;
-	}
+void PSOCollectorStats::FPrecacheStatsCollector::UpdatePrecacheStats(uint64 PrecacheHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType, bool bTracked, EPSOPrecacheResult PrecacheResult) {
+	FScopeLock Lock(&StatsLock);
 
-	FSHAHash ShaderHash = ComputeShader->GetHash();
-	uint64 PrecachePSOHash = *reinterpret_cast<const uint64*>(ShaderHash.Hash);
-
-	FScopeLock Lock(&FullPSOPrecacheLock);
-
-	Experimental::FHashElementId TableId = FullPSOPrecacheMap.FindId(PrecachePSOHash);
+	Experimental::FHashElementId TableId = HashedStateMap.FindId(PrecacheHash);
 	if (!TableId.IsValid())
 	{
-		TableId = FullPSOPrecacheMap.FindOrAddId(PrecachePSOHash, FShaderStateUsage());
+		TableId = HashedStateMap.FindOrAddId(PrecacheHash, FShaderStateUsage());
 	}
 
-	FShaderStateUsage& Value = FullPSOPrecacheMap.GetByElementId(TableId).Value;
-	if (!Value.bPrecached)
+	FShaderStateUsage& Value = HashedStateMap.GetByElementId(TableId).Value;
+
+	// Only update stats once per state.
+	if (!Value.bUsed)
 	{
-		FullPSOPrecacheStats.PrecacheData.UpdateStats(MeshPassType, nullptr);
-		Value.bPrecached = true;
+		Stats.UsageData.UpdateStats(MeshPassType, VertexFactoryType);
+		if (!UsedStatFName.IsNone()) 
+		{
+			INC_DWORD_STAT_FName(UsedStatFName);
+		}
+
+		if (!bTracked)
+		{
+			Stats.UntrackedData.UpdateStats(MeshPassType, VertexFactoryType);
+			if (!UntrackedStatFName.IsNone()) 
+			{
+				INC_DWORD_STAT_FName(UntrackedStatFName);
+			}
+		}
+		else if (!Value.bPrecached)
+		{
+			Stats.MissData.UpdateStats(MeshPassType, VertexFactoryType);
+			if (!MissStatFName.IsNone()) 
+			{
+				INC_DWORD_STAT_FName(MissStatFName);
+			}
+		}
+		else if (PrecacheResult == EPSOPrecacheResult::Active)
+		{
+			Stats.TooLateData.UpdateStats(MeshPassType, VertexFactoryType);
+			if (!TooLateStatFName.IsNone()) 
+			{
+				INC_DWORD_STAT_FName(TooLateStatFName);
+			}
+		}
+		else
+		{
+			Stats.HitData.UpdateStats(MeshPassType, VertexFactoryType);
+			if (!HitStatFName.IsNone()) 
+			{
+				INC_DWORD_STAT_FName(HitStatFName);
+			}
+		}
+
+		Value.bUsed = true;
 	}
 }
 
-EPSOPrecacheResult PSOCollectorStats::CheckComputeShaderInCache(FRHIComputeShader* ComputeShader, uint32 MeshPassType)
+static PSOCollectorStats::FPrecacheStatsCollector FullPSOPrecacheStatsCollector(
+	GET_STATFNAME(STAT_FullPSOPrecacheUntrackedCount), GET_STATFNAME(STAT_FullPSOPrecacheMissCount), GET_STATFNAME(STAT_FullPSOPrecacheHitCount), GET_STATFNAME(STAT_FullPSOPrecacheUsedCount), GET_STATFNAME(STAT_FullPSOPrecacheTooLateCount));
+
+static PSOCollectorStats::FPrecacheStatsCollector ShadersOnlyPSOPrecacheStatsCollector(
+	GET_STATFNAME(STAT_ShadersOnlyPSOPrecacheUntrackedCount), GET_STATFNAME(STAT_ShadersOnlyPSOPrecacheMissCount), GET_STATFNAME(STAT_ShadersOnlyPSOPrecacheHitCount), GET_STATFNAME(STAT_ShadersOnlyPSOPrecacheUsedCount));
+
+static PSOCollectorStats::FPrecacheStatsCollector MinimalPSOPrecacheStatsCollector(
+	GET_STATFNAME(STAT_MinimalPSOPrecacheUntrackedCount), GET_STATFNAME(STAT_MinimalPSOPrecacheMissCount), GET_STATFNAME(STAT_MinimalPSOPrecacheHitCount), GET_STATFNAME(STAT_MinimalPSOPrecacheUsedCount));
+
+PSOCollectorStats::FPrecacheStatsCollector& PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector()
 {
-	if (!GValidatePrecaching)
-	{
-		return EPSOPrecacheResult::Unknown;
-	}
+	return ShadersOnlyPSOPrecacheStatsCollector;
+}
 
-	bool bTracked = true;
+PSOCollectorStats::FPrecacheStatsCollector& PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector()
+{
+	return MinimalPSOPrecacheStatsCollector;
+}
 
-	EPSOPrecacheResult PrecacheResult = PipelineStateCache::CheckPipelineStateInCache(ComputeShader);
-	{
-		FSHAHash ShaderHash = ComputeShader->GetHash();
-		uint64 PrecachePSOHash = *reinterpret_cast<const uint64*>(ShaderHash.Hash);
-
-		FScopeLock Lock(&FullPSOPrecacheLock);
-
-		Experimental::FHashElementId TableId = FullPSOPrecacheMap.FindId(PrecachePSOHash);
-		if (!TableId.IsValid())
-		{
-			TableId = FullPSOPrecacheMap.FindOrAddId(PrecachePSOHash, FShaderStateUsage());
-		}
-
-		FShaderStateUsage& Value = FullPSOPrecacheMap.GetByElementId(TableId).Value;
-		if (!Value.bUsed)
-		{
-			FullPSOPrecacheStats.UsageData.UpdateStats(MeshPassType, nullptr);
-			if (!bTracked)
-			{
-				FullPSOPrecacheStats.UntrackedData.UpdateStats(MeshPassType, nullptr);
-			}
-			else if (!Value.bPrecached)
-			{
-				check(PrecacheResult == EPSOPrecacheResult::Missed);
-				FullPSOPrecacheStats.MissData.UpdateStats(MeshPassType, nullptr);
-			}
-			else
-			{
-				check(PrecacheResult == EPSOPrecacheResult::Active || PrecacheResult == EPSOPrecacheResult::Complete);
-				FullPSOPrecacheStats.HitData.UpdateStats(MeshPassType, nullptr);
-			}
-
-			Value.bUsed = true;
-		}
-	}
-
-	return PrecacheResult;
+PSOCollectorStats::FPrecacheStatsCollector& PSOCollectorStats::GetFullPSOPrecacheStatsCollector()
+{
+	return FullPSOPrecacheStatsCollector;
 }
 
 #endif // PSO_PRECACHING_VALIDATE

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	MeshPassProcessorManager.h
+	PSOPrecache.h
 =============================================================================*/
 
 #pragma once
@@ -427,25 +427,70 @@ namespace PSOCollectorStats
 		FPrecacheUsageData UntrackedData;		//< PSOs which are used during rendering but are currently not precached because for example the MeshPassProcessor or VertexFactory type don't support PSO precaching yet
 	};
 
-	/**
-	 * Add PSO initializer to cache for validation & state tracking
-	 */
-	extern ENGINE_API void AddPipelineStateToCache(const FGraphicsPipelineStateInitializer& PSOInitializer, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
+	class ENGINE_API FPrecacheStatsCollector
+	{
+	public:
+		FPrecacheStatsCollector(FName UntrackedStatFName = FName(), FName MissStatFName = FName(), FName HitStatFName = FName(), FName UsedStatFName = FName(), FName TooLateStatFName = FName())
+			:UntrackedStatFName(UntrackedStatFName),
+			MissStatFName(MissStatFName),
+			HitStatFName(HitStatFName),
+			UsedStatFName(UsedStatFName),
+			TooLateStatFName(TooLateStatFName)
+		{
+		}
 
-	/**
-	 * Is the requested graphics PSO initializer precached (only PSO relevant data is checked)
-	 */
-	extern ENGINE_API EPSOPrecacheResult CheckPipelineStateInCache(const FGraphicsPipelineStateInitializer& PSOInitializer, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
+		void AddStateToCacheByHash(const uint64 PrecacheStateHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
 
-	/**
-	 * Add compute shader to cache for validation & state tracking
-	 */
-	extern ENGINE_API void AddComputeShaderToCache(FRHIComputeShader* ComputeShader, uint32 MeshPassType);
+		template <typename TPrecacheState>
+		EPSOPrecacheResult CheckStateInCache(const TPrecacheState& PrecacheState, const uint64 PrecacheStateHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
+		{
+			if (!IsPrecachingValidationEnabled()) {
+				return EPSOPrecacheResult::Unknown;
+			}
 
-	/**
-	 * Is the requested compute shader precached
-	 */
-	extern ENGINE_API EPSOPrecacheResult CheckComputeShaderInCache(FRHIComputeShader* ComputeShader, uint32 MeshPassType);
+			bool bTracked = IsStateTracked(MeshPassType, VertexFactoryType);		
+
+			// Only search the cache if it's tracked.
+			EPSOPrecacheResult PrecacheResult = EPSOPrecacheResult::NotSupported;
+			if (bTracked)
+			{
+				PrecacheResult = PipelineStateCache::CheckPipelineStateInCache(PrecacheState);
+			}
+
+			UpdatePrecacheStats(PrecacheStateHash, MeshPassType, VertexFactoryType, bTracked, PrecacheResult);
+			
+			return PrecacheResult;
+		}
+
+		void CheckStateInCacheByHash(const uint64 PrecacheStateHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
+		{
+			if (!IsPrecachingValidationEnabled()) {
+				return;
+			}
+
+			bool bTracked = IsStateTracked(MeshPassType, VertexFactoryType);
+			UpdatePrecacheStats(PrecacheStateHash, MeshPassType, VertexFactoryType, bTracked, EPSOPrecacheResult::Unknown);
+		}
+
+	private:
+		bool IsStateTracked(uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
+
+		void UpdatePrecacheStats(uint64 PrecacheHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType, bool bTracked, EPSOPrecacheResult PrecacheResult);
+
+		FCriticalSection StatsLock;
+		FPrecacheStats Stats;
+		Experimental::TRobinHoodHashMap<uint64, FShaderStateUsage> HashedStateMap;
+
+		FName UntrackedStatFName;
+		FName MissStatFName;
+		FName HitStatFName;
+		FName UsedStatFName;
+		FName TooLateStatFName;
+	};
+
+	extern ENGINE_API FPrecacheStatsCollector& GetShadersOnlyPSOPrecacheStatsCollector();
+	extern ENGINE_API FPrecacheStatsCollector& GetMinimalPSOPrecacheStatsCollector();
+	extern ENGINE_API FPrecacheStatsCollector& GetFullPSOPrecacheStatsCollector();
 }
 
 #endif // PSO_PRECACHING_VALIDATE

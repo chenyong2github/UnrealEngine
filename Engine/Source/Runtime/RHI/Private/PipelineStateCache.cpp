@@ -36,10 +36,10 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Runtime Graphics PSO Hitch Count"), STAT_Ru
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Runtime Compute PSO Hitch Count"), STAT_RuntimeComputePSOHitchCount, STATGROUP_PipelineStateCache);
 
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Active Graphics PSO Precache Requests"), STAT_ActiveGraphicsPSOPrecacheRequests, STATGROUP_PipelineStateCache);
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Active Compute PSO Precache Requestst"), STAT_ActiveComputePSOPrecacheRequests, STATGROUP_PipelineStateCache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Active Compute PSO Precache Requests"), STAT_ActiveComputePSOPrecacheRequests, STATGROUP_PipelineStateCache);
 
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("High Priority Graphics PSO Precache Requests"), STAT_HighPriorityGraphicsPSOPrecacheRequests, STATGROUP_PipelineStateCache);
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("High Priority Compute PSO Precache Requestst"), STAT_HighPriorityComputePSOPrecacheRequests, STATGROUP_PipelineStateCache);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("High Priority Compute PSO Precache Requests"), STAT_HighPriorityComputePSOPrecacheRequests, STATGROUP_PipelineStateCache);
 
 static inline uint32 GetTypeHash(const FBoundShaderStateInput& Input)
 {
@@ -2572,10 +2572,12 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 	}
 #endif
 
+	// Precache PSOs should never go through here.
+	ensure(!Initializer.bPSOPrecache);
+
 	FGraphicsPipelineState* OutCachedState = nullptr;
 
 	bool bWasFound = GGraphicsPipelineCache.Find(Initializer, OutCachedState);
-    ensure(!Initializer.bPSOPrecache);
 	bool DoAsyncCompile = IsAsyncCompilationAllowed(RHICmdList, Initializer.bFromPSOFileCache);
 
 	if (bWasFound == false)
