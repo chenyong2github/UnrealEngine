@@ -522,6 +522,7 @@ FPostProcessSettings::FPostProcessSettings()
 	LensFlareBokehSize = 3.0f;
 	LensFlareThreshold = 8.0f;
 	VignetteIntensity = 0.4f;
+	Sharpen = 0.0f;
 	GrainIntensity_DEPRECATED = 0.0f;
 	GrainJitter_DEPRECATED = 0.0f;
 

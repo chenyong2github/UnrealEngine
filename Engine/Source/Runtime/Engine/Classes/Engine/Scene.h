@@ -940,6 +940,9 @@ struct FPostProcessSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_VignetteIntensity:1;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_Sharpen:1;
+
 	UPROPERTY()
 	uint8 bOverride_GrainIntensity_DEPRECATED:1;
 
@@ -1900,6 +1903,10 @@ struct FPostProcessSettings
 	/** 0..1 0=off/no vignette .. 1=strong vignette */
 	UPROPERTY(interp, BlueprintReadWrite, Category="Lens|Image Effects", meta=(UIMin = "0.0", UIMax = "1.0", editcondition = "bOverride_VignetteIntensity"))
 	float VignetteIntensity;
+
+	/** Controls the strength of image sharpening applied during tonemapping. */
+	UPROPERTY(interp, BlueprintReadWrite, Category = "Lens|Image Effects", meta = (ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "2.0", editcondition = "bOverride_Sharpen"))
+	float Sharpen;
 
 	UPROPERTY()
 	float GrainJitter_DEPRECATED;

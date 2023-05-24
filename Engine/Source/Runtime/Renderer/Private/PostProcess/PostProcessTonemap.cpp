@@ -33,9 +33,10 @@ namespace
 {
 TAutoConsoleVariable<float> CVarTonemapperSharpen(
 	TEXT("r.Tonemapper.Sharpen"),
-	0,
+	-1,
 	TEXT("Sharpening in the tonemapper (not for mobile), actual implementation is work in progress, clamped at 10\n")
-	TEXT("   0: off(default)\n")
+	TEXT("  <0: inherit from PostProcessVolume settings (default)\n")
+	TEXT("   0: off\n")
 	TEXT(" 0.5: half strength\n")
 	TEXT("   1: full strength"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
@@ -117,6 +118,13 @@ bool ShouldCompileCommonPermutation(const FGlobalShaderPermutationParameters& Pa
 	return true;
 }
 
+static float GetSharpenSetting(const FPostProcessSettings& Settings)
+{
+	float CVarSharpen = CVarTonemapperSharpen.GetValueOnRenderThread();
+	float Sharpen = CVarSharpen >= 0.0 ? CVarSharpen : Settings.Sharpen;
+	return FMath::Clamp(Sharpen, 0.0f, 10.0f);
+}
+
 // Common conversion of engine settings into.
 FCommonDomain BuildCommonPermutationDomain(const FViewInfo& View, bool bGammaOnly, bool bLocalExposure, bool bMetalMSAAHDRDecode)
 {
@@ -138,7 +146,7 @@ FCommonDomain BuildCommonPermutationDomain(const FViewInfo& View, bool bGammaOnl
 	PermutationVector.Set<FTonemapperBloomDim>(Settings.BloomIntensity > 0.0);
 	PermutationVector.Set<FTonemapperLocalExposureDim>(bLocalExposure);
 	PermutationVector.Set<FTonemapperFilmGrainDim>(View.FilmGrainTexture != nullptr);
-	PermutationVector.Set<FTonemapperSharpenDim>(CVarTonemapperSharpen.GetValueOnRenderThread() > 0.0f);
+	PermutationVector.Set<FTonemapperSharpenDim>(GetSharpenSetting(Settings) > 0.0f);
 	PermutationVector.Set<FTonemapperMsaaDim>(bMetalMSAAHDRDecode);
 	return PermutationVector;
 }
@@ -615,7 +623,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	FRHISamplerState* BilinearClampSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	FRHISamplerState* PointClampSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	const float SharpenDiv6 = FMath::Clamp(CVarTonemapperSharpen.GetValueOnRenderThread(), 0.0f, 10.0f) / 6.0f;
+	const float SharpenDiv6 = TonemapperPermutation::GetSharpenSetting(View.FinalPostProcessSettings) / 6.0f;
 
 	FVector4f ChromaticAberrationParams;
 

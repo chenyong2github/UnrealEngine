@@ -236,6 +236,16 @@ FScreenPassTexture AddVisualizeTemporalUpscalerPass(FRDGBuilder& GraphBuilder, c
 				}
 				QuickDrawSummary(/* Location = */ 4, TEXT("Support Alpha: ") + Text);
 			}
+
+			// Display if any additional sharpening is happening
+			{
+				static auto CVarSharpen = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Tonemapper.Sharpen"));
+				check(CVarSharpen);
+				float Sharpen = CVarSharpen->GetFloat();
+				Sharpen = (Sharpen < 0) ? View.FinalPostProcessSettings.Sharpen : Sharpen;
+				QuickDrawSummary(/* Location = */ 5, Sharpen > 0 ? FString::Printf(TEXT("Tonemapper Sharpen: %f"), Sharpen) : TEXT("Tonemapper Sharpen: Off"));
+			}
+
 		});
 
 	}
