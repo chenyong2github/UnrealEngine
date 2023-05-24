@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Net/Core/NetCoreModule.h"
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
@@ -10,7 +11,12 @@
 #include "Net/Core/NetHandle/NetHandleManager.h"
 #include "Net/Serialization/FastArraySerializer.h"
 
-TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters(TEXT("net.EnableDetailedScopeCounters"), 1, TEXT("Enables detailed networking scope cycle counters. There are often lots of these which can negatively impact performance."));
+extern bool GUseDetailedScopeCounters;
+static FAutoConsoleVariableRef CVarNetEnableDetailedScopeCounters(
+	TEXT("net.EnableDetailedScopeCounters"),
+	GUseDetailedScopeCounters,
+	TEXT("Enables detailed networking scope cycle counters. There are often lots of these which can negatively impact performance."),
+	ECVF_Default);
 
 DEFINE_LOG_CATEGORY(LogNetFastTArray);
 
