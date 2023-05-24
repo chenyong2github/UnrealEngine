@@ -665,13 +665,29 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 		.AutoHeight()
 		.HAlign(HAlign_Fill)
 		[
-			SAssignNew(Slider, SSpinBox<float>)
-			.Value(this, &SCustomizableInstanceProperties::GetSliderValue, SliderIndex)
-			.MinValue(CustomizableObject->GetParameterUIMetadataFromIndex(ParamIndexInObject).ParamUIMetadata.MinimumValue)
-			.MaxValue(CustomizableObject->GetParameterUIMetadataFromIndex(ParamIndexInObject).ParamUIMetadata.MaximumValue)
-			.OnValueChanged(this, &SCustomizableInstanceProperties::OnFloatParameterChanged, SliderIndex)
-			.OnBeginSliderMovement(this, &SCustomizableInstanceProperties::OnFloatParameterSliderBegin)
-			.OnEndSliderMovement(this, &SCustomizableInstanceProperties::OnFloatParameterSliderEnd)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(0.9f)
+			[
+				SAssignNew(Slider, SSpinBox<float>)
+				.Value(this, &SCustomizableInstanceProperties::GetSliderValue, SliderIndex)
+				.MinValue(CustomizableObject->GetParameterUIMetadataFromIndex(ParamIndexInObject).ParamUIMetadata.MinimumValue)
+				.MaxValue(CustomizableObject->GetParameterUIMetadataFromIndex(ParamIndexInObject).ParamUIMetadata.MaximumValue)
+				.OnValueChanged(this, &SCustomizableInstanceProperties::OnFloatParameterChanged, SliderIndex)
+				.OnBeginSliderMovement(this, &SCustomizableInstanceProperties::OnFloatParameterSliderBegin)
+				.OnEndSliderMovement(this, &SCustomizableInstanceProperties::OnFloatParameterSliderEnd)
+			]
+			
+			+ SHorizontalBox::Slot().AutoWidth().Padding(2.5f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.OnClicked(this, &SCustomizableInstanceProperties::OnResetParameterButtonClicked, ParamIndexInObject)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+				]
+			]
 
 		];
 
@@ -722,15 +738,31 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 			.FillWidth(8.0f)
 			.Padding(0.2f, 2.0f)
 			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Fill)
+			//.VAlign(VAlign_Fill)
 			[
-				SNew(SMutableTextSearchBox)
-				.ToolTipText(FText::FromString(ToolTipText))
-				.PossibleSuggestions(OptionNamesAttribute)
-				.InitialText(FText::FromString(OptionNamesAttribute[ValueIndex]))
-				.MustMatchPossibleSuggestions(TAttribute<bool>(true))
-				.SuggestionListPlacement(EMenuPlacement::MenuPlacement_ComboBox)
-				.OnTextCommitted(this, &SCustomizableInstanceProperties::OnIntParameterComboBoxChanged, ParamName)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(0.9f)
+				[
+					SNew(SMutableTextSearchBox)
+					.ToolTipText(FText::FromString(ToolTipText))
+					.PossibleSuggestions(OptionNamesAttribute)
+					.InitialText(FText::FromString(OptionNamesAttribute[ValueIndex]))
+					.MustMatchPossibleSuggestions(TAttribute<bool>(true))
+					.SuggestionListPlacement(EMenuPlacement::MenuPlacement_ComboBox)
+					.OnTextCommitted(this, &SCustomizableInstanceProperties::OnIntParameterComboBoxChanged, ParamName)
+				]
+
+				+ SHorizontalBox::Slot().AutoWidth().Padding(2.5f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SButton)
+					.OnClicked(this, &SCustomizableInstanceProperties::OnResetParameterButtonClicked, ParamIndexInObject)
+					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+					.Content()
+					[
+						SNew(SImage)
+						.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+					]
+				]
 			];
 		}
 		else
@@ -756,13 +788,30 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 		.FillWidth(10.f)
 		.Padding(2.0f)
 		[
-			SNew(SColorBlock)
-			.Color(this, &SCustomizableInstanceProperties::GetColorParameterValue, ParamName)
-			.ShowBackgroundForAlpha(false)
-			.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
-			.UseSRGB(false)
-			.OnMouseButtonDown(this, &SCustomizableInstanceProperties::OnColorBlockMouseButtonDown, ParamName)
-			.Size(FVector2D(10.0f, 10.0f))
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot().FillWidth(0.9f)
+			[
+				SNew(SColorBlock)
+				.Color(this, &SCustomizableInstanceProperties::GetColorParameterValue, ParamName)
+				.ShowBackgroundForAlpha(false)
+				.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
+				.UseSRGB(false)
+				.OnMouseButtonDown(this, &SCustomizableInstanceProperties::OnColorBlockMouseButtonDown, ParamName)
+				.Size(FVector2D(10.0f, 10.0f))
+			]
+			
+			+ SHorizontalBox::Slot().AutoWidth().Padding(2.5f,0.0f,0.0f,0.0f)
+			[
+				SNew(SButton)
+				.OnClicked(this, &SCustomizableInstanceProperties::OnResetParameterButtonClicked, ParamIndexInObject)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+				]
+			]
+
 		];
 
 		break;
@@ -790,10 +839,26 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 		.FillWidth(1.0f)
 		.Padding(2.0f)
 		[
-			SNew(STextComboBox)
-			.OptionsSource(&TextureParameterValueNames)
-			.InitiallySelectedItem(InitiallySelected)
-			.OnSelectionChanged(this, &SCustomizableInstanceProperties::OnTextureParameterComboBoxSelectionChanged, ParamName)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(0.9f)
+			[
+				SNew(STextComboBox)
+				.OptionsSource(&TextureParameterValueNames)
+				.InitiallySelectedItem(InitiallySelected)
+				.OnSelectionChanged(this, &SCustomizableInstanceProperties::OnTextureParameterComboBoxSelectionChanged, ParamName)
+			]
+
+			+ SHorizontalBox::Slot().AutoWidth().Padding(2.5f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.OnClicked(this, &SCustomizableInstanceProperties::OnResetParameterButtonClicked, ParamIndexInObject)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+				]
+			]
 		];
 		
 		break;
@@ -1384,26 +1449,11 @@ FReply SCustomizableInstanceProperties::OnResetAllParameters()
 	TArray<FCustomizableObjectIntParameterValue>& IntParameters = CustomInstance->GetIntParameters();
 	
 	const UCustomizableObject* CustomObject = CustomInstance->GetCustomizableObject();
-	for (int32 i = 0; i < IntParameters.Num(); ++i)
+	const int32 NumObjectParameter = CustomObject->GetParameterCount();
+
+	for (int32 ParameterIndex = 0; ParameterIndex < NumObjectParameter; ++ParameterIndex)
 	{
-		const int32 ParamIndexInObject = CustomObject->FindParameter(IntParameters[i].ParameterName);
-		if (ParamIndexInObject != INDEX_NONE)
-		{
-			const int32 NumOptions = CustomObject->GetIntParameterNumOptions(ParamIndexInObject);
-			for (int32 v = 0; v < NumOptions; ++v)
-			{
-				FString ValueName = CustomObject->GetIntParameterAvailableOption(ParamIndexInObject, v);
-				if (ValueName == "None")
-				{
-					IntParameters[i].ParameterValueName = "None";
-				}
-				break;
-			}
-		}
-		else
-		{
-			UE_LOG(LogMutable, Error, TEXT("Failed to find parameter."));
-		}
+		SetParameterValueToDefault(ParameterIndex);
 	}
 
 	CustomInstance->UpdateSkeletalMeshAsync(true, true);
@@ -2263,6 +2313,141 @@ void SCustomizableInstanceProperties::SetParameterProfileNamesOnEditor()
 bool SCustomizableInstanceProperties::HasAnyParameters() const
 {
 	return CustomInstance->HasAnyParameters();
+}
+
+
+bool SCustomizableInstanceProperties::SetParameterValueToDefault(int32 ParameterIndex)
+{
+	UCustomizableObject* CustomObject = CustomInstance->GetCustomizableObject();
+	FString ParameterName = CustomObject->GetParameterName(ParameterIndex);
+	EMutableParameterType ParameterType = CustomObject->GetParameterType(ParameterIndex);
+
+	// Checking if there are parameteres with the same name
+	if (ParameterType != CustomObject->GetParameterTypeByName(ParameterName))
+	{
+		return false;
+	}
+
+	switch (ParameterType)
+	{
+	case EMutableParameterType::None:
+		break;
+	case EMutableParameterType::Bool:
+	{
+		CustomInstance->SetBoolParameterSelectedOption(ParameterName, CustomObject->GetBoolParameterDefaultValue(ParameterName));
+		break;
+	}
+	case EMutableParameterType::Int:
+	{
+		int32 IndexValue = CustomObject->GetIntParameterDefaultValue(ParameterName);
+		FString DefaultValue = CustomObject->GetIntParameterAvailableOption(ParameterIndex, IndexValue);
+
+		if (!DefaultValue.IsEmpty())
+		{
+			if (CustomObject->IsParameterMultidimensional(ParameterName))
+			{
+				int32 NumRanges = CustomInstance->GetIntValueRange(ParameterName);
+
+				for (int32 RangeIndex = 0; RangeIndex < NumRanges; ++RangeIndex)
+				{
+					CustomInstance->SetIntParameterSelectedOption(ParameterName, DefaultValue, RangeIndex);
+				}
+			}
+			else
+			{
+				CustomInstance->SetIntParameterSelectedOption(ParameterName, DefaultValue);
+			}
+		}
+		break;
+	}
+	case EMutableParameterType::Float:
+	{
+		float DefaultValue = CustomObject->GetFloatParameterDefaultValue(ParameterName);
+
+		if (CustomObject->IsParameterMultidimensional(ParameterName))
+		{
+			int32 NumRanges = CustomInstance->GetFloatValueRange(ParameterName);
+
+			for (int32 RangeIndex = 0; RangeIndex < NumRanges; ++RangeIndex)
+			{
+				CustomInstance->SetFloatParameterSelectedOption(ParameterName, DefaultValue, RangeIndex);
+			}
+		}
+		else
+		{
+			CustomInstance->SetFloatParameterSelectedOption(ParameterName, DefaultValue);
+		}
+		break;
+	}
+	case EMutableParameterType::Color:
+	{
+		CustomInstance->SetColorParameterSelectedOption(ParameterName, CustomObject->GetColorParameterDefaultValue(ParameterName));
+		break;
+	}
+	case EMutableParameterType::Projector:
+	{
+		FCustomizableObjectProjector DefaultValue = CustomObject->GetProjectorParameterDefaultValue(ParameterName);
+
+		if (CustomObject->IsParameterMultidimensional(ParameterName))
+		{
+			int32 NumRanges = CustomInstance->GetProjectorValueRange(ParameterName);
+
+			for (int32 RangeIndex = 0; RangeIndex < NumRanges; ++RangeIndex)
+			{
+				CustomInstance->SetProjectorValue(ParameterName, FVector(DefaultValue.Position), FVector(DefaultValue.Direction), FVector(DefaultValue.Up), FVector(DefaultValue.Scale), DefaultValue.Angle, RangeIndex);
+			}
+		}
+		else
+		{
+			CustomInstance->SetProjectorValue(ParameterName, FVector(DefaultValue.Position), FVector(DefaultValue.Direction), FVector(DefaultValue.Up), FVector(DefaultValue.Scale), DefaultValue.Angle);
+		}
+
+		break;
+	}
+	case EMutableParameterType::Texture:
+	{
+		FString DefaultValue = CustomObject->GetTextureParameterDefaultValue(ParameterName);
+
+		if (CustomObject->IsParameterMultidimensional(ParameterName))
+		{
+			int32 NumRanges = CustomInstance->GetTextureValueRange(ParameterName);
+
+			for (int32 RangeIndex = 0; RangeIndex < NumRanges; ++RangeIndex)
+			{
+				CustomInstance->SetTextureParameterSelectedOption(ParameterName, DefaultValue, RangeIndex);
+			}
+		}
+		else
+		{
+			CustomInstance->SetTextureParameterSelectedOption(ParameterName, DefaultValue);
+		}
+		break;
+	}
+	default:
+	{
+		return false;
+		break;
+	}
+	}
+
+	return true;
+}
+
+
+FReply SCustomizableInstanceProperties::OnResetParameterButtonClicked(int32 ParameterIndex)
+{
+	if (UCustomizableObject* CustomObject = CustomInstance->GetCustomizableObject())
+	{
+		CustomInstance->PreEditChange(nullptr);
+		SetParameterValueToDefault(ParameterIndex);
+		CustomInstance->SetSelectedParameterProfileDirty();
+		CustomInstance->UpdateSkeletalMeshAsync(true, true);
+		CustomInstance->PostEditChange();
+
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
 }
 
 

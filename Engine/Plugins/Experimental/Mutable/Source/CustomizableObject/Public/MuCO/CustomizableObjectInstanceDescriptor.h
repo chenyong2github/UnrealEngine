@@ -203,6 +203,15 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 	/** Gets the range of values of the projector with ParamName, returns -1 if the parameter does not exist. */
 	int32 GetProjectorValueRange(const FString& ParamName) const;
 
+	/** Gets the range of values of the int with ParamName, returns -1 if the parameter does not exist. */
+	int32 GetIntValueRange(const FString& ParamName) const;
+
+	/** Gets the range of values of the float with ParamName, returns -1 if the parameter does not exist. */
+	int32 GetFloatValueRange(const FString& ParamName) const;
+
+	/** Gets the range of values of the texture with ParamName, returns -1 if the parameter does not exist. */
+	int32 GetTextureValueRange(const FString& ParamName) const;
+
 	/** Increases the range of values of the integer with ParamName, returns the index of the new integer value, -1 otherwise.
 	 * The added value is initialized with the first integer option and is the last one of the range. */
 	int32 AddValueToIntRange(const FString& ParamName);

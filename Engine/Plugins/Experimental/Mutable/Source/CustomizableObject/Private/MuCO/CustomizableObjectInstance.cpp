@@ -476,9 +476,28 @@ FString UCustomizableObjectInstance::GetDesc()
 	return FString::Printf(TEXT("Instance of [%s]"), *ObjectName);
 }
 
+
 int32 UCustomizableObjectInstance::GetProjectorValueRange(const FString& ParamName) const
 {
 	return Descriptor.GetProjectorValueRange(ParamName);
+}
+
+
+int32 UCustomizableObjectInstance::GetIntValueRange(const FString& ParamName) const
+{
+	return Descriptor.GetIntValueRange(ParamName);
+}
+
+
+int32 UCustomizableObjectInstance::GetFloatValueRange(const FString& ParamName) const
+{
+	return Descriptor.GetFloatValueRange(ParamName);
+}
+
+
+int32 UCustomizableObjectInstance::GetTextureValueRange(const FString& ParamName) const
+{
+	return Descriptor.GetTextureValueRange(ParamName);
 }
 
 

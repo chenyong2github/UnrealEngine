@@ -1912,6 +1912,47 @@ int32 FCustomizableObjectInstanceDescriptor::GetProjectorValueRange(const FStrin
 	return ProjectorParameters[ProjectorParamIndex].RangeValues.Num();
 }
 
+int32 FCustomizableObjectInstanceDescriptor::GetIntValueRange(const FString& ParamName) const
+{
+	check(CustomizableObject);
+
+	const int32 IntParamIndex = FindIntParameterNameIndex(ParamName);
+	if (IntParamIndex < 0)
+	{
+		return -1;
+	}
+
+	return IntParameters[IntParamIndex].ParameterRangeValueNames.Num();
+}
+
+
+int32 FCustomizableObjectInstanceDescriptor::GetFloatValueRange(const FString& ParamName) const
+{
+	check(CustomizableObject);
+
+	const int32 FloatParamIndex = FindFloatParameterNameIndex(ParamName);
+	if (FloatParamIndex < 0)
+	{
+		return -1;
+	}
+
+	return FloatParameters[FloatParamIndex].ParameterRangeValues.Num();
+}
+
+
+int32 FCustomizableObjectInstanceDescriptor::GetTextureValueRange(const FString& ParamName) const
+{
+	check(CustomizableObject);
+
+	const int32 TextureParamIndex = FindTextureParameterNameIndex(ParamName);
+	if (TextureParamIndex < 0)
+	{
+		return -1;
+	}
+
+	return TextureParameters[TextureParamIndex].ParameterRangeValues.Num();
+}
+
 
 int32 FCustomizableObjectInstanceDescriptor::AddValueToIntRange(const FString& ParamName)
 {

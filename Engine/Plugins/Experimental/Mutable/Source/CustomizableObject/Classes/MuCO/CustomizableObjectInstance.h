@@ -322,6 +322,15 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	int32 GetProjectorValueRange(const FString& ParamName) const;
+
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	int32 GetIntValueRange(const FString& ParamName) const;
+
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	int32 GetFloatValueRange(const FString& ParamName) const;
+
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	int32 GetTextureValueRange(const FString& ParamName) const;
 	
 	bool bShowOnlyRuntimeParameters = true;
 	bool bShowOnlyRelevantParameters = true;

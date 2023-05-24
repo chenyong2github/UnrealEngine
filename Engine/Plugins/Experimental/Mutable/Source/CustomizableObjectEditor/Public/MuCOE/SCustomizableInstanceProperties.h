@@ -231,6 +231,12 @@ private:
 	/*Search box that filters the Customizable Instance Properties*/
 	TSharedPtr<SSearchBox> SB_Properties;
 
+	/** Sets a parameter to its default value */
+	bool SetParameterValueToDefault(int32 ParameterIndex);
+
+	/** Callback for the OnButtonPressed of the parameter's reset button */
+	FReply OnResetParameterButtonClicked(int32 ParameterIndex);
+
 /*Profiles*/
 
 	/*Open the window to create a new profile*/
