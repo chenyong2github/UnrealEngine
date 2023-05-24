@@ -43,6 +43,7 @@
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
+#include "Insights/ViewModels/Filters.h"
 
 #include <limits>
 #include <memory>
@@ -52,8 +53,8 @@
 namespace Insights
 {
 
-const int SMemAllocTableTreeView::FullCallStackIndex = 0x0000FFFFF;
-const int SMemAllocTableTreeView::LLMFilterIndex = 0x0000FFFFE;
+const int32 SMemAllocTableTreeView::FullCallStackIndex = 0x0000FFFFF;
+const int32 SMemAllocTableTreeView::LLMFilterIndex = 0x0000FFFFE;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1263,41 +1264,56 @@ void SMemAllocTableTreeView::UpdateQueryInfo()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool SMemAllocTableTreeView::ApplyCustomAdvancedFilters(const FTableTreeNodePtr& NodePtr)
+void SMemAllocTableTreeView::UpdateFilterContext(const FFilterConfigurator& InFilterConfigurator, const FTableTreeNode& InNode) const
 {
-	// Super heavy to compute, validate that the filter has a use for this key before computing it
-	if (FilterConfigurator && FilterConfigurator->IsKeyUsed(FullCallStackIndex))
-	{
-		FMemAllocNodePtr MemNodePtr = StaticCastSharedPtr<FMemAllocNode>(NodePtr);
-		Context.SetFilterData<FString>(FullCallStackIndex, MemNodePtr->GetFullCallstack().ToString());
-	}
+	STableTreeView::UpdateFilterContext(InFilterConfigurator, InNode);
 
-	if (FilterConfigurator && FilterConfigurator->IsKeyUsed(LLMFilterIndex))
+	if (InNode.Is<FMemAllocNode>())
 	{
-		FMemAllocNodePtr MemNodePtr = StaticCastSharedPtr<FMemAllocNode>(NodePtr);
-		Context.SetFilterData<FString>(LLMFilterIndex, MemNodePtr->GetMemAlloc()->GetTag());
-	}
+		const FMemAllocNode& MemNode = InNode.As<FMemAllocNode>();
 
-	return true;
+		// GetFullCallstack is super heavy to compute. Validate that the filter has a use for this key before computing it.
+		if (InFilterConfigurator.IsKeyUsed(FullCallStackIndex))
+		{
+			FilterContext.SetFilterData<FString>(FullCallStackIndex, MemNode.GetFullCallstack().ToString());
+		}
+
+		if (InFilterConfigurator.IsKeyUsed(LLMFilterIndex))
+		{
+			FilterContext.SetFilterData<FString>(LLMFilterIndex, MemNode.GetMemAlloc()->GetTag());
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SMemAllocTableTreeView::AddCustomAdvancedFilters()
+void SMemAllocTableTreeView::InitFilterConfigurator(FFilterConfigurator& InOutFilterConfigurator)
 {
-	TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& AvailableFilters = FilterConfigurator->GetAvailableFilters();
+	STableTreeView::InitFilterConfigurator(InOutFilterConfigurator);
 
-	AvailableFilters->Add(MakeShared<FFilter>(FullCallStackIndex, LOCTEXT("FullCallstack", "Full Callstack"), LOCTEXT("SearchFullCallstack", "Search in all the callstack frames"), EFilterDataType::String, FFilterService::Get()->GetStringOperators()));
-	Context.AddFilterData<FString>(FullCallStackIndex, FString());
+	TSharedRef<FFilter> FullCallStackFilter = MakeShared<FFilter>(
+		FullCallStackIndex,
+		LOCTEXT("FullCallstack", "Full Callstack"),
+		LOCTEXT("SearchFullCallstack", "Search in all the callstack frames"),
+		EFilterDataType::String,
+		nullptr,
+		FFilterService::Get()->GetStringOperators());
+	FilterContext.AddFilterData<FString>(FullCallStackIndex, FString());
+	InOutFilterConfigurator.Add(FullCallStackFilter);
 
-	TSharedPtr<FFilterWithSuggestions> LLMCategoryFilter = MakeShared<FFilterWithSuggestions>(static_cast<int32>(LLMFilterIndex), LOCTEXT("LLMTag", "LLM Tag"), LOCTEXT("LLMTag", "LLM Tag"), EFilterDataType::String, FFilterService::Get()->GetStringOperators());
-	Context.AddFilterData<FString>(LLMFilterIndex, FString());
-	LLMCategoryFilter->Callback = [this](const FString& Text, TArray<FString>& OutSuggestions)
+	TSharedRef<FFilterWithSuggestions> LLMTagFilter = MakeShared<FFilterWithSuggestions>(
+		LLMFilterIndex,
+		LOCTEXT("LLMTag", "LLM Tag"),
+		LOCTEXT("LLMTag", "LLM Tag"),
+		EFilterDataType::String,
+		nullptr,
+		FFilterService::Get()->GetStringOperators());
+	FilterContext.AddFilterData<FString>(LLMFilterIndex, FString());
+	LLMTagFilter->SetCallback([this](const FString& Text, TArray<FString>& OutSuggestions)
 	{
 		this->PopulateLLMTagSuggestionList(Text, OutSuggestions);
-	};
-
-	AvailableFilters->Add(LLMCategoryFilter);
+	});
+	InOutFilterConfigurator.Add(LLMTagFilter);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

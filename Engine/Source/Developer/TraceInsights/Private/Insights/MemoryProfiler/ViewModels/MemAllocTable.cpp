@@ -923,14 +923,12 @@ void FMemAllocTable::AddDefaultColumns()
 		Column.SetTitleName(LOCTEXT("FunctionColumnTitle", "Top Function"));
 		Column.SetDescription(LOCTEXT("FunctionColumnDesc", "Resolved top function from the callstack of allocation"));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered | ETableColumnFlags::IsDynamic);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(550.0f);
 
 		Column.SetDataType(ETableCellDataType::Text);
-
-		Column.SetIsDynamic(true);
 
 		class FFunctionValueGetter : public FTableCellValueGetter
 		{
@@ -1026,14 +1024,12 @@ void FMemAllocTable::AddDefaultColumns()
 		Column.SetTitleName(LOCTEXT("SourceFileColumnTitle", "Top Source File"));
 		Column.SetDescription(LOCTEXT("SourceFileColumnDesc", "Source file of the top function from the callstack of allocation"));
 
-		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered | ETableColumnFlags::IsDynamic);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
 		Column.SetInitialWidth(550.0f);
 
 		Column.SetDataType(ETableCellDataType::Text);
-
-		Column.SetIsDynamic(true);
 
 		class FSourceValueGetter : public FTableCellValueGetter
 		{

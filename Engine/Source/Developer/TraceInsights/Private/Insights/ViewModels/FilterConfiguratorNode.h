@@ -57,18 +57,18 @@ public:
 
 	virtual ~FFilterConfiguratorNode() {}
 
-	void SetAvailableFilters(TSharedPtr<TArray<TSharedPtr<struct FFilter>>> InAvailableFilters);
-	TSharedPtr<TArray<TSharedPtr<struct FFilter>>> GetAvailableFilters() { return AvailableFilters; }
+	void SetAvailableFilters(TSharedPtr<TArray<TSharedPtr<FFilter>>> InAvailableFilters);
+	TSharedPtr<TArray<TSharedPtr<FFilter>>> GetAvailableFilters() { return AvailableFilters; }
 
-	void SetSelectedFilter(TSharedPtr<struct FFilter> InSelectedFilter);
-	TSharedPtr<struct FFilter> GetSelectedFilter() const { return SelectedFilter; }
+	void SetSelectedFilter(TSharedPtr<FFilter> InSelectedFilter);
+	TSharedPtr<FFilter> GetSelectedFilter() const { return SelectedFilter; }
 
-	void SetSelectedFilterOperator(TSharedPtr<class IFilterOperator> InSelectedFilterOperator) { SelectedFilterOperator = InSelectedFilterOperator; }
+	void SetSelectedFilterOperator(TSharedPtr<IFilterOperator> InSelectedFilterOperator) { SelectedFilterOperator = InSelectedFilterOperator; }
 	TSharedPtr<IFilterOperator> GetSelectedFilterOperator() const { return SelectedFilterOperator;	}
-	const TArray<TSharedPtr<struct FFilterGroupOperator>>& GetFilterGroupOperators();
+	const TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators();
 
-	void SetSelectedFilterGroupOperator(TSharedPtr<struct FFilterGroupOperator> InSelectedFilterGroupOperator) { SelectedFilterGroupOperator = InSelectedFilterGroupOperator; }
-	TSharedPtr<struct FFilterGroupOperator> GetSelectedFilterGroupOperator() const { return SelectedFilterGroupOperator; }
+	void SetSelectedFilterGroupOperator(TSharedPtr<FFilterGroupOperator> InSelectedFilterGroupOperator) { SelectedFilterGroupOperator = InSelectedFilterGroupOperator; }
+	TSharedPtr<FFilterGroupOperator> GetSelectedFilterGroupOperator() const { return SelectedFilterGroupOperator; }
 
 	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetAvailableFilterOperators() const {	return AvailableFilterOperators;	}
 
@@ -88,13 +88,13 @@ public:
 private:
 	FFilterConfiguratorNode& operator=(const FFilterConfiguratorNode& Other);
 
-	TSharedPtr<TArray<TSharedPtr<struct FFilter>>> AvailableFilters;
+	TSharedPtr<TArray<TSharedPtr<FFilter>>> AvailableFilters;
 
-	TSharedPtr<struct FFilter> SelectedFilter;
+	TSharedPtr<FFilter> SelectedFilter;
 
-	TSharedPtr<class IFilterOperator> SelectedFilterOperator;
+	TSharedPtr<IFilterOperator> SelectedFilterOperator;
 
-	TSharedPtr<struct FFilterGroupOperator> SelectedFilterGroupOperator;
+	TSharedPtr<FFilterGroupOperator> SelectedFilterGroupOperator;
 
 	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> AvailableFilterOperators;
 

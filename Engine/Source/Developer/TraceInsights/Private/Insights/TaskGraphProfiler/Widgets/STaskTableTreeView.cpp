@@ -250,7 +250,7 @@ void STaskTableTreeView::ConstructHeaderArea(TSharedRef<SVerticalBox> InWidgetCo
 		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 		.VAlign(VAlign_Center)
 		[
-			ConstructAdvancedFiltersButton()
+			ConstructFilterConfiguratorButton()
 		]
 	];
 

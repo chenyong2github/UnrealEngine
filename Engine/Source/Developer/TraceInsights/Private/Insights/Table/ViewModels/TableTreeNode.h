@@ -12,6 +12,7 @@ namespace Insights
 {
 
 class FTable;
+class STableTreeView;
 
 struct FTableRowId
 {
@@ -77,9 +78,11 @@ public:
 	FTableRowId GetRowId() const { return RowId; }
 	int32 GetRowIndex() const { return RowId.RowIndex; }
 
+	//////////////////////////////////////////////////
+	// Aggregation
+
 	void InitAggregatedValues()
 	{
-		ensure(IsGroup());
 		if (!AggregatedValues)
 		{
 			AggregatedValues = new TMap<FName, FTableCellValue>();
@@ -95,16 +98,52 @@ public:
 		}
 	}
 
-	void ResetAggregatedValues() { CleanupAggregatedValues(); }
-	void ResetAggregatedValues(const FName& ColumnId) { if (AggregatedValues) { AggregatedValues->Remove(ColumnId); } }
-	bool HasAggregatedValue(const FName& ColumnId) const { return AggregatedValues && AggregatedValues->Contains(ColumnId); }
-	const FTableCellValue* FindAggregatedValue(const FName& ColumnId) const { return AggregatedValues ? AggregatedValues->Find(ColumnId) : nullptr; }
-	const FTableCellValue& GetAggregatedValue(const FName& ColumnId) const { return AggregatedValues->FindChecked(ColumnId); }
-	void AddAggregatedValue(const FName& ColumnId, const FTableCellValue& Value) { InitAggregatedValues(); AggregatedValues->Add(ColumnId, Value); }
-	void SetAggregatedValue(const FName& ColumnId, const FTableCellValue& Value) { InitAggregatedValues(); (*AggregatedValues)[ColumnId] = Value; }
+	void ResetAggregatedValues()
+	{
+		CleanupAggregatedValues();
+	}
 
-	virtual bool IsFiltered() const override { return bIsFiltered; }
+	void ResetAggregatedValue(const FName& ColumnId)
+	{
+		if (AggregatedValues)
+		{
+			AggregatedValues->Remove(ColumnId);
+		}
+	}
+
+	bool HasAggregatedValue(const FName& ColumnId) const
+	{
+		return AggregatedValues && AggregatedValues->Contains(ColumnId);
+	}
+
+	const FTableCellValue* FindAggregatedValue(const FName& ColumnId) const
+	{
+		return AggregatedValues ? AggregatedValues->Find(ColumnId) : nullptr;
+	}
+
+	const FTableCellValue& GetAggregatedValue(const FName& ColumnId) const
+	{
+		return AggregatedValues->FindChecked(ColumnId);
+	}
+
+	void AddAggregatedValue(const FName& ColumnId, const FTableCellValue& Value)
+	{
+		InitAggregatedValues();
+		AggregatedValues->Add(ColumnId, Value);
+	}
+
+	void SetAggregatedValue(const FName& ColumnId, const FTableCellValue& Value)
+	{
+		InitAggregatedValues();
+		(*AggregatedValues)[ColumnId] = Value;
+	}
+
+	//////////////////////////////////////////////////
+
+	virtual bool IsFiltered() const { return bIsFiltered; }
 	virtual void SetIsFiltered(bool InValue) { bIsFiltered = InValue; }
+
+	virtual bool OnLazyCreateChildren(TSharedPtr<STableTreeView> InTableTreeView) { return false; }
 
 protected:
 	TWeakPtr<FTable> ParentTable;

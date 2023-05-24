@@ -45,9 +45,8 @@ enum class EFilterOperator : uint8
 class IFilterOperator
 {
 public:
-
-	virtual EFilterOperator GetKey() = 0;
-	virtual FString GetName() = 0;
+	virtual EFilterOperator GetKey() const = 0;
+	virtual FString GetName() const = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,13 +55,13 @@ template<typename T>
 class FFilterOperator : public IFilterOperator
 {
 public:
-	typedef TFunction<bool(T, T)> OperatorFunc;
+	typedef TFunction<bool(T, T)> FOperatorFunc;
 
 public:
-	FFilterOperator(EFilterOperator InKey, FString InName, OperatorFunc InFunc)
-		: Func(InFunc)
-		, Key(InKey)
+	FFilterOperator(EFilterOperator InKey, FString InName, FOperatorFunc InFunc)
+		: Key(InKey)
 		, Name(InName)
+		, Func(InFunc)
 	{
 	}
 
@@ -70,14 +69,15 @@ public:
 	{
 	}
 
-	virtual EFilterOperator GetKey() override { return Key; }
-	virtual FString GetName() override { return Name; };
+	virtual EFilterOperator GetKey() const override { return Key; }
+	virtual FString GetName() const override { return Name; };
 
-	OperatorFunc Func;
+	bool Apply(T InValueA, T InValueB) const { return Func(InValueA, InValueB); }
 
 private:
 	EFilterOperator Key;
 	FString Name;
+	FOperatorFunc Func;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -90,8 +90,9 @@ enum class EFilterGroupOperator
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FFilterGroupOperator
+class FFilterGroupOperator
 {
+public:
 	FFilterGroupOperator(EFilterGroupOperator InType, FText InName, FText InDesc)
 		: Type(InType)
 		, Name(InName)
@@ -99,6 +100,11 @@ struct FFilterGroupOperator
 	{
 	}
 
+	EFilterGroupOperator GetType() const { return Type; }
+	const FText& GetName() const { return Name; }
+	const FText& GetDesc() const { return Desc; }
+
+private:
 	EFilterGroupOperator Type;
 	FText Name;
 	FText Desc;
@@ -119,16 +125,17 @@ public:
 
 typedef TSharedPtr<const TArray<TSharedPtr<IFilterOperator>>> SupportedOperatorsArrayPtr;
 
-struct FFilter
+class FFilter
 {
 	INSIGHTS_DECLARE_RTTI_BASE(FFilter)
 
 public:
-	FFilter(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, SupportedOperatorsArrayPtr InSupportedOperators)
+	FFilter(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, TSharedPtr<IFilterValueConverter> InConverter, SupportedOperatorsArrayPtr InSupportedOperators)
 		: Key(InKey)
 		, Name(InName)
 		, Desc(InDesc)
 		, DataType(InDataType)
+		, Converter(InConverter)
 		, SupportedOperators(InSupportedOperators)
 	{
 	}
@@ -137,8 +144,14 @@ public:
 	{
 	}
 
+	int32 GetKey() const { return Key; }
+	const FText& GetName() const { return Name; }
+	const FText& GetDesc() const { return Desc; }
+	EFilterDataType GetDataType() const { return DataType; }
+	const TSharedPtr<IFilterValueConverter>& GetConverter() const { return Converter; }
 	SupportedOperatorsArrayPtr GetSupportedOperators() const { return SupportedOperators; }
 
+private:
 	int32 Key;
 	FText Name;
 	FText Desc;
@@ -149,15 +162,16 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FFilterWithSuggestions : FFilter
+class FFilterWithSuggestions : public FFilter
 {
-	typedef TFunction<void(const FString& /*Text*/, TArray<FString>& OutSuggestions)> GetSuggestionsCallback;
-
 	INSIGHTS_DECLARE_RTTI(FFilterWithSuggestions, FFilter)
 
 public:
-	FFilterWithSuggestions(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, SupportedOperatorsArrayPtr InSupportedOperators)
-		: FFilter(InKey, InName, InDesc, InDataType, InSupportedOperators)
+	typedef TFunction<void(const FString& /*Text*/, TArray<FString>& OutSuggestions)> FGetSuggestionsCallback;
+
+public:
+	FFilterWithSuggestions(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, TSharedPtr<IFilterValueConverter> InConverter, SupportedOperatorsArrayPtr InSupportedOperators)
+		: FFilter(InKey, InName, InDesc, InDataType, InConverter, InSupportedOperators)
 	{
 	}
 
@@ -165,7 +179,12 @@ public:
 	{
 	}
 
-	GetSuggestionsCallback Callback;
+	const FGetSuggestionsCallback& GetCallback() const { return Callback; }
+	void SetCallback(FGetSuggestionsCallback InCallback) { Callback = InCallback; }
+	void GetSuggestions(const FString& Text, TArray<FString>& OutSuggestions) { Callback(Text, OutSuggestions); }
+
+private:
+	FGetSuggestionsCallback Callback;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

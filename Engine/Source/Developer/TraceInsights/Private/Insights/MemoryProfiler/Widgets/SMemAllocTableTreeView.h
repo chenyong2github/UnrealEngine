@@ -119,8 +119,8 @@ private:
 	FText GetQueryInfoTooltip() const;
 
 	void UpdateQueryInfo();
-	bool virtual ApplyCustomAdvancedFilters(const FTableTreeNodePtr& NodePtr) override;
-	virtual void AddCustomAdvancedFilters() override;
+	virtual void UpdateFilterContext(const FFilterConfigurator& InFilterConfigurator, const FTableTreeNode& InNode) const override;
+	virtual void InitFilterConfigurator(FFilterConfigurator& InOutFilterConfigurator) override;
 
 	TSharedRef<SWidget> ConstructFunctionToggleButton();
 	void CallstackGroupingByFunction_OnCheckStateChanged(ECheckBoxState NewRadioState);
@@ -130,8 +130,8 @@ private:
 	void PopulateLLMTagSuggestionList(const FString& Text, TArray<FString>& OutSuggestions);
 
 private:
-	const static int FullCallStackIndex;
-	const static int LLMFilterIndex;
+	const static int32 FullCallStackIndex;
+	const static int32 LLMFilterIndex;
 	int32 TabIndex = -1;
 	TSharedPtr<FMemoryRuleSpec> Rule = nullptr;
 	double TimeMarkers[4];

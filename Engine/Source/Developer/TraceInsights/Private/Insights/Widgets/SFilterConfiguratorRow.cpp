@@ -19,7 +19,7 @@
 #include "Insights/InsightsStyle.h"
 #include "Insights/ViewModels/Filters.h"
 
-#define LOCTEXT_NAMESPACE "SFilterConfiguratorRow"
+#define LOCTEXT_NAMESPACE "Insights::SFilterConfiguratorRow"
 
 namespace Insights
 {
@@ -289,7 +289,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::AvailableFilters_OnGenerateWidget(TS
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.Text(InFilter->Name)
+			.Text(InFilter->GetName())
 			.Margin(2.0f)
 		];
 
@@ -317,12 +317,12 @@ TSharedRef<SWidget> SFilterConfiguratorRow::AvailableFilterOperators_OnGenerateW
 TSharedRef<SWidget> SFilterConfiguratorRow::FilterGroupOperators_OnGenerateWidget(TSharedPtr<FFilterGroupOperator> InFilterGroupOperator)
 {
 	TSharedRef<SHorizontalBox> Widget = SNew(SHorizontalBox);
-	Widget->SetToolTipText(InFilterGroupOperator->Desc);
+	Widget->SetToolTipText(InFilterGroupOperator->GetDesc());
 	Widget->AddSlot()
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.Text(InFilterGroupOperator->Name)
+			.Text(InFilterGroupOperator->GetName())
 			.Margin(2.0f)
 		];
 
@@ -333,9 +333,9 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const TArray<TSharedPtr<struct FFilter>>* SFilterConfiguratorRow::GetAvailableFilters()
+const TArray<TSharedPtr<FFilter>>* SFilterConfiguratorRow::GetAvailableFilters()
 {
-	return &*FilterConfiguratorNodePtr->GetAvailableFilters();
+	return FilterConfiguratorNodePtr->GetAvailableFilters().Get();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -354,7 +354,7 @@ void SFilterConfiguratorRow::AvailableFilters_OnSelectionChanged(TSharedPtr<FFil
 
 FText SFilterConfiguratorRow::AvailableFilters_GetSelectionText() const
 {
-	return FilterConfiguratorNodePtr->GetSelectedFilter()->Name;
+	return FilterConfiguratorNodePtr->GetSelectedFilter()->GetName();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -396,7 +396,7 @@ void SFilterConfiguratorRow::FilterGroupOperators_OnSelectionChanged(TSharedPtr<
 
 FText SFilterConfiguratorRow::FilterGroupOperators_GetSelectionText() const
 {
-	return FilterConfiguratorNodePtr->GetSelectedFilterGroupOperator()->Name;
+	return FilterConfiguratorNodePtr->GetSelectedFilterGroupOperator()->GetName();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -478,7 +478,7 @@ void SFilterConfiguratorRow::OnTextBoxValueCommitted(const FText& InNewText, ETe
 
 FText SFilterConfiguratorRow::GetTextBoxTooltipText() const
 {
-	TSharedPtr<IFilterValueConverter> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Converter;
+	const TSharedPtr<IFilterValueConverter>& Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->GetConverter();
 	if (Converter.IsValid())
 	{
 		return Converter->GetTooltipText();
@@ -491,7 +491,7 @@ FText SFilterConfiguratorRow::GetTextBoxTooltipText() const
 
 FText SFilterConfiguratorRow::GetTextBoxHintText() const
 {
-	TSharedPtr<IFilterValueConverter> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Converter;
+	const TSharedPtr<IFilterValueConverter>& Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->GetConverter();
 	if (Converter.IsValid())
 	{
 		return Converter->GetHintText();
@@ -504,15 +504,15 @@ FText SFilterConfiguratorRow::GetTextBoxHintText() const
 
 bool SFilterConfiguratorRow::TextBox_OnVerifyTextChanged(const FText& InText, FText& OutErrorMessage)
 {
-	TSharedPtr<IFilterValueConverter> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Converter;
+	const TSharedPtr<IFilterValueConverter>& Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->GetConverter();
 	if (Converter.IsValid())
 	{
-		if (FilterConfiguratorNodePtr->GetSelectedFilter()->DataType == EFilterDataType::Int64)
+		if (FilterConfiguratorNodePtr->GetSelectedFilter()->GetDataType() == EFilterDataType::Int64)
 		{
 			int64 Value;
 			return Converter->Convert(InText.ToString(), Value, OutErrorMessage);
 		}		
-		else if (FilterConfiguratorNodePtr->GetSelectedFilter()->DataType == EFilterDataType::Double)
+		else if (FilterConfiguratorNodePtr->GetSelectedFilter()->GetDataType() == EFilterDataType::Double)
 		{
 			double Value;
 			return Converter->Convert(InText.ToString(), Value, OutErrorMessage);
@@ -531,7 +531,7 @@ void SFilterConfiguratorRow::SuggestionTextBox_GetSuggestions(const FString& Tex
 	if (Filter->Is<FFilterWithSuggestions>())
 	{
 		TSharedPtr<FFilterWithSuggestions> FilterWithSuggestions = StaticCastSharedPtr<FFilterWithSuggestions>(Filter);
-		FilterWithSuggestions->Callback(Text, Suggestions);
+		FilterWithSuggestions->GetSuggestions(Text, Suggestions);
 	}
 }
 

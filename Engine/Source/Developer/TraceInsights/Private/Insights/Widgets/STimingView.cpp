@@ -2912,7 +2912,7 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 		{
 			double RangeStart = HoveredEvent->GetStartTime();
 			double RangeDuration = HoveredEvent->GetDuration();
-			
+
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ContextMenu_SelectEventTimeRange", "Select Time Range of Event"),
 				FText(),
@@ -4894,40 +4894,66 @@ void STimingView::QuickFind_Execute()
 	if (!QuickFindVm.IsValid())
 	{
 		TSharedPtr<FFilterConfigurator> NewFilterConfigurator = MakeShared<FFilterConfigurator>();
-		TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& AvailableFilters = NewFilterConfigurator->GetAvailableFilters();
-		TSharedPtr<FFilter> CurrentFilter;
 
-		CurrentFilter = AvailableFilters->Add_GetRef(MakeShared<FFilter>(static_cast<int32>(EFilterField::StartTime), LOCTEXT("StartTime", "Start Time"), LOCTEXT("StartTime", "Start Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
-		CurrentFilter->Converter = MakeShared<FTimeFilterValueConverter>();
+		NewFilterConfigurator->Add(MakeShared<FFilter>(
+			static_cast<int32>(EFilterField::StartTime),
+			LOCTEXT("StartTime", "Start Time"),
+			LOCTEXT("StartTime", "Start Time"),
+			EFilterDataType::Double,
+			MakeShared<FTimeFilterValueConverter>(),
+			FFilterService::Get()->GetDoubleOperators()));
 
-		CurrentFilter = AvailableFilters->Add_GetRef(MakeShared<FFilter>(static_cast<int32>(EFilterField::EndTime), LOCTEXT("EndTime", "End Time"), LOCTEXT("EndTime", "End Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
-		CurrentFilter->Converter = MakeShared<FTimeFilterValueConverter>();
+		NewFilterConfigurator->Add(MakeShared<FFilter>(
+			static_cast<int32>(EFilterField::EndTime),
+			LOCTEXT("EndTime", "End Time"),
+			LOCTEXT("EndTime", "End Time"),
+			EFilterDataType::Double,
+			MakeShared<FTimeFilterValueConverter>(),
+			FFilterService::Get()->GetDoubleOperators()));
 
-		CurrentFilter = AvailableFilters->Add_GetRef(MakeShared<FFilter>(static_cast<int32>(EFilterField::Duration), LOCTEXT("Duration", "Duration"), LOCTEXT("Duration", "Duration"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
-		CurrentFilter->Converter = MakeShared<FTimeFilterValueConverter>();
+		NewFilterConfigurator->Add(MakeShared<FFilter>(
+			static_cast<int32>(EFilterField::Duration),
+			LOCTEXT("Duration", "Duration"),
+			LOCTEXT("Duration", "Duration"),
+			EFilterDataType::Double,
+			MakeShared<FTimeFilterValueConverter>(),
+			FFilterService::Get()->GetDoubleOperators()));
 
-		TSharedPtr<FFilterWithSuggestions> TrackFilter = MakeShared<FFilterWithSuggestions>(static_cast<int32>(EFilterField::TrackName), LOCTEXT("Track", "Track"), LOCTEXT("Track", "Track"), EFilterDataType::String, FFilterService::Get()->GetStringOperators());
-		TrackFilter->Callback = [this](const FString& Text, TArray<FString>& OutSuggestions)
+		TSharedRef<FFilterWithSuggestions> TrackFilter = MakeShared<FFilterWithSuggestions>(
+			static_cast<int32>(EFilterField::TrackName),
+			LOCTEXT("Track", "Track"),
+			LOCTEXT("Track", "Track"),
+			EFilterDataType::String,
+			nullptr,
+			FFilterService::Get()->GetStringOperators());
+		TrackFilter->SetCallback([this](const FString& Text, TArray<FString>& OutSuggestions)
 		{
 			this->PopulateTrackSuggestionList(Text, OutSuggestions);
-		};
+		});
+		NewFilterConfigurator->Add(TrackFilter);
 
-		AvailableFilters->Add(TrackFilter);
-
-		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::TimerId), LOCTEXT("TimerId", "Timer Id"), LOCTEXT("TimerId", "Timer Id"), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
+		NewFilterConfigurator->Add(MakeShared<FFilter>(
+			static_cast<int32>(EFilterField::TimerId),
+			LOCTEXT("TimerId", "Timer Id"),
+			LOCTEXT("TimerId", "Timer Id"),
+			EFilterDataType::Int64,
+			nullptr,
+			FFilterService::Get()->GetIntegerOperators()));
 
 		TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> EventNameFilterOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
 		EventNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Eq, TEXT("Is"), [](int64 lhs, int64 rhs) { return lhs == rhs; })));
-
-		TSharedPtr<FFilterWithSuggestions> TimerNameFilter = MakeShared<FFilterWithSuggestions>(static_cast<int32>(EFilterField::TimerName), LOCTEXT("TimerName", "Timer Name"), LOCTEXT("TimerName", "Timer Name"), EFilterDataType::StringInt64Pair, EventNameFilterOperators);
-		TimerNameFilter->Callback = [this](const FString& Text, TArray<FString>& OutSuggestions)
+		TSharedRef<FFilterWithSuggestions> TimerNameFilter = MakeShared<FFilterWithSuggestions>(
+			static_cast<int32>(EFilterField::TimerName),
+			LOCTEXT("TimerName", "Timer Name"),
+			LOCTEXT("TimerName", "Timer Name"),
+			EFilterDataType::StringInt64Pair,
+			MakeShared<FEventNameFilterValueConverter>(),
+			EventNameFilterOperators);
+		TimerNameFilter->SetCallback([this](const FString& Text, TArray<FString>& OutSuggestions)
 		{
 			this->PopulateTimerNameSuggestionList(Text, OutSuggestions);
-		};
-
-		TimerNameFilter->Converter = MakeShared<FEventNameFilterValueConverter>();
-
-		AvailableFilters->Add(TimerNameFilter);
+		});
+		NewFilterConfigurator->Add(TimerNameFilter);
 
 		for (Insights::ITimingViewExtender* Extender : GetExtenders())
 		{

@@ -23,12 +23,12 @@ class ITableCellValueSorter;
 
 enum class ETableColumnFlags : uint32
 {
-	None = 0,
-
-	ShouldBeVisible = (1 << 0),
-	CanBeHidden     = (1 << 1),
-	CanBeFiltered   = (1 << 2),
-	IsHierarchy     = (1 << 3),
+	None            = 0,
+	ShouldBeVisible = (1 << 0), // Column should be initially visible.
+	CanBeHidden     = (1 << 1), // Column can be hidden.
+	CanBeFiltered   = (1 << 2), // Column can be used for filtering.
+	IsHierarchy     = (1 << 3), // Column is the hierarchy (name) column, in a tree view.
+	IsDynamic       = (1 << 4), // Column is dynamic. The column's value can not be cached.
 };
 ENUM_CLASS_FLAGS(ETableColumnFlags);
 
@@ -40,8 +40,6 @@ enum class ETableColumnAggregation : uint32
 	Sum,
 	Min,
 	Max,
-	//Average,
-	//Median,
 	SameValue
 };
 
@@ -64,7 +62,6 @@ public:
 		, TitleName()
 		, Description()
 		, bIsVisible(false)
-		, bIsDynamic(false)
 		, Flags(ETableColumnFlags::None)
 		, HorizontalAlignment(HAlign_Left)
 		, InitialWidth(60.0f)
@@ -115,11 +112,14 @@ public:
 	/** Whether this column can be hidden. */
 	bool CanBeHidden() const { return EnumHasAnyFlags(Flags, ETableColumnFlags::CanBeHidden); }
 
-	/** Whether this column can be used for filtering displayed results. */
+	/** Whether this column can be used for filtering. */
 	bool CanBeFiltered() const { return EnumHasAnyFlags(Flags, ETableColumnFlags::CanBeFiltered); }
 
-	/** Whether this column is the hierarcy (name) column, in a tree view. */
+	/** Whether this column is the hierarchy (name) column, in a tree view. */
 	bool IsHierarchy() const { return EnumHasAnyFlags(Flags, ETableColumnFlags::IsHierarchy); }
+
+	/** Whether this column is dynamic or not. If a column is dynamic, the column's value can not be cached. */
+	bool IsDynamic() const { return EnumHasAnyFlags(Flags, ETableColumnFlags::IsDynamic); }
 
 	void SetFlags(ETableColumnFlags InFlags) { Flags = InFlags; }
 
@@ -209,9 +209,6 @@ public:
 
 	//////////////////////////////////////////////////
 
-	void SetIsDynamic(bool InValue) { bIsDynamic = InValue; }
-	bool IsDynamic() const { return bIsDynamic; }
-
 private:
 	/** Id of the column. */
 	FName Id;
@@ -230,9 +227,6 @@ private:
 
 	/** Is this column visible? */
 	bool bIsVisible;
-
-	/** If it is not dynamic, the column's value can be cached. */
-	bool bIsDynamic;
 
 	/** Other on/off switches. */
 	ETableColumnFlags Flags;
@@ -254,7 +248,7 @@ private:
 	/** Custom getter for values identified by this column. */
 	TSharedRef<ITableCellValueGetter> ValueGetter;
 
-	/** Custom formater for values displayed by this column. */
+	/** Custom formatter for values displayed by this column. */
 	TSharedRef<ITableCellValueFormatter> ValueFormatter;
 
 	/** Custom sorter for values displayed by this column. */
@@ -263,7 +257,7 @@ private:
 	/** Initial sorting mode. */
 	EColumnSortMode::Type InitialSortMode;
 
-	/** Used to convert in a custom way from string to column data type in FilterConfigurator */
+	/** Used in FilterConfigurator to convert from string to column's data type. */
 	TSharedPtr<IFilterValueConverter> ValueConverter;
 
 	/* Parent table. Only one table instance can own this column. */

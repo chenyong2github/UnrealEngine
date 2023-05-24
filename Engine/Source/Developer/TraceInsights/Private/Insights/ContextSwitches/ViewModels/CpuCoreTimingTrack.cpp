@@ -427,7 +427,7 @@ bool FCpuCoreTimingTrack::HasCustomFilter() const
 	}
 
 	TSharedPtr<FFilterConfigurator> FilterConfigurator = TimingView->GetFilterConfigurator();
-	return FilterConfigurator.IsValid() && FilterConfigurator->GetRootNode().IsValid() && FilterConfigurator->GetRootNode()->GetChildren().Num() > 0;
+	return FilterConfigurator.IsValid() && !FilterConfigurator->IsEmpty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -84,16 +84,16 @@ FLinearColor FBaseTreeNode::GetDefaultColor(bool bIsGroupNode)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FBaseTreeNode::SortChildrenAscending(const ITableCellValueSorter& Sorter)
+void FBaseTreeNode::SortChildren(const ITableCellValueSorter& Sorter, ESortMode SortMode)
 {
-	Sorter.Sort(GroupData->Children, ESortMode::Ascending);
+	Sorter.Sort(GroupData->Children, SortMode);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FBaseTreeNode::SortChildrenDescending(const ITableCellValueSorter& Sorter)
+void FBaseTreeNode::SortFilteredChildren(const ITableCellValueSorter& Sorter, ESortMode SortMode)
 {
-	Sorter.Sort(GroupData->Children, ESortMode::Descending);
+	Sorter.Sort(GroupData->FilteredChildren, SortMode);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

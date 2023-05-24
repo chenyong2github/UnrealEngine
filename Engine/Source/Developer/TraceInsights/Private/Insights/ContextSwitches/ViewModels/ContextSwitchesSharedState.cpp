@@ -247,22 +247,25 @@ void FContextSwitchesSharedState::BuildSubMenu(FMenuBuilder& InMenuBuilder)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FContextSwitchesSharedState::AddQuickFindFilters(TSharedPtr<class FFilterConfigurator> FilterConfigurator)
+void FContextSwitchesSharedState::AddQuickFindFilters(TSharedPtr<FFilterConfigurator> FilterConfigurator)
 {
-	TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& AvailableFilters = FilterConfigurator->GetAvailableFilters();
-
 	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> CoreEventNameFilterOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
 	CoreEventNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Eq, TEXT("Is"), [](int64 lhs, int64 rhs) { return lhs == rhs; })));
 
-	TSharedPtr<FFilterWithSuggestions> TimerNameFilter = MakeShared<FFilterWithSuggestions>(static_cast<int32>(EFilterField::CoreEventName), LOCTEXT("CoreEventName", "Core Event Name"), LOCTEXT("CoreEventName", "Core Event Name"), EFilterDataType::StringInt64Pair, CoreEventNameFilterOperators);
-	TimerNameFilter->Callback = [this](const FString& Text, TArray<FString>& OutSuggestions)
+	TSharedRef<FFilterWithSuggestions> TimerNameFilter = MakeShared<FFilterWithSuggestions>(
+		static_cast<int32>(EFilterField::CoreEventName),
+		LOCTEXT("CoreEventName", "Core Event Name"),
+		LOCTEXT("CoreEventName", "Core Event Name"),
+		EFilterDataType::StringInt64Pair,
+		MakeShared<FCoreEventNameFilterValueConverter>(),
+		CoreEventNameFilterOperators);
+
+	TimerNameFilter->SetCallback([this](const FString& Text, TArray<FString>& OutSuggestions)
 	{
 		this->PopulateCoreEventNameSuggestionList(Text, OutSuggestions);
-	};
+	});
 
-	TimerNameFilter->Converter = MakeShared<FCoreEventNameFilterValueConverter>();
-
-	AvailableFilters->Add(TimerNameFilter);
+	FilterConfigurator->Add(TimerNameFilter);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

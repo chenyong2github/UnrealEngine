@@ -100,17 +100,6 @@ public:
 	const FText GetTextForAggregatedStatsMax(bool bForTooltip = false) const;
 	const FText GetTextForAggregatedStatsAverage(bool bForTooltip = false) const;
 
-	/** Sorts children using the specified class instance. */
-	template<typename TSortingClass>
-	void SortChildren(const TSortingClass& Instance)
-	{
-		auto Projection = [](Insights::FBaseTreeNodePtr Node) -> FNetStatsCounterNodePtr
-		{
-			return StaticCastSharedPtr<FNetStatsCounterNode, Insights::FBaseTreeNode>(Node);
-		};
-		Algo::SortBy(GetChildrenMutable(), Projection, Instance);
-	}
-
 private:
 	const FText FormatAggregatedStatsValue(uint32 Value) const;
 

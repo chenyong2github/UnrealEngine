@@ -246,17 +246,6 @@ public:
 	const FText GetTextForAggregatedStatsUpperQuartile(bool bForTooltip = false) const;
 	const FText GetTextForAggregatedStatsDiff(bool bForTooltip = false) const;
 
-	/** Sorts children using the specified class instance. */
-	template<typename TSortingClass>
-	void SortChildren(const TSortingClass& Instance)
-	{
-		auto Projection = [](Insights::FBaseTreeNodePtr Node) -> FStatsNodePtr
-		{
-			return StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(Node);
-		};
-		Algo::SortBy(GetChildrenMutable(), Projection, Instance);
-	}
-
 private:
 	/** The counter id provided by the analyzer. */
 	uint32 CounterId;

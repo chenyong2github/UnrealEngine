@@ -1201,7 +1201,7 @@ void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITim
 				}
 
 				InOutTooltip.AddNameValueTextLine(TEXT("Created:"), FString::Printf(TEXT("%f on %s"), Task.CreatedTimestamp, *GetTrackName(Task.CreatedThreadId)));
-				
+
 				InOutTooltip.AddNameValueTextLine(TEXT("Launched:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.LaunchedTimestamp, *TimeUtils::FormatTimeAuto(Task.LaunchedTimestamp - Task.CreatedTimestamp), *GetTrackName(Task.LaunchedThreadId)));
 
 				InOutTooltip.AddNameValueTextLine(TEXT("Scheduled:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.ScheduledTimestamp, *TimeUtils::FormatTimeAuto(Task.ScheduledTimestamp - Task.LaunchedTimestamp), *GetTrackName(Task.ScheduledThreadId)));
@@ -1749,12 +1749,38 @@ void FThreadTimingTrack::OnFilterTrackClicked()
 	if (!FilterConfigurator.IsValid())
 	{
 		FilterConfigurator = MakeShared<FFilterConfigurator>();
-		TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& AvailableFilters = FilterConfigurator->GetAvailableFilters();
 
-		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::StartTime), LOCTEXT("StartTime", "Start Time"), LOCTEXT("StartTime", "Start Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
-		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::EndTime), LOCTEXT("EndTime", "End Time"), LOCTEXT("EndTime", "End Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
-		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::Duration), LOCTEXT("Duration", "Duration"), LOCTEXT("Duration", "Duration"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
-		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::TimerId), LOCTEXT("TimerId", "Timer Id"), LOCTEXT("TimerId", "Timer Id"), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
+		FilterConfigurator->Add(MakeShared<FFilter>(
+			static_cast<int32>(EFilterField::StartTime),
+			LOCTEXT("StartTime", "Start Time"),
+			LOCTEXT("StartTime", "Start Time"),
+			EFilterDataType::Double,
+			nullptr,
+			FFilterService::Get()->GetDoubleOperators()));
+
+		FilterConfigurator->Add(MakeShared<FFilter>(
+			static_cast<int32>(EFilterField::EndTime),
+			LOCTEXT("EndTime", "End Time"),
+			LOCTEXT("EndTime", "End Time"),
+			EFilterDataType::Double,
+			nullptr,
+			FFilterService::Get()->GetDoubleOperators()));
+
+		FilterConfigurator->Add(MakeShared<FFilter>(
+			static_cast<int32>(EFilterField::Duration),
+			LOCTEXT("Duration", "Duration"),
+			LOCTEXT("Duration", "Duration"),
+			EFilterDataType::Double,
+			nullptr,
+			FFilterService::Get()->GetDoubleOperators()));
+
+		FilterConfigurator->Add(MakeShared<FFilter>(
+			static_cast<int32>(EFilterField::TimerId),
+			LOCTEXT("TimerId", "Timer Id"),
+			LOCTEXT("TimerId", "Timer Id"),
+			EFilterDataType::Int64,
+			nullptr,
+			FFilterService::Get()->GetIntegerOperators()));
 	}
 	else
 	{
@@ -1776,16 +1802,7 @@ void FThreadTimingTrack::OnFilterTrackClicked()
 
 bool FThreadTimingTrack::HasCustomFilter() const
 {
-	if (!FilterConfigurator.IsValid())
-	{
-		return false;
-	}
-	if (FilterConfigurator->GetRootNode().IsValid() && FilterConfigurator->GetRootNode()->GetChildren().Num() > 0)
-	{
-		return true;
-	}
-
-	return false;
+	return FilterConfigurator.IsValid() && !FilterConfigurator->IsEmpty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

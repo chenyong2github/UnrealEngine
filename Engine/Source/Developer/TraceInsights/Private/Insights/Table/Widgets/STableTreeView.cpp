@@ -146,7 +146,7 @@ STableTreeView::~STableTreeView()
 {
 	if (bRunInAsyncMode)
 	{
-		checkf(bIsCloseScheduled, TEXT("TableTreeView running in async mode was closed but OnClose() was not called. This can lead to a crash. Call OnClose() from the owner tab/window."))
+		ensureMsgf(bIsCloseScheduled, TEXT("TableTreeView running in async mode was closed but OnClose() was not called. This can lead to a crash. Call OnClose() from the owner tab/window."));
 	}
 
 	if (CurrentAsyncOpFilterConfigurator)
@@ -324,6 +324,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 		WidgetContent
 	];
 
+	InitNodeFiltering();
 	InitHierarchyFiltering();
 	InitializeAndShowHeaderColumns();
 	InitCommandList();
@@ -385,7 +386,7 @@ void STableTreeView::ConstructHeaderArea(TSharedRef<SVerticalBox> InWidgetConten
 		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 		.VAlign(VAlign_Center)
 		[
-			ConstructAdvancedFiltersButton()
+			ConstructFilterConfiguratorButton()
 		]
 	];
 
@@ -450,6 +451,8 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 {
+	FSlateApplication::Get().CloseToolTip();
+
 	TArray<FTableTreeNodePtr> SelectedNodes;
 	const int32 NumSelectedNodes = TreeView->GetSelectedItems(SelectedNodes);
 	FTableTreeNodePtr SelectedNode = NumSelectedNodes ? SelectedNodes[0] : nullptr;
@@ -916,52 +919,62 @@ void STableTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurr
 
 void STableTreeView::UpdateTree()
 {
-	if (bRunInAsyncMode)
-	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
-
-			FGraphEventRef CompletedEvent = StartGroupingTask();
-			CompletedEvent = StartSortingTask(CompletedEvent);
-			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
-	}
-	else
-	{
-		ApplyGrouping();
-		ApplySorting();
-		ApplyFiltering();
-	}
+	OnGroupingChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Node Filtering
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::OnFilteringChanged()
+void STableTreeView::InitNodeFiltering()
 {
-	if (bRunInAsyncMode)
-	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
+	// Filter Configurator is created when the Filter Configurator button is pressed.
+	//FilterConfigurator = nullptr;
+	//CurrentAsyncOpFilterConfigurator = nullptr;
+	//OnFilterChangesCommittedHandle = nullptr;
+}
 
-			InProgressAsyncOperationEvent = StartApplyFiltersTask();
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::OnNodeFilteringChanged()
+{
+	if (!bRunInAsyncMode)
+	{
+		ApplyNodeFiltering();
+	}
+	else if (!bIsUpdateRunning)
+	{
+		ScheduleNodeFilteringAsyncOperation();
 	}
 	else
 	{
-		ApplyFiltering();
+		CancelCurrentAsyncOp();
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::ScheduleNodeFilteringAsyncOperationIfNeeded()
+{
+	if (HasInProgressAsyncOperation(EAsyncOperationType::FilteringOp) ||
+		(FilterConfigurator.IsValid() &&
+		 CurrentAsyncOpFilterConfigurator &&
+		 *FilterConfigurator != *CurrentAsyncOpFilterConfigurator))
+	{
+		ScheduleNodeFilteringAsyncOperation();
+		return true;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ScheduleNodeFilteringAsyncOperation()
+{
+	OnPreAsyncUpdate();
+
+	InProgressAsyncOperationEvent = StartApplyFiltersTask();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -988,6 +1001,13 @@ FGraphEventRef STableTreeView::StartApplyFiltersTask(FGraphEventRef Prerequisite
 	}
 
 	return TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ApplyNodeFiltering()
+{
+	ApplyHierarchyFiltering();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1034,7 +1054,7 @@ bool STableTreeView::ApplyAdvancedFiltersForNode(FTableTreeNodePtr NodePtr)
 	}
 	else
 	{
-		bool bIsNodeVisible = ApplyAdvancedFilters(NodePtr);
+		bool bIsNodeVisible = FilterNode(NodePtr);
 		NodePtr->SetIsFiltered(!bIsNodeVisible);
 		return bIsNodeVisible;
 	}
@@ -1042,20 +1062,23 @@ bool STableTreeView::ApplyAdvancedFiltersForNode(FTableTreeNodePtr NodePtr)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
+bool STableTreeView::FilterNode(const FTableTreeNodePtr& NodePtr) const
 {
 	FFilterConfigurator* FilterConfiguratorToUse = bRunInAsyncMode ? CurrentAsyncOpFilterConfigurator : FilterConfigurator.Get();
 
-	if (FilterConfiguratorToUse == nullptr)
+	if (!FilterConfiguratorToUse || FilterConfiguratorToUse->IsEmpty())
 	{
 		return true;
 	}
 
-	if (FilterConfiguratorToUse->GetRootNode()->GetChildren().Num() == 0)
-	{
-		return true;
-	}
+	UpdateFilterContext(*FilterConfiguratorToUse, *NodePtr);
+	return FilterConfiguratorToUse->ApplyFilters(FilterContext);
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::InitFilterConfigurator(FFilterConfigurator& InOutFilterConfigurator)
+{
 	for (const TSharedRef<FTableColumn>& Column : Table->GetColumns())
 	{
 		if (!Column->CanBeFiltered())
@@ -1067,14 +1090,80 @@ bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 		{
 			case ETableCellDataType::Int64:
 			{
-				Context.SetFilterData<int64>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsInt64());
+				TSharedRef<FFilter> Filter = MakeShared<FFilter>(
+					Column->GetIndex(),
+					Column->GetTitleName(),
+					Column->GetDescription(),
+					EFilterDataType::Int64,
+					Column->GetValueConverter(),
+					FFilterService::Get()->GetIntegerOperators()
+				);
+				InOutFilterConfigurator.Add(Filter);
+				FilterContext.AddFilterData<int64>(Column->GetIndex(), 0);
 				break;
 			}
+
 			case ETableCellDataType::Double:
 			{
-				Context.SetFilterData<double>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsDouble());
+				TSharedRef<FFilter> Filter = MakeShared<FFilter>(
+					Column->GetIndex(),
+					Column->GetTitleName(),
+					Column->GetDescription(),
+					EFilterDataType::Double,
+					Column->GetValueConverter(),
+					FFilterService::Get()->GetDoubleOperators());
+				InOutFilterConfigurator.Add(Filter);
+				FilterContext.AddFilterData<double>(Column->GetIndex(), 0.0);
 				break;
 			}
+
+			case ETableCellDataType::CString:
+			case ETableCellDataType::Text:
+			case ETableCellDataType::Custom:
+			{
+				if (!Column->IsHierarchy())
+				{
+					TSharedRef<FFilter> Filter = MakeShared<FFilter>(
+						Column->GetIndex(),
+						Column->GetTitleName(),
+						Column->GetDescription(),
+						EFilterDataType::String,
+						Column->GetValueConverter(),
+						FFilterService::Get()->GetStringOperators());
+					InOutFilterConfigurator.Add(Filter);
+					FilterContext.AddFilterData<FString>(Column->GetIndex(), FString());
+				}
+				break;
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::UpdateFilterContext(const FFilterConfigurator& InFilterConfigurator, const FTableTreeNode& InNode) const
+{
+	for (const TSharedRef<FTableColumn>& Column : Table->GetColumns())
+	{
+		if (!Column->CanBeFiltered())
+		{
+			continue;
+		}
+
+		switch (Column->GetDataType())
+		{
+			case ETableCellDataType::Int64:
+			{
+				FilterContext.SetFilterData<int64>(Column->GetIndex(), Column->GetValue(InNode)->AsInt64());
+				break;
+			}
+
+			case ETableCellDataType::Double:
+			{
+				FilterContext.SetFilterData<double>(Column->GetIndex(), Column->GetValue(InNode)->AsDouble());
+				break;
+			}
+
 			case ETableCellDataType::CString:
 			case ETableCellDataType::Text:
 			case ETableCellDataType::Custom:
@@ -1082,29 +1171,27 @@ bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 				if (!Column->IsHierarchy())
 				{
 					// Converting string is heavy, check if the key is used for filtering before doing any conversion
-					if (FilterConfiguratorToUse->IsKeyUsed(Column->GetIndex()))
+					if (InFilterConfigurator.IsKeyUsed(Column->GetIndex()))
 					{
-						Context.SetFilterData<FString>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsString());
+						FilterContext.SetFilterData<FString>(Column->GetIndex(), Column->GetValue(InNode)->AsString());
 					}
 				}
 				break;
 			}
 		}
 	}
-
-	return ApplyCustomAdvancedFilters(NodePtr) && FilterConfiguratorToUse->ApplyFilters(Context);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-TSharedRef<SWidget> STableTreeView::ConstructAdvancedFiltersButton()
+TSharedRef<SWidget> STableTreeView::ConstructFilterConfiguratorButton()
 {
 	return SNew(SButton)
 		.ContentPadding(FMargin(-2.0f, 2.0f, -2.0f, 2.0f))
-		.ToolTipText(this, &STableTreeView::AdvancedFilters_GetTooltipText)
-		.OnClicked(this, &STableTreeView::OnAdvancedFiltersClicked)
-		.IsEnabled(this, &STableTreeView::AdvancedFilters_ShouldBeEnabled)
+		.IsEnabled(this, &STableTreeView::FilterConfigurator_IsEnabled)
+		.ToolTipText(this, &STableTreeView::FilterConfigurator_GetTooltipText)
+		.OnClicked(this, &STableTreeView::FilterConfigurator_OnClicked)
 		[
 			SNew(SImage)
 			.Image(FInsightsStyle::GetBrush("Icons.ClassicFilterConfig"))
@@ -1114,83 +1201,18 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply STableTreeView::OnAdvancedFiltersClicked()
-{
-	if (!FilterConfigurator.IsValid())
-	{
-		FilterConfigurator = MakeShared<FFilterConfigurator>();
-		TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& AvailableFilters = FilterConfigurator->GetAvailableFilters();
-
-		for (const TSharedRef<FTableColumn>& Column : Table->GetColumns())
-		{
-			if (!Column->CanBeFiltered())
-			{
-				continue;
-			}
-
-			switch (Column->GetDataType())
-			{
-				case ETableCellDataType::Int64:
-				{
-					AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
-					AvailableFilters->Last()->Converter = Column->GetValueConverter();
-					Context.AddFilterData<int64>(Column->GetIndex(), 0);
-					break;
-				}
-				case ETableCellDataType::Double:
-				{
-					AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
-					AvailableFilters->Last()->Converter = Column->GetValueConverter();
-					Context.AddFilterData<double>(Column->GetIndex(), 0.0);
-					break;
-				}
-				case ETableCellDataType::CString:
-				case ETableCellDataType::Text:
-				case ETableCellDataType::Custom:
-				{
-					if (!Column->IsHierarchy())
-					{
-						AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::String, FFilterService::Get()->GetStringOperators()));
-						AvailableFilters->Last()->Converter = Column->GetValueConverter();
-						Context.AddFilterData<FString>(Column->GetIndex(), FString());
-					}
-					break;
-				}
-			}
-		}
-
-		AddCustomAdvancedFilters();
-
-		CurrentAsyncOpFilterConfigurator = new FFilterConfigurator(*FilterConfigurator);
-		OnFilterChangesCommittedHandle = FilterConfigurator->GetOnChangesCommittedEvent().AddSP(this, &STableTreeView::OnAdvancedFiltersChangesCommitted);
-	}
-
-	FFilterService::Get()->CreateFilterConfiguratorWidget(FilterConfigurator);
-
-	return FReply::Handled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STableTreeView::OnAdvancedFiltersChangesCommitted()
-{
-	OnFilteringChanged();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STableTreeView::AdvancedFilters_ShouldBeEnabled() const
+bool STableTreeView::FilterConfigurator_IsEnabled() const
 {
 	return TextFilter->GetRawFilterText().IsEmpty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText STableTreeView::AdvancedFilters_GetTooltipText() const
+FText STableTreeView::FilterConfigurator_GetTooltipText() const
 {
-	if (AdvancedFilters_ShouldBeEnabled())
+	if (FilterConfigurator_IsEnabled())
 	{
-		return LOCTEXT("AdvancedFiltersBtn_ToolTip", "Opens the filter configurator window.");
+		return LOCTEXT("FilterConfiguratorBtn_ToolTip", "Opens the filter configurator window.");
 	}
 
 	return LOCTEXT("AdvancedFiltersBtn_Disabled_ToolTip", "Advanced filters cannot be added when filters are already applied using the search box.");
@@ -1200,7 +1222,24 @@ FText STableTreeView::AdvancedFilters_GetTooltipText() const
 
 bool STableTreeView::FilterConfigurator_HasFilters() const
 {
-	return FilterConfigurator.IsValid() && FilterConfigurator->GetRootNode()->GetChildren().Num() > 0;
+	return FilterConfigurator.IsValid() && !FilterConfigurator->IsEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STableTreeView::FilterConfigurator_OnClicked()
+{
+	if (!FilterConfigurator.IsValid())
+	{
+		FilterConfigurator = MakeShared<FFilterConfigurator>();
+		InitFilterConfigurator(*FilterConfigurator);
+		OnFilterChangesCommittedHandle = FilterConfigurator->GetOnChangesCommittedEvent().AddSP(this, &STableTreeView::OnNodeFilteringChanged);
+		CurrentAsyncOpFilterConfigurator = new FFilterConfigurator(*FilterConfigurator);
+	}
+
+	FFilterService::Get()->CreateFilterConfiguratorWidget(FilterConfigurator);
+
+	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1238,7 +1277,48 @@ void STableTreeView::HandleItemToStringArray(const FTableTreeNodePtr& FTableTree
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::ApplyFiltering()
+void STableTreeView::OnHierarchyFilteringChanged()
+{
+	if (!bRunInAsyncMode)
+	{
+		ApplyHierarchyFiltering();
+	}
+	else if (!bIsUpdateRunning)
+	{
+		ScheduleHierarchyFilteringAsyncOperation();
+	}
+	else
+	{
+		CancelCurrentAsyncOp();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::ScheduleHierarchyFilteringAsyncOperationIfNeeded()
+{
+	if (HasInProgressAsyncOperation(EAsyncOperationType::FilteringOp) ||
+		TextFilter->GetRawFilterText().CompareTo(CurrentAsyncOpTextFilter->GetRawFilterText()) != 0)
+	{
+		ScheduleHierarchyFilteringAsyncOperation();
+		return true;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ScheduleHierarchyFilteringAsyncOperation()
+{
+	OnPreAsyncUpdate();
+
+	InProgressAsyncOperationEvent = StartApplyFiltersTask();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ApplyHierarchyFiltering()
 {
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
@@ -1250,8 +1330,15 @@ void STableTreeView::ApplyFiltering()
 	}
 	else
 	{
-		const bool bFilterIsEmpty = bRunInAsyncMode ? CurrentAsyncOpTextFilter->GetRawFilterText().IsEmpty() : TextFilter->GetRawFilterText().IsEmpty();
-		ApplyHierarchicalFilterForNode(Root, bFilterIsEmpty);
+		const bool bIsEmptyFilter = bRunInAsyncMode ? CurrentAsyncOpTextFilter->GetRawFilterText().IsEmpty() : TextFilter->GetRawFilterText().IsEmpty();
+		if (bIsEmptyFilter)
+		{
+			ApplyEmptyHierarchyFilteringRec(Root);
+		}
+		else
+		{
+			ApplyHierarchyFilteringRec(Root);
+		}
 	}
 
 	// The Root node is always hidden. The tree shows the filtered children of the Root node.
@@ -1268,11 +1355,11 @@ void STableTreeView::ApplyFiltering()
 	}
 
 	TreeViewBannerText = FText::GetEmpty();
-	if (Root->GetChildren().Num() == 0)
+	if (Root->GetChildrenCount() == 0)
 	{
 		TreeViewBannerText = LOCTEXT("EmptyTreeMsg", "Tree is empty.");
 	}
-	else if (Root->GetFilteredChildren().Num() == 0)
+	else if (Root->GetFilteredChildrenCount() == 0)
 	{
 		TreeViewBannerText = LOCTEXT("AllNodesFiltered", "All tree nodes are filtered out.");
 	}
@@ -1327,23 +1414,38 @@ void STableTreeView::ApplyFiltering()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STableTreeView::ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr, bool bFilterIsEmpty)
+void STableTreeView::ApplyEmptyHierarchyFilteringRec(FTableTreeNodePtr NodePtr)
 {
-	bool bIsNodeVisible = bFilterIsEmpty || Filters->PassesAllFilters(NodePtr);
+	if (NodePtr->IsGroup())
+	{
+		// If a group node passes the filter, all child nodes will be shown.
+		MakeSubtreeVisible(NodePtr, true);
+	}
+	else
+	{
+		NodePtr->SetIsFiltered(false);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::ApplyHierarchyFilteringRec(FTableTreeNodePtr NodePtr)
+{
+	bool bIsNodeVisible = Filters->PassesAllFilters(NodePtr);
 
 	if (NodePtr->IsGroup())
 	{
 		// If a group node passes the filter, all child nodes will be shown.
 		if (bIsNodeVisible)
 		{
-			MakeSubtreeVisible(NodePtr, bFilterIsEmpty);
+			MakeSubtreeVisible(NodePtr, false);
 			return true;
 		}
 
 		const TArray<FBaseTreeNodePtr>& GroupChildren = NodePtr->GetChildren();
 		const int32 NumChildren = GroupChildren.Num();
 
-		NodePtr->ClearFilteredChildren(bFilterIsEmpty ? NumChildren : 0);
+		NodePtr->ClearFilteredChildren(0);
 
 		int32 NumVisibleChildren = 0;
 		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
@@ -1355,7 +1457,7 @@ bool STableTreeView::ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr, b
 
 			// Add a child.
 			const FTableTreeNodePtr& ChildNodePtr = StaticCastSharedPtr<FTableTreeNode>(GroupChildren[Cx]);
-			if (ApplyHierarchicalFilterForNode(ChildNodePtr, bFilterIsEmpty))
+			if (ApplyHierarchyFilteringRec(ChildNodePtr))
 			{
 				NodePtr->AddFilteredChild(ChildNodePtr);
 				NumVisibleChildren++;
@@ -1363,7 +1465,7 @@ bool STableTreeView::ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr, b
 		}
 
 		const bool bIsGroupNodeVisible = bIsNodeVisible || NumVisibleChildren > 0;
-		if (!bFilterIsEmpty && bIsGroupNodeVisible)
+		if (bIsGroupNodeVisible)
 		{
 			if (bRunInAsyncMode)
 			{
@@ -1452,7 +1554,7 @@ void STableTreeView::SearchBox_OnTextChanged(const FText& InFilterText)
 {
 	TextFilter->SetRawFilterText(InFilterText);
 	SearchBox->SetError(TextFilter->GetFilterErrorText());
-	OnFilteringChanged();
+	OnHierarchyFilteringChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1602,27 +1704,64 @@ FName STableTreeView::TableRow_GetHighlightedNodeName() const
 
 void STableTreeView::OnGroupingChanged()
 {
-	if (bRunInAsyncMode)
-	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
-
-			FGraphEventRef CompletedEvent = StartGroupingTask();
-			CompletedEvent = StartSortingTask(CompletedEvent);
-			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
-	}
-	else
+	if (!bRunInAsyncMode)
 	{
 		ApplyGrouping();
 		ApplySorting();
-		ApplyFiltering();
+		ApplyHierarchyFiltering();
 	}
+	else if (!bIsUpdateRunning)
+	{
+		ScheduleGroupingAsyncOperation();
+	}
+	else
+	{
+		CancelCurrentAsyncOp();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::ScheduleGroupingAsyncOperationIfNeeded()
+{
+	bool bGroupingHasChanged = HasInProgressAsyncOperation(EAsyncOperationType::GroupingOp);
+
+	if (!bGroupingHasChanged &&
+		CurrentGroupings.Num() != CurrentAsyncOpGroupings.Num())
+	{
+		bGroupingHasChanged = true;
+	}
+
+	if (!bGroupingHasChanged)
+	{
+		for (int32 Index = 0; Index < CurrentGroupings.Num(); ++Index)
+		{
+			if (CurrentGroupings[Index] != CurrentAsyncOpGroupings[Index])
+			{
+				bGroupingHasChanged = true;
+				break;
+			}
+		}
+	}
+
+	if (bGroupingHasChanged)
+	{
+		ScheduleGroupingAsyncOperation();
+		return true;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ScheduleGroupingAsyncOperation()
+{
+	OnPreAsyncUpdate();
+
+	FGraphEventRef CompletedEvent = StartGroupingTask();
+	CompletedEvent = StartSortingTask(CompletedEvent);
+	InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2430,7 +2569,7 @@ void STableTreeView::UpdateCStringSameValueAggregationRec(FTableColumn& Column, 
 	}
 	else
 	{
-		GroupNode.ResetAggregatedValues(Column.GetId());
+		GroupNode.ResetAggregatedValue(Column.GetId());
 	}
 }
 
@@ -2571,25 +2710,58 @@ void STableTreeView::UpdateCurrentSortingByColumn()
 
 void STableTreeView::OnSortingChanged()
 {
-	if (bRunInAsyncMode)
+	if (!bRunInAsyncMode)
 	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
-
-			FGraphEventRef CompletedEvent = StartSortingTask();
-			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
+		ApplySorting();
+		ApplyHierarchyFiltering();
+	}
+	else if (!bIsUpdateRunning)
+	{
+		ScheduleSortingAsyncOperation();
 	}
 	else
 	{
-		ApplySorting();
-		ApplyFiltering();
+		CancelCurrentAsyncOp();
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STableTreeView::ScheduleSortingAsyncOperationIfNeeded()
+{
+	bool bSortingHasChanged = HasInProgressAsyncOperation(EAsyncOperationType::SortingOp);
+
+	if (!bSortingHasChanged &&
+		((CurrentSorter.IsValid() && CurrentAsyncOpSorter == nullptr) ||
+		(!CurrentSorter.IsValid() && CurrentAsyncOpSorter != nullptr)))
+	{
+		bSortingHasChanged = true;
+	}
+
+	if (!bSortingHasChanged &&
+		CurrentSorter.IsValid() &&
+		(CurrentSorter.Get() != CurrentAsyncOpSorter || ColumnSortMode != CurrentAsyncOpColumnSortMode))
+	{
+		bSortingHasChanged = true;
+	}
+
+	if (bSortingHasChanged)
+	{
+		ScheduleSortingAsyncOperation();
+		return true;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ScheduleSortingAsyncOperation()
+{
+	OnPreAsyncUpdate();
+
+	FGraphEventRef CompletedEvent = StartSortingTask();
+	InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2664,14 +2836,8 @@ void STableTreeView::SortTreeNodes(ITableCellValueSorter* InSorter, EColumnSortM
 
 void STableTreeView::SortTreeNodesRec(FTableTreeNode& GroupNode, const ITableCellValueSorter& Sorter, EColumnSortMode::Type InColumnSortMode)
 {
-	if (InColumnSortMode == EColumnSortMode::Type::Descending)
-	{
-		GroupNode.SortChildrenDescending(Sorter);
-	}
-	else // if (ColumnSortMode == EColumnSortMode::Type::Ascending)
-	{
-		GroupNode.SortChildrenAscending(Sorter);
-	}
+	const ESortMode SortMode = (InColumnSortMode == EColumnSortMode::Type::Descending) ? ESortMode::Descending : ESortMode::Ascending;
+	GroupNode.SortChildren(Sorter, SortMode);
 
 	for (FBaseTreeNodePtr ChildPtr : GroupNode.GetChildren())
 	{
@@ -3175,7 +3341,7 @@ void STableTreeView::SetExpandValueForChildGroups(FBaseTreeNode* InRoot, int32 I
 
 void STableTreeView::CountNumNodesPerDepthRec(FBaseTreeNode* InRoot, TArray<int32>& InOutNumNodesPerDepth, int32 InDepth, int32 InMaxDepth, int32 InMaxNodes) const
 {
-	InOutNumNodesPerDepth[InDepth] += InRoot->GetChildren().Num();
+	InOutNumNodesPerDepth[InDepth] += InRoot->GetChildrenCount();
 
 	if (InDepth < InMaxDepth && InOutNumNodesPerDepth[InDepth] < InMaxNodes)
 	{
@@ -3249,65 +3415,23 @@ double STableTreeView::GetAllOperationsDuration()
 
 void STableTreeView::StartPendingAsyncOperations()
 {
-	// Check if grouping settings have changed. If they did, a full refresh (Grouping, Sorting and Filtering) is scheduled.
-	bool bGroupingsHaveChanged = HasInProgressAsyncOperation(EAsyncOperationType::GroupingOp);
-	bGroupingsHaveChanged |= CurrentGroupings.Num() != CurrentAsyncOpGroupings.Num();
-
-	if (!bGroupingsHaveChanged)
+	if (ScheduleGroupingAsyncOperationIfNeeded())
 	{
-		for (int Index = 0; Index < CurrentGroupings.Num(); ++Index)
-		{
-			if (CurrentGroupings[Index] != CurrentAsyncOpGroupings[Index])
-			{
-				bGroupingsHaveChanged = true;
-				break;
-			}
-		}
-	}
-
-	if (bGroupingsHaveChanged)
-	{
-		OnPreAsyncUpdate();
-
-		FGraphEventRef CompletedEvent = StartGroupingTask();
-		CompletedEvent = StartSortingTask(CompletedEvent);
-		InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
-
 		return;
 	}
 
-	// Check if sorting settings have changed. If they did, a Sorting and Filtering Refresh is scheduled.
-	bool bSortingHasChanged = HasInProgressAsyncOperation(EAsyncOperationType::SortingOp);
-	bSortingHasChanged |= (CurrentSorter.IsValid() && CurrentAsyncOpSorter == nullptr) || (!CurrentSorter.IsValid() && CurrentAsyncOpSorter != nullptr);
-	if (!bSortingHasChanged && CurrentSorter.IsValid())
+	if (ScheduleSortingAsyncOperationIfNeeded())
 	{
-		bSortingHasChanged = CurrentSorter.Get() != CurrentAsyncOpSorter || ColumnSortMode != CurrentAsyncOpColumnSortMode;
-	}
-
-	if (bSortingHasChanged)
-	{
-		OnPreAsyncUpdate();
-
-		FGraphEventRef CompletedEvent = StartSortingTask();
-		InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
-
 		return;
 	}
 
-	// Check if the text filter has changed. If it has, schedule a new Filtering Refresh.
-	bool bFiltersHaveChanged = HasInProgressAsyncOperation(EAsyncOperationType::FilteringOp);
-	bFiltersHaveChanged |= TextFilter->GetRawFilterText().CompareTo(CurrentAsyncOpTextFilter->GetRawFilterText()) != 0;
-	if (FilterConfigurator.IsValid() && CurrentAsyncOpFilterConfigurator && !bFiltersHaveChanged)
+	if (ScheduleHierarchyFilteringAsyncOperationIfNeeded())
 	{
-		bFiltersHaveChanged |= *FilterConfigurator != *CurrentAsyncOpFilterConfigurator;
+		return;
 	}
 
-	if (bFiltersHaveChanged)
+	if (ScheduleNodeFilteringAsyncOperationIfNeeded())
 	{
-		OnPreAsyncUpdate();
-
-		InProgressAsyncOperationEvent = StartApplyFiltersTask();
-
 		return;
 	}
 }

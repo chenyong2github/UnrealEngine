@@ -126,6 +126,8 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, TSharedPtr<FTable> InTablePtr);
 
+	TSharedPtr<STreeView<FTableTreeNodePtr>> GetInnerTreeView() const { return TreeView; }
+
 	TSharedPtr<FTable>& GetTable() { return Table; }
 	const TSharedPtr<FTable>& GetTable() const { return Table; }
 
@@ -183,15 +185,6 @@ protected:
 	virtual void ConstructFooterArea(TSharedRef<SVerticalBox> InWidgetContent);
 
 	void UpdateTree();
-
-	/**
-	 * Populates OutSearchStrings with the strings that should be used in searching.
-	 *
-	 * @param GroupOrStatNodePtr - the group and stat node to get a text description from.
-	 * @param OutSearchStrings   - an array of strings to use in searching.
-	 *
-	 */
-	static void HandleItemToStringArray(const FTableTreeNodePtr& GroupOrStatNodePtr, TArray<FString>& OutSearchStrings);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Context Menu
@@ -261,31 +254,50 @@ protected:
 	FName TableRow_GetHighlightedNodeName() const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Filtering
+	// Node Filtering
 
-	void OnFilteringChanged();
+	void InitNodeFiltering();
+
+	void OnNodeFilteringChanged();
+	bool ScheduleNodeFilteringAsyncOperationIfNeeded();
+	void ScheduleNodeFilteringAsyncOperation();
 	FGraphEventRef StartApplyFiltersTask(FGraphEventRef Prerequisite = nullptr);
 
-	void ApplyFiltering();
+	void ApplyNodeFiltering();
 
 	bool ApplyAdvancedFiltersForNode(FTableTreeNodePtr NodePtr);
 
-	bool ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr);
-	bool virtual ApplyCustomAdvancedFilters(const FTableTreeNodePtr& NodePtr) { return true; };
-	virtual void AddCustomAdvancedFilters() {}
+	virtual bool FilterNode(const FTableTreeNodePtr& NodePtr) const;
 
-	virtual TSharedRef<SWidget> ConstructAdvancedFiltersButton();
+	virtual void InitFilterConfigurator(FFilterConfigurator& InOutFilterConfigurator);
+	virtual void UpdateFilterContext(const FFilterConfigurator& InFilterConfigurator, const FTableTreeNode& InNode) const;
 
-	FReply OnAdvancedFiltersClicked();
-	void OnAdvancedFiltersChangesCommitted();
+	virtual TSharedRef<SWidget> ConstructFilterConfiguratorButton();
 
+	bool FilterConfigurator_IsEnabled() const;
+	FText FilterConfigurator_GetTooltipText() const;
 	bool FilterConfigurator_HasFilters() const;
-	bool AdvancedFilters_ShouldBeEnabled() const;
-	FText AdvancedFilters_GetTooltipText() const;
+	FReply FilterConfigurator_OnClicked();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Hierarchy Filtering
 
 	void InitHierarchyFiltering();
 
-	bool ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr, bool bFilterIsEmpty);
+	/**
+	 * Populates OutSearchStrings with the strings that should be used in searching.
+	 *
+	 * @param GroupOrStatNodePtr - the group and stat node to get a text description from.
+	 * @param OutSearchStrings   - an array of strings to use in searching.
+	 */
+	static void HandleItemToStringArray(const FTableTreeNodePtr& GroupOrStatNodePtr, TArray<FString>& OutSearchStrings);
+
+	void OnHierarchyFilteringChanged();
+	bool ScheduleHierarchyFilteringAsyncOperationIfNeeded();
+	void ScheduleHierarchyFilteringAsyncOperation();
+	void ApplyHierarchyFiltering();
+	void ApplyEmptyHierarchyFilteringRec(FTableTreeNodePtr NodePtr);
+	bool ApplyHierarchyFilteringRec(FTableTreeNodePtr NodePtr);
 
 	/** Set all the nodes belonging to a subtree as visible. Returns true if the caller node should be expanded. */
 	bool MakeSubtreeVisible(FTableTreeNodePtr NodePtr, bool bFilterIsEmpty);
@@ -303,8 +315,10 @@ protected:
 	virtual void InternalCreateGroupings();
 
 	void OnGroupingChanged();
-	void ApplyGrouping();
+	bool ScheduleGroupingAsyncOperationIfNeeded();
+	void ScheduleGroupingAsyncOperation();
 	FGraphEventRef StartGroupingTask(FGraphEventRef Prerequisite = nullptr);
+	void ApplyGrouping();
 	void CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings);
 	void GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, int32 GroupingDepth, const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings);
 
@@ -355,7 +369,7 @@ protected:
 			else
 			{
 				FTableTreeNode& TableNode = *(FTableTreeNode*)NodePtr.Get();
-				TableNode.ResetAggregatedValues(Column.GetId());
+				TableNode.ResetAggregatedValue(Column.GetId());
 				UpdateAggregationRec(Column, TableNode, InitialAggregatedValue, bSetInitialValue, ValueGetterFunc);
 				if (TableNode.HasAggregatedValue(Column.GetId()))
 				{
@@ -382,8 +396,10 @@ protected:
 	void UpdateCurrentSortingByColumn();
 
 	void OnSortingChanged();
-	void ApplySorting();
+	bool ScheduleSortingAsyncOperationIfNeeded();
+	void ScheduleSortingAsyncOperation();
 	FGraphEventRef StartSortingTask(FGraphEventRef Prerequisite = nullptr);
+	void ApplySorting();
 	void SortTreeNodes(ITableCellValueSorter* InSorter, EColumnSortMode::Type InColumnSortMode);
 	void SortTreeNodesRec(FTableTreeNode& GroupNode, const ITableCellValueSorter& Sorter, EColumnSortMode::Type InColumnSortMode);
 
@@ -576,7 +592,7 @@ protected:
 	/** The filter configurator actually used in the Hierarchy Filtering async task. */
 	FFilterConfigurator* CurrentAsyncOpFilterConfigurator = nullptr;
 
-	FFilterContext Context;
+	mutable FFilterContext FilterContext;
 
 	//////////////////////////////////////////////////
 	// Grouping
@@ -663,7 +679,7 @@ public:
 	{
 		if (TableTreeViewPtr)
 		{
-			TableTreeViewPtr->ApplyFiltering();
+			TableTreeViewPtr->ApplyHierarchyFiltering();
 		}
 	}
 
