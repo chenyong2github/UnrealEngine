@@ -47,6 +47,8 @@ public:
 
 	virtual FArchive& operator<<(struct FLazyObjectPtr& Value) override;
 
+	virtual FArchive& operator<<(struct FObjectPtr& Value) override;
+
 	virtual FArchive& operator<<(struct FSoftObjectPtr& Value) override;
 
 	virtual FArchive& operator<<(struct FSoftObjectPath& Value) override;
@@ -96,6 +98,8 @@ public:
 	}
 
 	virtual FArchive& operator<<(struct FLazyObjectPtr& Value) override;
+
+	virtual FArchive& operator<<(struct FObjectPtr& Value) override;
 
 	virtual FArchive& operator<<(struct FSoftObjectPtr& Value) override;
 

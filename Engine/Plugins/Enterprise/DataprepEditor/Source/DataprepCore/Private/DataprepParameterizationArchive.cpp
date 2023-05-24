@@ -41,6 +41,12 @@ FArchive& FDataprepParameterizationWriter::operator<<(FLazyObjectPtr& Value)
 	return *this << Object;
 }
 
+FArchive& FDataprepParameterizationWriter::operator<<(FObjectPtr& Value)
+{
+	UObject* Object = Value.Get();
+	return *this << Object;
+}
+
 FArchive& FDataprepParameterizationWriter::operator<<(FSoftObjectPtr& Value)
 {
 	FSoftObjectPath SoftObjectPath = Value.ToSoftObjectPath();
@@ -115,6 +121,14 @@ FArchive& FDataprepParameterizationReader::operator<<(FLazyObjectPtr& Value)
 	UObject* Object = nullptr;
 	*this << Object;
 	Value = Object != nullptr ? FUniqueObjectGuid(Object) : FUniqueObjectGuid();
+	return *this;
+}
+
+FArchive& FDataprepParameterizationReader::operator<<(FObjectPtr& Value)
+{
+	UObject* Object = nullptr;
+	*this << Object;
+	Value = Object;
 	return *this;
 }
 
