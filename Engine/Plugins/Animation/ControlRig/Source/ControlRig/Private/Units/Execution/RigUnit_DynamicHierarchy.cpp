@@ -990,18 +990,20 @@ FRigUnit_HierarchyGetShapeSettings_Execute()
 
 FRigUnit_HierarchySetShapeSettings_Execute()
 {
-	if(FRigControlElement* ControlElement = ExecuteContext.Hierarchy->Find<FRigControlElement>(Item))
+	if(URigHierarchy* Hierarchy = ExecuteContext.Hierarchy)
 	{
-		ControlElement->Settings.bShapeVisible = Settings.bVisible;
-		ControlElement->Settings.ShapeColor = Settings.Color;
-		ControlElement->Settings.ShapeName = Settings.Name;
-		ExecuteContext.Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
-		ExecuteContext.Hierarchy->SetControlShapeTransformByIndex(ControlElement->GetIndex(), Settings.Transform, true, false);
-		ExecuteContext.Hierarchy->SetControlShapeTransformByIndex(ControlElement->GetIndex(), Settings.Transform, false, false);
+		if(FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(Item))
+		{
+			ControlElement->Settings.bShapeVisible = Settings.bVisible;
+			ControlElement->Settings.ShapeColor = Settings.Color;
+			ControlElement->Settings.ShapeName = Settings.Name;
+			Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
+			Hierarchy->SetControlShapeTransformByIndex(ControlElement->GetIndex(), Settings.Transform, true, false);
+			Hierarchy->SetControlShapeTransformByIndex(ControlElement->GetIndex(), Settings.Transform, false, false);
+		}
+		else
+		{
+			UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Control '%s' does not exist."), *Item.ToString());
+		}
 	}
-	else
-	{
-		UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Control '%s' does not exist."), *Item.ToString());
-	}
-
 }
