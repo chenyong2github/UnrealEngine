@@ -985,7 +985,8 @@ namespace SkeletalSimplifier
 				}
 			}
 
-			TDenseVecD(const TDenseVecD& Other) : MyBase(Other) {};
+			TDenseVecD(const TDenseVecD& Other) = default;
+			TDenseVecD& operator=(const TDenseVecD& Other) = default;
 
 			void SetElement(const int32 j, const double Value) { MyBase::operator[](j) = Value; }
 			ScalarType GetElement(const int32 j) const { return MyBase::operator[](j); }
@@ -1057,15 +1058,6 @@ namespace SkeletalSimplifier
 			double operator()(int32 i, int32 j) const
 			{
 				return GetColumn(j)[i];
-			}
-
-			/**
-			* Assignment.
-			*/
-			SparseBMatrix& operator=(const SparseBMatrix& Other)
-			{
-				SparseData = Other.SparseData;
-				return *this;
 			}
 
 			/**
