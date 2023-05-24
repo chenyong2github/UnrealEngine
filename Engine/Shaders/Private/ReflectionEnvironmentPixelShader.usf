@@ -14,7 +14,7 @@
 	// COMPLEX PATH
   #elif STRATA_TILETYPE == 3
 	// COMPLEX PATH
-	#define STRATA_COMPLEX_SPECIALPATH_ENABLED 1
+	#define STRATA_COMPLEXSPECIALPATH 1
   #else
 	#error Strata tile type non-implemented
   #endif

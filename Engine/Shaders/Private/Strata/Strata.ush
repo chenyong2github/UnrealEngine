@@ -95,16 +95,19 @@
 #define STRATA_SINGLEPATH 0
 #endif
 
-#ifndef STRATA_COMPLEX_SPECIALPATH_ENABLED 
-#define STRATA_COMPLEX_SPECIALPATH_ENABLED 0
-#endif
-
 #define STRATA_COMPLEXPATH (!STRATA_FASTPATH && !STRATA_SINGLEPATH)
-#define STRATA_COMPLEXPATH_SPECIAL (STRATA_COMPLEXPATH && STRATA_COMPLEX_SPECIALPATH_ENABLED)
+
+// STRATA_COMPLEXSPECIALPATH is defined by the material or lighting shaders as they see fit.
+// However, this should only be done for STRATA_COMPLEXPATH path.
+#if STRATA_COMPLEXSPECIALPATH
+#ifndef STRATA_COMPLEXPATH
+#error STRATA_COMPLEXSPECIALPATH is defined while is not defined STRATA_COMPLEXPATH
+#endif
+#endif
 
 // Disable glint when in tracing mode for now since derivative are not available.
 #define STRATA_GLINTS_DERIVATIVE_SUPPORTED (!RAYCALLABLESHADER && !RAYHITGROUPSHADER && !RAYGENSHADER && !RAYMISSSHADER)
-#define STRATA_GLINTS_ENABLED (STRATA_COMPLEXPATH_SPECIAL && STRATA_GLINTS_DERIVATIVE_SUPPORTED)
+#define STRATA_GLINTS_ENABLED (STRATA_COMPLEXSPECIALPATH && PLATFORM_ENABLES_STRATA_GLINTS && STRATA_GLINTS_DERIVATIVE_SUPPORTED)
 
 #define STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT (!MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID && STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE==0 || STRATA_MATERIAL_EXPORT_FROM_TRANSLUCENT)
 
@@ -166,7 +169,7 @@ struct FStrataBSDF
 	float4 InlineVGPRs[3];
 #endif
 
-#if STRATA_COMPLEXPATH_SPECIAL	
+#if STRATA_COMPLEXSPECIALPATH	
 	float4 VGPRs[7];
 #else
 	float4 VGPRs[5];
@@ -541,7 +544,7 @@ struct FStrataBSDF
 #define SLAB_FUZZ_COLOR(X)				X.VGPRs[4].xyz
 #define SLAB_FUZZ_AMOUNT(X)				X.VGPRs[4].w
 #define SLAB_FUZZ_ROUGHNESS(X)			X.VGPRs[2].w
-#if STRATA_COMPLEXPATH_SPECIAL 
+#if STRATA_COMPLEXSPECIALPATH 
 // Glints
 #define SLAB_GLINT_UV(X)				X.VGPRs[5].xy
 #define SLAB_GLINT_VALUE(X)				X.VGPRs[5].z
@@ -1607,7 +1610,7 @@ FStrataData GetStrataSlabBSDF(
 	BSDF_SETTHICKNESSCM		(StrataData.InlinedBSDF,		ThicknessCm);
 #endif
 
-#if STRATA_COMPLEXPATH_SPECIAL
+#if STRATA_COMPLEXSPECIALPATH
 #if STRATA_GLINTS_ENABLED
 	if (GlintValue > 0.0f)
 	{
@@ -2431,7 +2434,7 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 	SLAB_FUZZ_ROUGHNESS(ResultBSDF)	=	lerp(SLAB_FUZZ_ROUGHNESS(BackgroundBSDF),		SLAB_FUZZ_ROUGHNESS(ForegroundBSDF),		ForegroundOtherMixFactor);
 	SLAB_HAZINESS(ResultBSDF) =			LerpHazinessParameterBlending(BackgroundBSDF,	ForegroundBSDF,								ForegroundOtherMixFactor);
 
-#if STRATA_COMPLEXPATH_SPECIAL
+#if STRATA_COMPLEXSPECIALPATH
 #if STRATA_GLINTS_ENABLED
 	BSDF_SETHASGLINT(ResultBSDF,		BSDF_GETHASGLINT(ForegroundBSDF)				| BSDF_GETHASGLINT(BackgroundBSDF));
 	SLAB_GLINT_UV(ResultBSDF) =			lerp(SLAB_GLINT_UV(BackgroundBSDF),				SLAB_GLINT_UV(ForegroundBSDF),				ForegroundOtherMixFactor);
@@ -2551,7 +2554,7 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 	SLAB_FUZZ_ROUGHNESS(ResultBSDF) =	lerp(SLAB_FUZZ_ROUGHNESS(BBSDF),				SLAB_FUZZ_ROUGHNESS(ABSDF),					AMixFactor);
 	SLAB_HAZINESS(ResultBSDF) =			LerpHazinessParameterBlending(BBSDF,			ABSDF,										AMixFactor);
 
-#if STRATA_COMPLEXPATH_SPECIAL
+#if STRATA_COMPLEXSPECIALPATH
 #if STRATA_GLINTS_ENABLED
 	BSDF_SETHASGLINT(ResultBSDF,		BSDF_GETHASGLINT(BBSDF)							| BSDF_GETHASGLINT(ABSDF));
 	SLAB_GLINT_UV(ResultBSDF) =			lerp(SLAB_GLINT_UV(BBSDF),						SLAB_GLINT_UV(ABSDF), AMixFactor);
@@ -2642,7 +2645,7 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	BSDF_SETHASF90(ResultBSDF,			BSDF_GETHASF90(BaseBSDF)						| BSDF_GETHASF90(TopBSDF));			// F90: keep union of both even though it will be hard to get a match
 	BSDF_SETHASFUZZ(ResultBSDF,			BSDF_GETHASFUZZ(BaseBSDF)						| BSDF_GETHASFUZZ(TopBSDF));		// Fuzz: keep union of both even though it will be hard to get a match
 
-#if STRATA_COMPLEXPATH_SPECIAL
+#if STRATA_COMPLEXSPECIALPATH
 	BSDF_SETHASGLINT(ResultBSDF, 0); // Disable for now
 	BSDF_SETHASSPECPROFILE(ResultBSDF,	0); // Disable for now
 #endif
@@ -2683,7 +2686,7 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	SLAB_FUZZ_ROUGHNESS(ResultBSDF) =	lerp(SLAB_FUZZ_ROUGHNESS(TopBSDF),				SLAB_FUZZ_ROUGHNESS(BaseBSDF),TopToBottomLerp);
 	SLAB_HAZINESS(ResultBSDF) =			LerpHazinessParameterBlending(TopBSDF,			BaseBSDF,					TopToBottomLerp);
 
-#if STRATA_COMPLEXPATH_SPECIAL
+#if STRATA_COMPLEXSPECIALPATH
 #if STRATA_GLINTS_ENABLED
 	BSDF_SETHASGLINT(ResultBSDF,		BSDF_GETHASGLINT(TopBSDF)						| BSDF_GETHASGLINT(BaseBSDF));
 	SLAB_GLINT_UV(ResultBSDF) =			lerp(SLAB_GLINT_UV(TopBSDF),					SLAB_GLINT_UV(BaseBSDF), TopToBottomLerp);
@@ -4365,7 +4368,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		}
 
 
-	#if STRATA_COMPLEXPATH_SPECIAL
+	#if STRATA_COMPLEXSPECIALPATH
 	#if STRATA_GLINTS_ENABLED
 		if (BSDF_GETHASGLINT(OutBSDF))
 		{

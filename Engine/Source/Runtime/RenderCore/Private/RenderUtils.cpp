@@ -1599,8 +1599,8 @@ static TAutoConsoleVariable<int32> CVarSubstrateRoughDiffuse(
 
 static TAutoConsoleVariable<int32> CVarSubstrateGlints(
 	TEXT("r.Substrate.Glints"),
-	0,
-	TEXT("Enable Glint support for Strata slabs."),
+	1,
+	TEXT("Enable Glint support for Strata slabs. If changed, shaders needs to be recompiled."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarSubstrateGlintsLUT(

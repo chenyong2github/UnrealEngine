@@ -190,7 +190,7 @@ void PackStrataOut(
 						// Simple and single bsdf do not allow weights other than 1
 						const bool LuminanceWeightEqualOne = all(BSDF.LuminanceWeightV == 1.0f);
 
-						#if STRATA_COMPLEXPATH_SPECIAL
+						#if STRATA_COMPLEXSPECIALPATH
 						#if STRATA_GLINTS_ENABLED
 						const bool bForceComplexSpecialPath = BSDF_GETHASSPECPROFILE(BSDF) || BSDF_GETHASGLINT(BSDF);
 						#else
@@ -798,7 +798,7 @@ void PackStrataOut(
 								STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(BSDF.TransmittanceAboveAlongN, BSDF.CoverageAboveAlongN)));
 							}
 
-							#if STRATA_COMPLEXPATH_SPECIAL
+							#if STRATA_COMPLEXSPECIALPATH
 							#if STRATA_GLINTS_ENABLED
 							if (BSDF_GETHASGLINT(BSDF))
 							{
@@ -819,7 +819,7 @@ void PackStrataOut(
 							{
 								STRATA_STORE_UINT1(PackSpecularProfile(SLAB_SPECPROFILEID(BSDF)));
 							}
-							#endif // STRATA_COMPLEXPATH_SPECIAL
+							#endif // STRATA_COMPLEXSPECIALPATH
 
 							// 8-28 bytes
 						}

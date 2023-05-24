@@ -11,7 +11,7 @@
 
 #define STRATA_SSS_MATERIAL_OVERRIDE 0
 #define STRATA_SSS_TRANSMISSION 0				// Disable for now, as the SSS profile texture need to be bound
-#define STRATA_COMPLEX_SPECIALPATH_ENABLED 1	// Allow to read data from complex special path
+#define STRATA_COMPLEXSPECIALPATH 1				// Allow to read data from complex special path
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataTile.ush"
 
@@ -330,7 +330,7 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 				Print(Context, TEXT(" Fuzz Color  "), FontBSDFPropName);	Print(Context, SLAB_FUZZ_COLOR(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
 				Print(Context, TEXT(" Fuzz Rough. "), FontBSDFPropName);	Print(Context, SLAB_FUZZ_ROUGHNESS(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
 			}
-#if STRATA_COMPLEXPATH_SPECIAL
+#if STRATA_COMPLEXSPECIALPATH
 			if (BSDF_GETHASGLINT(BSDF))
 			{
 				Print(Context, TEXT(" Glint Value "), FontBSDFPropName);	Print(Context, SLAB_GLINT_VALUE(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
