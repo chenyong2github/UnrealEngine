@@ -8,7 +8,9 @@ UDMXPixelMappingColorSpace_xyY::UDMXPixelMappingColorSpace_xyY()
 	, YAttribute("CIE_Y")
 	, LuminanceAttribute("Dimmer")
 	, SRGBColorSpace(UE::Color::EColorSpace::sRGB)
-{}
+{
+	ColorSpaceRangePercents = ColorSpaceRange * 100.f;
+}
 
 void UDMXPixelMappingColorSpace_xyY::SetRGBA(const FLinearColor& InColor)
 {
@@ -21,21 +23,35 @@ void UDMXPixelMappingColorSpace_xyY::SetRGBA(const FLinearColor& InColor)
 	const FVector4 XYZW = Matrix.TransformVector(FVector(InColor));
 	const FVector3d xyY = UE::Color::XYZToxyY(XYZW);
 
+	if (!ensureMsgf(ColorSpaceRange != 0.0, TEXT("Coversion in PixelMapping Color Space xyY failed. Color space range is 0.")))
+	{
+		return;
+	}
+
 	if (XAttribute.IsValid())
 	{
-		SetAttributeValue(XAttribute, xyY[0]);
+		const double x = xyY[0] / ColorSpaceRange;
+		SetAttributeValue(XAttribute, x);
 	}
 
 	if (YAttribute.IsValid())
 	{
-		SetAttributeValue(YAttribute, xyY[1]);
+		const double y = xyY[1] / ColorSpaceRange;
+		SetAttributeValue(YAttribute, y);
 	}
 
 	if (LuminanceAttribute.IsValid())
 	{
-		const float Luminance = FMath::Clamp(xyY[2], MinLuminance, MaxLuminance);
+		const double Luminance = FMath::Clamp(xyY[2], MinLuminance, MaxLuminance);
 		SetAttributeValue(LuminanceAttribute, Luminance);
 	}
+}
+
+void UDMXPixelMappingColorSpace_xyY::PostLoad()
+{
+	Super::PostLoad();
+
+	ColorSpaceRangePercents = ColorSpaceRange * 100.f;
 }
 
 #if WITH_EDITOR
@@ -66,6 +82,10 @@ void UDMXPixelMappingColorSpace_xyY::PostEditChangeProperty(FPropertyChangedEven
 			Modify();
 			MinLuminance = MaxLuminance;
 		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace_xyY, ColorSpaceRangePercents))
+	{
+		ColorSpaceRange = ColorSpaceRangePercents / 100.f;
 	}
 }
 #endif // WITH_EDITOR

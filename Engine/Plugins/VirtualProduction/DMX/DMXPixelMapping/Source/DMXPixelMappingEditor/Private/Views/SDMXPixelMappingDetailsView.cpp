@@ -2,8 +2,8 @@
 
 #include "Views/SDMXPixelMappingDetailsView.h"
 
-#include "DMXPixelMappingComponentReference.h"
 #include "ColorSpace/DMXPixelMappingColorSpace_RGBCMY.h"
+#include "ColorSpace/DMXPixelMappingColorSpace_xyY.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
@@ -12,19 +12,20 @@
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Customizations/DMXPixelMappingColorSpaceDetails_RGBCMY.h"
+#include "Customizations/DMXPixelMappingColorSpaceDetails_xyY.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroup.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroupItem.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Screen.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Renderer.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Matrix.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_MatrixCell.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
-
 #include "DetailsViewArgs.h"
+#include "DMXPixelMappingComponentReference.h"
 #include "IDetailsView.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
 
 
 void SDMXPixelMappingDetailsView::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
@@ -71,6 +72,7 @@ SDMXPixelMappingDetailsView::~SDMXPixelMappingDetailsView()
 		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixCellComponent::StaticClass());
 		
 		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingColorSpace_RGBCMY::StaticClass());
+		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingColorSpace_xyY::StaticClass());
 	}
 }
 
@@ -136,4 +138,7 @@ void SDMXPixelMappingDetailsView::RegisterCustomizations()
 
 	FOnGetDetailCustomizationInstance ColorSpaceCustomizationInstance_RGBCMY = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingColorSpaceDetails_RGBCMY::MakeInstance);
 	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingColorSpace_RGBCMY::StaticClass(), ColorSpaceCustomizationInstance_RGBCMY);
+
+	FOnGetDetailCustomizationInstance ColorSpaceCustomizationInstance_xyY = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingColorSpaceDetails_xyY::MakeInstance);
+	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingColorSpace_xyY::StaticClass(), ColorSpaceCustomizationInstance_xyY);
 }
