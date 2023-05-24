@@ -3,26 +3,23 @@
 #include "DMXPixelMappingRenderer.h"
 
 #include "Blueprint/UserWidget.h"
+#include "CanvasTypes.h"
 #include "ClearQuad.h"
 #include "CommonRenderResources.h"
+#include "Engine/Canvas.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Materials/Material.h"
 #include "Modules/ModuleManager.h"
 #include "PixelShaderUtils.h"
-#include "ScreenRendering.h"
-#include "Rendering/SlateRenderer.h"
-#include "SlateMaterialBrush.h"
 #include "RenderingThread.h"
-#include "Slate/WidgetRenderer.h"
+#include "Rendering/SlateRenderer.h"
+#include "ScreenRendering.h"
 #include "TextureResource.h"
+#include "SlateMaterialBrush.h"
+#include "Slate/WidgetRenderer.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SOverlay.h"
-#include "TextureResource.h"
-#include "Rendering/Texture2DResource.h"
-#include "Kismet/KismetRenderingLibrary.h"
-#include "CanvasTypes.h"
-#include "Engine/Canvas.h"
-#include "Materials/MaterialInstanceDynamic.h"
+
 
 namespace DMXPixelMappingRenderer
 {
@@ -98,38 +95,6 @@ FDMXPixelMappingRenderer::FDMXPixelMappingRenderer()
 	static const FName RendererModuleName("Renderer");
 	RendererModule = FModuleManager::GetModulePtr<IRendererModule>(RendererModuleName);
 
-	// Initialize Material Renderer
-	if (!MaterialWidgetRenderer.IsValid())
-	{
-		const bool bUseGammaCorrection = false;
-		MaterialWidgetRenderer = MakeShared<FWidgetRenderer>(bUseGammaCorrection);
-		check(MaterialWidgetRenderer.IsValid());
-	}
-
-	// Initialize Material Brush
-	if (!UIMaterialBrush.IsValid())
-	{
-		UIMaterialBrush = MakeShared<FSlateMaterialBrush>(FVector2D(1.f));
-		check(UIMaterialBrush.IsValid());
-	}
-
-	// Initialize UMG renderer
-	if (!UMGRenderer.IsValid())
-	{
-		const bool bUseGammaCorrection = true;
-		UMGRenderer = MakeShared<FWidgetRenderer>(bUseGammaCorrection);
-		check(UMGRenderer.IsValid());
-	}
-}
-
-void FDMXPixelMappingRenderer::PostProcessTexture(UTexture* InputTexture, const UE::DMXPixelMapping::FDMXPixelMappingInputTextureRenderingParameters& Params) const
-{
-	PostProcessProxy.Render(InputTexture, Params);
-}
-
-UTexture* FDMXPixelMappingRenderer::GetPostProcessedTexture() const
-{
-	return PostProcessProxy.GetRenderedTextureGameThread();
 }
 
 void FDMXPixelMappingRenderer::DownsampleRender(
@@ -241,6 +206,64 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 		});
 }
 
+
+void FDMXPixelMappingRenderer::RenderMaterial(UTextureRenderTarget2D* InRenderTarget, UMaterialInterface* InMaterialInterface) const
+{	
+	// DEPRECATED 5.3
+	if (InMaterialInterface == nullptr)
+	{
+		return;
+	}
+
+	if (InRenderTarget == nullptr)
+	{
+		return;
+	}
+
+	FVector2D TextureSize = FVector2D(InRenderTarget->SizeX, InRenderTarget->SizeY);
+	UMaterial* Material = InMaterialInterface->GetMaterial();
+
+	if (Material != nullptr && Material->IsUIMaterial())
+	{
+		UIMaterialBrush->ImageSize = TextureSize;
+		UIMaterialBrush->SetMaterial(InMaterialInterface);
+
+		TSharedRef<SWidget> Widget =
+			SNew(SOverlay)
+			+ SOverlay::Slot()
+			[
+				SNew(SImage)
+				.Image(UIMaterialBrush.Get())
+			];
+
+		static const float DeltaTime = 0.f;
+		MaterialWidgetRenderer->DrawWidget(InRenderTarget, Widget, TextureSize, DeltaTime);
+		
+		// Reset material after drawing
+		UIMaterialBrush->SetMaterial(nullptr);
+	}
+}
+
+void FDMXPixelMappingRenderer::RenderWidget(UTextureRenderTarget2D* InRenderTarget, UUserWidget* InUserWidget) const
+{
+	// DEPRECATED 5.3
+	if (InUserWidget == nullptr)
+	{
+		return;
+	}
+
+	if (InRenderTarget == nullptr)
+	{
+		return;
+	}
+
+	FVector2D TextureSize = FVector2D(InRenderTarget->SizeX, InRenderTarget->SizeY);
+	static const float DeltaTime = 0.f;
+
+	UMGRenderer->DrawWidget(InRenderTarget, InUserWidget->TakeWidget(), TextureSize, DeltaTime);
+}
+
+
 #if WITH_EDITOR
 void FDMXPixelMappingRenderer::RenderPreview(const FTextureResource* TextureResource, const FTextureResource* DownsampleResource, TArray<FDMXPixelMappingDownsamplePixelPreviewParam>&& InPixelPreviewParamSet) const
 {
@@ -331,60 +354,6 @@ void FDMXPixelMappingRenderer::RenderPreview(const FTextureResource* TextureReso
 	});
 }
 #endif // WITH_EDITOR
-
-void FDMXPixelMappingRenderer::RenderMaterial(UTextureRenderTarget2D* InRenderTarget, UMaterialInterface* InMaterialInterface) const
-{
-	if (InMaterialInterface == nullptr)
-	{
-		return;
-	}
-
-	if (InRenderTarget == nullptr)
-	{
-		return;
-	}
-
-	FVector2D TextureSize = FVector2D(InRenderTarget->SizeX, InRenderTarget->SizeY);
-	UMaterial* Material = InMaterialInterface->GetMaterial();
-
-	if (Material != nullptr && Material->IsUIMaterial())
-	{
-		UIMaterialBrush->ImageSize = TextureSize;
-		UIMaterialBrush->SetMaterial(InMaterialInterface);
-
-		TSharedRef<SWidget> Widget =
-			SNew(SOverlay)
-			+ SOverlay::Slot()
-			[
-				SNew(SImage)
-				.Image(UIMaterialBrush.Get())
-			];
-
-		static const float DeltaTime = 0.f;
-		MaterialWidgetRenderer->DrawWidget(InRenderTarget, Widget, TextureSize, DeltaTime);
-		
-		// Reset material after drawing
-		UIMaterialBrush->SetMaterial(nullptr);
-	}
-}
-
-void FDMXPixelMappingRenderer::RenderWidget(UTextureRenderTarget2D* InRenderTarget, UUserWidget* InUserWidget) const
-{
-	if (InUserWidget == nullptr)
-	{
-		return;
-	}
-
-	if (InRenderTarget == nullptr)
-	{
-		return;
-	}
-
-	FVector2D TextureSize = FVector2D(InRenderTarget->SizeX, InRenderTarget->SizeY);
-	static const float DeltaTime = 0.f;
-
-	UMGRenderer->DrawWidget(InRenderTarget, InUserWidget->TakeWidget(), TextureSize, DeltaTime);
-}
 
 void FDMXPixelMappingRenderer::RenderTextureToRectangle(const FTextureResource* InTextureResource, const FTexture2DRHIRef InRenderTargetTexture, FVector2D InSize, bool bSRGBSource) const
 {

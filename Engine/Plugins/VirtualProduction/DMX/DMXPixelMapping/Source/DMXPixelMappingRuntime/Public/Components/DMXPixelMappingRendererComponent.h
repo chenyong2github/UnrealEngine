@@ -2,19 +2,18 @@
 
 #pragma once
 
-#include "IDMXPixelMappingRenderer.h"
+#include "DMXPixelMappingPreprocessRenderer.h"
 #include "Components/DMXPixelMappingOutputComponent.h"
+#include "IDMXPixelMappingRenderer.h"
 #include "Library/DMXEntityReference.h"
-#include "Rendering/IDMXPixelMappingRenderInputTextureProxy.h"
-
 #include "Templates/SubclassOf.h"
 
 #include "DMXPixelMappingRendererComponent.generated.h"
 
 enum class EDMXPixelMappingRendererType : uint8;
 class UDMXPixelMappingLayoutScript;
+class UDMXPixelMappingPreprocessRenderer;
 
-enum class EMapChangeType : uint8;
 class UMaterialInterface;
 class UTexture;
 class UUserWidget;
@@ -46,6 +45,7 @@ public:
 
 	//~ Begin UDMXPixelMappingBaseComponent implementation
 	virtual const FName& GetNamePrefix() override;
+	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
 	virtual void ResetDMX() override;
 	virtual void SendDMX() override;
 	virtual void Render() final;
@@ -130,9 +130,6 @@ public:
 	void EmptyDownsampleBuffer();
 
 private:
-	/** Generate new input widget based on UMG */
-	void UpdateInputWidget(TSubclassOf<UUserWidget> InInputWidget);
-
 	/** Resize output texture for editor preview */
 	void ResizePreviewRenderTarget(uint32 InSizeX, uint32 InSizeY);
 
@@ -150,41 +147,37 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	bool GetPixelMappingComponentModulators(FDMXEntityFixturePatchRef FixturePatchRef, TArray<UDMXModulator*>& DMXModulators);
 
-	/** Type of rendering, Texture, Material, UMG, etc... */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
-	EDMXPixelMappingRendererType RendererType;
-
-	/** Texture to Downsampling */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
-	TObjectPtr<UTexture> InputTexture;
-
-	/** Material to Downsampling */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings", meta = (DisplayName = "User Interface Material"))
-	TObjectPtr<UMaterialInterface> InputMaterial;
-
-	/** UMG to Downsampling */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
-	TSubclassOf<UUserWidget> InputWidget;
-
-	/** The brightness of the renderer */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1"))
-	float Brightness = 1.f;
-
-	/** Post process material applied to the rendered input */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Post Process")
-	TObjectPtr<UMaterialInterface> PostProcessMaterial;
-
-	/** Layout script for the children of this component (hidden in customizations and displayed in its own panel). */
-	UPROPERTY(EditAnywhere, Instanced, Category = "Layout")
-	TObjectPtr<UDMXPixelMappingLayoutScript> LayoutScript;
-
-	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
-	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
+	/** Returns the preprocess renderer */
+	UDMXPixelMappingPreprocessRenderer* GetPreprocessRenderer() { return PreprocessRenderer; }
 
 #if WITH_EDITOR
 	/** Returns the component canvas used for this widget */
 	FORCEINLINE TSharedPtr<SConstraintCanvas> GetComponentsCanvas() const { return ComponentsCanvas; }
 #endif // WITH_EDITOR
+
+	/** Type of rendering, Texture, Material, UMG, etc... */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
+	EDMXPixelMappingRendererType RendererType;
+
+	/** The texture used for pixel mapping */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
+	TObjectPtr<UTexture> InputTexture;
+
+	/** The material used for pixel mapping */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings", Meta = (DisplayName = "User Interface Material"))
+	TObjectPtr<UMaterialInterface> InputMaterial;
+
+	/** The UMG widget used for pixel mapping */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
+	TSubclassOf<UUserWidget> InputWidget;
+
+	/** The brightness of the renderer */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings", Meta = (ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1"))
+	float Brightness = 1.f;
+
+	/** Layout script for the children of this component (hidden in customizations and displayed in its own panel). */
+	UPROPERTY(EditAnywhere, Instanced, Category = "Layout")
+	TObjectPtr<UDMXPixelMappingLayoutScript> LayoutScript;
 
 private:
 	/** Retrieve total count of all output targets that support shared rendering and updates a counter. O(n) */
@@ -193,15 +186,8 @@ private:
 	/** Helper function checks the downsample pixel range */
 	bool IsPixelRangeValid(const int32 InDownsamplePixelIndexStart, const int32 InDownsamplePixelIndexEnd) const;
 
-	/** Updates the Input Texture Render Proxy, depending on the selected source */
-	void UpdateInputTextureRenderProxy();
-
-	/** Proxy responsible to render the input texture */
-	TSharedPtr<UE::DMXPixelMapping::Rendering::Private::IDMXPixelMappingRenderInputTextureProxy> RenderInputTextureProxy;
-
-	/** Parameters by which the input texture is rendered */
-	UPROPERTY(EditAnywhere, Category = "Post Process", Meta = (ShowOnlyInnerProperties, AllowPrivateAccess = true))
-	FDMXPixelMappingRenderInputTextureParameters RenderInputTextureParams;
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "Filtering")
+	TObjectPtr<UDMXPixelMappingPreprocessRenderer> PreprocessRenderer;
 
 	/** Reference to renderer */
 	TSharedPtr<IDMXPixelMappingRenderer> PixelMappingRenderer;

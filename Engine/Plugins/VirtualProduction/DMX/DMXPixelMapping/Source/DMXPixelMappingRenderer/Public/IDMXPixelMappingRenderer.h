@@ -30,38 +30,6 @@ enum class EDMXPixelShaderBlendingQuality : uint8
 	MAX
 };
 
-namespace UE::DMXPixelMapping
-{
-	/** Parameters for the Input Texture Renderer */
-	struct FDMXPixelMappingInputTextureRenderingParameters
-	{
-		/** Number of times a texture is downsampled. E.g. when texture size is 512px and is downsampled 3 times, its resulting size is 64px */
-		int32 NumDownsamplePasses = 0;
-
-		/** The post process material. If null, no post process material is applied */
-		UMaterialInstanceDynamic* PostProcessMID = nullptr;
-
-		/** The input texture parameter name of the post process material */
-		FName PostProcessMaterialInputTextureParameterName;
-
-		/** The input texture parameter name of the post process material */
-		FName BlurDistanceParameterName;
-
-		/** The blur distance of the post process material */
-		float BlurDistance = .2f;
-
-		/**
-		 * If true, applies post process material each downsample pass.
-		 * If false applies the post process material once after the last downsample pass, or direct if the input is not downsampled.
-		 * Only applicable if a post process material is set.
-		 */
-		bool bApplyPostProcessMaterialEachDownsamplePass = true;
-
-		/** Size of the rendered texture */
-		FVector2D OutputSize{ 1.f, 1.f };
-	};
-
-}
 
 /**
  * Downsample pixel preview rendering params.
@@ -145,8 +113,6 @@ struct FDMXPixelMappingRenderTextureParams
 };
 
 
-
-
 /**
  * The public interface of the Pixel Mapping renderer instance interface.
  */
@@ -159,17 +125,6 @@ public:
 public:
 	/** Virtual destructor */
 	virtual ~IDMXPixelMappingRenderer() = default;
-		
-	/**
-	 * Blurs input texture onto desination texture
-	 *
-	 * @param InputTexture						The input texture that is being processed
-	 * @param Params							Parameters for post processing.
-	 */
-	virtual void PostProcessTexture(UTexture* InputTexture, const UE::DMXPixelMapping::FDMXPixelMappingInputTextureRenderingParameters& Params) const = 0;
-
-	/** Gets the post processed texture. May return nullptr while the texture is not rendered yet. */
-	virtual UTexture* GetPostProcessedTexture() const = 0;
 
 	/**
 	 * Pixelmapping specific, downsample and draw input texture to destination texture.
@@ -193,6 +148,7 @@ public:
 	 * @param InRenderTarget				2D render target texture resource
 	 * @param InMaterialInterface			Material to use
 	 */
+	 UE_DEPRECATED(5.3, "Please use FWidgetRenderer::DrawWidget or similar engine methods instead.")
 	virtual void RenderMaterial(UTextureRenderTarget2D* InRenderTarget, UMaterialInterface* InMaterialInterface) const = 0;
 
 	/**
@@ -201,6 +157,7 @@ public:
 	 * @param InRenderTarget				2D render target texture resource
 	 * @param InUserWidget					UMG widget to use
 	 */
+	 UE_DEPRECATED(5.3, "Please use FWidgetRenderer::DrawWidget or similar engine methods instead.")
 	virtual void RenderWidget(UTextureRenderTarget2D* InRenderTarget, UUserWidget* InUserWidget) const  = 0;
 
 	/**

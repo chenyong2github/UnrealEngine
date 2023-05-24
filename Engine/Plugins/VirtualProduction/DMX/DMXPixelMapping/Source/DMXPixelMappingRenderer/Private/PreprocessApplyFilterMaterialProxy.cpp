@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DMXPixelMappingPostProcessProxy.h"
+#include "PreprocessApplyFilterMaterialProxy.h"
 
 #include "CanvasTypes.h"
 #include "CommonRenderResources.h"
+#include "DMXStats.h"
 #include "GlobalShader.h"
 #include "RHIStaticStates.h"
 #include "ScreenRendering.h"
@@ -18,14 +19,16 @@
 #include "Modules/ModuleManager.h"
 
 
-namespace UE::DMXPixelMapping::Renderer::Private
+namespace UE::DMXPixelMapping::Rendering::Preprocess::Private
 {
-	FDMXPixelMappingPostProcessCanvas::FDMXPixelMappingPostProcessCanvas()
+	DECLARE_CYCLE_STAT(TEXT("PixelMapping ApplyFilterMaterial"), STAT_PreprocessApplyFilterMaterial, STATGROUP_DMX);
+
+	FDrawPreprocessMaterialCanvas::FDrawPreprocessMaterialCanvas()
 	{
 		Canvas = NewObject<UCanvas>();
 	}
 
-	void FDMXPixelMappingPostProcessCanvas::DrawMaterialToRenderTarget(UTextureRenderTarget2D* TextureRenderTarget, UMaterialInterface* Material)
+	void FDrawPreprocessMaterialCanvas::DrawMaterialToRenderTarget(UTextureRenderTarget2D* TextureRenderTarget, UMaterialInterface* Material)
 	{
 		if (!Material || !TextureRenderTarget || !TextureRenderTarget->GetResource())
 		{
@@ -47,7 +50,6 @@ namespace UE::DMXPixelMapping::Renderer::Private
 			GMaxRHIFeatureLevel);
 
 		Canvas->Init(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, nullptr, &RenderCanvas);
-
 		{
 			ENQUEUE_RENDER_COMMAND(FlushDeferredResourceUpdateCommand)(
 				[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
@@ -71,32 +73,38 @@ namespace UE::DMXPixelMapping::Renderer::Private
 		}
 	}
 
-	void FDMXPixelMappingPostProcessCanvas::AddReferencedObjects(FReferenceCollector& Collector)
+	void FDrawPreprocessMaterialCanvas::AddReferencedObjects(FReferenceCollector& Collector)
 	{
 		Collector.AddReferencedObject(Canvas);
 	}
 
-
-	void FDMXPixelMappingPostProccessProxy::Render(UTexture* InInputTexture, const FDMXPixelMappingInputTextureRenderingParameters& InParams)
+	void FPreprocessApplyFilterMaterialProxy::Render(UTexture* InInputTexture, const UDMXPixelMappingPreprocessRenderer& InPreprocessRenderer)
 	{
-		InputTexture = InInputTexture;
-		PostProcessMID = InParams.PostProcessMID;
-		UpdateRenderTargets(InParams.OutputSize, InParams.NumDownsamplePasses);
+		SCOPE_CYCLE_COUNTER(STAT_PreprocessApplyFilterMaterial);
+
+		MaterialInstanceDynamic = InPreprocessRenderer.GetFilterMID();
+
+		WeakInputTexture = InInputTexture;
+		UpdateRenderTargets(InPreprocessRenderer.GetNumDownsamplePasses(), InPreprocessRenderer.GetDesiredOutputSize2D());
 
 		if (!CanRender())
 		{
 			return;
 		}
 
-		if (DownsampleRenderTargets.IsEmpty() && PostProcessMID)
+		UTexture* InputTexture = WeakInputTexture.Get();
+		check(InputTexture);
+		if (MaterialInstanceDynamic && DownsampleRenderTargets.IsEmpty() && ensureMsgf(OutputRenderTarget, TEXT("Cannot apply pixel mapping filter material. Missing output render target.")))
 		{
 			// Render without downsampling
-			PostProcessMID->SetTextureParameterValue(InParams.PostProcessMaterialInputTextureParameterName, InputTexture);
-			PostProcessMID->SetScalarParameterValue(InParams.BlurDistanceParameterName, InParams.BlurDistance);
-			PostProcessCanvas.DrawMaterialToRenderTarget(OutputRenderTarget, PostProcessMID);
+			MaterialInstanceDynamic->SetTextureParameterValue(InPreprocessRenderer.GetInputTextureParameterName(), InputTexture);
+			MaterialInstanceDynamic->SetScalarParameterValue(InPreprocessRenderer.GetBlurDistanceParameterName(), InPreprocessRenderer.GetBlurDistance());
+			DrawMaterialCanvas.DrawMaterialToRenderTarget(OutputRenderTarget, MaterialInstanceDynamic);
 		}
 		else
 		{
+			const bool bApplyFilterMaterialEachDownsamplePass = InPreprocessRenderer.ShouldApplyFilterMaterialEachDownsamplePass();
+
 			// Render with downsampling. 
 			// Note, if the last downsample render target is of minimal size, further renderer targets are not created.
 			// Hence use the number of downsample render targets instead of InParams.NumDownsamplePasses.
@@ -106,12 +114,12 @@ namespace UE::DMXPixelMapping::Renderer::Private
 				UTexture* SourceTexture = DownsamplePass == 0 ? InputTexture : DownsampleRenderTargets[DownsamplePass - 1];
 				UTextureRenderTarget2D* DownsampleRenderTarget = DownsampleRenderTargets[DownsamplePass].Get();
 
-				const bool bApplyPostProcessMaterial = PostProcessMID && (InParams.bApplyPostProcessMaterialEachDownsamplePass || DownsampleRenderTarget == DownsampleRenderTargets.Last());
-				if (bApplyPostProcessMaterial)
+				const bool bApplyFilterMaterial = MaterialInstanceDynamic && (bApplyFilterMaterialEachDownsamplePass || DownsampleRenderTarget == DownsampleRenderTargets.Last());
+				if (bApplyFilterMaterial)
 				{
-					PostProcessMID->SetTextureParameterValue(InParams.PostProcessMaterialInputTextureParameterName, SourceTexture);
-					PostProcessMID->SetScalarParameterValue(InParams.BlurDistanceParameterName, InParams.BlurDistance);
-					PostProcessCanvas.DrawMaterialToRenderTarget(DownsampleRenderTarget, PostProcessMID);
+					MaterialInstanceDynamic->SetTextureParameterValue(InPreprocessRenderer.GetInputTextureParameterName(), SourceTexture);
+					MaterialInstanceDynamic->SetScalarParameterValue(InPreprocessRenderer.GetBlurDistanceParameterName(), InPreprocessRenderer.GetBlurDistance());
+					DrawMaterialCanvas.DrawMaterialToRenderTarget(DownsampleRenderTarget, MaterialInstanceDynamic);
 				}
 				else
 				{
@@ -119,52 +127,57 @@ namespace UE::DMXPixelMapping::Renderer::Private
 				}
 			}
 
-			// Upscale
-			UTexture* LastSourceTexture = DownsampleRenderTargets.Last();
+			// Scale to output size
+			UTexture* LastSourceTexture = DownsampleRenderTargets.IsEmpty() ? InputTexture : DownsampleRenderTargets.Last();
 			RenderTextureToTarget(LastSourceTexture, OutputRenderTarget);
 		}
 	}
 
-	UTexture* FDMXPixelMappingPostProccessProxy::GetRenderedTextureGameThread() const
+	UTexture* FPreprocessApplyFilterMaterialProxy::GetRenderedTexture() const
 	{
-		return CanRender() ? OutputRenderTarget : InputTexture;
+		return CanRender() ? OutputRenderTarget : WeakInputTexture.Get();
 	}
 
-	void FDMXPixelMappingPostProccessProxy::AddReferencedObjects(FReferenceCollector& Collector)
+	void FPreprocessApplyFilterMaterialProxy::AddReferencedObjects(FReferenceCollector& Collector)
 	{
-		Collector.AddReferencedObject(InputTexture);
-		Collector.AddReferencedObject(PostProcessMID);
+		Collector.AddReferencedObject(MaterialInstanceDynamic);
 		Collector.AddReferencedObjects(DownsampleRenderTargets);
 		Collector.AddReferencedObject(OutputRenderTarget);
 	}
 
-	bool FDMXPixelMappingPostProccessProxy::CanRender() const
+	bool FPreprocessApplyFilterMaterialProxy::CanRender() const
 	{
-		return InputTexture && OutputRenderTarget && FApp::CanEverRender();
+		return WeakInputTexture.IsValid() && OutputRenderTarget && FApp::CanEverRender();
 	}
 
-	void FDMXPixelMappingPostProccessProxy::UpdateRenderTargets(const FVector2D& OutputSize, int32 NumDownsamplePasses)
+	void FPreprocessApplyFilterMaterialProxy::UpdateRenderTargets(int32 NumDownsamplePasses, const TOptional<FVector2D>& OptionalOutputSize)
 	{
-		const bool bNeedsAnyRenderTargets = InputTexture && (NumDownsamplePasses > 0 || PostProcessMID);
+		UTexture* InputTexture = WeakInputTexture.Get();
+
+		const bool bResize = 
+			OptionalOutputSize.IsSet() &&
+			InputTexture &&
+			InputTexture->GetSurfaceWidth() != OptionalOutputSize.GetValue().X &&
+			InputTexture->GetSurfaceHeight() != OptionalOutputSize.GetValue().Y;
+
+		const bool bNeedsAnyRenderTargets = WeakInputTexture.IsValid() && (NumDownsamplePasses > 0 || MaterialInstanceDynamic || bResize);
 		if (!bNeedsAnyRenderTargets)
 		{
 			OutputRenderTarget = nullptr;
 			return;
 		}
 
-		bool bInvalidRendertargets = !OutputRenderTarget || DownsampleRenderTargets.IsEmpty() || DownsampleRenderTargets.Num() != NumDownsamplePasses;
-		if (!bInvalidRendertargets)
-		{
-			if (OutputRenderTarget->GetSurfaceWidth() != OutputSize.X ||
-				OutputRenderTarget->GetSurfaceHeight() != OutputSize.Y)
-			{
-				// Input texture was resized 
-				bInvalidRendertargets = true;
-			}
-		}
+		const int32 NumExpectedDownsampleRenderTargets = OptionalOutputSize.IsSet() ? NumDownsamplePasses : NumDownsamplePasses - 1;
+		const bool bInvalidRenderTargets = 
+			!OutputRenderTarget || 
+			NumExpectedDownsampleRenderTargets != DownsampleRenderTargets.Num() ||
+			(OptionalOutputSize.IsSet() && OutputRenderTarget->GetSurfaceWidth() != OptionalOutputSize.GetValue().X) ||
+			(OptionalOutputSize.IsSet() && OutputRenderTarget->GetSurfaceHeight() != OptionalOutputSize.GetValue().Y);
 
-		if (bInvalidRendertargets)
+		if (bInvalidRenderTargets)
 		{
+			FlushRenderingCommands();
+
 			const FVector2D InputSize = FVector2D(InputTexture->GetSurfaceHeight(), InputTexture->GetSurfaceWidth());
 
 			// Create downsample render targets
@@ -184,18 +197,34 @@ namespace UE::DMXPixelMapping::Renderer::Private
 				DownsampleRenderTargets.Add(DownsampleRenderTarget);
 			}
 
-			// Create output render target
-			OutputRenderTarget = NewObject<UTextureRenderTarget2D>();
-			OutputRenderTarget->ClearColor = FLinearColor::Black;
-			OutputRenderTarget->InitAutoFormat(OutputSize.X, OutputSize.Y);
-			OutputRenderTarget->UpdateResourceImmediate();
+			UTextureRenderTarget2D* ScaleRenderTarget = nullptr;
+			if (OptionalOutputSize.IsSet())
+			{
+				ScaleRenderTarget = NewObject<UTextureRenderTarget2D>();
+				ScaleRenderTarget->ClearColor = FLinearColor::Black;
+				ScaleRenderTarget->InitAutoFormat(OptionalOutputSize.GetValue().X, OptionalOutputSize.GetValue().Y);
+				ScaleRenderTarget->UpdateResourceImmediate();
+			}
+
+			if (ScaleRenderTarget)
+			{
+				OutputRenderTarget = ScaleRenderTarget;
+			}
+			else if (!DownsampleRenderTargets.IsEmpty())
+			{
+				OutputRenderTarget = DownsampleRenderTargets.Pop();
+			}
+			else
+			{
+				OutputRenderTarget = nullptr;
+			}
 		}
 	}
 
-	void FDMXPixelMappingPostProccessProxy::RenderTextureToTarget(UTexture* Texture, UTextureRenderTarget2D* RenderTarget) const
+	void FPreprocessApplyFilterMaterialProxy::RenderTextureToTarget(UTexture* Texture, UTextureRenderTarget2D* RenderTarget) const
 	{
 		IRendererModule* RendererModule = FModuleManager::GetModulePtr<IRendererModule>("Renderer");
-		ENQUEUE_RENDER_COMMAND(PixelMappingPostProccessRenderToTargetPass)(
+		ENQUEUE_RENDER_COMMAND(PixelMappingPreprocessDownsamplePass)(
 			[RendererModule, Texture, RenderTarget, this](FRHICommandListImmediate& RHICmdList)
 			{
 				if (!Texture || !Texture->GetResource())
@@ -209,7 +238,7 @@ namespace UE::DMXPixelMapping::Renderer::Private
 				FRHIRenderPassInfo RPInfo(TargetTextureRHI, MakeRenderTargetActions(ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore));
 
 				RHICmdList.Transition(FRHITransitionInfo(TargetTextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
-				RHICmdList.BeginRenderPass(RPInfo, TEXT("PixelMappingPostProcessProxy_RenderToTarget"));
+				RHICmdList.BeginRenderPass(RPInfo, TEXT("PixelMappingFilterProxy_RenderToTarget"));
 				{
 					RHICmdList.SetViewport(0, 0, 0.0f, (float)TargetTextureRHI->GetSizeX(), (float)TargetTextureRHI->GetSizeY(), 1.0f);
 

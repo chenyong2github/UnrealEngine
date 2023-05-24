@@ -2,17 +2,18 @@
 
 #include "Views/SDMXPixelMappingInputSourceView.h"
 
-#include "DMXPixelMapping.h"
-#include "DMXPixelMappingComponentReference.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Renderer.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
-
+#include "Customizations/DMXPixelMappingPreprocessRendererDetails.h"
+#include "DMXPixelMapping.h"
+#include "DMXPixelMappingComponentReference.h"
+#include "DMXPixelMappingPreprocessRenderer.h"
 #include "Editor.h"
 #include "IDetailsView.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -178,6 +179,11 @@ void SDMXPixelMappingInputSourceView::ForceRefresh()
 
 			FOnGetDetailCustomizationInstance RendererCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_Renderer::MakeInstance, WeakToolkit);
 			DetailsView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingRendererComponent::StaticClass(), RendererCustomizationInstance);
+
+			using namespace UE::DMXPixelMapping::Customizations;
+			FOnGetDetailCustomizationInstance RenderInputTextureProxyCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingPreprocessRendererDetails::MakeInstance);
+			DetailsView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingPreprocessRenderer::StaticClass(), RenderInputTextureProxyCustomizationInstance);
+			
 			DetailsView->SetObject(RendererComponent);
 
 			BodyContent->AddSlot()

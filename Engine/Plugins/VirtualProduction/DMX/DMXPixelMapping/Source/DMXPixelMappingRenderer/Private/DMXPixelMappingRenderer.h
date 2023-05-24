@@ -4,7 +4,7 @@
 
 #include "IDMXPixelMappingRenderer.h"
 
-#include "DMXPixelMappingPostProcessProxy.h"
+#include "DMXPixelMappingPreprocessRenderer.h"
 
 class IRendererModule;
 class FWidgetRenderer;
@@ -24,12 +24,6 @@ public:
 	FDMXPixelMappingRenderer();
 
 	//~ Begin IDMXPixelMappingRenderer implementation
-
-	virtual void PostProcessTexture(UTexture* InputTexture, const UE::DMXPixelMapping::FDMXPixelMappingInputTextureRenderingParameters& Params) const override;
-
-	virtual UTexture* GetPostProcessedTexture() const override;
-
-	
 	virtual void DownsampleRender(
 		const FTextureResource* InputTexture,
 		const FTextureResource* DstTexture,
@@ -38,8 +32,14 @@ public:
 		DownsampleReadCallback InCallback
 	) const override;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.3, "Use PreprocessRenderInputMaterialProxy instead")
 	virtual void RenderMaterial(UTextureRenderTarget2D* InRenderTarget, UMaterialInterface* InMaterialInterface) const override;
+
+	UE_DEPRECATED(5.3, "Use PreprocessRenderInputUserWidgetProxy instead")
 	virtual void RenderWidget(UTextureRenderTarget2D* InRenderTarget, UUserWidget* InUserWidget) const override;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	virtual void RenderTextureToRectangle(const FTextureResource* InTextureResource, const FTexture2DRHIRef InRenderTargetTexture, FVector2D InSize, bool bSRGBSource) const override;
 
 #if WITH_EDITOR
@@ -48,9 +48,6 @@ public:
 	//~ End IDMXPixelMappingRenderer implementation
 
 private:
-	/** Proxy to post process the input texture */
-	mutable UE::DMXPixelMapping::Renderer::Private::FDMXPixelMappingPostProccessProxy PostProcessProxy;
-
 	/** Brush for Material widget renderer */
 	TSharedPtr<FSlateMaterialBrush> UIMaterialBrush;
 

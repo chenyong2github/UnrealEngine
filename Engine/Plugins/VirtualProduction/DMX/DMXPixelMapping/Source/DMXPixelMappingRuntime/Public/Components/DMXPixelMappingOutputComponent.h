@@ -122,7 +122,7 @@ public:
 	/** Sets the size */
 	virtual void SetSize(const FVector2D& NewSize);
 
-	/** Get the size. Note this is the position before a layout has been applied, use GetLayoutedSize() to get the final position.. */
+	/** Get the size */
 	FVector2D GetSize() const { return FVector2D(SizeX, SizeY); }
 
 	/** Helper that returns render component if available */

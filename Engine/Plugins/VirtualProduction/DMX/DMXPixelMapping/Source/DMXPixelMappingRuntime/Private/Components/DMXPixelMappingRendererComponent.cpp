@@ -2,37 +2,36 @@
 
 #include "Components/DMXPixelMappingRendererComponent.h"
 
-#include "DMXPixelMappingMainStreamObjectVersion.h"
-#include "DMXPixelMappingTypes.h"
-#include "DMXStats.h"
-#include "IDMXPixelMappingRenderer.h"
-#include "IDMXPixelMappingRendererModule.h"
+#include "Async/Async.h"
+#include "Blueprint/UserWidget.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
-#include "Rendering/RenderInputTextureProxy.h"
-
-#include "Async/Async.h"
-#include "Blueprint/UserWidget.h"
+#include "DMXPixelMappingPreprocessRenderer.h"
+#include "DMXPixelMappingMainStreamObjectVersion.h"
+#include "DMXPixelMappingTypes.h"
+#include "DMXStats.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Materials/MaterialInstanceDynamic.h"
+#include "IDMXPixelMappingRenderer.h"
+#include "IDMXPixelMappingRendererModule.h"
 #include "Modulators/DMXModulator.h"
+#include "RenderingThread.h"
 #include "TextureResource.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/Package.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 
-
 #if WITH_EDITOR
-
 #include "LevelEditor.h"
 #endif
 
 
 DECLARE_CYCLE_STAT(TEXT("PixelMapping Render"), STAT_DMXPixelMappingRender, STATGROUP_DMX);
-DECLARE_CYCLE_STAT(TEXT("PixelMapping Send DMX Worker"), STAT_DMXPixelMappingSendDMX, STATGROUP_DMX);
+DECLARE_CYCLE_STAT(TEXT("PixelMapping SendDMX"), STAT_DMXPixelMappingSendDMX, STATGROUP_DMX);
+DECLARE_CYCLE_STAT(TEXT("PixelMapping RenderInputTexture"), STAT_RenderInputTexture, STATGROUP_DMX);
+DECLARE_CYCLE_STAT(TEXT("PixelMapping GetTotalDownsamplePixelCount"), STAT_GetTotalDownsamplePixelCount, STATGROUP_DMX);
 
 
 const FIntPoint UDMXPixelMappingRendererComponent::MaxDownsampleBufferTargetSize = FIntPoint(4096);
@@ -41,7 +40,7 @@ const FLinearColor UDMXPixelMappingRendererComponent::ClearTextureColor = FLinea
 UDMXPixelMappingRendererComponent::UDMXPixelMappingRendererComponent()
 {
 	SetSize(FVector2D(100.f, 100.f));
-
+	
 #if WITH_EDITOR
 	ConstructorHelpers::FObjectFinder<UTexture> DefaultTexture(TEXT("Texture2D'/Engine/VREditor/Devices/Vive/UE4_Logo.UE4_Logo'"), LOAD_NoWarn);
 	if (ensureAlwaysMsgf(DefaultTexture.Succeeded(), TEXT("Failed to load Texture2D'/Engine/VREditor/Devices/Vive/UE4_Logo.UE4_Logo'")))
@@ -56,18 +55,19 @@ UDMXPixelMappingRendererComponent::UDMXPixelMappingRendererComponent()
 	}
 #endif
 	
+	PreprocessRenderer = CreateDefaultSubobject<UDMXPixelMappingPreprocessRenderer>("PreprocessRenderer");
 	Brightness = 1.0f;
-
-#if WITH_EDITOR
-	// Default to lock in designer, since for new renderers, the texture is the default
-	bLockInDesigner = true;
-#endif
 }
 
 const FName& UDMXPixelMappingRendererComponent::GetNamePrefix()
 {
 	static FName NamePrefix = TEXT("Renderer");
 	return NamePrefix;
+}
+
+bool UDMXPixelMappingRendererComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
+{
+	return Component && Component->IsA<UDMXPixelMappingRootComponent>();
 }
 
 void UDMXPixelMappingRendererComponent::Serialize(FArchive& Ar)
@@ -81,15 +81,11 @@ void UDMXPixelMappingRendererComponent::Serialize(FArchive& Ar)
 		{
 			if (RendererType == EDMXPixelMappingRendererType::Texture)
 			{
-#if WITH_EDITOR
-				bLockInDesigner = true;
-#endif
 				// Refresh the size of the texture if that is used as input
 				if (InputTexture)
 				{
 					if (const FTextureResource* TextureResource = InputTexture->GetResource())
 					{
-						// Set to the texture size
 						const FVector2D NewSize = FVector2D(TextureResource->GetSizeX(), TextureResource->GetSizeY());
 						SetSize(NewSize);
 					}
@@ -126,51 +122,7 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
 	const FName PropertyName = PropertyChangedChainEvent.GetPropertyName();
-	if (PropertyChangedChainEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeXPropertyName() ||
-		PropertyChangedChainEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeYPropertyName())
-	{
-		// The target always needs be within GMaxTextureDimensions, larger dimensions are not supported by the engine
-		const uint32 MaxTextureDimensions = GetMax2DTextureDimension();
-
-		if (GetSize().X > MaxTextureDimensions ||
-			GetSize().Y > MaxTextureDimensions)
-		{
-			const float NewSizeX = FMath::Clamp(GetSize().X, 0.0f, static_cast<float>(MaxTextureDimensions));
-			const float NewSizeY = FMath::Clamp(GetSize().Y, 0.0f, static_cast<float>(MaxTextureDimensions));
-			const FVector2D NewSize(NewSizeX, NewSizeY);
-			SetSize(NewSize);
-
-			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Pixel mapping textures are limited to engine's max texture dimension %dx%d"), MaxTextureDimensions, MaxTextureDimensions);
-		}
-	} 
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, RendererType))
-	{
-		if (RendererType == EDMXPixelMappingRendererType::Texture)
-		{
-			// Prevent the size from being edited via its edit condition
-			bLockInDesigner = true;
-		}
-		else
-		{
-			bLockInDesigner = false;
-		}
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, InputWidget))
-	{
-		if (InputWidget && UserWidget && InputWidget->GetClass() != UserWidget->GetClass())
-		{
-			// UMG just tries to expand to the max possible size. Instead of using that we set a smaller, reasonable size here. 
-			// This doesn't offer a solution to the adaptive nature of UMG, but implies to the user how to deal with the issue.
-			constexpr float DefaultUMGSizeX = 1024.f;
-			constexpr float DefaultUMGSizeY = 768.f;
-
-			SetSize(FVector2D(DefaultUMGSizeX, DefaultUMGSizeY));
-			ResizePreviewRenderTarget(DefaultUMGSizeX, DefaultUMGSizeY);
-		}
-
-		UpdateInputWidget(InputWidget);
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, Brightness))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, Brightness))
 	{
 		const TSharedPtr<IDMXPixelMappingRenderer>& Renderer = GetRenderer();
 		if (Renderer.IsValid())
@@ -415,20 +367,9 @@ UWorld* UDMXPixelMappingRendererComponent::GetWorld() const
 	return World;
 }
 
-void UDMXPixelMappingRendererComponent::UpdateInputWidget(TSubclassOf<UUserWidget> InInputWidget)
-{
-	UserWidget = CreateWidget(GetWorld(), InInputWidget);
-}
-
 void UDMXPixelMappingRendererComponent::Initialize()
 {
-	if (InputTexture)
-	{
-		InputTexture->SetForceMipLevelsToBeResident(30.0f);
-		InputTexture->WaitForStreaming();
-	}
-
-	if (UserWidget == nullptr && InputWidget != nullptr)
+	if (InputWidget)
 	{
 		UserWidget = CreateWidget(GetWorld(), InputWidget);
 	}
@@ -439,31 +380,25 @@ void UDMXPixelMappingRendererComponent::Initialize()
 		PixelMappingRenderer->SetBrightness(Brightness);
 	}
 
-#if WITH_EDITOR
-	// Before 4.27 the 'bLockInDesigner' edit condition for size did not exist, apply it here where needed
-	if (RendererType == EDMXPixelMappingRendererType::Texture)
+	switch (RendererType)
 	{
-		// Prevent the size from being edited via its edit condition
-		bLockInDesigner = true;
+	case(EDMXPixelMappingRendererType::Texture):
+		PreprocessRenderer->SetInputTexture(InputTexture.Get());
+		break;
 
-		// Refresh the size of the texture in case it changed externally
-		if (InputTexture)
-		{
-			if (const FTextureResource* TextureResource = InputTexture->GetResource())
-			{
-				// Set to the texture size
-				const FVector2D NewSize = FVector2D(TextureResource->GetSizeX(), TextureResource->GetSizeY());
-				SetSize(NewSize);
-			}
-		}
-	}
-	else
-	{
-		bLockInDesigner = false;
-	}
-#endif
+	case(EDMXPixelMappingRendererType::Material):
+		PreprocessRenderer->SetInputMaterial(InputMaterial.Get());
+		break;
 
-	UpdateInputTextureRenderProxy();
+	case(EDMXPixelMappingRendererType::UMG):
+		PreprocessRenderer->SetInputUserWidget(UserWidget.Get());
+		break;
+
+	default:
+		checkf(0, TEXT("Invalid Renderer Type in DMXPixelMappingRendererComponent"));
+	}
+
+	SetSize(PreprocessRenderer->GetResultingSize2D());
 }
 
 UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::CreateRenderTarget(const FName& InBaseName)
@@ -479,34 +414,28 @@ UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::CreateRenderTarget(co
 
 void UDMXPixelMappingRendererComponent::RendererInputTexture()
 {
-	if (RenderInputTextureProxy.IsValid())
-	{
-		RenderInputTextureProxy->Render();
-	}
+	SCOPE_CYCLE_COUNTER(STAT_RenderInputTexture);
 
-#if WITH_EDITOR
-	if (RendererType == EDMXPixelMappingRendererType::Texture)
-	{
-		if (InputTexture != nullptr && InputTexture->GetResource())
-		{
-			ResizePreviewRenderTarget(InputTexture->GetResource()->GetSizeX(), InputTexture->GetResource()->GetSizeY());
-		}
-	}
-	else
-	{
-		ResizePreviewRenderTarget(GetSize().X, GetSize().Y);
-	}
-#endif
+	PreprocessRenderer->Render();
+
+//#if WITH_EDITOR
+//	if (RendererType == EDMXPixelMappingRendererType::Texture)
+//	{
+//		if (InputTexture && InputTexture->GetResource())
+//		{
+//			ResizePreviewRenderTarget(InputTexture->GetResource()->GetSizeX(), InputTexture->GetResource()->GetSizeY());
+//		}
+//	}
+//	else
+//	{
+//		ResizePreviewRenderTarget(GetSize().X, GetSize().Y);
+//	}
+//#endif
 }
 
 UTexture* UDMXPixelMappingRendererComponent::GetRendererInputTexture() const
 {
-	return RenderInputTextureProxy.IsValid() ? RenderInputTextureProxy->GetRenderedTexture() : nullptr;
-}
-
-bool UDMXPixelMappingRendererComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
-{
-	return Component && Component->IsA<UDMXPixelMappingRootComponent>();
+	return PreprocessRenderer->GetRenderedTexture();
 }
 
 void UDMXPixelMappingRendererComponent::CreateOrUpdateDownsampleBufferTarget()
@@ -671,6 +600,8 @@ bool UDMXPixelMappingRendererComponent::IsPixelRangeValid(const int32 InDownsamp
 
 int32 UDMXPixelMappingRendererComponent::GetTotalDownsamplePixelCount()
 {
+	SCOPE_CYCLE_COUNTER(STAT_GetTotalDownsamplePixelCount);
+
 	FScopeLock ScopeLock(&DownsampleBufferCS);
 
 	// Reset pixel counter
@@ -693,32 +624,4 @@ int32 UDMXPixelMappingRendererComponent::GetTotalDownsamplePixelCount()
 		}, bIsRecursive);
 
 	return DownsamplePixelCount;
-}
-
-void UDMXPixelMappingRendererComponent::UpdateInputTextureRenderProxy()
-{
-	using namespace UE::DMXPixelMapping::Rendering::Private;
-
-	// Update params
-	RenderInputTextureParams.OutputSize = GetSize();
-	RenderInputTextureParams.PostProcessMID = PostProcessMaterial ? UMaterialInstanceDynamic::Create(PostProcessMaterial, GetTransientPackage()) : nullptr;
-
-	RenderInputTextureProxy.Reset();
-	switch (RendererType)
-	{
-	case(EDMXPixelMappingRendererType::Texture):
-		RenderInputTextureProxy = MakeShared<FRenderInputTextureProxy<UTexture>>(PixelMappingRenderer.ToSharedRef(), InputTexture.Get(), RenderInputTextureParams);
-		break;
-
-	case(EDMXPixelMappingRendererType::Material):
-		RenderInputTextureProxy = MakeShared<FRenderInputTextureProxy<UMaterialInterface>>(PixelMappingRenderer.ToSharedRef(), InputMaterial.Get(), RenderInputTextureParams, GetSize());
-		break;
-
-	case(EDMXPixelMappingRendererType::UMG):
-		RenderInputTextureProxy = MakeShared<FRenderInputTextureProxy<UUserWidget>>(PixelMappingRenderer.ToSharedRef(), InputWidget.GetDefaultObject(), RenderInputTextureParams, GetSize());
-		break;
-
-	default:
-		checkf(0, TEXT("Invalid Renderer Type in DMXPixelMappingRendererComponent"));
-	}
 }

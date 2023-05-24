@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "IDMXPixelMappingRenderer.h"
+#include "DMXPixelMappingPreprocessRenderer.h"
 
 #include "UObject/GCObject.h"
 #include "UObject/ObjectPtr.h"
@@ -14,15 +14,15 @@ class UTexture;
 class UTextureRenderTarget2D;
 
 
-namespace UE::DMXPixelMapping::Renderer::Private
+namespace UE::DMXPixelMapping::Rendering::Preprocess::Private
 {
 	/** Canvas implementation for pixelmapping */
-	class FDMXPixelMappingPostProcessCanvas
+	class FDrawPreprocessMaterialCanvas
 		: public FGCObject
 	{
 	public:
 		/** Constructor */
-		FDMXPixelMappingPostProcessCanvas();
+		FDrawPreprocessMaterialCanvas();
 
 		/** Draws a material to a render target */
 		void DrawMaterialToRenderTarget(UTextureRenderTarget2D* TextureRenderTarget, UMaterialInterface* Material);
@@ -32,33 +32,32 @@ namespace UE::DMXPixelMapping::Renderer::Private
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 		virtual FString GetReferencerName() const override
 		{
-			return TEXT("FDMXPixelMappingPostProccessProxy");
+			return TEXT("DMXPixelMapping::Rendering::FDrawPreprocessMaterialCanvas");
 		}
 		//~ End FGCObject interface
 
 	private:
-		/** Canvas to be used for post processing */
+		/** Canvas used to draw the material */
 		TObjectPtr<UCanvas> Canvas;
 	};
 
-
-	/** Proxy to post process the texture used in Pixel Mapping */
-	class FDMXPixelMappingPostProccessProxy
-		: public FGCObject
+	/** Proxy to filter the texture used in Pixel Mapping */
+	class FPreprocessApplyFilterMaterialProxy
+		: public IPreprocessApplyFilterMaterialProxy
+		, public FGCObject
 	{
 	public:
-		/** Renders the input texture  */
-		void Render(UTexture* InInputTexture, const FDMXPixelMappingInputTextureRenderingParameters& InParams);
-
-		/** Returns the rendered texture, or nullptr if no texture was rendered */
-		UTexture* GetRenderedTextureGameThread() const;
+		//~ Begin IPreprocessApplyFilterMaterialProxy interface
+		virtual void Render(UTexture* InInputTexture, const UDMXPixelMappingPreprocessRenderer& InPreprocessRenderer) override;
+		virtual UTexture* GetRenderedTexture() const override;
+		//~ End IPreprocessApplyFilterMaterialProxy interface
 
 	protected:
 		//~ Begin FGCObject interface
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 		virtual FString GetReferencerName() const override
 		{
-			return TEXT("FDMXPixelMappingPostProccessProxy");
+			return TEXT("FPreprocessApplyFilterMaterialProxy");
 		}
 		//~ End FGCObject interface
 
@@ -67,28 +66,24 @@ namespace UE::DMXPixelMapping::Renderer::Private
 		bool CanRender() const;
 
 		/** Updates render targets */
-		void UpdateRenderTargets(const FVector2D& OutputSize, int32 NumDownsamplePasses);
+		void UpdateRenderTargets(int32 NumDownsamplePasses, const TOptional<FVector2D>& OptionalOutputSize);
 
 		/** Renders the Input Texture to the Output render target*/
 		void RenderTextureToTarget(UTexture* Texture, UTextureRenderTarget2D* RenderTarget) const;
 
-		/** The number of times rendering is required, either to downsample or applying the post process material */
-		int32 NumRenderPasses = 0;
-
 		/** Weak ref to the input texture */
-		TObjectPtr<UTexture> InputTexture;
+		TWeakObjectPtr<UTexture> WeakInputTexture;
 
-		/** Post process material instance dynamic to be applied to the input texture */
-		TObjectPtr<UMaterialInstanceDynamic> PostProcessMID;
+		/** The dynamic material instance to be applied to the input texture */
+		TObjectPtr<UMaterialInstanceDynamic> MaterialInstanceDynamic;
 
 		/** Downsample render targets */
 		TArray<TObjectPtr<UTextureRenderTarget2D>> DownsampleRenderTargets;
 
-		/** The render target that is output. Only valid if rendering is needed */
+		/** The target to which the output is rendered. Either the last downscale render target or the scale render target */
 		TObjectPtr<UTextureRenderTarget2D> OutputRenderTarget;
 
-		/** Post process canvas used to draw materials */
-		FDMXPixelMappingPostProcessCanvas PostProcessCanvas;
+		/** Canvas used to draw materials */
+		FDrawPreprocessMaterialCanvas DrawMaterialCanvas;
 	};
-
 }
