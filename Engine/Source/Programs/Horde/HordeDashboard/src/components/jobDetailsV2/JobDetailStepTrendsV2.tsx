@@ -240,7 +240,7 @@ class StepTrendsRenderer {
    render(container: HTMLDivElement) {
 
       if (this.hasRendered && !this.forceRender) {
-         return;
+         //return;
       }
 
       const dataView = this.dataView;
