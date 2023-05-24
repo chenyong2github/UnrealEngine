@@ -7,7 +7,6 @@
 #include "HAL/FileManager.h"
 #include "IO/IoCache.h"
 #include "IO/IoFileCache.h"
-#include "IO/IoMemoryCache.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
@@ -337,13 +336,6 @@ void FIoStoreOnDemandModule::StartupModule()
 	{
 		TSharedPtr<IIoCache> Cache;
 
-#if !UE_BUILD_SHIPPING
-		if (uint64 CacheSize = ParseSizeParam(TEXT("OnDemandMemoryCache=")); CacheSize > 0)
-		{
-			UE_LOG(LogIoStoreOnDemand, Log, TEXT("Using %lluB in memory LRU cache"), CacheSize);
-			Cache = MakeShareable(MakeMemoryIoCache(CacheSize ).Release());
-		}
-#endif
 		if (uint64 DiskSize = ParseSizeParam(TEXT("OnDemandFileCache=")); DiskSize > 0)
 		{
 			uint64 MemorySize = ParseSizeParam(TEXT("OnDemandFileCacheQueueSize="));
