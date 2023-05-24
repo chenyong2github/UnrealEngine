@@ -9,9 +9,7 @@
 
 class UObject;
 
-// using "not checked" user policy (means race detection is disabled) because this delegate is stored in a TArray and causes its reallocation
-// from inside delegate's execution. This is incompatible with race detection that needs to access the delegate instance after its execution
-using FMovieSceneSequenceLatentActionDelegate = TDelegate<void(), FNotThreadSafeNotCheckedDelegateUserPolicy>;
+DECLARE_DELEGATE(FMovieSceneSequenceLatentActionDelegate);
 
 /**
  * Utility class for running latent actions created from sequence players.

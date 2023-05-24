@@ -31,11 +31,13 @@ template <typename UserPolicy>
 class TMulticastDelegateBase;
 
 template <typename UserPolicy>
+class TTSMulticastDelegateBase;
+
+template <typename UserPolicy>
 class TDelegateBase;
 
 ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename ElementType>, FDelegateAllocatorType::ForElementType<ElementType>, void*);
 
-// not thread-safe version, with automatic race detection in dev builds
 struct FDefaultDelegateUserPolicy
 {
 	// To extend delegates, you should implement a policy struct like this and pass it as the second template
@@ -48,7 +50,7 @@ struct FDefaultDelegateUserPolicy
 	//   - This binding is not available through the public API of the delegate, but is accessible to FDelegateExtras.
 	//
 	// FDelegateExtras:
-	//   - Must publicly inherit TDelegateBase<FThreadSafetyMode>.
+	//   - Must publicly inherit TDelegateBase<UserPolicy>.
 	//   - Should contain any extra data and functions injected into a delegate (the object which holds an
 	//     FDelegateInstance-derived object, above).
 	//   - Public data members and member functions are accessible directly through the TDelegate object.
@@ -61,50 +63,30 @@ struct FDefaultDelegateUserPolicy
 	//     holds an array of FDelegateExtras-derived objects which is the invocation list).
 	//   - Public data members and member functions are accessible directly through the TMulticastDelegate object.
 
-	using FDelegateInstanceExtras = IDelegateInstance;
-	using FThreadSafetyMode =
-#if UE_DETECT_DELEGATES_RACE_CONDITIONS
-		FNotThreadSafeDelegateMode;
-#else
-		FNotThreadSafeNotCheckedDelegateMode;
-#endif
-	using FDelegateExtras = TDelegateBase<FThreadSafetyMode>;
+	using FDelegateInstanceExtras  = IDelegateInstance;
+	using FDelegateExtras          = TDelegateBase<FDefaultDelegateUserPolicy>;
 	using FMulticastDelegateExtras = TMulticastDelegateBase<FDefaultDelegateUserPolicy>;
 };
 
-// thread-safe version
 struct FDefaultTSDelegateUserPolicy
 {
 	// see `FDefaultDelegateUserPolicy` for documentation
-	using FDelegateInstanceExtras = IDelegateInstance;
-	using FThreadSafetyMode = FThreadSafeDelegateMode;
-	using FDelegateExtras = TDelegateBase<FThreadSafetyMode>;
-	using FMulticastDelegateExtras = TMulticastDelegateBase<FDefaultTSDelegateUserPolicy>;
-};
-
-// not thread-safe version, no race detection. used primarily for deprecated unsafe delegates that must be kept running for backward compatibility
-struct FNotThreadSafeNotCheckedDelegateUserPolicy
-{
-	using FDelegateInstanceExtras = IDelegateInstance;
-	using FThreadSafetyMode = FNotThreadSafeNotCheckedDelegateMode;
-	using FDelegateExtras = TDelegateBase<FThreadSafetyMode>;
-	using FMulticastDelegateExtras = TMulticastDelegateBase<FNotThreadSafeNotCheckedDelegateUserPolicy>;
+	using FDelegateInstanceExtras  = IDelegateInstance;
+	using FDelegateExtras          = TDelegateBase<FDefaultTSDelegateUserPolicy>;
+	using FMulticastDelegateExtras = TTSMulticastDelegateBase<FDefaultTSDelegateUserPolicy>;
 };
 
 /**
  * Base class for unicast delegates.
  */
-template<typename ThreadSafetyMode>
-class TDelegateBase : public TDelegateAccessHandlerBase<ThreadSafetyMode>
+template <typename UserPolicy>
+class TDelegateBase : public FDelegateAccessHandlerBaseChecked
 {
 private:
-	using Super = TDelegateAccessHandlerBase<ThreadSafetyMode>;
+	using Super = FDelegateAccessHandlerBaseChecked;
 
 	template <typename>
 	friend class TMulticastDelegateBase;
-
-	template <typename>
-	friend class TDelegateBase;
 
 	template <class, typename, typename, typename...>
 	friend class TBaseUFunctionDelegateInstance;
@@ -150,13 +132,6 @@ public:
 	{
 		MoveAssign(MoveTemp(Other));
 		return *this;
-	}
-
-	// support for moving from delegates with different thread-safety mode
-	template<typename OtherThreadSafetyMode>
-	explicit TDelegateBase(TDelegateBase<OtherThreadSafetyMode>&& Other)
-	{
-		MoveConstruct(MoveTemp(Other));
 	}
 
 	/**
@@ -346,23 +321,22 @@ private:
 		return DelegateAllocator.GetAllocation();
 	}
 
-	template<typename OtherThreadSafetyMode>
-	void MoveConstruct(TDelegateBase<OtherThreadSafetyMode>&& Other)
+	void MoveConstruct(TDelegateBase&& Other)
 	{
-		typename TDelegateBase<OtherThreadSafetyMode>::FWriteAccessScope OtherWriteScope = Other.GetWriteAccessScope();
+		FWriteAccessScope OtherWriteScope = Other.GetWriteAccessScope();
 
 		DelegateAllocator.MoveToEmpty(Other.DelegateAllocator);
 		DelegateSize = Other.DelegateSize;
 		Other.DelegateSize = 0;
 	}
 
-	template<typename OtherThreadSafetyMode>
-	void MoveAssign(TDelegateBase<OtherThreadSafetyMode>&& Other)
+	void MoveAssign(TDelegateBase&& Other)
 	{
 		FDelegateAllocatorType::ForElementType<FAlignedInlineDelegateType> OtherDelegateAllocator;
 		int32 OtherDelegateSize;
 		{
-			typename TDelegateBase<OtherThreadSafetyMode>::FWriteAccessScope OtherWriteScope = Other.GetWriteAccessScope();
+			FWriteAccessScope OtherWriteScope = Other.GetWriteAccessScope();
+
 			OtherDelegateAllocator.MoveToEmpty(Other.DelegateAllocator);
 			OtherDelegateSize = Other.DelegateSize;
 			Other.DelegateSize = 0;

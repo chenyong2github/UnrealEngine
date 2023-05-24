@@ -8,15 +8,14 @@
 
 #include "UObject/WeakObjectPtrFwd.h"
 
-struct FNotThreadSafeDelegateMode;
-struct FThreadSafeDelegateMode;
+namespace UE::Core::Private
+{
+	struct TScriptDelegateDefault;
+}
 
-template <typename ThreadSafetyMode = FNotThreadSafeDelegateMode> class TScriptDelegate;
-template <typename ThreadSafetyMode = FNotThreadSafeDelegateMode> class TMulticastScriptDelegate;
+template <typename Dummy = UE::Core::Private::TScriptDelegateDefault> class TScriptDelegate;
+template <typename Dummy = UE::Core::Private::TScriptDelegateDefault> class TMulticastScriptDelegate;
 
 // Typedef script delegates for convenience.
 typedef TScriptDelegate<> FScriptDelegate;
 typedef TMulticastScriptDelegate<> FMulticastScriptDelegate;
-
-typedef TScriptDelegate<FThreadSafeDelegateMode> FTSScriptDelegate;
-typedef TMulticastScriptDelegate<FThreadSafeDelegateMode> FTSMulticastScriptDelegate;
