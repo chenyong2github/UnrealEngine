@@ -366,9 +366,6 @@ void USkeleton::PostLoad()
 	// catch any case if guid isn't valid
 	check(Guid.IsValid());
 
-	// refresh linked bone indices
-	RefreshSkeletonMetaData();
-
 	// Cleanup CompatibleSkeletons for convenience. This basically removes any soft object pointers that has an invalid soft object name.
 	CompatibleSkeletons = CompatibleSkeletons.FilterByPredicate([](const TSoftObjectPtr<USkeleton>& Skeleton)
 	{
@@ -389,6 +386,9 @@ void USkeleton::PostLoad()
 		}
 	}
 #endif
+
+	// refresh linked bone indices
+	RefreshSkeletonMetaData();
 }
 
 void USkeleton::PostDuplicate(bool bDuplicateForPIE)

@@ -76,7 +76,7 @@ namespace UE::Anim
 /** Options for filtering curves. Used to initialize a bone container with a filter curve. */
 struct FCurveFilterSettings
 {
-	FCurveFilterSettings(UE::Anim::ECurveFilterMode InFilterMode = UE::Anim::ECurveFilterMode::None, const TArray<FName>* InFilterCurves = nullptr, int32 InLODIndex = 0)
+	FCurveFilterSettings(UE::Anim::ECurveFilterMode InFilterMode = UE::Anim::ECurveFilterMode::DisallowFiltered, const TArray<FName>* InFilterCurves = nullptr, int32 InLODIndex = 0)
 		: FilterCurves(InFilterCurves)
 		, FilterMode(InFilterMode)
 		, LODIndex(InLODIndex)
@@ -86,7 +86,7 @@ struct FCurveFilterSettings
 	const TArray<FName>* FilterCurves = nullptr;
 	
 	// Filtering mode - allows curves to be disable entirely or allow/deny-listed
-	UE::Anim::ECurveFilterMode FilterMode = UE::Anim::ECurveFilterMode::None;
+	UE::Anim::ECurveFilterMode FilterMode = UE::Anim::ECurveFilterMode::DisallowFiltered;
 
 	// LOD index
 	int32 LODIndex = 0;

@@ -4616,7 +4616,7 @@ UE::Anim::FCurveFilterSettings USkeletalMeshComponent::GetCurveFilterSettings(in
 		}
 		else
 		{
-			CurveFilterSettings.FilterMode = UE::Anim::ECurveFilterMode::None;
+			CurveFilterSettings.FilterMode = UE::Anim::ECurveFilterMode::DisallowFiltered;	// This applies LOD-based and bone-linked filtering
 		}
 	}
 	else
