@@ -263,7 +263,6 @@ namespace mu
 		TEXT("IM_SATURATE      "),
 		TEXT("IM_LUMINANCE     "),
 		TEXT("IM_SWIZZLE       "),
-		TEXT("IM_SELECTCOLOUR  "),
 		TEXT("IM_COLOURMAP     "),
 		TEXT("IM_GRADIENT      "),
 		TEXT("IM_BINARISE      "),

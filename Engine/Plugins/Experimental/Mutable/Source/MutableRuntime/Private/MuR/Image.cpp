@@ -127,7 +127,9 @@ namespace mu
 		int32 DataSize = CalculateDataSize();
 		if (bDisableCompressedImageBlackBlockInit)
 		{
-			m_data.SetNumZeroed(DataSize);
+			m_data.SetNumUninitialized(DataSize);
+			// Do it in separate steps in case we are reusing a buffer.
+			FMemory::Memzero(m_data.GetData(), DataSize);
 		}
 		else
 		{
@@ -141,7 +143,9 @@ namespace mu
 
 			if (bIsFormatBlackBlockZeroed)
 			{
-				m_data.SetNumZeroed(DataSize);
+				m_data.SetNumUninitialized(DataSize);
+				// Do it in separate steps in case we are reusing a buffer.
+				FMemory::Memzero(m_data.GetData(), DataSize);
 			}
 			else
 			{
