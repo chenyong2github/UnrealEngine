@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "SGraphActionMenu.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -36,6 +37,9 @@ public:
 	SLATE_END_ARGS();
 	
 	void Construct(const FArguments& InArgs);
+
+	/** Creates the widget for an action within the action menu. */
+	TSharedRef<SWidget> CreateActionWidget(FCreateWidgetForActionData* CreateWidgetForActionData) const;
 
 	/** Resets the selected members in the UI. */
 	void ClearSelection() const;

@@ -259,7 +259,7 @@ protected:
 	TArray<TObjectPtr<UMovieGraphPin>> OutputPins;
 
 	/** Properties which can be dynamically declared on the node (vs. native properties which are always present). */
-	UPROPERTY(EditAnywhere, meta=(FixedLayout, ShowOnlyInnerProperties), Category = "Node")
+	UPROPERTY(EditAnywhere, meta=(FixedLayout, ShowOnlyInnerProperties), Category = "Properties")
 	FInstancedPropertyBag DynamicProperties;
 
 	/** Tracks which properties have been exposed on the node as inputs. */

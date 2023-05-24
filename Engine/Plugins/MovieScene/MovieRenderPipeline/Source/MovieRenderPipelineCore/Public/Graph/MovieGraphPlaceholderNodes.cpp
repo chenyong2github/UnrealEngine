@@ -7,67 +7,9 @@
 
 #define LOCTEXT_NAMESPACE "MovieGraphNode"
 
-static const FText NodeCategory_Utility = LOCTEXT("NodeCategory_Utility", "Utility");
-static const FText NodeCategory_Globals = LOCTEXT("NodeCategory_Globals", "Globals");
-static const FText NodeCategory_Renderers = LOCTEXT("NodeCategory_Renderers", "Renderers");
+static const FText NodeCategory_Rendering = LOCTEXT("NodeCategory_Rendering", "Rendering");
 static const FText NodeCategory_OutputType = LOCTEXT("NodeCategory_OutputType", "Output Type");
-static const FText NodeCategory_Conditionals = LOCTEXT("NodeCategory_Conditionals", "Conditionals");
 static const FText NodeCategory_Settings = LOCTEXT("NodeCategory_Settings", "Settings");
-
-TArray<FMovieGraphPinProperties> UMovieGraphGlobalGameOverridesNode::GetInputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
-	return Properties;
-}
-
-TArray<FMovieGraphPinProperties> UMovieGraphGlobalGameOverridesNode::GetOutputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
-	return Properties;
-}
-
-#if WITH_EDITOR
-FText UMovieGraphGlobalGameOverridesNode::GetNodeTitle(const bool bGetDescriptive) const
-{
-	static const FText GlobalGameOverridesNodeName = LOCTEXT("NodeName_GlobalGameOverrides", "Global Game Overrides");
-	return GlobalGameOverridesNodeName;
-}
-
-FText UMovieGraphGlobalGameOverridesNode::GetMenuCategory() const
-{
-	return NodeCategory_Globals;
-}
-
-FLinearColor UMovieGraphGlobalGameOverridesNode::GetNodeTitleColor() const
-{
-	static const FLinearColor GlobalGameOverridesNodeColor = FLinearColor(0.549f, 0.f, 0.250f);
-	return GlobalGameOverridesNodeColor;
-}
-
-FSlateIcon UMovieGraphGlobalGameOverridesNode::GetIconAndTint(FLinearColor& OutColor) const
-{
-	static const FSlateIcon GlobalGameOverridesIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Launcher.TabIcon");
-
-	OutColor = FLinearColor::White;
-	return GlobalGameOverridesIcon;
-}
-#endif // WITH_EDITOR
-
-TArray<FMovieGraphPinProperties> UMovieGraphPathTracedRendererNode::GetInputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
-	return Properties;
-}
-
-TArray<FMovieGraphPinProperties> UMovieGraphPathTracedRendererNode::GetOutputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
-	return Properties;
-}
 
 #if WITH_EDITOR
 FText UMovieGraphPathTracedRendererNode::GetNodeTitle(const bool bGetDescriptive) const
@@ -78,7 +20,7 @@ FText UMovieGraphPathTracedRendererNode::GetNodeTitle(const bool bGetDescriptive
 
 FText UMovieGraphPathTracedRendererNode::GetMenuCategory() const
 {
-	return NodeCategory_Renderers;
+	return NodeCategory_Rendering;
 }
 
 FLinearColor UMovieGraphPathTracedRendererNode::GetNodeTitleColor() const
@@ -96,24 +38,10 @@ FSlateIcon UMovieGraphPathTracedRendererNode::GetIconAndTint(FLinearColor& OutCo
 }
 #endif // WITH_EDITOR
 
-TArray<FMovieGraphPinProperties> UMovieGraphEXRSequenceNode::GetInputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
-	return Properties;
-}
-
-TArray<FMovieGraphPinProperties> UMovieGraphEXRSequenceNode::GetOutputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
-	return Properties;
-}
-
 #if WITH_EDITOR
 FText UMovieGraphEXRSequenceNode::GetNodeTitle(const bool bGetDescriptive) const
 {
-	static const FText EXRSequenceNodeName = LOCTEXT("NodeName_EXRSequence", "EXR Sequence");
+	static const FText EXRSequenceNodeName = LOCTEXT("NodeName_EXRSequence", ".exr Sequence");
 	return EXRSequenceNodeName;
 }
 
@@ -136,91 +64,6 @@ FSlateIcon UMovieGraphEXRSequenceNode::GetIconAndTint(FLinearColor& OutColor) co
 	return ImageSequenceIcon;
 }
 #endif // WITH_EDITOR
-
-TArray<FMovieGraphPinProperties> UMovieGraphSelectNode::GetInputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-
-	// Generate branch pins for each option
-	for (const FString& SelectOption : SelectOptions)
-	{
-		Properties.Add(FMovieGraphPinProperties::MakeBranchProperties(FName(SelectOption)));
-	}
-
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::String, false));
-	
-	return Properties;
-}
-
-TArray<FMovieGraphPinProperties> UMovieGraphSelectNode::GetOutputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
-	return Properties;
-}
-
-#if WITH_EDITOR
-FText UMovieGraphSelectNode::GetNodeTitle(const bool bGetDescriptive) const
-{
-	static const FText SelectNodeName = LOCTEXT("NodeName_Select", "Select");
-	static const FText SelectNodeDescription = LOCTEXT("NodeDescription_Select", "Select\n{0}");
-
-	if (bGetDescriptive && !Description.IsEmpty())
-	{
-		return FText::Format(SelectNodeDescription, FText::FromString(Description));
-	}
-
-	return SelectNodeName;
-}
-
-FText UMovieGraphSelectNode::GetMenuCategory() const
-{
-	return NodeCategory_Conditionals;
-}
-
-FLinearColor UMovieGraphSelectNode::GetNodeTitleColor() const
-{
-	static const FLinearColor SelectNodeColor = FLinearColor(0.266f, 0.266f, 0.266f);
-	return SelectNodeColor;
-}
-
-FSlateIcon UMovieGraphSelectNode::GetIconAndTint(FLinearColor& OutColor) const
-{
-	static const FSlateIcon SelectIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Merge");
-
-	OutColor = FLinearColor::White;
-	return SelectIcon;
-}
-
-void UMovieGraphSelectNode::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMovieGraphSelectNode, SelectOptions))
-	{
-		UpdatePins();
-	}
-	
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMovieGraphSelectNode, Description))
-	{
-		OnNodeChangedDelegate.Broadcast(this);
-	}
-}
-#endif // WITH_EDITOR
-
-TArray<FMovieGraphPinProperties> UMovieGraphAntiAliasingNode::GetInputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
-	return Properties;
-}
-
-TArray<FMovieGraphPinProperties> UMovieGraphAntiAliasingNode::GetOutputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
-	return Properties;
-}
 
 #if WITH_EDITOR
 FText UMovieGraphAntiAliasingNode::GetNodeTitle(const bool bGetDescriptive) const

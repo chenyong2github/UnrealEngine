@@ -10,21 +10,6 @@ UMovieGraphRenderLayerNode::UMovieGraphRenderLayerNode()
 	LayerName = TEXT("beauty");
 }
 
-TArray<FPropertyBagPropertyDesc> UMovieGraphRenderLayerNode::GetDynamicPropertyDescriptions() const
-{
-	TArray<FPropertyBagPropertyDesc> Properties;
-	FPropertyBagPropertyDesc FloatEditConProperty = FPropertyBagPropertyDesc("bOverride_TestPropName", EPropertyBagPropertyType::Bool);
-	FPropertyBagPropertyDesc FloatProperty = FPropertyBagPropertyDesc("TestPropName", EPropertyBagPropertyType::String);
-#if WITH_EDITOR
-	FloatEditConProperty.MetaData.Add(FPropertyBagPropertyDescMetaData("InlineEditConditionToggle", "true"));
-	FloatProperty.MetaData.Add(FPropertyBagPropertyDescMetaData("EditCondition", "bOverride_TestPropName"));
-#endif
-	
-	Properties.Add(FloatEditConProperty);
-	Properties.Add(FloatProperty);
-	return Properties;
-}
-
 #if WITH_EDITOR
 FText UMovieGraphRenderLayerNode::GetNodeTitle(const bool bGetDescriptive) const
 {

@@ -52,26 +52,12 @@ TArray<UMovieGraphPin*> UMovieGraphBranchNode::EvaluatePinsToFollow(FMovieGraphE
 		return PinsToFollow;
 	}
 
-	// Connected Node is the node that the pin is actually connected to.
-	const UMovieGraphValueContainer* ValueContainer = ConnectedNode->GetPropertyValueContainerForPin(OtherPin->GetName());
-
-	if (!ValueContainer)
-	{
-		// Somehow we got connected to node that can't provide a value.
-		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("ConnectedNode: %s provided no ValueContainer to fetch value."), *ConnectedNode->GetName());
-		return PinsToFollow;
-	}
-
-	bool bEvaluatedValue;
-	bool bSuccessfullyFetched = ValueContainer->GetValueBool(bEvaluatedValue);
-	if (!bSuccessfullyFetched)
-	{
-		// There was a node connected but it didn't know how to return a boolean value for us.
-		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("ValueContainer had no bool value."));
-		return PinsToFollow;
-	}
-
-	if (bEvaluatedValue)
+	// TODO: Comparing against a string like this is not ideal. This could use GetPropertyValueContainerForPin() instead,
+	// however that may not work in a general case. This fits variables nicely since they already have a
+	// UMovieGraphValueContainer -- other nodes in the future may not, though, and generating them on every frame may be expensive.
+	// Still an area that needs to be researched.
+	static const FString TrueValue = FString("true");
+	if (ConnectedNode->GetResolvedValueForOutputPin(OtherPin->Properties.Label, &InContext.UserContext) == TrueValue)
 	{
 		PinsToFollow.Add(GetInputPin(UE::MovieGraph::BranchNode::TrueBranch));
 	}

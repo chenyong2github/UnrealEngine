@@ -33,6 +33,9 @@ public:
 	virtual void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
 	//~ End UEdGraphNode Interface
 
+	static FEdGraphPinType GetPinType(EMovieGraphValueType ValueType, bool bIsBranch);
+	static FEdGraphPinType GetPinType(const UMovieGraphPin* InPin);
+
 	// Called after PrepareForCopying to restore changes made during preparation. 
 	virtual void PostCopy();
 	virtual void PostPaste();
@@ -46,8 +49,6 @@ protected:
 	void RebuildRuntimeEdgesFromPins();
 
 	void CreatePins(const TArray<UMovieGraphPin*>& InInputPins, const TArray<UMovieGraphPin*>& InOutputPins);
-
-	static FEdGraphPinType GetPinType(const UMovieGraphPin* InPin);
 
 	/** Recreate the pins on this node, discarding all existing pins. */
 	void ReconstructPins();

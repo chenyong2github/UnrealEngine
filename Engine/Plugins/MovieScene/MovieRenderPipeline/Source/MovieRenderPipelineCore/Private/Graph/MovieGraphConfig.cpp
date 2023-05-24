@@ -72,6 +72,12 @@ UMovieGraphConfig::UMovieGraphConfig()
 		AddDefaultMembers();
 		InputNode->UpdatePins();
 		OutputNode->UpdatePins();
+
+		// Offset the default output node so it doesn't overlap the default input node
+#if WITH_EDITOR
+		constexpr int32 OutputNodeOffset = 300;
+		OutputNode->SetNodePosX(OutputNodeOffset);
+#endif
 	}
 }
 
@@ -99,7 +105,7 @@ void UMovieGraphConfig::PostLoad()
 	}
 }
 
-UMovieGraphVariable* UMovieGraphConfig::AddGlobalVariable(const FName& InName)
+UMovieGraphVariable* UMovieGraphConfig::AddGlobalVariable(const FName& InName, EMovieGraphValueType ValueType)
 {
 	// Don't add duplicate global variables
 	const bool VariableExists = Variables.ContainsByPredicate([&InName](const TObjectPtr<UMovieGraphVariable>& Variable)
@@ -116,6 +122,7 @@ UMovieGraphVariable* UMovieGraphConfig::AddGlobalVariable(const FName& InName)
 	{
 		NewVariable->bIsGlobal = true;
 		NewVariable->bIsEditable = false;
+		NewVariable->SetValueType(ValueType);
 		return NewVariable;
 	}
 
@@ -152,13 +159,19 @@ void UMovieGraphConfig::AddDefaultMembers()
 		OutputNode->UpdatePins();
 	}
 
-	// Add all of the global variables that should be available in the graph
-	static const TArray<FName> GlobalVariableNames =
-		{GlobalVariable_ShotName, GlobalVariable_SequenceName, GlobalVariable_FrameNumber,
-		 GlobalVariable_CameraName, GlobalVariable_RenderLayerName};
-	for (const FName& GlobalVariableName : GlobalVariableNames)
+	static const TMap<FName, EMovieGraphValueType> GlobalVariableNamesAndTypes =
 	{
-		AddGlobalVariable(GlobalVariableName);
+		{GlobalVariable_ShotName, EMovieGraphValueType::String},
+		{GlobalVariable_SequenceName, EMovieGraphValueType::String},
+		{GlobalVariable_FrameNumber, EMovieGraphValueType::Int32},
+		{GlobalVariable_CameraName, EMovieGraphValueType::String},
+		{GlobalVariable_RenderLayerName, EMovieGraphValueType::String}
+	};
+
+	// Add all of the global variables that should be available in the graph
+	for (const TTuple<FName, EMovieGraphValueType>& GlobalVariableInfo : GlobalVariableNamesAndTypes)
+	{
+		AddGlobalVariable(GlobalVariableInfo.Key, GlobalVariableInfo.Value);
 	}
 }
 

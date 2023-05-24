@@ -6,6 +6,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Graph/MovieGraphConfig.h"
 #include "Graph/MovieGraphSchema.h"
+#include "MovieEdGraphNode.h"
 #include "SGraphActionMenu.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
@@ -53,6 +54,7 @@ void SMovieGraphMembersTabContent::Construct(const FArguments& InArgs)
 		.OnActionSelected(OnActionSelected)
 		.AutoExpandActionMenu(true)
 		.AlphaSortItems(false)
+		.OnCreateWidgetForAction(this, &SMovieGraphMembersTabContent::CreateActionWidget)
 		.OnCollectStaticSections(this, &SMovieGraphMembersTabContent::CollectStaticSections)
 		.OnContextMenuOpening(this, &SMovieGraphMembersTabContent::OnContextMenuOpening)
 		.OnGetSectionTitle(this, &SMovieGraphMembersTabContent::GetSectionTitle)
@@ -61,6 +63,48 @@ void SMovieGraphMembersTabContent::Construct(const FArguments& InArgs)
 		.OnCollectAllActions(this, &SMovieGraphMembersTabContent::CollectAllActions)
 		.OnActionMatchesName(this, &SMovieGraphMembersTabContent::ActionMatchesName)
 	];
+}
+
+TSharedRef<SWidget> SMovieGraphMembersTabContent::CreateActionWidget(FCreateWidgetForActionData* InCreateData) const
+{
+	// For variables, show an icon w/ the color representing the variable's type (in addition to the variable name)
+	if (InCreateData->Action->GetSectionID() == static_cast<uint32>(EActionSection::Variables))
+	{
+		const FMovieGraphSchemaAction_NewVariableNode* VariableAction =
+			static_cast<FMovieGraphSchemaAction_NewVariableNode*>(InCreateData->Action.Get());
+		const UMovieGraphVariable* Variable = Cast<UMovieGraphVariable>(VariableAction->ActionTarget);
+		const FEdGraphPinType PinType = Variable
+			? UMoviePipelineEdGraphNodeBase::GetPinType(Variable->GetValueType(), false)
+			: FEdGraphPinType();
+		const FLinearColor PinColor = CurrentGraph->PipelineEdGraph->GetSchema()->GetPinTypeColor(PinType);
+		
+		return
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 5, 0)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Kismet.AllClasses.VariableIcon"))
+				.ColorAndOpacity(PinColor)
+			]
+			
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			[
+				SNew(STextBlock)
+				.Text(InCreateData->Action->GetMenuDescription())
+			];	
+	}
+	
+	return
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(InCreateData->Action->GetMenuDescription())
+		];
 }
 
 void SMovieGraphMembersTabContent::ClearSelection() const

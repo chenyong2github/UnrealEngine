@@ -48,7 +48,7 @@ void UMoviePipelineEdGraphNodeBase::PostTransacted(const FTransactionObjectEvent
 	}
 }
 
-FEdGraphPinType UMoviePipelineEdGraphNodeBase::GetPinType(const UMovieGraphPin* InPin)
+FEdGraphPinType UMoviePipelineEdGraphNodeBase::GetPinType(EMovieGraphValueType ValueType, bool bIsBranch)
 {
 	FEdGraphPinType EdPinType;
 	EdPinType.ResetToDefaults();
@@ -57,13 +57,13 @@ FEdGraphPinType UMoviePipelineEdGraphNodeBase::GetPinType(const UMovieGraphPin* 
 	EdPinType.PinSubCategory = NAME_None;
 
 	// Special case for branch pins
-	if (InPin->Properties.bIsBranch)
+	if (bIsBranch)
 	{
 		EdPinType.PinCategory = UMovieGraphSchema::PC_Branch;
 		return EdPinType;
 	}
 
-	switch (InPin->Properties.Type)
+	switch (ValueType)
 	{
 	case EMovieGraphValueType::Bool:
 		EdPinType.PinCategory = UMovieGraphSchema::PC_Boolean;
@@ -116,6 +116,11 @@ FEdGraphPinType UMoviePipelineEdGraphNodeBase::GetPinType(const UMovieGraphPin* 
 	}
 	
 	return EdPinType;
+}
+
+FEdGraphPinType UMoviePipelineEdGraphNodeBase::GetPinType(const UMovieGraphPin* InPin)
+{
+	return GetPinType(InPin->Properties.Type, InPin->Properties.bIsBranch);
 }
 
 void UMoviePipelineEdGraphNodeBase::UpdatePosition() const

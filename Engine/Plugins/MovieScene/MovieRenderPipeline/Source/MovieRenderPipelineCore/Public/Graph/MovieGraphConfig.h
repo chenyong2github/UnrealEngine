@@ -510,8 +510,8 @@ private:
 	template<typename T>
 	T* AddMember(TArray<TObjectPtr<T>>& InMemberArray, const FName& InBaseName);
 
-	/** Adds a global variable to the graph with the provided name. */
-	UMovieGraphVariable* AddGlobalVariable(const FName& InName);
+	/** Adds a global variable to the graph with the provided name and value type. */
+	UMovieGraphVariable* AddGlobalVariable(const FName& InName, EMovieGraphValueType ValueType);
 
 	/** Adds members to the graph that should always be available. */
 	void AddDefaultMembers();

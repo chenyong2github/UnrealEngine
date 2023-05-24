@@ -6,37 +6,14 @@
 
 #include "MovieGraphPlaceholderNodes.generated.h"
 
-/** A node which configures the global game overrides. */
-UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphGlobalGameOverridesNode : public UMovieGraphSettingNode
-{
-	GENERATED_BODY()
-
-public:
-	UMovieGraphGlobalGameOverridesNode() = default;
-
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
-
-#if WITH_EDITOR
-	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
-	virtual FText GetMenuCategory() const override;
-	virtual FLinearColor GetNodeTitleColor() const override;
-	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
-#endif
-};
-
 /** A node which represents a path traced renderer. */
 UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphPathTracedRendererNode : public UMovieGraphNode
+class MOVIERENDERPIPELINECORE_API UMovieGraphPathTracedRendererNode : public UMovieGraphSettingNode
 {
 	GENERATED_BODY()
 
 public:
 	UMovieGraphPathTracedRendererNode() = default;
-
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 
 #if WITH_EDITOR
 	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
@@ -48,72 +25,29 @@ public:
 
 /** A node which generates an EXR image sequence. */
 UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphEXRSequenceNode : public UMovieGraphNode
+class MOVIERENDERPIPELINECORE_API UMovieGraphEXRSequenceNode : public UMovieGraphSettingNode
 {
 	GENERATED_BODY()
 
 public:
 	UMovieGraphEXRSequenceNode() = default;
 
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
-
 #if WITH_EDITOR
 	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 #endif
-};
-
-// TODO: Currently this node is restricted to just accepting string-based options.
-/** A node which creates a condition that selects from a set of input branches. */
-UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphSelectNode : public UMovieGraphNode
-{
-	GENERATED_BODY()
-
-public:
-	UMovieGraphSelectNode() = default;
-
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
-
-#if WITH_EDITOR
-	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
-	virtual FText GetMenuCategory() const override;
-	virtual FLinearColor GetNodeTitleColor() const override;
-	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
-
-	//~ Begin UObject interface
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	//~ End UObject interface
-#endif
-
-	/** The values of options which can be selected. */
-	UPROPERTY(EditAnywhere, Category = "General")
-	TArray<FString> SelectOptions;
-
-	/** The value of the option which has been selected. */
-	UPROPERTY(EditAnywhere, Category = "General")
-	FString SelectedOption;
-
-	/** A description of what this select is doing. */
-	UPROPERTY(EditAnywhere, Category = "General")
-	FString Description;
 };
 
 /** A node which configures anti-aliasing settings. */
 UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphAntiAliasingNode : public UMovieGraphNode
+class MOVIERENDERPIPELINECORE_API UMovieGraphAntiAliasingNode : public UMovieGraphSettingNode
 {
 	GENERATED_BODY()
 
 public:
 	UMovieGraphAntiAliasingNode() = default;
-
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 
 #if WITH_EDITOR
 	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
