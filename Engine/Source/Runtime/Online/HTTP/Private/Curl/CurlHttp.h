@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Interfaces/IHttpResponse.h"
 #include "IHttpThreadedRequest.h"
@@ -54,6 +55,7 @@ namespace
 	*/
 	void* CurlMalloc(size_t Size)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Networking/Curl"));
 		return FMemory::Malloc(Size);
 	}
 
@@ -64,6 +66,7 @@ namespace
 	*/
 	void CurlFree(void* Ptr)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Networking/Curl"));
 		FMemory::Free(Ptr);
 	}
 
@@ -80,6 +83,7 @@ namespace
 
 		if (Size)
 		{
+			LLM_SCOPE_BYNAME(TEXT("Networking/Curl"));
 			Return = FMemory::Realloc(Ptr, Size);
 		}
 
@@ -98,6 +102,8 @@ namespace
 		check(ZeroTerminatedString);
 		if (ZeroTerminatedString)
 		{
+			LLM_SCOPE_BYNAME(TEXT("Networking/Curl"));
+
 			SIZE_T StrLen = FCStringAnsi::Strlen(ZeroTerminatedString);
 			Copy = reinterpret_cast<char*>(FMemory::Malloc(StrLen + 1));
 			if (Copy)
@@ -122,6 +128,8 @@ namespace
 		const size_t Size = NumElems * ElemSize;
 		if (Size)
 		{
+			LLM_SCOPE_BYNAME(TEXT("Networking/Curl"));
+
 			Return = FMemory::Malloc(Size);
 
 			if (Return)
