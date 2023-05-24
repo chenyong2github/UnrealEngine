@@ -1371,6 +1371,7 @@ public:
 	uint8 GetStrataMaterialType() const { return GetStrataMaterialCompilationOutput().StrataMaterialType; }
 	uint8 GetStrataBSDFCount() const { return GetStrataMaterialCompilationOutput().StrataBSDFCount; }
 	uint8 GetStrataUintPerPixel() const { return GetStrataMaterialCompilationOutput().StrataUintPerPixel; }
+	bool GetStrataUsesComplexSpecialRenderPath() const { return GetStrataMaterialCompilationOutput().bUsesComplexSpecialRenderPath; }
 	
 #if WITH_EDITOR
 	uint32 GetNumUsedUVScalars() const { return GetContent()->MaterialCompilationOutput.NumUsedUVScalars; }
@@ -2126,9 +2127,13 @@ public:
 	ENGINE_API uint8 MaterialGetStrataBSDFCount_GameThread() const;
 	ENGINE_API uint8 MaterialGetStrataBSDFCount_RenderThread() const;
 
-	/** Get Strata material uint count oer pixel. */
+	/** Get Strata material uint count per pixel. */
 	ENGINE_API uint8 MaterialGetStrataUintPerPixel_GameThread() const;
 	ENGINE_API uint8 MaterialGetStrataUintPerPixel_RenderThread() const;
+
+	/** Get Strata material special path requirement (for more expenssive features such as Glints or SpecularLUT). */
+	ENGINE_API bool MaterialGetStrataUsesComplexSpecialRenderPath_GameThread() const;
+	ENGINE_API bool MaterialGetStrataUsesComplexSpecialRenderPath_RenderThread() const;
 
 	class FMaterialShaderMap* GetGameThreadShaderMap() const 
 	{ 

@@ -190,11 +190,16 @@ void PackStrataOut(
 						// Simple and single bsdf do not allow weights other than 1
 						const bool LuminanceWeightEqualOne = all(BSDF.LuminanceWeightV == 1.0f);
 
-						#if STRATA_GLINTS
-						const bool bForceComplexMaterial = BSDF_GETHASANISOTROPY(BSDF) || BSDF_GETHASGLINT(BSDF) || BSDF_GETHASSPECPROFILE(BSDF);
+						#if STRATA_COMPLEXPATH_SPECIAL
+						#if STRATA_GLINTS_ENABLED
+						const bool bForceComplexSpecialPath = BSDF_GETHASSPECPROFILE(BSDF) || BSDF_GETHASGLINT(BSDF);
 						#else
-						const bool bForceComplexMaterial = BSDF_GETHASANISOTROPY(BSDF);
+						const bool bForceComplexSpecialPath = BSDF_GETHASSPECPROFILE(BSDF);
 						#endif
+						#else
+						const bool bForceComplexSpecialPath = false;
+						#endif
+						const bool bForceComplexMaterial = BSDF_GETHASANISOTROPY(BSDF) || bForceComplexSpecialPath;
 
 						// Update simple material compatibility
 						bIsSimpleMaterial = bIsSimpleMaterial && IsStrataSlabFastPathCompatible(BSDF) && LuminanceWeightEqualOne && !bForceComplexMaterial;
@@ -226,6 +231,8 @@ void PackStrataOut(
 
 						const bool bSSSMask = BSDF.bIsBottom;	// SSS and Thin can only be on the bottom layer, so ignoring bIsSimpleVolume here.
 						StrataPixelHeader.SetHasSubsurface(bSSSMask && bHasSSS && !bIsSimpleVolume);
+
+						StrataPixelHeader.SetUsesComplexSpecialRenderPath(bForceComplexSpecialPath);
 						break;
 					}
 
@@ -791,6 +798,7 @@ void PackStrataOut(
 								STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(BSDF.TransmittanceAboveAlongN, BSDF.CoverageAboveAlongN)));
 							}
 
+							#if STRATA_COMPLEXPATH_SPECIAL
 							#if STRATA_GLINTS_ENABLED
 							if (BSDF_GETHASGLINT(BSDF))
 							{
@@ -805,12 +813,13 @@ void PackStrataOut(
 								STRATA_STORE_UINT1(PackFloat2ToUInt(SLAB_GLINT_UVDDX(BSDF)));
 								STRATA_STORE_UINT1(PackFloat2ToUInt(SLAB_GLINT_UVDDY(BSDF)));
 							}
+							#endif // STRATA_GLINTS_ENABLED
 
 							if (BSDF_GETHASSPECPROFILE(BSDF))
 							{
 								STRATA_STORE_UINT1(PackSpecularProfile(SLAB_SPECPROFILEID(BSDF)));
 							}
-							#endif // STRATA_GLINTS
+							#endif // STRATA_COMPLEXPATH_SPECIAL
 
 							// 8-28 bytes
 						}

@@ -100,10 +100,6 @@
 #error Uknown STRATA_NORMAL_QUALITY
 #endif
 
-#ifndef STRATA_GLINTS
-#define STRATA_GLINTS									0
-#endif
-
 #ifndef MATERIAL_SHADINGMODEL_DEFAULT_LIT
 #define MATERIAL_SHADINGMODEL_DEFAULT_LIT				0
 #endif

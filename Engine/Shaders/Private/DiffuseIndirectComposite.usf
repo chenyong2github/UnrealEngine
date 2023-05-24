@@ -52,6 +52,9 @@
 	#define STRATA_SINGLEPATH 1
   #elif STRATA_TILETYPE == 2
 	// COMPLEX PATH
+  #elif STRATA_TILETYPE == 3
+	// COMPLEX PATH
+	#define STRATA_COMPLEX_SPECIALPATH_ENABLED 1
   #else
 	#error Strata tile type non-implemented
   #endif

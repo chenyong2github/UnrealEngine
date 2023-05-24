@@ -16,7 +16,7 @@
 #define STRATA_GLINT_IS 0 
 #endif
 
-#if STRATA_GLINTS_ENABLED
+#if STRATA_COMPLEXPATH_SPECIAL
 #include "Glint/GlintThirdParty.ush"
 
 #if STRATA_GLINT_IS
@@ -259,7 +259,7 @@ half3 Strata_F_GGX(half3 F0, half3 F90, half VoH)
 //#endif
 }
 
-#if STRATA_GLINTS_ENABLED
+#if STRATA_COMPLEXPATH_SPECIAL
 // Conversion of GGX roughness to Beckmann roughness
 // Using Microfacet Distribution Function: To Change or Not to Change, That Is the Question.
 float GGXRoughnessToBeckmannRoughness(float Roughness)
@@ -445,7 +445,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 						float2 AlphaXY = 0;
 						GetAnisotropicRoughness(Alpha, SLAB_ANISOTROPY(BSDFContext.BSDF), AlphaXY.x, AlphaXY.y);
 
-					#if STRATA_GLINTS_ENABLED
+					#if STRATA_COMPLEXPATH_SPECIAL
 						// Glint shading only in the complex path
 						BRANCH
 						if (BSDF_GETHASGLINT(BSDFContext.BSDF))
@@ -478,7 +478,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 							RectLightSpec = RectGGXApproxLTC(SafeRoughness, F0, BSDFContext.N, BSDFContext.V, AreaLightContext.AreaLight.Rect, AreaLightContext.AreaLight.Texture, MeanLightWorldDirection);
 							
 							// Now combine the rectangular area light with Glints.
-						#if STRATA_GLINTS_ENABLED
+						#if STRATA_COMPLEXPATH_SPECIAL
 							BRANCH
 							if (BSDF_GETHASGLINT(BSDFContext.BSDF))
 							{
@@ -504,7 +504,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 						{
 							if(IntegrationType == INTEGRATION_PUNCTUAL_LIGHT)
 							{
-							#if STRATA_GLINTS_ENABLED
+							#if STRATA_COMPLEXPATH_SPECIAL
 								BRANCH
 								if (BSDF_GETHASGLINT(BSDFContext.BSDF))
 								{
@@ -522,7 +522,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 							{
 								const float Energy = EnergyNormalization(Alpha2Spec, BSDFContext.Context.VoH, AreaLightContext.AreaLight);
 
-							#if STRATA_GLINTS_ENABLED
+							#if STRATA_COMPLEXPATH_SPECIAL
 								BRANCH
 								if (BSDF_GETHASGLINT(BSDFContext.BSDF))
 								{
@@ -682,7 +682,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			#endif
 
 			// Lighting LUT
-			#if STRATA_FASTPATH==0 && STRATA_GLINTS_ENABLED
+			#if STRATA_FASTPATH==0 && STRATA_COMPLEXPATH_SPECIAL
 			BRANCH
 			if (BSDF_GETHASSPECPROFILE(BSDFContext.BSDF))
 			{
@@ -1503,7 +1503,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				StrataEnvLightResult.SpecularColor = F0;
 
 				// STRATA_TODO environment light importance sampling
-			#if STRATA_GLINTS_ENABLED
+			#if STRATA_COMPLEXPATH_SPECIAL
 				// Glints
 				BRANCH
 				if (BSDF_GETHASGLINT(BSDFContext.BSDF))

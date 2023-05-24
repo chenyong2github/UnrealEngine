@@ -108,6 +108,9 @@ public:
 	/** Strata uint per pixel, at compile time (0-255) */
 	LAYOUT_FIELD(uint8, StrataUintPerPixel);
 
+	/** If Glints or SpecularLUT are used, we need to go the special more expenssive render path */
+	LAYOUT_BITFIELD(uint8, bUsesComplexSpecialRenderPath, 1);
+
 	////
 	//// The following data is only needed when compiling with the editor.
 	////

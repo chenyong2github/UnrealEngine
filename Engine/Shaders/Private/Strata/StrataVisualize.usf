@@ -10,7 +10,8 @@
 #endif
 
 #define STRATA_SSS_MATERIAL_OVERRIDE 0
-#define STRATA_SSS_TRANSMISSION 0  // Disable for now, as the SSS profile texture need to be bound
+#define STRATA_SSS_TRANSMISSION 0				// Disable for now, as the SSS profile texture need to be bound
+#define STRATA_COMPLEX_SPECIALPATH_ENABLED 1	// Allow to read data from complex special path
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataTile.ush"
 
@@ -91,13 +92,14 @@ RWBuffer<uint> RWPositionOffsetBuffer;
 
 void PrintPixelType(inout FShaderPrintContext Ctx, in FStrataPixelHeader Header, FFontColor InColor)
 {
-	if (Header.IsSimpleMaterial())			Print(Ctx, TEXT("Simple  "), InColor);
-	else if (Header.IsSingleMaterial())		Print(Ctx, TEXT("Single  "), InColor);
-	else if (Header.IsComplexMaterial())	Print(Ctx, TEXT("Complex "), InColor);
-	else if (Header.IsSingleLayerWater())	Print(Ctx, TEXT("SLWater "), InColor);
-	else if (Header.IsHair())				Print(Ctx, TEXT("Hair    "), InColor);
-	else if (Header.IsEye())				Print(Ctx, TEXT("Eye     "), InColor);
-	else									Print(Ctx, TEXT("Error - Unkown pixel type"), FontRed);
+	if (Header.IsSimpleMaterial())					Print(Ctx, TEXT("Simple  "), InColor);
+	else if (Header.IsSingleMaterial())				Print(Ctx, TEXT("Single  "), InColor);
+	else if (Header.bUsesComplexSpecialRenderPath)	Print(Ctx, TEXT("Complex Special "), InColor);
+	else if (Header.IsComplexMaterial())			Print(Ctx, TEXT("Complex "), InColor);
+	else if (Header.IsSingleLayerWater())			Print(Ctx, TEXT("SLWater "), InColor);
+	else if (Header.IsHair())						Print(Ctx, TEXT("Hair    "), InColor);
+	else if (Header.IsEye())						Print(Ctx, TEXT("Eye     "), InColor);
+	else											Print(Ctx, TEXT("Error - Unkown pixel type"), FontRed);
 }
 
 void PrintSSSType(inout FShaderPrintContext Ctx, uint SSSType, bool bThin, FFontColor InColor)
@@ -328,7 +330,7 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 				Print(Context, TEXT(" Fuzz Color  "), FontBSDFPropName);	Print(Context, SLAB_FUZZ_COLOR(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
 				Print(Context, TEXT(" Fuzz Rough. "), FontBSDFPropName);	Print(Context, SLAB_FUZZ_ROUGHNESS(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
 			}
-#if STRATA_GLINTS
+#if STRATA_COMPLEXPATH_SPECIAL
 			if (BSDF_GETHASGLINT(BSDF))
 			{
 				Print(Context, TEXT(" Glint Value "), FontBSDFPropName);	Print(Context, SLAB_GLINT_VALUE(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
@@ -1668,6 +1670,10 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 		Print(Context, TEXT(" # Complex tiles    : "), LegendColor);
 		Print(Context, GetTileCount(STRATA_TILE_TYPE_COMPLEX), ValueColor);
+		Newline(Context);
+
+		Print(Context, TEXT(" # Complex Special tiles: "), LegendColor);
+		Print(Context, GetTileCount(STRATA_TILE_TYPE_COMPLEX_SPECIAL), ValueColor);
 		Newline(Context);
 
 		Newline(Context);

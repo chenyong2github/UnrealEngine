@@ -1155,6 +1155,17 @@ uint8 FMaterial::MaterialGetStrataUintPerPixel_RenderThread() const
 	return RenderingThreadShaderMap ? RenderingThreadShaderMap->GetStrataUintPerPixel() : false;
 }
 
+bool FMaterial::MaterialGetStrataUsesComplexSpecialRenderPath_GameThread() const
+{
+	return GameThreadShaderMap ? GameThreadShaderMap->GetStrataUsesComplexSpecialRenderPath() : false;
+}
+
+bool FMaterial::MaterialGetStrataUsesComplexSpecialRenderPath_RenderThread() const
+{
+	check(IsInParallelRenderingThread());
+	return RenderingThreadShaderMap ? RenderingThreadShaderMap->GetStrataUsesComplexSpecialRenderPath() : false;
+}
+
 void FMaterial::SetGameThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 {
 	checkSlow(IsInGameThread() || IsInAsyncLoadingThread());

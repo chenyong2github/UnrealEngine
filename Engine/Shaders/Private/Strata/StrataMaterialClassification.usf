@@ -108,6 +108,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 #endif
 
 	// Pixels outside of the view area are considered simple to enable screen borders to receive the simple permutation when not aligned to shader group size.
+	bool bContainsComplexSpecialMaterial			= false;
 	bool bContainsComplexMaterial					= false;
 	bool bContainsSimpleMaterial					= false;
 	bool bContainsSingleMaterial					= false;
@@ -130,7 +131,9 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		bContainsStrataMaterial  = StrataPixelHeader.BSDFCount > 0;
 		bContainsSimpleMaterial  = bIsSimple;
 		bContainsSingleMaterial  = bIsSingle;
-		bContainsComplexMaterial = !bIsSingle && !bIsSimple;
+		bContainsComplexMaterial		= !bIsSingle && !bIsSimple && !StrataPixelHeader.bUsesComplexSpecialRenderPath;
+		bContainsComplexSpecialMaterial = !bIsSingle && !bIsSimple &&  StrataPixelHeader.bUsesComplexSpecialRenderPath;
+
 		bContainsScreenSpaceSubsurfaceScattering = StrataPixelHeader.HasSubsurface();
 
 	#if PERMUTATION_DECAL
@@ -212,6 +215,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	const bool bTileContainsSimple							= WaveActiveAnyTrue(bContainsSimpleMaterial);
 	const bool bTileContainsSingle							= WaveActiveAnyTrue(bContainsSingleMaterial);
 	const bool bTileContainsComplex							= WaveActiveAnyTrue(bContainsComplexMaterial);
+	const bool bTileContainsComplexSpecial					= WaveActiveAnyTrue(bContainsComplexSpecialMaterial);
 	const bool bTileContainsOpaqueRoughRefraction			= WaveActiveAnyTrue(bContainsOpaqueRoughRefraction);
 	const bool bTileContainsScreenSpaceSubsurfaceScattering	= WaveActiveAnyTrue(bContainsScreenSpaceSubsurfaceScattering);
 	const bool bTileContainsDecals							= WaveActiveAnyTrue(bContainsDecals);
@@ -222,10 +226,10 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		| (bContainsSimpleMaterial					? 0x2u	: 0u)
 		| (bContainsSingleMaterial					? 0x4u	: 0u) 
 		| (bContainsComplexMaterial					? 0x8u	: 0u) 
-		| (bContainsOpaqueRoughRefraction			? 0x10u : 0u)
-		| (bContainsScreenSpaceSubsurfaceScattering	? 0x20u : 0u)
-		| (bContainsScreenSpaceSubsurfaceScattering	? 0x20u : 0u)
-		| (bContainsDecals							? 0x40u : 0u);
+		| (bContainsComplexSpecialMaterial			? 0x10u : 0u)
+		| (bContainsOpaqueRoughRefraction			? 0x20u : 0u)
+		| (bContainsScreenSpaceSubsurfaceScattering	? 0x40u : 0u)
+		| (bContainsDecals							? 0x80u : 0u);
 
 	GroupMemoryBarrierWithGroupSync();
 	if (LinearIndex < 32)
@@ -261,16 +265,23 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	const bool bTileContainsSimple							= (FinalTileFlags & 0x2u) > 0;
 	const bool bTileContainsSingle							= (FinalTileFlags & 0x4u) > 0;
 	const bool bTileContainsComplex							= (FinalTileFlags & 0x8u) > 0;
-	const bool bTileContainsOpaqueRoughRefraction			= (FinalTileFlags & 0x10u) > 0;
-	const bool bTileContainsScreenSpaceSubsurfaceScattering	= (FinalTileFlags & 0x20u) > 0;
-	const bool bTileContainsDecals							= (FinalTileFlags & 0x40u) > 0;
+	const bool bTileContainsComplexSpecial					= (FinalTileFlags & 0x10u) > 0;
+	const bool bTileContainsOpaqueRoughRefraction			= (FinalTileFlags & 0x20u) > 0;
+	const bool bTileContainsScreenSpaceSubsurfaceScattering	= (FinalTileFlags & 0x40u) > 0;
+	const bool bTileContainsDecals							= (FinalTileFlags & 0x80u) > 0;
 #endif // PERMUTATION_WAVE_OPS
 
 	if (LinearIndex < 1 && bTileContainsStrata)
 	{
 		uint EncodedTile = StrataPackTile(GroupId.xy);
 
-		if (bTileContainsComplex)
+		if (bTileContainsComplexSpecial)
+		{
+			uint WriteToIndex;
+			InterlockedAdd(TileDrawIndirectDataBufferUAV[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX_SPECIAL) + 1], 1, WriteToIndex);
+			TileListBufferUAV[GetTileListBufferOffsets(STRATA_TILE_TYPE_COMPLEX_SPECIAL) + WriteToIndex] = EncodedTile;
+		}
+		else  if (bTileContainsComplex)
 		{
 			uint WriteToIndex;
 			InterlockedAdd(TileDrawIndirectDataBufferUAV[GetStrataTileTypeDrawIndirectArgOffset_DWord(STRATA_TILE_TYPE_COMPLEX) + 1], 1, WriteToIndex);

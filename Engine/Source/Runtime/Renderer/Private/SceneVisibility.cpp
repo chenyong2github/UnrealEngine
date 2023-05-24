@@ -1153,6 +1153,7 @@ void FRelevancePacket::Finalize()
 	WriteView.bUsesCustomStencil |= bUsesCustomStencil;
 	WriteView.StrataViewData.MaxBSDFCount = FMath::Max(WriteView.StrataViewData.MaxBSDFCount, 8u - FMath::CountLeadingZeros8(StrataBSDFCountMask));
 	WriteView.StrataViewData.MaxBytesPerPixel = FMath::Max(WriteView.StrataViewData.MaxBytesPerPixel, StrataUintPerPixel * 4u);
+	WriteView.StrataViewData.bUsesComplexSpecialRenderPath |= bUsesComplexSpecialRenderPath;
 	DirtyIndirectLightingCacheBufferPrimitives.AppendTo(WriteView.DirtyIndirectLightingCacheBufferPrimitives);
 
 	WriteView.MeshDecalBatches.Append(MeshDecalBatches);
@@ -1210,6 +1211,7 @@ void FRelevancePacket::ComputeRelevance(FDynamicPrimitiveIndexList& DynamicPrimi
 
 	CombinedShadingModelMask = 0;
 	StrataUintPerPixel = 0;
+	bUsesComplexSpecialRenderPath = false;
 	StrataBSDFCountMask = 0;
 	bSceneHasSkyMaterial = 0;
 	bHasSingleLayerWaterMaterial = 0;
@@ -1767,6 +1769,7 @@ void FRelevancePacket::ComputeRelevance(FDynamicPrimitiveIndexList& DynamicPrimi
 
 		CombinedShadingModelMask |= ViewRelevance.ShadingModelMask;
 		StrataUintPerPixel = FMath::Max(StrataUintPerPixel, ViewRelevance.StrataUintPerPixel);
+		bUsesComplexSpecialRenderPath |= ViewRelevance.bUsesComplexSpecialRenderPath;
 		StrataBSDFCountMask |= ViewRelevance.StrataBSDFCountMask;
 		bUsesLightingChannels |= ViewRelevance.bUsesLightingChannels;
 		bTranslucentSurfaceLighting |= ViewRelevance.bTranslucentSurfaceLighting;

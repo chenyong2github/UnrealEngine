@@ -9,6 +9,7 @@ FStrataMaterialCompilationOutput::FStrataMaterialCompilationOutput()
 	: StrataMaterialType(0)
 	, StrataBSDFCount(0)
 	, StrataUintPerPixel(0)
+	, bUsesComplexSpecialRenderPath(0)
 #if WITH_EDITOR
 	, StrataMaterialDescription()
 	, SharedLocalBasesCount(0)

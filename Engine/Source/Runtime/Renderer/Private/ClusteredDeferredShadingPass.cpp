@@ -95,7 +95,7 @@ class FClusteredShadingPS : public FGlobalShader
 
 	class FVisualizeLightCullingDim : SHADER_PERMUTATION_BOOL("VISUALIZE_LIGHT_CULLING");
 	class FHairStrandsLighting : SHADER_PERMUTATION_BOOL("USE_HAIR_LIGHTING");
-	class FStrataTileType : SHADER_PERMUTATION_INT("STRATA_TILETYPE", 3);
+	class FStrataTileType : SHADER_PERMUTATION_INT("STRATA_TILETYPE", 4);
 	using FPermutationDomain = TShaderPermutationDomain<FVisualizeLightCullingDim, FHairStrandsLighting, FStrataTileType>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -289,6 +289,18 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 			if (Strata::IsStrataEnabled())
 			{
 				StrataSceneData = &Scene->StrataSceneData;
+
+				InternalAddClusteredDeferredShadingPass(
+					GraphBuilder,
+					View,
+					SceneTextures,
+					SortedLightsSet,
+					EClusterPassInputType::Strata,
+					EStrataTileType::EComplexSpecial,
+					ShadowMaskBits,
+					VirtualShadowMapArray,
+					nullptr,
+					StrataSceneData);
 
 				InternalAddClusteredDeferredShadingPass(
 					GraphBuilder,

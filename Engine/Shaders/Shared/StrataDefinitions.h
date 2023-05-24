@@ -8,7 +8,7 @@
 #pragma once
 
 // Change this to force recompilation of all strata dependent shaders (use https://www.random.org/cgi-bin/randbyte?nbytes=4&format=h)
-#define STRATA_SHADER_VERSION 0xbd4a70e7
+#define STRATA_SHADER_VERSION 0x932681EC
 
 
 
@@ -57,12 +57,13 @@
 #define STRATA_TILE_TYPE_SIMPLE						0
 #define STRATA_TILE_TYPE_SINGLE						1
 #define STRATA_TILE_TYPE_COMPLEX					2
-#define STRATA_TILE_TYPE_ROUGH_REFRACT				3
-#define STRATA_TILE_TYPE_ROUGH_REFRACT_SSS_WITHOUT	4
-#define STRATA_TILE_TYPE_DECAL_SIMPLE				5
-#define STRATA_TILE_TYPE_DECAL_SINGLE				6
-#define STRATA_TILE_TYPE_DECAL_COMPLEX				7
-#define STRATA_TILE_TYPE_COUNT						8
+#define STRATA_TILE_TYPE_COMPLEX_SPECIAL			3
+#define STRATA_TILE_TYPE_ROUGH_REFRACT				4
+#define STRATA_TILE_TYPE_ROUGH_REFRACT_SSS_WITHOUT	5
+#define STRATA_TILE_TYPE_DECAL_SIMPLE				6
+#define STRATA_TILE_TYPE_DECAL_SINGLE				7
+#define STRATA_TILE_TYPE_DECAL_COMPLEX				8
+#define STRATA_TILE_TYPE_COUNT						9
 
 // sizeof(FRHIDrawIndirectParameters) = 4 uints = 16 bytes
 #define GetStrataTileTypeDrawIndirectArgOffset_Byte(x)  (x * 16)

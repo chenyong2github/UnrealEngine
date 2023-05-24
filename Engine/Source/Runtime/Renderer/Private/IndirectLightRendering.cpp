@@ -123,7 +123,7 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 	class FApplyDiffuseIndirectDim : SHADER_PERMUTATION_INT("DIM_APPLY_DIFFUSE_INDIRECT", 4);
 	class FUpscaleDiffuseIndirectDim : SHADER_PERMUTATION_BOOL("DIM_UPSCALE_DIFFUSE_INDIRECT");
 	class FScreenBentNormal : SHADER_PERMUTATION_BOOL("DIM_SCREEN_BENT_NORMAL");
-	class FStrataTileType : SHADER_PERMUTATION_INT("STRATA_TILETYPE", 3);
+	class FStrataTileType : SHADER_PERMUTATION_INT("STRATA_TILETYPE", 4);
 	class FEnableDualSrcBlending : SHADER_PERMUTATION_BOOL("ENABLE_DUAL_SRC_BLENDING");
 
 	using FPermutationDomain = TShaderPermutationDomain<FApplyDiffuseIndirectDim, FUpscaleDiffuseIndirectDim, FScreenBentNormal, FStrataTileType, FEnableDualSrcBlending>;
@@ -283,7 +283,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 	class FSkyShadowing : SHADER_PERMUTATION_BOOL("APPLY_SKY_SHADOWING");
 	class FRayTracedReflections : SHADER_PERMUTATION_BOOL("RAY_TRACED_REFLECTIONS");
 	class FLumenStandaloneReflections : SHADER_PERMUTATION_BOOL("LUMEN_STANDALONE_REFLECTIONS");
-	class FStrataTileType : SHADER_PERMUTATION_INT("STRATA_TILETYPE", 3);
+	class FStrataTileType : SHADER_PERMUTATION_INT("STRATA_TILETYPE", 4);
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FHasBoxCaptures,
@@ -343,7 +343,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		PermutationVector.Set<FStrataTileType>(0);
 		if (Strata::IsStrataEnabled())
 		{
-			check(TileType <= EStrataTileType::EComplex);
+			check(TileType <= EStrataTileType::EComplexSpecial);
 			PermutationVector.Set<FStrataTileType>(TileType);
 		}
 		return RemapPermutation(PermutationVector);
@@ -1506,6 +1506,10 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		{
 			if (Strata::IsStrataEnabled())
 			{
+				if (Strata::GetStrataUsesComplexSpecialPath(View))
+				{
+					ApplyDiffuseIndirect(EStrataTileType::EComplexSpecial);
+				}
 				ApplyDiffuseIndirect(EStrataTileType::EComplex);
 				ApplyDiffuseIndirect(EStrataTileType::ESingle);
 				ApplyDiffuseIndirect(EStrataTileType::ESimple);
@@ -1615,6 +1619,10 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 			if (Strata::IsStrataEnabled())
 			{
+				if (Strata::GetStrataUsesComplexSpecialPath(View))
+				{
+					ApplyAmbientCubemapComposite(EStrataTileType::EComplexSpecial);
+				}
 				ApplyAmbientCubemapComposite(EStrataTileType::EComplex);
 				ApplyAmbientCubemapComposite(EStrataTileType::ESingle);
 				ApplyAmbientCubemapComposite(EStrataTileType::ESimple);
@@ -1760,7 +1768,7 @@ static void AddSkyReflectionPass(
 	const bool bStrataEnabled = Strata::IsStrataEnabled();
 	if (bStrataEnabled)
 	{
-		check(StrataTileMaterialType <= EStrataTileType::EComplex);
+		check(StrataTileMaterialType <= EStrataTileType::EComplexSpecial);
 		PassParameters->VS = Strata::SetTileParameters(GraphBuilder, View, StrataTileMaterialType, StrataTilePrimitiveType);
 		ClearUnusedGraphResources(StrataTilePassVertexShader, &PassParameters->VS);
 	}
@@ -2086,6 +2094,21 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 			if (Strata::IsStrataEnabled())
 			{
+				AddSkyReflectionPass(
+					GraphBuilder,
+					View,
+					Scene,
+					SceneTextures,
+					DynamicBentNormalAOTexture,
+					ReflectionsColor,
+					RayTracingReflectionOptions,
+					SceneTextureParameters,
+					bSkyLight,
+					bDynamicSkyLight,
+					bApplySkyShadowing,
+					bLumenStandaloneReflections,
+					EStrataTileType::EComplexSpecial);
+
 				AddSkyReflectionPass(
 					GraphBuilder,
 					View,

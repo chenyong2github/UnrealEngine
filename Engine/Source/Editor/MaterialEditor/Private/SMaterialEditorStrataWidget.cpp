@@ -224,6 +224,9 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 				case 2:
 					MaterialDescription += FString::Printf(TEXT("Material complexity          = COMPLEX\r\n"));
 					break;
+				case 3:
+					MaterialDescription += FString::Printf(TEXT("Material complexity          = COMPLEX SPECIAL\r\n"));
+					break;
 				default:
 					MaterialDescription += FString::Printf(TEXT("Material complexity          = UNKOWN => ERROR!\r\n"));
 				}

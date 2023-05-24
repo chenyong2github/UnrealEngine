@@ -656,6 +656,7 @@ private:
 	uint16 CombinedShadingModelMask = 0;
 	uint8 StrataUintPerPixel = 0;
 	uint8 StrataBSDFCountMask = 0;
+	bool bUsesComplexSpecialRenderPath = false;
 	bool bHasDistortionPrimitives = false;
 	bool bHasCustomDepthPrimitives = false;
 	bool bUsesLightingChannels = false;

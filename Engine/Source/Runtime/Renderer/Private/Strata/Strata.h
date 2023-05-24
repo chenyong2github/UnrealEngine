@@ -79,6 +79,7 @@ enum EStrataTileType : uint32
 	ESimple								= STRATA_TILE_TYPE_SIMPLE,
 	ESingle								= STRATA_TILE_TYPE_SINGLE,
 	EComplex							= STRATA_TILE_TYPE_COMPLEX,
+	EComplexSpecial						= STRATA_TILE_TYPE_COMPLEX_SPECIAL,
 	EOpaqueRoughRefraction				= STRATA_TILE_TYPE_ROUGH_REFRACT,
 	EOpaqueRoughRefractionSSSWithout	= STRATA_TILE_TYPE_ROUGH_REFRACT_SSS_WITHOUT,
 	EDecalSimple						= STRATA_TILE_TYPE_DECAL_SIMPLE,
@@ -134,6 +135,9 @@ struct FStrataViewData
 	uint32 MaxBSDFCount = 0;
 	uint32 MaxBytesPerPixel = 0;
 
+	// True if any material requires the complex special path (e.g. glints or SpecularLUT)
+	bool bUsesComplexSpecialRenderPath = 0;
+
 	FIntPoint TileCount  = FIntPoint(0, 0);
 	FIntPoint TileOffset = FIntPoint(0, 0);
 	FIntPoint OverflowTileCount = FIntPoint(0, 0);
@@ -164,11 +168,13 @@ struct FStrataViewData
 
 namespace Strata
 {
-constexpr uint32 StencilBit_Fast   = 0x08; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_FASTPATH)
-constexpr uint32 StencilBit_Single = 0x10; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_SINGLEPATH)
-constexpr uint32 StencilBit_Complex= 0x20; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_COMPLEX)
+constexpr uint32 StencilBit_Fast			= 0x08; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_FASTPATH)
+constexpr uint32 StencilBit_Single			= 0x10; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_SINGLEPATH)
+constexpr uint32 StencilBit_Complex			= 0x20; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_COMPLEX)
+constexpr uint32 StencilBit_ComplexSpecial	= 0x01; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_COMPLEX_SPECIAL)	
 
 FIntPoint GetStrataTextureResolution(const FViewInfo& View, const FIntPoint& InResolution);
+bool GetStrataUsesComplexSpecialPath(const FViewInfo& View);
 
 void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer);
 
