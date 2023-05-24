@@ -60,7 +60,6 @@ private:
 	void OnSaveAsAsset();
 	void SaveTransientQueueToAsset(UMoviePipelineQueue* DestinationQueue) const;
 	void OnImportSavedQueueAsset(const FAssetData& InPresetAsset) const;
-	void LoadQueue(UMoviePipelineQueue* SavedQueue) const;
 	bool IsQueueDirty() const;
 	UMoviePipelineQueue* GetQueueOrigin() const;
 	FString GetQueueOriginName() const;

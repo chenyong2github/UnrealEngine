@@ -6,6 +6,8 @@
 #include "MoviePipelineExecutor.h"
 #include "MoviePipelineQueueSubsystem.generated.h"
 
+DECLARE_MULTICAST_DELEGATE(FOnMoviePipelineQueueLoaded)
+
 UCLASS(BlueprintType)
 class MOVIERENDERPIPELINEEDITOR_API UMoviePipelineQueueSubsystem : public UEditorSubsystem
 {
@@ -24,6 +26,24 @@ public:
 	{
 		return CurrentQueue;
 	}
+
+	/**
+	 * Loads a new queue by copying it into the queue subsystem's current transient queue (the one returned by GetQueue()).
+	 * 
+	 * If bPromptOnReplacingDirtyQueue is true and the current queue has been modified since being loaded, a dialog will prompt the
+	 * user if they want to discard their changes. If this dialog is rejected, or there was an error loading the queue, returns
+	 * false, else returns true. Note that bPromptOnReplacingDirtyQueue is effectively ignored if the application is in
+	 * "unattended" mode because the dialog is auto-accepted.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	bool LoadQueue(UMoviePipelineQueue* QueueToLoad, const bool bPromptOnReplacingDirtyQueue = true);
+
+	/**
+	 * Returns true if the current queue has been modified since it was loaded, else returns false. Note that the empty
+	 * queue that is in use upon the initial load of MRQ is not considered dirty.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	bool IsQueueDirty() const;
 
 	/** Returns the active executor (if there is one). This can be used to subscribe to events on an already in-progress render. May be null. */
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
@@ -64,6 +84,10 @@ public:
 	{
 		return ActiveExecutor ? ActiveExecutor->IsRendering() : false;
 	}
+
+public:
+	/** Called when a queue is loaded into the system. */
+	FOnMoviePipelineQueueLoaded OnQueueLoaded;
 
 private:
 	/** Called when the executor is finished so that we can release it and stop reporting IsRendering() == true. */

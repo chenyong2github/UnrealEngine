@@ -88,6 +88,9 @@ private:
 	void SetSelectedJobs_Impl(const TArray<UMoviePipelineExecutorJob*>& InJobs);
 	void OnJobSelectionChanged_Impl(TSharedPtr<IMoviePipelineQueueTreeItem> TreeItem, ESelectInfo::Type SelectInfo);
 
+	/** Called when a new queue is loaded in the queue subsystem. */
+	void OnQueueLoaded();
+
 private:
 	TArray<TSharedPtr<IMoviePipelineQueueTreeItem>> RootNodes;
 	TSharedPtr<STreeView<TSharedPtr<IMoviePipelineQueueTreeItem>>> TreeView;

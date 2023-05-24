@@ -1165,6 +1165,11 @@ void SMoviePipelineQueueEditor::Construct(const FArguments& InArgs)
 
 	// When undo occurs, get a notification so we can make sure our view is up to date
 	GEditor->RegisterForUndo(this);
+
+	// React to when a new queue is loaded via the subsystem
+	UMoviePipelineQueueSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>();
+	check(Subsystem);
+	Subsystem->OnQueueLoaded.AddSP(this, &SMoviePipelineQueueEditor::OnQueueLoaded);
 }
 
 
@@ -1586,6 +1591,23 @@ void SMoviePipelineQueueEditor::OnJobSelectionChanged_Impl(TSharedPtr<IMoviePipe
 	}
 
 	OnJobSelectionChanged.ExecuteIfBound(SelectedJobs);
+}
+
+void SMoviePipelineQueueEditor::OnQueueLoaded()
+{
+	const UMoviePipelineQueueSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>();
+	check(Subsystem);
+	
+	// Automatically select the first job in the queue
+	TArray<UMoviePipelineExecutorJob*> Jobs;
+	if (Subsystem->GetQueue()->GetJobs().Num() > 0)
+	{
+		Jobs.Add(Subsystem->GetQueue()->GetJobs()[0]);
+	}
+	
+	// Go through the UI so it updates the UI selection too and then this will loop back
+	// around to OnSelectionChanged to update ourself.
+	SetSelectedJobs(Jobs);
 }
 
 #undef LOCTEXT_NAMESPACE
