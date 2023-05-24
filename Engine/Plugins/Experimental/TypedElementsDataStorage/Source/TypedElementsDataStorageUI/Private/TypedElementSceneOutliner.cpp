@@ -151,7 +151,7 @@ public:
 		TSharedPtr<SWidget> Widget;
 		if (HeaderWidgetConstructor)
 		{
-			TypedElementRowHandle UiRowHandle = Storage.AddRow(FName(TEXT("Editor_WidgetTable")));
+			TypedElementRowHandle UiRowHandle = Storage.AddRow(Storage.FindTable(FName(TEXT("Editor_WidgetTable"))));
 			Widget = StorageUi.ConstructWidget(UiRowHandle, *HeaderWidgetConstructor, 
 				{
 					{ FName(TEXT("Name")), NameId.ToString() }
@@ -187,7 +187,7 @@ public:
 				TypedElementRowHandle RowHandle = StorageCompatibility.FindRowWithCompatibleObject(Actor);
 				if (RowHandle != TypedElementInvalidRowHandle && Storage.HasColumns(RowHandle, ColumnTypes))
 				{
-					TypedElementRowHandle UiRowHandle = Storage.AddRow(FTypedElementSceneOutlinerQueryBinder::CellWidgetTableName);
+					TypedElementRowHandle UiRowHandle = Storage.AddRow(Storage.FindTable(FTypedElementSceneOutlinerQueryBinder::CellWidgetTableName));
 					Storage.AddColumns(UiRowHandle, CellWidgetConstructor->GetAdditionalColumnsList());
 					if (ColumnTypes.Num() == 1)
 					{

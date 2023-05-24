@@ -35,18 +35,20 @@ public:
 	TSharedPtr<FMassEntityManager> GetActiveMutableEditorEntityManager();
 	TSharedPtr<const FMassEntityManager> GetActiveEditorEntityManager() const;
 
-	TypedElementTableHandle RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList) override;
 	TypedElementTableHandle RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList, const FName Name) override;
-	TypedElementTableHandle RegisterTable(TypedElementTableHandle SourceTable, TConstArrayView<const UScriptStruct*> ColumnList) override;
 	TypedElementTableHandle RegisterTable(TypedElementTableHandle SourceTable, TConstArrayView<const UScriptStruct*> ColumnList, 
 		const FName Name) override;
 	TypedElementTableHandle FindTable(const FName Name) override;
 
+	TypedElementRowHandle ReserveRow() override;
 	TypedElementRowHandle AddRow(TypedElementTableHandle Table) override;
-	TypedElementRowHandle AddRow(FName TableName) override;
+	bool AddRow(TypedElementRowHandle ReservedRow, TypedElementTableHandle Table) override;
 	bool BatchAddRow(TypedElementTableHandle Table, int32 Count, TypedElementDataStorageCreationCallbackRef OnCreated) override;
-	bool BatchAddRow(FName TableName, int32 Count, TypedElementDataStorageCreationCallbackRef OnCreated) override;
+	bool BatchAddRow(TypedElementTableHandle Table, TConstArrayView<TypedElementRowHandle> ReservedHandles,
+		TypedElementDataStorageCreationCallbackRef OnCreated) override;
 	void RemoveRow(TypedElementRowHandle Row) override;
+	bool IsRowAvailable(TypedElementRowHandle Row) const override;
+	bool HasRowBeenAssigned(TypedElementRowHandle Row) const override;
 
 	bool AddColumn(TypedElementRowHandle Row, const UScriptStruct* ColumnType) override;
 	bool AddColumn(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) override;

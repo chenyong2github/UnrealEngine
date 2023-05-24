@@ -122,14 +122,9 @@ TSharedPtr<const FMassEntityManager> UTypedElementDatabase::GetActiveEditorEntit
 	return ActiveEditorEntityManager;
 }
 
-TypedElementTableHandle UTypedElementDatabase::RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList)
-{
-	return RegisterTable(ColumnList, {});
-}
-
 TypedElementTableHandle UTypedElementDatabase::RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList, const FName Name)
 {
-	if (ActiveEditorEntityManager && (!Name.IsValid() || !TableNameLookup.Contains(Name)))
+	if (ActiveEditorEntityManager && !TableNameLookup.Contains(Name))
 	{
 		TypedElementTableHandle Result = Tables.Num();
 		Tables.Add(ActiveEditorEntityManager->CreateArchetype(ColumnList, Name));
@@ -142,16 +137,10 @@ TypedElementTableHandle UTypedElementDatabase::RegisterTable(TConstArrayView<con
 	return TypedElementInvalidTableHandle;
 }
 
-TypedElementTableHandle UTypedElementDatabase::RegisterTable(TypedElementTableHandle SourceTable,
-	TConstArrayView<const UScriptStruct*> ColumnList)
-{
-	return RegisterTable(SourceTable, ColumnList, {});
-}
-
 TypedElementTableHandle UTypedElementDatabase::RegisterTable(TypedElementTableHandle SourceTable, 
 	TConstArrayView<const UScriptStruct*> ColumnList, const FName Name)
 {
-	if (ActiveEditorEntityManager && (!Name.IsValid() || !TableNameLookup.Contains(Name)) && SourceTable < Tables.Num())
+	if (ActiveEditorEntityManager && SourceTable < Tables.Num() && !TableNameLookup.Contains(Name))
 	{
 		TypedElementTableHandle Result = Tables.Num();
 		Tables.Add(ActiveEditorEntityManager->CreateArchetype(Tables[SourceTable], ColumnList, Name));
@@ -170,6 +159,11 @@ TypedElementTableHandle UTypedElementDatabase::FindTable(const FName Name)
 	return TableHandle ? *TableHandle : TypedElementInvalidTableHandle;
 }
 
+TypedElementRowHandle UTypedElementDatabase::ReserveRow()
+{
+	return ActiveEditorEntityManager ? ActiveEditorEntityManager->ReserveEntity().AsNumber(): TypedElementInvalidRowHandle;
+}
+
 TypedElementRowHandle UTypedElementDatabase::AddRow(TypedElementTableHandle Table)
 {
 	checkf(Table < Tables.Num(), TEXT("Attempting to add a row to a non-existing table."));
@@ -178,10 +172,19 @@ TypedElementRowHandle UTypedElementDatabase::AddRow(TypedElementTableHandle Tabl
 		TypedElementInvalidRowHandle;
 }
 
-TypedElementRowHandle UTypedElementDatabase::AddRow(FName TableName)
+bool UTypedElementDatabase::AddRow(TypedElementRowHandle ReservedRow, TypedElementTableHandle Table)
 {
-	TypedElementTableHandle* Table = TableNameLookup.Find(TableName);
-	return Table ? AddRow(*Table) : TypedElementInvalidRowHandle;
+	checkf(!HasRowBeenAssigned(ReservedRow), TEXT("Attempting to assign a table to row that already has a table assigned."));
+	checkf(Table < Tables.Num(), TEXT("Attempting to add a row to a non-existing table."));
+	if (ActiveEditorEntityManager)
+	{
+		ActiveEditorEntityManager->BuildEntity(FMassEntityHandle::FromNumber(ReservedRow), Tables[Table]);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 bool UTypedElementDatabase::BatchAddRow(TypedElementTableHandle Table, int32 Count, TypedElementDataStorageCreationCallbackRef OnCreated)
@@ -205,18 +208,59 @@ bool UTypedElementDatabase::BatchAddRow(TypedElementTableHandle Table, int32 Cou
 	return false;
 }
 
-bool UTypedElementDatabase::BatchAddRow(FName TableName, int32 Count, TypedElementDataStorageCreationCallbackRef OnCreated)
+bool UTypedElementDatabase::BatchAddRow(TypedElementTableHandle Table, TConstArrayView<TypedElementRowHandle> ReservedHandles,
+	TypedElementDataStorageCreationCallbackRef OnCreated)
 {
-	TypedElementTableHandle* Table = TableNameLookup.Find(TableName);
-	return Table ? BatchAddRow(*Table, Count, OnCreated) : false;
+	OnCreated.CheckCallable();
+	checkf(Table < Tables.Num(), TEXT("Attempting to add multiple rows to a non-existing table."));
+	if (ActiveEditorEntityManager)
+	{
+		TArray<FMassEntityHandle> Entities;
+		Entities.Reserve(ReservedHandles.Num());
+		FMassEntityHandle* CurrentEntityHandle = Entities.GetData();
+		for (TypedElementRowHandle RowHandle : ReservedHandles)
+		{
+			checkf(!HasRowBeenAssigned(RowHandle), TEXT("Attempting to assign a table to row that already has a table assigned."));
+			Entities.Add(FMassEntityHandle::FromNumber(RowHandle));
+		}
+		
+		TSharedRef<FMassEntityManager::FEntityCreationContext> Context =
+			ActiveEditorEntityManager->BatchCreateReservedEntities(Tables[Table], Entities);
+
+		for (FMassEntityHandle Entity : Entities)
+		{
+			OnCreated(Entity.AsNumber());
+		}
+
+		return true;
+	}
+	return false;
 }
+
 
 void UTypedElementDatabase::RemoveRow(TypedElementRowHandle Row)
 {
 	if (ActiveEditorEntityManager)
 	{
-		ActiveEditorEntityManager->DestroyEntity(FMassEntityHandle::FromNumber(Row));
+		if (ActiveEditorEntityManager->IsEntityActive(FMassEntityHandle::FromNumber(Row)))
+		{
+			ActiveEditorEntityManager->DestroyEntity(FMassEntityHandle::FromNumber(Row));
+		}
+		else
+		{
+			ActiveEditorEntityManager->ReleaseReservedEntity(FMassEntityHandle::FromNumber(Row));
+		}
 	}
+}
+
+bool UTypedElementDatabase::IsRowAvailable(TypedElementRowHandle Row) const
+{
+	return ActiveEditorEntityManager ? ActiveEditorEntityManager->IsEntityValid(FMassEntityHandle::FromNumber(Row)) : false;
+}
+
+bool UTypedElementDatabase::HasRowBeenAssigned(TypedElementRowHandle Row) const
+{
+	return ActiveEditorEntityManager ? ActiveEditorEntityManager->IsEntityActive(FMassEntityHandle::FromNumber(Row)) : false;
 }
 
 bool UTypedElementDatabase::AddColumn(TypedElementRowHandle Row, const UScriptStruct* ColumnType)
