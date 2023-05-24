@@ -36,7 +36,10 @@ public:
 
 	virtual UTextureRenderTarget2D* RenderLayer_Native(const FLandscapeBrushParameters& InParameters) { return InParameters.CombinedResult; }
 
+	UE_DEPRECATED(5.3, "Use AffectsWeightmapLayer")
 	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const { return false; }
+	virtual bool AffectsWeightmapLayer(const FName& InLayerName) const { return false; }
+	virtual bool AffectsVisibilityLayer() const { return false; }
 
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
 	void RequestLandscapeUpdate(bool bInUserTriggeredUpdate = false);

@@ -313,9 +313,9 @@ FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleAffectsHeight
 {
 	if (ALandscapeBlueprintBrushBase* Brush = GetBrush(InBrushIndex))
 	{
-		const FScopedTransaction Transaction(LOCTEXT("Landscape_Brush_AffectsHeightmap", "Set Brush Affects Heightmap"));
-		bool bAffectsHeightmap = Brush->IsAffectingHeightmap();
-		Brush->SetAffectsHeightmap(!bAffectsHeightmap);
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_Brush_AffectsHeightmap", "Set Brush Can Affect Heightmap"));
+		bool bCanAffectHeightmap = Brush->CanAffectHeightmap();
+		Brush->SetCanAffectHeightmap(!bCanAffectHeightmap);
 	}
 	return FReply::Handled();
 }
@@ -324,9 +324,9 @@ FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleAffectsWeight
 {
 	if (ALandscapeBlueprintBrushBase* Brush = GetBrush(InBrushIndex))
 	{
-		const FScopedTransaction Transaction(LOCTEXT("Landscape_Brush_AffectsWeightmap", "Set Brush Affects Weightmap"));
-		bool bAffectsWeightmap = Brush->IsAffectingWeightmap();
-		Brush->SetAffectsWeightmap(!bAffectsWeightmap);
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_Brush_AffectsWeightmap", "Set Brush Can Affect Weightmap"));
+		bool bCanAffectWeightmap = Brush->CanAffectWeightmap();
+		Brush->SetCanAffectWeightmap(!bCanAffectWeightmap);
 	}
 	return FReply::Handled();
 }
@@ -334,9 +334,9 @@ FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleAffectsVisibi
 {
 	if (ALandscapeBlueprintBrushBase* Brush = GetBrush(InBrushIndex))
 	{
-		const FScopedTransaction Transaction(LOCTEXT("Landscape_Brush_AffectsVisibilityLayer", "Set Brush Affects Visibility Layer"));
-		bool bAffectsVisibilityLayer = Brush->IsAffectingVisibilityLayer();
-		Brush->SetAffectsVisibilityLayer(!bAffectsVisibilityLayer);
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_Brush_AffectsVisibilityLayer", "Set Brush Can Affect Visibility Layer"));
+		bool bCanAffectVisibilityLayer = Brush->CanAffectVisibilityLayer();
+		Brush->SetCanAffectVisibilityLayer(!bCanAffectVisibilityLayer);
 	}
 	return FReply::Handled();
 }
@@ -360,19 +360,19 @@ void FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleVisibility(ALan
 const FSlateBrush* FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetAffectsWeightmapBrush(int32 InBrushIndex) const
 {
 	ALandscapeBlueprintBrushBase* Brush = GetBrush(InBrushIndex);
-	return Brush && Brush->IsAffectingWeightmap() ? FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsWeight.Enabled") : FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsWeight.Disabled");
+	return Brush && Brush->CanAffectWeightmap() ? FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsWeight.Enabled") : FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsWeight.Disabled");
 }
 
 const FSlateBrush* FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetAffectsHeightmapBrush(int32 InBrushIndex) const
 {
 	ALandscapeBlueprintBrushBase* Brush = GetBrush(InBrushIndex);
-	return Brush && Brush->IsAffectingHeightmap() ? FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsHeight.Enabled") : FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsHeight.Disabled");
+	return Brush && Brush->CanAffectHeightmap() ? FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsHeight.Enabled") : FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsHeight.Disabled");
 }
 
 const FSlateBrush* FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetAffectsVisibilityLayerBrush(int32 InBrushIndex) const
 {
 	ALandscapeBlueprintBrushBase* Brush = GetBrush(InBrushIndex);
-	return Brush && Brush->IsAffectingVisibilityLayer() ? FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsVisibilityLayer.Enabled") : FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsVisibilityLayer.Disabled");
+	return Brush && Brush->CanAffectVisibilityLayer() ? FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsVisibilityLayer.Enabled") : FAppStyle::GetBrush("LandscapeEditor.Brush.AffectsVisibilityLayer.Disabled");
 }
 
 const FSlateBrush* FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetVisibilityBrush(int32 InBrushIndex) const
@@ -386,7 +386,10 @@ bool FLandscapeEditorCustomNodeBuilder_LayersBrushStack::IsBrushEnabled(int32 In
 {
 	ALandscapeBlueprintBrushBase* Brush = GetBrush(InBrushIndex);
 	const FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	return Brush && ((Brush->IsAffectingHeightmap() && LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap) || (Brush->IsAffectingWeightmap() && LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap) || (Brush->IsAffectingVisibilityLayer() && LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility));
+	return Brush 
+		&& ((Brush->CanAffectHeightmap() && LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap) 
+		|| (Brush->CanAffectWeightmap() && LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap) 
+		|| (Brush->CanAffectVisibilityLayer() && LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility));
 }
 
 bool FLandscapeEditorCustomNodeBuilder_LayersBrushStack::IsBrushSelected(int32 InBrushIndex) const

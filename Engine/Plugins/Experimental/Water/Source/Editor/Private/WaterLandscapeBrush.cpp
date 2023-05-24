@@ -28,7 +28,7 @@
 
 AWaterLandscapeBrush::AWaterLandscapeBrush(const FObjectInitializer& ObjectInitializer)
 {
-	SetAffectsHeightmap(true);
+	SetCanAffectHeightmap(true);
 
 	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterLandscapeBrushSprite"));
 }

@@ -22,9 +22,9 @@ ALandscapePatchManager::ALandscapePatchManager(const FObjectInitializer& ObjectI
 	: ALandscapeBlueprintBrushBase(ObjectInitializer)
 {
 #if WITH_EDITOR
-	SetAffectsHeightmap(true);
-	SetAffectsWeightmap(true);
-	SetAffectsVisibilityLayer(true);
+	SetCanAffectHeightmap(true);
+	SetCanAffectWeightmap(true);
+	SetCanAffectVisibilityLayer(true);
 #endif
 }
 
@@ -248,8 +248,20 @@ void ALandscapePatchManager::MovePatchToIndex(TObjectPtr<ULandscapePatchComponen
 }
 
 #if WITH_EDITOR
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool ALandscapePatchManager::IsAffectingWeightmapLayer(const FName& InLayerName) const
 {
+	return AffectsWeightmapLayer(InLayerName);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool ALandscapePatchManager::AffectsWeightmapLayer(const FName& InLayerName) const
+{
+	if (!CanAffectWeightmap())
+	{
+		return false;
+	}
+	
 	for (const TSoftObjectPtr<ULandscapePatchComponent>& Component : PatchComponents)
 	{
 		if (Component.IsPending())
@@ -257,7 +269,30 @@ bool ALandscapePatchManager::IsAffectingWeightmapLayer(const FName& InLayerName)
 			Component.LoadSynchronous();
 		}
 
-		if (Component.IsValid() && Component->IsEnabled() && Component->IsAffectingWeightmapLayer(InLayerName))
+		if (Component.IsValid() && Component->IsEnabled() && Component->AffectsWeightmapLayer(InLayerName))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool ALandscapePatchManager::AffectsVisibilityLayer() const
+{
+	if (!CanAffectVisibilityLayer())
+	{
+		return false;
+	}
+
+	for (const TSoftObjectPtr<ULandscapePatchComponent>& Component : PatchComponents)
+	{
+		if (Component.IsPending())
+		{
+			Component.LoadSynchronous();
+		}
+
+		if (Component.IsValid() && Component->IsEnabled() && Component->AffectsVisibilityLayer())
 		{
 			return true;
 		}

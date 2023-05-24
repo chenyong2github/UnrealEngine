@@ -131,9 +131,9 @@ struct FLandscapeLayerBrush
 	UTextureRenderTarget2D* RenderLayer(const FIntRect& InLandscapeSize, const FLandscapeBrushParameters& InParameters);
 
 	LANDSCAPE_API ALandscapeBlueprintBrushBase* GetBrush() const;
-	bool IsAffectingHeightmap() const;
-	bool IsAffectingWeightmapLayer(const FName& InWeightmapLayerName) const;
-	bool IsAffectingVisibilityLayer() const;
+	bool AffectsHeightmap() const;
+	bool AffectsWeightmapLayer(const FName& InWeightmapLayerName) const;
+	bool AffectsVisibilityLayer() const;
 	void SetOwner(ALandscape* InOwner);
 #endif
 

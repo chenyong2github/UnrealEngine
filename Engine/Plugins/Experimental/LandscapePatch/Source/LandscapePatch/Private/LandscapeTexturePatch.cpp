@@ -13,6 +13,7 @@
 #include "RenderGraphUtils.h"
 #include "TextureResource.h"
 #include "RenderingThread.h"
+#include "Algo/AnyOf.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeTexturePatch)
 
@@ -797,7 +798,15 @@ FMatrix44f ULandscapeTexturePatch::GetPatchToHeightmapUVs(int32 PatchSizeX, int3
 	return (FMatrix44f)PatchToLandscapeUVTransposed.GetTransposed();
 }
 
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool ULandscapeTexturePatch::IsAffectingWeightmapLayer(const FName& InLayerName) const
+{
+	return AffectsWeightmapLayer(InLayerName);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool ULandscapeTexturePatch::AffectsWeightmapLayer(const FName& InLayerName) const
 {
 	if (!IsEnabled())
 	{
@@ -812,6 +821,16 @@ bool ULandscapeTexturePatch::IsAffectingWeightmapLayer(const FName& InLayerName)
 		}
 	}
 	return false;
+}
+
+bool ULandscapeTexturePatch::AffectsVisibilityLayer() const
+{
+	if (!IsEnabled())
+	{
+		return false;
+	}
+
+	return Algo::AnyOf(WeightPatches, [](const TObjectPtr<ULandscapeWeightPatchTextureInfo>& InWeightPatch) { return InWeightPatch->bEditVisibilityLayer; });
 }
 
 // We override IsEnabled to make the patch not request updates when all the source modes are "none"

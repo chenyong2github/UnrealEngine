@@ -3682,7 +3682,7 @@ bool ALandscape::PrepareLayersBrushResources(ERHIFeatureLevel::Type InFeatureLev
 		{
 			if (ALandscapeBlueprintBrushBase* LandscapeBrush = Brush.GetBrush())
 			{
-				if (LandscapeBrush->IsAffectingWeightmap() || LandscapeBrush->IsAffectingHeightmap())
+				if (LandscapeBrush->AffectsWeightmap() || LandscapeBrush->AffectsHeightmap() || LandscapeBrush->AffectsVisibilityLayer())
 				{
 					LandscapeBrush->GetRenderDependencies(Dependencies);
 				}
@@ -7122,11 +7122,11 @@ int32 ALandscape::PerformLayersWeightmapsGlobalMerge(FUpdateLayersContentContext
 							FLandscapeLayerBrush& Brush = Layer.Brushes[i];
 							TOptional<int32> LayerInfoSettingsAllocatedIndex;
 
-							if (Brush.IsAffectingWeightmapLayer(InfoLayerSettings.GetLayerName()) && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
+							if (Brush.AffectsWeightmapLayer(InfoLayerSettings.GetLayerName()) && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
 							{
 								LayerInfoSettingsAllocatedIndex = LayerInfoSettingsIndex + 1; // due to visibility layer that is at 0
 							}
-							else if (Brush.IsAffectingVisibilityLayer() && UE::Landscape::IsVisibilityLayer(InfoLayerSettings.LayerInfoObj) && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
+							else if (Brush.AffectsVisibilityLayer() && UE::Landscape::IsVisibilityLayer(InfoLayerSettings.LayerInfoObj) && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
 							{
 								LayerInfoSettingsAllocatedIndex = GetVisibilityLayerAllocationIndex();
 							}
@@ -9989,28 +9989,28 @@ void FLandscapeLayerBrush::SetOwner(ALandscape* InOwner)
 #endif
 }
 
-bool FLandscapeLayerBrush::IsAffectingHeightmap() const
+bool FLandscapeLayerBrush::AffectsHeightmap() const
 {
 #if WITH_EDITORONLY_DATA
-	return BlueprintBrush && BlueprintBrush->IsVisible() && BlueprintBrush->IsAffectingHeightmap();
+	return BlueprintBrush && BlueprintBrush->IsVisible() && BlueprintBrush->AffectsHeightmap();
 #else
 	return false;
 #endif
 }
 
-bool FLandscapeLayerBrush::IsAffectingWeightmapLayer(const FName& InWeightmapLayerName) const
+bool FLandscapeLayerBrush::AffectsWeightmapLayer(const FName& InWeightmapLayerName) const
 {
 #if WITH_EDITORONLY_DATA
-	return BlueprintBrush && BlueprintBrush->IsVisible() && BlueprintBrush->IsAffectingWeightmap() && BlueprintBrush->IsAffectingWeightmapLayer(InWeightmapLayerName);
+	return BlueprintBrush && BlueprintBrush->IsVisible() && BlueprintBrush->AffectsWeightmap() && BlueprintBrush->AffectsWeightmapLayer(InWeightmapLayerName);
 #else
 	return false;
 #endif
 }
 
-bool FLandscapeLayerBrush::IsAffectingVisibilityLayer() const
+bool FLandscapeLayerBrush::AffectsVisibilityLayer() const
 {
 #if WITH_EDITORONLY_DATA
-	return BlueprintBrush && BlueprintBrush->IsVisible() && BlueprintBrush->IsAffectingVisibilityLayer();
+	return BlueprintBrush && BlueprintBrush->IsVisible() && BlueprintBrush->AffectsVisibilityLayer();
 #else
 	return false;
 #endif
@@ -10028,9 +10028,9 @@ UTextureRenderTarget2D* FLandscapeLayerBrush::RenderLayer(const FIntRect& InLand
 {
 #if WITH_EDITORONLY_DATA
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_LayerBrushRender);
-	if (((InParameters.LayerType == ELandscapeToolTargetType::Heightmap) && !IsAffectingHeightmap()) ||
-		((InParameters.LayerType == ELandscapeToolTargetType::Weightmap) && !IsAffectingWeightmapLayer(InParameters.WeightmapLayerName)) ||
-		((InParameters.LayerType == ELandscapeToolTargetType::Visibility) && !IsAffectingVisibilityLayer()))
+	if (((InParameters.LayerType == ELandscapeToolTargetType::Heightmap) && !AffectsHeightmap()) ||
+		((InParameters.LayerType == ELandscapeToolTargetType::Weightmap) && !AffectsWeightmapLayer(InParameters.WeightmapLayerName)) ||
+		((InParameters.LayerType == ELandscapeToolTargetType::Visibility) && !AffectsVisibilityLayer()))
 	{
 		return nullptr;
 	}

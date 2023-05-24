@@ -88,7 +88,9 @@ public:
 		}
 
 		// Only allow placing brushes that would affect our target type
-		if ((DefaultObject->IsAffectingHeightmap() && Target.TargetType == ELandscapeToolTargetType::Heightmap) || (DefaultObject->IsAffectingWeightmap() && Target.TargetType == ELandscapeToolTargetType::Weightmap))
+		if ((DefaultObject->CanAffectHeightmap() && Target.TargetType == ELandscapeToolTargetType::Heightmap) 
+			|| (DefaultObject->CanAffectWeightmap() && Target.TargetType == ELandscapeToolTargetType::Weightmap)
+			|| (DefaultObject->CanAffectVisibilityLayer() && Target.TargetType == ELandscapeToolTargetType::Visibility))
 		{
 			ULandscapeInfo* Info = EdMode->CurrentToolTarget.LandscapeInfo.Get();
 			check(Info);

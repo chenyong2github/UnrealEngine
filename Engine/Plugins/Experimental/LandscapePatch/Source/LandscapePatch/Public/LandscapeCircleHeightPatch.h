@@ -28,6 +28,8 @@ public:
 
 	virtual UTextureRenderTarget2D* RenderLayer_Native(const FLandscapeBrushParameters& InParameters) override;
 
+	virtual bool AffectsVisibilityLayer() const override { return bEditVisibility; }
+
 	// UActorComponent
 	virtual void OnComponentCreated() override;
 

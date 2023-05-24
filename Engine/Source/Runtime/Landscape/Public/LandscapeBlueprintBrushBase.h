@@ -52,13 +52,13 @@ protected:
 	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
 	bool UpdateOnPropertyChange;
 
-	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite, Setter = "SetCanAffectHeightmap")
 	bool AffectHeightmap;
 
-	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite, Setter = "SetCanAffectWeightmap")
 	bool AffectWeightmap;
 
-	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite, Setter="SetCanAffectVisibilityLayer")
 	bool AffectVisibilityLayer;
 
 	UPROPERTY(Category = "Settings", EditAnywhere, BlueprintReadWrite)
@@ -93,6 +93,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, CallInEditor)
 	void GetBlueprintRenderDependencies(TArray<UObject*>& OutStreamableAssets);
 
+	void SetCanAffectHeightmap(bool bInCanAffectHeightmap);
+	void SetCanAffectWeightmap(bool bInCanAffectWeightmap);
+	void SetCanAffectVisibilityLayer(bool bInCanAffectVisibilityLayer);
+
 #if WITH_EDITOR
 	virtual void CheckForErrors() override;
 
@@ -101,16 +105,34 @@ public:
 	virtual void SetOwningLandscape(class ALandscape* InOwningLandscape);
 	class ALandscape* GetOwningLandscape() const;
 
+	UE_DEPRECATED(5.3, "Renamed CanAffectHeightmap")
 	bool IsAffectingHeightmap() const { return AffectHeightmap; }
+	UE_DEPRECATED(5.3, "Renamed CanAffectWeightmap")
 	bool IsAffectingWeightmap() const { return AffectWeightmap; }
-	bool IsAffectingVisibilityLayer() const { return AffectVisibilityLayer; }
+	UE_DEPRECATED(5.3, "Renamed AffectsVisibilityLayer")
 	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const;
+	UE_DEPRECATED(5.3, "Renamed CanAffectVisibilityLayer")
+	bool IsAffectingVisibilityLayer() const { return AffectVisibilityLayer; }
+
+	bool CanAffectHeightmap() const { return AffectHeightmap; }
+	bool CanAffectWeightmap() const { return AffectWeightmap; }
+	bool CanAffectVisibilityLayer() const { return AffectVisibilityLayer; }
+
+	virtual bool AffectsHeightmap() const { return CanAffectHeightmap(); }
+	virtual bool AffectsWeightmap() const { return CanAffectWeightmap(); }
+	virtual bool AffectsWeightmapLayer(const FName& InLayerName) const;
+	virtual bool AffectsVisibilityLayer() const { return CanAffectVisibilityLayer(); }
+
 	bool IsVisible() const { return bIsVisible; }
 	bool IsLayerUpdatePending() const;
 
 	void SetIsVisible(bool bInIsVisible);
+
+	UE_DEPRECATED(5.3, "Renamed SetCanAffectHeightmap")
 	void SetAffectsHeightmap(bool bInAffectsHeightmap);
+	UE_DEPRECATED(5.3, "Renamed SetCanAffectWeightmap")
 	void SetAffectsWeightmap(bool bInAffectsWeightmap);
+	UE_DEPRECATED(5.3, "Renamed SetCanAffectVisibilityLayer")
 	void SetAffectsVisibilityLayer(bool bInAffectsVisibilityLayer);
 
 	virtual bool ShouldTickIfViewportsOnly() const override;

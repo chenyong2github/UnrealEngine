@@ -87,11 +87,11 @@ void ALandscapeBlueprintBrushBase::RequestLandscapeUpdate(bool bInUserTriggered)
 	if (OwningLandscape)
 	{
 		uint32 ModeMask = 0;
-		if (AffectHeightmap)
+		if (AffectsHeightmap())
 		{
 			ModeMask |= ELandscapeLayerUpdateMode::Update_Heightmap_Editing_NoCollision;
 		}
-		if (AffectWeightmap || AffectVisibilityLayer)
+		if (AffectsWeightmap() || AffectsVisibilityLayer())
 		{
 			ModeMask |= ELandscapeLayerUpdateMode::Update_Weightmap_Editing_NoCollision;
 		}
@@ -116,11 +116,11 @@ void ALandscapeBlueprintBrushBase::PushDeferredLayersContentUpdate()
 		LastRequestLayersContentUpdateFrameNumber + CVarLandscapeBrushPadding.GetValueOnAnyThread() <= GFrameNumber)
 	{
 		uint32 ModeMask = 0;
-		if (AffectHeightmap)
+		if (AffectsHeightmap())
 		{
 			ModeMask |= ELandscapeLayerUpdateMode::Update_Heightmap_All;
 		}
-		if (AffectWeightmap || AffectVisibilityLayer)
+		if (AffectsWeightmap() || AffectsVisibilityLayer())
 		{
 			ModeMask |= ELandscapeLayerUpdateMode::Update_Weightmap_All;
 		}
@@ -167,49 +167,86 @@ void ALandscapeBlueprintBrushBase::SetIsVisible(bool bInIsVisible)
 #endif
 }
 
-void ALandscapeBlueprintBrushBase::SetAffectsHeightmap(bool bInAffectsHeightmap)
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void ALandscapeBlueprintBrushBase::SetAffectsHeightmap(bool bAffectsHeightmap)
 {
-#if WITH_EDITORONLY_DATA
-	Modify();
-	AffectHeightmap = bInAffectsHeightmap;
-	if (OwningLandscape)
-	{
-		OwningLandscape->OnBlueprintBrushChanged();
-	}
-#endif
+	SetCanAffectHeightmap(bAffectsHeightmap);
 }
 
-void ALandscapeBlueprintBrushBase::SetAffectsWeightmap(bool bInAffectsWeightmap)
+void ALandscapeBlueprintBrushBase::SetAffectsWeightmap(bool bAffectsWeightmap)
 {
-#if WITH_EDITORONLY_DATA
-	Modify();
-	AffectWeightmap = bInAffectsWeightmap;
-	if (OwningLandscape)
-	{
-		OwningLandscape->OnBlueprintBrushChanged();
-	}
-#endif
+	SetCanAffectWeightmap(bAffectsWeightmap);
 }
 
 void ALandscapeBlueprintBrushBase::SetAffectsVisibilityLayer(bool bInAffectsVisibilityLayer)
 {
-#if WITH_EDITORONLY_DATA
-	Modify();
-	AffectVisibilityLayer = bInAffectsVisibilityLayer;
-	if (OwningLandscape)
-	{
-		OwningLandscape->OnBlueprintBrushChanged();
-	}
-#endif
+	SetCanAffectVisibilityLayer(bInAffectsVisibilityLayer);
 }
 
 bool ALandscapeBlueprintBrushBase::IsAffectingWeightmapLayer(const FName& InLayerName) const
 {
+	return AffectsWeightmapLayer(InLayerName);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+void ALandscapeBlueprintBrushBase::SetCanAffectHeightmap(bool bInCanAffectHeightmap)
+{
 #if WITH_EDITORONLY_DATA
+	if (bInCanAffectHeightmap != AffectHeightmap)
+	{
+		Modify();
+		AffectHeightmap = bInCanAffectHeightmap;
+		if (OwningLandscape)
+		{
+			OwningLandscape->OnBlueprintBrushChanged();
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+}
+
+void ALandscapeBlueprintBrushBase::SetCanAffectWeightmap(bool bInCanAffectWeightmap)
+{
+#if WITH_EDITORONLY_DATA
+	if (bInCanAffectWeightmap != AffectWeightmap)
+	{
+		Modify();
+		AffectWeightmap = bInCanAffectWeightmap;
+		if (OwningLandscape)
+		{
+			OwningLandscape->OnBlueprintBrushChanged();
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+}
+
+void ALandscapeBlueprintBrushBase::SetCanAffectVisibilityLayer(bool bInCanAffectVisibilityLayer)
+{
+#if WITH_EDITORONLY_DATA
+	if (bInCanAffectVisibilityLayer != AffectVisibilityLayer)
+	{
+		Modify();
+		AffectVisibilityLayer = bInCanAffectVisibilityLayer;
+		if (OwningLandscape)
+		{
+			OwningLandscape->OnBlueprintBrushChanged();
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+}
+
+bool ALandscapeBlueprintBrushBase::AffectsWeightmapLayer(const FName& InLayerName) const
+{
+#if WITH_EDITORONLY_DATA
+	if (!CanAffectWeightmap())
+	{
+		return false;
+	}
+
 	return AffectedWeightmapLayers.Contains(InLayerName);
-#else
+#else // WITH_EDITORONLY_DATA
 	return false;
-#endif
+#endif // !WITH_EDITORONLY_DATA
 }
 
 void ALandscapeBlueprintBrushBase::PostEditMove(bool bFinished)
