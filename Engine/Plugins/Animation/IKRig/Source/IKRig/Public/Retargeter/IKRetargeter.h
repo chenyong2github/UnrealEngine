@@ -210,15 +210,15 @@ public:
 	UIKRetargeter(const FObjectInitializer& ObjectInitializer);
 
 	// Get read-only access to the source IK Rig asset 
-	const UIKRigDefinition* GetSourceIKRig() const { return SourceIKRigAsset.LoadSynchronous(); };
+	const UIKRigDefinition* GetSourceIKRig() const;
 	// Get read-only access to the target IK Rig asset 
-	const UIKRigDefinition* GetTargetIKRig() const { return TargetIKRigAsset.LoadSynchronous(); };
+	const UIKRigDefinition* GetTargetIKRig() const;
 	// Get read-write access to the source IK Rig asset.
 	// WARNING: do not use for editing the data model. Use Controller class instead. 
-	UIKRigDefinition* GetSourceIKRigWriteable() const { return SourceIKRigAsset.LoadSynchronous(); };
+	UIKRigDefinition* GetSourceIKRigWriteable() const;
 	// Get read-write access to the target IK Rig asset.
 	// WARNING: do not use for editing the data model. Use Controller class instead. 
-	UIKRigDefinition* GetTargetIKRigWriteable() const { return TargetIKRigAsset.LoadSynchronous(); };
+	UIKRigDefinition* GetTargetIKRigWriteable() const;
 
 	// Get read-only access to the chain mapping 
 	const TArray<TObjectPtr<URetargetChainSettings>>& GetAllChainSettings() const { return ChainSettings; };
