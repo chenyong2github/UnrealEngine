@@ -5,6 +5,7 @@
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
 #include "Engine/SkeletalMesh.h"
+#include "GPUSkinVertexFactory.h"
 
 class USkeleton;
 
@@ -80,19 +81,42 @@ namespace UnrealConversionUtils
 			const int32 NumBones,
 			const int32 NumBoneInfluences,
 			const bool bNeedCPUAccess,
-			const void* InMutableData)
+			const void* InMutableData,
+			const uint32 MutableDataSize)
 		{
-			// \todo Ugly cast.
-			FSkinWeightDataVertexBuffer* VertexBuffer = const_cast<FSkinWeightDataVertexBuffer*>(OutVertexWeightBuffer.GetDataVertexBuffer());
+			FSkinWeightDataVertexBuffer* VertexBuffer = OutVertexWeightBuffer.GetDataVertexBuffer();
 			VertexBuffer->SetMaxBoneInfluences(NumBoneInfluences);
 			VertexBuffer->Init(NumBones, NumVertices);
 
+			bool bIsVariableBonesPerVertex = OutVertexWeightBuffer.GetDataVertexBuffer()->GetVariableBonesPerVertex();
+			check(!FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(NumBoneInfluences) || bIsVariableBonesPerVertex);
+
+			OutVertexWeightBuffer.SetNeedsCPUAccess(bNeedCPUAccess);
+
 			if (NumVertices)
 			{
-				OutVertexWeightBuffer.SetNeedsCPUAccess(bNeedCPUAccess);
-
 				uint8* Data = VertexBuffer->GetWeightData();
-				FMemory::Memcpy(Data, InMutableData, OutVertexWeightBuffer.GetVertexDataSize());
+				uint32 OutVertexWeightBufferSize = OutVertexWeightBuffer.GetDataVertexBuffer()->GetVertexDataSize();
+				ensure(MutableDataSize == OutVertexWeightBufferSize);
+
+				FMemory::Memcpy(Data, InMutableData, OutVertexWeightBufferSize);
+
+				if (bIsVariableBonesPerVertex)
+				{
+					OutVertexWeightBuffer.RebuildLookupVertexBuffer();
+
+					{
+						MUTABLE_CPUPROFILER_SCOPE(OptimizeVertexAndLookupBuffers);
+
+						// Everything in this scope is optional and makes extra copies, but will optimize the variable bone
+						// influences buffers. Without it, the vertices are assumed to have a constant NumBoneInfluences per vertex.
+						TArray<FSkinWeightInfo> TempVertices;
+						OutVertexWeightBuffer.GetSkinWeights(TempVertices);
+
+						// The assignment operator actually optimizes the DataVertexBuffer
+						OutVertexWeightBuffer = TempVertices;
+					}
+				}
 			}
 		}
 	}
@@ -231,7 +255,8 @@ namespace UnrealConversionUtils
 			NumBoneInfluences * NumVertices,
 			NumBoneInfluences,
 			bNeedsCPUAccess,
-			MutableMeshVertexBuffers.GetBufferData(BoneIndexBuffer)
+			MutableMeshVertexBuffers.GetBufferData(BoneIndexBuffer),
+			MutableMeshVertexBuffers.GetBufferDataSize(BoneIndexBuffer)
 		);
 
 		// Optional buffers
@@ -251,14 +276,16 @@ namespace UnrealConversionUtils
 					const int32 BonesPerVertex = ComponentCount;
 					const int32 NumBones = BonesPerVertex * NumVertices;
 
-					check(LODModel.SkinWeightVertexBuffer.GetVariableBonesPerVertex() == false);
+					check(FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(BonesPerVertex) ||
+						!LODModel.SkinWeightVertexBuffer.GetVariableBonesPerVertex());
 					FSkinWeightVertexBuffer_InitWithMutableData(
 						LODModel.SkinWeightVertexBuffer,
 						NumVertices,
 						NumBones,
 						NumBoneInfluences,
 						bNeedsCPUAccess,
-						MutableMeshVertexBuffers.GetBufferData(Buffer)
+						MutableMeshVertexBuffers.GetBufferData(Buffer),
+						MutableMeshVertexBuffers.GetBufferDataSize(Buffer)
 					);
 				}
 

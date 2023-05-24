@@ -7,6 +7,8 @@
 #include "GPUSkinPublicDefs.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Materials/MaterialInstance.h"
+#include "GPUSkinVertexFactory.h"
+
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/MutableMeshBufferUtils.h"
 #include "MuCOE/CustomizableObjectCompiler.h"
@@ -86,11 +88,17 @@ void LayoutOperationUVNormalizedWarning(FMutableGraphGenerationContext& Generati
 
 void SetSurfaceFormat( FMutableGraphGenerationContext& GenerationContext,
 					   mu::FMeshBufferSet& OutVertexBufferFormat, mu::FMeshBufferSet& OutIndexBufferFormat, const FMutableGraphMeshGenerationData& MeshData, 
-					   bool bWithExtraBoneInfluences, bool bWithRealTimeMorphs, bool bWithClothing, bool bWith16BitWeights )
+					   ECustomizableObjectNumBoneInfluences ECustomizableObjectNumBoneInfluences, bool bWithRealTimeMorphs, 
+					   bool bWithClothing, bool bWith16BitWeights )
 {
 	// Limit skinning weights if necessary
 	// \todo: make it more flexible to support 3 or 5 or 1 weight, since there is support for this in 4.25
-	const int32 MutableBonesPerVertex = bWithExtraBoneInfluences ? EXTRA_BONE_INFLUENCES : 4;
+	const int32 MutableBonesPerVertex = FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(MeshData.MaxNumBonesPerVertex, GenerationContext.Options.TargetPlatform) &&
+										MeshData.MaxNumBonesPerVertex < (int32)ECustomizableObjectNumBoneInfluences ?
+											MeshData.MaxNumBonesPerVertex :
+											(int32)ECustomizableObjectNumBoneInfluences;
+
+	ensure(MutableBonesPerVertex <= MAX_TOTAL_INFLUENCES);
 	
 	if (MutableBonesPerVertex != MeshData.MaxNumBonesPerVertex)
 	{
@@ -384,7 +392,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 				MeshFormatNode->SetSource(MeshNode.get());
 				SetSurfaceFormat( GenerationContext,
 						MeshFormatNode->GetVertexBuffers(), MeshFormatNode->GetIndexBuffers(), MeshData,
-						GenerationContext.Options.bExtraBoneInfluencesEnabled,
+						GenerationContext.Options.CustomizableObjectNumBoneInfluences,
 						GenerationContext.Options.bRealTimeMorphTargetsEnabled, 
 						GenerationContext.Options.bClothingEnabled,
 						GenerationContext.Options.b16BitBoneWeightsEnabled);
@@ -1092,7 +1100,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 				mu::NodeMeshFormatPtr MeshFormat = new mu::NodeMeshFormat();
 				SetSurfaceFormat( GenerationContext,
 						MeshFormat->GetVertexBuffers(), MeshFormat->GetIndexBuffers(), MeshData,
-						GenerationContext.Options.bExtraBoneInfluencesEnabled,
+						GenerationContext.Options.CustomizableObjectNumBoneInfluences,
 						GenerationContext.Options.bRealTimeMorphTargetsEnabled, 
 						GenerationContext.Options.bClothingEnabled,
 						GenerationContext.Options.b16BitBoneWeightsEnabled);

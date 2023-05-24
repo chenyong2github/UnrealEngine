@@ -123,7 +123,7 @@ private:
 	TSharedPtr< FRunnableThread > SaveDDThread;
 
 	// Cache configuration settings from ini files 
-	bool bAreExtraBoneInfluencesEnabled = false;
+	ECustomizableObjectNumBoneInfluences CustomizableObjectNumBoneInfluences = ECustomizableObjectNumBoneInfluences::Four;
 
 	// TODO: add references
 	UCustomizableObject* CurrentObject = nullptr;

@@ -718,7 +718,7 @@ void UCustomizableObject::CompileForTargetPlatform(const ITargetPlatform* Target
 		Options.bIsCooking = true;
 		Options.bSaveCookedDataToDisk = bUsesOnCookStart;
 		Options.TargetPlatform = TargetPlatform;
-		Options.bExtraBoneInfluencesEnabled = ICustomizableObjectModule::Get().AreExtraBoneInfluencesEnabled();
+		Options.CustomizableObjectNumBoneInfluences = ICustomizableObjectModule::Get().GetNumBoneInfluences();
 
 		// If this is enabled, there are determinism problems. Disable it for packaging.
 		Options.bUseParallelCompilation = false;

@@ -12,6 +12,7 @@
 #include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/ICustomizableObjectModule.h"
 #include "UObject/StrongObjectPtr.h"
+#include "GPUSkinPublicDefs.h"
 
 /**
  * Customizable Object module implementation (private)
@@ -26,7 +27,7 @@ public:
 
 	// ICustomizableObjectModule interface
 	FString GetPluginVersion() const override;
-	bool AreExtraBoneInfluencesEnabled() const override;
+	ECustomizableObjectNumBoneInfluences GetNumBoneInfluences() const override;
 	void RegisterExtension(TObjectPtr<const UCustomizableObjectExtension> Extension) override;
 	void UnregisterExtension(TObjectPtr<const UCustomizableObjectExtension> Extension) override;
 	TArrayView<const TObjectPtr<const UCustomizableObjectExtension>> GetRegisteredExtensions() const override;
@@ -77,22 +78,56 @@ FString FCustomizableObjectModule::GetPluginVersion() const
 	return Version;
 }
 
-bool FCustomizableObjectModule::AreExtraBoneInfluencesEnabled() const
+
+ECustomizableObjectNumBoneInfluences FCustomizableObjectModule::GetNumBoneInfluences() const
 {
 	bool bAreExtraBoneInfluencesEnabled = false;
+
+#if WITH_EDITOR
+	ensure((int32)ECustomizableObjectNumBoneInfluences::Eight == EXTRA_BONE_INFLUENCES);
+	ensure((int32)ECustomizableObjectNumBoneInfluences::Twelve == MAX_TOTAL_INFLUENCES);
+#endif
 
 	FConfigFile* PluginConfig = GConfig->FindConfigFileWithBaseName("Mutable");
 	if (PluginConfig)
 	{
+		FString Value;
+
+		if (PluginConfig->GetString(TEXT("Features"), TEXT("CustomizableObjectNumBoneInfluences"), Value))
+		{
+			int32 NumInfluences = Value.IsNumeric() ? FCString::Atoi(*Value) : -1;
+
+			if (NumInfluences == 4 || Value.Equals(FString("Four"), ESearchCase::IgnoreCase))
+			{
+				return ECustomizableObjectNumBoneInfluences::Four;
+			}
+			else if (NumInfluences == 8 || Value.Equals(FString("Eight"), ESearchCase::IgnoreCase))
+			{
+				return ECustomizableObjectNumBoneInfluences::Eight;
+			}
+			else if (NumInfluences == 12 || Value.Equals(FString("Twelve"), ESearchCase::IgnoreCase))
+			{
+				return ECustomizableObjectNumBoneInfluences::Twelve;
+			}
+
+			UE_LOG(LogMutable, Warning, TEXT("The Mutable Plugin config. variable CustomizableObjectNumBoneInfluences has the invalid value [%s]."
+				"Only 4, 8, 12, Four, Eight, Twelve are valid values."
+				), *Value);
+		}
+
 		bool bValue = false;
 		if (PluginConfig->GetBool(TEXT("Features"), TEXT("bExtraBoneInfluencesEnabled"), bValue))
 		{
-			bAreExtraBoneInfluencesEnabled = bValue;
+			if (bValue)
+			{
+				return ECustomizableObjectNumBoneInfluences::Eight;
+			}
 		}
 	}
 
-	return bAreExtraBoneInfluencesEnabled;
+	return ECustomizableObjectNumBoneInfluences::Four;
 }
+
 
 void FCustomizableObjectModule::RegisterExtension(TObjectPtr<const UCustomizableObjectExtension> Extension)
 {

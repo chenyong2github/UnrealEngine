@@ -5,6 +5,7 @@
 #include "Containers/ArrayView.h"
 #include "Modules/ModuleManager.h"
 #include "MuCO/CustomizableObjectExtension.h"
+#include "MuCO/CustomizableObject.h"
 
 class UCustomizableSkeletalComponent;
 
@@ -51,8 +52,8 @@ public:
 		return FModuleManager::Get().IsModuleLoaded( "CustomizableObject" );
 	}
 
-	// Return true if all engine patches are present
-	virtual bool AreExtraBoneInfluencesEnabled() const = 0;
+	// Returns the number of bone influences that Mutable will use according to the plugin conf
+	virtual ECustomizableObjectNumBoneInfluences GetNumBoneInfluences() const = 0;
 
 	// Return a string representing the plugin version.
 	virtual FString GetPluginVersion() const = 0;

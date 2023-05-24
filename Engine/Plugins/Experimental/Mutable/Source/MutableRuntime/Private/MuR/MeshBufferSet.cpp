@@ -268,6 +268,21 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
+	uint32 FMeshBufferSet::GetBufferDataSize(int32 buffer) const
+	{
+		check(buffer >= 0 && buffer < m_buffers.Num());
+		const uint32 Result = m_buffers[buffer].m_data.Num();
+
+#if WITH_EDITOR
+		int32 Size = m_buffers[buffer].m_elementSize * m_elementCount;
+		ensure(Size == Result);
+#endif
+
+		return Result;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
 	void FMeshBufferSet::FindChannel
 	(
 		MESH_BUFFER_SEMANTIC semantic, int32 semanticIndex,

@@ -306,7 +306,8 @@ namespace mu
 		//! \param buffer index of the buffer from 0 to GetBufferCount()-1
 		//! \todo Add padding support for better alignment of buffer elements.
         uint8* GetBufferData( int32 buffer );
-        const uint8* GetBufferData( int32 buffer ) const;
+		const uint8* GetBufferData(int32 buffer) const;
+		uint32 GetBufferDataSize( int32 buffer ) const;
 
 		//-----------------------------------------------------------------------------------------
 		// Utility methods

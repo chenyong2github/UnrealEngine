@@ -122,6 +122,17 @@ struct FProfileParameterDat
 	TArray<FCustomizableObjectProjectorParameterValue> ProjectorParameters;
 };
 
+UENUM()
+enum class ECustomizableObjectNumBoneInfluences : uint8
+{
+	// The enum values can be used as the real numeric value of number of bone influences
+	Four = 4,
+	// 
+	Eight = 8,
+	//
+	Twelve = 12 // This is essentially the same as "Unlimited", but UE ultimately limits to 12
+};
+
 USTRUCT()
 struct FCompilationOptions
 {
@@ -147,7 +158,7 @@ struct FCompilationOptions
 	bool bUseDiskCompilation = false;
 
 	// Did we have the extra bones enabled when we compiled?
-	bool bExtraBoneInfluencesEnabled = false;
+	ECustomizableObjectNumBoneInfluences CustomizableObjectNumBoneInfluences = ECustomizableObjectNumBoneInfluences::Four;
 
 	// Compiling for cook
 	bool bIsCooking = false;

@@ -18,6 +18,8 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 
+#include "GPUSkinPublicDefs.h"
+
 
 namespace mu
 {
@@ -580,7 +582,9 @@ namespace mu
 							int32_t maxBoneIndex = 0;
 							for (int v = 0; v < VertexBuffers.GetElementCount(); ++v)
 							{
-								vec<int32_t, 8> va = it.GetAsVec8i();
+								// If MAX_TOTAL_INFLUENCES ever changed, the next line would no longer work or compile and 
+								// GetAsVec12i would need to be changed accordingly
+								vec<int32_t, MAX_TOTAL_INFLUENCES> va = it.GetAsVec12i();
 								for (int c = 0; c < it.GetComponents(); ++c)
 								{
 									maxBoneIndex = FMath::Max(maxBoneIndex, va[c]);

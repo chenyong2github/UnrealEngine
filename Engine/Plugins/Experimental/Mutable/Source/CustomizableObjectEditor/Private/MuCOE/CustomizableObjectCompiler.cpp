@@ -39,7 +39,7 @@ FCustomizableObjectCompiler::FCustomizableObjectCompiler() : FCustomizableObject
 	, CompletedUnrealToMutableTask(0)
 	, MaxConvertToMutableTextureTime(0.2f)
 {
-	bAreExtraBoneInfluencesEnabled = ICustomizableObjectModule::Get().AreExtraBoneInfluencesEnabled();
+	CustomizableObjectNumBoneInfluences = ICustomizableObjectModule::Get().GetNumBoneInfluences();
 }
 
 
@@ -919,7 +919,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 	if (!Object || !CurrentObject) return;
 
 	Options = InOptions;
-	Options.bExtraBoneInfluencesEnabled = bAreExtraBoneInfluencesEnabled;
+	Options.CustomizableObjectNumBoneInfluences = CustomizableObjectNumBoneInfluences;
 	Options.bRealTimeMorphTargetsEnabled = Object->bEnableRealTimeMorphTargets;
 	Options.bClothingEnabled = Object->bEnableClothing;
 	Options.b16BitBoneWeightsEnabled = Object->bEnable16BitBoneWeights;
@@ -1366,7 +1366,7 @@ mu::NodePtr FCustomizableObjectCompiler::Export(UCustomizableObject* Object, con
 	FSlateNotificationManager::Get().AddNotification(Info);
 
 	FCompilationOptions CompilerOptions = InCompilerOptions;
-	CompilerOptions.bExtraBoneInfluencesEnabled = bAreExtraBoneInfluencesEnabled;
+	CompilerOptions.CustomizableObjectNumBoneInfluences = CustomizableObjectNumBoneInfluences;
 		
 	FMutableGraphGenerationContext GenerationContext(Object, this, CompilerOptions);
 	GenerationContext.ParamNamesToSelectedOptions = ParamNamesToSelectedOptions;

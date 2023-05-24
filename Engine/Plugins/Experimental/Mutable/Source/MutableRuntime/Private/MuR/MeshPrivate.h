@@ -532,6 +532,16 @@ namespace mu
             return res;
         }
 
+		vec<int32_t, 12> GetAsVec12i() const
+		{
+			vec<int32_t, 12> res;
+			for (int c = 0; c < FMath::Min(m_components, 12); ++c)
+			{
+				ConvertData(c, &res[0], MBF_INT32, ptr(), m_format);
+			}
+			return res;
+		}
+
         inline UntypedMeshBufferIteratorConst operator+(int c) const
         {
             UntypedMeshBufferIteratorConst res = *this;
