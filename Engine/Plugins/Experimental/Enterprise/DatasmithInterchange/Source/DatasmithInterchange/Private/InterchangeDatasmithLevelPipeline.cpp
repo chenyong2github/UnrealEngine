@@ -177,9 +177,67 @@ void UInterchangeDatasmithLevelPipeline::SetUpFactoryNode(UInterchangeActorFacto
 		FactoryNode->SetCustom##AttributeName(AttributeName);\
 	}\
 
-void UInterchangeDatasmithLevelPipeline::SetupAreaLight(UInterchangeDatasmithAreaLightFactoryNode* FactoryNode, const UInterchangeDatasmithAreaLightNode* TranslatedNode) const
+/**
+* Only modifies the attribute if a condition is satisfied
+* Condition should an expression evaluated to a boolean.
+*/
+#define APPLY_FACTORY_ATTRIBUTE_WITH_VALIDATION(AttributeName, AttributeType, Condition) \
+	AttributeType AttributeName;\
+	if (TranslatedNode->GetCustom##AttributeName(AttributeName))\
+	{\
+		if(Condition)\
+		{\
+			FactoryNode->SetCustom##AttributeName(AttributeName);\
+		}\
+	}\
+
+/**
+ * Allows Attributes to be modified before assignment.
+ * A modifier could be a function, or a type conversion or anything else that can take the attribute value
+ * as a parameter.
+ */
+#define APPLY_FACTORY_ATTRIBUTE_WITH_MODIFIER(AttributeName, AttributeType, Modifier) \
+	AttributeType AttributeName;\
+	if (TranslatedNode->GetCustom##AttributeName(AttributeName))\
+	{\
+		FactoryNode->SetCustom##AttributeName(Modifier(AttributeName));\
+	}\
+
+namespace UE::Interchange::AreaLightUtils
 {
-	APPLY_FACTORY_ATTRIBUTE(LightType, EDatasmithAreaLightActorType);
+	// Helper function to correctly assign types that have been deprecated.
+	EDatasmithAreaLightActorType GetLightActorType(const EDatasmithAreaLightActorType LightType)
+	{
+		EDatasmithAreaLightActorType LightActorType = EDatasmithAreaLightActorType::Point;
+
+		switch (LightType)
+		{
+		case EDatasmithAreaLightActorType::Spot:
+			LightActorType = EDatasmithAreaLightActorType::Spot;
+			break;
+
+		case EDatasmithAreaLightActorType::Point:
+			LightActorType = EDatasmithAreaLightActorType::Point;
+			break;
+
+		case EDatasmithAreaLightActorType::IES_DEPRECATED:
+			LightActorType = EDatasmithAreaLightActorType::Point;
+			break;
+
+		case EDatasmithAreaLightActorType::Rect:
+			LightActorType = EDatasmithAreaLightActorType::Rect;
+			break;
+		}
+
+		return LightActorType;
+	}
+}
+
+void UInterchangeDatasmithLevelPipeline::SetupAreaLight(UInterchangeDatasmithAreaLightFactoryNode* FactoryNode, const UInterchangeDatasmithAreaLightNode* TranslatedNode) const
+{	
+	using namespace UE::Interchange::AreaLightUtils;
+
+	APPLY_FACTORY_ATTRIBUTE_WITH_MODIFIER(LightType, EDatasmithAreaLightActorType, GetLightActorType);
 	APPLY_FACTORY_ATTRIBUTE(LightShape, EDatasmithAreaLightActorShape);
 	APPLY_FACTORY_ATTRIBUTE(Dimensions, FVector2D);
 	
@@ -197,11 +255,14 @@ void UInterchangeDatasmithLevelPipeline::SetupAreaLight(UInterchangeDatasmithAre
 	APPLY_FACTORY_ATTRIBUTE(IESBrightnessScale, float);
 	APPLY_FACTORY_ATTRIBUTE(Rotation, FRotator);
 
-	APPLY_FACTORY_ATTRIBUTE(SourceRadius, float);
-	APPLY_FACTORY_ATTRIBUTE(SourceLength, float);
-	APPLY_FACTORY_ATTRIBUTE(AttenuationRadius, float);
+	APPLY_FACTORY_ATTRIBUTE_WITH_VALIDATION(SourceRadius, float, SourceRadius > 0.0f);
+	APPLY_FACTORY_ATTRIBUTE_WITH_VALIDATION(SourceLength, float, SourceLength > 0.0f);
+	APPLY_FACTORY_ATTRIBUTE_WITH_VALIDATION(AttenuationRadius, float, AttenuationRadius > 0.0f);
+
 	APPLY_FACTORY_ATTRIBUTE(SpotlightInnerAngle, float);
 	APPLY_FACTORY_ATTRIBUTE(SpotlightOuterAngle, float);
 }
 
 #undef APPLY_FACTORY_ATTRIBUTE
+#undef APPLY_FACTORY_ATTRIBUTE_WITH_VALIDATION
+#undef APPLY_FACTORY_ATTRIBUTE_WITH_MODIFIER

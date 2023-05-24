@@ -82,5 +82,5 @@ UObject* UInterchangeDatasmithAreaLightFactory::ProcessActor(AActor& SpawnedActo
 #endif //WITH_EDITOR
 	}
 
-	return AreaLightActor;
+	return Super::ProcessActor(SpawnedActor, FactoryNode, NodeContainer);
 };

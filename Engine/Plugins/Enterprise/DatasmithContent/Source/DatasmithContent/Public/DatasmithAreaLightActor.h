@@ -23,6 +23,8 @@ enum class EDatasmithAreaLightActorType : uint8
 {
 	Point,
 	Spot,
+	IES_DEPRECATED, // Added for consistency with type EDatasmithAreaLightType. 
+					// Removing this will result in 'EDatasmithAreaLightActorType MAX' enum value in the editor.
 	Rect,
 };
 
