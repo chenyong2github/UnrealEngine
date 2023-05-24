@@ -6,6 +6,8 @@ through a single struct, allowing for a more readable code
 (less #ifdefs, reducing the boolean hell)
 =============================================================================*/
 
+COMPILER_ALLOW_CS_DERIVATIVES
+
 #include "ShaderOutputCommon.ush"
 #include "GammaCorrectionCommon.ush"
 #include "VariableRateShading/VRSShadingRateCommon.ush"

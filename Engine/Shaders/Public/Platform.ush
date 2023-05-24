@@ -133,6 +133,10 @@
 #define COMPILER_FORCE_WAVE32_MODE
 #endif
 
+#ifndef COMPILER_ALLOW_CS_DERIVATIVES
+#define COMPILER_ALLOW_CS_DERIVATIVES
+#endif
+
 #ifndef PLATFORM_SUPPORTS_ROV
 #define PLATFORM_SUPPORTS_ROV 0
 #define RasterizerOrderedTexture2D RWTexture2D
