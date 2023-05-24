@@ -384,7 +384,10 @@ void FUdpMessageProcessor::WaitAsyncTaskCompletion()
 	Stop();
 
 	// Wait for the processor thread, so we can access KnownNodes safely
-	Thread->WaitForCompletion();
+	if (Thread)
+	{
+		Thread->WaitForCompletion();
+	}
 
 	// Check if processor has in-flight serialization task(s).
 	auto HasIncompleteSerializationTasks = [this]()
