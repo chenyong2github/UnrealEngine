@@ -25,16 +25,19 @@ FMutableUpdateContext::FMutableUpdateContext(mu::Ptr<mu::System> InSystem,
 {
 	if (Parameters)
 	{
-		UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider->CacheImages(*Parameters);	
+		const FCustomizableObjectSystemPrivate* Private = UCustomizableObjectSystem::GetInstance()->GetPrivate();
+		Private->GetImageProviderChecked()->CacheImages(*Parameters);
 	}
 }
 
 
 FMutableUpdateContext::~FMutableUpdateContext()
 {
-	if (Parameters && UCustomizableObjectSystem::IsCreated() && UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider)
+	if (Parameters &&
+		UCustomizableObjectSystem::IsCreated())
 	{
-		UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider->UnCacheImages(*Parameters);
+		const FCustomizableObjectSystemPrivate* Private = UCustomizableObjectSystem::GetInstance()->GetPrivate();
+		Private->GetImageProviderChecked()->UnCacheImages(*Parameters);
 	}
 }
 

@@ -362,7 +362,7 @@ void UCustomizableObjectInstance::ReleaseMutableResources(bool bCalledFromBeginD
 		}
 
 		// Remove all references to cached Texture Parameters
-		FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider.Get();
+		FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivateChecked()->GetImageProviderChecked();
 
 		for (const FString& TextureParameter : PrivateData->UpdateTextureParameters)
 		{

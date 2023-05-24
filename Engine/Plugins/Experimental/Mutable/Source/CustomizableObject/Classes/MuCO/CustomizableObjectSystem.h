@@ -317,9 +317,12 @@ public:
 
 
 	// Give access to the internal object data.
-	FCustomizableObjectSystemPrivate* GetPrivate() { return Private.Get(); }
-	const FCustomizableObjectSystemPrivate* GetPrivate() const { return Private.Get(); }
+	FCustomizableObjectSystemPrivate* GetPrivate();
+	const FCustomizableObjectSystemPrivate* GetPrivate() const;
 
+	FCustomizableObjectSystemPrivate* GetPrivateChecked();
+	const FCustomizableObjectSystemPrivate* GetPrivateChecked() const;
+	
 	FStreamableManager& GetStreamableManager() { return StreamableManager; }
 
 	UCustomizableInstanceLODManagementBase* GetInstanceLODManagement() { return CurrentInstanceLODManagement.Get(); }

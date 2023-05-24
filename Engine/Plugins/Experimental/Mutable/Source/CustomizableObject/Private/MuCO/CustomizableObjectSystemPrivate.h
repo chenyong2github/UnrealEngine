@@ -741,6 +741,8 @@ public:
 
 	bool IsMutableAnimInfoDebuggingEnabled() const;
 
+	FUnrealMutableImageProvider* GetImageProviderChecked() const;
+	
 	/** Mutable TaskGraph system (Mutable Thread). */
 	FMutableTaskGraph MutableTaskGraph;
 };
