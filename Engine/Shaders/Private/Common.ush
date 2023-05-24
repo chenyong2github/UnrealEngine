@@ -1916,28 +1916,34 @@ IsAndMakeFinite_Def(float2, bool2)
 IsAndMakeFinite_Def(float3, bool3)
 IsAndMakeFinite_Def(float4, bool4)
 
+// NOTE: The raytraced implementation of the ShadowPassSwitch node is kept in RayTracingShaderUtils.ush as it needs to access per ray information.
+#if RAYHITGROUPSHADER == 0
 // Experimental way to allow adjusting the OpacityMask for shadow map rendering of masked materials.
-// Can be accessed with a Custom material node. If this turns out to be very useful we can expose as MaterialFunction
+// This is exposed via the ShadowPassSwitch material node. This can also be accessed with a Custom
+// material node. If this turns out to be very useful we can expose as MaterialFunction
 // and potentially expose other queries as well (e.g. SkeletalMesh, HitProxy, ).
 // @return 0:no, 1:yes
 bool GetShadowReplaceState()
 {
-#ifdef SHADOW_DEPTH_SHADER
+#if SHADOW_DEPTH_SHADER
 	return true;
 #else
 	return false;
 #endif
 }
 
+float IsShadowDepthShader()
+{
+	return GetShadowReplaceState() ? 1.0f : 0.0f;
+}
+
+#endif // RAYHITGROUPSHADER == 0
+
 bool GetReflectionCapturePassSwitchState()
 {
 	return View.RenderingReflectionCaptureMask > 0.0f;
 }
 
-float IsShadowDepthShader()
-{
-	return GetShadowReplaceState() ? 1.0f : 0.0f;
-}
 
 #define TERRAIN_ZSCALE (1.0f/128.0f)
 

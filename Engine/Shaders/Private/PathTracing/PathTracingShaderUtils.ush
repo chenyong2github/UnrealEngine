@@ -41,3 +41,16 @@ bool GetPathTracingIsIndirectVolume()
 {
 	return (CurrentPayloadInputFlags & PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_MASK) == PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_INDIRECT_VOLUME;
 }
+
+#if RAYHITGROUPSHADER
+// In the CHS/AHS case, also define these (which will be missing from Common.ush)
+bool GetShadowReplaceState()
+{
+	return GetPathTracingIsShadow();
+}
+
+float IsShadowDepthShader()
+{
+	return GetShadowReplaceState() ? 1.0f : 0.0f;
+}
+#endif

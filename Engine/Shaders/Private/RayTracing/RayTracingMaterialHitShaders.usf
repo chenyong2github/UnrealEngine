@@ -21,6 +21,7 @@
 #include "/Engine/Private/Common.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
+#include "RayTracingShaderUtils.ush"
 
 #include "/Engine/Generated/Material.ush"   
 #include "/Engine/Generated/VertexFactory.ush"
@@ -497,6 +498,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		return;
 	}
 
+	CurrentPayloadInputFlags = PackedPayload.GetFlags();
+
 	FPixelMaterialInputs PixelMaterialInputs;
 
 	{
@@ -616,6 +619,9 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 #else
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
 #endif
+
+	CurrentPayloadInputFlags = PackedPayload.GetFlags();
+
 	FPixelMaterialInputs PixelMaterialInputs;
 
 	{

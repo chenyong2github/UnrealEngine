@@ -159,7 +159,7 @@ void name##_INTERNAL(uint3 DispatchThreadIndex)
 #define RAY_TRACING_BLEND_MODE_MODULATE				4
 #define RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT		5
 
-// Check how Flags are packed in the FPackedMaterialClosestHitPayload before adding to ensure bits are free
+// Check how Flags are packed in the FPackedMaterialClosestHitPayload before adding to ensure bits are free (current packing gives us 6 bits for input and output)
 // There are two sets of flags:
 //   - "inputs" are set before calling TraceRay
 //   - "outputs" are set during execution of the CHS and are valid after TraceRay returns
@@ -177,7 +177,7 @@ void name##_INTERNAL(uint3 DispatchThreadIndex)
 #define RAY_TRACING_PAYLOAD_INPUT_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION (1 << 1) // Indicates that hit shaders should add in the Sky Light contribution in their output. Set by RayGen shader, before TraceRay().
 #define RAY_TRACING_PAYLOAD_INPUT_FLAG_LUMEN_PAYLOAD		         (1 << 2) // Indicates that closest hit shader should evaluate geometry normal and instanceid.
 #define RAY_TRACING_PAYLOAD_INPUT_FLAG_IGNORE_TRANSLUCENT            (1 << 3) // Indicates that translucent materials should be ignored by IgnoreHit() in anyhit shaders.
-#define RAY_TRACING_PAYLOAD_INPUT_FLAG_UNUSED4                       (1 << 4) // Free for future use
+#define RAY_TRACING_PAYLOAD_INPUT_FLAG_SHADOW_RAY                    (1 << 4) // Indicates this ray is being traced as part of a raytraced shadow calculation (see TraceVisibilityRay).
 #define RAY_TRACING_PAYLOAD_INPUT_FLAG_UNUSED5                       (1 << 5) // Free for future use
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -850,6 +850,7 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	uint GetShadingModelID() { return (IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 16) & 0xF; }
 	uint GetBlendingMode()   { return (IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 20) & 0x7; }
 	uint GetFlags()          { return (IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 23) & 0x3F; }
+	void SetFlags(uint Flags) { IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask |= (Flags & 0x3F) << 23; }
 	bool IsTwoSided()		 { return (GetFlags() & RAY_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED) != 0; }
 	bool IsFrontFace()		 { return (GetFlags() & RAY_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE) != 0; }
 	uint GetPrimitiveLightingChannelMask() { return (IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 29) & 0x7; }
@@ -1076,16 +1077,12 @@ void TraceVisibilityRayPacked(
 FMinimalPayload TraceVisibilityRay(
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
-	in uint PayloadFlags,
 	in uint InstanceInclusionMask,
 	in FRayDesc Ray)
 {
 	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
 	
-	if ((PayloadFlags & RAY_TRACING_PAYLOAD_INPUT_FLAG_IGNORE_TRANSLUCENT) != 0)
-	{
-		PackedPayload.SetIgnoreTranslucentMaterials();
-	}
+	PackedPayload.SetFlags(RAY_TRACING_PAYLOAD_INPUT_FLAG_SHADOW_RAY);
 
 	TraceVisibilityRayPacked(PackedPayload, TLAS, RayFlags, InstanceInclusionMask, Ray);
 
@@ -1099,20 +1096,6 @@ FMinimalPayload TraceVisibilityRay(
 	MinimalPayload.HitT = PackedPayload.HitT;
 
 	return MinimalPayload;
-}
-
-FMinimalPayload TraceVisibilityRay(
-	in RaytracingAccelerationStructure TLAS,
-	in uint RayFlags,
-	in uint InstanceInclusionMask,
-	in FRayDesc Ray)
-{
-	return TraceVisibilityRay(
-		TLAS,
-		RayFlags,
-		RAY_TRACING_PAYLOAD_INPUT_FLAG_NONE,
-		InstanceInclusionMask,
-		Ray);
 }
 
 #if !COMPUTESHADER
