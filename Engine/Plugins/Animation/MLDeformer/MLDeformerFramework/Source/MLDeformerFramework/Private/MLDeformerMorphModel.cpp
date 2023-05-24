@@ -92,14 +92,13 @@ void UMLDeformerMorphModel::BeginDestroy()
 	{
 		BeginReleaseResource(&MorphTargetSet->MorphBuffers);
 		RenderCommandFence.BeginFence();
-		MorphTargetSet.Reset();
 	}
 	Super::BeginDestroy();
 }
 
 bool UMLDeformerMorphModel::IsReadyForFinishDestroy()
 {
-	// wait for associated render resources to be released
+	// Wait for associated render resources to be released.
 	return Super::IsReadyForFinishDestroy() && RenderCommandFence.IsFenceComplete();
 }
 
