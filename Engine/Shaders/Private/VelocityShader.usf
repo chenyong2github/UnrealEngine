@@ -146,16 +146,19 @@ void MainPixelShader(
 	FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
 
 	float MaterialOpacity = 1.0f;
-	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
-	if (StrataTree.BSDFCount > 0)
+	if (StrataPixelHeader.BSDFCount > 0)
 	{
 		// Update tree (coverage/transmittance/luminace weights)
 		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
 		const float3 V = MaterialParameters.CameraVector;
 		StrataPixelHeader.StrataUpdateTree(NullStrataAddressing, V, Settings);
 
-		MaterialOpacity = StrataTree.Operators[StrataData.OperatorIndex].Coverage;
+		MaterialOpacity = StrataPixelHeader.StrataTree.Operators[StrataData.OperatorIndex].Coverage;
 	}
+
+#if STRATA_USE_PREMULTALPHA_OVERRIDE // AlphaComposite - Premultiplied alpha blending
+	MaterialOpacity = GetMaterialOpacity(PixelMaterialInputs);
+#endif
 
 #else
 	const bool bThinTranslucentMaterial = VELOCITY_THIN_TRANSLUCENT_MODE > 0;

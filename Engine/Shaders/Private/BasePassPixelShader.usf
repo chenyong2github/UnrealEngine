@@ -1828,7 +1828,7 @@ void FPixelShaderInOut_MainPS(
 
 		#if STRATA_USE_PREMULTALPHA_OVERRIDE // AlphaComposite - Premultiplied alpha blending
 			DualBlendSurfaceTransmittancePreCoverage= 0.0;
-			DualBlendSurfaceCoverage = PixelMaterialInputs.Opacity;
+			DualBlendSurfaceCoverage = GetMaterialOpacity(PixelMaterialInputs);
 		#endif
 
 			// Add fog luminance according to surfacecoverage and reduce surface luminance according to fog coverage.

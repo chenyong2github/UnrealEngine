@@ -83,7 +83,6 @@ void MainPS(
 		StrataPixelHeader.IrradianceAO.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 
 		float TotalCoverage = 1.f;
-		FStrataTree StrataTree = StrataPixelHeader.StrataTree;
 		if (StrataPixelHeader.StrataTree.BSDFCount > 0)
 		{
 			const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, true /*bRoughDiffuseEnabled*/, 0 /*PeelLayersAboveDepth*/, false/*bRoughnessTracking*/);
