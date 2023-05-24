@@ -134,11 +134,12 @@
 float4 ViewportSize;
 uint4 ViewportRect;
 
-float2 TemporalJitterPixels;
+FScreenTransform DispatchThreadIdToDOFBufferUV;
 float2 DOFBufferUVMax;
 
 float4 SeparateTranslucencyBilinearUVMinMax;
 uint SeparateTranslucencyUpscaling;
+float EncodedCocRadiusToRecombineCocRadius;
 
 Texture2D BokehLUT;
 
@@ -594,7 +595,7 @@ void FetchAndAccumulateSamplePair(
 		// Fetch full res color and CocRadius.
 		#if CONFIG_FETCH_FULLRES_COC_FROM_ALPHA
 			Sample[k].Color = SceneColorInput.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
-			Sample[k].CocRadius = Sample[k].Color.a;
+			Sample[k].CocRadius = Sample[k].Color.a * EncodedCocRadiusToRecombineCocRadius;
 		#else
 			Sample[k].Color = SceneColorInput.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
 			Sample[k].CocRadius = SceneDepthToCocRadius(SampleWorldDepth(BufferUV));
@@ -705,7 +706,7 @@ void RecombineMainCS(
 		}
 
 		// - 0.5 * TemporalJitterPixels because DOF buffer is non temporally jittering, thanks to half res TAA pass.
-		InputParameters.DOFBufferUV = ((DispatchThreadId + 0.5) * 0.5 - 0.5 * TemporalJitterPixels) * InputParameters.DOFBufferSize.zw;
+		InputParameters.DOFBufferUV = ApplyScreenTransform(float2(DispatchThreadId), DispatchThreadIdToDOFBufferUV);
 
 		if (CONFIG_CLAMP_DOF_BUFFER_UV)
 		{
@@ -745,7 +746,7 @@ void RecombineMainCS(
 	CenterSample.Intersection = 1.0;
 
 	#if CONFIG_FETCH_FULLRES_COC_FROM_ALPHA
-		CenterSample.CocRadius = CenterSample.Color.a;
+		CenterSample.CocRadius = CenterSample.Color.a * EncodedCocRadiusToRecombineCocRadius;
 	#else
 		CenterSample.CocRadius = SceneDepthToCocRadius(SampleWorldDepth(InputParameters.SceneBufferUV));
 	#endif
@@ -789,7 +790,7 @@ void RecombineMainCS(
 				}
 
 				#if CONFIG_FETCH_FULLRES_COC_FROM_ALPHA
-					float SampleCocRadius = SceneColorInput.SampleLevel(GlobalPointClampedSampler, SampleUV, 0).a;
+					float SampleCocRadius = SceneColorInput.SampleLevel(GlobalPointClampedSampler, SampleUV, 0).a * EncodedCocRadiusToRecombineCocRadius;
 				#else
 					float SampleCocRadius = SceneDepthToCocRadius(SampleWorldDepth(SampleUV));
 				#endif
