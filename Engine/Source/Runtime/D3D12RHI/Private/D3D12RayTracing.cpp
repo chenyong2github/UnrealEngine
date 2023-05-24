@@ -19,6 +19,7 @@
 #include "Misc/BufferedOutputDevice.h"
 #include "String/LexFromString.h"
 #include "GlobalRenderResources.h"
+#include "D3D12RayTracingDebug.h"
 
 static int32 GRayTracingDebugForceBuildMode = 0;
 static FAutoConsoleVariableRef CVarRayTracingDebugForceFastTrace(
@@ -4251,6 +4252,10 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	CommandContext.AddUAVBarrier();
 
 	bBuilt = true;
+
+#if D3D12_RHI_SUPPORT_RAYTRACING_SCENE_DEBUGGING
+	D3D12RayTracingSceneDebugUpdate(*this, InstanceBuffer, InstanceBufferOffset, CommandContext);
+#endif // D3D12_RHI_SUPPORT_RAYTRACING_SCENE_DEBUGGING
 }
 
 void FD3D12RayTracingScene::UpdateResidency(FD3D12CommandContext& CommandContext)
