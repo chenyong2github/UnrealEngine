@@ -12,7 +12,7 @@ DECLARE_MULTICAST_DELEGATE(FOnWaveformEditorGridUpdated)
 
 struct FSlateFontInfo;
 
-class FFixedSampledSequenceGridData : public IFixedSampledSequenceGridService
+class AUDIOWIDGETS_API FFixedSampledSequenceGridData : public IFixedSampledSequenceGridService
 {
 public:
 	explicit FFixedSampledSequenceGridData(const uint32 InTotalFrames, const uint32 InSampleRateHz, const float InGridSizePixels = 1.f, const FSlateFontInfo* InTicksTimeFont = nullptr);
