@@ -333,9 +333,6 @@ private:
 	static FName GetRecomputeDeltasPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, bRecomputeDeltas); }
 	static FName GetRecomputePCAPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, bRecomputePCA); }
 
-	bool GetUsePartOnlyMesh() const { return bUsePartOnlyMesh; }
-	static FName GetUsePartOnlyMeshPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, bUsePartOnlyMesh); }
-
 	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
 	FString GetModelDir() const;
 
@@ -383,9 +380,6 @@ protected:
 
 	UPROPERTY()
 	bool bMorphTargetDataValid = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors")
-	bool bUsePartOnlyMesh = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors")
 	TArray<FSkeletonCachePair> NearestNeighborData;

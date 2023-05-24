@@ -52,9 +52,6 @@ private:
 	const TArray<int32> GetPartVertexMap(const int32 PartId) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Python")
-	int32 SamplePart(int32 PartId, int32 Index);
-
-	UFUNCTION(BlueprintCallable, Category = "Python")
 	int32 SetSamplerPartData(const int32 PartId);
 
 	UFUNCTION(BlueprintPure, Category = "Python")
