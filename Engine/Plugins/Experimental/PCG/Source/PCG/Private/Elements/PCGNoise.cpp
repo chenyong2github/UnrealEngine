@@ -458,7 +458,7 @@ namespace PCGNoise
 				&SrcPoints,
 				&Results,
 				FractalNoise,
-				EdgeBlendDistance = Settings.EdgeBlendDistance,
+				EdgeBlendDistance = FMath::Max(Settings.EdgeBlendDistance, 0.01),
 				EdgeBlendCurveIntensity = Settings.EdgeBlendCurveIntensity,
 				EdgeBlendCurveOffset = Settings.EdgeBlendCurveOffset
 			] (const int32 ReadIndex, const int32 WriteIndex) {
