@@ -470,11 +470,12 @@ bool CanHaveMemberVariableOfType(const FEdGraphPinType& PinType)
 //  - ChildPropertyHandle a child property of the FInstancedPropertyBag::Value (FInstancedStruct)  
 //----------------------------------------------------------------//
 
-FPropertyBagInstanceDataDetails::FPropertyBagInstanceDataDetails(TSharedPtr<IPropertyHandle> InStructProperty, const TSharedPtr<IPropertyUtilities>& InPropUtils, const bool bInFixedLayout)
+FPropertyBagInstanceDataDetails::FPropertyBagInstanceDataDetails(TSharedPtr<IPropertyHandle> InStructProperty, const TSharedPtr<IPropertyUtilities>& InPropUtils, const bool bInFixedLayout, const bool bInAllowArrays)
 	: FInstancedStructDataDetails(InStructProperty.IsValid() ? InStructProperty->GetChildHandle(TEXT("Value")) : nullptr)
 	, BagStructProperty(InStructProperty)
 	, PropUtils(InPropUtils)
 	, bFixedLayout(bInFixedLayout)
+	, bAllowArrays(bInAllowArrays)
 {
 	ensure(UE::StructUtils::Private::IsScriptStruct<FInstancedPropertyBag>(BagStructProperty));
 	ensure(PropUtils != nullptr);
@@ -727,7 +728,7 @@ TSharedRef<SWidget> FPropertyBagInstanceDataDetails::OnPropertyNameContent(TShar
 				.TargetPinType_Lambda(GetPinInfo)
 				.OnPinTypeChanged_Lambda(PinInfoChanged)
 				.Schema(GetDefault<UPropertyBagSchema>())
-				.bAllowArrays(true)
+				.bAllowArrays(bAllowArrays)
 				.TypeTreeFilter(ETypeTreeFilter::None)
 				.Font( IDetailLayoutBuilder::GetDetailFont() )
 		],
@@ -789,6 +790,10 @@ void FPropertyBagDetails::CustomizeHeader(TSharedRef<IPropertyHandle> StructProp
 	{
 		bFixedLayout = MetaDataProperty->HasMetaData(UE::StructUtils::Metadata::FixedLayoutName);
 
+		bAllowArrays = MetaDataProperty->HasMetaData(UE::StructUtils::Metadata::AllowArraysName)
+			? MetaDataProperty->GetBoolMetaData(UE::StructUtils::Metadata::AllowArraysName)
+			: true;
+
 		// Don't show the header if ShowOnlyInnerProperties is set
 		if (MetaDataProperty->HasMetaData(NAME_ShowOnlyInnerProperties))
 		{
@@ -830,7 +835,7 @@ void FPropertyBagDetails::CustomizeHeader(TSharedRef<IPropertyHandle> StructProp
 void FPropertyBagDetails::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	// Show the Value (FInstancedStruct) as child rows.
-	const TSharedRef<FPropertyBagInstanceDataDetails> InstanceDetails = MakeShareable(new FPropertyBagInstanceDataDetails(StructProperty, PropUtils, bFixedLayout));
+	const TSharedRef<FPropertyBagInstanceDataDetails> InstanceDetails = MakeShareable(new FPropertyBagInstanceDataDetails(StructProperty, PropUtils, bFixedLayout, bAllowArrays));
 	StructBuilder.AddCustomBuilder(InstanceDetails);
 }
 

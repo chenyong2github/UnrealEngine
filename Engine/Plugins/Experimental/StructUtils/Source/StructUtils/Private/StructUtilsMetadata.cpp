@@ -6,4 +6,5 @@ namespace UE::StructUtils::Metadata
 {
 	const FName FixedLayoutName = TEXT("FixedLayout");
 	const FName DefaultTypeName = TEXT("DefaultType");
+	const FName AllowArraysName = TEXT("AllowArrays");
 }

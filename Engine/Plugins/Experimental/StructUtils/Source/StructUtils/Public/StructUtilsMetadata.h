@@ -16,4 +16,7 @@ namespace UE::StructUtils::Metadata
 
 	/// [PropertyMetadata] DefaultType: Default property type when adding a new Property. Should be taken from enum EPropertyBagPropertyType
 	extern STRUCTUTILS_API const FName DefaultTypeName;
+
+	/// [PropertyMetadata] AllowArrays: By default it is always allowed to create arrays for properties. Use AllowArrays=false to disable Array support.
+	extern STRUCTUTILS_API const FName AllowArraysName;
 }
