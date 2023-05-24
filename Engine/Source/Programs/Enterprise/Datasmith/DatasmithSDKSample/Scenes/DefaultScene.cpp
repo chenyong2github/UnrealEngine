@@ -44,6 +44,13 @@ TSharedPtr<IDatasmithScene> FDefaultScene::Export()
 	TSharedRef<IDatasmithScene> DatasmithScene = FDatasmithSceneFactory::CreateScene(*GetName());
 	SetupSharedSceneProperties(DatasmithScene);
 
+	// Set Geolocation to the Scene
+	{
+		DatasmithScene->SetGeolocationLatitude(10);
+		DatasmithScene->SetGeolocationLongitude(20);
+		// Skip setting Elevation to test it's absent
+	}
+
 	// Creates a mesh asset
 	{
 		FDatasmithMesh BaseMesh;
