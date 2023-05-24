@@ -230,6 +230,12 @@ namespace Horde.Server.Configuration
 				{
 					value = JsonSerializer.Deserialize(node, PropertyInfo.PropertyType, context.JsonOptions);
 				}
+
+				if (!PropertyInfo.CanWrite)
+				{
+					throw new ConfigException(context, $"Property {context.CurrentScope}{Name} does not have a setter.");
+				}
+
 				PropertyInfo.SetValue(target, value);
 
 				return Task.CompletedTask;
@@ -261,6 +267,11 @@ namespace Horde.Server.Configuration
 			public override async Task MergeAsync(object target, JsonNode? node, ConfigContext context, CancellationToken cancellationToken)
 			{
 				context.AddProperty(Name);
+
+				if (!PropertyInfo.CanWrite)
+				{
+					throw new ConfigException(context, $"Property {context.CurrentScope}{Name} does not have a setter.");
+				}
 
 				Uri uri = CombinePaths(context.CurrentFile, JsonSerializer.Deserialize<string>(node, context.JsonOptions) ?? String.Empty);
 				IConfigFile file = await ReadFileAsync(uri, context, cancellationToken);
