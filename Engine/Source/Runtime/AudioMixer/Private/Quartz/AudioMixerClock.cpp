@@ -307,17 +307,18 @@ namespace Audio
 		{
 			TickInternal(InNumFramesUntilNextTick, ClockAlteringPendingCommands, FramesOfLatency); // (process things like BPM changes first)
 			TickInternal(InNumFramesUntilNextTick, PendingCommands, FramesOfLatency);
+			Metronome.Tick(InNumFramesUntilNextTick, FramesOfLatency);
 		}
 		else
 		{
-			TickInternal(TickDelayLengthInFrames, ClockAlteringPendingCommands, FramesOfLatency);
-			TickInternal(TickDelayLengthInFrames, PendingCommands, FramesOfLatency);
+			const int32 FramesToTick = InNumFramesUntilNextTick - TickDelayLengthInFrames; 
+			TickInternal(FramesToTick, ClockAlteringPendingCommands, FramesOfLatency, TickDelayLengthInFrames);
+			TickInternal(FramesToTick, PendingCommands, FramesOfLatency, TickDelayLengthInFrames);
+			Metronome.Tick(FramesToTick, FramesOfLatency);
 
-			TickInternal(InNumFramesUntilNextTick - TickDelayLengthInFrames, ClockAlteringPendingCommands, FramesOfLatency, TickDelayLengthInFrames);
-			TickInternal(InNumFramesUntilNextTick - TickDelayLengthInFrames, PendingCommands, FramesOfLatency, TickDelayLengthInFrames);
+			TickDelayLengthInFrames = 0;
 		}
 
-		Metronome.Tick(InNumFramesUntilNextTick, FramesOfLatency);
 
 		UpdateCachedState();
 	}

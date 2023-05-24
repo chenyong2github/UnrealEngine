@@ -458,7 +458,7 @@ namespace Audio
 			{
 				// if this clock is earlier in the array than the last clock we ticked,
 				// then it has already been ticked this update
-				if (&ClockPtr < &ActiveClocks[LastClockTickedIndex.GetValue()])
+				if (i < LastClockTickedIndex.GetValue())
 				{
 					return true;
 				}
