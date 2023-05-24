@@ -7,6 +7,8 @@
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimNodeMessages.h"
+#include "AlphaBlend.h" // Required for EAlphaBlendOption
+
 #include "AnimNode_Inertialization.generated.h"
 
 
@@ -31,6 +33,22 @@ public:
 	// Request to activate inertialization for a duration.
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
 	virtual void RequestInertialization(float InRequestedDuration, const UBlendProfile* InBlendProfile = nullptr) = 0;
+
+	// Request to activate inertialization for a duration with the given blend mode.
+	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
+	// 
+	// InRequestedDuration				Duration of the blend
+	// InBlendProfile					Blend profile to use
+	// bUseBlendMode					If to use the provided Blend Mode
+	// InBlendMode						Blend mode to use
+	// InCustomBlendCurve				Custom Blend Curve to use for the Blend Mode
+	//
+	virtual void RequestInertializationWithBlendMode(
+		float InRequestedDuration,
+		const UBlendProfile* InBlendProfile,
+		const bool bUseBlendMode,
+		const EAlphaBlendOption InBlendMode,
+		UCurveFloat* InCustomBlendCurve) = 0;
 
 	// Add a record of this request
 	virtual void AddDebugRecord(const FAnimInstanceProxy& InSourceProxy, int32 InSourceNodeId) = 0;
@@ -107,11 +125,7 @@ struct FInertializationRequest
 {
 	GENERATED_BODY()
 
-	FInertializationRequest()
-		: Duration(-1.0f)
-		, BlendProfile(nullptr)
-	{
-	}
+	FInertializationRequest() {}
 
 	FInertializationRequest(float InDuration, const UBlendProfile* InBlendProfile)
 		: Duration(InDuration)
@@ -119,15 +133,38 @@ struct FInertializationRequest
 	{
 	}
 
+	FInertializationRequest(
+		float InDuration,
+		const UBlendProfile* InBlendProfile,
+		const bool bInUseBlendMode,
+		const EAlphaBlendOption InBlendMode,
+		UCurveFloat* InCustomBlendCurve)
+		: Duration(InDuration)
+		, BlendProfile(InBlendProfile)
+		, bUseBlendMode(bInUseBlendMode)
+		, BlendMode(InBlendMode)
+		, CustomBlendCurve(InCustomBlendCurve)
+	{
+	}
+
+
 	void Clear()
 	{
 		Duration = -1.0f;
 		BlendProfile = nullptr;
+		bUseBlendMode = false;
+		BlendMode = EAlphaBlendOption::Linear;
+		CustomBlendCurve = nullptr;
 	}
 
 	friend bool operator==(const FInertializationRequest& A, const FInertializationRequest& B)
 	{
-		return A.Duration == B.Duration && A.BlendProfile == B.BlendProfile;
+		return
+			(A.Duration == B.Duration) &&
+			(A.BlendProfile == B.BlendProfile) &&
+			(A.bUseBlendMode == B.bUseBlendMode) &&
+			(A.BlendMode == B.BlendMode) &&
+			(A.CustomBlendCurve == B.CustomBlendCurve);
 	}
 
 	friend bool operator!=(const FInertializationRequest& A, const FInertializationRequest& B)
@@ -136,10 +173,19 @@ struct FInertializationRequest
 	}
 
 	UPROPERTY(Transient)
-	float Duration;
+	float Duration = -1.0f;
 
 	UPROPERTY(Transient)
-	TObjectPtr<const UBlendProfile> BlendProfile;
+	TObjectPtr<const UBlendProfile> BlendProfile = nullptr;
+
+	UPROPERTY(Transient)
+	bool bUseBlendMode = false;
+
+	UPROPERTY(Transient)
+	EAlphaBlendOption BlendMode = EAlphaBlendOption::Linear;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCurveFloat> CustomBlendCurve = nullptr;
 };
 
 

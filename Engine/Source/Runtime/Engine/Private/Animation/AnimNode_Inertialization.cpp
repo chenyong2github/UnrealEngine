@@ -47,6 +47,17 @@ private:
 		Node.RequestInertialization(InRequestedDuration, InBlendProfile); 
 	}
 
+	virtual void RequestInertializationWithBlendMode(
+		float InRequestedDuration,
+		const UBlendProfile* InBlendProfile,
+		const bool bUseBlendMode,
+		const EAlphaBlendOption InBlendMode,
+		UCurveFloat* InCustomBlendCurve)
+	{
+		// The Blend Mode parameters are ignored as FAnimNode_Inertialization does not support them.
+		Node.RequestInertialization(InRequestedDuration, InBlendProfile);
+	}
+
 	virtual void AddDebugRecord(const FAnimInstanceProxy& InSourceProxy, int32 InSourceNodeId)
 	{
 #if WITH_EDITORONLY_DATA
@@ -175,7 +186,7 @@ void FAnimNode_Inertialization::Update_AnyThread(const FAnimationUpdateContext& 
 				{
 					for (const FInertializationRequest& Request : RequestQueue)
 					{
-						InMessage.RequestInertialization(Request.Duration, Request.BlendProfile);
+						InMessage.RequestInertializationWithBlendMode(Request.Duration, Request.BlendProfile, Request.bUseBlendMode, Request.BlendMode, Request.CustomBlendCurve);
 					}
  					InMessage.AddDebugRecord(Proxy, NodeId);
 
