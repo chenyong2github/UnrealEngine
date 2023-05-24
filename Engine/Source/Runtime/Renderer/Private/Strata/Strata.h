@@ -98,6 +98,7 @@ struct FStrataSceneData
 	int32 PeelLayersAboveDepth = -1;
 	bool bRoughDiffuse = false;
 	bool bRoughnessTracking = false;
+	bool bUsesComplexSpecialRenderPath = false;
 
 	int32 SliceStoringDebugStrataTreeDataWithoutMRT = -1;
 	int32 SliceStoringDebugStrataTreeData = -1;
