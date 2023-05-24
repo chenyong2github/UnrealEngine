@@ -1185,6 +1185,5 @@ public:
 
 	FGuid GetSkeletonVirtualBoneGuid() const { return SkeletonVirtualBoneGuid; }
 	void SetSkeletonVirtualBoneGuid(FGuid Guid) { SkeletonVirtualBoneGuid = Guid; }
-	FGuid GetSkeletonGuid() const { return SkeletonGuid; }
 };
 

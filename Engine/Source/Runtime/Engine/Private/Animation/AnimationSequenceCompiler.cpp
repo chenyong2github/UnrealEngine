@@ -309,11 +309,6 @@ namespace UE::Anim
 			{
 				InAnimSequence->FinishAsyncTasks();
 			}
-			else if (InAnimSequence)
-			{				
-				UE_LOG(LogAnimation, Display, TEXT("Failed to finish Async Animation Compression for %s, as it is either unreachable (%i) has a null skeleton (%i) or its skeleton (%s) is unreachable (%i)"), *InAnimSequence->GetName(),
-					InAnimSequence->IsUnreachable(), InAnimSequence->GetSkeleton() == nullptr,  InAnimSequence->GetSkeleton() == nullptr ? TEXT("null") :  *InAnimSequence->GetName(), InAnimSequence->GetSkeleton()->IsUnreachable());
-			}
 		}
 	}
 	void FAnimSequenceCompilingManager::UpdateCompilationNotification()
@@ -349,9 +344,6 @@ namespace UE::Anim
 						{
 							PendingAnimationSequences.Add(AnimSequence);
 						}
-						
-						UE_LOG(LogAnimation, Display, TEXT("Cancelling Async Animation Compression for %s, as it is either unreachable (%i) has a null skeleton (%i) or its skeleton (%s) is unreachable (%i)"), *AnimSequence->GetName(),
-							AnimSequence->IsUnreachable(), AnimSequence->GetSkeleton() == nullptr,  AnimSequence->GetSkeleton() == nullptr ? TEXT("null") :  *AnimSequence->GetName(), AnimSequence->GetSkeleton()->IsUnreachable());
 					}
 				}
 			}
