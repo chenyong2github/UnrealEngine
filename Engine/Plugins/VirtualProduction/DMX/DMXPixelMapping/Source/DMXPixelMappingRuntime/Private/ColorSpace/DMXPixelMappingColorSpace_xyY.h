@@ -32,9 +32,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "XY", Meta = (DisplayName = "y Attribute"))
 	FDMXAttributeName YAttribute;
 
-	/** Sets the range of the xyY color space. CIE 1931 is 100%. */
-	UPROPERTY(EditAnywhere, Transient, Category = "XY", Meta = (ClampMin = 0.1, ClampMax = 1000.0, UIMin = 50.0, UIMax = 100.0, SliderExponent = 3, DisplayName = "Color Space Range"))
-	float ColorSpaceRangePercents = 100.f;
+	/** Sets the range of the xyY color space. A value of 1.0 corresponds to the CIE 1931 xyY . */
+	UPROPERTY(EditAnywhere, Category = "XY", Meta = (ClampMin = 0.1, ClampMax = 2.0, UIMin = 0.1, UIMax = 1.0, DisplayName = "Color Space Range"))
+	float ColorSpaceRange = .8f;
 
 	/** Attribute sent for Y */
 	UPROPERTY(EditAnywhere, Category = "Luminance")
@@ -50,16 +50,11 @@ public:
 
 protected:
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 private:
-	/** The actual range property */
-	UPROPERTY()
-	float ColorSpaceRange = 1.0;
-
 	/** Cached sRGB color space, to avoid instantiating on each conversion */
 	UE::Color::FColorSpace SRGBColorSpace;
 };

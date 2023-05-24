@@ -8,9 +8,7 @@ UDMXPixelMappingColorSpace_xyY::UDMXPixelMappingColorSpace_xyY()
 	, YAttribute("CIE_Y")
 	, LuminanceAttribute("Dimmer")
 	, SRGBColorSpace(UE::Color::EColorSpace::sRGB)
-{
-	ColorSpaceRangePercents = ColorSpaceRange * 100.f;
-}
+{}
 
 void UDMXPixelMappingColorSpace_xyY::SetRGBA(const FLinearColor& InColor)
 {
@@ -47,13 +45,6 @@ void UDMXPixelMappingColorSpace_xyY::SetRGBA(const FLinearColor& InColor)
 	}
 }
 
-void UDMXPixelMappingColorSpace_xyY::PostLoad()
-{
-	Super::PostLoad();
-
-	ColorSpaceRangePercents = ColorSpaceRange * 100.f;
-}
-
 #if WITH_EDITOR
 void UDMXPixelMappingColorSpace_xyY::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -82,10 +73,6 @@ void UDMXPixelMappingColorSpace_xyY::PostEditChangeProperty(FPropertyChangedEven
 			Modify();
 			MinLuminance = MaxLuminance;
 		}
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingColorSpace_xyY, ColorSpaceRangePercents))
-	{
-		ColorSpaceRange = ColorSpaceRangePercents / 100.f;
 	}
 }
 #endif // WITH_EDITOR
