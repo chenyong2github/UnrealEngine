@@ -1375,6 +1375,8 @@ void FEditorViewportClient::LostFocus(FViewport* InViewport)
 
 void FEditorViewportClient::Tick(float DeltaTime)
 {
+	SCOPED_NAMED_EVENT(FEditorViewportClient_Tick, FColor::Red);
+	
 	ConditionalCheckHoveredHitProxy();
 
 	FViewportCameraTransform& ViewTransform = GetViewTransform();

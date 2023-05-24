@@ -1939,6 +1939,8 @@ const TArray<FColor>& FViewport::GetRawHitProxyData(FIntRect InRect)
 	// If the hit proxy map isn't up to date, render the viewport client's hit proxies to it.
 	else if (!bHitProxiesCached)
 	{
+		SCOPED_NAMED_EVENT(HitProxyMapGen, FColor::Red);
+		
 		RenderCaptureInterface::FScopedCapture RenderCapture(GHitProxyCaptureNextUpdate != 0, TEXT("Update Hit Proxies"));
 		GHitProxyCaptureNextUpdate = 0;
 
@@ -1985,6 +1987,7 @@ const TArray<FColor>& FViewport::GetRawHitProxyData(FIntRect InRect)
 	if (bFetchHitProxyBytes)
 	{
 		// Read the hit proxy map surface data back.
+		SCOPED_NAMED_EVENT(HitProxyReadback, FColor::Red);
 		FIntRect ViewportRect(0, 0, SizeX, SizeY);
 		struct FReadSurfaceContext
 		{
