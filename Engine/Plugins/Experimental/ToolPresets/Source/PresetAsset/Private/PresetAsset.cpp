@@ -15,10 +15,17 @@ void FInteractiveToolPresetDefintion::SetStoredPropertyData(TArray<UObject*>& Pr
 		{
 			for (FProperty* Prop : TFieldRange<FProperty>(PropertySet->GetClass()))
 			{
-				TSharedPtr<FJsonValue> JsonProp = FJsonObjectConverter::UPropertyToJsonValue(Prop, Prop->ContainerPtrToValuePtr<void>(PropertySet));				
-				FString FieldName;
-				Prop->GetName(FieldName);
-				PropertyJsonObject->SetField(FieldName, JsonProp);
+#if WITH_EDITOR
+				if (! (Prop->HasMetaData(TEXT("TransientToolProperty")) ||
+					   Prop->GetPropertyFlags() & EPropertyFlags::CPF_SkipSerialization ||
+					   Prop->GetPropertyFlags() & EPropertyFlags::CPF_Transient) )
+#endif
+				{
+					TSharedPtr<FJsonValue> JsonProp = FJsonObjectConverter::UPropertyToJsonValue(Prop, Prop->ContainerPtrToValuePtr<void>(PropertySet));
+					FString FieldName;
+					Prop->GetName(FieldName);
+					PropertyJsonObject->SetField(FieldName, JsonProp);
+				}
 			}			
 		}
 
