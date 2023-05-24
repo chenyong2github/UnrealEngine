@@ -33,6 +33,9 @@ class FCbWriter;
 // enable visualization in the desktop Development builds only as it has a memory hit and writes files
 #define UE_SCA_VISUALIZE_SHADER_USAGE			(!WITH_EDITOR && UE_BUILD_DEVELOPMENT && PLATFORM_DESKTOP)
 
+// enable deep, manual debugging of leaked preload groups. This level of information slows the engine down and is only needed when chasing tricky bugs
+#define UE_SCA_DEBUG_PRELOADING					(0)
+
 struct FShaderMapEntry
 {
 	uint32 ShaderIndicesOffset = 0u;
@@ -610,6 +613,10 @@ private:
 		uint32 NumRefs : 31;
 		uint32 bNeverToBePreloaded : 1;
 
+#if UE_SCA_DEBUG_PRELOADING
+		FString DebugInfo;
+#endif
+
 		FShaderGroupPreloadEntry()
 			: NumRefs(0)
 			, bNeverToBePreloaded(0)
@@ -622,16 +629,28 @@ private:
 	FIoDispatcher& IoDispatcher;
 
 	/** Preloads a given shader group. */
-	bool PreloadShaderGroup(int32 ShaderGroupIndex, FGraphEventArray& OutCompletionEvents, FCoreDelegates::FAttachShaderReadRequestFunc* AttachShaderReadRequestFuncPtr = nullptr);
+	bool PreloadShaderGroup(int32 ShaderGroupIndex, FGraphEventArray& OutCompletionEvents, 
+#if UE_SCA_DEBUG_PRELOADING
+		const FString& CallsiteInfo,
+#endif
+		FCoreDelegates::FAttachShaderReadRequestFunc* AttachShaderReadRequestFuncPtr = nullptr);
 
 	/** Sets up a new preload entry for preload.*/
 	void SetupPreloadEntryForLoading(int32 ShaderGroupIndex, FShaderGroupPreloadEntry& PreloadEntry);
 
 	/** Sets up a preload entry for groups that shouldn't be preloaded.*/
-	void MarkPreloadEntrySkipped(int32 ShaderGroupIndex);
+	void MarkPreloadEntrySkipped(int32 ShaderGroupIndex
+#if UE_SCA_DEBUG_PRELOADING
+		, const FString& CallsiteInfo
+#endif
+	);
 
 	/** Releases a reference to a preloaded shader group, potentially deleting it. */
-	void ReleasePreloadEntry(int32 ShaderGroupIndex);
+	void ReleasePreloadEntry(int32 ShaderGroupIndex
+#if UE_SCA_DEBUG_PRELOADING
+		, const FString& CallsiteInfo
+#endif
+	);
 
 	/** Returns the index of shader group that a given shader belongs to. */
 	inline int32 GetGroupIndexForShader(int32 ShaderIndex) const
