@@ -83,6 +83,7 @@ namespace UE::Anim
 		void Wait(bool bPerformWork = true);
 		bool Poll() const;
 		void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority) const;
+		bool WasCancelled() const { return CompressibleAnimPtr->IsCancelled() || Owner.IsCanceled(); }
 	private:
 		void BeginCache(const FIoHash& KeyHash);
 		void EndCache(UE::DerivedData::FCacheGetValueResponse&& Response);

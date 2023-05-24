@@ -466,10 +466,7 @@ void UAnimSequence::WillNeverCacheCookedPlatformDataAgain()
 {
 	Super::WillNeverCacheCookedPlatformDataAgain();
 
-	UE::Anim::FAnimSequenceCompilingManager::Get().FinishCompilation({this});	
-	ClearCompressedCurveData();
-	ClearCompressedBoneData();
-
+	UE::Anim::FAnimSequenceCompilingManager::Get().FinishCompilation({this});
 	// Clear out current platform, and any target platform data
 	CompressedData.Reset();
 		
@@ -905,6 +902,13 @@ void UAnimSequence::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	if (ObjectSaveContext.IsCooking())
 	{
 		check(IsCachedCookedPlatformDataLoaded(ObjectSaveContext.GetTargetPlatform()));
+
+		// In case compressed data was cleared between ::IsCachedCookedPlatformDataLoaded and ::PreSave being called, synchronously run compression
+		if(!IsCachedCookedPlatformDataLoaded(ObjectSaveContext.GetTargetPlatform()))
+		{
+			CacheDerivedData(ObjectSaveContext.GetTargetPlatform());
+			check(IsCachedCookedPlatformDataLoaded(ObjectSaveContext.GetTargetPlatform()));
+		}
 	}
 
 	if (!ObjectSaveContext.IsProceduralSave())
@@ -1037,8 +1041,7 @@ void UAnimSequence::BeginDestroy()
 	Super::BeginDestroy();
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ClearCompressedCurveData();
-	ClearCompressedBoneData();
+	CompressedData.Reset();
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -1050,10 +1053,7 @@ bool UAnimSequence::IsReadyForFinishDestroy()
 	}
 
 #if WITH_EDITOR
-	if (!TryCancelAsyncTasks())
-	{
-		return false;
-	}
+	WaitOnExistingCompression(false);
 #endif
 
 	return true;
@@ -1150,7 +1150,8 @@ bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Targ
 	const FIoHash KeyHash = CreateDerivedDataKeyHash(TargetPlatform);
 	if (KeyHash.IsZero())
 	{
-		return true;
+		UE_LOG(LogAnimation, Warning, TEXT("Zero key hash compressed animation data for %s requested platform %s"), *GetName(), *TargetPlatform->PlatformName());
+		return false;
 	}
 
 	if (PollCacheDerivedData(KeyHash))
@@ -1162,15 +1163,20 @@ bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Targ
 	{
 		if (IsInGameThread())
 		{
-			// This is required until we can ensure inter-animsequence dependencies are handled correctly (see UE-184634)
-			BeginCacheForCookedPlatformData(TargetPlatform);
-			UE_LOG(LogAnimation, Warning, TEXT("Missing compressed animation data for %s requested platform %s and hash %s"), *GetName(), *TargetPlatform->PlatformName(), *LexToString(KeyHash));
+			if (!HasAnyFlags(EObjectFlags::RF_NeedPostLoad) && GetPackage()->GetHasBeenEndLoaded())
+			{
+				BeginCacheForCookedPlatformData(TargetPlatform);
+			}
 		}
 	};
 
 	if (KeyHash == DataKeyHash)
 	{
-		if (!CacheTasksByKeyHash.Contains(KeyHash) && CompressedData.IsValid(this))
+		if (!CacheTasksByKeyHash.Contains(KeyHash) && CompressedData.IsValid(this) &&
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			!bUseRawDataOnly
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			)
 		{
 			return true;
 		}
@@ -2709,8 +2715,11 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 	}
 	else
 	{
-		SetSkeleton(NewSkeleton);
-		Controller->UpdateWithSkeleton(NewSkeleton, false);
+		if (NewSkeleton != GetSkeleton() || NewSkeleton->GetGuid() != GetSkeletonGuid())
+		{
+			SetSkeleton(NewSkeleton);
+			Controller->UpdateWithSkeleton(NewSkeleton, false);
+		}
 	}
 
 	Super::RemapTracksToNewSkeleton(NewSkeleton, bConvertSpaces);
@@ -3861,7 +3870,7 @@ void UAnimSequence::EvaluateAttributes(FAnimationPoseData& OutAnimationPoseData,
 #if WITH_EDITOR
 void UAnimSequence::OnSetSkeleton(USkeleton* NewSkeleton)
 {
-	UE::Anim::FAnimSequenceCompilingManager::Get().FinishCompilation({this});
+	WaitOnExistingCompression(false);
 }
 
 void UAnimSequence::RemoveCustomAttribute(const FName& BoneName, const FName& AttributeName)
@@ -4636,16 +4645,6 @@ bool UAnimSequence::IsCurveCompressedDataValid() const
 	return true;
 }
 
-void UAnimSequence::ClearCompressedBoneData()
-{
-	CompressedData.ClearCompressedBoneData();
-}
-
-void UAnimSequence::ClearCompressedCurveData()
-{
-	CompressedData.ClearCompressedCurveData();
-}
-
 #if WITH_EDITOR
 void UAnimSequence::EnsureValidRawDataGuid()
 {
@@ -4918,7 +4917,7 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 				{
 					const bool bWasModelReset = NotifyCollector.Contains(EAnimDataModelNotifyType::Reset);
 					UpdateRawDataGuid(bWasModelReset ? GenerateNewGUID : RegenerateGUID);
-					ClearCompressedCurveData();
+					CompressedData.ClearCompressedCurveData();
 					HandleTrackDataChanged(bWasModelReset);
 				}
 			}
@@ -4958,7 +4957,7 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 		case EAnimDataModelNotifyType::CurveFlagsChanged:
 		case EAnimDataModelNotifyType::CurveScaled:
 		{
-			ClearCompressedCurveData();
+			CompressedData.ClearCompressedCurveData();
 				
 			if (NotifyCollector.IsNotWithinBracket())
 			{						
@@ -5135,7 +5134,7 @@ FIoHash UAnimSequence::BeginCacheDerivedData(const ITargetPlatform* TargetPlatfo
 		
 	const FIoHash KeyHash = CreateDerivedDataKeyHash(TargetPlatform);
 	// Early out if not valid, equal to running platform hash or any previously cached hashes
-	if (KeyHash.IsZero() || DataKeyHash == KeyHash || DataByPlatformKeyHash.Contains(KeyHash))
+	if (KeyHash.IsZero() || (DataKeyHash == KeyHash && (CompressedData.IsValid(this) || CacheTasksByKeyHash.Contains(KeyHash))) || DataByPlatformKeyHash.Contains(KeyHash))
 	{
 		return KeyHash;
 	}
@@ -5147,10 +5146,6 @@ FIoHash UAnimSequence::BeginCacheDerivedData(const ITargetPlatform* TargetPlatfo
 	FCompressedAnimSequence* TargetData = nullptr;
 	if (TargetPlatform->IsRunningPlatform())
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		bUseRawDataOnly = true;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		
 		DataKeyHash = KeyHash;
 		TargetData = &CompressedData;
 	}
@@ -5158,6 +5153,15 @@ FIoHash UAnimSequence::BeginCacheDerivedData(const ITargetPlatform* TargetPlatfo
     {
     	TargetData = DataByPlatformKeyHash.Emplace(KeyHash, MakeUnique<FCompressedAnimSequence>()).Get();
     }
+
+	// Mark sequence to only sample raw animation data when recompressing for running platform (or equivalent hash)
+	if (KeyHash == DataKeyHash)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bUseRawDataOnly = true;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+	
 	check(TargetData);
 	TargetData->Reset();
 
@@ -5267,14 +5271,7 @@ bool UAnimSequence::TryCancelAsyncTasks()
 {
 	for (auto It = CacheTasksByKeyHash.CreateIterator(); It; ++It)
 	{
-		if (It->Value->Poll())
-		{
-			It.RemoveCurrent();
-		}
-		else
-		{
-			It->Value->Cancel();
-		}
+		It->Value->Cancel();
 	}
 
 	return CacheTasksByKeyHash.IsEmpty();
@@ -5282,15 +5279,13 @@ bool UAnimSequence::TryCancelAsyncTasks()
 
 bool UAnimSequence::IsAsyncTaskComplete() const
 {
+	bool bAllFinished = true;
 	for (auto& Pair : CacheTasksByKeyHash)
 	{
-		if (!Pair.Value->Poll())
-		{
-			return false;
-		}
+		bAllFinished &= Pair.Value->Poll();
 	}
 
-	return true;
+	return bAllFinished;
 }
 
 void UAnimSequence::FinishAsyncTasks()
@@ -5305,7 +5300,7 @@ void UAnimSequence::FinishAsyncTasks()
 		{
 			It->Value->Wait();
 
-			const FCompressedAnimSequence* CompressedAnimData = [Hash = It->Key, this]()
+			FCompressedAnimSequence* CompressedAnimData = [Hash = It->Key, this]()
 			{
 				if(Hash == DataKeyHash)
 				{
@@ -5315,30 +5310,46 @@ void UAnimSequence::FinishAsyncTasks()
 				return DataByPlatformKeyHash.FindChecked(Hash).Get();
 			}();
 
-			if (CompressedAnimData->IsValid(this))
+			if (It->Value.Get()->WasCancelled())
 			{
-				#if WITH_EDITOR
-				//This is only safe during sync anim compression
-				if (GetSkeleton())
+				CompressedAnimData->Reset();
+				DataByPlatformKeyHash.Remove(It->Key);
+
+				// Reset running platform hash (if it got cancelled)
+				if (DataKeyHash == It->Key)
 				{
-					SetSkeletonVirtualBoneGuid(GetSkeleton()->GetVirtualBoneGuid());
-				}
-#endif
-				if (It->Key == DataKeyHash)
-				{
-					
-					FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-					AssetRegistryModule.Get().AssetTagsFinalized(*this);
-					
-					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					check(bUseRawDataOnly);
-					bUseRawDataOnly = false;
-                    PRAGMA_ENABLE_DEPRECATION_WARNINGS
+					DataKeyHash = FIoHash::Zero;
 				}
 			}
 			else
 			{
-				// Failed to compress
+				if (CompressedAnimData->IsValid(this))
+				{
+#if WITH_EDITOR
+					//This is only safe during sync anim compression
+					if (GetSkeleton())
+					{
+						SetSkeletonVirtualBoneGuid(GetSkeleton()->GetVirtualBoneGuid());
+					}
+#endif
+					if (It->Key == DataKeyHash)
+					{
+						FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+						AssetRegistryModule.Get().AssetTagsFinalized(*this);
+					
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
+						check(bUseRawDataOnly);
+						bUseRawDataOnly = false;
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
+					}
+				
+					check(CompressedAnimData->IsValid(this, true));
+				}
+				else
+				{
+					// Failed to compress
+					UE_LOG(LogAnimation, Warning, TEXT("Failed to finish async Animation Compression task for %s, as the generated data is not valid."), *GetName());
+				}
 			}
 
 			It.RemoveCurrent();
