@@ -34,6 +34,14 @@
 		{
 			"Name": "ConcertSyncCore",
 			"Enabled": true
+		},
+		{
+			"Name": "SequencerScripting",
+			"Enabled": true
+		},
+		{
+			"Name": "LevelSequenceEditor",
+			"Enabled": true
 		}
 	]
 }

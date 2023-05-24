@@ -2,12 +2,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/TimerHandle.h"
 #include "UObject/ObjectMacros.h"
 
 #include "CameraRig_Rail.h"
 #include "CineSplineComponent.h"
 
 #include "CineCameraRigRail.generated.h"
+
+class UMovieSceneSequence;
+class UMovieSceneFloatTrack;
 
 UENUM(BlueprintType)
 enum class ECineCameraRigRailDriveMode : uint8
@@ -31,6 +35,7 @@ public:
 	ACineCameraRigRail(const FObjectInitializer& ObjectInitializer);
 
 	virtual void Tick(float DeltaTime) override;
+	virtual void PostLoad() override;
 
 	/* Returns CineSplineComponent*/
 	UFUNCTION(BlueprintPure, Category = "Rail Components")
@@ -45,7 +50,7 @@ public:
 	float AbsolutePositionOnRail = 1.0f;
 
 	/* Use PointRotation metadata for attachment orientation. If false, attachment orientation is based on the spline curvature*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "Rail Controls", meta = (EditCondition = "bLockOrientationToRail"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Controls", meta = (EditCondition = "bLockOrientationToRail"))
 	bool bUsePointRotation = true;
 
 	/* Material assigned to spline component mesh*/
@@ -60,8 +65,8 @@ public:
 	UPROPERTY(BlueprintSetter=SetSplineMeshTexture, Category = "SplineVisualization")
 	TObjectPtr<UTexture2D> SplineMeshTexture;
 
-	/* Enable speed visualization*/
-	UPROPERTY(EditAnywhere, BlueprintSetter=SetDisplaySpeedHeatmap, Category = "SplineVisualization")
+	/* Enable speed visualization. Automatically disabled when position property is driven in Sequencer*/
+	UPROPERTY(EditAnywhere, BlueprintSetter=SetDisplaySpeedHeatmap, Category = "SplineVisualization", meta=(EditCondition="!IsSequencerDriven()"))
 	bool bDisplaySpeedHeatmap = true;
 
 	/* Number of speed samples per spline segment*/
@@ -109,7 +114,7 @@ public:
 	ECineCameraRigRailDriveMode DriveMode = ECineCameraRigRailDriveMode::Manual;
 
 	/* Specifies the drive speed of the rig rail in centimeter per second */
-	UPROPERTY(EditAnywhere, BlueprintSetter=SetDriveModeSpeed, Category = "DriveMode")
+	UPROPERTY(EditAnywhere, Interp, Category = "DriveMode")
 	float Speed = 100;
 
 	/* Enable loop in speed or duration mode */
@@ -128,10 +133,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "CineCameraRigRail")
 	FVector GetVelocityAtPosition(const float InPosition, const float delta = 0.001) const;
 
-	/* Set drive mode speed value*/
-	UFUNCTION(BlueprintSetter)
-	void SetDriveModeSpeed(float Value);
-
 	/* Set drive mode*/
 	UFUNCTION(BlueprintSetter)
 	void SetDriveMode(ECineCameraRigRailDriveMode InMode);
@@ -139,6 +140,10 @@ public:
 	/* Enable display speed heatmap*/
 	UFUNCTION(BlueprintSetter)
 	void SetDisplaySpeedHeatmap(bool bEnable);
+
+	/* Returns true if the rig rail is driven by Sequencer */
+	UFUNCTION()
+	bool IsSequencerDriven();
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -161,5 +166,19 @@ protected:
 	float StartPositionValue() const;
 	float LastPositionValue() const;
 	float SpeedProgress = 0.0f;
-	float SpeedAccumulatedTime = 0.0f;
+	void UpdateSpeedProgress();
+
+
+#if WITH_EDITOR
+	UMovieSceneFloatTrack* FindPositionTrack(const UMovieSceneSequence* InSequence);
+
+	FTimerHandle SequencerCheckHandle;
+
+	/* Check if the rig rail is driven by Sequencer*/
+	UFUNCTION()
+	void OnSequencerCheck();
+
+	bool bSequencerDriven = false;
+#endif
+
 };

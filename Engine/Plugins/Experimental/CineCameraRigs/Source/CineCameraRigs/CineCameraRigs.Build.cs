@@ -55,5 +55,12 @@ public class CineCameraRigs : ModuleRules
 			}
 			);
 
+		if (Target.bBuildEditor == true)
+		{
+			PrivateDependencyModuleNames.Add("LevelSequenceEditor");
+			PrivateDependencyModuleNames.Add("SequencerScriptingEditor");
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
+
 	}
 }
