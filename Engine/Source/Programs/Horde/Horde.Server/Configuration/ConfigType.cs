@@ -233,7 +233,7 @@ namespace Horde.Server.Configuration
 
 				if (!PropertyInfo.CanWrite)
 				{
-					throw new ConfigException(context, $"Property {context.CurrentScope}{Name} does not have a setter.");
+					throw new ConfigException(context, $"Property {context.CurrentScope}.{Name} does not have a setter.");
 				}
 
 				PropertyInfo.SetValue(target, value);
@@ -403,7 +403,7 @@ namespace Horde.Server.Configuration
 					{
 						if (otherFile != null)
 						{
-							throw new ConfigException(context, $"Property {context.CurrentScope}{Name} conflicts with value in {otherFile}.");
+							throw new ConfigException(context, $"Property {context.CurrentScope}.{Name} conflicts with value in {otherFile}.");
 						}
 
 						childTarget = await _classConfigType.ReadAsync(node, context, cancellationToken);

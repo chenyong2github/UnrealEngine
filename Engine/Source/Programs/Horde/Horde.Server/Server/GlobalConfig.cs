@@ -84,12 +84,12 @@ namespace Horde.Server.Server
 		/// <summary>
 		/// Name of the artifact type
 		/// </summary>
-		public ArtifactType Name { get; }
+		public ArtifactType Name { get; set; }
 
 		/// <summary>
 		/// Number of days to retain artifacts of this type
 		/// </summary>
-		public int? KeepDays { get; }
+		public int? KeepDays { get; set; }
 	}
 
 	/// <summary>
