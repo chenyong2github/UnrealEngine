@@ -4093,5 +4093,39 @@ namespace UnrealBuildTool
 		{
 			return Inner.OptedInModulePlatforms == null || Inner.OptedInModulePlatforms.Contains(Platform);
 		}
+
+		/// <summary>
+		/// Determines if the automation tests should be compiled based on the current configuration and optional forced settings.
+		/// If either the development tests or performance tests are compiled (unless explicitly disabled), this property returns true.
+		/// </summary>
+		private bool? bWithAutomationTestsPrivate = null;
+		public bool WithAutomationTests
+		{
+			get
+			{
+				if (!bWithAutomationTestsPrivate.HasValue)
+				{
+					bool bCompileDevTests = Configuration != UnrealTargetConfiguration.Shipping;
+					bool bCompilePerfTests = bCompileDevTests;
+
+					if (bForceCompileDevelopmentAutomationTests)
+					{
+						bCompileDevTests = true;
+					}
+					if (bForceCompilePerformanceAutomationTests)
+					{
+						bCompilePerfTests = true;
+					}
+					if (bForceDisableAutomationTests)
+					{
+						bCompileDevTests = bCompilePerfTests = false;
+					}
+
+					bWithAutomationTestsPrivate = bCompileDevTests || bCompilePerfTests;
+				}
+
+				return bWithAutomationTestsPrivate.Value;
+			}
+		}
 	}
 }

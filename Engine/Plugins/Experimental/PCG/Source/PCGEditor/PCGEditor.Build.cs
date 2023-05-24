@@ -17,6 +17,17 @@ namespace UnrealBuildTool.Rules
 			"PlacementMode",
 		});
 
+			if (Target.WithAutomationTests)
+			{
+
+				PublicDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"LevelEditor"
+					}
+				);
+			}
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
