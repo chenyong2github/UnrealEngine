@@ -51,7 +51,7 @@ class USkyAtmosphereComponent : public USceneComponent
 
 
 	/** The ground albedo that will tint the atmosphere when the sun light will bounce on it. Only taken into account when MultiScattering>0.0. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (HideAlphaChannel))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Planet", meta = (HideAlphaChannel))
 	ESkyAtmosphereTransformMode TransformMode;
 
 	/** The radius in kilometers from the center of the planet to the ground level. */
@@ -169,6 +169,11 @@ class USkyAtmosphereComponent : public USceneComponent
 	ENGINE_API FVector GetOverridenAtmosphereLightDirection(int32 AtmosphereLightIndex);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void ResetAtmosphereLightDirectionOverride(int32 AtmosphereLightIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (DisplayName = "Set Ground Radius"))
+	ENGINE_API void SetBottomRadius(float NewValue);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	ENGINE_API void SetGroundAlbedo(const FColor& NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetAtmosphereHeight(float NewValue);

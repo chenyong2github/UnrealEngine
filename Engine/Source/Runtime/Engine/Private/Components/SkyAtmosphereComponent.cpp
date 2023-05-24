@@ -363,6 +363,9 @@ void USkyAtmosphereComponent::SetPositionToMatchDeprecatedAtmosphericFog()
 	}\
 }\
 
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, BottomRadius);
+SKY_DECLARE_BLUEPRINT_SETFUNCTION(const FColor&, GroundAlbedo);
+
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, AtmosphereHeight);
 SKY_DECLARE_BLUEPRINT_SETFUNCTION(float, MultiScatteringFactor);
 
