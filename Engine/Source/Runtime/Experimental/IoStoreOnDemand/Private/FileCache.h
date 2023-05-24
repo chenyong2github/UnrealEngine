@@ -2,17 +2,17 @@
 
 #pragma once
 
+#include "CancellationToken.h"
 #include "IO/IoStatus.h"
-#include "IO/IoCancellationToken.h"
 #include "Memory/MemoryFwd.h"
 #include "Tasks/Task.h"
-#include <atomic>
+#include "Templates/UniquePtr.h"
 
 class FIoBuffer;
 class FIoReadOptions;
 struct FIoHash;
 
-CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoCache, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogIoCache, Log, All);
 
 /** Cache for binary blobs with a 20 byte cache key. */
 class IIoCache
@@ -31,3 +31,11 @@ public:
 	/** Insert a new chunk into the cache. */
 	virtual FIoStatus PutChunk(const FIoHash& Key, FMemoryView Data) = 0;
 };
+
+struct FFileIoCacheConfig
+{
+	uint64 DiskStorageSize;
+	uint64 MemoryStorageSize;
+};
+
+TUniquePtr<IIoCache> MakeFileIoCache(const FFileIoCacheConfig& Config);

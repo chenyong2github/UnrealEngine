@@ -7,7 +7,7 @@
 /**
  * Experimental type for signaling cancellation of asynchronouse I/O operations.
  */
-struct CORE_API FIoCancellationToken
+struct FIoCancellationToken
 {
 	FIoCancellationToken() = default;
 	FIoCancellationToken(const FIoCancellationToken&) = delete;

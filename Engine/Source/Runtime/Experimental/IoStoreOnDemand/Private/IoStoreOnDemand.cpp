@@ -3,10 +3,9 @@
 #include "IO/IoStoreOnDemand.h"
 #include "OnDemandIoDispatcherBackend.h"
 
+#include "FileCache.h"
 #include "HAL/PlatformMisc.h"
 #include "HAL/FileManager.h"
-#include "IO/IoCache.h"
-#include "IO/IoFileCache.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"

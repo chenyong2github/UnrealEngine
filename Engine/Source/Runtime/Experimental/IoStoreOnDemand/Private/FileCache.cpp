@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IO/IoFileCache.h"
+#include "FileCache.h"
+
 #include "Containers/IntrusiveDoubleLinkedList.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "IO/IoCache.h"
-#include "IO/IoDispatcher.h"
 #include "HAL/Event.h"
 #include "HAL/FileManager.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "IO/IoDispatcher.h"
 #include "IO/IoHash.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/Paths.h"
@@ -16,6 +16,7 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Templates/UniquePtr.h"
+
 #include <atomic>
 
 TRACE_DECLARE_MEMORY_COUNTER(FFileIoCache_CachedBytes, TEXT("FileIoCache/TotalBytes"));
@@ -26,6 +27,8 @@ TRACE_DECLARE_INT_COUNTER(FFileIoCache_ErrorCount, TEXT("FileIoCache/ErrorCount"
 TRACE_DECLARE_INT_COUNTER(FFileIoCache_PutCount, TEXT("FileIoCache/PutCount"));
 TRACE_DECLARE_INT_COUNTER(FFileIoCache_PutRejectCount, TEXT("FileIoCache/PutRejectCount"));
 TRACE_DECLARE_INT_COUNTER(FFileIoCache_PutExistingCount, TEXT("FileIoCache/PutExistingCount"));
+
+DEFINE_LOG_CATEGORY(LogIoCache);
 
 namespace UE::IO::Private
 {
