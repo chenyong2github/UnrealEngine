@@ -205,7 +205,7 @@ class StepTrendsDataView extends JobDataView {
 
    stepId?: string;
 
-   order = 5;
+   order = 8;
 
    durations = new Map<string, number>();
    maxMinutes = 0;   
