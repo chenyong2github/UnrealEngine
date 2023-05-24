@@ -596,6 +596,48 @@ namespace ObjectPtr_Private
 		{
 			Slot << InObjectPtr.ObjectPtr;
 		}
+
+		template <typename T>
+		FORCEINLINE static T* NoAccessTrackingGet(const TObjectPtr<T>& Ptr)
+		{
+			return reinterpret_cast<T*>(UE::CoreUObject::Private::ResolveObjectHandleNoRead(Ptr.ObjectPtr.GetHandleRef()));
+		}
+	};
+	
+	template <typename T>
+	class TNonAccessTrackedObjectPtr
+	{
+	public:
+		TNonAccessTrackedObjectPtr() = default;
+		explicit TNonAccessTrackedObjectPtr(T* Ptr) : ObjectPtr{Ptr} {}
+
+		void Set(T* Value)
+		{
+			ObjectPtr = Value;
+		}
+	
+		T* Get() const
+		{
+			return ObjectPtr_Private::Friend::NoAccessTrackingGet(ObjectPtr);
+		}
+
+		TObjectPtr<T>& GetAccessTrackedObjectPtr() 
+		{
+			return ObjectPtr;
+		}
+
+		operator T*() const
+		{
+			return Get();
+		}
+		
+		T* operator->() const
+		{
+			return Get();
+		}		
+	
+	private:
+		TObjectPtr<T> ObjectPtr{};
 	};
 }
 

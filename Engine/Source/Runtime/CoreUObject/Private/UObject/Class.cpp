@@ -1821,7 +1821,7 @@ void UStruct::Serialize(FArchive& Ar)
 	UStruct* SuperStructBefore = GetSuperStruct();
 #endif
 
-	Ar << SuperStruct;
+	Ar << SuperStruct.GetAccessTrackedObjectPtr();
 
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 	if (Ar.IsLoading())
@@ -2033,7 +2033,7 @@ void UStruct::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collect
 	if( GIsEditor )
 	{
 		// Required by the unified GC when running in the editor
-		Collector.AddReferencedObject( This->SuperStruct, This );
+		Collector.AddReferencedObject( This->SuperStruct.GetAccessTrackedObjectPtr(), This );
 		Collector.AddReferencedObject( This->Children, This );
 		Collector.AddReferencedObjects(This->ScriptAndPropertyObjectReferences, This);
 	}
@@ -2046,7 +2046,7 @@ void UStruct::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collect
 
 void UStruct::SetSuperStruct(UStruct* NewSuperStruct)
 {
-	SuperStruct = NewSuperStruct;
+	SuperStruct.Set(NewSuperStruct);
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 	this->ReinitializeBaseChainArray();
 #endif
