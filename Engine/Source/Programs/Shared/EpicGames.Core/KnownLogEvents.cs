@@ -131,6 +131,11 @@ namespace EpicGames.Core
 		public static EventId AutomationTool_UnacceptableWords { get; } = new EventId(406);
 
 		/// <summary>
+		/// UAT: BuildGraph script parsing error
+		/// </summary>
+		public static EventId AutomationTool_BuildGraphScript { get; } = new EventId(407);
+
+		/// <summary>
 		/// MSBuild: Generic error
 		/// </summary>
 		public static EventId MSBuild { get; } = new EventId(500);
