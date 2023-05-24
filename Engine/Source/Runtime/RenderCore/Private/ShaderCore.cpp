@@ -701,6 +701,61 @@ TArray<FString> FShaderParameterMap::GetAllParameterNamesOfType(EShaderParameter
 	return Result;
 }
 
+void FShaderResourceTableMap::Append(const FShaderResourceTableMap& Other)
+{
+	// Get the set of uniform buffers used by the target resource table map
+	TSet<FString> UniformBufferNames;
+	FStringView PreviousUniformBufferName;
+
+	for (const FUniformResourceEntry& Resource : Resources)
+	{
+		// Cheaper to check if consecutive array elements are from the same uniform buffer (which is common) before adding to set,
+		// which involves a more expensive hash lookup versus a string comparison.
+		if (!PreviousUniformBufferName.Equals(Resource.GetUniformBufferName(), ESearchCase::CaseSensitive))
+		{
+			PreviousUniformBufferName = Resource.GetUniformBufferName();
+			UniformBufferNames.Add(FString(PreviousUniformBufferName));
+		}
+	}
+
+	// Then add any entries from "Other" that aren't from a uniform buffer we already include.
+	PreviousUniformBufferName = FStringView();
+	bool PreviousUniformBufferFound = false;
+	for (const FUniformResourceEntry& OtherResource : Other.Resources)
+	{
+		if (!PreviousUniformBufferName.Equals(OtherResource.GetUniformBufferName(), ESearchCase::CaseSensitive))
+		{
+			PreviousUniformBufferName = OtherResource.GetUniformBufferName();
+			PreviousUniformBufferFound = UniformBufferNames.Find(FString(PreviousUniformBufferName)) != nullptr;
+		}
+
+		if (!PreviousUniformBufferFound)
+		{
+			Resources.Add(OtherResource);
+		}
+	}
+}
+
+void FShaderResourceTableMap::FixupOnLoad(const TMap<FString, FUniformBufferEntry>& UniformBufferMap)
+{
+	// Need to fix up UniformBufferMemberName string pointers to point into the MemberNameBuffer storage in UniformBufferMap
+	uint16 ResourceIndex = 0;
+	for (const auto& Pair : UniformBufferMap)
+	{
+		const TArray<TCHAR>* MemberNameBuffer = Pair.Value.MemberNameBuffer.Get();
+		if (MemberNameBuffer && MemberNameBuffer->Num())
+		{
+			const TCHAR* MemberNameCurrent = MemberNameBuffer->GetData();
+			const TCHAR* MemberNameEnd = MemberNameCurrent + MemberNameBuffer->Num();
+
+			for (; MemberNameCurrent < MemberNameEnd; MemberNameCurrent += FCString::Strlen(MemberNameCurrent) + 1)
+			{
+				Resources[ResourceIndex++].UniformBufferMemberName = MemberNameCurrent;
+			}
+		}
+	}
+}
+
 void FShaderCompilerDefinitions::SetFloatDefine(const TCHAR* Name, float Value)
 {
 	// Make sure the printed value perfectly matches the given number

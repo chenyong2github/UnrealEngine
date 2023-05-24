@@ -432,9 +432,14 @@ inline FArchive& operator<<(FArchive& Ar, FShaderResourceTable& SRT)
 	return Ar;
 }
 
-inline FArchive& operator<<(FArchive& Ar, FResourceTableEntry& Entry)
+inline FArchive& operator<<(FArchive& Ar, FUniformResourceEntry& Entry)
 {
-	Ar << Entry.UniformBufferName;
+	if (Ar.IsLoading())
+	{
+		// Filled in later in FShaderResourceTableMap::FixupOnLoad
+		Entry.UniformBufferMemberName = nullptr;
+	}
+	Ar << Entry.UniformBufferNameLength;
 	Ar << Entry.Type;
 	Ar << Entry.ResourceIndex;
 	return Ar;
@@ -446,10 +451,16 @@ inline FArchive& operator<<(FArchive& Ar, FUniformBufferEntry& Entry)
 	Ar << Entry.LayoutHash;
 	Ar << Entry.BindingFlags;
 	Ar << Entry.bNoEmulatedUniformBuffer;
+	if (Ar.IsLoading())
+	{
+		Entry.MemberNameBuffer = MakeShareable(new TArray<TCHAR>());
+	}
+	Ar << *Entry.MemberNameBuffer.Get();
 	return Ar;
 }
 
 using FThreadSafeSharedStringPtr = TSharedPtr<FString, ESPMode::ThreadSafe>;
+using FThreadSafeNameBufferPtr = TSharedPtr<TArray<TCHAR>, ESPMode::ThreadSafe>;
 
 // Simple wrapper for a uint64 bitfield; doesn't use TBitArray as it is fixed size and doesn't need dynamic memory allocations
 class FShaderCompilerFlags
@@ -507,6 +518,14 @@ private:
 	uint64 Data;
 };
 
+struct FShaderResourceTableMap
+{
+	TArray<FUniformResourceEntry> Resources;
+
+	RENDERCORE_API void Append(const FShaderResourceTableMap& Other);
+	RENDERCORE_API void FixupOnLoad(const TMap<FString, FUniformBufferEntry>& UniformBufferMap);
+};
+
 /** The environment used to compile a shader. */
 struct FShaderCompilerEnvironment
 {
@@ -518,7 +537,7 @@ struct FShaderCompilerEnvironment
 
 	FShaderCompilerFlags CompilerFlags;
 	TMap<uint32,uint8> RenderTargetOutputFormatsMap;
-	TMap<FString, FResourceTableEntry> ResourceTableMap;
+	FShaderResourceTableMap ResourceTableMap;
 	TMap<FString, FUniformBufferEntry> UniformBufferMap;
 
 	UE_DEPRECATED(5.3, "RemoteServerData field is deprecated (no longer used in compilation backends).")
@@ -638,9 +657,13 @@ struct FShaderCompilerEnvironment
 		Ar << CompileArgs;
 		Ar << CompilerFlags;
 		Ar << RenderTargetOutputFormatsMap;
-		Ar << ResourceTableMap;
+		Ar << ResourceTableMap.Resources;
 		Ar << UniformBufferMap;
 		Ar << FullPrecisionInPS;
+		if (Ar.IsLoading())
+		{
+			ResourceTableMap.FixupOnLoad(UniformBufferMap);
+		}
 	}
 
 	// Serializes the portions of the environment that are used as input to the backend compilation process (i.e. after all preprocessing)
@@ -648,9 +671,13 @@ struct FShaderCompilerEnvironment
 	{
 		Ar << CompileArgs;
 		Ar << CompilerFlags;
-		Ar << ResourceTableMap;
+		Ar << ResourceTableMap.Resources;
 		Ar << UniformBufferMap;
 		Ar << FullPrecisionInPS;
+		if (Ar.IsLoading())
+		{
+			ResourceTableMap.FixupOnLoad(UniformBufferMap);
+		}
 	}
 
 	friend FArchive& operator<<(FArchive& Ar,FShaderCompilerEnvironment& Environment)

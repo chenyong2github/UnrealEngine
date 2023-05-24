@@ -153,19 +153,18 @@ static bool ContainsBinding(const FVulkanBindingTable& BindingTable, const FStri
 	return false;
 }
 
-static FString GetResourceEntryFromUBMember(const TMap<FString, FResourceTableEntry>& ResourceTableMap, const FString& UBName, uint16 ResourceIndex, FResourceTableEntry& OutEntry)
+static void GetResourceEntryFromUBMember(const FShaderResourceTableMap& ResourceTableMap, const FString& UBName, uint16 ResourceIndex, FUniformResourceEntry& OutEntry)
 {
-	for (const auto& Pair : ResourceTableMap)
+	for (const FUniformResourceEntry& Entry : ResourceTableMap.Resources)
 	{
-		if (Pair.Value.UniformBufferName == UBName && Pair.Value.ResourceIndex == ResourceIndex)
+		if (Entry.GetUniformBufferName() == UBName && Entry.ResourceIndex == ResourceIndex)
 		{
-			OutEntry = Pair.Value;
-			return Pair.Key;
+			OutEntry = Entry;
+			return;
 		}
 	}
 
 	check(0);
-	return "";
 }
 
 static FString FindTextureNameForSamplerState(const CrossCompiler::FHlslccHeader& CCHeader, const FString& InSamplerName)
@@ -374,7 +373,7 @@ static int32 AddGlobalForUBEntry(FOLDVulkanCodeHeader& OLDHeader,
 
 static void AddUBResources(FOLDVulkanCodeHeader& OLDHeader,
 							const FString& UBName,
-							const TMap<FString, FResourceTableEntry>& ResourceTableMap,
+							const FShaderResourceTableMap& ResourceTableMap,
 							uint32 BufferIndex,
 							const TArray<uint32>& BindingArray,
 							const FVulkanBindingTable& BindingTable,
@@ -405,13 +404,13 @@ static void AddUBResources(FOLDVulkanCodeHeader& OLDHeader,
 				// Extract index of the resource stored in the resource table from ResourceInfo
 				const uint16 ResourceIndex = FRHIResourceTableEntry::GetResourceIndex(ResourceInfo);
 
-				FResourceTableEntry ResourceTableEntry;
-				FString MemberName = GetResourceEntryFromUBMember(ResourceTableMap, UBName, ResourceIndex, ResourceTableEntry);
+				FUniformResourceEntry ResourceTableEntry;
+				GetResourceEntryFromUBMember(ResourceTableMap, UBName, ResourceIndex, ResourceTableEntry);
 
 				int32 HeaderUBResourceInfoIndex = OutUBInfo.ResourceEntries.AddZeroed();
 				FVulkanShaderHeader::FUBResourceInfo& UBResourceInfo = OutUBInfo.ResourceEntries[HeaderUBResourceInfoIndex];
 
-				int32 HeaderGlobalIndex = AddGlobalForUBEntry(OLDHeader, BindingTable, CCHeader, MemberName, BindingIndex, Spirv, GlobalNames, (EUniformBufferBaseType)ResourceTableEntry.Type, OutTypePatch, OutHeader);
+				int32 HeaderGlobalIndex = AddGlobalForUBEntry(OLDHeader, BindingTable, CCHeader, ResourceTableEntry.UniformBufferMemberName, BindingIndex, Spirv, GlobalNames, (EUniformBufferBaseType)ResourceTableEntry.Type, OutTypePatch, OutHeader);
 				UBResourceInfo.SourceUBResourceIndex = ResourceIndex;
 				UBResourceInfo.OriginalBindingIndex = BindingIndex;
 				UBResourceInfo.GlobalIndex = HeaderGlobalIndex;
@@ -535,7 +534,7 @@ struct FVulkanHlslccHeader : public CrossCompiler::FHlslccHeader
 	TArray<FString> ExternalTextures;
 };
 
-static void PrepareUBResourceEntryGlobals(const FVulkanHlslccHeader& CCHeader, const TArray<uint32>& BindingArray, const TMap<FString, FResourceTableEntry>& ResourceTableMap,
+static void PrepareUBResourceEntryGlobals(const FVulkanHlslccHeader& CCHeader, const TArray<uint32>& BindingArray, const FShaderResourceTableMap& ResourceTableMap,
 	int32 BufferIndex, const FString& UBName, TArray<FString>& OutGlobalNames, FVulkanShaderHeader& OutHeader)
 {
 	if (BindingArray.Num() > 0)
@@ -557,11 +556,11 @@ static void PrepareUBResourceEntryGlobals(const FVulkanHlslccHeader& CCHeader, c
 				// Extract index of the resource stored in the resource table from ResourceInfo
 				const uint16 ResourceIndex = FRHIResourceTableEntry::GetResourceIndex(ResourceInfo);
 
-				FResourceTableEntry ResourceTableEntry;
-				FString MemberName = GetResourceEntryFromUBMember(ResourceTableMap, UBName, ResourceIndex, ResourceTableEntry);
+				FUniformResourceEntry ResourceTableEntry;
+				GetResourceEntryFromUBMember(ResourceTableMap, UBName, ResourceIndex, ResourceTableEntry);
 
-				int32 GlobalIndex = DoAddGlobal(MemberName, OutHeader, OutGlobalNames);
-				if (CCHeader.ExternalTextures.Contains(MemberName))
+				int32 GlobalIndex = DoAddGlobal(ResourceTableEntry.UniformBufferMemberName, OutHeader, OutGlobalNames);
+				if (CCHeader.ExternalTextures.Contains(ResourceTableEntry.UniformBufferMemberName))
 				{
 					AddImmutable(OutHeader, GlobalIndex);
 				}

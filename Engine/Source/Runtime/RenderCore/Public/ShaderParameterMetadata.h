@@ -26,6 +26,8 @@
 #include "Templates/SharedPointer.h"
 
 using FThreadSafeSharedStringPtr = TSharedPtr<FString, ESPMode::ThreadSafe>;
+using FThreadSafeNameBufferPtr = TSharedPtr<TArray<TCHAR>, ESPMode::ThreadSafe>;
+struct FShaderResourceTableMap;
 
 namespace EShaderPrecisionModifier
 {
@@ -42,13 +44,24 @@ namespace EShaderPrecisionModifier
 bool SupportShaderPrecisionModifier(EShaderPlatform Platform);
 
 /** Each entry in a resource table is provided to the shader compiler for creating mappings. */
-struct FResourceTableEntry
+struct FUniformResourceEntry
 {
-	/** The name of the uniform buffer in which this resource exists. */
-	FString UniformBufferName;
+	/** The name of the uniform buffer member for this resource. */
+	const TCHAR* UniformBufferMemberName;
+	/** The Uniform Buffer's name is a prefix of this length at the start of UniformBufferMemberName. */
+	uint8 UniformBufferNameLength{};
 	/** The type of the resource (EUniformBufferBaseType). */
-	uint16 Type{};
+	uint8 Type{};
 	/** The index of the resource in the table. */
+	uint16 ResourceIndex{};
+
+	FORCEINLINE FStringView GetUniformBufferName() const { return FStringView(UniformBufferMemberName, UniformBufferNameLength); }
+};
+
+struct UE_DEPRECATED(5.3, "Deprecated structure -- replaced with FUniformResourceEntry.") FResourceTableEntry
+{
+	FString UniformBufferName;
+	uint16 Type{};
 	uint16 ResourceIndex{};
 };
 
@@ -63,6 +76,8 @@ struct FUniformBufferEntry
 	EUniformBufferBindingFlags BindingFlags{ EUniformBufferBindingFlags::Shader };
 	/** Whether to force a real uniform buffer when using emulated uniform buffers */
 	bool bNoEmulatedUniformBuffer;
+	/** Storage for member names for this uniform buffer (pointed to by FUniformResourceEntry::UniformBufferMemberName)  */
+	FThreadSafeNameBufferPtr MemberNameBuffer;
 };
 
 /** Parse the shader resource binding from the binding type used in shader code. */
@@ -287,7 +302,12 @@ public:
 	void GetNestedStructs(TArray<const FShaderParametersMetadata*>& OutNestedStructs) const;
 
 #if WITH_EDITOR
+	void AddResourceTableEntries(FShaderResourceTableMap& ResourceTableMap, TMap<FString, FUniformBufferEntry>& UniformBufferMap) const;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.3, "Resource table entries are now stored in FShaderResourceTableMap, rather than a TMap.")
 	void AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, FUniformBufferEntry>& UniformBufferMap) const;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 	const TCHAR* GetStructTypeName() const { return StructTypeName; }
@@ -334,6 +354,9 @@ public:
 	inline bool IsUniformBufferDeclarationInitialized() const { return UniformBufferDeclaration.IsValid(); }
 	FThreadSafeSharedStringPtr GetUniformBufferDeclarationPtr() const { return UniformBufferDeclaration; }
 	const FString& GetUniformBufferDeclaration() const { return *UniformBufferDeclaration; }
+	FORCEINLINE const FString& GetUniformBufferPath() const { return UniformBufferPath; }
+	FORCEINLINE const FString& GetUniformBufferInclude() const { return UniformBufferInclude; }
+	FORCEINLINE uint32 GetUniformBufferPathHash() const { return UniformBufferPathHash; }
 #endif // WITH_EDITOR
 
 	/** Find a member for a given offset. */
@@ -416,6 +439,18 @@ private:
 #if WITH_EDITOR
 	/** Uniform buffer declaration, created once */
 	FThreadSafeSharedStringPtr UniformBufferDeclaration;
+
+	/** Cache of uniform buffer resource table, and storage for member names used by the table, created once */
+	TArray<FUniformResourceEntry> ResourceTableCache;
+	FThreadSafeNameBufferPtr MemberNameBuffer;
+
+	/** Strings for uniform buffer generated path and include, created once */
+	FString UniformBufferPath;		// Format:  "/Engine/Generated/UniformBuffers/%s.ush"
+	FString UniformBufferInclude;	// Format:  "#include \"/Engine/Generated/UniformBuffers/%s.ush\"" LINE_TERMINATOR
+
+	/** Hashes for frequently used strings */
+	uint32 UniformBufferPathHash;
+	uint32 ShaderVariableNameHash;
 #endif
 
 	/** Shackle elements in global link list of globally named shader parameters. */

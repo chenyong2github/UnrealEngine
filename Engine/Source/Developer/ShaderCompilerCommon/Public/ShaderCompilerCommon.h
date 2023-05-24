@@ -33,12 +33,23 @@ namespace UE::ShaderCompilerCommon
  * Returns false if there's any internal error.
  */
 extern SHADERCOMPILERCOMMON_API bool BuildResourceTableMapping(
+		const FShaderResourceTableMap& ResourceTableMap,
+		const TMap<FString,FUniformBufferEntry>& UniformBufferMap,
+		TBitArray<>& UsedUniformBufferSlots,
+		FShaderParameterMap& ParameterMap,
+		FShaderCompilerResourceTable& OutSRT
+	);
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+UE_DEPRECATED(5.3, "No longer supported; use version of function that accepts a FShaderResourceTableMap instead")
+extern SHADERCOMPILERCOMMON_API bool BuildResourceTableMapping(
 		const TMap<FString,FResourceTableEntry>& ResourceTableMap,
 		const TMap<FString,FUniformBufferEntry>& UniformBufferMap,
 		TBitArray<>& UsedUniformBufferSlots,
 		FShaderParameterMap& ParameterMap,
 		FShaderCompilerResourceTable& OutSRT
 	);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** Culls global uniform buffer entries from the parameter map. */
 extern SHADERCOMPILERCOMMON_API void CullGlobalUniformBuffers(const TMap<FString, FUniformBufferEntry>& UniformBufferMap, FShaderParameterMap& ParameterMap);

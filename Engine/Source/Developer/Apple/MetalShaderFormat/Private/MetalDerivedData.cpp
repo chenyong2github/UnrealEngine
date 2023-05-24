@@ -229,7 +229,7 @@ bool DoCompileMetalShader(
 	uint32 SourceLen = 0;
 	int32 Result = 0;
 	
-	struct FMetalResourceTableEntry : FResourceTableEntry
+	struct FMetalResourceTableEntry : FUniformResourceEntry
 	{
 		FString Name;
 		uint32 Size;
@@ -365,19 +365,19 @@ bool DoCompileMetalShader(
 					TableNames.Add(*Pair.Key);
 				}
 				
-				for (auto Pair : Input.Environment.ResourceTableMap)
+				for (const FUniformResourceEntry& Entry : Input.Environment.ResourceTableMap.Resources)
 				{
-					const FResourceTableEntry& Entry = Pair.Value;
-					TArray<FMetalResourceTableEntry>& Resources = IABs.FindOrAdd(Entry.UniformBufferName);
+					TArray<FMetalResourceTableEntry>& Resources = IABs.FindOrAdd(FString(Entry.GetUniformBufferName()));
 					if ((uint32)Resources.Num() <= Entry.ResourceIndex)
 					{
 						Resources.SetNum(Entry.ResourceIndex + 1);
 					}
 					FMetalResourceTableEntry NewEntry;
-					NewEntry.UniformBufferName = Entry.UniformBufferName;
+					NewEntry.UniformBufferMemberName = Entry.UniformBufferMemberName;
+					NewEntry.UniformBufferNameLength = Entry.UniformBufferNameLength;
 					NewEntry.Type = Entry.Type;
 					NewEntry.ResourceIndex = Entry.ResourceIndex;
-					NewEntry.Name = Pair.Key;
+					NewEntry.Name = Entry.UniformBufferMemberName;
 					NewEntry.Size = 1;
 					NewEntry.bUsed = false;
 					Resources[Entry.ResourceIndex] = NewEntry;
@@ -417,7 +417,7 @@ bool DoCompileMetalShader(
 						}
 						for (uint32 j = 0; j < (uint32)TableNames.Num(); j++)
 						{
-							if (Entry.UniformBufferName == TableNames[j])
+							if (Entry.GetUniformBufferName() == TableNames[j])
 							{
 								Entry.SetIndex = j;
 								break;
@@ -474,7 +474,7 @@ bool DoCompileMetalShader(
 						ResourceBindings.Add(Binding);
 						
 						FMetalResourceTableEntry Entry = ResourceTable.FindRef(UTF8_TO_TCHAR(Binding->name));
-						UsedSets.Add(Entry.UniformBufferName);
+						UsedSets.Add(FString(Entry.GetUniformBufferName()));
 						
 						continue;
 					}
@@ -524,7 +524,8 @@ bool DoCompileMetalShader(
 						}
 						
 						FMetalResourceTableEntry Entry;
-						Entry.UniformBufferName = LastResource.UniformBufferName;
+						Entry.UniformBufferMemberName = LastResource.UniformBufferMemberName;
+						Entry.UniformBufferNameLength = LastResource.UniformBufferNameLength;
 						Entry.Name = Name;
 						Entry.ResourceIndex = ResIndex;
 						Entry.SetIndex = SetIndex;
@@ -608,10 +609,11 @@ bool DoCompileMetalShader(
 					for (auto const& Binding : ResourceBindings)
 					{
 						FMetalResourceTableEntry* Entry = ResourceTable.Find(UTF8_TO_TCHAR(Binding->name));
-						auto* ResourceArray = IABs.Find(Entry->UniformBufferName);
-						if (!IABTier1Index.Contains(Entry->UniformBufferName))
+						FString EntryUniformBufferName(Entry->GetUniformBufferName());
+						auto* ResourceArray = IABs.Find(EntryUniformBufferName);
+						if (!IABTier1Index.Contains(EntryUniformBufferName))
 						{
-							IABTier1Index.Add(Entry->UniformBufferName, 0);
+							IABTier1Index.Add(EntryUniformBufferName, 0);
 						}
 						if (Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 						{
@@ -627,7 +629,8 @@ bool DoCompileMetalShader(
 							if (!bFoundBufferSizes)
 							{
 								FMetalResourceTableEntry BufferSizes;
-								BufferSizes.UniformBufferName = Entry->UniformBufferName;
+								BufferSizes.UniformBufferMemberName = Entry->UniformBufferMemberName;
+								BufferSizes.UniformBufferNameLength = Entry->UniformBufferNameLength;
 								BufferSizes.Name = TEXT("BufferSizes");
 								BufferSizes.Type = UBMT_SRV;
 								BufferSizes.ResourceIndex = 65535;
@@ -635,7 +638,7 @@ bool DoCompileMetalShader(
 								BufferSizes.Size = 1;
 								BufferSizes.bUsed = true;
 								ResourceArray->Insert(BufferSizes, 0);
-								IABTier1Index[Entry->UniformBufferName] = 1;
+								IABTier1Index[EntryUniformBufferName] = 1;
 							}
 						}
 					}
@@ -644,10 +647,11 @@ bool DoCompileMetalShader(
 				for (auto const& Binding : ResourceBindings)
 				{
 					FMetalResourceTableEntry* Entry = ResourceTable.Find(UTF8_TO_TCHAR(Binding->name));
+					FString EntryUniformBufferName(Entry->GetUniformBufferName());
 					
 					for (uint32 j = 0; j < (uint32)TableNames.Num(); j++)
 					{
-						if (Entry->UniformBufferName == TableNames[j])
+						if (EntryUniformBufferName == TableNames[j])
 						{
 							Entry->SetIndex = j;
 							BufferIndices &= ~(1ull << ((uint64)j + IABOffsetIndex));
@@ -657,7 +661,7 @@ bool DoCompileMetalShader(
 					}
 					Entry->bUsed = true;
 					
-					auto* ResourceArray = IABs.Find(Entry->UniformBufferName);
+					auto* ResourceArray = IABs.Find(EntryUniformBufferName);
 					uint32 ResourceIndex = Entry->ResourceIndex;
 					if (IABTier == 1)
 					{
@@ -666,7 +670,7 @@ bool DoCompileMetalShader(
 							Resource.SetIndex = Entry->SetIndex;
 							if (Resource.ResourceIndex == Entry->ResourceIndex)
 							{
-								uint32& Tier1Index = IABTier1Index.FindChecked(Entry->UniformBufferName);
+								uint32& Tier1Index = IABTier1Index.FindChecked(EntryUniformBufferName);
 								ResourceIndex = Tier1Index++;
 								Resource.bUsed = true;
 								break;

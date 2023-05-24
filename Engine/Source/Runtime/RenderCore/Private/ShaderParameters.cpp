@@ -398,20 +398,22 @@ void UE::ShaderParameters::AddUniformBufferIncludesToEnvironment(FShaderCompiler
 
 	for (const TCHAR* UniformBufferName : InUniformBufferNames)
 	{
-		if (const FShaderParametersMetadata* Metadata = FindShaderParametersMetadataWithVariableName(UniformBufferName))
+		FStringView UniformBufferNameView(UniformBufferName);
+		if (!OutEnvironment.UniformBufferMap.FindByHash(GetTypeHash(UniformBufferName), UniformBufferName))
 		{
-			const FThreadSafeSharedStringPtr UniformBufferDeclaration = Metadata->GetUniformBufferDeclarationPtr();
+			if (const FShaderParametersMetadata* Metadata = FindShaderParametersMetadataWithVariableName(UniformBufferName))
+			{
+				const FThreadSafeSharedStringPtr UniformBufferDeclaration = Metadata->GetUniformBufferDeclarationPtr();
 
-			check(UniformBufferDeclaration.Get() != NULL);
-			check(!UniformBufferDeclaration.Get()->IsEmpty());
+				check(UniformBufferDeclaration.Get() != NULL);
+				check(!UniformBufferDeclaration.Get()->IsEmpty());
 
-			const FString UniformBufferPath = FString::Printf(TEXT("/Engine/Generated/UniformBuffers/%s.ush"), UniformBufferName);
+				UniformBufferIncludes += Metadata->GetUniformBufferInclude();
 
-			UniformBufferIncludes += FString::Printf(TEXT("#include \"%s\"") LINE_TERMINATOR, *UniformBufferPath);
+				OutEnvironment.IncludeVirtualPathToExternalContentsMap.AddByHash(Metadata->GetUniformBufferPathHash(), Metadata->GetUniformBufferPath(), UniformBufferDeclaration);
 
-			OutEnvironment.IncludeVirtualPathToExternalContentsMap.Add(UniformBufferPath, UniformBufferDeclaration);
-
-			Metadata->AddResourceTableEntries(OutEnvironment.ResourceTableMap, OutEnvironment.UniformBufferMap);
+				Metadata->AddResourceTableEntries(OutEnvironment.ResourceTableMap, OutEnvironment.UniformBufferMap);
+			}
 		}
 	}
 

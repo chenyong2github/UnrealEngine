@@ -78,7 +78,7 @@ void BuildResourceTableTokenStream(const TArray<uint32>& InResourceMap, int32 Ma
 
 
 bool BuildResourceTableMapping(
-	const TMap<FString, FResourceTableEntry>& ResourceTableMap,
+	const FShaderResourceTableMap& ResourceTableMap,
 	const TMap<FString, FUniformBufferEntry>& UniformBufferMap,
 	TBitArray<>& UsedUniformBufferSlots,
 	FShaderParameterMap& ParameterMap,
@@ -91,10 +91,9 @@ bool BuildResourceTableMapping(
 	int32 MaxBoundResourceTable = -1;
 
 	// Go through ALL the members of ALL the UB resources
-	for (const TPair<FString, FResourceTableEntry>& ResourceEntry : ResourceTableMap)
+	for (const FUniformResourceEntry& Entry : ResourceTableMap.Resources)
 	{
-		const FString& Name = ResourceEntry.Key;
-		const FResourceTableEntry& Entry = ResourceEntry.Value;
+		const FString& Name = Entry.UniformBufferMemberName;
 
 		// If the shaders uses this member (eg View_PerlinNoise3DTexture)...
 		if (TOptional<FParameterAllocation> Allocation = ParameterMap.FindParameterAllocation(Name))
@@ -111,10 +110,11 @@ bool BuildResourceTableMapping(
 			uint16 UBBaseIndex, UBSize;
 
 			// Add the UB itself as a parameter if not there
-			if (!ParameterMap.FindParameterAllocation(*Entry.UniformBufferName, UniformBufferIndex, UBBaseIndex, UBSize))
+			FString UniformBufferName(Entry.GetUniformBufferName());
+			if (!ParameterMap.FindParameterAllocation(*UniformBufferName, UniformBufferIndex, UBBaseIndex, UBSize))
 			{
 				UniformBufferIndex = UsedUniformBufferSlots.FindAndSetFirstZeroBit();
-				ParameterMap.AddParameterAllocation(*Entry.UniformBufferName,UniformBufferIndex,0,0,EShaderParameterType::UniformBuffer);
+				ParameterMap.AddParameterAllocation(*UniformBufferName, UniformBufferIndex,0,0,EShaderParameterType::UniformBuffer);
 			}
 
 			// Mark used UB index
@@ -178,6 +178,20 @@ bool BuildResourceTableMapping(
 	OutSRT.MaxBoundResourceTable = MaxBoundResourceTable;
 	return true;
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+// Deprecated version of function
+bool BuildResourceTableMapping(
+	const TMap<FString, FResourceTableEntry>& ResourceTableMap,
+	const TMap<FString, FUniformBufferEntry>& UniformBufferMap,
+	TBitArray<>& UsedUniformBufferSlots,
+	FShaderParameterMap& ParameterMap,
+	FShaderCompilerResourceTable& OutSRT)
+{
+	UE_LOG(LogShaders, Error, TEXT("Using unimplemented deprecated version of BuildResourceTableMapping -- use version that accepts FShaderResourceTableMap instead."));
+	return false;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void CullGlobalUniformBuffers(const TMap<FString, FUniformBufferEntry>& UniformBufferMap, FShaderParameterMap& ParameterMap)
 {
@@ -1538,10 +1552,9 @@ namespace CrossCompiler
 			Line += FString::Printf(TEXT("%s, %d\n"), *Pair.Key, Pair.Value.LayoutHash);
 		}
 		Line += TEXT("NULL, 0\n");
-		for (auto Pair : Environment.ResourceTableMap)
+		for (const FUniformResourceEntry& Entry : Environment.ResourceTableMap.Resources)
 		{
-			const FResourceTableEntry& Entry = Pair.Value;
-			Line += FString::Printf(TEXT("%s, %s, %d, %d\n"), *Pair.Key, *Entry.UniformBufferName, Entry.Type, Entry.ResourceIndex);
+			Line += FString::Printf(TEXT("%s, %s, %d, %d\n"), Entry.UniformBufferMemberName, *FString(Entry.GetUniformBufferName()), Entry.Type, Entry.ResourceIndex);
 		}
 		Line += TEXT("NULL, NULL, 0, 0\n");
 
@@ -1600,7 +1613,30 @@ namespace CrossCompiler
 
 			FUniformBufferEntry& UniformBufferEntry = OutEnvironment.UniformBufferMap.FindOrAdd(UB);
 			UniformBufferEntry.LayoutHash = (uint32)Hash;
+
+			if (!UniformBufferEntry.MemberNameBuffer)
+			{
+				TArray<TCHAR>* MemberNameBuffer = new TArray<TCHAR>();
+				UniformBufferEntry.MemberNameBuffer = MakeShareable(MemberNameBuffer);
+			}
 		}
+
+		// Need to iterate through Uniform Buffer Map to add strings to correct MemberNameBuffer storage
+		auto UniformBufferMapIt = OutEnvironment.UniformBufferMap.begin();
+		
+		// If we exit parse early due to error, we still want to fixup the string names for the members we found,
+		// so the partial data isn't corrupt.
+		struct FFixupOnExit
+		{
+			FFixupOnExit(FShaderCompilerEnvironment& OutEnvironment) : Environment(OutEnvironment) {}
+			~FFixupOnExit()
+			{
+				Environment.ResourceTableMap.FixupOnLoad(Environment.UniformBufferMap);
+			}
+			
+			FShaderCompilerEnvironment& Environment;
+		};
+		FFixupOnExit FixupOnExit(OutEnvironment);
 
 		while (Ptr < PtrEnd)
 		{
@@ -1647,10 +1683,30 @@ namespace CrossCompiler
 			{
 				break;
 			}
-			FResourceTableEntry& Entry = OutEnvironment.ResourceTableMap.FindOrAdd(Name);
-			Entry.UniformBufferName = UB;
-			Entry.Type = Type;
-			Entry.ResourceIndex = ResourceIndex;
+
+			// Advance the uniform buffer map if this is a different UB name
+			while (UniformBufferMapIt.Key() != UB)
+			{
+				++UniformBufferMapIt;
+				if (UniformBufferMapIt == OutEnvironment.UniformBufferMap.end())
+				{
+					return;
+				}
+			}
+
+			// Append the Name we parsed to the member name buffer
+			TArray<TCHAR>& Buffer = *UniformBufferMapIt.Value().MemberNameBuffer.Get();
+			uint32 MemberNameLength = Name.Len();
+			
+			Buffer.Append(*Name, MemberNameLength + 1);
+
+			// The member name field of the entries is initialized at the end of parsing by the FixupOnLoad call from FFixupOnExit, so we can set it to nullptr here
+			OutEnvironment.ResourceTableMap.Resources.Add({
+				nullptr,
+				(uint8)UB.Len(),
+				(uint8)Type,
+				(uint16)ResourceIndex
+			});
 		}
 	}
 

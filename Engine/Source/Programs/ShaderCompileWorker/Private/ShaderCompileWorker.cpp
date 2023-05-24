@@ -989,17 +989,6 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
 	Job.Input.Target.Frequency = Frequency;
 	Job.Input.bSkipPreprocessedCache = true;
 
-	uint32 ResourceIndex = 0;
-	auto AddResourceTableEntry = [&ResourceIndex](TMap<FString, FResourceTableEntry>& Map, const FString& Name, const FString& UBName, int32 Type)
-	{
-		FResourceTableEntry LambdaEntry;
-		LambdaEntry.UniformBufferName = UBName;
-		LambdaEntry.Type = Type;
-		LambdaEntry.ResourceIndex = ResourceIndex;
-		Map.Add(Name, LambdaEntry);
-		++ResourceIndex;
-	};
-
 	Job.Input.Environment.CompilerFlags = FShaderCompilerFlags(CFlags);
 
 	Job.Input.bCompilingForShaderPipeline = bPipeline;
