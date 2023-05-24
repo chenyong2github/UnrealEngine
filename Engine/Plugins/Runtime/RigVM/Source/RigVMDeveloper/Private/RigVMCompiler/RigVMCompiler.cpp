@@ -832,7 +832,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 	
 	for (const FRigVMExternalVariable& ExternalVariable : InExternalVariables)
 	{
-		FRigVMOperand Operand = OutVM->AddExternalVariable(OutVMContext, ExternalVariable);
+		FRigVMOperand Operand = OutVM->AddExternalVariable(OutVMContext, ExternalVariable, CurrentCompilationFunction != nullptr);
 		FString Hash = FString::Printf(TEXT("Variable::%s"), *ExternalVariable.Name.ToString());
 		OutOperands->Add(Hash, Operand);
 	}

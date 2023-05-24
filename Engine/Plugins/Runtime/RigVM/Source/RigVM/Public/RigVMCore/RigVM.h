@@ -688,9 +688,9 @@ public:
 	FRigVMOperand AddExternalVariable(const FRigVMExternalVariable& InExternalVariable) { return FRigVMOperand(); }
 
 	// Adds a new external / unowned variable to the VM
-	FRigVMOperand AddExternalVariable(FRigVMExtendedExecuteContext& Context, const FRigVMExternalVariable& InExternalVariable)
+	FRigVMOperand AddExternalVariable(FRigVMExtendedExecuteContext& Context, const FRigVMExternalVariable& InExternalVariable, bool bAllowNullMemory = false)
 	{
-		check(InExternalVariable.Memory != nullptr);
+		check(bAllowNullMemory || InExternalVariable.Memory != nullptr);
 
 		const int32 VariableIndex = ExternalVariables.Add(InExternalVariable);
 		Context.ExternalVariableRuntimeData.Add(FRigVMExternalVariableRuntimeData(InExternalVariable.Memory));
