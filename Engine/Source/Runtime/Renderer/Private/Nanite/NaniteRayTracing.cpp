@@ -263,11 +263,19 @@ namespace Nanite
 			Data->SegmentMapping = MeshInfo.SegmentMapping;
 			Data->DebugName = MeshInfo.DebugName;
 
+			Data->NumResidentClusters = 0;
+			Data->NumResidentClustersUpdate = MeshInfo.NumResidentClusters;
+
 			Data->PrimitiveId = INDEX_NONE;
 
 			Id = Geometries.Add(Data);
 
-			UpdateRequests.Add(Id);
+			if (Data->NumResidentClustersUpdate > 0)
+			{
+				// some clusters are already streamed in and RequestUpdates(...) is only called when new pages are streamed in/out
+				// so request an update here to make sure we build ray tracing geometry with the currently available data
+				UpdateRequests.Add(Id);
+			}
 		}
 		else
 		{
@@ -312,20 +320,25 @@ namespace Nanite
 		NaniteProxy->SetRayTracingDataOffset(INDEX_NONE);
 	}
 
-	void FRayTracingManager::RequestUpdates(const TSet<uint32>& InUpdateRequests)
+	void FRayTracingManager::RequestUpdates(const TMap<uint32, uint32>& InUpdateRequests)
 	{
 		if (!IsRayTracingAllowed())
 		{
 			return;
 		}
 
-		for (uint32 ResourceId : InUpdateRequests)
+		for (auto& Elem : InUpdateRequests)
 		{
-			uint32* Id = ResourceToRayTracingIdMap.Find(ResourceId);
+			uint32 RuntimeResourceID = Elem.Key;
+			uint32* GeometryId = ResourceToRayTracingIdMap.Find(RuntimeResourceID);
 
-			if (Id != nullptr)
+			if (GeometryId != nullptr)
 			{
-				UpdateRequests.Add(*Id);
+				FInternalData& Data = *Geometries[*GeometryId];
+				Data.NumResidentClustersUpdate = Elem.Value;
+				check(Data.NumResidentClustersUpdate > 0);
+
+				UpdateRequests.Add(*GeometryId);
 			}
 		}
 	}
@@ -381,7 +394,9 @@ namespace Nanite
 			{
 				FInternalData& Data = *Geometries[GeometryId];
 
-				const uint64 NewNumAuxiliaryDataEntries = NumAuxiliaryDataEntries + CalculateAuxiliaryDataSizeInUints(Data.NumClusters * NANITE_MAX_CLUSTER_TRIANGLES);
+				check(Data.NumResidentClustersUpdate > 0 && Data.NumResidentClustersUpdate <= Data.NumClusters);
+
+				const uint64 NewNumAuxiliaryDataEntries = NumAuxiliaryDataEntries + CalculateAuxiliaryDataSizeInUints(Data.NumResidentClustersUpdate * NANITE_MAX_CLUSTER_TRIANGLES);
 				const uint64 NewAuxiliaryDataBufferSize = NewNumAuxiliaryDataEntries * sizeof(uint32);
 
 				if (NewAuxiliaryDataBufferSize >= (uint64)GNaniteRayTracingMaxStagingBufferSizeMB * 1024ull * 1024ull)
@@ -396,6 +411,8 @@ namespace Nanite
 					UpdateRequests.Remove(GeometryId);
 				}
 				ToUpdate.Add(GeometryId);
+
+				Data.NumResidentClusters = Data.NumResidentClustersUpdate;
 
 				check(!Data.bUpdating);
 				Data.bUpdating = true;
@@ -651,6 +668,8 @@ namespace Nanite
 
 					auto Header = (const FStreamOutMeshDataHeader*)(MeshDataReadbackBufferPtr + Data.BaseMeshDataOffset);
 					auto Segments = (const FStreamOutMeshDataSegment*)(Header + 1);
+
+					check(Header->NumClusters <= Data.NumResidentClusters);
 
 					const uint32 VertexBufferOffset = Header->VertexBufferOffset;
 					const uint32 IndexBufferOffset = Header->IndexBufferOffset;

@@ -1235,7 +1235,7 @@ void FNaniteGeometryCollectionSceneProxy::GetNaniteMaterialMask(FUint32Vector2& 
 
 Nanite::FResourceMeshInfo FNaniteGeometryCollectionSceneProxy::GetResourceMeshInfo() const
 {
-	Nanite::FResources& Resource = GeometryCollection->RenderData->NaniteResource;
+	const Nanite::FResources& Resource = GeometryCollection->RenderData->NaniteResource;
 
 	Nanite::FResourceMeshInfo OutInfo;
 
@@ -1245,6 +1245,8 @@ Nanite::FResourceMeshInfo FNaniteGeometryCollectionSceneProxy::GetResourceMeshIn
 	OutInfo.NumTriangles = Resource.NumInputTriangles;
 	OutInfo.NumMaterials = MaterialMaxIndex + 1;
 	OutInfo.DebugName = GeometryCollection->GetFName();
+
+	OutInfo.NumResidentClusters = Resource.NumResidentClusters;
 
 	// TODO: SegmentMapping
 	OutInfo.NumSegments = 0;

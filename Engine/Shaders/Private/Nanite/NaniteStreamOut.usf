@@ -58,39 +58,45 @@ StructuredBuffer<uint> SegmentMappingBuffer;
 float StreamOutCutError;
 
 // MeshDataBuffer layout
-// 0 - vertex buffer offset
-// 1 - index buffer offset
-// 2 - vertex count
-// 3 - segment 0 index count
-// 4 - segment 0 index buffer offset
+// 0 - num clusters
+// 1 - vertex buffer offset
+// 2 - index buffer offset
+// 3 - vertex count
+// 4 - segment 0 index count
+// 5 - segment 0 index buffer offset
 //   - segment ... index count
 //   - segment ... index buffer offset
 //   - segment N index count
 //   - segment N index buffer offset
 
-uint GetMeshVertexBufferOffsetIndex(uint MeshDataOffset)
+uint GetMeshClusterCountIndex(uint MeshDataOffset)
 {
 	return MeshDataOffset + 0;
 }
 
-uint GetMeshIndexBufferOffsetIndex(uint MeshDataOffset)
+uint GetMeshVertexBufferOffsetIndex(uint MeshDataOffset)
 {
 	return MeshDataOffset + 1;
 }
 
-uint GetMeshVertexCountIndex(uint MeshDataOffset)
+uint GetMeshIndexBufferOffsetIndex(uint MeshDataOffset)
 {
 	return MeshDataOffset + 2;
 }
 
+uint GetMeshVertexCountIndex(uint MeshDataOffset)
+{
+	return MeshDataOffset + 3;
+}
+
 uint GetMeshSegmentIndexCountIndex(uint MeshDataOffset, uint SegmentIndex)
 {
-	return MeshDataOffset + 3 + SegmentIndex * 2 + 0;
+	return MeshDataOffset + 4 + SegmentIndex * 2 + 0;
 }
 
 uint GetMeshSegmentIndexBufferOffsetIndex(uint MeshDataOffset, uint SegmentIndex)
 {
-	return MeshDataOffset + 3 + SegmentIndex * 2 + 1;
+	return MeshDataOffset + 4 + SegmentIndex * 2 + 1;
 }
 
 RWStructuredBuffer<uint>	MeshDataBuffer;
@@ -538,6 +544,9 @@ struct FNaniteTraversalStreamOutCallback
 			uint OutputClusterIndex = 0;
 			WaveInterlockedAddScalar_(OutputClustersStateRW[0], 1, OutputClusterIndex);
 			StorePackedCandidateClusterRT(OutputClustersRW, OutputClusterIndex, PackedCluster);
+
+			const uint MeshClusterCountIndex = GetMeshClusterCountIndex(MeshDataOffset);
+			InterlockedAdd(MeshDataBuffer[MeshClusterCountIndex], 1);
 #endif
 
 #if NANITE_STREAM_OUT_COUNT_VERTICES_AND_TRIANGLES

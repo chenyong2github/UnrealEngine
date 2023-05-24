@@ -296,6 +296,7 @@ struct FResources
 	int32	RootPageIndex			= INDEX_NONE;
 	int32	ImposterIndex			= INDEX_NONE;
 	uint32	NumHierarchyNodes		= 0;
+	uint32	NumResidentClusters		= 0;
 	uint32	PersistentHash			= NANITE_INVALID_PERSISTENT_HASH;
 
 #if WITH_EDITOR

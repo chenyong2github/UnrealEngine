@@ -25,6 +25,7 @@ namespace Nanite
 
 	struct FStreamOutMeshDataHeader
 	{
+		uint32 NumClusters;
 		uint32 VertexBufferOffset;
 		uint32 IndexBufferOffset;
 		uint32 NumVertices;

@@ -2074,6 +2074,8 @@ FResourceMeshInfo FSceneProxy::GetResourceMeshInfo() const
 	OutInfo.NumMaterials = MaterialMaxIndex + 1;
 	OutInfo.DebugName = StaticMesh->GetFName();
 
+	OutInfo.NumResidentClusters = Resources->NumResidentClusters;
+
 	{
 		const uint32 FirstLODIndex = 0; // Only data from LOD0 is used.
 		const FStaticMeshLODResources& MeshResources = RenderData->LODResources[FirstLODIndex];

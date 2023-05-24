@@ -2984,7 +2984,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			Nanite::GStreamingManager.EndAsyncUpdate(GraphBuilder);
 
-			const TSet<uint32> ModifiedResources = Nanite::GStreamingManager.GetAndClearModifiedResources();
+			const TMap<uint32, uint32> ModifiedResources = Nanite::GStreamingManager.GetAndClearModifiedResources();
 #if RHI_RAYTRACING
 			if (RendererOutput == ERendererOutput::FinalSceneColor)
 			{

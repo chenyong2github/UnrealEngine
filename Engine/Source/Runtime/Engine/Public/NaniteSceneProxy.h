@@ -124,6 +124,8 @@ struct FResourceMeshInfo
 	uint32 NumMaterials = 0;
 	uint32 NumSegments = 0;
 
+	uint32 NumResidentClusters = 0;
+
 	FDebugName DebugName;
 };
 

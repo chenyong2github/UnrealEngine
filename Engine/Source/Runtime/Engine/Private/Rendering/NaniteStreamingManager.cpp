@@ -1205,7 +1205,9 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 							ApplyFixups(*StreamingPageFixupChunks[GPUPageIndex], *Resources, true);
 						}
 
-						ModifiedResources.Add(StreamingPageInfo.ResidentKey.RuntimeResourceID);
+						Resources->NumResidentClusters -= StreamingPageFixupChunks[GPUPageIndex]->Header.NumClusters;
+						check(Resources->NumResidentClusters > 0 && Resources->NumResidentClusters <= Resources->NumClusters);
+						ModifiedResources.Add(StreamingPageInfo.ResidentKey.RuntimeResourceID, Resources->NumResidentClusters);
 					}
 					HierarchyDepthManager.Remove(StreamingPageInfo.MaxHierarchyDepth);
 				}
@@ -1254,8 +1256,6 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 
 				CommittedStreamingPageMap.Add(PendingPage.InstallKey, StreamingPage);
 
-				ModifiedResources.Add(PendingPage.InstallKey.RuntimeResourceID);
-
 				const uint8* SrcPtr;
 #if WITH_EDITOR
 				if(PendingPage.State == FPendingPage::EState::DDC_Ready)
@@ -1297,6 +1297,10 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				HierarchyDepthManager.Add(StreamingPage->MaxHierarchyDepth);
 
 				FMemory::Memcpy(FixupChunk, SrcPtr, FixupChunkSize);
+
+				Resources->NumResidentClusters += FixupChunk->Header.NumClusters;
+				check(Resources->NumResidentClusters > 0 && Resources->NumResidentClusters <= Resources->NumClusters);
+				ModifiedResources.Add(PendingPage.InstallKey.RuntimeResourceID, Resources->NumResidentClusters);
 
 				// Build list of GPU page dependencies
 				GPUPageDependencies.Reset();
@@ -1485,6 +1489,8 @@ void FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 
 	for (FResources* Resources : PendingAdds)
 	{
+		Resources->NumResidentClusters = 0;
+
 		for (uint32 LocalPageIndex = 0; LocalPageIndex < Resources->NumRootPages; LocalPageIndex++)
 		{
 			const FPageStreamingState& PageStreamingState = Resources->PageStreamingStates[LocalPageIndex];
@@ -1534,7 +1540,11 @@ void FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 			RootPageInfo.NumClusters = NumClusters;
 			RootPageInfo.MaxHierarchyDepth = PageStreamingState.MaxHierarchyDepth;
 			HierarchyDepthManager.Add(PageStreamingState.MaxHierarchyDepth);
+
+			Resources->NumResidentClusters += NumClusters; // clusters in root pages are always streamed in
 		}
+
+		ModifiedResources.Add(Resources->RuntimeResourceID, Resources->NumResidentClusters);
 
 		Hierarchy.UploadBuffer.Add(Resources->HierarchyOffset, Resources->HierarchyNodes.GetData(), Resources->HierarchyNodes.Num());
 		if (bUploadImposters && Resources->ImposterAtlas.Num() > 0)

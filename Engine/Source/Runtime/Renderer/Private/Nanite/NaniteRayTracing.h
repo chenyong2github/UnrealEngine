@@ -34,7 +34,7 @@ namespace Nanite
 		void Remove(FPrimitiveSceneInfo* SceneInfo);
 		void AddVisiblePrimitive(const FPrimitiveSceneInfo* SceneInfo);
 
-		void RequestUpdates(const TSet<uint32>& InUpdateRequests);
+		void RequestUpdates(const TMap<uint32, uint32>& InUpdateRequests);
 
 		void Update();
 
@@ -72,6 +72,9 @@ namespace Nanite
 			uint32 NumTriangles;
 			uint32 NumMaterials;
 			uint32 NumSegments;
+
+			uint32 NumResidentClusters;
+			uint32 NumResidentClustersUpdate;
 
 			uint32 PrimitiveId;
 

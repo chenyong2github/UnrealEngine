@@ -121,7 +121,7 @@ public:
 		return !RuntimeResourceMap.IsEmpty();
 	}
 
-	TSet<uint32> GetAndClearModifiedResources()
+	TMap<uint32, uint32> GetAndClearModifiedResources()
 	{
 		return MoveTemp(ModifiedResources);
 	}
@@ -283,7 +283,7 @@ private:
 	TMap< FPageKey, FStreamingPageInfo* >	CommittedStreamingPageMap;			// This update is deferred to the point where the page has been loaded and committed to memory.
 	FStreamingPageInfo						StreamingPageLRU;
 
-	TSet<uint32>							ModifiedResources;
+	TMap<uint32, uint32>					ModifiedResources;					// Key = RuntimeResourceID, Value = NumResidentClusters
 
 	FStreamingPageInfo*						StreamingPageInfoFreeList;
 	TArray< FStreamingPageInfo >			StreamingPageInfos;
