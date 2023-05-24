@@ -2,6 +2,22 @@
 
 #include "Misc/MTAccessDetector.h"
 
+#if ENABLE_MT_DETECTOR
+
+FMRSWRecursiveAccessDetector::FReadersTls& FMRSWRecursiveAccessDetector::GetReadersTls()
+{
+	thread_local FReadersTls ReadersTls;
+	return ReadersTls;
+}
+
+FMRSWRecursiveAccessDetector::FDestructionSentinelStackTls& FMRSWRecursiveAccessDetector::GetDestructionSentinelStackTls()
+{
+	thread_local FDestructionSentinelStackTls DestructionSentinelStackTls;
+	return DestructionSentinelStackTls;
+}
+
+#endif
+
 #if ENABLE_MT_DETECTOR && WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
