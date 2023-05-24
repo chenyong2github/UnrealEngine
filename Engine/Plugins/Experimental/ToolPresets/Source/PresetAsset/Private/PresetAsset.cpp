@@ -57,7 +57,11 @@ void FInteractiveToolPresetDefintion::LoadStoredPropertyData(TArray<UObject*>& P
 				TSharedPtr<FJsonValue>* JsonField = PropertyJsonObject->Values.Find(FieldName);
 				if (JsonField)
 				{
-					FJsonObjectConverter::JsonValueToUProperty(*JsonField, Prop, Prop->ContainerPtrToValuePtr<void>(PropertySet));
+					if (FJsonObjectConverter::JsonValueToUProperty(*JsonField, Prop, Prop->ContainerPtrToValuePtr<void>(PropertySet)))
+					{
+						FPropertyChangedEvent ChangeEvent(Prop, EPropertyChangeType::ValueSet);
+						PropertySet->PostEditChangeProperty(ChangeEvent);
+					}
 				}
 			}
 		}
