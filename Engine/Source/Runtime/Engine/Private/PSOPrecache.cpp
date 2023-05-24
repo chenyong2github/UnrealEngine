@@ -99,7 +99,10 @@ FPSOPrecacheRequestResultArray PrecachePSOs(const TArray<FPSOPrecacheData>& PSOI
 		case FPSOPrecacheData::EType::Graphics:
 		{
 #if PSO_PRECACHING_VALIDATE
-			PSOCollectorStats::GetFullPSOPrecacheStatsCollector().AddStateToCacheByHash(RHIComputePrecachePSOHash(PrecacheData.GraphicsPSOInitializer), PrecacheData.MeshPassType, PrecacheData.VertexFactoryType);
+			if (PSOCollectorStats::IsPrecachingValidationEnabled() && PrecacheData.GraphicsPSOInitializer.bPSOPrecache)
+			{
+				PSOCollectorStats::GetFullPSOPrecacheStatsCollector().AddStateToCacheByHash(RHIComputePrecachePSOHash(PrecacheData.GraphicsPSOInitializer), PrecacheData.MeshPassType, PrecacheData.VertexFactoryType);
+			}
 #endif // PSO_PRECACHING_VALIDATE
 
 			FPSOPrecacheRequestResult PSOPrecacheResult = PipelineStateCache::PrecacheGraphicsPipelineState(PrecacheData.GraphicsPSOInitializer);
