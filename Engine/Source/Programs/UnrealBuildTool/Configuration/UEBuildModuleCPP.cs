@@ -1820,7 +1820,7 @@ namespace UnrealBuildTool
 			{
 				string ProjectName = Target.ProjectFile.GetFileNameWithoutExtension();
 				Result.Definitions.Add(String.Format("UE_PROJECT_NAME={0}", ProjectName));
-				Result.Definitions.Add(String.Format("UE_TARGET_NAME={0}", Target.Name));
+				Result.Definitions.Add(String.Format("UE_TARGET_NAME={0}", Target.OriginalName));
 			}
 
 			// Add the module's public and private definitions.

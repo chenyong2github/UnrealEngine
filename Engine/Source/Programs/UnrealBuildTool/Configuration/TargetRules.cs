@@ -439,6 +439,11 @@ namespace UnrealBuildTool
 		public bool IsNameOverriden() { return !String.IsNullOrEmpty(NameOverride); }
 
 		/// <summary>
+		/// Return the original target name without overrides or adornments
+		/// </summary>
+		public string OriginalName => DefaultName;
+
+		/// <summary>
 		/// Override the name used for this target
 		/// </summary>
 		[CommandLine("-TargetNameOverride=")]
@@ -2802,6 +2807,8 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.Name; }
 		}
+
+		public string OriginalName => Inner.OriginalName;
 
 		internal FileReference File
 		{
