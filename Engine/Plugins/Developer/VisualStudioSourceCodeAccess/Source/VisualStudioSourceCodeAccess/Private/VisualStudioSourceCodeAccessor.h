@@ -71,7 +71,7 @@ private:
 	bool CanRunVisualStudio(FString& OutPath, const FString& InSolution) const;
 
 	/** Run an instance of visual studio instance if possible. */
-	bool RunVisualStudioAndOpenSolution() const;
+	bool RunVisualStudioAndOpenSolution(const FString& InSolution) const;
 
 	/** Opens a file in the correct running instance of Visual Studio at a line and optionally to a column. */
 	bool OpenVisualStudioFileAtLineInternal(const FString& FullPath, int32 LineNumber, int32 ColumnNumber = 0);
@@ -126,6 +126,15 @@ private:
 	 * @param	Requests		Array of files to open, or null to open no files
 	 */
 	bool RunVisualStudioAndOpenSolutionAndFiles(const FString& ExecutablePath, const FString& SolutionPath, const TArray<FileOpenRequest>* const Requests) const;
+
+	/**
+	 * Based on the list of file open requests and the list of solutions currently opened, make an educated guess as to which solution might be the most relevant to open them all
+	 *
+	 * @param	Requests					Array of files to open
+	 * @param	CurrentlyOpenedSolutions	List of solutions currently opened by running VS instances
+	 * @return the absolute file path to the most likely solution or an empty string if no solution was found 
+	 */
+	FString RetrieveSolutionForFileOpenRequests(const TArray<FileOpenRequest>& Requests, const TArray<FString>& CurrentlyOpenedSolutions) const;
 
 #if WITH_VISUALSTUDIO_DTE
 	/** DTE specific implementations */
