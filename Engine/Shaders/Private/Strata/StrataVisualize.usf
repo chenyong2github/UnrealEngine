@@ -92,14 +92,14 @@ RWBuffer<uint> RWPositionOffsetBuffer;
 
 void PrintPixelType(inout FShaderPrintContext Ctx, in FStrataPixelHeader Header, FFontColor InColor)
 {
-	if (Header.IsSimpleMaterial())					Print(Ctx, TEXT("Simple  "), InColor);
-	else if (Header.IsSingleMaterial())				Print(Ctx, TEXT("Single  "), InColor);
-	else if (Header.bUsesComplexSpecialRenderPath)	Print(Ctx, TEXT("Complex Special "), InColor);
-	else if (Header.IsComplexMaterial())			Print(Ctx, TEXT("Complex "), InColor);
-	else if (Header.IsSingleLayerWater())			Print(Ctx, TEXT("SLWater "), InColor);
-	else if (Header.IsHair())						Print(Ctx, TEXT("Hair    "), InColor);
-	else if (Header.IsEye())						Print(Ctx, TEXT("Eye     "), InColor);
-	else											Print(Ctx, TEXT("Error - Unkown pixel type"), FontRed);
+	if (Header.IsSimpleMaterial())						Print(Ctx, TEXT("Simple  "), InColor);
+	else if (Header.IsSingleMaterial())					Print(Ctx, TEXT("Single  "), InColor);
+	else if (Header.GetUsesComplexSpecialRenderPath())	Print(Ctx, TEXT("Complex Special "), InColor);
+	else if (Header.IsComplexMaterial())				Print(Ctx, TEXT("Complex "), InColor);
+	else if (Header.IsSingleLayerWater())				Print(Ctx, TEXT("SLWater "), InColor);
+	else if (Header.IsHair())							Print(Ctx, TEXT("Hair    "), InColor);
+	else if (Header.IsEye())							Print(Ctx, TEXT("Eye     "), InColor);
+	else												Print(Ctx, TEXT("Error - Unkown pixel type"), FontRed);
 }
 
 void PrintSSSType(inout FShaderPrintContext Ctx, uint SSSType, bool bThin, FFontColor InColor)

@@ -128,11 +128,12 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 
 		const bool bIsSimple =  StrataPixelHeader.IsSimpleMaterial() || StrataPixelHeader.BSDFCount == 0; // BSDFCount == 0 ensures that non-strata pixel, like sky pixels, won't make a simple tile flagged as complex
 		const bool bIsSingle = !StrataPixelHeader.IsSimpleMaterial() && StrataPixelHeader.IsSingleMaterial();
+		const bool bIsComplexSpecial = StrataPixelHeader.GetUsesComplexSpecialRenderPath();
 		bContainsStrataMaterial  = StrataPixelHeader.BSDFCount > 0;
 		bContainsSimpleMaterial  = bIsSimple;
 		bContainsSingleMaterial  = bIsSingle;
-		bContainsComplexMaterial		= !bIsSingle && !bIsSimple && !StrataPixelHeader.bUsesComplexSpecialRenderPath;
-		bContainsComplexSpecialMaterial = !bIsSingle && !bIsSimple &&  StrataPixelHeader.bUsesComplexSpecialRenderPath;
+		bContainsComplexMaterial		= !bIsSingle && !bIsSimple && !bIsComplexSpecial;
+		bContainsComplexSpecialMaterial = !bIsSingle && !bIsSimple &&  bIsComplexSpecial;
 
 		bContainsScreenSpaceSubsurfaceScattering = StrataPixelHeader.HasSubsurface();
 
