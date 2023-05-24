@@ -1140,11 +1140,6 @@ FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, FGetImageDescContext
         res = GetImageDesc( op.args.ImageInterpolate3.target0, returnBestOption, context );
         break;
 
-    case OP_TYPE::IM_DIFFERENCE:
-        res = GetImageDesc( op.args.ImageDifference.a, returnBestOption, context );
-        res.m_format = EImageFormat::IF_L_UBYTE;
-        break;
-
     case OP_TYPE::IM_PLAINCOLOUR:
         res.m_format = EImageFormat(op.args.ImagePlainColour.format);
         res.m_size[0] = op.args.ImagePlainColour.size[0];
@@ -1188,11 +1183,6 @@ FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, FGetImageDescContext
         {
             res.m_size = children[op.args.ImageResizeLike.sizeSource]->GetImageDesc( returnBestOption, context ).m_size;
         }
-        break;
-
-    case OP_TYPE::IM_SELECTCOLOUR:
-        res = GetImageDesc( op.args.ImageSelectColour.base, returnBestOption, context );
-        res.m_format = EImageFormat::IF_L_UBYTE;
         break;
 
     case OP_TYPE::IM_GRADIENT:
@@ -1645,13 +1635,6 @@ mu::Ptr<ImageSizeExpression> ASTOpFixed::GetImageSizeExpression() const
         pRes->factor[1] = op.args.ImageBlankLayout.blockSize[1];
         break;
 
-    case OP_TYPE::IM_DIFFERENCE:
-        if ( children[op.args.ImageDifference.a] )
-        {
-            pRes = children[op.args.ImageDifference.a].child()->GetImageSizeExpression();
-        }
-        break;
-
     case OP_TYPE::IM_INTERPOLATE:
         if ( children[op.args.ImageInterpolate.targets[0]] )
         {
@@ -1691,13 +1674,6 @@ mu::Ptr<ImageSizeExpression> ASTOpFixed::GetImageSizeExpression() const
         if ( children[op.args.ImageColourMap.base] )
         {
             pRes = children[op.args.ImageColourMap.base].child()->GetImageSizeExpression();
-        }
-        break;
-
-    case OP_TYPE::IM_SELECTCOLOUR:
-        if ( children[op.args.ImageSelectColour.colour] )
-        {
-            pRes = children[op.args.ImageSelectColour.colour].child()->GetImageSizeExpression();
         }
         break;
 

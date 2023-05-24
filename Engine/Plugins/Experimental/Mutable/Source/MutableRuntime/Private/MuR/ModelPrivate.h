@@ -213,7 +213,7 @@ namespace mu
         //! Location in the m_byteCode of the beginning of each operation
 		TArray<uint32> m_opAddress;
 
-        //! Byte-coded representation of the program, using flexible-sized ops.
+        //! Byte-coded representation of the program, using variable-sized op data.
 		TArray<uint8> m_byteCode;
 
         //!
@@ -249,13 +249,13 @@ namespace mu
         //! Constant matrices, usually used for transforms
 		TArray<mat4f> m_constantMatrices;
 
-		//! Constant projectors
+		//! Constant shapes
 		TArray<FShape> m_constantShapes;
 
         //! Constant curves
 		TArray<Curve> m_constantCurves;
 
-        //! Constant curves
+        //! Constant skeletons
 		TArray<Ptr<const Skeleton>> m_constantSkeletons;
 
 		//! Constant Physics Bodies

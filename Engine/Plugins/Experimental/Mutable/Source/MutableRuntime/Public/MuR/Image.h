@@ -227,23 +227,27 @@ namespace mu
 		
 	MUTABLERUNTIME_API const FImageFormatData& GetImageFormatData(EImageFormat format );
 
-	//---------------------------------------------------------------------------------------------
-	//! Convert an image to another pixel format.
-	//! Allocates the destination image.
-	//! \warning Not all format conversions are implemented.
-	//! \param onlyLOD If different than -1, only the specified lod level will be converted in the
-	//! returned image.
-	//! \return false if the conversion failed, usually because not enough memory was allocated in
-	//!     the result. This is only checked for RLE compression.
-	//---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API ImagePtr ImagePixelFormat( int quality, const Image* pBase, EImageFormat targetFormat,
-	                                      int onlyLOD = -1 );
-
-	MUTABLERUNTIME_API Ptr<Image> ImageSwizzle(EImageFormat format, const Ptr<const Image> pSources[], const uint8 channels[]);
+	/** Convert an image to another pixel format.
+	* Allocates the destination image.
+	* \warning Not all format conversions are implemented.
+	* \param onlyLOD If different than -1, only the specified lod level will be converted in the returned image.
+	* \return nullptr if the conversion failed, usually because not enough memory was allocated in the result. This is only checked for RLE compression.
+	*/
+	MUTABLERUNTIME_API Ptr<Image> ImagePixelFormat(int32 Quality, const Image* Base, EImageFormat TargetFormat, int32 OnlyLOD = -1);
 	
+	/** Convert an image to another pixel format.
+	* \warning Not all format conversions are implemented.
+	* \param onlyLOD If different than -1, only the specified lod level will be converted in the returned image.
+	* \return false if the conversion failed, usually because not enough memory was allocated in the result. This is only checked for RLE compression.
+	*/
+	MUTABLERUNTIME_API void ImagePixelFormat(bool& bOutSuccess, int32 Quality, Image* Result, const Image* Base, int32 OnlyLOD = -1);
+
+	MUTABLERUNTIME_API Ptr<Image> ImageSwizzle(EImageFormat Format, const Ptr<const Image> Sources[], const uint8 Channels[]);
+	MUTABLERUNTIME_API void ImageSwizzle(Image* Result, const Ptr<const Image> Sources[], const uint8 Channels[]);
+
     //! \brief 2D image resource with mipmaps.
 	//! \ingroup runtime
-    class MUTABLERUNTIME_API Image : public RefCounted
+    class MUTABLERUNTIME_API Image : public Resource
 	{
 	public:
 
@@ -267,11 +271,14 @@ namespace mu
 		static Ptr<Image> CreateAsReference( uint32 ID );
 
 		/** */
-		ImagePtr ExtractMip(int32 Mip) const;
+		Ptr<Image> ExtractMip(int32 Mip) const;
 
 		//! Serialisation
 		static void Serialise( const Image* p, OutputArchive& arch );
-		static ImagePtr StaticUnserialise( InputArchive& arch );
+		static Ptr<Image> StaticUnserialise( InputArchive& arch );
+
+		// Resource interface
+		int32 GetDataSize() const override;
 
 		//-----------------------------------------------------------------------------------------
 		// Own interface
@@ -297,9 +304,6 @@ namespace mu
         const uint8* GetData() const;
         uint8* GetData();
 
-        //! Return the size in bytes of all the LODs of the image.
-        int32 GetDataSize() const;
-
         //! Return the size in bytes of a specific LOD of the image.
         int32 GetLODDataSize( int lod ) const;
 
@@ -308,6 +312,9 @@ namespace mu
 
 		/** Return the id of the engine referenced texture. Only valid if IsReference. */
 		uint32 GetReferencedTexture() const;
+
+		/** Clear the image to black colour. */
+		void InitToBlack();
 
 	protected:
 
@@ -366,12 +373,12 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 
 		//! Deep clone.
-		ImagePtr Clone() const
+		Ptr<Image> Clone() const
 		{
 			LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 			MUTABLE_CPUPROFILER_SCOPE(ImageClone)
 
-			ImagePtr pResult = new Image();
+			Ptr<Image> pResult = new Image();
 
 			pResult->m_size = m_size;
 			pResult->m_format = m_format;
@@ -383,6 +390,36 @@ namespace mu
 			pResult->ReferenceID = ReferenceID;
 
 			return pResult;
+		}
+
+		//! Copy another image.
+		void CopyMove( Image* Other )
+		{
+			LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
+			MUTABLE_CPUPROFILER_SCOPE(CopyMove);
+
+			if (Other == this)
+			{
+				return;
+			}
+
+			m_size = Other->m_size;
+			m_format = Other->m_format;
+			m_lods = Other->m_lods;
+			m_flags = Other->m_flags;
+			RelevancyMinY = Other->RelevancyMinY;
+			RelevancyMaxY = Other->RelevancyMaxY;
+			m_data = MoveTemp(Other->m_data);
+			ReferenceID = Other->ReferenceID;
+			
+			Other->m_size = FImageSize(0,0);
+			Other->m_format = EImageFormat::IF_NONE;
+			Other->m_lods = 0;
+			Other->m_flags = 0;
+			Other->RelevancyMinY = 0;
+			Other->RelevancyMaxY = 0;
+			Other->m_data.SetNum(0);
+			Other->ReferenceID=0;
 		}
 
 
@@ -411,6 +448,8 @@ namespace mu
 		//! m_data, only using the image descriptions. For non-block-compressed images, it returns
 		//! 0.
 		int32 CalculateDataSize() const;
+		static int32 CalculateDataSize(int32 SizeX, int32 SizeY, int32 LodCount, EImageFormat Format);
+
 
 		//! Calculate the size of a lod of the image data in bytes, regardless of what is allocated
 		//! in m_data, only using the image descriptions. For non-block-compressed images, it

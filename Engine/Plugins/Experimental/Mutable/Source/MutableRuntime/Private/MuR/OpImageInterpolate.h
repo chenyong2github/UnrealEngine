@@ -18,6 +18,7 @@ namespace mu
 	{
 		MUTABLE_CPUPROFILER_SCOPE(ImageInterpolate)
 
+		check(pDest && pA && pB);
         check( pA->GetSizeX() == pDest->GetSizeX() );
         check( pA->GetSizeY() == pDest->GetSizeY() );
         check( pA->GetFormat() == pDest->GetFormat() );
@@ -87,8 +88,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//!
 	//---------------------------------------------------------------------------------------------
-	inline ImagePtr ImageInterpolate( const Image* p0, const Image* p1, const Image* p2,
-									  float factor1, float factor2 )
+	inline void ImageInterpolate( Image* Dest, const Image* p0, const Image* p1, const Image* p2, float factor1, float factor2 )
 	{
 		MUTABLE_CPUPROFILER_SCOPE(ImageInterpolate2)
 
@@ -99,26 +99,22 @@ namespace mu
 		check( p0->GetSizeY() == p2->GetSizeY() );
 		check( p0->GetFormat() == p2->GetFormat() );
 
-		// Clamp the factor
-		factor1 = FMath::Max( 0.0f, FMath::Min( 1.0f, factor1 ) );
-		factor2 = FMath::Max( 0.0f, FMath::Min( 1.0f-factor1, factor2 ) );
-		float factor0 = FMath::Max( 0.0f, 1.0f-factor1-factor2 );
+		// Clamp the factors
+		factor1 = FMath::Clamp(factor1, 0.0f, 1.0f );
+		factor2 = FMath::Min( 1.0f-factor1, factor2 );
+		float factor0 = 1.0f-factor1-factor2;
 
-        ImagePtr pDest = new Image( p0->GetSizeX(), p0->GetSizeY(),
-                                    p0->GetLODCount(),
-                                    p0->GetFormat() );
-
-        uint8_t* pDestBuf = pDest->GetData();
-        const uint8_t* p0Buf = p0->GetData();
-        const uint8_t* p1Buf = p1->GetData();
-        const uint8_t* p2Buf = p2->GetData();
+        uint8* DestBuf = Dest->GetData();
+        const uint8* p0Buf = p0->GetData();
+        const uint8* p1Buf = p1->GetData();
+        const uint8* p2Buf = p2->GetData();
 
 		// Generic implementation
 		int pixelCount = (int)p0->CalculatePixelCount();
 
-        uint32_t w0_8 = (uint32_t)(factor0*255);
-        uint32_t w1_8 = (uint32_t)(factor1*255);
-        uint32_t w2_8 = (uint32_t)(factor2*255);
+        uint32 w0_8 = (uint32)(factor0*255);
+        uint32 w1_8 = (uint32)(factor1*255);
+        uint32 w2_8 = (uint32)(factor2*255);
 
 		switch ( p0->GetFormat() )
 		{
@@ -126,11 +122,11 @@ namespace mu
 		{
 			for ( int i=0; i<pixelCount; ++i )
 			{
-                uint32_t t0_8 = *p0Buf++;
-                uint32_t t1_8 = *p1Buf++;
-                uint32_t t2_8 = *p2Buf++;
-                uint32_t i_16 = t0_8 * w0_8 + t1_8 * w1_8 + t2_8 * w2_8;
-                *pDestBuf++ = (uint8_t) ( i_16>>8 );
+                uint32 t0_8 = *p0Buf++;
+                uint32 t1_8 = *p1Buf++;
+                uint32 t2_8 = *p2Buf++;
+                uint32 i_16 = t0_8 * w0_8 + t1_8 * w1_8 + t2_8 * w2_8;
+                *DestBuf++ = (uint8) ( i_16>>8 );
 			}
 			break;
 		}
@@ -139,11 +135,11 @@ namespace mu
 		{
 			for ( int i=0; i<pixelCount*3; ++i )
 			{
-                uint32_t t0_8 = *p0Buf++;
-                uint32_t t1_8 = *p1Buf++;
-                uint32_t t2_8 = *p2Buf++;
-                uint32_t i_16 = t0_8 * w0_8 + t1_8 * w1_8 + t2_8 * w2_8;
-                *pDestBuf++ = (uint8_t) ( i_16>>8 );
+                uint32 t0_8 = *p0Buf++;
+                uint32 t1_8 = *p1Buf++;
+                uint32 t2_8 = *p2Buf++;
+                uint32 i_16 = t0_8 * w0_8 + t1_8 * w1_8 + t2_8 * w2_8;
+                *DestBuf++ = (uint8) ( i_16>>8 );
 			}
 			break;
 		}
@@ -153,11 +149,11 @@ namespace mu
         {
 			for ( int i=0; i<pixelCount*4; ++i )
 			{
-                uint32_t t0_8 = *p0Buf++;
-                uint32_t t1_8 = *p1Buf++;
-                uint32_t t2_8 = *p2Buf++;
-                uint32_t i_16 = t0_8 * w0_8 + t1_8 * w1_8 + t2_8 * w2_8;
-                *pDestBuf++ = (uint8_t) (i_16>>8);
+                uint32 t0_8 = *p0Buf++;
+                uint32 t1_8 = *p1Buf++;
+                uint32 t2_8 = *p2Buf++;
+                uint32 i_16 = t0_8 * w0_8 + t1_8 * w1_8 + t2_8 * w2_8;
+                *DestBuf++ = (uint8) (i_16>>8);
 			}
 			break;
 		}
@@ -165,8 +161,6 @@ namespace mu
 		default:
 			check(false);
 		}
-
-		return pDest;
 	}
 
 }

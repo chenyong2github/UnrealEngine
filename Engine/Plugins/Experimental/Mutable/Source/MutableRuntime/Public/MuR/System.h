@@ -107,7 +107,7 @@ namespace mu
     public:
 
         //! This constant can be used in place of the lodMask in methods like BeginUpdate
-        static constexpr unsigned AllLODs = 0xffffffff;
+        static constexpr uint32 AllLODs = 0xffffffff;
 
     public:
 
@@ -115,29 +115,24 @@ namespace mu
         //! \param Settings Optional class with the settings to use in this system. The default
         //! value configures a production-ready system.
 		//! \param DataStreamer Optional interface to allow the Model to stream in ExtensionData from disk
-        System( const Ptr<Settings>& Settings = nullptr, ExtensionDataStreamer* DataStreamer = nullptr );
+        System( const Ptr<Settings>& Settings = nullptr, const TSharedPtr<ExtensionDataStreamer>& DataStreamer = nullptr );
 
-        //! Set a new provider for model data. The provider will become owned by this instance and
-        //! destroyed when necessary.
-        void SetStreamingInterface( ModelStreamer* );
+        //! Set a new provider for model data. 
+        void SetStreamingInterface(const TSharedPtr<ModelStreamer>& );
 
-        //! Overwrite the streaming memory limit set in the settings when the system was created.
-        //! Refer to Settings::SetStreamingCache for more information.
-        void SetStreamingCache( uint64 bytes );
+        /** Set the working memory limit, overrding any set in the settings when the system was created.
+         * Refer to Settings::SetWorkingMemoryBudget for more information.
+		 */
+        void SetWorkingMemoryBytes( uint64 Bytes );
 
-        //! Clears the streaming cache content. It does not modify the memory limit.
-		void ClearStreamingCache();
+        /** Removes all the possible working memory regardless of the budget set. This may make following 
+		* operations take longer.
+		*/
+		void ClearWorkingMemory();
 		
         //! Set a new provider for external image data. This is only necessary if image parameters
         //! are used in the models.
-		//! The provided pointer becomes owned by the system.
-        void SetImageParameterGenerator( ImageParameterGenerator* );
-
-        //! Set the maximum memory that this system can use. This memory is used for built data,
-        //! cached data, and streaming. If set to 0, the system will use as much memory as required.
-        //! \warning This limit is ignored if the system was built with SF_REFERENCE.
-        //! \param mem Maximum memory, in bytes
-        void SetMemoryLimit( uint32 mem );
+        void SetImageParameterGenerator(const TSharedPtr<ImageParameterGenerator>& );
 
         //! Create a new instance from the given model. The instance can then be configured through
         //! calls to BeginUpdate/EndUpdate.
@@ -199,11 +194,6 @@ namespace mu
         void GetParameterRelevancy( Instance::ID InstanceID,
 									const Ptr<const Parameters>& Parameters,
 									bool* Flags );
-
-        //! Free memory used in internal runtime caches. This is useful for long-running processes
-        //! that keep models loaded. This could be called when a game finishes, or a change of
-        //! level.
-        void ClearCaches();
 
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern

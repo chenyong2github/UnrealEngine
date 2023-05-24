@@ -18,11 +18,14 @@ namespace mu
 	typedef Ptr<ExtensionData> ExtensionDataPtr;
 	typedef Ptr<const ExtensionData> ExtensionDataPtrConst;
 
-	class MUTABLERUNTIME_API ExtensionData : public RefCounted
+	class MUTABLERUNTIME_API ExtensionData : public Resource
 	{
 	public:
 		static void Serialise(const ExtensionData* Data, OutputArchive& Archive);
 		static ExtensionDataPtr StaticUnserialise(InputArchive& Archive);
+
+		// Resource interface
+		int32 GetDataSize() const override;
 
 		//! A stable hash of the contents
 		uint32 Hash() const;

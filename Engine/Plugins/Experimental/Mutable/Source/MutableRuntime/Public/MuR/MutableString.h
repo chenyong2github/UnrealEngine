@@ -14,7 +14,7 @@ namespace mu
 
     //! \brief Container for text string data.
 	//! \ingroup runtime
-    class MUTABLERUNTIME_API String : public RefCounted
+    class MUTABLERUNTIME_API String : public Resource
 	{
 	public:
 
@@ -30,6 +30,9 @@ namespace mu
 		//! Serialisation
 		static void Serialise( const String* p, OutputArchive& arch );
 		static Ptr<String> StaticUnserialise( InputArchive& arch );
+
+		// Resource interface
+		int32 GetDataSize() const override;
 
 		//-----------------------------------------------------------------------------------------
 		// Own interface

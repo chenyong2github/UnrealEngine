@@ -22,7 +22,7 @@ namespace mu
     //! It corresponds to an "engine object" but the contents of its data depends on the Model, and
     //! it may contain any number of LODs, components, surfaces, meshes and images, even none.
 	//! \ingroup runtime
-	class MUTABLERUNTIME_API Instance : public RefCounted
+	class MUTABLERUNTIME_API Instance : public Resource
 	{
 	public:
 
@@ -35,6 +35,8 @@ namespace mu
         //! Clone this instance
         InstancePtr Clone() const;
 
+		// Resource interface
+		int32 GetDataSize() const override;
 
 		//-----------------------------------------------------------------------------------------
 		// Own interface

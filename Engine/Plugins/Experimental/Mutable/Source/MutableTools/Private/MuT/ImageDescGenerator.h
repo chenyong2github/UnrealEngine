@@ -10,7 +10,6 @@
 #include "MuT/NodeImageColourMap.h"
 #include "MuT/NodeImageConditional.h"
 #include "MuT/NodeImageConstant.h"
-#include "MuT/NodeImageDifference.h"
 #include "MuT/NodeImageFormat.h"
 #include "MuT/NodeImageGradient.h"
 #include "MuT/NodeImageInterpolate.h"
@@ -27,7 +26,6 @@
 #include "MuT/NodeImageProject.h"
 #include "MuT/NodeImageResize.h"
 #include "MuT/NodeImageSaturate.h"
-#include "MuT/NodeImageSelectColour.h"
 #include "MuT/NodeImageSwitch.h"
 #include "MuT/NodeImageSwizzle.h"
 #include "MuT/NodeImageTable.h"
@@ -53,7 +51,6 @@ namespace mu
 
                                // Standard operations from models
                                public Visitor<NodeImageConstant::Private, Ptr<ASTOp>, true>,
-                               public Visitor<NodeImageDifference::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageInterpolate::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageInterpolate3::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageSaturate::Private, Ptr<ASTOp>, true>,
@@ -63,7 +60,6 @@ namespace mu
                                public Visitor<NodeImageTable::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageSwizzle::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageFormat::Private, Ptr<ASTOp>, true>,
-                               public Visitor<NodeImageSelectColour::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageColourMap::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageGradient::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageBinarise::Private, Ptr<ASTOp>, true>,
@@ -87,7 +83,6 @@ namespace mu
         void Generate( const Node::Private& );
 
         Ptr<ASTOp> Visit( const NodeImageConstant::Private& );
-        Ptr<ASTOp> Visit( const NodeImageDifference::Private& );
         Ptr<ASTOp> Visit( const NodeImageInterpolate::Private& );
         Ptr<ASTOp> Visit( const NodeImageInterpolate3::Private& );
         Ptr<ASTOp> Visit( const NodeImageSaturate::Private& );
@@ -97,7 +92,6 @@ namespace mu
         Ptr<ASTOp> Visit( const NodeImageTable::Private& );
         Ptr<ASTOp> Visit( const NodeImageSwizzle::Private&);
         Ptr<ASTOp> Visit( const NodeImageFormat::Private&);
-        Ptr<ASTOp> Visit( const NodeImageSelectColour::Private& );
         Ptr<ASTOp> Visit( const NodeImageColourMap::Private& );
         Ptr<ASTOp> Visit( const NodeImageGradient::Private& );
         Ptr<ASTOp> Visit( const NodeImageBinarise::Private& );

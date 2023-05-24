@@ -8,11 +8,18 @@
 #include "MuR/Operations.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/MutableString.h"
+#include "MuR/ModelPrivate.h"
 #include "MuR/MeshPrivate.h"
 #include "MuR/InstancePrivate.h"
 #include "MuR/ParametersPrivate.h"
 #include "MuR/MutableTrace.h"
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#include "HAL/Thread.h"
+#include "HAL/PlatformTLS.h"
+#endif
+
+#define UE_MUTABLE_CACHE_COUNT_LIMIT	3000000
 
 namespace mu
 {
@@ -36,58 +43,64 @@ namespace mu
 
 
 	//! Reference-counted colour to be stored in the cache
-	class Colour : public RefCounted
+	class Colour : public Resource
 	{
 	public:
 		Colour(FVector4f v = FVector4f()) : m_colour(v) {}
 		FVector4f m_colour;
+		int32 GetDataSize() const override { return sizeof(Colour); }
 	};
 	typedef Ptr<Colour> ColourPtr;
 
 
 	//! Reference-counted bool to be stored in the cache
-	class Bool : public RefCounted
+	class Bool : public Resource
 	{
 	public:
 		Bool(bool v = false) : m_value(v) {}
 		bool m_value;
+		int32 GetDataSize() const override { return sizeof(Bool); }
 	};
 	typedef Ptr<Bool> BoolPtr;
 
 
 	//! Reference-counted scalar to be stored in the cache
-	class Scalar : public RefCounted
+	class Scalar : public Resource
 	{
 	public:
 		Scalar(float v = 0.0f) : m_value(v) {}
 		float m_value;
+		int32 GetDataSize() const override { return sizeof(Scalar); }
 	};
 	typedef Ptr<Scalar> ScalarPtr;
 
 
 	//! Reference-counted scalar to be stored in the cache
-	class Int : public RefCounted
+	class Int : public Resource
 	{
 	public:
 		Int(int32 v = 0) : m_value(v) {}
 		int32 m_value;
+		int32 GetDataSize() const override { return sizeof(Int); }
 	};
 	typedef Ptr<Int> IntPtr;
 
 
 	//! Reference-counted scalar to be stored in the cache
-	class Projector : public RefCounted
+	class Projector : public Resource
 	{
 	public:
 		FProjector m_value;
+		int32 GetDataSize() const override { return sizeof(Projector); }
 	};
 	typedef Ptr<Projector> ProjectorPtr;
 
 
-	//! ExecutinIndex stores the location inside all ranges of the execution of a specific
-	//! operation. The first integer on each pair is the dimension/range index in the program
-	//! array of ranges, and the second integer is the value inside that range.
-	//! The vector order is undefined.
+	/** ExecutinIndex stores the location inside all ranges of the execution of a specific
+	* operation. The first integer on each pair is the dimension/range index in the program
+	* array of ranges, and the second integer is the value inside that range.
+	* The vector order is undefined.
+	*/
 	class ExecutionIndex : public  TArray<TPair<int32, int32>>
 	{
 	public:
@@ -194,7 +207,7 @@ namespace mu
 	}
 
 
-	//! A cache address is the operation plus the context of execution (iteration indices, etc...).
+	/** A cache address is the operation plus the context of execution(iteration indices, etc...). */
 	struct FCacheAddress
 	{
 		/** The meaning of all these fields is the same than the FScheduledOp struct. */
@@ -233,6 +246,12 @@ namespace mu
 	inline uint32 GetTypeHash(const FCacheAddress& a)
 	{
 		return HashCombine(::GetTypeHash(a.At), a.ExecutionIndex);
+	}
+
+
+	inline uint32 GetTypeHash(const Ptr<const Resource>& V)
+	{
+		return ::GetTypeHash(V.get());
 	}
 
 
@@ -414,6 +433,12 @@ namespace mu
 			return it;
 		}
 
+		inline int32 GetAllocatedSize() const
+		{
+			return m_index0.GetAllocatedSize()
+				+ m_otherIndex.GetAllocatedSize();
+		}
+
 	private:
 		// For index 0
 		TArray<DATA> m_index0;
@@ -436,9 +461,9 @@ namespace mu
 		* 1 : valid, not worth freeing for memory
 		* 2 : valid, worth freeing
 		*/
-		CodeContainer< TPair<int32, Ptr<const RefCounted>> > m_resources;
+		CodeContainer< TPair<int32, Ptr<const Resource>> > m_resources;
 
-		//! Addressed with OP::ADDRESS. It is true if value for an image desc is valid.
+		/** Addressed with OP::ADDRESS.It is true if value for an image desc is valid. */
 		TArray<bool> m_descCache;
 
 		/** The number operation stages waiting for the output of a specific operation.
@@ -447,7 +472,7 @@ namespace mu
 		CodeContainer<int32> m_opHitCount;
 
 
-		inline const ExecutionIndex& GetRageIndex(uint32_t i)
+		inline const ExecutionIndex& GetRangeIndex(uint32_t i)
 		{
 			// Make sure we have the default element.
 			if (m_usedRangeIndices.IsEmpty())
@@ -460,7 +485,7 @@ namespace mu
 		}
 
 		//!
-		inline uint32_t GetRageIndexIndex(const ExecutionIndex& rangeIndex)
+		inline uint32_t GetRangeIndexIndex(const ExecutionIndex& rangeIndex)
 		{
 			if (rangeIndex.IsEmpty())
 			{
@@ -507,7 +532,7 @@ namespace mu
 		}
 
 
-		bool IsValid(FCacheAddress at)
+		bool IsValid(FCacheAddress at) const
 		{
 			if (at.At == 0) return false;
 
@@ -543,7 +568,7 @@ namespace mu
 			//for (; it.IsValid(); ++it)
 			//{
 			//	int32 Count = *it;
-			//	if (Count>0 && Count < 3000000)
+			//	if (Count>0 && Count < UE_MUTABLE_CACHE_COUNT_LIMIT)
 			//	{
 			//		// We don't manage the hitcounts of small types that don't use much memory
 			//		if (m_resources[it.get_address()].Key==2)
@@ -561,48 +586,6 @@ namespace mu
 			//	//check(false);
 			//}
 #endif
-		}
-
-
-		/** Remove all intermediate data (big and small) from the memory except for the one that has been explicitely
-		* marked as state cache.
-		*/
-		void ClearCacheLayer0()
-		{
-			MUTABLE_CPUPROFILER_SCOPE(ClearLayer0);
-
-			CodeContainer<int>::iterator it = m_opHitCount.begin();
-			for (; it.IsValid(); ++it)
-			{
-				int32 Count = *it;
-				if (Count < 3000000)
-				{
-					// SetUnused only clears if the data size is relevant (mesh or image) but we need to 
-					// clear it in all cases here, because it may have become invalid because of parameter changes.
-					// SetUnused(it.get_address());
-					m_resources[it.get_address()].Value = nullptr;
-					m_resources[it.get_address()].Key = 0;
-					*it = 0;
-				}
-			}
-		}
-
-
-		/** Remove all intermediate data (big and small) from the memory including the one that has been explicitely
-		* marked as state cache.
-		*/
-		void ClearCacheLayer1()
-		{
-			MUTABLE_CPUPROFILER_SCOPE(ClearLayer1);
-
-			CodeContainer< TPair<int32, Ptr<const RefCounted>> >::iterator it = m_resources.begin();
-			for (; it.IsValid(); ++it)
-			{
-				(*it).Value = nullptr;
-				(*it).Key = 0;
-			}
-
-			m_descCache.SetNum(0);
 		}
 
 
@@ -755,7 +738,7 @@ namespace mu
 				return nullptr;
 			}
 			
-			const TPair<int, Ptr<const RefCounted>>* d = m_resources.get_ptr(at);
+			const TPair<int, Ptr<const Resource>>* d = m_resources.get_ptr(at);
 			if (!d)
 			{
 				return nullptr;
@@ -775,7 +758,7 @@ namespace mu
 
 			Ptr<Bool> pResult = new Bool;
 			pResult->m_value = v;
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, pResult);
+			m_resources[at] = TPair<int, Ptr<const Resource>>(1, pResult);
 		}
 
 		void SetValidDesc(FCacheAddress at)
@@ -792,7 +775,7 @@ namespace mu
 
 			Ptr<Scalar> pResult = new Scalar;
 			pResult->m_value = v;
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, pResult);
+			m_resources[at] = TPair<int, Ptr<const Resource>>(1, pResult);
 		}
 
 		void SetInt(FCacheAddress at, int v)
@@ -801,7 +784,7 @@ namespace mu
 
 			Ptr<Int> pResult = new Int;
 			pResult->m_value = v;
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, pResult);
+			m_resources[at] = TPair<int, Ptr<const Resource>>(1, pResult);
 		}
 
 		void SetColour(FCacheAddress at, const FVector4f& v)
@@ -810,31 +793,31 @@ namespace mu
 
 			Ptr<Colour> pResult = new Colour;
 			pResult->m_colour = v;
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, pResult);
+			m_resources[at] = TPair<int, Ptr<const Resource>>(1, pResult);
 		}
 
 		void SetProjector(FCacheAddress at, Ptr<const Projector> v)
 		{
 			check(at.At < m_resources.size_code());
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, v);
+			m_resources[at] = TPair<int, Ptr<const Resource>>(1, v);
 		}
 
 		void SetInstance(FCacheAddress at, Ptr<const Instance> v)
 		{
 			check(at.At < m_resources.size_code());
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(2, v);
+			m_resources[at] = TPair<int, Ptr<const Resource>>(2, v);
 		}
 
 		void SetExtensionData(FCacheAddress at, Ptr<const ExtensionData> v)
 		{
 			check(at.At < m_resources.size_code());
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, v);
+			m_resources[at] = TPair<int, Ptr<const Resource>>(1, v);
 		}
 
 		void SetImage(FCacheAddress at, Ptr<const Image> v)
 		{
 			check(at.At < m_resources.size_code());
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(2, v);
+			m_resources[at] = TPair<int, Ptr<const Resource>>(2, v);
 
 			mu::UpdateLLMStats();
 		}
@@ -848,7 +831,7 @@ namespace mu
 //            }
 
 			check(at.At < m_resources.size_code());
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(2, v);
+			m_resources[at] = TPair<int, Ptr<const Resource>>(2, v);
 
 			mu::UpdateLLMStats();
 		}
@@ -856,7 +839,7 @@ namespace mu
 		void SetLayout(FCacheAddress at, Ptr<const Layout> v)
 		{
 			check(at.At < m_resources.size_code());
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, v);
+			m_resources[at] = TPair<int, Ptr<const Resource>>(1, v);
 
 			mu::UpdateLLMStats();
 		}
@@ -864,7 +847,7 @@ namespace mu
 		void SetString(FCacheAddress at, Ptr<const String> v)
 		{
 			check(at.At < m_resources.size_code());
-			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, v);
+			m_resources[at] = TPair<int, Ptr<const Resource>>(1, v);
 		}
 
 
@@ -886,16 +869,18 @@ namespace mu
 		}
 
 
-		Ptr<const Image> GetImage(FCacheAddress at)
+		Ptr<const Image> GetImage(FCacheAddress at, bool& bIsLastReference)
 		{
+			bIsLastReference = false;
+
 			if (!at.At) return nullptr;
 			if (size_t(at.At) >= m_resources.size_code()) return nullptr;
 			auto d = m_resources.get_ptr(at);
 			if (!d) return nullptr;
 
-			Ptr<const Image> pResult = (const Image*)d->Value.get();
+			Ptr<const Image> Result = (const Image*)d->Value.get();
 
-			// We need to decrease the hit count even if the result is null.
+			// We need to decrease the hit count (even if the result is null).
 			// Lower hit counts means we shouldn't clear the value
 			if ( m_opHitCount[at] > 0)
 			{
@@ -903,10 +888,11 @@ namespace mu
 				if (m_opHitCount[at] <= 0)
 				{
 					SetUnused(at);
+					bIsLastReference = true;
 				}
 			}
 
-			return pResult;
+			return Result;
 		}
 
 		Ptr<const Mesh> GetMesh(FCacheAddress at)
@@ -957,55 +943,535 @@ namespace mu
 		return a.Type < b.Type;
 	}
 
+	/** Data for an instance that is currently being processed in the mutable system. This means it is
+	* between a BeginUpdate and EndUpdate, or during an "atomic" operation (like generate a single resource).
+	*/
+	struct FLiveInstance
+	{
+		Instance::ID InstanceID;
+		int32 State = 0;
+		Ptr<const Instance> Instance;
+		TSharedPtr<const Model> Model;
 
+		Ptr<Parameters> OldParameters;
 
-    //---------------------------------------------------------------------------------------------
-    //! Struct to manage models for which we have streamed rom data.
-    //---------------------------------------------------------------------------------------------
-    struct FModelCache
-    {
-		~FModelCache()
+		/** Mask of the parameters that have changed since the last update.
+		* Every bit represents a state parameter.
+		*/
+		uint64 UpdatedParameters = 0;
+
+		/** Cached data for the generation of this instance. */
+		TSharedPtr<FProgramCache> Cache;
+
+		~FLiveInstance()
 		{
-			MUTABLE_CPUPROFILER_SCOPE(FModelCacheDestructor);
+			// Manually done to trace mem deallocations
+			MUTABLE_CPUPROFILER_SCOPE(LiveInstanceDestructor);
+			Cache = nullptr;
+			OldParameters = nullptr;
+			Instance = nullptr;
+			Model = nullptr;
 		}
+	};
 
+
+    /** Struct to manage all the memory allocated for resources used during mutable operation. */
+    struct FWorkingMemoryManager
+    {
+		/** Cached traking for streamed model data for one model. */
         struct FModelCacheEntry
         {
-            //!
-            TWeakPtr<const Model> m_pModel;
+            /** Model who's data is being tracked. */
+            TWeakPtr<const Model> Model;
 
-            // Rom streaming management
-            TArray< TPair<uint64,uint64> > m_romWeight;
+            /** For each model rom, the last time its streamed data was used. */
+            TArray< TPair<uint64,uint64> > RomWeights;
+
+			/** Count of pending operations for every rom index. */
+			TArray<uint16> PendingOpsPerRom;
         };
 
-        // Rom streaming management
-        uint64 m_romBudget = 0;
+		/** Maximum working memory that mutable should be using. */
+		uint64 BudgetBytes = 0;
 
-        uint64 m_romTick = 0;
-        TArray< FModelCacheEntry > m_cachePerModel;
+		/** Maximum excess memory reached suring the current operation. */
+		uint64 BudgetExcessBytes = 0;
 
-        //! Make sure the cached memory is below the internal budget, even counting with the
-        //! passed additional memory.
-		uint64 EnsureCacheBelowBudget(uint64 AdditionalMemory, 
-			TFunctionRef<bool(const Model*, int)> IsRomLockedFunc = [](const Model*, int) {return false;});
+		/** This value is used to track the order of loading of roms. */
+        uint64 RomTick = 0;
 
-        //!
-        void UpdateForLoad( int romIndex, const TSharedPtr<const Model>& pModel, TFunctionRef<bool(const Model*,int)> isRomLockedFunc );
-        void MarkRomUsed( int romIndex, const TSharedPtr<const Model>& pModel );
+		/** Control info for the per-model cache of streamed data. */
+        TArray< FModelCacheEntry > CachePerModel;
 
-        //! Private helper
+		/** Data for each mutable instance that is being updated. */
+		TArray<FLiveInstance> LiveInstances;
+
+		/** Temporary reference to the memory of the current instance being updated. Only valid during a mutable "atomic" operation, like a BeginUpdate or a GetImage. */
+		TSharedPtr<FProgramCache> CurrentInstanceCache;
+
+		/** Resources that have been used in the past, but haven't been deallocated because they still fitted the memory budget and they could be reused. */
+		TArray<Ptr<Image>> PooledImages;
+
+		/** List of intermediate resources that are not soterd anywhere yet. They are still locally referenced by code. */
+		TArray<Ptr<const Image>> TempImages;
+
+		/** */
+		TMap<Ptr<const Resource>, int32> CacheResources;
+
+		/** Given a mutable model, find or create its rom cache. */
 		FModelCacheEntry& GetModelCache(const TSharedPtr<const Model>&);
-    };
+
+        /** Make sure the working memory is below the internal budget, even counting with the passed additional memory. 
+		* An optional function can be passed to "block" the unload of certain roms of data.
+		* Return true if it succeeded, false otherwise.
+		*/
+		bool EnsureBudgetBelow(uint64 AdditionalMemory);
+
+        /** Register that a specific rom has been requested and update the heuristics to keep it in memory. */
+        void MarkRomUsed( int32 RomIndex, const TSharedPtr<const Model>& );
+
+		/** */
+		Ptr<Image> CreateImage(uint32 SizeX, uint32 SizeY, uint32 Lods, EImageFormat Format, EInitializationType Init = EInitializationType::Black)
+		{
+			CheckRunnerThread();
+
+			uint32 DataSize = Image::CalculateDataSize(SizeX, SizeY, Lods, Format);
+
+			// Look for an unused image in the pool that can be reused
+			int32 PooledImageCount = PooledImages.Num();
+			for (int Index = 0; DataSize>0 && Index<PooledImageCount; ++Index)
+			{
+				Ptr<Image>& Candidate = PooledImages[Index];
+				if (Candidate->GetFormat() == Format
+					&& Candidate->GetSizeX() == SizeX
+					&& Candidate->GetSizeY() == SizeY
+					&& Candidate->GetLODCount() == Lods
+					)
+				{
+					Ptr<Image> Result = Candidate;
+					PooledImages.RemoveAtSwap(Index);
+					if (Init == EInitializationType::Black)
+					{
+						Result->InitToBlack();
+					}
+					return Result;
+				}
+			}
+
+			// Make room in the budget
+			EnsureBudgetBelow(DataSize);
+
+			// Create it
+			Ptr<Image> Result = new Image(SizeX, SizeY, Lods, Format, Init);
+
+			TempImages.Add(Result);
+			return Result;
+		}
+
+		/** Ref will be nulled and relesed in any case. */
+		Ptr<Image> CloneOrTakeOver(Ptr<const Image>& Resource)
+		{
+			CheckRunnerThread();
+
+			TempImages.RemoveSingle(Resource);
+			check(!TempImages.Contains(Resource));
+			check(!PooledImages.Contains(Resource));
+
+			Ptr<Image> Result;
+			if (!Resource->IsUnique())
+			{
+				// TODO: try to grab from the pool
+
+				uint32 DataSize = Resource->GetDataSize();
+				EnsureBudgetBelow(DataSize);
+
+				Result = Resource->Clone();
+				Release(Resource);
+			}
+			else
+			{
+				Result = const_cast<Image*>(Resource.get());
+				Resource = nullptr;
+			}
+
+			return Result;
+		}
+
+		/** */
+		void Release(Ptr<const Image>& Resource)
+		{
+			CheckRunnerThread();
+
+			if (!Resource)
+			{
+				return;
+			}
+
+			TempImages.RemoveSingle(Resource);
+			check(!TempImages.Contains(Resource));
+			check(!PooledImages.Contains(Resource));
+
+			if (IsBudgetTemp(Resource))
+			{
+				// Check if we are exceeding the budget
+				bool bInBudget = EnsureBudgetBelow(Resource->GetDataSize());
+				if (bInBudget)
+				{
+					PooledImages.Add(const_cast<Image*>(Resource.get()));
+				}
+			}
+			else
+			{
+				// Check if we are exceeding the budget
+				bool bInBudget = EnsureBudgetBelow(0);
+			}
+
+			Resource = nullptr;
+		}
 
 
-    //---------------------------------------------------------------------------------------------
-    //! Abstract private system interface
-    //---------------------------------------------------------------------------------------------
+		/** */
+		void Release(Ptr<Image>& Resource)
+		{
+			CheckRunnerThread();
+
+			if (!Resource)
+			{
+				return;
+			}
+
+			TempImages.RemoveSingle(Resource);
+			check(!TempImages.Contains(Resource));
+			check(!PooledImages.Contains(Resource));
+
+			if (IsBudgetTemp(Resource))
+			{
+				// Check if we are exceeding the budget
+				bool bInBudget = EnsureBudgetBelow(Resource->GetDataSize());
+				if (bInBudget)
+				{
+					PooledImages.Add(Resource.get());
+				}
+			}
+			else
+			{
+				// Check if we are exceeding the budget
+				bool bInBudget = EnsureBudgetBelow(0);
+			}
+
+			Resource = nullptr;
+		}
+
+		/** */
+		Ptr<const Image> LoadImage(const FCacheAddress& From, bool bTakeOwnership=false)
+		{
+			bool bIsLastReference = false;
+			Ptr<const Image> Result = CurrentInstanceCache->GetImage(From, bIsLastReference);
+			if (!Result)
+			{
+				return nullptr;
+			}
+
+			// If we retrieved the last reference to this resource in "From" cache position (it could still be in other cache positions as well)
+			if (bIsLastReference)
+			{
+				int32* CountPtr = CacheResources.Find(Result);
+				check(CountPtr);
+				*CountPtr = (*CountPtr) - 1;
+				if (!*CountPtr)
+				{
+					CacheResources.FindAndRemoveChecked(Result);
+				}
+			}
+
+
+			if (!bTakeOwnership && Result->IsUnique())
+			{
+				TempImages.Add(Result);
+			}
+
+			return Result;
+		}
+
+		/** */
+		void StoreImage(const FCacheAddress& To, Ptr<const Image> Resource)
+		{
+			if (Resource)
+			{
+				TempImages.RemoveSingle(Resource);
+				check(!TempImages.Contains(Resource));
+
+				int32& Count = CacheResources.FindOrAdd(Resource, 0);
+				++Count;
+			}
+
+			CurrentInstanceCache->SetImage(To, Resource);
+		}
+
+
+		/** Return true if the resource is not in any cache (0,1,rom). */
+		bool IsBudgetTemp(const Ptr<const Image>& Resource)
+		{
+			if (!Resource)
+			{
+				return false;
+			}
+			bool bIsTemp = Resource->IsUnique();
+			return bIsTemp;
+		}
+
+
+		int32 GetPooledBytes() const
+		{
+			int32 Result = 0;
+			for (const Ptr<Image>& Value : PooledImages)
+			{
+				Result += Value->GetDataSize();
+			}
+
+			return Result;
+		}
+
+
+		int32 GetTempBytes() const
+		{
+			int32 Result = 0;
+			for (const Ptr<const Image>& Value : TempImages)
+			{
+				Result += Value->GetDataSize();
+			}
+
+			return Result;
+		}
+
+
+		int32 GetRomBytes() const
+		{
+			int32 Result = 0;
+
+			TArray<const Model*> Models;
+			for (const FLiveInstance& Instance : LiveInstances)
+			{
+				Models.AddUnique(Instance.Model.Get());
+			}
+
+			// Data stored per-model, but related to instance construction
+			for (const Model* Model : Models)
+			{
+				// Count streamable and currently-loaded resources
+				const FProgram& Program = Model->GetPrivate()->m_program;
+				for (const TPair<int32, Ptr<const Image>>& Rom : Program.m_constantImageLODs)
+				{
+					if (Rom.Value && Rom.Key >= 0)
+					{
+						Result += Rom.Value->GetDataSize();
+					}
+				}
+				for (const TPair<int32, Ptr<const Mesh>>& Rom : Program.m_constantMeshes)
+				{
+					if (Rom.Value && Rom.Key >= 0)
+					{
+						Result += Rom.Value->GetDataSize();
+					}
+				}
+			}
+
+			return Result;
+		}
+
+
+		int32 GetTrackedCacheBytes() const
+		{
+			int32 Result = 0;
+			for (const TTuple<Ptr<const Resource>,int32>& It : CacheResources)
+			{
+				Result += It.Key->GetDataSize();
+			}
+
+			return Result;
+		}
+
+
+		int32 GetCache0Bytes() const
+		{
+			if (!CurrentInstanceCache)
+			{
+				return 0;
+			}
+
+			int32 Result = 0;
+			TSet<const Resource*> Cache0Unique;
+
+			CodeContainer<int>::iterator it = CurrentInstanceCache->m_opHitCount.begin();
+			for (; it.IsValid(); ++it)
+			{
+				const Resource* Value = CurrentInstanceCache->m_resources[it.get_address()].Value.get();
+				if (!Value)
+				{
+					continue;
+				}
+
+				int32 Count = *it;
+				if (Count < UE_MUTABLE_CACHE_COUNT_LIMIT)
+				{
+					Cache0Unique.Add(Value);
+				}
+			}
+
+			for (const Resource* Value : Cache0Unique)
+			{
+				Result += Value->GetDataSize();
+			}
+
+			return Result;
+		}
+
+		int32 GetCache1Bytes() const
+		{
+			int32 Result = 0;
+			TSet<const Resource*> Cache1Unique;
+
+			for (const FLiveInstance& Instance : LiveInstances)
+			{
+				CodeContainer<int>::iterator it = Instance.Cache->m_opHitCount.begin();
+				for (; it.IsValid(); ++it)
+				{
+					const Resource* Value = Instance.Cache->m_resources[it.get_address()].Value.get();
+					if (!Value)
+					{
+						continue;
+					}
+
+					int32 Count = *it;
+					if (Count >= UE_MUTABLE_CACHE_COUNT_LIMIT)
+					{
+						Cache1Unique.Add(Value);
+					}
+				}
+			}
+
+			for (const Resource* Value : Cache1Unique)
+			{
+				Result += Value->GetDataSize();
+			}
+
+			return Result;
+		}
+
+
+		/** Remove all intermediate data (big and small) from the memory except for the one that has been explicitely
+		* marked as state cache.
+		*/
+		void ClearCacheLayer0()
+		{
+			check(CurrentInstanceCache);
+
+			MUTABLE_CPUPROFILER_SCOPE(ClearLayer0);
+
+			CodeContainer<int>::iterator it = CurrentInstanceCache->m_opHitCount.begin();
+			for (; it.IsValid(); ++it)
+			{
+				int32 Count = *it;
+				if (Count < UE_MUTABLE_CACHE_COUNT_LIMIT)
+				{
+					TPair<int32, Ptr<const Resource>>& PairRef = CurrentInstanceCache->m_resources[it.get_address()];
+
+					//CacheResources.FindAndRemoveChecked(PairRef.Value);
+					CacheResources.Remove(PairRef.Value);
+
+					// SetUnused only clears if the data size is relevant (mesh or image) but we need to 
+					// clear it in all cases here, because it may have become invalid because of parameter changes.
+					// SetUnused(it.get_address());
+					PairRef.Value = nullptr;
+					PairRef.Key = 0;
+					*it = 0;
+				}
+			}
+		}
+
+
+		/** Remove all intermediate data (big and small) from the memory including the one that has been explicitely
+		* marked as state cache.
+		*/
+		void ClearCacheLayer1()
+		{
+			MUTABLE_CPUPROFILER_SCOPE(ClearLayer1);
+
+			CodeContainer< TPair<int32, Ptr<const Resource>> >::iterator it = CurrentInstanceCache->m_resources.begin();
+			for (; it.IsValid(); ++it)
+			{
+				//CacheResources.FindAndRemoveChecked((*it).Value);
+				CacheResources.Remove((*it).Value);
+
+				(*it).Value = nullptr;
+				(*it).Key = 0;
+			}
+
+			CurrentInstanceCache->m_descCache.SetNum(0);
+		}
+
+
+		void LogWorkingMemory(const class CodeRunner* CurrentRunner) const;
+
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		/** Temp variable with the ID of the thread running code, for debugging. */
+		uint32 DebugRunnerThreadID = FThread::InvalidThreadId;
+#endif
+
+		/** This is a development-only check to make sure calls to resource management happen in the correct thread. */
+		inline void BeginRunnerThread()
+		{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			// If this check fails it means have not set up correctly all the paths to debug threading for resource management.
+			check(DebugRunnerThreadID == FThread::InvalidThreadId);
+
+			DebugRunnerThreadID = FPlatformTLS::GetCurrentThreadId();
+#endif
+		}
+
+
+		/** This is a development-only check to make sure calls to resource management happen in the correct thread. */
+		inline void CheckRunnerThread()
+		{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			// If this check fails it means have not set up correctly all the paths to debug threading for resource management.
+			check(DebugRunnerThreadID != FThread::InvalidThreadId);
+
+			// If this check fails it means we are doing resource management from a thread that is not the CodeRunner::RunCode
+			// thread, and this is not allowed.
+			check(DebugRunnerThreadID== FPlatformTLS::GetCurrentThreadId());
+#endif
+		}
+
+
+		/** This is a development-only check to make sure calls to resource management happen in the correct thread. */
+		inline void EndRunnerThread()
+		{
+			CurrentInstanceCache->CheckHitCountsCleared();
+
+			// If this check fails it means some operation is not correctly handling resource management and didn't release
+			// a resource it created.
+			// This should be reported and reviewed, but it is not fatal. Some unnecessary memory may be used temporarily.
+			ensure(TempImages.Num()==0);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			// If this check fails it means have not set up correctly all the paths to debug threading for resource management.
+			check(DebugRunnerThreadID != FThread::InvalidThreadId);
+
+			DebugRunnerThreadID = FThread::InvalidThreadId;
+#endif
+		}
+
+	};
+
+
+	/** */
     class System::Private : public Base
     {
     public:
 
-        Private(SettingsPtr pSettings, ExtensionDataStreamer* DataStreamer);
+        Private( Ptr<Settings>, const TSharedPtr<ExtensionDataStreamer>& );
         virtual ~Private();
 
         //-----------------------------------------------------------------------------------------
@@ -1016,116 +1482,48 @@ namespace mu
 		MUTABLERUNTIME_API void BeginBuild(const TSharedPtr<const Model>&);
 		MUTABLERUNTIME_API void EndBuild();
 
-		MUTABLERUNTIME_API bool BuildBool(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		MUTABLERUNTIME_API int BuildInt(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		MUTABLERUNTIME_API float BuildScalar(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		MUTABLERUNTIME_API void BuildColour(const TSharedPtr<const Model>&, const Parameters*, OP::ADDRESS, float* OutR, float* OutG, float* OutB, float* OutA) ;
-		MUTABLERUNTIME_API Ptr<const String> BuildString(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		MUTABLERUNTIME_API Ptr<const Image> BuildImage(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at, int32 MipsToSkip, int32 LOD) ;
-		MUTABLERUNTIME_API Ptr<const Mesh> BuildMesh(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		MUTABLERUNTIME_API Ptr<const Layout> BuildLayout(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-    	MUTABLERUNTIME_API Ptr<const Projector> BuildProjector(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		void SetStreamingCache(uint64 bytes) ;
-		void ClearStreamingCache() ;
+		MUTABLERUNTIME_API bool BuildBool(const TSharedPtr<const Model>&, const Parameters*, OP::ADDRESS) ;
+		MUTABLERUNTIME_API int32 BuildInt(const TSharedPtr<const Model>&, const Parameters*, OP::ADDRESS) ;
+		MUTABLERUNTIME_API float BuildScalar(const TSharedPtr<const Model>&, const Parameters*, OP::ADDRESS) ;
+		MUTABLERUNTIME_API FVector4f BuildColour(const TSharedPtr<const Model>&, const Parameters*, OP::ADDRESS) ;
+		MUTABLERUNTIME_API Ptr<const String> BuildString(const TSharedPtr<const Model>&, const Parameters*, OP::ADDRESS) ;
+		MUTABLERUNTIME_API Ptr<const Image> BuildImage(const TSharedPtr<const Model>&, const Parameters*, OP::ADDRESS, int32 MipsToSkip, int32 LOD) ;
+		MUTABLERUNTIME_API Ptr<const Mesh> BuildMesh(const TSharedPtr<const Model>&, const Parameters*, OP::ADDRESS) ;
+		MUTABLERUNTIME_API Ptr<const Layout> BuildLayout(const TSharedPtr<const Model>&, const Parameters*, OP::ADDRESS) ;
+    	MUTABLERUNTIME_API Ptr<const Projector> BuildProjector(const TSharedPtr<const Model>&, const Parameters*, OP::ADDRESS) ;
 
-		ExtensionDataStreamer* GetExtensionDataStreamer() const { return m_ExtensionDataStreamer; }
+		ExtensionDataStreamer* GetExtensionDataStreamer() const { return ExtensionDataStreamer.Get(); }
 
         //!
-        SettingsPtrConst m_pSettings;
+        Ptr<const Settings> Settings;
 
         //! Data streaming interface, if any.
-        //! It is owned by this system
-        ModelStreamer* m_pStreamInterface;
+		TSharedPtr<ModelStreamer> StreamInterface;
 
-        //! It is not owned by this system
-        ImageParameterGenerator* m_pImageParameterGenerator;
+		TSharedPtr<ImageParameterGenerator> ImageParameterGenerator;
 
-        //! Maximum amount of memory (bytes) if a limit has been set. If 0, it means there is no
-        //! limit.
-        uint32 m_maxMemory;
-
-        //! Current instances management
-        //! @{
-
-		/** Data for an instance that is currently being processed in the mutable system. This means it is
-		* between a BeginUpdate and EndUpdate, or during an atmoic operation (like generate a single resource).
-		*/
-        struct FLiveInstance
-        {
-            Instance::ID m_instanceID;
-            InstancePtrConst m_pInstance;
-            TSharedPtr<const Model> m_pModel;
-
-            int m_state;
-            ParametersPtr m_pOldParameters;
-
-			//! Mask of the parameters that have changed since the last update.
-			//! Every bit represents a state parameter.
-			uint64 m_updatedParameters = 0;
-
-			//! An entry for every instruction in the program to cache resources (meshes, images) if necessary.
-			TSharedPtr<FProgramCache> m_memory;
-
-			~FLiveInstance()
-			{
-				// Manually done to trace mem deallocations
-				MUTABLE_CPUPROFILER_SCOPE(LiveInstanceDestructor);
-				m_memory = nullptr;
-				m_pOldParameters = nullptr;
-				m_pInstance = nullptr;
-				m_pModel = nullptr;
-			}
-        };
-
-        TArray<FLiveInstance> m_liveInstances;
-
-		/** Temporary reference to the memory of the current instance being updated. */
-		TSharedPtr<FProgramCache> m_memory;
+		/** */
+		FWorkingMemoryManager WorkingMemoryManager;
 
 		/** Counter used to generate unique IDs for every new instance created in the system. */
-        Instance::ID m_lastInstanceID = 0;
+        Instance::ID LastInstanceID = 0;
 
 		/** The pointer returned by this function is only valid for the duration of the current mutable operation. */
-        inline FLiveInstance* FindLiveInstance( Instance::ID id )
-        {
-            for ( int32 i=0; i<m_liveInstances.Num(); ++i )
-            {
-                if (m_liveInstances[i].m_instanceID==id)
-                {
-                    return &m_liveInstances[i];
-                }
-            }
-            return nullptr;
-        }
-
-        //! @}
+		inline FLiveInstance* FindLiveInstance(Instance::ID id);
 
         //!
-        bool CheckUpdatedParameters( const FLiveInstance* pLiveInstance,
-			const Ptr<const Parameters>& pParams,
-			uint64& OutUpdatedParameters );
+        bool CheckUpdatedParameters( const FLiveInstance*, const Ptr<const Parameters>&, uint64& OutUpdatedParameters );
 
-	public:
 
-		void RunCode(const TSharedPtr<const Model>& pModel,
-			const Parameters* pParams,
-			OP::ADDRESS at, uint32 LODs = System::AllLODs, uint8 executionOptions = 0, int32 LOD = 0);
+		void RunCode(const TSharedPtr<const Model>&, const Parameters*, OP::ADDRESS at, uint32 LODs = System::AllLODs, uint8 executionOptions = 0, int32 LOD = 0);
 
 		//!
 		void PrepareCache(const Model*, int32 State);
 
-		//! Cache related members
-		//! @{
-
-		//! Data for each used model.
-		FModelCache m_modelCache;
-
-		//! @}
-
 	private:
 
 		/** Owned by this system. */
-		ExtensionDataStreamer* m_ExtensionDataStreamer = nullptr;
+		TSharedPtr<ExtensionDataStreamer> ExtensionDataStreamer = nullptr;
 
 		/** This flag is turned on when a streaming error or similar happens. Results are not usable.
 		* This should only happen in-editor.

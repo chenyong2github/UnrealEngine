@@ -71,28 +71,27 @@ DEFINE_STAT(STAT_MutableAbandonedInstanceUpdates);
 DEFINE_STAT(STAT_MutableInstanceBuildTime);
 DEFINE_STAT(STAT_MutableInstanceBuildTimeAvrg);
 DEFINE_STAT(STAT_MutableStreamingOps);
-DEFINE_STAT(STAT_MutableStreamingCache);
 
 DECLARE_CYCLE_STAT(TEXT("MutablePendingRelease Time"), STAT_MutablePendingRelease, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("MutableTask"), STAT_MutableTask, STATGROUP_Game);
 
 UCustomizableObjectSystem* FCustomizableObjectSystemPrivate::SSystem = nullptr;
 
-static TAutoConsoleVariable<int32> CVarStreamingMemory(
-	TEXT("mutable.StreamingCacheMemory"),
+static TAutoConsoleVariable<int32> CVarWorkingMemory(
+	TEXT("mutable.WorkingMemory"),
 #if !PLATFORM_DESKTOP
-	(3 * 1024),
+	(10 * 1024),
 #else
-	(12 * 1024),
+	(50 * 1024),
 #endif
-	TEXT("Limit the amount of memory (in KB) to use to cache streaming data when building characters. More memory reduces the object construction time. 0 means no restriction. Defaults: Desktop = 12288, Others = 3072"),
+	TEXT("Limit the amount of memory (in KB) to use as working memory when building characters. More memory reduces the object construction time. 0 means no restriction. Defaults: Desktop = 50,000 KB, Others = 10,000 KB"),
 	ECVF_Scalability);
 
 
-TAutoConsoleVariable<bool> CVarClearStreamingCacheOnUpdateEnd(
-	TEXT("mutable.ClearStreamingCacheOnUpdateEnd"),
+TAutoConsoleVariable<bool> CVarClearWorkingMemoryOnUpdateEnd(
+	TEXT("mutable.CVarClearWorkingMemoryOnUpdateEnd"),
 	false,
-	TEXT("Clear the Streaming Cache when releasing an Instance."),
+	TEXT("Clear the wokring memory and cache after every Mutable operation."),
 	ECVF_Scalability);
 
 
@@ -328,22 +327,22 @@ void UCustomizableObjectSystem::InitSystem()
 	SET_DWORD_STAT(STAT_MutableInstanceBuildTimeAvrg, 0);
 #endif
 
-	Private->LastStreamingMemorySize = CVarClearStreamingCacheOnUpdateEnd.GetValueOnGameThread();
+	Private->LastWorkingMemoryBytes = CVarWorkingMemory.GetValueOnGameThread() * 1024;
 
-	mu::SettingsPtr pSettings = new mu::Settings;
+	mu::Ptr<mu::Settings> pSettings = new mu::Settings;
 	check(pSettings);
 	pSettings->SetProfile(false);
-	pSettings->SetStreamingCache(Private->LastStreamingMemorySize);
-	Private->ExtensionDataStreamer = new FUnrealExtensionDataStreamer(Private.ToSharedRef());
+	pSettings->SetWorkingMemoryBytes(Private->LastWorkingMemoryBytes);
+	Private->ExtensionDataStreamer = MakeShared<FUnrealExtensionDataStreamer>(Private.ToSharedRef());
 	Private->MutableSystem = new mu::System(pSettings, Private->ExtensionDataStreamer);
 	check(Private->MutableSystem);
 
-	Private->Streamer = new FUnrealMutableModelBulkStreamer();
+	Private->Streamer = MakeShared<FUnrealMutableModelBulkStreamer>();
 	check(Private->Streamer != nullptr);
 	Private->MutableSystem->SetStreamingInterface(Private->Streamer);
 
 	// Set up the external image provider, for image parameters.
-	FUnrealMutableImageProvider* Provider = new FUnrealMutableImageProvider();
+	TSharedPtr<FUnrealMutableImageProvider> Provider = MakeShared<FUnrealMutableImageProvider>();
 	check(Provider != nullptr);
 	Private->ImageProvider = Provider;
 	Private->MutableSystem->SetImageParameterGenerator(Provider);
@@ -1055,7 +1054,7 @@ bool UCustomizableObjectSystem::CheckIfDiskOrMipUpdateOperationsPending(const UC
 
 	// Ensure that we don't try to handle any further streaming operations for this object
 	check(GetPrivate());
-	if (const FUnrealMutableModelBulkStreamer* Streamer = GetPrivate()->Streamer)
+	if (const FUnrealMutableModelBulkStreamer* Streamer = GetPrivate()->Streamer.Get())
 	{
 		if (Streamer->AreTherePendingStreamingOperationsForObject(&Object))
 		{
@@ -1145,17 +1144,17 @@ void UCustomizableObjectSystem::ClearCurrentMutableOperation()
 }
 
 
-void FCustomizableObjectSystemPrivate::UpdateStreamingLimit()
+void FCustomizableObjectSystemPrivate::UpdateMemoryLimit()
 {
 	// This must run on game thread, and when the mutable thread is not running
 	check(IsInGameThread());
 
-	const uint64 MemoryBytes = CVarStreamingMemory.GetValueOnGameThread() * 1024;
-	if (MemoryBytes != LastStreamingMemorySize)
+	const uint64 MemoryBytes = CVarWorkingMemory.GetValueOnGameThread() * 1024;
+	if (MemoryBytes != LastWorkingMemoryBytes)
 	{
-		LastStreamingMemorySize = MemoryBytes;
+		LastWorkingMemoryBytes = MemoryBytes;
 		check(MutableSystem);
-		MutableSystem->SetStreamingCache(MemoryBytes);
+		MutableSystem->SetWorkingMemoryBytes(MemoryBytes);
 	}
 }
 
@@ -1779,9 +1778,9 @@ namespace impl
 			}
 		}
 
-		if (CVarClearStreamingCacheOnUpdateEnd.GetValueOnAnyThread())
+		if (CVarClearWorkingMemoryOnUpdateEnd.GetValueOnAnyThread())
 		{
-			MutableSystem->ClearStreamingCache();
+			MutableSystem->ClearWorkingMemory();
 		}
 	}
 
@@ -1799,9 +1798,9 @@ namespace impl
 			OperationData->InstanceID = 0;
 		}
 
-		if (CVarClearStreamingCacheOnUpdateEnd.GetValueOnAnyThread())
+		if (CVarClearWorkingMemoryOnUpdateEnd.GetValueOnAnyThread())
 		{
-			MutableSystem->ClearStreamingCache();			
+			MutableSystem->ClearWorkingMemory();
 		}
 	}
 
@@ -1855,15 +1854,12 @@ namespace impl
 		{
 			double deltaSeconds = FPlatformTime::Seconds() - CustomizableObjectSystemPrivateData->CurrentMutableOperation->StartUpdateTime;
 			int32 deltaMs = int32(deltaSeconds * 1000);
-			int64 streamingCache = CustomizableObjectSystemPrivateData->LastStreamingMemorySize / 1024;
 
 			LogBenchmarkUtil::updateStat("customizable_instance_build_time", deltaMs);
-			LogBenchmarkUtil::updateStat("mutable_streaming_cache_memory", (long double)streamingCache / 1024.0);
 			CustomizableObjectSystemPrivateData->TotalBuildMs += deltaMs;
 			CustomizableObjectSystemPrivateData->TotalBuiltInstances++;
 			SET_DWORD_STAT(STAT_MutableInstanceBuildTime, deltaMs);
 			SET_DWORD_STAT(STAT_MutableInstanceBuildTimeAvrg, CustomizableObjectSystemPrivateData->TotalBuildMs / CustomizableObjectSystemPrivateData->TotalBuiltInstances);
-			SET_DWORD_STAT(STAT_MutableStreamingCache, streamingCache);
 		}
 
 		// End Update
@@ -2072,7 +2068,7 @@ namespace impl
 		}
 
 		// Cache Texture Parameters
-		FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider;
+		FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider.Get();
 		
 		// Uncache old Texture Parameters
 		for (const FString& TextureParameter : ObjectInstancePrivateData->UpdateTextureParameters)
@@ -2473,7 +2469,7 @@ void UCustomizableObjectSystem::AdvanceCurrentOperation()
 	}
 
 	// It is safe to do this now.
-	Private->UpdateStreamingLimit();
+	Private->UpdateMemoryLimit();
 
 	// If we don't have an ongoing operation, don't do anything.
 	if (!Private->CurrentMutableOperation.IsValid())
@@ -2638,7 +2634,7 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 		}
 
 		// Update the streaming limit if it has changed. It is safe to do this now.
-		Private->UpdateStreamingLimit();
+		Private->UpdateMemoryLimit();
 
 		// Decide the next mutable operation to perform.
 		if (!Private->MutableOperationQueue.IsEmpty())

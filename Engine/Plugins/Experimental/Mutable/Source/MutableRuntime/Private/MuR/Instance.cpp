@@ -50,6 +50,13 @@ namespace mu
     }
 
 
+	//---------------------------------------------------------------------------------------------
+	int32 Instance::GetDataSize() const
+	{
+		return 16 + sizeof(Private) + m_pD->m_lods.GetAllocatedSize() + m_pD->m_extensionData.GetAllocatedSize();
+	}
+
+
     //---------------------------------------------------------------------------------------------
     Instance::ID Instance::GetId() const
     {

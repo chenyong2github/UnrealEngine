@@ -567,29 +567,33 @@ void UCustomizableObjectNodeSkeletalMesh::BackwardsCompatibleFixup()
 				{
 					if (const FSkeletalMaterial* SkeletalMaterial = GetSkeletalMaterialFor(LODIndex, SectionIndex))
 					{
-						for (int32 ImageIndex = 0; ImageIndex < Section.ImagePinsRef.Num(); ++ImageIndex)
+						if (SkeletalMaterial && SkeletalMaterial->MaterialInterface)
 						{
-							const UEdGraphPin* ImagePin = Section.ImagePinsRef[ImageIndex].Get();
-
-							FGuid TextureParameterId;
-
 							TArray<FGuid> ParameterIds;
 							TArray<FMaterialParameterInfo> ParameterInfo;
 							SkeletalMaterial->MaterialInterface->GetAllParameterInfoOfType(EMaterialParameterType::Texture, ParameterInfo, ParameterIds);
-							check(ParameterIds.Num() == ParameterInfo.Num())
-							for (int32 Index = 0; Index < ParameterIds.Num(); ++Index)
+							check(ParameterIds.Num() == ParameterInfo.Num());
+
+							for (int32 ImageIndex = 0; ImageIndex < Section.ImagePinsRef.Num(); ++ImageIndex)
 							{
-								if (ParameterInfo[Index].Name == ImagePin->PinFriendlyName.ToString())
+								const UEdGraphPin* ImagePin = Section.ImagePinsRef[ImageIndex].Get();
+
+								FGuid TextureParameterId;
+
+								for (int32 Index = 0; Index < ParameterIds.Num(); ++Index)
 								{
-									TextureParameterId = ParameterIds[Index];
-									break;	
+									if (ParameterInfo[Index].Name == ImagePin->PinFriendlyName.ToString())
+									{
+										TextureParameterId = ParameterIds[Index];
+										break;
+									}
 								}
+
+								UCustomizableObjectNodeSkeletalMeshPinDataImage* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataImage>(this);
+								PinData->Init(LODIndex, SectionIndex, TextureParameterId);
+
+								AddPinData(*ImagePin, *PinData);
 							}
-							
-							UCustomizableObjectNodeSkeletalMeshPinDataImage* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataImage>(this);
-							PinData->Init(LODIndex, SectionIndex, TextureParameterId);
-						
-							AddPinData(*ImagePin, *PinData);
 						}
 					}
 				}

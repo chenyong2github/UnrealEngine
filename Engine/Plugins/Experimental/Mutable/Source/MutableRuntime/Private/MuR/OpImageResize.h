@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MuR/ImagePrivate.h"
-#include "MuR/OpImagePixelFormat.h"
 #include "MuR/MutableTrace.h"
 #include "Async/ParallelFor.h"
 
@@ -15,7 +14,7 @@ namespace mu
     //! Point-filter image resize
     //! TODO: Optimise
     //---------------------------------------------------------------------------------------------
-    inline ImagePtr ImageResize( const Image* pBase, FImageSize destSize )
+    inline Ptr<Image> ImageResize( const Image* pBase, FImageSize destSize )
     {
 		MUTABLE_CPUPROFILER_SCOPE(ImageResizePoint)
 
@@ -631,9 +630,9 @@ namespace mu
         int destSizeY = pDest->GetSizeY();
         int sizeX = pBase->GetSizeX();
 
-        uint32_t dy_16 = (uint32_t(baseSizeY)<<16) / destSizeY;
+        uint32 dy_16 = (uint32(baseSizeY)<<16) / destSizeY;
 
-        const uint8_t* pBaseBuf = pBase->GetData();
+        const uint8* pBaseBuf = pBase->GetData();
 
         // Linear filtering
 		//for (int x = 0; x < sizeX; ++x)
@@ -641,22 +640,22 @@ namespace mu
 			pDest, pBaseBuf, sizeX, destSizeY, dy_16
 		] (uint32 x) 
 		{
-			uint8_t* pDestBuf = pDest->GetData() + x * NC;
-			uint32_t py_16 = 0;
+			uint8* pDestBuf = pDest->GetData() + x * NC;
+			uint32 py_16 = 0;
 			for (int y = 0; y < destSizeY; ++y)
 			{
-				uint32_t r_16[NC];
+				uint32 r_16[NC];
 				for (int c = 0; c < NC; ++c)
 				{
 					r_16[c] = 0;
 				}
 
-				uint32_t epy_16 = py_16 + dy_16;
-				uint32_t py = py_16 >> 16;
-				uint32_t epy = epy_16 >> 16;
+				uint32 epy_16 = py_16 + dy_16;
+				uint32 py = py_16 >> 16;
+				uint32 epy = epy_16 >> 16;
 
 				// First fraction
-				uint32_t frac0 = py_16 & 0xffff;
+				uint32 frac0 = py_16 & 0xffff;
 				if (frac0)
 				{
 					for (int c = 0; c < NC; ++c)
@@ -672,14 +671,14 @@ namespace mu
 				{
 					for (int c = 0; c < NC; ++c)
 					{
-						r_16[c] += uint32_t(pBaseBuf[(py * sizeX + x) * NC + c]) << 16;
+						r_16[c] += uint32(pBaseBuf[(py * sizeX + x) * NC + c]) << 16;
 					}
 
 					++py;
 				}
 
 				// Second fraction
-				uint32_t frac1 = epy_16 & 0xffff;
+				uint32 frac1 = epy_16 & 0xffff;
 				if (frac1)
 				{
 					for (int c = 0; c < NC; ++c)
@@ -690,7 +689,7 @@ namespace mu
 
 				for (int c = 0; c < NC; ++c)
 				{
-					pDestBuf[c] = (uint8_t)(r_16[c] / dy_16);
+					pDestBuf[c] = (uint8)(r_16[c] / dy_16);
 				}
 
 				py_16 = epy_16;
@@ -821,133 +820,8 @@ namespace mu
     }
 
 
-    //---------------------------------------------------------------------------------------------
-    //! Bilinear filter image resize.
-    //---------------------------------------------------------------------------------------------
-    inline ImagePtr ImageResizeLinear( int imageCompressionQuality, const Image* pBasePtr,
-                                       FImageSize destSize )
-    {
-		MUTABLE_CPUPROFILER_SCOPE(ImageResizeLinear);
-		
-		if(pBasePtr->GetSize()==destSize)
-		{
-			return pBasePtr->Clone();
-		}
+	/** Bilinear filter image resize. */
+	extern Ptr<Image> ImageResizeLinear(int32 imageCompressionQuality, const Image* pBasePtr, FImageSize destSize);
+	extern void ImageResizeLinear(Image* pDest, int32 imageCompressionQuality, const Image* pBasePtr);
 
-		check(!(pBasePtr->m_flags & Image::IF_CANNOT_BE_SCALED));
-
-        ImagePtrConst pBase = pBasePtr;
-
-        // Shouldn't happen! But if it does...
-        EImageFormat sourceFormat = pBase->GetFormat();
-		EImageFormat uncompressedFormat = GetUncompressedFormat( sourceFormat );
-        if ( sourceFormat!=uncompressedFormat )
-        {
-            pBase = ImagePixelFormat( imageCompressionQuality, pBasePtr, uncompressedFormat );
-        }
-
-        FImageSize baseSize = FImageSize( pBase->GetSizeX(), pBase->GetSizeY() );
-
-        ImagePtr pDest = new Image( destSize[0], destSize[1], 1, pBase->GetFormat() );
-        if (!destSize[0] || !destSize[1] || !baseSize[0] || !baseSize[1])
-        {
-            return pDest;
-        }
-
-        // First resize X
-        ImagePtr pTemp;
-        if ( destSize[0] > baseSize[0] )
-        {
-            pTemp = new Image( destSize[0], baseSize[1], 1, pBase->GetFormat() );
-            ImageMagnifyX( pTemp.get(), pBase.get() );
-        }
-        else if ( destSize[0] < baseSize[0] )
-        {
-            pTemp = new Image( destSize[0], baseSize[1], 1, pBase->GetFormat() );
-            ImageMinifyX( pTemp.get(), pBase.get() );
-        }
-        else
-        {
-            pTemp = pBase->Clone();
-        }
-
-        // Now resize Y
-        if ( destSize[1] > baseSize[1] )
-        {
-            ImageMagnifyY( pDest.get(), pTemp.get() );
-        }
-        else if ( destSize[1] < baseSize[1] )
-        {
-            ImageMinifyY( pDest.get(), pTemp.get() );
-        }
-        else
-        {
-            pDest = pTemp;
-        }
-
-
-        // Reset format if it was changed to scale
-        if ( sourceFormat!=uncompressedFormat )
-        {
-            pDest = ImagePixelFormat( imageCompressionQuality, pDest.get(), sourceFormat );
-        }
-
-		// Update the relevancy data of the image.
-		if (pBase->m_flags & Image::EImageFlags::IF_HAS_RELEVANCY_MAP)
-		{
-			pDest->m_flags |= Image::EImageFlags::IF_HAS_RELEVANCY_MAP;
-
-			float FactorY = float(destSize[1]) / float(baseSize[1]);
-
-			pDest->RelevancyMinY = uint16( FMath::FloorToFloat(pBase->RelevancyMinY*FactorY) );
-			pDest->RelevancyMaxY = uint16( FMath::Min((int32)FMath::CeilToFloat(pBase->RelevancyMinY * FactorY), pDest->GetSizeY() - 1) );
-		}
-
-        return pDest;
-    }
-
-
-	inline mu::ImagePtr ImageReduceSize( const Image* pImage, const vec2<int32>& size, int32 imageCompressionQuality)
-	{
-		check( size[0] < pImage->GetSizeX() || size[1] < pImage->GetSizeY() );
-
-		check(!(pImage->m_flags & Image::IF_CANNOT_BE_SCALED));
-
-		mu::ImagePtr Result;
-		int32 ResizeByDroppingMips = 0;
-
-		// Is it smaller
-		if (size[0] < pImage->GetSizeX() && size[1] < pImage->GetSizeY()
-			&&
-			// It is a multiple
-			(pImage->GetSizeX() % size[0]) == 0 && (pImage->GetSizeY() % size[1]) == 0
-			&&
-			// It is the same multiple
-			(pImage->GetSizeX() / size[0]) == (pImage->GetSizeY() / size[1]))
-		{
-			ResizeByDroppingMips = FMath::CountTrailingZeros64(pImage->GetSizeX() / size[0]);
-		}
-
-		if (ResizeByDroppingMips > 0 && pImage->GetLODCount() > ResizeByDroppingMips)
-		{
-			Result = pImage->Clone();
-			Result->ReduceLODs(ResizeByDroppingMips);
-		}
-		else
-		{
-			if (IsCompressedFormat(pImage->GetFormat()))
-			{
-				EImageFormat format = GetUncompressedFormat(pImage->GetFormat());
-				Result = ImagePixelFormat(
-					imageCompressionQuality,
-					pImage,
-					format);
-			}
-
-			FImageSize blockSize((uint16)size[0], (uint16)size[1]);
-			Result = ImageResizeLinear(imageCompressionQuality, pImage, blockSize);
-		}
-
-		return Result;
-	}
 }

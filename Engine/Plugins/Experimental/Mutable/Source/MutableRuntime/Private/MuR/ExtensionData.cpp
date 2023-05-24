@@ -59,4 +59,12 @@ void ExtensionData::Unserialise(InputArchive& Archive)
 	Origin = (EOrigin)OriginByte;
 }
 
+
+//---------------------------------------------------------------------------------------------
+int32 ExtensionData::GetDataSize() const
+{
+	return sizeof(ExtensionData);
+}
+
+
 }

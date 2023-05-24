@@ -26,12 +26,12 @@ namespace mu
 		enum class EType : uint8
 		{
 			Constant = 1,
-			Difference = 2,
+			Difference_Deprecated = 2,
 			Interpolate = 4,
 			Saturate = 6,
 			Table = 9,
 			Swizzle = 10,
-			SelectColour = 11,
+			SelectColour_Deprecated = 11,
 			ColourMap = 12,
 			Gradient = 13,
 			VolumeLayer_Deprecated = 14,

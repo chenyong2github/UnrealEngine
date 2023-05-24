@@ -10,7 +10,6 @@
 #include "MuT/NodeImageColourMap.h"
 #include "MuT/NodeImageConditional.h"
 #include "MuT/NodeImageConstant.h"
-#include "MuT/NodeImageDifference.h"
 #include "MuT/NodeImageFormat.h"
 #include "MuT/NodeImageGradient.h"
 #include "MuT/NodeImageInterpolate.h"
@@ -27,7 +26,6 @@
 #include "MuT/NodeImageProject.h"
 #include "MuT/NodeImageResize.h"
 #include "MuT/NodeImageSaturate.h"
-#include "MuT/NodeImageSelectColour.h"
 #include "MuT/NodeImageSwitch.h"
 #include "MuT/NodeImageSwizzle.h"
 #include "MuT/NodeImageTable.h"
@@ -69,14 +67,14 @@ namespace mu
 		switch (id)
 		{
 		case 1 :  return NodeImageConstant::StaticUnserialise( arch ); break;
-		case 2 :  return NodeImageDifference::StaticUnserialise( arch ); break;
+		//case 2 :  return NodeImageDifference::StaticUnserialise( arch ); break;
 		//case 3 :  return NodeImageIdentity::StaticUnserialise( arch ); break;
 		case 4 :  return NodeImageInterpolate::StaticUnserialise( arch ); break;
 		case 6 :  return NodeImageSaturate::StaticUnserialise( arch ); break;
 		//case 8 :  return NodeSelectImage::StaticUnserialise( arch ); break;
 		case 9 :  return NodeImageTable::StaticUnserialise( arch ); break;
 		case 10 :  return NodeImageSwizzle::StaticUnserialise( arch ); break;
-		case 11 :  return NodeImageSelectColour::StaticUnserialise( arch ); break;
+		//case 11 :  return NodeImageSelectColour::StaticUnserialise( arch ); break;
 		case 12 :  return NodeImageColourMap::StaticUnserialise( arch ); break;
 		case 13 :  return NodeImageGradient::StaticUnserialise( arch ); break;
 		//case 14 :  return NodeImageVolumeLayer::StaticUnserialise( arch ); break;

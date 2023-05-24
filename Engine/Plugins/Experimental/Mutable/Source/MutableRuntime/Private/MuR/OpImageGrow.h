@@ -15,7 +15,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	inline void ImageGrow( Image* pImage )
 	{
-		check( pImage->GetFormat()== EImageFormat::IF_L_UBYTE );
+		check(pImage && pImage->GetFormat()== EImageFormat::IF_L_UBYTE );
 
 		MUTABLE_CPUPROFILER_SCOPE(ImageGrow1)
 

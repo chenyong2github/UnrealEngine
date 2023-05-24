@@ -8,7 +8,6 @@
 #include "MuR/ImagePrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"
-#include "MuR/OpImagePixelFormat.h"
 #include "MuR/OpImageResize.h"
 
 #include <initializer_list>
@@ -89,7 +88,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    Image::Image( uint32_t sizeX, uint32_t sizeY, uint32_t lods, EImageFormat format, EInitializationType Init )
+    Image::Image( uint32 sizeX, uint32 sizeY, uint32 lods, EImageFormat format, EInitializationType Init )
     {
 		MUTABLE_CPUPROFILER_SCOPE(NewImage)
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
@@ -109,45 +108,57 @@ namespace mu
         int32 PixelsPerBlock = fdata.m_pixelsPerBlockX*fdata.m_pixelsPerBlockY;
         if (PixelsPerBlock)
         {
-			int32 DataSize = CalculateDataSize();
 			if (Init == EInitializationType::Black)
 			{
-				if (bDisableCompressedImageBlackBlockInit)
-				{
-					m_data.SetNumZeroed(DataSize);
-				}
-				else
-				{
-					check(fdata.m_bytesPerBlock <= FImageFormatData::MAX_BYTES_PER_BLOCK);
-					
-					constexpr uint8 ZeroedBlock[FImageFormatData::MAX_BYTES_PER_BLOCK] = { 0 };
-
-					const SIZE_T BlockSizeSanitized = FMath::Min<SIZE_T>(FImageFormatData::MAX_BYTES_PER_BLOCK, fdata.m_bytesPerBlock);
-					const bool bIsFormatBlackBlockZeroed = FMemory::Memcmp(fdata.BlackBlock, ZeroedBlock, BlockSizeSanitized) == 0;
-
-					if (bIsFormatBlackBlockZeroed)
-					{
-						m_data.SetNumZeroed(DataSize);
-					}
-					else
-					{
-						m_data.SetNumUninitialized(DataSize);
-
-						check(fdata.m_bytesPerBlock > 0);
-						for (int32 BlockDataOffset = 0; BlockDataOffset < DataSize; BlockDataOffset += fdata.m_bytesPerBlock)
-						{
-							FMemory::Memcpy(m_data.GetData() + BlockDataOffset, fdata.BlackBlock, fdata.m_bytesPerBlock);
-						}
-					}
-				}
+				InitToBlack();
 			}
 			else
 			{
+				int32 DataSize = CalculateDataSize();
 				m_data.SetNumUninitialized(DataSize);
 			}
         }
     }
 
+
+	//---------------------------------------------------------------------------------------------
+	void Image::InitToBlack()
+	{
+		int32 DataSize = CalculateDataSize();
+		if (bDisableCompressedImageBlackBlockInit)
+		{
+			m_data.SetNumZeroed(DataSize);
+		}
+		else
+		{
+			const FImageFormatData& fdata = GetImageFormatData(m_format);
+			check(fdata.m_bytesPerBlock <= FImageFormatData::MAX_BYTES_PER_BLOCK);
+
+			constexpr uint8 ZeroedBlock[FImageFormatData::MAX_BYTES_PER_BLOCK] = { 0 };
+
+			const SIZE_T BlockSizeSanitized = FMath::Min<SIZE_T>(FImageFormatData::MAX_BYTES_PER_BLOCK, fdata.m_bytesPerBlock);
+			const bool bIsFormatBlackBlockZeroed = FMemory::Memcmp(fdata.BlackBlock, ZeroedBlock, BlockSizeSanitized) == 0;
+
+			if (bIsFormatBlackBlockZeroed)
+			{
+				m_data.SetNumZeroed(DataSize);
+			}
+			else
+			{
+				m_data.SetNumUninitialized(DataSize);
+
+				check(fdata.m_bytesPerBlock > 0);
+				for (int32 BlockDataOffset = 0; BlockDataOffset < DataSize; BlockDataOffset += fdata.m_bytesPerBlock)
+				{
+					FMemory::Memcpy(m_data.GetData() + BlockDataOffset, fdata.BlackBlock, fdata.m_bytesPerBlock);
+				}
+			}
+		}
+
+		m_flags = 0;
+		RelevancyMinY = 0;
+		RelevancyMaxY = 0;
+	}
 
 	//---------------------------------------------------------------------------------------------
 	Ptr<Image> Image::CreateAsReference(uint32 ID)
@@ -236,6 +247,7 @@ namespace mu
 			else
 			{
 				EImageFormat uncompressedFormat = GetUncompressedFormat(m_format);
+				// TODO: OnlyLOD=Mip and then ExtractMip(0)?
 				Ptr<Image> pTemp = ImagePixelFormat(Quality, this, uncompressedFormat);
 				pTemp = pTemp->ExtractMip(Mip);
 				Ptr<Image> pResult = ImagePixelFormat(Quality, pTemp.get(), m_format);
@@ -328,33 +340,38 @@ namespace mu
 
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
-    //---------------------------------------------------------------------------------------------
-	int32 Image::CalculateDataSize() const
-    {
+	//---------------------------------------------------------------------------------------------
+	int32 Image::CalculateDataSize( int32 SizeX, int32 SizeY, int32 LodCount, EImageFormat Format )
+	{
 		int32 res = 0;
 
-        const FImageFormatData& fdata = GetImageFormatData( m_format );
-        if (fdata.m_bytesPerBlock)
-        {
-            FImageSize s = m_size;
+		const FImageFormatData& fdata = GetImageFormatData(Format);
+		if (fdata.m_bytesPerBlock)
+		{
+			for (int32 LodIndex = 0; LodIndex < FMath::Max(1, LodCount); ++LodIndex)
+			{
+				int32 blocksX = FMath::DivideAndRoundUp(SizeX, int32(fdata.m_pixelsPerBlockX));
+				int32 blocksY = FMath::DivideAndRoundUp(SizeY, int32(fdata.m_pixelsPerBlockY));
 
-            for ( int l=0; l<FMath::Max(1,(int)m_lods); ++l )
-            {
-                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16)fdata.m_pixelsPerBlockX );
-                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16)fdata.m_pixelsPerBlockY );
+				res += (blocksX * blocksY) * fdata.m_bytesPerBlock;
 
-                res += (blocksX*blocksY) * fdata.m_bytesPerBlock;
+				SizeX = FMath::DivideAndRoundUp(SizeX, 2);
+				SizeY = FMath::DivideAndRoundUp(SizeY, 2);
+			}
+		}
 
-                s[0] = FMath::DivideAndRoundUp( s[0], (uint16)2 );
-                s[1] = FMath::DivideAndRoundUp( s[1], (uint16)2 );
-            }
-        }
-
-        return res;
-    }
+		return res;
+	}
 
 
-    //---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+	int32 Image::CalculateDataSize() const
+	{
+		return CalculateDataSize( m_size[0], m_size[1], m_lods, m_format );
+	}
+
+
+	//---------------------------------------------------------------------------------------------
 	int32 Image::CalculateDataSize( int mip ) const
     {
 		int32 res = 0;

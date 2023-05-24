@@ -42,6 +42,13 @@ namespace mu {
 
 
 	//---------------------------------------------------------------------------------------------
+	int32 String::GetDataSize() const
+	{
+		return sizeof(String) + m_value.capacity();
+	}
+
+
+	//---------------------------------------------------------------------------------------------
 	const char* String::GetValue() const
 	{
         return m_value.c_str();

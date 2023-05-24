@@ -1,42 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MuR/OpImageSwizzle.h"
-
 #include "MuR/ImagePrivate.h"
 #include "Async/ParallelFor.h"
 
 namespace mu
 {
-	
-	Ptr<Image> ImageSwizzle
-		(
-			EImageFormat format,
-			const Ptr<const Image> pSources[],
-            const uint8 channels[]
-		)
+
+	void ImageSwizzle( Image* Result, const Ptr<const Image> Sources[], const uint8 Channels[] )
 	{
 		MUTABLE_CPUPROFILER_SCOPE(ImageSwizzle);
 
-		if (!pSources[0])
+		if (!Sources[0])
 		{
-			return nullptr;
+			return;
 		}
 
-        ImagePtr pDest = new Image( pSources[0]->GetSizeX(), pSources[0]->GetSizeY(),
-                                    pSources[0]->GetLODCount(),
-                                    format );
-
 		// Very slow generic implementations
-        int32 PixelCount = pDest->CalculatePixelCount();
+        int32 PixelCount = Result->CalculatePixelCount();
+
+		EImageFormat Format = Result->GetFormat();
 
         // Pixelcount should already match, but due to bugs it may not be the case. Try to detect it,
         // but avoid crashing below:
-        uint16 numChannels = GetImageFormatData(format).m_channels;
+        uint16 numChannels = GetImageFormatData(Format).m_channels;
         for (uint16 c=0;c<numChannels; ++c)
         {
-            if (pSources[c])
+            if (Sources[c])
             {
-                size_t sourcePixelCount = pSources[c]->CalculatePixelCount();
+                size_t sourcePixelCount = Sources[c]->CalculatePixelCount();
                 if (PixelCount>sourcePixelCount)
                 {
                     check(false);
@@ -49,7 +40,7 @@ namespace mu
 
 		int NumDestChannels = 0;
 
-		switch ( format )
+		switch (Format)
 		{
 		case EImageFormat::IF_L_UBYTE:
 			NumDestChannels = 1;
@@ -70,17 +61,17 @@ namespace mu
 
 		for (int i = 0; i < NumDestChannels; ++i)
 		{
-			uint8* pDestBuf = pDest->GetData() + i;
+			uint8* pDestBuf = Result->GetData() + i;
 
-			if (format == EImageFormat::IF_BGRA_UBYTE)
+			if (Format == EImageFormat::IF_BGRA_UBYTE)
 			{
 				if (i == 0)
 				{
-					pDestBuf = pDest->GetData() + 2;
+					pDestBuf = Result->GetData() + 2;
 				}
 				else if (i == 2)
 				{
-					pDestBuf = pDest->GetData() + 0;
+					pDestBuf = Result->GetData() + 0;
 				}
 			}
 
@@ -89,14 +80,14 @@ namespace mu
 			constexpr int32 NumBatchElems = 4096*2;
 			const int32 NumBatches = FMath::DivideAndRoundUp(PixelCount, NumBatchElems);
 
-			if (pSources[i])
+			if (Sources[i])
 			{
-				const uint8* pSourceBuf = pSources[i]->GetData() + channels[i];
+				const uint8* pSourceBuf = Sources[i]->GetData() + Channels[i];
 
-				switch (pSources[i]->GetFormat())
+				switch (Sources[i]->GetFormat())
 				{
 				case EImageFormat::IF_L_UBYTE:
-					if (channels[i] < 1)
+					if (Channels[i] < 1)
 					{
 						auto ProcessBatch = [pDestBuf, pSourceBuf, NumDestChannels, PixelCount, NumBatchElems ](int32 BatchId)
 						{
@@ -123,7 +114,7 @@ namespace mu
 					break;
 
 				case EImageFormat::IF_RGB_UBYTE:
-					if (channels[i] < 3)
+					if (Channels[i] < 3)
 					{
 						auto ProcessBatch = [pDestBuf, pSourceBuf, NumDestChannels, PixelCount, NumBatchElems](int32 BatchId)
 						{
@@ -150,7 +141,7 @@ namespace mu
 					break;
 
 				case EImageFormat::IF_RGBA_UBYTE:
-					if (channels[i] < 4)
+					if (Channels[i] < 4)
 					{	
 						auto ProcessBatch = [pDestBuf, pSourceBuf, NumDestChannels, PixelCount, NumBatchElems](int32 BatchId)
 						{
@@ -177,15 +168,15 @@ namespace mu
 					break;
 
 				case EImageFormat::IF_BGRA_UBYTE:
-					if (channels[i] == 0)
+					if (Channels[i] == 0)
 					{
-						pSourceBuf = pSources[i]->GetData() + 2;
+						pSourceBuf = Sources[i]->GetData() + 2;
 					}
-					else if (channels[i] == 2)
+					else if (Channels[i] == 2)
 					{
-						pSourceBuf = pSources[i]->GetData() + 0;
+						pSourceBuf = Sources[i]->GetData() + 0;
 					}
-					if (channels[i] < 4)
+					if (Channels[i] < 4)
 					{
 						auto ProcessBatch = [pDestBuf, pSourceBuf, NumDestChannels, PixelCount, NumBatchElems](int32 BatchId)
 						{
@@ -238,8 +229,26 @@ namespace mu
 				}
 			}
 		}
-
-		return pDest;
 	}
-	
+
+
+	Ptr<Image> ImageSwizzle( EImageFormat Format, const Ptr<const Image> Sources[], const uint8 Channels[] )
+	{
+		MUTABLE_CPUPROFILER_SCOPE(ImageSwizzle);
+
+		if (!Sources[0])
+		{
+			return nullptr;
+		}
+
+		ImagePtr Dest = new Image(Sources[0]->GetSizeX(), Sources[0]->GetSizeY(),
+			Sources[0]->GetLODCount(),
+			Format);
+
+		ImageSwizzle(Dest.get(), Sources, Channels);
+
+		return Dest;
+	}
+
+
 }

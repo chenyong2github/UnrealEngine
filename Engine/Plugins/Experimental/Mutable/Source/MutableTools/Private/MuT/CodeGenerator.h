@@ -60,7 +60,6 @@ namespace mu
 	class NodeImageConditional;
 	class NodeImageConstant;
 	class NodeImageReference;
-	class NodeImageDifference;
 	class NodeImageFormat;
 	class NodeImageGradient;
 	class NodeImageInterpolate3;
@@ -76,7 +75,6 @@ namespace mu
 	class NodeImagePlainColour;
 	class NodeImageResize;
 	class NodeImageSaturate;
-	class NodeImageSelectColour;
 	class NodeImageSwitch;
 	class NodeImageSwizzle;
 	class NodeImageTable;
@@ -388,12 +386,10 @@ namespace mu
 		void GenerateImage(FImageGenerationResult& result, const NodeImagePtrConst& node);
 		void GenerateImage_Constant(FImageGenerationResult&, const NodeImageConstant*);
 		void GenerateImage_Reference(FImageGenerationResult&, const NodeImageReference*);
-		void GenerateImage_Difference(FImageGenerationResult&, const NodeImageDifference*);
 		void GenerateImage_Interpolate(FImageGenerationResult&, const NodeImageInterpolate*);
 		void GenerateImage_Saturate(FImageGenerationResult&, const NodeImageSaturate*);
 		void GenerateImage_Table(FImageGenerationResult&, const NodeImageTable*);
 		void GenerateImage_Swizzle(FImageGenerationResult&, const NodeImageSwizzle*);
-		void GenerateImage_SelectColour(FImageGenerationResult&, const NodeImageSelectColour*);
 		void GenerateImage_ColourMap(FImageGenerationResult&, const NodeImageColourMap*);
 		void GenerateImage_Gradient(FImageGenerationResult&, const NodeImageGradient*);
 		void GenerateImage_Binarise(FImageGenerationResult&, const NodeImageBinarise*);

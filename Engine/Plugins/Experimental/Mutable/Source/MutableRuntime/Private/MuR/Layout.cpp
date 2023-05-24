@@ -63,6 +63,13 @@ namespace mu {
 
 
 	//---------------------------------------------------------------------------------------------
+	int32 Layout::GetDataSize() const
+	{
+		return sizeof(Layout) + m_blocks.GetAllocatedSize();
+	}
+
+
+	//---------------------------------------------------------------------------------------------
 	FIntPoint Layout::GetGridSize() const
 	{
 		return FIntPoint(m_size[0], m_size[1]);

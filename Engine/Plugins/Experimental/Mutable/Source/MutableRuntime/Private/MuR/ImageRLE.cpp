@@ -10,13 +10,13 @@ namespace mu
 {
 
     //---------------------------------------------------------------------------------------------
-    uint32 CompressRLE_L( int32 width, int32 rows, const uint8* pBaseData, uint8* destData, uint32 destDataSize )
+    void CompressRLE_L( uint32& OutCompressedSize, int32 width, int32 rows, const uint8* pBaseData, uint8* destData, uint32 destDataSize )
     {
 		const uint8* InitialBaseData = pBaseData;
 
         uint8* rle = destData;
 
-        size_t maxSize = destDataSize;
+        uint32 maxSize = destDataSize;
 
         // The first uint32 will be the total mip size.
         // Then there is an offset from the initial data pointer for each line.
@@ -25,10 +25,11 @@ namespace mu
         // Could happen in an image of 1x100, for example.
         if ( offset >= maxSize )
         {
-            return 0;
+			OutCompressedSize = 0;
+            return;
         }
 
-        for ( int r = 0; r < rows; ++r )
+        for ( int32 r = 0; r < rows; ++r )
         {
             uint32* pOffset = (uint32*)&rle[sizeof( uint32 ) * ( r + 1 )];
             FMemory::Memmove( pOffset, &offset, sizeof( uint32 ) );
@@ -60,7 +61,8 @@ namespace mu
                 // Copy header
                 if ( maxSize < offset + 4 )
                 {
-                    return 0;
+					OutCompressedSize = 0;
+                    return;
                 }
                 FMemory::Memmove( &rle[offset], &equal, sizeof( uint16 ) );
                 offset += 2;
@@ -76,7 +78,8 @@ namespace mu
                 {
                     if ( maxSize < offset + different )
                     {
-                        return 0;
+						OutCompressedSize = 0;
+						return;
                     }
                     FMemory::Memmove( &rle[offset], pDifferentPixels, different );
                     offset += different;
@@ -92,7 +95,7 @@ namespace mu
 			TArray<uint8> Temp;
 			Temp.SetNum(width*rows);
 			UncompressRLE_L(width,rows,destData,Temp.GetData());
-			int Difference = FMemory::Memcmp(Temp.GetData(), InitialBaseData, width * rows);
+			int32 Difference = FMemory::Memcmp(Temp.GetData(), InitialBaseData, width * rows);
 			if (Difference)
 			{
 				// Different pos.
@@ -107,12 +110,13 @@ namespace mu
 
 				UncompressRLE_L(width, rows, destData, Temp.GetData());
 				CompressRLE_L( width, rows, InitialBaseData, destData, destDataSize);
+				check(false);
 			}
 		}
 #endif
 
         // succeded
-        return offset;
+		OutCompressedSize = offset;
     }
 
 
@@ -124,13 +128,15 @@ namespace mu
 		pBaseData += sizeof(uint32); // Total mip size
         pBaseData += rows*sizeof(uint32); // Size of each row.
 
-        for ( int r=0; r<rows; ++r )
+        for ( int32 r=0; r<rows; ++r )
         {
             const uint8* pDestRowEnd = pDestData + width;
             while ( pDestData!=pDestRowEnd )
             {
                 // Decode header
-                uint16 equal = 0;
+				//check(pBaseData + 4 <= pStartBaseData + BaseDataSize);
+				
+				uint16 equal = 0;
                 FMemory::Memmove(&equal, pBaseData, sizeof(uint16));
                 pBaseData += 2;
 
@@ -150,6 +156,7 @@ namespace mu
                 if (different)
                 {
 					check(pDestData + different <= pStartDestData + width * rows);
+					//check(pBaseData + different <= pStartBaseData + BaseDataSize);
 					FMemory::Memmove( pDestData, pBaseData, different );
                     pDestData += different;
                     pBaseData += different;
@@ -157,14 +164,14 @@ namespace mu
             }
         }
 
-        size_t totalSize = pBaseData-pStartBaseData;
-        check( totalSize==*(uint32*)pStartBaseData );
+		uint32 TotalSize = uint32(pBaseData-pStartBaseData);
+        check( TotalSize==*(uint32*)pStartBaseData );
 
-        return (uint32)totalSize;
+        return TotalSize;
     }
 
     //---------------------------------------------------------------------------------------------
-    uint32 CompressRLE_L1( int32 width, int32 rows,
+    void CompressRLE_L1( uint32& OutCompressedSize, int32 width, int32 rows,
                              const uint8* pBaseData,
                              uint8* destData,
                              uint32 destDataSize )
@@ -175,7 +182,7 @@ namespace mu
         uint32 offset = sizeof(uint32)*(rows+1);
         rle.SetNum( offset, false );
 
-        for ( int r=0; r<rows; ++r )
+        for ( int32 r=0; r<rows; ++r )
         {
             uint32* pOffset = (uint32*) &rle[ sizeof(uint32)*(r+1) ];
             *pOffset = offset;
@@ -214,7 +221,8 @@ namespace mu
         if (destDataSize<(uint32)rle.Num())
         {
             // Failed
-            return 0;
+			OutCompressedSize = 0;
+            return;
         }
 
         uint32* pTotalSize = (uint32*) &rle[ 0 ];
@@ -223,18 +231,18 @@ namespace mu
         FMemory::Memmove( destData, &rle[0], offset );
 
         // succeded
-        return offset;
+		OutCompressedSize = offset;
     }
 
 
     //---------------------------------------------------------------------------------------------
-    uint32 UncompressRLE_L1( int width, int rows, const uint8* pStartBaseData, uint8* pDestData )
+    uint32 UncompressRLE_L1( int32 width, int32 rows, const uint8* pStartBaseData, uint8* pDestData )
     {
         const uint8* pBaseData = pStartBaseData;
         pBaseData += sizeof(uint32); // Total mip size
         pBaseData += rows*sizeof(uint32);
 
-        for ( int r=0; r<rows; ++r )
+        for ( int32 r=0; r<rows; ++r )
         {
             const uint8* pDestRowEnd = pDestData + width;
             while ( pDestData!=pDestRowEnd )
@@ -270,7 +278,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CompressRLE_RGBA( int width, int rows,
+    void CompressRLE_RGBA( int32 width, int32 rows,
                            const uint8* pBaseDataByte,
                            TArray<uint8>& destData )
     {
@@ -281,7 +289,7 @@ namespace mu
         const uint32* pBaseData = (const uint32*)pBaseDataByte;
         rle.SetNum( rows*4, false);
         uint32 offset = sizeof(uint32)*rows;
-        for ( int r=0; r<rows; ++r )
+        for ( int32 r=0; r<rows; ++r )
         {
             uint32* pOffset = (uint32*) &rle[ sizeof(uint32)*r ];
             FMemory::Memmove(pOffset, &offset, sizeof(uint32));
@@ -351,15 +359,15 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void UncompressRLE_RGBA( int width, int rows, const uint8* pBaseData, uint8* pDestDataB )
+    void UncompressRLE_RGBA( int32 width, int32 rows, const uint8* pBaseData, uint8* pDestDataB )
     {
         uint32* pDestData = reinterpret_cast<uint32*>( pDestDataB );
 
         pBaseData += rows*sizeof(uint32);
 
-        int pendingPixels = width*rows;
+        int32 pendingPixels = width*rows;
 
-        for ( int r=0; r<rows; ++r )
+        for ( int32 r=0; r<rows; ++r )
         {
             const uint32* pDestRowEnd = pDestData + width;
             while ( pDestData!=pDestRowEnd )
@@ -379,7 +387,7 @@ namespace mu
 
                 check((equal+different)*4<=pendingPixels);
 
-                for ( int e=0; e<equal*4; ++e )
+                for ( int32 e=0; e<equal*4; ++e )
                 {
                     FMemory::Memmove( pDestData, &equalPixel, 4 );
                     ++pDestData;
@@ -422,7 +430,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CompressRLE_RGB( int width, int rows,
+    void CompressRLE_RGB( int32 width, int32 rows,
                           const uint8* pBaseDataByte,
                           TArray<uint8>& destData )
     {
@@ -432,7 +440,7 @@ namespace mu
         const UINT24* pBaseData = (const UINT24*)pBaseDataByte;
         rle.SetNum( rows*4, false );
         uint32 offset = sizeof(uint32)*rows;
-        for ( int r=0; r<rows; ++r )
+        for ( int32 r=0; r<rows; ++r )
         {
             uint32* pOffset = (uint32*) &rle[ sizeof(uint32)*r ];
             *pOffset = offset;
@@ -502,13 +510,13 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void UncompressRLE_RGB( int width, int rows, const uint8* pBaseData, uint8* pDestDataB )
+    void UncompressRLE_RGB( int32 width, int32 rows, const uint8* pBaseData, uint8* pDestDataB )
     {
         UINT24* pDestData = reinterpret_cast<UINT24*>( pDestDataB );
 
         pBaseData += rows*sizeof(uint32);
 
-        for ( int r=0; r<rows; ++r )
+        for ( int32 r=0; r<rows; ++r )
         {
             const UINT24* pDestRowEnd = pDestData + width;
             while ( pDestData!=pDestRowEnd )
@@ -523,7 +531,7 @@ namespace mu
                 UINT24 equalPixel = *(const UINT24*)pBaseData;
                 pBaseData += 4;
 
-                for ( int e=0; e<equal*4; ++e )
+                for ( int32 e=0; e<equal*4; ++e )
                 {
                     FMemory::Memmove( pDestData, &equalPixel, 3 );
                     ++pDestData;

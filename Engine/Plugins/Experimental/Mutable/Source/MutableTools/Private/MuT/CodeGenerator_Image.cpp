@@ -57,8 +57,6 @@
 #include "MuT/NodeImageConstant.h"
 #include "MuT/NodeImageConstantPrivate.h"
 #include "MuT/NodeImageReferencePrivate.h"
-#include "MuT/NodeImageDifference.h"
-#include "MuT/NodeImageDifferencePrivate.h"
 #include "MuT/NodeImageFormat.h"
 #include "MuT/NodeImageFormatPrivate.h"
 #include "MuT/NodeImageGradient.h"
@@ -91,8 +89,6 @@
 #include "MuT/NodeImageResizePrivate.h"
 #include "MuT/NodeImageSaturate.h"
 #include "MuT/NodeImageSaturatePrivate.h"
-#include "MuT/NodeImageSelectColour.h"
-#include "MuT/NodeImageSelectColourPrivate.h"
 #include "MuT/NodeImageSwitch.h"
 #include "MuT/NodeImageSwitchPrivate.h"
 #include "MuT/NodeImageSwizzle.h"
@@ -158,12 +154,11 @@ namespace mu
 			switch (Untyped->GetImageNodeType())
 			{
 			case NodeImage::EType::Constant: GenerateImage_Constant(result, static_cast<const NodeImageConstant*>(Node)); break;
-			case NodeImage::EType::Difference: GenerateImage_Difference(result, static_cast<const NodeImageDifference*>(Node)); break;
+			case NodeImage::EType::Difference_Deprecated: check(false); break;
 			case NodeImage::EType::Interpolate: GenerateImage_Interpolate(result, static_cast<const NodeImageInterpolate*>(Node)); break;
 			case NodeImage::EType::Saturate: GenerateImage_Saturate(result, static_cast<const NodeImageSaturate*>(Node)); break;
 			case NodeImage::EType::Table: GenerateImage_Table(result, static_cast<const NodeImageTable*>(Node)); break;
 			case NodeImage::EType::Swizzle: GenerateImage_Swizzle(result, static_cast<const NodeImageSwizzle*>(Node)); break;
-			case NodeImage::EType::SelectColour: GenerateImage_SelectColour(result, static_cast<const NodeImageSelectColour*>(Node)); break;
 			case NodeImage::EType::ColourMap: GenerateImage_ColourMap(result, static_cast<const NodeImageColourMap*>(Node)); break;
 			case NodeImage::EType::Gradient: GenerateImage_Gradient(result, static_cast<const NodeImageGradient*>(Node)); break;
 			case NodeImage::EType::Binarise: GenerateImage_Binarise(result, static_cast<const NodeImageBinarise*>(Node)); break;
@@ -247,7 +242,8 @@ namespace mu
         //
         if ( pImage->GetSizeX()!=cropRect.size[0] || pImage->GetSizeY()!=cropRect.size[1] )
         {
-            ImagePtrConst pCropped = ImageCrop( m_compilerOptions->m_imageCompressionQuality, pImage.get(), cropRect );
+            Ptr<Image> pCropped = new Image(cropRect.size[0], cropRect.size[1], 1, pImage->GetFormat());
+			ImageCrop(pCropped.get(), m_compilerOptions->m_imageCompressionQuality, pImage.get(), cropRect );
             op->SetValue( pCropped, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
         }
         else
@@ -967,93 +963,6 @@ namespace mu
         }
         base = GenerateImageFormat( base, EImageFormat::IF_RGB_UBYTE );
         op->SetChild( op->op.args.ImageLuminance.base, base);
-
-        result.op = op;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_SelectColour(FImageGenerationResult& result, const NodeImageSelectColour* InNode)
-	{
-		const NodeImageSelectColour::Private& node = *InNode->GetPrivate();
-
-		Ptr<ASTOpFixed> op = new ASTOpFixed();
-        op->op.type = OP_TYPE::IM_SELECTCOLOUR;
-
-
-        // Source image
-        Ptr<ASTOp> base = 0;
-        if ( Node* pSource = node.m_pSource.get() )
-        {
-            base = Generate( pSource );
-        }
-        else
-        {
-            // This argument is required
-            base = GenerateMissingImageCode( "Image select colour base", EImageFormat::IF_RGB_UBYTE,
-                                             node.m_errorContext );
-        }
-        base = GenerateImageSize
-                ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
-        op->SetChild( op->op.args.ImageSelectColour.base, base);
-
-
-        // Factor
-        if ( Node* pColour = node.m_pColour.get() )
-        {
-            op->SetChild( op->op.args.ImageSelectColour.colour, Generate( pColour ));
-        }
-        else
-        {
-            // This argument is required
-            op->SetChild( op->op.args.ImageSelectColour.colour, GenerateMissingColourCode( "Selected colour",
-                                                                          node.m_errorContext ));
-        }
-
-        result.op = op;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Difference(FImageGenerationResult& result, const NodeImageDifference* InNode)
-	{
-		const NodeImageDifference::Private& node = *InNode->GetPrivate();
-
-		Ptr<ASTOpFixed> op = new ASTOpFixed();
-        op->op.type = OP_TYPE::IM_DIFFERENCE;
-
-        // A image
-        Ptr<ASTOp> a = 0;
-        if ( Node* pA = node.m_pA.get() )
-        {
-            a = Generate( pA );
-        }
-        else
-        {
-            // This argument is required
-            a = GenerateMissingImageCode( "Image Difference A", EImageFormat::IF_RGB_UBYTE, node.m_errorContext );
-        }
-        a = GenerateImageFormat( a, EImageFormat::IF_RGB_UBYTE );
-        a = GenerateImageSize( a,
-                               FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
-                                           (uint16)m_imageState.Last().m_imageRect.size[1]) );
-        op->SetChild( op->op.args.ImageDifference.a, a);
-
-        // B image
-        Ptr<ASTOp> b = 0;
-        if ( Node* pB = node.m_pB.get() )
-        {
-            b = Generate( pB );
-        }
-        else
-        {
-            // This argument is required
-            b = GenerateMissingImageCode( "Image Difference B", EImageFormat::IF_RGB_UBYTE, node.m_errorContext );
-        }
-        b = GenerateImageFormat( b, EImageFormat::IF_RGB_UBYTE );
-        b = GenerateImageSize
-                ( b, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
-        op->SetChild( op->op.args.ImageDifference.b, b);
 
         result.op = op;
     }

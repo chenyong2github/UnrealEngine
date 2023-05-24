@@ -453,7 +453,7 @@ namespace mu
 			OP_TYPE type = cloned->GetOpType();
 			DATATYPE dtype = GetOpDataType(type);
 
-			SettingsPtr pSettings = new Settings;
+			Ptr<Settings> pSettings = new Settings;
 			pSettings->SetProfile( false );
 			pSettings->SetImageCompressionQuality( m_imageCompressionQuality );
 			SystemPtr pSystem = new System( pSettings );
@@ -505,6 +505,8 @@ namespace mu
 					constantOp->SetValue( pImage, m_useDiskCache );
 					m_result = constantOp;
 				}
+
+				check(m_result);
 				break;
 			}
 
@@ -542,16 +544,16 @@ namespace mu
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ConstantBool);
 
-				float r=0.0f, g=0.0f, b = 0.0f, a = 0.0f;
-				pSystem->GetPrivate()->BuildColour( model, localParams.get(), at, &r,&g,&b,&a );
+				FVector4f Result(0, 0, 0, 0);
+				Result = pSystem->GetPrivate()->BuildColour( model, localParams.get(), at );
 
 				{
 					mu::Ptr<ASTOpFixed> constantOp = new ASTOpFixed();
 					constantOp->op.type = OP_TYPE::CO_CONSTANT;
-					constantOp->op.args.ColourConstant.value[0] = r;
-					constantOp->op.args.ColourConstant.value[1] = g;
-					constantOp->op.args.ColourConstant.value[2] = b;
-					constantOp->op.args.ColourConstant.value[3] = a;
+					constantOp->op.args.ColourConstant.value[0] = Result[0];
+					constantOp->op.args.ColourConstant.value[1] = Result[1];
+					constantOp->op.args.ColourConstant.value[2] = Result[2];
+					constantOp->op.args.ColourConstant.value[3] = Result[3];
 					m_result = constantOp;
 				}
 				break;

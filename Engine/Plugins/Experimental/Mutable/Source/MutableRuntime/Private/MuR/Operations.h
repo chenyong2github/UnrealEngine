@@ -167,9 +167,6 @@ namespace mu
         //! Copy an image into a rect of another one.
         IM_COMPOSE,
 
-        //! Compare two images and generate a one channel image with 1 in the different pixels.
-        IM_DIFFERENCE,
-
         //! Interpolate between 2 images taken from a row of targets (2 consecutive targets).
         IM_INTERPOLATE,
 
@@ -184,9 +181,6 @@ namespace mu
 
         //! Recombine the channels of several images into one.
         IM_SWIZZLE,
-
-        //! Create a black and white image with the pixels of another image that match a colour.
-        IM_SELECTCOLOUR,
 
         //! Convert the source image colours using a "palette" image sampled with the source
         //! grey-level.
@@ -720,12 +714,6 @@ namespace mu
             ADDRESS sources[ MUTABLE_OP_MAX_SWIZZLE_CHANNELS ];
         };
 
-        struct ImageSelectColourArgs
-        {
-            ADDRESS base;
-            ADDRESS colour;
-        };
-
         struct ImageColourMapArgs
         {
             ADDRESS base;
@@ -1149,7 +1137,6 @@ namespace mu
             ImageInterpolate3Args ImageInterpolate3;
             ImageSaturateArgs ImageSaturate;
             ImageLuminanceArgs ImageLuminance;
-            ImageSelectColourArgs ImageSelectColour;
             ImageColourMapArgs ImageColourMap;
             ImageGradientArgs ImageGradient;
             ImageBinariseArgs ImageBinarise;

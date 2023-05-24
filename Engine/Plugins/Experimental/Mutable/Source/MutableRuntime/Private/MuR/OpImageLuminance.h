@@ -8,9 +8,9 @@
 namespace mu
 {
 
-	inline ImagePtr ImageLuminance( const Image* pA )
+	inline void ImageLuminance( Image* pDest, const Image* pA )
 	{
-        ImagePtr pDest = new Image( pA->GetSizeX(), pA->GetSizeY(), pA->GetLODCount(), EImageFormat::IF_L_UBYTE );
+		check(pDest && pA && pDest->GetFormat()==EImageFormat::IF_L_UBYTE);
 
         uint8_t* pDestBuf = pDest->GetData();
         const uint8_t* pABuf = pA->GetData();
@@ -54,8 +54,6 @@ namespace mu
 			check(false);
 			break;
 		}
-
-		return pDest;
 	}
 
 }

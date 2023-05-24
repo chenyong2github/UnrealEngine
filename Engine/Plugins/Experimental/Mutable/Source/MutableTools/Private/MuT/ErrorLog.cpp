@@ -258,7 +258,6 @@ namespace mu
 		TEXT("IM_RESIZEREL     "),
 		TEXT("IM_BLANKLAYOUT   "),
 		TEXT("IM_COMPOSE       "),
-		TEXT("IM_DIFFERENCE    "),
 		TEXT("IM_INTERPOLATE   "),
 		TEXT("IM_INTERPOLATE3  "),
 		TEXT("IM_SATURATE      "),

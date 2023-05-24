@@ -32,7 +32,7 @@ FMutableUpdateContext::FMutableUpdateContext(mu::Ptr<mu::System> InSystem,
 
 FMutableUpdateContext::~FMutableUpdateContext()
 {
-	if (Parameters)
+	if (Parameters && UCustomizableObjectSystem::IsCreated() && UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider)
 	{
 		UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider->UnCacheImages(*Parameters);
 	}
@@ -188,9 +188,9 @@ namespace impl
 				System->EndUpdate(InstanceID);
 				System->ReleaseInstance(InstanceID);
 
-				if (CVarClearStreamingCacheOnUpdateEnd.GetValueOnAnyThread())
+				if (CVarClearWorkingMemoryOnUpdateEnd.GetValueOnAnyThread())
 				{
-					System->ClearStreamingCache();
+					System->ClearWorkingMemory();
 				}
 			}
 

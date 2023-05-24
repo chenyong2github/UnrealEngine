@@ -13,14 +13,12 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//!
 	//---------------------------------------------------------------------------------------------
-	inline Ptr<Image> ImageBinarise( const Image* pA, float threshold )
+	inline void ImageBinarise( Image* pDest, const Image* pA, float threshold )
 	{
-		if (!pA)
+		if (!pA || !pDest)
 		{
-			return nullptr;
+			return;
 		}
-
-		Ptr<Image> pDest = new Image( pA->GetSizeX(), pA->GetSizeY(), pA->GetLODCount(), EImageFormat::IF_L_UBYTE );
 
         uint8* pDestBuf = pDest->GetData();
         const uint8* pABuf = pA->GetData();
@@ -72,8 +70,6 @@ namespace mu
 		default:
 			check(false);
 		}
-
-		return pDest;
 	}
 
 }

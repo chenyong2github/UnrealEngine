@@ -39,7 +39,7 @@ namespace mu
     //! coordinates set from a mesh).
     //! It is usually not necessary to use this objects, except for some advanced cases.
 	//! \ingroup runtime
-    class MUTABLERUNTIME_API Layout : public RefCounted
+    class MUTABLERUNTIME_API Layout : public Resource
 	{
 	public:
 
@@ -58,6 +58,9 @@ namespace mu
 
 		//! Full compare
 		bool operator==( const Layout& other ) const;
+
+		// Resource interface
+		int32 GetDataSize() const override;
 
 		//-----------------------------------------------------------------------------------------
 		// Own interface

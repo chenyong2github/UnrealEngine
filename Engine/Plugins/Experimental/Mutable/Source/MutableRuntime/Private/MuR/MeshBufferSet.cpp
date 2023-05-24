@@ -380,9 +380,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	size_t FMeshBufferSet::GetDataSize() const
+	int32 FMeshBufferSet::GetDataSize() const
 	{
-		size_t res = 0;
+		int32 res = 0;
 
 		for (int32 b = 0; b < m_buffers.Num(); ++b)
 		{

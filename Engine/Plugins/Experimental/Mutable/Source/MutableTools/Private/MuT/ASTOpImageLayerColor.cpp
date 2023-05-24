@@ -98,6 +98,7 @@ namespace mu
 			args.BlendAlphaSourceChannel = BlendAlphaSourceChannel;
 			args.flags = Flags;
 
+			check(base);
 			if (base) args.base = base->linkedAddress;
 			if (color) args.colour = color->linkedAddress;
 			if (mask) args.mask = mask->linkedAddress;

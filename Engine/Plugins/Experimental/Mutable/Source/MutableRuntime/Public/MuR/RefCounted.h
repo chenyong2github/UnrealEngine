@@ -16,12 +16,10 @@ namespace mu
 {
 
 
-	//! \brief %Base class for all reference counted objects.
-	//!
-	//! Any subclass of this class can be managed using smart pointers through the Ptr<T> template.
-	//! \warning This base allow multi-threaded manipulation of smart pointers, since the count
-	//! increments and decrements are atomic.
-	//! \ingroup runtime
+	/** Base class for all reference counted objects.
+	* Any subclass of this class can be managed using smart pointers through the Ptr<T> template.
+	* \warning This base allow multi-threaded manipulation of smart pointers, since the count increments and decrements are atomic.
+	*/
 	class MUTABLERUNTIME_API RefCounted : public Base
 	{
 	public:
@@ -82,5 +80,13 @@ namespace mu
 		}
 	}
 
+	class MUTABLERUNTIME_API Resource : public RefCounted
+	{
+	public:
+
+		/** Return the size in bytes of all the LODs of the image. */
+		virtual int32 GetDataSize() const = 0;
+
+	};
 }
 

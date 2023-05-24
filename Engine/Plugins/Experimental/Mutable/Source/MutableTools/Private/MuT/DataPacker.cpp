@@ -12,7 +12,6 @@
 #include "MuR/MeshBufferSet.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/MutableTrace.h"
-#include "MuR/OpImagePixelFormat.h"
 #include "MuR/Operations.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"

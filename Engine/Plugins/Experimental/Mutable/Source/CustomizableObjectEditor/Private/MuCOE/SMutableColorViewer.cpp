@@ -150,45 +150,37 @@ void SMutableColorViewer::Construct(const FArguments& InArgs)
 	];
 }
 
-void SMutableColorViewer::SetColor(float InRed, float InGreen, float InBlue, float InAlpha)
+void SMutableColorViewer::SetColor(FVector4f InColor)
 {
-	RedValue = InRed;
-	GreenValue = InGreen;
-	BlueValue = InBlue;
-	AlphaValue = InAlpha;
+	Color = InColor;
 }
 
 
 FLinearColor SMutableColorViewer::GetColor() const
 {
-	FLinearColor BoxColor;
-	
-	BoxColor.R = RedValue;
-	BoxColor.G = GreenValue;
-	BoxColor.B = BlueValue;
-	BoxColor.A = AlphaValue;
+	FLinearColor BoxColor(Color);
 	
 	return BoxColor;
 }
 
 FText SMutableColorViewer::GetRedValue() const
 {
-	return FText::AsNumber(RedValue);
+	return FText::AsNumber(Color[0]);
 }
 
 FText SMutableColorViewer::GetGreenValue() const
 {
-	return FText::AsNumber(GreenValue);
+	return FText::AsNumber(Color[1]);
 }
 
 FText SMutableColorViewer::GetBlueValue() const
 {
-	return FText::AsNumber(BlueValue);
+	return FText::AsNumber(Color[2]);
 }
 
 FText SMutableColorViewer::GetAlphaValue() const
 {
-	return FText::AsNumber(AlphaValue);
+	return FText::AsNumber(Color[3]);
 }
 
 #undef LOCTEXT_NAMESPACE

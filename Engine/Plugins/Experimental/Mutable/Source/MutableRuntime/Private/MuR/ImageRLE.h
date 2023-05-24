@@ -28,15 +28,14 @@ namespace mu
     //!		- the value of the "equal" pixels
     //! After the header there are as many pixel values as different pixels.
     //---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API extern uint32_t CompressRLE_L( int width, int rows,
-                                   const uint8_t* pBaseData,
-                                   uint8_t* destData,
-                                   uint32_t destDataSize );
+	MUTABLERUNTIME_API extern void CompressRLE_L( uint32& OutCompressedSize, int32 width, int32 rows,
+                                   const uint8* BaseData,
+                                   uint8* DestData, uint32 DestDataSize );
 
     //---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API extern uint32_t UncompressRLE_L( int width, int rows,
-                                     const uint8_t* pBaseData,
-                                     uint8_t* pDestData );
+	MUTABLERUNTIME_API extern uint32 UncompressRLE_L( int32 width, int32 rows,
+                                     const uint8* BaseData,
+                                     uint8* pDestData );
 
     //---------------------------------------------------------------------------------------------
     //! This RLE format compresses the data per row. At the beginning of the data there are the row
@@ -45,34 +44,15 @@ namespace mu
     //!     - a UINT16 with how many 0 pixels are there
     //!     - a UINT16 with how many 1 pixels follow the 0 pixels
     //---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API extern uint32_t CompressRLE_L1( int width, int rows,
-                                    const uint8_t* pBaseData,
-                                    uint8_t* destData,
-                                    uint32_t destDataSize );
+	MUTABLERUNTIME_API extern void CompressRLE_L1( uint32& OutCompressedSize, int32 width, int32 rows,
+                                    const uint8* BaseData,
+                                    uint8* DestData,
+                                    uint32 DestDataSize );
 
     //---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API extern uint32_t UncompressRLE_L1( int width, int rows,
-                                      const uint8_t* pBaseData,
-                                      uint8_t* pDestData );
-
-
-    //---------------------------------------------------------------------------------------------
-    //! This RLE format compresses the data per row. At the beginning of the data there are the row
-    //! offsets for direct access. Every offset is a uint32_t.
-    //! Every row consists of a series of header + data. The headers is:
-    //!     - a UINT16 with how many equal pixels / 4
-    //!     - a UINT16 with how many different pixels / 4
-    //!     - 4 UINT8 with the value of the "equal" pixels
-    //! After the header there are as many pixel values as different pixels.
-    //---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API extern void CompressRLE_RGBA( int width, int rows,
-									const uint8_t* pBaseDataByte,
-									TArray<uint8_t>& destData );
-
-    //---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API extern void UncompressRLE_RGBA( int width, int rows,
-                                    const uint8_t* pBaseData,
-                                    uint8_t* pDestDataB );
+	MUTABLERUNTIME_API extern uint32 UncompressRLE_L1(int32 width, int32 rows,
+                                      const uint8* pBaseData,
+                                      uint8* pDestData );
 
 
     //---------------------------------------------------------------------------------------------
@@ -84,14 +64,33 @@ namespace mu
     //!     - 4 UINT8 with the value of the "equal" pixels
     //! After the header there are as many pixel values as different pixels.
     //---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API extern void CompressRLE_RGB( int width, int rows,
-									const uint8_t* pBaseDataByte,
-									TArray<uint8_t>& destData );
+	MUTABLERUNTIME_API extern void CompressRLE_RGBA(int32 width, int32 rows,
+									const uint8* pBaseDataByte,
+									TArray<uint8>& destData );
 
     //---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API extern void UncompressRLE_RGB( int width, int rows,
-                                   const uint8_t* pBaseData,
-                                   uint8_t* pDestDataB );
+	MUTABLERUNTIME_API extern void UncompressRLE_RGBA(int32 width, int32 rows,
+                                    const uint8* pBaseData,
+                                    uint8* pDestDataB );
+
+
+    //---------------------------------------------------------------------------------------------
+    //! This RLE format compresses the data per row. At the beginning of the data there are the row
+    //! offsets for direct access. Every offset is a uint32_t.
+    //! Every row consists of a series of header + data. The headers is:
+    //!     - a UINT16 with how many equal pixels / 4
+    //!     - a UINT16 with how many different pixels / 4
+    //!     - 4 UINT8 with the value of the "equal" pixels
+    //! After the header there are as many pixel values as different pixels.
+    //---------------------------------------------------------------------------------------------
+	MUTABLERUNTIME_API extern void CompressRLE_RGB(int32 width, int32 rows,
+									const uint8* pBaseDataByte,
+									TArray<uint8>& destData );
+
+    //---------------------------------------------------------------------------------------------
+	MUTABLERUNTIME_API extern void UncompressRLE_RGB(int32 width, int32 rows,
+                                   const uint8* pBaseData,
+                                   uint8* pDestDataB );
 
 
 	//---------------------------------------------------------------------------------------------
@@ -101,14 +100,14 @@ namespace mu
 	{
 		int sizeX = pBase->GetSizeX();
 		int sizeY = pBase->GetSizeY();
-		const uint8_t* pData = pBase->GetData();
-		uint8_t* pDestData = pDest->GetData();
-		for (int lod = 0; lod < pBase->GetLODCount(); ++lod)
+		const uint8* pData = pBase->GetData();
+		uint8* pDestData = pDest->GetData();
+		for (int32 Lod = 0; Lod < pBase->GetLODCount(); ++Lod)
 		{
 			uint32_t compressedSize = UncompressRLE_L(sizeX, sizeY, pData, pDestData);
 			pData += compressedSize;
 
-			pDestData += pDest->GetLODDataSize(lod);
+			pDestData += pDest->GetLODDataSize(Lod);
 			sizeX = FMath::Max(1, FMath::DivideAndRoundUp(sizeX, 2));
 			sizeY = FMath::Max(1, FMath::DivideAndRoundUp(sizeY, 2));
 		}
@@ -118,32 +117,37 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //!
     //---------------------------------------------------------------------------------------------
-    inline bool CompressRLE_L( const Image* pBase, Image* pDest )
+    inline void CompressRLE_L(bool& bOutSuccess, const Image* pBase, Image* pDest )
     {
         int sizeX = pBase->GetSizeX();
         int sizeY = pBase->GetSizeY();
-        const uint8_t* pData = pBase->GetData();
-        uint32_t destDataSize = pDest->GetDataSize();
-        uint8_t* pDestData = pDest->GetData();
-        for (int lod=0;lod<pBase->GetLODCount();++lod)
+        const uint8* pData = pBase->GetData();
+        uint32 DestDataSize = pDest->GetDataSize();
+        uint8* pDestData = pDest->GetData();
+        for (int Lod=0;Lod<pBase->GetLODCount();++Lod)
         {
-            uint32_t compressedSize = CompressRLE_L( sizeX, sizeY, pData,
-                                                     pDestData,
-                                                     destDataSize );
+			uint32 compressedSize = 0;
+			CompressRLE_L( compressedSize, sizeX, sizeY,
+				pData,
+				pDestData, DestDataSize );
+
             if (!compressedSize)
             {
-                return false;
+				bOutSuccess = false;
+                return;
             }
+			check(compressedSize<=DestDataSize);
 
-            destDataSize -= compressedSize;
+            DestDataSize -= compressedSize;
             pDestData += compressedSize;
 
-            pData += pBase->GetLODDataSize(lod);
+            pData += pBase->GetLODDataSize(Lod);
             sizeX = FMath::Max(1, FMath::DivideAndRoundUp(sizeX,2));
             sizeY = FMath::Max(1, FMath::DivideAndRoundUp(sizeY,2));
         }
 
-        pDest->m_data.SetNum( pDestData-pDest->GetData() );
+		uint32 TotalDataSize = pDestData - pDest->GetData();
+        pDest->m_data.SetNum( TotalDataSize );
 
 #ifdef MUTABLE_DEBUG_RLE		
 		{
@@ -153,33 +157,33 @@ namespace mu
 		}
 #endif
 
-        return true;
-    }
+		bOutSuccess = true;
+	}
 
 
     //---------------------------------------------------------------------------------------------
     //! This assumes the maximum data size has been preallocateds in pDest. It will return false
     //! if the RLE-compressed data doesn't fit.
     //---------------------------------------------------------------------------------------------
-    inline bool CompressRLE_L1( const Image* pBase, Image* pDest )
+    inline void CompressRLE_L1(bool& bOutSuccess, const Image* pBase, Image* pDest )
     {
         int sizeX = pBase->GetSizeX();
         int sizeY = pBase->GetSizeY();
-        const uint8_t* pData = pBase->GetData();
-        uint32_t destDataSize = pDest->GetDataSize();
-        uint8_t* pDestData = pDest->GetData();
+        const uint8* pData = pBase->GetData();
+        uint32 destDataSize = pDest->GetDataSize();
+        uint8* pDestData = pDest->GetData();
         for (int lod=0;lod<pBase->GetLODCount();++lod)
         {
-            uint32_t compressedSize = CompressRLE_L1( sizeX, sizeY, pData,
-                                                      pDestData,
-                                                      destDataSize );
-            if (!compressedSize)
-            {
-                return false;
+			uint32 CompressedSize=0;
+            CompressRLE_L1( CompressedSize, sizeX, sizeY, pData, pDestData, destDataSize );
+			if (!CompressedSize)
+			{
+				bOutSuccess = false;
+                return;
             }
 
-            destDataSize -= compressedSize;
-            pDestData += compressedSize;
+            destDataSize -= CompressedSize;
+            pDestData += CompressedSize;
 
             pData += pBase->GetLODDataSize(lod);
 			sizeX = FMath::Max(1, FMath::DivideAndRoundUp(sizeX, 2));
@@ -188,7 +192,7 @@ namespace mu
 
         pDest->m_data.SetNum( pDestData-pDest->GetData() );
 
-        return true;
+		bOutSuccess = true;
     }
 
 
@@ -197,8 +201,8 @@ namespace mu
     {
         int sizeX = pBase->GetSizeX();
         int sizeY = pBase->GetSizeY();
-        const uint8_t* pData = pBase->GetData();
-        uint8_t* pDestData = pDest->GetData();
+        const uint8* pData = pBase->GetData();
+        uint8* pDestData = pDest->GetData();
         for (int lod=0;lod<pBase->GetLODCount();++lod)
         {
             uint32_t compressedSize = UncompressRLE_L1( sizeX, sizeY, pData, pDestData );

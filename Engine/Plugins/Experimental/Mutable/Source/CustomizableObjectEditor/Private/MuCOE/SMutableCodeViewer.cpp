@@ -2407,7 +2407,7 @@ void SMutableCodeViewer::Tick(const FGeometry& AllottedGeometry, const double In
 	const mu::Ptr<mu::Settings> Settings = new mu::Settings();
 	const mu::Ptr<mu::System> System = new mu::System(Settings);
 
-	TestImageProvider* ImageProvider = new TestImageProvider;
+	TSharedPtr<TestImageProvider> ImageProvider = MakeShared<TestImageProvider>();
 	System->SetImageParameterGenerator(ImageProvider);
 
 	System->GetPrivate()->BeginBuild(MutableModel);
@@ -2474,12 +2474,8 @@ void SMutableCodeViewer::Tick(const FGeometry& AllottedGeometry, const double In
 	case mu::DT_COLOUR:
 	{
 		check(PreviewColorViewer);
-		float RedValue;
-		float GreenValue;
-		float BlueValue;
-		float AlphaValue;
-		System->GetPrivate()->BuildColour(MutableModel, PreviewParameters.get(), SelectedOperationAddress, &RedValue, &GreenValue, &BlueValue, &AlphaValue);
-		PreviewColorViewer->SetColor(RedValue, GreenValue, BlueValue, AlphaValue);
+		FVector4f Color = System->GetPrivate()->BuildColour(MutableModel, PreviewParameters.get(), SelectedOperationAddress);
+		PreviewColorViewer->SetColor(Color);
 		break;
 	}
 

@@ -352,8 +352,8 @@ namespace mu
 		//! Compare the format of the two buffers at index buffer and return true if they match.
 		bool HasSameFormat(int32 buffer, const FMeshBufferSet& pOther) const;
 
-		//! Get the total memory size of the buffers
-		size_t GetDataSize() const;
+		//! Get the total memory size of the buffers and this struct
+		int32 GetDataSize() const;
 
 		//! Compare the mesh buffer with another one, but ignore internal data like generated
 		//! vertex indices.

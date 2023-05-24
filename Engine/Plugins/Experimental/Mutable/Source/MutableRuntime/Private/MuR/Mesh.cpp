@@ -604,11 +604,12 @@ void Mesh::AddSkeletonID(int32 SkeletonID)
 //---------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------
-size_t Mesh::GetDataSize() const
+int32 Mesh::GetDataSize() const
 {
-    return m_IndexBuffers.GetDataSize()
-            + m_VertexBuffers.GetDataSize()
-            + m_FaceBuffers.GetDataSize();
+    return sizeof(Mesh)
+		+ m_IndexBuffers.GetDataSize()
+		+ m_VertexBuffers.GetDataSize()
+		+ m_FaceBuffers.GetDataSize();
 }
 
 

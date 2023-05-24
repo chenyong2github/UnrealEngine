@@ -17,15 +17,12 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	/** Set the Mutable Bool to be used for this widget */
-	void SetColor(float InRed, float InGreen, float InBlue, float InAlpha);
+	void SetColor(FVector4f Color);
 
 private:
 
 	/** Color being displayed */
-	float RedValue = 0.0f;
-	float GreenValue = 0.0f;
-	float BlueValue = 0.0f;
-	float AlphaValue = 1.0f;
+	FVector4f Color = FVector4f(0,0,0,1);
 
 	/** Color box widget designed to serve as a preview of the color reported by mutable */
 	TSharedPtr<SColorBlock> ColorPreview;

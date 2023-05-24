@@ -8,16 +8,12 @@
 namespace mu
 {
 
-	inline Ptr<Image> ImageColourMap( const Image* pSource, const Image* pMask, const Image* pMap, bool bOnlyOneMip )
+	inline void ImageColourMap( Image* pDest, const Image* pSource, const Image* pMask, const Image* pMap, bool bOnlyOneMip )
 	{
 		check( pSource->GetSizeX() == pMask->GetSizeX() );
 		check( pSource->GetSizeY() == pMask->GetSizeY() );
 		check( pSource->GetLODCount() == pMask->GetLODCount() || bOnlyOneMip );
 		check( pMask->GetFormat() == EImageFormat::IF_L_UBYTE );
-
-		Ptr<Image> pDest = new Image( pSource->GetSizeX(), pSource->GetSizeY(), pSource->GetLODCount(),
-									  pSource->GetFormat(),
-									  EInitializationType::NotInitialized );
 
         uint8* pDestBuf = pDest->GetData();
         const uint8* pSourceBuf = pSource->GetData();
@@ -134,8 +130,6 @@ namespace mu
 		default:
 			check(false);
 		}
-
-		return pDest;
 	}
 
 }

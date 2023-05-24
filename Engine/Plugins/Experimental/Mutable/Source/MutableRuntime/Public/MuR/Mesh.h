@@ -145,7 +145,7 @@ namespace mu
     //! it can be ignored.
     //! The meshes are always assumed to be triangle list primitives.
     //! \ingroup runtime
-    class MUTABLERUNTIME_API Mesh : public RefCounted
+    class MUTABLERUNTIME_API Mesh : public Resource
     {
     public:
 
@@ -162,6 +162,9 @@ namespace mu
         //! Serialisation
         static void Serialise( const Mesh* p, OutputArchive& arch );
         static MeshPtr StaticUnserialise( InputArchive& arch );
+
+		// Resource interface
+		int32 GetDataSize() const override;
 
         //-----------------------------------------------------------------------------------------
         // Own interface
@@ -526,9 +529,6 @@ namespace mu
 
 		//! Update the flags identifying the mesh format as some of the optimised formats.
 		void ResetStaticFormatFlags() const;
-
-		//! Get the total memory size of the buffers
-		size_t GetDataSize() const;
 
 		//! Create the surface data if not present.
 		void EnsureSurfaceData();

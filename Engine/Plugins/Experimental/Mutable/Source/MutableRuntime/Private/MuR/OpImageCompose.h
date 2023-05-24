@@ -4,7 +4,6 @@
 
 #include "MuR/ImagePrivate.h"
 #include "MuR/MutableMath.h"
-#include "MuR/OpImagePixelFormat.h"
 
 
 namespace mu

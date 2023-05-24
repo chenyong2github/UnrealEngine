@@ -527,23 +527,21 @@ public:
 	static UCustomizableObjectSystem* SSystem;
 
 	// Pointer to the lower level mutable system that actually does the work.
-	mu::SystemPtr MutableSystem;
+	mu::Ptr<mu::System> MutableSystem;
 
-	// Store the last streaming memory size in bytes, to change it when it is safe.
-	uint64 LastStreamingMemorySize = 0;
+	/** Store the last streaming memory size in bytes, to change it when it is safe. */
+	uint64 LastWorkingMemoryBytes = 0;
 
 	// This object is responsible for streaming data to the MutableSystem.
-	// Non-owned reference
-	class FUnrealMutableModelBulkStreamer* Streamer = nullptr;
+	TSharedPtr<class FUnrealMutableModelBulkStreamer> Streamer;
 
-	// Non-owned reference
-	class FUnrealExtensionDataStreamer* ExtensionDataStreamer = nullptr;
+	// 
+	TSharedPtr<class FUnrealExtensionDataStreamer> ExtensionDataStreamer;
 
 	// This object is responsible for providing custom images to mutable models (for image parameters)
 	// This object is called from the mutable thread, and it should only access data already safely submitted from
 	// the game thread and stored in FUnrealMutableImageProvider::GlobalExternalImages.
-	// Non-owned reference
-	class FUnrealMutableImageProvider* ImageProvider = nullptr;
+	TSharedPtr<class FUnrealMutableImageProvider> ImageProvider;
 
 	// Cache of weak references to generated resources to see if they can be reused.
 	TArray<FMutableResourceCache> ModelResourcesCache;
@@ -738,8 +736,8 @@ public:
 	// Important!!! Never call when there's a Begin Update thread running!
 	void ReleasePendingMutableInstances();
 
-	// Check and update the streaming memory limit. Only safe from game thread and when the mutable thread is idle.
-	void UpdateStreamingLimit();
+	/** Update the last set amount of internal memory Mutable can use to build objects. */
+	void UpdateMemoryLimit();
 
 	bool IsMutableAnimInfoDebuggingEnabled() const;
 
