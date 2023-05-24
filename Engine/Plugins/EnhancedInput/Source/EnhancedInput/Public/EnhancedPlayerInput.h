@@ -173,6 +173,12 @@ protected:
 	*/
 	uint8 bIsFlushingInputThisFrame : 1;
 
+	/**
+	* If there is a key mapping to EKeys::AnyKey, we will keep track of what key was used when we first found a "Pressed"
+	* event. That way we can use the same key when we wait for a "Released" event.
+	*/
+	FName CurrentlyInUseAnyKeySubstitute;
+
 private:
 
 	/** The last time of the last frame that was processed in ProcessPlayerInput */
