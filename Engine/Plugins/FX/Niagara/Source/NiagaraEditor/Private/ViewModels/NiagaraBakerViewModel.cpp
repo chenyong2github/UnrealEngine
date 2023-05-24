@@ -459,7 +459,10 @@ FText FNiagaraBakerViewModel::GetOutputText(int32 OutputIndex) const
 	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
 	if ( BakerSettings && BakerSettings->Outputs.IsValidIndex(OutputIndex) )
 	{
-		return FText::FromString(BakerSettings->Outputs[OutputIndex]->OutputName);
+		if(BakerSettings->Outputs[OutputIndex])
+		{
+			return FText::FromString(BakerSettings->Outputs[OutputIndex]->OutputName);
+		}
 	}
 	return FText::GetEmpty();
 }
