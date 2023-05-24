@@ -93,7 +93,8 @@ public:
 		return (
 			Parameters.MaterialParameters.bIsSpecialEngineMaterial ||
 			!Parameters.MaterialParameters.bWritesEveryPixel ||
-			Parameters.MaterialParameters.bMaterialMayModifyMeshPosition);
+			Parameters.MaterialParameters.bMaterialMayModifyMeshPosition)
+			&& !Parameters.VertexFactoryType->SupportsNaniteRendering();
 	}
 
 	void GetShaderBindings(
@@ -126,7 +127,8 @@ public:
 		
 		return
 			// Compile for materials that are masked
-			(!Parameters.MaterialParameters.bWritesEveryPixel || Parameters.MaterialParameters.bHasPixelDepthOffsetConnected);
+			(!Parameters.MaterialParameters.bWritesEveryPixel || Parameters.MaterialParameters.bHasPixelDepthOffsetConnected)
+			&& !Parameters.VertexFactoryType->SupportsNaniteRendering();
 	}
 
 	FDepthOnlyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):

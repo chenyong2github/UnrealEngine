@@ -321,11 +321,12 @@ public:
 			// Masked and WPO materials need their shaders but cannot be used with a position only stream.
 			|| ((!Parameters.MaterialParameters.bWritesEveryPixelShadowPass || Parameters.MaterialParameters.bMaterialMayModifyMeshPosition) && !bUsePositionOnlyStream))
 			// Only compile one pass point light shaders for feature levels >= SM5
-				&& (ShaderMode != VertexShadowDepth_OnePassPointLight || IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
+			&& (ShaderMode != VertexShadowDepth_OnePassPointLight || IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 			// Only compile position-only shaders for vertex factories that support it. (Note: this assumes that a vertex factor which supports PositionOnly, supports also PositionAndNormalOnly)
 			&& (!bUsePositionOnlyStream || Parameters.VertexFactoryType->SupportsPositionOnly())
 			// Don't render ShadowDepth for translucent unlit materials
-			&& Parameters.MaterialParameters.bShouldCastDynamicShadows;
+			&& Parameters.MaterialParameters.bShouldCastDynamicShadows
+			&& !Parameters.VertexFactoryType->SupportsNaniteRendering();
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -442,7 +443,8 @@ public:
 			// This mode needs a pixel shader and WPO materials can't be overridden with default material.
 			|| (bModeRequiresPS && Parameters.MaterialParameters.bMaterialMayModifyMeshPosition))
 			// Don't render ShadowDepth for translucent unlit materials
-			&& Parameters.MaterialParameters.bShouldCastDynamicShadows;
+			&& Parameters.MaterialParameters.bShouldCastDynamicShadows
+			&& !Parameters.VertexFactoryType->SupportsNaniteRendering();
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

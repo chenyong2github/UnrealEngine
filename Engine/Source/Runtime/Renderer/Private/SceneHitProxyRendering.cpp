@@ -119,7 +119,8 @@ public:
 			&& (Parameters.MaterialParameters.bIsSpecialEngineMaterial ||
 				!Parameters.MaterialParameters.bWritesEveryPixel ||
 				Parameters.MaterialParameters.bMaterialMayModifyMeshPosition ||
-				Parameters.MaterialParameters.bIsTwoSided);
+				Parameters.MaterialParameters.bIsTwoSided) &&
+				!Parameters.VertexFactoryType->SupportsNaniteRendering();
 	}
 
 	FHitProxyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
