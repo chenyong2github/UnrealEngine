@@ -5,6 +5,16 @@
 #include "Graph/MovieGraphConfig.h"
 #include "Styling/AppStyle.h"
 
+TArray<FMovieGraphPinProperties> UMovieGraphGetCVarValueNode::GetOutputPinProperties() const
+{
+	TArray<FMovieGraphPinProperties> OutputPinProperties = Super::GetOutputPinProperties();
+
+	FMovieGraphPinProperties Properties(FName("Value"), EMovieGraphValueType::String, false);
+	OutputPinProperties.Add(MoveTemp(Properties));
+
+	return OutputPinProperties;
+}
+
 #if WITH_EDITOR
 FText UMovieGraphGetCVarValueNode::GetNodeTitle(const bool bGetDescriptive) const
 {
@@ -36,16 +46,6 @@ FSlateIcon UMovieGraphGetCVarValueNode::GetIconAndTint(FLinearColor& OutColor) c
 
 	OutColor = FLinearColor::White;
 	return RenderLayerIcon;
-}
-
-TArray<FMovieGraphPinProperties> UMovieGraphGetCVarValueNode::GetOutputPinProperties() const
-{
-	TArray<FMovieGraphPinProperties> OutputPinProperties = Super::GetOutputPinProperties();
-
-	FMovieGraphPinProperties Properties(FName("Value"), EMovieGraphValueType::String, false);
-	OutputPinProperties.Add(MoveTemp(Properties));
-
-	return OutputPinProperties;
 }
 
 void UMovieGraphGetCVarValueNode::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
