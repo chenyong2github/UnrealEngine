@@ -19,17 +19,18 @@ class IIoCache
 {
 public:
 	virtual ~IIoCache() = default;
+
 	/** Returns whether the specified cache key is present in the cache. */
 	virtual bool ContainsChunk(const FIoHash& Key) const = 0;
 
 	/** Get the chunk associated with the specified cache key. */
-	virtual UE::Tasks::TTask<TIoStatusOr<FIoBuffer>> GetChunk(
+	virtual UE::Tasks::TTask<TIoStatusOr<FIoBuffer>> Get(
 		const FIoHash& Key,
 		const FIoReadOptions& Options,
 		const FIoCancellationToken* CancellationToken) = 0;
 
 	/** Insert a new chunk into the cache. */
-	virtual FIoStatus PutChunk(const FIoHash& Key, FMemoryView Data) = 0;
+	virtual FIoStatus Put(const FIoHash& Key, FIoBuffer& Data) = 0;
 };
 
 struct FFileIoCacheConfig

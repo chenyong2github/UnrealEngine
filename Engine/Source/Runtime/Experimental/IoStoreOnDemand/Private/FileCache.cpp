@@ -170,7 +170,7 @@ public:
 	void Reset();
 	bool Contains(FIoHash Key) const;
 	bool Get(const FIoHash& Key, FCacheEntry& OutEntry) const;
-	bool InsertPending(FIoHash Key, FMemoryView Data, bool& bAdded);
+	bool InsertPending(FIoHash Key, FIoBuffer& Data, bool& bAdded);
 	bool RemovePending(FCacheEntryList& OutPending);
 	void InsertPersisted(FCacheEntryList&& InPersisted, const uint64 CursorPos);
 	void RemovePersisted(const uint64 RequiredSize);
@@ -223,7 +223,7 @@ bool FCacheMap::Get(const FIoHash& Key, FCacheEntry& OutEntry) const
 	return false;
 }
 
-bool FCacheMap::InsertPending(FIoHash Key, FMemoryView Data, bool& bAdded)
+bool FCacheMap::InsertPending(FIoHash Key, FIoBuffer& Data, bool& bAdded)
 {
 	check(Data.GetSize() > 0);
 
@@ -245,7 +245,7 @@ bool FCacheMap::InsertPending(FIoHash Key, FMemoryView Data, bool& bAdded)
 	TUniquePtr<FCacheEntry>& Entry = Lookup.FindOrAdd(Key);
 	Entry = MakeUnique<FCacheEntry>();
 	Entry->Key = Key;
-	Entry->Data = FIoBuffer(FIoBuffer::Clone, Data);
+	Entry->Data = FIoBuffer(Data);
 	Entry->State = ECacheEntryState::Pending;
 
 	Pending.AddTail(Entry.Get());
@@ -388,8 +388,8 @@ public:
 	virtual ~FFileIoCache();
 
 	virtual bool ContainsChunk(const FIoHash& Key) const override;
-	virtual TTask<TIoStatusOr<FIoBuffer>> GetChunk(const FIoHash& Key, const FIoReadOptions& Options, const FIoCancellationToken* CancellationToken) override;
-	virtual FIoStatus PutChunk(const FIoHash& Key, FMemoryView Data) override;
+	virtual TTask<TIoStatusOr<FIoBuffer>> Get(const FIoHash& Key, const FIoReadOptions& Options, const FIoCancellationToken* CancellationToken) override;
+	virtual FIoStatus Put(const FIoHash& Key, FIoBuffer& Data) override;
 
 	// Runnable
 	virtual bool Init() override
@@ -439,7 +439,7 @@ bool FFileIoCache::ContainsChunk(const FIoHash& Key) const
 	return CacheMap.Contains(Key);
 }
 
-TTask<TIoStatusOr<FIoBuffer>> FFileIoCache::GetChunk(const FIoHash& Key, const FIoReadOptions& Options, const FIoCancellationToken* CancellationToken)
+TTask<TIoStatusOr<FIoBuffer>> FFileIoCache::Get(const FIoHash& Key, const FIoReadOptions& Options, const FIoCancellationToken* CancellationToken)
 {
 	return Launch(UE_SOURCE_LOCATION,
 		[this, Key, Options, CancellationToken]()
@@ -512,7 +512,7 @@ TTask<TIoStatusOr<FIoBuffer>> FFileIoCache::GetChunk(const FIoHash& Key, const F
 		});
 }
 	
-FIoStatus FFileIoCache::PutChunk(const FIoHash& Key, FMemoryView Data)
+FIoStatus FFileIoCache::Put(const FIoHash& Key, FIoBuffer& Data)
 {
 	bool bAdded = false;
 	if (CacheMap.InsertPending(Key, Data, bAdded))

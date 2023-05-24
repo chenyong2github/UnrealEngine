@@ -996,7 +996,7 @@ void FOnDemandIoBackend::CompleteRequest(FChunkRequest* ChunkRequest)
 
 	if (bCanCache && !ChunkRequest->bCached && Chunk.GetSize() > 0)
 	{
-		if (FIoStatus Status = Cache->PutChunk(ChunkRequest->Params.ChunkKey, Chunk.GetView()); Status.IsOk())
+		if (FIoStatus Status = Cache->Put(ChunkRequest->Params.ChunkKey, Chunk); Status.IsOk())
 		{
 			TRACE_COUNTER_INCREMENT(CachePutCount);
 		}
@@ -1056,7 +1056,7 @@ bool FOnDemandIoBackend::Resolve(FIoRequestImpl* Request)
 	//TODO: Remove if else once 25124120 is merged to FN/Main
 	if (Cache.IsValid())
 	{
-		ChunkRequest->CacheTask = Cache->GetChunk(ChunkRequest->Params.ChunkKey, FIoReadOptions(), &ChunkRequest->CancellationToken);
+		ChunkRequest->CacheTask = Cache->Get(ChunkRequest->Params.ChunkKey, FIoReadOptions(), &ChunkRequest->CancellationToken);
 		Launch(UE_SOURCE_LOCATION, MoveTemp(CompleteOrEnqueueHttpRequest), ChunkRequest->CacheTask);
 	}
 	else
