@@ -191,11 +191,7 @@ void PackStrataOut(
 						const bool LuminanceWeightEqualOne = all(BSDF.LuminanceWeightV == 1.0f);
 
 						#if STRATA_COMPLEXSPECIALPATH
-						#if STRATA_GLINTS_ENABLED
-						const bool bForceComplexSpecialPath = BSDF_GETHASSPECPROFILE(BSDF) || BSDF_GETHASGLINT(BSDF);
-						#else
-						const bool bForceComplexSpecialPath = BSDF_GETHASSPECPROFILE(BSDF);
-						#endif
+						const bool bForceComplexSpecialPath = (STRATA_SPECPROFILE_ENABLED && BSDF_GETHASSPECPROFILE(BSDF)) || (STRATA_GLINTS_ENABLED && BSDF_GETHASGLINT(BSDF));
 						#else
 						const bool bForceComplexSpecialPath = false;
 						#endif
@@ -814,11 +810,12 @@ void PackStrataOut(
 								STRATA_STORE_UINT1(PackFloat2ToUInt(SLAB_GLINT_UVDDY(BSDF)));
 							}
 							#endif // STRATA_GLINTS_ENABLED
-
+							#if STRATA_SPECPROFILE_ENABLED
 							if (BSDF_GETHASSPECPROFILE(BSDF))
 							{
 								STRATA_STORE_UINT1(PackSpecularProfile(SLAB_SPECPROFILEID(BSDF)));
 							}
+							#endif // STRATA_SPECPROFILE_ENABLED
 							#endif // STRATA_COMPLEXSPECIALPATH
 
 							// 8-28 bytes

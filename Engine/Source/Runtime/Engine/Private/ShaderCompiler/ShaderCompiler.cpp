@@ -6665,6 +6665,9 @@ void GlobalBeginCompileShader(
 
 			const bool bStrataGlints = Strata::IsGlintEnabled();
 			Input.Environment.SetDefine(TEXT("PLATFORM_ENABLES_STRATA_GLINTS"), bStrataGlints ? 1 : 0);
+
+			const bool bSpecularProfileEnabled = Strata::IsSpecularProfileEnabled();
+			Input.Environment.SetDefine(TEXT("PLATFORM_ENABLES_STRATA_SPECULAR_PROFILE"), bSpecularProfileEnabled ? 1 : 0);
 		}
 
 		const bool bStrataBackCompatibility = bStrata && Strata::IsBackCompatibilityEnabled();

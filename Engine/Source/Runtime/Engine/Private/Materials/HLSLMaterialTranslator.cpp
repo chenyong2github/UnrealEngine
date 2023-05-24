@@ -11555,9 +11555,6 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 			const uint32 UintByteSize = sizeof(uint32);
 			StrataMaterialRequestedSizeByte = 0;
 
-			// Used to not promote to ComplexSpecial render path if glint rendering is not enabled and avoid registering such possibility at runtime.
-			const bool bGlintEnabled = Strata::IsGlintEnabled();
-
 			// 1. Evaluate simple/single BSDF
 			bStrataMaterialIsSimple = StrataMaterialBSDFCount == 1;
 			bStrataMaterialIsSingle = StrataMaterialBSDFCount == 1;
@@ -11584,7 +11581,7 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 					{
 						bStrataMaterialIsSimple = bStrataMaterialIsSimple && !bMayHaveColoredWeight && !It.bBSDFHasAnisotropy && !It.bBSDFHasEdgeColor && !It.bBSDFHasFuzz && !It.bBSDFHasSecondRoughnessOrSimpleClearCoat && !It.bBSDFHasMFPPluggedIn && !It.bBSDFHasSSS && !It.bBSDFHasGlint && !It.bBSDFHasSpecularProfile;
 						bStrataMaterialIsSingle = bStrataMaterialIsSingle && !bMayHaveColoredWeight && !It.bBSDFHasAnisotropy && !It.bBSDFHasGlint && !It.bBSDFHasSpecularProfile;
-						bUsesComplexSpecialRenderPath |= (bGlintEnabled && It.bBSDFHasGlint) || It.bBSDFHasSpecularProfile;
+						bUsesComplexSpecialRenderPath |= It.bBSDFHasGlint || It.bBSDFHasSpecularProfile;
 						break;
 					}
 					case STRATA_BSDF_TYPE_HAIR:

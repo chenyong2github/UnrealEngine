@@ -23709,12 +23709,14 @@ bool UMaterialExpressionStrataSlabBSDF::HasAnisotropy() const
 
 bool UMaterialExpressionStrataSlabBSDF::HasGlint() const
 {
-	return GlintValue.IsConnected();
+	// Use IsGlintEnabled to not promote to ComplexSpecial render path if glint rendering is not enabled and avoid registering such possibility at runtime.
+	return GlintValue.IsConnected() && Strata::IsGlintEnabled();
 }
 
 bool UMaterialExpressionStrataSlabBSDF::HasSpecularProfile() const
 {
-	return SpecularProfile != nullptr;
+	// Use IsSpecularLUTEnabled to not promote to ComplexSpecial render path if glint rendering is not enabled and avoid registering such possibility at runtime.
+	return SpecularProfile != nullptr && Strata::IsSpecularProfileEnabled();
 }
 
 #endif // WITH_EDITOR

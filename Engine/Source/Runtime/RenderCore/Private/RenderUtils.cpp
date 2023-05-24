@@ -1604,10 +1604,16 @@ static TAutoConsoleVariable<int32> CVarSubstrateGlints(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarSubstrateGlintsLUT(
-	TEXT("r.Substrate.GlintsLUT"),
+	TEXT("r.Substrate.Glints.LUT"),
 	1,
 	TEXT("Select one of the glint rendering LUT for testing."),
 	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarSubstrateSpecularProfile(
+	TEXT("r.Substrate.SpecularProfile"),
+	1,
+	TEXT("Enable Specular Profile support for Strata slabs. If changed, shaders needs to be recompiled."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarSubstrateDebugAdvancedVisualizationShaders(
 	TEXT("r.Substrate.Debug.AdvancedVisualizationShaders"),
@@ -1716,6 +1722,11 @@ namespace Strata
 	uint32 GlintLUTIndex()
 	{
 		return CVarSubstrateGlintsLUT.GetValueOnAnyThread()<= 0 ? 0u : 1u;
+	}
+
+	bool IsSpecularProfileEnabled()
+	{
+		return IsStrataEnabled() && CVarSubstrateSpecularProfile.GetValueOnAnyThread() > 0;
 	}
 
 	bool Is8bitTileCoordEnabled()

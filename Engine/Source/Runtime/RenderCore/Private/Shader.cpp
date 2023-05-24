@@ -2019,6 +2019,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			KeyString += FString::Printf(TEXT("_STRTGLT"));
 		}
+
+		if (Strata::IsSpecularProfileEnabled())
+		{
+			KeyString += FString::Printf(TEXT("_STRTSP"));
+		}
 	}
 
 	{
