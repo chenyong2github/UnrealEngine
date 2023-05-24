@@ -50,7 +50,7 @@ public:
 	virtual bool IsDone() const override { return bIsDone; }
 	virtual bool HadError() const override { return bHadError; }
 	virtual FString GetErrorReason() const override { return Error; }
-	virtual float GetElapsedTime() const override { return (EndTime - StartTime) * 1000.f; }
+	virtual float GetElapsedTime() const override { return (float)(EndTime - StartTime) * 1000.f; }
 	virtual FIntPoint GetConvertedImageSize() const override { return FIntPoint::ZeroValue; };
 
 protected:
