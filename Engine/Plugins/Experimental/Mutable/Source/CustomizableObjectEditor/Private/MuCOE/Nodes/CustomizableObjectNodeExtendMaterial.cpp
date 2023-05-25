@@ -4,6 +4,7 @@
 
 #include "MaterialTypes.h"
 #include "MuCOE/CustomizableObjectEditor_Deprecated.h"
+#include "MuCOE/CustomizableObjectGraph.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeCopyMaterial.h"
@@ -21,6 +22,20 @@ void UCustomizableObjectNodeExtendMaterial::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	
 	Ar.UsingCustomVersion(FCustomizableObjectCustomVersion::GUID);
+}
+
+
+void UCustomizableObjectNodeExtendMaterial::BeginPostDuplicate(bool bDuplicateForPIE)
+{
+	Super::BeginPostDuplicate(bDuplicateForPIE);
+
+	if (ParentMaterialObject)
+	{
+		if (UCustomizableObjectGraph* CEdGraph = Cast<UCustomizableObjectGraph>(GetGraph()))
+		{
+			ParentMaterialNodeId = CEdGraph->RequestNotificationForNodeIdChange(ParentMaterialNodeId, NodeGuid);
+		}
+	}
 }
 
 
@@ -63,6 +78,16 @@ void UCustomizableObjectNodeExtendMaterial::BackwardsCompatibleFixup()
 		ReconstructNode();
 	}
 }
+
+
+void UCustomizableObjectNodeExtendMaterial::UpdateReferencedNodeId(const FGuid& NewGuid)
+{
+	if (ParentMaterialObject)
+	{
+		ParentMaterialNodeId = NewGuid;
+	}
+}
+
 
 void UCustomizableObjectNodeExtendMaterial::PostBackwardsCompatibleFixup()
 {
