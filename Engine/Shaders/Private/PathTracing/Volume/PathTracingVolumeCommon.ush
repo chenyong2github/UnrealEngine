@@ -190,10 +190,9 @@ struct FVolumeShadedResult
 	float3 SigmaT;         // extinction
 	float3 SigmaSRayleigh; // Rayleight scattering coefficient
 	float3 SigmaSHG;       // Henyey-Greenstein scattering coefficient
+	float3 Emission;
 	float PhaseG;          // 'g' term for HG lobe
-
 	// TODO: second HG lobe?
-	// TODO: emission?
 };
 
 FPathTracingPayload CreateMediumHitPayload(float HitT, float3 TranslatedWorldPos, FVolumeShadedResult ShadedResult)
@@ -218,6 +217,7 @@ void MergeVolumeShadedResult(inout FVolumeShadedResult Merged, FVolumeShadedResu
 	Merged.SigmaT += Other.SigmaT;
 	Merged.SigmaSRayleigh += Other.SigmaSRayleigh;
 	Merged.SigmaSHG += Other.SigmaSHG;
+	Merged.Emission += Other.Emission;
 	// blend phase function anisotropy based on amount of each medium
 	float Qa = Other.SigmaSHG.x + Other.SigmaSHG.y + Other.SigmaSHG.z;
 	float Qs = Merged.SigmaSHG.x + Merged.SigmaSHG.y + Merged.SigmaSHG.z;

@@ -589,6 +589,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, int Bounce, 
 							}
 						}
 
+						PathState.Radiance += Result.Emission * PathThroughput;
 						// keep tracing through the volume
 						PathThroughput *= SigmaN;
 					}

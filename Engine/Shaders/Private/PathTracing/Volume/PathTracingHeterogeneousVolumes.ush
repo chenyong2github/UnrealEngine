@@ -261,6 +261,7 @@ FVolumeShadedResult GetOrthoVoxelGridDensity(float3 TranslatedWorldPos)
 {
 	float3 SigmaT = 0.0;
 	float3 Albedo = 0.0;
+	float3 Emission = 0.0;
 
 	float3 TranslatedWorldBoundsMin = GetTranslatedWorldPos(OrthoGridUniformBuffer.TopLevelGridWorldBoundsMin);
 	float3 TranslatedWorldBoundsMax = GetTranslatedWorldPos(OrthoGridUniformBuffer.TopLevelGridWorldBoundsMax);
@@ -294,6 +295,7 @@ FVolumeShadedResult GetOrthoVoxelGridDensity(float3 TranslatedWorldPos)
 					uint LinearBottomLevelVoxelPos = BottomLevelIndex + MortonEncode3(BottomLevelVoxelPosAsInt);
 					SigmaT = GetExtinction(OrthoGridUniformBuffer.ExtinctionGridBuffer[LinearBottomLevelVoxelPos]);
 					Albedo = GetAlbedo(OrthoGridUniformBuffer.ScatteringGridBuffer[LinearBottomLevelVoxelPos]);
+					Emission = GetEmission(OrthoGridUniformBuffer.EmissionGridBuffer[LinearBottomLevelVoxelPos]);
 				}
 			}
 		}
@@ -312,6 +314,7 @@ FVolumeShadedResult GetOrthoVoxelGridDensity(float3 TranslatedWorldPos)
 
 				SigmaT = GetExtinction(OrthoGridUniformBuffer.ExtinctionGridBuffer[LinearBottomLevelVoxelPos]);
 				Albedo = GetAlbedo(OrthoGridUniformBuffer.ScatteringGridBuffer[LinearBottomLevelVoxelPos]);
+				Emission = GetEmission(OrthoGridUniformBuffer.EmissionGridBuffer[LinearBottomLevelVoxelPos]);
 			}
 		}
 	}
@@ -320,7 +323,7 @@ FVolumeShadedResult GetOrthoVoxelGridDensity(float3 TranslatedWorldPos)
 	Result.SigmaT = SigmaT;
 	Result.SigmaSHG = Albedo;
 	Result.PhaseG = GetPhaseG();
-	// TODO: Emission?
+	Result.Emission = Emission;
 
 	return Result;
 }
@@ -329,6 +332,7 @@ FVolumeShadedResult GetFrustumVoxelGridDensity(float3 TranslatedWorldPos, inout 
 {
 	float3 SigmaT = 0.0;
 	float3 Albedo = 0.0;
+	float3 Emission = 0.0;
 
 	// Convert TranslatedWorldPos to voxel space
 	float3 WorldPos = LWCHackToFloat(LWCSubtract(TranslatedWorldPos, PrimaryView.PreViewTranslation));
@@ -353,6 +357,7 @@ FVolumeShadedResult GetFrustumVoxelGridDensity(float3 TranslatedWorldPos, inout 
 			uint LinearBottomLevelVoxelPos = BottomLevelIndex + MortonEncode3(uint3(BottomLevelVoxelPos));
 			SigmaT = GetExtinction(FrustumGridUniformBuffer.ExtinctionFroxelGridBuffer[LinearBottomLevelVoxelPos]);
 			Albedo = GetAlbedo(FrustumGridUniformBuffer.ScatteringFroxelGridBuffer[LinearBottomLevelVoxelPos]);
+			Emission = GetEmission(FrustumGridUniformBuffer.EmissionFroxelGridBuffer[LinearBottomLevelVoxelPos]);
 		}
 	}
 
@@ -361,7 +366,7 @@ FVolumeShadedResult GetFrustumVoxelGridDensity(float3 TranslatedWorldPos, inout 
 	Result.SigmaT = SigmaT;
 	Result.SigmaSHG = Albedo;
 	Result.PhaseG = GetPhaseG();
-	// TODO: Emission?
+	Result.Emission = Emission;
 	return Result;
 }
 
