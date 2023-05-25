@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r25");
+	return TEXT("v8r30");
 }
 
 namespace FHairStrandsDecimation
@@ -235,12 +235,22 @@ namespace HairStrandsBuilder
 				uint8 Packed;
 			};
 		};
+
+		uint32 MinPointPerCurve = HAIR_MAX_NUM_POINT_PER_CURVE;
+		uint32 MaxPointPerCurve = 0;
+		uint32 AccPointPerCurve = 0;
+
 		static_assert(sizeof(FPackedRadiusAndType) == sizeof(uint8));
 		const bool bSeedValid = RandomSeeds.Num() > 0;
 		for (uint32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
 		{
 			const int32 IndexOffset = Curves.CurvesOffset[CurveIndex];
-			const uint16& PointCount = Curves.CurvesCount[CurveIndex];
+			const uint16 PointCount = Curves.CurvesCount[CurveIndex];
+
+			MinPointPerCurve = FMath::Min(MinPointPerCurve, uint32(PointCount));
+			MaxPointPerCurve = FMath::Max(MaxPointPerCurve, uint32(PointCount));
+			AccPointPerCurve += PointCount;
+
 			for (int32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 			{
 				const uint32 PrevIndex = FMath::Max(0, PointIndex - 1);
@@ -369,6 +379,9 @@ namespace HairStrandsBuilder
 		OutBulkData.Header.BoundingBox = HairStrands.BoundingBox;
 		OutBulkData.Header.CurveCount = HairStrands.GetNumCurves();
 		OutBulkData.Header.PointCount = HairStrands.GetNumPoints();
+		OutBulkData.Header.MinPointPerCurve = MinPointPerCurve;
+		OutBulkData.Header.MaxPointPerCurve = MaxPointPerCurve;
+		OutBulkData.Header.AvgPointPerCurve = FMath::DivideAndRoundDown(AccPointPerCurve, NumCurves);
 		OutBulkData.Header.MaxLength = MaxLength;
 		OutBulkData.Header.MaxRadius = MaxRadius;
 		OutBulkData.Header.Flags = FHairStrandsBulkData::DataFlags_HasData;

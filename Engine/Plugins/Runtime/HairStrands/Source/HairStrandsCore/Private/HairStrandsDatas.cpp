@@ -329,7 +329,7 @@ static void RequestWarmCache(UE::DerivedData::FRequestOwner* RequestOwner, const
 	{				
 		WarmRequest.Add({R.Name, R.Key, Policy, 0});
 	}
-	GetCache().GetValue(WarmRequest, *RequestOwner, [](FCacheGetValueResponse && Response) { check(Response.Status == EStatus::Ok); });
+	GetCache().GetValue(WarmRequest, *RequestOwner, [](FCacheGetValueResponse && Response) { /* If the data are not built the cache quert can return false. check(Response.Status == EStatus::Ok);*/ });
 	RequestOwner->Wait();
 }
 
@@ -481,6 +481,9 @@ void FHairStrandsBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
 	Ar << Header.MaxLength;
 	Ar << Header.MaxRadius;
 	Ar << Header.BoundingBox;
+	Ar << Header.MinPointPerCurve;
+	Ar << Header.MaxPointPerCurve;
+	Ar << Header.AvgPointPerCurve;
 	Ar << Header.Flags;
 	for (uint8 AttributeIt = 0; AttributeIt < HAIR_CURVE_ATTRIBUTE_COUNT; ++AttributeIt)
 	{
@@ -667,7 +670,7 @@ void FHairStrandsClusterCullingBulkData::Reset()
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
 	Data.ClusterLODInfos 	= FHairBulkContainer();
-	Data.CurveToClusterIds = FHairBulkContainer();
+	Data.CurveToClusterIds  = FHairBulkContainer();
 	Data.ClusterVertexIds 	= FHairBulkContainer();
 	Data.PackedClusterInfos = FHairBulkContainer();
 }

@@ -605,6 +605,9 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData : FHairStrandsBulkCommon
 	{
 		uint32 CurveCount = 0;
 		uint32 PointCount = 0;
+		uint32 MinPointPerCurve = 0;
+		uint32 MaxPointPerCurve = 0;
+		uint32 AvgPointPerCurve = 0;
 		float  MaxLength = 0;
 		float  MaxRadius = 0;
 		FBox   BoundingBox = FBox(EForceInit::ForceInit);
