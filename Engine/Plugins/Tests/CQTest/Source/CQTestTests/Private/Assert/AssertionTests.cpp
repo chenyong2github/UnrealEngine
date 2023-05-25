@@ -17,6 +17,13 @@ namespace CQTests
 			Assert.Fail(TEXT(""));
 		}
 
+		TEST_METHOD(AssertFail_Macro_AddsErrorAndExits)
+		{
+			Assert.ExpectError(ExpectedError);
+			ASSERT_FAIL(ExpectedError);
+			ASSERT_FAIL(TEXT("It should not assert after the first expected assert since it exits"));
+		}
+
 		TEST_METHOD(Assertions_Accept_RawStrings)
 		{
 			Assert.ExpectError("Hello World");

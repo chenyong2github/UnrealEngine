@@ -167,6 +167,7 @@ struct TTest : TBaseTest<AsserterType>
 	void _TestName::_TestName##_Method()
 
 #define ASSERT_THAT(_assertion) if (!Assert._assertion) {return;}
+#define ASSERT_FAIL(_Msg) Assert.Fail(_Msg); return;
 
 #define BEFORE_EACH() virtual void Setup() override
 #define AFTER_EACH() virtual void TearDown() override
