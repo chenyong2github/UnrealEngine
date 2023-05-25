@@ -6,6 +6,25 @@
 
 #pragma once
 
+
+// GPUCULL_TODO: Eventually we need to remove this workaround
+#define VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG (1U << 31U)
+
+#define PRIMITIVE_ID_NUM_BITS				(20u) // Max of 1,048,576 primitives
+#define INSTANCE_ID_NUM_BITS				(24u) // Max of 16,777,216 instances in the buffer
+#define INSTANCE_SCENE_DATA_FLAGS_NUM_BITS	(12u) // Max of 12 flags
+#define INSTANCE_RELATIVE_ID_NUM_BITS		(24u) // Max of 16,777,216 instances per primitive
+#define INSTANCE_CUSTOM_DATA_COUNT_NUM_BITS	 (8u) // Max of 255 custom data floats per instance
+
+#define MAX_PRIMITIVE_ID					(1U << PRIMITIVE_ID_NUM_BITS)
+#define MAX_INSTANCE_ID						(1U << INSTANCE_ID_NUM_BITS)
+
+#define PRIMITIVE_ID_MASK			((1u << PRIMITIVE_ID_NUM_BITS) - 1u)
+#define INSTANCE_ID_MASK			((1u << INSTANCE_ID_NUM_BITS) - 1u)
+#define INSTANCE_RELATIVE_ID_MASK	((1u << INSTANCE_RELATIVE_ID_NUM_BITS) - 1u)
+
+#define INVALID_PRIMITIVE_ID PRIMITIVE_ID_MASK
+
 // Primitive scene data flags
 #define PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS							0x1
 #define PRIMITIVE_SCENE_DATA_FLAG_USE_SINGLE_SAMPLE_SHADOW_SL			0x2
@@ -70,15 +89,3 @@
 	| INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA			\
 	| INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS	\
 )
-
-#define PRIMITIVE_ID_NUM_BITS				(20u) // Max of 1,048,576 primitives
-#define INSTANCE_ID_NUM_BITS				(24u) // Max of 16,777,216 instances in the buffer
-#define INSTANCE_SCENE_DATA_FLAGS_NUM_BITS	(12u) // Max of 12 flags
-#define INSTANCE_RELATIVE_ID_NUM_BITS		(24u) // Max of 16,777,216 instances per primitive
-#define INSTANCE_CUSTOM_DATA_COUNT_NUM_BITS	 (8u) // Max of 255 custom data floats per instance
-
-#define PRIMITIVE_ID_MASK			((1u << PRIMITIVE_ID_NUM_BITS) - 1u)
-#define INSTANCE_ID_MASK			((1u << INSTANCE_ID_NUM_BITS) - 1u)
-#define INSTANCE_RELATIVE_ID_MASK	((1u << INSTANCE_RELATIVE_ID_NUM_BITS) - 1u)
-
-#define INVALID_PRIMITIVE_ID PRIMITIVE_ID_MASK

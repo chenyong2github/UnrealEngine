@@ -11,6 +11,7 @@ MeshDrawCommandSetup.cpp: Mesh draw command setup.
 #include "TranslucentRendering.h"
 #include "InstanceCulling/InstanceCullingManager.h"
 #include "StaticMeshBatch.h"
+#include "SceneDefinitions.h"
 
 TGlobalResource<FPrimitiveIdVertexBufferPool> GPrimitiveIdVertexBufferPool;
 
@@ -446,7 +447,6 @@ FORCEINLINE int32 TranslatePrimitiveId(int32 DrawPrimitiveIdIn, int32 DynamicPri
 
 	// Append flag to mark this as a non-instance data index.
 	// This value is treated as a primitive ID in the SceneData.ush loading.
-	const uint32 VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG = 1U << 31U;
 	return DrawPrimitiveId |= VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
 }
 

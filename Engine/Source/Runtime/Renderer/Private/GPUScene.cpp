@@ -10,9 +10,6 @@
 #include "RHI.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"
-#include "SpriteIndexBuffer.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "ClearQuad.h"
 #include "RendererModule.h"
 #include "Rendering/NaniteResources.h"
 #include "Async/ParallelFor.h"
@@ -29,6 +26,7 @@
 #include "SceneDefinitions.h"
 #include "PrimitiveSceneShaderData.h"
 #include "Components/SplineMeshComponent.h"
+#include "RendererOnScreenNotification.h"
 
 // Defaults to being disabled, enable using the command line argument: -CsvCategory GPUScene
 CSV_DEFINE_CATEGORY(GPUScene, false);
@@ -567,11 +565,34 @@ FGPUScene::FGPUScene()
 	, InstancePayloadDataAllocator(CVarGPUSceneUseGrowOnlyAllocationPolicy.GetValueOnAnyThread() != 0)
 	, LightmapDataAllocator(CVarGPUSceneUseGrowOnlyAllocationPolicy.GetValueOnAnyThread() != 0)
 {
+#if !UE_BUILD_SHIPPING
+	ScreenMessageDelegate = FRendererOnScreenNotification::Get().AddLambda([this](TMultiMap<FCoreDelegates::EOnScreenMessageSeverity, FText >& OutMessages)
+	{
+		if (InstanceSceneDataSOAStride < uint32(InstanceSceneDataAllocator.GetMaxSize()))
+		{
+			OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Warning, FText::FromString(FString::Printf(TEXT("GPU-Scene Instance data overflow detected, reduce instance count to avoid rendering artifacts"))));
+			OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Warning, FText::FromString(FString::Printf(TEXT("  Max allocated ID %d, instance buffer size: %dM"), InstanceSceneDataAllocator.GetMaxSize(), InstanceSceneDataSOAStride >> 20)));
+			if (!bLoggedInstanceOverflow )
+			{
+				UE_LOG(LogRenderer, Warning, TEXT("GPU-Scene Instance data overflow detected, reduce instance count to avoid rendering artifacts.\n")
+					TEXT(" Max allocated ID %d (%0.3fM), instance buffer size: %dM"), InstanceSceneDataAllocator.GetMaxSize(), double(InstanceSceneDataAllocator.GetMaxSize()) / (1024.0 * 1024.0),  InstanceSceneDataSOAStride >> 20);
+				bLoggedInstanceOverflow = true;
+			}
+		}
+		else
+		{
+			bLoggedInstanceOverflow = false;
+		}
+	});
+#endif
 }
 
 
 FGPUScene::~FGPUScene()
 {
+#if !UE_BUILD_SHIPPING
+	FRendererOnScreenNotification::Get().Remove(ScreenMessageDelegate);
+#endif
 }
 
 void FGPUScene::BeginRender(const FScene* Scene, FGPUSceneDynamicContext &GPUSceneDynamicContext)
@@ -774,7 +795,9 @@ void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSceneUniformBuffer
 	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(DynamicPrimitivesOffset, InitialBufferSize));
 	BufferState.PrimitiveBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, PrimitiveBuffer, SizeReserve * sizeof(FPrimitiveSceneShaderData::Data), TEXT("GPUScene.PrimitiveData"));
 
-	const uint32 InstanceSceneDataSizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(InstanceSceneDataAllocator.GetMaxSize(), InitialBufferSize));
+	// Clamp buffer to be smaller than the MAX_INSTANCE_ID.
+	const uint32 InstanceSceneDataSizeReserve = FMath::Min(MAX_INSTANCE_ID, FMath::RoundUpToPowerOfTwo(FMath::Max(InstanceSceneDataAllocator.GetMaxSize(), InitialBufferSize)));
+
 	FResizeResourceSOAParams ResizeParams;
 	ResizeParams.NumBytes = InstanceSceneDataSizeReserve * FInstanceSceneShaderData::GetEffectiveNumBytes();
 	ResizeParams.NumArrays = FInstanceSceneShaderData::GetDataStrideInFloat4s();

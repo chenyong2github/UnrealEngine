@@ -422,6 +422,13 @@ private:
 	void AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& IdOnlyUpdateItems);
 
 	void AddClearInstancesPass(FRDGBuilder& GraphBuilder);
+
+
+#if !UE_BUILD_SHIPPING
+	FDelegateHandle ScreenMessageDelegate;
+	bool bLoggedInstanceOverflow = false;
+#endif // UE_BUILD_SHIPPING
+
 };
 
 class FGPUSceneScopeBeginEndHelper
