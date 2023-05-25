@@ -446,7 +446,6 @@ void FShadowSceneRenderer::RenderVirtualShadowMapProjectionMaskBits(
 	}
 	else
 	{
-		//FRDGTextureRef Dummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.ZeroUIntDummy);
 		VirtualShadowMapMaskBits = nullptr;//Dummy;
 		VirtualShadowMapMaskBitsHairStrands = nullptr;//Dummy;
 	}
