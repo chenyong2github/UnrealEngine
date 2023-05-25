@@ -763,7 +763,7 @@ public:
 	bool EnumerateVertexElements(
 		int VertexID,
 		TFunctionRef<bool(int TriangleID, int ElementID, const VectorType& Value)> ProcessFunc,
-		bool bFindUniqueElements = true);
+		bool bFindUniqueElements = true) const;
 };
 
 

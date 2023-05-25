@@ -1480,7 +1480,7 @@ template<typename RealType, int ElementSize, typename VectorType>
 bool TDynamicMeshVectorOverlay<RealType, ElementSize, VectorType>::EnumerateVertexElements(
 	int VertexID,
 	TFunctionRef<bool(int TriangleID, int ElementID, const VectorType& Value)> ProcessFunc,
-	bool bFindUniqueElements)
+	bool bFindUniqueElements) const
 {
 	if (this->ParentMesh->IsVertex(VertexID) == false) return false;
 

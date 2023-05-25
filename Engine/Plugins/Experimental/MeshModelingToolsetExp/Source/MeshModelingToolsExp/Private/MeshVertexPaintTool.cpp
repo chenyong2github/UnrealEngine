@@ -140,10 +140,16 @@ void UMeshVertexPaintTool::Setup()
 		if (Mesh->Attributes()->PrimaryColors() == nullptr)
 		{
 			Mesh->Attributes()->EnablePrimaryColors();
-			ActiveColorOverlay = Mesh->Attributes()->PrimaryColors();
-			ActiveColorOverlay->CreateFromPredicate(
-				[](int, int, int) { return false; }, 1.0f);
 		}
+		ActiveColorOverlay = Mesh->Attributes()->PrimaryColors();
+		if (ActiveColorOverlay == nullptr)
+		{
+			GetToolManager()->PostActiveToolShutdownRequest(this, EToolShutdownType::Cancel, true,
+				LOCTEXT("InvalidColorsMessage", "Target Mesh does not support Vertex Colors"));
+			return;
+		}
+		ActiveColorOverlay->CreateFromPredicate(
+			[](int, int, int) { return false; }, 1.0f);
 	}
 	else
 	{
@@ -155,6 +161,7 @@ void UMeshVertexPaintTool::Setup()
 				FillVect[0] = CurValue.X; FillVect[1] = CurValue.Y; FillVect[2] = CurValue.Z; FillVect[3] = CurValue.W;
 			});
 	}
+
 
 	StrokeInitialColorBuffer.SetNum(ActiveColorOverlay->MaxElementID());
 	StrokeAccumColorBuffer.SetNum(ActiveColorOverlay->MaxElementID());
