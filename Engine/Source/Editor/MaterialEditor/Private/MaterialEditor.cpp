@@ -2253,6 +2253,23 @@ void FMaterialEditor::DrawMaterialInfoStrings(
 			DrawPositionY += SpacingBetweenLines;
 		}
 
+		TStaticArray<uint16, (int)ELWCFunctionKind::Max> LWCFuncUsages = MaterialResource->GetEstimatedLWCFuncUsages();
+		for (int KindIndex = 0; KindIndex < (int)ELWCFunctionKind::Max; ++KindIndex)
+		{
+			int Usages = LWCFuncUsages[KindIndex];
+			if (LWCFuncUsages[KindIndex] > 0)
+			{
+				Canvas->DrawShadowedString(
+					5,
+					DrawPositionY,
+					*FString::Printf(TEXT("LWC %s usages (Est.): %u"), *UEnum::GetDisplayValueAsText((ELWCFunctionKind)KindIndex).ToString(), Usages),
+					FontToUse,
+					FLinearColor(1,1,0)
+				);
+				DrawPositionY += SpacingBetweenLines;
+			}
+		}
+
 		if (bGeneratedNewShaders)
 		{
 			int32 NumShaders = 0;
@@ -3028,6 +3045,21 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 					Line->AddToken(FTextToken::Create(FText::FromString(InterpolatorsString)));
 					Messages.Add(Line);
 				}
+
+			TStaticArray<uint16, (int)ELWCFunctionKind::Max> LWCFuncUsages = MaterialResource->GetEstimatedLWCFuncUsages();
+			for (int KindIndex = 0; KindIndex < (int)ELWCFunctionKind::Max; ++KindIndex)
+			{
+				int Usages = LWCFuncUsages[KindIndex];
+				if (LWCFuncUsages[KindIndex] > 0)
+				{
+					FString Message = FString::Printf(TEXT("LWC %s usages (Est.): %u"), *UEnum::GetDisplayValueAsText((ELWCFunctionKind)KindIndex).ToString(), Usages);
+						
+					TempMaterialInfoList.Add(MakeShareable(new FMaterialInfo(Message, FLinearColor::Yellow)));
+					TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create(EMessageSeverity::Info);
+					Line->AddToken(FTextToken::Create(FText::FromString(Message)));
+					Messages.Add(Line);
+				}
+			}
 
 				if (FMaterialShaderMap* ShaderMap = MaterialResource->GetGameThreadShaderMap())
 				{

@@ -50,6 +50,8 @@
 
 #include <atomic>
 
+#include "MaterialShared.generated.h"
+
 struct FExpressionInput;
 struct FExtraShaderCompilerSettings;
 class FMaterial;
@@ -274,6 +276,22 @@ inline EMaterialValueType MakeLWCType(EMaterialValueType Type)
 	default: return Type;
 	}
 }
+
+UENUM()
+enum class ELWCFunctionKind
+{
+	Constructor,
+	Promote,
+	Demote,
+	Add,
+	Subtract,
+	Divide,
+	MultiplyVectorVector,
+	MultiplyVectorMatrix,
+	MultiplyMatrixMatrix,
+	Other,
+	Max
+};
 
 /**
  * The common bases of material
@@ -692,7 +710,11 @@ public:
 		bHasRuntimeVirtualTextureOutputNode(false),
 		bUsesAnisotropy(false),
 		bUsesDisplacement(false)
-	{}
+	{
+#if WITH_EDITOR
+		FMemory::Memzero(EstimatedLWCFuncUsages);
+#endif
+	}
 
 	ENGINE_API bool IsSceneTextureUsed(ESceneTextureId TexId) const { return (UsedSceneTextures & (1 << TexId)) != 0; }
 	ENGINE_API void SetIsSceneTextureUsed(ESceneTextureId TexId) { UsedSceneTextures |= (1 << TexId); }
@@ -747,6 +769,9 @@ public:
 	LAYOUT_FIELD_EDITORONLY(uint16, EstimatedNumTextureSamplesVS);
 	LAYOUT_FIELD_EDITORONLY(uint16, EstimatedNumTextureSamplesPS);
 
+	/** Estimate of the number of times each LWC operator occurs in the material shader code */
+	LAYOUT_ARRAY_EDITORONLY(uint16, EstimatedLWCFuncUsages, (int)ELWCFunctionKind::Max)
+	
 	/** Number of virtual texture lookups performed, excludes direct invocation in shaders (for example VT lightmaps) */
 	LAYOUT_FIELD_EDITORONLY(uint16, EstimatedNumVirtualTextureLookups);
 
@@ -1378,6 +1403,12 @@ public:
 	uint32 GetNumUsedCustomInterpolatorScalars() const { return GetContent()->MaterialCompilationOutput.NumUsedCustomInterpolatorScalars; }
 	void GetEstimatedNumTextureSamples(uint32& VSSamples, uint32& PSSamples) const { VSSamples = GetContent()->MaterialCompilationOutput.EstimatedNumTextureSamplesVS; PSSamples = GetContent()->MaterialCompilationOutput.EstimatedNumTextureSamplesPS; }
 	uint32 GetEstimatedNumVirtualTextureLookups() const { return GetContent()->MaterialCompilationOutput.EstimatedNumVirtualTextureLookups; }
+	TStaticArray<uint16, (int)ELWCFunctionKind::Max> GetEstimatedLWCFuncUsages() const
+	{
+		TStaticArray<uint16, (int)ELWCFunctionKind::Max> Result;
+		CopyAssignItems(Result.GetData(), GetContent()->MaterialCompilationOutput.EstimatedLWCFuncUsages, (int)ELWCFunctionKind::Max);
+		return Result;
+	}
 #endif
 	uint32 GetNumVirtualTextureStacks() const { return GetContent()->MaterialCompilationOutput.UniformExpressionSet.VTStacks.Num(); }
 	uint8 GetRuntimeVirtualTextureOutputAttributeMask() const { return GetContent()->MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask; }
@@ -2546,6 +2577,7 @@ public:
 	ENGINE_API void GetUserInterpolatorUsage(uint32& NumUsedUVScalars, uint32& NumUsedCustomInterpolatorScalars) const;
 	ENGINE_API void GetEstimatedNumTextureSamples(uint32& VSSamples, uint32& PSSamples) const;
 	ENGINE_API uint32 GetEstimatedNumVirtualTextureLookups() const;
+	ENGINE_API TStaticArray<uint16, (int)ELWCFunctionKind::Max> GetEstimatedLWCFuncUsages() const;
 #endif
 	ENGINE_API uint32 GetNumVirtualTextureStacks() const;
 

@@ -626,6 +626,7 @@ protected:
 	int32 NonVertexOrPixelShaderExpressionError();
 
 	void AddEstimatedTextureSample(const uint32 Count = 1);
+	void AddLWCFuncUsage(ELWCFunctionKind Kind, const uint32 Count = 1);
 
 	/** Creates a unique symbol name and adds it to the symbol list. */
 	FString CreateSymbolName(const TCHAR* SymbolNameHint);
