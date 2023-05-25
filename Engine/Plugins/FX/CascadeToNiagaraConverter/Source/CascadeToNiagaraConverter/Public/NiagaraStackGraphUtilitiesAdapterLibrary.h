@@ -415,7 +415,7 @@ struct FNiagaraEventHandlerAddAction
 		, SourceEventName()
 		, bRandomSpawnNumber(false)
 		, MinSpawnNumber(0)
-	{};
+	{}
 
 	UPROPERTY(BlueprintReadWrite, Category = "Event Handler Options")
 	ENiagaraEventHandlerAddMode Mode;
