@@ -71,9 +71,10 @@ namespace Metasound
 		{
 			using namespace QToBandwidth;
 
-			const FDataReferenceCollection& Inputs = InParams.InputDataReferences;
+			const FDataReferenceCollection& InputDataRefs = InParams.InputDataReferences;
+			const FInputVertexInterface& InputInterface = InParams.Node.GetVertexInterface().GetInputInterface();
 
-			FFloatReadRef FloatInput = Inputs.GetDataReadReferenceOrConstruct<float>(METASOUND_GET_PARAM_NAME(InputQ));
+			FFloatReadRef FloatInput = InputDataRefs.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputQ), InParams.OperatorSettings);
 
 			return MakeUnique<FConvertQToBandwidthNodeOperator>(InParams.OperatorSettings, FloatInput);
 		}
