@@ -475,6 +475,16 @@ void FSetProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 					--Num;
 				}
 			}
+
+			// Check if a rehash is needed
+			if (UnderlyingArchive.ArIsModifyingWeakAndStrongReferences)
+			{
+				TArray<const FStructProperty*> EncounteredStructProps;
+				if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
+				{
+					SetHelper.Rehash();
+				}
+			}
 		}
 	}
 }
