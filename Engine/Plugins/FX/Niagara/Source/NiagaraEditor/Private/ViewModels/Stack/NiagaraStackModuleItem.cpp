@@ -1418,10 +1418,11 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 			UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
 			FVersionedNiagaraEmitter Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : FVersionedNiagaraEmitter();
 			FNiagaraStackGraphUtilities::RenameReferencingParameters(&System, Emitter, *FunctionCallNode, OldName, NewName);
-			FunctionCallNode->RefreshFromExternalChanges();
-			FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
-			RefreshChildren();
 		}
+		// we need to refresh the node here to update static switch inputs, as they are set on the pins
+		FunctionCallNode->RefreshFromExternalChanges();
+		FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
+		RefreshChildren();
 		
 		if (NewScriptData->ConversionUtility != nullptr && OldClipboardContent != nullptr)
 		{
