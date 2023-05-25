@@ -110,6 +110,14 @@ FResolvedProperty FPropertySoftPath::Resolve(const UStruct* Struct, const void* 
 	{
 		CurrentBlock = NextBlock;
 		const FProperty* NextProperty = UEDiffUtils_Private::Resolve(NextClass, PropertyChain[i].PropertyName);
+		if (!NextProperty)
+		{
+			if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+            {
+            	StructProperty->FindInnerPropertyInstance(PropertyChain[i].PropertyName, CurrentBlock, NextProperty, NextBlock);
+            }
+		}
+		CurrentBlock = NextBlock;
 
 		// if an index was provided, resolve it
 		const int32 PropertyIndex = TryReadIndex(PropertyChain, i);
