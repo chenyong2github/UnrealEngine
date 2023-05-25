@@ -488,7 +488,7 @@ bool UPCGPointData::ProjectPoint(const FTransform& InTransform, const FBox& InBo
 	FVector WeightedPosition = FVector::ZeroVector;
 	FQuat WeightedQuat = FQuat::Identity;
 	FVector WeightedScale = FVector::ZeroVector;
-	float WeightedDensity = 0;
+	FVector::FReal WeightedDensity = 0;
 	FVector WeightedBoundsMin = FVector::ZeroVector;
 	FVector WeightedBoundsMax = FVector::ZeroVector;
 	FVector4 WeightedColor = FVector4::Zero();
@@ -549,7 +549,7 @@ bool UPCGPointData::ProjectPoint(const FTransform& InTransform, const FBox& InBo
 		OutPoint.Transform.SetScale3D(InTransform.GetScale3D());
 	}
 
-	OutPoint.Density = WeightedDensity;
+	OutPoint.Density = static_cast<float>(WeightedDensity);
 	OutPoint.BoundsMin = WeightedBoundsMin;
 	OutPoint.BoundsMax = WeightedBoundsMax;
 	OutPoint.Color = WeightedColor;

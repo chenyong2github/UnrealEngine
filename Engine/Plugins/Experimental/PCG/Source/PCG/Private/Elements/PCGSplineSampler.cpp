@@ -914,6 +914,7 @@ namespace PCGSplineSampler
 		InteriorSplinePointData.SetNum(NumDispatch);
 
 		const FTransform LineDataTransform = LineData->GetTransform();
+		bool bAnyRowFailedToSample = false;
 
 		ParallelFor(NumDispatch, [&](int32 DispatchIndex)
 		{
@@ -938,7 +939,7 @@ namespace PCGSplineSampler
 
 				if (Intersections.Num() % 2 != 0)
 				{
-					PCGE_LOG_C(Error, GraphAndLog, Context, LOCTEXT("IntersectionTestFailed", "Intersection test failed, skipping samples for this row"));
+					bAnyRowFailedToSample = true;
 					continue;
 				}
 
@@ -1078,6 +1079,11 @@ namespace PCGSplineSampler
 				}
 			}
 		});
+
+		if (bAnyRowFailedToSample)
+		{
+			PCGE_LOG_C(Error, GraphAndLog, Context, LOCTEXT("IntersectionTestFailed", "One or more rows of the spline interior failed to sample (intersection test failed). Ensure the spline points are not overlapping."));
+		}
 
 		// Finally, gather the data and push to the points
 		int32 PointCount = 0;

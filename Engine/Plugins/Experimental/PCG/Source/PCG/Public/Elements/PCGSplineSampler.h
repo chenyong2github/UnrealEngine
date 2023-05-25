@@ -50,11 +50,11 @@ struct PCG_API FPCGSplineSamplerParams
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Dimension!=EPCGSplineSamplingDimension::OnInterior"))
-	EPCGSplineSamplingMode Mode = EPCGSplineSamplingMode::Subdivision;
-
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGSplineSamplingDimension Dimension = EPCGSplineSamplingDimension::OnSpline;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Dimension!=EPCGSplineSamplingDimension::OnInterior"))
+	EPCGSplineSamplingMode Mode = EPCGSplineSamplingMode::Subdivision;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Dimension!=EPCGSplineSamplingDimension::OnSpline&&Dimension!=EPCGSplineSamplingDimension::OnInterior"))
 	EPCGSplineSamplingFill Fill = EPCGSplineSamplingFill::Fill;

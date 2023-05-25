@@ -40,7 +40,7 @@ void FPCGNodeVisualLogs::Log(TWeakObjectPtr<const UPCGNode> InNode, TWeakObjectP
 	}
 
 	// Broadcast outside of write scope lock
-	if (bAdded)
+	if (bAdded && IsInGameThread())
 	{
 		InNode->OnNodeChangedDelegate.Broadcast(const_cast<UPCGNode*>(InNode.Get()), EPCGChangeType::Cosmetic);
 	}
