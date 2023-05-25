@@ -217,6 +217,11 @@ namespace UnrealBuildTool
 		public bool bGeneratingGameProjectFiles = false;
 
 		/// <summary>
+		/// True if we're generating temporary solution/workspace that we want to put under Intermediate/ProjectFiles along with the projects to not dirty up the root dir
+		/// </summary>
+		public bool bGeneratingTemporaryProjects = false;
+
+		/// <summary>
 		/// Optional list of platforms to generate projects for
 		/// </summary>
 		protected readonly List<UnrealTargetPlatform> ProjectPlatforms = new List<UnrealTargetPlatform>();
@@ -909,6 +914,12 @@ namespace UnrealBuildTool
 
 				// Write out the name of the primary project file, so the runtime knows to use it
 				WritePrimaryProjectNameTxt = true;
+			}
+
+			// if making a temp primary project, put it in with the rest of the project files
+			if (bGeneratingTemporaryProjects)
+			{
+				PrimaryProjectPath = IntermediateProjectFilesPath;
 			}
 
 			// Modify the name if specific platforms were given

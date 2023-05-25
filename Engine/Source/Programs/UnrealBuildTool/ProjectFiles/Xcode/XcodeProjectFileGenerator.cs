@@ -474,6 +474,7 @@ namespace UnrealBuildTool
 				bIncludeDocumentation = false;
 				bIncludeShaderSource = false;
 				bIncludeEngineSource = true;
+				bGeneratingTemporaryProjects = true;
 
 				// generate just the engine project
 				if (OnlyGameProject != null)
