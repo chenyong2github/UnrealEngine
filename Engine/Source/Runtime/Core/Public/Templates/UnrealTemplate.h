@@ -594,13 +594,10 @@ inline void Swap(T& A, T& B)
 {
 	if constexpr (TUseBitwiseSwap<T>::Value)
 	{
-		if (LIKELY(&A != &B))
-		{
-			TTypeCompatibleBytes<T> Temp;
-			FMemory::Memcpy(&Temp, &A, sizeof(T));
-			FMemory::Memcpy(&A, &B, sizeof(T));
-			FMemory::Memcpy(&B, &Temp, sizeof(T));
-		}
+		TTypeCompatibleBytes<T> Temp;
+		*(TTypeCompatibleBytes<T>*)&Temp = *(TTypeCompatibleBytes<T>*)&A;
+		*(TTypeCompatibleBytes<T>*)&A    = *(TTypeCompatibleBytes<T>*)&B;
+		*(TTypeCompatibleBytes<T>*)&B    = *(TTypeCompatibleBytes<T>*)&Temp;
 	}
 	else
 	{
