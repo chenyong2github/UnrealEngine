@@ -2749,8 +2749,10 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 #endif
 
 	ViewUniformShaderParameters.Random = FMath::Rand();
+	// FrameNumber corresponds to how many times FRendererModule::BeginRenderingViewFamilies has been called, so multi views of the same frame have incremental values.
 	ViewUniformShaderParameters.FrameNumber = Family->FrameNumber;
-
+	// FrameCounter is incremented once per engine tick, so multi views of the same frame have the same value.
+	ViewUniformShaderParameters.FrameCounter = Family->FrameCounter;
 	ViewUniformShaderParameters.WorldIsPaused = Family->bWorldIsPaused;
 	ViewUniformShaderParameters.CameraCut = bCameraCut ? 1 : 0;
 

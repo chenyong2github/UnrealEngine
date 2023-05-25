@@ -758,6 +758,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(float, MaterialTextureDerivativeMultiply) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, Random) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, FrameNumber) \
+	VIEW_UNIFORM_BUFFER_MEMBER(uint32, FrameCounter) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, StateFrameIndexMod8) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, StateFrameIndex) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, DebugViewModeMask) \
@@ -1963,6 +1964,9 @@ public:
 
 	/** Copy from main thread GFrameNumber to be accessible on render thread side. UINT_MAX before CreateSceneRenderer() or BeginRenderingViewFamily() was called */
 	uint32 FrameNumber;
+
+	/** Copy from main thread GFrameCounter to be accessible on render thread side. GFrameCounter is incremented once per engine tick, so multi views of the same frame have the same value. */
+	uint64 FrameCounter = 0;
 
 	/** Indicates this view family is an additional one. */
 	bool bAdditionalViewFamily;

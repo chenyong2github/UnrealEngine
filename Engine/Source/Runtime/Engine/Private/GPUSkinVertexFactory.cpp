@@ -891,7 +891,7 @@ public:
 
 				// Bone data is updated whenever animation triggers a dynamic update, animation can skip frames hence the frequency is not necessary every frame.
 				// So check if bone data is updated this frame, if not then the previous frame data is stale and not suitable for motion blur.
-				bool bBoneDataUpdatedThisFrame = View->Family->FrameNumber == ShaderData.UpdatedFrameNumber;
+				bool bBoneDataUpdatedThisFrame = View->Family->FrameCounter == ShaderData.UpdatedFrameNumber;
 				// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
 				bool bPrevious = !View->Family->bWorldIsPaused && bBoneDataUpdatedThisFrame;
 				FRHIShaderResourceView* PreviousData = ShaderData.GetBoneBufferForReading(bPrevious).VertexBufferSRV;
@@ -926,7 +926,7 @@ public:
 		if (!bIsMobile)
 		{
 			const auto* GPUSkinVertexFactory = (const FGPUBaseSkinVertexFactory*)VertexFactory;
-			bool bMorphUpdatedThisFrame = (View->Family->FrameNumber == GPUSkinVertexFactory->GetMorphVertexBufferUpdatedFrameNumber());
+			bool bMorphUpdatedThisFrame = (View->Family->FrameCounter == GPUSkinVertexFactory->GetMorphVertexBufferUpdatedFrameNumber());
 			bool bPrevious = !View->Family->bWorldIsPaused && bMorphUpdatedThisFrame;
 			const FMorphVertexBuffer* MorphVertexBuffer = GPUSkinVertexFactory->GetMorphVertexBuffer(bPrevious);
 			ShaderBindings.Add(PreviousMorphBufferParameter, MorphVertexBuffer ? MorphVertexBuffer->GetSRV() : GNullVertexBuffer.VertexBufferSRV.GetReference());

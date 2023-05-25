@@ -405,8 +405,7 @@ void FSkeletalMeshObjectGPUSkin::Update(
 		PreviousBoneTransformUpdateMode,
 		InExternalMorphWeightData);
 
-	// We prepare the next frame but still have the value from the last one
-	uint32 FrameNumberToPrepare = GFrameNumber + 1;
+	uint64 FrameNumberToPrepare = GFrameCounter;
 	uint32 RevisionNumber = 0;
 
 	FGPUSkinCache* GPUSkinCache = nullptr;
@@ -415,7 +414,6 @@ void FSkeletalMeshObjectGPUSkin::Update(
 	{
 		// We allow caching of per-frame, per-scene data
 		Scene = &(InMeshComponent->SceneProxy->GetScene());
-		FrameNumberToPrepare = Scene->GetFrameNumber() + 1;
 		GPUSkinCache = Scene->GetGPUSkinCache();
 		RevisionNumber = InMeshComponent->GetBoneTransformRevisionNumber();
 	}
@@ -484,7 +482,7 @@ FORCEINLINE bool IsDeferredSkeletalDynamicDataUpdateEnabled()
 	return CVarDeferSkeletalDynamicDataUpdateUntilGDME.GetValueOnRenderThread() > 0;
 }
 
-void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* GPUSkinCache, FRHICommandListImmediate& RHICmdList, FDynamicSkelMeshObjectDataGPUSkin* InDynamicData, FSceneInterface* Scene, uint32 FrameNumberToPrepare, uint32 RevisionNumber)
+void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* GPUSkinCache, FRHICommandListImmediate& RHICmdList, FDynamicSkelMeshObjectDataGPUSkin* InDynamicData, FSceneInterface* Scene, uint64 FrameNumberToPrepare, uint32 RevisionNumber)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GPUSkin::UpdateDynamicData_RT);
 

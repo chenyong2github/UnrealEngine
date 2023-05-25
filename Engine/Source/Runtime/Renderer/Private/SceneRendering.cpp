@@ -4713,6 +4713,8 @@ void FRendererModule::BeginRenderingViewFamilies(FCanvas* Canvas, TArrayView<FSc
 
 	for (FSceneViewFamily* ViewFamily : ViewFamilies)
 	{
+		ViewFamily->FrameCounter = GFrameCounter;
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		{
 			extern TSharedRef<ISceneViewExtension, ESPMode::ThreadSafe> GetRendererViewExtension();

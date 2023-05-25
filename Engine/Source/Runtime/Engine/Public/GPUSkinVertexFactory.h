@@ -286,7 +286,7 @@ public:
 		int32 InputWeightIndexSize = 0;
 		FShaderResourceViewRHIRef InputWeightStream;
 		// Frame number of the bone data that is last updated
-		uint32 UpdatedFrameNumber = 0;
+		uint64 UpdatedFrameNumber = 0;
 
 	private:
 		// double buffered bone positions+orientations to support normal rendering and velocity (new-old position) rendering

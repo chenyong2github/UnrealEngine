@@ -143,14 +143,11 @@ void FSkeletalMeshObjectCPUSkin::Update(
 		// this data is only deleted when another update is sent
 		FDynamicSkelMeshObjectDataCPUSkin* NewDynamicData = new FDynamicSkelMeshObjectDataCPUSkin(InMeshComponent,SkeletalMeshRenderData,LODIndex,InActiveMorphTargets, InMorphTargetWeights);
 
-		// We prepare the next frame but still have the value from the last one
-		uint32 FrameNumberToPrepare = GFrameNumber + 1;
+		uint64 FrameNumberToPrepare = GFrameCounter;
 		uint32 RevisionNumber = 0;
 
 		if (InMeshComponent->SceneProxy)
 		{
-			// We allow caching of per-frame, per-scene data
-			FrameNumberToPrepare = InMeshComponent->SceneProxy->GetScene().GetFrameNumber() + 1;
 			RevisionNumber = InMeshComponent->GetBoneTransformRevisionNumber();
 		}
 
@@ -189,7 +186,7 @@ void FSkeletalMeshObjectCPUSkin::UpdateSkinWeightBuffer(USkinnedMeshComponent* I
 	}
 }
 
-void FSkeletalMeshObjectCPUSkin::UpdateDynamicData_RenderThread(FRHICommandListImmediate& RHICmdList, FDynamicSkelMeshObjectDataCPUSkin* InDynamicData, uint32 FrameNumberToPrepare, uint32 RevisionNumber)
+void FSkeletalMeshObjectCPUSkin::UpdateDynamicData_RenderThread(FRHICommandListImmediate& RHICmdList, FDynamicSkelMeshObjectDataCPUSkin* InDynamicData, uint64 FrameNumberToPrepare, uint32 RevisionNumber)
 {
 	// we should be done with the old data at this point
 	delete DynamicData;

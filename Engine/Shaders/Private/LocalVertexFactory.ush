@@ -1203,7 +1203,7 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 	if (IsGPUSkinPassThrough())
 	{
 		// Duplicates logic in FGPUSkinVertexFactoryShaderParameters::GetElementShaderBindings().
-		if (ResolvedView.FrameNumber == LocalVFLooseParameters.FrameNumber && ResolvedView.WorldIsPaused == 0)
+		if (ResolvedView.FrameCounter == LocalVFLooseParameters.FrameNumber && ResolvedView.WorldIsPaused == 0)
 		{
 			uint Offset = Input.VertexId * 3;
 			float3 PreviousPos;
