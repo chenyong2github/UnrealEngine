@@ -1296,7 +1296,7 @@ void UCommonButtonBase::HandleButtonClicked()
 	{
 		// @TODO: Current click rejection method relies on click hold time, this can be refined. See NativeOnHoldProgress.
 		// Also gamepad can indirectly trigger this method, so don't guard against pressed
-    	if (bRequiresHold && CurrentHoldTime < HoldTime && IsHovered())
+    	if (bRequiresHold && CurrentHoldTime < HoldTime)
     	{
     		return;
     	}
