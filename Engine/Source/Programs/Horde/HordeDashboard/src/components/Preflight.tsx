@@ -6,9 +6,6 @@ import backend, { useBackend } from '../backend';
 import { useQuery } from './JobDetailCommon';
 import ErrorHandler from './ErrorHandler';
 
-// "http://localhost:3000/preflight?stream=//Fortnite/Dev-DelMar&change=25220065"
-// "http://localhost:3000/preflight?stream=//Fortnite/Dev-DelMar"
-
 function setError(message: string) {
 
    console.error(message);
