@@ -3625,6 +3625,12 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 			InitializeEmbeddedGeometry();
 		}
 
+		if (CustomRenderer)
+		{
+			UnregisterCustomRenderer();
+			RegisterCustomRenderer();
+		}
+
 		if (bApplyAssetDefaults)
 		{
 			ApplyAssetDefaults();
