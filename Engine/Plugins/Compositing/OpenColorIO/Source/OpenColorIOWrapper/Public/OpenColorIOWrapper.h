@@ -34,9 +34,6 @@ namespace OpenColorIOWrapper
 
 	/** Get the OpenColorIO version string. */
 	OPENCOLORIOWRAPPER_API const TCHAR* GetVersion();
-
-	/** Calls the native function of the same name. */
-	OPENCOLORIOWRAPPER_API void ClearAllCaches();
 }
 
 
@@ -211,9 +208,6 @@ public:
 	/** Valid when the processor has been successfully created and isn't null. */
 	OPENCOLORIOWRAPPER_API bool IsValid() const;
 
-	/** Get the string hash of the processor. */
-	OPENCOLORIOWRAPPER_API FString GetCacheID() const;
-
 	/**
 	* Get the generated transform name from source color settings to working color space.
 	* @param InColorSettings Source encoding and colorspace.
@@ -265,11 +259,11 @@ public:
 	/**
 	* Get the generated shader.
 	*
-	* @param OutShaderCacheID Generated shader hash string.
 	* @param OutShaderCode Generated shader text.
+	* @param OutShaderCacheID Generated shader hash string.
 	* @return True when the result is valid.
 	*/
-	OPENCOLORIOWRAPPER_API bool GetShader(FString& OutShaderCacheID, FString& OutShaderCode) const;
+	OPENCOLORIOWRAPPER_API bool GetShader(FString& OutShaderCode, FString& OutShaderCacheID) const;
 
 	/** Get the number of 3D LUT textures. */
 	OPENCOLORIOWRAPPER_API uint32 GetNum3DTextures() const;
