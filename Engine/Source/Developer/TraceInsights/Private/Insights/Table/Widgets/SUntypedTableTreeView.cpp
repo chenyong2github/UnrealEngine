@@ -70,10 +70,10 @@ void SUntypedTableTreeView::RebuildTree(bool bResync)
 
 	if (bResync)
 	{
-		TableTreeNodes.Empty();
+		TableRowNodes.Empty();
 	}
 
-	const int32 PreviousNodeCount = TableTreeNodes.Num();
+	const int32 PreviousNodeCount = TableRowNodes.Num();
 
 	//check(Table->Is<Insights::FUntypedTable>());
 	TSharedPtr<Insights::FUntypedTable> UntypedTable = StaticCastSharedPtr<Insights::FUntypedTable>(Table);
@@ -84,9 +84,9 @@ void SUntypedTableTreeView::RebuildTree(bool bResync)
 	if (SourceTable.IsValid() && TableReader.IsValid())
 	{
 		const int32 TotalRowCount = static_cast<int32>(SourceTable->GetRowCount());
-		if (TotalRowCount != TableTreeNodes.Num())
+		if (TotalRowCount != TableRowNodes.Num())
 		{
-			TableTreeNodes.Empty(TotalRowCount);
+			TableRowNodes.Empty(TotalRowCount);
 			FName BaseNodeName(TEXT("row"));
 			for (int32 RowIndex = 0; RowIndex < TotalRowCount; ++RowIndex)
 			{
@@ -94,15 +94,15 @@ void SUntypedTableTreeView::RebuildTree(bool bResync)
 				FName NodeName(BaseNodeName, RowIndex + 1);
 				FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(NodeName, Table, RowIndex);
 				NodePtr->SetDefaultSortOrder(RowIndex + 1);
-				TableTreeNodes.Add(NodePtr);
+				TableRowNodes.Add(NodePtr);
 			}
-			ensure(TableTreeNodes.Num() == TotalRowCount);
+			ensure(TableRowNodes.Num() == TotalRowCount);
 		}
 	}
 
 	SyncStopwatch.Stop();
 
-	if (bResync || TableTreeNodes.Num() != PreviousNodeCount)
+	if (bResync || TableRowNodes.Num() != PreviousNodeCount)
 	{
 		// Save selection.
 		TArray<FTableTreeNodePtr> SelectedItems;
@@ -135,7 +135,7 @@ void SUntypedTableTreeView::RebuildTree(bool bResync)
 	{
 		const double SyncTime = SyncStopwatch.GetAccumulatedTime();
 		UE_LOG(TraceInsights, Log, TEXT("[Table] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d rows (%d added)"),
-			TotalTime, SyncTime, TotalTime - SyncTime, TableTreeNodes.Num(), TableTreeNodes.Num() - PreviousNodeCount);
+			TotalTime, SyncTime, TotalTime - SyncTime, TableRowNodes.Num(), TableRowNodes.Num() - PreviousNodeCount);
 	}
 }
 

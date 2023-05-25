@@ -174,7 +174,7 @@ void STaskTableTreeView::RebuildTree(bool bResync)
 		TSharedPtr<FTaskTable> TaskTable = GetTaskTable();
 		TArray<FTaskEntry>& Tasks = TaskTable->GetTaskEntries();
 		Tasks.Empty();
-		TableTreeNodes.Empty();
+		TableRowNodes.Empty();
 
 		if (QueryStartTime < QueryEndTime && Session.IsValid())
 		{
@@ -186,7 +186,7 @@ void STaskTableTreeView::RebuildTree(bool bResync)
 			{
 				FName BaseNodeName(TEXT("task"));
 
-				TArray<FTableTreeNodePtr>* Nodes = &TableTreeNodes;
+				TArray<FTableTreeNodePtr>* Nodes = &TableRowNodes;
 
 				TasksProvider->EnumerateTasks(QueryStartTime, QueryEndTime, SelectedTasksSelectionOption, [&Tasks, &TaskTable, &BaseNodeName, Nodes](const TraceServices::FTaskInfo& TaskInfo)
 				{

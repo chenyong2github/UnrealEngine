@@ -114,10 +114,10 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 
 	if (bResync)
 	{
-		TableTreeNodes.Empty();
+		TableRowNodes.Empty();
 	}
 
-	const int32 PreviousNodeCount = TableTreeNodes.Num();
+	const int32 PreviousNodeCount = TableRowNodes.Num();
 
 	TSharedPtr<Insights::FMemAllocTable> MemAllocTable = GetMemAllocTable();
 
@@ -132,20 +132,20 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 			TArray<FMemoryAlloc>& Allocs = MemAllocTable->GetAllocs();
 
 			const int32 TotalAllocCount = Allocs.Num();
-			if (TotalAllocCount != TableTreeNodes.Num())
+			if (TotalAllocCount != TableRowNodes.Num())
 			{
-				UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Creating nodes (%d nodes --> %d allocs)..."), TableTreeNodes.Num(), TotalAllocCount);
+				UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Creating nodes (%d nodes --> %d allocs)..."), TableRowNodes.Num(), TotalAllocCount);
 
-				if (TableTreeNodes.Num() > TotalAllocCount)
+				if (TableRowNodes.Num() > TotalAllocCount)
 				{
-					TableTreeNodes.Empty();
+					TableRowNodes.Empty();
 				}
-				TableTreeNodes.Reserve(TotalAllocCount);
+				TableRowNodes.Reserve(TotalAllocCount);
 
 				uint32 HeapAllocCount = 0;
 				const FName BaseNodeName(TEXT("alloc"));
 				const FName BaseHeapName(TEXT("heap"));
-				for (int32 AllocIndex = TableTreeNodes.Num(); AllocIndex < TotalAllocCount; ++AllocIndex)
+				for (int32 AllocIndex = TableRowNodes.Num(); AllocIndex < TotalAllocCount; ++AllocIndex)
 				{
 					const FMemoryAlloc* Alloc = MemAllocTable->GetMemAlloc(AllocIndex);
 
@@ -160,9 +160,9 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 
 					FName NodeName(Alloc->bIsHeap ? BaseHeapName : BaseNodeName, static_cast<int32>(Alloc->GetStartEventIndex() + 1));
 					FMemAllocNodePtr NodePtr = MakeShared<FMemAllocNode>(NodeName, MemAllocTable, AllocIndex);
-					TableTreeNodes.Add(NodePtr);
+					TableRowNodes.Add(NodePtr);
 				}
-				ensure(TableTreeNodes.Num() == (bIncludeHeapAllocs ? TotalAllocCount : TotalAllocCount - HeapAllocCount));
+				ensure(TableRowNodes.Num() == (bIncludeHeapAllocs ? TotalAllocCount : TotalAllocCount - HeapAllocCount));
 				UpdateQueryInfo();
 			}
 		}
@@ -170,7 +170,7 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 
 	SyncStopwatch.Stop();
 
-	if (bResync || TableTreeNodes.Num() != PreviousNodeCount)
+	if (bResync || TableRowNodes.Num() != PreviousNodeCount)
 	{
 		// Save selection.
 		TArray<FTableTreeNodePtr> SelectedItems;
@@ -203,7 +203,7 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 	{
 		const double SyncTime = SyncStopwatch.GetAccumulatedTime();
 		UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d nodes (%d added)"),
-			TotalTime, SyncTime, TotalTime - SyncTime, TableTreeNodes.Num(), TableTreeNodes.Num() - PreviousNodeCount);
+			TotalTime, SyncTime, TotalTime - SyncTime, TableRowNodes.Num(), TableRowNodes.Num() - PreviousNodeCount);
 	}
 }
 
@@ -227,7 +227,7 @@ void SMemAllocTableTreeView::OnQueryInvalidated()
 
 void SMemAllocTableTreeView::ResetAndStartQuery()
 {
-	TableTreeNodes.Reset();
+	TableRowNodes.Reset();
 
 	TSharedPtr<Insights::FMemAllocTable> MemAllocTable = GetMemAllocTable();
 	if (MemAllocTable)
@@ -1257,7 +1257,7 @@ void SMemAllocTableTreeView::UpdateQueryInfo()
 			check(false);
 		}
 
-		QueryInfo = FText::Format(LOCTEXT("QueryInfoFmt", "{0} ({1}) : {2} allocs"), Rule->GetVerboseName(), TimeMarkersText, FText::AsNumber(TableTreeNodes.Num()));
+		QueryInfo = FText::Format(LOCTEXT("QueryInfoFmt", "{0} ({1}) : {2} allocs"), Rule->GetVerboseName(), TimeMarkersText, FText::AsNumber(TableRowNodes.Num()));
 		QueryInfoTooltip = Rule->GetDescription();
 	}
 }
@@ -1840,7 +1840,7 @@ void SMemAllocTableTreeView::ExportMemorySnapshot() const
 
 	// 2. Iterate over TreeNodes
 	TStringBuilder<2048> Buffer;
-	for (const TSharedPtr<FTableTreeNode>& Node : TableTreeNodes)
+	for (const TSharedPtr<FTableTreeNode>& Node : TableRowNodes)
 	{
 		// Export only leaves
 		if (Node->IsGroup()) continue;
@@ -1897,7 +1897,7 @@ void SMemAllocTableTreeView::ExportMemorySnapshot() const
 
 bool SMemAllocTableTreeView::IsExportMemorySnapshotAvailable() const
 {
-	return !TableTreeNodes.IsEmpty();
+	return !TableRowNodes.IsEmpty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -127,7 +127,7 @@ void SPackageTableTreeView::RebuildTree(bool bResync)
 	TSharedPtr<FPackageTable> PackageTable = GetPackageTable();
 	TArray<FPackageEntry>& Packages = PackageTable->GetPackageEntries();
 	Packages.Empty();
-	TableTreeNodes.Empty();
+	TableRowNodes.Empty();
 
 	const TraceServices::ICookProfilerProvider* CookProvider = TraceServices::ReadCookProfilerProvider(*Session.Get());
 
@@ -137,9 +137,9 @@ void SPackageTableTreeView::RebuildTree(bool bResync)
 
 		const uint32 NumPackages = CookProvider->GetNumPackages();
 		Packages.Reserve(NumPackages);
-		TableTreeNodes.Reserve(NumPackages);
+		TableRowNodes.Reserve(NumPackages);
 
-		TArray<FTableTreeNodePtr>* Nodes = &TableTreeNodes;
+		TArray<FTableTreeNodePtr>* Nodes = &TableRowNodes;
 		CookProvider->EnumeratePackages(0, 0, [&Packages, &PackageTable, Nodes](const TraceServices::FPackageData& Package)
 			{
 				Packages.Emplace(Package);

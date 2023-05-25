@@ -126,16 +126,10 @@ public:
 		return AggregatedValues->FindChecked(ColumnId);
 	}
 
-	void AddAggregatedValue(const FName& ColumnId, const FTableCellValue& Value)
-	{
-		InitAggregatedValues();
-		AggregatedValues->Add(ColumnId, Value);
-	}
-
 	void SetAggregatedValue(const FName& ColumnId, const FTableCellValue& Value)
 	{
 		InitAggregatedValues();
-		(*AggregatedValues)[ColumnId] = Value;
+		AggregatedValues->Add(ColumnId, Value);
 	}
 
 	//////////////////////////////////////////////////

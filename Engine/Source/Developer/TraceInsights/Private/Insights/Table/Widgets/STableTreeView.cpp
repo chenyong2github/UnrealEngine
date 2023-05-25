@@ -135,6 +135,7 @@ const FName STableTreeView::RootNodeName(TEXT("Root"));
 
 STableTreeView::STableTreeView()
 	: Root(MakeShared<FTableTreeNode>(RootNodeName, Table))
+	, FilteredNodesPtr(&TableRowNodes)
 	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
 	, ColumnSortMode(GetDefaultColumnSortMode())
 {
@@ -919,7 +920,7 @@ void STableTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurr
 
 void STableTreeView::UpdateTree()
 {
-	OnGroupingChanged();
+	OnNodeFilteringChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -941,6 +942,9 @@ void STableTreeView::OnNodeFilteringChanged()
 	if (!bRunInAsyncMode)
 	{
 		ApplyNodeFiltering();
+		ApplyGrouping();
+		ApplySorting();
+		ApplyHierarchyFiltering();
 	}
 	else if (!bIsUpdateRunning)
 	{
@@ -956,7 +960,7 @@ void STableTreeView::OnNodeFilteringChanged()
 
 bool STableTreeView::ScheduleNodeFilteringAsyncOperationIfNeeded()
 {
-	if (HasInProgressAsyncOperation(EAsyncOperationType::FilteringOp) ||
+	if (HasInProgressAsyncOperation(EAsyncOperationType::NodeFiltering) ||
 		(FilterConfigurator.IsValid() &&
 		 CurrentAsyncOpFilterConfigurator &&
 		 *FilterConfigurator != *CurrentAsyncOpFilterConfigurator))
@@ -974,16 +978,17 @@ void STableTreeView::ScheduleNodeFilteringAsyncOperation()
 {
 	OnPreAsyncUpdate();
 
-	InProgressAsyncOperationEvent = StartApplyFiltersTask();
+	FGraphEventRef CompletedEvent = StartNodeFilteringTask();
+	CompletedEvent = StartGroupingTask(CompletedEvent);
+	CompletedEvent = StartSortingTask(CompletedEvent);
+	InProgressAsyncOperationEvent = StartHierarchyFilteringTask(CompletedEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FGraphEventRef STableTreeView::StartApplyFiltersTask(FGraphEventRef Prerequisite)
+FGraphEventRef STableTreeView::StartNodeFilteringTask(FGraphEventRef Prerequisite)
 {
-	AddInProgressAsyncOperation(EAsyncOperationType::FilteringOp);
-
-	CurrentAsyncOpTextFilter->SetRawFilterText(TextFilter->GetRawFilterText());
+	AddInProgressAsyncOperation(EAsyncOperationType::NodeFiltering);
 
 	if (FilterConfigurator.IsValid() && CurrentAsyncOpFilterConfigurator)
 	{
@@ -1000,79 +1005,66 @@ FGraphEventRef STableTreeView::StartApplyFiltersTask(FGraphEventRef Prerequisite
 		Prerequisites.Add(DispatchEvent);
 	}
 
-	return TGraphTask<FTableTreeViewFilterAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
+	return TGraphTask<FTableTreeViewNodeFilteringAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Note: This function is called from a task thread!
 void STableTreeView::ApplyNodeFiltering()
 {
-	ApplyHierarchyFiltering();
-}
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+	FFilterConfigurator* FilterConfiguratorToUse = bRunInAsyncMode ? CurrentAsyncOpFilterConfigurator : FilterConfigurator.Get();
 
-bool STableTreeView::ApplyAdvancedFiltersForNode(FTableTreeNodePtr NodePtr)
-{
-	if (NodePtr->IsGroup())
+	// TableRowNodes --> FilteredNodes / FilteredNodesPtr
+	FilteredNodes.Reset();
+	if (FilterConfiguratorToUse && !FilterConfiguratorToUse->IsEmpty())
 	{
-		const TArray<FBaseTreeNodePtr>& GroupChildren = NodePtr->GetChildren();
-		const int32 NumChildren = GroupChildren.Num();
-
-		NodePtr->ClearFilteredChildren();
-
-		int32 NumVisibleChildren = 0;
-		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
+		for (const FTableTreeNodePtr& NodePtr : TableRowNodes)
 		{
 			if (AsyncOperationProgress.ShouldCancelAsyncOp())
 			{
 				break;
 			}
 
-			// Add a child.
-			const FTableTreeNodePtr& ChildNodePtr = StaticCastSharedPtr<FTableTreeNode>(GroupChildren[Cx]);
-			if (ApplyAdvancedFiltersForNode(ChildNodePtr))
+			if (FilterNode(*FilterConfiguratorToUse, *NodePtr))
 			{
-				NodePtr->AddFilteredChild(ChildNodePtr);
-				NumVisibleChildren++;
+				FilteredNodes.Add(NodePtr);
 			}
 		}
-
-		const bool bIsGroupNodeVisible = NumVisibleChildren > 0;
-
-		if (bIsGroupNodeVisible)
-		{
-			// Add a group.
-			NodePtr->SetExpansion(true);
-		}
-		else
-		{
-			NodePtr->SetExpansion(false);
-		}
-
-		return bIsGroupNodeVisible;
+		FilteredNodesPtr = &FilteredNodes;
 	}
 	else
 	{
-		bool bIsNodeVisible = FilterNode(NodePtr);
-		NodePtr->SetIsFiltered(!bIsNodeVisible);
-		return bIsNodeVisible;
+		FilteredNodesPtr = &TableRowNodes;
+	}
+
+	TreeViewBannerText = FText::GetEmpty();
+	if (TableRowNodes.Num() == 0)
+	{
+		TreeViewBannerText = LOCTEXT("EmptyTreeMsg", "Tree is empty.");
+	}
+	else if (FilteredNodesPtr->Num() == 0)
+	{
+		TreeViewBannerText = LOCTEXT("AllNodesFiltered", "All tree nodes are filtered out.");
+	}
+
+	Stopwatch.Stop();
+	const double FilteringTime = Stopwatch.GetAccumulatedTime();
+	if (FilteringTime > 0.1)
+	{
+		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Node filtering completed in %.3fs."), *Table->GetDisplayName().ToString(), FilteringTime);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STableTreeView::FilterNode(const FTableTreeNodePtr& NodePtr) const
+bool STableTreeView::FilterNode(const FFilterConfigurator& InFilterConfigurator, const FTableTreeNode& InNode) const
 {
-	FFilterConfigurator* FilterConfiguratorToUse = bRunInAsyncMode ? CurrentAsyncOpFilterConfigurator : FilterConfigurator.Get();
-
-	if (!FilterConfiguratorToUse || FilterConfiguratorToUse->IsEmpty())
-	{
-		return true;
-	}
-
-	UpdateFilterContext(*FilterConfiguratorToUse, *NodePtr);
-	return FilterConfiguratorToUse->ApplyFilters(FilterContext);
+	UpdateFilterContext(InFilterConfigurator, InNode);
+	return InFilterConfigurator.ApplyFilters(FilterContext);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1189,8 +1181,7 @@ TSharedRef<SWidget> STableTreeView::ConstructFilterConfiguratorButton()
 {
 	return SNew(SButton)
 		.ContentPadding(FMargin(-2.0f, 2.0f, -2.0f, 2.0f))
-		.IsEnabled(this, &STableTreeView::FilterConfigurator_IsEnabled)
-		.ToolTipText(this, &STableTreeView::FilterConfigurator_GetTooltipText)
+		.ToolTipText(LOCTEXT("FilterConfiguratorBtn_ToolTip", "Opens the filter configurator window."))
 		.OnClicked(this, &STableTreeView::FilterConfigurator_OnClicked)
 		[
 			SNew(SImage)
@@ -1198,32 +1189,6 @@ TSharedRef<SWidget> STableTreeView::ConstructFilterConfiguratorButton()
 		];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STableTreeView::FilterConfigurator_IsEnabled() const
-{
-	return TextFilter->GetRawFilterText().IsEmpty();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FText STableTreeView::FilterConfigurator_GetTooltipText() const
-{
-	if (FilterConfigurator_IsEnabled())
-	{
-		return LOCTEXT("FilterConfiguratorBtn_ToolTip", "Opens the filter configurator window.");
-	}
-
-	return LOCTEXT("AdvancedFiltersBtn_Disabled_ToolTip", "Advanced filters cannot be added when filters are already applied using the search box.");
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STableTreeView::FilterConfigurator_HasFilters() const
-{
-	return FilterConfigurator.IsValid() && !FilterConfigurator->IsEmpty();
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1297,7 +1262,7 @@ void STableTreeView::OnHierarchyFilteringChanged()
 
 bool STableTreeView::ScheduleHierarchyFilteringAsyncOperationIfNeeded()
 {
-	if (HasInProgressAsyncOperation(EAsyncOperationType::FilteringOp) ||
+	if (HasInProgressAsyncOperation(EAsyncOperationType::HierarchyFiltering) ||
 		TextFilter->GetRawFilterText().CompareTo(CurrentAsyncOpTextFilter->GetRawFilterText()) != 0)
 	{
 		ScheduleHierarchyFilteringAsyncOperation();
@@ -1313,32 +1278,46 @@ void STableTreeView::ScheduleHierarchyFilteringAsyncOperation()
 {
 	OnPreAsyncUpdate();
 
-	InProgressAsyncOperationEvent = StartApplyFiltersTask();
+	InProgressAsyncOperationEvent = StartHierarchyFilteringTask();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FGraphEventRef STableTreeView::StartHierarchyFilteringTask(FGraphEventRef Prerequisite)
+{
+	AddInProgressAsyncOperation(EAsyncOperationType::HierarchyFiltering);
+
+	CurrentAsyncOpTextFilter->SetRawFilterText(TextFilter->GetRawFilterText());
+
+	FGraphEventArray Prerequisites;
+	if (Prerequisite.IsValid())
+	{
+		Prerequisites.Add(Prerequisite);
+	}
+	else
+	{
+		Prerequisites.Add(DispatchEvent);
+	}
+
+	return TGraphTask<FTableTreeViewHierarchyFilteringAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Note: This function is called from a task thread!
 void STableTreeView::ApplyHierarchyFiltering()
 {
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
-	// Apply filter to all groups and its children.
-	if (FilterConfigurator_HasFilters())
+	const bool bIsEmptyFilter = bRunInAsyncMode ? CurrentAsyncOpTextFilter->GetRawFilterText().IsEmpty() : TextFilter->GetRawFilterText().IsEmpty();
+	if (bIsEmptyFilter)
 	{
-		ApplyAdvancedFiltersForNode(Root);
+		ApplyEmptyHierarchyFilteringRec(Root);
 	}
 	else
 	{
-		const bool bIsEmptyFilter = bRunInAsyncMode ? CurrentAsyncOpTextFilter->GetRawFilterText().IsEmpty() : TextFilter->GetRawFilterText().IsEmpty();
-		if (bIsEmptyFilter)
-		{
-			ApplyEmptyHierarchyFilteringRec(Root);
-		}
-		else
-		{
-			ApplyHierarchyFilteringRec(Root);
-		}
+		ApplyHierarchyFilteringRec(Root);
 	}
 
 	// The Root node is always hidden. The tree shows the filtered children of the Root node.
@@ -1353,25 +1332,6 @@ void STableTreeView::ApplyHierarchyFiltering()
 			FilteredGroupNodes.Add(ChildNodePtr);
 		}
 	}
-
-	TreeViewBannerText = FText::GetEmpty();
-	if (Root->GetChildrenCount() == 0)
-	{
-		TreeViewBannerText = LOCTEXT("EmptyTreeMsg", "Tree is empty.");
-	}
-	else if (Root->GetFilteredChildrenCount() == 0)
-	{
-		TreeViewBannerText = LOCTEXT("AllNodesFiltered", "All tree nodes are filtered out.");
-	}
-
-	Stopwatch.Stop();
-	const double FilteringTime = Stopwatch.GetAccumulatedTime();
-	if (FilteringTime > 0.1)
-	{
-		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Filtering completed in %.3fs."), *Table->GetDisplayName().ToString(), FilteringTime);
-	}
-
-	UpdateAggregatedValues(*Root);
 
 	// Cannot call TreeView functions from other threads than MainThread and SlateThread.
 	if (!bRunInAsyncMode)
@@ -1409,6 +1369,13 @@ void STableTreeView::ApplyHierarchyFiltering()
 
 		// Request tree refresh
 		TreeView->RequestTreeRefresh();
+	}
+
+	Stopwatch.Stop();
+	const double FilteringTime = Stopwatch.GetAccumulatedTime();
+	if (FilteringTime > 0.1)
+	{
+		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Hierarchy filtering completed in %.3fs."), *Table->GetDisplayName().ToString(), FilteringTime);
 	}
 }
 
@@ -1540,9 +1507,8 @@ TSharedRef<SWidget> STableTreeView::ConstructSearchBox()
 {
 	SAssignNew(SearchBox, SSearchBox)
 		.HintText(LOCTEXT("SearchBox_Hint", "Search"))
-		.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged)
-		.IsEnabled(this, &STableTreeView::SearchBox_IsEnabled)
-		.ToolTipText(this, &STableTreeView::SearchBox_GetTooltipText);
+		.ToolTipText(LOCTEXT("SearchBox_ToolTip", "Type here to search the tree hierarchy by item or group name."))
+		.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged);
 
 	return SearchBox.ToSharedRef();
 }
@@ -1555,25 +1521,6 @@ void STableTreeView::SearchBox_OnTextChanged(const FText& InFilterText)
 	TextFilter->SetRawFilterText(InFilterText);
 	SearchBox->SetError(TextFilter->GetFilterErrorText());
 	OnHierarchyFilteringChanged();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STableTreeView::SearchBox_IsEnabled() const
-{
-	return !FilterConfigurator_HasFilters();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FText STableTreeView::SearchBox_GetTooltipText() const
-{
-	if (SearchBox_IsEnabled())
-	{
-		return LOCTEXT("SearchBox_ToolTip", "Type here to search the tree hierarchy by item or group name.");
-	}
-
-	return LOCTEXT("SearchBox_Disabled_ToolTip", "Searching the tree hierarchy is disabled when advanced filters are set.");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1604,6 +1551,30 @@ void STableTreeView::TreeView_OnExpansionChanged(FTableTreeNodePtr TreeNode, boo
 
 void STableTreeView::TreeView_OnGetChildren(FTableTreeNodePtr InParent, TArray<FTableTreeNodePtr>& OutChildren)
 {
+	if (InParent->OnLazyCreateChildren(SharedThis(this)))
+	{
+		// Node filtering does not apply to lazy expanded nodes.
+		// Grouping is ignored for lazy expanded nodes.
+
+		// Update aggregation.
+		UpdateAggregatedValuesRec(*InParent);
+		FTableTreeNodePtr Node = StaticCastSharedPtr<FTableTreeNode>(InParent->GetParentNode());
+		while (Node)
+		{
+			UpdateAggregatedValuesSingleNode(*Node);
+			Node = StaticCastSharedPtr<FTableTreeNode>(Node->GetParentNode());
+		}
+
+		// Update sorting.
+		if (CurrentSorter.IsValid())
+		{
+			SortTreeNodesRec(*InParent, *CurrentSorter, ColumnSortMode);
+		}
+
+		// The hierarchy filtering is ignored for lazy expanded nodes.
+		InParent->ResetFilteredChildrenRec();
+	}
+
 	const TArray<FBaseTreeNodePtr>& FilteredChildren = InParent->GetFilteredChildren();
 	for (const FBaseTreeNodePtr& NodePtr : FilteredChildren)
 	{
@@ -1724,7 +1695,7 @@ void STableTreeView::OnGroupingChanged()
 
 bool STableTreeView::ScheduleGroupingAsyncOperationIfNeeded()
 {
-	bool bGroupingHasChanged = HasInProgressAsyncOperation(EAsyncOperationType::GroupingOp);
+	bool bGroupingHasChanged = HasInProgressAsyncOperation(EAsyncOperationType::Grouping);
 
 	if (!bGroupingHasChanged &&
 		CurrentGroupings.Num() != CurrentAsyncOpGroupings.Num())
@@ -1761,17 +1732,16 @@ void STableTreeView::ScheduleGroupingAsyncOperation()
 
 	FGraphEventRef CompletedEvent = StartGroupingTask();
 	CompletedEvent = StartSortingTask(CompletedEvent);
-	InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
+	InProgressAsyncOperationEvent = StartHierarchyFilteringTask(CompletedEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FGraphEventRef STableTreeView::StartGroupingTask(FGraphEventRef Prerequisite)
 {
-	AddInProgressAsyncOperation(EAsyncOperationType::GroupingOp);
+	AddInProgressAsyncOperation(EAsyncOperationType::Grouping);
 
-	CurrentAsyncOpGroupings.Empty();
-	CurrentAsyncOpGroupings.Insert(CurrentGroupings, 0);
+	CurrentAsyncOpGroupings = CurrentGroupings;
 
 	FGraphEventArray Prerequisites;
 	if (Prerequisite.IsValid())
@@ -1783,7 +1753,7 @@ FGraphEventRef STableTreeView::StartGroupingTask(FGraphEventRef Prerequisite)
 		Prerequisites.Add(DispatchEvent);
 	}
 
-	return TGraphTask<FTableTreeViewGroupAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this, &CurrentAsyncOpGroupings);
+	return TGraphTask<FTableTreeViewGroupingAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this, &CurrentAsyncOpGroupings);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1795,10 +1765,10 @@ void STableTreeView::ApplyGrouping()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Note: This function is also called from async thread, with CurrentAsyncOpGroupings as parameter.
+// Note: This function is called from a task thread!
 void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings)
 {
-	if (TableTreeNodes.Num() == 0)
+	if (FilteredNodesPtr->Num() == 0)
 	{
 		Root->ClearChildren();
 		return;
@@ -1809,7 +1779,7 @@ void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& G
 
 	if (Groupings.Num() > 0)
 	{
-		GroupNodesRec(TableTreeNodes, *Root, 0, Groupings);
+		GroupNodesRec(*FilteredNodesPtr, *Root, 0, Groupings);
 	}
 
 	Stopwatch.Stop();
@@ -1819,7 +1789,7 @@ void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& G
 		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Grouping completed in %.3fs."), *Table->GetDisplayName().ToString(), GroupingTime);
 	}
 
-	UpdateAggregatedValues(*Root);
+	UpdateAggregatedValuesRec(*Root);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2473,35 +2443,18 @@ bool STableTreeView::GroupingCrumbMenu_Add_CanExecute(const TSharedPtr<FTreeNode
 // Aggregation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::UpdateCStringSameValueAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode)
+void STableTreeView::UpdateCStringSameValueAggregationSingleNode(const FTableColumn& InColumn, FTableTreeNode& InOutGroupNode)
 {
-	// Update child group nodes first.
-	for (FBaseTreeNodePtr NodePtr : GroupNode.GetChildren())
-	{
-		if (NodePtr->IsFiltered())
-		{
-			continue;
-		}
-		if (NodePtr->IsGroup())
-		{
-			FTableTreeNode& TableNode = *(FTableTreeNode*)NodePtr.Get();
-			UpdateCStringSameValueAggregationRec(Column, TableNode);
-		}
-	}
+	check(InOutGroupNode.IsGroup());
 
 	const TCHAR* AggregatedValue = nullptr;
 
 	// Find the first child node.
-	for (FBaseTreeNodePtr NodePtr : GroupNode.GetChildren())
+	for (FBaseTreeNodePtr NodePtr : InOutGroupNode.GetChildren())
 	{
-		if (NodePtr->IsFiltered())
-		{
-			continue;
-		}
-
 		if (!NodePtr->IsGroup())
 		{
-			const TOptional<FTableCellValue> NodeValue = Column.GetValue(*NodePtr);
+			const TOptional<FTableCellValue> NodeValue = InColumn.GetValue(*NodePtr);
 			if (NodeValue.IsSet() &&
 				NodeValue.GetValue().DataType == ETableCellDataType::CString)
 			{
@@ -2511,9 +2464,9 @@ void STableTreeView::UpdateCStringSameValueAggregationRec(FTableColumn& Column, 
 		else
 		{
 			FTableTreeNode& TableNode = *(FTableTreeNode*)NodePtr.Get();
-			if (TableNode.HasAggregatedValue(Column.GetId()))
+			if (TableNode.HasAggregatedValue(InColumn.GetId()))
 			{
-				const FTableCellValue& ChildGroupAggregatedValue = TableNode.GetAggregatedValue(Column.GetId());
+				const FTableCellValue& ChildGroupAggregatedValue = TableNode.GetAggregatedValue(InColumn.GetId());
 				if (ChildGroupAggregatedValue.DataType == ETableCellDataType::CString)
 				{
 					AggregatedValue = ChildGroupAggregatedValue.CString;
@@ -2527,16 +2480,11 @@ void STableTreeView::UpdateCStringSameValueAggregationRec(FTableColumn& Column, 
 	if (AggregatedValue != nullptr)
 	{
 		// Check if all other children have the same value as the first node.
-		for (FBaseTreeNodePtr NodePtr : GroupNode.GetChildren())
+		for (FBaseTreeNodePtr NodePtr : InOutGroupNode.GetChildren())
 		{
-			if (NodePtr->IsFiltered())
-			{
-				continue;
-			}
-
 			if (!NodePtr->IsGroup())
 			{
-				const TOptional<FTableCellValue> NodeValue = Column.GetValue(*NodePtr);
+				const TOptional<FTableCellValue> NodeValue = InColumn.GetValue(*NodePtr);
 				if (NodeValue.IsSet() &&
 					NodeValue.GetValue().DataType == ETableCellDataType::CString &&
 					AggregatedValue == NodeValue.GetValue().CString)
@@ -2547,9 +2495,9 @@ void STableTreeView::UpdateCStringSameValueAggregationRec(FTableColumn& Column, 
 			else
 			{
 				FTableTreeNode& TableNode = *(FTableTreeNode*)NodePtr.Get();
-				if (TableNode.HasAggregatedValue(Column.GetId()))
+				if (TableNode.HasAggregatedValue(InColumn.GetId()))
 				{
-					const FTableCellValue& ChildGroupAggregatedValue = TableNode.GetAggregatedValue(Column.GetId());
+					const FTableCellValue& ChildGroupAggregatedValue = TableNode.GetAggregatedValue(InColumn.GetId());
 					if (ChildGroupAggregatedValue.DataType == ETableCellDataType::CString &&
 						AggregatedValue == ChildGroupAggregatedValue.CString)
 					{
@@ -2565,22 +2513,82 @@ void STableTreeView::UpdateCStringSameValueAggregationRec(FTableColumn& Column, 
 
 	if (AggregatedValue != nullptr)
 	{
-		GroupNode.AddAggregatedValue(Column.GetId(), FTableCellValue(AggregatedValue));
+		InOutGroupNode.SetAggregatedValue(InColumn.GetId(), FTableCellValue(AggregatedValue));
 	}
 	else
 	{
-		GroupNode.ResetAggregatedValue(Column.GetId());
+		InOutGroupNode.ResetAggregatedValue(InColumn.GetId());
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
+void STableTreeView::UpdateCStringSameValueAggregationRec(const FTableColumn& InColumn, FTableTreeNode& InOutGroupNode)
+{
+	check(InOutGroupNode.IsGroup());
+
+	// Update child group nodes first.
+	for (FBaseTreeNodePtr NodePtr : InOutGroupNode.GetChildren())
+	{
+		if (NodePtr->IsGroup())
+		{
+			FTableTreeNode& TableNode = *(FTableTreeNode*)NodePtr.Get();
+			STableTreeView::UpdateCStringSameValueAggregationRec(InColumn, TableNode);
+		}
+	}
+
+	STableTreeView::UpdateCStringSameValueAggregationSingleNode(InColumn, InOutGroupNode);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template<typename T, bool bSetInitialValue, bool bIsRercursive>
+void STableTreeView::UpdateAggregation(const FTableColumn& InColumn, FTableTreeNode& InOutGroupNode, const T InitialAggregatedValue, TFunctionRef<T(T, const FTableCellValue&)> ValueGetterFunc)
+{
+	T AggregatedValue = InitialAggregatedValue;
+
+	for (FBaseTreeNodePtr NodePtr : InOutGroupNode.GetChildren())
+	{
+		if (NodePtr->IsGroup())
+		{
+			FTableTreeNode& TableNode = *(FTableTreeNode*)NodePtr.Get();
+			if (bIsRercursive)
+			{
+				TableNode.ResetAggregatedValue(InColumn.GetId());
+				STableTreeView::UpdateAggregation<T, bSetInitialValue, true>(InColumn, TableNode, InitialAggregatedValue, ValueGetterFunc);
+			}
+			if (TableNode.HasAggregatedValue(InColumn.GetId()))
+			{
+				AggregatedValue = ValueGetterFunc(AggregatedValue, TableNode.GetAggregatedValue(InColumn.GetId()));
+			}
+		}
+		else
+		{
+			const TOptional<FTableCellValue> NodeValue = InColumn.GetValue(*NodePtr);
+			if (NodeValue.IsSet())
+			{
+				AggregatedValue = ValueGetterFunc(AggregatedValue, NodeValue.GetValue());
+			}
+		}
+	}
+
+	if (bSetInitialValue || AggregatedValue != InitialAggregatedValue)
+	{
+		InOutGroupNode.SetAggregatedValue(InColumn.GetId(), FTableCellValue(AggregatedValue));
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template<bool bIsRecursive>
+void STableTreeView::UpdateAggregatedValues(TSharedPtr<FTable> InTable, FTableTreeNode& InOutGroupNode)
 {
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
-	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
+	check(InOutGroupNode.IsGroup());
+
+	for (const TSharedRef<FTableColumn>& ColumnRef : InTable->GetColumns())
 	{
 		FTableColumn& Column = ColumnRef.Get();
 		switch (Column.GetAggregation())
@@ -2588,7 +2596,7 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 			case ETableColumnAggregation::Sum:
 				if (Column.GetDataType() == ETableCellDataType::Float || Column.GetDataType() == ETableCellDataType::Double)
 				{
-					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, 0, true,
+					STableTreeView::UpdateAggregation<double, true, bIsRecursive>(Column, InOutGroupNode, 0.0,
 						[](double InValue, const FTableCellValue& InTableCellValue)
 						{
 							return InValue + InTableCellValue.AsDouble();
@@ -2596,7 +2604,7 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 				}
 				else
 				{
-					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, 0, true,
+					STableTreeView::UpdateAggregation<int64, true, bIsRecursive>(Column, InOutGroupNode, (int64)0,
 						[](int64 InValue, const FTableCellValue& InTableCellValue)
 						{
 							return InValue + InTableCellValue.AsInt64();
@@ -2607,7 +2615,7 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 			case ETableColumnAggregation::Min:
 				if (Column.GetDataType() == ETableCellDataType::Float || Column.GetDataType() == ETableCellDataType::Double)
 				{
-					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::max(), false,
+					STableTreeView::UpdateAggregation<double, false, bIsRecursive>(Column, InOutGroupNode, std::numeric_limits<double>::max(),
 						[](double InValue, const FTableCellValue& InTableCellValue)
 						{
 							return FMath::Min(InValue, InTableCellValue.AsDouble());
@@ -2615,7 +2623,7 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 				}
 				else
 				{
-					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, std::numeric_limits<int64>::max(), false,
+					STableTreeView::UpdateAggregation<int64, false, bIsRecursive>(Column, InOutGroupNode, std::numeric_limits<int64>::max(),
 						[](int64 InValue, const FTableCellValue& InTableCellValue)
 						{
 							return FMath::Min(InValue, InTableCellValue.AsInt64());
@@ -2626,7 +2634,7 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 			case ETableColumnAggregation::Max:
 				if (Column.GetDataType() == ETableCellDataType::Float || Column.GetDataType() == ETableCellDataType::Double)
 				{
-					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::lowest(), false,
+					STableTreeView::UpdateAggregation<double, false, bIsRecursive>(Column, InOutGroupNode, std::numeric_limits<double>::lowest(),
 						[](double InValue, const FTableCellValue& InTableCellValue)
 						{
 							return FMath::Max(InValue, InTableCellValue.AsDouble());
@@ -2634,7 +2642,7 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 				}
 				else
 				{
-					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, std::numeric_limits<int64>::min(), false,
+					STableTreeView::UpdateAggregation<int64, false, bIsRecursive>(Column, InOutGroupNode, std::numeric_limits<int64>::min(),
 						[](int64 InValue, const FTableCellValue& InTableCellValue)
 						{
 							return FMath::Max(InValue, InTableCellValue.AsInt64());
@@ -2645,7 +2653,14 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 			case ETableColumnAggregation::SameValue:
 				if (Column.GetDataType() == ETableCellDataType::CString)
 				{
-					STableTreeView::UpdateCStringSameValueAggregationRec(Column, GroupNode);
+					if (bIsRecursive)
+					{
+						STableTreeView::UpdateCStringSameValueAggregationRec(Column, InOutGroupNode);
+					}
+					else
+					{
+						STableTreeView::UpdateCStringSameValueAggregationSingleNode(Column, InOutGroupNode);
+					}
 				}
 				break;
 		}
@@ -2655,8 +2670,22 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 	const double AggregationTime = Stopwatch.GetAccumulatedTime();
 	if (AggregationTime > 0.1)
 	{
-		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Aggregation completed in %.3fs."), *Table->GetDisplayName().ToString(), AggregationTime);
+		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Aggregation completed in %.3fs."), *InTable->GetDisplayName().ToString(), AggregationTime);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::UpdateAggregatedValuesSingleNode(FTableTreeNode& InOutGroupNode)
+{
+	STableTreeView::UpdateAggregatedValues<false>(Table, InOutGroupNode);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::UpdateAggregatedValuesRec(FTableTreeNode& InOutGroupNode)
+{
+	STableTreeView::UpdateAggregatedValues<true>(Table, InOutGroupNode);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2729,18 +2758,17 @@ void STableTreeView::OnSortingChanged()
 
 bool STableTreeView::ScheduleSortingAsyncOperationIfNeeded()
 {
-	bool bSortingHasChanged = HasInProgressAsyncOperation(EAsyncOperationType::SortingOp);
+	bool bSortingHasChanged = HasInProgressAsyncOperation(EAsyncOperationType::Sorting);
 
 	if (!bSortingHasChanged &&
-		((CurrentSorter.IsValid() && CurrentAsyncOpSorter == nullptr) ||
-		(!CurrentSorter.IsValid() && CurrentAsyncOpSorter != nullptr)))
+		CurrentSorter.Get() != CurrentAsyncOpSorter)
 	{
 		bSortingHasChanged = true;
 	}
 
 	if (!bSortingHasChanged &&
 		CurrentSorter.IsValid() &&
-		(CurrentSorter.Get() != CurrentAsyncOpSorter || ColumnSortMode != CurrentAsyncOpColumnSortMode))
+		ColumnSortMode != CurrentAsyncOpColumnSortMode)
 	{
 		bSortingHasChanged = true;
 	}
@@ -2761,7 +2789,7 @@ void STableTreeView::ScheduleSortingAsyncOperation()
 	OnPreAsyncUpdate();
 
 	FGraphEventRef CompletedEvent = StartSortingTask();
-	InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
+	InProgressAsyncOperationEvent = StartHierarchyFilteringTask(CompletedEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2773,7 +2801,7 @@ FGraphEventRef STableTreeView::StartSortingTask(FGraphEventRef Prerequisite)
 		return Prerequisite;
 	}
 
-	AddInProgressAsyncOperation(EAsyncOperationType::SortingOp);
+	AddInProgressAsyncOperation(EAsyncOperationType::Sorting);
 
 	CurrentAsyncOpSorter = CurrentSorter.Get();
 	CurrentAsyncOpColumnSortMode = ColumnSortMode;
@@ -2788,7 +2816,7 @@ FGraphEventRef STableTreeView::StartSortingTask(FGraphEventRef Prerequisite)
 		Prerequisites.Add(DispatchEvent);
 	}
 
-	return TGraphTask<FTableTreeViewSortAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this, CurrentAsyncOpSorter, CurrentAsyncOpColumnSortMode);
+	return TGraphTask<FTableTreeViewSortingAsyncTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(this, CurrentAsyncOpSorter, CurrentAsyncOpColumnSortMode);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2803,6 +2831,7 @@ void STableTreeView::ApplySorting()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Note: This function is called from a task thread!
 void STableTreeView::SortTreeNodes(ITableCellValueSorter* InSorter, EColumnSortMode::Type InColumnSortMode)
 {
 	FStopwatch Stopwatch;
@@ -3216,16 +3245,16 @@ void STableTreeView::RebuildTree(bool bResync)
 
 FTableTreeNodePtr STableTreeView::GetNodeByTableRowIndex(int32 RowIndex) const
 {
-	return (RowIndex >= 0 && RowIndex < TableTreeNodes.Num()) ? TableTreeNodes[RowIndex] : nullptr;
+	return (RowIndex >= 0 && RowIndex < TableRowNodes.Num()) ? TableRowNodes[RowIndex] : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STableTreeView::SelectNodeByTableRowIndex(int32 RowIndex)
 {
-	if (RowIndex >= 0 && RowIndex < TableTreeNodes.Num())
+	if (RowIndex >= 0 && RowIndex < TableRowNodes.Num())
 	{
-		FTableTreeNodePtr NodePtr = TableTreeNodes[RowIndex];
+		FTableTreeNodePtr NodePtr = TableRowNodes[RowIndex];
 		ensure(NodePtr);
 
 		if (!NodePtr)
@@ -3283,7 +3312,7 @@ void STableTreeView::OnPostAsyncUpdate()
 		TreeView->ClearExpandedItems();
 
 		// Grouping can result in old group nodes no longer existing in the tree, so we don't keep the expanded list.
-		if (!HasInProgressAsyncOperation(EAsyncOperationType::GroupingOp))
+		if (!HasInProgressAsyncOperation(EAsyncOperationType::Grouping))
 		{
 			for (auto It = ExpandedNodes.CreateConstIterator(); It; ++It)
 			{
@@ -3415,6 +3444,11 @@ double STableTreeView::GetAllOperationsDuration()
 
 void STableTreeView::StartPendingAsyncOperations()
 {
+	if (ScheduleNodeFilteringAsyncOperationIfNeeded())
+	{
+		return;
+	}
+
 	if (ScheduleGroupingAsyncOperationIfNeeded())
 	{
 		return;
@@ -3426,11 +3460,6 @@ void STableTreeView::StartPendingAsyncOperations()
 	}
 
 	if (ScheduleHierarchyFilteringAsyncOperationIfNeeded())
-	{
-		return;
-	}
-
-	if (ScheduleNodeFilteringAsyncOperationIfNeeded())
 	{
 		return;
 	}
