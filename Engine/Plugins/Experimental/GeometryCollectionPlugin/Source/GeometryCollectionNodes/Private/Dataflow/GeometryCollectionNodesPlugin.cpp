@@ -22,6 +22,7 @@
 #include "Dataflow/GeometryCollectionMathNodes.h"
 #include "Dataflow/GeometryCollectionConversionNodes.h"
 #include "Dataflow/GeometryCollectionVerticesNodes.h"
+#include "Dataflow/GeometryCollectionArrayNodes.h"
 
 #define LOCTEXT_NAMESPACE "DataflowNodes"
 
@@ -45,6 +46,7 @@ void IGeometryCollectionNodesPlugin::StartupModule()
 	Dataflow::GeometryCollectionMathNodes();
 	Dataflow::GeometryCollectionConversionNodes();
 	Dataflow::GeometryCollectionVerticesNodes();
+	Dataflow::GeometryCollectionArrayNodes();
 }
 
 void IGeometryCollectionNodesPlugin::ShutdownModule()

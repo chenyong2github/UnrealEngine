@@ -57,10 +57,6 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FStringAppendDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FHashStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FHashVectorDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetFloatArrayElementDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatArrayToIntArrayDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetArrayElementDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetNumArrayElementsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetBoundingBoxesFromCollectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetRootIndexFromCollectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetCentroidsFromCollectionDataflowNode);
@@ -80,16 +76,11 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetNumElementsInCollectionGroupDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetCollectionAttributeDataTypedDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetCollectionAttributeDataTypedDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoolArrayToFaceSelectionDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatArrayToVertexSelectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVertexColorInCollectionFromVertexSelectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVertexColorInCollectionFromFloatArrayDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatArrayNormalizeDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FVectorArrayNormalizeDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMultiplyTransformDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FInvertTransformDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSelectionToVertexListDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FUnionIntArraysDataflowNode);
 
 		// GeometryCollection
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("GeometryCollection", FLinearColor(0.55f, 0.45f, 1.0f), CDefaultNodeBodyTintColor);
@@ -262,117 +253,6 @@ void FHashVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 	}
 }
 
-void FGetFloatArrayElementDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA(&FloatValue))
-	{
-		const TArray<float>& InArray = GetValue(Context, &FloatArray);
-		const int32& InIndex = GetValue(Context, &Index);
-		const float OutputValue = InArray.IsValidIndex(InIndex) ? InArray[InIndex] : 0.0f;
-
-		SetValue(Context, OutputValue, &FloatValue);
-	}
-}
-
-void FFloatArrayToIntArrayDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TArray<int32>>(&IntArray))
-	{
-		TArray<float> FloatVal = GetValue<TArray<float>>(Context, &FloatArray);
-		TArray<int32> RetVal; RetVal.SetNumUninitialized(FloatVal.Num());
-		if (Function == EFloatArrayToIntArrayFunctionEnum::Dataflow_FloatToInt_Function_Floor)
-		{
-			for (int32 i = 0; i < FloatVal.Num(); i++)
-			{
-				RetVal[i] = FMath::FloorToInt32(FloatVal[i]);
-			}
-		}
-		else if (Function == EFloatArrayToIntArrayFunctionEnum::Dataflow_FloatToInt_Function_Ceil)
-		{
-			for (int32 i = 0; i < FloatVal.Num(); i++)
-			{
-				RetVal[i] = FMath::CeilToInt32(FloatVal[i]);
-			}
-		}
-		else if (Function == EFloatArrayToIntArrayFunctionEnum::Dataflow_FloatToInt_Function_Round)
-		{
-			for (int32 i = 0; i < FloatVal.Num(); i++)
-			{
-				RetVal[i] = FMath::RoundToInt32(FloatVal[i]);
-			}
-		}
-		else if (Function == EFloatArrayToIntArrayFunctionEnum::Dataflow_FloatToInt_Function_Truncate)
-		{
-			for (int32 i = 0; i < FloatVal.Num(); i++)
-			{
-				RetVal[i] = int32(FMath::TruncToFloat(FloatVal[i]));
-			}
-		}
-
-		else if (Function == EFloatArrayToIntArrayFunctionEnum::Dataflow_FloatToInt_NonZeroToIndex)
-		{
-			int32 RetValIndex = 0;
-			for (int32 i = 0; i < FloatVal.Num(); i++)
-			{
-				if (FloatVal[i] != 0.0)
-				{
-					RetVal[RetValIndex] = i;
-					RetValIndex++;
-				}
-			}
-			RetVal.SetNum(RetValIndex);
-		}
-		else if (Function == EFloatArrayToIntArrayFunctionEnum::Dataflow_FloatToInt_ZeroToIndex)
-		{
-			int32 RetValIndex = 0;
-			for (int32 i = 0; i < FloatVal.Num(); i++)
-			{
-				if (FloatVal[i] == 0.0)
-				{
-					RetVal[RetValIndex] = i;
-					RetValIndex++;
-				}
-			}
-			RetVal.SetNum(RetValIndex);
-		}
-
-		SetValue<TArray<int32>>(Context, RetVal, &IntArray);
-	}
-}
-
-void FGetArrayElementDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FVector>(&Point))
-	{
-		const TArray<FVector>& Array = GetValue<TArray<FVector>>(Context, &Points);
-		if (Array.Num() > 0 && Index >= 0 && Index < Array.Num())
-		{
-			SetValue<FVector>(Context, Array[Index], &Point);
-			return;
-		}
-
-		SetValue<FVector>(Context, FVector(0.f), &Point);
-	}
-}
-
-void FGetNumArrayElementsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<int32>(&NumElements))
-	{
-		if (IsConnected<TArray<FVector>>(&Points))
-		{
-			SetValue<int32>(Context, GetValue<TArray<FVector>>(Context, &Points).Num(), &NumElements);
-			return;
-		}
-		else if (IsConnected<TArray<FVector3f>>(&Vector3fArray))
-		{
-			SetValue<int32>(Context, GetValue<TArray<FVector3f>>(Context, &Vector3fArray).Num(), &NumElements);
-			return;
-		}
-
-		SetValue<int32>(Context, 0, &NumElements);
-	}
-}
 
 void FGetBoundingBoxesFromCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -1160,72 +1040,6 @@ void FSetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& 
 }
 
 
-void FBoolArrayToFaceSelectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FDataflowFaceSelection>(&FaceSelection))
-	{
-		const TArray<bool>& InBoolAttributeData = GetValue<TArray<bool>>(Context, &BoolAttributeData);
-
-		FDataflowFaceSelection NewFaceSelection;
-		NewFaceSelection.Initialize(InBoolAttributeData.Num(), false);
-		NewFaceSelection.SetFromArray(InBoolAttributeData);
-
-		SetValue<FDataflowFaceSelection>(Context, NewFaceSelection, &FaceSelection);
-	}
-}
-
-
-void FFloatArrayToVertexSelectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FDataflowVertexSelection>(&VertexSelection))
-	{
-		const TArray<float>& InFloatArray = GetValue<TArray<float>>(Context, &FloatArray);
-
-		FDataflowVertexSelection NewVertexSelection;
-		NewVertexSelection.Initialize(InFloatArray.Num(), false);
-
-		for (int32 Idx = 0; Idx < InFloatArray.Num(); ++Idx)
-		{
-			if (Operation == ECompareOperationEnum::Dataflow_Compare_Equal)
-			{
-				if (InFloatArray[Idx] == Threshold)
-				{
-					NewVertexSelection.SetSelected(Idx);
-				}
-			}
-			else if (Operation == ECompareOperationEnum::Dataflow_Compare_Smaller)
-			{
-				if (InFloatArray[Idx] < Threshold)
-				{
-					NewVertexSelection.SetSelected(Idx);
-				}
-			}
-			else if (Operation == ECompareOperationEnum::Dataflow_Compare_SmallerOrEqual)
-			{
-				if (InFloatArray[Idx] <= Threshold)
-				{
-					NewVertexSelection.SetSelected(Idx);
-				}
-			}
-			else if (Operation == ECompareOperationEnum::Dataflow_Compare_Greater)
-			{
-				if (InFloatArray[Idx] > Threshold)
-				{
-					NewVertexSelection.SetSelected(Idx);
-				}
-			}
-			else if (Operation == ECompareOperationEnum::Dataflow_Compare_GreaterOrEqual)
-			{
-				if (InFloatArray[Idx] >= Threshold)
-				{
-					NewVertexSelection.SetSelected(Idx);
-				}
-			}
-		}
-
-		SetValue<FDataflowVertexSelection>(Context, NewVertexSelection, &VertexSelection);
-	}
-}
 
 
 void FSetVertexColorInCollectionFromVertexSelectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
@@ -1291,146 +1105,6 @@ void FSetVertexColorInCollectionFromFloatArrayDataflowNode::Evaluate(Dataflow::F
 }
 
 
-void FFloatArrayNormalizeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TArray<float>>(&OutFloatArray))
-	{
-		const TArray<float>& InInFloatArray = GetValue<TArray<float>>(Context, &InFloatArray);
-		const FDataflowVertexSelection& InSelection = GetValue<FDataflowVertexSelection>(Context, &Selection);
-		const float InMinRange = GetValue<float>(Context, &MinRange);
-		const float InMaxRange = GetValue<float>(Context, &MaxRange);
-
-		const int32 NumElems = InFloatArray.Num();
-
-		TArray<float> NewFloatArray;
-		NewFloatArray.Init(false, NumElems);
-
-		if (IsConnected<FDataflowVertexSelection>(&Selection))
-		{
-			if (InInFloatArray.Num() == InSelection.Num())
-			{
-				// Compute Min/Max
-				float MinValue = 1e9, MaxValue = 1e-9;
-
-				for (int32 Idx = 0; Idx < NumElems; ++Idx)
-				{
-					if (InSelection.IsSelected(Idx))
-					{
-						if (InInFloatArray[Idx] < MinValue)
-						{
-							MinValue = InInFloatArray[Idx];
-						}
-
-						if (InInFloatArray[Idx] > MaxValue)
-						{
-							MaxValue = InInFloatArray[Idx];
-						}
-					}
-				}
-
-				for (int32 Idx = 0; Idx < NumElems; ++Idx)
-				{
-					if (InSelection.IsSelected(Idx))
-					{
-						// Normalize it
-						NewFloatArray[Idx] = (NewFloatArray[Idx] - MinValue) / (MaxValue - MinValue);
-
-						// Transform it into (MinRange, MaxRange)
-						NewFloatArray[Idx] = InMinRange + NewFloatArray[Idx] * (InMaxRange - InMinRange);
-					}
-				}
-
-				SetValue<TArray<float>>(Context, NewFloatArray, &OutFloatArray);
-				return;
-			}
-		}
-		else
-		{
-			// Compute Min/Max
-			float MinValue = 1e9, MaxValue = 1e-9;
-
-			for (int32 Idx = 0; Idx < NumElems; ++Idx)
-			{
-				if (InInFloatArray[Idx] < MinValue)
-				{
-					MinValue = InInFloatArray[Idx];
-				}
-
-				if (InInFloatArray[Idx] > MaxValue)
-				{
-					MaxValue = InInFloatArray[Idx];
-				}
-			}
-
-			for (int32 Idx = 0; Idx < NumElems; ++Idx)
-			{
-				// Normalize it
-				NewFloatArray[Idx] = (NewFloatArray[Idx] - MinValue) / (MaxValue - MinValue);
-
-				// Transform it into (MinRange, MaxRange)
-				NewFloatArray[Idx] = InMinRange + NewFloatArray[Idx] * (InMaxRange - InMinRange);
-			}
-
-			SetValue<TArray<float>>(Context, NewFloatArray, &OutFloatArray);
-			return;
-		}
-
-		SetValue<TArray<float>>(Context, TArray<float>(), &OutFloatArray);
-	}
-}
-
-
-void FVectorArrayNormalizeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TArray<FVector>>(&OutVectorArray))
-	{
-		const TArray<FVector>& InInVectorArray = GetValue<TArray<FVector>>(Context, &InVectorArray);
-		const FDataflowVertexSelection& InSelection = GetValue<FDataflowVertexSelection>(Context, &Selection);
-		const float InMagnitude = GetValue<float>(Context, &Magnitude);
-
-		const int32 NumElems = InInVectorArray.Num();
-
-		TArray<FVector> NewVectorArray;
-		NewVectorArray.Init(FVector(0.f), NumElems);
-
-		if (IsConnected<FDataflowVertexSelection>(&Selection))
-		{
-			if (InInVectorArray.Num() == InSelection.Num())
-			{
-				for (int32 Idx = 0; Idx < NumElems; ++Idx)
-				{
-					FVector Vector = InInVectorArray[Idx];
-
-					if (InSelection.IsSelected(Idx))
-					{
-						Vector.Normalize();
-						Vector *= InMagnitude;
-						NewVectorArray[Idx] = Vector;
-					}
-				}
-
-				SetValue<TArray<FVector>>(Context, NewVectorArray, &OutVectorArray);
-				return;
-			}
-		}
-		else
-		{
-			for (int32 Idx = 0; Idx < NumElems; ++Idx)
-			{
-				FVector Vector = InInVectorArray[Idx];
-
-				Vector.Normalize();
-				Vector *= InMagnitude;
-				NewVectorArray[Idx] = Vector;
-			}
-
-			SetValue<TArray<FVector>>(Context, NewVectorArray, &OutVectorArray);
-			return;
-		}
-
-		SetValue<TArray<FVector>>(Context, TArray<FVector>(), &OutVectorArray);
-	}
-}
 
 void FMultiplyTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -1453,21 +1127,3 @@ void FInvertTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 	}
 }
 
-void FUnionIntArraysDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<TArray<int32>>(&OutArray))
-	{
-		TArray<int32> Array1 = GetValue<TArray<int32>>(Context, &InArray1);
-		TArray<int32> Array2 = GetValue<TArray<int32>>(Context, &InArray2);
-		TArray<int32> OutputArray;
-		for (int32 i = 0; i < Array1.Num(); i++)
-		{
-			OutputArray.AddUnique(Array1[i]);
-		}
-		for (int32 i = 0; i < Array2.Num(); i++)
-		{
-			OutputArray.AddUnique(Array2[i]);
-		}
-		SetValue<TArray<int32>>(Context, OutputArray, &OutArray);
-	}
-}
