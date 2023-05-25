@@ -516,7 +516,10 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 #endif
 
 	// Create replication manager
-	PhysicsReplication = PhysicsReplicationFactory.IsValid() ? PhysicsReplicationFactory->Create(this) : new FPhysicsReplication(this);
+	PhysicsReplication
+		= PhysicsReplicationFactory.IsValid()
+		? PhysicsReplicationFactory->CreatePhysicsReplication(this)
+		: MakeUnique<FPhysicsReplication>(this);
 
 	FPhysicsDelegates::OnPhysSceneInit.Broadcast(this);
 
@@ -532,17 +535,11 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 
 	// Must ensure deferred components do not hold onto scene pointer.
 	ProcessDeferredCreatePhysicsState();
+	
+	// Make sure physics replication is cleared before we're fully destructed
+	PhysicsReplication.Reset();
 
 	FPhysicsDelegates::OnPhysSceneTerm.Broadcast(this);
-
-	if (IPhysicsReplicationFactory* RawReplicationFactory = FPhysScene_Chaos::PhysicsReplicationFactory.Get())
-	{
-		RawReplicationFactory->Destroy(PhysicsReplication);
-	}
-	else if(PhysicsReplication)
-	{
-		delete PhysicsReplication;
-	}
 
 #if CHAOS_WITH_PAUSABLE_SOLVER
 	if (SyncCaller)
@@ -771,14 +768,14 @@ void FPhysScene_Chaos::RemoveObject(Chaos::FClusterUnionPhysicsProxy* InObject)
 	RemoveFromComponentMaps(InObject);
 }
 
-FPhysicsReplication* FPhysScene_Chaos::GetPhysicsReplication()
+IPhysicsReplication* FPhysScene_Chaos::GetPhysicsReplication()
 {
-	return PhysicsReplication;
+	return PhysicsReplication.Get();
 }
 
-void FPhysScene_Chaos::SetPhysicsReplication(FPhysicsReplication* InPhysicsReplication)
+void FPhysScene_Chaos::SetPhysicsReplication(IPhysicsReplication* InPhysicsReplication)
 {
-	PhysicsReplication = InPhysicsReplication;
+	PhysicsReplication = TUniquePtr<IPhysicsReplication>(InPhysicsReplication);
 }
 
 void FPhysScene_Chaos::AddReferencedObjects(FReferenceCollector& Collector)
@@ -2107,9 +2104,6 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 				{
 					const FVector MoveBy = NewTransform.GetLocation() - ParentComponent->GetComponentTransform().GetLocation();
 					PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(ParentComponent, MoveBy, NewTransform.GetRotation(), DirtyParticle->GetWakeEvent()));
-
-					// Any changes in the linear/angular velocity of the particle is meaningless if the X/R doesn't change too.
-					ParentComponent->SyncVelocitiesFromPhysics(DirtyParticle->V(), DirtyParticle->W());
 				}
 
 				Interface->AddToSpatialAcceleration({ &Handle, 1 }, Outer->GetSpacialAcceleration());

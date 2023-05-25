@@ -123,7 +123,7 @@ struct FAsyncPhysicsInputRewindCallback : public Chaos::IRewindCallback
 		{
 			if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(World->GetPhysicsScene()))
 			{
-				if(const FPhysicsReplication* PhysicsReplication  = Scene->GetPhysicsReplication())
+				if (const IPhysicsReplication* PhysicsReplication  = Scene->GetPhysicsReplication())
 				{
 					CachedClientFrame = Scene->GetPhysicsReplication()->GetResimFrame();
 				}

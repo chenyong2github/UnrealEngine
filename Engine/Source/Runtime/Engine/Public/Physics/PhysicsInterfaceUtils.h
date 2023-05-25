@@ -6,6 +6,8 @@
 #include "Containers/Union.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsInterfaceUtilsCore.h"
+#include "PhysicsReplicationInterface.h"
+#include "Misc/CoreMiscDefines.h"
 
 class FPhysScene_PhysX;
 struct FConstraintInstance;
@@ -31,9 +33,15 @@ struct FConstraintBrokenDelegateData
 class FPhysicsReplication;
 
 /** Interface for the creation of customized physics replication.*/
-class IPhysicsReplicationFactory
+class ENGINE_API IPhysicsReplicationFactory
 {
 public:
-	virtual FPhysicsReplication* Create(FPhysScene* OwningPhysScene) = 0;
-	virtual void Destroy(FPhysicsReplication* PhysicsReplication) = 0;
+
+	// NOTE: Once the old Create/Destroy methods are deprecated, remove the default implementation!
+	virtual TUniquePtr<IPhysicsReplication> CreatePhysicsReplication(FPhysScene* OwningPhysScene);
+
+	UE_DEPRECATED(5.3, "Use CreatePhysicsReplication (which gives a replication interface) instead")
+	virtual FPhysicsReplication* Create(FPhysScene* OwningPhysScene) { return nullptr; }
+	UE_DEPRECATED(5.3, "No longer used - PhysScene owns the physics replication ptr once it is created. If you need a custom deleter, override CreatePhysicsReplication and specify the deleter in TUniquePtr.")
+	virtual void Destroy(FPhysicsReplication* PhysicsReplication) { }
 };

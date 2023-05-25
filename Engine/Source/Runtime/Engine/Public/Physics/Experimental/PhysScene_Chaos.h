@@ -26,7 +26,7 @@
 class UPrimitiveComponent;
 
 class AdvanceOneTimeStepTask;
-class FPhysicsReplication;
+class IPhysicsReplication;
 class FPhysInterface_Chaos;
 class FChaosSolversModule;
 struct FForceFieldProxy;
@@ -153,8 +153,10 @@ public:
 	void RemoveObject(FGeometryCollectionPhysicsProxy* InObject);
 	void RemoveObject(Chaos::FClusterUnionPhysicsProxy* InObject);
 
-	FPhysicsReplication* GetPhysicsReplication();
-	void SetPhysicsReplication(FPhysicsReplication* InPhysicsReplication);
+	IPhysicsReplication* GetPhysicsReplication();
+
+	UE_DEPRECATED(5.3, "Can no longer direclty set physics replication at runtime. For now, specify a PhysicsReplication factory instead. This function will take ownership of the IPhysicsReplication's lifetime.")
+	void SetPhysicsReplication(IPhysicsReplication* InPhysicsReplication);
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	/** Given a solver object, returns its associated component. */
@@ -294,7 +296,7 @@ private:
 	void HandleCrumblingEvents(const Chaos::FCrumblingEventData& Event);
 
 	/** Replication manager that updates physics bodies towards replicated physics state */
-	FPhysicsReplication* PhysicsReplication;
+	TUniquePtr<IPhysicsReplication> PhysicsReplication;
 
 #if CHAOS_WITH_PAUSABLE_SOLVER
 	/** Callback that checks the status of the world settings for this scene before pausing/unpausing its solver. */

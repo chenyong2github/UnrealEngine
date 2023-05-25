@@ -44,7 +44,7 @@ void UPrimitiveComponent::SetRigidBodyReplicatedTarget(FRigidBodyState& UpdatedS
 	{
 		if (FPhysScene* PhysScene = World->GetPhysicsScene())
 		{
-			if (FPhysicsReplication* PhysicsReplication = PhysScene->GetPhysicsReplication())
+			if (IPhysicsReplication* PhysicsReplication = PhysScene->GetPhysicsReplication())
 			{
 				// If we are not allowed to replicate physics objects,
 				// don't set replicated target unless we have a BodyInstance.

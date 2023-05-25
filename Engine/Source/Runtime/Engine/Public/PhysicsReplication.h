@@ -9,6 +9,7 @@
 
 #include "Engine/EngineTypes.h"
 #include "Engine/ReplicatedState.h"
+#include "PhysicsReplicationInterface.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "Chaos/Particles.h"
@@ -85,7 +86,7 @@ class UPrimitiveComponent;
 class FPhysicsReplicationAsyncCallback;
 struct FAsyncPhysicsRepCallbackData;
 
-class ENGINE_API FPhysicsReplication
+class ENGINE_API FPhysicsReplication : public IPhysicsReplication
 {
 public:
 	FPhysicsReplication(FPhysScene* PhysScene);
@@ -95,21 +96,21 @@ public:
 	static bool ShouldSkipPhysicsReplication();
 
 	/** Tick and update all body states according to replicated targets */
-	void Tick(float DeltaSeconds);
+	virtual void Tick(float DeltaSeconds) override;
 
 	/** Sets the latest replicated target for a body instance */
 	UE_DEPRECATED(5.1, "SetReplicatedTarget now takes the ServerFrame.  Please update calls and overloads.")
 	virtual void SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget) { SetReplicatedTarget(Component, BoneName, ReplicatedTarget, 0); }
-	virtual void SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame);
+	virtual void SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame) override;
 
 	/** Remove the replicated target*/
-	virtual void RemoveReplicatedTarget(UPrimitiveComponent* Component);
+	virtual void RemoveReplicatedTarget(UPrimitiveComponent* Component) override;
 
 	/** Get the resim frame (min server frame from the targets) */
-	int32 GetResimFrame() const;
+	virtual int32 GetResimFrame() const override;
 
 	/** Set the resim frame for replication */
-	void SetResimFrame(const int32 InResimFrame);
+	virtual void SetResimFrame(const int32 InResimFrame) override;
 
 protected:
 

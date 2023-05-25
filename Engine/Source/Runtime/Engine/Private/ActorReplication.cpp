@@ -303,7 +303,7 @@ void AActor::SyncReplicatedPhysicsSimulation()
 				{
 					if (FPhysScene* PhysScene = World->GetPhysicsScene())
 					{
-						if (FPhysicsReplication* PhysicsReplication = PhysScene->GetPhysicsReplication())
+						if (IPhysicsReplication* PhysicsReplication = PhysScene->GetPhysicsReplication())
 						{
 							PhysicsReplication->RemoveReplicatedTarget(RootPrimComp);
 						}
