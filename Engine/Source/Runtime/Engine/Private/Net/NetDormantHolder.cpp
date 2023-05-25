@@ -148,11 +148,6 @@ void FDormantReplicatorHolder::CleanupStaleObjects(FNetworkObjectList& NetworkOb
 			}
 		}
 
-		if (ActorSetIt->DormantReplicators.IsEmpty())
-		{
-			ActorSetIt.RemoveCurrent();
-		}
-
 #if UE_REPLICATED_OBJECT_REFCOUNTING
 		if (CleanedUpObjects.Num() > 0)
 		{
@@ -160,6 +155,11 @@ void FDormantReplicatorHolder::CleanupStaleObjects(FNetworkObjectList& NetworkOb
 			CleanedUpObjects.Reset();
 		}
 #endif
+
+		if (ActorSetIt->DormantReplicators.IsEmpty())
+		{
+			ActorSetIt.RemoveCurrent();
+		}
 	}
 }
 

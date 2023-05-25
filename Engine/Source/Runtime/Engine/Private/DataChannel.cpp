@@ -3226,7 +3226,10 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 	}
 
 #if UE_REPLICATED_OBJECT_REFCOUNTING
-	Connection->Driver->GetNetworkObjectList().RemoveMultipleSubObjectChannelReference(Actor, ReferencesToRemove, this);
+	if (ReferencesToRemove.Num() > 0 )
+	{
+		Connection->Driver->GetNetworkObjectList().RemoveMultipleSubObjectChannelReference(Actor, ReferencesToRemove, this);
+	}
 #endif
 
 	// After all properties have been initialized, call PostNetInit. This should call BeginPlay() so initialization can be done with proper starting values.
