@@ -192,7 +192,8 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 	ClothPreviewViewportDelegate = [this](FAssetEditorViewportConstructionArgs InArgs)
 	{
 		return SAssignNew(PreviewViewportWidget, SChaosClothAssetEditor3DViewport, InArgs)
-			.EditorViewportClient(ClothPreviewViewportClient);
+			.EditorViewportClient(ClothPreviewViewportClient)
+			.ToolkitCommandList(GetToolkitCommands().ToSharedPtr());
 	};
 
 	FPreviewScene::ConstructionValues SceneArgs;

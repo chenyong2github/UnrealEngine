@@ -21,6 +21,7 @@ void SChaosClothAssetEditor3DViewport::Construct(const FArguments& InArgs, const
 	{
 		ParentArgs._ViewportSize = InArgs._ViewportSize;
 	}
+	ToolkitCommandList = InArgs._ToolkitCommandList;
 	SAssetEditorViewport::Construct(ParentArgs, InViewportConstructionArgs);
 
 	ViewportOverlay->AddSlot()
@@ -65,7 +66,7 @@ void SChaosClothAssetEditor3DViewport::BindCommands()
 	SAssetEditorViewport::BindCommands();
 	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
 
-	CommandList->MapAction(
+	ToolkitCommandList->MapAction(
 		CommandInfos.TogglePreviewWireframe,
 		FExecuteAction::CreateLambda([this]()
 		{
@@ -75,7 +76,7 @@ void SChaosClothAssetEditor3DViewport::BindCommands()
 		FCanExecuteAction::CreateLambda([this]() { return true; }),
 		FIsActionChecked::CreateLambda([this]() { return StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client)->RenderMeshWireframeEnabled(); }));
 
-	CommandList->MapAction(
+	ToolkitCommandList->MapAction(
 		CommandInfos.SoftResetSimulation,
 		FExecuteAction::CreateLambda([this]()
 		{
@@ -85,7 +86,7 @@ void SChaosClothAssetEditor3DViewport::BindCommands()
 		FCanExecuteAction::CreateLambda([this]() { return true; }),
 		FIsActionChecked::CreateLambda([this]() { return false; }));
 
-	CommandList->MapAction(
+	ToolkitCommandList->MapAction(
 		CommandInfos.HardResetSimulation,
 		FExecuteAction::CreateLambda([this]()
 		{
@@ -96,7 +97,7 @@ void SChaosClothAssetEditor3DViewport::BindCommands()
 		FIsActionChecked::CreateLambda([this]() { return false; }));
 
 
-	CommandList->MapAction(
+	ToolkitCommandList->MapAction(
 		CommandInfos.ToggleSimulationSuspended,
 		FExecuteAction::CreateLambda([this]()
 		{
@@ -120,7 +121,7 @@ void SChaosClothAssetEditor3DViewport::BindCommands()
 TSharedPtr<SWidget> SChaosClothAssetEditor3DViewport::MakeViewportToolbar()
 {
 	return SNew(SChaosClothAssetEditor3DViewportToolBar, SharedThis(this))
-		.CommandList(CommandList);
+		.CommandList(ToolkitCommandList);
 }
 
 void SChaosClothAssetEditor3DViewport::OnFocusViewportToSelection()

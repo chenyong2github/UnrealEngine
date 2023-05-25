@@ -24,6 +24,7 @@ public:
 	SLATE_BEGIN_ARGS(SChaosClothAssetEditor3DViewport) {}
 		SLATE_ATTRIBUTE(FVector2D, ViewportSize);
 		SLATE_ARGUMENT(TSharedPtr<FEditorViewportClient>, EditorViewportClient)
+		SLATE_ARGUMENT(TSharedPtr<FUICommandList>, ToolkitCommandList)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs);
@@ -40,6 +41,10 @@ public:
 	virtual void OnFloatingButtonClicked() override {}
 
 private:
+
+	// Use this command list if we want to enable editor-wide command chords/hotkeys. 
+	// Use SEditorViewport::CommandList if we want command hotkeys to only be active when the mouse is in this viewport.
+	TSharedPtr<FUICommandList> ToolkitCommandList;
 
 	TWeakPtr<UE::Chaos::ClothAsset::FChaosClothPreviewScene> GetPreviewScene();
 	TWeakPtr<const UE::Chaos::ClothAsset::FChaosClothPreviewScene> GetPreviewScene() const;
