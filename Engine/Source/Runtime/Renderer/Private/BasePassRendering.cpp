@@ -1907,7 +1907,7 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 
 
 	bool bShouldDraw = false;
-	if (AutoBeforeDOFTranslucencyBoundary > 0.0f && PrimitiveSceneProxy && bIsTranslucent)
+	if (AutoBeforeDOFTranslucencyBoundary > 0.0f && PrimitiveSceneProxy && bIsTranslucent && !Material.IsDeferredDecal())
 	{
 		check(ViewIfDynamicMeshCommand);
 		check(TranslucencyPassType != ETranslucencyPass::TPT_MAX);
