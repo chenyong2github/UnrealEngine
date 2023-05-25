@@ -7817,6 +7817,7 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 
 			if (bResizeArrays)
 			{
+				TGuardValue<bool> GuardReporting(bReportWarningsAndErrors, false);
 				while (Elements.Num() > InPin->SubPins.Num())
 				{
 					if(!InsertArrayPin(InPin, INDEX_NONE, FString(), bSetupUndoRedo))
