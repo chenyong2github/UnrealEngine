@@ -144,7 +144,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FText> FCompiledB
 
 	if (FieldId.IsNone())
 	{
-		return MakeError(LOCTEXT("FieldNotDefined", "The Field/Property is not defined."));
+		return MakeError(LOCTEXT("FieldNotDefined", "The Field is not defined. Is it missing the FieldNotify flag?."));
 	}
 
 	if (!SourceClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
