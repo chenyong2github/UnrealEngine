@@ -202,8 +202,11 @@ void FMovieRenderPipelineEditorModule::RegisterTypeCustomizations()
 
 void FMovieRenderPipelineEditorModule::UnregisterTypeCustomizations()
 {
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.UnregisterCustomPropertyTypeLayout(FMoviePipelineConsoleVariableEntry::StaticStruct()->GetFName());
+	FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+	if (PropertyModule)
+	{
+		PropertyModule->UnregisterCustomPropertyTypeLayout(FMoviePipelineConsoleVariableEntry::StaticStruct()->GetFName());
+	}
 }
 
 void FMovieRenderPipelineEditorModule::StartupModule()
