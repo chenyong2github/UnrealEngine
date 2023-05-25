@@ -20,6 +20,7 @@
 #include "UObject/AnimPhysObjectVersion.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/FortniteValkyrieBranchObjectVersion.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
 #include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 #include "UObject/FortniteShaderworkObjectVersion.h"
@@ -259,6 +260,11 @@ const FGuid FFortniteMainBranchObjectVersion::GUID(0x601D1886, 0xAC644F84, 0xAA1
 // Register Fortnite Main custom version with Core
 FDevVersionRegistration GRegisterFortniteMainBranchObjectVersion(FFortniteMainBranchObjectVersion::GUID, FFortniteMainBranchObjectVersion::LatestVersion, TEXT("FortniteMain"));
 FDevSystemGuidRegistration GRegisterFortniteMainBranchSystemGuids(FFortniteMainBranchObjectVersion::GetSystemGuids());
+
+// Unique Fortnite Dev-Valkyrie Object version id
+const FGuid FFortniteValkyrieBranchObjectVersion::GUID(0x8DBC2C5B, 0x54A743E0, 0xA768FCBB, 0x7DA29060);
+// Register Fortnite Main custom version with Core
+FDevVersionRegistration GRegisterFortniteValkyrieBranchObjectVersion(FFortniteValkyrieBranchObjectVersion::GUID, FFortniteValkyrieBranchObjectVersion::LatestVersion, TEXT("FortniteValkyrie"));
 
 // Unique Fortnite NC Object version id
 const FGuid FFortniteNCBranchObjectVersion::GUID(0x5B4C06B7, 0x24634AF8, 0x805BBF70, 0xCDF5D0DD);
