@@ -7,8 +7,8 @@
 #include "Commandlets/WorldPartitionConvertCommandlet.h"
 #include "WorldPartitionEditorSettings.generated.h"
 
-UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "World Partition"))
-class UWorldPartitionEditorSettings : public UDeveloperSettings
+UCLASS(config = EditorSettings, meta = (DisplayName = "World Partition"))
+class WORLDPARTITIONEDITOR_API UWorldPartitionEditorSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
@@ -24,7 +24,9 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = MiniMap, Meta = (ClampMin = 100, ToolTip = "Threshold from which minimap generates a warning if its WorldUnitsPerPixel is above this value"))
 	int32 MinimapLowQualityWorldUnitsPerPixelThreshold;
 
+	UPROPERTY(Config, EditAnywhere, Category = WorldPartition, Meta = (ToolTip = "Wheter to enable dynamic loading in the editor through loading regions"))
 	bool bDisableLoadingInEditor;
+
 	bool bDisableBugIt;
 	bool bDisablePIE;
 	bool bAdvancedMode;
