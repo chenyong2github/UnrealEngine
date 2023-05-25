@@ -26,7 +26,7 @@ UWorld* UConversationInstance::GetWorld() const
 
 #if WITH_SERVER_CODE
 
-void UConversationInstance::ServerRemoveParticipant(FGameplayTag ParticipantID)
+void UConversationInstance::ServerRemoveParticipant(FGameplayTag ParticipantID, const FConversationParticipants& PreservedParticipants)
 {
 	for (auto It = Participants.List.CreateIterator(); It; ++It)
 	{
@@ -36,7 +36,7 @@ void UConversationInstance::ServerRemoveParticipant(FGameplayTag ParticipantID)
 			{
 				if (bConversationStarted)
 				{
-					OldParticipant->ServerNotifyConversationEnded(this);
+					OldParticipant->ServerNotifyConversationEnded(this, PreservedParticipants);
 				}
 			}
 			It.RemoveCurrent();
@@ -54,7 +54,7 @@ void UConversationInstance::ServerAssignParticipant(FGameplayTag ParticipantID, 
 		return;
 	}
 
-	ServerRemoveParticipant(ParticipantID);
+	ServerRemoveParticipant(ParticipantID, Participants);
 
 	FConversationParticipantEntry NewEntry;
 	NewEntry.ParticipantID = ParticipantID;
@@ -304,10 +304,10 @@ void UConversationInstance::ServerAbortConversation()
 
 		OnEnded();
 
-		TArray<FConversationParticipantEntry> ListCopy = Participants.List;
-		for (const FConversationParticipantEntry& ParticipantEntry : ListCopy)
+		const FConversationParticipants ParticipantsCopy = Participants;
+		for (const FConversationParticipantEntry& ParticipantEntry : ParticipantsCopy.List)
 		{
-			ServerRemoveParticipant(ParticipantEntry.ParticipantID);
+			ServerRemoveParticipant(ParticipantEntry.ParticipantID, ParticipantsCopy);
 		}
 		check(Participants.List.Num() == 0);
 	}

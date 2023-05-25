@@ -38,7 +38,9 @@ public:
 	virtual UWorld* GetWorld() const override;
 	
 #if WITH_SERVER_CODE
-	void ServerRemoveParticipant(FGameplayTag ParticipantID);
+	/** Should be called with a copy of the conversation participants before any removals happen, that way clients can properly respond to the end of their respective conversations
+	  * with an accurate account of who was in that conversation. */
+	void ServerRemoveParticipant(FGameplayTag ParticipantID, const FConversationParticipants& PreservedParticipants);
 
 	void ServerAssignParticipant(FGameplayTag ParticipantID, AActor* ParticipantActor);
 

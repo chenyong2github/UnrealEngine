@@ -47,7 +47,7 @@ public:
 
 #if WITH_SERVER_CODE
 	void ServerNotifyConversationStarted(UConversationInstance* Conversation, FGameplayTag AsParticipant);
-	void ServerNotifyConversationEnded(UConversationInstance* Conversation);
+	void ServerNotifyConversationEnded(UConversationInstance* Conversation, const FConversationParticipants& PreservedParticipants);
 	void ServerNotifyExecuteTaskAndSideEffects(const FConversationNodeHandle& Handle);
 	void ServerForAllConversationsRefreshChoices(UConversationInstance* IgnoreConversation = nullptr);
 	void ServerForAllConversationsRefreshTaskChoiceData(const FConversationNodeHandle& Handle, UConversationInstance* IgnoreConversation /*= nullptr*/);
@@ -103,7 +103,10 @@ protected:
 	void ClientUpdateConversations(int32 InConversationsActive);
 
 	UFUNCTION(Client, Reliable)
-	void ClientStartConversation(const FGameplayTag AsParticipant);
+	void ClientStartConversation(const FConversationParticipants& InParticipants);
+
+	UFUNCTION(Client, Reliable)
+	void ClientExitConversation(const FConversationParticipants& InParticipants);
 
 protected:
 	UFUNCTION()
@@ -112,6 +115,9 @@ protected:
 	virtual void OnEnterConversationState();
 	virtual void OnLeaveConversationState();
 	virtual void OnConversationUpdated(const FClientConversationMessagePayload& Message);
+
+	virtual void OnClientStartConversation(const FConversationParticipants& InParticipants);
+	virtual void OnClientExitConversation(const FConversationParticipants& InParticipants);
 
 #if WITH_SERVER_CODE
 	virtual void OnServerConversationStarted(UConversationInstance* Conversation, FGameplayTag AsParticipant);

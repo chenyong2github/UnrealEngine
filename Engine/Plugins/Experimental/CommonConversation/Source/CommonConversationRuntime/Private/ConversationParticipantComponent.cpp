@@ -54,13 +54,13 @@ void UConversationParticipantComponent::ServerNotifyConversationStarted(UConvers
 		MARK_PROPERTY_DIRTY_FROM_NAME(UConversationParticipantComponent, ConversationsActive, this);
 
 		OnServerConversationStarted(Conversation, AsParticipant);
-		ClientStartConversation(AsParticipant);
+		ClientStartConversation(Conversation->GetParticipantsCopy());
 
 		ClientUpdateConversations(ConversationsActive);
 	}
 }
 
-void UConversationParticipantComponent::ServerNotifyConversationEnded(UConversationInstance* Conversation)
+void UConversationParticipantComponent::ServerNotifyConversationEnded(UConversationInstance* Conversation, const FConversationParticipants& PreservedParticipants)
 {
 	AActor* Owner = GetOwner();
 	if (Owner->GetLocalRole() == ROLE_Authority)
@@ -83,6 +83,7 @@ void UConversationParticipantComponent::ServerNotifyConversationEnded(UConversat
 				MARK_PROPERTY_DIRTY_FROM_NAME(UConversationParticipantComponent, ConversationsActive, this);
 
 				OnServerConversationEnded(Conversation);
+				ClientExitConversation(PreservedParticipants);
 
 				ClientUpdateConversations(ConversationsActive);
 
@@ -273,10 +274,17 @@ void UConversationParticipantComponent::ClientUpdateConversationTaskChoiceData_I
 	}
 }
 
-void UConversationParticipantComponent::ClientStartConversation_Implementation(const FGameplayTag AsParticipant)
+void UConversationParticipantComponent::ClientStartConversation_Implementation(const FConversationParticipants& InParticipants)
 {
 	bIsFirstConversationUpdateBroadcasted = false;
 	ConversationStarted.Broadcast();
+
+	OnClientStartConversation(InParticipants);
+}
+
+void UConversationParticipantComponent::ClientExitConversation_Implementation(const FConversationParticipants& InParticipants)
+{
+	OnClientExitConversation(InParticipants);
 }
 
 bool UConversationParticipantComponent::IsInActiveConversation() const
@@ -364,6 +372,16 @@ void UConversationParticipantComponent::OnLeaveConversationState()
 }
 
 void UConversationParticipantComponent::OnConversationUpdated(const FClientConversationMessagePayload& Message)
+{
+
+}
+
+void UConversationParticipantComponent::OnClientStartConversation(const FConversationParticipants& InParticipants)
+{
+
+}
+
+void UConversationParticipantComponent::OnClientExitConversation(const FConversationParticipants& InParticipants)
 {
 
 }
