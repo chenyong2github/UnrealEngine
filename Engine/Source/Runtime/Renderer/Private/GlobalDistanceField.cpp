@@ -2371,14 +2371,14 @@ void UpdateGlobalDistanceFieldVolume(
 								PermutationVector.Set<FCullObjectsToClipmapCS::FReadbackHasPendingStreaming>(bRecacheClipmapsWithPendingStreaming);
 								auto ComputeShader = View.ShaderMap->GetShader<FCullObjectsToClipmapCS>(PermutationVector);
 
-								const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(DistanceFieldSceneData.NumObjectsInBuffer, FCullObjectsToClipmapCS::GetGroupSize());
+								const FIntVector GroupCount = FComputeShaderUtils::GetGroupCountWrapped(DistanceFieldSceneData.NumObjectsInBuffer, FCullObjectsToClipmapCS::GetGroupSize());
 
 								FComputeShaderUtils::AddPass(
 									GraphBuilder,
 									RDG_EVENT_NAME("CullToClipmap"),
 									ComputeShader,
 									PassParameters,
-									GroupSize);
+									GroupCount);
 							}
 
 							if (bRecacheClipmapsWithPendingStreaming)

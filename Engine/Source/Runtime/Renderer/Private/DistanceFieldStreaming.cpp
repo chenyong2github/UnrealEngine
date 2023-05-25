@@ -1152,7 +1152,7 @@ void FDistanceFieldSceneData::GenerateStreamingRequests(
 				RDG_EVENT_NAME("ComputeWantedMips"),
 				ComputeShader,
 				PassParameters,
-				FComputeShaderUtils::GetGroupCount(NumObjectsInBuffer, FComputeDistanceFieldAssetWantedMipsCS::GetGroupSize()));
+				FComputeShaderUtils::GetGroupCountWrapped(NumObjectsInBuffer, FComputeDistanceFieldAssetWantedMipsCS::GetGroupSize()));
 		}
 
 		{

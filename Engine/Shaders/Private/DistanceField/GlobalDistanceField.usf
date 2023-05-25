@@ -3,6 +3,7 @@
 #define USE_DISTANCE_FIELD_SAMPLER 1
 
 #include "../Common.ush"
+#include "../ComputeShaderUtils.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../DistanceFieldLightingShared.ush"
 #include "../DistanceFieldAOShared.ush"
@@ -54,13 +55,12 @@ float3 RelativePreViewTranslation;
 
 [numthreads(CULLOBJECTS_THREADGROUP_SIZE, 1, 1)]
 void CullObjectsToClipmapCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
+	uint GroupIndex : SV_GroupIndex,
+	uint3 GroupId : SV_GroupID)
 {
 	const FLWCVector3 PreViewTranslation = MakeLWCVector3(-ViewTilePosition, RelativePreViewTranslation);
 
-	const uint ObjectIndex = DispatchThreadId.x;
+	const uint ObjectIndex = GetUnWrappedDispatchThreadId(GroupId, GroupIndex, CULLOBJECTS_THREADGROUP_SIZE);
 	if (ObjectIndex < NumSceneObjects)
 	{
 		const FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);

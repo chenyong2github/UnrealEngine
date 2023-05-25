@@ -95,14 +95,14 @@ void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 		PassParameters->AOMaxViewDistance = GetMaxAOViewDistance();
 
 		auto ComputeShader = View.ShaderMap->GetShader<FCullObjectsForViewCS>();
-		const int32 GroupSize = FMath::DivideAndRoundUp<uint32>(NumObjectsInBuffer, UpdateObjectsGroupSize);
+		const FIntVector GroupCount = FComputeShaderUtils::GetGroupCountWrapped(NumObjectsInBuffer, UpdateObjectsGroupSize);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("ObjectFrustumCulling"),
 			ComputeShader,
 			PassParameters,
-			FIntVector(GroupSize, 1, 1));
+			GroupCount);
 	}
 }
 
@@ -399,14 +399,14 @@ void BuildTileObjectLists(
 			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
 
 			auto ComputeShader = View.ShaderMap->GetShader<FComputeCulledTilesStartOffsetCS>();
-			const int32 GroupSize = FMath::DivideAndRoundUp<uint32>(Scene->DistanceFieldSceneData.NumObjectsInBuffer, ComputeStartOffsetGroupSize);
+			const FIntVector GroupCount = FComputeShaderUtils::GetGroupCountWrapped(Scene->DistanceFieldSceneData.NumObjectsInBuffer, ComputeStartOffsetGroupSize);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("ComputeStartOffsets"),
 				ComputeShader,
 				PassParameters,
-				FIntVector(GroupSize, 1, 1));
+				GroupCount);
 		}
 
 		// Start at 0 tiles per object

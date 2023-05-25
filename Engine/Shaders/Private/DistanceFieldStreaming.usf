@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Common.ush"
+#include "ComputeShaderUtils.ush"
 #include "DistanceFieldLightingShared.ush"
 
 RWTexture3D<UNORM float> RWDistanceFieldBrickAtlas;
@@ -111,16 +112,17 @@ uint DebugForceNumMips;
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void ComputeDistanceFieldAssetWantedMipsCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
+	uint GroupIndex : SV_GroupIndex,
+	uint3 GroupId : SV_GroupID)
 {
-	if (DispatchThreadId.x == 0)
+	const uint Index = GetUnWrappedDispatchThreadId(GroupId, GroupIndex, THREADGROUP_SIZE);
+
+	if (Index == 0)
 	{
 		RWDistanceFieldAssetStreamingRequests[0] = 0;
 	}
 
-	uint ObjectIndex = DispatchThreadId.x;
+	const uint ObjectIndex = Index;
 
 	if (ObjectIndex < NumSceneObjects)
 	{
