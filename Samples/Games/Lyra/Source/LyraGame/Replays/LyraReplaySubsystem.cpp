@@ -47,17 +47,15 @@ void ULyraReplaySubsystem::RecordClientReplay(APlayerController* PlayerControlle
 {
 	if (ensure(DoesPlatformSupportReplays() && PlayerController))
 	{
-		// TODO handle deleting old replays
 		FText FriendlyNameText = FText::Format(NSLOCTEXT("Lyra", "LyraReplayName_Format", "Client Replay {0}"), FText::AsDateTime(FDateTime::UtcNow(), EDateTimeStyle::Short, EDateTimeStyle::Short));
 		GetGameInstance()->StartRecordingReplay(FString(), FriendlyNameText.ToString());
 
 		if (ULyraLocalPlayer* LyraLocalPlayer = Cast<ULyraLocalPlayer>(PlayerController->GetLocalPlayer()))
 		{
+			// Start a cleanup of existing saved streams
 			int32 NumToKeep = LyraLocalPlayer->GetLocalSettings()->GetNumberOfReplaysToKeep();
-
 			CleanupLocalReplays(LyraLocalPlayer, NumToKeep);
 		}
-
 	}
 }
 
@@ -93,8 +91,8 @@ void ULyraReplaySubsystem::OnEnumerateStreamsCompleteForDelete(const FEnumerateS
 	TArray<FNetworkReplayStreamInfo> StreamsToDelete;
 	for (const FNetworkReplayStreamInfo& StreamInfo : Result.FoundStreams)
 	{
-		// Never delete keep or live streams
-		if (!StreamInfo.bShouldKeep && !StreamInfo.bIsLive)
+		// Never delete keep streams
+		if (!StreamInfo.bShouldKeep)
 		{
 			StreamsToDelete.Add(StreamInfo);
 		}
@@ -102,6 +100,19 @@ void ULyraReplaySubsystem::OnEnumerateStreamsCompleteForDelete(const FEnumerateS
 
 	// Sort by date
 	Algo::SortBy(StreamsToDelete, [](const FNetworkReplayStreamInfo& Data) { return Data.Timestamp.GetTicks(); }, TGreater<>());
+
+	if (UDemoNetDriver* DemoDriver = GetDemoDriver())
+	{
+		if (DemoDriver->IsRecording())
+		{
+			// If we're recording, the live stream may or may not show up in the query which affects the keep count
+			// Add a fake live stream if the active one is missing from the results
+			if (StreamsToDelete.Num() > 0 && !StreamsToDelete[0].bIsLive)
+			{
+				StreamsToDelete.Insert(FNetworkReplayStreamInfo(), 0);
+			}
+		}
+	}
 
 	if (StreamsToDelete.Num() > DeletingReplaysNumberToKeep)
 	{
