@@ -7,6 +7,7 @@
 #include "Animation/AnimationSettings.h"
 #include "Animation/Skeleton.h"
 #include "Internationalization/Regex.h"
+#include "UObject/LinkerLoad.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MirrorDataTable)
 
@@ -479,6 +480,78 @@ void UMirrorDataTable::FillMirrorArrays()
 			}
 		}
 	);
+>>>> ORIGINAL //Fortnite/Main/Engine/Source/Runtime/Engine/Private/Animation/MirrorDataTable.cpp#7
+
+	// Ensure post load prepares the smart names
+	Skeleton->ConditionalPostLoad();
+
+	//ensure that pairs always appear beside each other in the arrays
+	TSet<SmartName::UID_Type> AddedSourceUIDs; 
+	const FSmartNameMapping* CurveSmartNames = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+
+	if (CurveSmartNames)
+	{
+		CurveMirrorSourceUIDArray.Reset(CurveToMirrorCurveMap.Num());
+		CurveMirrorTargetUIDArray.Reset(CurveToMirrorCurveMap.Num());
+		for (auto& Elem : CurveToMirrorCurveMap)
+		{
+			SmartName::UID_Type SourceCurveUID = CurveSmartNames->FindUID(Elem.Key);
+			SmartName::UID_Type TargetCurveUID = CurveSmartNames->FindUID(Elem.Value);
+			if (SourceCurveUID != INDEX_NONE && TargetCurveUID != INDEX_NONE && !AddedSourceUIDs.Contains(SourceCurveUID))
+			{
+				CurveMirrorSourceUIDArray.Add(SourceCurveUID);
+				AddedSourceUIDs.Add(SourceCurveUID); 
+				CurveMirrorTargetUIDArray.Add(TargetCurveUID);
+				if (CurveToMirrorCurveMap.Contains(Elem.Value) && CurveSmartNames->FindUID(CurveToMirrorCurveMap[Elem.Value]) == SourceCurveUID)
+				{
+					CurveMirrorSourceUIDArray.Add(TargetCurveUID);
+					AddedSourceUIDs.Add(TargetCurveUID);
+					CurveMirrorTargetUIDArray.Add(SourceCurveUID);
+				}
+			}
+		}
+		CurveMirrorSourceUIDArray.Shrink(); 
+		CurveMirrorTargetUIDArray.Shrink();
+	}
+==== THEIRS //Fortnite/Main/Engine/Source/Runtime/Engine/Private/Animation/MirrorDataTable.cpp#8
+
+	// Ensure skeleton is loaded and post load prepares the smart names
+	if (Skeleton->HasAnyFlags(RF_NeedLoad))
+	{
+		Skeleton->GetLinker()->Preload(Skeleton);
+	}
+	Skeleton->ConditionalPostLoad();
+
+	//ensure that pairs always appear beside each other in the arrays
+	TSet<SmartName::UID_Type> AddedSourceUIDs; 
+	const FSmartNameMapping* CurveSmartNames = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+
+	if (CurveSmartNames)
+	{
+		CurveMirrorSourceUIDArray.Reset(CurveToMirrorCurveMap.Num());
+		CurveMirrorTargetUIDArray.Reset(CurveToMirrorCurveMap.Num());
+		for (auto& Elem : CurveToMirrorCurveMap)
+		{
+			SmartName::UID_Type SourceCurveUID = CurveSmartNames->FindUID(Elem.Key);
+			SmartName::UID_Type TargetCurveUID = CurveSmartNames->FindUID(Elem.Value);
+			if (SourceCurveUID != INDEX_NONE && TargetCurveUID != INDEX_NONE && !AddedSourceUIDs.Contains(SourceCurveUID))
+			{
+				CurveMirrorSourceUIDArray.Add(SourceCurveUID);
+				AddedSourceUIDs.Add(SourceCurveUID); 
+				CurveMirrorTargetUIDArray.Add(TargetCurveUID);
+				if (CurveToMirrorCurveMap.Contains(Elem.Value) && CurveSmartNames->FindUID(CurveToMirrorCurveMap[Elem.Value]) == SourceCurveUID)
+				{
+					CurveMirrorSourceUIDArray.Add(TargetCurveUID);
+					AddedSourceUIDs.Add(TargetCurveUID);
+					CurveMirrorTargetUIDArray.Add(SourceCurveUID);
+				}
+			}
+		}
+		CurveMirrorSourceUIDArray.Shrink(); 
+		CurveMirrorTargetUIDArray.Shrink();
+	}
+==== YOURS //marc.audy_Fortnite_EngineMerge/Engine/Source/Runtime/Engine/Private/Animation/MirrorDataTable.cpp
+<<<<
 }
 
 #undef LOCTEXT_NAMESPACE
