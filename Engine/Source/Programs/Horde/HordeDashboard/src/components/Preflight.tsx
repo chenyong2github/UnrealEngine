@@ -4,6 +4,25 @@ import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import backend, { useBackend } from '../backend';
 import { useQuery } from './JobDetailCommon';
+import ErrorHandler from './ErrorHandler';
+
+// "http://localhost:3000/preflight?stream=//Fortnite/Dev-DelMar&change=25220065"
+// "http://localhost:3000/preflight?stream=//Fortnite/Dev-DelMar"
+
+function setError(message: string) {
+
+   console.error(message);
+
+   message = `${message}\n\nReferring URL: ${encodeURI(window.location.href)}`
+
+   ErrorHandler.set({
+
+      title: `Error handling Preflight`,
+      message: message
+
+   }, true);
+
+}
 
 // redirect from external source, where horde stream id, etc are not known by that application
 export const PreflightRedirector: React.FC = () => {
@@ -22,35 +41,35 @@ export const PreflightRedirector: React.FC = () => {
    const autosubmit = !query.get("submit") ? "" : query.get("submit")!;
 
    if (!change) {
-      console.error("No preflight change specified");
-      return <Navigate to="/" replace={true} />;
+      setError("No preflight change specified");
+      return null;
    }
 
    const cl = parseInt(change);
 
    if (isNaN(cl)) {
-      console.error(`Bad change in preflight ${change}`);
-      return <Navigate to="/" replace={true} />;
+      setError(`Bad change in preflight ${change}`);
+      return null;
    }
 
    if (!streamName) {
-      console.error("No stream in query");
-      return <Navigate to="/" replace={true} />;
+      setError("No stream in query");
+      return null;
    }
 
    let stream = projectStore.streamByFullname(streamName);
 
 
    if (!stream) {
-      console.error(`Unable to resolve stream with name ${streamName}`);
-      return <Navigate to="/" replace={true} />;      
+      setError(`Unable to resolve stream with name ${streamName}`);
+      return null;
    }
 
    const project = stream?.project;
 
    if (!stream || !project) {
-      console.error("Bad stream or project id in StreamView");
-      return <Navigate to="/" replace={true} />;      
+      setError("Bad stream or project id");
+      return null;
    }
 
    if (!state.preflightQueried) {
