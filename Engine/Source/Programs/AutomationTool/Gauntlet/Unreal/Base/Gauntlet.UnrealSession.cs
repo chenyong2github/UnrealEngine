@@ -1123,16 +1123,24 @@ namespace Gauntlet
 			// Write instance stdout stream
 			LogOut.Append(InRunningRole.AppInstance.StdOut);
 
-			File.WriteAllText(ArtifactLogPath, LogOut.ToString());
-
-			// On build machines, copy all role logs to Horde.
-			if (CommandUtils.IsBuildMachine)
+			try
 			{
-				string HordeLogFileName = Path.Combine(CommandUtils.CmdEnv.LogFolder, RoleName + "Output.log");
-				File.WriteAllText(HordeLogFileName, LogOut.ToString());
-			}
+				File.WriteAllText(ArtifactLogPath, LogOut.ToString());
 
-			Log.Info("Wrote Log to {0}", ArtifactLogPath);
+				// On build machines, copy all role logs to Horde.
+				if (CommandUtils.IsBuildMachine)
+				{
+					string HordeLogFileName = Path.Combine(CommandUtils.CmdEnv.LogFolder, RoleName + "Output.log");
+					File.WriteAllText(HordeLogFileName, LogOut.ToString());
+				}
+
+				Log.Info("Wrote Log to {0}", ArtifactLogPath);
+			}
+			catch(Exception Ex)
+			{
+				string Message = "Encountered an {0} when attempting to write the {1} process log. The log may contain malformed encoding and will not be present on horde. {2}";
+				Log.Warning(Message, Ex.GetType().Name, RoleName, Ex.Message);
+			}
 
 			if (IsServer == false)
 			{
