@@ -54,9 +54,7 @@ public:
 };
 
 // A minimal uniform struct providing necessary access for external systems to Strata parameters.
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataPublicGlobalUniformParameters, RENDERER_API)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, TopLayerTexture)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
+DECLARE_UNIFORM_BUFFER_STRUCT(FStrataPublicGlobalUniformParameters, RENDERER_API)
 
 namespace Strata
 {
