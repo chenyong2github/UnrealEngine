@@ -1003,6 +1003,11 @@ void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>&
 	{
 		ClothMode->SetSelectedClothCollection(Collection);
 	}
+
+	if (Outliner)
+	{
+		Outliner->SetClothCollection(Collection);
+	}
 }
 
 

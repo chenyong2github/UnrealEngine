@@ -79,7 +79,13 @@ void SClothCollectionOutliner::Construct(const FArguments& InArgs)
 
 void SClothCollectionOutliner::SetClothCollection(TWeakPtr<FManagedArrayCollection> InClothCollection)
 {
-	ClothCollection = InClothCollection;
+	if (ClothCollection != InClothCollection)
+	{
+		ClothCollection = InClothCollection;
+
+		RegenerateHeader();
+		RepopulateListView();
+	}
 }
 
 void SClothCollectionOutliner::SetSelectedGroupName(const FName& InSelectedGroupName)
