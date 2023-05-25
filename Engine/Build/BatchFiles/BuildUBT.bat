@@ -48,7 +48,7 @@ for /d %%D in (..\Platforms\*) do (
 		 %%D\Source\Programs\UnrealBuildTool\*.cs ^
 		 %%D\Source\Programs\UnrealBuildTool\*.csproj ^
 		 | find ".cs" >> ..\Intermediate\Build\UnrealBuildToolFiles.txt
-	)
+	) 2>nul
 )
 :NoPlatforms
 
@@ -59,7 +59,7 @@ for /d %%D in (..\Restricted\*) do (
 		 %%D\Source\Programs\UnrealBuildTool\*.cs ^
 		 %%D\Source\Programs\UnrealBuildTool\*.csproj ^
 		 | find ".cs" >> ..\Intermediate\Build\UnrealBuildToolFiles.txt
-	)
+	) 2>nul
 )
 :NoRestricted
 
