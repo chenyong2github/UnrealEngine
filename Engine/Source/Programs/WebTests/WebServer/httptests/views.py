@@ -1,0 +1,47 @@
+from django.shortcuts import render
+from django.http.response import JsonResponse
+from django.http import JsonResponse
+from django.http import StreamingHttpResponse
+from rest_framework.decorators import api_view
+import time
+import logging
+
+logger = logging.getLogger('django')
+
+@api_view(['GET', 'POST', 'DELETE', 'PUT'])
+def methods(request):
+    return JsonResponse({})
+
+@api_view(['GET'])
+def get_large_response_without_chunks(request, bytes_number):
+    data = "d" * bytes_number
+    return JsonResponse({'data' : data})
+
+@api_view(['GET'])
+def nonstreaming_receivetimeout(request, wait_time):
+    time.sleep(wait_time)
+    return JsonResponse({})
+
+@api_view(['GET'])
+def streaming_download(request, chunks, chunk_size):
+    def data_chunk_generator():
+        for x in range(chunks):
+            data_chunk = 'd' * chunk_size
+            yield data_chunk
+    return StreamingHttpResponse(data_chunk_generator())
+
+@api_view(['POST'])
+def streaming_upload(request):
+    f = request.FILES["file"]
+    if f.multiple_chunks():
+        # big file
+        total_chunks = 0
+        total_bytes = 0
+        for chunk in f.chunks():
+            total_chunks += 1
+            total_bytes += len(chunk)
+        logger.info("Received %d chunks: %d bytes in total", total_chunks, total_bytes)
+    else:
+        # small file
+        logger.info("Received the whole file: %d bytes", f.size)
+    return JsonResponse({})

@@ -33,6 +33,11 @@ FURLRequestFilter::FURLRequestFilter(FRequestMap&& InAllowedRequests)
 
 void FURLRequestFilter::UpdateConfig(const TCHAR* ConfigSectionRootName, const FString& ConfigFileName)
 {
+	if (ConfigFileName.IsEmpty() || GConfig == nullptr)
+	{
+		return;
+	}
+
 	AllowedRequests.Empty();
 
 	FConfigFile* File = GConfig->FindConfigFile(ConfigFileName);

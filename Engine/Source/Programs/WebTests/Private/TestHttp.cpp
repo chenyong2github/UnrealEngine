@@ -1,0 +1,263 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#include "CoreMinimal.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/PlatformProcess.h"
+#include "Online/HTTP/Public/HttpManager.h"
+#include "Online/HTTP/Public/Http.h"
+#include "Misc/CommandLine.h"
+#include "TestHarness.h"
+
+/**
+ *  HTTP Tests
+ *  -----------------------------------------------------------------------------------------------
+ *
+ *  PURPOSE:
+ *
+ *	Integration Tests to make sure all kinds of HTTP client features in C++ work well on different platforms,
+ *  including but not limited to error handing, retrying, threading, streaming, SSL and profiling.
+ *
+ *  Refer to WebTests/README.md for more info about how to run these tests
+ * 
+ *  -----------------------------------------------------------------------------------------------
+ */
+
+#define HTTP_TAG "[HTTP]"
+#define HTTP_TIME_DIFF_TOLERANCE 0.5f
+
+class FHttpModuleTestFixture
+{
+public:
+	FHttpModuleTestFixture()
+		: WebServerIp(TEXT("127.0.0.1"))
+	{
+		ParseSettingsFromCommandLine();
+
+		HttpModule = new FHttpModule();
+		IModuleInterface* Module = HttpModule;
+		Module->StartupModule();
+	}
+
+	virtual ~FHttpModuleTestFixture()
+	{
+		IModuleInterface* Module = HttpModule;
+		Module->ShutdownModule();
+		delete Module;
+	}
+
+	void ParseSettingsFromCommandLine()
+	{
+		FParse::Value(FCommandLine::Get(), TEXT("web_server_ip"), WebServerIp);
+	}
+
+	const FString UrlWithInvalidPortToTestConnectTimeout() const { return FString::Format(TEXT("http://{0}:{1}"), { *WebServerIp, 8765 }); }
+	const FString UrlBase() const { return FString::Format(TEXT("http://{0}:{1}"), { *WebServerIp, 8000 }); }
+	const FString UrlHttpTests() const { return FString::Format(TEXT("{0}/webtests/httptests"), { *UrlBase() }); }
+	const FString UrlToTestMethods() const { return FString::Format(TEXT("{0}/methods"), { *UrlHttpTests() }); }
+
+	FString WebServerIp;
+	FHttpModule* HttpModule;
+};
+
+TEST_CASE_METHOD(FHttpModuleTestFixture, "Shutdown http module without issue when there are ongoing http requests.", HTTP_TAG)
+{
+	uint32 ChunkSize = 1024 * 1024;
+	TArray<uint8> DataChunk;
+	DataChunk.SetNum(ChunkSize);
+	FMemory::Memset(DataChunk.GetData(), 'd', ChunkSize);
+
+	for (int32 i = 0; i < 10; ++i)
+	{
+		IHttpRequest* LeakingHttpRequest = FPlatformHttp::ConstructRequest(); // Leaking in purpose to make sure it's ok
+
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+		HttpRequest->SetURL(UrlToTestMethods());
+		HttpRequest->SetVerb(TEXT("PUT"));
+		// TODO: Use some shared data, like cookie, openssl session etc.
+		HttpRequest->SetContent(DataChunk);
+		HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(bSucceeded);
+		});
+		HttpRequest->ProcessRequest();
+	}
+
+	HttpModule->GetHttpManager().Tick(0.0f);
+}
+
+class FWaitUntilCompleteHttpFixture : public FHttpModuleTestFixture
+{
+public:
+	FWaitUntilCompleteHttpFixture()
+	{
+		HttpModule->GetHttpManager().SetRequestAddedDelegate(FHttpManagerRequestAddedDelegate::CreateRaw(this, &FWaitUntilCompleteHttpFixture::OnRequestAdded));
+		HttpModule->GetHttpManager().SetRequestCompletedDelegate(FHttpManagerRequestCompletedDelegate::CreateRaw(this, &FWaitUntilCompleteHttpFixture::OnRequestCompleted));
+	}
+
+	~FWaitUntilCompleteHttpFixture()
+	{
+		WaitUntilAllHttpRequestsComplete();
+
+		HttpModule->GetHttpManager().SetRequestAddedDelegate(FHttpManagerRequestAddedDelegate());
+		HttpModule->GetHttpManager().SetRequestCompletedDelegate(FHttpManagerRequestCompletedDelegate());
+	}
+
+	void OnRequestAdded(const FHttpRequestRef& Request)
+	{
+		++OngoingRequests;
+	}
+
+	void OnRequestCompleted(const FHttpRequestRef& Request)
+	{
+		if (ensure(OngoingRequests > 0))
+		{
+			--OngoingRequests;
+		}
+	}
+
+	void WaitUntilAllHttpRequestsComplete()
+	{
+		while (OngoingRequests != 0)
+		{
+			HttpModule->GetHttpManager().Tick(TickFrequency);
+			FPlatformProcess::Sleep(TickFrequency);
+		}
+	}
+
+	uint32 OngoingRequests = 0;
+	float TickFrequency = 1.0f / 60; /*60 FPS*/;
+};
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - GET", HTTP_TAG)
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetURL(UrlToTestMethods());
+	HttpRequest->SetVerb(TEXT("GET"));
+	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(bSucceeded);
+		CHECK(HttpResponse->GetResponseCode() == 200);
+	});
+	HttpRequest->ProcessRequest();
+}
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - POST", HTTP_TAG)
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetURL(UrlToTestMethods());
+	HttpRequest->SetVerb(TEXT("POST"));
+	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(bSucceeded);
+		CHECK(HttpResponse->GetResponseCode() == 200);
+	});
+	HttpRequest->ProcessRequest();
+}
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - PUT", HTTP_TAG)
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetURL(UrlToTestMethods());
+	HttpRequest->SetVerb(TEXT("PUT"));
+	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(bSucceeded);
+		CHECK(HttpResponse->GetResponseCode() == 200);
+	});
+	HttpRequest->ProcessRequest();
+}
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - DELETE", HTTP_TAG)
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetURL(UrlToTestMethods());
+	HttpRequest->SetVerb(TEXT("DELETE"));
+	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(bSucceeded);
+		CHECK(HttpResponse->GetResponseCode() == 200);
+	});
+	HttpRequest->ProcessRequest();
+}
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - GET Large Response Content Without Chunks", HTTP_TAG)
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetURL(FString::Format(TEXT("{0}/get_large_response_without_chunks/{1}/"), { *UrlHttpTests(), 1024 * 1024/*bytes_number*/}));
+	HttpRequest->SetVerb(TEXT("GET"));
+	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(bSucceeded);
+		CHECK(HttpResponse->GetResponseCode() == 200);
+	});
+	HttpRequest->ProcessRequest();
+}
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http request - connect timeout.", HTTP_TAG)
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetURL(UrlWithInvalidPortToTestConnectTimeout());
+	HttpRequest->SetVerb(TEXT("GET"));
+	HttpRequest->SetTimeout(7);
+	FDateTime StartTime = FDateTime::Now();
+	HttpRequest->OnProcessRequestComplete().BindLambda([StartTime](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(!bSucceeded);
+		CHECK(HttpResponse == nullptr);
+		CHECK(HttpRequest->GetStatus() == EHttpRequestStatus::Failed_ConnectionError);
+		FTimespan Timespan = FDateTime::Now() - StartTime;
+		float DurationInSeconds = Timespan.GetTotalSeconds();
+		CHECK(FMath::IsNearlyEqual(DurationInSeconds, 7, HTTP_TIME_DIFF_TOLERANCE));
+	});
+	HttpRequest->ProcessRequest();
+}
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http download - gold path.", HTTP_TAG)
+{
+	uint32 Chunks = 10;
+	uint32 ChunkSize = 1024*1024;
+
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetURL(FString::Format(TEXT("{0}/streaming_download/{1}/{2}/"), { *UrlHttpTests(), Chunks, ChunkSize }));
+	HttpRequest->SetVerb(TEXT("GET"));
+	HttpRequest->OnProcessRequestComplete().BindLambda([Chunks, ChunkSize](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
+		CHECK(bSucceeded);
+		CHECK(HttpResponse->GetResponseCode() == 200);
+	});
+	HttpRequest->ProcessRequest();
+}
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http upload - gold path.", HTTP_TAG)
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetURL(FString::Format(TEXT("{0}/streaming_upload"), { *UrlHttpTests() }));
+	HttpRequest->SetVerb(TEXT("POST"));
+
+	const char* BoundaryLabel = "test_http_boundary";
+	HttpRequest->SetHeader(TEXT("Content-Type"), FString::Format(TEXT("multipart/form-data; boundary={0}"), { BoundaryLabel }));
+
+	// Not really reading file here in order to simplify the test flow. It will be sent by chunks in http request, 
+	const uint32 FileSize = 10*1024*1024;
+	char* FileData = (char*)FMemory::Malloc(FileSize + 1);
+	FMemory::Memset(FileData, 'd', FileSize);
+	FileData[FileSize + 1] = '\0';
+
+	TArray<uint8> ContentData;
+	const int32 ContentMaxSize = FileSize + 256/*max length of format string*/;
+	ContentData.Reserve(ContentMaxSize);
+	const int32 ContentLength = FCStringAnsi::Snprintf(
+		(char*)ContentData.GetData(),
+		ContentMaxSize,
+		"--%s\r\n"
+		"Content-Disposition: form-data; name=\"file\"; filename=\"bigfile.zip\"\r\n"
+		"Content-Type: application/octet-stream\r\n\r\n"
+		"%s\r\n"
+		"--%s--",
+		BoundaryLabel, FileData, BoundaryLabel);
+
+	FMemory::Free(FileData);
+
+	CHECK(ContentLength > 0);
+	CHECK(ContentLength < ContentMaxSize);
+	ContentData.SetNumUninitialized(ContentLength);
+	HttpRequest->SetContent(MoveTemp(ContentData));
+
+	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(bSucceeded);
+		CHECK(HttpResponse->GetResponseCode() == 200);
+	});
+	HttpRequest->ProcessRequest();
+}
