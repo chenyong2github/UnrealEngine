@@ -3,67 +3,12 @@
 #pragma once
 
 #include "Components/SceneCaptureComponent2D.h"
-#include "SceneViewExtension.h"
 #include "CineCameraSceneCaptureComponent.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogCineCapture, Log, All);
 
+class FCineCameraCaptureSceneViewExtension;
 class UCineCameraComponent;
-
-class FCineCameraCaptureSceneViewExtension : public FSceneViewExtensionBase
-{
-public:
-	FCineCameraCaptureSceneViewExtension(const FAutoRegister& AutoRegister);
-
-	//~ Begin FSceneViewExtensionBase Interface
-	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {};
-	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override;
-	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {};
-	//~ End FSceneViewExtensionBase Interface
-public:
-	/** 
-	* Flags all views that will be setup until (bSetupViewInProcess == false) as related to Cine Capture.
-	*/
-	void OnViewSetupStarted(TSoftObjectPtr<UCineCameraComponent> InCineCameraComponent, bool bInFollowSceneCaptureRenderPath)
-	{ 
-		bSetupViewInProcess = true; 
-		CineCameraComponent = InCineCameraComponent;
-		bFollowSceneCaptureRenderPath = bInFollowSceneCaptureRenderPath;
-	};
-
-	/**
-	* Flags all following view setups as not related to Cine Capture.
-	*/
-	void OnViewSetupFinished() { bSetupViewInProcess = false; };
-
-	/**
-	* Delta time is needed for the purposes of camera smoothing.
-	*/
-	void SetFrameDeltaTime(float InDeltaTime)
-	{
-		DeltaTime = InDeltaTime;
-	}
-private:
-	/** 
-	* Translates to View.bIsSceneCapture.
-	*/
-	bool bFollowSceneCaptureRenderPath;
-
-	/** 
-	* When this property is true, it means that the views that are being setup currently are related to Cine Capture.
-	*/
-	bool bSetupViewInProcess;
-
-	/**
-	* A transient property that is used to deliver settings from CineCameraComponent to views that are related to cine capture.
-	*/
-	TSoftObjectPtr<UCineCameraComponent> CineCameraComponent;
-
-	/** 
-	* Delta time between frames. Used for camera smoothing.
-	*/
-	float DeltaTime;
-};
 
 /**
 * Cine Capture Component extends Scene Capture to allow users to render Cine Camera Component into a render target. 
@@ -95,8 +40,6 @@ public:
 	TSoftObjectPtr<UCineCameraComponent> CineCameraComponent;
 
 public:
-	void CheckResizeRenderTarget();
-public:
 	virtual void UpdateSceneCaptureContents(FSceneInterface* Scene) override;
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
@@ -105,7 +48,8 @@ public:
 	virtual void OnAttachmentChanged() override; 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-public:
+private:
+	void CheckResizeRenderTarget();
 	void ValidateCineCameraComponent();
 
 private:

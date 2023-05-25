@@ -15,25 +15,69 @@ DEFINE_LOG_CATEGORY(LogCineCapture);
 
 #define CINE_CAMERA_INVALID_PARENT_WARNING "Cine Capture requires to be parented to Cine Camera Component. Cine Capture {0} on Actor \"{1}\" will be disabled until it is parented to Cine Camera Actor."
 
-
-/** A helper class that assits switching setup state of CineCapture SVE for the purposes of setting up views for Cine Capture. */
-class FScopedCineCaptureSVESetup
+// This extension is only registered onto the scene capture 2d component, and therefore runs locally.
+class FCineCameraCaptureSceneViewExtension : public ISceneViewExtension
 {
 public:
-	FScopedCineCaptureSVESetup(TSharedPtr<FCineCameraCaptureSceneViewExtension, ESPMode::ThreadSafe> InCineCaptureSVE, TSoftObjectPtr<UCineCameraComponent> InCineCameraComponent, bool bInFollowSceneCaptureRenderPath)
+	//~ Begin FSceneViewExtensionBase Interface
+	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {};
+	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override
 	{
-		InCineCaptureSVE->OnViewSetupStarted(InCineCameraComponent, bInFollowSceneCaptureRenderPath);
-		CineCaptureSVE = InCineCaptureSVE;
-	}
+		if (!CineCameraComponent.IsValid())
+		{
+			return;
+		}
 
-	~FScopedCineCaptureSVESetup()
+		FMinimalViewInfo DesiredView;
+
+		// Immitate the behaviour of viewports.
+		CineCameraComponent->GetCameraView(DeltaTime, DesiredView);
+		FTransform Transform = CineCameraComponent->GetComponentToWorld();
+		FVector ViewLocation = Transform.GetTranslation();
+		InView.StartFinalPostprocessSettings(ViewLocation);
+
+		InView.OverridePostProcessSettings(DesiredView.PostProcessSettings, 1.0);
+		FSceneViewInitOptions ViewInitOptions;
+		InView.EndFinalPostprocessSettings(ViewInitOptions);
+
+		// Required for certain effects (lighting) to match that of Cine Camera.
+		InView.bIsSceneCapture = bFollowSceneCaptureRenderPath;
+	}
+	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {};
+	//~ End FSceneViewExtensionBase Interface
+
+	/**
+	* Prepare the scene view extension with relevant camera and render mode info.
+	*/
+	void PrepareRender(TSoftObjectPtr<UCineCameraComponent> InCineCameraComponent, bool bInFollowSceneCaptureRenderPath)
 	{
-		CineCaptureSVE->OnViewSetupFinished();
+		CineCameraComponent = InCineCameraComponent;
+		bFollowSceneCaptureRenderPath = bInFollowSceneCaptureRenderPath;
+	};
+
+	/**
+	* Delta time is needed for the purposes of camera smoothing.
+	*/
+	void SetFrameDeltaTime(float InDeltaTime)
+	{
+		DeltaTime = InDeltaTime;
 	}
 private:
-	TSharedPtr<FCineCameraCaptureSceneViewExtension, ESPMode::ThreadSafe> CineCaptureSVE;
-};
+	/**
+	* Translates to View.bIsSceneCapture.
+	*/
+	bool bFollowSceneCaptureRenderPath = true;
 
+	/**
+	* A transient property that is used to deliver settings from CineCameraComponent to views that are related to cine capture.
+	*/
+	TSoftObjectPtr<UCineCameraComponent> CineCameraComponent = nullptr;
+
+	/**
+	* Delta time between frames. Used for camera smoothing.
+	*/
+	float DeltaTime = 0.0f;
+};
 
 UCineCaptureComponent2D::UCineCaptureComponent2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer), RenderTargetHighestDimension(1280), bFollowSceneCaptureRenderPath(true)
@@ -52,19 +96,13 @@ void UCineCaptureComponent2D::UpdateSceneCaptureContents(FSceneInterface* Scene)
 	SetRelativeTransform(FTransform::Identity);
 	
 	PostProcessSettings = CineCameraComponent->PostProcessSettings;
-
-#if WITH_EDITORONLY_DATA
-	FOVAngle = CineCameraComponent->CurrentHorizontalFOV;
-#endif
-
+	FOVAngle = CineCameraComponent->FieldOfView;
 	bOverride_CustomNearClippingPlane = CineCameraComponent->bOverride_CustomNearClippingPlane;
 	CustomNearClippingPlane = CineCameraComponent->CustomNearClippingPlane;
 
-	{
-		/* Since SVE setup is happening on game thread, this guarantees that all SVEs unrelated to CineCapture will be excluded from modification. */
-		FScopedCineCaptureSVESetup ScopedCineCaptureSVESetup(CineCaptureSVE, CineCameraComponent, bFollowSceneCaptureRenderPath);
-		Scene->UpdateSceneCaptureContents(this);
-	}
+	CineCaptureSVE->PrepareRender(CineCameraComponent, bFollowSceneCaptureRenderPath);
+
+	Scene->UpdateSceneCaptureContents(this);
 }
 
 void UCineCaptureComponent2D::CheckResizeRenderTarget()
@@ -99,22 +137,28 @@ void UCineCaptureComponent2D::OnRegister()
 	// Remove mesh created by Scene Capture Component.
 	ProxyMeshComponent->DestroyComponent();
 	ProxyMeshComponent = nullptr;
+#endif
+
 	if (!CineCaptureSVE.IsValid())
 	{
 		// This will create a new scene extension per each capture.
-		CineCaptureSVE = FSceneViewExtensions::NewExtension<FCineCameraCaptureSceneViewExtension>();
+		CineCaptureSVE = MakeShared<FCineCameraCaptureSceneViewExtension>();
+		SceneViewExtensions.Add(CineCaptureSVE);
 	}
-#endif
+
 	ValidateCineCameraComponent();
 }
 
 void UCineCaptureComponent2D::OnUnregister()
 {
 	Super::OnUnregister();
-	if (!CineCaptureSVE.IsValid())
+
+	if (CineCaptureSVE.IsValid())
 	{
+		SceneViewExtensions.Remove(CineCaptureSVE);
 		CineCaptureSVE.Reset();
 	}
+
 	CineCameraComponent = nullptr;
 }
 
@@ -162,38 +206,6 @@ void UCineCaptureComponent2D::ValidateCineCameraComponent()
 		FSlateNotificationManager::Get().AddNotification(Info);
 #endif
 		UE_LOG(LogCineCapture, Warning, TEXT(CINE_CAMERA_INVALID_PARENT_WARNING), *GetName(), *GetOuter()->GetName());
-	}
-}
-
-FCineCameraCaptureSceneViewExtension::FCineCameraCaptureSceneViewExtension(const FAutoRegister& AutoRegister)
-	: FSceneViewExtensionBase(AutoRegister), bSetupViewInProcess(false)
-{
-
-}
-
-void FCineCameraCaptureSceneViewExtension::SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView)
-{
-	if (!CineCameraComponent.IsValid())
-	{
-		return;
-	}
-
-	if (bSetupViewInProcess)
-	{
-		FMinimalViewInfo DesiredView;
-
-		// Immitate the behaviour of viewports.
-		CineCameraComponent->GetCameraView(DeltaTime, DesiredView);
-		FTransform Transform = CineCameraComponent->GetComponentToWorld();
-		FVector ViewLocation = Transform.GetTranslation();
-		InView.StartFinalPostprocessSettings(ViewLocation);
-
-		InView.OverridePostProcessSettings(DesiredView.PostProcessSettings, 1.0);
-		FSceneViewInitOptions ViewInitOptions;
-		InView.EndFinalPostprocessSettings(ViewInitOptions);
-
-		// Required for certain effects (lighting) to match that of Cine Camera.
-		InView.bIsSceneCapture = bFollowSceneCaptureRenderPath;
 	}
 }
 
