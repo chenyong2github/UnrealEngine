@@ -600,6 +600,7 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 											SNew(SScrollBox)
 											.Orientation(EOrientation::Orient_Horizontal)
 											+SScrollBox::Slot()
+											.FillSize(1.0f)
 											[
 												SAssignNew(LogListView, SListView<TSharedPtr<FAutomationOutputMessage> >)
 												.ItemHeight(18)
