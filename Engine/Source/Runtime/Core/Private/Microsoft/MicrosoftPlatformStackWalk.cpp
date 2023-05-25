@@ -85,7 +85,7 @@ int32 FMicrosoftPlatformStackWalk::CaptureStackTraceInternal(uint64* OutBacktrac
 
 	*OutDepth = 0;
 
-	if (!ContextCopy.Rbp || !ContextCopy.Rip || !ContextCopy.Rsp)
+	if (!ContextCopy.Rip || !ContextCopy.Rsp)
 	{
 		return EXCEPTION_EXECUTE_HANDLER;
 	}
