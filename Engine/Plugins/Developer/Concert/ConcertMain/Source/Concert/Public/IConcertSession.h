@@ -5,7 +5,6 @@
 #include "ConcertMessageContext.h"
 #include "CoreMinimal.h"
 #include "IConcertEndpoint.h"
-#include "IConcertSession.h"
 #include "IConcertSessionHandler.h"
 #include "ConcertMessages.h"
 #include "Containers/ArrayBuilder.h"
