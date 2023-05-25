@@ -1766,11 +1766,6 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.PathTracingSamplesPerPixel = Src.PathTracingSamplesPerPixel;
 		}
 
-		if (Src.bOverride_PathTracingFilterWidth)
-		{
-			Dest.PathTracingFilterWidth = Src.PathTracingFilterWidth;
-		}
-
 		if (Src.bOverride_PathTracingMaxPathExposure)
 		{
 			Dest.PathTracingMaxPathExposure = Src.PathTracingMaxPathExposure;

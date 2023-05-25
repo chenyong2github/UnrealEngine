@@ -82,8 +82,8 @@ TAutoConsoleVariable<int32> CVarPathTracingSamplesPerPixel(
 
 TAutoConsoleVariable<float> CVarPathTracingFilterWidth(
 	TEXT("r.PathTracing.FilterWidth"),
-	-1,
-	TEXT("Sets the anti-aliasing filter width (default = -1 (driven by postprocesing volume))"),
+	3.0,
+	TEXT("Sets the anti-aliasing filter width (default = 3.0 which corresponds to a gaussian with standard deviation of a 1/2 pixel)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -611,12 +611,7 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 	PathTracingData.SamplerType = CVarPathTracingSamplerType.GetValueOnRenderThread();
 	PathTracingData.VisualizeLightGrid = CVarPathTracingLightGridVisualize.GetValueOnRenderThread();
 	PathTracingData.VisualizeDecalGrid = CVarPathTracingDecalGridVisualize.GetValueOnRenderThread();
-	float FilterWidth = CVarPathTracingFilterWidth.GetValueOnRenderThread();
-	if (FilterWidth < 0)
-	{
-		FilterWidth = PPV.PathTracingFilterWidth;
-	}
-	PathTracingData.FilterWidth = FilterWidth;
+	PathTracingData.FilterWidth = CVarPathTracingFilterWidth.GetValueOnRenderThread();
 	PathTracingData.CameraFocusDistance = 0;
 	PathTracingData.CameraLensRadius = FVector2f::ZeroVector;
 	if (ShowFlags.DepthOfField &&
