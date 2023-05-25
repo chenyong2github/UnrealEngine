@@ -136,14 +136,28 @@ void FConcertClientTransactionManager::ReplayTransactions(const FName InPackageN
 		TransactionContext.bIsRequired = true;
 		TransactionContext.PackagesToProcess.Add(InPackageName);
 
+		int64 PackageEventId = 0;
+		LiveSession->GetSessionDatabase().GetPackageHeadEventFromName(InPackageName, PackageEventId);
+
+		FConcertSyncActivity PackageActivity;
+		LiveSession->GetSessionDatabase().GetActivityForEvent(PackageEventId, EConcertSyncActivityEventType::Package, PackageActivity);
+
 		FConcertSyncTransactionEvent TransactionEvent;
 		for (int64 TransactionEventId : LiveTransactionEventIds)
 		{
-			SlowTask.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("ReplayingTransactionForPackageFmt", "Replaying Transaction {0} for {1}"), TransactionEventId, FText::FromName(InPackageName)));
-			
-			if (LiveSession->GetSessionDatabase().GetTransactionEvent(TransactionEventId, TransactionEvent))
+			FConcertSyncActivity TransactionActivity;
+			LiveSession->GetSessionDatabase().GetActivityForEvent(TransactionEventId, EConcertSyncActivityEventType::Transaction, TransactionActivity);
+			if (TransactionActivity.ActivityId > PackageActivity.ActivityId)
 			{
-				PendingTransactionsToProcess.Emplace(TransactionContext, FConcertTransactionFinalizedEvent::StaticStruct(), &TransactionEvent.Transaction);
+				SlowTask.EnterProgressFrame(1.0f, FText::Format(
+												LOCTEXT("ReplayingTransactionForPackageFmt",
+														"Replaying Transaction {0} for {1}"),
+												TransactionEventId, FText::FromName(InPackageName)));
+
+				if (LiveSession->GetSessionDatabase().GetTransactionEvent(TransactionEventId, TransactionEvent))
+				{
+					PendingTransactionsToProcess.Emplace(TransactionContext, FConcertTransactionFinalizedEvent::StaticStruct(), &TransactionEvent.Transaction);
+				}
 			}
 		}
 	}
@@ -198,6 +212,7 @@ void FConcertClientTransactionManager::ProcessPending()
 	{
 		SendPendingTransactionEvents();
 	}
+
 }
 
 template <typename EventType>
@@ -489,7 +504,7 @@ void FConcertClientTransactionManager::FixupObjectIdsInPendingSend(
 		ConflictAggregate.AddObjectRemoved(OldObjectId);
 		for (const FGuid& Guid : *TransactionsWithObject)
 		{
-			PendingTransactionsToSend.Remove(Guid);
+			RemovePendingToSend(Guid);
 		}
 	}
 	else
@@ -558,7 +573,7 @@ void FConcertClientTransactionManager::CheckEventForSendConflicts(const FConcert
 				ConflictAggregate.AddObjectRemoved(ObjectId);
 				for (const FGuid Id : *NamedPrimary)
 				{
-					PendingTransactionsToSend.Remove(Id);
+					RemovePendingToSend(Id);
 				}
 				NameLookupForPendingTransactionsToSend.Remove(ObjectId);
 			}
@@ -637,9 +652,19 @@ FConcertClientTransactionManager::AddPendingToSend(
 	return PendingTransactionsToSend.Emplace(InCommonData.OperationId, InCommonData);
 }
 
+
+void FConcertClientTransactionManager::RemovePendingToSend(const FGuid& InGuid)
+{
+	if (FPendingTransactionToSend* PendingToSend = PendingTransactionsToSend.Find(InGuid))
+	{
+		LiveSession->GetSession().GetSequencedEventManager().RemoveSequencedEvent(PendingToSend->SequencedEvent);
+		PendingTransactionsToSend.Remove(InGuid);
+	}
+}
+
 void FConcertClientTransactionManager::RemovePendingToSend(const FConcertClientLocalTransactionCommonData& InCommonData)
 {
-	PendingTransactionsToSend.Remove(InCommonData.OperationId);
+	RemovePendingToSend(InCommonData.OperationId);
 	if (!CanSendTransactionEvents())
 	{
 		if (UObject* PrimaryObject = InCommonData.PrimaryObject.Get())
@@ -740,9 +765,10 @@ void FConcertClientTransactionManager::HandleLocalTransactionFinalized(const FCo
 	FPendingTransactionToSend& PendingTransaction = HandleLocalTransactionCommon(InCommonData, InFinalizedData.FinalizedObjectUpdates);
 	PendingTransaction.FinalizedData = InFinalizedData;
 	PendingTransaction.bIsFinalized = true;
+	PendingTransaction.SequencedEvent = LiveSession->GetSession().GetSequencedEventManager().AddSequencedCustomEvent();
 }
 
-void FConcertClientTransactionManager::SendTransactionFinalizedEvent(const FGuid& InTransactionId, const FGuid& InOperationId, UObject* InPrimaryObject, const TArray<FName>& InModifiedPackages, const TArray<FConcertExportedObject>& InObjectUpdates, const FConcertLocalIdentifierTable& InLocalIdentifierTable, const FText& InTitle)
+void FConcertClientTransactionManager::SendTransactionFinalizedEvent(const FGuid& InTransactionId, const FGuid& InOperationId, UObject* InPrimaryObject, const TArray<FName>& InModifiedPackages, const TArray<FConcertExportedObject>& InObjectUpdates, const FConcertLocalIdentifierTable& InLocalIdentifierTable, const FConcertSequencedCustomEvent& SequenceId, const FText& InTitle)
 {
 	FConcertTransactionFinalizedEvent TransactionFinalizedEvent;
 	FillTransactionEvent(InTransactionId, InOperationId, InModifiedPackages, TransactionFinalizedEvent);
@@ -751,7 +777,7 @@ void FConcertClientTransactionManager::SendTransactionFinalizedEvent(const FGuid
 	InLocalIdentifierTable.GetState(TransactionFinalizedEvent.LocalIdentifierState);
 	TransactionFinalizedEvent.Title = InTitle;
 
-	LiveSession->GetSession().SendCustomEvent(TransactionFinalizedEvent, LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
+	LiveSession->GetSession().SendCustomEvent(TransactionFinalizedEvent, LiveSession->GetSession().GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered, SequenceId);
 }
 
 void FConcertClientTransactionManager::SendTransactionSnapshotEvent(const FGuid& InTransactionId, const FGuid& InOperationId, UObject* InPrimaryObject, const TArray<FName>& InModifiedPackages, const TArray<FConcertExportedObject>& InObjectUpdates)
@@ -797,7 +823,8 @@ void FConcertClientTransactionManager::SendPendingTransactionEvents()
 						PrimaryObject, 
 						PendingTransactionPtr->CommonData.ModifiedPackages, 
 						PendingTransactionPtr->FinalizedData.FinalizedObjectUpdates, 
-						PendingTransactionPtr->FinalizedData.FinalizedLocalIdentifierTable, 
+						PendingTransactionPtr->FinalizedData.FinalizedLocalIdentifierTable,
+						PendingTransactionPtr->SequencedEvent,
 						PendingTransactionPtr->CommonData.TransactionTitle
 						);
 				}
@@ -827,7 +854,7 @@ void FConcertClientTransactionManager::SendPendingTransactionEvents()
 		{
 			// TODO: Broadcast delegate
 
-			PendingTransactionsToSend.Remove(PendingTransactionPtr->CommonData.TransactionId);
+			RemovePendingToSend(PendingTransactionPtr->CommonData.TransactionId);
 			PendingTransactionsToSendOrderIter.RemoveCurrent();
 			continue;
 		}

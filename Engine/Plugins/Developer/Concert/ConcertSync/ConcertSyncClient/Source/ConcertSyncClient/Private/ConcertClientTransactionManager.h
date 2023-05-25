@@ -7,6 +7,7 @@
 #include "Misc/ITransaction.h"
 #include "UObject/Class.h"
 #include "ConcertMessages.h"
+#include "IConcertSession.h"
 #include "IConcertSessionHandler.h"
 #include "IConcertClientTransactionBridge.h"
 #include "UObject/StructOnScope.h"
@@ -136,6 +137,10 @@ private:
 		FConcertClientLocalTransactionCommonData CommonData;
 		FConcertClientLocalTransactionSnapshotData SnapshotData;
 		FConcertClientLocalTransactionFinalizedData FinalizedData;
+
+		// Sequencing id for this pending transaction.
+		FConcertSequencedCustomEvent SequencedEvent;
+
 		bool bIsFinalized = false;
 		double LastSnapshotTimeSeconds = 0.0;
 	};
@@ -195,7 +200,7 @@ private:
 	/**
 	 * Send a transaction finalized event.
 	 */
-	void SendTransactionFinalizedEvent(const FGuid& InTransactionId, const FGuid& InOperationId, UObject* InPrimaryObject, const TArray<FName>& InModifiedPackages, const TArray<FConcertExportedObject>& InObjectUpdates, const FConcertLocalIdentifierTable& InLocalIdentifierTable, const FText& InTitle);
+	void SendTransactionFinalizedEvent(const FGuid& InTransactionId, const FGuid& InOperationId, UObject* InPrimaryObject, const TArray<FName>& InModifiedPackages, const TArray<FConcertExportedObject>& InObjectUpdates, const FConcertLocalIdentifierTable& InLocalIdentifierTable, const FConcertSequencedCustomEvent& SequenceId, const FText& InTitle);
 
 	/**
 	 * Send a transaction snapshot event.
@@ -227,6 +232,11 @@ private:
 	 * Remove the given pending to send object.
 	 */
 	void RemovePendingToSend(const FConcertClientLocalTransactionCommonData& InCommonData);
+
+	/**
+	 * Remove the given pending to send object by Guid.
+	 */
+	void RemovePendingToSend(const FGuid& InCommonData);
 
 	/**
 	 * Remove the given pending to send object.

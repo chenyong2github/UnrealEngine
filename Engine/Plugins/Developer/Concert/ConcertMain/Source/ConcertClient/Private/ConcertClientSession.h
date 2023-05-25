@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "Misc/Guid.h"
+#include "IConcertSession.h"
 #include "ConcertSession.h"
 #include "ConcertMessages.h"
 #include "Containers/Ticker.h"
@@ -10,6 +13,7 @@
 
 class IConcertLocalEndpoint;
 struct FConcertClientSettings;
+class FConcertClientSession;
 
 /** Implementation of a Concert Client session */
 class FConcertClientSession : public IConcertClientSession, private FConcertSessionCommonImpl
@@ -55,7 +59,7 @@ public:
 	{
 		return CommonGetScratchpad();
 	}
-	
+
 	virtual FConcertScratchpadPtr GetClientScratchpad(const FGuid& ClientEndpointId) const override
 	{
 		return CommonGetClientScratchpad(ClientEndpointId);
@@ -65,7 +69,7 @@ public:
 	{
 		return ConnectionStatus;
 	}
-	
+
 	virtual FGuid GetSessionClientEndpointId() const override
 	{
 		return ClientSessionEndpoint->GetEndpointContext().EndpointId;
@@ -95,6 +99,11 @@ public:
 	virtual FOnConcertSessionRenamed& OnSessionRenamed() override;
 	virtual FString GetSessionWorkingDirectory() const override;
 
+	virtual FConcertSequencedCustomEventManager& GetSequencedEventManager() override
+	{
+		return CustomEventSequenceManager;
+	}
+
 protected:
 	virtual FDelegateHandle InternalRegisterCustomEventHandler(const FName& EventMessageType, const TSharedRef<IConcertSessionCustomEventHandler>& Handler) override
 	{
@@ -116,7 +125,7 @@ protected:
 		CommonClearCustomEventHandler(EventMessageType);
 	}
 
-	virtual void InternalSendCustomEvent(const UScriptStruct* EventType, const void* EventData, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags) override;
+	virtual void InternalSendCustomEvent(const UScriptStruct* EventType, const void* EventData, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags, TOptional<FConcertSequencedCustomEvent> InSequencedId = {}) override;
 
 	virtual void InternalRegisterCustomRequestHandler(const FName& RequestMessageType, const TSharedRef<IConcertSessionCustomRequestHandler>& Handler) override
 	{
@@ -131,6 +140,9 @@ protected:
 	virtual void InternalSendCustomRequest(const UScriptStruct* RequestType, const void* RequestData, const FGuid& DestinationEndpointId, const TSharedRef<IConcertSessionCustomResponseHandler>& Handler) override;
 
 private:
+	/** */
+	void SendNextCustomEvent(const FConcertSequencedCustomEventManager::FPendingCustomEvent& PendingEvent);
+
 	/** */
 	void HandleRemoteConnectionChanged(const FConcertEndpointContext& RemoteEndpointContext, EConcertRemoteEndpointConnection Connection);
 
@@ -193,6 +205,8 @@ private:
 
 	/** Callback when the session name changes. */
 	FOnConcertSessionRenamed OnSessionRenamedDelegate;
+
+	FConcertSequencedCustomEventManager CustomEventSequenceManager;
 
 	/** The timespan at which session updates are processed. */
 	const FTimespan SessionTickFrequency;

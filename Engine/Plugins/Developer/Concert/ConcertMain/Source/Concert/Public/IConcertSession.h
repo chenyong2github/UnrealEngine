@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "ConcertMessageContext.h"
 #include "CoreMinimal.h"
 #include "IConcertEndpoint.h"
+#include "IConcertSession.h"
 #include "IConcertSessionHandler.h"
 #include "ConcertMessages.h"
 #include "Containers/ArrayBuilder.h"
@@ -59,6 +61,107 @@ struct FConcertClientInfoUpdate
 
 		return bUpdated;
 	}
+};
+
+class FConcertSequencedCustomEventManager;
+
+struct FConcertSequencedCustomEvent
+{
+	FConcertSequencedCustomEvent() = default;
+	~FConcertSequencedCustomEvent() = default;
+
+private:
+	friend class FConcertSequencedCustomEventManager;
+
+	FConcertSequencedCustomEvent(int32 InIndex)
+		: Index(InIndex)
+	{
+	}
+
+	int32 Index = INDEX_NONE;
+};
+
+/** Allows users to reserve a spot in the outbound queues. */
+class FConcertSequencedCustomEventManager
+{
+public:
+	FConcertSequencedCustomEventManager()
+	{
+	}
+	~FConcertSequencedCustomEventManager()
+	{
+	}
+
+	FConcertSequencedCustomEvent AddSequencedCustomEvent()
+	{
+		Events.Add(CurrentId, {});
+		return FConcertSequencedCustomEvent(CurrentId++);
+	}
+
+	void RemoveSequencedEvent(const FConcertSequencedCustomEvent& EventDetails)
+	{
+		if (EventDetails.Index == INDEX_NONE)
+		{
+			return;
+		}
+		Events.Remove(EventDetails.Index);
+	}
+
+	bool HasEventsPending() const
+	{
+		return !Events.IsEmpty();
+	}
+
+	struct FPendingCustomEvent
+	{
+		FConcertSession_CustomEvent CustomEvent;
+		EConcertMessageFlags Flags;
+		TMap<FName, FString> Annotations;
+		FGuid ServerEndpointId;
+	};
+
+	TOptional<FPendingCustomEvent> PopSendEvent()
+	{
+		TOptional<FPendingCustomEvent> ReturnVal;
+		if (LastSendId < CurrentId)
+		{
+			TOptional<FPendingCustomEvent> *CustomEvent = Events.Find(LastSendId);
+			// Find the first valid value we have stored.
+			while (!CustomEvent)
+			{
+				LastSendId++;
+				CustomEvent = Events.Find(LastSendId);
+			}
+			if (*CustomEvent)
+			{
+				// If the optional has a value then it is available for sending.
+				ReturnVal = *CustomEvent;
+				Events.Remove(LastSendId);
+				LastSendId++;
+			}
+		}
+		return ReturnVal;
+	}
+
+	void FillPendingSequenceEvent(const FConcertSequencedCustomEvent& InEventId, FPendingCustomEvent InEventData)
+	{
+		TOptional<FPendingCustomEvent>* PendingEvent = Events.Find(InEventId.Index);
+		// The event data should exist and it should not have any data in the optional.
+		check(PendingEvent);
+		check(!(*PendingEvent));
+		*PendingEvent = MoveTemp(InEventData);
+	}
+
+	bool CanSend(const FConcertSequencedCustomEvent& InEventId) const
+	{
+		return InEventId.Index == LastSendId;
+	}
+
+private:
+	TMap<int32, TOptional<FPendingCustomEvent> > Events;
+
+	int32 LastSendId = 0;
+	int32 CurrentId = 0;
 };
 
 /** Interface for Concert sessions */
@@ -149,18 +252,18 @@ public:
 	 * Send a custom event event to the given endpoint
 	 */
 	template<typename EventType>
-	void SendCustomEvent(const EventType& Event, const FGuid& DestinationEndpointId, EConcertMessageFlags Flags)
+	void SendCustomEvent(const EventType& Event, const FGuid& DestinationEndpointId, EConcertMessageFlags Flags, TOptional<FConcertSequencedCustomEvent> SequencedId = {})
 	{
-		InternalSendCustomEvent(EventType::StaticStruct(), &Event, TArrayBuilder<FGuid>().Add(DestinationEndpointId), Flags);
+		InternalSendCustomEvent(EventType::StaticStruct(), &Event, TArrayBuilder<FGuid>().Add(DestinationEndpointId), Flags, SequencedId);
 	}
 
 	/**
 	 * Send a custom event event to the given endpoints
 	 */
 	template<typename EventType>
-	void SendCustomEvent(const EventType& Event, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags)
+	void SendCustomEvent(const EventType& Event, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags, TOptional<FConcertSequencedCustomEvent> SequencedId = {})
 	{
-		InternalSendCustomEvent(EventType::StaticStruct(), &Event, DestinationEndpointIds, Flags);
+		InternalSendCustomEvent(EventType::StaticStruct(), &Event, DestinationEndpointIds, Flags, SequencedId);
 	}
 
 	/**
@@ -221,7 +324,7 @@ protected:
 	/**
 	 * Send a custom event event to the given endpoints
 	 */
-	virtual void InternalSendCustomEvent(const UScriptStruct* EventType, const void* EventData, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags) = 0;
+	virtual void InternalSendCustomEvent(const UScriptStruct* EventType, const void* EventData, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags, TOptional<FConcertSequencedCustomEvent> InSequenceId={}) = 0;
 
 	/**
 	 * Register a custom request handler for this session
@@ -237,6 +340,7 @@ protected:
 	 * Send a custom request to the given endpoint
 	 */
 	virtual void InternalSendCustomRequest(const UScriptStruct* RequestType, const void* RequestData, const FGuid& DestinationEndpointId, const TSharedRef<IConcertSessionCustomResponseHandler>& Handler) = 0;
+
 };
 
 /** Interface for Concert server sessions */
@@ -256,7 +360,7 @@ public:
 
 	/** Callback when a session client state changes */
 	virtual FOnConcertServerSessionClientChanged& OnSessionClientChanged() = 0;
-	
+
 	/** Callback when a session message is acknowledged */
 	virtual FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint& OnConcertMessageAcknowledgementReceived() = 0;
 };
@@ -308,6 +412,9 @@ public:
 	{
 		return GetSendReceiveState() == EConcertSendReceiveState::SendOnly;
 	}
+
+	/** Manager for helping sequence custom events on client sessions. */
+	virtual FConcertSequencedCustomEventManager& GetSequencedEventManager() = 0;
 
 	/** Get the send/receive state for this session. */
 	virtual EConcertSendReceiveState GetSendReceiveState() const = 0;

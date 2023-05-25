@@ -105,8 +105,10 @@ FString FConcertServerSession::GetSessionWorkingDirectory() const
 	return SessionDirectory;
 }
 
-void FConcertServerSession::InternalSendCustomEvent(const UScriptStruct* EventType, const void* EventData, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags)
+void FConcertServerSession::InternalSendCustomEvent(const UScriptStruct* EventType, const void* EventData, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags, TOptional<FConcertSequencedCustomEvent> InUnused)
 {
+	ensureMsgf(!InUnused, TEXT("Custom event sequencing is not supported on the Multi-user server. Events should arrive in sequence order."));
+
 	if (DestinationEndpointIds.Num() == 0)
 	{
 		return;

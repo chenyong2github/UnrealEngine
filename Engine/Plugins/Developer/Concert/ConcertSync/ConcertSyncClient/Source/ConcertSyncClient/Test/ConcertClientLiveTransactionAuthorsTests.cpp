@@ -47,7 +47,10 @@ public:
 	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const FDelegateHandle EventHandle) override			{ return NotMocked<void>(); }
 	virtual void InternalUnregisterCustomEventHandler(const FName& EventMessageType, const void* EventHandler) override						{ return NotMocked<void>(); }
 	virtual void InternalClearCustomEventHandler(const FName& EventMessageType) override													{ return NotMocked<void>(); }
-	virtual void InternalSendCustomEvent(const UScriptStruct*, const void*, const TArray<FGuid>&, EConcertMessageFlags) override			{ return NotMocked<void>(); }
+	virtual void InternalSendCustomEvent(const UScriptStruct*, const void*, const TArray<FGuid>&, EConcertMessageFlags, TOptional<FConcertSequencedCustomEvent> = {}) override
+	{
+		return NotMocked<void>();
+	}
 	virtual void InternalRegisterCustomRequestHandler(const FName&, const TSharedRef<IConcertSessionCustomRequestHandler>&) override		{ return NotMocked<void>(); }
 	virtual void InternalUnregisterCustomRequestHandler(const FName&) override																{ return NotMocked<void>(); }
 	virtual void InternalSendCustomRequest(const UScriptStruct*, const void*, const FGuid&, const TSharedRef<IConcertSessionCustomResponseHandler>&) override { NotMocked<void>(); }
@@ -89,6 +92,10 @@ public:
 		}
 		return false;
 	}
+	virtual FConcertSequencedCustomEventManager& GetSequencedEventManager() override
+	{
+		return NotMocked<FConcertSequencedCustomEventManager&>(CustomEventSequenceManager);
+	}
 
 protected:
 	FGuid Id;
@@ -101,6 +108,7 @@ protected:
 	FOnConcertClientSessionClientChanged ClientChanged;
 	FOnConcertSessionRenamed SessionRenamed;
 	FConcertSyncEndpointIdAndData LocalClientInfo;
+	FConcertSequencedCustomEventManager CustomEventSequenceManager;
 	TMap<FGuid, FConcertSessionClientInfo> OtherClientsInfo;
 };
 

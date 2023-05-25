@@ -2486,6 +2486,17 @@ bool FConcertSyncSessionDatabase::GetPackageEventMetaData(const int64 InPackageE
 	return Statements->GetPackageEventForId(InPackageEventId, OuptPackageRevision, OutPackageInfo, UnusedDataFilename);
 }
 
+bool FConcertSyncSessionDatabase::GetPackageHeadEventFromName(const FName InPackageName, int64& OutPackageEventId)
+{
+	int64 PackageNameId = 0;
+	if (!GetPackageNameId(InPackageName, PackageNameId))
+	{
+		return false;
+	}
+
+	return Statements->GetPackageHeadEventId(PackageNameId, OutPackageEventId);
+}
+
 bool FConcertSyncSessionDatabase::GetPackageEvent(const int64 InPackageEventId, const TFunctionRef<void(FConcertSyncPackageEventData&)>& PackageEventFn) const
 {
 	FString DataFilename;

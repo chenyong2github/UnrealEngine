@@ -208,14 +208,26 @@ FString FConcertClientSession::GetSessionWorkingDirectory() const
 	return SessionDirectory;
 }
 
-void FConcertClientSession::InternalSendCustomEvent(const UScriptStruct* EventType, const void* EventData, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags)
+void FConcertClientSession::SendNextCustomEvent(const FConcertSequencedCustomEventManager::FPendingCustomEvent& PendingEvent)
+{
+	ClientSessionEndpoint->SendEvent(PendingEvent.CustomEvent, PendingEvent.ServerEndpointId, PendingEvent.Flags, PendingEvent.Annotations);
+}
+
+void FConcertClientSession::InternalSendCustomEvent(const UScriptStruct* EventType, const void* EventData, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags, TOptional<FConcertSequencedCustomEvent> InSequenceId)
 {
 	if (DestinationEndpointIds.Num() == 0)
 	{
+		if (InSequenceId)
+		{
+			CustomEventSequenceManager.RemoveSequencedEvent(*InSequenceId);
+		}
 		return;
 	}
 
-	// TODO: don't send if not connected
+	if (ConnectionStatus == EConcertConnectionStatus::Disconnected)
+	{
+		return;
+	}
 
 	// Build the event
 	FConcertSession_CustomEvent CustomEvent;
@@ -228,8 +240,31 @@ void FConcertClientSession::InternalSendCustomEvent(const UScriptStruct* EventTy
 		Annotations.Add(ConcertClientMessageIdName, FGuid::NewGuid().ToString());
 	}
 
-	// Send the event
-	ClientSessionEndpoint->SendEvent(CustomEvent, SessionInfo.ServerEndpointId, Flags, Annotations);
+	using FPendingEvent = FConcertSequencedCustomEventManager::FPendingCustomEvent;
+	FPendingEvent InEvent{
+		MoveTemp(CustomEvent),
+		Flags,
+		MoveTemp(Annotations),
+		SessionInfo.ServerEndpointId
+	};
+
+	const bool bNotReliablyOrdered = !EnumHasAnyFlags(Flags, EConcertMessageFlags::ReliableOrdered);
+	const bool bHasCustomEventsPending = CustomEventSequenceManager.HasEventsPending();
+
+	if (!bHasCustomEventsPending || bNotReliablyOrdered)
+	{
+		// We are not currently sequencing the events so send it immediately.
+		SendNextCustomEvent(InEvent);
+		return;
+	}
+	// If the user provided a id then use that id to store the value in the manager; otherwise create a new entry.
+	FConcertSequencedCustomEvent EventId = InSequenceId ? *InSequenceId : CustomEventSequenceManager.AddSequencedCustomEvent();
+	CustomEventSequenceManager.FillPendingSequenceEvent(EventId, MoveTemp(InEvent));
+
+	while (TOptional<FPendingEvent> NextToSend = CustomEventSequenceManager.PopSendEvent())
+	{
+		SendNextCustomEvent(*NextToSend);
+	}
 }
 
 void FConcertClientSession::InternalSendCustomRequest(const UScriptStruct* RequestType, const void* RequestData, const FGuid& DestinationEndpointId, const TSharedRef<IConcertSessionCustomResponseHandler>& Handler)

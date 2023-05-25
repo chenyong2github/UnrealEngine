@@ -585,7 +585,17 @@ public:
 	 * @return True if the package event was found, false otherwise.
 	 */
 	bool GetPackageEventMetaData(const int64 InPackageEventId, int64& OuptPackageRevision, FConcertPackageInfo& OutPackageInfo) const;
-	
+
+	/**
+	 * Get Package Event Id from Package Name.  The event id will be from the head revision of the package.
+	 *
+	 * @param InPackageName
+	 * @param OutPackageEventId
+	 *
+	 * @return True if the package event was found, false otherwise
+	 */
+	bool GetPackageHeadEventFromName(const FName InPackageName, int64& OutPackageEventId);
+
 	/**
 	 * Get a package event from this database.
 	 *
