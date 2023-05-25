@@ -16,6 +16,7 @@ public:
 	virtual void InitializeDebuggerState(class FBehaviorTreeDebugger* ParentDebugger) const = 0;
 	virtual UEdGraphNode* FindInjectedNode(int32 Index) const = 0;
 	virtual void DoubleClickNode(class UEdGraphNode* Node) = 0;
+	virtual void FocusAttentionOnNode(UEdGraphNode* Node) = 0;
 };
 
 

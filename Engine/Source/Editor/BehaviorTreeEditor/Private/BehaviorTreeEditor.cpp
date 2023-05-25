@@ -1602,7 +1602,13 @@ UEdGraphNode* FBehaviorTreeEditor::FindInjectedNode(int32 Index) const
 	return BTGraph ? BTGraph->FindInjectedNode(Index) : NULL;
 }
 
-void FBehaviorTreeEditor::DoubleClickNode(class UEdGraphNode* Node)
+void FBehaviorTreeEditor::DoubleClickNode(UEdGraphNode* Node)
+{
+	FocusAttentionOnNode(Node);
+	OnNodeDoubleClicked(Node);
+}
+
+void FBehaviorTreeEditor::FocusAttentionOnNode(UEdGraphNode* Node)
 {
 	TSharedPtr<SGraphEditor> CurrentGraphEditor = UpdateGraphEdPtr.Pin();
 	if (CurrentGraphEditor.IsValid())
@@ -1610,9 +1616,7 @@ void FBehaviorTreeEditor::DoubleClickNode(class UEdGraphNode* Node)
 		CurrentGraphEditor->ClearSelectionSet();
 		CurrentGraphEditor->SetNodeSelection(Node, true);
 	}
-
 	JumpToNode(Node);
-	OnNodeDoubleClicked(Node);
 }
 
 void FBehaviorTreeEditor::FocusWindow(UObject* ObjectToFocusOn)
