@@ -1493,10 +1493,11 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 			return;
 		}
 		
+		EditorSharedPtr->ClearDetailObject();
+		
 		TGuardValue<bool> SuspendBlueprintNotifs(ControlRigBlueprint->bSuspendAllNotifications, true);
 
 		FScopedTransaction Transaction(LOCTEXT("HierarchyImport", "Import Hierarchy"));
-
 
 		// don't select bone if we are in construction mode.
 		// we do this to avoid the editmode / viewport shapes to refresh recursively,
