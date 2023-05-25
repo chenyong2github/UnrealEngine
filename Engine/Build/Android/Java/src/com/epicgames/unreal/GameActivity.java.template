@@ -4677,6 +4677,22 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		});
 	}
 
+	public void AndroidThunkJava_SetCellularPreference(int value)
+	{
+		Context context = getApplicationContext();
+		SharedPreferences preferences = context.getSharedPreferences("CellularNetworkPreferences", context.MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+		editor.putInt("AllowCellular", value);
+		editor.commit();
+	}
+
+	public int AndroidThunkJava_GetCellularPreference()
+	{
+		Context context = getApplicationContext();
+		SharedPreferences preferences = context.getSharedPreferences("CellularNetworkPreferences", context.MODE_PRIVATE);
+		return preferences.getInt("AllowCellular", 0 );
+	}
+
 	// call back into native code from the Java UI thread, initializing any available VR HMD modules
 	public void AndroidThunkJava_InitHMDs()
 	{

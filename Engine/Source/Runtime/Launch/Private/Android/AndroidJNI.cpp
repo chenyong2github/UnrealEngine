@@ -125,6 +125,8 @@ void FJavaWrapper::FindClassesAndMethods(JNIEnv* Env)
 	AndroidThunkJava_GetIntentExtrasString = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_GetIntentExtrasString", "(Ljava/lang/String;)Ljava/lang/String;", bIsOptional);
 	AndroidThunkJava_PushSensorEvents = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_PushSensorEvents", "()V", bIsOptional);
 	AndroidThunkJava_SetOrientation = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_SetOrientation", "(I)V", bIsOptional);
+	AndroidThunkJava_SetCellularPreference = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_SetCellularPreference", "(I)V", bIsOptional);
+	AndroidThunkJava_GetCellularPreference = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_GetCellularPreference", "()I", bIsOptional);
 
 	// Screen capture/recording permission
 	AndroidThunkJava_IsScreenCaptureDisabled = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_IsScreenCaptureDisabled", "()Z", bIsOptional);
@@ -428,6 +430,8 @@ jmethodID FJavaWrapper::AndroidThunkJava_PushSensorEvents;
 jmethodID FJavaWrapper::AndroidThunkJava_IsScreenCaptureDisabled;
 jmethodID FJavaWrapper::AndroidThunkJava_DisableScreenCapture;
 jmethodID FJavaWrapper::AndroidThunkJava_SetOrientation;
+jmethodID FJavaWrapper::AndroidThunkJava_SetCellularPreference;
+jmethodID FJavaWrapper::AndroidThunkJava_GetCellularPreference;
 
 jclass FJavaWrapper::InputDeviceInfoClass;
 jfieldID FJavaWrapper::InputDeviceInfo_VendorId;
@@ -1334,6 +1338,24 @@ void AndroidThunkCpp_SetOrientation(int32 Value)
 	{
 		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_SetOrientation, Value);
 	}
+}
+
+void AndroidThunkCpp_SetCellularPreference(int32 Value)
+{
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_SetCellularPreference, Value);
+	}
+}
+
+int32 AndroidThunkCpp_GetCellularPreference()
+{
+	int32 value = 0;
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+		FJavaWrapper::CallIntMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_GetCellularPreference);
+	}
+	return value;
 }
 
 bool AndroidThunkCpp_IsMusicActive()

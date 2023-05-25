@@ -29,12 +29,16 @@ public class DownloadWorkerParameterKeys
 	public final static String NOTIFICATION_ID_KEY = "NotificationId";
 	//random value that our NOTIFICATION_ID is set to if not provided using the above key
 	public final static int NOTIFICATION_DEFAULT_ID_KEY = 1923901283;
+
+	public final static String CELLULAR_HANDLE_KEY = "CellularHandleKey";
 	
 	public final static String NOTIFICATION_CONTENT_TITLE_KEY = "NotificationContentTitle";
 	public final static String NOTIFICATION_CONTENT_TEXT_KEY = "NotificationContentText";
 	public final static String NOTIFICATION_CONTENT_CANCEL_DOWNLOAD_TEXT_KEY = "NotificationContentCancelDownloadText";
 	public final static String NOTIFICATION_CONTENT_NO_INTERNET_TEXT_KEY = "NotificationContentNoInternetDownloadText";
 	public final static String NOTIFICATION_CONTENT_COMPLETE_TEXT_KEY = "NotificationContentCompleteText";
+	public final static String NOTIFICATION_CONTENT_WAITING_FOR_CELLULAR_TEXT_KEY = "NotificationContentWaitingForCellularText";
+	public final static String NOTIFICATION_CONTENT_APPROVE_TEXT_KEY = "NotificationContentApproveText";
 
 	public final static String NOTIFICATION_RESOURCE_CANCEL_ICON_NAME = "NotificationResourceCancelIconName";
 	public final static String NOTIFICATION_RESOURCE_CANCEL_ICON_TYPE = "NotificationResourceCancelIconType";

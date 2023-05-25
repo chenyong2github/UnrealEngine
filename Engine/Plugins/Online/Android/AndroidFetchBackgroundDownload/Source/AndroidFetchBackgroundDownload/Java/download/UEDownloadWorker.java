@@ -10,6 +10,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Build;
+import android.content.SharedPreferences;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.NonNull;
@@ -32,6 +33,8 @@ import com.epicgames.unreal.download.DownloadProgressListener;
 import com.epicgames.unreal.download.datastructs.DownloadQueueDescription;
 import com.epicgames.unreal.download.datastructs.DownloadWorkerParameterKeys;
 import com.epicgames.unreal.download.fetch.FetchManager;
+import com.epicgames.unreal.LocalNotificationReceiver;
+import com.epicgames.unreal.CellularReceiver;
 
 import com.epicgames.unreal.network.NetworkConnectivityClient;
 import com.epicgames.unreal.network.NetworkChangedManager;
@@ -79,6 +82,10 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 		{
 			CancelIntent = WorkManager.getInstance(getApplicationContext())
 				.createCancelPendingIntent(getId());
+		}
+		if (null == ApproveIntent)
+		{
+			ApproveIntent = new Intent(getApplicationContext(), CellularReceiver.class);
 		}
 		
 		//Generate our NotificationDescription so that we load important data from our InputData() to control notification content
@@ -167,6 +174,45 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 			Log.debug("Finishing OnWorkerStart. CachedResult:" + CachedResult + " bReceivedResult:" + bReceivedResult);
 		}
 	}
+
+	// Checking what the current network type is.
+	// Will pause all downloads if the network type is Cellular
+	private void NetworkTypeCheck()
+	{
+		boolean ShouldHandleCellular = false;
+		if (NotificationDescription != null)
+		{
+			ShouldHandleCellular = NotificationDescription.ShouldHandleCellular;
+		}
+		// This should be handled by the Game thread otherwise
+		if (!bGameThreadIsActive && ShouldHandleCellular)
+		{
+			// Pause all downloads if the current cellular preference does not allow cellular downloading
+			NetworkConnectivityClient.NetworkTransportType networkType = NetworkChangedManager.getInstance().networkTransportTypeCheck();
+			if (!bWaitingForCellularApproval && networkType == NetworkConnectivityClient.NetworkTransportType.CELLULAR)
+			{
+				Context context = getApplicationContext();
+				SharedPreferences preferences = context.getSharedPreferences("CellularNetworkPreferences", context.MODE_PRIVATE);
+				boolean allowCell = (preferences.getInt("AllowCellular", 0) > 0);
+				if (!allowCell)
+				{
+					mFetchManager.PauseAllDownloads();
+					bWaitingForCellularApproval = true;
+				}
+			}
+			else if (bWaitingForCellularApproval)
+			{
+				Context context = getApplicationContext();
+				SharedPreferences preferences = context.getSharedPreferences("CellularNetworkPreferences", context.MODE_PRIVATE);
+				boolean allowCell = (preferences.getInt("AllowCellular", 0) > 0);
+				if (allowCell)
+				{
+					mFetchManager.ResumeAllDownloads();
+					bWaitingForCellularApproval = false;
+				}
+			}
+		}
+	}
 	
 	private void Tick(DownloadQueueDescription QueueDescription)
 	{
@@ -175,7 +221,7 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 		if (!bReceivedResult && bHasEnqueueHappened && !bForceStopped)
 		{
 			mFetchManager.RequestGroupProgressUpdate(QueueDescription.DownloadGroupID,  this);
-
+			NetworkTypeCheck();
 			//Keeping the code path to insert a watch dog later on
 			//mFetchManager.RequestCheckDownloadsStillActive(this);
 
@@ -259,7 +305,11 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 		}
 		
 		Notification notification = null;
-		if(!bLostNetwork)
+		if (bWaitingForCellularApproval)
+		{
+			notification = CreateCellularWaitNotification(context, Description, pendingNotificationIntent);
+		}
+		else if(!bLostNetwork)
 		{
 			notification = CreateDownloadProgressNotification(context, Description, pendingNotificationIntent);
 		}
@@ -300,6 +350,60 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 			.setNotificationSilent()
 			.build();
 
+		return notification;
+	}
+
+	public Notification CreateCellularWaitNotification(Context context,
+		DownloadNotificationDescription Description,
+		PendingIntent pendingNotificationIntent)
+	{
+		//Setup Notification Text Values (ContentText and ContentInfo)
+		boolean bIsComplete = (Description.CurrentProgress >= Description.MAX_PROGRESS);
+		String NotificationTextToUse = null;
+		if (!bIsComplete)
+		{
+			NotificationTextToUse = String.format(Description.ContentText, Description.CurrentProgress);
+		}
+		else
+		{
+			NotificationTextToUse = Description.ContentCompleteText;
+		}
+		PendingIntent cellularNotificationIntent = null;
+		{
+			cellularNotificationIntent = PendingIntent.getBroadcast(context, Description.NotificationID, ApproveIntent, PendingIntent.FLAG_IMMUTABLE);
+		}
+		Notification notification;
+		if (bGameThreadIsActive)
+		{
+			notification = new NotificationCompat.Builder(context, Description.NotificationChannelID)
+				.setContentTitle(Description.WaitingForCellularText)
+				.setTicker(Description.WaitingForCellularText)
+				.setContentText(NotificationTextToUse)
+				.setContentIntent(pendingNotificationIntent)
+				.setProgress(Description.MAX_PROGRESS, Description.CurrentProgress, Description.Indeterminate)
+				.setOngoing(true)
+				.setOnlyAlertOnce (true)
+				.setSmallIcon(Description.SmallIconResourceID)
+				.setNotificationSilent()
+				.build();
+		}
+		else
+		{
+			notification = new NotificationCompat.Builder(context, Description.NotificationChannelID)
+				.setContentTitle(Description.WaitingForCellularText)
+				.setTicker(Description.WaitingForCellularText)
+				.setContentText(NotificationTextToUse)
+				.setContentIntent(pendingNotificationIntent)
+				.setProgress(Description.MAX_PROGRESS, Description.CurrentProgress, Description.Indeterminate)
+				.setOngoing(true)
+				.setOnlyAlertOnce (true)
+				.setSmallIcon(Description.SmallIconResourceID)
+				.addAction(Description.CancelIconResourceID, Description.ApproveText, cellularNotificationIntent)
+				.addAction(Description.CancelIconResourceID, Description.CancelText, CancelIntent)
+				.setNotificationSilent()
+				.build();
+		}
+		
 		return notification;
 	}
 
@@ -369,6 +473,16 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 	{
 		return (IsWorkEndTerminal());
 	}
+
+	private void ResetCellularPreference()
+	{
+		// Edit this to include Allways allow and only allow this time
+		Context context = getApplicationContext();
+		SharedPreferences preferences = context.getSharedPreferences("CellularNetworkPreferences", context.MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+		editor.putInt("AllowCellular", 0);
+		editor.commit();
+	}
 	
 	//
 	// DownloadCompletionListener Implementation
@@ -412,6 +526,9 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 			{
 				if (bDidAllRequestsSucceed)
 				{
+					//Resetting cellular preference for the next run, you may want to allow cellular for this run, but not the next one.
+					//This should be reworked and hooked up to the game code.
+					ResetCellularPreference();
 					SetWorkResult_Success();
 				}
 				//by default if UE didn't give us a behavior, lets just retry the download through the worker if one of the downloads failed
@@ -457,17 +574,38 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 	//
 	public void PauseRequest(String RequestID)
 	{
+		boolean ShouldHandleCellular = false;
+		if (NotificationDescription != null)
+		{
+			ShouldHandleCellular = NotificationDescription.ShouldHandleCellular;
+		}
+		if (ShouldHandleCellular)
+		{
+			NetworkConnectivityClient.NetworkTransportType networkType = NetworkChangedManager.getInstance().networkTransportTypeCheck();
+			if (networkType == NetworkConnectivityClient.NetworkTransportType.CELLULAR)
+			{
+				bWaitingForCellularApproval = true;
+			}
+		}
 		mFetchManager.PauseDownload(RequestID, true);
 	}
 	
 	public void ResumeRequest(String RequestID)
 	{
+		// When the C++ resumes the request all network issues should be solved
+		bWaitingForCellularApproval = false;
 		mFetchManager.PauseDownload(RequestID, false);
 	}
 	
 	public void CancelRequest(String RequestID)
 	{
 		mFetchManager.CancelDownload(RequestID);
+	}
+
+	// This is a way of figuring out if the worker was spawned when the app was killed or not
+	public static void AndroidThunkJava_GameThreadIsActive() 
+	{
+		bGameThreadIsActive = true;
 	}
 	
 	//Native functions used to bubble up progress to native UE code
@@ -478,6 +616,7 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 	public native void nativeAndroidBackgroundDownloadOnAllComplete(boolean bDidAllRequestsSucceed);
 	public native void nativeAndroidBackgroundDownloadOnTick();
 	
+	private boolean bWaitingForCellularApproval = false;
 	private NetworkConnectivityClient.Listener NetworkListener = null;
 	private boolean bLostNetwork = false;
 	private boolean bForceStopped = false;
@@ -485,5 +624,7 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 	private volatile boolean bHasEnqueueHappened = false;
 	static volatile FetchManager mFetchManager;
 	private PendingIntent CancelIntent = null;
+	private Intent ApproveIntent = null;
 	private DownloadNotificationDescription NotificationDescription = null;
+	private static boolean bGameThreadIsActive = false;
 }

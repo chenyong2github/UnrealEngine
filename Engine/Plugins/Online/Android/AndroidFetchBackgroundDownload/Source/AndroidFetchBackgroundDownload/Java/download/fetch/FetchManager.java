@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
 
 import java.io.File;
 
@@ -255,6 +256,51 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 			FetchInstance.resume(MatchedDesc.CachedFetchID);
 		}
 	}
+
+	public void PauseAllDownloads()
+	{
+		if (!IsFetchInstanceValid())
+		{
+			return;
+		}
+		
+		HashMap<String,DownloadDescription> TempRequestedDownloadsCopy =  new HashMap<String,DownloadDescription>(RequestedDownloads);
+		for(Map.Entry<String, DownloadDescription> entry : RequestedDownloads.entrySet()) 
+		{
+			
+    		DownloadDescription MatchedDesc = entry.getValue();
+			if (null == MatchedDesc)
+			{
+				return;
+			}
+			
+			MatchedDesc.bIsPaused = true;
+			FetchInstance.pause(MatchedDesc.CachedFetchID);
+		}
+	}
+
+	public void ResumeAllDownloads()
+	{
+		if (!IsFetchInstanceValid())
+		{
+			return;
+		}
+		
+		HashMap<String,DownloadDescription> TempRequestedDownloadsCopy =  new HashMap<String,DownloadDescription>(RequestedDownloads);
+		for(Map.Entry<String, DownloadDescription> entry : RequestedDownloads.entrySet()) 
+		{
+			
+    		DownloadDescription MatchedDesc = entry.getValue();
+			if (null == MatchedDesc)
+			{
+				return;
+			}
+			
+			MatchedDesc.bIsPaused = false;
+			FetchInstance.resume(MatchedDesc.CachedFetchID);
+		}
+	}
+
 
 	public void CancelDownload(String RequestID)
 	{

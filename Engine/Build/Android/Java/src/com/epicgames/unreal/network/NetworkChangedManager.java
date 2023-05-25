@@ -393,6 +393,12 @@ public final class NetworkChangedManager implements NetworkConnectivityClient {
 				break;
 		}
 	}
+
+	@Override
+	public NetworkTransportType networkTransportTypeCheck()
+	{
+		return calculateNetworkTransport(connectivityManager);
+	}
 	
 	@Override
 	public void checkConnectivity() {

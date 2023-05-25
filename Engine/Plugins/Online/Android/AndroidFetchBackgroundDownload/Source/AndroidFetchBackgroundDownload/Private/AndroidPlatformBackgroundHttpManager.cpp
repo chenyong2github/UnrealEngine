@@ -22,6 +22,8 @@
 
 #include "Misc/Paths.h"
 
+#include "HAL/IConsoleManager.h"
+
 #if UE_BUILD_SHIPPING
 // always clear any exceptions in shipping
 #define CHECK_JNI_RESULT(Id) if (Id == 0) { Env->ExceptionClear(); }
@@ -42,6 +44,12 @@
 #endif // UE_BUILD_SHIPPING
 
 #define LOCTEXT_NAMESPACE "AndroidBackgroundHttpManager"
+
+static TAutoConsoleVariable<bool> CVarEnableCellularHandling(
+	TEXT("bgdl.EnableCellularHandling"),
+	false,
+	TEXT("Enable/disable Cellular handling in the Java layer"),
+	ECVF_Default);
 
 //Call backs called by the JNI java systems to call back into C++ code in this AndroidPlatformBackgroundHttpManager
 namespace FAndroidBackgroundDownloadDelegates
@@ -78,11 +86,15 @@ const FString FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_ID_KEY = T
 //random value that our NOTIFICATION_ID is set to if not provided using the above key. KEEP IN SYNC WITH DownloadWorkerParameterKeys.java
 const int FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_DEFAULT_ID_KEY = 1923901283;
 
+const FString FAndroidNativeDownloadWorkerParameterKeys::CELLULAR_HANDLE_KEY = TEXT("CellularHandleKey");
+
 const FString FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_TITLE_KEY = TEXT("NotificationContentTitle");
 const FString FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_TEXT_KEY = TEXT("NotificationContentText");
 const FString FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_CANCEL_DOWNLOAD_TEXT_KEY = TEXT("NotificationContentCancelDownloadText");
 const FString FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_NO_INTERNET_TEXT_KEY = TEXT("NotificationContentNoInternetDownloadText");
 const FString FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_COMPLETE_TEXT_KEY = TEXT("NotificationContentCompleteText");
+const FString FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_WAITING_FOR_CELLULAR_TEXT_KEY = TEXT("NotificationContentWaitingForCellularText");
+const FString FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_APPROVE_TEXT_KEY = TEXT("NotificationContentApproveText");
 
 const FString FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_RESOURCE_CANCEL_ICON_NAME = TEXT("NotificationResourceCancelIconName");
 const FString FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_RESOURCE_CANCEL_ICON_TYPE = TEXT("NotificationResourceCancelIconType");
@@ -318,7 +330,9 @@ void FAndroidPlatformBackgroundHttpManager::ActivatePendingRequests()
 			const FString FileNameForDownloadDescList = GetFullFileNameForDownloadDescriptionList();
 			FScopedJavaObject<jstring> JavaFileNameString = FJavaHelper::ToJavaString(Env, FileNameForDownloadDescList);	
 			bool bDidWriteSucceed = Env->CallStaticBooleanMethod(FAndroidPlatformBackgroundHttpManager::JavaInfo.DownloadDescriptionClass, FAndroidPlatformBackgroundHttpManager::JavaInfo.WriteDownloadDescriptionListToFileMethod, *JavaFileNameString, *DescriptionArray);
-				
+			// Calling this to signal to the worker that it was spawned by a forgrounded app
+			Env->CallStaticVoidMethod(FAndroidPlatformBackgroundHttpManager::JavaInfo.UEDownloadWorkerClass, FAndroidPlatformBackgroundHttpManager::JavaInfo.GameThreadIsActive);	
+
 			bool bDidSuccessfullyScheduleWork = false;
 
 			//If we successfully created the JSON DownloadDescription file, 
@@ -337,11 +351,15 @@ void FAndroidPlatformBackgroundHttpManager::ActivatePendingRequests()
 				//Set our MaxActiveDownloads in the underlying java layer to match our expectation
 				WorkParams.AddDataToWorkerParameters(FAndroidNativeDownloadWorkerParameterKeys::DOWNLOAD_MAX_CONCURRENT_REQUESTS_KEY, MaxActiveDownloads);
 
+				WorkParams.AddDataToWorkerParameters(FAndroidNativeDownloadWorkerParameterKeys::CELLULAR_HANDLE_KEY, CVarEnableCellularHandling.GetValueOnGameThread());
+
 				//Make sure we pass in localized notification text bits for the important worker keys
 				WorkParams.AddDataToWorkerParameters(FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_TITLE_KEY, AndroidBackgroundHTTPManagerDefaultLocalizedText.DefaultNotificationText_Title.GetText());
 				WorkParams.AddDataToWorkerParameters(FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_COMPLETE_TEXT_KEY, AndroidBackgroundHTTPManagerDefaultLocalizedText.DefaultNotificationText_Complete.GetText());
 				WorkParams.AddDataToWorkerParameters(FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_CANCEL_DOWNLOAD_TEXT_KEY, AndroidBackgroundHTTPManagerDefaultLocalizedText.DefaultNotificationText_Cancel.GetText());
 				WorkParams.AddDataToWorkerParameters(FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_NO_INTERNET_TEXT_KEY, AndroidBackgroundHTTPManagerDefaultLocalizedText.DefaultNotificationText_NoInternet.GetText());
+				WorkParams.AddDataToWorkerParameters(FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_WAITING_FOR_CELLULAR_TEXT_KEY, AndroidBackgroundHTTPManagerDefaultLocalizedText.DefaultNotificationText_WaitingForCellular.GetText());
+				WorkParams.AddDataToWorkerParameters(FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_APPROVE_TEXT_KEY, AndroidBackgroundHTTPManagerDefaultLocalizedText.DefaultNotificationText_Approve.GetText());
 
 				//Expect our ContentText to have a {DownloadPercent} argument in it by default, so this will replace that with the Java string format argument so Java can insert the appropriate value
 				FFormatNamedArguments Arguments;
@@ -932,6 +950,12 @@ void FAndroidPlatformBackgroundHttpManager::FJavaClassInfo::Initialize()
 				CHECK_JNI_RESULT(DownloadDescriptionClass);
 			}
 
+			//find jmethodID for checking if the worker was created using the Android WorkManager
+			{
+				GameThreadIsActive = FJavaWrapper::FindStaticMethod(Env, UEDownloadWorkerClass, "AndroidThunkJava_GameThreadIsActive",  "()V", bIsOptional);
+				CHECK_JNI_RESULT(GameThreadIsActive);
+			}
+
 			//find jmethodID for DownloadDescription methods
 			{
 				//Grab a bunch of necessary JNI methods we will need to create our DownloadDescriptions
@@ -1010,6 +1034,8 @@ FAndroidPlatformBackgroundHttpManager::FAndroidBackgroundHTTPManagerDefaultLocal
 	, DefaultNotificationText_Complete()
 	, DefaultNotificationText_Cancel()
 	, DefaultNotificationText_NoInternet()
+	, DefaultNotificationText_WaitingForCellular()
+	, DefaultNotificationText_Approve()
 {
 }
 
@@ -1057,6 +1083,20 @@ void FAndroidPlatformBackgroundHttpManager::FAndroidBackgroundHTTPManagerDefault
 				ParsePolyglotTextItem(DefaultNotificationText_NoInternet, TEXT("Notification.NoInternetText"), NoInternetTextStrings);
 			}
 
+			//DefaultNotificationText_WaitingForCellular
+			{
+				TArray<FString> WaitingForCellularTextStrings;
+				Config->GetArray(*TextConfigSection, TEXT("DefaultNotificationText_WaitingForCellular"), WaitingForCellularTextStrings);
+				ParsePolyglotTextItem(DefaultNotificationText_WaitingForCellular, TEXT("Notification.WaitingForCellularText"), WaitingForCellularTextStrings);
+			}
+
+			//DefaultNotificationText_Approve
+			{
+				TArray<FString> ApproveTextStrings;
+				Config->GetArray(*TextConfigSection, TEXT("DefaultNotificationText_Approve"), ApproveTextStrings);
+				ParsePolyglotTextItem(DefaultNotificationText_Approve, TEXT("Notification.ApproveText"), ApproveTextStrings);
+			}
+
 		}
 	}
 
@@ -1066,6 +1106,8 @@ void FAndroidPlatformBackgroundHttpManager::FAndroidBackgroundHTTPManagerDefault
 	ForceValidPolyglotText(DefaultNotificationText_Complete, TEXT("DefaultNotificationText_Complete"));
 	ForceValidPolyglotText(DefaultNotificationText_Cancel, TEXT("DefaultNotificationText_Cancel"));
 	ForceValidPolyglotText(DefaultNotificationText_NoInternet, TEXT("DefaultNotificationText_NoInternet"));
+	ForceValidPolyglotText(DefaultNotificationText_WaitingForCellular, TEXT("DefaultNotificationText_WaitingForCellular"));
+	ForceValidPolyglotText(DefaultNotificationText_Approve, TEXT("DefaultNotificationText_Approve"));
 }
 
 void FAndroidPlatformBackgroundHttpManager::FAndroidBackgroundHTTPManagerDefaultLocalizedText::ForceValidPolyglotText(FPolyglotTextData& TextDataOut, const FString& DebugPolyglotTextName)

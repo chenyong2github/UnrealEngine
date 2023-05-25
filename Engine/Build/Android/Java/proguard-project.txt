@@ -46,6 +46,9 @@
 -keep class com.epicgames.unreal.LocalNotificationReceiver {
 	public *;
 }
+-keep class com.epicgames.unreal.CellularReceiver {
+	public *;
+}
 -keep class com.epicgames.unreal.MulticastBroadcastReceiver {
 	public *;
 }

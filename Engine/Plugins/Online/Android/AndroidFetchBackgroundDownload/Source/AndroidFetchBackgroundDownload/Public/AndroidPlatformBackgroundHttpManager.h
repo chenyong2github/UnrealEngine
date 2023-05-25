@@ -157,6 +157,8 @@ protected:
 		FPolyglotTextData DefaultNotificationText_Complete;
 		FPolyglotTextData DefaultNotificationText_Cancel;
 		FPolyglotTextData DefaultNotificationText_NoInternet;
+		FPolyglotTextData DefaultNotificationText_WaitingForCellular;
+		FPolyglotTextData DefaultNotificationText_Approve;
 
 
 		void InitFromIniSettings(const FString& ConfigFileName);
@@ -181,6 +183,7 @@ private:
 		jclass UEDownloadWorkerClass;
 		jclass DownloadDescriptionClass;
 
+		jmethodID GameThreadIsActive;
 		//Necessary JNI methods we will need to create our DownloadDescriptions
 		jmethodID CreateArrayStaticMethod;
 		jmethodID WriteDownloadDescriptionListToFileMethod;
@@ -191,6 +194,7 @@ private:
 		FJavaClassInfo()
 			: UEDownloadWorkerClass(0)
 			, DownloadDescriptionClass(0)
+			, GameThreadIsActive(0)
 			, CreateArrayStaticMethod(0)
 			, WriteDownloadDescriptionListToFileMethod(0)
 		{}
@@ -218,11 +222,15 @@ public:
 	static const FString NOTIFICATION_ID_KEY;
 	static const int NOTIFICATION_DEFAULT_ID_KEY;
 
+	static const FString CELLULAR_HANDLE_KEY;
+
 	static const FString NOTIFICATION_CONTENT_TITLE_KEY;
 	static const FString NOTIFICATION_CONTENT_TEXT_KEY;
 	static const FString NOTIFICATION_CONTENT_CANCEL_DOWNLOAD_TEXT_KEY;
 	static const FString NOTIFICATION_CONTENT_NO_INTERNET_TEXT_KEY;
 	static const FString NOTIFICATION_CONTENT_COMPLETE_TEXT_KEY;
+	static const FString NOTIFICATION_CONTENT_WAITING_FOR_CELLULAR_TEXT_KEY;
+	static const FString NOTIFICATION_CONTENT_APPROVE_TEXT_KEY;
 
 	static const FString NOTIFICATION_RESOURCE_CANCEL_ICON_NAME;
 	static const FString NOTIFICATION_RESOURCE_CANCEL_ICON_TYPE;

@@ -15,6 +15,9 @@
 #include "Stats/Stats.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+#if PLATFORM_ANDROID
+#include "Android/AndroidPlatformMisc.h"
+#endif
 
 DEFINE_LOG_CATEGORY(LogBackgroundHttpManager);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(BACKGROUNDHTTP_API, BackgroundDownload);
@@ -342,6 +345,13 @@ void FBackgroundHttpManagerImpl::CleanUpDataAfterCompletingRequest(const FBackgr
 	{
 		OurFileHashHelper->RemoveURLMapping(URL);
 	}
+}
+
+void FBackgroundHttpManagerImpl::SetCellularPreference(int32 Value)
+{
+#if PLATFORM_ANDROID
+	FAndroidMisc::SetCellularPreference(Value);
+#endif
 }
 
 bool FBackgroundHttpManagerImpl::AssociateWithAnyExistingRequest(const FBackgroundHttpRequestPtr Request)

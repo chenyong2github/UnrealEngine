@@ -58,6 +58,11 @@ public class DownloadNotificationDescription
 			}
 		}
 
+		//Configuration 
+		{
+			ShouldHandleCellular = data.getBoolean(DownloadWorkerParameterKeys.CELLULAR_HANDLE_KEY, false);
+		}
+
 		//Load notification content information
 		{
 			TitleText = data.getString(DownloadWorkerParameterKeys.NOTIFICATION_CONTENT_TITLE_KEY);
@@ -88,6 +93,18 @@ public class DownloadNotificationDescription
 			if (null == NoInternetAvailable)
 			{
 				NoInternetAvailable = "No Internet Available";
+			}
+
+			WaitingForCellularText = data.getString(DownloadWorkerParameterKeys.NOTIFICATION_CONTENT_WAITING_FOR_CELLULAR_TEXT_KEY);
+			if (null == WaitingForCellularText)
+			{
+				WaitingForCellularText = "Waiting for cellular approval";
+			}
+
+			ApproveText = data.getString(DownloadWorkerParameterKeys.NOTIFICATION_CONTENT_APPROVE_TEXT_KEY);
+			if (null == ApproveText)
+			{
+				ApproveText = "Approve";
 			}
 		}
 		
@@ -228,11 +245,15 @@ public class DownloadNotificationDescription
 	
 	public int NotificationID = 0;
 
+	public boolean ShouldHandleCellular = false;
+
 	public String TitleText = null;
 	public String ContentText = null;
 	public String ContentCompleteText = null;
 	public String CancelText = null;
 	public String NoInternetAvailable = null;
+	public String WaitingForCellularText = null;
+	public String ApproveText = null;
 	
 	public int CancelIconResourceID = 0;
 	public int SmallIconResourceID = 0;

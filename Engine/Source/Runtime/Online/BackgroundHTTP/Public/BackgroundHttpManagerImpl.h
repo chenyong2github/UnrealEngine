@@ -44,6 +44,7 @@ public:
 	virtual FString GetTempFileLocationForURL(const FString& URL) override;
 	
 	virtual void CleanUpDataAfterCompletingRequest(const FBackgroundHttpRequestPtr Request) override;
+	virtual void SetCellularPreference(int32 Value) override;
 	
 	//FTSTickerObjectBase implementation
 	virtual bool Tick(float DeltaTime) override;

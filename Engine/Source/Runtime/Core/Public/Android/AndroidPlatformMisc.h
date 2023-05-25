@@ -52,6 +52,10 @@ struct CORE_API FAndroidMisc : public FGenericPlatformMisc
 	UE_DEPRECATED(5.1, "SetDeviceOrientation is deprecated. Use SetAllowedDeviceOrientation instead.")
 	static void SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation);
 	static void SetAllowedDeviceOrientation(EDeviceScreenOrientation NewAllowedDeviceOrientation);
+
+	// Change this to an Enum with Always allow, allow and deny
+	static void SetCellularPreference(int32 Value);
+	static int32 GetCellularPreference();
     
 	FORCEINLINE static int32 GetMaxPathLength()
 	{

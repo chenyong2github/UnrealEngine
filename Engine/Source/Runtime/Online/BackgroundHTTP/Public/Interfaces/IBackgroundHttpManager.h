@@ -75,6 +75,11 @@ public:
 	 * Should really never be calling this outside of a BackgroundHTTP class
 	 */
 	virtual void CleanUpDataAfterCompletingRequest(const FBackgroundHttpRequestPtr Request) = 0;
+
+	/**
+		* Setting cellular preference
+		*/
+	virtual void SetCellularPreference(int32 Value) = 0;
 	
 protected:
 	/**

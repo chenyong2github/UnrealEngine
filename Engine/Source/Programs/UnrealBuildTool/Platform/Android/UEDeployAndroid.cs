@@ -2936,6 +2936,7 @@ namespace UnrealBuildTool
 				Text.AppendLine(serviceLine);
 			}
 
+
 			// Declare the 8 Vulkan program compiling services.
 			Text.AppendLine(@"		<service android:name=""com.epicgames.unreal.psoservices.VulkanProgramService"" android:process="":psoprogramservice"" />");
 			// Declare the remaining 7 Vulkan program compiling services. (all derived from VulkanProgramService)
@@ -2950,6 +2951,7 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t\t<receiver android:name=\"AlarmReceiver\" />");
 
 			Text.AppendLine("\t\t<receiver android:name=\"com.epicgames.unreal.LocalNotificationReceiver\" />");
+			Text.AppendLine("\t\t<receiver android:name=\"com.epicgames.unreal.CellularReceiver\" />");
 
 			if (bRestoreNotificationsOnReboot)
 			{

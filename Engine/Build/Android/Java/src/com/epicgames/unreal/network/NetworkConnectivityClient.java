@@ -47,4 +47,10 @@ public interface NetworkConnectivityClient {
 	 * Check for network connectivity
 	 */
 	void checkConnectivity();
+
+	/**
+	 * Check the current type of network connection
+	 * @return Type of network connection the device currently have
+	 */
+	NetworkTransportType networkTransportTypeCheck();
 }
