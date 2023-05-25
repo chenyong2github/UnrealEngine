@@ -66,7 +66,7 @@ public:
 
 	TWeakObjectPtr<UClothTrainingTool> ParentTool;
 
-	void Initialize(UClothTrainingTool* ParentToolIn) { ParentTool = ParentToolIn; }
+	void Initialize(UClothTrainingTool* ParentToolIn);
 
 	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Begin Generating", DisplayPriority = 1))
 	void StartGenerating();

@@ -79,6 +79,11 @@ UObject* UClothTrainingToolProperties::GetClothAsset()
 	return nullptr;
 }
 
+void UClothTrainingToolActionProperties::Initialize(UClothTrainingTool* ParentToolIn)
+{
+	ParentTool = ParentToolIn;
+}
+
 void UClothTrainingToolActionProperties::StartGenerating()
 {
 	if (ParentTool.IsValid())
