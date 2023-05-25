@@ -159,11 +159,11 @@ FSplineMeshDeformBoundsContext SplineMeshInitializeDeformBoundsContext(
 	FSplineMeshShaderParams Params,
 	float3 MeshBoundsCenter,
 	float3 MeshBoundsExtent,
-	FShaderPrintContext ShaderPrint = (FShaderPrintContext)0,
-	float4x4 LocalToTWS = (float4x4)0
+	FShaderPrintContext ShaderPrint,
+	float4x4 LocalToTWS
 )
 {
-	FSplineMeshDeformBoundsContext Result = (FSplineMeshDeformBoundsContext)0;
+	FSplineMeshDeformBoundsContext Result;
 	Result.Params				= Params;
 	Result.MeshMinBounds		= MeshBoundsCenter - MeshBoundsExtent;
 	Result.MeshMaxBounds		= MeshBoundsCenter + MeshBoundsExtent;
@@ -173,6 +173,27 @@ FSplineMeshDeformBoundsContext SplineMeshInitializeDeformBoundsContext(
 	Result.CurSplineLength		= -1.0f; // Negative to mark as not started
 	Result.ShaderPrint			= ShaderPrint;
 	Result.LocalToTWS			= LocalToTWS;
+
+	return Result;
+}
+
+FSplineMeshDeformBoundsContext SplineMeshInitializeDeformBoundsContext(
+	FSplineMeshShaderParams Params,
+	float3 MeshBoundsCenter,
+	float3 MeshBoundsExtent
+)
+{
+	FSplineMeshDeformBoundsContext Result;
+	Result.Params				= Params;
+	Result.MeshMinBounds		= MeshBoundsCenter - MeshBoundsExtent;
+	Result.MeshMaxBounds		= MeshBoundsCenter + MeshBoundsExtent;
+	Result.MeshBoundsExtent		= MeshBoundsExtent;
+	Result.DeformedMinBounds	= (float3)POSITIVE_INFINITY;
+	Result.DeformedMaxBounds	= (float3)NEGATIVE_INFINITY;
+	Result.CurSplineLength		= -1.0f; // Negative to mark as not started
+
+	Result.ShaderPrint.bIsActive	= false;
+	Result.LocalToTWS				= (float4x4)0;
 
 	return Result;
 }
