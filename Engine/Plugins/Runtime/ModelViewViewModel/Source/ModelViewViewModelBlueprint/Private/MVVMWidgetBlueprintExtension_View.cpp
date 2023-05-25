@@ -130,6 +130,12 @@ void UMVVMWidgetBlueprintExtension_View::HandleFinishCompilingClass(UWidgetBluep
 			// Does it have any bindings or any sources
 			if (ViewExtension->GetViewModelCreators().Num() > 0 || const_cast<const UMVVMViewClass*>(ViewExtension)->GetCompiledBindings().Num() > 0)
 			{
+				// Test if parent also has a view
+				if (Class->GetExtension<UMVVMViewClass>(true))
+				{
+					CurrentCompilerContext->GetCompilerContext().MessageLog.Warning(*LOCTEXT("MoreThanOneViewWarning", "There is more than one view.").ToString());
+				}
+
 				CurrentCompilerContext->AddExtension(Class, ViewExtension);
 			}
 		}
