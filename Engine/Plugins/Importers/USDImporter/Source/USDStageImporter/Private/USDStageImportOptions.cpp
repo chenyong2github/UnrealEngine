@@ -18,6 +18,7 @@ UUsdStageImportOptions::UUsdStageImportOptions(const FObjectInitializer& ObjectI
 	bImportSkeletalAnimations = true;
 	bImportLevelSequences = true;
 	bImportMaterials = true;
+	bImportGroomAssets = true;
 	bImportOnlyUsedMaterials = false;
 
 	PurposesToImport = (int32) (EUsdPurpose::Default | EUsdPurpose::Proxy | EUsdPurpose::Render | EUsdPurpose::Guide);
@@ -83,6 +84,7 @@ void UsdUtils::AddAnalyticsAttributes(
 	InOutAttributes.Emplace( TEXT( "ImportSkeletalAnimations" ), LexToString( Options.bImportSkeletalAnimations ) );
 	InOutAttributes.Emplace( TEXT( "ImportLevelSequences" ), LexToString( Options.bImportLevelSequences ) );
 	InOutAttributes.Emplace( TEXT( "ImportMaterials" ), LexToString( Options.bImportMaterials ) );
+	InOutAttributes.Emplace( TEXT( "ImportGroomAssets" ), LexToString( Options.bImportGroomAssets ) );
 	InOutAttributes.Emplace( TEXT( "ImportOnlyUsedMaterials" ), LexToString( Options.bImportOnlyUsedMaterials) );
 	if ( Options.PrimsToImport != TArray<FString>{ TEXT( "/" ) } )
 	{

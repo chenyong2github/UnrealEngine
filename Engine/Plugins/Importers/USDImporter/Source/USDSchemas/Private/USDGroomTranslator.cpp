@@ -362,7 +362,7 @@ bool FUsdGroomTranslator::IsGroomPrim() const
 
 void FUsdGroomTranslator::CreateAssets()
 {
-	if (!IsGroomPrim())
+	if (!Context->bAllowParsingGroomAssets || !IsGroomPrim())
 	{
 		return Super::CreateAssets();
 	}
@@ -374,7 +374,7 @@ void FUsdGroomTranslator::CreateAssets()
 
 USceneComponent* FUsdGroomTranslator::CreateComponents()
 {
-	if (!IsGroomPrim())
+	if (!Context->bAllowParsingGroomAssets || !IsGroomPrim())
 	{
 		return Super::CreateComponents();
 	}
@@ -395,7 +395,7 @@ USceneComponent* FUsdGroomTranslator::CreateComponents()
 
 void FUsdGroomTranslator::UpdateComponents(USceneComponent* SceneComponent)
 {
-	if (!IsGroomPrim())
+	if (!Context->bAllowParsingGroomAssets || !IsGroomPrim())
 	{
 		Super::UpdateComponents(SceneComponent);
 	}
@@ -448,7 +448,7 @@ void FUsdGroomTranslator::UpdateComponents(USceneComponent* SceneComponent)
 
 bool FUsdGroomTranslator::CollapsesChildren(ECollapsingType CollapsingType) const
 {
-	if (!IsGroomPrim())
+	if (!Context->bAllowParsingGroomAssets || !IsGroomPrim())
 	{
 		return Super::CollapsesChildren(CollapsingType);
 	}
@@ -458,7 +458,7 @@ bool FUsdGroomTranslator::CollapsesChildren(ECollapsingType CollapsingType) cons
 
 bool FUsdGroomTranslator::CanBeCollapsed(ECollapsingType CollapsingType) const
 {
-	if (!IsGroomPrim())
+	if (!Context->bAllowParsingGroomAssets || !IsGroomPrim())
 	{
 		return Super::CanBeCollapsed(CollapsingType);
 	}
@@ -468,7 +468,7 @@ bool FUsdGroomTranslator::CanBeCollapsed(ECollapsingType CollapsingType) const
 
 TSet<UE::FSdfPath> FUsdGroomTranslator::CollectAuxiliaryPrims() const
 {
-	if (!IsGroomPrim())
+	if (!Context->bAllowParsingGroomAssets || !IsGroomPrim())
 	{
 		return Super::CollectAuxiliaryPrims();
 	}

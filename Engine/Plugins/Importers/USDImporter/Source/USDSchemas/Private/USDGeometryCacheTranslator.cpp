@@ -901,7 +901,7 @@ USceneComponent* FUsdGeometryCacheTranslator::CreateComponents()
 				);
 
 				// Check if the prim has the GroomBinding schema and setup the component and assets necessary to bind the groom to the GeometryCache
-				if (UsdUtils::PrimHasSchema(GetPrim(), UnrealIdentifiers::GroomBindingAPI))
+				if (UsdUtils::PrimHasSchema(GetPrim(), UnrealIdentifiers::GroomBindingAPI) && Context->bAllowParsingGroomAssets)
 				{
 					UsdGroomTranslatorUtils::CreateGroomBindingAsset(
 						GetPrim(),
