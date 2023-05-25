@@ -107,6 +107,17 @@ enum EConsoleVariableFlags
 	/* CVars with this flag will be excluded from the device profile previews. */
 	ECVF_ExcludeFromPreview = 0x1000,
 
+	/**
+	 * CVars with this flag will be saved into local temp file for next boot after hotfixed. Normally use for feature switch which is too early, even before launching the hotfix http request
+	 * Use it carefully with these constrains in mind: 
+	 *  - WARNING: This exposes the config to end user who could change it through the local temp file in shipping client, it's your responsibility to make sure client can't "legally" cheat through this type of CVar;
+	 *  - For the first time get hotfixed, the value will change from default value during boot to the hotfixed value after the hotfix http request, so make sure caching it when boot if the logic doesn't support to change at runtime;
+	 *  - When there is a new released game version, the saved local temp file of last version could still be there. So it will still got read once. Keep the logic work well with the old value, or remove the CVar if the old value no longer supported;
+	 *  - Only set the default value in code, don't set default value in [ConsoleVariables] section in the Engine.ini, otherwise reading the Engine.ini shipped within the game will overwrite the hotfixed value. This constrain also means it won't support undo at runtime;
+	 *  - It will only work for game client, not for dedicated servers which will be dynamically allocated on different server instances.
+	 */
+	ECVF_SaveForNextBoot = 0x2000,
+
 	// ------------------------------------------------
 
 	/* Set flags */

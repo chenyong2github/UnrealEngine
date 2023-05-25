@@ -5,6 +5,9 @@
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/FileHelper.h"
+
+#define UE_HOTFIX_FOR_NEXT_BOOT_FILENAME TEXT("HotfixForNextBoot.ini")
 
 namespace UE::ConfigUtilities
 {
@@ -30,6 +33,80 @@ const TCHAR* ConvertValueFromHumanFriendlyValue( const TCHAR* Value )
 	return Value;
 }
 
+// The dedicated server could have been deployed through cloud provider and allocated dynamically. 
+// So can't really save the file for next boot, consider the runtime args for cvar instead
+#if !UE_SERVER
+void LoadCVarsFromFileForNextBoot(TMap<FString, FString>& OutCVars)
+{
+	IFileManager& FileManager = IFileManager::Get();
+
+	const FString FullPath = FPaths::ProjectPersistentDownloadDir() / UE_HOTFIX_FOR_NEXT_BOOT_FILENAME;
+
+	if (!FileManager.FileExists(*FullPath))
+	{
+		return;
+	}
+
+	FString Content;
+	FFileHelper::LoadFileToString(Content, *FullPath);
+
+	// Delete it so that we don't worry about it when write.
+	// Also if for some reason the switch don't work well when boot even before getting latest hotfix, 
+	// the next boot will likely succeed by default like before without this file
+	FileManager.Delete(*FullPath);
+
+	TArray<FString> Lines;
+	Content.ParseIntoArrayLines(Lines);
+
+	for (const FString& Line : Lines)
+	{
+		FString Key;
+		FString Value;
+		if (ensure(Line.Split(TEXT("="), &Key, &Value)))
+		{
+			OutCVars.FindOrAdd(Key) = Value;
+		}
+	}
+}
+#endif // !UE_SERVER
+
+void SaveCVarForNextBoot(const TCHAR* Key, const TCHAR* Value)
+{
+#if !UE_SERVER
+	TMap<FString, FString> CVarsToSave;
+
+	// Read from file, in case there are more than one cvar hotfix event in same run
+	LoadCVarsFromFileForNextBoot(CVarsToSave);
+
+	CVarsToSave.FindOrAdd(Key) = Value;
+
+	FString ContentToSave;
+	for (const TPair<FString, FString>& CVarPair : CVarsToSave)
+	{
+		ContentToSave.Append(FString::Format(TEXT("{0}={1}\r\n"), { CVarPair.Key, CVarPair.Value }));
+	}
+
+	const FString FullPath = FPaths::ProjectPersistentDownloadDir() / UE_HOTFIX_FOR_NEXT_BOOT_FILENAME;
+	FFileHelper::SaveStringToFile(ContentToSave, *FullPath);
+#endif // !UE_SERVER
+}
+
+void ApplyCVarsFromBootHotfix()
+{
+#if !UE_SERVER
+	TMap<FString, FString> CVarsToApply;
+	LoadCVarsFromFileForNextBoot(CVarsToApply);
+
+	for (const TPair<FString, FString>& CVarPair : CVarsToApply)
+	{
+		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarPair.Key); 
+		if (CVar)
+		{
+			CVar->Set(*CVarPair.Value, ECVF_SetByConsoleVariablesIni);
+		}
+	}
+#endif // !UE_SERVER
+}
 
 void OnSetCVarFromIniEntry(const TCHAR *IniFile, const TCHAR *Key, const TCHAR* Value, uint32 SetBy, bool bAllowCheating, bool bNoLogging)
 {
@@ -109,6 +186,11 @@ void OnSetCVarFromIniEntry(const TCHAR *IniFile, const TCHAR *Key, const TCHAR* 
 				}
 			}
 #endif // !DISABLE_CHEAT_CVARS
+		}
+
+		if (CVar->TestFlags(ECVF_SaveForNextBoot) && (SetBy & ECVF_SetByConsoleVariablesIni))
+		{
+			SaveCVarForNextBoot(Key, Value);
 		}
 	}
 	else

@@ -22,6 +22,11 @@ namespace UE::ConfigUtilities
 	 * Single function to set a cvar from ini (handing friendly names, cheats for shipping and message about cheats in non shipping)
 	 */
 	CORE_API void OnSetCVarFromIniEntry(const TCHAR* IniFile, const TCHAR* Key, const TCHAR* Value, uint32 SetBy, bool bAllowCheating=false, bool bNoLogging=false);
+
+	/**
+	 * When boot the game, use this function to apply cvars from last saved file from hotfix
+	 */
+	CORE_API void ApplyCVarsFromBootHotfix();
 	
 	/**
 	 * Helper function to read the contents of an ini file and a specified group of cvar parameters, where sections in the ini file are marked [InName]
