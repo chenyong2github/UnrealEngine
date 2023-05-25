@@ -11,6 +11,8 @@
 #include "Components/SplineMeshComponent.h"
 #include "StaticMeshResources.h"
 #include "StaticMeshSceneProxy.h"
+#include "SplineMeshShaderParams.h"
+#include "NaniteSceneProxy.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SplineMeshVertexFactory
@@ -80,7 +82,26 @@ private:
 /** Scene proxy for SplineMesh instance */
 class FSplineMeshSceneProxy final : public FStaticMeshSceneProxy
 {
-protected:
+public:
+	FSplineMeshSceneProxy(USplineMeshComponent* InComponent);
+	void InitVertexFactory(USplineMeshComponent* InComponent, int32 InLODIndex, FColorVertexBuffer*);
+
+	// FPrimitiveSceneProxy interface
+	virtual SIZE_T GetTypeHash() const override;
+	virtual bool GetShadowMeshElement(int32 LODIndex, int32 BatchIndex, uint8 InDepthPriorityGroup, FMeshBatch& OutMeshBatch, bool bDitheredLODTransition) const override;
+	virtual bool GetMeshElement(int32 LODIndex, int32 BatchIndex, int32 ElementIndex, uint8 InDepthPriorityGroup, bool bUseSelectionOutline, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const override;
+	virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const override;
+	virtual bool GetCollisionMeshElement(int32 LODIndex, int32 BatchIndex, int32 ElementIndex, uint8 InDepthPriorityGroup, const FMaterialRenderProxy* RenderProxy, FMeshBatch& OutMeshBatch) const override;
+#if RHI_RAYTRACING
+	virtual bool HasRayTracingRepresentation() const override { return true; }
+	virtual bool IsRayTracingRelevant() const override { return true; }
+	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
+#endif // RHI_RAYTRACING
+
+	/** Parameters that define the spline, used to deform mesh */
+	FSplineMeshShaderParams SplineParams;
+
+private:
 	struct FLODResources
 	{
 		/** Pointer to vertex factory object */
@@ -91,56 +112,22 @@ protected:
 		{
 		}
 	};
-public:
-	SIZE_T GetTypeHash() const override;
 
-	FSplineMeshSceneProxy(USplineMeshComponent* InComponent);
-
-	void InitVertexFactory(USplineMeshComponent* InComponent, int32 InLODIndex, FColorVertexBuffer*);
-
-	/** Sets up a shadow FMeshBatch for a specific LOD. */
-	virtual bool GetShadowMeshElement(int32 LODIndex, int32 BatchIndex, uint8 InDepthPriorityGroup, FMeshBatch& OutMeshBatch, bool bDitheredLODTransition) const override;
-
-	/** Sets up a FMeshBatch for a specific LOD and element. */
-	virtual bool GetMeshElement(int32 LODIndex, int32 BatchIndex, int32 ElementIndex, uint8 InDepthPriorityGroup, bool bUseSelectionOutline, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const override;
-
-	/** Sets up a wireframe FMeshBatch for a specific LOD. */
-	virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const override;
-
-	/** Sets up a collision FMeshBatch for a specific LOD and element. */
-	virtual bool GetCollisionMeshElement(int32 LODIndex, int32 BatchIndex, int32 ElementIndex, uint8 InDepthPriorityGroup, const FMaterialRenderProxy* RenderProxy, FMeshBatch& OutMeshBatch) const override;
-
-#if RHI_RAYTRACING
-	virtual bool HasRayTracingRepresentation() const override { return true; }
-	virtual bool IsRayTracingRelevant() const override { return true; }
-	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
-#endif // RHI_RAYTRACING
-
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
-	{
-		return FStaticMeshSceneProxy::GetViewRelevance(View);
-	}
-
-	// 	  virtual uint32 GetMemoryFootprint( void ) const { return 0; }
-
-private:
 	void SetupMeshBatchForSpline(int32 InLODIndex, FMeshBatch& OutMeshBatch) const;
 
-public:
-	/** Parameters that define the spline, used to deform mesh */
-	FSplineMeshParams SplineParams;
-	/** Axis (in component space) that is used to determine X axis for co-ordinates along spline */
-	FVector SplineUpDir;
-	/** Smoothly (cubic) interpolate the Roll and Scale params over spline. */
-	bool bSmoothInterpRollScale;
-	/** Chooses the forward axis for the spline mesh orientation */
-	ESplineMeshAxis::Type ForwardAxis;
-
-	/** Minimum Z value of the entire mesh */
-	float SplineMeshMinZ;
-	/** Range of Z values over entire mesh */
-	float SplineMeshScaleZ;
-
-protected:
 	TArray<FLODResources> LODResources;
+};
+
+/** Scene proxy for SplineMesh instance for Nanite */
+class FNaniteSplineMeshSceneProxy final : public Nanite::FSceneProxy
+{
+public:
+	FNaniteSplineMeshSceneProxy(const Nanite::FMaterialAudit& MaterialAudit, USplineMeshComponent* InComponent);
+
+	// FPrimitiveSceneProxy interface
+	virtual SIZE_T GetTypeHash() const override;
+	virtual void OnTransformChanged() override;
+
+	/** Parameters that define the spline, used to deform mesh */
+	FSplineMeshShaderParams SplineParams;
 };

@@ -151,7 +151,7 @@ struct FMaterialShader
 	FNaniteTransformedTri		TransformedTri;
 #endif
 
-	float3 EvaluateWorldPositionOffset( uint VertIndex, float3 PointLocal )
+	float3 EvaluateWorldPositionOffset( FNanitePostDeformVertex InputVert )
 	{
 		float3 WorldPositionOffset = 0.0f;
 	#if NANITE_VERTEX_PROGRAMMABLE
@@ -159,8 +159,6 @@ struct FMaterialShader
 		BRANCH
 		if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
 		{
-			const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, VertIndex, NANITE_NUM_TEXCOORDS_TO_DECODE);
-
 			// Should be Pow2(InvScale) but that requires renormalization
 			float3x3 LocalToWorld = LWCToFloat3x3(InstanceData.LocalToWorld);
 			float3 InvScale = InstanceData.InvNonUniformScale;
@@ -170,7 +168,7 @@ struct FMaterialShader
 
 			FMaterialVertexParameters VertexParameters = MakeInitializedMaterialVertexParameters();
 			SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, true /* WPO */);
-			SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData.LocalToTranslatedWorld, LocalToWorld, PointLocal);
+			SetVertexParameterAttributeData(VertexParameters, InputVert, InstanceDynamicData.LocalToTranslatedWorld, LocalToWorld);
 
 			WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
 		}

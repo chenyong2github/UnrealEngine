@@ -657,6 +657,7 @@ void BuildNaniteDrawCommands(FScene* Scene, FPrimitiveSceneInfo* PrimitiveSceneI
 						FNaniteRasterPipeline& RasterPipeline = PipelinesCommand.RasterPipelines.Emplace_GetRef();
 						RasterPipeline.RasterMaterial = MaterialSection.RasterMaterialProxy;
 						RasterPipeline.bIsTwoSided = !!MaterialSection.MaterialRelevance.bTwoSided;
+						RasterPipeline.bSplineMesh = NaniteProxy->IsSplineMesh();
 						RasterPipeline.bPerPixelEval = MaterialSection.MaterialRelevance.bMasked ||
 													   MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
 

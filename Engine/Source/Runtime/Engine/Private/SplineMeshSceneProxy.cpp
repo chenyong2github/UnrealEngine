@@ -2,12 +2,14 @@
 
 #include "SplineMeshSceneProxy.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialDomain.h"
 #include "MeshMaterialShader.h"
 #include "Misc/DelayedAutoRegister.h"
 #include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
 #include "RayTracingInstance.h"
+#include "SceneInterface.h"
 
 IMPLEMENT_TYPE_LAYOUT(FSplineMeshVertexFactoryShaderParameters);
 
@@ -93,13 +95,20 @@ FSplineMeshSceneProxy::FSplineMeshSceneProxy(USplineMeshComponent* InComponent) 
 	}
 
 	// Copy spline params from component
-	SplineParams = InComponent->SplineParams;
-	SplineUpDir = InComponent->SplineUpDir;
-	bSmoothInterpRollScale = InComponent->bSmoothInterpRollScale;
-	ForwardAxis = InComponent->ForwardAxis;
+	SplineParams = InComponent->CalculateShaderParams();
 
-	// Fill in info about the mesh
-	InComponent->CalculateScaleZAndMinZ(SplineMeshScaleZ, SplineMeshMinZ);
+	// If we're using GPU Scene, we place the spline mesh parameters in the instance data buffer
+	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
+	{
+		InstanceSplineMeshParams.Emplace(SplineParams);
+		bHasPerInstanceSplineMeshParams = true;
+
+		// We don't actually move the InstanceSceneData, but we have to add at least one to provide the spline
+		// mesh params to the payload
+		InstanceSceneData.SetNum(1);
+		InstanceSceneData[0].LocalToPrimitive.SetIdentity();
+		bSupportsInstanceDataBuffer = true;
+	}
 
 	for (int32 LODIndex = 0; LODIndex < LODs.Num(); LODIndex++)
 	{
@@ -123,7 +132,7 @@ void FSplineMeshSceneProxy::SetupMeshBatchForSpline(int32 InLODIndex, FMeshBatch
 	check(OutMeshBatch.Elements.Num() == 1);
 	OutMeshBatch.VertexFactory = OutMeshBatch.Elements[0].bUserDataIsColorVertexBuffer ? VFs.SplineVertexFactoryOverrideColorVertexBuffer : VFs.SplineVertexFactory;
 	check(OutMeshBatch.VertexFactory);
-	OutMeshBatch.Elements[0].SplineMeshSceneProxy = const_cast<FSplineMeshSceneProxy*>(this);
+	OutMeshBatch.Elements[0].SplineMeshSceneProxy = this;
 	OutMeshBatch.Elements[0].bIsSplineProxy = true;
 	OutMeshBatch.Elements[0].PrimitiveUniformBuffer = GetUniformBuffer();
 	OutMeshBatch.ReverseCulling ^= (SplineParams.StartScale.X < 0) ^ (SplineParams.StartScale.Y < 0);
@@ -257,3 +266,57 @@ void FSplineMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTracingMate
 		LODIndex);
 }
 #endif // RHI_RAYTRACING
+
+FNaniteSplineMeshSceneProxy::FNaniteSplineMeshSceneProxy(const Nanite::FMaterialAudit& NaniteMaterials, USplineMeshComponent* InComponent) :
+	Nanite::FSceneProxy(NaniteMaterials, InComponent)
+{
+	bSupportsDistanceFieldRepresentation = false;
+	
+	// Mark ourselves as a spline mesh
+	bSplineMesh = true;
+
+	// Make sure all the materials are okay to be rendered as a spline mesh or reset them
+ 	bool bAnyReset = false;
+	for (auto& Section : GetMaterialSections())
+	{
+		if (Section.ShadingMaterialProxy)
+		{
+			UMaterialInterface* ShadingMaterial = Section.ShadingMaterialProxy->GetMaterialInterface();
+			if (!ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_SplineMesh))
+			{
+				Section.ResetToDefaultMaterial();
+				bAnyReset = true;
+			}
+		}
+	}
+
+	if (bAnyReset)
+	{
+		// Update any data that is dependent upon shading materials
+		OnMaterialsUpdated();
+	}
+
+	// Copy spline params from component
+	SplineParams = InComponent->CalculateShaderParams();
+
+	// Place the spline mesh parameters in the instance data buffer
+	InstanceSplineMeshParams.Emplace(SplineParams);
+	bHasPerInstanceSplineMeshParams = true;
+}
+
+SIZE_T FNaniteSplineMeshSceneProxy::GetTypeHash() const
+{
+	static size_t UniquePointer;
+	return reinterpret_cast<size_t>(&UniquePointer);
+}
+
+void FNaniteSplineMeshSceneProxy::OnTransformChanged()
+{
+	// Call Nanite parent implementation
+	Nanite::FSceneProxy::OnTransformChanged();
+
+	// Override the instance local bounds with the bounds that were calculated (as opposed to using the mesh bounds)
+	// NOTE: The proxy's local bounds have already been padded for WPO/Displacement
+	check(InstanceLocalBounds.Num() == 1);
+	SetInstanceLocalBounds(0, GetLocalBounds(), false);
+}

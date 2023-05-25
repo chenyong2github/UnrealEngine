@@ -2036,6 +2036,16 @@ uint DivideAndRoundUp(uint Dividend, uint Divisor, uint DivisorAsBitShift)
 	return (Dividend + Divisor - 1) >> DivisorAsBitShift;
 }
 
+float UNorm16ToF32(uint UNorm)
+{
+	return (UNorm & 0xFFFFu) / 65535.0f;
+}
+
+float SNorm16ToF32(uint SNorm)
+{
+	return UNorm16ToF32(SNorm) * 2.0f - 1.0f;
+}
+
 // see PixelShaderOutputCommon
 struct FPixelShaderIn
 {

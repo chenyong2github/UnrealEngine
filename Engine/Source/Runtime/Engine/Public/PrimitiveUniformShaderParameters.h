@@ -9,9 +9,9 @@
 #include "RenderResource.h"
 #include "ShaderParameters.h"
 #include "UniformBuffer.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "InstanceUniformShaderParameters.h"
 #include "LightmapUniformShaderParameters.h"
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "UnifiedBuffer.h"
 #endif
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

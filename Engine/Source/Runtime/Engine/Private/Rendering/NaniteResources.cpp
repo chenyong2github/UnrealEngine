@@ -76,6 +76,12 @@ static TAutoConsoleVariable<int32> CVarNaniteAllowTessellation(
 	TEXT("Whether to enable support for (highly experimental) Nanite runtime tessellation"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarNaniteAllowSplineMeshes(
+	TEXT("r.Nanite.AllowSplineMeshes"),
+	0, // Off by default
+	TEXT("Whether to enable support for (highly experimental) Nanite spline meshes"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
 int32 GNaniteAllowMaskedMaterials = 1;
 FAutoConsoleVariableRef CVarNaniteAllowMaskedMaterials(
 	TEXT("r.Nanite.AllowMaskedMaterials"),
@@ -447,6 +453,18 @@ void FVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPerm
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), Parameters.ShaderType->GetFrequency() != SF_RayHitGroup);
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_RAYTRACING_UNIFORM_BUFFER"), Parameters.ShaderType->GetFrequency() == SF_RayHitGroup);
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
+
+	if (NaniteSplineMeshesSupported())
+	{
+		if (Parameters.MaterialParameters.bIsUsedWithSplineMeshes || Parameters.MaterialParameters.bIsDefaultMaterial)
+		{
+			// NOTE: This effectively means the logic to deform vertices will be added to the barycentrics calculation in the
+			// Nanite shading PS, but will be branched over on instances that do not supply spline mesh parameters. If that
+			// frequently causes occupancy issues, we may want to consider ways to split the spline meshes into their own
+			// shading bin and permute the PS.
+			OutEnvironment.SetDefine(TEXT("USE_SPLINEDEFORM"), 1);
+		}
+	}
 }
 
 void FVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
@@ -463,6 +481,20 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(Nanite::FVertexFactory, "/Engine/Private/Nanite/Na
 	| EVertexFactoryFlags::SupportsRayTracing
 	| EVertexFactoryFlags::SupportsLumenMeshCards
 );
+
+void FSceneProxyBase::FMaterialSection::ResetToDefaultMaterial(bool bShading, bool bRaster)
+{
+	UMaterialInterface* ShadingMaterial = bHidden ? GEngine->NaniteHiddenSectionMaterial.Get() : UMaterial::GetDefaultMaterial(MD_Surface);
+	FMaterialRenderProxy* DefaultRP = ShadingMaterial->GetRenderProxy();
+	if (bShading)
+	{
+		ShadingMaterialProxy = DefaultRP;
+	}
+	if (bRaster)
+	{
+		RasterMaterialProxy = DefaultRP;
+	}
+}
 
 #if WITH_EDITOR
 HHitProxy* FSceneProxyBase::CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies)
@@ -532,27 +564,55 @@ void FSceneProxyBase::DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* 
 	}
 }
 
-void FSceneProxyBase::CalculateMinMaxDisplacement()
+void FSceneProxyBase::OnMaterialsUpdated()
 {
+	CombinedMaterialRelevance = FMaterialRelevance();
 	MaxWPOExtent = 0.0f;
 	MinMaxMaterialDisplacement = FVector2f::Zero();
+	bHasProgrammableRaster = false;
 
 	static const auto TessellationEnabledVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.Tessellation"));
 	const bool bTessellationEnabled = (TessellationEnabledVar && TessellationEnabledVar->GetValueOnAnyThread() != 0);
 	const bool bUseTessellation = bTessellationEnabled && NaniteTessellationSupported();
 
-	for (const auto& MaterialSection : GetMaterialSections())
+	for (auto& MaterialSection : MaterialSections)
 	{
-		MaxWPOExtent = FMath::Max(MaxWPOExtent, MaterialSection.MaxWPOExtent);
+		const UMaterialInterface* ShadingMaterial = MaterialSection.ShadingMaterialProxy->GetMaterialInterface();
 
+		// Update section relevance and combined material relevance
+		MaterialSection.MaterialRelevance = ShadingMaterial->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
+		CombinedMaterialRelevance |= MaterialSection.MaterialRelevance;
+
+		// Determine max extent of WPO
+		if (bEvaluateWorldPositionOffset && MaterialSection.MaterialRelevance.bUsesWorldPositionOffset)
+		{
+			MaterialSection.MaxWPOExtent = ShadingMaterial->GetMaxWorldPositionOffsetDisplacement();
+
+			MaxWPOExtent = FMath::Max(MaxWPOExtent, MaterialSection.MaxWPOExtent);
+		}
+		else
+		{
+			MaterialSection.MaxWPOExtent = 0.0f;
+		}
+
+		// Determine min/max tessellation displacement
 		if (bUseTessellation && MaterialSection.MaterialRelevance.bUsesDisplacement)
 		{
+			MaterialSection.DisplacementScaling = ShadingMaterial->GetDisplacementScaling();
+			
 			const float MinDisplacement = (0.0f - MaterialSection.DisplacementScaling.Center) * MaterialSection.DisplacementScaling.Magnitude;
 			const float MaxDisplacement = (1.0f - MaterialSection.DisplacementScaling.Center) * MaterialSection.DisplacementScaling.Magnitude;
 
 			MinMaxMaterialDisplacement.X = FMath::Min(MinMaxMaterialDisplacement.X, MinDisplacement);
 			MinMaxMaterialDisplacement.Y = FMath::Max(MinMaxMaterialDisplacement.Y, MaxDisplacement);
 		}
+		else
+		{
+			MaterialSection.DisplacementScaling = FDisplacementScaling();
+		}
+
+		// Determine if any material has programmable raster
+		bHasProgrammableRaster |= MaterialSection.IsProgrammableRaster(bEvaluateWorldPositionOffset);
 	}
 }
 
@@ -661,6 +721,17 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 		UMaterialInterface* ShadingMaterial = nullptr;
 		if (!MaterialSection.bHidden)
 		{
+			// Mark the material mask
+			if (MaterialSection.MaterialIndex >= 32u)
+			{
+				NaniteMaterialMask.Y |= (1u << (MaterialSection.MaterialIndex - 32u));
+			}
+			else
+			{
+				NaniteMaterialMask.X |= (1u << MaterialSection.MaterialIndex);
+			}
+
+			// Get the shading material
 			ShadingMaterial = MaterialAudit.GetSafeMaterial(MaterialSection.MaterialIndex);
 
 			// Copy over per-instance material flags for this section
@@ -686,54 +757,24 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 			ShadingMaterial = MaterialSection.bHidden ? GEngine->NaniteHiddenSectionMaterial.Get() : UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 
-		if (!MaterialSection.bHidden)
-		{
-			if (MaterialSection.MaterialIndex >= 32u)
-			{
-				NaniteMaterialMask.Y |= (1u << (MaterialSection.MaterialIndex - 32u));
-			}
-			else
-			{
-				NaniteMaterialMask.X |= (1u << MaterialSection.MaterialIndex);
-			}
-		}
-
-		MaterialSection.MaterialRelevance = ShadingMaterial->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
-		CombinedMaterialRelevance |= MaterialSection.MaterialRelevance;
-
 		MaterialSection.ShadingMaterialProxy = ShadingMaterial->GetRenderProxy();
-
-		bool bProgrammableRasterMaterial = false;
-		if (bEvaluateWorldPositionOffset && MaterialSection.MaterialRelevance.bUsesWorldPositionOffset)
-		{
-			bProgrammableRasterMaterial = true;
-			MaterialSection.MaxWPOExtent = ShadingMaterial->GetMaxWorldPositionOffsetDisplacement();
-		}
-
-		if (MaterialSection.MaterialRelevance.bUsesDisplacement)
-		{
-			MaterialSection.DisplacementScaling = ShadingMaterial->GetDisplacementScaling();
-		}
-
-		// NOTE: MaterialRelevance.bTwoSided does not go into bHasProgrammableRaster because we want only want this flag to control culling, not a full raster bin
-		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
-		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bMasked;
-		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesDisplacement;
 
 		if (MaterialSection.bHidden)
 		{
-			MaterialSection.RasterMaterialProxy = GEngine->NaniteHiddenSectionMaterial->GetRenderProxy();
+			MaterialSection.RasterMaterialProxy = GEngine->NaniteHiddenSectionMaterial.Get()->GetRenderProxy();
+		}
+		else if (MaterialSection.IsProgrammableRaster(bEvaluateWorldPositionOffset))
+		{
+			MaterialSection.RasterMaterialProxy = MaterialSection.ShadingMaterialProxy;
 		}
 		else
 		{
-			MaterialSection.RasterMaterialProxy = bProgrammableRasterMaterial ? MaterialSection.ShadingMaterialProxy : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			MaterialSection.RasterMaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 		}
-
-		bHasProgrammableRaster |= bProgrammableRasterMaterial;
 	}
 
-	// Now that the material sections are initialized, we can determine MaxWPOExtent and MinMaxMaterialDisplacement
-	CalculateMinMaxDisplacement();
+	// Now that the material sections are initialized, we can make material-dependent calculations
+	OnMaterialsUpdated();
 
 	// Nanite supports distance field representation for fully opaque meshes.
 	bSupportsDistanceFieldRepresentation = CombinedMaterialRelevance.bOpaque && DistanceFieldData && DistanceFieldData->IsValid();;
@@ -1056,24 +1097,18 @@ void FSceneProxy::CreateRenderThreadResources()
 
 void FSceneProxy::OnEvaluateWorldPositionOffsetChanged_RenderThread()
 {
-	FMaterialRenderProxy* DefaultRasterProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-
 	bHasProgrammableRaster = false;
 	for (FMaterialSection& MaterialSection : MaterialSections)
 	{
-		bool bProgrammableRasterMaterial = false;
-		if (bEvaluateWorldPositionOffset)
+		if (MaterialSection.IsProgrammableRaster(bEvaluateWorldPositionOffset))
 		{
-			bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesWorldPositionOffset;
+			MaterialSection.RasterMaterialProxy = MaterialSection.ShadingMaterialProxy;
+			bHasProgrammableRaster = true;
 		}
-
-		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
-		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bMasked;
-		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesDisplacement;
-
-		MaterialSection.RasterMaterialProxy = bProgrammableRasterMaterial ? MaterialSection.ShadingMaterialProxy : DefaultRasterProxy;
-
-		bHasProgrammableRaster |= bProgrammableRasterMaterial;
+		else
+		{
+			MaterialSection.ResetToDefaultMaterial(false, true);
+		}
 	}
 
 	GetRendererModule().RequestStaticMeshUpdate(GetPrimitiveSceneInfo());
@@ -2378,6 +2413,18 @@ void FNaniteVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShad
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 1);
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
 	OutEnvironment.SetDefine(TEXT("NANITE_COMPUTE_SHADE"), 1);
+
+	if (NaniteSplineMeshesSupported())
+	{
+		if (Parameters.MaterialParameters.bIsUsedWithSplineMeshes || Parameters.MaterialParameters.bIsDefaultMaterial)
+		{
+			// NOTE: This effectively means the logic to deform vertices will be added to the barycentrics calculation in the
+			// Nanite shading CS, but will be branched over on instances that do not supply spline mesh parameters. If that
+			// frequently causes occupancy issues, we may want to consider ways to split the spline meshes into their own
+			// shading bin and permute the CS.
+			OutEnvironment.SetDefine(TEXT("USE_SPLINEDEFORM"), 1);
+		}
+	}
 
 	OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 }

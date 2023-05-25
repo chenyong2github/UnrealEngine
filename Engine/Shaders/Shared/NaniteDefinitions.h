@@ -159,6 +159,7 @@
 #define NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET				0x2
 #define NANITE_MATERIAL_FLAG_PIXEL_DISCARD					0x4
 #define NANITE_MATERIAL_FLAG_DISPLACEMENT					0x8
+#define NANITE_MATERIAL_FLAG_SPLINE_MESH					0x10
 
 #define NANITE_MATERIAL_VERTEX_PROGRAMMABLE_FLAGS			(NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET | NANITE_MATERIAL_FLAG_DISPLACEMENT)
 #define NANITE_MATERIAL_PIXEL_PROGRAMMABLE_FLAGS			(NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET | NANITE_MATERIAL_FLAG_PIXEL_DISCARD)
@@ -241,6 +242,7 @@ struct FNaniteMaterialFlags
 	bool bPixelDepthOffset;
 	bool bPixelDiscard;
 	bool bDisplacement;
+	bool bSplineMesh;
 
 	bool bVertexProgrammable;
 	bool bPixelProgrammable;
@@ -253,6 +255,7 @@ INLINE_ATTR FNaniteMaterialFlags UnpackNaniteMaterialFlags(UINT_TYPE Packed)
 	MaterialFlags.bPixelDepthOffset = (Packed & NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET) != 0u;
 	MaterialFlags.bPixelDiscard = (Packed & NANITE_MATERIAL_FLAG_PIXEL_DISCARD) != 0u;
 	MaterialFlags.bDisplacement = (Packed & NANITE_MATERIAL_FLAG_DISPLACEMENT) != 0u;
+	MaterialFlags.bSplineMesh = (Packed & NANITE_MATERIAL_FLAG_SPLINE_MESH) != 0u;
 	MaterialFlags.bVertexProgrammable = (Packed & NANITE_MATERIAL_VERTEX_PROGRAMMABLE_FLAGS) != 0u;
 	MaterialFlags.bPixelProgrammable = (Packed & NANITE_MATERIAL_PIXEL_PROGRAMMABLE_FLAGS) != 0u;
 	return MaterialFlags;
@@ -295,6 +298,11 @@ INLINE_ATTR UINT_TYPE PackNaniteMaterialBitFlags(FNaniteMaterialFlags Flags)
 	if (Flags.bDisplacement)
 	{
 		MaterialBitFlags |= NANITE_MATERIAL_FLAG_DISPLACEMENT;
+	}
+
+	if (Flags.bSplineMesh)
+	{
+		MaterialBitFlags |= NANITE_MATERIAL_FLAG_SPLINE_MESH;
 	}
 
 	return MaterialBitFlags;

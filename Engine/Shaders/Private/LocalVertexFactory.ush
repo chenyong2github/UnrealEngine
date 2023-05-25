@@ -7,8 +7,8 @@
 #include "VertexFactoryCommon.ush"
 #include "LocalVertexFactoryCommon.ush"
 #include "LightmapData.ush"
-
 #include "GpuSkinCommon.ush"
+#include "SplineMeshCommon.ush"
 
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 
@@ -17,26 +17,10 @@ float4 InstancingOffset;
 uint InstanceOffset;
 #endif
 
-#if USE_SPLINEDEFORM
-float4 SplineParams[10];
-#define SplineStartPos			SplineParams[0].xyz
-#define SplineStartRoll			SplineParams[0].w
-#define SplineStartTangent		SplineParams[1].xyz
-#define SplineEndRoll			SplineParams[1].w
-#define SplineStartScale		SplineParams[2].xy
-#define SplineStartOffset		SplineParams[2].zw
-#define SplineEndPos			SplineParams[3].xyz
-#define SmoothInterpRollScale	SplineParams[3].w
-#define SplineEndTangent		SplineParams[4].xyz
-#define SplineMeshMinZ			SplineParams[4].w
-#define SplineEndScale			SplineParams[5].xy
-#define SplineEndOffset			SplineParams[5].zw
-#define SplineUpDir				SplineParams[6].xyz
-#define SplineMeshScaleZ		SplineParams[6].w
-#define SplineMeshDir			SplineParams[7].xyz
-#define SplineMeshX				SplineParams[8].xyz
-#define SplineMeshY				SplineParams[9].xyz
-#endif	// USE_SPLINEDEFORM
+// These currently still need to be bound loosely when not using GPUScene
+#if USE_SPLINEDEFORM && !VF_USE_PRIMITIVE_SCENE_DATA
+float4 SplineParams[SPLINE_MESH_PARAMS_FLOAT4_SIZE];
+#endif
 
 #ifndef SUPPORT_GPUSKIN_PASSTHROUGH
 #define SUPPORT_GPUSKIN_PASSTHROUGH 0
@@ -345,6 +329,13 @@ FInstanceSceneData GetInstanceData(FVertexFactoryIntermediates Intermediates)
 {
 	return Intermediates.SceneData.InstanceData;
 }
+
+#if USE_SPLINEDEFORM
+FSplineMeshShaderParams GetSplineMeshParams(FVertexFactoryIntermediates Intermediates)
+{
+	return GetInstanceData(Intermediates).SplineMeshParams;
+}
+#endif // USE_SPLINEDEFORM
 
 #if USE_INSTANCING
 
@@ -660,108 +651,11 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	return Result;
 }
 
-#if USE_SPLINEDEFORM
-	float3 SplineEvalPos(float3 StartPos, float3 StartTangent, float3 EndPos, float3 EndTangent, float A)
-	{
-		float A2 = A  * A;
-		float A3 = A2 * A;
-
-		return (((2*A3)-(3*A2)+1) * StartPos) + ((A3-(2*A2)+A) * StartTangent) + ((A3-A2) * EndTangent) + (((-2*A3)+(3*A2)) * EndPos);
-	}
-
-	float3 SplineEvalDir(float3 StartPos, float3 StartTangent, float3 EndPos, float3 EndTangent, float A)
-	{
-		float3 C = (6*StartPos) + (3*StartTangent) + (3*EndTangent) - (6*EndPos);
-		float3 D = (-6*StartPos) - (4*StartTangent) - (2*EndTangent) + (6*EndPos);
-		float3 E = StartTangent;
-
-		float A2 = A  * A;
-
-		return normalize((C * A2) + (D * A) + E);
-	}
-
-	/** Calculate full transform that defines frame along spline, given the Z of a vertex. */
-	float4x3 CalcSliceTransform(float ZPos)
-	{
-		// Find how far 'along' mesh we are
-		float Alpha = ZPos * SplineMeshScaleZ - SplineMeshMinZ;
-
-		// Apply hermite interp to Alpha if desired
-		float HermiteAlpha = SmoothInterpRollScale ? smoothstep(0.0, 1.0, Alpha) : Alpha;
-
-		// Then find the point and direction of the spline at this point along
-		float3 SplinePos = SplineEvalPos( SplineStartPos, SplineStartTangent, SplineEndPos, SplineEndTangent, Alpha );
-		float3 SplineDir = SplineEvalDir( SplineStartPos, SplineStartTangent, SplineEndPos, SplineEndTangent, Alpha );
-	
-		// Find base frenet frame
-		float3 BaseXVec = normalize( cross(SplineUpDir, SplineDir) );
-		float3 BaseYVec = normalize( cross(SplineDir, BaseXVec) );
-	
-		// Offset from the spline, using the frenet frame
-		float2 SliceOffset = lerp(SplineStartOffset, SplineEndOffset, HermiteAlpha);
-		SplinePos += SliceOffset.x * BaseXVec;
-		SplinePos += SliceOffset.y * BaseYVec;
-	
-		// Apply roll to frame around spline
-		float UseRoll = lerp(SplineStartRoll, SplineEndRoll, HermiteAlpha);
-		float SinAng, CosAng;
-		sincos(UseRoll, SinAng, CosAng);
-		float3 XVec = (CosAng * BaseXVec) - (SinAng * BaseYVec);
-		float3 YVec = (CosAng * BaseYVec) + (SinAng * BaseXVec);
-
-		// Find scale at this point along spline
-		float2 UseScale = lerp(SplineStartScale, SplineEndScale, HermiteAlpha);
-
-		XVec *= UseScale.x;
-		YVec *= UseScale.y;
-
-		// Build overall transform
-		float3x3 SliceTransform3 = mul(transpose(float3x3(SplineMeshDir, SplineMeshX, SplineMeshY)), float3x3(float3(0,0,0), XVec, YVec));
-		float4x3 SliceTransform = float4x3(SliceTransform3[0], SliceTransform3[1], SliceTransform3[2], SplinePos);
-
-		return SliceTransform;
-	}
-
-	/** Calculate rotation matrix that defines frame along spline, given the Z of a vertex. */
-	half3x3 CalcSliceRot(float ZPos)
-	{
-		// Find how far 'along' mesh we are
-		half Alpha = ZPos * SplineMeshScaleZ - SplineMeshMinZ;
-
-		// Apply hermite interp to Alpha if desired
-		half HermiteAlpha = SmoothInterpRollScale ? smoothstep(0.0, 1.0, Alpha) : Alpha;
-
-		// Then find the point and direction of the spline at this point along
-		half3 SplineDir = SplineEvalDir( SplineStartPos, SplineStartTangent, SplineEndPos, SplineEndTangent, Alpha );
-
-		// Find base frenet frame
-		half3 BaseXVec = normalize( cross(SplineUpDir, (half3)SplineDir) );
-		half3 BaseYVec = normalize( cross((half3)SplineDir, BaseXVec) );
-
-		// Apply roll to frame around spline
-		half UseRoll = lerp((half)SplineStartRoll, (half)SplineEndRoll, HermiteAlpha);
-		half SinAng, CosAng;
-		sincos(UseRoll, SinAng, CosAng);
-		half3 XVec = (CosAng * BaseXVec) - (SinAng * BaseYVec);
-		half3 YVec = (CosAng * BaseYVec) + (SinAng * BaseXVec);
-
-		// Find scale at this point along spline
-		half2 UseScale = lerp(SplineStartScale, SplineEndScale, HermiteAlpha);
-
-		XVec *= sign(UseScale.x);
-		YVec *= sign(UseScale.y);
-
-		// Build rotation transform
-		half3x3 SliceTransform = mul(transpose(half3x3(SplineMeshDir, SplineMeshX, SplineMeshY)), half3x3(SplineDir, XVec, YVec));
-
-		return SliceTransform;
-	}
-#endif	// USE_SPLINEDEFORM
 
 #if USE_INSTANCING
-float4 CalcWorldPosition(float4 Position, float4x4 InstanceTransform, FLWCMatrix LocalToWorld)
+float4 CalcWorldPosition(FSceneDataIntermediates Intermediates, float4 Position, float4x4 InstanceTransform, FLWCMatrix LocalToWorld)
 #else
-float4 CalcWorldPosition(float4 Position, FLWCMatrix LocalToWorld)
+float4 CalcWorldPosition(FSceneDataIntermediates Intermediates, float4 Position, FLWCMatrix LocalToWorld)
 #endif	// USE_INSTANCING
 {
 #if USE_INSTANCING
@@ -769,22 +663,13 @@ float4 CalcWorldPosition(float4 Position, FLWCMatrix LocalToWorld)
 #elif USE_SPLINEDEFORM && !RAYHITGROUPSHADER
 	// NOTE: The #if above does not include raytracing shaders because the cached position already
 	// has the spline deformation baked in.
-/*
-	// Make transform for this point along spline
-	float4x3 SliceTransform = CalcSliceTransform(dot(Position.xyz, SplineMeshDir));
-
-	// Transform into mesh space
-	float4 LocalPos = float4(mul(Position, SliceTransform), Position.w);
-	// Transform from mesh to world space
-	return TransformLocalToTranslatedWorld(LocalPos.xyz);
-	*/
-	return TransformLocalToTranslatedWorld(float3(mul(Position, CalcSliceTransform(dot(Position.xyz, SplineMeshDir))).xyz), LocalToWorld);
+	return TransformLocalToTranslatedWorld(SplineMeshDeformLocalPos(Intermediates.InstanceData.SplineMeshParams, Position), LocalToWorld);
 #else
 	return TransformLocalToTranslatedWorld(Position.xyz, LocalToWorld);
 #endif
 }
 
-half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
+half3x3 CalcTangentToLocal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, inout float TangentSign)
 {
 #if MANUAL_VERTEX_FETCH
 	half3 TangentInputX = LocalVF.VertexFetch_PackedTangentsBuffer[2 * (LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId) + 0].xyz;
@@ -817,7 +702,7 @@ half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
 #else
 	float3 SliceInputPos = Input.Position.xyz;
 #endif
-	half3x3 SliceRot = CalcSliceRot(dot(SliceInputPos.xyz, SplineMeshDir));
+	half3x3 SliceRot = SplineMeshCalcSliceRotFromLocalPos(GetSplineMeshParams(Intermediates), SliceInputPos.xyz);
 
 	TangentX = mul(TangentX, SliceRot);
 	TangentZ.xyz = mul(TangentZ.xyz, SliceRot);
@@ -915,6 +800,11 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #endif // USE_INSTANCE_CULLING
 #endif // VF_USE_PRIMITIVE_SCENE_DATA
 
+#if USE_SPLINEDEFORM && !VF_USE_PRIMITIVE_SCENE_DATA
+	// Manually unpack the spline parameters from loose shader params
+	Intermediates.SceneData.InstanceData.SplineMeshParams = UnpackSplineMeshParams(SplineParams);
+#endif
+
 #if MANUAL_VERTEX_FETCH
 	Intermediates.Color = LocalVF.VertexFetch_ColorComponentsBuffer[(LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId) & LocalVF.VertexFetch_Parameters[VF_ColorIndexMask_Index]] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE; // Swizzle vertex color.
 #else
@@ -937,7 +827,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #endif
 
 	float TangentSign = 1.0;
-	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);
+	Intermediates.TangentToLocal = CalcTangentToLocal(Input, Intermediates, TangentSign);
 	Intermediates.TangentToWorld = CalcTangentToWorld(Intermediates, Intermediates.TangentToLocal);
 	Intermediates.TangentToWorldSign = TangentSign * GetInstanceData(Intermediates).DeterminantSign;
 
@@ -1034,12 +924,12 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 	FLWCMatrix LocalToWorld = GetInstanceData(Intermediates).LocalToWorld;
 
 #if USE_INSTANCING
-	return CalcWorldPosition(Input.Position, GetInstanceTransform(Intermediates), LocalToWorld) * Intermediates.PerInstanceParams.y;
+	return CalcWorldPosition(Intermediates.SceneData, Input.Position, GetInstanceTransform(Intermediates), LocalToWorld) * Intermediates.PerInstanceParams.y;
 #elif USE_INSTANCE_CULLING
 	// Scale to zero if not visible, seems a bit wild but whatever
-	return CalcWorldPosition(Input.Position, LocalToWorld) * Intermediates.IsVisible;
+	return CalcWorldPosition(Intermediates.SceneData, Input.Position, LocalToWorld) * Intermediates.IsVisible;
 #else
-	return CalcWorldPosition(Input.Position, LocalToWorld);
+	return CalcWorldPosition(Intermediates.SceneData, Input.Position, LocalToWorld);
 #endif	// USE_INSTANCING
 }
 
@@ -1146,17 +1036,20 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	return Interpolants;
 }
 
-
 /** X for depth-only pass */
 float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
 {
 	FSceneDataIntermediates SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
+#if USE_SPLINEDEFORM && !VF_USE_PRIMITIVE_SCENE_DATA
+	SceneData.InstanceData.SplineMeshParams = UnpackSplineMeshParams(SplineParams);
+#endif
+
 	FLWCMatrix LocalToWorld = SceneData.InstanceData.LocalToWorld;
  
 #if USE_INSTANCING
-    return CalcWorldPosition(Input.Position, GetInstanceTransform(Input), LocalToWorld);
+    return CalcWorldPosition(SceneData, Input.Position, GetInstanceTransform(Input), LocalToWorld);
 #else
-    return CalcWorldPosition(Input.Position, LocalToWorld);
+    return CalcWorldPosition(SceneData, Input.Position, LocalToWorld);
 #endif
 }
 
@@ -1164,18 +1057,24 @@ float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
 float4 VertexFactoryGetWorldPosition(FPositionAndNormalOnlyVertexFactoryInput Input)
 {
 	FSceneDataIntermediates SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
+#if USE_SPLINEDEFORM && !VF_USE_PRIMITIVE_SCENE_DATA
+	SceneData.InstanceData.SplineMeshParams = UnpackSplineMeshParams(SplineParams);
+#endif
 	FLWCMatrix LocalToWorld = SceneData.InstanceData.LocalToWorld;
 
 #if USE_INSTANCING
-	return CalcWorldPosition(Input.Position, GetInstanceTransform(Input), LocalToWorld);
+	return CalcWorldPosition(SceneData, Input.Position, GetInstanceTransform(Input), LocalToWorld);
 #else
-	return CalcWorldPosition(Input.Position, LocalToWorld);
+	return CalcWorldPosition(SceneData, Input.Position, LocalToWorld);
 #endif
 }
 
 float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Input)
 {
 	FSceneDataIntermediates SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
+#if USE_SPLINEDEFORM && !VF_USE_PRIMITIVE_SCENE_DATA
+	SceneData.InstanceData.SplineMeshParams = UnpackSplineMeshParams(SplineParams);
+#endif
 	FLWCMatrix LocalToWorld = SceneData.InstanceData.LocalToWorld;
 	float3 InvScale = SceneData.InstanceData.InvNonUniformScale;
 
@@ -1220,10 +1119,8 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 		float4x4 InstanceTransform = GetInstancePrevTransform(Intermediates);
 		PrevLocalPosition = mul(Input.Position, InstanceTransform);
 #elif USE_SPLINEDEFORM && !RAYHITGROUPSHADER
-		// Just like CalcWorldPosition...
-		float4x3 SliceTransform = CalcSliceTransform(dot(Input.Position.xyz, SplineMeshDir));
-		// Transform into mesh space
-		PrevLocalPosition = float4(mul(Input.Position, SliceTransform), Input.Position.w);
+		// Just like CalcWorldPosition, transform into mesh space
+		PrevLocalPosition = float4(SplineMeshDeformLocalPos(GetSplineMeshParams(Intermediates), Input.Position), Input.Position.w);
 #endif
 	}
 

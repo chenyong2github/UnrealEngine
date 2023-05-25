@@ -7,6 +7,7 @@
 #include "Misc/Guid.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "Components/StaticMeshComponent.h"
+#include "SplineMeshShaderParams.h"
 
 #include "SplineMeshComponent.generated.h"
 
@@ -14,6 +15,13 @@ class FPrimitiveSceneProxy;
 class ULightComponent;
 struct FNavigableGeometryExport;
 class UBodySetup;
+
+// Helper for packing spline mesh shader parameters into float4's
+ENGINE_API void PackSplineMeshParams(
+	const FSplineMeshShaderParams& Params,
+	const TArrayView<FVector4f>& Output,
+	uint32 OutputOffset = 0
+);
 
 UENUM(BlueprintType)
 namespace ESplineMeshAxis
@@ -179,7 +187,6 @@ public:
 	void ApplyComponentInstanceData(struct FSplineMeshInstanceData* ComponentInstanceData);
 
 	//Begin USceneComponent Interface
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual FTransform GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace = RTS_World) const override;
 	//End USceneComponent Interface
@@ -200,10 +207,14 @@ public:
 	//End UPrimitiveComponent Interface
 
 	//Begin UStaticMeshComponent Interface
+public:
 	virtual class FStaticMeshStaticLightingMesh* AllocateStaticLightingMesh(int32 LODIndex, const TArray<ULightComponent*>& InRelevantLights) override;
+protected:
+	virtual FPrimitiveSceneProxy* CreateStaticMeshSceneProxy(Nanite::FMaterialAudit& NaniteMaterials, bool bCreateNanite) override;
 	//End UStaticMeshComponent Interface
 
 	//~ Begin Interface_CollisionDataProvider Interface
+public:
 	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
 	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
 	virtual bool WantsNegXTriMesh() override { return false; }
@@ -211,8 +222,8 @@ public:
 	virtual bool GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const override;
 	//~ End Interface_CollisionDataProvider Interface
 
-	/** Determines the mesh proxy values for SplineMeshScaleZ and SplineMeshMinZ*/
-	void CalculateScaleZAndMinZ(float& OutScaleZ, float& OutMinZ) const;
+	/** Generates FSplineMeshShaderParams for the current state of the component */
+	FSplineMeshShaderParams CalculateShaderParams() const;
 
 	/** Called to notify render thread and possibly collision of a change in spline params or mesh */
 	void UpdateRenderStateAndCollision();

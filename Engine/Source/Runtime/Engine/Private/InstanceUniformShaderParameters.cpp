@@ -2,6 +2,7 @@
 
 #include "InstanceUniformShaderParameters.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "SceneDefinitions.h"
 
 uint32 FInstanceSceneShaderData::GetDataStrideInFloat4s()
 {

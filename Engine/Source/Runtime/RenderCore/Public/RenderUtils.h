@@ -367,6 +367,7 @@ RENDERCORE_API bool UseVirtualTexturing(const FStaticFeatureLevel InFeatureLevel
 RENDERCORE_API bool NaniteAtomicsSupported();
 RENDERCORE_API bool NaniteComputeMaterialsSupported();
 RENDERCORE_API bool NaniteTessellationSupported();
+RENDERCORE_API bool NaniteSplineMeshesSupported();
 
 RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform, bool bCheckForProjectSetting = true);
 RENDERCORE_API bool DoesRuntimeSupportNanite(EShaderPlatform ShaderPlatform, bool bCheckForAtomicSupport, bool bCheckForProjectSetting);

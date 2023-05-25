@@ -15,8 +15,11 @@
 #include "UniformBuffer.h"
 #include "SceneView.h"
 #include "PrimitiveUniformShaderParameters.h"
+#include "InstanceUniformShaderParameters.h"
 #include "DrawDebugHelpers.h"
 #include "Math/CapsuleShape.h"
+#include "SceneDefinitions.h"
+#include "SplineMeshShaderParams.h"
 
 class FLightSceneInfo;
 class FLightSceneProxy;
@@ -676,6 +679,7 @@ public:
 	inline bool HasPerInstanceLMSMUVBias() const { return bHasPerInstanceLMSMUVBias; }
 	inline bool HasPerInstanceLocalBounds() const { return bHasPerInstanceLocalBounds; }
 	inline bool HasPerInstanceHierarchyOffset() const { return bHasPerInstanceHierarchyOffset; }
+	inline bool HasPerInstanceSplineMeshParams() const { return bHasPerInstanceSplineMeshParams; }
 #if WITH_EDITOR
 	inline bool HasPerInstanceEditorData() const { return bHasPerInstanceEditorData; }
 #else
@@ -693,7 +697,8 @@ public:
 #if WITH_EDITOR
 			bHasPerInstanceEditorData	|
 #endif
-			bHasPerInstanceHierarchyOffset;
+			bHasPerInstanceHierarchyOffset |
+			bHasPerInstanceSplineMeshParams;
 	}
 
 	inline uint32 GetInstanceSceneDataFlags()
@@ -705,6 +710,7 @@ public:
 		Flags |= HasPerInstanceLMSMUVBias()      ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS : 0u;
 		Flags |= HasPerInstanceHierarchyOffset() ? INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET    : 0u;
 		Flags |= HasPerInstanceLocalBounds()     ? INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS        : 0u;
+		Flags |= HasPerInstanceSplineMeshParams()? INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS  : 0u;
 #if WITH_EDITOR
 		Flags |= HasPerInstanceEditorData()      ? INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA         : 0u;
 #endif
@@ -960,6 +966,11 @@ public:
 	FORCEINLINE TConstArrayView<uint32> GetInstanceHierarchyOffset() const
 	{
 		return InstanceHierarchyOffset;
+	}
+
+	FORCEINLINE TConstArrayView<FSplineMeshShaderParams> GetInstanceSplineMeshParams() const
+	{
+		return InstanceSplineMeshParams;
 	}
 
 	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, uint32& ImposterIndex) const
@@ -1372,6 +1383,7 @@ protected:
 	uint8 bHasPerInstanceLMSMUVBias : 1;
 	uint8 bHasPerInstanceLocalBounds : 1;
 	uint8 bHasPerInstanceHierarchyOffset : 1;
+	uint8 bHasPerInstanceSplineMeshParams : 1;
 #if WITH_EDITOR
 	uint8 bHasPerInstanceEditorData : 1;
 #endif
@@ -1437,6 +1449,7 @@ protected:
 	TArray<float> InstanceRandomID;
 	TArray<FVector4f> InstanceLightShadowUVBias;
 	TArray<uint32> InstanceHierarchyOffset;
+	TArray<FSplineMeshShaderParams> InstanceSplineMeshParams;
 #if WITH_EDITOR
 	TArray<uint32> InstanceEditorData;
 #endif

@@ -475,13 +475,9 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 
 		if (WaveGetLaneIndex() < NumUniqueVerts)
 		{
-			float3 PointLocal = DecodePosition(LaneVertIndex, Cluster);
-			FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, LaneVertIndex, NANITE_NUM_TEXCOORDS_TO_DECODE);
-			Vert = TransformNaniteVertex(InstanceData, MaterialShader.VertTransforms, PointLocal, RawAttributeData, LaneVertIndex, bEvaluateWPO);
-
+			Vert = FetchTransformedNaniteVertex(InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, bEvaluateWPO);
 			PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
 			PointClip = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToClip );
-
 			PointSubpixelClip = CalculateSubpixelCoordinates(Raster, PointClip);
 		}
 
@@ -592,17 +588,17 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 			break;
 
 		// Transform vertex and store in group shared memory.
-		float3 PointLocal = DecodePosition(VertIndex, Cluster);
+		FNanitePostDeformVertex InputVert = FetchAndDeformLocalNaniteVertex(InstanceData, Cluster, VertIndex);
 		float3 WorldPositionOffset = 0.0f;
 	#if NANITE_VERTEX_PROGRAMMABLE
 		BRANCH
 		if (bEvaluateWPO)
 		{
-			WorldPositionOffset = MaterialShader.EvaluateWorldPositionOffset(VertIndex, PointLocal);
+			WorldPositionOffset = MaterialShader.EvaluateWorldPositionOffset(InputVert);
 		}
 	#endif
 
-		const float3 PointTranslatedWorld = mul( float4( PointLocal, 1 ), InstanceDynamicData.LocalToTranslatedWorld ).xyz + WorldPositionOffset;
+		const float3 PointTranslatedWorld = mul( float4( InputVert.Position, 1 ), InstanceDynamicData.LocalToTranslatedWorld ).xyz + WorldPositionOffset;
 		const float4 PointClip = mul( float4( PointTranslatedWorld, 1 ), NaniteView.TranslatedWorldToClip );
 
 		GroupVerts[VertIndex] = CalculateSubpixelCoordinates( Raster, PointClip ).xyz;
@@ -822,10 +818,7 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 
 		if( GroupThreadIndex < NumUniqueVerts )
 		{
-			float3 PointLocal = DecodePosition( MyVertIndex, Cluster );
-			FNaniteRawAttributeData RawAttributeData = GetRawAttributeData( Cluster, MyVertIndex, NANITE_NUM_TEXCOORDS_TO_DECODE );
-			Vert = TransformNaniteVertex( InstanceData, MaterialShader.VertTransforms, PointLocal, RawAttributeData, MyVertIndex, false );
-
+			Vert = FetchTransformedNaniteVertex( InstanceData, MaterialShader.VertTransforms, Cluster, MyVertIndex, false );
 			PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
 		}
 
@@ -847,17 +840,7 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 #else
 		// TODO don't load triangle data if not from this VisibleCluster
 		uint3 VertIndexes = DecodeTriangleIndices( Cluster, Patch.TriIndex );
-		float3 PointLocal[3] = 
-		{
-			DecodePosition( VertIndexes.x, Cluster ),
-			DecodePosition( VertIndexes.y, Cluster ),
-			DecodePosition( VertIndexes.z, Cluster ),
-		};
-
-		FNaniteRawAttributeData RawAttributeData[3];
-		GetRawAttributeData3(RawAttributeData, Cluster, VertIndexes, NANITE_NUM_TEXCOORDS_TO_DECODE);
-		
-		FNaniteTransformedTri TransformedTri = TransformNaniteTriangle(InstanceData, MaterialShader.VertTransforms, PointLocal, RawAttributeData, VertIndexes, false);
+		FNaniteTransformedTri TransformedTri = FetchTransformedNaniteTriangle(InstanceData, MaterialShader.VertTransforms, Cluster, VertIndexes, false);
 		MaterialShader.TransformedTri = TransformedTri;
 
 		float3 PointView[3];
@@ -981,7 +964,7 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 {
 	VSOut Out;
 
-	const float3 PointLocal = DecodePosition( VertIndex, Cluster );
+	const FNanitePostDeformVertex InputVert = FetchAndDeformLocalNaniteVertex(InstanceData, Cluster, VertIndex);
 
 	float3 WorldPositionOffset = 0.0f;
 #if NANITE_VERTEX_PROGRAMMABLE
@@ -991,11 +974,11 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	MaterialShader.NaniteView			= NaniteView;
 	MaterialShader.Cluster 				= Cluster;
 
-	WorldPositionOffset = MaterialShader.EvaluateWorldPositionOffset(VertIndex, PointLocal);
+	WorldPositionOffset = MaterialShader.EvaluateWorldPositionOffset(InputVert);
 #endif
 
 	const float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
-	const float3 PointTranslatedWorld = mul( float4( PointLocal, 1 ), LocalToTranslatedWorld ).xyz + WorldPositionOffset;
+	const float3 PointTranslatedWorld = mul( float4( InputVert.Position, 1 ), LocalToTranslatedWorld ).xyz + WorldPositionOffset;
 	float4 PointClip = mul( float4( PointTranslatedWorld, 1 ), NaniteView.TranslatedWorldToClip );
 #if VIRTUAL_TEXTURE_TARGET
 	/*

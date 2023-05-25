@@ -664,7 +664,8 @@ FNaniteAttributeData GetAttributeData(
 	FNaniteRawAttributeData RawAttributeData2,
 	FBarycentrics Barycentrics,
 	FInstanceSceneData InstanceData,
-	uint CompileTimeMaxTexCoords
+	uint CompileTimeMaxTexCoords,
+	half3x3 TangentRot
 )
 {
 	FNaniteAttributeData AttributeData = (FNaniteAttributeData)0;
@@ -760,6 +761,7 @@ FNaniteAttributeData GetAttributeData(
 
 					TangentToLocal = float3x3(TangentX, TangentY, TangentZ);
 				}
+				TangentToLocal = mul(TangentToLocal, TangentRot);
 
 				// Should be Pow2(InvScale) but that requires renormalization
 				float3x3 LocalToWorldNoScale = LWCToFloat3x3(InstanceData.LocalToWorld);
@@ -785,6 +787,40 @@ FNaniteAttributeData GetAttributeData(
 	}
 
 	return AttributeData;
+}
+
+FNaniteAttributeData GetAttributeData(
+	FCluster Cluster,
+	float3 PointLocal0,
+	float3 PointLocal1,
+	float3 PointLocal2,
+	FNaniteRawAttributeData RawAttributeData0,
+	FNaniteRawAttributeData RawAttributeData1,
+	FNaniteRawAttributeData RawAttributeData2,
+	FBarycentrics Barycentrics,
+	FInstanceSceneData InstanceData,
+	uint CompileTimeMaxTexCoords
+)
+{
+	const half3x3 TangentRot =
+	{
+		1, 0, 0,
+		0, 1, 0,
+		0, 0, 1
+	};
+	return GetAttributeData(
+		Cluster,
+		PointLocal0,
+		PointLocal1,
+		PointLocal2,
+		RawAttributeData0,
+		RawAttributeData1,
+		RawAttributeData2,
+		Barycentrics,
+		InstanceData,
+		CompileTimeMaxTexCoords,
+		TangentRot
+	);
 }
 
 FTexCoord GetTexCoord(

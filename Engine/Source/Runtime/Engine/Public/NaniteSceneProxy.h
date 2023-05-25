@@ -174,6 +174,18 @@ public:
 	#if WITH_EDITORONLY_DATA
 		uint8 bSelected : 1;
 	#endif
+
+		ENGINE_API void ResetToDefaultMaterial(bool bShading = true, bool bRaster = true);
+
+		inline bool IsProgrammableRaster(bool bEvaluateWPO) const
+		{
+			// NOTE: MaterialRelevance.bTwoSided does not go into bHasProgrammableRaster
+			// because we want only want this flag to control culling, not a full raster bin
+			return (bEvaluateWPO && MaterialRelevance.bUsesWorldPositionOffset) ||
+				MaterialRelevance.bUsesPixelDepthOffset ||
+				MaterialRelevance.bMasked ||
+				MaterialRelevance.bUsesDisplacement;
+		}
 	};
 
 public:
@@ -183,6 +195,7 @@ public:
 		bIsNaniteMesh  = true;
 		bHasProgrammableRaster = false;
 		bReverseCulling = false;
+		bSplineMesh = false;
 	#if WITH_EDITOR
 		bHasSelectedInstances = false;
 	#endif
@@ -228,6 +241,11 @@ public:
 	inline bool IsCullingReversedByComponent() const
 	{
 		return bReverseCulling;
+	}
+
+	inline bool IsSplineMesh() const
+	{
+		return bSplineMesh;
 	}
 
 	virtual FResourceMeshInfo GetResourceMeshInfo() const = 0;
@@ -278,10 +296,11 @@ public:
 
 protected:
 	ENGINE_API void DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* PDI, const FLightCacheInterface* LCI);
-	ENGINE_API void CalculateMinMaxDisplacement();
+	ENGINE_API void OnMaterialsUpdated();
 
 protected:
 	TArray<FMaterialSection> MaterialSections;
+	FMaterialRelevance CombinedMaterialRelevance;
 
 #if RHI_RAYTRACING
 	TArray<TArray<FMaterialRenderProxy*>> RayTracingMaterialProxiesPerLOD;
@@ -296,6 +315,7 @@ protected:
 	EFilterFlags FilterFlags = EFilterFlags::None;
 	uint8 bHasProgrammableRaster : 1;
 	uint8 bReverseCulling : 1;
+	uint8 bSplineMesh : 1;
 #if WITH_EDITOR
 	uint8 bHasSelectedInstances : 1;
 #endif
@@ -436,8 +456,6 @@ protected:
 	const FCardRepresentationData* CardRepresentationData;
 
 	FUint32Vector2 NaniteMaterialMask = FUint32Vector2(~uint32(0), ~uint32(0));
-
-	FMaterialRelevance CombinedMaterialRelevance;
 
 	uint32 bHasMaterialErrors : 1;
 

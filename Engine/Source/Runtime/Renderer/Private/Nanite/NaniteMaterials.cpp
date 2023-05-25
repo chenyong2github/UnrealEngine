@@ -2962,11 +2962,12 @@ void FNaniteMaterialCommands::Finish(FRDGBuilder& GraphBuilder, FRDGExternalAcce
 	NumMaterialDepthUpdates = 0;
 }
 
-FNaniteRasterPipeline FNaniteRasterPipeline::GetFixedFunctionPipeline(bool bIsTwoSided)
+FNaniteRasterPipeline FNaniteRasterPipeline::GetFixedFunctionPipeline(bool bIsTwoSided, bool bSplineMesh)
 {
 	FNaniteRasterPipeline Ret;
 	Ret.RasterMaterial = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	Ret.bIsTwoSided = bIsTwoSided;
+	Ret.bSplineMesh = bSplineMesh;
 	Ret.bPerPixelEval = false;
 	Ret.bWPODisableDistance = false;
 

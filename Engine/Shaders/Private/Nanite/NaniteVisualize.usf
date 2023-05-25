@@ -7,6 +7,7 @@
 #include "../ColorMap.ush"
 #include "../Visualization.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapStaticCaching.ush"
+#include "../SplineMeshCommon.ush"
 
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
@@ -548,7 +549,8 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		const float4 ClusterBoundsColor  = ColorLightGreen;
 		const float4 InstanceBoundsColor = ColorOrange;
 
-		const float4x4 LocalToWorld = LWCHackToFloat(InstanceData.LocalToWorld);
+		FShaderPrintContext ShaderPrint = InitShaderPrintContext();
+		const float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
 
 		const float3 WPOExtent = bWPOEnabled ? abs(PrimitiveData.MaxWPOExtent * InstanceData.InvNonUniformScale) : (float3)0;
 	#if ACCURATE_DISPLACEMENT_BOUNDS
@@ -558,27 +560,42 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 	#endif
 
 		// If WPO and/or material displacement is enabled, the cluster bounds will have been dilated to account for max displacement
-		const float3 ClusterBoxBoundsCenter = Cluster.BoxBoundsCenter;
-		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent + WPOExtent + AbsMaxMaterialDisplacement.xxx;
+		float3 ClusterBoxBoundsCenter = Cluster.BoxBoundsCenter;
+		float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent;
+		if ((InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS) != 0)
+		{
+			const FSplineMeshDeformedLocalBounds NewBounds = SplineMeshDeformLocalBoundsDebug(
+				InstanceData.SplineMeshParams,
+				ShaderPrint,
+				LocalToTranslatedWorld,
+				ClusterBoxBoundsCenter,
+				ClusterBoxBoundsExtent
+			);
+			ClusterBoxBoundsCenter = NewBounds.BoundsCenter;
+			ClusterBoxBoundsExtent = NewBounds.BoundsExtent;
+		}
+		ClusterBoxBoundsExtent += WPOExtent + AbsMaxMaterialDisplacement.xxx;
 
 		const float3 InstanceBoxBoundsCenter = InstanceData.LocalBoundsCenter;
 		const float3 InstanceBoxBoundsExtent = InstanceData.LocalBoundsExtent; // TODO: Verify WPO and material disp. is baked in already
 
-		AddOBBWS(
+		AddOBBTWS(
+			ShaderPrint,
 			ClusterBoxBoundsCenter - ClusterBoxBoundsExtent,
 			ClusterBoxBoundsCenter + ClusterBoxBoundsExtent,
 			ClusterBoundsColor,
-			LocalToWorld
+			LocalToTranslatedWorld
 		);
 
-		AddOBBWS(
+		AddOBBTWS(
+			ShaderPrint,
 			InstanceBoxBoundsCenter - InstanceBoxBoundsExtent,
 			InstanceBoxBoundsCenter + InstanceBoxBoundsExtent,
 			InstanceBoundsColor,
-			LocalToWorld
+			LocalToTranslatedWorld
 		);
 
-		AddReferentialWS(LocalToWorld, 50.f);
+		AddReferentialTWS(ShaderPrint, LocalToTranslatedWorld, 50.f);
 	}
 	else
 	{

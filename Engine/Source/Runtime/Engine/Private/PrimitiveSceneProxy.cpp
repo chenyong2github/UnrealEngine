@@ -340,6 +340,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bHasPerInstanceLMSMUVBias(false)
 ,	bHasPerInstanceLocalBounds(false)
 ,	bHasPerInstanceHierarchyOffset(false)
+,	bHasPerInstanceSplineMeshParams(false)
 #if WITH_EDITOR
 ,	bHasPerInstanceEditorData(false)
 #endif
@@ -735,6 +736,11 @@ uint32 FPrimitiveSceneProxy::GetPayloadDataStride() const
 	}
 
 	PayloadDataCount += HasPerInstanceLMSMUVBias() ? 1 : 0; // FVector4
+
+	if (HasPerInstanceSplineMeshParams())
+	{
+		PayloadDataCount += SPLINE_MESH_PARAMS_FLOAT4_SIZE;
+	}
 
 	if (HasPerInstanceCustomData())
 	{

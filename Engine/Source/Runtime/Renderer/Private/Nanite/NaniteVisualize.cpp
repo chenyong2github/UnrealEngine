@@ -166,7 +166,7 @@ class FNaniteVisualizeCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FUintVector4>, ShadingBinMeta)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FNaniteShadingBinMeta>, ShadingBinMeta)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, DbgBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, DbgBuffer32)
@@ -281,6 +281,7 @@ public:
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialEditorTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialHitProxyTable)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, EditorSelectedHitProxyIds)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FNaniteShadingBinMeta>, ShadingBinMeta)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -309,6 +310,20 @@ IMPLEMENT_GLOBAL_SHADER(FExportDebugViewPS, "/Engine/Private/Nanite/NaniteDebugV
 namespace Nanite
 {
 
+static FRDGBufferSRVRef GetShadingBinMetaSRV(FRDGBuilder& GraphBuilder)
+{
+	FRDGBufferRef ShadingBinMeta = nullptr;
+	if (Nanite::GGlobalResources.GetShadingBinMetaBufferRef().IsValid())
+	{
+		ShadingBinMeta = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetShadingBinMetaBufferRef());
+	}
+	else
+	{
+		ShadingBinMeta = GSystemTextures.GetDefaultStructuredBuffer<FNaniteShadingBinMeta>(GraphBuilder);
+	}
+	return GraphBuilder.CreateSRV(ShadingBinMeta);
+}
+
 static FRDGBufferRef PerformPicking(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -319,6 +334,14 @@ static FRDGBufferRef PerformPicking(
 {
 	// Force shader print on
 	ShaderPrint::SetEnabled(true);
+
+	// Make sure there's space for all debug lines the picking CS could possibly draw
+	const uint32 NumDebugLines =
+		8 * 2	// 2 OBBs - Instance + Cluster
+		+ 3		// Instance origin axis
+		+ 5 * 4	// For selected cluster of a spline mesh, shows rect slices used to generate AABB
+	;
+	ShaderPrint::RequestSpaceForLines(NumDebugLines);
 
 	const FNaniteVisualizationData& VisualizationData = GetNaniteVisualizationData();
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
@@ -710,16 +733,6 @@ void AddVisualizationPasses(
 
 				Visualization.ModeOutput = GraphBuilder.CreateTexture(VisualizationOutputDesc, TEXT("Nanite.Visualization"));
 
-				FRDGBufferRef ShadingBinMeta = nullptr;
-				if (Nanite::GGlobalResources.GetShadingBinMetaBufferRef().IsValid())
-				{
-					ShadingBinMeta = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetShadingBinMetaBufferRef());
-				}
-				else
-				{
-					ShadingBinMeta = GSystemTextures.GetDefaultStructuredBuffer<FUint32Vector4>(GraphBuilder);
-				}
-
 				FNaniteVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteVisualizeCS::FParameters>();
 
 				PassParameters->View = View.GetShaderParameters();
@@ -752,7 +765,7 @@ void AddVisualizationPasses(
 				// For now, bind a valid SRV
 				PassParameters->MaterialHitProxyTable = MaterialCommands.GetMaterialSlotSRV();
 			#endif
-				PassParameters->ShadingBinMeta = GraphBuilder.CreateSRV(ShadingBinMeta, PF_R32G32B32A32_UINT);
+				PassParameters->ShadingBinMeta = GetShadingBinMetaSRV(GraphBuilder);
 				PassParameters->DebugOutput = GraphBuilder.CreateUAV(Visualization.ModeOutput);
 
 				auto ComputeShader = View.ShaderMap->GetShader<FNaniteVisualizeCS>();
@@ -879,6 +892,7 @@ void RenderDebugViewMode(
 	PassParameters->MaterialDepthTable = MaterialCommands.GetMaterialDepthSRV();
 	PassParameters->MaterialEditorTable = MaterialCommands.GetMaterialEditorSRV();
 	PassParameters->EditorSelectedHitProxyIds = GetEditorSelectedHitProxyIdsSRV(GraphBuilder, View);
+	PassParameters->ShadingBinMeta = GetShadingBinMetaSRV(GraphBuilder);
 
 #if WITH_EDITOR
 	PassParameters->MaterialHitProxyTable = MaterialCommands.GetHitProxyTableSRV();

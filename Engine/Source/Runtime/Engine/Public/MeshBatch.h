@@ -5,12 +5,16 @@
 #include "CoreTypes.h"
 #include "Containers/ArrayView.h"
 #include "EngineDefines.h"
+#include "Engine/EngineTypes.h"
 #include "GPUSceneWriter.h"
 #include "HitProxies.h"
-#include "InstanceUniformShaderParameters.h"
 #include "RHIDefinitions.h"
+#include "SceneDefinitions.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "InstanceUniformShaderParameters.h"
+#endif
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #include "UniformBuffer.h"
@@ -218,7 +222,7 @@ struct FMeshBatchElement
 		/** If !bIsSplineProxy, Instance runs, where number of runs is specified by NumInstances.  Run structure is [StartInstanceIndex, EndInstanceIndex]. */
 		uint32* InstanceRuns;
 		/** If bIsSplineProxy, a pointer back to the proxy */
-		class FSplineMeshSceneProxy* SplineMeshSceneProxy;
+		const class FSplineMeshSceneProxy* SplineMeshSceneProxy;
 	};
 	const void* UserData;
 

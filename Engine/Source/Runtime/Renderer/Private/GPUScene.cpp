@@ -28,6 +28,7 @@
 #include "SystemTextures.h"
 #include "SceneDefinitions.h"
 #include "PrimitiveSceneShaderData.h"
+#include "Components/SplineMeshComponent.h"
 
 // Defaults to being disabled, enable using the command line argument: -CsvCategory GPUScene
 CSV_DEFINE_CATEGORY(GPUScene, false);
@@ -288,6 +289,7 @@ struct FInstanceUploadInfo
 	TConstArrayView<float> InstanceRandomID;
 	TConstArrayView<uint32> InstanceHierarchyOffset;
 	TConstArrayView<FRenderBounds> InstanceLocalBounds;
+	TConstArrayView<FSplineMeshShaderParams> InstanceSplineMeshParams;
 #if WITH_EDITOR
 	TConstArrayView<uint32> InstanceEditorData;
 #endif
@@ -313,6 +315,7 @@ void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo, FRDGBuffe
 	const bool bHasLightShadowUVBias = (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
 	const bool bHasHierarchyOffset	= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) != 0u;
 	const bool bHasLocalBounds		= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) != 0u;
+	const bool bHasSplineMeshParams	= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS) != 0u;
 #if WITH_EDITOR
 	const bool bHasEditorData		= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u;
 #endif
@@ -322,6 +325,7 @@ void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo, FRDGBuffe
 	check(UploadInfo.InstanceDynamicData.Num()			== (bHasDynamicData		? InstanceCount : 0));
 	check(UploadInfo.InstanceLightShadowUVBias.Num()	== (bHasLightShadowUVBias ? InstanceCount : 0));
 	check(UploadInfo.InstanceHierarchyOffset.Num()		== (bHasHierarchyOffset	? InstanceCount : 0));
+	check(UploadInfo.InstanceSplineMeshParams.Num()		== (bHasSplineMeshParams? InstanceCount : 0));
 #if WITH_EDITOR
 	check(UploadInfo.InstanceEditorData.Num() == (bHasEditorData ? InstanceCount : 0));
 #endif
@@ -490,6 +494,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 			InstanceUploadInfo.InstanceCustomData = PrimitiveSceneProxy->GetInstanceCustomData();
 			InstanceUploadInfo.InstanceRandomID = PrimitiveSceneProxy->GetInstanceRandomID();
 			InstanceUploadInfo.InstanceHierarchyOffset = PrimitiveSceneProxy->GetInstanceHierarchyOffset();
+			InstanceUploadInfo.InstanceSplineMeshParams = PrimitiveSceneProxy->GetInstanceSplineMeshParams();
 
 #if WITH_EDITOR
 			InstanceUploadInfo.InstanceEditorData = PrimitiveSceneProxy->GetInstanceEditorData();
@@ -511,6 +516,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 			InstanceUploadInfo.InstanceCustomData = TConstArrayView<float>();
 			InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>();
 			InstanceUploadInfo.InstanceHierarchyOffset = TConstArrayView<uint32>();
+			InstanceUploadInfo.InstanceSplineMeshParams = TConstArrayView<FSplineMeshShaderParams>();
 #if WITH_EDITOR
 			InstanceUploadInfo.InstanceEditorData = TConstArrayView<uint32>();
 #endif
@@ -1201,6 +1207,13 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExte
 								check(UploadInfo.InstanceLightShadowUVBias.Num() == UploadInfo.PrimitiveInstances.Num());
 								InstancePayloadData[PayloadPosition] = UploadInfo.InstanceLightShadowUVBias[InstanceIndex];
 								PayloadPosition += 1;
+							}
+
+							if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS)
+							{
+								check(UploadInfo.InstanceSplineMeshParams.Num() == UploadInfo.PrimitiveInstances.Num());
+								PackSplineMeshParams(UploadInfo.InstanceSplineMeshParams[InstanceIndex], InstancePayloadData, PayloadPosition);
+								PayloadPosition += SPLINE_MESH_PARAMS_FLOAT4_SIZE;
 							}
 
 							if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA)

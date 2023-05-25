@@ -21,6 +21,7 @@
 #include "SceneInterface.h"
 #include "UObject/UnrealType.h"
 #include "Materials/Material.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 #if WITH_EDITOR
 #include "IHierarchicalLODUtilities.h"
@@ -33,6 +34,117 @@ static FAutoConsoleVariableRef CVarNoRecreateSplineMeshProxy(
 	TEXT("r.SplineMesh.NoRecreateProxy"),
 	GNoRecreateSplineMeshProxy,
 	TEXT("Optimization. If true, spline mesh proxies will not be recreated every time they are changed. They are simply updated."));
+
+int32 GSplineMeshRenderNanite = 1;
+static FAutoConsoleVariableRef CVarSplineMeshRenderNanite(
+	TEXT("r.SplineMesh.RenderNanite"),
+	GSplineMeshRenderNanite,
+	TEXT("When true, allows spline meshes to render as Nanite when enabled on the mesh (otherwise uses fallback mesh)."),
+	FConsoleVariableDelegate::CreateLambda(
+		[] (IConsoleVariable* InVariable)
+		{
+			FGlobalComponentRecreateRenderStateContext Context;
+		}
+	)
+);
+
+static bool ShouldRenderNaniteSplineMeshes()
+{
+	return NaniteSplineMeshesSupported() && GSplineMeshRenderNanite != 0;
+}
+
+void PackSplineMeshParams(const FSplineMeshShaderParams& Params, const TArrayView<FVector4f>& Output, uint32 OutputOffset)
+{
+	auto PackSNorm16 = [](float Value, uint32 Shift = 0) -> uint32
+	{
+		float N = FMath::Clamp(Value, -1.0f, 1.0f) * 0.5f + 0.5f;
+		return uint32(N * 65535.0f) << Shift;
+	};
+
+	static_assert(SPLINE_MESH_PARAMS_FLOAT4_SIZE == 8, "If you changed the packed size of FSplineMeshShaderParams, this function needs to be updated");
+	check(Output.Num() - OutputOffset >= SPLINE_MESH_PARAMS_FLOAT4_SIZE);
+	
+	Output[OutputOffset + 0] = FVector4f(Params.StartPos, Params.StartScale.X);
+	Output[OutputOffset + 1] = FVector4f(Params.EndPos, Params.StartScale.Y);
+	Output[OutputOffset + 2] = FVector4f(Params.StartTangent, Params.EndScale.X);
+	Output[OutputOffset + 3] = FVector4f(Params.EndTangent, Params.EndScale.Y);
+	Output[OutputOffset + 4] = FVector4f(Params.StartOffset, Params.EndOffset);
+
+	Output[OutputOffset + 5].X = Params.StartRoll;
+	Output[OutputOffset + 5].Y = Params.EndRoll;
+	Output[OutputOffset + 5].Z = Params.MeshScaleZ;
+	Output[OutputOffset + 5].W = Params.MeshMinZ;
+
+	Output[OutputOffset + 6].X = BitCast<float, uint32>(PackSNorm16(Params.SplineUpDir.X) | PackSNorm16(Params.SplineUpDir.Y, 16u));
+	Output[OutputOffset + 6].Y = BitCast<float, uint32>(PackSNorm16(Params.SplineUpDir.Z));
+
+	const FQuat4f MeshRot = FQuat4f(FMatrix44f(Params.MeshDir, Params.MeshX, Params.MeshY, FVector3f::ZeroVector));
+	Output[OutputOffset + 6].Z = BitCast<float, uint32>(PackSNorm16(MeshRot.X) | PackSNorm16(MeshRot.Y, 16u));
+	Output[OutputOffset + 6].W = BitCast<float, uint32>(PackSNorm16(MeshRot.Z) | PackSNorm16(MeshRot.W, 16u));
+
+	Output[OutputOffset + 7].X = Params.MeshDeformScaleMinMax.X;
+	Output[OutputOffset + 7].Y = Params.MeshDeformScaleMinMax.Y;
+	Output[OutputOffset + 7].Z = Params.bSmoothInterpRollScale ? 1.0f : 0.0f;
+}
+
+/**
+* Functions used for transforming a static mesh component based on a spline.
+* This needs to be updated if the spline functionality changes!
+*/
+static float SmoothStep(float A, float B, float X)
+{
+	if (X < A)
+	{
+		return 0.0f;
+	}
+	else if (X >= B)
+	{
+		return 1.0f;
+	}
+	const float InterpFraction = (X - A) / (B - A);
+	return InterpFraction * InterpFraction * (3.0f - 2.0f * InterpFraction);
+}
+
+static FVector3f SplineEvalPos(const FVector3f& StartPos, const FVector3f& StartTangent, const FVector3f& EndPos, const FVector3f& EndTangent, float A)
+{
+	const float A2 = A * A;
+	const float A3 = A2 * A;
+
+	return (((2 * A3) - (3 * A2) + 1) * StartPos) + ((A3 - (2 * A2) + A) * StartTangent) + ((A3 - A2) * EndTangent) + (((-2 * A3) + (3 * A2)) * EndPos);
+}
+
+static FVector3f SplineEvalPos(const FSplineMeshParams& Params, float A)
+{
+	// TODO: these don't need to be doubles!
+	const FVector3f StartPos = FVector3f(Params.StartPos);
+	const FVector3f StartTangent = FVector3f(Params.StartTangent);
+	const FVector3f EndPos = FVector3f(Params.EndPos);
+	const FVector3f EndTangent = FVector3f(Params.EndTangent);
+
+	return SplineEvalPos(StartPos, StartTangent, EndPos, EndTangent, A);
+}
+
+static FVector3f SplineEvalDir(const FVector3f& StartPos, const FVector3f& StartTangent, const FVector3f& EndPos, const FVector3f& EndTangent, float A)
+{
+	const FVector3f C = (6 * StartPos) + (3 * StartTangent) + (3 * EndTangent) - (6 * EndPos);
+	const FVector3f D = (-6 * StartPos) - (4 * StartTangent) - (2 * EndTangent) + (6 * EndPos);
+	const FVector3f E = StartTangent;
+
+	const float A2 = A * A;
+
+	return ((C * A2) + (D * A) + E).GetSafeNormal();
+}
+
+static FVector3f SplineEvalDir(const FSplineMeshParams& Params, float A)
+{
+	// TODO: these don't need to be doubles!
+	const FVector3f StartPos = FVector3f(Params.StartPos);
+	const FVector3f StartTangent = FVector3f(Params.StartTangent);
+	const FVector3f EndPos = FVector3f(Params.EndPos);
+	const FVector3f EndTangent = FVector3f(Params.EndTangent);
+
+	return SplineEvalDir(StartPos, StartTangent, EndPos, EndTangent, A);
+}
 
 FSplineMeshInstanceData::FSplineMeshInstanceData(const USplineMeshComponent* SourceComponent)
 	: FStaticMeshComponentInstanceData(SourceComponent)
@@ -63,7 +175,9 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 	FVertexInputStreamArray& VertexStreams
 ) const
 {
+	const bool bUseGPUScene = UseGPUScene(Scene->GetShaderPlatform(), FeatureLevel);
 	const auto* LocalVertexFactory = static_cast<const FLocalVertexFactory*>(VertexFactory);
+	
 	if (BatchElement.bUserDataIsColorVertexBuffer)
 	{
 		FColorVertexBuffer* OverrideColorVertexBuffer = (FColorVertexBuffer*)BatchElement.UserData;
@@ -74,37 +188,22 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 			LocalVertexFactory->GetColorOverrideStream(OverrideColorVertexBuffer, VertexStreams);
 		}
 	}
-	if (LocalVertexFactory->SupportsManualVertexFetch(FeatureLevel) || UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
+	if (LocalVertexFactory->SupportsManualVertexFetch(FeatureLevel) || bUseGPUScene)
 	{
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLocalVertexFactoryUniformShaderParameters>(), LocalVertexFactory->GetUniformBuffer());
 	}
 
-	checkSlow(BatchElement.bIsSplineProxy);
-	FSplineMeshSceneProxy* SplineProxy = BatchElement.SplineMeshSceneProxy;
-	FSplineMeshParams& SplineParams = SplineProxy->SplineParams;
+	if (!bUseGPUScene)
+	{
+		checkSlow(BatchElement.bIsSplineProxy);
+		const FSplineMeshSceneProxy* SplineProxy = BatchElement.SplineMeshSceneProxy;
+		const FSplineMeshShaderParams& SplineParams = SplineProxy->SplineParams;
 
-	FVector4f ParamData[10];
-	// LWC_TODO: Precision loss
-	ParamData[0] = FVector4f(FVector3f(SplineParams.StartPos), SplineParams.StartRoll);
-	ParamData[1] = FVector4f(FVector3f(SplineParams.StartTangent), SplineParams.EndRoll);
-	ParamData[2] = FVector4f(FVector2f(SplineParams.StartScale), FVector2f(SplineParams.StartOffset));
-	ParamData[3] = FVector4f(FVector3f(SplineParams.EndPos), (float)(int32)SplineProxy->bSmoothInterpRollScale);
-	ParamData[4] = FVector4f(FVector3f(SplineParams.EndTangent), SplineProxy->SplineMeshMinZ);
-	ParamData[5] = FVector4f(FVector2f(SplineParams.EndScale), FVector2f(SplineParams.EndOffset));
-	ParamData[6] = FVector4f(FVector3f(SplineProxy->SplineUpDir), SplineProxy->SplineMeshScaleZ);
+		FVector4f ParamData[SPLINE_MESH_PARAMS_FLOAT4_SIZE];
+		PackSplineMeshParams(SplineParams, TArrayView<FVector4f>(ParamData, SPLINE_MESH_PARAMS_FLOAT4_SIZE));
 
-		FVector3f DirMask(0, 0, 0);
-	DirMask = FVector3f::ZeroVector;
-		DirMask[SplineProxy->ForwardAxis] = 1;
-	ParamData[7] = FVector4f(DirMask, 0);
-		DirMask = FVector3f::ZeroVector;
-		DirMask[(SplineProxy->ForwardAxis + 1) % 3] = 1;
-	ParamData[8] = FVector4f(DirMask, 0);
-		DirMask = FVector3f::ZeroVector;
-		DirMask[(SplineProxy->ForwardAxis + 2) % 3] = 1;
-	ParamData[9] = FVector4f(DirMask, 0);
-
-	ShaderBindings.Add(SplineMeshParams, ParamData);
+		ShaderBindings.Add(SplineMeshParams, ParamData);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -505,22 +604,87 @@ void USplineMeshComponent::UpdateMesh_Concurrent()
 	}
 }
 
-void USplineMeshComponent::CalculateScaleZAndMinZ(float& OutScaleZ, float& OutMinZ) const
+FSplineMeshShaderParams USplineMeshComponent::CalculateShaderParams() const
 {
+	FSplineMeshShaderParams Output;
+
+	Output.StartPos 				= FVector3f(SplineParams.StartPos);
+	Output.EndPos 					= FVector3f(SplineParams.EndPos);
+	Output.StartTangent 			= FVector3f(SplineParams.StartTangent);
+	Output.EndTangent 				= FVector3f(SplineParams.EndTangent);
+	Output.StartScale 				= FVector2f(SplineParams.StartScale);
+	Output.EndScale 				= FVector2f(SplineParams.EndScale);
+	Output.StartOffset 				= FVector2f(SplineParams.StartOffset);
+	Output.EndOffset 				= FVector2f(SplineParams.EndOffset);
+	Output.StartRoll 				= SplineParams.StartRoll;
+	Output.EndRoll 					= SplineParams.EndRoll;
+	Output.bSmoothInterpRollScale 	= bSmoothInterpRollScale;
+	Output.SplineUpDir 				= FVector3f(SplineUpDir);
+
+	const uint32 MeshXAxis = (ForwardAxis + 1) % 3;
+	const uint32 MeshYAxis = (ForwardAxis + 2) % 3;
+	Output.MeshDir = Output.MeshX = Output.MeshY = FVector3f::ZeroVector;
+	Output.MeshDir[ForwardAxis] = 1.0f;
+	Output.MeshX[MeshXAxis] = 1.0f;
+	Output.MeshY[MeshYAxis] = 1.0f;
+
+	Output.MeshScaleZ = 1.0f;
+	Output.MeshMinZ = 0.0f;
 	if (GetStaticMesh())
 	{
 		if (FMath::IsNearlyEqual(SplineBoundaryMin, SplineBoundaryMax))
 		{
-			FBoxSphereBounds StaticMeshBounds = GetStaticMesh()->GetBounds();
-			OutScaleZ = 0.5f / USplineMeshComponent::GetAxisValueRef(StaticMeshBounds.BoxExtent, ForwardAxis); // 1/(2 * Extent)
-			OutMinZ = USplineMeshComponent::GetAxisValueRef(StaticMeshBounds.Origin, ForwardAxis) * OutScaleZ - 0.5f;
+			const FBoxSphereBounds StaticMeshBounds = GetStaticMesh()->GetBounds();
+			float MaxMeshLen = 2.0f * GetAxisValueRef(StaticMeshBounds.BoxExtent, ForwardAxis);
+			if (MaxMeshLen <= 0.0f)
+			{
+				Output.MeshScaleZ = 1.0f;
+			}
+			else
+			{
+				Output.MeshScaleZ = 1.0f / MaxMeshLen;
+			}
+			Output.MeshMinZ = GetAxisValueRef(StaticMeshBounds.Origin, ForwardAxis) * Output.MeshScaleZ - 0.5f;
 		}
 		else
 		{
-			OutScaleZ = 1.0f / (SplineBoundaryMax - SplineBoundaryMin);
-			OutMinZ = SplineBoundaryMin * OutScaleZ;
+			Output.MeshScaleZ = 1.0f / (SplineBoundaryMax - SplineBoundaryMin);
+			Output.MeshMinZ = SplineBoundaryMin * Output.MeshScaleZ;
+		}
+
+		// Iteratively solve for an approximation of spline length
+		float SplineLength = 0.0f;
+		{
+			static const uint32 NumIterations = 63; // 64 sampled points
+			static const float IterStep = 1.0f / float(NumIterations);
+			float A = 0.0f;
+			FVector3f PrevPoint = SplineEvalPos(SplineParams, A);
+			for (uint32 i = 0; i < NumIterations; ++i)
+			{
+				FVector3f Point = SplineEvalPos(SplineParams, A);
+				SplineLength += (Point - PrevPoint).Length();
+				PrevPoint = Point;
+				A += IterStep;
+			}
+		}
+
+		// Calculate an approximation of how much the mesh gets scaled in each local axis as a result of spline
+		// deformation and take the smallest of the axes. This is important for LOD selection of Nanite spline
+		// meshes.
+		{
+			// Take the mid-point scale in X/Y to balance out LOD selection in case either of them are extreme.
+			auto AvgAbs = [](float A, float B) { return (FMath::Abs(A) + FMath::Abs(B)) * 0.5f; };
+			FVector3f DeformScale = FVector3f(
+				SplineLength * Output.MeshScaleZ,
+				AvgAbs(Output.StartScale.X, Output.EndScale.X),
+				AvgAbs(Output.StartScale.Y, Output.EndScale.Y)
+			);
+			
+			Output.MeshDeformScaleMinMax = FVector2f(DeformScale.GetMin(), DeformScale.GetMax());
 		}
 	}
+
+	return Output;
 }
 
 void USplineMeshComponent::UpdateRenderStateAndCollision()
@@ -541,21 +705,27 @@ void USplineMeshComponent::UpdateRenderStateAndCollision_Internal(bool bConcurre
 			MarkRenderTransformDirty();
 		}
 
-		FSplineMeshSceneProxy* SplineProxy = static_cast<FSplineMeshSceneProxy*>(SceneProxy);
-
-		float SplineMeshScaleZ = 1.f;
-		float SplineMeshMinZ = 1.f;
-		CalculateScaleZAndMinZ(SplineMeshScaleZ, SplineMeshMinZ);
+		FSplineMeshShaderParams* DestParams = nullptr;
+		if (SceneProxy->IsNaniteMesh())
+		{
+			DestParams = &static_cast<FNaniteSplineMeshSceneProxy*>(SceneProxy)->SplineParams;
+		}
+		else
+		{
+			DestParams = &static_cast<FSplineMeshSceneProxy*>(SceneProxy)->SplineParams;
+		}
 
 		ENQUEUE_RENDER_COMMAND(UpdateSplineParamsRTCommand)(
-			[SplineProxy, this, SplineMeshScaleZ, SplineMeshMinZ](FRHICommandList&)
-		{
-			SplineProxy->SplineParams = SplineParams;
-			SplineProxy->ForwardAxis = ForwardAxis;
-			SplineProxy->SplineUpDir = SplineUpDir;
-			SplineProxy->SplineMeshScaleZ = SplineMeshScaleZ;
-			SplineProxy->SplineMeshMinZ = SplineMeshMinZ;
-		});
+			[SceneProxy=SceneProxy, DestParams, SrcParams=CalculateShaderParams()](FRHICommandList&)
+			{
+				*DestParams = SrcParams;
+
+				// Request a GPU scene update for this primitive so it updates its instance data
+				FSceneInterface& Scene = SceneProxy->GetScene();
+				FPrimitiveSceneInfo& SceneInfo = *SceneProxy->GetPrimitiveSceneInfo();
+				Scene.RequestGPUSceneUpdate(SceneInfo, EPrimitiveDirtyState::ChangedOther);
+			}
+		);
 	}
 	else
 	{
@@ -654,64 +824,17 @@ void USplineMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& Base
 	CollectPSOPrecacheDataImpl(VertexFactoryType, BasePrecachePSOParams, SMC_GetElements, OutParams);
 }
 
-FPrimitiveSceneProxy* USplineMeshComponent::CreateSceneProxy()
+FPrimitiveSceneProxy* USplineMeshComponent::CreateStaticMeshSceneProxy(Nanite::FMaterialAudit& NaniteMaterials, bool bCreateNanite)
 {
-	// Verify that the mesh is valid before using it.
-	const bool bMeshIsValid =
-		// make sure we have an actual staticmesh
-		GetStaticMesh() &&
-		GetStaticMesh()->IsCompiling() == false &&
-		GetStaticMesh()->HasValidRenderData() &&
-		!IsPSOPrecaching();
-
-	if (bMeshIsValid)
+	LLM_SCOPE(ELLMTag::StaticMesh);
+	
+	if (bCreateNanite && ShouldRenderNaniteSplineMeshes())
 	{
-		return ::new FSplineMeshSceneProxy(this);
+		return ::new FNaniteSplineMeshSceneProxy(NaniteMaterials, this);
 	}
-	else
-	{
-		return nullptr;
-	}
+	
+	return ::new FSplineMeshSceneProxy(this);
 }
-
-
-/**
-* Functions used for transforming a static mesh component based on a spline.
-* This needs to be updated if the spline functionality changes!
-*/
-static float SmoothStep(float A, float B, float X)
-{
-	if (X < A)
-	{
-		return 0.0f;
-	}
-	else if (X >= B)
-	{
-		return 1.0f;
-	}
-	const float InterpFraction = (X - A) / (B - A);
-	return InterpFraction * InterpFraction * (3.0f - 2.0f * InterpFraction);
-}
-
-static FVector SplineEvalPos(const FVector& StartPos, const FVector& StartTangent, const FVector& EndPos, const FVector& EndTangent, float A)
-{
-	const float A2 = A * A;
-	const float A3 = A2 * A;
-
-	return (((2 * A3) - (3 * A2) + 1) * StartPos) + ((A3 - (2 * A2) + A) * StartTangent) + ((A3 - A2) * EndTangent) + (((-2 * A3) + (3 * A2)) * EndPos);
-}
-
-static FVector SplineEvalDir(const FVector& StartPos, const FVector& StartTangent, const FVector& EndPos, const FVector& EndTangent, float A)
-{
-	const FVector C = (6 * StartPos) + (3 * StartTangent) + (3 * EndTangent) - (6 * EndPos);
-	const FVector D = (-6 * StartPos) - (4 * StartTangent) - (2 * EndTangent) + (6 * EndPos);
-	const FVector E = StartTangent;
-
-	const float A2 = A * A;
-
-	return ((C * A2) + (D * A) + E).GetSafeNormal();
-}
-
 
 FBoxSphereBounds USplineMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
@@ -887,15 +1010,15 @@ FTransform USplineMeshComponent::CalcSliceTransformAtSplineOffset(const float Al
 	const float HermiteAlpha = bSmoothInterpRollScale ? SmoothStep(0.0, 1.0, Alpha) : Alpha;
 
 	// Then find the point and direction of the spline at this point along
-	FVector SplinePos = SplineEvalPos(SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha);
-	const FVector SplineDir = SplineEvalDir(SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha);
+	FVector3f SplinePos = SplineEvalPos(SplineParams, Alpha);
+	const FVector3f SplineDir = SplineEvalDir(SplineParams, Alpha);
 
 	// Find base frenet frame
-	const FVector BaseXVec = (SplineUpDir ^ SplineDir).GetSafeNormal();
-	const FVector BaseYVec = (SplineDir ^ BaseXVec).GetSafeNormal();
+	const FVector3f BaseXVec = (FVector3f(SplineUpDir) ^ SplineDir).GetSafeNormal();
+	const FVector3f BaseYVec = (FVector3f(SplineDir) ^ BaseXVec).GetSafeNormal();
 
 	// Offset the spline by the desired amount
-	const FVector2D SliceOffset = FMath::Lerp<FVector2D>(SplineParams.StartOffset, SplineParams.EndOffset, HermiteAlpha);
+	const FVector2f SliceOffset = FMath::Lerp(FVector2f(SplineParams.StartOffset), FVector2f(SplineParams.EndOffset), HermiteAlpha);
 	SplinePos += SliceOffset.X * BaseXVec;
 	SplinePos += SliceOffset.Y * BaseYVec;
 
@@ -903,26 +1026,26 @@ FTransform USplineMeshComponent::CalcSliceTransformAtSplineOffset(const float Al
 	const float UseRoll = FMath::Lerp(SplineParams.StartRoll, SplineParams.EndRoll, HermiteAlpha);
 	const float CosAng = FMath::Cos(UseRoll);
 	const float SinAng = FMath::Sin(UseRoll);
-	const FVector XVec = (CosAng * BaseXVec) - (SinAng * BaseYVec);
-	const FVector YVec = (CosAng * BaseYVec) + (SinAng * BaseXVec);
+	const FVector3f XVec = (CosAng * BaseXVec) - (SinAng * BaseYVec);
+	const FVector3f YVec = (CosAng * BaseYVec) + (SinAng * BaseXVec);
 
 	// Find scale at this point along spline
-	const FVector2D UseScale = FMath::Lerp(SplineParams.StartScale, SplineParams.EndScale, HermiteAlpha);
+	const FVector2f UseScale = FMath::Lerp(FVector2f(SplineParams.StartScale), FVector2f(SplineParams.EndScale), HermiteAlpha);
 
 	// Build overall transform
 	FTransform SliceTransform;
 	switch (ForwardAxis)
 	{
 	case ESplineMeshAxis::X:
-		SliceTransform = FTransform(SplineDir, XVec, YVec, SplinePos);
+		SliceTransform = FTransform(FVector(SplineDir), FVector(XVec), FVector(YVec), FVector(SplinePos));
 		SliceTransform.SetScale3D(FVector(1, UseScale.X, UseScale.Y));
 		break;
 	case ESplineMeshAxis::Y:
-		SliceTransform = FTransform(YVec, SplineDir, XVec, SplinePos);
+		SliceTransform = FTransform(FVector(YVec), FVector(SplineDir), FVector(XVec), FVector(SplinePos));
 		SliceTransform.SetScale3D(FVector(UseScale.Y, 1, UseScale.X));
 		break;
 	case ESplineMeshAxis::Z:
-		SliceTransform = FTransform(XVec, YVec, SplineDir, SplinePos);
+		SliceTransform = FTransform(FVector(XVec), FVector(YVec), FVector(SplineDir), FVector(SplinePos));
 		SliceTransform.SetScale3D(FVector(UseScale.X, UseScale.Y, 1));
 		break;
 	default:

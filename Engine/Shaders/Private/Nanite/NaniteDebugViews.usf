@@ -3,6 +3,7 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "../DeferredShadingCommon.ush"
+#include "../SplineMeshCommon.ush"
 
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
@@ -14,6 +15,8 @@ ByteAddressBuffer MaterialSlotTable;
 ByteAddressBuffer MaterialDepthTable;
 ByteAddressBuffer MaterialEditorTable;
 ByteAddressBuffer MaterialHitProxyTable;
+
+StructuredBuffer<FNaniteShadingBinMeta> ShadingBinMeta;
 
 #if USE_EDITOR_SHADERS
 Buffer<uint> EditorSelectedHitProxyIds;
@@ -191,6 +194,7 @@ void ExportDebugViewPS(
 				const bool bUseSobelFilter = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
 			#endif
 
+				BRANCH
 				if (bUseSobelFilter)
 				{
 					OutColor = float4(ApplyWireframeFilter(PixelPos, DepthInt, WireColor), 1.0f);
@@ -199,9 +203,21 @@ void ExportDebugViewPS(
 				{
 					const uint3 TriIndices = DecodeTriangleIndices(Cluster, TriIndex);
 
-					const float3 PointLocal0 = DecodePosition(TriIndices.x, Cluster);
-					const float3 PointLocal1 = DecodePosition(TriIndices.y, Cluster);
-					const float3 PointLocal2 = DecodePosition(TriIndices.z, Cluster);
+					float3 PointLocal0 = DecodePosition(TriIndices.x, Cluster);
+					float3 PointLocal1 = DecodePosition(TriIndices.y, Cluster);
+					float3 PointLocal2 = DecodePosition(TriIndices.z, Cluster);
+
+					// We can handle spline mesh deformation here because its deformation is fixed function
+					const uint PackedFlags = ShadingBinMeta[UnpackedMask.ShadingBin].MaterialFlags;
+					const FNaniteMaterialFlags MaterialFlags = UnpackNaniteMaterialFlags(PackedFlags);
+
+					BRANCH
+					if (MaterialFlags.bSplineMesh)
+					{
+						PointLocal0 = SplineMeshDeformLocalPos(InstanceData.SplineMeshParams, float4(PointLocal0, 1));
+						PointLocal1 = SplineMeshDeformLocalPos(InstanceData.SplineMeshParams, float4(PointLocal1, 1));
+						PointLocal2 = SplineMeshDeformLocalPos(InstanceData.SplineMeshParams, float4(PointLocal2, 1));
+					}
 
 					const float3 PointWorld0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
 					const float3 PointWorld1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
