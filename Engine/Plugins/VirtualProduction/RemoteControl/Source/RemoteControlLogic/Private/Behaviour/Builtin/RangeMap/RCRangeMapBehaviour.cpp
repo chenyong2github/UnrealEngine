@@ -343,9 +343,12 @@ URCAction* URCRangeMapBehaviour::DuplicateAction(URCAction* InAction, URCBehavio
 				ActionValueProperty = PropertyAction->PropertySelfContainer;
 			}
 
-			if(ensureAlways(ActionValueProperty))
+			URCVirtualPropertySelfContainer* ActionInputProperty = NewObject<URCVirtualPropertySelfContainer>(InBehaviour);
+			ActionInputProperty->DuplicatePropertyWithCopy(RangeMapInputData->InputProperty);
+
+			if (ensureAlways(ActionValueProperty))
 			{
-				const FRCRangeMapInput NewData(RangeMapInputData->InputProperty, ActionValueProperty);
+				const FRCRangeMapInput NewData(ActionInputProperty, ActionValueProperty);
 				InBehaviourRangeMap->RangeMapActionContainer.Add(NewAction, NewData);
 			}
 		}
