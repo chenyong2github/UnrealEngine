@@ -28,8 +28,8 @@ namespace Metasound
 		// inputs
 		METASOUND_PARAM(ParamNoteIn, "Note In", "Midi Note to quantize");
 		METASOUND_PARAM(ParamRootNote, "Root Note", "Midi note to treat as the Root (0 = C, 1 = D, etc.).  Octave does not matter. Values < 0 will clamp to 0");
-		METASOUND_PARAM(ParamScaleDegrees, "Scale Degrees"
-			, "Set of notes in ascending order, represeting half steps starting at 0.0f meaning the Root Note. The highest value MUST be the same as 0.0 one octave higher: 12.0 in most cases, but it doesn't have to be (i.e. could be 24.0 if you want to define a 2 octave range)");
+		METASOUND_PARAM(ParamScaleDegrees, "Scale Degrees", "Set of notes in ascending order, represeting half steps starting at 0.0f meaning the Root Note. Scale degrees should be the notes in a scale that not including the octave. Can be the output of the Scale To Note Array node.");
+		METASOUND_PARAM(ParamScaleRange, "Scale Range In", "The number of semitones in the scale. E.g. a regular diatonic scale will be 12 semitones. Exotic scales could be something else.");
 
 		// outputs
 		METASOUND_PARAM(ParamNoteOutput, "Note Out", "Quantized Note");
@@ -54,6 +54,7 @@ namespace Metasound
 			, const FFloatReadRef& InMidiNoteIn
 			, const FFloatReadRef& InRootNote
 			, const FArrayScaleDegreeReadRef& InScale
+			, const FFloatReadRef& InScaleRange
 		);
 
 		// node interface
@@ -73,6 +74,7 @@ namespace Metasound
 		FFloatReadRef MidiNoteIn;
 		FFloatReadRef RootNote;
 		FArrayScaleDegreeReadRef Scale;
+		FFloatReadRef ScaleRange;
 
 		// output pins
 		FFloatWriteRef MidiNoteOut;
@@ -82,6 +84,7 @@ namespace Metasound
 		float PreviousRoot = -1.0f;
 		TArray<float> PreviousScale;
 		float PreviousNoteOut = 0.0f;
+		float PreviousScaleRange = 12.0f;
 
 		static constexpr float MaxNote = 1e12f;
 		static constexpr float MinNote = -1e12f;
@@ -101,10 +104,12 @@ namespace Metasound
 		, const FFloatReadRef& InMidiNoteIn
 		, const FFloatReadRef& InRootNote
 		, const FArrayScaleDegreeReadRef& InScale
-		)
+		, const FFloatReadRef& InScaleRange
+	)
 		: MidiNoteIn(InMidiNoteIn)
 		, RootNote(InRootNote)
 		, Scale(InScale)
+		, ScaleRange(InScaleRange)
 		, MidiNoteOut(FFloatWriteRef::CreateNew())
 	{
 		Reset(InParams);
@@ -142,6 +147,7 @@ namespace Metasound
 			FInputVertexInterface(
 				TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamNoteIn), 60.0f),
 				TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamRootNote), 0.0f),
+				TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamScaleRange), 12.0f),
 				TInputDataVertex<ScaleDegreeArrayType>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamScaleDegrees))
 			),
 			FOutputVertexInterface(
@@ -157,16 +163,20 @@ namespace Metasound
 	{
 		const FDataReferenceCollection& InputDataRefs = InParams.InputDataReferences;
 
+		const FInputVertexInterface& InputInterface = InParams.Node.GetVertexInterface().GetInputInterface();
+
 		// inputs
-		FFloatReadRef MidiNoteIn = InputDataRefs.GetDataReadReferenceOrConstruct<float>(METASOUND_GET_PARAM_NAME(ParamNoteIn));
-		FFloatReadRef RootNoteIn = InputDataRefs.GetDataReadReferenceOrConstruct<float>(METASOUND_GET_PARAM_NAME(ParamRootNote));
+		FFloatReadRef MidiNoteIn = InputDataRefs.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(ParamNoteIn), InParams.OperatorSettings);
+		FFloatReadRef RootNoteIn = InputDataRefs.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(ParamRootNote), InParams.OperatorSettings);
 		FArrayScaleDegreeReadRef InScaleArray = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<ScaleDegreeArrayType>(METASOUND_GET_PARAM_NAME(ParamScaleDegrees));
+		FFloatReadRef ScaleRangeIn = InputDataRefs.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(ParamScaleRange), InParams.OperatorSettings);
 
 		return MakeUnique <FMidiNoteQuantizerOperator>(
 			  InParams
 			, MidiNoteIn
 			, RootNoteIn
 			, InScaleArray
+			, ScaleRangeIn
 			);
 	}
 
@@ -174,6 +184,7 @@ namespace Metasound
 	{
 		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(ParamNoteIn), MidiNoteIn);
 		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(ParamRootNote), RootNote);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(ParamScaleRange), ScaleRange);
 		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(ParamScaleDegrees), Scale);
 	}
 
@@ -203,9 +214,10 @@ namespace Metasound
 		PreviousNoteIn = FMath::Clamp(*MidiNoteIn, MinNote, MaxNote);
 		PreviousRoot = FMath::Clamp(*RootNote, MinRoot, MaxRoot);
 		PreviousScale = *Scale;
+		PreviousScaleRange = FMath::Max(*ScaleRange, 1.0f);
 
 		PreviousScale.Sort();
-		PreviousNoteOut = Audio::FMidiNoteQuantizer::QuantizeMidiNote(PreviousNoteIn, PreviousRoot, PreviousScale);
+		PreviousNoteOut = Audio::FMidiNoteQuantizer::QuantizeMidiNote(PreviousNoteIn, PreviousRoot, PreviousScale, PreviousScaleRange);
 		*MidiNoteOut = PreviousNoteOut;
 	}
 
@@ -220,18 +232,21 @@ namespace Metasound
 		// calculate new output and cache values if needed
 		const float CurrentNote = FMath::Clamp(*MidiNoteIn, MinNote, MaxNote);
 		const float CurrentRoot = FMath::Clamp(*RootNote, MinRoot, MaxRoot);
+		const float CurrentScaleRange = FMath::Max(*ScaleRange, 1.0f);;
 		if (!FMath::IsNearlyEqual(PreviousNoteIn, CurrentNote)
 			|| !FMath::IsNearlyEqual(PreviousRoot, CurrentRoot)
 			|| PreviousScale !=  *Scale
+			|| !FMath::IsNearlyEqual(PreviousScaleRange, CurrentScaleRange)
 			)
 		{
 			// cache values
 			PreviousNoteIn = CurrentNote;
 			PreviousRoot = CurrentRoot;
 			PreviousScale = *Scale;
+			PreviousScaleRange = CurrentScaleRange;
 
 			PreviousScale.Sort();
-			PreviousNoteOut = Audio::FMidiNoteQuantizer::QuantizeMidiNote(PreviousNoteIn, PreviousRoot, PreviousScale);
+			PreviousNoteOut = Audio::FMidiNoteQuantizer::QuantizeMidiNote(PreviousNoteIn, PreviousRoot, PreviousScale, PreviousScaleRange);
 		}
 
 		// set the output value
