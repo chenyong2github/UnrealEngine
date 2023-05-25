@@ -489,7 +489,21 @@ namespace UsdSkelRootTranslatorImpl
 			// In USD, the skinning target need not be a mesh, but for Unreal we are only interested in skinning meshes
 			if ( pxr::UsdGeomMesh SkinningMesh = pxr::UsdGeomMesh( SkinningQuery.GetPrim() ) )
 			{
-				PathsToSkinnedPrims.Add(SkinningMesh.GetPrim().GetPath());
+				// Let's only care about prims with the SkelBindingAPI for now as we'll *need* joint influences and weights
+				if (SkinningQuery.GetPrim().HasAPI<pxr::UsdSkelBindingAPI>())
+				{
+					PathsToSkinnedPrims.Add(SkinningMesh.GetPrim().GetPath());
+				}
+				else
+				{
+					UE_LOG(
+						LogUsd,
+						Log,
+						TEXT("Ignoring skinned prim '%s' when generating Skeletal Mesh for SkelRoot '%s' as the prim doesn't have the SkelBindingAPI"),
+						*UsdToUnreal::ConvertPath(SkinningQuery.GetPrim().GetPrimPath()),
+						*UsdToUnreal::ConvertPath(InSkeletonRoot.GetPrim().GetPrimPath())
+					);
+				}
 			}
 		}
 

@@ -1254,6 +1254,10 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 
 	const UsdPrim& SkinningPrim = SkinningQuery.GetPrim();
 	UsdSkelBindingAPI SkelBindingAPI(SkinningPrim);
+	if (!SkelBindingAPI)
+	{
+		return false;
+	}
 
 	// Ref. FFbxImporter::FillSkelMeshImporterFromFbx
 	UsdGeomMesh UsdMesh = UsdGeomMesh(SkinningPrim);
