@@ -272,6 +272,37 @@ public:
 	
 	SLATE_END_ARGS()
 
+	void FindFunctionBindingPropertyNode(UAnimGraphNode_Base * InNode, TSharedPtr<IPropertyHandle>& OutPropertyHandle, TSharedPtr<IDetailTreeNode>& OutDetailTreeNode, const TSharedRef<IDetailTreeNode>& InRootNode, FName InCategory, FName InMemberName)
+	{
+		// We already found the property we are looking for
+		if (OutPropertyHandle.IsValid() || OutDetailTreeNode.IsValid())
+		{
+			return;
+		}
+		
+		TArray<TSharedRef<IDetailTreeNode>> Children;
+		InRootNode->GetChildren(Children);
+
+		// Parse children
+		for (const TSharedRef<IDetailTreeNode>& ChildNode : Children)
+		{
+			const TSharedPtr<IPropertyHandle> ChildPropertyHandle = ChildNode->CreatePropertyHandle();
+				
+			// Try to match node
+			if (ChildPropertyHandle.IsValid() && ChildPropertyHandle->GetProperty()->GetFName() == InMemberName && ChildPropertyHandle->GetMetaData(TEXT("Category")) == InCategory)
+			{
+				OutDetailTreeNode = ChildNode;
+				OutPropertyHandle = ChildPropertyHandle;
+				
+				// We found our function binding property.
+				return;
+			}
+
+			// Look into sub categories
+			FindFunctionBindingPropertyNode(InNode, OutPropertyHandle, OutDetailTreeNode, ChildNode, InCategory, InMemberName);
+		}
+	}
+	
 	void Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode)
 	{
 		UseLowDetail = InArgs._UseLowDetail;
@@ -291,46 +322,45 @@ public:
 		GridPanel->SetVisibility(EVisibility::Collapsed);
 
 		int32 RowIndex = 0;
-		
-		// Add bound functions
-		auto AddFunctionBindingWidget = [this, InNode, &GridPanel, &RowIndex](FName InCategory, FName InMemberName)
+
+		// Get anim node functions that are bound
+		TArray<TPair<FName, FName>> FunctionBindingsInfo;
+		InNode->GetBoundFunctionsInfo(FunctionBindingsInfo);
+
+		// Build anim node widgets
+		for (const TPair<FName, FName> & FunctionBindingInfo : FunctionBindingsInfo)
 		{
-			GridPanel->SetVisibility(EVisibility::Visible);
-			
-			// Find row
+			FName Category = FunctionBindingInfo.Key;
+			FName MemberName = FunctionBindingInfo.Value;
+
 			TSharedPtr<IPropertyHandle> PropertyHandle;
 			TSharedPtr<IDetailTreeNode> DetailTreeNode;
+			
+			GridPanel->SetVisibility(EVisibility::Visible);
 
+			// Find row for function binding property
 			for (const TSharedRef<IDetailTreeNode>& RootTreeNode : PropertyRowGenerator->GetRootTreeNodes())
 			{
-				if(RootTreeNode->GetNodeName() == InCategory)
+				if (Category.ToString().Contains(RootTreeNode->GetNodeName().ToString()))
 				{
-					TArray<TSharedRef<IDetailTreeNode>> Children;
-					RootTreeNode->GetChildren(Children);
-
-					for (int32 ChildIdx = 0; ChildIdx < Children.Num(); ChildIdx++)
-					{
-						TSharedPtr<IPropertyHandle> ChildPropertyHandle = Children[ChildIdx]->CreatePropertyHandle();
-						if (ChildPropertyHandle.IsValid() && ChildPropertyHandle->GetProperty() && ChildPropertyHandle->GetProperty()->GetFName() == InMemberName)
-						{
-							DetailTreeNode = Children[ChildIdx];
-							PropertyHandle = ChildPropertyHandle;
-							PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([InNode]()
-							{
-								InNode->ReconstructNode();
-							}));
-							break;
-						}
-					}
+					FindFunctionBindingPropertyNode(InNode, PropertyHandle, DetailTreeNode, RootTreeNode, Category, MemberName);
 				}
 			}
-
-			if(DetailTreeNode.IsValid() && PropertyHandle.IsValid())
+			
+			// Build function binding widget
+			if (DetailTreeNode.IsValid() && PropertyHandle.IsValid())
 			{
-				DetailNodes.Add(DetailTreeNode);
+				// Ensure anim node is rebuilt if any function binding changes
+				PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([InNode]()
+				{
+					InNode->ReconstructNode();
+				}));
 				
-				FNodeWidgets NodeWidgets = DetailTreeNode->CreateNodeWidgets();
+				DetailNodes.Add(DetailTreeNode);
 
+				const FNodeWidgets NodeWidgets = DetailTreeNode->CreateNodeWidgets();
+
+				// Binding variable name
 				GridPanel->AddSlot(0, RowIndex)
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
@@ -349,6 +379,7 @@ public:
 					]
 				];
 
+				// Function name
 				GridPanel->AddSlot(1, RowIndex)
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
@@ -369,22 +400,9 @@ public:
 
 				RowIndex++;
 			}
-		};
-
-		if(InNode->InitialUpdateFunction.ResolveMember<UFunction>(InNode->GetBlueprintClassFromNode()) != nullptr)
-		{
-			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitialUpdateFunction));
-		}
-		if(InNode->BecomeRelevantFunction.ResolveMember<UFunction>(InNode->GetBlueprintClassFromNode()) != nullptr)
-		{
-			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction));
-		}
-		if(InNode->UpdateFunction.ResolveMember<UFunction>(InNode->GetBlueprintClassFromNode()) != nullptr)
-		{
-			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction));
 		}
 		
-		if(DetailNodes.Num() == 0)
+		if (DetailNodes.Num() == 0)
 		{
 			// If we didnt add a function binding, remove the row generator as we dont need it and its expensive (as it ticks)
 			PropertyRowGenerator.Reset();

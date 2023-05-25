@@ -210,15 +210,15 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	EBlueprintUsage BlueprintUsage;
 
 	// Function called before the node is updated for the first time
-	UPROPERTY(EditAnywhere, Category = Functions, meta=(FunctionReference, AllowFunctionLibraries, PrototypeFunction="/Script/AnimGraphRuntime.AnimExecutionContextLibrary.Prototype_ThreadSafeAnimUpdateCall"), DisplayName="On Initial Update")
+	UPROPERTY(EditAnywhere, Category = Functions, meta=(FunctionReference, AllowFunctionLibraries, PrototypeFunction="/Script/AnimGraphRuntime.AnimExecutionContextLibrary.Prototype_ThreadSafeAnimUpdateCall", DefaultBindingName="OnInitialUpdate"), DisplayName="On Initial Update")
 	FMemberReference InitialUpdateFunction;
 
-	// Function called when the node becomes relevant
-	UPROPERTY(EditAnywhere, Category = Functions, meta=(FunctionReference, AllowFunctionLibraries, PrototypeFunction="/Script/AnimGraphRuntime.AnimExecutionContextLibrary.Prototype_ThreadSafeAnimUpdateCall"), DisplayName="On Become Relevant")
+	// Function called when the node becomes relevant, meaning it goes from having no weight to any weight.
+	UPROPERTY(EditAnywhere, Category = Functions, meta=(FunctionReference, AllowFunctionLibraries, PrototypeFunction="/Script/AnimGraphRuntime.AnimExecutionContextLibrary.Prototype_ThreadSafeAnimUpdateCall", DefaultBindingName="OnBecomeRelevant"), DisplayName="On Become Relevant")
 	FMemberReference BecomeRelevantFunction;
 
 	// Function called when the node is updated
-	UPROPERTY(EditAnywhere, Category = Functions, meta=(FunctionReference, AllowFunctionLibraries, PrototypeFunction="/Script/AnimGraphRuntime.AnimExecutionContextLibrary.Prototype_ThreadSafeAnimUpdateCall"), DisplayName="On Update")
+	UPROPERTY(EditAnywhere, Category = Functions, meta=(FunctionReference, AllowFunctionLibraries, PrototypeFunction="/Script/AnimGraphRuntime.AnimExecutionContextLibrary.Prototype_ThreadSafeAnimUpdateCall", DefaultBindingName="OnUpdate"), DisplayName="On Update")
 	FMemberReference UpdateFunction;
 
 private:
@@ -534,6 +534,10 @@ public:
 	// or in a paused PIE world
 	void PostEditRefreshDebuggedComponent();
 
+	// Gets editor information for all the bound anim node functions (category metadata string, member variable's name)
+	// Used by SAnimGraphNode to display all bound functions of an anim node.
+	virtual void GetBoundFunctionsInfo(TArray<TPair<FName, FName>> & InOutBindingsInfo);
+	
 	// Check if a specified function reference appears to be valid by inspecting only the validity of the name and guid
 	static bool IsPotentiallyBoundFunction(const FMemberReference& FunctionReference);
 
@@ -624,6 +628,9 @@ protected:
 	/** @return the current object being debugged from the blueprint for this node. Can be nullptr. */
 	UObject* GetObjectBeingDebugged() const;
 
+	/** Helper function used to validate anim node function references */
+	void ValidateFunctionRef(FName InPropertyName, const FMemberReference& InRef, const FText& InFunctionName, FCompilerResultsLog& MessageLog);
+	
 protected:
 	// Old shown pins. Needs to be a member variable to track pin visibility changes between Pre and PostEditChange 
 	TArray<FName> OldShownPins;

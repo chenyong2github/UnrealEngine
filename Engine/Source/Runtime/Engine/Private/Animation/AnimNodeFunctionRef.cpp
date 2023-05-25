@@ -113,7 +113,7 @@ void FNodeFunctionCaller::InitialUpdate(const FAnimationUpdateContext& InContext
 		}
 	}
 }
-	
+
 void FNodeFunctionCaller::BecomeRelevant(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
 {
 	if(InNode.NodeData != nullptr && InNode.NodeData->HasNodeAnyFlags(EAnimNodeDataFlags::HasBecomeRelevantFunction))
@@ -130,13 +130,18 @@ void FNodeFunctionCaller::BecomeRelevant(const FAnimationUpdateContext& InContex
 		}
 	}
 }
-	
+
 void FNodeFunctionCaller::Update(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
 {
 	if(InNode.NodeData != nullptr && InNode.NodeData->HasNodeAnyFlags(EAnimNodeDataFlags::HasUpdateFunction))
 	{
 		CallFunctionHelper<FAnimUpdateContext>(InNode.GetUpdateFunction(), InContext, InNode);
 	}
+}
+
+void FNodeFunctionCaller::CallFunction(const FAnimNodeFunctionRef& InFunction, const FAnimationBaseContext& InContext, FAnimNode_Base& InNode)
+{
+	CallFunctionHelper<FAnimExecutionContext>(InFunction, InContext, InNode);
 }
 
 }}

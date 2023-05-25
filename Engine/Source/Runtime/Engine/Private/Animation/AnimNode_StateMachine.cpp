@@ -14,6 +14,7 @@
 #include "Animation/ExposedValueHandler.h"
 #include "Logging/TokenizedMessage.h"
 #include "Animation/AnimInertializationSyncScope.h"
+#include "Animation/AnimNode_StateResult.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_StateMachine)
 
@@ -479,6 +480,9 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 	// Tick the individual state/states that are active
 	if (ActiveTransitionArray.Num() > 0)
 	{
+		// Keep track of states that have blended out to avoid recalling their anim node state functions.
+		TSet<int32> BlendedOutStates;
+		
 		for (int32 Index = 0; Index < ActiveTransitionArray.Num(); ++Index)
 		{
 			// The custom graph will tick the needed states
@@ -489,11 +493,57 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 			
 			if (bFinishedTrans)
 			{
+				// Trigger "Fully Blended Out" of any states that have any weight to them.
+				{
+					const int32 PreviousStateIndex = ActiveTransitionArray[Index].PreviousState;
+					const bool bAttemptingToTransitionOutOfCurrentState = PreviousStateIndex == CurrentState;
+					
+					if (!bAttemptingToTransitionOutOfCurrentState && StatePoseLinks.IsValidIndex(PreviousStateIndex) && StatePoseLinks[PreviousStateIndex].LinkID != INDEX_NONE)
+					{
+						if (!BlendedOutStates.Contains(PreviousStateIndex) && FMath::IsNearlyZero(GetStateWeight(PreviousStateIndex)))
+						{
+							UE::Anim::FNodeFunctionCaller::CallFunction(static_cast<FAnimNode_StateResult*>(StatePoseLinks[PreviousStateIndex].GetLinkNode())->GetStateFullyBlendedOutFunction(), Context, *this);
+							BlendedOutStates.Add(PreviousStateIndex);
+						}
+					}
+				}
+				
 				// only play these events if it is the last transition (most recent, going to current state)
 				if (Index == (ActiveTransitionArray.Num() - 1))
 				{
 					Context.AnimInstanceProxy->AddAnimNotifyFromGeneratedClass(ActiveTransitionArray[Index].EndNotify);
 					Context.AnimInstanceProxy->AddAnimNotifyFromGeneratedClass(GetStateInfo().FullyBlendedNotify);
+
+					// Handle events/calls during "Fully Blended In".
+					{
+						const int32 NextStateIndex = ActiveTransitionArray[Index].NextState;
+						
+						if (StatePoseLinks.IsValidIndex(NextStateIndex))
+						{
+							// If our most recent state has fully blended in that means that all our previous states must also blend out and their transitions will be forced
+							// to complete, (removed from active transition array), therefore we need to call their fully blended out functions if they haven't been called already. 
+							if (ActiveTransitionArray.Num() > 1)
+							{
+								for (int32 BlendOutIndex = 0; BlendOutIndex < Index; ++BlendOutIndex)
+								{
+									const int32 PreviousStateIndex = ActiveTransitionArray[BlendOutIndex].PreviousState;
+									const bool bAttemptingToTransitionOutOfCurrentState = PreviousStateIndex == CurrentState;
+
+									if (!bAttemptingToTransitionOutOfCurrentState && StatePoseLinks.IsValidIndex(PreviousStateIndex) && StatePoseLinks[PreviousStateIndex].LinkID != INDEX_NONE && !BlendedOutStates.Contains(PreviousStateIndex))
+									{
+										UE::Anim::FNodeFunctionCaller::CallFunction(static_cast<FAnimNode_StateResult*>(StatePoseLinks[PreviousStateIndex].GetLinkNode())->GetStateFullyBlendedOutFunction(), Context, *this);
+										BlendedOutStates.Add(PreviousStateIndex);
+									}
+								}
+							}
+
+							// Now that all possible state fully blended out functions have been called, perform state fully blended in call.
+							if (StatePoseLinks.IsValidIndex(NextStateIndex) && StatePoseLinks[NextStateIndex].LinkID != INDEX_NONE)
+							{
+								UE::Anim::FNodeFunctionCaller::CallFunction(static_cast<FAnimNode_StateResult*>(StatePoseLinks[NextStateIndex].GetLinkNode())->GetStateFullyBlendedInFunction(), Context, *this);
+							}
+						}
+					}
 				}
 
 				// we were the last active transition and used inertialization
@@ -1034,6 +1084,11 @@ void FAnimNode_StateMachine::SetState(const FAnimationBaseContext& Context, int3
 			OnGraphStatesExited[CurrentState].ExecuteIfBound(*this, CurrentState, NewStateIndex);
 		}
 
+		if (StatePoseLinks.IsValidIndex(CurrentState) && StatePoseLinks[CurrentState].LinkID != INDEX_NONE)
+		{
+			UE::Anim::FNodeFunctionCaller::CallFunction(static_cast<FAnimNode_StateResult*>(StatePoseLinks[CurrentState].GetLinkNode())->GetStateExitFunction(), Context, *this);
+		}
+
 		bool bForceReset = false;
 
 		if(PRIVATE_MachineDescription->States.IsValidIndex(NewStateIndex))
@@ -1101,6 +1156,11 @@ void FAnimNode_StateMachine::SetState(const FAnimationBaseContext& Context, int3
 			{
 				ConditionallyCacheBonesForState(NewStateIndex, Context);
 			}
+		}
+
+		if (StatePoseLinks.IsValidIndex(CurrentState) && StatePoseLinks[CurrentState].LinkID != INDEX_NONE)
+		{
+			UE::Anim::FNodeFunctionCaller::CallFunction(static_cast<FAnimNode_StateResult*>(StatePoseLinks[CurrentState].GetLinkNode())->GetStateEntryFunction(), Context, *this);
 		}
 
 		if(CurrentState != INDEX_NONE && CurrentState < OnGraphStatesEntered.Num())

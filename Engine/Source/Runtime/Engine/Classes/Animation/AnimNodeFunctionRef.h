@@ -5,10 +5,12 @@
 #include "CoreMinimal.h"
 #include "AnimNodeFunctionRef.generated.h"
 
+struct FAnimNode_StateMachine;
 struct FPoseLink;
 struct FPoseLinkBase;
 struct FComponentSpacePoseLink;
 struct FAnimNode_Base;
+struct FAnimationBaseContext;
 struct FAnimationInitializeContext;
 struct FAnimationUpdateContext;
 struct FPoseContext;
@@ -88,6 +90,7 @@ private:
 	friend struct ::FPoseLink;
 	friend struct ::FComponentSpacePoseLink;
 	friend struct ::FAnimInstanceProxy;
+	friend struct ::FAnimNode_StateMachine;
 	
 	// Call the InitialUpdate function of this node
 	static void InitialUpdate(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode);
@@ -97,6 +100,9 @@ private:
 
 	// Call the Update function of this node
 	static void Update(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode);
+	
+	// Call a generic function for this node
+	static void CallFunction(const FAnimNodeFunctionRef& InFunction, const FAnimationBaseContext& InContext, FAnimNode_Base& InNode);
 };
 
 }}

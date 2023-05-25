@@ -3,7 +3,7 @@
 #include "AnimationStateMachineLibrary.h"
 
 #include "Animation/AnimNode_StateMachine.h"
-#include "AnimNodes/AnimNode_StateResult.h"
+#include "Animation/AnimNode_StateResult.h"
 #include "Animation/AnimInstanceProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationStateMachineLibrary)

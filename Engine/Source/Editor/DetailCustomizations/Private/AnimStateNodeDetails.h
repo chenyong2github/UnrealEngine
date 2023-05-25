@@ -16,5 +16,9 @@ public:
 
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
+
+private:
+	
+	void GenerateAnimationStateEventRow(IDetailCategoryBuilder& SegmentCategory, const FText & StateEventLabel, const FString & TransitionName);
 };
 

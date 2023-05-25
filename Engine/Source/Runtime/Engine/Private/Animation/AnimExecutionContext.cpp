@@ -5,6 +5,12 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimExecutionContext)
 
+FAnimExecutionContext::FData::FData(const FAnimationBaseContext& InContext)
+{
+	Context = const_cast<FAnimationBaseContext*>(&InContext);
+	ContextType = EContextType::Base;
+}
+
 FAnimExecutionContext::FData::FData(const FAnimationInitializeContext& InContext)
 {
 	Context = const_cast<FAnimationInitializeContext*>(&InContext);

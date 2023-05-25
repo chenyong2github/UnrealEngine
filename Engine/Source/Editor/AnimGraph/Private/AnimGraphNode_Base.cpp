@@ -201,6 +201,56 @@ void UAnimGraphNode_Base::CreateOutputPins()
 	}
 }
 
+void UAnimGraphNode_Base::ValidateFunctionRef(FName InPropertyName, const FMemberReference& InRef, const FText& InFunctionName, FCompilerResultsLog& MessageLog)
+{
+	if (InRef.GetMemberName() != NAME_None)
+	{
+		const UFunction* Function = InRef.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass);
+		if(Function == nullptr)
+		{
+			MessageLog.Error(*FText::Format(LOCTEXT("CouldNotResolveFunctionErrorFormat", "Could not resolve {0} function @@"), InFunctionName).ToString(), this);
+		}
+		else
+		{
+			// Check signatures match
+			const FProperty* Property = GetClass()->FindPropertyByName(InPropertyName);
+			check(Property);
+			const FString& PrototypeFunctionName = Property->GetMetaData("PrototypeFunction");
+			const UFunction* PrototypeFunction = PrototypeFunctionName.IsEmpty() ? nullptr : FindObject<UFunction>(nullptr, *PrototypeFunctionName);
+			if (PrototypeFunction != nullptr && !PrototypeFunction->IsSignatureCompatibleWith(Function))
+			{
+				MessageLog.Error(*FText::Format(LOCTEXT("FunctionSignatureErrorFormat", "{0} function's signature is not compatible @@"), InFunctionName).ToString(), this);
+			}
+
+			// Check thread safety
+			if (!FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Function))
+			{
+				MessageLog.Error(*FText::Format(LOCTEXT("FunctionThreadSafetyErrorFormat", "{0} function is not thread safe @@"), InFunctionName).ToString(), this);
+			}
+		}
+	}
+}
+
+void UAnimGraphNode_Base::GetBoundFunctionsInfo(TArray<TPair<FName, FName>>& InOutBindingsInfo)
+{
+	FName CategoryName = TEXT("Functions");
+
+	if (InitialUpdateFunction.ResolveMember<UFunction>(GetBlueprintClassFromNode()) != nullptr)
+	{
+		InOutBindingsInfo.Emplace(CategoryName, GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitialUpdateFunction));
+	}
+	
+	if (BecomeRelevantFunction.ResolveMember<UFunction>(GetBlueprintClassFromNode()) != nullptr)
+	{
+		InOutBindingsInfo.Emplace(CategoryName, GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction));
+	}
+
+	if (UpdateFunction.ResolveMember<UFunction>(GetBlueprintClassFromNode()) != nullptr)
+	{
+		InOutBindingsInfo.Emplace(CategoryName, GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction));
+	}
+};
+
 void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
 {
 	// Validate any bone references we have
@@ -227,36 +277,6 @@ void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkelet
 		}
 	}
 
-	auto ValidateFunctionRef = [this, &MessageLog](FName InPropertyName, const FMemberReference& InRef, const FText& InFunctionName)
-	{
-		if(InRef.GetMemberName() != NAME_None)
-		{
-			UFunction* Function = InRef.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass);
-			if(Function == nullptr)
-			{
-				MessageLog.Error(*FText::Format(LOCTEXT("CouldNotResolveFunctionErrorFormat", "Could not resolve {0} function @@"), InFunctionName).ToString(), this);
-			}
-			else
-			{
-				// Check signatures match
-				const FProperty* Property = UAnimGraphNode_Base::StaticClass()->FindPropertyByName(InPropertyName);
-				check(Property);
-				const FString& PrototypeFunctionName = Property->GetMetaData("PrototypeFunction");
-				const UFunction* PrototypeFunction = PrototypeFunctionName.IsEmpty() ? nullptr : FindObject<UFunction>(nullptr, *PrototypeFunctionName);
-				if(PrototypeFunction != nullptr && !PrototypeFunction->IsSignatureCompatibleWith(Function))
-				{
-					MessageLog.Error(*FText::Format(LOCTEXT("FunctionSignatureErrorFormat", "{0} function's signature is not compatible @@"), InFunctionName).ToString(), this);
-				}
-
-				// Check thread safety
-				if(!FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Function))
-				{
-					MessageLog.Error(*FText::Format(LOCTEXT("FunctionThreadSafetyErrorFormat", "{0} function is not thread safe @@"), InFunctionName).ToString(), this);
-				}
-			}
-		}
-	};
-	
 	bool bBaseClassIsExperimental = false;
 	bool bBaseClassIsEarlyAccess = false;
 	FString MostDerivedDevelopmentClassName;
@@ -270,9 +290,9 @@ void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkelet
 		MessageLog.Note(*(LOCTEXT("EarlyAccessNode", "@@ - Node is in early access")).ToString(), this);
 	}
 
-	ValidateFunctionRef(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitialUpdateFunction), InitialUpdateFunction, LOCTEXT("InitialUpdateFunctionName", "Initial Update"));
-	ValidateFunctionRef(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction), BecomeRelevantFunction, LOCTEXT("BecomeRelevantFunctionName", "Become Relevant"));
-	ValidateFunctionRef(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction), UpdateFunction, LOCTEXT("UpdateFunctionName", "Update"));
+	ValidateFunctionRef(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitialUpdateFunction), InitialUpdateFunction, LOCTEXT("InitialUpdateFunctionName", "Initial Update"), MessageLog);
+	ValidateFunctionRef(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction), BecomeRelevantFunction, LOCTEXT("BecomeRelevantFunctionName", "Become Relevant"), MessageLog);
+	ValidateFunctionRef(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction), UpdateFunction, LOCTEXT("UpdateFunctionName", "Update"), MessageLog);
 }
 
 void UAnimGraphNode_Base::CopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)

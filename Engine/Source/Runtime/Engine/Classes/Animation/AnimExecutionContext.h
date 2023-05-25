@@ -30,6 +30,8 @@ public:
 	struct FData
 	{
 	public:
+		FData(const FAnimationBaseContext& InContext);
+		
 		FData(const FAnimationInitializeContext& InContext);
 
 		FData(const FAnimationUpdateContext& InContext);
@@ -48,6 +50,7 @@ public:
 		enum class EContextType
 		{
 			None,
+			Base,
 			Initialize,
 			Update,
 			Pose,

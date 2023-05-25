@@ -87,9 +87,14 @@ void FBlueprintMemberReferenceDetails::CustomizeHeader(TSharedRef<IPropertyHandl
 		const FString& PrototypeFunctionName = InStructPropertyHandle->GetMetaData("PrototypeFunction");
 		UFunction* PrototypeFunction = PrototypeFunctionName.IsEmpty() ? nullptr : FindObject<UFunction>(nullptr, *PrototypeFunctionName);
 
-		auto OnGenerateBindingName = []() -> FString
+		FString DefaultBindingName = InStructPropertyHandle->HasMetaData("DefaultBindingName") ? InStructPropertyHandle->GetMetaData("DefaultBindingName") : TEXT("NewFunction");
+
+		// Binding widget re-adds the 'On' prefix because of legacy support for UMG events, so we remove it here
+		DefaultBindingName.RemoveFromStart(TEXT("On"));
+
+		auto OnGenerateBindingName = [DefaultBindingName]() -> FString
 		{
-			return TEXT("NewFunction");
+			return DefaultBindingName;
 		};
 		
 		auto OnCanBindProperty = [](FProperty* InProperty)
