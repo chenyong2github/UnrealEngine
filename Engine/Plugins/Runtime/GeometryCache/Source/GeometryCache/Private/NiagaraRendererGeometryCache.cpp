@@ -58,7 +58,7 @@ void FNiagaraRendererGeometryCache::Initialize(const UNiagaraRendererProperties*
 
 		for ( int32 iMaterial=0; iMaterial < GeoCache->Materials.Num(); ++iMaterial)
 		{
-			UMaterialInterface* Material = GeoCacheRef.OverrideMaterials.IsValidIndex(iMaterial) ? GeoCacheRef.OverrideMaterials[iMaterial] : GeoCache->Materials[iMaterial];
+			UMaterialInterface* Material = GeoCacheRef.ResolveMaterial(GeoCache, iMaterial);
 
 			MaterialRemapTable[iCache][iMaterial] =
 				BaseMaterials_GT.IndexOfByPredicate(

@@ -15,12 +15,26 @@ class FNiagaraEmitterInstance;
 class SWidget;
 
 USTRUCT()
+struct FNiagaraGeometryCacheMICOverride
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> OriginalMaterial;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceConstant> ReplacementMaterial;
+};
+
+USTRUCT()
 struct FNiagaraGeometryCacheReference
 {
 	GENERATED_USTRUCT_BODY()
-public:
+
 	FNiagaraGeometryCacheReference();
-	
+
+	UMaterialInterface* ResolveMaterial(UGeometryCache* ResolvedCache, int32 MaterialIndex) const;
+
 	/** Reference to the geometry cache asset to use (if the user parameter binding is not set) */
 	UPROPERTY(EditAnywhere, Category = "GeometryCache")
 	TObjectPtr<UGeometryCache> GeometryCache;
@@ -33,11 +47,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "GeometryCache")
 	TArray<TObjectPtr<UMaterialInterface>> OverrideMaterials;
 
-//-TODO: Follow what meshes do
-//#if WITH_EDITORONLY_DATA
-//	UPROPERTY(transient)
-//	TArray<TObjectPtr<UMaterialInstanceConstant>> MICMaterials;
-//#endif
+	UPROPERTY()
+	TArray<FNiagaraGeometryCacheMICOverride> MICOverrideMaterials;
 };
 
 UCLASS(editinlinenew, MinimalAPI, meta = (DisplayName = "Geometry Cache Renderer"))
@@ -51,7 +62,6 @@ public:
 	//UObject Interface
 	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
-	//virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITORONLY_DATA
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif// WITH_EDITORONLY_DATA
