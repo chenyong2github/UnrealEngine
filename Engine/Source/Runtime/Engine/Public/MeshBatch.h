@@ -36,6 +36,7 @@ struct FInstanceDynamicData;
 struct FInstanceSceneData;
 struct FMaterialShaderParameters;
 struct FRenderBounds;
+template<typename TBufferStruct> class TUniformBuffer;
 
 enum EPrimitiveIdMode
 {
