@@ -67,7 +67,7 @@ void UAbilitySystemGlobals::InitGlobalData()
 	InitTargetDataScriptStructCache();
 
 	// Register for PreloadMap so cleanup can occur on map transitions
-	FCoreUObjectDelegates::PreLoadMap.AddUObject(this, &UAbilitySystemGlobals::HandlePreLoadMap);
+	FCoreUObjectDelegates::PreLoadMapWithContext.AddUObject(this, &UAbilitySystemGlobals::HandlePreLoadMap);
 
 #if WITH_EDITOR
 	// Register in editor for PreBeginPlay so cleanup can occur when we start a PIE session
@@ -607,8 +607,14 @@ void UAbilitySystemGlobals::ResetCachedData()
 	FActiveGameplayEffectHandle::ResetGlobalHandleMap();
 }
 
-void UAbilitySystemGlobals::HandlePreLoadMap(const FString& MapName)
+void UAbilitySystemGlobals::HandlePreLoadMap(const FWorldContext& WorldContext, const FString& MapName)
 {
+	// We don't want to reset for PIE since this is shared memory (which would have received OnPreBeginPIE).
+	if (WorldContext.PIEInstance > 0)
+	{
+		return;
+	}
+
 	ResetCachedData();
 }
 
