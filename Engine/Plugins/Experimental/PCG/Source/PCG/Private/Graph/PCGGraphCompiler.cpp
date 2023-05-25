@@ -286,7 +286,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::GetPrecompiledTasks(UPCGGraph* InGraph,
 	else
 	{
 		// If we failed to get a context, output a dummy blank one.
-		new(&OutStackContext) FPCGStackContext();
+		OutStackContext = FPCGStackContext();
 	}
 
 	return ExistingTasks ? *ExistingTasks : TArray<FPCGGraphTask>();
