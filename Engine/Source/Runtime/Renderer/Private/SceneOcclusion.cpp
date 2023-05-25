@@ -416,7 +416,7 @@ void FFrameBasedOcclusionQueryPool::AdvanceFrame(uint32 InOcclusionFrameCounter,
 			if (Frame.OcclusionFrameCounter > NewFrame.OcclusionFrameCounter)
 			{
 				Frame.Queries.Append(MoveTemp(NewFrame.Queries));
-				FMemory::Memswap(&Frame, &NewFrame, sizeof(FFrameOcclusionQueries));
+				Swap(Frame, NewFrame);
 			}
 			else
 			{
@@ -424,7 +424,7 @@ void FFrameBasedOcclusionQueryPool::AdvanceFrame(uint32 InOcclusionFrameCounter,
 			}
 		}
 
-		FMemory::Memswap(FrameQueries, TmpFrameQueries, sizeof(FrameQueries));
+		Swap(FrameQueries, TmpFrameQueries);
 		NumBufferedFrames = InNumBufferedFrames;
 	}
 	

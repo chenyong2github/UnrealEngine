@@ -554,7 +554,7 @@ static void BuildMeshDrawCommandPrimitiveIdBuffer(
 		NewPassVisibleMeshDrawCommandsNum = TempVisibleMeshDrawCommands.Num();
 
 		// Replace VisibleMeshDrawCommands
-		FMemory::Memswap(&VisibleMeshDrawCommands, &TempVisibleMeshDrawCommands, sizeof(TempVisibleMeshDrawCommands));
+		Swap(VisibleMeshDrawCommands, TempVisibleMeshDrawCommands);
 		TempVisibleMeshDrawCommands.Reset();
 	}
 	else
@@ -823,7 +823,7 @@ void ApplyViewOverridesToMeshDrawCommands(
 			}
 
 			// Replace VisibleMeshDrawCommands
-			FMemory::Memswap(&VisibleMeshDrawCommands, &TempVisibleMeshDrawCommands, sizeof(TempVisibleMeshDrawCommands));
+			Swap(VisibleMeshDrawCommands, TempVisibleMeshDrawCommands);
 			TempVisibleMeshDrawCommands.Reset();
 		}
 	}
@@ -1258,12 +1258,12 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 		case EMeshPass::TranslucencyAll: TaskContext.TranslucencyPass				= ETranslucencyPass::TPT_AllTranslucency; break;
 	}
 
-	FMemory::Memswap(&TaskContext.MeshDrawCommands, &InOutMeshDrawCommands, sizeof(InOutMeshDrawCommands));
-	FMemory::Memswap(&TaskContext.DynamicMeshCommandBuildRequests, &InOutDynamicMeshCommandBuildRequests, sizeof(InOutDynamicMeshCommandBuildRequests));
+	Swap(TaskContext.MeshDrawCommands, InOutMeshDrawCommands);
+	Swap(TaskContext.DynamicMeshCommandBuildRequests, InOutDynamicMeshCommandBuildRequests);
 
 	if (TaskContext.ShadingPath == EShadingPath::Mobile && TaskContext.PassType == EMeshPass::BasePass)
 	{
-		FMemory::Memswap(&TaskContext.MobileBasePassCSMMeshDrawCommands, InOutMobileBasePassCSMMeshDrawCommands, sizeof(*InOutMobileBasePassCSMMeshDrawCommands));
+		Swap(TaskContext.MobileBasePassCSMMeshDrawCommands, *InOutMobileBasePassCSMMeshDrawCommands);
 	}
 	else
 	{

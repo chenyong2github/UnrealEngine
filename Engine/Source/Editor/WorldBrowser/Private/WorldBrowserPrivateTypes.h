@@ -81,7 +81,7 @@ namespace WorldHierarchy
 		}
 		FWorldTreeItemID& operator=(FWorldTreeItemID&& Other)
 		{
-			FMemory::Memswap(this, &Other, sizeof(FWorldTreeItemID));
+			Swap(*this, Other);
 			return *this;
 		}
 

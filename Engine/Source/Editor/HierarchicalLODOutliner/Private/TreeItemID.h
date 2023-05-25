@@ -38,7 +38,7 @@ namespace HLODOutliner
 
 		FTreeItemID& operator=(FTreeItemID&& Other)
 		{
-			FMemory::Memswap(this, &Other, sizeof(FTreeItemID));
+			Swap(*this, Other);
 			return *this;
 		}
 

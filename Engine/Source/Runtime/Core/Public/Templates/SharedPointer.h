@@ -392,7 +392,7 @@ public:
 
 	FORCEINLINE TSharedRef& operator=( TSharedRef&& InSharedRef )
 	{
-		FMemory::Memswap(this, &InSharedRef, sizeof(TSharedRef));
+		Swap(*this, InSharedRef);
 		return *this;
 	}
 

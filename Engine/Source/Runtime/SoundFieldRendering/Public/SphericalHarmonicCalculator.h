@@ -37,6 +37,6 @@ public:
 	{
 		InOutVector.X = -(InOutVector.X - HALF_PI);
 		InOutVector.Y *= -1.0f;
-		FMemory::Memswap(&InOutVector.X,&InOutVector.Y, sizeof(InOutVector.X));
+		Swap(InOutVector.X,InOutVector.Y);
 	}
 };

@@ -1758,7 +1758,7 @@ void ApplyViewOverridesToMeshDrawCommands(const FSceneView& View, FMeshCommandOn
 		}
 
 		// Replace VisibleMeshDrawCommands
-		FMemory::Memswap(&VisibleMeshDrawCommands, &ViewOverriddenMeshCommands, sizeof(ViewOverriddenMeshCommands));
+		Swap(VisibleMeshDrawCommands, ViewOverriddenMeshCommands);
 	}
 }
 

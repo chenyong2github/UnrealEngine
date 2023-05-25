@@ -898,8 +898,8 @@ void UMapBuildDataRegistry::InvalidateSurfaceLightmaps(UWorld* World, bool bRecr
 		{
 			TMap<FGuid, FMeshMapBuildData> PrevMeshData;
 			TMap<FGuid, FLightComponentMapBuildData> PrevLightData;
-			FMemory::Memswap(&MeshBuildData, &PrevMeshData, sizeof(MeshBuildData));
-			FMemory::Memswap(&LightBuildData, &PrevLightData, sizeof(LightBuildData));
+			Swap(MeshBuildData, PrevMeshData);
+			Swap(LightBuildData, PrevLightData);
 
 			for (const FGuid& Guid : *ResourcesToKeep)
 			{
@@ -945,7 +945,7 @@ void UMapBuildDataRegistry::InvalidateReflectionCaptures(const TSet<FGuid>* Reso
 		// Warning: caller is responsible for unregistering any components potentially referencing this UMapBuildDataRegistry before we change its contents!
 
 		TMap<FGuid, FReflectionCaptureMapBuildData> PrevReflectionCapturedData;
-		FMemory::Memswap(&ReflectionCaptureBuildData , &PrevReflectionCapturedData, sizeof(ReflectionCaptureBuildData));
+		Swap(ReflectionCaptureBuildData, PrevReflectionCapturedData);
 
 		for (TMap<FGuid, FReflectionCaptureMapBuildData>::TIterator It(PrevReflectionCapturedData); It; ++It)
 		{
@@ -1110,8 +1110,8 @@ void UMapBuildDataRegistry::EmptyLevelData(const TSet<FGuid>* ResourcesToKeep)
 {
 	TMap<FGuid, FPrecomputedLightVolumeData*> PrevPrecomputedLightVolumeData;
 	TMap<FGuid, FPrecomputedVolumetricLightmapData*> PrevPrecomputedVolumetricLightmapData;
-	FMemory::Memswap(&LevelPrecomputedLightVolumeBuildData , &PrevPrecomputedLightVolumeData, sizeof(LevelPrecomputedLightVolumeBuildData));
-	FMemory::Memswap(&LevelPrecomputedVolumetricLightmapBuildData , &PrevPrecomputedVolumetricLightmapData, sizeof(LevelPrecomputedVolumetricLightmapBuildData));
+	Swap(LevelPrecomputedLightVolumeBuildData, PrevPrecomputedLightVolumeData);
+	Swap(LevelPrecomputedVolumetricLightmapBuildData, PrevPrecomputedVolumetricLightmapData);
 
 	for (TMap<FGuid, FPrecomputedLightVolumeData*>::TIterator It(PrevPrecomputedLightVolumeData); It; ++It)
 	{

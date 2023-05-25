@@ -3799,7 +3799,7 @@ namespace VulkanRHI
 	}
 	void FVulkanAllocation::Swap(FVulkanAllocation& Other)
 	{
-		FMemory::Memswap(this, &Other, sizeof(*this));
+		::Swap(*this, Other);
 	}
 
 	void FVulkanAllocation::Reference(const FVulkanAllocation& Other)

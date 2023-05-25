@@ -257,10 +257,10 @@ void FRenderAssetInstanceView::SwapData(FRenderAssetInstanceView* Lfs, FRenderAs
 	check(Lfs->CompiledRenderAssetMap.Num() == 0 && Rhs->CompiledRenderAssetMap.Num() == 0);
 	check(!Lfs->CompiledNumForcedLODCompMap.Num() && !Rhs->CompiledNumForcedLODCompMap.Num());
 
-	FMemory::Memswap(&Lfs->Bounds4 , &Rhs->Bounds4, sizeof(Lfs->Bounds4));
-	FMemory::Memswap(&Lfs->Elements , &Rhs->Elements, sizeof(Lfs->Elements));
-	FMemory::Memswap(&Lfs->RenderAssetMap, &Rhs->RenderAssetMap, sizeof(Lfs->RenderAssetMap));
-	FMemory::Memswap(&Lfs->MaxTexelFactor , &Rhs->MaxTexelFactor, sizeof(Lfs->MaxTexelFactor));
+	Swap(Lfs->Bounds4 , Rhs->Bounds4);
+	Swap(Lfs->Elements , Rhs->Elements);
+	Swap(Lfs->RenderAssetMap, Rhs->RenderAssetMap);
+	Swap(Lfs->MaxTexelFactor , Rhs->MaxTexelFactor);
 }
 
 void FRenderAssetInstanceView::OnVerifyElementIdxFailed(int32 Idx, bool bInRange, int32 IterationCount, TMap<const UPrimitiveComponent*, int32>* ComponentMapPtr, TArray<int32>* FreeIndicesPtr) const

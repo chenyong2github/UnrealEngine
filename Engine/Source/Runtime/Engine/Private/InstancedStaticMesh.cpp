@@ -533,7 +533,7 @@ void FStaticMeshInstanceBuffer::InitFromPreallocatedData(FStaticMeshInstanceData
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FStaticMeshInstanceBuffer_InitFromPreallocatedData);
 
 	InstanceData = MakeShared<FStaticMeshInstanceData, ESPMode::ThreadSafe>();
-	FMemory::Memswap(&Other, InstanceData.Get(), sizeof(FStaticMeshInstanceData));
+	Swap(Other, *InstanceData.Get());
 	InstanceData->SetAllowCPUAccess(RequireCPUAccess);
 }
 
@@ -543,7 +543,7 @@ void FStaticMeshInstanceBuffer::UpdateFromCommandBuffer_Concurrent(FInstanceUpda
 	
 	FStaticMeshInstanceBuffer* InstanceBuffer = this; 
 	FInstanceUpdateCmdBuffer* NewCmdBuffer = new FInstanceUpdateCmdBuffer();
-	FMemory::Memswap(&CmdBuffer, NewCmdBuffer, sizeof(FInstanceUpdateCmdBuffer));
+	Swap(CmdBuffer, *NewCmdBuffer);
 	
 	// leave NumEdits unchanged in commandbuffer
 	CmdBuffer.NumEdits = NewCmdBuffer->NumEdits; 
@@ -1295,7 +1295,7 @@ void FPerInstanceRenderData::UpdateFromPreallocatedData(FStaticMeshInstanceData&
 	InOther.SetAllowCPUAccess(InstanceBuffer.RequireCPUAccess);
 
 	InstanceBuffer_GameThread = MakeShared<FStaticMeshInstanceData, ESPMode::ThreadSafe>();
-	FMemory::Memswap(&InOther, InstanceBuffer_GameThread.Get(), sizeof(FStaticMeshInstanceData));
+	Swap(InOther, *InstanceBuffer_GameThread.Get());
 
 	typedef TSharedPtr<FStaticMeshInstanceData, ESPMode::ThreadSafe> FStaticMeshInstanceDataPtr;
 

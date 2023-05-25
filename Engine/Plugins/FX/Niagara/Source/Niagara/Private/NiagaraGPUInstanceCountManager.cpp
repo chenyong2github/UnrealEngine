@@ -298,7 +298,7 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 
 			// Swap the buffers
 			AllocatedInstanceCounts = RecommendedInstanceCounts;
-			FMemory::Memswap(&NextCountBuffer, &CountBuffer, sizeof(NextCountBuffer));
+			Swap(NextCountBuffer, CountBuffer);
 			//UE_LOG(LogNiagara, Log, TEXT("FNiagaraGPUInstanceCountManager::ResizeBuffers Resize AllocatedInstanceCounts: %d ReservedInstanceCounts: %d"), AllocatedInstanceCounts, ReservedInstanceCounts);
 		}
 		// If we need to shrink the buffer size because use way to much buffer size.

@@ -106,7 +106,7 @@ public:
 	}
 	FSceneOutlinerTreeItemID& operator=(FSceneOutlinerTreeItemID&& Other)
 	{
-		FMemory::Memswap(this, &Other, sizeof(FSceneOutlinerTreeItemID));
+		Swap(*this, Other);
 		return *this;
 	}
 

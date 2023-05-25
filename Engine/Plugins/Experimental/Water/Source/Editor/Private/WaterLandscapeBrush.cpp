@@ -134,8 +134,8 @@ void AWaterLandscapeBrush::UpdateActors(bool bInTriggerEvents)
 	ClearActors();
 
 	// Backup Cache
-	TMap<TWeakObjectPtr<AActor>, UObject*> PreviousCache;
-	FMemory::Memswap(&Cache, &PreviousCache, sizeof(Cache));
+	TMap<TWeakObjectPtr<AActor>, TObjectPtr<UObject>> PreviousCache;
+	Swap(Cache, PreviousCache);
 
 	if (UWorld* World = GetWorld())
 	{
@@ -144,7 +144,7 @@ void AWaterLandscapeBrush::UpdateActors(bool bInTriggerEvents)
 			AActor* Actor = *It;
 			if (IWaterBrushActorInterface* WaterBrushActor = Cast<IWaterBrushActorInterface>(Actor))
 			{
-				UObject* const* FoundCache = PreviousCache.Find(TWeakObjectPtr<AActor>(Actor));
+				const TObjectPtr<UObject>* FoundCache = PreviousCache.Find(TWeakObjectPtr<AActor>(Actor));
 				const bool bTriggerEvent = false;
 				const bool bModify = false;
 				AddActorInternal(Actor, World, FoundCache != nullptr ? *FoundCache : nullptr, bTriggerEvent, bModify);
