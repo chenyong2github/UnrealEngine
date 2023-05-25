@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NiagaraSystemToolkitModeBase.h"
+#include "Toolkits/SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
 #include "Customizations/NiagaraPlatformSetCustomization.h"
 
 class FNiagaraSystemToolkit;

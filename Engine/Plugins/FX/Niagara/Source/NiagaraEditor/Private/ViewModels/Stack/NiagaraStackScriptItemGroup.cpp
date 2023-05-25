@@ -315,6 +315,7 @@ public:
 			{
 				NewModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(ScratchPadScriptViewModel->GetOriginalScript(), *OutputNode, TargetIndex);
 				SystemViewModel.Pin()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
+				SystemViewModel.Pin()->FocusTab(FNiagaraSystemToolkitModeBase::ScratchPadScriptsTabID);
 				ScratchPadScriptViewModel->SetIsPendingRename(true);
 			}
 		}
