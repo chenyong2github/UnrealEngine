@@ -21,6 +21,7 @@
 #include "Iris/Serialization/InternalNetSerializationContext.h"
 #include "Iris/Serialization/NetBitStreamWriter.h"
 #include "Iris/Serialization/NetSerializer.h"
+#include "Iris/Serialization/IrisObjectReferencePackageMap.h"
 #include "HAL/IConsoleManager.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "UObject/UObjectGlobals.h"
@@ -201,6 +202,13 @@ public:
 
 		ReplicationSystemInternal.GetObjectReferenceCache().Init(ReplicationSystem);
 
+		// Init custom packagemap we use for capturing references for backwards compatible NetSerializers
+		{
+			UIrisObjectReferencePackageMap* ObjectReferencePackageMap = NewObject<UIrisObjectReferencePackageMap>();
+			ObjectReferencePackageMap->AddToRoot();
+			ReplicationSystemInternal.SetIrisObjectReferencePackageMap(ObjectReferencePackageMap);
+		}
+
 		FNetBlobManager& BlobManager = ReplicationSystemInternal.GetNetBlobManager();
 		{
 			FNetBlobManagerInitParams InitParams = {};
@@ -216,6 +224,13 @@ public:
 
 		// Reset replication bridge
 		ReplicationSystemInternal.GetReplicationBridge()->Deinitialize();
+
+		if (UIrisObjectReferencePackageMap* ObjectReferencePackageMap = ReplicationSystemInternal.GetIrisObjectReferencePackageMap())
+		{
+			ObjectReferencePackageMap->RemoveFromRoot();
+			ObjectReferencePackageMap->MarkAsGarbage();
+			ReplicationSystemInternal.SetIrisObjectReferencePackageMap(static_cast<UIrisObjectReferencePackageMap*>(nullptr));
+		}
 	}
 
 	void UpdateDirtyObjectList()

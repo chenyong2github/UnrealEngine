@@ -282,6 +282,7 @@ void NetObjectStateToString(FStringBuilderBase& StringBuilder, FNetRefHandle Ref
 	FInternalNetSerializationContext InternalContext;
 	FInternalNetSerializationContext::FInitParameters InternalContextInitParams;
 	InternalContextInitParams.ReplicationSystem = ReplicationSystem;
+	InternalContextInitParams.PackageMap = ReplicationSystemInternal->GetIrisObjectReferencePackageMap();
 	InternalContextInitParams.ObjectResolveContext.RemoteNetTokenStoreState = TokenStoreState;
 	InternalContextInitParams.ObjectResolveContext.ConnectionId = (FirstValidConnectionId == FNetBitArray::InvalidIndex ? InvalidConnectionId : FirstValidConnectionId);
 	InternalContext.Init(InternalContextInitParams);

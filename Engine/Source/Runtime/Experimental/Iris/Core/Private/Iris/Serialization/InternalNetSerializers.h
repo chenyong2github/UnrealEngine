@@ -73,6 +73,10 @@ struct FLastResortPropertyNetSerializerConfig : public FNetSerializerConfig
 public:
 	UPROPERTY()
 	TFieldPath<FProperty> Property;
+
+	// Value used to sanity check incoming data so that we do not over-allocate dynamic memory
+	UPROPERTY()
+	uint32 MaxAllowedObjectReferences = 128; 
 };
 
 // ENetRole. With role swapping at deserialization

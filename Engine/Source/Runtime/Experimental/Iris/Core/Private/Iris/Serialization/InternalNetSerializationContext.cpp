@@ -11,6 +11,7 @@ namespace UE::Net::Private
 FInternalNetSerializationContext::FInternalNetSerializationContext(UReplicationSystem* InReplicationSystem)
 : ReplicationSystem(InReplicationSystem)
 , ObjectReferenceCache(&InReplicationSystem->GetReplicationSystemInternal()->GetObjectReferenceCache())
+, PackageMap(InReplicationSystem->GetReplicationSystemInternal()->GetIrisObjectReferencePackageMap())
 , bDowngradeAutonomousProxyRole(0)
 , bInlineObjectReferenceExports(0)
 {
@@ -35,6 +36,7 @@ void FInternalNetSerializationContext::Init(const FInitParameters& InitParams)
 {
 	ReplicationSystem = InitParams.ReplicationSystem;
 	ObjectReferenceCache = &InitParams.ReplicationSystem->GetReplicationSystemInternal()->GetObjectReferenceCache();
+	PackageMap = InitParams.PackageMap;
 	ResolveContext = InitParams.ObjectResolveContext;
 }
 

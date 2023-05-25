@@ -208,7 +208,7 @@ UE::Net::FPropertyNetSerializerInfoRegistry::Unregister(&GetPropertyNetSerialize
 
 // Implement minimal required delegates for a NetSerializer
 #define UE_NET_IMPLEMENT_NETSERIALIZER_REGISTRY_DELEGATES(Name) \
-struct F##Name##NetSerializerRegistryDelegates : protected FNetSerializerRegistryDelegates \
+struct F##Name##NetSerializerRegistryDelegates : protected UE::Net::FNetSerializerRegistryDelegates \
 { \
 	~F##Name##NetSerializerRegistryDelegates() { UE_NET_UNREGISTER_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_##Name); } \
 	virtual void OnPreFreezeNetSerializerRegistry() override { UE_NET_REGISTER_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_##Name); } \

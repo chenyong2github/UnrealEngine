@@ -4,6 +4,8 @@
 #include "TestNetSerializerFixture.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptorBuilder.h"
 #include "Iris/Serialization/InternalNetSerializers.h"
+#include "Iris/Serialization/InternalNetSerializationContext.h"
+#include "Iris/Serialization/IrisObjectReferencePackageMap.h"
 
 namespace UE::Net
 {
@@ -47,6 +49,7 @@ protected:
 	static const FText TestValues[];
 	static const SIZE_T TestValueCount;
 
+	Private::FInternalNetSerializationContext InternalContext;
 	TRefCountPtr<const FReplicationStateDescriptor> ReplicationStateDescriptor;
 	FLastResortPropertyNetSerializerConfig* SerializerConfig;
 };
@@ -83,6 +86,9 @@ UE_NET_TEST_FIXTURE(FTestLastResortPropertyNetSerializer, TestCloneDynamicState)
 void FTestLastResortPropertyNetSerializer::SetUp()
 {
 	Super::SetUp();
+
+	InternalContext.PackageMap = NewObject<UIrisObjectReferencePackageMap>();
+	Context.SetInternalContext(&InternalContext);
 
 	ReplicationStateDescriptor = FReplicationStateDescriptorBuilder::CreateDescriptorForStruct(StaticStruct<FStructForLastResortPropertyNetSerializerTest>());
 	UE_NET_ASSERT_EQ_MSG(ReplicationStateDescriptor->MemberCount, uint16(1), "Expected FStructForLastResortPropertyNetSerializerTest to contain exactly one member");

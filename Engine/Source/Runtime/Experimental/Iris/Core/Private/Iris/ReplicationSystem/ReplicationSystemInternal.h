@@ -26,6 +26,8 @@
 #include "Iris/ReplicationState/ReplicationStateDescriptorRegistry.h"
 #include "Iris/Stats/NetStats.h"
 
+class UIrisObjectReferencePackageMap;
+
 namespace UE::Net::Private
 {
 
@@ -41,6 +43,8 @@ public:
 	explicit FReplicationSystemInternal(const FReplicationSystemInternalInitParams& Params)
 	: NetRefHandleManager(ReplicationProtocolManager, Params.ReplicationSystemId, Params.MaxReplicatedObjectCount)
 	, DirtyNetObjectTracker()
+	, ReplicationBridge(nullptr)
+	, IrisObjectReferencePackageMap(nullptr)
 	, StringTokenStore(NetTokenStore)
 	, Id(Params.ReplicationSystemId)
 	{}
@@ -61,6 +65,9 @@ public:
 	void SetReplicationBridge(UReplicationBridge* InReplicationBridge) { ReplicationBridge = InReplicationBridge; }
 	UReplicationBridge* GetReplicationBridge() const { return ReplicationBridge; }
 	UReplicationBridge* GetReplicationBridge(FNetRefHandle Handle) const { return ReplicationBridge; }
+
+	void SetIrisObjectReferencePackageMap(UIrisObjectReferencePackageMap* InIrisObjectReferencePackageMap) { IrisObjectReferencePackageMap = InIrisObjectReferencePackageMap; }
+	UIrisObjectReferencePackageMap* GetIrisObjectReferencePackageMap() { return IrisObjectReferencePackageMap; }
 
 	FChangeMaskCache& GetChangeMaskCache() { return ChangeMaskCache; }
 
@@ -103,6 +110,7 @@ private:
 	FReplicationStateStorage ReplicationStateStorage;
 	FReplicationStateDescriptorRegistry ReplicationStateDescriptorRegistry;
 	UReplicationBridge* ReplicationBridge;
+	UIrisObjectReferencePackageMap* IrisObjectReferencePackageMap;
 	FChangeMaskCache ChangeMaskCache;
 	FReplicationConnections Connections;
 	FReplicationFiltering Filtering;

@@ -8,6 +8,7 @@
 
 class UReplicationSystem;
 class UObject;
+class UIrisObjectReferencePackageMap;
 
 namespace UE::Net::Private
 {
@@ -24,6 +25,7 @@ public:
 	{
 		UReplicationSystem* ReplicationSystem = nullptr;
 		FNetObjectResolveContext ObjectResolveContext;
+		UIrisObjectReferencePackageMap* PackageMap = nullptr;			
 	};
 
 	FInternalNetSerializationContext();
@@ -40,6 +42,9 @@ public:
 	FObjectReferenceCache* ObjectReferenceCache;
 	FNetObjectResolveContext ResolveContext;
 
+	// We have a special implementation of UPackageMap to capture references when using LastResortNetSerializer
+	UIrisObjectReferencePackageMap* PackageMap = nullptr;
+
 	// $IRIS TODO Roles really shouldn't be replicated as properties. In dire need of a proper authority system.
 	// This is ONLY to be used by role serialization.
 	uint32 bDowngradeAutonomousProxyRole : 1;
@@ -51,6 +56,7 @@ public:
 inline FInternalNetSerializationContext::FInternalNetSerializationContext()
 : ReplicationSystem(nullptr)
 , ObjectReferenceCache(nullptr)
+, PackageMap(nullptr)
 , bDowngradeAutonomousProxyRole(0)
 , bInlineObjectReferenceExports(0)
 {}

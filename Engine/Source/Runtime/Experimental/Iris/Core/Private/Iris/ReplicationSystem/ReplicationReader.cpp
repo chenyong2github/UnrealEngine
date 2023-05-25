@@ -1485,6 +1485,7 @@ void FReplicationReader::ResolveAndDispatchUnresolvedReferences()
 	FInternalNetSerializationContext::FInitParameters InternalContextInitParams;
 	InternalContextInitParams.ReplicationSystem = Parameters.ReplicationSystem;
 	InternalContextInitParams.ObjectResolveContext = ResolveContext;
+	InternalContextInitParams.PackageMap = ReplicationSystemInternal->GetIrisObjectReferencePackageMap();
 	InternalContext.Init(InternalContextInitParams);
 
 	FNetSerializationContext Context;
@@ -1727,6 +1728,7 @@ void FReplicationReader::ProcessQueuedBatches()
 	FInternalNetSerializationContext::FInitParameters InternalContextInitParams;
 	InternalContextInitParams.ReplicationSystem = Parameters.ReplicationSystem;
 	InternalContextInitParams.ObjectResolveContext = ResolveContext;
+	InternalContextInitParams.PackageMap = ReplicationSystemInternal->GetIrisObjectReferencePackageMap();
 	InternalContext.Init(InternalContextInitParams);
 
 	FNetBitStreamReader Reader;
@@ -1854,6 +1856,7 @@ void FReplicationReader::Read(FNetSerializationContext& Context)
 	FInternalNetSerializationContext InternalContext;
 	FInternalNetSerializationContext::FInitParameters InternalContextInitParams;
 	InternalContextInitParams.ReplicationSystem = Parameters.ReplicationSystem;
+	InternalContextInitParams.PackageMap = ReplicationSystemInternal->GetIrisObjectReferencePackageMap();
 	InternalContextInitParams.ObjectResolveContext = ResolveContext;
 	InternalContext.Init(InternalContextInitParams);
 	
