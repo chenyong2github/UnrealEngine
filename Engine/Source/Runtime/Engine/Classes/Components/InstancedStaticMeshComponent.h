@@ -217,6 +217,9 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
 
+	/** this is array view version of the UFUNCTION, blueprints do not support ArrayViews at the time of adding this one  */
+	virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
+
 	// TODO: KevinO cleanup
 	/**
 	* Update the transform for an array of instances. Overloaded version which takes an array of NewPreviousFrameTransforms.
@@ -263,6 +266,12 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 	/** Remove the instances specified. Returns True on success. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	virtual bool RemoveInstances(const TArray<int32>& InstancesToRemove);
+
+	/** Remove the instances specified. Returns True on success.
+	* @param InstancesToRemove array of the instance indices to remove ( can be sorted @see bInstanceArrayAlreadySortedInReverseOrder )
+	* @param bInstanceArrayAlreadySortedInReverseOrder true is the array is already sorted in reverse order
+	*/
+	virtual bool RemoveInstances(const TArray<int32>& InstancesToRemove, bool bInstanceArrayAlreadySortedInReverseOrder);
 
 	/** Clear all instances being rendered by this component. */
 	UFUNCTION(BlueprintCallable, Category="Components|InstancedStaticMesh")
@@ -464,6 +473,9 @@ private:
 
 	/** Update instance body with a new transform */
 	void UpdateInstanceBodyTransform(int32 InstanceIndex, const FTransform& WorldSpaceInstanceTransform, bool bTeleport);
+
+	/** hidden Implementation of BatchUpdateInstancesTransforms - it is shared by the TArray and TArrayView version of public API */
+	bool BatchUpdateInstancesTransformsInternal(int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport);
 
 protected:
 	/** Creates body instances for all instances owned by this component. */

@@ -3790,21 +3790,39 @@ bool UInstancedStaticMeshComponent::RemoveInstance(int32 InstanceIndex)
 
 bool UInstancedStaticMeshComponent::RemoveInstances(const TArray<int32>& InstancesToRemove)
 {
-	// Sort so Remove doesn't alter the indices of items still to remove
-	TArray<int32> SortedInstancesToRemove = InstancesToRemove;
-	SortedInstancesToRemove.Sort(TGreater<int32>());
+	return RemoveInstances(InstancesToRemove, false /*bInstanceArrayAlreadySortedInReverseOrder*/);
+}
 
-	if (!PerInstanceSMData.IsValidIndex(SortedInstancesToRemove[0]) || !PerInstanceSMData.IsValidIndex(SortedInstancesToRemove.Last()))
+bool UInstancedStaticMeshComponent::RemoveInstances(const TArray<int32>& InstancesToRemove, bool bInstanceArrayAlreadySortedInReverseOrder)
+{
+	auto RemoveInstancedWithSortedArray = [this](const TArray<int32>& SortedInstancesToRemove) -> bool
 	{
-		return false;
+		if (!PerInstanceSMData.IsValidIndex(SortedInstancesToRemove[0]) || !PerInstanceSMData.IsValidIndex(SortedInstancesToRemove.Last()))
+		{
+			return false;
+		}
+
+		for (const int32 InstanceIndex : SortedInstancesToRemove)
+		{
+			RemoveInstanceInternal(InstanceIndex, false);
+		}
+		return true;
+	};
+
+	bool bSuccess = false;
+	if (bInstanceArrayAlreadySortedInReverseOrder)
+	{
+		bSuccess = RemoveInstancedWithSortedArray(InstancesToRemove);
+	}
+	else
+	{
+		// Sort so Remove doesn't alter the indices of items still to remove
+		TArray<int32> SortedInstancesToRemove = InstancesToRemove;
+		SortedInstancesToRemove.Sort(TGreater<int32>());
+		bSuccess = RemoveInstancedWithSortedArray(SortedInstancesToRemove);
 	}
 
-	for (const int32 InstanceIndex : SortedInstancesToRemove)
-	{
-		RemoveInstanceInternal(InstanceIndex, false);
-	}
-
-	return true;
+	return bSuccess;
 }
 
 bool UInstancedStaticMeshComponent::GetInstanceTransform(int32 InstanceIndex, FTransform& OutInstanceTransform, bool bWorldSpace) const
@@ -4224,6 +4242,16 @@ bool UInstancedStaticMeshComponent::UpdateInstances(
 }
 
 bool UInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	return BatchUpdateInstancesTransformsInternal(StartInstanceIndex, MakeArrayView(NewInstancesTransforms), bWorldSpace, bMarkRenderStateDirty, bTeleport);
+}
+
+bool UInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	return BatchUpdateInstancesTransformsInternal(StartInstanceIndex, NewInstancesTransforms, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+}
+
+bool UInstancedStaticMeshComponent::BatchUpdateInstancesTransformsInternal(int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UInstancedStaticMeshComponent_BatchUpdateInstancesTransforms);
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("UInstancedStaticMeshComponent::BatchUpdateInstancesTransforms");

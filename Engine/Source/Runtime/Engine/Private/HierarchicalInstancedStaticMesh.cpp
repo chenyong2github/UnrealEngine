@@ -2319,6 +2319,11 @@ void UHierarchicalInstancedStaticMeshComponent::RemoveInstancesInternal(const in
 
 bool UHierarchicalInstancedStaticMeshComponent::RemoveInstances(const TArray<int32>& InstancesToRemove)
 {
+	return RemoveInstances(InstancesToRemove, false /*bInstanceArrayAlreadySortedInReverseOrder*/);
+}
+
+bool UHierarchicalInstancedStaticMeshComponent::RemoveInstances(const TArray<int32>& InstancesToRemove, bool bInstanceArrayAlreadySortedInReverseOrder)
+{
 	LLM_SCOPE(ELLMTag::StaticMesh);
 
 	if (InstancesToRemove.Num() == 0)
@@ -2328,26 +2333,40 @@ bool UHierarchicalInstancedStaticMeshComponent::RemoveInstances(const TArray<int
 
 	SCOPE_CYCLE_COUNTER(STAT_HISMCRemoveInstance);
 
-	TArray<int32> SortedInstancesToRemove = InstancesToRemove;
-
-	// Sort so RemoveAtSwaps don't alter the indices of items still to remove
-	SortedInstancesToRemove.Sort(TGreater<int32>());
-
-	if (!PerInstanceSMData.IsValidIndex(SortedInstancesToRemove[0]) || !PerInstanceSMData.IsValidIndex(SortedInstancesToRemove.Last()))
+	auto RemoveInstanceFromSortedArray = [this](const TArray<int32>& SortedInstancesToRemove) -> bool
 	{
-		return false;
+		if (!PerInstanceSMData.IsValidIndex(SortedInstancesToRemove[0]) || !PerInstanceSMData.IsValidIndex(SortedInstancesToRemove.Last()))
+		{
+			return false;
+		}
+
+		RemoveInstancesInternal(SortedInstancesToRemove.GetData(), SortedInstancesToRemove.Num());
+
+		if (bAutoRebuildTreeOnInstanceChanges)
+		{
+			BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/false);
+		}
+
+		MarkRenderStateDirty();
+
+		return true;
+	};
+
+	bool bSuccess = false;
+	if (bInstanceArrayAlreadySortedInReverseOrder)
+	{
+		bSuccess = RemoveInstanceFromSortedArray(InstancesToRemove);
+	}
+	else
+	{
+		TArray<int32> SortedInstancesToRemove = InstancesToRemove;
+
+		// Sort so RemoveAtSwaps don't alter the indices of items still to remove
+		SortedInstancesToRemove.Sort(TGreater<int32>());
+		bSuccess = RemoveInstanceFromSortedArray(SortedInstancesToRemove);
 	}
 
-	RemoveInstancesInternal(SortedInstancesToRemove.GetData(), SortedInstancesToRemove.Num());
-
-	if (bAutoRebuildTreeOnInstanceChanges)
-	{
-		BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/false);
-	}
-
-	MarkRenderStateDirty();
-
-	return true;
+	return bSuccess;
 }
 
 bool UHierarchicalInstancedStaticMeshComponent::RemoveInstance(int32 InstanceIndex)
@@ -2497,6 +2516,16 @@ bool UHierarchicalInstancedStaticMeshComponent::SetCustomData(int32 InstanceInde
 }
 
 bool UHierarchicalInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	return BatchUpdateInstancesTransformsInternal(StartInstanceIndex, MakeArrayView(NewInstancesTransforms), bWorldSpace, bMarkRenderStateDirty, bTeleport);
+}
+
+bool UHierarchicalInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	return BatchUpdateInstancesTransformsInternal(StartInstanceIndex, NewInstancesTransforms, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+}
+
+bool UHierarchicalInstancedStaticMeshComponent::BatchUpdateInstancesTransformsInternal(int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
 {
 	bool BatchResult = true;
 
