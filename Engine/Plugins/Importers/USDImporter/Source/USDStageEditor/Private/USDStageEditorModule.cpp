@@ -227,7 +227,7 @@ namespace UE::UsdStageEditorModule::Private
 	}
 
 #if USE_USD_SDK
-	TSharedPtr<SUsdStage> GetUsdStageEditor( bool bOpenIfNeeded = false )
+	TSharedPtr<SUsdStage> GetUsdStageEditor( bool bOpenIfNeeded = true )
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >( "LevelEditor" );
 		TSharedPtr< FTabManager > LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
@@ -426,8 +426,7 @@ private:
 bool IUsdStageEditorModule::OpenStageEditor() const
 {
 #if USE_USD_SDK
-	const bool bOpenIfNeeded = true;
-	return UE::UsdStageEditorModule::Private::GetUsdStageEditor( bOpenIfNeeded ).IsValid();
+	return UE::UsdStageEditorModule::Private::GetUsdStageEditor().IsValid();
 #else
 	return false;
 #endif // USE_USD_SDK
@@ -445,6 +444,16 @@ bool IUsdStageEditorModule::CloseStageEditor() const
 #endif // USE_USD_SDK
 
 	return false;
+}
+
+bool IUsdStageEditorModule::IsStageEditorOpened() const
+{
+#if USE_USD_SDK
+	const bool bOpenIfNeeded = false;
+	return UE::UsdStageEditorModule::Private::GetUsdStageEditor(bOpenIfNeeded).IsValid();
+#else
+	return false;
+#endif // USE_USD_SDK
 }
 
 AUsdStageActor* IUsdStageEditorModule::GetAttachedStageActor() const

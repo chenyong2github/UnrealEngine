@@ -19,17 +19,24 @@ class USDSTAGEEDITOR_API UUsdStageEditorBlueprintLibrary : public UBlueprintFunc
 public:
 	/**
 	 * Opens the the USD Stage Editor window, or focus it in case it is already open.
-	 * @return True if a stage is now opened and available.
+	 * @return True if a stage editor window is now opened and available.
 	 */
 	UFUNCTION( BlueprintCallable, Category = "USD|Stage Editor" )
 	static bool OpenStageEditor();
 
 	/**
 	 * Closes the USD Stage Editor window if it is opened. Does nothing in case it is already closed.
-	 * @return True if a stage was closed by this action.
+	 * @return True if a stage editor window was closed by this action.
 	 */
 	UFUNCTION( BlueprintCallable, Category = "USD|Stage Editor" )
 	static bool CloseStageEditor();
+
+	/**
+	 * Checks to see if an USD Stage Editor window is currently opened.
+	 * @return True if a stage editor window is now opened and available.
+	 */
+	UFUNCTION( BlueprintCallable, Category = "USD|Stage Editor" )
+	static bool IsStageEditorOpened();
 
 	/**
 	 * Gets which actor is currently attached to the USD Stage Editor, if any.

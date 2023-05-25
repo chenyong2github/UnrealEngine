@@ -22,6 +22,12 @@ bool UUsdStageEditorBlueprintLibrary::CloseStageEditor()
 	return StageEditorModule.CloseStageEditor();
 }
 
+bool UUsdStageEditorBlueprintLibrary::IsStageEditorOpened()
+{
+	IUsdStageEditorModule& StageEditorModule = FModuleManager::GetModuleChecked< IUsdStageEditorModule >( "USDStageEditor" );
+	return StageEditorModule.IsStageEditorOpened();
+}
+
 AUsdStageActor* UUsdStageEditorBlueprintLibrary::GetAttachedStageActor()
 {
 	IUsdStageEditorModule& StageEditorModule = FModuleManager::GetModuleChecked< IUsdStageEditorModule >( "USDStageEditor" );

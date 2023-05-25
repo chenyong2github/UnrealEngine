@@ -25,6 +25,7 @@ public:
 
 	bool OpenStageEditor() const;
 	bool CloseStageEditor() const;
+	bool IsStageEditorOpened() const;
 
 	AUsdStageActor* GetAttachedStageActor() const;
 	bool SetAttachedStageActor( AUsdStageActor* NewActor ) const;
