@@ -23,16 +23,17 @@
  * Abstract base class for multicast delegates.
  */
 template<typename UserPolicy>
-class TMulticastDelegateBase : public FDelegateAccessHandlerBaseChecked
+class TMulticastDelegateBase : public TDelegateAccessHandlerBase<typename UserPolicy::FThreadSafetyMode>
 {
 protected:
-	using Super = FDelegateAccessHandlerBaseChecked;
+	using Super = TDelegateAccessHandlerBase<typename UserPolicy::FThreadSafetyMode>;
 	using typename Super::FReadAccessScope;
 	using Super::GetReadAccessScope;
 	using typename Super::FWriteAccessScope;
 	using Super::GetWriteAccessScope;
 
-	using UnicastDelegateType = TDelegateBase<UserPolicy>;
+	// individual bindings are not checked for races as it's done for the parent delegate
+	using UnicastDelegateType = TDelegateBase<FNotThreadSafeNotCheckedDelegateMode>;
 
 	using InvocationListType = TArray<UnicastDelegateType, FMulticastInvocationListAllocatorType>;
 
@@ -204,7 +205,7 @@ protected:
 	{ }
 
 protected:
-	template<typename DelegateInstanceInterfaceType, typename DelegateType>
+	template<typename DelegateInstanceInterfaceType>
 	void CopyFrom(const TMulticastDelegateBase& Other)
 	{
 		InvocationListType TempInvocationList;
@@ -216,7 +217,7 @@ protected:
 		    {
 				if (const IDelegateInstance* OtherInstance = OtherDelegateRef.GetDelegateInstanceProtected())
 			    {
-				    DelegateType TempDelegate;
+				    UnicastDelegateType TempDelegate;
 				    static_cast<const DelegateInstanceInterfaceType*>(OtherInstance)->CreateCopy(TempDelegate);
 				    TempInvocationList.Add(MoveTemp(TempDelegate));
 			    }
@@ -231,7 +232,7 @@ protected:
 		}
 	}
 
-	template<typename DelegateInstanceInterfaceType, typename DelegateBaseType, typename... ParamTypes>
+	template<typename DelegateInstanceInterfaceType, typename... ParamTypes>
 	void Broadcast(ParamTypes... Params) const
 	{
 		// the `const` on the method is a lie
@@ -247,7 +248,7 @@ protected:
 			for (int32 InvocationListIndex = LocalInvocationList.Num() - 1; InvocationListIndex >= 0; --InvocationListIndex)
 			{
 				// this down-cast is OK! allows for managing invocation list in the base class without requiring virtual functions
-				const DelegateBaseType& DelegateBase = static_cast<const DelegateBaseType&>(LocalInvocationList[InvocationListIndex]);
+				const UnicastDelegateType& DelegateBase = LocalInvocationList[InvocationListIndex];
 
 				const IDelegateInstance* DelegateInstanceInterface = DelegateBase.GetDelegateInstanceProtected();
 				if (DelegateInstanceInterface == nullptr || !static_cast<const DelegateInstanceInterfaceType*>(DelegateInstanceInterface)->ExecuteIfSafe(Params...))

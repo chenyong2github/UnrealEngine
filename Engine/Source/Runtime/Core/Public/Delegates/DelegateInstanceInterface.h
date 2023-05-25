@@ -11,13 +11,22 @@ class IDelegateInstance;
 template <typename FuncType, typename UserPolicy>
 struct IBaseDelegateInstance;
 
+template <typename>
+class TDelegateBase;
+
+struct FNotThreadSafeNotCheckedDelegateMode;
+struct FThreadSafeDelegateMode;
+struct FNotThreadSafeDelegateMode;
+
 template <typename RetType, typename... ArgTypes, typename UserPolicy>
 struct IBaseDelegateInstance<RetType(ArgTypes...), UserPolicy> : public UserPolicy::FDelegateInstanceExtras
 {
 	/**
 	 * Emplaces a copy of the delegate instance into the given base delegate.
 	 */
-	virtual void CreateCopy(typename UserPolicy::FDelegateExtras& Base) const = 0;
+	virtual void CreateCopy(TDelegateBase<FThreadSafeDelegateMode>& Base) const = 0;
+	virtual void CreateCopy(TDelegateBase<FNotThreadSafeDelegateMode>& Base) const = 0;
+	virtual void CreateCopy(TDelegateBase<FNotThreadSafeNotCheckedDelegateMode>& Base) const = 0;
 
 	/**
 	 * Execute the delegate.  If the function pointer is not valid, an error will occur.

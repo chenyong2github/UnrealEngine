@@ -34,7 +34,6 @@ template <typename To, typename From>
 To* Cast(From* Src);
 
 template<typename UserPolicy> class TMulticastDelegateBase;
-template<typename UserPolicy> class TTSMulticastDelegateBase;
 
 /**
  * Unicast delegate template class.
@@ -46,25 +45,23 @@ class TDelegate
 };
 
 template <typename InRetValType, typename... ParamTypes, typename UserPolicy>
-class TDelegate<InRetValType(ParamTypes...), UserPolicy> : public TDelegateBase<UserPolicy>
+class TDelegate<InRetValType(ParamTypes...), UserPolicy> : public UserPolicy::FDelegateExtras
 {
-	using Super                         = TDelegateBase<UserPolicy>;
+	using Super                         = typename UserPolicy::FDelegateExtras;
 	using FuncType                      = InRetValType (ParamTypes...);
 	using DelegateInstanceInterfaceType = IBaseDelegateInstance<FuncType, UserPolicy>;
 
 	static_assert(std::is_convertible_v<typename UserPolicy::FDelegateInstanceExtras*, IDelegateInstance*>, "UserPolicy::FDelegateInstanceExtras should publicly inherit IDelegateInstance");
-	static_assert(std::is_convertible_v<typename UserPolicy::FMulticastDelegateExtras*, TMulticastDelegateBase<UserPolicy>*> || std::is_convertible_v<typename UserPolicy::FMulticastDelegateExtras*, TTSMulticastDelegateBase<UserPolicy>*>, "UserPolicy::FMulticastDelegateExtras should publicly inherit TMulticastDelegateBase<UserPolicy> or TTSMulticastDelegateBase<UserPolicy>");
+	static_assert(std::is_convertible_v<typename UserPolicy::FMulticastDelegateExtras*, TMulticastDelegateBase<UserPolicy>*>, "UserPolicy::FMulticastDelegateExtras should publicly inherit TMulticastDelegateBase<UserPolicy>");
+
+	template <typename, typename>
+	friend class TDelegate;
 
 	template <typename>
 	friend class TMulticastDelegateBase;
 
-	template <typename>
-	friend class TTSMulticastDelegateBase;
-
-public:
-	// Make sure FDelegateBase's public functions are publicly exposed through the TDelegate API
-	using Super::Unbind;
-	using Super::GetAllocatedSize;
+	template <typename, typename>
+	friend class TMulticastDelegate;
 
 private:
 	// Make sure FDelegateBase's protected functions are not accidentally exposed through the TDelegate API
@@ -72,7 +69,6 @@ private:
 	using Super::GetReadAccessScope;
 	using typename Super::FWriteAccessScope;
 	using Super::GetWriteAccessScope;
-	using Super::GetDelegateInstanceProtected;
 
 public:
 	/** Type definition for return value type. */
@@ -557,7 +553,8 @@ protected:
 	}
 
 private:
-	void CopyFrom(const TDelegate& Other)
+	template<typename OtherUserPolicy>
+	void CopyFrom(const TDelegate<FuncType, OtherUserPolicy>& Other)
 	{
 		if ((void*)&Other == (void*)this)
 		{
@@ -568,20 +565,35 @@ private:
 		TDelegate LocalCopy;
 
 		{
-			FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+			typename TDelegate<FuncType, OtherUserPolicy>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
 
 			// this down-cast is OK! allows for managing invocation list in the base class without requiring virtual functions
-			const DelegateInstanceInterfaceType* OtherInstance = Other.GetDelegateInstanceProtected();
+			using OtherDelegateInstanceInterfaceType = IBaseDelegateInstance<FuncType, OtherUserPolicy>;
+			const OtherDelegateInstanceInterfaceType* OtherDelegateInstance = Other.GetDelegateInstanceProtected();
 
-			if (OtherInstance != nullptr)
+			if (OtherDelegateInstance != nullptr)
 			{
-				OtherInstance->CreateCopy(LocalCopy);
+				OtherDelegateInstance->CreateCopy(LocalCopy);
 			}
 		}
 
 		*this = MoveTemp(LocalCopy);
 	}
+
+	// copying from delegates with different user policy
+	template<typename OtherUserPolicy>
+	explicit TDelegate(const TDelegate<FuncType, OtherUserPolicy>& Other)
+	{
+		CopyFrom(Other);
+	}
 };
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template <typename DelegateSignature>
+using TTSDelegate = TDelegate<DelegateSignature, FDefaultTSDelegateUserPolicy>;
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * Multicast delegate template base class, used for both normal and event multicast delegates.
@@ -641,7 +653,7 @@ public:
 	{
 		if (&Other != this)
 		{
-			Super::template CopyFrom<DelegateInstanceInterfaceType, FDelegate>(Other);
+			Super::template CopyFrom<DelegateInstanceInterfaceType>(Other);
 		}
 		return *this;
 	}
@@ -894,7 +906,7 @@ public:
 	 */
 	void Broadcast(ParamTypes... Params) const
 	{
-		Super::template Broadcast<DelegateInstanceInterfaceType, FDelegate, ParamTypes...>(Params...);
+		Super::template Broadcast<DelegateInstanceInterfaceType, ParamTypes...>(Params...);
 	}
 };
 
@@ -907,8 +919,8 @@ using TTSMulticastDelegate = TMulticastDelegate<DelegateSignature, FDefaultTSDel
  * macros to create the actual delegate type, templated to the function signature the delegate is compatible with.
  * Then, you can create an instance of that class when you want to assign functions to the delegate.
  */
-template <typename ScriptDelegateDummyType, typename RetValType, typename... ParamTypes>
-class TBaseDynamicDelegate : public TScriptDelegate<ScriptDelegateDummyType>
+template <typename ThreadSafetyMode, typename RetValType, typename... ParamTypes>
+class TBaseDynamicDelegate : public TScriptDelegate<ThreadSafetyMode>
 {
 public:
 	/**
@@ -921,8 +933,8 @@ public:
 	 *
 	 * @param	InScriptDelegate	The delegate to construct from by copying
 	 */
-	explicit TBaseDynamicDelegate( const TScriptDelegate<ScriptDelegateDummyType>& InScriptDelegate )
-		: TScriptDelegate<ScriptDelegateDummyType>( InScriptDelegate )
+	explicit TBaseDynamicDelegate( const TScriptDelegate<ThreadSafetyMode>& InScriptDelegate )
+		: TScriptDelegate<ThreadSafetyMode>( InScriptDelegate )
 	{ }
 
 	/**
@@ -984,12 +996,12 @@ public:
  * signature the delegate is compatible with.   Then, you can create an instance of that class when you
  * want to assign functions to the delegate.
  */
-template <typename ScriptDelegateDummyType, typename RetValType, typename... ParamTypes>
-class TBaseDynamicMulticastDelegate : public TMulticastScriptDelegate<ScriptDelegateDummyType>
+template <typename ThreadSafetyMode, typename RetValType, typename... ParamTypes>
+class TBaseDynamicMulticastDelegate : public TMulticastScriptDelegate<ThreadSafetyMode>
 {
 public:
 	/** The actual single-cast delegate class for this multi-cast delegate */
-	typedef TBaseDynamicDelegate<ScriptDelegateDummyType, RetValType, ParamTypes...> FDelegate;
+	typedef TBaseDynamicDelegate<ThreadSafetyMode, RetValType, ParamTypes...> FDelegate;
 
 	/**
 	 * Default constructor
@@ -1001,8 +1013,8 @@ public:
 	 *
 	 * @param	InScriptDelegate	The delegate to construct from by copying
 	 */
-	explicit TBaseDynamicMulticastDelegate( const TMulticastScriptDelegate<ScriptDelegateDummyType>& InMulticastScriptDelegate )
-		: TMulticastScriptDelegate<ScriptDelegateDummyType>( InMulticastScriptDelegate )
+	explicit TBaseDynamicMulticastDelegate( const TMulticastScriptDelegate<ThreadSafetyMode>& InMulticastScriptDelegate )
+		: TMulticastScriptDelegate<ThreadSafetyMode>( InMulticastScriptDelegate )
 	{ }
 
 	/**

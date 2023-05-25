@@ -8,7 +8,6 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Delegates/MulticastDelegateBase.h" // IWYU pragma: export
-#include "Delegates/TSMulticastDelegateBase.h"
 #include "Delegates/IntegerSequence.h" // IWYU pragma: export
 
 /**
@@ -232,7 +231,7 @@
 
 /** Declare user's dynamic delegate, with wrapper proxy method for executing the delegate */
 #define FUNC_DECLARE_DYNAMIC_DELEGATE( DynamicDelegateClassName, ExecFunction, FuncParamList, FuncParamPassThru, ... ) \
-	class DynamicDelegateClassName : public TBaseDynamicDelegate<UE::Core::Private::TScriptDelegateDefault, __VA_ARGS__> \
+	class DynamicDelegateClassName : public TBaseDynamicDelegate<FNotThreadSafeDelegateMode, __VA_ARGS__> \
 	{ \
 	public: \
 		/** Default constructor */ \
@@ -242,7 +241,7 @@
 		\
 		/** Construction from an FScriptDelegate must be explicit.  This is really only used by UObject system internals. */ \
 		explicit DynamicDelegateClassName( const TScriptDelegate<>& InScriptDelegate ) \
-			: TBaseDynamicDelegate<UE::Core::Private::TScriptDelegateDefault, __VA_ARGS__>( InScriptDelegate ) \
+			: TBaseDynamicDelegate<FNotThreadSafeDelegateMode, __VA_ARGS__>( InScriptDelegate ) \
 		{ \
 		} \
 		\
@@ -267,7 +266,7 @@
 
 /** Declare user's dynamic delegate with return value, with wrapper proxy method for executing the delegate */
 #define FUNC_DECLARE_DYNAMIC_DELEGATE_RETVAL(DynamicDelegateRetValClassName, ExecFunction, RetValType, FuncParamList, FuncParamPassThru, ...) \
-	class DynamicDelegateRetValClassName : public TBaseDynamicDelegate<UE::Core::Private::TScriptDelegateDefault, __VA_ARGS__> \
+	class DynamicDelegateRetValClassName : public TBaseDynamicDelegate<FNotThreadSafeDelegateMode, __VA_ARGS__> \
 	{ \
 	public: \
 		/** Default constructor */ \
@@ -277,7 +276,7 @@
 		\
 		/** Construction from an FScriptDelegate must be explicit.  This is really only used by UObject system internals. */ \
 		explicit DynamicDelegateRetValClassName( const TScriptDelegate<>& InScriptDelegate ) \
-			: TBaseDynamicDelegate<UE::Core::Private::TScriptDelegateDefault, __VA_ARGS__>( InScriptDelegate ) \
+			: TBaseDynamicDelegate<FNotThreadSafeDelegateMode, __VA_ARGS__>( InScriptDelegate ) \
 		{ \
 		} \
 		\
@@ -293,7 +292,7 @@
 
 /** Declare user's dynamic multi-cast delegate, with wrapper proxy method for executing the delegate */
 #define FUNC_DECLARE_DYNAMIC_MULTICAST_DELEGATE(DynamicMulticastDelegateClassName, ExecFunction, FuncParamList, FuncParamPassThru, ...) \
-class DynamicMulticastDelegateClassName : public TBaseDynamicMulticastDelegate<UE::Core::Private::TScriptDelegateDefault, __VA_ARGS__> \
+class DynamicMulticastDelegateClassName : public TBaseDynamicMulticastDelegate<FNotThreadSafeDelegateMode, __VA_ARGS__> \
 	{ \
 	public: \
 		/** Default constructor */ \
@@ -303,7 +302,7 @@ class DynamicMulticastDelegateClassName : public TBaseDynamicMulticastDelegate<U
 		\
 		/** Construction from an FMulticastScriptDelegate must be explicit.  This is really only used by UObject system internals. */ \
 		explicit DynamicMulticastDelegateClassName( const TMulticastScriptDelegate<>& InMulticastScriptDelegate ) \
-			: TBaseDynamicMulticastDelegate<UE::Core::Private::TScriptDelegateDefault, __VA_ARGS__>( InMulticastScriptDelegate ) \
+			: TBaseDynamicMulticastDelegate<FNotThreadSafeDelegateMode, __VA_ARGS__>( InMulticastScriptDelegate ) \
 		{ \
 		} \
 		\

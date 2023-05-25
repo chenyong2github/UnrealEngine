@@ -14,6 +14,7 @@
 #include "Delegates/DelegateInstanceInterface.h"
 #include "Delegates/DelegateInstancesImplFwd.h"
 #include "Delegates/IDelegateInstance.h"
+#include "Delegates/DelegateBase.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/RemoveReference.h"
 #include "Templates/SharedPointer.h"
@@ -22,7 +23,6 @@
 #include "UObject/NameTypes.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-class FDelegateHandle;
 
 namespace UE::Delegates::Private
 {
@@ -127,7 +127,17 @@ public:
 
 	// IBaseDelegateInstance interface
 
-	void CreateCopy(DelegateBaseType& Base) const final
+	void CreateCopy(TDelegateBase<FThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseUFunctionDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseUFunctionDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeNotCheckedDelegateMode>& Base) const final
 	{
 		Base.template CreateDelegateInstance<TBaseUFunctionDelegateInstance>(*this);
 	}
@@ -238,7 +248,17 @@ public:
 
 	// IBaseDelegateInstance interface
 
-	void CreateCopy(DelegateBaseType& Base) const final
+	void CreateCopy(TDelegateBase<FThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseSPMethodDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseSPMethodDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeNotCheckedDelegateMode>& Base) const final
 	{
 		Base.template CreateDelegateInstance<TBaseSPMethodDelegateInstance>(*this);
 	}
@@ -368,7 +388,17 @@ public:
 
 	// IBaseDelegateInstance interface
 
-	void CreateCopy(DelegateBaseType& Base) const final
+	void CreateCopy(TDelegateBase<FThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseRawMethodDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseRawMethodDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeNotCheckedDelegateMode>& Base) const final
 	{
 		Base.template CreateDelegateInstance<TBaseRawMethodDelegateInstance>(*this);
 	}
@@ -487,7 +517,17 @@ public:
 
 	// IBaseDelegateInstance interface
 
-	void CreateCopy(DelegateBaseType& Base) const final
+	void CreateCopy(TDelegateBase<FThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseUObjectMethodDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseUObjectMethodDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeNotCheckedDelegateMode>& Base) const final
 	{
 		Base.template CreateDelegateInstance<TBaseUObjectMethodDelegateInstance>(*this);
 	}
@@ -604,7 +644,17 @@ public:
 
 	// IBaseDelegateInstance interface
 
-	void CreateCopy(DelegateBaseType& Base) const final
+	void CreateCopy(TDelegateBase<FThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseStaticDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseStaticDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeNotCheckedDelegateMode>& Base) const final
 	{
 		Base.template CreateDelegateInstance<TBaseStaticDelegateInstance>(*this);
 	}
@@ -692,7 +742,17 @@ public:
 
 public:
 	// IBaseDelegateInstance interface
-	void CreateCopy(DelegateBaseType& Base) const final
+	void CreateCopy(TDelegateBase<FThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseFunctorDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TBaseFunctorDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeNotCheckedDelegateMode>& Base) const final
 	{
 		Base.template CreateDelegateInstance<TBaseFunctorDelegateInstance>(*this);
 	}
@@ -781,7 +841,17 @@ public:
 
 public:
 	// IBaseDelegateInstance interface
-	void CreateCopy(DelegateBaseType& Base) const final
+	void CreateCopy(TDelegateBase<FThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TWeakBaseFunctorDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeDelegateMode>& Base) const final
+	{
+		Base.template CreateDelegateInstance<TWeakBaseFunctorDelegateInstance>(*this);
+	}
+
+	void CreateCopy(TDelegateBase<FNotThreadSafeNotCheckedDelegateMode>& Base) const final
 	{
 		Base.template CreateDelegateInstance<TWeakBaseFunctorDelegateInstance>(*this);
 	}
