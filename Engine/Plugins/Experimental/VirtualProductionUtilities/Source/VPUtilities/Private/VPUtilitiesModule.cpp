@@ -6,8 +6,10 @@
 #include "Modules/ModuleManager.h"
 #include "IConcertClient.h"
 
-#include "VPRolesSubsystem.h"
+#include "ShaderCore.h"
 #include "UnrealEngine.h"
+#include "VPRolesSubsystem.h"
+#include "Interfaces/IPluginManager.h"
 
 DEFINE_LOG_CATEGORY(LogVPUtilities);
 
@@ -44,6 +46,9 @@ public:
 	{
 		UE::ConcertClient::VPRoleEvaluator().BindStatic(
 			&UE::VPUtilities::Private::EvaluateRole );
+		
+		const FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("VirtualProductionUtilities"))->GetBaseDir(), TEXT("Shaders"));
+		AddShaderSourceDirectoryMapping(TEXT("/Plugin/VirtualProductionUtilities"), PluginShaderDir);
 	}
 
 	virtual void ShutdownModule() override

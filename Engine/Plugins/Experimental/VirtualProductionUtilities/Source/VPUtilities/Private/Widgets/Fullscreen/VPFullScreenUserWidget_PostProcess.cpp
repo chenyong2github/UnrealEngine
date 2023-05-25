@@ -2,11 +2,10 @@
 
 #include "Widgets/Fullscreen/VPFullScreenUserWidget_PostProcess.h"
 
-#include "VPUtilitiesModule.h"
 #include "Widgets/VPFullScreenUserWidget.h"
 
 #include "Components/PostProcessComponent.h"
-#include "Components/WidgetComponent.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "GameFramework/WorldSettings.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -17,6 +16,13 @@
 #include "SLevelViewport.h"
 #endif
 
+namespace UE::VPUtilities::Private
+{
+	const FName NAME_SlateUI = "SlateUI";
+	const FName NAME_TintColorAndOpacity = "TintColorAndOpacity";
+	const FName NAME_OpacityFromTexture = "OpacityFromTexture";
+}
+
 FVPFullScreenUserWidget_PostProcess::FVPFullScreenUserWidget_PostProcess()
 	: PostProcessComponent(nullptr)
 {}
@@ -25,11 +31,11 @@ void FVPFullScreenUserWidget_PostProcess::SetCustomPostProcessSettingsSource(TWe
 {
 	CustomPostProcessSettingsSource = InCustomPostProcessSettingsSource;
 	
-	const bool bIsRunning = GetPostProcessMaterialInstance() != nullptr;
+	const bool bIsRunning = PostProcessMaterialInstance != nullptr;
 	if (bIsRunning)
 	{
 		// Save us from creating another struct member: PostProcessMaterialInstance is always created with UWorld as outer.
-		UWorld* World = CastChecked<UWorld>(GetPostProcessMaterialInstance()->GetOuter());
+		UWorld* World = CastChecked<UWorld>(PostProcessMaterialInstance->GetOuter());
 		InitPostProcessComponent(World);
 	}
 }
@@ -85,7 +91,7 @@ bool FVPFullScreenUserWidget_PostProcess::InitPostProcessComponent(UWorld* World
 
 bool FVPFullScreenUserWidget_PostProcess::UpdateTargetPostProcessSettingsWithMaterial()
 {
-	UMaterialInstanceDynamic* MaterialInstance = GetPostProcessMaterialInstance();
+	UMaterialInstanceDynamic* MaterialInstance = PostProcessMaterialInstance;
 	if (FPostProcessSettings* const PostProcessSettings = GetPostProcessSettings()
 		; PostProcessSettings && ensure(MaterialInstance))
 	{
@@ -113,7 +119,7 @@ bool FVPFullScreenUserWidget_PostProcess::UpdateTargetPostProcessSettingsWithMat
 
 void FVPFullScreenUserWidget_PostProcess::ReleasePostProcessComponent()
 {
-	const bool bIsRunning = GetPostProcessMaterialInstance() != nullptr;
+	const bool bIsRunning = PostProcessMaterialInstance != nullptr;
 	if (!bIsRunning)
 	{
 		return;
@@ -123,7 +129,7 @@ void FVPFullScreenUserWidget_PostProcess::ReleasePostProcessComponent()
 	if (FPostProcessSettings* Settings = GetPostProcessSettings()
 		; bNeedsToResetExternalSettings && Settings)
 	{
-		const int32 Index = Settings->WeightedBlendables.Array.IndexOfByPredicate([this](const FWeightedBlendable& Blendable){ return Blendable.Object == GetPostProcessMaterialInstance(); });
+		const int32 Index = Settings->WeightedBlendables.Array.IndexOfByPredicate([this](const FWeightedBlendable& Blendable){ return Blendable.Object == PostProcessMaterialInstance; });
 		if (Index != INDEX_NONE)
 		{
 			Settings->WeightedBlendables.Array.RemoveAt(Index);
@@ -136,6 +142,22 @@ void FVPFullScreenUserWidget_PostProcess::ReleasePostProcessComponent()
 	}
 	
 	PostProcessComponent = nullptr;
+}
+
+bool FVPFullScreenUserWidget_PostProcess::OnRenderTargetInited()
+{
+	// Outer needs to be transient package: otherwise we cause a world memory leak using "Save Current Level As" due to reference not getting replaced correctly
+	PostProcessMaterialInstance = UMaterialInstanceDynamic::Create(PostProcessMaterial, GetTransientPackage());
+	PostProcessMaterialInstance->SetFlags(RF_Transient);
+	if (ensure(PostProcessMaterialInstance))
+	{
+		using namespace UE::VPUtilities::Private;
+		PostProcessMaterialInstance->SetTextureParameterValue(NAME_SlateUI, WidgetRenderTarget);
+		PostProcessMaterialInstance->SetVectorParameterValue(NAME_TintColorAndOpacity, PostProcessTintColorAndOpacity);
+		PostProcessMaterialInstance->SetScalarParameterValue(NAME_OpacityFromTexture, PostProcessOpacityFromTexture);
+		return true;
+	}
+	return false;
 }
 
 FPostProcessSettings* FVPFullScreenUserWidget_PostProcess::GetPostProcessSettings() const

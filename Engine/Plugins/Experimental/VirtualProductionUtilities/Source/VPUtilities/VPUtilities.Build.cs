@@ -29,6 +29,7 @@ public class VPUtilities : ModuleRules
 			new string[]
 			{
 				"ApplicationCore",
+				"Projects",
 				"Renderer",
 				"RenderCore",
 				"RHI",

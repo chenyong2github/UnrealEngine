@@ -97,19 +97,14 @@ struct FVPFullScreenUserWidget_PostProcessBase
 	virtual void Hide(UWorld* World);
 	
 	TSharedPtr<SVirtualWindow> VPUTILITIES_API GetSlateWindow() const;
-	TObjectPtr<UMaterialInstanceDynamic> GetPostProcessMaterialInstance() const;
 
 protected:
 
 	bool CreateRenderer(UWorld* World, UUserWidget* Widget, TAttribute<float> InDPIScale);
-	void ReleaseRenderer();
+	virtual void ReleaseRenderer();
 	void TickRenderer(UWorld* World, float DeltaSeconds);
 	
 private:
-	
-	/** The dynamic instance of the material that the render target is attached to. */
-	UPROPERTY(Transient)
-	TObjectPtr<UMaterialInstanceDynamic> PostProcessMaterialInstance;
 	
 	/** Helper class for drawing widgets to a render target. */
 	FWidgetRenderer* WidgetRenderer;
@@ -126,7 +121,7 @@ private:
 	TSharedPtr<UE::VPUtilities::Private::FVPWidgetPostProcessHitTester> CustomHitTestPath;
 
 	/** Creates the post process material and sets up its parameters. */
-	void InitPostProcessMaterial();
+	virtual bool OnRenderTargetInited() { return true; };
 	
 	/** Determines widget size depending on the viewport type (PIE / Game) */
 	FIntPoint CalculateWidgetDrawSize(UWorld* World);

@@ -6,6 +6,7 @@
 #include "UObject/WeakObjectPtrFwd.h"
 
 class UMaterialInterface;
+class UTextureRenderTarget2D;
 
 namespace UE::VirtualProductionUtilities::Private
 {
@@ -24,7 +25,7 @@ namespace UE::VirtualProductionUtilities::Private
 		using Super = FSceneViewExtensionBase;
 	public:
 		
-		FPostProcessSceneViewExtension(const FAutoRegister& AutoRegister, TAttribute<UMaterialInterface*> PostProcessMaterialGetter);
+		FPostProcessSceneViewExtension(const FAutoRegister& AutoRegister, UTextureRenderTarget2D& WidgetRenderTarget);
 
 		//~ISceneViewExtension interface
 		virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override;
@@ -37,16 +38,9 @@ namespace UE::VirtualProductionUtilities::Private
 		//~ISceneViewExtension interface
 
 	private:
-
-		/** Gets the post process material to render. */
-		TAttribute<UMaterialInterface*> PostProcessMaterialGetter;
-		/** Set on RenderThread. It is the responsibility this extension's user for preventing GC. */
-		UMaterialInterface* PostProcessMaterial = nullptr;
-
-		/** Index buffer for drawing the quad. Initialized the first time PreRenderView_RenderThread runs. */
-		FBufferRHIRef IndexBufferRHI;
-		/** Vertex buffer for drawing the quad. Initialized the first time PreRenderView_RenderThread runs. */
-		FBufferRHIRef VertexBufferRHI;
+		
+		/** Contains the widget that is supposed to be overlaid. */
+		TWeakObjectPtr<UTextureRenderTarget2D> WidgetRenderTarget;
 		
 		void RenderMaterial_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView, FRDGTextureRef ViewFamilyTexture);
 	};

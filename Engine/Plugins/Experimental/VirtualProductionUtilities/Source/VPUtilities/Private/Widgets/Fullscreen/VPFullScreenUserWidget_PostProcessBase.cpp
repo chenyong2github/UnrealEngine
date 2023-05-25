@@ -15,9 +15,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "GameFramework/WorldSettings.h"
 #include "Layout/Visibility.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "RHI.h"
 #include "Slate/SceneViewport.h"
 #include "Slate/WidgetRenderer.h"
@@ -28,16 +26,11 @@
 
 #if WITH_EDITOR
 #include "LevelEditor.h"
-#include "Modules/ModuleManager.h"
 #include "SLevelViewport.h"
 #endif
 
 namespace UE::VPUtilities::Private
 {
-	const FName NAME_SlateUI = "SlateUI";
-	const FName NAME_TintColorAndOpacity = "TintColorAndOpacity";
-	const FName NAME_OpacityFromTexture = "OpacityFromTexture";
-
 	EVisibility ConvertWindowVisibilityToVisibility(EWindowVisibility visibility)
 	{
 		switch (visibility)
@@ -131,7 +124,6 @@ FVPFullScreenUserWidget_PostProcessBase::FVPFullScreenUserWidget_PostProcessBase
 	, RenderTargetBackgroundColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f))
 	, RenderTargetBlendMode(EWidgetBlendMode::Masked)
 	, WidgetRenderTarget(nullptr)
-	, PostProcessMaterialInstance(nullptr)
 	, WidgetRenderer(nullptr)
 	, CurrentWidgetDrawSize(FIntPoint::ZeroValue)
 {}
@@ -144,11 +136,6 @@ void FVPFullScreenUserWidget_PostProcessBase::Hide(UWorld* World)
 TSharedPtr<SVirtualWindow> FVPFullScreenUserWidget_PostProcessBase::GetSlateWindow() const
 {
 	return SlateWindow;
-}
-
-TObjectPtr<UMaterialInstanceDynamic> FVPFullScreenUserWidget_PostProcessBase::GetPostProcessMaterialInstance() const
-{
-	return PostProcessMaterialInstance;
 }
 
 bool FVPFullScreenUserWidget_PostProcessBase::CreateRenderer(UWorld* World, UUserWidget* Widget, TAttribute<float> InDPIScale)
@@ -207,10 +194,10 @@ bool FVPFullScreenUserWidget_PostProcessBase::CreateRenderer(UWorld* World, UUse
 		WidgetRenderTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
 		WidgetRenderTarget->ClearColor = ActualBackgroundColor;
 
-		InitPostProcessMaterial();
+		return WidgetRenderer && WidgetRenderTarget && OnRenderTargetInited();
 	}
 
-	return WidgetRenderer && WidgetRenderTarget && PostProcessMaterialInstance;
+	return false;
 }
 
 void FVPFullScreenUserWidget_PostProcessBase::ReleaseRenderer()
@@ -225,7 +212,6 @@ void FVPFullScreenUserWidget_PostProcessBase::ReleaseRenderer()
 	SlateWindow.Reset();
 	WidgetRenderTarget = nullptr;
 	CurrentWidgetDrawSize = FIntPoint::ZeroValue;
-	PostProcessMaterialInstance = nullptr;
 }
 
 void FVPFullScreenUserWidget_PostProcessBase::TickRenderer(UWorld* World, float DeltaSeconds)
@@ -266,20 +252,6 @@ void FVPFullScreenUserWidget_PostProcessBase::TickRenderer(UWorld* World, float 
 				DeltaSeconds
 				);
 		}
-	}
-}
-
-void FVPFullScreenUserWidget_PostProcessBase::InitPostProcessMaterial()
-{
-	// Outer needs to be transient package: otherwise we cause a world memory leak using "Save Current Level As" due to reference not getting replaced correctly
-	PostProcessMaterialInstance = UMaterialInstanceDynamic::Create(PostProcessMaterial, GetTransientPackage());
-	PostProcessMaterialInstance->SetFlags(RF_Transient);
-	if (ensure(PostProcessMaterialInstance))
-	{
-		using namespace UE::VPUtilities::Private;
-		PostProcessMaterialInstance->SetTextureParameterValue(NAME_SlateUI, WidgetRenderTarget);
-		PostProcessMaterialInstance->SetVectorParameterValue(NAME_TintColorAndOpacity, PostProcessTintColorAndOpacity);
-		PostProcessMaterialInstance->SetScalarParameterValue(NAME_OpacityFromTexture, PostProcessOpacityFromTexture);
 	}
 }
 

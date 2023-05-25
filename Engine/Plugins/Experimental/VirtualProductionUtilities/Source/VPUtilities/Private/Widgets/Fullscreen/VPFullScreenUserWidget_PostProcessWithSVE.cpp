@@ -3,6 +3,7 @@
 #include "Widgets/Fullscreen/VPFullScreenUserWidget_PostProcessWithSVE.h"
 
 #include "Widgets/Fullscreen/PostProcessSceneViewExtension.h"
+#include "Widgets/VPFullScreenUserWidget.h"
 
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -11,10 +12,10 @@
 bool FVPFullScreenUserWidget_PostProcessWithSVE::Display(UWorld* World, UUserWidget* Widget, TAttribute<float> InDPIScale)
 {
 	bool bOk = CreateRenderer(World, Widget, MoveTemp(InDPIScale));
-	if (bOk && ensureMsgf(GetPostProcessMaterialInstance(), TEXT("CreateRenderer returned true even though it failed.")))
+	if (bOk && ensureMsgf(WidgetRenderTarget, TEXT("CreateRenderer returned true even though it failed.")))
 	{
 		SceneViewExtension = FSceneViewExtensions::NewExtension<UE::VirtualProductionUtilities::Private::FPostProcessSceneViewExtension>(
-			TAttribute<UMaterialInterface*>::CreateRaw(this, &FVPFullScreenUserWidget_PostProcessWithSVE::GetPostProcessMaterial)
+			*WidgetRenderTarget
 			);
 		SceneViewExtension->IsActiveThisFrameFunctions = MoveTemp(IsActiveFunctorsToRegister);
 	}
@@ -42,9 +43,4 @@ void FVPFullScreenUserWidget_PostProcessWithSVE::RegisterIsActiveFunctor(FSceneV
 	{
 		IsActiveFunctorsToRegister.Emplace(MoveTemp(IsActiveFunctor));
 	}
-}
-
-UMaterialInterface* FVPFullScreenUserWidget_PostProcessWithSVE::GetPostProcessMaterial() const
-{
-	return GetPostProcessMaterialInstance().Get();
 }

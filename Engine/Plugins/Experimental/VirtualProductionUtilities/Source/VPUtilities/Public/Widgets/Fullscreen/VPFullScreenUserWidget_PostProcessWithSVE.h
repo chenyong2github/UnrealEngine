@@ -8,6 +8,7 @@
 
 class FSceneViewExtensionBase;
 class UMaterialInterface;
+class UVPFullScreenUserWidget;
 
 /**
  * Renders widget in post process phase by using Scene View Extensions (SVE).
@@ -37,6 +38,4 @@ private:
 
 	/** Functors registered before we were displayed. */
 	TArray<FSceneViewExtensionIsActiveFunctor> IsActiveFunctorsToRegister;
-
-	UMaterialInterface* GetPostProcessMaterial() const;
 };
