@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "PCGContext.h"
+#include "Graph/PCGStackContext.h"
 
 #include "EditorUndoClient.h"
-#include "PCGContext.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
 class FSpawnTabArgs;
@@ -28,7 +29,8 @@ class UPCGEditorGraphNodeBase;
 class UPCGGraph;
 class UPCGNode;
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnDebugObjectChanged, UPCGComponent*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInspectedComponentChanged, UPCGComponent*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInspectedStackChanged, const FPCGStack&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnInspectedNodeChanged, UPCGEditorGraphNodeBase*);
 
 class FPCGEditor : public FAssetEditorToolkit, public FGCObject, public FSelfRegisteringEditorUndoClient
@@ -40,11 +42,14 @@ public:
 	/** Get the PCG graph being edited */
 	UPCGEditorGraph* GetPCGEditorGraph();
 
-	/** Sets the PCG component we want to debug */
-	void SetPCGComponentBeingDebugged(UPCGComponent* InPCGComponent);
+	/** Sets the PCG component and stack that we want to inspect */
+	void SetComponentAndStackBeingInspected(UPCGComponent* InPCGComponent, const FPCGStack& InPCGStack);
 
 	/** Gets the PCG component we are debugging */
-	UPCGComponent* GetPCGComponentBeingDebugged() const { return PCGComponentBeingDebugged.Get(); }
+	UPCGComponent* GetPCGComponentBeingInspected() const { return PCGComponentBeingInspected.Get(); }
+	
+	/** Gets the PCG stack we are inspecting */
+	const FPCGStack& GetStackBeingInspected() const { return StackBeingInspected; }
 
 	/** Focus the graph view on a specific node */
 	void JumpToNode(const UEdGraphNode* InNode);
@@ -77,10 +82,8 @@ public:
 	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 	// ~End FAssetEditorToolkit interface
 
-	// Methods used by schema actions
-	UEdGraphNode* AddNode(UPCGSettings* InSettings, bool bIsInstance, const FVector2D& InLocation);
-
-	FOnDebugObjectChanged OnDebugObjectChangedDelegate;
+	FOnInspectedComponentChanged OnInspectedComponentChangedDelegate;
+	FOnInspectedStackChanged OnInspectedStackChangedDelegate;
 	FOnInspectedNodeChanged OnInspectedNodeChangedDelegate;
 
 protected:
@@ -287,6 +290,7 @@ private:
 	TObjectPtr<UPCGGraph> PCGGraphBeingEdited = nullptr;
 	UPCGEditorGraph* PCGEditorGraph = nullptr;
 
-	TWeakObjectPtr<UPCGComponent> PCGComponentBeingDebugged;
+	TWeakObjectPtr<UPCGComponent> PCGComponentBeingInspected;
+	FPCGStack StackBeingInspected;
 	UPCGEditorGraphNodeBase* PCGGraphNodeBeingInspected = nullptr;
 };

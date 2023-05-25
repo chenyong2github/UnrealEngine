@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Graph/PCGStackContext.h"
 #include "Metadata/Accessors/IPCGAttributeAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
@@ -21,6 +22,7 @@ class UPCGData;
 class UPCGEditorGraphNodeBase;
 class UPCGMetadata;
 class UPCGParamData;
+struct FPCGDataCollection;
 struct FPCGPoint;
 enum class EPCGMetadataTypes : uint8;
 
@@ -78,14 +80,21 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FPCGEditor> InPCGEditor);
 
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+	void RequestRefresh() { bNeedsRefresh = true; }
+	
 private:
 	TSharedRef<SHeaderRow> CreateHeaderRowWidget() const;
 
-	void OnDebugObjectChanged(UPCGComponent* InPCGComponent);
+	void OnInspectedComponentChanged(UPCGComponent* InPCGComponent);
+	void OnInspectedStackChanged(const FPCGStack& InPCGStack);
 	void OnInspectedNodeChanged(UPCGEditorGraphNodeBase* InPCGEditorGraphNode);
 
 	void OnGenerateUpdated(UPCGComponent* InPCGComponent);
 
+	const FPCGDataCollection* GetInspectionData();
+	
 	void RefreshAttributeList();
 	void RefreshDataComboBox();
 
@@ -140,4 +149,6 @@ private:
 
 	FName SortingColumn = NAME_None;
 	EColumnSortMode::Type SortMode = EColumnSortMode::Type::Ascending;
+
+	bool bNeedsRefresh = false;
 };

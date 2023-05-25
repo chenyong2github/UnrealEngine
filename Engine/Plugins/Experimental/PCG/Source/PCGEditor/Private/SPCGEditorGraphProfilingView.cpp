@@ -113,7 +113,7 @@ SPCGEditorGraphProfilingView::~SPCGEditorGraphProfilingView()
 {
 	if (PCGEditorPtr.IsValid())
 	{
-		PCGEditorPtr.Pin()->OnDebugObjectChangedDelegate.RemoveAll(this);
+		PCGEditorPtr.Pin()->OnInspectedComponentChangedDelegate.RemoveAll(this);
 	}
 }
 
@@ -125,9 +125,9 @@ void SPCGEditorGraphProfilingView::Construct(const FArguments& InArgs, TSharedPt
 	if (PCGEditor)
 	{
 		PCGEditorGraph = PCGEditor->GetPCGEditorGraph();
-		PCGComponent = PCGEditor->GetPCGComponentBeingDebugged();
+		PCGComponent = PCGEditor->GetPCGComponentBeingInspected();
 
-		PCGEditor->OnDebugObjectChangedDelegate.AddSP(this, &SPCGEditorGraphProfilingView::OnDebugObjectChanged);
+		PCGEditor->OnInspectedComponentChangedDelegate.AddSP(this, &SPCGEditorGraphProfilingView::OnDebugObjectChanged);
 	}
 
 	SortingColumn = PCGEditorGraphProfilingView::NAME_TotalExecutionTime;

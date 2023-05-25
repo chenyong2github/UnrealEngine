@@ -630,10 +630,13 @@ void FPCGGraphExecutor::Execute()
 				{
 #if WITH_EDITOR
 					// doing this now since we're about to modify ReadyTasks potentially reallocating while Task is a reference. 
-					UPCGComponent* SourceComponent = Task.SourceComponent.Get();
-					if (SourceComponent && SourceComponent->IsInspecting())
+					if (UPCGComponent* SourceComponent = Task.SourceComponent.Get())
 					{
-						SourceComponent->StoreInspectionData(Task.Node, CachedOutput);
+						if (Task.StackIndex != INDEX_NONE)
+						{
+							const FPCGStack* Stack = Task.StackContext->GetStack(Task.StackIndex);
+							SourceComponent->StoreInspectionData(Stack, Task.Node, CachedOutput);
+						}
 					}
 #endif
 
@@ -787,10 +790,13 @@ void FPCGGraphExecutor::Execute()
 			// Additional note: this needs to be executed before the StoreResults since debugging might cancel further tasks
 			ActiveTask.Element->DebugDisplay(ActiveTask.Context.Get());
 
-			UPCGComponent* SourceComponent = ActiveTask.Context->SourceComponent.Get();
-			if (SourceComponent && SourceComponent->IsInspecting())
+			if (UPCGComponent* SourceComponent = ActiveTask.Context->SourceComponent.Get())
 			{
-				SourceComponent->StoreInspectionData(ActiveTask.Context->Node, ActiveTask.Context->OutputData);
+				if (ActiveTask.StackIndex != INDEX_NONE)
+				{
+					const FPCGStack* Stack = ActiveTask.StackContext->GetStack(ActiveTask.StackIndex);
+					SourceComponent->StoreInspectionData(Stack, ActiveTask.Context->Node, ActiveTask.Context->OutputData);
+				}
 			}
 #endif
 

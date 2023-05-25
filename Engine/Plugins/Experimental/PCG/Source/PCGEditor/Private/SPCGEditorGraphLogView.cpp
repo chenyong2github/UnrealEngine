@@ -107,7 +107,7 @@ SPCGEditorGraphLogView::~SPCGEditorGraphLogView()
 {
 	if (PCGEditorPtr.IsValid())
 	{
-		PCGEditorPtr.Pin()->OnDebugObjectChangedDelegate.RemoveAll(this);
+		PCGEditorPtr.Pin()->OnInspectedComponentChangedDelegate.RemoveAll(this);
 	}
 }
 
@@ -119,9 +119,9 @@ void SPCGEditorGraphLogView::Construct(const FArguments& InArgs, TSharedPtr<FPCG
 	if (PCGEditor)
 	{
 		PCGEditorGraph = PCGEditor->GetPCGEditorGraph();
-		PCGComponent = PCGEditor->GetPCGComponentBeingDebugged();
+		PCGComponent = PCGEditor->GetPCGComponentBeingInspected();
 
-		PCGEditor->OnDebugObjectChangedDelegate.AddSP(this, &SPCGEditorGraphLogView::OnDebugObjectChanged);
+		PCGEditor->OnInspectedComponentChangedDelegate.AddSP(this, &SPCGEditorGraphLogView::OnDebugObjectChanged);
 	}
 
 	ListViewHeader = CreateHeaderRowWidget();

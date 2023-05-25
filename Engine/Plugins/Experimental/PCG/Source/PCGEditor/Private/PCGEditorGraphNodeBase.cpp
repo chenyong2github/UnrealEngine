@@ -299,7 +299,7 @@ void UPCGEditorGraphNodeBase::UpdateErrorsAndWarnings()
 		{
 			const UPCGEditorGraph* EditorGraph = CastChecked<UPCGEditorGraph>(GetGraph());
 			const FPCGEditor* Editor = (EditorGraph && EditorGraph->GetEditor().IsValid()) ? EditorGraph->GetEditor().Pin().Get() : nullptr;
-			ComponentBeingDebugged = Editor ? Editor->GetPCGComponentBeingDebugged() : nullptr;
+			ComponentBeingDebugged = Editor ? Editor->GetPCGComponentBeingInspected() : nullptr;
 		}
 
 		const bool bOldHasCompilerMessage = bHasCompilerMessage;

@@ -21,6 +21,7 @@
 #include "Data/PCGSplineData.h"
 #include "Data/PCGUnionData.h"
 #include "Data/PCGVolumeData.h"
+#include "Graph/PCGStackContext.h"
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
 #include "Helpers/PCGHelpers.h"
@@ -1675,30 +1676,52 @@ void UPCGComponent::ResetLastGeneratedBounds()
 {
 	LastGeneratedBounds = FBox(EForceInit::ForceInit);
 }
-void UPCGComponent::DisableInspection()
+
+bool UPCGComponent::IsInspecting() const
 {
-	bIsInspecting = false;
-	InspectionCache.Empty();
-};
-
-void UPCGComponent::StoreInspectionData(const UPCGNode* InNode, const FPCGDataCollection& InInspectionData)
-{
-	if (!InNode)
-	{
-		return;
-	}
-
-	if (GetGraph() != InNode->GetGraph())
-	{
-		return;
-	}
-
-	InspectionCache.Add(InNode, InInspectionData);
+	return InspectionCounter > 0;
 }
 
-const FPCGDataCollection* UPCGComponent::GetInspectionData(const UPCGNode* InNode) const
+void UPCGComponent::EnableInspection()
 {
-	return InspectionCache.Find(InNode);
+	if (!ensure(InspectionCounter >= 0))
+	{
+		InspectionCounter = 0;
+	}
+	
+	InspectionCounter++;
+}
+
+void UPCGComponent::DisableInspection()
+{
+	if (ensure(InspectionCounter > 0))
+	{
+		InspectionCounter--;
+	}
+	
+	if (InspectionCounter == 0)
+	{
+		InspectionCache.Empty();
+	}
+};
+
+void UPCGComponent::StoreInspectionData(const FPCGStack* InStack, const UPCGNode* InNode, const FPCGDataCollection& InInspectionData)
+{
+	if (!IsInspecting())
+	{
+		return;
+	}
+
+	FString StackFramePath;
+	if (ensure(InStack) && ensure(InStack->CreateStackFramePath(StackFramePath, InNode)))
+	{
+		InspectionCache.Add(StackFramePath, InInspectionData);
+	}
+}
+
+const FPCGDataCollection* UPCGComponent::GetInspectionData(const FString& InStackPath) const
+{
+	return InspectionCache.Find(InStackPath);
 }
 
 void UPCGComponent::Refresh()

@@ -187,7 +187,7 @@ SPCGEditorGraphAttributeListView::~SPCGEditorGraphAttributeListView()
 {
 	if (PCGEditorPtr.IsValid())
 	{
-		PCGEditorPtr.Pin()->OnDebugObjectChangedDelegate.RemoveAll(this);
+		PCGEditorPtr.Pin()->OnInspectedStackChangedDelegate.RemoveAll(this);
 		PCGEditorPtr.Pin()->OnInspectedNodeChangedDelegate.RemoveAll(this);
 	}
 }
@@ -197,7 +197,8 @@ void SPCGEditorGraphAttributeListView::Construct(const FArguments& InArgs, TShar
 	PCGEditorPtr = InPCGEditor;
 	SortingColumn = PCGEditorGraphAttributeListView::NAME_IndexColumn;
 
-	PCGEditorPtr.Pin()->OnDebugObjectChangedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnDebugObjectChanged);
+	PCGEditorPtr.Pin()->OnInspectedComponentChangedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnInspectedComponentChanged);
+	PCGEditorPtr.Pin()->OnInspectedStackChangedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnInspectedStackChanged);
 	PCGEditorPtr.Pin()->OnInspectedNodeChangedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnInspectedNodeChanged);
 
 	ListViewHeader = CreateHeaderRowWidget();
@@ -279,7 +280,7 @@ void SPCGEditorGraphAttributeListView::Construct(const FArguments& InArgs, TShar
 				.Text(PCGEditorGraphAttributeListView::NoNodeInspectedText)
 				.ToolTipText(PCGEditorGraphAttributeListView::NoNodeInspectedToolTip)
 			]
-			+ SHorizontalBox::Slot()
+			+SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -323,33 +324,49 @@ void SPCGEditorGraphAttributeListView::Construct(const FArguments& InArgs, TShar
 	];
 }
 
+void SPCGEditorGraphAttributeListView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	if (bNeedsRefresh)
+	{
+		bNeedsRefresh = false;
+
+		RefreshDataComboBox();
+		RefreshAttributeList();
+	}
+}
+
 TSharedRef<SHeaderRow> SPCGEditorGraphAttributeListView::CreateHeaderRowWidget() const
 {
 	return SNew(SHeaderRow);
 }
 
-void SPCGEditorGraphAttributeListView::OnDebugObjectChanged(UPCGComponent* InPCGComponent)
+void SPCGEditorGraphAttributeListView::OnInspectedComponentChanged(UPCGComponent* InPCGComponent)
 {
 	if (PCGComponent.IsValid())
 	{
 		PCGComponent->OnPCGGraphGeneratedDelegate.RemoveAll(this);
 		PCGComponent->OnPCGGraphCleanedDelegate.RemoveAll(this);
-		PCGComponent->DisableInspection();
 	}
 
 	PCGComponent = InPCGComponent;
 
 	if (PCGComponent.IsValid())
 	{
-		PCGComponent->EnableInspection();
 		PCGComponent->OnPCGGraphGeneratedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnGenerateUpdated);
 		PCGComponent->OnPCGGraphCleanedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnGenerateUpdated);
 	}
 	else
 	{
-		RefreshDataComboBox();
-		RefreshAttributeList();
+		// Refresh if PCGComponent is cleared since we wont get a refresh after generate/cleaned
+		RequestRefresh();
 	}
+}
+
+void SPCGEditorGraphAttributeListView::OnInspectedStackChanged(const FPCGStack& InPCGStack)
+{
+	RequestRefresh();
 }
 
 void SPCGEditorGraphAttributeListView::OnInspectedNodeChanged(UPCGEditorGraphNodeBase* InPCGEditorGraphNode)
@@ -371,21 +388,49 @@ void SPCGEditorGraphAttributeListView::OnInspectedNodeChanged(UPCGEditorGraphNod
 		NodeNameTextBlock->SetText(PCGEditorGraphAttributeListView::NoNodeInspectedText);
 		NodeNameTextBlock->SetToolTipText(PCGEditorGraphAttributeListView::NoNodeInspectedToolTip);
 	}
-	
-	RefreshDataComboBox();
-	RefreshAttributeList();
+
+	RequestRefresh();
 }
 
 void SPCGEditorGraphAttributeListView::OnGenerateUpdated(UPCGComponent* /*InPCGComponent*/)
 {
-	RefreshDataComboBox();
-	RefreshAttributeList();
+	RequestRefresh();
+}
+
+const FPCGDataCollection* SPCGEditorGraphAttributeListView::GetInspectionData()
+{
+	if (!PCGComponent.IsValid())
+	{
+		return nullptr;
+	}
+
+	if (!PCGEditorGraphNode.IsValid())
+	{
+		return nullptr;
+	}
+
+	const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
+	if (!PCGNode)
+	{
+		return nullptr;
+	}
+
+	const TSharedPtr<FPCGEditor> PCGEditor = PCGEditorPtr.Pin();
+	const FPCGStack& PCGStack = PCGEditor->GetStackBeingInspected();
+
+	FString ResourcePath;
+	if (!PCGStack.CreateStackFramePath(ResourcePath, PCGNode))
+	{
+		return nullptr;
+	}
+
+	return PCGComponent->GetInspectionData(ResourcePath);
 }
 
 void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 {
 	HiddenAttributes = ListViewHeader->GetHiddenColumnIds();
-	
+
 	// Swapping to an empty item list to force a widget clear, otherwise the widgets will try to update during add column and access invalid data
 	static const TArray<PCGListviewItemPtr> EmptyList;
 	ListView->SetItemsSource(&EmptyList);
@@ -394,24 +439,8 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 	ListViewItems.Empty();
 	ListViewHeader->ClearColumns();
 	InfoTextBlock->SetText(FText::GetEmpty());
-	
-	if (!PCGComponent.IsValid())
-	{
-		return;
-	}
 
-	if (!PCGEditorGraphNode.IsValid())
-	{
-		return;
-	}
-
-	const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
-	if (!PCGNode)
-	{
-		return;
-	}
-
-	const FPCGDataCollection* InspectionData = PCGComponent->GetInspectionData(PCGNode);
+	const FPCGDataCollection* InspectionData = GetInspectionData();
 	if (!InspectionData)
 	{
 		return;
@@ -497,23 +526,7 @@ void SPCGEditorGraphAttributeListView::RefreshDataComboBox()
 	DataComboBox->ClearSelection();
 	DataComboBox->RefreshOptions();
 
-	if (!PCGComponent.IsValid())
-	{
-		return;
-	}
-
-	if (!PCGEditorGraphNode.IsValid())
-	{
-		return;
-	}
-
-	const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
-	if (!PCGNode)
-	{
-		return;
-	}
-
-	const FPCGDataCollection* InspectionData = PCGComponent->GetInspectionData(PCGNode);
+	const FPCGDataCollection* InspectionData = GetInspectionData();
 	if (!InspectionData)
 	{
 		return;
@@ -864,7 +877,7 @@ void SPCGEditorGraphAttributeListView::RefreshSorting()
 						if (PCG::Private::MetadataTraits<ValueType>::Equal(LHSValue, RHSValue))
 						{
 							return LHS->Index > RHS->Index;
-						}	
+						}
 
 						return PCG::Private::MetadataTraits<ValueType>::Greater(LHSValue, RHSValue);
 					};
@@ -976,11 +989,11 @@ void SPCGEditorGraphAttributeListView::AddPointDataColumns(const UPCGPointData* 
 	{
 		AddColumn(InPCGPointData, PCGEditorGraphAttributeListView::NAME_PointMetadataEntry, PCGEditorGraphAttributeListView::TEXT_PointMetadataEntryLabel);
 		AddColumn(InPCGPointData, PCGEditorGraphAttributeListView::NAME_PointMetadataEntryParent, PCGEditorGraphAttributeListView::TEXT_PointMetadataEntryParentLabel);
-	}	
+	}
 }
 
 void SPCGEditorGraphAttributeListView::AddMetadataColumn(const UPCGData* InPCGData, const FName& InColumnId, EPCGMetadataTypes InMetadataType, const TCHAR* PostFix)
-{	
+{
 	FString OriginalColumnIdString = InColumnId.ToString();
 	if (PostFix)
 	{
@@ -1010,7 +1023,7 @@ void SPCGEditorGraphAttributeListView::AddMetadataColumn(const UPCGData* InPCGDa
 
 	if (ColumnLabel.IsEmpty())
 	{
-		ColumnLabel = FText::FromName(ColumnId);	
+		ColumnLabel = FText::FromName(ColumnId);
 	}
 	
 	float ColumnWidth = 0.0f;

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Graph/PCGStackContext.h"
 #include "Widgets/SCompoundWidget.h"
 
 namespace ESelectInfo { enum Type : int; }
@@ -14,24 +15,22 @@ class UPCGGraph;
 class FPCGEditorGraphDebugObjectInstance
 {
 public:
-	FPCGEditorGraphDebugObjectInstance() = default;
-	FPCGEditorGraphDebugObjectInstance(TWeakObjectPtr<UPCGComponent> InPCGComponent);
+	FPCGEditorGraphDebugObjectInstance();
+	FPCGEditorGraphDebugObjectInstance(TWeakObjectPtr<UPCGComponent> InPCGComponent, const FPCGStack& InPCGStack);
 
-	void SetLabelFromPCGComponent(TWeakObjectPtr<UPCGComponent> InPCGComponent);
+	FText GetDebugObjectText() const { return Label; }
 
-	FText GetDebugObjectText() const
-	{
-		return FText::FromString(Label);
-	}
-
-	TWeakObjectPtr<UPCGComponent> GetPCGComponent() const
-	{
-		return PCGComponent;
-	}
+	TWeakObjectPtr<UPCGComponent> GetPCGComponent() const { return PCGComponent; }
+	const FPCGStack& GetStack() const { return PCGStack; }
 	
 private:
+	FText Label;
+
+	/** Component containing the inspection cache */
 	TWeakObjectPtr<UPCGComponent> PCGComponent = nullptr;
-	FString Label = TEXT("No debug object selected");
+
+	/** Stack to identify graph or subgraph instance */
+	FPCGStack PCGStack;
 };
 
 

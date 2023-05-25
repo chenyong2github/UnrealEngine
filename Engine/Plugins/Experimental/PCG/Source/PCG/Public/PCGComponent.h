@@ -14,6 +14,7 @@ namespace EEndPlayReason { enum Type : int; }
 
 class APCGPartitionActor;
 struct FPCGContext;
+class FPCGStack;
 class UPCGComponent;
 class UPCGGraph;
 class UPCGGraphInterface;
@@ -224,11 +225,11 @@ public:
 	void ResetLastGeneratedBounds();
 
 	/** Functions for managing the node inspection cache */
-	bool IsInspecting() const { return bIsInspecting; }
-	void EnableInspection() { bIsInspecting = true; };
+	bool IsInspecting() const;
+	void EnableInspection();
 	void DisableInspection();
-	void StoreInspectionData(const UPCGNode* InNode, const FPCGDataCollection& InInspectionData);
-	const FPCGDataCollection* GetInspectionData(const UPCGNode* InNode) const;
+	void StoreInspectionData(const FPCGStack* InStack, const UPCGNode* InNode, const FPCGDataCollection& InInspectionData);
+	const FPCGDataCollection* GetInspectionData(const FString& InStackPath) const;
 
 	/** Used by the tracking system to know if the component need to track actors. Not enabled for now, tracking is still done on the component.*/
 	bool ShouldTrackActors() const { return false; }
@@ -391,7 +392,7 @@ private:
 	bool bIsComponentLocal = false;
 
 #if WITH_EDITOR
-	bool bIsInspecting = false;
+	int32 InspectionCounter = 0;
 	FBox LastGeneratedBoundsPriorToUndo = FBox(EForceInit::ForceInit);
 	FPCGTagToSettingsMap CachedTrackedTagsToSettings;
 
@@ -418,7 +419,7 @@ private:
 	bool bActorToTagsMapPopulated = false;
 
 	UPROPERTY(Transient)
-	TMap<TObjectPtr<const UPCGNode>, FPCGDataCollection> InspectionCache;
+	TMap<FString, FPCGDataCollection> InspectionCache;
 #endif
 
 	mutable FCriticalSection GeneratedResourcesLock;

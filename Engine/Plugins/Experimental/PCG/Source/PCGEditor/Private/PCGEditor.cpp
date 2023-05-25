@@ -159,18 +159,27 @@ UPCGEditorGraph* FPCGEditor::GetPCGEditorGraph()
 	return PCGEditorGraph;
 }
 
-void FPCGEditor::SetPCGComponentBeingDebugged(UPCGComponent* InPCGComponent)
+void FPCGEditor::SetComponentAndStackBeingInspected(UPCGComponent* InPCGComponent, const FPCGStack& InPCGStack)
 {
-	if (PCGComponentBeingDebugged != InPCGComponent)
+	if (PCGComponentBeingInspected != InPCGComponent)
 	{
-		PCGComponentBeingDebugged = InPCGComponent;
-
-		OnDebugObjectChangedDelegate.Broadcast(PCGComponentBeingDebugged.Get());
-
-		if (PCGComponentBeingDebugged.IsValid())
+		if (PCGComponentBeingInspected.IsValid())
 		{
-			// We need to force generation so that we create debug data
-			PCGComponentBeingDebugged->GenerateLocal(/*bForce=*/true);
+			PCGComponentBeingInspected->DisableInspection();
+		}
+
+		PCGComponentBeingInspected = InPCGComponent;
+		OnInspectedComponentChangedDelegate.Broadcast(PCGComponentBeingInspected.Get());
+
+		if (PCGComponentBeingInspected.IsValid())
+		{
+			if (!PCGComponentBeingInspected->IsInspecting())
+			{
+				// We need to force generation so that we create debug data
+				PCGComponentBeingInspected->GenerateLocal(/*bForce=*/true);
+			}
+			
+			PCGComponentBeingInspected->EnableInspection();
 		}
 
 		for (UEdGraphNode* Node : PCGEditorGraph->Nodes)
@@ -181,6 +190,12 @@ void FPCGEditor::SetPCGComponentBeingDebugged(UPCGComponent* InPCGComponent)
 				PCGNode->UpdateErrorsAndWarnings();
 			}
 		}
+	}
+
+	if(InPCGStack != StackBeingInspected)
+	{
+		StackBeingInspected = InPCGStack;
+		OnInspectedStackChangedDelegate.Broadcast(StackBeingInspected);
 	}
 }
 
@@ -632,19 +647,19 @@ void FPCGEditor::OnDeterminismNodeTest()
 
 bool FPCGEditor::CanRunDeterminismGraphTest() const
 {
-	return PCGEditorGraph && PCGComponentBeingDebugged.IsValid();
+	return PCGEditorGraph && PCGComponentBeingInspected.IsValid();
 }
 
 void FPCGEditor::OnDeterminismGraphTest()
 {
 	check(GraphEditorWidget.IsValid());
 
-	if (!DeterminismWidget.IsValid() || !DeterminismWidget->WidgetIsConstructed() || !PCGGraphBeingEdited || !PCGComponentBeingDebugged.IsValid())
+	if (!DeterminismWidget.IsValid() || !DeterminismWidget->WidgetIsConstructed() || !PCGGraphBeingEdited || !PCGComponentBeingInspected.IsValid())
 	{
 		return;
 	}
 
-	if (PCGComponentBeingDebugged->GetGraph() != PCGGraphBeingEdited)
+	if (PCGComponentBeingInspected->GetGraph() != PCGGraphBeingEdited)
 	{
 		// TODO: Should we alert the user more directly or disable this altogether?
 		UE_LOG(LogPCGEditor, Warning, TEXT("Running Determinism on a PCG Component with different/no attached PCG Graph"));
@@ -659,9 +674,9 @@ void FPCGEditor::OnDeterminismGraphTest()
 	TSharedPtr<FDeterminismTestResult> TestResult = MakeShared<FDeterminismTestResult>();
 	TestResult->TestResultTitle = TEXT("Full Graph Test");
 	TestResult->TestResultName = PCGGraphBeingEdited->GetName();
-	TestResult->Seed = PCGComponentBeingDebugged->Seed;
+	TestResult->Seed = PCGComponentBeingInspected->Seed;
 
-	PCGDeterminismTests::RunDeterminismTest(PCGGraphBeingEdited, PCGComponentBeingDebugged.Get(), *TestResult);
+	PCGDeterminismTests::RunDeterminismTest(PCGGraphBeingEdited, PCGComponentBeingInspected.Get(), *TestResult);
 
 	DeterminismWidget->AddItem(TestResult);
 	DeterminismWidget->AddDetailsColumn();

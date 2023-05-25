@@ -62,6 +62,7 @@ public:
 	int32 GetNumStacks() const { return Stacks.Num(); }
 	int32 GetCurrentStackIndex() const { return CurrentStackIndex; }
 	const FPCGStack* GetStack(int32 InStackIndex) const;
+	const TArray<FPCGStack>& GetStacks() const { return Stacks; }
 
 	/** Create a new stack and create a frame from the provided object (typically graph or node pointer). Returns index of newly added stack. */
 	int32 PushFrame(const UObject* InFrameObject);
@@ -74,6 +75,8 @@ public:
 
 	/** Called during execution when invoking a dynamic subgraph, to prepend the caller stack to form the complete callstacks. */
 	void PrependParentStack(const FPCGStack* InParentStack);
+
+	static FPCGStackContext CreateStackContextFromGraph(const UPCGGraph* InPCGGraph);
 
 private:
 	/** List of all stacks encountered top graph and all (nested) subgraphs. Order is simply order of encountering during compilation. */
