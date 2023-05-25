@@ -477,8 +477,8 @@ void FAppleImageUtilsPlugin::ConvertToHEIF(CIImage* SourceImage, TArray<uint8>& 
 	
 	if (ConvertedImageSize)
 	{
-		ConvertedImageSize->X = Image.extent.size.width;
-		ConvertedImageSize->Y = Image.extent.size.height;
+		ConvertedImageSize->X = (int32)Image.extent.size.width;
+		ConvertedImageSize->Y = (int32)Image.extent.size.height;
 	}
 
 	// This will perform the work on the GPU or inline on this thread
@@ -504,8 +504,8 @@ void FAppleImageUtilsPlugin::ConvertToPNG(CIImage* SourceImage, TArray<uint8>& O
 	
 	if (ConvertedImageSize)
 	{
-		ConvertedImageSize->X = Image.extent.size.width;
-		ConvertedImageSize->Y = Image.extent.size.height;
+		ConvertedImageSize->X = (int32)Image.extent.size.width;
+		ConvertedImageSize->Y = (int32)Image.extent.size.height;
 	}
 
 	// This will perform the work on the GPU or inline on this thread
@@ -531,8 +531,8 @@ void FAppleImageUtilsPlugin::ConvertToTIFF(CIImage* SourceImage, TArray<uint8>& 
 	
 	if (ConvertedImageSize)
 	{
-		ConvertedImageSize->X = Image.extent.size.width;
-		ConvertedImageSize->Y = Image.extent.size.height;
+		ConvertedImageSize->X = (int32)Image.extent.size.width;
+		ConvertedImageSize->Y = (int32)Image.extent.size.height;
 	}
 
 	// This will perform the work on the GPU or inline on this thread
