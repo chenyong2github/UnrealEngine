@@ -12,6 +12,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/Build.h"
 #include "Misc/VarArgs.h"
+#include "String/FormatStringSan.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/EnableIf.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
@@ -229,8 +230,8 @@ CORE_API void BasicFatalLog(const FLogCategoryBase& Category, const FStaticBasic
 	#define UE_SET_LOG_VERBOSITY(CategoryName, Verbosity) \
 		CategoryName.SetVerbosity(ELogVerbosity::Verbosity);
 
-	#if UE_VALIDATE_FORMAT_STRINGS && defined(_MSC_VER)
-		#define UE_VALIDATE_FORMAT_STRING(Format, ...) do { if (false) { wprintf(Format, ##__VA_ARGS__); } } while(false)
+	#if UE_VALIDATE_FORMAT_STRINGS
+		#define UE_VALIDATE_FORMAT_STRING UE_CHECK_FORMAT_STRING
 	#else
 		#define UE_VALIDATE_FORMAT_STRING(Format, ...)
 	#endif
