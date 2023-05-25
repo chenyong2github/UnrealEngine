@@ -126,6 +126,10 @@ static FAutoConsoleCommand InstallBundleCacheStatsCommand(
 	}),
 	ECVF_Cheat);
 
+static int32 MaxContentInstallTimePerTickMS = 0;
+static FAutoConsoleVariableRef CVarMaxContentInstallTimePerTickMS(TEXT("InstallBundleManager.MaxContentInstallTimePerTickMS"),
+	MaxContentInstallTimePerTickMS,
+	TEXT("Maximum duration in milliseconds to allot for content install requests"));
 
 FDefaultInstallBundleManager::EBundleState FDefaultInstallBundleManager::GetBundleStatus(const FBundleInfo& BundleInfo) const
 {
@@ -1883,8 +1887,13 @@ void FDefaultInstallBundleManager::TickContentRequests()
 		ContentRequests[EContentRequestBatch::Cache].RemoveAt(ContentRequests[EContentRequestBatch::Cache].Num() - 1); //Invalidates Request
 	}
 
-	for (int i = 0; i < ContentRequests[EContentRequestBatch::Install].Num();)
+	// Set an optional maximum end time for processing install requests to ensure we don't hang
+	const double ContentInstallEndTime = MaxContentInstallTimePerTickMS <= 0 ? DBL_MAX : FPlatformTime::Seconds() + MaxContentInstallTimePerTickMS / 1000.0;
+
+	for (int i = 0; i < ContentRequests[EContentRequestBatch::Install].Num() && FPlatformTime::Seconds() < ContentInstallEndTime;)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_TickContentRequests_Install);
+
 		bool bRequestComplete = false;
 		FContentRequestRef& Request = ContentRequests[EContentRequestBatch::Install][i];
 		while (!bRequestComplete && Request->StepResult == EContentRequestStepResult::Done)
