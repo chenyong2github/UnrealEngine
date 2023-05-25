@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "Logging/LogMacros.h"
 #include "RHI.h"
 #include "RendererInterface.h"
 #include "RenderGraphDefinitions.h"
@@ -14,6 +15,8 @@
 struct FMinimalSceneTextures; // Forward declaration from SceneTextures.
 
 class IVariableRateShadingImageGenerator;
+
+DECLARE_LOG_CATEGORY_EXTERN(LogVRS, Log, All);
 
 class FVariableRateShadingImageManager : public FRenderResource
 {
@@ -74,6 +77,7 @@ public:
 	FVariableRateShadingImageManager();
 	virtual ~FVariableRateShadingImageManager();
 
+	virtual void InitRHI() override;
 	virtual void ReleaseDynamicRHI() override;
 
 	/**
