@@ -417,8 +417,6 @@ struct FNiagaraEventHandlerAddAction
 		, MinSpawnNumber(0)
 	{};
 
-	FNiagaraEventHandlerAddAction(const FNiagaraEventHandlerAddAction& Other) = default;
-
 	UPROPERTY(BlueprintReadWrite, Category = "Event Handler Options")
 	ENiagaraEventHandlerAddMode Mode;
 
