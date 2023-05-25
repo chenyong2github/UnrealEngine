@@ -53,11 +53,13 @@ public:
 	virtual bool DestroySession(const FGuid& SessionId, FText& OutFailureReason) override;
 	virtual FOnConcertServerSessionStartup& OnConcertServerSessionStartup() override;
 	virtual FOnConcertServerStartup& OnConcertServerStartup() override;
+	virtual FOnConcertParticipantCanJoinSession& OnConcertParticipantCanJoinSession() override;
 
 protected:
 
 	FOnConcertServerSessionStartup OnConcertServerSessionStartupDelegate;
 	FOnConcertServerStartup OnConcertServerStartupDelegate;
+	FOnConcertParticipantCanJoinSession OnConcertParticipantCanJoinSessionDelegate;
 
 private:
 	/** Returns the root dir where the servers keeps the its internally created repositories (When the caller doesn't provide the paths). */
@@ -140,8 +142,8 @@ private:
 	 */
 	void ArchiveOfflineSessions(const FConcertServerSessionRepository& InRepository);
 
-	/** */
-	bool CanJoinSession(const TSharedPtr<IConcertServerSession>& ServerSession, const FConcertSessionSettings& SessionSettings, const FConcertSessionVersionInfo& SessionVersionInfo, FText* OutFailureReason = nullptr);
+	/** Check whether a connecting participant can join the session. */
+	bool CanJoinSession(const TSharedPtr<IConcertServerSession>& ServerSession, const FConcertSessionSettings& SessionSettings, const FConcertSessionVersionInfo& SessionVersionInfo, const FGuid& EndpointId, const FConcertClientInfo& ClientInfo, FText* OutFailureReason = nullptr);
 
 	/**  Validate that the request to delete or modify a session comes from the owner of that session. */
 	bool IsRequestFromSessionOwner(const TSharedPtr<IConcertServerSession>& Session, const FString& FromUserName, const FString& FromDeviceName) const;

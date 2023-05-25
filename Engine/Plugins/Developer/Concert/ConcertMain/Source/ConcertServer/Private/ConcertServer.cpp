@@ -690,6 +690,11 @@ FOnConcertServerStartup& FConcertServer::OnConcertServerStartup()
 	return OnConcertServerStartupDelegate;
 }
 
+FOnConcertParticipantCanJoinSession& FConcertServer::OnConcertParticipantCanJoinSession()
+{
+	return OnConcertParticipantCanJoinSessionDelegate;
+}
+
 TArray<FConcertSessionInfo> FConcertServer::GetLiveSessionInfos() const
 {
 	TArray<FConcertSessionInfo> SessionsInfo;
@@ -1127,7 +1132,7 @@ TFuture<FConcertAdmin_SessionInfoResponse> FConcertServer::HandleFindSessionRequ
 	// Find the session requested
 	TSharedPtr<IConcertServerSession> ServerSession = GetLiveSession(Message->SessionId);
 	const TCHAR* ServerSessionNamePtr = ServerSession ? *ServerSession->GetName() : TEXT("<unknown>");
-	if (CanJoinSession(ServerSession, Message->SessionSettings, Message->VersionInfo, &ResponseData.Reason))
+	if (CanJoinSession(ServerSession, Message->SessionSettings, Message->VersionInfo, Message->ConcertEndpointId, Message->OwnerClientInfo, &ResponseData.Reason))
 	{
 		ResponseData.ResponseCode = EConcertResponseCode::Success;
 		ResponseData.SessionInfo = ServerSession->GetSessionInfo();
@@ -1496,7 +1501,7 @@ TFuture<FConcertAdmin_GetSessionActivitiesResponse> FConcertServer::HandleGetSes
 	return FConcertAdmin_GetSessionActivitiesResponse::AsFuture(MoveTemp(ResponseData));
 }
 
-bool FConcertServer::CanJoinSession(const TSharedPtr<IConcertServerSession>& ServerSession, const FConcertSessionSettings& SessionSettings, const FConcertSessionVersionInfo& SessionVersionInfo, FText* OutFailureReason)
+bool FConcertServer::CanJoinSession(const TSharedPtr<IConcertServerSession>& ServerSession, const FConcertSessionSettings& SessionSettings, const FConcertSessionVersionInfo& SessionVersionInfo, const FGuid& EndpointId, const FConcertClientInfo& ClientInfo, FText* OutFailureReason)
 {
 	if (!ServerSession)
 	{
@@ -1505,6 +1510,14 @@ bool FConcertServer::CanJoinSession(const TSharedPtr<IConcertServerSession>& Ser
 			*OutFailureReason = LOCTEXT("Error_CanJoinSession_UnknownSession", "Unknown session");
 		}
 		return false;
+	}
+
+	if (OnConcertParticipantCanJoinSessionDelegate.IsBound())
+	{
+		if (!OnConcertParticipantCanJoinSessionDelegate.Execute(ServerSession->GetId(), EndpointId, ClientInfo, OutFailureReason))
+		{
+			return false;
+		}
 	}
 
 	if (Settings->ServerSettings.bIgnoreSessionSettingsRestriction)

@@ -7,9 +7,11 @@
 #include "IConcertSession.h"
 
 class UConcertServerConfig;
+struct FConcertClientInfo;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertServerSessionStartup, TWeakPtr<IConcertServerSession>);
 DECLARE_MULTICAST_DELEGATE(FOnConcertServerStartup);
+DECLARE_DELEGATE_RetVal_FourParams(bool, FOnConcertParticipantCanJoinSession, const FGuid& /*SessionId*/, const FGuid& /*EndpointId*/, const FConcertClientInfo& /*ClientInfo*/, FText* /*OutFailureReason*/);
 
 /** Interface for Concert server */
 class IConcertServer
@@ -51,6 +53,9 @@ public:
 	
 	/** Callback when a remote admin endpoint connection changes. */
 	virtual FOnConcertRemoteEndpointConnectionChanged& OnRemoteEndpointConnectionChanged() = 0;
+
+	/** Callback to check whether a participant should be allowed to join a session. */
+	virtual FOnConcertParticipantCanJoinSession& OnConcertParticipantCanJoinSession() = 0;
 	
 	/**
 	 * Gets the address of a remote admin endpoint, i.e. a client that is sending FConcertEndpointDiscoveryEvents. 
