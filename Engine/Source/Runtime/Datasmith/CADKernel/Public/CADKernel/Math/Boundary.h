@@ -248,6 +248,11 @@ public:
 		Set(Point1, Point2);
 	}
 
+	FSurfacicBoundary(const FSurfacicBoundary& SB)
+		: UVBoundaries { FLinearBoundary(SB.UVBoundaries[EIso::IsoU]), FLinearBoundary(SB.UVBoundaries[EIso::IsoV]) }
+	{
+	}
+
 	void Set(const FPoint2D& Point1, const FPoint2D& Point2)
 	{
 		UVBoundaries[EIso::IsoU].Set(Point1.U, Point2.U);
@@ -405,6 +410,13 @@ public:
 	{
 		UVBoundaries[EIso::IsoU].MoveInsideIfNot(Point.U, Tolerance);
 		UVBoundaries[EIso::IsoV].MoveInsideIfNot(Point.V, Tolerance);
+	}
+
+	FSurfacicBoundary& operator=(const FSurfacicBoundary& InBounds)
+	{
+		UVBoundaries[EIso::IsoU] = InBounds.UVBoundaries[EIso::IsoU];
+		UVBoundaries[EIso::IsoV] = InBounds.UVBoundaries[EIso::IsoV];
+		return *this;
 	}
 
 	double Length(const EIso& Iso) const
