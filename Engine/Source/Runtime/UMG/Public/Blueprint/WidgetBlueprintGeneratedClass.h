@@ -13,6 +13,7 @@
 class UWidget;
 class UUserWidget;
 class UWidgetAnimation;
+class UWidgetBlueprintGeneratedClass;
 class UWidgetBlueprintGeneratedClassExtension;
 class UWidgetTree;
 
@@ -49,6 +50,18 @@ struct FDelegateRuntimeBinding
 	EBindingKind Kind = EBindingKind::Property;
 };
 
+
+#if WITH_EDITOR
+class UMG_API FWidgetBlueprintGeneratedClassDelegates
+{
+public:
+	// delegate for generating widget asset registry tags.
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FGetAssetTags, const UWidgetBlueprintGeneratedClass*, TArray<UObject::FAssetRegistryTag>&);
+
+	// called by UWidgetBlueprintGeneratedClass::GetAssetRegistryTags()
+	static FGetAssetTags GetAssetTags;
+};
+#endif
 
 /**
  * The widget blueprint generated class allows us to create blueprint-able widgets for UMG at runtime.
@@ -134,6 +147,9 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual bool NeedsLoadForServer() const override;
+#if WITH_EDITOR
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+#endif
 	//~ End UObject interface
 
 	virtual void PurgeClass(bool bRecompilingOnLoad) override;

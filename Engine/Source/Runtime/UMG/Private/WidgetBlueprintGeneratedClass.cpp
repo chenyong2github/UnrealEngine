@@ -103,6 +103,8 @@ FAutoConsoleCommand GDumpTemplateSizesCommand(
 int32 TemplatePreviewInEditor = 0;
 static FAutoConsoleVariableRef CVarTemplatePreviewInEditor(TEXT("Widget.TemplatePreviewInEditor"), TemplatePreviewInEditor, TEXT("Should a dynamic template be generated at runtime for the editor for widgets?  Useful for debugging templates."), ECVF_Default);
 
+FWidgetBlueprintGeneratedClassDelegates::FGetAssetTags FWidgetBlueprintGeneratedClassDelegates::GetAssetTags;
+
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -524,6 +526,15 @@ void UWidgetBlueprintGeneratedClass::GetExtensions(TArray<UWidgetBlueprintGenera
 		}
 	}
 }
+
+#if WITH_EDITOR
+void UWidgetBlueprintGeneratedClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	Super::GetAssetRegistryTags(OutTags);
+
+	FWidgetBlueprintGeneratedClassDelegates::GetAssetTags.Broadcast(this, OutTags);
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE
 
