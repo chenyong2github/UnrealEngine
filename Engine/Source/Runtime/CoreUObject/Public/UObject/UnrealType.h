@@ -5848,6 +5848,7 @@ public:
 	// End of FProperty interface
 
 	bool UseBinaryOrNativeSerialization(const FArchive& Ar) const;
+	bool FindInnerPropertyInstance(FName PropertyName, const void* Data, const FProperty*& OutProp, const void*& OutData) const;
 
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const;

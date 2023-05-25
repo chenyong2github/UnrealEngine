@@ -495,3 +495,23 @@ bool FInstancedStruct::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSu
 
 #endif // WITH_ENGINE
 }
+
+bool FInstancedStruct::FindInnerPropertyInstance(FName PropertyName, const FProperty*& OutProp, const void*& OutData) const
+{
+	if (!ScriptStruct || !StructMemory)
+	{
+		return false;
+	}
+	
+	for (const FProperty* Prop : TFieldRange<FProperty>(ScriptStruct))
+	{
+		if( Prop->GetFName() == PropertyName )
+		{
+			OutProp = Prop;
+			OutData = StructMemory;
+			return true;
+		}
+	}
+
+	return false;
+}

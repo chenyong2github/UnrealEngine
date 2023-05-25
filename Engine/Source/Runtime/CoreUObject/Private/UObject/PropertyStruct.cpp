@@ -157,6 +157,11 @@ bool FStructProperty::UseBinaryOrNativeSerialization(const FArchive& Ar) const
 	return bUseBinarySerialization || bUseNativeSerialization;
 }
 
+bool FStructProperty::FindInnerPropertyInstance(FName PropertyName, const void* Data, const FProperty*& OutProp, const void*& OutData) const
+{
+	return Struct->FindInnerPropertyInstance(PropertyName, Data, OutProp, OutData);
+}
+
 uint32 FStructProperty::GetValueTypeHashInternal(const void* Src) const
 {
 	check(Struct);

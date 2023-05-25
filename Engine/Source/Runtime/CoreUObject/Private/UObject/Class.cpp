@@ -3196,6 +3196,19 @@ void UScriptStruct::InitializeDefaultValue(uint8* InStructData) const
 	InitializeStruct(InStructData);
 }
 
+bool UScriptStruct::FindInnerPropertyInstance(FName PropertyName, const void* Data, const FProperty*& OutProp, const void*& OutData) const
+{
+	if (const UScriptStruct::ICppStructOps* TheCppStructOps = GetCppStructOps())
+	{
+        if (TheCppStructOps->HasFindInnerPropertyInstance())
+        {
+            return TheCppStructOps->FindInnerPropertyInstance(PropertyName, Data, OutProp, OutData);
+        }
+	}
+	
+	return false;
+}
+
 void UScriptStruct::ClearScriptStruct(void* Dest, int32 ArrayDim) const
 {
 	uint8 *Data = (uint8*)Dest;
