@@ -1068,9 +1068,15 @@ FReply SInteractiveCurveEditorView::OnMouseButtonDown(const FGeometry& MyGeometr
 					FScopedTransaction Transaction(LOCTEXT("InsertKey", "Insert Key"));
 
 					FCurveEditorScreenSpace CurveSpace = GetCurveSpace(HoveredCurve.GetValue());
-					FKeyAttributes KeyAttributes = CurveEditor->GetDefaultKeyAttributes().Get();
 					double MouseTime = CurveSpace.ScreenToSeconds(MousePixel.X);
 					double MouseValue = CurveSpace.ScreenToValue(MousePixel.Y);
+
+					FKeyAttributes KeyAttributes = CurveEditor->GetDefaultKeyAttributes().Get();
+					if (KeyAttributes.HasInterpMode())
+					{
+						// Set interpolation mode based on surrounding keys, if any
+						KeyAttributes.SetInterpMode(CurveToAddTo->GetInterpolationMode(MouseTime, KeyAttributes.GetInterpMode()));
+					}
 
 					FCurveSnapMetrics SnapMetrics = CurveEditor->GetCurveSnapMetrics(HoveredCurve.GetValue());
 					MouseTime = SnapMetrics.SnapInputSeconds(MouseTime);
@@ -1510,8 +1516,6 @@ void SInteractiveCurveEditorView::AddKeyAtTime(const TSet<FCurveModelID>& ToCurv
 	FScopedTransaction Transaction(LOCTEXT("AddKeyAtTime", "Add Key"));
 	bool bAddedKey = false;
 
-	FKeyAttributes DefaultAttributes = CurveEditor->GetDefaultKeyAttribute().Get();
-
 	// Clear the selection set as we will be selecting all the new keys created.
 	CurveEditor->GetSelection().Clear();
 
@@ -1553,8 +1557,15 @@ void SInteractiveCurveEditorView::AddKeyAtTime(const TSet<FCurveModelID>& ToCurv
 			}
 			else
 			{
+				FKeyAttributes KeyAttributes = CurveEditor->GetDefaultKeyAttribute().Get();
+				if (KeyAttributes.HasInterpMode())
+				{
+					// Set interpolation mode based on surrounding keys, if any
+					KeyAttributes.SetInterpMode(CurveModel->GetInterpolationMode(EvalTime, KeyAttributes.GetInterpMode()));
+				}
+
 				// Add a key on this curve
-				NewKey = CurveModel->AddKey(FKeyPosition(EvalTime, CurveValue), DefaultAttributes);
+				NewKey = CurveModel->AddKey(FKeyPosition(EvalTime, CurveValue), KeyAttributes);
 			}
 
 			// Add the key to the selection set.

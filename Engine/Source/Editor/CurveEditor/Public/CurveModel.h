@@ -151,6 +151,15 @@ public:
 	virtual void GetNeighboringKeys(const FKeyHandle InKeyHandle, TOptional<FKeyHandle>& OutPreviousKeyHandle, TOptional<FKeyHandle>& OutNextKeyHandle) const = 0;
 
 	/**
+	 * Get the interpolation mode to use at a specified time
+	 *
+	 * @param InTime						The time we are looking for an interpolation mode
+	 * @param DefaultInterpolationMode		Current default interpolation mode, returned if other keys not found or interpolation not supported
+	 * @return Interpolation mode to use at that frame
+	 */
+	virtual ERichCurveInterpMode GetInterpolationMode(const double& InTime, ERichCurveInterpMode DefaultInterpolationMode) const { return DefaultInterpolationMode; }
+
+	/**
 	 * Evaluate this curve at the specified time
 	 *
 	 * @param InTime                 The time to evaluate at, in seconds.
