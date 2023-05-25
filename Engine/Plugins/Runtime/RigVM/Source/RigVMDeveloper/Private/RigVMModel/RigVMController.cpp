@@ -8899,29 +8899,26 @@ bool URigVMController::RemoveArrayPin(const FString& InArrayElementPinPath, bool
 	check(ArrayPin);
 	ensure(ArrayPin->IsArray());
 
-	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMRemoveArrayPinAction Action;
-	if (bSetupUndoRedo)
-	{
-		Action = FRigVMRemoveArrayPinAction(this, ArrayElementPin);
-		Action.SetTitle(FString::Printf(TEXT("Remove Array Pin")));
-		GetActionStack()->BeginAction(Action);
-	}
-
 	// we need to keep at least one element for fixed size arrays
 	if(ArrayPin->IsExecuteContext() || ArrayPin->IsFixedSizeArray())
 	{
 		if(ArrayPin->GetArraySize() == 1)
 		{
-			if (bSetupUndoRedo)
-			{
-				GetActionStack()->CancelAction(Action);
-			}
+			ReportErrorf(TEXT("Cannot remove last element of a fixed size array %s."), *InArrayElementPinPath);
 			return false;
 		}
 	}
 
+	FRigVMControllerCompileBracketScope CompileScope(this);
+	FRigVMBaseAction Action(this);
+	if (bSetupUndoRedo)
+	{
+		Action.SetTitle(FString::Printf(TEXT("Remove Array Pin")));
+		GetActionStack()->BeginAction(Action);
+	}
+
 	int32 IndexToRemove = ArrayElementPin->GetPinIndex();
+	FRigVMRemoveArrayPinAction RemovePinAction(this, ArrayElementPin);
 	if (!RemovePin(ArrayElementPin, bSetupUndoRedo))
 	{
 		if (bSetupUndoRedo)
@@ -8929,6 +8926,11 @@ bool URigVMController::RemoveArrayPin(const FString& InArrayElementPinPath, bool
 			GetActionStack()->CancelAction(Action);
 		}
 		return false;
+	}
+
+	if (bSetupUndoRedo)
+	{
+		GetActionStack()->AddAction(RemovePinAction);
 	}
 
 	for (int32 ExistingIndex = IndexToRemove; ExistingIndex < ArrayPin->GetArraySize(); ExistingIndex++)
