@@ -39,6 +39,7 @@
 #include "EngineUtils.h"
 #include "GeometryCache.h"
 #include "GroomAsset.h"
+#include "GroomBindingAsset.h"
 #include "GroomCache.h"
 #include "HAL/FileManager.h"
 #include "IAssetTools.h"
@@ -821,6 +822,9 @@ namespace UsdStageImporterImpl
 		TArray<UObject*> AnimBlueprints;
 		TArray<UObject*> LevelSequences;
 		TArray<UObject*> GeometryCaches;
+		TArray<UObject*> Grooms;
+		TArray<UObject*> GroomCaches;
+		TArray<UObject*> GroomBindings;
 
 		TSet<FString> UniqueAssetNames;
 		TMap<UObject*, FString> AssetToContentFolder;
@@ -838,6 +842,7 @@ namespace UsdStageImporterImpl
 			const static FString SkeletalMeshesFolder = TEXT("SkeletalMeshes");
 			const static FString LevelSequencesFolder = TEXT("LevelSequences");
 			const static FString GeometryCachesFolder = TEXT("GeometryCaches");
+			const static FString GroomsFolder         = TEXT("Grooms");
 
 			const FString* AssetTypeFolderPtr = nullptr;
 			if (Asset->IsA(UMaterialInterface::StaticClass()))
@@ -889,6 +894,28 @@ namespace UsdStageImporterImpl
 			{
 				AssetTypeFolderPtr = &GeometryCachesFolder;
 				GeometryCaches.Add(Asset);
+			}
+			else if (Asset->IsA(UGroomAsset::StaticClass()))
+			{
+				AssetTypeFolderPtr = &GroomsFolder;
+				Grooms.Add(Asset);
+			}
+			else if (Asset->IsA(UGroomCache::StaticClass()))
+			{
+				AssetTypeFolderPtr = &GroomsFolder;
+				GroomCaches.Add(Asset);
+			}
+			else if (UGroomBindingAsset* GroomBinding = Cast<UGroomBindingAsset>(Asset))
+			{
+				if(GroomBinding->TargetSkeletalMesh)
+				{
+					AssetTypeFolderPtr = &SkeletalMeshesFolder;
+				}
+				else if (GroomBinding->TargetGeometryCache)
+				{
+					AssetTypeFolderPtr = &GeometryCachesFolder;
+				}
+				GroomBindings.Add(Asset);
 			}
 			else
 			{
@@ -948,6 +975,9 @@ namespace UsdStageImporterImpl
 		PublishAssetType(LevelSequences);
 		PublishAssetType(AnimBlueprints);
 		PublishAssetType(AnimSequences);
+		PublishAssetType(GroomBindings);
+		PublishAssetType(GroomCaches);
+		PublishAssetType(Grooms);
 		PublishAssetType(SkeletalMeshes);
 		PublishAssetType(Skeletons);
 		PublishAssetType(PhysicsAssets);
@@ -1520,6 +1550,7 @@ namespace UsdStageImporterImpl
 			int32 NumTextures = 0;
 			int32 NumGeometryCaches = 0;
 			int32 NumGroomAssets = 0;
+			int32 NumGroomBindings = 0;
 			int32 NumGroomCaches = 0;
 			for ( UObject* ImportedAsset : ImportedAssets )
 			{
@@ -1560,6 +1591,10 @@ namespace UsdStageImporterImpl
 				{
 					++NumGroomAssets;
 				}
+				else if ( ImportedAsset->IsA<UGroomBindingAsset>() )
+				{
+					++NumGroomBindings;
+				}
 				else if ( ImportedAsset->IsA<UGroomCache>() )
 				{
 					++NumGroomCaches;
@@ -1573,6 +1608,7 @@ namespace UsdStageImporterImpl
 			EventAttributes.Emplace( TEXT( "NumTextures" ), LexToString( NumTextures ) );
 			EventAttributes.Emplace( TEXT( "NumGeometryCaches" ), LexToString( NumGeometryCaches ) );
 			EventAttributes.Emplace( TEXT( "NumGroomAssets" ), LexToString( NumGroomAssets ) );
+			EventAttributes.Emplace( TEXT( "NumGroomBindings" ), LexToString( NumGroomBindings ) );
 			EventAttributes.Emplace( TEXT( "NumGroomCaches" ), LexToString( NumGroomCaches ) );
 
 			FString RootLayerIdentifier = ImportContext.FilePath;

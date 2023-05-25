@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"DeveloperSettings",
 					"GeometryCache",
+					"HairStrandsCore",
 					"Json", // To read/write plugInfo.json files from UnrealUSDWrapper.cpp
 					"MeshDescription",
 					"RHI",

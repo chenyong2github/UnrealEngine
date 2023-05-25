@@ -15,6 +15,9 @@
 #include "Engine/Texture2D.h"
 #include "EngineAnalytics.h"
 #include "GeometryCache.h"
+#include "GroomAsset.h"
+#include "GroomBindingAsset.h"
+#include "GroomCache.h"
 #include "HAL/FileManager.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
@@ -313,38 +316,22 @@ TSet<UObject*> IUsdClassesModule::GetAssetDependencies(UObject* Asset)
 		Result.Reserve(Result.Num() + MaterialInstance->TextureParameterValues.Num());
 		for (const FTextureParameterValue& TextureValue : MaterialInstance->TextureParameterValues)
 		{
-			if (UTexture* Texture = TextureValue.ParameterValue)
-			{
-				Result.Add(Texture);
-			}
+			Result.Add(TextureValue.ParameterValue);
 		}
 
 		// We'll have a dependency on our reference material too of course (this happens for Mdl
 		// materials for example, that create new UMaterial assets every time, and also material instances).
-		if (UMaterialInterface* ReferenceMaterial = MaterialInstance->Parent.Get())
-		{
-			Result.Add(ReferenceMaterial);
-		}
+		Result.Add(MaterialInstance->Parent.Get());
 	}
 	else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Asset))
 	{
-		if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
-		{
-			Result.Add(Skeleton);
-		}
-
-		if (UPhysicsAsset* PhysicsAsset = SkeletalMesh->GetPhysicsAsset())
-		{
-			Result.Add(PhysicsAsset);
-		}
+		Result.Add(SkeletalMesh->GetSkeleton());
+		Result.Add(SkeletalMesh->GetPhysicsAsset());
 
 		Result.Reserve(Result.Num() + SkeletalMesh->GetMaterials().Num());
 		for (const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->GetMaterials())
 		{
-			if (UMaterialInterface* UsedMaterial = SkeletalMaterial.MaterialInterface)
-			{
-				Result.Add(UsedMaterial);
-			}
+			Result.Add(SkeletalMaterial.MaterialInterface);
 		}
 	}
 	else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Asset))
@@ -352,33 +339,36 @@ TSet<UObject*> IUsdClassesModule::GetAssetDependencies(UObject* Asset)
 		Result.Reserve(Result.Num() + StaticMesh->GetStaticMaterials().Num());
 		for (const FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
 		{
-			if (UMaterialInterface* UsedMaterial = StaticMaterial.MaterialInterface)
-			{
-				Result.Add(UsedMaterial);
-			}
+			Result.Add(StaticMaterial.MaterialInterface);
 		}
 	}
 	else if (UGeometryCache* GeometryCache = Cast<UGeometryCache>(Asset))
 	{
 		for (UMaterialInterface* UsedMaterial : GeometryCache->Materials)
 		{
-			if (UsedMaterial)
-			{
-				Result.Add(UsedMaterial);
-			}
+			Result.Add(UsedMaterial);
 		}
 	}
 	else if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(Asset))
 	{
-		if (USkeletalMesh* Mesh = AnimSequence->GetPreviewMesh())
-		{
-			Result.Add(Mesh);
-		}
-
-		if (USkeleton* Skeleton = AnimSequence->GetSkeleton())
-		{
-			Result.Add(Skeleton);
-		}
+		Result.Add(AnimSequence->GetPreviewMesh());
+		Result.Add(AnimSequence->GetSkeleton());
+	}
+	else if (UGroomBindingAsset* GroomBinding = Cast<UGroomBindingAsset>(Asset))
+	{
+		Result.Add(GroomBinding->Groom);
+		Result.Add(GroomBinding->TargetSkeletalMesh);
+		Result.Add(GroomBinding->SourceSkeletalMesh);
+		Result.Add(GroomBinding->SourceGeometryCache);
+		Result.Add(GroomBinding->TargetGeometryCache);
+	}
+	else if (UGroomAsset* GroomAsset = Cast<UGroomAsset>(Asset))
+	{
+		// Do nothing. The atual groom assets have no additional dependencies
+	}
+	else if (UGroomCache* GroomCache = Cast<UGroomCache>(Asset))
+	{
+		// Do nothing. The groom cache doesn't have any additional dependencies
 	}
 	else if (UTexture* Texture = Cast<UTexture>(Asset))
 	{
@@ -401,6 +391,8 @@ TSet<UObject*> IUsdClassesModule::GetAssetDependencies(UObject* Asset)
 		UE_LOG(LogUsd, Warning, TEXT("Unknown asset '%s' encountered when collecting dependencies."), Asset ? *Asset->GetName() : TEXT("nullptr"));
 	}
 
+	// This way we don't have to nullptr check everything we add to the set
+	Result.Remove(nullptr);
 	return Result;
 }
 

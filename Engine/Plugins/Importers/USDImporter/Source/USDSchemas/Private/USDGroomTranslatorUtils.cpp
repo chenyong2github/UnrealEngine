@@ -104,7 +104,11 @@ namespace UE::UsdGroomTranslatorUtils::Private
 			UGroomBindingAsset::StaticClass(),
 			*IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(GroomBindingPath))
 		);
-		UGroomBindingAsset* GroomBinding = NewObject<UGroomBindingAsset>(GetTransientPackage(), BindingAssetName, ObjectFlags | RF_Public);
+		UGroomBindingAsset* GroomBinding = NewObject<UGroomBindingAsset>(
+			GetTransientPackage(),
+			BindingAssetName,
+			ObjectFlags | RF_Public | RF_Transient
+		);
 		if (GroomBinding)
 		{
 			GroomBinding->GroomBindingType = Settings.GroomBindingType;

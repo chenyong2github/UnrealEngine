@@ -183,7 +183,13 @@ protected:
 						*IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(PrimPathString))
 					);
 
-					FHairImportContext HairImportContext(ImportOptions.Get(), GetTransientPackage(), UGroomAsset::StaticClass(), AssetName, Context->ObjectFlags | EObjectFlags::RF_Public);
+					FHairImportContext HairImportContext(
+						ImportOptions.Get(),
+						GetTransientPackage(),
+						UGroomAsset::StaticClass(),
+						AssetName,
+						Context->ObjectFlags | RF_Public | RF_Transient
+					);
 					UGroomAsset* ExistingAsset = nullptr;
 					GroomAsset = FHairStrandsImporter::ImportHair(HairImportContext, HairDescription, ExistingAsset);
 					if (GroomAsset)
@@ -323,7 +329,7 @@ protected:
 			[this]() -> bool
 			{
 				const FString StrandsGroomCachePrimPath = UsdGroomTranslatorUtils::GetStrandsGroomCachePrimPath(PrimPath);
-				FHairImportContext HairImportContext(nullptr, GetTransientPackage(), nullptr, FName(), Context->ObjectFlags | EObjectFlags::RF_Public);
+				FHairImportContext HairImportContext(nullptr, GetTransientPackage(), nullptr, FName(), Context->ObjectFlags | RF_Public | RF_Transient);
 				FName UniqueName = MakeUniqueObjectName(
 					GetTransientPackage(),
 					UGroomCache::StaticClass(),
