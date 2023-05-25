@@ -5,8 +5,60 @@
 #include "CoreMinimal.h"
 #include "ModelingOperators.h"
 
+#include "TriangulateCurvesOp.generated.h"
+
 class USplineComponent;
 
+UENUM()
+enum class EFlattenCurveMethod : uint8
+{
+	DoNotFlatten,
+	ToBestFitPlane,
+	AlongX,
+	AlongY,
+	AlongZ
+};
+
+UENUM()
+enum class ECombineCurvesMethod : uint8
+{
+	LeaveSeparate,
+	Union,
+	Intersect,
+	Difference,
+	ExclusiveOr
+};
+
+UENUM()
+enum class EOffsetClosedCurvesMethod : uint8
+{
+	DoNotOffset,
+	OffsetOuterSide,
+	OffsetBothSides
+};
+
+UENUM()
+enum class EOffsetOpenCurvesMethod : uint8
+{
+	TreatAsClosed,
+	Offset
+};
+
+UENUM()
+enum class EOffsetJoinMethod : uint8
+{
+	Square,
+	Miter,
+	Round
+};
+
+UENUM()
+enum class EOpenCurveEndShapes : uint8
+{
+	Square,
+	Round,
+	Butt
+};
 
 namespace UE {
 namespace Geometry {
@@ -39,6 +91,21 @@ public:
 	// If > 0, thicken the result mesh to make a solid
 	double Thickness = 0.0;
 
+	EFlattenCurveMethod FlattenMethod = EFlattenCurveMethod::DoNotFlatten;
+
+	// Note: Combining and offsetting curves only works when curves are flattened; curves will be left separate and non-offset if FlattenMethod is DoNotFlatten
+
+	ECombineCurvesMethod CombineMethod = ECombineCurvesMethod::LeaveSeparate;
+
+	EOffsetClosedCurvesMethod OffsetClosedMethod = EOffsetClosedCurvesMethod::DoNotOffset;
+	EOffsetOpenCurvesMethod OffsetOpenMethod = EOffsetOpenCurvesMethod::TreatAsClosed;
+	EOffsetJoinMethod OffsetJoinMethod = EOffsetJoinMethod::Square;
+	EOpenCurveEndShapes OpenEndShape = EOpenCurveEndShapes::Square;
+	double MiterLimit = 1.0;
+	double CurveOffset = 1.0;
+
+	bool bFlipResult = false;
+
 	//
 	// FDynamicMeshOperator interface 
 	//
@@ -58,6 +125,7 @@ private:
 	// Local to World transform of the first path
 	FTransform FirstPathTransform;
 
+	void ApplyThickness(double UseUVScaleFactor);
 };
 
 }} // end UE::Geometry

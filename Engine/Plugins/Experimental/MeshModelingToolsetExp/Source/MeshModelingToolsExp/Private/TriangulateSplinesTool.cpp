@@ -2,7 +2,6 @@
 
 #include "TriangulateSplinesTool.h"
 
-#include "CurveOps/TriangulateCurvesOp.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
@@ -201,6 +200,24 @@ TUniquePtr<FDynamicMeshOperator> UTriangulateSplinesTool::MakeNewOperator()
 	TUniquePtr<FTriangulateCurvesOp> Op = MakeUnique<FTriangulateCurvesOp>();
 
 	Op->Thickness = TriangulateProperties->Thickness;
+	Op->bFlipResult = TriangulateProperties->bFlipResult;
+	Op->CombineMethod = TriangulateProperties->CombineMethod;
+	Op->FlattenMethod = TriangulateProperties->FlattenMethod;
+	Op->CurveOffset = TriangulateProperties->CurveOffset;
+	if (TriangulateProperties->CurveOffset == 0.0)
+	{
+		Op->OffsetClosedMethod = EOffsetClosedCurvesMethod::DoNotOffset;
+	}
+	else
+	{
+		Op->OffsetClosedMethod = TriangulateProperties->OffsetClosedCurves;
+	}
+	Op->OffsetOpenMethod = TriangulateProperties->OpenCurves;
+	Op->OffsetJoinMethod = TriangulateProperties->JoinMethod;
+	Op->OpenEndShape = TriangulateProperties->EndShapes;
+	Op->MiterLimit = TriangulateProperties->MiterLimit;
+	
+	Op->bFlipResult = TriangulateProperties->bFlipResult;
 
 	TArray<TObjectPtr<USplineComponent>, TInlineAllocator<8>> SplineComponents;
 	for (int32 ActorIdx = 0; ActorIdx < ActorsWithSplines.Num(); ++ActorIdx)
