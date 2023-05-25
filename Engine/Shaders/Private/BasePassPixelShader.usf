@@ -1915,7 +1915,7 @@ void FPixelShaderInOut_MainPS(
 		{
 			// change this so that we can pack everything into the gbuffer, but leave this for now
 			#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
-				GBuffer.GenericAO = float(GBuffer.DiffuseIndirectSampleOcclusion) * rcp(255) + (0.5 / 255.0);
+				GBuffer.GenericAO = float(GBuffer.DiffuseIndirectSampleOcclusion) * (1.0f / 255.0f);
 			#elif ALLOW_STATIC_LIGHTING
 				// No space for AO. Multiply IndirectIrradiance by AO instead of storing.
 				GBuffer.GenericAO = EncodeIndirectIrradiance(GBuffer.IndirectIrradiance * GBuffer.GBufferAO) + QuantizationBias * (1.0 / 255.0);	// Stationary sky light path

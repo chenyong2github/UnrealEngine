@@ -869,7 +869,7 @@ void EncodeGBuffer(
 		OutGBufferC.rgb = EncodeBaseColor( GBuffer.BaseColor );
 
 #if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
-		OutGBufferC.a = float(GBuffer.DiffuseIndirectSampleOcclusion) * rcp(255) + (0.5 / 255.0);
+		OutGBufferC.a = float(GBuffer.DiffuseIndirectSampleOcclusion) * (1.0f / 255.0f);
 #elif ALLOW_STATIC_LIGHTING
 		// No space for AO. Multiply IndirectIrradiance by AO instead of storing.
 		OutGBufferC.a = EncodeIndirectIrradiance(GBuffer.IndirectIrradiance * GBuffer.GBufferAO) + QuantizationBias * (1.0 / 255.0);
