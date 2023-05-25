@@ -478,11 +478,8 @@ namespace UnrealBuildTool
 			// get the settings from the ini file
 			// plist replacements
 			DirectoryReference? DirRef = bIsUnrealGame ? (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : null) : new DirectoryReference(ProjectDirectory);
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirRef, UnrealTargetPlatform.Mac);
-			bool bUseModernXcode;
-			Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out bUseModernXcode);
 
-			if (!bUseModernXcode)
+			if (!MacExports.UseModernXcode(ProjectFile))
 			{
 				return GenerateLegacyIOSPList(ProjectFile, Config, ProjectDirectory, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, UPL, BundleID, bBuildAsFramework, Logger);
 			}
@@ -500,15 +497,8 @@ namespace UnrealBuildTool
             if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac && !bBuildAsFramework)
 			{
 				FileReference FinalPlistFile;
-				if (bUseModernXcode)
-				{
-					// @todo: do we need one per Target for IOS? Client? I dont think so for Modern
-					FinalPlistFile = new FileReference($"{ProjectDirectory}/Build/IOS/UBTGenerated/Info.Template.plist");
-				}
-				else
-				{
-					FinalPlistFile = new FileReference(AppDirectory + "/Info.plist");
-				}
+				FinalPlistFile = new FileReference($"{ProjectDirectory}/Build/IOS/UBTGenerated/Info.Template.plist");
+
 				DirectoryReference.CreateDirectory(FinalPlistFile.Directory);
 				// @todo: writeifdifferent is better
 				FileReference.Delete(FinalPlistFile);
@@ -1121,9 +1111,7 @@ namespace UnrealBuildTool
 			string BuildDirectory_NFL = InProjectDirectory + "/Restricted/NotForLicensees/Build/" + SubDir;
 			string IntermediateDirectory = (bIsUnrealGame ? InEngineDir : InProjectDirectory) + "/Intermediate/" + SubDir;
 
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.IOS);
-			bool bUseModernXcode;
-			if (Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out bUseModernXcode) && bUseModernXcode)
+			if (MacExports.UseModernXcode(ProjectFile))
 			{
 				Logger.LogInformation("Generating plist (only step needed when deploying with Modern Xcode)");
 				GeneratePList(ProjectFile, Config, InProjectDirectory, bIsUnrealGame, GameExeName, false, InProjectName, InEngineDir, AppDirectory, UPLScripts, BundleID, bBuildAsFramework);

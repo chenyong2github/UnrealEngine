@@ -69,16 +69,39 @@ public abstract class ApplePlatform : Platform
 
 	#endregion
 
+	public override void PreBuildAgenda(UnrealBuild Build, UnrealBuild.BuildAgenda Agenda, ProjectParams Params)
+	{
+		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		{
+			// any building before we stage should not pull the stage dir into the .app, and we will unset it below when we build again after staging
+			Environment.SetEnvironmentVariable("UE_SKIP_STAGEDDATA_SYNC", "1", EnvironmentVariableTarget.Process);
+		}
+
+		base.PreBuildAgenda(Build, Agenda, Params);
+	}
+
 
 	public override void PostStagingFileCopy(ProjectParams Params, DeploymentContext SC)
 	{
 		if (MacExports.UseModernXcode(Params.RawProjectPath))
 		{
+			// now reset the envvar so the following build will process the staged data
+			Environment.SetEnvironmentVariable("UE_SKIP_STAGEDDATA_SYNC", "0", EnvironmentVariableTarget.Process);
+
 			foreach (TargetReceipt Target in SC.StageTargets.Select(x => x.Receipt))
 			{
-				// fiddle with some envvars to redirect the .app into root of Staging directory, without going under any build subdirectories
-				string ExtraOptions = $"SYMROOT=\"{SC.StageDirectory.ParentDirectory}\" EFFECTIVE_PLATFORM_NAME={SC.StageDirectory.GetDirectoryName()}";
-				MacExports.BuildWithModernXcode(SC.RawProjectPath, Target.Platform, Target.Configuration, Target.TargetName, bArchiveForDistro: false, Logger, ExtraOptions);
+				string ExtraOptions =
+					// fiddle with some envvars to redirect the .app into root of Staging directory, without going under any build subdirectories
+					$"SYMROOT=\"{SC.StageDirectory.ParentDirectory}\" " +
+					$"EFFECTIVE_PLATFORM_NAME={SC.StageDirectory.GetDirectoryName()} " +
+					// set where the stage directory is
+					$"UE_OVERRIDE_STAGE_DIR=\"{SC.StageDirectory}\"";
+				if (!Params.IsCodeBasedProject)
+				{
+					ExtraOptions += $" PRODUCT_NAME={Params.ShortProjectName}";
+				}
+
+				MacExports.BuildWithModernXcode(SC.RawProjectPath, Target.Platform, Target.Configuration, Target.TargetName, MacExports.XcodeBuildMode.Stage, Logger, ExtraOptions);
 			}
 		}
 	}
@@ -149,16 +172,28 @@ public abstract class ApplePlatform : Platform
 			{
 				TargetReceipt Receipt = Target.Receipt;
 
+				string ExtraOptions =
+					// set where the stage directory is
+					$"UE_OVERRIDE_STAGE_DIR=\"{SC.StageDirectory}\"";
+				if (!Params.IsCodeBasedProject)
+				{
+					// override where the .app will be located and named
+					ExtraOptions += $" SYMROOT=\"{SC.ProjectRoot}/Binaries\"";
+					ExtraOptions += $" PRODUCT_NAME={Params.ShortProjectName}";
+				}
+
+
 				// if we we packaging for distrbution, we will create a .xcarchive which can be used to submit to app stores, or exported for other distribution methods
 				// the archive will be created in the standard Archives location accessible via Xcode. Using -archive will copy it out into
 				// the specified location for use as needed
-				if (MacExports.BuildWithModernXcode(Params.RawProjectPath, Receipt.Platform, Receipt.Configuration, Receipt.TargetName, Params.Distribution, Logger))
+				MacExports.XcodeBuildMode BuildMode = Params.Distribution ? MacExports.XcodeBuildMode.Distribute : MacExports.XcodeBuildMode.Package;
+				if (MacExports.BuildWithModernXcode(Params.RawProjectPath, Receipt.Platform, Receipt.Configuration, Receipt.TargetName, BuildMode, Logger, ExtraOptions) == 0)
 				{
 					Logger.LogInformation("=====================================================================================");
 					if (Params.Distribution)
 					{
 						Logger.LogInformation("Created .xcarchive in Xcode's Library, which can be seen in Xcode's Organizer window");
-						Logger.LogInformation("You may use this to validate and prepare for vvarious distribution methods");
+						Logger.LogInformation("You may use this to validate and prepare for various distribution methods");
 					}
 					else
 					{

@@ -1170,7 +1170,7 @@ namespace UnrealBuildTool
 				BuildProducts.Add(FileReference.Combine(BundleContentsDirectory!, "_CodeSignature", "CodeResources"), BuildProductType.RequiredResource);
 
 				// modern xcode doesn't use the bootstrap launcher because it can make full .app with staged data inside it
-				if (!Target.MacPlatform.bUseModernXcode)
+				if (!bUseModernXcode)
 				{
 					if (Target.Type == TargetType.Editor)
 					{

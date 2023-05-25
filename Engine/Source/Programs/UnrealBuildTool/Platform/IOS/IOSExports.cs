@@ -280,7 +280,11 @@ namespace UnrealBuildTool
 				Options.Add("-game");
 			}
 
+			// we need to be in Engine/Source for some build.cs files
+			string CurrentCWD = Environment.CurrentDirectory;
+			Environment.CurrentDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Source").FullName;
 			IOSToolChain.GenerateProjectFiles(UProjectFile, Options.ToArray(), Logger, out GeneratedProjectFile);
+			Environment.CurrentDirectory = CurrentCWD;
 		}
 
 		/// <summary>
@@ -294,9 +298,10 @@ namespace UnrealBuildTool
 		/// <param name="ExtraOptions">Extra options to pass to xcodebuild</param>
 		/// <param name="bForDistribution">True if this is making a bild for uploading to app store</param>
 		/// <param name="Logger">Logging object</param>
-		public static void FinalizeAppWithModernXcode(DirectoryReference XcodeProject, UnrealTargetPlatform Platform, string SchemeName, string Configuration, string Action, string ExtraOptions, bool bForDistribution, ILogger Logger)
+		/// <returns>xcode's exit code</returns>
+		public static int FinalizeAppWithModernXcode(DirectoryReference XcodeProject, UnrealTargetPlatform Platform, string SchemeName, string Configuration, string Action, string ExtraOptions, bool bForDistribution, ILogger Logger)
 		{
-			FinalizeAppWithXcode(XcodeProject, Platform, SchemeName, Configuration, null, null, null, ExtraOptions, false, bForDistribution, bUseModernXcode: true, Logger, Action);
+			return FinalizeAppWithXcode(XcodeProject, Platform, SchemeName, Configuration, null, null, null, ExtraOptions, false, bForDistribution, bUseModernXcode: true, Logger, Action);
 		}
 
 		/// <summary>
@@ -388,6 +393,8 @@ namespace UnrealBuildTool
 			}
 
 			int ReturnCode = Utils.RunLocalProcessAndLogOutput("/usr/bin/env", string.Join(" ", Arguments), Logger);
+			// @todo create the workspace in Intermediate/ProjectFiles, and then don't delete it (for debugging use)
+			DirectoryReference.Delete(XcodeProject, true);
 			return ReturnCode;
 		}
 

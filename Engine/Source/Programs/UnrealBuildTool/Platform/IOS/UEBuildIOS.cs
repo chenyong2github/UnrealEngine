@@ -146,12 +146,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-EnableUBSan")]
 		public bool bEnableUndefinedBehaviorSanitizer = false;
-
-		/// <summary>
-		/// Are we using modern xcode in this project?
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode")]
-		public bool bUseModernXcode = false;
 	}
 
 	/// <summary>
@@ -246,11 +240,6 @@ namespace UnrealBuildTool
 		public bool bEnableUndefinedBehaviorSanitizer
 		{
 			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
-		}
-
-		public bool bUseModernXcode
-		{
-			get { return Inner.bUseModernXcode; }
 		}
 
 #pragma warning restore CS1591
@@ -748,7 +737,7 @@ namespace UnrealBuildTool
 
 			Target.IOSPlatform.ProjectSettings = ((IOSPlatform)GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
 
-			if (!Target.IOSPlatform.bUseModernXcode)
+			if (!MacExports.UseModernXcode(Target.ProjectFile))
 			{
 				// always strip in shipping configuration (commandline could have set it also)
 				if (Target.Configuration == UnrealTargetConfiguration.Shipping)

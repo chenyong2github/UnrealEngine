@@ -74,6 +74,9 @@ namespace UnrealBuildTool
 			}
 		}
 
+		private static bool bForceModernXcode = Environment.CommandLine.Contains("-modernxcode", StringComparison.OrdinalIgnoreCase);
+		private static bool bForceLegacyXcode = Environment.CommandLine.Contains("-legacyxcode", StringComparison.OrdinalIgnoreCase);
+
 		/// <summary>
 		/// Is the current project using modern xcode?
 		/// </summary>
@@ -81,6 +84,19 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static bool UseModernXcode(FileReference? ProjectFile)
 		{
+			if (bForceModernXcode)
+			{
+				if (bForceLegacyXcode)
+				{
+					throw new BuildException("Both -modernxcode and -legacyxcode were specified, please use one or the other.");
+				}
+				return true;
+			}
+			if (bForceLegacyXcode)
+			{
+				return false;
+			}
+
 			// Modern Xcode mode does this now
 			bool bUseModernXcode = false;
 			if (OperatingSystem.IsMacOS())
@@ -92,18 +108,45 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Different ways that xcodebuild is run, so the scripts can behave appropriately
+		/// </summary>
+		public enum XcodeBuildMode
+		{
+			/// <summary>
+			/// This is when hitting Build from in Xcode
+			/// </summary>
+			Default = 0,
+			/// <summary>
+			/// This runs after building when building on commandline directly with UBT
+			/// </summary>
+			PostBuildSync = 1,
+			/// <summary>
+			/// This runs when making a fully made .app in the Staged directory
+			/// </summary>
+			Stage = 2,
+			/// <summary>
+			/// This runs when packaging a full made .app into Project/Binaries
+			/// </summary>
+			Package = 3,
+			/// <summary>
+			/// This runs when packaging a .xcarchive for distribution
+			/// </summary>
+			Distribute = 4,
+		}
+
+		/// <summary>
 		/// Generates a stub xcode project for the given project/platform/target combo, then builds or archives it
 		/// </summary>
 		/// <param name="ProjectFile">Project to build</param>
 		/// <param name="Platform">Platform to build</param>
 		/// <param name="Configuration">Configuration to build</param>
 		/// <param name="TargetName">Target to build</param>
-		/// <param name="bArchiveForDistro">Whether or not to create a .xcarchive to prepare for distribution</param>
+		/// <param name="BuildMode">Sets an envvar used inside the xcode project to control certain features</param>
 		/// <param name="Logger"></param>
 		/// <param name="ExtraOptions">Any extra options to pass to xcodebuild</param>
-		/// <returns></returns>
-		public static bool BuildWithModernXcode(FileReference? ProjectFile, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, 
-			string TargetName, bool bArchiveForDistro, ILogger Logger, string ExtraOptions="")
+		/// <returns>xcode's exit code</returns>
+		public static int BuildWithModernXcode(FileReference? ProjectFile, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, 
+			string TargetName, XcodeBuildMode BuildMode, ILogger Logger, string ExtraOptions="")
 		{
 			DirectoryReference? GeneratedProjectFile;
 			// we don't use distro flag when making a modern project
@@ -111,14 +154,13 @@ namespace UnrealBuildTool
 
 			if (GeneratedProjectFile == null)
 			{
-				return false;
+				return 1;
 			}
 
 			// run xcodebuild on the generated project to make the .app
-			IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Platform, TargetName, Configuration.ToString(),
-				bArchiveForDistro ? "archive" : "build", ExtraOptions, bArchiveForDistro, Logger);
-
-			return true;
+			string XcodeBuildAction = BuildMode == XcodeBuildMode.Distribute ? "archive" : "build";
+			return IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Platform, TargetName, Configuration.ToString(),
+				XcodeBuildAction, ExtraOptions + $" UE_XCODE_BUILD_MODE={BuildMode}", bForDistribution:false, Logger);
 		}
 
 		/// <summary>

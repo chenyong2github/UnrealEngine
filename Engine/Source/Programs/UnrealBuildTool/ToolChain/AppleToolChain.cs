@@ -178,12 +178,7 @@ namespace UnrealBuildTool
 
 		protected FileReference? ProjectFile;
 
-		protected static bool UseModernXcode(FileReference? ProjectFile)
-		{
-			return MacExports.UseModernXcode(ProjectFile);
-		}
-
-		protected bool bUseModernXcode => UseModernXcode(ProjectFile);
+		protected bool bUseModernXcode => MacExports.UseModernXcode(ProjectFile);
 
 		public AppleToolChain(FileReference? InProjectFile, ClangToolChainOptions InOptions, ILogger InLogger) : base(InOptions, InLogger)
 		{
@@ -535,7 +530,7 @@ namespace UnrealBuildTool
 			List<FileItem> OutputFiles = new List<FileItem>(base.PostBuild(Target, Executable, BinaryLinkEnvironment, Graph));
 
 			bool bIsBuildingAppBundle = !BinaryLinkEnvironment.bIsBuildingDLL && !BinaryLinkEnvironment.bIsBuildingLibrary && !BinaryLinkEnvironment.bIsBuildingConsoleApplication;
-			if (Target.MacPlatform.bUseModernXcode && bIsBuildingAppBundle)
+			if (MacExports.UseModernXcode(Target.ProjectFile) && bIsBuildingAppBundle)
 			{
 				Action PostBuildAction = ApplePostBuildSyncMode.CreatePostBuildSyncAction(Target, Executable, BinaryLinkEnvironment.IntermediateDirectory!, Graph);
 
@@ -573,6 +568,11 @@ namespace UnrealBuildTool
 		[CommandLine("-XmlConfigCache=")]
 		public FileReference? XmlConfigCache = null;
 
+		// this isn't actually used, but is helpful to pass -modernxcode along in CreatePostBuildSyncAction, and UBT won't
+		// complain that nothing is using it, because where we _do_ use it is outside the normal cmdline parsing functionality
+		[CommandLine("-ModernXcode")]
+		public bool bModernXcode;
+
 		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
@@ -580,14 +580,26 @@ namespace UnrealBuildTool
 
 			// Run the PostBuildSync command
 			ApplePostBuildSyncTarget Target = BinaryFormatterUtils.Load<ApplePostBuildSyncTarget>(InputFile!);
-			PostBuildSync(Target, Logger);
+			int ExitCode = PostBuildSync(Target, Logger);
 
-			return Task.FromResult(0);
+			return Task.FromResult(ExitCode);
 		}
 
-		private void PostBuildSync(ApplePostBuildSyncTarget Target, ILogger Logger)
+		private int PostBuildSync(ApplePostBuildSyncTarget Target, ILogger Logger)
 		{
-			MacExports.BuildWithModernXcode(Target.ProjectFile, Target.Platform, Target.Configuration, Target.TargetName, bArchiveForDistro: false, Logger);
+			// if xcode is building this, it will also do the Run stuff anyway, so no need to do it here as well
+			if (Environment.GetEnvironmentVariable("UE_BUILD_FROM_XCODE") == "1")
+			{
+				return 0;
+			}
+
+			int ExitCode = MacExports.BuildWithModernXcode(Target.ProjectFile, Target.Platform, Target.Configuration, Target.TargetName, MacExports.XcodeBuildMode.PostBuildSync, Logger);
+			if (ExitCode != 0)
+			{
+				Logger.LogError("ERROR: Failed to finalize the .app with Xcode. Check the log for ,more information");
+			}
+
+			return ExitCode;
 		}
 
 		private static FileItem GetPostBuildOutputFile(FileReference Executable, string TargetName, UnrealTargetPlatform Platform)
@@ -610,7 +622,8 @@ namespace UnrealBuildTool
 			FileReference PostBuildSyncFile = FileReference.Combine(IntermediateDir!, "PostBuildSync.dat");
 			BinaryFormatterUtils.Save(PostBuildSyncFile, PostBuildSync);
 
-			string PostBuildSyncArguments = String.Format("-Input=\"{0}\" -XmlConfigCache=\"{1}\" -remoteini=\"{2}\"", PostBuildSyncFile, XmlConfig.CacheFile, UnrealBuildTool.GetRemoteIniPath());
+
+			string PostBuildSyncArguments = String.Format("-modernxcode -Input=\"{0}\" -XmlConfigCache=\"{1}\" -remoteini=\"{2}\"", PostBuildSyncFile, XmlConfig.CacheFile, UnrealBuildTool.GetRemoteIniPath());
 			Action PostBuildSyncAction = Graph.CreateRecursiveAction<ApplePostBuildSyncMode>(ActionType.CreateAppBundle, PostBuildSyncArguments);
 
 			PostBuildSyncAction.WorkingDirectory = Unreal.EngineSourceDirectory;

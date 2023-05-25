@@ -66,12 +66,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/MacTargetPlatform.MacTargetSettings", "bEnableRayTracing")]
 		public bool bEnableRayTracing = false;
-
-		/// <summary>
-		/// Whether or not to use Modernized xcode mode
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode")]
-		public bool bUseModernXcode = false;
 	}
 
 	/// <summary>
@@ -127,11 +121,6 @@ namespace UnrealBuildTool
 		public bool bEnableRayTracing
 		{
 			get { return Inner.bEnableRayTracing; }
-		}
-
-		public bool bUseModernXcode
-		{
-			get { return Inner.bUseModernXcode; }
 		}
 
 #pragma warning restore CS1591
@@ -251,14 +240,8 @@ namespace UnrealBuildTool
 			}
 			else if (DefaultArchitecture.Contains("host"))
 			{
-				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac && MacExports.IsRunningOnAppleArchitecture && bSupportsArm64)
-				{
-					Architectures.Add(UnrealArch.Arm64);
-				}
-				else
-				{
-					Architectures.Add(UnrealArch.X64);
-				}
+				// if we don't support Arm, then always use X64, otherwise use whatever the host arch is
+				Architectures.Add(bSupportsArm64 ? UnrealArch.Host.Value : UnrealArch.X64);
 			}
 			else if (DefaultArchitecture.Contains("apple"))
 			{

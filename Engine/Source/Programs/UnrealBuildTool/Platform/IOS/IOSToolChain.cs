@@ -1516,7 +1516,7 @@ namespace UnrealBuildTool
 			FileReference.Copy(Target.OutputPath, StagedExecutablePath, true);
 			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
 
-			if (UseModernXcode(Target.ProjectFile))
+			if (MacExports.UseModernXcode(Target.ProjectFile))
 			{
 				throw new BuildException("Modern xcode mode should not reach this, has broken the PostBuild setup");
 

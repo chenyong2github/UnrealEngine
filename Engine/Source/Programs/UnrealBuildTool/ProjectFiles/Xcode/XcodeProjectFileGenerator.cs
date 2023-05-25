@@ -7,6 +7,8 @@ using System.IO;
 using EpicGames.Core;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
+using System.Threading.Tasks;
 
 namespace UnrealBuildTool
 {
@@ -25,6 +27,7 @@ namespace UnrealBuildTool
 		///  Xcode makes a project per target, for modern to be able to pull in Cooked data
 		/// </summary>
 		protected override bool bMakeProjectPerTarget => true;
+		protected override bool bAllowContentOnlyProjects => true;
 
 		public DirectoryReference? XCWorkspace;
 
@@ -58,13 +61,38 @@ namespace UnrealBuildTool
 		/// If set, only write out one target/project 
 		/// </summary>
 		string? SingleTargetName = null;
-		
+
+		/// <summary>
+		/// Shared file that the project agnostic projects can point to to get content only projects working nicely in Xcode
+		/// </summary>
+		public static FileReference ContentOnlySettingsFile = FileReference.Combine(Unreal.EngineDirectory, "Build/Xcode/ContentOnlySettings.xcconfig");
+
+
+		/// <summary>
+		/// A static copy of ProjectPlatforms from the base class
+		/// </summary>
+		static public List<UnrealTargetPlatform> XcodePlatforms = new();
+
+		static public List<UnrealTargetPlatform?> WorkspacePlatforms = new();
+		static public List<UnrealTargetPlatform?> RunTargetPlatforms = new();
+		static public List<UnrealTargetPlatform?> NullPlatformList = new() { null };
+		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildFramework>> TargetFrameworks = new();
+		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildBundleResource>> TargetBundles = new();
+
+
+
+		/// <summary>
+		/// Should we generate only a run project (no build/index targets)
+		/// </summary>
+		static public bool bGenerateRunOnlyProject = false;
+
 
 		public XcodeProjectFileGenerator(FileReference? InOnlyGameProject, CommandLineArguments CommandLine)
 			: base(InOnlyGameProject)
 		{
 			SingleGameProject = InOnlyGameProject;
-			
+
+
 			if (CommandLine.HasOption("-distribution"))
 			{
 				bForDistribution = true;
@@ -84,6 +112,35 @@ namespace UnrealBuildTool
 				SingleTargetName = CommandLine.GetString("-SingleTarget=");
 			}
 
+			// make sure only one Target writes the file
+			lock (ContentOnlySettingsFile)
+			{
+				if (OnlyGameProject == null && !FileReference.Exists(ContentOnlySettingsFile))
+				{
+					DirectoryReference.CreateDirectory(ContentOnlySettingsFile.Directory);
+					File.WriteAllLines(ContentOnlySettingsFile.FullName, new string[]
+					{
+							"// Enter the settings for your active code only project here. Note you will need to cook and stage your project before running.",
+							"// Since we use the variables directly, we cannot take a single path to a uproject file, it must be split over two variables",
+							"",
+							"// Enter the path to the root directory of your project (use the full path - you can get it by selecting the folder in Finder and pressing Option-Command-C, then pasting here:",
+							"UE_CONTENTONLY_PROJECT_DIR=",
+							"",
+							"// Enter the name of the project (which is your uproject filename without the extension)",
+							"UE_CONTENTONLY_PROJECT_NAME=",
+							"",
+							"// Uncomment this line if you want the Editor to launch with your Content Only project above",
+							"// UE_CONTENTONLY_EDITOR_STARTUP_PROJECT=$(UE_CONTENTONLY_PROJECT_DIR)/$(UE_CONTENTONLY_PROJECT_NAME).uproject",
+							"",
+							"",
+							"",
+							"",
+							"",
+							"// This is the default location for your Staged data, only change this if you know that you need to:",
+							"UE_OVERRIDE_STAGE_DIR = $(UE_CONTENTONLY_PROJECT_DIR)/Saved/StagedBuilds/$(UE_TARGET_PLATFORM_NAME)",
+					});
+				}
+			}
 		}
 
 		/// <summary>
@@ -251,6 +308,14 @@ namespace UnrealBuildTool
 							WorkspaceDataContent.Append(Ident + "   <Group" + ProjectFileGenerator.NewLine);
 							WorkspaceDataContent.Append(Ident + "      location = \"container:\"      name = \"" + CurFolder.FolderName + "\">" + ProjectFileGenerator.NewLine);
 
+							// add a reference to the file used for launching content only game projects (don't need the file if we are making a project for a single speciic project)
+							if (bHasModernProjects && OnlyGameProject == null && CurFolder.FolderName == "Engine")
+							{
+								WorkspaceDataContent.Append("     <FileRef" + ProjectFileGenerator.NewLine);
+								WorkspaceDataContent.Append("       location = \"group:" + ContentOnlySettingsFile.MakeRelativeTo(ProjectFileGenerator.PrimaryProjectPath) + "\">" + ProjectFileGenerator.NewLine);
+								WorkspaceDataContent.Append("     </FileRef>" + ProjectFileGenerator.NewLine);
+							}
+
 							AddProjectsFunction!(CurFolder.SubFolders, Ident + "   ");
 
 							// Filter out anything that isn't an XC project, and that shouldn't be in the workspace
@@ -347,26 +412,20 @@ namespace UnrealBuildTool
 			return WriteXcodeWorkspace(Logger);
 		}
 
-		/// <summary>
-		/// A static copy of ProjectPlatforms from the base class
-		/// </summary>
-		static public List<UnrealTargetPlatform> XcodePlatforms = new();
-
-		static public List<UnrealTargetPlatform?> WorkspacePlatforms = new();
-		static public List<UnrealTargetPlatform?> RunTargetPlatforms = new();
-		static public List<UnrealTargetPlatform?> NullPlatformList = new() { null };
-
-
-		/// <summary>
-		/// Should we generate only a run project (no build/index targets)
-		/// </summary>
-		static public bool bGenerateRunOnlyProject = false;
 
 		/// <inheritdoc/>
 		protected override void ConfigureProjectFileGeneration(string[] Arguments, ref bool IncludeAllPlatforms, ILogger Logger)
 		{
 			// Call parent implementation first
 			base.ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms, Logger);
+
+			// reset some statics in case it runs twice
+			XcodeProjectFileGenerator.XcodePlatforms.Clear();
+			XcodeProjectFileGenerator.WorkspacePlatforms.Clear();
+			XcodeProjectFileGenerator.RunTargetPlatforms.Clear();
+			XcodeProjectFileGenerator.TargetFrameworks.Clear();
+			XcodeProjectFileGenerator.TargetBundles.Clear();
+			XcodeProjectFileGenerator.bGenerateRunOnlyProject = false;
 
 			if (ProjectPlatforms.Count > 0)
 			{
@@ -411,51 +470,41 @@ namespace UnrealBuildTool
 
 			if (bGenerateRunOnlyProject)
 			{
-				// if we have a single target, allow all targets so we can pick it out (helps with programs)
-				if (SingleTargetName != null)
-				{
-					bIncludeEnginePrograms = false;
-					bIncludeTemplateFiles = false;
-				}
 				bIncludeConfigFiles = false;
 				bIncludeDocumentation = false;
 				bIncludeShaderSource = false;
+				bIncludeEngineSource = true;
 
 				// generate just the engine project
-				if (OnlyGameProject == null)
+				if (OnlyGameProject != null)
 				{
-					bIncludeEngineSource = true;
-				}
-				// generate just the game project
-				else
-				{
-					// content only, project-only projects need engine to get the UnrealGame, etc targets (checking for Root and engine catches UnrealGame and content only projects, respectively)
-					bIncludeEngineSource = PrimaryProjectPath == UnrealBuildBase.Unreal.RootDirectory || PrimaryProjectPath == UnrealBuildBase.Unreal.EngineDirectory;
 					bGeneratingGameProjectFiles = true;
 				}
 			}
 		}
 
-		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildFramework>> TargetFrameworks = new();
-		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildBundleResource>> TargetBundles = new();
-
 		protected override void AddAdditionalNativeTargetInformation(PlatformProjectGeneratorCollection PlatformProjectGenerators, List<Tuple<ProjectFile, ProjectTarget>> Targets, ILogger Logger)
 		{
 			DateTime MainStart = DateTime.UtcNow;
-			foreach (var TargetPair in Targets)
+			Parallel.ForEach(Targets, TargetPair =>
 			{
 				// don't bother if we aren't interested in this target
 				if (SingleTargetName != null && !TargetPair.Item2.Name.Equals(SingleTargetName, StringComparison.InvariantCultureIgnoreCase))
 				{
-					continue;
+					return;
 				}
 
 				ProjectFile TargetProjectFile = TargetPair.Item1;
-				// don't do this for legacy projets, for speed
+				if (TargetProjectFile.IsContentOnlyProject)
+				{
+					return;
+				}
+
+				// don't do this for legacy projects, for speed
 				((XcodeProjectXcconfig.XcodeProjectFile)TargetProjectFile).ConditionalCreateLegacyProject();
 				if (((XcodeProjectXcconfig.XcodeProjectFile)TargetProjectFile).bHasLegacyProject)
 				{
-					continue;
+					return;
 				}
 
 				ProjectTarget CurTarget = TargetPair.Item2;
@@ -512,8 +561,10 @@ namespace UnrealBuildTool
 					{
 
 					}
+
+					Logger.LogDebug("GettingNativeInfo [{Project} / {Platform}] {TimeMs}ms", TargetProjectFile.ProjectFilePath.GetFileNameWithoutAnyExtensions(), Platform, (DateTime.UtcNow - Start).TotalMilliseconds);
 				}
-			}
+			});
 			Logger.LogInformation("GettingNativeInfo {TimeMs}ms overall", (DateTime.UtcNow - MainStart).TotalMilliseconds);
 		}
 	}

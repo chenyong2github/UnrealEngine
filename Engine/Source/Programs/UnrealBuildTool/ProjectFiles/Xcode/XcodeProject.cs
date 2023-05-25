@@ -10,6 +10,8 @@ using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
+using System.Configuration;
+using System.Xml.Linq;
 
 /*****
 
@@ -49,14 +51,11 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 {
 	class UnrealBuildConfig
 	{
-		public UnrealBuildConfig(string InDisplayName, string InBuildTarget, FileReference? InMacExecutablePath, FileReference? InIOSExecutablePath, FileReference? InTVOSExecutablePath,
-			ProjectTarget? InProjectTarget, UnrealTargetConfiguration InBuildConfig)
+		public UnrealBuildConfig(string InDisplayName, string InBuildTarget, string InExeName, ProjectTarget? InProjectTarget, UnrealTargetConfiguration InBuildConfig)
 		{
 			DisplayName = InDisplayName;
-			MacExecutablePath = InMacExecutablePath;
-			IOSExecutablePath = InIOSExecutablePath;
-			TVOSExecutablePath = InTVOSExecutablePath;
 			BuildTarget = InBuildTarget;
+			ExeName = InExeName;
 			ProjectTarget = InProjectTarget;
 			BuildConfig = InBuildConfig;
 
@@ -67,10 +66,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		}
 
 		public string DisplayName;
-		public FileReference? MacExecutablePath;
-		public FileReference? IOSExecutablePath;
-		public FileReference? TVOSExecutablePath;
 		public string BuildTarget;
+		public string ExeName;
 		public ProjectTarget? ProjectTarget;
 		public UnrealTargetConfiguration BuildConfig;
 
@@ -251,7 +248,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 		public Metadata(DirectoryReference ProductDirectory, DirectoryReference XcodeProject, ConfigHierarchy Ini, bool bSupportsMac, bool bSupportsIOSOrTVOS, ILogger Logger)
 		{
-			Logger.LogInformation("making metadata for {ProductDirectory} / {XcodeProject}", ProductDirectory, XcodeProject);
 			DirectoryReference ResourceFolder = DirectoryReference.Combine(Unreal.EngineDirectory, "Build/Mac/Resources/");
 			if (bSupportsMac)
 			{
@@ -340,6 +336,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		public bool bIsStubProject;
 		public bool bIsForeignProject;
 		public bool bMakeProjectPerTarget;
+		public bool bIsContentOnlyProject;
 
 		public TargetRules TargetRules => _TargetRules!;
 		public bool bIsAppBundle;
@@ -413,7 +410,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		}
 
 
-		public UnrealData(FileReference XcodeProjectFileLocation, bool bIsForDistribution, string BundleID, string AppName, bool bMakeProjectPerTarget, bool bIsStubProject)
+		public UnrealData(FileReference XcodeProjectFileLocation, bool bIsForDistribution, string BundleID, string AppName, bool bMakeProjectPerTarget)
 		{
 			// the .xcodeproj is actually a directory
 			this.XcodeProjectFileLocation = new DirectoryReference(XcodeProjectFileLocation.FullName);
@@ -425,15 +422,19 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				ProductName = "UnrealGame";
 			}
 
-			this.bIsStubProject = bIsStubProject;
 			this.bMakeProjectPerTarget = bMakeProjectPerTarget;
 			this.bForDistribution = bIsForDistribution;
 			this.BundleIdentifier = BundleID;
 			this.DisplayName = string.IsNullOrEmpty(AppName) ? "$(UE_PRODUCT_NAME)" : AppName;
 		}
 
-		public FileReference? FindUProjectFileLocation(XcodeProjectFile ProjectFile)
+		public void InitializeUProjectFileLocation(XcodeProjectFile ProjectFile)
 		{
+			if (UProjectFileLocation != null)
+			{
+				return;
+			}
+
 			// find a uproject file (UE5 target won't have one)
 			foreach (Project Target in ProjectFile.ProjectTargets)
 			{
@@ -444,19 +445,27 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				}
 			}
 
+			if (ProjectFile.IsContentOnlyProject && XcodeProjectFileGenerator.Current?.OnlyGameProject != null && 
+				XcodeProjectFileGenerator.Current.OnlyGameProject.IsUnderDirectory(ProjectFile.BaseDir))
+			{
+				UProjectFileLocation = XcodeProjectFileGenerator.Current.OnlyGameProject;
+			}
+
 			// now that we have a UProject file (or not), update the FileCollection RootDirectory to point to it
 			ProjectFile.FileCollection.SetUProjectLocation(UProjectFileLocation);
 
-			return UProjectFileLocation;
+			return;
 		}
 
 		public bool Initialize(XcodeProjectFile ProjectFile, List<UnrealTargetConfiguration> Configurations, ILogger Logger)
 		{
 			this.ProjectFile = ProjectFile;
 			this.bIsForeignProject = ProjectFile.IsForeignProject;
+			this.bIsStubProject = ProjectFile.IsStubProject;
+			this.bIsContentOnlyProject = ProjectFile.IsContentOnlyProject;
 			this.Logger = Logger;
 
-			FindUProjectFileLocation(ProjectFile);
+			InitializeUProjectFileLocation(ProjectFile);
 
 			// setup BundleIdentifier from ini file (if there's a specified plist file with one, that will override this)
 			if (string.IsNullOrEmpty(BundleIdentifier))
@@ -713,20 +722,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 												TVOSBinaryDir = DirectoryReference.Combine(TVOSBinaryDir, ProjectTarget.TargetRules.ExeBinariesSubFolder);
 											}
 
-											if (BuildPlatform.Platform == UnrealTargetPlatform.Mac)
-											{
-												string MacExecutableName = XcodeUtils.MakeExecutableFileName(ExeName, UnrealTargetPlatform.Mac, Configuration, ProjectTarget.TargetRules.Architectures, ProjectTarget.TargetRules.UndecoratedConfiguration);
-												string IOSExecutableName = MacExecutableName.Replace("-Mac-", "-IOS-");
-												string TVOSExecutableName = MacExecutableName.Replace("-Mac-", "-TVOS-");
-												BuildConfigs.Add(new UnrealBuildConfig(ConfigName, TargetName, FileReference.Combine(MacBinaryDir, MacExecutableName), FileReference.Combine(IOSBinaryDir, IOSExecutableName), FileReference.Combine(TVOSBinaryDir, TVOSExecutableName), ProjectTarget, Configuration));
-											}
-											else if (BuildPlatform.Platform == UnrealTargetPlatform.IOS || BuildPlatform.Platform == UnrealTargetPlatform.TVOS)
-											{
-												string IOSExecutableName = XcodeUtils.MakeExecutableFileName(ExeName, UnrealTargetPlatform.IOS, Configuration, ProjectTarget.TargetRules.Architectures, ProjectTarget.TargetRules.UndecoratedConfiguration);
-												string TVOSExecutableName = IOSExecutableName.Replace("-IOS-", "-TVOS-");
-												//string MacExecutableName = IOSExecutableName.Replace("-IOS-", "-Mac-");
-												BuildConfigs.Add(new UnrealBuildConfig(ConfigName, TargetName, FileReference.Combine(MacBinaryDir, IOSExecutableName), FileReference.Combine(IOSBinaryDir, IOSExecutableName), FileReference.Combine(TVOSBinaryDir, TVOSExecutableName), ProjectTarget, Configuration));
-											}
+											BuildConfigs.Add(new UnrealBuildConfig(ConfigName, TargetName, ExeName, ProjectTarget, Configuration));
 										}
 									}
 								}
@@ -1152,7 +1148,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 		public XcodeTarget(Type Type, UnrealData UnrealData, string? OverrideName=null)
 		{
-			GameProject = UnrealData.UProjectFileLocation;
+			// when we are content only, we do not want to build with the uproject on the commandline, we will be building UnrealGame 
+			GameProject = UnrealData.bIsContentOnlyProject ? null : UnrealData.UProjectFileLocation;
 
 			string ConfigName;
 			TargetType = Type;
@@ -1183,7 +1180,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 
 			// set up names
-			UnrealTargetName = UnrealData.XcodeProjectName;
+			UnrealTargetName = UnrealData.TargetRules.Name;
 			Name = OverrideName ?? (UnrealData.XcodeProjectName + ConfigName);
 		}
 
@@ -1329,73 +1326,86 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			// EXECUTABLE_NAME is Foo, EXECUTABLE_PATH is Foo.app/Foo
 			// NOTE: We read from hardcoded location where UBT writes to, but we write to CONFIGURATION_BUILD_DIR because
 			// when Archiving, the .app is somewhere else
-			string SourceEnvVar = (Project.Platform == UnrealTargetPlatform.Mac) ? "EXECUTABLE_PATH" : "EXECUTABLE_NAME";
-			string EngineOrProject = Project.UnrealData.UProjectFileLocation == null ? "Engine" : Project.UnrealData.UProjectFileLocation.GetFileNameWithoutAnyExtensions();
-
 			CopyScript.AddRange(new string[]
 			{
-				"# We run this often during ApplePostBuildSync, which looks at the PkgInfo file in the .app to determine if this is up to date,",
-				"# so delete it in case we have an error, we will re-run PostBuildSync next build",
-				"echo rm ${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/PkgInfo",
-				"rm ${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/PkgInfo",
-				"",
+				"set -eo pipefail",
+
 				"# Copy the executable into .app if needed (-ef checks if two files/paths are equivalent)",
-				$"SRC_EXE=\\\"${{UE_BINARIES_DIR}}/${{{SourceEnvVar}}}\\\"",
-				$"DEST_EXE=\\\"${{CONFIGURATION_BUILD_DIR}}/${{EXECUTABLE_PATH}}\\\"",
+				"SRC_EXE=\\\"${UE_BINARIES_DIR}/${UE_UBT_BINARY_SUBPATH}\\\"",
+				"DEST_EXE=\\\"${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_PATH}\\\"",
 				"",
 				"echo ${SRC_EXE} /// ${DEST_EXE}",
 				"if [[ ! ${SRC_EXE} -ef ${DEST_EXE} ]]; then",
 				"  echo Copying executable...",
 				"  mkdir -p `dirname ${DEST_EXE}`",
-				"  ditto ${SRC_EXE} ${DEST_EXE}",
+				"  ditto \\\"${SRC_EXE}\\\" \\\"${DEST_EXE}\\\"",
 				"fi",
 				""
 			});
 
 			// rsync the Staged build into the .app, unless the UE_SKIP_STAGEDDATA_SYNC var is set to 1
-			string TargetPlatformName = Platform.ToString()!;
-			if (TargetType != TargetType.Game && TargetType != TargetType.Program)
-			{
-				TargetPlatformName += TargetType.ToString();
-			}
-
-			// editor and program builds don't need staged content in them
-			if (TargetType != TargetType.Editor && TargetType != TargetType.Program)
+			// editor builds don't need staged content in them
+			if (TargetType != TargetType.Editor)
 			{
 				bool bIsEngineBuild = Project.UnrealData.UProjectFileLocation == null;
-				string DefaultStageDir = bIsEngineBuild ? "${UE_OVERRIDE_STAGE_DIR}" : $"${{UE_PROJECT_DIR}}/Saved/StagedBuilds/{TargetPlatformName}";
+				string DefaultStageDir = bIsEngineBuild ? "${UE_OVERRIDE_STAGE_DIR}" : "${UE_PROJECT_DIR}/Saved/StagedBuilds/${UE_TARGET_PLATFORM_NAME}";
 				string SyncSubdir = (Platform == UnrealTargetPlatform.Mac) ? "/UE" : "";
 				CopyScript.AddRange(new string[]
 				{
 					"# Skip syncing if desired",
 					"if [[ ${UE_SKIP_STAGEDDATA_SYNC} -eq 1 ]]; then exit 0; fi",
 					"",
-
 					"# When building engine projects, like UnrealGame, we don't have data to stage unless something has specified UE_OVERRIDE_STAGE_DIR",
-					$"STAGED_DIR={DefaultStageDir}",
+					$"STAGED_DIR=\\\"{DefaultStageDir}\\\"",
 					"if [[ -z ${STAGED_DIR} ]]; then exit 0; fi",
-					"# Make sure the staged directory exists and has files in it",
-					"if [[ ! -e ${STAGED_DIR} || `ls ${STAGED_DIR} | wc -l` -eq 0 ]]; then ",
-					"  echo =========================================================================================",
-					"  echo \\\"ERROR: You must have a valid staged build directory\\\"",
-					"  echo \\\"Use the editor's Platforms menu, or run:\\\"",
-					$"  echo \\\"./RunUAT.sh BuildCookRun -platform={Platform} -project=<project> -build -cook -stage -pak\\\"",
-					"  echo =========================================================================================",
-					"  exit -1 ",
-					"fi",
+				});
+
+				// Programs have an optional Staged dir - usually they aren't staged, but allow it to be staged if it was
+				if (TargetType != TargetType.Program)
+				{
+					CopyScript.AddRange(new string[]
+					{
+						"# Make sure the staged directory exists and has files in it",
+						"if [[ ! -e \\\"${STAGED_DIR}\\\" || ! $(ls -A \\\"${STAGED_DIR}\\\") ]]; then ",
+						"  echo =========================================================================================",
+						"  echo \\\"WARNING: To run, you must have a valid staged build directory. The Staged location is:\\\"",
+						"  echo \\\"  ${STAGED_DIR}\\\"",
+						"  echo \\\"Use the editor's Platforms menu, or run a command like::\\\"",
+						$"  echo \\\"./RunUAT.sh BuildCookRun -platform={Platform} -project=<project> -build -cook -stage -pak\\\"",
+						"  echo =========================================================================================",
+						"  exit -0 ",
+						"fi",
+					});
+				}
+				else
+				{
+					CopyScript.AddRange(new string[]
+					{
+						"# Make sure the staged directory exists and has files in it",
+						"if [[ ! -e ${STAGED_DIR} ]]; then exit 0; fi",
+					});
+				}
+
+				CopyScript.AddRange(new string[]
+				{
 					"",
-					"echo \\\"Syncing ${STAGED_DIR} to ${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}\\\"",
-					$"rsync -a --exclude=Info.plist --exclude=/Manifest_* --exclude=*.app \\\"${{STAGED_DIR}}/\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}{SyncSubdir}\\\"",
+					$"echo \\\"Syncing ${{STAGED_DIR}} to ${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}{SyncSubdir}\\\"",
+					$"rsync -a --delete --exclude=Info.plist --exclude=/Manifest_* --exclude=*.app \\\"${{STAGED_DIR}}/\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}{SyncSubdir}\\\"",
 				});
 
 				// copy any dylibs from the staged stub .app into the real one
 				if (Platform == UnrealTargetPlatform.Mac)
 				{
+					// when doing a Content only project the Binaries are under Engine, not the project
+					string EngineOrProject = (Project.UnrealData.bIsContentOnlyProject || Project.UnrealData.UProjectFileLocation == null) ? "Engine" : Project.UnrealData.ProductName;
 					CopyScript.AddRange(new string[]
 					{
 						// copy from whatever .app is in Binaries/Mac - this is so we can make a Shipping app from a Development staged directory
-						$"echo \\\"Syncing `echo ${{STAGED_DIR}}/{EngineOrProject}/Binaries/Mac/*.app`/${{BUNDLE_CONTENTS_FOLDER_PATH}}/ to ${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}/\\\"",
-						$"rsync -av --include='*/' --include='*.dylib' --exclude='*' \\\"`echo ${{STAGED_DIR}}/{EngineOrProject}/Binaries/Mac/*.app`/${{BUNDLE_CONTENTS_FOLDER_PATH}}MacOS/\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}/MacOS\\\"",
+						"pushd \\\"${STAGED_DIR}/${UE_STAGED_BINARIES_DIR_BASE}/Binaries/Mac/\\\" > /dev/null",
+						"APPS=($(echo *.app))",
+						"echo Syncing $PWD/${APPS[0]}/${BUNDLE_CONTENTS_FOLDER_PATH} to ${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/\\\"",
+						"rsync -a --delete --include='*/' --include='*.dylib' --exclude='*' ${APPS[0]}/${BUNDLE_CONTENTS_FOLDER_PATH}MacOS/\\\" \\\"${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/MacOS\\\"",
+						"popd > /dev/null",
 					});
 				}
 			}
@@ -1571,16 +1581,26 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			// gather general, all-platform, data we are doing to put into the configs
 			UnrealBuildConfig BuildConfig = BuildConfigList!.BuildConfigs[0].Info;
 			TargetRules TargetRules = BuildConfig.ProjectTarget!.TargetRules!;
+			DirectoryReference ProjectOrEngineDir = UnrealData.UProjectFileLocation?.Directory ?? Unreal.EngineDirectory;
+			
+			// point to the shader Engine/Binaries for content only project (sadly, the TargetRules.OutputFile is not filled out)
+			DirectoryReference ConfigBuildDir = (TargetRules.Type == TargetType.Editor || UnrealData.bIsContentOnlyProject) ? Unreal.EngineDirectory : ProjectOrEngineDir;
+			if (TargetRules.Type == TargetType.Program && TargetRules.File!.IsUnderDirectory(Unreal.EngineDirectory))
+			{
+				ConfigBuildDir = Unreal.EngineDirectory;
+			}
+			string BinariesBaseDir = ConfigBuildDir.GetDirectoryName();
 
+			ConfigBuildDir = DirectoryReference.Combine(ConfigBuildDir, "Binaries", Platform.ToString(), TargetRules.ExeBinariesSubFolder);
+			
 			MetadataPlatform MetadataPlatform;
 			string TargetPlatformName = Platform.ToString();
-			if (TargetRules.Type != TargetType.Game)
+			if (TargetRules.Type != TargetType.Game && TargetRules.Type != TargetType.Program)
 			{
 				TargetPlatformName += TargetRules.Type.ToString();
 			}
 
 			// get ini file for the platform
-			DirectoryReference ProjectOrEngineDir = UnrealData.UProjectFileLocation?.Directory ?? Unreal.EngineDirectory;
 			ConfigHierarchy PlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UnrealData.UProjectFileLocation?.Directory, Platform);
 
 			// settings for all platforms
@@ -1590,7 +1610,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			string? AppCategory;
 			string SupportedPlatforms;
 			string SDKRoot;
-			DirectoryReference ConfigBuildDir;
 			string DeploymentTarget;
 			string DeploymentTargetKey;
 			string? SigningCert = null;
@@ -1617,7 +1636,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				SupportedPlatforms = "macosx";
 				DeploymentTargetKey = "MACOSX_DEPLOYMENT_TARGET";
 				DeploymentTarget = MacToolChain.Settings.MacOSVersion;
-				ConfigBuildDir = BuildConfig.MacExecutablePath!.Directory;
 				BundleIdentifier = bIsEditor ? "com.epicgames.UnrealEditor" : UnrealData.BundleIdentifier;
 
 				// @todo: get a version for  games, like IOS has
@@ -1641,7 +1659,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					SDKRoot = "iphoneos";
 					SupportedPlatforms = "iphoneos"; // iphonesimulator
 					DeploymentTargetKey = "IPHONEOS_DEPLOYMENT_TARGET";
-					ConfigBuildDir = BuildConfig.IOSExecutablePath!.Directory;
 					SupportedDevices = UnrealData.IOSProjectSettings!.RuntimeDevices;
 					DeploymentTarget = UnrealData.IOSProjectSettings.RuntimeVersion;
 
@@ -1660,7 +1677,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					SDKRoot = "appletvos";
 					SupportedPlatforms = "appletvos"; // appletvsimulator
 					DeploymentTargetKey = "TVOS_DEPLOYMENT_TARGET";
-					ConfigBuildDir = BuildConfig.TVOSExecutablePath!.Directory;
 					SupportedDevices = UnrealData.TVOSProjectSettings!.RuntimeDevices;
 					DeploymentTarget = UnrealData.TVOSProjectSettings.RuntimeVersion;
 
@@ -1683,10 +1699,15 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			// include another xcconfig for versions that UBT writes out
 			Xcconfig!.AppendLine($"#include? \"{ProjectOrEngineDir}/Intermediate/Build/Versions.xcconfig\"");
+			if (UnrealData.UProjectFileLocation == null)
+			{
+				Xcconfig!.AppendLine($"#include? \"{XcodeProjectFileGenerator.ContentOnlySettingsFile}\"");
+			}
 
 			// write out some UE variables that can be used in premade .plist files, etc
 			Xcconfig.AppendLine("");
 			Xcconfig.AppendLine("// Unreal project-wide variables");
+			Xcconfig.AppendLine($"UE_XCODE_BUILD_MODE = Default");
 			Xcconfig.AppendLine($"UE_PRODUCT_NAME = {UnrealData.ProductName}");
 			Xcconfig.AppendLine($"UE_PRODUCT_NAME_STRIPPED = {UnrealData.ProductName.Replace("_", "").Replace(" ", "")}");
 			Xcconfig.AppendLine($"UE_DISPLAY_NAME = {UnrealData.DisplayName}");
@@ -1695,7 +1716,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			Xcconfig.AppendLine($"UE_TARGET_NAME = {UnrealData.TargetRules.OriginalName}");
 			Xcconfig.AppendLine($"UE_TARGET_PLATFORM_NAME = {TargetPlatformName}");
 			Xcconfig.AppendLine($"UE_ENGINE_DIR = {Unreal.EngineDirectory}");
-			Xcconfig.AppendLine($"UE_BINARIES_DIR = {DirectoryReference.Combine(ProjectOrEngineDir, "Binaries", Platform.ToString())}");
+			Xcconfig.AppendLine($"UE_BINARIES_DIR = {ConfigBuildDir}");
+			Xcconfig.AppendLine($"UE_STAGED_BINARIES_DIR_BASE = {BinariesBaseDir}");
 			if (UnrealData.UProjectFileLocation != null)
 			{
 				Xcconfig.AppendLine($"UE_PROJECT_DIR = {UnrealData.UProjectFileLocation.Directory}");
@@ -1784,23 +1806,25 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					continue;
 				}
 
-				string ProductName;
-				string ExecutableName;
-				string ExecutableKey = $"UE_{Platform.ToString().ToUpper()}_EXECUTABLE_NAME";
+				// hook up the Buildconfig that matches this info to this xcconfig file
+				XcconfigFile ConfigXcconfig = MatchedConfig.Xcconfig!;
+
+				FileReference PlatformExecutablePath;
+				string ExecutableName = XcodeUtils.MakeExecutableFileName(Config.ExeName, Platform, Config.BuildConfig, TargetRules.Architectures, TargetRules.UndecoratedConfiguration);
 				if (Platform == UnrealTargetPlatform.Mac)
 				{
-					ExecutableName = Config.MacExecutablePath!.GetFileName();
-					ProductName = ExecutableName;
+					// Mac builds right into the .app
+					PlatformExecutablePath = FileReference.Combine(ConfigBuildDir, ExecutableName + ".app", "Contents", "MacOS", ExecutableName);
 				}
 				else // IOS,TVOS
 				{
-					ExecutableName = ((Platform == UnrealTargetPlatform.IOS) ? Config.IOSExecutablePath : Config.TVOSExecutablePath)!.GetFileName();
-					ProductName = ExecutableName;
+					// IOS and TVOS build to outside of the .app
+					PlatformExecutablePath = FileReference.Combine(ConfigBuildDir, ExecutableName);
 				}
+				string ExetuableSubPath = PlatformExecutablePath.MakeRelativeTo(ConfigBuildDir);
+				string ProductName = ExecutableName;
+				string ExecutableKey = $"UE_{Platform.ToString().ToUpper()}_EXECUTABLE_NAME";
 
-
-				// hook up the Buildconfig that matches this info to this xcconfig file
-				XcconfigFile ConfigXcconfig = MatchedConfig.Xcconfig!;
 
 				MetadataItem EntitlementsMetadata = UnrealData.Metadata!.EntitlementsFiles[MetadataPlatform];
 				
@@ -1819,6 +1843,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				ConfigXcconfig.AppendLine("");
 				ConfigXcconfig.AppendLine("// Unreal per-config variables");
 				ConfigXcconfig.AppendLine($"UE_TARGET_CONFIG = {Config.BuildConfig}");
+				ConfigXcconfig.AppendLine($"UE_UBT_BINARY_SUBPATH = {ExetuableSubPath}");
 				ConfigXcconfig.AppendLine($"{ExecutableKey} = {ExecutableName}");
 				ConfigXcconfig.AppendLine($"PRODUCT_NAME = {ProductName}");
 				if (EntitlementsMetadata.Mode == MetadataMode.UsePremade)
@@ -2014,7 +2039,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		public XcodeProjectFile(FileReference InitFilePath, DirectoryReference BaseDir, bool bIsForDistribution, string BundleID, string AppName, bool bMakeProjectPerTarget, string? SingleTargetName)
 			: base(InitFilePath, BaseDir)
 		{
-			UnrealData = new UnrealData(InitFilePath, bIsForDistribution, BundleID, AppName, bMakeProjectPerTarget, IsStubProject);
+			UnrealData = new UnrealData(InitFilePath, bIsForDistribution, BundleID, AppName, bMakeProjectPerTarget);
 
 			// create the container for all the files that will 
 			SharedFileCollection = new XcodeFileCollection(this);
@@ -2067,10 +2092,9 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				{
 					throw new BuildException("Expected to have a target before AddModule is called");
 				}
-				FileReference? UProjectFileLocation = UnrealData.FindUProjectFileLocation(this);
-				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UProjectFileLocation?.Directory, UnrealTargetPlatform.Mac);
-				bool bUseModernXcode;
-				if (!(Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out bUseModernXcode) && bUseModernXcode))
+
+				UnrealData.InitializeUProjectFileLocation(this);
+				if (!MacExports.UseModernXcode(ProjectFilePath))
 				{
 					LegacyProjectFile = new XcodeProjectLegacy.XcodeProjectFile(ProjectFilePath, BaseDir, UnrealData.bForDistribution, UnrealData.BundleIdentifier, UnrealData.AppName, UnrealData.bMakeProjectPerTarget);
 					LegacyProjectFile.ProjectTargets.AddRange(ProjectTargets);

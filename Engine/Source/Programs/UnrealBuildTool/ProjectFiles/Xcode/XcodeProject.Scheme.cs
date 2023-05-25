@@ -183,9 +183,22 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 							Content.WriteLine("            isEnabled = \"YES\">");
 							Content.WriteLine("         </CommandLineArgument>");
 						}
-						// Always add a configuration argument
+						Content.WriteLine("      </CommandLineArguments>");
+					}
+					else if (UnrealData.TargetRules.Type == TargetType.Editor && UnrealData.UProjectFileLocation == null)
+					{
+						Content.WriteLine("      <CommandLineArguments>");
 						Content.WriteLine("         <CommandLineArgument");
-						Content.WriteLine("            argument = \"-RunConfig=$(Configuration)\"");
+						Content.WriteLine("            argument = \"$(UE_CONTENTONLY_EDITOR_STARTUP_PROJECT)\"");
+						Content.WriteLine("            isEnabled = \"YES\">");
+						Content.WriteLine("         </CommandLineArgument>");
+						Content.WriteLine("      </CommandLineArguments>");
+					}
+					else if (UnrealData.TargetRules.Type == TargetType.Editor && UnrealData.TargetRules.Type != TargetType.Program && UnrealData.UProjectFileLocation == null)
+					{
+						Content.WriteLine("      <CommandLineArguments>");
+						Content.WriteLine("         <CommandLineArgument");
+						Content.WriteLine("            argument = \"../../../$(UE_CONTENTONLY_PROJECT_NAME)/$(UE_CONTENTONLY_PROJECT_NAME).uproject\"");
 						Content.WriteLine("            isEnabled = \"YES\">");
 						Content.WriteLine("         </CommandLineArgument>");
 						Content.WriteLine("      </CommandLineArguments>");

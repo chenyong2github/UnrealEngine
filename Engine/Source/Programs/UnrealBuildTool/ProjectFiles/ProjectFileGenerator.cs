@@ -1171,7 +1171,9 @@ namespace UnrealBuildTool
 				{
 					FileReference UnrealProjectFile = CurProgramProject.Value.ProjectTargets.First().UnrealProjectFilePath!;
 					Project? Target = CurProgramProject.Value.ProjectTargets.FirstOrDefault(t => !String.IsNullOrEmpty(t.TargetRules!.SolutionDirectory));
-					if (!bIncludeEnginePrograms && UnrealProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
+					if (!bIncludeEnginePrograms && UnrealProjectFile.IsUnderDirectory(Unreal.EngineDirectory) &&
+						// allow a program passed in with -project= to be added, even if bIncludeEnginePrograms is false
+						!DoesProgramMatchOnlyGameProject(UnrealProjectFile))
 					{
 						continue;
 					}
@@ -1328,6 +1330,20 @@ namespace UnrealBuildTool
 			}
 
 			return bSuccess;
+		}
+
+		private bool DoesProgramMatchOnlyGameProject(FileReference TargetFile)
+		{
+			// this function is for programs, and when running with -project=
+			if (OnlyGameProject == null || !OnlyGameProject.ContainsName("Programs", 0))
+			{
+				return false;
+			}
+
+			// programs have the Target.cs name match the .uprojet name (for the rare program with a .uproject)
+			string TargetName = TargetFile.GetFileNameWithoutAnyExtensions();
+			string UProjectName = OnlyGameProject.GetFileNameWithoutAnyExtensions();
+			return TargetName.Equals(UProjectName, StringComparison.OrdinalIgnoreCase);
 		}
 
 		/// <summary>
@@ -2630,7 +2646,12 @@ namespace UnrealBuildTool
 					// This is an engine target
 					IsEngineTarget = true;
 
-					if (Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Programs").Any(x => TargetFilePath.IsUnderDirectory(x)))
+					// if we are generating projects for a single game project, then we want the target, independent of bIncludeEngine flags
+					if (DoesProgramMatchOnlyGameProject(TargetFilePath))
+					{
+						WantProjectFileForTarget = true;
+					}
+					else if (Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Programs").Any(x => TargetFilePath.IsUnderDirectory(x)))
 					{
 						WantProjectFileForTarget = bIncludeEnginePrograms;
 					}
@@ -2877,17 +2898,18 @@ namespace UnrealBuildTool
 				foreach (FileReference ContentOnlyGameProject in UnprocessedGameProjects)
 				{
 					string ProjectName = ContentOnlyGameProject.GetFileNameWithoutAnyExtensions();
+					// only allow ContentOnly projects when using -project= - for now
+					if (OnlyGameProject == null || OnlyGameProject != ContentOnlyGameProject)
+					{
+						continue;
+					}
+
 					// hook up to the engine target(s)
 					foreach (var EngineProject in EngineProjects)
 					{
 						ProjectFile? ProjectFile = null;
 						foreach (var EngineTarget in EngineProject.ProjectTargets)
 						{
-							if (EngineTarget.TargetRules!.Type == TargetType.Editor)
-							{
-								continue;
-							}
-
 							if (bMakeProjectPerTarget)
 							{
 								ProjectFile = FindOrAddProject(GetProjectLocation($"{ProjectName}{EngineTarget.TargetRules!.Type}"), ContentOnlyGameProject.Directory, IncludeInGeneratedProjects: true, bAlreadyExisted: out _);
