@@ -372,6 +372,10 @@ struct FHairStreamingRequest
 	bool IsNone() const;
 	bool IsCompleted();
 
+#if WITH_EDITORONLY_DATA
+	void WarmCache(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex, FHairStrandsBulkCommon& In);
+#endif
+
 #if !WITH_EDITORONLY_DATA
 	// IO
 	FBulkDataBatchRequest IORequest;

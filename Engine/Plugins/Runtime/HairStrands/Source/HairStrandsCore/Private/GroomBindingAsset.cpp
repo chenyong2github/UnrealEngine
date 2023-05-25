@@ -67,6 +67,18 @@ static void InternalSerializeStrands(FArchive& Ar, UObject* Owner, FHairStrandsR
 				Data.SerializeData(Ar, Owner, LODIndex);
 			}
 		}
+
+		// Pre-warm DDC cache
+		#if WITH_EDITORONLY_DATA
+		const bool bPreWarmCache = IsLoading() && bHeader && !bData;
+		if (bPreWarmCache)
+		{
+			for (int32 LODIndex = 0, LODCount = Data.GetLODCount(); LODIndex < LODCount; ++LODIndex)
+			{
+				FHairStreamingRequest R; R.WarmCache(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, LODIndex, Data);
+			}
+		}
+		#endif
 	}
 }
 

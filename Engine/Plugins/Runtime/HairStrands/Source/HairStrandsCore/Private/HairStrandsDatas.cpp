@@ -316,6 +316,47 @@ bool FHairStreamingRequest::IsCompleted()
 	return true; 
 #endif
 }
+#if WITH_EDITORONLY_DATA
+static void RequestWarmCache(UE::DerivedData::FRequestOwner* RequestOwner, const TArray<UE::DerivedData::FCacheGetChunkRequest>& Requests)
+{
+	using namespace UE::DerivedData;
+
+	// Currently GetChunk request have long latency if not cached locally. 
+	// To reduce cook time, we warming cache by issuing 'Value' request (vs.'Chunk' request)
+	const ECachePolicy Policy = ECachePolicy::Default | ECachePolicy::SkipData;
+	TArray<FCacheGetValueRequest, TInlineAllocator<16>> WarmRequest;
+	for (const FCacheGetChunkRequest& R : Requests)
+	{				
+		WarmRequest.Add({R.Name, R.Key, Policy, 0});
+	}
+	GetCache().GetValue(WarmRequest, *RequestOwner, [](FCacheGetValueResponse && Response) { check(Response.Status == EStatus::Ok); });
+	RequestOwner->Wait();
+}
+
+void FHairStreamingRequest::WarmCache(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex, FHairStrandsBulkCommon& In)
+{
+	if (In.GetResourceCount() == 0 || InRequestedCurveCount == 0)
+	{
+		CurveCount = 0;
+		PointCount = 0;
+		LODIndex = -1;
+		return;
+	}
+	CurveCount = InRequestedCurveCount;
+	PointCount = InRequestedPointCount;
+	LODIndex = InLODIndex;
+	bSupportOffsetLoad = false; // Whole resource loading/caching
+
+	using namespace UE::DerivedData;
+	TArray<FCacheGetChunkRequest> Requests;
+	In.Read_DDC(this, Requests);
+
+	check(DDCRequestOwner == nullptr);
+	DDCRequestOwner = MakeUnique<FRequestOwner>(UE::DerivedData::EPriority::Blocking);
+	RequestWarmCache(DDCRequestOwner.Get(), Requests);
+}
+#endif
+
 // Request fullfil 2 use cases:
 // * Load IO/DDC data and upload them to GPU
 // * Load DDC data and store them into bulkdata for serialization
@@ -357,14 +398,7 @@ void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InReque
 		// To reduce cook time, we warming cache by issuing 'Value' request (vs.'Chunk' request)
 		if (bWarmCache)
 		{
-			const ECachePolicy Policy = ECachePolicy::Default | ECachePolicy::SkipData;
-			TArray<FCacheGetValueRequest, TInlineAllocator<16>> WarmRequest;
-			for (const FCacheGetChunkRequest& R : Requests)
-			{				
-				WarmRequest.Add({R.Name, R.Key, Policy, 0});
-			}
-			GetCache().GetValue(WarmRequest, *DDCRequestOwner, [](FCacheGetValueResponse && Response) { check(Response.Status == EStatus::Ok); });
-			DDCRequestOwner->Wait();
+			RequestWarmCache(DDCRequestOwner.Get(), Requests);
 		}
 
 		//FRequestBarrier Barrier(*DDCRequestOwner);	// This is a critical section on the owner. It does not constrain ordering

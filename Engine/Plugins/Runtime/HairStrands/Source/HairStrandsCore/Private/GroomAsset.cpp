@@ -1787,7 +1787,8 @@ static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlat
 	// When cooking data, force loading of *all* bulk data prior to saving them
 	// Note: bFillBulkdata is true for filling in the bulkdata container prior to serialization. This also forces the resources loading 
 	// from the 'start' (i.e., without offset)
-	if (Ar.IsCooking() && Ar.IsSaving())
+	const bool bFillInBulkDataForCooking = Ar.IsCooking() && Ar.IsSaving();
+	if (bFillInBulkDataForCooking)
 	{
 		{ FHairStreamingRequest R; R.Request(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.BulkData,               true /*bWait*/, true /*bFillBulkdata*/, true /*bWarmCache*/, Owner->GetFName()); }
 		{ FHairStreamingRequest R; R.Request(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.InterpolationBulkData,  true /*bWait*/, true /*bFillBulkdata*/, true /*bWarmCache*/, Owner->GetFName()); }
@@ -1805,6 +1806,17 @@ static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlat
 			if (bHeader){ StrandData.ClusterCullingBulkData.SerializeHeader(Ar, Owner); }
 			if (bData)	{ StrandData.ClusterCullingBulkData.SerializeData(Ar, Owner); }
 		}
+
+		#if WITH_EDITORONLY_DATA
+		// Pre-warm DDC cache
+		const bool bPreWarmCache = IsLoading() && bHeader && !bData;
+		if (bPreWarmCache)
+		{
+			{ FHairStreamingRequest R; R.WarmCache(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.BulkData); }
+			{ FHairStreamingRequest R; R.WarmCache(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.InterpolationBulkData); }
+			{ FHairStreamingRequest R; R.WarmCache(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.ClusterCullingBulkData); }
+		}
+		#endif
 	}
 	else
 	{
