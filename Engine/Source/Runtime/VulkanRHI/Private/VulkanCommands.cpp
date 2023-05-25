@@ -434,6 +434,16 @@ void FVulkanCommandListContext::RHISetShaderParameters(FRHIComputeShader* Shader
 	);
 }
 
+void FVulkanCommandListContext::RHISetShaderUnbinds(FRHIComputeShader* Shader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+{
+	UE::RHICore::RHISetShaderUnbindsShared(*this, Shader, InUnbinds);
+}
+
+void FVulkanCommandListContext::RHISetShaderUnbinds(FRHIGraphicsShader* Shader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+{
+	UE::RHICore::RHISetShaderUnbindsShared(*this, Shader, InUnbinds);
+}
+
 void FVulkanCommandListContext::RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
 {
 	FMemory::Memzero(GlobalUniformBuffers.GetData(), GlobalUniformBuffers.Num() * sizeof(FRHIUniformBuffer*));

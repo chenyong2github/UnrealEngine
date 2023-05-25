@@ -750,6 +750,15 @@ public:
 		return ScratchShaderParameters;
 	}
 
+	inline FRHIBatchedShaderUnbinds& GetScratchShaderUnbinds()
+	{
+		if (!ensureMsgf(!ScratchShaderUnbinds.HasParameters(), TEXT("Scratch shader parameters left without committed parameters")))
+		{
+			ScratchShaderUnbinds.Reset();
+		}
+		return ScratchShaderUnbinds;
+	}
+
 protected:
 	FMemStackBase& GetAllocator() { return MemManager; }
 
@@ -821,6 +830,7 @@ protected:
 	TRHIPipelineArray<IRHIComputeContext*> Contexts = {};
 
 	FRHIBatchedShaderParameters ScratchShaderParameters;
+	FRHIBatchedShaderUnbinds ScratchShaderUnbinds;
 
 #if RHI_COUNT_COMMANDS
 	uint32 NumCommands = 0;
@@ -1204,6 +1214,19 @@ FRHICOMMAND_MACRO_TPL(TRHIShader, FRHICommandSetShaderParameters)
 	{
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
+FRHICOMMAND_MACRO_TPL(TRHIShader, FRHICommandSetShaderUnbinds)
+{
+	TRHIShader* Shader;
+	TConstArrayView<FRHIShaderParameterUnbind> Unbinds;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandSetShaderUnbinds(TRHIShader * InShader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+		: Shader(InShader)
+		, Unbinds(InUnbinds)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase & CmdList);
 };
 
 FRHICOMMAND_MACRO(FRHICommandDrawPrimitive)
@@ -2077,6 +2100,7 @@ FRHICOMMAND_MACRO(FRHICommandSetRayTracingBindings)
 #endif // RHI_RAYTRACING
 
 template<> RHI_API void FRHICommandSetShaderParameters           <FRHIComputeShader>::Execute(FRHICommandListBase& CmdList);
+template<> RHI_API void FRHICommandSetShaderUnbinds              <FRHIComputeShader>::Execute(FRHICommandListBase& CmdList);
 
 extern RHI_API FRHIComputePipelineState* ExecuteSetComputePipelineState(FComputePipelineState* ComputePipelineState);
 extern RHI_API FRHIGraphicsPipelineState* ExecuteSetGraphicsPipelineState(class FGraphicsPipelineState* GraphicsPipelineState);
@@ -2190,6 +2214,29 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			);
 
 			InBatchedParameters.Reset();
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetShaderUnbinds(FRHIComputeShader* InShader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+	{
+		ValidateBoundShader(InShader);
+
+		if (Bypass())
+		{
+			GetComputeContext().RHISetShaderUnbinds(InShader, InUnbinds);
+			return;
+		}
+
+		ALLOC_COMMAND(FRHICommandSetShaderUnbinds<FRHIComputeShader>)(InShader, AllocArray(InUnbinds));
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetBatchedShaderUnbinds(FRHIComputeShader* InShader, FRHIBatchedShaderUnbinds& InBatchedUnbinds)
+	{
+		if (InBatchedUnbinds.HasParameters())
+		{
+			SetShaderUnbinds(InShader, InBatchedUnbinds.Unbinds);
+
+			InBatchedUnbinds.Reset();
 		}
 	}
 
@@ -2769,6 +2816,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 template<> RHI_API void FRHICommandSetShaderParameters           <FRHIGraphicsShader>::Execute(FRHICommandListBase& CmdList);
+template<> RHI_API void FRHICommandSetShaderUnbinds              <FRHIGraphicsShader>::Execute(FRHICommandListBase& CmdList);
 
 class FRHICommandList : public FRHIComputeCommandList
 {
@@ -2887,6 +2935,33 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			);
 
 			InBatchedParameters.Reset();
+		}
+	}
+
+	using FRHIComputeCommandList::SetShaderUnbinds;
+
+	FORCEINLINE_DEBUGGABLE void SetShaderUnbinds(FRHIGraphicsShader* InShader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+	{
+		ValidateBoundShader(InShader);
+
+		if (Bypass())
+		{
+			GetContext().RHISetShaderUnbinds(InShader, InUnbinds);
+			return;
+		}
+
+		ALLOC_COMMAND(FRHICommandSetShaderUnbinds<FRHIGraphicsShader>)(InShader, AllocArray(InUnbinds));
+	}
+
+	using FRHIComputeCommandList::SetBatchedShaderUnbinds;
+
+	FORCEINLINE_DEBUGGABLE void SetBatchedShaderUnbinds(FRHIGraphicsShader* InShader, FRHIBatchedShaderUnbinds& InBatchedUnbinds)
+	{
+		if (InBatchedUnbinds.HasParameters())
+		{
+			SetShaderUnbinds(InShader, InBatchedUnbinds.Unbinds);
+
+			InBatchedUnbinds.Reset();
 		}
 	}
 

@@ -507,6 +507,14 @@ public:
 	{
 	}
 
+	virtual void RHISetShaderUnbinds(FRHIGraphicsShader* ComputeShader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+	{
+	}
+
+	virtual void RHISetShaderUnbinds(FRHIComputeShader* ComputeShader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+	{
+	}
+
 	virtual void RHISetDepthStencilState(FRHIDepthStencilState* NewState, uint32 StencilRef) final override
 	{
 

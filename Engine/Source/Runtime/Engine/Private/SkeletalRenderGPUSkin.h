@@ -723,7 +723,7 @@ public:
 		float Weights[MorphTargetDispatchBatchSize]);
 
 	void Dispatch(FRHICommandList& RHICmdList, uint32 Size);
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters);
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
@@ -754,7 +754,7 @@ public:
 	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const FVector4& LocalScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer, uint32 NumVertices);
 
 	void Dispatch(FRHICommandList& RHICmdList, uint32 NumVertices);
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters);
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds);
 
 protected:
 	LAYOUT_FIELD(FShaderResourceParameter, MorphVertexBufferParameter);

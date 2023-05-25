@@ -1156,9 +1156,9 @@ void FGPUMorphUpdateCS::Dispatch(FRHICommandList& RHICmdList, uint32 Size)
 	RHICmdList.DispatchComputeShader(DispatchSize.X, DispatchSize.Y, DispatchSize.Z);
 }
 
-void FGPUMorphUpdateCS::UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+void FGPUMorphUpdateCS::UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 {
-	SetUAVParameter(BatchedParameters, MorphVertexBufferParameter, nullptr);
+	UnsetUAVParameter(BatchedUnbinds, MorphVertexBufferParameter);
 }
 
 bool FGPUMorphUpdateCS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1196,9 +1196,9 @@ void FGPUMorphNormalizeCS::Dispatch(FRHICommandList& RHICmdList, uint32 NumVerti
 	RHICmdList.DispatchComputeShader(DispatchSize.X, DispatchSize.Y, DispatchSize.Z);
 }
 
-void FGPUMorphNormalizeCS::UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+void FGPUMorphNormalizeCS::UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 {
-	SetUAVParameter(BatchedParameters, MorphVertexBufferParameter, nullptr);
+	UnsetUAVParameter(BatchedUnbinds, MorphVertexBufferParameter);
 }
 
 IMPLEMENT_SHADER_TYPE(, FGPUMorphNormalizeCS, TEXT("/Engine/Private/MorphTargets.usf"), TEXT("GPUMorphNormalizeCS"), SF_Compute);

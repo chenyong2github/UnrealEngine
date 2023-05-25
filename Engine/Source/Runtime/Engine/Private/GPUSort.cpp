@@ -240,9 +240,9 @@ public:
 		SetUAVParameter(BatchedParameters, OutOffsets, OutOffsetsUAV);
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetUAVParameter(BatchedParameters, OutOffsets, nullptr);
+		UnsetUAVParameter(BatchedUnbinds, OutOffsets);
 	}
 
 private:
@@ -303,11 +303,11 @@ public:
 		SetSRVParameter(BatchedParameters, RadixSortParameterBuffer, RadixSortParameterBufferSRV);
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetSRVParameter(BatchedParameters, RadixSortParameterBuffer, nullptr);
-		SetSRVParameter(BatchedParameters, InKeys, nullptr);
-		SetUAVParameter(BatchedParameters, OutOffsets, nullptr);
+		UnsetSRVParameter(BatchedUnbinds, RadixSortParameterBuffer);
+		UnsetSRVParameter(BatchedUnbinds, InKeys);
+		UnsetUAVParameter(BatchedUnbinds, OutOffsets);
 	}
 
 private:
@@ -358,10 +358,10 @@ public:
 		SetSRVParameter(BatchedParameters, InOffsets, InOffsetsSRV);
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetSRVParameter(BatchedParameters, InOffsets, nullptr);
-		SetUAVParameter(BatchedParameters, OutOffsets, nullptr);
+		UnsetSRVParameter(BatchedUnbinds, InOffsets);
+		UnsetUAVParameter(BatchedUnbinds, OutOffsets);
 	}
 
 private:
@@ -441,14 +441,14 @@ public:
 		SetSRVParameter(BatchedParameters, InOffsets, InOffsetsSRV);
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetSRVParameter(BatchedParameters, RadixSortParameterBuffer, nullptr);
-		SetSRVParameter(BatchedParameters, InKeys, nullptr);
-		SetSRVParameter(BatchedParameters, InValues, nullptr);
-		SetSRVParameter(BatchedParameters, InOffsets, nullptr);
-		SetUAVParameter(BatchedParameters, OutKeys, nullptr);
-		SetUAVParameter(BatchedParameters, OutValues, nullptr);
+		UnsetSRVParameter(BatchedUnbinds, RadixSortParameterBuffer);
+		UnsetSRVParameter(BatchedUnbinds, InKeys);
+		UnsetSRVParameter(BatchedUnbinds, InValues);
+		UnsetSRVParameter(BatchedUnbinds, InOffsets);
+		UnsetUAVParameter(BatchedUnbinds, OutKeys);
+		UnsetUAVParameter(BatchedUnbinds, OutValues);
 	}
 
 private:

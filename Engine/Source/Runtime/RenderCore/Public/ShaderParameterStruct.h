@@ -129,94 +129,90 @@ FORCEINLINE void ValidateShaderParameters(const TShaderRef<TShaderClass>& Shader
 }
 
 template<typename TParameterType>
-inline void CollectUAVsToUnset(TArray<FRHIShaderParameterResource>& UAVsToUnset, const TMemoryImageArray<TParameterType>& InParameters)
+inline void CollectUAVsToUnset(FRHIBatchedShaderUnbinds& BatchedUnbinds, const TMemoryImageArray<TParameterType>& InParameters)
 {
-	FRHIUnorderedAccessView* NullUAV = nullptr;
 	for (const TParameterType& Parameter : InParameters)
 	{
 		if (Parameter.BaseType == UBMT_UAV ||
 			Parameter.BaseType == UBMT_RDG_TEXTURE_UAV ||
 			Parameter.BaseType == UBMT_RDG_BUFFER_UAV)
 		{
-			UAVsToUnset.Emplace(NullUAV, GetParameterIndex(Parameter));
+			BatchedUnbinds.UnsetUAV(GetParameterIndex(Parameter));
 		}
 	}
 }
 
 template<typename TParameterType>
-inline void CollectSRVsToUnset(TArray<FRHIShaderParameterResource>& SRVsToUnset, const TMemoryImageArray<TParameterType>& InParameters)
+inline void CollectSRVsToUnset(FRHIBatchedShaderUnbinds& BatchedUnbinds, const TMemoryImageArray<TParameterType>& InParameters)
 {
-	FRHIShaderResourceView* NullSRV = nullptr;
 	for (const TParameterType& Parameter : InParameters)
 	{
 		if (Parameter.BaseType == UBMT_SRV ||
 			Parameter.BaseType == UBMT_RDG_TEXTURE_SRV ||
 			Parameter.BaseType == UBMT_RDG_BUFFER_SRV)
 		{
-			SRVsToUnset.Emplace(NullSRV, GetParameterIndex(Parameter));
+			BatchedUnbinds.UnsetSRV(GetParameterIndex(Parameter));
 		}
 	}
 }
 
-inline void UnsetShaderUAVs(FRHIBatchedShaderParameters& BatchedParameters, const FShaderParameterBindings& Bindings)
+inline void UnsetShaderUAVs(FRHIBatchedShaderUnbinds& BatchedUnbinds, const FShaderParameterBindings& Bindings)
 {
-	CollectUAVsToUnset(BatchedParameters.ResourceParameters, Bindings.ResourceParameters);
-	CollectUAVsToUnset(BatchedParameters.BindlessParameters, Bindings.BindlessResourceParameters);
+	CollectUAVsToUnset(BatchedUnbinds, Bindings.ResourceParameters);
 }
 
-inline void UnsetShaderSRVs(FRHIBatchedShaderParameters& BatchedParameters, const FShaderParameterBindings& Bindings)
+inline void UnsetShaderSRVs(FRHIBatchedShaderUnbinds& BatchedUnbinds, const FShaderParameterBindings& Bindings)
 {
-	CollectSRVsToUnset(BatchedParameters.ResourceParameters, Bindings.ResourceParameters);
-	CollectSRVsToUnset(BatchedParameters.BindlessParameters, Bindings.BindlessResourceParameters);
+	CollectSRVsToUnset(BatchedUnbinds, Bindings.ResourceParameters);
 }
 
 template<typename TShaderClass>
-inline void UnsetShaderUAVs(FRHIBatchedShaderParameters& BatchedParameters, const TShaderRef<TShaderClass>& Shader)
+inline void UnsetShaderUAVs(FRHIBatchedShaderUnbinds& BatchedUnbinds, const TShaderRef<TShaderClass>& Shader)
 {
 	// TODO(RDG): Once all shader sets their parameter through this, can refactor RHI so all UAVs of a shader get unset through a single RHI function call.
 	const FShaderParameterBindings& Bindings = Shader->Bindings;
 
 	checkf(Bindings.RootParameterBufferIndex == FShaderParameterBindings::kInvalidBufferIndex, TEXT("Can't use UnsetShaderUAVs() for root parameter buffer index."));
 
-	UnsetShaderUAVs(BatchedParameters, Bindings);
+	UnsetShaderUAVs(BatchedUnbinds, Bindings);
 }
 
 template<typename TShaderClass>
-inline void UnsetShaderSRVs(FRHIBatchedShaderParameters& BatchedParameters, const TShaderRef<TShaderClass>& Shader)
+inline void UnsetShaderSRVs(FRHIBatchedShaderUnbinds& BatchedUnbinds, const TShaderRef<TShaderClass>& Shader)
 {
 	// TODO(RDG): Once all shader sets their parameter through this, can refactor RHI so all SRVs of a shader get unset through a single RHI function call.
 	const FShaderParameterBindings& Bindings = Shader->Bindings;
 
 	checkf(Bindings.RootParameterBufferIndex == FShaderParameterBindings::kInvalidBufferIndex, TEXT("Can't use UnsetShaderSRVs() for root parameter buffer index."));
 
-	UnsetShaderSRVs(BatchedParameters, Bindings);
+	UnsetShaderSRVs(BatchedUnbinds, Bindings);
 }
 
 /** Unset compute shader UAVs. */
 template<typename TRHICmdList, typename TShaderClass>
 inline void UnsetShaderUAVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, FRHIComputeShader* ShaderRHI)
 {
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
-	UnsetShaderUAVs(BatchedParameters, Shader);
-	RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
+	FRHIBatchedShaderUnbinds& BatchedUnbinds = RHICmdList.GetScratchShaderUnbinds();
+	UnsetShaderUAVs(BatchedUnbinds, Shader);
+	RHICmdList.SetBatchedShaderUnbinds(ShaderRHI, BatchedUnbinds);
 }
 
 /** Unset compute shader SRVs. */
 template<typename TRHICmdList, typename TShaderClass>
 inline void UnsetShaderSRVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, FRHIComputeShader* ShaderRHI)
 {
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
-	UnsetShaderSRVs(BatchedParameters, Shader);
-	RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
+	FRHIBatchedShaderUnbinds& BatchedUnbinds = RHICmdList.GetScratchShaderUnbinds();
+	UnsetShaderSRVs(BatchedUnbinds, Shader);
+	RHICmdList.SetBatchedShaderUnbinds(ShaderRHI, BatchedUnbinds);
 }
 
 /** Unset compute shader SRVs. */
 template<typename TRHICmdList, typename TShaderClass>
 inline void UnsetShaderSRVs(TRHICmdList& RHICmdList, const TShaderRef<TShaderClass>& Shader, FRHIGraphicsShader* ShaderRHI)
 {
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
-	UnsetShaderSRVs(BatchedParameters, Shader);
-	RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
+	FRHIBatchedShaderUnbinds& BatchedUnbinds = RHICmdList.GetScratchShaderUnbinds();
+	UnsetShaderSRVs(BatchedUnbinds, Shader);
+	RHICmdList.SetBatchedShaderUnbinds(ShaderRHI, BatchedUnbinds);
 }
 
 RENDERCORE_API void SetShaderParameters(

@@ -74,12 +74,12 @@ void FRayTracingValidateGeometryBuildParamsCS::Dispatch(FRHICommandList& RHICmdL
 		RHICmdList.DispatchComputeShader(NumGroupsX, 1, 1);
 	}
 
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
+	FRHIBatchedShaderUnbinds& BatchedUnbinds = RHICmdList.GetScratchShaderUnbinds();
 
-	SetSRVParameter(BatchedParameters, ComputeShader->VertexBufferParam, nullptr);
-	SetSRVParameter(BatchedParameters, ComputeShader->IndexBufferParam, nullptr);
+	UnsetSRVParameter(BatchedUnbinds, ComputeShader->VertexBufferParam);
+	UnsetSRVParameter(BatchedUnbinds, ComputeShader->IndexBufferParam);
 
-	RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
+	RHICmdList.SetBatchedShaderUnbinds(ShaderRHI, BatchedUnbinds);
 
 	RHICmdList.PopEvent();
 }
@@ -118,9 +118,9 @@ void FRayTracingValidateSceneBuildParamsCS::Dispatch(FRHICommandList& RHICmdList
 		RHICmdList.DispatchComputeShader(NumGroupsX, 1, 1);
 	}
 
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
-	SetSRVParameter(BatchedParameters, ComputeShader->InstanceBufferParam, nullptr);
-	RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
+	FRHIBatchedShaderUnbinds& BatchedUnbinds = RHICmdList.GetScratchShaderUnbinds();
+	UnsetSRVParameter(BatchedUnbinds, ComputeShader->InstanceBufferParam);
+	RHICmdList.SetBatchedShaderUnbinds(ShaderRHI, BatchedUnbinds);
 
 	RHICmdList.PopEvent();
 }

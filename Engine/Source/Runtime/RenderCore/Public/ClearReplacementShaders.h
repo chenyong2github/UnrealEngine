@@ -391,8 +391,9 @@ inline void ClearUAVShader_T(FRHIComputeCommandList& RHICmdList, FRHIUnorderedAc
 		FMath::DivideAndRoundUp(SizeZ, ComputeShader->ThreadGroupSizeZ)
 	);
 
-	SetUAVParameter(BatchedParameters, ComputeShader->GetClearResourceParam(), nullptr);
-	RHICmdList.SetBatchedShaderParameters(ShaderRHI, BatchedParameters);
+	FRHIBatchedShaderUnbinds& BatchedUnbinds = RHICmdList.GetScratchShaderUnbinds();
+	UnsetUAVParameter(BatchedUnbinds, ComputeShader->GetClearResourceParam());
+	RHICmdList.SetBatchedShaderUnbinds(ShaderRHI, BatchedUnbinds);
 
 	if (bBarriers)
 	{

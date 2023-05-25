@@ -81,11 +81,11 @@ void FRayTracingDispatchDescCS::Dispatch(FRHICommandList& RHICmdList,
 
 	RHICmdList.DispatchComputeShader(1, 1, 1);
 
-	BatchedParameters.Reset();
+	FRHIBatchedShaderUnbinds& BatchedUnbinds = RHICmdList.GetScratchShaderUnbinds();
 
-	SetSRVParameter(BatchedParameters, ComputeShader->DispatchDimensionsParam, nullptr);
-	SetUAVParameter(BatchedParameters, ComputeShader->DispatchDescOutputParam, nullptr);
-	RHICmdList.SetBatchedShaderParameters(ComputeShader.GetComputeShader(), BatchedParameters);
+	UnsetSRVParameter(BatchedUnbinds, ComputeShader->DispatchDimensionsParam);
+	UnsetUAVParameter(BatchedUnbinds, ComputeShader->DispatchDescOutputParam);
+	RHICmdList.SetBatchedShaderUnbinds(ComputeShader.GetComputeShader(), BatchedUnbinds);
 }
 
 #endif // RHI_RAYTRACING

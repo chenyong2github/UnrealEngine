@@ -1178,6 +1178,16 @@ void FOpenGLDynamicRHI::RHISetShaderParameters(FRHIComputeShader* Shader, TConst
 	);
 }
 
+void FOpenGLDynamicRHI::RHISetShaderUnbinds(FRHIComputeShader* Shader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+{
+	UE::RHICore::RHISetShaderUnbindsShared(*this, Shader, InUnbinds);
+}
+
+void FOpenGLDynamicRHI::RHISetShaderUnbinds(FRHIGraphicsShader* Shader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+{
+	UE::RHICore::RHISetShaderUnbindsShared(*this, Shader, InUnbinds);
+}
+
 void FOpenGLDynamicRHI::RHISetDepthStencilState(FRHIDepthStencilState* NewStateRHI,uint32 StencilRef)
 {
 	VERIFY_GL_SCOPE();

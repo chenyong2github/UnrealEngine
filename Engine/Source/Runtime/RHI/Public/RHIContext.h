@@ -336,6 +336,8 @@ public:
 		InBatchedParameters.Reset();
 	}
 
+	virtual void RHISetShaderUnbinds(FRHIComputeShader* ComputeShader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds) = 0;
+
 	virtual void RHISetShaderParameter(FRHIComputeShader* ComputeShader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) = 0;
 
 	virtual void RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
@@ -695,6 +697,7 @@ public:
 	using IRHIComputeContext::RHISetShaderUniformBuffer;
 	using IRHIComputeContext::RHISetShaderParameters;
 	using IRHIComputeContext::RHISetBatchedShaderParameters;
+	using IRHIComputeContext::RHISetShaderUnbinds;
 	using IRHIComputeContext::RHISetShaderParameter;
 
 	/** Set the shader resource view of a surface. */
@@ -734,6 +737,8 @@ public:
 
 		InBatchedParameters.Reset();
 	}
+
+	virtual void RHISetShaderUnbinds(FRHIGraphicsShader* Shader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds) = 0;
 
 	virtual void RHISetShaderParameter(FRHIGraphicsShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) = 0;
 

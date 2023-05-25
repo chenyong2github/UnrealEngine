@@ -94,11 +94,11 @@ public:
 		SetSRVParameter(BatchedParameters, InParticleIndices, InIndicesSRV);
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetSRVParameter(BatchedParameters, InParticleIndices, nullptr);
-		SetUAVParameter(BatchedParameters, OutKeys, nullptr);
-		SetUAVParameter(BatchedParameters, OutParticleIndices, nullptr);
+		UnsetSRVParameter(BatchedUnbinds, InParticleIndices);
+		UnsetUAVParameter(BatchedUnbinds, OutKeys);
+		UnsetUAVParameter(BatchedUnbinds, OutParticleIndices);
 	}
 
 private:

@@ -927,9 +927,9 @@ public:
 		SetShaderValue(BatchedParameters, ComponentSizeParam, InParams.ComponentSize);
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetUAVParameter(BatchedParameters, AtlasPaintListsParam, nullptr);
+		UnsetUAVParameter(BatchedUnbinds, AtlasPaintListsParam);
 	}
 
 private:
@@ -1119,9 +1119,9 @@ public:
 		SetSRVParameter(BatchedParameters, WeightmapTextureOutputOffsetParam, InParams.ComputeShaderResource->WeightmapTextureOutputOffsetSRV);
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetUAVParameter(BatchedParameters, ComponentWeightmapParam, nullptr);
+		UnsetUAVParameter(BatchedUnbinds, ComponentWeightmapParam);
 	}
 
 private:

@@ -170,6 +170,40 @@ inline void SetUAVParameter(FRHIBatchedShaderParameters& BatchedParameters, cons
 	}
 }
 
+inline void UnsetSRVParameter(FRHIBatchedShaderUnbinds& BatchedUnbinds, const FShaderResourceParameter& Parameter)
+{
+	if (Parameter.IsBound())
+	{
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (Parameter.GetType() == EShaderParameterType::BindlessResourceIndex)
+		{
+			// We don't need to clear Bindless views
+		}
+		else
+#endif
+		{
+			BatchedUnbinds.UnsetSRV(Parameter.GetBaseIndex());
+		}
+	}
+}
+
+inline void UnsetUAVParameter(FRHIBatchedShaderUnbinds& BatchedUnbinds, const FShaderResourceParameter& Parameter)
+{
+	if (Parameter.IsBound())
+	{
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (Parameter.GetType() == EShaderParameterType::BindlessResourceIndex)
+		{
+			// We don't need to clear Bindless views
+		}
+		else
+#endif
+		{
+			BatchedUnbinds.UnsetUAV(Parameter.GetBaseIndex());
+		}
+	}
+}
+
 inline void SetUniformBufferParameter(FRHIBatchedShaderParameters& BatchedParameters, const FShaderUniformBufferParameter& Parameter, FRHIUniformBuffer* UniformBufferRHI)
 {
 	// This will trigger if the parameter was not serialized
@@ -351,22 +385,22 @@ inline void SetShaderParametersLegacyCS(TRHICmdList& RHICmdList, const TShaderRe
 	SetShaderParametersLegacy(RHICmdList, InShader, InShader.GetComputeShader(), Forward<TArguments>(InArguments)...);
 }
 
-/// Utility to unset all legacy parameters for a Pixel shader. Requires the shader type to implement UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+/// Utility to unset all legacy parameters for a Pixel shader. Requires the shader type to implement UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 template<typename TRHICmdList, typename TShaderType>
 inline void UnsetShaderParametersLegacyPS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader)
 {
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
-	InShader->UnsetParameters(BatchedParameters);
-	RHICmdList.SetBatchedShaderParameters(InShader.GetPixelShader(), BatchedParameters);
+	FRHIBatchedShaderUnbinds& BatchedUnbinds = RHICmdList.GetScratchShaderUnbinds();
+	InShader->UnsetParameters(BatchedUnbinds);
+	RHICmdList.SetBatchedShaderUnbinds(InShader.GetPixelShader(), BatchedUnbinds);
 }
 
-/// Utility to unset all legacy parameters for a Compute shader. Requires the shader type to implement UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+/// Utility to unset all legacy parameters for a Compute shader. Requires the shader type to implement UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 template<typename TRHICmdList, typename TShaderType>
 inline void UnsetShaderParametersLegacyCS(TRHICmdList& RHICmdList, const TShaderRef<TShaderType>& InShader)
 {
-	FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
-	InShader->UnsetParameters(BatchedParameters);
-	RHICmdList.SetBatchedShaderParameters(InShader.GetComputeShader(), BatchedParameters);
+	FRHIBatchedShaderUnbinds& BatchedUnbinds = RHICmdList.GetScratchShaderUnbinds();
+	InShader->UnsetParameters(BatchedUnbinds);
+	RHICmdList.SetBatchedShaderUnbinds(InShader.GetComputeShader(), BatchedUnbinds);
 }
 
 /**

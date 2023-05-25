@@ -1196,6 +1196,58 @@ void FD3D12CommandContext::RHISetShaderParameters(FRHIComputeShader* Shader, TAr
 	);
 }
 
+static void SetShaderUnbindsOnContext(
+	FD3D12CommandContext& Context
+	, FRHIShader* Shader
+	, EShaderFrequency ShaderFrequency
+	, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+{
+	for (const FRHIShaderParameterUnbind& Unbind : InUnbinds)
+	{
+		switch (Unbind.Type)
+		{
+		case FRHIShaderParameterUnbind::EType::ResourceView:
+			Context.StateCache.SetShaderResourceView(ShaderFrequency, nullptr, Unbind.Index);
+			break;
+		case FRHIShaderParameterUnbind::EType::UnorderedAccessView:
+			if (ShaderFrequency == SF_Pixel || ShaderFrequency == SF_Compute)
+			{
+				Context.StateCache.SetUAV(ShaderFrequency, Unbind.Index, nullptr);
+			}
+			else
+			{
+				checkf(false, TEXT("TShaderRHI Can't have compute shader to be set. UAVs are not supported on vertex, tessellation and geometry shaders."));
+			}
+			break;
+		default:
+			checkf(false, TEXT("Unhandled resource type?"));
+			break;
+		}
+	}
+}
+
+void FD3D12CommandContext::RHISetShaderUnbinds(FRHIGraphicsShader* Shader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+{
+	const EShaderFrequency ShaderFrequency = Shader->GetFrequency();
+	if (IsValidGraphicsFrequency(ShaderFrequency))
+	{
+		ValidateBoundShader(StateCache, Shader);
+
+		SetShaderUnbindsOnContext(*this, Shader, ShaderFrequency, InUnbinds);
+	}
+	else
+	{
+		checkf(0, TEXT("Unsupported FRHIGraphicsShader Type '%s'!"), GetShaderFrequencyString(ShaderFrequency, false));
+	}
+}
+
+void FD3D12CommandContext::RHISetShaderUnbinds(FRHIComputeShader* Shader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+{
+	//ValidateBoundShader(StateCache, Shader);
+
+	SetShaderUnbindsOnContext(*this, Shader, SF_Compute, InUnbinds);
+}
+
 void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, uint32 BufferIndex, uint32 Offset, uint32 NumBytes, const void* NewValue)
 {
 	checkSlow(BufferIndex == 0);

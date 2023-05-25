@@ -255,9 +255,9 @@ public:
 		}
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetUAVParameter(BatchedParameters, FieldClipmap, nullptr);
+		UnsetUAVParameter(BatchedUnbinds, FieldClipmap);
 	}
 
 private:
@@ -355,9 +355,9 @@ public:
 		}
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetUAVParameter(BatchedParameters, FieldClipmap, nullptr);
+		UnsetUAVParameter(BatchedUnbinds, FieldClipmap);
 	}
 
 private:

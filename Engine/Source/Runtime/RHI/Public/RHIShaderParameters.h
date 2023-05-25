@@ -136,3 +136,49 @@ struct FRHIBatchedShaderParameters
 		BindlessParameters.Emplace(UAV, (uint16)Index);
 	}
 };
+
+/** Compact representation of a resource parameter unbind, limited to  SRVs and UAVs */
+struct FRHIShaderParameterUnbind
+{
+	enum class EType : uint8
+	{
+		ResourceView,
+		UnorderedAccessView,
+	};
+
+	FRHIShaderParameterUnbind() = default;
+	FRHIShaderParameterUnbind(EType InType, uint16 InIndex)
+		: Index(InIndex)
+		, Type(InType)
+	{
+	}
+
+	uint16  Index = 0;
+	EType   Type = EType::ResourceView;
+};
+
+/** Collection of parameters to unbind in the RHI. These unbinds aren't tied to any specific shader until SetBatchedShaderUnbinds is called. */
+struct FRHIBatchedShaderUnbinds
+{
+	TArray<FRHIShaderParameterUnbind> Unbinds;
+
+	bool HasParameters() const
+	{
+		return Unbinds.Num() > 0;
+	}
+
+	void Reset()
+	{
+		Unbinds.Reset();
+	}
+
+	void UnsetSRV(uint32 Index)
+	{
+		Unbinds.Emplace(FRHIShaderParameterUnbind::EType::ResourceView, (uint16)Index);
+	}
+	void UnsetUAV(uint32 Index)
+	{
+		Unbinds.Emplace(FRHIShaderParameterUnbind::EType::UnorderedAccessView, (uint16)Index);
+	}
+};
+

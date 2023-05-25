@@ -114,4 +114,24 @@ namespace UE::RHICore
 			}
 		}
 	}
+
+	template<typename FContextRHI, typename TShaderRHI>
+	inline void RHISetShaderUnbindsShared(FContextRHI& Context, TShaderRHI* ShaderRHI, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+	{
+		for (const FRHIShaderParameterUnbind& Unbind : InUnbinds)
+		{
+			switch (Unbind.Type)
+			{
+			case FRHIShaderParameterUnbind::EType::ResourceView:
+				Context.RHISetShaderResourceViewParameter(ShaderRHI, Unbind.Index, nullptr);
+				break;
+			case FRHIShaderParameterUnbind::EType::UnorderedAccessView:
+				SetShaderUAV(Context, ShaderRHI, Unbind.Index, nullptr);
+				break;
+			default:
+				checkf(false, TEXT("Unhandled resource type?"));
+				break;
+			}
+		}
+	}
 }

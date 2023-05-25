@@ -1002,9 +1002,9 @@ public:
 		SetTextureParameter(BatchedParameters, NoiseVolumeTexture, NoiseVolumeTextureSampler, SamplerStateLinear, NoiseVolumeTextureRHI);
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetUAVParameter(BatchedParameters, OutVolumeTexture, nullptr);
+		UnsetUAVParameter(BatchedUnbinds, OutVolumeTexture);
 	}
 
 private:

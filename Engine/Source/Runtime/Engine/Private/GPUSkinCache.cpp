@@ -711,10 +711,10 @@ public:
 		SetShaderValue(BatchedParameters, SkinCacheDebug, CVarGPUSkinCacheDebug.GetValueOnRenderThread());
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetUAVParameter(BatchedParameters, PositionBufferUAV, 0);
-		SetUAVParameter(BatchedParameters, TangentBufferUAV, 0);
+		UnsetUAVParameter(BatchedUnbinds, PositionBufferUAV);
+		UnsetUAVParameter(BatchedUnbinds, TangentBufferUAV);
 	}
 
 private:
@@ -940,9 +940,9 @@ public:
         }
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetUAVParameter(BatchedParameters, IntermediateAccumBufferUAV, 0);
+		UnsetUAVParameter(BatchedUnbinds, IntermediateAccumBufferUAV);
 	}
 
 	LAYOUT_FIELD(FShaderResourceParameter, IntermediateAccumBufferUAV);
@@ -1055,10 +1055,10 @@ public:
 		SetSRVParameter(BatchedParameters, ColorInputBuffer, DispatchData.ColorBufferSRV);
 	}
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 	{
-		SetUAVParameter(BatchedParameters, TangentBufferUAV, 0);
-		SetUAVParameter(BatchedParameters, IntermediateAccumBufferUAV, 0);
+		UnsetUAVParameter(BatchedUnbinds, TangentBufferUAV);
+		UnsetUAVParameter(BatchedUnbinds, IntermediateAccumBufferUAV);
 	}
 };
 

@@ -114,7 +114,7 @@ public:
 		int32 StartingIndex,
 		int32 DestCount);
 
-	void UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters);
+	void UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds);
 
 	void Begin(FRHICommandList& RHICmdList);
 	void End(FRHICommandList& RHICmdList);
@@ -171,12 +171,12 @@ void FCopyUIntBufferCS::SetParameters(
 	SetShaderValue(BatchedParameters, CopyParams, CopyParamsValue);
 }
 
-void FCopyUIntBufferCS::UnsetParameters(FRHIBatchedShaderParameters& BatchedParameters)
+void FCopyUIntBufferCS::UnsetParameters(FRHIBatchedShaderUnbinds& BatchedUnbinds)
 {
-	SetSRVParameter(BatchedParameters, SourceData, nullptr);
+	UnsetSRVParameter(BatchedUnbinds, SourceData);
 	for (int32 Index = 0; Index < COPYUINTCS_BUFFER_COUNT; ++Index)
 	{
-		SetUAVParameter(BatchedParameters, DestData[Index], nullptr);
+		UnsetUAVParameter(BatchedUnbinds, DestData[Index]);
 	}
 }
 

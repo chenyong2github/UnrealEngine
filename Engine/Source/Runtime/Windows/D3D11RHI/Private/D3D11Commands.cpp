@@ -631,6 +631,16 @@ void FD3D11DynamicRHI::RHISetShaderParameters(FRHIGraphicsShader* Shader, TConst
 	);
 }
 
+void FD3D11DynamicRHI::RHISetShaderUnbinds(FRHIComputeShader* Shader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+{
+	UE::RHICore::RHISetShaderUnbindsShared(*this, Shader, InUnbinds);
+}
+
+void FD3D11DynamicRHI::RHISetShaderUnbinds(FRHIGraphicsShader* Shader, TConstArrayView<FRHIShaderParameterUnbind> InUnbinds)
+{
+	UE::RHICore::RHISetShaderUnbindsShared(*this, Shader, InUnbinds);
+}
+
 void FD3D11DynamicRHI::ValidateExclusiveDepthStencilAccess(FExclusiveDepthStencil RequestedAccess) const
 {
 	const bool bSrcDepthWrite = RequestedAccess.IsDepthWrite();
