@@ -3,7 +3,7 @@
 #include "ReferenceCluster.h"
 #include "Misc/Guid.h"
 
-TArray<TArray<FGuid>> GenerateObjectsClusters(TArray<TPair<FGuid, TArray<FGuid>>> InObjects)
+TArray<TArray<FGuid>> GenerateObjectsClusters(const TArray<TPair<FGuid, TArray<FGuid>>>& InObjects)
 {
 	TMap<FGuid, FGuid> ObjectToClusters;
 	TMap<FGuid, TSet<FGuid>> Clusters;

@@ -14,4 +14,4 @@
  *	@return	Array of reference clusters (e.g. group of objects referencing each other). For example, an
  *			input of n objects without any references will generate n clusters of a single object each.
  */
-ENGINE_API TArray<TArray<FGuid>> GenerateObjectsClusters(TArray<TPair<FGuid, TArray<FGuid>>> InObjects);
+ENGINE_API TArray<TArray<FGuid>> GenerateObjectsClusters(const TArray<TPair<FGuid, TArray<FGuid>>>& InObjects);
