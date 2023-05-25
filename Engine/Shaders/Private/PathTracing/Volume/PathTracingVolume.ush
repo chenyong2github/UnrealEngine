@@ -51,7 +51,7 @@ FVolumeDensityBounds VolumeGetDensityBounds(float3 Origin, float3 Direction, FVo
 		{
 			case VOLUMEID_ATMOSPHERE:            MergeVolumeDensityBounds(Result, AtmosphereGetDensityBounds(Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax)); break;
 			case VOLUMEID_FOG:                   MergeVolumeDensityBounds(Result, FogGetDensityBounds(Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax)); break;
-			case VOLUMEID_HETEROGENEOUS_VOLUMES: MergeVolumeDensityBounds(Result, HeterogeneousVolumesGetDensityBounds(Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax)); break;
+			//case VOLUMEID_HETEROGENEOUS_VOLUMES: MergeVolumeDensityBounds(Result, HeterogeneousVolumesGetDensityBounds(Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax)); break;
 		}
 	}
 	return Result;
@@ -84,7 +84,7 @@ float3 VolumeGetTransmittanceAnalytical(float3 StartThroughput, float3 Origin, f
 		{
 			case VOLUMEID_ATMOSPHERE:            Throughput *= AtmosphereGetTransmittance(Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax); break;
 			case VOLUMEID_FOG:                   Throughput *= FogGetTransmittance(Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax); break;
-			case VOLUMEID_HETEROGENEOUS_VOLUMES: Throughput *= HeterogeneousVolumesGetTransmittance(Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax, PathRoughness); break;
+			case VOLUMEID_HETEROGENEOUS_VOLUMES: Throughput *= HeterogeneousVolumesGetTransmittance(StartThroughput, Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax, PathRoughness, RandSequence); break;
 		}
 	}
 	return Throughput;
@@ -102,7 +102,7 @@ float3 VolumeGetTransmittanceAnalytical(float3 StartThroughput, float3 Origin, f
 		{
 			case VOLUMEID_ATMOSPHERE:            Throughput *= AtmosphereGetTransmittance(Origin, Direction, TMin, TMax); break;
 			case VOLUMEID_FOG:                   Throughput *= FogGetTransmittance(Origin, Direction, TMin, TMax); break;
-			case VOLUMEID_HETEROGENEOUS_VOLUMES: Throughput *= HeterogeneousVolumesGetTransmittance(Origin, Direction, TMin, TMax, PathRoughness); break;
+			case VOLUMEID_HETEROGENEOUS_VOLUMES: Throughput *= HeterogeneousVolumesGetTransmittance(StartThroughput, Origin, Direction, TMin, TMax, PathRoughness, RandSequence); break;
 		}
 	}
 	return Throughput;
@@ -171,7 +171,8 @@ float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin,
 			}
 			case VOLUMEID_HETEROGENEOUS_VOLUMES:
 			{
-				PATH_TRACER_REFERENCE_TRANSMITTANCE_LOOP(HeterogeneousVolumesGetDensityBounds, HeterogeneousVolumesGetDensity);
+				float PathRoughness = 0;
+				Throughput *= HeterogeneousVolumesGetTransmittance(StartThroughput, Origin, Direction, TMin, TMax, PathRoughness, RandSequence);
 				break;
 			}
 		}
@@ -179,6 +180,7 @@ float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin,
 	return Throughput;
 
 }
+
 float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin, float3 Direction, FVolumeIntersectionList IntersectionList, int Bounce, inout RandomSequence RandSequence)
 {
 	float3 Throughput = StartThroughput;
@@ -200,7 +202,8 @@ float3 VolumeGetTransmittanceNullTracking(float3 StartThroughput, float3 Origin,
 			}
 			case VOLUMEID_HETEROGENEOUS_VOLUMES:
 			{
-				PATH_TRACER_REFERENCE_TRANSMITTANCE_LOOP(HeterogeneousVolumesGetDensityBounds, HeterogeneousVolumesGetDensity);
+				float PathRoughness = 0;
+				Throughput *= HeterogeneousVolumesGetTransmittance(StartThroughput, Origin, Direction, TMin, TMax, PathRoughness, RandSequence);
 				break;
 			}
 		}
@@ -228,4 +231,38 @@ float3 VolumeGetTransmittance(float3 StartThroughput, float3 Origin, float3 Dire
 	}
 
 	return VolumeGetTransmittanceNullTracking(StartThroughput, Origin, Direction, IntersectionList, Bounce, RandSequence);
+}
+
+FVolumeTrackingResult VolumeSampleDistance(float3 PathThroughput, float3 Origin, float3 Direction, FVolumeIntersectionInterval Interval, bool bIsCameraRay, inout RandomSequence RandSequence)
+{
+	FVolumeDensityBounds VolumeDensityBounds = VolumeGetDensityBounds(Origin, Direction, Interval);
+	float3 SigmaBar = VolumeDensityBounds.SigmaMax;
+	if (!UseAnalyticTransmittance)
+	{
+		// if we are not using analytical transmittance, a tight majorant could prevent us from "seeing" hits that match the density exactly
+		// leading to heavy noise on bright objects embedded in the volume
+		// however if we can track transmittance analytically, this workaround is not needed as we will re-compute a precise answer after ray marching
+		SigmaBar *= bIsCameraRay ? 2 : 1;
+	}
+
+	FVolumeTrackingResult TrackingResult;
+	if (EnableHeterogeneousVolumes)
+	{
+		FMajorantData OverlappingMajorant = CreateMajorantData(VolumeDensityBounds.SigmaMin, VolumeDensityBounds.SigmaMax);
+		TrackingResult = HeterogeneousVolumesSampleDistance(PathThroughput, Origin, Direction, Interval.VolumeTMin, Interval.VolumeTMax, OverlappingMajorant, RandSequence);
+	}
+	else
+	{
+		float RandValue = RandomSequence_GenerateSample1D(RandSequence);
+		TrackingResult.Distance = SampleSpectralTransmittance(RandValue, SigmaBar, PathThroughput);
+		TrackingResult.Throughput = EvaluateSpectralTransmittanceHit(TrackingResult.Distance, SigmaBar, PathThroughput).xyz;
+		float3 SpectralPdf = PathThroughput * rcp(PathThroughput.x + PathThroughput.y + PathThroughput.z);
+		float3 DistancePdf = TrackingResult.Throughput;
+		if (TrackingResult.Distance < Interval.VolumeTMax)
+		{
+			DistancePdf *= SigmaBar;
+		}
+		TrackingResult.Pdf = dot(DistancePdf, SpectralPdf);
+	}
+	return TrackingResult;
 }

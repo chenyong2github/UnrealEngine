@@ -553,33 +553,16 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, int Bounce, 
 				// Limit number of steps to prevent timeouts // FIXME: This biases the result!
 				for (int Step = 0; Step < MaxRaymarchSteps; Step++)
 				{
-					// figure out optimal bounds for the current ray segment
-					float3 SigmaBar = VolumeGetDensityBounds(PathState.Ray.Origin, PathState.Ray.Direction, Interval).SigmaMax;
-					if (UseNullTrackingTransmittance)
+					FVolumeTrackingResult TrackingResult = VolumeSampleDistance(PathThroughput, PathState.Ray.Origin, PathState.Ray.Direction, Interval, bIsCameraRay, PathState.RandSequence);
+					if (TrackingResult.Distance < 0)
 					{
-						// if we are not using analytical transmittance, a tight majorant could prevent us from "seeing" hits that match the density exactly
-						// leading to heavy noise on bright objects embedded in the volume
-						// however if we can track transmittance analytically, this workaround is not needed as we will re-compute a precise answer after ray marching
-						SigmaBar *= bIsCameraRay ? 2 : 1;
-					}
-
-					// there is some atmosphere present along the current ray, ray march until we get to the current hit (or exit the atmosphere)
-					float3 ColorChannelPdf = PathThroughput;
-
-					// Sample the distance to the next interaction
-					float RandValue = RandomSequence_GenerateSample1D(PathState.RandSequence);
-					float DeltaT = SampleSpectralTransmittance(RandValue, SigmaBar, ColorChannelPdf);
-					if (DeltaT < 0.0)
-					{
-						// no more energy left in the path
 						break;
 					}
 
-					if (Interval.VolumeTMin + DeltaT < Interval.VolumeTMax)
+					if (TrackingResult.bIsCollision)
 					{
-						Interval.VolumeTMin += DeltaT;
-						// our ray marching step stayed inside the atmo and is still in front of the next hit
-						PathThroughput *= EvaluateSpectralTransmittanceHit(DeltaT, SigmaBar, ColorChannelPdf).xyz;
+						Interval.VolumeTMin = TrackingResult.Distance;
+						PathThroughput = TrackingResult.Throughput;
 
 						// find out how much volume exists at the current point
 						float3 Ro = PathState.Ray.Origin;
@@ -588,8 +571,8 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, int Bounce, 
 						FVolumeShadedResult Result = VolumeGetDensity(TranslatedWorldPos, Interval);
 
 						// clamp to make sure we never exceed the majorant (should not be the case, but need to avoid any possible numerical issues)
-						float3 SigmaT = min(Result.SigmaT, SigmaBar);
-						float3 SigmaN = SigmaBar - SigmaT;
+						float3 SigmaT = min(Result.SigmaT, TrackingResult.SigmaBar);
+						float3 SigmaN = TrackingResult.SigmaBar - SigmaT;
 
 						if (UseAnalyticTransmittance || (UseNullTrackingTransmittance && !bLastBounce)) // check now if this loop is also computing transmittance
 						{
@@ -612,7 +595,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, int Bounce, 
 					else
 					{
 						// update the path throughput, knowing that we escaped the medium
-						PathThroughput *= EvaluateSpectralTransmittanceMiss(Interval.VolumeTMax - Interval.VolumeTMin, SigmaBar, ColorChannelPdf).xyz;
+						PathThroughput = TrackingResult.Throughput;
 						// exit the ray marching loop
 						break;
 					}

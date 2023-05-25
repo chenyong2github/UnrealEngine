@@ -26,10 +26,26 @@ void UpdateMajorantData(inout FMajorantData MajorantData, float3 Value)
 	MajorantData.Majorant = max(MajorantData.Majorant, MaxValue);
 }
 
+FMajorantData CreateMajorantData(float3 MinValue, float3 MaxValue)
+{
+	FMajorantData MajorantData = CreateMajorantData();
+	UpdateMajorantData(MajorantData, MinValue);
+	UpdateMajorantData(MajorantData, MaxValue);
+	return MajorantData;
+}
+
+// Updating majorant data should occur for a single media
 void UpdateMajorantData(inout FMajorantData MajorantData, FMajorantData Value)
 {
 	MajorantData.Minorant = min(MajorantData.Minorant, Value.Minorant);
 	MajorantData.Majorant = max(MajorantData.Majorant, Value.Majorant);
+}
+
+// Merging majorant data should occur when mixing media
+void MergeMajorantData(inout FMajorantData MajorantData, FMajorantData OverlappingMajorant)
+{
+	MajorantData.Minorant += OverlappingMajorant.Minorant;
+	MajorantData.Majorant += OverlappingMajorant.Majorant;
 }
 
 FMajorantData GetMajorantData(FScalarGridData MajorantGridData)

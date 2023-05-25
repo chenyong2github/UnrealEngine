@@ -4,6 +4,8 @@
 
 #include "../../HeterogeneousVolumes/HeterogeneousVolumesTracingUtils.ush"
 #include "../../HeterogeneousVolumes/HeterogeneousVolumesVoxelGridTraversal.ush"
+#include "../Utilities/PathTracingRandomSequence.ush"
+#include "PathTracingVolumeSampling.ush"
 
 float3 GetTranslatedWorldPos(float3 WorldPos)
 {
@@ -393,40 +395,261 @@ FVolumeShadedResult HeterogeneousVolumesGetDensity(float3 TranslatedWorldPos)
 	return Result;
 }
 
-float3 HeterogeneousVolumesGetTransmittance(float3 Origin, float3 Direction, float TMin, float TMax, float PathRoughness)
+struct FVolumeTrackingResult
 {
-	float3 Transmittance = 1.0;
+	float3 Throughput;
+	float Pdf;
+	float Distance;
+	float SigmaBar;
+	bool bIsCollision;
+};
 
-	if (EnableHeterogeneousVolumes)
+FVolumeTrackingResult CreateVolumeTrackingResult(float Distance)
+{
+	FVolumeTrackingResult Result = (FVolumeTrackingResult)0;
+	Result.Throughput = 1;
+	Result.Pdf = 0;
+	Result.Distance = Distance;
+	Result.SigmaBar = 0;
+	Result.bIsCollision = false;
+
+	return Result;
+}
+
+// Concatenates the result of rhs onto lhs
+FVolumeTrackingResult ConcatenateVolumeTrackingResult(FVolumeTrackingResult lhs, FVolumeTrackingResult rhs)
+{
+	FVolumeTrackingResult Result;
+	Result.Throughput = lhs.Throughput * rhs.Throughput;
+	Result.Pdf = lhs.Pdf * rhs.Pdf;
+	Result.Distance = lhs.Distance + rhs.Distance;
+	Result.SigmaBar = rhs.SigmaBar;
+	Result.bIsCollision = rhs.bIsCollision;
+	return Result;
+}
+
+FVolumeTrackingResult HeterogeneousVolumesDeltaTracking(float3 PathThroughput, float3 Origin, float3 Direction, float TMax, FMajorantData MajorantData, inout RandomSequence RandSequence)
+{
+	FVolumeTrackingResult Sample = CreateVolumeTrackingResult(0);
+	Sample.SigmaBar = max(MajorantData.Majorant, 0);
+
+	while ((Sample.Distance < TMax) && !Sample.bIsCollision)
 	{
-		bool bCombinedTraversal = OrthoGridUniformBuffer.bUseOrthoGrid && FrustumGridUniformBuffer.bUseFrustumGrid;
-		//if (bCombinedTraversal && Bounce < 1)
-		if (bCombinedTraversal)
+		float RandValue = RandomSequence_GenerateSample1D(RandSequence);
+#define SAMPLE_ACHROMATIC 0
+#if SAMPLE_ACHROMATIC
+		float DeltaT = -log(RandValue) / Sample.SigmaBar;
+#else
+		float DeltaT = SampleSpectralTransmittance(RandValue, Sample.SigmaBar, PathThroughput);
+		if (DeltaT < 0)
 		{
-			float FrustumTMin = TMin;
-			float FrustumTMax = (PathRoughness < 0.1) ? TMax : min(TMax, 10.0);
-			Transmittance = TraceFrustumVoxelGrid(Origin, Direction, FrustumTMin, FrustumTMax);
+			Sample.Throughput = 0;
+			Sample.Distance = -1;
+			return Sample;
+		}
+#endif
 
-			if (FrustumTMin < FrustumTMax)
-			{
-				Transmittance *= TraceOrthoVoxelGrid(Origin, Direction, TMin, FrustumTMin);
-				Transmittance *= TraceOrthoVoxelGrid(Origin, Direction, FrustumTMax, TMax);
-			}
-			else
-			{
-				Transmittance *= TraceOrthoVoxelGrid(Origin, Direction, TMin, TMax);
-			}
-		}
-		// NOTE: Ordering of ortho traversal is important for multi-bounce fallback
-		else if (OrthoGridUniformBuffer.bUseOrthoGrid)
+		Sample.Distance = min(Sample.Distance + DeltaT, TMax);
+		float Transmittance = exp(-Sample.SigmaBar * Sample.Distance);
+
+		if (Sample.Distance < TMax)
 		{
-			Transmittance = TraceOrthoVoxelGrid(Origin, Direction, TMin, TMax);
+			Sample.bIsCollision = true;
+			float CollisionWeight = 1.0;
+#if SAMPLE_ACHROMATIC
+			Sample.Throughput *= CollisionWeight / Sample.SigmaBar;
+			Sample.Pdf = Transmittance * Sample.SigmaBar;
+#else
+			float4 EvalResult = EvaluateSpectralTransmittanceHit(Sample.Distance, Sample.SigmaBar, PathThroughput);
+			Sample.Throughput = CollisionWeight * EvalResult.xyz;
+			Sample.Pdf = EvalResult.w;
 		}
-		else if (FrustumGridUniformBuffer.bUseFrustumGrid)
+		else
 		{
-			Transmittance = TraceFrustumVoxelGrid(Origin, Direction, TMin, TMax);
+			float4 EvalResult = EvaluateSpectralTransmittanceMiss(Sample.Distance, Sample.SigmaBar, PathThroughput);
+			Sample.Throughput = EvalResult.xyz;
+			Sample.Pdf = EvalResult.w;
+#endif
 		}
 	}
 
+	return Sample;
+}
+
+FVolumeTrackingResult HeterogeneousVolumesRatioTracking(float3 PathThroughput, float3 Origin, float3 Direction, float TMax, FMajorantData MajorantData, inout RandomSequence RandSequence)
+{
+	FVolumeTrackingResult Sample = CreateVolumeTrackingResult(0);
+	Sample.SigmaBar = max(MajorantData.Majorant, 0);
+
+	while ((Sample.Distance < TMax) && !Sample.bIsCollision)
+	{
+		float RandValue = RandomSequence_GenerateSample1D(RandSequence);
+#if SAMPLE_ACHROMATIC
+		float DeltaT = -log(RandValue) / Sample.SigmaBar;
+#else
+		float DeltaT = SampleSpectralTransmittance(RandValue, Sample.SigmaBar, PathThroughput);
+		if (DeltaT < 0)
+		{
+			Sample.Throughput = 0;
+			Sample.Distance = -1;
+			return Sample;
+		}
+#endif
+
+		Sample.Distance = min(Sample.Distance + DeltaT, TMax);
+		float Transmittance = exp(-Sample.SigmaBar * Sample.Distance);
+
+		if (Sample.Distance < TMax)
+		{
+			float3 SamplePos = Origin + Direction * Sample.Distance;
+			float3 SigmaT = HeterogeneousVolumesGetDensity(SamplePos).SigmaT;
+			float3 SpectralNullCollisionWeight = max(Sample.SigmaBar - SigmaT, 0);
+#if SAMPLE_ACHROMATIC
+			Sample.Throughput *= SpectralNullCollisionWeight / Sample.SigmaBar;
+			Sample.Pdf *= Transmittance * Sample.SigmaBar;
+#else
+			float4 EvalResult = EvaluateSpectralTransmittanceHit(Sample.Distance, Sample.SigmaBar, PathThroughput);
+			Sample.Throughput *= SpectralNullCollisionWeight * EvalResult.xyz;
+			Sample.Pdf *= EvalResult.w;
+		}
+		else
+		{
+			float4 EvalResult = EvaluateSpectralTransmittanceMiss(Sample.Distance, Sample.SigmaBar, PathThroughput);
+			Sample.Throughput *= EvalResult.xyz;
+			Sample.Pdf *= EvalResult.w;
+#endif
+		}
+	}
+
+	return Sample;
+}
+
+FVolumeTrackingResult HeterogeneousVolumesMajorantBasedTracking(float3 PathThroughput, float3 WorldRayOrigin, float3 Direction, float TMin, float TMax, int bTransmittanceOnly, FMajorantData OverlappingMajorant, inout RandomSequence RandSequence)
+{
+	FVolumeTrackingResult Result = CreateVolumeTrackingResult(TMin);
+	Result.Throughput = PathThroughput;
+
+	float3 WorldRayBegin = WorldRayOrigin + Direction * TMin;
+	float3 WorldRayEnd = WorldRayOrigin + Direction * TMax;
+	float WorldRayTMax = length(WorldRayEnd - WorldRayBegin);
+
+	// Transform to voxel-space
+	float3 WorldBoundsMin = GetTranslatedWorldPos(OrthoGridUniformBuffer.TopLevelGridWorldBoundsMin);
+	float3 WorldBoundsMax = GetTranslatedWorldPos(OrthoGridUniformBuffer.TopLevelGridWorldBoundsMax);
+	float3 TopLevelGridWorldBoundsExtent = WorldBoundsMax - WorldBoundsMin;
+	float3 VoxelRayBegin = (WorldRayBegin - WorldBoundsMin) / TopLevelGridWorldBoundsExtent * OrthoGridUniformBuffer.TopLevelGridResolution;
+	float3 VoxelRayEnd = (WorldRayEnd - WorldBoundsMin) / TopLevelGridWorldBoundsExtent * OrthoGridUniformBuffer.TopLevelGridResolution;
+	float3 VoxelRayDirection = VoxelRayEnd - VoxelRayBegin;
+	float VoxelRayTMin = 0.0;
+	float VoxelRayTMax = length(VoxelRayDirection);
+	VoxelRayDirection /= VoxelRayTMax;
+
+	float VoxelToWorldScale = WorldRayTMax / VoxelRayTMax;
+
+	// March majorant grid via DDA
+	float3 VoxelRayDirectionInv = 1.0 / VoxelRayDirection;
+
+	float VoxelRayMarchT = VoxelRayTMin;
+	float3 VoxelRayMarchPos = VoxelRayBegin;
+
+	float3 VoxelBoundsPos;
+	VoxelBoundsPos.x = sign(VoxelRayDirection.x) > 0 ? floor(VoxelRayMarchPos.x) + 1 : ceil(VoxelRayMarchPos.x) - 1;
+	VoxelBoundsPos.y = sign(VoxelRayDirection.y) > 0 ? floor(VoxelRayMarchPos.y) + 1 : ceil(VoxelRayMarchPos.y) - 1;
+	VoxelBoundsPos.z = sign(VoxelRayDirection.z) > 0 ? floor(VoxelRayMarchPos.z) + 1 : ceil(VoxelRayMarchPos.z) - 1;
+
+	float3 VoxelBoundsHitT = (VoxelBoundsPos - VoxelRayMarchPos) * VoxelRayDirectionInv;
+
+	// Remove floating-point rounding error
+	float Epsilon = 1.0e-4;
+	if (VoxelBoundsHitT.x <= Epsilon) VoxelBoundsHitT.x += abs(VoxelRayDirectionInv.x);
+	if (VoxelBoundsHitT.y <= Epsilon) VoxelBoundsHitT.y += abs(VoxelRayDirectionInv.y);
+	if (VoxelBoundsHitT.z <= Epsilon) VoxelBoundsHitT.z += abs(VoxelRayDirectionInv.z);
+
+	while ((VoxelRayMarchT < VoxelRayTMax) && any(Result.Throughput > Epsilon) && !Result.bIsCollision)
+	{
+		float VoxelRayMarchDeltaT = 0.0;
+		if (VoxelBoundsHitT.x < VoxelBoundsHitT.y)
+		{
+			if (VoxelBoundsHitT.x < VoxelBoundsHitT.z)
+			{
+				VoxelRayMarchDeltaT = VoxelBoundsHitT.x - VoxelRayMarchT;
+				VoxelBoundsHitT.x += abs(VoxelRayDirectionInv.x);
+			}
+			else
+			{
+				VoxelRayMarchDeltaT = VoxelBoundsHitT.z - VoxelRayMarchT;
+				VoxelBoundsHitT.z += abs(VoxelRayDirectionInv.z);
+			}
+		}
+		else
+		{
+			if (VoxelBoundsHitT.y < VoxelBoundsHitT.z)
+			{
+				VoxelRayMarchDeltaT = VoxelBoundsHitT.y - VoxelRayMarchT;
+				VoxelBoundsHitT.y += abs(VoxelRayDirectionInv.y);
+			}
+			else
+			{
+				VoxelRayMarchDeltaT = VoxelBoundsHitT.z - VoxelRayMarchT;
+				VoxelBoundsHitT.z += abs(VoxelRayDirectionInv.z);
+			}
+		}
+
+		// Clip voxel delta-t by overall voxel ray-length.
+		if (VoxelRayMarchT + VoxelRayMarchDeltaT > VoxelRayTMax)
+		{
+			VoxelRayMarchDeltaT = VoxelRayTMax - VoxelRayMarchT;
+		}
+
+		// Sample at the midpoint of the voxel ray
+		float3 VoxelEndPos = VoxelRayMarchPos + VoxelRayDirection * VoxelRayMarchDeltaT;
+		float3 VoxelSamplePos = (VoxelRayMarchPos + VoxelEndPos) * 0.5;
+		uint VoxelSampleLinearPos = GetLinearIndex(VoxelSamplePos, OrthoGridUniformBuffer.TopLevelGridResolution);
+		FMajorantData MajorantData = GetMajorantData(OrthoGridUniformBuffer.MajorantGridBuffer[VoxelSampleLinearPos]);
+		MergeMajorantData(MajorantData, OverlappingMajorant);
+
+		float3 TrackingOrigin = WorldRayBegin + Direction * VoxelRayMarchT * VoxelToWorldScale;
+		float WorldRayMarchDeltaT = VoxelRayMarchDeltaT * VoxelToWorldScale;
+
+		FVolumeTrackingResult Sample;
+		if (bTransmittanceOnly)
+		{
+			Sample = HeterogeneousVolumesRatioTracking(Result.Throughput, TrackingOrigin, Direction, WorldRayMarchDeltaT, MajorantData, RandSequence);
+		}
+		else
+		{
+			Sample = HeterogeneousVolumesDeltaTracking(Result.Throughput, TrackingOrigin, Direction, WorldRayMarchDeltaT, MajorantData, RandSequence);
+		}
+
+		if (Sample.Distance < 0)
+		{
+			return Sample;
+		}
+
+		Result = ConcatenateVolumeTrackingResult(Result, Sample);
+
+		VoxelRayMarchT += VoxelRayMarchDeltaT;
+		VoxelRayMarchPos = VoxelEndPos;
+	}
+
+	return Result;
+}
+
+float3 HeterogeneousVolumesGetTransmittance(float3 PathThroughput, float3 Origin, float3 Direction, float TMin, float TMax, float PathRoughness, inout RandomSequence RandSequence)
+{
+	float3 Transmittance = 1.0;
+	if (EnableHeterogeneousVolumes)
+	{
+		bool bTransmittanceOnly = true;
+		FMajorantData EmptyOverlappingMajorant = CreateMajorantData();
+		Transmittance = HeterogeneousVolumesMajorantBasedTracking(PathThroughput, Origin, Direction, TMin, TMax, bTransmittanceOnly, EmptyOverlappingMajorant, RandSequence).Throughput;
+	}
+
 	return Transmittance;
+}
+
+FVolumeTrackingResult HeterogeneousVolumesSampleDistance(float3 PathThroughput, float3 Origin, float3 Direction, float TMin, float TMax, FMajorantData OverlappingMajorant, inout RandomSequence RandSequence)
+{
+	bool bTransmittanceOnly = false;
+	return HeterogeneousVolumesMajorantBasedTracking(PathThroughput, Origin, Direction, TMin, TMax, bTransmittanceOnly, OverlappingMajorant, RandSequence);
 }
