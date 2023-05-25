@@ -133,8 +133,11 @@ EDataValidationResult UAdditionalEffectsGameplayEffectComponent::IsDataValid(FDa
 	if (GetOwner()->DurationPolicy == EGameplayEffectDurationType::Instant)
 	{
 		const bool bHasOnCompleteEffects = (OnCompleteAlways.Num() + OnCompleteNormal.Num() + OnCompletePrematurely.Num() > 0);
-		Context.AddError(FText::FormatOrdered(LOCTEXT("InstantDoesNotWorkWithOnComplete", "Instant GE will never receive OnComplete for {0}."), FText::FromString(GetClass()->GetName())));
-		Result = EDataValidationResult::Invalid;
+		if (bHasOnCompleteEffects)
+		{
+			Context.AddError(FText::FormatOrdered(LOCTEXT("InstantDoesNotWorkWithOnComplete", "Instant GE will never receive OnComplete for {0}."), FText::FromString(GetClass()->GetName())));
+			Result = EDataValidationResult::Invalid;
+		}
 	}
 	else if (GetOwner()->Period.Value > 0.0f)
 	{
