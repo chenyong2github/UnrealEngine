@@ -943,7 +943,7 @@ namespace UsdStageImporterImpl
 					}
 				}
 			}
-			else
+			else if (AssetTypeFolderPtr)
 			{
 				AssetToContentFolder.Add(Asset, *AssetTypeFolderPtr);
 			}
