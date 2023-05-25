@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
 					"Analytics",
 					"AnalyticsBlueprintLibrary",
 					"CinematicCamera",
+					"Constraints",
 					"ControlRig", // For detecting rigged skeletal animations when exporting level sequences to USD
 					"EditorStyle",
 					"GeometryCache",
