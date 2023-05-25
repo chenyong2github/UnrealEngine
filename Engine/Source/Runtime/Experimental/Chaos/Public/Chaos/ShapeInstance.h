@@ -116,6 +116,7 @@ namespace Chaos
 		const TArray<FMaterialHandle>& GetMaterials() const;
 		void SetMaterial(FMaterialHandle InMaterial);
 		void SetMaterials(const TArray<FMaterialHandle>& InMaterials);
+		void SetMaterials(TArray<FMaterialHandle>&& InMaterials);
 
 		const TArray<FMaterialMaskHandle>& GetMaterialMasks() const;
 		void SetMaterialMasks(const TArray<FMaterialMaskHandle>& InMaterialMasks);
@@ -291,6 +292,14 @@ namespace Chaos
 			Materials.Modify(true, DirtyFlags, Proxy, ShapeIdx, [&InMaterials](FMaterialData& Data)
 				{
 					Data.Materials = InMaterials;
+				});
+		}
+
+		void SetMaterials(TArray<FMaterialHandle>&& InMaterials)
+		{
+			Materials.Modify(true, DirtyFlags, Proxy, ShapeIdx, [&InMaterials](FMaterialData& Data)
+				{
+					Data.Materials = MoveTemp(InMaterials);
 				});
 		}
 
@@ -554,6 +563,7 @@ namespace Chaos
 
 		void SetMaterial(FMaterialHandle InMaterial) { SetMaterialImpl(InMaterial); }
 		void SetMaterials(const TArray<FMaterialHandle>& InMaterials) { GetMaterialDataImpl().Materials = InMaterials; }
+		void SetMaterials(TArray<FMaterialHandle>&& InMaterials) { GetMaterialDataImpl().Materials = InMaterials; }
 		void SetMaterialMasks(const TArray<FMaterialMaskHandle>& InMaterialMasks) { GetMaterialDataImpl().MaterialMasks = InMaterialMasks; }
 		void SetMaterialMaskMaps(const TArray<uint32>& InMaterialMaskMaps) { GetMaterialDataImpl().MaterialMaskMaps = InMaterialMaskMaps; }
 		void SetMaterialMaskMapMaterials(const TArray<FMaterialHandle>& InMaterialMaskMapMaterials) { GetMaterialDataImpl().MaterialMaskMapMaterials = InMaterialMaskMapMaterials; }
@@ -984,6 +994,11 @@ namespace Chaos
 	inline void FPerShapeData::SetMaterials(const TArray<FMaterialHandle>& InMaterials)
 	{
 		DownCast([&InMaterials](auto& ShapeInstance) { ShapeInstance.SetMaterials(InMaterials); });
+	}
+
+	inline void FPerShapeData::SetMaterials(TArray<FMaterialHandle>&& InMaterials)
+	{
+		DownCast([&InMaterials](auto& ShapeInstance) { ShapeInstance.SetMaterials(MoveTemp(InMaterials)); });
 	}
 
 	inline void FPerShapeData::SetMaterialMasks(const TArray<FMaterialMaskHandle>& InMaterialMasks)
