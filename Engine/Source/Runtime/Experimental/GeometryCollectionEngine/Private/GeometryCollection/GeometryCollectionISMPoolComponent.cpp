@@ -34,6 +34,11 @@ FGeometryCollectionMeshGroup::FMeshId FGeometryCollectionMeshGroup::AddMesh(cons
 
 bool FGeometryCollectionMeshGroup::BatchUpdateInstancesTransforms(FGeometryCollectionISMPool& ISMPool, FMeshId MeshId, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
 {
+	return BatchUpdateInstancesTransforms(ISMPool, MeshId, StartInstanceIndex, MakeArrayView(NewInstancesTransforms), bWorldSpace, bMarkRenderStateDirty, bTeleport);
+}
+
+bool FGeometryCollectionMeshGroup::BatchUpdateInstancesTransforms(FGeometryCollectionISMPool& ISMPool, FMeshId MeshId, int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
 	if (MeshInfos.IsValidIndex(MeshId))
 	{
 		return ISMPool.BatchUpdateInstancesTransforms(MeshInfos[MeshId], StartInstanceIndex, NewInstancesTransforms, bWorldSpace, bMarkRenderStateDirty, bTeleport);
@@ -187,6 +192,13 @@ FGeometryCollectionMeshInfo FGeometryCollectionISMPool::AddISM(UGeometryCollecti
 
 bool FGeometryCollectionISMPool::BatchUpdateInstancesTransforms(FGeometryCollectionMeshInfo& MeshInfo, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
 {
+	return BatchUpdateInstancesTransforms(MeshInfo, StartInstanceIndex, MakeArrayView(NewInstancesTransforms), bWorldSpace, bMarkRenderStateDirty, bTeleport);
+}
+
+bool FGeometryCollectionISMPool::BatchUpdateInstancesTransforms(FGeometryCollectionMeshInfo& MeshInfo, int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	constexpr bool bUseArrayView = true;
+
 	if (ISMs.IsValidIndex(MeshInfo.ISMIndex))
 	{
 		FGeometryCollectionISM& ISM = ISMs[MeshInfo.ISMIndex];
@@ -199,26 +211,51 @@ bool FGeometryCollectionISMPool::BatchUpdateInstancesTransforms(FGeometryCollect
 		int32 StartIndex = ISM.InstanceIndexToRenderIndex[InstanceGroup.Start];
 		int32 TransformIndex = 0;
 		int32 BatchCount = 1;
-		TArray<FTransform> BatchTransforms; // Can't use TArrayView because blueprint function doesn't support that 
-		BatchTransforms.Reserve(NewInstancesTransforms.Num());
-		BatchTransforms.Add(NewInstancesTransforms[TransformIndex++]);
-		for (int InstanceIndex = StartInstanceIndex + 1; InstanceIndex < NewInstancesTransforms.Num(); ++InstanceIndex)
-		{
-			// Flush batch for non-sequential instances.
-			int32 RenderIndex = ISM.InstanceIndexToRenderIndex[InstanceGroup.Start + InstanceIndex];
-			if (RenderIndex != (StartIndex + BatchCount))
-			{
-				ISM.ISMComponent->BatchUpdateInstancesTransforms(StartIndex, BatchTransforms, bWorldSpace, bMarkRenderStateDirty, bTeleport);
-				StartIndex = RenderIndex;
-				BatchTransforms.SetNum(0, false);
-				BatchCount = 0;
-			}
-			
-			BatchTransforms.Add(NewInstancesTransforms[TransformIndex++]);
-			BatchCount++;
-		}
 
-		return ISM.ISMComponent->BatchUpdateInstancesTransforms(StartIndex, BatchTransforms, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+		if constexpr (bUseArrayView)
+		{
+			for (int InstanceIndex = StartInstanceIndex + 1; InstanceIndex < NewInstancesTransforms.Num(); ++InstanceIndex)
+			{
+				// Flush batch for non-sequential instances.
+				int32 RenderIndex = ISM.InstanceIndexToRenderIndex[InstanceGroup.Start + InstanceIndex];
+				if (RenderIndex != (StartIndex + BatchCount))
+				{
+					TArrayView<const FTransform> BatchedTransformsView = MakeArrayView(NewInstancesTransforms.GetData() + TransformIndex, BatchCount);
+					ISM.ISMComponent->BatchUpdateInstancesTransforms(StartIndex, BatchedTransformsView, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+					StartIndex = RenderIndex;
+					TransformIndex += BatchCount;
+					BatchCount = 0;
+				}
+				BatchCount++;
+			}
+
+			// last one
+			TArrayView<const FTransform> BatchedTransformsView = MakeArrayView(NewInstancesTransforms.GetData() + TransformIndex, BatchCount);
+			return ISM.ISMComponent->BatchUpdateInstancesTransforms(StartIndex, BatchedTransformsView, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+		}
+		else
+		{
+			TArray<FTransform> BatchTransforms; // Can't use TArrayView because blueprint function doesn't support that 
+			BatchTransforms.Reserve(NewInstancesTransforms.Num());
+			BatchTransforms.Add(NewInstancesTransforms[TransformIndex++]);
+			for (int InstanceIndex = StartInstanceIndex + 1; InstanceIndex < NewInstancesTransforms.Num(); ++InstanceIndex)
+			{
+				// Flush batch for non-sequential instances.
+				int32 RenderIndex = ISM.InstanceIndexToRenderIndex[InstanceGroup.Start + InstanceIndex];
+				if (RenderIndex != (StartIndex + BatchCount))
+				{
+					ISM.ISMComponent->BatchUpdateInstancesTransforms(StartIndex, BatchTransforms, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+					StartIndex = RenderIndex;
+					BatchTransforms.SetNum(0, false);
+					BatchCount = 0;
+				}
+
+				BatchTransforms.Add(NewInstancesTransforms[TransformIndex++]);
+				BatchCount++;
+			}
+
+			return ISM.ISMComponent->BatchUpdateInstancesTransforms(StartIndex, BatchTransforms, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+		}
 	}
 	UE_LOG(LogChaos, Warning, TEXT("UGeometryCollectionISMPoolComponent : Invalid ISM Id (%d) when updating the transform "), MeshInfo.ISMIndex);
 	return false;
@@ -240,11 +277,14 @@ void FGeometryCollectionISMPool::RemoveISM(const FGeometryCollectionMeshInfo& Me
 			// Clear the stored render index since we're about to remove it.
 			ISM.InstanceIndexToRenderIndex[InstanceGroup.Start + InstanceIndex] = -1;
 		}
-		ISM.ISMComponent->RemoveInstances(InstancesToRemove);
+
+		// we sort the array on the spot because we use it after calling RemoveInstances to fix up our own indices
+		InstancesToRemove.Sort(TGreater<int32>());
+		constexpr bool bArrayAlreadySorted = true;
+		ISM.ISMComponent->RemoveInstances(InstancesToRemove, bArrayAlreadySorted);
 
 		// Fix up instance index remapping to match what will have happened in our ISM component in RemoveInstances()
 		check(ISM.ISMComponent->SupportsRemoveSwap());
-		InstancesToRemove.Sort(TGreater<int32>());
 		for (int32 RenderIndex : InstancesToRemove)
 		{
 			ISM.RenderIndexToInstanceIndex.RemoveAtSwap(RenderIndex, 1, false);
@@ -331,6 +371,11 @@ UGeometryCollectionISMPoolComponent::FMeshId UGeometryCollectionISMPoolComponent
 }
 
 bool UGeometryCollectionISMPoolComponent::BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	return BatchUpdateInstancesTransforms(MeshGroupId, MeshId, StartInstanceIndex, MakeArrayView(NewInstancesTransforms), bWorldSpace, bMarkRenderStateDirty, bTeleport);
+}
+
+bool UGeometryCollectionISMPoolComponent::BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
 {
 	if (FGeometryCollectionMeshGroup* MeshGroup = MeshGroups.Find(MeshGroupId))
 	{
