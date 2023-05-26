@@ -37,7 +37,7 @@ public:
 
 	void Init(FReplicationPrioritizationInitParams& Params);
 
-	void Prioritize(const FNetBitArrayView& ConnectionsToSend, const FNetBitArrayView& DirtyObjects);
+	void Prioritize(const FNetBitArrayView& ConnectionsToSend, const FNetBitArrayView& DirtyObjectsThisFrame);
 
 	void SetStaticPriority(uint32 ObjectIndex, float Prio);
 	bool SetPrioritizer(uint32 ObjectIndex, FNetObjectPrioritizerHandle Prioritizer);
@@ -53,7 +53,7 @@ private:
 
 	void UpdatePrioritiesForNewAndDeletedObjects();
 	void PrioritizeForConnection(uint32 ConnId, FPrioritizerBatchHelper& BatchHelper, FNetBitArrayView Objects);
-	void NotifyPrioritizersOfDirtyObjects(const FNetBitArrayView& DirtyObjects);
+	void NotifyPrioritizersOfDirtyObjects(const FNetBitArrayView& DirtyObjectsThisFrame);
 	void BatchNotifyPrioritizersOfDirtyObjects(FUpdateDirtyObjectsBatchHelper& BatchHelper, uint32* ObjectIndices, uint32 ObjectCount);
 	void InitPrioritizers();
 
