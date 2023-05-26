@@ -37,8 +37,16 @@ FPCGEditorGraphDebugObjectInstance::FPCGEditorGraphDebugObjectInstance(TWeakObje
 void SPCGEditorGraphDebugObjectWidget::Construct(const FArguments& InArgs, TSharedPtr<FPCGEditor> InPCGEditor)
 {
 	PCGEditorPtr = InPCGEditor;
-
-	DebugObjects.Add(MakeShared<FPCGEditorGraphDebugObjectInstance>());
+	
+	if (UPCGComponent* PCGComponent = InPCGEditor->GetPCGComponentBeingInspected())
+	{
+		const FPCGStack& PCGStack = InPCGEditor->GetStackBeingInspected();
+		DebugObjects.Add(MakeShared<FPCGEditorGraphDebugObjectInstance>(PCGComponent, PCGStack));
+	}
+	else
+	{
+		DebugObjects.Add(MakeShared<FPCGEditorGraphDebugObjectInstance>());
+	}
 
 	const TSharedRef<SWidget> SetButton = PropertyCustomizationHelpers::MakeUseSelectedButton(
 		FSimpleDelegate::CreateSP(this, &SPCGEditorGraphDebugObjectWidget::SetDebugObjectFromSelection_OnClicked),

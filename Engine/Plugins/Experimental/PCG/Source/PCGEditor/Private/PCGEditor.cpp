@@ -331,10 +331,17 @@ FString FPCGEditor::GetWorldCentricTabPrefix() const
 void FPCGEditor::RegisterToolbar() const
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
+	UToolMenu* ToolBar;
 	FName ParentName;
 	const FName MenuName = GetToolMenuToolbarName(ParentName);
-
-	UToolMenu* ToolBar = ToolMenus->RegisterMenu(MenuName, ParentName, EMultiBoxType::ToolBar);
+	if (ToolMenus->IsMenuRegistered(MenuName))
+	{
+		ToolBar = ToolMenus->ExtendMenu(MenuName);
+	}
+	else
+	{
+		ToolBar = ToolMenus->RegisterMenu(MenuName, ParentName, EMultiBoxType::ToolBar);
+	}
 
 	const FPCGEditorCommands& PCGEditorCommands = FPCGEditorCommands::Get();
 	const FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
