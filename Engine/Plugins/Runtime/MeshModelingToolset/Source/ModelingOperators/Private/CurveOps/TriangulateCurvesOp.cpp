@@ -124,7 +124,7 @@ void FTriangulateCurvesOp::CalculateResult(FProgressCancel* Progress)
 		for (int32 PathIdx = 1; PathIdx < Paths.Num(); ++PathIdx)
 		{
 			FVector3d PolygonNormal;
-			PolygonTriangulation::ComputePolygonPlane<double>(Paths[0].Vertices, PolygonNormal, PlanePoint);
+			PolygonTriangulation::ComputePolygonPlane<double>(Paths[PathIdx].Vertices, PolygonNormal, PlanePoint);
 			if (PolygonNormal.Dot(AccumulatedNormal) < 0)
 			{
 				PolygonNormal = -PolygonNormal;
