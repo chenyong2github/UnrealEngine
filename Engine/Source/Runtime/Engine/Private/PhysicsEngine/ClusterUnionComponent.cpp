@@ -579,8 +579,17 @@ void UClusterUnionComponent::SyncClusterUnionFromProxy()
 		HandleRemovedClusteredComponent(Component, true);
 	}
 
+	const FBoxSphereBounds OldBounds = CachedLocalBounds;
 	bHasCachedLocalBounds = false;
 	UpdateBounds();
+
+	// Check if the old bounds is approximately equal to the new bounds. If so, we don't need to send an event
+	// saying that the cluster union changed in shape/position.
+	const bool bIsSameBounds = OldBounds.Origin.Equals(CachedLocalBounds.Origin) && OldBounds.BoxExtent.Equals(CachedLocalBounds.BoxExtent) && (FMath::Abs(OldBounds.SphereRadius - CachedLocalBounds.SphereRadius) < UE_KINDA_SMALL_NUMBER);
+	if (!bIsSameBounds)
+	{
+		OnComponentBoundsChangedEvent.Broadcast(this, CachedLocalBounds);
+	}
 }
 
 void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveComponent* ChangedComponent, const TMap<int32, FTransform>& PerBoneChildToParent)

@@ -120,6 +120,7 @@ struct FClusterUnionParticleCandidateData
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnClusterUnionAddedComponent, UPrimitiveComponent*, Component, const TSet<int32>&, BoneIds, bool, bIsNew);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnClusterUnionRemovedComponent, UPrimitiveComponent*, Component);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnClusterUnionBoundsChanged, UClusterUnionComponent*, Component, const FBoxSphereBounds&, Bounds);
 
 /**
  * This does the bulk of the work exposing a physics cluster union to the game thread.
@@ -182,6 +183,12 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnClusterUnionRemovedComponent OnComponentRemovedEvent;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnClusterUnionBoundsChanged OnComponentBoundsChangedEvent;
+
+	// Lambda returns whether or not iteration should continue;
+	void VisitAllCurrentChildComponents(const TFunction<bool(UPrimitiveComponent*)>& Lambda) const;
 
 	friend class UClusterUnionReplicatedProxyComponent;
 protected:
@@ -265,8 +272,6 @@ private:
 	void HandleRemovedClusteredComponent(UPrimitiveComponent* ChangedComponent, bool bDestroyReplicatedProxy);
 
 	TArray<UPrimitiveComponent*> GetAllCurrentChildComponents() const;
-	// Lambda returns whether or not iteration should continue;
-	void VisitAllCurrentChildComponents(const TFunction<bool(UPrimitiveComponent*)>& Lambda) const;
 	void VisitAllCurrentChildComponentsForCollision(ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, const TFunction<bool(UPrimitiveComponent*)>& Lambda) const;
 
 	// Whether or not this code is running on the server.
