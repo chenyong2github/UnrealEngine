@@ -15,7 +15,7 @@
 #include "Selections/MeshFaceSelection.h"
 
 
-namespace
+namespace GeometrySelectionUtilLocals
 {
 
 // Return an integer in the range [0,5] which can be used to look up a handling function based on the Selection type
@@ -27,7 +27,177 @@ int GetSelectionTypeAsIndex(const UE::Geometry::FGeometrySelection& Selection)
 	return Index;
 }
 
+// We don't currently have an overload of EnumerateSelectionTriangles that takes a FGroupTopology
+// instead of FPolygroupSet. If we build out the below version to support the other selection
+// types (vertex, edge), we might want to expose it.
+/**
+ * Given a selection with elements of type EGeometryElementType::Face, call TriangleFunc on
+ * each triangle of the selection.
+ * 
+ * @param GroupTopology must not be null if Selection is EGeometryTopologyType::Polygroup
+ */
+bool EnumerateFaceElementSelectionTriangles(
+	const UE::Geometry::FGeometrySelection& Selection,
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const UE::Geometry::FGroupTopology* GroupTopology,
+	TFunctionRef<void(int32)> TriangleFunc)
+{
+	using namespace UE::Geometry;
+
+	if (!ensure(Selection.ElementType == EGeometryElementType::Face))
+	{
+		return false;
+	}
+
+	if (Selection.TopologyType == EGeometryTopologyType::Polygroup)
+	{
+		if (!ensure(GroupTopology))
+		{
+			return false;
+		}
+
+		for (uint64 EncodedID : Selection.Selection)
+		{
+			FGeoSelectionID GroupTriID(EncodedID);
+			int32 SeedTriangleID = (int32)GroupTriID.GeometryID;
+			int32 GroupID = (int32)GroupTriID.TopologyID;
+			if (Mesh.IsTriangle(SeedTriangleID))
+			{
+				for (int32 Tid : GroupTopology->GetGroupTriangles(GroupID))
+				{
+					TriangleFunc(Tid);
+				}
+			}
+		}
+	}
+	else if (Selection.TopologyType == EGeometryTopologyType::Triangle)
+	{
+		for (uint64 TriangleID : Selection.Selection)
+		{
+			if (Mesh.IsTriangle((int32)TriangleID))
+			{
+				TriangleFunc((int32)TriangleID);
+			}
+		}
+	}
+	else
+	{
+		return ensure(false);
+	}
+
+	return true;
 }
+
+// We don't currently have an EnumerateSelectionEdges. If we build out the below to handle
+// other selection types (vertex, face), we might want to expose it.
+/**
+ * Given a selection with elements of type EGeometryElementType::Edge, call EdgeFunc on
+ * each mesh edge (with the Eid passed in) of the selection.
+ *
+ * @param GroupTopology must not be null if Selection is EGeometryTopologyType::Polygroup
+ */
+bool EnumerateEdgeElementSelectionEdges(
+	const UE::Geometry::FGeometrySelection& Selection,
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const UE::Geometry::FGroupTopology* GroupTopology,
+	TFunctionRef<void(uint32)> EdgeFunc)
+{
+	using namespace UE::Geometry;
+
+	if (!ensure(Selection.ElementType == EGeometryElementType::Edge))
+	{
+		return false;
+	}
+
+	if (Selection.TopologyType == EGeometryTopologyType::Polygroup)
+	{
+		if (!ensure(GroupTopology))
+		{
+			return false;
+		}
+
+		for (uint64 EncodedID : Selection.Selection)
+		{
+			FMeshTriEdgeID TriEdgeID(FGeoSelectionID(EncodedID).GeometryID);
+			int32 SeedEdgeID = Mesh.IsTriangle(TriEdgeID.TriangleID) ? Mesh.GetTriEdge(TriEdgeID.TriangleID, TriEdgeID.TriEdgeIndex) : IndexConstants::InvalidID;
+			if (Mesh.IsEdge(SeedEdgeID))
+			{
+				int32 GroupEdgeID = GroupTopology->FindGroupEdgeID(SeedEdgeID);
+				for (int32 Eid : GroupTopology->GetGroupEdgeEdges(GroupEdgeID))
+				{
+					EdgeFunc(Eid);
+				}
+			}
+		}
+	}
+	else if (Selection.TopologyType == EGeometryTopologyType::Triangle)
+	{
+		for (uint64 EncodedID : Selection.Selection)
+		{
+			FMeshTriEdgeID TriEdgeID(FGeoSelectionID(EncodedID).GeometryID);
+			int32 EdgeID = Mesh.IsTriangle(TriEdgeID.TriangleID) ? Mesh.GetTriEdge(TriEdgeID.TriangleID, TriEdgeID.TriEdgeIndex) : IndexConstants::InvalidID;
+			if (Mesh.IsEdge(EdgeID))
+			{
+				EdgeFunc(EdgeID);
+			}
+		}
+	}
+	else
+	{
+		return ensure(false);
+	}
+
+	return true;
+}
+
+bool EnumerateVertexElementSelectionVertices(
+	const UE::Geometry::FGeometrySelection& Selection,
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const UE::Geometry::FGroupTopology* GroupTopology,
+	TFunctionRef<void(uint32)> VertexFunc)
+{
+	using namespace UE::Geometry;
+
+	if (!ensure(Selection.ElementType == EGeometryElementType::Vertex))
+	{
+		return false;
+	}
+
+	if (Selection.TopologyType == EGeometryTopologyType::Polygroup)
+	{
+		if (!ensure(GroupTopology))
+		{
+			return false;
+		}
+
+		for (uint64 EncodedID : Selection.Selection)
+		{
+			int32 VertexID = (int32)FGeoSelectionID(EncodedID).GeometryID;
+			if (Mesh.IsVertex(VertexID))
+			{
+				VertexFunc(VertexID);
+			}
+		}
+	}
+	else if (Selection.TopologyType == EGeometryTopologyType::Triangle)
+	{
+		for (uint64 VertexID : Selection.Selection)
+		{
+			if (Mesh.IsVertex((int32)VertexID))
+			{
+				VertexFunc((int32)VertexID);
+			}
+		}
+	}
+	else
+	{
+		return ensure(false);
+	}
+
+	return true;
+}
+
+}//end GeometrySelectionUtilLocals
 
 bool UE::Geometry::AreSelectionsIdentical(
 	const FGeometrySelection& SelectionA, const FGeometrySelection& SelectionB)
@@ -994,7 +1164,7 @@ bool UE::Geometry::ConvertSelection(
 	const FGeometrySelection& FromSelectionIn,
 	FGeometrySelection& ToSelectionOut)
 {
-
+	using namespace GeometrySelectionUtilLocals;
 
 	const auto NotImplemented = [](
 		const FDynamicMesh3& Mesh,
@@ -1453,6 +1623,284 @@ bool UE::Geometry::MakeSelectAllConnectedSelection(
 
 
 
+bool UE::Geometry::GetSelectionBoundaryVertices(
+	const FDynamicMesh3& Mesh,
+	const FGroupTopology* GroupTopology,
+	const FGeometrySelection& ReferenceSelection,
+	TSet<int32>& BorderVidsOut, TSet<int32>& CurVerticesOut)
+{
+	using namespace GeometrySelectionUtilLocals;
+
+	BorderVidsOut.Reset();
+	CurVerticesOut.Reset();
+	
+	switch (ReferenceSelection.ElementType)
+	{
+	case EGeometryElementType::Vertex:
+		EnumerateVertexElementSelectionVertices(ReferenceSelection, Mesh, GroupTopology, [&CurVerticesOut](uint32 Vid)
+		{
+			CurVerticesOut.Add(Vid);
+		});
+
+		// Border vertices are ones that have some adjacent vertices not in selection
+		for (int32 VertexID : CurVerticesOut)
+		{
+			// a boundary vertex is always on the selection boundary (for this and other selection types)
+			bool bIsBoundary = Mesh.IsBoundaryVertex(VertexID);	
+			if (!bIsBoundary)
+			{
+				Mesh.EnumerateVertexVertices(VertexID, [&](int32 NbrVertexID)
+				{
+					if (!CurVerticesOut.Contains(NbrVertexID))
+					{
+						bIsBoundary = true;
+					}
+				});
+			}
+
+			if (bIsBoundary)
+			{
+				BorderVidsOut.Add(VertexID);
+			}
+		}
+		break;
+	case EGeometryElementType::Edge:
+	{
+		// Border vertices are ones that have some adjacent edges that are not in selection, so
+		// determine edges in selection.
+		TSet<int32> EdgeIDsInSelection;
+		EnumerateEdgeElementSelectionEdges(ReferenceSelection, Mesh, GroupTopology, [&EdgeIDsInSelection, &CurVerticesOut, &Mesh](uint32 Eid)
+		{
+			EdgeIDsInSelection.Add(Eid);
+			FIndex2i EdgeV = Mesh.GetEdgeV(Eid);
+			CurVerticesOut.Add(EdgeV.A);
+			CurVerticesOut.Add(EdgeV.B);
+		});
+
+		for (int32 VertexID : CurVerticesOut)
+		{
+			bool bIsBoundary = Mesh.IsBoundaryVertex(VertexID);
+			if (!bIsBoundary)
+			{
+				Mesh.EnumerateVertexEdges(VertexID, [&EdgeIDsInSelection, &bIsBoundary](int32 EdgeID)
+				{
+					if (!EdgeIDsInSelection.Contains(EdgeID))
+					{
+						bIsBoundary = true;
+					}
+				});
+			}
+
+			if (bIsBoundary)
+			{
+				BorderVidsOut.Add(VertexID);
+			}
+		}
+	}
+		break;
+	case EGeometryElementType::Face:
+	{
+		// Border vertices are ones that have some adjacent triangles that are not in selection.
+		TSet<int32> TriangleIDsInSelection;
+		EnumerateFaceElementSelectionTriangles(ReferenceSelection, Mesh, GroupTopology, [&TriangleIDsInSelection, &CurVerticesOut, &Mesh](uint32 Tid)
+		{
+			TriangleIDsInSelection.Add(Tid);
+			FIndex3i Triangle = Mesh.GetTriangle(Tid);
+			CurVerticesOut.Add(Triangle.A);
+			CurVerticesOut.Add(Triangle.B);
+			CurVerticesOut.Add(Triangle.C);
+		});
+
+		for (int32 VertexID : CurVerticesOut)
+		{
+			bool bIsBoundary = Mesh.IsBoundaryVertex(VertexID);
+			if (!bIsBoundary)
+			{
+				Mesh.EnumerateVertexTriangles(VertexID, [&TriangleIDsInSelection, &bIsBoundary](int32 TriangleID)
+				{
+					if (!TriangleIDsInSelection.Contains(TriangleID))
+					{
+						bIsBoundary = true;
+					}
+				});
+			}
+
+			if (bIsBoundary)
+			{
+				BorderVidsOut.Add(VertexID);
+			}
+		}
+	}
+		break;
+	default:
+		return ensure(false);
+	}
+
+	return true;
+}
+
+
+
+bool UE::Geometry::GetSelectionBoundaryCorners(
+	const FDynamicMesh3& Mesh,
+	const FGroupTopology* GroupTopology,
+	const FGeometrySelection& ReferenceSelection,
+	TSet<int32>& BorderCornerIDsOut, TSet<int32>& CurCornerIDsOut)
+{
+	BorderCornerIDsOut.Reset();
+	CurCornerIDsOut.Reset();
+
+	if (!ensure(GroupTopology))
+	{
+		return false;
+	}
+
+	if (!ensure(ReferenceSelection.TopologyType == EGeometryTopologyType::Polygroup))
+	{
+		// We don't currently support triangle selections here in part because it's not clear what to do. The
+		// proper thing is likely to convert to an equivalent polygroup selection and find border corners, but
+		// we haven't yet defined some of those conversions. Alternatively we could find the border vertices and 
+		// keep whichever ones happen to be corners, but that gives the unintuitive result of not giving any corners
+		// for selections that don't happen to line up with group boundaries.
+		// There's also the fact that we don't yet have a use case for supporting this here.
+		return false;
+	}
+
+	TArray<int32> NbrArray;
+
+	switch (ReferenceSelection.ElementType)
+	{
+	case EGeometryElementType::Vertex:
+	{
+		// Assemble included corners
+		for (uint64 ID : ReferenceSelection.Selection)
+		{
+			CurCornerIDsOut.Add(FGeoSelectionID(ID).TopologyID);		// TODO: can we rely on TopologyID being stable here, or do we need to look up from VertexID?
+		}
+
+		// Border corners are ones that have a corner neighbor not in the selection
+		for (int32 CornerID : CurCornerIDsOut)
+		{
+			// Boundary vertex corners are always considered to be on selection boundary (for this and other selection types)
+			bool bIsBoundary = Mesh.IsBoundaryVertex(GroupTopology->GetCornerVertexID(CornerID));
+			if (!bIsBoundary)
+			{
+				NbrArray.Reset();
+				GroupTopology->FindCornerNbrCorners(CornerID, NbrArray);
+				for (int32 NbrCornerID : NbrArray)
+				{
+					if (!CurCornerIDsOut.Contains(NbrCornerID))
+					{
+						bIsBoundary = true;
+						break;
+					}
+				}
+			}
+
+			if (bIsBoundary)
+			{
+				BorderCornerIDsOut.Add(CornerID);
+			}
+		}
+	}
+		break;
+	case EGeometryElementType::Edge:
+	{
+		// Assemble the current group edge selection and the included corners.
+		TSet<int32> GroupEdgeIDsInSelection;
+		for (uint64 ID : ReferenceSelection.Selection)
+		{
+			int32 GroupEdgeID = FGeoSelectionID(ID).TopologyID;
+			GroupEdgeIDsInSelection.Add(GroupEdgeID);
+
+			const FGroupTopology::FGroupEdge& Edge = GroupTopology->Edges[GroupEdgeID];
+			if (Edge.EndpointCorners.A != IndexConstants::InvalidID)
+			{
+				CurCornerIDsOut.Add(Edge.EndpointCorners.A);
+			}
+			if (Edge.EndpointCorners.B != IndexConstants::InvalidID)
+			{
+				CurCornerIDsOut.Add(Edge.EndpointCorners.B);
+			}
+		}
+
+		// Border corners are ones that have some attached group edges that are not in the current selection.
+		for (int32 CornerID : CurCornerIDsOut)
+		{
+			bool bIsBoundary = Mesh.IsBoundaryVertex(GroupTopology->GetCornerVertexID(CornerID));
+			if (!bIsBoundary)
+			{
+				NbrArray.Reset();
+				GroupTopology->FindCornerNbrEdges(CornerID, NbrArray);
+				for (int32 GroupEdgeID : NbrArray)
+				{
+					if (!GroupEdgeIDsInSelection.Contains(GroupEdgeID))
+					{
+						bIsBoundary = true;
+						break;
+					}
+				}
+			}
+
+			if (bIsBoundary)
+			{
+				BorderCornerIDsOut.Add(CornerID);
+			}
+		}
+	}
+		break;
+	case EGeometryElementType::Face:
+	{
+		// Assemble current group selection and the included corners
+		TSet<int32> GroupsInSelection;
+		for (uint64 ID : ReferenceSelection.Selection)
+		{
+			int32 GroupID = FGeoSelectionID(ID).TopologyID;
+			GroupsInSelection.Add(GroupID);
+			GroupTopology->ForGroupEdges(GroupID, [&](const FGroupTopology::FGroupEdge& Edge, int)
+			{
+				if (Edge.EndpointCorners.A != IndexConstants::InvalidID)
+				{
+					CurCornerIDsOut.Add(Edge.EndpointCorners.A);
+				}
+				if (Edge.EndpointCorners.B != IndexConstants::InvalidID)
+				{
+					CurCornerIDsOut.Add(Edge.EndpointCorners.B);
+				}
+			});
+		}
+
+		// Boundary corners are ones that have an attached group not in selection
+		for (int32 CornerID : CurCornerIDsOut)
+		{
+			bool bIsBoundary = Mesh.IsBoundaryVertex(GroupTopology->GetCornerVertexID(CornerID));
+			if (!bIsBoundary)
+			{
+				NbrArray.Reset();
+				GroupTopology->FindCornerNbrGroups(CornerID, NbrArray);
+				for (int32 Group : NbrArray)
+				{
+					if (!GroupsInSelection.Contains(Group))
+					{
+						bIsBoundary = true;
+						break;
+					}
+				}
+			}
+
+			if (bIsBoundary)
+			{
+				BorderCornerIDsOut.Add(CornerID);
+			}
+		}
+	}
+		break;
+	default:
+		return ensure(false);
+	}
+
+	return true;
+}
 
 
 
@@ -1463,32 +1911,18 @@ bool UE::Geometry::MakeBoundaryConnectedSelection(
 	TFunctionRef<bool(FGeoSelectionID)> SelectionIDPredicate,
 	FGeometrySelection& BoundaryConnectedSelection)
 {
+	using namespace GeometrySelectionUtilLocals;
+
 	if (BoundaryConnectedSelection.TopologyType == EGeometryTopologyType::Triangle)
 	{
-		// convert to vertex selection
-		TSet<int32> CurVertices;
-		EnumerateTriangleSelectionVertices(ReferenceSelection, Mesh, FTransform::Identity, [&](uint64 ID, const FVector3d&)
-		{
-			CurVertices.Add( FGeoSelectionID(ID).GeometryID );
-		});
-		// find 'border' vertices that have some adjacent vertices not in selection
 		TSet<int32> BorderVertices;
-		for (int32 VertexID : CurVertices)
+		TSet<int32> CurVertices;
+		if (!GetSelectionBoundaryVertices(Mesh, GroupTopology, ReferenceSelection, BorderVertices, CurVertices))
 		{
-			bool bIsBoundary = Mesh.IsBoundaryVertex(VertexID);		// a boundary vertex is always on the selection boundary
-			Mesh.EnumerateVertexVertices(VertexID, [&](int32 NbrVertexID)
-			{
-				if (CurVertices.Contains(NbrVertexID) == false)
-				{
-					bIsBoundary = true;
-				}
-			});
-			if (bIsBoundary)
-			{
-				BorderVertices.Add(VertexID);
-			}
+			return false;
 		}
 
+		// Now select elements connected to the border vertices.
 		if (BoundaryConnectedSelection.ElementType == EGeometryElementType::Vertex)
 		{
 			TSet<int32> AdjacentVertices = BorderVertices;
@@ -1561,76 +1995,15 @@ bool UE::Geometry::MakeBoundaryConnectedSelection(
 			return false;
 		}
 
-		// convert to Corner selection
 		TSet<int32> CurCornerIDs;
-		if (ReferenceSelection.ElementType == EGeometryElementType::Vertex)
-		{
-			for (uint64 ID : ReferenceSelection.Selection)
-			{
-				CurCornerIDs.Add( FGeoSelectionID(ID).TopologyID );		// TODO: can we rely on TopologyID being stable here, or do we need to look up from VertexID?
-			}
-		}
-		else if (ReferenceSelection.ElementType == EGeometryElementType::Edge)
-		{
-			for (uint64 ID : ReferenceSelection.Selection)
-			{
-				int32 GroupEdgeID = FGeoSelectionID(ID).TopologyID;
-				const FGroupTopology::FGroupEdge& Edge = GroupTopology->Edges[GroupEdgeID];
-				if ( Edge.EndpointCorners.A != IndexConstants::InvalidID )
-				{
-					CurCornerIDs.Add(Edge.EndpointCorners.A);
-				}
-				if ( Edge.EndpointCorners.B != IndexConstants::InvalidID )
-				{
-					CurCornerIDs.Add(Edge.EndpointCorners.B);
-				}
-			}
-		}
-		else if (ReferenceSelection.ElementType == EGeometryElementType::Face)
-		{
-			for (uint64 ID : ReferenceSelection.Selection)
-			{
-				int32 GroupID = FGeoSelectionID(ID).TopologyID;
-				const FGroupTopology::FGroup* Group = GroupTopology->FindGroupByID(GroupID);
-				GroupTopology->ForGroupEdges(GroupID, [&](const FGroupTopology::FGroupEdge& Edge, int)
-				{
-					if ( Edge.EndpointCorners.A != IndexConstants::InvalidID )
-					{
-						CurCornerIDs.Add(Edge.EndpointCorners.A);
-					}
-					if ( Edge.EndpointCorners.B != IndexConstants::InvalidID )
-					{
-						CurCornerIDs.Add(Edge.EndpointCorners.B);
-					}
-				});
-			}
-		}
-		else
+		TSet<int32> BorderCorners;
+		
+		if (!GetSelectionBoundaryCorners(Mesh, GroupTopology, ReferenceSelection, BorderCorners, CurCornerIDs))
 		{
 			return false;
 		}
 
-
-		// now find 'border' corners that have some adjacent corners not in selection
-		TSet<int32> BorderCorners;
 		TArray<int32> NbrArray;
-		for (int32 CornerID : CurCornerIDs)
-		{
-			bool bIsBoundary = Mesh.IsBoundaryVertex(GroupTopology->GetCornerVertexID(CornerID));		// a boundary vertex is always on the selection boundary
-			NbrArray.Reset();
-			GroupTopology->FindCornerNbrCorners(CornerID, NbrArray);
-			for ( int32 NbrCornerID : NbrArray )
-			{
-				if (CurCornerIDs.Contains(NbrCornerID) == false)
-				{
-					bIsBoundary = true;
-				}
-			}
-			if (bIsBoundary)
-			{
-				BorderCorners.Add(CornerID);
-			}
-		}
 
 		// now that we have boundary corners, iterate over them and select connected elements
 		if (BoundaryConnectedSelection.ElementType == EGeometryElementType::Vertex)

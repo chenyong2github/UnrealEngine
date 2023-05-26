@@ -301,6 +301,54 @@ DYNAMICMESH_API bool MakeBoundaryConnectedSelection(
 	TFunctionRef<bool(FGeoSelectionID)> SelectionIDPredicate,
 	FGeometrySelection& BoundaryConnectedSelection);
 
+/**
+ * Given a selection, return the vertex IDs of the vertices on the boundary of this selection. A selected vertex 
+ * is considered to be on the boundary either if it is on the actual mesh boundary (for an open mesh) or it is
+ * connected to a triangle element that is not part of the selection (i.e. if the vertex has a neighbor vertex 
+ * not in selection for a selection of type EGeometryElementType::Vertex, or an adjacent edge not in selection
+ * for a selection of type EGeometryElementType::Edge, an adjacent triangle not in the selection for a selection 
+ * of type EGeometryElementType::Face).
+ * 
+ * For selections of type EGeometryTopologyType::Polygroup, the results are equivalent to first converting the
+ * selection to corresponding EGeometryTopologyType::Triangle selection and then finding the boundary vertices.
+ * This gives the intuitive result for face selections, but may or may not be what is desired for polygroup 
+ * vertex/edge selections, because vertices/edges that seem to be on the interior of the polygroup selection 
+ * may be considered border vertices if the tesselation is such that they are adjacent to unselected triangle
+ * vertices/edges.
+ * 
+ * @param GroupTopology Must not be null for selections of type EGeometryTopologyType::Polygroup
+ * @param BorderVidsOut Output vertex IDs of border vertices
+ * @param CurVerticesOut Output vertex IDs of all vertices in the current selection
+ * @return true if successful. For instance, could fail if GroupTopology was null for a EGeometryTopologyType::Polygroup selection
+ */
+DYNAMICMESH_API bool GetSelectionBoundaryVertices(
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const UE::Geometry::FGroupTopology* GroupTopology,
+	const UE::Geometry::FGeometrySelection& ReferenceSelection,
+	TSet<int32>& BorderVidsOut, TSet<int32>& CurVerticesOut);
+
+/**
+ * Given a EGeometryTopologyType::Polygroup selection, return the corner IDs of the polygroup corners on the
+ * boundary of the selection. A selected corner is considered to be on the boundary either if it is on the actual 
+ * mesh boundary (for an open mesh) or it is connected to an element that is not part of the selection (i.e. if
+ * there is a neighbor corner not in the selection for a selection of type EGeometryElementType::Vertex, or an
+ * adjoining edge not in the selection for a selection of type EGeometryElementType::Edge, or an adjoining group not
+ * in the selection for a selection of type EGeometryElementType::Face).
+ * 
+ * Selection must be of type EGeometryTopologyType::Polygroup, and GroupTopology must not be null.
+ *
+ * @param GroupTopology Must not be null
+ * @param BorderCornerIDsOut Output corner IDs of border corners
+ * @param CurCornerIDsOut Output corner IDs of all corners included in the current selection
+ * @return true if successful. For instance, could fail if GroupTopology was null
+ */
+DYNAMICMESH_API bool GetSelectionBoundaryCorners(
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const UE::Geometry::FGroupTopology* GroupTopology,
+	const UE::Geometry::FGeometrySelection& ReferenceSelection,
+	TSet<int32>& BorderCornerIDsOut, TSet<int32>& CurCornerIDsOut);
+
+
 
 enum class EGeometrySelectionCombineModes : uint8
 {
