@@ -220,6 +220,21 @@ namespace Chaos
 		*/
 		TVec2<const FPerShapeData*> GetShapePair() const;
 
+		/*
+		* Check to see if a contact point index is an edge contact.
+		*/
+		bool IsEdgeContactPoint(int32 ContactPointIdx) const;
+
+		/*
+		* Check to see if a contact point index is disabled.
+		*/
+		bool IsContactPointDisabled(int32 ContactPointIdx) const;
+
+		/*
+		* Set a contact point disabled.
+		*/
+		void SetContactPointDisabled(int32 ContactPointIdx) const;
+
 	private:
 		/**
 		 * @brief Update cached shape transforms in the constraint after modifying particle positions

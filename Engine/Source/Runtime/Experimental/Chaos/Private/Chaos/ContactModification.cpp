@@ -466,6 +466,25 @@ namespace Chaos
 		return { Constraint->GetShape0(), Constraint->GetShape1() };
 	}
 
+	bool FContactPairModifier::IsEdgeContactPoint(int32 ContactPointIdx) const
+	{
+		const FManifoldPoint& ManifoldPoint = Constraint->GetManifoldPoint(ContactPointIdx);
+
+		return ManifoldPoint.ContactPoint.ContactType == EContactPointType::EdgeEdge;
+	}
+
+	bool FContactPairModifier::IsContactPointDisabled(int32 ContactPointIdx) const
+	{
+		const FManifoldPoint& ManifoldPoint = Constraint->GetManifoldPoint(ContactPointIdx);
+
+		return ManifoldPoint.Flags.bDisabled;
+	}
+
+	void FContactPairModifier::SetContactPointDisabled(int32 ContactPointIdx) const
+	{
+		Constraint->DisableManifoldPoint(ContactPointIdx);
+	}
+
 	void FContactPairModifierIterator::SeekValidContact()
 	{
 		// Not valid to call from end.
