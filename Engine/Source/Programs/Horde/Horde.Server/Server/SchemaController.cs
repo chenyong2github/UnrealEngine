@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
 using Horde.Server.Utilities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 
@@ -63,16 +64,6 @@ namespace Horde.Server.Server
 		[Route("/api/v1/schema/catalog.json")]
 		public ActionResult GetCatalog()
 		{
-			string? host = null;
-
-			StringValues hosts;
-			if (Request.Headers.TryGetValue("Host", out hosts))
-			{
-				host = hosts.FirstOrDefault();
-			}
-
-			host ??= Dns.GetHostName();
-
 			CatalogRoot root = new CatalogRoot();
 			foreach (Type schemaType in ConfigSchemas)
 			{
@@ -82,7 +73,7 @@ namespace Horde.Server.Server
 					JsonSchemaCatalogAttribute? catalogAttribute = schemaType.GetCustomAttribute<JsonSchemaCatalogAttribute>();
 					if (catalogAttribute != null)
 					{
-						Uri url = new Uri($"https://{host}/api/v1/schema/types/{schemaType.Name}.json");
+						Uri url = new Uri($"{Request.Scheme}://{Request.Host}/api/v1/schema/types/{schemaType.Name}.json");
 						root.Schemas.Add(new CatalogItem { Name = catalogAttribute.Name, Description = catalogAttribute.Description, FileMatch = catalogAttribute.FileMatch, Url = url });
 					}
 				}

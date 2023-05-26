@@ -6,6 +6,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+#pragma warning disable CA2234 // Pass system uri objects instead of strings
+
 namespace Horde.Server.Tests
 {
 	[TestClass]
@@ -14,8 +16,8 @@ namespace Horde.Server.Tests
         [TestMethod]
         public async Task ValidateSwagger()
         {
-	        HttpResponseMessage res = await Client.GetAsync("swagger/v1/swagger.json");
-	        if (!res.IsSuccessStatusCode)
+			HttpResponseMessage res = await Client.GetAsync("/swagger/v1/swagger.json");
+			if (!res.IsSuccessStatusCode)
 	        {
 		        string rawJson = await res.Content.ReadAsStringAsync();
 		        JsonElement tempElement = JsonSerializer.Deserialize<JsonElement>(rawJson);

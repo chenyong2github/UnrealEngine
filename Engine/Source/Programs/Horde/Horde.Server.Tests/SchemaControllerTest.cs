@@ -32,7 +32,7 @@ namespace Horde.Server.Tests
 
 			// Fetch the catalog
 			SchemaCatalog catalog;
-			using (HttpResponseMessage response = await Client.GetAsync("api/v1/schema/catalog.json"))
+			using (HttpResponseMessage response = await Client.GetAsync("/api/v1/schema/catalog.json"))
 			{
 				response.EnsureSuccessStatusCode();
 				byte[] data = await response.Content.ReadAsByteArrayAsync();

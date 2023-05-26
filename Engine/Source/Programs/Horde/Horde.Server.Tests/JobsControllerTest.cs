@@ -15,7 +15,7 @@ namespace Horde.Server.Tests
     {
         private static string GetUri(string jobId, string stepId, string fileName)
         {
-            return $"api/v1/jobs/{jobId}/steps/{stepId}/artifacts/{fileName}/data";
+            return $"/api/v1/jobs/{jobId}/steps/{stepId}/artifacts/{fileName}/data";
         }
 
         [TestMethod]
