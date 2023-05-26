@@ -384,12 +384,9 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 	TArray<TSharedPtr<FUICommandInfo>> BakingPaletteItems({
 		Commands.BeginBakeMeshAttributeMapsTool,
 		Commands.BeginBakeMultiMeshAttributeMapsTool,
-		Commands.BeginBakeMeshAttributeVertexTool
+		Commands.BeginBakeMeshAttributeVertexTool,
+		Commands.BeginBakeRenderCaptureTool
 	});
-	if (Commands.BeginBakeRenderCaptureTool)
-	{
-		BakingPaletteItems.Add(Commands.BeginBakeRenderCaptureTool);
-	}
 	BakingPaletteItems.Add(Commands.BeginMeshInspectorTool);
 	BakingPaletteItems.Add(Commands.BeginEditTangentsTool);
 	ToolkitBuilder->AddPalette(
@@ -1798,10 +1795,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeMeshAttributeMapsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeMultiMeshAttributeMapsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeMeshAttributeVertexTool);
-		if (Commands.BeginBakeRenderCaptureTool)
-		{
-			ToolbarBuilder.AddToolBarButton(Commands.BeginBakeRenderCaptureTool);
-		}
+		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeRenderCaptureTool);
 	}
 	else if (PaletteIndex == UVTabName)
 	{

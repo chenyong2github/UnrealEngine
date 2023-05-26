@@ -268,20 +268,14 @@ void FModelingToolsManagerCommands::RegisterCommands()
 		REGISTER_MODELING_TOOL_COMMAND(BeginBakeMeshAttributeMapsTool, "BakeTx", "Bake textures for a target Mesh");
 		REGISTER_MODELING_TOOL_COMMAND(BeginBakeMultiMeshAttributeMapsTool, "BakeAll", "Bake textures for a target Mesh from multiple source Meshes");
 		REGISTER_MODELING_TOOL_COMMAND(BeginBakeMeshAttributeVertexTool, "BakeVtx", "Bake vertex colors for a target Mesh");
-		if (!Settings->InRestrictiveMode())
-		{
-			REGISTER_MODELING_TOOL_COMMAND(BeginBakeRenderCaptureTool, "BakeRC", "Bake renders into new textures for a target Mesh from multiple source Meshes");
-		}
+		REGISTER_MODELING_TOOL_COMMAND(BeginBakeRenderCaptureTool, "BakeRC", "Bake renders into new textures for a target Mesh from multiple source Meshes");
 	}
 	else
 	{
 		REGISTER_MODELING_TOOL_COMMAND(BeginBakeMeshAttributeMapsTool, "Bake Textures", "Bake textures for a target Mesh");
 		REGISTER_MODELING_TOOL_COMMAND(BeginBakeMultiMeshAttributeMapsTool, "Bake All", "Bake textures for a target Mesh from multiple source Meshes");
 		REGISTER_MODELING_TOOL_COMMAND(BeginBakeMeshAttributeVertexTool, "Bake Vertex Colors", "Bake vertex colors for a target Mesh");
-		if (!Settings->InRestrictiveMode())
-		{
-			REGISTER_MODELING_TOOL_COMMAND(BeginBakeRenderCaptureTool, "Bake RC", "Bake renders into new textures for a target Mesh from multiple source Meshes");
-		}
+		REGISTER_MODELING_TOOL_COMMAND(BeginBakeRenderCaptureTool, "Bake RC", "Bake renders into new textures for a target Mesh from multiple source Meshes");
 	}
 
 	// Volumes
