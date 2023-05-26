@@ -178,7 +178,7 @@ namespace UnrealBuildTool
 
 		protected FileReference? ProjectFile;
 
-		protected bool bUseModernXcode => MacExports.UseModernXcode(ProjectFile);
+		protected bool bUseModernXcode => AppleExports.UseModernXcode(ProjectFile);
 
 		public AppleToolChain(FileReference? InProjectFile, ClangToolChainOptions InOptions, ILogger InLogger) : base(InOptions, InLogger)
 		{
@@ -530,7 +530,7 @@ namespace UnrealBuildTool
 			List<FileItem> OutputFiles = new List<FileItem>(base.PostBuild(Target, Executable, BinaryLinkEnvironment, Graph));
 
 			bool bIsBuildingAppBundle = !BinaryLinkEnvironment.bIsBuildingDLL && !BinaryLinkEnvironment.bIsBuildingLibrary && !BinaryLinkEnvironment.bIsBuildingConsoleApplication;
-			if (MacExports.UseModernXcode(Target.ProjectFile) && bIsBuildingAppBundle)
+			if (AppleExports.UseModernXcode(Target.ProjectFile) && bIsBuildingAppBundle)
 			{
 				Action PostBuildAction = ApplePostBuildSyncMode.CreatePostBuildSyncAction(Target, Executable, BinaryLinkEnvironment.IntermediateDirectory!, Graph);
 
@@ -540,6 +540,113 @@ namespace UnrealBuildTool
 
 			return OutputFiles;
 		}
+
+
+		#region Stub Xcode Projects
+
+		internal static bool GenerateProjectFiles(FileReference? ProjectFile, string[] Arguments, ILogger Logger, out DirectoryReference? XcodeProjectFile)
+		{
+			ProjectFileGenerator.bGenerateProjectFiles = true;
+			try
+			{
+				CommandLineArguments CmdLine = new CommandLineArguments(Arguments);
+
+				PlatformProjectGeneratorCollection PlatformProjectGenerators = new PlatformProjectGeneratorCollection();
+				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.Mac, new MacProjectGenerator(CmdLine, Logger), Logger);
+				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.IOS, new IOSProjectGenerator(CmdLine, Logger), Logger);
+				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.TVOS, new TVOSProjectGenerator(CmdLine, Logger), Logger);
+
+				XcodeProjectFileGenerator Generator = new XcodeProjectFileGenerator(ProjectFile, CmdLine);
+				// don't need the editor data since these are stub projects
+				bool bSucces = Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments, bCacheDataForEditor: false, Logger);
+				XcodeProjectFile = Generator.XCWorkspace;
+				return bSucces;
+			}
+			catch (Exception ex)
+			{
+				XcodeProjectFile = null;
+				Logger.LogError(ex.ToString());
+			}
+			finally
+			{
+				ProjectFileGenerator.bGenerateProjectFiles = false;
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// Genearate an run-only Xcode project, that is not meant to be used for anything else besides code-signing/running/etc of the native .app bundle
+		/// </summary>
+		/// <param name="UProjectFile">Location of .uproject file (or null for the engine project</param>
+		/// <param name="Platform">The platform to generate a project for</param>
+		/// <param name="TargetName">The name of the target being built, so we can generate a more minimal project</param>
+		/// <param name="bForDistribution">True if this is making a bild for uploading to app store</param>
+		/// <param name="Logger">Logging object</param>
+		/// <param name="GeneratedProjectFile">Returns the .xcworkspace that was made</param>
+		internal static void GenerateRunOnlyXcodeProject(FileReference? UProjectFile, UnrealTargetPlatform Platform, string TargetName, bool bForDistribution, ILogger Logger, out DirectoryReference? GeneratedProjectFile)
+		{
+			List<string> Options = new()
+			{
+				$"-platforms={Platform}",
+				"-DeployOnly",
+				"-NoIntellisense",
+				"-NoDotNet",
+				"-IgnoreJunk",
+				bForDistribution ? "-distribution" : "-development",
+				"-IncludeTempTargets",
+				"-projectfileformat=XCode",
+				"-automated",
+			};
+
+			if (!string.IsNullOrEmpty(TargetName))
+			{
+				Options.Add($"-singletarget={TargetName}");
+			}
+
+			if (UProjectFile == null || UProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
+			{
+				// @todo do we need these? where would the bundleid come from if there's no project?
+				//				Options.Add("-bundleID=" + BundleID);
+				//				Options.Add("-appname=" + AppName);
+				// @todo add an option to only add Engine target?
+			}
+			else
+			{
+				Options.Add($"-project=\"{UProjectFile.FullName}\"");
+				Options.Add("-game");
+			}
+
+			// we need to be in Engine/Source for some build.cs files
+			string CurrentCWD = Environment.CurrentDirectory;
+			Environment.CurrentDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Source").FullName;
+			GenerateProjectFiles(UProjectFile, Options.ToArray(), Logger, out GeneratedProjectFile);
+			Environment.CurrentDirectory = CurrentCWD;
+		}
+
+		internal static int FinalizeAppWithXcode(DirectoryReference XcodeProject, UnrealTargetPlatform Platform, string SchemeName, string Configuration, string Action, string ExtraOptions, ILogger Logger)
+		{
+			List<string> Arguments = new()
+			{
+				"UBT_NO_POST_DEPLOY=true",
+				new IOSToolChainSettings(Logger).XcodeDeveloperDir + "usr/bin/xcodebuild",
+				Action,
+				$"-workspace \"{XcodeProject.FullName}\"",
+				$"-scheme \"{SchemeName}\"",
+				$"-configuration \"{Configuration}\"",
+				$"-destination generic/platform=" + (Platform == UnrealTargetPlatform.TVOS ? "tvOS" : Platform == UnrealTargetPlatform.Mac ? "macOS" : "iOS"),
+				"-allowProvisioningUpdates",
+				"-hideShellScriptEnvironment",
+				// xcode gets confused it we _just_ wrote out entitlements while generating the temp project, and it thinks it was modified _during_ building
+				// but it wasn't, it was written before the build started
+				"CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION=YES",
+				ExtraOptions,
+				//$"-sdk {SDKName}",
+			};
+
+			return Utils.RunLocalProcessAndLogOutput("/usr/bin/env", string.Join(" ", Arguments), Logger);
+		}
+
+		#endregion
 	};
 
 	[Serializable]
@@ -593,7 +700,7 @@ namespace UnrealBuildTool
 				return 0;
 			}
 
-			int ExitCode = MacExports.BuildWithModernXcode(Target.ProjectFile, Target.Platform, Target.Configuration, Target.TargetName, MacExports.XcodeBuildMode.PostBuildSync, Logger);
+			int ExitCode = AppleExports.BuildWithStubXcodeProject(Target.ProjectFile, Target.Platform, Target.Configuration, Target.TargetName, AppleExports.XcodeBuildMode.PostBuildSync, Logger);
 			if (ExitCode != 0)
 			{
 				Logger.LogError("ERROR: Failed to finalize the .app with Xcode. Check the log for ,more information");

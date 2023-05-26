@@ -737,7 +737,7 @@ namespace UnrealBuildTool
 
 			Target.IOSPlatform.ProjectSettings = ((IOSPlatform)GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
 
-			if (!MacExports.UseModernXcode(Target.ProjectFile))
+			if (!AppleExports.UseModernXcode(Target.ProjectFile))
 			{
 				// always strip in shipping configuration (commandline could have set it also)
 				if (Target.Configuration == UnrealTargetConfiguration.Shipping)

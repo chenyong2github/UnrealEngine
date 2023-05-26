@@ -479,7 +479,7 @@ namespace UnrealBuildTool
 			// plist replacements
 			DirectoryReference? DirRef = bIsUnrealGame ? (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : null) : new DirectoryReference(ProjectDirectory);
 
-			if (!MacExports.UseModernXcode(ProjectFile))
+			if (!AppleExports.UseModernXcode(ProjectFile))
 			{
 				return GenerateLegacyIOSPList(ProjectFile, Config, ProjectDirectory, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, UPL, BundleID, bBuildAsFramework, Logger);
 			}
@@ -1111,7 +1111,7 @@ namespace UnrealBuildTool
 			string BuildDirectory_NFL = InProjectDirectory + "/Restricted/NotForLicensees/Build/" + SubDir;
 			string IntermediateDirectory = (bIsUnrealGame ? InEngineDir : InProjectDirectory) + "/Intermediate/" + SubDir;
 
-			if (MacExports.UseModernXcode(ProjectFile))
+			if (AppleExports.UseModernXcode(ProjectFile))
 			{
 				Logger.LogInformation("Generating plist (only step needed when deploying with Modern Xcode)");
 				GeneratePList(ProjectFile, Config, InProjectDirectory, bIsUnrealGame, GameExeName, false, InProjectName, InEngineDir, AppDirectory, UPLScripts, BundleID, bBuildAsFramework);

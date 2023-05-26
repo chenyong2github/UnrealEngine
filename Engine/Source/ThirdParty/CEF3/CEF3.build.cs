@@ -96,7 +96,7 @@ public class CEF3 : ModuleRules
 				
 				PublicAdditionalLibraries.Add(WrapperPath);
 
-				if (MacExports.UseModernXcode(Target.ProjectFile))
+				if (AppleExports.UseModernXcode(Target.ProjectFile))
 				{
 					FileReference ZipFile = FileReference.Combine(new DirectoryReference(Target.UEThirdPartyBinariesDirectory), "CEF3/Mac/Chromium Embedded Framework.framework.zip");
 					// this is relative to module dir

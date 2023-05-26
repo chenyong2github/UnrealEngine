@@ -175,7 +175,7 @@ public class MacPlatform : ApplePlatform
 		}
 
 		// Stage the bootstrap executable (modern doesn't need it with full .apps)
-		if (!Params.NoBootstrapExe && !MacExports.UseModernXcode(Params.RawProjectPath))
+		if (!Params.NoBootstrapExe && !AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
 			foreach (StageTarget Target in SC.StageTargets)
 			{
@@ -424,7 +424,7 @@ public class MacPlatform : ApplePlatform
 	public override void ProcessArchivedProject(ProjectParams Params, DeploymentContext SC)
 	{
 		// nothing to do with modern
-		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		if (AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
 			return;
 		}
@@ -627,7 +627,7 @@ public class MacPlatform : ApplePlatform
 	public override bool ShouldStageCommandLine(ProjectParams Params, DeploymentContext SC)
 	{
 		// modern mode doesn't use the Bootstrap wrapper app, so we always insert the commandline file into the .app so double-clicking the .app works
-		return MacExports.UseModernXcode(Params.RawProjectPath); // !String.IsNullOrEmpty(Params.StageCommandline) || !String.IsNullOrEmpty(Params.RunCommandline) || (!Params.IsCodeBasedProject && Params.NoBootstrapExe);
+		return AppleExports.UseModernXcode(Params.RawProjectPath); // !String.IsNullOrEmpty(Params.StageCommandline) || !String.IsNullOrEmpty(Params.RunCommandline) || (!Params.IsCodeBasedProject && Params.NoBootstrapExe);
 	}
 
 	public override bool SignExecutables(DeploymentContext SC, ProjectParams Params)

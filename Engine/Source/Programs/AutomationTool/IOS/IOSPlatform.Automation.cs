@@ -772,7 +772,7 @@ public class IOSPlatform : ApplePlatform
 	public override void Package(ProjectParams Params, DeploymentContext SC, int WorkingCL)
 	{
 		// use the shared packaging with modern mode
-		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		if (AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
 			base.Package(Params, SC, WorkingCL);
 			return;
@@ -804,7 +804,7 @@ public class IOSPlatform : ApplePlatform
 		string SigningCertificate;
 		string TeamUUID;
 		bool bAutomaticSigning;
-		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		if (AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Params.RawProjectPath.Directory!, UnrealTargetPlatform.IOS);
 
@@ -1073,7 +1073,6 @@ public class IOSPlatform : ApplePlatform
 		PrintRunTime();
 	}
 
-#if true
 	private string EnsureXcodeProjectExists(FileReference RawProjectPath, string LocalRoot, string ShortProjectName, string ProjectRoot, bool IsCodeBasedProject, out bool bWasGenerated)
 	{
 		// first check for the .xcodeproj
@@ -1116,32 +1115,14 @@ public class IOSPlatform : ApplePlatform
 
 		return XcodeProj;
 	}
-#endif
 
 	private void CodeSign(string BaseDirectory, string GameName, FileReference RawProjectPath, UnrealTargetConfiguration TargetConfig, string LocalRoot, string ProjectName, string ProjectDirectory, bool IsCode, bool Distribution, string Provision, string Certificate, string Team, bool bAutomaticSigning, string SchemeName, string SchemeConfiguration)
 	{
-		if (MacExports.UseModernXcode(RawProjectPath))
+		if (AppleExports.UseModernXcode(RawProjectPath))
 		{
-			// we need an xcode project to continue
-			DirectoryReference GeneratedProject = null;
-			IOSExports.GenerateRunOnlyXcodeProject(RawProjectPath, TargetPlatformType, SchemeName ?? GameName, false, Logger, out GeneratedProject);
-
-			if (GeneratedProject == null || !DirectoryReference.Exists(GeneratedProject))
-			{
-				// something very bad happened
-				throw new AutomationException("iOS couldn't find the appropriate Xcode Project for " + RawProjectPath);
-			}
-
-			int ReturnCode = IOSExports.FinalizeAppWithXcode(GeneratedProject, TargetPlatformType, SchemeName ?? GameName, SchemeConfiguration ?? TargetConfig.ToString(), Provision, Certificate, Team, "", bAutomaticSigning, Distribution, bUseModernXcode:true, Logger);
-			if (ReturnCode != 0)
-			{
-				throw new AutomationException(ExitCode.Error_FailedToCodeSign, "CodeSign Failed");
-			}
-
-			return;
+			throw new AutomationException("Modern Xcode is not expected to enter this function");
 		}
-// @todo make this use the new IOSExports functionality that modern mode is using, after testing it
-#if true
+
 		// check for the proper xcodeproject
 		bool bWasGenerated = false;
 		string XcodeProj = EnsureXcodeProjectExists(RawProjectPath, LocalRoot, ProjectName, ProjectDirectory, IsCode, out bWasGenerated);
@@ -1203,7 +1184,6 @@ public class IOSPlatform : ApplePlatform
 		{
 			throw new AutomationException(ExitCode.Error_FailedToCodeSign, "CodeSign Failed");
 		}
-#endif
 	}
 
 	private bool ShouldUseMaxIPACompression(ProjectParams Params)
@@ -1519,7 +1499,7 @@ public class IOSPlatform : ApplePlatform
 	public override void GetFilesToArchive(ProjectParams Params, DeploymentContext SC)
 	{
 		// use the shared archiving with modern mode
-		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		if (AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
 			base.GetFilesToArchive(Params, SC);
 			return;
@@ -1878,7 +1858,7 @@ public class IOSPlatform : ApplePlatform
 
 		// modern mode simply deploys the staged .app which has been fully completed
 		string AppToDeploy;
-		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		if (AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
 			AppToDeploy = FileReference.Combine(SC.StageDirectory, SC.StageExecutables[0] + ".app").FullName;
 
@@ -2024,7 +2004,7 @@ public class IOSPlatform : ApplePlatform
 			// ClientApp will be something like /.../Saved/StagedBuilds/IOSClient/QAGame/Binaries/IOS/QAGameClient
 			// so we want the first directory in the CLientApp after Params.StageDirectory	
 			string TargetStageDir = ClientApp.Substring(0, ClientApp.IndexOf('/', Params.BaseStageDirectory.Length + 1));
-			if (MacExports.UseModernXcode(Params.RawProjectPath))
+			if (AppleExports.UseModernXcode(Params.RawProjectPath))
 			{
 				// modern mode runs from the staged dir
 				PlistFile = Path.Combine(TargetStageDir, Path.GetFileNameWithoutExtension(ClientApp) + ".app", "Info.plist");
@@ -2303,7 +2283,7 @@ public class IOSPlatform : ApplePlatform
 
 	public override bool RequiresPackageToDeploy(ProjectParams Params)
 	{
-		return !MacExports.UseModernXcode(Params.RawProjectPath);
+		return !AppleExports.UseModernXcode(Params.RawProjectPath);
 	}
 
 	public override HashSet<StagedFileReference> GetFilesForCRCCheck()

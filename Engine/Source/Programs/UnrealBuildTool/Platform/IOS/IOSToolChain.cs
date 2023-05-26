@@ -1331,36 +1331,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-		internal static bool GenerateProjectFiles(FileReference? ProjectFile, string[] Arguments, ILogger Logger, out DirectoryReference? XcodeProjectFile)
-		{
-			ProjectFileGenerator.bGenerateProjectFiles = true;
-			try
-			{
-				CommandLineArguments CmdLine = new CommandLineArguments(Arguments);
-
-				PlatformProjectGeneratorCollection PlatformProjectGenerators = new PlatformProjectGeneratorCollection();
-				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.Mac, new MacProjectGenerator(CmdLine, Logger), Logger);
-				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.IOS, new IOSProjectGenerator(CmdLine, Logger), Logger);
-				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.TVOS, new TVOSProjectGenerator(CmdLine, Logger), Logger);
-
-				XcodeProjectFileGenerator Generator = new XcodeProjectFileGenerator(ProjectFile, CmdLine);
-				// don't need the editor data since these are stub projects
-				bool bSucces = Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments, bCacheDataForEditor: false, Logger);
-				XcodeProjectFile = Generator.XCWorkspace;
-				return bSucces;
-			}
-			catch(Exception ex)
-			{
-				XcodeProjectFile = null;
-				Logger.LogError(ex.ToString());
-			}
-			finally
-			{
-				ProjectFileGenerator.bGenerateProjectFiles = false;
-			}
-			return false;
-		}
-
 		public static FileReference GetStagedExecutablePath(FileReference Executable, string TargetName)
 		{
 			return FileReference.Combine(Executable.Directory, "Payload", TargetName + ".app", TargetName);
@@ -1461,6 +1431,11 @@ namespace UnrealBuildTool
 				return;
 			}
 
+			if (AppleExports.UseModernXcode(Target.ProjectFile))
+			{
+				throw new BuildException("Modern xcode mode should not reach this, something has broken the PostBuild setup");
+			}
+
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
 			string? BundleID = ProjectSettings.BundleIdentifier;
 
@@ -1516,11 +1491,6 @@ namespace UnrealBuildTool
 			FileReference.Copy(Target.OutputPath, StagedExecutablePath, true);
 			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
 
-			if (MacExports.UseModernXcode(Target.ProjectFile))
-			{
-				throw new BuildException("Modern xcode mode should not reach this, has broken the PostBuild setup");
-
-			}
 
 
 			if (Target.bCreateStubIPA || Target.bBuildAsFramework)

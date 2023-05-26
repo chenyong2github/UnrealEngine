@@ -2094,7 +2094,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				}
 
 				UnrealData.InitializeUProjectFileLocation(this);
-				if (!MacExports.UseModernXcode(ProjectFilePath))
+				if (!AppleExports.UseModernXcode(ProjectFilePath))
 				{
 					LegacyProjectFile = new XcodeProjectLegacy.XcodeProjectFile(ProjectFilePath, BaseDir, UnrealData.bForDistribution, UnrealData.BundleIdentifier, UnrealData.AppName, UnrealData.bMakeProjectPerTarget);
 					LegacyProjectFile.ProjectTargets.AddRange(ProjectTargets);

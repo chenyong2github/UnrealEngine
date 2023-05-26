@@ -71,7 +71,7 @@ public abstract class ApplePlatform : Platform
 
 	public override void PreBuildAgenda(UnrealBuild Build, UnrealBuild.BuildAgenda Agenda, ProjectParams Params)
 	{
-		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		if (AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
 			// any building before we stage should not pull the stage dir into the .app, and we will unset it below when we build again after staging
 			Environment.SetEnvironmentVariable("UE_SKIP_STAGEDDATA_SYNC", "1", EnvironmentVariableTarget.Process);
@@ -83,7 +83,7 @@ public abstract class ApplePlatform : Platform
 
 	public override void PostStagingFileCopy(ProjectParams Params, DeploymentContext SC)
 	{
-		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		if (AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
 			// now reset the envvar so the following build will process the staged data
 			Environment.SetEnvironmentVariable("UE_SKIP_STAGEDDATA_SYNC", "0", EnvironmentVariableTarget.Process);
@@ -101,7 +101,7 @@ public abstract class ApplePlatform : Platform
 					ExtraOptions += $" PRODUCT_NAME={Params.ShortProjectName}";
 				}
 
-				MacExports.BuildWithModernXcode(SC.RawProjectPath, Target.Platform, Target.Configuration, Target.TargetName, MacExports.XcodeBuildMode.Stage, Logger, ExtraOptions);
+				AppleExports.BuildWithStubXcodeProject(SC.RawProjectPath, Target.Platform, Target.Configuration, Target.TargetName, AppleExports.XcodeBuildMode.Stage, Logger, ExtraOptions);
 			}
 		}
 	}
@@ -166,7 +166,7 @@ public abstract class ApplePlatform : Platform
 
 	public override void Package(ProjectParams Params, DeploymentContext SC, int WorkingCL)
 	{
-		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		if (AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
 			foreach (StageTarget Target in SC.StageTargets)
 			{
@@ -186,8 +186,8 @@ public abstract class ApplePlatform : Platform
 				// if we we packaging for distrbution, we will create a .xcarchive which can be used to submit to app stores, or exported for other distribution methods
 				// the archive will be created in the standard Archives location accessible via Xcode. Using -archive will copy it out into
 				// the specified location for use as needed
-				MacExports.XcodeBuildMode BuildMode = Params.Distribution ? MacExports.XcodeBuildMode.Distribute : MacExports.XcodeBuildMode.Package;
-				if (MacExports.BuildWithModernXcode(Params.RawProjectPath, Receipt.Platform, Receipt.Configuration, Receipt.TargetName, BuildMode, Logger, ExtraOptions) == 0)
+				AppleExports.XcodeBuildMode BuildMode = Params.Distribution ? AppleExports.XcodeBuildMode.Distribute : AppleExports.XcodeBuildMode.Package;
+				if (AppleExports.BuildWithStubXcodeProject(Params.RawProjectPath, Receipt.Platform, Receipt.Configuration, Receipt.TargetName, BuildMode, Logger, ExtraOptions) == 0)
 				{
 					Logger.LogInformation("=====================================================================================");
 					if (Params.Distribution)
@@ -210,7 +210,7 @@ public abstract class ApplePlatform : Platform
 
 	public override void GetFilesToArchive(ProjectParams Params, DeploymentContext SC)
 	{
-		if (!MacExports.UseModernXcode(Params.RawProjectPath))
+		if (!AppleExports.UseModernXcode(Params.RawProjectPath))
 		{
 			base.GetFilesToArchive(Params, SC);
 			return;
