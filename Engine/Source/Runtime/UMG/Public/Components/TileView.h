@@ -63,8 +63,8 @@ protected:
 		{
 			// This tells the underlying ListView to expect entries with the final width/height equal to EntryWidth/EntryHeight + spacing
 			// It allows the entry widget to always occupy the entire EntryWidth/EntryHeight.
-			Args.EntryWidth = GetHorizontalEntrySpacing();
-			Args.EntryHeight = GetVerticalEntrySpacing();
+			Args.EntryWidth = GetTotalEntryWidth();
+			Args.EntryHeight = GetTotalEntryHeight();
 		}
 		else
 		{
