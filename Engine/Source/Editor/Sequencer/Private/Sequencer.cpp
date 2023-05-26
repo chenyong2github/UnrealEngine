@@ -546,6 +546,9 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		ObjectBindings.Add(ObjectBinding);
 	}
 
+	TSharedPtr<FFrameNumberInterface> FrameNumberInterface = StaticCastSharedPtr<FFrameNumberInterface>(GetNumericTypeInterface().ToSharedPtr());
+	Settings->GetOnTimeDisplayFormatChanged().AddRaw(FrameNumberInterface.Get(), &FFrameNumberInterface::DisplayFormatChanged);
+
 	FMovieSceneObjectBindingIDCustomization::BindTo(AsShared());
 
 	ZoomAnimation = FCurveSequence();
@@ -654,6 +657,11 @@ FSequencer::~FSequencer()
 
 void FSequencer::Close()
 {
+	if (Settings && SequencerWidget)
+	{
+		Settings->GetOnTimeDisplayFormatChanged().RemoveAll(&SequencerWidget->GetNumericTypeInterface().Get());
+	}
+
 	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 	{
 		if (LevelVC != nullptr)

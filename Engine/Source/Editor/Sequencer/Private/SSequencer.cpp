@@ -188,11 +188,6 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	TSharedPtr<FFrameNumberInterface> FrameNumberInterface = MakeShareable(new FFrameNumberInterface(GetDisplayFormatAttr, GetZeroPadFramesAttr, GetTickResolutionAttr, GetDisplayRateAttr));
 	NumericTypeInterface = FrameNumberInterface;
 	
-	if (USequencerSettings* Settings = GetSequencerSettings())
-	{
-		Settings->GetOnTimeDisplayFormatChanged().AddRaw(FrameNumberInterface.Get(), &FFrameNumberInterface::DisplayFormatChanged);
-	}
-
 	FTimeSliderArgs TimeSliderArgs;
 	{
 		TimeSliderArgs.ViewRange = InArgs._ViewRange;
@@ -2804,11 +2799,6 @@ SSequencer::~SSequencer()
 	{
 		Window->DestroyWindowImmediately();
 		NodeGroupManager.Reset();
-	}
-
-	if (USequencerSettings* Settings = GetSequencerSettings())
-	{
-		Settings->GetOnTimeDisplayFormatChanged().RemoveAll(NumericTypeInterface.Get());
 	}
 }
 
