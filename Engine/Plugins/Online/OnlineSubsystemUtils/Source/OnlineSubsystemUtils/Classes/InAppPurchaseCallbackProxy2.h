@@ -3,24 +3,8 @@
 
 #include "Interfaces/OnlinePurchaseInterface.h"
 #include "OnlineSubsystem.h"
+#include "InAppPurchaseDataTypes.h"
 #include "InAppPurchaseCallbackProxy2.generated.h"
-
-/**
- * Micro-transaction request information
- */
-USTRUCT(BlueprintType)
-struct FInAppPurchaseProductRequest2
-{
-	GENERATED_USTRUCT_BODY()
-
-		// The unique product identifier that matches the one from your targeted store.
-		UPROPERTY(BlueprintReadWrite, Category = ProductInfo)
-		FString ProductIdentifier;
-
-	// Flag to determine whether this is a consumable purchase, or not.
-	UPROPERTY(BlueprintReadWrite, Category = ProductInfo)
-		bool bIsConsumable = false;
-};
 
 /**
  * Micro-transaction purchase information
@@ -79,46 +63,6 @@ struct FInAppPurchaseProductInfo2
 		TMap<FString, FString> DynamicFields;
 };
 
-/**
- * State of a purchase transaction
- */
-UENUM(BlueprintType)
-enum class EInAppPurchaseStatus : uint8
-{
-	Invalid = 0 UMETA(DisplayName = "Invalid"),
-	/** purchase completed but failed */
-	Failed UMETA(DisplayName = "Failed"),
-	/** purchase has been deferred (neither failed nor completed) */
-	Deferred UMETA(DisplayName = "Deferred"),
-	/** purchase canceled by user */
-	Canceled UMETA(DisplayName = "Canceled"),
-	/** purchase succeeded */
-	Purchased UMETA(DisplayName = "Purchased"),
-	/** restore succeeded */
-	Restored UMETA(DisplayName = "Restored"),
-};
-
-/**
- * Micro-transaction purchase information
- */
-USTRUCT(BlueprintType)
-struct FInAppPurchaseReceiptInfo2
-{
-	GENERATED_USTRUCT_BODY()
-
-	// The item name
-	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
-		FString ItemName;
-
-	// The unique product identifier
-	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
-		FString ItemId;
-
-	// the unique transaction identifier
-	UPROPERTY(BlueprintReadOnly, Category = ProductInfo)
-		FString ValidationInfo;
-};
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInAppPurchaseResult2, EInAppPurchaseStatus, PurchaseStatus, const TArray<FInAppPurchaseReceiptInfo2>&, InAppPurchaseReceipts);
 
 UCLASS(MinimalAPI)
@@ -135,14 +79,14 @@ class UInAppPurchaseCallbackProxy2 : public UObject
 		FInAppPurchaseResult2 OnFailure;
 
 	// Kicks off a transaction for the provided product identifier
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Make an In-App Purchase v2"), Category = "Online|InAppPurchase")
-		static UInAppPurchaseCallbackProxy2* CreateProxyObjectForInAppPurchase(class APlayerController* PlayerController, const FInAppPurchaseProductRequest2& ProductRequest);
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Make an In-App Purchase v2", DeprecatedFunction, DeprecationMessage = "Please use 'Start an In-App Purchase' and remember to pass the output receipts to 'Finalize In-App Purchase Transaction' after being validated and processed"), Category = "Online|InAppPurchase")
+	static UInAppPurchaseCallbackProxy2* CreateProxyObjectForInAppPurchase(class APlayerController* PlayerController, const FInAppPurchaseProductRequest2& ProductRequest);
 	
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Process any New Unprocessed Purchases v2"), Category = "Online|InAppPurchase")
-		static UInAppPurchaseCallbackProxy2* CreateProxyObjectForInAppPurchaseUnprocessedPurchases(class APlayerController* PlayerController);
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Process any New Unprocessed Purchases v2", DeprecatedFunction, DeprecationMessage = "Please use 'Get known In-App Receipts' and remember to pass the output receipts to 'Finalize In-App Purchase Transaction' after being validated and processed"), Category = "Online|InAppPurchase")
+	static UInAppPurchaseCallbackProxy2* CreateProxyObjectForInAppPurchaseUnprocessedPurchases(class APlayerController* PlayerController);
 	
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Query for Owned Purchases"), Category = "Online|InAppPurchase")
-		static UInAppPurchaseCallbackProxy2* CreateProxyObjectForInAppPurchaseQueryOwned(class APlayerController* PlayerController);
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Query for Owned Purchases", DeprecatedFunction, DeprecationMessage = "Please use 'Query for Owned In-App Products' and remember to pass the output receipts to 'Finalize In-App Purchase Transaction' after being validated and processed"), Category = "Online|InAppPurchase")
+	static UInAppPurchaseCallbackProxy2* CreateProxyObjectForInAppPurchaseQueryOwned(class APlayerController* PlayerController);
 
 public:
 
@@ -158,6 +102,7 @@ private:
 	void OnPurchaseComplete();
 	void OnQueryReceiptsComplete(const FOnlineError& Result);
 
+	UE_DEPRECATED(5.3, "Use ::PurchaseStatusFromOnlineError instead")
 	EInAppPurchaseStatus PurchaseStatusFromOnlineError(const FOnlineError& OnlineError);
 
 	/** Triggers the In-App Purchase Transaction for the specifed user; the Purchase Request object must already be set up */

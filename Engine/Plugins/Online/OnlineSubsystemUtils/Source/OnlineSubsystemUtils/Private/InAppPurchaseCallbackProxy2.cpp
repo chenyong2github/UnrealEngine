@@ -158,7 +158,7 @@ void UInAppPurchaseCallbackProxy2::OnCheckoutComplete(const FOnlineError& Result
 	TArray<FPurchaseReceipt> OutReceipts;
 	bWasSuccessful = false;
 	bool bWasSuccessfulLocal = Result.WasSuccessful();
-	SavedPurchaseStatus = PurchaseStatusFromOnlineError(Result);
+	SavedPurchaseStatus = ::PurchaseStatusFromOnlineError(Result);
 	if (bWasSuccessfulLocal)
 	{
 		if (PurchaseInterface.IsValid())
@@ -227,35 +227,14 @@ void UInAppPurchaseCallbackProxy2::OnPurchaseComplete()
 
 EInAppPurchaseStatus UInAppPurchaseCallbackProxy2::PurchaseStatusFromOnlineError(const FOnlineError& OnlineError)
 {
-	if (OnlineError.bSucceeded)
-	{
-		return EInAppPurchaseStatus::Purchased;
-	}
-	else if(OnlineError.ErrorCode.Equals(TEXT("com.epicgames.purchase.failure")))
-	{
-		return EInAppPurchaseStatus::Failed;
-	}
-	else if (OnlineError.ErrorCode.Equals(TEXT("com.epicgames.catalog_helper.user_cancelled")))
-	{
-		return EInAppPurchaseStatus::Canceled;
-	}
-	else if (OnlineError.ErrorCode.Equals(TEXT("com.epicgames.purchase.deferred")))
-	{
-		return EInAppPurchaseStatus::Deferred;
-	}
-	else if (OnlineError.ErrorCode.Equals(TEXT("com.epicgames.purchase.invalid")))
-	{
-		return EInAppPurchaseStatus::Invalid;
-	}
-	
-	return EInAppPurchaseStatus::Failed;			
+	return ::PurchaseStatusFromOnlineError(OnlineError);
 }
 
 void UInAppPurchaseCallbackProxy2::OnQueryReceiptsComplete(const FOnlineError& Result)
 {
 		SavedReceipts.Empty();
 		bWasSuccessful = Result.WasSuccessful();
-		SavedPurchaseStatus = PurchaseStatusFromOnlineError(Result);
+		SavedPurchaseStatus = ::PurchaseStatusFromOnlineError(Result);
 		
 		OnPurchaseComplete();
 }

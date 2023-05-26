@@ -72,7 +72,7 @@ void UInAppPurchaseRestoreCallbackProxy2::OnQueryReceiptsComplete(const FOnlineE
 {
 	
 	bWasSuccessful = Result.WasSuccessful();
-	SavedPurchaseStatus = PurchaseStatusFromOnlineError(Result);
+	SavedPurchaseStatus = ::PurchaseStatusFromOnlineError(Result);
 	check(PurchaseInterface.IsValid());
 
 	// Get Receipts
@@ -88,14 +88,14 @@ void UInAppPurchaseRestoreCallbackProxy2::OnQueryReceiptsComplete(const FOnlineE
 
 	SavedReceipts.Empty();
 
-	FFrame::KismetExecutionMessage(TEXT("UInAppPurchaseRestoreCallbackProxy2::OnQueryReceiptsComplete - Iterating OutReceipts"), ELogVerbosity::Warning);
+	FFrame::KismetExecutionMessage(TEXT("UInAppPurchaseRestoreCallbackProxy2::OnQueryReceiptsComplete - Iterating OutReceipts"), ELogVerbosity::Log);
 	for (FPurchaseReceipt& CurrentReceipt : OutReceipts)
 	{
 		if (CurrentReceipt.TransactionState == EPurchaseTransactionState::Restored)
 		{
 			FInAppPurchaseRestoreInfo2& ReceiptInfo = SavedReceipts.AddDefaulted_GetRef();
 
-			FFrame::KismetExecutionMessage(TEXT("UInAppPurchaseRestoreCallbackProxy2::OnQueryReceiptsComplete - Writing Receipt to savedreceipts"), ELogVerbosity::Warning);
+			FFrame::KismetExecutionMessage(TEXT("UInAppPurchaseRestoreCallbackProxy2::OnQueryReceiptsComplete - Writing Receipt to savedreceipts"), ELogVerbosity::Log);
 			ReceiptInfo.ItemId = CurrentReceipt.ReceiptOffers[0].LineItems[0].UniqueId;
 			ReceiptInfo.ItemName = CurrentReceipt.ReceiptOffers[0].LineItems[0].ItemName;
 			ReceiptInfo.ValidationInfo = CurrentReceipt.ReceiptOffers[0].LineItems[0].ValidationInfo;
@@ -153,26 +153,5 @@ UInAppPurchaseRestoreCallbackProxy2* UInAppPurchaseRestoreCallbackProxy2::Create
 
 EInAppPurchaseStatus UInAppPurchaseRestoreCallbackProxy2::PurchaseStatusFromOnlineError(const FOnlineError& OnlineError)
 {
-	if (OnlineError.bSucceeded)
-	{
-		return EInAppPurchaseStatus::Purchased;
-	}
-	else if (OnlineError.ErrorCode.Equals(TEXT("com.epicgames.purchase.failure")))
-	{
-		return EInAppPurchaseStatus::Failed;
-	}
-	else if (OnlineError.ErrorCode.Equals(TEXT("com.epicgames.catalog_helper.user_cancelled")))
-	{
-		return EInAppPurchaseStatus::Canceled;
-	}
-	else if (OnlineError.ErrorCode.Equals(TEXT("com.epicgames.purchase.deferred")))
-	{
-		return EInAppPurchaseStatus::Deferred;
-	}
-	else if (OnlineError.ErrorCode.Equals(TEXT("com.epicgames.purchase.invalid")))
-	{
-		return EInAppPurchaseStatus::Invalid;
-	}
-
-	return EInAppPurchaseStatus::Failed;
+	return ::PurchaseStatusFromOnlineError(OnlineError);
 }

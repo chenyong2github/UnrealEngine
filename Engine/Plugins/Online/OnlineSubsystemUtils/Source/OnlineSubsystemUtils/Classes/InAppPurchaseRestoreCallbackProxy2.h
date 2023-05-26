@@ -46,7 +46,7 @@ class UInAppPurchaseRestoreCallbackProxy2 : public UObject
 	FInAppPurchaseRestoreResult2 OnFailure;
 
 	// Kicks off a transaction for the provided product identifier
-	UFUNCTION(BlueprintCallable, meta = (DisplayName="Restore In-App Purchases2"), Category="Online|InAppPurchase")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName="Restore In-App Purchases2", DeprecatedFunction, DeprecationMessage = "Please use 'Restore Owned In-App Products' and remember to pass the output receipts to 'Finalize In-App Purchase Transaction' after being validated and processed"), Category="Online|InAppPurchase")
 	static UInAppPurchaseRestoreCallbackProxy2* CreateProxyObjectForInAppPurchaseRestore(const TArray<FInAppPurchaseProductRequest2>& ConsumableProductFlags, class APlayerController* PlayerController);
 
 public:
@@ -66,8 +66,8 @@ private:
 	/** Triggers the In-App Purchase Restore Transaction for the specifed user */
 	void Trigger(const TArray<FInAppPurchaseProductRequest2>& ConsumableProductFlags, class APlayerController* PlayerController);
 
+	UE_DEPRECATED(5.3, "Use ::PurchaseStatusFromOnlineError instead")
 	EInAppPurchaseStatus PurchaseStatusFromOnlineError(const FOnlineError& OnlineError);
-
 private:
 
 	bool bWasSuccessful;
