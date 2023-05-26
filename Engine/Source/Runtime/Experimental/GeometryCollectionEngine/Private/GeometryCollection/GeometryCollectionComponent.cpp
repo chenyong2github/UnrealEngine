@@ -1879,7 +1879,9 @@ void UGeometryCollectionComponent::UpdateRepData()
 			FPBDRigidClusteredParticleHandle* Cluster = *Itr;
 
 			const TArray<FPBDRigidParticleHandle*>& Children = RigidClustering.GetChildrenMap().FindRef(Cluster);
-			if (Cluster->Disabled() || (Cluster->InternalCluster() && Children.IsEmpty()))
+			const bool bIsInternalCluster = Cluster->InternalCluster();
+			const bool bChildrenEmpty = Children.IsEmpty();
+			if (Cluster->Disabled() || (bIsInternalCluster && bChildrenEmpty))
 			{
 				Itr.RemoveCurrent();
 			}
@@ -1898,7 +1900,7 @@ void UGeometryCollectionComponent::UpdateRepData()
 				if(Cluster->InternalCluster())
 				{
 					
-					ensureMsgf(Children.Num(), TEXT("Internal cluster yet we have no children?"));
+					ensureMsgf(Children.Num(), TEXT("Internal cluster yet we have no children? [Num %d vs Cached Empty %d]"), Children.Num(), bChildrenEmpty);
 					TransformGroupIdx = PhysicsProxy->GetTransformGroupIndexFromHandle(Children[0]);
 				}
 				else

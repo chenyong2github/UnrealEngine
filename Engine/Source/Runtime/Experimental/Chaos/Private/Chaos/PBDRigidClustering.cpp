@@ -690,6 +690,9 @@ namespace Chaos
 				ClusteredParent->SetClusterId(ClusterId{ ClusteredParent->Parent(), Children->Num()});
 				if (ClusteredParent->InternalCluster() && Children->IsEmpty() && ClusteredParent->PhysicsProxy() && ClusteredParent->PhysicsProxy()->GetType() == EPhysicsProxyType::GeometryCollectionType)
 				{
+					// It's safe to disable the particle until we get to the point where we want to destroy the particle.
+					MEvolution.DisableParticle(ClusteredParent);
+
 					// We shouldn't ever need to do an AddUnique here since when we remove a child from a parent, the parent should only ever turn empty once.
 					EmptyInternalClustersPerProxy.FindOrAdd(ClusteredParent->PhysicsProxy()).Add(ClusteredParent);
 				}
