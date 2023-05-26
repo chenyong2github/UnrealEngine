@@ -398,7 +398,7 @@ namespace Metasound
 			if (TRandomNodeSpecialization<ValueType>::HasRange())
 			{
 				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputMin), MinValue);
-				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputMax), MinValue);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputMax), MaxValue);
 			}
 		}
 
