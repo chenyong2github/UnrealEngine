@@ -696,6 +696,11 @@ namespace UnrealBuildTool
 		public List<string> DisablePlugins = new List<string>();
 
 		/// <summary>
+		/// How to treat conflicts when a disabled plugin is being enabled by another plugin referencing it
+		/// </summary>
+		public WarningLevel DisablePluginsConflictWarningLevel = WarningLevel.Default;
+
+		/// <summary>
 		/// A list of Plugin names that are allowed to exist as dependencies without being defined in the uplugin descriptor
 		/// </summary>
 		public List<string> InternalPluginDependencies = new List<string>();
@@ -2951,6 +2956,11 @@ namespace UnrealBuildTool
 		public IEnumerable<string> DisablePlugins
 		{
 			get { return Inner.DisablePlugins; }
+		}
+
+		public WarningLevel DisablePluginsConflictWarningLevel
+		{
+			get { return Inner.DisablePluginsConflictWarningLevel; }
 		}
 
 		public IEnumerable<string> BuildPlugins

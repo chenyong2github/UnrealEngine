@@ -4300,6 +4300,24 @@ namespace UnrealBuildTool
 					return null;
 				}
 
+				// Detect when a plugin in DisablePlugins has been enabled by another plugin referencing it
+				if (Rules.DisablePlugins.Contains(Reference.Name))
+				{
+					if (Rules.DisablePluginsConflictWarningLevel == WarningLevel.Error)
+					{
+						LogValue PluginLogValue = LogValue.SourceFile(Info.File, Info.File.GetFileName());
+						throw new BuildLogEventException("Error: Plugin '{Plugin}' (referenced via {ReferenceChain}) is being enabled but found in DisablePlugins list. Suppress this message by setting DisablePluginsConflictWarningLevel = WarningLevel.Off in '{TargetRulesFile}'", PluginLogValue, ReferenceChain, TargetRulesFile.GetFileName());
+					}
+					else if (Rules.DisablePluginsConflictWarningLevel == WarningLevel.Warning)
+					{
+						Logger.LogWarning("Plugin '{ReferenceName}' (referenced via {ReferenceChain}) is being enabled but found in DisablePlugins list. Suppress this message by setting DisablePluginsConflictWarningLevel = WarningLevel.Off in '{TargetRulesFile}'", Reference.Name, ReferenceChain, TargetRulesFile.GetFileName());
+					}
+					else if (Rules.DisablePluginsConflictWarningLevel != WarningLevel.Off)
+					{
+						Logger.LogDebug("Plugin '{ReferenceName}' (referenced via {ReferenceChain}) is being enabled but found in DisablePlugins list. Suppress this message by setting DisablePluginsConflictWarningLevel = WarningLevel.Off in '{TargetRulesFile}'", Reference.Name, ReferenceChain, TargetRulesFile.GetFileName());
+					}
+				}
+
 				// Create the new instance and add it to the cache
 				Logger.LogTrace("Enabling plugin '{ReferenceName}' (referenced via {ReferenceChain})", Reference.Name, ReferenceChain);
 				Instance = new UEBuildPlugin(Info, ReferenceChain);
