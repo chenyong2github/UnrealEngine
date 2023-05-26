@@ -94,6 +94,12 @@ public:
 
 private:
 
+	/**
+	 * Evaluates the provided transform's scale, and returns true if the scale has a negative component
+	 * @param InTransform Transform to evaluate
+	 */
+	bool HasNegativeScale(const Chaos::FRigidTransform3& InTransform) const;
+
 	/** Creates a Dynamic Mesh for the provided Implicit object and generator, and then caches it to be reused later
 	 * @param GeometryCacheKey Key to be used to find this geometry in the cache
 	 * @param MeshGenerator Generator class with the data and rules to create the mesh
@@ -487,6 +493,8 @@ ComponentType* FChaosVDGeometryBuilder::CreateMeshComponent(AActor* Owner, const
 	}
 	else if constexpr (std::is_same_v<ComponentType, UInstancedStaticMeshComponent>)
 	{
+		// If we have negative scale we need to force reverse the culling mode in this component otherwise the faces will be inverted
+		MeshComponent->SetReverseCulling(HasNegativeScale(Transform));
 		MeshComponent->AddInstance(Transform);
 	}
 

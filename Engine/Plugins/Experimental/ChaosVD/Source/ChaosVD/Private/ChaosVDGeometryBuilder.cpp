@@ -58,6 +58,12 @@ bool FChaosVDGeometryBuilder::DoesImplicitContainType(const Chaos::FImplicitObje
 	return false;
 }
 
+bool FChaosVDGeometryBuilder::HasNegativeScale(const Chaos::FRigidTransform3& InTransform) const
+{
+	FVector ScaleSignVector = InTransform.GetScale3D().GetSignVector();
+	return ScaleSignVector.X * ScaleSignVector.Y * ScaleSignVector.Z < 0;
+}
+
 UDynamicMesh* FChaosVDGeometryBuilder::CreateAndCacheDynamicMesh(const uint32 GeometryCacheKey, UE::Geometry::FMeshShapeGenerator& MeshGenerator)
 {
 	{
