@@ -20,6 +20,9 @@ struct FStateTreeDebuggerTrack : RewindDebugger::FRewindDebuggerTrack
 	FStateTreeDebuggerTrack(const TSharedPtr<FStateTreeDebugger>& InDebugger, const FStateTreeInstanceDebugId InInstanceId, const FText InName, const TRange<double>& InViewRange);
 	
 	FStateTreeInstanceDebugId GetInstanceId() const { return InstanceId; }
+	bool IsStale() const { return bIsStale; }
+	void MarkAsStale() { bIsStale = true; }
+
 private:
 	virtual bool UpdateInternal() override;
 	virtual TSharedPtr<SWidget> GetDetailsViewInternal() override;
@@ -35,6 +38,7 @@ private:
 	TSharedPtr<FStateTreeDebugger> StateTreeDebugger;
 	FStateTreeInstanceDebugId InstanceId;
 	const TRange<double>& ViewRange;
+	bool bIsStale = false;
 };
 
 #endif // WITH_STATETREE_DEBUGGER

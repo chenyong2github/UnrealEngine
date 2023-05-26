@@ -25,8 +25,9 @@ public:
 		const UStateTree* InStateTree,
 		const FStateTreeInstanceDebugId InInstanceId,
 		const TCHAR* InInstanceName,
-		double Time,
-		EStateTreeTraceInstanceEventType EventType);
+		double InTime,
+		double InWorldRecordingTime,
+		EStateTreeTraceInstanceEventType InEventType);
 
 protected:
 	/** IStateTreeDebuggerProvider interface */

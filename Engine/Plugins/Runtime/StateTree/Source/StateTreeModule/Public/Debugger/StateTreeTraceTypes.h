@@ -41,21 +41,23 @@ enum class EStateTreeTraceNodeEventType : uint8
 
 struct FStateTreeTracePhaseEvent
 {
-	explicit FStateTreeTracePhaseEvent(const EStateTreeUpdatePhase Phase)
-		: Phase(Phase)
+	explicit FStateTreeTracePhaseEvent(const double RecordingWorldTime, const EStateTreeUpdatePhase Phase)
+		: RecordingWorldTime(RecordingWorldTime)
+		, Phase(Phase)
 	{
 	}
 
 	static FString GetDataTypePath() { return TEXT(""); }
 	static FString GetDataAsText() { return TEXT(""); }
 
+	double RecordingWorldTime = 0;
 	EStateTreeUpdatePhase Phase;
 };
 
 struct FStateTreeTraceLogEvent : FStateTreeTracePhaseEvent
 {
-	explicit FStateTreeTraceLogEvent(const EStateTreeUpdatePhase Phase, const FString& Message)
-		: FStateTreeTracePhaseEvent(Phase)
+	explicit FStateTreeTraceLogEvent(const double RecordingWorldTime, const EStateTreeUpdatePhase Phase, const FString& Message)
+		: FStateTreeTracePhaseEvent(RecordingWorldTime, Phase)
 		, Message(Message)
 	{
 	}
@@ -67,8 +69,8 @@ struct FStateTreeTraceLogEvent : FStateTreeTracePhaseEvent
 
 struct FStateTreeTraceTransitionEvent : FStateTreeTracePhaseEvent
 {
-	explicit FStateTreeTraceTransitionEvent(const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 Index, const EStateTreeTraceNodeEventType EventType)
-		: FStateTreeTracePhaseEvent(Phase)
+	explicit FStateTreeTraceTransitionEvent(const double RecordingWorldTime, const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 Index, const EStateTreeTraceNodeEventType EventType)
+		: FStateTreeTracePhaseEvent(RecordingWorldTime, Phase)
 		, TransitionIndex(Index)
 		, EventType(EventType)
 	{
@@ -82,8 +84,8 @@ struct FStateTreeTraceTransitionEvent : FStateTreeTracePhaseEvent
 
 struct FStateTreeTraceNodeEvent : FStateTreeTracePhaseEvent
 {
-	explicit FStateTreeTraceNodeEvent(const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 Index, const EStateTreeTraceNodeEventType EventType)
-		: FStateTreeTracePhaseEvent(Phase)
+	explicit FStateTreeTraceNodeEvent(const double RecordingWorldTime, const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 Index, const EStateTreeTraceNodeEventType EventType)
+		: FStateTreeTracePhaseEvent(RecordingWorldTime, Phase)
 		, Index(Index)
 		, EventType(EventType)
 	{
@@ -97,8 +99,8 @@ struct FStateTreeTraceNodeEvent : FStateTreeTracePhaseEvent
 
 struct FStateTreeTraceStateEvent : FStateTreeTraceNodeEvent
 {
-	explicit FStateTreeTraceStateEvent(const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 Index, const EStateTreeTraceNodeEventType EventType, const EStateTreeStateSelectionBehavior SelectionBehavior)
-		: FStateTreeTraceNodeEvent(Phase, Index, EventType)
+	explicit FStateTreeTraceStateEvent(const double RecordingWorldTime, const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 Index, const EStateTreeTraceNodeEventType EventType, const EStateTreeStateSelectionBehavior SelectionBehavior)
+		: FStateTreeTraceNodeEvent(RecordingWorldTime, Phase, Index, EventType)
 		, SelectionBehavior(SelectionBehavior)
 	{
 	}
@@ -111,8 +113,8 @@ struct FStateTreeTraceStateEvent : FStateTreeTraceNodeEvent
 
 struct FStateTreeTraceTaskEvent : FStateTreeTraceNodeEvent
 {
-	explicit FStateTreeTraceTaskEvent(const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 Index,	const EStateTreeTraceNodeEventType EventType, const EStateTreeRunStatus Status,	const FString& TypePath, const FString& InstanceDataAsText)
-		: FStateTreeTraceNodeEvent(Phase, Index, EventType)
+	explicit FStateTreeTraceTaskEvent(const double RecordingWorldTime, const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 Index,	const EStateTreeTraceNodeEventType EventType, const EStateTreeRunStatus Status,	const FString& TypePath, const FString& InstanceDataAsText)
+		: FStateTreeTraceNodeEvent(RecordingWorldTime, Phase, Index, EventType)
 		, TypePath(TypePath)
 		, InstanceDataAsText(InstanceDataAsText)
 		, Status(Status)
@@ -131,8 +133,8 @@ struct FStateTreeTraceTaskEvent : FStateTreeTraceNodeEvent
 
 struct FStateTreeTraceConditionEvent : FStateTreeTraceNodeEvent
 {
-	explicit FStateTreeTraceConditionEvent(const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 Index, const EStateTreeTraceNodeEventType EventType, const FString& TypePath, const FString& InstanceDataAsText)
-		: FStateTreeTraceNodeEvent(Phase, Index, EventType)
+	explicit FStateTreeTraceConditionEvent(const double RecordingWorldTime, const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 Index, const EStateTreeTraceNodeEventType EventType, const FString& TypePath, const FString& InstanceDataAsText)
+		: FStateTreeTraceNodeEvent(RecordingWorldTime, Phase, Index, EventType)
 		, TypePath(TypePath)
 		, InstanceDataAsText(InstanceDataAsText)
 	{
@@ -150,7 +152,7 @@ struct FStateTreeTraceConditionEvent : FStateTreeTraceNodeEvent
 struct FStateTreeTraceActiveStatesEvent : FStateTreeTracePhaseEvent
 {
 	// Intentionally implemented in source file to compile 'TArray<FStateTreeStateHandle>' using only forward declaration.
-	explicit FStateTreeTraceActiveStatesEvent(const EStateTreeUpdatePhase Phase);
+	explicit FStateTreeTraceActiveStatesEvent(const double RecordingWorldTime, const EStateTreeUpdatePhase Phase);
 
 	STATETREEMODULE_API FString ToString(const UStateTree& StateTree) const;
 

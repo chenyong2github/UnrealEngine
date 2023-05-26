@@ -101,7 +101,7 @@ void SStateTreeDebuggerTimelines::Construct(const FArguments& InArgs)
 		.ScrubPosition(InArgs._ScrubPosition)
 		.OnScrubPositionChanged(InArgs._OnScrubPositionChanged));
 
-	InstanceTracks = InArgs._DebugComponents;
+	InstanceTracks = InArgs._InstanceTracks;
 
 	OnExpansionChanged = InArgs._OnExpansionChanged;
 

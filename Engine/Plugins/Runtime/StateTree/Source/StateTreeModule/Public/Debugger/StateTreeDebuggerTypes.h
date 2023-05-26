@@ -19,14 +19,21 @@ namespace UE::StateTreeDebugger
 struct FFrameSpan
 {
 	FFrameSpan() = default;
-	FFrameSpan(const TraceServices::FFrame& Frame, const uint32 EventIdx)
+	FFrameSpan(const TraceServices::FFrame& Frame, const double RecordingWorldTime, const int32 EventIdx)
 		: Frame(Frame)
+		, WorldTime(RecordingWorldTime)
 		, EventIdx(EventIdx)
 	{
 	}
 
+	double GetWorldTimeStart() const { return WorldTime; }
+	double GetWorldTimeEnd() const { return WorldTime + (Frame.EndTime - Frame.StartTime); }
+
 	/** Frame index in the analysis session */
 	TraceServices::FFrame Frame;
+
+	/** World simulation time associated to that Frame index */
+	double WorldTime = 0;
 
 	/** Index of the first event for that Frame index */
 	int32 EventIdx = INDEX_NONE;
@@ -97,6 +104,18 @@ struct STATETREEMODULE_API FInstanceEventCollection
 	bool IsValid() const { return InstanceId.IsValid(); }
 	bool IsInvalid() const { return !IsValid(); }
 
+	struct FActiveStatesChangePair
+	{
+		FActiveStatesChangePair(const int32 SpanIndex, const int32 EventIndex)
+			: SpanIndex(SpanIndex),
+			  EventIndex(EventIndex)
+		{
+		}
+
+		int32 SpanIndex = INDEX_NONE;
+		int32 EventIndex = INDEX_NONE;
+	};
+
 	/** Id of the instance associated to the stored events. */
 	FStateTreeInstanceDebugId InstanceId;
 
@@ -107,7 +126,7 @@ struct STATETREEMODULE_API FInstanceEventCollection
 	TArray<FFrameSpan> FrameSpans;
 
 	/** Indices of span and event for frames with a change of activate states. */
-	TArray<TTuple<uint32, uint32>> ActiveStatesChanges;
+	TArray<FActiveStatesChangePair> ActiveStatesChanges;
 
 	/**
 	 * Returns the event collection associated to the currently selected instance.
@@ -119,6 +138,17 @@ struct STATETREEMODULE_API FInstanceEventCollection
 
 struct STATETREEMODULE_API FScrubState
 {
+	enum class EScrubTimeBoundState : uint8
+	{
+		Unset,
+		/** There are events but current time is before the first frame. */
+		BeforeLowerBound,
+		/** There are events and current time is within the frames received. */
+		InBounds,
+		/** There are events but current time is after the last frame. */
+		AfterHigherBound
+	};
+
 	explicit FScrubState(const TArray<FInstanceEventCollection>& EventCollections)
 		: EventCollections(EventCollections)
 	{
@@ -129,11 +159,11 @@ private:
 	
 public:
 	double ScrubTime = 0;
-	uint32 EventCollectionIndex = INDEX_NONE;
+	int32 EventCollectionIndex = INDEX_NONE;
 	uint64 TraceFrameIndex = INDEX_NONE;
-	uint32 FrameSpanIndex = INDEX_NONE;
-	uint32 PreviousFrameSpanIndex = INDEX_NONE;
-	uint32 ActiveStatesIndex = INDEX_NONE;
+	int32 FrameSpanIndex = INDEX_NONE;
+	int32 ActiveStatesIndex = INDEX_NONE;
+	EScrubTimeBoundState ScrubTimeBoundState = EScrubTimeBoundState::Unset;
 	
 
 	void SetScrubTime(double NewScrubTime);
@@ -142,7 +172,7 @@ public:
 	 * Indicates if the current scrub state points to a valid frame.
 	 * @return True if the frame index is set
 	 */
-	bool IsInBounds() const { return FrameSpanIndex != INDEX_NONE; }
+	bool IsInBounds() const { return ScrubTimeBoundState == EScrubTimeBoundState::InBounds; }
 
 	/**
 	 * Indicates if the current scrub state points to an active states entry in the event collection.
@@ -198,9 +228,9 @@ public:
 	const FInstanceEventCollection& GetEventCollection() const;
 
 private:
-	void SetFrameSpanIndex(uint32 NewFrameSpanIndex);
-	void SetActiveStatesIndex(uint32 NewActiveStatesIndex);
-	void UpdateActiveStatesIndex(uint32 SpanIndex);
+	void SetFrameSpanIndex(int32 NewFrameSpanIndex);
+	void SetActiveStatesIndex(int32 NewActiveStatesIndex);
+	void UpdateActiveStatesIndex(int32 SpanIndex);
 };
 
 } // UE::StateTreeDebugger

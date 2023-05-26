@@ -53,8 +53,8 @@ private:
 
 	TSharedRef<SWidget> OnGetDebuggerTracesMenu() const;
 
-	void OnPIEStarted(bool bIsSimulating) const;
-	void OnPIEStopped(bool bIsSimulating) const;
+	void OnPIEStarted(bool bIsSimulating);
+	void OnPIEStopped(bool bIsSimulating);
 	void OnPIEPaused(bool bIsSimulating) const;
 	void OnPIEResumed(bool bIsSimulating) const;
 	void OnPIESingleStepped(bool bIsSimulating) const;
@@ -63,6 +63,14 @@ private:
 	void OnNewInstance(FStateTreeInstanceDebugId InstanceId);
 	void OnSelectedInstanceCleared();
 
+	bool CanStartRecording() const { return !IsRecording(); }
+	void StartRecording();
+
+	bool IsRecording() const { return bRecording; }
+
+	bool CanStopRecording() const { return IsRecording(); }	
+	void StopRecording();
+	
 	void BindDebuggerToolbarCommands(const TSharedRef<FUICommandList>& ToolkitCommands);
 
 	bool CanStepBackToPreviousStateWithEvents() const;
@@ -136,6 +144,9 @@ private:
 
 	/** Object created from the event data when statetree node was holding an object. */
 	TWeakObjectPtr<UObject> SelectedNodeDataObject;
+
+	/** Indicates that a live session was started (record button or auto record in PIE) to generate StateTree traces. */
+	bool bRecording = false;
 };
 
 #endif // WITH_STATETREE_DEBUGGER

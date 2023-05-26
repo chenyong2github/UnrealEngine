@@ -18,6 +18,8 @@ public:
 	virtual void RegisterCommands() override;
 
 	TSharedPtr<FUICommandInfo> ToggleBreakpoint;
+	TSharedPtr<FUICommandInfo> StartRecording;
+	TSharedPtr<FUICommandInfo> StopRecording;
 	TSharedPtr<FUICommandInfo> PreviousFrameWithStateChange;
 	TSharedPtr<FUICommandInfo> PreviousFrameWithEvents;
 	TSharedPtr<FUICommandInfo> NextFrameWithEvents;

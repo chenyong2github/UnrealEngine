@@ -110,7 +110,8 @@ FString FStateTreeTraceConditionEvent::ToString(const UStateTree& StateTree) con
 //----------------------------------------------------------------------//
 // FStateTreeTraceActiveStatesEvent
 //----------------------------------------------------------------------//
-FStateTreeTraceActiveStatesEvent::FStateTreeTraceActiveStatesEvent(const EStateTreeUpdatePhase Phase): FStateTreeTracePhaseEvent(Phase)
+FStateTreeTraceActiveStatesEvent::FStateTreeTraceActiveStatesEvent(const double RecordingWorldTime, const EStateTreeUpdatePhase Phase)
+	: FStateTreeTracePhaseEvent(RecordingWorldTime, Phase)
 {
 }
 

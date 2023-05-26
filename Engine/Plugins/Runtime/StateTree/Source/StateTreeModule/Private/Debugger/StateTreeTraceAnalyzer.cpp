@@ -19,6 +19,7 @@ void FStateTreeTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
 	auto& Builder = Context.InterfaceBuilder;
 
+	Builder.RouteEvent(RouteId_WorldTimestamp, "StateTreeDebugger", "WorldTimestampEvent");
 	Builder.RouteEvent(RouteId_Instance, "StateTreeDebugger", "InstanceEvent");
 	Builder.RouteEvent(RouteId_LogMessage, "StateTreeDebugger", "LogEvent");
 	Builder.RouteEvent(RouteId_State, "StateTreeDebugger", "StateEvent");
@@ -37,6 +38,11 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
 	{
+	case RouteId_WorldTimestamp:
+		{
+			WorldTime = EventData.GetValue<double>("WorldTime");
+			break;
+		}
 	case RouteId_Instance:
 		{
 			FString ObjectName, ObjectPathName;
@@ -65,6 +71,7 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 						FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
 						*InstanceName,
 						Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")),
+						WorldTime,
 						EventData.GetValue<EStateTreeTraceInstanceEventType>("EventType"));
 				}
 				else
@@ -82,7 +89,7 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 		{
 			FString Message;
         	EventData.GetString("Message", Message);
-			const FStateTreeTraceLogEvent Event(EventData.GetValue<EStateTreeUpdatePhase>("Phase"), Message);
+			const FStateTreeTraceLogEvent Event(WorldTime, EventData.GetValue<EStateTreeUpdatePhase>("Phase"), Message);
 
 			Provider.AppendEvent(FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
 				Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")),
@@ -91,7 +98,7 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 		}
 	case RouteId_State:
 		{
-			const FStateTreeTraceStateEvent Event(
+			const FStateTreeTraceStateEvent Event(WorldTime,
 				EventData.GetValue<EStateTreeUpdatePhase>("Phase"),
 				FStateTreeIndex16(EventData.GetValue<uint16>("StateIndex")),
 				EventData.GetValue<EStateTreeTraceNodeEventType>("EventType"),
@@ -109,7 +116,7 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 			Archive << TypePath;
 			Archive << DataAsText;
 
-			const FStateTreeTraceTaskEvent Event(
+			const FStateTreeTraceTaskEvent Event(WorldTime,
 				EventData.GetValue<EStateTreeUpdatePhase>("Phase"),
 				FStateTreeIndex16(EventData.GetValue<uint16>("NodeIndex")),
 				EventData.GetValue<EStateTreeTraceNodeEventType>("EventType"),
@@ -128,7 +135,7 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 			Archive << TypePath;
 			Archive << DataAsText;
 
-			const FStateTreeTraceConditionEvent Event(
+			const FStateTreeTraceConditionEvent Event(WorldTime,
 				EventData.GetValue<EStateTreeUpdatePhase>("Phase"),
 				FStateTreeIndex16(EventData.GetValue<uint16>("NodeIndex")),
 				EventData.GetValue<EStateTreeTraceNodeEventType>("EventType"),
@@ -141,7 +148,7 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 		}
 	case RouteId_Transition:
 		{
-			const FStateTreeTraceTransitionEvent Event(
+			const FStateTreeTraceTransitionEvent Event(WorldTime,
 				EventData.GetValue<EStateTreeUpdatePhase>("Phase"),
 				FStateTreeIndex16(EventData.GetValue<uint16>("TransitionIndex")),
 				EventData.GetValue<EStateTreeTraceNodeEventType>("EventType"));
@@ -153,7 +160,7 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 		}
 	case RouteId_ActiveStates:
 		{
-			FStateTreeTraceActiveStatesEvent Event(EventData.GetValue<EStateTreeUpdatePhase>("Phase"));
+			FStateTreeTraceActiveStatesEvent Event(WorldTime, EventData.GetValue<EStateTreeUpdatePhase>("Phase"));
 			Event.ActiveStates = EventData.GetArrayView<uint16>("ActiveStates");
 
 			Provider.AppendEvent(FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),

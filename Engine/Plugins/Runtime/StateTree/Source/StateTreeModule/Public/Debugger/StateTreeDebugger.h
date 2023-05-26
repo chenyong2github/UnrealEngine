@@ -94,14 +94,28 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	 * @return Event collection associated to the provided Id or an invalid one if not found.
 	 */
 	const UE::StateTreeDebugger::FInstanceEventCollection& GetEventCollection(FStateTreeInstanceDebugId InstanceId) const;
-	
+
+	/** Returns the recording duration in world recorded time. */
 	double GetRecordingDuration() const { return RecordingDuration; }
+
+	/** Returns the duration of the analysis session. This is not related to the world simulation time. */
+	double GetAnalysisDuration() const { return AnalysisDuration; }
+
+	/** Returns the time (based on the recording duration) associated to the selected frame. */
 	double GetScrubTime() const	{ return ScrubState.ScrubTime; }
 	void SetScrubTime(double ScrubTime);
 
 	void GetLiveTraces(TArray<FTraceDescriptor>& OutTraceDescriptors) const;
-	void StartLastLiveSessionAnalysis();
+	
+	/**
+	 * Creates a new analysis session instance and loads the latest available trace that is live.
+	 * Replaces the current analysis session.
+	 * On failure, if 'RetryPollingDuration is > 0', will retry connecting every frame for 'RetryPollingDuration' seconds 
+	 * @param RetryPollingDuration - On failure, how many seconds to retry connecting during FStateTreeDebugger::Tick
+	 */
+	void StartLastLiveSessionAnalysis(float RetryPollingDuration = 1.0f);
 	void StartSessionAnalysis(const FTraceDescriptor& TraceDescriptor);
+	void StopAnalysis();
 	FTraceDescriptor GetSelectedTraceDescriptor() const { return ActiveSessionTraceDescriptor; }
 	FText GetSelectedTraceDescription() const;
 	
@@ -116,14 +130,12 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 
 protected:
 	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickable() const override;
+	virtual bool IsTickable() const override { return true; }
 	virtual bool IsTickableWhenPaused() const override { return true; }
 	virtual bool IsTickableInEditor() const override { return true; }
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FStateTreeDebugger, STATGROUP_Tickables); }
 	
 private:
-	void StopAnalysis();
-
 	void ReadTrace(double ScrubTime);
 	void ReadTrace(uint64 FrameIndex);
 	void ReadTrace(
@@ -177,13 +189,20 @@ private:
 	/** List of currently active states in the selected instance */
 	TArray<FStateTreeStateHandle> ActiveStates;
 
-	inline static constexpr double UnsetTime = -1;
+	/**
+	 * When auto-connecting on session start it is possible that a few frames are required for the tracing session to be accessible and connected to.
+	 * This is to keep track of the time window where we will retry.
+	 */
+	float RetryLoadLastLiveSessionTimer = 0.0f;
+	
+	/** Recording duration of the analysis session in world recorded time. */
+	double RecordingDuration = 0;
 
-	/** Recording duration of the analysis session. This is not related to the world simulation time. */
-	double RecordingDuration = UnsetTime;
+	/** Duration of the analysis session. This is not related to the world simulation time. */
+	double AnalysisDuration = 0;
 
 	/** Last time in the recording that we use to fetch events and we will use for the next read. */
-	double LastTraceReadTime = UnsetTime;
+	double LastTraceReadTime = 0;
 
 	/** Combined information regarding current scrub time (e.g. frame index, event collection index, etc.) */ 
 	UE::StateTreeDebugger::FScrubState ScrubState;

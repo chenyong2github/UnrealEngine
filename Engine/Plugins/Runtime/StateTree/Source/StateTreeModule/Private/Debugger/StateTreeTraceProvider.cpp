@@ -39,7 +39,7 @@ bool FStateTreeTraceProvider::ReadTimelines(const FStateTreeInstanceDebugId Inst
 			}
 		}
 
-		return EventsTimelines.Num() > 0;	
+		return EventsTimelines.Num() > 0;
 	}
 
 	return false;
@@ -67,8 +67,10 @@ void FStateTreeTraceProvider::AppendEvent(const FStateTreeInstanceDebugId InInst
 {
 	Session.WriteAccessCheck();
 
-	const uint32* IndexPtr = InstanceIdToDebuggerEntryTimelines.Find(InInstanceId);
-	if (ensureMsgf(IndexPtr != nullptr, TEXT("Timeline can't be found: probably caused by a missing instance event 'Started'.")))
+	// It is currently possible to receive events from an instance without receiving event `EStateTreeTraceInstanceEventType::Started` first
+	// (i.e. traces were activated after the statetree instance execution was started).    
+	// We plan to buffer the Instance events (Started/Stopped) to address this but for now we ignore events related to that instance.
+	if (const uint32* IndexPtr = InstanceIdToDebuggerEntryTimelines.Find(InInstanceId))
 	{
 		EventsTimelines[*IndexPtr]->AppendEvent(InTime, InEvent);
 	}
@@ -81,11 +83,12 @@ void FStateTreeTraceProvider::AppendInstanceEvent(
 	const FStateTreeInstanceDebugId InInstanceId,
 	const TCHAR* InInstanceName,
 	const double InTime,
+	const double InWorldRecordingTime,
 	const EStateTreeTraceInstanceEventType InEventType)
 {
 	if (InEventType == EStateTreeTraceInstanceEventType::Started)
 	{
-		Descriptors.Emplace(InStateTree, InInstanceId, InInstanceName, TRange<double>(InTime, std::numeric_limits<double>::max()));
+		Descriptors.Emplace(InStateTree, InInstanceId, InInstanceName, TRange<double>(InWorldRecordingTime, std::numeric_limits<double>::max()));
 
 		check(InstanceIdToDebuggerEntryTimelines.Find(InInstanceId) == nullptr);
 		InstanceIdToDebuggerEntryTimelines.Add(InInstanceId, EventsTimelines.Num());
@@ -94,11 +97,11 @@ void FStateTreeTraceProvider::AppendInstanceEvent(
 	}
 	else if (InEventType == EStateTreeTraceInstanceEventType::Stopped)
 	{
-		const uint32* Index = InstanceIdToDebuggerEntryTimelines.Find(InInstanceId);
-		if (ensureMsgf(Index != nullptr, TEXT("Unable to find matching instance. Looks like we never received event 'Started' for this instance.")))
+		// Process only if timeline can be found. See details in AppendEvent comment.
+		if (const uint32* Index = InstanceIdToDebuggerEntryTimelines.Find(InInstanceId))
 		{
 			check(Descriptors.IsValidIndex(*Index));
-			Descriptors[*Index].Lifetime.SetUpperBound(InTime);
+			Descriptors[*Index].Lifetime.SetUpperBound(InWorldRecordingTime);
 		}
 	}
 

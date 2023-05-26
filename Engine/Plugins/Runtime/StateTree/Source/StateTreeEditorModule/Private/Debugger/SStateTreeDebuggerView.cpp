@@ -11,13 +11,16 @@
 #include "IStructureDetailsView.h"
 #include "Kismet2/DebuggerCommands.h"
 #include "Modules/ModuleManager.h"
+#include "ProfilingDebugging/TraceAuxiliary.h"
 #include "PropertyEditorModule.h"
 #include "SStateTreeDebuggerInstanceTree.h"
 #include "SStateTreeDebuggerTimelines.h"
 #include "StateTree.h"
 #include "StateTreeDebuggerCommands.h"
 #include "StateTreeDebuggerTrack.h"
+#include "StateTreeEditorSettings.h"
 #include "StateTreeExecutionContext.h"
+#include "StateTreeModule.h"
 #include "StateTreeState.h"
 #include "StateTreeViewModel.h"
 #include "Widgets/Input/SComboButton.h"
@@ -167,16 +170,56 @@ SStateTreeDebuggerView::~SStateTreeDebuggerView()
 	FEditorDelegates::SingleStepPIE.RemoveAll(this);
 }
 
-void SStateTreeDebuggerView::OnPIEStarted(const bool bIsSimulating) const
+void SStateTreeDebuggerView::StartRecording()
 {
-	if (!Debugger->IsAnalysisSessionActive())
+	if (!CanStartRecording())
 	{
-		Debugger->StartLastLiveSessionAnalysis();
+		return;
+	}
+
+	IStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<IStateTreeModule>("StateTreeModule");
+	StateTreeModule.StartTraces();
+
+	bRecording = true;
+}
+
+void SStateTreeDebuggerView::StopRecording()
+{
+	if (bRecording)
+	{
+		IStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<IStateTreeModule>("StateTreeModule");
+		StateTreeModule.StopTraces();
+		
+		bRecording = false;
+
+		// Mark all tracks from the stopped session as stale to have different look.
+		for (const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& DebugTrack : InstanceTracks)
+		{
+			if (FStateTreeDebuggerTrack* StateTreeTrack = static_cast<FStateTreeDebuggerTrack*>(DebugTrack.Get()))
+			{
+				StateTreeTrack->MarkAsStale();
+			}
+		}
 	}
 }
 
-void SStateTreeDebuggerView::OnPIEStopped(const bool bIsSimulating) const
+void SStateTreeDebuggerView::OnPIEStarted(const bool bIsSimulating)
 {
+	if (UStateTreeEditorSettings::Get().bShouldDebuggerAutoRecordOnPIE)
+	{
+		StartRecording();
+
+		if (!Debugger->IsAnalysisSessionActive())
+		{
+			Debugger->StartLastLiveSessionAnalysis();
+		}
+	}
+}
+
+void SStateTreeDebuggerView::OnPIEStopped(const bool bIsSimulating)
+{
+	StopRecording();
+	Debugger->StopAnalysis();
 	Debugger->Unpause();
 }
 
@@ -201,6 +244,7 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 	StateTree = InStateTree;
 
 	Debugger = InStateTreeViewModel->GetDebugger();
+	bRecording = FTraceAuxiliary::IsConnected();
 
 	// Bind callbacks to the debugger delegates
 	Debugger->OnNewInstance.BindSP(this, &SStateTreeDebuggerView::OnNewInstance);
@@ -233,19 +277,23 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(InCommandList, FMultiBoxCustomization::None, /*InExtender*/ nullptr, /*InForceSmallIcons*/ true);
 	ToolbarBuilder.BeginSection(TEXT("Debugging"));
 	{
-		const FPlayWorldCommands& PlayWorldCommand = FPlayWorldCommands::Get();
-		ToolbarBuilder.AddToolBarButton(PlayWorldCommand.RepeatLastPlay);
-		ToolbarBuilder.AddToolBarButton(PlayWorldCommand.PausePlaySession,
+		const FStateTreeDebuggerCommands& DebuggerCommands = FStateTreeDebuggerCommands::Get();
+		ToolbarBuilder.AddToolBarButton(DebuggerCommands.StartRecording);
+		ToolbarBuilder.AddToolBarButton(DebuggerCommands.StopRecording);
+
+		const FPlayWorldCommands& PlayWorldCommands = FPlayWorldCommands::Get();
+		ToolbarBuilder.AddToolBarButton(PlayWorldCommands.RepeatLastPlay);
+		ToolbarBuilder.AddToolBarButton(PlayWorldCommands.PausePlaySession,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.PausePlaySession.Small"));
-		ToolbarBuilder.AddToolBarButton(PlayWorldCommand.ResumePlaySession,
+		ToolbarBuilder.AddToolBarButton(PlayWorldCommands.ResumePlaySession,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.ResumePlaySession.Small"));	
-		ToolbarBuilder.AddToolBarButton(PlayWorldCommand.StopPlaySession,
+		ToolbarBuilder.AddToolBarButton(PlayWorldCommands.StopPlaySession,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.StopPlaySession.Small"));
 		ToolbarBuilder.AddSeparator();
-		ToolbarBuilder.AddToolBarButton(FStateTreeDebuggerCommands::Get().PreviousFrameWithStateChange);
-		ToolbarBuilder.AddToolBarButton(FStateTreeDebuggerCommands::Get().PreviousFrameWithEvents);
-		ToolbarBuilder.AddToolBarButton(FStateTreeDebuggerCommands::Get().NextFrameWithEvents);
-		ToolbarBuilder.AddToolBarButton(FStateTreeDebuggerCommands::Get().NextFrameWithStateChange);
+		ToolbarBuilder.AddToolBarButton(DebuggerCommands.PreviousFrameWithStateChange);
+		ToolbarBuilder.AddToolBarButton(DebuggerCommands.PreviousFrameWithEvents);
+		ToolbarBuilder.AddToolBarButton(DebuggerCommands.NextFrameWithEvents);
+		ToolbarBuilder.AddToolBarButton(DebuggerCommands.NextFrameWithStateChange);
 	}
 	ToolbarBuilder.EndSection();
 
@@ -289,14 +337,14 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 	
 	// Timelines TreeView
 	InstanceTimelinesTreeView = SNew(SStateTreeDebuggerTimelines)
-	   .OnExpansionChanged_Lambda([this]() { InstancesTreeView->RestoreExpansion(); })
-	   .OnScrolled_Lambda([this](double ScrollOffset){ InstancesTreeView->ScrollTo(ScrollOffset); })
-	   .DebugComponents(&InstanceTracks)
-	   .ViewRange_Lambda([this](){ return ViewRange; })
-	   .ClampRange_Lambda([this](){ return TRange<double>(0.0f, Debugger->GetRecordingDuration()); })
-	   .OnViewRangeChanged_Lambda([this](TRange<double> NewRange){ ViewRange = NewRange; })
-	   .ScrubPosition(ScrubTimeAttribute)
-	   .OnScrubPositionChanged_Lambda([this](double NewScrubTime, bool bIsScrubbing){ OnTimeLineScrubPositionChanged( NewScrubTime, bIsScrubbing ); });
+		.OnExpansionChanged_Lambda([this]() { InstancesTreeView->RestoreExpansion(); })
+		.OnScrolled_Lambda([this](double ScrollOffset) { InstancesTreeView->ScrollTo(ScrollOffset); })
+		.InstanceTracks(&InstanceTracks)
+		.ViewRange_Lambda([this]() { return ViewRange; })
+		.ClampRange_Lambda([this]() { return TRange<double>(0, Debugger->GetRecordingDuration()); })
+		.OnViewRangeChanged_Lambda([this](TRange<double> NewRange) { ViewRange = NewRange; })
+		.ScrubPosition(ScrubTimeAttribute)
+		.OnScrubPositionChanged_Lambda([this](double NewScrubTime, bool bIsScrubbing) { OnTimeLineScrubPositionChanged(NewScrubTime, bIsScrubbing); });
 
 	// EventsTreeView
 	EventsTreeView = SNew(STreeView<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>)
@@ -439,9 +487,9 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 						.ClampRangeHighlightColor(FLinearColor::Red.CopyWithNewOpacity(0.5f))
 						.ScrubPosition(ScrubTimeAttribute)
 						.ViewRange_Lambda([this]() { return ViewRange; })
-						.OnViewRangeChanged_Lambda([this](TRange<double> NewRange){ ViewRange = NewRange; })
-						.ClampRange_Lambda([this](){ return TRange<double>(0.0f, Debugger->GetRecordingDuration()); })
-						.OnScrubPositionChanged_Lambda([this](double NewScrubTime, bool bIsScrubbing){ OnTimeLineScrubPositionChanged(NewScrubTime, bIsScrubbing); })
+						.OnViewRangeChanged_Lambda([this](TRange<double> NewRange) { ViewRange = NewRange; })
+						.ClampRange_Lambda([this]() { return TRange<double>(0, Debugger->GetRecordingDuration()); })
+						.OnScrubPositionChanged_Lambda([this](double NewScrubTime, bool bIsScrubbing) { OnTimeLineScrubPositionChanged(NewScrubTime, bIsScrubbing); })
 					]
 				]
 			]
@@ -539,7 +587,7 @@ void SStateTreeDebuggerView::RefreshTracks()
 	{
 		bChanged = DebugTrack->Update() || bChanged;
 	}
-	
+
 	if (bChanged)
 	{
 		InstancesTreeView->Refresh();
@@ -551,6 +599,20 @@ void SStateTreeDebuggerView::RefreshTracks()
 void SStateTreeDebuggerView::BindDebuggerToolbarCommands(const TSharedRef<FUICommandList>& ToolkitCommands)
 {
 	const FStateTreeDebuggerCommands& Commands = FStateTreeDebuggerCommands::Get();
+
+	ToolkitCommands->MapAction(
+		Commands.StartRecording,
+		FExecuteAction::CreateSP(this, &SStateTreeDebuggerView::StartRecording),
+		FCanExecuteAction::CreateSP(this, &SStateTreeDebuggerView::CanStartRecording),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateLambda([this]() { return !IsRecording();}));
+
+	ToolkitCommands->MapAction(
+		Commands.StopRecording,
+		FExecuteAction::CreateSP(this, &SStateTreeDebuggerView::StopRecording),
+		FCanExecuteAction::CreateSP(this, &SStateTreeDebuggerView::CanStopRecording),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateRaw(this, &SStateTreeDebuggerView::CanStopRecording));
 	
 	ToolkitCommands->MapAction(
 		Commands.PreviousFrameWithStateChange,
@@ -655,6 +717,12 @@ void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebu
 {
 	// Rebuild frame details from the events of that frame
 	EventsTreeElements.Reset();
+	ON_SCOPE_EXIT
+	{
+		EventsTreeView->ClearExpandedItems();
+		ExpandAll(EventsTreeElements);
+		EventsTreeView->RequestTreeRefresh();
+	};
 
 	const UE::StateTreeDebugger::FInstanceEventCollection& EventCollection = ScrubState.GetEventCollection();
 	const TConstArrayView<const FStateTreeTraceEventVariantType> Events = EventCollection.Events;
@@ -692,7 +760,7 @@ void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebu
 				NodeDesc = FString::Printf(TEXT(" '%s'"), CompactState != nullptr ? *CompactState->Name.ToString() : *StateHandle.Describe());
 			}
 
-			FStateTreeTraceLogEvent LogEvent(NodePhase,	FString::Printf(TEXT("%s%s"), *UEnum::GetDisplayValueAsText(NodePhase).ToString(), *NodeDesc));
+			FStateTreeTraceLogEvent LogEvent(/*RecordingWorldTime*/0, NodePhase, FString::Printf(TEXT("%s%s"), *UEnum::GetDisplayValueAsText(NodePhase).ToString(), *NodeDesc));
 
 			// Create Tree element to hold the event
 			const TSharedPtr<UE::StateTreeDebugger::FEventTreeElement> NewElement = MakeShareable(
@@ -780,7 +848,7 @@ void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebu
 		if (bPopState)
 		{
 			ParentStack.Pop();
-			// We use pop state to maintain the state stack but there is no element to visualize				
+			// We use pop state to maintain the state stack but there is no element to visualize
 			continue;
 		}
 
@@ -794,10 +862,6 @@ void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebu
 		TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& Elements = ParentStack.IsEmpty() ? EventsTreeElements : ParentStack.Top().Element->Children;
         Elements.Add(MakeShareable(new UE::StateTreeDebugger::FEventTreeElement(Spans[SpanIdx].Frame, Event)));
 	}
-
-	EventsTreeView->ClearExpandedItems();
-	ExpandAll(EventsTreeElements);
-	EventsTreeView->RequestTreeRefresh();
 }
 
 void SStateTreeDebuggerView::ExpandAll(const TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& Items)
@@ -890,7 +954,7 @@ TSharedRef<SWidget> SStateTreeDebuggerView::OnGetDebuggerTracesMenu() const
 
 void SStateTreeDebuggerView::TrackCursor()
 {
-	const double ScrubTime = ScrubTimeAttribute.Get();	
+	const double ScrubTime = ScrubTimeAttribute.Get();
 	TRange<double> CurrentViewRange = ViewRange;
 	const double ViewRangeDuration = CurrentViewRange.GetUpperBoundValue() - CurrentViewRange.GetLowerBoundValue();
 

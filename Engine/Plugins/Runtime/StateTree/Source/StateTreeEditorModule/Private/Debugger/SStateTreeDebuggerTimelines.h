@@ -20,7 +20,7 @@ class SStateTreeDebuggerTimelines : public SSimpleTimeSlider
 public:
 	SLATE_BEGIN_ARGS(SStateTreeDebuggerTimelines) {}
 	 
-		SLATE_ARGUMENT( TArray< TSharedPtr< RewindDebugger::FRewindDebuggerTrack > >*, DebugComponents );
+		SLATE_ARGUMENT( TArray< TSharedPtr< RewindDebugger::FRewindDebuggerTrack > >*, InstanceTracks );
 		SLATE_ARGUMENT( TSharedPtr<SScrollBar>, ExternalScrollbar)
 		SLATE_EVENT( FOnSelectionChanged, OnSelectionChanged )
 		SLATE_EVENT( FOnTableViewScrolled, OnScrolled)

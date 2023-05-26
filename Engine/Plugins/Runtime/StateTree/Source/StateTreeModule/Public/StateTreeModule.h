@@ -38,6 +38,18 @@ public:
 		return FModuleManager::Get().IsModuleLoaded("StateTreeModule");
 	}
 
+	/**
+	 * Start tracing and enables StateTree debugging related channels (frame + statetree).
+	 * If traces are already active we keep track of all channels previously activated to restore them on stop.
+	 */
+	virtual void StartTraces() = 0;
+
+	/**
+	 * Stops the trace service if it was not already connected when StartTraces was called.
+	 * Restores previously enabled channels if necessary.
+	 */
+	virtual void StopTraces() = 0;
+
 #if WITH_STATETREE_DEBUGGER
 	/**
 	 * Gets the store client.

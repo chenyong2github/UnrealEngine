@@ -18,9 +18,23 @@ class STATETREEEDITORMODULE_API UStateTreeEditorSettings : public UDeveloperSett
 {
 	GENERATED_UCLASS_BODY()
 public:
+	static UStateTreeEditorSettings& Get() { return *CastChecked<UStateTreeEditorSettings>(UStateTreeEditorSettings::StaticClass()->GetDefaultObject()); }
+
 	/** Determines when to save StateTrees post-compile */
 	UPROPERTY(EditAnywhere, config, Category = "Compiler")
 	EStateTreeSaveOnCompile SaveOnCompile = EStateTreeSaveOnCompile::Never;
+
+	/** If enabled, debugger starts recording information at the start of each PIE session. */
+	UPROPERTY(EditAnywhere, config, Category = "Debugger")
+	bool bShouldDebuggerAutoRecordOnPIE = true;
+
+protected:
+#if WITH_EDITOR
+	virtual FText GetSectionText() const override;
+	virtual FText GetSectionDescription() const override;
+#endif
+
+	virtual FName GetCategoryName() const override;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

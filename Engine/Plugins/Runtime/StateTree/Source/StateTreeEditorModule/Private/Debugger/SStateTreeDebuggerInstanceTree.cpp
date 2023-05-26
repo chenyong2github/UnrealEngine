@@ -4,6 +4,8 @@
 
 #include "Debugger/SStateTreeDebuggerInstanceTree.h"
 #include "RewindDebuggerTrack.h"
+#include "StateTreeDebuggerTrack.h"
+
 #include "Widgets/Images/SLayeredImage.h"
 
 //----------------------------------------------------------------------//
@@ -45,6 +47,17 @@ TSharedRef<ITableRow> SStateTreeDebuggerInstanceTree::GenerateTreeRow(TSharedPtr
 				SNew(STextBlock)
 				.Text(Item->GetDisplayName())
 				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.ColorAndOpacity_Lambda([Item]()
+				{
+					if (const FStateTreeDebuggerTrack* DebuggerTrack = static_cast<FStateTreeDebuggerTrack*>(Item.Get()))
+					{
+						if (DebuggerTrack->IsStale())
+						{
+							return FSlateColor::UseSubduedForeground();
+						}
+					}
+					return FSlateColor::UseForeground();
+				})
 			]
 		];
 }

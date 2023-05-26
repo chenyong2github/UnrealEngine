@@ -21,6 +21,7 @@ public:
 private:
 	enum : uint16
 	{
+		RouteId_WorldTimestamp,
 		RouteId_Instance,
 		RouteId_LogMessage,
 		RouteId_State,
@@ -32,5 +33,6 @@ private:
 
 	TraceServices::IAnalysisSession& Session;
 	FStateTreeTraceProvider& Provider;
+	double WorldTime = 0;
 };
 #endif // WITH_STATETREE_DEBUGGER

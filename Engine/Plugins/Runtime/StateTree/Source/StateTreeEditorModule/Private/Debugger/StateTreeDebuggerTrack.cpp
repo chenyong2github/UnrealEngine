@@ -40,11 +40,11 @@ bool FStateTreeDebuggerTrack::UpdateInternal()
 	
 	if (StateTree != nullptr && EventCollection.IsValid())
 	{
-		auto MakeRandomColor = [](const uint32 InSeed)->FLinearColor
+		auto MakeRandomColor = [bActive = !bIsStale](const uint32 InSeed)->FLinearColor
 		{
 			const FRandomStream Stream(InSeed);
-			const uint8 Hue = (uint8)(Stream.FRand() * 255.0f);
-			constexpr uint8 SatVal = 196;
+			const uint8 Hue = static_cast<uint8>(Stream.FRand() * 255.0f);
+			const uint8 SatVal = bActive ? 196 : 128;
 			return FLinearColor::MakeFromHSV8(Hue, SatVal, SatVal);
 		};
 		
@@ -52,10 +52,10 @@ bool FStateTreeDebuggerTrack::UpdateInternal()
 		const TConstArrayView<FStateTreeTraceEventVariantType> Events = EventCollection.Events;
 		const uint32 NumStateChanges = EventCollection.ActiveStatesChanges.Num();
 		
-		for (uint32 StatechangeIndex = 0; StatechangeIndex < NumStateChanges; ++StatechangeIndex)
+		for (uint32 StateChangeIndex = 0; StateChangeIndex < NumStateChanges; ++StateChangeIndex)
 		{
-			const uint32 SpanIndex = EventCollection.ActiveStatesChanges[StatechangeIndex].Key;
-			const uint32 EventIndex = EventCollection.ActiveStatesChanges[StatechangeIndex].Value;
+			const uint32 SpanIndex = EventCollection.ActiveStatesChanges[StateChangeIndex].SpanIndex;
+			const uint32 EventIndex = EventCollection.ActiveStatesChanges[StateChangeIndex].EventIndex;
 			const FStateTreeTraceActiveStatesEvent& Event = Events[EventIndex].Get<FStateTreeTraceActiveStatesEvent>();
 				
 			FString StatePath;
@@ -64,21 +64,22 @@ bool FStateTreeDebuggerTrack::UpdateInternal()
 				const FCompactStateTreeState& State = StateTree->GetStates()[Event.ActiveStates[StateIndex].Index];
 				StatePath.Appendf(TEXT("%s%s"), StateIndex == 0 ? TEXT("") : TEXT("."), *State.Name.ToString());
 			}
-			
+
+			UE::StateTreeDebugger::FFrameSpan Span = EventCollection.FrameSpans[SpanIndex];
 			SStateTreeDebuggerEventTimelineView::FTimelineEventData::EventWindow& Window = EventData->Windows.AddDefaulted_GetRef();
 			Window.Color = MakeRandomColor(GetTypeHash(StatePath));
 			Window.Description = FText::FromString(StatePath);
-			Window.TimeStart = EventCollection.FrameSpans[SpanIndex].Frame.StartTime;
+			Window.TimeStart = Span.GetWorldTimeStart();
 
 			// When there is another state change after the current one in the list we use its start time to close the window.
-			if (StatechangeIndex < NumStateChanges-1)
+			if (StateChangeIndex < NumStateChanges-1)
 			{
-				const uint32 NextSpanIndex = EventCollection.ActiveStatesChanges[StatechangeIndex+1].Key;
-				Window.TimeEnd = EventCollection.FrameSpans[NextSpanIndex].Frame.StartTime;
+				const uint32 NextSpanIndex = EventCollection.ActiveStatesChanges[StateChangeIndex+1].SpanIndex;
+				Window.TimeEnd = EventCollection.FrameSpans[NextSpanIndex].GetWorldTimeStart();
 			}
 			else
 			{
-				Window.TimeEnd = Debugger->IsActiveInstance(RecordingDuration, InstanceId) ? RecordingDuration : EventCollection.FrameSpans[SpanIndex].Frame.EndTime;
+				Window.TimeEnd = Debugger->IsActiveInstance(RecordingDuration, InstanceId) ? RecordingDuration : Span.GetWorldTimeEnd();
 			}
 		}
 
@@ -93,9 +94,9 @@ bool FStateTreeDebuggerTrack::UpdateInternal()
 				if (Events[EventIndex].IsType<FStateTreeTraceLogEvent>())
 				{
 					SStateTreeDebuggerEventTimelineView::FTimelineEventData::EventPoint Point;
-					Point.Time = Span.Frame.StartTime;
+					Point.Time = Span.GetWorldTimeStart();
 					Point.Color = FColorList::Salmon;
-					EventData->Points.Add(Point);					
+					EventData->Points.Add(Point);
 				}
 			}
 		}

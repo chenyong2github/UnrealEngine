@@ -86,17 +86,23 @@ FStateTreeDebugger::~FStateTreeDebugger()
 	StopAnalysis();
 }
 
-void FStateTreeDebugger::Tick(float DeltaTime)
+void FStateTreeDebugger::Tick(const float DeltaTime)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStateTreeDebugger::Tick);
 
+	if (RetryLoadLastLiveSessionTimer > 0.0f)
+	{
+		// We are still not connected to the last live session.
+		// Update polling timer and retry with remaining time; 0 or less will stop retries.
+		StartLastLiveSessionAnalysis(RetryLoadLastLiveSessionTimer - DeltaTime);
+		if (ActiveSessionTraceDescriptor.IsValid())
+		{
+			RetryLoadLastLiveSessionTimer = 0.0f;
+		}
+	}
+	
 	UpdateInstances();
 	SyncToCurrentSessionDuration();
-}
-
-bool FStateTreeDebugger::IsTickable() const
-{
-	return AnalysisSession.IsValid();
 }
 
 void FStateTreeDebugger::StopAnalysis()
@@ -106,8 +112,6 @@ void FStateTreeDebugger::StopAnalysis()
 		Session->Stop(true);
 		AnalysisSession.Reset();	
 	}
-
-	EventCollections.Reset();
 }
 
 void FStateTreeDebugger::Pause()
@@ -127,9 +131,9 @@ void FStateTreeDebugger::SyncToCurrentSessionDuration()
 	{
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
-			RecordingDuration = Session->GetDurationSeconds();
+			AnalysisDuration = Session->GetDurationSeconds();
 		}
-		ReadTrace(RecordingDuration);
+		ReadTrace(AnalysisDuration);
 	}
 }
 
@@ -192,7 +196,7 @@ void FStateTreeDebugger::UpdateInstances()
 	}
 }
 
-void FStateTreeDebugger::StartLastLiveSessionAnalysis()
+void FStateTreeDebugger::StartLastLiveSessionAnalysis(const float RetryPollingDuration)
 {
 	TArray<FTraceDescriptor> Traces;
 	GetLiveTraces(Traces);
@@ -200,6 +204,12 @@ void FStateTreeDebugger::StartLastLiveSessionAnalysis()
 	if (Traces.Num())
 	{
 		StartSessionAnalysis(Traces.Last());
+	}
+	else
+	{
+		RetryLoadLastLiveSessionTimer = RetryPollingDuration;
+		ensure(RetryLoadLastLiveSessionTimer > 0);
+		UE_CLOG(RetryLoadLastLiveSessionTimer > 0, LogStateTree, Log, TEXT("Unable to start analysis for the most recent live session."));
 	}
 }
 
@@ -218,6 +228,10 @@ void FStateTreeDebugger::StartSessionAnalysis(const FTraceDescriptor& TraceDescr
 
 	// Make sure any active analysis is stopped
 	StopAnalysis();
+
+	RecordingDuration = 0;
+	AnalysisDuration = 0;
+	LastTraceReadTime = 0;
 
 	const uint32 TraceId = TraceDescriptor.TraceId;
 
@@ -412,7 +426,7 @@ void FStateTreeDebugger::RefreshActiveStates()
 	if (ScrubState.IsPointingToValidActiveStates())
 	{
 		const UE::StateTreeDebugger::FInstanceEventCollection& EventCollection = EventCollections[ScrubState.EventCollectionIndex];
-		const int32 EventIndex = EventCollection.ActiveStatesChanges[ScrubState.ActiveStatesIndex].Value;
+		const int32 EventIndex = EventCollection.ActiveStatesChanges[ScrubState.ActiveStatesIndex].EventIndex;
 		NewActiveStates = EventCollection.Events[EventIndex].Get<FStateTreeTraceActiveStatesEvent>().ActiveStates;
 	}
 
@@ -598,7 +612,7 @@ void FStateTreeDebugger::ReadTrace(
 {
 	TraceServices::FFrame LastReadFrame;
 	const bool bValidLastReadFrame = FrameProvider.GetFrameFromTime(TraceFrameType_Game, LastTraceReadTime, LastReadFrame);
-	if (LastTraceReadTime == UnsetTime || (bValidLastReadFrame && Frame.Index > LastReadFrame.Index))
+	if (LastTraceReadTime == 0 || (bValidLastReadFrame && Frame.Index > LastReadFrame.Index))
 	{
 		if (const IStateTreeTraceProvider* Provider = Session.ReadProvider<IStateTreeTraceProvider>(FStateTreeTraceProvider::ProviderName))
 		{
@@ -676,25 +690,34 @@ bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId
 	// Add new frame span if none added yet or new frame
 	if (ExistingCollection->FrameSpans.IsEmpty() || ExistingCollection->FrameSpans.Last().Frame.Index < Frame.Index)
 	{
-		ExistingCollection->FrameSpans.Add(UE::StateTreeDebugger::FFrameSpan(Frame, Events.Num()));
+		double RecordingWorldTime = 0;
+		Visit([&RecordingWorldTime](auto& TypedEvent)
+			{
+				RecordingWorldTime = TypedEvent.RecordingWorldTime;
+			}, Event);
+
+		// Update global recording duration
+		RecordingDuration = RecordingWorldTime;
+
+		ExistingCollection->FrameSpans.Add(UE::StateTreeDebugger::FFrameSpan(Frame, RecordingWorldTime, Events.Num()));
 	}
 
 	// Add activate states change info
 	if (Event.IsType<FStateTreeTraceActiveStatesEvent>())
 	{
 		checkf(ExistingCollection->FrameSpans.Num() > 0, TEXT("Expecting to always be in a frame span at this point."));
-		const uint32 FrameSpanIndex = ExistingCollection->FrameSpans.Num()-1;
+		const int32 FrameSpanIndex = ExistingCollection->FrameSpans.Num()-1;
 
 		// Add new entry for the first event or if the last event is for a different frame
 		if (ExistingCollection->ActiveStatesChanges.IsEmpty()
-			|| ExistingCollection->ActiveStatesChanges.Last().Key != FrameSpanIndex)
+			|| ExistingCollection->ActiveStatesChanges.Last().SpanIndex != FrameSpanIndex)
 		{
 			ExistingCollection->ActiveStatesChanges.Push({FrameSpanIndex, Events.Num()});
 		}
 		else
 		{
 			// Multiple events for change of active states in the same frame, keep the last one until we implement scrubbing within a frame
-			ExistingCollection->ActiveStatesChanges.Last().Value = Events.Num();
+			ExistingCollection->ActiveStatesChanges.Last().EventIndex = Events.Num();
 		}
 	}
 

@@ -4,6 +4,7 @@
 #include "StateTreeTypes.h"
 
 #if WITH_STATETREE_DEBUGGER
+#include "Debugger/StateTreeTrace.h"
 #include "Debugger/StateTreeTraceModule.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/IConsoleManager.h"
@@ -15,10 +16,6 @@
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/ITraceServicesModule.h"
 
-#if WITH_TRACE_STORE
-#include "Misc/Paths.h"
-#endif // WITH_TRACE_STORE
-
 #endif // WITH_STATETREE_DEBUGGER
 
 #define LOCTEXT_NAMESPACE "StateTree"
@@ -29,30 +26,31 @@ class FStateTreeModule : public IStateTreeModule
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	void StartTraces();
-	void StopTraces();
+	virtual void StartTraces() override;
+	virtual void StopTraces() override;
 
 #if WITH_STATETREE_DEBUGGER
 	/**
 	 * Gets the store client.
 	 */
-	virtual UE::Trace::FStoreClient* GetStoreClient() override  { return StoreClient.Get(); }
+	virtual UE::Trace::FStoreClient* GetStoreClient() override
+	{
+		if (!StoreClient.IsValid())
+		{
+			StoreClient = TUniquePtr<UE::Trace::FStoreClient>(UE::Trace::FStoreClient::Connect(TEXT("localhost")));
+		}
+		return StoreClient.Get();
+	}
 	
 	TSharedPtr<TraceServices::IAnalysisService> TraceAnalysisService;
 	TSharedPtr<TraceServices::IModuleService> TraceModuleService;
 
-	/** The location of the trace files managed by the trace store. */
-	FString StoreDir;
+	TArray<const FString> ChannelsToRestore;
 
 	/** The client used to connect to the trace store. */
 	TUniquePtr<UE::Trace::FStoreClient> StoreClient;
-
-#if WITH_TRACE_STORE
-	TUniquePtr<UE::Trace::FStoreService> StoreService;
-#endif // WITH_TRACE_STORE
 	
 	FStateTreeTraceModule StateTreeTraceModule;
-	FDelegateHandle StoreServiceHandle;
 
 	FAutoConsoleCommand EnableDebugger = FAutoConsoleCommand(
 		TEXT("statetree.enabledebugger"),
@@ -75,12 +73,37 @@ IMPLEMENT_MODULE(FStateTreeModule, StateTreeModule)
 
 void FStateTreeModule::StartupModule()
 {
+#if WITH_STATETREE_DEBUGGER
+	ITraceServicesModule& TraceServicesModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>("TraceServices");
+	TraceAnalysisService = TraceServicesModule.GetAnalysisService();
+	TraceModuleService = TraceServicesModule.GetModuleService();
+
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &StateTreeTraceModule);
+
+	UE::StateTreeTrace::RegisterGlobalDelegates();
+#if !WITH_EDITOR
+	// We don't automatically start traces for Editor targets since we rely on the debugger
+	// to start recording either on user action or on PIE session start.
 	StartTraces();
+#endif // !WITH_EDITOR
+
+#endif // WITH_STATETREE_DEBUGGER
 }
 
 void FStateTreeModule::ShutdownModule()
 {
+#if WITH_STATETREE_DEBUGGER
 	StopTraces();
+
+	if (StoreClient.IsValid())
+	{
+		StoreClient.Release();
+	}
+
+	UE::StateTreeTrace::UnregisterGlobalDelegates();
+	
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &StateTreeTraceModule);
+#endif // WITH_STATETREE_DEBUGGER
 }
 
 void FStateTreeModule::StartTraces()
@@ -91,17 +114,23 @@ void FStateTreeModule::StartTraces()
 		return;
 	}
 
-	ITraceServicesModule& TraceServicesModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>("TraceServices");
-	TraceAnalysisService = TraceServicesModule.GetAnalysisService();
-	TraceModuleService = TraceServicesModule.GetModuleService();
+	const bool bAlreadyConnected = FTraceAuxiliary::IsConnected();
 
-	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &StateTreeTraceModule);
-
-	if (!FTraceAuxiliary::IsConnected())
+	// If trace is already connected let's keep track of enabled channels to restore them when we stop recording
+	if (bAlreadyConnected)
 	{
-		// cpu tracing is enabled by default, but not connected.
-		// when not connected, disable all channels initially to avoid a whole bunch of extra cpu, memory, and disk overhead from processing all the extra default trace channels
-		////////////////////////////////////////////////////////////////////////////////
+		UE::Trace::EnumerateChannels([](const ANSICHAR* Name, const bool bIsEnabled, void* Channels)
+		{
+			TArray<FString>* ChannelsToRestore = static_cast<TArray<FString>*>(Channels); 
+			if (bIsEnabled)
+			{
+				ChannelsToRestore->Emplace(ANSI_TO_TCHAR(Name));
+			}		
+		}, &ChannelsToRestore);
+	}
+	else
+	{
+		// Disable all channels and then enable only those we need to minimize trace file size.
 		UE::Trace::EnumerateChannels([](const ANSICHAR* ChannelName, const bool bEnabled, void*)
 			{
 				if (bEnabled)
@@ -110,72 +139,41 @@ void FStateTreeModule::StartTraces()
 					UE::Trace::ToggleChannel(ChannelNameFString.GetCharArray().GetData(), false);
 				}
 			}
-			, nullptr);
+		, nullptr);
 	}
 
 	UE::Trace::ToggleChannel(TEXT("StateTreeDebugChannel"), true);
 	UE::Trace::ToggleChannel(TEXT("FrameChannel"), true);
 
-	// FTraceAuxiliary::FOptions Options;
-	// Options.bExcludeTail = true;
-	// FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::Network, TEXT("127.0.0.1"), TEXT(""), &Options, LogStateTree);
-	FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::Network, TEXT("127.0.0.1"), TEXT(""), nullptr, LogStateTree);
-
-	// Conditionally create local store service after engine init (if someone doesn't beat us to it).
-	// This is temp until a more formal local server is done by the insights system.
-	StoreServiceHandle = FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this]
+	if (bAlreadyConnected == false)
 	{
-		LLM_SCOPE_BYNAME(TEXT("StateTree"));
-
-		if (!GetStoreClient())
-		{
-#if WITH_TRACE_STORE
-			UE_LOG(LogCore, Display, TEXT("StateTree module auto-connecting to internal trace server..."));
-
-			// Create the Store Service.
-			StoreDir = FPaths::ProjectSavedDir() / TEXT("TraceSessions");
-			UE::Trace::FStoreService::FDesc StoreServiceDesc;
-			StoreServiceDesc.StoreDir = *StoreDir;
-			StoreServiceDesc.RecorderPort = 0; // Let system decide port
-			StoreServiceDesc.ThreadCount = 2;
-			StoreService = TUniquePtr<UE::Trace::FStoreService>(UE::Trace::FStoreService::Create(StoreServiceDesc));
-			if (StoreService.IsValid())
-			{
-				// Connect to our newly created store
-				StoreClient = TUniquePtr<UE::Trace::FStoreClient>(UE::Trace::FStoreClient::Connect(TEXT("localhost")));
-				UE::Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
-				
-				FCoreDelegates::OnPreExit.AddLambda([this]() { StoreService.Reset(); });
-			}
-#else
-			UE_LOG(LogCore, Display, TEXT("StateTree module auto-connecting to local trace server..."));
-
-			StoreClient = TUniquePtr<UE::Trace::FStoreClient>(UE::Trace::FStoreClient::Connect(TEXT("localhost")));
-			if (StoreClient.IsValid())
-			{
-				const UE::Trace::FStoreClient::FStatus* Status = StoreClient->GetStatus();
-				StoreDir = FString(Status->GetStoreDir());
-			}
-#endif // WITH_TRACE_STORE
-		}
-	});
+		FTraceAuxiliary::FOptions Options;
+		Options.bExcludeTail = true;
+		FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::Network, TEXT("localhost"), TEXT(""), &Options, LogStateTree);
+	}
 #endif // WITH_STATETREE_DEBUGGER
 }
 
 void FStateTreeModule::StopTraces()
 {
 #if WITH_STATETREE_DEBUGGER
-	if (StoreServiceHandle.IsValid())
+
+	UE::Trace::ToggleChannel(TEXT("StateTreeDebugChannel"), false);
+	UE::Trace::ToggleChannel(TEXT("FrameChannel"), false);
+
+	// When we have channels to restore it also indicates that the trace were active
+	// so we only toggle the channels back (i.e. not calling FTraceAuxiliary::Stop)
+	if (ChannelsToRestore.Num() > 0)
 	{
-		if (FTraceAuxiliary::IsConnected())
+		for (const FString& ChannelName : ChannelsToRestore)
 		{
-			FTraceAuxiliary::Stop();
+			UE::Trace::ToggleChannel(ChannelName.GetCharArray().GetData(), true);
 		}
-		
-		IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &StateTreeTraceModule);
-		
-		FCoreDelegates::OnFEngineLoopInitComplete.Remove(StoreServiceHandle);
-		StoreServiceHandle.Reset();
+		ChannelsToRestore.Reset();
+	}
+	else
+	{
+		FTraceAuxiliary::Stop();
 	}
 #endif // WITH_STATETREE_DEBUGGER
 }
