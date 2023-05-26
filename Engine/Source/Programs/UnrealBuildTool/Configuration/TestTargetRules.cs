@@ -163,6 +163,10 @@ namespace UnrealBuildTool
 							SolutionDirectory = Path.Combine("Games", ProjectFile.Directory.GetDirectoryName(), "LowLevelTests");
 						}
 					}
+					else
+					{
+						SolutionDirectory = "Programs/LowLevelTests";
+					}
 				}
 				else
 				{
