@@ -8,7 +8,7 @@ class AWaterZone;
 class UWaterBodyComponent;
 class FSceneInterface;
 class UTextureRenderTarget2D;
-class AActor;
+class UPrimitiveComponent;
 
 namespace UE::WaterInfo
 {
@@ -17,7 +17,7 @@ namespace UE::WaterInfo
 		AWaterZone* ZoneToRender = nullptr;
 		UTextureRenderTarget2D* TextureRenderTarget;
 		TArray<UWaterBodyComponent*> WaterBodies;
-		TArray<TWeakObjectPtr<AActor>> GroundActors;
+		TArray<TWeakObjectPtr<UPrimitiveComponent>> GroundPrimitiveComponents;
 		float CaptureZ;
 	};
 	

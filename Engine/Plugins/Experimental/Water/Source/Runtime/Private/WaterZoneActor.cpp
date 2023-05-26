@@ -433,7 +433,8 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		GroundZMin = TNumericLimits<float>::Max();
 		float GroundZMax = TNumericLimits<float>::Lowest();
 
-		TArray<TWeakObjectPtr<AActor>> GroundActors;
+		TArray<TWeakObjectPtr<UPrimitiveComponent>> GroundPrimitiveComponents;
+
 		const FBox WaterZoneBounds = GetZoneBounds();
 		for (ALandscapeProxy* LandscapeProxy : TActorRange<ALandscapeProxy>(World))
 		{
@@ -443,31 +444,27 @@ bool AWaterZone::UpdateWaterInfoTexture()
 			{
 				GroundZMin = FMath::Min(GroundZMin, LandscapeBox.Min.Z);
 				GroundZMax = FMath::Max(GroundZMax, LandscapeBox.Max.Z);
-				GroundActors.Add(LandscapeProxy);
+				TInlineComponentArray<ULandscapeComponent*> LandscapeComponents(LandscapeProxy);
+				GroundPrimitiveComponents.Append(LandscapeComponents);
 			}
 		}
 
-		// If we have no ground actors we need to set GroundZMin to be something sensible because it won't have been set above.
-		if (GroundActors.Num() == 0)
+		// If we have no ground components we need to set GroundZMin to be something sensible because it won't have been set above.
+		if (GroundPrimitiveComponents.Num() == 0)
 		{
 			GroundZMax = WaterZMax;
 			GroundZMin = WaterZMin - CVarWaterFallbackDepth.GetValueOnGameThread();
 		}
 
 #if WITH_EDITOR
-		// Check all the ground actors have complete shader maps before we try to render them into the water info texture
-		for (TWeakObjectPtr<AActor> GroundActorPtr : GroundActors)
+		// Check all the ground components have complete shader maps before we try to render them into the water info texture
+		for (TWeakObjectPtr<UPrimitiveComponent> GroundPrimCompPtr : GroundPrimitiveComponents)
 		{
-			if (AActor* GroundActor = GroundActorPtr.Get())
+			if (UPrimitiveComponent* GroundPrimComp = GroundPrimCompPtr.Get())
 			{
-				TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(GroundActor);
-
-				for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-				{
 					TArray<UMaterialInterface*> TmpUsedMaterials;
-					PrimitiveComponent->GetUsedMaterials(TmpUsedMaterials, false);
+					GroundPrimComp->GetUsedMaterials(TmpUsedMaterials, false);
 					UsedMaterials.Append(TmpUsedMaterials);
-				}
 			}
 		}
 
@@ -503,7 +500,7 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		UE::WaterInfo::FRenderingContext Context;
 		Context.ZoneToRender = this;
 		Context.WaterBodies = WaterBodiesToRender;
-		Context.GroundActors = MoveTemp(GroundActors);
+		Context.GroundPrimitiveComponents = MoveTemp(GroundPrimitiveComponents);
 		Context.CaptureZ = FMath::Max(WaterZMax, GroundZMax) + CaptureZOffset;
 		Context.TextureRenderTarget = WaterInfoTexture;
 

@@ -758,21 +758,14 @@ void UpdateWaterInfoRendering(
 	CreateSceneRendererParams.ViewRotationMatrix.RemoveScaling();
 
 	TSet<FPrimitiveComponentId> ComponentsToRenderInDepthPass;
-	if (Context.GroundActors.Num() > 0)
+	if (Context.GroundPrimitiveComponents.Num() > 0)
 	{
-		ComponentsToRenderInDepthPass.Reserve(Context.GroundActors.Num());
-		for (TWeakObjectPtr<AActor> GroundActor : Context.GroundActors)
+		ComponentsToRenderInDepthPass.Reserve(Context.GroundPrimitiveComponents.Num());
+		for (TWeakObjectPtr<UPrimitiveComponent> GroundPrimComp : Context.GroundPrimitiveComponents)
 		{
-			if (GroundActor.IsValid())
+			if (GroundPrimComp.IsValid())
 			{
-				TInlineComponentArray<UPrimitiveComponent*> PrimComps(GroundActor.Get());
-				for (UPrimitiveComponent* PrimComp : PrimComps)
-				{
-					if (PrimComp)
-					{
-						ComponentsToRenderInDepthPass.Add(PrimComp->ComponentId);
-					}
-				}
+				ComponentsToRenderInDepthPass.Add(GroundPrimComp.Get()->ComponentId);
 			}
 		}
 	}
