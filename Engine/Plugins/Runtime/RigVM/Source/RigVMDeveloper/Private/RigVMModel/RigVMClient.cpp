@@ -296,6 +296,7 @@ bool FRigVMClient::RemoveController(const URigVMGraph* InModel)
 	const bool bSuccess = Controllers.Remove(Key) > 0;
 	if(Controller)
 	{
+		Controller->SetActionStack(nullptr);
 		Controller->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 		Controller->RemoveFromRoot();
 		Controller->MarkAsGarbage();

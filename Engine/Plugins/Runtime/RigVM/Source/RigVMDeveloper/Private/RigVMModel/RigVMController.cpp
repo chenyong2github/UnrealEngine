@@ -123,6 +123,11 @@ URigVMController::URigVMController(const FObjectInitializer& ObjectInitializer)
 
 URigVMController::~URigVMController()
 {
+	if(URigVMActionStack* ActionStack = WeakActionStack.Get())
+	{
+		ActionStack->OnModified().Remove(ActionStackHandle);
+		ActionStackHandle.Reset();
+	}
 }
 
 #if WITH_EDITORONLY_DATA
