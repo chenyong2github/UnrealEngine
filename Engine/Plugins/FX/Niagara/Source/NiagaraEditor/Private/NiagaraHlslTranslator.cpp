@@ -1355,7 +1355,7 @@ FNiagaraTranslateResults TNiagaraHlslTranslator<GraphBridge>::Translate(const FN
 								}
 								else
 								{
-									SimStage[Index].bPartialParticleUpdate = false;
+									SimStage.bPartialParticleUpdate = false;
 								}
 								break;
 							}
