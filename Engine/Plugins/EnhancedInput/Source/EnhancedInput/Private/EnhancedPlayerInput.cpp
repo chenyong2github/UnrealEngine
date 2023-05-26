@@ -197,6 +197,9 @@ void UEnhancedPlayerInput::ProcessActionMappingEvent(TObjectPtr<const UInputActi
 		// Do this only for no triggers?
 		TriggerStateTracker.SetStateForNoTriggers(ModifiedValue.IsNonZero() ? ETriggerState::Triggered : ETriggerState::None);	
 		bMappingTriggersApplied = Triggers.Num() > 0;
+
+		const EInputActionAccumulationBehavior AccumulationBehavior = ActionData.GetSourceAction()->AccumulationBehavior;
+
 		// Combine values for active events only, selecting the input with the greatest magnitude for each component in each tick.
 		if(ModifiedValue.GetMagnitudeSq())
 		{
@@ -205,10 +208,27 @@ void UEnhancedPlayerInput::ProcessActionMappingEvent(TObjectPtr<const UInputActi
 			FVector Merged = ActionData.Value.Get<FVector>();
 			for (int32 Component = 0; Component < NumComponents; ++Component)
 			{
-				if (FMath::Abs(Modified[Component]) >= FMath::Abs(Merged[Component]))
+				switch (AccumulationBehavior)
 				{
-					Merged[Component] = Modified[Component];
+				// Sometimes you may want to cumulatively merge input. This would allow you to, for example, map WASD to movement and have pressing W and S at the same time
+				// completely cancel out input because "W" is a value of +1.0, and "S" is a value of -1.0
+				case EInputActionAccumulationBehavior::Cumulative:
+				{
+					Merged[Component] += Modified[Component];
+				}										
+				break;
+
+				// By default, we will accept the input with the highest absolute value
+				case EInputActionAccumulationBehavior::TakeHighestAbsoluteValue:
+				default:
+				{
+					if (FMath::Abs(Modified[Component]) >= FMath::Abs(Merged[Component]))
+					{
+						Merged[Component] = Modified[Component];
+					}
 				}
+				break;
+				}			
 			}
 			ActionData.Value = FInputActionValue(ValueType, Merged);
 		}

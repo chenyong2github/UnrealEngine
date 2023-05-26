@@ -14,7 +14,41 @@ class UPlayerMappableKeySettings;
 
 enum class ETriggerEventInternal : uint8;
 
-// Input action definition. These are instanced per player (via FInputActionInstance)
+/** 
+* This is an advanced setting that allows you to change how the value of an Input Action is calculated when there are 
+* multiple mappings to the same Input Action. The default behavior is to accept highest absolute value.
+*/
+UENUM()
+enum class EInputActionAccumulationBehavior : uint8
+{
+	/** 
+	* Take the value from the mapping with the highest Absolute Value.
+	* 
+	* For example, given a value of -0.3 and 0.5, the input action's value would be 0.5. 
+	*/
+	TakeHighestAbsoluteValue,
+
+	/** 
+	* Cumulatively adds the key values for each mapping.
+	* 
+	* For example, a value of -0.7 and +0.75 on the same input action would result in a value of 0.05.
+	* 
+	* A practical example of when to use this would be for something like WASD movement, if you want pressing W and S to cancel each other out.
+	*/
+	Cumulative,
+};
+
+/**
+* An Input Action is a logical representation of something the user can do, such as "Jump" or "Crouch".
+* These are what your gameplay code binds to in order to listen for input state changes. For most scenarios 
+* your gameplay code should be listening for the "Triggered" event on an input action. This will allow
+* for the most scalable and customizable input configuration because you can add different triggers 
+* for each key mapping in the Input Mapping Context. 
+* 
+* They are the conceptual equivalent to "Action" and "Axis" mapping names from the Legacy Input System.
+* 
+* Note: These are instanced per player (via FInputActionInstance)
+*/
 UCLASS(BlueprintType)
 class ENHANCEDINPUT_API UInputAction : public UDataAsset
 {
@@ -66,6 +100,17 @@ public:
 	// The type that this action returns from a GetActionValue query or action event
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action, AssetRegistrySearchable)
 	EInputActionValueType ValueType = EInputActionValueType::Boolean;
+
+	/**
+	* This defines how the value of this input action will be calcuated in the case that there are multiple key mappings to the same input action.
+	* 
+	* When TakeHighestAbsoluteValue is selected, then the key mapping with the highest absolutle value will be utilized. (Default)
+	* When Cumulative is selected, then each key mapping will be added together to get the key value. 
+	* 
+	* @see UEnhancedPlayerInput::ProcessActionMappingEvent, where this property is read from. 
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action, AdvancedDisplay)
+	EInputActionAccumulationBehavior AccumulationBehavior = EInputActionAccumulationBehavior::TakeHighestAbsoluteValue;
 	
 	/**
 	* Trigger qualifiers. If any trigger qualifiers exist the action will not trigger unless:
