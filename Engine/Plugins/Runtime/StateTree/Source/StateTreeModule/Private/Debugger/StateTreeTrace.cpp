@@ -151,7 +151,9 @@ void RegisterGlobalDelegates()
 	
 	GOnWorldTickStartDelegateHandle = FWorldDelegates::OnWorldTickStart.AddLambda([&WorldTime=GRecordingWorldTime](const UWorld* TickedWorld, ELevelTick TickType, float DeltaTime)
 		{
+#if OBJECT_TRACE_ENABLED
 			WorldTime = FObjectTrace::GetWorldElapsedTime(TickedWorld);
+#endif// OBJECT_TRACE_ENABLED
 		});
 }
 
