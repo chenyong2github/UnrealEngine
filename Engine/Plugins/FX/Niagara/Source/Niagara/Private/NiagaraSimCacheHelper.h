@@ -136,7 +136,7 @@ struct FNiagaraSimCacheHelper
 		for (int32 i = 0; i < CompiledData.Variables.Num(); ++i)
 		{
 			const FNiagaraVariableLayoutInfo& DataSetVariableLayout = CompiledData.VariableLayouts[i];
-			const FNiagaraVariable& DataSetVariable = CompiledData.Variables[i];
+			const FNiagaraVariableBase& DataSetVariable = CompiledData.Variables[i];
 			if (ExplicitCaptureAttributes.Num() == 0 || ExplicitCaptureAttributes.Contains(DataSetVariable.GetName()))
 			{
 				CacheToDataSetVariables.Add(i);

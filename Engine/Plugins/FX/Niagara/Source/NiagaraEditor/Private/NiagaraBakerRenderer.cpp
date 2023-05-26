@@ -250,7 +250,7 @@ void FNiagaraBakerOutputBindingHelper::GetParticleAttributeBindings(TArray<FNiag
 			const FNiagaraDataSetCompiledData& ParticleDataSet = AllEmitterCompiledData[EmitterIndex]->DataSetCompiledData;
 			for (int32 iVariable = 0; iVariable < ParticleDataSet.VariableLayouts.Num(); ++iVariable)
 			{
-				const FNiagaraVariable& Variable = ParticleDataSet.Variables[iVariable];
+				const FNiagaraVariableBase& Variable = ParticleDataSet.Variables[iVariable];
 				const FNiagaraVariableLayoutInfo& VariableLayout = ParticleDataSet.VariableLayouts[iVariable];
 				if (VariableLayout.GetNumFloatComponents() > 0)
 				{

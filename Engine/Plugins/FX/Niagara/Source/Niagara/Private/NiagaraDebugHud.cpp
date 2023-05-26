@@ -2475,7 +2475,7 @@ void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, 
 				SystemSimulation->MainDataSet.GetCompiledData(),
 				SystemSimulation->MainDataSet.GetCurrentData(),
 				SystemInstance->GetSystemInstanceIndex(),
-				[&](const FNiagaraVariable& Variable, int32 ComponentIndex)
+				[&](const FNiagaraVariableBase& Variable, int32 ComponentIndex)
 				{
 					auto& ValidationError = GetValidationErrorInfo(NiagaraComponent);
 					ValidationError.SystemVariablesWithErrors.AddUnique(Variable.GetName());
@@ -2509,7 +2509,7 @@ void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, 
 				FNiagaraDataSetDebugAccessor::ValidateDataBuffer(
 					ParticleDataSet->GetCompiledData(),
 					DataBuffer,
-					[&](const FNiagaraVariable& Variable, int32 InstanceIndex, int32 ComponentIndex)
+					[&](const FNiagaraVariableBase& Variable, int32 InstanceIndex, int32 ComponentIndex)
 					{
 						auto& ValidationError = GetValidationErrorInfo(NiagaraComponent);
 						const FName EmitterName(*EmitterInstance->GetCachedEmitter().Emitter->GetUniqueEmitterName());

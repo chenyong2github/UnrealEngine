@@ -80,7 +80,7 @@ struct FNiagaraParameterStoreToDataSetBinding
 		const auto& DataSetVariableLayouts = DataSet.GetVariableLayouts();
 		for (int i=0; i < DataSetVariables.Num(); ++i)
 		{
-			const FNiagaraVariable& Var = DataSetVariables[i];
+			const FNiagaraVariableBase& Var = DataSetVariables[i];
 			const int32* ParameterOffsetPtr = ParameterStore.FindParameterOffset(Var, true);
 			if (ParameterOffsetPtr == nullptr)
 			{

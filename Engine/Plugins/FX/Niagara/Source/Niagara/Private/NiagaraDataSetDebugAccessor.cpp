@@ -16,7 +16,7 @@ bool FNiagaraDataSetDebugAccessor::Init(const FNiagaraDataSetCompiledData& Compi
 
 	for (int32 i = 0; i < CompiledData.Variables.Num(); ++i)
 	{
-		const FNiagaraVariable& Variable = CompiledData.Variables[i];
+		const FNiagaraVariableBase& Variable = CompiledData.Variables[i];
 		if (Variable.GetName() != VariableName)
 		{
 			continue;
@@ -68,7 +68,7 @@ int32 FNiagaraDataSetDebugAccessor::ReadInt(const FNiagaraDataBuffer* DataBuffer
 	return 0;
 }
 
-bool FNiagaraDataSetDebugAccessor::ValidateDataBuffer(const FNiagaraDataSetCompiledData& CompiledData, const FNiagaraDataBuffer* DataBuffer, uint32 iInstance, TFunction<void(const FNiagaraVariable&, int32)> ErrorCallback)
+bool FNiagaraDataSetDebugAccessor::ValidateDataBuffer(const FNiagaraDataSetCompiledData& CompiledData, const FNiagaraDataBuffer* DataBuffer, uint32 iInstance, TFunction<void(const FNiagaraVariableBase&, int32)> ErrorCallback)
 {
 	bool bIsValid = true;
 
@@ -122,7 +122,7 @@ bool FNiagaraDataSetDebugAccessor::ValidateDataBuffer(const FNiagaraDataSetCompi
 	return bIsValid;
 }
 
-bool FNiagaraDataSetDebugAccessor::ValidateDataBuffer(const FNiagaraDataSetCompiledData& CompiledData, const FNiagaraDataBuffer* DataBuffer, TFunction<void(const FNiagaraVariable&, uint32, int32)> ErrorCallback)
+bool FNiagaraDataSetDebugAccessor::ValidateDataBuffer(const FNiagaraDataSetCompiledData& CompiledData, const FNiagaraDataBuffer* DataBuffer, TFunction<void(const FNiagaraVariableBase&, uint32, int32)> ErrorCallback)
 {
 	bool bIsValid = true;
 
