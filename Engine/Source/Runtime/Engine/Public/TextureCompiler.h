@@ -91,7 +91,8 @@ private:
 	TArrayView<FName> GetDependentTypeNames() const override;
 	int32 GetNumRemainingAssets() const override;
 	void ProcessAsyncTasks(bool bLimitExecutionTime = false) override;
-	
+	void ProcessAsyncTasks(const AssetCompilation::FProcessAsyncTaskParams& Params) override;
+
 	void FinishCompilationsForGame();
 	void ProcessTextures(bool bLimitExecutionTime, int32 MaximumPriority = -1);
 	void UpdateCompilationNotification();

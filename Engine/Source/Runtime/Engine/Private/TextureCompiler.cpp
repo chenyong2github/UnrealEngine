@@ -699,10 +699,21 @@ void FTextureCompilingManager::FinishCompilationsForGame()
 
 void FTextureCompilingManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 {
+	AssetCompilation::FProcessAsyncTaskParams Params;
+	Params.bLimitExecutionTime = bLimitExecutionTime;
+	Params.bPlayInEditorAssetsOnly = false;
+	ProcessAsyncTasks(Params);
+}
+
+void FTextureCompilingManager::ProcessAsyncTasks(const AssetCompilation::FProcessAsyncTaskParams& Params)
+{
 	FObjectCacheContextScope ObjectCacheScope;
 	FinishCompilationsForGame();
 
-	ProcessTextures(bLimitExecutionTime);
+	if (!Params.bPlayInEditorAssetsOnly)
+	{
+		ProcessTextures(Params.bLimitExecutionTime);
+	}
 
 	UpdateCompilationNotification();
 }
