@@ -369,35 +369,6 @@ class FWorldPartitionStreamingGenerator
 
 		// Consider all actors of a /Temp/ container package as Unsaved because loading them from disk will fail (Outer world name mismatch)
 		const bool bIsTempContainerPackage = FPackageName::IsTempPackage(InContainer->GetPackage()->GetName());
-		
-		// Test whether an actor is editor only. Will fallback to the actor descriptor only if the actor is not loaded
-		auto IsActorEditorOnly = [](const FWorldPartitionActorDesc* ActorDesc, const FActorContainerID& ContainerID) -> bool
-		{
-			if (ActorDesc->IsRuntimeRelevant(ContainerID))
-			{
-				if (ActorDesc->IsLoaded())
-				{
-					return ActorDesc->GetActor()->IsEditorOnly();
-				}
-				else
-				{
-					return ActorDesc->GetActorIsEditorOnly();
-				}
-			}
-			return true;
-		};
-
-		auto IsFilteredActorClass = [this](const FWorldPartitionActorDesc* ActorDesc)
-		{
-			for (UClass* FilteredClass : FilteredClasses)
-			{
-				if (ActorDesc->GetActorNativeClass()->IsChildOf(FilteredClass))
-				{
-					return true;
-				}
-			}
-			return false;
-		};
 
 		// Create an actor descriptor view for the specified actor (modified or unsaved actors)
 		auto GetModifiedActorDesc = [this](AActor* InActor, const UActorDescContainer* InContainer) -> FWorldPartitionActorDesc*
@@ -409,6 +380,25 @@ class FWorldPartitionStreamingGenerator
 			ModifiedActorDesc->SetContainer(const_cast<UActorDescContainer*>(InContainer), InActor->GetWorld());
 
 			return ModifiedActorDesc;
+		};
+
+		// Test whether an actor should be included in the ActorDescViewMap.
+		auto ShouldRegisterActorDesc = [this](const FWorldPartitionActorDesc* ActorDesc, const FActorContainerID& ContainerID)
+		{
+			for (UClass* FilteredClass : FilteredClasses)
+			{
+				if (ActorDesc->GetActorNativeClass()->IsChildOf(FilteredClass))
+				{
+					return false;
+				}
+			}
+
+			if (!ActorDesc->IsRuntimeRelevant(ContainerID))
+			{
+				return false;
+			}
+
+			return ActorDesc->IsLoaded() ? !ActorDesc->GetActor()->IsEditorOnly() : !ActorDesc->GetActorIsEditorOnly();
 		};
 
 		// Register the actor descriptor view
@@ -427,7 +417,7 @@ class FWorldPartitionStreamingGenerator
 		TMap<FGuid, FGuid> ContainerGuidsRemap;
 		for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
 		{
-			if (!IsActorEditorOnly(*ActorDescIt, InContainerID) && !IsFilteredActorClass(*ActorDescIt))
+			if (ShouldRegisterActorDesc(*ActorDescIt, InContainerID))
 			{
 				// Handle unsaved actors
 				if (AActor* Actor = ActorDescIt->GetActor())
@@ -466,7 +456,10 @@ class FWorldPartitionStreamingGenerator
 				if (IsValid(Actor) && Actor->IsPackageExternal() && Actor->IsMainPackageActor() && !Actor->IsEditorOnly() && (Actor->GetContentBundleGuid() == InContainer->GetContentBundleGuid()) && !InContainer->GetActorDesc(Actor->GetActorGuid()))
 				{
 					FWorldPartitionActorDescView ModifiedActorDescView = GetModifiedActorDesc(Actor, InContainer);
-					RegisterActorDescView(Actor->GetActorGuid(), ModifiedActorDescView);
+					if (ShouldRegisterActorDesc(ModifiedActorDescView.GetActorDesc(), InContainerID))
+					{
+						RegisterActorDescView(Actor->GetActorGuid(), ModifiedActorDescView);
+					}
 				}
 			}
 		}
