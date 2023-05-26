@@ -30,6 +30,11 @@ namespace UnrealBuildTool
 		public ActionType ActionType { get; set; } = ActionType.Compile;
 
 		/// <summary>
+		/// Artifact support for this step
+		/// </summary>
+		public ArtifactMode ArtifactMode { get; set; } = ArtifactMode.None;
+
+		/// <summary>
 		/// Path to the compiler
 		/// </summary>
 		public FileItem CompilerExe { get; }
@@ -165,9 +170,6 @@ namespace UnrealBuildTool
 		/// Items that should be deleted before running this action
 		/// </summary>
 		public List<FileItem> DeleteItems { get; } = new List<FileItem>();
-
-		/// <inheritdoc/>
-		public bool bCanCache { get; set; }
 
 		/// <inheritdoc/>
 		public bool bCanExecuteRemotely { get; set; }
@@ -332,6 +334,7 @@ namespace UnrealBuildTool
 		public VCCompileAction(VCCompileAction InAction)
 		{
 			ActionType = InAction.ActionType;
+			ArtifactMode = InAction.ArtifactMode;
 			CompilerExe = InAction.CompilerExe;
 			CompilerType = InAction.CompilerType;
 			ToolChainVersion = InAction.ToolChainVersion;
@@ -372,6 +375,7 @@ namespace UnrealBuildTool
 		public VCCompileAction(BinaryArchiveReader Reader)
 		{
 			ActionType = (ActionType)Reader.ReadInt();
+			ArtifactMode = (ArtifactMode)Reader.ReadByte();
 			CompilerExe = Reader.ReadFileItem()!;
 			CompilerType = (WindowsCompiler)Reader.ReadInt();
 			ToolChainVersion = Reader.ReadString()!;
@@ -409,6 +413,7 @@ namespace UnrealBuildTool
 		public void Write(BinaryArchiveWriter Writer)
 		{
 			Writer.WriteInt((int)ActionType);
+			Writer.WriteByte((byte)ArtifactMode);
 			Writer.WriteFileItem(CompilerExe);
 			Writer.WriteInt((int)CompilerType);
 			Writer.WriteString(ToolChainVersion);

@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -41,12 +37,48 @@ namespace UnrealBuildTool
 		ParseTimingInfo,
 	}
 
+	/// <summary>
+	/// Defines the action's support for artifacts
+	/// </summary>
+	[Flags]
+	enum ArtifactMode : byte
+	{
+
+		/// <summary>
+		/// Cached artifacts aren't enabled
+		/// </summary>
+		None = 0,
+
+		/// <summary>
+		/// If set, the outputs should be cached but respect the flags below
+		/// </summary>
+		Enabled = 1 << 0,
+
+		/// <summary>
+		/// Absolute file paths must be used when recording inputs and outputs
+		/// </summary>
+		AbsolutePath = 1 << 1,
+
+		/// <summary>
+		/// For actions that can't be cached, by setting this flag, the inputs for the action in question
+		/// will be used as additional inputs for any action that references outputs of this action.  
+		/// For example, PCH files shouldn't be cached, but compiles that use the PCH should still be 
+		/// valid if consider the inputs used to create the PCH file.
+		/// </summary>
+		PropagateInputs = 1 << 2,
+	}
+
 	interface IExternalAction
 	{
 		/// <summary>
 		/// The type of this action (for debugging purposes).
 		/// </summary>
 		ActionType ActionType { get; }
+
+		/// <summary>
+		/// Artifact support for this step
+		/// </summary>
+		ArtifactMode ArtifactMode { get; }
 
 		/// <summary>
 		/// Every file this action depends on.  These files need to exist and be up to date in order for this action to even be considered
@@ -102,11 +134,6 @@ namespace UnrealBuildTool
 		/// True if this action is allowed to be run on a remote machine when a distributed build system is being used, such as XGE
 		/// </summary>
 		bool bCanExecuteRemotely { get; }
-
-		/// <summary>
-		/// True if this action can be cached. Cache will store all touched inputs and store outputs
-		/// </summary>
-		bool bCanCache { get; }
 
 		/// <summary>
 		/// True if this action is allowed to be run on a remote machine with SNDBS. Files with #import directives must be compiled locally. Also requires bCanExecuteRemotely = true.
@@ -166,6 +193,11 @@ namespace UnrealBuildTool
 		public ActionType ActionType { get; set; }
 
 		/// <summary>
+		/// Artifact support for this step
+		/// </summary>
+		public ArtifactMode ArtifactMode { get; set; } = ArtifactMode.None;
+
+		/// <summary>
 		/// Every file this action depends on.  These files need to exist and be up to date in order for this action to even be considered
 		/// </summary>
 		public SortedSet<FileItem> PrerequisiteItems { get; set; } = new SortedSet<FileItem>();
@@ -214,11 +246,6 @@ namespace UnrealBuildTool
 		/// Human-readable description of this action that may be displayed as status while invoking the action.  This is often the name of the file being compiled, or an executable file name being linked.  Displayed by some executors.
 		/// </summary>
 		public string StatusDescription { get; set; } = "...";
-
-		/// <summary>
-		/// True if this action's result can be cached based on its inputs
-		/// </summary>
-		public bool bCanCache { get; set; }
 
 		/// <summary>
 		/// True if this action is allowed to be run on a remote machine when a distributed build system is being used, such as XGE
@@ -278,6 +305,7 @@ namespace UnrealBuildTool
 		public Action(IExternalAction InOther)
 		{
 			ActionType = InOther.ActionType;
+			ArtifactMode = InOther.ArtifactMode;
 			PrerequisiteItems = new SortedSet<FileItem>(InOther.PrerequisiteItems);
 			ProducedItems = new SortedSet<FileItem>(InOther.ProducedItems);
 			DeleteItems = new SortedSet<FileItem>(InOther.DeleteItems);
@@ -291,7 +319,6 @@ namespace UnrealBuildTool
 			bCanExecuteRemotely = InOther.bCanExecuteRemotely;
 			bCanExecuteRemotelyWithSNDBS = InOther.bCanExecuteRemotelyWithSNDBS;
 			bCanExecuteRemotelyWithXGE = InOther.bCanExecuteRemotelyWithXGE;
-			bCanCache = InOther.bCanCache;
 			bIsGCCCompiler = InOther.bIsGCCCompiler;
 			bShouldOutputStatusDescription = InOther.bShouldOutputStatusDescription;
 			bProducesImportLibrary = InOther.bProducesImportLibrary;
@@ -303,6 +330,7 @@ namespace UnrealBuildTool
 		public Action(BinaryArchiveReader Reader)
 		{
 			ActionType = (ActionType)Reader.ReadByte();
+			ArtifactMode = (ArtifactMode)Reader.ReadByte();
 			WorkingDirectory = Reader.ReadDirectoryReferenceNotNull();
 			CommandPath = Reader.ReadFileReference();
 			CommandArguments = Reader.ReadString()!;
@@ -312,7 +340,6 @@ namespace UnrealBuildTool
 			bCanExecuteRemotely = Reader.ReadBool();
 			bCanExecuteRemotelyWithSNDBS = Reader.ReadBool();
 			bCanExecuteRemotelyWithXGE = Reader.ReadBool();
-			bCanCache = Reader.ReadBool();
 			bIsGCCCompiler = Reader.ReadBool();
 			bShouldOutputStatusDescription = Reader.ReadBool();
 			bProducesImportLibrary = Reader.ReadBool();
@@ -332,6 +359,7 @@ namespace UnrealBuildTool
 		public void Write(BinaryArchiveWriter Writer)
 		{
 			Writer.WriteByte((byte)ActionType);
+			Writer.WriteByte((byte)ArtifactMode);
 			Writer.WriteDirectoryReference(WorkingDirectory);
 			Writer.WriteFileReference(CommandPath);
 			Writer.WriteString(CommandArguments);
@@ -341,7 +369,6 @@ namespace UnrealBuildTool
 			Writer.WriteBool(bCanExecuteRemotely);
 			Writer.WriteBool(bCanExecuteRemotelyWithSNDBS);
 			Writer.WriteBool(bCanExecuteRemotelyWithXGE);
-			Writer.WriteBool(bCanCache);
 			Writer.WriteBool(bIsGCCCompiler);
 			Writer.WriteBool(bShouldOutputStatusDescription);
 			Writer.WriteBool(bProducesImportLibrary);
@@ -361,6 +388,12 @@ namespace UnrealBuildTool
 		public static Action ImportJson(JsonObject Object)
 		{
 			Action Action = new Action(Object.GetEnumField<ActionType>("Type"));
+
+			ArtifactMode ArtifactMode;
+			if (Object.TryGetEnumField("ArtifactMode", out ArtifactMode))
+			{
+				Action.ArtifactMode = ArtifactMode;
+			}
 
 			string? WorkingDirectory;
 			if(Object.TryGetStringField("WorkingDirectory", out WorkingDirectory))
@@ -414,12 +447,6 @@ namespace UnrealBuildTool
 			if (Object.TryGetBoolField("bCanExecuteRemotelyWithXGE", out bCanExecuteRemotelyWithXGE))
 			{
 				Action.bCanExecuteRemotelyWithXGE = bCanExecuteRemotelyWithXGE;
-			}
-
-			bool bCanCache;
-			if (Object.TryGetBoolField("bCanCache", out bCanCache))
-			{
-				Action.bCanCache = bCanCache;
 			}
 
 			bool bIsGCCCompiler;
@@ -520,6 +547,7 @@ namespace UnrealBuildTool
 		{
 			Writer.WriteValue("Id", LinkedActionToId[Action]);
 			Writer.WriteEnumValue("Type", Action.ActionType);
+			Writer.WriteEnumValue("ArtifactMode", Action.ArtifactMode);
 			Writer.WriteValue("WorkingDirectory", Action.WorkingDirectory.FullName);
 			Writer.WriteValue("CommandPath", Action.CommandPath.FullName);
 			Writer.WriteValue("CommandArguments", Action.CommandArguments);
@@ -529,7 +557,6 @@ namespace UnrealBuildTool
 			Writer.WriteValue("bCanExecuteRemotely", Action.bCanExecuteRemotely);
 			Writer.WriteValue("bCanExecuteRemotelyWithSNDBS", Action.bCanExecuteRemotelyWithSNDBS);
 			Writer.WriteValue("bCanExecuteRemotelyWithXGE", Action.bCanExecuteRemotelyWithXGE);
-			Writer.WriteValue("bCanCache", Action.bCanCache);
 			Writer.WriteValue("bIsGCCCompiler", Action.bIsGCCCompiler);
 			Writer.WriteValue("bShouldOutputStatusDescription", Action.bShouldOutputStatusDescription);
 			Writer.WriteValue("bProducesImportLibrary", Action.bProducesImportLibrary);
@@ -637,6 +664,7 @@ namespace UnrealBuildTool
 		#region Wrapper implementation of IAction
 
 		public ActionType ActionType => Inner.ActionType;
+		public ArtifactMode ArtifactMode => Inner.ArtifactMode;
 		public IEnumerable<FileItem> PrerequisiteItems => Inner.PrerequisiteItems;
 		public IEnumerable<FileItem> ProducedItems => Inner.ProducedItems;
 		public IEnumerable<FileItem> DeleteItems => Inner.DeleteItems;
@@ -647,7 +675,6 @@ namespace UnrealBuildTool
 		public string CommandVersion => Inner.CommandVersion;
 		public string CommandDescription => Inner.CommandDescription;
 		public string StatusDescription => Inner.StatusDescription;
-		public bool bCanCache => Inner.bCanCache;
 		public bool bCanExecuteRemotely => Inner.bCanExecuteRemotely;
 		public bool bCanExecuteRemotelyWithSNDBS => Inner.bCanExecuteRemotelyWithSNDBS;
 		public bool bCanExecuteRemotelyWithXGE => Inner.bCanExecuteRemotelyWithXGE;

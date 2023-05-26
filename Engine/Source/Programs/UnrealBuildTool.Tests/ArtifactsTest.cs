@@ -20,17 +20,17 @@ namespace UnrealBuildToolTests
 
 		private static Artifact MakeInput1()
 		{
-			return new Artifact(ArtifactDirectoryTree.Absolute, ArtifactType.Source, "Input1", IoHash.Compute(s_input1Data.Span));
+			return new Artifact(ArtifactDirectoryTree.Absolute, "Input1", IoHash.Compute(s_input1Data.Span));
 		}
 
 		private static Artifact MakeInput2()
 		{
-			return new Artifact(ArtifactDirectoryTree.Absolute, ArtifactType.Source, "Input2", IoHash.Compute(s_input2Data.Span));
+			return new Artifact(ArtifactDirectoryTree.Absolute, "Input2", IoHash.Compute(s_input2Data.Span));
 		}
 
 		private static Artifact MakeOutput1()
 		{
-			return new Artifact(ArtifactDirectoryTree.Absolute, ArtifactType.Object, "Output1", IoHash.Compute(s_output1Data.Span));
+			return new Artifact(ArtifactDirectoryTree.Absolute, "Output1", IoHash.Compute(s_output1Data.Span));
 		}
 
 		public static ArtifactMapping MakeBundle1()

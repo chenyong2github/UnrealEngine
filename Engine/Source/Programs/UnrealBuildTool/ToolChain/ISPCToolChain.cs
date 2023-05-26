@@ -463,6 +463,7 @@ namespace UnrealBuildTool
 				CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 				CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
 				CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
+				CompileAction.ArtifactMode = ArtifactMode.Enabled;
 
 				CompileAction.bCanExecuteRemotely = true;
 

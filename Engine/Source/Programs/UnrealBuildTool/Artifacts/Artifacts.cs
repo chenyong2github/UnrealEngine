@@ -4,6 +4,7 @@ using EpicGames.Core;
 using EpicGames.Serialization;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,133 +35,62 @@ namespace UnrealBuildTool.Artifacts
 	}
 
 	/// <summary>
-	/// Type of the artifact
-	/// </summary>
-	public enum ArtifactType : byte
-	{
-
-		/// <summary>
-		/// Artifact is a source file
-		/// </summary>
-		Source,
-
-		/// <summary>
-		/// Artifact is an object file
-		/// </summary>
-		Object,
-	}
-
-	/// <summary>
 	/// Represents a single artifact
 	/// </summary>
-	public readonly struct Artifact
+	/// <param name="Tree">Directory tree containing the artifact</param>
+	/// <param name="Name">Name of the artifact</param>
+	/// <param name="ContentHash">Hash of the artifact contents</param>
+	public record struct Artifact(ArtifactDirectoryTree Tree, Utf8String Name, IoHash ContentHash)
 	{
+		/// <summary>
+		/// Directory mapping object
+		/// </summary>
+		public IArtifactDirectoryMapping? DirectoryMapping { get; set; } = null;
 
 		/// <summary>
-		/// Directory tree containing the artifact
+		/// The full path of the artifact
 		/// </summary>
-		public readonly ArtifactDirectoryTree Tree;
+		/// <returns>Full path of the artifact</returns>
+		public string GetFullPath() => GetFullPath(DirectoryMapping);
 
 		/// <summary>
-		/// Type of the artifact
+		/// The full path of the artifact
 		/// </summary>
-		public readonly ArtifactType Type;
-
-		/// <summary>
-		/// Name of the artifact
-		/// </summary>
-		public readonly Utf8String Name;
-
-		/// <summary>
-		/// Hash of the artifact contents
-		/// </summary>
-		public readonly IoHash ContentHash;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="tree">Directory tree containing the artifact</param>
-		/// <param name="type">Type of the artifact</param>
-		/// <param name="name">Name of the artifact</param>
-		/// <param name="contentHash">Hash of the artifact contents</param>
-		public Artifact(ArtifactDirectoryTree tree, ArtifactType type, Utf8String name, IoHash contentHash)
+		/// <param name="mapping">Mapping object to use instead of embedded object</param>
+		/// <returns>Full path of the artifact</returns>
+		public string GetFullPath(IArtifactDirectoryMapping? mapping)
 		{
-			Tree = tree;
-			Type = type;
-			Name = name;
-			ContentHash = contentHash;
+			if (Tree == ArtifactDirectoryTree.Absolute)
+			{
+				return Name.ToString();
+			}
+			if (mapping == null)
+			{
+				throw new ApplicationException("Attempt to get the full path without mapping interface set");
+			}
+			string directory = mapping.GetDirectory(Tree);
+			return Path.Combine(directory, Name.ToString());
 		}
 	}
 
 	/// <summary>
 	/// Given a set of inputs, provide a list of outputs
 	/// </summary>
-	public readonly struct ArtifactMapping : IEquatable<ArtifactMapping>
+	/// <param name="Key">The hash of the primary input and the environment</param>
+	/// <param name="MappingKey">The unique hash for all inputs and the environment</param>
+	/// <param name="Inputs">Information about all inputs</param>
+	/// <param name="Outputs">Information about all outputs</param>
+	public record struct ArtifactMapping(IoHash Key, IoHash MappingKey, Artifact[] Inputs, Artifact[] Outputs)
 	{
-
 		/// <summary>
-		/// The hash of the primary input and the environment
+		/// Directory mapping object
 		/// </summary>
-		public readonly IoHash Key;
-
-		/// <summary>
-		/// The unique hash for all inputs and the environment
-		/// </summary>
-		public readonly IoHash MappingKey;
-
-		/// <summary>
-		/// Information about all inputs
-		/// </summary>
-		public readonly Artifact[] Inputs;
-
-		/// <summary>
-		/// Information about all outputs
-		/// </summary>
-		public readonly Artifact[] Outputs;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="key">The hash of the primary input and the environment</param>
-		/// <param name="mappingKey">The unique hash for all inputs and the environment</param>
-		/// <param name="inputs">Information about all inputs</param>
-		/// <param name="outputs">Information about all outputs</param>
-		public ArtifactMapping(IoHash key, IoHash mappingKey, Artifact[] inputs, Artifact[] outputs)
-		{
-			Key = key;
-			MappingKey = mappingKey;
-			Inputs = inputs;
-			Outputs = outputs;
-		}
-
-		/// <inheritdoc/>
-		public bool Equals(ArtifactMapping other)
-		{
-			return Key == other.Key && MappingKey == other.MappingKey && Inputs.SequenceEqual(other.Inputs) && Outputs.SequenceEqual(other.Outputs);
-		}
-
-		/// <inheritdoc/>
-		public override bool Equals(object? obj)
-		{
-			return obj is ArtifactMapping artifactMapping && Equals(artifactMapping);
-		}
+		public IArtifactDirectoryMapping? DirectoryMapping { get; set; } = null;
 
 		/// <inheritdoc/>
 		public override int GetHashCode()
 		{
 			return HashCode.Combine(Key.GetHashCode(), MappingKey.GetHashCode(), Inputs.GetHashCode(), Outputs.GetHashCode()); 
-		}
-
-		/// <inheritdoc/>
-		public static bool operator ==(ArtifactMapping left, ArtifactMapping right)
-		{
-			return left.Equals(right);
-		}
-
-		/// <inheritdoc/>
-		public static bool operator !=(ArtifactMapping left, ArtifactMapping right)
-		{
-			return !(left == right);
 		}
 	}
 
@@ -178,10 +108,9 @@ namespace UnrealBuildTool.Artifacts
 		public static Artifact ReadArtifact(this IMemoryReader reader)
 		{
 			ArtifactDirectoryTree tree = (ArtifactDirectoryTree)reader.ReadUInt8();
-			ArtifactType type = (ArtifactType)reader.ReadUInt8();
 			Utf8String name = reader.ReadUtf8String();
 			IoHash contentHash = reader.ReadIoHash();
-			return new Artifact(tree, type, name, contentHash);
+			return new Artifact(tree, name, contentHash);
 		}
 
 		/// <summary>
@@ -192,7 +121,6 @@ namespace UnrealBuildTool.Artifacts
 		public static void WriteArtifact(this IMemoryWriter writer, Artifact artifact)
 		{
 			writer.WriteUInt8((byte)artifact.Tree);
-			writer.WriteUInt8((byte)artifact.Type);
 			writer.WriteUtf8String(artifact.Name);
 			writer.WriteIoHash(artifact.ContentHash);
 		}
@@ -247,6 +175,20 @@ namespace UnrealBuildTool.Artifacts
 		/// The cache is functional and ready to process requests
 		/// </summary>
 		Available,
+	}
+
+	/// <summary>
+	/// Interface used to map a directory tree to an actual directory
+	/// </summary>
+	public interface IArtifactDirectoryMapping
+	{
+
+		/// <summary>
+		/// Return the directory root for the given tree
+		/// </summary>
+		/// <param name="tree">Tree in question</param>
+		/// <returns>Directory root</returns>
+		public string GetDirectory(ArtifactDirectoryTree tree);
 	}
 
 	/// <summary>
@@ -324,6 +266,17 @@ namespace UnrealBuildTool.Artifacts
 		/// If true, log all cache misses.  Defaults to false.
 		/// </summary>
 		public bool LogCacheMisses { get; set; }
+
+		/// <summary>
+		/// Root location of the engine
+		/// </summary>
+		public DirectoryReference? EngineRoot { get; set; }
+
+		/// <summary>
+		/// Array of extra directory roots when handling relative directories.
+		/// The array MUST be consistent between runs since only the index is saved.
+		/// </summary>
+		public DirectoryReference[]? DirectoryRoots { get; set; }
 
 		/// <summary>
 		/// Complete an action from existing cached data

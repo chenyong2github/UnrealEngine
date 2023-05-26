@@ -327,7 +327,13 @@ namespace UnrealBuildTool
 			foreach (LinkedAction action in actions)
 			{
 				action.SortIndex = index;
-				Actions[index++] = new ActionState { Action = action, Status = ActionStatus.Queued, Phase = initialPhase, Results = null };
+				Actions[index++] = new ActionState 
+				{ 
+					Action = action, 
+					Status = ActionStatus.Queued, 
+					Phase = action.ArtifactMode.HasFlag(ArtifactMode.Enabled) ? initialPhase : ActionPhase.Compile,
+					Results = null,
+				};
 			}
 
 			if (readArtifacts)

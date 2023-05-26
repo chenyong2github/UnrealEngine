@@ -1475,7 +1475,17 @@ namespace UnrealBuildTool
 					}
 				}
 
-				CompileAction.bCanCache = CompileEnvironment.bDeterministic && !Target.WindowsPlatform.Compiler.IsClang();
+				if (CompileEnvironment.bDeterministic && !Target.WindowsPlatform.Compiler.IsClang())
+				{
+					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
+					{
+						CompileAction.ArtifactMode |= ArtifactMode.PropagateInputs;
+					}
+					else
+					{
+						CompileAction.ArtifactMode |= ArtifactMode.Enabled | ArtifactMode.AbsolutePath; // deps output file contains absolute paths
+					}
+				}
 
 				// Don't farm out creation of precompiled headers as it is the critical path task.
 				CompileAction.bCanExecuteRemotely =

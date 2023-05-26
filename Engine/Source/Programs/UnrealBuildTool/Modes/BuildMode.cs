@@ -553,6 +553,7 @@ namespace UnrealBuildTool
 					actionArtifactCache.EnableReads = BuildConfiguration.bArtifactRead;
 					actionArtifactCache.EnableWrites = BuildConfiguration.bArtifactWrites;
 					actionArtifactCache.LogCacheMisses = BuildConfiguration.bLogArtifactCacheMisses;
+					actionArtifactCache.EngineRoot = Unreal.EngineDirectory;
 				}
 
 				// Pre-process module interfaces to generate dependency files

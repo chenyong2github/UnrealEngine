@@ -84,7 +84,7 @@ namespace UnrealBuildTool.Artifacts
 			int index = 0;
 			foreach (Artifact artifact in ArtifactMapping.Outputs)
 			{
-				string outputName = artifact.Name.ToString();
+				string outputName = artifact.GetFullPath();
 				using FileStream stream = new(outputName, FileMode.Open, FileAccess.Read, FileShare.Read);
 				OutputRefs[index++] = new NodeRef<FileNode>(await fileWriter.CreateAsync(stream, nodeTypeOptions.TargetSize, cancellationToken)); 
 			}
@@ -348,7 +348,7 @@ namespace UnrealBuildTool.Artifacts
 							}
 							try
 							{
-								string outputName = hordeArtifactMapping.ArtifactMapping.Outputs[refIndex++].Name.ToString();
+								string outputName = hordeArtifactMapping.ArtifactMapping.Outputs[refIndex++].GetFullPath(mapping.DirectoryMapping);
 								using FileStream stream = new(outputName, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
 								await FileNode.CopyToStreamAsync(reader, artifactRef.Handle.Locator, stream, cancellationToken);
 							}
@@ -363,7 +363,7 @@ namespace UnrealBuildTool.Artifacts
 						{
 							foreach (Artifact artifact in hordeArtifactMapping.ArtifactMapping.Outputs)
 							{
-								string outputName = artifact.Name.ToString();
+								string outputName = artifact.GetFullPath(mapping.DirectoryMapping);
 								if (File.Exists(outputName))
 								{
 									try
@@ -561,7 +561,7 @@ namespace UnrealBuildTool.Artifacts
 		/// <returns>The reference name</returns>
 		private static RefName GetRefName(IoHash key)
 		{
-			return new RefName($"action_artifact_v1_{key}");
+			return new RefName($"action_artifact_v2_{key}");
 		}
 
 		/// <summary>

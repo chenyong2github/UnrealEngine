@@ -3,8 +3,9 @@
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +13,87 @@ using UnrealBuildBase;
 
 namespace UnrealBuildTool.Artifacts
 {
+
+	/// <summary>
+	/// Helper class for directory mapping
+	/// </summary>
+	internal class ArtifactDirectoryMapping : IArtifactDirectoryMapping
+	{
+
+		/// <summary>
+		/// Creating cache
+		/// </summary>
+		public IActionArtifactCache? Cache;
+
+		/// <summary>
+		/// Root of the project
+		/// </summary>
+		public DirectoryReference? ProjectRoot;
+
+		/// <inheritdoc/>
+		public string GetDirectory(ArtifactDirectoryTree tree)
+		{
+			switch (tree)
+			{
+				case ArtifactDirectoryTree.Absolute:
+					return string.Empty;
+				case ArtifactDirectoryTree.Engine:
+					if (Cache == null || Cache.EngineRoot == null)
+					{
+						throw new ApplicationException("Attempt to get engine root when not set");
+					}
+					return Cache.EngineRoot.FullName;
+				case ArtifactDirectoryTree.Project:
+					if (ProjectRoot == null)
+					{
+						throw new ApplicationException("Attempt to get project root when not set");
+					}
+					return ProjectRoot.FullName;
+				default:
+					throw new NotImplementedException("Unexpected directory tree value");
+			}
+		}
+
+		/// <summary>
+		/// Given a file, return the artifact structure for it.  This routine tests to see if the 
+		/// file is under any of the well known directories.
+		/// </summary>
+		/// <param name="action">Action requesting the artifact</param>
+		/// <param name="file">File in question</param>
+		/// <param name="hash">Hash value used to populate artifact</param>
+		/// <returns>Created artifact</returns>
+		public Artifact GetArtifact(LinkedAction action, FileItem file, IoHash hash)
+		{
+			if (action.ArtifactMode.HasFlag(ArtifactMode.AbsolutePath))
+			{
+				return CreateArtifact(ArtifactDirectoryTree.Absolute, file.AbsolutePath, hash);
+			}
+			if (Cache != null && Cache.EngineRoot != null && file.Location.IsUnderDirectory(Cache.EngineRoot))
+			{
+				return CreateArtifact(ArtifactDirectoryTree.Engine, file.Location.MakeRelativeTo(Cache.EngineRoot), hash);
+			}
+			else if (ProjectRoot != null && file.Location.IsUnderDirectory(ProjectRoot))
+			{
+				return CreateArtifact(ArtifactDirectoryTree.Project, file.Location.MakeRelativeTo(ProjectRoot), hash);
+			}
+			else
+			{
+				return CreateArtifact(ArtifactDirectoryTree.Absolute, file.AbsolutePath, hash);
+			}
+		}
+
+		/// <summary>
+		/// Create an artifact with the given settings
+		/// </summary>
+		/// <param name="tree">Directory tree</param>
+		/// <param name="path">Path to artifact</param>
+		/// <param name="hash">Hash of the artifact</param>
+		/// <returns>The artifact</returns>
+		private Artifact CreateArtifact(ArtifactDirectoryTree tree, string path, IoHash hash)
+		{
+			return new(tree, new Utf8String(path), hash) { DirectoryMapping = this };
+		}
+	}
 
 	/// <summary>
 	/// Generic handler for artifacts
@@ -31,6 +113,12 @@ namespace UnrealBuildTool.Artifacts
 		/// <inheritdoc/>
 		public IArtifactCache ArtifactCache { get; init; }
 
+		/// <inheritdoc/>
+		public DirectoryReference? EngineRoot { get; set; } = null;
+
+		/// <inheritdoc/>
+		public DirectoryReference[]? DirectoryRoots { get; set; } = null;
+
 		/// <summary>
 		/// Logging device
 		/// </summary>
@@ -47,6 +135,16 @@ namespace UnrealBuildTool.Artifacts
 		private readonly FileHasher _fileHasher;
 
 		/// <summary>
+		/// Directory mapper to be used for targets without projects
+		/// </summary>
+		private readonly ArtifactDirectoryMapping _projectlessMapper;
+
+		/// <summary>
+		/// Artifact mappers for all targets
+		/// </summary>
+		private readonly ConcurrentDictionary<DirectoryReference, ArtifactDirectoryMapping> _mappings = new();
+
+		/// <summary>
 		/// Construct a new artifact handler object
 		/// </summary>
 		/// <param name="artifactCache">Artifact cache instance</param>
@@ -58,6 +156,7 @@ namespace UnrealBuildTool.Artifacts
 			_cppDependencyCache = cppDependencyCache;
 			ArtifactCache = artifactCache;
 			_fileHasher = new(NullLogger.Instance);
+			_projectlessMapper = new() { Cache = this };
 		}
 
 		/// <summary>
@@ -93,7 +192,14 @@ namespace UnrealBuildTool.Artifacts
 				return false;
 			}
 
-			IoHash key = await GetKeyAsync(action);
+			if (!action.ArtifactMode.HasFlag(ArtifactMode.Enabled))
+			{
+				return false;
+			}
+
+			ArtifactDirectoryMapping directoryMapping = GetDirectoryMapping(action);
+			(List<FileItem> inputs, _) = CollectInputs(action, false);
+			IoHash key = await GetKeyAsync(directoryMapping, action, inputs);
 
 			ArtifactMapping[] mappings = await ArtifactCache.QueryArtifactMappingsAsync(new IoHash[] { key }, cancellationToken);
 
@@ -118,7 +224,7 @@ namespace UnrealBuildTool.Artifacts
 
 				foreach (Artifact input in mapping.Inputs)
 				{
-					string name = input.Name.ToString();
+					string name = input.GetFullPath(directoryMapping);
 					FileItem item = FileItem.GetItemByPath(name);
 					if (!item.Exists)
 					{
@@ -142,7 +248,9 @@ namespace UnrealBuildTool.Artifacts
 
 				if (match)
 				{
-					bool[]? readResults = await ArtifactCache.QueryArtifactOutputsAsync(new[] { mapping }, cancellationToken);
+					ArtifactMapping mappingCopy = mapping;
+					mappingCopy.DirectoryMapping = directoryMapping;
+					bool[]? readResults = await ArtifactCache.QueryArtifactOutputsAsync(new[] { mappingCopy }, cancellationToken);
 
 					if (readResults == null || readResults.Length == 0 || !readResults[0])
 					{
@@ -152,7 +260,7 @@ namespace UnrealBuildTool.Artifacts
 					{
 						foreach (Artifact output in mapping.Outputs)
 						{
-							string outputName = output.Name.ToString();
+							string outputName = output.GetFullPath(directoryMapping);
 							FileItem item = FileItem.GetItemByPath(outputName);
 							item.ResetCachedInfo(); // newly created outputs need refreshing
 							_fileHasher.SetDigest(item, output.ContentHash);
@@ -172,8 +280,17 @@ namespace UnrealBuildTool.Artifacts
 				return;
 			}
 
-			ArtifactMapping[] mappings = new ArtifactMapping[] { await CreateArtifactMappingAsync(action, cancellationToken) };
-			await ArtifactCache.SaveArtifactMappingsAsync(mappings, cancellationToken);
+			if (!action.ArtifactMode.HasFlag(ArtifactMode.Enabled))
+			{
+				return;
+			}
+
+			ArtifactMapping mapping = await CreateArtifactMappingAsync(action, cancellationToken);
+			if (mapping.Key != IoHash.Zero)
+			{
+				await ArtifactCache.SaveArtifactMappingsAsync(new ArtifactMapping[] { (ArtifactMapping)mapping }, cancellationToken);
+			}
+			return;
 		}
 
 		/// <inheritdoc/>
@@ -190,52 +307,57 @@ namespace UnrealBuildTool.Artifacts
 		/// <returns>Artifact mapping</returns>
 		private async Task<ArtifactMapping> CreateArtifactMappingAsync(LinkedAction action, CancellationToken cancellationToken)
 		{
-			(IoHash key, IoHash mappingKey) = await GetKeyAndMappingKeyAsync(action);
+			ArtifactDirectoryMapping directoryMapping = GetDirectoryMapping(action);
+			(List<FileItem> inputs, List<FileItem>? dependencies) = CollectInputs(action, false);
+			(IoHash key, IoHash mappingKey) = await GetKeyAndMappingKeyAsync(directoryMapping, action, inputs, dependencies);
 
 			// We gather the output files first to make sure that all the generated files (including the dependency file) gets
 			// their cached FileInfo reset.
 			List<Artifact> outputs = new();
 			foreach (FileItem output in action.ProducedItems)
 			{
-				output.ResetCachedInfo();
+				// Outputs can not be a directory.
+				if (output.Attributes.HasFlag(System.IO.FileAttributes.Directory))
+				{
+					return new(IoHash.Zero, IoHash.Zero, Array.Empty<Artifact>(), Array.Empty<Artifact>());
+				}
 				IoHash hash = await _fileHasher.GetDigestAsync(output, cancellationToken);
-				Artifact artifact = new(ArtifactDirectoryTree.Absolute, ArtifactType.Source, new Utf8String(output.AbsolutePath), hash);
+				Artifact artifact = directoryMapping.GetArtifact(action, output, hash);
 				outputs.Add(artifact);
 			}
 
-			List<Artifact> inputs = new();
-			foreach (FileItem input in action.PrerequisiteItems)
+			List<Artifact> inputArtifacts = new();
+			foreach (FileItem input in inputs)
 			{
 				IoHash hash = await _fileHasher.GetDigestAsync(input, cancellationToken);
-				Artifact artifact = new(ArtifactDirectoryTree.Absolute, ArtifactType.Source, new Utf8String(input.AbsolutePath), hash);
-				inputs.Add(artifact);
+				Artifact artifact = directoryMapping.GetArtifact(action, input, hash);
+				inputArtifacts.Add(artifact);
 			}
 
-			if (action.DependencyListFile != null)
+			if (dependencies != null)
 			{
-				if (_cppDependencyCache.TryGetDependencies(action.DependencyListFile, _logger, out List<FileItem>? depedencies))
+				foreach (FileItem dependency in dependencies)
 				{
-					foreach (FileItem dep in depedencies)
-					{
-						IoHash hash = await _fileHasher.GetDigestAsync(dep, cancellationToken);
-						Artifact artifact = new(ArtifactDirectoryTree.Absolute, ArtifactType.Source, new Utf8String(dep.AbsolutePath), hash);
-						inputs.Add(artifact);
-					}
+					IoHash hash = await _fileHasher.GetDigestAsync(dependency, cancellationToken);
+					Artifact artifact = directoryMapping.GetArtifact(action, dependency, hash);
+					inputArtifacts.Add(artifact);
 				}
 			}
 
-			return new(key, mappingKey, inputs.ToArray(), outputs.ToArray());
+			return new(key, mappingKey, inputArtifacts.ToArray(), outputs.ToArray());
 		}
 
 		/// <summary>
 		/// Get the key has for the action
 		/// </summary>
+		/// <param name="directoryMapping">Directory mapping object</param>
 		/// <param name="action">Source action</param>
+		/// <param name="inputs">Inputs used to construct the key</param>
 		/// <returns>Task returning the key</returns>
-		private async Task<IoHash> GetKeyAsync(LinkedAction action)
+		private async Task<IoHash> GetKeyAsync(ArtifactDirectoryMapping directoryMapping, LinkedAction action, List<FileItem> inputs)
 		{
 			StringBuilder builder = new();
-			await AppendKeyAsync(builder, action);
+			await AppendKeyAsync(builder, directoryMapping, action, inputs);
 			IoHash key = IoHash.Compute(new Utf8String(builder.ToString()));
 			return key;
 		}
@@ -243,14 +365,17 @@ namespace UnrealBuildTool.Artifacts
 		/// <summary>
 		/// Generate the key and mapping key hashes for the action
 		/// </summary>
+		/// <param name="directoryMapping">Directory mapping object</param>
 		/// <param name="action">Source action</param>
+		/// <param name="inputs">Inputs used to construct the key</param>
+		/// <param name="dependencies">Dependencies used to construct the key</param>
 		/// <returns>Task object with the key and mapping key</returns>
-		private async Task<(IoHash, IoHash)> GetKeyAndMappingKeyAsync(LinkedAction action)
+		private async Task<(IoHash, IoHash)> GetKeyAndMappingKeyAsync(ArtifactDirectoryMapping directoryMapping, LinkedAction action, List<FileItem> inputs, List<FileItem>? dependencies)
 		{
 			StringBuilder builder = new();
-			await AppendKeyAsync(builder, action);
+			await AppendKeyAsync(builder, directoryMapping, action, inputs);
 			IoHash key = IoHash.Compute(new Utf8String(builder.ToString()));
-			await AppendMappingKeyAsync(builder, action);
+			await AppendMappingKeyAsync(builder, directoryMapping, action, dependencies);
 			IoHash mappingKey = IoHash.Compute(new Utf8String(builder.ToString()));
 			return (key, mappingKey);
 		}
@@ -259,52 +384,182 @@ namespace UnrealBuildTool.Artifacts
 		/// Generate the lookup key.  This key is generated from the action's inputs.
 		/// </summary>
 		/// <param name="builder">Destination builder</param>
+		/// <param name="directoryMapping">Directory mapping object</param>
 		/// <param name="action">Source action</param>
+		/// <param name="inputs">Inputs used to construct the key</param>
 		/// <returns>Task object</returns>
-		private async Task AppendKeyAsync(StringBuilder builder, LinkedAction action)
+		private async Task AppendKeyAsync(StringBuilder builder, ArtifactDirectoryMapping directoryMapping, LinkedAction action, List<FileItem> inputs)
 		{
 			builder.AppendLine(action.CommandVersion);
 			builder.AppendLine(action.CommandArguments);
-
-			FileItem[] inputs = action.PrerequisiteItems.ToArray();
-			Task<IoHash>[] waits = new Task<IoHash>[inputs.Length];
-			for (int index = 0; index < inputs.Length; index++)
-			{
-				builder.AppendLine(inputs[index].FullName);
-				waits[index] = _fileHasher.GetDigestAsync(inputs[index]);
-			}
-			await Task.WhenAll(waits);
-			foreach (Task<IoHash> wait in waits)
-			{
-				builder.AppendLine(wait.Result.ToString());
-			}
+			await AppendFiles(builder, directoryMapping, action, inputs);
 		}
 
 		/// <summary>
 		/// Generate the full mapping key.  This contains the hashes for the action's inputs and the dependent files.
 		/// </summary>
 		/// <param name="builder">Destination builder</param>
+		/// <param name="directoryMapping">Directory mapping object</param>
 		/// <param name="action">Source action</param>
+		/// <param name="dependencies">Dependencies used to construct the key</param>
 		/// <returns>Task object</returns>
-		private async Task AppendMappingKeyAsync(StringBuilder builder, LinkedAction action)
+		private async Task AppendMappingKeyAsync(StringBuilder builder, ArtifactDirectoryMapping directoryMapping, LinkedAction action, List<FileItem>? dependencies)
 		{
-			if (action.DependencyListFile != null)
+			await AppendFiles(builder, directoryMapping, action, dependencies);
+		}
+
+		/// <summary>
+		/// Append the file information for a given list of files
+		/// </summary>
+		/// <param name="builder">Destination builder</param>
+		/// <param name="directoryMapping">Directory mapping object</param>
+		/// <param name="action">Source action</param>
+		/// <param name="files">Collection of files</param>
+		/// <returns>Task object</returns>
+		private async Task AppendFiles(StringBuilder builder, ArtifactDirectoryMapping directoryMapping, LinkedAction action, List<FileItem>? files)
+		{
+			if (files != null)
 			{
-				if (_cppDependencyCache.TryGetDependencies(action.DependencyListFile, _logger, out List<FileItem>? dependencies))
+				Task<IoHash>[] waits = new Task<IoHash>[files.Count];
+				for (int index = 0; index < files.Count; index++)
 				{
-					Task<IoHash>[] waits = new Task<IoHash>[dependencies.Count];
-					for (int index = 0; index < dependencies.Count; index++)
+					waits[index] = _fileHasher.GetDigestAsync(files[index]);
+				}
+				await Task.WhenAll(waits);
+				string[] lines = new string[files.Count];
+				for (int index = 0; index < files.Count; index++)
+				{
+					Artifact artifact = directoryMapping.GetArtifact(action, files[index], waits[index].Result);
+					lines[index] = $"{GetArtifactTreeName(artifact)} {artifact.Tree} {artifact.Name} {artifact.ContentHash}";
+				}
+				Array.Sort(lines, StringComparer.Ordinal);
+				foreach (string line in lines)
+				{
+					builder.AppendLine(line);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Given an action, collect the list of inputs and dependencies.  This includes any processing required
+		/// for disabled actions that propagate their inputs to dependent actions.
+		/// </summary>
+		/// <param name="action">Action in question</param>
+		/// <param name="collectDependencies">If true, collect the dependencies too</param>
+		/// <returns>Collection of inputs and dependencies</returns>
+		private (List<FileItem>, List<FileItem>?) CollectInputs(LinkedAction action, bool collectDependencies)
+		{
+			// Search for any prerequisite action that is set to propagate inputs (i.e. PCH).  Collect those
+			// inputs and we will be inserting those inputs in our list
+			Dictionary<FileItem, List<FileItem>> substitutions = new();
+			foreach (LinkedAction prereq in action.PrerequisiteActions)
+			{
+				if (prereq.ArtifactMode.HasFlag(ArtifactMode.PropagateInputs))
+				{
+					(List<FileItem> prereqInputs, List<FileItem>? prereqDependencies) = CollectInputs(prereq, collectDependencies);
+					if (prereqDependencies != null)
 					{
-						builder.AppendLine(dependencies[index].FullName);
-						waits[index] = _fileHasher.GetDigestAsync(dependencies[index]);
+						prereqInputs.AddRange(prereqDependencies);
 					}
-					await Task.WhenAll(waits);
-					foreach (Task<IoHash> wait in waits)
+					foreach (FileItem output in prereq.ProducedItems)
 					{
-						builder.AppendLine(wait.Result.ToString());
+						substitutions.TryAdd(output, prereqInputs);
 					}
 				}
 			}
+
+			HashSet<FileItem> uniques = new();
+			List<FileItem> inputs = new();
+			AddFileItems(uniques, substitutions, inputs, action.PrerequisiteItems);
+
+			List<FileItem>? dependencies = null;
+			if (collectDependencies && action.DependencyListFile != null)
+			{
+				if (_cppDependencyCache.TryGetDependencies(action.DependencyListFile, _logger, out List<FileItem>? cppDeps))
+				{
+					dependencies = new();
+					AddFileItems(uniques, substitutions, dependencies, cppDeps);
+				}
+			}
+
+			return (inputs, dependencies);
+		}
+
+		/// <summary>
+		/// Add a list of file items to the collection
+		/// </summary>
+		/// <param name="uniques">Hash set used to detect already included file items</param>
+		/// <param name="substitutions">Substitutions when a given input is found</param>
+		/// <param name="outputs">Destination list</param>
+		/// <param name="inputs">Source inputs</param>
+		private void AddFileItems(HashSet<FileItem> uniques, Dictionary<FileItem, List<FileItem>>? substitutions, List<FileItem> outputs, IEnumerable<FileItem> inputs)
+		{
+			if (substitutions != null)
+			{
+				foreach (FileItem input in inputs)
+				{
+					if (substitutions.TryGetValue(input, out List<FileItem>? substituteFileItems))
+					{
+						AddFileItems(uniques, null, outputs, substituteFileItems);
+					}
+					else if (uniques.Add(input))
+					{
+						outputs.Add(input);
+					}
+				}
+			}
+			else
+			{
+				foreach (FileItem input in inputs)
+				{
+					if (uniques.Add(input))
+					{
+						outputs.Add(input);
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Return the tree name of the artifact
+		/// </summary>
+		/// <param name="artifact">Artifact in question</param>
+		/// <returns>Tree name</returns>
+		private static string GetArtifactTreeName(Artifact artifact)
+		{
+			switch (artifact.Tree)
+			{
+				case ArtifactDirectoryTree.Absolute:
+					return "Absolute";
+				case ArtifactDirectoryTree.Engine:
+					return "Engine";
+				case ArtifactDirectoryTree.Project:
+					return "Project";
+				default:
+					throw new NotImplementedException("Unexpected artifact directory tree type");
+			}
+		}
+
+		/// <summary>
+		/// Return an artifact mapper for the given action
+		/// </summary>
+		/// <param name="action">Action in question</param>
+		/// <returns>Artifact mapper specific to the target's project directory</returns>
+		private ArtifactDirectoryMapping GetDirectoryMapping(LinkedAction action)
+		{
+			DirectoryReference? projectDirectory = action.Target != null && action.Target.ProjectFile != null ? action.Target.ProjectFile.Directory : null;
+			if (projectDirectory == null)
+			{
+				return _projectlessMapper;
+			}
+			return _mappings.GetOrAdd(projectDirectory, x =>
+			{
+				return new()
+				{
+					Cache = this,
+					ProjectRoot = x,
+				};
+			});
 		}
 	}
 }
