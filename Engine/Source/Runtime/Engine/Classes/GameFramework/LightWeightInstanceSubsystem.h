@@ -8,7 +8,7 @@
 
 #include "Actor.h"
 
-ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogLightWeightInstance, Log, Warning);
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogLightWeightInstance, Log, All);
 
 class FAutoConsoleVariableRef;
 
