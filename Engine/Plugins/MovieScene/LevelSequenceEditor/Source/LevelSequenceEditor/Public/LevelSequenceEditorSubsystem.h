@@ -6,7 +6,7 @@
 #include "EditorSubsystem.h"
 
 #include "SequenceTimeUnit.h"
-
+#include "Containers/SortedMap.h"
 #include "LevelSequenceEditorSubsystem.generated.h"
 
 class FUICommandList;
@@ -17,6 +17,7 @@ struct FMovieScenePasteBindingsParams;
 struct FMovieScenePasteFoldersParams;
 struct FMovieScenePasteSectionsParams;
 struct FMovieScenePasteTracksParams;
+struct FBakingAnimationKeySettings;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLevelSequenceEditor, Log, All);
 
@@ -152,8 +153,12 @@ public:
 	void SyncSectionsUsingSourceTimecode(const TArray<UMovieSceneSection*>& Sections);
 
 	/** Bake transform */
+	UE_DEPRECATED(5.3, "Use ULevelSequenceEditorSubsystem::BakeTransformWithSettings instead")
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	void BakeTransform(const TArray<FMovieSceneBindingProxy>& ObjectBindings, const FFrameTime& BakeInTime, const FFrameTime& BakeOutTime, const FFrameTime& BakeInterval, const FMovieSceneScriptingParams& Params = FMovieSceneScriptingParams());
+
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	bool BakeTransformWithSettings(const TArray<FMovieSceneBindingProxy>& ObjectBindings, const FBakingAnimationKeySettings& InSettings, const FMovieSceneScriptingParams& Params = FMovieSceneScriptingParams());
 
 	/** Attempts to automatically fix up broken actor references in the current scene */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
@@ -182,6 +187,18 @@ public:
 	/** Rebind the component binding to the requested component */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	void RebindComponent(const TArray<FMovieSceneBindingProxy>& ComponentBindings, const FName& ComponentName);
+
+private:
+	/** Used by Baking transforms*/
+	struct FBakeData
+	{
+		TArray<FVector> Locations;
+		TArray<FRotator> Rotations;
+		TArray<FVector> Scales;
+		TSortedMap<FFrameNumber,FFrameNumber> KeyTimes;
+	};
+	void CalculateFramesPerGuid(TSharedPtr<ISequencer>& Sequencer, const FBakingAnimationKeySettings& InSettings, TMap<FGuid, FBakeData>& OutBakeDataMa,
+		TSortedMap<FFrameNumber, FFrameNumber>&  OutFrameMap);
 
 private:
 

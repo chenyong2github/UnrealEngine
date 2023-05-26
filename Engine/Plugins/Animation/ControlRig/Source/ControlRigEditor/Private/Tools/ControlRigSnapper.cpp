@@ -326,31 +326,6 @@ static bool CalculateWorldTransformsFromParents(ISequencer* Sequencer, const FCo
 	return false;
 }
 
-//to do handle constraints and spaces, but for now we just output a single actor parent.
-static void GetActorParents(const FActorForWorldTransforms& ActorSelection,
-	TArray<FActorForWorldTransforms>& OutParentActors, TArray<FControlRigForWorldTransforms>& OutControlRigs)
-{
-	if (ActorSelection.Actor.IsValid())
-	{
-		//has component so parent is next component
-		if (ActorSelection.Component.IsValid() && ActorSelection.Component->GetAttachParent())
-		{
-			FActorForWorldTransforms OutParentActor;
-			OutParentActor.Actor = ActorSelection.Actor;
-			OutParentActor.Component = ActorSelection.Component->GetAttachParent();
-			OutParentActors.Add(OutParentActor);
-			GetActorParents(OutParentActor, OutParentActors, OutControlRigs);
-		}
-		else if (AActor* ParentActor = ActorSelection.Actor->GetAttachParentActor())
-		{
-			FActorForWorldTransforms OutParentActor;
-			OutParentActor.Actor = ParentActor;
-			OutParentActors.Add(OutParentActor);
-			GetActorParents(OutParentActor, OutParentActors, OutControlRigs);
-		}
-	}
-}
-
 //todo handle constraints/spaces
 static void GetControlRigParents(const FControlRigForWorldTransforms& ControlRigAndSelection, 
 	TArray<FActorForWorldTransforms>& OutParentActors, TArray<FControlRigForWorldTransforms>& OutControlRigs)
@@ -388,7 +363,7 @@ static void GetControlRigParents(const FControlRigForWorldTransforms& ControlRig
 						FActorForWorldTransforms OutParentActor;
 						OutParentActor.Actor = Actor;
 						OutParentActors.Add(OutParentActor);
-						GetActorParents(OutParentActor, OutParentActors, OutControlRigs);
+						MovieSceneToolHelpers::GetActorParents(OutParentActor, OutParentActors);
 					}
 				}
 			}
@@ -437,8 +412,7 @@ static void GetTransformFrames(ISequencer * Sequencer, const FControlRigSnapperS
 		ParentActors.Reset();
 		ParentControlRigs.Reset();
 		ParentActors.Add(ActorsFor);
-		GetActorParents(ActorsFor, ParentActors, ParentControlRigs);
-
+		MovieSceneToolHelpers::GetActorParents(ActorsFor, ParentActors);
 	}
 	for (const FControlRigForWorldTransforms& ControlRigsFor : SnapItem.ControlRigs)
 	{

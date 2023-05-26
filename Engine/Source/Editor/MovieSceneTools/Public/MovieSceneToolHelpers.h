@@ -15,6 +15,7 @@
 #include "MovieSceneTranslator.h"
 #include "MovieSceneSpawnable.h"
 #include "MovieSceneCaptureSettings.h"
+#include "KeyParams.h"
 #include "SEnumCombo.h"
 #include "Animation/AnimSequence.h"
 #include "INodeAndChannelMappings.h"
@@ -534,9 +535,36 @@ public:
 	static USkeletalMeshComponent* AcquireSkeletalMeshFromObject(UObject* BoundObject);
 	
 	/*
+	* Get an actors and possible component parents.
+	* @param InActorAndComponent Actor and possible component to find parents for
+	* @param OutParentActors Returns an array of parents
+	*/
+	static void GetActorParents(const FActorForWorldTransforms& Actor,
+		TArray<FActorForWorldTransforms>& OutParentActors);
+
+	/*
+	* Get an actors and possible component parents using sequencer to test for attachments.
+	* @param Sequencer Sequencer to evaluate
+	* @param InActorAndComponent Actor and possible component to find parents for
+	* @param OutParentActors Returns an array of parents
+	*/
+	static void GetActorParentsWithAttachments(ISequencer* Sequencer, const FActorForWorldTransforms& Actor, TArray<FActorForWorldTransforms>& OutParentActors);
+
+	/*
+	*  Get an actors and it's parent key frames
+	* @param Sequencer Sequencer to evaluate
+	* @param Actor The actor and possible component and socket that we want to get the frame for
+	* @param StartFrame The first frame to start looking for keys
+	* @param EndFrame The last frame to stop looking for keys
+	* @param OutFrameMap Sorted map of the frame times found
+	*/
+	static void GetActorsAndParentsKeyFrames(ISequencer* Sequencer, const FActorForWorldTransforms& Actor,
+		const FFrameNumber& StartFrame, const FFrameNumber& EndFrame, TSortedMap<FFrameNumber, FFrameNumber>& OutFrameMap);
+
+	/*
 	*  Get an actors word transforms at the specified times
 	* @param Sequencer Sequencer to evaluate
-    * @param ActorForWorldTransforms The actor and possible component and socket that we want to get the world transforms for.
+    * @param Actors The actor and possible component and socket that we want to get the world transforms for.
 	* @param Frames The times we want to get the world transforms
 	* @param OutWorldTransforms The calculated world transforms, one for each specified frame.
 	*/
@@ -546,25 +574,30 @@ public:
 	* @param ChannelData Channel to set or add
 	* @param Time Frame to add or set the value
 	* @param Value  Value to Set
+	* @param Interpolation Key type to set if added
 	*/
-	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, float Value);
+	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, float Value, const EMovieSceneKeyInterpolation Interpolation = EMovieSceneKeyInterpolation::Auto);
 
 	/* Set or add a key onto a double channel.
 	* @param ChannelData Channel to set or add
 	* @param Time Frame to add or set the value
 	* @param Value  Value to Set
+	* @param Interpolation Key type to set if added
 	*/
-	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, double Value);
+	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, double Value, const EMovieSceneKeyInterpolation Interpolation = EMovieSceneKeyInterpolation::Auto);
+
 
 	/*
 	* Set or add a key onto a float channel based on key value.
 	*/
 	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& Curve, FFrameNumber Time, const FMovieSceneFloatValue& Value);
 
+
 	/*
 	* Set or add a key onto a double channel based on key value.
 	*/
 	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, FMovieSceneDoubleValue Value);
+
 
 	/* 
 	* Set or add a key onto a float channel based on rich curve data.

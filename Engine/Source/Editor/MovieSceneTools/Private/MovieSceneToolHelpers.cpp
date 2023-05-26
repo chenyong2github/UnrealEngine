@@ -28,6 +28,7 @@
 #include "Tracks/MovieSceneFloatTrack.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
+#include "Sections/MovieScene3DConstraintSection.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "LevelSequence.h"
@@ -57,6 +58,7 @@
 #include "IMovieScenePlayer.h"
 #include "Tracks/MovieSceneCinematicShotTrack.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
+#include "Tracks/MovieScene3DConstraintTrack.h"
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "Engine/LevelStreaming.h"
 #include "FbxExporter.h"
@@ -84,6 +86,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "ConstraintsManager.h"
+#include "Constraints/MovieSceneConstraintChannelHelper.inl"
 
 /* FSkelMeshRecorder
  ***********/
@@ -4629,7 +4632,7 @@ bool MovieSceneToolHelpers::IsValidAsset(UMovieSceneSequence* Sequence, const FA
 	return true;
 }
 
-void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, float Value)
+void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, float Value, const EMovieSceneKeyInterpolation Interpolation)
 {
 	int32 ExistingIndex = ChannelData.FindKey(Time);
 	if (ExistingIndex != INDEX_NONE)
@@ -4648,6 +4651,47 @@ void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatV
 		NewKey.Tangent.TangentWeightMode = WeightedMode;
 		NewKey.Tangent.ArriveTangentWeight = 0.0f;
 		NewKey.Tangent.LeaveTangentWeight = 0.0f;
+
+		switch (Interpolation)
+		{
+			case EMovieSceneKeyInterpolation::SmartAuto:    
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
+				NewKey.TangentMode = ERichCurveTangentMode::RCTM_SmartAuto;
+			}
+			break;
+			case EMovieSceneKeyInterpolation::Auto:  
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
+				NewKey.TangentMode = ERichCurveTangentMode::RCTM_Auto;
+			}
+			break;
+			case EMovieSceneKeyInterpolation::User: 
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
+				NewKey.TangentMode = ERichCurveTangentMode::RCTM_User;
+			}
+			break;
+			case EMovieSceneKeyInterpolation::Break:  
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
+				NewKey.TangentMode = ERichCurveTangentMode::RCTM_Auto;
+			}
+			break;
+
+			case EMovieSceneKeyInterpolation::Linear:
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Linear;
+			}
+			break;
+
+			case EMovieSceneKeyInterpolation::Constant:
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Constant;
+			}
+			break;
+
+		}
 		ChannelData.AddKey(Time, NewKey);
 	}
 }
@@ -4712,7 +4756,7 @@ void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneDouble
 	}
 }
 
-void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, double Value)
+void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, double Value, const EMovieSceneKeyInterpolation Interpolation)
 {
 	int32 ExistingIndex = ChannelData.FindKey(Time);
 	if (ExistingIndex != INDEX_NONE)
@@ -4731,6 +4775,47 @@ void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneDouble
 		NewKey.Tangent.TangentWeightMode = WeightedMode;
 		NewKey.Tangent.ArriveTangentWeight = 0.0f;
 		NewKey.Tangent.LeaveTangentWeight = 0.0f;
+
+		switch (Interpolation)
+		{
+			case EMovieSceneKeyInterpolation::SmartAuto:    
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
+				NewKey.TangentMode = ERichCurveTangentMode::RCTM_SmartAuto;
+			}
+			break;
+			case EMovieSceneKeyInterpolation::Auto:  
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
+				NewKey.TangentMode = ERichCurveTangentMode::RCTM_Auto;
+			}
+			break;
+			case EMovieSceneKeyInterpolation::User: 
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
+				NewKey.TangentMode = ERichCurveTangentMode::RCTM_User;
+			}
+			break;
+			case EMovieSceneKeyInterpolation::Break:  
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
+				NewKey.TangentMode = ERichCurveTangentMode::RCTM_Auto;
+			}
+			break;
+
+			case EMovieSceneKeyInterpolation::Linear:
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Linear;
+			}
+			break;
+
+			case EMovieSceneKeyInterpolation::Constant:
+			{
+				NewKey.InterpMode = ERichCurveInterpMode::RCIM_Constant;
+			}
+			break;
+
+		}
 		ChannelData.AddKey(Time, NewKey);
 	}
 }
@@ -4769,6 +4854,133 @@ void MovieSceneToolHelpers::GetActorWorldTransforms(IMovieScenePlayer* Player, U
 	else
 	{
 		GetNonSequencerActorWorldTransforms(Player, InSequence, Template, ActorSelection, Frames, OutWorldTransforms);
+	}
+}
+
+void MovieSceneToolHelpers::GetActorParents(const FActorForWorldTransforms& ActorSelection,
+	TArray<FActorForWorldTransforms>& OutParentActors)
+{
+	if (ActorSelection.Actor.IsValid())
+	{
+		//has component so parent is next component
+		if (ActorSelection.Component.IsValid() && ActorSelection.Component->GetAttachParent())
+		{
+			FActorForWorldTransforms OutParentActor;
+			OutParentActor.Actor = ActorSelection.Actor;
+			OutParentActor.Component = ActorSelection.Component->GetAttachParent();
+			OutParentActors.AddUnique(OutParentActor);
+			GetActorParents(OutParentActor, OutParentActors);
+		}
+		else if (AActor* ParentActor = ActorSelection.Actor->GetAttachParentActor())
+		{
+			FActorForWorldTransforms OutParentActor;
+			OutParentActor.Actor = ParentActor;
+			OutParentActors.AddUnique(OutParentActor);
+			GetActorParents(OutParentActor, OutParentActors);
+		}
+	}
+}
+
+void MovieSceneToolHelpers::GetActorParentsWithAttachments(ISequencer* Sequencer, const FActorForWorldTransforms& ActorSelection,
+	TArray<FActorForWorldTransforms>& OutParentActors)
+{
+	if (Sequencer == nullptr)
+	{
+		return;
+	}
+
+	UMovieScene* FocusedMovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+
+	if (ActorSelection.Actor.IsValid())
+	{
+		FGuid Guid;
+		if (ActorSelection.Component.Get())
+		{
+			Guid = Sequencer->GetHandleToObject(ActorSelection.Component.Get(), false);
+		}
+		if (!Guid.IsValid())
+		{
+			Guid = Sequencer->GetHandleToObject(ActorSelection.Actor.Get(), false);
+		}
+		if (Guid.IsValid())
+		{
+			for (UMovieSceneTrack* Track : FocusedMovieScene->FindTracks(UMovieScene3DConstraintTrack::StaticClass(), Guid))
+			{
+				if (UMovieScene3DConstraintTrack* ConstraintTrack = Cast<UMovieScene3DConstraintTrack>(Track))
+				{
+					for (UMovieSceneSection* ConstraintSection : ConstraintTrack->GetAllSections())
+					{
+						FMovieSceneObjectBindingID ConstraintBindingID = (Cast<UMovieScene3DConstraintSection>(ConstraintSection))->GetConstraintBindingID();
+						for (TWeakObjectPtr<> ParentObject : ConstraintBindingID.ResolveBoundObjects(Sequencer->GetFocusedTemplateID(), *Sequencer))
+						{
+							FActorForWorldTransforms OutParentActor;
+							OutParentActor.Actor = Cast<AActor>(ParentObject.Get());;
+							OutParentActors.AddUnique(OutParentActor);
+							GetActorParents(OutParentActor, OutParentActors);
+							break;
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			//has component so parent is next component
+			if (ActorSelection.Component.IsValid() && ActorSelection.Component->GetAttachParent())
+			{
+				FActorForWorldTransforms OutParentActor;
+				OutParentActor.Actor = ActorSelection.Actor;
+				OutParentActor.Component = ActorSelection.Component->GetAttachParent();
+				OutParentActors.AddUnique(OutParentActor);
+				GetActorParents(OutParentActor, OutParentActors);
+			}
+			else if (AActor* ParentActor = ActorSelection.Actor->GetAttachParentActor())
+			{
+				FActorForWorldTransforms OutParentActor;
+				OutParentActor.Actor = ParentActor;
+				OutParentActors.AddUnique(OutParentActor);
+				GetActorParents(OutParentActor, OutParentActors);
+			}
+		}
+	}
+}
+
+void MovieSceneToolHelpers::GetActorsAndParentsKeyFrames(ISequencer* Sequencer, const FActorForWorldTransforms& InActor,
+	const FFrameNumber& StartFrame, const FFrameNumber& EndFrame, TSortedMap<FFrameNumber, FFrameNumber>& OutFrameMap)
+{
+	TArray<FFrameNumber> FramesToUse;
+	TArray<FActorForWorldTransforms> ParentActors;
+	ParentActors.Add(InActor);
+	GetActorParentsWithAttachments(Sequencer, InActor, ParentActors);
+
+	for (FActorForWorldTransforms& Actor : ParentActors)
+	{
+		FGuid Guid;
+		if (Actor.Component.Get())
+		{
+			Guid = Sequencer->GetHandleToObject(Actor.Component.Get(), false);
+		}
+		if (!Guid.IsValid())
+		{
+			Guid = Sequencer->GetHandleToObject(Actor.Actor.Get(), false);
+		}
+		if (Guid.IsValid())
+		{
+			if (UMovieScene3DTransformSection* TransformSection = MovieSceneToolHelpers::GetTransformSection(Sequencer, Guid))
+			{
+				TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+				TArray<FFrameNumber> TransformFrameTimes = FMovieSceneConstraintChannelHelper::GetTransformTimes(
+					Channels, StartFrame, EndFrame);
+				for (FFrameNumber& FrameNumber : TransformFrameTimes)
+				{
+					OutFrameMap.Add(FrameNumber,FrameNumber);
+				}
+			}
+		}
 	}
 }
 
