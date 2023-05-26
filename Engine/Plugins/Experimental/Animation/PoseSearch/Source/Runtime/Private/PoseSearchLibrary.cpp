@@ -553,15 +553,7 @@ void UPoseSearchLibrary::MotionMatch(
 		{
 			const FBoneContainer& BoneContainer = AnimInstance->GetRequiredBonesOnAnyThread();
 			// @todo... add input BlendParameters to support sampling FutureAnimation blendspaces
-			const FAnimationAssetSampler Sampler(FutureAnimation, FVector::ZeroVector, BoneContainer);
-
-			FCompactPose Pose;
-			FBlendedCurve UnusedCurve;
-			FStackAttributeContainer UnusedAtrribute;
-			FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
-
-			UnusedCurve.InitFrom(BoneContainer);
-			Pose.SetBoneContainer(&BoneContainer);
+			const FAnimationAssetSampler Sampler(FutureAnimation, FVector::ZeroVector);
 
 			if (FutureAnimationStartTime < FiniteDelta)
 			{
@@ -582,11 +574,9 @@ void UPoseSearchLibrary::MotionMatch(
 				const float ExtractionTime = FutureAnimationStartTime + (i - 1) * FiniteDelta;
 				const float FutureAnimationTime = TimeToFutureAnimationStart + (i - 1) * FiniteDelta;
 
-				FDeltaTimeRecord DeltaTimeRecord;
-				DeltaTimeRecord.Set(ExtractionTime - FiniteDelta, FiniteDelta);
-				FAnimExtractContext ExtractionCtx(double(ExtractionTime), false, DeltaTimeRecord, false);
-
-				Sampler.ExtractPose(ExtractionCtx, AnimPoseData);
+				FCompactPose Pose;
+				Pose.SetBoneContainer(&BoneContainer);
+				Sampler.ExtractPose(ExtractionTime, Pose);
 
 				FCSPose<FCompactPose> ComponentSpacePose;
 				ComponentSpacePose.InitPose(Pose);

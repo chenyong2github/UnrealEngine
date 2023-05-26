@@ -78,7 +78,7 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 						if (!SamplerMap.Contains({ DatabaseBlendSpace->BlendSpace, BlendParameters }))
 						{
 							SamplerMap.Add({ DatabaseBlendSpace->BlendSpace, BlendParameters }, Samplers.Num());
-							Samplers.Emplace(DatabaseBlendSpace->BlendSpace, BlendParameters, BoneContainer);
+							Samplers.Emplace(DatabaseBlendSpace->BlendSpace, BlendParameters);
 						}
 					}
 				}
@@ -97,7 +97,8 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 		}
 	}
 
-	ParallelFor(Samplers.Num(), [this](int32 SamplerIdx) { Samplers[SamplerIdx].Process(); }, ParallelForFlags);
+	// capturing BoneContainer by copy, since it has mutable properties
+	ParallelFor(Samplers.Num(), [this, BoneContainer](int32 SamplerIdx) { Samplers[SamplerIdx].Process(BoneContainer); }, ParallelForFlags);
 
 	if (Owner.IsCanceled())
 	{

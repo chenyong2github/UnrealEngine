@@ -107,7 +107,7 @@ void FAssetIndexer::Process(int32 AssetIdx)
 	const float SequenceLength = IndexingContext.AssetSampler->GetPlayLength();
 	for (int32 SampleIdx = GetBeginSampleIdx(); SampleIdx != GetEndSampleIdx(); ++SampleIdx)
 	{
-		const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), SequenceLength);
+		const float SampleTime = FMath::Min(CalculateSampleTime(SampleIdx), SequenceLength);
 		float CostAddend = IndexingContext.Schema->BaseCostBias;
 		float ContinuingPoseCostAddend = IndexingContext.Schema->ContinuingPoseCostBias;
 		bool bBlockTransition = false;
@@ -156,7 +156,7 @@ void FAssetIndexer::ComputeStats()
 
 	for (int32 SampleIdx = GetBeginSampleIdx(); SampleIdx != GetEndSampleIdx(); ++SampleIdx)
 	{
-		const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), IndexingContext.AssetSampler->GetPlayLength());
+		const float SampleTime = FMath::Min(CalculateSampleTime(SampleIdx), IndexingContext.AssetSampler->GetPlayLength());
 
 		bool AnyClamped = false;
 		const FTransform TrajTransformsPast = GetTransform(SampleTime - SamplingContext->FiniteDelta, AnyClamped);
@@ -296,26 +296,15 @@ FAssetIndexer::CachedEntry& FAssetIndexer::GetEntry(float SampleTime)
 			CurrentTime = FMath::Clamp(CurrentTime, 0.f, PlayLength);
 		}
 
-		FDeltaTimeRecord DeltaTimeRecord;
-		DeltaTimeRecord.Set(CurrentTime, 0.f);
-		// no need to extract root motion here, since we use the precalculated Sample.RootTransform as root transform for the Entry
-		FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), false, DeltaTimeRecord, bLoopable);
-
 		FCompactPose Pose;
-		FBlendedCurve UnusedCurve;
-		FStackAttributeContainer UnusedAtrribute;
-		FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
-
-		UnusedCurve.InitFrom(BoneContainer);
 		Pose.SetBoneContainer(&BoneContainer);
-
-		IndexingContext.AssetSampler->ExtractPose(ExtractionCtx, AnimPoseData);
+		IndexingContext.AssetSampler->ExtractPose(CurrentTime, Pose);
 		Pose[FCompactPoseBoneIndex(RootBoneIndexType)].SetIdentity();
 
 		if (IndexingContext.bMirrored && IndexingContext.Schema->MirrorDataTable)
 		{
 			FAnimationRuntime::MirrorPose(
-				AnimPoseData.GetPose(),
+				Pose,
 				IndexingContext.Schema->MirrorDataTable->MirrorAxis,
 				SamplingContext->CompactPoseMirrorBones,
 				SamplingContext->ComponentSpaceRefRotations
@@ -367,13 +356,18 @@ FTransform FAssetIndexer::CalculateComponentSpaceTransform(FAssetIndexer::Cached
 	return Entry.ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex);
 }
 
+float FAssetIndexer::CalculateSampleTime(int32 SampleIdx) const
+{
+	return SampleIdx * IndexingContext.Schema->GetSamplingInterval();
+}
+
 FQuat FAssetIndexer::GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, EPermutationTimeType PermutationTimeType)
 {
 	float PermutationSampleTimeOffset = 0.f;
 	float PermutationOriginTimeOffset = 0.f;
 	UPoseSearchFeatureChannel::GetPermutationTimeOffsets(PermutationTimeType, CalculatePermutationTimeOffset(), PermutationSampleTimeOffset, PermutationOriginTimeOffset);
 
-	const float Time = SampleIdx * IndexingContext.Schema->GetSamplingInterval();
+	const float Time = CalculateSampleTime(SampleIdx);
 	const float SampleTime = Time + SampleTimeOffset + PermutationSampleTimeOffset;
 	const float OriginTime = Time + PermutationOriginTimeOffset;
 
@@ -405,7 +399,7 @@ FVector FAssetIndexer::GetSamplePosition(float SampleTimeOffset, int32 SampleIdx
 	float PermutationOriginTimeOffset = 0.f;
 	UPoseSearchFeatureChannel::GetPermutationTimeOffsets(PermutationTimeType, CalculatePermutationTimeOffset(), PermutationSampleTimeOffset, PermutationOriginTimeOffset);
 
-	const float Time = SampleIdx * IndexingContext.Schema->GetSamplingInterval();
+	const float Time = CalculateSampleTime(SampleIdx);
 	const float SampleTime = Time + SampleTimeOffset + PermutationSampleTimeOffset;
 	const float OriginTime = Time + PermutationOriginTimeOffset;
 	
@@ -450,7 +444,7 @@ FVector FAssetIndexer::GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx
 	float PermutationOriginTimeOffset = 0.f;
 	UPoseSearchFeatureChannel::GetPermutationTimeOffsets(PermutationTimeType, CalculatePermutationTimeOffset(), PermutationSampleTimeOffset, PermutationOriginTimeOffset);
 
-	const float Time = SampleIdx * IndexingContext.Schema->GetSamplingInterval();
+	const float Time = CalculateSampleTime(SampleIdx);
 	const float SampleTime = Time + SampleTimeOffset + PermutationSampleTimeOffset;
 	const float OriginTime = Time + PermutationOriginTimeOffset;
 	const float FiniteDelta = IndexingContext.SamplingContext->FiniteDelta;

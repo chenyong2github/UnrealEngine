@@ -59,6 +59,7 @@ public:
 	TArrayView<float> GetPoseVector(int32 SampleIdx) const;
 	const UPoseSearchSchema* GetSchema() const;
 	float CalculatePermutationTimeOffset() const;
+	float CalculateSampleTime(int32 SampleIdx) const;
 
 private:
 	int32 GetVectorIdx(int32 SampleIdx) const;

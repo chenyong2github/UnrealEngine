@@ -68,7 +68,7 @@ namespace UE::PoseSearch
 				{
 					if (UDebugSkelMeshComponent* Mesh = PreviewActor.GetDebugSkelMeshComponent())
 					{
-						UE::PoseSearch::FDebugDrawParams DrawParams(GetWorld(), Mesh, PreviewActor.QuantizedTimeRootMotion, Database);
+						UE::PoseSearch::FDebugDrawParams DrawParams(GetWorld(), Mesh, PreviewActor.QuantizedTimeRootTransform, Database);
 						DrawParams.DrawFeatureVector(PreviewActor.CurrentPoseIndex);
 
 						if (bDrawQueryVector)

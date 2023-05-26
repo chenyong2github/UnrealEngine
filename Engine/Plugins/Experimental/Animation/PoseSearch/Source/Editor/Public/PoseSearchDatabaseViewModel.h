@@ -47,11 +47,12 @@ namespace UE::PoseSearch
 		int32 IndexAssetIndex = INDEX_NONE;
 		int32 CurrentPoseIndex = INDEX_NONE;
 		float PlayTimeOffset = 0.f;
+		float CurrentTime = 0.f;
 		FAnimationAssetSampler Sampler;
-		FTransform QuantizedTimeRootMotion = FTransform::Identity;
+		FTransform QuantizedTimeRootTransform = FTransform::Identity;
 
 		bool IsValid() const;
-		void Process();
+		void Process(const FBoneContainer& BoneContainer);
 		UDebugSkelMeshComponent* GetDebugSkelMeshComponent();
 		UAnimPreviewInstance* GetAnimPreviewInstance();
 	};
@@ -171,10 +172,10 @@ namespace UE::PoseSearch
 
 		UWorld* GetWorld();
 
-		FDatabasePreviewActor SpawnPreviewActor(int32 IndexAssetIndex, const FBoneContainer& BoneContainer, float PlayTimeOffset);
+		FDatabasePreviewActor SpawnPreviewActor(int32 IndexAssetIndex, float PlayTimeOffset);
 
 		void UpdatePreviewActors(bool bInTickPlayTime = false);
 
-		FTransform MirrorRootMotion(FTransform RootMotion, const class UMirrorDataTable* MirrorDataTable);
+		FTransform MirrorRootTransform(const FTransform& RootTransform);
 	};
 }

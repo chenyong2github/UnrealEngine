@@ -245,16 +245,15 @@ static int32 GetHighestWeightSample(const TArray<struct FBlendSampleData>& Sampl
 
 //////////////////////////////////////////////////////////////////////////
 // FAssetSamplerBase
-FAnimationAssetSampler::FAnimationAssetSampler(TWeakObjectPtr<const UAnimationAsset> InAnimationAsset, const FVector& InBlendParameters, const FBoneContainer& InBoneContainer, int32 InRootTransformSamplingRate)
+FAnimationAssetSampler::FAnimationAssetSampler(TWeakObjectPtr<const UAnimationAsset> InAnimationAsset, const FVector& InBlendParameters, int32 InRootTransformSamplingRate)
 {
-	Init(InAnimationAsset, InBlendParameters, InBoneContainer, InRootTransformSamplingRate);
+	Init(InAnimationAsset, InBlendParameters, InRootTransformSamplingRate);
 }
 
-void FAnimationAssetSampler::Init(TWeakObjectPtr<const UAnimationAsset> InAnimationAsset, const FVector& InBlendParameters, const FBoneContainer& InBoneContainer, int32 InRootTransformSamplingRate)
+void FAnimationAssetSampler::Init(TWeakObjectPtr<const UAnimationAsset> InAnimationAsset, const FVector& InBlendParameters, int32 InRootTransformSamplingRate)
 {
 	AnimationAsset = InAnimationAsset;
 	BlendParameters = InBlendParameters;
-	BoneContainer = InBoneContainer;
 	RootTransformSamplingRate = InRootTransformSamplingRate;
 
 	if (const UAnimationAsset* AnimAsset = AnimationAsset.Get())
@@ -388,6 +387,25 @@ void FAnimationAssetSampler::ExtractPose(const FAnimExtractContext& ExtractionCt
 	{
 		checkNoEntry();
 	}
+}
+
+void FAnimationAssetSampler::ExtractPose(float Time, FCompactPose& OutPose) const
+{
+	using namespace UE::Anim;
+
+	FBlendedCurve UnusedCurve;
+	FStackAttributeContainer UnusedAtrribute;
+	FAnimationPoseData AnimPoseData = { OutPose, UnusedCurve, UnusedAtrribute };
+
+	check(OutPose.IsValid());
+	FBoneContainer& BoneContainer = OutPose.GetBoneContainer();
+	UnusedCurve.InitFrom(BoneContainer);
+
+	FDeltaTimeRecord DeltaTimeRecord;
+	DeltaTimeRecord.Set(Time, 0.f);
+	FAnimExtractContext ExtractionCtx(double(Time), false, DeltaTimeRecord, false);
+
+	ExtractPose(ExtractionCtx, AnimPoseData);
 }
 
 FTransform FAnimationAssetSampler::ExtractRootTransform(float Time) const
@@ -530,7 +548,7 @@ FTransform FAnimationAssetSampler::ExtractRootTransform(float Time) const
 	return RootTransform;
 }
 
-void FAnimationAssetSampler::Process()
+void FAnimationAssetSampler::Process(const FBoneContainer& BoneContainer)
 {
 	if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimationAsset.Get()))
 	{

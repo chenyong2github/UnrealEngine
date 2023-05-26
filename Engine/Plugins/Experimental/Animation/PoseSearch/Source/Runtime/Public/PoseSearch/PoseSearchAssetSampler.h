@@ -17,8 +17,8 @@ namespace UE::PoseSearch
  */
 struct POSESEARCH_API FAnimationAssetSampler
 {
-	FAnimationAssetSampler(TWeakObjectPtr<const UAnimationAsset> InAnimationAsset = nullptr, const FVector& InBlendParameters = FVector::ZeroVector, const FBoneContainer& InBoneContainer = FBoneContainer(), int32 InRootTransformSamplingRate = 30);
-	void Init(TWeakObjectPtr<const UAnimationAsset> InAnimationAsset, const FVector& InBlendParameters = FVector::ZeroVector, const FBoneContainer& InBoneContainer = FBoneContainer(), int32 InRootTransformSamplingRate = 30);
+	FAnimationAssetSampler(TWeakObjectPtr<const UAnimationAsset> InAnimationAsset = nullptr, const FVector& InBlendParameters = FVector::ZeroVector, int32 InRootTransformSamplingRate = 30);
+	void Init(TWeakObjectPtr<const UAnimationAsset> InAnimationAsset, const FVector& InBlendParameters = FVector::ZeroVector, int32 InRootTransformSamplingRate = 30);
 
 	bool IsInitialized() const;
 	float GetPlayLength() const;
@@ -31,6 +31,9 @@ struct POSESEARCH_API FAnimationAssetSampler
 	// Extracts pose for this asset for a given context
 	void ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const;
 
+	// Extracts pose for this asset at a given Time
+	void ExtractPose(float Time, FCompactPose& OutPose) const;
+
 	// Extracts root transform at the given time, using the extremities of the sequence to extrapolate beyond the 
 	// sequence limits when Time is less than zero or greater than the sequence length.
 	FTransform ExtractRootTransform(float Time) const;
@@ -41,14 +44,13 @@ struct POSESEARCH_API FAnimationAssetSampler
 
 	const UAnimationAsset* GetAsset() const;
 
-	void Process();
+	void Process(const FBoneContainer& BoneContainer);
 
 protected:
 	TWeakObjectPtr<const UAnimationAsset> AnimationAsset;
 
 	// members used to sample blend spaces only!
 	FVector BlendParameters = FVector::ZeroVector;
-	FBoneContainer BoneContainer;
 	int32 RootTransformSamplingRate = 30;
 	float CachedPlayLength = 0.f;
 	TArray<FTransform> AccumulatedRootTransform;
