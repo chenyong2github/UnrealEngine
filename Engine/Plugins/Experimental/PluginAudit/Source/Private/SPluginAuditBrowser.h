@@ -7,6 +7,7 @@
 #include "AssetRegistry/AssetIdentifier.h"
 #include "Misc/TextFilter.h"
 #include "Styling/SlateTypes.h"
+#include "Widgets/Views/SListView.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SPluginAuditBrowser
