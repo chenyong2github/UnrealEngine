@@ -4093,6 +4093,7 @@ void ULevel::DetachAttachAllActorsPackages(bool bReattach)
 			if (Actor)
 			{
 				Actor->ReattachExternalPackage();
+				Actor->OnReattachExternalPackage();
 			}
 		}
 	}
@@ -4102,6 +4103,7 @@ void ULevel::DetachAttachAllActorsPackages(bool bReattach)
 		{
 			if (Actor)
 			{
+				Actor->OnDetachExternalPackage();
 				Actor->DetachExternalPackage();
 			}
 		}

@@ -67,6 +67,9 @@ public:
 
 	void PackagingModeChanged(AActor* Actor, bool bIsExternal);
 
+	virtual void OnReattachExternalPackage() override;
+	virtual void OnDetachExternalPackage() override;
+
 	virtual void PostActorCreated() override;
 #endif // WITH_EDITOR
 	
@@ -117,10 +120,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Instanced, Category = Wave, DisplayName = "Waves Source", meta = (Tooltip = ""))
 	TObjectPtr<UWaterWavesBase> WaterWaves = nullptr;
 
-	UPROPERTY(TextExportTransient, NonPIEDuplicateTransient)
+	UPROPERTY(NonTransactional, TextExportTransient, NonPIEDuplicateTransient)
 	TObjectPtr<UWaterBodyInfoMeshComponent> WaterInfoMeshComponent;
 
-	UPROPERTY(TextExportTransient, NonPIEDuplicateTransient)
+	UPROPERTY(NonTransactional, TextExportTransient, NonPIEDuplicateTransient)
 	TObjectPtr<UWaterBodyInfoMeshComponent> DilatedWaterInfoMeshComponent;
 
 	UPROPERTY(NonTransactional, TextExportTransient, NonPIEDuplicateTransient)

@@ -2183,6 +2183,11 @@ public:
 
 	/** Does this actor supports external packaging? */
 	virtual bool SupportsExternalPackaging() const;
+
+	/** Called when the we detach the actor from the external package. Temporary fix to allow the actor to fixup and rename any objects outered to the external package. */
+	virtual void OnDetachExternalPackage() {}
+	/** Called when the we reattach the actor to the external package. Temporary fix to allow the actor to fixup and rename any objects outered to the external package. */
+	virtual void OnReattachExternalPackage() {}
 #endif
 
 #if WITH_EDITOR
