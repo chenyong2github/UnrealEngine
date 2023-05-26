@@ -89,7 +89,7 @@ inline uint32 PointerHash(const void* Key, uint32 C)
 
 template <
 	typename ScalarType,
-	std::enable_if_t<std::is_scalar_v<ScalarType>>* = nullptr
+	std::enable_if_t<std::is_scalar_v<ScalarType> && !std::is_same_v<ScalarType, TCHAR*> && !std::is_same_v<ScalarType, const TCHAR*>>* = nullptr
 >
 inline uint32 GetTypeHash(ScalarType Value)
 {
@@ -135,19 +135,52 @@ inline uint32 GetTypeHash(ScalarType Value)
 	}
 	else if constexpr (std::is_pointer_v<ScalarType>)
 	{
-		if constexpr (std::is_same_v<std::remove_cv_t<std::remove_pointer_t<ScalarType>>, TCHAR>)
-		{
-			return FCrc::Strihash_DEPRECATED(Value);
-		}
-		else
-		{
-			return PointerHash(Value);
-		}
+		// Once the TCHAR* deprecations below are removed, we want to prevent accidental string hashing, so this static_assert should be commented back in
+		//static_assert(!TIsCharType<std::remove_pointer_t<ScalarType>>::Value, "Pointers to string types should use a PointerHash() or FCrc::Stricmp_DEPRECATED() call depending on requirements");
+
+		return PointerHash(Value);
 	}
 	else
 	{
 		static_assert(sizeof(ScalarType) == 0, "Unsupported scalar type");
 	}
+}
+
+template <
+	typename T,
+	uint32 N,
+	std::enable_if_t<!std::is_same_v<const T, const TCHAR>>* = nullptr
+>
+//UE_DEPRECATED(all, "Hashing arrays is deprecated - use PointerHash() instead to force a conversion to a pointer or GetArrayHash to hash the array contents")
+inline uint32 GetTypeHash(T (&Array)[N])
+{
+	return PointerHash(Array);
+}
+
+template <
+	typename T,
+	std::enable_if_t<std::is_same_v<const T, const TCHAR>>* = nullptr
+>
+//UE_DEPRECATED(5.3, "Hashing TCHAR arrays is deprecated - use PointerHash() to force a conversion to a pointer or FCrc::Strihash_DEPRECATED to do a string hash, or use TStringPointerSetKeyFuncs_DEPRECATED or TStringPointerMapKeyFuncs_DEPRECATED as keyfuncs for a TSet or TMap respectively")
+inline uint32 GetTypeHash(T* Value)
+{
+	// Hashing a TCHAR* array differently from a void* is dangerous and is deprecated.
+	// When removing these overloads post-deprecation, comment in the related static_assert in the std::is_pointer_v block of the GetTypeHash overload above.
+	return FCrc::Strihash_DEPRECATED(Value);
+}
+
+template <typename T>
+inline uint32 GetArrayHash(const T* Ptr, uint64 Size, uint32 PreviousHash = 0)
+{
+	uint32 Result = PreviousHash;
+	while (Size)
+	{
+		Result = HashCombineFast(Result, GetTypeHash(*Ptr));
+		++Ptr;
+		--Size;
+	}
+
+	return Result;
 }
 
 // Use this when inside type that has GetTypeHash() (no in-parameters) implemented. It makes GetTypeHash dispatch in global namespace

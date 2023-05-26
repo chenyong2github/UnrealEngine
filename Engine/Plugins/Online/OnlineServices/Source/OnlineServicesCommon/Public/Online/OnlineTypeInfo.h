@@ -28,7 +28,7 @@ struct FOnlineTypeName
 
 inline uint32 GetTypeHash(const FOnlineTypeName& TypeName)
 {
-	return ::GetTypeHash(TypeName.Name);
+	return FCrc::Strihash_DEPRECATED(TypeName.Name);
 }
 
 template <typename T>

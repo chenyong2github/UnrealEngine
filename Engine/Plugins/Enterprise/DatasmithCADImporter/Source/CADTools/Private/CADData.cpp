@@ -34,7 +34,7 @@ FMaterialUId BuildMaterialUId(const FCADMaterial& Material)
 	uint32 MaterialUId = 0;
 	if (!Material.MaterialName.IsEmpty())
 	{
-		MaterialUId = GetTypeHash(*Material.MaterialName); // we add material name because it could be used by the end user so two material with same parameters but different name are different.
+		MaterialUId = FCrc::Strihash_DEPRECATED(*Material.MaterialName); // we add material name because it could be used by the end user so two material with same parameters but different name are different.
 	}
 
 	MaterialUId = HashCombine(MaterialUId, GetTypeHash(Material.Diffuse));
@@ -46,7 +46,7 @@ FMaterialUId BuildMaterialUId(const FCADMaterial& Material)
 
 	if (!Material.TextureName.IsEmpty())
 	{
-		MaterialUId = HashCombine(MaterialUId, GetTypeHash(*Material.TextureName));
+		MaterialUId = HashCombine(MaterialUId, FCrc::Strihash_DEPRECATED(*Material.TextureName));
 	}
 	return FMath::Abs((int32)MaterialUId);
 }
@@ -194,8 +194,8 @@ uint32 GetTypeHash(const FFileDescriptor& FileDescriptor)
 	using ::GetTypeHash;
 	FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescriptor.SourceFilePath);
 
-	uint32 DescriptorHash = GetTypeHash(*FileDescriptor.Name);
-	DescriptorHash = HashCombine(DescriptorHash, GetTypeHash(*FileDescriptor.Configuration));
+	uint32 DescriptorHash = FCrc::Strihash_DEPRECATED(*FileDescriptor.Name);
+	DescriptorHash = HashCombine(DescriptorHash, FCrc::Strihash_DEPRECATED(*FileDescriptor.Configuration));
 	DescriptorHash = HashCombine(DescriptorHash, GetTypeHash(FileStatData.FileSize));
 	DescriptorHash = HashCombine(DescriptorHash, GetTypeHash(FileStatData.ModificationTime));
 

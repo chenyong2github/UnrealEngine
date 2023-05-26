@@ -15,7 +15,7 @@ class IUntypedTable;
 
 struct FCaptureInfo
 {
-	const TMap<const TCHAR*, const TCHAR*>& Metadata;
+	const TMap<const TCHAR*, const TCHAR*, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, const TCHAR*>>& Metadata;
 	const TCHAR* Filename = nullptr;
 	uint32 Id = uint32(-1);
 	uint32 FrameCount = 0;

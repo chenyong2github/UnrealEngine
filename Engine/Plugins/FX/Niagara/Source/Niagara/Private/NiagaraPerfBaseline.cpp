@@ -378,7 +378,7 @@ void FNiagaraPerfBaselineStatsListener::TickRT()
 }
 
 //////////////////////////////////////////////////////////////////////////
-const int32 FParticlePerfStatsListener_NiagaraPerformanceReporter::TestDebugMessageID = GetTypeHash(TEXT("NiagaraPerfReporterMessageID"));
+const int32 FParticlePerfStatsListener_NiagaraPerformanceReporter::TestDebugMessageID = FCrc::Strihash_DEPRECATED(TEXT("NiagaraPerfReporterMessageID"));
 
 void FParticlePerfStatsListener_NiagaraPerformanceReporter::ReportToLog()
 {
@@ -1209,7 +1209,7 @@ void FNiagaraPerfBaselineHandler::Tick(UWorld* World, float DeltaSeconds)
 			{
 				if (BaselineGenerationState == EBaselineGenState::WaitingToGenerate)
 				{
-					static const int32 GenBaselineMessageID = GetTypeHash(TEXT("NiagaraGenBaselineMessageID"));
+					static const int32 GenBaselineMessageID = FCrc::Strihash_DEPRECATED(TEXT("NiagaraGenBaselineMessageID"));
 					if (World->GetTimeSeconds() >= WorldTimeToGenerate)
 					{
 						BaselineGenerationState = EBaselineGenState::Generating;

@@ -20,8 +20,8 @@ public:
 private:
 	friend void PrintNetworkAutomationTestSummary();
 
-	TMap<const TCHAR*, FNetworkAutomationTestStats> TestsWithFailures;
-	TMap<const TCHAR*, FNetworkAutomationTestStats> TestsWithWarnings;
+	TMap<const TCHAR*, FNetworkAutomationTestStats, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, FNetworkAutomationTestStats>> TestsWithFailures;
+	TMap<const TCHAR*, FNetworkAutomationTestStats, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, FNetworkAutomationTestStats>> TestsWithWarnings;
 	SIZE_T TestCount;
 	SIZE_T SuccessCount;
 };

@@ -160,7 +160,7 @@ const FString AliasSdkVersion   = TEXT("2023.1");
 
 FColor CreateShaderColorFromShaderName(const FString& ShaderName)
 {
-	const uint32 ShaderHash = GetTypeHash(*ShaderName);
+	const uint32 ShaderHash = FCrc::Strihash_DEPRECATED(*ShaderName);
 	const uint32 Red = (ShaderHash & 0xff000000) >> 24;
 	const uint32 Green = (ShaderHash & 0x00ff0000) >> 16;
 	const uint32 Blue = (ShaderHash & 0x0000ff00) >> 8;

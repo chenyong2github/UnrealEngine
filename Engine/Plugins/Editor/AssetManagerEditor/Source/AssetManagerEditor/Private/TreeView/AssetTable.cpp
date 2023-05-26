@@ -1288,7 +1288,7 @@ void FAssetTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 }
 
-/*static*/TSet<int32> FAssetTableRow::GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*>& RestrictToGFPs)
+/*static*/TSet<int32> FAssetTableRow::GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToGFPs)
 {
 	// "visit" ThisIndex to seed the exploration
 	TSet<int32> VisitedIndices;
@@ -1331,7 +1331,7 @@ void FAssetTable::AddDefaultColumns()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*static*/ void FAssetTableRow::RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, const FAssetTable& OwningTable, const TSet<int32> RootIndices, const TSet<const TCHAR*>& RestrictToGFPs, TSet<int32>& OutUniqueIndices, TSet<int32>& OutSharedIndices)
+/*static*/ void FAssetTableRow::RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, const FAssetTable& OwningTable, const TSet<int32> RootIndices, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToGFPs, TSet<int32>& OutUniqueIndices, TSet<int32>& OutSharedIndices)
 {
 	// "visit" ThisIndex to seed the exploration
 	TSet<int32> IndicesToVisit;
@@ -1401,7 +1401,7 @@ void FAssetTable::AddDefaultColumns()
 
 	FAssetTableDependencySizes Result;
 
-	TSet<const TCHAR*> RestrictToGFPs;
+	TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>> RestrictToGFPs;
 	for (int32 RootIndex : RootIndices)
 	{
 		RestrictToGFPs.Add(OwningTable.GetAssetChecked(RootIndex).GetGameFeaturePlugin());
@@ -1481,8 +1481,8 @@ void FAssetTable::AddDefaultColumns()
 	UE::Insights::FStopwatch Stopwatch;
 	Stopwatch.Start();
 
-	TSet<int32> AllReachableNodes = GatherAllReachableNodes(StartingNodes.Array(), OwningTable, TSet<int32>{}, TSet<const TCHAR*>{});
-	TSet<const TCHAR*> SourceGFPs;
+	TSet<int32> AllReachableNodes = GatherAllReachableNodes(StartingNodes.Array(), OwningTable, TSet<int32>{}, TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>{});
+	TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>> SourceGFPs;
 	for (int32 RootIndex : StartingNodes)
 	{
 		SourceGFPs.Add(OwningTable.GetAsset(RootIndex)->GetGameFeaturePlugin());

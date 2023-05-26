@@ -144,7 +144,7 @@ private:
 		uint32 StartFrame = 0;
 		uint32 EndFrame = 0;
 		TArray<FStatSeries*> StatSeries;
-		TMap<const TCHAR*, const TCHAR*> Metadata;
+		TMap<const TCHAR*, const TCHAR*, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, const TCHAR*>> Metadata;
 	};
 
 	FStatSeriesValue& GetValueRef(uint64 SeriesHandle, uint32 FrameNumber);
@@ -152,7 +152,7 @@ private:
 	IAnalysisSession& Session;
 	TArray<FStatSeries*> StatSeries;
 	TMap<uint32, FEvents*> Events;
-	TMap<const TCHAR*, const TCHAR*> Metadata;
+	TMap<const TCHAR*, const TCHAR*, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, const TCHAR*>> Metadata;
 	TArray<FCapture*> Captures;
 	FCapture* CurrentCapture = nullptr;
 };

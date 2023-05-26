@@ -598,7 +598,7 @@ uint32 FInternetAddrBSD::GetTypeHash() const
 	}
 	else if (CurrentFamily == FNetworkProtocolTypes::IPv6)
 	{
-		return ::GetTypeHash(*ToString(true));
+		return FCrc::Strihash_DEPRECATED(*ToString(true));
 	}
 
 	return 0;

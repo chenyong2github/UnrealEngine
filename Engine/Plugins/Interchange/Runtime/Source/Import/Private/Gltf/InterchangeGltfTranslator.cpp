@@ -1868,7 +1868,7 @@ bool UInterchangeGLTFTranslator::GetVariantSetPayloadData(UE::Interchange::FVari
 
 	PayloadData.Variants.SetNum(GltfAsset.Variants.Num());
 
-	TMap<const TCHAR*, Interchange::FVariant*> VariantMap;
+	TMap<const TCHAR*, Interchange::FVariant*, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, Interchange::FVariant*>> VariantMap;
 	VariantMap.Reserve(GltfAsset.Variants.Num());
 
 	for (int32 VariantIndex = 0; VariantIndex < GltfAsset.Variants.Num(); ++VariantIndex)

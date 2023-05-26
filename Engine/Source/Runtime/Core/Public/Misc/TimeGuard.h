@@ -111,17 +111,17 @@ public:
 	static CORE_API void						ClearData();
 	static CORE_API void						SetEnabled(bool InEnable);
 	static CORE_API void						SetFrameTimeThresholdMS(float InTimeMS);
-	static CORE_API void						GetData(TMap<const TCHAR*, FGuardInfo>& Dest);
+	static CORE_API void						GetData(TMap<const TCHAR*, FGuardInfo, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, FGuardInfo>>& Dest);
 
 protected:
 
 	// Used for reporting
-	static CORE_API void						ReportHitch(const TCHAR* InName, float TimeMS, bool VolatileName );
-	static TMap<const TCHAR*, FGuardInfo>		HitchData;
-	static TSet<const TCHAR *>					VolatileNames; // any names which come in volatile we allocate them to a static string and put them in this array
-	static FCriticalSection						ReportMutex;
-	static CORE_API bool						bEnabled;
-	static CORE_API float						FrameTimeThresholdMS;
+	static CORE_API void																											ReportHitch(const TCHAR* InName, float TimeMS, bool VolatileName );
+	static TMap<const TCHAR*, FGuardInfo, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, FGuardInfo>>		HitchData;
+	static TSet<const TCHAR *, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>													VolatileNames; // any names which come in volatile we allocate them to a static string and put them in this array
+	static FCriticalSection																											ReportMutex;
+	static CORE_API bool																											bEnabled;
+	static CORE_API float																											FrameTimeThresholdMS;
 
 protected:
 

@@ -940,7 +940,10 @@ public:
 	template<typename ComparableKey>
 	FSetElementId FindIdByHash(uint32 KeyHash, const ComparableKey& Key) const
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// Disable deprecations warnings to stop warnings being thrown by our check macro.
 		checkSlow(KeyHash == KeyFuncs::GetKeyHash(Key));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		return FSetElementId(FindIndexByHash(KeyHash, Key));
 	}
@@ -1057,7 +1060,10 @@ public:
 	template<typename ComparableKey>
 	int32 RemoveByHash(uint32 KeyHash, const ComparableKey& Key)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// Disable deprecations warnings to stop warnings being thrown by our check macro.
 		checkSlow(KeyHash == KeyFuncs::GetKeyHash(Key));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (Elements.Num())
 		{
@@ -1085,7 +1091,10 @@ public:
 	template<typename ComparableKey>
 	FORCEINLINE bool ContainsByHash(uint32 KeyHash, const ComparableKey& Key) const
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// Disable deprecations warnings to stop warnings being thrown by our check macro.
 		checkSlow(KeyHash == KeyFuncs::GetKeyHash(Key));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		return FindIndexByHash(KeyHash, Key) != INDEX_NONE;
 	}
@@ -2068,7 +2077,10 @@ public:
 
 			// We don't update the hash because we don't need to - the new element
 			// should have the same hash, but let's just check.
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			// Disable deprecations warnings to stop warnings being thrown by our check macro.
 			checkSlow(KeyHash == GetKeyHash(ElementPtr));
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{

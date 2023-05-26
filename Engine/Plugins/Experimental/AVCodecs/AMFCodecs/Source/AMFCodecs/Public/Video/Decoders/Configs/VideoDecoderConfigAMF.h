@@ -10,7 +10,7 @@
 struct AMFCODECS_API FVideoDecoderConfigAMF : public FAVConfig
 {
 private:
-	TMap<wchar_t const*, amf::AMFVariantStruct> Variants;
+	TMap<wchar_t const*, amf::AMFVariantStruct, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<wchar_t const*, amf::AMFVariantStruct>> Variants;
 
 public:
 	struct FParsedPicture

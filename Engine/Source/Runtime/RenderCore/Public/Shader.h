@@ -1431,7 +1431,10 @@ public:
 	}
 
 #if WITH_EDITOR
-	inline const TSet<const TCHAR*>& GetReferencedUniformBufferNames() const { return ReferencedUniformBufferNames; };
+	inline const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& GetReferencedUniformBufferNames() const
+	{
+		return ReferencedUniformBufferNames;
+	}
 
 	/** Adds include statements for uniform buffers that this shader type references. */
 	void AddUniformBufferIncludesToEnvironment(FShaderCompilerEnvironment& OutEnvironment, EShaderPlatform Platform) const;
@@ -1489,7 +1492,7 @@ protected:
 	* These are derived from source files so they need to be flushed when editing and recompiling shaders on the fly.
 	* FShaderType::Initialize will add the referenced uniform buffers, but this set may be updated by FlushShaderFileCache.
 	*/
-	TSet<const TCHAR*> ReferencedUniformBufferNames;
+	TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>> ReferencedUniformBufferNames;
 #endif // WITH_EDITOR
 };
 

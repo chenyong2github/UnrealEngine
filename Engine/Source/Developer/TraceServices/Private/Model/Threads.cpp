@@ -167,7 +167,7 @@ uint32 FThreadProvider::GetGroupSortOrder(const TCHAR* GroupName)
 	}
 	else
 	{
-		return GetTypeHash(GroupName);
+		return FCrc::Strihash_DEPRECATED(GroupName);
 	}
 }
 

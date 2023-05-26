@@ -26,7 +26,7 @@ public:
 
 	const FString& operator()(const TCHAR* Key) const
 	{
-		if (const FString* Found = FindByHash(GetTypeHash(Key), Key))
+		if (const FString* Found = FindByHash(FCrc::Strihash_DEPRECATED(Key), Key))
 		{
 			return *Found;
 		}

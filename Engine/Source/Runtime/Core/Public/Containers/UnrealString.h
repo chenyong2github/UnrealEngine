@@ -25,6 +25,7 @@
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
 #include "Templates/TypeHash.h"
 #include "Templates/IsFloatingPoint.h"
+#include "Templates/UnrealTypeTraits.h"
 #include "Traits/IsCharType.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
 #include "Traits/IsCharEncodingSimplyConvertibleTo.h"
@@ -2365,10 +2366,6 @@ struct TTypeFromString
  *     Logf(TEXT("Value: %s"), ToCStr(LexToString(Val)));
  * }
  */
-FORCEINLINE const TCHAR* ToCStr(const TCHAR* Ptr)
-{
-	return Ptr;
-}
 FORCEINLINE const TCHAR* ToCStr(const FString& Str)
 {
 	return *Str;

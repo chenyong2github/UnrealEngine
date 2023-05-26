@@ -950,7 +950,7 @@ void FNDI_Landscape_GeneratedData::Tick(ETickingGroup TickGroup, float DeltaSeco
 
 FNDI_GeneratedData::TypeHash FNDI_Landscape_GeneratedData::GetTypeHash()
 {
-	static const TypeHash Hash = ::GetTypeHash(TEXT("FNDI_Landscape_GeneratedData"));
+	static const TypeHash Hash = FCrc::Strihash_DEPRECATED(TEXT("FNDI_Landscape_GeneratedData"));
 	return Hash;
 }
 

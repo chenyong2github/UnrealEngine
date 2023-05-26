@@ -302,7 +302,7 @@ bool FRemoteConfig::ShouldReadRemoteFile(const TCHAR* Filename)
 
 FRemoteConfigAsyncIOInfo* FRemoteConfig::FindConfig(const TCHAR* Filename)
 {
-	return ConfigBuffers.FindByHash(GetTypeHash(Filename), Filename);
+	return ConfigBuffers.FindByHash(FCrc::Strihash_DEPRECATED(Filename), Filename);
 }
 
 

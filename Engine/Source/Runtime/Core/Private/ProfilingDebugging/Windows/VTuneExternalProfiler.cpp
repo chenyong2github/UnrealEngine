@@ -78,7 +78,7 @@ public:
 
 	void StartScopedEvent(const struct FColor& Color, const TCHAR* Text) override
 	{
-		uint32 Hash = GetTypeHash(Text);
+		uint32 Hash = FCrc::Strihash_DEPRECATED(Text);
 
 		TMap<uint32, __itt_string_handle *>& VTuneHandleMap = FVTunePerThreadHandleMap::Get().VTuneHandleMap;
 

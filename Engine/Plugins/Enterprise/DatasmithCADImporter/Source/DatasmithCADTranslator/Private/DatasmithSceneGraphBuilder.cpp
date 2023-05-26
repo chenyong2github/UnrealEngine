@@ -102,7 +102,7 @@ void GetNodeUuidAndLabel(CADLibrary::FArchiveInstance& Instance, CADLibrary::FAr
 		OutLabel = TEXT("NoName");
 	}
 
-	FCadUuid UeUuid = HashCombine(GetTypeHash(InParentUEUUID), GetTypeHash(Instance.Id));
+	FCadUuid UeUuid = HashCombine(FCrc::Strihash_DEPRECATED(InParentUEUUID), GetTypeHash(Instance.Id));
 	UeUuid = HashCombine(UeUuid, GetTypeHash(Reference.Id));
 
 	OutUEUUID = FString::Printf(TEXT("0x%08x"), UeUuid);

@@ -7,11 +7,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogTimeGuard, Log, All);
 
 #if DO_TIMEGUARD
 
-TMap<const TCHAR*, FTimeGuard::FGuardInfo>  FTimeGuard::HitchData;
+TMap<const TCHAR*, FTimeGuard::FGuardInfo, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, FGuardInfo>>  FTimeGuard::HitchData;
 bool FTimeGuard::bEnabled;
 float FTimeGuard::FrameTimeThresholdMS = 1000.0 / 30.0;
 FCriticalSection FTimeGuard::ReportMutex;
-TSet<const TCHAR *> FTimeGuard::VolatileNames; // any names which come in volatile we allocate them to a static string and put them in this array
+TSet<const TCHAR *, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>> FTimeGuard::VolatileNames; // any names which come in volatile we allocate them to a static string and put them in this array
 
 
 void FTimeGuard::SetEnabled(bool InEnable)
@@ -30,7 +30,7 @@ void FTimeGuard::ClearData()
 	HitchData.Empty();
 }
 
-void FTimeGuard::GetData(TMap<const TCHAR*, FGuardInfo>& Dest)
+void FTimeGuard::GetData(TMap<const TCHAR*, FGuardInfo, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, FGuardInfo>>& Dest)
 {
 	FScopeLock Lock(&ReportMutex);
 	Dest = HitchData;

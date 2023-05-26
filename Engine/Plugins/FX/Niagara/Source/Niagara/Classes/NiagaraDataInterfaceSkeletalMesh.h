@@ -300,7 +300,7 @@ public:
 
 	static TypeHash GetTypeHash()
 	{
-		static const TypeHash Hash = ::GetTypeHash(TEXT("FNDI_SkeletalMesh_GeneratedData"));
+		static const TypeHash Hash = FCrc::Strihash_DEPRECATED(TEXT("FNDI_SkeletalMesh_GeneratedData"));
 		return Hash;
 	}
 };

@@ -76,7 +76,7 @@ private:
 	IEditableThreadProvider& EditableThreadProvider;
 	TMap<uint32, FThreadState*> ThreadStatesMap;
 	TMap<uint32, uint32> SpecIdToTimerIdMap;
-	TMap<const TCHAR*, uint32> ScopeNameToTimerIdMap;
+	TMap<const TCHAR*, uint32, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, uint32>> ScopeNameToTimerIdMap;
 	uint32 CoroutineTimerId = ~0;
 	uint32 CoroutineUnknownTimerId = ~0;
 	uint64 TotalEventSize = 0;

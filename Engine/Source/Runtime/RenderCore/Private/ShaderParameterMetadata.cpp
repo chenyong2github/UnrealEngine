@@ -782,7 +782,7 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 			MemberHash = HashCombine(MemberHash, GetTypeHash(int32(CurrentMember.GetOffset())));
 			MemberHash = HashCombine(MemberHash, GetTypeHash(uint8(BaseType)));
 			static_assert(EUniformBufferBaseType_NumBits <= 8, "Invalid EUniformBufferBaseType_NumBits");
-			MemberHash = HashCombine(MemberHash, GetTypeHash(CurrentMember.GetName()));
+			MemberHash = HashCombine(MemberHash, FCrc::Strihash_DEPRECATED(CurrentMember.GetName()));
 			MemberHash = HashCombine(MemberHash, GetTypeHash(int32(CurrentMember.GetNumElements())));
 
 			const bool bIsRHIResource = (
@@ -809,7 +809,7 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 			}
 			else if (bIsRHIResource || bIsRDGResource)
 			{
-				MemberHash = HashCombine(MemberHash, GetTypeHash(CurrentMember.GetShaderType()));
+				MemberHash = HashCombine(MemberHash, FCrc::Strihash_DEPRECATED(CurrentMember.GetShaderType()));
 			}
 
 			RootStructureHash = HashCombine(RootStructureHash, MemberHash);

@@ -8,6 +8,11 @@
 #include "Misc/CString.h"
 #include "Misc/Char.h"
 #include "Templates/EnableIf.h"
+#include "Templates/UnrealTypeTraits.h"
+#include "Traits/IsCharType.h"
+
+template <typename... Types>
+struct TTuple;
 
 /** 
  * CRC hash generation for different types of input data
@@ -241,3 +246,83 @@ inline uint32 FCrc::Strihash_DEPRECATED(const int32 DataLen, const UTF8CHAR* Dat
 
 	return Result;
 }
+
+/**
+ * Gets a non-owning TCHAR pointer from a string type.
+ *
+ * Can be used generically to get a const TCHAR*, when it is not known if the argument is a TCHAR* or an FString:
+ *
+ * template <typename T>
+ * void LogValue(const T& Val)
+ * {
+ *     Logf(TEXT("Value: %s"), ToCStr(LexToString(Val)));
+ * }
+ */
+FORCEINLINE const TCHAR* ToCStr(const TCHAR* Ptr)
+{
+	return Ptr;
+}
+
+/**
+ * An implementation of KeyFuncs for sets which hashes string pointers by FCrc::Strihash_DEPRECATED.
+ */
+template <typename InKeyType, bool bInAllowDuplicateKeys = false>
+struct TStringPointerSetKeyFuncs_DEPRECATED
+{
+	static_assert(TIsCharType<std::remove_pointer_t<decltype(ToCStr(std::declval<InKeyType>()))>>::Value, "TStringPointerSetKeyFuncs_DEPRECATED should only be used with keys which character types");
+
+	using KeyType         = InKeyType;
+	using KeyInitType     = typename TTypeTraits<InKeyType>::ConstPointerType;
+	using ElementInitType = typename TCallTraits<InKeyType>::ParamType;
+
+	static constexpr bool bAllowDuplicateKeys = bInAllowDuplicateKeys;
+
+	static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
+	{
+		return Element;
+	}
+
+	template <typename ComparableKey>
+	static FORCEINLINE bool Matches(KeyInitType A, const ComparableKey& B)
+	{
+		return A == B;
+	}
+
+	template <typename ComparableKey = KeyInitType>
+	static FORCEINLINE uint32 GetKeyHash(ComparableKey Key)
+	{
+		return FCrc::Strihash_DEPRECATED(ToCStr(Key));
+	}
+};
+
+/**
+ * An implementation of KeyFuncs for maps which hashes string pointers by FCrc::Strihash_DEPRECATED.
+ */
+template <typename InKeyType, typename InValueType, bool bInAllowDuplicateKeys = false>
+struct TStringPointerMapKeyFuncs_DEPRECATED
+{
+	static_assert(TIsCharType<std::remove_pointer_t<decltype(ToCStr(std::declval<InKeyType>()))>>::Value, "TStringPointerMapKeyFuncs_DEPRECATED should only be used with keys which character types");
+
+	using KeyType         = InKeyType;
+	using KeyInitType     = typename TTypeTraits<InKeyType>::ConstPointerType;
+	using ElementInitType = const TTuple<typename TTypeTraits<InKeyType>::ConstInitType, typename TTypeTraits<InValueType>::ConstInitType>&;
+
+	static constexpr bool bAllowDuplicateKeys = bInAllowDuplicateKeys;
+
+	static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
+	{
+		return Element.Key;
+	}
+
+	template <typename ComparableKey>
+	static FORCEINLINE bool Matches(KeyInitType A, const ComparableKey& B)
+	{
+		return A == B;
+	}
+
+	template <typename ComparableKey = KeyInitType>
+	static FORCEINLINE uint32 GetKeyHash(ComparableKey Key)
+	{
+		return FCrc::Strihash_DEPRECATED(ToCStr(Key));
+	}
+};

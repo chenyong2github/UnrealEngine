@@ -171,11 +171,11 @@ public:
 	static int64 ComputeTotalSizeExternalDependencies(const FAssetTable& OwningTable, const TSet<int32>& StartingNodes, TSet<int32>* OutExternalDependencies = nullptr);
 
 private:
-	static void RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, const FAssetTable& OwningTable, const TSet<int32> RootIndices, const TSet<const TCHAR*>& RestrictToGFPs, TSet<int32>& OutUniqueIndices, TSet<int32>& OutSharedIndices);
-	static inline bool ShouldSkipDueToGFP(const TSet<const TCHAR*>& RestrictToGFPs, const TCHAR* GFP) { return (RestrictToGFPs.Num() > 0) && !RestrictToGFPs.Contains(GFP); }
+	static void RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, const FAssetTable& OwningTable, const TSet<int32> RootIndices, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToGFPs, TSet<int32>& OutUniqueIndices, TSet<int32>& OutSharedIndices);
+	static inline bool ShouldSkipDueToGFP(const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToGFPs, const TCHAR* GFP) { return (RestrictToGFPs.Num() > 0) && !RestrictToGFPs.Contains(GFP); }
 
 	// Finds all nodes reachable from StartingNodes INCLUDING those in StartingNodes
-	static TSet<int32> GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*>& RestrictToGFPs);
+	static TSet<int32> GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToGFPs);
 
 private:
 	const TCHAR* Type = nullptr;

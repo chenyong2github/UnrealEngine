@@ -295,11 +295,7 @@ namespace VirtualTextureScalability
 	
 	uint32 GetPhysicalPoolSettingsHash()
 	{
-		uint32 Hash = 0;
-		for (float PoolSizeScale : GPoolSizeScales)
-		{
-			Hash = HashCombine(Hash, GetTypeHash(PoolSizeScale));
-		}
+		uint32 Hash = GetArrayHash(GPoolSizeScales, UE_ARRAY_COUNT(GPoolSizeScales));
 		Hash = HashCombine(Hash, GetTypeHash(GetSplitPhysicalPoolSize()));
 		return Hash;
 	}

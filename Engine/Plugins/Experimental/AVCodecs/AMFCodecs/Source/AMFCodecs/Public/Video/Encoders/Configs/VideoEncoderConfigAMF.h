@@ -10,7 +10,7 @@
 struct AMFCODECS_API FVideoEncoderConfigAMF : public FAVConfig
 {
 private:
-	TMap<wchar_t const*, amf::AMFVariantStruct> Variants;
+	TMap<wchar_t const*, amf::AMFVariantStruct, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<wchar_t const*, amf::AMFVariantStruct>> Variants;
 
 public:
 	static TAVResult<AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD_ENUM> ConvertRateControlMode(ERateControlMode Mode);

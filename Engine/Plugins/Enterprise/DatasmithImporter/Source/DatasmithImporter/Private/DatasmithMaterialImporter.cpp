@@ -99,14 +99,14 @@ namespace DatasmithMaterialImporterUtils
 
 				if ( KeyValue )
 				{
-					Hash = HashCombine( Hash, GetTypeHash( KeyValue->GetName() ) );
+					Hash = HashCombine( Hash, FCrc::Strihash_DEPRECATED( KeyValue->GetName() ) );
 					Hash = HashCombine( Hash, GetTypeHash( KeyValue->GetPropertyType() ) );
 
 					// Only hash values if it's not the parameter
 					// Currently, if we're setting values on multiple properties, we're not sure which one is the parameter so we hash them all
 					if ( MaterialCDO && ( !MaterialCDO->HasAParameterName() || GenericExpression->GetPropertiesCount() > 1 ) )
 					{
-						Hash = HashCombine( Hash, GetTypeHash( KeyValue->GetValue() ) );
+						Hash = HashCombine( Hash, FCrc::Strihash_DEPRECATED( KeyValue->GetValue() ) );
 					}
 				}
 			}
@@ -116,7 +116,7 @@ namespace DatasmithMaterialImporterUtils
 			// Hash the path to the function as calling different functions should result in different hash values
 			IDatasmithMaterialExpressionFunctionCall* FunctionCallExpression = static_cast< IDatasmithMaterialExpressionFunctionCall* >( MaterialExpression );
 
-			Hash = HashCombine( Hash, GetTypeHash( FunctionCallExpression->GetFunctionPathName() ) );
+			Hash = HashCombine( Hash, FCrc::Strihash_DEPRECATED( FunctionCallExpression->GetFunctionPathName() ) );
 		}
 
 		for ( int32 InputIndex = 0; InputIndex < MaterialExpression->GetInputCount(); ++InputIndex )
