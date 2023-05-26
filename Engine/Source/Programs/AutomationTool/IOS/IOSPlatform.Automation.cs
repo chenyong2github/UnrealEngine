@@ -1077,13 +1077,13 @@ public class IOSPlatform : ApplePlatform
 	{
 		// first check for the .xcodeproj
 		bWasGenerated = false;
-		string RawProjectDir = RawProjectPath.Directory.FullName;
-		string XcodeProj = RawProjectPath.FullName.Replace(".uproject", "_" + PlatformName + ".xcworkspace");
-		if (!Directory.Exists(RawProjectDir + "/Source") && !Directory.Exists(RawProjectDir + "/Intermediate/Source"))
+		DirectoryReference RawProjectDir = RawProjectPath.Directory;
+		DirectoryReference XcodeProj = DirectoryReference.Combine(RawProjectDir, "Intermediate/ProjectFiles", $"{RawProjectPath.GetFileNameWithoutAnyExtensions()}_{PlatformName}.xcworkspace");
+		if (!DirectoryReference.Exists(DirectoryReference.Combine(RawProjectDir, "Source")) && !DirectoryReference.Exists(DirectoryReference.Combine(RawProjectDir, "/Intermediate/Source")))
 		{
-			XcodeProj = CombinePaths(CmdEnv.LocalRoot, "Engine", Path.GetFileName(XcodeProj));
+			XcodeProj = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate/ProjectFiles/", XcodeProj.GetDirectoryName());
 		}
-		Console.WriteLine("Project: " + XcodeProj);
+		Console.WriteLine("Project: " + XcodeProj.FullName);
 		{
 			// project.xcodeproj doesn't exist, so generate temp project
 			string Arguments = "-project=\"" + RawProjectPath + "\"";
@@ -1106,14 +1106,14 @@ public class IOSPlatform : ApplePlatform
 
 			bWasGenerated = true;
 
-			if (!Directory.Exists(XcodeProj))
+			if (!DirectoryReference.Exists(XcodeProj))
 			{
 				// something very bad happened
-				throw new AutomationException("iOS couldn't find the appropriate Xcode Project " + XcodeProj);
+				throw new AutomationException("iOS couldn't find the appropriate Xcode Project " + XcodeProj.FullName);
 			}
 		}
 
-		return XcodeProj;
+		return XcodeProj.FullName;
 	}
 
 	private void CodeSign(string BaseDirectory, string GameName, FileReference RawProjectPath, UnrealTargetConfiguration TargetConfig, string LocalRoot, string ProjectName, string ProjectDirectory, bool IsCode, bool Distribution, string Provision, string Certificate, string Team, bool bAutomaticSigning, string SchemeName, string SchemeConfiguration)
