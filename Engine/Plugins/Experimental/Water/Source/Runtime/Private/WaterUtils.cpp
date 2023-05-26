@@ -128,6 +128,7 @@ float FWaterUtils::GetWaterMaxFlowVelocity(bool bIsRenderThread)
 FVector4f FWaterUtils::PackFlowData(float VelocityMagnitude, float DirectionAngle)
 {
 	check((DirectionAngle >= 0.f) && (DirectionAngle <= TWO_PI));
+	checkf(VelocityMagnitude >= 0., TEXT("We expect a positive magnitude"));
 
 	const float MaxVelocity = GetWaterMaxFlowVelocity(false);
 
