@@ -330,7 +330,7 @@ void FCustomizableObjectEditorModule::RegisterCustomDetails(FPropertyEditorModul
 
 
 void FCustomizableObjectEditorModule::OpenCOIE(const TArray<FString>& Arguments)
-					{
+{
 	int32 SlotID = INDEX_NONE;
 	if (Arguments.Num() >= 1)
 	{

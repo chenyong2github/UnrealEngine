@@ -91,7 +91,7 @@ static TAutoConsoleVariable<int32> CVarWorkingMemory(
 TAutoConsoleVariable<bool> CVarClearWorkingMemoryOnUpdateEnd(
 	TEXT("mutable.CVarClearWorkingMemoryOnUpdateEnd"),
 	false,
-	TEXT("Clear the wokring memory and cache after every Mutable operation."),
+	TEXT("Clear the working memory and cache after every Mutable operation."),
 	ECVF_Scalability);
 
 
@@ -1558,10 +1558,10 @@ namespace impl
 					MipsToSkip = 0;
 				}
 
+				const int32 MipSizeX = FMath::Max(Image.FullImageSizeX >> MipsToSkip, 1);
+				const int32 MipSizeY = FMath::Max(Image.FullImageSizeY >> MipsToSkip, 1);
 				if (MipsToSkip > 0 && CustomizableObjectSystemPrivateData->EnableSkipGenerateResidentMips != 0 && OperationData->LowPriorityTextures.Find(Image.Name) != INDEX_NONE)
 				{
-					const int32 MipSizeX = FMath::Max(Image.FullImageSizeX >> MipsToSkip, 1);
-					const int32 MipSizeY = FMath::Max(Image.FullImageSizeY >> MipsToSkip, 1);
 					Image.Image = new mu::Image(MipSizeX, MipSizeY, FullLODCount - MipsToSkip, ImageDesc.m_format);
 				}
 				else
@@ -1577,10 +1577,25 @@ namespace impl
 					continue;
 				}
 
+
+				// We should have genrated exactly this size.
+				bool bSizeMissmatch = Image.Image->GetSizeX() != MipSizeX || Image.Image->GetSizeY() != MipSizeY;
+				if (bSizeMissmatch)
+				{
+					// Generate a correctly-sized but empty image instead, to avoid crashes.
+					UE_LOG(LogMutable, Warning, TEXT("Mutable generated a wrongly-sized image %d."), Image.ImageID);
+					Image.Image = new mu::Image(MipSizeX, MipSizeY, FullLODCount - MipsToSkip, Image.Image->GetFormat());
+				}
+
 				// We need one mip or the complete chain. Otherwise there was a bug.
 				int32 FullMipCount = Image.Image->GetMipmapCount(Image.Image->GetSizeX(), Image.Image->GetSizeY());
 				int32 RealMipCount = Image.Image->GetLODCount();
-				if ((RealMipCount != 1) && (RealMipCount != FullMipCount))
+
+				bool bForceMipchain = 
+					// Did we fail to generate the entire mipchain (if we have mips at all)?
+					(RealMipCount != 1) && (RealMipCount != FullMipCount);
+
+				if (bForceMipchain)
 				{
 					MUTABLE_CPUPROFILER_SCOPE(GetImage_MipFix);
 

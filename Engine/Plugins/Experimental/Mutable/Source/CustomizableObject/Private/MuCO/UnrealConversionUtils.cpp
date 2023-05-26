@@ -95,7 +95,8 @@ namespace UnrealConversionUtils
 
 			if (NumVertices)
 			{
-				uint8* Data = VertexBuffer->GetWeightData();
+				void* Data = VertexBuffer->GetWeightData();
+
 				uint32 OutVertexWeightBufferSize = OutVertexWeightBuffer.GetDataVertexBuffer()->GetVertexDataSize();
 				ensure(MutableDataSize == OutVertexWeightBufferSize);
 
@@ -525,8 +526,8 @@ namespace UnrealConversionUtils
 			 {
 				 DestSkinWeightBuffer.SetNeedsCPUAccess(bAllowCPUAccess);
 
-				 const uint8* SrcData = SrcSkinWeightBuffer.GetDataVertexBuffer()->GetWeightData();
-				 uint8* Data = SkinWeightDataVertexBuffer->GetWeightData();
+				 const void* SrcData = SrcSkinWeightBuffer.GetDataVertexBuffer()->GetWeightData();
+				 void* Data = SkinWeightDataVertexBuffer->GetWeightData();
 				 check(SrcData);
 				 check(Data);
 
