@@ -189,7 +189,8 @@ namespace Chaos
 		TMap<FClusterUnionIndex, FClusterUnion> ClusterUnions;
 
 		// The set of cluster unions that we want to defer updating their cluster union properties for.
-		TSet<FClusterUnionIndex> DeferredClusterUnionsForUpdateProperties;
+		void RequestDeferredClusterPropertiesUpdate(FClusterUnionIndex ClusterIndex, EUpdateClusterUnionPropertiesFlags Flags);
+		TMap<FClusterUnionIndex, EUpdateClusterUnionPropertiesFlags> DeferredClusterUnionsForUpdateProperties;
 		
 		//
 		// There are two ways we can pick a new union index:
@@ -217,7 +218,7 @@ namespace Chaos
 		TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> ForceRecreateClusterUnionSharedGeometry(const FClusterUnion& Union);
 
 		// Handles updating the cluster union.
-		void DeferredClusterUnionUpdate(FClusterUnion& Union);
+		void DeferredClusterUnionUpdate(FClusterUnion& Union, EUpdateClusterUnionPropertiesFlags Flags);
 
 		// Flush the cluster union's incremental connectivity operations
 		void FlushIncrementalConnectivityGraphOperations(FClusterUnion& ClusterUnion);
