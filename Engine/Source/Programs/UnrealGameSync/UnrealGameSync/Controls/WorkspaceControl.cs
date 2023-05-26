@@ -200,6 +200,9 @@ namespace UnrealGameSync
 		[DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
 		static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string pszSubIdList);
 
+		[DllImport("user32.dll")]
+		static extern bool FlashWindow(IntPtr hwnd, bool bInvert);
+
 		const int BuildListExpandCount = 250;
 
 		readonly IWorkspaceControlOwner _owner;
@@ -1061,13 +1064,15 @@ namespace UnrealGameSync
 
 			if (result == WorkspaceUpdateResult.FilesToResolve)
 			{
-				MessageBox.Show("You have files to resolve after syncing your workspace. Please check P4.");
+				FlashWindow(ParentForm.Handle, true);
+				MessageBox.Show(ParentForm, "You have files to resolve after syncing your workspace. Please check P4.");
 			}
 			else if (result == WorkspaceUpdateResult.FilesToDelete)
 			{
 				DesiredTaskbarState = Tuple.Create(TaskbarState.Paused, 0.0f);
 				_owner.UpdateProgress();
 
+				FlashWindow(ParentForm.Handle, true);
 				using DeleteWindow window = new DeleteWindow(context.DeleteFiles);
 				if (window.ShowDialog(this) == DialogResult.OK)
 				{
@@ -1143,6 +1148,8 @@ namespace UnrealGameSync
 			{
 				LoginExpired();
 			}
+
+			FlashWindow(ParentForm.Handle, true);
 		}
 
 		void UpdateBuildListCallback()
