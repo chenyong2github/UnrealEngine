@@ -465,6 +465,8 @@ namespace UE::MediaCapture
 			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 			TShaderMapRef<FScreenPassVS> VertexShader(GlobalShaderMap);
 
+			const FMatrix& ConversionMatrix = Args.MediaCapture->GetRGBToYUVConversionMatrix();
+
 			switch (Args.MediaCapture->GetConversionOperation())
 			{
 			case EMediaCaptureConversionOperation::RGBA8_TO_YUV_8BIT:
@@ -473,7 +475,7 @@ namespace UE::MediaCapture
 					FScreenPassTextureViewport InputViewport(ConversionPassArgs.SourceRGBTexture, ViewRect);
 					FScreenPassTextureViewport OutputViewport(OutputTexture);
 					TShaderMapRef<FRGB8toUYVY8ConvertPS> PixelShader(GlobalShaderMap);
-					FRGB8toUYVY8ConvertPS::FParameters* Parameters = PixelShader->AllocateAndSetParameters(Args.GraphBuilder, ConversionPassArgs.SourceRGBTexture, MediaShaders::RgbToYuvRec709Scaled, MediaShaders::YUVOffset8bits, bDoLinearToSRGB, OutputTexture);
+					FRGB8toUYVY8ConvertPS::FParameters* Parameters = PixelShader->AllocateAndSetParameters(Args.GraphBuilder, ConversionPassArgs.SourceRGBTexture, ConversionMatrix, MediaShaders::YUVOffset8bits, bDoLinearToSRGB, OutputTexture);
 					AddDrawScreenPass(Args.GraphBuilder, RDG_EVENT_NAME("RGBToUYVY 8 bit"), FScreenPassViewInfo(), OutputViewport, InputViewport, VertexShader, PixelShader, Parameters);
 				}
 				break;
@@ -484,7 +486,7 @@ namespace UE::MediaCapture
 					FScreenPassTextureViewport InputViewport(ConversionPassArgs.SourceRGBTexture, ViewRect);
 					FScreenPassTextureViewport OutputViewport(OutputTexture);
 					TShaderMapRef<FRGB10toYUVv210ConvertPS> PixelShader(GlobalShaderMap);
-					FRGB10toYUVv210ConvertPS::FParameters* Parameters = PixelShader->AllocateAndSetParameters(Args.GraphBuilder, ConversionPassArgs.SourceRGBTexture, MediaShaders::RgbToYuvRec709Scaled, MediaShaders::YUVOffset10bits, bDoLinearToSRGB, OutputTexture);
+					FRGB10toYUVv210ConvertPS::FParameters* Parameters = PixelShader->AllocateAndSetParameters(Args.GraphBuilder, ConversionPassArgs.SourceRGBTexture, ConversionMatrix, MediaShaders::YUVOffset10bits, bDoLinearToSRGB, OutputTexture);
 					AddDrawScreenPass(Args.GraphBuilder, RDG_EVENT_NAME("RGBToYUVv210"), FScreenPassViewInfo(), OutputViewport, InputViewport, VertexShader, PixelShader, Parameters);
 				}
 				break;

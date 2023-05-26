@@ -68,6 +68,9 @@ namespace MediaShaders
 	/** Color transform from RGB to YUV (in Rec. 709 color space, including inversion of range scaling) */
 	RENDERCORE_API extern const FMatrix RgbToYuvRec709Scaled;
 
+	/** Color transform from RGB to YUV (in Rec. 2020 color space, including inversion of range scaling) */
+	RENDERCORE_API extern const FMatrix RgbToYuvRec2020Scaled;
+
 	/** YUV Offset for 8 bit conversion (Computed as 16/255, 128/255, 128/255) */
 	RENDERCORE_API extern const FVector YUVOffset8bits;
 

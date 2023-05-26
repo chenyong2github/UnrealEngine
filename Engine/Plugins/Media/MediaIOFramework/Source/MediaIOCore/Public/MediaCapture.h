@@ -403,6 +403,12 @@ public:
 	virtual bool UpdateRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget) { return true; }
 	virtual bool UpdateAudioDeviceImpl(const FAudioDeviceHandle& InAudioDeviceHandle) { return true; }
 
+	/**
+	 * Get the RGB to YUV Conversion Matrix, should be overriden for media outputs that support different color gamuts (ie. BT 2020).
+	 * Will default to returning the RGBToYUV Rec709 matrix.
+	 */
+	virtual const FMatrix& GetRGBToYUVConversionMatrix() const;
+
 	static const TSet<EPixelFormat>& GetSupportedRgbaSwizzleFormats();
 
 	/** Get the name of the media output that created this capture. */

@@ -898,6 +898,11 @@ void UMediaCapture::ResetFixedViewportSize(TSharedPtr<FSceneViewport> InViewport
 	}
 }
 
+const FMatrix& UMediaCapture::GetRGBToYUVConversionMatrix() const
+{
+	return MediaShaders::RgbToYuvRec709Scaled;
+}
+
 void UMediaCapture::WaitForSingleExperimentalSchedulingTaskToComplete()
 {
 	if (UseExperimentalScheduling())
