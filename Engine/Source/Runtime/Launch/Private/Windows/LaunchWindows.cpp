@@ -14,6 +14,19 @@
 #include <crtdbg.h>
 #endif
 
+#if USING_ADDRESS_SANITISER
+
+#include <sanitizer/asan_interface.h>
+
+DEFINE_LOG_CATEGORY_STATIC(LogASan, Log, All);
+
+static void ASanErrorCallback(const char* ErrorStr)
+{
+	UE_LOG(LogASan, Fatal, TEXT("ASan Error: %s"), ANSI_TO_TCHAR(ErrorStr));
+}
+
+#endif
+
 DEFINE_LOG_CATEGORY_STATIC(LogLaunchWindows, Log, All);
 
 extern int32 GuardedMain( const TCHAR* CmdLine );
@@ -167,6 +180,9 @@ bool ProcessCommandLine()
 LAUNCH_API int32 LaunchWindowsStartup( HINSTANCE hInInstance, HINSTANCE hPrevInstance, char*, int32 nCmdShow, const TCHAR* CmdLine )
 {
 	TRACE_BOOKMARK(TEXT("WinMain.Enter"));
+#if USING_ADDRESS_SANITISER
+	__asan_set_error_report_callback(ASanErrorCallback);
+#endif
 
 	// Setup common Windows settings
 	SetupWindowsEnvironment();
