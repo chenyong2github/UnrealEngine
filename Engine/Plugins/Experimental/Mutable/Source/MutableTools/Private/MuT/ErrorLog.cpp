@@ -310,7 +310,8 @@ namespace mu
         TEXT("IN_ADDSURFACE    "),
         TEXT("IN_ADDCOMPONENT  "),
         TEXT("IN_ADDLOD        "),
-
+		TEXT("IN_ADDEXTENSIDATA"),
+		
 		TEXT("LA_PACK          "),
 		TEXT("LA_MERGE         "),
 		TEXT("LA_REMOVEBLOCKS  "),
