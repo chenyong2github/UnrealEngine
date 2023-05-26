@@ -27,28 +27,9 @@ class UWorld;
  */
 class FMallocStomp final : public FMalloc
 {
-private:
-#if PLATFORM_64BITS
-	/** Expected value to be found in the sentinel. */
-	static constexpr SIZE_T SentinelExpectedValue = 0xdeadbeefdeadbeef;
-#else
-	/** Expected value to be found in the sentinel. */
-	static constexpr SIZE_T SentinelExpectedValue = 0xdeadbeef;
-#endif
+	struct FAllocationData;
 
 	const SIZE_T PageSize;
-
-	struct FAllocationData
-	{
-		/** Pointer to the full allocation. Needed so the OS knows what to free. */
-		void	*FullAllocationPointer;
-		/** Full size of the allocation including the extra page. */
-		SIZE_T	FullSize;
-		/** Size of the allocation requested. */
-		SIZE_T	Size;
-		/** Sentinel used to check for underrun. */
-		SIZE_T	Sentinel;
-	};
 
 	/** If it is set to true, instead of focusing on overruns the allocator will focus on underruns. */
 	const bool bUseUnderrunMode;
@@ -59,7 +40,7 @@ private:
 
 public:
 	// FMalloc interface.
-	FMallocStomp(const bool InUseUnderrunMode = false);
+	explicit FMallocStomp(const bool InUseUnderrunMode = false);
 
 	/**
 	 * Allocates a block of a given number of bytes of memory with the required alignment.

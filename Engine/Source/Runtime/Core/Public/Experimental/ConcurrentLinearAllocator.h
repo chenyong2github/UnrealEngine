@@ -50,20 +50,8 @@ struct FOsAllocator
 	// should set this variable to 'false'.
 	static constexpr bool UsesFMalloc = true;
 
-	FORCEINLINE static void* Malloc(SIZE_T Size, uint32 Alignment)
-	{
-		void* Pointer = FPlatformMemory::BaseAllocator()->Malloc(Size, DEFAULT_ALIGNMENT);
-		MemoryTrace_Alloc(uint64(Pointer), Size, DEFAULT_ALIGNMENT, EMemoryTraceRootHeap::SystemMemory);
-		MemoryTrace_MarkAllocAsHeap(uint64(Pointer), EMemoryTraceRootHeap::SystemMemory);
-		return Pointer;
-	}
-
-	FORCEINLINE static void Free(void* Pointer, SIZE_T Size)
-	{
-		MemoryTrace_UnmarkAllocAsHeap(uint64(Pointer), EMemoryTraceRootHeap::SystemMemory);
-		MemoryTrace_Free(uint64(Pointer), EMemoryTraceRootHeap::SystemMemory);
-		FPlatformMemory::BaseAllocator()->Free(Pointer);
-	}
+	CORE_API static void* Malloc(SIZE_T Size, uint32 Alignment);
+	CORE_API static void Free(void* Pointer, SIZE_T Size);
 };
 
 #if PLATFORM_USES_ANSI_MALLOC
@@ -299,7 +287,7 @@ class TConcurrentLinearAllocator
 		{
 			static_assert(BlockAllocationTag::BlockSize >= sizeof(FBlockHeader) + sizeof(FAllocationHeader));
 			Header = new (BlockAllocationTag::Allocator::Malloc(BlockAllocationTag::BlockSize, BlockAllocationTag::BlockSize)) FBlockHeader;
-			checkSlow(IsAligned(Header, alignof(FBlockHeader)));
+			checkSlow(IsAligned(Header, BlockAllocationTag::BlockSize));
 			if constexpr (!SupportsFastPath)
 			{
 				ASAN_POISON_MEMORY_REGION( Header + 1, BlockAllocationTag::BlockSize - sizeof(FBlockHeader) );
@@ -338,7 +326,7 @@ public:
 			{
 				static_assert(BlockAllocationTag::BlockSize >= sizeof(FBlockHeader) + sizeof(FAllocationHeader));
 				Header = new (BlockAllocationTag::Allocator::Malloc(BlockAllocationTag::BlockSize, BlockAllocationTag::BlockSize)) FBlockHeader;
-				checkSlow(IsAligned(Header, alignof(FBlockHeader)));
+				checkSlow(IsAligned(Header, BlockAllocationTag::BlockSize));
 				if constexpr (!SupportsFastPath)
 				{
 					ASAN_POISON_MEMORY_REGION( Header + 1, BlockAllocationTag::BlockSize - sizeof(FBlockHeader) );
