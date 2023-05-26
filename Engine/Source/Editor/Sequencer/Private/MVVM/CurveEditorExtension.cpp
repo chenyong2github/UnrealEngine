@@ -355,8 +355,16 @@ FKeyAttributes FCurveEditorExtension::GetDefaultKeyAttributes() const
 	}
 }
 
+static bool bSyncSelectionRequested = false;
 void FCurveEditorExtension::RequestSyncSelection()
 {
+	if (bSyncSelectionRequested)
+	{
+		return;
+	}
+
+	bSyncSelectionRequested = true;
+
 	// We schedule selection syncing to the next editor tick because we might want to select items that
 	// have just been added to the curve editor tree this tick. If it happened after the Slate update,
 	// these items don't yet have a UI widget, and so selecting them doesn't do anything.
@@ -367,6 +375,8 @@ void FCurveEditorExtension::RequestSyncSelection()
 	TWeakPtr<FSequencerEditorViewModel> WeakRootViewModel(WeakOwnerModel);
 	GEditor->GetTimerManager()->SetTimerForNextTick([WeakRootViewModel]()
 	{
+		bSyncSelectionRequested = false;
+	
 		TSharedPtr<FSequencerEditorViewModel> RootViewModel = WeakRootViewModel.Pin();
 		if (!RootViewModel.IsValid())
 		{

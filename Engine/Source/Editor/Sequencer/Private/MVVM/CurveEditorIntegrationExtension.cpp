@@ -133,6 +133,9 @@ void FCurveEditorIntegrationExtension::UpdateCurveEditor()
 			}
 		}
 	}
+
+	// Synchronize selection after the view models have been added to the curve editor. Synchronization depends on curve model tree item IDs
+	CurveEditorExtension->RequestSyncSelection();
 }
 
 FCurveEditorTreeItemID FCurveEditorIntegrationExtension::AddToCurveEditor(TViewModelPtr<ICurveEditorTreeItemExtension> InViewModel, TSharedPtr<FCurveEditor> InCurveEditor)
