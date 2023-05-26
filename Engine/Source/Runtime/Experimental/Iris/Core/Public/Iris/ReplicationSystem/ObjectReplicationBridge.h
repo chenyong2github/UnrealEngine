@@ -46,6 +46,7 @@ public:
 
 	struct FCreateNetRefHandleParams
 	{
+		//$IRIS TODO: These need documentation
 		bool bCanReceive = false;
 		bool bNeedsPreUpdate = false;
 		bool bNeedsWorldLocationUpdate = false;
@@ -193,7 +194,7 @@ protected:
 	IRISCORE_API UObject* GetObjectFromReferenceHandle(FNetRefHandle RefHandle) const;
 
 	/** Helper method that calls provided PreUpdateFunction and polls state data for all replicated instances with the NeedsPoll trait. */
-	using FInstancePreUpdateFunction = void(*)(FNetRefHandle, UObject*, const UReplicationBridge*);
+	using FInstancePreUpdateFunction = TFunction<void(FNetRefHandle, UObject*, const UReplicationBridge*)>;
 
 	/** Set the function that we should call before copying state data. */
 	IRISCORE_API void SetInstancePreUpdateFunction(FInstancePreUpdateFunction InPreUpdateFunction);
