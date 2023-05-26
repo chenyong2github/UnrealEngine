@@ -403,7 +403,7 @@ void FZenStoreWriter::Initialize(const FCookInfo& Info)
 		FString OplogLifetimeMarkerPath = OutputPath / TEXT(".projectstore");
 		TUniquePtr<FArchive> OplogMarker(IFileManager::Get().CreateFileWriter(*OplogLifetimeMarkerPath));
 
-		bool bOplogEstablished = HttpClient->TryCreateOplog(ProjectId, OplogId, OplogLifetimeMarkerPath, Info.bFullBuild);
+		bool bOplogEstablished = HttpClient->TryCreateOplog(ProjectId, OplogId, OplogLifetimeMarkerPath, CleanBuild);
 
 		if (bOplogEstablished && OplogMarker)
 		{
