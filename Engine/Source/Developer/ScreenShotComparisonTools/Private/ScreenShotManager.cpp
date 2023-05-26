@@ -45,9 +45,8 @@ FScreenShotManager::FScreenShotManager()
 
 	// the automation controller owns the screenshot manager so we don't have to worry about outliving it
 	//AutomationController->OnTestsAvailable().AddRaw(this, &FScreenShotManager::OnTestAvailableCallback);
-	// #agrant todo - we don't want this dependency and higher level code should clear the folders before running new tests
 
-	BuildFallbackPlatformsListFromConfig(ScreenshotSettings);
+	BuildFallbackPlatformsListFromConfig();
 }
 
 FScreenShotManager::~FScreenShotManager()
@@ -582,13 +581,19 @@ void FScreenShotManager::CopyDirectory(const FString& DestDir, const FString& Sr
 		});
 }
 
-void FScreenShotManager::BuildFallbackPlatformsListFromConfig(const UScreenShotComparisonSettings* InSettings)
+void FScreenShotManager::BuildFallbackPlatformsListFromConfig()
 {
 	FallbackPlatforms.Empty();
 
-	if (InSettings->ScreenshotFallbackPlatforms.Num() > 0)
+	const UScreenShotComparisonSettings* ScreenshotSettings = GetDefault<UScreenShotComparisonSettings>();
+	TSet<FScreenshotFallbackEntry> ScreenshotFallbackPlatforms(ScreenshotSettings->ScreenshotFallbackPlatforms);
+#if WITH_EDITOR
+	ScreenshotFallbackPlatforms.Append(UScreenShotComparisonSettings::GetAllPlatformSettings());
+#endif // WITH_EDITOR
+
+	if (ScreenshotFallbackPlatforms.Num() > 0)
 	{
-		for (const FScreenshotFallbackEntry& Entry : InSettings->ScreenshotFallbackPlatforms)
+		for (const FScreenshotFallbackEntry& Entry : ScreenshotFallbackPlatforms)
 		{
 			FString Parent = Entry.Parent;
 			FString Child = Entry.Child;

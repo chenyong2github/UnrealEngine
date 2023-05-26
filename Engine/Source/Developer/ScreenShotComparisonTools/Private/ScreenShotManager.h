@@ -71,7 +71,7 @@ private:
 
 	void CopyDirectory(const FString& DestDir, const FString& SrcDir, const FString& Pattern);
 
-	void BuildFallbackPlatformsListFromConfig(const UScreenShotComparisonSettings* ScreenShotSettings);
+	void BuildFallbackPlatformsListFromConfig();
 
 private:
 
