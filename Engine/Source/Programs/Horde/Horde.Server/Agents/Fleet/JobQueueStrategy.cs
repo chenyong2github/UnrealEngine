@@ -41,7 +41,7 @@ namespace Horde.Server.Agents.Fleet
 		/// <summary>
 		/// How far back in time to look for job batches (that potentially are in the queue)
 		/// </summary>
-		public int SamplePeriodMin { get; set; } = 60 * 24 * 5; // 5 days
+		public int SamplePeriodMin { get; set; } = 60 * 24 * 2; // 2 days
 
 		/// <summary>
 		/// Time spent in ready state before considered truly waiting for an agent

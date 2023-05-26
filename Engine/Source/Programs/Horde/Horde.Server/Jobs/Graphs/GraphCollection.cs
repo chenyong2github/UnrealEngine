@@ -361,7 +361,7 @@ namespace Horde.Server.Jobs.Graphs
 		/// <summary>
 		/// Maximum number of graphs to keep in the cache
 		/// </summary>
-		const int MaxGraphs = 1000;
+		const int MaxGraphs = 5000;
 
 		/// <summary>
 		/// Cache for graphs
@@ -442,7 +442,6 @@ namespace Horde.Server.Jobs.Graphs
 				cacheEntry.Size = 1;
 
 				GraphDocument document = await _graphs.Find<GraphDocument>(x => x.Id == hash).FirstAsync();
-				_logger.LogInformation("Creating new cache entry for {Hash} (current size={Size})", hash, _memoryCache.Count);
 				return document;
 			}
 
