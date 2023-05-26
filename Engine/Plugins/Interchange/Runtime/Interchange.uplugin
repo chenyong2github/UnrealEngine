@@ -24,12 +24,12 @@
 		{
 			"Name": "InterchangeNodes",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PreDefault"
 		},
 		{
 			"Name": "InterchangeFactoryNodes",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PreDefault"
 		},
 		{
 			"Name": "InterchangeImport",
@@ -49,7 +49,7 @@
 		{
 			"Name": "InterchangePipelines",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PreDefault"
 		},
 		{
 			"Name": "InterchangeDispatcher",
