@@ -736,6 +736,8 @@ void SAssetAuditBrowser::GoToHistoryIndex(int32 InHistoryIdx)
 
 void SAssetAuditBrowser::QuickPopulateAssetTableRow(FAssetTableRow& OutRow, const FAssetData& AssetData, FAssetTable& AssetTable) const
 {
+	OutRow.SoftObjectPath = AssetData.GetSoftObjectPath();
+
 	// Asset Type
 	FString AssetType;
 	if (UAssetDefinitionRegistry* AssetDefinitionRegistry = UAssetDefinitionRegistry::Get())

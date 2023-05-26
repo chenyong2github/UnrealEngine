@@ -91,6 +91,8 @@ private:
 
 	void ExportDependencyData() const;
 
+	TArray<FAssetData> GetAssetDataForSelection() const;
+
 private:
 	bool bNeedsToRebuild = false;
 

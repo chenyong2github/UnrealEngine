@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Containers/StringView.h"
 #include "Misc/CString.h"
-
+#include "AssetRegistry/AssetData.h"
 #include "Insights/Table/ViewModels/Table.h"
 
 namespace UE
@@ -165,6 +165,7 @@ public:
 	int32 GetNumReferencers() const { return Referencers.Num(); }
 	const TArray<int32>& GetReferencers() const { return Referencers; }
 	FLinearColor GetColor() const { return Color; }
+	const FSoftObjectPath& GetSoftObjectPath() const { return SoftObjectPath; }
 
 	static FAssetTableDependencySizes ComputeDependencySizes(const FAssetTable& OwningTable, const TSet<int32>& RootIndices, TSet<int32>* OutUniqueDependencies = nullptr, TSet<int32>* OutSharedDependencies = nullptr);
 
@@ -178,6 +179,7 @@ private:
 	static TSet<int32> GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToGFPs);
 
 private:
+	FSoftObjectPath SoftObjectPath; // Used to allow you to go to that asset in the content browser or to open its editor after lookingup the FAssetData in the original registry state
 	const TCHAR* Type = nullptr;
 	const TCHAR* Name = nullptr;
 	const TCHAR* Path = nullptr;

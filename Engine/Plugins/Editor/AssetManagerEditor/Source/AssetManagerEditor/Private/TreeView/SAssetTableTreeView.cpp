@@ -3,6 +3,7 @@
 #include "SAssetTableTreeView.h"
 
 #include "Containers/Set.h"
+#include "ContentBrowserModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "Modules/ModuleManager.h"
@@ -16,6 +17,11 @@
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Logging/MessageLog.h"
+#include "Editor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "IContentBrowserSingleton.h"
+#include "AssetManagerEditorModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "Insights/Common/InsightsStyle.h"
 #include "Insights/Common/Log.h"
@@ -32,6 +38,8 @@
 #include <memory>
 
 #define LOCTEXT_NAMESPACE "SAssetTableTreeView"
+
+extern UNREALED_API UEditorEngine* GEditor;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -658,15 +666,119 @@ void SAssetTableTreeView::ExportDependencyData() const
 	}
 }
 
+TArray<FAssetData> SAssetTableTreeView::GetAssetDataForSelection() const
+{
+	TArray<FAssetData> Assets;
+	for (int32 SelectionIndex : SelectedIndices)
+	{
+		const FAssetManagerEditorRegistrySource* RegistrySource = IAssetManagerEditorModule::Get().GetCurrentRegistrySource();
+		const FSoftObjectPath& SoftObjectPath = GetAssetTable()->GetAssetChecked(SelectionIndex).GetSoftObjectPath();
+		FAssetData AssetData;
+		if (RegistrySource->GetOwnedRegistryState())
+		{
+			AssetData = *RegistrySource->GetOwnedRegistryState()->GetAssetByObjectPath(SoftObjectPath);
+		}
+		else
+		{
+			// Once we move this out of asset audit browser window and give it its own registry state, this code path can be killed
+			// it exists to handle the "Editor" case as a registry source
+			AssetData = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get().GetAssetByObjectPath(SoftObjectPath, /*IncludeOnlyOnDiskAsset*/true, /*SkipARFilteredAssets*/false);
+		}
+		Assets.Add(AssetData);
+	}
+
+	return Assets;
+}
+
 void SAssetTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("ExportDependencies", LOCTEXT("ContextMenu_Section_ExportDependencies", "Export Dependencies"));
+	FCanExecuteAction HasSelectionAndCanExecute = FCanExecuteAction::CreateLambda([this]()
+		{
+			return GetAssetTable() && (SelectedIndices.Num() > 0);
+		});
+
+	FCanExecuteAction HasSelectionAndRegistrySourceAndCanExecute = FCanExecuteAction::CreateLambda([this]()
+		{
+			return (IAssetManagerEditorModule::Get().GetCurrentRegistrySource() != nullptr) && GetAssetTable() && (SelectedIndices.Num() > 0);
+		});
+
+	MenuBuilder.BeginSection("Asset", LOCTEXT("ContextMenu_Section_Asset", "Asset"));
 	{
-		FUIAction ExportDependenciesAction;
-		ExportDependenciesAction.CanExecuteAction = FCanExecuteAction::CreateLambda([this]()
+		//////////////////////////////////////////////////////////////////////////
+		/// EditSelectedAssets
+
+		FUIAction EditSelectedAssets;
+		EditSelectedAssets.CanExecuteAction = HasSelectionAndCanExecute;
+		EditSelectedAssets.ExecuteAction = FExecuteAction::CreateLambda([this]()
 			{
-				return GetAssetTable() && (SelectedIndices.Num() > 0);
+				TArray<FSoftObjectPath> AssetPaths;
+				for (int32 SelectionIndex : SelectedIndices)
+				{
+					AssetPaths.Add(GetAssetTable()->GetAssetChecked(SelectionIndex).GetSoftObjectPath());
+				}
+
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetPaths);
 			});
+		MenuBuilder.AddMenuEntry
+			(
+				LOCTEXT("ContextMenu_EditAssetsLabel", "Edit..."),
+				LOCTEXT("ContextMenu_EditAssets", "Opens the selected aset in the relevant editor."),
+				FSlateIcon(),
+				EditSelectedAssets,
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+
+		//////////////////////////////////////////////////////////////////////////
+		/// FindInContentBrowser
+
+		FUIAction FindInContentBrowser;
+		FindInContentBrowser.CanExecuteAction = HasSelectionAndRegistrySourceAndCanExecute;
+		FindInContentBrowser.ExecuteAction = FExecuteAction::CreateLambda([this]()
+			{
+				FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+				ContentBrowserModule.Get().SyncBrowserToAssets(GetAssetDataForSelection());
+		});
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_FindInContentBrowserLabel", "Find in Content Browser..."),
+			LOCTEXT("ContextMenu_FindInContentBrowser", "Browses to the associated asset and selects it in the most recently used Content Browser (summoning one if necessary)"),
+			FSlateIcon(),
+			FindInContentBrowser,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		//////////////////////////////////////////////////////////////////////////
+		/// OpenReferenceViewer
+
+		FUIAction OpenReferenceViewer;
+		OpenReferenceViewer.CanExecuteAction = HasSelectionAndCanExecute;
+		OpenReferenceViewer.ExecuteAction = FExecuteAction::CreateLambda([this]()
+			{
+				TArray<FAssetIdentifier> AssetIdentifiers;
+				IAssetManagerEditorModule::ExtractAssetIdentifiersFromAssetDataList(GetAssetDataForSelection(), AssetIdentifiers);
+
+				if (AssetIdentifiers.Num() > 0)
+				{
+					IAssetManagerEditorModule::Get().OpenReferenceViewerUI(AssetIdentifiers);
+				}
+			});
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_OpenReferenceViewerLabel", "Reference Viewer..."),
+			LOCTEXT("ContextMenu_OpenReferenceViewer", "Launches the reference viewer showing the selected assets' references"),
+			FSlateIcon(),
+			OpenReferenceViewer,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		//////////////////////////////////////////////////////////////////////////
+		/// ExportDependencies
+
+		FUIAction ExportDependenciesAction;
+		ExportDependenciesAction.CanExecuteAction = HasSelectionAndCanExecute;
 
 		ExportDependenciesAction.ExecuteAction = FExecuteAction::CreateLambda([this]()
 			{
