@@ -17,6 +17,12 @@ namespace Metasound
 	class FWaveAsset;
 	typedef TDataReadReference<FWaveAsset> FWaveAssetReadRef;
 
+	// Helper utility to test if exact types are required for a datatype.
+	template <>
+	struct TIsExplicit<FWaveAsset>
+	{
+		static constexpr bool Value = true;
+	};
 
 	// Metasound data type that holds onto a weak ptr. Mostly used as a placeholder until we have a proper proxy type.
 	class METASOUNDENGINE_API FWaveAsset

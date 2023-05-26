@@ -251,7 +251,14 @@ namespace Metasound
 						{
 							if (UClass* Class = AssetData.GetClass())
 							{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 								if (EditorModule.IsExplicitProxyClass(*DataTypeInfo.ProxyGeneratorClass))
+								{
+									bCanDrop &= Class == DataTypeInfo.ProxyGeneratorClass;
+									continue;
+								}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+								if (DataTypeInfo.bIsExplicit)
 								{
 									bCanDrop &= Class == DataTypeInfo.ProxyGeneratorClass;
 								}
@@ -437,18 +444,24 @@ namespace Metasound
 			TSharedPtr<IPropertyHandle> PropertyHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundEditorGraphMemberDefaultObjectRef, Object));
 
 			const IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-			auto FilterAsset = [InEditorModule = &EditorModule, InProxyGenClass = DataTypeInfo.ProxyGeneratorClass](const FAssetData& InAsset)
+			auto FilterAsset = [InEditorModule = &EditorModule, &InDataTypeInfo = DataTypeInfo](const FAssetData& InAsset)
 			{
-				if (InProxyGenClass)
+				if (InDataTypeInfo.ProxyGeneratorClass)
 				{
 					if (UClass* Class = InAsset.GetClass())
 					{
-						if (InEditorModule->IsExplicitProxyClass(*InProxyGenClass))
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+						if (InEditorModule->IsExplicitProxyClass(*InDataTypeInfo.ProxyGeneratorClass))
 						{
-							return Class != InProxyGenClass;
+							return Class != InDataTypeInfo.ProxyGeneratorClass;
+						}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+						if (InDataTypeInfo.bIsExplicit)
+						{
+							return Class != InDataTypeInfo.ProxyGeneratorClass;
 						}
 
-						return !Class->IsChildOf(InProxyGenClass);
+						return !Class->IsChildOf(InDataTypeInfo.ProxyGeneratorClass);
 					}
 				}
 

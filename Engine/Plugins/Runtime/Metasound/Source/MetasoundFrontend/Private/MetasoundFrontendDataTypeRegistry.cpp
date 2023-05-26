@@ -639,12 +639,20 @@ namespace Metasound
 				if (InObject)
 				{
 					FScopeLock Lock(&RegistryObjectMapMutex);
-					if (const FName* DataTypeName = RegisteredObjectClasses.Find(InObject->GetClass()))
+					for (UClass* Class = InObject->GetClass(); Class != UObject::StaticClass(); Class = Class->GetSuperClass())
 					{
-						if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(*DataTypeName))
+						if (const FName* DataTypeName = RegisteredObjectClasses.Find(Class))
 						{
-							OutInfo = Entry->GetDataTypeInfo();
-							return true;
+							if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(*DataTypeName))
+							{
+								const FDataTypeRegistryInfo& Info = Entry->GetDataTypeInfo();
+								if (Info.bIsExplicit && Class != InObject->GetClass())
+								{
+									return false;
+								}
+								OutInfo = Info;
+								return true;
+							}
 						}
 					}
 				}
@@ -823,9 +831,13 @@ namespace Metasound
 				UClass* ObjectClass = InObject->GetClass();
 				while (ObjectClass != UObject::StaticClass())
 				{
-					if (RegisteredObjectClasses.Contains(ObjectClass))
+					if (const FName* DataTypeName = RegisteredObjectClasses.Find(ObjectClass))
 					{
-						return true;
+						if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(*DataTypeName))
+						{
+							const FDataTypeRegistryInfo& Info = Entry->GetDataTypeInfo();
+							return !Info.bIsExplicit || ObjectClass == InObject->GetClass();
+						}
 					}
 
 					ObjectClass = ObjectClass->GetSuperClass();

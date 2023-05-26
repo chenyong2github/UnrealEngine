@@ -217,6 +217,7 @@ namespace Metasound
 			RegistryInfo.bIsUniquePtrProxyArrayParsable_DEPRECATED = TIsParsable<TDataType, const TArray<TUniquePtr<Audio::IProxyData>>& >::Value;
 
 			RegistryInfo.bIsEnum = TEnumTraits<TDataType>::bIsEnum;
+			RegistryInfo.bIsExplicit = TIsExplicit<TDataType>::Value;
 			RegistryInfo.bIsVariable = TIsVariable<TDataType>::Value;
 			RegistryInfo.bIsTransmittable = TIsTransmittable<TDataType>::Value;
 			RegistryInfo.bIsConstructorType = TIsConstructorVertexSupported<TDataType>::Value;

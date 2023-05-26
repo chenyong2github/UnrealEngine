@@ -69,6 +69,13 @@ namespace Metasound
 		static constexpr bool Value = bIsParsable && bIsCopyable && bIsEnabled;
 	};
 
+	// Helper utility to test if exact types are required for a datatype.
+	template <typename TDataType>
+	struct TIsExplicit
+	{
+		static constexpr bool Value = false;
+	};
+
 	// Helper utility to test if we can transmit a datatype between a send and a receive node.
 	template <typename TDataType>
 	struct TIsTransmittable

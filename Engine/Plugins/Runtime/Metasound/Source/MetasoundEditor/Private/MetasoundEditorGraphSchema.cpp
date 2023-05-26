@@ -126,7 +126,13 @@ namespace Metasound
 					{
 						if (const UClass* Class = Asset.GetClass())
 						{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 							if (EditorModule.IsExplicitProxyClass(*InRegistryInfo.ProxyGeneratorClass))
+							{
+								return Class == InRegistryInfo.ProxyGeneratorClass;
+							}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+							if (InRegistryInfo.bIsExplicit)
 							{
 								return Class == InRegistryInfo.ProxyGeneratorClass;
 							}

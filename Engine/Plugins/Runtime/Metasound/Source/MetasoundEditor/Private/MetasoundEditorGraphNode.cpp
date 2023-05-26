@@ -436,7 +436,14 @@ TSet<FString> UMetasoundEditorGraphNode::GetDisallowedPinClassNames(const UEdGra
 			continue;
 		}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (EditorModule.IsExplicitProxyClass(*ProxyGenClass) && Class->IsChildOf(ProxyGenClass))
+		{
+			DisallowedClasses.Add(ClassIt->GetClassPathName().ToString());
+		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		if (DataTypeInfo.bIsExplicit && Class->IsChildOf(ProxyGenClass))
 		{
 			DisallowedClasses.Add(ClassIt->GetClassPathName().ToString());
 		}

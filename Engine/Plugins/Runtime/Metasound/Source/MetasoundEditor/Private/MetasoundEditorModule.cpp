@@ -815,8 +815,6 @@ namespace Metasound
 				// the Metasound Editor registration of a USoundWave.
 				FModuleManager::LoadModuleChecked<IModuleInterface>("MetasoundEngine");
 
-				RegisterExplicitProxyClass(*USoundWave::StaticClass());
-
 				// Required to ensure logic to order nodes for presets exclusive to
 				// editor is propagated to transform instances while editing in editor.
 				Frontend::DocumentTransform::RegisterNodeDisplayNameProjection([](const Frontend::FNodeHandle& NodeHandle)

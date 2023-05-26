@@ -56,6 +56,9 @@ namespace Metasound
 			// Is a TEnum wrapped enum
 			bool bIsEnum = false;
 
+			// Whether exact types are required
+			bool bIsExplicit = false;
+
 			// Determines whether the type can be used with send/receive transmitters
 			bool bIsTransmittable = false;
 

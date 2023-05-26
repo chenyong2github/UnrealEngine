@@ -79,13 +79,10 @@ namespace Metasound
 		class METASOUNDEDITOR_API IMetasoundEditorModule : public IModuleInterface
 		{
 		public:
-			// Whether or not the given proxy class has to be explicit (i.e.
-			// selectors do not support inherited types). By default, proxy
-			// classes support child classes & inheritance.
+			UE_DEPRECATED(5.3, "IsExplicitProxyClass is deprecated, use Metasound::Frontend::FDataTypeRegistryInfo::bIsExplicit")
 			virtual bool IsExplicitProxyClass(const UClass& InClass) const = 0;
 
-			// Register proxy class as explicitly selectable.
-			// By default, proxy classes support child classes & inheritance.
+			UE_DEPRECATED(5.3, "RegisterExplicitProxyClass is deprecated, use Metasound::TIsExplicit<>")
 			virtual void RegisterExplicitProxyClass(const UClass& InClass) = 0;
 
 			UE_DEPRECATED(5.3, "IsMetaSoundAssetClass is deprecated, use IMetasoundUObjectRegistry::IsRegisteredClass")
