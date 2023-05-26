@@ -721,21 +721,7 @@ static FSceneRenderer* CreateWaterInfoSceneRenderer(const FCreateWaterInfoSceneR
 		Extension->SetupView(ViewFamily, *View);
 	}
 
-	FSceneRenderer* SceneRenderer = FSceneRenderer::CreateSceneRenderer(&ViewFamily, nullptr);
-	FSceneViewStateReference* ViewStateReference = new FSceneViewStateReference();
-	ViewStateReference->Allocate(ViewFamily.Scene->GetFeatureLevel());
-	FSceneViewStateInterface* ViewStateInterface = ViewStateReference->GetReference();
-
-	if (UseVirtualShadowMaps(SceneRenderer->ShaderPlatform, ViewFamily.Scene->GetFeatureLevel()))
-	{
-		// This is needed to prevent the default cache being invalidated on every frame.
-		if (ViewStateInterface)
-		{
-			ViewStateInterface->AddVirtualShadowMapCache(ViewFamily.Scene);
-		}
-	}
-
-	return SceneRenderer;
+	return FSceneRenderer::CreateSceneRenderer(&ViewFamily, nullptr);
 }
 
 void UpdateWaterInfoRendering(
