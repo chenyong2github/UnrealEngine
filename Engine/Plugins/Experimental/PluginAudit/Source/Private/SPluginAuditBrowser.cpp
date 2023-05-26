@@ -5,6 +5,7 @@
 #include "Features/EditorFeatures.h"
 #include "Features/IModularFeatures.h"
 #include "Features/IPluginsEditorFeature.h"
+#include "Filters/SFilterSearchBox.h"
 #include "GameFeaturesProjectPolicies.h"
 #include "GameFeaturesSubsystem.h"
 #include "GameplayTagsManager.h"
@@ -19,11 +20,11 @@
 #include "IMessageLogListing.h"
 #include "MessageLogModule.h"
 #include "Misc/UObjectToken.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Views/SListView.h"
 #include "AssetManagerEditorModule.h"
 #include "ToolMenus.h"
 
@@ -36,12 +37,28 @@ namespace PluginAudit
 
 void SPluginAuditBrowser::Construct(const FArguments& InArgs)
 {
-	CreateLogListing();
 	BuildPluginList();
+	CreateLogListing();
+
+	// Setup text filtering
+	PluginTextFilter = MakeShareable(new FCookedPluginTextFilter(FCookedPluginTextFilter::FItemToStringArray::CreateLambda([](const IPlugin* Plugin, TArray<FString>& OutStringArray)
+		{
+			OutStringArray.Add(Plugin->GetFriendlyName());
+		})
+	));
+
+	PluginTextFilter->OnChanged().AddSP(this, &SPluginAuditBrowser::OnPluginTextFilterChanged);
+
+	RebuildAndFilterPluginList();
 
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 
 	RefreshToolBar();
+
+	PluginListView =
+		SNew(SListView< TSharedRef<FCookedPlugin> >)
+		.ListItemsSource(&FilteredCookedPlugins)
+		.OnGenerateRow(this, &SPluginAuditBrowser::MakeCookedPluginRow);
 
 	ChildSlot
 	[
@@ -65,22 +82,36 @@ void SPluginAuditBrowser::Construct(const FArguments& InArgs)
 			+ SSplitter::Slot()
 			.Value(0.30f)
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.f, 4.0f, 0.0f, 6.0f)
+				SNew(SBorder)
+				.Padding(FMargin(3))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
-					SNew(SCheckBox)
-					.ToolTipText(LOCTEXT("ToggleAll", "Toggle `Simulate Disabled` for all plugins"))
-					.IsChecked(ECheckBoxState::Checked)
-					.OnCheckStateChanged(this, &SPluginAuditBrowser::OnGlobalCheckboxStateChanged)
-				]
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(0.f, 4.0f, 0.0f, 6.0f)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()				
+						[
+							SNew(SCheckBox)
+							.ToolTipText(LOCTEXT("ToggleAll", "Toggle disabled for all visible plugins"))
+							.IsChecked(this, &SPluginAuditBrowser::GetGlobalDisabledState)
+							.OnCheckStateChanged(this, &SPluginAuditBrowser::OnGlobalDisabledStateChanged)
+						]
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						[
+							SAssignNew(SearchBoxPtr, SSearchBox)
+							.OnTextChanged(this, &SPluginAuditBrowser::SearchBox_OnPluginSearchTextChanged)
+						]
+					]
 
-				+ SVerticalBox::Slot()
-				[
-					SNew(SListView< TSharedRef<FCookedPlugin> >)
-					.ListItemsSource(&CookedPlugins)
-					.OnGenerateRow(this, &SPluginAuditBrowser::MakeCookedPluginRow)
+					+ SVerticalBox::Slot()
+					[
+						PluginListView.ToSharedRef()
+					]
 				]
 			]
 			+ SSplitter::Slot()
@@ -122,8 +153,21 @@ void SPluginAuditBrowser::BuildPluginList()
 	{
 		CookedPlugins.Add(MakeShared<FCookedPlugin>(Plugin));
 	}
+}
 
-	CookedPlugins.Sort([](const TSharedRef<FCookedPlugin>& A, const TSharedRef<FCookedPlugin>& B)
+void SPluginAuditBrowser::RebuildAndFilterPluginList()
+{
+	FilteredCookedPlugins.Empty();
+
+	for (const auto& CookedPlugin : CookedPlugins)
+	{
+		if (PluginTextFilter->PassesFilter(&CookedPlugin->Plugin.Get()))
+		{
+			FilteredCookedPlugins.Add(CookedPlugin);
+		}
+	}
+
+	FilteredCookedPlugins.Sort([](const TSharedRef<FCookedPlugin>& A, const TSharedRef<FCookedPlugin>& B)
 	{
 		return A->Plugin->GetName() < B->Plugin->GetName();
 	});
@@ -149,12 +193,43 @@ void SPluginAuditBrowser::RefreshToolBar()
 	}
 }
 
-void SPluginAuditBrowser::OnGlobalCheckboxStateChanged(ECheckBoxState State)
+void SPluginAuditBrowser::OnPluginTextFilterChanged()
 {
-	for (auto& Item : CookedPlugins)
+	RebuildAndFilterPluginList();
+
+	PluginListView->RequestListRefresh();
+}
+
+void SPluginAuditBrowser::SearchBox_OnPluginSearchTextChanged(const FText& NewText)
+{
+	PluginTextFilter->SetRawFilterText(NewText);
+	SearchBoxPtr->SetError(PluginTextFilter->GetFilterErrorText());
+}
+
+void SPluginAuditBrowser::OnGlobalDisabledStateChanged(ECheckBoxState State)
+{
+	bGlobalDisabledState = (State == ECheckBoxState::Checked) ? false : true;
+	
+	for (auto& Item : FilteredCookedPlugins)
 	{
-		Item->bSimulateDisabled = (State == ECheckBoxState::Checked) ? false : true;
+		Item->bSimulateDisabled = bGlobalDisabledState;
 	}
+}
+
+ECheckBoxState SPluginAuditBrowser::GetGlobalDisabledState() const
+{
+	bool bStateMismatch = false;
+	for (const auto& Item : FilteredCookedPlugins)
+	{
+		if (Item->bSimulateDisabled != bGlobalDisabledState)
+		{
+			bStateMismatch = true;
+			break;
+		}
+	}
+
+	return bStateMismatch ? ECheckBoxState::Undetermined :
+		bGlobalDisabledState ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
 }
 
 TSharedRef<ITableRow> SPluginAuditBrowser::MakeCookedPluginRow(TSharedRef<SPluginAuditBrowser::FCookedPlugin> InItem, const TSharedRef<STableViewBase>& OwnerTable)

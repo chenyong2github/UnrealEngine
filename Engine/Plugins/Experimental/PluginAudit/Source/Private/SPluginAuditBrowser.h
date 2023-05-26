@@ -5,6 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Tasks/Task.h"
 #include "AssetRegistry/AssetIdentifier.h"
+#include "Misc/TextFilter.h"
 #include "Styling/SlateTypes.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -16,6 +17,7 @@ class UGameplayTagsManager;
 struct FGameplayTag;
 class IMessageLogListing;
 class IMessageToken;
+class SFilterSearchBox;
 class STableViewBase;
 class ITableRow;
 class FTokenizedMessage;
@@ -33,9 +35,13 @@ public:
 private:
 	void CreateLogListing();
 	void BuildPluginList();
+	void RebuildAndFilterPluginList();
 	void RefreshToolBar();
 
-	void OnGlobalCheckboxStateChanged(ECheckBoxState State);
+	void OnPluginTextFilterChanged();
+	void SearchBox_OnPluginSearchTextChanged(const FText& NewText);
+	ECheckBoxState GetGlobalDisabledState() const;
+	void OnGlobalDisabledStateChanged(ECheckBoxState State);
 
 	class FCookedPlugin
 	{
@@ -75,9 +81,24 @@ private:
 	static void GetGameFeaturePlugins(const TArray<TSharedRef<IPlugin>>& Plugins, TArray<FGameFeaturePlugin>& GameFeaturePlugins);
 
 private:
+	typedef TTextFilter<const IPlugin*> FCookedPluginTextFilter;
+
 	TArray<TSharedRef<IPlugin>> IncludedGameFeaturePlugins;
 	TArray<TSharedRef<IPlugin>> ExcludedGameFeaturePlugins;
 
 	TArray<TSharedRef<FCookedPlugin>> CookedPlugins;
+	TArray<TSharedRef<FCookedPlugin>> FilteredCookedPlugins;
+
 	TSharedPtr<IMessageLogListing> LogListing;
+
+	/** The list view widget for our plugins list */
+	TSharedPtr<SListView<TSharedRef<FCookedPlugin>>> PluginListView;
+
+	/** The plugin search box widget */
+	TSharedPtr<class SSearchBox> SearchBoxPtr;
+
+	/** Text filter object for typing in filter text to the search box */
+	TSharedPtr<FCookedPluginTextFilter> PluginTextFilter;
+
+	bool bGlobalDisabledState = false;
 };
