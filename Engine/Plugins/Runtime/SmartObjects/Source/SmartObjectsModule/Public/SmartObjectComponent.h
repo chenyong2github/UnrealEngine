@@ -60,6 +60,7 @@ public:
 	void OnRuntimeInstanceUnbound(FSmartObjectRuntime& RuntimeInstance);
 
 	FSmartObjectComponentEventNativeSignature& GetOnSmartObjectEventNative() { return OnSmartObjectEventNative; }
+	bool IsBoundToSimulation() const { return EventDelegateHandle.IsValid(); }
 
 #if WITH_EDITORONLY_DATA
 	static FOnSmartObjectChanged& GetOnSmartObjectChanged() { return OnSmartObjectChanged; }

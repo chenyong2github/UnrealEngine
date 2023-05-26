@@ -1087,9 +1087,9 @@ protected:
 	static void UnbindComponentFromSimulationInternal(USmartObjectComponent& SmartObjectComponent, FSmartObjectRuntime& SmartObjectRuntime);
 
 	/** @return whether the removal was successful */
-	bool RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle);
+	bool RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle, USmartObjectComponent* SmartObjectComponent);
 	bool RemoveCollectionEntryFromSimulation(const FSmartObjectCollectionEntry& Entry);
-	void RemoveComponentFromSimulation(const USmartObjectComponent& SmartObjectComponent);
+	void RemoveComponentFromSimulation(USmartObjectComponent& SmartObjectComponent);
 
 	/** Destroy SmartObjectRuntime contents as Handle's representation. */
 	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, FSmartObjectRuntime& SmartObjectRuntime, const FMassEntityManager& EntityManagerRef);
@@ -1189,9 +1189,6 @@ protected:
 	
 	UPROPERTY(Transient)
 	TMap<FSmartObjectSlotHandle, FSmartObjectRuntimeSlot> RuntimeSlots;
-
-	/** Keep track of Ids associated to objects entirely created at runtime (i.e. not part of the initial collection) */
-	TArray<FSmartObjectHandle> RuntimeCreatedEntries;
 
 	/** List of registered components. */
 	UPROPERTY(Transient)

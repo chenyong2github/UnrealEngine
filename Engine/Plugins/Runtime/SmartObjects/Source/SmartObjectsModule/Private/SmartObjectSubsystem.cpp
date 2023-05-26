@@ -198,7 +198,6 @@ void USmartObjectSubsystem::UnbindComponentFromSimulation(USmartObjectComponent&
 void USmartObjectSubsystem::UnbindComponentFromSimulationInternal(USmartObjectComponent& SmartObjectComponent, FSmartObjectRuntime& SmartObjectRuntime)
 {
 	SmartObjectComponent.OnRuntimeInstanceUnbound(SmartObjectRuntime);
-	SmartObjectComponent.InvalidateRegisteredHandle();
 	SmartObjectRuntime.OwnerComponent = nullptr;
 }
 
@@ -320,7 +319,7 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(
 	return &Runtime;
 }
 
-bool USmartObjectSubsystem::RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle)
+bool USmartObjectSubsystem::RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle, USmartObjectComponent* SmartObjectComponent)
 {
 	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing SmartObject '%s' from runtime simulation."), *LexToString(Handle));
 
@@ -336,6 +335,11 @@ bool USmartObjectSubsystem::RemoveRuntimeInstanceFromSimulation(const FSmartObje
 			, Handle.IsValid() ? TEXT("a VALID") : TEXT("an INVALID"));
 
 		return false;
+	}
+
+	if (SmartObjectComponent != nullptr)
+	{
+		UnbindComponentFromSimulationInternal(*SmartObjectComponent, *SmartObjectRuntime);
 	}
 
 	if (!ensureMsgf(EntityManager, TEXT("Entity subsystem required to remove a smartobject from the simulation")))
@@ -394,12 +398,12 @@ void USmartObjectSubsystem::DestroyRuntimeInstanceInternal(
 
 bool USmartObjectSubsystem::RemoveCollectionEntryFromSimulation(const FSmartObjectCollectionEntry& Entry)
 {
-	return RemoveRuntimeInstanceFromSimulation(Entry.GetHandle());
+	return RemoveRuntimeInstanceFromSimulation(Entry.GetHandle(), /*SmartObjectComponent*/nullptr);
 }
 
-void USmartObjectSubsystem::RemoveComponentFromSimulation(const USmartObjectComponent& SmartObjectComponent)
+void USmartObjectSubsystem::RemoveComponentFromSimulation(USmartObjectComponent& SmartObjectComponent)
 {
-	if (RemoveRuntimeInstanceFromSimulation(SmartObjectComponent.GetRegisteredHandle()))
+	if (RemoveRuntimeInstanceFromSimulation(SmartObjectComponent.GetRegisteredHandle(), &SmartObjectComponent))
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("%s call succeeded for %s")
 			, ANSI_TO_TCHAR(__FUNCTION__)
@@ -514,8 +518,6 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 				{
 					SmartObjectComponent.SetRegisteredHandle(Entry->GetHandle(), ESmartObjectRegistrationType::Dynamic);
 					AddComponentToSimulation(SmartObjectComponent, *Entry);
-					// This is a new entry added after runtime initialization, mark it as a runtime entry (lifetime is tied to the component)
-					RuntimeCreatedEntries.Add(SmartObjectComponent.GetRegisteredHandle());
 #if WITH_EDITOR
 					OnMainCollectionDirtied.Broadcast();
 #endif
@@ -585,21 +587,19 @@ bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent&
 	{
 		ensure(SmartObjectComponent.GetRegisteredHandle().IsValid());
 
-		if (SmartObjectComponent.GetRegistrationType() == ESmartObjectRegistrationType::Dynamic)
+		if (SmartObjectComponent.IsBoundToSimulation())
 		{
-			RuntimeCreatedEntries.Remove(SmartObjectComponent.GetRegisteredHandle());
-		}
-
-		if (bDestroyRuntimeState)
-		{
-			RemoveComponentFromSimulation(SmartObjectComponent);
-			SmartObjectContainer.RemoveSmartObject(SmartObjectComponent);
-		}
-		// otherwise we keep all the runtime entries in place - those will be removed along with the collection that has added them 
-		else
-		{
-			// Unbind the component from its associated runtime instance
-			UnbindComponentFromSimulation(SmartObjectComponent);
+			if (bDestroyRuntimeState)
+			{
+				RemoveComponentFromSimulation(SmartObjectComponent);
+				SmartObjectContainer.RemoveSmartObject(SmartObjectComponent);
+			}
+			// otherwise we keep all the runtime entries in place - those will be removed along with the collection that has added them 
+			else
+			{
+				// Unbind the component from its associated runtime instance
+				UnbindComponentFromSimulation(SmartObjectComponent);
+			}
 		}
 
 		RegisteredSOComponents.Remove(&SmartObjectComponent);
@@ -2247,10 +2247,10 @@ void USmartObjectSubsystem::InitializeRuntime(const TSharedPtr<FMassEntityManage
 void USmartObjectSubsystem::CleanupRuntime()
 {
 	// Process component list first so they can be notified before we destroy their associated runtime instance
-	for (const USmartObjectComponent* Component : RegisteredSOComponents)
+	for (USmartObjectComponent* Component : RegisteredSOComponents)
 	{
 		// Make sure component was registered to simulation (e.g. Valid associated definition)
-		if (Component != nullptr && Component->GetRegisteredHandle().IsValid())
+		if (Component != nullptr && Component->IsBoundToSimulation())
 		{
 			RemoveComponentFromSimulation(*Component);
 		}
@@ -2271,7 +2271,6 @@ void USmartObjectSubsystem::CleanupRuntime()
 	}
 	RuntimeSmartObjects.Reset();
 
-	RuntimeCreatedEntries.Reset();
 	bRuntimeInitialized = false;
 
 	RegisteredCollections.Reset();
@@ -2498,7 +2497,7 @@ void USmartObjectSubsystem::CreatePersistentCollectionFromDeprecatedData(UWorld&
 #if WITH_SMARTOBJECT_DEBUG
 void USmartObjectSubsystem::DebugUnregisterAllSmartObjects()
 {
-	for (const USmartObjectComponent* Cmp : RegisteredSOComponents)
+	for (USmartObjectComponent* Cmp : RegisteredSOComponents)
 	{
 		if (Cmp != nullptr && RuntimeSmartObjects.Find(Cmp->GetRegisteredHandle()) != nullptr)
 		{

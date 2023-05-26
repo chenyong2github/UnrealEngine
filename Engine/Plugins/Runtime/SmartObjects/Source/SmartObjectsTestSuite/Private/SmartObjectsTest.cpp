@@ -385,6 +385,59 @@ struct FSlotCustomData : FSmartObjectTestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FSlotCustomData, "System.AI.SmartObjects.Slot custom data");
 
+struct FDebugUnregister : FSmartObjectTestBase
+{
+	virtual bool InstantTest() override
+	{
+		for (const USmartObjectComponent* SmartObjectComponent : SOList)
+		{
+			AITEST_TRUE("SmartObjectComponent is initially bound to simulation", SmartObjectComponent->IsBoundToSimulation());
+		}
+		
+		Subsystem->DebugUnregisterAllSmartObjects();
+		for (const USmartObjectComponent* SmartObjectComponent : SOList)
+		{
+			AITEST_FALSE("SmartObjectComponent is not bound to simulation after calling RemoveComponentFromSimulation", SmartObjectComponent->IsBoundToSimulation());
+		}
+
+		// Simulate a call to EndPlay by calling UnregisterSmartObject after using DebugUnregisterAllSmartObjects
+		for (USmartObjectComponent* SmartObjectComponent : SOList)
+		{
+			Subsystem->UnregisterSmartObject(*SmartObjectComponent);
+			AITEST_FALSE("SmartObjectComponent is not bound to simulation after calling UnregisterSmartObject", SmartObjectComponent->IsBoundToSimulation());
+		}
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FDebugUnregister, "System.AI.SmartObjects.Debug Unregister");
+
+struct FBoundToSimulation : FSmartObjectTestBase
+{
+	virtual bool InstantTest() override
+	{
+		for (const USmartObjectComponent* SmartObjectComponent : SOList)
+		{
+			AITEST_TRUE("SmartObjectComponent is initially bound to simulation", SmartObjectComponent->IsBoundToSimulation());
+		}
+		
+		Subsystem->DebugUnregisterAllSmartObjects();
+		for (const USmartObjectComponent* SmartObjectComponent : SOList)
+		{
+			AITEST_FALSE("SmartObjectComponent is not bound to simulation after calling RemoveComponentFromSimulation", SmartObjectComponent->IsBoundToSimulation());
+		}
+
+		Subsystem->DebugRegisterAllSmartObjects();
+		for (const USmartObjectComponent* SmartObjectComponent : SOList)
+		{
+			AITEST_TRUE("SmartObjectComponent is bound to simulation after calling AddComponentToSimulation", SmartObjectComponent->IsBoundToSimulation());
+		}
+		
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FBoundToSimulation, "System.AI.SmartObjects.Add to/Remove from simulation");
+
 struct FActivityTagsMergingPolicy : FSmartObjectTestBase
 {
 	virtual bool SetupDefinition() override
