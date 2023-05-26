@@ -16,6 +16,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSourceData.h"
 #include "StaticMeshResources.h"
+#include "Rendering/NaniteResources.h"
 #include "EngineLogs.h"
 #include "StaticMeshSceneProxy.h"
 #include "Engine/TextureCube.h"
@@ -618,7 +619,7 @@ void SDataprepEditorViewport::UpdateOverlayText()
 
 			if (StaticMesh->IsNaniteEnabled() && StaticMesh->HasValidNaniteData())
 			{
-				const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
+				const Nanite::FResources& Resources = *StaticMesh->GetRenderData()->NaniteResourcesPtr.Get();
 				if (Resources.RootData.Num() > 0)
 				{
 					NaniteTrianglesCount += bShowNaniteFallbackMenuChecked ? LODResource.GetNumTriangles() : Resources.NumInputTriangles;

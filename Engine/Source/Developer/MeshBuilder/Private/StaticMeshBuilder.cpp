@@ -355,6 +355,8 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		return false;
 	}
 
+	Nanite::FResources& NaniteResources = *StaticMeshRenderData.NaniteResourcesPtr.Get();
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::Build);
 
 	const int32 NumSourceModels = StaticMesh->GetNumSourceModels();
@@ -385,7 +387,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 			StaticMesh->GetHiResSourceModel(),
 			StaticMeshRenderData.LODResources,
 			StaticMeshRenderData.LODVertexFactories,
-			StaticMeshRenderData.NaniteResources,
+			NaniteResources,
 			NaniteSettings,
 			TArrayView< float >(),
 			NaniteBounds);
@@ -425,7 +427,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 			StaticMesh->GetSourceModel(0),
 			StaticMeshRenderData.LODResources,
 			StaticMeshRenderData.LODVertexFactories,
-			StaticMeshRenderData.NaniteResources,
+			NaniteResources,
 			NaniteSettings,
 			PercentTriangles,
 			NaniteBounds);
@@ -441,7 +443,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 	if (!bTargetSupportsNanite)
 	{
 		// Strip the Nanite bulk from this target platform
-		StaticMeshRenderData.NaniteResources = Nanite::FResources();
+		NaniteResources = Nanite::FResources();
 	}
 
 	// Build render data for each LOD, starting from where Nanite left off.

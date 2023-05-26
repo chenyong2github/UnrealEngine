@@ -540,7 +540,7 @@ static void PrepareNaniteRequests(TSet<Nanite::FResources*>& InOutNaniteRequests
 	UStaticMesh* StaticMesh = InStaticMeshComponent->GetStaticMesh();
 	if (StaticMesh && StaticMesh->HasValidNaniteData())
 	{
-		InOutNaniteRequests.Add(&StaticMesh->GetRenderData()->NaniteResources);
+		InOutNaniteRequests.Add(StaticMesh->GetRenderData()->NaniteResourcesPtr.Get());
 	}
 }
 

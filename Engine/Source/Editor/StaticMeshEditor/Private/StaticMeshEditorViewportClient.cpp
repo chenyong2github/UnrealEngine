@@ -34,6 +34,8 @@
 #include "AssetViewerSettings.h"
 #include "UnrealWidget.h"
 
+#include "Rendering/NaniteResources.h"
+
 #define LOCTEXT_NAMESPACE "FStaticMeshEditorViewportClient"
 
 #define HITPROXY_SOCKET	1
@@ -798,7 +800,7 @@ void FStaticMeshEditorViewportClient::DrawCanvas(FViewport& InViewport, FSceneVi
 
 		if (StaticMesh->GetRenderData())
 		{
-			const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
+			const Nanite::FResources& Resources = *StaticMesh->GetRenderData()->NaniteResourcesPtr.Get();
 			if (Resources.RootData.Num() > 0)
 			{
 				const FString PositionStr = FNaniteSettingsLayout::PositionPrecisionValueToDisplayString(Resources.PositionPrecision);
@@ -853,7 +855,7 @@ void FStaticMeshEditorViewportClient::DrawCanvas(FViewport& InViewport, FSceneVi
 	{
 		if (StaticMesh->GetRenderData())
 		{
-			const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
+			const Nanite::FResources& Resources = *StaticMesh->GetRenderData()->NaniteResourcesPtr.Get();
 			if (Resources.RootData.Num() > 0)
 			{
 				// Nanite Mesh Information

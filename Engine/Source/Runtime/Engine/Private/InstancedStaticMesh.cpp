@@ -4621,7 +4621,7 @@ static bool ComponentRequestsCPUAccess(UInstancedStaticMeshComponent* InComponen
 			const bool bHasNaniteData = StaticMesh->IsNaniteEnabled();
 		#else
 			const FStaticMeshRenderData* RenderData = StaticMesh->GetRenderData();
-			const bool bHasNaniteData = RenderData->NaniteResources.PageStreamingStates.Num() > 0;
+			const bool bHasNaniteData = RenderData->HasValidNaniteData();
 		#endif
 
 			bNeedsCPUAccess |= bHasNaniteData;

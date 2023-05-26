@@ -635,14 +635,10 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
-	// Nanite requires GPUScene
-	checkSlow(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
-	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
-	
 	Resources = Component->GetNaniteResources();
 
 	// This should always be valid.
-	check(Resources && Resources->PageStreamingStates.Num() > 0);
+	checkSlow(Resources && Resources->PageStreamingStates.Num() > 0);
 
 	// Nanite supports the GPUScene instance data buffer.
 	bSupportsInstanceDataBuffer = true;
@@ -2438,3 +2434,57 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FNaniteVertexFactory, "/Engine/Private/Nanite/Nani
 	| EVertexFactoryFlags::SupportsManualVertexFetch
 	| EVertexFactoryFlags::SupportsLumenMeshCards
 );
+
+void ClearNaniteResources(Nanite::FResources& InResources)
+{
+	InResources = {};
+}
+
+void ClearNaniteResources(TPimplPtr<Nanite::FResources>& InResources)
+{
+	InitNaniteResources(InResources, false /* recreate */);
+	ClearNaniteResources(*InResources);
+}
+
+void InitNaniteResources(TPimplPtr<Nanite::FResources>& InResources, bool bRecreate)
+{
+	if (!InResources.IsValid() || bRecreate)
+	{
+		InResources = MakePimpl<Nanite::FResources>();
+	}
+}
+
+uint64 GetNaniteResourcesSize(const TPimplPtr<Nanite::FResources>& InResources)
+{
+	if (InResources.IsValid())
+	{
+		GetNaniteResourcesSize(*InResources);
+	}
+
+	return 0;
+}
+
+uint64 GetNaniteResourcesSize(const Nanite::FResources& InResources)
+{
+	uint64 ResourcesSize = 0;
+	ResourcesSize += InResources.RootData.GetAllocatedSize();
+	ResourcesSize += InResources.ImposterAtlas.GetAllocatedSize();
+	ResourcesSize += InResources.HierarchyNodes.GetAllocatedSize();
+	ResourcesSize += InResources.HierarchyRootOffsets.GetAllocatedSize();
+	ResourcesSize += InResources.PageStreamingStates.GetAllocatedSize();
+	ResourcesSize += InResources.PageDependencies.GetAllocatedSize();
+	return ResourcesSize;
+}
+
+void GetNaniteResourcesSizeEx(const TPimplPtr<Nanite::FResources>& InResources, FResourceSizeEx& CumulativeResourceSize)
+{
+	if (InResources.IsValid())
+	{
+		GetNaniteResourcesSizeEx(*InResources.Get(), CumulativeResourceSize);
+	}
+}
+
+void GetNaniteResourcesSizeEx(const Nanite::FResources& InResources, FResourceSizeEx& CumulativeResourceSize)
+{
+	InResources.GetResourceSizeEx(CumulativeResourceSize);
+}

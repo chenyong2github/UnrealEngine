@@ -648,7 +648,7 @@ void CreateNaniteData(FGeometryCollectionBuiltMeshData&& InMeshData, FGeometryCo
 	NaniteSettings.FallbackPercentTriangles = 1.0f; // 100% - no reduction
 	NaniteSettings.FallbackRelativeError = 0.0f;
 
-	OutRenderData.NaniteResource = {};
+	ClearNaniteResources(OutRenderData.NaniteResourcesPtr);
 
 	Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
 
@@ -675,7 +675,7 @@ void CreateNaniteData(FGeometryCollectionBuiltMeshData&& InMeshData, FGeometryCo
 
 	TArrayView<Nanite::IBuilderModule::FOutputMeshData> OutputLODMeshData;
 	if (!NaniteBuilderModule.Build(
-		OutRenderData.NaniteResource,
+		*OutRenderData.NaniteResourcesPtr.Get(),
 		InputMeshData,
 		OutputLODMeshData,
 		NaniteSettings,
@@ -748,21 +748,23 @@ void FGeometryCollectionRenderData::Serialize(FArchive& Ar, UGeometryCollection&
 
 	if (bHasNaniteData)
 	{
+		InitNaniteResources(NaniteResourcesPtr);
+
 		if (Ar.IsSaving())
 		{
 			// Nanite data is 1:1 with each geometry group in the collection.
 			const int32 NumGeometryGroups = Owner.NumElements(FGeometryCollection::GeometryGroup);
-			if (!Owner.EnableNanite || NumGeometryGroups != NaniteResource.HierarchyRootOffsets.Num())
+			if (!Owner.EnableNanite || NumGeometryGroups != NaniteResourcesPtr->HierarchyRootOffsets.Num())
 			{
 				Ar.SetError();
 			}
 		}
 
-		NaniteResource.Serialize(Ar, &Owner, true);
+		NaniteResourcesPtr->Serialize(Ar, &Owner, true);
 	}
 	else if (Ar.IsLoading())
 	{
-		NaniteResource = {};
+		ClearNaniteResources(NaniteResourcesPtr);
 	}
 }
 
@@ -780,7 +782,7 @@ void FGeometryCollectionRenderData::InitResources(UGeometryCollection const& Own
 
 	if (bHasNaniteData)
 	{
-		NaniteResource.InitResources(&Owner);
+		NaniteResourcesPtr->InitResources(&Owner);
 	}
 
 	bIsInitialized = true;
@@ -800,7 +802,7 @@ void FGeometryCollectionRenderData::ReleaseResources()
 
 	if (bHasNaniteData)
 	{
-		if (NaniteResource.ReleaseResources())
+		if (NaniteResourcesPtr->ReleaseResources())
 		{
 			// HACK: Make sure the renderer is done processing the command, and done using NaniteResource, before we continue.
 			// This code could really use a refactor.

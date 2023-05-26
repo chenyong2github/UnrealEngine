@@ -7,6 +7,7 @@
 #include "Engine/StaticMesh.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Rendering/NaniteResources.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NaniteDisplacedMesh)
 
@@ -291,7 +292,7 @@ void FNaniteBuildAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueRespons
 			{
 				FSharedBuffer RecordData = Value.GetData().Decompress();
 				FMemoryReaderView Ar(RecordData, /*bIsPersistent*/ true);
-				Data->Resources.Serialize(Ar, DisplacedMesh, /*bCooked*/ false);
+				Data->ResourcesPtr->Serialize(Ar, DisplacedMesh, /*bCooked*/ false);
 				Ar << Data->MeshSections;
 
 				// The initialization of the resources is done by FNaniteDisplacedMeshCompilingManager to avoid race conditions
@@ -311,9 +312,11 @@ void FNaniteBuildAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueRespons
 			}
 			if (UNaniteDisplacedMesh* DisplacedMesh = WeakDisplacedMesh.Get())
 			{
+				InitNaniteResources(Data->ResourcesPtr);
+
 				TArray64<uint8> RecordData;
 				FMemoryWriter64 Ar(RecordData, /*bIsPersistent*/ true);
-				Data->Resources.Serialize(Ar, DisplacedMesh, /*bCooked*/ false);
+				Data->ResourcesPtr->Serialize(Ar, DisplacedMesh, /*bCooked*/ false);
 				Ar << Data->MeshSections;
 
 				GetCache().PutValue({ {Name, Key, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(RecordData)))} }, Owner);
@@ -349,7 +352,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 
 	Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
 
-	Data->Resources = {};
+	ClearNaniteResources(Data->ResourcesPtr);
 	Data->MeshSections.Empty();
 
 	UStaticMesh* BaseMesh = Parameters.BaseMesh;
@@ -505,7 +508,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 
 	// Pass displaced mesh over to Nanite to build the bulk data
 	if (!NaniteBuilderModule.Build(
-			Data->Resources,
+			*Data->ResourcesPtr.Get(),
 			InputMeshData,
 			OutputLODMeshData,
 			NaniteSettings,
@@ -574,13 +577,14 @@ void UNaniteDisplacedMesh::Serialize(FArchive& Ar)
 			}
 
 			FNaniteData& CookedData = CacheDerivedData(Ar.CookingTarget());
-			CookedData.Resources.Serialize(Ar, this, /*bCooked*/ true);
+			CookedData.ResourcesPtr->Serialize(Ar, this, /*bCooked*/ true);
 			Ar << CookedData.MeshSections;
 		}
 		else
 	#endif
 		{
-			Data.Resources.Serialize(Ar, this, /*bCooked*/ true);
+			InitNaniteResources(Data.ResourcesPtr);
+			Data.ResourcesPtr->Serialize(Ar, this, /*bCooked*/ true);
 			Ar << Data.MeshSections;
 		}
 	}
@@ -591,7 +595,8 @@ void UNaniteDisplacedMesh::PostLoad()
 	if (FApp::CanEverRender())
 	{
 		// Only valid for cooked builds
-		if (Data.Resources.PageStreamingStates.Num() > 0)
+		InitNaniteResources(Data.ResourcesPtr);
+		if (Data.ResourcesPtr->PageStreamingStates.Num() > 0)
 		{
 			InitResources();
 		}
@@ -671,8 +676,7 @@ void UNaniteDisplacedMesh::InitResources()
 
 	if (!bIsInitialized)
 	{
-		Data.Resources.InitResources(this);
-
+		Data.ResourcesPtr->InitResources(this);
 		bIsInitialized = true;
 	}
 }
@@ -684,7 +688,7 @@ void UNaniteDisplacedMesh::ReleaseResources()
 		return;
 	}
 
-	if (Data.Resources.ReleaseResources())
+	if (Data.ResourcesPtr->ReleaseResources())
 	{
 		// Make sure the renderer is done processing the command,
 		// and done using the Nanite resources before we overwrite the data.
@@ -696,7 +700,7 @@ void UNaniteDisplacedMesh::ReleaseResources()
 
 bool UNaniteDisplacedMesh::HasValidNaniteData() const
 {
-	return bIsInitialized && Data.Resources.PageStreamingStates.Num() > 0;
+	return bIsInitialized && Data.ResourcesPtr->PageStreamingStates.Num() > 0;
 }
 
 #if WITH_EDITOR
@@ -833,7 +837,7 @@ FIoHash UNaniteDisplacedMesh::BeginCacheDerivedData(const ITargetPlatform* Targe
 	// Make sure the GPU is no longer referencing the current Nanite resource data.
 	ReleaseResources();
 	ReleaseResourcesFence.Wait();
-	Data.Resources = {};
+	ClearNaniteResources(Data.ResourcesPtr);
 	Data.MeshSections.Empty();
 
 	NotifyOnRenderingDataChanged();

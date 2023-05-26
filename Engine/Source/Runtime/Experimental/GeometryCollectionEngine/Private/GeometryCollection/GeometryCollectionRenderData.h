@@ -143,7 +143,7 @@ public:
 	FGeometryCollectionMeshDescription MeshDescription;
 
 	/** Nanite resources. */
-	Nanite::FResources NaniteResource;
+	TPimplPtr<Nanite::FResources> NaniteResourcesPtr;
 
 private:
 	bool bIsInitialized = false;

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Components/StaticMeshComponent.h"
-#include "Rendering/NaniteResources.h"
+#include "Rendering/NaniteInterface.h"
 #include "NaniteDisplacedMeshComponent.generated.h"
 
 class FPrimitiveSceneProxy;

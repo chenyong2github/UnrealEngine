@@ -13,8 +13,8 @@
 #include "Serialization/BulkData.h"
 #include "Misc/MemoryReadStream.h"
 #include "NaniteDefinitions.h"
+#include "NaniteInterface.h"
 #include "Templates/DontCopy.h"
-#include "Templates/PimplPtr.h"
 #include "VertexFactory.h"
 
 /** Whether Nanite::FSceneProxy should store data and enable codepaths needed for debug rendering. */
@@ -353,7 +353,6 @@ public:
 	bool IsRootPage(uint32 PageIndex) const { return PageIndex < NumRootPages; }
 };
 
-
 class ENGINE_API FVertexFactory final : public ::FVertexFactory
 {
 	DECLARE_VERTEX_FACTORY_TYPE(FVertexFactory);
@@ -391,17 +390,13 @@ private:
 	class FNaniteVertexFactory* VertexFactory2 = nullptr;
 };
 
-enum class ERayTracingMode : uint8
-{
-	Fallback = 0u,
-	StreamOut = 1u,
-};
-
-ENGINE_API ERayTracingMode GetRayTracingMode();
-
-extern ENGINE_API TGlobalResource< FVertexFactoryResource > GVertexFactoryResource;
-
-ENGINE_API bool GetSupportsRayTracingProceduralPrimitive(EShaderPlatform InShaderPlatform);
-ENGINE_API bool GetSupportsCustomDepthRendering();
-
 } // namespace Nanite
+
+ENGINE_API void ClearNaniteResources(TPimplPtr<Nanite::FResources>& InResources);
+ENGINE_API void InitNaniteResources(TPimplPtr<Nanite::FResources>& InResources, bool bRecreate = false);
+
+ENGINE_API uint64 GetNaniteResourcesSize(const TPimplPtr<Nanite::FResources>& InResources);
+ENGINE_API void GetNaniteResourcesSizeEx(const TPimplPtr<Nanite::FResources>& InResources, FResourceSizeEx& CumulativeResourceSize);
+
+ENGINE_API uint64 GetNaniteResourcesSize(const Nanite::FResources& InResources);
+ENGINE_API void GetNaniteResourcesSizeEx(const Nanite::FResources& InResources, FResourceSizeEx& CumulativeResourceSize);

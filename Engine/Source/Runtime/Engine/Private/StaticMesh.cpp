@@ -27,6 +27,7 @@
 #include "Engine/AssetUserData.h"
 #include "StaticMeshDescription.h"
 #include "StaticMeshOperations.h"
+#include "Rendering/NaniteResources.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "SpeedTreeWind.h"
 #include "DistanceFieldAtlas.h"
@@ -1573,6 +1574,8 @@ FStaticMeshRenderData::FStaticMeshRenderData()
 	{
 		ScreenSize[LODIndex] = 0.0f;
 	}
+
+	ClearNaniteResources(NaniteResourcesPtr);
 }
 
 FStaticMeshRenderData::~FStaticMeshRenderData()
@@ -1773,7 +1776,8 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 		}
 	}
 
-	NaniteResources.Serialize( Ar, Owner, bCooked );
+	check(NaniteResourcesPtr.IsValid());
+	NaniteResourcesPtr->Serialize(Ar, Owner, bCooked);
 
 	// Inline the distance field derived data for cooked builds
 	if (bCooked)
@@ -1928,7 +1932,8 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 	}
 #endif
 
-	NaniteResources.InitResources(Owner);
+	check(NaniteResourcesPtr.IsValid());
+	NaniteResourcesPtr->InitResources(Owner);
 
 	ENQUEUE_RENDER_COMMAND(CmdSetStaticMeshReadyForStreaming)(
 		[this, Owner](FRHICommandListImmediate&)
@@ -1951,7 +1956,8 @@ void FStaticMeshRenderData::ReleaseResources()
 		}
 	}
 
-	NaniteResources.ReleaseResources();
+	check(NaniteResourcesPtr.IsValid());
+	NaniteResourcesPtr->ReleaseResources();
 }
 
 void FStaticMeshRenderData::AllocateLODResources(int32 NumLODs)
@@ -2000,6 +2006,10 @@ void UStaticMesh::RequestUpdateCachedRenderState() const
 	// TODO: Need to mark all DynamicRayTracingGeometries used in FStaticMeshSceneProxy referencing this StaticMesh as either invalid or request a recreation (UE-139474)
 }
 
+bool FStaticMeshRenderData::HasValidNaniteData() const
+{
+	return NaniteResourcesPtr->PageStreamingStates.Num() > 0;
+}
 
 #if WITH_EDITOR
 /**
@@ -2968,6 +2978,9 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 		return;
 	}
 
+	check(NaniteResourcesPtr.IsValid());
+	Nanite::FResources& NaniteResources = *NaniteResourcesPtr.Get();
+
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshRenderData::Cache);
 		LLM_SCOPE_BYNAME(TEXT("AssetCompilation/StaticMesh"));
@@ -3573,7 +3586,7 @@ void FStaticMeshRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 	}
 #endif // #if WITH_EDITORONLY_DATA
 
-	NaniteResources.GetResourceSizeEx(CumulativeResourceSize);
+	GetNaniteResourcesSizeEx(NaniteResourcesPtr, CumulativeResourceSize);
 }
 
 SIZE_T FStaticMeshRenderData::GetCPUAccessMemoryOverhead() const
@@ -3626,7 +3639,7 @@ int32 UStaticMesh::GetNumNaniteVertices() const
 	int32 NumVertices = 0;
 	if (HasValidNaniteData())
 	{
-		const Nanite::FResources& Resources = GetRenderData()->NaniteResources;
+		const Nanite::FResources& Resources = *GetRenderData()->NaniteResourcesPtr.Get();
 		if (Resources.RootData.Num() > 0)
 		{
 			NumVertices = Resources.NumInputVertices;
@@ -3640,7 +3653,7 @@ int32 UStaticMesh::GetNumNaniteTriangles() const
 	int32 NumTriangles = 0;
 	if (HasValidNaniteData())
 	{
-		const Nanite::FResources& Resources = GetRenderData()->NaniteResources;
+		const Nanite::FResources& Resources = *GetRenderData()->NaniteResourcesPtr.Get();
 		if (Resources.RootData.Num() > 0)
 		{
 			NumTriangles = Resources.NumInputTriangles;
@@ -3688,7 +3701,7 @@ bool UStaticMesh::HasValidNaniteData() const
 {
 	if (const FStaticMeshRenderData* SMRenderData = GetRenderData())
 	{
-		return SMRenderData->NaniteResources.PageStreamingStates.Num() > 0;
+		return SMRenderData->HasValidNaniteData();
 	}
 
 	return false;
@@ -4962,7 +4975,7 @@ void UStaticMesh::WillNeverCacheCookedPlatformDataAgain()
 void UStaticMesh::ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
 	FStaticMeshRenderData& PlatformRenderData = GetPlatformStaticMeshRenderData(this, TargetPlatform);
-	PlatformRenderData.NaniteResources.DropBulkData();
+	PlatformRenderData.NaniteResourcesPtr->DropBulkData();
 }
 
 void UStaticMesh::ClearAllCachedCookedPlatformData()
@@ -4989,7 +5002,7 @@ bool UStaticMesh::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Target
 	FStaticMeshRenderData& PlatformRenderData = GetPlatformStaticMeshRenderData(this, TargetPlatform);
 
 	bool bFailed = false;
-	if (!PlatformRenderData.NaniteResources.RebuildBulkDataFromCacheAsync(this, bFailed))
+	if (!PlatformRenderData.NaniteResourcesPtr->RebuildBulkDataFromCacheAsync(this, bFailed))
 	{
 		return false;
 	}

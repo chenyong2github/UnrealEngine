@@ -1338,13 +1338,7 @@ FGeometryCollectionRenderResourceSizeInfo UGeometryCollection::GetRenderResource
 	InfoOut.MeshResourcesSize += MeshResources.ColorVertexBuffer.GetAllocatedSize();
 	InfoOut.MeshResourcesSize += MeshResources.BoneMapVertexBuffer.GetAllocatedSize();
 
-	const Nanite::FResources& NaniteResource = RenderData->NaniteResource;
-	InfoOut.NaniteResourcesSize += NaniteResource.RootData.GetAllocatedSize();
-	InfoOut.NaniteResourcesSize += NaniteResource.ImposterAtlas.GetAllocatedSize();
-	InfoOut.NaniteResourcesSize += NaniteResource.HierarchyNodes.GetAllocatedSize();
-	InfoOut.NaniteResourcesSize += NaniteResource.HierarchyRootOffsets.GetAllocatedSize();
-	InfoOut.NaniteResourcesSize += NaniteResource.PageStreamingStates.GetAllocatedSize();
-	InfoOut.NaniteResourcesSize += NaniteResource.PageDependencies.GetAllocatedSize();
+	InfoOut.NaniteResourcesSize += GetNaniteResourcesSize(*RenderData->NaniteResourcesPtr);
 
 	return InfoOut;
 }
@@ -1628,24 +1622,22 @@ bool UGeometryCollection::HasNaniteData() const
 
 uint32 UGeometryCollection::GetNaniteResourceID() const
 {
-	Nanite::FResources& Resource = RenderData->NaniteResource;
-	return Resource.RuntimeResourceID;
+	return RenderData->NaniteResourcesPtr->RuntimeResourceID;
 }
 
 uint32 UGeometryCollection::GetNaniteHierarchyOffset() const
 {
-	Nanite::FResources& Resource = RenderData->NaniteResource;
-	return Resource.HierarchyOffset;
+	return RenderData->NaniteResourcesPtr->HierarchyOffset;
 }
 
 uint32 UGeometryCollection::GetNaniteHierarchyOffset(int32 GeometryIndex, bool bFlattened) const
 {
-	Nanite::FResources& Resource = RenderData->NaniteResource;
-	check(GeometryIndex >= 0 && GeometryIndex < Resource.HierarchyRootOffsets.Num());
-	uint32 HierarchyOffset = Resource.HierarchyRootOffsets[GeometryIndex];
+	const Nanite::FResources& NaniteResources = *RenderData->NaniteResourcesPtr;
+	check(GeometryIndex >= 0 && GeometryIndex < NaniteResources.HierarchyRootOffsets.Num());
+	uint32 HierarchyOffset = NaniteResources.HierarchyRootOffsets[GeometryIndex];
 	if (bFlattened)
 	{
-		HierarchyOffset += Resource.HierarchyOffset;
+		HierarchyOffset += NaniteResources.HierarchyOffset;
 	}
 	return HierarchyOffset;
 }

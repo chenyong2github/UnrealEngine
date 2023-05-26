@@ -13,6 +13,7 @@
 #include "MaterialDomain.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
+#include "UnifiedBuffer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceDynamicMesh)
 

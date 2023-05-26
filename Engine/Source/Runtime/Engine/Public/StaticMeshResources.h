@@ -33,9 +33,10 @@
 #include "Rendering/StaticMeshVertexBuffer.h"
 #include "Rendering/PositionVertexBuffer.h"
 #include "Rendering/StaticMeshVertexDataInterface.h"
-#include "Rendering/NaniteResources.h"
+#include "Rendering/NaniteInterface.h"
 #include "RenderTransform.h"
 #include "Templates/UniquePtr.h"
+#include "Serialization/BulkData.h"
 #include "WeightedRandomSampler.h"
 #include "PerPlatformProperties.h"
 #include "RayTracingInstance.h"
@@ -643,7 +644,7 @@ public:
 	/** Screen size to switch LODs */
 	FPerPlatformFloat ScreenSize[MAX_STATIC_MESH_LODS];
 
-	Nanite::FResources NaniteResources;
+	TPimplPtr<Nanite::FResources> NaniteResourcesPtr;
 
 	/** Bounds of the renderable mesh. */
 	FBoxSphereBounds Bounds;
@@ -652,6 +653,8 @@ public:
 	{
 		return bIsInitialized;
 	}
+
+	ENGINE_API bool HasValidNaniteData() const;
 
 	/** True if LODs share static lighting data. */
 	bool bLODsShareStaticLighting;
@@ -676,7 +679,6 @@ public:
 	/** UV data used for streaming accuracy debug view modes. In sync for rendering thread */
 	TArray<FMeshUVChannelInfo> UVChannelDataPerMaterial;
 
-
 	/** The next cached derived data in the list. */
 	TUniquePtr<class FStaticMeshRenderData> NextCachedRenderData;
 
@@ -688,7 +690,6 @@ public:
 
 	/** Estimate of compressed size of Nanite streaming data. */
 	uint64 EstimatedNaniteStreamingCompressedSize = 0;
-
 
 	void SyncUVChannelData(const TArray<FStaticMaterial>& ObjectData);
 

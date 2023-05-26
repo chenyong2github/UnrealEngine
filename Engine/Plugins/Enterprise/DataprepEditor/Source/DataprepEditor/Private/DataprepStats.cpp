@@ -16,6 +16,7 @@
 #include "LandscapeProxy.h"
 #include "Materials/MaterialInterface.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "Rendering/NaniteResources.h"
 #include "ReferencedAssetsUtils.h"
 #include "UObject/UObjectIterator.h"
 
@@ -287,7 +288,7 @@ private:
 
 					if (StaticMesh->IsNaniteEnabled() && StaticMesh->HasValidNaniteData())
 					{
-						const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
+						const Nanite::FResources& Resources = *StaticMesh->GetRenderData()->NaniteResourcesPtr.Get();
 						if (Resources.RootData.Num() > 0)
 						{
 							Stats.AddCount(FDataprepStats::StatNameNaniteTriangles, Resources.NumInputTriangles);

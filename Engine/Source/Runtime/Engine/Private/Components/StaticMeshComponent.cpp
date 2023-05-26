@@ -44,6 +44,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "Engine/StaticMesh.h"
 #include "MaterialDomain.h"
+#include "Rendering/NaniteResources.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshComponent)
 
@@ -2322,7 +2323,7 @@ const Nanite::FResources* UStaticMeshComponent::GetNaniteResources() const
 	}
 	else if (GetStaticMesh() && GetStaticMesh()->GetRenderData())
 	{
-		return &GetStaticMesh()->GetRenderData()->NaniteResources;
+		return GetStaticMesh()->GetRenderData()->NaniteResourcesPtr.Get();
 	}
 
 	return nullptr;
@@ -2330,8 +2331,13 @@ const Nanite::FResources* UStaticMeshComponent::GetNaniteResources() const
 
 bool UStaticMeshComponent::HasValidNaniteData() const
 {
-	const Nanite::FResources* NaniteResources = GetNaniteResources();
-	return NaniteResources ? NaniteResources->PageStreamingStates.Num() > 0 : false;
+	const FStaticMeshRenderData* RenderData = GetStaticMesh()->GetRenderData();
+	if (RenderData != nullptr)
+	{
+		return RenderData->HasValidNaniteData();
+	}
+
+	return false;
 }
 
 bool UStaticMeshComponent::UseNaniteOverrideMaterials(bool bDoingMaterialAudit) const

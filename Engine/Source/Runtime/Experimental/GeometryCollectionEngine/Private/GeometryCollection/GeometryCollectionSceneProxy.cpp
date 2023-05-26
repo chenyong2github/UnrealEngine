@@ -1116,8 +1116,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	}
 	else if (bHasTransformBoundingBoxes)
 	{
-		Nanite::FResources& Resource = GeometryCollection->RenderData->NaniteResource;
-		NumGeometry = Resource.HierarchyRootOffsets.Num();
+		NumGeometry = GeometryCollection->RenderData->NaniteResourcesPtr->HierarchyRootOffsets.Num();
 		GeometryNaniteData.SetNumUninitialized(NumGeometry);
 		
 		const TManagedArray<FBox>& BoundingBoxes = Collection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::TransformGroup);
@@ -1235,18 +1234,18 @@ void FNaniteGeometryCollectionSceneProxy::GetNaniteMaterialMask(FUint32Vector2& 
 
 Nanite::FResourceMeshInfo FNaniteGeometryCollectionSceneProxy::GetResourceMeshInfo() const
 {
-	const Nanite::FResources& Resource = GeometryCollection->RenderData->NaniteResource;
+	Nanite::FResources& NaniteResources = *GeometryCollection->RenderData->NaniteResourcesPtr.Get();
 
 	Nanite::FResourceMeshInfo OutInfo;
 
-	OutInfo.NumClusters = Resource.NumClusters;
-	OutInfo.NumNodes = Resource.NumHierarchyNodes;
-	OutInfo.NumVertices = Resource.NumInputVertices;
-	OutInfo.NumTriangles = Resource.NumInputTriangles;
+	OutInfo.NumClusters = NaniteResources.NumClusters;
+	OutInfo.NumNodes = NaniteResources.NumHierarchyNodes;
+	OutInfo.NumVertices = NaniteResources.NumInputVertices;
+	OutInfo.NumTriangles = NaniteResources.NumInputTriangles;
 	OutInfo.NumMaterials = MaterialMaxIndex + 1;
 	OutInfo.DebugName = GeometryCollection->GetFName();
 
-	OutInfo.NumResidentClusters = Resource.NumResidentClusters;
+	OutInfo.NumResidentClusters = NaniteResources.NumResidentClusters;
 
 	// TODO: SegmentMapping
 	OutInfo.NumSegments = 0;

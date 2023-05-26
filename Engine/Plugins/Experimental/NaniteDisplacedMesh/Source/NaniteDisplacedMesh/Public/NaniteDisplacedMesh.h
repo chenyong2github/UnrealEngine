@@ -5,6 +5,7 @@
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "RenderCommandFence.h"
 #include "StaticMeshResources.h"
+#include "IO/IoHash.h"
 
 #include "NaniteDisplacedMesh.generated.h"
 
@@ -103,7 +104,7 @@ struct NANITEDISPLACEDMESH_API FNaniteDisplacedMeshParams
 
 struct FNaniteData
 {
-	Nanite::FResources Resources;
+	TPimplPtr<Nanite::FResources> ResourcesPtr;
 
 	// Material section information that matches displaced mesh.
 	FStaticMeshSectionArray MeshSections;
@@ -135,12 +136,12 @@ public:
 
 	inline Nanite::FResources* GetNaniteData()
 	{
-		return &Data.Resources;
+		return Data.ResourcesPtr.Get();
 	}
 
 	inline const Nanite::FResources* GetNaniteData() const
 	{
-		return &Data.Resources;
+		return Data.ResourcesPtr.Get();
 	}
 
 	inline const FStaticMeshSectionArray& GetMeshSections() const

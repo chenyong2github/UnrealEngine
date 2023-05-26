@@ -67,7 +67,7 @@ const Nanite::FResources* UNaniteDisplacedMeshComponent::GetNaniteResources() co
 	// If the displaced mesh does not have valid Nanite data, try the SMC's static mesh.
 	if (GetStaticMesh() && GetStaticMesh()->GetRenderData())
 	{
-		return &GetStaticMesh()->GetRenderData()->NaniteResources;
+		return GetStaticMesh()->GetRenderData()->NaniteResourcesPtr.Get();
 	}
 
 	return nullptr;

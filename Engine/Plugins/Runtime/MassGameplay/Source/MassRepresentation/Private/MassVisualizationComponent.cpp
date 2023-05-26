@@ -12,6 +12,7 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "MassInstancedStaticMeshComponent.h"
 #include "VisualLogger/VisualLogger.h"
+#include "Rendering/NaniteResources.h"
 
 //---------------------------------------------------------------
 // UMassVisualizationComponent
@@ -274,10 +275,9 @@ void UMassVisualizationComponent::EndVisualChanges()
 				{
 					StaticMeshRenderData = StaticMesh->GetRenderData();
 				}
-				const bool bNaniteISMC = UseNanite(InstancedStaticMeshComponent->GetScene()->GetShaderPlatform()) && StaticMeshRenderData && StaticMeshRenderData->NaniteResources.PageStreamingStates.Num();
+				const bool bNaniteISMC = UseNanite(InstancedStaticMeshComponent->GetScene()->GetShaderPlatform()) && StaticMeshRenderData && StaticMeshRenderData->HasValidNaniteData();
 				if (bNaniteISMC)
 				{
-
 					// ISMC currently rebuilds PerInstanceRenderData regardless of whether it's using a 
 					// Nanite::FSceneProxy which doesn't actually use this data. So to skip that we 
 					// reset the InstanceUpdateCmdBuffer here after BatchUpdateInstancesTransforms has
