@@ -196,7 +196,9 @@ public:
 	static constexpr bool bHasPayloadOnInternalThread = true;
 
 	FAccelerationStructureHandle(FGeometryParticleHandle* InHandle);
-	FAccelerationStructureHandle(FGeometryParticle* InGeometryParticle = nullptr);
+
+	// @param bUsePrefiltering make sur the prefiltering data is computed. setting it to false may be useful when building a payload for a remove operation
+	FAccelerationStructureHandle(FGeometryParticle* InGeometryParticle = nullptr, bool bUsePrefiltering = true);
 
 	template <bool bPersistent>
 	FAccelerationStructureHandle(TGeometryParticleHandleImp<FReal, 3, bPersistent>& InHandle);
@@ -3359,7 +3361,7 @@ FORCEINLINE_DEBUGGABLE FAccelerationStructureHandle::FAccelerationStructureHandl
 	}
 }
 
-FORCEINLINE_DEBUGGABLE FAccelerationStructureHandle::FAccelerationStructureHandle(FGeometryParticle* InGeometryParticle)
+FORCEINLINE_DEBUGGABLE FAccelerationStructureHandle::FAccelerationStructureHandle(FGeometryParticle* InGeometryParticle, bool bUsePrefiltering)
 	: ExternalGeometryParticle(InGeometryParticle)
 	, GeometryParticleHandle(InGeometryParticle ? InGeometryParticle->Handle() : nullptr)
 	, CachedUniqueIdx(InGeometryParticle ? InGeometryParticle->UniqueIdx() : FUniqueIdx())
@@ -3369,7 +3371,10 @@ FORCEINLINE_DEBUGGABLE FAccelerationStructureHandle::FAccelerationStructureHandl
 	{
 		ensure(CachedUniqueIdx.IsValid());
 		ensure(IsInGameThread());
-		UpdatePrePreFilter(*InGeometryParticle);
+		if (bUsePrefiltering)
+		{
+			UpdatePrePreFilter(*InGeometryParticle);
+		}
 	}
 }
 
