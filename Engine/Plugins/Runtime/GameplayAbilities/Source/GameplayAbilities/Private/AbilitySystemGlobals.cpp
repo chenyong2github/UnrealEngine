@@ -13,6 +13,7 @@
 #include "GameplayCueManager.h"
 #include "GameplayTagResponseTable.h"
 #include "GameplayTagsManager.h"
+#include "Engine/Engine.h"
 #include "UObject/UObjectIterator.h"
 
 #if UE_WITH_IRIS
