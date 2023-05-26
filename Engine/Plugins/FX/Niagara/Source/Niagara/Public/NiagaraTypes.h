@@ -640,7 +640,10 @@ enum class ENiagaraInputWidgetType : uint8
 	Volume,
 
 	// a numeric input, but also has a dropdown with named values
-	NumericDropdown
+	NumericDropdown,
+
+	// A dropdown that behaves like an enum; only allows the exact pre-defined values, for integer inputs only
+	EnumStyle
 };
 
 USTRUCT()
@@ -655,6 +658,19 @@ struct NIAGARA_API FWidgetNamedInputValue
 	FText DisplayName;
 
 	UPROPERTY(EditAnywhere, Category="Customization")
+	FText Tooltip;
+};
+
+/** A struct that serves as display metadata for integer type static switches. Is used in conjuction with the 'EnumStyle' widget customization. */
+USTRUCT()
+struct NIAGARA_API FNiagaraWidgetNamedIntegerInputValue
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, Category="Customization")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, Category="Customization", meta = (MultiLine = "true"))
 	FText Tooltip;
 };
 
@@ -690,6 +706,9 @@ struct NIAGARA_API FNiagaraInputParameterCustomization
 
 	UPROPERTY(EditAnywhere, Category="Customization", meta=(EditCondition="WidgetType == ENiagaraInputWidgetType::NumericDropdown", EditConditionHides))
 	TArray<FWidgetNamedInputValue> InputDropdownValues;
+	
+	UPROPERTY(EditAnywhere, Category="Customization", meta=(EditCondition="WidgetType == ENiagaraInputWidgetType::EnumStyle", EditConditionHides))
+	TArray<FNiagaraWidgetNamedIntegerInputValue> EnumStyleDropdownValues;
 	
 	/** If true then the input is also displayed and editable as a 3d widget in the viewport (vector and transform types only). */
 	//UPROPERTY(EditAnywhere, Category="Customization")

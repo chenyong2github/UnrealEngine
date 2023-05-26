@@ -263,10 +263,7 @@ void UNiagaraNodeSelect::PostLoad()
 	Super::PostLoad();
 	
 	// we assume something changed externally if the input pins are outdated; i.e. the assigned enum changed or value order changed
-	if (AreInputPinsOutdated())
-	{
-		RefreshFromExternalChanges();
-	}
+	AttemptUpdatePins();
 }
 
 void UNiagaraNodeSelect::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const

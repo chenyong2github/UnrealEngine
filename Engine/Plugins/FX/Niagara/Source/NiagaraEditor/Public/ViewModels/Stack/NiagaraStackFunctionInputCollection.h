@@ -148,4 +148,7 @@ private:
 private:
 	UNiagaraNodeFunctionCall* ModuleNode;
 	UNiagaraNodeFunctionCall* InputFunctionCallNode;
+
+	/** If this is set to true, no children will be resued when RefreshChildren is called */
+	bool bForceCompleteRebuild = false;
 };

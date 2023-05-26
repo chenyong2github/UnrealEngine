@@ -45,7 +45,7 @@ struct FStaticSwitchTypeData
 };
 
 UCLASS(MinimalAPI)
-class UNiagaraNodeStaticSwitch : public UNiagaraNodeUsageSelector, public FEnumEditorUtils::INotifyOnEnumChanged
+class UNiagaraNodeStaticSwitch : public UNiagaraNodeUsageSelector, public FEnumEditorUtils::INotifyOnEnumChanged, public FNotifyHook
 {
 	GENERATED_UCLASS_BODY()
 
@@ -72,7 +72,7 @@ public:
 
 	bool IsSetByPin() const;
 	UEdGraphPin* GetSelectorPin() const;
-
+	
 	/** This is a hack used in the translator to check for inconsistencies with old static switches before auto refresh was a thing */
 	void CheckForOutdatedEnum(FTranslator* Translator);
 
@@ -107,6 +107,18 @@ public:
 
 protected:
 	//~ Begin UNiagaraNodeUsageSelector Interface
+	virtual int32 GetNumberOfCases() const override;
+	
+	virtual bool AreInputCaseLabelsReadOnly() const override { return SwitchTypeData.SwitchType != ENiagaraStaticSwitchType::Integer || IsSetByPin(); }
+	virtual void OnInputCaseLabelSubmitted(const FText& Text, ETextCommit::Type Arg, int32 InputCase) const override;
+	virtual bool VerifyCaseLabelCandidate(const FText& InCandidate, FText& OutErrorMessage) const override;
+	
+	virtual FText GetInputCaseTooltip(int32 Case) const override;
+	virtual FText GetInputCaseButtonTooltip(int32 Case) const override;
+	virtual void OnInputCaseTooltipSubmitted(const FText& Text, ETextCommit::Type Arg, int32 InputCase) const override;
+
+	virtual TSharedRef<SWidget> GetInputCaseContextOptions(int32 Case) override;
+	
 	virtual FString GetInputCaseName(int32 Case) const override;
 	virtual FName GetOptionPinName(const FNiagaraVariable& Variable, int32 Value) const override;
 	virtual TArray<int32> GetOptionValues() const override;
@@ -117,12 +129,19 @@ private:
 	/** INotifyOnEnumChanged interface */
 	virtual void PreChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType) override;
 	virtual void PostChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType) override;
+
+	/** FNotifyHook interface. Used to propagate changes in structure details views. */
+	virtual void NotifyPreChange(FProperty* PropertyAboutToChange) override;
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	
 	/** This finds the first valid input pin index for the current switch value, returns false if no value can be found */
 	bool GetVarIndex(FTranslator* Translator, int32 InputPinCount, int32& VarIndexOut) const;
 
 	bool GetVarIndex(FTranslator* Translator, int32 InputPinCount, int32 Value, int32& VarIndexOut) const;
 
+	/** Retrieve the script variable this switch currently represents. Can be nullptr in certain cases, such as if 'Expose as Pin' is active. */
+	UNiagaraScriptVariable* GetStaticSwitchScriptVariable() const;
+	
 	void RemoveUnusedGraphParameter(const FNiagaraVariable& OldParameter);
 	
 	void AddIntegerInputPin();

@@ -4335,7 +4335,7 @@ TSharedRef<SWidget> FNiagaraParameterUtilities::GetParameterWidget(FNiagaraVaria
 	return ResultWidget;
 }
 
-TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariable Variable, bool bShowValue, TSharedPtr<SWidget> AdditionalVerticalWidget,  TSharedPtr<SWidget> AdditionalHorizontalWidget)
+TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariable Variable, bool bShowValue, TSharedPtr<SWidget> AdditionalVerticalWidget)
 {
 	FNiagaraTypeDefinition Type = Variable.GetType();
 	const FLinearColor TypeColor = UEdGraphSchema_Niagara::GetTypeColor(Type);
@@ -4347,8 +4347,7 @@ TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariab
 	FString			   IconDocLink, IconDocExcerpt;
 	FSlateBrush const* SecondaryIconBrush = FAppStyle::GetBrush(TEXT("NoBrush"));
 	FSlateColor        SecondaryIconColor = IconColor;
-
-	TSharedPtr<SHorizontalBox> ParameterContainer;
+	
 	TSharedRef<SWidget> TooltipContent = GetParameterWidget(Variable, true, bShowValue);
 
 	TSharedPtr<SVerticalBox> InnerContainer;
@@ -4371,15 +4370,6 @@ TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariab
 		.AutoHeight()
 		[
 			AdditionalVerticalWidget.ToSharedRef()
-		];
-	}
-
-	if(AdditionalHorizontalWidget.IsValid())
-	{
-		ParameterContainer->AddSlot()
-		.AutoWidth()
-		[
-			AdditionalHorizontalWidget.ToSharedRef()	
 		];
 	}
 

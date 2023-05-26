@@ -1,10 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNodeUsageSelector.h"
+
+#include "NiagaraCustomVersion.h"
+#include "NiagaraEditorStyle.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraScriptSource.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeUsageSelector)
 
@@ -66,6 +72,14 @@ void UNiagaraNodeUsageSelector::AddOptionPin(const FNiagaraVariable& OutputVaria
 	NewPin->PinFriendlyName = GetOptionPinFriendlyName(OutputVariable);
 }
 
+void UNiagaraNodeUsageSelector::AttemptUpdatePins()
+{
+	if(AreInputPinsOutdated() && GetNiagaraGraph()->IsCompilationCopy() == false)
+	{
+		ReallocatePins();
+	}
+}
+
 TArray<int32> UNiagaraNodeUsageSelector::GetOptionValues() const
 {
 	TArray<int32> OptionValues;
@@ -113,6 +127,22 @@ FText UNiagaraNodeUsageSelector::GetOptionPinFriendlyName(const FNiagaraVariable
 	return FText::AsCultureInvariant(Variable.GetName().ToString());
 }
 
+bool UNiagaraNodeUsageSelector::VerifyCaseLabelCandidate(const FText& InCandidate, FText& OutErrorMessage) const
+{
+	if(InCandidate.IsEmptyOrWhitespace())
+	{
+		OutErrorMessage = LOCTEXT("CaseLabelCantBeEmpty", "Case can not be empty");
+		return false;
+	}
+
+	return true;
+}
+
+FText UNiagaraNodeUsageSelector::GetInputCaseButtonTooltip(int32 Case) const
+{
+	return FText::FormatOrdered(LOCTEXT("SummonCaseLabelButtonTooltip", "If input is {0}.\nEdit the case label & tooltip."), FText::FromString(FString::FromInt(Case))); 
+}
+
 FString UNiagaraNodeUsageSelector::GetInputCaseName(int32 Case) const
 {
 	UEnum* ENiagaraScriptGroupEnum = StaticEnum<ENiagaraScriptGroup>();
@@ -122,6 +152,11 @@ FString UNiagaraNodeUsageSelector::GetInputCaseName(int32 Case) const
 	}
 
 	return TEXT("");
+}
+
+FText UNiagaraNodeUsageSelector::GetInputCaseNameAsText(int32 Case) const
+{
+	return FText::FromString(GetInputCaseName(Case));
 }
 
 FName UNiagaraNodeUsageSelector::GetOptionPinName(const FNiagaraVariable& Variable, int32 Value) const
@@ -235,41 +270,13 @@ void UNiagaraNodeUsageSelector::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> In
 		return Pin->bOrphanedPin == true;
 	});
 	
-	for (int32 Idx = 0; Idx < OutputVars.Num() * NumOptionsPerVariable; Idx += OutputVars.Num())
-	{
-		TArray<FString> PinNameParts;
-		InputPins[Idx]->PinName.ToString().ParseIntoArray(PinNameParts, TEXT(" "), true);
-
-		int32 IfIndex = INDEX_NONE;
-		// we are looking for the last if as the variable name could contain a separate "if"
-		PinNameParts.FindLast(TEXT("if"), IfIndex);
-
-		// should never be index_none
-		if(IfIndex != INDEX_NONE)
-		{
-			// there should always be at least one additional part in the pin name that makes up the case label
-			ensure(PinNameParts.IsValidIndex(IfIndex + 1));
-			FString Case = TEXT("");
-			
-			for(int32 CasePartIndex = IfIndex + 1; CasePartIndex < PinNameParts.Num(); CasePartIndex++)
-			{
-				Case += PinNameParts[CasePartIndex] + TEXT(" ");
-			}
-
-			// remove the last unnecessary space
-			Case.RemoveFromEnd(TEXT(" "));
-			Cases.Add(Case);
-		}		
-	}
-	
-	int32 Offset = 0;
-	int32 NaturalIndex = 0;
+	int32 WidgetIndexOffset = 0;
 	// insert separators to make the grouping apparent.
 	for (int32 Idx = 0; Idx < OutputVars.Num() * NumOptionsPerVariable; Idx += OutputVars.Num())
 	{
-		const int32 OptionValueIndex = Idx / OutputVars.Num();
+		const int32 CaseValue = Idx / OutputVars.Num();
 		// adding an offset to account for the already added separators
-		InputBox->InsertSlot(Idx + Offset)
+		InputBox->InsertSlot(Idx + WidgetIndexOffset)
 		.Padding(5.f, 5.f, 0.f, 2.f)
 		.AutoHeight()
 		[
@@ -280,17 +287,46 @@ void UNiagaraNodeUsageSelector::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> In
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(TEXT("If ") + Cases[NaturalIndex++]))
+				.Text(FText::FromString(TEXT("If ")))
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			.AutoWidth()
+			[
+				SNew(SWidgetSwitcher)
+				.WidgetIndex(AreInputCaseLabelsReadOnly() ? 0 : 1)
+				+ SWidgetSwitcher::Slot()
+				[
+					SNew(STextBlock)
+					.Text_UObject(this, &UNiagaraNodeUsageSelector::GetInputCaseNameAsText, CaseValue)
+				]
+				+ SWidgetSwitcher::Slot()
+				[
+					SNew(SComboButton)
+					.OnGetMenuContent_UObject(this, &UNiagaraNodeUsageSelector::GetInputCaseContextOptions, CaseValue)
+					.ToolTipText_UObject(this, &UNiagaraNodeUsageSelector::GetInputCaseButtonTooltip, CaseValue)
+					.ButtonContent()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Text_UObject(this, &UNiagaraNodeUsageSelector::GetInputCaseNameAsText, CaseValue)
+						]
+					]
+				]
 			]
 		];
-		Offset++;
+		WidgetIndexOffset++;
 		
-		InputBox->InsertSlot(Idx + Offset)
+		InputBox->InsertSlot(Idx + WidgetIndexOffset)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SSeparator)
 		];
-		Offset++;
+		WidgetIndexOffset++;
 	}
 }
 

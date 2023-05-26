@@ -108,6 +108,36 @@ public:
 				})
 			];
 		}
+		else if(WidgetCustomization.WidgetType == ENiagaraInputWidgetType::EnumStyle && WidgetCustomization.EnumStyleDropdownValues.Num() > 0)
+		{
+			TArray<SNiagaraNumericDropDown<int32>::FNamedValue> DropDownValues;
+			for(int32 EnumStyleValueIndex = 0; EnumStyleValueIndex < WidgetCustomization.EnumStyleDropdownValues.Num(); EnumStyleValueIndex++)
+			{
+				FText DisplayName = WidgetCustomization.EnumStyleDropdownValues[EnumStyleValueIndex].DisplayName;
+				FText Tooltip = WidgetCustomization.EnumStyleDropdownValues[EnumStyleValueIndex].Tooltip;
+						
+				DropDownValues.Add(SNiagaraNumericDropDown<int32>::FNamedValue(EnumStyleValueIndex, DisplayName, Tooltip));
+			}
+			
+			ChildSlot
+			[
+				SNew(SNiagaraNumericDropDown<int32>)
+				.DropDownValues(DropDownValues)
+				.bAllowTyping(false)
+				.bShowNamedValue(true)
+				.MinDesiredValueWidth(75)
+				.PillType(FNiagaraTypeDefinition::GetIntDef())
+				.Value_Lambda([this]() 
+				{ 
+					return IntValue;
+				})
+				.OnValueChanged_Lambda([this](int32 NewVal)
+				{
+					IntValue = NewVal;
+					ExecuteOnValueChanged();
+				})
+			];
+		}
 		else
 		{
 			TOptional<int32> MinValue;

@@ -666,6 +666,22 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 		}
 	}
 
+	// we check for local ints acting as enums whether the local value is allowed with the current metadata
+	// it can happen if a module version changes or a module in use is modified to lose options that were in use
+	if(InputMetaData.IsSet() && InputMetaData->WidgetCustomization.WidgetType == ENiagaraInputWidgetType::EnumStyle && GetInputType() == FNiagaraTypeDefinition::GetIntDef() && GetValueMode() == EValueMode::Local)
+	{
+		int32 LocalValue = *((int32*) GetLocalValueStruct()->GetStructMemory());
+		if(LocalValue < 0 || LocalValue >= InputMetaData->WidgetCustomization.EnumStyleDropdownValues.Num())
+		{
+			NewIssues.Add(FStackIssue(
+			EStackIssueSeverity::Error,
+			LOCTEXT("IntegerAsEnumOutsideOfRangeShort", "Invalid value"),
+			LOCTEXT("IntegerAsEnumOutsideOfRangeLong", "The chosen value is not valid. Please choose a new valid entry."),
+			GetStackEditorDataKey(),
+			false));
+		}
+	}
+	
 	if (InputValues.DynamicNode.IsValid())
 	{
 		FNiagaraStackGraphUtilities::CheckForDeprecatedScriptVersion(GetDynamicInputNode(), GetStackEditorDataKey(), GetUpgradeDynamicInputVersionFix(), NewIssues);

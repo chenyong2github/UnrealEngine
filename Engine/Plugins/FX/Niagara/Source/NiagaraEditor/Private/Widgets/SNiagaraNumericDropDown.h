@@ -69,12 +69,15 @@ public:
 public:
 	SLATE_BEGIN_ARGS( SNiagaraNumericDropDown<NumericType> )
 		: _DropDownValues()
+		, _bAllowTyping(true)
 		, _MinDesiredValueWidth( 40 )
 		, _bShowNamedValue(false)
 		{}
 
 		/** The values which are used to populate the drop down menu. */
-		SLATE_ARGUMENT( TArray<FNamedValue>, DropDownValues )
+		SLATE_ATTRIBUTE( TArray<FNamedValue>, DropDownValues )
+		/** If set to false, will disable the text box and only allow choosing a value from the dropdown. */
+		SLATE_ARGUMENT( bool, bAllowTyping )
 		/** Controls the minimum width for the text box portion of the control. */
 		SLATE_ATTRIBUTE( float, MinDesiredValueWidth )
 		/** Toggle to show the drop down text value if the value matches the numeric value. */
@@ -91,10 +94,32 @@ public:
 	void Construct( const FArguments& InArgs )
 	{
 		DropDownValues = InArgs._DropDownValues;
+		bAllowTyping = InArgs._bAllowTyping;
 		bShowNamedValue = InArgs._bShowNamedValue;
 		Value = InArgs._Value;
 		OnValueChanged = InArgs._OnValueChanged;
 
+		TSharedPtr<SWidget> ValueWidget;
+
+		if(bAllowTyping)
+		{
+			ValueWidget = SNew(SEditableTextBox)
+			.Padding(0)
+			.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.Stack.NumericDropdownInput")
+			.MinDesiredWidth( InArgs._MinDesiredValueWidth )
+			.RevertTextOnEscape(true)
+			.SelectAllTextWhenFocused(true)
+			.Text( this, &SNiagaraNumericDropDown<NumericType>::GetValueText )
+			.OnTextCommitted( this, &SNiagaraNumericDropDown<NumericType>::ValueTextComitted );
+		}
+		else
+		{
+			ValueWidget = SNew(STextBlock)
+			.MinDesiredWidth( InArgs._MinDesiredValueWidth )
+			.Text( this, &SNiagaraNumericDropDown<NumericType>::GetValueText )
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Stack.IntegerAsEnum");
+		}
+		
 		ChildSlot
 		[
 			SNew( SHorizontalBox )
@@ -114,17 +139,12 @@ public:
 				.OnGetMenuContent( this, &SNiagaraNumericDropDown<NumericType>::BuildMenu )
 				.ButtonContent()
 				[
-					SNew(SEditableTextBox)
-					.Padding(0)
-					.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.Stack.NumericDropdownInput")
-					.MinDesiredWidth( InArgs._MinDesiredValueWidth )
-					.RevertTextOnEscape(true)
-					.SelectAllTextWhenFocused(true)
-					.Text( this, &SNiagaraNumericDropDown<NumericType>::GetValueText )
-					.OnTextCommitted( this, &SNiagaraNumericDropDown<NumericType>::ValueTextComitted )
+					ValueWidget.ToSharedRef()
 				]
 			]
 		];
+
+		SetToolTipText(TAttribute<FText>::CreateSP(this, &SNiagaraNumericDropDown::GetValueTooltip));
 	}
 
 private:
@@ -133,7 +153,7 @@ private:
 	{
 		if (bShowNamedValue.Get())
 		{
-			for ( FNamedValue DropDownValue : DropDownValues )
+			for ( FNamedValue DropDownValue : DropDownValues.Get() )
 			{
 				if (FMath::IsNearlyEqual(static_cast<float>(DropDownValue.GetValue()), static_cast<float>(Value.Get())))
 				{
@@ -154,11 +174,27 @@ private:
 		}
 	}
 
+	FText GetValueTooltip() const
+	{
+		if (bShowNamedValue.Get())
+		{
+			for ( FNamedValue DropDownValue : DropDownValues.Get() )
+			{
+				if (FMath::IsNearlyEqual(static_cast<float>(DropDownValue.GetValue()), static_cast<float>(Value.Get())))
+				{
+					return DropDownValue.GetDescription();
+				}
+			}
+		}
+		
+		return FText::GetEmpty();
+	}
+
 	TSharedRef<SWidget> BuildMenu()
 	{
 		FMenuBuilder MenuBuilder( true, NULL );
 
-		for ( FNamedValue DropDownValue : DropDownValues )
+		for ( FNamedValue DropDownValue : DropDownValues.Get() )
 		{
 			FUIAction MenuAction(FExecuteAction::CreateSP(this, &SNiagaraNumericDropDown::SetValue, DropDownValue.GetValue()));
 			MenuBuilder.AddMenuEntry(DropDownValue.GetName(), DropDownValue.GetDescription(), FSlateIcon(), MenuAction);
@@ -173,7 +209,8 @@ private:
 		OnValueChanged.ExecuteIfBound(InValue);
 	}
 
-	TArray<FNamedValue> DropDownValues;
+	TAttribute<TArray<FNamedValue>> DropDownValues;
+	bool bAllowTyping = true;
 	TAttribute<bool> bShowNamedValue;
 	TAttribute<NumericType> Value;
 	FOnValueChanged OnValueChanged;

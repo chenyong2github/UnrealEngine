@@ -73,11 +73,6 @@ private:
 	void OnSelectionChanged(TSharedPtr<SwitchDropdownOption> NewValue, ESelectInfo::Type);
 	FText GetDropdownItemLabel() const;
 	void UpdateSelectionFromNode();
-	
-	// float type option functions
-	bool GetIntOptionEnabled() const;
-	TOptional<int32> GetIntOptionValue() const;
-	void IntOptionValueCommitted(int32 Value, ETextCommit::Type CommitInfo);
 
 	// parameter name option function
 	FText GetParameterNameText() const;

@@ -521,12 +521,18 @@ void UNiagaraStackFunctionInputCollection::AddInputToCategory(const FInputData& 
 	// Try to find an existing category in the already processed children.
 	UNiagaraStackInputCategory* InputCategory = FindCurrentChildOfTypeByPredicate<UNiagaraStackInputCategory>(NewChildren,
 		[&](UNiagaraStackInputCategory* CurrentCategory) { return CurrentCategory->GetDisplayName().CompareTo(InputData.Category) == 0; });
-
+	
 	if (InputCategory == nullptr)
 	{
 		// If we haven't added any children to this category yet see if there is one that can be reused from the current children.
 		InputCategory = FindCurrentChildOfTypeByPredicate<UNiagaraStackInputCategory>(CurrentChildren,
 			[&](UNiagaraStackInputCategory* CurrentCategory) { return CurrentCategory->GetDisplayName().CompareTo(InputData.Category) == 0; });
+
+		if(bForceCompleteRebuild)
+		{
+			InputCategory = nullptr;
+		}
+		
 		if (InputCategory == nullptr)
 		{
 			// If we don't have a current child for this category make a new one.
@@ -800,7 +806,9 @@ void UNiagaraStackFunctionInputCollection::OnScriptApplied(UNiagaraScript* Niaga
 {
 	if(InputFunctionCallNode->FunctionScript == NiagaraScript)
 	{
+		bForceCompleteRebuild = true;
 		RefreshChildren();
+		bForceCompleteRebuild = false;
 	}
 }
 

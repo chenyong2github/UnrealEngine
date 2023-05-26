@@ -589,7 +589,10 @@ void FNiagaraParameterGraphDragOperation::MakeStaticSwitch(FNiagaraParameterNode
 	// copy metadata
 	if (UNiagaraGraph* NiagaraGraph = Cast<UNiagaraGraph>(InParams.Graph))
 	{
-		NiagaraGraph->AddParameter(ScriptVariable);
+		if(NiagaraGraph->GetScriptVariable(ScriptVariable->Variable) == nullptr)
+		{
+			NiagaraGraph->AddParameter(ScriptVariable);
+		}
 	}
 	
 	FGraphNodeCreator<UNiagaraNodeStaticSwitch> SetNodeCreator(*InParams.Graph);

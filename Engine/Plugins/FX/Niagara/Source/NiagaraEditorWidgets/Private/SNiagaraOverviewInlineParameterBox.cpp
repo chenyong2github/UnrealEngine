@@ -193,9 +193,11 @@ TSharedRef<SWidget> SNiagaraOverviewInlineParameterBox::GenerateParameterWidgetF
 	FText DisplayedText = ValueText;
 	const FLinearColor OriginalTypeColor = UEdGraphSchema_Niagara::GetTypeColor(Type);
 	FLinearColor ActualTypeColor = OriginalTypeColor;
+	
+	TSharedPtr<IToolTip> TooltipOverride;
 
-	// if we have an enum type, we want to override the type color to be gray instead
-	if(Type.GetEnum())
+	// if we have an enum type or integer acting as an enum, we want to override the type color to be gray instead
+	if(Type.GetEnum() || (Type == FNiagaraTypeDefinition::GetIntDef() && InputMetaData.IsSet() && InputMetaData->WidgetCustomization.WidgetType == ENiagaraInputWidgetType::EnumStyle))
 	{
 		ActualTypeColor = FLinearColor(0.02f, 0.02f, 0.02f, 1.f);
 	}
@@ -214,6 +216,48 @@ TSharedRef<SWidget> SNiagaraOverviewInlineParameterBox::GenerateParameterWidgetF
 			DisplayedText = !EnumParameterMetaData.OverrideName.IsNone() ? FText::FromName(EnumParameterMetaData.OverrideName) : DisplayedText;			
 			Icon = EnumParameterMetaData.IconOverride;
 			DisplayedColor = EnumParameterMetaData.bUseColorOverride ? EnumParameterMetaData.ColorOverride : DisplayedColor;
+		}
+	}
+	else if(Type == FNiagaraTypeDefinition::GetIntDef() && InputMetaData->WidgetCustomization.WidgetType == ENiagaraInputWidgetType::EnumStyle)
+	{
+		int32 Value = *(int32*)FunctionInput->GetLocalValueStruct()->GetStructMemory();
+		if(InputMetaData->WidgetCustomization.EnumStyleDropdownValues.IsValidIndex(Value))
+		{
+			FString ValueString = FString::FromInt(Value);
+			FText DisplayName = InputMetaData->WidgetCustomization.EnumStyleDropdownValues[Value].DisplayName;
+			FText TooltipActualValueText = FText::FormatOrdered(FText::FromString("({0})"), FText::FromString(ValueString));
+			DisplayedText = DisplayName.IsEmptyOrWhitespace() == false ? DisplayName : FText::FromString(ValueString);
+			
+			TSharedRef<SWidget> ValueOverrideTooltip = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Padding(3.f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("IntAsEnumParameterTooltipTextOverride", "Value: "))
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Padding(3.f)
+			[
+				SNew(STextBlock)
+				.Text(DisplayedText)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Padding(3.f)
+			[
+				SNew(STextBlock)
+				.Text(TooltipActualValueText)
+			];
+			
+			TooltipOverride = FNiagaraParameterUtilities::GetTooltipWidget(Variable, false, ValueOverrideTooltip);
 		}
 	}
 	else if(Type == FNiagaraTypeDefinition::GetBoolDef() && InputMetaData->bEnableBoolOverride)
@@ -297,8 +341,15 @@ TSharedRef<SWidget> SNiagaraOverviewInlineParameterBox::GenerateParameterWidgetF
 	}
 	
 	// we construct a tooltip widget that shows the parameter the value is associated with
-	TSharedRef<SToolTip> TooltipWidget = FNiagaraParameterUtilities::GetTooltipWidget(Variable);
-	ParameterWidget->SetToolTip(TooltipWidget);
+	if(TooltipOverride != nullptr)
+	{
+		ParameterWidget->SetToolTip(TooltipOverride);
+	}
+	else
+	{
+		TSharedRef<SToolTip> TooltipWidget = FNiagaraParameterUtilities::GetTooltipWidget(Variable);
+		ParameterWidget->SetToolTip(TooltipWidget);
+	}
 	return ParameterWidget.ToSharedRef();
 }
 

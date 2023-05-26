@@ -499,6 +499,7 @@ void FNiagaraEditorStyle::InitStackWidgets()
 			.SetBackgroundImageReadOnly( FSlateNoResource() );
 	
 	Set("NiagaraEditor.Stack.NumericDropdownInput", EditableTextBoxStyle);
+	Set("NiagaraEditor.Stack.IntegerAsEnum", NormalText.SetFont(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont")));
 }
 
 void FNiagaraEditorStyle::InitNiagaraSequence()

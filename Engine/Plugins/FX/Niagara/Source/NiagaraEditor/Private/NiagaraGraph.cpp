@@ -2871,8 +2871,24 @@ void UNiagaraGraph::ScriptVariableChanged(FNiagaraVariable Variable)
 	check(!bIsForCompilationOnly);
 
 	UNiagaraScriptVariable* ScriptVariable = GetScriptVariable(Variable);
-	if (!ScriptVariable || ScriptVariable->GetIsStaticSwitch())
+	if (!ScriptVariable)
 	{
+		return;
+	}
+
+	if(ScriptVariable->GetIsStaticSwitch())
+	{
+		TArray<UNiagaraNodeStaticSwitch*> StaticSwitchNodes;
+		GetNodesOfClass<UNiagaraNodeStaticSwitch>(StaticSwitchNodes);
+
+		for(UNiagaraNodeStaticSwitch* StaticSwitchNode : StaticSwitchNodes)
+		{
+			if(StaticSwitchNode->InputParameterName == ScriptVariable->Variable.GetName())
+			{
+				StaticSwitchNode->AttemptUpdatePins();
+			}
+		}
+		
 		return;
 	}
 

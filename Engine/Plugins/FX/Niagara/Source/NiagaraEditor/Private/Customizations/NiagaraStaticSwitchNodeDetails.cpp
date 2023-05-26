@@ -593,25 +593,6 @@ bool FNiagaraStaticSwitchNodeDetails::GetExposeAsPinEnabled() const
 
 }
 
-bool FNiagaraStaticSwitchNodeDetails::GetIntOptionEnabled() const
-{
-	return Node.IsValid() && Node->SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer && (!IsConstantSelection() || SelectedDropdownItem == DropdownOptions[3]);
-}
-
-TOptional<int32> FNiagaraStaticSwitchNodeDetails::GetIntOptionValue() const
-{
-	return Node.IsValid() ? TOptional<int32>(Node->NumOptionsPerVariable) : TOptional<int32>();
-}
-
-void FNiagaraStaticSwitchNodeDetails::IntOptionValueCommitted(int32 Value, ETextCommit::Type CommitInfo)
-{
-	if (Node.IsValid() && Value > 0)
-	{
-		Node->NumOptionsPerVariable = Value;
-		Node->RefreshFromExternalChanges();
-	}
-}
-
 FText FNiagaraStaticSwitchNodeDetails::GetParameterNameText() const
 {
 	return Node.IsValid() ? FText::FromName(Node->InputParameterName) : FText();

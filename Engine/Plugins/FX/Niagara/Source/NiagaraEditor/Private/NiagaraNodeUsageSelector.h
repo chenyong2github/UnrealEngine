@@ -19,9 +19,6 @@ public:
 
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FGuid SelectorGuid;
-
-	UPROPERTY()
-	int32 NumOptionsPerVariable = 0;
 	
 	//~ Begin UObject Interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -49,7 +46,9 @@ public:
 
 	/** Helper function to create a variable to add to the OutputVars and FGuid to add to OutputVarGuids. */
 	FGuid AddOutput(FNiagaraTypeDefinition Type, const FName& Name);
+	virtual int32 GetNumberOfCases() const { return NumOptionsPerVariable; }
 
+	void AttemptUpdatePins();
 	bool AreInputPinsOutdated() const;
 
 	/** Retrieves option values. Required to determine separator entries since we no longer have case information after pin creation. */
@@ -58,9 +57,20 @@ public:
 protected:
 	/** Use this function to add an option pin in allocation or insertion. Optionally at a specific slot. */
 	void AddOptionPin(const FNiagaraVariable& OutputVariable, int32 Value, int32 InsertionSlot = INDEX_NONE);
+
+	virtual bool AreInputCaseLabelsReadOnly() const { return true; }
+	virtual void OnInputCaseLabelSubmitted(const FText& Text, ETextCommit::Type Arg, int32 OptionValue) const {}
+	virtual bool VerifyCaseLabelCandidate(const FText& InCandidate, FText& OutErrorMessage) const;
+
+	virtual FText GetInputCaseTooltip(int32 Case) const { return FText::GetEmpty(); }
+	virtual FText GetInputCaseButtonTooltip(int32 Case) const;
+	virtual void OnInputCaseTooltipSubmitted(const FText& Text, ETextCommit::Type Arg, int32 OptionValue) const {}
 	
+	virtual TSharedRef<SWidget> GetInputCaseContextOptions(int32 Case) { return SNullWidget::NullWidget; }
+
 	/** Used to determine the text for the separators */
 	virtual FString GetInputCaseName(int32 Case) const;
+	FText GetInputCaseNameAsText(int32 Case) const;
 	
 	/** Ideally we wouldn't need this due to the separators but to maintain backwards compatibility pin names needs to stay consistent with what they were */
 	virtual FName GetOptionPinName(const FNiagaraVariable& Variable, int32 Value) const;
@@ -73,6 +83,9 @@ protected:
 	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const override;
 	//~ End UNiagaraNodeWithDynamicPins Interface
 
+protected:
+	UPROPERTY()
+	int32 NumOptionsPerVariable = 0;
 private:
 	/** private UNiagaraNodeWithDynamicPins interface */
 	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) override;
