@@ -1092,7 +1092,7 @@ namespace Metasound
 					
 					if (!bObjectFound)
 					{
-						OutDefaultLiteral.Set(static_cast<UObject*>(nullptr));
+						OutDefaultLiteral.Clear();
 					}
 				}
 				break;

@@ -13,6 +13,7 @@
 #include "MetasoundEditorGraphMemberDefaults.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundFrontendController.h"
+#include "NodeTemplates/MetasoundFrontendNodeTemplateReroute.h"
 #include "SGraphPin.h"
 #include "SGraphNodeKnot.h"
 #include "SMetasoundPinValueInspector.h"
@@ -262,7 +263,19 @@ namespace Metasound
 								{
 									const bool bIsDefaultConstructed = Literal->GetType() == EMetasoundFrontendLiteralType::None;
 									const bool bIsTriggerDataType = InputHandle->GetDataType() == GetMetasoundDataTypeName<FTrigger>();
-									if (!bIsDefaultConstructed && !bIsTriggerDataType)
+									bool bIsRerouteNode = false;
+									if (UEdGraphPin* Pin = ParentPinType::GetPinObj())
+									{
+										if (UMetasoundEditorGraphExternalNode* Node = Cast<UMetasoundEditorGraphExternalNode>(Pin->GetOwningNode()))
+										{
+											if (Node->GetClassName() == FRerouteNodeTemplate::ClassName)
+											{
+												bIsRerouteNode = true;
+											}
+										}
+									}
+									
+									if (!bIsDefaultConstructed && !bIsTriggerDataType && !bIsRerouteNode)
 									{
 										return EVisibility::Visible;
 									}
