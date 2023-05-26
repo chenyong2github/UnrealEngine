@@ -84,7 +84,7 @@ public:
 	FVector3f Albedo;
 	float PhaseG;
 	FVector3f Emissive;
-	float RadialAttenuationHermiteTangent;
+	uint32 FogMode;
 };
 
 class FLocalHeightFogVS : public FGlobalShader
@@ -170,7 +170,8 @@ void RenderLocalHeightFog(
 			LocalHeightFogGPUInstanceDataIt->HeightFalloff = LHF->FogHeightFalloff * 0.01f;	// This scale is used to have artist author reasonable range.
 			LocalHeightFogGPUInstanceDataIt->HeightOffset = LHF->FogHeightOffset;
 			LocalHeightFogGPUInstanceDataIt->RadialAttenuation = LHF->FogRadialAttenuation;
-			LocalHeightFogGPUInstanceDataIt->RadialAttenuationHermiteTangent = 1.0f - LHF->FogRadialAttenuationSoftness;
+
+			LocalHeightFogGPUInstanceDataIt->FogMode = LHF->FogMode;
 
 			LocalHeightFogGPUInstanceDataIt->Albedo = FVector3f(LHF->FogAlbedo);
 			LocalHeightFogGPUInstanceDataIt->PhaseG = LHF->FogPhaseG;

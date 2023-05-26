@@ -22,7 +22,8 @@ public:
 	float FogHeightFalloff;
 	float FogHeightOffset;
 	float FogRadialAttenuation;
-	float FogRadialAttenuationSoftness;
+
+	uint8 FogMode;
 
 	float FogPhaseG;
 	FLinearColor FogAlbedo;

@@ -93,6 +93,25 @@ void ULocalHeightFogComponent::DestroyRenderState_Concurrent()
 
 #if WITH_EDITOR
 
+bool ULocalHeightFogComponent::CanEditChange(const FProperty* InProperty) const
+{
+	if (InProperty)
+	{
+		FString PropertyName = InProperty->GetName();
+
+		if (FogMode != ELocalFogMode::LocalHeightFog)
+		{
+			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(ULocalHeightFogComponent, FogHeightFalloff)
+				|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(ULocalHeightFogComponent, FogHeightOffset))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 void ULocalHeightFogComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

@@ -15,7 +15,7 @@ FLocalHeightFogSceneProxy::FLocalHeightFogSceneProxy(const ULocalHeightFogCompon
 	, FogHeightFalloff(InComponent->FogHeightFalloff)
 	, FogHeightOffset(InComponent->FogHeightOffset + InComponent->GetComponentTransform().GetLocation().Z)
 	, FogRadialAttenuation(InComponent->FogRadialAttenuation)
-	, FogRadialAttenuationSoftness(InComponent->FogRadialAttenuationSoftness)
+	, FogMode((uint8)InComponent->FogMode)
 	, FogPhaseG(InComponent->FogPhaseG)
 	, FogAlbedo(InComponent->FogAlbedo)
 	, FogEmissive(InComponent->FogEmissive)

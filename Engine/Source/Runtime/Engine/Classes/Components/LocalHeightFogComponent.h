@@ -9,12 +9,23 @@
 
 class FLocalHeightFogSceneProxy;
 
+UENUM()
+enum class ELocalFogMode : uint8
+{
+	LocalHeightFog = 0,
+	LocalSphereFog = 1,
+};
+
 UCLASS(ClassGroup = Rendering, collapsecategories, hidecategories = (Object, Mobility, Activation, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), MinimalAPI)
 class ULocalHeightFogComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
 	~ULocalHeightFogComponent();
+
+	/** Controls the softness of the transition region when the volume is fading out. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fog Mode")
+	ELocalFogMode FogMode = ELocalFogMode::LocalHeightFog;
 
 	/** Global density factor for this fog. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0", UIMax = ".05", SliderExponent = 4.0, ClampMin = 0.0))
@@ -28,12 +39,8 @@ class ULocalHeightFogComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "-5000.0", UIMax = "5000.0"))
 	float FogHeightOffset = 0.0f;
 
-	/** Controls the softness of the transition region when the volume is fading out. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = 0.0, ClampMax = 1.0))
-	float FogRadialAttenuationSoftness = 1.0f;
-
 	/** Controls how strong the radial attenuation of this fog volume is. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.001", UIMax = "4.0", SliderExponent = 3.0, ClampMin = 0.001))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.0", UIMax = "4.0", SliderExponent = 3.0, ClampMin = 0.001))
 	float FogRadialAttenuation = 0.0f;
 
 	/** Controls the directionality of the scattering within this fog volume. */
@@ -52,6 +59,7 @@ public:
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
