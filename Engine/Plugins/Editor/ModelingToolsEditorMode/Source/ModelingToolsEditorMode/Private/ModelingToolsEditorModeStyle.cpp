@@ -463,6 +463,22 @@ void FModelingToolsEditorModeStyle::Initialize()
 		StyleSet->Set("PolyEd.SelectionToolbar.ToggleButton.End", ToggleButtonEnd);
 	}
 
+	// Style to be applied to customizable section headers so that the color shows up properly
+	{
+		// look up default radii for palette toolbar expandable area headers
+		FVector4 HeaderRadii(4, 4, 0, 0);
+		const FSlateBrush* BaseBrush = FAppStyle::Get().GetBrush("PaletteToolbar.ExpandableAreaHeader");
+		if (BaseBrush != nullptr)
+		{
+			HeaderRadii = BaseBrush->OutlineSettings.CornerRadii;
+		}
+		StyleSet->Set("ModelingMode.WhiteExpandableAreaHeader", new FSlateRoundedBoxBrush(FSlateColor(FLinearColor::White), HeaderRadii));
+	}
+
+	// Similar to EditorViewport.OverlayBrush, but opaque with a gray color to be able to be placed on top of other overlays.
+	StyleSet->Set("ModelingMode.OpaqueOverlayBrush", 
+		new FSlateRoundedBoxBrush(FStyleColors::Panel.GetSpecifiedColor(), 8.0, FStyleColors::Dropdown, 1.0));
+
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 };
 
