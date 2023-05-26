@@ -694,14 +694,16 @@ TUniquePtr<FGeometryCollectionRenderData> FGeometryCollectionRenderData::Create(
 	FGeometryCollectionBuiltMeshData MeshBuildData;
 	if (BuildMeshDataFromGeometryCollection(InCollection, MeshBuildData))
 	{
-	if (bInEnableNanite)
 	{
-		CreateNaniteData(MoveTemp(MeshBuildData), *RenderData.Get());
-	}
-	else
-	{
-		// Could always create mesh data if we want to be able to enable/disable nanite at runtime in cooked build.
-		CreateMeshData(InCollection, MeshBuildData, bInUseFullPrecisionUVs, *RenderData.Get());
+		if (bInEnableNanite)
+		{
+			CreateNaniteData(MoveTemp(MeshBuildData), *RenderData.Get());
+		}
+		else
+		{
+			// Could always create mesh data if we want to be able to enable/disable nanite at runtime in cooked build.
+			CreateMeshData(InCollection, MeshBuildData, bInUseFullPrecisionUVs, *RenderData.Get());
+		}
 	}
 	}
 
