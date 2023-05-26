@@ -1415,7 +1415,9 @@ TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* No
 		AutoLaunchSettings.bLimitProcessLifetime = true;
 
 		// Flush the cache if requested.
-		if (bFlush)
+		uint32 MultiprocessId = 0;
+		FParse::Value(FCommandLine::Get(), TEXT("-MultiprocessId="), MultiprocessId);
+		if (bFlush && (MultiprocessId == 0))
 		{
 			bool bStopped = true;
 			if (UE::Zen::IsLocalServiceRunning(*AutoLaunchSettings.DataPath))
