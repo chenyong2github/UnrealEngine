@@ -118,7 +118,8 @@ bool URCRangeMapBehaviour::GetNearestActionByThreshold(TTuple<URCAction*, bool>&
 		
 		if (InputActionArray.Num() > 1 && InputIndex > 0)
 		{
-			const double PrevValueDifference = FMath::Abs(InputActionArray[InputIndex-1] - NormalizedControllerValue);
+			const double PrevNormalizedInputValue = UKismetMathLibrary::NormalizeToRange(InputActionArray[InputIndex-1], InputMin, InputMax);
+			const double PrevValueDifference = FMath::Abs(PrevNormalizedInputValue - NormalizedControllerValue);
 			
 			// Break out early in case previous Input had a lesser difference
 			if (PrevValueDifference <= ValueDifference)
@@ -126,12 +127,11 @@ bool URCRangeMapBehaviour::GetNearestActionByThreshold(TTuple<URCAction*, bool>&
 				break;
 			}
 		}
-		OutTuple = TTuple<URCAction*, bool>(NonLerpActions[NormalizedInputValue], ValueDifference <= UE::RCRangeMapBehaviour::Threshold);
+		OutTuple = TTuple<URCAction*, bool>(NonLerpActions[InputValue], ValueDifference <= UE::RCRangeMapBehaviour::Threshold);
 	}
 	
 	return true;
 }
-
 
 bool FRCRangeMapInput::GetInputValue(double& OutValue) const
 {
