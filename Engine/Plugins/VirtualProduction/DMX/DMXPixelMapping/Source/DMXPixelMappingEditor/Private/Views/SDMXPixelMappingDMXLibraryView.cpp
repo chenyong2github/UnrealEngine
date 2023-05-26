@@ -94,6 +94,9 @@ void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const T
 
 	ForceRefresh();
 
+	UDMXLibrary::GetOnEntitiesAdded().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnEntitiesAddedOrRemoved);
+	UDMXLibrary::GetOnEntitiesRemoved().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnEntitiesAddedOrRemoved);
+
 	Toolkit->GetOnSelectedComponentsChangedDelegate().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnComponentSelected);
 }
 
@@ -186,6 +189,11 @@ void SDMXPixelMappingDMXLibraryView::ForceRefresh()
 				]
 			];
 	}
+}
+
+void SDMXPixelMappingDMXLibraryView::OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
+{
+	RequestRefresh();
 }
 
 void SDMXPixelMappingDMXLibraryView::OnComponentSelected()

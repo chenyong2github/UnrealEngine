@@ -47,6 +47,9 @@ private:
 	/** Refreshes the widget */
 	void ForceRefresh();
 
+	/** Called when entities were added to or removed from a DMX Library */
+	void OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities);
+
 	/** Called when a component was selected */
 	void OnComponentSelected();
 
