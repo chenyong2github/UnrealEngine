@@ -372,8 +372,6 @@ void DrawDebugCircle(const UWorld* InWorld, const FMatrix& TransformMatrix, floa
 		{
 			const float LineLifeTime = GetDebugLineLifeTime(LineBatcher, LifeTime, bPersistentLines);
 
-			// Need at least 4 segments
-			Segments = FMath::Max((Segments - 2) / 2, 4);
 			InternalDrawDebugCircle(InWorld, TransformMatrix, Radius, Segments, Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
 
 			if (bDrawAxis)
