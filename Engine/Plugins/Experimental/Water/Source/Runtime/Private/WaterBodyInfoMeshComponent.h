@@ -21,6 +21,8 @@ public:
 	UWaterBodyInfoMeshComponent(const FObjectInitializer& ObjectInitializer);
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	
+	virtual bool IsHLODRelevant() const { return false; }
 };
 
 struct FWaterBodyInfoMeshSceneProxy : public FStaticMeshSceneProxy
