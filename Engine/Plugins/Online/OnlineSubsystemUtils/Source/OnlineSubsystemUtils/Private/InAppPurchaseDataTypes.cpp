@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "InAppPurchaseDataTypes.h"
 
 #include "OnlineError.h"
