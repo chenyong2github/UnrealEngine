@@ -7,6 +7,7 @@
 
 UMassStationaryVisualizationTrait::UMassStationaryVisualizationTrait(const FObjectInitializer& ObjectInitializer)
 {
+	bAllowServerSideVisualization = true;
 }
 
 void UMassStationaryVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const

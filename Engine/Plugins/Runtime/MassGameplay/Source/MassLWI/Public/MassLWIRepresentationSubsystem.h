@@ -12,17 +12,10 @@ class MASSLWI_API UMassLWIRepresentationSubsystem : public UMassRepresentationSu
 {
 	GENERATED_BODY()
 
-public:
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorSpawned, AActor&);
-
-	AActor* GetOrSpawnActorFromTemplate(const FMassEntityHandle MassAgent, const FTransform& Transform, const int16 TemplateActorIndex
-		, FMassActorSpawnRequestHandle& SpawnRequestHandle, float Priority, FMassActorPreSpawnDelegate ActorPreSpawnDelegate
-		, FMassActorPostSpawnDelegate ActorPostSpawnDelegate);
-
-	FOnActorSpawned& GetOnActorSpawnedDelegate() { return OnActorSpawnedDelegate; }
-
 protected:
-	FOnActorSpawned OnActorSpawnedDelegate;
+	// USubsystem API begin
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	// USubsystem API end
 };
 
 template<>

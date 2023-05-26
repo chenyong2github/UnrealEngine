@@ -12,6 +12,7 @@
 struct FActorInstanceHandle;
 class AMassLWIStaticMeshManager;
 class AMassLWIConfigActor;
+class UMassLWIClientActorSpawnerSubsystem;
 struct FMassEntityManager;
 
 
@@ -49,6 +50,9 @@ protected:
 	FMassEntityConfig DefaultConfig;
 
 	TMap<UClass*, FMassEntityConfig> ClassToConfigMap;
+
+	UPROPERTY()
+	TObjectPtr<UMassLWIClientActorSpawnerSubsystem> LWISpawnerSubsystem;
 
 private:
 	TSharedPtr<FMassEntityManager> EntityManager;

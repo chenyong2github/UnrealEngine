@@ -4,6 +4,7 @@
 #include "MassLWISubsystem.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "MassCommonFragments.h"
+#include "MassEntitySubsystem.h"
 #include "MassRepresentationSubsystem.h"
 #include "MassSpawnerSubsystem.h"
 #include "MassSpawnerTypes.h"
@@ -12,6 +13,18 @@
 #include "VisualLogger/VisualLogger.h"
 
 
+namespace UE::Mass::Tweakables
+{
+	bool bDestroyEntitiesOnEndPlay = false;
+
+	FAutoConsoleVariableRef CLWIVars[] = {
+		{TEXT("mass.LWI.DestroyEntitiesOnEndPlay"), bDestroyEntitiesOnEndPlay, TEXT("Whether we should destroy LWI-sources entities when the original LWI manager ends play")},
+	};
+}
+
+//-----------------------------------------------------------------------------
+// AMassLWIStaticMeshManager
+//-----------------------------------------------------------------------------
 void AMassLWIStaticMeshManager::PostLoad()
 {
 	Super::PostLoad();
@@ -44,6 +57,23 @@ void AMassLWIStaticMeshManager::EndPlay(const EEndPlayReason::Type EndPlayReason
 	UWorld* World = GetWorld();
 	if (World && IsRegisteredWithMass())
 	{
+		if (UE::Mass::Tweakables::bDestroyEntitiesOnEndPlay && Entities.Num())
+		{
+			if (UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
+			{
+				FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
+
+				TArray<FMassArchetypeEntityCollection> EntityCollectionsToDestroy;
+				UE::Mass::Utils::CreateEntityCollections(EntityManager, Entities, FMassArchetypeEntityCollection::FoldDuplicates, EntityCollectionsToDestroy);
+				for (FMassArchetypeEntityCollection& Collection : EntityCollectionsToDestroy)
+				{
+					EntityManager.BatchDestroyEntityChunks(Collection);
+				}
+
+				Entities.Reset();
+			}
+		}
+
 		if (UMassLWISubsystem* LWIxMass = World->GetSubsystem<UMassLWISubsystem>())
 		{
 			LWIxMass->UnregisterLWIManager(*this);
@@ -106,6 +136,10 @@ void AMassLWIStaticMeshManager::TransferDataToMass(FMassEntityManager& EntityMan
 			}
 		}
 		Actors.Reset();
+
+		InstanceTransforms.Reset();
+		ValidIndices.Reset();
+		FreeIndices.Reset();
 		
 		InstancedStaticMeshComponent->UnregisterComponent();
 		InstancedStaticMeshComponent->DestroyComponent();
@@ -175,6 +209,17 @@ void AMassLWIStaticMeshManager::CreateMassTemplate(FMassEntityManager& EntityMan
 	// @todo make sure a nullptr here won't break stuff
 	FMassStaticMeshInstanceVisualizationMeshDesc& MeshDesc = StaticMeshInstanceDesc.Meshes[0];
 	MeshDesc.Mesh = StaticMesh.Get();
+#if WITH_EDITOR
+	if (!ensure(MeshDesc.Mesh) && GIsEditor)
+	{
+		MeshDesc.Mesh = StaticMesh.LoadSynchronous();
+		if (!ensure(MeshDesc.Mesh))
+		{
+			return;
+		}
+	}
+#endif // WITH_EDITOR
+
 	if (InstancedStaticMeshComponent)
 	{
 		MeshDesc.MaterialOverrides = InstancedStaticMeshComponent->OverrideMaterials;

@@ -1,31 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassLWIRepresentationSubsystem.h"
-#include "Engine/Note.h"
 #include "Engine/World.h"
+#include "MassLWIClientActorSpawnerSubsystem.h"
 
 
 //-----------------------------------------------------------------------------
 // UMassLWIRepresentationSubsystem
 //-----------------------------------------------------------------------------
-AActor* UMassLWIRepresentationSubsystem::GetOrSpawnActorFromTemplate(const FMassEntityHandle MassAgent, const FTransform& Transform, const int16 TemplateActorIndex
-	, FMassActorSpawnRequestHandle& SpawnRequestHandle, float Priority, FMassActorPreSpawnDelegate ActorPreSpawnDelegate
-	, FMassActorPostSpawnDelegate ActorPostSpawnDelegate)
+void UMassLWIRepresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	Super::Initialize(Collection);
+	
 	UWorld* World = GetWorld();
-	if (World == nullptr)
-	{
-		return nullptr;
-	}
-	else if (World->IsNetMode(NM_Client))
-	{
-		// this is where we'd sent a request to the server to spawn the actor
-		//return SpawnedActor;
-	}
+	check(World);
 
-	// @todo notify OnActorSpawnedDelegate
-
-	return Super::GetOrSpawnActorFromTemplate(MassAgent, Transform, TemplateActorIndex
-		, SpawnRequestHandle, Priority, ActorPreSpawnDelegate
-		, ActorPostSpawnDelegate);
+	if (World->GetNetMode() == NM_Client)
+	{
+		ActorSpawnerSubsystem = World->GetSubsystem<UMassLWIClientActorSpawnerSubsystem>();
+	}
 }
+

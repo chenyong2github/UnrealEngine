@@ -44,7 +44,7 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	// End AActor API
 
-	void CreateMassTemplate(FMassEntityManager& EntityManager);
+	virtual void CreateMassTemplate(FMassEntityManager& EntityManager);
 
 
 	FMassLWIManagerRegistrationHandle MassRegistrationHandle;

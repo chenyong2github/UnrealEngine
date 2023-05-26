@@ -6,6 +6,7 @@
 #include "MassLWIStaticMeshManager.h"
 #include "MassLWIConfigActor.h"
 #include "MassEntitySubsystem.h"
+#include "MassLWIClientActorSpawnerSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 
 
@@ -26,6 +27,10 @@ void UMassLWISubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	UMassEntitySubsystem* EntitySubsystem = Collection.InitializeDependency<UMassEntitySubsystem>();
 	check(EntitySubsystem);
 	EntityManager = EntitySubsystem->GetMutableEntityManager().AsShared();
+
+	// note that it's ok for LWISpawnerSubsystem to be null since in principle it's only available on clients,
+	// while UMassLWISubsystem can be created on both.
+	LWISpawnerSubsystem = Collection.InitializeDependency<UMassLWIClientActorSpawnerSubsystem>();
 }
 
 void UMassLWISubsystem::PostInitialize()
@@ -62,10 +67,16 @@ void UMassLWISubsystem::RegisterLWIManager(AMassLWIStaticMeshManager& Manager)
 	if (FreeIndices.Num() > 0)
 	{
 		RegistrationIndex = FreeIndices.Pop(/*bAllowShrinking = */true);
+		RegisteredManagers[RegistrationIndex] = &Manager;
 	}
 	else
 	{
 		RegistrationIndex = RegisteredManagers.Add(&Manager);
+	}
+
+	if (LWISpawnerSubsystem)
+	{
+		LWISpawnerSubsystem->RegisterRepresentedClass(Manager.GetRepresentedClass());
 	}
 
 	Manager.TransferDataToMass(*EntityManager);

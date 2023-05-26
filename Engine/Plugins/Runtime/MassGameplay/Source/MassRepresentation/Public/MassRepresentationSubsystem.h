@@ -163,3 +163,11 @@ protected:
 	TMap<FMassEntityHandle, int32> HandledMassAgents;
 };
 
+template<>
+struct TMassExternalSubsystemTraits<UMassRepresentationSubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = true
+	};
+};

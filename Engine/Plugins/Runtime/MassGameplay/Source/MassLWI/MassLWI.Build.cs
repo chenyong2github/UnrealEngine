@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"MassReplication",
 					"MassRepresentation",
 					"MassSpawner",
+					"MassActors",
 					"StructUtils",
 					"AIModule",
 					"NetCore",
