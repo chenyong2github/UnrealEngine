@@ -166,6 +166,7 @@ void SKismetInspector::Tick( const FGeometry& AllottedGeometry, const double InC
 		else
 		{
 			FKismetSelectionInfo SelectionInfo;
+			RefreshPropertyObjects.Remove(nullptr);
 			UpdateFromObjects(RefreshPropertyObjects, SelectionInfo, RefreshOptions);
 			RefreshPropertyObjects.Empty();
 		}
@@ -282,6 +283,16 @@ bool SKismetInspector::IsSelected(UObject* Object) const
 const TArray< TWeakObjectPtr<UObject> >& SKismetInspector::GetSelectedObjects() const
 {
 	return SelectedObjects;
+}
+
+void SKismetInspector::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObjects(RefreshPropertyObjects);
+}
+
+FString SKismetInspector::GetReferencerName() const
+{
+	return TEXT("SKismetInspector");
 }
 
 FText SKismetInspector::GetContextualEditingWidgetTitle() const

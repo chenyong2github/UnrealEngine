@@ -41,7 +41,7 @@ typedef TSet<class UObject*> FInspectorSelectionSet;
 // SKismetInspector
 
 /** Widget that shows properties and tools related to the selected node(s) */
-class KISMET_API SKismetInspector : public SCompoundWidget
+class KISMET_API SKismetInspector : public SCompoundWidget, public FGCObject
 {
 public:
 	SLATE_BEGIN_ARGS( SKismetInspector )
@@ -63,7 +63,7 @@ public:
 		SLATE_ARGUMENT( bool, ShowTitleArea)
 		SLATE_ARGUMENT( bool, ShowLocalVariables)
 	SLATE_END_ARGS()
-
+	
 	void Construct(const FArguments& InArgs);
 
 	/** Options for ShowDetails */
@@ -118,6 +118,9 @@ public:
 
 	/** returns the list of selected objects */
 	const TArray< TWeakObjectPtr<UObject> >& GetSelectedObjects() const;
+
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
 
 protected:
 	/** Update the inspector window to show information on the supplied objects */
