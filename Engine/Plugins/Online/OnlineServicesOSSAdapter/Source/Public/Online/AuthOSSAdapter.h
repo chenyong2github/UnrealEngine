@@ -50,7 +50,7 @@ public:
 	void Unregister(FAccountId AccountId);
 };
 
-class FAuthOSSAdapter : public FAuthCommon
+class ONLINESERVICESOSSADAPTER_API FAuthOSSAdapter : public FAuthCommon
 {
 public:
 	using Super = FAuthCommon;

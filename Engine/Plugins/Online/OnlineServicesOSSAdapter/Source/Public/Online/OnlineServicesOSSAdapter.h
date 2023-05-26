@@ -10,15 +10,15 @@ class IOnlineSubsystem;
 
 namespace UE::Online {
 
-class FOnlineServicesOSSAdapter : public FOnlineServicesCommon
+class ONLINESERVICESOSSADAPTER_API FOnlineServicesOSSAdapter : public FOnlineServicesCommon
 {
 public:
 	using Super = FOnlineServicesCommon;
 
-	ONLINESERVICESOSSADAPTER_API FOnlineServicesOSSAdapter(EOnlineServices InServicesType, const FString& InConfigName, FName InInstanceName, IOnlineSubsystem* InSubsystem);
+	FOnlineServicesOSSAdapter(EOnlineServices InServicesType, const FString& InConfigName, FName InInstanceName, IOnlineSubsystem* InSubsystem);
 
-	ONLINESERVICESOSSADAPTER_API virtual void RegisterComponents() override;
-	ONLINESERVICESOSSADAPTER_API virtual void Initialize() override;
+	virtual void RegisterComponents() override;
+	virtual void Initialize() override;
 	virtual EOnlineServices GetServicesProvider() const override { return ServicesType; }
 	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) override;
 

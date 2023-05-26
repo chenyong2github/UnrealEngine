@@ -11,6 +11,7 @@ public class OnlineServicesOSSAdapter : ModuleRules
 			new string[] {
 				"Core",
 				"OnlineServicesInterface",
+				"OnlineServicesCommon",
 				"OnlineSubsystem",
 				"Json"
 			}
@@ -19,7 +20,6 @@ public class OnlineServicesOSSAdapter : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"CoreOnline",
-				"OnlineServicesCommon"
 			}
 		);
 	}
