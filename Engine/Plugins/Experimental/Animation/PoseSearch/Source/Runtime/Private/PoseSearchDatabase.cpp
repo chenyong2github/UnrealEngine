@@ -455,11 +455,10 @@ const FPoseSearchIndex& UPoseSearchDatabase::GetSearchIndex() const
 int32 UPoseSearchDatabase::GetPoseIndexFromTime(float Time, const FPoseSearchIndexAsset& SearchIndexAsset) const
 {
 	const bool bIsLooping = IsSourceAssetLooping(SearchIndexAsset);
-	const FFloatInterval& Range = SearchIndexAsset.SamplingInterval;
-	const bool bHasPoseIndex = SearchIndexAsset.FirstPoseIdx != INDEX_NONE && SearchIndexAsset.NumPoses > 0 && (bIsLooping || Range.Contains(Time));
+	const bool bHasPoseIndex = SearchIndexAsset.FirstPoseIdx != INDEX_NONE && SearchIndexAsset.NumPoses > 0 && (bIsLooping || SearchIndexAsset.SamplingInterval.Contains(Time));
 	if (bHasPoseIndex)
 	{
-		int32 PoseOffset = FMath::RoundToInt(Schema->SampleRate * (Time - Range.Min));
+		int32 PoseOffset = FMath::RoundToInt(Schema->SampleRate * (Time - SearchIndexAsset.SamplingInterval.Min));
 		
 		if (PoseOffset < 0)
 		{
@@ -502,8 +501,7 @@ bool UPoseSearchDatabase::GetPoseIndicesAndLerpValueFromTime(float Time, const F
 		return false;
 	}
 
-	const FFloatInterval& Range = SearchIndexAsset.SamplingInterval;
-	const float FloatPoseOffset = Schema->SampleRate * (Time - Range.Min);
+	const float FloatPoseOffset = Schema->SampleRate * (Time - SearchIndexAsset.SamplingInterval.Min);
 	const int32 PoseOffset = FMath::RoundToInt(FloatPoseOffset);
 	LerpValue = FloatPoseOffset - float(PoseOffset);
 
@@ -692,16 +690,18 @@ float UPoseSearchDatabase::GetAssetTime(int32 PoseIdx) const
 	const bool bIsBlendSpace = AnimationAssets[Asset.SourceAssetIdx].GetPtr<FPoseSearchDatabaseBlendSpace>() != nullptr;
 	const FFloatInterval& SamplingRange = Asset.SamplingInterval;
 
-	if (bIsBlendSpace)
+	// sequences or anim composites
+	float AssetTime = FMath::Min(SamplingRange.Min + SamplingInterval * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max);
+
+	if (bIsBlendSpace && Asset.NumPoses > 1)
 	{
+		check(SamplingInterval > UE_KINDA_SMALL_NUMBER);
 		// For BlendSpaces the AssetTime is in the range [0, 1] while the Sampling Range
 		// is in real time (seconds)
-		const float AssetTime = FMath::Min(SamplingRange.Min + SamplingInterval * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max) / (Asset.NumPoses * SamplingInterval);
-		return AssetTime;
+		AssetTime = AssetTime / ((Asset.NumPoses - 1) * SamplingInterval);
+		check(AssetTime >= 0.f && AssetTime <= 1.f);
 	}
 
-	// sequences or anim composites
-	const float AssetTime = FMath::Min(SamplingRange.Min + SamplingInterval * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max);
 	return AssetTime;
 }
 

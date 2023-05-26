@@ -19,18 +19,6 @@ namespace UE::PoseSearch
 struct FAnimationAssetSampler;
 struct FAssetSamplingContext;
 
-/**
- * Inputs for asset indexing
- */
-struct FAssetIndexingContext
-{
-	const FAssetSamplingContext* SamplingContext = nullptr;
-	const UPoseSearchSchema* Schema = nullptr;
-	const FAnimationAssetSampler* AssetSampler = nullptr;
-	bool bMirrored = false;
-	FFloatInterval RequestedSamplingRange = FFloatInterval(0.f, 0.f);
-};
-
 class FAssetIndexer
 {
 public:
@@ -43,7 +31,8 @@ public:
 		float MaxAcceleration = 0.f;
 	};
 
-	FAssetIndexer(const FAssetIndexingContext& IndexingContext, const FBoneContainer& InBoneContainer, const FPoseSearchIndexAsset& InSearchIndexAsset);
+	FAssetIndexer(const FBoneContainer& InBoneContainer, const FPoseSearchIndexAsset& InSearchIndexAsset, 
+		const FAssetSamplingContext& InSamplingContext, const UPoseSearchSchema& InSchema, const FAnimationAssetSampler& InAssetSampler);
 	void AssignWorkingData(TArrayView<float> InOutFeatureVectorTable, TArrayView<FPoseSearchPoseMetadata> InOutPoseMetadata);
 	void Process(int32 AssetIdx);
 	const FStats& GetStats() const { return Stats; }
@@ -90,9 +79,11 @@ private:
 	void ComputeStats();
 
 	FBoneContainer BoneContainer;
-	FAssetIndexingContext IndexingContext;
 	TMap<float, CachedEntry> CachedEntries;
 	const FPoseSearchIndexAsset& SearchIndexAsset;
+	const FAssetSamplingContext& SamplingContext;
+	const UPoseSearchSchema& Schema;
+	const FAnimationAssetSampler& AssetSampler;
 	
 	int32 FirstIndexedSample = 0;
 	int32 LastIndexedSample = 0;

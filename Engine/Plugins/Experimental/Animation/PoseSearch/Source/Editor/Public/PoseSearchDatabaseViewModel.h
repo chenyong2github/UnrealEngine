@@ -172,7 +172,7 @@ namespace UE::PoseSearch
 
 		UWorld* GetWorld();
 
-		FDatabasePreviewActor SpawnPreviewActor(int32 IndexAssetIndex, float PlayTimeOffset);
+		FDatabasePreviewActor SpawnPreviewActor(int32 IndexAssetIndex, int32 PoseIdxForTimeOffset = -1);
 
 		void UpdatePreviewActors(bool bInTickPlayTime = false);
 

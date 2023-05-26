@@ -127,7 +127,7 @@ namespace UE::PoseSearch
 		PlayTime = MaxPreviewPlayLength;
 	}
 
-	FDatabasePreviewActor FDatabaseViewModel::SpawnPreviewActor(int32 IndexAssetIndex, float PlayTimeOffset)
+	FDatabasePreviewActor FDatabaseViewModel::SpawnPreviewActor(int32 IndexAssetIndex, int32 PoseIdxForTimeOffset)
 	{
 		FDatabasePreviewActor PreviewActor;
 
@@ -148,7 +148,7 @@ namespace UE::PoseSearch
 		PreviewActor.Sampler.Init(DatabaseAnimationAssetBase->GetAnimationAsset(), IndexAsset.BlendParameters);
 		PreviewActor.IndexAssetIndex = IndexAssetIndex;
 		PreviewActor.CurrentPoseIndex = INDEX_NONE;
-		PreviewActor.PlayTimeOffset = PlayTimeOffset;
+		PreviewActor.PlayTimeOffset = PoseIdxForTimeOffset < 0 ? 0.f : PreviewActor.Sampler.ToRealTime(PoseSearchDatabase->GetAssetTime(PoseIdxForTimeOffset));
 
 		FActorSpawnParameters Params;
 		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
@@ -240,16 +240,14 @@ namespace UE::PoseSearch
 			// time to pose index
 			PreviewActor.CurrentPoseIndex = PoseSearchDatabase->GetPoseIndexFromTime(PreviewActor.CurrentTime, IndexAsset);
 
-			const float TimeToAssetTimeMultiplier = PreviewActor.Sampler.GetTimeToAssetTimeMultiplier();
-			check(!FMath::IsNearlyZero(TimeToAssetTimeMultiplier));
-			const float QuantizedTime = PreviewActor.CurrentPoseIndex >= 0 ? PoseSearchDatabase->GetAssetTime(PreviewActor.CurrentPoseIndex) / TimeToAssetTimeMultiplier : PreviewActor.CurrentTime;
-
+			const float QuantizedTime = PreviewActor.CurrentPoseIndex >= 0 ? PreviewActor.Sampler.ToRealTime(PoseSearchDatabase->GetAssetTime(PreviewActor.CurrentPoseIndex)) : PreviewActor.CurrentTime;
 			if (bQuantizeAnimationToPoseData)
 			{
 				PreviewActor.CurrentTime = QuantizedTime;
 			}
 
-			AnimInstance->SetPosition(PreviewActor.CurrentTime * TimeToAssetTimeMultiplier);
+			// SetPosition is in [0..1] range for blendspaces
+			AnimInstance->SetPosition(PreviewActor.Sampler.ToNormalizedTime(PreviewActor.CurrentTime));
 			AnimInstance->SetPlayRate(0.f);
 			AnimInstance->SetBlendSpacePosition(IndexAsset.BlendParameters);
 
@@ -410,14 +408,12 @@ namespace UE::PoseSearch
 				const uint32 IndexAssetIndex = SearchIndex.PoseMetadata[PoseIdx].GetAssetIndex();
 				if (SearchIndex.Assets.IsValidIndex(IndexAssetIndex))
 				{
-					const FPoseSearchIndexAsset& IndexAsset = SearchIndex.Assets[IndexAssetIndex];
-					// clamping just to make sure the time interval is correct
-					const float PlayTimeOffset = FMath::Clamp(PoseSearchDatabase->GetAssetTime(PoseIdx), IndexAsset.SamplingInterval.Min, IndexAsset.SamplingInterval.Max);
-					FDatabasePreviewActor PreviewActor = SpawnPreviewActor(IndexAssetIndex, PlayTimeOffset);
+					FDatabasePreviewActor PreviewActor = SpawnPreviewActor(IndexAssetIndex, PoseIdx);
 					if (PreviewActor.IsValid())
 					{
-						MaxPreviewPlayLength = FMath::Max(MaxPreviewPlayLength, IndexAsset.SamplingInterval.Max - PlayTimeOffset);
-						MinPreviewPlayLength = FMath::Min(MinPreviewPlayLength, IndexAsset.SamplingInterval.Min - PlayTimeOffset);
+						const FPoseSearchIndexAsset& IndexAsset = SearchIndex.Assets[IndexAssetIndex];
+						MaxPreviewPlayLength = FMath::Max(MaxPreviewPlayLength, IndexAsset.SamplingInterval.Max - PreviewActor.PlayTimeOffset);
+						MinPreviewPlayLength = FMath::Min(MinPreviewPlayLength, IndexAsset.SamplingInterval.Min - PreviewActor.PlayTimeOffset);
 						PreviewActors.Add(PreviewActor);
 						SelectedSourceAssetIdx = IndexAsset.SourceAssetIdx;
 					}
@@ -461,7 +457,7 @@ namespace UE::PoseSearch
 				{
 					if (const int32* SelectedNodesIndex = AssociatedAssetIndices.Find(IndexAsset.SourceAssetIdx))
 					{
-						FDatabasePreviewActor PreviewActor = SpawnPreviewActor(IndexAssetIndex, 0.f);
+						FDatabasePreviewActor PreviewActor = SpawnPreviewActor(IndexAssetIndex);
 						if (PreviewActor.IsValid())
 						{
 							MaxPreviewPlayLength = FMath::Max(MaxPreviewPlayLength, IndexAsset.SamplingInterval.Max - IndexAsset.SamplingInterval.Min);
@@ -552,7 +548,7 @@ namespace UE::PoseSearch
 					const FPoseSearchIndexAsset& IndexAsset = SearchIndex.Assets[PreviewActor.IndexAssetIndex];
 					if (IndexAsset.SourceAssetIdx == SourceAssetIdx)
 					{
-						CurrentPlayTime = PlayTime + IndexAsset.SamplingInterval.Min + PreviewActor.PlayTimeOffset;
+						CurrentPlayTime = PreviewActor.Sampler.ToNormalizedTime(PlayTime + IndexAsset.SamplingInterval.Min + PreviewActor.PlayTimeOffset);
 						BlendParameters = IndexAsset.BlendParameters;
 						return true;
 					}
@@ -565,6 +561,12 @@ namespace UE::PoseSearch
 				{
 					CurrentPlayTime = PlayTime + IndexAsset.SamplingInterval.Min;
 					BlendParameters = IndexAsset.BlendParameters;
+
+					const bool bIsBlendSpace = PoseSearchDatabase->GetAnimationAssetStruct(IndexAsset).GetPtr<FPoseSearchDatabaseBlendSpace>() != nullptr;
+					if (bIsBlendSpace && !FMath::IsNearlyEqual(MaxPreviewPlayLength, MinPreviewPlayLength))
+					{
+						CurrentPlayTime = (CurrentPlayTime - MaxPreviewPlayLength) / (MaxPreviewPlayLength - MinPreviewPlayLength);
+					}
 					return true;
 				}
 			}

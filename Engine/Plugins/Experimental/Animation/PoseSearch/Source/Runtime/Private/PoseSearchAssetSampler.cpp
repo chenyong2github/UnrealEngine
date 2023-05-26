@@ -154,6 +154,10 @@ static void ProcessPlayLength(const UBlendSpace* BlendSpace, const FVector& Blen
 	{
 		CachedPlayLength = BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
 	}
+	else
+	{
+		CachedPlayLength = 0.f;
+	}
 }
 
 static void ProcessRootTransform(const UBlendSpace* BlendSpace, const FVector& BlendParameters, float CachedPlayLength, const FBoneContainer& BoneContainer,
@@ -262,6 +266,14 @@ void FAnimationAssetSampler::Init(TWeakObjectPtr<const UAnimationAsset> InAnimat
 		{
 			FMemMark Mark(FMemStack::Get());
 			ProcessPlayLength(BlendSpace, BlendParameters, CachedPlayLength);
+			
+#if !NO_LOGGING
+			const TArray<FName>* UniqueMarkerNames = const_cast<UBlendSpace*>(BlendSpace)->GetUniqueMarkerNames();
+			if (UniqueMarkerNames && !UniqueMarkerNames->IsEmpty())
+			{
+				UE_LOG(LogPoseSearch, Warning, TEXT("FAnimationAssetSampler::Init: sampling blend space (%s) with synch markers is currently not supported"), *BlendSpace->GetName());
+			}
+#endif // !NO_LOGGING
 		}
 		else
 		{
@@ -280,15 +292,30 @@ const UAnimationAsset* FAnimationAssetSampler::GetAsset() const
 	return AnimationAsset.Get();
 }
 
-float FAnimationAssetSampler::GetTimeToAssetTimeMultiplier() const
+float FAnimationAssetSampler::ToRealTime(float NormalizedTime) const
+{
+	// Asset player time for blend spaces is normalized [0, 1] so we convert the sampling / animation time to asset time by multiplying it by CachedPlayLength
+	if (CachedPlayLength > UE_KINDA_SMALL_NUMBER && Cast<UBlendSpace>(AnimationAsset.Get()))
+	{
+		check(NormalizedTime >= 0.f && NormalizedTime <= 1.f);
+		const float RealTime = NormalizedTime * CachedPlayLength;
+		return RealTime;
+	}
+
+	return NormalizedTime;
+}
+
+float FAnimationAssetSampler::ToNormalizedTime(float RealTime) const
 {
 	// Asset player time for blend spaces is normalized [0, 1] so we convert the sampling / animation time to asset time by dividing it by CachedPlayLength
 	if (CachedPlayLength > UE_KINDA_SMALL_NUMBER && Cast<UBlendSpace>(AnimationAsset.Get()))
 	{
-		return 1.f / CachedPlayLength;
+		const float NormalizedTime = RealTime / CachedPlayLength;
+		check(NormalizedTime >= 0.f && NormalizedTime <= 1.f);
+		return NormalizedTime;
 	}
 
-	return 1.f;
+	return RealTime;
 }
 
 float FAnimationAssetSampler::GetPlayLength() const

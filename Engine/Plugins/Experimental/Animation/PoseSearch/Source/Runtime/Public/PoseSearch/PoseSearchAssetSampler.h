@@ -22,7 +22,8 @@ struct POSESEARCH_API FAnimationAssetSampler
 
 	bool IsInitialized() const;
 	float GetPlayLength() const;
-	float GetTimeToAssetTimeMultiplier() const;
+	float ToRealTime(float NormalizedTime) const;
+	float ToNormalizedTime(float RealTime) const;
 	bool IsLoopable() const;
 
 	// Gets the final root transformation at the end of the asset's playback time

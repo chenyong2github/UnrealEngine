@@ -88,6 +88,9 @@ void FPoseSearchAnimPlayer::Initialize(UAnimationAsset* AnimationAsset, float Ac
 	}
 	else if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimationAsset))
 	{
+		// making sure AccumulatedTime is in normalized space
+		check(AccumulatedTime >= 0.f && AccumulatedTime <= 1.f);
+
 		BlendSpacePlayerNode.SetResetPlayTimeWhenBlendSpaceChanges(false /*!bReset*/);
 		BlendSpacePlayerNode.SetAccumulatedTime(AccumulatedTime);
 		BlendSpacePlayerNode.SetBlendSpace(BlendSpace);
@@ -197,6 +200,8 @@ float FPoseSearchAnimPlayer::GetAccumulatedTime() const
 	
 	if (BlendSpacePlayerNode.GetBlendSpace())
 	{
+		// making sure BlendSpacePlayerNode.GetAccumulatedTime() is in normalized space
+		check(BlendSpacePlayerNode.GetAccumulatedTime() >= 0.f && BlendSpacePlayerNode.GetAccumulatedTime() <= 1.f);
 		return BlendSpacePlayerNode.GetAccumulatedTime();
 	}
 

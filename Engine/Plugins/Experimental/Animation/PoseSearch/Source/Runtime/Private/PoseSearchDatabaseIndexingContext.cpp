@@ -114,21 +114,12 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 		FPoseSearchIndexAsset& SearchIndexAsset = SearchIndexBase.Assets[AssetIdx];
 		SearchIndexAsset.FirstPoseIdx = TotalPoses;
 
-		FAssetIndexingContext IndexerContext;
-		IndexerContext.SamplingContext = &SamplingContext;
-		IndexerContext.Schema = Schema;
-		IndexerContext.RequestedSamplingRange = SearchIndexAsset.SamplingInterval;
-		IndexerContext.bMirrored = SearchIndexAsset.bMirrored;
-
 		const FInstancedStruct& DatabaseAsset = Database.GetAnimationAssetStruct(SearchIndexAsset.SourceAssetIdx);
 		const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimationAssetBase>();
-		check(DatabaseAnimationAssetBase);
-		if (DatabaseAnimationAssetBase->GetAnimationAsset())
-		{
-			IndexerContext.AssetSampler = &Samplers[SamplerMap[{ DatabaseAnimationAssetBase->GetAnimationAsset(), SearchIndexAsset.BlendParameters }]];
-		}
+		check(DatabaseAnimationAssetBase && DatabaseAnimationAssetBase->GetAnimationAsset());
+		const FAnimationAssetSampler& AssetSampler = Samplers[SamplerMap[{ DatabaseAnimationAssetBase->GetAnimationAsset(), SearchIndexAsset.BlendParameters }]];
 
-		const int32 NewIndexerIdx = Indexers.Emplace(IndexerContext, BoneContainer, SearchIndexAsset);
+		const int32 NewIndexerIdx = Indexers.Emplace(BoneContainer, SearchIndexAsset, SamplingContext, *Schema, AssetSampler);
 		SearchIndexAsset.NumPoses = Indexers[NewIndexerIdx].GetNumIndexedPoses();
 		TotalPoses += SearchIndexAsset.NumPoses;
 	}

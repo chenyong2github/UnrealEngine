@@ -58,6 +58,7 @@ void FSearchResult::Update(float NewAssetTime)
 
 			// Asset player time for blendspaces is normalized [0, 1] so we need to convert 
 			// to a real time before we advance it
+			check(NewAssetTime >= 0.f && NewAssetTime <= 1.f);
 			const float RealTime = NewAssetTime * PlayLength;
 			if (Database->GetPoseIndicesAndLerpValueFromTime(RealTime, SearchIndexAsset, PrevPoseIdx, PoseIdx, NextPoseIdx, LerpValue))
 			{
