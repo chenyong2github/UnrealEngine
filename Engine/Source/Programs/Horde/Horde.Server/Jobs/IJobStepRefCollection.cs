@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Server.Agents;
 using Horde.Server.Agents.Pools;
@@ -68,9 +69,10 @@ namespace Horde.Server.Jobs
 		/// <param name="nodeName">Name of the node</param>
 		/// <param name="change">The current change</param>
 		/// <param name="includeFailed">Whether to include failed nodes</param>
-		/// <param name="count">Number of results to return</param>
+		/// <param name="maxCount">Number of results to return</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>List of step references</returns>
-		Task<List<IJobStepRef>> GetStepsForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int? change, bool includeFailed, int count);
+		Task<List<IJobStepRef>> GetStepsForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int? change, bool includeFailed, int maxCount, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Gets the previous job that ran a given step
@@ -81,8 +83,9 @@ namespace Horde.Server.Jobs
 		/// <param name="change">The current changelist number</param>
 		/// <param name="outcome">The outcome to filter by or include all outcomes if null</param>
 		/// <param name="updateIssues">If true, constrain to steps which update issues</param>		 
+		/// <param name="excludeJobIds">Jobs to exclude from the search</param>
 		/// <returns>The previous job, or null.</returns>
-		Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null);
+		Task<IJobStepRef?> GetPrevStepForNodeAsync(StreamId streamId, TemplateId templateId, string nodeName, int change, JobStepOutcome? outcome = null, bool? updateIssues = null, IEnumerable<JobId>? excludeJobIds = null);
 
 		/// <summary>
 		/// Gets the next job that ran a given step

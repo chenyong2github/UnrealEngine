@@ -65,6 +65,7 @@ using Horde.Server.Telemetry;
 using Horde.Server.Artifacts;
 using Horde.Server.Dashboard;
 using OpenTelemetry.Trace;
+using Horde.Server.Jobs.Bisect;
 
 namespace Horde.Server.Tests
 {
@@ -213,6 +214,7 @@ namespace Horde.Server.Tests
 			services.AddSingleton<ILogFileCollection, LogFileCollection>();
 			services.AddSingleton<INotificationTriggerCollection, NotificationTriggerCollection>();
 			services.AddSingleton<IPoolCollection, PoolCollection>();
+			services.AddSingleton<IBisectTaskCollection, BisectTaskCollection>();
 			services.AddSingleton<ISessionCollection, SessionCollection>();
 			services.AddSingleton<ISubscriptionCollection, SubscriptionCollection>();
 			services.AddSingleton<IStreamCollection, StreamCollection>();
@@ -256,6 +258,7 @@ namespace Horde.Server.Tests
 			services.AddSingleton<IPerforceService, PerforceServiceStub>();
 			services.AddSingleton<PerforceLoadBalancer>();
 			services.AddSingleton<PoolService>();
+			services.AddSingleton<BisectService>();
 			services.AddSingleton<RpcService>();
 			services.AddSingleton<ScheduleService>();
 			services.AddSingleton<DeviceService>();

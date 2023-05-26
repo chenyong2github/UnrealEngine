@@ -8,6 +8,7 @@ using Horde.Server.Agents;
 using Horde.Server.Agents.Leases;
 using Horde.Server.Artifacts;
 using Horde.Server.Jobs;
+using Horde.Server.Jobs.Bisect;
 using Horde.Server.Projects;
 using Horde.Server.Streams;
 using Horde.Server.Tools;
@@ -250,6 +251,15 @@ namespace Horde.Server.Utilities
 		protected ActionResult NotFound(NamespaceId namespaceId, RefName refName)
 		{
 			return NotFound("Ref {RefName} in namespace {NamespaceId} not found", refName, namespaceId);
+		}
+
+		/// <summary>
+		/// Returns a 404 response for the given object
+		/// </summary>
+		[NonAction]
+		protected ActionResult NotFound(BisectTaskId bisectTaskId)
+		{
+			return NotFound("Bisect task {BisectTaskId} not found", bisectTaskId);
 		}
 
 		/// <summary>

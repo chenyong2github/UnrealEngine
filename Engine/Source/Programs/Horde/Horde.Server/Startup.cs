@@ -98,6 +98,7 @@ using Horde.Server.Compute;
 using OpenTelemetry.Trace;
 using Polly;
 using Polly.Extensions.Http;
+using Horde.Server.Jobs.Bisect;
 
 namespace Horde.Server
 {
@@ -397,6 +398,7 @@ namespace Horde.Server
 			services.AddSingleton<ILogFileCollection, LogFileCollection>();
 			services.AddSingleton<INotificationTriggerCollection, NotificationTriggerCollection>();
 			services.AddSingleton<IPoolCollection, PoolCollection>();
+			services.AddSingleton<IBisectTaskCollection, BisectTaskCollection>();
 			services.AddSingleton<ISessionCollection, SessionCollection>();
 			services.AddSingleton<IServiceAccountCollection, ServiceAccountCollection>();
 			services.AddSingleton<ISubscriptionCollection, SubscriptionCollection>();

@@ -24,6 +24,7 @@ using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using Horde.Server.Jobs.Bisect;
 
 namespace Horde.Server.Jobs
 {
@@ -129,7 +130,7 @@ namespace Horde.Server.Jobs
 		/// If a retry is requested, stores the name of the user that requested it
 		/// </summary>
 		public UserId? RetriedByUserId { get; }
-		
+
 		/// <summary>
 		/// Signal if a step should be aborted
 		/// </summary>
@@ -586,6 +587,11 @@ namespace Horde.Server.Jobs
 		/// Id of the user that aborted this job. Set to null if the job is not aborted.
 		/// </summary>
 		public UserId? AbortedByUserId { get; }
+
+		/// <summary>
+		/// Identifier of the bisect task that started this job
+		/// </summary>
+		public BisectTaskId? StartedByBisectTaskId { get; }
 
 		/// <summary>
 		/// Name of the job.

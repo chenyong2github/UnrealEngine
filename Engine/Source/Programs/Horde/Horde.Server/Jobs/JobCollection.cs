@@ -6,7 +6,9 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Server.Acls;
@@ -15,6 +17,7 @@ using Horde.Server.Agents.Leases;
 using Horde.Server.Agents.Pools;
 using Horde.Server.Agents.Sessions;
 using Horde.Server.Jobs.Graphs;
+using Horde.Server.Jobs.Bisect;
 using Horde.Server.Logs;
 using Horde.Server.Server;
 using Horde.Server.Streams;
@@ -239,6 +242,9 @@ namespace Horde.Server.Jobs
 			[BsonIgnoreIfNull]
 			public UserId? StartedByUserId { get; set; }
 
+			[BsonIgnoreIfNull]
+			public BisectTaskId? StartedByBisectTaskId { get; set; }
+
 			[BsonIgnoreIfNull, BsonElement("StartedByUser")]
 			public string? StartedByUserDeprecated { get; set; }
 
@@ -341,6 +347,7 @@ namespace Horde.Server.Jobs
 				ClonedPreflightChange = options.ClonedPreflightChange ?? 0;
 				PreflightDescription = options.PreflightDescription;
 				StartedByUserId = options.StartedByUserId;
+				StartedByBisectTaskId = options.StartedByBisectTaskId;
 				Priority = options.Priority ?? HordeCommon.Priority.Normal;
 				AutoSubmit = options.AutoSubmit ?? false;
 				UpdateIssues = options.UpdateIssues ?? (options.StartedByUserId == null && ( options.PreflightChange == 0 || options.PreflightChange == null));
@@ -573,6 +580,29 @@ namespace Horde.Server.Jobs
 				await PostLoadAsync(result);
 			}
 			return results.ConvertAll<JobDocument, IJob>(x => x);
+		}
+
+		/// <inheritdoc/>
+		public async IAsyncEnumerable<IJob> FindBisectTaskJobsAsync(BisectTaskId bisectTaskId, bool? running, [EnumeratorCancellation] CancellationToken cancellationToken)
+		{
+			FilterDefinition<JobDocument> filter = Builders<JobDocument>.Filter.Eq(x => x.StartedByBisectTaskId, bisectTaskId);
+			if (running.HasValue)
+			{
+				if (running.Value)
+				{
+					filter &= Builders<JobDocument>.Filter.Gt(x => x.SchedulePriority, 0);
+				}
+				else
+				{
+					filter &= Builders<JobDocument>.Filter.Lte(x => x.SchedulePriority, 0);
+				}
+			}
+
+			await foreach (JobDocument jobDoc in _jobs.Find(filter).ToAsyncEnumerable(cancellationToken))
+			{
+				await PostLoadAsync(jobDoc);
+				yield return jobDoc;
+			}
 		}
 
 		/// <inheritdoc/>

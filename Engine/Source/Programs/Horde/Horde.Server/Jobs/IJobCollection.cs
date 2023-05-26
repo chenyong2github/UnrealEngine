@@ -12,11 +12,11 @@ using Horde.Server.Jobs.Graphs;
 using Horde.Server.Logs;
 using Horde.Server.Streams;
 using Horde.Server.Users;
-using Horde.Server.Utilities;
-using Horde.Common;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using MongoDB.Bson;
+using Horde.Server.Jobs.Bisect;
+using System.Threading;
 
 namespace Horde.Server.Jobs
 {
@@ -25,49 +25,34 @@ namespace Horde.Server.Jobs
 	/// </summary>
 	public class CreateJobOptions
 	{
-		/// <summary>
-		/// Optional changelist to preflight
-		/// </summary>
+		/// <inheritdoc cref="IJob.PreflightChange"/>
 		public int? PreflightChange { get; set; }
 
-		/// <summary>
-		/// Optional cloned preflight changelist
-		/// </summary>
+		/// <inheritdoc cref="IJob.ClonedPreflightChange"/>
 		public int? ClonedPreflightChange { get; set; }
 
-		/// <summary>
-		/// Description for the change being preflighted
-		/// </summary>
+		/// <inheritdoc cref="IJob.PreflightDescription"/>
 		public string? PreflightDescription { get; set; }
 
-		/// <summary>
-		/// User that started the job
-		/// </summary>
+		/// <inheritdoc cref="IJob.StartedByUserId"/>
 		public UserId? StartedByUserId { get; set; }
 
-		/// <summary>
-		/// Priority of the job
-		/// </summary>
+		/// <inheritdoc cref="IJob.StartedByBisectTaskId"/>
+		public BisectTaskId? StartedByBisectTaskId { get; set; }
+
+		/// <inheritdoc cref="IJob.Priority"/>
 		public Priority? Priority { get; set; }
 
-		/// <summary>
-		/// Whether to automatically submit the preflighted change on completion
-		/// </summary>
+		/// <inheritdoc cref="IJob.AutoSubmit"/>
 		public bool? AutoSubmit { get; set; }
 
-		/// <summary>
-		/// Whether to update issues based on the outcome of this job
-		/// </summary>
+		/// <inheritdoc cref="IJob.UpdateIssues"/>
 		public bool? UpdateIssues { get; set; }
 
-		/// <summary>
-		/// Whether to promote issues based on the outcome of this job by default
-		/// </summary>
+		/// <inheritdoc cref="IJob.PromoteIssuesByDefault"/>
 		public bool? PromoteIssuesByDefault { get; set; }
 
-		/// <summary>
-		/// Settings for agents executing the job
-		/// </summary>
+		/// <inheritdoc cref="IJob.JobOptions"/>
 		public JobOptions? JobOptions { get; set; }
 
 		/// <summary>
@@ -75,34 +60,22 @@ namespace Horde.Server.Jobs
 		/// </summary>
 		public List<ChainedJobTemplateConfig> JobTriggers { get; } = new List<ChainedJobTemplateConfig>();
 
-		/// <summary>
-		/// Whether to show badges in UGS for this job
-		/// </summary>
+		/// <inheritdoc cref="IJob.ShowUgsBadges"/>
 		public bool ShowUgsBadges { get; set; }
 
-		/// <summary>
-		/// Whether to show alerts in UGS for this job
-		/// </summary>
+		/// <inheritdoc cref="IJob.ShowUgsAlerts"/>
 		public bool ShowUgsAlerts { get; set; }
 
-		/// <summary>
-		/// Notification channel for this job
-		/// </summary>
+		/// <inheritdoc cref="IJob.NotificationChannel"/>
 		public string? NotificationChannel { get; set; }
 
-		/// <summary>
-		/// Notification channel filter for this job
-		/// </summary>
+		/// <inheritdoc cref="IJob.NotificationChannelFilter"/>
 		public string? NotificationChannelFilter { get; set; }
 
-		/// <summary>
-		/// Arguments for the job
-		/// </summary>
+		/// <inheritdoc cref="IJob.Arguments"/>
 		public List<string> Arguments { get; } = new List<string>();
 
-		/// <summary>
-		/// Environment variables for the job
-		/// </summary>
+		/// <inheritdoc cref="IJob.Environment"/>
 		public Dictionary<string, string> Environment { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
@@ -194,6 +167,15 @@ namespace Horde.Server.Jobs
 		/// <param name="excludeUserJobs">Whether to exclude user jobs from the find</param>
 		/// <returns>List of jobs matching the given criteria</returns>
 		Task<List<IJob>> FindAsync(JobId[]? jobIds = null, StreamId? streamId = null, string? name = null, TemplateId[]? templates = null, int? minChange = null, int? maxChange = null, int? preflightChange = null, bool? preflightOnly = null, UserId? preflightStartedByUser = null, UserId? startedByUser = null, DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null, DateTimeOffset? modifiedBefore = null, DateTimeOffset? modifiedAfter = null, int? index = null, int? count = null, bool consistentRead = true, string? indexHint = null, bool? excludeUserJobs = null);
+
+		/// <summary>
+		/// Searches for jobs matching the given criteria
+		/// </summary>
+		/// <param name="bisectTaskId">The bisect task to find jobs for</param>
+		/// <param name="running">Whether to filter by running jobs</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>List of jobs matching the given criteria</returns>
+		IAsyncEnumerable<IJob> FindBisectTaskJobsAsync(BisectTaskId bisectTaskId, bool? running, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Searches for jobs in a specified stream and templates
