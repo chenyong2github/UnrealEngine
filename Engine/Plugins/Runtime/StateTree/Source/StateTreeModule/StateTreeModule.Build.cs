@@ -20,8 +20,7 @@ namespace UnrealBuildTool.Rules
 					"AIModule",
 					"GameplayTags",
 					"StructUtils",
-					"StructUtilsEngine",
-					"UnrealEd"
+					"StructUtilsEngine"
 				}
 			);
 
@@ -32,6 +31,11 @@ namespace UnrealBuildTool.Rules
 			);
 
 			UnsafeTypeCastWarningLevel = WarningLevel.Error;
+
+			if (Target.bBuildEditor)
+			{
+				PublicDependencyModuleNames.Add("UnrealEd");
+			}
 
 			if (Target.Platform == UnrealTargetPlatform.Win64 && 
 				(Target.Configuration != UnrealTargetConfiguration.Shipping || Target.bBuildEditor))
