@@ -1440,8 +1440,8 @@ namespace
             for (unsigned i = 0; i < target.numOptions; i++)
             {
                 auto& Define = target.options[i];
-                if (!ParseSpirvCrossOptionGlsl(glslOpts, Define))
-                {
+				if (!(ParseSpirvCrossOptionCommon(glslOpts, Define) || ParseSpirvCrossOptionGlsl(glslOpts, Define)))
+				{
 					// UE Change Begin: Improved support for PLS and FBF
 					if (!GatherPLSRemaps(PLSInputs, PLSOutputs, PLSInOuts, Define) &&
 						!GatherFBFRemaps(FBFArgs, Define))
@@ -1464,7 +1464,7 @@ namespace
 						}
 					}
 					// UE Change End: Improved support for PLS and FBF
-                }
+				}
             }
 
             // UE Change Begin: Allow remapping of variables in glsl
@@ -1559,15 +1559,20 @@ namespace
             // UE Change End: Ensure base vertex and instance indices start with zero if source language is HLSL.
 
             // UE Change Begin: Support reflection & overriding Metal options & resource bindings to generate correct code.
-            for (unsigned i = 0; i < target.numOptions; i++)
+			auto commonOpts = mslCompiler->get_common_options();
+			for (unsigned i = 0; i < target.numOptions; i++)
             {
-                ParseSpirvCrossOptionMetal(mslOpts, target.options[i]);
+				if (!ParseSpirvCrossOptionCommon(commonOpts, target.options[i]))
+				{
+					ParseSpirvCrossOptionMetal(mslOpts, target.options[i]);
+				}
             }
             // UE Change End: Support reflection & overriding Metal options & resource bindings to generate correct code.
 
             mslOpts.platform = (target.language == ShadingLanguage::Msl_iOS) ? spirv_cross::CompilerMSL::Options::iOS
                                                                              : spirv_cross::CompilerMSL::Options::macOS;
 
+			mslCompiler->set_common_options(commonOpts);
             mslCompiler->set_msl_options(mslOpts);
 
 			// UE Change Begin: Don't re-assign binding slots. This is done with SPIRV-Reflect.
