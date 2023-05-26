@@ -97,7 +97,7 @@ void FStateTreeModule::ShutdownModule()
 
 	if (StoreClient.IsValid())
 	{
-		StoreClient.Release();
+		StoreClient.Reset();
 	}
 
 	UE::StateTreeTrace::UnregisterGlobalDelegates();
