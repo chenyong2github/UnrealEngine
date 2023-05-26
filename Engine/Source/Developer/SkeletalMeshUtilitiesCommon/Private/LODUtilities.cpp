@@ -2245,18 +2245,24 @@ bool FLODUtilities::UpdateAlternateSkinWeights(
 	VertexIndexSrcToVertexIndexDestMatches.Reserve(VertexNumberSrc);
 	TArray<uint32> VertexIndexToMatchWithPositions;
 
-	auto FindWedgeIndexesUsingVertexIndex = [](const FSkeletalMeshImportData& ImportData, const int32 VertexIndex, TArray<int32>& OutWedgeIndexes)
-	{
-		for (int32 WedgeIndex = 0; WedgeIndex < ImportData.Wedges.Num(); ++WedgeIndex)
-		{
-			const SkeletalMeshImportData::FVertex& Wedge = ImportData.Wedges[WedgeIndex];
-			if (Wedge.VertexIndex == VertexIndex)
-			{
-				OutWedgeIndexes.Add(WedgeIndex);
-			}
-		}
-	};
+	TMultiMap<int32, int32> VertexToSrcWedgeMap;
+	TMultiMap<int32, int32> VertexToDestWedgeMap;
 
+	for (int32 WedgeIndex = 0; WedgeIndex < ImportDataSrc.Wedges.Num(); WedgeIndex++)
+	{
+		const SkeletalMeshImportData::FVertex& Wedge = ImportDataSrc.Wedges[WedgeIndex];
+		VertexToSrcWedgeMap.Add(Wedge.VertexIndex, WedgeIndex);
+	}
+	for (int32 WedgeIndex = 0; WedgeIndex < ImportDataDest.Wedges.Num(); WedgeIndex++)
+	{
+		const SkeletalMeshImportData::FVertex& Wedge = ImportDataDest.Wedges[WedgeIndex];
+		VertexToDestWedgeMap.Add(Wedge.VertexIndex, WedgeIndex);
+	}
+
+	TArray<int32> SrcWedgeIndexes;
+	TArray<int32> DestWedgeIndexes;
+
+	
 	// Match all source vertex with destination vertex
 	for (int32 VertexIndexSrc = 0; VertexIndexSrc < PointNumberSrc; ++VertexIndexSrc)
 	{
@@ -2275,8 +2281,8 @@ bool FLODUtilities::UpdateAlternateSkinWeights(
 			//We have a direct match
 			VertexMatchNameSpace::FVertexMatchResult& VertexMatchDest = VertexIndexSrcToVertexIndexDestMatches.Add(VertexIndexSrc);
 
-			TArray<int32> SrcWedgeIndexes;
-			FindWedgeIndexesUsingVertexIndex(ImportDataSrc, VertexIndexSrc, SrcWedgeIndexes);
+			SrcWedgeIndexes.Reset();
+			VertexToSrcWedgeMap.MultiFind(VertexIndexSrc, SrcWedgeIndexes);
 
 			if (SrcWedgeIndexes.Num() > 0 && SimilarDestinationVertex.Num() > 1)
 			{
@@ -2284,8 +2290,9 @@ bool FLODUtilities::UpdateAlternateSkinWeights(
 				for (int32 MatchDestinationIndex = 0; MatchDestinationIndex < SimilarDestinationVertex.Num(); ++MatchDestinationIndex)
 				{
 					int32 VertexIndexDest = SimilarDestinationVertex[MatchDestinationIndex];
-					TArray<int32> DestWedgeIndexes;
-					FindWedgeIndexesUsingVertexIndex(ImportDataDest, VertexIndexDest, DestWedgeIndexes);
+					DestWedgeIndexes.Reset();
+					VertexToDestWedgeMap.MultiFind(VertexIndexDest, DestWedgeIndexes);
+					
 					for (int32 IndexDest = 0; IndexDest < DestWedgeIndexes.Num(); ++IndexDest)
 					{
 						int32 DestWedgeIndex = DestWedgeIndexes[IndexDest];
@@ -2669,6 +2676,14 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(
 
 	int32 MaxNumInfluences = 0;
 
+	TMultiMap<int32, const SkeletalMeshImportData::FVertInfluence*> VertexToInfluenceMap;
+	for (const SkeletalMeshImportData::FVertInfluence& VertInfluence : ImportedProfileData.SourceModelInfluences)
+	{
+		VertexToInfluenceMap.Add(VertInfluence.VertIndex, &VertInfluence);
+	}
+	TMap<FBoneIndexType, float> WeightForBone;
+	TArray<const SkeletalMeshImportData::FVertInfluence*> FoundInfluences;
+
 	for (int32 VertexInstanceIndex = 0; VertexInstanceIndex < DestinationSoftVertices.Num(); ++VertexInstanceIndex)
 	{
 		int32 SectionIndex = INDEX_NONE;
@@ -2685,21 +2700,22 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(
 		check(VertexIndex >= 0 && VertexIndex <= LODModelDest.MaxImportVertex);
 		FRawSkinWeight& SkinWeight = SkinWeights.AddDefaulted_GetRef();
 
-		TMap<FBoneIndexType, float> WeightForBone;
-		for (const SkeletalMeshImportData::FVertInfluence& VertInfluence : ImportedProfileData.SourceModelInfluences)
+		WeightForBone.Reset();
+		FoundInfluences.Reset();
+		
+		VertexToInfluenceMap.MultiFind(VertexIndex, FoundInfluences);
+		
+		for (const SkeletalMeshImportData::FVertInfluence* VertInfluence : FoundInfluences)
 		{
-			if(VertexIndex == VertInfluence.VertIndex)
+			//Use the section bone map to remap the bone index
+			int32 BoneMapIndex = INDEX_NONE;
+			SectionBoneMap.Find(VertInfluence->BoneIndex, BoneMapIndex);
+			if (BoneMapIndex == INDEX_NONE)
 			{
-				//Use the section bone map to remap the bone index
-				int32 BoneMapIndex = INDEX_NONE;
-				SectionBoneMap.Find(VertInfluence.BoneIndex, BoneMapIndex);
-				if (BoneMapIndex == INDEX_NONE)
-				{
-					//Map to root of the section
-					BoneMapIndex = 0;
-				}
-				WeightForBone.Add(static_cast<FBoneIndexType>(BoneMapIndex), VertInfluence.Weight);
+				//Map to root of the section
+				BoneMapIndex = 0;
 			}
+			WeightForBone.Add(static_cast<FBoneIndexType>(BoneMapIndex), VertInfluence->Weight);
 		}
 
 		using namespace UE::AnimationCore;
@@ -2710,7 +2726,7 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(
 		FBoneIndexType InfluenceBones[MAX_TOTAL_INFLUENCES];
 		float InfluenceWeights[MAX_TOTAL_INFLUENCES];
 		
-		for (auto Kvp : WeightForBone)
+		for (const TTuple<FBoneIndexType, float>& Kvp : WeightForBone)
 		{
 			InfluenceBones[InfluenceBoneCount] = Kvp.Key;
 			InfluenceWeights[InfluenceBoneCount] = Kvp.Value;

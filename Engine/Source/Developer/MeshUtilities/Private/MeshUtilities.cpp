@@ -5775,6 +5775,56 @@ void FMeshUtilities::CalculateOverlappingCorners(const TArray<FVector3f>& InVert
 }
 
 
+struct FHashableSkinWeight
+{
+	FHashableSkinWeight() = default;
+	FHashableSkinWeight(const FHashableSkinWeight&) = default;
+	FHashableSkinWeight(FHashableSkinWeight&&) = default;
+	FHashableSkinWeight(const FRawSkinWeight& InRawWeight, const int32 InNumInfluences) :
+		NumInfluences(InNumInfluences),
+		InfluenceBones(InRawWeight.InfluenceBones),
+		InfluenceWeights(InRawWeight.InfluenceWeights)
+	{
+	}
+	
+	const int32 NumInfluences = 0;
+	const FBoneIndexType *InfluenceBones = nullptr;
+	const uint16 *InfluenceWeights = nullptr;
+};
+
+struct FHashableSkinWeightKeyFuncs : BaseKeyFuncs<TPair<FHashableSkinWeight, int32>, FHashableSkinWeight>
+{
+	static const FHashableSkinWeight& GetSetKey(const TPair<FHashableSkinWeight, int32>& Element)
+	{
+		return Element.Key;
+	}
+
+	static bool Matches(const FHashableSkinWeight& A, const FHashableSkinWeight& B)
+	{
+		for (int32 Index = 0; Index < A.NumInfluences; Index++)
+		{
+			if (A.InfluenceBones[Index] != B.InfluenceBones[Index] ||
+				A.InfluenceWeights[Index] != B.InfluenceWeights[Index])
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	static uint32 GetKeyHash(const FHashableSkinWeight& Key)
+	{
+		uint32 Hash = GetTypeHash(Key.NumInfluences);
+		for (int32 Index = 0; Index < Key.NumInfluences; Index++)
+		{
+			Hash = HashCombineFast(Hash, GetTypeHash(Key.InfluenceBones[Index]));
+			Hash = HashCombineFast(Hash, GetTypeHash(Key.InfluenceWeights[Index]));
+		}
+		return Hash;
+	}
+};
+
+
 void FMeshUtilities::GenerateRuntimeSkinWeightData(
 	const FSkeletalMeshLODModel* ImportedModel,
 	const TArray<FRawSkinWeight>& InRawSkinWeights,
@@ -5797,7 +5847,9 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(
 		const bool b16BitBoneIndices = TargetLODModel.DoSectionsUse16BitBoneIndex();
 		InOutSkinWeightOverrideData.b16BitBoneIndices = b16BitBoneIndices;
 
-		TArray<FRawSkinWeight> UniqueWeights;
+		TMap<FHashableSkinWeight, int32, FDefaultSetAllocator, FHashableSkinWeightKeyFuncs> UniqueWeights;
+		int32 OverrideCount = 0;
+		
 		for (int32 VertexIndex = 0; VertexIndex < TargetVertices.Num(); ++VertexIndex)
 		{
 			// Take each original skin weight from the LOD and compare it with supplied alternative weight data
@@ -5817,24 +5869,12 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(
 
 			if (bIsDifferent)
 			{
-				// Check whether or not there is already an override store which matches the new skin weight data
-				int32 OverrideIndex = UniqueWeights.IndexOfByPredicate([SourceSkinWeight, NumInfluences](const FRawSkinWeight& InOverride)
-				{
-					bool bSame = true;
-					for (int32 InfluenceIndex = 0; InfluenceIndex < NumInfluences; ++InfluenceIndex)
-					{
-						bSame &= (InOverride.InfluenceBones[InfluenceIndex] == SourceSkinWeight.InfluenceBones[InfluenceIndex]);
-						bSame &= (InOverride.InfluenceWeights[InfluenceIndex] == SourceSkinWeight.InfluenceWeights[InfluenceIndex]);
-					}
-
-					return bSame;
-				});
-
+				const int32* OverrideIndexPtr = UniqueWeights.Find({SourceSkinWeight, NumInfluences});
+				
 				// If one hasn't been added yet, create a new one
-				if (OverrideIndex == INDEX_NONE)
+				int32 OverrideIndex;
+				if (OverrideIndexPtr == nullptr)
 				{
-					OverrideIndex = UniqueWeights.Num();
-
 					// When writing out 8-bit weights, we want to collect the resulting deviation from fully normalized
 					// weight sum. Once all values are copied, we alter the first, and most prominent, weight, by the 
 					// deviation value so that we end up with completely normalized 8-bit weights.
@@ -5871,12 +5911,18 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(
 						}
 					}
 
-					UniqueWeights.Add(SourceSkinWeight);
+					OverrideIndex = OverrideCount;
+					UniqueWeights.Add({SourceSkinWeight, NumInfluences}, OverrideCount);
+					OverrideCount++;
 
 					if (!bInUseHighPrecisionWeights)
 					{
 						InOutSkinWeightOverrideData.BoneWeights[FirstWeightOffset] += Accumulated8BitDeviation;
 					}
+				}
+				else
+				{
+					OverrideIndex = *OverrideIndexPtr;
 				}
 
 				InOutSkinWeightOverrideData.VertexIndexToInfluenceOffset.Add(VertexIndex, OverrideIndex);
