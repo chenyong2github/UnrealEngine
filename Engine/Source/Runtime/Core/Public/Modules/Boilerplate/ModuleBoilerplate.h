@@ -22,7 +22,7 @@ class FChunkedFixedUObjectArray;
  * otherwise new T[0] could return a null pointer, as could ::operator new(0), depending
  * on the allocator (e.g. TBB), which is non-standard behaviour.
  * 
- * StdMalloc and StdFree have been added for thirdparty libraries that need malloc. These
+ * StdMalloc, StdRealloc and StdFree have been added for thirdparty libraries that need malloc. These
  * functions will allow for proper memory tracking.
  */
 #if USING_CODE_ANALYSIS
@@ -61,6 +61,7 @@ static_assert(__STDCPP_DEFAULT_NEW_ALIGNMENT__ <= 16, "Expecting 16-byte default
 	void operator delete  ( void* Ptr,             size_t Size, std::align_val_t Alignment, const std::nothrow_t& ) OPERATOR_DELETE_NOTHROW_SPEC { FMemory::Free( Ptr ); } \
 	void operator delete[]( void* Ptr,             size_t Size, std::align_val_t Alignment, const std::nothrow_t& ) OPERATOR_DELETE_NOTHROW_SPEC { FMemory::Free( Ptr ); } \
 	void* StdMalloc( size_t Size, size_t Alignment ) { return FMemory::Malloc( Size ? Size : 1, Alignment ); } \
+	void* StdRealloc( void* Original, size_t Size, size_t Alignment ) { return FMemory::Realloc(Original, Size ? Size : 1, Alignment ); } \
 	void StdFree( void *Ptr ) { FMemory::Free( Ptr ); } 
 
 #else

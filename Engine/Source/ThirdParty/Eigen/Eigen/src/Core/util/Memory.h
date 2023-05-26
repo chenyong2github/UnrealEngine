@@ -23,13 +23,16 @@
 //@UE BEGIN Replacing std::malloc and std::free with macros.	  
 #if EIGEN_UE_OVERRIDE_ALLOCATORS && !FORCE_ANSI_ALLOCATOR
 	void* StdMalloc(std::size_t Size, std::size_t Alignment);
+  void* StdRealloc(void* Original, std::size_t Size, std::size_t Alignment);
 	void StdFree(void *Ptr);
 
-	#define EIGEN_STD_MALLOC(_size)		StdMalloc(_size, EIGEN_DEFAULT_ALIGN_BYTES)
-	#define EIGEN_STD_FREE(_p)			StdFree(_p)
+	#define EIGEN_STD_MALLOC(_size)		            StdMalloc(_size, EIGEN_DEFAULT_ALIGN_BYTES)
+	#define EIGEN_STD_REALLOC(_original, _size)		StdRealloc(_original, _size, EIGEN_DEFAULT_ALIGN_BYTES)
+	#define EIGEN_STD_FREE(_p)			              StdFree(_p)
 #else
-	#define EIGEN_STD_MALLOC(_size)		std::malloc(_size)
-	#define EIGEN_STD_FREE(_p)			std::free(_p)
+	#define EIGEN_STD_MALLOC(_size)		            std::malloc(_size)
+	#define EIGEN_STD_REALLOC(_original, _size)		std::realloc(_original, _size)
+	#define EIGEN_STD_FREE(_p)			              std::free(_p)
 #endif
 //@UE END Replacing std::malloc and std::free with macros.	  
 
@@ -146,7 +149,9 @@ inline void* handmade_aligned_realloc(void* ptr, std::size_t size, std::size_t =
   if (ptr == 0) return handmade_aligned_malloc(size);
   void *original = *(reinterpret_cast<void**>(ptr) - 1);
   std::ptrdiff_t previous_offset = static_cast<char *>(ptr)-static_cast<char *>(original);
-  original = std::realloc(original,size+EIGEN_DEFAULT_ALIGN_BYTES);
+//@UE BEGIN Replacing std::malloc and std::free with macros.	    
+  original = EIGEN_STD_REALLOC(original,size+EIGEN_DEFAULT_ALIGN_BYTES);
+//@UE END Replacing std::malloc and std::free with macros.	    
   if (original == 0) return 0;
   void *aligned = reinterpret_cast<void*>((reinterpret_cast<std::size_t>(original) & ~(std::size_t(EIGEN_DEFAULT_ALIGN_BYTES-1))) + EIGEN_DEFAULT_ALIGN_BYTES);
   void *previous_aligned = static_cast<char *>(original)+previous_offset;
@@ -239,7 +244,9 @@ inline void* aligned_realloc(void *ptr, std::size_t new_size, std::size_t old_si
 
   void *result;
 #if (EIGEN_DEFAULT_ALIGN_BYTES==0) || EIGEN_MALLOC_ALREADY_ALIGNED
-  result = std::realloc(ptr,new_size);
+//@UE BEGIN Replacing std::malloc and std::free with macros.	  	
+  result = EIGEN_STD_REALLOC(ptr,new_size);
+//@UE END Replacing std::malloc and std::free with macros.	  	
 #else
   result = handmade_aligned_realloc(ptr,new_size,old_size);
 #endif
@@ -297,7 +304,9 @@ template<bool Align> inline void* conditional_aligned_realloc(void* ptr, std::si
 
 template<> inline void* conditional_aligned_realloc<false>(void* ptr, std::size_t new_size, std::size_t)
 {
-  return std::realloc(ptr, new_size);
+//@UE BEGIN Replacing std::malloc and std::free with macros.	    
+  return EIGEN_STD_REALLOC(ptr, new_size);
+//@UE END Replacing std::malloc and std::free with macros.	    
 }
 
 /*****************************************************************************
