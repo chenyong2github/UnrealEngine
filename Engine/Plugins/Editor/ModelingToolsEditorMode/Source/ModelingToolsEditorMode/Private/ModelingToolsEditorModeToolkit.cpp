@@ -302,12 +302,10 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 		Commands.BeginConvertMeshesTool,
 
 		Commands.BeginSplitMeshesTool,
-		Commands.BeginPatternTool
+		Commands.BeginPatternTool,
+		
+		Commands.BeginISMEditorTool
 	});
-	if (Commands.BeginISMEditorTool)
-	{
-		TransformPaletteItems.Add(Commands.BeginISMEditorTool);
-	}
 	ToolkitBuilder->AddPalette(
 		MakeShareable( new FToolPalette( Commands.LoadTransformTools.ToSharedRef(), TransformPaletteItems ) ) );
 
@@ -1743,10 +1741,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginLODManagerTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGenerateStaticMeshLODAssetTool);
-		if (Commands.BeginISMEditorTool)
-		{
-			ToolbarBuilder.AddToolBarButton(Commands.BeginISMEditorTool);
-		}
+		ToolbarBuilder.AddToolBarButton(Commands.BeginISMEditorTool);
 	}
 	else if (PaletteIndex == VoxToolsTabName)
 	{
