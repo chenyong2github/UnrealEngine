@@ -5,6 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Tasks/Task.h"
 #include "AssetRegistry/AssetIdentifier.h"
+#include "Styling/SlateTypes.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SPluginAuditBrowser
