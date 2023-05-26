@@ -17,7 +17,6 @@ public class OpenSubdiv : ModuleRules
 
 		string LibPostfix = bDebug ? "_d" : "";
 
-		// @todo mesheditor subdiv: Support other platforms, and older/newer compiler toolchains
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			string LibDirectory = Path.Combine(
@@ -33,30 +32,28 @@ public class OpenSubdiv : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			// @todo: build Mac libraries
-			// string LibDirectory = Path.Combine(
-			// 	DeploymentDirectory,
-			// 	"Mac",
-			// 	"lib");
+			string LibDirectory = Path.Combine(
+				DeploymentDirectory,
+				"Mac",
+				"lib");
 
-			// PublicAdditionalLibraries.Add(
-			// 	Path.Combine(LibDirectory, "libosdCPU" + LibPostfix + ".a"));
-			// PublicAdditionalLibraries.Add(
-			// 	Path.Combine(LibDirectory, "libosdGPU" + LibPostfix + ".a"));
+			PublicAdditionalLibraries.Add(
+				Path.Combine(LibDirectory, "libosdCPU" + LibPostfix + ".a"));
+			PublicAdditionalLibraries.Add(
+				Path.Combine(LibDirectory, "libosdGPU" + LibPostfix + ".a"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			// @todo: build Linux libraries
-			// string LibDirectory = Path.Combine(
-			// 	DeploymentDirectory,
-			// 	"Unix",
-			// 	Target.Architecture,
-			// 	"lib");
+			string LibDirectory = Path.Combine(
+				DeploymentDirectory,
+				"Unix",
+				Target.Architecture.LinuxName,
+				"lib");
 
-			// PublicAdditionalLibraries.Add(
-			// 	Path.Combine(LibDirectory, "libosdCPU" + LibPostfix + ".a"));
-			// PublicAdditionalLibraries.Add(
-			// 	Path.Combine(LibDirectory, "libosdGPU" + LibPostfix + ".a"));
+			// Note that since we no longer support OpenGL on Linux,
+			// OpenSubdiv's library for GPU support is not available.
+			PublicAdditionalLibraries.Add(
+				Path.Combine(LibDirectory, "libosdCPU" + LibPostfix + ".a"));
 		}
 	}
 }
