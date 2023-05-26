@@ -146,12 +146,12 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 	// Cheat functions
 
 	/** Toggles whether we should ignore ability cooldowns. Does nothing in shipping builds */
-	UFUNCTION(exec)
-	virtual void ToggleIgnoreAbilitySystemCooldowns();
+	UE_DEPRECATED(5.3, "Use CVarAbilitySystemIgnoreCooldowns")
+	virtual void ToggleIgnoreAbilitySystemCooldowns() {}
 
 	/** Toggles whether we should ignore ability costs. Does nothing in shipping builds */
-	UFUNCTION(exec)
-	virtual void ToggleIgnoreAbilitySystemCosts();
+	UE_DEPRECATED(5.3, "Use CVarAbilitySystemIgnoreCosts")
+	virtual void ToggleIgnoreAbilitySystemCosts() {}
 
 	/** Returns true if ability cooldowns are ignored, returns false otherwise. Always returns false in shipping builds. */
 	bool ShouldIgnoreCooldowns() const;
@@ -160,17 +160,17 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 	bool ShouldIgnoreCosts() const;
 
 	/** Show all abilities currently assigned to the local player */
-	UFUNCTION(exec)
-	void ListPlayerAbilities();
+	UE_DEPRECATED(5.3, "Use DebugAbilitySystemAbilityListGrantedCommand")
+	void ListPlayerAbilities() {}
 	/** Force server activation of a specific player ability (useful for cheat testing) */
-	UFUNCTION(exec)
-	void ServerActivatePlayerAbility(FString AbilityNameMatch);
+	UE_DEPRECATED(5.3, "Use DebugAbilitySystemAbilityActivateCommand")
+	void ServerActivatePlayerAbility(FString AbilityNameMatch) {}
 	/** Force server deactivation of a specific player ability (useful for cheat testing) */
-	UFUNCTION(exec)
-	void ServerEndPlayerAbility(FString AbilityNameMatch);
+	UE_DEPRECATED(5.3, "Use DebugAbilitySystemAbilityCancelCommand (EndAbility is only for internal usage)")
+	void ServerEndPlayerAbility(FString AbilityNameMatch) {}
 	/** Force server cancellation of a specific player ability (useful for cheat testing) */
-	UFUNCTION(exec)
-	void ServerCancelPlayerAbility(FString AbilityNameMatch);
+	UE_DEPRECATED(5.3, "Use DebugAbilitySystemAbilityCancelCommand")
+	void ServerCancelPlayerAbility(FString AbilityNameMatch) {}
 
 	/** Called when debug strings are available, to write them to the display */
 	DECLARE_MULTICAST_DELEGATE(FOnClientServerDebugAvailable);
@@ -324,9 +324,11 @@ protected:
 	// data used for ability system cheat commands
 
 	/** If we should ignore the cooldowns when activating abilities in the ability system. Set with ToggleIgnoreAbilitySystemCooldowns() */
+	UE_DEPRECATED(5.3, "Use bIgnoreAbilitySystemCooldowns in the AbilitySystemGlobals namespace, controlled by new CVarAbilitySystemIgnoreCooldowns")
 	bool bIgnoreAbilitySystemCooldowns;
 
 	/** If we should ignore the costs when activating abilities in the ability system. Set with ToggleIgnoreAbilitySystemCosts() */
+	UE_DEPRECATED(5.3, "Use bIgnoreAbilitySystemCosts in the AbilitySystemGlobals namespace, controlled by new CVarAbilitySystemIgnoreCosts")
 	bool bIgnoreAbilitySystemCosts;
 #endif // WITH_ABILITY_CHEATS
 
