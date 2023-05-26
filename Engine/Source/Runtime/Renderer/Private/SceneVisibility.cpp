@@ -1643,7 +1643,7 @@ void FRelevancePacket::ComputeRelevance(FDynamicPrimitiveIndexList& DynamicPrimi
 		auto CollectSelectedNaniteInstanceDraws = [](
 			const FPrimitiveSceneInfo& PrimitiveSceneInfo,
 			TArray<Nanite::FInstanceDraw>& OutInstanceDraws,
-			TArray<uint32>* OutHitProxyIDs,
+			TArray<uint32>* OutSelectedInstanceHitProxyIDs,
 			bool bSelectedInstancesOnly
 		)
 		{
@@ -1678,7 +1678,13 @@ void FRelevancePacket::ComputeRelevance(FDynamicPrimitiveIndexList& DynamicPrimi
 							if (!bSelected)
 							{
 								continue;
-								}
+							}
+							
+							if (OutSelectedInstanceHitProxyIDs != nullptr)
+							{
+								const uint32 HitProxyID = HitProxyColor.ToPackedABGR();
+								OutSelectedInstanceHitProxyIDs->Add(HitProxyID);
+							}
 						}
 					}
 				}
@@ -1689,12 +1695,9 @@ void FRelevancePacket::ComputeRelevance(FDynamicPrimitiveIndexList& DynamicPrimi
 						0u
 					}
 				);
-
-				if (OutHitProxyIDs != nullptr)
-				{
-					OutHitProxyIDs->Append(PrimitiveSceneInfo.NaniteHitProxyIds);
-				}
 			}
+
+
 		};
 
 		if (bEditorVisualizeLevelInstanceRelevance)
