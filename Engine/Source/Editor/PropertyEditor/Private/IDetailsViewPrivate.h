@@ -144,10 +144,15 @@ public:
 	*/
 	virtual void RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode) = 0;
 
-	/** Mark node as animating, useful if animating during behaviors that trigger widget reconstruction */
-	virtual void MarkNodeAnimating(TSharedPtr<FPropertyNode> InNode, float InAnimationDuration) = 0;
+	/**
+	* Mark node as animating, useful if animating during behaviors that trigger widget reconstruction.
+	* @param InNode				The slate property node to animate.
+	* @param InAnimationDuration	The animation duration in seconds.
+	* @param InAnimationBatchId	(Optional) A batch id to enable simultaneous (and performant) animation of multiple rows.
+	*/
+	virtual void MarkNodeAnimating(TSharedPtr<FPropertyNode> InNode, float InAnimationDuration, TOptional<FGuid> InAnimationBatchId = {}) = 0;
 
-	/** Returns true if node is animating, currently we only keep track of the last animated node */
+	/** @return true if node is animating */
 	virtual bool IsNodeAnimating(TSharedPtr<FPropertyNode> InNode) = 0;
 
 	/** Column width accessibility */

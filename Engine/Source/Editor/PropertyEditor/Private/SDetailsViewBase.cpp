@@ -2,31 +2,25 @@
 
 #include "SDetailsViewBase.h"
 
+#include "Algo/AllOf.h"
+#include "Algo/AnyOf.h"
 #include "Engine/Engine.h"
 #include "GameFramework/Actor.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
-#include "Settings/EditorExperimentalSettings.h"
-#include "UserInterface/PropertyEditor/SPropertyEditorEditInline.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Input/SSearchBox.h"
-
-#include "CategoryPropertyNode.h"
+#include "Framework/Application/SlateApplication.h"
 #include "DetailCategoryBuilderImpl.h"
 #include "DetailLayoutBuilderImpl.h"
 #include "DetailLayoutHelpers.h"
-#include "DetailPropertyRow.h"
-#include "EditConditionParser.h"
 #include "Editor.h"
-#include "EditorConfigSubsystem.h"
 #include "IDetailCustomization.h"
-#include "ObjectEditorUtils.h"
 #include "ObjectPropertyNode.h"
+#include "PropertyPermissionList.h"
 #include "ScopedTransaction.h"
 #include "SDetailNameArea.h"
-#include "SDetailsView.h"
-#include "PropertyPermissionList.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 
 SDetailsViewBase::SDetailsViewBase() :
@@ -1546,30 +1540,102 @@ void SDetailsViewBase::RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode)
 	}
 }
 
-void SDetailsViewBase::MarkNodeAnimating(TSharedPtr<FPropertyNode> InNode, float InAnimationDuration)
+void SDetailsViewBase::MarkNodeAnimating(TSharedPtr<FPropertyNode> InNode, float InAnimationDuration, TOptional<FGuid> InAnimationBatchId)
 {
 	if (InNode.IsValid() && InAnimationDuration > 0.0f)
 	{
-		CurrentlyAnimatingNodePath = FPropertyNode::CreatePropertyPath(InNode.ToSharedRef());
-		GEditor->GetTimerManager()->ClearTimer(AnimateNodeTimer);
-		GEditor->GetTimerManager()->SetTimer(AnimateNodeTimer, FTimerDelegate::CreateSP(this, &SDetailsViewBase::HandleNodeAnimationComplete), InAnimationDuration, false);
+		TSharedPtr<FPropertyPath> NodePropertyPath = FPropertyNode::CreatePropertyPath(InNode.ToSharedRef());
+		
+		// Try finding existing, ignore Batch Id
+		FAnimatingNodeCollection* AnimatingNode = CurrentlyAnimatingNodeCollections.FindByPredicate(
+			[NodePropertyPath](const FAnimatingNodeCollection& AnimatingNode)
+			{
+				return Algo::AnyOf(AnimatingNode.NodePaths, [NodePropertyPath](const TSharedPtr<FPropertyPath>& NodePath)
+				{
+					return FPropertyPath::AreEqual(NodePath.ToSharedRef(), NodePropertyPath.ToSharedRef());
+				});
+			});
+
+		// If this node is part of a batch animation, let it play out (don't reset it)
+		if (AnimatingNode)
+		{
+			if (AnimatingNode->NodePaths.Num() > 1
+				|| (InAnimationBatchId.IsSet() && AnimatingNode->BatchId == InAnimationBatchId))
+			{
+				return;
+			}
+		}
+		
+		// If not found, but batch id found, add it to that batch
+		if (!AnimatingNode && InAnimationBatchId.IsSet())
+		{
+			AnimatingNode = CurrentlyAnimatingNodeCollections.FindByPredicate(
+				[InAnimationBatchId](const FAnimatingNodeCollection& AnimatingNode)
+				{
+					return AnimatingNode.BatchId == InAnimationBatchId;
+				});
+			
+			if (AnimatingNode != nullptr)
+			{
+				AnimatingNode->NodePaths.Add(NodePropertyPath);
+
+				// Timer Handle already in progress, so no need to clear/set below
+				return;
+			}
+		}
+
+		// Otherwise add it
+		if (AnimatingNode == nullptr)
+		{
+			AnimatingNode = &CurrentlyAnimatingNodeCollections.Add_GetRef({{NodePropertyPath}});
+			if (InAnimationBatchId.IsSet())
+			{
+				AnimatingNode->BatchId = InAnimationBatchId.GetValue();
+			}
+		}
+		
+		GEditor->GetTimerManager()->ClearTimer(AnimatingNode->NodeTimer);
+		GEditor->GetTimerManager()->SetTimer(AnimatingNode->NodeTimer, FTimerDelegate::CreateSP(this, &SDetailsViewBase::HandleNodeAnimationComplete, AnimatingNode), InAnimationDuration, false);
 	}
 }
 
 bool SDetailsViewBase::IsNodeAnimating(TSharedPtr<FPropertyNode> InNode)
 {
-	if (CurrentlyAnimatingNodePath.IsValid() && InNode.IsValid())
+	if (!InNode.IsValid())
 	{
-		TSharedRef<FPropertyPath> InNodePath = FPropertyNode::CreatePropertyPath(InNode.ToSharedRef());
-		return FPropertyPath::AreEqual(CurrentlyAnimatingNodePath.ToSharedRef(), InNodePath);
+		return false;
 	}
 
-	return false;
+	TSharedRef<FPropertyPath> InNodePath = FPropertyNode::CreatePropertyPath(InNode.ToSharedRef());
+	return CurrentlyAnimatingNodeCollections.ContainsByPredicate(
+		[InNodePath](const FAnimatingNodeCollection& AnimatingNode)
+		{
+			return Algo::AnyOf(AnimatingNode.NodePaths, [InNodePath](const TSharedPtr<FPropertyPath>& NodePath)
+			{
+				return FPropertyPath::AreEqual(NodePath.ToSharedRef(), InNodePath);
+			});
+		});
 }
 
-void SDetailsViewBase::HandleNodeAnimationComplete()
+bool SDetailsViewBase::FAnimatingNodeCollection::IsValid() const
 {
-	CurrentlyAnimatingNodePath = nullptr;
+	return Algo::AllOf(NodePaths,
+			[](const TSharedPtr<FPropertyPath>& InNodePath)
+			{
+				return InNodePath.IsValid();
+			});
+}
+
+void SDetailsViewBase::HandleNodeAnimationComplete(FAnimatingNodeCollection* InAnimatedNode)
+{
+	if (InAnimatedNode)
+	{
+		GEditor->GetTimerManager()->ClearTimer(InAnimatedNode->NodeTimer);
+		CurrentlyAnimatingNodeCollections.RemoveAll([InAnimatedNode](FAnimatingNodeCollection& AnimatedNode)
+		{
+			return AnimatedNode == *InAnimatedNode;		
+		});
+	}
 }
 
 void SDetailsViewBase::FilterRootNode(const TSharedPtr<FComplexPropertyNode>& RootNode)

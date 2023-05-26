@@ -6,16 +6,15 @@
 #include "AssetThumbnail.h"
 #include "DetailColumnSizeData.h"
 #include "DetailFilter.h"
-#include "DetailTreeNode.h"
 #include "DetailsViewConfig.h"
+#include "DetailTreeNode.h"
 #include "Framework/Commands/UICommandList.h"
 #include "IDetailsView.h"
 #include "IDetailsViewPrivate.h"
-#include "IPropertyUtilities.h"
 #include "Input/Reply.h"
+#include "IPropertyUtilities.h"
 #include "Layout/Visibility.h"
 #include "Misc/Attribute.h"
-#include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
 #include "PropertyNode.h"
 #include "PropertyPath.h"
@@ -144,7 +143,7 @@ public:
 	virtual const FCustomPropertyTypeLayoutMap& GetCustomPropertyTypeLayoutMap() const { return InstancedTypeToLayoutMap; }
 	virtual void SaveExpandedItems( TSharedRef<FPropertyNode> StartNode ) override;
 	virtual void RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode) override;
-	virtual void MarkNodeAnimating(TSharedPtr<FPropertyNode> InNode, float InAnimationDuration) override;
+	virtual void MarkNodeAnimating(TSharedPtr<FPropertyNode> InNode, float InAnimationDuration, TOptional<FGuid> InAnimationBatchId) override;
 	virtual bool IsNodeAnimating(TSharedPtr<FPropertyNode> InNode) override;
 	virtual FDetailColumnSizeData& GetColumnSizeData() override { return ColumnSizeData; }
 	virtual bool IsFavoritingEnabled() const override { return DetailsViewArgs.bAllowFavoriteSystem; }
@@ -193,8 +192,55 @@ protected:
 	 */
 	void SetColorPropertyFromColorPicker(FLinearColor NewColor);
 
-	/** Called when node animation completes */
-	void HandleNodeAnimationComplete();
+	/** Contains one or more nodes being animated by a single timer. */
+	struct FAnimatingNodeCollection
+	{
+		TArray<TSharedPtr<FPropertyPath>> NodePaths;
+		FTimerHandle NodeTimer;
+
+		/** Optionally identify by an id, where multiple nodes can be part of the same animation. */
+		FGuid BatchId;
+
+		/** Get validity of this AnimatingNode, determined by it's node path. */
+		bool IsValid() const;
+
+		bool operator==(const FAnimatingNodeCollection& Other) const
+		{
+			if (NodePaths.Num() != Other.NodePaths.Num())
+			{
+				return false;
+			}
+
+			if (BatchId.IsValid() && BatchId == Other.BatchId)
+			{
+				return true;
+			}
+
+			for (int32 Idx = 0; Idx < NodePaths.Num(); ++Idx)
+			{
+				if (!NodePaths[Idx].IsValid()
+					|| !Other.NodePaths[Idx].IsValid())
+				{
+					continue;
+				}
+
+				if (!FPropertyPath::AreEqual(NodePaths[Idx].ToSharedRef(), Other.NodePaths[Idx].ToSharedRef()))
+				{
+					return false;					
+				}				
+			}
+			
+			return true;
+		}
+
+		bool operator!=(const FAnimatingNodeCollection& Other) const
+		{
+			return !(*this == Other);
+		}
+	};
+
+	/** Called when a node collection animation completes */
+	void HandleNodeAnimationComplete(FAnimatingNodeCollection* InAnimatedNode);
 
 	/** Updates the property map for access when customizing the details view.  Generates default layout for properties */
 	void UpdatePropertyMaps();
@@ -422,10 +468,8 @@ protected:
 	TSharedPtr<IDetailPropertyExtensionHandler> ExtensionHandler;
 	/** The tree node that is currently highlighted, may be none. */
 	TWeakPtr<FDetailTreeNode> CurrentlyHighlightedNode;
-	/** The property node whose widget-equivalent should be animating, may be none. */
-	TSharedPtr<FPropertyPath> CurrentlyAnimatingNodePath;
-	/** Timer for that current node's widget animation duration. */
-	FTimerHandle AnimateNodeTimer;
+	/** The list of nodes whose widgets should be animating. */
+	TArray<FAnimatingNodeCollection> CurrentlyAnimatingNodeCollections;
 
 	/** Current set of expanded detail nodes (by path) that should be saved when the details panel closes */
 	FStringPrefixTree ExpandedDetailNodes;
