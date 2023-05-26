@@ -655,7 +655,7 @@ void UIpConnection::HandleSocketSendResult(const FSocketSendResult& Result, ISoc
 			const double Time = Driver->GetElapsedTime();
 			if (SocketError_SendDelayStartTime == 0.0)
 			{
-				UE_LOG(LogNet, Log, TEXT("UIpConnection::HandleSocketSendResult: Socket->SendTo failed with error %i (%s). %s Connection beginning close timeout (Timeout = %d)."),
+				UE_LOG(LogNet, Log, TEXT("UIpConnection::HandleSocketSendResult: Socket->SendTo failed with error %i (%s). %s Connection beginning close timeout (Timeout = %f)."),
 					static_cast<int32>(Result.Error),
 					SocketSubsystem->GetSocketError(Result.Error),
 					*Describe(),
@@ -708,7 +708,7 @@ void UIpConnection::HandleSocketRecvError(class UNetDriver* NetDriver, const FSt
 		const double Time = NetDriver->GetElapsedTime();
 		if (SocketError_RecvDelayStartTime == 0.0)
 		{
-			UE_LOG(LogNet, Log, TEXT("%s. %s Connection beginning close timeout (Timeout = %d)."),
+			UE_LOG(LogNet, Log, TEXT("%s. %s Connection beginning close timeout (Timeout = %f)."),
 				*ErrorString,
 				*Describe(),
 				SocketErrorDisconnectDelay);

@@ -222,7 +222,7 @@ void LanczosCG(
 	T beta = FGenericPlatformMath::Sqrt(T(dotProduct(b, b)));
 	if (beta < res) 
 	{
-		UE_LOG(LogChaos, VeryVerbose, TEXT("Lanczos residual = %d. Lanczos converged in 0 iterations."), beta)
+		UE_LOG(LogChaos, VeryVerbose, TEXT("Lanczos residual = %f. Lanczos converged in 0 iterations."), beta)
 		scale(x, T(0));
 		return;
 	}

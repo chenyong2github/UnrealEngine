@@ -169,7 +169,7 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	{
 		if (Value < MinValue)
 		{
-			UE_LOG(LogCADTranslator, Warning, TEXT("%s value (%f) of tessellation parameters is smaller than the minimal value %d. It's value is modified to respect the limit"), ParameterName, Value, MinValue);
+			UE_LOG(LogCADTranslator, Warning, TEXT("%s value (%f) of tessellation parameters is smaller than the minimal value %f. It's value is modified to respect the limit"), ParameterName, Value, MinValue);
 			return MinValue;
 		}
 		return Value;

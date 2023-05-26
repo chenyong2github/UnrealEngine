@@ -569,7 +569,7 @@ void UUsdAssetCache2::FCachedAssetInfo::Serialize(FArchive& Ar, UObject* Owner)
 		*AssetName,
 		*Hash,
 		SavedAssetInfoVersion,
-		CurrentStorageType,
+		int(CurrentStorageType),
 		SizeOnDiskInBytes,
 		SizeOnMemoryInBytes,
 		BulkData.GetBulkDataSize(),
@@ -900,7 +900,7 @@ UObject* UUsdAssetCache2::GetCachedAsset(const FString& Hash)
 			*ObjectInfo->AssetName,
 			NewAsset ? *NewAsset->GetPathName() : TEXT("nullptr"),
 			*ObjectInfo->Hash,
-			ObjectInfo->CurrentStorageType,
+			int(ObjectInfo->CurrentStorageType),
 			BulkDataCopy.Num() / 1000000.0
 		);
 
@@ -1319,7 +1319,7 @@ void UUsdAssetCache2::RefreshStorage()
 				bAssetFitsInUnreferenced,
 				Info.Referencers.Num(),
 				Info.Dependencies.Num(),
-				Info.CurrentStorageType
+				int(Info.CurrentStorageType)
 			);
 
 			switch (Info.CurrentStorageType)

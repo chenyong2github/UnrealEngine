@@ -221,7 +221,7 @@ int32 GetValidPatchMode(UDMXEntityFixturePatch* InPatch)
 	UDMXEntityFixtureType* FixtureType = InPatch->GetFixtureType();
 	if (!IsValid(FixtureType))
 	{
-		UE_LOG(DMXLibraryTrackEditorLog, Warning, TEXT("%S: Fixture Patch has null parent type"), __FUNCTION__);
+		UE_LOG(DMXLibraryTrackEditorLog, Warning, TEXT("%hs: Fixture Patch has null parent type"), __FUNCTION__);
 		return INDEX_NONE;
 	}
 
@@ -245,7 +245,7 @@ int32 GetValidPatchMode(UDMXEntityFixturePatch* InPatch)
 
 	if (ValidActiveMode == INDEX_NONE)
 	{
-		UE_LOG(DMXLibraryTrackEditorLog, Warning, TEXT("%S: No active mode set in %s. Patch will not be recorded."), __FUNCTION__, *InPatch->Name);
+		UE_LOG(DMXLibraryTrackEditorLog, Warning, TEXT("%hs: No active mode set in %s. Patch will not be recorded."), __FUNCTION__, *InPatch->Name);
 	}
 
 	return ValidActiveMode;

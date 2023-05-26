@@ -376,7 +376,7 @@ void ULyraReplicationGraph::InitGlobalActorClassSettings()
 		{
 			if (UClass* StaticActorClass = ActorClassSettings.GetStaticActorClass())
 			{
-				UE_LOG(LogLyraRepGraph, Log, TEXT("ActorClassSettings -- AddClassRepInfo - %s :: %i"), *StaticActorClass->GetName(), ActorClassSettings.ClassNodeMapping);
+				UE_LOG(LogLyraRepGraph, Log, TEXT("ActorClassSettings -- AddClassRepInfo - %s :: %i"), *StaticActorClass->GetName(), int(ActorClassSettings.ClassNodeMapping));
 				AddClassRepInfo(StaticActorClass, ActorClassSettings.ClassNodeMapping);
 			}
 		}

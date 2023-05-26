@@ -89,7 +89,7 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 		{
 			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(InViewport))
 			{
-				UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), DisplayClusterProjectionStrings::cfg::VIOSO::ChannelName);
+				UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::ChannelName);
 			}
 
 			return false;
@@ -130,7 +130,7 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 	{
 		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(InViewport))
 		{
-			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), DisplayClusterProjectionStrings::cfg::VIOSO::File);
+			UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::File);
 		}
 
 		return false;

@@ -166,7 +166,7 @@ void FOpenXRPoseManager::RegisterCapturedSpaceHistories(const TMap<XrSpace, TArr
 		}
 		else
 		{
-			UE_LOG(LogXRScribePoseManager, Warning, TEXT("Unable to process space history for captured space: %p"), CapturedLocatedSpace);
+			UE_LOG(LogXRScribePoseManager, Warning, TEXT("Unable to process space history for captured space: %p"), reinterpret_cast<const void*>(CapturedLocatedSpace));
 		}
 
 	}

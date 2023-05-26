@@ -1281,7 +1281,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 	
 	if (InterchangeImportSettings.PipelineStacks.Num() == 0)
 	{
-		UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot import file, there is no pipeline stack define for %s import type. File path %s"), bImportScene ? TEXT("scene") : TEXT("content"));
+		UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot import file, there is no pipeline stack define for %s import type"), bImportScene ? TEXT("scene") : TEXT("content"));
 		return EarlyExit();
 	}
 	

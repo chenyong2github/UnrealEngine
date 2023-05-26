@@ -1167,7 +1167,7 @@ EPixelFormat FNiagaraUtilities::BufferFormatToPixelFormat(ENiagaraGpuBufferForma
 		case ENiagaraGpuBufferFormat::HalfFloat:				return EPixelFormat::PF_R16F;
 		case ENiagaraGpuBufferFormat::UnsignedNormalizedByte:	return EPixelFormat::PF_R8;
 	}
-	UE_LOG(LogNiagara, Error, TEXT("NiagaraFormat(%d) is invalid, returning float format"), NiagaraFormat);
+	UE_LOG(LogNiagara, Error, TEXT("NiagaraFormat(%d) is invalid, returning float format"), int(NiagaraFormat));
 	return EPixelFormat::PF_R32_FLOAT;
 }
 
@@ -1179,7 +1179,7 @@ ETextureRenderTargetFormat FNiagaraUtilities::BufferFormatToRenderTargetFormat(E
 		case ENiagaraGpuBufferFormat::HalfFloat:				return ETextureRenderTargetFormat::RTF_R16f;
 		case ENiagaraGpuBufferFormat::UnsignedNormalizedByte:	return ETextureRenderTargetFormat::RTF_R8;
 	}
-	UE_LOG(LogNiagara, Error, TEXT("NiagaraFormat(%d) is invalid, returning float format"), NiagaraFormat);
+	UE_LOG(LogNiagara, Error, TEXT("NiagaraFormat(%d) is invalid, returning float format"), int(NiagaraFormat));
 	return ETextureRenderTargetFormat::RTF_R32f;
 }
 

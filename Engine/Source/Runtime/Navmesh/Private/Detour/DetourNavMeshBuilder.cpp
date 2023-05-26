@@ -532,7 +532,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		//check value will fit in to an unsigned short
 		if (value > std::numeric_limits<unsigned short>::max())
 		{
-			UE_LOG(LogDetour, Error, TEXT("dtCreateNavMeshData: %s is too large to fit in an unsigned short!"), *text);
+			UE_LOG(LogDetour, Error, TEXT("dtCreateNavMeshData: %s is too large to fit in an unsigned short!"), text);
 
 			bAllValuesSet = false;
 			headerVal = 0;

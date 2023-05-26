@@ -392,7 +392,7 @@ void USocialManager::CreateParty(const FOnlinePartyTypeId& PartyTypeId, const FP
 {
 	if (const USocialParty* ExistingParty = GetPartyInternal(PartyTypeId, true))
 	{
-		UE_LOG(LogParty, Warning, TEXT("Existing party [%s] of type [%d] found when trying to create a new one. Cannot create new one until the existing one has been left."), *ExistingParty->GetPartyId().ToDebugString());
+		UE_LOG(LogParty, Warning, TEXT("Existing party [%s] of type [%d] found when trying to create a new one. Cannot create new one until the existing one has been left."), *ExistingParty->GetPartyId().ToDebugString(), PartyTypeId.GetValue());
 		OnCreatePartyComplete.ExecuteIfBound(ECreatePartyCompletionResult::AlreadyInPartyOfSpecifiedType);
 	}
 	else

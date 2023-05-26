@@ -1808,7 +1808,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 							}
 							else
 							{
-								UE_LOG(LogPluginManager, Warning, TEXT("PAK file (%s) could not be mounted because MountPak is not bound"), *PakPath)
+								UE_LOG(LogPluginManager, Warning, TEXT("PAK file (%s) could not be mounted because MountPak is not bound"), *PakPath);
 							}
 						}
 					}

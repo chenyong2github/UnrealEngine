@@ -150,7 +150,7 @@ static FAutoConsoleCommand GFlushAudioCacheCommand(
 		static constexpr uint64 NumBytesToFree = TNumericLimits<uint64>::Max() / 2;
 		uint64 NumBytesFreed = IStreamingManager::Get().GetAudioStreamingManager().TrimMemory(NumBytesToFree);
 
-		UE_LOG(LogAudioStreamCaching, Display, TEXT("Audio Cache Flushed! %d megabytes free."), NumBytesFreed / (1024.0 * 1024.0));
+		UE_LOG(LogAudioStreamCaching, Display, TEXT("Audio Cache Flushed! %f megabytes free."), NumBytesFreed / (1024.0 * 1024.0));
 	})
 );
 

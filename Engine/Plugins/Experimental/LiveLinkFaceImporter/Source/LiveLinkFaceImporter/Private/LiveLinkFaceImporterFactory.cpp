@@ -262,7 +262,7 @@ UObject* ULiveLinkFaceImporterFactory::FactoryCreateText(UClass* InClass, UObjec
 				}
 				else
 				{
-					UE_LOG(LogLiveLinkFaceImporter, Error, TEXT("Line %d contained a malformed timecode '%s' (Should be of format hh:mm:ss:frame.zzz). Skipping!"), LineCount);
+					UE_LOG(LogLiveLinkFaceImporter, Error, TEXT("Line %d contained a malformed timecode (Should be of format hh:mm:ss:frame.zzz). Skipping!"), LineCount);
 					break;
 				}
 			}

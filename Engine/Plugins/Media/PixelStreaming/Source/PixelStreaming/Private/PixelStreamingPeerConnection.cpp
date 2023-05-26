@@ -334,7 +334,7 @@ void FPixelStreamingPeerConnection::ReceiveOffer(const FString& Sdp, const VoidC
 	}
 	else
 	{
-		UE_LOG(LogPixelStreaming, Error, TEXT("Failed to parse offer: %s"), Error.description.c_str());
+		UE_LOG(LogPixelStreaming, Error, TEXT("Failed to parse offer: %hs"), Error.description.c_str());
 		if (ErrorCallback)
 		{
 			ErrorCallback(ToString(Error.description));
@@ -352,7 +352,7 @@ void FPixelStreamingPeerConnection::ReceiveAnswer(const FString& Sdp, const Void
 	}
 	else
 	{
-		UE_LOG(LogPixelStreaming, Error, TEXT("Failed to parse answer: %s"), Error.description.c_str());
+		UE_LOG(LogPixelStreaming, Error, TEXT("Failed to parse answer: %hs"), Error.description.c_str());
 		if (ErrorCallback)
 		{
 			ErrorCallback(ToString(Error.description));
@@ -597,7 +597,7 @@ void FPixelStreamingPeerConnection::AddRemoteIceCandidate(const FString& SdpMid,
 	std::unique_ptr<webrtc::IceCandidateInterface> Candidate(webrtc::CreateIceCandidate(UE::PixelStreaming::ToString(SdpMid), SdpMLineIndex, UE::PixelStreaming::ToString(Sdp), &Error));
 	if (!Candidate)
 	{
-		UE_LOG(LogPixelStreaming, Error, TEXT("Failed to create ICE candicate: %s"), Error.description.c_str());
+		UE_LOG(LogPixelStreaming, Error, TEXT("Failed to create ICE candicate: %hs"), Error.description.c_str());
 		return;
 	}
 

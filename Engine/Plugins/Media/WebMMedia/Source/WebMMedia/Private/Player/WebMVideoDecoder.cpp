@@ -90,7 +90,7 @@ bool FWebMVideoDecoder::Initialize(const char* CodecName)
 	}
 	else
 	{
-		UE_LOG(LogWebMMedia, Display, TEXT("Unsupported video codec: %s"), CodecName);
+		UE_LOG(LogWebMMedia, Display, TEXT("Unsupported video codec: %hs"), CodecName);
 		return false;
 	}
 

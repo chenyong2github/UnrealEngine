@@ -1914,8 +1914,8 @@ void FVulkanTexture::Move(FVulkanDevice& InDevice, FVulkanCommandListContext& Co
 	TotalSize += Size;
 	if (GVulkanLogDefrag)
 	{
-		UE_LOG(LogVulkanRHI, Display, TEXT("Moving Surface, %p <<-- %p    :::: %s\n"), NewAllocation.Offset, 42, *GetName().ToString());
-		UE_LOG(LogVulkanRHI, Display, TEXT("Moved %8.4fkb %8.4fkb   TB %p  :: IMG %p   %-40s\n"), Size / (1024.f), TotalSize / (1024.f), this, Image, *GetName().ToString());
+		UE_LOG(LogVulkanRHI, Display, TEXT("Moving Surface, %d <<-- %d    :::: %s\n"), NewAllocation.Offset, 42, *GetName().ToString());
+		UE_LOG(LogVulkanRHI, Display, TEXT("Moved %8.4fkb %8.4fkb   TB %p  :: IMG %p   %-40s\n"), Size / (1024.f), TotalSize / (1024.f), this, reinterpret_cast<const void*>(Image), *GetName().ToString());
 	}
 
 	// Move is used for defrag, which uses layouts stored in the queue

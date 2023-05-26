@@ -1847,7 +1847,7 @@ void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 		{
 			if (FNiagaraUtilities::LogVerboseWarnings())
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying!"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+				UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying!"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), int(PoolingMethod));
 			}
 			if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
 			{
@@ -1861,7 +1861,7 @@ void UNiagaraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 		{
 			if (FNiagaraUtilities::LogVerboseWarnings())
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world it nullptr!"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+				UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::OnComponentDestroyed: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world it nullptr!"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), int(PoolingMethod));
 			}
 		}
 
@@ -1953,7 +1953,7 @@ void UNiagaraComponent::BeginDestroy()
 		{
 			if (FNiagaraUtilities::LogVerboseWarnings())
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying!"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+				UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying!"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), int(PoolingMethod));
 			}
 
 			if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
@@ -1968,7 +1968,7 @@ void UNiagaraComponent::BeginDestroy()
 		{
 			if (FNiagaraUtilities::LogVerboseWarnings())
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world is nullptr!"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), PoolingMethod);
+				UE_LOG(LogNiagara, Warning, TEXT("UNiagaraComponent::BeginDestroy: Component (%p - %s) Asset (%s) is still pooled (%d) while destroying and world is nullptr!"), this, *GetFullNameSafe(this), *GetFullNameSafe(Asset), int(PoolingMethod));
 			}
 		}
 

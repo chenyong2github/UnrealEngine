@@ -367,7 +367,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 
 					if (!ClassPackage)
 					{
-						UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Failed to load package for class '%s'"), **ClassToResave.ToString());
+						UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Failed to load package for class '%s'"), *ClassToResave.ToString());
 						return false;
 					}
 

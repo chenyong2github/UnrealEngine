@@ -977,7 +977,7 @@ TArray<float> USynthComponentMonoWaveTable::GetKeyFrameValuesForTable(float Tabl
 	else if (CachedPreset->WaveTable.Num() <= TableIndex || TableIndex < 0.0f)
 	{
 		// Index out of range
-		UE_LOG(LogSynthesis, Warning, TEXT("Table index: %i is out of bounds! (Number of Curves: %i), returning empty TArray")
+		UE_LOG(LogSynthesis, Warning, TEXT("Table index: %f is out of bounds! (Number of Curves: %i), returning empty TArray")
 		, TableIndex, CachedPreset->WaveTable.Num());
 		return Values;
 	}

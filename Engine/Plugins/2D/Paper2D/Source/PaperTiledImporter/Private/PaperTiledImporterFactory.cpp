@@ -76,7 +76,7 @@ bool ParseScalarFields(FRequiredScalarField<ScalarType>* FieldArray, int32 Array
 		{
 			if (Field.Value < Field.MinValue)
 			{
-				TILED_IMPORT_ERROR(TEXT("Failed to parse '%s'.  Invalid value for '%s' (%d but must be at least %d)"), *NameForErrors, *Field.Key, Field.Value, Field.MinValue);
+				TILED_IMPORT_ERROR(TEXT("Failed to parse '%s'.  Invalid value for '%s' (%d but must be at least %d)"), *NameForErrors, *Field.Key, int(Field.Value), int(Field.MinValue));
 				bSuccessfullyParsed = false;
 				Field.Value = Field.MinValue;
 			}

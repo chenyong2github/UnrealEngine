@@ -3829,7 +3829,7 @@ void FDefaultInstallBundleManager::StartSessionPersistentStatTracking(const FStr
 				}
 				else
 				{
-					LOG_INSTALL_BUNDLE_MAN(Warning, TEXT("Could not start bundle persistent stat tracking for %s with an accurate AnalyticsID! We could not find an entry for it in the IndividualBundleStates even though it was a required bundle to track! Starting with generic Analytics ID to hope for the best!"));
+					LOG_INSTALL_BUNDLE_MAN(Warning, TEXT("Could not start bundle persistent stat tracking with an accurate AnalyticsID! We could not find an entry for it in the IndividualBundleStates even though it was a required bundle to track! Starting with generic Analytics ID to hope for the best!"));
 					StartBundlePersistentStatTracking(QueuedRequest);
 				}
 			}

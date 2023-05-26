@@ -3702,7 +3702,7 @@ private:
 			{
 				UE_LOG(LogParticles, Warning,
 					TEXT("%s|%s|0x%016p [ReleaseSimulationResources] LEAKING %d tiles FXSystem=0x%016x"),
-					*Component->GetName(), *Component->Template->GetName(), (PTRINT)this, AllocatedTiles.Num(), (PTRINT)FXSystem);
+					*Component->GetName(), *Component->Template->GetName(), this, AllocatedTiles.Num(), (PTRINT)FXSystem);
 			}
 		}
 

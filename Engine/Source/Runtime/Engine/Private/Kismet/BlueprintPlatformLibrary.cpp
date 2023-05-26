@@ -163,7 +163,7 @@ void UBlueprintPlatformLibrary::CancelLocalNotificationById(int32 NotificationId
 		return;
 	}
 	
-	UE_LOG(LogBlueprintUserMessages, Log, TEXT("Canceling notification %f"), NotificationId);
+	UE_LOG(LogBlueprintUserMessages, Log, TEXT("Canceling notification %d"), NotificationId);
 	
 	platformService->CancelLocalNotification(NotificationId);
 }

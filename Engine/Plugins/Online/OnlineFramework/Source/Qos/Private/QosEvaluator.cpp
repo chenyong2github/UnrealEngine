@@ -143,7 +143,7 @@ bool UQosEvaluator::AreAllRegionsComplete()
 
 void UQosEvaluator::OnEchoManyCompleted(FIcmpEchoManyCompleteResult FinalResult, int32 NumTestsPerRegion, const FOnQosSearchComplete& InQosSearchCompleteDelegate)
 {
-	UE_LOG(LogQos, Log, TEXT("UQosEvaluator OnEchoManyCompleted; result status=%d"), FinalResult.Status);
+	UE_LOG(LogQos, Log, TEXT("UQosEvaluator OnEchoManyCompleted; result status=%d"), int(FinalResult.Status));
 
 	// Copy our aggregated ping results to the appropriate datacenter result sets
 
@@ -187,7 +187,7 @@ void UQosEvaluator::OnEchoManyCompleted(FIcmpEchoManyCompleteResult FinalResult,
 			}
 
 			UE_LOG(LogQos, VeryVerbose, TEXT("Got %d/%d ping results (%d reachable) for datacenter (%s, %s); status=%d"),
-				Region.PingResults.Num(), NumTestsPerRegion, Region.NumResponses, *Region.Definition.Id, *Region.Definition.RegionId, Region.Result);
+						 Region.PingResults.Num(), NumTestsPerRegion, Region.NumResponses, *Region.Definition.Id, *Region.Definition.RegionId, int(Region.Result));
 		}
 		else
 		{
@@ -235,7 +235,7 @@ void UQosEvaluator::OnEchoManyCompleted(FIcmpEchoManyCompleteResult FinalResult,
 		break;
 	};
 
-	UE_LOG(LogQos, Verbose, TEXT("UQosEvaluator OnEchoManyCompleted; Qos result=%d"), CompletionResult);
+	UE_LOG(LogQos, Verbose, TEXT("UQosEvaluator OnEchoManyCompleted; Qos result=%d"), int(CompletionResult));
 }
 
 void UQosEvaluator::StartAnalytics()

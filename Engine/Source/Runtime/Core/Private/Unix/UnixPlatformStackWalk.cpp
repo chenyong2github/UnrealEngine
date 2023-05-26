@@ -286,7 +286,7 @@ namespace
 			{
 				if (CheckingEnsureTime)
 				{
-					UE_LOG(LogCore, Log, TEXT("0x%016llx Dladdr: %lfms"), (DladdrEndTime - StartTime) * 1000);
+					UE_LOG(LogCore, Log, TEXT("0x%016llx Dladdr: %lfms"), reinterpret_cast<void*>(ProgramCounter), (DladdrEndTime - StartTime) * 1000);
 				}
 
 				// If we cannot find the module name or the module base return early

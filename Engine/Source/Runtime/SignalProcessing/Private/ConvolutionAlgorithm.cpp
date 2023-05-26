@@ -85,7 +85,7 @@ namespace Audio
 
 				if (!ConvolutionAlgorithm.IsValid())
 				{
-					UE_LOG(LogSignalProcessing, Warning, TEXT("IConvolutionAlgorithmFactory \"%s\" failed to create IConvolutionAlgorithm despite supporting ConvolutionReverb Settings."));
+					UE_LOG(LogSignalProcessing, Warning, TEXT("IConvolutionAlgorithmFactory failed to create IConvolutionAlgorithm despite supporting ConvolutionReverb Settings."));
 				}
 				else
 				{

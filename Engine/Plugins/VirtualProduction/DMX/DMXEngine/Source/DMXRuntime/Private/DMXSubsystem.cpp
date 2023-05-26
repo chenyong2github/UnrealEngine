@@ -442,7 +442,7 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, TMap
 
 	if (InFixturePatch == nullptr)
 	{
-		UE_LOG(DMXSubsystemLog, Warning, TEXT("%S: FixturePatch is null"), __FUNCTION__);
+		UE_LOG(DMXSubsystemLog, Warning, TEXT("%hs: FixturePatch is null"), __FUNCTION__);
 
 		return false;
 	}

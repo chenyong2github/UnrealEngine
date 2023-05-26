@@ -1745,7 +1745,7 @@ namespace GroomBinding_Transfer
 			{
 				if ( TargetMeshLODData.GetNumSections() == 0 )
 				{
-					UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built for LOD %d. TargetMeshLODData.GetNumSections() == 0."));
+					UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built for LOD %d. TargetMeshLODData.GetNumSections() == 0."), TargetLODIndex);
 					return false;
 				}
 
@@ -1759,7 +1759,7 @@ namespace GroomBinding_Transfer
 				const bool bIsGridPopulated = BuildGrid(SourceLODIndex, LocalSourceSectionId, LocalTargetSectionId, ChannelIndex, Grid);
 				if (!bIsGridPopulated)
 				{
-					UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built for LOD %d. The source skeletal mesh is missing or has invalid UVs."));
+					UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built for LOD %d. The source skeletal mesh is missing or has invalid UVs."), TargetLODIndex);
 					return false;
 				}
 			}

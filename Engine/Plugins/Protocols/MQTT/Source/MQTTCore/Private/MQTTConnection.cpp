@@ -567,7 +567,7 @@ void FMQTTConnection::HandleMessage(const EMQTTPacketType InMessageType, const T
 		
 	default:
 		{
-			UE_LOG(LogMQTTCore, Error, TEXT("Unhandled, unknown message type: %d (%s)"), InMessageType, MQTT::GetMQTTPacketTypeName(InMessageType));
+			UE_LOG(LogMQTTCore, Error, TEXT("Unhandled, unknown message type: %d (%s)"), int(InMessageType), MQTT::GetMQTTPacketTypeName(InMessageType));
 		}
 	}
 }

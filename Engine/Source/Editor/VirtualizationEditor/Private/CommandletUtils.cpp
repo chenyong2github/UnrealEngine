@@ -83,7 +83,7 @@ bool PullPayloadsThreaded(TConstArrayView<FIoHash> PayloadIds, int32 BatchSize, 
 			const int32 CurrentCompletedPayloads = NumCompletedPayloads;
 			const float Progress = ((float)CurrentCompletedPayloads / (float)NumPayloads) * 100.0f;
 
-			UE_LOG(LogVirtualization, Display, TEXT("Cached %d/%d (%.1f%%)"), 
+			UE_LOG(LogVirtualization, Display, TEXT("%s Cached %d/%d (%.1f%%)"), 
 				ProgressString != nullptr? ProgressString : TEXT("Processed"),
 				CurrentCompletedPayloads, NumPayloads, Progress);
 

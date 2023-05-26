@@ -26,7 +26,7 @@ void UEditorGizmoRegistryCategoryEntry::RegisterGizmoType(UInteractiveGizmoBuild
 	if (GizmoTypes.Contains(InGizmoBuilder))
 	{
 		UE_LOG(LogEditorInteractiveGizmoRegistry, Warning,
-			TEXT("%s gizmo builder type %s has already been registered!"), *InGizmoBuilder->GetPathName());
+			TEXT("gizmo builder type %s has already been registered!"), *InGizmoBuilder->GetPathName());
 		return;
 	}
 

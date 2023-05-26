@@ -695,7 +695,7 @@ void FCustomizableObjectInstanceDescriptor::ReloadParameters()
 	
 	if (!CustomizableObject->GetPrivate()->GetModel())
 	{
-		UE_LOG(LogMutable, Warning, TEXT("[ReloadParametersFromObject] No model in object [%s], generated empty parameters for [%s] "), *CustomizableObject->GetName());
+		UE_LOG(LogMutable, Warning, TEXT("[ReloadParametersFromObject] No model in object [%s], generated empty parameters for [%s] "), *CustomizableObject->GetName(), *CustomizableObject->GetName());
 		return;
 	}
 

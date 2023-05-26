@@ -84,18 +84,18 @@ FLiveLinkVRPNSource::FLiveLinkVRPNSource(const FLiveLinkVRPNConnectionSettings& 
 										}
 										break;
 
-		default:						UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Device type %d is invalid - this should never happen!"), DeviceType);
+	default:						UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Device type %d is invalid - this should never happen!"), int(DeviceType));
 										break;
 	}
 
 	if (VRPNDevice.RawPointer != nullptr)
 	{
 		DeferredStartDelegateHandle = FCoreDelegates::OnEndFrame.AddRaw(this, &FLiveLinkVRPNSource::Start);
-		UE_LOG(LogLiveLinkVRPN, Log, TEXT("LiveLinkVRPNSource: Opened device %s as type %s (%d)"), *DeviceName, *DeviceTypeToString(DeviceType), DeviceType);
+		UE_LOG(LogLiveLinkVRPN, Log, TEXT("LiveLinkVRPNSource: Opened device %s as type %s (%d)"), *DeviceName, *DeviceTypeToString(DeviceType), int(DeviceType));
 	}
 	else
 	{
-		UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Failed to create device or register change handler for device %s as type %s (%d)"), *DeviceName, *DeviceTypeToString(DeviceType), DeviceType);
+		UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Failed to create device or register change handler for device %s as type %s (%d)"), *DeviceName, *DeviceTypeToString(DeviceType), int(DeviceType));
 	}
 }
 
@@ -149,17 +149,17 @@ FLiveLinkVRPNSource::~FLiveLinkVRPNSource()
 											delete VRPNDevice.Tracker;
 											break;
 
-			default:						UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Delete device type %d is invalid - this should never happen!"), DeviceType);
+		  default:						UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Delete device type %d is invalid - this should never happen!"), int(DeviceType));
 											break;
 		}
 
 		if (bUnregisterFailed)
 		{
-			UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Failed to unregister change handler for device %s as type %s (%d)"), *DeviceName, *DeviceTypeToString(DeviceType), DeviceType);
+			UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Failed to unregister change handler for device %s as type %s (%d)"), *DeviceName, *DeviceTypeToString(DeviceType), int(DeviceType));
 		}
 
 		VRPNDevice.RawPointer = nullptr;
-		UE_LOG(LogLiveLinkVRPN, Log, TEXT("LiveLinkVRPNSource: Closed device %s as type %s (%d)"), *DeviceName, *DeviceTypeToString(DeviceType), DeviceType);
+		UE_LOG(LogLiveLinkVRPN, Log, TEXT("LiveLinkVRPNSource: Closed device %s as type %s (%d)"), *DeviceName, *DeviceTypeToString(DeviceType), int(DeviceType));
 	}
 }
 
@@ -316,7 +316,7 @@ uint32 FLiveLinkVRPNSource::Run()
 				case EVRPNDeviceType::Tracker:	VRPNDevice.Tracker->mainloop();
 												break;
 
-				default:						UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Run device type %d is invalid - this should never happen!"), DeviceType);
+				default:						UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Run device type %d is invalid - this should never happen!"), int(DeviceType));
 												break;
 			}
 		}
@@ -365,7 +365,7 @@ void FLiveLinkVRPNSource::Send(FLiveLinkFrameDataStruct* FrameDataToSend, int32 
 				case EVRPNDeviceType::Tracker:	UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Send device type Tracker should not have any properties - this should never happen!"));
 												break;
 
-				default:						UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Send invalid device type %d - this should never happen!"), DeviceType);
+				default:						UE_LOG(LogLiveLinkVRPN, Error, TEXT("LiveLinkVRPNSource: Send invalid device type %d - this should never happen!"), int(DeviceType));
 												break;
 			}
 

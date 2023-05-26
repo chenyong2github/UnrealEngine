@@ -1337,7 +1337,7 @@ namespace UE::RivermaxCore::Private
 		const ERHIInterfaceType RHIType = RHIGetInterfaceType();
 		if (RHIType != ERHIInterfaceType::D3D12)
 		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. RHI is %d but only Dx12 is supported at the moment."), RHIType);
+			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. RHI is %d but only Dx12 is supported at the moment."), int(RHIType));
 			return false;
 		}
 

@@ -580,7 +580,7 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 
 		if (InGroom->GetPrimaryAssetId() != InBinding->Groom->GetPrimaryAssetId())
 		{
-			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%) does not reference the same groom asset (BindingAsset's groom:%s vs. Groom:%s). The binding asset will not be used."), 
+			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%s) does not reference the same groom asset (BindingAsset's groom:%s vs. Groom:%s). The binding asset will not be used."), 
 				*InBinding->GetName(),
 				*InBinding->Groom->GetName(),
 				*InGroom->GetName());

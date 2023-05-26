@@ -2180,7 +2180,7 @@ void FHttpCacheStore::GetCacheValueAsync(
 				const uint64 RawSize = Object["RawSize"].AsUInt64(MAX_uint64);
 				if (RawHash.IsZero() || RawSize == MAX_uint64)
 				{
-					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid value for %s from '%'"),
+					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid value for %s from '%s'"),
 						*Domain, *WriteToString<96>(Key), *Name);
 					OnComplete({Name, Key, {}, UserData, EStatus::Error});
 					return;

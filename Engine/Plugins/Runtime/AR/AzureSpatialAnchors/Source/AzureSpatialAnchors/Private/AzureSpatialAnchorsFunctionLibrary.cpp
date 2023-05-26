@@ -660,7 +660,7 @@ public:
 				{
 					if (InWatcherIdentifier == Data->WatcherID)
 					{
-						UE_LOG(LogAzureSpatialAnchors, Log, TEXT("LoadCloudAnchorByID watcher % has completed"), InWatcherIdentifier);
+						UE_LOG(LogAzureSpatialAnchors, Log, TEXT("LoadCloudAnchorByID watcher %d has completed"), InWatcherIdentifier);
 
 						if (InWasCanceled)
 						{

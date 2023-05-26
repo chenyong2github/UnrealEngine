@@ -884,7 +884,7 @@ bool FLayoutUV::FChartPacker::FindBestPacking(const TArray< FVector2f >& TexCoor
 	FString OutputHash = FMD5::HashBytes((uint8*)Charts.GetData(), Charts.Num() * Charts.GetTypeSize());
 
 	// Increase verbosity level to use this for packing results validation when modifying code
-	UE_LOG(LogLayoutUV, Verbose, TEXT("FindBestPacking (Input Data MD5: %s, Output Data MD5: %s, LayoutVersion: %d, Efficiency: %0.2f %%)"), *InputHash, *OutputHash, LayoutVersion, LastEfficiency*100);
+	UE_LOG(LogLayoutUV, Verbose, TEXT("FindBestPacking (Input Data MD5: %s, Output Data MD5: %s, LayoutVersion: %d, Efficiency: %0.2f %%)"), *InputHash, *OutputHash, int(LayoutVersion), LastEfficiency*100);
 
 	static TAtomic<uint64> Count(0);
 	static TAtomic<uint64> TotalCycles(0);

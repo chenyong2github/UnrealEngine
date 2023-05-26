@@ -199,7 +199,7 @@ bool FExrReader::ReadHeaderData(FILE* FileHandle)
 		}
 		catch (...)
 		{
-			UE_LOG(LogExrReaderGpu, Error, TEXT("Issue reading attribute from EXR: %s"), AttributeName);
+			UE_LOG(LogExrReaderGpu, Error, TEXT("Issue reading attribute from EXR: %hs"), AttributeName);
 			return false;
 		}
 	}
@@ -212,7 +212,7 @@ bool FExrReader::ReadLineOrTileOffsets(FILE* FileHandle, ELineOrder LineOrder, T
 	// LineOrder is currently unused but we might need to take that into account as exr scanlines can go from top to bottom and vice versa.
 	if (LineOrder != INCREASING_Y)
 	{
-		UE_LOG(LogExrReaderGpu, Error, TEXT("Unsupported Line order in EXR: %s"), LineOrder);
+		UE_LOG(LogExrReaderGpu, Error, TEXT("Unsupported Line order in EXR: %d"), LineOrder);
 		return false;
 	}
 

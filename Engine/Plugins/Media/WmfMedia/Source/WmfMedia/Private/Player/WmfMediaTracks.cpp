@@ -377,7 +377,7 @@ void FWmfMediaTracks::Shutdown()
 
 void FWmfMediaTracks::SetSessionState(EMediaState InState)
 {
-	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FWmfMediaTracks::SetSessionState %d"), InState);
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FWmfMediaTracks::SetSessionState %d"), int(InState));
 	SessionState = InState;
 }
 

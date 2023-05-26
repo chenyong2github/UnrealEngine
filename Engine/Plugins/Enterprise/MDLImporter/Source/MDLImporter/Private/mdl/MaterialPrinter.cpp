@@ -590,7 +590,7 @@ namespace Mdl
 					else
 					{
 						// when the compiler removes unresolved resources, this is never reached
-						UE_LOG(LogMDLImporter, Error, TEXT("[MaterialPrinter] unresolved texture: '%s'"), *MdlPath);
+						UE_LOG(LogMDLImporter, Error, TEXT("[MaterialPrinter] unresolved texture: '%hs'"), MdlPath);
 					}
 				}
 				TraverseResult << TEXT(")");

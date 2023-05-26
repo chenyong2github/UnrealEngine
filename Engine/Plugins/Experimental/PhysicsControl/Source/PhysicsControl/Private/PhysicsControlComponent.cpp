@@ -158,7 +158,7 @@ void UPhysicsControlComponent::UpdateControls(float DeltaTime)
 			BodyInstance->SetInstanceSimulatePhysics(true, true, true);
 			break;
 		default:
-			UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Invalid movement type %d"), BodyModifier.MovementType);
+			UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Invalid movement type %d"), int(BodyModifier.MovementType));
 			break;
 		}
 		// We always overwrite the physics blend weight, since the functions above can still modify

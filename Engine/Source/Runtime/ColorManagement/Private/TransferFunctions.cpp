@@ -33,7 +33,7 @@ FORCEINLINE TFunction<float(float)> GetTransferFunction(EEncoding SourceEncoding
 		break;
 	}
 
-	UE_LOG(LogTransferFunctions, Warning, TEXT("Failed to find valid transfer function for enum value %d."), SourceEncoding);
+	UE_LOG(LogTransferFunctions, Warning, TEXT("Failed to find valid transfer function for enum value %d."), int(SourceEncoding));
 
 	return nullptr;
 }

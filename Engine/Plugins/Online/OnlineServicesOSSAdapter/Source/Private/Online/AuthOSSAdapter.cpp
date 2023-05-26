@@ -226,7 +226,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthOSSAdapter::Login(FAuthLogin::Params&& Par
 				}
 				else
 				{
-					UE_LOG(LogOnlineServices, Warning, TEXT("[FAuthOSSAdapter::Login][%s] Failure: Failed to login to OSSv1 %s identity interface. Error %s"), *GetSubsystem().GetSubsystemName().ToString(), *Error);
+					UE_LOG(LogOnlineServices, Warning, TEXT("[FAuthOSSAdapter::Login][%s] Failure: Failed to login to OSSv1 identity interface. Error %s"), *GetSubsystem().GetSubsystemName().ToString(), *Error);
 					FOnlineError V2Error = Errors::Unknown(); // TODO: V1 to V2 error conversion/error from string conversion
 					Op->SetError(MoveTemp(V2Error));
 				}

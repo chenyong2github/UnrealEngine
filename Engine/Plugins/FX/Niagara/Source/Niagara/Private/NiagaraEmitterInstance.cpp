@@ -1700,13 +1700,13 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	if (Data.GetDestinationData() == nullptr)
 	{
 		UE_LOG(LogNiagara, Error, TEXT("NiagaraEmitterInstance: DestinationData is nullptr."));
-		UE_LOG(LogNiagara, Error, TEXT("ExecutionState(%d) TickCount(%d) TotalSpawnedParticles(%d) ParentSystemInstance(%p)"), ExecutionState, TickCount, TotalSpawnedParticles, ParentSystemInstance);
+		UE_LOG(LogNiagara, Error, TEXT("ExecutionState(%d) TickCount(%d) TotalSpawnedParticles(%d) ParentSystemInstance(%p)"), int(ExecutionState), TickCount, TotalSpawnedParticles, ParentSystemInstance);
 		if (ParentSystemInstance)
 		{
 			USceneComponent* AttachComponent = ParentSystemInstance->GetAttachComponent();
 			UNiagaraSystem* NiagaraSystem = ParentSystemInstance->GetSystem();
 			UE_LOG(LogNiagara, Error, TEXT("SystemInstanceState(%d) AttachComponent(%p=%s) NiagaraSystem(%p=%s)"),
-				ParentSystemInstance->SystemInstanceState,
+				int(ParentSystemInstance->SystemInstanceState),
 				AttachComponent, *GetNameSafe(AttachComponent),
 				NiagaraSystem, *GetNameSafe(NiagaraSystem)
 			);

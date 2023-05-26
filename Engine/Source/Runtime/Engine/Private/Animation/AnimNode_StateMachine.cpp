@@ -1340,12 +1340,12 @@ bool FAnimNode_StateMachine::RequestTransitionEvent(const FTransitionEvent& InTr
 	}
 	else if (InTransitionEvent.OverwriteMode == ETransitionRequestOverwriteMode::Ignore)
 	{
-		UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("Ignoring new '%s' request (Machine %s, Transition %d)"), *InTransitionEvent.EventName.ToString(), *GetMachineDescription()->MachineName.ToString());
+		UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("Ignoring new '%s' request (Machine %s)"), *InTransitionEvent.EventName.ToString(), *GetMachineDescription()->MachineName.ToString());
 		return false;
 	}
 	else if (InTransitionEvent.OverwriteMode == ETransitionRequestOverwriteMode::Overwrite)
 	{
-		UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("Overwriting '%s' request (Machine %s, Transition %d)"), *InTransitionEvent.EventName.ToString(), *GetMachineDescription()->MachineName.ToString());
+		UE_LOG(LogAnimTransitionRequests, Verbose, TEXT("Overwriting '%s' request (Machine %s)"), *InTransitionEvent.EventName.ToString(), *GetMachineDescription()->MachineName.ToString());
 		QueuedTransitionEvents[ExistingEventIndex] = InTransitionEvent;
 		return true;
 	}

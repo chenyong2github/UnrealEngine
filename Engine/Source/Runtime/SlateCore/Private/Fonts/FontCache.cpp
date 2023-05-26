@@ -143,7 +143,7 @@ FShapedGlyphSequence::FShapedGlyphSequence(TArray<FShapedGlyphEntry> InGlyphsToR
 				CurrentGlyph.bIsVisible,
 				CurrentGlyph.NumCharactersInGlyph,
 				CurrentGlyph.NumGraphemeClustersInGlyph,
-				CurrentGlyph.TextDirection);
+				int(CurrentGlyph.TextDirection));
 
 #if WITH_FREETYPE
 			// Track font info if possible

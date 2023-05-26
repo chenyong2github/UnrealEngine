@@ -141,7 +141,7 @@ namespace Audio
 
 			if (!FFTAlgorithm.IsValid())
 			{
-				UE_LOG(LogSignalProcessing, Warning, TEXT("IFFTAlgorithmFactory \"%s\" failed to create IFFTAlgorithm despite supporting FFT Settings."));
+				UE_LOG(LogSignalProcessing, Warning, TEXT("IFFTAlgorithmFactory failed to create IFFTAlgorithm despite supporting FFT Settings."));
 			}
 			else
 			{

@@ -1176,7 +1176,7 @@ void UDataRegistry::HandleAcquireResult(const FDataRegistrySourceAcquireRequest&
 		}
 		else
 		{
-			UE_LOG(LogDataRegistry, Error, TEXT("HandleAcquireResult called for %s in invalid state %d!"), *Request.Lookup.ToString(), FoundCache->AcquireStatus);
+			UE_LOG(LogDataRegistry, Error, TEXT("HandleAcquireResult called for %s in invalid state %d!"), *Request.Lookup.ToString(), int(FoundCache->AcquireStatus));
 		}
 	}
 	else 

@@ -36,7 +36,7 @@ void LogPackageError(FArchive* Ar, const TCHAR* DebugName)
 {
 	if (Ar == nullptr)
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Could not find the package file: '%s'"), *DebugName);
+		UE_LOG(LogVirtualization, Error, TEXT("Could not find the package file: '%s'"), DebugName);
 		return;
 	}
 
@@ -62,7 +62,7 @@ void LogPackageError(FArchive* Ar, const TCHAR* DebugName)
 		return;
 	}
 
-	UE_LOG(LogVirtualization, Error, TEXT("Package is tool old (version %d) to have a package trailer (version %d): '%s'"), PackageVersion, EUnrealEngineObjectUE5Version::PAYLOAD_TOC, DebugName);
+	UE_LOG(LogVirtualization, Error, TEXT("Package is tool old (version %d) to have a package trailer (version %d): '%s'"), PackageVersion, int(EUnrealEngineObjectUE5Version::PAYLOAD_TOC), DebugName);
 }
 
 void LogPackageError(const FPackagePath& Path)

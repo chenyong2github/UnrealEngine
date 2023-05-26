@@ -393,7 +393,7 @@ int32 UFixConflictingLocalizationKeysCommandlet::Main(const FString& Params)
 		// Did we get a valid package name?
 		if (!FPackageName::IsValidLongPackageName(ConflictingSourceParts[0]))
 		{
-			UE_LOG(LogFixConflictingLocalizationKeys, Warning, TEXT("Skipping '%s' as '%s' isn't a valid package name"), *ConflictingSourceParts[0]);
+			UE_LOG(LogFixConflictingLocalizationKeys, Warning, TEXT("Skipping '%s' as it isn't a valid package name"), *ConflictingSourceParts[0]);
 			continue;
 		}
 

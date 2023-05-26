@@ -581,7 +581,7 @@ void FExrImgMediaReaderGpu::CreateSampleConverterCallback(TSharedPtr<FExrMediaTe
 				// Sanity check.
 				if (!MipBuffers.Contains(MipToUpscale))
 				{
-					UE_LOG(LogImgMedia, Warning, TEXT("Requested mip could not be found %s"), MipToUpscale);
+					UE_LOG(LogImgMedia, Warning, TEXT("Requested mip could not be found %d"), MipToUpscale);
 				}
 
 				FStructuredBufferPoolItemSharedPtr BufferDataToUpscale = MipBuffers[MipToUpscale];

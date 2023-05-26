@@ -96,7 +96,7 @@ void FMassEntityManager::Initialize()
 {
 	if (bInitialized)
 	{
-		UE_LOG(LogMass, Log, TEXT("Calling %s on already initialized entity manager owned by %hs")
+		UE_LOG(LogMass, Log, TEXT("Calling %hs on already initialized entity manager owned by %s")
 			, __FUNCTION__, *GetNameSafe(Owner.Get()));
 		return;
 	}
@@ -175,7 +175,7 @@ void FMassEntityManager::Deinitialize()
 	}
 	else
 	{
-		UE_LOG(LogMass, Log, TEXT("Calling %hs on already deinitialized entity manager owned by %hs")
+		UE_LOG(LogMass, Log, TEXT("Calling %hs on already deinitialized entity manager owned by %s")
 			, __FUNCTION__, *GetNameSafe(Owner.Get()));
 	}
 }

@@ -177,7 +177,7 @@ bool OculusAudioSpatializationAudioMixer::Tick(float DeltaTime)
 			Result = OVRA_CALL(ovrAudio_SetPropagationQuality)(Context, settings->PropagationQuality);
 			if (Result != ovrSuccess)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Bad Propagation Quality setting %d!"), settings->PropagationQuality);
+				UE_LOG(LogTemp, Warning, TEXT("Bad Propagation Quality setting %f!"), settings->PropagationQuality);
 			}
 		}
 

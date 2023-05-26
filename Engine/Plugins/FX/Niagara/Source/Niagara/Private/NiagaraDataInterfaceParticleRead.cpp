@@ -1795,7 +1795,7 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 				ValueComponentNames = IDComponentNames;
 				break;
 			default:
-				UE_LOG(LogNiagara, Error, TEXT("Unknown component type %d while generating function %s"), ComponentType, *FunctionInfo.InstanceName);
+				UE_LOG(LogNiagara, Error, TEXT("Unknown component type %d while generating function %s"), int(ComponentType), *FunctionInfo.InstanceName);
 				return false;
 		}
 

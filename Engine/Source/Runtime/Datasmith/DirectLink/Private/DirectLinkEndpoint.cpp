@@ -167,7 +167,7 @@ FEndpoint::FEndpoint(const FString& InName)
 	ECommunicationStatus ComStatus = ValidateCommunicationStatus();
 	if (ComStatus != ECommunicationStatus::NoIssue)
 	{
-		UE_LOG(LogDirectLinkNet, Error, TEXT("Endpoint '%s': Unable to start communication (error code:%d):"), *SharedState.NiceName, ComStatus);
+		UE_LOG(LogDirectLinkNet, Error, TEXT("Endpoint '%s': Unable to start communication (error code:%d):"), *SharedState.NiceName, int(ComStatus));
 		return;
 	}
 

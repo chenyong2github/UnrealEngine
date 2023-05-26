@@ -866,6 +866,7 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 					else
 					{
 						UE_LOG(LogDerivedDataCacheCommandlet, Verbose, TEXT("Skipping soft reference '%s': %s, %s "), 
+							*SoftRefName.ToString(),									 
 							PackagesToProcess.Contains(SoftRefName) ? TEXT("ALREADY QUEUED") : TEXT("NOT QUEUED"),
 							ProcessedPackages.Contains(SoftRefName) ? TEXT("ALREADY PROCESSED") : TEXT("NOT PROCESSED")
 						);

@@ -107,7 +107,7 @@ FUniqueTechSoftModelFile LoadModelFileFromFile(const A3DImport& Import, A3DStatu
 	catch (...)
 	{
 #ifndef CADKERNEL_DEV
-		UE_LOG(LogCADInterfaces, Warning, TEXT("Failed to load %s. An exception is thrown."), *Import.GetFilePath());
+		UE_LOG(LogCADInterfaces, Warning, TEXT("Failed to load %hs. An exception is thrown."), Import.GetFilePath());
 #endif
 		return FUniqueTechSoftModelFile();
 	}

@@ -253,7 +253,7 @@ bool CompileShader_VectorVM(const FShaderCompilerInput& Input, FShaderCompilerOu
 
 	if (ShaderSource)
 	{
-		UE_LOG(LogVectorVMShaderCompiler, Warning, TEXT("%s"), (const char*)ShaderSource);
+		UE_LOG(LogVectorVMShaderCompiler, Warning, TEXT("%hs"), (const char*)ShaderSource);
 		free(ShaderSource);
 	}
 	if (VMCompilationOutput.Errors.Len() != 0)

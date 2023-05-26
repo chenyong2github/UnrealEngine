@@ -529,7 +529,7 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 			break;
 
 		default:
-			UE_LOG(LogVisual, Warning, TEXT("Unhandled element type: %s"), ElementToDraw->GetType());
+			UE_LOG(LogVisual, Warning, TEXT("Unhandled element type: %d"), int(ElementToDraw->GetType()));
 		}
 	}
 }

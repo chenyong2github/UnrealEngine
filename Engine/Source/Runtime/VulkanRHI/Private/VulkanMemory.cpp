@@ -3632,7 +3632,7 @@ namespace VulkanRHI
 			DumpRenderTargetPoolMemory(*GLog);
 			GLog->Flush();
 
-			UE_LOG(LogVulkanRHI, Fatal, TEXT("Out of %s Memory, Requested%.2fKB MemTypeIndex=%d\n"), MemoryType, AllocationSize, MemoryTypeIndex);
+			UE_LOG(LogVulkanRHI, Fatal, TEXT("Out of %s Memory, Requested%.2fKB MemTypeIndex=%d\n"), MemoryType, float(AllocationSize), MemoryTypeIndex);
 		}
 	}
 

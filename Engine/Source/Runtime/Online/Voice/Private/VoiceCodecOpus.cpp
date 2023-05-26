@@ -32,7 +32,7 @@ THIRD_PARTY_INCLUDES_END
 #define OPUS_CHECK_CTL(Category, CTL) \
 	if (ErrCode != OPUS_OK) \
 	{ \
-		UE_LOG(Category, Warning, TEXT("Failure to get CTL %s"), #CTL); \
+		UE_LOG(Category, Warning, TEXT("Failure to get CTL %hs"), #CTL); \
 	}
 
 /**

@@ -160,13 +160,13 @@ void FXRTrackingSystemBase::GetMotionControllerData(UObject* WorldContext, const
 
 	if (!MotionControllerData.bValid)
 	{
-		UE_LOG(LogHMD, Warning, TEXT("GetMotionControllerData could not find matching UMotionControllerComponent, Hand: %d"), Hand);
+		UE_LOG(LogHMD, Warning, TEXT("GetMotionControllerData could not find matching UMotionControllerComponent, Hand: %d"), int(Hand));
 	}
 }
 
 bool FXRTrackingSystemBase::GetCurrentInteractionProfile(const EControllerHand Hand, FString& InteractionProfile)
 {
-	UE_LOG(LogHMD, Warning, TEXT("GetCurrentInteractionProfile for %i failed because the current VR tracking system does not support it!"), Hand);
+	UE_LOG(LogHMD, Warning, TEXT("GetCurrentInteractionProfile for %i failed because the current VR tracking system does not support it!"), int(Hand));
 
 	return false;
 }

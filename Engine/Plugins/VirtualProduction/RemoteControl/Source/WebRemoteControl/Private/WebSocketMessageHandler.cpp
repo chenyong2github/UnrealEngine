@@ -692,7 +692,7 @@ void FWebSocketMessageHandler::HandleWebSocketPresetModifyProperty(const FRemote
 		break;
 
 	default:
-		UE_LOG(LogRemoteControl, Warning, TEXT("Unknown transaction mode %d"), Body.TransactionMode);
+		UE_LOG(LogRemoteControl, Warning, TEXT("Unknown transaction mode %d"), int(Body.TransactionMode));
 		return;
 	}
 

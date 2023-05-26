@@ -43,7 +43,7 @@ void UMIDIDeviceController::StartupDevice( const int32 InitDeviceID, const int32
 			// Make sure the device is setup for input/output
 			if( PMDeviceInfo->input == 0 )
 			{
-				UE_LOG(LogMIDIDevice, Warning, TEXT( "Warning while creating a MIDI device controller:  PortMidi reports that device ID %i (%S) does is not setup to transmit MIDI data."), PMDeviceID, ANSI_TO_TCHAR(PMDeviceInfo->name));
+				UE_LOG(LogMIDIDevice, Warning, TEXT( "Warning while creating a MIDI device controller:  PortMidi reports that device ID %i (%s) does is not setup to transmit MIDI data."), PMDeviceID, ANSI_TO_TCHAR(PMDeviceInfo->name));
 			}
 
 			// @todo midi: Add options for timing/latency (see timeproc, and pm_Synchronize)

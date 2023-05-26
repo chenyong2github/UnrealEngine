@@ -3429,7 +3429,7 @@ bool DoAssetRegistryWritebackDuringStage(EAssetRegistryWritebackMethod InMethod,
 		}
 	default:
 		{
-			UE_LOG(LogIoStore, Error, TEXT("Invalid asset registry writeback method (should already be handled!) (%d)"), InMethod);
+			UE_LOG(LogIoStore, Error, TEXT("Invalid asset registry writeback method (should already be handled!) (%d)"), int(InMethod));
 			return false;
 		}
 	}
@@ -7112,7 +7112,7 @@ static bool ParsePakOrderFile(const TCHAR* FilePath, FFileOrderMap& Map, const F
 	TArray<FString> OrderFileContents;
 	if (!FFileHelper::LoadFileToStringArray(OrderFileContents, FilePath))
 	{
-		UE_LOG(LogIoStore, Error, TEXT("Failed to read order file '%s'."), *FilePath);
+		UE_LOG(LogIoStore, Error, TEXT("Failed to read order file '%s'."), FilePath);
 		return false;
 	}
 

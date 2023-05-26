@@ -356,7 +356,7 @@ namespace UE::GameFeatures
 				//Show generic error for anything missing but log an error
 				default:
 				{
-					UE_LOG(LogGameFeatures, Error, TEXT("Missing error text for EInstallBundleResult %s"), *LexToString(ErrorResult));
+					UE_LOG(LogGameFeatures, Error, TEXT("Missing error text for EInstallBundleResult %s"), LexToString(ErrorResult));
 					return Generic_ConnectionError;
 				}
 			}
@@ -379,7 +379,7 @@ namespace UE::GameFeatures
 				default:
 				{
 					//Show generic error for anything missing but log an error
-					UE_LOG(LogGameFeatures, Error, TEXT("Missing error text for EInstallBundleReleaseResult %s"), *LexToString(ErrorResult));
+					UE_LOG(LogGameFeatures, Error, TEXT("Missing error text for EInstallBundleReleaseResult %s"), LexToString(ErrorResult));
 					return ReleaseResult_Generic;
 				}
 			}

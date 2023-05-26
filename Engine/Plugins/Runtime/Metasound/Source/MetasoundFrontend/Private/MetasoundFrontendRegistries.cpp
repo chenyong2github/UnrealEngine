@@ -125,7 +125,7 @@ namespace Metasound
 			FScopeLock ScopeLock(&LazyInitCommandCritSection);
 			if (LazyInitCommands.Num() >= MaxNumNodesAndDatatypesToInitialize)
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Registering more that %d nodes and datatypes for metasounds! Consider increasing MetasoundFrontendRegistryContainer::MaxNumNodesAndDatatypesToInitialize."));
+				UE_LOG(LogMetaSound, Warning, TEXT("Registering more that %d nodes and datatypes for metasounds! Consider increasing MetasoundFrontendRegistryContainer::MaxNumNodesAndDatatypesToInitialize."), MaxNumNodesAndDatatypesToInitialize);
 			}
 
 			LazyInitCommands.Add(MoveTemp(InFunc));

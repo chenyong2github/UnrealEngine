@@ -372,7 +372,7 @@ namespace PropertyContainers
 			{
 				if(!NewProperty->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
 				{
-					UE_LOG(LogRemoteControlCommon, Error, TEXT("Property has key of type %s which cannot be hashed and is therefore invalid."), "@todo");
+					UE_LOG(LogRemoteControlCommon, Error, TEXT("Property has key of type %s which cannot be hashed and is therefore invalid."), TEXT("@todo"));
 				}
 
 				NewMapProperty->KeyProp = NewProperty;
@@ -409,7 +409,7 @@ namespace PropertyContainers
 			{
 				if(!NewProperty->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
 				{
-					UE_LOG(LogRemoteControlCommon, Error, TEXT("Property is set of type %s which cannot be hashed and is therefore invalid."), "@todo");
+					UE_LOG(LogRemoteControlCommon, Error, TEXT("Property is set of type %s which cannot be hashed and is therefore invalid."), TEXT("@todo"));
 					NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
 				}
 				

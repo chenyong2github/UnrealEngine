@@ -349,7 +349,7 @@ TSharedFuture<FSwitchboardVerifyResult> FSwitchboardEditorModule::GetVerifyResul
 		Future = Future.Next([Venv = CurrentVenv](const FSwitchboardVerifyResult& Result)
 		{
 			UE_LOG(LogSwitchboardPlugin, Log, TEXT("Verify complete for venv: %s"), *Venv);
-			UE_LOG(LogSwitchboardPlugin, Log, TEXT("Verify summary: %d"), Result.Summary);
+			UE_LOG(LogSwitchboardPlugin, Log, TEXT("Verify summary: %d"), int(Result.Summary));
 			UE_LOG(LogSwitchboardPlugin, Log, TEXT("Verify log: %s"), *Result.Log);
 
 			// Disabled hiding for now; new dropdown menu items have been added which have no other UI,

@@ -127,7 +127,7 @@ bool ParseWaveFormatHeader(const uint8* InSrcBufferData, uint32 InSrcBufferDataS
 
 			default:
 			{
-				UE_LOG(LogAudio, Warning, TEXT("Wave file contained unknown RIFF chunk type (%d)"));
+				UE_LOG(LogAudio, Warning, TEXT("Wave file contained unknown RIFF chunk type (%d)"), ChunkHeader.ChunkId);
 			}
 			break;
 

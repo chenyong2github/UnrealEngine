@@ -688,7 +688,7 @@ bool FOodleNetworkDictionaryGenerator::InitGenerator()
 		{
 			TrialRandomness = FMath::Clamp(TrialRandomness, 50, 200);
 
-			UE_LOG(OodleNetworkHandlerComponentLog, Warning, TEXT("Dictionary trial randomness is usually between 50-200%. Clamping to: %i"),
+			UE_LOG(OodleNetworkHandlerComponentLog, Warning, TEXT("Dictionary trial randomness is usually between 50-200%%. Clamping to: %i"),
 					TrialRandomness);
 		}
 
@@ -1117,7 +1117,7 @@ bool FOodleNetworkDictionaryGenerator::GenerateAndWriteDictionary()
 		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("- Uncompressed: %llu (~%lluMB), Compressed: %llu (~%lluMB)"), TotalUncompressed,
 				(TotalUncompressed / (1024 * 1024)), TotalCompressed, (TotalCompressed / (1024 * 1024)));
 
-		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("- Total Savings: %f%"),
+		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("- Total Savings: %f%%"),
 				((float)(TotalUncompressed - TotalCompressed) * 100.f) / (float)TotalUncompressed);
 
 

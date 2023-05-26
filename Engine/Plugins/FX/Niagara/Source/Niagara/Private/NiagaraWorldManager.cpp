@@ -183,7 +183,7 @@ FAutoConsoleCommandWithWorldAndArgs GCmdNiagaraPlaybackRate(
 			{
 				if (Args.Num() != 1)
 				{
-					UE_LOG(LogNiagara, Log, TEXT("fx.Niagara.Debug.PlaybackRate %5.2f"), (int32)WorldManager->GetDebugPlaybackRate());
+					UE_LOG(LogNiagara, Log, TEXT("fx.Niagara.Debug.PlaybackRate %5.2f"), WorldManager->GetDebugPlaybackRate());
 				}
 				else
 				{

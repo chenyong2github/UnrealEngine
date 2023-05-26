@@ -270,7 +270,7 @@ FLinearColor FMaterialXBase::GetLinearColor(MaterialX::InputPtr Input)
 	}
 	else
 	{
-		UE_LOG(LogInterchangeImport, Warning, TEXT("<%s>-<%s>: Colorspace %s is not supported yet, falling back to linear"),
+		UE_LOG(LogInterchangeImport, Warning, TEXT("<%hs>-<%hs>: Colorspace %s is not supported yet, falling back to linear"),
 			   Input->getParent()->getName().c_str(),
 			   Input->getName().c_str(),
 			   *ColorSpace);

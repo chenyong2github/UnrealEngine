@@ -470,7 +470,7 @@ void FParticleSystemWorldManager::AddPSC(UParticleSystemComponent* PSC)
 		TickList.Add(Handle);
 #endif
 
-		UE_LOG(LogParticles, Verbose, TEXT("| Add PSC - PSC: %p | Man: %p | %d | %d |Num: %d |"), ManagedPSCs[Handle], this, Handle, TickList[TickData.TickListHandle], ManagedPSCs.Num());
+		UE_LOG(LogParticles, Verbose, TEXT("| Add PSC - PSC: %p | Man: %p | %d | %d |Num: %d |"), ManagedPSCs[Handle].Get(), this, Handle, TickList[TickData.TickListHandle], ManagedPSCs.Num());
 	}
 }
 
@@ -490,12 +490,12 @@ void FParticleSystemWorldManager::RemovePSC(int32 PSCIndex)
 	}
 
 
-	UE_LOG(LogParticles, Verbose, TEXT("| Remove PSC - PSC: %p | Man: %p | %d |Num: %d |"), ManagedPSCs[PSCIndex], this, PSCIndex, ManagedPSCs.Num());
+	UE_LOG(LogParticles, Verbose, TEXT("| Remove PSC - PSC: %p | Man: %p | %d |Num: %d |"), ManagedPSCs[PSCIndex].Get(), this, PSCIndex, ManagedPSCs.Num());
 
 #if PSC_MAN_USE_STATIC_TICK_LISTS
 	FTickList& TickList = TickData.bCanTickConcurrent ? TickLists_Concurrent[(int32)TickData.TickGroup] : TickLists_GT[(int32)TickData.TickGroup];
 
-	UE_LOG(LogParticles, Verbose, TEXT("| Remove PSC - PSC: %p | Man: %p | %d | %d |Num: %d |"), ManagedPSCs[PSCIndex], this, PSCIndex, TickList[TickData.TickListHandle], ManagedPSCs.Num());
+	UE_LOG(LogParticles, Verbose, TEXT("| Remove PSC - PSC: %p | Man: %p | %d | %d |Num: %d |"), ManagedPSCs[PSCIndex].Get(), this, PSCIndex, TickList[TickData.TickListHandle], ManagedPSCs.Num());
 
 	TickList.Remove(PSCIndex);
 
@@ -838,7 +838,7 @@ void FParticleSystemWorldManager::Dump()
 		bool bVis = PSC->CanConsiderInvisible();
 		bool bActive = PSC->IsActive();
 		UE_LOG(LogParticles, Log, TEXT("| %d | %s |0x%p | Active: %d | Sig: %s | Vis: %d | Num: %d | %s | Prereq: 0x%p - %s |"),
-			Handle, *TickGroupEnum->GetNameByValue(TickData.TickGroup).ToString() , PSC, bActive, *SigString, bVis, NumParticles, *PSC->GetFullName(), TickData.PrereqComponent, TickData.PrereqComponent ? *TickData.PrereqComponent->GetFullName() : TEXT(""));
+					 Handle, *TickGroupEnum->GetNameByValue(TickData.TickGroup).ToString() , PSC, bActive, *SigString, bVis, NumParticles, *PSC->GetFullName(), TickData.PrereqComponent.Get(), TickData.PrereqComponent ? *TickData.PrereqComponent->GetFullName() : TEXT(""));
 	}
 #endif
 }

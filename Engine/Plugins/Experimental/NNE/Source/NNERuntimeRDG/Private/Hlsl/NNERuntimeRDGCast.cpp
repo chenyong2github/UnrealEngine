@@ -47,7 +47,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 			if (ToFromAttribute != ToFromTensor)
 			{
-				UE_LOG(LogNNE, Warning, TEXT("Cast should output a tensor of type %d but was of type %d."), ToFromAttribute, ToFromTensor);
+				UE_LOG(LogNNE, Warning, TEXT("Cast should output a tensor of type %d but was of type %d."), int(ToFromAttribute), int(ToFromTensor));
 				return false;
 			}
 			

@@ -67,7 +67,7 @@ namespace Audio
 #endif
 		if (Converter == nullptr || Error != 0)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Error creating sample converter: %s"), src_strerror(Error));
+			UE_LOG(LogTemp, Error, TEXT("Error creating sample converter: %hs"), src_strerror(Error));
 			return false;
 		}
 
@@ -82,7 +82,7 @@ namespace Audio
 
 		if (Error != 0)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Error on Resampling process: %s"), src_strerror(Error));
+			UE_LOG(LogTemp, Error, TEXT("Error on Resampling process: %hs"), src_strerror(Error));
 			return false;
 		}
 
@@ -142,7 +142,7 @@ namespace Audio
 				if (ErrorResult != 0)
 				{
 					const char* ErrorString = src_strerror(ErrorResult);
-					UE_LOG(LogAudioResampler, Error, TEXT("Failed to reset sample converter state: %s."), ErrorString);
+					UE_LOG(LogAudioResampler, Error, TEXT("Failed to reset sample converter state: %hs."), ErrorString);
 					return;
 				}
 			}
@@ -161,7 +161,7 @@ namespace Audio
 			if (!LibSRCState)
 			{
 				const char* ErrorString = src_strerror(ErrorResult);
-				UE_LOG(LogAudioResampler, Error, TEXT("Failed to create a sample rate convertor state object: %s."), ErrorString);
+				UE_LOG(LogAudioResampler, Error, TEXT("Failed to create a sample rate convertor state object: %hs."), ErrorString);
 			}
 		}
 
@@ -171,7 +171,7 @@ namespace Audio
 			if (ErrorResult != 0)
 			{
 				const char* ErrorString = src_strerror(ErrorResult);
-				UE_LOG(LogAudioResampler, Error, TEXT("Failed to set sample rate ratio: %s."), ErrorString);
+				UE_LOG(LogAudioResampler, Error, TEXT("Failed to set sample rate ratio: %hs."), ErrorString);
 			}
 		}
 
@@ -198,7 +198,7 @@ namespace Audio
 			if (ErrorResult != 0)
 			{
 				const char* ErrorString = src_strerror(ErrorResult);
-				UE_LOG(LogAudioResampler, Error, TEXT("Failed to process audio: %s."), ErrorString);
+				UE_LOG(LogAudioResampler, Error, TEXT("Failed to process audio: %hs."), ErrorString);
 				return ErrorResult;
 			}
 

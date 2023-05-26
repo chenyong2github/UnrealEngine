@@ -814,7 +814,7 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 	// if we passed MaxFrame, just stop it
 	if (MaxFrame != UnBoundedFrameCount && FramesRecorded >= MaxFrame)
 	{
-		UE_LOG(LogAnimation, Log, TEXT("Animation Recording exceeds the time limited (%d seconds). Stopping recording animation... "), RecordingRate.AsSeconds(MaxFrame));
+		UE_LOG(LogAnimation, Log, TEXT("Animation Recording exceeds the time limited (%f seconds). Stopping recording animation... "), RecordingRate.AsSeconds(MaxFrame));
 		FAnimationRecorderManager::Get().StopRecordingAnimation(Component, true);
 		return;
 	}

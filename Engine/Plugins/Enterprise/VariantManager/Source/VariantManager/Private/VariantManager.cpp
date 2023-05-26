@@ -768,7 +768,7 @@ TArray<UVariantObjectBinding*> FVariantManager::CreateObjectBindings(const TArra
 				}
 				else
 				{
-					UE_LOG(LogVariantManager, Error, TEXT("When creating object bindings, variant '%s' seems to have a binding to '%s', but we can't retrieve it!"), *SelectedActor->GetName());
+					UE_LOG(LogVariantManager, Error, TEXT("When creating object bindings, variant '%s' seems to have a binding, but we can't retrieve it!"), *SelectedActor->GetName());
 				}
 			}
 		}
@@ -838,7 +838,7 @@ TArray<UVariantObjectBinding*> FVariantManager::CreateObjectBindingsAndCaptures(
 				}
 				else
 				{
-					UE_LOG(LogVariantManager, Error, TEXT("When creating object bindings, variant '%s' seems to have a binding to '%s', but we can't retrieve it!"), *SelectedActor->GetName());
+					UE_LOG(LogVariantManager, Error, TEXT("When creating object bindings, variant '%s' seems to have a binding, but we can't retrieve it!"), *SelectedActor->GetName());
 				}
 			}
 		}

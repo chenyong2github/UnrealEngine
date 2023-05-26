@@ -489,7 +489,7 @@ bool UMLAdapterSession::RequestAvatarForAgent(UMLAdapterAgent& Agent, UWorld* In
 	if (Agent.GetAvatar() != nullptr)
 	{
 		// skipping.
-		UE_LOG(LogMLAdapter, Verbose, TEXT("UMLAdapterSession::RequestAvatarForAgent called for agent [%s] while it still has an avatar [%s]. Call ClearAvatar first to null-out agent\'s avatar."),
+		UE_LOG(LogMLAdapter, Verbose, TEXT("UMLAdapterSession::RequestAvatarForAgent called for agent [%d] while it still has an avatar [%s]. Call ClearAvatar first to null-out agent\'s avatar."),
 			Agent.GetAgentID(), *GetNameSafe(Agent.GetAvatar()));
 		return false;
 	}

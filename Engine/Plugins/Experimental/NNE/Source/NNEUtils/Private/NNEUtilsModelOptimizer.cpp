@@ -101,7 +101,7 @@ public:
 		Ort::GraphAttributeInfo Attrib = Graph->GetNodeAttribute(Node, AttrIdx);
 		Ort::GraphAttributeValue Value = Graph->GetNodeAttributeValue(Node, AttrIdx);
 
-		Print(TEXT("   %s %d"), ANSI_TO_TCHAR(Attrib.name), Attrib.type);
+		Print(TEXT("   %s %d"), ANSI_TO_TCHAR(Attrib.name), int(Attrib.type));
 		
 		if (Value.type == Ort::GraphAttributeValue::kFloat)
 		{
@@ -113,7 +113,7 @@ public:
 		}
 		else if (Value.type == Ort::GraphAttributeValue::kString)
 		{
-			Print(TEXT("      %s"), Value.s);
+			Print(TEXT("      %hs"), Value.s);
 		}
         else if (Value.type == Ort::GraphAttributeValue::kFloats)
 		{
@@ -222,7 +222,7 @@ public:
 			}
 			else 
 			{
-                UE_LOG(LogNNE, Warning, TEXT("Failed to read tensor data :%s"), Tensor.name);
+                UE_LOG(LogNNE, Warning, TEXT("Failed to read tensor data :%hs"), Tensor.name);
 			}
 		}
 	}

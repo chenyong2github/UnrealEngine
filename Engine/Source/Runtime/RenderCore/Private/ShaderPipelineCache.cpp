@@ -1451,7 +1451,7 @@ void FShaderPipelineCacheTask::PrecompilePipelineBatch()
 		FRHICommandListImmediate& RHICmdList = GRHICommandList.GetImmediateCommandList();
 		
 		uint32 PSOHash = GetTypeHash(CompileTask.PSO);
-		UE_LOG(LogRHI, Verbose, TEXT("Precompiling PSO %u (type %d) (%d/%d)"), PSOHash, CompileTask.PSO.Type, i+1, NumToPrecompile);
+		UE_LOG(LogRHI, Verbose, TEXT("Precompiling PSO %u (type %d) (%d/%d)"), PSOHash, int(CompileTask.PSO.Type), i+1, NumToPrecompile);
 		Precompile(RHICmdList, GMaxRHIShaderPlatform, CompileTask.PSO);
 		FShaderPipelineCache::Get()->CompiledHashes.Add(PSOHash);
 

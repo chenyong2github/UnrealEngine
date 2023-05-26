@@ -105,7 +105,7 @@ ULevelSnapshot* SnapshotEditor::TakeLevelSnapshotAndSaveToDisk(UWorld* World, co
     	}
     	else if (ExistingAsset.IsValid())
     	{
-    		UE_LOG(LogLevelSnapshots, Error, TEXT("Asset %s already exists and is not a snapshot. Aborting."))
+    		UE_LOG(LogLevelSnapshots, Error, TEXT("Asset already exists and is not a snapshot. Aborting."))
 			bProceedWithSave = false;
     	}
     }

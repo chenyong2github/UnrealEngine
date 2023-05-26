@@ -633,7 +633,7 @@ bool FUdpPingWorker::SendPings(ISocketSubsystem& SocketSub)
 				{
 					// Status is one of: BadTarget, NoSocket, BadBuffer, SocketSendFail, BadSendSize
 
-					UE_LOG(LogPing, Verbose, TEXT("SendPings; send error, status: %u"), Status);
+					UE_LOG(LogPing, Verbose, TEXT("SendPings; send error, status: %u"), int(Status));
 
 					// Send failed, mark the failure in the results and advance to next target address.
 					Progress.Result.Status = EIcmpResponseStatus::Unresolvable;
@@ -912,8 +912,8 @@ FUdpPingWorker::FProgress* FUdpPingWorker::ProcessReply(const FInternetAddr& Fro
 	CalculateTripTime(RecvPacket.Body.TimeCode, RecvTimeCode, TimeoutSecs, Result.Time, Result.Status);
 
 	UE_LOG(LogPing, VeryVerbose, TEXT("ProcessReply; ok: %s:%u (%s)  id=%u (%#06x)  seq=%#06x  ping=%.4f s  status=%d"),
-		*Progress.Address, Progress.Port, *Result.ResolvedAddress, Progress.EchoId, Progress.EchoId,
-		Progress.SequenceNum, Result.Time, Result.Status);
+				 *Progress.Address, Progress.Port, *Result.ResolvedAddress, Progress.EchoId, Progress.EchoId,
+				 Progress.SequenceNum, Result.Time, int(Result.Status));
 
 	return FoundProgress;
 }
@@ -935,7 +935,7 @@ bool FUdpPingWorker::CalculateTripTime(const uint64 ReplyTimeCode, const uint64 
 		OutStatus = EIcmpResponseStatus::InternalError;
 	}
 
-	UE_LOG(LogPing, VeryVerbose, TEXT("CalculateTripTime; time=%.4f s  status=%d"), DurationSecs, OutStatus);
+	UE_LOG(LogPing, VeryVerbose, TEXT("CalculateTripTime; time=%.4f s  status=%d"), DurationSecs, int(OutStatus));
 
 	return bIsValid;
 }

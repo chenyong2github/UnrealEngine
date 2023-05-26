@@ -271,7 +271,7 @@ private:
 				{
 					if (Matchers.Last()->bAllowRelativeDescendants)
 					{
-						UE_LOG(LogAutomationDriver, Error, TEXT("Invalid path specified as widget locator: %s"));
+						UE_LOG(LogAutomationDriver, Error, TEXT("Invalid path specified as widget locator: %s"), *Path);
 						Matchers.Empty();
 						break;
 					}

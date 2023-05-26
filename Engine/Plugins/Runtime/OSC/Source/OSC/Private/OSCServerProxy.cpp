@@ -169,7 +169,7 @@ void FOSCServerProxy::AddClientToAllowList(const FString& InIPAddress)
 	FIPv4Address OutAddress;
 	if (!FIPv4Address::Parse(InIPAddress, OutAddress))
 	{
-		UE_LOG(LogOSC, Warning, TEXT("OSCServer '%s' failed to add IP Address '%s' to allow list. Address is invalid."), *InIPAddress);
+		UE_LOG(LogOSC, Warning, TEXT("OSCServer failed to add IP Address '%s' to allow list. Address is invalid."), *InIPAddress);
 		return;
 	}
 
@@ -181,7 +181,7 @@ void FOSCServerProxy::RemoveClientFromAllowList(const FString& InIPAddress)
 	FIPv4Address OutAddress;
 	if (!FIPv4Address::Parse(InIPAddress, OutAddress))
 	{
-		UE_LOG(LogOSC, Warning, TEXT("OSCServer '%s' failed to remove IP Address '%s' from allow list. Address is invalid."), *InIPAddress);
+		UE_LOG(LogOSC, Warning, TEXT("OSCServer failed to remove IP Address '%s' from allow list. Address is invalid."), *InIPAddress);
 		return;
 	}
 

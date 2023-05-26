@@ -920,7 +920,7 @@ void TNiagaraParameterMapHistoryBuilder<GraphBridge>::BuildParameterMaps(const F
 
 	if (UNiagaraScript::LogCompileStaticVars > 0)
 	{
-		UE_LOG(LogNiagaraEditor, Log, TEXT("************** BuildParameterMaps %d  **************"), NodeUsage);
+		UE_LOG(LogNiagaraEditor, Log, TEXT("************** BuildParameterMaps %d  **************"), int(NodeUsage));
 	}
 	TOptional<FName> StackContextAlias = GraphBridge::GetOutputNodeStackContextOverride(OutputNode);
 	BeginUsage(NodeUsage, StackContextAlias.Get(ScriptUsageContextNameStack.Num() > 0 ? ScriptUsageContextNameStack.Top() : NAME_None));

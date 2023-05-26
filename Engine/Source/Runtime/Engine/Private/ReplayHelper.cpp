@@ -2201,7 +2201,7 @@ void FReplayHelper::AddOrUpdateEvent(const FString& Name, const FString& Group, 
 		ReplayStreamer->AddOrUpdateEvent(Name, SavedTimeMS, Group, Meta, Data);
 	}
 
-	UE_LOG(LogDemo, Verbose, TEXT("AddOrUpdateEvent %s.%s. Total: %i, Time: %2.2f"), *Group, *Name, Data.Num(), SavedTimeMS);
+	UE_LOG(LogDemo, Verbose, TEXT("AddOrUpdateEvent %s.%s. Total: %i, Time: %2.2f"), *Group, *Name, Data.Num(), float(SavedTimeMS));
 }
 
 void FReplayHelper::ReadDeletedStartupActors(UNetConnection* Connection, FArchive& Ar, TSet<FString>& DeletedStartupActors)

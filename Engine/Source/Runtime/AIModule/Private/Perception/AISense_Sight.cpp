@@ -383,7 +383,7 @@ float UAISense_Sight::Update()
 			}
 			else
 			{
-				UE_CLOG(VisibilityResult != EVisibilityResult::Visible && VisibilityResult != EVisibilityResult::NotVisible, LogAIPerception, Error, TEXT("UAISense_Sight::Update received invalid Visibility result [%d] for query between Listener %s and Target %s. We'll consider it as NotVisible"), VisibilityResult, *GetNameSafe(ListenerBodyActor), *GetNameSafe(TargetActor));
+				UE_CLOG(VisibilityResult != EVisibilityResult::Visible && VisibilityResult != EVisibilityResult::NotVisible, LogAIPerception, Error, TEXT("UAISense_Sight::Update received invalid Visibility result [%d] for query between Listener %s and Target %s. We'll consider it as NotVisible"), int(VisibilityResult), *GetNameSafe(ListenerBodyActor), *GetNameSafe(TargetActor));
 
 				const bool bIsVisible = VisibilityResult == EVisibilityResult::Visible;
 				const bool bWasVisible = SightQuery->GetLastResult();

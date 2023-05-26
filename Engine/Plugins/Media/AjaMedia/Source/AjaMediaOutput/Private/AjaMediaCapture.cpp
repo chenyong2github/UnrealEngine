@@ -519,7 +519,7 @@ bool UAjaMediaCapture::InitAJA(UAjaMediaOutput* InAjaMediaOutput)
 		bool bLockToVsync = CVar->GetValueOnGameThread() != 0;
 		if (bLockToVsync)
 		{
-			UE_LOG(LogAjaMediaOutput, Warning, TEXT("The Engine use VSync and '%s' wants to wait for the sync event. This may break the \"gen-lock\"."));
+			UE_LOG(LogAjaMediaOutput, Warning, TEXT("The Engine use VSync and something wants to wait for the sync event. This may break the \"gen-lock\"."));
 		}
 
 		const bool bIsManualReset = false;

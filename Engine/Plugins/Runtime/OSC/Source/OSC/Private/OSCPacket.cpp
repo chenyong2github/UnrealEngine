@@ -22,7 +22,7 @@ TSharedPtr<IOSCPacket> IOSCPacket::CreatePacket(const uint8* InPacketType, const
 	else
 	{
 		UE_LOG(LogOSC, Warning, TEXT("Failed to parse lead character of OSC packet. "
-			"Lead identifier of '%c' not valid bundle tag ('%s') or message ('%s') identifier."), *PacketIdentifier, *OSC::BundleTag, *OSC::PathSeparator);
+			"Lead identifier of '%c' not valid bundle tag ('%s') or message ('%s') identifier."), PacketIdentifier[0], *OSC::BundleTag, *OSC::PathSeparator);
 		return nullptr;
 	}
 

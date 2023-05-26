@@ -257,7 +257,7 @@ FOpenGLTextureDesc::FOpenGLTextureDesc(FRHITextureDesc const& InDesc)
 	if (GOGLTextureEvictLogging)
 	{
 		UE_CLOG(!bCanCreateAsEvicted, LogRHI, Warning, TEXT("CanDeferTextureCreation:%d, Flags:%llx Mask:%x, Target:%x"),
-			bCanCreateAsEvicted, InDesc.Flags, CVarDeferTextureCreationExcludeMask.GetValueOnAnyThread(), Target);
+						bCanCreateAsEvicted, int(InDesc.Flags), CVarDeferTextureCreationExcludeMask.GetValueOnAnyThread(), Target);
 	}
 
 	bIsPowerOfTwo = 

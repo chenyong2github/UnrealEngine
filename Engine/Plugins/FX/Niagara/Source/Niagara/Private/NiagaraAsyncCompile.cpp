@@ -218,7 +218,7 @@ void FNiagaraAsyncCompileTask::MoveToState(ENiagaraCompilationState NewState)
 		check(CurrentState == ENiagaraCompilationState::CheckDDC || CurrentState == ENiagaraCompilationState::PutToDDC);
 	}
 
-	UE_LOG(LogNiagara, Verbose, TEXT("Changing state %i -> %i for for %s!"), CurrentState, NewState, *AssetPath);
+	UE_LOG(LogNiagara, Verbose, TEXT("Changing state %i -> %i for for %s!"), int(CurrentState), int(NewState), *AssetPath);
 	CurrentState = NewState;
 }
 
@@ -231,7 +231,7 @@ void LogVMID(const FNiagaraVMExecutableDataId& ID, FString Name)
 {
 	// some debug logging to find out why the ddc key changed
 	UE_LOG(LogNiagara, Display, TEXT("FNiagaraVMExecutableDataId %s:"), *Name);
-	UE_LOG(LogNiagara, Display, TEXT("  ScriptUsageType: %i"), ID.ScriptUsageType);
+	UE_LOG(LogNiagara, Display, TEXT("  ScriptUsageType: %i"), int(ID.ScriptUsageType));
 	UE_LOG(LogNiagara, Display, TEXT("  ScriptUsageTypeID: %s"), *ID.ScriptUsageTypeID.ToString());
 	UE_LOG(LogNiagara, Display, TEXT("  CompilerVersionID: %s"), *ID.CompilerVersionID.ToString());
 	UE_LOG(LogNiagara, Display, TEXT("  BaseScriptCompileHash: %s"), *ID.BaseScriptCompileHash.ToString());

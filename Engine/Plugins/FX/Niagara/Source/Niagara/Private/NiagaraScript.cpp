@@ -1559,7 +1559,7 @@ const FNiagaraScriptExecutionParameterStore* UNiagaraScript::GetExecutionReadyPa
 			return &ScriptExecutionParamStore;
 		}
 
-		UE_LOG(LogNiagara, Warning, TEXT("SimTarget is '%d' but expecting '%d' on Script '%s' Usage '%d'"), ActualSimTarget.GetValue(), SimTarget, *GetFullName(), Usage);
+		UE_LOG(LogNiagara, Warning, TEXT("SimTarget is '%d' but expecting '%d' on Script '%s' Usage '%d'"), int(ActualSimTarget.GetValue()), int(SimTarget), *GetFullName(), int(Usage));
 	}
 	return nullptr;
 }

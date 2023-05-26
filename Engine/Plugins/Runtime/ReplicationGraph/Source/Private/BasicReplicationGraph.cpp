@@ -167,7 +167,7 @@ UReplicationGraphNode_AlwaysRelevant_ForConnection* UBasicReplicationGraph::GetA
 	else
 	{
 		// Basic implementation requires owner is set on spawn that never changes. A more robust graph would have methods or ways of listening for owner to change
-		UE_LOG(LogNet, Warning, TEXT("Actor: %s is bOnlyRelevantToOwner but does not have an owning Netconnection. It will not be replicated"));
+		UE_LOG(LogNet, Warning, TEXT("Actor: bOnlyRelevantToOwner is set but does not have an owning Netconnection. It will not be replicated"));
 	}
 
 	return Node;

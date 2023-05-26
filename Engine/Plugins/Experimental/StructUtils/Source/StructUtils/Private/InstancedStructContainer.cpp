@@ -514,7 +514,7 @@ bool FInstancedStructContainer::Serialize(FArchive& Ar)
 
 	if (Version > EVersion::LatestVersion)
 	{
-		UE_LOG(LogCore, Error, TEXT("Invalid Version: %hhu"), Version);
+		UE_LOG(LogCore, Error, TEXT("Invalid Version: %hhu"), int(Version));
 		Ar.SetError();
 		return false;
 	}

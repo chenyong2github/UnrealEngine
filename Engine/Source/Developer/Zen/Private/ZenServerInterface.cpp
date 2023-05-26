@@ -396,7 +396,7 @@ AttemptFileCopyWithRetries(const TCHAR* Dst, const TCHAR* Src, double RetryDurat
 	{
 		return true;
 	}
-	UE_LOG(LogZenServiceInstance, Warning, TEXT("%s from '%s' to '%s', '%s'"), Src, Dst, CopyResult == COPY_Fail ? "Failed to copy file" : "Cancelled file copy");
+	UE_LOG(LogZenServiceInstance, Warning, TEXT("copy from '%s' to '%s', '%s'"), Src, Dst, CopyResult == COPY_Fail ? TEXT("Failed to copy file") : TEXT("Cancelled file copy"));
 	return false;
 }
 

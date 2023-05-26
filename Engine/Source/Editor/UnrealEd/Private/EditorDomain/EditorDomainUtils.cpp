@@ -702,7 +702,7 @@ FClassDigestData* FPrecacheClassDigest::GetRecursive(FTopLevelAssetPath ClassPat
 			// all transitive constructclasses of the strongly connected component.
 			UE_LOG(LogEditorDomain, Error,
 				TEXT("Cycle detected in ConstructClasses of class %s. Packages with classes that can construct %s will sometimes fail to update during incremental cooks."),
-				*ClassPath.ToString());
+				*ClassPath.ToString(), *ClassPath.ToString());
 		}
 		// The map has possibly been modified so we need to recalculate the address of ClassName's DigestData
 		DigestData = &ClassDigests.FindChecked(ClassPath);
@@ -1549,7 +1549,7 @@ bool TrySavePackage(UPackage* Package)
 	if (Result.Result != ESavePackageResult::Success)
 	{
 		UE_LOG(LogEditorDomain, Warning, TEXT("Could not save %s to EditorDomain: SavePackage returned %d."),
-			*Package->GetName(), Result.Result);
+					 *Package->GetName(), int(Result.Result));
 		return false;
 	}
 

@@ -230,7 +230,7 @@ void FDisplayClusterRender_MeshComponentProxyData::ImplNormalizeToScreenSpace()
 		if (AspectRatio > 10)
 		{
 			// just warning, experimental
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("MeshComponentProxyData::NormalizeToScreenSpace('%s'): Aspect ratio is to big '%d'- <%d,%d>"), *SourceGeometryName, AspectRatio, ScreenSize.X, ScreenSize.Y);
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("MeshComponentProxyData::NormalizeToScreenSpace('%s'): Aspect ratio is to big '%f'- <%f,%f>"), *SourceGeometryName, AspectRatio, ScreenSize.X, ScreenSize.Y);
 		}
 	}
 

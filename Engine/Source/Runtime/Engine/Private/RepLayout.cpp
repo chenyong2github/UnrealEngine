@@ -5695,7 +5695,7 @@ static int32 InitFromProperty_r(
 		if (CmdEnd - CmdStart <= 2)
 		{
 			SharedParams.Cmds[CmdStart].Flags |= ERepLayoutCmdFlags::IsEmptyArrayStruct;
-			UE_LOG(LogRep, Warning, TEXT("InitFromProperty_r: Array property has empty inner struct: Outer=%s, Array=%s, Inner=%2"),
+			UE_LOG(LogRep, Warning, TEXT("InitFromProperty_r: Array property has empty inner struct: Outer=%s, Array=%s, Inner=%s"),
 				*ArrayProp->Owner.GetName(), *ArrayProp->GetName(), *ArrayProp->Inner->GetName());
 		}
 	}

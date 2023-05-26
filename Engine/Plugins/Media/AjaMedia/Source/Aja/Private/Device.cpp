@@ -580,13 +580,13 @@ namespace AJA
 			{
 				if (Connection.OutputReferenceType != InOutputReferenceType)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Couldn't set the reference for output on device %S. The type was already setup with %d.\n"), Connection.Card->GetDisplayName().c_str(), Connection.OutputReferenceType);
+					UE_LOG(LogTemp, Error, TEXT("Device: Couldn't set the reference for output on device %S. The type was already setup with %d.\n"), Connection.Card->GetDisplayName().c_str(), int(Connection.OutputReferenceType));
 					return false;
 				}
 
 				if (Connection.OutputReferenceType == EAJAReferenceType::EAJA_REFERENCETYPE_INPUT && Connection.OutputReferenceChannel != InOutputReferenceChannel)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Couldn't set the reference for output channel %d on device %S. The input was already setup with %d.\n"), Connection.Card->GetDisplayName().c_str(), Connection.OutputReferenceChannel);
+					UE_LOG(LogTemp, Error, TEXT("Device: Couldn't set the reference for output on device %S. The input was already setup with %d.\n"), Connection.Card->GetDisplayName().c_str(), Connection.OutputReferenceChannel);
 					return false;
 				}
 

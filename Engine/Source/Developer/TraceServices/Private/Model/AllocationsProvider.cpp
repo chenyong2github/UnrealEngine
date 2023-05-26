@@ -1705,9 +1705,9 @@ void FAllocationsProvider::AddHeapSpec(HeapId Id, HeapId ParentId, const FString
 					UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Root heap %u has changed from (\"%s\", flags=%u) to (\"%s\", flags=%u)."),
 						Id,
 						HeapSpec->Name,
-						HeapSpec->Flags,
+						int(HeapSpec->Flags),
 						HeapName,
-						Flags);
+						int(Flags));
 				}
 			}
 		}
@@ -1753,10 +1753,10 @@ void FAllocationsProvider::AddHeapSpec(HeapId Id, HeapId ParentId, const FString
 						Id,
 						PreviousHeap.Name,
 						PreviousHeap.Parent && PreviousHeap.Parent->Name ? PreviousHeap.Parent->Name : TEXT(""),
-						PreviousHeap.Flags,
+						int(PreviousHeap.Flags),
 						HeapName,
 						ParentHeapSpec.Name ? ParentHeapSpec.Name : TEXT(""),
-						Flags);
+						int(Flags));
 				}
 			}
 		}

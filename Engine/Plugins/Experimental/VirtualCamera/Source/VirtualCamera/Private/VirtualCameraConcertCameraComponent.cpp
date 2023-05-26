@@ -40,7 +40,7 @@ void UDEPRECATED_VirtualCameraConcertCameraComponent::BeginPlay()
 
 	if (TrackingName.IsNone())
 	{
-		UE_LOG(LogVirtualCamera, Error, TEXT("%s doesn't have a tacking name."));
+		UE_LOG(LogVirtualCamera, Error, TEXT("%s doesn't have a tacking name."), *GetFullName());
 	}
 }
 

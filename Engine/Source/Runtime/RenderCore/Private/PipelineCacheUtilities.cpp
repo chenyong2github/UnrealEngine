@@ -593,14 +593,14 @@ bool UE::PipelineCacheUtilities::LoadStablePipelineCacheFile(const FString& File
 
 	if (Header.Magic != SupportedHeader.Magic)
 	{
-		UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting %s, wrong magic (0x%llx vs expected 0x%llx)."), *Filename, Header.Magic, SupportedHeader.Magic);
+		UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting %s, wrong magic (0x%llx vs expected 0x%llx)."), *Filename, int(Header.Magic), int(SupportedHeader.Magic));
 		return false;
 	}
 
 	// start restrictive, as the format isn't really forward compatible, nor needs to be
 	if (Header.Version != SupportedHeader.Version)
 	{
-		UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting %s, old version (%d vs expected %d)."), *Filename, Header.Version, SupportedHeader.Version);
+		UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting %s, old version (%d vs expected %d)."), *Filename, int(Header.Version), int(SupportedHeader.Version));
 		return false;
 	}
 
@@ -928,7 +928,7 @@ bool UE::PipelineCacheUtilities::LoadChunkInfo(const FString& Filename, const FS
 		if (FileVersion != static_cast<int32>(UE::PipelineCacheUtilities::Private::FPSOCacheChunkInfo::EVersion::Current))
 		{
 			UE_LOG(LogPipelineCacheUtilities, Warning, TEXT("Rejecting cache chunk info file %s: expected version %d, got unsupported version %d."),
-				*Filename, UE::PipelineCacheUtilities::Private::FPSOCacheChunkInfo::EVersion::Current, FileVersion);
+						 *Filename, int(UE::PipelineCacheUtilities::Private::FPSOCacheChunkInfo::EVersion::Current), FileVersion);
 			return false;
 		}
 	}

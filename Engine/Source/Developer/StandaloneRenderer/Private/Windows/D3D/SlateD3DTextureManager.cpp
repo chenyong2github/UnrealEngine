@@ -257,7 +257,7 @@ bool FSlateD3DTextureManager::LoadTexture( const FSlateBrush& InBrush, uint32& O
 			}
 			else
 			{
-				UE_LOG(LogSlateD3D, Warning, TEXT("Invalid texture format %d for Slate resource only RGBA and RGB pngs are supported: %s"), ImageFormat, *InBrush.GetResourceName().ToString() );
+				UE_LOG(LogSlateD3D, Warning, TEXT("Invalid texture format %d for Slate resource only RGBA and RGB pngs are supported: %s"), int(ImageFormat), *InBrush.GetResourceName().ToString() );
 			}
 		}
 		else

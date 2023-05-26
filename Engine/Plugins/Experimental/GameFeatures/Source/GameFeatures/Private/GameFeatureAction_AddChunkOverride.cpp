@@ -256,7 +256,7 @@ int32 UGameFeatureAction_AddChunkOverride::GenerateUniqueChunkId() const
 	}
 	else if (GameFeatureAction_AddChunkOverride::ChunkIdToPluginMap.Contains(NewChunkId))
 	{
-		UE_LOG(LogAddChunkOverride, Warning, TEXT("ChunkId(%d) is in use by %s. Unable to autogenerate unique id. Lowest allowed ChunkId(%d)"), NewChunkId, *GameFeatureAction_AddChunkOverride::ChunkIdToPluginMap[NewChunkId]);
+		UE_LOG(LogAddChunkOverride, Warning, TEXT("ChunkId(%d) is in use by %s. Unable to autogenerate unique id. Lowest allowed ChunkId(%d)"), NewChunkId, *GameFeatureAction_AddChunkOverride::ChunkIdToPluginMap[NewChunkId], LowestAllowedChunkIndexForAutoGeneration);
 		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("AddChunkOverride_UsedChunkId", "Unable to auto generate unique valid Chunk Id. Please manually assign a valid Chunk Id"));
 		NewChunkId = -1;
 	}

@@ -22,7 +22,7 @@ public:
 		case ECookOnTheFlyNetworkServerProtocol::Platform:
 			return MakeShared<FCookOnTheFlyServerPlatformProtocol>(Options.TargetPlatforms);
 		default:
-			UE_LOG(LogCookOnTheFlyNetworkServer, Fatal, TEXT("Unsupported protocol: %d"), Options.Protocol);
+			UE_LOG(LogCookOnTheFlyNetworkServer, Fatal, TEXT("Unsupported protocol: %d"), int(Options.Protocol));
 			return nullptr;
 		}
 	}

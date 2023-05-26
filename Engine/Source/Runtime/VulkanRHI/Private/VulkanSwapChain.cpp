@@ -186,7 +186,7 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 				RequestedColorSpace = VK_COLOR_SPACE_HDR10_ST2084_EXT;
 				break;
 			default:
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Requested color format %d not supported in Vulkan, falling back to sRGB. Please check the value of r.HDR.Display.OutputDevice."), OutputDevice);
+				UE_LOG(LogVulkanRHI, Warning, TEXT("Requested color format %d not supported in Vulkan, falling back to sRGB. Please check the value of r.HDR.Display.OutputDevice."), int(OutputDevice));
 				RequestedColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 				break;
 			}

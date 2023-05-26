@@ -1417,7 +1417,7 @@ UTickableTransformConstraint* FTransformConstraintUtils::CreateFromType(
 	const UEnum* ETransformConstraintTypeEnum = StaticEnum<ETransformConstraintType>();
 	if (!ETransformConstraintTypeEnum->IsValidEnumValue(static_cast<int64>(InType)))
 	{
-		UE_LOG(LogTemp, Error, TEXT("Constraint Type %d not recognized"), InType);
+		UE_LOG(LogTemp, Error, TEXT("Constraint Type %d not recognized"), int(InType));
 		return nullptr;
 	}
 

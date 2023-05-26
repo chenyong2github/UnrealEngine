@@ -702,7 +702,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::UpdateVertexNormal(
 		}
 		if (EditMesh.IsVertex(VertexID) == false)
 		{
-			UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: VertexID %d is not a valid vertex in TargetMesh"));
+			UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: VertexID %d is not a valid vertex in TargetMesh"), VertexID);
 			return;
 		}
 		bIsValidVertex = true;
@@ -712,7 +712,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::UpdateVertexNormal(
 			FDynamicMeshNormalOverlay* Normals = EditMesh.Attributes()->PrimaryNormals();
 			if (UpdateOverlay(EditMesh, Normals, NewNormal) == false)
 			{
-				UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: VertexID %d has no existing normals in Normal Overlay. Try computing Vertex Normals before using UpdateVertexNormal."));
+				UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: VertexID %d has no existing normals in Normal Overlay. Try computing Vertex Normals before using UpdateVertexNormal."), VertexID);
 				bIsValidVertex = false;
 			}
 		}
@@ -724,7 +724,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::UpdateVertexNormal(
 			bool bTangentYOK = UpdateOverlay(EditMesh, TangentY, NewTangentY);
 			if (bTangentXOK == false || bTangentYOK == false)
 			{
-				UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: VertexID %d has no existing tangents in Tangent Overlay. Try computing Tangents before using UpdateVertexNormal."));
+				UE_LOG(LogGeometry, Warning, TEXT("UpdateVertexNormal: VertexID %d has no existing tangents in Tangent Overlay. Try computing Tangents before using UpdateVertexNormal."), VertexID);
 				bIsValidVertex = false;
 			}
 		}

@@ -32,7 +32,7 @@ public:
 		
 		if (To != OutputTensor.GetDataType())
 		{
-			UE_LOG(LogNNE, Error, TEXT("Cast should output a tensor of type %d but was of type %d."), To, OutputTensor.GetDataType());
+			UE_LOG(LogNNE, Error, TEXT("Cast should output a tensor of type %d but was of type %d."), int(To), int(OutputTensor.GetDataType()));
 			return false;
 		}
 

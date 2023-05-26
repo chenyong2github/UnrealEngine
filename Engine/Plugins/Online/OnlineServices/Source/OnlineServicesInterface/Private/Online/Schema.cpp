@@ -1356,7 +1356,7 @@ bool FSchemaCategoryInstanceBase::VerifyBaseAttributeData(
 					*BaseSchemaDefinition->Id.ToString().ToLower(),
 					*BaseSchemaCategoryDefinition->Id.ToString().ToLower(),
 					*AttributeDefinition->Id.ToString().ToLower(),
-					*LexToString(Data.GetType()),
+					LexToString(Data.GetType()),
 					LexToString(AttributeDefinition->Type));
 				return false;
 			}

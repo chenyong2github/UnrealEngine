@@ -31,7 +31,7 @@ void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread()
 	ImageAcquired.compare_exchange_strong(WasAcquired, true);
 	if (WasAcquired)
 	{
-		UE_LOG(LogHMD, Verbose, TEXT("Attempted to redundantly acquire image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), Handle);
+		UE_LOG(LogHMD, Verbose, TEXT("Attempted to redundantly acquire image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), reinterpret_cast<const void*>(Handle));
 		return;
 	}
 
@@ -43,7 +43,7 @@ void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread()
 	Info.next = nullptr;
 	XR_ENSURE(xrAcquireSwapchainImage(Handle, &Info, &SwapChainIndex));
 
-	UE_LOG(LogHMD, VeryVerbose, TEXT("Acquired image %d in swapchain %p"), SwapChainIndex, Handle);
+	UE_LOG(LogHMD, VeryVerbose, TEXT("Acquired image %d in swapchain %p"), SwapChainIndex, reinterpret_cast<const void*>(Handle));
 
 	RHITexture = RHITextureSwapChain[SwapChainIndex];
 	SwapChainIndex_RHIThread = SwapChainIndex;
@@ -57,7 +57,7 @@ void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
 	ImageAcquired.compare_exchange_strong(WasAcquired, false);
 	if (!WasAcquired)
 	{
-		UE_LOG(LogHMD, Warning, TEXT("Attempted to wait on unacquired image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), Handle);
+		UE_LOG(LogHMD, Warning, TEXT("Attempted to wait on unacquired image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), reinterpret_cast<const void*>(Handle));
 		return;
 	}
 
@@ -65,7 +65,7 @@ void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
 	ImageReady.compare_exchange_strong(WasReady, true);
 	if (WasReady)
 	{
-		UE_LOG(LogHMD, Verbose, TEXT("Attempted to redundantly wait on image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), Handle);
+		UE_LOG(LogHMD, Verbose, TEXT("Attempted to redundantly wait on image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), reinterpret_cast<const void*>(Handle));
 		return;
 	}
 
@@ -93,7 +93,7 @@ void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
 		UE_LOG(LogHMD, Fatal, TEXT("Failed to wait on acquired swapchain image. This usually indicates a problem with the OpenXR runtime."));
 	}
 
-	UE_LOG(LogHMD, VeryVerbose, TEXT("Waited on image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), Handle);
+	UE_LOG(LogHMD, VeryVerbose, TEXT("Waited on image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), reinterpret_cast<const void*>(Handle));
 }
 
 void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
@@ -104,7 +104,7 @@ void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 	ImageReady.compare_exchange_strong(WasReady, false);
 	if (!WasReady)
 	{
-		UE_LOG(LogHMD, Warning, TEXT("Attempted to release image %d in swapchain %p that wasn't ready for being written to."), SwapChainIndex_RHIThread.load(), Handle);
+		UE_LOG(LogHMD, Warning, TEXT("Attempted to release image %d in swapchain %p that wasn't ready for being written to."), SwapChainIndex_RHIThread.load(), reinterpret_cast<const void*>(Handle));
 		return;
 	}
 
@@ -115,7 +115,7 @@ void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 	ReleaseInfo.next = nullptr;
 	XR_ENSURE(xrReleaseSwapchainImage(Handle, &ReleaseInfo));
 
-	UE_LOG(LogHMD, VeryVerbose, TEXT("Released on image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), Handle);
+	UE_LOG(LogHMD, VeryVerbose, TEXT("Released on image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), reinterpret_cast<const void*>(Handle));
 }
 
 uint8 FOpenXRSwapchain::GetNearestSupportedSwapchainFormat(XrSession InSession, uint8 RequestedFormat, TFunction<uint32(uint8)> ToPlatformFormat /*= nullptr*/)

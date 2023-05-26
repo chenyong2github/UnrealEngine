@@ -300,7 +300,7 @@ void FWmfMediaSession::Shutdown()
 			// Wait for close event since Close is asynchronous
 			MediaSessionCloseEvent->Wait();
 
-			UE_LOG(LogWmfMedia, Verbose, TEXT("Session: %p: Close"));
+			UE_LOG(LogWmfMedia, Verbose, TEXT("Session: %p: Close"), this);
 		}
 		else
 		{
@@ -1054,7 +1054,7 @@ bool FWmfMediaSession::CommitTopology(IMFTopology* Topology)
 
 		if (FAILED(Result))
 		{
-			UE_LOG(LogWmfMedia, Verbose, TEXT("Session %p: Failed to stop for topology change: %s"), *WmfMedia::ResultToString(Result));
+			UE_LOG(LogWmfMedia, Verbose, TEXT("Session %p: Failed to stop for topology change: %s"), this, *WmfMedia::ResultToString(Result));
 			return false;
 		}
 

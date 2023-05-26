@@ -160,7 +160,7 @@ FDMXCachedFunctionChannelInfo::FDMXCachedFunctionChannelInfo(const TArray<FDMXFi
 	UDMXEntityFixturePatch* FixturePatch = FixturePatchChannel.Reference.GetFixturePatch();
 	if (FixturePatch == nullptr || !FixturePatch->IsValidLowLevelFast())
 	{
-		UE_LOG(MovieSceneDMXLibrarySectionLog, Error, TEXT("%S: A Fixture Patch is null."), __FUNCTION__);
+		UE_LOG(MovieSceneDMXLibrarySectionLog, Error, TEXT("%hs: A Fixture Patch is null."), __FUNCTION__);
 		return;
 	}
 
@@ -793,13 +793,13 @@ void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelV
 		UDMXEntityFixtureType* FixtureType = Patch->GetFixtureType();
 		if (!FixtureType)
 		{
-			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%s: Ignoring patch  %s without valid parent fixture type"), __FUNCTION__, *Patch->GetDisplayName());
+			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%hs: Ignoring patch  %s without valid parent fixture type"), __FUNCTION__, *Patch->GetDisplayName());
 			continue;
 		}
 
 		if (!FixtureType->Modes.IsValidIndex(PatchChannel.ActiveMode))
 		{
-			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%s: Recorded active mode no longer valid. Ignoring Patch %s."), __FUNCTION__, *Patch->GetDisplayName());
+			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%hs: Recorded active mode no longer valid. Ignoring Patch %s."), __FUNCTION__, *Patch->GetDisplayName());
 			continue;
 		}
 

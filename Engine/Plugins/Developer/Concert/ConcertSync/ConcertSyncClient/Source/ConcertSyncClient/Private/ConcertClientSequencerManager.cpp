@@ -827,14 +827,14 @@ void FConcertClientSequencerManager::OnPrecacheEvent(const FConcertSessionContex
 			if (ULevelSequence** ExistingSequence = PrecachedSequences.Find(SequenceObjectPath);
 				ExistingSequence && *ExistingSequence)
 			{
-				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: %s already in precache set"), SequenceObjectPath);
+				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: %s already in precache set"), *SequenceObjectPath.ToString());
 				continue;
 			}
 
 			ULevelSequence* LoadedSequence = LoadObject<ULevelSequence>(nullptr, *SequenceObjectPathStr);
 			if (!LoadedSequence)
 			{
-				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: Failed to load sequence %s"), SequenceObjectPath);
+				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: Failed to load sequence %s"), *SequenceObjectPath.ToString());
 				continue;
 			}
 
@@ -844,7 +844,7 @@ void FConcertClientSequencerManager::OnPrecacheEvent(const FConcertSessionContex
 		{
 			if (!PrecachedSequences.Remove(SequenceObjectPath))
 			{
-				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: %s not in precache set"), SequenceObjectPath);
+				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: %s not in precache set"), *SequenceObjectPath.ToString());
 			}
 		}
 	}

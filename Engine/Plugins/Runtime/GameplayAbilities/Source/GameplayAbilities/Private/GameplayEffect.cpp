@@ -288,7 +288,7 @@ void UGameplayEffect::PostCDOCompiledFixupSubobjects()
 void UGameplayEffect::PostCDOCompiled(const FPostCDOCompiledContext& Context)
 {
 	Super::PostCDOCompiled(Context);
-	UE_LOG(LogGameplayEffects, VeryVerbose, TEXT("%s: Running Upgrade code. Current Version = %d"), *GetName(), GetVersion());
+	UE_LOG(LogGameplayEffects, VeryVerbose, TEXT("%s: Running Upgrade code. Current Version = %d"), *GetName(), int(GetVersion()));
 
 	// Make sure everything is fixed up properly before going through upgrade code
 	PostCDOCompiledFixupSubobjects();

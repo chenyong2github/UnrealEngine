@@ -194,7 +194,7 @@ private:
 		}
 		else if (JsonValues.Num() > 0)
 		{
-			UE_LOG(LogNNE, Error, TEXT("Incorrect number of element for tensor initializer %s, should have %d but got %d."), *Tensor.GetName());
+			UE_LOG(LogNNE, Error, TEXT("Incorrect number of element for tensor initializer %s."), *Tensor.GetName());
 
 		}
 		return TArray<char>();

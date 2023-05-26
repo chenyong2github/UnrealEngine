@@ -785,7 +785,7 @@ void FVulkanDynamicRHI::SelectDevice()
 		return;
 	}
 
-	UE_LOG(LogVulkanRHI, Log, TEXT("Creating Vulkan Device using VkPhysicalDevice 0x%x."), PhysicalDevice);
+	UE_LOG(LogVulkanRHI, Log, TEXT("Creating Vulkan Device using VkPhysicalDevice 0x%x."), reinterpret_cast<const void*>(PhysicalDevice));
 	Device = new FVulkanDevice(this, PhysicalDevice);
 
 	const VkPhysicalDeviceProperties& Props = Device->GetDeviceProperties();

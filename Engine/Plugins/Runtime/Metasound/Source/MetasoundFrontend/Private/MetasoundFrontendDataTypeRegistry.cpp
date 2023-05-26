@@ -892,7 +892,7 @@ namespace Metasound
 				const IDataTypeRegistryEntry* ElementEntry = FindDataTypeEntry(ElementDataType);
 				if (!ElementEntry)
 				{
-					UE_LOG(LogMetaSound, Error, TEXT("Failed to create a valid proxy from DataType '%s': ElementType '%s' is not registered."), *ElementDataType.ToString());
+					UE_LOG(LogMetaSound, Error, TEXT("Failed to create a valid proxy from DataType '%s': ElementType '%s' is not registered."), *InDataType.ToString(), *ElementDataType.ToString());
 					return Metasound::FLiteral(MoveTemp(ProxyArray));
 				}
 

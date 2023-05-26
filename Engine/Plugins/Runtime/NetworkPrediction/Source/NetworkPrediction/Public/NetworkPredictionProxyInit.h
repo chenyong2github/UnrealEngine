@@ -28,7 +28,7 @@ void FNetworkPredictionProxy::Init(const FInitParams<ModelDef>& Params)
 		if (!FNetworkPredictionDriver<ModelDef>::GetDefaultArchetype(CachedArchetype, WorldManager->PreferredDefaultTickingPolicy(), WorldManager->CanPhysicsFixTick()))
 		{
 			// This can fail, for example the ModelDef requires fixed tick physics but the engine is not set to fix ticking
-			UE_LOG(LogNetworkPrediction, Error, TEXT("Unable to initialize DefaultArchetype for %s. Skipping registration with NetworkPrediction"));
+			UE_LOG(LogNetworkPrediction, Error, TEXT("Unable to initialize DefaultArchetype. Skipping registration with NetworkPrediction"));
 			return;
 		}
 

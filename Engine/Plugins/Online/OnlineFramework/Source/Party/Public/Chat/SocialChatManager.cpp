@@ -51,7 +51,7 @@ void USocialChatManager::JoinChatRoomPublic(const FChatRoomId& RoomId, const FCh
 		}
 		else
 		{
-			UE_LOG(LogOnline, Warning, TEXT("USocialChatManager::JoinChatRoomPublic - Missing ChatInterface for subsystem %s when asked to join room %s"), *LexToString(InSocialSubsystem), *RoomId);
+			UE_LOG(LogOnline, Warning, TEXT("USocialChatManager::JoinChatRoomPublic - Missing ChatInterface for subsystem %s when asked to join room %s"), LexToString(InSocialSubsystem), *RoomId);
 		}
 	}
 	else
@@ -75,7 +75,7 @@ void USocialChatManager::JoinChatRoomPrivate(const FChatRoomId& RoomId, const FC
 		}
 		else
 		{
-			UE_LOG(LogOnline, Warning, TEXT("USocialChatManager::JoinChatRoomPrivate - Missing ChatInterface for subsystem %s when asked to join room %s"), *LexToString(InSocialSubsystem), *RoomId);
+			UE_LOG(LogOnline, Warning, TEXT("USocialChatManager::JoinChatRoomPrivate - Missing ChatInterface for subsystem %s when asked to join room %s"), LexToString(InSocialSubsystem), *RoomId);
 		}
 	}
 	else
@@ -99,7 +99,7 @@ void USocialChatManager::ExitChatRoom(const FChatRoomId& RoomId, ESocialSubsyste
 		}
 		else
 		{
-			UE_LOG(LogOnline, Warning, TEXT("USocialChatManager::ExitChatRoom - Missing ChatInterface for subsystem %s when asked to join room %s"), *LexToString(InSocialSubsystem), *RoomId);
+			UE_LOG(LogOnline, Warning, TEXT("USocialChatManager::ExitChatRoom - Missing ChatInterface for subsystem %s when asked to join room %s"), LexToString(InSocialSubsystem), *RoomId);
 		}
 	}
 	else

@@ -60,7 +60,7 @@ UNiagaraDataInterfaceBase* INiagaraShaderModule::RequestDefaultDataInterface(con
 		FModuleManager::Get().LoadModuleWithFailureReason(TEXT("Niagara"), LoadResult);
 		if (LoadResult != EModuleLoadResult::Success)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Module manager failed to load Niagara module LoadResult(%d)."), LoadResult);
+			UE_LOG(LogTemp, Warning, TEXT("Module manager failed to load Niagara module LoadResult(%d)."), int(LoadResult));
 		}
 
 		if ( !OnRequestDefaultDataInterface.IsBound() )

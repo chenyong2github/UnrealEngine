@@ -1238,16 +1238,16 @@ public:
 					TEXT("Reason unknown. Double delete? Bug or hash collision?"),
 					*GCObject->GetFullName(),
 					GCObject->GetFlags(),
-					GCObject->GetInternalFlags(),
+					int(GCObject->GetInternalFlags()),
 					PackageId.ValueForDebugging(),
 					PublicExportKey->GetExportHash());
 
 				UE_CLOG(ExistingObject != GCObject, LogStreaming, Fatal,
-					TEXT("FGlobalImportStore::VerifyObjectForRemoval: The loaded public export object '%s' with flags (ObjectFlags=%x, InternalObjectFlags=%x) and id 0x%llX:0x%llX is not matching the object '%s' in GlobalImportStore. "),
+					TEXT("FGlobalImportStore::VerifyObjectForRemoval: The loaded public export object '%s' with flags (ObjectFlags=%x, InternalObjectFlags=%x) and id 0x%llX:0x%llX is not matching the object '%s' in GlobalImportStore. ")
 					TEXT("Reason unknown. Overwritten after it was added? Bug or hash collision?"),
 					*GCObject->GetFullName(),
 					GCObject->GetFlags(),
-					GCObject->GetInternalFlags(),
+					int(GCObject->GetInternalFlags()),
 					PackageId.ValueForDebugging(),
 					PublicExportKey->GetExportHash(),
 					*ExistingObject->GetFullName());
@@ -1259,7 +1259,7 @@ public:
 					TEXT("Most likely this object has been moved into this package after it was loaded, while the original package is still around."),
 					*GCObject->GetFullName(),
 					GCObject->GetFlags(),
-					GCObject->GetInternalFlags(),
+					int(GCObject->GetInternalFlags()),
 					PackageId.ValueForDebugging(),
 					PublicExportKey->GetExportHash());
 			}
@@ -1356,7 +1356,7 @@ public:
 				Key.GetPackageId().Value(), Key.GetExportHash(),
 				*ExistingObject->GetFullName(),
 				ExistingObject->GetFlags(),
-				ExistingObject->GetInternalFlags(),
+				int(ExistingObject->GetInternalFlags()),
 				ExistingObjectIndex);
 
 			ExistingObject->AtomicallyClearInternalFlags(EInternalObjectFlags::LoaderImport);

@@ -539,7 +539,7 @@ void FNiagaraGpuComputeDispatch::DumpDebugFrame()
 
 			if (DispatchGroup.TicksWithPerInstanceData.Num() > 0)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("====== TicksWithPerInstanceData(%s)"), DispatchGroup.TicksWithPerInstanceData.Num());
+				UE_LOG(LogNiagara, Warning, TEXT("====== TicksWithPerInstanceData(%d)"), DispatchGroup.TicksWithPerInstanceData.Num());
 				for (FNiagaraGPUSystemTick* Tick : DispatchGroup.TicksWithPerInstanceData)
 				{
 					for (const auto& Pair : Tick->DIInstanceData->InterfaceProxiesToOffsets)
@@ -1496,7 +1496,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 					DispatchCount = SimStageData.DispatchArgs.ElementCount;
 					break;
 				default:
-					UE_LOG(LogNiagara, Fatal, TEXT("FNiagaraGpuComputeDispatch: Unknown DispatchType(%d)"), DispatchType);
+					UE_LOG(LogNiagara, Fatal, TEXT("FNiagaraGpuComputeDispatch: Unknown DispatchType(%d)"), int(DispatchType));
 					break;
 			}
 
@@ -1509,7 +1509,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 		}
 
 		default:
-			UE_LOG(LogNiagara, Fatal, TEXT("FNiagaraGpuComputeDispatch: Unknown IterationSouce(%d)"), SimStageData.StageMetaData->IterationSourceType);
+			UE_LOG(LogNiagara, Fatal, TEXT("FNiagaraGpuComputeDispatch: Unknown IterationSouce(%d)"), int(SimStageData.StageMetaData->IterationSourceType));
 			return;
 	}
 

@@ -52,7 +52,7 @@ class FSkinCacheExecHelper : public FSelfRegisteringExec
 					{
 						if (FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(LODIndex))
 						{
-							UE_LOG(LogTemp, Display, TEXT("%s, %d, %d"), *SkeletalMesh->GetFullName(), LODIndex, LODInfo->SkinCacheUsage);
+							UE_LOG(LogTemp, Display, TEXT("%s, %d, %d"), *SkeletalMesh->GetFullName(), LODIndex, int(LODInfo->SkinCacheUsage));
 						}
 					}
 				}

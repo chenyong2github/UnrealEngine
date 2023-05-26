@@ -4054,7 +4054,7 @@ const FWaveTransformUObjectConfiguration& USoundWave::UpdateTransformations()
 
 	if (TotalSamples == 0)
 	{
-		UE_LOG(LogAudio, Warning, TEXT("Found %d total samples when updating transformations on soundwave %s"), TotalSamples, *GetNameSafe(this));
+		UE_LOG(LogAudio, Warning, TEXT("Found %d total samples when updating transformations on soundwave %s"), size_t(TotalSamples), *GetNameSafe(this));
 		UE_LOG(LogAudio, Warning, TEXT("Consider reimporting the asset, transformations might not work correctly"));
 		return TransformationChainConfig;
 	}

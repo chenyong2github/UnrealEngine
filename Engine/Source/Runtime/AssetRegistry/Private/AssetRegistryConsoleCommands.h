@@ -127,7 +127,7 @@ public:
 		}
 		else
 		{
-			UE_LOG(LogAssetRegistry, Error, TEXT("\"%s\" is not a valid class path name (E.g. /Script/Engine.Actor)"));
+			UE_LOG(LogAssetRegistry, Error, TEXT("not a valid class path name (E.g. /Script/Engine.Actor)"));
 		}
 	}
 

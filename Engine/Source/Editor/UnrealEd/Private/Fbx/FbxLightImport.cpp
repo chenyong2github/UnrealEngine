@@ -54,12 +54,12 @@ ALight* FFbxImporter::CreateLight(FbxLight* InLight, UWorld* InWorld)
 		}
 		else
 		{
-			UE_LOG(LogFbxLightImport, Warning,TEXT("Failed to create light type %s "), InLight->GetName() );
+			UE_LOG(LogFbxLightImport, Warning,TEXT("Failed to create light type %hs "), InLight->GetName() );
 		}
 	}
 	else
 	{
-		UE_LOG(LogFbxLightImport, Warning,TEXT("Invalid light type %s "),InLight->GetName() );
+		UE_LOG(LogFbxLightImport, Warning,TEXT("Invalid light type %hs "), InLight->GetName() );
 	}
 	
 	return UnrealLight;

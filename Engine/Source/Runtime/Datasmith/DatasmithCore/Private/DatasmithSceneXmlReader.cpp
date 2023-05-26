@@ -287,7 +287,7 @@ void FDatasmithSceneXmlReader::ParseVariant( FXmlNode* InNode, const TSharedRef<
 			}
 			else
 			{
-				UE_LOG( LogDatasmith, Warning, TEXT( "Missing actor referenced in variant %s" ), *OutElement->GetName() );
+				UE_LOG( LogDatasmith, Warning, TEXT( "Missing actor referenced in variant %s" ), OutElement->GetName() );
 			}
 
 			ParseActorBinding( ChildNode, BindingElement, Objects );
@@ -342,14 +342,14 @@ void FDatasmithSceneXmlReader::ParsePropertyCapture( FXmlNode* InNode, const TSh
 	{
 		if ( !CheckTCharIsHex( Char ) )
 		{
-			UE_LOG( LogDatasmith, Warning, TEXT( "Invalid recorded data '%s' for captured property with path '%s' and category '%d'" ), *RecordedDataHex, *PropertyPath, Category );
+			UE_LOG( LogDatasmith, Warning, TEXT( "Invalid recorded data '%s' for captured property with path '%s' and category '%d'" ), *RecordedDataHex, *PropertyPath, int(Category) );
 			RecordedDataHex = FString();
 			break;
 		}
 	}
 	if ( RecordedDataHex.Len() % 2 != 0 )
 	{
-		UE_LOG( LogDatasmith, Warning, TEXT( "Invalid recorded data '%s' for captured property with path '%s' and category '%d'" ), *RecordedDataHex, *PropertyPath, Category );
+		UE_LOG( LogDatasmith, Warning, TEXT( "Invalid recorded data '%s' for captured property with path '%s' and category '%d'" ), *RecordedDataHex, *PropertyPath, int(Category) );
 		RecordedDataHex = FString();
 	}
 
@@ -360,7 +360,7 @@ void FDatasmithSceneXmlReader::ParsePropertyCapture( FXmlNode* InNode, const TSh
 	int32 NumRead = HexToBytes( RecordedDataHex, RecordedBytes.GetData() );
 	if ( NumRead != NumBytes )
 	{
-		UE_LOG( LogDatasmith, Warning, TEXT( "Invalid recorded data '%s' for captured property with path '%s' and category '%d'" ), *RecordedDataHex, *PropertyPath, Category );
+		UE_LOG( LogDatasmith, Warning, TEXT( "Invalid recorded data '%s' for captured property with path '%s' and category '%d'" ), *RecordedDataHex, *PropertyPath, int(Category) );
 		bool bAllowShrinking = false;
 		RecordedBytes.SetNum( 0, bAllowShrinking );
 		RecordedBytes.SetNumZeroed( NumBytes );
@@ -392,7 +392,7 @@ void FDatasmithSceneXmlReader::ParseObjectPropertyCapture( FXmlNode* InNode, con
 	}
 	else
 	{
-		UE_LOG( LogDatasmith, Warning, TEXT( "Missing object '%s' referenced by captured property with path '%s' and category '%d'" ), *OutElement->GetName(), *PropertyPath, Category );
+		UE_LOG( LogDatasmith, Warning, TEXT( "Missing object '%s' referenced by captured property with path '%s' and category '%d'" ), OutElement->GetName(), *PropertyPath, int(Category) );
 	}
 }
 

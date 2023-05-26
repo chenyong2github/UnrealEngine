@@ -1821,7 +1821,7 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 				if (!ensure(BodyAnimData.IsValidIndex(BodyIndex)))
 				{
 					UE_LOG(LogRBAN, Warning, TEXT("FAnimNode_RigidBody::InitializeBoneReferences: BodyIndex out of range. BodyIndex=%d/%d, SkeletonBoneIndex=%d/%d, CompactPoseBoneIndex=%d, RequiredBoneIndex=%d"),
-						BodyIndex, BodyAnimData.Num(), SkeletonBoneIndex, SkeletonBoneIndexToBodyIndex.Num(), CompactPoseBoneIndex, Index);
+								 BodyIndex, BodyAnimData.Num(), SkeletonBoneIndex, SkeletonBoneIndexToBodyIndex.Num(), CompactPoseBoneIndex.GetInt(), Index);
 
 					bHasInvalidBoneReference = true;
 					break;

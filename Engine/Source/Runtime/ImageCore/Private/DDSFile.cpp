@@ -377,7 +377,7 @@ EDDSError FDDSFile::Validate() const
 	const FDXGIFormatInfo* FormatInfo = DXGIFormatGetInfo(DXGIFormat);
 	if (!FormatInfo)
 	{
-		UE_LOG(LogDDSFile, Warning, TEXT("Unsupported format %d (%s)"), DXGIFormat, DXGIFormatGetName(DXGIFormat));
+		UE_LOG(LogDDSFile, Warning, TEXT("Unsupported format %d (%s)"), int(DXGIFormat), DXGIFormatGetName(DXGIFormat));
 		return EDDSError::BadPixelFormat;
 	}
 
@@ -1225,7 +1225,7 @@ bool FDDSFile::GetMipImage(const FImageView & ToImage, int MipIndex) const
 			if ( ! bIsExactMatch )
 			{
 				UE_LOG(LogDDSFile, Warning, TEXT("DDS BlitMip DXGIFormat isn't exact match fmt %d=(%s) to (%s)"), \
-					DXGIFormat, DXGIFormatGetName(DXGIFormat),ERawImageFormat::GetName(ToImage.Format));
+							 int(DXGIFormat), DXGIFormatGetName(DXGIFormat),ERawImageFormat::GetName(ToImage.Format));
 				// but do it anyway
 			}
 		
@@ -1238,7 +1238,7 @@ bool FDDSFile::GetMipImage(const FImageView & ToImage, int MipIndex) const
 			// very speculative, try it anyway, but log :
 		
 			UE_LOG(LogDDSFile, Warning, TEXT("DDS BlitMip DXGIFormat incompatible but same size! may be junk!  fmt %d=(%s) to (%s)"), \
-				DXGIFormat, DXGIFormatGetName(DXGIFormat),ERawImageFormat::GetName(ToImage.Format));
+						 int(DXGIFormat), DXGIFormatGetName(DXGIFormat),ERawImageFormat::GetName(ToImage.Format));
 
 			memcpy(ToImage.RawData,FromMip.Data,FromMip.DataSize);
 			return true;
@@ -1249,7 +1249,7 @@ bool FDDSFile::GetMipImage(const FImageView & ToImage, int MipIndex) const
 		// no supported conversion
 		
 		UE_LOG(LogDDSFile, Warning, TEXT("DDS BlitMip DXGIFormat cannot blit!  %d (%s) to (%s)"), \
-			DXGIFormat, DXGIFormatGetName(DXGIFormat),ERawImageFormat::GetName(ToImage.Format));
+					 int(DXGIFormat), DXGIFormatGetName(DXGIFormat),ERawImageFormat::GetName(ToImage.Format));
 
 		return false;
 	}

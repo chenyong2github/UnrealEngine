@@ -109,7 +109,7 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 	if (CurrentPipelineIndex >= Queue->GetJobs().Num())
 	{
 		FCoreDelegates::OnBeginFrame.RemoveAll(this);
-		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Out of bounds Job Index (%d) in Queue (Length: %d)! %d"), CurrentPipelineIndex, Queue->GetJobs().Num());
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Out of bounds Job Index (%d) in Queue (Length: %d)!"), CurrentPipelineIndex, Queue->GetJobs().Num());
 
 		FText FailureReason = LOCTEXT("OutOfBoundsFailureDialog", "The job index is out of bounds, did you clear the Queue while rendering was happening? See log for details.");
 		OnPipelineErrored(nullptr, true, FailureReason);

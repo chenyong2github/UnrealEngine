@@ -32,7 +32,7 @@ void FAssetTypeActions_DMXPixelMapping::OpenAssetEditor(const TArray<UObject*>& 
 		}
 		else
 		{
-			UE_LOG(LogDMXPixelMappingEditor, Warning, TEXT("Wrong object class for pixel mapping editor %"), *Object->GetClass()->GetFName().ToString());
+			UE_LOG(LogDMXPixelMappingEditor, Warning, TEXT("Wrong object class for pixel mapping editor %s"), *Object->GetClass()->GetFName().ToString());
 		}
 	}
 }

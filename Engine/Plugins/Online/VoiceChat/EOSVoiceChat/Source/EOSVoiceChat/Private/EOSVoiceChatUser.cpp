@@ -634,7 +634,7 @@ void FEOSVoiceChatUser::LeaveChannel(const FString& ChannelName, const FOnVoiceC
 		}
 		else if (ChannelSession.IsLobbySession())
 		{
-			EOSVOICECHATUSER_LOG(Error, TEXT("LeaveChannel ChannelName:%s lobby rooms can only be removed with RemoveLobbyRoom."));
+			EOSVOICECHATUSER_LOG(Error, TEXT("LeaveChannel ChannelName: lobby rooms can only be removed with RemoveLobbyRoom."));
 			Result = VoiceChat::Errors::NotPermitted();
 		}
 	}
@@ -1977,7 +1977,7 @@ void FEOSVoiceChatUser::OnUpdateSendingAudio(const EOS_RTCAudio_UpdateSendingCal
 					else
 					{
 						// Not a warning as the first call to UpdateSending is before JoinRoom, so before the local participant is added...
-						EOSVOICECHATUSER_LOG(Verbose, TEXT("OnUpdateSending ChannelName=[%s] PlayerName=[%s] not found"), *ChannelName);
+						EOSVOICECHATUSER_LOG(Verbose, TEXT("OnUpdateSending ChannelName=[%s] PlayerName=[%s] not found"), *ChannelName, *ChannelSession->PlayerName);
 					}
 				}
 			}

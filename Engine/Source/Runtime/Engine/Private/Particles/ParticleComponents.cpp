@@ -2624,7 +2624,7 @@ void UParticleSystem::PostLoad()
 							{
 								if (Emitter->CreateLODLevel(NewLODIndex) != NewLODIndex)
 								{
-									UE_LOG(LogParticles, Warning, TEXT("Failed to add LOD level %s"), NewLODIndex);
+									UE_LOG(LogParticles, Warning, TEXT("Failed to add LOD level %d"), NewLODIndex);
 								}
 							}
 						}

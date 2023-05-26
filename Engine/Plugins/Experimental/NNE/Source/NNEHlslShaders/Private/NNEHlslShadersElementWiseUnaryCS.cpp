@@ -72,7 +72,7 @@ namespace UE::NNEHlslShaders::Internal
 
 		if (OpFunc == "")
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Undefined ElementWise Unary operator name for operator:%d"), OpType);
+			UE_LOG(LogNNE, Warning, TEXT("Undefined ElementWise Unary operator name for operator:%d"), int(OpType));
 		}
 
 		return OpFunc;

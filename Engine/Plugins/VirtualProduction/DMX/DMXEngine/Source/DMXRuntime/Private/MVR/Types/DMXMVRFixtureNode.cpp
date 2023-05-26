@@ -725,7 +725,7 @@ bool UDMXMVRFixtureNode::IsValid(bool bLogInvalidReason) const
 	{
 		if (bLogInvalidReason)
 		{
-			UE_LOG(LogDMXRuntime, Warning, TEXT("Fixture '%' is not a valid MVR Fixture, its Fixture UUID is invalid."), *BeautifulName);
+			UE_LOG(LogDMXRuntime, Warning, TEXT("Fixture '%s' is not a valid MVR Fixture, its Fixture UUID is invalid."), *BeautifulName);
 		}
 		return false;
 	}
@@ -734,7 +734,7 @@ bool UDMXMVRFixtureNode::IsValid(bool bLogInvalidReason) const
 	{
 		if (bLogInvalidReason)
 		{
-			UE_LOG(LogDMXRuntime, Warning, TEXT("Fixture '%' is not a valid MVR Fixture, its GDTFSpec is empty."), *BeautifulName);
+			UE_LOG(LogDMXRuntime, Warning, TEXT("Fixture '%s' is not a valid MVR Fixture, its GDTFSpec is empty."), *BeautifulName);
 		}
 		return false;
 	}
@@ -743,7 +743,7 @@ bool UDMXMVRFixtureNode::IsValid(bool bLogInvalidReason) const
 	{
 		if (bLogInvalidReason)
 		{
-			UE_LOG(LogDMXRuntime, Warning, TEXT("Fixture '%' is not a valid MVR Fixture, its GDTFMode is empty."), *BeautifulName);
+			UE_LOG(LogDMXRuntime, Warning, TEXT("Fixture '%s' is not a valid MVR Fixture, its GDTFMode is empty."), *BeautifulName);
 		}
 		return false;
 	}
@@ -752,7 +752,7 @@ bool UDMXMVRFixtureNode::IsValid(bool bLogInvalidReason) const
 	{		
 		if (bLogInvalidReason)
 		{
-			UE_LOG(LogDMXRuntime, Warning, TEXT("Fixture '%' is not a valid MVR Fixture, its Universe is < 0 or larger than the Range supported by UE."), *BeautifulName);
+			UE_LOG(LogDMXRuntime, Warning, TEXT("Fixture '%s' is not a valid MVR Fixture, its Universe is < 0 or larger than the Range supported by UE."), *BeautifulName);
 		}
 		return false;
 	}
@@ -761,7 +761,7 @@ bool UDMXMVRFixtureNode::IsValid(bool bLogInvalidReason) const
 	{
 		if (bLogInvalidReason)
 		{
-			UE_LOG(LogDMXRuntime, Warning, TEXT("Fixture '%' is not a valid MVR Fixture, its Address is < 1 or > 512."), *BeautifulName);
+			UE_LOG(LogDMXRuntime, Warning, TEXT("Fixture '%s' is not a valid MVR Fixture, its Address is < 1 or > 512."), *BeautifulName);
 		}
 		return false;
 	}

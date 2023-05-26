@@ -494,12 +494,12 @@ FORCEINLINE_DEBUGGABLE void CallSlowARO(DispatcherType& Dispatcher, uint32 SlowA
 
 FORCENOINLINE static void LogIllegalTypeFatal(EMemberType Type, uint32 Idx, UObject* Instance)
 {
-	UE_LOG(LogGarbage, Fatal, TEXT("Illegal GC object member type %d at %d, class:%s object:%s"), Type, Idx, Instance ? *GetNameSafe(Instance->GetClass()) : TEXT("Unknown"), *GetPathNameSafe(Instance));
+	UE_LOG(LogGarbage, Fatal, TEXT("Illegal GC object member type %d at %d, class:%s object:%s"), int(Type), Idx, Instance ? *GetNameSafe(Instance->GetClass()) : TEXT("Unknown"), *GetPathNameSafe(Instance));
 }
 
 FORCENOINLINE static void LogIllegalTypeFatal(EMemberType Type, uint32 Idx, uint8*)
 {
-	UE_LOG(LogGarbage, Fatal, TEXT("Illegal GC struct member type %d at %d"), Type, Idx);
+	UE_LOG(LogGarbage, Fatal, TEXT("Illegal GC struct member type %d at %d"), int(Type), Idx);
 }
 
 template<class DispatcherType>

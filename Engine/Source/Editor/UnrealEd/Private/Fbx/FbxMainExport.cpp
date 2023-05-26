@@ -369,7 +369,7 @@ void FFbxExporter::WriteToFile(const TCHAR* Filename)
 	if( !Exporter->Initialize(TCHAR_TO_UTF8(Filename), FileFormat, SdkManager->GetIOSettings()) )
 	{
 		UE_LOG(LogFbx, Warning, TEXT("Call to KFbxExporter::Initialize() failed.\n"));
-		UE_LOG(LogFbx, Warning, TEXT("Error returned: %s\n\n"), Exporter->GetStatus().GetErrorString() );
+		UE_LOG(LogFbx, Warning, TEXT("Error returned: %hs\n\n"), Exporter->GetStatus().GetErrorString() );
 		return;
 	}
 

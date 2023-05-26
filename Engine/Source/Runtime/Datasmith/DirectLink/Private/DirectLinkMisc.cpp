@@ -27,7 +27,7 @@ const FString& GetDumpPath()
 		FText Text;
 		if (!FPaths::ValidatePath(Var, &Text))
 		{
-			UE_LOG(LogDirectLink, Warning, TEXT("Invalid path '%s' defined by environment variable %s (%s)."), *Var, *VarName, *Text.ToString());
+			UE_LOG(LogDirectLink, Warning, TEXT("Invalid path '%s' defined by environment variable %s (%s)."), *Var, VarName, *Text.ToString());
 			return FString();
 		}
 		return Var;

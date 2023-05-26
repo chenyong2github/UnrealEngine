@@ -646,7 +646,7 @@ void FZenClient::DispatchMessage(FZenWebSocketMessage&& Message)
 		break;
 	}
 	default:
-		UE_LOG(LogZenClient, Warning, TEXT("dispatch message FAILED, reason 'invalid message type (%d)'"), Message.MessageType());
+		UE_LOG(LogZenClient, Warning, TEXT("dispatch message FAILED, reason 'invalid message type (%d)'"), int(Message.MessageType()));
 		break;
 	}
 }

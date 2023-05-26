@@ -473,7 +473,7 @@ bool FNiagaraParameterStore::VerifyBinding(const FNiagaraParameterStore* DestSto
 	}
 	else
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Invalid ParameterStore Binding: % was not bound to %s."), *DebugName, *DestStore->DebugName);
+		UE_LOG(LogNiagara, Warning, TEXT("Invalid ParameterStore Binding: %s was not bound to %s."), *DebugName, *DestStore->DebugName);
 	}
 
 	return false;

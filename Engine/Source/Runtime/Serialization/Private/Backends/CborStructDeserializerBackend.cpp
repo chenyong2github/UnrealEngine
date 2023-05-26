@@ -334,7 +334,7 @@ bool FCborStructDeserializerBackend::ReadProperty(FProperty* Property, FProperty
 			UE_LOG(LogSerialization, Verbose, TEXT("Double field %s with value '%f' is not supported in FProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsDouble(), *Property->GetClass()->GetName(), *GetDebugString());
 			return false;
 		default:
-			UE_LOG(LogSerialization, Verbose, TEXT("Unsupported primitive type for %s in FProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsDouble(), *Property->GetClass()->GetName(), *GetDebugString());
+			UE_LOG(LogSerialization, Verbose, TEXT("Unsupported primitive type for %s with value '%f' in FProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsDouble(), *Property->GetClass()->GetName(), *GetDebugString());
 			return false;
 		}
 	}

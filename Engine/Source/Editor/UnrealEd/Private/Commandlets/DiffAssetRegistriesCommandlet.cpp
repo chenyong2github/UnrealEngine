@@ -504,7 +504,7 @@ void UDiffAssetRegistriesCommandlet::ConsistencyCheck(const FString& OldPath, co
 	Rescale(ChangeBytes, ChangeValue, ChangeExp);
 
 	UE_LOG(LogDiffAssets, Display, TEXT("Summary:"));
-	UE_LOG(LogDiffAssets, Display, TEXT("%d nondeterministic cooks, %8.3f %cB"), Changes, ChangeValue, " KMGTP"[ChangeExp]);
+	UE_LOG(LogDiffAssets, Display, TEXT("%d nondeterministic cooks, %8.3f %cB"), Changes, ChangeValue, TCHAR(" KMGTP"[ChangeExp]));
 }
 
 bool	UDiffAssetRegistriesCommandlet::IsInRelevantChunk(FAssetRegistryState& InRegistryState, FName InAssetPath)
@@ -883,12 +883,12 @@ void UDiffAssetRegistriesCommandlet::LogChangedFiles(FArchive *CSVFile, FString 
 
 			if (CSVFile)
 			{
-				CSVFile->Logf(TEXT("%c,%s,%s,%d,%d,%d,%s"), classification, *AssetPath.ToString(), *ClassName.ToString(), ChangeInfo.ChangedBytes, PrevData->DiskSize, Changelist, *GetChunkIDString(NewState));
+				CSVFile->Logf(TEXT("%c,%s,%s,%d,%d,%d,%s"), TCHAR(classification), *AssetPath.ToString(), *ClassName.ToString(), ChangeInfo.ChangedBytes, PrevData->DiskSize, Changelist, *GetChunkIDString(NewState));
 			}
 
 			if (bIsVerbose)
 			{
-				UE_LOG(LogDiffAssets, Display, TEXT("%c %s : (Class=%s,NewSize=%d bytes,OldSize=%d bytes)"), classification, *AssetPath.ToString(), *ClassName.ToString(), ChangeInfo.ChangedBytes, PrevData->DiskSize);
+				UE_LOG(LogDiffAssets, Display, TEXT("%c %s : (Class=%s,NewSize=%d bytes,OldSize=%d bytes)"), TCHAR(classification), *AssetPath.ToString(), *ClassName.ToString(), ChangeInfo.ChangedBytes, PrevData->DiskSize);
 			}
 		}
 		else if (ChangeInfo.Deletes)

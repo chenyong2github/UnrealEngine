@@ -39,7 +39,7 @@ namespace
 		}
 
 		checkSlow(false);
-		UE_LOG(LogMDLImporter, Error, TEXT("Dynamic type doesn't have correct Value type : %s"), ValueData.get_type_name());
+		UE_LOG(LogMDLImporter, Error, TEXT("Dynamic type doesn't have correct Value type : %hs"), ValueData.get_type_name());
 
 		return false;
 	}

@@ -86,7 +86,7 @@ void FHttpConnection::ChangeState(EHttpConnectionState NewState)
 	check(NewState != State);
 
 	UE_LOG(LogHttpConnection, Verbose,
-		TEXT("ChangingState: %d => %d"), State, NewState);
+				 TEXT("ChangingState: %d => %d"), int(State), int(NewState));
 	State = NewState;
 }
 
@@ -177,7 +177,7 @@ void FHttpConnection::CompleteRead(const TSharedPtr<FHttpServerRequest>& Request
 		{
 			UE_LOG(LogHttpConnection, Verbose,
 				TEXT("EndProcessRequest\t [%d][%u]-%u : %u"), 
-				OriginPortCapture, ConnectionIdCapture, LastRequestNumberCapture, Response->Code);
+						 OriginPortCapture, ConnectionIdCapture, LastRequestNumberCapture, int(Response->Code));
 
 			// Ensure this result callback was called once
 			check(EHttpConnectionState::AwaitingProcessing == SharedThisPtr->GetState());

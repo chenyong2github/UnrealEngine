@@ -371,7 +371,7 @@ void FDbgHelpResolver::LoadModuleSymbols(const FModule* Module, const TCHAR* Pat
 
 		if (!SymSetSearchPath((HANDLE)Handle, UserSearchPath.ToString()))
 		{
-			UE_LOG(LogDbgHelp, Warning, TEXT("Unable to set symbol search path to '%s'."), UserSearchPath.ToString());
+			UE_LOG(LogDbgHelp, Warning, TEXT("Unable to set symbol search path to '%hs'."), UserSearchPath.ToString());
 		}
 		TCHAR OutPath[1024];
 		SymGetSearchPathW((HANDLE) Handle, OutPath, 1024);

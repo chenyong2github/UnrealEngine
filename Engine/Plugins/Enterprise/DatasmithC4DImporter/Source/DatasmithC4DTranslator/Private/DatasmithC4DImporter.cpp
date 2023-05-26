@@ -2492,7 +2492,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithC4DImporter::ImportObjectAndChildre
 	TOptional<FString> DatasmithName = MelangeObjectID(ActorObject);
 	if (!DatasmithName)
 	{
-		UE_LOG(LogDatasmithC4DImport, Error, TEXT("Could not get the ID of object \"%s\": %s"), *MelangeObjectName(ActorObject));
+		UE_LOG(LogDatasmithC4DImport, Error, TEXT("Could not get the ID of object \"%s\""), *MelangeObjectName(ActorObject));
 		DatasmithName = FString(TEXT("Invalid object"));
 	}
 

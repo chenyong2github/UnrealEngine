@@ -130,7 +130,7 @@ namespace Audio
 				if (FuncPtr == nullptr)
 				{
 					bInSuccess = false;
-					UE_LOG(LogAudioMixer, Warning, TEXT("Failed to locate the expected DLL import function '%s' in the SoundFile DLL."), *FuncName);
+					UE_LOG(LogAudioMixer, Warning, TEXT("Failed to locate the expected DLL import function '%s' in the SoundFile DLL."), FuncName);
 					FPlatformProcess::FreeDllHandle(LambdaDLLHandle);
 					LambdaDLLHandle = nullptr;
 				}

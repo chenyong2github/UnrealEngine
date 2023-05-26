@@ -929,7 +929,7 @@ int32 FPoly::Finalize( ABrush* InOwner, int32 NoError )
 		}
 		else
 		{
-			UE_LOG(LogPolygon, Error, TEXT("FPoly::Finalize: Normalization failed, verts=%d, size=%d"), Vertices.Num(), Normal.Size());
+			UE_LOG(LogPolygon, Error, TEXT("FPoly::Finalize: Normalization failed, verts=%d, size=%f"), Vertices.Num(), Normal.Size());
 			for (int32 VertIdx = 0; VertIdx < Vertices.Num(); ++VertIdx)
 			{
 				UE_LOG(LogPolygon, Error, TEXT("Vertex %d: <%.6f, %.6f, %.6f>"), VertIdx, Vertices[VertIdx].X, Vertices[VertIdx].Y, Vertices[VertIdx].Z);

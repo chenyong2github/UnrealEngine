@@ -810,7 +810,7 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence)
 		FFrameRate                TickResolution    = MovieScene->GetTickResolution();
 		FFrameRate                DisplayRate       = MovieScene->GetDisplayRate();
 
-		UE_LOG(LogMovieScene, Verbose, TEXT("Initialize - MovieSceneSequence: %s, TickResolution: %f, DisplayRate: %d, CurrentTime: %d"), *InSequence->GetName(), TickResolution.Numerator, DisplayRate.Numerator);
+		UE_LOG(LogMovieScene, Verbose, TEXT("Initialize - MovieSceneSequence: %s, TickResolution: %d, DisplayRate: %d"), *InSequence->GetName(), TickResolution.Numerator, DisplayRate.Numerator);
 
 		// We set the play position in terms of the display rate,
 		// but want evaluation ranges in the moviescene's tick resolution

@@ -110,7 +110,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		{
 			if (InputTypes[i] != ENNETensorDataType::Float)
 			{
-				UE_LOG(LogNNE, Warning, TEXT("Concat operator input '%d' of type '%d' is not supported, should be float at the moment."), i, InputTypes[i]);
+				UE_LOG(LogNNE, Warning, TEXT("Concat operator input '%d' of type '%d' is not supported, should be float at the moment."), i, int(InputTypes[i]));
 				bIsValid = false;
 			}
 		}
