@@ -215,7 +215,7 @@ namespace UE::ChooserEditor
 		return CellWidget;
 	}
 
-	static TSharedRef<SWidget> CreateObjectPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass)
+	static TSharedRef<SWidget> CreateObjectPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged)
 	{
 		IHasContextClass* HasContextClass = Cast<IHasContextClass>(TransactionObject);
 
@@ -224,11 +224,12 @@ namespace UE::ChooserEditor
 		return SNew(SPropertyAccessChainWidget).ContextClassOwner(HasContextClass).AllowFunctions(false).BindingColor("ObjectPinTypeColor").TypeFilter("object")
 		.PropertyBindingValue(&ContextProperty->Binding)
 		.OnAddBinding_Lambda(
-			[ContextProperty, TransactionObject](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+			[ContextProperty, TransactionObject, ValueChanged](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
 			{
 				const FScopedTransaction Transaction(NSLOCTEXT("ContextPropertyWidget", "Change Property Binding", "Change Property Binding"));
 				TransactionObject->Modify(true);
-				ContextProperty->SetBinding(InBindingChain);	
+				ContextProperty->SetBinding(InBindingChain);
+				ValueChanged.ExecuteIfBound();
 			});
 	}
 

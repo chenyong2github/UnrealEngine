@@ -974,7 +974,7 @@ TSharedRef<FProxyTableEditor> FProxyTableEditor::CreateEditor( const EToolkitMod
 
 /// Result widgets
 
-TSharedRef<SWidget> CreateLookupProxyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass)
+TSharedRef<SWidget> CreateLookupProxyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, ChooserEditor::FChooserWidgetValueChanged ValueChanged)
 {
 	FLookupProxy* LookupProxy = static_cast<FLookupProxy*>(Value);
 	
@@ -997,11 +997,12 @@ TSharedRef<SWidget> CreateLookupProxyWidget(bool bReadOnly, UObject* Transaction
 			}
 			return true;
 		})
-		.OnObjectChanged_Lambda([TransactionObject, LookupProxy](const FAssetData& AssetData)
+		.OnObjectChanged_Lambda([TransactionObject, LookupProxy, ValueChanged](const FAssetData& AssetData)
 		{
 			const FScopedTransaction Transaction(LOCTEXT("Edit Chooser", "Edit Chooser"));
 			TransactionObject->Modify(true);
 			LookupProxy->Proxy = Cast<UProxyAsset>(AssetData.GetAsset());
+			ValueChanged.ExecuteIfBound();
 		});
 }
 

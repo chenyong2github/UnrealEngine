@@ -95,6 +95,26 @@ void FPropertyAccessChainCustomization::CustomizeHeader(TSharedRef<IPropertyHand
          	 						EnumPropertyValue->Enum = ByteProperty->Enum;
          	 					}
          	 				}
+							if (TypeFilter == "object")
+							{
+								FField* Property = InBindingChain.Last().Field.ToField();
+								FChooserObjectPropertyBinding* ObjectPropertyBinding = static_cast<FChooserObjectPropertyBinding*>(PropertyValue);
+								
+								if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property))
+								{
+									ObjectPropertyBinding->AllowedClass = ObjectProperty->PropertyClass;
+								}
+							}
+         	 				if (TypeFilter == "struct")
+							{
+								FField* Property = InBindingChain.Last().Field.ToField();
+								FChooserStructPropertyBinding* StructPropertyBinding = static_cast<FChooserStructPropertyBinding*>(PropertyValue);
+								
+								if (const FStructProperty* StructProperty = CastField<const FStructProperty>(Property))
+								{
+									StructPropertyBinding->StructType = StructProperty->Struct;
+								}
+							}
          	
          	 				PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
          	 			}

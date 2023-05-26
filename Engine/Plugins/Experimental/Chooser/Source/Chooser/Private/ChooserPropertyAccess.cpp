@@ -13,7 +13,7 @@ namespace UE::Chooser
 {
 	bool ResolvePropertyChain(FChooserEvaluationContext& Context, const FChooserPropertyBinding& PropertyBinding, const void*& OutContainer, const UStruct*& OutStructType)
 	{
-		if (PropertyBinding.ContextIndex < Context.Params.Num())
+		if (Context.Params.IsValidIndex(PropertyBinding.ContextIndex))
 		{
 			if (FChooserEvaluationInputObject* ObjectParam = Context.Params[PropertyBinding.ContextIndex].GetMutablePtr<FChooserEvaluationInputObject>())
 			{
@@ -103,7 +103,11 @@ namespace UE::Chooser
 	{
 		OutPropertyBinding.PropertyBindingChain.Empty();
 
-		if (InBindingChain.Num() > 0)
+		if (InBindingChain.Num() == 0)
+		{
+			OutPropertyBinding.ContextIndex = -1;
+		}
+		else
 		{
 			OutPropertyBinding.ContextIndex = InBindingChain[0].ArrayIndex;
 		}

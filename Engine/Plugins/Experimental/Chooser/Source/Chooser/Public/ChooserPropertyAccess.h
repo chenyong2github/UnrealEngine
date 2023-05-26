@@ -38,7 +38,12 @@ struct FChooserPropertyBinding
 	TArray<FName> PropertyBindingChain;
 	
 	UPROPERTY()
-	int ContextIndex = 0;
+	int ContextIndex;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FString DisplayName;
+#endif
 };
 
 USTRUCT()
@@ -63,6 +68,16 @@ struct FChooserObjectPropertyBinding : public FChooserPropertyBinding
 #endif
 };
 
+USTRUCT()
+struct FChooserStructPropertyBinding : public FChooserPropertyBinding
+{
+	GENERATED_BODY()
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TObjectPtr<UScriptStruct> StructType = nullptr;
+#endif
+};
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FChooserOutputObjectTypeChanged, const UClass* OutputObjectType);
 UENUM()
@@ -97,7 +112,7 @@ struct FContextObjectTypeStruct : public FContextObjectTypeBase
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere, Category="Type")
-	TObjectPtr<UStruct> Struct;
+	TObjectPtr<UScriptStruct> Struct;
 };
 
 

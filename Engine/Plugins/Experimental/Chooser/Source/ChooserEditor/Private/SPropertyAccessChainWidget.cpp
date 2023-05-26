@@ -38,6 +38,11 @@ TSharedRef<SWidget> SPropertyAccessChainWidget::CreatePropertyAccessWidget()
 		{
 			return true;
 		}
+		if (TypeFilter == "struct")
+		{
+			// special case for struct of any type
+			return CastField<FStructProperty>(Property) != nullptr;
+		}
 		if (TypeFilter == "object")
 		{
 			// special case for objects references of any type
@@ -65,6 +70,20 @@ TSharedRef<SWidget> SPropertyAccessChainWidget::CreatePropertyAccessWidget()
 		
 		return Property->GetCPPType() == TypeFilter;
 	};
+
+	// allow struct bindings to bind context structs directly
+	Args.OnCanBindToContextStruct = FOnCanBindToContextStruct::CreateLambda([this](UStruct* StructType)
+	{
+		if (TypeFilter == "struct" && !StructType->IsChildOf(UObject::StaticClass()))
+		{
+			// struct bindings can bind any type of struct
+			return true;
+		}
+		else
+		{
+			return StructType->GetName()  == TypeFilter;
+		}
+	});
 
 	Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda(CanBindProperty);
 
@@ -150,9 +169,31 @@ TSharedRef<SWidget> SPropertyAccessChainWidget::CreatePropertyAccessWidget()
 				const FChooserPropertyBinding* PropertyValue = PropertyBindingValue.Get();
 	
 				int BindingChainLength = PropertyValue->PropertyBindingChain.Num();
-				if (BindingChainLength > 0)
+				if (BindingChainLength == 0)
 				{
-					if (BindingChainLength == 1)
+					if (PropertyValue->ContextIndex >= 0)
+					{
+						// direct binding to a context struct
+						if (ContextClassOwner)
+						{
+							TConstArrayView<FInstancedStruct> ContextData = ContextClassOwner->GetContextData();
+							if (ContextData.IsValidIndex(PropertyValue->ContextIndex))
+							{
+								if (const FContextObjectTypeStruct* StructType = ContextData[PropertyValue->ContextIndex].GetPtr<FContextObjectTypeStruct>())
+								{
+									CurrentValue = FText::FromString(StructType->Struct->GetAuthoredName());
+								}
+							}
+						}
+					}
+				}
+				else
+				{
+					if (!PropertyValue->DisplayName.IsEmpty())
+					{
+						CurrentValue = FText::FromString(PropertyValue->DisplayName);
+					}
+					else if (BindingChainLength == 1)
 					{
 						// single property, just use the property name
 						CurrentValue = FText::FromName(PropertyValue->PropertyBindingChain.Last());

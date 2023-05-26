@@ -496,7 +496,7 @@ TSharedRef<SWidget> SPropertyBinding::OnGenerateDelegateMenu()
 					FUIAction(FExecuteAction::CreateSP(this, &SPropertyBinding::HandleAddBinding, BindingChain)),
 					MakeContextStructWidget(ContextStruct));
 			}
-			else if (HasBindableProperties(ContextStruct.Struct))
+			if (HasBindableProperties(ContextStruct.Struct))
 			{
 				// Show struct properties.
 				MenuBuilder.AddSubMenu(
