@@ -126,6 +126,10 @@ private:
 #if UE_COMMAND_LINE_USES_ALLOW_LIST
 	/** Filters both the original and current command line list for approved only args */
 	static void ApplyCommandLineAllowList();
+	/** Filters any command line args that aren't on the approved list */
+	static TArray<FString> FilterCommandLine(TCHAR* CommandLine);
+	/** Filters any command line args that are on the to-strip list */
+	static TArray<FString> FilterCommandLineForLogging(TCHAR* CommandLine);
 	/** Rebuilds the command line using the filtered args */
 	static void BuildCommandLineAllowList(TCHAR* CommandLine, uint32 Length, const TArray<FString>& FilteredArgs);
 	static TArray<FString> ApprovedArgs;
