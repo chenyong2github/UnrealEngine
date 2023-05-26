@@ -183,7 +183,7 @@ namespace UE::DMXPixelMapping::Rendering::Preprocess::Private
 		{
 			FlushRenderingCommands();
 
-			const FVector2D InputSize = FVector2D(InputTexture->GetSurfaceHeight(), InputTexture->GetSurfaceWidth());
+			const FVector2D InputSize = FVector2D(InputTexture->GetSurfaceWidth(), InputTexture->GetSurfaceHeight());
 
 			// Create downsample render targets
 			DownsampleRenderTargets.Reset();

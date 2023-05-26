@@ -17,6 +17,8 @@ void UDMXPixelMappingPreprocessRenderer::SetInputTexture(UTexture* InTexture)
 	using namespace UE::DMXPixelMapping::Rendering::Preprocess::Private;
 	RenderInputProxy = MakeShared<FPreprocessRenderInputTextureProxy>(InTexture);
 	ApplyMaterialProxy = MakeShared<FPreprocessApplyFilterMaterialProxy>();
+
+	bShowInputSize = false;
 }
 
 void UDMXPixelMappingPreprocessRenderer::SetInputMaterial(UMaterialInterface* InMaterial)
@@ -24,6 +26,8 @@ void UDMXPixelMappingPreprocessRenderer::SetInputMaterial(UMaterialInterface* In
 	using namespace UE::DMXPixelMapping::Rendering::Preprocess::Private;
 	RenderInputProxy = MakeShared<FPreprocessRenderInputMaterialProxy>(InMaterial, InputSize);
 	ApplyMaterialProxy = MakeShared<FPreprocessApplyFilterMaterialProxy>();
+
+	bShowInputSize = true;
 }
 
 void UDMXPixelMappingPreprocessRenderer::SetInputUserWidget(UUserWidget* InUserWidget)
@@ -31,6 +35,8 @@ void UDMXPixelMappingPreprocessRenderer::SetInputUserWidget(UUserWidget* InUserW
 	using namespace UE::DMXPixelMapping::Rendering::Preprocess::Private;
 	RenderInputProxy = MakeShared<FPreprocessRenderInputUserWidgetProxy>(InUserWidget, InputSize);
 	ApplyMaterialProxy = MakeShared<FPreprocessApplyFilterMaterialProxy>();
+
+	bShowInputSize = true;
 }
 
 void UDMXPixelMappingPreprocessRenderer::ClearInput()
