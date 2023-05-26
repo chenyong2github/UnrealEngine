@@ -61,6 +61,7 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	TObjectPtr<UUsdAssetCache2> AssetCache;
 
 	/** Caches various information about prims that are expensive to query */
+	UE_DEPRECATED(5.3, "The import process now always builds its own InfoCache, so this member is no longer used")
 	TSharedPtr<FUsdInfoCache> InfoCache;
 
 	/**
@@ -96,6 +97,12 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 
 public:
 	FUsdStageImportContext();
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	~FUsdStageImportContext() = default;
+	FUsdStageImportContext(const FUsdStageImportContext& Other) = default;
+	FUsdStageImportContext& operator=(const FUsdStageImportContext& Other) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool Init(const FString& InName, const FString& InFilePath, const FString& InInitialPackagePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport = false, bool bAllowActorImport = true);
 	void Reset();

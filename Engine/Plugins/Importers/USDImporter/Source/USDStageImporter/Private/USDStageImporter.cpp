@@ -282,10 +282,9 @@ namespace UsdStageImporterImpl
 			TranslationContext.InfoCache = MakeShared<FUsdInfoCache>();
 		}
 
-		if ( TranslationContext.InfoCache->IsEmpty() )
-		{
-			TranslationContext.InfoCache->RebuildCacheForSubtree( TranslationContext.Stage.GetPseudoRoot(), TranslationContext );
-		}
+		// It's better to always rebuild the info cache because our import options may have changed
+		// from the options used when the cache was first built, which could change collapsing states, etc.
+		TranslationContext.InfoCache->RebuildCacheForSubtree(TranslationContext.Stage.GetPseudoRoot(), TranslationContext);
 	}
 
 	void ImportMaterials(FUsdStageImportContext& ImportContext, FUsdSchemaTranslationContext& TranslationContext)
@@ -1800,15 +1799,9 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 		);
 		ImportContext.AssetCache = NewObject<UUsdAssetCache2>();
 	}
-	if (!ImportContext.InfoCache)
-	{
-		UE_LOG(LogUsd, Log, TEXT("Generating a temporary USD Info Cache when importing '%s'."),
-			*ImportContext.FilePath
-		);
-		ImportContext.InfoCache = MakeShared<FUsdInfoCache>();
-	}
+	TSharedPtr<FUsdInfoCache> InfoCache = MakeShared<FUsdInfoCache>();
 	ImportContext.AssetCache->MarkAssetsAsStale();
-	ImportContext.LevelSequenceHelper.SetInfoCache(ImportContext.InfoCache);
+	ImportContext.LevelSequenceHelper.SetInfoCache(InfoCache);
 	ImportContext.LevelSequenceHelper.Init( ImportContext.Stage );  // Must happen after the context gets an InfoCache!
 
 	// Shotgun approach to recreate all render states because we may want to reimport/delete/reassign a material/static/skeletalmesh while it is currently being drawn
@@ -1833,7 +1826,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	TranslationContext->bAllowParsingSkeletalAnimations = ImportContext.ImportOptions->bImportGeometry && ImportContext.ImportOptions->bImportSkeletalAnimations;
 	TranslationContext->bAllowParsingGroomAssets = ImportContext.ImportOptions->bImportGroomAssets;
 	TranslationContext->bTranslateOnlyUsedMaterials = ImportContext.ImportOptions->bImportOnlyUsedMaterials;
-	TranslationContext->InfoCache = ImportContext.InfoCache;
+	TranslationContext->InfoCache = InfoCache;
 	TranslationContext->BlendShapesByPath = &BlendShapesByPath;
 	TranslationContext->GroomInterpolationSettings = ImportContext.ImportOptions->GroomInterpolationSettings;
 	{
@@ -1924,15 +1917,9 @@ bool UUsdStageImporter::ReimportSingleAsset(
 		);
 		ImportContext.AssetCache = NewObject<UUsdAssetCache2>();
 	}
-	if (!ImportContext.InfoCache)
-	{
-		UE_LOG(LogUsd, Log, TEXT("Generating a temporary USD Info Cache when importing '%s'."),
-			*ImportContext.FilePath
-		);
-		ImportContext.InfoCache = MakeShared<FUsdInfoCache>();
-	}
+	TSharedPtr<FUsdInfoCache> InfoCache = MakeShared<FUsdInfoCache>();
 	ImportContext.AssetCache->MarkAssetsAsStale();
-	ImportContext.LevelSequenceHelper.SetInfoCache(ImportContext.InfoCache);
+	ImportContext.LevelSequenceHelper.SetInfoCache(InfoCache);
 	ImportContext.LevelSequenceHelper.Init(ImportContext.Stage);  // Must happen after the context gets an InfoCache!
 
 	// Shotgun approach to recreate all render states because we may want to reimport/delete/reassign a material/static/skeletalmesh while it is currently being drawn
@@ -1956,7 +1943,7 @@ bool UUsdStageImporter::ReimportSingleAsset(
 	TranslationContext->bAllowParsingSkeletalAnimations = ImportContext.ImportOptions->bImportGeometry && ImportContext.ImportOptions->bImportSkeletalAnimations;
 	TranslationContext->bAllowParsingGroomAssets = ImportContext.ImportOptions->bImportGroomAssets;
 	TranslationContext->bTranslateOnlyUsedMaterials = ImportContext.ImportOptions->bImportOnlyUsedMaterials;
-	TranslationContext->InfoCache = ImportContext.InfoCache;
+	TranslationContext->InfoCache = InfoCache;
 	TranslationContext->BlendShapesByPath = &BlendShapesByPath;
 	TranslationContext->GroomInterpolationSettings = ImportContext.ImportOptions->GroomInterpolationSettings;
 	{
