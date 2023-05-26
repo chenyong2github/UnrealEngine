@@ -120,9 +120,8 @@ void ULyraControllerComponent_CharacterParts::OnPossessedPawnChanged(APawn* OldP
 	{
 		for (FLyraControllerCharacterPartEntry& Entry : CharacterParts)
 		{
-			ensure(!Entry.Handle.IsValid());
-
-			if (Entry.Source != ECharacterPartSource::NaturalSuppressedViaCheat)
+			// Don't readd if it's already there, this can get called with a null oldpawn
+			if (!Entry.Handle.IsValid() && Entry.Source != ECharacterPartSource::NaturalSuppressedViaCheat)
 			{
 				Entry.Handle = NewCustomizer->AddCharacterPart(Entry.Part);
 			}
