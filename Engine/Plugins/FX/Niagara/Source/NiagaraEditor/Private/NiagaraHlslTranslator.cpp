@@ -1347,7 +1347,16 @@ FNiagaraTranslateResults TNiagaraHlslTranslator<GraphBridge>::Translate(const FN
 						{
 							if(DataInterfaceData.ReadsEmitterParticleData.Contains(CompileData->EmitterUniqueName))
 							{
-								SimStage.bPartialParticleUpdate = false;
+								IConsoleVariable* CVarIgnoreUnsafeReads = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.Niagara.ParticleRead.IgnoreUnsafeReads"));
+								const bool bIgnoredUnsafeReads = CVarIgnoreUnsafeReads ? CVarIgnoreUnsafeReads->GetBool() : false;
+								if (bIgnoredUnsafeReads && CompileSimStageData.bParticleIterationStateEnabled)
+								{
+									Warning(LOCTEXT("ReadsSelfEmitterDataIterationStage", "Reading own emitter data using iteration state can cause a race."), nullptr, nullptr);
+								}
+								else
+								{
+									SimStage[Index].bPartialParticleUpdate = false;
+								}
 								break;
 							}
 						}
