@@ -5,6 +5,7 @@
 #include "EntitySystem/MovieSceneEntityMutations.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
+#include "EntitySystem/MovieSceneTaskScheduler.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSource.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "IMovieScenePlayer.h"
@@ -898,6 +899,11 @@ bool FMovieSceneEntitySystemRunner::GameThread_PostInstantiation(UMovieSceneEnti
 	Linker->AutoUnlinkIrrelevantSystems();
 
 	EntityManager.Compact();
+
+	if (FEntitySystemScheduler::IsCustomSchedulingEnabled())
+	{
+		Linker->SystemGraph.ReconstructTaskSchedule(&Linker->EntityManager);
+	}
 	return true;
 }
 
@@ -909,7 +915,6 @@ bool FMovieSceneEntitySystemRunner::GameThread_EvaluationPhase(UMovieSceneEntity
 
 	CurrentPhase = ESystemPhase::Evaluation;
 
-	FGraphEventArray AllTasks;
 	// --------------------------------------------------------------------------------------------------------------------------------------------
 	// Step 2: Run the evaluation phase. The entity manager is locked down for this phase, meaning no changes to entity-component structure is allowed
 	//         This vastly simplifies the concurrent handling of entity component allocations
@@ -917,6 +922,12 @@ bool FMovieSceneEntitySystemRunner::GameThread_EvaluationPhase(UMovieSceneEntity
 
 	checkf(!Linker->EntityManager.ContainsComponent(FBuiltInComponentTypes::Get()->Tags.NeedsUnlink), TEXT("Stale entities remain in the entity manager during evaluation - these should have been destroyed during the instantiation phase. Did it run?"));
 
+	if (FEntitySystemScheduler::IsCustomSchedulingEnabled())
+	{
+		Linker->SystemGraph.ScheduleTasks(&Linker->EntityManager);
+	}
+
+	FGraphEventArray AllTasks;
 	Linker->SystemGraph.ExecutePhase(ESystemPhase::Evaluation, Linker, AllTasks);
 
 	if (AllTasks.Num() != 0)
@@ -928,6 +939,14 @@ bool FMovieSceneEntitySystemRunner::GameThread_EvaluationPhase(UMovieSceneEntity
 	}
 
 	Linker->EntityManager.ReleaseLockDown();
+
+	if ( !EnumHasAnyFlags(AccumulatedUpdateFlags, ESequenceInstanceUpdateFlags::HasLegacyTemplates)
+		 && Linker->SystemGraph.NumInPhase(ESystemPhase::Finalization) == 0
+		 && !EventTriggers.IsBound())
+	{
+		// Skip Finalization if there's no need for it
+		SkipFlushState(ERunnerFlushState::Finalization | ERunnerFlushState::EventTriggers);
+	}
 
 	return true;
 }

@@ -10,7 +10,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneQuaternionInterpolationRotationSystem)
 
-DECLARE_CYCLE_STAT(TEXT("MovieScene: Quat-interp-rot channel system"), MovieSceneEval_QuatInterpRotChannelSystem, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate quat-interp-rot channels"), MovieSceneEval_EvaluateQuatInterpRotChannelTask, STATGROUP_MovieSceneECS);
 
 namespace UE
@@ -46,7 +45,7 @@ struct FEvaluateQuaternionInterpolationRotationChannels
 			const FEntityAllocation* Allocation,
 			TRead<FFrameTime> FrameTimes, 
 			TMultiReadOptional<FSourceDoubleChannel, FSourceDoubleChannel, FSourceDoubleChannel> RotChannelAccessors,
-			double* OutResultXs, double* OutResultYs, double* OutResultZs)
+			double* OutResultXs, double* OutResultYs, double* OutResultZs) const
 	{
 		const FSourceDoubleChannel* RotationXs = RotChannelAccessors.Get<0>();
 		const FSourceDoubleChannel* RotationYs = RotChannelAccessors.Get<1>();
@@ -188,6 +187,7 @@ UMovieSceneQuaternionInterpolationRotationSystem::UMovieSceneQuaternionInterpola
 	using namespace UE::MovieScene;
 
 	SystemCategories = EEntitySystemCategory::ChannelEvaluators;
+	Phase = ESystemPhase::Scheduling;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -213,11 +213,29 @@ bool UMovieSceneQuaternionInterpolationRotationSystem::IsRelevantImpl(UMovieScen
 		});
 }
 
-void UMovieSceneQuaternionInterpolationRotationSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+void UMovieSceneQuaternionInterpolationRotationSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
 {
 	using namespace UE::MovieScene;
 
-	SCOPE_CYCLE_COUNTER(MovieSceneEval_QuatInterpRotChannelSystem);
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
+
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->EvalTime)
+	.ReadOneOrMoreOf(
+			TrackComponents->QuaternionRotationChannel[0],
+			TrackComponents->QuaternionRotationChannel[1],
+			TrackComponents->QuaternionRotationChannel[2])
+	.WriteOptional(BuiltInComponents->DoubleResult[3])
+	.WriteOptional(BuiltInComponents->DoubleResult[4])
+	.WriteOptional(BuiltInComponents->DoubleResult[5])
+	.SetStat(GET_STATID(MovieSceneEval_EvaluateQuatInterpRotChannelTask))
+	.Fork_PerAllocation<FEvaluateQuaternionInterpolationRotationChannels>(&Linker->EntityManager, TaskScheduler);
+}
+
+void UMovieSceneQuaternionInterpolationRotationSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+{
+	using namespace UE::MovieScene;
 
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();

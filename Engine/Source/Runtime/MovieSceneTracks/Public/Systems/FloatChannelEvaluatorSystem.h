@@ -13,18 +13,14 @@
 
 #include "FloatChannelEvaluatorSystem.generated.h"
 
-class UMovieSceneEntitySystemLinker;
-class UObject;
-
 namespace UE::MovieScene
 {
 	struct FSourceFloatChannel;
-
 	namespace Interpolation
 	{
 		struct FCachedInterpolation;
 	}
-} // namespace UE::MovieScene
+}
 
 /**
  * System that is responsible for evaluating double channels.
@@ -39,6 +35,7 @@ public:
 
 	UFloatChannelEvaluatorSystem(const FObjectInitializer& ObjInit);
 
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
 

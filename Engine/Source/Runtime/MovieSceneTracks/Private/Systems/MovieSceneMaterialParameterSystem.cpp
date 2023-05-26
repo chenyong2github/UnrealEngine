@@ -436,7 +436,7 @@ UMovieSceneMaterialParameterSystem::UMovieSceneMaterialParameterSystem(const FOb
 	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 
 	RelevantComponent = TracksComponents->BoundMaterial;
-	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation;
+	Phase = ESystemPhase::Instantiation | ESystemPhase::Scheduling;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -564,6 +564,31 @@ void UMovieSceneMaterialParameterSystem::OnInstantiation()
 		VectorParameterStorage->BeginTrackingAndCachePreAnimatedValuesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->VectorParameterName);
 		VectorParameterStorage->BeginTrackingAndCachePreAnimatedValuesTask(Linker, Params, TracksComponents->BoundMaterial, TracksComponents->ColorParameterName);
 	}
+}
+
+void UMovieSceneMaterialParameterSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+	FEntityTaskBuilder()
+	.Read(TracksComponents->BoundMaterial)
+	.Read(TracksComponents->ScalarParameterName)
+	.Read(BuiltInComponents->DoubleResult[0])
+	.FilterNone({ BuiltInComponents->BlendChannelInput })
+	.SetDesiredThread(Linker->EntityManager.GetDispatchThread())
+	.Fork_PerEntity<FApplyScalarParameters>(&Linker->EntityManager, TaskScheduler);
+
+	// Vectors and colors use the same API
+	FEntityTaskBuilder()
+	.Read(TracksComponents->BoundMaterial)
+	.ReadOneOrMoreOf(TracksComponents->VectorParameterName, TracksComponents->ColorParameterName)
+	.ReadOneOrMoreOf(BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2], BuiltInComponents->DoubleResult[3])
+	.FilterNone({ BuiltInComponents->BlendChannelInput })
+	.SetDesiredThread(Linker->EntityManager.GetDispatchThread())
+	.Fork_PerAllocation<FApplyVectorParameters>(&Linker->EntityManager, TaskScheduler);
 }
 
 void UMovieSceneMaterialParameterSystem::OnEvaluation(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)

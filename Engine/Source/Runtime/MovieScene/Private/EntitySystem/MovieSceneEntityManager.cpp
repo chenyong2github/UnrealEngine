@@ -229,6 +229,7 @@ struct FEntityInitializer
 					uint8 Alignment = FMath::Max<uint8>(PLATFORM_CACHE_LINE_SIZE, TypeInfo.Alignment);
 					ComponentDataPtr = Align(ComponentDataPtr, Alignment);
 
+					Header->ScheduledAccessCount.exchange(0, std::memory_order_relaxed);
 					Header->Components = reinterpret_cast<uint8*>(ComponentDataPtr);
 
 					check(IsAligned(Header->Components, TypeInfo.Alignment));
@@ -1094,7 +1095,7 @@ int32 FEntityManager::GetOrCreateAllocationWithSlack(const FComponentMask& Entit
 
 int32 FEntityManager::CreateAllocationWithSlack(const FComponentMask& EntityComponentMask, int32* InOutDesiredSlack)
 {
-	static const uint16 MaxCapacity = 2048;
+	static const uint16 MaxCapacity = 64;
 
 	uint16 DefaultCapacity = 4;
 	if (InOutDesiredSlack)

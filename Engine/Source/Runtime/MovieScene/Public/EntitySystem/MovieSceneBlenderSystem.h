@@ -109,10 +109,10 @@ protected:
 	/** Bit array specifying currently allocated blend channels */
 	TBitArray<> AllocatedBlendChannels;
 
-private:
-
 	/** Priority to use when selecting a blender system for a given set of entities. Highest priority will be used. */
 	int32 SelectionPriority;
+
+private:
 
 	/** Cached blender system ID */
 	FMovieSceneBlenderSystemID SystemID;

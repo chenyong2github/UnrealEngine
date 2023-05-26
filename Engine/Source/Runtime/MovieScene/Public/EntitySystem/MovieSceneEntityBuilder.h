@@ -503,19 +503,11 @@ struct TAdd : FAdd
 		const FComponentHeader& Header = Allocation->GetComponentHeaderChecked(ComponentTypeID);
 		check(!Header.IsTag());
 
-		if (Allocation->GetCurrentLockMode() != EComponentHeaderLockMode::LockFree)
-		{
-			Header.ReadWriteLock.WriteLock();
-		}
+		FScopedHeaderWriteLock WriteLock(&Header, Allocation->GetCurrentLockMode(), FEntityAllocationWriteContext::NewAllocation());
 
 		T* ComponentPtr = static_cast<T*>(Header.GetValuePtr(ComponentOffset));
 		*ComponentPtr = MoveTemp(Payload.GetValue());
 		Payload.Reset();
-
-		if (Allocation->GetCurrentLockMode() != EComponentHeaderLockMode::LockFree)
-		{
-			Header.ReadWriteLock.WriteUnlock();
-		}
 	}
 };
 
@@ -538,19 +530,11 @@ struct TAddConditional : FAddConditional
 			const FComponentHeader& Header = Allocation->GetComponentHeaderChecked(ComponentTypeID);
 			check(!Header.IsTag());
 
-			if (Allocation->GetCurrentLockMode() != EComponentHeaderLockMode::LockFree)
-			{
-				Header.ReadWriteLock.WriteLock();
-			}
+			FScopedHeaderWriteLock WriteLock(&Header, Allocation->GetCurrentLockMode(), FEntityAllocationWriteContext::NewAllocation());
 
 			T* ComponentPtr = static_cast<T*>(Header.GetValuePtr(ComponentOffset));
 			*ComponentPtr = MoveTemp(Payload.GetValue());
 			Payload.Reset();
-
-			if (Allocation->GetCurrentLockMode() != EComponentHeaderLockMode::LockFree)
-			{
-				Header.ReadWriteLock.WriteUnlock();
-			}
 		}
 	}
 };

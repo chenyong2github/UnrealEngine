@@ -687,6 +687,25 @@ void UMovieSceneEntitySystem::FinishDestroy()
 	Super::FinishDestroy();
 }
 
+void UMovieSceneEntitySystem::SchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	if (!bSystemIsEnabled)
+	{
+		return;
+	}
+
+	checkf(Linker != nullptr, TEXT("Attempting to evaluate a system that has been unlinked!"));
+
+	// We may have erroneously linked a system we should have done, but we must not run it in this case
+	if (!Linker->GetSystemFilter().CheckSystem(this))
+	{
+		return;
+	}
+
+	Linker->EntityManager.IncrementSystemSerial();
+	OnSchedulePersistentTasks(TaskScheduler);
+}
+
 void UMovieSceneEntitySystem::Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	if (!bSystemIsEnabled)

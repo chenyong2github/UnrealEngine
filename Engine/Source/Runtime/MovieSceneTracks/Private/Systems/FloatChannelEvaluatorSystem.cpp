@@ -40,7 +40,7 @@ TArray<FFloatChannelTypeAssociation, TInlineAllocator<4>> GFloatChannelTypeAssoc
 /** Entity-component task that evaluates using the non-cached codepath for testing parity */
 struct FEvaluateFloatChannels_Uncached
 {
-	void ForEachEntity(FSourceFloatChannel FloatChannel, FFrameTime FrameTime, double& OutResult)
+	static void ForEachEntity(FSourceFloatChannel FloatChannel, FFrameTime FrameTime, double& OutResult)
 	{
 		float Result;
 		if (FloatChannel.Source->Evaluate(FrameTime, Result))
@@ -57,7 +57,7 @@ struct FEvaluateFloatChannels_Uncached
 /** Entity-component task that evaluates using a cached interpolation if possible */
 struct FEvaluateFloatChannels_Cached
 {
-	void ForEachEntity(FSourceFloatChannel FloatChannel, FFrameTime FrameTime, Interpolation::FCachedInterpolation& Cache, double& OutResult)
+	static void ForEachEntity(FSourceFloatChannel FloatChannel, FFrameTime FrameTime, Interpolation::FCachedInterpolation& Cache, double& OutResult)
 	{
 		if (!Cache.IsCacheValidForTime(FrameTime.GetFrame()))
 		{
@@ -133,7 +133,7 @@ UFloatChannelEvaluatorSystem::UFloatChannelEvaluatorSystem(const FObjectInitiali
 	using namespace UE::MovieScene;
 
 	SystemCategories = EEntitySystemCategory::ChannelEvaluators;
-	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation;
+	Phase = ESystemPhase::Instantiation | ESystemPhase::Scheduling;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -177,6 +177,41 @@ bool UFloatChannelEvaluatorSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker*
 	}
 
 	return false;
+}
+
+void UFloatChannelEvaluatorSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	if (GEnableCachedChannelEvaluation)
+	{
+		for (const FFloatChannelTypeAssociation& ChannelType : GFloatChannelTypeAssociations)
+		{
+			// Evaluate float channels per instance and write the evaluated value into the output
+			FEntityTaskBuilder()
+			.Read(ChannelType.ChannelType)
+			.Read(BuiltInComponents->EvalTime)
+			.Write(ChannelType.CachedInterpolationType)
+			.Write(ChannelType.ResultType)
+			.FilterNone({ BuiltInComponents->Tags.Ignored })
+			.SetStat(GET_STATID(MovieSceneEval_EvaluateFloatChannelTask))
+			.Fork_PerEntity<FEvaluateFloatChannels_Cached>(&Linker->EntityManager, TaskScheduler);
+		}
+	}
+	else
+	{
+		for (const FFloatChannelTypeAssociation& ChannelType : GFloatChannelTypeAssociations)
+		{
+			FEntityTaskBuilder()
+			.Read(ChannelType.ChannelType)
+			.Read(BuiltInComponents->EvalTime)
+			.Write(ChannelType.ResultType)
+			.FilterNone({ BuiltInComponents->Tags.Ignored })
+			.SetStat(GET_STATID(MovieSceneEval_EvaluateFloatChannelTask))
+			.Fork_PerEntity<FEvaluateFloatChannels_Uncached>(&Linker->EntityManager, TaskScheduler);
+		}
+	}
 }
 
 void UFloatChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)

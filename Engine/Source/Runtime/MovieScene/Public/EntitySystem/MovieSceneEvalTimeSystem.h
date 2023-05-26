@@ -15,24 +15,31 @@
 class UObject;
 struct FFrameTime;
 
-UCLASS()
-class MOVIESCENE_API UMovieSceneEvalTimeSystem : public UMovieSceneEntitySystem
+namespace UE::MovieScene
 {
-public:
-	GENERATED_BODY()
-
-	UMovieSceneEvalTimeSystem(const FObjectInitializer& ObjInit);
-
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
-	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
-
-private:
 	struct FEvaluatedTime
 	{
 		FFrameTime FrameTime;
 		double Seconds;
 	};
-	TArray<FEvaluatedTime> EvaluatedTimes;
+}
+
+UCLASS()
+class MOVIESCENE_API UMovieSceneEvalTimeSystem : public UMovieSceneEntitySystem
+{
+public:
+
+	GENERATED_BODY()
+
+	UMovieSceneEvalTimeSystem(const FObjectInitializer& ObjInit);
+
+	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
+	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+
+private:
+
+	TArray<UE::MovieScene::FEvaluatedTime, TInlineAllocator<16>> EvaluatedTimes;
 
 	UE::MovieScene::FEntityComponentFilter RelevantFilter;
 };

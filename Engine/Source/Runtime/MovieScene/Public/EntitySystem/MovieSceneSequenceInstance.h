@@ -40,6 +40,7 @@ enum class ESequenceInstanceUpdateFlags : uint8
 	NeedsDissection     = 1u << 0,
 	NeedsPreEvaluation  = 1u << 1,
 	NeedsPostEvaluation = 1u << 2,
+	HasLegacyTemplates  = 1u << 3,
 };
 ENUM_CLASS_FLAGS(ESequenceInstanceUpdateFlags);
 

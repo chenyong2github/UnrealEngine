@@ -140,12 +140,15 @@ void FSequenceInstance::InitializeLegacyEvaluator(UMovieSceneEntitySystemLinker*
 		if (!LegacyEvaluator)
 		{
 			LegacyEvaluator = MakeUnique<FMovieSceneTrackEvaluator>(CompiledEntry.GetSequence(), RootTemplate.GetCompiledDataID(), CompiledDataManager);
+			UpdateFlags |= ESequenceInstanceUpdateFlags::HasLegacyTemplates;
 		}
 	}
 	else if (LegacyEvaluator)
 	{
 		LegacyEvaluator->Finish(*Player);
 		LegacyEvaluator = nullptr;
+
+		UpdateFlags &= ~ESequenceInstanceUpdateFlags::HasLegacyTemplates;
 	}
 }
 

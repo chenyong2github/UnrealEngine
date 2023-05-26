@@ -22,18 +22,8 @@ namespace UE
 namespace MovieScene
 {
 
-
 template<typename PropertyTraits, typename ...MetaDataTypes>
-void TSetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::PreTask()
-{
-	if (CustomProperties)
-	{
-		CustomAccessors = CustomProperties->GetAccessors();
-	}
-}
-
-template<typename PropertyTraits, typename ...MetaDataTypes>
-void TSetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomIndex, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, InParamType ValueToSet)
+void TSetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomIndex, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, InParamType ValueToSet) const
 {
 	PropertyTraits::SetObjectPropertyValue(InObject, MetaData..., CustomAccessors[CustomIndex.Value], ValueToSet);
 }
@@ -55,7 +45,7 @@ void TSetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>
 }
 
 template<typename PropertyTraits, typename ...MetaDataTypes>
-void TSetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaDataComponents, TRead<StorageType> PropertyValueComponents)
+void TSetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaDataComponents, TRead<StorageType> PropertyValueComponents) const
 {
 	const int32 Num = Allocation->Num();
 	if (const FCustomPropertyIndex* Custom = ResolvedPropertyComponents.template Get<0>())
@@ -82,7 +72,7 @@ void TSetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>
 }
 
 template<typename PropertyTraits, typename ...MetaDataTypes>
-void TSetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaDataComponents, TRead<StorageType> PropertyValueComponents)
+void TSetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaDataComponents, TRead<StorageType> PropertyValueComponents) const
 {
 	const int32 Num = Allocation->Num();
 	if (const uint16* Fast = ResolvedPropertyComponents.template Get<0>())
@@ -101,24 +91,14 @@ void TSetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>
 	}
 }
 
-
 template<typename PropertyTraits, typename ...MetaDataTypes>
-void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::PreTask()
-{
-	if (CustomProperties)
-	{
-		CustomAccessors = CustomProperties->GetAccessors();
-	}
-}
-
-template<typename PropertyTraits, typename ...MetaDataTypes>
-void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, StorageType& OutValue)
+void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, StorageType& OutValue) const
 {
 	PropertyTraits::GetObjectPropertyValue(InObject, MetaData..., CustomAccessors[CustomPropertyIndex.Value], OutValue);
 }
 
 template<typename PropertyTraits, typename ...MetaDataTypes>
-void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachEntity(UObject* InObject, uint16 PropertyOffset, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, StorageType& OutValue)
+void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachEntity(UObject* InObject, uint16 PropertyOffset, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, StorageType& OutValue) const
 {
 	// Would really like to avoid branching here, but if we encounter this data the options are either handle it gracefully, stomp a vtable, or report a fatal error.
 	if (ensureAlwaysMsgf(PropertyOffset != 0, TEXT("Invalid property offset specified (ptr+%d bytes) for property on object %s. This would otherwise overwrite the object's vfptr."), PropertyOffset, *InObject->GetName()))
@@ -128,13 +108,13 @@ void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>
 }
 
 template<typename PropertyTraits, typename ...MetaDataTypes>
-void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachEntity(UObject* InObject, const TSharedPtr<FTrackInstancePropertyBindings>& PropertyBindings, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, StorageType& OutValue)
+void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachEntity(UObject* InObject, const TSharedPtr<FTrackInstancePropertyBindings>& PropertyBindings, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, StorageType& OutValue) const
 {
 	PropertyTraits::GetObjectPropertyValue(InObject, MetaData..., PropertyBindings.Get(), OutValue);
 }
 
 template<typename PropertyTraits, typename ...MetaDataTypes>
-void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaData, TWrite<StorageType> OutValueComponents)
+void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaData, TWrite<StorageType> OutValueComponents) const
 {
 	const int32 Num = Allocation->Num();
 	if (const FCustomPropertyIndex* Custom = ResolvedPropertyComponents.template Get<0>())
@@ -161,7 +141,7 @@ void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>
 }
 
 template<typename PropertyTraits, typename ...MetaDataTypes>
-void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaData, TWrite<StorageType> OutValueComponents)
+void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaData, TWrite<StorageType> OutValueComponents) const
 {
 	const int32 Num = Allocation->Num();
 	if (const uint16* Fast = ResolvedPropertyComponents.template Get<0>())
@@ -182,24 +162,14 @@ void TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>
 
 
 template<typename PropertyTraits, typename... MetaDataTypes, typename... CompositeTypes>
-
-void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>::PreTask()
-{
-	if (CustomProperties)
-	{
-		CustomAccessors = CustomProperties->GetAccessors();
-	}
-}
-
-template<typename PropertyTraits, typename... MetaDataTypes, typename... CompositeTypes>
-void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>::ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults)
+void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>::ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults) const
 {
 	StorageType Result = PropertyTraits::CombineComposites(MetaData..., CompositeResults...);
 	PropertyTraits::SetObjectPropertyValue(InObject, MetaData..., CustomAccessors[CustomPropertyIndex.Value], Result);
 }
 
 template<typename PropertyTraits, typename... MetaDataTypes, typename... CompositeTypes>
-void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>::ForEachEntity(UObject* InObject, uint16 PropertyOffset, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults)
+void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>::ForEachEntity(UObject* InObject, uint16 PropertyOffset, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults) const
 {
 	// Would really like to avoid branching here, but if we encounter this data the options are either handle it gracefully, stomp a vtable, or report a fatal error.
 	if (ensureAlwaysMsgf(PropertyOffset != 0, TEXT("Invalid property offset specified (ptr+%d bytes) for property on object %s. This would otherwise overwrite the object's vfptr."), PropertyOffset, *InObject->GetName()))
@@ -210,14 +180,14 @@ void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 }
 
 template<typename PropertyTraits, typename... MetaDataTypes, typename... CompositeTypes>
-void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>::ForEachEntity(UObject* InObject, const TSharedPtr<FTrackInstancePropertyBindings>& PropertyBindings, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults)
+void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>::ForEachEntity(UObject* InObject, const TSharedPtr<FTrackInstancePropertyBindings>& PropertyBindings, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults) const
 {
 	StorageType Result = PropertyTraits::CombineComposites(MetaData..., CompositeResults...);
 	PropertyTraits::SetObjectPropertyValue(InObject, MetaData..., PropertyBindings.Get(), Result);
 }
 
 template<typename PropertyTraits, typename... MetaDataTypes, typename... CompositeTypes>
-void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... InMetaData, TRead<CompositeTypes>... VariadicComponents)
+void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... InMetaData, TRead<CompositeTypes>... VariadicComponents) const
 {
 	const int32 Num = Allocation->Num();
 	if (const FCustomPropertyIndex* Custom = ResolvedPropertyComponents.template Get<0>())
@@ -244,7 +214,7 @@ void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 }
 
 template<typename PropertyTraits, typename... MetaDataTypes, typename... CompositeTypes>
-void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... InMetaData, TRead<CompositeTypes>... VariadicComponents)
+void TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... InMetaData, TRead<CompositeTypes>... VariadicComponents) const
 {
 	const int32 Num = Allocation->Num();
 	if (const uint16* Fast = ResolvedPropertyComponents.template Get<0>())

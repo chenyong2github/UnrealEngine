@@ -114,14 +114,22 @@ void FObjectFactoryBatch::InitializeAllocation(UMovieSceneEntitySystemLinker* Li
 
 	FEntityAllocationWriteContext WriteContext = FEntityAllocationWriteContext::NewAllocation();
 
+	const FEntityAllocation* Allocation = nullptr;
+	int32 ComponentStartOffset = 0;
+	int32 Num = 0;
+
+	TArrayView<const FMovieSceneEntityID> ChildEntityIDs        = InChildEntityRange.Allocation->GetEntityIDs();
+	TComponentReader<FMovieSceneEntityID> ParentIDComponents    = InChildEntityRange.Allocation->ReadComponents(ParentEntity);
+	TComponentWriter<UObject*>            BoundObjectComponents = InChildEntityRange.Allocation->WriteComponents(BoundObject, WriteContext);
+
 	int32 Index = GetCurrentIndex();
-	for (TEntityPtr<const FMovieSceneEntityID, const FMovieSceneEntityID, UObject*> Tuple : FEntityTaskBuilder().ReadEntityIDs().Read(ParentEntity).Write(BoundObject).IterateRange(InChildEntityRange, WriteContext))
+	for (int32 ChildIndex = InChildEntityRange.ComponentStartOffset; ChildIndex < InChildEntityRange.ComponentStartOffset + InChildEntityRange.Num; ++ChildIndex)
 	{
-		FMovieSceneEntityID Parent = Tuple.Get<1>();
-		FMovieSceneEntityID Child = Tuple.Get<0>();
+		FMovieSceneEntityID Parent = ParentIDComponents[ChildIndex];
+		FMovieSceneEntityID Child  = ChildEntityIDs[ChildIndex];
 
 		UObject* Object = ObjectsToAssign[Index++];
-		Tuple.Get<2>() = Object;
+		BoundObjectComponents[ChildIndex] = Object;
 
 		if (FMovieSceneEntityID OldEntityToPreserve = StaleEntitiesToPreserve->FindRef(MakeTuple(Object, Parent)))
 		{

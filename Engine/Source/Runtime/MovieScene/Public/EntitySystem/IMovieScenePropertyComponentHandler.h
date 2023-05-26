@@ -24,6 +24,8 @@ struct FValueDecompositionParams;
 struct FPreAnimatedStateExtension;
 struct FPropertyCompositeDefinition;
 
+class IEntitySystemScheduler;
+
 /** Type-erased view of a component. Used for passing typed data through the IPropertyComponentHandler interface */
 struct FPropertyComponentView
 {
@@ -156,6 +158,7 @@ struct IPropertyComponentHandler
 	 * @param Subsequents      Subsequents to add any dispatched tasks to
 	 * @param Linker           The linker that owns the entity manager to dispatch tasks for
 	 */
+	virtual void ScheduleSetterTasks(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const FPropertyStats& Stats, IEntitySystemScheduler* TaskScheduler, UMovieSceneEntitySystemLinker* Linker) = 0;
 	virtual void DispatchSetterTasks(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const FPropertyStats& Stats, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) = 0;
 
 	/**

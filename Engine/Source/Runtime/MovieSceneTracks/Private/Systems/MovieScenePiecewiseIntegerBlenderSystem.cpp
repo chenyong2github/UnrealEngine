@@ -28,7 +28,7 @@ struct FIntegerAccumulationTask
 	{}
 
 	/** Task entry point - iterates the allocation's headers and accumulates int32 results for any required components */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneBlendChannelID> BlendIDs, TRead<int32> Integers, TReadOptional<double> EasingAndWeights)
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneBlendChannelID> BlendIDs, TRead<int32> Integers, TReadOptional<double> EasingAndWeights) const
 	{
 		static const FMovieSceneBlenderSystemID IntegerBlenderSystemID = UMovieSceneBlenderSystem::GetBlenderSystemID<UMovieScenePiecewiseIntegerBlenderSystem>();
 
@@ -78,7 +78,15 @@ struct FIntegerAdditiveFromBaseBlendTask
 		: AccumulationBuffer(*InAccumulationBuffer)
 	{}
 
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneBlendChannelID> BlendIDs, TRead<int32> Integers, TRead<int32> BaseValues, TReadOptional<double> EasingAndWeights)
+	void PreTask()
+	{
+		if (AccumulationBuffer.Num() > 0)
+		{
+			FMemory::Memzero(AccumulationBuffer.GetData(), sizeof(FIntegerBlendResult) * AccumulationBuffer.Num());
+		}
+	}
+
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneBlendChannelID> BlendIDs, TRead<int32> Integers, TRead<int32> BaseValues, TReadOptional<double> EasingAndWeights) const
 	{
 		static const FMovieSceneBlenderSystemID IntegerBlenderSystemID = UMovieSceneBlenderSystem::GetBlenderSystemID<UMovieScenePiecewiseIntegerBlenderSystem>();
 
@@ -124,7 +132,7 @@ struct FIntegerCombineBlends
 		: AccumulationBuffers(*InAccumulationBuffers)
 	{}
 
-	void ForEachAllocation(FEntityAllocation* Allocation, TRead<FMovieSceneBlendChannelID> BlendIDs, TReadOptional<int32> InitialValues, TWrite<int32> IntegerResults)
+	void ForEachAllocation(FEntityAllocation* Allocation, TRead<FMovieSceneBlendChannelID> BlendIDs, TReadOptional<int32> InitialValues, TWrite<int32> IntegerResults) const
 	{
 		static const FMovieSceneBlenderSystemID IntegerBlenderSystemID = UMovieSceneBlenderSystem::GetBlenderSystemID<UMovieScenePiecewiseIntegerBlenderSystem>();
 
@@ -146,7 +154,7 @@ struct FIntegerCombineBlends
 		}
 	}
 
-	void BlendResultsWithInitial(uint16 BlendID, const int32 InitialValue, int32& OutFinalBlendResult)
+	void BlendResultsWithInitial(uint16 BlendID, const int32 InitialValue, int32& OutFinalBlendResult) const
 	{
 		FIntegerBlendResult AbsoluteResult = AccumulationBuffers.Absolute.Num() > 0 ? AccumulationBuffers.Absolute[BlendID] : FIntegerBlendResult();
 		FIntegerBlendResult RelativeResult = AccumulationBuffers.Relative.Num() > 0 ? AccumulationBuffers.Relative[BlendID] : FIntegerBlendResult();
@@ -188,7 +196,7 @@ struct FIntegerCombineBlends
 		}
 	}
 
-	void BlendResults(uint16 BlendID, int32& OutFinalBlendResult)
+	void BlendResults(uint16 BlendID, int32& OutFinalBlendResult) const
 	{
 		FIntegerBlendResult AbsoluteResult = AccumulationBuffers.Absolute.Num() > 0 ? AccumulationBuffers.Absolute[BlendID] : FIntegerBlendResult();
 		FIntegerBlendResult AdditiveResult = AccumulationBuffers.Additive.Num() > 0 ? AccumulationBuffers.Additive[BlendID] : FIntegerBlendResult();
@@ -232,6 +240,10 @@ void FIntegerAccumulationBuffers::Reset()
 UMovieScenePiecewiseIntegerBlenderSystem::UMovieScenePiecewiseIntegerBlenderSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
+	using namespace UE::MovieScene;
+
+	Phase = ESystemPhase::Scheduling;
+
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineImplicitPrerequisite(UIntegerChannelEvaluatorSystem::StaticClass(), GetClass());
@@ -241,6 +253,102 @@ UMovieScenePiecewiseIntegerBlenderSystem::UMovieScenePiecewiseIntegerBlenderSyst
 
 void UMovieScenePiecewiseIntegerBlenderSystem::OnLink()
 {
+}
+
+void UMovieScenePiecewiseIntegerBlenderSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	CompactBlendChannels();
+
+	// We allocate space for every blend even if there are gaps so we can do a straight index into each array
+	const int32 MaximumNumBlends = AllocatedBlendChannels.Num();
+	if (MaximumNumBlends == 0)
+	{
+		return;
+	}
+
+	ReinitializeAccumulationBuffers();
+	if (AccumulationBuffers.IsEmpty())
+	{
+		return;
+	}
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+	FTaskID ResetWeightsTask = TaskScheduler->AddMemberFunctionTask(
+		FTaskParams(TEXT("Reset Integer Blender Weights")),
+		this, &UMovieScenePiecewiseIntegerBlenderSystem::ZeroAccumulationBuffers);
+
+	FTaskID SyncTask = TaskScheduler->AddNullTask();
+
+	if (AccumulationBuffers.Absolute.Num() != 0)
+	{
+		FTaskID AbsoluteTask = FEntityTaskBuilder()
+		.Read(BuiltInComponents->BlendChannelInput)
+		.Read(BuiltInComponents->IntegerResult)
+		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
+		.FilterAll({ BuiltInComponents->Tags.AbsoluteBlend, GetBlenderTypeTag() })
+		.FilterNone({ BuiltInComponents->Tags.Ignored })
+		.Schedule_PerAllocation<FIntegerAccumulationTask>(&Linker->EntityManager, TaskScheduler, &AccumulationBuffers.Absolute);
+
+		TaskScheduler->AddPrerequisite(ResetWeightsTask, AbsoluteTask);
+		TaskScheduler->AddPrerequisite(AbsoluteTask, SyncTask);
+	}
+
+	if (AccumulationBuffers.Relative.Num() != 0)
+	{
+		FTaskID RelativeTask = FEntityTaskBuilder()
+		.Read(BuiltInComponents->BlendChannelInput)
+		.Read(BuiltInComponents->IntegerResult)
+		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
+		.FilterAll({ BuiltInComponents->Tags.RelativeBlend, GetBlenderTypeTag() })
+		.FilterNone({ BuiltInComponents->Tags.Ignored })
+		.Schedule_PerAllocation<FIntegerAccumulationTask>(&Linker->EntityManager, TaskScheduler, &AccumulationBuffers.Relative);
+
+		TaskScheduler->AddPrerequisite(ResetWeightsTask, RelativeTask);
+		TaskScheduler->AddPrerequisite(RelativeTask, SyncTask);
+	}
+
+	if (AccumulationBuffers.Additive.Num() != 0)
+	{
+		FTaskID AdditiveTask = FEntityTaskBuilder()
+		.Read(BuiltInComponents->BlendChannelInput)
+		.Read(BuiltInComponents->IntegerResult)
+		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
+		.FilterAll({ BuiltInComponents->Tags.AdditiveBlend, GetBlenderTypeTag() })
+		.FilterNone({ BuiltInComponents->Tags.Ignored })
+		.Schedule_PerAllocation<FIntegerAccumulationTask>(&Linker->EntityManager, TaskScheduler, &AccumulationBuffers.Additive);
+
+		TaskScheduler->AddPrerequisite(ResetWeightsTask, AdditiveTask);
+		TaskScheduler->AddPrerequisite(AdditiveTask, SyncTask);
+	}
+
+	if (AccumulationBuffers.AdditiveFromBase.Num() != 0)
+	{
+		FTaskID AdditiveFromBaseTask = FEntityTaskBuilder()
+		.Read(BuiltInComponents->BlendChannelInput)
+		.Read(BuiltInComponents->IntegerResult)
+		.Read(BuiltInComponents->BaseInteger)
+		.ReadOptional(BuiltInComponents->WeightAndEasingResult)
+		.FilterAll({ BuiltInComponents->Tags.AdditiveFromBaseBlend, GetBlenderTypeTag() })
+		.FilterNone({ BuiltInComponents->Tags.Ignored })
+		.Schedule_PerAllocation<FIntegerAdditiveFromBaseBlendTask>(&Linker->EntityManager, TaskScheduler, &AccumulationBuffers.AdditiveFromBase);
+
+		TaskScheduler->AddPrerequisite(ResetWeightsTask, AdditiveFromBaseTask);
+		TaskScheduler->AddPrerequisite(AdditiveFromBaseTask, SyncTask);
+	}
+
+	// Root task that performs the actual blends
+	FTaskID CombineTask = FEntityTaskBuilder()
+	.Read(BuiltInComponents->BlendChannelOutput)
+	.ReadOptional(TracksComponents->Integer.InitialValue)
+	.Write(BuiltInComponents->IntegerResult)
+	.FilterAll({ GetBlenderTypeTag() })
+	.Fork_PerAllocation<FIntegerCombineBlends>(&Linker->EntityManager, TaskScheduler, &AccumulationBuffers);
+
+	TaskScheduler->AddPrerequisite(SyncTask, CombineTask);
 }
 
 void UMovieScenePiecewiseIntegerBlenderSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
@@ -261,13 +369,15 @@ void UMovieScenePiecewiseIntegerBlenderSystem::OnRun(FSystemTaskPrerequisites& I
 	{
 		ReinitializeAccumulationBuffers();
 	}
+	else
+	{
+		ZeroAccumulationBuffers();
+	}
 
 	if (AccumulationBuffers.IsEmpty())
 	{
 		return;
 	}
-
-	ZeroAccumulationBuffers();
 
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
@@ -381,6 +491,8 @@ void UMovieScenePiecewiseIntegerBlenderSystem::ReinitializeAccumulationBuffers()
 	{
 		AccumulationBuffers.AdditiveFromBase.SetNum(MaximumNumBlends);
 	}
+
+	ZeroAccumulationBuffers();
 }
 
 void UMovieScenePiecewiseIntegerBlenderSystem::ZeroAccumulationBuffers()

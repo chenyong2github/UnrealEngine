@@ -19,6 +19,33 @@
 namespace UE::MovieScene
 {
 
+struct FResetBuffers
+{
+	FQuaternionBlenderAccumulationBuffers* Buffers;
+
+	void Run(FEntityAllocationWriteContext WriteContext) const
+	{
+		Buffers->AbsoluteWeights.Reset();
+
+		for (int32 Index = 0; Index < Buffers->Absolutes.Num(); ++Index)
+		{
+			Buffers->Absolutes[Index] = FQuatTransform{
+				FVector::ZeroVector,
+				FQuat::Identity,
+				FVector::ZeroVector
+			};
+		}
+		for (int32 Index = 0; Index < Buffers->Additives.Num(); ++Index)
+		{
+			Buffers->Additives[Index] = FQuatTransform{ 
+				FVector::ZeroVector,
+				FQuat::Identity,
+				FVector::ZeroVector
+			};
+		}
+	}
+};
+
 struct FAccumulateAbsoluteWeights
 {
 	FQuaternionBlenderAccumulationBuffers* Buffers;
@@ -27,12 +54,7 @@ struct FAccumulateAbsoluteWeights
 		: Buffers(InBuffers)
 	{}
 
-	void PreTask()
-	{
-		Buffers->AbsoluteWeights.Reset();
-	}
-
-	void ForEachEntity(FMovieSceneBlendChannelID BlendChannel, double WeightResult)
+	void ForEachEntity(FMovieSceneBlendChannelID BlendChannel, double WeightResult) const
 	{
 		if (!Buffers->AbsoluteWeights.IsValidIndex(BlendChannel.ChannelID))
 		{
@@ -42,29 +64,6 @@ struct FAccumulateAbsoluteWeights
 		{
 			Buffers->AbsoluteWeights[BlendChannel.ChannelID] += WeightResult;
 		}
-	}
-};
-
-struct FCollectInitialValues
-{
-	FQuaternionBlenderAccumulationBuffers* Buffers;
-
-	FCollectInitialValues(FQuaternionBlenderAccumulationBuffers* InBuffers)
-		: Buffers(InBuffers)
-	{}
-
-	void PreTask()
-	{
-		FMemory::Memzero(Buffers->InitialValues.GetData(), sizeof(FQuatTransform) * Buffers->InitialValues.Num());
-	}
-
-	void ForEachEntity(FMovieSceneBlendChannelID BlendChannel, const FIntermediate3DTransform& InitialValue)
-	{
-		Buffers->InitialValues[BlendChannel.ChannelID] = FQuatTransform{
-			InitialValue.GetTranslation(),
-			InitialValue.GetRotation().Quaternion(),
-			InitialValue.GetScale()
-		};
 	}
 };
 
@@ -78,25 +77,13 @@ struct FAbsoluteAccumulationTask
 		: Buffers(InBuffers)
 	{}
 
-	void PreTask()
-	{
-		for (int32 Index = 0; Index < Buffers->Absolutes.Num(); ++Index)
-		{
-			Buffers->Absolutes[Index] = FQuatTransform{ 
-				FVector::ZeroVector,
-				FQuat::Identity,
-				FVector::ZeroVector
-			};
-		}
-	}
-
 	void ForEachEntity(
 		FMovieSceneBlendChannelID BlendChannel,
 		double LocationX, double LocationY, double LocationZ,
 		double RotationRoll, double RotationPitch, double RotationYaw,
 		double ScaleX, double ScaleY, double ScaleZ,
 		const double* WeightResult
-		)
+		) const
 	{
 		double Weight = WeightResult ? *WeightResult : 1.0;
 		if (Weight == 0.0)
@@ -130,25 +117,13 @@ struct FAdditiveAccumulationTask
 		: Buffers(InBuffers)
 	{}
 
-	void PreTask()
-	{
-		for (int32 Index = 0; Index < Buffers->Additives.Num(); ++Index)
-		{
-			Buffers->Additives[Index] = FQuatTransform{ 
-				FVector::ZeroVector,
-				FQuat::Identity,
-				FVector::ZeroVector
-			};
-		}
-	}
-
 	void ForEachEntity(
 		FMovieSceneBlendChannelID BlendChannel,
 		double LocationX, double LocationY, double LocationZ,
 		double RotationRoll, double RotationPitch, double RotationYaw,
 		double ScaleX, double ScaleY, double ScaleZ,
 		const double* WeightResult
-		)
+		) const
 	{
 		FQuatTransform& Transform = Buffers->Additives[BlendChannel.ChannelID];
 
@@ -174,7 +149,7 @@ struct FCombineTask
 		double& RotationRoll, double& RotationPitch, double& RotationYaw,
 		double& ScaleX, double& ScaleY, double& ScaleZ,
 		const FIntermediate3DTransform* InitialValue
-		)
+		) const
 	{
 		const uint16 ChannelID = BlendChannel.ChannelID;
 		const double TotalWeight = Buffers->AbsoluteWeights.IsValidIndex(ChannelID) ? Buffers->AbsoluteWeights[ChannelID] : 1.0;
@@ -217,6 +192,11 @@ struct FCombineTask
 UMovieSceneQuaternionBlenderSystem::UMovieSceneQuaternionBlenderSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
+	using namespace UE::MovieScene;
+
+	SelectionPriority = 1000;
+	Phase = ESystemPhase::Scheduling;
+
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
@@ -225,6 +205,72 @@ UMovieSceneQuaternionBlenderSystem::UMovieSceneQuaternionBlenderSystem(const FOb
 		DefineImplicitPrerequisite(UMovieSceneQuaternionInterpolationRotationSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(UWeightAndEasingEvaluatorSystem::StaticClass(), GetClass());
 	}
+}
+
+void UMovieSceneQuaternionBlenderSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+	Buffers.Absolutes.SetNumZeroed(AllocatedBlendChannels.Num());
+	Buffers.Additives.SetNumZeroed(AllocatedBlendChannels.Num());
+
+	FTaskID ResetBufferTask = TaskScheduler->AddTask<FResetBuffers>(FTaskParams(TEXT("Reset Quaternion Blender Buffers")), &Buffers);
+
+	// Kick off additives first because they don't need normalized weighting
+	// Not handling additive from base yet because ideally we could do those in the AdditivesTask without caring about the base
+	FTaskID AdditivesTask = FEntityTaskBuilder()
+	.Read(BuiltInComponents->BlendChannelInput)
+	.ReadAllOf(BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2]) // Translation components
+	.ReadAllOf(BuiltInComponents->DoubleResult[3], BuiltInComponents->DoubleResult[4], BuiltInComponents->DoubleResult[5]) // Rotation components
+	.ReadAllOf(BuiltInComponents->DoubleResult[6], BuiltInComponents->DoubleResult[7], BuiltInComponents->DoubleResult[8]) // Scale components
+	.ReadOptional(BuiltInComponents->WeightAndEasingResult)
+	.FilterAny({ BuiltInComponents->Tags.AdditiveBlend, BuiltInComponents->Tags.AdditiveFromBaseBlend })
+	.FilterAll({ GetBlenderTypeTag() })
+	.FilterNone({ BuiltInComponents->Tags.Ignored })
+	.Schedule_PerEntity<FAdditiveAccumulationTask>(&Linker->EntityManager, TaskScheduler, &Buffers);
+
+	TaskScheduler->AddPrerequisite(ResetBufferTask, AdditivesTask);
+
+	// Accumulate all weights so we can do a normalized lerp.
+	// Everything downstream depends on this task
+	FTaskID CollectWeightsTask = FEntityTaskBuilder()
+	.Read(BuiltInComponents->BlendChannelInput)
+	.Read(BuiltInComponents->WeightAndEasingResult)
+	.FilterAll({ BuiltInComponents->Tags.AbsoluteBlend, GetBlenderTypeTag() })
+	.FilterNone({ BuiltInComponents->Tags.Ignored })
+	.Schedule_PerEntity<FAccumulateAbsoluteWeights>(&Linker->EntityManager, TaskScheduler, &Buffers);
+
+	TaskScheduler->AddPrerequisite(ResetBufferTask, AdditivesTask);
+
+	// Next we accumulate normalized transforms
+	FTaskID AbsolutesTask = FEntityTaskBuilder()
+	.Read(BuiltInComponents->BlendChannelInput)
+	.ReadAllOf(BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2]) // Translation components
+	.ReadAllOf(BuiltInComponents->DoubleResult[3], BuiltInComponents->DoubleResult[4], BuiltInComponents->DoubleResult[5]) // Rotation components
+	.ReadAllOf(BuiltInComponents->DoubleResult[6], BuiltInComponents->DoubleResult[7], BuiltInComponents->DoubleResult[8]) // Scale components
+	.ReadOptional(BuiltInComponents->WeightAndEasingResult)
+	.FilterAll({ BuiltInComponents->Tags.AbsoluteBlend, GetBlenderTypeTag() })
+	.FilterNone({ BuiltInComponents->Tags.Ignored })
+	.Schedule_PerEntity<FAbsoluteAccumulationTask>(&Linker->EntityManager, TaskScheduler, &Buffers);
+
+	TaskScheduler->AddPrerequisite(CollectWeightsTask, AbsolutesTask);
+
+	// Now blend the results
+	FTaskID BlendTask = FEntityTaskBuilder()
+	.Read(BuiltInComponents->BlendChannelOutput)
+	.WriteAllOf(BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2]) // Translation components
+	.WriteAllOf(BuiltInComponents->DoubleResult[3], BuiltInComponents->DoubleResult[4], BuiltInComponents->DoubleResult[5]) // Rotation components
+	.WriteAllOf(BuiltInComponents->DoubleResult[6], BuiltInComponents->DoubleResult[7], BuiltInComponents->DoubleResult[8]) // Scale components
+	.ReadOptional(TracksComponents->ComponentTransform.InitialValue)
+	.FilterAll({ GetBlenderTypeTag() })
+	.Fork_PerEntity<FCombineTask>(&Linker->EntityManager, TaskScheduler, &Buffers);
+
+	TaskScheduler->AddPrerequisite(AdditivesTask, BlendTask);
+	TaskScheduler->AddPrerequisite(CollectWeightsTask, BlendTask);
+	TaskScheduler->AddPrerequisite(AbsolutesTask, BlendTask);
 }
 
 void UMovieSceneQuaternionBlenderSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
@@ -261,21 +307,10 @@ void UMovieSceneQuaternionBlenderSystem::OnRun(FSystemTaskPrerequisites& InPrere
 	.FilterNone({ BuiltInComponents->Tags.Ignored })
 	.template Dispatch_PerEntity<FAccumulateAbsoluteWeights>(&Linker->EntityManager, InPrerequisites, nullptr, &Buffers);
 
-	// Accumulate initial values
-	//FGraphEventRef CollectInitialValuesTask = FEntityTaskBuilder()
-	//.Read(BuiltInComponents->BlendChannelOutput)
-	//.Read(TracksComponents->ComponentTransform.InitialValue)
-	//.FilterAll({ GetBlenderTypeTag() })
-	//.template Dispatch_PerEntity<FCollectInitialValues>(&Linker->EntityManager, InPrerequisites, &Subsequents, &Buffers);
-
 	if (CollectWeightsTask)
 	{
 		InPrerequisites.AddRootTask(CollectWeightsTask);
 	}
-	//if (CollectInitialValuesTask)
-	//{
-	//	InPrerequisites.AddRootTask(CollectInitialValuesTask);
-	//}
 
 	// Next we accumulate normalized transforms
 	FGraphEventRef AbsolutesTask = FEntityTaskBuilder()

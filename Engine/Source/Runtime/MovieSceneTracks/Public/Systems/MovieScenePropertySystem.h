@@ -37,6 +37,7 @@ public:
 protected:
 
 	virtual void OnLink() override;
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 	virtual void SavePreAnimatedState(const FPreAnimationParameters& InParameters) override;

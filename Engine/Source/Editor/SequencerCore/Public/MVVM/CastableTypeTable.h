@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "HAL/Platform.h"
 #include "Templates/UnrealTemplate.h"
-#include "MVVM/SparseBitSet.h"
+#include "Containers/SparseBitSet.h"
 #include "UObject/NameTypes.h"
 
 #include <type_traits>
@@ -24,7 +24,7 @@ class IDynamicExtension;
 
 struct FCastableTypeTable
 {
-	FCastableTypeTable() = default;
+	explicit FCastableTypeTable(uint8* InTypeMaskStorage);
 
 	FCastableTypeTable(const FCastableTypeTable&) = delete;
 	void operator=(const FCastableTypeTable&) = delete;
@@ -209,6 +209,8 @@ private:
 		template<typename StartClass, typename T, typename U = decltype(T::ID)>
 		void AddStaticType(T*, int16 StartOffset)
 		{
+			using namespace UE::MovieScene;
+
 			TViewModelTypeID<T>& ID = T::ID;
 
 			int16 OffsetFromBase = StartOffset + ClassOffsetFrom<StartClass, T>();
@@ -227,7 +229,7 @@ private:
 	private:
 
 		/* Accumulator sparse bitset of types that are implemented on the type that Generate was called with */
-		TSparseBitSet<uint32> TypeMask;
+		MovieScene::TSparseBitSet<uint32> TypeMask;
 		/* Typeoffsets from T to the ptr for each type within TypeMask */
 		TArray<int16> StaticTypeOffsets;
 	};
@@ -237,7 +239,7 @@ private:
 	/** Ptr to the static type offsets allocated at the end of this struct. Size = NumStaticTypes */
 	int16* StaticTypeOffsets;
 	/** Fixed sparse bitset of types that this table contains. Storage is allocated at the end of this struct. */
-	TSparseBitSet<uint32, TFixedSparseBitSetBucketStorage<uint8>> TypeMask;
+	MovieScene::TSparseBitSet<uint32, MovieScene::TFixedSparseBitSetBucketStorage<uint8>> TypeMask;
 	/** The number of static types implemented within this type table. */
 	uint32 NumStaticTypes;
 	/** Unique static type ID for this type. */

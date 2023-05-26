@@ -12,26 +12,8 @@
 
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate bool channels"), MovieSceneEval_EvaluateBoolChannelTask, STATGROUP_MovieSceneECS);
 
-UBoolChannelEvaluatorSystem::UBoolChannelEvaluatorSystem(const FObjectInitializer& ObjInit)
-	: Super(ObjInit)
+namespace UE::MovieScene
 {
-	using namespace UE::MovieScene;
-
-	SystemCategories = EEntitySystemCategory::ChannelEvaluators;
-	RelevantComponent = FBuiltInComponentTypes::Get()->BoolChannel;
-
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		DefineImplicitPrerequisite(UMovieSceneEvalTimeSystem::StaticClass(), GetClass());
-	}
-}
-
-void UBoolChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
-{
-	using namespace UE::MovieScene;
-
-	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
-
 	struct FEvaluateBoolChannels
 	{
 		static void ForEachEntity(FSourceBoolChannel BoolChannel, FFrameTime FrameTime, bool& OutResult)
@@ -42,6 +24,44 @@ void UBoolChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 			}
 		}
 	};
+} // namespace UE::MovieScene
+
+UBoolChannelEvaluatorSystem::UBoolChannelEvaluatorSystem(const FObjectInitializer& ObjInit)
+	: Super(ObjInit)
+{
+	using namespace UE::MovieScene;
+
+	SystemCategories = EEntitySystemCategory::ChannelEvaluators;
+	RelevantComponent = FBuiltInComponentTypes::Get()->BoolChannel;
+	Phase = ESystemPhase::Scheduling;
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		DefineImplicitPrerequisite(UMovieSceneEvalTimeSystem::StaticClass(), GetClass());
+	}
+}
+
+void UBoolChannelEvaluatorSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->BoolChannel)
+	.Read(BuiltInComponents->EvalTime)
+	.Write(BuiltInComponents->BoolResult)
+	.FilterNone({ BuiltInComponents->Tags.Ignored })
+	.SetStat(GET_STATID(MovieSceneEval_EvaluateBoolChannelTask))
+	.Fork_PerEntity<FEvaluateBoolChannels>(&Linker->EntityManager, TaskScheduler);
+}
+
+void UBoolChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+{
+	// Backwards compat Evaluation phase
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
 	FEntityTaskBuilder()
 	.Read(BuiltInComponents->BoolChannel)

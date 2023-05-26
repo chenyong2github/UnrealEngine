@@ -39,6 +39,9 @@ namespace MovieScene
 	struct FSystemSubsequentTasks;
 	struct FSystemTaskPrerequisites;
 
+	class FEntityManager;
+	class FEntitySystemScheduler;
+
 
 } // namespace MovieScene
 } // namespace UE
@@ -86,6 +89,15 @@ struct MOVIESCENE_API FMovieSceneEntitySystemGraph
 	using FDirectionalEdge = UE::MovieScene::FDirectedGraph::FDirectionalEdge;
 
 	GENERATED_BODY()
+
+	FMovieSceneEntitySystemGraph();
+	~FMovieSceneEntitySystemGraph();
+
+	FMovieSceneEntitySystemGraph(const FMovieSceneEntitySystemGraph&) = delete;
+	void operator=(const FMovieSceneEntitySystemGraph&) = delete;
+
+	FMovieSceneEntitySystemGraph(FMovieSceneEntitySystemGraph&&);
+	FMovieSceneEntitySystemGraph& operator=(FMovieSceneEntitySystemGraph&&);
 
 	void AddReference(UMovieSceneEntitySystem* FromReference, UMovieSceneEntitySystem* ToReference);
 
@@ -151,9 +163,14 @@ struct MOVIESCENE_API FMovieSceneEntitySystemGraph
 
 	void Shutdown();
 
+	int32 NumInPhase(UE::MovieScene::ESystemPhase Phase) const;
+
 	void ExecutePhase(UE::MovieScene::ESystemPhase Phase, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks);
 
 	void IteratePhase(UE::MovieScene::ESystemPhase Phase, TFunctionRef<void(UMovieSceneEntitySystem*)> InIter);
+
+	void ReconstructTaskSchedule(UE::MovieScene::FEntityManager* EntityManager);
+	void ScheduleTasks(UE::MovieScene::FEntityManager* EntityManager);
 
 	TArray<UMovieSceneEntitySystem*> GetSystems() const;
 
@@ -184,8 +201,11 @@ private:
 
 	TArray<uint16, TInlineAllocator<4>>  SpawnPhase;
 	TArray<uint16, TInlineAllocator<8>>  InstantiationPhase;
+	TArray<uint16, TInlineAllocator<16>> SchedulingPhase;
 	TArray<uint16, TInlineAllocator<16>> EvaluationPhase;
 	TArray<uint16, TInlineAllocator<2>>  FinalizationPhase;
+
+	TUniquePtr<UE::MovieScene::FEntitySystemScheduler> TaskScheduler;
 
 	UPROPERTY()
 	FMovieSceneEntitySystemGraphNodes Nodes;
@@ -193,8 +213,19 @@ private:
 	TMap<uint16, uint16> GlobalToLocalNodeIDs;
 
 	UE::MovieScene::FDirectedGraph ReferenceGraph;
+	uint64 SchedulerSerialNumber = 0;
 
 	uint32 SerialNumber = 0;
 	uint32 PreviousSerialNumber = 0;
 	uint32 ReentrancyGuard = 0;
+};
+
+
+template<>
+struct TStructOpsTypeTraits<FMovieSceneEntitySystemGraph> : public TStructOpsTypeTraitsBase2<FMovieSceneEntitySystemGraph>
+{
+	enum
+	{
+		WithCopy = false
+	};
 };

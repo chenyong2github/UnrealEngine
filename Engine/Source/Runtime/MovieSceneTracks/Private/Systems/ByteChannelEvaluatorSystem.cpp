@@ -21,7 +21,7 @@ namespace MovieScene
 // Do we need to optimize for this case using something like the code below, while pessimizing the common (non-multi-bind) codepath??
 struct FEvaluateByteChannels
 {
-	void ForEachEntity(FSourceByteChannel ByteChannel, FFrameTime FrameTime, uint8& OutResult)
+	static void ForEachEntity(FSourceByteChannel ByteChannel, FFrameTime FrameTime, uint8& OutResult)
 	{
 		if (!ByteChannel.Source->Evaluate(FrameTime, OutResult))
 		{
@@ -44,6 +44,7 @@ UByteChannelEvaluatorSystem::UByteChannelEvaluatorSystem(const FObjectInitialize
 
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	RelevantComponent = BuiltInComponents->ByteChannel;
+	Phase = ESystemPhase::Scheduling;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -51,6 +52,22 @@ UByteChannelEvaluatorSystem::UByteChannelEvaluatorSystem(const FObjectInitialize
 
 		DefineImplicitPrerequisite(UMovieSceneEvalTimeSystem::StaticClass(), GetClass());
 	}
+}
+
+void UByteChannelEvaluatorSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+	// Evaluate byte channels per instance and write the evaluated value into the output
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->ByteChannel)
+	.Read(BuiltInComponents->EvalTime)
+	.Write(BuiltInComponents->ByteResult)
+	.FilterNone({ BuiltInComponents->Tags.Ignored })
+	.SetStat(GET_STATID(MovieSceneEval_EvaluateByteChannelTask))
+	.Fork_PerEntity<FEvaluateByteChannels>(&Linker->EntityManager, TaskScheduler);
 }
 
 void UByteChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)

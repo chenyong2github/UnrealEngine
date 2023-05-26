@@ -51,6 +51,7 @@ public:
 	using FComponentTypeID     = UE::MovieScene::FComponentTypeID;
 
 	virtual void OnLink() override;
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 private:

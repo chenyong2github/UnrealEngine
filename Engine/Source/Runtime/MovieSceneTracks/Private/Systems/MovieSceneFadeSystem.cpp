@@ -112,7 +112,7 @@ struct FEvaluateFade
 		, PreAnimatedStorage(InPreAnimatedStorage)
 	{}
 
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> RootInstanceHandles, TRead<FFadeComponentData> FadeComponents, TRead<double> FadeAmounts)
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> RootInstanceHandles, TRead<FFadeComponentData> FadeComponents, TRead<double> FadeAmounts) const
 	{
 		static const TMovieSceneAnimTypeID<FEvaluateFade> AnimTypeID;
 
@@ -145,6 +145,7 @@ UMovieSceneFadeSystem::UMovieSceneFadeSystem(const FObjectInitializer& ObjInit)
 	using namespace UE::MovieScene;
 
 	RelevantComponent = FMovieSceneTracksComponentTypes::Get()->Fade;
+	Phase = ESystemPhase::Scheduling;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -158,6 +159,22 @@ void UMovieSceneFadeSystem::OnLink()
 	using namespace UE::MovieScene;
 
 	PreAnimatedStorage = Linker->PreAnimatedState.GetOrCreateStorage<FPreAnimatedFadeStateStorage>();
+}
+
+void UMovieSceneFadeSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
+
+	FEntityTaskBuilder()
+	.ReadEntityIDs()
+	.Read(BuiltInComponents->RootInstanceHandle)
+	.Read(TrackComponents->Fade)
+	.Read(BuiltInComponents->DoubleResult[0])
+	.SetDesiredThread(Linker->EntityManager.GetGatherThread())
+	.Schedule_PerAllocation<FEvaluateFade>(& Linker->EntityManager, TaskScheduler, Linker->GetInstanceRegistry(), PreAnimatedStorage);
 }
 
 void UMovieSceneFadeSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)

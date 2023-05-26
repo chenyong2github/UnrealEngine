@@ -253,18 +253,11 @@ public:
 		if (Entry.Data.Allocation != nullptr)
 		{
 			const FComponentHeader& Header = Entry.Data.Allocation->GetComponentHeaderChecked(ComponentTypeID);
-			if (Entry.Data.Allocation->GetCurrentLockMode() != EComponentHeaderLockMode::LockFree)
-			{
-				Header.ReadWriteLock.WriteLock();
-			}
+
+			FScopedHeaderWriteLock WriteLock(&Header, Entry.Data.Allocation->GetCurrentLockMode(), FEntityAllocationWriteContext::NewAllocation());
 
 			T* Component = reinterpret_cast<T*>(Header.GetValuePtr(Entry.Data.ComponentOffset));
 			*Component = Forward<ValueType>(InValue);
-
-			if (Entry.Data.Allocation->GetCurrentLockMode() != EComponentHeaderLockMode::LockFree)
-			{
-				Header.ReadWriteLock.WriteUnlock();
-			}
 		}
 	}
 

@@ -8,18 +8,6 @@
 
 #include "IntegerChannelEvaluatorSystem.generated.h"
 
-class UObject;
-
-namespace UE
-{
-namespace MovieScene
-{
-
-	struct FSourceIntegerChannel;
-
-} // namespace MovieScene
-} // namespace UE
-
 /**
  * System that is responsible for evaluating integer channels.
  */
@@ -32,5 +20,6 @@ public:
 
 	UIntegerChannelEvaluatorSystem(const FObjectInitializer& ObjInit);
 
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };

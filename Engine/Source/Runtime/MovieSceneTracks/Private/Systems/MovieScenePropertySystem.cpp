@@ -14,6 +14,7 @@ UMovieScenePropertySystem::UMovieScenePropertySystem(const FObjectInitializer& O
 {
 	using namespace UE::MovieScene;
 
+	Phase = ESystemPhase::Scheduling;
 	SystemCategories = EEntitySystemCategory::PropertySystems | FSystemInterrogator::GetExcludedFromInterrogationCategory();
 }
 
@@ -26,6 +27,26 @@ void UMovieScenePropertySystem::OnLink()
 	if (InstantiatorSystem)
 	{
 		Linker->SystemGraph.AddReference(this, InstantiatorSystem);
+	}
+}
+
+void UMovieScenePropertySystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	// Never apply properties during evaluation. This code is necessary if derived types do support interrogation.
+	if (!InstantiatorSystem)
+	{
+		return;
+	}
+
+	FPropertyStats Stats = InstantiatorSystem->GetStatsForProperty(CompositePropertyID);
+	if (Stats.NumProperties > 0)
+	{
+		const FPropertyRegistry&   PropertyRegistry = FBuiltInComponentTypes::Get()->PropertyRegistry;
+		const FPropertyDefinition& Definition       = PropertyRegistry.GetDefinition(CompositePropertyID);
+
+		Definition.Handler->ScheduleSetterTasks(Definition, PropertyRegistry.GetComposites(Definition), Stats, TaskScheduler, Linker);
 	}
 }
 

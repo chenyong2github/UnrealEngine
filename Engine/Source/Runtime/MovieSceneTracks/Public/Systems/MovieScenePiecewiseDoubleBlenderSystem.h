@@ -95,6 +95,7 @@ public:
 	using FMovieSceneEntityID  = UE::MovieScene::FMovieSceneEntityID;
 	using FComponentTypeID     = UE::MovieScene::FComponentTypeID;
 
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 	virtual FGraphEventRef DispatchDecomposeTask(const UE::MovieScene::FValueDecompositionParams& Params, UE::MovieScene::FAlignedDecomposedValue* Output) override;

@@ -40,7 +40,7 @@ TArray<FDoubleChannelTypeAssociation, TInlineAllocator<4>> GDoubleChannelTypeAss
 /** Entity-component task that evaluates using the non-cached codepath for testing parity */
 struct FEvaluateDoubleChannels_Uncached
 {
-	void ForEachEntity(FSourceDoubleChannel DoubleChannel, FFrameTime FrameTime, double& OutResult)
+	void ForEachEntity(FSourceDoubleChannel DoubleChannel, FFrameTime FrameTime, double& OutResult) const
 	{
 		if (!DoubleChannel.Source->Evaluate(FrameTime, OutResult))
 		{
@@ -52,7 +52,7 @@ struct FEvaluateDoubleChannels_Uncached
 /** Entity-component task that evaluates using a cached interpolation if possible */
 struct FEvaluateDoubleChannels_Cached
 {
-	void ForEachEntity(FSourceDoubleChannel DoubleChannel, FFrameTime FrameTime, Interpolation::FCachedInterpolation& Cache, double& OutResult)
+	void ForEachEntity(FSourceDoubleChannel DoubleChannel, FFrameTime FrameTime, Interpolation::FCachedInterpolation& Cache, double& OutResult) const
 	{
 		if (!Cache.IsCacheValidForTime(FrameTime.GetFrame()))
 		{
@@ -123,7 +123,7 @@ UDoubleChannelEvaluatorSystem::UDoubleChannelEvaluatorSystem(const FObjectInitia
 	using namespace UE::MovieScene;
 
 	SystemCategories = EEntitySystemCategory::ChannelEvaluators;
-	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation;
+	Phase = ESystemPhase::Instantiation | ESystemPhase::Scheduling;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -166,6 +166,39 @@ bool UDoubleChannelEvaluatorSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker
 	}
 
 	return false;
+}
+
+void UDoubleChannelEvaluatorSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+	for (const FDoubleChannelTypeAssociation& ChannelType : GDoubleChannelTypeAssociations)
+	{
+		if (GEnableCachedChannelEvaluation)
+		{
+			// Evaluate double channels per instance and write the evaluated value into the output
+			FEntityTaskBuilder()
+			.Read(ChannelType.ChannelType)
+			.Read(BuiltInComponents->EvalTime)
+			.Write(ChannelType.CachedInterpolationType)
+			.Write(ChannelType.ResultType)
+			.FilterNone({ BuiltInComponents->Tags.Ignored })
+			.SetStat(GET_STATID(MovieSceneEval_EvaluateDoubleChannelTask))
+			.Fork_PerEntity<FEvaluateDoubleChannels_Cached>(&Linker->EntityManager, TaskScheduler);
+		}
+		else
+		{
+			FEntityTaskBuilder()
+			.Read(ChannelType.ChannelType)
+			.Read(BuiltInComponents->EvalTime)
+			.Write(ChannelType.ResultType)
+			.FilterNone({ BuiltInComponents->Tags.Ignored })
+			.SetStat(GET_STATID(MovieSceneEval_EvaluateDoubleChannelTask))
+			.Fork_PerEntity<FEvaluateDoubleChannels_Uncached>(&Linker->EntityManager, TaskScheduler);
+		}
+	}
 }
 
 void UDoubleChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)

@@ -9,7 +9,22 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ObjectPathChannelEvaluatorSystem)
 
-DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate object path channels"), MovieSceneEval_EvaluateObjectPathChannelTask, STATGROUP_MovieSceneECS);
+namespace UE::MovieScene
+{
+	DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate object path channels"), MovieSceneEval_EvaluateObjectPathChannelTask, STATGROUP_MovieSceneECS);
+
+	struct FEvaluateObjectPathChannels
+	{
+		static void ForEachEntity(FSourceObjectPathChannel ObjectPathChannel, FFrameTime FrameTime, UObject*& OutResult)
+		{
+			if (!ObjectPathChannel.Source->Evaluate(FrameTime, OutResult))
+			{
+				OutResult = nullptr;
+			}
+		}
+	};
+}
+
 
 UObjectPathChannelEvaluatorSystem::UObjectPathChannelEvaluatorSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -26,22 +41,26 @@ UObjectPathChannelEvaluatorSystem::UObjectPathChannelEvaluatorSystem(const FObje
 	}
 }
 
-void UObjectPathChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+void UObjectPathChannelEvaluatorSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
 {
 	using namespace UE::MovieScene;
 
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
-	struct FEvaluateObjectPathChannels
-	{
-		static void ForEachEntity(FSourceObjectPathChannel ObjectPathChannel, FFrameTime FrameTime, UObject*& OutResult)
-		{
-			if (!ObjectPathChannel.Source->Evaluate(FrameTime, OutResult))
-			{
-				OutResult = nullptr;
-			}
-		}
-	};
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->ObjectPathChannel)
+	.Read(BuiltInComponents->EvalTime)
+	.Write(BuiltInComponents->ObjectResult)
+	.FilterNone({ BuiltInComponents->Tags.Ignored })
+	.SetStat(GET_STATID(MovieSceneEval_EvaluateObjectPathChannelTask))
+	.Fork_PerEntity<FEvaluateObjectPathChannels>(&Linker->EntityManager, TaskScheduler);
+}
+
+void UObjectPathChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
 	FEntityTaskBuilder()
 	.Read(BuiltInComponents->ObjectPathChannel)

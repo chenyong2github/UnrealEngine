@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Async/TaskGraphInterfaces.h"
+#include "Misc/GeneratedTypeName.h"
 #include "MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/EntityAllocationIterator.h"
@@ -11,6 +12,7 @@
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneSystemTaskDependencies.h"
 #include "EntitySystem/MovieSceneComponentPtr.h"
+#include "EntitySystem/IMovieSceneTaskScheduler.h"
 
 #include "Templates/AndOrNot.h"
 
@@ -31,26 +33,33 @@ template<typename> struct TOptionalWriteAccess;
 template<typename...> struct TReadOneOfAccessor;
 template<typename...> struct TReadOneOrMoreOfAccessor;
 
+template<typename...> struct TPrelockedDataOffsets;
+
 template<typename...> struct TFilteredEntityTask;
 template<typename...> struct TEntityTaskComponents;
 template<typename...> struct TEntityTaskComponentsImpl;
 
 template<typename, typename...> struct TEntityTask;
 template<typename, typename...> struct TEntityTaskBase;
+template<typename, typename...> struct TScheduledEntityTask;
 template<typename, typename...> struct TEntityAllocationTask;
 template<typename, typename...> struct TEntityAllocationTaskBase;
 template<typename> struct TUnstructuredTask;
 
 
-template<typename TaskImpl, int32 NumComponents, bool AutoExpandAccessors>
+template<int32 NumComponents, bool AutoExpandAccessors>
 struct TEntityTaskCaller;
 
 struct FCommonEntityTaskParams
 {
-	/** A stat ID for the task */
-	TStatId StatId;
+	FCommonEntityTaskParams()
+		: TaskParams(nullptr)
+	{}
 
-	/** The thread that this task wants to run on */
+	/** Task parameters */
+	FTaskParams TaskParams;
+
+	/** (deprecated) The thread that this task wants to run on */
 	ENamedThreads::Type DesiredThread = ENamedThreads::AnyHiPriThreadHiPriTask;
 
 	/** Useful for debugging to break the debugger when this task is run */
@@ -116,6 +125,45 @@ struct FEntityIterationResult
 
 	bool Value = true;
 };
+
+static FTaskID SchedulePreTask(IEntitySystemScheduler* InScheduler, const FTaskParams& Params, TSharedPtr<ITaskContext> Context, void*, ...)
+{
+	return FTaskID::None();
+}
+
+static FTaskID SchedulePostTask(IEntitySystemScheduler* InScheduler, const FTaskParams& Params, TSharedPtr<ITaskContext> Context, void*, ...)
+{
+	return FTaskID::None();
+}
+
+template <typename TaskType, typename TaskImplType>
+static FTaskID SchedulePreTask(IEntitySystemScheduler* InScheduler, const FTaskParams& Params, TSharedPtr<TaskType> Context, TaskImplType* Unused, decltype(&TaskImplType::PreTask)* = 0)
+{
+	struct FCallPreTask
+	{
+		static void Run(const ITaskContext* Context, FEntityAllocationWriteContext WriteContext)
+		{
+			static_cast<const TaskType*>(Context)->PreTask();
+		}
+	};
+
+	TaskFunctionPtr Function(TInPlaceType<UnboundTaskFunctionPtr>(), &FCallPreTask::Run);
+	return InScheduler->AddTask(Params, Context, Function);
+}
+template <typename TaskType, typename TaskImplType>
+static FTaskID SchedulePostTask(IEntitySystemScheduler* InScheduler, const FTaskParams& Params, TSharedPtr<TaskType> Context, TaskImplType* Unused, decltype(&TaskImplType::PostTask)* = 0)
+{
+	struct FCallPostTask
+	{
+		static void Run(const ITaskContext* Context, FEntityAllocationWriteContext WriteContext)
+		{
+			static_cast<const TaskType*>(Context)->PostTask();
+		}
+	};
+
+	TaskFunctionPtr Function(TInPlaceType<UnboundTaskFunctionPtr>(), &FCallPostTask::Run);
+	return InScheduler->AddTask(Params, Context, Function);
+}
 
 /**
  * Defines the accessors for each desired component of an entity task
@@ -226,6 +274,7 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 	TEntityTaskComponents< T... >& SetDesiredThread(ENamedThreads::Type InDesiredThread)
 	{
 		this->CommonParams.DesiredThread = InDesiredThread;
+		this->CommonParams.TaskParams.bForceGameThread = (InDesiredThread == ENamedThreads::GameThread || InDesiredThread == ENamedThreads::GameThread_Local);
 		return *this;
 	}
 
@@ -234,7 +283,16 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 	 */
 	TEntityTaskComponents< T... >& SetStat(TStatId InStatId)
 	{
-		this->CommonParams.StatId = InStatId;
+		this->CommonParams.TaskParams.StatId = InStatId;
+		return *this;
+	}
+
+	/**
+	 * Assign the scheduled task parameters for this task
+	 */
+	TEntityTaskComponents< T... >& SetParams(const FTaskParams& InOtherParams)
+	{
+		this->CommonParams.TaskParams = InOtherParams;
 		return *this;
 	}
 
@@ -432,6 +490,78 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 		}
 	}
 
+	template<typename TaskImpl, typename... TaskConstructionArgs>
+	FTaskID Fork_PerEntity(FEntityManager* EntityManager, IEntitySystemScheduler* InScheduler, TaskConstructionArgs&&... InArgs) const
+	{
+		FTaskParams FinalParams = this->CommonParams.TaskParams;
+		FinalParams.bSerialTasks = false;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FinalParams.DebugName = GetGeneratedTypeName<TaskImpl>();
+#endif
+
+		return ScheduleImpl<TaskImpl>(
+			EntityManager,
+			InScheduler,
+			FinalParams,
+			TaskFunctionPtr(TInPlaceType<PreLockedAllocationItemFunctionPtr>(), TScheduledEntityTask<TaskImpl, T...>::ScheduledRun_PerEntity),
+			Forward<TaskConstructionArgs>(InArgs)...);
+	}
+
+	template<typename TaskImpl, typename... TaskConstructionArgs>
+	FTaskID Fork_PerAllocation(FEntityManager* EntityManager, IEntitySystemScheduler* InScheduler, TaskConstructionArgs&&... InArgs) const
+	{
+		FTaskParams FinalParams = this->CommonParams.TaskParams;
+		FinalParams.bSerialTasks = false;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FinalParams.DebugName = GetGeneratedTypeName<TaskImpl>();
+#endif
+
+		return ScheduleImpl<TaskImpl>(
+			EntityManager,
+			InScheduler,
+			FinalParams,
+			TaskFunctionPtr(TInPlaceType<PreLockedAllocationItemFunctionPtr>(), TScheduledEntityTask<TaskImpl, T...>::ScheduledRun_PerAllocation),
+			Forward<TaskConstructionArgs>(InArgs)...);
+	}
+
+	template<typename TaskImpl, typename... TaskConstructionArgs>
+	FTaskID Schedule_PerEntity(FEntityManager* EntityManager, IEntitySystemScheduler* InScheduler, TaskConstructionArgs&&... InArgs) const
+	{
+		FTaskParams FinalParams = this->CommonParams.TaskParams;
+		FinalParams.bSerialTasks = true;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FinalParams.DebugName = GetGeneratedTypeName<TaskImpl>();
+#endif
+
+		return ScheduleImpl<TaskImpl>(
+			EntityManager,
+			InScheduler,
+			FinalParams,
+			TaskFunctionPtr(TInPlaceType<PreLockedAllocationItemFunctionPtr>(), TScheduledEntityTask<TaskImpl, T...>::ScheduledRun_PerEntity),
+			Forward<TaskConstructionArgs>(InArgs)...);
+	}
+
+	template<typename TaskImpl, typename... TaskConstructionArgs>
+	FTaskID Schedule_PerAllocation(FEntityManager* EntityManager, IEntitySystemScheduler* InScheduler, TaskConstructionArgs&&... InArgs) const
+	{
+		FTaskParams FinalParams = this->CommonParams.TaskParams;
+		FinalParams.bSerialTasks = false;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FinalParams.DebugName = GetGeneratedTypeName<TaskImpl>();
+#endif
+
+		return ScheduleImpl<TaskImpl>(
+			EntityManager,
+			InScheduler,
+			FinalParams,
+			TaskFunctionPtr(TInPlaceType<PreLockedAllocationItemFunctionPtr>(), TScheduledEntityTask<TaskImpl, T...>::ScheduledRun_PerAllocation),
+			Forward<TaskConstructionArgs>(InArgs)...);
+	}
+
 	template<typename TaskImpl>
 	void RunInline_PerEntity(FEntityManager* EntityManager, TaskImpl& Task) const
 	{
@@ -452,6 +582,48 @@ public:
 	explicit TEntityTaskComponents(const FCommonEntityTaskParams& InCommonParams, ConstructionTypes&&... InTypes)
 		: Super(InCommonParams, Forward<ConstructionTypes>(InTypes)...)
 	{}
+
+private:
+
+	template<typename TaskImpl, typename... TaskConstructionArgs>
+	FTaskID ScheduleImpl(FEntityManager* EntityManager, IEntitySystemScheduler* InScheduler, const FTaskParams& TaskParams, TaskFunctionPtr InFunction, TaskConstructionArgs&&... InArgs) const
+	{
+		if (!this->IsValid())
+		{
+			return FTaskID::None();
+		}
+
+		if (!this->HasAnyWork(EntityManager))
+		{
+			return FTaskID::None();
+		}
+
+		using TaskType = TScheduledEntityTask<TaskImpl, T...>;
+		TSharedPtr<TaskType> SharedTask = MakeShared<TaskType>(*this, Forward<TaskConstructionArgs>(InArgs)...);
+
+		FComponentMask ReadDependencies, WriteDependencies;
+		this->PopulateReadWriteDependencies(ReadDependencies, WriteDependencies);
+
+		FEntityComponentFilter Filter;
+		this->PopulateFilter(&Filter);
+
+		auto PrelockComponentData = [this](FEntityAllocationIteratorItem Allocation, TArray<FPreLockedDataPtr>& OutComponentHeaders)
+		{
+			this->PreLockComponentHeaders(Allocation, OutComponentHeaders);
+		};
+		FTaskID TaskID = InScheduler->CreateForkedAllocationTask(TaskParams, SharedTask, InFunction, PrelockComponentData, Filter, ReadDependencies, WriteDependencies);
+
+		if (TaskID)
+		{
+			FTaskID PreTask  = SchedulePreTask(InScheduler, TaskParams, SharedTask, (TaskImpl*)0);
+			FTaskID PostTask = SchedulePostTask(InScheduler, TaskParams, SharedTask, (TaskImpl*)0);
+
+			InScheduler->AddChildFront(TaskID, PreTask);
+			InScheduler->AddChildBack(TaskID, PostTask);
+		}
+
+		return TaskID;
+	}
 };
 
 
@@ -532,6 +704,17 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 	TEntityTaskComponents<T..., FErasedReadAccess> ReadErased(FComponentTypeID ComponentType) const
 	{
 		return TEntityTaskComponents<T..., FErasedReadAccess >(CommonParams, Accessors.template Get<Indices>()..., FErasedReadAccess(ComponentType));
+	}
+
+	/**
+	 * Optionally read the type-erased value of a component. Passed to the task as a const void*
+	 * @note Supplying an invalid ComponentType will be handled gracefully, but will result in no task being dispatched.
+	 *
+	 * @param ComponentType   A valid component type to read.
+	 */
+	TEntityTaskComponents<T..., FErasedOptionalReadAccess> ReadErasedOptional(FComponentTypeID ComponentType) const
+	{
+		return TEntityTaskComponents<T..., FErasedOptionalReadAccess >(CommonParams, Accessors.template Get<Indices>()..., FErasedOptionalReadAccess(ComponentType));
 	}
 
 	/**
@@ -651,37 +834,18 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 		(void)Temp;
 	}
 
-	/**
-	 * Perform a direct iteration of the specified allocation using this task, inline on the current thread
-	 * @note: This is highly unsafe as it circumvents all the thread-safety mechanisms that protect component data
-	 *
-	 * @param Allocation  The allocation to iterate
-	 * @return An iterator that defines the full range of entities in the allocation
-	 */
-	TEntityRange<typename T::AccessType...> IterateAllocation(const FEntityAllocation* Allocation, FEntityAllocationWriteContext WriteContext) const
+	void PreLockComponentHeaders(const FEntityAllocation* Allocation, TArray<FPreLockedDataPtr>& OutComponentHeaders) const
 	{
-		checkf(IsValid(), TEXT("Attempting to use a component pack with an invalid component type."));
-
-		auto LockedComponentData = MakeTuple( Accessors.template Get<Indices>().LockComponentData(Allocation, WriteContext)... );
-
-		// WARNING: This is highly unsafe as it circumvents all the thread-safety mechanisms that protect component data
-		return TEntityRange<typename T::AccessType...>(Allocation->Num(), LockedComponentData.template Get<Indices>().AsPtr()... );
+		constexpr TPrelockedDataOffsets<T...> PrelockedDataOffsets;
+		int32 StartIndex = OutComponentHeaders.Num();
+		OutComponentHeaders.AddDefaulted(PrelockedDataOffsets.Num);
+		( Accessors.template Get<Indices>().PreLockComponentData(Allocation, &OutComponentHeaders[StartIndex + PrelockedDataOffsets.StartOffset[Indices]]), ... );
 	}
 
-	/**
-	 * Perform a direct iteration of the specified entity range using this task, inline on the current thread
-	 * @note: This is highly unsafe as it circumvents all the thread-safety mechanisms that protect component data
-	 *
-	 * @param Allocation  The allocation to iterate
-	 * @return An iterator that defines the full range of entities in the allocation
-	 */
-	TEntityRange<typename T::AccessType...> IterateRange(const FEntityRange& EntityRange, FEntityAllocationWriteContext WriteContext) const
+	void PopulateReadWriteDependencies(FComponentMask& OutReadDependencies, FComponentMask& OutWriteDependencies) const
 	{
-		check(EntityRange.ComponentStartOffset >= 0 && EntityRange.ComponentStartOffset + EntityRange.Num <= EntityRange.Allocation->Num());
-
-		TEntityRange<typename T::AccessType...> Result = IterateAllocation(EntityRange.Allocation, WriteContext);
-		Result.Slice(EntityRange.ComponentStartOffset, EntityRange.Num);
-		return Result;
+		int Temp[] = { (UE::MovieScene::PopulateReadWriteDependencies(&Accessors.template Get<Indices>(), OutReadDependencies, OutWriteDependencies), 0)..., 0 };
+		(void)Temp;
 	}
 
 	/**
@@ -953,6 +1117,7 @@ struct TFilteredEntityTask
 	TFilteredEntityTask< T... >& SetDesiredThread(ENamedThreads::Type InDesiredThread)
 	{
 		Components.CommonParams.DesiredThread = InDesiredThread;
+		Components.CommonParams.TaskParams.bForceGameThread = (InDesiredThread == ENamedThreads::GameThread || InDesiredThread == ENamedThreads::GameThread_Local);
 		return *this;
 	}
 
@@ -961,7 +1126,16 @@ struct TFilteredEntityTask
 	 */
 	TFilteredEntityTask< T... >& SetStat(TStatId InStatId)
 	{
-		Components.CommonParams.StatId = InStatId;
+		Components.CommonParams.TaskParams.StatId = InStatId;
+		return *this;
+	}
+
+	/**
+	 * Assign the scheduled task parameters for this task
+	 */
+	TEntityTaskComponents< T... >& SetParams(const FTaskParams& InOtherParams)
+	{
+		this->CommonParams.TaskParams = InOtherParams;
 		return *this;
 	}
 
@@ -978,7 +1152,7 @@ struct TFilteredEntityTask
 	 */
 	TStatId GetStatId() const
 	{
-		return Components.CommonParams.StatId;
+		return Components.CommonParams.TaskParams.StatId;
 	}
 
 	/**
@@ -1003,6 +1177,46 @@ struct TFilteredEntityTask
 	const TEntityTaskComponents<T...>& GetComponents() const
 	{
 		return Components;
+	}
+
+	TFilteredEntityTask<T...>& AddDynamicReadDependency(std::initializer_list<FComponentTypeID> InReadDependencies)
+	{
+		DynamicReadMask.SetAll(InReadDependencies);
+		return *this;
+	}
+	template<typename ComponentType>
+	TFilteredEntityTask<T...>& AddDynamicReadDependency(TArrayView<ComponentType> InReadDependencies)
+	{
+		for (FComponentTypeID Component : InReadDependencies)
+		{
+			DynamicReadMask.Set(Component);
+		}
+		return *this;
+	}
+	TFilteredEntityTask<T...>& AddDynamicReadDependency(const FComponentMask& InDynamicReadDependency)
+	{
+		DynamicReadMask.CombineWithBitwiseOR(InDynamicReadDependency, EBitwiseOperatorFlags::MaxSize);
+		return *this;
+	}
+
+	TFilteredEntityTask<T...>& AddDynamicWriteDependency(std::initializer_list<FComponentTypeID> InWriteDependencies)
+	{
+		DynamicWriteMask.SetAll(InWriteDependencies);
+		return *this;
+	}
+	template<typename ComponentType>
+	TFilteredEntityTask<T...>& AddDynamicWriteDependency(TArrayView<ComponentType> InWriteDependencies)
+	{
+		for (FComponentTypeID Component : InWriteDependencies)
+		{
+			DynamicWriteMask.Set(Component);
+		}
+		return *this;
+	}
+	TFilteredEntityTask<T...>& AddDynamicWriteDependency(const FComponentMask& InDynamicWriteDependency)
+	{
+		DynamicWriteMask.CombineWithBitwiseOR(InDynamicWriteDependency, EBitwiseOperatorFlags::MaxSize);
+		return *this;
 	}
 
 	/**
@@ -1152,6 +1366,78 @@ struct TFilteredEntityTask
 		}
 	}
 
+	template<typename TaskImpl, typename... TaskConstructionArgs>
+	FTaskID Fork_PerEntity(FEntityManager* EntityManager, IEntitySystemScheduler* InScheduler, TaskConstructionArgs&&... InArgs) const
+	{
+		FTaskParams FinalParams = this->Components.CommonParams.TaskParams;
+		FinalParams.bSerialTasks = false;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FinalParams.DebugName = GetGeneratedTypeName<TaskImpl>();
+#endif
+
+		return ScheduleImpl<TaskImpl>(
+			EntityManager,
+			InScheduler,
+			FinalParams,
+			TaskFunctionPtr(TInPlaceType<PreLockedAllocationItemFunctionPtr>(), TScheduledEntityTask<TaskImpl, T...>::ScheduledRun_PerEntity),
+			Forward<TaskConstructionArgs>(InArgs)...);
+	}
+
+	template<typename TaskImpl, typename... TaskConstructionArgs>
+	FTaskID Fork_PerAllocation(FEntityManager* EntityManager, IEntitySystemScheduler* InScheduler, TaskConstructionArgs&&... InArgs) const
+	{
+		FTaskParams FinalParams = this->Components.CommonParams.TaskParams;
+		FinalParams.bSerialTasks = false;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FinalParams.DebugName = GetGeneratedTypeName<TaskImpl>();
+#endif
+
+		return ScheduleImpl<TaskImpl>(
+			EntityManager,
+			InScheduler,
+			FinalParams,
+			TaskFunctionPtr(TInPlaceType<PreLockedAllocationItemFunctionPtr>(), TScheduledEntityTask<TaskImpl, T...>::ScheduledRun_PerAllocation),
+			Forward<TaskConstructionArgs>(InArgs)...);
+	}
+
+	template<typename TaskImpl, typename... TaskConstructionArgs>
+	FTaskID Schedule_PerEntity(FEntityManager* EntityManager, IEntitySystemScheduler* InScheduler, TaskConstructionArgs&&... InArgs) const
+	{
+		FTaskParams FinalParams = this->Components.CommonParams.TaskParams;
+		FinalParams.bSerialTasks = true;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FinalParams.DebugName = GetGeneratedTypeName<TaskImpl>();
+#endif
+
+		return ScheduleImpl<TaskImpl>(
+			EntityManager,
+			InScheduler,
+			FinalParams,
+			TaskFunctionPtr(TInPlaceType<PreLockedAllocationItemFunctionPtr>(), TScheduledEntityTask<TaskImpl, T...>::ScheduledRun_PerEntity),
+			Forward<TaskConstructionArgs>(InArgs)...);
+	}
+
+	template<typename TaskImpl, typename... TaskConstructionArgs>
+	FTaskID Schedule_PerAllocation(FEntityManager* EntityManager, IEntitySystemScheduler* InScheduler, TaskConstructionArgs&&... InArgs) const
+	{
+		FTaskParams FinalParams = this->Components.CommonParams.TaskParams;
+		FinalParams.bSerialTasks = true;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FinalParams.DebugName = GetGeneratedTypeName<TaskImpl>();
+#endif
+
+		return ScheduleImpl<TaskImpl>(
+			EntityManager,
+			InScheduler,
+			FinalParams,
+			TaskFunctionPtr(TInPlaceType<PreLockedAllocationItemFunctionPtr>(), TScheduledEntityTask<TaskImpl, T...>::ScheduledRun_PerAllocation),
+			Forward<TaskConstructionArgs>(InArgs)...);
+	}
+
 	template<typename TaskImpl>
 	void RunInline_PerEntity(FEntityManager* EntityManager, TaskImpl Task) const
 	{
@@ -1187,9 +1473,49 @@ struct TFilteredEntityTask
 
 private:
 
+	template<typename TaskImpl, typename... TaskConstructionArgs>
+	FTaskID ScheduleImpl(FEntityManager* EntityManager, IEntitySystemScheduler* InScheduler, const FTaskParams& TaskParams, TaskFunctionPtr InFunction, TaskConstructionArgs&&... InArgs) const
+	{
+		if (!Components.IsValid())
+		{
+			return FTaskID::None();
+		}
+
+		if (!Components.HasAnyWork(EntityManager))
+		{
+			return FTaskID::None();
+		}
+
+		using TaskType = TScheduledEntityTask<TaskImpl, T...>;
+		TSharedPtr<TaskType> SharedTask = MakeShared<TaskType>(Components, Forward<TaskConstructionArgs>(InArgs)...);
+
+		FComponentMask ReadDependencies = DynamicReadMask, WriteDependencies = DynamicWriteMask;
+		Components.PopulateReadWriteDependencies(ReadDependencies, WriteDependencies);
+
+		auto PrelockComponentData = [this](FEntityAllocationIteratorItem Allocation, TArray<FPreLockedDataPtr>& OutComponentHeaders)
+		{
+			this->Components.PreLockComponentHeaders(Allocation, OutComponentHeaders);
+		};
+
+		FTaskID TaskID = InScheduler->CreateForkedAllocationTask(TaskParams, SharedTask, InFunction, PrelockComponentData, Filter, ReadDependencies, WriteDependencies);
+		if (TaskID)
+		{
+			FTaskID PreTask  = SchedulePreTask(InScheduler, TaskParams, SharedTask, (TaskImpl*)0);
+			FTaskID PostTask = SchedulePostTask(InScheduler, TaskParams, SharedTask, (TaskImpl*)0);
+			InScheduler->AddChildFront(TaskID, PreTask);
+			InScheduler->AddChildBack(TaskID, PostTask);
+		}
+
+		return TaskID;
+	}
+
+private:
+
 	TEntityTaskComponents<T...> Components;
 
 	FEntityComponentFilter Filter;
+	FComponentMask DynamicReadMask;
+	FComponentMask DynamicWriteMask;
 };
 
 template<typename TaskImpl, typename... ComponentTypes>
@@ -1250,18 +1576,16 @@ protected:
 		InTask->PostTask();
 	}
 
-	using Caller = TEntityTaskCaller< TaskImpl, sizeof...(ComponentTypes), TEntityTaskTraits<TaskImpl>::AutoExpandAccessors >;
+	using Caller = TEntityTaskCaller<sizeof...(ComponentTypes), TEntityTaskTraits<TaskImpl>::AutoExpandAccessors >;
 
 	TFilteredEntityTask<ComponentTypes...> FilteredTask;
 	FEntityManager* EntityManager;
 	FEntityAllocationWriteContext WriteContext;
 };
 
-
 template<typename TaskImpl, typename... ComponentTypes>
 struct TEntityTask : TEntityTaskBase<TaskImpl, ComponentTypes...>
 {
-
 	template<typename... ArgTypes>
 	explicit TEntityTask(FEntityManager* InEntityManager, const TEntityTaskComponents<ComponentTypes...>& InComponents, ArgTypes&&... InArgs)
 		: TEntityTaskBase<TaskImpl, ComponentTypes...>(InEntityManager, InComponents)
@@ -1297,6 +1621,56 @@ struct TEntityTask : TEntityTaskBase<TaskImpl, ComponentTypes...>
 private:
 
 	TaskImpl TaskImplInstance;
+};
+
+template<typename TaskImpl, typename... ComponentTypes>
+struct TScheduledEntityTask : ITaskContext
+{
+	template<typename... ArgTypes>
+	explicit TScheduledEntityTask(const TEntityTaskComponents<ComponentTypes...>& InComponents, ArgTypes&&... InArgs)
+		: TaskImplInstance{ Forward<ArgTypes>(InArgs)... }
+		, Components(InComponents)
+	{}
+
+	void PreTask() const
+	{
+		// This const_cast is ok because we know nothing else can touch this task in PreTask
+		PreTaskImpl(const_cast<TaskImpl*>(&TaskImplInstance));
+	}
+	void PostTask() const
+	{
+		// This const_cast is ok because we know nothing else can touch this task in PostTask
+		PostTaskImpl(const_cast<TaskImpl*>(&TaskImplInstance));
+	}
+
+	static void ScheduledRun_PerEntity(FEntityAllocationIteratorItem Item, TArrayView<const FPreLockedDataPtr> PreLockedData, const ITaskContext* Context, FEntityAllocationWriteContext WriteContext)
+	{
+		const TScheduledEntityTask<TaskImpl, ComponentTypes...>* This = static_cast<const TScheduledEntityTask<TaskImpl, ComponentTypes...>*>(Context);
+		Caller::ForEachEntityImpl(This->TaskImplInstance, Item, PreLockedData, WriteContext, This->Components);
+	}
+	static void ScheduledRun_PerAllocation(FEntityAllocationIteratorItem Item, TArrayView<const FPreLockedDataPtr> PreLockedData, const ITaskContext* Context, FEntityAllocationWriteContext WriteContext)
+	{
+		const TScheduledEntityTask<TaskImpl, ComponentTypes...>* This = static_cast<const TScheduledEntityTask<TaskImpl, ComponentTypes...>*>(Context);
+		Caller::ForEachAllocationImpl(This->TaskImplInstance, Item, PreLockedData, WriteContext, This->Components);
+	}
+private:
+
+	static void PreTaskImpl(void*, ...){}
+	template <typename T> static void PreTaskImpl(T* InTask, decltype(&T::PreTask)* = 0)
+	{
+		InTask->PreTask();
+	}
+
+	static void PostTaskImpl(void*, ...){}
+	template <typename T> static void PostTaskImpl(T* InTask, decltype(&T::PostTask)* = 0)
+	{
+		InTask->PostTask();
+	}
+
+	using Caller = TEntityTaskCaller<sizeof...(ComponentTypes), TEntityTaskTraits<TaskImpl>::AutoExpandAccessors >;
+
+	TaskImpl TaskImplInstance;
+	TEntityTaskComponents<ComponentTypes...> Components;
 };
 
 template<typename TaskImpl, typename... ComponentTypes>
@@ -1359,7 +1733,7 @@ private:
 
 protected:
 
-	using Caller = TEntityTaskCaller< TaskImpl, sizeof...(ComponentTypes), TEntityTaskTraits<TaskImpl>::AutoExpandAccessors >;
+	using Caller = TEntityTaskCaller<sizeof...(ComponentTypes), TEntityTaskTraits<TaskImpl>::AutoExpandAccessors >;
 
 	TFilteredEntityTask<ComponentTypes...> ComponentFilter;
 	FEntityManager* EntityManager;
@@ -1417,7 +1791,7 @@ struct TUnstructuredTask
 
 	TStatId GetStatId() const
 	{
-		return CommonParams.StatId;
+		return CommonParams.TaskParams.StatId;
 	}
 
 	ENamedThreads::Type GetDesiredThread() const
@@ -1456,11 +1830,47 @@ private:
 
 template<typename...> struct TEntityTaskCaller_AutoExpansion;
 
-template<typename TaskImpl, int... Indices>
-struct TEntityTaskCaller_AutoExpansion<TaskImpl, TIntegerSequence<int, Indices...>>
+
+template<typename ...AccessorTypes>
+struct TPrelockedDataOffsets
 {
-	template<typename... AccessorTypes>
-	FORCEINLINE static void ForEachEntityImpl(TaskImpl& TaskImplInstance, const FEntityAllocation* Allocation, FEntityAllocationWriteContext WriteContext, const TEntityTaskComponents<AccessorTypes...>& Components)
+	static constexpr int32 Num = (... + AccessorTypes::PreLockedDataNum);
+
+	int32 StartOffset[sizeof...(AccessorTypes)]={};
+
+	constexpr TPrelockedDataOffsets()
+	{
+		int Index = 0, DataIndex = 0;
+		(..., Assign(Index, DataIndex, AccessorTypes::PreLockedDataNum));
+	}
+	constexpr void Assign(int& Index, int& DataIndex, int DataSize)
+	{
+		StartOffset[Index] = DataIndex;
+		DataIndex += DataSize;
+		++Index;
+	}
+};
+
+template<int... Indices>
+struct TEntityTaskCaller_AutoExpansion<TIntegerSequence<int, Indices...>>
+{
+	template<typename TaskImpl, typename... AccessorTypes>
+	static void ForEachEntityImpl(TaskImpl& TaskImplInstance, const FEntityAllocation* Allocation, TArrayView<const FPreLockedDataPtr> PreLockedData, FEntityAllocationWriteContext WriteContext, const TEntityTaskComponents<AccessorTypes...>& Components)
+	{
+		FEntityIterationResult Result;
+
+		constexpr TPrelockedDataOffsets<AccessorTypes...> PrelockedDataOffsets;
+		auto ResolvedComponentData = MakeTuple( Components.template GetAccessor<Indices>().ResolvePreLockedComponentData(Allocation, &PreLockedData[PrelockedDataOffsets.StartOffset[Indices]], WriteContext)... );
+
+		const int32 Num = Allocation->Num();
+		for (int32 ComponentOffset = 0; ComponentOffset < Num && Result.Value; ++ComponentOffset )
+		{
+			Result = (TaskImplInstance.ForEachEntity(ResolvedComponentData.template Get<Indices>().ComponentAtIndex(ComponentOffset)... ), Result);
+		}
+	}
+
+	template<typename TaskImpl, typename... AccessorTypes>
+	static void ForEachEntityImpl(TaskImpl& TaskImplInstance, const FEntityAllocation* Allocation, FEntityAllocationWriteContext WriteContext, const TEntityTaskComponents<AccessorTypes...>& Components)
 	{
 		FEntityIterationResult Result;
 
@@ -1474,28 +1884,43 @@ struct TEntityTaskCaller_AutoExpansion<TaskImpl, TIntegerSequence<int, Indices..
 		}
 	}
 
-	template<typename... AccessorTypes>
-	FORCEINLINE static void ForEachAllocationImpl(TaskImpl& TaskImplInstance, FEntityAllocationIteratorItem Item, FEntityAllocationWriteContext WriteContext, const TEntityTaskComponents<AccessorTypes...>& Components)
+	template<typename TaskImpl, typename... AccessorTypes>
+	static void ForEachAllocationImpl(TaskImpl& TaskImplInstance, FEntityAllocationIteratorItem Item, TArrayView<const FPreLockedDataPtr> PreLockedData, FEntityAllocationWriteContext WriteContext, const TEntityTaskComponents<AccessorTypes...>& Components)
+	{
+		constexpr TPrelockedDataOffsets<AccessorTypes...> PrelockedDataOffsets;
+		const FEntityAllocation* Allocation = Item.GetAllocation();
+		TaskImplInstance.ForEachAllocation(Item, Components.template GetAccessor<Indices>().ResolvePreLockedComponentData(Allocation, &PreLockedData[PrelockedDataOffsets.StartOffset[Indices]], WriteContext)...);
+	}
+
+	template<typename TaskImpl, typename... AccessorTypes>
+	static void ForEachAllocationImpl(TaskImpl& TaskImplInstance, FEntityAllocationIteratorItem Item, FEntityAllocationWriteContext WriteContext, const TEntityTaskComponents<AccessorTypes...>& Components)
 	{
 		auto LockedComponentData = MakeTuple( Components.template GetAccessor<Indices>().LockComponentData(Item.GetAllocation(), WriteContext)... );
 		TaskImplInstance.ForEachAllocation(Item, LockedComponentData.template Get<Indices>()...);
 	}
 };
 
-template<typename TaskImpl, int NumComponents>
-struct TEntityTaskCaller<TaskImpl, NumComponents, true> : TEntityTaskCaller_AutoExpansion<TaskImpl, TMakeIntegerSequence<int, NumComponents>>
+template<int NumComponents>
+struct TEntityTaskCaller<NumComponents, true> : TEntityTaskCaller_AutoExpansion<TMakeIntegerSequence<int, NumComponents>>
 {
 };
 
-template<typename TaskImpl, int32 NumComponents>
-struct TEntityTaskCaller<TaskImpl, NumComponents, false>
+template<int32 NumComponents>
+struct TEntityTaskCaller<NumComponents, false>
 {
-	FORCEINLINE static void ForEachEntityImpl(...)
+	template<typename TaskImpl>
+	FORCEINLINE static void ForEachEntityImpl(TaskImpl& TaskImplInstance, ...)
 	{
 		static_assert(!std::is_same_v<TaskImpl, TaskImpl>, "non-expanded entity iteration is not supported");
 	}
 
-	template<typename... AccessorTypes>
+	template<typename TaskImpl, typename... AccessorTypes>
+	FORCEINLINE static void ForEachAllocationImpl(TaskImpl& TaskImplInstance, FEntityAllocationIteratorItem Item, TArrayView<const FPreLockedDataPtr> PreLockedData, FEntityAllocationWriteContext WriteContext, const TEntityTaskComponents<AccessorTypes...>& Components)
+	{
+		TaskImplInstance.ForEachAllocation(Item, Components, PreLockedData);
+	}
+
+	template<typename TaskImpl, typename... AccessorTypes>
 	FORCEINLINE static void ForEachAllocationImpl(TaskImpl& TaskImplInstance, FEntityAllocationIteratorItem Item, const TEntityTaskComponents<AccessorTypes...>& Components)
 	{
 		TaskImplInstance.ForEachAllocation(Item, Components);

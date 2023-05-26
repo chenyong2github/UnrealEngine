@@ -31,6 +31,7 @@ namespace MovieScene
 
 	struct FSystemSubsequentTasks;
 	struct FSystemTaskPrerequisites;
+	class IEntitySystemScheduler;
 
 	enum class EEntitySystemCategory : uint32
 	{
@@ -184,6 +185,9 @@ public:
 	/** Called when the system is added to a linker */
 	void Link(UMovieSceneEntitySystemLinker* InLinker);
 
+	/** Called to schedule work */
+	void SchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* Scheduler);
+
 	/** Called when the system should run its logic */
 	void Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
@@ -215,6 +219,8 @@ protected:
 private:
 
 	virtual void OnLink() {}
+
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) { }
 
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) { }
 

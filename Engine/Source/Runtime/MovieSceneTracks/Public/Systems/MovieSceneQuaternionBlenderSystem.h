@@ -22,7 +22,6 @@ namespace UE::MovieScene
 	struct FQuaternionBlenderAccumulationBuffers
 	{
 		TSparseArray<double> AbsoluteWeights;
-		TArray<FQuatTransform> InitialValues;
 		TArray<FQuatTransform> Absolutes;
 		TArray<FQuatTransform> Additives;
 	};
@@ -36,6 +35,7 @@ public:
 
 	UMovieSceneQuaternionBlenderSystem(const FObjectInitializer& ObjInit);
 
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 	virtual FGraphEventRef DispatchDecomposeTask(const UE::MovieScene::FValueDecompositionParams& Params, UE::MovieScene::FAlignedDecomposedValue* Output) override;

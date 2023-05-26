@@ -15,5 +15,6 @@ public:
 	GENERATED_BODY()
 
 	UDoublePerlinNoiseChannelEvaluatorSystem(const FObjectInitializer& ObjInit);
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };

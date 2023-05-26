@@ -25,8 +25,11 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WeightAndEasingEvaluatorSystem)
 
-DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate easing"), MovieSceneEval_EvaluateEasingTask, STATGROUP_MovieSceneECS);
-DECLARE_CYCLE_STAT(TEXT("MovieScene: Harvest easing"), MovieSceneEval_HarvestEasingTask, STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Weights: Reset"), MovieSceneEval_ResetWeightsTask, STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Weights: Evaluate easing"), MovieSceneEval_EvaluateEasingTask, STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Weights: Accumulate manual weights"), MovieSceneEval_AccumulateManualWeights, STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Weights: Harvest hierarchical easing"), MovieSceneEval_HarvestEasingTask, STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Weights: Propagate hierarchical easing"), MovieSceneEval_PropagateEasing, STATGROUP_MovieSceneECS);
 
 
 namespace UE::MovieScene
@@ -604,7 +607,7 @@ struct FHarvestHierarchicalEasings
 	}
 
 	// Accumulate all entities that contribute to the channel
-	void ForEachEntity(double Result, uint16 EasingChannel)
+	void ForEachEntity(double Result, uint16 EasingChannel) const
 	{
 		ComputationData[EasingChannel].FinalResult *= Result;
 		ComputationData[EasingChannel].UnaccumulatedResult *= Result;
@@ -682,7 +685,7 @@ struct FPropagateHierarchicalEasings
 		: ComputationData(InComputationData)
 	{}
 
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<uint16> HierarchicalEasingChannels, TWrite<double> WeightAndEasingResults)
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<uint16> HierarchicalEasingChannels, TWrite<double> WeightAndEasingResults) const
 	{
 		const int32 Num = Allocation->Num();
 		for (int32 Index = 0; Index < Num; ++Index)
@@ -1058,6 +1061,7 @@ UWeightAndEasingEvaluatorSystem::UWeightAndEasingEvaluatorSystem(const FObjectIn
 	using namespace UE::MovieScene;
 
 	SystemCategories = UE::MovieScene::EEntitySystemCategory::ChannelEvaluators;
+	Phase = ESystemPhase::Scheduling;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -1092,6 +1096,65 @@ void UWeightAndEasingEvaluatorSystem::OnUnlink()
 UE::MovieScene::FHierarchicalEasingChannelBuffer& UWeightAndEasingEvaluatorSystem::GetComputationBuffer()
 {
 	return PreAllocatedComputationData;
+}
+
+void UWeightAndEasingEvaluatorSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+	FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
+
+	// Reset all weights back to one. This can happen immediately.
+	//
+	FTaskID ResetWeights = FEntityTaskBuilder()
+	.Write(Components->WeightAndEasingResult)
+	.SetStat(GET_STATID(MovieSceneEval_ResetWeightsTask))
+	.Fork_PerEntity<FResetFinalWeightResults>(&Linker->EntityManager, TaskScheduler);
+
+	// Evaluate easing - this can be scheduled as soon as eval times are populated
+	//
+	FTaskID EvaluateEasing = FEntityTaskBuilder()
+	.Read(Components->EvalTime)
+	.Read(Components->Easing)
+	.Write(Components->EasingResult)
+	.SetStat(GET_STATID(MovieSceneEval_EvaluateEasingTask))
+	.Fork_PerEntity<FEvaluateEasings>(&Linker->EntityManager, TaskScheduler);
+
+	// Accumulate weights - must be done after ResetWeights and EvaluateEasing
+	//
+	FTaskID AccumulateWeights = FEntityTaskBuilder()
+	.ReadOneOrMoreOf(Components->WeightResult, Components->EasingResult)
+	.Write(Components->WeightAndEasingResult)
+	.SetStat(GET_STATID(MovieSceneEval_AccumulateManualWeights))
+	.Schedule_PerAllocation<FAccumulateManualWeights>(&Linker->EntityManager, TaskScheduler);
+
+	TaskScheduler->AddPrerequisite(ResetWeights, AccumulateWeights);
+	TaskScheduler->AddPrerequisite(EvaluateEasing, AccumulateWeights);
+
+	// If we have hierarchical easing, we initialize all the weights to their hierarchical defaults
+	if (!PreAllocatedComputationData.IsEmpty())
+	{
+		// Step 2: Harvest any hierarchical results from providers
+		//
+		FTaskID HarvestTask = FEntityTaskBuilder()
+		.Read(Components->WeightAndEasingResult)
+		.Read(Components->HierarchicalEasingChannel)
+		.FilterAll({ Components->HierarchicalEasingProvider })  // Only harvest results from entities that are providing results
+		.SetStat(GET_STATID(MovieSceneEval_HarvestEasingTask))
+		.Schedule_PerEntity<FHarvestHierarchicalEasings>(&Linker->EntityManager, TaskScheduler, &PreAllocatedComputationData.Channels);
+
+		// Step 3: Apply hierarchical easing results to all entities inside affected sub-sequences.
+		//
+		FTaskID PropagateTask = FEntityTaskBuilder()
+		.Read(Components->HierarchicalEasingChannel)
+		.Write(Components->WeightAndEasingResult)
+		.FilterNone({ Components->HierarchicalEasingProvider }) // Do not propagate hierarchical weights onto providers!
+		.SetStat(GET_STATID(MovieSceneEval_PropagateEasing))
+		.Fork_PerAllocation<FPropagateHierarchicalEasings>(&Linker->EntityManager, TaskScheduler, PreAllocatedComputationData.Channels);
+
+		TaskScheduler->AddPrerequisite(HarvestTask, PropagateTask);
+	}
 }
 
 void UWeightAndEasingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)

@@ -28,7 +28,7 @@ struct FEvaluationHookUpdater
 		: HookSystem(InHookSystem), InstanceRegistry(InInstanceRegistry)
 	{}
 
-	void ForEachAllocation(FEntityAllocationProxy Item, TRead<FInstanceHandle> InstanceHandles, TRead<FMovieSceneEvaluationHookComponent> Hooks, TRead<FFrameTime> EvalTimes, TWrite<FEvaluationHookFlags> WriteFlags)
+	void ForEachAllocation(FEntityAllocationProxy Item, TRead<FInstanceHandle> InstanceHandles, TRead<FMovieSceneEvaluationHookComponent> Hooks, TRead<FFrameTime> EvalTimes, TWrite<FEvaluationHookFlags> WriteFlags) const
 	{
 		const int32 Num = Item.GetAllocation()->Num();
 		const bool bRestoreState = Item.GetAllocationType().Contains(FBuiltInComponentTypes::Get()->Tags.RestoreState);
@@ -53,26 +53,8 @@ struct FEvaluationHookUpdater
 			HookSystem->AddEvent(SequenceInstance.GetRootInstanceHandle(), NewEvent);
 		}
 	}
-};
 
-struct FEvaluationHookSorter
-{
-	UMovieSceneEvaluationHookSystem* HookSystem;
-
-	FEvaluationHookSorter(UMovieSceneEvaluationHookSystem* InHookSystem)
-		: HookSystem(InHookSystem)
-	{}
-
-	FORCEINLINE TStatId           GetStatId() const    { return GET_STATID(MovieSceneECS_GenericHooks); }
-	static ENamedThreads::Type    GetDesiredThread()   { return ENamedThreads::AnyHiPriThreadHiPriTask; }
-	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
-
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		Run();
-	}
-
-	void Run()
+	void PostTask()
 	{
 		HookSystem->SortEvents();
 	}
@@ -84,7 +66,7 @@ struct FEvaluationHookSorter
 UMovieSceneEvaluationHookSystem::UMovieSceneEvaluationHookSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
-	Phase = UE::MovieScene::ESystemPhase::Instantiation | UE::MovieScene::ESystemPhase::Evaluation | UE::MovieScene::ESystemPhase::Finalization;
+	Phase = UE::MovieScene::ESystemPhase::Instantiation | UE::MovieScene::ESystemPhase::Scheduling | UE::MovieScene::ESystemPhase::Finalization;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -105,6 +87,20 @@ bool UMovieSceneEvaluationHookSystem::HasEvents() const
 bool UMovieSceneEvaluationHookSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const
 {
 	return HasEvents() || InLinker->EntityManager.ContainsComponent(UE::MovieScene::FBuiltInComponentTypes::Get()->EvaluationHook);
+}
+
+void UMovieSceneEvaluationHookSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+
+	FEntityTaskBuilder()
+	.Read(Components->InstanceHandle)
+	.Read(Components->EvaluationHook)
+	.Read(Components->EvalTime)
+	.Write(Components->EvaluationHookFlags)
+	.Schedule_PerAllocation<FEvaluationHookUpdater>(&Linker->EntityManager, TaskScheduler, this, Linker->GetInstanceRegistry());
 }
 
 void UMovieSceneEvaluationHookSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
@@ -132,20 +128,6 @@ void UMovieSceneEvaluationHookSystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 		.Read(Components->EvalTime)
 		.Write(Components->EvaluationHookFlags)
 		.Dispatch_PerAllocation<FEvaluationHookUpdater>(&Linker->EntityManager, InPrerequisites, &Subsequents, this, Linker->GetInstanceRegistry());
-
-		if (Linker->EntityManager.GetThreadingModel() == EEntityThreadingModel::NoThreading)
-		{
-			this->SortEvents();
-		}
-		else
-		{
-			// The only thing we depend on is the gather task
-			FGraphEventArray Prereqs = { UpdateEvent };
-			FGraphEventRef SortTask = TGraphTask<FEvaluationHookSorter>::CreateTask(&Prereqs, Linker->EntityManager.GetDispatchThread())
-			.ConstructAndDispatchWhenReady(this);
-
-			Subsequents.AddRootTask(SortTask);
-		}
 	}
 	else if (HasEvents())
 	{

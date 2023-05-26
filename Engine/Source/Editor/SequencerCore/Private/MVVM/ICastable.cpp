@@ -44,8 +44,14 @@ const void* ICastable::CastRaw(FViewModelTypeID InType) const
 	return Result;
 }
 
+FCastableTypeTable::FCastableTypeTable(uint8* InTypeMaskStorage)
+	: TypeMask(InTypeMaskStorage)
+{}
+
 FCastableTypeTable* FCastableTypeTable::FCastableTypeTableGenerator::Commit(uint32 TypeID, FName InName)
 {
+	using namespace UE::MovieScene;
+
 	uint8* NewType = (uint8*)FMemory::Malloc(ByteSize(), alignof(FCastableTypeTable));
 
 	// FCastableTypeTable is a special type that uses a fixed allocation size determined by the size of the type table itself
@@ -56,14 +62,12 @@ FCastableTypeTable* FCastableTypeTable::FCastableTypeTableGenerator::Commit(uint
 	//	|	StaticTypeOffsets	|		  TypeMask			|	NumStaticTypes	|	ThisTypeID		|	ThisTypeName	|											|		 										|
 	//				\_________________________\________________________________________________________________________/										   /
 	//										   \______________________________________________TypeMask.Buckets.Storage____________________________________________/
-	FCastableTypeTable* NewTable = new (NewType) FCastableTypeTable();
+	uint8* DataOffset = NewType + sizeof(FCastableTypeTable);
+
+	FCastableTypeTable* NewTable = new (NewType) FCastableTypeTable(DataOffset);
 	NewTable->ThisTypeID = TypeID;
 	NewTable->ThisTypeName = InName;
 
-	uint8* DataOffset = NewType + sizeof(FCastableTypeTable);
-
-	// Sparse bitset storage lives at the end of the table
-	NewTable->TypeMask = TSparseBitSet<uint32, TFixedSparseBitSetBucketStorage<uint8>>({ DataOffset });
 	TypeMask.CopyToUnsafe(NewTable->TypeMask, TypeMask.NumBuckets());
 
 	DataOffset += TypeMask.NumBuckets()*sizeof(decltype(NewTable->TypeMask)::BucketType);

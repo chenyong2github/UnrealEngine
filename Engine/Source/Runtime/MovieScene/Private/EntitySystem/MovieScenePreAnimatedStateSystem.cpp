@@ -59,6 +59,7 @@ void UMovieSceneCachePreAnimatedStateSystem::OnRun(FSystemTaskPrerequisites& InP
 	};
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Spawn, ForEachSystem);
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Instantiation, ForEachSystem);
+	Linker->SystemGraph.IteratePhase(ESystemPhase::Scheduling, ForEachSystem);
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Evaluation, ForEachSystem);
 
 	IMovieScenePreAnimatedStateSystemInterface::FPreAnimationParameters Params{ &InPrerequisites, &Subsequents, &Linker->PreAnimatedState };
@@ -115,6 +116,7 @@ void UMovieSceneRestorePreAnimatedStateSystem::OnRun(FSystemTaskPrerequisites& I
 	};
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Spawn, ForEachSystem);
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Instantiation, ForEachSystem);
+	Linker->SystemGraph.IteratePhase(ESystemPhase::Scheduling, ForEachSystem);
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Evaluation, ForEachSystem);
 
 	IMovieScenePreAnimatedStateSystemInterface::FPreAnimationParameters Params{ &InPrerequisites, &Subsequents, &Linker->PreAnimatedState };

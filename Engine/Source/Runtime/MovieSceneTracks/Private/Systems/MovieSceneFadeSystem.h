@@ -21,6 +21,7 @@ public:
 	UMovieSceneFadeSystem(const FObjectInitializer& ObjInit);
 
 	virtual void OnLink() override;
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 private:

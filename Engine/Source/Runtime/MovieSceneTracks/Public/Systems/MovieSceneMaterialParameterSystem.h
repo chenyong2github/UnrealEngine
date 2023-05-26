@@ -61,6 +61,7 @@ private:
 
 	virtual void OnLink() override;
 	virtual void OnUnlink() override;
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 	void OnInstantiation();

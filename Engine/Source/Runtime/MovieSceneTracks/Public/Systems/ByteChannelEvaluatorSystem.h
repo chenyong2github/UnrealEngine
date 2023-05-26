@@ -10,16 +10,6 @@
 
 class UObject;
 
-namespace UE
-{
-namespace MovieScene
-{
-
-	struct FSourceByteChannel;
-
-} // namespace MovieScene
-} // namespace UE
-
 /**
  * System that is responsible for evaluating byte channels.
  */
@@ -32,5 +22,6 @@ public:
 
 	UByteChannelEvaluatorSystem(const FObjectInitializer& ObjInit);
 
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };
