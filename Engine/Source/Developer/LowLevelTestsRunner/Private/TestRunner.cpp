@@ -225,15 +225,14 @@ void FTestRunner::GlobalSetup()
 			Catch::getResultCapture().handleMessage(info, Catch::ResultWas::ExplicitFailure, StringCast<ANSICHAR>(*Error).Get(), reaction);
 		});
 
+	// Set up GWarn to handle Error, Warning, Display; but only when log output is enabled.
+#if WITH_APPLICATION_CORE
+	GWarn = FPlatformApplicationMisc::GetFeedbackContext();
+#else
+	GWarn = FPlatformOutputDevices::GetFeedbackContext();
+#endif
 	if (bLogOutput || bDebugMode)
 	{
-		// Set up GWarn to handle Error, Warning, Display; but only when log output is enabled.
-#if WITH_APPLICATION_CORE
-		GWarn = FPlatformApplicationMisc::GetFeedbackContext();
-#else
-		GWarn = FPlatformOutputDevices::GetFeedbackContext();
-#endif
-
 		// Set up default output devices to handle Log, Verbose, VeryVerbose.
 		FPlatformOutputDevices::SetupOutputDevices();
 
