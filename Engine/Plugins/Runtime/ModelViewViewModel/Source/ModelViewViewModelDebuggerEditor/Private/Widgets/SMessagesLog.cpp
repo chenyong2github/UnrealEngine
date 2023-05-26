@@ -4,6 +4,7 @@
 
 #include "IMessageLogListing.h"
 #include "MessageLogModule.h"
+#include "MVVMMessageLog.h"
 #include "Modules/ModuleManager.h"
 
 #include "Widgets/SBoxPanel.h"
@@ -17,7 +18,7 @@ namespace UE::MVVM
 
 void SMessagesLog::Construct(const FArguments& InArgs)
 {
-	const FName LogName = "Live Link";
+	const FName LogName = UE::MVVM::FMessageLog::LogName;
 	TSharedPtr<IMessageLogListing> MessageLogListing;
 
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
@@ -29,24 +30,24 @@ void SMessagesLog::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SOverlay)
-		+SOverlay::Slot()
-		[
+		//SNew(SOverlay)
+		//+SOverlay::Slot()
+		//[
 			MessageLogListingWidget
-		]
-		+SOverlay::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Bottom)
-		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(10, 4, 4, 10)
-			[
-				SNew(STextBlock)
-				.Text(this, &SMessagesLog::GetMessageCountText)
-			]
-		]
+		//]
+		//+SOverlay::Slot()
+		//.HAlign(HAlign_Left)
+		//.VAlign(VAlign_Bottom)
+		//[
+		//	SNew(SHorizontalBox)
+		//	+SHorizontalBox::Slot()
+		//	.AutoWidth()
+		//	.Padding(10, 4, 4, 10)
+		//	[
+		//		SNew(STextBlock)
+		//		.Text(this, &SMessagesLog::GetMessageCountText)
+		//	]
+		//]
 	];
 }
 
@@ -55,7 +56,7 @@ FText SMessagesLog::GetMessageCountText() const
 	int32 ErrorCount = 0;
 	int32 WarningCount = 0;
 	int32 InfoCount = 0;
-	//FLiveLinkLog::GetInstance()->GetLogCount(ErrorCount, WarningCount, InfoCount);
+	//FMessageLog::GetLogCount(ErrorCount, WarningCount, InfoCount);
 	return FText::Format(LOCTEXT("MessageCountText", "{0} Error(s)  {1} Warning(s)"), FText::AsNumber(ErrorCount), FText::AsNumber(WarningCount));
 }
 

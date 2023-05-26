@@ -3,6 +3,9 @@
 #include "Widgets/SMainDebugTab.h"
 
 #include "MVVMDebugSnapshot.h"
+#include "MVVMDebugViewModel.h"
+#include "UObject/StructOnScope.h"
+#include "View/MVVMView.h"
 
 #include "ToolMenus.h"
 
@@ -16,8 +19,9 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SDetailsTab.h"
 #include "Widgets/SMessagesLog.h"
-#include "Widgets/SSelectionTab.h"
 #include "Widgets/SViewModelBindingDetail.h"
+#include "Widgets/SViewModelSelection.h"
+#include "Widgets/SViewSelection.h"
 
 
 #define LOCTEXT_NAMESPACE "MVVMDebuggerMainDebug"
@@ -27,9 +31,11 @@ namespace UE::MVVM
 
 namespace Private
 {
-const FLazyName Stack_Selection = "Selection";
+const FLazyName Stack_ViewSelection = "ViewSelection";
+const FLazyName Stack_ViewmodelSelection = "ViewmodelSelection";
 const FLazyName Stack_Binding = "Binding";
-const FLazyName Stack_Detail = "Detail";
+const FLazyName Stack_LiveDetail = "LiveDetail";
+const FLazyName Stack_EntryDetail = "EntryDetail";
 const FLazyName Stack_Messages = "Messages";
 }
 
@@ -170,10 +176,17 @@ TSharedRef<SWidget> SMainDebug::HandleSnapshotMenuContent()
 
 void SMainDebug::HandleTakeSnapshot()
 {
+	CurrentSelection = ESelection::None;
+	Selection();
+
 	Snapshot = FDebugSnapshot::CreateSnapshot();
-	if (TSharedPtr<SSelectionTab> SelectionViewPtr = SelectionView.Pin())
+	if (TSharedPtr<SViewSelection> SelectionViewPtr = ViewSelection.Pin())
 	{
 		SelectionViewPtr->SetSnapshot(Snapshot);
+	}
+	if (TSharedPtr<SViewModelSelection> SelectionViewModelPtr = ViewModelSelection.Pin())
+	{
+		SelectionViewModelPtr->SetSnapshot(Snapshot);
 	}
 }
 
@@ -196,13 +209,39 @@ bool SMainDebug::HasValidSnapshot() const
 }
 
 
-void SMainDebug::HandleObjectSelectionChanged()
+void SMainDebug::HandleViewSelectionChanged()
+{
+	CurrentSelection = ESelection::View;
+	Selection();
+	if (TSharedPtr<SViewModelSelection> ViewModelSelectionPtr = ViewModelSelection.Pin())
+	{
+		ViewModelSelectionPtr->SetSelection(FGuid());
+	}
+}
+
+
+void SMainDebug::HandleViewModleSelectionChanged()
+{
+	CurrentSelection = ESelection::ViewModel;
+	Selection();
+	if (TSharedPtr<SViewSelection> ViewSelectionPtr = ViewSelection.Pin())
+	{
+		ViewSelectionPtr->SetSelection(FGuid());
+	}
+}
+
+
+void SMainDebug::Selection()
 {
 	if (Snapshot == nullptr)
 	{
-		if (TSharedPtr<SDetailsTab> DetailViewPtr = DetailView.Pin())
+		if (TSharedPtr<SDetailsTab> DetailViewPtr = LiveDetailView.Pin())
 		{
 			DetailViewPtr->SetObjects(TArray<UObject*>());
+		}
+		if (TSharedPtr<SDetailsTab> DetailViewPtr = EntryDetailView.Pin())
+		{
+			DetailViewPtr->SetStruct(TSharedPtr<FStructOnScope>());
 		}
 		if (TSharedPtr<SViewModelBindingDetail> ViewModelBindingDetailPtr = ViewModelBindingDetail.Pin())
 		{
@@ -211,28 +250,82 @@ void SMainDebug::HandleObjectSelectionChanged()
 	}
 	else
 	{
-		if (TSharedPtr<SSelectionTab> SelectionPtr = SelectionView.Pin())
+		TArray<UObject*> SelectedObjects;
+		TSharedPtr<FStructOnScope> SelectedStruct;
+		if (CurrentSelection == ESelection::View)
 		{
-			if (TSharedPtr<SDetailsTab> DetailViewPtr = DetailView.Pin())
+			if (TSharedPtr<SViewSelection> ViewSelectionPtr = ViewSelection.Pin())
 			{
-				DetailViewPtr->SetObjects(SelectionPtr->GetSelectedObjects());
-			}
-
-			if (TSharedPtr<SViewModelBindingDetail> ViewModelBindingDetailPtr = ViewModelBindingDetail.Pin())
-			{
-				TArray<TSharedPtr<FMVVMViewModelDebugEntry>> ViewModels;
-				for (FDebugItemId DebugItem : SelectionPtr->GetSelectedItems())
+				for (TSharedPtr<FMVVMViewDebugEntry>& Selection : ViewSelectionPtr->GetSelectedItems())
 				{
-					if (DebugItem.Type == FDebugItemId::EType::ViewModel)
+					SelectedObjects.Add(Selection->LiveView.Get());
+					if (!SelectedStruct.IsValid())
 					{
-						if (TSharedPtr<FMVVMViewModelDebugEntry> Found = Snapshot->FindViewModel(DebugItem.Id))
-						{
-							ViewModels.Add(Found);
-						}
+						SelectedStruct = MakeShared<FStructOnScope>(FMVVMViewDebugEntry::StaticStruct(), reinterpret_cast<uint8*>(Selection.Get()));
 					}
 				}
-				ViewModelBindingDetailPtr->SetViewModels(ViewModels);
 			}
+		}
+		else if (CurrentSelection == ESelection::ViewModel)
+		{
+			if (TSharedPtr<SViewModelSelection> ViewModelSelectionPtr = ViewModelSelection.Pin())
+			{
+				for (TSharedPtr<FMVVMViewModelDebugEntry>& Selection : ViewModelSelectionPtr->GetSelectedItems())
+				{
+					SelectedObjects.Add(Selection->LiveViewModel.Get());
+					if (!SelectedStruct.IsValid())
+					{
+						SelectedStruct = MakeShared<FStructOnScope>(FMVVMViewModelDebugEntry::StaticStruct(), reinterpret_cast<uint8*>(Selection.Get()));
+					}
+				}
+			}
+		}
+
+		TArray<FDebugItemId> SelectedItems;
+		if (CurrentSelection == ESelection::View)
+		{
+			if (TSharedPtr<SViewSelection> ViewSelectionPtr = ViewSelection.Pin())
+			{
+				for (const TSharedPtr<FMVVMViewDebugEntry>& Selection : ViewSelectionPtr->GetSelectedItems())
+				{
+					SelectedItems.Add(FDebugItemId(FDebugItemId::EType::View, Selection->ViewInstanceDebugId));
+				}
+			}
+		}
+		else if (CurrentSelection == ESelection::ViewModel)
+		{
+			if (TSharedPtr<SViewModelSelection> ViewModelSelectionPtr = ViewModelSelection.Pin())
+			{
+				for (const TSharedPtr<FMVVMViewModelDebugEntry>& Selection : ViewModelSelectionPtr->GetSelectedItems())
+				{
+					SelectedItems.Add(FDebugItemId(FDebugItemId::EType::ViewModel, Selection->ViewModelDebugId));
+				}
+			}
+		}
+
+		if (TSharedPtr<SDetailsTab> DetailViewPtr = LiveDetailView.Pin())
+		{
+			DetailViewPtr->SetObjects(SelectedObjects);
+		}
+		if (TSharedPtr<SDetailsTab> DetailViewPtr = EntryDetailView.Pin())
+		{
+			DetailViewPtr->SetStruct(SelectedStruct);
+		}
+
+		if (TSharedPtr<SViewModelBindingDetail> ViewModelBindingDetailPtr = ViewModelBindingDetail.Pin())
+		{
+			TArray<TSharedPtr<FMVVMViewModelDebugEntry>> ViewModels;
+			for (FDebugItemId DebugItem : SelectedItems)
+			{
+				if (DebugItem.Type == FDebugItemId::EType::ViewModel)
+				{
+					if (TSharedPtr<FMVVMViewModelDebugEntry> Found = Snapshot->FindViewModel(DebugItem.Id))
+					{
+						ViewModels.Add(Found);
+					}
+				}
+			}
+			ViewModelBindingDetailPtr->SetViewModels(ViewModels);
 		}
 	}
 }
@@ -240,7 +333,7 @@ void SMainDebug::HandleObjectSelectionChanged()
 
 TSharedRef<SWidget> SMainDebug::CreateDockingArea(const TSharedRef<SDockTab>& InParentTab)
 {
-	const FName LayoutName = TEXT("MVVMDebugger_Layout_v1.8");
+	const FName LayoutName = TEXT("MVVMDebugger_Layout_v1.0");
 	TSharedRef<FTabManager::FLayout> DefaultLayer = FTabManager::NewLayout(LayoutName)
 		->AddArea
 		(
@@ -252,10 +345,22 @@ TSharedRef<SWidget> SMainDebug::CreateDockingArea(const TSharedRef<SDockTab>& In
 				->SetOrientation(Orient_Horizontal)
 				->Split
 				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.25f)
-					->SetHideTabWell(true)
-					->AddTab(Private::Stack_Selection, ETabState::OpenedTab)
+					FTabManager::NewSplitter()
+					->SetOrientation(Orient_Vertical)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.25f)
+						->SetHideTabWell(true)
+						->AddTab(Private::Stack_ViewSelection, ETabState::OpenedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.25f)
+						->SetHideTabWell(true)
+						->AddTab(Private::Stack_ViewmodelSelection, ETabState::OpenedTab)
+					)
 				)
 				->Split
 				(
@@ -266,10 +371,22 @@ TSharedRef<SWidget> SMainDebug::CreateDockingArea(const TSharedRef<SDockTab>& In
 				)
 				->Split
 				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.25f)
-					->SetHideTabWell(true)
-					->AddTab(Private::Stack_Detail, ETabState::OpenedTab)
+					FTabManager::NewSplitter()
+					->SetOrientation(Orient_Vertical)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.25f)
+						->SetHideTabWell(true)
+						->AddTab(Private::Stack_LiveDetail, ETabState::OpenedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.25f)
+						->SetHideTabWell(true)
+						->AddTab(Private::Stack_EntryDetail, ETabState::OpenedTab)
+					)
 				)
 			)
 			->Split
@@ -287,12 +404,16 @@ TSharedRef<SWidget> SMainDebug::CreateDockingArea(const TSharedRef<SDockTab>& In
 
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(InParentTab);
 
-	TabManager->RegisterTabSpawner(Private::Stack_Selection, FOnSpawnTab::CreateSP(this, &SMainDebug::SpawnSelectionTab))
+	TabManager->RegisterTabSpawner(Private::Stack_ViewSelection, FOnSpawnTab::CreateSP(this, &SMainDebug::SpawnViewSelectionTab))
+		.SetDisplayName(LOCTEXT("SelectionTab", "Selection"));
+	TabManager->RegisterTabSpawner(Private::Stack_ViewmodelSelection, FOnSpawnTab::CreateSP(this, &SMainDebug::SpawnViewModelSelectionTab))
 		.SetDisplayName(LOCTEXT("SelectionTab", "Selection"));
 	TabManager->RegisterTabSpawner(Private::Stack_Binding, FOnSpawnTab::CreateSP(this, &SMainDebug::SpawnBindingTab))
 		.SetDisplayName(LOCTEXT("BindingTab", "Bindings"));
-	TabManager->RegisterTabSpawner(Private::Stack_Detail, FOnSpawnTab::CreateSP(this, &SMainDebug::SpawnDetailTab))
-		.SetDisplayName(LOCTEXT("DetailTab", "Details"));
+	TabManager->RegisterTabSpawner(Private::Stack_LiveDetail, FOnSpawnTab::CreateSP(this, &SMainDebug::SpawnLiveDetailTab))
+		.SetDisplayName(LOCTEXT("LiveDetailTab", "Live Details"));
+	TabManager->RegisterTabSpawner(Private::Stack_EntryDetail, FOnSpawnTab::CreateSP(this, &SMainDebug::SpawnEntryDetailTab))
+		.SetDisplayName(LOCTEXT("EntryDetailTab", "Detail"));
 	TabManager->RegisterTabSpawner(Private::Stack_Messages, FOnSpawnTab::CreateSP(this, &SMainDebug::SpawnMessagesTab))
 		.SetDisplayName(LOCTEXT("MessageLogTab", "Messages Log"));
 
@@ -300,14 +421,27 @@ TSharedRef<SWidget> SMainDebug::CreateDockingArea(const TSharedRef<SDockTab>& In
 }
 
 
-TSharedRef<SDockTab> SMainDebug::SpawnSelectionTab(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> SMainDebug::SpawnViewSelectionTab(const FSpawnTabArgs& Args)
 {
-	TSharedRef<SSelectionTab> LocalSelectionView = SNew(SSelectionTab)
-		.OnSelectionChanged(this, &SMainDebug::HandleObjectSelectionChanged);
-	SelectionView = LocalSelectionView;
+	TSharedRef<SViewSelection> LocalSelectionView = SNew(SViewSelection)
+		.OnSelectionChanged(this, &SMainDebug::HandleViewSelectionChanged);
+	ViewSelection = LocalSelectionView;
 	LocalSelectionView->SetSnapshot(Snapshot);
 	return SNew(SDockTab)
-		.Label(LOCTEXT("BindingTab", "Bindings"))
+		.Label(LOCTEXT("ViewTab", "View"))
+		[
+			LocalSelectionView
+		];
+}
+
+TSharedRef<SDockTab> SMainDebug::SpawnViewModelSelectionTab(const FSpawnTabArgs& Args)
+{
+	TSharedRef<SViewModelSelection> LocalSelectionView = SNew(SViewModelSelection)
+		.OnSelectionChanged(this, &SMainDebug::HandleViewModleSelectionChanged);
+	ViewModelSelection = LocalSelectionView;
+	LocalSelectionView->SetSnapshot(Snapshot);
+	return SNew(SDockTab)
+		.Label(LOCTEXT("ViewmodelTab", "Viewmodel"))
 		[
 			LocalSelectionView
 		];
@@ -324,12 +458,24 @@ TSharedRef<SDockTab> SMainDebug::SpawnBindingTab(const FSpawnTabArgs& Args)
 }
 
 
-TSharedRef<SDockTab> SMainDebug::SpawnDetailTab(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> SMainDebug::SpawnLiveDetailTab(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
-		.Label(LOCTEXT("DetailTab", "Details"))
+		.Label(LOCTEXT("LiveDetailTab", "Live Object Details"))
 		[
-			SAssignNew(DetailView, SDetailsTab)
+			SAssignNew(LiveDetailView, SDetailsTab)
+			.UseStructDetailView(false)
+		];
+}
+
+
+TSharedRef<SDockTab> SMainDebug::SpawnEntryDetailTab(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("EntryDetailTab", "Entry Details"))
+		[
+			SAssignNew(EntryDetailView, SDetailsTab)
+			.UseStructDetailView(true)
 		];
 }
 

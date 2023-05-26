@@ -515,8 +515,7 @@ TArray<FFieldMulticastDelegate::FDelegateView> FFieldMulticastDelegate::GetView(
 	{
 		if (Element.Delegate.IsBound())
 		{
-			//Result.Emplace(Element.Key.Object.Get(), Element.Key.Id, Element.Delegate.TryGetBoundFunctionName());
-			Result.Emplace(Element.Key.Object.Get(), Element.Key.Id, Element.Key.DynamicName);
+			Result.Emplace(Element.Key.Object.Get(), Element.Key.Id, Element.Delegate.GetUObject(), Element.Key.DynamicName);
 		}
 	}
 	return Result;

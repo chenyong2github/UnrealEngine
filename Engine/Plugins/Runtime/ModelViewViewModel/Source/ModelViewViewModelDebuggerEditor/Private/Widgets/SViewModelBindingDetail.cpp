@@ -22,8 +22,10 @@ namespace Private
 
 namespace ViewColumnName
 {
-FLazyName FieldId = "FieldId";
-FLazyName ObjectName = "ObjectName";
+FLazyName KeyFieldId = "FieldId";
+FLazyName KeyObjectName = "KeyObjectName";
+FLazyName BindingObjectName = "BindingObjectName";
+FLazyName BindingFunctionName = "BindingFunction";
 }
 
 class SViewModelBindingDetailItem : public SMultiColumnTableRow<SViewModelBindingDetail::FViewModelBindingId>
@@ -47,15 +49,26 @@ class SViewModelBindingDetailItem : public SMultiColumnTableRow<SViewModelBindin
 	{
 		if (BindingId.ViewModel && BindingId.ViewModel->FieldBound.IsValidIndex(BindingId.Index))
 		{
-			if (ColumnName == ViewColumnName::FieldId)
+			const FMVVMViewModelFieldBoundDebugEntry& Entry = BindingId.ViewModel->FieldBound[BindingId.Index];
+			if (ColumnName == ViewColumnName::KeyObjectName)
 			{
 				return SNew(STextBlock)
-					.Text(FText::FromName(BindingId.ViewModel->FieldBound[BindingId.Index].FieldId.GetFieldName()));
+					.Text(FText::FromName(Entry.KeyObjectName));
 			}
-			if (ColumnName == ViewColumnName::ObjectName)
+			if (ColumnName == ViewColumnName::KeyFieldId)
 			{
 				return SNew(STextBlock)
-					.Text(FText::FromString(BindingId.ViewModel->FullName));
+					.Text(FText::FromName(Entry.KeyFieldId.GetFieldName()));
+			}
+			if (ColumnName == ViewColumnName::BindingObjectName)
+			{
+				return SNew(STextBlock)
+					.Text(FText::FromString(Entry.BindingObjectPathName));
+			}
+			if (ColumnName == ViewColumnName::BindingFunctionName)
+			{
+				return SNew(STextBlock)
+					.Text(FText::FromName(Entry.BindingFunctionName));
 			}
 		}
 
@@ -72,20 +85,26 @@ private:
 void SViewModelBindingDetail::Construct(const FArguments& InArgs)
 {
 	TSharedRef<SHeaderRow> HeaderRow = SNew(SHeaderRow)
-		+ SHeaderRow::Column(Private::ViewColumnName::FieldId)
+		+ SHeaderRow::Column(Private::ViewColumnName::KeyObjectName)
+		.FillWidth(0.25f)
+		.DefaultLabel(LOCTEXT("KeyObjectdColumnHeaderName", "Key Object"))
+		+ SHeaderRow::Column(Private::ViewColumnName::KeyFieldId)
 		.FillWidth(0.25f)
 		.DefaultLabel(LOCTEXT("FieldIdColumnHeaderName", "Field"))
-		+ SHeaderRow::Column(Private::ViewColumnName::ObjectName)
-		.FillWidth(0.75f)
-		.DefaultLabel(LOCTEXT("ObjectColumnHeaderName", "Object"));
+		+ SHeaderRow::Column(Private::ViewColumnName::BindingObjectName)
+		.FillWidth(0.50f)
+		.DefaultLabel(LOCTEXT("BindingObjectColumnHeaderName", "Delegate Object"))
+		+SHeaderRow::Column(Private::ViewColumnName::BindingFunctionName)
+		.FillWidth(0.50f)
+		.DefaultLabel(LOCTEXT("BindingFunctionColumnHeaderName", "Delegate Function"));
 
 	SAssignNew(ListView, SListView<FViewModelBindingId>)
 		.ListItemsSource(&Entries)
 		//.SelectionMode(ESelectionMode::Single)
 		.OnGenerateRow(this, &SViewModelBindingDetail::HandleGenerateWidgetForItem)
 		.OnSelectionChanged(this, &SViewModelBindingDetail::HandleListSelectionChanged)
-		//.OnMouseButtonDoubleClick(this, &SSceneOutliner::OnOutlinerTreeDoubleClick)
-		//.OnContextMenuOpening(this, &SLiveLinkClientPanel::OnOpenVirtualSubjectContextMenu)
+		//.OnMouseButtonDoubleClick(this, &SViewModelBindingDetail::OnOutlinerTreeDoubleClick)
+		//.OnContextMenuOpening(this, &SViewModelBindingDetail::OnOpenVirtualSubjectContextMenu)
 		.HeaderRow(HeaderRow);
 
 	ChildSlot

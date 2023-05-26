@@ -121,7 +121,7 @@ TSharedRef<SHeaderRow> SViewModelSelection::BuildHeaderRowImpl() const
 
 void SViewModelSelection::GatherFilterStringsImpl(TSharedPtr<FMVVMViewModelDebugEntry> Item, TArray<FString>& OutStrings) const
 {
-	OutStrings.Add(Item->FullName);
+	OutStrings.Add(Item->PathName);
 	OutStrings.Add(Item->ViewModelAsset.GetObjectPathString());
 }
 

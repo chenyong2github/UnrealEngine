@@ -17,15 +17,19 @@ struct FMVVMViewModelFieldBoundDebugEntry
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
-	FString ObjectName;
+	FName KeyObjectName;
 
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
-	FFieldNotificationId FieldId;
+	FFieldNotificationId KeyFieldId;
 
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
-	FName FunctionName;
+	FString BindingObjectPathName;
 
-	TWeakObjectPtr<const UObject> LiveInstanceObject;
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
+	FName BindingFunctionName;
+
+	TWeakObjectPtr<const UObject> LiveInstanceKeyObject;
+	TWeakObjectPtr<const UObject> LiveInstanceBindingObject;
 };
 
 
@@ -38,7 +42,7 @@ struct FMVVMViewModelDebugEntry
 	FName Name;
 
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
-	FString FullName;
+	FString PathName;
 
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	FAssetData ViewModelAsset;

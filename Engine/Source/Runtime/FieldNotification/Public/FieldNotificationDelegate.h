@@ -105,12 +105,13 @@ public:
 
 	struct FDelegateView
 	{
-		FDelegateView(const UObject* Obj, FFieldId Id, FName Function)
-			: Object(Obj), Field(Id), FunctionName(Function)
+		FDelegateView(const UObject* InKeyObj, FFieldId InKeyId, const UObject* InObj, FName InFunction)
+			: KeyObject(InKeyObj), KeyField(InKeyId), BindingObject(InObj), BindingFunctionName(InFunction)
 		{}
-		const UObject* Object;
-		FFieldId Field;
-		FName FunctionName;
+		const UObject* KeyObject;
+		FFieldId KeyField;
+		const UObject* BindingObject;
+		FName BindingFunctionName;
 	};
 	TArray<FDelegateView> GetView() const;
 

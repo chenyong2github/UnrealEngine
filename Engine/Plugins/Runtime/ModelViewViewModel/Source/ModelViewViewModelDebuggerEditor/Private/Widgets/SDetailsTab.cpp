@@ -3,6 +3,7 @@
 #include "Widgets/SDetailsTab.h"
 
 #include "IDetailsView.h"
+#include "IStructureDetailsView.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 
@@ -26,18 +27,49 @@ void SDetailsTab::Construct(const FArguments& InArgs)
 		DetailsViewArgs.bHideSelectionTip = true;
 	}
 
-	TSharedRef<IDetailsView> PropertyView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-	DetailView = PropertyView;
+	if (InArgs._UseStructDetailView)
+	{
+		FStructureDetailsViewArgs StructureViewArgs;
+		{
+			StructureViewArgs.bShowObjects = true;
+			StructureViewArgs.bShowAssets = true;
+			StructureViewArgs.bShowClasses = true;
+			StructureViewArgs.bShowInterfaces = true;
+		}
 
-	ChildSlot
-	[
-		PropertyView
-	];
+		TSharedRef<IStructureDetailsView> PropertyView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, TSharedPtr<FStructOnScope>());
+		StructDetailView = PropertyView;
+		ChildSlot
+		[
+			PropertyView->GetWidget().ToSharedRef()
+		];
+	}
+	else
+	{
+		TSharedRef<IDetailsView> PropertyView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+		DetailView = PropertyView;
+
+		ChildSlot
+		[
+			PropertyView
+		];
+	}
 }
 
 void SDetailsTab::SetObjects(const TArray<UObject*>& InObjects)
 {
-	DetailView->SetObjects(InObjects);
+	if (DetailView)
+	{
+		DetailView->SetObjects(InObjects);
+	}
+}
+
+void SDetailsTab::SetStruct(TSharedPtr<FStructOnScope> InStructData)
+{
+	if (StructDetailView)
+	{
+		StructDetailView->SetStructureData(InStructData);
+	}
 }
 
 } //namespace

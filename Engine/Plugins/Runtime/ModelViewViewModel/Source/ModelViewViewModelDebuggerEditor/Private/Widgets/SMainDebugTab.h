@@ -18,8 +18,9 @@ class FDebugSnapshot;
 
 class SDetailsTab;
 class SMessagesLog;
-class SSelectionTab;
+class SViewModelSelection;
 class SViewModelBindingDetail;
+class SViewSelection;
 
 class SMainDebug : public SCompoundWidget
 {
@@ -40,23 +41,37 @@ private:
 	void HandleSaveSnapshot();
 	bool HasValidSnapshot() const;
 
-	void HandleObjectSelectionChanged();
+	void HandleViewSelectionChanged();
+	void HandleViewModleSelectionChanged();
+	void Selection();
 
 	TSharedRef<SWidget> CreateDockingArea(const TSharedRef<SDockTab>& InParentTab);
-	TSharedRef<SDockTab> SpawnSelectionTab(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnViewSelectionTab(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnViewModelSelectionTab(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnBindingTab(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnDetailTab(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnLiveDetailTab(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnEntryDetailTab(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnMessagesTab(const FSpawnTabArgs& Args);
 
 private:
 	TSharedPtr<FTabManager> TabManager;
 
-	TWeakPtr<SDetailsTab> DetailView;
+	TWeakPtr<SDetailsTab> LiveDetailView;
+	TWeakPtr<SDetailsTab> EntryDetailView;
 	TWeakPtr<SMessagesLog> MessageLog;
-	TWeakPtr<SSelectionTab> SelectionView;
+	TWeakPtr<SViewSelection> ViewSelection;
+	TWeakPtr<SViewModelSelection> ViewModelSelection;
 	TWeakPtr<SViewModelBindingDetail> ViewModelBindingDetail;
 
 	TSharedPtr<FDebugSnapshot> Snapshot;
+
+	enum class ESelection
+	{
+		None,
+		View,
+		ViewModel,
+	};
+	ESelection CurrentSelection = ESelection::None;
 };
 
 } //namespace

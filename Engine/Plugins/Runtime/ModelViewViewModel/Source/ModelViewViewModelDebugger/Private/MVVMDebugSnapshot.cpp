@@ -73,10 +73,12 @@ FMVVMViewSourceDebugEntry CreateViewModelEntry(const FMVVMViewSource& ViewSource
 FMVVMViewModelFieldBoundDebugEntry CreateViewModelFieldBoundDebugEntry(const UE::FieldNotification::FFieldMulticastDelegate::FDelegateView& DelegateView)
 {
 	FMVVMViewModelFieldBoundDebugEntry Result;
-	Result.ObjectName = DelegateView.Object ? DelegateView.Object->GetPathName() : FString();
-	Result.FieldId = FFieldNotificationId(DelegateView.Field.GetName());
-	Result.FunctionName = DelegateView.FunctionName;
-	Result.LiveInstanceObject = DelegateView.Object;
+	Result.KeyObjectName = DelegateView.KeyObject ? DelegateView.KeyObject->GetFName() : FName();
+	Result.KeyFieldId = FFieldNotificationId(DelegateView.KeyField.GetName());
+	Result.BindingFunctionName = DelegateView.BindingFunctionName;
+	Result.BindingObjectPathName = DelegateView.BindingObject ? DelegateView.BindingObject->GetPathName() : FString();
+	Result.LiveInstanceKeyObject = DelegateView.KeyObject;
+	Result.LiveInstanceBindingObject = DelegateView.BindingObject;
 	return Result;
 }
 }//namespace private
@@ -142,7 +144,7 @@ TSharedPtr<FDebugSnapshot> FDebugSnapshot::CreateSnapshot()
 
 		TSharedPtr<FMVVMViewModelDebugEntry> DebugEntry = MakeShared<FMVVMViewModelDebugEntry>();
 		DebugEntry->Name = ViewModel->GetFName();
-		DebugEntry->FullName = ViewModel->GetPathName();
+		DebugEntry->PathName = ViewModel->GetPathName();
 		DebugEntry->ViewModelAsset = FAssetData(ViewModel->GetClass());
 		for (const UE::FieldNotification::FFieldMulticastDelegate::FDelegateView& DelegateView : ViewModel->GetNotificationDelegateView())
 		{
