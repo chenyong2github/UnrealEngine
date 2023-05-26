@@ -926,22 +926,7 @@ namespace UnrealBuildTool
 			// Also allow the module's public and private dependencies to modify the link environment.
 			List<UEBuildModule> AllDependencyModules = new List<UEBuildModule>();
 			AllDependencyModules.AddRange(PrivateDependencyModules!);
-
-			// Build up a list of all the public dependencies
-			if (Rules.bLinkPublicDependencyChain)
-			{
-				List<UEBuildModule> AllPublicDependencies = new List<UEBuildModule>();
-				RecursivelyAddPublicDependencies(this, AllPublicDependencies);
-				foreach (var PrivateModule in PrivateDependencyModules!)
-				{
-					RecursivelyAddPublicDependencies(PrivateModule, AllPublicDependencies);
-				}
-				AllDependencyModules.AddRange(AllPublicDependencies);
-			}
-			else
-			{
-				AllDependencyModules.AddRange(PublicDependencyModules!);
-			}
+			AllDependencyModules.AddRange(PublicDependencyModules!);
 
 			foreach (UEBuildModule DependencyModule in AllDependencyModules)
 			{
@@ -1233,23 +1218,6 @@ namespace UnrealBuildTool
 						Modules.Add(Module);
 						bDependsOnVerse |= Module.bDependsOnVerse;
 					}
-				}
-			}
-		}
-
-		/// <summary>
-		/// Recursively build up the Public Dependencies. Module is the current root and it will add all children to AllPublicDependencies.
-		/// </summary>
-		/// <param name="Module">The current 'root' of the recursive operation</param>
-		/// <param name="AllPublicDependencies">Where the public dependencies get stored</param>
-		private static void RecursivelyAddPublicDependencies(UEBuildModule Module, List<UEBuildModule> AllPublicDependencies)
-		{
-			foreach (UEBuildModule PublicDependency in Module.PublicDependencyModules!)
-			{
-				if (!AllPublicDependencies.Contains(PublicDependency))
-				{
-					AllPublicDependencies.Add(PublicDependency);
-					RecursivelyAddPublicDependencies(PublicDependency, AllPublicDependencies);
 				}
 			}
 		}

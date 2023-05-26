@@ -842,17 +842,6 @@ namespace UnrealBuildTool
 		public bool bEnableObjCAutomaticReferenceCounting = false;
 
 		/// <summary>
-		/// Whether to allow PublicDependencies to be gathered and linked recursively (so it links against all dependents).
-		/// Consider PublicDepChain of PluginA -> PluginB -> PluginC.  If false, PluginA links PluginB. If true, PluginA links both PluginB and PluginC.
-		/// </summary>
-		public bool bLinkPublicDependencyChain
-		{
-			set { bLinkPublicDependencyChainOverride = value; }
-			get { return bLinkPublicDependencyChainOverride ?? Target.bLinkPublicDependencyChain; }
-		}
-		private bool? bLinkPublicDependencyChainOverride;
-
-		/// <summary>
 		/// How to treat deterministic warnings (experimental).
 		/// </summary>
 		public WarningLevel DeterministicWarningLevel
