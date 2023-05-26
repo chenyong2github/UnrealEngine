@@ -28,15 +28,15 @@ class ULocalHeightFogComponent : public USceneComponent
 	ELocalFogMode FogMode = ELocalFogMode::LocalHeightFog;
 
 	/** Global density factor for this fog. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0", UIMax = ".05", SliderExponent = 4.0, ClampMin = 0.0))
-	float FogDensity = 0.02f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0", UIMax = "10.0", SliderExponent = 2.0, ClampMin = 0.0))
+	float FogDensity = 5.0f;
 
 	/** Controls how the density decreases as height increases. Smaller values make the visible transition larger. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.001", UIMax = "10.0", SliderExponent = 4.0, ClampMin = 0.001))
-	float FogHeightFalloff = 3.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.001", UIMax = "5000", SliderExponent = 2.0, ClampMin = 0.001))
+	float FogHeightFalloff = 1000.0f;
 
 	/** Height offset, relative to the actor Z position. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "-5000.0", UIMax = "5000.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "-2.0", UIMax = "2.0"))
 	float FogHeightOffset = 0.0f;
 
 	/** Controls how strong the radial attenuation of this fog volume is. */
