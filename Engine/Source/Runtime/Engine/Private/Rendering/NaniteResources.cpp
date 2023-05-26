@@ -583,6 +583,24 @@ void FSceneProxyBase::OnMaterialsUpdated()
 		MaterialSection.MaterialRelevance = ShadingMaterial->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
 		CombinedMaterialRelevance |= MaterialSection.MaterialRelevance;
 
+		// Now that the material relevance is updated, determine if any material has programmable raster
+		const bool bProgrammableRaster = MaterialSection.IsProgrammableRaster(bEvaluateWorldPositionOffset);
+		bHasProgrammableRaster |= bProgrammableRaster;
+		
+		// Update the RasterMaterialProxy, which is dependent on hidden status and programmable rasterization
+		if (MaterialSection.bHidden)
+		{
+			MaterialSection.RasterMaterialProxy = GEngine->NaniteHiddenSectionMaterial.Get()->GetRenderProxy();
+		}
+		else if (bProgrammableRaster)
+		{
+			MaterialSection.RasterMaterialProxy = MaterialSection.ShadingMaterialProxy;
+		}
+		else
+		{
+			MaterialSection.RasterMaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+		}
+
 		// Determine max extent of WPO
 		if (bEvaluateWorldPositionOffset && MaterialSection.MaterialRelevance.bUsesWorldPositionOffset)
 		{
@@ -610,9 +628,6 @@ void FSceneProxyBase::OnMaterialsUpdated()
 		{
 			MaterialSection.DisplacementScaling = FDisplacementScaling();
 		}
-
-		// Determine if any material has programmable raster
-		bHasProgrammableRaster |= MaterialSection.IsProgrammableRaster(bEvaluateWorldPositionOffset);
 	}
 }
 
@@ -754,19 +769,6 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 		}
 
 		MaterialSection.ShadingMaterialProxy = ShadingMaterial->GetRenderProxy();
-
-		if (MaterialSection.bHidden)
-		{
-			MaterialSection.RasterMaterialProxy = GEngine->NaniteHiddenSectionMaterial.Get()->GetRenderProxy();
-		}
-		else if (MaterialSection.IsProgrammableRaster(bEvaluateWorldPositionOffset))
-		{
-			MaterialSection.RasterMaterialProxy = MaterialSection.ShadingMaterialProxy;
-		}
-		else
-		{
-			MaterialSection.RasterMaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-		}
 	}
 
 	// Now that the material sections are initialized, we can make material-dependent calculations
