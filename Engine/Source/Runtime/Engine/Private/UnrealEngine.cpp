@@ -15980,7 +15980,7 @@ void UEngine::CheckAndHandleStaleWorldObjectReferences(FWorldContext* WorldConte
 			}
 
 			UE_LOG(LogLoad, Error, TEXT("Dumping reference chains:"));
-			FindAndPrintStaleReferencesToObjects(LeakedObjects, Options);
+			FReferenceChainSearch::FindAndPrintStaleReferencesToObjects(LeakedObjects, Options);
 		}
 
 		if (!UObjectBaseUtility::IsPendingKillEnabled())
@@ -16027,7 +16027,7 @@ void UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReference
 		checkf(false, TEXT("Unsupported Verbosity: %d"), Verbosity);
 		break;
 	}
-	FindAndPrintStaleReferencesToObject(ObjectToFindReferencesTo, Options);
+	FReferenceChainSearch::FindAndPrintStaleReferencesToObject(ObjectToFindReferencesTo, Options);
 }
 
 FString UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, EPrintStaleReferencesOptions Options)

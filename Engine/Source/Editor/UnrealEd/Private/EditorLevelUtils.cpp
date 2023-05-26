@@ -911,7 +911,7 @@ bool UEditorLevelUtils::RemoveLevelsFromWorld(TArray<ULevel*> InLevels, bool bCl
 				UWorld* TheWorld = UWorld::FindWorldInPackage(LevelPackage->GetOutermost());
 				if (TheWorld != nullptr)
 				{
-					UEngine::FindAndPrintStaleReferencesToObject(TheWorld, Options);
+					FReferenceChainSearch::FindAndPrintStaleReferencesToObject(TheWorld, Options);
 					return false;
 				}
 			}

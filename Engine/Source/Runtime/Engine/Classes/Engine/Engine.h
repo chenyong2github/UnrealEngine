@@ -3341,7 +3341,7 @@ public:
 	 * @param ObjectToFindReferencesTo World or its package (or any object from the world package that should've been destroyed)
 	 * @param Verbosity Verbosity (can be fatal or non-fatal) with which to print the error message with
 	 */
-	UE_DEPRECATED(5.1, "Please use FindAndPrintStaleReferencesToObject overload that takes EPrintStaleReferencesOptions parameter")
+	UE_DEPRECATED(5.1, "Please use FReferenceChainSearch::FindAndPrintStaleReferencesToObject")
 	static void FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, ELogVerbosity::Type Verbosity);
 
 	/**
@@ -3349,7 +3349,9 @@ public:
 	 * @param ObjectToFindReferencesTo World or its package (or any object from the world package that should've been destroyed)
 	 * @param Options Determines how the stale references messages should be logged
 	 */
+	UE_DEPRECATED(5.3, "Please use FReferenceChainSearch::FindAndPrintStaleReferencesToObject")
 	static FString FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, EPrintStaleReferencesOptions Options);
+	UE_DEPRECATED(5.3, "Please use FReferenceChainSearch::FindAndPrintStaleReferencesToObjects")
 	static TArray<FString> FindAndPrintStaleReferencesToObjects(TConstArrayView<UObject*> ObjectsToFindReferencesTo, EPrintStaleReferencesOptions Options);
 
 	FWorldContext& CreateNewWorldContext(EWorldType::Type WorldType);

@@ -499,7 +499,7 @@ void UEditorEngine::EndPlayMap()
 	TArray<FString> Paths;
 	if (LeakedObjects.Num() > 0)
 	{
-		Paths = FindAndPrintStaleReferencesToObjects(LeakedObjects, EPrintStaleReferencesOptions::Ensure);
+		Paths = FReferenceChainSearch::FindAndPrintStaleReferencesToObjects(LeakedObjects, EPrintStaleReferencesOptions::Ensure);
 	}
 	for (int32 i = 0; i < LeakedObjects.Num(); ++i)
 	{

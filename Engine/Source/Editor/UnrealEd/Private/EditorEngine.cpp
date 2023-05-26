@@ -7290,7 +7290,7 @@ void UEditorEngine::CheckAndHandleStaleWorldObjectReferences(FWorldContext* InWo
 				UE_LOG(LogLoad, Error, TEXT("Previously active world %s not cleaned up by garbage collection!"), *World->GetPathName());
 				UE_LOG(LogLoad, Error, TEXT("Once a world has become active, it cannot be reused and must be destroyed and reloaded. World referenced by:"));
 			
-				FindAndPrintStaleReferencesToObject(World, 
+				FReferenceChainSearch::FindAndPrintStaleReferencesToObject(World,
 					UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
 			}
 		}
@@ -7304,7 +7304,7 @@ void UEditorEngine::CheckAndHandleStaleWorldObjectReferences(FWorldContext* InWo
 			{
 				UE_LOG(LogLoad, Error, TEXT("Object %s not cleaned up by garbage collection!"), *Object->GetPathName());
 			
-				FindAndPrintStaleReferencesToObject(Object, 
+				FReferenceChainSearch::FindAndPrintStaleReferencesToObject(Object,
 					UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
 			}
 		}
