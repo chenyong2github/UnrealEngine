@@ -654,7 +654,7 @@ namespace Chaos
 		return Islands;
 	}
 
-	void FRigidClustering::RemoveChildFromParent(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent)
+	void FRigidClustering::RemoveChildFromParent(FPBDRigidParticleHandle* Child, FPBDRigidClusteredParticleHandle* ClusteredParent)
 	{
 		if (ensure(Child != nullptr && ClusteredParent != nullptr))
 		{
@@ -681,13 +681,24 @@ namespace Chaos
 			Child->SetW(Child->W() + ClusteredParent->W());
 			Child->SetPreV(Child->PreV() + ClusteredParent->PreV());
 			Child->SetPreW(Child->PreW() + ClusteredParent->PreW());
+
+			// We also need to do cluster book-keeping on the parent.
+			// If the parent is an internal cluster and has become empty, we need to mark this particle as ready to be destroyed.
+			// The only exception is for cluster unions which are managed separately.
+			if (FRigidHandleArray* Children = MChildren.Find(ClusteredParent))
+			{
+				ClusteredParent->SetClusterId(ClusterId{ ClusteredParent->Parent(), Children->Num()});
+				if (ClusteredParent->InternalCluster() && Children->IsEmpty() && ClusteredParent->PhysicsProxy() && ClusteredParent->PhysicsProxy()->GetType() == EPhysicsProxyType::GeometryCollectionType)
+				{
+					// We shouldn't ever need to do an AddUnique here since when we remove a child from a parent, the parent should only ever turn empty once.
+					EmptyInternalClustersPerProxy.FindOrAdd(ClusteredParent->PhysicsProxy()).Add(ClusteredParent);
+				}
+			}
 		}
 	}
 
-	void FRigidClustering::RemoveChildFromParentAndChildrenArray(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent)
+	void FRigidClustering::RemoveChildFromParentAndChildrenArray(FPBDRigidParticleHandle* Child, FPBDRigidClusteredParticleHandle* ClusteredParent)
 	{
-		RemoveChildFromParent(Child, ClusteredParent);
-
 		// Also need to remove it from the children array.
 		if (FRigidHandleArray* Children = MChildren.Find(ClusteredParent))
 		{
@@ -697,6 +708,8 @@ namespace Chaos
 				Children->RemoveAtSwap(Index, 1, false);
 			}
 		}
+
+		RemoveChildFromParent(Child, ClusteredParent);
 	}
 
 	TArray<FPBDRigidParticleHandle*> FRigidClustering::CreateClustersFromNewIslands(
@@ -1016,7 +1029,7 @@ namespace Chaos
 				{
 					RemoveNodeConnections(Child);
 				}
-				HandleConnectivityOnReleaseClusterParticle(ClusteredParticle, bCreateNewClusters);
+				ActivatedChildren.Append(HandleConnectivityOnReleaseClusterParticle(ClusteredParticle, bCreateNewClusters));
 			}
 
 			for (FPBDRigidParticleHandle* Child : ActivatedChildren)
@@ -1383,8 +1396,23 @@ namespace Chaos
 
 			} // end if MCollisionImpulseArrayDirty
 		}
+
 		Timer.Stop();
 		UE_LOG(LogChaos, Verbose, TEXT("Cluster Break Update Time is %f"), Time);
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("FRigidClustering::CleanupInternalClustersForProxy"), STAT_CleanupInternalClustersForProxy, STATGROUP_Chaos);
+	void FRigidClustering::CleanupInternalClustersForProxies(TArrayView<IPhysicsProxyBase*> Proxies)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_CleanupInternalClustersForProxy);
+		for (IPhysicsProxyBase* Proxy : Proxies)
+		{
+			for (FPBDRigidClusteredParticleHandle* Particle : EmptyInternalClustersPerProxy.FindRef(Proxy))
+			{
+				DestroyClusterParticle(Particle);
+			}
+			EmptyInternalClustersPerProxy.Remove(Proxy);
+		}
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("BreakingModel_AllParticles"), STAT_BreakingModel_AllParticles, STATGROUP_Chaos);

@@ -408,6 +408,12 @@ public:
 
 	void CreateNodeConnection(FPBDRigidClusteredParticleHandle* A, FPBDRigidClusteredParticleHandle* B);
 
+
+	/**
+	 * CleanupInternalClustersForProxies
+	 *	For a given set of physics proxies, cleanup any tracked internal clusters that we've marked as being empty.
+	 */
+	void CleanupInternalClustersForProxies(TArrayView<IPhysicsProxyBase*> Proxies);
  protected:
 
 	void ComputeStrainFromCollision(const FPBDCollisionConstraints& CollisionRule, const FReal Dt);
@@ -454,8 +460,8 @@ public:
 		const Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
 	
-	void RemoveChildFromParent(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent);
-	void RemoveChildFromParentAndChildrenArray(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent);
+	void RemoveChildFromParent(FPBDRigidParticleHandle* Child, FPBDRigidClusteredParticleHandle* ClusteredParent);
+	void RemoveChildFromParentAndChildrenArray(FPBDRigidParticleHandle* Child, FPBDRigidClusteredParticleHandle* ClusteredParent);
 
 	// When a body has broken due to contact resolution, record an entry in a set
 	// for the collision and the particle who's momentum should be restored.
@@ -520,6 +526,7 @@ private:
 	TArray<FCrumblingData> MAllClusterCrumblings;
 
 	TSet<FPBDRigidClusteredParticleHandle*> CrumbledSinceLastUpdate;
+	TMap<IPhysicsProxyBase*, TArray<FPBDRigidClusteredParticleHandle*>> EmptyInternalClustersPerProxy;
 
 	// Pairs of collision constraints and rigid particle handles of particles which collided with
 	// rigid clusters which broken. Some portion of the momentum change due to the constraint

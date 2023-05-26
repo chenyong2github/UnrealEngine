@@ -1075,15 +1075,19 @@ namespace Chaos
 		}
 
 		MarshallingManager.GetCurrentPullData_Internal()->DirtyGeometryCollections.Reset();
-		for (auto Proxy : PendingDestroyGeometryCollectionPhysicsProxy)
-		{
-			// Removing the geometry collection from the solver a bit delayed. This lets the cluster union do its cleanup first before
-			// the geometry collection if they're all being destroyed at the same time.
-			Proxy->OnRemoveFromSolver(this);
 
-			delete Proxy;
+		if (!PendingDestroyGeometryCollectionPhysicsProxy.IsEmpty())
+		{
+			GetEvolution()->GetRigidClustering().CleanupInternalClustersForProxies(TArrayView<IPhysicsProxyBase*>{reinterpret_cast<IPhysicsProxyBase**>(&PendingDestroyGeometryCollectionPhysicsProxy[0]), PendingDestroyGeometryCollectionPhysicsProxy.Num() });
+			for (auto Proxy : PendingDestroyGeometryCollectionPhysicsProxy)
+			{
+				// Removing the geometry collection from the solver a bit delayed. This lets the cluster union do its cleanup first before
+				// the geometry collection if they're all being destroyed at the same time.
+				Proxy->OnRemoveFromSolver(this);
+				delete Proxy;
+			}
+			PendingDestroyGeometryCollectionPhysicsProxy.Reset();
 		}
-		PendingDestroyGeometryCollectionPhysicsProxy.Reset();
 	}
 
 	void FPBDRigidsSolver::PrepareAdvanceBy(const FReal DeltaTime)
