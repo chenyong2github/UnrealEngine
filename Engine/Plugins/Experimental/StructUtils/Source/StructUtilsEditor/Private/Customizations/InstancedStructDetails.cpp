@@ -4,6 +4,7 @@
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailChildrenBuilder.h"
+#include "IPropertyUtilities.h"
 #include "UObject/Package.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
@@ -14,11 +15,11 @@
 #include "Styling/SlateIconFinder.h"
 #include "Engine/UserDefinedStruct.h"
 #include "InstancedStruct.h"
-#include "IPropertyUtilities.h"
 #include "Widgets/Layout/SBox.h"
 #include "IStructureDataProvider.h"
 #include "GameFramework/Actor.h"
 #include "Misc/ConfigCacheIni.h"
+#include "StructUtilsDelegates.h"
 
 #define LOCTEXT_NAMESPACE "StructUtilsEditor"
 
@@ -36,6 +37,11 @@ public:
 	
 	virtual ~FInstancedStructProvider() override {}
 
+	void Reset()
+	{
+		StructProperty = nullptr;
+	}
+	
 	virtual bool IsValid() const override
 	{
 		bool bHasValidData = false;
@@ -243,6 +249,21 @@ FInstancedStructDataDetails::FInstancedStructDataDetails(TSharedPtr<IPropertyHan
 	StructProperty = InStructProperty;
 }
 
+FInstancedStructDataDetails::~FInstancedStructDataDetails()
+{
+	UE::StructUtils::Delegates::OnUserDefinedStructReinstanced.Remove(UserDefinedStructReinstancedHandle);
+}
+
+void FInstancedStructDataDetails::OnUserDefinedStructReinstancedHandle(const UUserDefinedStruct& Struct)
+{
+	if (StructProvider.IsValid())
+	{
+		// Reset the struct provider immediately, some update functions might get called with the old struct.
+		StructProvider->Reset();
+	}
+	OnRegenerateChildren.ExecuteIfBound();
+}
+
 void FInstancedStructDataDetails::SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren)
 {
 	OnRegenerateChildren = InOnRegenerateChildren;
@@ -284,6 +305,10 @@ void FInstancedStructDataDetails::OnStructHandlePostChange()
 void FInstancedStructDataDetails::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
 {
 	StructProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FInstancedStructDataDetails::OnStructHandlePostChange));
+	if (!UserDefinedStructReinstancedHandle.IsValid())
+	{
+		UserDefinedStructReinstancedHandle = UE::StructUtils::Delegates::OnUserDefinedStructReinstanced.AddSP(this, &FInstancedStructDataDetails::OnUserDefinedStructReinstancedHandle);
+	}
 }
 
 void FInstancedStructDataDetails::GenerateChildContent(IDetailChildrenBuilder& ChildBuilder)
@@ -352,6 +377,7 @@ void FInstancedStructDetails::CustomizeHeader(TSharedRef<class IPropertyHandle> 
 	static const FName NAME_BaseStruct = "BaseStruct";
 	static const FName NAME_StructTypeConst = "StructTypeConst";
 
+	PropUtils = StructCustomizationUtils.GetPropertyUtilities();
 	StructProperty = StructPropertyHandle;
 	PropUtils = StructCustomizationUtils.GetPropertyUtilities();
 
@@ -481,7 +507,7 @@ TSharedRef<SWidget> FInstancedStructDetails::GenerateStructPicker()
 
 	TSharedRef<FInstancedStructFilter> StructFilter = MakeShared<FInstancedStructFilter>();
 	StructFilter->BaseStruct = BaseScriptStruct;
-	StructFilter->bAllowUserDefinedStructs = false;
+	StructFilter->bAllowUserDefinedStructs = true;
 	StructFilter->bAllowBaseStruct = !bExcludeBaseStruct;
 
 	FStructViewerInitializationOptions Options;

@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 					"AIModule",
 					"GameplayTags",
 					"StructUtils",
+					"StructUtilsEngine",
 				}
 			);
 

@@ -8,6 +8,7 @@
 #include "StateTreeInstanceData.h"
 #include "StateTree.generated.h"
 
+class UUserDefinedStruct;
 
 /** Custom serialization version for StateTree Asset */
 struct STATETREEMODULE_API FStateTreeCustomVersion
@@ -134,6 +135,7 @@ public:
 	TObjectPtr<UObject> EditorData;
 
 	FDelegateHandle OnObjectsReinstancedHandle;
+	FDelegateHandle OnUserDefinedStructReinstancedHandle;
 #endif
 
 	/** Hash of the editor data from last compile. Also used to detect mismatching events from recorded traces. */
@@ -157,6 +159,7 @@ protected:
 #if WITH_EDITOR
 	using FReplacementObjectMap = TMap<UObject*, UObject*>;
 	void OnObjectsReinstanced(const FReplacementObjectMap& ObjectMap);
+	void OnUserDefinedStructReinstanced(const UUserDefinedStruct& UserDefinedStruct);
 	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;

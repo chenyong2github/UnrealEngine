@@ -1,6 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InstancedStructContainer.h"
 
+#if WITH_ENGINE && WITH_EDITOR
+#include "Engine/UserDefinedStruct.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/ArchiveUObject.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStructContainer)
 
 FInstancedStructContainer::FInstancedStructContainer()
@@ -365,8 +373,68 @@ void FInstancedStructContainer::Empty()
 	AllocatedSize = 0;
 }
 
-void FInstancedStructContainer::AddStructReferencedObjects(FReferenceCollector& Collector) const
+void FInstancedStructContainer::AddStructReferencedObjects(FReferenceCollector& Collector)
 {
+#if WITH_ENGINE && WITH_EDITOR
+	if (const UUserDefinedStruct* StructureToReinstance = UE::StructUtils::Private::GetStructureToReinstance())
+	{
+		bool bContainsUserDefineStruct = false;
+		for (int32 Index = 0, Num = NumItems; Index < Num; Index++)
+		{
+			FItem& Item = GetItem(Index);
+			if (const UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(Item.ScriptStruct))
+			{
+				if (UserDefinedStruct == StructureToReinstance
+					|| UserDefinedStruct == StructureToReinstance->PrimaryStruct
+					|| UserDefinedStruct->PrimaryStruct == StructureToReinstance
+					|| UserDefinedStruct->PrimaryStruct == StructureToReinstance->PrimaryStruct)
+				{
+					bContainsUserDefineStruct = true;
+					break;
+				}
+			}
+		}
+		
+		if (bContainsUserDefineStruct)
+		{
+			if (StructureToReinstance->Status == EUserDefinedStructureStatus::UDSS_Duplicate)
+			{
+				// On the first pass we replace the UDS with a duplicate that represents the currently allocated struct.
+				// StructureToReinstance is the duplicated struct, and StructureToReinstance->PrimaryStruct is the UDS that is being reinstanced.
+				for (int32 Index = 0, Num = NumItems; Index < Num; Index++)
+				{
+					FItem& Item = GetItem(Index);
+					if (Item.ScriptStruct == StructureToReinstance->PrimaryStruct)
+					{
+						Item.ScriptStruct = StructureToReinstance;
+					}
+				}
+			}
+			else
+			{
+				// On the second pass we reinstantiate the data using serialization.
+				// When saving, the UDSs are written using the duplicate which represents current layout, but PrimaryStruct is serialized as the type.
+				// When reading, the data is initialized with the new type, and the serialization will take care of reading from the old data.
+				
+				if (UObject* Outer = UE::StructUtils::Private::GetCurrentReinstanceOuterObject())
+				{
+					Outer->MarkPackageDirty();
+				}
+				
+				TArray<uint8> Data;
+
+				FMemoryWriter Writer(Data);
+				FObjectAndNameAsStringProxyArchive WriterProxy(Writer, /*bInLoadIfFindFails*/true);
+				Serialize(WriterProxy);
+
+				FMemoryReader Reader(Data);
+				FObjectAndNameAsStringProxyArchive ReaderProxy(Reader, /*bInLoadIfFindFails*/true);
+				Serialize(ReaderProxy);
+			}
+		}
+	}
+#endif
+	
 	for (int32 Index = 0, Num = NumItems; Index < Num; Index++)
 	{
 		FItem& Item = GetItem(Index);
@@ -512,7 +580,23 @@ bool FInstancedStructContainer::Serialize(FArchive& Ar)
 			for (int32 Index = 0; Index < NumItems; Index++)
 			{
 				const FItem& Item = GetItem(Index);
-				Ar << ConstCast(Item.ScriptStruct);
+				
+#if WITH_ENGINE && WITH_EDITOR
+				UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(ConstCast(Item.ScriptStruct);
+				if (UserDefinedStruct
+					&& UserDefinedStruct->Status == EUserDefinedStructureStatus::UDSS_Duplicate
+					&& UserDefinedStruct->PrimaryStruct.IsValid())
+				{
+					// If saving a duplicated UDS, save the primary type instead, so that the data is loaded with the original struct.
+					// This is used as part of the user defined struct reinstancing logic.
+					UUserDefinedStruct* PrimaryUserDefinedStruct = UserDefinedStruct->PrimaryStruct.Get(); 
+					Ar << PrimaryUserDefinedStruct;
+				}
+				else
+#endif			
+				{
+					Ar << ConstCast(Item.ScriptStruct);
+				}
 			}
 
 			// Save item values

@@ -2,11 +2,17 @@
 #include "InstancedStruct.h"
 #include "StructView.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
+#include "StructUtilsTypes.h"
 
 #if WITH_ENGINE
 #include "Engine/PackageMapClient.h"
 #include "Engine/NetConnection.h"
+#include "Engine/UserDefinedStruct.h"
 #include "Net/RepLayout.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/ArchiveUObject.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #endif // WITH_ENGINE
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStruct)
@@ -210,7 +216,22 @@ bool FInstancedStruct::Serialize(FArchive& Ar)
 	else if (Ar.IsSaving())
 	{
 		// UScriptStruct type
-		Ar << NonConstStruct;
+#if WITH_ENGINE && WITH_EDITOR
+		const UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(NonConstStruct);
+		if (UserDefinedStruct
+			&& UserDefinedStruct->Status == EUserDefinedStructureStatus::UDSS_Duplicate
+			&& UserDefinedStruct->PrimaryStruct.IsValid())
+		{
+			// If saving a duplicated UDS, save the primary type instead, so that the data is loaded with the original struct.
+			// This is used as part of the user defined struct reinstancing logic.
+			UUserDefinedStruct* PrimaryUserDefinedStruct = UserDefinedStruct->PrimaryStruct.Get(); 
+			Ar << PrimaryUserDefinedStruct;
+		}
+		else
+#endif			
+		{
+			Ar << NonConstStruct;
+		}
 	
 		// Size of the serialized memory (reserve location)
 		const int64 SizeOffset = Ar.Tell(); // Position to write the actual size after struct serialization
@@ -409,14 +430,65 @@ bool FInstancedStruct::Identical(const FInstancedStruct* Other, uint32 PortFlags
 	return true;
 }
 
-void FInstancedStruct::AddStructReferencedObjects(class FReferenceCollector& Collector)
+void FInstancedStruct::AddStructReferencedObjects(FReferenceCollector& Collector)
 {
+#if WITH_ENGINE && WITH_EDITOR
+	// Reference collector is used to visit all instances of instanced structs and replace their contents.
+	if (const UUserDefinedStruct* StructureToReinstance = UE::StructUtils::Private::GetStructureToReinstance())
+	{
+		if (const UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(ScriptStruct))
+		{
+			if (StructureToReinstance->Status == EUserDefinedStructureStatus::UDSS_Duplicate)
+			{
+				// On the first pass we replace the UDS with a duplicate that represents the currently allocated struct.
+				// GStructureToReinstance is the duplicated struct, and StructureToReinstance->PrimaryStruct is the UDS that is being reinstanced.
+				
+				if (UserDefinedStruct == StructureToReinstance->PrimaryStruct)
+				{
+					ScriptStruct = StructureToReinstance;
+				}
+			}
+			else
+			{
+				// On the second pass we reinstantiate the data using serialization.
+				// When saving, the UDSs are written using the duplicate which represents current layout, but PrimaryStruct is serialized as the type.
+				// When reading, the data is initialized with the new type, and the serialization will take care of reading from the old data.
+
+				if (UserDefinedStruct->PrimaryStruct == StructureToReinstance)
+				{
+					if (UObject* Outer = UE::StructUtils::Private::GetCurrentReinstanceOuterObject())
+					{
+						Outer->MarkPackageDirty();
+					}
+
+					TArray<uint8> Data;
+					
+					FMemoryWriter Writer(Data);
+					FObjectAndNameAsStringProxyArchive WriterProxy(Writer, /*bInLoadIfFindFails*/true);
+					Serialize(WriterProxy);
+
+					FMemoryReader Reader(Data);
+					FObjectAndNameAsStringProxyArchive ReaderProxy(Reader, /*bInLoadIfFindFails*/true);
+					Serialize(ReaderProxy);
+				}
+			}
+		}
+	}
+#endif
+	
 	if (ScriptStruct != nullptr)
 	{
 		Collector.AddReferencedObject(ScriptStruct);
 		Collector.AddPropertyReferencesWithStructARO(ScriptStruct, GetMutableMemory());
 	}
 }
+
+#if WITH_ENGINE && WITH_EDITOR
+void FInstancedStruct::ReplaceScriptStructInternal(const UScriptStruct* NewStruct)
+{
+	ScriptStruct = NewStruct;
+}
+#endif
 
 bool FInstancedStruct::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
 {

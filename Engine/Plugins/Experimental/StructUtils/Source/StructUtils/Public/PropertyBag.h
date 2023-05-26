@@ -593,6 +593,7 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	TValueOrError<const FPropertyBagArrayRef, EPropertyBagResult> GetArrayRef(const FName Name) const;
 
 	bool Serialize(FArchive& Ar);
+	void AddStructReferencedObjects(FReferenceCollector& Collector);
 
 protected:
 	const void* GetValueAddress(const FPropertyBagPropertyDesc* Desc) const;
@@ -606,7 +607,8 @@ template<> struct TStructOpsTypeTraits<FInstancedPropertyBag> : public TStructOp
 {
 	enum
 	{
-		WithSerializer = true
+		WithSerializer = true,
+		WithAddStructReferencedObjects = true,
 	};
 };
 
@@ -848,6 +850,11 @@ public:
 	/** @return property description based on name. */
 	const FPropertyBagPropertyDesc* FindPropertyDescByName(const FName Name) const;
 
+#if WITH_ENGINE && WITH_EDITOR
+	/** @return true if any of the properties on the bag has type of the specified user defined struct. */
+	bool ContainsUserDefinedStruct(const UUserDefinedStruct* UserDefinedStruct) const;
+#endif	
+	
 protected:
 
 	virtual void InitializeStruct(void* Dest, int32 ArrayDim = 1) const override;

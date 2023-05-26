@@ -7,6 +7,7 @@
 #include "Toolkits/AssetEditorToolkit.h"
 
 class UStateTree;
+class UUserDefinedStruct;
 class IStateTreeEditor;
 struct FStateTreeNodeClassCache;
 
@@ -34,6 +35,8 @@ protected:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
 	TSharedPtr<FStateTreeNodeClassCache> NodeClassCache;
+
+	FDelegateHandle OnUserDefinedStructReinstancedHandle;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

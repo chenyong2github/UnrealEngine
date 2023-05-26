@@ -1,9 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyBag.h"
+#include "Engine/UserDefinedStruct.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/Package.h"
 #include "UObject/TextProperty.h"
+
+#if WITH_ENGINE && WITH_EDITOR
+#include "Engine/UserDefinedStruct.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/ArchiveUObject.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyBag)
 
@@ -1798,7 +1807,27 @@ bool FInstancedPropertyBag::Serialize(FArchive& Ar)
 		else if (Ar.IsSaving())
 		{
 			check(BagStruct);
-			Ar << BagStruct->PropertyDescs;
+			
+			TArray<FPropertyBagPropertyDesc> PropertyDescs = BagStruct->PropertyDescs;
+#if WITH_ENGINE && WITH_EDITOR
+			// Save primary struct for user defined struct properties.
+			// This is used as part of the user defined struct reinstancing logic.
+			for (FPropertyBagPropertyDesc& Desc : PropertyDescs)
+			{
+				if (Desc.ValueType == EPropertyBagPropertyType::Struct)
+				{
+					const UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(Desc.ValueTypeObject);
+					if (UserDefinedStruct
+						&& UserDefinedStruct->Status == EUserDefinedStructureStatus::UDSS_Duplicate
+						&& UserDefinedStruct->PrimaryStruct.IsValid())
+					{
+						Desc.ValueTypeObject = UserDefinedStruct->PrimaryStruct.Get();
+					}
+				}
+			}
+#endif			
+			
+			Ar << PropertyDescs;
 
 			const int64 SizeOffset = Ar.Tell(); // Position to write the actual size after struct serialization
 			int32 SerialSize = 0;
@@ -1821,6 +1850,64 @@ bool FInstancedPropertyBag::Serialize(FArchive& Ar)
 	}
 	
 	return true;
+}
+
+void FInstancedPropertyBag::AddStructReferencedObjects(FReferenceCollector& Collector)
+{
+#if WITH_ENGINE && WITH_EDITOR
+	// Reference collector is used to visit all instances of instanced structs the the like when a user defined struct is reinstanced.
+	if (const UUserDefinedStruct* StructureToReinstance = UE::StructUtils::Private::GetStructureToReinstance())
+	{
+		const UPropertyBag* Bag = GetPropertyBagStruct();
+		if (Bag && Bag->ContainsUserDefinedStruct(StructureToReinstance))
+		{
+			if (StructureToReinstance->Status == EUserDefinedStructureStatus::UDSS_Duplicate)
+			{
+				// On the first pass we create a new bag that contains copy of UDS that represents the currently allocated struct.
+				// GStructureToReinstance is the duplicated struct, and GStructureToReinstance->PrimaryStruct is the UDS that is being reinstanced.
+
+				TArray<FPropertyBagPropertyDesc> PropertyDescs = Bag->PropertyDescs;
+				for (FPropertyBagPropertyDesc& Desc : PropertyDescs)
+				{
+					if (Desc.ValueType == EPropertyBagPropertyType::Struct)
+					{
+						if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(Desc.ValueTypeObject))
+						{
+							if (UserDefinedStruct == StructureToReinstance->PrimaryStruct)
+							{
+								Desc.ValueTypeObject = StructureToReinstance;
+							}
+						}					
+					}
+				}
+
+				const UPropertyBag* NewBag = UPropertyBag::GetOrCreateFromDescs(PropertyDescs);
+				Value.ReplaceScriptStructInternal(NewBag);
+			}
+			else
+			{
+				// On the second pass we reinstantiate the data using serialization.
+				// When saving, the UDSs are written using the duplicate which represents current layout, but PrimaryStruct is serialized as the type.
+				// When reading, the data is initialized with the new type, and the serialization will take care of reading from the old data.
+
+				if (UObject* Outer = UE::StructUtils::Private::GetCurrentReinstanceOuterObject())
+				{
+					Outer->MarkPackageDirty();
+				}
+				
+				TArray<uint8> Data;
+
+				FMemoryWriter Writer(Data);
+				FObjectAndNameAsStringProxyArchive WriterProxy(Writer, /*bInLoadIfFindFails*/true);
+				Serialize(WriterProxy);
+				
+				FMemoryReader Reader(Data);
+				FObjectAndNameAsStringProxyArchive ReaderProxy(Reader, /*bInLoadIfFindFails*/true);
+				Serialize(ReaderProxy);
+			}
+		}
+	}
+#endif	
 }
 
 
@@ -2179,6 +2266,34 @@ const UPropertyBag* UPropertyBag::GetOrCreateFromDescs(const TConstArrayView<FPr
 
 	return NewBag;
 }
+
+#if WITH_ENGINE && WITH_EDITOR
+bool UPropertyBag::ContainsUserDefinedStruct(const UUserDefinedStruct* UserDefinedStruct) const
+{
+	if (!UserDefinedStruct)
+	{
+		return false;
+	}
+	
+	for (const FPropertyBagPropertyDesc& Desc : PropertyDescs)
+	{
+		if (Desc.ValueType == EPropertyBagPropertyType::Struct)
+		{
+			if (const UUserDefinedStruct* OwnedUserDefinedStruct = Cast<UUserDefinedStruct>(Desc.ValueTypeObject))
+			{
+				if (OwnedUserDefinedStruct == UserDefinedStruct
+					|| OwnedUserDefinedStruct->PrimaryStruct == UserDefinedStruct
+					|| OwnedUserDefinedStruct == UserDefinedStruct->PrimaryStruct
+					|| OwnedUserDefinedStruct->PrimaryStruct == UserDefinedStruct->PrimaryStruct)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+#endif
 
 void UPropertyBag::InitializeStruct(void* Dest, int32 ArrayDim) const
 {

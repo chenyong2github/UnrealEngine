@@ -9,37 +9,40 @@ namespace UnrealBuildTool.Rules
 			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 			PublicIncludePaths.AddRange(
-			new string[] {
-			}
+				new string[] {
+				}
 			);
 
 			PublicDependencyModuleNames.AddRange(
-			new string[] {
-				"Core",
-				"CoreUObject",
-				"Engine",
-				"InputCore",
-				"AssetTools",
-				"UnrealEd",
-				"Slate",
-				"SlateCore",				
-				"PropertyEditor",
-				"AIModule",
-				"StructUtils",
-				"DetailCustomizations",
-				"ComponentVisualizers",
-			}
+				new string[] {
+					"Core",
+					"CoreUObject",
+					"Engine",
+					"InputCore",
+					"AssetTools",
+					"UnrealEd",
+					"Slate",
+					"SlateCore",				
+					"PropertyEditor",
+					"AIModule",
+					"StructUtils",
+					"StructUtilsEngine",
+					"DetailCustomizations",
+					"ComponentVisualizers",
+				}
 			);
 
 			PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"RenderCore",
-				"GraphEditor",
-				"KismetWidgets",
-				"AIGraph",
-				"ToolMenus",
-				"BlueprintGraph",
-			}
+				new string[] {
+					"RenderCore",
+					"GraphEditor",
+					"KismetWidgets",
+					"PropertyEditor",
+					"AIGraph",
+					"ToolMenus",
+					"BlueprintGraph",
+					"KismetCompiler",
+				}
 			);
 		}
 

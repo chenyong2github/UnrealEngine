@@ -8,6 +8,7 @@
 
 struct FConstStructView;
 struct FConstSharedStruct;
+class UUserDefinedStruct;
 
 /**
  * FInstancedStruct works similarly as instanced UObject* property but is USTRUCTs.
@@ -231,6 +232,11 @@ public:
 		return !Identical(&Other, PPF_None);
 	}
 
+#if WITH_ENGINE && WITH_EDITOR
+	/** Internal method used to replace the script struct during user defined struct instantiation. */
+	void ReplaceScriptStructInternal(const UScriptStruct* NewStruct);
+#endif
+	
 protected:
 
 	FInstancedStruct(const UScriptStruct* InScriptStruct, uint8* InStructMemory)

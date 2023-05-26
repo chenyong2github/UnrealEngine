@@ -8,8 +8,10 @@
 
 class IPropertyHandle;
 class IDetailPropertyRow;
+class IPropertyHandle;
 class FStructOnScope;
 class SWidget;
+class SComboButton;
 struct FInstancedStruct;
 class FInstancedStructProvider;
 
@@ -45,8 +47,7 @@ private:
 	/** The base struct that we're allowing to be picked (controlled by the "BaseStruct" meta-data) */
 	UScriptStruct* BaseScriptStruct = nullptr;
 
-	TSharedPtr<class SComboButton> ComboButton;
-
+	TSharedPtr<SComboButton> ComboButton;
 	TSharedPtr<IPropertyUtilities> PropUtils;
 	
 	FDelegateHandle OnObjectsReinstancedHandle;
@@ -62,6 +63,7 @@ class STRUCTUTILSEDITOR_API FInstancedStructDataDetails : public IDetailCustomNo
 {
 public:
 	FInstancedStructDataDetails(TSharedPtr<IPropertyHandle> InStructProperty);
+	~FInstancedStructDataDetails();
 
 	//~ Begin IDetailCustomNodeBuilder interface
 	virtual void SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren) override;
@@ -81,6 +83,11 @@ public:
 	virtual void OnChildRowAdded(IDetailPropertyRow& ChildRow) {}
 
 private:
+	void OnUserDefinedStructReinstancedHandle(const class UUserDefinedStruct& Struct);
+
+	/** Pre/Post change notifications for struct value changes */
+	void OnStructValuePreChange();
+	void OnStructValuePostChange();
 	void OnStructHandlePostChange();
 
 	/** Returns type of the instanced struct for each instance/object being edited. */
@@ -103,6 +110,8 @@ private:
 
 	/** True if we're currently handling a StructValuePostChange */
 	bool bIsHandlingStructValuePostChange = false;
+	
+	FDelegateHandle UserDefinedStructReinstancedHandle;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

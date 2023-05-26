@@ -439,21 +439,11 @@ void ApplyChangesToPropertyDescs(const FText& SessionName, const TSharedPtr<IPro
 
 bool CanHaveMemberVariableOfType(const FEdGraphPinType& PinType)
 {
-	if ((PinType.PinCategory == UEdGraphSchema_K2::PC_Struct))
-	{
-		if (const UObject* TypeObject = PinType.PinSubCategoryObject.Get())
-		{
-			if (TypeObject->IsA<UUserDefinedStruct>())
-			{
-				return false;
-			}
-		}
-	}
-	else if ((PinType.PinCategory == UEdGraphSchema_K2::PC_Exec) 
-		|| (PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard)
-		|| (PinType.PinCategory == UEdGraphSchema_K2::PC_MCDelegate)
-		|| (PinType.PinCategory == UEdGraphSchema_K2::PC_Delegate)
-		|| (PinType.PinCategory == UEdGraphSchema_K2::PC_Interface))
+	if (PinType.PinCategory == UEdGraphSchema_K2::PC_Exec 
+		|| PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard
+		|| PinType.PinCategory == UEdGraphSchema_K2::PC_MCDelegate
+		|| PinType.PinCategory == UEdGraphSchema_K2::PC_Delegate
+		|| PinType.PinCategory == UEdGraphSchema_K2::PC_Interface)
 	{
 		return false;
 	}

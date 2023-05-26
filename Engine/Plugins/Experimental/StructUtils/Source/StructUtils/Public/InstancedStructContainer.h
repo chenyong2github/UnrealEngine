@@ -6,6 +6,7 @@
 #include "InstancedStructContainer.generated.h"
 
 struct FInstancedStruct;
+class FReferenceCollector;
 
 /**
  * Array of heterogeneous structs. Can be used as a property, supports serialization,
@@ -222,7 +223,7 @@ public:
 	FConstIterator end() const { return FConstIterator(*this, NumItems); }
 
 	/** Type traits */
-	void AddStructReferencedObjects(class FReferenceCollector& Collector) const;
+	void AddStructReferencedObjects(FReferenceCollector& Collector);
 	bool Identical(const FInstancedStructContainer* Other, uint32 PortFlags) const;
 	bool Serialize(FArchive& Ar);
 	void GetPreloadDependencies(TArray<UObject*>& OutDeps) const;

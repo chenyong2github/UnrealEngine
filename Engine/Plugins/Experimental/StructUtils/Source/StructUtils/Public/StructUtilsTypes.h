@@ -15,6 +15,7 @@ struct FStructView;
 struct FConstStructView;
 struct FInstancedStruct;
 class FReferenceCollector;
+class UUserDefinedStruct;
 
 namespace UE::StructUtils
 {
@@ -93,3 +94,28 @@ struct FStructTypeSortOperator
 		return FScriptStructSortOperator()(*AScriptStruct, *BScriptStruct);
 	}
 };
+
+#if WITH_ENGINE && WITH_EDITOR
+namespace UE::StructUtils::Private
+{
+	// Private structs used during user defined struct reinstancing.
+	struct STRUCTUTILS_API FStructureToReinstanceScope
+	{
+		explicit FStructureToReinstanceScope(const UUserDefinedStruct* StructureToReinstance);
+		~FStructureToReinstanceScope();
+	private:
+		const UUserDefinedStruct* OldStructureToReinstance = nullptr;
+	};
+
+	struct STRUCTUTILS_API FCurrentReinstanceOuterObjectScope
+	{
+		explicit FCurrentReinstanceOuterObjectScope(UObject* CurrentReinstanceOuterObject);
+		~FCurrentReinstanceOuterObjectScope();
+	private:
+		UObject* OldCurrentReinstanceOuterObject = nullptr;
+	};
+
+	extern STRUCTUTILS_API const UUserDefinedStruct* GetStructureToReinstance();
+	extern STRUCTUTILS_API UObject* GetCurrentReinstanceOuterObject();
+};
+#endif

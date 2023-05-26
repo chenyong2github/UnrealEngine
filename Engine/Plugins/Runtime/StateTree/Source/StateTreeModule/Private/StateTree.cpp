@@ -10,7 +10,10 @@
 #include "StateTreeDelegates.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "Misc/DataValidation.h"
-
+#include "StructUtilsDelegates.h"
+#if WITH_EDITOR
+#include "Engine/UserDefinedStruct.h"
+#endif
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTree)
 
 const FGuid FStateTreeCustomVersion::GUID(0x28E21331, 0x501F4723, 0x8110FA64, 0xEA10DA1E);
@@ -168,11 +171,29 @@ void UStateTree::OnObjectsReinstanced(const FReplacementObjectMap& ObjectMap)
 	}
 }
 
+void UStateTree::OnUserDefinedStructReinstanced(const UUserDefinedStruct& UserDefinedStruct)
+{
+	// Struct utils handle reinstancing the struct values (instanced struct, property bag, etc).
+	// We will need to update the property binding.
+	
+	TSet<const UStruct*> Structs;
+	Structs.Add(&UserDefinedStruct);
+	
+	if (PropertyBindings.ContainsAnyStruct(Structs))
+	{
+		if (!Link())
+		{
+			UE_LOG(LogStateTree, Error, TEXT("%s failed to link after Struct reinstantiation. Take a look at the asset for any errors. Asset will not be usable at runtime."), *GetFullName());
+		}
+	}
+}
+
 void UStateTree::PostInitProperties()
 {
 	Super::PostInitProperties();
 	
 	OnObjectsReinstancedHandle = FCoreUObjectDelegates::OnObjectsReinstanced.AddUObject(this, &UStateTree::OnObjectsReinstanced);
+	OnUserDefinedStructReinstancedHandle = UE::StructUtils::Delegates::OnUserDefinedStructReinstanced.AddUObject(this, &UStateTree::OnUserDefinedStructReinstanced);
 }
 
 void UStateTree::BeginDestroy()
@@ -181,6 +202,11 @@ void UStateTree::BeginDestroy()
 	{
 		FCoreUObjectDelegates::OnObjectsReinstanced.Remove(OnObjectsReinstancedHandle);
 		OnObjectsReinstancedHandle.Reset();
+	}
+	if (OnUserDefinedStructReinstancedHandle.IsValid())
+	{
+		UE::StructUtils::Delegates::OnUserDefinedStructReinstanced.Remove(OnUserDefinedStructReinstancedHandle);
+		OnUserDefinedStructReinstancedHandle.Reset();
 	}
 	
 	Super::BeginDestroy();

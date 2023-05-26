@@ -48,4 +48,45 @@ namespace UE::StructUtils
 	{
 		return GetStructCrc32Helper(SharedView, CRC);
 	}
+
+	namespace Private
+	{
+#if WITH_ENGINE && WITH_EDITOR
+		const UUserDefinedStruct* GStructureToReinstance = nullptr;
+		UObject* GCurrentReinstanceOuterObject = nullptr;
+
+		FStructureToReinstanceScope::FStructureToReinstanceScope(const UUserDefinedStruct* StructureToReinstance)
+		{
+			OldStructureToReinstance = GStructureToReinstance;
+			GStructureToReinstance = StructureToReinstance;
+		}
+	
+		FStructureToReinstanceScope::~FStructureToReinstanceScope()
+		{
+			GStructureToReinstance = OldStructureToReinstance;
+		}
+
+		FCurrentReinstanceOuterObjectScope::FCurrentReinstanceOuterObjectScope(UObject* CurrentReinstanceOuterObject)
+		{
+			OldCurrentReinstanceOuterObject = GCurrentReinstanceOuterObject;
+			GCurrentReinstanceOuterObject = CurrentReinstanceOuterObject;
+		}
+
+		FCurrentReinstanceOuterObjectScope::~FCurrentReinstanceOuterObjectScope()
+		{
+			GCurrentReinstanceOuterObject = OldCurrentReinstanceOuterObject;
+		}
+
+		const UUserDefinedStruct* GetStructureToReinstance()
+		{
+			return GStructureToReinstance;
+		}
+	
+		UObject* GetCurrentReinstanceOuterObject()
+		{
+			return GCurrentReinstanceOuterObject;
+		}
+
+#endif
+	}
 }
