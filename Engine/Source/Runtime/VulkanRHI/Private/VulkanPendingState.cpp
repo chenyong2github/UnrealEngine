@@ -501,7 +501,8 @@ void FVulkanPendingGfxState::InternalUpdateDynamicStates(FVulkanCmdBuffer* Cmd)
 	// Validate and update Viewport
 	if (bNeedsUpdateViewport)
 	{
-		ensure(Viewports[0].width > 0 || Viewports[0].height > 0);
+		// it is legal to pass a zero-area viewport, and the higher level expectation (see e.g. FProjectedShadowInfo::SetupProjectionStencilMask()) is that
+		// such viewport is going to be essentially disabled.
 
 		// Flip viewport on Y-axis to be uniform between DXC generated SPIR-V shaders (requires VK_KHR_maintenance1 extension)
 		TArray<VkViewport, TInlineAllocator<2>> FlippedViewports = Viewports;
