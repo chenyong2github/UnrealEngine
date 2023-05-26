@@ -13,15 +13,7 @@ class USDCLASSES_API UUsdAssetUserData : public UAssetUserData
 
 public:
 	UPROPERTY()
-	FString FilePath;
-
-	UPROPERTY()
 	FString PrimPath;
-
-	// Likely a UUSDStageImportOptions, but we don't declare it here
-	// to prevent an unnecessary module dependency on USDStageImporter
-	UPROPERTY()
-	TObjectPtr<class UObject> ImportOptions;
 };
 
 UCLASS()

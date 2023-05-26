@@ -7,6 +7,7 @@
 #include "UnrealUSDWrapper.h"
 #include "USDAssetCache.h"
 #include "USDAssetCache2.h"
+#include "USDAssetImportData.h"
 #include "USDAssetUserData.h"
 #include "USDAttributeUtils.h"
 #include "USDClassesModule.h"
@@ -1336,8 +1337,13 @@ namespace UE
 						{
 							UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(Texture, TEXT("USDAssetUserData"));
 							UserData->PrimPath = PrimPath;
-							UserData->FilePath = ResolvedTexturePath;
 							Texture->AddAssetUserData(UserData);
+
+							// We set this even if we're not going to import so that we can track our original texture filepath
+							// in case we later do an Actions->Import
+							UUsdAssetImportData* ImportData = NewObject<UUsdAssetImportData>(Texture);
+							ImportData->UpdateFilenameOnly(ResolvedTexturePath);
+							Texture->AssetImportData = ImportData;
 						}
 					}
 				}

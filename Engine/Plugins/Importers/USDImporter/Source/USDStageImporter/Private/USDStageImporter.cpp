@@ -4,6 +4,7 @@
 
 #include "USDAssetCache.h"
 #include "USDAssetCache2.h"
+#include "USDAssetImportData.h"
 #include "USDAssetUserData.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
@@ -566,30 +567,30 @@ namespace UsdStageImporterImpl
 		return AssetName;
 	}
 
-	void UpdateAssetUserData(UObject* Asset, const FString& MainFilePath, UUsdStageImportOptions* ImportOptions)
+	void UpdateAssetImportData(UObject* Asset, const FString& MainFilePath, UUsdStageImportOptions* ImportOptions)
 	{
 		if (!Asset)
 		{
 			return;
 		}
 
-		UUsdAssetUserData* UserData = nullptr;
-		if (IInterface_AssetUserData* UserDataInterface = Cast<IInterface_AssetUserData>(Asset))
+		UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(Asset);
+		if (!ImportData)
 		{
-			UserData = UserDataInterface->GetAssetUserData<UUsdAssetUserData>();
-		}
-		if (!UserData)
-		{
-			return;
+			ImportData = NewObject<UUsdAssetImportData>(Asset);
+			UsdUtils::SetAssetImportData(Asset, ImportData);
 		}
 
-		// Don't force update as textures will already come with this preset to their actual texture path
-		if (!Asset->IsA<UTexture>())
+		if (ImportData)
 		{
-			UserData->FilePath = MainFilePath;
-		}
+			// Don't force update textures as they will already have this preset to their actual texture path
+			if (!Asset->IsA<UTexture>())
+			{
+				ImportData->UpdateFilenameOnly(MainFilePath);
+			}
 
-		UserData->ImportOptions = ImportOptions;
+			ImportData->ImportOptions = ImportOptions;
+		}
 	}
 
 	void UpdateAssetUserData(
@@ -600,7 +601,7 @@ namespace UsdStageImporterImpl
 	{
 		for (UObject* Asset : UsedAssetsAndDependencies)
 		{
-			UpdateAssetUserData(Asset, MainFilePath, ImportOptions);
+			UpdateAssetImportData(Asset, MainFilePath, ImportOptions);
 		}
 	}
 
@@ -1991,7 +1992,7 @@ bool UUsdStageImporter::ReimportSingleAsset(
 
 	if ( ReimportedObject )
 	{
-		UsdStageImporterImpl::UpdateAssetUserData(ReimportedObject, ImportContext.FilePath, ImportContext.ImportOptions);
+		UsdStageImporterImpl::UpdateAssetImportData(ReimportedObject, ImportContext.FilePath, ImportContext.ImportOptions);
 
 		// Assign things from the original assets before we publish the reimported asset, overwriting it
 		UsdStageImporterImpl::CopyOriginalMaterialAssignment(ImportContext, OriginalAsset, ReimportedObject );

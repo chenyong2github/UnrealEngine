@@ -112,23 +112,11 @@ void UUsdStageAssetImportFactory::CleanUp()
 
 bool UUsdStageAssetImportFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
-	if (IInterface_AssetUserData* UserDataInterface = Cast<IInterface_AssetUserData>(Obj))
-	{
-		if(UUsdAssetUserData* UserData = UserDataInterface->GetAssetUserData<UUsdAssetUserData>())
-		{
-			OutFilenames.Add(UserData->FilePath);
-			return true;
-		}
-	}
-
-	// Fall back to also checking asset import data for now, in case it's an old asset
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(Obj))
+	if (UAssetImportData* ImportData = UsdUtils::GetAssetImportData(Obj))
 	{
 		OutFilenames.Add(ImportData->GetFirstFilename());
 		return true;
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return false;
 }
@@ -140,20 +128,10 @@ void UUsdStageAssetImportFactory::SetReimportPaths(UObject* Obj, const TArray<FS
 		return;
 	}
 
-	if (IInterface_AssetUserData* UserDataInterface = Cast<IInterface_AssetUserData>(Obj))
-	{
-		if(UUsdAssetUserData* UserData = UserDataInterface->GetAssetUserData<UUsdAssetUserData>())
-		{
-			UserData->FilePath = NewReimportPaths[0];
-		}
-	}
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(Obj))
 	{
 		ImportData->UpdateFilenameOnly(NewReimportPaths[0]);
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 EReimportResult::Type UUsdStageAssetImportFactory::Reimport(UObject* Obj)
@@ -175,22 +153,14 @@ EReimportResult::Type UUsdStageAssetImportFactory::Reimport(UObject* Obj)
 	{
 		if (UUsdAssetUserData* UserData = UserDataInterface->GetAssetUserData<UUsdAssetUserData>())
 		{
-			ReimportFilePath = UserData->FilePath;
 			OriginalPrimPath = UserData->PrimPath;
-			ReimportOptions = UserData->ImportOptions;
 		}
 	}
 
-	if (!ReimportOptions || ReimportFilePath.IsEmpty())
+	if (UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(Obj))
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(Obj))
-		{
-			ReimportFilePath = ImportData->GetFirstFilename();
-			OriginalPrimPath = ImportData->PrimPath;
-			ReimportOptions = ImportData->ImportOptions;
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		ReimportFilePath = ImportData->GetFirstFilename();
+		ReimportOptions = ImportData->ImportOptions;
 	}
 
 	if (ReimportFilePath.IsEmpty() || OriginalPrimPath.IsEmpty())

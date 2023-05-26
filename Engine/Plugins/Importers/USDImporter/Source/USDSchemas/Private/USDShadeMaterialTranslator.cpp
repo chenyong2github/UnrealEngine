@@ -13,6 +13,7 @@
 
 #include "UsdWrappers/SdfPath.h"
 
+#include "EditorFramework/AssetImportData.h"
 #include "Engine/Level.h"
 #include "Engine/Texture.h"
 #include "Materials/Material.h"
@@ -488,9 +489,9 @@ void FUsdShadeMaterialTranslator::PostImportMaterial(const FString& MaterialHash
 			else if (bIsOwnedByTransientPackage)
 			{
 				FString FilePath;
-				if(UUsdAssetUserData* TextureUserData = Texture->GetAssetUserData<UUsdAssetUserData>())
+				if(UAssetImportData* TextureImportData = Texture->AssetImportData.Get())
 				{
-					FilePath = TextureUserData->FilePath;
+					FilePath = TextureImportData->GetFirstFilename();
 				}
 				else
 				{

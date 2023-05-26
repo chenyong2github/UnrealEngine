@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "USDGroomTranslator.h"
-#include "UObject/Package.h"
 
 #if USE_USD_SDK && WITH_EDITOR
 
@@ -15,6 +14,7 @@
 #include "HairStrandsImporter.h"
 #include "Misc/ArchiveMD5.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
 
 #include "UnrealUSDWrapper.h"
@@ -198,7 +198,6 @@ protected:
 
 						UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(GroomAsset, TEXT("UUSDAssetUserData"));
 						UserData->PrimPath = PrimPathString;
-						UserData->ImportOptions = ImportOptions.Get();
 
 						GroomAsset->AddAssetUserData(UserData);
 					}
@@ -342,7 +341,6 @@ protected:
 				{
 					UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(GroomCache, TEXT("UUSDAssetUserData"));
 					UserData->PrimPath = PrimPath.GetString();
-					UserData->ImportOptions = ImportOptions.Get();
 
 					GroomCache->AddAssetUserData(UserData);
 

@@ -45,6 +45,7 @@ PXR_NAMESPACE_CLOSE_SCOPE
 #endif // #if USE_USD_SDK
 
 class USceneComponent;
+class UAssetImportData;
 class UUsdAssetImportData;
 enum class EUsdDuplicateType : uint8;
 enum class EUsdUpAxis : uint8;
@@ -269,10 +270,14 @@ namespace UsdUtils
 	/** Returns the earliest possible timecode. Use it to always fetch the first frame of an animated attribute */
 	USDUTILITIES_API double GetEarliestTimeCode();
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.3, "No longer used as the USDImporter plugin will now use AssetUserData over AssetImportData for better runtime compatibility")
-	USDUTILITIES_API UUsdAssetImportData* GetAssetImportData( UObject* Asset );
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	/**
+	 * Utilities to allow getting and setting our AssetImportData to an asset from a base UObject*.
+	 * Note that not all asset types support AssetImportData, and in some cases when retrieving it for e.g. a Skeleton,
+	 * we'll actually check it's preview mesh instead (since Skeletons don't have AssetImportData). The setter won't do
+	 * anything if you try setting asset import data on e.g. a Skeleton, on the other hand.
+	 */
+	USDUTILITIES_API UUsdAssetImportData* GetAssetImportData(UObject* Asset);
+	USDUTILITIES_API void SetAssetImportData(UObject* Asset, UAssetImportData* ImportData);
 
 	/** Adds a reference on Prim to the layer at AbsoluteFilePath */
 	USDUTILITIES_API void AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath, const UE::FSdfPath& TargetPrimPath = {}, double TimeCodeOffset = 0.0, double TimeCodeScale = 1.0 );

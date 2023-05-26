@@ -1243,7 +1243,6 @@ double UsdUtils::GetEarliestTimeCode()
 #endif
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 {
 	UUsdAssetImportData* ImportData = nullptr;
@@ -1310,7 +1309,49 @@ UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 #endif
 	return ImportData;
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+void UsdUtils::SetAssetImportData(UObject* Asset, UAssetImportData* ImportData)
+{
+	if (!Asset)
+	{
+		return;
+	}
+
+#if WITH_EDITOR
+	if (UStaticMesh* Mesh = Cast<UStaticMesh>(Asset))
+	{
+		Mesh->AssetImportData = ImportData;
+	}
+	else if (USkeletalMesh* SkMesh = Cast<USkeletalMesh>(Asset))
+	{
+		SkMesh->SetAssetImportData(ImportData);
+	}
+	else if (UAnimSequence* SkelAnim = Cast<UAnimSequence>(Asset))
+	{
+		SkelAnim->AssetImportData = ImportData;
+	}
+	else if (UMaterialInterface* Material = Cast<UMaterialInterface>(Asset))
+	{
+		Material->AssetImportData = ImportData;
+	}
+	else if (UTexture* Texture = Cast<UTexture>(Asset))
+	{
+		Texture->AssetImportData = ImportData;
+	}
+	else if (UGeometryCache* GeometryCache = Cast<UGeometryCache>(Asset))
+	{
+		GeometryCache->AssetImportData = ImportData;
+	}
+	else if (UGroomAsset* Groom = Cast<UGroomAsset>(Asset))
+	{
+		Groom->AssetImportData = ImportData;
+	}
+	else if (UGroomCache* GroomCache = Cast<UGroomCache>(Asset))
+	{
+		GroomCache->AssetImportData = ImportData;
+	}
+#endif // WITH_EDITOR
+}
 
 namespace UE::UsdConversionUtils::Private
 {

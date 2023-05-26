@@ -10,11 +10,12 @@
 #include "USDAssetImportData.generated.h"
 
 UCLASS()
-class UE_DEPRECATED(5.3, "Prefer USD AssetUserData instead of AssetImportData") USDCLASSES_API UUsdAssetImportData : public UAssetImportData
+class USDCLASSES_API UUsdAssetImportData : public UAssetImportData
 {
 	GENERATED_BODY()
 
 public:
+	UE_DEPRECATED(5.3, "Use USD AssetUserData instead of AssetImportData for USD-specific info")
 	UPROPERTY()
 	FString PrimPath;
 
@@ -26,7 +27,7 @@ public:
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UCLASS()
-class UE_DEPRECATED(5.3, "Prefer USD AssetUserData instead of AssetImportData") USDCLASSES_API UUsdAnimSequenceAssetImportData : public UUsdAssetImportData
+class UE_DEPRECATED(5.3, "Use USD AssetUserData instead of AssetImportData for USD-specific info") USDCLASSES_API UUsdAnimSequenceAssetImportData : public UUsdAssetImportData
 {
 	GENERATED_BODY()
 
@@ -44,7 +45,7 @@ public:
 
 /** We assign these to UStaticMeshes or USkeletalMeshes generated from USD */
 UCLASS()
-class UE_DEPRECATED(5.3, "Prefer USD AssetUserData instead of AssetImportData") USDCLASSES_API UUsdMeshAssetImportData : public UUsdAssetImportData
+class UE_DEPRECATED(5.3, "Use USD AssetUserData instead of AssetImportData for USD-specific info") USDCLASSES_API UUsdMeshAssetImportData : public UUsdAssetImportData
 {
 	GENERATED_BODY()
 

@@ -6,7 +6,6 @@
 
 #include "CoreMinimal.h"
 
-class UUsdAssetImportData;
 struct FUsdStageImportContext;
 
 class USDSTAGEIMPORTER_API UUsdStageImporter
