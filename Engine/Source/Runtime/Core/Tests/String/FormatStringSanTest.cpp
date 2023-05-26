@@ -39,11 +39,6 @@ TEST_CASE_NAMED(FFormatStringValidatorTest, "Core::String::FormatStringSan", "[C
 		STATIC_CHECK(UE_CHECK_FORMAT_STRING_ERR(FormatStringSan::StatusInvalidFormatSpec, TEXT("%l^"), 42));
 		STATIC_CHECK(UE_CHECK_FORMAT_STRING_ERR(FormatStringSan::StatusInvalidFormatSpec, TEXT("%h^"), 42));
 		STATIC_CHECK(UE_CHECK_FORMAT_STRING_ERR(FormatStringSan::StatusIncompleteFormatSpecifierOrUnescapedPercent, TEXT("%-*"), 42));		
-		
-		{
-			enum class MyEnum { Value };
-			STATIC_CHECK(UE_CHECK_FORMAT_STRING_ERR(FormatStringSan::StatusDNeedsIntegerArg, TEXT("enum class %d value"), MyEnum::Value));
-		}
 	}
 
 	SECTION("Accepted Formatting")
@@ -92,6 +87,10 @@ TEST_CASE_NAMED(FFormatStringValidatorTest, "Core::String::FormatStringSan", "[C
 		{
 			enum MyIntegralEnum { MyIntegralEnumA };
 			STATIC_CHECK(UE_CHECK_FORMAT_STRING_ERR(FormatStringSan::StatusOk, TEXT("hello %d is an enum actually"), MyIntegralEnumA));
+		}
+		{
+			enum class MyEnum { Value };
+			STATIC_CHECK(UE_CHECK_FORMAT_STRING_ERR(FormatStringSan::StatusOk, TEXT("enum class %d value"), MyEnum::Value));
 		}
 	}
 }

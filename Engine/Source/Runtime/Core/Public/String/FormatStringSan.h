@@ -115,7 +115,7 @@ namespace UE::Core::Private
 		template <typename T>
 		inline constexpr bool bIsFloatOrDouble = std::is_same_v<float, T> || std::is_same_v<double, T>;
 		template <typename T>
-		inline constexpr bool bIsIntegralEnum = std::is_enum_v<T> && std::is_convertible_v<T,int>;
+		inline constexpr bool bIsIntegralEnum = std::is_enum_v<T>;
 
 		template <typename... Ts>
 		struct TFmtArgTypes {};
