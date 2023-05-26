@@ -65,9 +65,23 @@ void SPluginAuditBrowser::Construct(const FArguments& InArgs)
 			+ SSplitter::Slot()
 			.Value(0.30f)
 			[
-				SNew(SListView< TSharedRef<FCookedPlugin> >)
-				.ListItemsSource(&CookedPlugins)
-				.OnGenerateRow(this, &SPluginAuditBrowser::MakeCookedPluginRow)
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 4.0f, 0.0f, 6.0f)
+				[
+					SNew(SCheckBox)
+					.ToolTipText(LOCTEXT("ToggleAll", "Toggle `Simulate Disabled` for all plugins"))
+					.IsChecked(ECheckBoxState::Checked)
+					.OnCheckStateChanged(this, &SPluginAuditBrowser::OnGlobalCheckboxStateChanged)
+				]
+
+				+ SVerticalBox::Slot()
+				[
+					SNew(SListView< TSharedRef<FCookedPlugin> >)
+					.ListItemsSource(&CookedPlugins)
+					.OnGenerateRow(this, &SPluginAuditBrowser::MakeCookedPluginRow)
+				]
 			]
 			+ SSplitter::Slot()
 			.Value(0.70f)
@@ -132,6 +146,14 @@ void SPluginAuditBrowser::RefreshToolBar()
 		);
 
 		PlaySection.AddEntry(SaveEntry);
+	}
+}
+
+void SPluginAuditBrowser::OnGlobalCheckboxStateChanged(ECheckBoxState State)
+{
+	for (auto& Item : CookedPlugins)
+	{
+		Item->bSimulateDisabled = (State == ECheckBoxState::Checked) ? false : true;
 	}
 }
 

@@ -34,6 +34,8 @@ private:
 	void BuildPluginList();
 	void RefreshToolBar();
 
+	void OnGlobalCheckboxStateChanged(ECheckBoxState State);
+
 	class FCookedPlugin
 	{
 	public:
