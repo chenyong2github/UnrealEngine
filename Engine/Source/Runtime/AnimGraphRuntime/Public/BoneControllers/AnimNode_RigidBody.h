@@ -47,6 +47,8 @@ enum class ESimulationTiming : uint8
  * fraction of the world space motion onto the bodies which allows Bone-Space and Component-Space simulations to react to world-space 
  * movement in a controllable way.
  */
+template <> struct TIsPODType<FSimSpaceSettings> { enum { Value = true }; };
+
 USTRUCT(BlueprintType)
 struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 {

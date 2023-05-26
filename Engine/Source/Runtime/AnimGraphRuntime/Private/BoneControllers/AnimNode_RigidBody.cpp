@@ -116,6 +116,11 @@ FAutoConsoleVariableRef CVarRigidBodyNodeSimulationTaskPriority(
 	ECVF_Default
 );
 
+// This is to validate our declaration of TIsPODType in the header, which
+// was done to ensure that STRUCT_IsPlainOldData is set, which allows scripts
+// and reflection based clients to copy via memcpy:
+static_assert(std::is_trivially_copyable<FSimSpaceSettings>::value);
+
 FSimSpaceSettings::FSimSpaceSettings()
 	: WorldAlpha(0)
 	, VelocityScaleZ(1)
