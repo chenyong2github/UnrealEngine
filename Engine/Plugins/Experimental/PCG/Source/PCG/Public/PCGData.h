@@ -202,7 +202,7 @@ public:
 
 	/** Gets all inputs of the given class type and on the given pin label, returning matching tagged data in the OutTaggedData value too */
 	UFUNCTION(BlueprintCallable, Category = Data, meta = (ScriptMethod, DeterminesOutputType = "InDataTypeClass"))
-	static TArray<UPCGData*> GetTypedInputsByPinLabel(const FPCGDataCollection& InCollection, const FName& InPinLabel, TArray<FPCGTaggedData>& OutTaggedData, TSubclassOf<UPCGData> InDataTypeClass = nullptr);
+	static TArray<UPCGData*> GetTypedInputsByPinLabel(const FPCGDataCollection& InCollection, FName InPinLabel, TArray<FPCGTaggedData>& OutTaggedData, TSubclassOf<UPCGData> InDataTypeClass = nullptr);
 
 	/** Gets all inputs of the given class type and having the provided tag, returning matching tagged data in the OutTaggedData value too */
 	UFUNCTION(BlueprintCallable, Category = Data, meta = (ScriptMethod, DeterminesOutputType = "InDataTypeClass"))

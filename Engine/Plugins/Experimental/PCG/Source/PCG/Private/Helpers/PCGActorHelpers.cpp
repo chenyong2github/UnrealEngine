@@ -77,10 +77,6 @@ UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTarg
 			TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorHelpers::GetOrCreateManagedISMC::MarkAsUsed);
 			MatchingResource->MarkAsUsed();
 
-			// Reset the rotation/scale to be identity otherwise if the root component transform has changed, the final transform will be wrong
-			MatchingResource->GetComponent()->SetWorldRotation(FQuat::Identity);
-			MatchingResource->GetComponent()->SetWorldScale3D(FVector::OneVector);
-
 			return MatchingResource;
 		}
 	}
@@ -125,6 +121,7 @@ UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTarg
 	UPCGManagedISMComponent* Resource = NewObject<UPCGManagedISMComponent>(InSourceComponent);
 	Resource->SetComponent(ISMC);
 	Resource->SetDescriptor(InParams.Descriptor);
+	Resource->SetRootLocation(InTargetActor->GetRootComponent()->GetComponentLocation());
 	Resource->SetSettingsUID(SettingsUID);
 	InSourceComponent->AddToManagedResources(Resource);
 

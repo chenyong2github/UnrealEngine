@@ -118,6 +118,8 @@ public:
 	//~Begin UPCGManagedComponents interface
 	virtual void ResetComponent() override;
 	virtual bool SupportsComponentReset() const override{ return true; }
+	virtual void MarkAsUsed() override;
+	virtual void MarkAsReused() override;
 	virtual void ForgetComponent() override;
 	//~End UPCGManagedComponents interface
 
@@ -126,6 +128,8 @@ public:
 
 	void SetDescriptor(const FISMComponentDescriptor& InDescriptor);
 	const FISMComponentDescriptor& GetDescriptor() const { return Descriptor; }
+
+	void SetRootLocation(const FVector& InRootLocation);
 
 	uint64 GetSettingsUID() const { return SettingsUID; }
 	void SetSettingsUID(uint64 InSettingsUID) { SettingsUID = InSettingsUID; }
@@ -136,6 +140,12 @@ protected:
 
 	UPROPERTY()
 	FISMComponentDescriptor Descriptor;
+
+	UPROPERTY()
+	bool bHasRootLocation = false;
+
+	UPROPERTY()
+	FVector RootLocation = FVector::ZeroVector;
 
 	UPROPERTY(Transient)
 	uint64 SettingsUID = -1; // purposefully a value that will never happen in data

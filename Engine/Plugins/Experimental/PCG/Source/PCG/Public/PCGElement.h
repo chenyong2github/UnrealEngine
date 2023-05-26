@@ -82,7 +82,7 @@ public:
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const { return true; }
 
 	/** Whether to do a 'deep' fine-grained CRC of the output data to pass to downstream nodes. Can be expensive so should be used sparingly. */
-	virtual bool ShouldComputeFullOutputDataCrc() const { return false; }
+	virtual bool ShouldComputeFullOutputDataCrc(FPCGContext* Context) const { return false; }
 
 	/**
 	 * Calculate a Crc that provides a receipt for the input data that can be paired with output data from the cache. If any dependency (setting, node input or

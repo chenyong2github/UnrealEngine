@@ -207,7 +207,7 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 		// Some nodes benefit from computing an actual CRC from the data. This can halt the propagation of change/executions through the graph. For
 		// data like landscapes we will never have a full accurate data crc for it so we'll tend to assume changed which triggers downstream
 		// execution. Performing a detailed CRC of output data can detect real change in the data and halt the cascade of execution.
-		const bool bShouldComputeFullOutputDataCrc = ShouldComputeFullOutputDataCrc();
+		const bool bShouldComputeFullOutputDataCrc = ShouldComputeFullOutputDataCrc(Context);
 
 		// Compute Crc from output data
 		Context->OutputData.Crc = Context->OutputData.ComputeCrc(bShouldComputeFullOutputDataCrc);

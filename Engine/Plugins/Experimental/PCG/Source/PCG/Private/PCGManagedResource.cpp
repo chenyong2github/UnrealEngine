@@ -348,11 +348,61 @@ bool UPCGManagedISMComponent::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutA
 
 void UPCGManagedISMComponent::ResetComponent()
 {
-	if (UInstancedStaticMeshComponent * ISMC = GetComponent())
+	if (UInstancedStaticMeshComponent* ISMC = GetComponent())
 	{
 		ISMC->ClearInstances();
 		ISMC->UpdateBounds();
 	}
+}
+
+void UPCGManagedISMComponent::MarkAsUsed()
+{
+	Super::MarkAsUsed();
+
+	if (UInstancedStaticMeshComponent* ISMC = GetComponent())
+	{
+		// Keep track of the current root location so if we reuse this later we are able to update this appropriately
+		if (USceneComponent* RootComponent = ISMC->GetAttachmentRoot())
+		{
+			bHasRootLocation = true;
+			RootLocation = RootComponent->GetComponentLocation();
+		}
+		else
+		{
+			bHasRootLocation = false;
+			RootLocation = FVector::ZeroVector;
+		}
+
+		// Reset the rotation/scale to be identity otherwise if the root component transform has changed, the final transform will be wrong
+		ISMC->SetWorldTransform(FTransform(FQuat::Identity, RootLocation, FVector::OneVector));
+	}
+}
+
+void UPCGManagedISMComponent::MarkAsReused()
+{
+	Super::MarkAsReused();
+
+	if (UInstancedStaticMeshComponent* ISMC = GetComponent())
+	{
+		// Reset the rotation/scale to be identity otherwise if the root component transform has changed, the final transform will be wrong
+		FVector TentativeRootLocation = RootLocation;
+
+		if (!bHasRootLocation)
+		{
+			if (USceneComponent* RootComponent = ISMC->GetAttachmentRoot())
+			{
+				TentativeRootLocation = RootComponent->GetComponentLocation();
+			}
+		}
+
+		ISMC->SetWorldTransform(FTransform(FQuat::Identity, TentativeRootLocation, FVector::OneVector));
+	}
+}
+
+void UPCGManagedISMComponent::SetRootLocation(const FVector& InRootLocation)
+{
+	bHasRootLocation = true;
+	RootLocation = InRootLocation;
 }
 
 UInstancedStaticMeshComponent* UPCGManagedISMComponent::GetComponent() const

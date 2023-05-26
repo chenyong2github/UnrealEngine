@@ -81,6 +81,10 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = "PCG|Node Customization")
 	EPCGSettingsType NodeTypeOverride() const;
 
+	/** Override for the IsCacheable node property when it depends on the settings in your node */
+	UFUNCTION(BlueprintNativeEvent, Category = "PCG|Execution")
+	bool IsCacheableOverride() const;
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "PCG|Preconfigure Settings", meta = (ForceAsFunction))
 	void ApplyPreconfiguredSettings(UPARAM(ref) const FPCGPreConfiguredSettingsInfo& InPreconfigureInfo);
 
@@ -136,13 +140,18 @@ public:
 	FOnPCGBlueprintChanged OnBlueprintChangedDelegate;
 #endif
 
-	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = Settings)
-	bool bCreatesArtifacts = false;
-
-	/** Not yet hooked up, currently work in progress. True if output data can be cached and reused if inputs do not change, false if blueprint should be executed every time. */
+	/** Controls whether results can be cached so we can bypass execution if the inputs & settings are the same in a subsequent execution.
+	* Note that if your node relies on data that is not directly tracked by PCG or creates any kind of artifact (adds components, creates actors, etc.) then it is not cacheable.
+	*/
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, AdvancedDisplay, Category = Settings)
-	bool bCacheable = false;
+	bool bIsCacheable = false;
 
+	/** In cases where your node is non-cacheable but is likely to yield the same results on subsequent executions, this controls whether we will do a deep & computationally intensive CRC computation (true), 
+	* which will allow cache usage in downstream nodes in your graph, or, by default (false), a shallow but quick crc computation which will not be cache-friendly. */
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, AdvancedDisplay, Category = Settings)
+	bool bComputeFullDataCrc = false;
+
+	/** Controls whether this node execution can be run from a non-game thread. This is not related to the Loop functions provided/implemented in this class, which should always run on any thread. */
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = Settings)
 	bool bCanBeMultithreaded = false;
 
@@ -185,7 +194,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = AssetInfo, AssetRegistrySearchable)
 	FText Description;
 
-	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Settings|Advanced")
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, AdvancedDisplay, Category = "Settings")
 	int32 DependencyParsingDepth = 1;
 #endif
 
@@ -283,9 +292,6 @@ protected:
 	bool bTrackActorsOnlyWithinBounds = false;
 
 	UPROPERTY()
-	bool bCreatesArtifacts_DEPRECATED = false;
-
-	UPROPERTY()
 	bool bCanBeMultithreaded_DEPRECATED = false;
 #endif
 
@@ -317,6 +323,7 @@ class FPCGExecuteBlueprintElement : public IPCGElement
 public:
 	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const override;
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override;
+	virtual bool ShouldComputeFullOutputDataCrc(FPCGContext* Context) const override;
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

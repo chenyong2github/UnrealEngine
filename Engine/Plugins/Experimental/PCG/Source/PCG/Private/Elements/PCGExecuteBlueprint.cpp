@@ -168,6 +168,11 @@ EPCGSettingsType UPCGBlueprintElement::NodeTypeOverride_Implementation() const
 	return EPCGSettingsType::Blueprint;
 }
 
+bool UPCGBlueprintElement::IsCacheableOverride_Implementation() const
+{
+	return bIsCacheable;
+}
+
 TSet<FName> UPCGBlueprintElement::CustomInputLabels() const
 {
 	TSet<FName> Labels;
@@ -319,13 +324,11 @@ void UPCGBlueprintSettings::PostLoad()
 		BlueprintElementInstance->ConditionalPostLoad();
 		BlueprintElementInstance->SetFlags(RF_Transactional);
 #if WITH_EDITOR
-		BlueprintElementInstance->bCreatesArtifacts |= bCreatesArtifacts_DEPRECATED;
 		BlueprintElementInstance->bCanBeMultithreaded |= bCanBeMultithreaded_DEPRECATED;
 #endif
 	}
 
 #if WITH_EDITOR
-	bCreatesArtifacts_DEPRECATED = false;
 	bCanBeMultithreaded_DEPRECATED = false;
 #endif
 }
@@ -881,7 +884,21 @@ bool FPCGExecuteBlueprintElement::IsCacheable(const UPCGSettings* InSettings) co
 	const UPCGBlueprintSettings* BPSettings = Cast<const UPCGBlueprintSettings>(InSettings);
 	if (BPSettings && BPSettings->BlueprintElementInstance)
 	{
-		return !BPSettings->BlueprintElementInstance->bCreatesArtifacts;
+		return BPSettings->BlueprintElementInstance->IsCacheableOverride();
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool FPCGExecuteBlueprintElement::ShouldComputeFullOutputDataCrc(FPCGContext* Context) const
+{
+	check(Context);
+	const UPCGBlueprintSettings* BPSettings = Context->GetInputSettings<UPCGBlueprintSettings>();
+	if (BPSettings && BPSettings->BlueprintElementInstance)
+	{
+		return !IsCacheable(BPSettings) && BPSettings->BlueprintElementInstance->bComputeFullDataCrc;
 	}
 	else
 	{

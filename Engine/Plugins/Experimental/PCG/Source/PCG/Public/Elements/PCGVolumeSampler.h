@@ -63,7 +63,7 @@ class FPCGVolumeSamplerElement : public FSimplePCGElement
 {
 public:
 	// Might be sampling external data like brush, worth computing a full CRC in case we can halt change propagation/re-executions
-	virtual bool ShouldComputeFullOutputDataCrc() const override { return true; }
+	virtual bool ShouldComputeFullOutputDataCrc(FPCGContext* Context) const override { return true; }
 
 protected:
 	bool ExecuteInternal(FPCGContext* Context) const override;
