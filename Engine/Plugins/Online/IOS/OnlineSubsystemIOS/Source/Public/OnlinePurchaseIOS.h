@@ -50,21 +50,34 @@ public:
 	 * Log App Receipt content
 	 */
 	void DumpAppReceipt();
-
-    /**
-     * Method used internally by FStoreKitPurchaseProxy to notify that a transaction was completed. Not meant to be called by user code
-     */
-	void OnTransactionComplete(EPurchaseTransactionState Result, const FOnlinePurchaseTransactionIOS& TransactionData);
-
+	
+	/**
+	 * Method used internally by FStoreKitPurchaseProxy to handle a known transactions. Not meant to be called by user code
+	 */
+	void OnUpdatedTransactions(const TArray<FOnlinePurchaseTransactionIOS>& Transactions);
+	
     /**
      * Method used internally by FStoreKitPurchaseProxy to notify that transactions were restored. Not meant to be called by user code
      */
-    void OnRestoreTransactionsComplete(EPurchaseTransactionState Result);
+    void OnQueryReceiptsComplete(bool bSuccess, const TSharedPtr<TArray<FOnlinePurchaseTransactionIOS>>& Transactions);
 private:
-    /**
-     * Add Transaction data to cache avoiding duplicates and return proper receipt
+	/** Entry data for a known completed transaction (restored or purchased) */
+	struct FKnownTransaction
+	{
+		explicit FKnownTransaction(TSharedRef<FPurchaseReceipt> InReceipt, SKPaymentTransaction* InTransaction)
+		: Receipt(InReceipt)
+		, PaymentTransaction(InTransaction)
+		{
+		}
+
+		TSharedRef<FPurchaseReceipt> Receipt;
+		TRetainedObjCInstance<SKPaymentTransaction*> PaymentTransaction;
+	};
+
+	/**
+     * Add receipt information for transaction data to intermediate cache avoiding duplicates and return stored receipt
      */
-    TSharedRef<FPurchaseReceipt> TryStoreTransactionAndGetReceipt(const TSharedRef<FPurchaseReceipt>& Receipt, const FOnlinePurchaseTransactionIOS& Transaction);
+	static void AddReceiptToCache(TArray<FKnownTransaction>& Cache, const TSharedRef<FPurchaseReceipt>& Receipt, const FOnlinePurchaseTransactionIOS& Transaction);
 
     /**
      * Generate a receipt for a failed purchase
@@ -74,19 +87,19 @@ private:
     /**
      * Generate a receipt for a successful purchase which was received offline
      */
-    static TSharedRef<FPurchaseReceipt> GenerateOfflineReceipt(EPurchaseTransactionState Result, const FOnlinePurchaseTransactionIOS& Transaction);
+    static TSharedRef<FPurchaseReceipt> GenerateOfflineReceipt(const FOnlinePurchaseTransactionIOS& Transaction);
 
     /**
      * Generate a final receipt for the purchase currently in progress
      */
-    static TSharedRef<FPurchaseReceipt> GenerateReceipt(EPurchaseTransactionState Result, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnlinePurchaseTransactionIOS& Transaction);
+    static TSharedRef<FPurchaseReceipt> GenerateReceipt(const FPurchaseCheckoutRequest& CheckoutRequest, const FOnlinePurchaseTransactionIOS& Transaction);
 private:
 	
 	/** Proxy helper to communicate from/to StoreKit*/
     TRetainedObjCInstance<FStoreKitPurchaseProxy*> StoreKitProxy;
 	
-	/** Are transactions current being restored */
-	bool bRestoringTransactions;
+	/** Are receipts being queried */
+	bool bQueryingReceipts;
 
 	/** Transient delegate to fire when restoring transactions (QueryReceipts with bRestoreReceipts=true)*/
 	FOnQueryReceiptsComplete QueryReceiptsComplete;
@@ -94,21 +107,9 @@ private:
 	/** Keeps track of in progress user transaction */
     TSharedPtr<const FOnlinePurchaseInProgressTransactionIOS> InProgressTransaction;
 	
-	/** Entry data for a known completed transaction (restored or purchased) */
-    struct FKnownTransaction
-    {
-        explicit FKnownTransaction(TSharedRef<FPurchaseReceipt> InReceipt, SKPaymentTransaction* InTransaction)
-        : Receipt(InReceipt)
-        , PaymentTransaction(InTransaction)
-        {
-        }
+	/** Cache of known transactions */
+	TArray< FKnownTransaction > CachedReceipts;
 
-        TSharedRef<FPurchaseReceipt> Receipt;
-        TRetainedObjCInstance<SKPaymentTransaction*> PaymentTransaction;
-    };
-	/** Cache of completed transactions */
-    TArray< FKnownTransaction > Transactions;
-	
 	/** Reference to the parent subsystem */
 	FOnlineSubsystemIOS* Subsystem;
 };
