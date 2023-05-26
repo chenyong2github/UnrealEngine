@@ -83,6 +83,8 @@ public:
 
 	void ClearEmitter();
 
+	bool GetDebugShowBounds() const { return bDebugShowBounds; }
+	void SetDebugShowBounds(bool bShowBounds) { bDebugShowBounds = bShowBounds; }
 #endif
 public:
 	/** A static const invalid handle. */
@@ -121,6 +123,8 @@ private:
 	/** The copied instance of the emitter this handle references. */
 	UPROPERTY()
 	TObjectPtr<UNiagaraEmitter> Instance_DEPRECATED;
+
+	bool bDebugShowBounds = false;
 #endif
 
 	/** The copied instance of the emitter this handle references. */

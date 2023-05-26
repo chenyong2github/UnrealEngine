@@ -141,6 +141,24 @@ void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 			ToggleOrbitCamera(bCachedShouldOrbitCamera);
 			SetUpdateViewportFocus(false);
 		}
+
+		UWorld* World = Component->GetWorld();
+		if (World && !ParticleSystem->bFixedBounds)
+		{
+			FNiagaraSystemInstance* SystemInstance = SystemInstanceController->GetSystemInstance_Unsafe();
+			const TArray<FNiagaraEmitterHandle>& EmitterHandles = ParticleSystem->GetEmitterHandles();
+			for (int32 i=0; i < EmitterHandles.Num(); ++i)
+			{
+				if (!EmitterHandles[i].GetIsEnabled() || !EmitterHandles[i].GetDebugShowBounds())
+				{
+					continue;
+				}
+				const FNiagaraEmitterInstance& EmitterInstance = SystemInstance->GetEmitters()[i].Get();
+				const FTransform& Transform = Component->GetComponentTransform();
+				const FBox EmitterBounds = EmitterInstance.GetBounds();
+				DrawDebugBox(World, EmitterBounds.GetCenter() + Transform.GetLocation(), EmitterBounds.GetExtent(), Transform.GetRotation(), FColor::Green);
+			}
+		}
 	}
 
 	if (NiagaraViewport.IsValid() && NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::Bounds))

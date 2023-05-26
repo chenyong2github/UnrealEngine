@@ -36,6 +36,7 @@ class UNiagaraSequence;
 struct FAssetData;
 class FMenuBuilder;
 class ISequencer;
+class FNiagaraEmitterHandleViewModel;
 class FNiagaraMessageLogViewModel;
 class FNiagaraSystemToolkitParameterPanelViewModel;
 class FNiagaraSystemToolkitParameterDefinitionsPanelViewModel;
@@ -156,6 +157,10 @@ protected:
 
 	void ToggleDrawOption(int32 Element);
 	bool IsDrawOptionEnabled(int32 Element) const;
+
+	bool CanShowEmitterBounds() const;
+	bool IsShowEmitterBounds(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterViewModel) const;
+	void ToggleShowEmitterBounds(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterViewModel);
 
 	void OpenDebugHUD();
 	void OpenDebugOutliner();

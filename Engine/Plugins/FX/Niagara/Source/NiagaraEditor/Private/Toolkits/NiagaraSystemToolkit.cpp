@@ -614,6 +614,24 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateBoundsMenuContent(TSharedRef<
 	
 	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds_SelectedEmitters);
 
+	MenuBuilder.AddMenuSeparator();
+
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterViewModel : SystemViewModel->GetEmitterHandleViewModels())
+	{
+		MenuBuilder.AddMenuEntry(
+			FText::Format(LOCTEXT("ShowEmitterBounds", "Show {0} Emitter Bounds"), EmitterViewModel->GetNameText()),
+			LOCTEXT("ShowEmitterBoundsTooltip", "Shows the emitter bounds."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ToggleShowEmitterBounds, EmitterViewModel),
+				FCanExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::CanShowEmitterBounds),
+				FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsShowEmitterBounds, EmitterViewModel)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+
 	return MenuBuilder.MakeWidget();
 }
 
@@ -871,6 +889,25 @@ void FNiagaraSystemToolkit::OnToggleBounds()
 bool FNiagaraSystemToolkit::IsToggleBoundsChecked() const
 {
 	return IsDrawOptionEnabled(SNiagaraSystemViewport::Bounds);
+}
+
+bool FNiagaraSystemToolkit::CanShowEmitterBounds() const
+{
+	return SystemViewModel->GetSystem().bFixedBounds == false;
+}
+
+bool FNiagaraSystemToolkit::IsShowEmitterBounds(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterViewModel) const
+{
+	FNiagaraEmitterHandle* EmitterHandle = EmitterViewModel->GetEmitterHandle();
+	return EmitterHandle ? EmitterHandle->GetDebugShowBounds() : false;
+}
+
+void FNiagaraSystemToolkit::ToggleShowEmitterBounds(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterViewModel)
+{
+	if (FNiagaraEmitterHandle* EmitterHandle = EmitterViewModel->GetEmitterHandle())
+	{
+		EmitterHandle->SetDebugShowBounds(!EmitterHandle->GetDebugShowBounds());
+	}
 }
 
 void FNiagaraSystemToolkit::ToggleDrawOption(int32 Element)
