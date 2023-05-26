@@ -40,8 +40,8 @@ void ULocalHeightFogComponent::SendRenderTransformCommand()
 		ENQUEUE_RENDER_COMMAND(FUpdateLocalHeightFogSceneProxyTransformCommand)(
 			[SceneProxy, ComponentTransform, HeightOffset](FRHICommandList& RHICmdList)
 			{
+				// Nothing else is needed so that command could actually go.
 				SceneProxy->FogTransform = ComponentTransform;
-				SceneProxy->FogHeightOffset = HeightOffset + ComponentTransform.GetLocation().Z;
 			});
 	}
 }

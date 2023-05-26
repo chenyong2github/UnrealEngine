@@ -40,11 +40,11 @@ class ULocalHeightFogComponent : public USceneComponent
 	float FogHeightOffset = 0.0f;
 
 	/** Controls how strong the radial attenuation of this fog volume is. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.0", UIMax = "4.0", SliderExponent = 3.0, ClampMin = 0.001))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.0", UIMax = "4.0", SliderExponent = 3.0, ClampMin = 0.0))
 	float FogRadialAttenuation = 0.0f;
 
-	/** Controls the directionality of the scattering within this fog volume. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Shading", meta = (UIMin = "0.0", UIMax = "0.999", ClampMin = 0.0, ClampMax = 0.999))
+	/** Controls the phase `G` parameter, describing the directionality of the scattering within this fog volume. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Shading", meta = (DisplayName = "Scattering Distribution", UIMin = "0.0", UIMax = "0.999", ClampMin = 0.0, ClampMax = 0.999))
 	float FogPhaseG = 0.8f;
 
 	/** Controls the albedo of this fog volume. */

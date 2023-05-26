@@ -180,74 +180,79 @@ void RenderLocalHeightFog(
 			LocalHeightFogGPUInstanceDataIt++;
 			LocalHeightFogInstanceCountFinal++;
 		}
-		const uint32 AllLocalHeightFogInstanceBytesFinal = sizeof(FLocalHeightFogGPUInstanceData) * LocalHeightFogInstanceCountFinal;
-		FRDGBufferRef LocalHeightFogGPUInstanceDataBuffer =  CreateStructuredBuffer(GraphBuilder, TEXT("LocalHeightFogGPUInstanceDataBuffer"), 
-			sizeof(FLocalHeightFogGPUInstanceData), LocalHeightFogInstanceCountFinal, LocalHeightFogGPUInstanceData, AllLocalHeightFogInstanceBytesFinal, ERDGInitialDataFlags::NoCopy);
-		FRDGBufferSRVRef LocalHeightFogGPUInstanceDataBufferSRV = GraphBuilder.CreateSRV(LocalHeightFogGPUInstanceDataBuffer);
 
-		FRDGTextureRef SceneColorTexture = SceneTextures.Color.Resolve;
-
-		for (FViewInfo& View : Views)
+		if (LocalHeightFogInstanceCountFinal > 0)
 		{
-			FLocalHeightFogPassParameters* PassParameters = GraphBuilder.AllocParameters<FLocalHeightFogPassParameters>();
+			const uint32 AllLocalHeightFogInstanceBytesFinal = sizeof(FLocalHeightFogGPUInstanceData) * LocalHeightFogInstanceCountFinal;
+			FRDGBufferRef LocalHeightFogGPUInstanceDataBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("LocalHeightFogGPUInstanceDataBuffer"),
+				sizeof(FLocalHeightFogGPUInstanceData), LocalHeightFogInstanceCountFinal, LocalHeightFogGPUInstanceData, AllLocalHeightFogInstanceBytesFinal, ERDGInitialDataFlags::NoCopy);
 
-			PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
-			PassParameters->VS.LocalHeightFogInstances = LocalHeightFogGPUInstanceDataBufferSRV;
+			FRDGBufferSRVRef LocalHeightFogGPUInstanceDataBufferSRV = GraphBuilder.CreateSRV(LocalHeightFogGPUInstanceDataBuffer);
 
-			PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
-			PassParameters->PS.LocalHeightFogInstances = LocalHeightFogGPUInstanceDataBufferSRV;
+			FRDGTextureRef SceneColorTexture = SceneTextures.Color.Resolve;
 
-			PassParameters->SceneTextures = SceneTextures.UniformBuffer;
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ENoAction);
-
-			FLocalHeightFogVS::FPermutationDomain VSPermutationVector;
-			auto VertexShader = View.ShaderMap->GetShader< FLocalHeightFogVS >(VSPermutationVector);
-
-			FLocalHeightFogPS::FPermutationDomain PsPermutationVector;
-			auto PixelShader = View.ShaderMap->GetShader< FLocalHeightFogPS >(PsPermutationVector);
-
-			const FIntRect ViewRect = View.ViewRect;
-
-			ClearUnusedGraphResources(VertexShader, &PassParameters->VS);
-			ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
-
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("RenderLocalHeightFog %u inst.", LocalHeightFogInstanceCount),
-				PassParameters,
-				ERDGPassFlags::Raster,
-				[VertexShader, PixelShader, PassParameters, LocalHeightFogInstanceCount, ViewRect](FRHICommandList& RHICmdList)
+			for (FViewInfo& View : Views)
 			{
-				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+				FLocalHeightFogPassParameters* PassParameters = GraphBuilder.AllocParameters<FLocalHeightFogPassParameters>();
 
-				RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+				PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
+				PassParameters->VS.LocalHeightFogInstances = LocalHeightFogGPUInstanceDataBufferSRV;
 
-				// Render back faces only since camera may intersect
-				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_CW>::GetRHI();
-				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_SourceAlpha>::GetRHI();
-				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+				PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
+				PassParameters->PS.LocalHeightFogInstances = LocalHeightFogGPUInstanceDataBufferSRV;
 
-				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				PassParameters->SceneTextures = SceneTextures.UniformBuffer;
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ENoAction);
 
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+				FLocalHeightFogVS::FPermutationDomain VSPermutationVector;
+				auto VertexShader = View.ShaderMap->GetShader< FLocalHeightFogVS >(VSPermutationVector);
 
-				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
-				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+				FLocalHeightFogPS::FPermutationDomain PsPermutationVector;
+				auto PixelShader = View.ShaderMap->GetShader< FLocalHeightFogPS >(PsPermutationVector);
 
-				RHICmdList.SetStreamSource(0, GetUnitCubeVertexBuffer(), 0);
+				const FIntRect ViewRect = View.ViewRect;
 
-				RHICmdList.DrawIndexedPrimitive( GetUnitCubeIndexBuffer()
-					, 0									//BaseVertexIndex
-					, 0									//FirstInstance
-					, 8									//uint32 NumVertices
-					, 0									//uint32 StartIndex
-					, UE_ARRAY_COUNT(GCubeIndices) / 3	//uint32 NumPrimitives
-					, LocalHeightFogInstanceCount		//uint32 NumInstances
-				);
-			});
+				ClearUnusedGraphResources(VertexShader, &PassParameters->VS);
+				ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
+
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("RenderLocalHeightFog %u inst.", LocalHeightFogInstanceCountFinal),
+					PassParameters,
+					ERDGPassFlags::Raster,
+					[VertexShader, PixelShader, PassParameters, LocalHeightFogInstanceCountFinal, ViewRect](FRHICommandList& RHICmdList)
+				{
+						FGraphicsPipelineStateInitializer GraphicsPSOInit;
+					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+					RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+
+					// Render back faces only since camera may intersect
+					GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_CW>::GetRHI();
+					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_SourceAlpha>::GetRHI();
+					GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
+					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+					SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
+					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+
+					RHICmdList.SetStreamSource(0, GetUnitCubeVertexBuffer(), 0);
+
+					RHICmdList.DrawIndexedPrimitive(GetUnitCubeIndexBuffer()
+						, 0									//BaseVertexIndex
+						, 0									//FirstInstance
+						, 8									//uint32 NumVertices
+						, 0									//uint32 StartIndex
+						, UE_ARRAY_COUNT(GCubeIndices) / 3	//uint32 NumPrimitives
+						, LocalHeightFogInstanceCountFinal	//uint32 NumInstances
+					);
+				});
+			}
 		}
 	}
 }
