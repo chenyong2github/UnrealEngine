@@ -64,7 +64,7 @@ EDataValidationResult UAssetValidator_CustomizableObjects::ValidateLoadedAsset_I
 			AssetFails(InAsset,ErrorMessage,ValidationErrors);
 		}
 
-		const FText ErrorMessage = FText::Format(LOCTEXT("CustomizableObjectsValidator", "Validation compilation of {0} CO failed."),  FText::FromString( CustomizableObjectToValidate->GetName()));
+		const FText ErrorMessage = FText::Format(LOCTEXT("CO_Validation_Failed", "Validation compilation of {0} CO failed."),  FText::FromString( CustomizableObjectToValidate->GetName()));
 		AssetFails(InAsset,ErrorMessage,ValidationErrors);
 	}
 	else
@@ -183,12 +183,12 @@ EDataValidationResult UAssetValidator_CustomizableObjects::IsCustomizableObjectV
 	const FString ReferencedCOName = FString(TEXT("\"" +  InCustomizableObject->GetName() + "\""));
 	for (const FText& ValidationError : CachedValidationErrors)
 	{
-		FText ComposedMessage = FText::Format(LOCTEXT("CustomizableObjectsValidator", "Customizable Object : {0} {1}"),  FText::FromString(ReferencedCOName),ValidationError );
+		FText ComposedMessage = FText::Format(LOCTEXT("CO_Compilation_Error", "Customizable Object : {0} {1}"),  FText::FromString(ReferencedCOName),ValidationError );
 		OutValidationErrors.Add(ComposedMessage);
 	}
 	for (const FText& ValidationWarning : CachedValidationWarnings)
 	{
-		FText ComposedMessage = FText::Format(LOCTEXT("CustomizableObjectsValidator", "Customizable Object : {0} {1}"),  FText::FromString(ReferencedCOName),ValidationWarning );
+		FText ComposedMessage = FText::Format(LOCTEXT("CO_Compilation_nWarning", "Customizable Object : {0} {1}"),  FText::FromString(ReferencedCOName),ValidationWarning );
 		OutValidationWarnings.Add(ComposedMessage);
 	}
 	

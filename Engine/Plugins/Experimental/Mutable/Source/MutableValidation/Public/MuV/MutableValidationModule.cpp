@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
 #include "Modules/ModuleManager.h"
 #include "MuV/MutableValidationSettings.h"
 
-
-#define LOCTEXT_NAMESPACE "MutableSettings"
+#define LOCTEXT_NAMESPACE "MutableValidationSettings"
 
 /**
  * StaticMesh editor module
@@ -47,8 +44,8 @@ void FMutableValidationModule::StartupModule()
 	if (SettingsModule != nullptr)
 	{ 		
 		 SettingsSectionPtr = SettingsModule->RegisterSettings("Project", "Plugins", "MutableValidationSettings",
-			LOCTEXT("MutableSettings_Setting", "Mutable Validation"),
-			LOCTEXT("MutableSettings_Setting_Desc", "Mutable resources validation settings"),
+			LOCTEXT("MutableValidationSettings_Setting", "Mutable Validation"),
+			LOCTEXT("MutableValidatioinSettings_Setting_Desc", "Mutable resources validation settings"),
 			GetMutableDefault<UMutableValidationSettings>()
 		);
 		
