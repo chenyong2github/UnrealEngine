@@ -1072,6 +1072,8 @@ public:
 				ColumnPitchInPixels,
 				/* out */ Array);
 
+			RHICmdList.UnmapStagingSurface(StagingTexture, GPUIndex);
+
 			DumpResourceBinaryToFile(Array.GetData(), Array.Num(), DumpFilePath);
 		}
 		else
