@@ -201,6 +201,8 @@ FDefaultTemporalUpscaler::FOutputs AddThirdPartyTemporalUpscalerPasses(
 	const FViewInfo& View,
 	const FDefaultTemporalUpscaler::FInputs& Inputs)
 {
+	using UE::Renderer::Private::ITemporalUpscaler;
+
 	const ITemporalUpscaler* UpscalerToUse = View.Family->GetTemporalUpscalerInterface();
 	check(UpscalerToUse);
 

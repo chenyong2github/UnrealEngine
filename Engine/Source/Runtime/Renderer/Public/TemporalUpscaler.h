@@ -4,7 +4,10 @@
 
 #include "ScreenPass.h"
 
-/** Interface for the main temporal upscaling algorithm. */
+namespace UE::Renderer::Private
+{
+
+/** Interface for implementing third party temporal upscaler. */
 class RENDERER_API ITemporalUpscaler : public ISceneViewFamilyExtention
 {
 public:
@@ -79,3 +82,5 @@ public:
 
 	virtual ITemporalUpscaler* Fork_GameThread(const class FSceneViewFamily& ViewFamily) const = 0;
 };
+
+} // namespace UE::Renderer::Private

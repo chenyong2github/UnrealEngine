@@ -1134,7 +1134,7 @@ struct FPreviousViewInfo
 	FTSRHistory TSRHistory;
 
 	// Custom Temporal AA result of last frame, used by plugins
-	TRefCountPtr<ITemporalUpscaler::IHistory> ThirdPartyTemporalUpscalerHistory;
+	TRefCountPtr<UE::Renderer::Private::ITemporalUpscaler::IHistory> ThirdPartyTemporalUpscalerHistory;
 
 	// Half resolution version temporal AA result of last frame
 	TRefCountPtr<IPooledRenderTarget> HalfResTemporalAAHistory;

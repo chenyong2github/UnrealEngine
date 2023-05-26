@@ -229,7 +229,7 @@ struct FVisualizeTemporalUpscalerInputs
 
 	// Temporal upscaler used and its inputs and outputs.
 	EMainTAAPassConfig TAAConfig = EMainTAAPassConfig::Disabled;
-	const ITemporalUpscaler* UpscalerUsed = nullptr;
+	const UE::Renderer::Private::ITemporalUpscaler* UpscalerUsed = nullptr;
 	FDefaultTemporalUpscaler::FInputs Inputs;
 	FDefaultTemporalUpscaler::FOutputs Outputs;
 };

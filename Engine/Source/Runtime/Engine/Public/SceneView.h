@@ -41,7 +41,13 @@ class FSceneViewFamily;
 class FVolumetricFogViewResources;
 class ISceneRenderer;
 class ISpatialUpscaler;
+
+namespace UE::Renderer::Private
+{
+
 class ITemporalUpscaler;
+
+}
 
 class FRenderTarget;
 
@@ -2178,14 +2184,14 @@ public:
 		return ViewExtensionData;
 	}
 
-	FORCEINLINE void SetTemporalUpscalerInterface(ITemporalUpscaler* InTemporalUpscalerInterface)
+	FORCEINLINE void SetTemporalUpscalerInterface(UE::Renderer::Private::ITemporalUpscaler* InTemporalUpscalerInterface)
 	{
 		check(InTemporalUpscalerInterface);
 		checkf(TemporalUpscalerInterface == nullptr, TEXT("View family already had a temporal upscaler assigned."));
 		TemporalUpscalerInterface = InTemporalUpscalerInterface;
 	}
 
-	FORCEINLINE const ITemporalUpscaler* GetTemporalUpscalerInterface() const
+	FORCEINLINE const UE::Renderer::Private::ITemporalUpscaler* GetTemporalUpscalerInterface() const
 	{
 		return TemporalUpscalerInterface;
 	}
@@ -2228,7 +2234,7 @@ private:
 	ISceneViewFamilyScreenPercentage* ScreenPercentageInterface;
 
 	/** Renderer private interfaces, automatically have same lifetime as FSceneViewFamily. */
-	ITemporalUpscaler* TemporalUpscalerInterface;
+	UE::Renderer::Private::ITemporalUpscaler* TemporalUpscalerInterface;
 	ISpatialUpscaler* PrimarySpatialUpscalerInterface;
 	ISpatialUpscaler* SecondarySpatialUpscalerInterface;
 
