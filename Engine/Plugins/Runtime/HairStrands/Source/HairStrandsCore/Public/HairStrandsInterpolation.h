@@ -51,8 +51,4 @@ void ComputeHairStrandsInterpolation(
 	int32 LODIndex,
 	FHairStrandClusterData* ClusterData);
 
-void RegisterClusterData(
-	FHairGroupInstance* Instance,
-	FHairStrandClusterData* InClusterData);
-
 HAIRSTRANDSCORE_API void ComputeInterpolationWeights(UGroomBindingAsset* BindingAsset, FSkeletalMeshRenderData* TargetRenderData, TArray<FRWBuffer>& TransferedPositions);

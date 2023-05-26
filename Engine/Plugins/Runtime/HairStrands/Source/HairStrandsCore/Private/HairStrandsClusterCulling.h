@@ -1,24 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	HairStrandsCulling.h: Hair strands culling implementation.
-=============================================================================*/
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
 #include "HairStrandsInterface.h"
-#include "SceneRendering.h"
 
 struct FHairCullingParams
 {
 	bool bCullingProcessSkipped	= false;
 };
 
+struct FHairGroupInstance;
+struct FHairStrandClusterData;
+class FViewInfo;
+class FGlobalShaderMap;
+class FRDGBuilder;
+
+void AddInstanceToClusterData(
+	FHairGroupInstance* In,
+	FHairStrandClusterData& Out);
+
 void ComputeHairStrandsClustersCulling(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap& ShaderMap,
-	const TArray<FViewInfo>& Views,
-	const FHairCullingParams& CullingParameters,
+	const TArray<const FSceneView*>& Views,
 	FHairStrandClusterData& ClusterDatas);

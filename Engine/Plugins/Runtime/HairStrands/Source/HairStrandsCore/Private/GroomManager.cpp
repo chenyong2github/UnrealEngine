@@ -26,6 +26,8 @@
 #include "GroomCacheData.h"
 #include "SceneInterface.h"
 #include "PrimitiveSceneInfo.h"
+#include "HairStrandsClusterCulling.h"
+#include "GroomVisualizationData.h"
 
 static int32 GHairStrandsMinLOD = 0;
 static FAutoConsoleVariableRef CVarGHairStrandsMinLOD(TEXT("r.HairStrands.MinLOD"), GHairStrandsMinLOD, TEXT("Clamp the min hair LOD to this value, preventing to reach lower/high-quality LOD."), ECVF_Scalability);
@@ -437,8 +439,7 @@ static void RunHairStrandsInterpolation_Guide(
 	const uint32 ViewUniqueID,
 	const FHairStrandsInstances& Instances,
 	const FShaderPrintData* ShaderPrintData,
-	FGlobalShaderMap* ShaderMap,
-	FHairStrandClusterData* ClusterData)
+	FGlobalShaderMap* ShaderMap)
 {
 	check(IsInRenderingThread());
 
@@ -455,24 +456,60 @@ static void RunHairStrandsInterpolation_Guide(
 		ShaderPrintData,
 		ShaderMap,
 		EHairStrandsInterpolationType::SimulationStrands,
-		ClusterData);
+		nullptr);
 }
+
+void AddDrawDebugClusterPass(
+	FRDGBuilder& GraphBuilder,
+	const FSceneView& View,
+	FGlobalShaderMap* ShaderMap,
+	const FShaderPrintData* ShaderPrintData,
+	EGroomViewMode ViewMode,
+	FHairStrandClusterData& HairClusterData);
 
 static void RunHairStrandsInterpolation_Strands(
 	FRDGBuilder& GraphBuilder,
 	FSceneInterface* Scene,
+	const TArray<const FSceneView*>& Views, 
 	const FSceneView* View,
 	const uint32 ViewUniqueID,
 	const FHairStrandsInstances& Instances,
 	const FShaderPrintData* ShaderPrintData,
-	FGlobalShaderMap* ShaderMap,
-	FHairStrandClusterData* ClusterData)
+	FGlobalShaderMap* ShaderMap)
 {
 	check(IsInRenderingThread());
 
 	DECLARE_GPU_STAT(HairStrandsInterpolation);
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsInterpolation");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsInterpolation);
+
+	FHairStrandClusterData ClusterData;
+	if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Scene->GetShaderPlatform()))
+	{
+		for (FHairStrandsInstance* AbstractInstance : Instances)
+		{
+			FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+			if (Instance->GeometryType == EHairGeometryType::Strands && Instance->Strands.IsValid())
+			{
+				if (Instance->Strands.bCullingEnable)
+				{
+					AddInstanceToClusterData(Instance, ClusterData);
+				}
+				else
+				{
+					Instance->HairGroupPublicData->SetCullingResultAvailable(false);
+				}
+			}
+		}
+		ComputeHairStrandsClustersCulling(GraphBuilder, *ShaderMap, Views, ClusterData);
+
+		// Run cluster debug view here (instead of GroomDebug.h/.cpp, as we need to have the (transient) cluster data 
+		const EGroomViewMode ViewMode = GetGroomViewMode(*View);
+		if (ViewMode == EGroomViewMode::Cluster || ViewMode == EGroomViewMode::ClusterAABB)
+		{
+			AddDrawDebugClusterPass(GraphBuilder, *View, ShaderMap, ShaderPrintData, ViewMode, ClusterData);
+		}
+	}
 
 	RunInternalHairStrandsInterpolation(
 		GraphBuilder,
@@ -483,33 +520,12 @@ static void RunHairStrandsInterpolation_Strands(
 		ShaderPrintData,
 		ShaderMap,
 		EHairStrandsInterpolationType::RenderStrands,
-		ClusterData);
+		&ClusterData);
 }
 
 bool IsHairStrandsContinousLODEnabled()
 {
 	return GHairStrands_ContinousLOD > 0;
-}
-
-static void RunHairStrandsGatherCluster(
-	const FHairStrandsInstances& Instances,
-	FHairStrandClusterData* ClusterData)
-{
-	for (FHairStrandsInstance* AbstractInstance : Instances)
-	{
-		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
-		if (Instance->GeometryType == EHairGeometryType::Strands && Instance->Strands.IsValid())
-		{
-			if (Instance->Strands.bCullingEnable)
-			{
-				RegisterClusterData(Instance, ClusterData);
-			}
-			else
-			{
-				Instance->HairGroupPublicData->SetCullingResultAvailable(false);
-			}
-		}
-	}
 }
 
 // Return the LOD which should be used for a given screen size and LOD bias value
@@ -1245,14 +1261,7 @@ void ProcessHairStrandsBookmark(
 			Parameters.ViewUniqueID,
 			Instances,
 			Parameters.ShaderPrintData,
-			Parameters.ShaderMap,
-			&Parameters.HairClusterData);
-	}
-	else if (Bookmark == EHairStrandsBookmark::ProcessGatherCluster)
-	{
-		RunHairStrandsGatherCluster(
-			Instances,
-			&Parameters.HairClusterData);
+			Parameters.ShaderMap);
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessStrandsInterpolation)
 	{
@@ -1260,12 +1269,12 @@ void ProcessHairStrandsBookmark(
 		RunHairStrandsInterpolation_Strands(
 			*GraphBuilder,
 			Parameters.Scene,
+			Parameters.AllViews,
 			Parameters.View,
 			Parameters.ViewUniqueID,
 			Instances,
 			Parameters.ShaderPrintData,
-			Parameters.ShaderMap,
-			&Parameters.HairClusterData);
+			Parameters.ShaderMap);
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessDebug)
 	{

@@ -17,6 +17,7 @@
 #include "ShaderCompilerCore.h"
 #include "GroomVisualizationData.h"
 #include "GroomCacheData.h"
+#include "HairStrandsClusterCulling.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -455,6 +456,98 @@ static void AddVoxelPlainRaymarchingPass(
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VoxelPlainRaymarching"), ComputeShader, Parameters, DispatchCount);
 	}
 #endif
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FDrawDebugClusterAABBCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FDrawDebugClusterAABBCS);
+	SHADER_USE_PARAMETER_STRUCT(FDrawDebugClusterAABBCS, FGlobalShader);
+
+	class FDebugAABBBuffer : SHADER_PERMUTATION_INT("PERMUTATION_DEBUGAABBBUFFER", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FDebugAABBBuffer>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_SRV(Buffer, ClusterAABBBuffer)
+		SHADER_PARAMETER_SRV(Buffer, GroupAABBBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, CulledDispatchIndirectParametersClusterCountBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, ClusterDebugInfoBuffer)
+		SHADER_PARAMETER_SRV(Buffer, CulledDrawIndirectParameters)
+		SHADER_PARAMETER(uint32, ClusterCount)
+		SHADER_PARAMETER(uint32, TriangleCount)
+		SHADER_PARAMETER(uint32, HairGroupId)
+		SHADER_PARAMETER(int32, ClusterDebugMode)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
+		END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_DRAWDEBUGAABB"), 1);
+
+		// Skip optimization for avoiding long compilation time due to large UAV writes
+		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FDrawDebugClusterAABBCS, "/Engine/Private/HairStrands/HairStrandsClusterCulling.usf", "MainDrawDebugAABBCS", SF_Compute);
+
+void AddDrawDebugClusterPass(
+	FRDGBuilder& GraphBuilder,
+	const FSceneView& View,
+	FGlobalShaderMap* ShaderMap,
+	const FShaderPrintData* ShaderPrintData,
+	EGroomViewMode ViewMode,
+	FHairStrandClusterData& HairClusterData)
+{
+	// Force ShaderPrint on.
+	ShaderPrint::SetEnabled(true);
+	ShaderPrint::RequestSpaceForLines(64000u);
+	ShaderPrint::RequestSpaceForCharacters(2000);
+	if (!ShaderPrintData) { return; }
+
+	const bool bDebugAABB = ViewMode == EGroomViewMode::ClusterAABB;
+
+	uint32 DataIndex = 0;
+	for (const FHairStrandClusterData::FHairGroup& HairGroupClusters : HairClusterData.HairGroups)
+	{
+		if (HairGroupClusters.CulledClusterCountBuffer)
+		{
+			FRDGExternalBuffer& DrawIndirectBuffer = HairGroupClusters.HairGroupPublicPtr->GetDrawIndirectBuffer();
+
+			FDrawDebugClusterAABBCS::FPermutationDomain Permutation;
+			Permutation.Set<FDrawDebugClusterAABBCS::FDebugAABBBuffer>(bDebugAABB ? 1 : 0);
+			TShaderMapRef<FDrawDebugClusterAABBCS> ComputeShader(ShaderMap, Permutation);
+
+			FDrawDebugClusterAABBCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDrawDebugClusterAABBCS::FParameters>();
+			Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
+			Parameters->ClusterCount = HairGroupClusters.ClusterCount;
+			Parameters->TriangleCount = HairGroupClusters.VertexCount * 2; // VertexCount is actually the number of control points
+			Parameters->HairGroupId = DataIndex++;
+			Parameters->ClusterDebugMode = ViewMode == EGroomViewMode::Cluster ? 1 : (ViewMode == EGroomViewMode::ClusterAABB ? 2 : 0);
+			Parameters->ClusterAABBBuffer = HairGroupClusters.ClusterAABBBuffer->SRV;
+			Parameters->CulledDispatchIndirectParametersClusterCountBuffer = GraphBuilder.CreateSRV(HairGroupClusters.CulledClusterCountBuffer, EPixelFormat::PF_R32_UINT);
+			Parameters->CulledDrawIndirectParameters = DrawIndirectBuffer.SRV;
+			Parameters->GroupAABBBuffer = HairGroupClusters.GroupAABBBuffer->SRV;
+
+			if (HairGroupClusters.ClusterDebugInfoBuffer && bDebugAABB)
+			{
+				FRDGBufferRef ClusterDebugInfoBuffer = GraphBuilder.RegisterExternalBuffer(HairGroupClusters.ClusterDebugInfoBuffer);
+				Parameters->ClusterDebugInfoBuffer = GraphBuilder.CreateSRV(ClusterDebugInfoBuffer);
+			}
+			//ShaderPrint::SetParameters(GraphBuilder, ShaderPrintData, Parameters->ShaderPrintParameters);
+			ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderPrintParameters);
+
+			const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(Parameters->ClusterCount, 1, 1), FIntVector(64, 1, 1));// FIX ME, this could get over 65535
+			FComputeShaderUtils::AddPass(
+				GraphBuilder, RDG_EVENT_NAME("DrawDebugClusterAABB"),
+				ComputeShader, Parameters, DispatchCount);
+		}
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1235,23 +1328,31 @@ void RunHairStrandsDebug(
 		}
 	}
 
-	for (FHairStrandsInstance* AbstractInstance : Instances)
-	{
-		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+	const bool bEnabled =
+		ViewMode == EGroomViewMode::CardGuides ||
+		ViewMode == EGroomViewMode::SimHairStrands ||
+		ViewMode == EGroomViewMode::ControlPoints;
 
-		if (ViewMode == EGroomViewMode::CardGuides)
+	if (bEnabled)
+	{	
+		for (FHairStrandsInstance* AbstractInstance : Instances)
 		{
-			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, true /*bDeformed*/, true);
-		}
-
-		if (ViewMode == EGroomViewMode::SimHairStrands)
-		{
-			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, true /*bDeformed*/, false);
-		}
-
-		if (ViewMode == EGroomViewMode::ControlPoints)
-		{
-			AddDrawDebugStrandsCVsPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, SceneColorTexture, SceneDepthTexture);
+			FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+	
+			if (ViewMode == EGroomViewMode::CardGuides)
+			{
+				AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, true /*bDeformed*/, true);
+			}
+	
+			if (ViewMode == EGroomViewMode::SimHairStrands)
+			{
+				AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, true /*bDeformed*/, false);
+			}
+	
+			if (ViewMode == EGroomViewMode::ControlPoints)
+			{
+				AddDrawDebugStrandsCVsPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, SceneColorTexture, SceneDepthTexture);
+			}
 		}
 	}
 }

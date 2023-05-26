@@ -546,9 +546,6 @@ struct FHairStrandsBookmarkParameters
 	bool bHzbRequest = false;
 	uint32 FrameIndex = ~0;
 
-	// Temporary
-	FHairStrandClusterData HairClusterData;
-
 	inline bool HasInstances() const { return Instances != nullptr && Instances->Num() > 0; }
 };
 

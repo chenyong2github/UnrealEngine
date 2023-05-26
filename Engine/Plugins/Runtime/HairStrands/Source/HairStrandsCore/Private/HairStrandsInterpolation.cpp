@@ -1532,35 +1532,6 @@ static void BuildHairAccelerationStructure_Meshes(FRHICommandList& RHICmdList,
 }
 #endif // RHI_RAYTRACING
 
-
-void RegisterClusterData(FHairGroupInstance* Instance, FHairStrandClusterData* InClusterData)
-{
-	// Initialize group cluster data for culling by the renderer
-	const int32 ClusterDataGroupIndex = InClusterData->HairGroups.Num();
-	FHairStrandClusterData::FHairGroup& HairGroupCluster = InClusterData->HairGroups.Emplace_GetRef();
-	HairGroupCluster.ClusterCount = Instance->HairGroupPublicData->GetClusterCount();
-	HairGroupCluster.VertexCount = Instance->HairGroupPublicData->RestPointCount * HAIR_POINT_TO_VERTEX; // Instance->HairGroupPublicData->GetActiveStrandsPointCount() ?
-	HairGroupCluster.GroupAABBBuffer = &Instance->HairGroupPublicData->GetGroupAABBBuffer();
-	HairGroupCluster.ClusterAABBBuffer = &Instance->HairGroupPublicData->GetClusterAABBBuffer();
-
-	HairGroupCluster.ClusterInfoBuffer = &Instance->Strands.ClusterCullingResource->ClusterInfoBuffer;
-	HairGroupCluster.ClusterLODInfoBuffer = &Instance->Strands.ClusterCullingResource->ClusterLODInfoBuffer;
-	HairGroupCluster.CurveToClusterIdBuffer = &Instance->Strands.ClusterCullingResource->CurveToClusterIdBuffer;
-	HairGroupCluster.ClusterVertexIdBuffer = &Instance->Strands.ClusterCullingResource->ClusterVertexIdBuffer;
-
-	HairGroupCluster.HairGroupPublicPtr = Instance->HairGroupPublicData;
-	HairGroupCluster.LODBias  = Instance->HairGroupPublicData->GetLODBias();
-	HairGroupCluster.LODIndex = Instance->HairGroupPublicData->GetLODIndex();
-	HairGroupCluster.bVisible = Instance->HairGroupPublicData->GetLODVisibility();
-
-	// These buffer are create during the culling pass
-	// HairGroupCluster.ClusterIdBuffer = nullptr;
-	// HairGroupCluster.ClusterIndexOffsetBuffer = nullptr;
-	// HairGroupCluster.ClusterIndexCountBuffer = nullptr;
-
-	HairGroupCluster.HairGroupPublicPtr->ClusterDataIndex = ClusterDataGroupIndex;
-}
-
 static void ConvertHairStrandsVFParameters(
 	FRDGBuilder* GraphBuilder,
 	FRDGImportedBuffer& OutBuffer,

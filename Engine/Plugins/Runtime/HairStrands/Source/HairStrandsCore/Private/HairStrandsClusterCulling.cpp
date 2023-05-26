@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HairStrandsClusters.h"
-#include "HairStrandsUtils.h"
-#include "SceneRendering.h"
-#include "SceneManagement.h"
+#include "HairStrandsClusterCulling.h"
 #include "RendererInterface.h"
 #include "Shader.h"
+#include "RenderGraph.h"
 #include "GlobalShader.h"
 #include "ShaderParameters.h"
 #include "ShaderParameterStruct.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "GroomVisualizationData.h"
+#include "GroomInstance.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -24,6 +24,32 @@ bool IsHairStrandsClusterCullingEnable()
 	// At the moment it is not possible to disable cluster culling, as this pass is in charge of LOD selection, 
 	// and preparing the buffer which will be need for the cluster AABB pass (used later on by the voxelization pass)
 	return true;
+}
+
+// Temp: to remove
+enum EHairVisibilityVendor
+{
+	HairVisibilityVendor_AMD,
+	HairVisibilityVendor_NVIDIA,
+	HairVisibilityVendor_INTEL,
+	HairVisibilityVendorCount
+};
+
+// Temp: to remove
+inline EHairVisibilityVendor GetVendor()
+{
+	return IsRHIDeviceAMD() ? HairVisibilityVendor_AMD : (IsRHIDeviceNVIDIA() ? HairVisibilityVendor_NVIDIA : HairVisibilityVendor_INTEL);
+}
+// Temp: to remove
+static uint32 GetVendorOptimalGroupSize1D()
+{
+	switch (GetVendor())
+	{
+		case HairVisibilityVendor_AMD:		return 64;
+		case HairVisibilityVendor_NVIDIA:	return 32;
+		case HairVisibilityVendor_INTEL:	return 64;
+		default:							return 64;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -241,8 +267,7 @@ static FMatrix CapturedProjMatrix;
 static void AddClusterCullingPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	const FViewInfo& View,
-	const FHairCullingParams& CullingParameters,
+	const FSceneView& View,
 	FHairStrandClusterData::FHairGroup& ClusterData)
 {
 	FRDGBufferRef DispatchIndirectParametersClusterCount = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(), TEXT("Hair.DispatchIndirectParametersClusterCount"));
@@ -541,8 +566,7 @@ static void AddClusterResetLod0(
 void ComputeHairStrandsClustersCulling(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap& ShaderMap,
-	const TArray<FViewInfo>& Views,
-	const FHairCullingParams& CullingParameters,
+	const TArray<const FSceneView*>& Views, 
 	FHairStrandClusterData& ClusterDatas)
 {
 	DECLARE_GPU_STAT(HairStrandsClusterCulling);
@@ -550,7 +574,7 @@ void ComputeHairStrandsClustersCulling(
 	TRACE_CPUPROFILER_EVENT_SCOPE(ComputeHairStrandsClustersCulling);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsClusterCulling);
 
-	for (const FViewInfo& View : Views)
+	for (const FSceneView* View : Views)
 	{
 		// TODO use compute overlap (will need to split AddClusterCullingPass)
 		for (FHairStrandClusterData::FHairGroup& ClusterData : ClusterDatas.HairGroups)
@@ -563,11 +587,38 @@ void ComputeHairStrandsClustersCulling(
 			AddClusterCullingPass(
 				GraphBuilder,
 				&ShaderMap,
-				View,
-				CullingParameters,
+				*View,
 				ClusterData);
 		}
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void AddInstanceToClusterData(FHairGroupInstance* In, FHairStrandClusterData& Out)
+{
+	// Initialize group cluster data for culling by the renderer
+	const int32 ClusterDataGroupIndex = Out.HairGroups.Num();
+	FHairStrandClusterData::FHairGroup& HairGroupCluster = Out.HairGroups.Emplace_GetRef();
+	HairGroupCluster.ClusterCount = In->HairGroupPublicData->GetClusterCount();
+	HairGroupCluster.VertexCount = In->HairGroupPublicData->RestPointCount * HAIR_POINT_TO_VERTEX; // Instance->HairGroupPublicData->GetActiveStrandsPointCount() ?
+	HairGroupCluster.GroupAABBBuffer = &In->HairGroupPublicData->GetGroupAABBBuffer();
+	HairGroupCluster.ClusterAABBBuffer = &In->HairGroupPublicData->GetClusterAABBBuffer();
+
+	HairGroupCluster.ClusterInfoBuffer = &In->Strands.ClusterCullingResource->ClusterInfoBuffer;
+	HairGroupCluster.ClusterLODInfoBuffer = &In->Strands.ClusterCullingResource->ClusterLODInfoBuffer;
+	HairGroupCluster.CurveToClusterIdBuffer = &In->Strands.ClusterCullingResource->CurveToClusterIdBuffer;
+	HairGroupCluster.ClusterVertexIdBuffer = &In->Strands.ClusterCullingResource->ClusterVertexIdBuffer;
+
+	HairGroupCluster.HairGroupPublicPtr = In->HairGroupPublicData;
+	HairGroupCluster.LODBias  = In->HairGroupPublicData->GetLODBias();
+	HairGroupCluster.LODIndex = In->HairGroupPublicData->GetLODIndex();
+	HairGroupCluster.bVisible = In->HairGroupPublicData->GetLODVisibility();
+
+	// These buffer are create during the culling pass
+	// HairGroupCluster.ClusterIdBuffer = nullptr;
+	// HairGroupCluster.ClusterIndexOffsetBuffer = nullptr;
+	// HairGroupCluster.ClusterIndexCountBuffer = nullptr;
+
+	HairGroupCluster.HairGroupPublicPtr->ClusterDataIndex = ClusterDataGroupIndex;
+}

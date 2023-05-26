@@ -10,8 +10,6 @@
 #include "RendererInterface.h"
 #include "Shader.h"
 #include "HairStrandsUtils.h"
-#include "HairStrandsCluster.h"
-#include "HairStrandsClusters.h"
 #include "HairStrandsLUT.h"
 #include "HairStrandsDeepShadow.h"
 #include "HairStrandsVoxelization.h"

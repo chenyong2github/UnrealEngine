@@ -1064,125 +1064,11 @@ class FHairVisibilityDebugPPLLCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FHairVisibilityDebugPPLLCS, "/Engine/Private/HairStrands/HairStrandsDebug.usf", "VisibilityDebugPPLLCS", SF_Compute);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FDrawDebugClusterAABBCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FDrawDebugClusterAABBCS);
-	SHADER_USE_PARAMETER_STRUCT(FDrawDebugClusterAABBCS, FGlobalShader);
-
-	class FDebugAABBBuffer : SHADER_PERMUTATION_INT("PERMUTATION_DEBUGAABBBUFFER", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FDebugAABBBuffer>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_SRV(Buffer, ClusterAABBBuffer)
-		SHADER_PARAMETER_SRV(Buffer, GroupAABBBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, CulledDispatchIndirectParametersClusterCountBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, ClusterDebugInfoBuffer)
-		SHADER_PARAMETER_SRV(Buffer, CulledDrawIndirectParameters)
-		SHADER_PARAMETER(uint32, ClusterCount)
-		SHADER_PARAMETER(uint32, TriangleCount)
-		SHADER_PARAMETER(uint32, HairGroupId)
-		SHADER_PARAMETER(int32, ClusterDebugMode)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
-	END_SHADER_PARAMETER_STRUCT()
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_DRAWDEBUGAABB"), 1);
-
-		// Skip optimization for avoiding long compilation time due to large UAV writes
-		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FDrawDebugClusterAABBCS, "/Engine/Private/HairStrands/HairStrandsClusterCulling.usf", "MainDrawDebugAABBCS", SF_Compute);
-
-static void AddDrawDebugClusterPass(
-	FRDGBuilder& GraphBuilder,
-	const FHairStrandClusterData& HairClusterData,
-	const FViewInfo& View)
-{
-	const EGroomViewMode ViewMode = GetGroomViewMode(View);
-	const bool bDebugEnable = ViewMode == EGroomViewMode::ClusterAABB || ViewMode == EGroomViewMode::Cluster;
-	if (!bDebugEnable)
-	{
-		return;
-	}
-	
-	if (!TryEnableShaderDrawAndShaderPrint(View, 64000u, 2000))
-	{
-		return;
-	}
-
-	for (const FHairStrandsMacroGroupData& MacroGroupData : View.HairStrandsViewData.MacroGroupDatas)
-	{
-		const bool bDebugAABB = GetGroomViewMode(View) == EGroomViewMode::ClusterAABB;
-
-		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
-		{
-			if (!PrimitiveInfo.Mesh || PrimitiveInfo.Mesh->Elements.Num() == 0)
-			{
-				continue;
-			}
-
-			for (int DataIndex = 0; DataIndex < HairClusterData.HairGroups.Num(); ++DataIndex)
-			{
-				const FHairStrandClusterData::FHairGroup& HairGroupClusters = HairClusterData.HairGroups[DataIndex];
-
-				// Find a better/less hacky way
-				if (PrimitiveInfo.PublicDataPtr != HairGroupClusters.HairGroupPublicPtr)
-				{
-					continue;
-				}
-
-				if (ShaderPrint::IsEnabled(View.ShaderPrintData) && HairGroupClusters.CulledClusterCountBuffer)
-				{
-					FRDGExternalBuffer& DrawIndirectBuffer = HairGroupClusters.HairGroupPublicPtr->GetDrawIndirectBuffer();
-
-					FDrawDebugClusterAABBCS::FPermutationDomain Permutation;
-					Permutation.Set<FDrawDebugClusterAABBCS::FDebugAABBBuffer>(bDebugAABB ? 1 : 0);
-					TShaderMapRef<FDrawDebugClusterAABBCS> ComputeShader(View.ShaderMap, Permutation);
-
-					FDrawDebugClusterAABBCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDrawDebugClusterAABBCS::FParameters>();
-					Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
-					Parameters->ClusterCount = HairGroupClusters.ClusterCount;
-					Parameters->TriangleCount = HairGroupClusters.VertexCount * 2; // VertexCount is actually the number of control points
-					Parameters->HairGroupId = DataIndex;
-					Parameters->ClusterDebugMode = ViewMode == EGroomViewMode::Cluster ? 1 : (ViewMode == EGroomViewMode::ClusterAABB ? 2 : 0);
-					Parameters->ClusterAABBBuffer = HairGroupClusters.ClusterAABBBuffer->SRV;
-					Parameters->CulledDispatchIndirectParametersClusterCountBuffer = GraphBuilder.CreateSRV(HairGroupClusters.CulledClusterCountBuffer, EPixelFormat::PF_R32_UINT);
-					Parameters->CulledDrawIndirectParameters = DrawIndirectBuffer.SRV;
-					Parameters->GroupAABBBuffer = HairGroupClusters.GroupAABBBuffer->SRV;
-
-					if (HairGroupClusters.ClusterDebugInfoBuffer && bDebugAABB)
-					{
-						FRDGBufferRef ClusterDebugInfoBuffer = GraphBuilder.RegisterExternalBuffer(HairGroupClusters.ClusterDebugInfoBuffer);
-						Parameters->ClusterDebugInfoBuffer = GraphBuilder.CreateSRV(ClusterDebugInfoBuffer);
-					}
-					ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintParameters);
-
-					check(Parameters->ClusterCount / 64u <= uint32(GRHIMaxDispatchThreadGroupsPerDimension.X));
-					const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(Parameters->ClusterCount, 1, 1), FIntVector(64, 1, 1));// FIX ME, this could get over 65535
-					FComputeShaderUtils::AddPass(
-						GraphBuilder, RDG_EVENT_NAME("DrawDebugClusterAABB"),
-						ComputeShader, Parameters, DispatchCount);
-				}
-			}
-		}
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 uint32 GetHairStrandsMeanSamplePerPixel(EShaderPlatform In);
 static void InternalRenderHairStrandsDebugInfo(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	FViewInfo& View,
-	const struct FHairStrandClusterData& HairClusterData,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture)
 {
@@ -1365,11 +1251,6 @@ static void InternalRenderHairStrandsDebugInfo(
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::PPLLDebug"), ComputeShader, PassParameters, FIntVector::DivideAndRoundUp(TextureSize, FIntVector(8, 8, 1)));
 	}
 
-	if (ViewMode == EGroomViewMode::Cluster || ViewMode == EGroomViewMode::ClusterAABB)
-	{
-		AddDrawDebugClusterPass(GraphBuilder, HairClusterData, View);
-	}
-
 	if (ViewMode != EGroomViewMode::None)
 	{
 		AddDrawCanvasPass(GraphBuilder, {}, View, SceneColor, [&View, YStep, ViewMode](FCanvas& Canvas)
@@ -1391,13 +1272,12 @@ void RenderHairStrandsDebugInfo(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	TArrayView<FViewInfo> Views,
-	const struct FHairStrandClusterData& HairClusterData,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture)
 {
 	bool bHasHairData = false;
 	for (FViewInfo& View : Views)
 	{
-		InternalRenderHairStrandsDebugInfo(GraphBuilder, Scene, View, HairClusterData, SceneColorTexture, SceneDepthTexture);
+		InternalRenderHairStrandsDebugInfo(GraphBuilder, Scene, View, SceneColorTexture, SceneDepthTexture);
 	}
 }
