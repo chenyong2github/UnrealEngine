@@ -14,6 +14,7 @@
 #include "Widgets/SToolTip.h"
 #include "DesktopPlatformModule.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/FileManager.h"
 #include "Logging/MessageLog.h"
 
 #include "Insights/Common/InsightsStyle.h"
@@ -125,30 +126,12 @@ void SAssetTableTreeView::RebuildTree(bool bResync)
 
 	if (bResync || TableTreeNodes.Num() != PreviousNodeCount)
 	{
-		// Save selection.
-		TArray<UE::Insights::FTableTreeNodePtr> SelectedItems;
-		TreeView->GetSelectedItems(SelectedItems);
-
 		UE_LOG(LogInsights, Log, TEXT("[AssetTree] Update tree..."));
 		UpdateTree();
-
 		TreeView->RebuildList();
-
-		// Restore selection.
-		if (SelectedItems.Num() > 0)
-		{
-			TreeView->ClearSelection();
-			for (UE::Insights::FTableTreeNodePtr& NodePtr : SelectedItems)
-			{
-				NodePtr = GetNodeByTableRowIndex(NodePtr->GetRowIndex());
-			}
-			SelectedItems.RemoveAll([](const UE::Insights::FTableTreeNodePtr& NodePtr) { return !NodePtr.IsValid(); });
-			if (SelectedItems.Num() > 0)
-			{
-				TreeView->SetItemSelection(SelectedItems, true);
-				TreeView->RequestScrollIntoView(SelectedItems.Last());
-			}
-		}
+		TreeView->ClearSelection();
+		SelectedIndices.Empty();
+		SelectedAssetNode.Reset();
 	}
 
 	Stopwatch.Stop();
@@ -262,7 +245,8 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                   true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,  !true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeOtherDependenciesColumnId,   !true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,   !true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,               true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
@@ -272,9 +256,9 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 	AvailableViewPresets.Add(MakeShared<FDefaultViewPreset>());
 
 	//////////////////////////////////////////////////
-	// GameFeaturePlugin, PrimaryType, Dependency View
+	// GameFeaturePlugin, Type, Dependency View
 	
-	class FGameFeaturePluginPrimaryTypeDependencyView : public UE::Insights::ITableTreeViewPreset
+	class FGameFeaturePluginTypeDependencyView : public UE::Insights::ITableTreeViewPreset
 	{
 	public:
 		virtual FText GetName() const override
@@ -284,7 +268,7 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 
 		virtual FText GetToolTip() const override
 		{
-			return LOCTEXT("GFPTypeDepView_PresetToolTip", "Dependency Analysis View\nConfigure the tree view to show a breakdown of assets by Game Feature Plugin, Primary Asset Type, and Dependencies.");
+			return LOCTEXT("GFPTypeDepView_PresetToolTip", "Dependency Analysis View\nConfigure the tree view to show a breakdown of assets by Game Feature Plugin, Type, and Dependencies.");
 		}
 		virtual FName GetSortColumn() const override
 		{
@@ -316,7 +300,7 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
 				{
 					return Grouping->Is<UE::Insights::FTreeNodeGroupingByUniqueValueCString>() &&
-						Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::PrimaryTypeColumnId;
+						Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::TypeColumnId;
 				});
 			if (PrimaryTypeGrouping)
 			{
@@ -344,14 +328,15 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                  !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeOtherDependenciesColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,              !true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::GameFeaturePluginColumnId,             true, 200.0f });
 		}
 	};
-	AvailableViewPresets.Add(MakeShared<FGameFeaturePluginPrimaryTypeDependencyView>());
+	AvailableViewPresets.Add(MakeShared<FGameFeaturePluginTypeDependencyView>());
 
 	//////////////////////////////////////////////////
 	// Path Breakdown View
@@ -404,7 +389,8 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                   true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeOtherDependenciesColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,               true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
@@ -464,7 +450,8 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                  !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeOtherDependenciesColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,               true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
@@ -576,8 +563,127 @@ void SAssetTableTreeView::AddCustomAdvancedFilters()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SAssetTableTreeView::ExportDependencyData() const
+{
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (DesktopPlatform)
+	{
+		TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+		void* ParentWindowHandle = (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid()) ? ParentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
+
+		FString DefaultFileName;
+		if (SelectedIndices.Num() > 1)
+		{
+			DefaultFileName = "Batch Dependency Export.csv";
+		}
+		else
+		{
+			int32 RootIndex = *SelectedIndices.CreateConstIterator();
+			DefaultFileName = FString::Printf(TEXT("%s Dependencies.csv"), GetAssetTable()->GetAssetChecked(RootIndex).GetName());
+		}
+
+		TArray<FString> SaveFileNames;
+		const bool bFileSelected = DesktopPlatform->SaveFileDialog(
+			ParentWindowHandle,
+			LOCTEXT("ExportDependencyData_SaveFileDialogTitle", "Save dependency data as...").ToString(),
+			FPaths::ProjectLogDir(),
+			DefaultFileName,
+			TEXT("Comma-Separated Values (*.csv)|*.csv"),
+			EFileDialogFlags::None,
+			SaveFileNames);
+		
+		if (!bFileSelected)
+		{
+			return;
+		}
+		ensure(SaveFileNames.Num() == 1);
+		FString OutputFileName = SaveFileNames[0];
+
+
+		//FString FolderPath;
+		//const bool bFolderSelected = DesktopPlatform->OpenDirectoryDialog(
+		//	ParentWindowHandle,
+		//	LOCTEXT("FolderDialogTitle", "Choose a directory").ToString(),
+		//	FPaths::ProjectLogDir(),
+		//	FolderPath
+		//);
+
+		//if (bFolderSelected)
+		//{
+		//	if (!FolderPath.EndsWith(TEXT("/")))
+		//	{
+		//		FolderPath += TEXT("/");
+		//	}
+		//}
+
+		TSet<int32> UniqueDependencies;
+		TSet<int32> SharedDependencies;
+		FAssetTableRow::ComputeDependencySizes(*GetAssetTable(), SelectedIndices, &UniqueDependencies, &SharedDependencies);
+
+		TSet<int32> ExternalDependencies;
+		FAssetTableRow::ComputeTotalSizeExternalDependencies(*GetAssetTable(), SelectedIndices, &ExternalDependencies);
+
+		FString TimeSuffix = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
+
+		TAnsiStringBuilder<4096> StringBuilder;
+		StringBuilder.Appendf("Asset,Self Size,Dependency Type\n");
+		{
+			for (int32 RootIndex : SelectedIndices)
+			{
+				const FAssetTableRow& Row = GetAssetTable()->GetAssetChecked(RootIndex);
+				StringBuilder.Appendf("%s%s,%s,Root\n", *WriteToAnsiString<512>(Row.GetPath()), *WriteToAnsiString<64>(Row.GetName()), *WriteToAnsiString<32>(LexToString(Row.GetStagedCompressedSize())));
+			}
+
+			for (int32 DependencyIndex : UniqueDependencies)
+			{
+				const FAssetTableRow& DependencyRow = GetAssetTable()->GetAssetChecked(DependencyIndex);
+				StringBuilder.Appendf("%s%s,%s,Unique\n", *WriteToAnsiString<512>(DependencyRow.GetPath()), *WriteToAnsiString<64>(DependencyRow.GetName()), *WriteToAnsiString<32>(LexToString(DependencyRow.GetStagedCompressedSize())));
+			}
+
+			for (int32 DependencyIndex : SharedDependencies)
+			{
+				const FAssetTableRow& DependencyRow = GetAssetTable()->GetAssetChecked(DependencyIndex);
+				StringBuilder.Appendf("%s%s,%s,Shared\n", *WriteToAnsiString<512>(DependencyRow.GetPath()), *WriteToAnsiString<64>(DependencyRow.GetName()), *WriteToAnsiString<32>(LexToString(DependencyRow.GetStagedCompressedSize())));
+			}
+
+			for (int32 DependencyIndex : ExternalDependencies)
+			{
+				const FAssetTableRow& DependencyRow = GetAssetTable()->GetAssetChecked(DependencyIndex);
+				StringBuilder.Appendf("%s%s,%s,External\n", *WriteToAnsiString<512>(DependencyRow.GetPath()), *WriteToAnsiString<64>(DependencyRow.GetName()), *WriteToAnsiString<32>(LexToString(DependencyRow.GetStagedCompressedSize())));
+			}
+		}
+
+		TUniquePtr<FArchive> DependencyFile(IFileManager::Get().CreateFileWriter(*OutputFileName));
+		DependencyFile->Serialize(StringBuilder.GetData(), StringBuilder.Len());
+	}
+}
+
 void SAssetTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 {
+	MenuBuilder.BeginSection("ExportDependencies", LOCTEXT("ContextMenu_Section_ExportDependencies", "Export Dependencies"));
+	{
+		FUIAction ExportDependenciesAction;
+		ExportDependenciesAction.CanExecuteAction = FCanExecuteAction::CreateLambda([this]()
+			{
+				return GetAssetTable() && (SelectedIndices.Num() > 0);
+			});
+
+		ExportDependenciesAction.ExecuteAction = FExecuteAction::CreateLambda([this]()
+			{
+				ExportDependencyData();
+			});
+
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_ExportDependenciesLabel", "Export Dependencies..."),
+			LOCTEXT("ContextMenu_ExportDependencies", "Export dependency CSVs for the selected asset"),
+			FSlateIcon(),
+			ExportDependenciesAction,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -616,6 +722,7 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 	const int32 NumSelectedNodes = TreeView->GetSelectedItems(SelectedNodes);
 	int32 NumSelectedAssets = 0;
 	FAssetTreeNodePtr NewSelectedAssetNode;
+	int32 NewlySelectedAssetRowIndex = -1;
 	TSet<int32> SelectionSetIndices;
 
 	for (const UE::Insights::FTableTreeNodePtr& Node : SelectedNodes)
@@ -623,8 +730,19 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 		if (Node->Is<FAssetTreeNode>() && !Node->IsGroup())
 		{
 			NewSelectedAssetNode = StaticCastSharedPtr<FAssetTreeNode>(Node);
-			SelectionSetIndices.Add(NewSelectedAssetNode->GetRowId().RowIndex);
+			NewlySelectedAssetRowIndex = NewSelectedAssetNode->GetRowIndex();
+			SelectionSetIndices.Add(NewlySelectedAssetRowIndex);
 			++NumSelectedAssets;
+		}
+		else if (Node->Is<UE::Insights::FCustomTableTreeNode>() && Node->IsGroup())
+		{
+			int32 RowIndex = Node->GetRowIndex();
+			if (RowIndex != UE::Insights::FTableRowId::InvalidRowIndex)
+			{
+				SelectionSetIndices.Add(RowIndex);
+				NewlySelectedAssetRowIndex = RowIndex;
+				++NumSelectedAssets;
+			}
 		}
 	}
 
@@ -640,13 +758,14 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 	{
 		FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt1", "{0} assets (1 selected)"), FText::AsNumber(VisibleAssetCount));
 
-		const FAssetTableRow& AssetTableRow = NewSelectedAssetNode->GetAssetChecked();
+		const FAssetTableRow& AssetTableRow = GetAssetTable()->GetAssetChecked(NewlySelectedAssetRowIndex);
 		FooterCenterText1 = FText::FromString(AssetTableRow.GetPath());
 		FooterCenterText2 = FText::FromString(AssetTableRow.GetName());
-		FooterRightText1 = FText::Format(LOCTEXT("FooterRightFmt3", "Self: {0} Unique: {1} Shared: {2}"),
+		FooterRightText1 = FText::Format(LOCTEXT("FooterRightFmt3", "Self: {0} Unique: {1} Shared: {2} External: {3}"),
 			FText::AsMemory(AssetTableRow.GetStagedCompressedSize()),
-			FText::AsMemory(AssetTableRow.GetOrComputeTotalSizeUniqueDependencies(*GetAssetTable(), NewSelectedAssetNode->GetRowId().RowIndex)),
-			FText::AsMemory(AssetTableRow.GetOrComputeTotalSizeOtherDependencies(*GetAssetTable(), NewSelectedAssetNode->GetRowId().RowIndex)));
+			FText::AsMemory(AssetTableRow.GetOrComputeTotalSizeUniqueDependencies(*GetAssetTable(), NewlySelectedAssetRowIndex)),
+			FText::AsMemory(AssetTableRow.GetOrComputeTotalSizeSharedDependencies(*GetAssetTable(), NewlySelectedAssetRowIndex)),
+			FText::AsMemory(AssetTableRow.GetOrComputeTotalSizeExternalDependencies(*GetAssetTable(), NewlySelectedAssetRowIndex)));
 	}
 	else
 	{
@@ -659,11 +778,14 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 		{
 			TotalSelfSize += GetAssetTable()->GetAssetChecked(Index).GetStagedCompressedSize();
 		}
+
+		int64 TotalExternalDependencySize = FAssetTableRow::ComputeTotalSizeExternalDependencies(*GetAssetTable(), SelectionSetIndices);
 		FAssetTableDependencySizes Sizes = FAssetTableRow::ComputeDependencySizes(*GetAssetTable(), SelectionSetIndices, nullptr, nullptr);
-		FooterRightText1 = FText::Format(LOCTEXT("FooterRightFmt3", "Self: {0} Unique: {1} Shared: {2}"),
+		FooterRightText1 = FText::Format(LOCTEXT("FooterRightFmt3", "Self: {0} Unique: {1} Shared: {2} External: {3}"),
 			FText::AsMemory(TotalSelfSize),
 			FText::AsMemory(Sizes.UniqueDependenciesSize),
-			FText::AsMemory(Sizes.OtherDependenciesSize));
+			FText::AsMemory(Sizes.SharedDependenciesSize),
+			FText::AsMemory(TotalExternalDependencySize));
 	}
 
 	if (NumSelectedAssets != 1)
@@ -675,6 +797,8 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 	{
 		SelectedAssetNode = NewSelectedAssetNode;
 	}
+
+	SelectedIndices = SelectionSetIndices;
 
 	if (OnSelectionChanged.IsBound())
 	{

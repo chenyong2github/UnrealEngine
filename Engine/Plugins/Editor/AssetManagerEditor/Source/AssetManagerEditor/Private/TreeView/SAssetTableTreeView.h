@@ -89,6 +89,8 @@ private:
 
 	void InitAvailableViewPresets();
 
+	void ExportDependencyData() const;
+
 private:
 	bool bNeedsToRebuild = false;
 
@@ -100,4 +102,5 @@ private:
 	/** Delegate to invoke when selection changes. */
 	FOnSelectionChanged OnSelectionChanged;
 	TSharedPtr<FAssetTreeNode> SelectedAssetNode;
+	TSet<int32> SelectedIndices;
 };

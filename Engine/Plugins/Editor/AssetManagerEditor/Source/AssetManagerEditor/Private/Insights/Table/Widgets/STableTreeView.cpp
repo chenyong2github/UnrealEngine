@@ -1560,7 +1560,7 @@ void STableTreeView::UpdateCStringSameValueAggregationSingleNode(const FTableCol
 
 	if (AggregatedValue != nullptr)
 	{
-		InOutGroupNode.AddAggregatedValue(InColumn.GetId(), FTableCellValue(AggregatedValue));
+		InOutGroupNode.SetAggregatedValue(InColumn.GetId(), FTableCellValue(AggregatedValue));
 	}
 	else
 	{
@@ -1621,7 +1621,7 @@ void STableTreeView::UpdateAggregation(const FTableColumn& InColumn, FTableTreeN
 
 	if (bSetInitialValue || AggregatedValue != InitialAggregatedValue)
 	{
-		InOutGroupNode.AddAggregatedValue(InColumn.GetId(), FTableCellValue(AggregatedValue));
+		InOutGroupNode.SetAggregatedValue(InColumn.GetId(), FTableCellValue(AggregatedValue));
 	}
 }
 

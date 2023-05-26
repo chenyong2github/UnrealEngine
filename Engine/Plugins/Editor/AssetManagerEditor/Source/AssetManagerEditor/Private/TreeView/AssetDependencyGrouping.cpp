@@ -2,6 +2,7 @@
 
 #include "AssetDependencyGrouping.h"
 #include "AssetTreeNode.h"
+#include "AssetTable.h"
 #include "Insights/Common/AsyncOperationProgress.h"
 
 #define LOCTEXT_NAMESPACE "FAssetDependencyGrouping"
@@ -90,13 +91,13 @@ void FAssetDependencyGrouping::GroupNodes(const TArray<UE::Insights::FTableTreeN
 		if (Asset.GetNumDependencies() > 0)
 		{
 			// Create a group for the asset node (self) + dependencies.
-			FTableTreeNodePtr AssetGroupPtr = MakeShared<FCustomTableTreeNode>(Asset.GetNodeName(), InParentTable, AssetGroupNodeIconBrush, Asset.GetColor());
+			FTableTreeNodePtr AssetGroupPtr = MakeShared<FCustomTableTreeNode>(Asset.GetNodeName(), InParentTable, AssetNode.GetRowIndex(), AssetGroupNodeIconBrush, Asset.GetColor(), true);
 			AssetGroupPtr->SetExpansion(false);
 			ParentGroup.AddChildAndSetGroupPtr(AssetGroupPtr);
 
 			// Add the asset node (self) under a "_self" group node.
 			static FName SelfGroupName(TEXT("_Self_")); // used _ prefix to sort before "Dependencies"
-			FTableTreeNodePtr SelfGroupPtr = MakeShared<FCustomTableTreeNode>(SelfGroupName, InParentTable, AssetGroupNodeIconBrush, Asset.GetColor());
+			FTableTreeNodePtr SelfGroupPtr = MakeShared<FCustomTableTreeNode>(SelfGroupName, InParentTable, AssetNode.GetRowIndex(), AssetGroupNodeIconBrush, Asset.GetColor(), true);
 			SelfGroupPtr->SetExpansion(false);
 			SelfGroupPtr->AddChildAndSetGroupPtr(NodePtr);
 			AssetGroupPtr->AddChildAndSetGroupPtr(SelfGroupPtr);

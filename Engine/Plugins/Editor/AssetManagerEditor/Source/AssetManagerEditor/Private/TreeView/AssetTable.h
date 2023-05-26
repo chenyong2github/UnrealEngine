@@ -118,7 +118,8 @@ struct FAssetTableColumns
 	static const FName PrimaryNameColumnId;
 	static const FName StagedCompressedSizeColumnId;
 	static const FName TotalSizeUniqueDependenciesColumnId;
-	static const FName TotalSizeOtherDependenciesColumnId;
+	static const FName TotalSizeSharedDependenciesColumnId;
+	static const FName TotalSizeExternalDependenciesColumnId;
 	static const FName TotalUsageCountColumnId;
 	static const FName ChunksColumnId;
 	static const FName NativeClassColumnId;
@@ -128,7 +129,7 @@ struct FAssetTableColumns
 struct FAssetTableDependencySizes
 {
 	int64 UniqueDependenciesSize = 0;
-	int64 OtherDependenciesSize = 0;
+	int64 SharedDependenciesSize = 0;
 };
 
 class FAssetTableRow
@@ -153,7 +154,8 @@ public:
 	const TCHAR* GetPrimaryName() const { return PrimaryName; }
 	int64 GetStagedCompressedSize() const { return StagedCompressedSize; }
 	int64 GetOrComputeTotalSizeUniqueDependencies(const FAssetTable& OwningTable, int32 ThisIndex) const;
-	int64 GetOrComputeTotalSizeOtherDependencies(const FAssetTable& OwningTable, int32 ThisIndex) const; 
+	int64 GetOrComputeTotalSizeSharedDependencies(const FAssetTable& OwningTable, int32 ThisIndex) const; 
+	int64 GetOrComputeTotalSizeExternalDependencies(const FAssetTable& OwningTable, int32 ThisIndex) const; 
 	int64 GetTotalUsageCount() const { return TotalUsageCount; }
 	const TCHAR* GetChunks() const { return Chunks; }
 	const TCHAR* GetNativeClass() const { return NativeClass; }
@@ -166,8 +168,11 @@ public:
 
 	static FAssetTableDependencySizes ComputeDependencySizes(const FAssetTable& OwningTable, const TSet<int32>& RootIndices, TSet<int32>* OutUniqueDependencies = nullptr, TSet<int32>* OutSharedDependencies = nullptr);
 
+	static int64 ComputeTotalSizeExternalDependencies(const FAssetTable& OwningTable, const TSet<int32>& StartingNodes, TSet<int32>* OutExternalDependencies = nullptr);
+
 private:
-	static void RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, const FAssetTable& OwningTable, const TSet<int32> RootIndices, const TSet<const TCHAR*>& RestrictToGFPs, TSet<int32>& OutIncrementallyRefinedUniqueIndices, TSet<int32>& OutExcludedIndices);
+	static void RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, const FAssetTable& OwningTable, const TSet<int32> RootIndices, const TSet<const TCHAR*>& RestrictToGFPs, TSet<int32>& OutUniqueIndices, TSet<int32>& OutSharedIndices);
+	static inline bool ShouldSkipDueToGFP(const TSet<const TCHAR*>& RestrictToGFPs, const TCHAR* GFP) { return (RestrictToGFPs.Num() > 0) && !RestrictToGFPs.Contains(GFP); }
 
 	// Finds all nodes reachable from StartingNodes INCLUDING those in StartingNodes
 	static TSet<int32> GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*>& RestrictToGFPs);
@@ -180,7 +185,8 @@ private:
 	const TCHAR* PrimaryName = nullptr;
 	int64 StagedCompressedSize = 0;
 	mutable int64 TotalSizeUniqueDependencies = -1; // Lazily calculated
-	mutable int64 TotalSizeOtherDependencies = -1; // Lazily calculated
+	mutable int64 TotalSizeSharedDependencies = -1; // Lazily calculated
+	mutable int64 TotalSizeExternalDependencies = -1; // Lazily calculated
 	int64 TotalUsageCount = 0;
 	const TCHAR* Chunks = nullptr;
 	const TCHAR* NativeClass = nullptr;
