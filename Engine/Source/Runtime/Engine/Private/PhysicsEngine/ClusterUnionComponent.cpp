@@ -10,6 +10,7 @@
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Physics/GenericPhysicsInterface.h"
 #include "PhysicsEngine/ClusterUnionReplicatedProxyComponent.h"
+#include "PhysicsEngine/ExternalSpatialAccelerationPayload.h"
 #include "PhysicsEngine/PhysicsObjectExternalInterface.h"
 #include "PhysicsProxy/ClusterUnionPhysicsProxy.h"
 #include "TimerManager.h"
@@ -24,13 +25,12 @@ namespace
 	FAutoConsoleVariableRef CVarUseClusterUnionAccelerationStructure(TEXT("ClusterUnion.UseAccelerationStructure"), bUseClusterUnionAccelerationStructure, TEXT("Whether component level sweeps and overlaps against cluster unions should use an acceleration structure instead."));
 
 	// TODO: Should this be exposed in Chaos instead?
-	using FAccelerationStructure = Chaos::TAABBTree<Chaos::FAccelerationStructureHandle, Chaos::TAABBTreeLeafArray<Chaos::FAccelerationStructureHandle>>;
+	using FAccelerationStructure = Chaos::TAABBTree<FExternalSpatialAccelerationPayload, Chaos::TAABBTreeLeafArray<FExternalSpatialAccelerationPayload>>;
 
-	TUniquePtr<Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>> CreateEmptyAccelerationStructure()
+	TUniquePtr<Chaos::ISpatialAcceleration<FExternalSpatialAccelerationPayload, Chaos::FReal, 3>> CreateEmptyAccelerationStructure()
 	{
-		const Chaos::TConstParticleView<Chaos::FSpatialAccelerationCache> Empty;
 		FAccelerationStructure* Structure = new FAccelerationStructure(
-			Empty,
+			nullptr,
 			FAccelerationStructure::DefaultMaxChildrenInLeaf,
 			FAccelerationStructure::DefaultMaxTreeDepth,
 			FAccelerationStructure::DefaultMaxPayloadBounds,
@@ -40,7 +40,7 @@ namespace
 		);
 
 		check(Structure != nullptr);
-		return TUniquePtr<Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>>(Structure);
+		return TUniquePtr<Chaos::ISpatialAcceleration<FExternalSpatialAccelerationPayload, Chaos::FReal, 3>>(Structure);
 	}
 }
 
@@ -139,16 +139,20 @@ void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InCompon
 	}
 
 	PendingData.BoneIds.Empty(Objects.Num());
+	PendingData.AccelerationPayloads.Empty(Objects.Num());
 
 	for (Chaos::FPhysicsObjectHandle Object : Objects)
 	{
-		PendingData.BoneIds.Add(Chaos::FPhysicsObjectInterface::GetId(Object));
+		const int32 BoneId = Chaos::FPhysicsObjectInterface::GetId(Object);
+		PendingData.BoneIds.Add(BoneId);
 
 		if (AccelerationStructure && Object)
 		{
-			Chaos::FAccelerationStructureHandle Handle = Interface->CreateAccelerationStructureHandle(Object);
 			const FBox HandleBounds = Interface->GetWorldBounds({ &Object, 1 });
+			FExternalSpatialAccelerationPayload Handle;
+			Handle.Initialize(InComponent, BoneId);
 			AccelerationStructure->UpdateElement(Handle, Chaos::TAABB<Chaos::FReal, 3>{HandleBounds.Min, HandleBounds.Max}, HandleBounds.IsValid != 0);
+			PendingData.AccelerationPayloads.Add(Handle);
 		}
 	}
 
@@ -175,6 +179,20 @@ void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InC
 		return;
 	}
 
+	// If we're still waiting on the physics sync for the added component, we still need to
+	// remove its acceleration handles from the acceleration structure since the payloads have
+	// already been added and will not yet be stored in ComponentToPhysicsObjects.
+	if (FClusterUnionPendingAddData* PendingData = PendingComponentSync.Find(InComponent))
+	{
+		if (AccelerationStructure)
+		{
+			for (const FExternalSpatialAccelerationPayload& Payload : PendingData->AccelerationPayloads)
+			{
+				AccelerationStructure->RemoveElement(Payload);
+			}
+		}
+	}
+
 	TSet<Chaos::FPhysicsObjectHandle> PhysicsObjectsToRemove;
 	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(GetWorld()->GetPhysicsScene());
 
@@ -196,7 +214,6 @@ void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InC
 		{
 			ComponentData->PhysicsObjects.Reset();
 			ComponentData->AllPhysicsObjects.Reset();
-			return;
 		}
 		else
 		{
@@ -205,19 +222,19 @@ void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InC
 
 		if (AccelerationStructure)
 		{
-			for (Chaos::FPhysicsObjectHandle PhysicsObject : PhysicsObjectsToRemove)
+			for (const FExternalSpatialAccelerationPayload& Payload : ComponentData->CachedAccelerationPayloads)
 			{
-				if (PhysicsObject)
-				{
-					Chaos::FAccelerationStructureHandle Handle = Interface->CreateAccelerationStructureHandle(PhysicsObject);
-					AccelerationStructure->RemoveElement(Handle);
-				}
+				AccelerationStructure->RemoveElement(Payload);
 			}
+			ComponentData->CachedAccelerationPayloads.Reset();
 		}
 	}
 
-	PhysicsProxy->RemovePhysicsObjects_External(PhysicsObjectsToRemove);
-	ForceRebuildGTParticleGeometry();
+	if (!PhysicsObjectsToRemove.IsEmpty())
+	{
+		PhysicsProxy->RemovePhysicsObjects_External(PhysicsObjectsToRemove);
+		ForceRebuildGTParticleGeometry();
+	}
 }
 
 void UClusterUnionComponent::ForceRebuildGTParticleGeometry()
@@ -575,7 +592,13 @@ void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveCom
 
 	const bool bIsNew = !ComponentToPhysicsObjects.Contains(ChangedComponent);
 	FClusteredComponentData& ComponentData = ComponentToPhysicsObjects.FindOrAdd(ChangedComponent);
-	PendingComponentSync.Remove(ChangedComponent);
+
+	// A component shouldn't be in the PendingComponentSync map unless it's new.
+	FClusterUnionPendingAddData PendingData;
+	if (bIsNew && PendingComponentSync.RemoveAndCopyValue(ChangedComponent, PendingData))
+	{
+		ComponentData.CachedAccelerationPayloads.Append(PendingData.AccelerationPayloads);
+	}
 
 	// If this is a *new* component that we're keeping track of then there's additional book-keeping
 	// we need to do to make sure we don't forget what exactly we're tracking. Additionally, we need to
@@ -660,9 +683,11 @@ void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveCom
 		{
 			if (PhysicsObject)
 			{
-				Chaos::FAccelerationStructureHandle Handle = Interface->CreateAccelerationStructureHandle(PhysicsObject);
 				const FBox HandleBounds = Interface->GetWorldBounds({ &PhysicsObject, 1 });
+				FExternalSpatialAccelerationPayload Handle;
+				Handle.Initialize(ChangedComponent, Kvp.Key);
 				AccelerationStructure->UpdateElement(Handle, Chaos::TAABB<Chaos::FReal, 3>{HandleBounds.Min, HandleBounds.Max}, HandleBounds.IsValid != 0);
+				ComponentData.CachedAccelerationPayloads.Add(Handle);
 			}
 		}
 
@@ -677,8 +702,10 @@ void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveCom
 		{
 			if (Chaos::FPhysicsObjectHandle PhysicsObject = ChangedComponent->GetPhysicsObjectById(BoneId))
 			{
-				Chaos::FAccelerationStructureHandle Handle = Interface->CreateAccelerationStructureHandle(PhysicsObject);
+				FExternalSpatialAccelerationPayload Handle;
+				Handle.Initialize(ChangedComponent, BoneId);
 				AccelerationStructure->RemoveElement(Handle);
+				ComponentData.CachedAccelerationPayloads.Remove(Handle);
 			}
 		}
 	}
@@ -715,8 +742,10 @@ void UClusterUnionComponent::HandleRemovedClusteredComponent(UPrimitiveComponent
 
 				if (AccelerationStructure && PhysicsObject)
 				{
-					Chaos::FAccelerationStructureHandle Handle = Interface->CreateAccelerationStructureHandle(PhysicsObject);
+					FExternalSpatialAccelerationPayload Handle;
+					Handle.Initialize(ChangedComponent, Chaos::FPhysicsObjectInterface::GetId(PhysicsObject));
 					AccelerationStructure->RemoveElement(Handle);
+					ComponentData->CachedAccelerationPayloads.Remove(Handle);
 				}
 			}
 		}
@@ -811,7 +840,7 @@ bool UClusterUnionComponent::LineTraceComponent(TArray<FHitResult>& OutHit, cons
 	SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponentLineTraceComponentMulti);
 	if (AccelerationStructure)
 	{
-		return FGenericPhysicsInterface::RaycastMultiUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
+		return FGenericRaycastPhysicsInterfaceUsingSpatialAcceleration<IExternalSpatialAcceleration>::RaycastMulti(*AccelerationStructure, GetWorld(), OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
 	}
 	OutHit.Reset();
 
@@ -837,7 +866,7 @@ bool UClusterUnionComponent::SweepComponent(TArray<FHitResult>& OutHit, const FV
 	SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponentSweepComponentMulti);
 	if (AccelerationStructure)
 	{
-		return FGenericPhysicsInterface::GeomSweepMultiUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), Geometry, ShapeWorldRotation, OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
+		return FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<IExternalSpatialAcceleration, FPhysicsGeometry>::GeomSweepMulti(*AccelerationStructure, GetWorld(), Geometry, ShapeWorldRotation, OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
 	}
 
 	OutHit.Reset();
@@ -864,7 +893,7 @@ bool UClusterUnionComponent::LineTraceComponent(FHitResult& OutHit, const FVecto
 	SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponentLineTraceComponentSingle);
 	if (AccelerationStructure)
 	{
-		return FGenericPhysicsInterface::RaycastSingleUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
+		return FGenericRaycastPhysicsInterfaceUsingSpatialAcceleration<IExternalSpatialAcceleration>::RaycastSingle(*AccelerationStructure, GetWorld(), OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
 	}
 
 	bool bHasHit = false;
@@ -893,7 +922,7 @@ bool UClusterUnionComponent::SweepComponent(FHitResult& OutHit, const FVector St
 	SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponentSweepComponentSingle);
 	if (AccelerationStructure)
 	{
-		return FGenericPhysicsInterface::GeomSweepSingleUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), Geometry, ShapeWorldRotation, OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
+		return FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<IExternalSpatialAcceleration, FPhysicsGeometry>::GeomSweepSingle(*AccelerationStructure, GetWorld(), Geometry, ShapeWorldRotation, OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
 	}
 
 	bool bHasHit = false;
@@ -922,7 +951,7 @@ bool UClusterUnionComponent::OverlapComponentWithResult(const FVector& Pos, cons
 	SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponentOverlapComponentWithResult);
 	if (AccelerationStructure)
 	{
-		return FGenericPhysicsInterface::GeomOverlapMultiUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), Geometry, Pos, Rot, OutOverlap, TraceChannel, Params, ResponseParams, ObjectParams);
+		return FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<IExternalSpatialAcceleration, FPhysicsGeometry>::GeomOverlapMulti(*AccelerationStructure, GetWorld(), Geometry, Pos, Rot, OutOverlap, TraceChannel, Params, ResponseParams, ObjectParams);
 	}
 
 	bool bHasOverlap = false;
@@ -979,7 +1008,7 @@ bool UClusterUnionComponent::ComponentOverlapComponentWithResultImpl(const class
 				{
 					if (Chaos::TSerializablePtr<Chaos::FImplicitObject> Geometry = Shape->GetGeometry())
 					{
-						bHasOverlap |= FGenericPhysicsInterface::GeomOverlapMultiUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), *Geometry, Pos, Rot, OutOverlap, DefaultCollisionChannel, Params, FCollisionResponseParams::DefaultResponseParam, FCollisionObjectQueryParams::DefaultObjectQueryParam);
+						bHasOverlap |= FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<IExternalSpatialAcceleration, FPhysicsGeometry>::GeomOverlapMulti(*AccelerationStructure, GetWorld(), *Geometry, Pos, Rot, OutOverlap, DefaultCollisionChannel, Params, FCollisionResponseParams::DefaultResponseParam, FCollisionObjectQueryParams::DefaultObjectQueryParam);
 					}
 				}
 

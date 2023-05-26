@@ -3,6 +3,7 @@
 
 #include "Templates/ChooseClass.h"
 #include "Math/NumericLimits.h"
+#include "Chaos/ISpatialAcceleration.h"
 #include "Chaos/PBDRigidClusteredParticles.h"
 #include "Chaos/PBDGeometryCollectionParticles.h"
 #include "Chaos/ParticleHandleFwd.h"
@@ -192,6 +193,8 @@ FORCEINLINE_DEBUGGABLE bool PrePreSimFilterImp(const FCollisionFilterData& SimFi
 class FAccelerationStructureHandle
 {
 public:
+	static constexpr bool bHasPayloadOnInternalThread = true;
+
 	FAccelerationStructureHandle(FGeometryParticleHandle* InHandle);
 	FAccelerationStructureHandle(FGeometryParticle* InGeometryParticle = nullptr);
 
@@ -3475,6 +3478,15 @@ inline void SetObjectStateHelper(IPhysicsProxyBase& Proxy, FPBDRigidParticle& Ri
 }
 
 CHAOS_API void SetObjectStateHelper(IPhysicsProxyBase& Proxy, FPBDRigidParticleHandle& Rigid, EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = true);
+
+#if PLATFORM_MAC || PLATFORM_LINUX
+extern template class CHAOS_API ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>;
+extern template class CHAOS_API ISpatialVisitor<FAccelerationStructureHandle, FReal>;
+#else
+extern template class ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>;
+extern template class ISpatialVisitor<FAccelerationStructureHandle, FReal>;
+#endif
+
 
 } // namespace Chaos
 

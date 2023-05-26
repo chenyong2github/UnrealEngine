@@ -7,6 +7,7 @@
 #include "Collision/CollisionConversions.h"
 #include "PhysicsEngine/ClusterUnionComponent.h"
 #include "PhysicsEngine/CollisionQueryFilterCallback.h"
+#include "PhysicsEngine/ExternalSpatialAccelerationPayload.h"
 #include "PhysicsEngine/ScopedSQHitchRepeater.h"
 
 #include "Collision/CollisionDebugDrawing.h"
@@ -88,6 +89,33 @@ struct FGeomCollectionSQAdditionalInputs
 	const FQuat& GeomRot;
 };
 
+struct FPhysicsGeometrySQAdditionalInputs
+{
+	FPhysicsGeometrySQAdditionalInputs(const FPhysicsGeometry& InGeometry, const FQuat& InGeomRot)
+		: Collection(FChaosEngineInterface::GetGeometryCollection(InGeometry))
+		, GeomRot(InGeomRot)
+	{
+	}
+
+	const FPhysicsGeometry* GetGeometry() const
+	{
+		return &Collection.GetGeometry();
+	}
+
+	const FQuat* GetGeometryOrientation() const
+	{
+		return &GeomRot;
+	}
+
+	const FPhysicsGeometryCollection* GetCollisionShape() const
+	{
+		return &Collection;
+	}
+private:
+	const FPhysicsGeometryCollection Collection;
+	const FQuat& GeomRot;
+};
+
 struct FRaycastSQAdditionalInputs
 {
 	const FPhysicsGeometry* GetGeometry() const
@@ -105,6 +133,31 @@ struct FRaycastSQAdditionalInputs
 		return nullptr;
 	}
 };
+
+
+template<typename TGeom>
+using TGeomSQInputs = std::conditional_t<std::is_same_v<TGeom, FPhysicsGeometryCollection>, FGeomCollectionSQAdditionalInputs,
+	std::conditional_t<std::is_same_v<TGeom, FCollisionShape>, FGeomSQAdditionalInputs,
+	std::conditional_t<std::is_same_v<TGeom, FPhysicsGeometry>, FPhysicsGeometrySQAdditionalInputs,
+	void>>>;
+
+template<typename TGeom>
+TGeomSQInputs<TGeom> GeomToSQInputs(const TGeom& Geom, const FQuat& Rot)
+{
+	static_assert(!std::is_same_v<TGeomSQInputs<TGeom>, void>, "Invalid geometry passed to SQ.");
+	if constexpr (std::is_same_v<TGeom, FPhysicsGeometryCollection>)
+	{
+		return FGeomCollectionSQAdditionalInputs(Geom, Rot);
+	}
+	else if constexpr (std::is_same_v<TGeom, FPhysicsGeometry>)
+	{
+		return FPhysicsGeometrySQAdditionalInputs(Geom, Rot);
+	}
+	else if constexpr (std::is_same_v<TGeom, FCollisionShape>)
+	{
+		return FGeomSQAdditionalInputs(Geom, Rot);
+	}
+}
 
 template <typename InHitType, ESweepOrRay InGeometryQuery, ESingleMultiOrTest InSingleMultiOrTest>
 struct TSQTraits
@@ -342,9 +395,10 @@ struct FDefaultAccelContainer
 	}
 };
 
+template<typename TAccel>
 struct FOverrideAccelContainer
 {
-	explicit FOverrideAccelContainer(const Chaos::IDefaultChaosSpatialAcceleration& InSpatialAcceleration)
+	explicit FOverrideAccelContainer(const TAccel& InSpatialAcceleration)
 		: SpatialAcceleration(InSpatialAcceleration)
 	{}
 
@@ -353,13 +407,13 @@ struct FOverrideAccelContainer
 		return true;
 	}
 
-	const Chaos::IDefaultChaosSpatialAcceleration& GetSpatialAcceleration() const
+	const TAccel& GetSpatialAcceleration() const
 	{
 		return SpatialAcceleration;
 	}
 
 private:
-	const Chaos::IDefaultChaosSpatialAcceleration& SpatialAcceleration;
+	const TAccel& SpatialAcceleration;
 };
 
 template <typename Traits, typename TGeomInputs, typename TAccelContainer>
@@ -591,7 +645,8 @@ bool FGenericPhysicsInterface::RaycastTest(const UWorld* World, const FVector St
 	return TSceneCastCommon<TCastTraits, TPTCastTraits>(World, DummyHit, FRaycastSQAdditionalInputs(), Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
 }
 
-bool FGenericPhysicsInterface::RaycastTestUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
+template<typename TAccel>
+bool FGenericRaycastPhysicsInterfaceUsingSpatialAcceleration<TAccel>::RaycastTest(const TAccel& Accel, const UWorld* World, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
 {
 	using namespace ChaosInterface;
 
@@ -619,7 +674,8 @@ bool FGenericPhysicsInterface::RaycastSingle(const UWorld* World, struct FHitRes
 	return TSceneCastCommon<TCastTraits, TPTCastTraits>(World, OutHit, FRaycastSQAdditionalInputs(), Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
 }
 
-bool FGenericPhysicsInterface::RaycastSingleUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, struct FHitResult& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
+template<typename TAccel>
+bool FGenericRaycastPhysicsInterfaceUsingSpatialAcceleration<TAccel>::RaycastSingle(const TAccel& Accel, const UWorld* World, struct FHitResult& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
 {
 	using namespace ChaosInterface;
 
@@ -646,7 +702,8 @@ bool FGenericPhysicsInterface::RaycastMulti(const UWorld* World, TArray<struct F
 	return TSceneCastCommon<TCastTraits, TPTCastTraits> (World, OutHits, FRaycastSQAdditionalInputs(), Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
 }
 
-bool FGenericPhysicsInterface::RaycastMultiUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, TArray<struct FHitResult>& OutHits, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
+template<typename TAccel>
+bool FGenericRaycastPhysicsInterfaceUsingSpatialAcceleration<TAccel>::RaycastMulti(const TAccel& Accel, const UWorld* World, TArray<struct FHitResult>& OutHits, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
 {
 	using namespace ChaosInterface;
 
@@ -677,7 +734,8 @@ bool FGenericPhysicsInterface::GeomSweepTest(const UWorld* World, const struct F
 	return TSceneCastCommon<TCastTraits, TPTCastTraits>(World, DummyHit, FGeomSQAdditionalInputs(CollisionShape, Rot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
 }
 
-bool FGenericPhysicsInterface::GeomSweepTestUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const struct FCollisionShape& CollisionShape, const FQuat& Rot, FVector Start, FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
+template<typename TAccel, typename TGeom>
+bool FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<TAccel, TGeom>::GeomSweepTest(const TAccel& Accel, const UWorld* World, const TGeom& InGeom, const FQuat& Rot, FVector Start, FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
 {
 	using namespace ChaosInterface;
 
@@ -689,7 +747,7 @@ bool FGenericPhysicsInterface::GeomSweepTestUsingSpatialAcceleration(const Chaos
 	using TPTCastTraits = TSQTraits<FPTSweepHit, ESweepOrRay::Sweep, ESingleMultiOrTest::Test>;
 	FHitResult DummyHit(NoInit);
 
-	return TSceneCastCommon<TCastTraits, TPTCastTraits>(World, DummyHit, FGeomSQAdditionalInputs(CollisionShape, Rot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
+	return TSceneCastCommon<TCastTraits, TPTCastTraits>(World, DummyHit, GeomToSQInputs(InGeom, Rot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
 }
 
 template<>
@@ -946,16 +1004,16 @@ bool FGenericPhysicsInterface::GeomOverlapBlockingTest(const UWorld* World, cons
 	return GeomOverlapMultiHelper<EQueryInfo::IsBlocking>(World, Adaptor.GetGeometry(), CollisionShape, Adaptor.GetGeomPose(GeomTransform.GetTranslation()), Overlaps, TraceChannel, Params, ResponseParams, ObjectParams);
 }
 
-bool FGenericPhysicsInterface::GeomOverlapBlockingTestUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const struct FCollisionShape& CollisionShape, const FVector& Pos, const FQuat& Rot, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
+template<typename TAccel, typename TGeom>
+bool FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<TAccel, TGeom>::GeomOverlapBlockingTest(const TAccel& Accel, const UWorld* World, const TGeom& InGeom, const FVector& Pos, const FQuat& Rot, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomOverlapBlocking);
 	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomOverlapBlocking);
 
 	TArray<FOverlapResult> Overlaps;	//needed only for template shared code
-	FTransform GeomTransform(Rot, Pos);
-	FPhysicsShapeAdapter Adaptor(GeomTransform.GetRotation(), CollisionShape);
-	return GeomOverlapMultiHelper<EQueryInfo::IsBlocking>(World, Adaptor.GetGeometry(), CollisionShape, Adaptor.GetGeomPose(GeomTransform.GetTranslation()), Overlaps, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
+	TGeomSQInputs<TGeom> SQInputs = GeomToSQInputs(InGeom, Rot);
+	return GeomOverlapMultiHelper<EQueryInfo::IsBlocking>(World, *SQInputs.GetGeometry(), *SQInputs.GetCollisionShape(), FTransform{Rot, Pos}, Overlaps, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{Accel});
 }
 
 bool FGenericPhysicsInterface::GeomOverlapAnyTest(const UWorld* World, const struct FCollisionShape& CollisionShape, const FVector& Pos, const FQuat& Rot, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
@@ -970,16 +1028,16 @@ bool FGenericPhysicsInterface::GeomOverlapAnyTest(const UWorld* World, const str
 	return GeomOverlapMultiHelper<EQueryInfo::IsAnything>(World, Adaptor.GetGeometry(), CollisionShape, Adaptor.GetGeomPose(GeomTransform.GetTranslation()), Overlaps, TraceChannel, Params, ResponseParams, ObjectParams);
 }
 
-bool FGenericPhysicsInterface::GeomOverlapAnyTestUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const struct FCollisionShape& CollisionShape, const FVector& Pos, const FQuat& Rot, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
+template<typename TAccel, typename TGeom>
+bool FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<TAccel, TGeom>::GeomOverlapAnyTest(const TAccel& Accel, const UWorld* World, const TGeom& InGeom, const FVector& Pos, const FQuat& Rot, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomOverlapAny);
 	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomOverlapAny);
 
 	TArray<FOverlapResult> Overlaps;	//needed only for template shared code
-	FTransform GeomTransform(Rot, Pos);
-	FPhysicsShapeAdapter Adaptor(GeomTransform.GetRotation(), CollisionShape);
-	return GeomOverlapMultiHelper<EQueryInfo::IsAnything>(World, Adaptor.GetGeometry(), CollisionShape, Adaptor.GetGeomPose(GeomTransform.GetTranslation()), Overlaps, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
+	TGeomSQInputs<TGeom> SQInputs = GeomToSQInputs(InGeom, Rot);
+	return GeomOverlapMultiHelper<EQueryInfo::IsAnything>(World, *SQInputs.GetGeometry(), *SQInputs.GetCollisionShape(), FTransform{ Rot, Pos }, Overlaps, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
 }
 
 template<>
@@ -1011,8 +1069,8 @@ bool FGenericPhysicsInterface::GeomOverlapMulti(const UWorld* World, const FPhys
 	return GeomOverlapMulti(World, FChaosEngineInterface::GetGeometryCollection(InGeom), InPosition, InRotation, OutOverlaps, TraceChannel, Params, ResponseParams, ObjectParams);
 }
 
-template<>
-bool FGenericPhysicsInterface::GeomSweepSingleUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const FPhysicsGeometryCollection& InGeom, const FQuat& Rot, FHitResult& OutHit, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
+template<typename TAccel, typename TGeom>
+bool FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<TAccel, TGeom>::GeomSweepSingle(const TAccel& Accel, const UWorld* World, const TGeom& InGeom, const FQuat& Rot, FHitResult& OutHit, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
 {
 	using namespace ChaosInterface;
 
@@ -1022,31 +1080,11 @@ bool FGenericPhysicsInterface::GeomSweepSingleUsingSpatialAcceleration(const Cha
 
 	using TCastTraits = TSQTraits<FSweepHit, ESweepOrRay::Sweep, ESingleMultiOrTest::Single>;
 	using TPTCastTraits = TSQTraits<FPTSweepHit, ESweepOrRay::Sweep, ESingleMultiOrTest::Single>;
-	return TSceneCastCommon<TCastTraits, TPTCastTraits>(World, OutHit, FGeomCollectionSQAdditionalInputs(InGeom, Rot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
+	return TSceneCastCommon<TCastTraits, TPTCastTraits>(World, OutHit, GeomToSQInputs(InGeom, Rot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
 }
 
-template<>
-bool FGenericPhysicsInterface::GeomSweepSingleUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const FCollisionShape& InGeom, const FQuat& Rot, FHitResult& OutHit, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
-{
-	using namespace ChaosInterface;
-
-	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
-	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomSweepSingle);
-	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomSweepSingle);
-
-	using TCastTraits = TSQTraits<FSweepHit, ESweepOrRay::Sweep, ESingleMultiOrTest::Single>;
-	using TPTCastTraits = TSQTraits<FPTSweepHit, ESweepOrRay::Sweep, ESingleMultiOrTest::Single>;
-	return TSceneCastCommon<TCastTraits, TPTCastTraits>(World, OutHit, FGeomSQAdditionalInputs(InGeom, Rot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
-}
-
-template<>
-bool FGenericPhysicsInterface::GeomSweepSingleUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const FPhysicsGeometry& InGeom, const FQuat& Rot, FHitResult& OutHit, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
-{
-	return GeomSweepSingleUsingSpatialAcceleration(Accel, World, FChaosEngineInterface::GetGeometryCollection(InGeom), Rot, OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
-}
-
-template<>
-bool FGenericPhysicsInterface::GeomSweepMultiUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const FPhysicsGeometryCollection& InGeom, const FQuat& InGeomRot, TArray<FHitResult>& OutHits, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
+template<typename TAccel, typename TGeom>
+bool FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<TAccel, TGeom>::GeomSweepMulti(const TAccel& Accel, const UWorld* World, const TGeom& InGeom, const FQuat& InGeomRot, TArray<FHitResult>& OutHits, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
 {
 	using namespace ChaosInterface;
 
@@ -1056,54 +1094,27 @@ bool FGenericPhysicsInterface::GeomSweepMultiUsingSpatialAcceleration(const Chao
 
 	using TCastTraits = TSQTraits<FHitSweep, ESweepOrRay::Sweep, ESingleMultiOrTest::Multi>;
 	using TPTCastTraits = TSQTraits<FPTSweepHit, ESweepOrRay::Sweep, ESingleMultiOrTest::Multi>;
-	return TSceneCastCommon<TCastTraits, TPTCastTraits>(World, OutHits, FGeomCollectionSQAdditionalInputs(InGeom, InGeomRot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
+	return TSceneCastCommon<TCastTraits, TPTCastTraits>(World, OutHits, GeomToSQInputs(InGeom, InGeomRot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
 }
 
-template<>
-bool FGenericPhysicsInterface::GeomSweepMultiUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const FCollisionShape& InGeom, const FQuat& InGeomRot, TArray<FHitResult>& OutHits, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
-{
-	using namespace ChaosInterface;
-
-	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
-	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomSweepMultiple);
-	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomSweepMultiple);
-
-	using TCastTraits = TSQTraits<FHitSweep, ESweepOrRay::Sweep, ESingleMultiOrTest::Multi>;
-	using TPTCastTraits = TSQTraits<FPTSweepHit, ESweepOrRay::Sweep, ESingleMultiOrTest::Multi>;
-	return TSceneCastCommon<TCastTraits, TPTCastTraits>(World, OutHits, FGeomSQAdditionalInputs(InGeom, InGeomRot), Start, End, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
-}
-
-template<>
-bool FGenericPhysicsInterface::GeomSweepMultiUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const FPhysicsGeometry& InGeom, const FQuat& InGeomRot, TArray<FHitResult>& OutHits, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
-{
-	return GeomSweepMultiUsingSpatialAcceleration(Accel, World, FChaosEngineInterface::GetGeometryCollection(InGeom), InGeomRot, OutHits, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
-}
-
-template<>
-bool FGenericPhysicsInterface::GeomOverlapMultiUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const FPhysicsGeometryCollection& InGeom, const FVector& InPosition, const FQuat& InRotation, TArray<FOverlapResult>& OutOverlaps, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
+template<typename TAccel, typename TGeom>
+bool FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<TAccel, TGeom>::GeomOverlapMulti(const TAccel& Accel, const UWorld* World, const TGeom& InGeom, const FVector& InPosition, const FQuat& InRotation, TArray<FOverlapResult>& OutOverlaps, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
 	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomOverlapMultiple);
 	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomOverlapMultiple);
 
-	FTransform GeomTransform(InRotation, InPosition);
-	return GeomOverlapMultiHelper<EQueryInfo::GatherAll>(World, InGeom.GetGeometry(), InGeom, GeomTransform, OutOverlaps, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
+	TGeomSQInputs<TGeom> SQInputs = GeomToSQInputs(InGeom, InRotation);
+	return GeomOverlapMultiHelper<EQueryInfo::GatherAll>(World, *SQInputs.GetGeometry(), *SQInputs.GetCollisionShape(), FTransform{ InRotation, InPosition }, OutOverlaps, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
 }
 
-template<>
-bool FGenericPhysicsInterface::GeomOverlapMultiUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const FCollisionShape& InGeom, const FVector& InPosition, const FQuat& InRotation, TArray<FOverlapResult>& OutOverlaps, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
-{
-	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
-	SCOPE_CYCLE_COUNTER(STAT_Collision_GeomOverlapMultiple);
-	CSV_SCOPED_TIMING_STAT(SceneQuery, GeomOverlapMultiple);
+template struct FGenericRaycastPhysicsInterfaceUsingSpatialAcceleration<Chaos::IDefaultChaosSpatialAcceleration>;
+template struct FGenericRaycastPhysicsInterfaceUsingSpatialAcceleration<IExternalSpatialAcceleration>;
 
-	FTransform GeomTransform(InRotation, InPosition);
-	FPhysicsShapeAdapter Adaptor(GeomTransform.GetRotation(), InGeom);
-	return GeomOverlapMultiHelper<EQueryInfo::GatherAll>(World, Adaptor.GetGeometry(), InGeom, Adaptor.GetGeomPose(GeomTransform.GetTranslation()), OutOverlaps, TraceChannel, Params, ResponseParams, ObjectParams, FOverrideAccelContainer{ Accel });
-}
+#define DEFINE_GENERIC_GEOM_FOR_ACCEL(TACCEL) \
+template struct FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<TACCEL, FCollisionShape>;\
+template struct FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<TACCEL, FPhysicsGeometry>;\
+template struct FGenericGeomPhysicsInterfaceUsingSpatialAcceleration<TACCEL, FPhysicsGeometryCollection>;
 
-template<>
-bool FGenericPhysicsInterface::GeomOverlapMultiUsingSpatialAcceleration(const Chaos::IDefaultChaosSpatialAcceleration& Accel, const UWorld* World, const FPhysicsGeometry& InGeom, const FVector& InPosition, const FQuat& InRotation, TArray<FOverlapResult>& OutOverlaps, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
-{
-	return GeomOverlapMultiUsingSpatialAcceleration(Accel, World, FChaosEngineInterface::GetGeometryCollection(InGeom), InPosition, InRotation, OutOverlaps, TraceChannel, Params, ResponseParams, ObjectParams);
-}
+DEFINE_GENERIC_GEOM_FOR_ACCEL(Chaos::IDefaultChaosSpatialAcceleration)
+DEFINE_GENERIC_GEOM_FOR_ACCEL(IExternalSpatialAcceleration)

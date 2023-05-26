@@ -9,6 +9,7 @@
 #include "Containers/Set.h"
 #include "Engine/EngineTypes.h"
 #include "Logging/LogMacros.h"
+#include "PhysicsEngine/ExternalSpatialAccelerationPayload.h"
 #include "PhysicsInterfaceTypesCore.h"
 #include "PhysicsProxy/ClusterUnionPhysicsProxy.h"
 #include "UObject/ObjectKey.h"
@@ -16,6 +17,7 @@
 #include "ClusterUnionComponent.generated.h"
 
 class AActor;
+struct FExternalSpatialAccelerationPayload;
 class FPhysScene_Chaos;
 class UClusterUnionReplicatedProxyComponent;
 
@@ -42,6 +44,9 @@ struct FClusteredComponentData
 
 	// Every physics object associated with this particular component.
 	TArray<Chaos::FPhysicsObjectHandle> AllPhysicsObjects;
+
+	// Cached acceleration structure handles - needed to properly cleanup the component from the accel structure.
+	TSet<FExternalSpatialAccelerationPayload> CachedAccelerationPayloads;
 
 	// Using a TWeakObjectPtr here because the UClusterUnionReplicatedProxyComponent will have a pointer back
 	// and we don't want to get into a situation where a circular reference occurs.
@@ -92,6 +97,9 @@ struct FClusterUnionPendingAddData
 
 	UPROPERTY()
 	TArray<int32> BoneIds;
+	
+	UPROPERTY()
+	TArray<FExternalSpatialAccelerationPayload> AccelerationPayloads;
 };
 
 /**
@@ -239,7 +247,7 @@ private:
 	FChaosUserData PhysicsUserData;
 
 	// An acceleration structure of all children components managed by the cluster union itself.
-	TUniquePtr<Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>> AccelerationStructure;
+	TUniquePtr<Chaos::ISpatialAcceleration<FExternalSpatialAccelerationPayload, Chaos::FReal, 3>> AccelerationStructure;
 
 	// Need to handle the fact that this component may or may not be initialized prior to the components referenced in
 	// ClusteredComponentsReferences. This function lets us listen to OnComponentPhysicsStateChanged on the incoming

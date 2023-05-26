@@ -3001,14 +3001,21 @@ private:
 
 		ensure(WorkStack.Num() == 0);
 
-		const int32 ExpectedNumLeaves = Particles.Num() / MaxChildrenInLeaf;
+		int32 NumParticles = 0;
+		constexpr bool bIsValidParticleArray = !std::is_same_v<TParticles, std::nullptr_t>;
+		if constexpr (bIsValidParticleArray)
+		{
+			NumParticles = Particles.Num();
+		}
+
+		const int32 ExpectedNumLeaves = NumParticles / MaxChildrenInLeaf;
 		const int32 ExpectedNumNodes = ExpectedNumLeaves;
 
 		WorkStack.Reserve(ExpectedNumNodes);
 
 		const int32 CurIdx = GetNewWorkSnapshot();
 		FWorkSnapshot& WorkSnapshot = WorkPool[CurIdx];
-		WorkSnapshot.Elems.Reserve(Particles.Num());
+		WorkSnapshot.Elems.Reserve(NumParticles);
 		
 		
 		GlobalPayloads.Reset();
@@ -3035,14 +3042,17 @@ private:
 		if (bDynamicTree)
 		{
 			int32 Idx = 0;
-			for (auto& Particle : Particles)
+			if constexpr (bIsValidParticleArray)
 			{
-				bool bHasBoundingBox = HasBoundingBox(Particle);
-				auto Payload = Particle.template GetPayload<TPayloadType>(Idx);
-				TAABB<T, 3> ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (T)0);
-				
-				UpdateElement(Payload, ElemBounds, bHasBoundingBox);
-				++Idx;
+				for (auto& Particle : Particles)
+				{
+					bool bHasBoundingBox = HasBoundingBox(Particle);
+					auto Payload = Particle.template GetPayload<TPayloadType>(Idx);
+					TAABB<T, 3> ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (T)0);
+
+					UpdateElement(Payload, ElemBounds, bHasBoundingBox);
+					++Idx;
+				}
 			}
 			this->SetAsyncTimeSlicingComplete(true);
 			return;
@@ -3062,58 +3072,61 @@ private:
 			//TODO: we need a better way to time-slice this case since there can be a huge number of Particles. Can't do it right now without making full copy
 			TVec3<T> CenterSum(0);
 
-			for (auto& Particle : Particles)
+			if constexpr (bIsValidParticleArray)
 			{
-				bool bHasBoundingBox = HasBoundingBox(Particle);
-				auto Payload = Particle.template GetPayload<TPayloadType>(Idx);
-				TAABB<T, 3> ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (T)0);
-
-				// If bounds are bad, use global so we won't screw up splitting computations.
-				if (bHasBoundingBox && ValidateBounds(ElemBounds) == false)
+				for (auto& Particle : Particles)
 				{
-					bHasBoundingBox = false;
-					ensureMsgf(false, TEXT("AABBTree encountered invalid bounds input. Forcing element to global payload. Min: %s Max: %s."),
-						*ElemBounds.Min().ToString(), *ElemBounds.Max().ToString());
-				}
+					bool bHasBoundingBox = HasBoundingBox(Particle);
+					auto Payload = Particle.template GetPayload<TPayloadType>(Idx);
+					TAABB<T, 3> ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (T)0);
 
-
-				if (bHasBoundingBox)
-				{
-					if (ElemBounds.Extents().Max() > MaxPayloadBounds)
+					// If bounds are bad, use global so we won't screw up splitting computations.
+					if (bHasBoundingBox && ValidateBounds(ElemBounds) == false)
 					{
 						bHasBoundingBox = false;
+						ensureMsgf(false, TEXT("AABBTree encountered invalid bounds input. Forcing element to global payload. Min: %s Max: %s."),
+							*ElemBounds.Min().ToString(), *ElemBounds.Max().ToString());
+					}
+
+
+					if (bHasBoundingBox)
+					{
+						if (ElemBounds.Extents().Max() > MaxPayloadBounds)
+						{
+							bHasBoundingBox = false;
+						}
+						else
+						{
+							FReal NumElems = (FReal)(WorkSnapshot.Elems.Add(FElement{ Payload, ElemBounds }) + 1);
+							WorkSnapshot.Bounds.GrowToInclude(ElemBounds);
+
+							// Include the current particle in the average and scaled variance of the particle centers using Welford's method.
+							TVec3<T> CenterDelta = ElemBounds.Center() - WorkSnapshot.AverageCenter;
+							WorkSnapshot.AverageCenter += CenterDelta / (T)NumElems;
+							WorkSnapshot.ScaledCenterVariance += (ElemBounds.Center() - WorkSnapshot.AverageCenter) * CenterDelta;
+						}
 					}
 					else
 					{
-						FReal NumElems = (FReal)(WorkSnapshot.Elems.Add(FElement{ Payload, ElemBounds }) + 1);
-						WorkSnapshot.Bounds.GrowToInclude(ElemBounds);
-
-						// Include the current particle in the average and scaled variance of the particle centers using Welford's method.
-						TVec3<T> CenterDelta = ElemBounds.Center() - WorkSnapshot.AverageCenter;
-						WorkSnapshot.AverageCenter += CenterDelta / (T)NumElems;
-						WorkSnapshot.ScaledCenterVariance += (ElemBounds.Center() - WorkSnapshot.AverageCenter) * CenterDelta;
+						ElemBounds = TAABB<T, 3>(TVec3<T>(TNumericLimits<T>::Lowest()), TVec3<T>(TNumericLimits<T>::Max()));
 					}
-				}
-				else
-				{
-					ElemBounds = TAABB<T, 3>(TVec3<T>(TNumericLimits<T>::Lowest()), TVec3<T>(TNumericLimits<T>::Max()));
-				}
 
-				if (!bHasBoundingBox)
-				{
-					if (bMutable)
+					if (!bHasBoundingBox)
 					{
-						PayloadToInfo.Add(Payload, FAABBTreePayloadInfo{ GlobalPayloads.Num(), INDEX_NONE, INDEX_NONE, INDEX_NONE });
+						if (bMutable)
+						{
+							PayloadToInfo.Add(Payload, FAABBTreePayloadInfo{ GlobalPayloads.Num(), INDEX_NONE, INDEX_NONE, INDEX_NONE });
+						}
+						GlobalPayloads.Add(FElement{ Payload, ElemBounds });
 					}
-					GlobalPayloads.Add(FElement{ Payload, ElemBounds });
-				}
 
-				++Idx;
-				//todo: payload info
+					++Idx;
+					//todo: payload info
+				}
 			}
 		}
 
-		NumProcessedThisSlice = Particles.Num();	//todo: give chance to time slice out of next phase
+		NumProcessedThisSlice = NumParticles;	//todo: give chance to time slice out of next phase
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_AABBTreeInitialTimeSlice);

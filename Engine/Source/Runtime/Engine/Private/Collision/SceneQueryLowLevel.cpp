@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
-
-
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
 #include "SQAccelerator.h"
+#include "SQVisitor.h"
 
 #include "PhysTestSerializer.h"
 
 #include "PBDRigidsSolver.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
+#include "PhysicsEngine/ExternalSpatialAccelerationPayload.h"
 
 int32 ForceStandardSQ = 0;
 FAutoConsoleVariableRef CVarForceStandardSQ(TEXT("p.ForceStandardSQ"), ForceStandardSQ, TEXT("If enabled, we force the standard scene query even if custom SQ structure is enabled"));
@@ -66,7 +65,54 @@ namespace
 #endif
 	}
 
-	void SweepSQCaptureHelper(float QueryDurationSeconds, const FChaosSQAccelerator& SQAccelerator, const FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, const FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
+	/**
+	 * This is meant as a replacement for FChaosSQAccelerator. There doesn't seem to be a need to expose this publicly since it'll just be used internally to allow
+	 * us to use more than one type of acceleration structure payload.
+	 */
+	template<typename TPayload>
+	class FGenericChaosSQAccelerator
+	{
+	public:
+		explicit FGenericChaosSQAccelerator(const Chaos::ISpatialAcceleration<TPayload, Chaos::FReal, 3>& InSpatialAcceleration)
+			: SpatialAcceleration(InSpatialAcceleration)
+		{}
+
+		template<typename THit>
+		void Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<THit>& HitBuffer, EHitFlags OutputFlags, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams = {}) const
+		{
+			using namespace Chaos;
+			using namespace ChaosInterface;
+
+			TSQVisitor<TSphere<FReal, 3>, TPayload, THit, std::is_same_v<THit, FRaycastHit>> RaycastVisitor(Start, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, DebugParams);
+			HitBuffer.IncFlushCount();
+			SpatialAcceleration.Raycast(Start, Dir, DeltaMagnitude, RaycastVisitor);
+			HitBuffer.DecFlushCount();
+		}
+
+		template<typename THit>
+		void Sweep(const Chaos::FImplicitObject& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<THit>& HitBuffer, EHitFlags OutputFlags, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams = {}) const
+		{
+			return Chaos::Utilities::CastHelper(QueryGeom, StartTM, [&](const auto& Downcast, const FTransform& StartFullTM)
+			{
+				return SweepHelper(Downcast, SpatialAcceleration, StartFullTM, Dir, DeltaMagnitude, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, DebugParams);
+			});
+		}
+
+		template<typename THit>
+		void Overlap(const Chaos::FImplicitObject& QueryGeom, const FTransform& GeomPose, ChaosInterface::FSQHitBuffer<THit>& HitBuffer, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams = {}) const
+		{
+			return Chaos::Utilities::CastHelper(QueryGeom, GeomPose, [&](const auto& Downcast, const FTransform& GeomFullPose)
+			{
+				return OverlapHelper(Downcast, SpatialAcceleration, GeomFullPose, HitBuffer, QueryFilterData, QueryCallback, DebugParams);
+			});
+		}
+
+	private:
+		const Chaos::ISpatialAcceleration<TPayload, Chaos::FReal, 3>& SpatialAcceleration;
+	};
+
+	template<typename TPayload>
+	void SweepSQCaptureHelper(float QueryDurationSeconds, const FGenericChaosSQAccelerator<TPayload>& SQAccelerator, const FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, const FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
 	{
 #if !UE_BUILD_SHIPPING
 		float QueryDurationMicro = QueryDurationSeconds * 1000.0 * 1000.0;
@@ -102,7 +148,8 @@ namespace
 #endif
 	}
 
-	void RaycastSQCaptureHelper(float QueryDurationSeconds, const FChaosSQAccelerator& SQAccelerator, const FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, const FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
+	template<typename TPayload>
+	void RaycastSQCaptureHelper(float QueryDurationSeconds, const FGenericChaosSQAccelerator<TPayload>& SQAccelerator, const FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, const FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
 	{
 #if !UE_BUILD_SHIPPING
 		float QueryDurationMicro = QueryDurationSeconds * 1000.0 * 1000.0;
@@ -138,7 +185,8 @@ namespace
 #endif
 	}
 
-	void OverlapSQCaptureHelper(float QueryDurationSeconds, const FChaosSQAccelerator& SQAccelerator, const FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, const FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
+	template<typename TPayload>
+	void OverlapSQCaptureHelper(float QueryDurationSeconds, const FGenericChaosSQAccelerator<TPayload>& SQAccelerator, const FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, const FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
 	{
 #if !UE_BUILD_SHIPPING
 		float QueryDurationMicro = QueryDurationSeconds * 1000.0 * 1000.0;
@@ -177,7 +225,9 @@ namespace
 	template<typename TAccelContainer, bool bGTData>
 	struct FAccelerationContainerTraits
 	{
-		static const Chaos::IDefaultChaosSpatialAcceleration* GetSpatialAccelerationFromContainer(const TAccelContainer& Container)
+		using TAccelStructure = std::conditional_t<std::is_same_v<TAccelContainer, FPhysScene>, Chaos::IDefaultChaosSpatialAcceleration, TAccelContainer>;
+
+		static const TAccelStructure* GetSpatialAccelerationFromContainer(const TAccelContainer& Container)
 		{
 			if constexpr (IsPhysScene())
 			{
@@ -205,20 +255,26 @@ namespace
 	};
 }
 
+#define DEFINE_LOW_LEVEL_RAYCAST_ACCEL_HIT(TACCEL, THIT) template void LowLevelRaycast<TACCEL, THIT>(const TACCEL& Container, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<THIT>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams);
+#define DEFINE_LOW_LEVEL_RAYCAST_ACCEL(TACCEL) \
+DEFINE_LOW_LEVEL_RAYCAST_ACCEL_HIT(TACCEL, FHitRaycast); \
+DEFINE_LOW_LEVEL_RAYCAST_ACCEL_HIT(TACCEL, ChaosInterface::FPTRaycastHit);
+
 template <typename TAccelContainer, typename THitRaycast>
-void LowLevelRaycastImp(const TAccelContainer& Container, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<THitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
+void LowLevelRaycast(const TAccelContainer& Container, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<THitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
 {
 	constexpr bool bGTData = std::is_same_v<THitRaycast, FHitRaycast>;
-	if (const Chaos::IDefaultChaosSpatialAcceleration* SolverAccelerationStructure = FAccelerationContainerTraits<TAccelContainer, bGTData>::GetSpatialAccelerationFromContainer(Container))
+	using TTraits = FAccelerationContainerTraits<TAccelContainer, bGTData>;
+	if (const typename TTraits::TAccelStructure* SolverAccelerationStructure = TTraits::GetSpatialAccelerationFromContainer(Container))
 	{
-		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure);
+		FGenericChaosSQAccelerator<typename TTraits::TAccelStructure::TPayload> SQAccelerator(*SolverAccelerationStructure);
 		double Time = 0.0;
 		{
 			FScopedDurationTimer Timer(Time);
 			SQAccelerator.Raycast(Start, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback, DebugParams);
 		}
 
-		if constexpr (bGTData && FAccelerationContainerTraits<TAccelContainer, bGTData>::IsPhysScene())
+		if constexpr (bGTData && TTraits::IsPhysScene())
 		{
 			if (!!SerializeSQs && !!EnableRaycastSQCapture)
 			{
@@ -228,33 +284,23 @@ void LowLevelRaycastImp(const TAccelContainer& Container, const FVector& Start, 
 	}
 }
 
-void LowLevelRaycast(const FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelRaycastImp(Scene, Start, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
+DEFINE_LOW_LEVEL_RAYCAST_ACCEL(Chaos::IDefaultChaosSpatialAcceleration)
+DEFINE_LOW_LEVEL_RAYCAST_ACCEL(IExternalSpatialAcceleration)
+DEFINE_LOW_LEVEL_RAYCAST_ACCEL(FPhysScene)
 
-void LowLevelRaycast(const FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<ChaosInterface::FPTRaycastHit>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelRaycastImp(Scene, Start, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
-
-void LowLevelRaycast(const Chaos::IDefaultChaosSpatialAcceleration& AccelerationStructure, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelRaycastImp(AccelerationStructure, Start, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
-
-void LowLevelRaycast(const Chaos::IDefaultChaosSpatialAcceleration& AccelerationStructure, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<ChaosInterface::FPTRaycastHit>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelRaycastImp(AccelerationStructure, Start, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
+#define DEFINE_LOW_LEVEL_SWEEP_ACCEL_HIT(TACCEL, THIT) template void LowLevelSweep<TACCEL, THIT>(const TACCEL& Container, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<THIT>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
+#define DEFINE_LOW_LEVEL_SWEEP_ACCEL(TACCEL) \
+DEFINE_LOW_LEVEL_SWEEP_ACCEL_HIT(TACCEL, FHitSweep); \
+DEFINE_LOW_LEVEL_SWEEP_ACCEL_HIT(TACCEL, ChaosInterface::FPTSweepHit);
 
 template <typename TAccelContainer, typename THitSweep>
-void LowLevelSweepImp(const TAccelContainer& Container, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<THitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
+void LowLevelSweep(const TAccelContainer& Container, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<THitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
 {
 	constexpr bool bGTData = std::is_same<THitSweep, FHitSweep>::value;
-	if (const Chaos::IDefaultChaosSpatialAcceleration* SolverAccelerationStructure = FAccelerationContainerTraits<TAccelContainer, bGTData>::GetSpatialAccelerationFromContainer(Container))
+	using TTraits = FAccelerationContainerTraits<TAccelContainer, bGTData>;
+	if (const typename TTraits::TAccelStructure* SolverAccelerationStructure = TTraits::GetSpatialAccelerationFromContainer(Container))
 	{
-		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure);
+		FGenericChaosSQAccelerator<typename TTraits::TAccelStructure::TPayload> SQAccelerator(*SolverAccelerationStructure);
 		{
 			double Time = 0.0;
 			{
@@ -273,33 +319,23 @@ void LowLevelSweepImp(const TAccelContainer& Container, const FPhysicsGeometry& 
 	}
 }
 
-void LowLevelSweep(const FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelSweepImp(Scene, QueryGeom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
+DEFINE_LOW_LEVEL_SWEEP_ACCEL(Chaos::IDefaultChaosSpatialAcceleration)
+DEFINE_LOW_LEVEL_SWEEP_ACCEL(IExternalSpatialAcceleration)
+DEFINE_LOW_LEVEL_SWEEP_ACCEL(FPhysScene)
 
-void LowLevelSweep(const FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<ChaosInterface::FPTSweepHit>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelSweepImp(Scene, QueryGeom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
-
-void LowLevelSweep(const Chaos::IDefaultChaosSpatialAcceleration& AccelerationStructure, const FPhysicsGeometry& Geom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelSweepImp(AccelerationStructure, Geom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
-
-void LowLevelSweep(const Chaos::IDefaultChaosSpatialAcceleration& AccelerationStructure, const FPhysicsGeometry& Geom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<ChaosInterface::FPTSweepHit>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelSweepImp(AccelerationStructure, Geom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
+#define DEFINE_LOW_LEVEL_OVERLAP_ACCEL_HIT(TACCEL, THIT) template void LowLevelOverlap<TACCEL, THIT>(const TACCEL& Container, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<THIT>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
+#define DEFINE_LOW_LEVEL_OVERLAP_ACCEL(TACCEL) \
+DEFINE_LOW_LEVEL_OVERLAP_ACCEL_HIT(TACCEL, FHitOverlap); \
+DEFINE_LOW_LEVEL_OVERLAP_ACCEL_HIT(TACCEL, ChaosInterface::FPTOverlapHit);
 
 template <typename TAccelContainer, typename THitOverlap>
-void LowLevelOverlapImp(const TAccelContainer& Container, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<THitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
+void LowLevelOverlap(const TAccelContainer& Container, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<THitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
 {
 	constexpr bool bGTData = std::is_same<THitOverlap, FHitOverlap>::value;
-	if (const Chaos::IDefaultChaosSpatialAcceleration* SolverAccelerationStructure = FAccelerationContainerTraits<TAccelContainer, bGTData>::GetSpatialAccelerationFromContainer(Container))
+	using TTraits = FAccelerationContainerTraits<TAccelContainer, bGTData>;
+	if (const typename TTraits::TAccelStructure* SolverAccelerationStructure = TTraits::GetSpatialAccelerationFromContainer(Container))
 	{
-		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure);
+		FGenericChaosSQAccelerator<typename TTraits::TAccelStructure::TPayload> SQAccelerator(*SolverAccelerationStructure);
 		double Time = 0.0;
 		{
 			FScopedDurationTimer Timer(Time);
@@ -316,22 +352,6 @@ void LowLevelOverlapImp(const TAccelContainer& Container, const FPhysicsGeometry
 	}
 }
 
-void LowLevelOverlap(const FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelOverlapImp(Scene, QueryGeom, GeomPose, HitBuffer, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
-
-void LowLevelOverlap(const FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<ChaosInterface::FPTOverlapHit>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelOverlapImp(Scene, QueryGeom, GeomPose, HitBuffer, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
-
-void LowLevelOverlap(const Chaos::IDefaultChaosSpatialAcceleration& AccelerationStructure, const FPhysicsGeometry& Geom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelOverlapImp(AccelerationStructure, Geom, GeomPose, HitBuffer, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
-
-void LowLevelOverlap(const Chaos::IDefaultChaosSpatialAcceleration& AccelerationStructure, const FPhysicsGeometry& Geom, const FTransform& GeomPose, FPhysicsHitCallback<ChaosInterface::FPTOverlapHit>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const ChaosInterface::FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const ChaosInterface::FQueryDebugParams& DebugParams)
-{
-	LowLevelOverlapImp(AccelerationStructure, Geom, GeomPose, HitBuffer, QueryFlags, Filter, QueryFilterData, QueryCallback, DebugParams);
-}
+DEFINE_LOW_LEVEL_OVERLAP_ACCEL(Chaos::IDefaultChaosSpatialAcceleration)
+DEFINE_LOW_LEVEL_OVERLAP_ACCEL(IExternalSpatialAcceleration)
+DEFINE_LOW_LEVEL_OVERLAP_ACCEL(FPhysScene)
