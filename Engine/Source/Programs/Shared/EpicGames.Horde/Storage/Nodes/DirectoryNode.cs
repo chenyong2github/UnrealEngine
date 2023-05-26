@@ -610,7 +610,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="stream">Input stream</param>
 		/// <param name="writer">Writer for new nodes</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task CopyFromZipStreamAsync(Stream stream, TreeWriter writer, CancellationToken cancellationToken)
+		public async Task CopyFromZipStreamAsync(Stream stream, TreeWriter writer, CancellationToken cancellationToken = default)
 		{
 			FileNodeWriter fileWriter = new FileNodeWriter(writer, new ChunkingOptions());
 			using (ZipArchive archive = new ZipArchive(stream, ZipArchiveMode.Read, true))

@@ -59,10 +59,16 @@ namespace AutomationTool.Tasks
 		public bool Paused = false;
 
 		/// <summary>
+		/// Zip file containing files to upload
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string? File = null!;
+
+		/// <summary>
 		/// Directory to upload for the tool
 		/// </summary>
-		[TaskParameter]
-		public string Directory = null!;
+		[TaskParameter(Optional = true)]
+		public string? Directory = null!;
 	}
 
 	/// <summary>
@@ -147,11 +153,21 @@ namespace AutomationTool.Tasks
 			HttpStorageClient storageClient = new HttpStorageClient(CreateHttpClient, () => new HttpClient(), Logger);
 			using (TreeWriter treeWriter = new TreeWriter(storageClient))
 			{
-				DirectoryInfo directoryInfo = new DirectoryInfo(Parameters.Directory!);
-
 				DirectoryNode sandbox = new DirectoryNode();
-				await sandbox.CopyFromDirectoryAsync(directoryInfo, new ChunkingOptions(), treeWriter, null);
-
+				if (Parameters.File != null)
+				{
+					using FileStream stream = FileReference.Open(ResolveFile(Parameters.File), FileMode.Open, FileAccess.Read);
+					await sandbox.CopyFromZipStreamAsync(stream, treeWriter);
+				}
+				else if (Parameters.Directory != null)
+				{
+					DirectoryInfo directoryInfo = ResolveDirectory(Parameters.Directory).ToDirectoryInfo();
+					await sandbox.CopyFromDirectoryAsync(directoryInfo, new ChunkingOptions(), treeWriter, null);
+				}
+				else
+				{
+					throw new AutomationException("Either File=... or Directory=... must be specified");
+				}
 				handle = await treeWriter.FlushAsync(sandbox);
 			}
 
