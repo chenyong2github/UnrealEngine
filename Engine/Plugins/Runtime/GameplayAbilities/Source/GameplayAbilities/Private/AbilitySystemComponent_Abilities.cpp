@@ -1543,17 +1543,18 @@ bool UAbilitySystemComponent::InternalTryActivateAbility(FGameplayAbilitySpecHan
 		return false;
 	}
 
+	// If it's an instanced one, the instanced ability will be set, otherwise it will be null
+	UGameplayAbility* InstancedAbility = Spec->GetPrimaryInstance();
+
 	if (TriggerEventData)
 	{
-		if (!Ability->ShouldAbilityRespondToEvent(ActorInfo, TriggerEventData))
+		UGameplayAbility* AbilitySource = InstancedAbility ? InstancedAbility : Ability;
+		if (!AbilitySource->ShouldAbilityRespondToEvent(ActorInfo, TriggerEventData))
 		{
-			NotifyAbilityFailed(Handle, Ability, InternalTryActivateAbilityFailureTags);
+			NotifyAbilityFailed(Handle, AbilitySource, InternalTryActivateAbilityFailureTags);
 			return false;
 		}
 	}
-
-	// If it's instance once the instanced ability will be set, otherwise it will be null
-	UGameplayAbility* InstancedAbility = Spec->GetPrimaryInstance();
 
 	{
 		const FGameplayTagContainer* SourceTags = TriggerEventData ? &TriggerEventData->InstigatorTags : nullptr;
