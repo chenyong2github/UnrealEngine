@@ -10,6 +10,7 @@ using Horde.Server.Jobs.Templates;
 using Horde.Server.Server;
 using HordeCommon;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Options;
@@ -366,15 +367,16 @@ namespace Horde.Server.Jobs.Graphs
 		/// Cache for graphs
 		/// Use a non-shared cache to ensure enough space for graphs
 		/// </summary>
-		private readonly IMemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions() { SizeLimit = MaxGraphs });
+		private readonly MemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions() { SizeLimit = MaxGraphs });
+		private readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="mongoService">The database service singleton</param>
-		public GraphCollection(MongoService mongoService)
+		public GraphCollection(MongoService mongoService, ILogger<GraphCollection> logger)
 		{
 			_graphs = mongoService.GetCollection<GraphDocument>("Graphs");
+			_logger = logger;
 		}
 		
 		/// <inheritdoc/>
@@ -434,12 +436,17 @@ namespace Horde.Server.Jobs.Graphs
 				return GraphDocument.Empty;
 			}
 
-			return await _memoryCache.GetOrCreateAsync(hash, cacheEntry =>
+			async Task<GraphDocument> CreateCacheEntry(ICacheEntry cacheEntry)
 			{
 				cacheEntry.SlidingExpiration = TimeSpan.FromHours(24);
 				cacheEntry.Size = 1;
-				return _graphs.Find<GraphDocument>(x => x.Id == hash).FirstAsync();
-			});
+
+				GraphDocument document = await _graphs.Find<GraphDocument>(x => x.Id == hash).FirstAsync();
+				_logger.LogDebug("Creating new cache entry for {Hash} (current size={Size})", hash, _memoryCache.Count);
+				return document;
+			}
+
+			return await _memoryCache.GetOrCreateAsync(hash, CreateCacheEntry);
 		}
 
 		/// <inheritdoc/>

@@ -93,12 +93,11 @@ public class ControllerIntegrationTest : IDisposable
 	{
 		IServiceProvider services = Factory.Services;
 		ConfigService configService = services.GetRequiredService<ConfigService>();
-		MongoService mongoService = services.GetRequiredService<MongoService>();
 		ITemplateCollection templateService = services.GetRequiredService<ITemplateCollection>();
 		JobService jobService = services.GetRequiredService<JobService>();
 		IArtifactCollectionV1 artifactCollection = services.GetRequiredService<IArtifactCollectionV1>();
 		AgentService agentService = services.GetRequiredService<AgentService>();
-		GraphCollection graphCollection = new(mongoService);
+		IGraphCollection graphCollection = services.GetRequiredService<IGraphCollection>();
 		IOptions<ServerSettings> serverSettings = services.GetRequiredService<IOptions<ServerSettings>>();
 
 		return await Fixture.Create(configService, graphCollection, templateService, jobService, artifactCollection, agentService, serverSettings.Value);
