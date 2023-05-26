@@ -351,9 +351,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			const bool bHaziness		= BSDF_GETHASHAZINESS(BSDFContext.BSDF);
 
 			// Specular occlusion is only used here once to affect the F90 source parameters. F0 will decrease naturally to 0.
-			const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
-			F0  *= SpecularMicroOcclusion;
-			F90 *= SpecularMicroOcclusion;
+			F90 *= F0RGBToMicroOcclusion(F0);
 
 			if (Settings.bForceFullyRough)
 			{
@@ -980,9 +978,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			const float SafeRoughness	= MakeRoughnessSafe(EYE_ROUGHNESS(BSDFContext.BSDF));
 
 			// Specular occlusion is only used here once to affect the F90 source parameters. F0 will decrease naturally to 0.
-			const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
-			F0  *= SpecularMicroOcclusion;
-			F90 *= SpecularMicroOcclusion;
+			F90 *= F0RGBToMicroOcclusion(F0);
 
 			if (Settings.bForceFullyRough)
 			{
@@ -1422,9 +1418,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			float3 F90 				= SLAB_F90(BSDFContext.BSDF);
 
 			// Specular occlusion is only used here once to affect the F90 source parameters. F0 will decrease naturally to 0.
-			const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
-			F0  *= SpecularMicroOcclusion;
-			F90 *= SpecularMicroOcclusion;
+			F90 *= F0RGBToMicroOcclusion(F0);
 
 			if (Settings.bForceFullyRough)
 			{
@@ -1694,9 +1688,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			float3 F90 				= EYE_F90(BSDFContext.BSDF);
 
 			// Specular occlusion is only used here once to affect the F90 source parameters. F0 will decrease naturally to 0.
-			const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
-			F0  *= SpecularMicroOcclusion;
-			F90 *= SpecularMicroOcclusion;
+			F90 *= F0RGBToMicroOcclusion(F0);
 
 			if (Settings.bForceFullyRough)
 			{

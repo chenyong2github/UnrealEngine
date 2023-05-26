@@ -51,7 +51,7 @@ struct FSubstrateThinGlassSlabData
 		V = mul(Basis, V_World);
 
 		F0 = F0RGBToF0(Payload.SpecularColor);
-		F90 = saturate(50.0 * F0);
+		F90 = F0ToMicroOcclusion(F0);
 		TransmissionColor = Payload.GetTransmittanceColor();
 		FuzzRoughness = MakeRoughnessSafe(Payload.FuzzRoughness, STRATA_MIN_FUZZ_ROUGHNESS);
 

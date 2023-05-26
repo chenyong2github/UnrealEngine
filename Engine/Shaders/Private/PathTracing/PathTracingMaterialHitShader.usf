@@ -621,13 +621,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 
 							float3 DiffuseColor = SLAB_DIFFUSEALBEDO(BSDF);
 							float3 F0 = SLAB_F0(BSDF);
-							float3 F90 = SLAB_F90(BSDF);
-							{
-								// make sure F0=0.0 fades off the specular lobe completely
-								const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
-								F0 *= SpecularMicroOcclusion;
-								F90 *= SpecularMicroOcclusion;
-							}
+							float3 F90 = SLAB_F90(BSDF) * F0RGBToMicroOcclusion(F0);
 
 							float Roughness0 = MakeRoughnessSafe(SLAB_ROUGHNESS(BSDF), PackedPayload.GetPathRoughness());
 							// STRATA_TODO: Support Fresnel82?

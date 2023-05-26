@@ -39,14 +39,9 @@ struct FSubstrateSingleSlabData
 
 		V = mul(Basis, V_World);
 
+		// make sure F0=0.0 fades off the specular lobe completely
 		F0 = Payload.SpecularColor;
-		F90 = Payload.SpecularEdgeColor;
-		{
-			// make sure F0=0.0 fades off the specular lobe completely
-			const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
-			F0 *= SpecularMicroOcclusion;
-			F90 *= SpecularMicroOcclusion;
-		}
+		F90 = Payload.SpecularEdgeColor * F0RGBToMicroOcclusion(F0);
 
 		FuzzRoughness = MakeRoughnessSafe(Payload.FuzzRoughness, STRATA_MIN_FUZZ_ROUGHNESS);
 
@@ -273,14 +268,9 @@ struct FSubstrateClearCoatData
 
 		V = mul(Basis, V_World);
 
+		// make sure F0=0.0 fades off the specular lobe completely
 		F0 = Payload.SpecularColor;
-		F90 = Payload.SpecularEdgeColor;
-		{
-			// make sure F0=0.0 fades off the specular lobe completely
-			const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
-			F0 *= SpecularMicroOcclusion;
-			F90 *= SpecularMicroOcclusion;
-		}
+		F90 = Payload.SpecularEdgeColor * F0RGBToMicroOcclusion(F0);
 
 		FuzzRoughness = MakeRoughnessSafe(Payload.FuzzRoughness, STRATA_MIN_FUZZ_ROUGHNESS);
 
