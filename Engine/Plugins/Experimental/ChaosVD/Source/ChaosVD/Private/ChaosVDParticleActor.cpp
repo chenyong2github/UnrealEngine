@@ -5,27 +5,59 @@
 #include "ChaosVDGeometryBuilder.h"
 #include "ChaosVDScene.h"
 #include "ChaosVDRecording.h"
+#include "Components/MeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
+
+static FAutoConsoleVariable CVarChaosVDHideVolumeAndBrushesHack(
+	TEXT("p.Chaos.VD.Tool.HideVolumeAndBrushesHack"),
+	true,
+	TEXT("If true, it will hide any geometry if its name contains Volume or Brush"));
 
 AChaosVDParticleActor::AChaosVDParticleActor(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent0"));
 }
 
-void AChaosVDParticleActor::UpdateFromRecordedData(const FChaosVDParticleDebugData& RecordedData, const Chaos::FRigidTransform3& SimulationTransform)
+void AChaosVDParticleActor::UpdateFromRecordedData(const FChaosVDParticleDebugData& InRecordedData, const Chaos::FRigidTransform3& SimulationTransform)
 {
-	SetActorLocationAndRotation(SimulationTransform.TransformPosition(RecordedData.Position), SimulationTransform.GetRotation() * RecordedData.Rotation, false);
+	SetActorLocationAndRotation(SimulationTransform.TransformPosition(InRecordedData.Position), SimulationTransform.GetRotation() * InRecordedData.Rotation, false);
+
+	if (RecordedDebugData.ImplicitObjectHash != InRecordedData.ImplicitObjectHash)
+	{
+		if (const TSharedPtr<FChaosVDScene>& ScenePtr = OwningScene.Pin())
+		{
+			if (const TSharedPtr<const Chaos::FImplicitObject>* Geometry = ScenePtr->GetUpdatedGeometry(InRecordedData.ImplicitObjectHash))
+			{
+				UpdateGeometryData(*Geometry, EChaosVDActorGeometryUpdateFlags::ForceUpdate);
+			}
+		}
+	}
 
 	// TODO: We should store a ptr to the data and in our custom details panel draw it, but the current data format is just a test
 	// So we should do this once it is final
-	RecordedDebugData = RecordedData;
+	RecordedDebugData = InRecordedData;
 }
 
-void AChaosVDParticleActor::UpdateGeometryData(const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject)
+void AChaosVDParticleActor::UpdateGeometryData(const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject, EChaosVDActorGeometryUpdateFlags OptionFlag)
 {
+	if (EnumHasAnyFlags(OptionFlag, EChaosVDActorGeometryUpdateFlags::ForceUpdate))
+	{
+		bIsGeometryDataGenerationStarted = false;
+
+		for (TWeakObjectPtr<UMeshComponent>& MeshComponent : MeshComponents)
+		{
+			if (MeshComponent.IsValid())
+			{
+				MeshComponent->DestroyComponent();	
+			}
+		}
+
+		MeshComponents.Reset();
+	}
+
 	if (bIsGeometryDataGenerationStarted)
 	{
 		return;
@@ -50,10 +82,26 @@ void AChaosVDParticleActor::UpdateGeometryData(const TSharedPtr<const Chaos::FIm
 				GeometryGenerator->CreateMeshComponentsFromImplicit<UStaticMesh, UInstancedStaticMeshComponent>(ImplicitObject.Get(), this, OutGeneratedMeshComponents, Transform);
 			}
 
-			
-
 			if (OutGeneratedMeshComponents.Num() > 0)
 			{
+				MeshComponents.Append(OutGeneratedMeshComponents);
+
+				if (CVarChaosVDHideVolumeAndBrushesHack->GetBool())
+				{
+					// This is a temp hack (and is not performant) we need until we have a proper way to filer out trigger volumes/brushes at will
+					// Without this most maps will be covered in boxes
+					if (RecordedDebugData.DebugName.Contains(TEXT("Brush")) || RecordedDebugData.DebugName.Contains(TEXT("Volume")))
+					{
+						for (TWeakObjectPtr<UMeshComponent> MeshComponent : OutGeneratedMeshComponents)
+						{
+							if (MeshComponent.IsValid())
+							{
+								MeshComponent->SetVisibility(false);
+							}
+						}
+					}
+				}
+
 				bIsGeometryDataGenerationStarted = true;
 			}
 		}
@@ -66,9 +114,9 @@ void AChaosVDParticleActor::SetScene(const TSharedPtr<FChaosVDScene>& InScene)
 
 	if (const TSharedPtr<FChaosVDScene>& ScenePtr = OwningScene.Pin())
 	{
-		GeometryUpdatedDelegate = ScenePtr->OnNewGeometryAvailable().AddWeakLambda(this, [this](const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject, const int32 ID)
+		GeometryUpdatedDelegate = ScenePtr->OnNewGeometryAvailable().AddWeakLambda(this, [this](const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject, const uint32 ID)
 		{
-			if (RecordedDebugData.ImplicitObjectID == ID)
+			if (RecordedDebugData.ImplicitObjectHash == ID)
 			{
 				UpdateGeometryData(ImplicitObject);
 			}

@@ -11,6 +11,7 @@ void FChaosVDTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
 	FInterfaceBuilder& Builder = Context.InterfaceBuilder;
 	Builder.RouteEvent(RouteId_ChaosVDParticle, "ChaosVDLogger", "ChaosVDParticle");
+	Builder.RouteEvent(RouteId_ChaosVDParticleDestroyed, "ChaosVDLogger", "ChaosVDParticleDestroyed");
 	
 	Builder.RouteEvent(RouteId_ChaosVDSolverFrameStart, "ChaosVDLogger", "ChaosVDSolverFrameStart");
 	Builder.RouteEvent(RouteId_ChaosVDSolverFrameEnd, "ChaosVDLogger", "ChaosVDSolverFrameEnd");
@@ -76,6 +77,7 @@ bool FChaosVDTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEvent
 
 			NewFrameData.SolverID = EventData.GetValue<int32>("SolverID");
 			NewFrameData.FrameCycle = EventData.GetValue<uint64>("Cycle");
+			NewFrameData.bIsKeyFrame = EventData.GetValue<bool>("IsKeyFrame");
 
 			FWideStringView DebugNameView;
 			EventData.GetString("DebugName", DebugNameView);
@@ -83,7 +85,6 @@ bool FChaosVDTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEvent
 
 			// Add an empty frame. It will be filled out by the solver trace events
 			ChaosVDTraceProvider->AddSolverFrame(NewFrameData.SolverID, MoveTemp(NewFrameData));
-	
 			break;
 		}
 	case RouteId_ChaosVDSolverFrameEnd:
@@ -98,7 +99,11 @@ bool FChaosVDTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEvent
 			if (FChaosVDSolverFrameData* FrameData  = ChaosVDTraceProvider->GetLastSolverFrame(SolverID))
 			{
 				// Add an empty step. It will be filled out by the particle (and later on other objects/elements) events
-				FrameData->SolverSteps.AddDefaulted();
+				FChaosVDStepData& StepData = FrameData->SolverSteps.AddDefaulted_GetRef();
+
+				FWideStringView DebugNameView;
+				EventData.GetString("StepName", DebugNameView);
+				StepData.StepName = DebugNameView;
 			}
 	
 			break;
@@ -117,9 +122,23 @@ bool FChaosVDTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEvent
 			// This can be null if the recording started Mid-Frame. In this case we just discard the data for now
 			if (FChaosVDSolverFrameData* FrameData = ChaosVDTraceProvider->GetLastSolverFrame(SolverID))
 			{
-				if (FrameData->SolverSteps.Num() > 0)
+				if (ensureMsgf(FrameData->SolverSteps.Num() > 0, TEXT("A particle was traced without a valid sstep scope")))
 				{
 					FrameData->SolverSteps.Last().RecordedParticles.Add(MoveTemp(ParticleData));
+				}
+			}
+
+			break;
+		}
+	case RouteId_ChaosVDParticleDestroyed:
+		{
+			const int32 SolverID = EventData.GetValue<int32>("SolverID");
+
+			if (FChaosVDSolverFrameData* FrameData = ChaosVDTraceProvider->GetLastSolverFrame(SolverID))
+			{
+				if (FrameData->SolverSteps.Num() > 0)
+				{
+					FrameData->SolverSteps.Last().ParticlesDestroyedIDs.Add(EventData.GetValue<int32>("ParticleID"));
 				}
 			}
 
@@ -195,6 +214,7 @@ void FChaosVDTraceAnalyzer::ReadParticleDataFromEvent(const FEventData& InEventD
 	OutParticleData.ParticleState = static_cast<EChaosVDParticleState>(InEventData.GetValue<int8>("ObjectState"));
 	OutParticleData.ParticleIndex = InEventData.GetValue<int32>("ParticleID");
 	OutParticleData.ImplicitObjectID = InEventData.GetValue<int32>("ImplicitObjectID");
+	OutParticleData.ImplicitObjectHash = InEventData.GetValue<uint32>("ImplicitObjectHash");
 
 	FWideStringView DebugNameView;
 	InEventData.GetString("DebugName", DebugNameView);
@@ -218,4 +238,3 @@ void FChaosVDTraceAnalyzer::ReadParticleDataFromEvent(const FEventData& InEventD
 	OutParticleData.AngularVelocity.Y = InEventData.GetValue<float>("AngularVelocityY");
 	OutParticleData.AngularVelocity.Z = InEventData.GetValue<float>("AngularVelocityZ");
 }
-

@@ -39,7 +39,7 @@ public:
 	/** Updates, Adds and Remove actors to match the provided Step Data */
 	void UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData, const FChaosVDSolverFrameData& InFrameData);
 
-	void HandleNewGeometryData(const TSharedPtr<const Chaos::FImplicitObject>&, const int32 GeometryID) const;
+	void HandleNewGeometryData(const TSharedPtr<const Chaos::FImplicitObject>&, const uint32 GeometryID) const;
 
 	void HandleEnterNewGameFrame(int32 FrameNumber, const TArray<int32>& AvailableSolversIds);
 
@@ -54,6 +54,8 @@ public:
 	const TSharedPtr<FChaosVDGeometryBuilder>& GetGeometryGenerator() { return  GeometryGenerator; }
 
 	FChaosVDGeometryDataLoaded& OnNewGeometryAvailable(){ return NewGeometryAvailableDelegate; }
+
+	const TSharedPtr<const Chaos::FImplicitObject>* GetUpdatedGeometry(int32 GeometryID) const;
 
 	TSharedPtr<FChaosVDRecording> LoadedRecording;
 

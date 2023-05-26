@@ -88,7 +88,16 @@ public:
 	 * @param FrameNumber Frame number to evaluate
 	 * @return Number of available steps
 	 */
-	int32 GetTrackStepsAtFrame(EChaosVDTrackType TrackType, int32 InTrackID, int32 FrameNumber) const;
+	int32 GetTrackStepsNumberAtFrame(EChaosVDTrackType TrackType, int32 InTrackID, int32 FrameNumber) const;
+
+	/**
+	 * Gets the available steps container in a track at the specified frame
+	 * @param TrackType Type of the track to evaluate
+	 * @param InTrackID ID of the track to evaluate
+	 * @param FrameNumber Frame number to evaluate
+	 * @return Ptr to the steps data container
+	 */
+	const FChaosVDStepsContainer* GetTrackStepsDataAtFrame(EChaosVDTrackType TrackType, int32 InTrackID, int32 FrameNumber) const;
 
 	/**
 	 * Gets the number of available frames for the specified track
@@ -119,7 +128,7 @@ public:
 	 * @param ToTrack Track info we want to use to convert the frame to
 	 * @return Converted Frame Number
 	 */
-	int32 ConvertCurrentFrameToOtherTrackFrame(FChaosVDTrackInfo FromTrack, FChaosVDTrackInfo ToTrack);
+	int32 ConvertCurrentFrameToOtherTrackFrame(const FChaosVDTrackInfo* FromTrack, const FChaosVDTrackInfo* ToTrack);
 
 	/**
 	 * Gets all the ids of the tracks, of the specified type, that are available available on the loaded recording

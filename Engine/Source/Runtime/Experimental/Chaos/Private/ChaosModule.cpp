@@ -2,6 +2,7 @@
 
 #include "ChaosModule.h"
 #include "CoreMinimal.h"
+#include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/CommandLine.h"
 
@@ -23,4 +24,15 @@ void FChaosEngineModule::StartupModule()
 	{
 		Chaos::GSingleThreadedPhysics = 1;
 	}
+
+#if WITH_CHAOS_VISUAL_DEBUGGER
+	FChaosVisualDebuggerTrace::RegisterEventHandlers();
+#endif
+}
+
+void FChaosEngineModule::ShutdownModule()
+{
+#if WITH_CHAOS_VISUAL_DEBUGGER
+	FChaosVisualDebuggerTrace::UnregisterEventHandlers();
+#endif
 }

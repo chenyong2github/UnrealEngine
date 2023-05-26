@@ -129,7 +129,12 @@ void SChaosVDPlaybackViewport::HandleControllerTrackFrameUpdated(TWeakPtr<FChaos
 		return;
 	}
 
-	GameFramesTimelineWidget->SetCurrentTimelineFrame(UpdatedTrackInfo->CurrentFrame, EChaosVDSetTimelineFrameFlags::None);
+	if (TSharedPtr<FChaosVDPlaybackController> ControllerSharedPtr = InController.Pin())
+	{
+		// The frame number we receive could be from a Solver track, so make sure it is converted to the correct game track frame number 
+		int32 GameTrackFrame = ControllerSharedPtr->ConvertCurrentFrameToOtherTrackFrame(UpdatedTrackInfo, ControllerSharedPtr->GetTrackInfo(EChaosVDTrackType::Game, FChaosVDPlaybackController::GameTrackID));
+		GameFramesTimelineWidget->SetCurrentTimelineFrame(GameTrackFrame, EChaosVDSetTimelineFrameFlags::None);
+	}
 }
 
 void SChaosVDPlaybackViewport::OnPlaybackSceneUpdated()

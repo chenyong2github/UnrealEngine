@@ -249,9 +249,7 @@ void FPBDRigidsEvolutionGBF::Advance(const FReal Dt,const FReal MaxStepDt,const 
 }
 
 void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt,const FSubStepInfo& SubStepInfo)
-{
-	CVD_SCOPE_TRACE_SOLVER_STEP();
-		
+{	
 	PrepareTick();
 
 	AdvanceOneTimeStepImpl(Dt, SubStepInfo);
@@ -339,10 +337,16 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	}
 #endif
 
+	{
+		CVD_SCOPE_TRACE_SOLVER_STEP(TEXT("Evolution Start"))
+		CVD_TRACE_PARTICLES_SOA(Particles);
+	}
+
 	// Update the collision solver type (used to support runtime comparisons of solver types for debugging/testing)
 	UpdateCollisionSolverType();
 
 	{
+		CVD_SCOPE_TRACE_SOLVER_STEP(TEXT("Integrate"))
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_Integrate);
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Integrate);
 		Integrate(Particles.GetActiveParticlesView(), Dt);
@@ -355,6 +359,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	}
 
 	{
+		CVD_SCOPE_TRACE_SOLVER_STEP(TEXT("ApplyKinematicTargets"))
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_KinematicTargets);
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_KinematicTargets);
 		ApplyKinematicTargets(Dt, SubStepInfo.PseudoFraction);
@@ -561,7 +566,11 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		GetCollisionConstraints().DetectProbeCollisions(Dt);
 	}
 
-	CVD_TRACE_PARTICLES(GetParticleHandles());
+	{
+		CVD_SCOPE_TRACE_SOLVER_STEP(TEXT("Evolution End"))
+		CVD_TRACE_PARTICLES_SOA(Particles);
+	}
+	
 
 #if !UE_BUILD_SHIPPING
 	if(SerializeEvolution)

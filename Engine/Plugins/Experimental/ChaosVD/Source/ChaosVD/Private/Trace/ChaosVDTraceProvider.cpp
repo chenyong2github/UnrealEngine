@@ -4,6 +4,7 @@
 
 #include "Chaos/ImplicitObject.h"
 #include "ChaosVDRecording.h"
+#include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
 #include "Compression/OodleDataCompressionUtil.h"
 #include "Serialization/MemoryReader.h"
 
@@ -128,29 +129,22 @@ void FChaosVDTraceProvider::SetBinaryDataReadyToUse(const int32 DataID)
 				RawData = &UnprocessedData->RawData;
 			}
 
+#if WITH_CHAOS_VISUAL_DEBUGGER
 			// TODO: Create a system to register external "Data handlers" with the logic on how serialize each type
 			// This should not be done here but as this is the only type we have is ok for now
-			if (UnprocessedData->TypeName == TEXT("FImplicitObject"))
-			{
+			if (UnprocessedData->TypeName == TEXT("FChaosVDImplicitObjectDataWrapper"))
+			{	
 				Chaos::TSerializablePtr<Chaos::FImplicitObject> Geometry;
 
 				FMemoryReader MemeReader(*RawData);
 				Chaos::FChaosArchive Ar(MemeReader);
 
-				if (ChaosContext.IsValid())
-				{
-					Ar.SetContext(MoveTemp(ChaosContext));
-					Ar << Geometry;
-					ChaosContext = Ar.StealContext();
-				}
-				else
-				{
-					Ar << Geometry;
-					ChaosContext = Ar.StealContext();
-				}
+				FChaosVDImplicitObjectDataWrapper WrappedGeometryData;
+				WrappedGeometryData.Serialize(Ar);
 
-				InternalRecording->AddImplicitObject(ChaosContext->ObjToTag[Geometry.Get()], Geometry.Get());
+				InternalRecording->AddImplicitObject(WrappedGeometryData.Hash, WrappedGeometryData.ImplicitObject.Get());
 			}
+#endif
 		}
 	}
 	else

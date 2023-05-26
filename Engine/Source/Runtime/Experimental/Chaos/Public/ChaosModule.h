@@ -9,5 +9,5 @@ class CHAOS_API FChaosEngineModule : public IModuleInterface
 public:
 
 	virtual void StartupModule() override;
-	virtual void ShutdownModule() override {};
+	virtual void ShutdownModule() override;
 };

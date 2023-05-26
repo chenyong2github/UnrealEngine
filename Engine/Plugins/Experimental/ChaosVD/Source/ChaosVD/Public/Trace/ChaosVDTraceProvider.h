@@ -17,7 +17,7 @@ struct FChaosVDRecording;
 
 struct FChaosVDBinaryDataContainer
 {
-	FChaosVDBinaryDataContainer(const int32 InDataID)
+	explicit FChaosVDBinaryDataContainer(const int32 InDataID)
 		: DataID(InDataID)
 	{
 	}
@@ -77,6 +77,4 @@ private:
 	TMap<int32, TSharedPtr<FChaosVDBinaryDataContainer>> UnprocessedDataByID;
 	
 	FOnBinaryDataReady BinaryDataReadyDelegate;
-
-	TUniquePtr<Chaos::FChaosArchiveContext> ChaosContext;
 };

@@ -4,10 +4,12 @@
 #include "Chaos/Core.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/Serializable.h"
-#include "Chaos/Vector.h"
 #include "Containers/Set.h"
 
 #include "Chaos/ChaosArchive.h"
+#include "ChaosVDContextProvider.h"
+#include "Chaos/ParticleIterator.h"
+#include "HAL/ThreadSafeBool.h"
 
 #ifndef CHAOS_VISUAL_DEBUGGER_ENABLED
 	#define CHAOS_VISUAL_DEBUGGER_ENABLED (WITH_CHAOS_VISUAL_DEBUGGER && UE_TRACE_ENABLED)
@@ -36,7 +38,7 @@
 	#endif
 
 	#ifndef CVD_TRACE_SOLVER_STEP_START
-		#define CVD_TRACE_SOLVER_STEP_START()
+		#define CVD_TRACE_SOLVER_STEP_START(StepName)
 	#endif
 
 	#ifndef CVD_TRACE_SOLVER_STEP_END
@@ -44,7 +46,7 @@
 	#endif
 
 	#ifndef CVD_SCOPE_TRACE_SOLVER_STEP
-		#define CVD_SCOPE_TRACE_SOLVER_STEP()
+		#define CVD_SCOPE_TRACE_SOLVER_STEP(StepName)
 	#endif
 
 	#ifndef CVD_TRACE_BINARY_DATA
@@ -54,8 +56,17 @@
 #ifndef CVD_TRACE_SOLVER_SIMULATION_SPACE
 		#define CVD_TRACE_SOLVER_SIMULATION_SPACE(InSimulationSpace)
 #endif
+
+#ifndef CVD_TRACE_PARTICLES_SOA
+	#define CVD_TRACE_PARTICLES_SOA(ParticleSoA)
+#endif
+
+#ifndef CVD_TRACE_PARTICLE_DESTROYED
+	#define CVD_TRACE_PARTICLE_DESTROYED(DestroyedParticleHandle)
+#endif
 #else
 
+#include "ChaosVDRuntimeModule.h"
 #include "Trace/Trace.h"
 #include "Trace/Trace.inl"
 
@@ -95,6 +106,7 @@ UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDSolverFrameStart)
 	UE_TRACE_EVENT_FIELD(int32, SolverID)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DebugName)
+	UE_TRACE_EVENT_FIELD(bool, IsKeyFrame)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDSolverFrameEnd)
@@ -114,12 +126,25 @@ UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDParticle)
 	UE_TRACE_EVENT_FIELD(int8, ObjectState)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DebugName)
 	UE_TRACE_EVENT_FIELD(int32, ImplicitObjectID)
+	UE_TRACE_EVENT_FIELD(uint32, ImplicitObjectHash)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDParticleCreated)
+	UE_TRACE_EVENT_FIELD(int32, SolverID)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(int32, ParticleID)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDParticleDestroyed)
+	UE_TRACE_EVENT_FIELD(int32, SolverID)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(int32, ParticleID)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDSolverStepStart)
 	UE_TRACE_EVENT_FIELD(int32, SolverID)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, StepNumber)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, StepName)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDSolverStepEnd)
@@ -155,6 +180,10 @@ UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDSolverSimulationSpace)
 	CVD_DEFINE_TRACE_ROTATOR(Chaos::FReal, Rotation)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDDummyEvent)
+	UE_TRACE_EVENT_FIELD(int32, SolverID)
+UE_TRACE_EVENT_END()
+
 #ifndef CVD_TRACE_PARTICLE
 	#define CVD_TRACE_PARTICLE(ParticleHandle) \
 		FChaosVisualDebuggerTrace::TraceParticle(ParticleHandle);
@@ -162,7 +191,12 @@ UE_TRACE_EVENT_END()
 
 #ifndef CVD_TRACE_PARTICLES
 	#define CVD_TRACE_PARTICLES(ParticleHandles) \
-		FChaosVisualDebuggerTrace::TraceParticles(ParticleHandles)
+		FChaosVisualDebuggerTrace::TraceParticles(ParticleHandles);
+#endif
+
+#ifndef CVD_TRACE_PARTICLES_SOA
+	#define CVD_TRACE_PARTICLES_SOA(ParticleSoA) \
+	FChaosVisualDebuggerTrace::TraceParticlesSoA(ParticleSoA);
 #endif
 
 #ifndef CVD_TRACE_SOLVER_START_FRAME
@@ -185,8 +219,8 @@ UE_TRACE_EVENT_END()
 #endif
 
 #ifndef CVD_TRACE_SOLVER_STEP_START
-	#define CVD_TRACE_SOLVER_STEP_START() \
-		FChaosVisualDebuggerTrace::TraceSolverStepStart();
+	#define CVD_TRACE_SOLVER_STEP_START(StepName) \
+		FChaosVisualDebuggerTrace::TraceSolverStepStart(StepName);
 #endif
 
 #ifndef CVD_TRACE_SOLVER_STEP_END
@@ -195,8 +229,8 @@ UE_TRACE_EVENT_END()
 #endif
 
 #ifndef CVD_SCOPE_TRACE_SOLVER_STEP
-	#define CVD_SCOPE_TRACE_SOLVER_STEP() \
-		FChaosVDScopeSolverStep ScopeSolverStep;
+	#define CVD_SCOPE_TRACE_SOLVER_STEP(StepName) \
+		FChaosVDScopeSolverStep ScopeSolverStep(StepName);
 #endif
 
 #ifndef CVD_TRACE_BINARY_DATA
@@ -209,43 +243,180 @@ UE_TRACE_EVENT_END()
 	FChaosVisualDebuggerTrace::TraceSolverSimulationSpace(InSimulationSpace);
 #endif
 
+#ifndef CVD_TRACE_PARTICLE_DESTROYED
+	#define CVD_TRACE_PARTICLE_DESTROYED(DestroyedParticleHandle) \
+	FChaosVisualDebuggerTrace::TraceParticleDestroyed(DestroyedParticleHandle);
+#endif
+
+
 struct FChaosVDContext;
 
 namespace Chaos
 {
+	class FPBDRigidsSOAs;
 	class FImplicitObject;
 	class FPhysicsSolverBase;
 	template <typename T, int d>
 	class TGeometryParticleHandles;
 }
 
+/** Data Wrapper for used to Trace Implicit objects */
+struct CHAOS_API FChaosVDImplicitObjectDataWrapper
+{
+	uint32 Hash;
+	Chaos::TSerializablePtr<Chaos::FImplicitObject> ImplicitObject;
+
+	void Serialize(Chaos::FChaosArchive& Ar);
+};
+
 /** Class containing  all the Tracing logic to record data for the Chaos Visual Debugger tool */
 class FChaosVisualDebuggerTrace
 {
 public:
-
+	/**
+	 * Traces data from a Particle Handle. The CVD context currently pushed into will be used to tie this particle data to a specific solver frame and step
+	 * @param ParticleHandle Handle to process and Trace
+	 */
 	static CHAOS_API void TraceParticle(const Chaos::FGeometryParticleHandle* ParticleHandle);
+	
+	/**
+	 * Traces data from a Particle Handle using the provided CVD Context
+	 * @param ParticleHandle Handle to process and Trace
+	 * @param ContextData Context to be used to tied this Trace event to a specific solver frame and step
+	 */
 	static CHAOS_API void TraceParticle(Chaos::FGeometryParticleHandle* ParticleHandle, const FChaosVDContext& ContextData);
-	static CHAOS_API void TraceParticles(const Chaos::TGeometryParticleHandles<Chaos::FReal, 3>& ParticleHandles);
-	static CHAOS_API void TraceSolverFrameStart(const FChaosVDContext& ContextData, const FString& InDebugName);
-	static CHAOS_API void TraceSolverFrameEnd(const FChaosVDContext& ContextData);
-	static CHAOS_API void TraceSolverStepStart();
-	static CHAOS_API void TraceSolverStepEnd();
-	static CHAOS_API void TraceSolverSimulationSpace(const Chaos::FRigidTransform3& Transform);
-	
-	static CHAOS_API void TraceBinaryData(const TArray<uint8>& InData, const FString& TypeName);
-	
-	static CHAOS_API int32 TraceImplicitObject(Chaos::TSerializablePtr<Chaos::FImplicitObject> Geometry);
 
+	/**
+	 * Traces data from a collection of Particle Handles using. The CVD context currently pushed into will be used to tie this particle data to a specific solver frame and step.
+	 * It does not handle Full and Delta Recording automatically
+	 * @param ParticleHandles Handles collection to process and Trace
+	 */
+	static CHAOS_API void TraceParticles(const Chaos::TGeometryParticleHandles<Chaos::FReal, 3>& ParticleHandles);
+	
+	/**
+	 * Traces the destruction event for the provided particle handled so it can be reproduces in the CVD tool
+	 * @param ParticleHandle Handle that is being destroyed
+	 */
+	static CHAOS_API void TraceParticleDestroyed(const Chaos::FGeometryParticleHandle* ParticleHandle);
+
+	/**
+	 * Traces data from particles on the provided FPBDRigidsSOAs. It traces only the DirtyParticles view unless a full capture was requested
+	 * @param ParticlesSoA Particles SoA to evaluate and trace
+	 */
+	static CHAOS_API void TraceParticlesSoA(const Chaos::FPBDRigidsSOAs& ParticlesSoA);
+
+	/** Traces the provided particle view in parallel */
+	template<typename ParticleType>
+	static void TraceParticlesView(const Chaos::TParticleView<ParticleType>& ParticlesView);
+
+	/** Traces the start of a solver frame and it pushes its context data to the CVD TLS context stack */
+	static CHAOS_API void TraceSolverFrameStart(const FChaosVDContext& ContextData, const FString& InDebugName);
+	
+	/** Traces the end of a solver frame and removes its context data to the CVD TLS context stack */
+	static CHAOS_API void TraceSolverFrameEnd(const FChaosVDContext& ContextData);
+
+	/** Traces the start of a solver step
+	 * @param StepName Name of the step. It will be used in the CVD Tool's UI
+	 */
+	static CHAOS_API void TraceSolverStepStart(FStringView StepName);
+	/** Traces the end of a solver step */
+	static CHAOS_API void TraceSolverStepEnd();
+
+	/** Traces the provider transform as simulation space of the solver that is currently on the CVD Context Stack
+	 * @param Transform Simulation space Transform
+	 */
+	static CHAOS_API void TraceSolverSimulationSpace(const Chaos::FRigidTransform3& Transform);
+
+	/**
+	 * Traces a binary blob of data outside of any solver frame solver step scope.
+	 * @param InData Data to trace
+	 * @param TypeName Type name the data represents. It is used during Trace Analysis serialize it back (this is not automatic)
+	 */
+	static CHAOS_API void TraceBinaryData(const TArray<uint8>& InData, const FString& TypeName);
+
+	/**
+	 * Serializes the implicit object contained in the wrapper and trace its it as binary data
+	 * The trace event is not tied to a particular Solver Frame/Step
+	 *  @param WrappedGeometryData Wrapper containing a ptr to the implicit and its ID
+	 */
+	static CHAOS_API void TraceImplicitObject(FChaosVDImplicitObjectDataWrapper WrappedGeometryData);
+
+	/** Returns true if the provided solver ID needs a Full Capture */
+	static bool ShouldPerformFullCapture(int32 SolverID);
+
+	/**
+	 * Gets the CVD Context data form an object that has such data. Usually Solvers
+	 * @tparam T type of the object with CVD context
+	 * @param ObjectWithContext A reference to where to get the CVD Context
+	 * @param OutCVDContext A reference to the CVD contexts in the provided object
+	 */
 	template<typename T>
 	static void GetCVDContext(T& ObjectWithContext, FChaosVDContext& OutCVDContext);
 
+	/**
+	 * Returns the debug name string of the provided object
+	 */
 	template<typename T>
-	static FString GetDebugName(T& ObjectWithContext);
+	static FString GetDebugName(T& ObjectWithDebugName);
+
+	/** Returns true if a CVD trace is running */
+	static bool IsTracing() { return bIsTracing;}
 
 private:
-	static void ResetGeometryTracerContext();
+
+	/** Binds to the static events triggered by the ChaosVD Runtime module */
+	static void RegisterEventHandlers();
+	/** Unbinds to the static events triggered by the ChaosVD Runtime module */
+	static void UnregisterEventHandlers();
+	
+	/** Resets the state of the CVD Tracer */
+	static void Reset();
+
+	static void HandleRecordingStop();
+	static void HandleRecordingStart();
+
+	/** Sets up the tracer to perform a full capture in the next solver frame */
+	static void PerformFullCapture(EChaosVDFullCaptureFlags CaptureOptions);
+
+	/** Setups the current Solver frame for a full capture if needed */
+	static void SetupForFullCaptureIfNeeded(int32 SolverID, bool& bOutFullCaptureRequested);
+
+	static FDelegateHandle RecordingStartedDelegateHandle;
+	static FDelegateHandle RecordingStoppedDelegateHandle;
+	static FDelegateHandle RecordingFullCaptureRequestedHandle;
+
+	static TSet<int32> SolverIDsForDeltaRecording;
+	static TSet<int32> RequestedFullCaptureSolverIDs;
+
+	static FThreadSafeBool bIsTracing;
+
+	static FRWLock DeltaRecordingStatesLock;
+
+	friend class FChaosEngineModule;
 };
+
+template <typename ParticleType>
+void FChaosVisualDebuggerTrace::TraceParticlesView(const Chaos::TParticleView<ParticleType>& ParticlesView)
+{
+	if (!IsTracing())
+	{
+		return;
+	}
+
+	const FChaosVDContext* CVDContextData = FChaosVDThreadContext::Get().GetCurrentContext();
+	if (!ensure(CVDContextData))
+	{
+		return;
+	}
+
+	FChaosVDContext CopyContext = *FChaosVDThreadContext::Get().GetCurrentContext();
+	
+	ParticlesView.ParallelFor([CopyContext](auto& Particle, int32 Index)
+	{
+		CVD_SCOPE_CONTEXT(CopyContext);
+		TraceParticle(Particle.Handle());
+	});
+}
 
 template <typename T>
 void FChaosVisualDebuggerTrace::GetCVDContext(T& ObjectWithContext, FChaosVDContext& OutCVDContext)
@@ -265,9 +436,9 @@ FString FChaosVisualDebuggerTrace::GetDebugName(T& ObjectWithDebugName)
 
 struct FChaosVDScopeSolverStep
 {
-	FChaosVDScopeSolverStep()
+	FChaosVDScopeSolverStep(FStringView StepName)
 	{
-		CVD_TRACE_SOLVER_STEP_START();
+		CVD_TRACE_SOLVER_STEP_START(StepName);
 	}
 
 	~FChaosVDScopeSolverStep()

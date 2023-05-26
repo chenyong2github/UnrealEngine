@@ -56,7 +56,7 @@ bool FChaosVDPlaybackController::LoadChaosVDRecordingFromTraceSession(const FStr
 		GoToTrackFrame(IChaosVDPlaybackControllerInstigator::InvalidGuid, EChaosVDTrackType::Solver, SolversIterator->Key, FrameNumber, StepNumber);
 	}
 
-	LoadedRecording->OnGeometryDataLoaded().AddLambda([this](const TSharedPtr<const Chaos::FImplicitObject>& NewGeometry, const int32 GeometryID)
+	LoadedRecording->OnGeometryDataLoaded().AddLambda([this](const TSharedPtr<const Chaos::FImplicitObject>& NewGeometry, const uint32 GeometryID)
 	{
 		if (const TSharedPtr<FChaosVDScene> ScenePtr = SceneToControl.Pin())
 		{
@@ -193,7 +193,7 @@ void FChaosVDPlaybackController::GoToTrackFrame(FGuid InstigatorID, EChaosVDTrac
 	}
 }
 
-int32 FChaosVDPlaybackController::GetTrackStepsAtFrame(EChaosVDTrackType TrackType, const int32 InTrackID, const int32 FrameNumber) const
+int32 FChaosVDPlaybackController::GetTrackStepsNumberAtFrame(EChaosVDTrackType TrackType, const int32 InTrackID, const int32 FrameNumber) const
 {
 	if (!LoadedRecording.IsValid())
 	{
@@ -220,6 +220,37 @@ int32 FChaosVDPlaybackController::GetTrackStepsAtFrame(EChaosVDTrackType TrackTy
 		}
 	default:
 		return INDEX_NONE;
+		break;
+	}
+}
+
+const FChaosVDStepsContainer* FChaosVDPlaybackController::GetTrackStepsDataAtFrame(EChaosVDTrackType TrackType, int32 InTrackID, int32 FrameNumber) const
+{
+	if (!LoadedRecording.IsValid())
+	{
+		return nullptr;
+	}
+	
+	switch (TrackType)
+	{
+	case EChaosVDTrackType::Game:
+		// Game Tracks do not have steps
+		return nullptr;
+		break;
+	case EChaosVDTrackType::Solver:
+		{
+			if (const FChaosVDSolverFrameData* FrameData = LoadedRecording->GetSolverFrameData(InTrackID, FrameNumber))
+			{
+				return &FrameData->SolverSteps;
+			}
+			else
+			{
+				return nullptr;
+			}
+			break;
+		}
+	default:
+		return nullptr;
 		break;
 	}
 }
@@ -253,37 +284,43 @@ int32 FChaosVDPlaybackController::GetTrackFramesNumber(EChaosVDTrackType TrackTy
 	}
 }
 
-int32 FChaosVDPlaybackController::ConvertCurrentFrameToOtherTrackFrame(FChaosVDTrackInfo FromTrack, FChaosVDTrackInfo ToTrack)
+int32 FChaosVDPlaybackController::ConvertCurrentFrameToOtherTrackFrame(const FChaosVDTrackInfo* FromTrack, const FChaosVDTrackInfo* ToTrack)
 {
 	// Each track is on a different "space time", because it's source data ticked at different rates when was recorded, and some start/end at different points on time
 	// But all the recorded frame data on all of them use Platform Cycles as timestamps
 	// This method wraps specialized methods in the recording object to convert between these spaces. For example Game frame 1500 could be frame 5 on a specific solver
 	// And Frame 5 of that solver could be frame 30 on another solver.
 
-	const bool bBothTracksHaveSameID = FromTrack.TrackID == ToTrack.TrackID;
-	const bool bBothTracksHaveSameType = FromTrack.TrackType == ToTrack.TrackType;
-	if (bBothTracksHaveSameType && bBothTracksHaveSameID)
+	if (FromTrack == nullptr || ToTrack == nullptr)
 	{
-		return FromTrack.CurrentFrame;
+		ensureMsgf(false, TEXT("One of provided track infos is not valid"));
+		return INDEX_NONE;
 	}
 
-	switch (FromTrack.TrackType)
+	const bool bBothTracksHaveSameID = FromTrack->TrackID == ToTrack->TrackID;
+	const bool bBothTracksHaveSameType = FromTrack->TrackType == ToTrack->TrackType;
+	if (bBothTracksHaveSameType && bBothTracksHaveSameID)
+	{
+		return FromTrack->CurrentFrame;
+	}
+
+	switch (FromTrack->TrackType)
 	{
 	case EChaosVDTrackType::Game:
 		{
 			// Convert from Game Frame to Solver Frame
-			return LoadedRecording->GetLowestSolverFrameNumberGameFrame(FromTrack.TrackID, FromTrack.CurrentFrame);
+			return LoadedRecording->GetLowestSolverFrameNumberGameFrame(FromTrack->TrackID, FromTrack->CurrentFrame);
 			break;
 		}
 		
 	case EChaosVDTrackType::Solver:
 		{
-			if (ToTrack.TrackType == EChaosVDTrackType::Solver)
+			if (ToTrack->TrackType == EChaosVDTrackType::Solver)
 			{
 				ensureMsgf(false, TEXT("Frame conversion between solver tracks is not supported yet"));
 				return INDEX_NONE;
 			}
-			return LoadedRecording->GetLowestGameFrameAtSolverFrameNumber(FromTrack.TrackID, FromTrack.CurrentFrame);
+			return LoadedRecording->GetLowestGameFrameAtSolverFrameNumber(FromTrack->TrackID, FromTrack->CurrentFrame);
 			break;
 		}
 	default:

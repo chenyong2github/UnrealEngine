@@ -379,6 +379,10 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
+		// We trace events like particles destruction, so we need to ensure there is a valid context
+		// during solver destruction so these events can be traced properly.
+		CVD_SCOPE_CONTEXT(CVDContextData)
+
 		// NOTE: Particles now hold a list of all the constraints that reference them, but when
 		// we delete a particle, we do not notify the constraints. When we destroy constarints
 		// it tries to remove itself from the particle's list, so we must destroy the

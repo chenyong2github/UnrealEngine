@@ -148,6 +148,7 @@ namespace Chaos
 
 	void FPhysicsSolverAdvanceTask::AdvanceSolver()
 	{
+		CVD_SCOPE_TRACE_SOLVER_FRAME(FPhysicsSolverBase, Solver);
 		LLM_SCOPE(ELLMTag::ChaosUpdate);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
@@ -364,9 +365,6 @@ namespace Chaos
 
 	FGraphEventRef FPhysicsSolverBase::AdvanceAndDispatch_External(FReal InDt)
 	{
-
-		CVD_TRACE_SOLVER_START_FRAME(FPhysicsSolverBase, *this);
-
 		const bool bSubstepping = MMaxSubSteps > 1;
 		SetSolverSubstep_External(bSubstepping);
 		const FReal DtWithPause = bPaused_External ? 0.0f : InDt;

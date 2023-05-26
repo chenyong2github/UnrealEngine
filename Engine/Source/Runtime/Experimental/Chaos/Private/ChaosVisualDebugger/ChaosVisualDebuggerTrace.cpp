@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
+
+#include "Chaos/PBDRigidsSOAs.h"
+#include "Tasks/Task.h"
 
 #if CHAOS_VISUAL_DEBUGGER_ENABLED
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/ImplicitObject.h"
-#include "ChaosVDRuntimeModule.h"
 #include "Compression/OodleDataCompressionUtil.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeRWLock.h"
@@ -19,12 +20,14 @@ UE_TRACE_EVENT_DEFINE(ChaosVDLogger, ChaosVDSolverFrameEnd)
 
 UE_TRACE_CHANNEL_DEFINE(ChaosVDChannel);
 UE_TRACE_EVENT_DEFINE(ChaosVDLogger, ChaosVDParticle)
+UE_TRACE_EVENT_DEFINE(ChaosVDLogger, ChaosVDParticleDestroyed)
 UE_TRACE_EVENT_DEFINE(ChaosVDLogger, ChaosVDSolverStepStart)
 UE_TRACE_EVENT_DEFINE(ChaosVDLogger, ChaosVDSolverStepEnd)
 UE_TRACE_EVENT_DEFINE(ChaosVDLogger, ChaosVDBinaryDataStart)
 UE_TRACE_EVENT_DEFINE(ChaosVDLogger, ChaosVDBinaryDataContent)
 UE_TRACE_EVENT_DEFINE(ChaosVDLogger, ChaosVDBinaryDataEnd)
 UE_TRACE_EVENT_DEFINE(ChaosVDLogger, ChaosVDSolverSimulationSpace)
+UE_TRACE_EVENT_DEFINE(ChaosVDLogger, ChaosVDDummyEvent)
 
 static FAutoConsoleVariable CVarChaosVDCompressBinaryData(
 	TEXT("p.Chaos.VD.CompressBinaryData"),
@@ -36,17 +39,73 @@ static FAutoConsoleVariable CVarChaosVDCompressionMode(
 	2,
 	TEXT("Oodle compression mode to use, 4 is by default which equsals to ECompressionLevel::VeryFast"));
 
+/** Struct where we keep track of the geometry we are tracing */
 struct FChaosVDGeometryTraceContext
 {
-	FRWLock RWLock;
-	TUniquePtr<Chaos::FChaosArchiveContext> ChaosContext;
+	FRWLock TracedGeometrySetLock;
+	FRWLock CachedGeometryHashesLock;
+	TSet<uint32> GeometryTracedIDs;
+
+	uint32 GetGeometryHashForImplicit(const Chaos::FImplicitObject* Implicit)
+	{
+		if (!ensure(Implicit != nullptr))
+		{
+			return 0;
+		}
+
+		{
+			FReadScopeLock ReadLock(CachedGeometryHashesLock);
+			if (uint32* FoundHashPtr = CachedGeometryHashes.Find((void*) Implicit))
+			{
+				return *FoundHashPtr;
+			}
+		}
+
+		{
+			uint32 Hash = Implicit->GetTypeHash();
+
+			FWriteScopeLock WriteLock(CachedGeometryHashesLock);
+			CachedGeometryHashes.Add((void*)Implicit, Hash);
+			return Hash;
+		}
+	}
+
+	void RemoveCachedGeometryHash(const Chaos::FImplicitObject* Implicit)
+	{
+		if (Implicit == nullptr)
+		{
+			return;
+		}
+
+		FWriteScopeLock WriteLock(TracedGeometrySetLock);
+		CachedGeometryHashes.Remove((void*)Implicit);
+	}
+
+	//TODO: Remove this when/if we have stable geometry hashes that can be serialized
+	// Right now it is too costly calculate them each time at runtime
+	TMap<void*, uint32> CachedGeometryHashes;
 };
 
 static FChaosVDGeometryTraceContext GeometryTracerObject = FChaosVDGeometryTraceContext();
 
+FDelegateHandle FChaosVisualDebuggerTrace::RecordingStartedDelegateHandle = FDelegateHandle();
+FDelegateHandle FChaosVisualDebuggerTrace::RecordingStoppedDelegateHandle = FDelegateHandle();
+FDelegateHandle FChaosVisualDebuggerTrace::RecordingFullCaptureRequestedHandle = FDelegateHandle();
+
+FRWLock FChaosVisualDebuggerTrace::DeltaRecordingStatesLock = FRWLock();
+TSet<int32> FChaosVisualDebuggerTrace::SolverIDsForDeltaRecording = TSet<int32>();
+TSet<int32> FChaosVisualDebuggerTrace::RequestedFullCaptureSolverIDs = TSet<int32>();
+FThreadSafeBool FChaosVisualDebuggerTrace::bIsTracing = false;
+
+void FChaosVDImplicitObjectDataWrapper::Serialize(Chaos::FChaosArchive& Ar)
+{
+	Ar << Hash;
+	Ar << ImplicitObject;
+}
+
 void FChaosVisualDebuggerTrace::TraceParticle(const Chaos::FGeometryParticleHandle* ParticleHandle)
 {
-	if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(ChaosVDChannel))
+	if (!IsTracing())
 	{
 		return;
 	}
@@ -62,7 +121,7 @@ void FChaosVisualDebuggerTrace::TraceParticle(const Chaos::FGeometryParticleHand
 
 void FChaosVisualDebuggerTrace::TraceParticle(Chaos::FGeometryParticleHandle* ParticleHandle, const FChaosVDContext& ContextData)
 {
-	if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(ChaosVDChannel))
+	if (!IsTracing())
 	{
 		return;
 	}
@@ -82,8 +141,11 @@ void FChaosVisualDebuggerTrace::TraceParticle(Chaos::FGeometryParticleHandle* Pa
 		ParticleNameView = FStringView(*DebugNamePtr.Get());
 	}
 #endif
-	const int32 GeometryID = TraceImplicitObject(ParticleHandle->Geometry());
+
+	const uint32 GeometryHash = GeometryTracerObject.GetGeometryHashForImplicit(ParticleHandle->Geometry().Get());
 	
+	TraceImplicitObject({ GeometryHash, ParticleHandle->Geometry() });
+
 	UE_TRACE_LOG(ChaosVDLogger, ChaosVDParticle, ChaosVDChannel)
 		<< ChaosVDParticle.SolverID(ContextData.Id)
 		<< ChaosVDParticle.Cycle(FPlatformTime::Cycles64())
@@ -97,15 +159,13 @@ void FChaosVisualDebuggerTrace::TraceParticle(Chaos::FGeometryParticleHandle* Pa
 		<< CVD_TRACE_VECTOR_ON_EVENT(ChaosVDParticle, Velocity, Chaos::FConstGenericParticleHandle(ParticleHandle)->V())
 		<< CVD_TRACE_VECTOR_ON_EVENT(ChaosVDParticle, AngularVelocity, Chaos::FConstGenericParticleHandle(ParticleHandle)->W())
 
-		<< ChaosVDParticle.ImplicitObjectID(GeometryID)
-
-		<< ChaosVDParticle.ObjectState(static_cast<int8>(ParticleHandle->ObjectState()));
-	
+		<< ChaosVDParticle.ObjectState(static_cast<int8>(ParticleHandle->ObjectState()))
+		<< ChaosVDParticle.ImplicitObjectHash(GeometryHash);
 }
 
 void FChaosVisualDebuggerTrace::TraceParticles(const Chaos::TGeometryParticleHandles<Chaos::FReal, 3>& ParticleHandles)
 {
-	if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(ChaosVDChannel))
+	if (!IsTracing())
 	{
 		return;
 	}
@@ -116,16 +176,93 @@ void FChaosVisualDebuggerTrace::TraceParticles(const Chaos::TGeometryParticleHan
 		return;
 	}
 
-	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleHandles.Size(); ParticleIndex++)
+	ParallelFor(ParticleHandles.Size(),[&ParticleHandles, CopyContext = *CVDContextData](int32 ParticleIndex)
 	{
-		// TODO: We should only trace the Particles that changed. probably using the Dirty Flags?
-		// Geometry data "uniqueness" will be handled by the trace helper
-		TraceParticle(ParticleHandles.Handle(ParticleIndex).Get(), *CVDContextData);
+		CVD_SCOPE_CONTEXT(CopyContext)
+		TraceParticle(ParticleHandles.Handle(ParticleIndex).Get(), CopyContext);
+	});
+}
+
+void FChaosVisualDebuggerTrace::TraceParticleDestroyed(const Chaos::FGeometryParticleHandle* ParticleHandle)
+{
+	if (!IsTracing())
+	{
+		return;
 	}
+
+	if (!ParticleHandle)
+	{
+		UE_LOG(LogChaos, Warning, TEXT("Tried to Trace a null particle %hs"), __FUNCTION__);
+		return;
+	}
+
+	GeometryTracerObject.RemoveCachedGeometryHash(ParticleHandle->Geometry().Get());
+	
+	const FChaosVDContext* CVDContextData = FChaosVDThreadContext::Get().GetCurrentContext();
+	if (!ensure(CVDContextData))
+	{
+		return;
+	}
+
+	UE_TRACE_LOG(ChaosVDLogger, ChaosVDParticleDestroyed, ChaosVDChannel)
+		<< ChaosVDParticleDestroyed.SolverID(CVDContextData->Id)
+		<< ChaosVDParticleDestroyed.Cycle(FPlatformTime::Cycles64())
+		<< ChaosVDParticleDestroyed.ParticleID(ParticleHandle->UniqueIdx().Idx);
+}
+
+void FChaosVisualDebuggerTrace::TraceParticlesSoA(const Chaos::FPBDRigidsSOAs& ParticlesSoA)
+{
+	if (!IsTracing())
+	{
+		return;
+	}
+
+	const FChaosVDContext* CVDContextData = FChaosVDThreadContext::Get().GetCurrentContext();
+	if (!ensure(CVDContextData))
+	{
+		return;
+	}
+
+	// If this solver is not being delta recorded, Trace all the particles
+	if (ShouldPerformFullCapture(CVDContextData->Id))
+	{
+		TraceParticlesView(ParticlesSoA.GetAllParticlesView());
+		return;
+	}
+
+	TraceParticlesView(ParticlesSoA.GetDirtyParticlesView());
+}
+
+void FChaosVisualDebuggerTrace::SetupForFullCaptureIfNeeded(int32 SolverID, bool& bOutFullCaptureRequested)
+{
+	DeltaRecordingStatesLock.ReadLock();
+	bOutFullCaptureRequested = RequestedFullCaptureSolverIDs.Contains(SolverID);
+	DeltaRecordingStatesLock.ReadUnlock();
+
+	if (bOutFullCaptureRequested)
+	{
+		FWriteScopeLock WriteLock(DeltaRecordingStatesLock);
+		SolverIDsForDeltaRecording.Remove(SolverID);
+		RequestedFullCaptureSolverIDs.Remove(SolverID);
+	}
+}
+
+bool FChaosVisualDebuggerTrace::ShouldPerformFullCapture(int32 SolverID)
+{
+	FReadScopeLock ReadLock(DeltaRecordingStatesLock);
+	int32* FoundSolverID = SolverIDsForDeltaRecording.Find(SolverID);
+
+	// If the solver ID is on the SolverIDsForDeltaRecording set, it means we should NOT perform a full capture
+	return FoundSolverID == nullptr;
 }
 
 void FChaosVisualDebuggerTrace::TraceSolverFrameStart(const FChaosVDContext& ContextData, const FString& InDebugName)
 {
+	if (!IsTracing())
+	{
+		return;
+	}
+
 	if (!ensure(ContextData.Id != INDEX_NONE))
 	{
 		return;
@@ -133,14 +270,24 @@ void FChaosVisualDebuggerTrace::TraceSolverFrameStart(const FChaosVDContext& Con
 
 	FChaosVDThreadContext::Get().PushContext(ContextData);
 
+	// Check if we need to do a full capture for this solver, and setup accordingly
+	bool bOutIsFullCaptureRequested;
+	SetupForFullCaptureIfNeeded(ContextData.Id, bOutIsFullCaptureRequested);
+
 	UE_TRACE_LOG(ChaosVDLogger, ChaosVDSolverFrameStart, ChaosVDChannel)
 		<< ChaosVDSolverFrameStart.SolverID(ContextData.Id)
 		<< ChaosVDSolverFrameStart.Cycle(FPlatformTime::Cycles64())
-		<< ChaosVDSolverFrameStart.DebugName(*InDebugName, InDebugName.Len());
+		<< ChaosVDSolverFrameStart.DebugName(*InDebugName, InDebugName.Len())
+		<< ChaosVDSolverFrameStart.IsKeyFrame(bOutIsFullCaptureRequested);
 }
 
 void FChaosVisualDebuggerTrace::TraceSolverFrameEnd(const FChaosVDContext& ContextData)
 {
+	if (!IsTracing())
+	{
+		return;
+	}
+
 	FChaosVDThreadContext::Get().PopContext();
 
 	if (!ensure(ContextData.Id != INDEX_NONE))
@@ -148,14 +295,22 @@ void FChaosVisualDebuggerTrace::TraceSolverFrameEnd(const FChaosVDContext& Conte
 		return;
 	}
 
+	{
+		FWriteScopeLock WriteLock(DeltaRecordingStatesLock);
+		if (!SolverIDsForDeltaRecording.Contains(ContextData.Id))
+		{
+			SolverIDsForDeltaRecording.Add(ContextData.Id);
+		}
+	}
+
 	UE_TRACE_LOG(ChaosVDLogger, ChaosVDSolverFrameEnd, ChaosVDChannel)
 		<< ChaosVDSolverFrameEnd.SolverID(ContextData.Id)
 		<< ChaosVDSolverFrameEnd.Cycle(FPlatformTime::Cycles64());
 }
 
-void FChaosVisualDebuggerTrace::TraceSolverStepStart()
+void FChaosVisualDebuggerTrace::TraceSolverStepStart(FStringView StepName)
 {
-	if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(ChaosVDChannel))
+	if (!IsTracing())
 	{
 		return;
 	}
@@ -168,12 +323,13 @@ void FChaosVisualDebuggerTrace::TraceSolverStepStart()
 
 	UE_TRACE_LOG(ChaosVDLogger, ChaosVDSolverStepStart, ChaosVDChannel)
 		<< ChaosVDSolverStepStart.Cycle(FPlatformTime::Cycles64())
-		<< ChaosVDSolverStepStart.SolverID(CVDContextData->Id);
+		<< ChaosVDSolverStepStart.SolverID(CVDContextData->Id)
+		<< ChaosVDSolverStepStart.StepName(StepName.GetData(), StepName.Len());
 }
 
 void FChaosVisualDebuggerTrace::TraceSolverStepEnd()
 {
-	if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(ChaosVDChannel))
+	if (!IsTracing())
 	{
 		return;
 	}
@@ -191,7 +347,7 @@ void FChaosVisualDebuggerTrace::TraceSolverStepEnd()
 
 void FChaosVisualDebuggerTrace::TraceSolverSimulationSpace(const Chaos::FRigidTransform3& Transform)
 {
-	if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(ChaosVDChannel))
+	if (!IsTracing())
 	{
 		return;
 	}
@@ -211,7 +367,7 @@ void FChaosVisualDebuggerTrace::TraceSolverSimulationSpace(const Chaos::FRigidTr
 
 void FChaosVisualDebuggerTrace::TraceBinaryData(const TArray<uint8>& InData, const FString& TypeName)
 {
-	if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(ChaosVDChannel))
+	if (!IsTracing())
 	{
 		return;
 	}
@@ -270,68 +426,123 @@ void FChaosVisualDebuggerTrace::TraceBinaryData(const TArray<uint8>& InData, con
 	ensure(RemainingSize == 0);
 }
 
-int32 FChaosVisualDebuggerTrace::TraceImplicitObject(Chaos::TSerializablePtr<Chaos::FImplicitObject> Geometry)
+void FChaosVisualDebuggerTrace::TraceImplicitObject(FChaosVDImplicitObjectDataWrapper WrappedGeometryData)
 {
-	if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(ChaosVDChannel))
+	if (!IsTracing())
 	{
-		return INDEX_NONE;
+		return;
 	}
 
-	//TODO: Find a better place to do this
-	if (!FChaosVDRuntimeModule::OnRecordingStop().IsBound())
+	uint32 GeometryID = WrappedGeometryData.Hash;
 	{
-		FChaosVDRuntimeModule::OnRecordingStop().BindStatic(&FChaosVisualDebuggerTrace::ResetGeometryTracerContext);
-	}
-	
-	if (!FChaosVDRuntimeModule::OnRecordingStarted().IsBound())
-	{
-		FChaosVDRuntimeModule::OnRecordingStarted().BindStatic(&FChaosVisualDebuggerTrace::ResetGeometryTracerContext);
-	}
-
-	{
-		FReadScopeLock Lock(GeometryTracerObject.RWLock);
-		if (GeometryTracerObject.ChaosContext.IsValid())
+		FReadScopeLock ReadLock(GeometryTracerObject.TracedGeometrySetLock);
+		if (GeometryTracerObject.GeometryTracedIDs.Find(GeometryID))
 		{
-			int32 SerializedObjectPtrTag = GeometryTracerObject.ChaosContext.Get()->GetObjectTag(Geometry.Get());
-			if (SerializedObjectPtrTag != INDEX_NONE)
-			{
-				// Geometry Data is already serialized, just return the tag
-				return SerializedObjectPtrTag;
-			}
+			return;
 		}
 	}
 
-	// TODO: Change this so it is not allocated each time
-	// We need to take into account we could be serializing on multiple threads
-	constexpr uint32 MaxTraceChunkSize = TNumericLimits<uint16>::Max();
-	TArray<uint8> RawData;
-	RawData.Reserve(MaxTraceChunkSize);
-	
-	int32 SerializedObjectPtrTag = INDEX_NONE;
-
 	{
-		FMemoryWriter MemWriterAr(RawData);
-		Chaos::FChaosArchive Ar(MemWriterAr);
+		FWriteScopeLock WriteLock(GeometryTracerObject.TracedGeometrySetLock);
+		GeometryTracerObject.GeometryTracedIDs.Add(GeometryID);
+	}
+
+	FChaosVDScopedTLSBufferAccessor TLSDataBuffer;
+
+	FMemoryWriter MemWriterAr(TLSDataBuffer.BufferRef);
+	Chaos::FChaosArchive Ar(MemWriterAr);
+
+	Ar.SetShouldSkipUpdateCustomVersion(true);
+
+	WrappedGeometryData.Serialize(Ar);
+
+	TraceBinaryData(TLSDataBuffer.BufferRef, TEXT("FChaosVDImplicitObjectDataWrapper"));
+}	
+
+void FChaosVisualDebuggerTrace::RegisterEventHandlers()
+{
+	{
+		FWriteScopeLock WriteLock(DeltaRecordingStatesLock);
+
 		
-		FWriteScopeLock WriteLock(GeometryTracerObject.RWLock);
-		if (GeometryTracerObject.ChaosContext.IsValid())
+		if (!RecordingStartedDelegateHandle.IsValid())
 		{
-			Ar.SetContext(MoveTemp(GeometryTracerObject.ChaosContext));
+			RecordingStartedDelegateHandle = FChaosVDRuntimeModule::RegisterRecordingStartedCallback(FChaosVDRecordingStateChangedDelegate::FDelegate::CreateStatic(&FChaosVisualDebuggerTrace::HandleRecordingStart));
 		}
 
-		Ar << Geometry;
-		GeometryTracerObject.ChaosContext = Ar.StealContext();
-		SerializedObjectPtrTag = GeometryTracerObject.ChaosContext.Get()->GetObjectTag(Geometry.Get());
+		if (!RecordingStoppedDelegateHandle.IsValid())
+		{
+			RecordingStoppedDelegateHandle = FChaosVDRuntimeModule::RegisterRecordingStopCallback(FChaosVDRecordingStateChangedDelegate::FDelegate::CreateStatic(&FChaosVisualDebuggerTrace::HandleRecordingStop));
+		}
+
+		if (!RecordingFullCaptureRequestedHandle.IsValid())
+		{
+			RecordingFullCaptureRequestedHandle = FChaosVDRuntimeModule::RegisterFullCaptureRequestedCallback(FChaosVDCaptureRequestDelegate::FDelegate::CreateStatic(&FChaosVisualDebuggerTrace::PerformFullCapture));
+		}
 	}
-
-	TraceBinaryData(RawData, TEXT("FImplicitObject"));
-
-	return SerializedObjectPtrTag;
 }
 
-void FChaosVisualDebuggerTrace::ResetGeometryTracerContext()
+void FChaosVisualDebuggerTrace::UnregisterEventHandlers()
 {
-	GeometryTracerObject.ChaosContext.Release();
+	FWriteScopeLock WriteLock(DeltaRecordingStatesLock);
+	if (RecordingStartedDelegateHandle.IsValid())
+	{
+		FChaosVDRuntimeModule::RemoveRecordingStartedCallback(RecordingStartedDelegateHandle);
+	}
+
+	if (RecordingStoppedDelegateHandle.IsValid())
+	{
+		FChaosVDRuntimeModule::RemoveRecordingStopCallback(RecordingStoppedDelegateHandle);
+	}
+
+	if (RecordingFullCaptureRequestedHandle.IsValid())
+	{
+		FChaosVDRuntimeModule::RemoveFullCaptureRequestedCallback(RecordingFullCaptureRequestedHandle);
+	}
+
+	bIsTracing = false;
+}
+
+void FChaosVisualDebuggerTrace::Reset()
+{
+	{
+		FWriteScopeLock WriteLock(DeltaRecordingStatesLock);
+		RequestedFullCaptureSolverIDs.Reset();
+		SolverIDsForDeltaRecording.Reset();
+	}
+
+	{
+		FWriteScopeLock GeometryWriteLock(GeometryTracerObject.TracedGeometrySetLock);
+		GeometryTracerObject.GeometryTracedIDs.Reset();
+		GeometryTracerObject.CachedGeometryHashes.Reset();
+	}
+}
+
+void FChaosVisualDebuggerTrace::HandleRecordingStop()
+{
+	bIsTracing = false;
+	Reset();
+}
+
+void FChaosVisualDebuggerTrace::HandleRecordingStart()
+{
+	Reset();
+	bIsTracing = true;
+}
+
+void FChaosVisualDebuggerTrace::PerformFullCapture(EChaosVDFullCaptureFlags CaptureOptions)
+{
+	if (EnumHasAnyFlags(CaptureOptions, EChaosVDFullCaptureFlags::Particles))
+	{
+		FWriteScopeLock WriteLock(DeltaRecordingStatesLock);
+		RequestedFullCaptureSolverIDs.Append(SolverIDsForDeltaRecording);
+	}
+
+	if (EnumHasAnyFlags(CaptureOptions, EChaosVDFullCaptureFlags::Geometry))
+	{
+		FWriteScopeLock GeometryWriteLock(GeometryTracerObject.TracedGeometrySetLock);
+		GeometryTracerObject.GeometryTracedIDs.Reset();
+	}
 }
 
 #endif

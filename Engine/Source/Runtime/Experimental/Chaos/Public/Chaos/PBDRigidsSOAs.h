@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/ParticleHandle.h"
+#include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 
 namespace Chaos
@@ -365,6 +366,8 @@ public:
 				ResimKinematicParticles.Remove(Kinematic);
 			}
 		}
+
+		CVD_TRACE_PARTICLE_DESTROYED(Particle);
 
 		auto PBDRigid = Particle->CastToRigidParticle();
 		if(PBDRigid)

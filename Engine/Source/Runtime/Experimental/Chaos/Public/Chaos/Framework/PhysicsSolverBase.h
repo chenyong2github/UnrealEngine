@@ -151,6 +151,11 @@ namespace Chaos
 
 #if WITH_CHAOS_VISUAL_DEBUGGER
 		FChaosVDContext CVDContext;
+	public:
+		FChaosVDContext& GetChaosVDContextData()
+		{
+			return CVDContext;
+		};
 #endif
 	};
 

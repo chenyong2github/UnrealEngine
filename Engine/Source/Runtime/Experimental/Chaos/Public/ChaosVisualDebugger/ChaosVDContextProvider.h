@@ -8,6 +8,8 @@
 
 #if WITH_CHAOS_VISUAL_DEBUGGER
 
+#include "ChaosVDRuntimeModule.h"
+
 /** Chaos Visual Debugger data used to context for logging or debugging purposes */
 struct CHAOS_API FChaosVDContext
 {
@@ -19,6 +21,14 @@ struct CHAOS_API FChaosVDContext
 class CHAOS_API FChaosVDThreadContext : public TThreadSingleton<FChaosVDThreadContext>
 {
 public:
+
+	virtual ~FChaosVDThreadContext() override
+	{
+		if (RecordingStoppedHandle.IsValid())
+		{
+			FChaosVDRuntimeModule::RemoveRecordingStopCallback(RecordingStoppedHandle);
+		}
+	}
 
 	/** Copies the Current CVD context data into the provided struct
 	 * @return true if the copy was successful
@@ -39,6 +49,27 @@ public:
 
 protected:
 	TArray<FChaosVDContext, TInlineAllocator<16>> LocalContextStack;
+
+	TArray<uint8>& GetTLSDataBufferRef()
+	{
+		checkf(BufferAccessCounter == 0, TEXT("The CVD buffer is already in use!"));
+
+		if (!RecordingStoppedHandle.IsValid())
+		{
+			// If we access the buffer, make sure we subscribe to the recording stop callback
+			// So we free any memory we keep allocated
+			RecordingStoppedHandle = FChaosVDRuntimeModule::RegisterRecordingStopCallback(FChaosVDRecordingStateChangedDelegate::FDelegate::CreateLambda([this](){ CVDDataBuffer.Empty(); }));
+		}
+		
+		return CVDDataBuffer;
+	}
+
+	FDelegateHandle RecordingStoppedHandle;
+
+	int32 BufferAccessCounter = 0;
+	TArray<uint8> CVDDataBuffer;
+
+	friend struct FChaosVDScopedTLSBufferAccessor;
 };
 
 /** Utility Class that will push the provided CVD Context Data to the local thread storage
@@ -57,9 +88,45 @@ struct CHAOS_API FChaosVDScopeContext
 	}
 };
 
+/** Wrapper class that provides access to the data buffer that should be used to trace CVD (Chaos Visual Debugger) data.
+ * It ensures the buffer is cleared on scope exit but keeping a minimum amount of memory allocated
+ */
+struct CHAOS_API FChaosVDScopedTLSBufferAccessor
+{
+	FChaosVDScopedTLSBufferAccessor() : BufferRef(FChaosVDThreadContext::Get().GetTLSDataBufferRef())
+	{
+		FChaosVDThreadContext::Get().BufferAccessCounter++;
+
+		// This is close to the max amount of data we can Trace as a single trace event
+		// Some times we will go over and some times this be more than we need
+		// but keeping this amount allocated on average reduces the allocation cost when tracing.
+		// TODO: There might be a better value for this, we need to do more testing
+		constexpr uint32 MaxTraceChunkSize = TNumericLimits<uint16>::Max();
+		BufferRef.Reserve(MaxTraceChunkSize);
+	}
+
+	~FChaosVDScopedTLSBufferAccessor()
+	{
+		// Clear the buffer on exit but maintain allocated a minimum amount of memory
+		constexpr uint32 MaxTraceChunkSize = TNumericLimits<uint16>::Max();
+		BufferRef.Reset(MaxTraceChunkSize);
+
+		FChaosVDThreadContext::Get().BufferAccessCounter--;
+	}
+	
+	TArray<uint8>& BufferRef;
+};
+
 #ifndef CVD_GET_CURRENT_CONTEXT
 	#define CVD_GET_CURRENT_CONTEXT(OutContext) \
-		ensure(FChaosVDThreadContext::Get().GetCurrentContext(OutContext))
+		FChaosVDThreadContext::Get().GetCurrentContext(OutContext);
+#endif
+
+#ifndef CVD_GET_WRAPPED_CURRENT_CONTEXT
+	#define CVD_GET_WRAPPED_CURRENT_CONTEXT(OutWrappedContext) \
+		FChaosVDContext CurrentContext; \
+		FChaosVDThreadContext::Get().GetCurrentContext(CurrentContext); \
+		OutWrappedContext = FChaosVDContextWrapper(CurrentContext);
 #endif
 
 #ifndef CVD_SCOPE_CONTEXT
@@ -77,5 +144,24 @@ struct CHAOS_API FChaosVDScopeContext
 	#define CVD_SCOPE_CONTEXT(InContext)
 #endif
 
+#ifndef CVD_GET_WRAPPED_CURRENT_CONTEXT
+	#define CVD_GET_WRAPPED_CURRENT_CONTEXT(OutWrappedContext)
+#endif
+
 #endif // WITH_CHAOS_VISUAL_DEBUGGER
 
+struct CHAOS_API FChaosVDContextWrapper
+{
+	FChaosVDContextWrapper()
+	{
+	}
+	
+#if WITH_CHAOS_VISUAL_DEBUGGER
+	FChaosVDContextWrapper(const FChaosVDContext& InContext)
+	: Context(InContext)
+	{
+	}
+
+	FChaosVDContext Context;
+#endif
+};

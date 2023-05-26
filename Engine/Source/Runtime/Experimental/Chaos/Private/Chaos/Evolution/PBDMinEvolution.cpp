@@ -122,7 +122,8 @@ namespace Chaos
 	void FPBDMinEvolution::AdvanceOneTimeStep(const FReal Dt, const FReal StepFraction)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_AdvanceOneTimeStep);
-		CVD_SCOPE_TRACE_SOLVER_STEP();
+
+		CVD_SCOPE_TRACE_SOLVER_STEP(TEXT("Evolution Advance"));
 
 		Integrate(Dt);
 
@@ -143,7 +144,7 @@ namespace Chaos
 			ScatterOutput(Dt);
 		}
 
-		CVD_TRACE_PARTICLES(Particles.GetParticleHandles());
+		CVD_TRACE_PARTICLES_SOA(Particles);
 	}
 
 	// A opportunity for systems to allocate buffers for the duration of the tick, if they have enough info to do so

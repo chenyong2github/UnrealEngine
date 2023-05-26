@@ -19,6 +19,7 @@
 #include "Chaos/PendingSpatialData.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "RewindData.h"
+#include "ChaosVisualDebugger/ChaosVDContextProvider.h"
 
 extern int32 ChaosRigidsEvolutionApplyAllowEarlyOutCVar;
 extern int32 ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar;
@@ -741,12 +742,17 @@ public:
 
 		const bool IsLastStep = (FMath::IsNearlyEqual(StepFraction, (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER));
 
+		FChaosVDContextWrapper CVDContext;
+		CVD_GET_WRAPPED_CURRENT_CONTEXT(CVDContext);
+
 		// NOTE: ApplyKinematicTargetForParticle is run in a parallel-for. We only write to particle state
 		const auto& ApplyParticleKinematicTarget = 
-		[Dt, StepFraction, IsLastStep]
+		[Dt, StepFraction, IsLastStep, CVDContext]
 		(FTransientPBDRigidParticleHandle& Particle, const int32 ParticleIndex)
 		-> void
 		{
+			CVD_SCOPE_CONTEXT(CVDContext.Context);
+
 			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
 			const FVec3 CurrentX = Particle.X();
 			const FRotation3 CurrentR = Particle.R();
@@ -840,6 +846,8 @@ public:
 					Particle.UpdateWorldSpaceStateSwept(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(0), -Particle.V() * Dt);
 				}
 			}
+
+			CVD_TRACE_PARTICLE(Particle.Handle())
 		};
 
 		// Apply kinematic targets in parallel

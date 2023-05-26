@@ -33,7 +33,7 @@ void SChaosVDSolverPlaybackControls::Construct(const FArguments& InArgs, int32 I
 				[
 					SNew(STextBlock)
 					.Justification(ETextJustify::Center)
-					.Text(LOCTEXT("PlaybackViewportWidgetPhysicsFramesLabel", "Physics Frames" ))
+					.Text(LOCTEXT("PlaybackViewportWidgetPhysicsFramesLabel", "Solver Frames" ))
 				]
 				+SVerticalBox::Slot()
 				[
@@ -53,7 +53,7 @@ void SChaosVDSolverPlaybackControls::Construct(const FArguments& InArgs, int32 I
 				[
 					SNew(STextBlock)
 					.Justification(ETextJustify::Center)
-					.Text(LOCTEXT("PlaybackViewportWidgetStepsLabel", "Solver Steps" ))
+					.Text_Lambda([this]()->FText{ return FText::Format(LOCTEXT("PlaybackViewportWidgetStepsLabel","Step {0}"), FText::AsCultureInvariant(CurrentStepName));})
 				]
 				+SVerticalBox::Slot()
 				[
@@ -61,7 +61,7 @@ void SChaosVDSolverPlaybackControls::Construct(const FArguments& InArgs, int32 I
 					.HidePlayStopButtons(true)
 					.OnFrameChanged_Raw(this, &SChaosVDSolverPlaybackControls::OnStepSelectionUpdated)
 					.MaxFrames(0)
-				]	
+				]
 			]
 		]
 	];
@@ -88,7 +88,13 @@ void SChaosVDSolverPlaybackControls::HandlePlaybackControllerDataUpdated(TWeakPt
 	if (ControllerSharedPtr.IsValid() && ControllerSharedPtr->IsRecordingLoaded())
 	{	
 		const int32 AvailableFrames = ControllerSharedPtr->GetTrackFramesNumber(EChaosVDTrackType::Solver, SolverID);
-		const int32 AvailableSteps = ControllerSharedPtr->GetTrackStepsAtFrame(EChaosVDTrackType::Solver, SolverID, ControllerSharedPtr->GetTrackCurrentFrame(EChaosVDTrackType::Solver, SolverID));
+
+		int32 AvailableSteps = INDEX_NONE;
+		if (const FChaosVDStepsContainer* StepData = ControllerSharedPtr->GetTrackStepsDataAtFrame(EChaosVDTrackType::Solver, SolverID, ControllerSharedPtr->GetTrackCurrentFrame(EChaosVDTrackType::Solver, SolverID)))
+		{
+			AvailableSteps = StepData->Num() > 0 ? StepData->Num() : INDEX_NONE;
+			CurrentStepName =  StepData->Num() > 0 ? (*StepData)[0].StepName : TEXT("NONE");
+		}
 
 		// Max is inclusive and we use this to request as the index on the recorded frames/steps arrays so we need to -1 to the available frames/steps
 		FramesTimelineWidget->UpdateMinMaxValue(0, AvailableFrames != INDEX_NONE ? AvailableFrames -1 : 0);
@@ -106,6 +112,38 @@ void SChaosVDSolverPlaybackControls::HandlePlaybackControllerDataUpdated(TWeakPt
 	}
 }
 
+void SChaosVDSolverPlaybackControls::UpdateStepsWidgetForFrame(const FChaosVDPlaybackController& InCurrentPlaybackController, int32 FrameNumber, int32 StepNumber, EChaosVDStepsWidgetUpdateFlags OptionsFlags)
+{
+	if (const FChaosVDStepsContainer* StepsData = InCurrentPlaybackController.GetTrackStepsDataAtFrame(EChaosVDTrackType::Solver, SolverID, FrameNumber))
+	{
+		constexpr TCHAR const* UnknownStepName = TEXT("Unknown");
+
+		if (StepsData->Num() > 0 && StepNumber < StepsData->Num())
+		{
+			const FChaosVDStepData& StepData = (*StepsData)[StepNumber];
+
+			if (EnumHasAnyFlags(OptionsFlags, EChaosVDStepsWidgetUpdateFlags::UpdateText))
+			{
+				CurrentStepName = StepData.StepName;
+			}
+
+			if (EnumHasAnyFlags(OptionsFlags, EChaosVDStepsWidgetUpdateFlags::SetTimelineStep))
+			{
+				int32 AvailableSteps = StepsData->Num() > 0 ? StepsData->Num() : INDEX_NONE;
+				StepsTimelineWidget->UpdateMinMaxValue(0,AvailableSteps != INDEX_NONE ? AvailableSteps -1 : 0);
+
+				// On Frame updates, always use Step 0
+				StepsTimelineWidget->SetCurrentTimelineFrame(StepNumber, EChaosVDSetTimelineFrameFlags::None);
+			}
+		}
+		else
+		{
+			StepsTimelineWidget->UpdateMinMaxValue(0,0);
+			CurrentStepName = UnknownStepName;
+		}
+	}
+}
+
 void SChaosVDSolverPlaybackControls::HandleControllerTrackFrameUpdated(TWeakPtr<FChaosVDPlaybackController> InController, const FChaosVDTrackInfo* UpdatedTrackInfo, FGuid InstigatorGuid)
 {
 	if (InstigatorGuid == GetInstigatorID())
@@ -120,35 +158,33 @@ void SChaosVDSolverPlaybackControls::HandleControllerTrackFrameUpdated(TWeakPtr<
 		{
 			FramesTimelineWidget->SetCurrentTimelineFrame(SolverTrackInfo->CurrentFrame, EChaosVDSetTimelineFrameFlags::None);
 
-			const int32 AvailableSteps = CurrentPlaybackControllerPtr->GetTrackStepsAtFrame(EChaosVDTrackType::Solver, SolverID, SolverTrackInfo->CurrentFrame);
-			StepsTimelineWidget->UpdateMinMaxValue(0,AvailableSteps != INDEX_NONE ? AvailableSteps -1 : 0);
-
-			// On Frame updates, always use Step 0
-			StepsTimelineWidget->SetCurrentTimelineFrame(0, EChaosVDSetTimelineFrameFlags::None);
+			constexpr int32 StepNumber = 0;
+			UpdateStepsWidgetForFrame(*CurrentPlaybackControllerPtr.Get(), SolverTrackInfo->CurrentFrame, StepNumber);
 		}
 	}
 }
 
-void SChaosVDSolverPlaybackControls::OnFrameSelectionUpdated(int32 NewFrameIndex) const
+void SChaosVDSolverPlaybackControls::OnFrameSelectionUpdated(int32 NewFrameIndex)
 {
 	if (const TSharedPtr<FChaosVDPlaybackController> PlaybackControllerPtr = PlaybackController.Pin())
 	{
-		const int32 AvailableSteps = PlaybackControllerPtr->GetTrackStepsAtFrame(EChaosVDTrackType::Solver, SolverID, PlaybackControllerPtr->GetTrackCurrentFrame(EChaosVDTrackType::Solver, SolverID));
-		StepsTimelineWidget->UpdateMinMaxValue(0,AvailableSteps != INDEX_NONE ? AvailableSteps - 1 : 0);
-
-		// On Frame updates, always use Step 0
 		constexpr int32 StepNumber = 0;
-		StepsTimelineWidget->SetCurrentTimelineFrame(StepNumber, EChaosVDSetTimelineFrameFlags::None);
+		UpdateStepsWidgetForFrame(*PlaybackControllerPtr.Get(), NewFrameIndex, StepNumber);
+
 		PlaybackControllerPtr->GoToTrackFrame(GetInstigatorID(), EChaosVDTrackType::Solver, SolverID, NewFrameIndex, StepNumber);
 	}
 }
 
-void SChaosVDSolverPlaybackControls::OnStepSelectionUpdated(int32 NewStepIndex) const
+void SChaosVDSolverPlaybackControls::OnStepSelectionUpdated(int32 NewStepIndex)
 {
 	if (const TSharedPtr<FChaosVDPlaybackController> PlaybackControllerPtr = PlaybackController.Pin())
 	{
 		// On Steps updates. Always use the current Frame
 		int32 CurrentFrame = PlaybackControllerPtr->GetTrackCurrentFrame(EChaosVDTrackType::Solver, SolverID);
+
+		// Only Update the text as if we are here it means manually set the step number already
+		UpdateStepsWidgetForFrame(*PlaybackControllerPtr.Get(), CurrentFrame, NewStepIndex, EChaosVDStepsWidgetUpdateFlags::UpdateText);
+
 		PlaybackControllerPtr->GoToTrackFrame(GetInstigatorID(), EChaosVDTrackType::Solver, SolverID, CurrentFrame, NewStepIndex);
 	}
 }
