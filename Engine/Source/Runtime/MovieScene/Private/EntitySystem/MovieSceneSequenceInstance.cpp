@@ -137,10 +137,11 @@ void FSequenceInstance::InitializeLegacyEvaluator(UMovieSceneEntitySystemLinker*
 
 	if (EnumHasAnyFlags(CompiledEntry.AccumulatedMask, EMovieSceneSequenceCompilerMask::EvaluationTemplate))
 	{
+		UpdateFlags |= ESequenceInstanceUpdateFlags::HasLegacyTemplates;
+
 		if (!LegacyEvaluator)
 		{
 			LegacyEvaluator = MakeUnique<FMovieSceneTrackEvaluator>(CompiledEntry.GetSequence(), RootTemplate.GetCompiledDataID(), CompiledDataManager);
-			UpdateFlags |= ESequenceInstanceUpdateFlags::HasLegacyTemplates;
 		}
 	}
 	else if (LegacyEvaluator)
