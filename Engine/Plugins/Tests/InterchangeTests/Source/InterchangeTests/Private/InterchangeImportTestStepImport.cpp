@@ -31,7 +31,11 @@ TTuple<UE::Interchange::FAssetImportResultPtr, UE::Interchange::FSceneImportResu
 	UE::Interchange::FScopedSourceData ScopedSourceData(SourceFile.FilePath);
 
 	FImportAssetParameters Params;
-	Params.OverridePipelines = PipelineStack;
+	Params.OverridePipelines.Reserve(PipelineStack.Num());
+	for(TObjectPtr<UInterchangePipelineBase> Pipeline : PipelineStack)
+	{
+		Params.OverridePipelines.Add(Pipeline);
+	}
 	Params.bIsAutomated = true;
 
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();

@@ -331,8 +331,8 @@ struct INTERCHANGEENGINE_API FImportAssetParameters
 	bool bFollowRedirectors = false;
 
 	// Adding some override will tell interchange to use the specific custom set pipelines instead of letting the user or the system chose
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
-	TArray<TObjectPtr<UInterchangePipelineBase>> OverridePipelines;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset", meta = (AllowedClasses = "/Script/InterchangeCore.InterchangePipelineBase, /Script/InterchangeEngine.InterchangeBlueprintPipelineBase, /Script/InterchangeEngine.InterchangePythonPipelineAsset"))
+	TArray<FSoftObjectPath> OverridePipelines;
 
 	/* Delegates used track the imported objects */
 

@@ -766,8 +766,11 @@ UInterchangePipelineBase* UE::Interchange::GeneratePipelineInstance(const FSoftO
 		UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot generate a pipeline instance because the pipeline asset %s type is unknown."), *PipelineInstance.GetWithoutSubPath().ToString());
 	}
 
-	// Make sure that the instance does not carry over standalone and public flags as they are not actual assets to be persisted
-	GeneratedPipeline->ClearFlags(EObjectFlags::RF_Standalone|EObjectFlags::RF_Public);
+	if(GeneratedPipeline)
+	{
+		// Make sure that the instance does not carry over standalone and public flags as they are not actual assets to be persisted
+		GeneratedPipeline->ClearFlags(EObjectFlags::RF_Standalone|EObjectFlags::RF_Public);
+	}
 
 	return GeneratedPipeline;
 }
@@ -1576,8 +1579,8 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 	{
 		for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < ImportAssetParameters.OverridePipelines.Num(); ++GraphPipelineIndex)
 		{
-			UInterchangePipelineBase* OverridePipeline = ImportAssetParameters.OverridePipelines[GraphPipelineIndex];
-			if (!OverridePipeline)
+			UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(ImportAssetParameters.OverridePipelines[GraphPipelineIndex]);
+			if (!GeneratedPipeline)
 			{
 				UE_LOG(LogInterchangeEngine, Error, TEXT("Interchange import: Override pipeline array contains a NULL pipeline. Script or code need to be fix to avoid this. "));
 				continue;
@@ -1585,7 +1588,6 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 			else
 			{
 				// Duplicate the override pipelines to protect the scripted users form making race conditions
-				UInterchangePipelineBase* GeneratedPipeline = DuplicateObject<UInterchangePipelineBase>(OverridePipeline, GetTransientPackage());
 				AdjustPipelineSettingForContext(GeneratedPipeline);
 				AsyncHelper->Pipelines.Add(GeneratedPipeline);
 				AsyncHelper->OriginalPipelines.Add(GeneratedPipeline);
