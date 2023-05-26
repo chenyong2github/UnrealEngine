@@ -216,9 +216,6 @@ bool FOnlineSessionNull::CreateSession(int32 HostingPlayerNum, FName SessionName
 			Session->OwningUserId = FUniqueNetIdNull::Create(FString::Printf(TEXT("%d"), HostingPlayerNum));
 			Session->OwningUserName = FString(TEXT("NullUser"));
 		}
-		
-		// Unique identifier of this build for compatibility
-		Session->SessionSettings.BuildUniqueId = GetBuildUniqueId();
 
 		// Setup the host session info
 		FOnlineSessionInfoNull* NewSessionInfo = new FOnlineSessionInfoNull();

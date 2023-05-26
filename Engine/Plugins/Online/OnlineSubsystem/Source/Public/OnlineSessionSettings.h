@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "OnlineSubsystemTypes.h"
 #include "OnlineKeyValuePair.h"
+#include "OnlineSubsystem.h"
 
 // NOTE:  Session setting names have been moved to OnlineBase in OnlineSessionNames.h
 
@@ -280,7 +280,7 @@ public:
 		, bAntiCheatProtected(false)
 		, bUseLobbiesIfAvailable(false)
 		, bUseLobbiesVoiceChatIfAvailable(false)
-		, BuildUniqueId(0)
+		, BuildUniqueId(GetBuildUniqueId())
 	{
 		// Example usage of settings
 //		Set(SETTING_MAPNAME, FString(TEXT("")), EOnlineDataAdvertisementType::ViaOnlineService);
