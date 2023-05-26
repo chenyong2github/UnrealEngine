@@ -847,6 +847,16 @@ namespace UnrealBuildTool
 		public bool bCompileCEF3 = true;
 
 		/// <summary>
+		/// Whether to allow PublicDependencies to be gathered and linked recursively (so it links against all dependents).
+		/// Consider PublicDepChain of PluginA -> PluginB -> PluginC.  If false, PluginA links PluginB. If true, PluginA links both PluginB and PluginC.
+		/// This sets the default, but it can be overridden per module by the ModuleRules.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		[CommandLine("-NoLinkDependencyChain", Value = "false")]
+		[CommandLine("-LinkDependencyChain", Value = "true")]
+		public bool bLinkPublicDependencyChain = true;
+
+		/// <summary>
 		/// Whether to compile using ISPC.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -3070,6 +3080,11 @@ namespace UnrealBuildTool
 		public bool bCompileCEF3
 		{
 			get { return Inner.bCompileCEF3; }
+		}
+
+		public bool bLinkPublicDependencyChain
+		{
+			get { return Inner.bLinkPublicDependencyChain; }
 		}
 
 		public bool bCompileISPC
