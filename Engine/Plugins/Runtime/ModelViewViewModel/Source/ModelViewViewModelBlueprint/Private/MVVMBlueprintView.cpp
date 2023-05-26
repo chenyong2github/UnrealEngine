@@ -270,7 +270,7 @@ void UMVVMBlueprintView::PostEditChangeChainProperty(FPropertyChangedChainEvent&
 	}
 }
 
-void UMVVMBlueprintView::AddAssetTags(TArray<FAssetRegistryTag>& OutTags)
+void UMVVMBlueprintView::AddAssetTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 	if (AvailableViewModels.Num() > 0)
 	{
@@ -289,7 +289,7 @@ void UMVVMBlueprintView::AddAssetTags(TArray<FAssetRegistryTag>& OutTags)
 
 		if (Builder.Len() > 0)
 		{
-			OutTags.Emplace(TEXT("Viewmodels"), Builder.ToString(), FAssetRegistryTag::TT_Hidden);
+			OutTags.Emplace(FName("Viewmodels"), Builder.ToString(), FAssetRegistryTag::TT_Hidden);
 		}
 	}
 }

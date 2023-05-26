@@ -2,6 +2,7 @@
 
 #include "ModelViewViewModelEditorModule.h"
 
+#include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "BlueprintModes/WidgetBlueprintApplicationMode.h"
 #include "BlueprintModes/WidgetBlueprintApplicationModes.h"
 #include "Customizations/MVVMBlueprintViewModelContextCustomization.h"
@@ -55,12 +56,14 @@ void FModelViewViewModelEditorModule::StartupModule()
 	}
 
 	FMVVMEditorCommands::Register();
-	FWidgetBlueprintDelegates::GetAssetTags.AddRaw(this, &FModelViewViewModelEditorModule::HandleAssetTags);
+	FWidgetBlueprintDelegates::GetAssetTags.AddRaw(this, &FModelViewViewModelEditorModule::HandleWidgetBlueprintAssetTags);
+	FWidgetBlueprintGeneratedClassDelegates::GetAssetTags.AddRaw(this, &FModelViewViewModelEditorModule::HandleClassBlueprintAssetTags);
 }
 
 
 void FModelViewViewModelEditorModule::ShutdownModule()
 {
+	FWidgetBlueprintGeneratedClassDelegates::GetAssetTags.RemoveAll(this);
 	FWidgetBlueprintDelegates::GetAssetTags.RemoveAll(this);
 	if (FMessageLogModule* MessageLogModule = FModuleManager::GetModulePtr<FMessageLogModule>("MessageLog"))
 	{
@@ -192,7 +195,7 @@ void FModelViewViewModelEditorModule::HandleActivateMode(FWidgetBlueprintApplica
 	}
 }
 
-void FModelViewViewModelEditorModule::HandleAssetTags(const UWidgetBlueprint* WidgetBlueprint, TArray<UObject::FAssetRegistryTag>& OutTags)
+void FModelViewViewModelEditorModule::HandleWidgetBlueprintAssetTags(const UWidgetBlueprint* WidgetBlueprint, TArray<UObject::FAssetRegistryTag>& OutTags)
 {
 	if (WidgetBlueprint && GEditor)
 	{
@@ -202,6 +205,17 @@ void FModelViewViewModelEditorModule::HandleAssetTags(const UWidgetBlueprint* Wi
 			{
 				BlueprintView->AddAssetTags(OutTags);
 			}
+		}
+	}
+}
+
+void FModelViewViewModelEditorModule::HandleClassBlueprintAssetTags(const UWidgetBlueprintGeneratedClass* GeneratedClass, TArray<UObject::FAssetRegistryTag>& OutTags)
+{
+	if (GeneratedClass && GEditor && GeneratedClass->ClassGeneratedBy)
+	{
+		if (UWidgetBlueprint* WidgetBlueprint = Cast<UWidgetBlueprint>(GeneratedClass->ClassGeneratedBy))
+		{
+			HandleWidgetBlueprintAssetTags(WidgetBlueprint, OutTags);
 		}
 	}
 }
