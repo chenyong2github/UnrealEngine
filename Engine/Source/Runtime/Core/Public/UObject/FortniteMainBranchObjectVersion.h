@@ -325,6 +325,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Add FPackedLevelActorDesc for APackedLevelActor and support for APackedLevelActor Filters
 		PackedLevelActorDesc,
 
+		// Add customizable values for several UWorldPartitionRuntimeSpatialHash cvars
+		WorldPartitionRuntimeSpatialHashCVarOverrides,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

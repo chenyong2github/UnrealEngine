@@ -31,6 +31,11 @@ static FAutoConsoleVariableRef CVarRuntimeSpatialHashPlacePartitionActorsUsingLo
 	GRuntimeSpatialHashPlacePartitionActorsUsingLocation,
 	TEXT("Set RuntimeSpatialHashPlacePartitionActorsUsingLocation to true to place partitioned actors into their corresponding cell using their location instead of their bounding box."));
 
+bool GRuntimeSpatialHashUseAlignedGridLevelsEffective = true;
+bool GRuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevelsEffective = true;
+bool GRuntimeSpatialHashPlaceSmallActorsUsingLocationEffective = false;
+bool GRuntimeSpatialHashPlacePartitionActorsUsingLocationEffective = true;
+
 FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVector& InOrigin, int64 InCellSize)
 	: WorldBounds(InWorldBounds)
 	, Origin(InOrigin)
@@ -66,7 +71,7 @@ FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVecto
 	{
 		int64 LevelGridSize = CurrentGridSize;
 
-		if (!GRuntimeSpatialHashUseAlignedGridLevels)
+		if (!GRuntimeSpatialHashUseAlignedGridLevelsEffective)
 		{
 			// Except for top level, adding 1 to CurrentGridSize (which is always a power of 2) breaks the pattern of perfectly aligned cell edges between grid level cells.
 			// This will prevent weird artefact during actor promotion when an actor is placed using its bounds and which overlaps multiple cells.
@@ -165,12 +170,12 @@ FSquare2DGridHelper GetPartitionedActors(const FBox& WorldBounds, const FSpatial
 	auto ShouldActorUseLocationPlacement = [CellArea, CellSize, GridLevelCount](const IStreamingGenerationContext::FActorSetInstance* InActorSetInstance, const FBox2D& InActorSetInstanceBounds, int32& OutGridLevel)
 	{
 		OutGridLevel = 0;
-		if (GRuntimeSpatialHashPlaceSmallActorsUsingLocation && (InActorSetInstanceBounds.GetArea() <= CellArea))
+		if (GRuntimeSpatialHashPlaceSmallActorsUsingLocationEffective && (InActorSetInstanceBounds.GetArea() <= CellArea))
 		{
 			return true;
 		}
 
-		if (GRuntimeSpatialHashPlacePartitionActorsUsingLocation)
+		if (GRuntimeSpatialHashPlacePartitionActorsUsingLocationEffective)
 		{
 			bool bUseLocation = true;
 			for (const FGuid& ActorGuid : InActorSetInstance->ActorSet->Actors)

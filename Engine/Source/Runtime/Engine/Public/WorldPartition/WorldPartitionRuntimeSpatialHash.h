@@ -19,6 +19,14 @@ typedef UE::Math::TIntVector3<int64> FGridCellCoord;
 typedef UE::Math::TIntVector2<int64> FGridCellCoord2;
 class FWorldPartitionDraw2DContext;
 
+UENUM()
+enum class EWorldPartitionCVarProjectDefaultOverride : uint8
+{
+	ProjectDefault,
+	Disabled,
+	Enabled,
+};
+
 USTRUCT()
 struct FSpatialHashStreamingGridLayerCell
 {
@@ -258,6 +266,10 @@ public:
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
+	virtual void Serialize(FArchive& Ar) override;
+
+	void ApplyCVars();
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
@@ -314,6 +326,22 @@ private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Config, Category = RuntimeSettings)
 	TArray<FSpatialHashRuntimeGrid> Grids;
+
+	/** Disable to help break the pattern caused by world partition promotion of actors to upper grid levels that are always aligned on child levels. */
+	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = RuntimeSettings)
+	EWorldPartitionCVarProjectDefaultOverride UseAlignedGridLevels;
+
+	/** Disable to avoid snapping higher levels cells to child cells. Only used when bUseAlignedGridLevels is false. */
+	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = RuntimeSettings)
+	EWorldPartitionCVarProjectDefaultOverride SnapNonAlignedGridLevelsToLowerLevels;
+
+	/** Enable to place actors smaller than a cell size into their corresponding cell using their location instead of their bounding box. */
+	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = RuntimeSettings)
+	EWorldPartitionCVarProjectDefaultOverride PlaceSmallActorsUsingLocation;
+
+	/** Enable to place partitioned actors into their corresponding cell using their location instead of their bounding box. */
+	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = RuntimeSettings)
+	EWorldPartitionCVarProjectDefaultOverride PlacePartitionActorsUsingLocation;
 
 	/** Whether to preview runtime grids. */
 	UPROPERTY(Transient)
