@@ -473,7 +473,7 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 
 			Section.AddMenuEntry(
 				"PropertyMatrix",
-				LOCTEXT("PropertyMatrix", "Open Selection in Property Matrix"),
+				LOCTEXT("PropertyMatrix", "Edit Selection in Property Matrix"),
 				DynamicTooltipAttribute,
 				FSlateIcon(),
 				FUIAction(

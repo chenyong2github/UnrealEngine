@@ -290,7 +290,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 				.OnClicked(this, &SDetailsView::OnOpenRawPropertyEditorClicked)
 				.IsEnabled(this, &SDetailsView::CanOpenRawPropertyEditor)
 				.Visibility(this, &SDetailsView::CanShowRawPropertyEditorButton, DetailsViewArgs.bShowPropertyMatrixButton)
-				.ToolTipText(LOCTEXT("RawPropertyEditorButtonLabel", "Open Selection in Property Matrix"))
+				.ToolTipText(LOCTEXT("RawPropertyEditorButtonLabel", "Edit Selection in Property Matrix"))
 				[
 					SNew(SImage)
 					.ColorAndOpacity(FSlateColor::UseForeground())
