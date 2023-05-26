@@ -20,6 +20,7 @@
 #include "DSP/FloatArrayMath.h"
 #include "DSP/MultichannelBuffer.h"
 #include "Containers/UnrealString.h"
+#include "Sound/StreamedAudioChunkSeekTable.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAudioDerivedData, Log, All);
 
@@ -165,7 +166,7 @@ Derived data key generation.
 
 // If you want to bump this version, generate a new guid using
 // VS->Tools->Create GUID and paste it here. https://www.guidgen.com works too.
-#define STREAMEDAUDIO_DERIVEDDATA_VER		TEXT("acc1e60e03be438ab23c-a3d318425d34")
+#define STREAMEDAUDIO_DERIVEDDATA_VER		TEXT("F6F8FA984D96440B8A28C73F2ABAE692")
 
 #ifndef CASE_ENUM_TO_TEXT
 #define CASE_ENUM_TO_TEXT(X) case X: return TEXT(#X);
@@ -445,6 +446,175 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 		return false;
 	}
 
+	static void MakeChunkSeekTable(const IAudioFormat::FSeekTable& InTable, uint32 InChunkStart, uint32 InChunkEnd, FStreamedAudioChunkSeekTable& Out)
+	{
+		int32 SearchFrom = Algo::LowerBound(InTable.Offsets, InChunkStart);
+		if (SearchFrom < 0)
+		{
+			return;
+		}
+
+		for (int32 i=SearchFrom;i<InTable.Offsets.Num();++i)
+		{
+			uint32 Offset = InTable.Offsets[i];
+			uint32 TimeInAudioFrames = InTable.Times[i];
+
+			if (Offset > InChunkEnd) 
+			{
+				break;
+			}
+			if (Offset >= InChunkStart && Offset < InChunkEnd)
+			{
+				Out.Add(TimeInAudioFrames,Offset - InChunkStart);
+			}
+		}
+	}	
+
+	// Returns the size of the new seek-table in bytes.
+	static int32 PrefixChunkWithSeekTable(FStreamedAudioChunkSeekTable& InSeekTable, TArray<uint8>& InOutChunkBytes)
+	{	
+		TArray<uint8> Bytes;
+		FMemoryWriter Writer(Bytes);
+		InSeekTable.Serialize(Writer);
+		InOutChunkBytes.Insert(Bytes,0);
+		return Bytes.Num();
+	}
+
+	static EChunkSeekTableMode DetermineSeekTableMode(const IAudioFormat::FSeekTable& InTable)
+	{
+		const TArray<uint32>& Times = InTable.Times;
+		if (InTable.Times.Num()>2)
+		{
+			int32 Delta = Delta = Times[1] - Times[0];
+			for (int32 i = 2; i < Times.Num(); ++i)
+			{
+				if (Times[i] - Times[i - 1] != Delta)
+				{
+					return EChunkSeekTableMode::VariableSamplesPerEntry;
+				}
+			}
+		}
+		return EChunkSeekTableMode::ConstantSamplesPerEntry;
+	}
+
+	static void CreateChunkSeektableAndPrefix(const EChunkSeekTableMode InMode, const IAudioFormat::FSeekTable& InTable, const uint32 InChunkStart, const uint32 InChunkEnd, 
+		TArray<uint8>& OutChunk, TArray<uint32>& OutChunkOffsets, const int32 InEstimatedSeekTableSize, const int32 InBlockCount, const uint32 InAudioSize, const int32 InBudget)
+	{
+		FStreamedAudioChunkSeekTable ChunkTable(InMode);
+		MakeChunkSeekTable(InTable, InChunkStart, InChunkEnd, ChunkTable);
+		const int32 SeekTableSize = PrefixChunkWithSeekTable(ChunkTable, OutChunk);
+
+		ensureMsgf(SeekTableSize == InEstimatedSeekTableSize, TEXT("FStreamedAudioChunkSeekTable:CalcSize doesn't match Serialize. SerializedSize=%d, CaclSize=%d"), SeekTableSize, InEstimatedSeekTableSize);
+		ensureMsgf(OutChunk.Num() <= InBudget, TEXT("Chunk is over budget: Size=%d, Budget=%d"), OutChunk.Num(), InBudget);
+		ensure(SeekTableSize + InAudioSize == OutChunk.Num());
+		ensureMsgf(InBlockCount == ChunkTable.Num(), TEXT("Expecting to have same number of items in our table as we're budgeted for: Planned=%d, Table=%d"), InBlockCount, ChunkTable.Num());
+	
+		OutChunkOffsets.Add(ChunkTable.FindTime(0));
+	}
+
+	bool SplitUsingSeekTable(const IAudioFormat::FSeekTable& InTable, const TArray<uint8>& InSrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 InFirstChunkMaxSize, const int32 InMaxChunkSize, TArray<uint32>& OutChunkOffsets)
+	{
+		const TArray<uint32>& Offsets = InTable.Offsets;
+		
+		// Reject bad inputs.
+		if (Offsets.IsEmpty() || InSrcBuffer.IsEmpty() || InFirstChunkMaxSize <= 0 || InMaxChunkSize <=0)
+		{
+			return false;
+		}
+
+		EChunkSeekTableMode Mode = DetermineSeekTableMode(InTable);
+
+		uint8 const* Source = InSrcBuffer.GetData();
+		uint32 SourceLen = InSrcBuffer.Num();
+		uint8 const* SourceEnd = Source + SourceLen;
+
+		uint8 const* ChunkStart = Source;
+		uint8 const* Current = Source + Offsets[0];	
+
+		int32 BlockCount = 0;
+		int32 CurrentBlock = 0;
+
+		uint32 Budget = InFirstChunkMaxSize;
+
+		while (Current < SourceEnd)
+		{	
+			// A block is the span between two neighboring offsets in our table.
+			uint32 BlockStart = Offsets[CurrentBlock];
+			uint32 BlockEnd = CurrentBlock < Offsets.Num() - 1 ? Offsets[CurrentBlock + 1] : SourceLen;
+			uint32 BlockSize = BlockEnd - BlockStart;
+			
+			// Current chunk stats.
+			int32 CurrentTableSize = FStreamedAudioChunkSeekTable::CalcSize(BlockCount, Mode);
+			uint32 CurrentChunkSize = (Current - ChunkStart) + CurrentTableSize;
+			
+			// Adding a new item will grow the table by 1.
+			int32 NewTableSize = FStreamedAudioChunkSeekTable::CalcSize(BlockCount + 1, Mode);
+			int32 TableDelta = NewTableSize - CurrentTableSize;
+			
+			// Accumulated enough?
+			if (CurrentChunkSize + BlockSize + TableDelta > Budget)
+			{
+				// can't add this chunk, emit.
+				TArray<uint8> Chunk(ChunkStart, Current - ChunkStart);
+				int32 AudioSize = Chunk.Num();
+
+				CreateChunkSeektableAndPrefix(Mode, InTable, ChunkStart-Source, Current-Source, Chunk, OutChunkOffsets, CurrentTableSize, BlockCount, AudioSize, Budget);
+		
+				OutBuffers.Add(Chunk);
+				
+				ChunkStart = Current;
+				Budget = InMaxChunkSize;
+				BlockCount = 0;
+			
+				// retry.
+				continue;
+			}
+				
+			// Include this block.
+			Current += BlockSize;
+			BlockCount++;
+			CurrentBlock++;
+
+			UE_LOG(LogAudio, Verbose, TEXT("Adding Block: Chunk_Block_Count=%d, BlockSize=%d, ChunkSize=%d"), BlockCount, BlockSize, Current - ChunkStart);
+		}
+
+		// emit any remainder chunks
+		if (Current - ChunkStart)
+		{
+			// emit this chunk
+			TArray<uint8> Chunk(ChunkStart, Current - ChunkStart);
+			int32 AudioSize = Chunk.Num();
+			int32 CurrentTableSize = FStreamedAudioChunkSeekTable::CalcSize(BlockCount, Mode);
+			CreateChunkSeektableAndPrefix(Mode, InTable, ChunkStart - Source, Current - Source, Chunk, OutChunkOffsets, CurrentTableSize, BlockCount, AudioSize, Budget);
+			OutBuffers.Add(Chunk);
+		}
+
+		return true;
+	}
+
+	bool SplitDataForStreaming(const IAudioFormat* InFormat, const TArray<uint8>& InSrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 InFirstChunkMaxSize, const int32 InMaxChunkSize, TArray<uint32>& OutChunkOffsets)
+	{
+		bool bRequiresSeekTable = InFormat->RequiresStreamingSeekTable();	
+
+		// Split using the seek-table if we have one.
+		if (bRequiresSeekTable)
+		{
+			// Because the extract call modifies the source buffer inline (to remove the embedded seek table) we must keep a copy as if
+			// the call was to fail to split the calling code must contend with the original.
+			TArray<uint8> InSrcBufferCopy = InSrcBuffer;
+		
+			IAudioFormat::FSeekTable Table;			
+			if (!ensureMsgf(InFormat->ExtractSeekTableForStreaming(InSrcBufferCopy, Table), TEXT("SoundWave: '%s' requires a Seektable, but doesn't contain one."), *SoundWaveFullName))
+			{
+				return false;
+			}
+			return SplitUsingSeekTable(Table, InSrcBufferCopy,OutBuffers,InFirstChunkMaxSize,InMaxChunkSize, OutChunkOffsets);
+		}
+
+		// otherwise... ask the format to split.
+		return InFormat->SplitDataForStreaming(InSrcBuffer, OutBuffers, InFirstChunkMaxSize, InMaxChunkSize);
+	}
+
 	/** Build the streamed audio. This function is safe to call from any thread. */
 	void BuildStreamedAudio()
 	{
@@ -522,29 +692,33 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 						MaxChunkSizeForCurrentWave = FMath::Min(MaxChunkSizeOverrideBytes, MaxChunkSizeForCurrentWave);
 					}
 
-					UE_LOG(LogAudio, Display, TEXT("Chunk size for %s: %d"), *SoundWaveFullName, MaxChunkSizeForCurrentWave);
+					UE_LOG(LogAudio, Display, TEXT("Chunk sizes for %s: Chunk0=%d bytes, Chunk1-N=%dk"), *SoundWaveFullName, FirstChunkSize, MaxChunkSizeForCurrentWave>>10);
 				}
 				
 				check(FirstChunkSize != 0 && MaxChunkSizeForCurrentWave != 0);
 
-				if (AudioFormat->SplitDataForStreaming(CompressedBuffer, ChunkBuffers, FirstChunkSize, MaxChunkSizeForCurrentWave))
+				TArray<uint32> ChunkOffsets;
+				if (SplitDataForStreaming(AudioFormat, CompressedBuffer, ChunkBuffers, FirstChunkSize, MaxChunkSizeForCurrentWave, ChunkOffsets))
 				{
 					if (ChunkBuffers.Num() > 32)
 					{
 						UE_LOG(LogAudio, Display, TEXT("Sound Wave %s is very large, requiring %d chunks."), *SoundWaveFullName, ChunkBuffers.Num());
 					}
 
+					int32 TotalAudioBytesExcludingSeektable = 0;
 					if (ChunkBuffers.Num() > 0)
 					{
 						// The zeroth chunk should not be zero-padded.
-						const int32 AudioDataSize = ChunkBuffers[0].Num();
+						int32 AudioDataSize = ChunkBuffers[0].Num();
 
 						//FStreamedAudioChunk* NewChunk = new(DerivedData->Chunks) FStreamedAudioChunk();
 						int32 ChunkIndex = DerivedData->Chunks.Add(new FStreamedAudioChunk());
 						FStreamedAudioChunk* NewChunk = &(DerivedData->Chunks[ChunkIndex]);
+
 						// Store both the audio data size and the data size so decoders will know what portion of the bulk data is real audio
 						NewChunk->AudioDataSize = AudioDataSize;
 						NewChunk->DataSize = AudioDataSize;
+						NewChunk->SeekOffsetInAudioFrames = ChunkOffsets.IsValidIndex(ChunkIndex) ? ChunkOffsets[ChunkIndex] : INDEX_NONE;
 
 						if (NewChunk->BulkData.IsLocked())
 						{
@@ -561,8 +735,9 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 					for (int32 ChunkIndex = 1; ChunkIndex < ChunkBuffers.Num(); ++ChunkIndex)
 					{
 						// Zero pad the reallocation if the chunk isn't precisely the max chunk size to keep the reads aligned to MaxChunkSize
-						const int32 AudioDataSize = ChunkBuffers[ChunkIndex].Num();
-						check(AudioDataSize != 0 && AudioDataSize <= MaxChunkSizeForCurrentWave);
+						int32 AudioDataSize = ChunkBuffers[ChunkIndex].Num();
+						check(AudioDataSize != 0);
+						ensureMsgf(AudioDataSize <= MaxChunkSizeForCurrentWave, TEXT("Chunk is overbudget by %d bytes"), AudioDataSize - MaxChunkSizeForCurrentWave);
 
 						int32 ZeroPadBytes = 0;
 
@@ -578,7 +753,8 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 						// Store both the audio data size and the data size so decoders will know what portion of the bulk data is real audio
 						NewChunk->AudioDataSize = AudioDataSize;
 						NewChunk->DataSize = AudioDataSize + ZeroPadBytes;
-
+						NewChunk->SeekOffsetInAudioFrames = ChunkOffsets.IsValidIndex(ChunkIndex) ? ChunkOffsets[ChunkIndex] : INDEX_NONE;
+						
 						if (NewChunk->BulkData.IsLocked())
 						{
 							UE_LOG(LogAudioDerivedData, Warning, TEXT("While building split chunk for streaming: Raw PCM data already being written to. Chunk Index: %d SoundWave: %s "), ChunkIndex, *SoundWaveFullName);

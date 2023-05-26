@@ -28,6 +28,8 @@
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "Async/Async.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "Algo/BinarySearch.h"
+#include "Templates/UnrealTemplate.h"
 
 #if WITH_EDITOR
 #endif // WITH_EDITOR
@@ -432,6 +434,43 @@ const TArrayView<uint8> FSoundWaveData::GetZerothChunkDataView() const
 	return TArrayView<uint8>(View.GetData(), static_cast<int32>(View.Num()));
 }
 
+bool FSoundWaveData::HasChunkSeekTable(int32 InChunkIndex) const
+{
+	const TIndirectArray<FStreamedAudioChunk>& Chunks = RunningPlatformData.Chunks;
+	if (Chunks.IsValidIndex(InChunkIndex))
+	{
+		return Chunks[InChunkIndex].SeekOffsetInAudioFrames != INDEX_NONE;
+	}
+	return false;
+}
+
+int32 FSoundWaveData::FindChunkIndexForSeeking(uint32 InTimeInAudioFrames) const
+{	
+	const TIndirectArray<FStreamedAudioChunk>& Chunks = RunningPlatformData.Chunks;
+	int32 NumChunks = Chunks.Num();
+
+	// Find most in range chunk.
+	int32 InRangeChunk = INDEX_NONE;
+	for (int32 i=0; i < NumChunks; ++i)
+	{
+		// Ignore chunks without tables. (should only be chunk0).
+		if (Chunks[i].SeekOffsetInAudioFrames == INDEX_NONE)
+		{
+			continue;
+		}
+
+		// If its out of bound, use the last valid one.
+		if (Chunks[i].SeekOffsetInAudioFrames > InTimeInAudioFrames)
+		{
+			return InRangeChunk;
+		}
+
+		// In bounds and valid... 
+		InRangeChunk = i;
+	}
+	return INDEX_NONE;
+}
+
 bool FSoundWaveData::LoadZerothChunk()
 {
 #if WITH_EDITOR
@@ -633,8 +672,21 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 		bShouldInlineAudioChunk = Overrides->bInlineStreamedAudioChunks;
 	}
 
-	bool bCooked = Ar.IsCooking();
-	Ar << bCooked;
+	enum 
+	{
+		IsCooked			 = 1 << 0,
+		HasSeekOffset		 = 1 << 1
+	};
+	
+	// Bit-pack flags into a single uint32, instead of a bool.
+	uint32 Flags = 0;
+	if (Ar.IsSaving())
+	{
+		Flags |= Ar.IsCooking() ? IsCooked : 0;
+		Flags |= SeekOffsetInAudioFrames != INDEX_NONE ? HasSeekOffset : 0;
+	}
+
+	Ar << Flags;
 
 	// ChunkIndex 0 is always inline payload, all other chunks are streamed.
 	if (Ar.IsSaving())
@@ -654,13 +706,38 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 	Ar << DataSize;
 	Ar << AudioDataSize;
 
+	if (Ar.IsLoading() )
+	{	
+		// Sanity check these look sane. 
+		// And ensure reset in the case they are bad.
+		if (!ensure(DataSize > 0))
+		{
+			DataSize = 0;
+		}
+		if (!ensure(AudioDataSize > 0))
+		{
+			AudioDataSize = 0;
+		}
+		if (!ensure(AudioDataSize <= DataSize))
+		{
+			AudioDataSize = DataSize;
+		}
+	}
+
+	// To save bloat, only Serialize the seek offset if this chunk uses it. 
+	// Otherwise this defaults to INDEX_NONE
+	if (Flags & HasSeekOffset)
+	{
+		Ar << SeekOffsetInAudioFrames;
+	}
+
 #if WITH_EDITORONLY_DATA
-	if (!bCooked)
+	if (!(Flags & IsCooked))
 	{
 		Ar << DerivedDataKey;
 	}
 
-	if (Ar.IsLoading() && bCooked)
+	if (Ar.IsLoading() && (Flags & IsCooked))
 	{
 		bLoadedFromCookedPackage = true;
 	}
@@ -669,6 +746,11 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 
 bool FStreamedAudioChunk::GetCopy(void** OutChunkData)
 {
+	if (AudioDataSize <= 0 || DataSize <= 0)
+	{
+		return false;
+	}
+	
 	if (!CachedDataPtr)
 	{
 		if (AudioDataSize != DataSize)

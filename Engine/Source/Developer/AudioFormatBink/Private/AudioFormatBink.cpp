@@ -40,7 +40,7 @@ class FAudioFormatBink : public IAudioFormat
 	enum
 	{
 		/** Version for Bink Audio format, this becomes part of the DDC key. */
-		UE_AUDIO_BINK_VER = 5,
+		UE_AUDIO_BINK_VER = 7,
 	};
 
 public:
@@ -140,6 +140,12 @@ public:
 
 	virtual int32 GetMinimumSizeForInitialChunk(FName Format, const TArray<uint8>& SrcBuffer) const override
 	{
+		// Exclude any seek table entries in our size, as we are now using streaming seek tables.
+		if(RequiresStreamingSeekTable())
+		{
+			return sizeof(BinkAudioFileHeader);
+		}
+		
 		// We must have an initial chunk large enough for the header and the seek table, if present.
 		BinkAudioFileHeader const* Header = (BinkAudioFileHeader const*)SrcBuffer.GetData();
 		return sizeof(BinkAudioFileHeader) + Header->seek_table_entry_count * sizeof(uint16);
@@ -149,6 +155,12 @@ public:
 	// until the chunk size is reached, then spit out a block.
 	virtual bool SplitDataForStreaming(const TArray<uint8>& InSrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 InMaxInitialChunkSize, const int32 InMaxChunkSize) const override
 	{
+		// This should not be called if we require a streaming seek-table. 
+		if (!ensure(RequiresStreamingSeekTable()==false))
+		{
+			return false;
+		}
+
 		uint8 const* Source = InSrcBuffer.GetData();
 		uint32 SourceLen = InSrcBuffer.Num();
 		uint8 const* SourceEnd = Source + SourceLen;
@@ -214,6 +226,92 @@ public:
 			OutBuffers.Add(Chunk);
 			ChunkStart = Current;
 		}
+
+		return true;
+	}
+
+	static void StripSeek(TArray<uint8>& InOutBuffer)
+	{
+		void* CompressedData = InOutBuffer.GetData();
+		uint32_t CompressedDataLen = InOutBuffer.Num();
+
+		check(CompressedDataLen > sizeof(BinkAudioFileHeader));
+
+		BinkAudioFileHeader* Header = (BinkAudioFileHeader*)CompressedData;
+		uint32 SeekTableBytes = Header->seek_table_entry_count * sizeof(uint16);
+		check(CompressedDataLen > sizeof(BinkAudioFileHeader) + SeekTableBytes);
+
+		// Mark in the header we don't have any seek table 
+		Header->seek_table_entry_count = 0;
+
+		// Copy the rest of the encoded data over the seek table.
+		uint8* SeekTableStart = (uint8*)(Header + 1);
+		FMemory::Memmove(SeekTableStart, SeekTableStart + SeekTableBytes, CompressedDataLen - SeekTableBytes - sizeof(BinkAudioFileHeader));
+
+		CompressedDataLen -= SeekTableBytes;
+
+		InOutBuffer.SetNum(CompressedDataLen);
+	}
+	
+	virtual bool RequiresStreamingSeekTable() const
+	{
+		return true; // Toggling this will require a version bump.
+	}
+	
+	// Taken from BinkAudioInfo.cpp 
+	static uint32 GetMaxFrameSizeSamples(uint32 SampleRate) 
+	{
+		if (SampleRate >= 44100)
+		{
+			return 1920;
+		}
+		else if (SampleRate >= 22050)
+		{
+			return 960;
+		}
+		else
+		{
+			return 480;
+		}
+	}
+
+	virtual bool ExtractSeekTableForStreaming(TArray<uint8>& InOutBuffer, IAudioFormat::FSeekTable& OutSeektable) const
+	{
+		// This should only be called if we require a streaming seek-table. 
+		if (!ensure(RequiresStreamingSeekTable()))
+		{
+			return false;
+		}
+
+		BinkAudioFileHeader const* Header = (BinkAudioFileHeader const*)InOutBuffer.GetData();
+		if (InOutBuffer.Num() < sizeof(BinkAudioFileHeader) || Header->tag != 'UEBA' || Header->seek_table_entry_count==0)
+		{
+			return false;
+		}
+		
+		// The outer logic that manages the seek-table is unaware of how big the header can be, so for the sake of simplicity,
+		// offset for the size of the header in the seek-table entries, so we don't need to worry about adjusting for it later.
+		static const uint32 ActualAudioOffset = sizeof(BinkAudioFileHeader) + 0; // No entries as we're stripping it.
+
+		// Decode and copy out the seek-table. (it's stored as deltas).
+		uint16* EncodedSeekTable = (uint16*)(InOutBuffer.GetData() + sizeof(BinkAudioFileHeader));
+		uint32 CurrentSeekOffset = ActualAudioOffset;
+		uint32 CurrentTimeOffset = 0;
+		
+		int32 SamplesPerEntry = Header->blocks_per_seek_table_entry * GetMaxFrameSizeSamples(Header->rate);
+		OutSeektable.Offsets.SetNum(Header->seek_table_entry_count);
+		OutSeektable.Times.SetNum(Header->seek_table_entry_count);
+
+		for (int32 i = 0; i < Header->seek_table_entry_count; ++i)
+		{
+			OutSeektable.Times[i] = CurrentTimeOffset;
+			OutSeektable.Offsets[i] = CurrentSeekOffset;
+			CurrentSeekOffset += EncodedSeekTable[i];
+			CurrentTimeOffset += SamplesPerEntry;
+		}
+
+		// Strip the seek-table from the buffer now we've copied it.
+		StripSeek(InOutBuffer);
 
 		return true;
 	}
