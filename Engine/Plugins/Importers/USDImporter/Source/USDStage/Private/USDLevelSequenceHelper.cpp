@@ -626,7 +626,7 @@ private:
 
 		// For now we support one binding per component type (mostly so we can fit a binding to a scene component and
 		// camera component for a Camera prim twin)
-		TMap< const UClass*, FGuid > ComponentClassToBindingGuid;
+		TMap< const UClass*, FGuid > ObjectClassToBindingGuid;
 	};
 
 	TMap< TWeakObjectPtr< const UUsdPrimTwin >, FPrimTwinBindings > PrimTwinToBindings;
@@ -2433,7 +2433,7 @@ void FUsdLevelSequenceHelperImpl::RemovePossessable(const UUsdPrimTwin& PrimTwin
 	// ones don't modify the Sequence and change properties, so we must modify them here
 	Bindings->Sequence->Modify();
 
-	for (const TPair< const UClass*, FGuid >& Pair : Bindings->ComponentClassToBindingGuid)
+	for (const TPair< const UClass*, FGuid >& Pair : Bindings->ObjectClassToBindingGuid)
 	{
 		const FGuid& ComponentPossessableGuid = Pair.Value;
 
@@ -2804,7 +2804,7 @@ FGuid FUsdLevelSequenceHelperImpl::GetOrCreateComponentBinding(const UUsdPrimTwi
 	ensure(Bindings.Sequence == nullptr || Bindings.Sequence == &Sequence);
 	Bindings.Sequence = &Sequence;
 
-	if (FGuid* ExistingGuid = Bindings.ComponentClassToBindingGuid.Find(ComponentToBind.GetClass()))
+	if (FGuid* ExistingGuid = Bindings.ObjectClassToBindingGuid.Find(ComponentToBind.GetClass()))
 	{
 		return *ExistingGuid;
 	}
@@ -2851,7 +2851,7 @@ FGuid FUsdLevelSequenceHelperImpl::GetOrCreateComponentBinding(const UUsdPrimTwi
 
 	// Bind component
 	Sequence.BindPossessableObject(ComponentBinding, ComponentToBind, ComponentContext);
-	Bindings.ComponentClassToBindingGuid.Emplace(ComponentToBind.GetClass(), ComponentBinding);
+	Bindings.ObjectClassToBindingGuid.Emplace(ComponentToBind.GetClass(), ComponentBinding);
 	return ComponentBinding;
 }
 
@@ -2967,7 +2967,7 @@ void FUsdLevelSequenceHelperImpl::HandleMovieSceneChange(UMovieScene& MovieScene
 			continue;
 		}
 
-		for (TMap< const UClass*, FGuid >::TIterator BindingIt = Bindings.ComponentClassToBindingGuid.CreateIterator();
+		for (TMap< const UClass*, FGuid >::TIterator BindingIt = Bindings.ObjectClassToBindingGuid.CreateIterator();
 			BindingIt;
 			++BindingIt)
 		{
@@ -3295,8 +3295,6 @@ void FUsdLevelSequenceHelperImpl::HandleTrackChange(const UMovieSceneTrack& Trac
 		return;
 	}
 
-	ensure( BoundSceneComponent->Mobility != EComponentMobility::Static );
-
 	UUsdPrimTwin* PrimTwin = StageActor->RootUsdTwin->Find(BoundSceneComponent);
 
 	// If we exported/created this Camera prim ourselves, we'll have a decomposed parent Xform and a child Camera prim (to mirror
@@ -3344,6 +3342,8 @@ void FUsdLevelSequenceHelperImpl::HandleTrackChange(const UMovieSceneTrack& Trac
 
 	if (PrimTwin)
 	{
+		ensure(BoundSceneComponent->Mobility != EComponentMobility::Static);
+
 		FScopedBlockNoticeListening BlockNotices(StageActor.Get());
 		UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath(UE::FSdfPath(*PrimTwin->PrimPath));
 
@@ -3352,10 +3352,10 @@ void FUsdLevelSequenceHelperImpl::HandleTrackChange(const UMovieSceneTrack& Trac
 		Bindings.Sequence = Sequence;
 
 		// Make sure we track this binding
-		const UClass* ComponentClass = BoundSceneComponent->GetClass();
-		FGuid* FoundExistingGuid = Bindings.ComponentClassToBindingGuid.Find(ComponentClass);
+		const UClass* ComponentClass = BoundObject->GetClass();
+		FGuid* FoundExistingGuid = Bindings.ObjectClassToBindingGuid.Find(ComponentClass);
 		ensure(!FoundExistingGuid || *FoundExistingGuid == PossessableGuid);
-		Bindings.ComponentClassToBindingGuid.Emplace(ComponentClass, PossessableGuid);
+		Bindings.ObjectClassToBindingGuid.Emplace(ComponentClass, PossessableGuid);
 
 		if (bIsMuteChange)
 		{
