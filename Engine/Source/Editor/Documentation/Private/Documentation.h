@@ -3,6 +3,7 @@
 
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
+#include "DocumentationRedirectRegistry.h"
 #include "IDocumentation.h"
 #include "Internationalization/CulturePointer.h"
 #include "Templates/SharedPointer.h"
@@ -53,15 +54,40 @@ public:
 
 	virtual FString GetBaseUrl(const FString& Id) const override;
 
+	virtual bool RegisterRedirect(const FName& Owner, const FDocumentationRedirect& Redirect) override;
+
+	virtual void UnregisterRedirects(const FName& Owner) override;
+
 private:
 
 	FDocumentation();
+	
+	/**
+	 * Builds and opens a documentation url given individual components/parameters
+	 * @param Link Identifier for the page (could be a full url or individual page id)
+	 * @param Culture Desired locale for resulting documentation url
+	 * @param Source Metadata about the page request used by analytics
+	 * @return Was the documentation url successfully opened?
+	 */
+	bool OpenUrl(const FString& Link, const FCultureRef& Culture, FDocumentationSourceInfo Source, const FString& BaseUrlId) const;
+
+	/**
+	 * Redirects a documentation url
+	 * @param OriginalUrl Original url
+	 * @return Redirected documentation url
+	 */
+	FDocumentationUrl RedirectUrl(const FDocumentationUrl& OriginalUrl) const;
+
+	/** Registers all redirects from editor config file */
+	void RegisterConfigRedirects();
 
 private:
 
 	TMap< FString, TWeakPtr< IDocumentationPage > > LoadedPages;
 
 	TMap< const FString, const FString > RegisteredBaseUrls;
+
+	FDocumentationRedirectRegistry RedirectRegistry;
 
 	TArray < FString > SourcePaths;
 

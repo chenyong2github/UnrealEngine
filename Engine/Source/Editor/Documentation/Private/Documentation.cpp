@@ -22,6 +22,7 @@
 #include "Misc/PackageName.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
+#include "Misc/ReverseIterate.h"
 #include "Modules/ModuleManager.h"
 #include "SDocumentationAnchor.h"
 #include "SDocumentationToolTip.h"
@@ -67,6 +68,8 @@ FDocumentation::FDocumentation()
 		AddSourcePath(FPaths::Combine(Plugin->GetBaseDir(), TEXT("Documentation"), TEXT("Source")));
 	}
 	AddSourcePath(FPaths::Combine(FPaths::EngineDir(), TEXT("Documentation"), TEXT("Source")));
+
+	RegisterConfigRedirects();
 }
 
 FDocumentation::~FDocumentation() 
@@ -101,88 +104,12 @@ bool FDocumentation::OpenAPIHome(FDocumentationSourceInfo Source) const
 
 bool FDocumentation::Open(const FString& Link, FDocumentationSourceInfo Source, const FString& BaseUrlId) const
 {
-	FString DocumentationUrl;
-
-	// Warn the user if they are opening a URL
-	if (Link.StartsWith(TEXT("http")) || Link.StartsWith(TEXT("https")))
-	{
-		FText Message = LOCTEXT("OpeningURLMessage", "You are about to open an external URL. This will open your web browser. Do you want to proceed?");
-		FText URLDialog = LOCTEXT("OpeningURLTitle", "Open external link");
-
-		FSuppressableWarningDialog::FSetupInfo Info(Message, URLDialog, "SuppressOpenURLWarning");
-		Info.ConfirmText = LOCTEXT("OpenURL_yes", "Yes");
-		Info.CancelText = LOCTEXT("OpenURL_no", "No");
-		FSuppressableWarningDialog OpenURLWarning(Info);
-		if (OpenURLWarning.ShowModal() == FSuppressableWarningDialog::Cancel)
-		{
-			return false;
-		}
-		else
-		{
-			FPlatformProcess::LaunchURL(*Link, nullptr, nullptr);
-			return true;
-		}
-	}
-
-	if (!FParse::Param(FCommandLine::Get(), TEXT("testdocs")))
-	{
-		FString OnDiskPath = FDocumentationLink::ToFilePath(Link);
-		if (IFileManager::Get().FileSize(*OnDiskPath) != INDEX_NONE)
-		{
-			DocumentationUrl = FDocumentationLink::ToFileUrl(Link, Source);
-		}
-	}
-
-	
-	if (DocumentationUrl.IsEmpty())
-	{
-		// When opening a doc website we always request the most ideal culture for our documentation.
-		// The DNS will redirect us if necessary.
-		DocumentationUrl = FDocumentationLink::ToUrl(Link, Source, BaseUrlId);
-	}
-
-	if (!DocumentationUrl.IsEmpty())
-	{
-		FPlatformProcess::LaunchURL(*DocumentationUrl, NULL, NULL);
-	}
-
-	if (!DocumentationUrl.IsEmpty() && FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.Documentation"), TEXT("OpenedPage"), Link);
-	}
-
-	return !DocumentationUrl.IsEmpty();
+	return OpenUrl(Link, FInternationalization::Get().GetCurrentCulture(), Source, BaseUrlId);
 }
 
 bool FDocumentation::Open(const FString& Link, const FCultureRef& Culture, FDocumentationSourceInfo Source, const FString& BaseUrlId) const
 {
-	FString DocumentationUrl;
-
-	if (!FParse::Param(FCommandLine::Get(), TEXT("testdocs")))
-	{
-		FString OnDiskPath = FDocumentationLink::ToFilePath(Link, Culture);
-		if (IFileManager::Get().FileSize(*OnDiskPath) != INDEX_NONE)
-		{
-			DocumentationUrl = FDocumentationLink::ToFileUrl(Link, Culture, Source);
-		}
-	}
-
-	if (DocumentationUrl.IsEmpty())
-	{
-		DocumentationUrl = FDocumentationLink::ToUrl(Link, Culture, Source, BaseUrlId);
-	}
-
-	if (!DocumentationUrl.IsEmpty())
-	{
-		FPlatformProcess::LaunchURL(*DocumentationUrl, NULL, NULL);
-	}
-
-	if (!DocumentationUrl.IsEmpty() && FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.Documentation"), TEXT("OpenedPage"), Link);
-	}
-
-	return !DocumentationUrl.IsEmpty();
+	return OpenUrl(Link, Culture, Source, BaseUrlId);
 }
 
 TSharedRef< SWidget > FDocumentation::CreateAnchor( const TAttribute<FString>& Link, const FString& PreviewLink, const FString& PreviewExcerptName, const TAttribute<FString>& BaseUrlId) const
@@ -377,6 +304,119 @@ bool FDocumentation::AddSourcePath(const FString& Path)
 		return true;
 	}
 	return false;
+}
+
+bool FDocumentation::RegisterRedirect(const FName& Owner, const FDocumentationRedirect& Redirect)
+{
+	return RedirectRegistry.Register(Owner, Redirect);
+}
+
+void FDocumentation::UnregisterRedirects(const FName& Owner)
+{
+	RedirectRegistry.UnregisterAll(Owner);
+}
+
+bool FDocumentation::OpenUrl(const FString& Link, const FCultureRef& Culture, FDocumentationSourceInfo Source, const FString& BaseUrlId) const
+{
+	// Original url
+	const FDocumentationUrl OriginalUrl(Link, BaseUrlId);
+
+	// Target url (redirected if applicable)
+	const FDocumentationUrl TargetUrl = RedirectUrl(OriginalUrl);
+
+	// Warn the user if they are opening a URL
+	if (TargetUrl.Link.StartsWith(TEXT("http")) || TargetUrl.Link.StartsWith(TEXT("https")))
+	{
+		FText Message = LOCTEXT("OpeningURLMessage", "You are about to open an external URL. This will open your web browser. Do you want to proceed?");
+		FText URLDialog = LOCTEXT("OpeningURLTitle", "Open external link");
+
+		FSuppressableWarningDialog::FSetupInfo Info(Message, URLDialog, "SuppressOpenURLWarning");
+		Info.ConfirmText = LOCTEXT("OpenURL_yes", "Yes");
+		Info.CancelText = LOCTEXT("OpenURL_no", "No");
+		FSuppressableWarningDialog OpenURLWarning(Info);
+		if (OpenURLWarning.ShowModal() == FSuppressableWarningDialog::Cancel)
+		{
+			return false;
+		}
+		else
+		{
+			FPlatformProcess::LaunchURL(*TargetUrl.Link, nullptr, nullptr);
+			return true;
+		}
+	}
+
+	FString DocumentationUrl;
+
+	if (!FParse::Param(FCommandLine::Get(), TEXT("testdocs")))
+	{
+		// Prioritize on-disk versions of the requested link over web versions
+		const FString DiskPath = FDocumentationLink::ToFilePath(TargetUrl.Link, Culture);
+		if (FPaths::FileExists(DiskPath))
+		{
+			DocumentationUrl = FDocumentationLink::ToFileUrl(TargetUrl.Link, Culture, Source);
+		}
+		else if (const FCulturePtr FallbackCulture = FInternationalization::Get().GetCulture(TEXT("en")))
+		{
+			const FString FallbackDiskPath = FDocumentationLink::ToFilePath(TargetUrl.Link, FallbackCulture.ToSharedRef());
+			if (FPaths::FileExists(FallbackDiskPath))
+			{
+				DocumentationUrl = FDocumentationLink::ToFileUrl(TargetUrl.Link, FallbackCulture.ToSharedRef(), Source);
+			}
+		}
+	}
+
+	if (DocumentationUrl.IsEmpty())
+	{
+		DocumentationUrl = FDocumentationLink::ToUrl(TargetUrl.Link, Culture, Source, TargetUrl.BaseUrlId);
+	}
+
+	if (!DocumentationUrl.IsEmpty())
+	{
+		FPlatformProcess::LaunchURL(*DocumentationUrl, nullptr, nullptr);
+
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.Documentation"), TEXT("OpenedPage"), TargetUrl.Link);
+		}
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+FDocumentationUrl FDocumentation::RedirectUrl(const FDocumentationUrl& OriginalUrl) const
+{
+	FDocumentationRedirect Redirect;
+	if (!RedirectRegistry.GetRedirect(OriginalUrl.Link, Redirect))
+	{
+		return OriginalUrl;
+	}
+	else
+	{
+		UE_LOG(LogDocumentation, Log, TEXT("Documentation link \"%s\" was redirected to \"%s\""), *OriginalUrl.ToString(), *Redirect.ToUrl.ToString());
+		return Redirect.ToUrl;
+	}
+}
+
+void FDocumentation::RegisterConfigRedirects()
+{
+	// Unregister all global redirects so we start with a clean slate every time we parse the config redirects
+	UnregisterRedirects(NAME_None);
+
+	const UDocumentationSettings* DocumentationSettings = GetDefault<UDocumentationSettings>();
+	if (!DocumentationSettings)
+	{
+		return;
+	}
+
+	// Iterate over redirects in reverse so the redirects deepest in the config hierarchy are registered last (higher priority)
+	for (const FDocumentationRedirect& ConfigRedirect : ReverseIterate(DocumentationSettings->DocumentationRedirects))
+	{
+		RegisterRedirect(NAME_None, ConfigRedirect);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

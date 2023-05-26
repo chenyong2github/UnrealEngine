@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "DocumentationRedirect.h"
 #include "Engine/DeveloperSettings.h"
 #include "IDocumentation.h"
 
@@ -42,4 +43,8 @@ public:
 	// Array of base URLs for documentation links that are loaded on startup
 	UPROPERTY(Config)
 	TArray<FDocumentationBaseUrl> DocumentationBaseUrls;
+
+	// Array of static documentation redirects registered on startup
+	UPROPERTY(Config)
+	TArray<FDocumentationRedirect> DocumentationRedirects;
 };

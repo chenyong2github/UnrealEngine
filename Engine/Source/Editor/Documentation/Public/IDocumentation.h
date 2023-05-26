@@ -7,6 +7,8 @@
 #include "Modules/ModuleManager.h"
 #include "IDocumentationModule.h"
 
+struct FDocumentationRedirect;
+
 template< typename ObjectType > class TAttribute;
 
 /** Invoked when someone clicks on a hyperlink. */
@@ -204,4 +206,18 @@ public:
 	virtual bool RegisterBaseUrl(const FString& Id, const FString& Url) = 0;
 
 	virtual FString GetBaseUrl(const FString& Id) const = 0;
+
+	/**
+	 * Registers a documentation redirect for an owner
+	 * @param Owner Name of owner for redirect
+	 * @param Redirect Redirect to register
+	 * @return Was the redirect successfully registered?
+	 */
+	virtual bool RegisterRedirect(const FName& Owner, const FDocumentationRedirect& Redirect) = 0;
+
+	/**
+	 * Unregisters all redirects owned by a specific owner
+	 * @param Owner Name of owner to unregister for
+	 */
+	virtual void UnregisterRedirects(const FName& Owner) = 0;
 };
