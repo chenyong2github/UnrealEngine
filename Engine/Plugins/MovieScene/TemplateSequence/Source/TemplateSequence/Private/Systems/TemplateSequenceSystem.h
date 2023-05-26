@@ -63,11 +63,13 @@ public:
 
 	using FPropertyScaleValueArray = TArray<FPropertyScaleValue, TInlineAllocator<2>>;
 
+	void ResetPropertyScales();
 	void AddPropertyScale(const FPropertyScaleKey& Key, const FPropertyScaleValue& Value);
 	void FindPropertyScales(const FPropertyScaleKey& Key, FPropertyScaleValueArray& OutValues) const;
 
 private:
 
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override final;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
 	
 private:

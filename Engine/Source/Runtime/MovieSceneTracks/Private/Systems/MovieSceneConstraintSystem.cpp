@@ -154,6 +154,64 @@ struct FPreAnimatedConstraintTraits : FBoundObjectPreAnimatedStateTraits
 	}
 };
 
+
+struct FEvaluateConstraintChannels
+{
+	FEvaluateConstraintChannels(UWorld* InWorld, FInstanceRegistry* InInstanceRegistry, UMovieSceneConstraintSystem* InSystem)
+		: World(InWorld), InstanceRegistry(InInstanceRegistry), Controller(nullptr), System(InSystem)
+	{
+		check(World && InstanceRegistry && System);
+	}
+
+	void PreTask()
+	{
+		// Retrieve the controller at the start of the task since this task is now stored persistently
+		Controller = &FConstraintsManagerController::Get(World);
+		check(Controller);
+
+		System->DynamicOffsets.Reset();
+	}
+
+	void ForEachEntity(UObject* BoundObject, FInstanceHandle InstanceHandle, const FConstraintComponentData& ConstraintChannel, FFrameTime FrameTime) const
+	{
+		FConstraintAndActiveChannel* ConstraintAndActiveChannel = ConstraintChannel.Section->GetConstraintChannel(ConstraintChannel.ConstraintName);
+		if (!ConstraintAndActiveChannel)
+		{
+			return;
+		}
+
+		UTickableConstraint* Constraint = CreateConstraintIfNeeded(*Controller, ConstraintAndActiveChannel, ConstraintChannel);
+		if (!Constraint)
+		{
+			return;
+		}
+
+		const FSequenceInstance& TargetInstance = InstanceRegistry->GetInstance(InstanceHandle);
+
+		bool Result = false;
+		ConstraintAndActiveChannel->ActiveChannel.Evaluate(FrameTime, Result);
+		Constraint->SetActive(Result);
+		Constraint->ResolveBoundObjects(TargetInstance.GetSequenceID(), *TargetInstance.GetPlayer());
+		if (UTickableTransformConstraint* TransformConstraint = Cast< UTickableTransformConstraint>(Constraint))
+		{
+			if (UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(TransformConstraint->ChildTRSHandle))
+			{
+				//bound component may change so need to update constraint
+				ComponentHandle->Component = Cast<USceneComponent>(BoundObject);
+				UMovieSceneConstraintSystem::FUpdateHandleForConstraint UpdateHandle;
+				UpdateHandle.Constraint = TransformConstraint;
+				UpdateHandle.TransformHandle = ComponentHandle;
+				System->DynamicOffsets.Add(UpdateHandle);
+			}
+		}
+	}
+
+	UWorld* World;
+	FInstanceRegistry* InstanceRegistry;
+	FConstraintsManagerController* Controller;
+	UMovieSceneConstraintSystem* System;
+};
+
 struct FPreAnimatedConstraintStorage
 	: public TPreAnimatedStateStorage<FPreAnimatedConstraintTraits>
 {
@@ -174,7 +232,7 @@ UMovieSceneConstraintSystem::UMovieSceneConstraintSystem(const FObjectInitialize
 	RelevantComponent = TracksComponents->ConstraintChannel;
 
 	// Run constraints during instantiation or evaluation
-	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation | ESystemPhase::Finalization;
+	Phase = ESystemPhase::Instantiation | ESystemPhase::Scheduling | ESystemPhase::Finalization;
 
 	if (HasAnyFlags(RF_ClassDefaultObject) ) 
 	{
@@ -182,8 +240,25 @@ UMovieSceneConstraintSystem::UMovieSceneConstraintSystem(const FObjectInitialize
 		// This is only really necessary if they are in the same phase (which they are not), but I've
 		// defined the prerequisite for safety if its phase changes in future
 		DefineImplicitPrerequisite(GetClass(), UMovieSceneComponentTransformSystem::StaticClass());
-		DefineComponentConsumer(GetClass(), UE::MovieScene::FBuiltInComponentTypes::Get()->EvalTime);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->EvalTime);
 	}
+}
+
+void UMovieSceneConstraintSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+	// Set up new constraints
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->BoundObject)
+	.Read(BuiltInComponents->InstanceHandle)
+	.Read(TracksComponents->ConstraintChannel)
+	.Read(BuiltInComponents->EvalTime)
+	.SetDesiredThread(Linker->EntityManager.GetGatherThread())
+	.Schedule_PerEntity<FEvaluateConstraintChannels>(&Linker->EntityManager, TaskScheduler, GetWorld(), Linker->GetInstanceRegistry(), this);
 }
 
 void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
@@ -205,55 +280,18 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 	}
 	else if (CurrentPhase == ESystemPhase::Evaluation)
 	{
-		DynamicOffsets.Reset();
-		FConstraintsManagerController& Controller = FConstraintsManagerController::Get(GetWorld());
+		// Backwards compat with legacy non-persistent tasks
 		FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
-		struct FEvaluateConstraintChannels
-		{
-			FEvaluateConstraintChannels(FInstanceRegistry* InInstanceRegistry, FConstraintsManagerController* InController, UMovieSceneConstraintSystem* InSystem) : InstanceRegistry(InInstanceRegistry), Controller(InController), System(InSystem) { check(InstanceRegistry); check(Controller); check(System) };
-			void ForEachEntity(UObject* BoundObject, UE::MovieScene::FInstanceHandle InstanceHandle, const FConstraintComponentData& ConstraintChannel, FFrameTime FrameTime)
-			{
-				const FSequenceInstance& TargetInstance = InstanceRegistry->GetInstance(InstanceHandle);
-				if (FConstraintAndActiveChannel* ConstraintAndActiveChannel = ConstraintChannel.Section->GetConstraintChannel(ConstraintChannel.ConstraintName))
-				{
-					UTickableConstraint* Constraint = CreateConstraintIfNeeded(*Controller, ConstraintAndActiveChannel, ConstraintChannel);
-
-					if (Constraint)
-					{
-						bool Result = false;
-						ConstraintAndActiveChannel->ActiveChannel.Evaluate(FrameTime, Result);
-						Constraint->SetActive(Result);
-						Constraint->ResolveBoundObjects(TargetInstance.GetSequenceID(), *TargetInstance.GetPlayer());
-						if (UTickableTransformConstraint* TransformConstraint = Cast< UTickableTransformConstraint>(Constraint))
-						{
-							if (UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(TransformConstraint->ChildTRSHandle))
-							{
-								//bound component may change so need to update constraint
-								ComponentHandle->Component = Cast<USceneComponent>(BoundObject);
-								FUpdateHandleForConstraint UpdateHandle;
-								UpdateHandle.Constraint = TransformConstraint;
-								UpdateHandle.TransformHandle = ComponentHandle;
-								System->DynamicOffsets.Add(UpdateHandle);
-							}
-						}
-					}
-				}
-			}
-			FInstanceRegistry* InstanceRegistry;
-			FConstraintsManagerController* Controller;
-			UMovieSceneConstraintSystem* System;
-		};
-
 		// Set up new constraints
 		FEntityTaskBuilder()
-			.Read(BuiltInComponents->BoundObject)
-			.Read(BuiltInComponents->InstanceHandle)
-			.Read(TracksComponents->ConstraintChannel)
-			.Read(BuiltInComponents->EvalTime)
-			.SetDesiredThread(Linker->EntityManager.GetGatherThread())
-			.Dispatch_PerEntity<FEvaluateConstraintChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents, Linker->GetInstanceRegistry(), &Controller, this);
+		.Read(BuiltInComponents->BoundObject)
+		.Read(BuiltInComponents->InstanceHandle)
+		.Read(TracksComponents->ConstraintChannel)
+		.Read(BuiltInComponents->EvalTime)
+		.SetDesiredThread(Linker->EntityManager.GetGatherThread())
+		.Dispatch_PerEntity<FEvaluateConstraintChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents, GetWorld(), Linker->GetInstanceRegistry(), this);
 	}
 	else if (CurrentPhase == ESystemPhase::Finalization)
 	{

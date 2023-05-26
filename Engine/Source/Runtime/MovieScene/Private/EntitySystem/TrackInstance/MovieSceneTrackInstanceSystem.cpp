@@ -260,6 +260,7 @@ void UMovieSceneTrackInstanceInstantiator::OnRun(FSystemTaskPrerequisites& InPre
 UMovieSceneTrackInstanceSystem::UMovieSceneTrackInstanceSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
+	Phase = UE::MovieScene::ESystemPhase::Scheduling;
 	RelevantComponent = UE::MovieScene::FBuiltInComponentTypes::Get()->TrackInstance;
 }
 
@@ -267,6 +268,15 @@ void UMovieSceneTrackInstanceSystem::OnLink()
 {
 	Instantiator = Linker->LinkSystem<UMovieSceneTrackInstanceInstantiator>();
 	Linker->SystemGraph.AddReference(this, Instantiator);
+}
+
+void UMovieSceneTrackInstanceSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+	if (this->Instantiator->GetTrackInstances().Num() != 0)
+	{
+		TaskScheduler->AddMemberFunctionTask(FTaskParams(TEXT("Evaluate Track Instances")).ForceGameThread(), this, &UMovieSceneTrackInstanceSystem::EvaluateAllInstances);
+	}
 }
 
 void UMovieSceneTrackInstanceSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
@@ -277,25 +287,25 @@ void UMovieSceneTrackInstanceSystem::OnRun(FSystemTaskPrerequisites& InPrerequis
 
 	if (this->Instantiator->GetTrackInstances().Num() != 0)
 	{
-		auto Run = [this]
-		{
-			for (const FMovieSceneTrackInstanceEntry& Entry : this->Instantiator->GetTrackInstances())
-			{
-				if (ensure(Entry.TrackInstance))
-				{
-					Entry.TrackInstance->Animate();
-				}
-			}
-		};
-
 		if (Linker->EntityManager.GetThreadingModel() == EEntityThreadingModel::NoThreading)
 		{
-			Run();
+			this->EvaluateAllInstances();
 		}
 		else
 		{
-			FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(Run), GET_STATID(MovieSceneEval_GenericTrackInstanceTask), InPrerequisites.All(), Linker->EntityManager.GetGatherThread());
+			FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([this]{ this->EvaluateAllInstances(); }, GET_STATID(MovieSceneEval_GenericTrackInstanceTask), InPrerequisites.All(), Linker->EntityManager.GetGatherThread());
 			Subsequents.AddRootTask(Task);
+		}
+	}
+}
+
+void UMovieSceneTrackInstanceSystem::EvaluateAllInstances()
+{
+	for (const FMovieSceneTrackInstanceEntry& Entry : this->Instantiator->GetTrackInstances())
+	{
+		if (ensure(Entry.TrackInstance))
+		{
+			Entry.TrackInstance->Animate();
 		}
 	}
 }

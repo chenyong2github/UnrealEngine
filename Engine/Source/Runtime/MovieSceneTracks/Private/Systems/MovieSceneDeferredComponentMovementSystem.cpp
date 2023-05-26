@@ -47,7 +47,7 @@ UMovieSceneDeferredComponentMovementSystem::UMovieSceneDeferredComponentMovement
 {
 	using namespace UE::MovieScene;
 
-	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation | ESystemPhase::Finalization;
+	Phase = ESystemPhase::Instantiation | ESystemPhase::Scheduling | ESystemPhase::Finalization;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -111,6 +111,36 @@ bool UMovieSceneDeferredComponentMovementSystem::IsRelevantImpl(UMovieSceneEntit
 		InLinker->EntityManager.ContainsComponent(Components->AttachParent);
 }
 
+void UMovieSceneDeferredComponentMovementSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes*          BuiltInComponents = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* Components        = FMovieSceneTracksComponentTypes::Get();
+
+	FTaskParams TaskParams = FTaskParams(TEXT("Defer Movement")).ForceGameThread();
+	TaskParams.bForcePropagateDownstream = true;
+
+	struct FCacheDeferredUpdates
+	{
+		UMovieSceneDeferredComponentMovementSystem* System;
+
+		void ForEachEntity(UObject* BoundObject) const
+		{
+			if (USceneComponent* SceneComponent = Cast<USceneComponent>(BoundObject))
+			{
+				System->DeferMovementUpdates(SceneComponent);
+			}
+		}
+	};
+
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->BoundObject)
+	.FilterAny({ Components->ComponentTransform.PropertyTag })
+	.SetParams(TaskParams)
+	.Schedule_PerEntity<FCacheDeferredUpdates>(&Linker->EntityManager, TaskScheduler, this);
+}
+
 void UMovieSceneDeferredComponentMovementSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;
@@ -139,6 +169,7 @@ void UMovieSceneDeferredComponentMovementSystem::OnRun(FSystemTaskPrerequisites&
 	}
 	else if (CurrentPhase == ESystemPhase::Evaluation)
 	{
+		// Legacy back compat
 		FEntityTaskBuilder()
 		.Read(BuiltInComponents->BoundObject)
 		.FilterAny({ Components->ComponentTransform.PropertyTag })

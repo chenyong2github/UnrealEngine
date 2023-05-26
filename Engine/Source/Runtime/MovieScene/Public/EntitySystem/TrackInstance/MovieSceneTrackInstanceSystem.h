@@ -85,7 +85,10 @@ class MOVIESCENE_API UMovieSceneTrackInstanceSystem : public UMovieSceneEntitySy
 private:
 
 	virtual void OnLink() override final;
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override final;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
+
+	void EvaluateAllInstances();
 
 	UPROPERTY()
 	TObjectPtr<UMovieSceneTrackInstanceInstantiator> Instantiator;

@@ -1133,9 +1133,9 @@ struct TFilteredEntityTask
 	/**
 	 * Assign the scheduled task parameters for this task
 	 */
-	TEntityTaskComponents< T... >& SetParams(const FTaskParams& InOtherParams)
+	TFilteredEntityTask< T... >& SetParams(const FTaskParams& InOtherParams)
 	{
-		this->CommonParams.TaskParams = InOtherParams;
+		Components.CommonParams.TaskParams = InOtherParams;
 		return *this;
 	}
 

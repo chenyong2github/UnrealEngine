@@ -8,6 +8,11 @@
 class UTransformableComponentHandle;
 class UTickableTransformConstraint;
 
+namespace UE::MovieScene
+{
+	struct FEvaluateConstraintChannels;
+}
+
 /**
  * System that is responsible for propagating constraints to a bound object's FConstraintsManagerController.
  */
@@ -25,9 +30,11 @@ public:
 	};
 
 	UMovieSceneConstraintSystem(const FObjectInitializer& ObjInit);
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 protected:
-	TArray<FUpdateHandleForConstraint>  DynamicOffsets;
+	friend UE::MovieScene::FEvaluateConstraintChannels;
 
+	TArray<FUpdateHandleForConstraint>  DynamicOffsets;
 };

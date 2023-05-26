@@ -100,7 +100,7 @@ UMovieSceneComponentMaterialSystem::UMovieSceneComponentMaterialSystem(const FOb
 	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 
 	RelevantComponent = TracksComponents->ComponentMaterialIndex;
-	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation;
+	Phase = ESystemPhase::Instantiation;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{

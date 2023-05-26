@@ -103,7 +103,7 @@ UMovieSceneWidgetMaterialSystem::UMovieSceneWidgetMaterialSystem(const FObjectIn
 	FMovieSceneTracksComponentTypes* TracksComponents  = FMovieSceneTracksComponentTypes::Get();
 
 	RelevantComponent = WidgetComponents->WidgetMaterialHandle;
-	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation;
+	Phase = ESystemPhase::Instantiation;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{

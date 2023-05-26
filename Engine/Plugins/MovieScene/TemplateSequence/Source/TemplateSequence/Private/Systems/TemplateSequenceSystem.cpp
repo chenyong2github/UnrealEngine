@@ -261,7 +261,7 @@ UTemplateSequencePropertyScalingEvaluatorSystem::UTemplateSequencePropertyScalin
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	const FTemplateSequenceComponentTypes* TemplateSequenceComponents = FTemplateSequenceComponentTypes::Get();
 
-	Phase = ESystemPhase::Evaluation;
+	Phase = ESystemPhase::Scheduling;
 	RelevantComponent = TemplateSequenceComponents->PropertyScale;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
@@ -281,6 +281,11 @@ UTemplateSequencePropertyScalingEvaluatorSystem::UTemplateSequencePropertyScalin
 		// We need this component to lookup the binding GUID for an entity, so we know what scaling to apply to it.
 		DefineComponentConsumer(GetClass(), BuiltInComponents->BoundObject);
 	}
+}
+
+void UTemplateSequencePropertyScalingEvaluatorSystem::ResetPropertyScales()
+{
+	PropertyScales.Reset();
 }
 
 void UTemplateSequencePropertyScalingEvaluatorSystem::AddPropertyScale(const FPropertyScaleKey& Key, const FPropertyScaleValue& Value)
@@ -340,10 +345,16 @@ struct FGatherPropertyScales
 		InstanceRegistry = InEvaluatorSystem->GetLinker()->GetInstanceRegistry();
 	}
 
+	void PreTask()
+	{
+		// Clear our map of property scales from last frame.
+		EvaluatorSystem->ResetPropertyScales();
+	}
+
 	void ForEachEntity(
 			const FInstanceHandle& InstanceHandle, 
 			const FTemplateSequencePropertyScaleComponentData& PropertyScale,
-			float ScaleFactor)
+			float ScaleFactor) const
 	{
 		// Find the instance handle of the sub-sequence we need to scale.
 		const FInstanceHandle SubSequenceHandle = InstanceRegistry->FindRelatedInstanceHandle(InstanceHandle, PropertyScale.SubSequenceID);
@@ -360,9 +371,9 @@ struct FScaleTransformProperties
 {
 	using UEvaluatorSystem = UTemplateSequencePropertyScalingEvaluatorSystem;
 
-	UEvaluatorSystem* EvaluatorSystem;
+	const UEvaluatorSystem* EvaluatorSystem;
 
-	FScaleTransformProperties(UEvaluatorSystem* InEvaluatorSystem)
+	FScaleTransformProperties(const UEvaluatorSystem* InEvaluatorSystem)
 		: EvaluatorSystem(InEvaluatorSystem)
 	{
 		check(InEvaluatorSystem);
@@ -380,7 +391,7 @@ struct FScaleTransformProperties
 			TWriteOptional<double> LocationZs,
 			TWriteOptional<double> RotationXs,
 			TWriteOptional<double> RotationYs,
-			TWriteOptional<double> RotationZs)
+			TWriteOptional<double> RotationZs) const
 	{
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
@@ -424,9 +435,9 @@ struct FScaleFloatProperties
 {
 	using UEvaluatorSystem = UTemplateSequencePropertyScalingEvaluatorSystem;
 
-	UEvaluatorSystem* EvaluatorSystem;
+	const UEvaluatorSystem* EvaluatorSystem;
 
-	FScaleFloatProperties(UEvaluatorSystem* InEvaluatorSystem)
+	FScaleFloatProperties(const UEvaluatorSystem* InEvaluatorSystem)
 		: EvaluatorSystem(InEvaluatorSystem)
 	{
 		check(InEvaluatorSystem);
@@ -438,7 +449,7 @@ struct FScaleFloatProperties
 			TRead<FMovieScenePropertyBinding> PropertyBindings,
 			TRead<FGuid> ReverseBindingLookups,
 			TReadOptional<double> BasePropertyValues,
-			TWrite<double> PropertyValues)
+			TWrite<double> PropertyValues) const
 	{
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
@@ -470,6 +481,71 @@ struct FScaleFloatProperties
 
 } // namespace MovieScene
 } // namespace UE
+
+void UTemplateSequencePropertyScalingEvaluatorSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
+	const FTemplateSequenceComponentTypes* TemplateSequenceComponents = FTemplateSequenceComponentTypes::Get();
+
+	const FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
+	const UTemplateSequencePropertyScalingInstantiatorSystem* InstantiatorSystem = Linker->FindSystem<UTemplateSequencePropertyScalingInstantiatorSystem>();
+
+	// Step 1: We are going to look for all entities that describe an active property scale, pick up its up-to-date (evaluated)
+	// scale value (which was evaluated by the float channel evaluator), and build a map that tells us:
+	// - What properties (sub-sequence instance, object/component binding, property path)...
+	// - ...are scaled by what factor (scale value), using what type of scale (scale type enum).
+	//
+	FTaskID GatherTask = FEntityTaskBuilder()
+	.Read(BuiltInComponents->InstanceHandle)
+	.Read(TemplateSequenceComponents->PropertyScale)
+	.Read(BuiltInComponents->DoubleResult[0])
+	.Schedule_PerEntity<FGatherPropertyScales>(&Linker->EntityManager, TaskScheduler, this);
+
+
+	// Step 2: If we have any transform property scaling, iterate specifically on them and apply the scale factor
+	// to the appropriate components.
+	if (ensure(InstantiatorSystem) && InstantiatorSystem->HasAnyTransformScales())
+	{
+		FTaskID ScaleTransformTask = FEntityTaskBuilder()
+			.Read(BuiltInComponents->InstanceHandle)
+			.Read(BuiltInComponents->PropertyBinding)
+			.Read(TemplateSequenceComponents->PropertyScaleReverseBindingLookup)
+			.ReadOptional(BuiltInComponents->BaseDouble[0])
+			.ReadOptional(BuiltInComponents->BaseDouble[1])
+			.ReadOptional(BuiltInComponents->BaseDouble[2])
+			.ReadOptional(BuiltInComponents->BaseDouble[3])
+			.ReadOptional(BuiltInComponents->BaseDouble[4])
+			.ReadOptional(BuiltInComponents->BaseDouble[5])
+			.WriteOptional(BuiltInComponents->DoubleResult[0])
+			.WriteOptional(BuiltInComponents->DoubleResult[1])
+			.WriteOptional(BuiltInComponents->DoubleResult[2])
+			.WriteOptional(BuiltInComponents->DoubleResult[3])
+			.WriteOptional(BuiltInComponents->DoubleResult[4])
+			.WriteOptional(BuiltInComponents->DoubleResult[5])
+			.FilterAny({ TrackComponents->ComponentTransform.PropertyTag, TrackComponents->Transform.PropertyTag })
+			.Fork_PerAllocation<FScaleTransformProperties>(&Linker->EntityManager, TaskScheduler, this);
+
+		TaskScheduler->AddPrerequisite(GatherTask, ScaleTransformTask);
+	}
+
+	// Step 3: Do the same as step 2 for float properties.
+	if (ensure(InstantiatorSystem) && InstantiatorSystem->HasAnyFloatScales())
+	{
+		FTaskID ScaleFloatTask = FEntityTaskBuilder()
+			.Read(BuiltInComponents->InstanceHandle)
+			.Read(BuiltInComponents->PropertyBinding)
+			.Read(TemplateSequenceComponents->PropertyScaleReverseBindingLookup)
+			.ReadOptional(BuiltInComponents->BaseDouble[0])
+			.Write(BuiltInComponents->DoubleResult[0])
+			.FilterAll({ TrackComponents->Float.PropertyTag })
+			.Fork_PerAllocation<FScaleFloatProperties>(&Linker->EntityManager, TaskScheduler, this);
+
+		TaskScheduler->AddPrerequisite(GatherTask, ScaleFloatTask);
+	}
+}
 
 void UTemplateSequencePropertyScalingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
