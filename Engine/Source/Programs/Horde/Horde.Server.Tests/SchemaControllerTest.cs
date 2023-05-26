@@ -2,13 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Net;
 using System.Net.Http;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Horde.Server.Jobs.Artifacts;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+#pragma warning disable CA2234 // Pass system uri objects instead of strings
 
 namespace Horde.Server.Tests
 {
@@ -33,7 +32,7 @@ namespace Horde.Server.Tests
 
 			// Fetch the catalog
 			SchemaCatalog catalog;
-			using (HttpResponseMessage response = await Client.GetAsync(new Uri("http://localhost/api/v1/schema/catalog.json")))
+			using (HttpResponseMessage response = await Client.GetAsync("api/v1/schema/catalog.json"))
 			{
 				response.EnsureSuccessStatusCode();
 				byte[] data = await response.Content.ReadAsByteArrayAsync();

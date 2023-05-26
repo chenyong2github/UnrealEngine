@@ -6,14 +6,16 @@ using System.Threading.Tasks;
 using Horde.Server.Jobs.Artifacts;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+#pragma warning disable CA2234 // Pass system uri objects instead of strings
+
 namespace Horde.Server.Tests
 {
 	[TestClass]
     public class JobsControllerTest : ControllerIntegrationTest
     {
-        private static Uri GetUri(string jobId, string stepId, string fileName)
+        private static string GetUri(string jobId, string stepId, string fileName)
         {
-            return new Uri($"http://localhost/api/v1/jobs/{jobId}/steps/{stepId}/artifacts/{fileName}/data");
+            return $"api/v1/jobs/{jobId}/steps/{stepId}/artifacts/{fileName}/data";
         }
 
         [TestMethod]

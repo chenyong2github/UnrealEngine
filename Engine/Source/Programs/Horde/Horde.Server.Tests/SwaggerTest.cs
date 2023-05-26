@@ -14,7 +14,7 @@ namespace Horde.Server.Tests
         [TestMethod]
         public async Task ValidateSwagger()
         {
-	        HttpResponseMessage res = await Client.GetAsync(new Uri("https://localhost:5001/swagger/v1/swagger.json"));
+	        HttpResponseMessage res = await Client.GetAsync("swagger/v1/swagger.json");
 	        if (!res.IsSuccessStatusCode)
 	        {
 		        string rawJson = await res.Content.ReadAsStringAsync();
