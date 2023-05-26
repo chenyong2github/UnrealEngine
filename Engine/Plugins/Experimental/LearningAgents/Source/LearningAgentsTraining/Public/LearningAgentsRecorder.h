@@ -15,7 +15,7 @@ class ULearningAgentsRecording;
 
 /** The path settings for the recorder. */
 USTRUCT(BlueprintType, Category = "LearningAgents")
-struct FLearningAgentsRecorderPathSettings
+struct LEARNINGAGENTSTRAINING_API FLearningAgentsRecorderPathSettings
 {
 	GENERATED_BODY()
 

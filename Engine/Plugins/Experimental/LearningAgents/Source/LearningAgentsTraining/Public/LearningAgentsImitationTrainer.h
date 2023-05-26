@@ -20,7 +20,7 @@ class ULearningAgentsRecording;
 
 /** The configurable settings for a ULearningAgentsImitationTrainer. */
 USTRUCT(BlueprintType, Category = "LearningAgents")
-struct FLearningAgentsImitationTrainerSettings
+struct LEARNINGAGENTSTRAINING_API FLearningAgentsImitationTrainerSettings
 {
 	GENERATED_BODY()
 
@@ -33,7 +33,7 @@ public:
 
 /** The configurable settings for the training process. */
 USTRUCT(BlueprintType, Category = "LearningAgents")
-struct FLearningAgentsImitationTrainerTrainingSettings
+struct LEARNINGAGENTSTRAINING_API FLearningAgentsImitationTrainerTrainingSettings
 {
 	GENERATED_BODY()
 

@@ -72,7 +72,7 @@ public:
 	void LoadNetworkFromAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset);
 
 	/**
-	 * Copy this networks's weights to another asset. Network sizes must match.
+	 * Copy this network's weights to another asset. Network sizes must match.
 	 * @param NeuralNetworkAsset The asset to save to.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", Meta = (DevelopmentOnly))

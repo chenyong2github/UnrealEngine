@@ -55,7 +55,7 @@ namespace UE::Learning::Agents
 
 /** The configurable settings for a ULearningAgentsTrainer. */
 USTRUCT(BlueprintType, Category = "LearningAgents")
-struct FLearningAgentsTrainerSettings
+struct LEARNINGAGENTSTRAINING_API FLearningAgentsTrainerSettings
 {
 	GENERATED_BODY()
 
@@ -87,7 +87,7 @@ public:
  * during training, which can enable ticking faster than real-time.
  */
 USTRUCT(BlueprintType, Category="LearningAgents")
-struct FLearningAgentsTrainerGameSettings
+struct LEARNINGAGENTSTRAINING_API FLearningAgentsTrainerGameSettings
 {
 	GENERATED_BODY()
 
@@ -141,7 +141,7 @@ namespace UE::Learning::Agents
 
 /** The configurable settings for the training process. */
 USTRUCT(BlueprintType, Category = "LearningAgents")
-struct FLearningAgentsTrainerTrainingSettings
+struct LEARNINGAGENTSTRAINING_API FLearningAgentsTrainerTrainingSettings
 {
 	GENERATED_BODY()
 
@@ -263,7 +263,7 @@ public:
 
 /** The path settings for the trainer. */
 USTRUCT(BlueprintType, Category = "LearningAgents")
-struct FLearningAgentsTrainerPathSettings
+struct LEARNINGAGENTSTRAINING_API FLearningAgentsTrainerPathSettings
 {
 	GENERATED_BODY()
 
