@@ -24,6 +24,7 @@ public:
 	float FogRadialAttenuation;
 
 	uint8 FogMode;
+	uint8 FogSortPriority;
 
 	float FogPhaseG;
 	FLinearColor FogAlbedo;
