@@ -200,8 +200,6 @@ TSharedRef<FLobbyNull> FLobbiesNull::CreateNamedLobby(const FCreateLobby::Params
 	// construct the member data.
 	TSharedRef<FLobbyMember> NewMember = MakeShared<FLobbyMember>();
 	NewMember->AccountId = Params.LocalAccountId;
-	NewMember->PlatformAccountId = Params.LocalAccountId;
-	NewMember->PlatformDisplayName = TEXT("TEMP");
 	NewMember->Attributes = Params.UserAttributes;
 
 	Lobby->Data->Members.Add(Params.LocalAccountId, NewMember);
@@ -360,8 +358,6 @@ void FLobbiesNull::ReadLobbyFromPacket(FNboSerializeFromBuffer& Packet, const TS
 	// todo: make all the members (not just the host
 	TSharedRef<FLobbyMember> NewMember = MakeShared<FLobbyMember>();
 	NewMember->AccountId = OwningAccountId;
-	NewMember->PlatformAccountId = OwningAccountId;
-	NewMember->PlatformDisplayName = TEXT("TEMP");
 	Session->Data->Members.Add(OwningAccountId, NewMember);
 	AllLobbies.Add(Session->Data->LobbyId, Session);
 

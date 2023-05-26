@@ -422,9 +422,6 @@ TDefaultErrorResultInternal<FLobbyMemberServiceSnapshot> FLobbyDetailsEOS::GetLo
 
 	FLobbyMemberServiceSnapshot LobbyMemberServcieSnapshot;
 	LobbyMemberServcieSnapshot.AccountId = MemberAccountId;
-	// Todo: 
-	//LobbyMemberServcieSnapshot.PlatformAccountId;
-	//LobbyMemberServcieSnapshot.PlatformDisplayName;
 
 	// Fetch attributes.
 	{

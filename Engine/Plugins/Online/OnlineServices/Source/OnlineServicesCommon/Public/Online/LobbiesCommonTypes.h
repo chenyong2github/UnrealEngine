@@ -200,8 +200,6 @@ struct FLobbyServiceSnapshot
 struct FLobbyMemberServiceSnapshot
 {
 	FAccountId AccountId;
-	FAccountId PlatformAccountId;
-	FString PlatformDisplayName;
 	FSchemaServiceSnapshot SchemaServiceSnapshot;
 };
 

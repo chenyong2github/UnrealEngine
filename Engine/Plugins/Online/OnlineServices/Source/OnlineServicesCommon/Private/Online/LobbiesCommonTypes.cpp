@@ -89,8 +89,6 @@ TOnlineResult<FLobbyClientDataPrepareServiceSnapshot> FLobbyClientData::PrepareS
 				// New member, create an entry for them.
 				TSharedRef<FLobbyMemberInternal> NewMemberData = MakeShared<FLobbyMemberInternal>(SchemaRegistry);
 				NewMemberData->AccountId = MemberSnapshot.AccountId;
-				NewMemberData->PlatformAccountId = MemberSnapshot.PlatformAccountId;
-				NewMemberData->PlatformDisplayName = MemberSnapshot.PlatformDisplayName;
 				NewPreparedServiceChanges.NewMemberDataStorage.Add(NewMemberData);
 				PreparingMemberData = &NewMemberData.Get();
 			}
@@ -187,10 +185,6 @@ FLobbyClientDataCommitServiceSnapshot::Result FLobbyClientData::CommitServiceSna
 		// Commit attribute changes.
 		NewMember->SchemaData.CommitServiceSnapshot();
 		
-		// todo.
-		//NewMember->PlatformAccountId = ;
-		//NewMember->PlatformDisplayName = ;
-
 		// Add member to lobby structures.
 		AddMember(NewMember);
 

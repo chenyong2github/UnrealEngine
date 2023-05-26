@@ -52,8 +52,6 @@ ONLINESERVICESINTERFACE_API void LexFromString(ELobbyMemberLeaveReason& OutLeave
 struct FLobbyMember
 {
 	FAccountId AccountId;
-	FAccountId PlatformAccountId;
-	FString PlatformDisplayName;
 	TMap<FSchemaAttributeId, FSchemaVariant> Attributes;
 	bool bIsLocalMember = false;
 };
@@ -863,8 +861,6 @@ namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FLobbyMember)
 	ONLINE_STRUCT_FIELD(FLobbyMember, AccountId),
-	ONLINE_STRUCT_FIELD(FLobbyMember, PlatformAccountId),
-	ONLINE_STRUCT_FIELD(FLobbyMember, PlatformDisplayName),
 	ONLINE_STRUCT_FIELD(FLobbyMember, Attributes)
 END_ONLINE_STRUCT_META()
 
