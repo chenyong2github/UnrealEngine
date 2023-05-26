@@ -15,6 +15,7 @@ UMVVMDeveloperProjectSettings::UMVVMDeveloperProjectSettings()
 	AllowedExecutionMode.Add(EMVVMExecutionMode::Immediate);
 	AllowedExecutionMode.Add(EMVVMExecutionMode::Delayed);
 	AllowedExecutionMode.Add(EMVVMExecutionMode::Tick);
+	AllowedExecutionMode.Add(EMVVMExecutionMode::DelayedWhenSharedElseImmediate);
 	
 	AllowedContextCreationType.Add(EMVVMBlueprintViewModelContextCreationType::Manual);
 	AllowedContextCreationType.Add(EMVVMBlueprintViewModelContextCreationType::CreateInstance);

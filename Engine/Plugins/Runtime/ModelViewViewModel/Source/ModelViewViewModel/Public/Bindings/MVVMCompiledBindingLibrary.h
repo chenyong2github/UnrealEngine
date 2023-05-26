@@ -229,6 +229,12 @@ public:
 		return (Flags & AllFunctionFlags) == AllFunctionFlags;
 	}
 
+	/** @return true if multiple field can trigger this binding. */
+	bool IsShared() const
+	{
+		return (Flags & (uint8)EFlags::IsShared) != 0;
+	}
+
 private:
 	using IndexType = int16;
 
@@ -246,6 +252,7 @@ private:
 		None = 0,
 		HasConversionFunction = 1 << 0,
 		IsConversionFunctionComplex = 1 << 1,
+		IsShared = 1 << 2,
 	};
 
 	UPROPERTY()

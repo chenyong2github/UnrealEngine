@@ -29,7 +29,10 @@ void FModelViewViewModelModule::ShutdownModule()
 void FModelViewViewModelModule::HandleDefaultExecutionModeChanged(IConsoleVariable* Variable)
 {
 	EMVVMExecutionMode Value = (EMVVMExecutionMode)Variable->GetInt();
-	if (Value != EMVVMExecutionMode::Delayed && Value != EMVVMExecutionMode::Immediate && Value != EMVVMExecutionMode::Tick)
+	if (Value != EMVVMExecutionMode::Delayed
+		&& Value != EMVVMExecutionMode::Immediate
+		&& Value != EMVVMExecutionMode::Tick
+		&& Value != EMVVMExecutionMode::DelayedWhenSharedElseImmediate)
 	{
 		Variable->Set((int32)EMVVMExecutionMode::Immediate, (EConsoleVariableFlags)(Variable->GetFlags() & ECVF_SetByMask));
 	}

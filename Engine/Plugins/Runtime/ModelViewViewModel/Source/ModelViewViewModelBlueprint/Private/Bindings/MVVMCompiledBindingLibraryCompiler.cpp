@@ -72,6 +72,7 @@ struct FRawBinding
 
 	FCompiledBindingLibraryCompiler::FBindingHandle BindingHandle;
 	FMVVMVCompiledBinding CompiledBinding;
+	int32 BindingCount = 1;
 	bool bIsConversionFunctionComplex = false;
 
 public:
@@ -550,6 +551,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledB
 		}
 		else
 		{
+			++Impl->Bindings[FoundSameBindingIndex].BindingCount;
 			return MakeValue(Impl->Bindings[FoundSameBindingIndex].BindingHandle);
 		}
 	}
@@ -794,6 +796,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FText> FCompiledB
 		Binding.CompiledBinding.Flags = 0;
 		Binding.CompiledBinding.Flags |= (Binding.ConversionFunctionPathHandle.IsValid()) ? (uint8)FMVVMVCompiledBinding::EFlags::HasConversionFunction : 0;
 		Binding.CompiledBinding.Flags |= (Binding.bIsConversionFunctionComplex) ? (uint8)FMVVMVCompiledBinding::EFlags::IsConversionFunctionComplex : 0;
+		Binding.CompiledBinding.Flags |= Binding.BindingCount > 1 ? (uint8)FMVVMVCompiledBinding::EFlags::IsShared : 0;
 
 		Result.Bindings.Add(Binding.BindingHandle, Binding.CompiledBinding);
 	}
