@@ -393,12 +393,14 @@ struct FDebugUnregister : FSmartObjectTestBase
 		{
 			AITEST_TRUE("SmartObjectComponent is initially bound to simulation", SmartObjectComponent->IsBoundToSimulation());
 		}
-		
+
+#if WITH_SMARTOBJECT_DEBUG
 		Subsystem->DebugUnregisterAllSmartObjects();
 		for (const USmartObjectComponent* SmartObjectComponent : SOList)
 		{
 			AITEST_FALSE("SmartObjectComponent is not bound to simulation after calling RemoveComponentFromSimulation", SmartObjectComponent->IsBoundToSimulation());
 		}
+#endif // WITH_SMARTOBJECT_DEBUG
 
 		// Simulate a call to EndPlay by calling UnregisterSmartObject after using DebugUnregisterAllSmartObjects
 		for (USmartObjectComponent* SmartObjectComponent : SOList)
@@ -420,7 +422,8 @@ struct FBoundToSimulation : FSmartObjectTestBase
 		{
 			AITEST_TRUE("SmartObjectComponent is initially bound to simulation", SmartObjectComponent->IsBoundToSimulation());
 		}
-		
+
+#if WITH_SMARTOBJECT_DEBUG
 		Subsystem->DebugUnregisterAllSmartObjects();
 		for (const USmartObjectComponent* SmartObjectComponent : SOList)
 		{
@@ -432,6 +435,7 @@ struct FBoundToSimulation : FSmartObjectTestBase
 		{
 			AITEST_TRUE("SmartObjectComponent is bound to simulation after calling AddComponentToSimulation", SmartObjectComponent->IsBoundToSimulation());
 		}
+#endif // WITH_SMARTOBJECT_DEBUG
 		
 		return true;
 	}
