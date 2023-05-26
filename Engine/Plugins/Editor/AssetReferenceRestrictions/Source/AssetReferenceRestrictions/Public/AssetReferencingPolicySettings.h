@@ -196,6 +196,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="Project Content", meta=(TitleProperty=DomainName))
 	TArray<FARPDomainDefinitionByContentRoot> AdditionalDomains;
 
+	// If true, ignore any editor-only domain references that will not affect the cooked game
+	UPROPERTY(config, EditAnywhere, Category = Settings)
+	bool bIgnoreEditorOnlyReferences = true;
+
 	// The names of the project, special system mount, and game domains
 	static const FString EngineDomainName;
 	static const FString ScriptDomainName;

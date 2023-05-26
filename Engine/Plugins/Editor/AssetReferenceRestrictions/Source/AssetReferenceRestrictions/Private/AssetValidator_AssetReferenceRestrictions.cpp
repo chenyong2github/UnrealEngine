@@ -4,6 +4,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
 #include "AssetReferencingPolicySubsystem.h"
+#include "AssetReferencingPolicySettings.h"
 #include "AssetReferencingDomains.h"
 #include "Editor/AssetReferenceFilter.h"
 #include "Misc/PackageName.h"
@@ -47,7 +48,17 @@ EDataValidationResult UAssetValidator_AssetReferenceRestrictions::ValidateLoaded
 	FName PackageFName = InAsset->GetOutermost()->GetFName();
 	TArray<FName> SoftDependencies;
 	TArray<FAssetData> AllDependencyAssets;
-	AssetRegistry.GetDependencies(PackageFName, SoftDependencies, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Soft);
+
+	const UAssetReferencingPolicySettings* Settings = GetDefault<UAssetReferencingPolicySettings>();
+	UE::AssetRegistry::EDependencyQuery QueryFlags = UE::AssetRegistry::EDependencyQuery::NoRequirements;
+
+	if (Settings->bIgnoreEditorOnlyReferences)
+	{
+		// If the rules allow ignoring editor-only referencers, restrict the dependencies to game references
+		QueryFlags = UE::AssetRegistry::EDependencyQuery::Game;
+	}
+
+	AssetRegistry.GetDependencies(PackageFName, SoftDependencies, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Soft | QueryFlags);
 	for (FName SoftDependency : SoftDependencies)
 	{
 		const FString SoftDependencyStr = SoftDependency.ToString();
@@ -71,7 +82,7 @@ EDataValidationResult UAssetValidator_AssetReferenceRestrictions::ValidateLoaded
 
 	// Now check hard references to cinematic and developers content
 	TArray<FName> HardDependencies;
-	AssetRegistry.GetDependencies(PackageFName, HardDependencies, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
+	AssetRegistry.GetDependencies(PackageFName, HardDependencies, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard | QueryFlags);
 	for (FName HardDependency : HardDependencies)
 	{
 		//@TODO: Probably not needed anymore?
