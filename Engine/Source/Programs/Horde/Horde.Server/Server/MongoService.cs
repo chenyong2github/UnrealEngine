@@ -750,7 +750,7 @@ namespace Horde.Server.Server
 					}
 					else
 					{
-						_logger.LogInformation("Index {Name} has changed. Old: '{Old}', New: '{New}'", existingIndex.ToJson(), newIndex.ToJson());
+						_logger.LogInformation("Index {Name} has changed. Old: '{Old}', New: '{New}'", newIndex.Name, existingIndex.ToJson(), newIndex.ToJson());
 					}
 				}
 				createIndexes.Add(newIndex);
