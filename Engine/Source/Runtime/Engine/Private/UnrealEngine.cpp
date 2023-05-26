@@ -5769,7 +5769,11 @@ bool UEngine::HandleProfileCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 
 		if (!GTriggerGPUHitchProfile)
 		{
-			GTriggerGPUProfile = true;
+			ENQUEUE_RENDER_COMMAND(HandleProfileCommand)(
+				[](FRHICommandListImmediate& RHICmdList)
+			{
+				GTriggerGPUProfile = true;
+			});
 			Ar.Logf(TEXT("Profiling the next GPU frame"));
 		}
 		else
@@ -5802,7 +5806,11 @@ bool UEngine::HandleProfileGPUCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		if (!GTriggerGPUHitchProfile)
 		{
-			GTriggerGPUProfile = true;
+			ENQUEUE_RENDER_COMMAND(HandleProfileGPUCommand)(
+				[](FRHICommandListImmediate& RHICmdList)
+			{
+				GTriggerGPUProfile = true;
+			});
 			Ar.Logf(TEXT("Profiling the next GPU frame"));
 		}
 		else

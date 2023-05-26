@@ -257,7 +257,7 @@ FORCEINLINE bool IsRenderPassMergeEnabled()
 
 FORCEINLINE bool IsAsyncComputeSupported()
 {
-	return GRDGAsyncCompute > 0 && !IsImmediateMode() && GSupportsEfficientAsyncCompute && GRHISupportsSeparateDepthStencilCopyAccess;
+	return GRDGAsyncCompute > 0 && !IsImmediateMode() && GSupportsEfficientAsyncCompute && GRHISupportsSeparateDepthStencilCopyAccess && !GTriggerGPUProfile;
 }
 
 bool IsDumpingRDGResources();
