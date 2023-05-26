@@ -291,13 +291,22 @@ public:
 	}
 
 	// Runs after filtering
-	void UpdatePrioritization(const FNetBitArrayView& ReplicatingConnections, const FNetBitArrayView& DirtyObjects)
+	void UpdatePrioritization(const FNetBitArrayView& ReplicatingConnections)
 	{
 		IRIS_PROFILER_SCOPE(FReplicationSystem::FImpl::UpdatePrioritization);
 		LLM_SCOPE_BYTAG(Iris);
 
+		const FNetBitArrayView RelevantObjects = ReplicationSystemInternal.GetNetRefHandleManager().GetRelevantObjectsInternalIndices();
+
+		// Make a list of objects that were dirty and are also relevant
+		FNetBitArray DirtyAndRelevantObjects(RelevantObjects.GetNumBits(), FNetBitArray::NoResetNoValidate);
+		FNetBitArrayView DirtyAndRelevantObjectsView = MakeNetBitArrayView(DirtyAndRelevantObjects, FNetBitArray::NoResetNoValidate);
+
+		const FNetBitArrayView AccumulatedDirtyObjects = ReplicationSystemInternal.GetDirtyNetObjectTracker().GetAccumulatedDirtyNetObjects();
+		DirtyAndRelevantObjectsView.Set(RelevantObjects, FNetBitArray::AndOp, AccumulatedDirtyObjects);
+
 		FReplicationPrioritization& Prioritization = ReplicationSystemInternal.GetPrioritization();
-		Prioritization.Prioritize(ReplicatingConnections, DirtyObjects);
+		Prioritization.Prioritize(ReplicatingConnections, DirtyAndRelevantObjectsView);
 	}
 
 	void PropagateDirtyChanges()
@@ -618,10 +627,7 @@ void UReplicationSystem::PreSendUpdate(float DeltaSeconds)
 	if (bAllowObjectReplication)
 	{
 		// Update object priorities
-		FDirtyObjectsAccessor DirtyObjectsAccessor(InternalSys.GetDirtyNetObjectTracker());
-		const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
-
-		Impl->UpdatePrioritization(ReplicatingConnections, DirtyObjects);
+		Impl->UpdatePrioritization(ReplicatingConnections);
 
 		// Delta compression preparations before send
 		{
