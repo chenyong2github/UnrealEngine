@@ -1526,6 +1526,15 @@ namespace UnrealBuildTool
 				if (bIsPlainCFile)
 				{
 					AppendCLArguments_C(CompileEnvironment, CompileAction.Arguments);
+
+					// AppendCLArguments_C is a static and we cannot use the Target to check if we are using clang, so shoving here for now
+					if (Target.WindowsPlatform.Compiler.IsClang())
+					{
+						if (CompileEnvironment.bAllowAutoRTFMInstrumentation)
+						{
+							CompileAction.Arguments.Add("-fautortfm");
+						}
+					}
 				}
 				else
 				{

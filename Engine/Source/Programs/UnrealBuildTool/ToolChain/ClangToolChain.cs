@@ -394,6 +394,11 @@ namespace UnrealBuildTool
 				default:
 					throw new BuildException($"Unsupported C standard type set: {CompileEnvironment.CStandard}");
 			}
+
+			if (CompileEnvironment.bAllowAutoRTFMInstrumentation)
+			{
+				Arguments.Add("-fautortfm");
+			}
 		}
 
 		protected virtual void GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
