@@ -25,7 +25,10 @@ namespace UnrealBuildTool
 		private const string BUNDLETOOL_JAR = "bundletool-all-0.13.0.jar";
 
 		// classpath of default android build tools gradle plugin
-		private const string ANDROID_TOOLS_BUILD_GRADLE_VERSION = "com.android.tools.build:gradle:4.0.0";
+		private const string ANDROID_TOOLS_BUILD_GRADLE_VERSION = "com.android.tools.build:gradle:7.4.2";
+
+		// default NDK version if not set
+		private const string DEFAULT_NDK_VERSION = "25.1.8937393";
 
 		// name of the only vulkan validation layer we're interested in 
 		private const string ANDROID_VULKAN_VALIDATION_LAYER = "libVkLayer_khronos_validation.so";
@@ -370,7 +373,7 @@ namespace UnrealBuildTool
 
 			if (BestVersionString == null)
 			{
-				BestVersionString = "30.0.3";
+				BestVersionString = "33.0.1";
 				Logger.LogWarning("Failed to find %ANDROID_HOME%/build-tools subdirectory. Will attempt to use {BestVersionString}.", BestVersionString);
 			}
 
@@ -383,10 +386,10 @@ namespace UnrealBuildTool
 			}
 
 			// don't allow higher than 30.0.3 for now (will be installed by Gradle if missing)
-			if (BestVersion > ((30 << 24) | (0 << 16) | (3 << 8)))
-			{
-				BestVersionString = "30.0.3";
-			}
+//			if (BestVersion > ((30 << 24) | (0 << 16) | (3 << 8)))
+//			{
+//				BestVersionString = "30.0.3";
+//			}
 
 			CachedBuildToolsVersion = BestVersionString;
 			LastAndroidHomePath = HomePath;
@@ -2713,7 +2716,7 @@ namespace UnrealBuildTool
 			StringBuilder Text = new StringBuilder();
 			Text.AppendLine(XML_HEADER);
 			Text.AppendLine("<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" xmlns:tools=\"http://schemas.android.com/tools\"");
-			Text.AppendLine(string.Format("          package=\"{0}\"", PackageName));
+//			Text.AppendLine(string.Format("          package=\"{0}\"", PackageName));
 			if (ExtraManifestNodeTags != null)
 			{
 				foreach (string Line in ExtraManifestNodeTags)
@@ -2935,7 +2938,6 @@ namespace UnrealBuildTool
 				String serviceLine = String.Format("		<service android:name=\"com.epicgames.unreal.psoservices.OGLProgramService{0}\" android:process=\":psoprogramservice{0}\" />", i);
 				Text.AppendLine(serviceLine);
 			}
-
 
 			// Declare the 8 Vulkan program compiling services.
 			Text.AppendLine(@"		<service android:name=""com.epicgames.unreal.psoservices.VulkanProgramService"" android:process="":psoprogramservice"" />");
@@ -3781,7 +3783,7 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		private void CreateGradlePropertiesFiles(UnrealArch Arch, int MinSDKVersion, int TargetSDKVersion, string CompileSDKVersion, string BuildToolsVersion, string PackageName,
+		private void CreateGradlePropertiesFiles(AndroidToolChain ToolChain, UnrealArch Arch, int MinSDKVersion, int TargetSDKVersion, string CompileSDKVersion, string BuildToolsVersion, string PackageName,
 			string? DestApkName, string NDKArch,	string UnrealBuildFilesPath, string GameBuildFilesPath, string UnrealBuildGradleAppPath, string UnrealBuildPath, string UnrealBuildGradlePath,
 			bool bForDistribution, bool bIsEmbedded, List<string> OBBFiles)
 		{
@@ -3808,6 +3810,11 @@ namespace UnrealBuildTool
 			GradleProperties.AppendLine(string.Format("TARGET_SDK_VERSION={0}", TargetSDKVersion.ToString()));
 			GradleProperties.AppendLine(string.Format("STORE_VERSION={0}", StoreVersion.ToString()));
 			GradleProperties.AppendLine(string.Format("VERSION_DISPLAY_NAME={0}", VersionDisplayName));
+
+			string NDKPath = Environment.GetEnvironmentVariable("NDKROOT")!.Replace("\\", "/");
+			int NDKVersionIndex = NDKPath.LastIndexOf("/");
+			string NDKVersion = NDKVersionIndex > 0 ? NDKPath.Substring(NDKVersionIndex + 1) : DEFAULT_NDK_VERSION;
+			GradleProperties.AppendLine(string.Format("NDK_VERSION={0}", NDKVersion));
 
 			if (DestApkName != null)
 			{
@@ -3863,6 +3870,23 @@ namespace UnrealBuildTool
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBundleDensitySplit", out bBundleDensitySplit);
 
 			GradleBuildAdditionsContent.AppendLine("android {");
+
+			bool bExtractNativeLibs = true;
+			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bExtractNativeLibs", out bExtractNativeLibs);
+			AndroidToolChain.ClangSanitizer Sanitizer = ToolChain.BuildWithSanitizer();
+			if ((Sanitizer != AndroidToolChain.ClangSanitizer.None && Sanitizer != AndroidToolChain.ClangSanitizer.HwAddress))
+			{
+				bExtractNativeLibs = true;
+			}
+			if (bExtractNativeLibs)
+			{
+				GradleBuildAdditionsContent.AppendLine("\tpackagingOptions {");
+				GradleBuildAdditionsContent.AppendLine("\t\tjniLibs {");
+				GradleBuildAdditionsContent.AppendLine("\t\t\tuseLegacyPackaging=true");
+				GradleBuildAdditionsContent.AppendLine("\t\t}");
+				GradleBuildAdditionsContent.AppendLine("\t}");
+			}
+
 			if (!ForceAPKGeneration && bEnableBundle)
 			{
 				GradleBuildAdditionsContent.AppendLine("\tbundle {");
@@ -4861,11 +4885,11 @@ namespace UnrealBuildTool
 				// Create local.properties
 				String LocalPropertiesFilename = Path.Combine(UnrealBuildGradlePath, "local.properties");
 				StringBuilder LocalProperties = new StringBuilder();
-				LocalProperties.AppendLine(string.Format("ndk.dir={0}", Environment.GetEnvironmentVariable("NDKROOT")!.Replace("\\", "/")));
+//				LocalProperties.AppendLine(string.Format("ndk.dir={0}", Environment.GetEnvironmentVariable("NDKROOT")!.Replace("\\", "/")));
 				LocalProperties.AppendLine(string.Format("sdk.dir={0}", Environment.GetEnvironmentVariable("ANDROID_HOME")!.Replace("\\", "/")));
 				File.WriteAllText(LocalPropertiesFilename, LocalProperties.ToString());
 
-				CreateGradlePropertiesFiles(Arch, MinSDKVersion, TargetSDKVersion, CompileSDKVersion, BuildToolsVersion, PackageName, DestApkName, NDKArch,
+				CreateGradlePropertiesFiles(ToolChain, Arch, MinSDKVersion, TargetSDKVersion, CompileSDKVersion, BuildToolsVersion, PackageName, DestApkName, NDKArch,
 					UnrealBuildFilesPath, GameBuildFilesPath, UnrealBuildGradleAppPath, UnrealBuildPath, UnrealBuildGradlePath, bForDistribution, bSkipGradleBuild, RequiredOBBFiles);
 
 				if (!bSkipGradleBuild)
@@ -5877,6 +5901,7 @@ namespace UnrealBuildTool
 				StringBuilder BuildGradleContent = new StringBuilder();
 				BuildGradleContent.AppendLine("apply plugin: 'com.android.library'");
 				BuildGradleContent.AppendLine("android {");
+				BuildGradleContent.AppendLine("\tndkPath = System.getenv(\"NDKROOT\")");
 				BuildGradleContent.AppendLine("\tcompileSdkVersion = COMPILE_SDK_VERSION.toInteger()");
 				BuildGradleContent.AppendLine("\tbuildToolsVersion = BUILD_TOOLS_VERSION");
 				BuildGradleContent.AppendLine("\tdefaultConfig {");

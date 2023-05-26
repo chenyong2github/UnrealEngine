@@ -20,10 +20,12 @@ updateProfileFileFunc()
 		echo "export ANDROID_HOME=\"$STUDIO_SDK_PATH\"" >> "$1"
 	fi
  
-	if ! grep -q "export ANDROID_SDK_HOME=\"$STUDIO_SDK_PATH\"" "$1" 
+	# remove ANDROID_SDK_HOME if present (causes errors in Gradle Android plugin)
+	if grep -q "export ANDROID_SDK_HOME=" "$1"
 	then
-		echo >> "$1"
-		echo "export ANDROID_SDK_HOME=\"$STUDIO_SDK_PATH\"" >> "$1"
+		grep -v "export ANDROID_SDK_HOME=" "$1" >~/android_patch_profile.tmp
+		cp ~/android_patch_profile.tmp "$1"
+		rm ~/android_patch_profile.tmp
 	fi
  
 	if ! grep -q "export JAVA_HOME=\"$JAVA_HOME\"" "$1"
@@ -57,10 +59,10 @@ fi
 
 # hardcoded versions for compatibility with non-Turnkey manual running
 if [[ -z "${PLATFORMS_VERSION}" ]]; then
-    PLATFORMS_VERSION="android-32"
+    PLATFORMS_VERSION="android-33"
 fi
 if [[ -z "${BUILDTOOLS_VERSION}" ]]; then
-    BUILDTOOLS_VERSION="30.0.3"
+    BUILDTOOLS_VERSION="33.0.1"
 fi
 if [[ -z "${CMAKE_VERSION}" ]]; then
     CMAKE_VERSION="3.10.2.4988404"
@@ -74,7 +76,7 @@ STUDIO_PATH="$HOME/Applications/Android Studio.app"
 if [ ! -x "$STUDIO_PATH" ]; then
 	STUDIO_PATH="/Applications/Android Studio.app"
 	if [ ! -x "$STUDIO_PATH" ]; then
-		echo Android Studio not installed, please download Android Studio 4.0.2 from https://developer.android.com/studio
+		echo Android Studio not installed, please download Android Studio 2022.2.1 from https://developer.android.com/studio
 		${PAUSE}
 		exit 1
 	fi
@@ -93,11 +95,11 @@ if [ ! -d "$STUDIO_SDK_PATH" ]; then
 fi
 echo Android Studio SDK Path: $STUDIO_SDK_PATH
 
-export JAVA_HOME="$STUDIO_PATH/Contents/jre/jdk/Contents/Home"
+export JAVA_HOME="$STUDIO_PATH/Contents/jbr/jdk/Contents/Home"
 NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/${NDK_VERSION}"
 PLATFORMTOOLS="$STUDIO_SDK_PATH/platform-tools:$STUDIO_SDK_PATH/build-tools/${BUILDTOOLS_VERSION}:$STUDIO_SDK_PATH/tools/bin"
 adbPath=$(type -P "adb")
-SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/8.0/bin"
+SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/latest/bin"
 if [ ! -d "$SDKMANAGERPATH" ]; then
 	SDKMANAGERPATH="$STUDIO_SDK_PATH/tools/bin"
 	if [ ! -d "$SDKMANAGERPATH" ]; then

@@ -14,9 +14,11 @@
         <Platform>Android</Platform>
         <Type>Misc</Type>
         <Name>AndroidStudio</Name>
-        <Source HostPlatform="Win64">https://redirector.gvt1.com/edgedl/android/studio/install/4.0.2.0/android-studio-ide-193.6821437-windows.exe</Source>
-        <Source HostPlatform="Linux">https://redirector.gvt1.com/edgedl/android/studio/ide-zips/4.0.2.0/android-studio-ide-193.6821437-linux.tar.gz</Source>
-        <Source HostPlatform="Mac">https://redirector.gvt1.com/edgedl/android/studio/install/4.0.2.0/android-studio-ide-193.6821437-mac.dmg</Source>
+		<!-- Flamingo 2022.2.1 Patch 2 May 24, 2023 -->
+        <Source HostPlatform="Win64">https://redirector.gvt1.com/edgedl/android/studio/install/2022.2.1.20/android-studio-2022.2.1.20-windows.exe</Source>
+        <Source HostPlatform="Linux">https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2022.2.1.20/android-studio-2022.2.1.20-linux.tar.gz</Source>
+        <Source HostPlatform="Mac">https://redirector.gvt1.com/edgedl/android/studio/install/2022.2.1.20/android-studio-2022.2.1.20-mac.dmg</Source>
+        <Source HostPlatform="MacArm">https://redirector.gvt1.com/edgedl/android/studio/install/2022.2.1.20/android-studio-2022.2.1.20-mac_arm.dmg</Source>
     </FileSource>
 
 </TurnkeyManifest>

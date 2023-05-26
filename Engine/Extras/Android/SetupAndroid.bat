@@ -17,8 +17,8 @@ SET CMAKE_VERSION=%3
 SET NDK_VERSION=%4
 
 rem hardcoded versions for compatibility with non-Turnkey manual running
-if "%PLATFORMS_VERSION%" == "" SET PLATFORMS_VERSION=android-32
-if "%BUILDTOOLS_VERSION%" == "" SET BUILDTOOLS_VERSION=30.0.3
+if "%PLATFORMS_VERSION%" == "" SET PLATFORMS_VERSION=android-33
+if "%BUILDTOOLS_VERSION%" == "" SET BUILDTOOLS_VERSION=33.0.1
 if "%CMAKE_VERSION%" == "" SET CMAKE_VERSION=3.10.2.4988404
 if "%NDK_VERSION%" == "" SET NDK_VERSION=25.1.8937393
 
@@ -28,7 +28,7 @@ FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (s
 IF EXIST "%STUDIO_PATH%" (
 	echo.
 	) ELSE (
-	echo Android Studio not installed, please download Android Studio 3.5.3 from https://developer.android.com/studio
+	echo Android Studio not installed, please download Android Studio 2022.2.1 from https://developer.android.com/studio
 	%PAUSE%
 	exit /b 1
 )
@@ -60,12 +60,12 @@ if DEFINED ANDROID_HOME (set a=1) ELSE (
 	setx ANDROID_HOME "%STUDIO_SDK_PATH%"
 )
 if DEFINED ANDROID_SDK_HOME (set a=1) ELSE (
-	set ANDROID_SDK_HOME=%STUDIO_SDK_PATH%
-	setx ANDROID_SDK_HOME "%STUDIO_SDK_PATH%"
+	set ANDROID_SDK_HOME=
+	setx ANDROID_SDK_HOME ""
 )
 if DEFINED JAVA_HOME (set a=1) ELSE (
-	set JAVA_HOME=%STUDIO_PATH%\jre
-	setx JAVA_HOME "%STUDIO_PATH%\jre"
+	set JAVA_HOME=%STUDIO_PATH%\jbr
+	setx JAVA_HOME "%STUDIO_PATH%\jbr"
 )
 set NDKINSTALLPATH=%STUDIO_SDK_PATH%\ndk\%NDK_VERSION%
 set PLATFORMTOOLS=%STUDIO_SDK_PATH%\platform-tools;%STUDIO_SDK_PATH%\tools
@@ -83,7 +83,7 @@ IF /I "%ERRORLEVEL%" NEQ "0" (
 	echo Added %PLATFORMTOOLS% to path
 )
 
-set SDKMANAGER=%STUDIO_SDK_PATH%\cmdline-tools\8.0\bin\sdkmanager.bat
+set SDKMANAGER=%STUDIO_SDK_PATH%\cmdline-tools\latest\bin\sdkmanager.bat
 IF EXIST "%SDKMANAGER%" (
 	echo Using sdkmanager: %SDKMANAGER%
 ) ELSE (

@@ -205,12 +205,16 @@ namespace UnrealBuildTool
 			// the SDK setup we can force this to be on to build AndroidTargetPlatform.
 			string? ForceAndroidSDK = Environment.GetEnvironmentVariable("FORCE_ANDROID_SDK_ENABLED");
 
+			// ANDROID_SDK_HOME defined messes up newer Android Gradle plugin finding of .android so clear it
+			Environment.SetEnvironmentVariable("ANDROID_SDK_HOME", null);
+
 			if (!String.IsNullOrEmpty(ForceAndroidSDK))
 			{
 				return true;
 			}
 
 			string? NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
+			string? JavaPath = Environment.GetEnvironmentVariable("JAVA_HOME");
 			{
 				ConfigHierarchy configCacheIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, null, BuildHostPlatform.Current.Platform);
 				Dictionary<string, string> AndroidEnv = new Dictionary<string, string>();
@@ -279,11 +283,13 @@ namespace UnrealBuildTool
 
 				// See if we have an NDK path now...
 				AndroidEnv.TryGetValue("NDKROOT", out NDKPath);
+				AndroidEnv.TryGetValue("JAVA_HOME", out JavaPath);
 			}
 
 			// we don't have an NDKROOT specified
 			if (String.IsNullOrEmpty(NDKPath))
 			{
+				Logger.LogInformation("NDKROOT not set");
 				return false;
 			}
 
@@ -292,8 +298,44 @@ namespace UnrealBuildTool
 			// need a supported llvm
 			if (!Directory.Exists(Path.Combine(NDKPath, @"toolchains/llvm")))
 			{
+				Logger.LogInformation("NDKROOT llvm missing");
 				return false;
 			}
+			
+			// check JDK is valid
+			if (String.IsNullOrEmpty(JavaPath))
+			{
+				Logger.LogInformation("JAVA_HOME not set");
+				return false;
+			}
+			JavaPath = JavaPath.Replace("\"", "");
+			string JavaReleaseFile = Path.Combine(JavaPath, "release");
+			if (!File.Exists(JavaReleaseFile))
+			{
+				Logger.LogInformation("JAVA_HOME/release not found: {JavaReleaseFile}", JavaReleaseFile);
+				return false;
+			}
+
+			// check Java version
+			int JavaVersion = 0;
+			string[] JavaReleaseLines = File.ReadAllLines(JavaReleaseFile);
+			foreach (string LineContents in JavaReleaseLines)
+			{
+				if (LineContents.StartsWith("JAVA_VERSION="))
+				{
+					// JAVA_VERSION="17.0.6"
+					int VersionStartIndex = LineContents.IndexOf("\"");
+					int VersionStopIndex = LineContents.IndexOf(".");
+					int.TryParse(LineContents.Substring(VersionStartIndex, VersionStopIndex - VersionStartIndex), out JavaVersion);
+					break;
+				}
+			}
+			if (JavaVersion < 17)
+			{
+				Logger.LogInformation("JAVA_HOME release too old {JavaVersion}", JavaVersion);
+				return false;
+			}
+
 			return true;
 		}
 	}

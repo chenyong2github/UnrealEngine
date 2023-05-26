@@ -27,10 +27,10 @@ fi
 
 # hardcoded versions for compatibility with non-Turnkey manual running
 if [[ -z "${PLATFORMS_VERSION}" ]]; then
-    PLATFORMS_VERSION="android-32"
+    PLATFORMS_VERSION="android-33"
 fi
 if [[ -z "${BUILDTOOLS_VERSION}" ]]; then
-    BUILDTOOLS_VERSION="30.0.3"
+    BUILDTOOLS_VERSION="33.0.1"
 fi
 if [[ -z "${CMAKE_VERSION}" ]]; then
     CMAKE_VERSION="3.10.2.4988404"
@@ -42,7 +42,7 @@ fi
 
 STUDIO_PATH="$HOME/android-studio"
 if [ ! -d "$STUDIO_PATH" ]; then
-	echo "Android Studio not installed, please download Android Studio 3.5.3 from https://developer.android.com/studio"
+	echo "Android Studio not installed, please download Android Studio 2022.2.1 from https://developer.android.com/studio"
 	echo "Please download, extract and move to $HOME/android-studio"
 	${PAUSE}
 	exit 1
@@ -67,13 +67,15 @@ then
 	echo "export ANDROID_HOME=\"$STUDIO_SDK_PATH\"" >>$HOME/.bashrc
 fi
 
-if ! grep -q "export ANDROID_SDK_HOME=\"$STUDIO_SDK_PATH\"" $HOME/.bashrc
+# remove ANDROID_SDK_HOME if present (causes errors in Gradle Android plugin)
+if grep -q "export ANDROID_SDK_HOME=" $HOME/.bashrc
 then
-	echo >>$HOME/.bashrc
-	echo "export ANDROID_SDK_HOME=\"$STUDIO_SDK_PATH\"" >>$HOME/.bashrc
+	grep -v "export ANDROID_SDK_HOME=" $HOME/.bashrc >$HOME/android_patch_profile.tmp
+	cp $HOME/android_patch_profile.tmp $HOME/.bashrc
+	rm $HOME/android_patch_profile.tmp
 fi
 
-export JAVA_HOME="$STUDIO_PATH/jre"
+export JAVA_HOME="$STUDIO_PATH/jbr"
 if ! grep -q "export JAVA_HOME=\"$JAVA_HOME\"" $HOME/.bashrc
 then
 	echo >>$HOME/.bashrc
@@ -89,7 +91,7 @@ if [ "$retVal" == "" ]; then
 	echo Added $PLATFORMTOOLS to path
 fi
 
-SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/8.0/bin"
+SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/latest/bin"
 if [ ! -d "$SDKMANAGERPATH" ]; then
 	SDKMANAGERPATH="$STUDIO_SDK_PATH/tools/bin"
 	if [ ! -d "$SDKMANAGERPATH" ]; then

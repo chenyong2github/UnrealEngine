@@ -396,7 +396,7 @@ public class AndroidPlatform : Platform
 
 			if (OutputPath == null)
 			{
-				TurnkeyContext.PauseForUser("Unable to find Android Studio installer. Please download and install Android Studio 4.0.2 from https://developer.android.com/studio/archive to standard location before continuing.");
+				TurnkeyContext.PauseForUser("Unable to find Android Studio installer. Please download and install Android Studio 2022.2.1 from https://developer.android.com/studio/archive to standard location before continuing.");
 			}
 			else
 			{
