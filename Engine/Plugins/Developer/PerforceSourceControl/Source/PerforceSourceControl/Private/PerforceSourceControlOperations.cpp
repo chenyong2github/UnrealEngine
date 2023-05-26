@@ -566,9 +566,7 @@ static bool RemoveFilesFromChangelist(const TMap<FString, EPerforceState::Type>&
 {
 	return ChangelistState->Files.RemoveAll([&Results](FSourceControlStateRef& State) -> bool
 		{
-			return Algo::AnyOf(Results, [&State](auto& Result) {
-				return State->GetFilename() == Result.Key;
-				});
+			return Results.Contains(State->GetFilename());
 		}) > 0;
 }
 
