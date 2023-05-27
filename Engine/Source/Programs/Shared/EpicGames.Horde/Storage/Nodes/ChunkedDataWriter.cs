@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -79,7 +78,7 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// Utility class for generating FileNode data directly into <see cref="TreeWriter"/> instances, without constructing node representations first.
 	/// </summary>
-	public class FileNodeWriter
+	public class ChunkedDataWriter
 	{
 		/// <summary>
 		/// Default buffer length when calling CreateAsync/AppendAsync
@@ -113,8 +112,8 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 		}
 
-		static readonly NodeType s_leafNodeType = NodeType.Get<LeafFileNode>();
-		static readonly NodeType s_interiorNodeType = NodeType.Get<InteriorFileNode>();
+		static readonly NodeType s_leafNodeType = NodeType.Get<LeafChunkedDataNode>();
+		static readonly NodeType s_interiorNodeType = NodeType.Get<InteriorChunkedDataNode>();
 
 		readonly TreeWriter _writer;
 		readonly ChunkingOptions _options;
@@ -138,7 +137,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="writer">Writer for new nodes</param>
 		/// <param name="options">Chunking options</param>
-		public FileNodeWriter(TreeWriter writer, ChunkingOptions options)
+		public ChunkedDataWriter(TreeWriter writer, ChunkingOptions options)
 		{
 			_writer = writer;
 			_options = options;

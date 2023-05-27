@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -16,7 +15,7 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// Chunks are pushed into a tree hierarchy as data is appended to the root, with nodes of the tree also split along content-aware boundaries with <see cref="IoHash.NumBytes"/> granularity.
 	/// Once a chunk has been written to storage, it is treated as immutable.
 	/// </summary>
-	public abstract class FileNode : Node
+	public abstract class ChunkedDataNode : Node
 	{
 		/// <summary>
 		/// Copies the contents of this node and its children to the given output stream
@@ -37,13 +36,13 @@ namespace EpicGames.Horde.Storage.Nodes
 		{
 			async Task CopyFunc(ReadNodeAsyncCallbackParams parms, ITreeNodeReader nodeReader)
 			{
-				if (parms.Type == typeof(LeafFileNode))
+				if (parms.Type == typeof(LeafChunkedDataNode))
 				{
-					await LeafFileNode.CopyToStreamAsync(outputStream, nodeReader, cancellationToken);
+					await LeafChunkedDataNode.CopyToStreamAsync(outputStream, nodeReader, cancellationToken);
 				}
-				else if (parms.Type == typeof(InteriorFileNode))
+				else if (parms.Type == typeof(InteriorChunkedDataNode))
 				{
-					await InteriorFileNode.CopyToStreamAsync(reader, outputStream, nodeReader, cancellationToken);
+					await InteriorChunkedDataNode.CopyToStreamAsync(reader, outputStream, nodeReader, cancellationToken);
 				}
 				else
 				{
@@ -93,7 +92,7 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// File node that contains a chunk of data
 	/// </summary>
 	[NodeType("{B27AFB68-9E20-4A4B-A4D8-788A4098D439}", 1)]
-	public sealed class LeafFileNode : FileNode
+	public sealed class LeafChunkedDataNode : ChunkedDataNode
 	{
 		/// <summary>
 		/// Data for this node
@@ -103,14 +102,14 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Create an empty leaf node
 		/// </summary>
-		public LeafFileNode()
+		public LeafChunkedDataNode()
 		{
 		}
 
 		/// <summary>
 		/// Create a leaf node from the given serialized data
 		/// </summary>
-		public LeafFileNode(ITreeNodeReader reader)
+		public LeafChunkedDataNode(ITreeNodeReader reader)
 		{
 			// Keep this code in sync with CopyToStreamAsync
 			Data = reader.ReadFixedLengthBytes(reader.Length);
@@ -148,18 +147,18 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// An interior file node
 	/// </summary>
 	[NodeType("{F4DEDDBC-70CB-4C7A-8347-F011AFCCCDB9}", 1)]
-	public class InteriorFileNode : FileNode
+	public class InteriorChunkedDataNode : ChunkedDataNode
 	{
 		/// <summary>
 		/// Child nodes
 		/// </summary>
-		public IReadOnlyList<NodeRef<FileNode>> Children { get; }
+		public IReadOnlyList<NodeRef<ChunkedDataNode>> Children { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="children"></param>
-		public InteriorFileNode(IReadOnlyList<NodeRef<FileNode>> children)
+		public InteriorChunkedDataNode(IReadOnlyList<NodeRef<ChunkedDataNode>> children)
 		{
 			Children = children;
 		}
@@ -167,13 +166,13 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public InteriorFileNode(ITreeNodeReader reader)
+		public InteriorChunkedDataNode(ITreeNodeReader reader)
 		{
 			// Keep this code in sync with CopyToStreamAsync
-			NodeRef<FileNode>[] children = new NodeRef<FileNode>[reader.Length / IoHash.NumBytes];
+			NodeRef<ChunkedDataNode>[] children = new NodeRef<ChunkedDataNode>[reader.Length / IoHash.NumBytes];
 			for (int idx = 0; idx < children.Length; idx++)
 			{
-				children[idx] = reader.ReadRef<FileNode>();
+				children[idx] = reader.ReadRef<ChunkedDataNode>();
 			}
 			Children = children;
 		}
@@ -181,7 +180,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <inheritdoc/>
 		public override void Serialize(ITreeNodeWriter writer)
 		{
-			foreach (NodeRef<FileNode> child in Children)
+			foreach (NodeRef<ChunkedDataNode> child in Children)
 			{
 				writer.WriteRef(child);
 			}
@@ -193,9 +192,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <inheritdoc/>
 		public override async Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken)
 		{
-			foreach (NodeRef<FileNode> childNodeRef in Children)
+			foreach (NodeRef<ChunkedDataNode> childNodeRef in Children)
 			{
-				FileNode childNode = await childNodeRef.ExpandAsync(reader, cancellationToken);
+				ChunkedDataNode childNode = await childNodeRef.ExpandAsync(reader, cancellationToken);
 				await childNode.CopyToStreamAsync(reader, outputStream, cancellationToken);
 			}
 		}
@@ -211,9 +210,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		{
 			async Task CopyFunc(ReadNodeAsyncCallbackParams parms, ITreeNodeReader nodeReader)
 			{
-				if (parms.Type == typeof(LeafFileNode))
+				if (parms.Type == typeof(LeafChunkedDataNode))
 				{
-					await LeafFileNode.CopyToStreamAsync(outputStream, nodeReader, cancellationToken);
+					await LeafChunkedDataNode.CopyToStreamAsync(outputStream, nodeReader, cancellationToken);
 				}
 				else
 				{
@@ -222,12 +221,12 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 
 			// Keep this code in sync with the constructor
-			NodeRef<FileNode>[] children = new NodeRef<FileNode>[nodeReader.Length / IoHash.NumBytes];
+			NodeRef<ChunkedDataNode>[] children = new NodeRef<ChunkedDataNode>[nodeReader.Length / IoHash.NumBytes];
 			for (int idx = 0; idx < children.Length; idx++)
 			{
-				children[idx] = nodeReader.ReadRef<FileNode>();
+				children[idx] = nodeReader.ReadRef<ChunkedDataNode>();
 			}
-			foreach (NodeRef<FileNode> node in children)
+			foreach (NodeRef<ChunkedDataNode> node in children)
 			{
 				await reader.ReadNodeAsync(node.Handle!.Locator, CopyFunc, cancellationToken);
 			}
