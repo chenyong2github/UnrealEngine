@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-typedef half4 FQuat;
+#define FQuat half4
 
 FQuat QuatFromAxisAngle(in half3 AxisN, in float AngleRad)
 {
