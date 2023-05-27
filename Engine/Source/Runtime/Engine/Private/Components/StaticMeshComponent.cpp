@@ -2331,13 +2331,8 @@ const Nanite::FResources* UStaticMeshComponent::GetNaniteResources() const
 
 bool UStaticMeshComponent::HasValidNaniteData() const
 {
-	const FStaticMeshRenderData* RenderData = GetStaticMesh()->GetRenderData();
-	if (RenderData != nullptr)
-	{
-		return RenderData->HasValidNaniteData();
-	}
-
-	return false;
+	const Nanite::FResources* NaniteResources = UStaticMeshComponent::GetNaniteResources();
+	return NaniteResources != nullptr ? NaniteResources->PageStreamingStates.Num() > 0 : false;
 }
 
 bool UStaticMeshComponent::UseNaniteOverrideMaterials(bool bDoingMaterialAudit) const
