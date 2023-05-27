@@ -560,6 +560,7 @@ UNaniteDisplacedMesh::FOnNaniteDisplacmentMeshDependenciesChanged UNaniteDisplac
 UNaniteDisplacedMesh::UNaniteDisplacedMesh(const FObjectInitializer& Init)
 : Super(Init)
 {
+	ClearNaniteResources(Data.ResourcesPtr);
 }
 
 void UNaniteDisplacedMesh::Serialize(FArchive& Ar)
@@ -592,10 +593,11 @@ void UNaniteDisplacedMesh::Serialize(FArchive& Ar)
 
 void UNaniteDisplacedMesh::PostLoad()
 {
+	InitNaniteResources(Data.ResourcesPtr);
+
 	if (FApp::CanEverRender())
 	{
 		// Only valid for cooked builds
-		InitNaniteResources(Data.ResourcesPtr);
 		if (Data.ResourcesPtr->PageStreamingStates.Num() > 0)
 		{
 			InitResources();
@@ -853,6 +855,7 @@ FIoHash UNaniteDisplacedMesh::BeginCacheDerivedData(const ITargetPlatform* Targe
 		TargetData = DataByPlatformKeyHash.Emplace(KeyHash, MakeUnique<FNaniteData>()).Get();
 	}
 
+	InitNaniteResources(TargetData->ResourcesPtr);
 	CacheTasksByKeyHash.Emplace(KeyHash, MakePimpl<FNaniteBuildAsyncCacheTask>(KeyHash, TargetData, *this, TargetPlatform));
 
 	// The compiling manager provides throttling, notification manager, etc... for the asset being built.
@@ -946,7 +949,9 @@ FNaniteData& UNaniteDisplacedMesh::CacheDerivedData(const ITargetPlatform* Targe
 {
 	const FIoHash KeyHash = BeginCacheDerivedData(TargetPlatform);
 	EndCacheDerivedData(KeyHash);
-	return DataKeyHash == KeyHash ? Data : *DataByPlatformKeyHash[KeyHash];
+	FNaniteData& NaniteData = (DataKeyHash == KeyHash) ? Data : *DataByPlatformKeyHash[KeyHash];
+	InitNaniteResources(NaniteData.ResourcesPtr);
+	return NaniteData;
 }
 
 #endif // WITH_EDITOR
