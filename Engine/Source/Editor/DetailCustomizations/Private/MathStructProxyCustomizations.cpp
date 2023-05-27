@@ -163,6 +163,11 @@ void FMatrixStructCustomization<T>::CustomizeLocation(TSharedRef<class IProperty
 {
 	TWeakPtr<IPropertyHandle> WeakHandlePtr = StructPropertyHandle;
 
+	if (Row.IsPasteFromTextBound())
+	{
+		Row.OnPasteFromTextDelegate.Pin()->AddSP(this, &FMatrixStructCustomization<T>::OnPasteFromText, FTransformField::Location, WeakHandlePtr);
+	}
+	
 	Row
 	.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FMatrixStructCustomization<T>::OnCopy, FTransformField::Location, WeakHandlePtr)))
 	.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FMatrixStructCustomization<T>::OnPaste, FTransformField::Location, WeakHandlePtr)))
@@ -198,6 +203,11 @@ void FMatrixStructCustomization<T>::CustomizeRotation(TSharedRef<class IProperty
 {
 	TWeakPtr<IPropertyHandle> WeakHandlePtr = StructPropertyHandle;
 
+	if (Row.IsPasteFromTextBound())
+	{
+		Row.OnPasteFromTextDelegate.Pin()->AddSP(this, &FMatrixStructCustomization<T>::OnPasteFromText, FTransformField::Rotation, WeakHandlePtr);
+	}
+
 	Row
 	.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FMatrixStructCustomization<T>::OnCopy, FTransformField::Rotation, WeakHandlePtr)))
 	.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FMatrixStructCustomization<T>::OnPaste, FTransformField::Rotation, WeakHandlePtr)))
@@ -232,6 +242,11 @@ template<typename T>
 void FMatrixStructCustomization<T>::CustomizeScale(TSharedRef<class IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& Row)
 {
 	TWeakPtr<IPropertyHandle> WeakHandlePtr = StructPropertyHandle;
+
+	if (Row.IsPasteFromTextBound())
+	{
+		Row.OnPasteFromTextDelegate.Pin()->AddSP(this, &FMatrixStructCustomization<T>::OnPasteFromText, FTransformField::Scale, WeakHandlePtr);
+	}
 
 	Row
 	.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FMatrixStructCustomization<T>::OnCopy, FTransformField::Scale, WeakHandlePtr)))
@@ -321,15 +336,37 @@ void FMatrixStructCustomization<T>::OnCopy(FTransformField::Type Type, TWeakPtr<
 template<typename T>
 void FMatrixStructCustomization<T>::OnPaste(FTransformField::Type Type, TWeakPtr<IPropertyHandle> PropertyHandlePtr)
 {
-	auto PropertyHandle = PropertyHandlePtr.Pin();
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
 
+	PasteFromText(TEXT(""), PastedText, Type, PropertyHandlePtr);
+}
+
+template <typename T>
+void FMatrixStructCustomization<T>::OnPasteFromText(
+	const FString& InTag,
+	const FString& InText,
+	const TOptional<FGuid>& InOperationId,
+	FTransformField::Type Type,
+	TWeakPtr<IPropertyHandle> PropertyHandlePtr)
+{
+	PasteFromText(InTag, InText, Type, PropertyHandlePtr);
+}
+
+template <typename T>
+void FMatrixStructCustomization<T>::PasteFromText(
+	const FString& InTag,
+	const FString& InText,
+	FTransformField::Type Type,
+	TWeakPtr<IPropertyHandle> PropertyHandlePtr)
+{
+	auto PropertyHandle = PropertyHandlePtr.Pin();
 	if (!PropertyHandle.IsValid())
 	{
 		return;
 	}
 
-	FString PastedText;
-	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+	FString PastedText = InText;
 
 	switch (Type)
 	{

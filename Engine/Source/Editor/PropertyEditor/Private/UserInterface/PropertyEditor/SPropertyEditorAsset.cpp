@@ -1308,14 +1308,32 @@ void SPropertyEditorAsset::OnPaste()
 {
 	FString DestPath;
 	FPlatformApplicationMisc::ClipboardPaste(DestPath);
+	
+	PasteFromText(TEXT(""), DestPath);
+}
 
-	if(DestPath == TEXT("None"))
+void SPropertyEditorAsset::OnPasteFromText(
+	const FString& InTag,
+	const FString& InText,
+	const TOptional<FGuid>& InOperationId)
+{
+	if (CanPasteFromText(InTag, InText))
+	{
+		PasteFromText(InTag, InText);
+	}
+}
+
+void SPropertyEditorAsset::PasteFromText(
+	const FString& InTag,
+	const FString& InText)
+{
+	if(InText == TEXT("None"))
 	{
 		SetValue(nullptr);
 	}
 	else
 	{
-		UObject* Object = LoadObject<UObject>(nullptr, *DestPath);
+		UObject* Object = LoadObject<UObject>(nullptr, *InText);
 		if(Object && Object->IsA(ObjectClass))
 		{
 			// Check against custom asset filter
@@ -1333,7 +1351,19 @@ bool SPropertyEditorAsset::CanPaste()
 	FString ClipboardText;
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
 
-	const FString PossibleObjectPath = FPackageName::ExportTextPathToObjectPath(ClipboardText);
+	return CanPasteFromText(TEXT(""), ClipboardText);
+}
+
+bool SPropertyEditorAsset::CanPasteFromText(
+	const FString& InTag,
+	const FString& InText) const
+{
+	if (!UE::PropertyEditor::TagMatchesProperty(InTag, PropertyHandle))
+	{
+		return false;
+	}
+
+	const FString PossibleObjectPath = FPackageName::ExportTextPathToObjectPath(InText);
 
 	bool bCanPaste = false;
 

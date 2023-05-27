@@ -46,10 +46,10 @@ FNodeWidgets FDetailTreeNode::CreateNodeWidgets() const
 	return Widgets;
 }
 
-void FDetailTreeNode::GetChildren(TArray<TSharedRef<IDetailTreeNode>>& OutChildren)
+void FDetailTreeNode::GetChildren(TArray<TSharedRef<IDetailTreeNode>>& OutChildren, const bool& bInIgnoreVisibility)
 {
 	FDetailNodeList Children;
-	GetChildren(Children);
+	GetChildren(Children, bInIgnoreVisibility);
 
 	OutChildren.Reset(Children.Num());
 

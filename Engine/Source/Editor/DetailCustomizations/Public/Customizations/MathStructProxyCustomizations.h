@@ -292,6 +292,19 @@ protected:
 	void OnCopy(FTransformField::Type Type, TWeakPtr<IPropertyHandle> PropertyHandlePtr);
 	void OnPaste(FTransformField::Type Type, TWeakPtr<IPropertyHandle> PropertyHandlePtr);
 
+	void PasteFromText(
+		const FString& InTag,
+		const FString& InText,
+		FTransformField::Type Type,
+		TWeakPtr<IPropertyHandle> PropertyHandlePtr);
+
+	void OnPasteFromText(
+		const FString& InTag,
+		const FString& InText,
+		const TOptional<FGuid>& InOperationId,
+		FTransformField::Type Type,
+		TWeakPtr<IPropertyHandle> PropertyHandlePtr);
+
 protected:
 	/** Cached rotation values */
 	mutable TSharedRef< TProxyValue<UE::Math::TRotator<T>> > CachedRotation;

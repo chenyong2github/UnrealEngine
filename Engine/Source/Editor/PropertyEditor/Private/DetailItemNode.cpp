@@ -365,7 +365,7 @@ bool FDetailItemNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const
 	return bResult;
 }
 
-void FDetailItemNode::GetChildren(FDetailNodeList& OutChildren)
+void FDetailItemNode::GetChildren(FDetailNodeList& OutChildren, const bool& bInIgnoreVisibility)
 {
 	OutChildren.Reserve(Children.Num());
 
@@ -377,12 +377,13 @@ void FDetailItemNode::GetChildren(FDetailNodeList& OutChildren)
 		// If we are visible due to filtering and so is a child, we only show that child.  
 		// If we are visible due to filtering and no child is visible, we show all children
 
-		if( ChildVisibility == ENodeVisibility::Visible ||
-			( !bShouldBeVisibleDueToChildFiltering && bShouldBeVisibleDueToFiltering && ChildVisibility != ENodeVisibility::ForcedHidden ) )
+		if( ChildVisibility == ENodeVisibility::Visible
+			|| bInIgnoreVisibility
+			|| ( !bShouldBeVisibleDueToChildFiltering && bShouldBeVisibleDueToFiltering && ChildVisibility != ENodeVisibility::ForcedHidden ) )
 		{
 			if( Child->ShouldShowOnlyChildren() )
 			{
-				Child->GetChildren( OutChildren );
+				Child->GetChildren( OutChildren, bInIgnoreVisibility );
 			}
 			else
 			{

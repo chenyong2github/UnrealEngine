@@ -188,6 +188,10 @@ private:
 	 */
 	void OnPaste( ETransformField::Type TransformField );
 
+	void OnPasteFromText(const FString& InTag, const FString& InText, const TOptional<FGuid>& InOperationId, ETransformField::Type InTransformField);
+
+	void PasteFromText(const FString& InTag, const FString& InText, ETransformField::Type InTransformField);
+	
 	/**
 	 * Creates a UI action for copying a specified transform field
 	 */
@@ -264,7 +268,7 @@ private:
 	struct FOptionalVector
 	{
 		/**
-		 * Sets the value from an FVector                   
+		 * Sets the value from an FVector
 		 */
 		void Set( const FVector& InVec )
 		{

@@ -282,6 +282,9 @@ private:
 	void OnCopy(ESplinePointProperty SplinePointProp);
 	void OnPaste(ESplinePointProperty SplinePointProp);
 
+	void OnPasteFromText(const FString& InTag, const FString& InText, const TOptional<FGuid>& InOperationId, ESplinePointProperty SplinePointProp);
+	void PasteFromText(const FString& InTag, const FString& InText, ESplinePointProperty SplinePointProp);
+
 	void OnBeginPositionSlider();
 	void OnBeginScaleSlider();
 	void OnEndSlider(float);
@@ -516,15 +519,21 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 		[
 			SNew(SNumericEntryBox<float>)
 			.IsEnabled(TAttribute<bool>(this, &FSplinePointDetails::IsOnePointSelected))
-		.Value(this, &FSplinePointDetails::GetInputKey)
-		.UndeterminedString(LOCTEXT("Multiple", "Multiple"))
-		.OnValueCommitted(this, &FSplinePointDetails::OnSetInputKey)
-		.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Value(this, &FSplinePointDetails::GetInputKey)
+			.UndeterminedString(LOCTEXT("Multiple", "Multiple"))
+			.OnValueCommitted(this, &FSplinePointDetails::OnSetInputKey)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
 		];
+
+	IDetailCategoryBuilder& ParentCategory = ChildrenBuilder.GetParentCategory();
+	TSharedPtr<FOnPasteFromText> PasteFromTextDelegate = ParentCategory.OnPasteFromText();
+	const bool bUsePasteFromText = PasteFromTextDelegate.IsValid();	
 
 	// Position
 	if (SplineComp->AllowsSpinePointLocationEditing())
 	{
+		PasteFromTextDelegate->AddSP(this, &FSplinePointDetails::OnPasteFromText, ESplinePointProperty::Location);
+		
 		ChildrenBuilder.AddCustomRow(LOCTEXT("Location", "Location"))
 			.RowTag(TEXT("Location"))
 			.CopyAction(CreateCopyAction(ESplinePointProperty::Location))
@@ -542,26 +551,28 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 			[
 				SNew(SVectorInputBox)
 				.X(this, &FSplinePointDetails::GetPositionX)
-			.Y(this, &FSplinePointDetails::GetPositionY)
-			.Z(this, &FSplinePointDetails::GetPositionZ)
-			.AllowSpin(true)
-			.bColorAxisLabels(true)
-			.SpinDelta(1.f)
-			.OnXChanged(this, &FSplinePointDetails::OnSetPosition, ETextCommit::Default, EAxis::X)
-			.OnYChanged(this, &FSplinePointDetails::OnSetPosition, ETextCommit::Default, EAxis::Y)
-			.OnZChanged(this, &FSplinePointDetails::OnSetPosition, ETextCommit::Default, EAxis::Z)
-			.OnXCommitted(this, &FSplinePointDetails::OnSetPosition, EAxis::X)
-			.OnYCommitted(this, &FSplinePointDetails::OnSetPosition, EAxis::Y)
-			.OnZCommitted(this, &FSplinePointDetails::OnSetPosition, EAxis::Z)
-			.OnBeginSliderMovement(this, &FSplinePointDetails::OnBeginPositionSlider)
-			.OnEndSliderMovement(this, &FSplinePointDetails::OnEndSlider)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Y(this, &FSplinePointDetails::GetPositionY)
+				.Z(this, &FSplinePointDetails::GetPositionZ)
+				.AllowSpin(true)
+				.bColorAxisLabels(true)
+				.SpinDelta(1.f)
+				.OnXChanged(this, &FSplinePointDetails::OnSetPosition, ETextCommit::Default, EAxis::X)
+				.OnYChanged(this, &FSplinePointDetails::OnSetPosition, ETextCommit::Default, EAxis::Y)
+				.OnZChanged(this, &FSplinePointDetails::OnSetPosition, ETextCommit::Default, EAxis::Z)
+				.OnXCommitted(this, &FSplinePointDetails::OnSetPosition, EAxis::X)
+				.OnYCommitted(this, &FSplinePointDetails::OnSetPosition, EAxis::Y)
+				.OnZCommitted(this, &FSplinePointDetails::OnSetPosition, EAxis::Z)
+				.OnBeginSliderMovement(this, &FSplinePointDetails::OnBeginPositionSlider)
+				.OnEndSliderMovement(this, &FSplinePointDetails::OnEndSlider)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 	}
 
 	// Rotation
 	if (SplineComp->AllowsSplinePointRotationEditing())
 	{
+		PasteFromTextDelegate->AddSP(this, &FSplinePointDetails::OnPasteFromText, ESplinePointProperty::Rotation);	
+		
 		ChildrenBuilder.AddCustomRow(LOCTEXT("Rotation", "Rotation"))
 			.RowTag(TEXT("Rotation"))
 			.CopyAction(CreateCopyAction(ESplinePointProperty::Rotation))
@@ -579,20 +590,22 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 			[
 				SNew(SRotatorInputBox)
 				.Roll(this, &FSplinePointDetails::GetRotationRoll)
-			.Pitch(this, &FSplinePointDetails::GetRotationPitch)
-			.Yaw(this, &FSplinePointDetails::GetRotationYaw)
-			.AllowSpin(false)
-			.bColorAxisLabels(false)
-			.OnRollCommitted(this, &FSplinePointDetails::OnSetRotation, EAxis::X)
-			.OnPitchCommitted(this, &FSplinePointDetails::OnSetRotation, EAxis::Y)
-			.OnYawCommitted(this, &FSplinePointDetails::OnSetRotation, EAxis::Z)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Pitch(this, &FSplinePointDetails::GetRotationPitch)
+				.Yaw(this, &FSplinePointDetails::GetRotationYaw)
+				.AllowSpin(false)
+				.bColorAxisLabels(false)
+				.OnRollCommitted(this, &FSplinePointDetails::OnSetRotation, EAxis::X)
+				.OnPitchCommitted(this, &FSplinePointDetails::OnSetRotation, EAxis::Y)
+				.OnYawCommitted(this, &FSplinePointDetails::OnSetRotation, EAxis::Z)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 	}
 
 	// Scale
 	if (SplineComp->AllowsSplinePointScaleEditing())
 	{
+		PasteFromTextDelegate->AddSP(this, &FSplinePointDetails::OnPasteFromText, ESplinePointProperty::Scale);
+		
 		ChildrenBuilder.AddCustomRow(LOCTEXT("Scale", "Scale"))
 			.RowTag(TEXT("Scale"))
 			.Visibility(TAttribute<EVisibility>(this, &FSplinePointDetails::IsEnabled))
@@ -631,6 +644,8 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 	// ArriveTangent
 	if (SplineComp->AllowsSplinePointArriveTangentEditing())
 	{
+		PasteFromTextDelegate->AddSP(this, &FSplinePointDetails::OnPasteFromText, ESplinePointProperty::ArriveTangent);
+	
 		ChildrenBuilder.AddCustomRow(LOCTEXT("ArriveTangent", "Arrive Tangent"))
 			.RowTag(TEXT("ArriveTangent"))
 			.Visibility(TAttribute<EVisibility>(this, &FSplinePointDetails::IsEnabled))
@@ -642,7 +657,7 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("ArriveTangent", "Arrive Tangent"))
-			.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
 		.ValueContent()
 			.MinDesiredWidth(375.0f)
@@ -650,21 +665,22 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 			[
 				SNew(SVectorInputBox)
 				.X(this, &FSplinePointDetails::GetArriveTangentX)
-			.Y(this, &FSplinePointDetails::GetArriveTangentY)
-			.Z(this, &FSplinePointDetails::GetArriveTangentZ)
-			.AllowSpin(false)
-			.bColorAxisLabels(false)
-			.OnXCommitted(this, &FSplinePointDetails::OnSetArriveTangent, EAxis::X)
-			.OnYCommitted(this, &FSplinePointDetails::OnSetArriveTangent, EAxis::Y)
-			.OnZCommitted(this, &FSplinePointDetails::OnSetArriveTangent, EAxis::Z)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Y(this, &FSplinePointDetails::GetArriveTangentY)
+				.Z(this, &FSplinePointDetails::GetArriveTangentZ)
+				.AllowSpin(false)
+				.bColorAxisLabels(false)
+				.OnXCommitted(this, &FSplinePointDetails::OnSetArriveTangent, EAxis::X)
+				.OnYCommitted(this, &FSplinePointDetails::OnSetArriveTangent, EAxis::Y)
+				.OnZCommitted(this, &FSplinePointDetails::OnSetArriveTangent, EAxis::Z)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 	}
-
 
 	// LeaveTangent
 	if (SplineComp->AllowsSplinePointLeaveTangentEditing())
 	{
+		PasteFromTextDelegate->AddSP(this, &FSplinePointDetails::OnPasteFromText, ESplinePointProperty::LeaveTangent);
+	
 		ChildrenBuilder.AddCustomRow(LOCTEXT("LeaveTangent", "Leave Tangent"))
 			.RowTag(TEXT("LeaveTangent"))
 			.Visibility(TAttribute<EVisibility>(this, &FSplinePointDetails::IsEnabled))
@@ -676,7 +692,7 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("LeaveTangent", "Leave Tangent"))
-			.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
 		.ValueContent()
 			.MinDesiredWidth(375.0f)
@@ -684,14 +700,14 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 			[
 				SNew(SVectorInputBox)
 				.X(this, &FSplinePointDetails::GetLeaveTangentX)
-			.Y(this, &FSplinePointDetails::GetLeaveTangentY)
-			.Z(this, &FSplinePointDetails::GetLeaveTangentZ)
-			.AllowSpin(false)
-			.bColorAxisLabels(false)
-			.OnXCommitted(this, &FSplinePointDetails::OnSetLeaveTangent, EAxis::X)
-			.OnYCommitted(this, &FSplinePointDetails::OnSetLeaveTangent, EAxis::Y)
-			.OnZCommitted(this, &FSplinePointDetails::OnSetLeaveTangent, EAxis::Z)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Y(this, &FSplinePointDetails::GetLeaveTangentY)
+				.Z(this, &FSplinePointDetails::GetLeaveTangentZ)
+				.AllowSpin(false)
+				.bColorAxisLabels(false)
+				.OnXCommitted(this, &FSplinePointDetails::OnSetLeaveTangent, EAxis::X)
+				.OnYCommitted(this, &FSplinePointDetails::OnSetLeaveTangent, EAxis::Y)
+				.OnZCommitted(this, &FSplinePointDetails::OnSetLeaveTangent, EAxis::Z)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 	}
 
@@ -715,13 +731,13 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 			[
 				SNew(SComboBox<TSharedPtr<FString>>)
 				.OptionsSource(&SplinePointTypes)
-			.OnGenerateWidget(this, &FSplinePointDetails::OnGenerateComboWidget)
-			.OnSelectionChanged(this, &FSplinePointDetails::OnSplinePointTypeChanged)
-			[
-				SNew(STextBlock)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(this, &FSplinePointDetails::GetPointType)
-			]
+				.OnGenerateWidget(this, &FSplinePointDetails::OnGenerateComboWidget)
+				.OnSelectionChanged(this, &FSplinePointDetails::OnSplinePointTypeChanged)
+				[
+					SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.Text(this, &FSplinePointDetails::GetPointType)
+				]
 			];
 	}
 
@@ -1563,61 +1579,79 @@ void FSplinePointDetails::OnPaste(ESplinePointProperty SplinePointProp)
 	FString PastedText;
 	FPlatformApplicationMisc::ClipboardPaste(PastedText);
 
+	PasteFromText(TEXT(""), PastedText, SplinePointProp);
+}
+
+void FSplinePointDetails::OnPasteFromText(
+	const FString& InTag,
+	const FString& InText,
+	const TOptional<FGuid>& InOperationId,
+	ESplinePointProperty SplinePointProp)
+{
+	PasteFromText(InTag, InText, SplinePointProp);
+}
+
+void FSplinePointDetails::PasteFromText(
+	const FString& InTag,
+	const FString& InText,
+	ESplinePointProperty SplinePointProp)
+{
+	FString PastedText = InText;
 	switch (SplinePointProp)
 	{
 	case ESplinePointProperty::Location:
-	{
-		FVector NewLocation;
-		if (NewLocation.InitFromString(PastedText))
 		{
-			FScopedTransaction Transaction(LOCTEXT("PasteLocation", "Paste Location"));
-			SetSplinePointProperty(ESplinePointProperty::Location, NewLocation, EAxisList::All, true);
+			FVector NewLocation;
+			if (NewLocation.InitFromString(PastedText))
+			{
+				FScopedTransaction Transaction(LOCTEXT("PasteLocation", "Paste Location"));
+				SetSplinePointProperty(ESplinePointProperty::Location, NewLocation, EAxisList::All, true);
+			}
+			break;
 		}
-		break;
-	}
 	case ESplinePointProperty::Rotation:
-	{
-		FVector NewRotation;
-		PastedText.ReplaceInline(TEXT("Pitch="), TEXT("X="));
-		PastedText.ReplaceInline(TEXT("Yaw="), TEXT("Y="));
-		PastedText.ReplaceInline(TEXT("Roll="), TEXT("Z="));
-		if (NewRotation.InitFromString(PastedText))
 		{
-			FScopedTransaction Transaction(LOCTEXT("PasteRotation", "Paste Rotation"));
-			SetSplinePointProperty(ESplinePointProperty::Rotation, NewRotation, EAxisList::All, true);
+			FVector NewRotation;
+			PastedText.ReplaceInline(TEXT("Pitch="), TEXT("X="));
+			PastedText.ReplaceInline(TEXT("Yaw="), TEXT("Y="));
+			PastedText.ReplaceInline(TEXT("Roll="), TEXT("Z="));
+			if (NewRotation.InitFromString(PastedText))
+			{
+				FScopedTransaction Transaction(LOCTEXT("PasteRotation", "Paste Rotation"));
+				SetSplinePointProperty(ESplinePointProperty::Rotation, NewRotation, EAxisList::All, true);
+			}
+			break;
 		}
-		break;
-	}
 	case ESplinePointProperty::Scale:
-	{
-		FVector NewScale;
-		if (NewScale.InitFromString(PastedText))
 		{
-			FScopedTransaction Transaction(LOCTEXT("PasteScale", "Paste Scale"));
-			SetSplinePointProperty(ESplinePointProperty::Scale, NewScale, EAxisList::All, true);
+			FVector NewScale;
+			if (NewScale.InitFromString(PastedText))
+			{
+				FScopedTransaction Transaction(LOCTEXT("PasteScale", "Paste Scale"));
+				SetSplinePointProperty(ESplinePointProperty::Scale, NewScale, EAxisList::All, true);
+			}
+			break;
 		}
-		break;
-	}
 	case ESplinePointProperty::ArriveTangent:
-	{
-		FVector NewArrive;
-		if (NewArrive.InitFromString(PastedText))
 		{
-			FScopedTransaction Transaction(LOCTEXT("PasteArriveTangent", "Paste Arrive Tangent"));
-			SetSplinePointProperty(ESplinePointProperty::ArriveTangent, NewArrive, EAxisList::All, true);
+			FVector NewArrive;
+			if (NewArrive.InitFromString(PastedText))
+			{
+				FScopedTransaction Transaction(LOCTEXT("PasteArriveTangent", "Paste Arrive Tangent"));
+				SetSplinePointProperty(ESplinePointProperty::ArriveTangent, NewArrive, EAxisList::All, true);
+			}
+			break;
 		}
-		break;
-	}
 	case ESplinePointProperty::LeaveTangent:
-	{
-		FVector NewLeave;
-		if (NewLeave.InitFromString(PastedText))
 		{
-			FScopedTransaction Transaction(LOCTEXT("PasteLeaveTangent", "Paste Leave Tangent"));
-			SetSplinePointProperty(ESplinePointProperty::LeaveTangent, NewLeave, EAxisList::All, true);
+			FVector NewLeave;
+			if (NewLeave.InitFromString(PastedText))
+			{
+				FScopedTransaction Transaction(LOCTEXT("PasteLeaveTangent", "Paste Leave Tangent"));
+				SetSplinePointProperty(ESplinePointProperty::LeaveTangent, NewLeave, EAxisList::All, true);
+			}
+			break;
 		}
-		break;
-	}
 	default:
 		break;
 	}

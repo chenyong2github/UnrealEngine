@@ -67,6 +67,8 @@ struct FMaterialListDelegates
 	FOnCanCopyMaterialList OnCanCopyMaterialList;
 	/** Delegate called Pasting a material list */
 	FOnPasteMaterialList OnPasteMaterialList;
+	/** Delegate called Pasting an optionally tagged text snippet */
+	TWeakPtr<FOnPasteFromText> OnPasteFromText;
 
 	/** Delegate called Copying a material item */
 	FOnCopyMaterialItem OnCopyMaterialItem;
@@ -338,6 +340,9 @@ private:
 	void OnCopyMaterialList();
 	void OnPasteMaterialList();
 
+	/** Handle pasting an optionally tagged text snippet */
+	void OnPasteMaterialListFromText(const FString& InTag, const FString& InText, const TOptional<FGuid>& InOperationId);
+
 	bool OnCanCopyMaterialItem(int32 CurrentSlot) const;
 	void OnCopyMaterialItem(int32 CurrentSlot);
 	void OnPasteMaterialItem(int32 CurrentSlot);
@@ -370,4 +375,3 @@ private:
 	/** The mesh asset that owns these materials */
 	TArray<FAssetData> OwnerAssetDataArray;
 };
-

@@ -43,7 +43,7 @@ bool FDetailCategoryGroupNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow
 	return true;
 }
 
-void FDetailCategoryGroupNode::GetChildren( FDetailNodeList& OutChildren )
+void FDetailCategoryGroupNode::GetChildren(FDetailNodeList& OutChildren, const bool& bInIgnoreVisibility)
 {
 	for( int32 ChildIndex = 0; ChildIndex < ChildNodes.Num(); ++ChildIndex )
 	{
@@ -52,7 +52,7 @@ void FDetailCategoryGroupNode::GetChildren( FDetailNodeList& OutChildren )
 		{
 			if( Child->ShouldShowOnlyChildren() )
 			{
-				Child->GetChildren( OutChildren );
+				Child->GetChildren( OutChildren, bInIgnoreVisibility );
 			}
 			else
 			{

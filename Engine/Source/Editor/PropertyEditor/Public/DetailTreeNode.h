@@ -38,7 +38,7 @@ public:
 
 	/** IDetailTreeNode interface */
 	virtual FNodeWidgets CreateNodeWidgets() const;
-	virtual void GetChildren(TArray<TSharedRef<IDetailTreeNode>>& OutChildren);
+	virtual void GetChildren(TArray<TSharedRef<IDetailTreeNode>>& OutChildren, const bool& bInIgnoreVisibility = false);
 	virtual TSharedPtr<IDetailPropertyRow> GetRow() const override { return nullptr; }
 	virtual void GetFilterStrings(TArray<FString>& OutFilterStrings) const override { };
 	virtual bool GetInitiallyCollapsed() const override { return false; }
@@ -64,9 +64,10 @@ public:
 	/**
 	 * Gets child tree nodes
 	 *
-	 * @param OutChildren	The array to add children to
+	 * @param OutChildren			The array to add children to
+	 * @param bInIgnoreVisibility	Ignore the child node visibility
 	 */
-	virtual void GetChildren(FDetailNodeList& OutChildren) = 0;
+	virtual void GetChildren(FDetailNodeList& OutChildren, const bool& bInIgnoreVisibility = false) = 0;
 
 	/**
 	 * @ The parent DetailTreeNode of this node, or nullptr if this is a root node (or not yet added to a tree)

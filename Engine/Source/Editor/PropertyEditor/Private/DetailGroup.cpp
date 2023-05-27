@@ -15,8 +15,8 @@ FDetailGroup::FDetailGroup( const FName InGroupName, TSharedRef<FDetailCategoryI
 	, bStartExpanded( bInStartExpanded )
 	, bResetEnabled( false )
 	, DisplayMode( EDetailGroupDisplayMode::Group )
+	, PasteFromTextDelegate(MakeShared<FOnPasteFromText>())
 {
-
 }
 
 FDetailWidgetRow& FDetailGroup::HeaderRow()

@@ -9,6 +9,7 @@
 #include "PropertyHandle.h"
 #include "IDetailCustomNodeBuilder.h"
 #include "DetailBuilderTypes.h"
+#include "PropertyEditorCopyPaste.h"
 
 class FDetailWidgetRow;
 class IDetailGroup;
@@ -211,4 +212,7 @@ public:
 
 	/** Add a property, but force it to behave as a normal, peer reference regardless of CPF_InstancedReference */
 	virtual void AddPropertyDisableInstancedReference(TSharedPtr<IPropertyHandle> PropertyHandle) = 0;
+
+	/** Optional PasteFromText delegate for this category */
+	virtual TSharedPtr<FOnPasteFromText> OnPasteFromText() const { return nullptr; }
 };

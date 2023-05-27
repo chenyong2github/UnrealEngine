@@ -298,6 +298,21 @@ private:
 	void OnPaste();
 
 	/**
+	 * @return True if the (optionally tagged) input contents can be pasted
+	 */
+	bool CanPasteFromText(const FString& InTag, const FString& InText) const;
+
+	/**
+	 * Delegate handling pasting an optionally tagged text snippet
+	 */
+	void OnPasteFromText(const FString& InTag, const FString& InText, const TOptional<FGuid>& InOperationId);
+
+	/**
+	 * Handle pasting an optionally tagged text snippet
+	 */
+	void PasteFromText(const FString& InTag, const FString& InText);
+
+	/**
 	 * @return True of the current clipboard contents can be pasted
 	 */
 	bool CanPaste();

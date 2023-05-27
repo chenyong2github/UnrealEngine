@@ -738,6 +738,7 @@ void FDetailPropertyRow::SetWidgetRowProperties(FDetailWidgetRow& Row) const
 		Row.CopyMenuAction = CustomPropertyWidget->CopyMenuAction;
 		Row.PasteMenuAction = CustomPropertyWidget->PasteMenuAction;
 		Row.CustomMenuItems = CustomPropertyWidget->CustomMenuItems;
+        Row.OnPasteFromTextDelegate = CustomPropertyWidget->OnPasteFromTextDelegate;
 
 		if (CustomPropertyWidget->CustomResetToDefault.IsSet())
 		{

@@ -64,6 +64,9 @@ public:
 	void OnPastePosition(TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr);
 	void OnPasteRotation(TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr);
 
+	void OnPasteFromText(const FString& InTag, const FString& InText, const TOptional<FGuid>& InOperationId,
+		TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr, TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr);
+	
 	bool IsRotationValueEnabled(TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr) const;
 	template<typename ProxyType, typename NumericType> TOptional<NumericType> OnGetRotationValue(TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr, TSharedRef< TProxyProperty<ProxyType, NumericType> > ProxyValue) const;
 	template<typename ProxyType, typename NumericType> void OnRotationValueCommitted(NumericType NewValue, ETextCommit::Type CommitType, TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr, TSharedRef< TProxyProperty<ProxyType, NumericType> > ProxyValue);
@@ -98,6 +101,12 @@ public:
 protected:
 	void OrthonormalVectorPairToDisplayedRotator(const FVector& PriAxis, const FVector& SecAxis, FRotator& OutRotator) const;
 	void DisplayedRotatorToOrthonormalVectorPair(const FRotator& InRotator, FVector& OutPriAxis, FVector& OutSecAxis) const;
+
+	void OnPastePositionFromText(const FString& InTag, const FString& InText, const TOptional<FGuid>& InOperationId, TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr);
+	void PastePositionFromText(const FString& InTag, const FString& InText, TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr);
+	
+	void OnPasteRotationFromText(const FString& InTag, const FString& InText, const TOptional<FGuid>& InOperationId, TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr);
+	void PasteRotationFromText(const FString& InTag, const FString& InText, TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr);
 
 	mutable TSharedRef< TProxyValue<FRotator> > CachedRotation;
 	mutable TSharedRef< TProxyProperty<FRotator, FRotator::FReal> > CachedRotationYaw;
@@ -180,7 +189,23 @@ private:
 	FSlateColor GetConstraintTransformColorAndOpacity(const EConstraintTransformComponentFlags ComponentFlags) const;
 
 private:
+	void OnPasteConstraintTransformFromText(
+		const FString& InTag,
+		const FString& InText,
+		const TOptional<FGuid>& InOperationId,
+		TSharedPtr<IPropertyHandle> PositionPropertyHandle,
+		TSharedPtr<IPropertyHandle> PriAxisPropertyHandle,
+		TSharedPtr<IPropertyHandle> SecAxisPropertyHandle,
+		TSharedPtr<FConstraintTransformCustomization> TransformProxy);
 
+	void PasteConstraintTransformFromText(
+		const FString& InTag,
+		const FString& InText,
+		TSharedPtr<IPropertyHandle> PositionPropertyHandle,
+		TSharedPtr<IPropertyHandle> PriAxisPropertyHandle,
+		TSharedPtr<IPropertyHandle> SecAxisPropertyHandle,
+		TSharedPtr<FConstraintTransformCustomization> TransformProxy);
+	
 	TSharedRef<SWidget> MakeEditSpaceToggleButtonWidget(TSharedPtr<IPropertyHandle> ConstraintInstancePropertyHandle, const EConstraintTransformComponentFlags ComponentFlags); // TODO - get this in the right place in src
 	void SnapConstraintTransformComponentsToDefault(TSharedPtr<IPropertyHandle> ConstraintInstancePropertyHandle, const EConstraintTransformComponentFlags SnapFlags);
 	void UpdateTransformProxyDisplayRelativeToDefault(TSharedPtr<IPropertyHandle> ConstraintInstancePropertyHandle);

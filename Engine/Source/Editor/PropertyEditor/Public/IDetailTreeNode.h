@@ -146,11 +146,12 @@ public:
 
 	/**
 	 * Gets the children of this tree node    
-	 * Note: Customizations can determine the visibility of children.  This will only return visible children
+	 * Note: Customizations can determine the visibility of children.  This will only return visible children if bInIgnoreVisibility if false
 	 *
-	 * @param OutChildren	The generated children
+	 * @param OutChildren			The generated children
+	 * @param bInIgnoreVisibility	Whether to return children regardless of visibility
 	 */
-	virtual void GetChildren(TArray<TSharedRef<IDetailTreeNode>>& OutChildren) = 0;
+	virtual void GetChildren(TArray<TSharedRef<IDetailTreeNode>>& OutChildren, const bool& bInIgnoreVisibility = false) = 0;
 
 	/**
 	 * Gets an identifier name for this node.  This is not a name formatted for display purposes, but can be useful for storing

@@ -186,6 +186,9 @@ public:
 	virtual int32 GetSortOrder() const override;
 	virtual void SetSortOrder(int32 InSortOrder) override;
 	virtual void AddPropertyDisableInstancedReference(TSharedPtr<IPropertyHandle> PropertyHandle) override;
+	
+	/** Delegate handling pasting an optionally tagged text snippet */
+	virtual TSharedPtr<FOnPasteFromText> OnPasteFromText() const override { return PasteFromTextDelegate; }
 
 	/** FDetailTreeNode interface */
 	virtual IDetailsView* GetNodeDetailsView() const override { return GetDetailsView(); }
@@ -199,7 +202,7 @@ public:
 	virtual void GetFilterStrings(TArray<FString>& OutFilterStrings) const override;
 	virtual bool GetInitiallyCollapsed() const override;
 
-	virtual void GetChildren(FDetailNodeList& OutChildren) override;
+	virtual void GetChildren(FDetailNodeList& OutChildren, const bool& bInIgnoreVisibility = false) override;
 	virtual bool ShouldBeExpanded() const override;
 	virtual ENodeVisibility GetVisibility() const override;
 	virtual void FilterNode(const FDetailFilter& DetailFilter) override;
@@ -408,6 +411,9 @@ private:
 	TSharedPtr<FDetailTreeNode> InlinePropertyNode;
 	/** The parent detail builder */
 	TWeakPtr<FDetailLayoutBuilderImpl> DetailLayoutBuilder;
+	/** Delegate handling pasting an optionally tagged text snippet */
+	TSharedPtr<FOnPasteFromText> PasteFromTextDelegate;
+
 	/** The category identifier */
 	FName CategoryName;
 	/** The sort order of this category (amongst all categories) */

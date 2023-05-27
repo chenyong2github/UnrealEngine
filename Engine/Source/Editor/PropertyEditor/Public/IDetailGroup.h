@@ -25,8 +25,7 @@ enum class EDetailGroupDisplayMode
 class IDetailGroup : public IDetailLayoutRow
 {
 public:
-
-	virtual ~IDetailGroup(){}
+	virtual ~IDetailGroup() = default;
 
 	/**
 	 * Makes a custom row for the groups header
@@ -102,4 +101,7 @@ public:
 
 	/** Specify whether this group should be formatted to display like a subcategory */
 	virtual void SetDisplayMode(EDetailGroupDisplayMode Mode) = 0;
+
+	/** Return an optional PasteFromText delegate */
+	virtual TSharedPtr<FOnPasteFromText> OnPasteFromText() const { return nullptr; }
 };

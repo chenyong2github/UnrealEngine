@@ -121,6 +121,11 @@ void FConstraintTransformCustomization::MakeRotationRow(TSharedRef<class IProper
 
 	const FText ComponentToolTipFormatText = LOCTEXT("ConstraintTransformRotationToolTip", "{0} component of the constraint rotation relative to the {1} bone (in degrees).");
 
+	if (Row.IsPasteFromTextBound())
+	{
+		Row.OnPasteFromTextDelegate.Pin()->AddSP(this, &FConstraintTransformCustomization::OnPasteRotationFromText, WeakPriAxisHandlePtr, WeakSecAxisHandlePtr);
+	}
+	
 	Row
 	.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FConstraintTransformCustomization::OnCopyRotation, WeakPriAxisHandlePtr, WeakSecAxisHandlePtr)))
 	.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FConstraintTransformCustomization::OnPasteRotation, WeakPriAxisHandlePtr, WeakSecAxisHandlePtr)))
@@ -172,6 +177,11 @@ void FConstraintTransformCustomization::MakePositionRow(TSharedRef<class IProper
 
 	const FText ComponentToolTipFormatText = LOCTEXT("ConstraintTransformPositionToolTip", "{0} component of the constraint position relative to the {1} bone.");
 
+	if (Row.IsPasteFromTextBound())
+	{
+		Row.OnPasteFromTextDelegate.Pin()->AddSP(this, &FConstraintTransformCustomization::OnPastePositionFromText, WeakPositionHandlePtr);
+	}
+	
 	Row
 	.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FConstraintTransformCustomization::OnCopyPosition, WeakPositionHandlePtr)))
 	.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FConstraintTransformCustomization::OnPastePosition, WeakPositionHandlePtr)))
@@ -480,6 +490,20 @@ void FConstraintTransformCustomization::OnCopy(TWeakPtr<IPropertyHandle> Positio
 
 void FConstraintTransformCustomization::OnPaste(TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr, TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr)
 {
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+
+	OnPasteFromText(TEXT(""), PastedText, {}, PositionPropertyHandlePtr, PriAxisPropertyHandlePtr, SecAxisPropertyHandlePtr);
+}
+
+void FConstraintTransformCustomization::OnPasteFromText(
+	const FString& InTag,
+	const FString& InText,
+	const TOptional<FGuid>& InOperationId,
+	TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr,
+	TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr,
+	TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr)
+{
 	TSharedPtr<IPropertyHandle> PositionPropertyHandle = PositionPropertyHandlePtr.Pin();
 	TSharedPtr<IPropertyHandle> PriAxisPropertyHandle = PriAxisPropertyHandlePtr.Pin();
 	TSharedPtr<IPropertyHandle> SecAxisPropertyHandle = SecAxisPropertyHandlePtr.Pin();
@@ -489,12 +513,9 @@ void FConstraintTransformCustomization::OnPaste(TWeakPtr<IPropertyHandle> Positi
 		return;
 	}
 
-	FString PastedText;
-	FPlatformApplicationMisc::ClipboardPaste(PastedText);
-
 	{
 		FScopedTransaction Transaction(LOCTEXT("PastePosition", "Paste Position"));
-		SetValueFromFormattedString(PastedText);
+		SetValueFromFormattedString(InText);
 		FlushValues(PriAxisPropertyHandle, SecAxisPropertyHandle);
 		FlushValues(PositionPropertyHandle);
 	}
@@ -543,6 +564,26 @@ void FConstraintTransformCustomization::OnCopyRotation(TWeakPtr<IPropertyHandle>
 
 void FConstraintTransformCustomization::OnPastePosition(TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr)
 {
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+
+	PastePositionFromText(TEXT(""), PastedText, PositionPropertyHandlePtr);
+}
+
+void FConstraintTransformCustomization::OnPastePositionFromText(
+	const FString& InTag,
+	const FString& InText,
+	const TOptional<FGuid>& InOperationId,
+	TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr)
+{
+	PastePositionFromText(InTag, InText, PositionPropertyHandlePtr);
+}
+
+void FConstraintTransformCustomization::PastePositionFromText(
+	const FString& InTag,
+	const FString& InText,
+	TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr)
+{
 	TSharedPtr<IPropertyHandle> PositionPropertyHandle = PositionPropertyHandlePtr.Pin();
 
 	if (!PositionPropertyHandle.IsValid())
@@ -550,17 +591,36 @@ void FConstraintTransformCustomization::OnPastePosition(TWeakPtr<IPropertyHandle
 		return;
 	}
 
-	FString PastedText;
-	FPlatformApplicationMisc::ClipboardPaste(PastedText);
-
 	{
 		FScopedTransaction Transaction(LOCTEXT("PastePosition", "Paste Position"));
-		SetPositionFromFormattedString(PastedText);
+		SetPositionFromFormattedString(InText);
 		FlushValues(PositionPropertyHandle);
 	}
 }
 
 void FConstraintTransformCustomization::OnPasteRotation(TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr)
+{
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+
+	PasteRotationFromText(TEXT(""), PastedText, PriAxisPropertyHandlePtr, SecAxisPropertyHandlePtr);
+}
+
+void FConstraintTransformCustomization::OnPasteRotationFromText(
+	const FString& InTag,
+	const FString& InText,
+	const TOptional<FGuid>& InOperationId,
+	TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr,
+	TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr)
+{
+	PasteRotationFromText(InTag, InText, PriAxisPropertyHandlePtr, SecAxisPropertyHandlePtr);
+}
+
+void FConstraintTransformCustomization::PasteRotationFromText(
+	const FString& InTag,
+	const FString& InText,
+	TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr,
+	TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr)
 {
 	TSharedPtr<IPropertyHandle> PriAxisPropertyHandle = PriAxisPropertyHandlePtr.Pin();
 	TSharedPtr<IPropertyHandle> SecAxisPropertyHandle = SecAxisPropertyHandlePtr.Pin();
@@ -570,12 +630,9 @@ void FConstraintTransformCustomization::OnPasteRotation(TWeakPtr<IPropertyHandle
 		return;
 	}
 
-	FString PastedText;
-	FPlatformApplicationMisc::ClipboardPaste(PastedText);
-	
 	{
 		FScopedTransaction Transaction(LOCTEXT("PasteRotation", "Paste Rotation"));
-		SetRotationFromFormattedString(PastedText);
+		SetRotationFromFormattedString(InText);
 		FlushValues(PriAxisPropertyHandle, SecAxisPropertyHandle);
 	}
 }
@@ -1024,6 +1081,11 @@ void FPhysicsConstraintComponentDetails::AddConstraintFrameTransform(const ECons
 		HeaderRow.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FPhysicsConstraintComponentDetails::OnCopyConstraintTransform, PositionPropertyHandle, PriAxisPropertyHandle, SecAxisPropertyHandle, TransformProxy)));
 		HeaderRow.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FPhysicsConstraintComponentDetails::OnPasteConstraintTransform, PositionPropertyHandle, PriAxisPropertyHandle, SecAxisPropertyHandle, TransformProxy)));
 
+		if (HeaderRow.IsPasteFromTextBound())
+		{
+			HeaderRow.OnPasteFromTextDelegate.Pin()->AddSP(this, &FPhysicsConstraintComponentDetails::OnPasteConstraintTransformFromText, PositionPropertyHandle, PriAxisPropertyHandle, SecAxisPropertyHandle, TransformProxy);
+		}
+		
 		HeaderRow.OverrideResetToDefault(
 			FResetToDefaultOverride::Create(
 				FIsResetToDefaultVisible::CreateSP(this, &FPhysicsConstraintComponentDetails::IsSnapConstraintTransformComponentVisible, SnapFlag),
@@ -1192,10 +1254,36 @@ void FPhysicsConstraintComponentDetails::OnCopyConstraintTransform(TSharedPtr<IP
 
 void FPhysicsConstraintComponentDetails::OnPasteConstraintTransform(TSharedPtr<IPropertyHandle> PositionPropertyHandle, TSharedPtr<IPropertyHandle> PriAxisPropertyHandle, TSharedPtr<IPropertyHandle> SecAxisPropertyHandle, TSharedPtr<FConstraintTransformCustomization> TransformProxy)
 {
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+	
+	PasteConstraintTransformFromText(TEXT(""), PastedText, PositionPropertyHandle, PriAxisPropertyHandle, SecAxisPropertyHandle, TransformProxy);
+}
+
+void FPhysicsConstraintComponentDetails::OnPasteConstraintTransformFromText(
+	const FString& InTag,
+	const FString& InText,
+	const TOptional<FGuid>& InOperationId,
+	TSharedPtr<IPropertyHandle> PositionPropertyHandle,
+	TSharedPtr<IPropertyHandle> PriAxisPropertyHandle,
+	TSharedPtr<IPropertyHandle> SecAxisPropertyHandle,
+	TSharedPtr<FConstraintTransformCustomization> TransformProxy)
+{
 	if (TransformProxy.IsValid())
 	{
-		TransformProxy->OnPaste(PositionPropertyHandle, PriAxisPropertyHandle, SecAxisPropertyHandle);
+		TransformProxy->OnPasteFromText(InTag, InText, InOperationId, PositionPropertyHandle, PriAxisPropertyHandle, SecAxisPropertyHandle);
 	}
+}
+
+void FPhysicsConstraintComponentDetails::PasteConstraintTransformFromText(
+	const FString& InTag,
+	const FString& InText,
+	TSharedPtr<IPropertyHandle> PositionPropertyHandle,
+	TSharedPtr<IPropertyHandle> PriAxisPropertyHandle,
+	TSharedPtr<IPropertyHandle> SecAxisPropertyHandle,
+	TSharedPtr<FConstraintTransformCustomization> TransformProxy)
+{
+	OnPasteConstraintTransformFromText(InTag, InText, {}, PositionPropertyHandle, PriAxisPropertyHandle, SecAxisPropertyHandle, TransformProxy);
 }
 
 void FPhysicsConstraintComponentDetails::AddConstraintBehaviorProperties(IDetailLayoutBuilder& DetailBuilder, TSharedPtr<IPropertyHandle> ConstraintInstance, TSharedPtr<IPropertyHandle> ProfilePropertiesProperty)

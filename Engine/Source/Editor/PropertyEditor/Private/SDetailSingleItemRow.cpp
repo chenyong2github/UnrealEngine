@@ -2,36 +2,35 @@
 
 #include "SDetailSingleItemRow.h"
 
+#include "Algo/AnyOf.h"
+#include "Algo/Compare.h"
 #include "DetailGroup.h"
 #include "DetailPropertyRow.h"
 #include "DetailWidgetRow.h"
 #include "Editor.h"
-#include "EditorMetadataOverrides.h"
 #include "IDetailDragDropHandler.h"
 #include "IDetailPropertyExtensionHandler.h"
-#include "ObjectPropertyNode.h"
-#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
+#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorClipboard.h"
+#include "PropertyEditorClipboardPrivate.h"
+#include "PropertyEditorCopyPastePrivate.h"
 #include "PropertyEditorModule.h"
 #include "PropertyHandleImpl.h"
+#include "PropertyPermissionList.h"
 #include "SConstrainedBox.h"
 #include "SDetailExpanderArrow.h"
 #include "SDetailRowIndent.h"
-
-#include "HAL/PlatformApplicationMisc.h"
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "Styling/StyleColors.h"
+#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "PropertyPermissionList.h"
 
 namespace DetailWidgetConstants
 {
 	const FMargin LeftRowPadding( 20.0f, 0.0f, 10.0f, 0.0f );
 	const FMargin RightRowPadding( 12.0f, 0.0f, 2.0f, 0.0f );
-	const float PulseAnimationLength = 0.5f;
 }
 
 namespace SDetailSingleItemRow_Helper
@@ -248,10 +247,10 @@ TSharedPtr<FPropertyNode> SDetailSingleItemRow::GetPropertyNode() const
 TSharedPtr<IPropertyHandle> SDetailSingleItemRow::GetPropertyHandle() const
 {
 	TSharedPtr<IPropertyHandle> Handle;
-	TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
+	const TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
 	if (PropertyNode.IsValid())
 	{
-		TSharedPtr<FDetailTreeNode> OwnerTreeNodePtr = OwnerTreeNode.Pin();
+		const TSharedPtr<FDetailTreeNode> OwnerTreeNodePtr = OwnerTreeNode.Pin();
 		if (OwnerTreeNodePtr.IsValid())
 		{
 			IDetailsViewPrivate* DetailsView = OwnerTreeNodePtr->GetDetailsView();
@@ -308,7 +307,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 	IDetailsViewPrivate* DetailsView = InOwnerTreeNode->GetDetailsView();
 	FDetailColumnSizeData& ColumnSizeData = DetailsView->GetColumnSizeData();
 
-	PulseAnimation.AddCurve(0.0f, DetailWidgetConstants::PulseAnimationLength, ECurveEaseFunction::CubicInOut);
+	PulseAnimation.AddCurve(0.0f, UE::PropertyEditor::Private::PulseAnimationLength, ECurveEaseFunction::CubicInOut);
 
 	// Play on construction if animation was started from a behavior the re-constructs this widget
 	if (DetailsView->IsNodeAnimating(GetPropertyNode()))
@@ -316,11 +315,14 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 		PulseAnimation.Play(SharedThis(this));
 	}
 
+	TSharedPtr<FDetailCategoryImpl> Category = InOwnerTreeNode->GetParentCategory();
+
 	const bool bIsValidTreeNode = InOwnerTreeNode->GetParentCategory().IsValid() && InOwnerTreeNode->GetParentCategory()->IsParentLayoutValid();
 	if (bIsValidTreeNode)
 	{
 		if (Customization->IsValidCustomization())
 		{
+			TSharedPtr<FDetailGroup> Group = nullptr;
 			WidgetRow = Customization->GetWidgetRow();
 
 			// Setup copy / paste actions
@@ -340,6 +342,15 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 						PasteAction.ExecuteAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnPasteProperty);
 						PasteAction.CanExecuteAction = FCanExecuteAction::CreateSP(this, &SDetailSingleItemRow::CanPasteProperty);
 					}
+					else if (Group = Customization->DetailGroup;
+						Group.IsValid())
+					{
+						CopyAction.ExecuteAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnCopyGroup);
+						CopyAction.CanExecuteAction = FCanExecuteAction::CreateSP(this, &SDetailSingleItemRow::CanCopyGroup);
+
+						PasteAction.ExecuteAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnPasteGroup);
+						PasteAction.CanExecuteAction = FCanExecuteAction::CreateSP(this, &SDetailSingleItemRow::CanPasteGroup);
+					}
 					else
 					{
 						CopyAction.ExecuteAction = FExecuteAction::CreateLambda([]() {});
@@ -347,6 +358,28 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 						PasteAction.ExecuteAction = FExecuteAction::CreateLambda([]() {});
 						PasteAction.CanExecuteAction = FCanExecuteAction::CreateLambda([]() { return false; });
 					}
+				}
+
+				if (WidgetRow.IsPasteFromTextBound())
+				{
+					OnPasteFromTextDelegate = WidgetRow.OnPasteFromTextDelegate.Pin();					
+				}
+				else if (Category.IsValid())
+				{
+					OnPasteFromTextDelegate = Category->OnPasteFromText();
+				}
+				// If still not set, but this is a group, initialize
+				else if (Group.IsValid())
+				{
+					if (TSharedPtr<FOnPasteFromText> GroupOnPasteFromTextDelegate = Group->OnPasteFromText())
+					{
+						OnPasteFromTextDelegate = GroupOnPasteFromTextDelegate;
+					}
+				}
+
+				if (OnPasteFromTextDelegate.IsValid())
+				{
+					OnPasteFromTextDelegate->AddSP(this, &SDetailSingleItemRow::OnPasteFromText);
 				}
 			}
 
@@ -710,7 +743,7 @@ FReply SDetailSingleItemRow::OnMouseButtonUp(const FGeometry& MyGeometry, const 
 			{
 				// Mark property node as animating so we will animate after any potential re-construction
 				IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
-				DetailsView->MarkNodeAnimating(PropertyNode, DetailWidgetConstants::PulseAnimationLength);
+				DetailsView->MarkNodeAnimating(PropertyNode, UE::PropertyEditor::Private::PulseAnimationLength);
 			}
 			bIsHandled = true;
 		}
@@ -777,6 +810,177 @@ FSlateColor SDetailSingleItemRow::GetInnerBackgroundColor() const
 	return Color;
 }
 
+void SDetailSingleItemRow::OnCopyGroup()
+{
+	if (!OwnerTreeNode.IsValid())
+	{
+		return;
+	}
+
+	if (TArray<TSharedPtr<IPropertyHandle>> GroupProperties = GetPropertyHandles(true);
+		!GroupProperties.IsEmpty())
+	{
+		TArray<FString> PropertiesNotCopied;
+		PropertiesNotCopied.Reserve(GroupProperties.Num());
+		
+		TMap<FString, FString> PropertyValues;
+		PropertyValues.Reserve(GroupProperties.Num());
+		
+		for (TSharedPtr<IPropertyHandle> PropertyHandle : GroupProperties)
+		{
+			if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
+			{
+				FString PropertyPath = UE::PropertyEditor::GetPropertyPath(PropertyHandle);
+				
+				FString PropertyValueStr;
+				if (PropertyHandle->GetValueAsFormattedString(PropertyValueStr, PPF_Copy) == FPropertyAccess::Success)
+				{
+					PropertyValues.Add(PropertyPath, PropertyValueStr);
+				}
+				else
+				{
+					PropertiesNotCopied.Add(PropertyHandle->GetPropertyDisplayName().ToString());
+				}
+			}
+		}
+
+		if (!PropertiesNotCopied.IsEmpty())
+		{
+			UE_LOG(
+				LogPropertyNode,
+				Warning,
+				TEXT("One or more of the properties in group \"%s\" was not copied:\n%s"),
+				*GetRowNameText(),
+				*FString::Join(PropertiesNotCopied, TEXT("\n")));
+		}
+
+		FPropertyEditorClipboard::ClipboardCopy([&PropertyValues](TMap<FName, FString>& OutTaggedClipboard)
+		{
+			for (const TPair<FString, FString>& PropertyValuePair : PropertyValues)
+			{
+				OutTaggedClipboard.Add(FName(PropertyValuePair.Key), PropertyValuePair.Value);
+			}
+		});
+
+		PulseAnimation.Play(SharedThis(this));
+	}
+}
+
+bool SDetailSingleItemRow::CanCopyGroup() const
+{
+	if (!OwnerTreeNode.IsValid())
+	{
+		return false;
+	}
+
+	TArray<TSharedPtr<IPropertyHandle>> GroupPropertyHandles = GetPropertyHandles(true);
+	return !GroupPropertyHandles.IsEmpty();
+}
+
+void SDetailSingleItemRow::OnPasteGroup()
+{
+	if (!OwnerTreeNode.IsValid()
+		|| !CanPasteGroup())
+	{
+		return;
+	}
+
+	if (OnPasteFromTextDelegate.IsValid())
+	{
+		if (const TArray<TSharedPtr<IPropertyHandle>> GroupProperties = GetPropertyHandles(true);
+			!GroupProperties.IsEmpty())
+		{
+			FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "PasteGroupProperties", "Paste Group Properties"));
+
+			TArray<FString> PropertiesNotPasted;
+			PropertiesNotPasted.Reserve(GroupProperties.Num());
+
+			{
+				const FGuid OperationGuid = FGuid::NewGuid();
+			
+				for (const TPair<FName, FString>& PropertyNameValuePair : PreviousClipboardData.PropertyValues)
+				{
+					OnPasteFromTextDelegate->Broadcast(PropertyNameValuePair.Key.ToString(), PropertyNameValuePair.Value, OperationGuid);
+				}
+			}
+		
+			if (!PropertiesNotPasted.IsEmpty())
+			{
+				UE_LOG(
+					LogPropertyNode,
+					Warning,
+					TEXT("One or more of the properties in group \"%s\" was not pasted:\n%s"),
+					*GetRowNameText(),
+					*FString::Join(PropertiesNotPasted, TEXT("\n")));
+			}
+
+			IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
+			DetailsView->ForceRefresh();
+		}
+	}
+}
+
+bool SDetailSingleItemRow::CanPasteGroup()
+{
+	if (!OwnerTreeNode.IsValid())
+	{
+		return false;
+	}
+
+	const TArray<TSharedPtr<IPropertyHandle>> GroupPropertyHandles = GetPropertyHandles(true);
+
+	// @note: Usually we'd check for IsEditConst or IsEditConditionMet, but if used for PP settings,
+	// by default no properties are editable unless explicitly overridden, so this check would in all cases would prevent paste.
+	constexpr bool bHasEditables = true;
+	
+	// No editable properties to write to
+	if constexpr (!bHasEditables)
+	{
+		return false;
+	}
+
+	FString ClipboardContent;
+	FPropertyEditorClipboard::ClipboardPaste(ClipboardContent);
+
+	// If same as last, return previously resolved applicability
+	if (PreviousClipboardData.Content.Get({}).Equals(ClipboardContent))
+	{
+		return PreviousClipboardData.bIsApplicable;
+	}
+
+	// New clipboard contents, non-applicable by default
+	PreviousClipboardData.Reset();
+
+	// Can't be empty, must be json
+	if (!UE::PropertyEditor::Internal::IsJsonString(ClipboardContent))
+	{
+		return false;
+	}
+
+	PreviousClipboardData.Reserve(GroupPropertyHandles.Num());
+
+	if (!UE::PropertyEditor::Internal::TryParseClipboard(ClipboardContent, PreviousClipboardData.PropertyValues))
+	{
+		return false;
+	}
+
+	PreviousClipboardData.PropertyValues.GenerateKeyArray(PreviousClipboardData.PropertyNames);
+
+	TArray<FString> PropertyNames;
+	Algo::Transform(GroupPropertyHandles, PropertyNames, [](const TSharedPtr<IPropertyHandle>& InPropertyHandle)
+	{
+		return UE::PropertyEditor::GetPropertyPath(InPropertyHandle);
+	});
+
+	PreviousClipboardData.PropertyNames.Sort(FNameLexicalLess());
+	PropertyNames.Sort();
+
+	// @note: properties must all match to be applicable
+	PreviousClipboardData.Content = ClipboardContent;
+
+	return PreviousClipboardData.bIsApplicable = Algo::Compare(PreviousClipboardData.PropertyNames, PropertyNames);
+}
+
 bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 {
 	FUIAction CopyDisplayNameAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnCopyPropertyDisplayName);
@@ -792,19 +996,47 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 
 	if (CopyAction.IsBound() && PasteAction.IsBound())
 	{
-		bool bLongDisplayName = false;
+		const bool bLongDisplayName = false;
+		const bool bIsGroup = Customization->IsValidCustomization() && Customization->DetailGroup.IsValid();
 
 		FMenuEntryParams CopyContentParams;
-		CopyContentParams.LabelOverride = NSLOCTEXT("PropertyView", "CopyProperty", "Copy");
-		CopyContentParams.ToolTipOverride = NSLOCTEXT("PropertyView", "CopyProperty_ToolTip", "Copy this property value");
+		if (bIsGroup)
+		{
+			CopyContentParams.LabelOverride = NSLOCTEXT("PropertyView", "CopyGroupProperties", "Copy All Properties in Group");
+			CopyContentParams.ToolTipOverride = TAttribute<FText>::CreateLambda([this]()
+			{
+				return CanCopyGroup()
+					? NSLOCTEXT("PropertyView", "CopyGroupProperties_ToolTip", "Copy all properties in this group")
+					: NSLOCTEXT("PropertyView", "CantCopyGroupProperties_ToolTip", "None of the properties in this group can be copied");
+			});
+		}
+		else
+		{
+			CopyContentParams.LabelOverride = NSLOCTEXT("PropertyView", "CopyProperty", "Copy");
+			CopyContentParams.ToolTipOverride = NSLOCTEXT("PropertyView", "CopyProperty_ToolTip", "Copy this property value");
+		}
 		CopyContentParams.InputBindingOverride = FInputChord(EModifierKey::Shift, EKeys::RightMouseButton).GetInputText(bLongDisplayName);
 		CopyContentParams.IconOverride = FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy");
 		CopyContentParams.DirectActions = CopyAction;
 		MenuBuilder.AddMenuEntry(CopyContentParams);
 
 		FMenuEntryParams PasteContentParams;
-		PasteContentParams.LabelOverride = NSLOCTEXT("PropertyView", "PasteProperty", "Paste");
-		PasteContentParams.ToolTipOverride = NSLOCTEXT("PropertyView", "PasteProperty_ToolTip", "Paste the copied value here");
+		if (bIsGroup)
+		{
+			PasteContentParams.LabelOverride = NSLOCTEXT("PropertyView", "PasteGroupProperties", "Paste All Properties in Group");
+			PasteContentParams.ToolTipOverride = TAttribute<FText>::CreateLambda([this]()
+			{
+				return CanPasteGroup()
+					? NSLOCTEXT("PropertyView", "PasteGroupProperties_ToolTip", "Paste the copied property values here")
+					// @note: this is specific to the constraint that the destination group has to match the source group (copied from) exactly 
+					: NSLOCTEXT("PropertyView", "CantPasteGroupProperties_ToolTip", "The properties in this group don't match the contents of the clipboard");
+			});
+		}
+		else
+		{
+			PasteContentParams.LabelOverride = NSLOCTEXT("PropertyView", "PasteProperty", "Paste");
+			PasteContentParams.ToolTipOverride = NSLOCTEXT("PropertyView", "PasteProperty_ToolTip", "Paste the copied value here");	
+		}
 		PasteContentParams.InputBindingOverride = FInputChord(EModifierKey::Shift, EKeys::LeftMouseButton).GetInputText(bLongDisplayName);
 		PasteContentParams.IconOverride = FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Paste");
 		PasteContentParams.DirectActions = PasteAction;
@@ -915,7 +1147,7 @@ void SDetailSingleItemRow::OnCopyProperty()
 			FString Value;
 			if (Handle->GetValueAsFormattedString(Value, PPF_Copy) == FPropertyAccess::Success)
 			{
-				FPlatformApplicationMisc::ClipboardCopy(*Value);
+				FPropertyEditorClipboard::ClipboardCopy(*Value);
 				PulseAnimation.Play(SharedThis(this));
 			}
 		}
@@ -929,7 +1161,7 @@ void SDetailSingleItemRow::OnCopyPropertyDisplayName()
 		TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
 		if (PropertyNode.IsValid())
 		{
-			FPlatformApplicationMisc::ClipboardCopy(*PropertyNode->GetDisplayName().ToString());
+			FPropertyEditorClipboard::ClipboardCopy(*PropertyNode->GetDisplayName().ToString());
 		}
 	}
 }
@@ -962,7 +1194,7 @@ void SDetailSingleItemRow::OnCopyPropertyInternalName()
 			{
 				if (const UStruct* OwnerStruct = Property->GetOwnerStruct())
 				{
-					FPlatformApplicationMisc::ClipboardCopy(*OwnerStruct->GetAuthoredNameForField(Property));
+					FPropertyEditorClipboard::ClipboardCopy(*OwnerStruct->GetAuthoredNameForField(Property));
 				}
 			}
 		}
@@ -991,38 +1223,24 @@ bool SDetailSingleItemRow::CanCopyPropertyInternalName()
 	return false;
 }
 
-void SDetailSingleItemRow::OnPasteProperty()
-{
-	FString ClipboardContent;
-	FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
-
-	if (!ClipboardContent.IsEmpty() && OwnerTreeNode.IsValid())
-	{
-		TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
-		if (!PropertyNode.IsValid() && Customization->DetailGroup.IsValid())
-		{
-			PropertyNode = Customization->DetailGroup->GetHeaderPropertyNode();
-		}
-		if (PropertyNode.IsValid())
-		{
-			FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "PasteProperty", "Paste Property"));
-
-			IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
-			TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), DetailsView->GetNotifyHook(), DetailsView->GetPropertyUtilities());
-
-			Handle->SetValueFromFormattedString(ClipboardContent, EPropertyValueSetFlags::InstanceObjects);
-
-			// Need to refresh the details panel in case a property was pasted over another.
-			OwnerTreeNode.Pin()->GetDetailsView()->ForceRefresh();
-
-			// Mark property node as animating so we will animate after re-construction
-			DetailsView->MarkNodeAnimating(PropertyNode, DetailWidgetConstants::PulseAnimationLength);
-		}
-	}
-}
-
 bool SDetailSingleItemRow::CanPasteProperty() const
 {
+	FString ClipboardContent;
+	if (OwnerTreeNode.IsValid())
+	{
+		FPropertyEditorClipboard::ClipboardPaste(ClipboardContent);
+	}
+
+	return CanPasteFromText(TEXT(""), ClipboardContent);
+}
+
+bool SDetailSingleItemRow::CanPasteFromText(const FString& InTag, const FString& InText) const
+{
+	if (InText.IsEmpty())
+	{
+		return false;
+	}
+	
 	// Prevent paste from working if the property's edit condition is not met.
 	TSharedPtr<FDetailPropertyRow> PropertyRow = Customization->PropertyRow;
 	if (!PropertyRow.IsValid() && Customization->DetailGroup.IsValid())
@@ -1032,20 +1250,98 @@ bool SDetailSingleItemRow::CanPasteProperty() const
 
 	if (PropertyRow.IsValid())
 	{
-		FPropertyEditor* PropertyEditor = PropertyRow->GetPropertyEditor().Get();
-		if (PropertyEditor)
+		if (const FPropertyEditor* PropertyEditor = PropertyRow->GetPropertyEditor().Get())
 		{
 			return !PropertyEditor->IsEditConst();
 		}
 	}
 
+	return false;
+}
+
+void SDetailSingleItemRow::OnPasteProperty()
+{
 	FString ClipboardContent;
-	if (OwnerTreeNode.IsValid())
+
+	const TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
+	const FString PropertyPath = UE::PropertyEditor::Private::GetPropertyPath(
+		[&]() { return GetPropertyHandle(); },
+		[&]() { return PropertyNode; });
+
+	if (PropertyPath.IsEmpty())
 	{
-		FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
+		FPropertyEditorClipboard::ClipboardPaste(ClipboardContent);
+	}
+	else
+	{
+		FPropertyEditorClipboard::ClipboardPaste(ClipboardContent, FName(PropertyPath));
 	}
 
-	return !ClipboardContent.IsEmpty();
+	if (PasteFromText(TEXT(""), ClipboardContent))
+	{
+		// Mark property node as animating so we will animate after re-construction
+		IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
+		DetailsView->MarkNodeAnimating(PropertyNode, UE::PropertyEditor::Private::PulseAnimationLength);
+
+		// Need to refresh the details panel in case a property was pasted over another.
+		OwnerTreeNode.Pin()->GetDetailsView()->ForceRefresh();
+	}
+}
+
+void SDetailSingleItemRow::OnPasteFromText(const FString& InTag, const FString& InText, const TOptional<FGuid>& InOperationId)
+{
+	if (PasteFromText(InTag, InText))
+	{
+		TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
+		if (PropertyNode.IsValid())
+		{
+			// Mark property node as animating so we will animate after re-construction
+			IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
+			DetailsView->MarkNodeAnimating(PropertyNode, UE::PropertyEditor::Private::PulseAnimationLength, InOperationId);
+		}
+	}
+}
+
+bool SDetailSingleItemRow::PasteFromText(const FString& InTag, const FString& InText)
+{
+	if (InText.IsEmpty() || !OwnerTreeNode.IsValid())
+	{
+		return false;
+	}
+	
+	TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
+	if (!PropertyNode.IsValid() && Customization->DetailGroup.IsValid())
+	{
+		PropertyNode = Customization->DetailGroup->GetHeaderPropertyNode();
+	}
+
+	// If still invalid, there's nothing to paste to
+	if (!PropertyNode.IsValid())
+	{
+		return false;
+	}
+	
+	const TSharedPtr<IPropertyHandle> PropertyHandle = GetPropertyHandle();
+	if (!InTag.IsEmpty())
+	{
+		const FString PropertyPath = UE::PropertyEditor::Private::GetPropertyPath(
+			[&]() { return GetPropertyHandle(); },
+			[&]() { return PropertyNode; });
+		
+		// ensure that if tag is specified, that it matches the subscriber
+		if (!InTag.Equals(PropertyPath))
+		{
+			return false;
+		}
+	}
+
+	FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "PasteProperty", "Paste Property"));
+	if (PropertyHandle->SetValueFromFormattedString(InText, EPropertyValueSetFlags::InstanceObjects) != FPropertyAccess::Success)
+	{
+		return false;
+	}
+
+	return true;
 }
 
 // Helper function to determine which parent Struct a property comes from. If PropertyName is not a real property,
@@ -1078,7 +1374,7 @@ void SDetailSingleItemRow::CopyRowNameText() const
 	const FString RowNameText = GetRowNameText();
 	if (!RowNameText.IsEmpty())
 	{
-		FPlatformApplicationMisc::ClipboardCopy(*RowNameText);
+		FPropertyEditorClipboard::ClipboardCopy(*RowNameText);
 	}
 }
 
@@ -1282,9 +1578,9 @@ void SDetailSingleItemRow::CreateGlobalExtensionWidgets(TArray<FPropertyRowExten
 	{
 		Args.PropertyHandle = PropertyEditorHelpers::GetPropertyHandle(Customization->GetPropertyNode().ToSharedRef(), nullptr, nullptr);
 	}
-	else if (WidgetRow.GetPropertyHandles().Num() && WidgetRow.GetPropertyHandles()[0] && WidgetRow.GetPropertyHandles()[0]->IsValidHandle())
+	else if (GetPropertyHandles(true).Num() && GetPropertyHandles(true)[0] && GetPropertyHandles(true)[0]->IsValidHandle())
 	{
-		Args.PropertyHandle = WidgetRow.GetPropertyHandles()[0];
+		Args.PropertyHandle = GetPropertyHandles(true)[0];
 	}
 
 	PropertyEditorModule.GetGlobalRowExtensionDelegate().Broadcast(Args, OutExtensions);

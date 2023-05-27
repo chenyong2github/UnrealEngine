@@ -8,6 +8,11 @@
 class FName;
 struct FSlateBrush;
 
+namespace UE::PropertyEditor::Private
+{
+	constexpr float PulseAnimationLength = 0.5f;
+}
+
 class PropertyEditorConstants
 {
 public:

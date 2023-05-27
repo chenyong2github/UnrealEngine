@@ -12,6 +12,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "DetailCategoryBuilder.h"
+#include "PropertyEditorCopyPaste.h"
 
 class FDetailWidgetRow;
 class FResetToDefaultOverride;
@@ -119,6 +120,7 @@ public:
 		, RowTagName()
 	{
 	}
+	
 	FDetailWidgetRow& operator=(const FDetailWidgetRow& Other)
 	{
 		NameWidget = FDetailWidgetDecl(*this, Other.NameWidget);
@@ -288,6 +290,12 @@ public:
 		return CopyMenuAction.ExecuteAction.IsBound() && PasteMenuAction.ExecuteAction.IsBound();
 	}
 
+	/** @return true if a custom paste text is bound on this row */
+	bool IsPasteFromTextBound() const
+	{
+		return OnPasteFromTextDelegate.IsValid() && OnPasteFromTextDelegate.Pin()->IsBoundToObject(this);
+	}
+
 	/**
 	* Sets a tag which can be used to identify this row 
 	*/
@@ -367,10 +375,12 @@ public:
 	TAttribute<bool> IsValueEnabledAttr;
 	/** String to filter with */
 	FText FilterTextString;
-	/** Action for coping data on this row */
+	/** Action for copying data on this row */
 	FUIAction CopyMenuAction;
 	/** Action for pasting data on this row */
-	FUIAction PasteMenuAction;
+	FUIAction PasteMenuAction;	
+	/** Delegate for pasting (optionally tagged) text on this row */
+	TWeakPtr<FOnPasteFromText> OnPasteFromTextDelegate;
 
 	struct FCustomMenuData
 	{
@@ -403,4 +413,3 @@ public:
 	/** True to force auto-expansion */
 	TOptional<bool> ForceAutoExpansion;
 };
-

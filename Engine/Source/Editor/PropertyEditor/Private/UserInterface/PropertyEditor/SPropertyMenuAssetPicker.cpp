@@ -1,20 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyMenuAssetPicker.h"
+
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetToolsModule.h"
+#include "ContentBrowserModule.h"
+#include "Editor.h"
 #include "Factories/Factory.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Editor.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/Layout/SBox.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "IAssetTools.h"
-#include "Layout/WidgetPath.h"
-#include "AssetToolsModule.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-#include "UserInterface/PropertyEditor/PropertyEditorAssetConstants.h"
-#include "Styling/SlateIconFinder.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "IAssetTools.h"
+#include "IContentBrowserSingleton.h"
+#include "Layout/WidgetPath.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorClipboard.h"
+#include "PropertyEditorCopyPastePrivate.h"
+#include "Styling/SlateIconFinder.h"
+#include "UserInterface/PropertyEditor/PropertyEditorAssetConstants.h"
+#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -227,7 +230,7 @@ void SPropertyMenuAssetPicker::OnCopy()
 {
 	if( CurrentObject.IsValid() )
 	{
-		FPlatformApplicationMisc::ClipboardCopy(*CurrentObject.GetExportTextName());
+		FPropertyEditorClipboard::ClipboardCopy(*CurrentObject.GetExportTextName());
 	}
 	OnClose.ExecuteIfBound();
 }
@@ -235,15 +238,32 @@ void SPropertyMenuAssetPicker::OnCopy()
 void SPropertyMenuAssetPicker::OnPaste()
 {
 	FString DestPath;
-	FPlatformApplicationMisc::ClipboardPaste(DestPath);
+	FPropertyEditorClipboard::ClipboardPaste(DestPath);
 
-	if(DestPath == TEXT("None"))
+	PasteFromText(TEXT(""), DestPath);
+}
+
+void SPropertyMenuAssetPicker::OnPasteFromText(
+	const FString& InTag,
+	const FString& InText,
+	const TOptional<FGuid>& InOperationId)
+{
+	// Naive check done elsewhere, guard with proper check here 
+	if (CanPasteFromText(InTag, InText))
 	{
-		SetValue(NULL);
+		PasteFromText(InTag, InText);
+	}
+}
+
+void SPropertyMenuAssetPicker::PasteFromText(const FString& InTag, const FString& InText)
+{
+	if(InText == TEXT("None"))
+	{
+		SetValue(nullptr);
 	}
 	else
 	{
-		UObject* Object = LoadObject<UObject>(NULL, *DestPath);
+		UObject* Object = LoadObject<UObject>(nullptr, *InText);
 		bool PassesAllowedClassesFilter = true;
 		if (Object && AllowedClasses.Num())
 		{
@@ -277,25 +297,39 @@ void SPropertyMenuAssetPicker::OnPaste()
 bool SPropertyMenuAssetPicker::CanPaste()
 {
 	FString ClipboardText;
-	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	FPropertyEditorClipboard::ClipboardPaste(ClipboardText);
+	
+	return CanPasteFromText(TEXT(""), ClipboardText);
+}
+
+bool SPropertyMenuAssetPicker::CanPasteFromText(const FString& InTag, const FString& InText) const
+{
+	if (!bAllowCopyPaste)
+	{
+		return false;
+	}
+
+	if (!UE::PropertyEditor::TagMatchesProperty(InTag, PropertyHandle))
+	{
+		return false;
+	}
 
 	FString Class;
-	FString PossibleObjectPath = ClipboardText;
-	if( ClipboardText.Split( TEXT("'"), &Class, &PossibleObjectPath, ESearchCase::CaseSensitive) )
+	FString PossibleObjectPath = InText;
+	if( InText.Split( TEXT("'"), &Class, &PossibleObjectPath, ESearchCase::CaseSensitive) )
 	{
 		// Remove the last item
 		PossibleObjectPath.LeftChopInline( 1, false );
 	}
 
 	bool bCanPaste = false;
-
 	if( PossibleObjectPath == TEXT("None") )
 	{
 		bCanPaste = true;
 	}
 	else
 	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		bCanPaste = PossibleObjectPath.Len() < NAME_SIZE && AssetRegistryModule.Get().GetAssetByObjectPath( FSoftObjectPath(PossibleObjectPath) ).IsValid();
 	}
 
@@ -304,7 +338,7 @@ bool SPropertyMenuAssetPicker::CanPaste()
 
 void SPropertyMenuAssetPicker::OnClear()
 {
-	SetValue(NULL);
+	SetValue(nullptr);
 	OnClose.ExecuteIfBound();
 }
 

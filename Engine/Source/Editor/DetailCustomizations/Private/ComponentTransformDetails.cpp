@@ -22,9 +22,9 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h"
-#include "IPropertyUtilities.h"
 #include "Input/Events.h"
 #include "Internationalization/Internationalization.h"
+#include "IPropertyUtilities.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Layout/Margin.h"
 #include "Math/Quat.h"
@@ -34,6 +34,7 @@
 #include "Misc/Attribute.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/NotifyHook.h"
+#include "PropertyEditorCopyPaste.h"
 #include "PropertyHandle.h"
 #include "ScopedTransaction.h"
 #include "Settings/EditorProjectSettings.h"
@@ -45,15 +46,15 @@
 #include "Templates/UnrealTemplate.h"
 #include "Textures/SlateIcon.h"
 #include "Types/SlateStructs.h"
+#include "UnrealEdGlobals.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/Package.h"
-#include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
-#include "UnrealEdGlobals.h"
+#include "UObject/UObjectGlobals.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/NumericUnitTypeInterface.inl"
@@ -72,6 +73,16 @@ class UWorld;
 struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "FComponentTransformDetails"
+
+namespace UE::DetailsCustomizations::Internal
+{
+	/** Lookup to get the property name for the given TransformField. */
+	static TMap<ETransformField::Type, FString> TransformFieldToPropertyNameString = {
+		{ ETransformField::Location, USceneComponent::GetRelativeLocationPropertyName().ToString() },
+		{ ETransformField::Rotation, USceneComponent::GetRelativeRotationPropertyName().ToString() },
+		{ ETransformField::Scale, USceneComponent::GetRelativeScale3DPropertyName().ToString() }		
+	};	
+}
 
 class FScopedSwitchWorldForObject
 {
@@ -312,12 +323,46 @@ void FComponentTransformDetails::OnPaste( ETransformField::Type TransformField )
 	FString PastedText;
 	FPlatformApplicationMisc::ClipboardPaste(PastedText);
 
-	switch (TransformField)
+	PasteFromText(TEXT(""), PastedText, TransformField);
+}
+
+void FComponentTransformDetails::OnPasteFromText(
+	const FString& InTag,
+	const FString& InText,
+	const TOptional<FGuid>& InOperationId,
+	ETransformField::Type InTransformField)
+{
+	PasteFromText(InTag, InText, InTransformField);
+}
+
+void FComponentTransformDetails::PasteFromText(
+	const FString& InTag,
+	const FString& InText,
+	ETransformField::Type InTransformField)
+{
+	if (InText.IsEmpty())
 	{
-		case ETransformField::Location:
+		return;
+	}
+
+	FString Text = InText;
+	if (!InTag.IsEmpty())
+	{
+		const FString PropertyPath = UE::PropertyEditor::GetPropertyPath(GetPropertyHandle());
+
+		// ensure that if tag is specified, that it matches the subscriber
+		if (!InTag.Equals(UE::DetailsCustomizations::Internal::TransformFieldToPropertyNameString[InTransformField]))
+		{
+			return;
+		}
+	}
+
+	switch (InTransformField)
+	{
+	case ETransformField::Location:
 		{
 			FVector Location;
-			if (Location.InitFromString(PastedText))
+			if (Location.InitFromString(Text))
 			{
 				FScopedTransaction Transaction(LOCTEXT("PasteLocation", "Paste Location"));
 				OnSetTransform(ETransformField::Location, EAxisList::All, Location, false, true);
@@ -327,10 +372,10 @@ void FComponentTransformDetails::OnPaste( ETransformField::Type TransformField )
 	case ETransformField::Rotation:
 		{
 			FRotator Rotation;
-			PastedText.ReplaceInline(TEXT("Pitch="), TEXT("P="));
-			PastedText.ReplaceInline(TEXT("Yaw="), TEXT("Y="));
-			PastedText.ReplaceInline(TEXT("Roll="), TEXT("R="));
-			if (Rotation.InitFromString(PastedText))
+			Text.ReplaceInline(TEXT("Pitch="), TEXT("P="));
+			Text.ReplaceInline(TEXT("Yaw="), TEXT("Y="));
+			Text.ReplaceInline(TEXT("Roll="), TEXT("R="));
+			if (Rotation.InitFromString(Text))
 			{
 				FScopedTransaction Transaction(LOCTEXT("PasteRotation", "Paste Rotation"));
 				OnSetTransform(ETransformField::Rotation, EAxisList::All, Rotation.Euler(), false, true);
@@ -340,7 +385,7 @@ void FComponentTransformDetails::OnPaste( ETransformField::Type TransformField )
 	case ETransformField::Scale:
 		{
 			FVector Scale;
-			if (Scale.InitFromString(PastedText))
+			if (Scale.InitFromString(Text))
 			{
 				FScopedTransaction Transaction(LOCTEXT("PasteScale", "Paste Scale"));
 				OnSetTransform(ETransformField::Scale, EAxisList::All, Scale, false, true);
@@ -372,14 +417,16 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& ChildrenBuilder )
 {
 	UClass* SceneComponentClass = USceneComponent::StaticClass();
-		
+
 	FSlateFontInfo FontInfo = IDetailLayoutBuilder::GetDetailFont();
 
 	const bool bHideLocationField = ( HiddenFieldMask & ( 1 << ETransformField::Location ) ) != 0;
 	const bool bHideRotationField = ( HiddenFieldMask & ( 1 << ETransformField::Rotation ) ) != 0;
 	const bool bHideScaleField = ( HiddenFieldMask & ( 1 << ETransformField::Scale ) ) != 0;
 
-	IDetailLayoutBuilder& LayoutBuilder = ChildrenBuilder.GetParentCategory().GetParentLayout();
+	IDetailCategoryBuilder& ParentCategory = ChildrenBuilder.GetParentCategory();
+	
+	IDetailLayoutBuilder& LayoutBuilder = ParentCategory.GetParentLayout();
 	TSharedPtr<IPropertyHandle> LocationPropertyHandle = LayoutBuilder.GetProperty(USceneComponent::GetRelativeLocationPropertyName(), USceneComponent::StaticClass());
 	TSharedPtr<IPropertyHandle> RotationPropertyHandle = LayoutBuilder.GetProperty(USceneComponent::GetRelativeRotationPropertyName(), USceneComponent::StaticClass());
 	TSharedPtr<IPropertyHandle> ScalePropertyHandle = LayoutBuilder.GetProperty(USceneComponent::GetRelativeScale3DPropertyName(), USceneComponent::StaticClass());
@@ -402,6 +449,8 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		{
 			TypeInterface = SharedThis(this);
 		}
+
+		ParentCategory.OnPasteFromText()->AddSP(this, &FComponentTransformDetails::OnPasteFromText, ETransformField::Location);
 
 		ChildrenBuilder.AddCustomRow( LOCTEXT("LocationFilter", "Location") )
 		.RowTag("Location")
@@ -449,6 +498,8 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 			TypeInterface = MakeShareable( new TNumericUnitTypeInterface<FRotator::FReal>(EUnit::Degrees) );
 		}
 
+		ParentCategory.OnPasteFromText()->AddSP(this, &FComponentTransformDetails::OnPasteFromText, ETransformField::Rotation);
+
 		ChildrenBuilder.AddCustomRow( LOCTEXT("RotationFilter", "Rotation") )
 		.RowTag("Rotation")
 		.CopyAction( CreateCopyAction(ETransformField::Rotation) )
@@ -494,6 +545,8 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 	// Scale
 	if(!bHideScaleField)
 	{
+		ParentCategory.OnPasteFromText()->AddSP(this, &FComponentTransformDetails::OnPasteFromText, ETransformField::Scale);
+		
 		ChildrenBuilder.AddCustomRow( LOCTEXT("ScaleFilter", "Scale") )
 		.RowTag("Scale")
 		.CopyAction( CreateCopyAction(ETransformField::Scale) )

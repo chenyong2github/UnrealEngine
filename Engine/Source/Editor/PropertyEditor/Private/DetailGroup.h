@@ -20,7 +20,7 @@ class FDetailGroup : public IDetailGroup, public TSharedFromThis<FDetailGroup>
 public:
 	FDetailGroup( const FName InGroupName, TSharedRef<FDetailCategoryImpl> InParentCategory, const FText& InLocalizedDisplayName, const bool bInStartExpanded = false );
 
-	/** IDetailGroup interface */     
+	/** IDetailGroup interface */
 	virtual FDetailWidgetRow& HeaderRow() override;
 	virtual IDetailPropertyRow& HeaderProperty( TSharedRef<IPropertyHandle> PropertyHandle ) override;
 	virtual FDetailWidgetRow& AddWidgetRow() override;
@@ -96,6 +96,11 @@ public:
 	*/
 	virtual FDetailGroupReset& GetOnDetailGroupReset() override { return OnDetailGroupReset; }
 
+	/**
+	 * Return an optional PasteFromText delegate
+	 */
+	virtual TSharedPtr<FOnPasteFromText> OnPasteFromText() const override { return PasteFromTextDelegate; }
+
 private:
 	/**
 	 * Called when the name of the group is clicked to expand the group
@@ -136,4 +141,6 @@ private:
 	EDetailGroupDisplayMode DisplayMode;
 	/**	Delegate called when user press the Group Reset ui */
 	FDetailGroupReset OnDetailGroupReset;
+	/** Delegate handling pasting an optionally tagged text snippet */
+	TSharedPtr<FOnPasteFromText> PasteFromTextDelegate;
 };

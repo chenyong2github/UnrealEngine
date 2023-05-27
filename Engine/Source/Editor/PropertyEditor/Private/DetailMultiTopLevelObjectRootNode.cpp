@@ -165,8 +165,7 @@ bool FDetailMultiTopLevelObjectRootNode::GenerateStandaloneWidget(FDetailWidgetR
 	return true;
 }
 
-
-void FDetailMultiTopLevelObjectRootNode::GetChildren(FDetailNodeList& OutChildren )
+void FDetailMultiTopLevelObjectRootNode::GetChildren(FDetailNodeList& OutChildren, const bool& bInIgnoreVisibility)
 {
 	for( int32 ChildIndex = 0; ChildIndex < ChildNodes.Num(); ++ChildIndex )
 	{
@@ -175,7 +174,7 @@ void FDetailMultiTopLevelObjectRootNode::GetChildren(FDetailNodeList& OutChildre
 		{
 			if( Child->ShouldShowOnlyChildren() )
 			{
-				Child->GetChildren( OutChildren );
+				Child->GetChildren( OutChildren, bInIgnoreVisibility );
 			}
 			else
 			{

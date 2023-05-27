@@ -98,7 +98,6 @@ bool FDetailLayoutCustomization::IsHidden() const
 		|| (HasPropertyNode() && PropertyRow->GetPropertyVisibility() != EVisibility::Visible);
 }
 
-
 TSharedPtr<FPropertyNode> FDetailLayoutCustomization::GetPropertyNode() const
 {
 	return PropertyRow.IsValid() ? PropertyRow->GetPropertyNode() : nullptr;
@@ -166,6 +165,7 @@ TOptional<FResetToDefaultOverride> FDetailLayoutCustomization::GetCustomResetToD
 FDetailCategoryImpl::FDetailCategoryImpl(FName InCategoryName, TSharedRef<FDetailLayoutBuilderImpl> InDetailLayout)
 	: HeaderContentWidget(nullptr)
 	, DetailLayoutBuilder(InDetailLayout)
+	, PasteFromTextDelegate(MakeShared<FOnPasteFromText>())
 	, CategoryName(InCategoryName)
 	, SortOrder(0)
 	, bRestoreExpansionState(!ContainsOnlyAdvanced())
@@ -783,11 +783,11 @@ TSharedRef<ITableRow> FDetailCategoryImpl::GenerateWidgetForTableView(const TSha
 	TSharedPtr<FDetailLayoutBuilderImpl> ParentLayout = GetParentLayoutImpl();
 
 	return SNew(SDetailCategoryTableRow, AsShared(), OwnerTable)
+		.PasteFromText(OnPasteFromText())
 		.InnerCategory(ParentLayout.IsValid() ? ParentLayout->IsLayoutForExternalRoot() : false)
 		.DisplayName(GetDisplayName())
 		.HeaderContent(HeaderContent);
 }
-
 
 bool FDetailCategoryImpl::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const
 {
@@ -1040,9 +1040,9 @@ void FDetailCategoryImpl::GenerateChildrenForLayouts()
 	}
 }
 
-void FDetailCategoryImpl::GetChildren(FDetailNodeList& OutChildren)
+void FDetailCategoryImpl::GetChildren(FDetailNodeList& OutChildren, const bool& bInIgnoreVisibility)
 {
-	GetGeneratedChildren(OutChildren, false, false);
+	GetGeneratedChildren(OutChildren, bInIgnoreVisibility, false);
 }
 
 void FDetailCategoryImpl::GetGeneratedChildren(FDetailNodeList& OutChildren, bool bIgnoreVisibility, bool bIgnoreAdvanced)
@@ -1053,7 +1053,7 @@ void FDetailCategoryImpl::GetGeneratedChildren(FDetailNodeList& OutChildren, boo
 		{
 			if (Child->ShouldShowOnlyChildren())
 			{
-				Child->GetChildren(OutChildren);
+				Child->GetChildren(OutChildren, bIgnoreVisibility);
 			}
 			else
 			{

@@ -55,7 +55,7 @@ private:
 	virtual ENodeVisibility GetVisibility() const override;
 	virtual TSharedRef<ITableRow> GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem) override;
 	virtual bool GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const override;
-	virtual void GetChildren(FDetailNodeList& OutChildren)  override;
+	virtual void GetChildren(FDetailNodeList& OutChildren, const bool& bInIgnoreVisibility) override;
 	virtual void FilterNode(const FDetailFilter& InFilter) override;
 	virtual void Tick(float DeltaTime) override {}
 	virtual bool ShouldShowOnlyChildren() const override;

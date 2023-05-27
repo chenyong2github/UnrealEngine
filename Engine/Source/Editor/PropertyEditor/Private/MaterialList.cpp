@@ -560,6 +560,12 @@ void FMaterialList::GenerateHeaderRowContent( FDetailWidgetRow& NodeRow )
 	NodeRow.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FMaterialList::OnCopyMaterialList), FCanExecuteAction::CreateSP(this, &FMaterialList::OnCanCopyMaterialList)));
 	NodeRow.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FMaterialList::OnPasteMaterialList)));
 
+	if (const TSharedPtr<FOnPasteFromText> OnPasteFromTextDelegate = NodeRow.OnPasteFromTextDelegate.Pin();
+		OnPasteFromTextDelegate.IsValid())
+	{
+		OnPasteFromTextDelegate->AddSP(this, &FMaterialList::OnPasteMaterialListFromText);
+	}
+
 	if (bAllowCollpase)
 	{
 		NodeRow.NameContent()
@@ -689,6 +695,21 @@ void FMaterialList::OnPasteMaterialList()
 	if (MaterialListDelegates.OnPasteMaterialList.IsBound())
 	{
 		MaterialListDelegates.OnPasteMaterialList.Execute();
+	}
+}
+
+void FMaterialList::OnPasteMaterialListFromText(
+	const FString& InTag,
+	const FString& InText,
+	const TOptional<FGuid>& InOperationId)
+{
+	if (const TSharedPtr<FOnPasteFromText> OnPasteFromTextDelegate = MaterialListDelegates.OnPasteFromText.Pin();
+		OnPasteFromTextDelegate.IsValid())
+	{
+		if (OnPasteFromTextDelegate->IsBound())
+		{
+			OnPasteFromTextDelegate->Broadcast(InTag, InText, InOperationId);
+		}
 	}
 }
 

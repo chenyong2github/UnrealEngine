@@ -12,6 +12,7 @@
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Framework/Commands/Commands.h"
 #include "Input/Reply.h"
+#include "PropertyEditorClipboardPrivate.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Views/STableViewBase.h"
@@ -50,7 +51,6 @@ class SDetailSingleItemRow : public SDetailTableRowBase
 public:
 	SLATE_BEGIN_ARGS( SDetailSingleItemRow )
 		: _ColumnSizeData() {}
-
 		SLATE_ARGUMENT( FDetailColumnSizeData, ColumnSizeData )
 		SLATE_ARGUMENT( bool, AllowFavoriteSystem)
 	SLATE_END_ARGS()
@@ -67,8 +67,10 @@ public:
 	TSharedPtr<FDragDropOperation> CreateDragDropOperation();
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
+
 protected:
 	virtual bool OnContextMenuOpening( FMenuBuilder& MenuBuilder ) override;
+	
 private:
 	void OnCopyProperty();
 	void OnCopyPropertyDisplayName();
@@ -77,6 +79,27 @@ private:
 	bool CanCopyPropertyInternalName();
 	void OnPasteProperty();
 	bool CanPasteProperty() const;
+
+	void OnCopyGroup();
+	bool CanCopyGroup() const;
+	void OnPasteGroup();
+	bool CanPasteGroup();
+
+	/**
+	 * @return True if the (optionally tagged) input contents can be pasted
+	 */
+	bool CanPasteFromText(const FString& InTag, const FString& InText) const;
+
+	/**
+	 * Delegate handling pasting an optionally tagged text snippet
+	 */
+	void OnPasteFromText(const FString& InTag, const FString& InText, const TOptional<FGuid>& InOperationId);
+
+	/**
+	 * Handle pasting an optionally tagged text snippet
+	 */
+	bool PasteFromText(const FString& InTag, const FString& InText);
+	
 	FSlateColor GetOuterBackgroundColor() const;
 	FSlateColor GetInnerBackgroundColor() const;
 
@@ -128,6 +151,12 @@ private:
 	TWeakPtr<FDragDropOperation> DragOperation; // last drag initiated by this widget
 	FUIAction CopyAction;
 	FUIAction PasteAction;
+
+	/** Previously parsed clipboard data. */
+	UE::PropertyEditor::Internal::FClipboardData PreviousClipboardData;
+
+	/** Delegate handling pasting an optionally tagged text snippet */
+	TSharedPtr<FOnPasteFromText> OnPasteFromTextDelegate;
 
 	/** Animation curve for displaying pulse */
 	FCurveSequence PulseAnimation;

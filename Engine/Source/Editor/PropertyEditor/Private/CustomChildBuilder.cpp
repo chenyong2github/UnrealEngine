@@ -29,10 +29,17 @@ IDetailGroup& FCustomChildrenBuilder::AddGroup( FName GroupName, const FText& Lo
 
 FDetailWidgetRow& FCustomChildrenBuilder::AddCustomRow( const FText& SearchString )
 {
-	TSharedRef<FDetailWidgetRow> NewRow = MakeShareable( new FDetailWidgetRow );
+	const TSharedRef<FDetailWidgetRow> NewRow = MakeShared<FDetailWidgetRow>();
 	FDetailLayoutCustomization NewCustomization;
 
 	NewRow->FilterString( SearchString );
+
+	// Bind to PasteFromText if specified
+	if (const TSharedPtr<FOnPasteFromText> PasteFromTextDelegate = GetParentCategory().OnPasteFromText())
+	{
+		NewRow->OnPasteFromTextDelegate = PasteFromTextDelegate;
+	}
+	
 	NewCustomization.WidgetDecl = NewRow;
 
 	ChildCustomizations.Add( NewCustomization );
