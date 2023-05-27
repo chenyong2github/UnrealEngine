@@ -77,7 +77,7 @@ namespace Horde.Server.Artifacts
 		{
 			List<MongoIndex<Artifact>> indexes = new List<MongoIndex<Artifact>>();
 			indexes.Add(keys => keys.Ascending(x => x.Keys));
-			indexes.Add(keys => keys.Ascending(x => x.ExpireAtUtc), Builders<Artifact>.Filter.Exists(x => x.ExpireAtUtc));
+			indexes.Add(keys => keys.Ascending(x => x.ExpireAtUtc), sparse: true);
 			_artifacts = mongoService.GetCollection<Artifact>("ArtifactsV2", indexes);
 		}
 

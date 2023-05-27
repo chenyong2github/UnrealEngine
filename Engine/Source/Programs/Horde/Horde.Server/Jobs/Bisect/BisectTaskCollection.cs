@@ -22,6 +22,13 @@ namespace Horde.Server.Jobs.Bisect
 		{
 			public BisectTaskId Id { get; set; }
 
+			[BsonElement("running"), BsonIgnoreIfNull]
+			public bool? Running // Used for sparse index
+			{
+				get => (State == BisectTaskState.Running)? true : null;
+				set { }
+			}
+
 			[BsonElement("state")]
 			public BisectTaskState State { get; set; }
 
@@ -73,7 +80,7 @@ namespace Horde.Server.Jobs.Bisect
 		public BisectTaskCollection(MongoService mongoService)
 		{
 			List<MongoIndex<BisectTaskDoc>> indexes = new List<MongoIndex<BisectTaskDoc>>();
-			indexes.Add(keys => keys.Ascending(x => x.Id), Builders<BisectTaskDoc>.Filter.Eq(x => x.State, BisectTaskState.Running));
+			indexes.Add(keys => keys.Ascending(x => x.Id).Ascending(x => x.Running), sparse: true);
 
 			_bisectTasks = mongoService.GetCollection<BisectTaskDoc>("BisectTasks", indexes);
 		}
