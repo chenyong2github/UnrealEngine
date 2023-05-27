@@ -61,8 +61,8 @@ namespace EpicGames.Horde.Storage
 		{
 			typeof(Nodes.CommitNode),
 			typeof(Nodes.DirectoryNode),
-			typeof(Nodes.LeafFileNode),
-			typeof(Nodes.InteriorFileNode),
+			typeof(Nodes.LeafChunkedDataNode),
+			typeof(Nodes.InteriorChunkedDataNode),
 			typeof(Logs.LogNode),
 			typeof(Logs.LogChunkNode),
 			typeof(Logs.LogIndexNode),

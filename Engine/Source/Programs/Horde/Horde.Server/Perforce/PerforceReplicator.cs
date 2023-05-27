@@ -115,14 +115,14 @@ namespace Horde.Server.Perforce
 			{
 				public Utf8String _path;
 				public FileEntryFlags _flags;
-				public readonly FileNodeWriter _fileWriter;
+				public readonly ChunkedDataWriter _fileWriter;
 				public long _size;
 				public long _sizeWritten;
 				public readonly IncrementalHash _hash = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
 
 				public Handle(TreeWriter writer, ChunkingOptions options)
 				{
-					_fileWriter = new FileNodeWriter(writer, options);
+					_fileWriter = new ChunkedDataWriter(writer, options);
 				}
 			}
 

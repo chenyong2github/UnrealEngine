@@ -259,7 +259,7 @@ namespace EpicGames.Horde.Tests
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 				DirectoryNode hello = root.AddDirectory("hello");
 
-				FileNodeWriter fileWriter = new FileNodeWriter(writer, new ChunkingOptions());
+				ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, new ChunkingOptions());
 				NodeHandle fileHandle = await fileWriter.CreateAsync(Encoding.UTF8.GetBytes("world"), CancellationToken.None);
 				hello.AddFile("world", FileEntryFlags.None, fileWriter.Length, fileHandle);
 
@@ -285,7 +285,7 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(1, hello.Files.Count);
 			Assert.AreEqual("world", hello.Files.First().Name);
 
-			FileNode world = await hello.Files.First().ExpandAsync(reader);
+			ChunkedDataNode world = await hello.Files.First().ExpandAsync(reader);
 
 			byte[] worldData = await GetFileDataAsync(reader, world);
 			Assert.IsTrue(worldData.SequenceEqual(Encoding.UTF8.GetBytes("world")));
@@ -312,7 +312,7 @@ namespace EpicGames.Horde.Tests
 				options.LeafOptions.TargetSize = 256;
 				options.LeafOptions.MaxSize = 64 * 1024;
 
-				FileNodeWriter fileWriter = new FileNodeWriter(writer, options);
+				ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, options);
 				for (int idx = 0; idx < chunk.Length / 16; idx++)
 				{
 					await fileWriter.AppendAsync(chunk.AsMemory(idx * 16, 16), CancellationToken.None);
@@ -326,7 +326,7 @@ namespace EpicGames.Horde.Tests
 			{
 				TreeReader reader = new TreeReader(store, cache, NullLogger.Instance);
 
-				FileNode newRoot = await reader.ReadNodeAsync<FileNode>(locator);
+				ChunkedDataNode newRoot = await reader.ReadNodeAsync<ChunkedDataNode>(locator);
 
 				using MemoryStream stream = new MemoryStream();
 				await newRoot.CopyToStreamAsync(reader, stream, CancellationToken.None);
@@ -366,7 +366,7 @@ namespace EpicGames.Horde.Tests
 				options.LeafOptions.TargetSize = 256;
 				options.LeafOptions.MaxSize = 64 * 1024;
 
-				FileNodeWriter fileWriter = new FileNodeWriter(writer, options);
+				ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, options);
 				NodeHandle handle = await fileWriter.CreateAsync(data, CancellationToken.None);
 				root.AddFile("test", FileEntryFlags.None, fileWriter.Length, handle);
 
@@ -384,7 +384,7 @@ namespace EpicGames.Horde.Tests
 				await CompareTrees(reader, root, newRoot);
 				await CheckLargeFileTreeAsync(reader, root, data);
 
-				NodeRef<FileNode> file = root.GetFileEntry("test");
+				NodeRef<ChunkedDataNode> file = root.GetFileEntry("test");
 
 				long uniqueSize = store.Blobs.Values.SelectMany(x => x.Header.Packets).Sum(x => x.DecodedLength);
 				Assert.IsTrue(uniqueSize < data.Length / 3); // random fraction meaning "lots of dedupe happened"
@@ -399,31 +399,31 @@ namespace EpicGames.Horde.Tests
 
 			foreach ((FileEntry oldFileEntry, FileEntry newFileEntry) in oldNode.Files.Zip(newNode.Files))
 			{
-				FileNode oldFile = await oldFileEntry.ExpandAsync(reader);
-				FileNode newFile = await newFileEntry.ExpandAsync(reader);
+				ChunkedDataNode oldFile = await oldFileEntry.ExpandAsync(reader);
+				ChunkedDataNode newFile = await newFileEntry.ExpandAsync(reader);
 				await CompareTrees(reader, oldFile, newFile);
 			}
 		}
 
-		static async Task CompareTrees(TreeReader reader, FileNode oldNode, FileNode newNode)
+		static async Task CompareTrees(TreeReader reader, ChunkedDataNode oldNode, ChunkedDataNode newNode)
 		{
-			if (oldNode is InteriorFileNode oldInteriorNode)
+			if (oldNode is InteriorChunkedDataNode oldInteriorNode)
 			{
-				InteriorFileNode newInteriorNode = (InteriorFileNode)newNode;
+				InteriorChunkedDataNode newInteriorNode = (InteriorChunkedDataNode)newNode;
 				Assert.AreEqual(oldInteriorNode.Children.Count, newInteriorNode.Children.Count);
 
 				int index = 0;
-				foreach ((NodeRef<FileNode> oldFileRef, NodeRef<FileNode> newFileRef) in oldInteriorNode.Children.Zip(newInteriorNode.Children))
+				foreach ((NodeRef<ChunkedDataNode> oldFileRef, NodeRef<ChunkedDataNode> newFileRef) in oldInteriorNode.Children.Zip(newInteriorNode.Children))
 				{
-					FileNode oldFile = await oldFileRef.ExpandAsync(reader);
-					FileNode newFile = await newFileRef.ExpandAsync(reader);
+					ChunkedDataNode oldFile = await oldFileRef.ExpandAsync(reader);
+					ChunkedDataNode newFile = await newFileRef.ExpandAsync(reader);
 					await CompareTrees(reader, oldFile, newFile);
 					index++;
 				}
 			}
-			else if (oldNode is LeafFileNode oldLeafNode)
+			else if (oldNode is LeafChunkedDataNode oldLeafNode)
 			{
-				LeafFileNode newLeafNode = (LeafFileNode)newNode;
+				LeafChunkedDataNode newLeafNode = (LeafChunkedDataNode)newNode;
 				Assert.IsTrue(oldLeafNode.Data.Span.SequenceEqual(newLeafNode.Data.Span));
 			}
 			else
@@ -437,25 +437,25 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(0, root.Directories.Count);
 			Assert.AreEqual(1, root.Files.Count);
 
-			FileNode world = await root.Files.First().ExpandAsync(reader, CancellationToken.None);
+			ChunkedDataNode world = await root.Files.First().ExpandAsync(reader, CancellationToken.None);
 
 			int length = await CheckFileDataAsync(reader, world, data);
 			Assert.AreEqual(data.Length, length);
 		}
 
-		static async Task<int> CheckFileDataAsync(TreeReader reader, FileNode fileNode, ReadOnlyMemory<byte> data)
+		static async Task<int> CheckFileDataAsync(TreeReader reader, ChunkedDataNode fileNode, ReadOnlyMemory<byte> data)
 		{
 			int offset = 0;
-			if (fileNode is LeafFileNode leafNode)
+			if (fileNode is LeafChunkedDataNode leafNode)
 			{
 				Assert.IsTrue(leafNode.Data.Span.SequenceEqual(data.Span.Slice(offset, leafNode.Data.Length)));
 				offset += leafNode.Data.Length;
 			}
-			else if (fileNode is InteriorFileNode interiorFileNode)
+			else if (fileNode is InteriorChunkedDataNode interiorFileNode)
 			{
-				foreach (NodeRef<FileNode> childRef in interiorFileNode.Children)
+				foreach (NodeRef<ChunkedDataNode> childRef in interiorFileNode.Children)
 				{
-					FileNode child = await childRef.ExpandAsync(reader);
+					ChunkedDataNode child = await childRef.ExpandAsync(reader);
 					offset += await CheckFileDataAsync(reader, child, data.Slice(offset));
 				}
 			}
@@ -466,7 +466,7 @@ namespace EpicGames.Horde.Tests
 			return offset;
 		}
 
-		static async Task<byte[]> GetFileDataAsync(TreeReader reader, FileNode fileNode)
+		static async Task<byte[]> GetFileDataAsync(TreeReader reader, ChunkedDataNode fileNode)
 		{
 			using (MemoryStream stream = new MemoryStream())
 			{

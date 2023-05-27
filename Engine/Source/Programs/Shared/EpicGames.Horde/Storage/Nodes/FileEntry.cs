@@ -49,7 +49,7 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// Entry for a file within a directory node
 	/// </summary>
-	public sealed class FileEntry : NodeRef<FileNode>
+	public sealed class FileEntry : NodeRef<ChunkedDataNode>
 	{
 		/// <summary>
 		/// Name of this file
@@ -143,7 +143,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public async Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken)
 		{
-			FileNode node = await ExpandAsync(reader, cancellationToken);
+			ChunkedDataNode node = await ExpandAsync(reader, cancellationToken);
 			await node.CopyToStreamAsync(reader, outputStream, cancellationToken);
 		}
 
@@ -156,7 +156,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <returns></returns>
 		public async Task CopyToFileAsync(TreeReader reader, FileInfo file, CancellationToken cancellationToken)
 		{
-			FileNode node = await ExpandAsync(reader, cancellationToken);
+			ChunkedDataNode node = await ExpandAsync(reader, cancellationToken);
 			await node.CopyToFileAsync(reader, file, cancellationToken);
 		}
 

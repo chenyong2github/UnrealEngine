@@ -42,7 +42,7 @@ namespace Horde.Server.Commands.Bundles
 			ChunkingOptions chunkingOptions = new ChunkingOptions();
 //			chunkingOptions.LeafOptions = new ChunkingOptionsForNodeType(64 * 1024);
 
-			FileNode node = new LeafFileNode();
+			ChunkedDataNode node = new LeafChunkedDataNode();
 
 			byte[] buffer = new byte[64 * 1024];
 			RandomNumberGenerator.Fill(buffer);
@@ -51,7 +51,7 @@ namespace Horde.Server.Commands.Bundles
 			long length = 0;
 			double nextTime = 2.0;
 
-			FileNodeWriter fileNodeWriter = new FileNodeWriter(writer, chunkingOptions);
+			ChunkedDataWriter fileNodeWriter = new ChunkedDataWriter(writer, chunkingOptions);
 			for (; ; )
 			{
 				await fileNodeWriter.AppendAsync(buffer, default);

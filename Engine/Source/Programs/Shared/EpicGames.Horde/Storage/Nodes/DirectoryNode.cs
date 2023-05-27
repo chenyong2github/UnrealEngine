@@ -612,7 +612,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public async Task CopyFromZipStreamAsync(Stream stream, TreeWriter writer, CancellationToken cancellationToken = default)
 		{
-			FileNodeWriter fileWriter = new FileNodeWriter(writer, new ChunkingOptions());
+			ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, new ChunkingOptions());
 			using (ZipArchive archive = new ZipArchive(stream, ZipArchiveMode.Read, true))
 			{
 				foreach (ZipArchiveEntry entry in archive.Entries)
@@ -750,7 +750,7 @@ namespace EpicGames.Horde.Storage.Nodes
 					writer = new TreeWriter(baseWriter);
 				}
 
-				FileNodeWriter fileNodeWriter = new FileNodeWriter(writer, options);
+				ChunkedDataWriter fileNodeWriter = new ChunkedDataWriter(writer, options);
 				for (int idx = minIdx; idx < maxIdx; idx++)
 				{
 					FileInfo fileInfo = files[idx].FileInfo;
@@ -789,7 +789,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			foreach (FileEntry fileEntry in _nameToFileEntry.Values)
 			{
 				FileInfo fileInfo = new FileInfo(Path.Combine(directoryInfo.FullName, fileEntry.Name.ToString()));
-				FileNode fileNode = await fileEntry.ExpandAsync(reader, cancellationToken);
+				ChunkedDataNode fileNode = await fileEntry.ExpandAsync(reader, cancellationToken);
 				tasks.Add(Task.Run(() => fileNode.CopyToFileAsync(reader, fileInfo, cancellationToken), cancellationToken));
 			}
 			foreach (DirectoryEntry directoryEntry in _nameToDirectoryEntry.Values)

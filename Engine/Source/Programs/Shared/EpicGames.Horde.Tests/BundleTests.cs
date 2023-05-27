@@ -74,43 +74,43 @@ namespace EpicGames.Horde.Tests
 			ChunkingOptions options = new ChunkingOptions();
 			options.LeafOptions = new ChunkingOptionsForNodeType(8, 8, 8);
 
-			FileNodeWriter fileNodeWriter = new FileNodeWriter(writer, options);
+			ChunkedDataWriter fileNodeWriter = new ChunkedDataWriter(writer, options);
 
 			NodeHandle handle;
-			FileNode node;
+			ChunkedDataNode node;
 			byte[] data = CreateBuffer(1024);
 
 			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 7), CancellationToken.None);
-			node = await reader.ReadNodeAsync<FileNode>(handle.Locator);
-			Assert.IsTrue(node is LeafFileNode);
-			Assert.AreEqual(7, ((LeafFileNode)node).Data.Length);
+			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Locator);
+			Assert.IsTrue(node is LeafChunkedDataNode);
+			Assert.AreEqual(7, ((LeafChunkedDataNode)node).Data.Length);
 			await TestBufferlessReadsAsync(reader, handle.Locator, data.AsMemory(0, 7));
 
 			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 8), CancellationToken.None);
-			node = await reader.ReadNodeAsync<FileNode>(handle.Locator);
-			Assert.IsTrue(node is LeafFileNode);
-			Assert.AreEqual(8, ((LeafFileNode)node).Data.Length);
+			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Locator);
+			Assert.IsTrue(node is LeafChunkedDataNode);
+			Assert.AreEqual(8, ((LeafChunkedDataNode)node).Data.Length);
 			await TestBufferlessReadsAsync(reader, handle.Locator, data.AsMemory(0, 8));
 
 			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 9), CancellationToken.None);
-			node = await reader.ReadNodeAsync<FileNode>(handle.Locator);
-			Assert.IsTrue(node is InteriorFileNode);
-			Assert.AreEqual(2, ((InteriorFileNode)node).Children.Count);
+			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Locator);
+			Assert.IsTrue(node is InteriorChunkedDataNode);
+			Assert.AreEqual(2, ((InteriorChunkedDataNode)node).Children.Count);
 			await TestBufferlessReadsAsync(reader, handle.Locator, data.AsMemory(0, 9));
 
-			FileNode? childNode1 = await ((InteriorFileNode)node).Children[0].ExpandAsync(reader);
+			ChunkedDataNode? childNode1 = await ((InteriorChunkedDataNode)node).Children[0].ExpandAsync(reader);
 			Assert.IsNotNull(childNode1);
-			Assert.IsTrue(childNode1 is LeafFileNode);
-			Assert.AreEqual(8, ((LeafFileNode)childNode1!).Data.Length);
+			Assert.IsTrue(childNode1 is LeafChunkedDataNode);
+			Assert.AreEqual(8, ((LeafChunkedDataNode)childNode1!).Data.Length);
 
-			FileNode? childNode2 = await ((InteriorFileNode)node).Children[1].ExpandAsync(reader);
+			ChunkedDataNode? childNode2 = await ((InteriorChunkedDataNode)node).Children[1].ExpandAsync(reader);
 			Assert.IsNotNull(childNode2);
-			Assert.IsTrue(childNode2 is LeafFileNode);
-			Assert.AreEqual(1, ((LeafFileNode)childNode2!).Data.Length);
+			Assert.IsTrue(childNode2 is LeafChunkedDataNode);
+			Assert.AreEqual(1, ((LeafChunkedDataNode)childNode2!).Data.Length);
 
 			handle = await fileNodeWriter.CreateAsync(data, CancellationToken.None);
-			node = await reader.ReadNodeAsync<FileNode>(handle.Locator);
-			Assert.IsTrue(node is InteriorFileNode);
+			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Locator);
+			Assert.IsTrue(node is InteriorChunkedDataNode);
 			await TestBufferlessReadsAsync(reader, handle.Locator, data);
 		}
 
@@ -127,7 +127,7 @@ namespace EpicGames.Horde.Tests
 		private static async Task TestBufferlessReadsAsync(TreeReader reader, NodeLocator locator, ReadOnlyMemory<byte> expected)
 		{
 			using MemoryStream memoryStream = new MemoryStream();
-			await FileNode.CopyToStreamAsync(reader, locator, memoryStream, default);
+			await ChunkedDataNode.CopyToStreamAsync(reader, locator, memoryStream, default);
 			ReadOnlyMemory<byte> read = memoryStream.ToArray().AsMemory();
 			Assert.IsTrue(read.Span.SequenceEqual(expected.Span));			
 		}

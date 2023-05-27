@@ -87,7 +87,7 @@ namespace EpicGames.Horde.Tests
 
 			const int NumIterations = 100;
 			{
-				FileNodeWriter fileWriter = new FileNodeWriter(writer, options);
+				ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, options);
 
 				for (int idx = 0; idx < NumIterations; idx++)
 				{
@@ -97,7 +97,7 @@ namespace EpicGames.Horde.Tests
 				handle = await fileWriter.FlushAsync(CancellationToken.None);
 			}
 
-			FileNode root = await reader.ReadNodeAsync<FileNode>(handle.Locator);
+			ChunkedDataNode root = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Locator);
 
 			byte[] result;
 			using (MemoryStream stream = new MemoryStream())
@@ -117,16 +117,16 @@ namespace EpicGames.Horde.Tests
 			await CheckSizes(reader, root, options, true);
 		}
 
-		async Task CheckSizes(TreeReader reader, FileNode node, ChunkingOptions options, bool rightmost)
+		async Task CheckSizes(TreeReader reader, ChunkedDataNode node, ChunkingOptions options, bool rightmost)
 		{
-			if (node is LeafFileNode leafNode)
+			if (node is LeafChunkedDataNode leafNode)
 			{
 				Assert.IsTrue(rightmost || leafNode.Data.Length >= options.LeafOptions.MinSize);
 				Assert.IsTrue(leafNode.Data.Length <= options.LeafOptions.MaxSize);
 			}
 			else
 			{
-				InteriorFileNode interiorNode = (InteriorFileNode)node;
+				InteriorChunkedDataNode interiorNode = (InteriorChunkedDataNode)node;
 
 				Assert.IsTrue(rightmost || interiorNode.Children.Count * IoHash.NumBytes >= options.InteriorOptions.MinSize);
 				Assert.IsTrue(interiorNode.Children.Count <= options.InteriorOptions.MaxSize);
@@ -134,7 +134,7 @@ namespace EpicGames.Horde.Tests
 				int childCount = interiorNode.Children.Count;
 				for (int idx = 0; idx < childCount; idx++)
 				{
-					FileNode childNode = await interiorNode.Children[idx].ExpandAsync(reader, CancellationToken.None);
+					ChunkedDataNode childNode = await interiorNode.Children[idx].ExpandAsync(reader, CancellationToken.None);
 					await CheckSizes(reader, childNode, options, idx == childCount - 1);
 				}
 			}
