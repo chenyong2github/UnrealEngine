@@ -1002,13 +1002,13 @@ ASpatialHashRuntimeGridInfo::ASpatialHashRuntimeGridInfo(const FObjectInitialize
 UWorldPartitionRuntimeSpatialHash::UWorldPartitionRuntimeSpatialHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
+	, bPreviewGrids(false)
+	, PreviewGridLevel(0)
+#endif
 	, UseAlignedGridLevels(EWorldPartitionCVarProjectDefaultOverride::Disabled)
 	, SnapNonAlignedGridLevelsToLowerLevels(EWorldPartitionCVarProjectDefaultOverride::Disabled)
 	, PlaceSmallActorsUsingLocation(EWorldPartitionCVarProjectDefaultOverride::Enabled)
 	, PlacePartitionActorsUsingLocation(EWorldPartitionCVarProjectDefaultOverride::Enabled)
-	, bPreviewGrids(false)
-	, PreviewGridLevel(0)
-#endif
 	, bIsNameToGridMappingDirty(true)
 {}
 
