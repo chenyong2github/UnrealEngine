@@ -696,6 +696,7 @@ public:
 	bool HasSystemScriptDIsWithPerInstanceData() const;
 	FORCEINLINE bool HasDIsWithPostSimulateTick() const { return bHasDIsWithPostSimulateTick; }
 	FORCEINLINE bool AllDIsPostSimulateCanOverlapFrames() const { return bAllDIsPostSimulateCanOverlapFrames; }
+	FORCEINLINE bool AsyncWorkCanOverlapTickGroups() const { return bAllDIsPostStageCanOverlapTickGroups; }
 	FORCEINLINE bool HasAnyGPUEmitters()const{ return bHasAnyGPUEmitters; }
 	FORCEINLINE bool NeedsGPUContextInitForDataInterfaces() const { return bNeedsGPUContextInitForDataInterfaces; }
 
@@ -990,6 +991,7 @@ protected:
 
 	uint32 bHasDIsWithPostSimulateTick : 1;
 	uint32 bAllDIsPostSimulateCanOverlapFrames : 1;
+	uint32 bAllDIsPostStageCanOverlapTickGroups : 1;
 	uint32 bHasAnyGPUEmitters : 1;
 	uint32 bNeedsSortedSignificanceCull : 1;
 

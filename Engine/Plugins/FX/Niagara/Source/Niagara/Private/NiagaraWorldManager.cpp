@@ -37,7 +37,7 @@ DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait On Render [GT]"), STAT_NiagaraWorl
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait Pre Garbage Collect [GT]"), STAT_NiagaraWorldManWaitPreGC, STATGROUP_Niagara); 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Refresh Owner Allows Scalability"), STAT_NiagaraWorldManRefreshOwnerAllowsScalability, STATGROUP_Niagara);
 
-static int GNiagaraAllowAsyncWorkToEndOfFrame = 0;
+static int GNiagaraAllowAsyncWorkToEndOfFrame = 1;
 static FAutoConsoleVariableRef CVarNiagaraAllowAsyncWorkToEndOfFrame(
 	TEXT("fx.Niagara.AllowAsyncWorkToEndOfFrame"),
 	GNiagaraAllowAsyncWorkToEndOfFrame,
@@ -553,6 +553,15 @@ FNiagaraSystemSimulationRef FNiagaraWorldManager::GetSystemSimulation(ETickingGr
 	SystemSimulations[ActualTickGroup].Add(System, Sim);
 	Sim->Init(System, World, false, TickGroup);
 
+	//If this system doesn't allow async work to overlap TGs then we must ensure our Tick task is performed in it's correct TG.
+	//The async work for this system can then properly be chained to the tick task so that everything completes on time.
+	//Most systems most of the time will no need this and we'll clear this requirement as soon as all systems no longer need it.
+	//TODO: This should go away when we move over to the new task graph system and rejig our dependency tracking.
+	if(System->AsyncWorkCanOverlapTickGroups())
+	{
+		TickFunctions[ActualTickGroup].EndTickGroup = (ETickingGroup)ActualTickGroup;
+	}
+
 #if WITH_EDITOR
 	System->OnSystemPostEditChange().AddRaw(this, &FNiagaraWorldManager::OnSystemPostChange);
 #endif
@@ -740,6 +749,11 @@ void FNiagaraWorldManager::RemoveDataChannel(const UNiagaraDataChannel* Channel)
 {
 	WaitForAsyncWork();
 	GetDataChannelManager().RemoveDataChannel(Channel);
+}
+
+UNiagaraDataChannelHandler* FNiagaraWorldManager::FindDataChannelHandler(const UNiagaraDataChannel* Channel)
+{
+	return GetDataChannelManager().FindDataChannelHandler(Channel);
 }
 
 void FNiagaraWorldManager::WaitForAsyncWork()
@@ -967,12 +981,6 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 	// Delete any instances that were pending deletion
 	//-TODO: This could be done after each system sim has run
 	DeferredDeletionQueue.Empty();
-
-	// Update tick groups
-	for (FNiagaraWorldManagerTickFunction& TickFunc : TickFunctions )
-	{
-		TickFunc.EndTickGroup = GNiagaraAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : (ETickingGroup)TickFunc.TickGroup;
-	}
 
 #if WITH_NIAGARA_DEBUGGER
 	// Tick debug HUD for the world
@@ -1244,6 +1252,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 
 	ActiveNiagaraTickGroup = ActualTickGroup;
 
+	bool bTickFunctionCanOverlapTickGroups = GNiagaraAllowAsyncWorkToEndOfFrame != 0;
 	for (auto SimIt=SystemSimulations[ActualTickGroup].CreateIterator(); SimIt; ++SimIt)
 	{
 		FNiagaraSystemSimulation* Sim = &SimIt.Value().Get();
@@ -1251,12 +1260,23 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 		if (Sim->IsValid())
 		{
 			Sim->Tick_GameThread(DeltaSeconds, MyCompletionGraphEvent);
+
+			bTickFunctionCanOverlapTickGroups &= Sim->GetSystem()->AsyncWorkCanOverlapTickGroups();
 		}
 		else
 		{
 			Sim->Destroy();
 			SimIt.RemoveCurrent();
 		}
+	}
+
+	//If all systems in this TG can overlap their async work then we can allow the tick as a whole to run until last demotable.
+	//When adding new system sims to this tick group we can change this.
+	//Any systems needing their async work to complete must have this Tick function finish inside this TG so that we can properly complete our async work before the TG finishes.
+	if(bTickFunctionCanOverlapTickGroups)
+	{
+		//Set here but this wont take effect until next tick.
+		TickFunctions[ActualTickGroup].EndTickGroup = TG_LastDemotable;
 	}
 
 	ActiveNiagaraTickGroup = -1;

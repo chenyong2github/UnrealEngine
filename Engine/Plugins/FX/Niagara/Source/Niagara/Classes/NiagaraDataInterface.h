@@ -662,6 +662,12 @@ public:
 	*/
 	virtual bool PostSimulateCanOverlapFrames() const { return true; }
 
+	/**
+	When set to true simulation may not complete in the same tick group it started.
+	You must override and set to false if you require the data interface post stage tick to complete before the tick group ends.
+	*/
+	virtual bool PostStageCanOverlapTickGroups() const { return true; }
+
 	virtual bool RequiresDistanceFieldData() const { return false; }
 	virtual bool RequiresDepthBuffer() const { return false; }
 	virtual bool RequiresEarlyViewData() const { return false; }

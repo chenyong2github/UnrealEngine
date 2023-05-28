@@ -1341,7 +1341,7 @@ void FNiagaraSystemSimulation::Tick_GameThread_Internal(float DeltaSeconds, cons
 			Instance->ConcurrentTickGraphEvent = ConcurrentTickGraphEvent;
 		}
 		ConcurrentTickTask->Unlock();
-		if (bIsSolo || GNiagaraSystemSimulationTickTaskShouldWait)
+		if (bIsSolo || GNiagaraSystemSimulationTickTaskShouldWait || !System->AsyncWorkCanOverlapTickGroups())
 		{
 			MyCompletionGraphEvent->DontCompleteUntil(AllWorkCompleteGraphEvent);
 		}

@@ -30,6 +30,7 @@ class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 class UNiagaraComponentPool;
 struct FNiagaraScalabilityState;
+class UNiagaraDataChannelHandler;
 
 USTRUCT()
 struct FNiagaraWorldManagerTickFunction : public FTickFunction
@@ -223,6 +224,7 @@ public:
 	FNiagaraDataChannelManager& GetDataChannelManager(){ return *DataChannelManager; }
 	NIAGARA_API void InitDataChannel(const UNiagaraDataChannel* Channel, bool bForce);
 	NIAGARA_API void RemoveDataChannel(const UNiagaraDataChannel* Channel);
+	NIAGARA_API UNiagaraDataChannelHandler* FindDataChannelHandler(const UNiagaraDataChannel* Channel);
 
 	/** Waits for all currently in flight async work to be completed. */
 	void WaitForAsyncWork();

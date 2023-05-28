@@ -169,6 +169,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , CurrentScalabilitySettings(*new FNiagaraSystemScalabilitySettings())
 , bHasDIsWithPostSimulateTick(false)
 , bAllDIsPostSimulateCanOverlapFrames(true)
+, bAllDIsPostStageCanOverlapTickGroups(true)
 , bHasAnyGPUEmitters(false)
 , bNeedsSortedSignificanceCull(false)
 , ActiveInstances(0)
@@ -2114,6 +2115,7 @@ void UNiagaraSystem::UpdateDITickFlags()
 {
 	bHasDIsWithPostSimulateTick = false;
 	bAllDIsPostSimulateCanOverlapFrames = true;
+	bAllDIsPostStageCanOverlapTickGroups = true;
 	auto CheckPostSimTick = [&](UNiagaraScript* Script)
 	{
 		if (Script)
@@ -2126,6 +2128,8 @@ void UNiagaraSystem::UpdateDITickFlags()
 					bHasDIsWithPostSimulateTick |= true;
 					bAllDIsPostSimulateCanOverlapFrames &= DefaultDataInterface->PostSimulateCanOverlapFrames();
 				}
+				
+				bAllDIsPostStageCanOverlapTickGroups &= DefaultDataInterface->PostStageCanOverlapTickGroups();
 			}
 		}
 	};
