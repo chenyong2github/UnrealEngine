@@ -35,7 +35,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Deserializing constructor
 		/// </summary>
 		/// <param name="reader"></param>
-		public DirectoryEntry(ITreeNodeReader reader)
+		public DirectoryEntry(NodeReader reader)
 			: base(reader)
 		{
 			Name = reader.ReadUtf8String();

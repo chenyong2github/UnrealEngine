@@ -25,6 +25,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public abstract Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken);
 
+		static readonly Guid s_leafNodeGuid = Node.GetNodeType<LeafChunkedDataNode>().Guid;
+		static readonly Guid s_interiorNodeGuid = Node.GetNodeType<InteriorChunkedDataNode>().Guid;
+
 		/// <summary>
 		/// Copy the contents of the node to the output stream without creating the intermediate FileNodes
 		/// </summary>
@@ -34,23 +37,19 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static async Task CopyToStreamAsync(TreeReader reader, NodeLocator locator, Stream outputStream, CancellationToken cancellationToken)
 		{
-			async Task CopyFunc(ReadNodeAsyncCallbackParams parms, ITreeNodeReader nodeReader)
+			NodeData nodeData = await reader.ReadNodeDataAsync(locator, cancellationToken);
+			if (nodeData.Type.Guid == s_leafNodeGuid)
 			{
-				if (parms.Type == typeof(LeafChunkedDataNode))
-				{
-					await LeafChunkedDataNode.CopyToStreamAsync(outputStream, nodeReader, cancellationToken);
-				}
-				else if (parms.Type == typeof(InteriorChunkedDataNode))
-				{
-					await InteriorChunkedDataNode.CopyToStreamAsync(reader, outputStream, nodeReader, cancellationToken);
-				}
-				else
-				{
-					throw new ArgumentException("Unexpected FileNode type found.");
-				}
+				await LeafChunkedDataNode.CopyToStreamAsync(nodeData, outputStream, cancellationToken);
 			}
-
-			await reader.ReadNodeAsync(locator, CopyFunc, cancellationToken);
+			else if (nodeData.Type.Guid == s_interiorNodeGuid)
+			{
+				await InteriorChunkedDataNode.CopyToStreamAsync(reader, nodeData, outputStream, cancellationToken);
+			}
+			else
+			{
+				throw new ArgumentException($"Unexpected {nameof(ChunkedDataNode)} type found.");
+			}
 		}
 
 		/// <summary>
@@ -109,7 +108,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Create a leaf node from the given serialized data
 		/// </summary>
-		public LeafChunkedDataNode(ITreeNodeReader reader)
+		public LeafChunkedDataNode(NodeReader reader)
 		{
 			// Keep this code in sync with CopyToStreamAsync
 			Data = reader.ReadFixedLengthBytes(reader.Length);
@@ -133,13 +132,13 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Copy the contents of the node to the output stream without creating the intermediate FileNodes
 		/// </summary>
-		/// <param name="reader">Reader for nodes in the tree</param>
+		/// <param name="nodeData">The raw node data</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CopyToStreamAsync(Stream outputStream, ITreeNodeReader reader, CancellationToken cancellationToken)
+		public static async Task CopyToStreamAsync(NodeData nodeData, Stream outputStream, CancellationToken cancellationToken)
 		{
 			// Keep this code in sync with the constructor
-			await outputStream.WriteAsync(reader.ReadFixedLengthBytes(reader.Length), cancellationToken);
+			await outputStream.WriteAsync(nodeData.Data, cancellationToken);
 		}
 	}
 
@@ -166,7 +165,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public InteriorChunkedDataNode(ITreeNodeReader reader)
+		public InteriorChunkedDataNode(NodeReader reader)
 		{
 			// Keep this code in sync with CopyToStreamAsync
 			NodeRef<ChunkedDataNode>[] children = new NodeRef<ChunkedDataNode>[reader.Length / IoHash.NumBytes];
@@ -203,32 +202,16 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Copy the contents of the node to the output stream without creating the intermediate FileNodes
 		/// </summary>
 		/// <param name="reader">Reader for nodes in the tree</param>
+		/// <param name="nodeData">Source data</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
-		/// <param name="nodeReader">Source data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CopyToStreamAsync(TreeReader reader, Stream outputStream, ITreeNodeReader nodeReader, CancellationToken cancellationToken)
+		public static async Task CopyToStreamAsync(TreeReader reader, NodeData nodeData, Stream outputStream, CancellationToken cancellationToken)
 		{
-			async Task CopyFunc(ReadNodeAsyncCallbackParams parms, ITreeNodeReader nodeReader)
+			NodeReader nodeReader = new NodeReader(nodeData);
+			while (nodeReader.GetMemory(0).Length > 0)
 			{
-				if (parms.Type == typeof(LeafChunkedDataNode))
-				{
-					await LeafChunkedDataNode.CopyToStreamAsync(outputStream, nodeReader, cancellationToken);
-				}
-				else
-				{
-					throw new ArgumentException("Unexpected FileNode type found.");
-				}
-			}
-
-			// Keep this code in sync with the constructor
-			NodeRef<ChunkedDataNode>[] children = new NodeRef<ChunkedDataNode>[nodeReader.Length / IoHash.NumBytes];
-			for (int idx = 0; idx < children.Length; idx++)
-			{
-				children[idx] = nodeReader.ReadRef<ChunkedDataNode>();
-			}
-			foreach (NodeRef<ChunkedDataNode> node in children)
-			{
-				await reader.ReadNodeAsync(node.Handle!.Locator, CopyFunc, cancellationToken);
+				NodeRef nodeRef = nodeReader.ReadRef();
+				await ChunkedDataNode.CopyToStreamAsync(reader, nodeRef.Handle!.Locator, outputStream, cancellationToken);
 			}
 		}
 	}

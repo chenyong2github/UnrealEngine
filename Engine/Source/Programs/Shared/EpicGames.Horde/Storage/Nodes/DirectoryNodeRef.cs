@@ -41,7 +41,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Constructor
 		/// </summary>
 		/// <param name="reader"></param>
-		public DirectoryNodeRef(ITreeNodeReader reader)
+		public DirectoryNodeRef(NodeReader reader)
 			: base(reader)
 		{
 			_cachedLength = (long)reader.ReadUnsignedVarInt();

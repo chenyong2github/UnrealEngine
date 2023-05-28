@@ -90,7 +90,7 @@ namespace EpicGames.Horde.Logs
 		/// Deserializing constructor
 		/// </summary>
 		/// <param name="reader">Reader to draw data from</param>
-		public LogNode(ITreeNodeReader reader)
+		public LogNode(NodeReader reader)
 		{
 			Format = (LogFormat)reader.ReadUInt8();
 			LineCount = (int)reader.ReadUnsignedVarInt();

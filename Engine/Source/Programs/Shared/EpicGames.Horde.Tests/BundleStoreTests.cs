@@ -15,14 +15,13 @@ using System.IO;
 using EpicGames.Core;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Reflection;
 
 namespace EpicGames.Horde.Tests
 {
 	[TestClass]
 	public class BundleStoreTests
 	{
-		static readonly TreeReaderOptions s_readOptions = new TreeReaderOptions(typeof(SimpleNode));
-
 		[TestMethod]
 		public async Task CreateBundlesManuallyAsync()
 		{
@@ -41,7 +40,7 @@ namespace EpicGames.Horde.Tests
 
 			public TextNode(string text) => Text = text;
 
-			public TextNode(ITreeNodeReader reader)
+			public TextNode(NodeReader reader)
 			{
 				Text = reader.ReadString();
 			}
@@ -52,6 +51,11 @@ namespace EpicGames.Horde.Tests
 			}
 
 			public override IEnumerable<NodeRef> EnumerateRefs() => Array.Empty<NodeRef>();
+		}
+
+		public BundleStoreTests()
+		{
+			Node.RegisterTypesFromAssembly(Assembly.GetExecutingAssembly());
 		}
 
 		static async Task<Bundle> CreateBundleNormalAsync()
@@ -120,7 +124,7 @@ namespace EpicGames.Horde.Tests
 				Refs = refs;
 			}
 
-			public SimpleNode(ITreeNodeReader reader)
+			public SimpleNode(NodeReader reader)
 			{
 				Data = new ReadOnlySequence<byte>(reader.ReadVariableLengthBytes());
 				Refs = reader.ReadVariableLengthArray(() => reader.ReadRef<SimpleNode>());
@@ -150,13 +154,13 @@ namespace EpicGames.Horde.Tests
 
 				await writer.WriteAsync(new RefName("test"), root);
 
-				TreeReader reader = new TreeReader(store, null, s_readOptions, NullLogger.Instance);
+				TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
 				await CheckTree(reader, root);
 			}
 
 			// Check we can read it back in
 			{
-				TreeReader reader = new TreeReader(store, null, s_readOptions, NullLogger.Instance);
+				TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
 				SimpleNode root = await reader.ReadNodeAsync<SimpleNode>(new RefName("test"));
 				await CheckTree(reader, root);
 			}
@@ -203,7 +207,7 @@ namespace EpicGames.Horde.Tests
 			RefName refName = new RefName("test");
 			await store.WriteNodeAsync(refName, new SimpleNode(new ReadOnlySequence<byte>(new byte[] { (byte)123 }), Array.Empty<NodeRef<SimpleNode>>()));
 
-			TreeReader reader = new TreeReader(store, null, s_readOptions, NullLogger.Instance);
+			TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
 			SimpleNode node = await reader.ReadNodeAsync<SimpleNode>(refName);
 
 			Assert.AreEqual(123, node.Data.FirstSpan[0]);
@@ -213,7 +217,7 @@ namespace EpicGames.Horde.Tests
 		public async Task DirectoryNodesAsync()
 		{
 			MemoryStorageClient store = new MemoryStorageClient();
-			TreeReader reader = new TreeReader(store, null, s_readOptions, NullLogger.Instance);
+			TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
 
 			// Generate a tree
 			{

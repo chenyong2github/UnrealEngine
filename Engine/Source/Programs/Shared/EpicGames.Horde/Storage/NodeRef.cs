@@ -33,7 +33,7 @@ namespace EpicGames.Horde.Storage
 	/// Each ref must have EXACTLY one owner; sharing of refs between objects is not permitted and will break change tracking.
 	/// Multiple refs MAY point to the same target object.
 	/// 
-	/// To read an untracked object that can be added to a new ref, call <see cref="TreeReader.ReadNodeAsync(NodeLocator, CancellationToken)"/> 
+	/// To read an untracked object that can be added to a new ref, call <see cref="TreeReader.ReadNodeDataAsync(NodeLocator, CancellationToken)"/> 
 	/// directly, or use <see cref="NodeRef{T}.ExpandCopyAsync(TreeReader, CancellationToken)"/>.
 	/// </summary>
 	public class NodeRef
@@ -70,7 +70,7 @@ namespace EpicGames.Horde.Storage
 		/// Deserialization constructor
 		/// </summary>
 		/// <param name="reader"></param>
-		public NodeRef(ITreeNodeReader reader) : this(reader.ReadNodeHandle())
+		public NodeRef(NodeReader reader) : this(reader.ReadNodeHandle())
 		{
 		}
 
@@ -134,7 +134,8 @@ namespace EpicGames.Horde.Storage
 		{
 			if (Target == null)
 			{
-				Target = await reader.ReadNodeAsync(Handle!.Locator, cancellationToken);
+				NodeData nodeData = await reader.ReadNodeDataAsync(Handle!.Locator, cancellationToken);
+				Target = Node.Deserialize(nodeData);
 				OnExpand();
 			}
 			return Target;
@@ -198,7 +199,7 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="reader">The reader to deserialize from</param>
-		public NodeRef(ITreeNodeReader reader) : base(reader)
+		public NodeRef(NodeReader reader) : base(reader)
 		{
 		}
 

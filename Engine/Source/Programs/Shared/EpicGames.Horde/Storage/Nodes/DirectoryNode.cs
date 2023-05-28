@@ -124,7 +124,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Deserialization constructor
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
-		public DirectoryNode(ITreeNodeReader reader)
+		public DirectoryNode(NodeReader reader)
 		{
 			Flags = (DirectoryFlags)reader.ReadUnsignedVarInt();
 

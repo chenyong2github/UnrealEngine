@@ -92,7 +92,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Deserialize from a buffer
 		/// </summary>
 		/// <param name="reader"></param>
-		public FileEntry(ITreeNodeReader reader)
+		public FileEntry(NodeReader reader)
 			: base(reader)
 		{
 			Name = reader.ReadUtf8String();

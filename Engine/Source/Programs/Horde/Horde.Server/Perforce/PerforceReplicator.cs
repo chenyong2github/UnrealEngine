@@ -53,7 +53,7 @@ namespace Horde.Server.Perforce
 				Paths = new List<Utf8String>();
 			}
 
-			public SyncNode(ITreeNodeReader reader)
+			public SyncNode(NodeReader reader)
 			{
 				Change = (int)reader.ReadUnsignedVarInt();
 				ParentChange = (int)reader.ReadUnsignedVarInt();
@@ -224,6 +224,8 @@ namespace Horde.Server.Perforce
 		/// </summary>
 		public PerforceReplicator(IPerforceService perforceService, StorageService storageService, IMemoryCache memoryCache, ILogger<PerforceReplicator> logger)
 		{
+			Node.RegisterType<SyncNode>();
+
 			_perforceService = perforceService;
 			_storageService = storageService;
 			_memoryCache = memoryCache;
@@ -255,10 +257,7 @@ namespace Horde.Server.Perforce
 		{
 			IStorageClient store = await _storageService.GetClientAsync(Namespace.Perforce, cancellationToken);
 
-			TreeReaderOptions readerOptions = new TreeReaderOptions();
-			readerOptions.Types.Add(typeof(SyncNode));
-
-			TreeReader reader = new TreeReader(store, _memoryCache, readerOptions, _logger);
+			TreeReader reader = new TreeReader(store, _memoryCache, _logger);
 
 			// Find the parent node
 			RefName refName = GetRefName(streamConfig.Id);

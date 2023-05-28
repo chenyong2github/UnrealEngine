@@ -27,23 +27,15 @@ namespace Horde.Commands.Bundles
 
 			BundleHeader header = bundle.Header;
 
-			Dictionary<Guid, string> typeIdToName = new Dictionary<Guid, string>();
-
-			TreeReaderOptions options = new TreeReaderOptions();
-			foreach (Type type in options.Types)
-			{
-				NodeTypeAttribute? attribute = type.GetCustomAttribute<NodeTypeAttribute>();
-				if (attribute != null)
-				{
-					typeIdToName.Add(Guid.Parse(attribute.Guid), type.Name);
-				}
-			}
-
 			string[] types = new string[header.Types.Count];
 			for (int idx = 0; idx < header.Types.Count; idx++)
 			{
-				string? name;
-				if (!typeIdToName.TryGetValue(header.Types[idx].Guid, out name))
+				string name;
+				if (Node.TryGetConcreteType(header.Types[idx].Guid, out Type? type))
+				{
+					name = type.Name;
+				}
+				else
 				{
 					name = header.Types[idx].Guid.ToString();
 				}

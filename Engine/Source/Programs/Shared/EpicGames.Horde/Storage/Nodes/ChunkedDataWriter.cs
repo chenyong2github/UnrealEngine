@@ -112,8 +112,8 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 		}
 
-		static readonly NodeType s_leafNodeType = NodeType.Get<LeafChunkedDataNode>();
-		static readonly NodeType s_interiorNodeType = NodeType.Get<InteriorChunkedDataNode>();
+		static readonly NodeType s_leafNodeType = Node.GetNodeType<LeafChunkedDataNode>();
+		static readonly NodeType s_interiorNodeType = Node.GetNodeType<InteriorChunkedDataNode>();
 
 		readonly TreeWriter _writer;
 		readonly ChunkingOptions _options;

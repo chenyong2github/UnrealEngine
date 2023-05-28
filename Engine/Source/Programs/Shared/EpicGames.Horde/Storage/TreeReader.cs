@@ -4,140 +4,78 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Emit;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
 using Microsoft.CodeAnalysis;
-using Blake3;
 using System.Diagnostics;
 
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
+	/// Data for an individual node
+	/// </summary>
+	public record struct NodeData(NodeType Type, IoHash Hash, ReadOnlyMemory<byte> Data, IReadOnlyList<NodeLocator> Refs);
+
+	/// <summary>
 	/// Reader for tree nodes
 	/// </summary>
-	public interface ITreeNodeReader : IMemoryReader
+	public class NodeReader : MemoryReader
 	{
+		/// <summary>
+		/// Type to deserialize
+		/// </summary>
+		public NodeType Type => _nodeData.Type;
+
 		/// <summary>
 		/// Version of the current node, as specified via <see cref="NodeTypeAttribute"/>
 		/// </summary>
-		int Version { get; }
+		public int Version => Type.Version;
 
 		/// <summary>
 		/// Total length of the data in this node
 		/// </summary>
-		int Length { get; }
+		public int Length => _nodeData.Data.Length;
 
 		/// <summary>
 		/// Hash of the node being deserialized
 		/// </summary>
-		IoHash Hash { get; }
+		public IoHash Hash => _nodeData.Hash;
 
 		/// <summary>
 		/// Locations of all referenced nodes.
 		/// </summary>
-		IReadOnlyList<NodeLocator> References { get; }
+		public IReadOnlyList<NodeLocator> References => _nodeData.Refs;
 
-		/// <summary>
-		/// Reads a reference to another node
-		/// </summary>
-		NodeHandle ReadNodeHandle();
-	}
-
-	/// <summary>
-	/// Options for configuring a bundle serializer
-	/// </summary>
-	public class TreeReaderOptions
-	{
-		/// <summary>
-		/// Known node types. Each node type should have a <see cref="NodeTypeAttribute"/> indicating the guid and latest supported version number.
-		/// </summary>
-		public List<Type> Types { get; } = new List<Type>
-		{
-			typeof(Nodes.CommitNode),
-			typeof(Nodes.DirectoryNode),
-			typeof(Nodes.LeafChunkedDataNode),
-			typeof(Nodes.InteriorChunkedDataNode),
-			typeof(Logs.LogNode),
-			typeof(Logs.LogChunkNode),
-			typeof(Logs.LogIndexNode),
-		};
+		readonly NodeData _nodeData;
+		int _refIdx;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="types"></param>
-		public TreeReaderOptions(params Type[] types)
+		public NodeReader(NodeData nodeData)
+			: base(nodeData.Data)
 		{
-			Types.AddRange(types);
+			_nodeData = nodeData;
+		}
+
+		/// <summary>
+		/// Reads the next reference to another node
+		/// </summary>
+		public NodeHandle ReadNodeHandle()
+		{
+			IoHash hash = this.ReadIoHash();
+			return new NodeHandle(hash, _nodeData.Refs[_refIdx++]);
 		}
 	}
-
-	/// <summary>
-	/// Callback parameters for ReadNodeAsync calls. 
-	/// </summary>
-	/// <param name="Type">TreeNode type being read</param>
-	/// <param name="Deserialize">Deserialization function commonly </param>
-	public record struct ReadNodeAsyncCallbackParams(Type Type, Func<ITreeNodeReader, Node> Deserialize);
 
 	/// <summary>
 	/// Writes nodes from bundles in an <see cref="IStorageClient"/> instance.
 	/// </summary>
 	public class TreeReader
 	{
-		/// <summary>
-		/// Information about a known type that can be deserialized from a bundle
-		/// </summary>
-		class TypeInfo
-		{
-			static readonly ConcurrentDictionary<Type, TypeInfo> s_cachedTypeInfo = new ConcurrentDictionary<Type, TypeInfo>();
-
-			public Type Type { get; }
-			public NodeType BundleType { get; }
-			public Func<ITreeNodeReader, Node> Deserialize { get; }
-
-			private TypeInfo(Type type, NodeType bundleType, Func<ITreeNodeReader, Node> deserialize)
-			{
-				Type = type;
-				BundleType = bundleType;
-				Deserialize = deserialize;
-			}
-
-			public static TypeInfo Create(Type type)
-			{
-				TypeInfo? typeInfo;
-				if (!s_cachedTypeInfo.TryGetValue(type, out typeInfo))
-				{
-					NodeType bundleType = NodeType.Get(type);
-
-					Type[] signature = new[] { typeof(ITreeNodeReader) };
-
-					ConstructorInfo? constructorInfo = type.GetConstructor(signature);
-					if (constructorInfo == null)
-					{
-						throw new InvalidOperationException($"Type {type.Name} does not have a constructor taking an {typeof(ITreeNodeReader).Name} as parameter.");
-					}
-
-					DynamicMethod method = new DynamicMethod($"Create_{type.Name}", type, signature, true);
-
-					ILGenerator generator = method.GetILGenerator();
-					generator.Emit(OpCodes.Ldarg_0);
-					generator.Emit(OpCodes.Newobj, constructorInfo);
-					generator.Emit(OpCodes.Ret);
-
-					Func<ITreeNodeReader, Node> deserialize = (Func<ITreeNodeReader, Node>)method.CreateDelegate(typeof(Func<ITreeNodeReader, Node>));
-
-					typeInfo = s_cachedTypeInfo.GetOrAdd(type, new TypeInfo(type, bundleType, deserialize));
-				}
-				return typeInfo;
-			}
-		}
-
 		/// <summary>
 		/// Computed information about a bundle
 		/// </summary>
@@ -146,14 +84,12 @@ namespace EpicGames.Horde.Storage
 			public readonly BlobLocator Locator;
 			public readonly BundleHeader Header;
 			public readonly int HeaderLength;
-			public readonly TypeInfo?[] Types;
 
-			public BundleInfo(BlobLocator locator, BundleHeader header, int headerLength, TypeInfo?[] types)
+			public BundleInfo(BlobLocator locator, BundleHeader header, int headerLength)
 			{
 				Locator = locator;
 				Header = header;
 				HeaderLength = headerLength;
-				Types = types;
 			}
 		}
 
@@ -191,42 +127,6 @@ namespace EpicGames.Horde.Storage
 			}
 		}
 
-		/// <summary>
-		/// Implementation of <see cref="ITreeNodeReader"/>
-		/// </summary>
-		class NodeReader : MemoryReader, ITreeNodeReader
-		{
-			readonly IReadOnlyList<NodeLocator> _refs;
-			readonly IoHash _hash;
-			readonly NodeType _type;
-			readonly int _length;
-
-			int _refIdx;
-
-			public NodeReader(ReadOnlyMemory<byte> data, IoHash hash, IReadOnlyList<NodeLocator> refs, NodeType type)
-				: base(data)
-			{
-				_refs = refs;
-				_hash = hash;
-				_type = type;
-				_length = data.Length;
-			}
-
-			public int Version => _type.Version;
-
-			public int Length => _length;
-
-			public IoHash Hash => _hash;
-
-			public IReadOnlyList<NodeLocator> References => _refs;
-
-			public NodeHandle ReadNodeHandle()
-			{
-				IoHash hash = this.ReadIoHash();
-				return new NodeHandle(hash, _refs[_refIdx++]);
-			}
-		}
-
 		// Size of data to fetch by default. This is larger than the minimum request size to reduce number of reads.
 		const int DefaultFetchSize = 15 * 1024 * 1024;
 
@@ -235,7 +135,6 @@ namespace EpicGames.Horde.Storage
 
 		readonly IStorageClient _store;
 		readonly IMemoryCache? _cache;
-		readonly Dictionary<Guid, TypeInfo> _types;
 		readonly ILogger _logger;
 
 		readonly object _queueLock = new object();
@@ -244,9 +143,6 @@ namespace EpicGames.Horde.Storage
 		readonly Dictionary<string, Task<ReadOnlyMemory<byte>>> _decodeTasks = new Dictionary<string, Task<ReadOnlyMemory<byte>>>(StringComparer.Ordinal);
 		Task? _readTask;
 
-		// Default options object, if unspecified
-		static readonly TreeReaderOptions s_defaultOptions = new TreeReaderOptions();
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -254,22 +150,9 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cache">Cache for data</param>
 		/// <param name="logger">Logger for output</param>
 		public TreeReader(IStorageClient store, IMemoryCache? cache, ILogger logger)
-			: this(store, cache, s_defaultOptions, logger)
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="store"></param>
-		/// <param name="cache">Cache for data</param>
-		/// <param name="options"></param>
-		/// <param name="logger">Logger for output</param>
-		public TreeReader(IStorageClient store, IMemoryCache? cache, TreeReaderOptions options, ILogger logger)
 		{
 			_store = store;
 			_cache = cache;
-			_types = options.Types.Select(x => TypeInfo.Create(x)).ToDictionary(x => x.BundleType.Guid, x => x);
 			_logger = logger;
 		}
 
@@ -419,15 +302,8 @@ namespace EpicGames.Horde.Storage
 					// Parse the header and construct the bundle info from it
 					BundleHeader header = BundleHeader.Read(memory.ToArray());
 
-					// Get the types within this bundle
-					TypeInfo?[] types = new TypeInfo?[header.Types.Count];
-					for (int idx = 0; idx < header.Types.Count; idx++)
-					{
-						_types.TryGetValue(header.Types[idx].Guid, out types[idx]);
-					}
-
 					// Construct the bundle info
-					BundleInfo bundleInfo = new BundleInfo(queuedHeader.Blob, header, headerSize, types);
+					BundleInfo bundleInfo = new BundleInfo(queuedHeader.Blob, header, headerSize);
 
 					if (_cache != null)
 					{
@@ -720,25 +596,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="locator">Locator for the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Node data read from the given bundle</returns>
-		public async ValueTask<Node> ReadNodeAsync(NodeLocator locator, CancellationToken cancellationToken = default)
-		{
-			Node? treeNode = null;
-			await ReadNodeAsync(locator, (ReadNodeAsyncCallbackParams parms, ITreeNodeReader reader) =>
-			{
-				treeNode = parms.Deserialize(reader);
-				return Task.CompletedTask;
-			}, cancellationToken);
-			return treeNode!;
-		}
-
-		/// <summary>
-		/// Reads a node from a bundle
-		/// </summary>
-		/// <param name="locator">Locator for the node</param>
-		/// <param name="readFunc">Action to be invoked</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Node data read from the given bundle</returns>
-		public async ValueTask ReadNodeAsync(NodeLocator locator, Func<ReadNodeAsyncCallbackParams /*parms*/, ITreeNodeReader /*reader*/, Task> readFunc, CancellationToken cancellationToken = default)
+		public async ValueTask<NodeData> ReadNodeDataAsync(NodeLocator locator, CancellationToken cancellationToken = default)
 		{
 			BundleInfo bundleInfo = await GetBundleInfoAsync(locator.Blob, cancellationToken);
 			BundleExport export = bundleInfo.Header.Exports[locator.ExportIdx];
@@ -766,13 +624,8 @@ namespace EpicGames.Horde.Storage
 				nodeData = packetData.Slice(export.Offset, export.Length);
 			}
 
-			TypeInfo? typeInfo = bundleInfo.Types[export.TypeIdx];
-			if (typeInfo == null)
-			{
-				throw new InvalidOperationException($"No registered serializer for type {bundleInfo.Header.Types[export.TypeIdx].Guid}");
-			}
-
-			await readFunc(new ReadNodeAsyncCallbackParams(typeInfo.Type, typeInfo.Deserialize), new NodeReader(nodeData, export.Hash, refs, typeInfo.BundleType));
+			NodeType nodeType = bundleInfo.Header.Types[export.TypeIdx];
+			return new NodeData(nodeType, export.Hash, nodeData, refs);
 		}
 
 		/// <summary>
@@ -781,10 +634,19 @@ namespace EpicGames.Horde.Storage
 		/// <param name="locator">Locator for the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Node data read from the given bundle</returns>
-		public async ValueTask<TNode> ReadNodeAsync<TNode>(NodeLocator locator, CancellationToken cancellationToken = default) where TNode : Node
+		public async ValueTask<Node> ReadNodeAsync(NodeLocator locator, CancellationToken cancellationToken = default)
 		{
-			return (TNode)await ReadNodeAsync(locator, cancellationToken);
+			NodeData nodeData = await ReadNodeDataAsync(locator, cancellationToken);
+			return Node.Deserialize(nodeData);
 		}
+
+		/// <summary>
+		/// Reads a node from a bundle
+		/// </summary>
+		/// <param name="locator">Locator for the node</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Node data read from the given bundle</returns>
+		public async ValueTask<TNode> ReadNodeAsync<TNode>(NodeLocator locator, CancellationToken cancellationToken = default) where TNode : Node => (TNode)await ReadNodeAsync(locator, cancellationToken);
 
 		/// <summary>
 		/// Reads data for a ref from the store, along with the node's contents.

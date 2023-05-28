@@ -3,13 +3,41 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 
 namespace EpicGames.Horde.Storage
 {
+	/// <summary>
+	/// Attribute used to define a factory for a particular node type
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Class)]
+	public sealed class NodeTypeAttribute : Attribute // TODO: THIS SHOULD BE NODEATTRIBUTE, not NODETYPEATTRIBUTE
+	{
+		/// <summary>
+		/// Name of the type to store in the bundle header
+		/// </summary>
+		public string Guid { get; }
+
+		/// <summary>
+		/// Version number of the serializer
+		/// </summary>
+		public int Version { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public NodeTypeAttribute(string guid, int version = 1)
+		{
+			Guid = guid;
+			Version = version;
+		}
+	}
+
 	/// <summary>
 	/// Base class for user-defined types that are stored in a tree
 	/// </summary>
@@ -29,7 +57,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Accessor for the bundle type definition associated with this node
 		/// </summary>
-		public NodeType NodeType => NodeType.Get(GetType());
+		public NodeType NodeType => GetNodeType(GetType());
 
 		/// <summary>
 		/// Default constructor
@@ -42,7 +70,7 @@ namespace EpicGames.Horde.Storage
 		/// Serialization constructor. Leaves the revision number zeroed by default.
 		/// </summary>
 		/// <param name="reader"></param>
-		protected Node(ITreeNodeReader reader)
+		protected Node(NodeReader reader)
 		{
 			Hash = reader.Hash;
 		}
@@ -67,6 +95,154 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <returns>References to other nodes</returns>
 		public abstract IEnumerable<NodeRef> EnumerateRefs();
+
+		#region Static methods
+
+		static readonly object s_writeLock = new object();
+		static readonly ConcurrentDictionary<Type, NodeType> s_typeToNodeType = new ConcurrentDictionary<Type, NodeType>();
+		static readonly ConcurrentDictionary<Guid, Type> s_guidToType = new ConcurrentDictionary<Guid, Type>();
+		static readonly ConcurrentDictionary<Guid, Func<NodeReader, Node>> s_guidToDeserializer = new ConcurrentDictionary<Guid, Func<NodeReader, Node>>();
+
+		static NodeType CreateNodeType(NodeTypeAttribute attribute)
+		{
+			return new NodeType(Guid.Parse(attribute.Guid), attribute.Version);
+		}
+
+		/// <summary>
+		/// Attempts to get the concrete type with the given node. The type must have been registered via a previous call to <see cref="RegisterType(Type)"/>.
+		/// </summary>
+		/// <param name="guid">Guid specified in the <see cref="NodeTypeAttribute"/></param>
+		/// <param name="type">On success, receives the C# type associated with this GUID</param>
+		/// <returns>True if the type was found</returns>
+		public static bool TryGetConcreteType(Guid guid, [NotNullWhen(true)] out Type? type) => s_guidToType.TryGetValue(guid, out type);
+
+		/// <summary>
+		/// Gets the node type corresponding to the given C# type
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public static NodeType GetNodeType(Type type)
+		{
+			NodeType nodeType;
+			if (!s_typeToNodeType.TryGetValue(type, out nodeType))
+			{
+				lock (s_writeLock)
+				{
+					if (!s_typeToNodeType.TryGetValue(type, out nodeType))
+					{
+						NodeTypeAttribute? attribute = type.GetCustomAttribute<NodeTypeAttribute>();
+						if (attribute == null)
+						{
+							throw new InvalidOperationException($"Missing {nameof(NodeTypeAttribute)} from type {type.Name}");
+						}
+						nodeType = s_typeToNodeType.GetOrAdd(type, CreateNodeType(attribute));
+					}
+				}
+			}
+			return nodeType;
+		}
+
+		/// <summary>
+		/// Gets the type descriptor for the given type
+		/// </summary>
+		/// <typeparam name="T">Type to get a <see cref="NodeType"/> for</typeparam>
+		/// <returns></returns>
+		public static NodeType GetNodeType<T>() where T : Node => GetNodeType(typeof(T));
+
+		/// <summary>
+		/// Deserialize a node from the given reader
+		/// </summary>
+		/// <param name="nodeData">Data to deserialize from</param>
+		/// <returns>New node instance</returns>
+		public static Node Deserialize(NodeData nodeData)
+		{
+			NodeReader reader = new NodeReader(nodeData);
+			return s_guidToDeserializer[reader.Type.Guid](reader);
+		}
+
+		/// <summary>
+		/// Static constructor. Registers all the types in the current assembly.
+		/// </summary>
+		static Node()
+		{
+			RegisterTypesFromAssembly(Assembly.GetExecutingAssembly());
+		}
+
+		/// <summary>
+		/// Registers a single deserializer
+		/// </summary>
+		/// <param name="type"></param>
+		/// <exception cref="NotImplementedException"></exception>
+		public static void RegisterType(Type type)
+		{
+			NodeTypeAttribute? attribute = type.GetCustomAttribute<NodeTypeAttribute>();
+			if (attribute == null)
+			{
+				throw new InvalidOperationException($"Missing {nameof(NodeTypeAttribute)} from type {type.Name}");
+			}
+			RegisterType(type, attribute);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		public static void RegisterType<T>() where T : Node => RegisterType(typeof(T));
+
+		/// <summary>
+		/// Register all node types with the <see cref="NodeTypeAttribute"/> from the given assembly
+		/// </summary>
+		/// <param name="assembly">Assembly to register types from</param>
+		public static void RegisterTypesFromAssembly(Assembly assembly)
+		{
+			Type[] types = assembly.GetTypes();
+			lock (s_writeLock)
+			{
+				foreach (Type type in types)
+				{
+					if (type.IsClass)
+					{
+						NodeTypeAttribute? attribute = type.GetCustomAttribute<NodeTypeAttribute>();
+						if (attribute != null)
+						{
+							RegisterType(type, attribute);
+						}
+					}
+				}
+			}
+		}
+
+		static void RegisterType(Type type, NodeTypeAttribute attribute)
+		{
+			NodeType nodeType = CreateNodeType(attribute);
+			s_typeToNodeType.TryAdd(type, nodeType);
+
+			Func<NodeReader, Node> deserializer = CreateDeserializer(type);
+			s_guidToType.TryAdd(nodeType.Guid, type);
+			s_guidToDeserializer.TryAdd(nodeType.Guid, deserializer);
+		}
+
+		static Func<NodeReader, Node> CreateDeserializer(Type type)
+		{
+			Type[] signature = new[] { typeof(NodeReader) };
+
+			ConstructorInfo? constructorInfo = type.GetConstructor(signature);
+			if (constructorInfo == null)
+			{
+				throw new InvalidOperationException($"Type {type.Name} does not have a constructor taking an {typeof(NodeReader).Name} as parameter.");
+			}
+
+			DynamicMethod method = new DynamicMethod($"Create_{type.Name}", type, signature, true);
+
+			ILGenerator generator = method.GetILGenerator();
+			generator.Emit(OpCodes.Ldarg_0);
+			generator.Emit(OpCodes.Newobj, constructorInfo);
+			generator.Emit(OpCodes.Ret);
+
+			return (Func<NodeReader, Node>)method.CreateDelegate(typeof(Func<NodeReader, Node>));
+		}
+
+		#endregion
 	}
 
 	/// <summary>
@@ -91,7 +267,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New untyped ref</returns>
-		public static NodeRef ReadRef(this ITreeNodeReader reader)
+		public static NodeRef ReadRef(this NodeReader reader)
 		{
 			return new NodeRef(reader);
 		}
@@ -102,7 +278,7 @@ namespace EpicGames.Horde.Storage
 		/// <typeparam name="T">Type of the referenced node</typeparam>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New strongly typed ref</returns>
-		public static NodeRef<T> ReadRef<T>(this ITreeNodeReader reader) where T : Node
+		public static NodeRef<T> ReadRef<T>(this NodeReader reader) where T : Node
 		{
 			return new NodeRef<T>(reader);
 		}
@@ -112,7 +288,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New untyped ref</returns>
-		public static NodeRef? ReadOptionalRef(this ITreeNodeReader reader)
+		public static NodeRef? ReadOptionalRef(this NodeReader reader)
 		{
 			if (reader.ReadBoolean())
 			{
@@ -129,7 +305,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New strongly typed ref</returns>
-		public static NodeRef<T>? ReadOptionalRef<T>(this ITreeNodeReader reader) where T : Node
+		public static NodeRef<T>? ReadOptionalRef<T>(this NodeReader reader) where T : Node
 		{
 			if (reader.ReadBoolean())
 			{

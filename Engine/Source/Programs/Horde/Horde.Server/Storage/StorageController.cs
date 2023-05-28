@@ -592,25 +592,9 @@ namespace Horde.Server.Storage
 
 		static string GetNodeLink(string linkBase, NodeRef treeNodeRef) => $"{linkBase}/nodes/{treeNodeRef.Handle!.Locator.Blob}?export={treeNodeRef.Handle!.Locator.ExportIdx}";
 
-		static readonly Dictionary<Guid, Type> s_guidToType = GetGuidToTypeMap();
-
-		static Dictionary<Guid, Type> GetGuidToTypeMap()
-		{
-			Dictionary<Guid, Type> guidToType = new Dictionary<Guid, Type>();
-			foreach (Type nodeType in new TreeReaderOptions().Types)
-			{
-				NodeTypeAttribute? attribute = nodeType.GetCustomAttribute<NodeTypeAttribute>();
-				if (attribute != null)
-				{
-					guidToType.Add(Guid.Parse(attribute.Guid), nodeType);
-				}
-			}
-			return guidToType;
-		}
-
 		static Type? GetNodeType(Guid typeGuid)
 		{
-			s_guidToType.TryGetValue(typeGuid, out Type? type);
+			Node.TryGetConcreteType(typeGuid, out Type? type);
 			return type;
 		}
 	}

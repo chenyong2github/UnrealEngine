@@ -85,7 +85,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Deserializing constructor
 		/// </summary>
 		/// <param name="reader"></param>
-		public CommitNode(ITreeNodeReader reader)
+		public CommitNode(NodeReader reader)
 		{
 			Number = (int)reader.ReadUnsignedVarInt();
 			Parent = reader.ReadOptionalRef<CommitNode>();
