@@ -1074,12 +1074,10 @@ URuntimeHashExternalStreamingObjectBase* UWorldPartitionRuntimeSpatialHash::Stor
 
 void UWorldPartitionRuntimeSpatialHash::ApplyCVars()
 {
-#if WITH_EDITORONLY_DATA
 	GRuntimeSpatialHashUseAlignedGridLevelsEffective = (UseAlignedGridLevels == EWorldPartitionCVarProjectDefaultOverride::ProjectDefault) ? GRuntimeSpatialHashUseAlignedGridLevels : (UseAlignedGridLevels == EWorldPartitionCVarProjectDefaultOverride::Enabled);
 	GRuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevelsEffective = (SnapNonAlignedGridLevelsToLowerLevels == EWorldPartitionCVarProjectDefaultOverride::ProjectDefault) ? GRuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevels : (SnapNonAlignedGridLevelsToLowerLevels == EWorldPartitionCVarProjectDefaultOverride::Enabled);
 	GRuntimeSpatialHashPlaceSmallActorsUsingLocationEffective = (PlaceSmallActorsUsingLocation == EWorldPartitionCVarProjectDefaultOverride::ProjectDefault) ? GRuntimeSpatialHashPlaceSmallActorsUsingLocation : (PlaceSmallActorsUsingLocation == EWorldPartitionCVarProjectDefaultOverride::Enabled);
 	GRuntimeSpatialHashPlacePartitionActorsUsingLocationEffective = (PlacePartitionActorsUsingLocation == EWorldPartitionCVarProjectDefaultOverride::ProjectDefault) ? GRuntimeSpatialHashPlacePartitionActorsUsingLocation : (PlacePartitionActorsUsingLocation == EWorldPartitionCVarProjectDefaultOverride::Enabled);
-#endif
 }
 
 void UWorldPartitionRuntimeSpatialHash::Serialize(FArchive& Ar)

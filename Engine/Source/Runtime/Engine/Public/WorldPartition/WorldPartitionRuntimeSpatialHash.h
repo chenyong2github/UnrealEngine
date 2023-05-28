@@ -327,6 +327,17 @@ private:
 	UPROPERTY(EditAnywhere, Config, Category = RuntimeSettings)
 	TArray<FSpatialHashRuntimeGrid> Grids;
 
+	/** Whether to preview runtime grids. */
+	UPROPERTY(Transient)
+	bool bPreviewGrids;
+
+	UPROPERTY(Transient)
+	int32 PreviewGridLevel;
+
+	UPROPERTY(Transient)
+	mutable FWorldPartitionRuntimeSpatialHashGridPreviewer GridPreviewer;
+#endif
+
 	/** Disable to help break the pattern caused by world partition promotion of actors to upper grid levels that are always aligned on child levels. */
 	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = RuntimeSettings)
 	EWorldPartitionCVarProjectDefaultOverride UseAlignedGridLevels;
@@ -342,17 +353,6 @@ private:
 	/** Enable to place partitioned actors into their corresponding cell using their location instead of their bounding box. */
 	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = RuntimeSettings)
 	EWorldPartitionCVarProjectDefaultOverride PlacePartitionActorsUsingLocation;
-
-	/** Whether to preview runtime grids. */
-	UPROPERTY(Transient)
-	bool bPreviewGrids;
-
-	UPROPERTY(Transient)
-	int32 PreviewGridLevel;
-
-	UPROPERTY(Transient)
-	mutable FWorldPartitionRuntimeSpatialHashGridPreviewer GridPreviewer;
-#endif
 
 	/** Whether this hash enables Z culling. */
 	UPROPERTY(EditAnywhere, Config, Category = RuntimeSettings)
