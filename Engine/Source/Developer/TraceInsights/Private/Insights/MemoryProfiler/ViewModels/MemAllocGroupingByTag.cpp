@@ -199,7 +199,7 @@ void FMemAllocGroupingByTag::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 
 		if (NodePtr->IsGroup())
 		{
-			ParentGroup.AddChildAndSetGroupPtr(NodePtr);
+			ParentGroup.AddChildAndSetParent(NodePtr);
 			continue;
 		}
 
@@ -213,12 +213,12 @@ void FMemAllocGroupingByTag::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 			{
 				TagNode = UnknownTagNode;
 			}
-			TagNode->TreeNode->AddChildAndSetGroupPtr(NodePtr);
+			TagNode->TreeNode->AddChildAndSetParent(NodePtr);
 			TagNode->AllocCount++;
 		}
 		else
 		{
-			ParentGroup.AddChildAndSetGroupPtr(NodePtr);
+			ParentGroup.AddChildAndSetParent(NodePtr);
 		}
 	}
 
@@ -250,12 +250,12 @@ void FMemAllocGroupingByTag::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 			check(TagNode->TreeNode);
 			if (TagNode->Parent->TreeNode)
 			{
-				TagNode->Parent->TreeNode->AddChildAndSetGroupPtr(TagNode->TreeNode);
+				TagNode->Parent->TreeNode->AddChildAndSetParent(TagNode->TreeNode);
 			}
 			else
 			{
 				check(TagNode->Parent == &Root);
-				ParentGroup.AddChildAndSetGroupPtr(TagNode->TreeNode);
+				ParentGroup.AddChildAndSetParent(TagNode->TreeNode);
 			}
 		}
 	}

@@ -31,8 +31,8 @@ const FText FBaseTreeNode::GetExtraDisplayName() const
 {
 	if (IsGroup())
 	{
-		const int32 NumChildren = GroupData->Children.Num();
-		const int32 NumFilteredChildren = GroupData->FilteredChildren.Num();
+		const int32 NumChildren = GetChildrenCount();
+		const int32 NumFilteredChildren = GetFilteredChildrenCount();
 
 		if (NumFilteredChildren == NumChildren)
 		{
@@ -93,7 +93,7 @@ void FBaseTreeNode::SortChildren(const ITableCellValueSorter& Sorter, ESortMode 
 
 void FBaseTreeNode::SortFilteredChildren(const ITableCellValueSorter& Sorter, ESortMode SortMode)
 {
-	Sorter.Sort(GroupData->FilteredChildren, SortMode);
+	Sorter.Sort(*GroupData->FilteredChildrenPtr, SortMode);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

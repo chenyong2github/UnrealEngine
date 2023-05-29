@@ -239,7 +239,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			];
 
 		// Do not show Delete button for the Root node
-		EVisibility DeleteVisibility = FilterConfiguratorNodePtr->GetGroupPtr().IsValid() ? EVisibility::Visible : EVisibility::Hidden;
+		EVisibility DeleteVisibility = FilterConfiguratorNodePtr->GetParent().IsValid() ? EVisibility::Visible : EVisibility::Hidden;
 		RightBox->AddSlot()
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
@@ -406,7 +406,7 @@ FReply SFilterConfiguratorRow::AddFilter_OnClicked()
 	FFilterConfiguratorNodePtr ChildNode = MakeShared<FFilterConfiguratorNode>(TEXT(""), false);
 	ChildNode->SetAvailableFilters(FilterConfiguratorNodePtr->GetAvailableFilters());
 
-	FilterConfiguratorNodePtr->AddChildAndSetGroupPtr(ChildNode);
+	FilterConfiguratorNodePtr->AddChildAndSetParent(ChildNode);
 	FilterConfiguratorNodePtr->SetExpansion(true);
 	OwnerTablePtr.Pin()->Private_SetItemExpansion(FilterConfiguratorNodePtr, true);
 
@@ -418,12 +418,7 @@ FReply SFilterConfiguratorRow::AddFilter_OnClicked()
 
 FReply SFilterConfiguratorRow::DeleteFilter_OnClicked()
 {
-	FBaseTreeNodeWeak GroupWeakPtr = FilterConfiguratorNodePtr->GetGroupPtr();
-	if (GroupWeakPtr.IsValid())
-	{
-		FFilterConfiguratorNodePtr GroupPtr = StaticCastSharedPtr<FFilterConfiguratorNode>(GroupWeakPtr.Pin());
-		GroupPtr->DeleteChildNode(FilterConfiguratorNodePtr);
-	}
+	FilterConfiguratorNodePtr->RemoveFromParent();
 
 	StaticCastSharedPtr<STreeView<FFilterConfiguratorNodePtr>>(OwnerTablePtr.Pin())->RequestTreeRefresh();
 	return FReply::Handled();
@@ -437,7 +432,7 @@ FReply SFilterConfiguratorRow::AddGroup_OnClicked()
 	ChildNode->SetAvailableFilters(FilterConfiguratorNodePtr->GetAvailableFilters());
 	ChildNode->SetExpansion(true);
 
-	FilterConfiguratorNodePtr->AddChildAndSetGroupPtr(ChildNode);
+	FilterConfiguratorNodePtr->AddChildAndSetParent(ChildNode);
 	FilterConfiguratorNodePtr->SetExpansion(true);
 	OwnerTablePtr.Pin()->Private_SetItemExpansion(FilterConfiguratorNodePtr, true);
 
@@ -449,12 +444,7 @@ FReply SFilterConfiguratorRow::AddGroup_OnClicked()
 
 FReply SFilterConfiguratorRow::DeleteGroup_OnClicked()
 {
-	FBaseTreeNodeWeak GroupWeakPtr = FilterConfiguratorNodePtr->GetGroupPtr();
-	if (GroupWeakPtr.IsValid())
-	{
-		FFilterConfiguratorNodePtr GroupPtr = StaticCastSharedPtr<FFilterConfiguratorNode>(GroupWeakPtr.Pin());
-		GroupPtr->DeleteChildNode(FilterConfiguratorNodePtr);
-	}
+	FilterConfiguratorNodePtr->RemoveFromParent();
 
 	StaticCastSharedPtr<STreeView<FFilterConfiguratorNodePtr>>(OwnerTablePtr.Pin())->RequestTreeRefresh();
 	return FReply::Handled();

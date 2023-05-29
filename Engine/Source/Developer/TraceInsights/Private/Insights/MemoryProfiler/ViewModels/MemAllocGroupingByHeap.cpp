@@ -45,7 +45,7 @@ FTableTreeNodePtr MakeGroupNodeHierarchy(const TraceServices::IAllocationsProvid
 	for (TraceServices::IAllocationsProvider::FHeapSpec* ChildSpec : Spec.Children)
 	{
 		auto ChildNode = MakeGroupNodeHierarchy(*ChildSpec, InParentTable, NodeTable);
-		Node->AddChildAndSetGroupPtr(ChildNode);
+		Node->AddChildAndSetParent(ChildNode);
 	}
 	return Node;
 }
@@ -65,7 +65,7 @@ void FMemAllocGroupingByHeap::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 		TraceServices::FProviderReadScopeLock _(AllocProvider);
 		AllocProvider.EnumerateRootHeaps([&](HeapId Id, const TraceServices::IAllocationsProvider::FHeapSpec& Spec)
 		{
-			ParentGroup.AddChildAndSetGroupPtr(MakeGroupNodeHierarchy(Spec, InParentTable, HeapNodes));
+			ParentGroup.AddChildAndSetParent(MakeGroupNodeHierarchy(Spec, InParentTable, HeapNodes));
 		});
 	}
 
@@ -79,7 +79,7 @@ void FMemAllocGroupingByHeap::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 
 		if (NodePtr->IsGroup())
 		{
-			ParentGroup.AddChildAndSetGroupPtr(NodePtr);
+			ParentGroup.AddChildAndSetParent(NodePtr);
 			continue;
 		}
 
@@ -93,7 +93,7 @@ void FMemAllocGroupingByHeap::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 			const uint8 HeapId = static_cast<uint8>(Alloc->GetRootHeap());
 			if (FTableTreeNodePtr GroupPtr = HeapNodes[HeapId])
 			{
-				GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+				GroupPtr->AddChildAndSetParent(NodePtr);
 			}
 		}
 	}

@@ -912,7 +912,7 @@ void SNetStatsCountersView::CreateGroups()
 
 		for (const FNetStatsCounterNodePtr& NodePtr : NetStatsCounterNodes)
 		{
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 		}
 		TreeView->SetItemExpansion(GroupPtr, true);
 	}
@@ -929,7 +929,7 @@ void SNetStatsCountersView::CreateGroups()
 				const FName GroupName = *NetStatsCounterNodeTypeHelper::ToText(NodeType).ToString();
 				GroupPtr = GroupNodeSet.Add(NodeType, MakeShared<FNetStatsCounterNode>(GroupName));
 			}
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 			TreeView->SetItemExpansion(GroupPtr, true);
 		}
 		GroupNodeSet.KeySort([](const ENetStatsCounterNodeType& A, const ENetStatsCounterNodeType& B) { return A < B; }); // sort groups by type
@@ -949,7 +949,7 @@ void SNetStatsCountersView::CreateGroups()
 				const FName GroupName(FirstLetterStr);
 				GroupPtr = GroupNodeSet.Add(FirstLetter, MakeShared<FNetStatsCounterNode>(GroupName));
 			}
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 		}
 		GroupNodeSet.KeySort([](const TCHAR& A, const TCHAR& B) { return A < B; }); // sort groups alphabetically
 		GroupNodeSet.GenerateValueArray(GroupNodes);

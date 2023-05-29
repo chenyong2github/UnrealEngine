@@ -1904,27 +1904,30 @@ bool SMemAllocTableTreeView::IsExportMemorySnapshotAvailable() const
 
 bool SMemAllocTableTreeView::CanOpenCallstackFrameSourceFileInIDE() const
 {
-	if (TreeView->GetNumItemsSelected() != 1)
+	if (TreeView->GetNumItemsSelected() == 1)
 	{
-		return false;
+		FTableTreeNodePtr TreeNode = TreeView->GetSelectedItems()[0];
+		if (TreeNode.IsValid() && TreeNode->Is<FCallstackFrameGroupNode>())
+		{
+			const FCallstackFrameGroupNode& CallstackFrameNode = TreeNode->As<FCallstackFrameGroupNode>();
+			return CallstackFrameNode.GetStackFrame() != nullptr;
+		}
 	}
-
-	FTableTreeNodePtr TreeNode = TreeView->GetSelectedItems()[0];
-	return TreeNode.IsValid() && TreeNode->IsGroup() && TreeNode->GetContext();
+	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SMemAllocTableTreeView::OpenCallstackFrameSourceFileInIDE()
 {
-	if (TreeView->GetNumItemsSelected() > 0)
+	if (TreeView->GetNumItemsSelected() == 1)
 	{
 		FTableTreeNodePtr TreeNode = TreeView->GetSelectedItems()[0];
-		if (TreeNode.IsValid() && TreeNode->IsGroup() && TreeNode->GetContext())
+		if (TreeNode.IsValid() && TreeNode->Is<FCallstackFrameGroupNode>())
 		{
-			const TraceServices::FStackFrame* Frame = (const TraceServices::FStackFrame*)TreeNode->GetContext();
-
-			if (Frame->Symbol && Frame->Symbol->File)
+			const FCallstackFrameGroupNode& CallstackFrameNode = TreeNode->As<FCallstackFrameGroupNode>();
+			const TraceServices::FStackFrame* Frame = CallstackFrameNode.GetStackFrame();
+			if (Frame && Frame->Symbol && Frame->Symbol->File)
 			{
 				OpenSourceFileInIDE(Frame->Symbol->File, Frame->Symbol->Line);
 			}
@@ -1936,13 +1939,14 @@ void SMemAllocTableTreeView::OpenCallstackFrameSourceFileInIDE()
 
 FText SMemAllocTableTreeView::GetSelectedCallstackFrameFileName() const
 {
-	if (TreeView->GetNumItemsSelected() > 0)
+	if (TreeView->GetNumItemsSelected() == 1)
 	{
 		FTableTreeNodePtr TreeNode = TreeView->GetSelectedItems()[0];
-		if (TreeNode.IsValid() && TreeNode->IsGroup() && TreeNode->GetContext())
+		if (TreeNode.IsValid() && TreeNode->Is<FCallstackFrameGroupNode>())
 		{
-			const TraceServices::FStackFrame* Frame = (const TraceServices::FStackFrame*)TreeNode->GetContext();
-			if (Frame->Symbol && Frame->Symbol->File)
+			const FCallstackFrameGroupNode& CallstackFrameNode = TreeNode->As<FCallstackFrameGroupNode>();
+			const TraceServices::FStackFrame* Frame = CallstackFrameNode.GetStackFrame();
+			if (Frame && Frame->Symbol && Frame->Symbol->File)
 			{
 				FString SourceFileAndLine = FString::Printf(TEXT("%s(%d)"), Frame->Symbol->File, Frame->Symbol->Line);
 				return FText::FromString(SourceFileAndLine);

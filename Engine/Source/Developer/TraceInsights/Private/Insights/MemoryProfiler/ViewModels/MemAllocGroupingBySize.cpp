@@ -92,7 +92,7 @@ void FMemAllocGroupingBySize::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 
 		if (NodePtr->IsGroup())
 		{
-			ParentGroup.AddChildAndSetGroupPtr(NodePtr);
+			ParentGroup.AddChildAndSetParent(NodePtr);
 			continue;
 		}
 
@@ -120,14 +120,14 @@ void FMemAllocGroupingBySize::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 				const FThreshold& Threshold = Thresholds[ThresholdIndex];
 				GroupPtr = MakeShared<FTableTreeNode>(FName(Threshold.Name.ToString(), 0), InParentTable);
 				GroupPtr->SetExpansion(false);
-				ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
+				ParentGroup.AddChildAndSetParent(GroupPtr);
 				GroupMap[ThresholdIndex] = GroupPtr;
 			}
 		}
 
 		if (GroupPtr != nullptr)
 		{
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 		}
 		else
 		{
@@ -135,9 +135,9 @@ void FMemAllocGroupingBySize::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 			{
 				UnsetGroupPtr = MakeShared<FTableTreeNode>(NotAvailableName, InParentTable);
 				UnsetGroupPtr->SetExpansion(false);
-				ParentGroup.AddChildAndSetGroupPtr(UnsetGroupPtr);
+				ParentGroup.AddChildAndSetParent(UnsetGroupPtr);
 			}
-			UnsetGroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			UnsetGroupPtr->AddChildAndSetParent(NodePtr);
 		}
 	}
 }

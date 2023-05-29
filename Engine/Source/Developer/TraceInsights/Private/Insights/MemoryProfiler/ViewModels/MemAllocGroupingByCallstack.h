@@ -20,6 +20,40 @@ class IAsyncOperationProgress;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class FCallstackFrameGroupNode : public FTableTreeNode
+{
+	INSIGHTS_DECLARE_RTTI(FCallstackFrameGroupNode, FTableTreeNode)
+
+public:
+	/** Initialization constructor for the group node. */
+	explicit FCallstackFrameGroupNode(const FName InName, TWeakPtr<FTable> InParentTable, const TraceServices::FStackFrame* InStackFrame)
+		: FTableTreeNode(InName, InParentTable)
+		, StackFrame(InStackFrame)
+	{
+	}
+
+	virtual ~FCallstackFrameGroupNode()
+	{
+	}
+
+	virtual const FText GetTooltipText() const override;
+	virtual const FSlateBrush* GetIcon() const override;
+	virtual FLinearColor GetColor() const override;
+
+	/**
+	 * @returns the stack frame.
+	 */
+	const TraceServices::FStackFrame* GetStackFrame() const
+	{
+		return StackFrame;
+	}
+
+private:
+	const TraceServices::FStackFrame* StackFrame = nullptr;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FMemAllocGroupingByCallstack : public FTreeNodeGrouping
 {
 	INSIGHTS_DECLARE_RTTI(FMemAllocGroupingByCallstack, FTreeNodeGrouping)
@@ -48,7 +82,6 @@ public:
 
 private:
 	FName GetGroupName(const TraceServices::FStackFrame* Frame) const;
-	FText GetGroupTooltip(const TraceServices::FStackFrame* Frame) const;
 
 	FCallstackGroup* CreateGroup(TArray<FCallstackGroup*>& InOutAllCallstackGroup, FCallstackGroup* InParentGroup, const FName InGroupName, TWeakPtr<FTable> InParentTable, const TraceServices::FStackFrame* InFrame) const;
 

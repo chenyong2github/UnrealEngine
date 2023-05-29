@@ -11,6 +11,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "Logging/MessageLog.h"
 #include "SlateOptMacros.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SToolTip.h"
@@ -300,7 +301,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 					[
 						SNew(STextBlock)
 						.Text(this, &STableTreeView::GetTreeViewBannerText)
-						.ColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f))
+						.ColorAndOpacity(FSlateColor(EStyleColor::Foreground))
 					]
 				]
 			]
@@ -1041,16 +1042,6 @@ void STableTreeView::ApplyNodeFiltering()
 		FilteredNodesPtr = &TableRowNodes;
 	}
 
-	TreeViewBannerText = FText::GetEmpty();
-	if (TableRowNodes.Num() == 0)
-	{
-		TreeViewBannerText = LOCTEXT("EmptyTreeMsg", "Tree is empty.");
-	}
-	else if (FilteredNodesPtr->Num() == 0)
-	{
-		TreeViewBannerText = LOCTEXT("AllNodesFiltered", "All tree nodes are filtered out.");
-	}
-
 	Stopwatch.Stop();
 	const double FilteringTime = Stopwatch.GetAccumulatedTime();
 	if (FilteringTime > 0.1)
@@ -1371,6 +1362,8 @@ void STableTreeView::ApplyHierarchyFiltering()
 		TreeView->RequestTreeRefresh();
 	}
 
+	UpdateBannerText();
+
 	Stopwatch.Stop();
 	const double FilteringTime = Stopwatch.GetAccumulatedTime();
 	if (FilteringTime > 0.1)
@@ -1558,11 +1551,11 @@ void STableTreeView::TreeView_OnGetChildren(FTableTreeNodePtr InParent, TArray<F
 
 		// Update aggregation.
 		UpdateAggregatedValuesRec(*InParent);
-		FTableTreeNodePtr Node = StaticCastSharedPtr<FTableTreeNode>(InParent->GetParentNode());
+		FTableTreeNodePtr Node = StaticCastSharedPtr<FTableTreeNode>(InParent->GetParent());
 		while (Node)
 		{
 			UpdateAggregatedValuesSingleNode(*Node);
-			Node = StaticCastSharedPtr<FTableTreeNode>(Node->GetParentNode());
+			Node = StaticCastSharedPtr<FTableTreeNode>(Node->GetParent());
 		}
 
 		// Update sorting.
@@ -3252,21 +3245,15 @@ FTableTreeNodePtr STableTreeView::GetNodeByTableRowIndex(int32 RowIndex) const
 
 void STableTreeView::SelectNodeByTableRowIndex(int32 RowIndex)
 {
-	if (RowIndex >= 0 && RowIndex < TableRowNodes.Num())
+	FTableTreeNodePtr NodePtr = GetNodeByTableRowIndex(RowIndex);
+	if (NodePtr.IsValid())
 	{
-		FTableTreeNodePtr NodePtr = TableRowNodes[RowIndex];
-		ensure(NodePtr);
-
-		if (!NodePtr)
+		// Expand all parent nodes.
+		FBaseTreeNodePtr ParentNode = NodePtr->GetParent();
+		while (ParentNode.IsValid())
 		{
-			return;
-		}
-
-		FBaseTreeNodePtr GroupNode = NodePtr->GetGroupPtr().Pin();
-		while (GroupNode.IsValid())
-		{
-			TreeView->SetItemExpansion(StaticCastSharedPtr<FTableTreeNode>(GroupNode), true);
-			GroupNode = GroupNode->GetGroupPtr().Pin();
+			TreeView->SetItemExpansion(StaticCastSharedPtr<FTableTreeNode>(ParentNode), true);
+			ParentNode = ParentNode->GetParent();
 
 		}
 
@@ -3818,6 +3805,25 @@ void STableTreeView::ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray
 		{
 			ExportToFileRec(Node, InNodes, bInExportCollapsed, InExportLeafs, Callback);
 		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::UpdateBannerText()
+{
+	TreeViewBannerText = FText::GetEmpty();
+	if (TableRowNodes.Num() == 0)
+	{
+		TreeViewBannerText = LOCTEXT("EmptyTable", "This table is empty.");
+	}
+	else if (FilteredNodesPtr->Num() == 0)
+	{
+		TreeViewBannerText = LOCTEXT("AllNodesFilteredOut", "All tree nodes are filtered out. Check the filter configurator.");
+	}
+	else if (Root->GetFilteredChildrenCount() == 0)
+	{
+		TreeViewBannerText = LOCTEXT("HierarchyFilteringZeroResults", "No tree node is matching the current text search.");
 	}
 }
 

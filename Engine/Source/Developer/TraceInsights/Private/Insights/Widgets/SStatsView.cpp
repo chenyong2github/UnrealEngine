@@ -1278,7 +1278,7 @@ void SStatsView::CreateGroups()
 
 		for (const FStatsNodePtr& NodePtr : StatsNodes)
 		{
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 		}
 		TreeView->SetItemExpansion(GroupPtr, true);
 	}
@@ -1294,7 +1294,7 @@ void SStatsView::CreateGroups()
 			{
 				GroupPtr = GroupNodeSet.Add(GroupName, MakeShared<FStatsNode>(GroupName));
 			}
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 			TreeView->SetItemExpansion(GroupPtr, true);
 		}
 		GroupNodeSet.KeySort([](const FName& A, const FName& B) { return A.Compare(B) < 0; }); // sort groups by name
@@ -1313,7 +1313,7 @@ void SStatsView::CreateGroups()
 				const FName GroupName = *StatsNodeTypeHelper::ToText(NodeType).ToString();
 				GroupPtr = GroupNodeSet.Add(NodeType, MakeShared<FStatsNode>(GroupName));
 			}
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 			TreeView->SetItemExpansion(GroupPtr, true);
 		}
 		GroupNodeSet.KeySort([](const EStatsNodeType& A, const EStatsNodeType& B) { return A < B; }); // sort groups by type
@@ -1332,7 +1332,7 @@ void SStatsView::CreateGroups()
 				const FName GroupName = *StatsNodeDataTypeHelper::ToText(DataType).ToString();
 				GroupPtr = GroupNodeSet.Add(DataType, MakeShared<FStatsNode>(GroupName));
 			}
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 			TreeView->SetItemExpansion(GroupPtr, true);
 		}
 		GroupNodeSet.KeySort([](const EStatsNodeDataType& A, const EStatsNodeDataType& B) { return A < B; }); // sort groups by data type
@@ -1352,7 +1352,7 @@ void SStatsView::CreateGroups()
 				const FName GroupName(FirstLetterStr);
 				GroupPtr = GroupNodeSet.Add(FirstLetter, MakeShared<FStatsNode>(GroupName));
 			}
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 		}
 		GroupNodeSet.KeySort([](const TCHAR& A, const TCHAR& B) { return A < B; }); // sort groups alphabetically
 		GroupNodeSet.GenerateValueArray(GroupNodes);
@@ -1388,7 +1388,7 @@ void SStatsView::CreateGroups()
 				                            FName(FString::Printf(TEXT("Count >= %s"), Orders[MaxOrder - 1]));
 				GroupPtr = GroupNodeSet.Add(Order, MakeShared<FStatsNode>(GroupName));
 			}
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 		}
 		GroupNodeSet.KeySort([](const uint32& A, const uint32& B) { return A > B; }); // sort groups by order
 		GroupNodeSet.GenerateValueArray(GroupNodes);

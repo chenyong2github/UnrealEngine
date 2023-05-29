@@ -39,22 +39,25 @@ class FBaseTreeNode : public TSharedFromThis<FBaseTreeNode>
 	INSIGHTS_DECLARE_RTTI_BASE(FBaseTreeNode)
 
 protected:
+	enum class EGroupNodeFlags : uint32
+	{
+		None = 0,
+		IsExpanded = 1 << 0,
+	};
+
 	struct FGroupNodeData
 	{
 		/** Children of the group node. */
 		TArray<FBaseTreeNodePtr> Children;
 
-		/** Filtered children of the group node. */
-		TArray<FBaseTreeNodePtr> FilteredChildren;
+		/**
+		 * A pointer to the filtered children of the group node.
+		 * If filter is empty (no filtering), this points directly to Children array.
+		 */
+		TArray<FBaseTreeNodePtr>* FilteredChildrenPtr = &Children;
 
-		/** Descriptive text for the group node to display in a tooltip. */
-		FText Tooltip;
-
-		/** A generic pointer to a data context for the group node. Can be nullptr. */
-		void* Context = nullptr;
-
-		/** Whether the group node should be expanded or not. */
-		bool bIsExpanded = false;
+		/** Various flags specific to a group node. */
+		EGroupNodeFlags Flags = EGroupNodeFlags::None;
 	};
 
 public:
@@ -62,26 +65,14 @@ public:
 	explicit FBaseTreeNode(const FName InName, bool bInIsGroup)
 		: DefaultSortOrder(0)
 		, Name(InName)
+		, Parent(nullptr)
 		, GroupData(bInIsGroup ? new FGroupNodeData() : &DefaultGroupData)
 	{
 	}
 
 	virtual ~FBaseTreeNode()
 	{
-		if (GroupData != &DefaultGroupData)
-		{
-			delete GroupData;
-			GroupData = nullptr;
-		}
-	}
-
-	uint32 GetDefaultSortOrder() const
-	{
-		return DefaultSortOrder;
-	}
-	void SetDefaultSortOrder(uint32 Order)
-	{
-		DefaultSortOrder = Order;
+		RemoveGroupData();
 	}
 
 	/**
@@ -110,20 +101,9 @@ public:
 	/**
 	 * @returns a descriptive text for this node to display in a tooltip.
 	 */
-	virtual const FText GetTooltip() const
+	virtual const FText GetTooltipText() const
 	{
-		return GroupData->Tooltip;
-	}
-
-	/**
-	 * Sets a descriptive text for this node to display in a tooltip.
-	 */
-	virtual void SetTooltip(const FText& InTooltip)
-	{
-		if (IsGroup())
-		{
-			GroupData->Tooltip = InTooltip;
-		}
+		return FText::GetEmpty();
 	}
 
 	/**
@@ -152,24 +132,27 @@ public:
 		return GetDefaultColor(IsGroup());
 	}
 
+	//////////////////////////////////////////////////
+	// Parent Node
+
 	/**
-	 * @returns a pointer to a data context for this node. Only available for group nodes.
+	 * @returns a weak reference to the parent group of this node; may be invalid.
 	 */
-	virtual void* GetContext() const
+	FBaseTreeNodeWeak GetParentWeak() const
 	{
-		return GroupData->Context;
+		return Parent;
 	}
 
 	/**
-	 * Sets a pointer to a data context for this node. Only available for group nodes.
+	 * @returns a reference to the parent group of this node; may be invalid.
 	 */
-	virtual void SetContext(void* InContext)
+	FBaseTreeNodePtr GetParent() const
 	{
-		if (IsGroup())
-		{
-			GroupData->Context = InContext;
-		}
+		return Parent.Pin();
 	}
+
+	//////////////////////////////////////////////////
+	// Group Node
 
 	/**
 	 * @returns true if this node is a group node.
@@ -190,20 +173,29 @@ public:
 		}
 	}
 
+	void RemoveGroupData()
+	{
+		if (GroupData != &DefaultGroupData)
+		{
+			if (GroupData->FilteredChildrenPtr != &GroupData->Children)
+			{
+				delete GroupData->FilteredChildrenPtr;
+			}
+
+			delete GroupData;
+			GroupData = &DefaultGroupData;
+		}
+	}
+
+	//////////////////////////////////////////////////
+	// Children Nodes
+
 	/**
 	 * @returns the number of children nodes.
 	 */
 	int32 GetChildrenCount() const
 	{
 		return GroupData->Children.Num();
-	}
-
-	/**
-	 * @returns the number of filtered children nodes.
-	 */
-	int32 GetFilteredChildrenCount() const
-	{
-		return GroupData->FilteredChildren.Num();
 	}
 
 	/**
@@ -221,11 +213,176 @@ public:
 	}
 
 	/**
+	 * @returns a const reference to the children nodes of this group.
+	 */
+	const TArray<FBaseTreeNodePtr>& GetChildren() const
+	{
+		return GroupData->Children;
+	}
+
+	void SortChildren(const ITableCellValueSorter& Sorter, ESortMode SortMode);
+
+	template <typename PredicateType>
+	void SortChildren(PredicateType Predicate)
+	{
+		GroupData->Children.Sort(Predicate);
+	}
+
+	/** Adds specified node to the children nodes. */
+	void AddChild(const FBaseTreeNodePtr& ChildPtr)
+	{
+		GroupData->Children.Add(ChildPtr);
+	}
+
+	/** Adds specified node to the children nodes. Also sets the current node as the parent group of the specified node. */
+	void AddChildAndSetParent(const FBaseTreeNodePtr& ChildPtr)
+	{
+		ChildPtr->Parent = AsWeak();
+		GroupData->Children.Add(ChildPtr);
+	}
+
+	/** Removes this node from the parent's children nodes (preserving the order). Also resets the parent group. */
+	void RemoveFromParent()
+	{
+		FBaseTreeNodePtr ParentNodePtr = Parent.Pin();
+		if (ParentNodePtr.IsValid())
+		{
+			ParentNodePtr->GroupData->Children.RemoveSingle(AsShared());
+		}
+		Parent.Reset();
+	}
+
+	/** Removes this node from the parent's children nodes (not preserving the order). Also resets the parent group. */
+	void RemoveFromParentSwap()
+	{
+		FBaseTreeNodePtr ParentNodePtr = Parent.Pin();
+		if (ParentNodePtr.IsValid())
+		{
+			ParentNodePtr->GroupData->Children.RemoveSwap(AsShared());
+		}
+		Parent.Reset();
+	}
+
+	/** Removes the specified node from the children nodes (preserving the order). If successful, resets the parent group of the specified node. */
+	int32 RemoveChild(const FBaseTreeNodePtr& ChildPtr)
+	{
+		if (GroupData->Children.RemoveSingle(ChildPtr))
+		{
+			ChildPtr->Parent.Reset();
+			return 1;
+		}
+		return 0;
+	}
+
+	/** Removes the specified node from the children nodes (not preserving the order). If successful, resets the parent group of the specified node. */
+	int32 RemoveChildSwap(const FBaseTreeNodePtr& ChildPtr)
+	{
+		if (GroupData->Children.RemoveSwap(ChildPtr))
+		{
+			ChildPtr->Parent.Reset();
+			return 1;
+		}
+		return 0;
+	}
+
+	void SetParent(const FBaseTreeNodeWeak& InParentWeak)
+	{
+		Parent = InParentWeak;
+	}
+
+	void SetParentForChildren()
+	{
+		FBaseTreeNodeWeak ThisNode = AsWeak();
+		for (FBaseTreeNodePtr& NodePtr : GroupData->Children)
+		{
+			NodePtr->Parent = ThisNode;
+		}
+	}
+
+	void SetParentForChildrenRec()
+	{
+		FBaseTreeNodeWeak ThisNode = AsWeak();
+		for (FBaseTreeNodePtr& NodePtr : GroupData->Children)
+		{
+			NodePtr->Parent = ThisNode;
+			NodePtr->SetParentForChildrenRec();
+		}
+	}
+
+	void ResetParentForChildren()
+	{
+		for (FBaseTreeNodePtr& NodePtr : GroupData->Children)
+		{
+			NodePtr->Parent.Reset();
+		}
+	}
+
+	void ResetParentForChildrenRec()
+	{
+		for (FBaseTreeNodePtr& NodePtr : GroupData->Children)
+		{
+			NodePtr->ResetParentForChildrenRec();
+			NodePtr->Parent.Reset();
+		}
+	}
+
+	/** Clears children. */
+	void ClearChildren(int32 NewSize = 0)
+	{
+		ResetParentForChildren();
+		GroupData->Children.Reset(NewSize);
+	}
+
+	void SwapChildren(TArray<FBaseTreeNodePtr>& NewChildren)
+	{
+		ResetParentForChildren();
+		Swap(NewChildren, GroupData->Children);
+		SetParentForChildren();
+	}
+
+	void SwapChildrenFast(TArray<FBaseTreeNodePtr>& NewChildren)
+	{
+		Swap(NewChildren, GroupData->Children);
+	}
+
+	//////////////////////////////////////////////////
+	// Filtered Children Nodes
+
+	virtual bool IsFiltered() const
+	{
+		return false;
+	}
+
+	/**
+	 * @returns the number of filtered children nodes.
+	 */
+	int32 GetFilteredChildrenCount() const
+	{
+		return GroupData->FilteredChildrenPtr->Num();
+	}
+
+	/**
+	 * @returns a const reference to the filtered child node at specified index.
+	 */
+	const FBaseTreeNodePtr& GetFilteredChildNode(int32 Index) const
+	{
+		return (*GroupData->FilteredChildrenPtr)[Index];
+	}
+
+	/**
+	 * @returns a reference to the filtered child node at specified index.
+	 */
+	FBaseTreeNodePtr& GetFilteredChildNode(int32 Index)
+	{
+		return (*GroupData->FilteredChildrenPtr)[Index];
+	}
+
+	/**
 	 * Enumerates the filtered children nodes.
 	 */
 	void EnumerateFilteredChildren(TFunction<bool(const FBaseTreeNodePtr&)> Callback) const
 	{
-		for (const FBaseTreeNodePtr& ChildNode : GroupData->FilteredChildren)
+		for (const FBaseTreeNodePtr& ChildNode : *GroupData->FilteredChildrenPtr)
 		{
 			if (!Callback(ChildNode))
 			{
@@ -235,110 +392,39 @@ public:
 	}
 
 	/**
-	 * @returns a const reference to the children nodes of this group.
-	 */
-	const TArray<FBaseTreeNodePtr>& GetChildren() const
-	{
-		return GroupData->Children;
-	}
-
-	/**
 	 * @returns a const reference to the children nodes that should be visible to the UI based on filtering.
 	 */
 	const TArray<FBaseTreeNodePtr>& GetFilteredChildren() const
 	{
-		return GroupData->FilteredChildren;
+		return *GroupData->FilteredChildrenPtr;
 	}
 
-	/**
-	 * @returns a weak reference to the group of this node, may be invalid.
-	 */
-	FBaseTreeNodeWeak GetGroupPtr() const
-	{
-		return GroupPtr;
-	}
-
-	/**
-	 * @returns a weak reference to the group of this node, may be invalid.
-	 */
-	FBaseTreeNodePtr GetParentNode() const
-	{
-		return GroupPtr.Pin();
-	}
-
-	virtual bool IsFiltered() const
-	{
-		return false;
-	}
-
-	void SortChildren(const ITableCellValueSorter& Sorter, ESortMode SortMode);
 	void SortFilteredChildren(const ITableCellValueSorter& Sorter, ESortMode SortMode);
-
-	template <typename PredicateType>
-	void SortChildren(PredicateType Predicate)
-	{
-		GroupData->Children.Sort(Predicate);
-	}
 
 	template <typename PredicateType>
 	void SortFilteredChildren(PredicateType Predicate)
 	{
-		GroupData->FilteredChildren.Sort(Predicate);
+		GroupData->FilteredChildrenPtr->Sort(Predicate);
 	}
 
-	/** Adds specified node to the children nodes. Also sets the current node as the group of the specified node. */
-	void AddChildAndSetGroupPtr(const FBaseTreeNodePtr& ChildPtr)
+	/** Clears (removes all) the filtered children nodes. */
+	void ClearFilteredChildren(int32 NewSize = 0)
 	{
-		ChildPtr->GroupPtr = AsWeak();
-		GroupData->Children.Add(ChildPtr);
-	}
-
-	void SetGroupPtrForAllChildren()
-	{
-		FBaseTreeNodeWeak ThisNode = AsWeak();
-		for (FBaseTreeNodePtr& NodePtr : GroupData->Children)
+		if (GroupData->FilteredChildrenPtr == &GroupData->Children)
 		{
-			NodePtr->GroupPtr = ThisNode;
+			GroupData->FilteredChildrenPtr = new TArray<FBaseTreeNodePtr>();
 		}
-	}
-
-	void ResetGroupPtrForAllChildren()
-	{
-		for (FBaseTreeNodePtr& NodePtr : GroupData->Children)
-		{
-			NodePtr->GroupPtr = nullptr;
-		}
-	}
-
-	/** Clears children. */
-	void ClearChildren(int32 NewSize = 0)
-	{
-		ResetGroupPtrForAllChildren();
-		GroupData->Children.Reset(NewSize);
-	}
-
-	void SwapChildren(TArray<FBaseTreeNodePtr>& NewChildren)
-	{
-		ResetGroupPtrForAllChildren();
-		Swap(NewChildren, GroupData->Children);
-		SetGroupPtrForAllChildren();
-	}
-
-	void SwapChildrenFast(TArray<FBaseTreeNodePtr>& NewChildren)
-	{
-		Swap(NewChildren, GroupData->Children);
+		GroupData->FilteredChildrenPtr->Reset(NewSize);
 	}
 
 	/** Adds specified child to the filtered children nodes. */
 	void AddFilteredChild(const FBaseTreeNodePtr& ChildPtr)
 	{
-		GroupData->FilteredChildren.Add(ChildPtr);
-	}
-
-	/** Clears the filtered children nodes. */
-	void ClearFilteredChildren(int32 NewSize = 0)
-	{
-		GroupData->FilteredChildren.Reset(NewSize);
+		if (GroupData->FilteredChildrenPtr == &GroupData->Children)
+		{
+			GroupData->FilteredChildrenPtr = new TArray<FBaseTreeNodePtr>();
+		}
+		GroupData->FilteredChildrenPtr->Add(ChildPtr);
 	}
 
 	/**
@@ -347,9 +433,11 @@ public:
 	 */
 	void ResetFilteredChildren()
 	{
-		const int32 Size = GroupData->Children.Num();
-		GroupData->FilteredChildren.Reset();
-		GroupData->FilteredChildren.Append(GroupData->Children);
+		if (GroupData->FilteredChildrenPtr != &GroupData->Children)
+		{
+			delete GroupData->FilteredChildrenPtr;
+			GroupData->FilteredChildrenPtr = &GroupData->Children;
+		}
 	}
 
 	/**
@@ -365,17 +453,36 @@ public:
 		}
 	}
 
+	//////////////////////////////////////////////////
+
 	bool IsExpanded() const
 	{
-		return GroupData->bIsExpanded;
+		return ((uint32)GroupData->Flags & (uint32)EGroupNodeFlags::IsExpanded) != 0;
 	}
 
 	void SetExpansion(bool bOnOff)
 	{
 		if (IsGroup())
 		{
-			GroupData->bIsExpanded = bOnOff;
+			if (bOnOff)
+			{
+				GroupData->Flags = (EGroupNodeFlags)((uint32)GroupData->Flags | (uint32)EGroupNodeFlags::IsExpanded);
+			}
+			else
+			{
+				GroupData->Flags = (EGroupNodeFlags)((uint32)GroupData->Flags & ~(uint32)EGroupNodeFlags::IsExpanded);
+			}
 		}
+	}
+
+	uint32 GetDefaultSortOrder() const
+	{
+		return DefaultSortOrder;
+	}
+
+	void SetDefaultSortOrder(uint32 Order)
+	{
+		DefaultSortOrder = Order;
 	}
 
 protected:
@@ -387,11 +494,6 @@ protected:
 		return GroupData->Children;
 	}
 
-	void SetGroupPtr(FBaseTreeNodePtr InGroupPtr)
-	{
-		GroupPtr = InGroupPtr;
-	}
-
 private:
 	/** The default sort order. Index used to optimize sorting. */
 	int32 DefaultSortOrder;
@@ -399,8 +501,8 @@ private:
 	/** The name of this node. */
 	const FName Name;
 
-	/** A weak pointer to the group/parent of this node. */
-	FBaseTreeNodeWeak GroupPtr;
+	/** A weak pointer to the parent group of this node. */
+	FBaseTreeNodeWeak Parent;
 
 	/** The struct containing properties of a group node. It is allocated only for group nodes. */
 	FGroupNodeData* GroupData;

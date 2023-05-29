@@ -1044,7 +1044,7 @@ FTimerNodePtr STimerTreeView::CreateTimerNodeRec(const TraceServices::FTimingPro
 			FTimerNodePtr ChildTimerNodePtr = CreateTimerNodeRec(*ChildNodePtr);
 			if (ChildTimerNodePtr)
 			{
-				TimerNodePtr->AddChildAndSetGroupPtr(ChildTimerNodePtr);
+				TimerNodePtr->AddChildAndSetParent(ChildTimerNodePtr);
 			}
 		}
 	}

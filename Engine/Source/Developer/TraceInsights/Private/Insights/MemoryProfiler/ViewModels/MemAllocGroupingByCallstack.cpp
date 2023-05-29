@@ -5,6 +5,7 @@
 
 // Insights
 #include "Insights/Common/AsyncOperationProgress.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/MemoryProfiler/ViewModels/CallstackFormatting.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocNode.h"
 
@@ -12,6 +13,39 @@
 
 namespace Insights
 {
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FCallstackFrameGroupNode
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+INSIGHTS_IMPLEMENT_RTTI(FCallstackFrameGroupNode)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FText FCallstackFrameGroupNode::GetTooltipText() const
+{
+	if (StackFrame)
+	{
+		TStringBuilder<1024> String;
+		FormatStackFrame(*StackFrame, String, EStackFrameFormatFlags::ModuleSymbolFileAndLine | EStackFrameFormatFlags::Multiline);
+		return FText::FromString(FString(String));
+	}
+	return FText::GetEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FSlateBrush* FCallstackFrameGroupNode::GetIcon() const
+{
+	return FInsightsStyle::GetBrush("Icons.Group.TreeItem");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FLinearColor FCallstackFrameGroupNode::GetColor() const
+{
+	return FLinearColor(0.5f, 0.75f, 1.0f, 1.0f);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FMemAllocGroupingByCallstack
@@ -66,7 +100,7 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 
 		if (NodePtr->IsGroup())
 		{
-			ParentGroup.AddChildAndSetGroupPtr(NodePtr);
+			ParentGroup.AddChildAndSetParent(NodePtr);
 			continue;
 		}
 
@@ -150,7 +184,7 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 
 		if (GroupPtr != Root)
 		{
-			GroupPtr->Node->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->Node->AddChildAndSetParent(NodePtr);
 		}
 		else if (NumFrames == 0)
 		{
@@ -158,7 +192,7 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 			{
 				EmptyCallstackGroupPtr = CreateEmptyCallstackGroup(InParentTable, ParentGroup);
 			}
-			EmptyCallstackGroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			EmptyCallstackGroupPtr->AddChildAndSetParent(NodePtr);
 		}
 		else
 		{
@@ -166,7 +200,7 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 			{
 				UnsetGroupPtr = CreateUnsetGroup(InParentTable, ParentGroup);
 			}
-			UnsetGroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			UnsetGroupPtr->AddChildAndSetParent(NodePtr);
 		}
 	}
 
@@ -202,15 +236,6 @@ FName FMemAllocGroupingByCallstack::GetGroupName(const TraceServices::FStackFram
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText FMemAllocGroupingByCallstack::GetGroupTooltip(const TraceServices::FStackFrame* Frame) const
-{
-	TStringBuilder<1024> String;
-	FormatStackFrame(*Frame, String, EStackFrameFormatFlags::ModuleSymbolFileAndLine);
-	return FText::FromString(FString(String));
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 FMemAllocGroupingByCallstack::FCallstackGroup* FMemAllocGroupingByCallstack::CreateGroup(
 	TArray<FCallstackGroup*>& InOutAllCallstackGroup,
 	FCallstackGroup* InParentGroup,
@@ -224,16 +249,11 @@ FMemAllocGroupingByCallstack::FCallstackGroup* FMemAllocGroupingByCallstack::Cre
 
 	InOutAllCallstackGroup.Add(NewGroupPtr);
 
-	const FSlateBrush* IconBrush = FBaseTreeNode::GetDefaultIcon(true);
-	FLinearColor GroupNodeColor(0.5f, 0.75f, 1.0f, 1.0f);
-
-	FTableTreeNodePtr NodePtr = MakeShared<FCustomTableTreeNode>(InGroupName, InParentTable, IconBrush, GroupNodeColor);
+	TSharedPtr<FCallstackFrameGroupNode> NodePtr = MakeShared<FCallstackFrameGroupNode>(InGroupName, InParentTable, InFrame);
 	NodePtr->SetExpansion(false);
-	InParentGroup->Node->AddChildAndSetGroupPtr(NodePtr);
 
+	InParentGroup->Node->AddChildAndSetParent(NodePtr);
 	NewGroupPtr->Node = NodePtr.Get();
-	NewGroupPtr->Node->SetTooltip(GetGroupTooltip(InFrame));
-	NewGroupPtr->Node->SetContext((void*)InFrame);
 
 	return NewGroupPtr;
 }
@@ -245,7 +265,7 @@ FTableTreeNode* FMemAllocGroupingByCallstack::CreateUnsetGroup(TWeakPtr<FTable> 
 	static FName NotAvailableName(TEXT("N/A"));
 	FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(NotAvailableName, ParentTable);
 	NodePtr->SetExpansion(false);
-	Parent.AddChildAndSetGroupPtr(NodePtr);
+	Parent.AddChildAndSetParent(NodePtr);
 	return NodePtr.Get();
 }
 
@@ -256,7 +276,7 @@ FTableTreeNode* FMemAllocGroupingByCallstack::CreateEmptyCallstackGroup(TWeakPtr
 	static FName NotAvailableName(GetEmptyCallstackString());
 	FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(NotAvailableName, ParentTable);
 	NodePtr->SetExpansion(false);
-	Parent.AddChildAndSetGroupPtr(NodePtr);
+	Parent.AddChildAndSetParent(NodePtr);
 	return NodePtr.Get();
 }
 

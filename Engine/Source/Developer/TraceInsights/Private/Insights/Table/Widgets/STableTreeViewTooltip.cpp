@@ -106,7 +106,7 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetRowTooltip(const TSharedPtr<FTabl
 	TSharedPtr<SGridPanel> GridPanel;
 	TSharedPtr<SHorizontalBox> HBox;
 
-	const FText NodeTooltip = TreeNodePtr->GetTooltip();
+	const FText NodeTooltip = TreeNodePtr->GetTooltipText();
 	const EVisibility NodeTooltipVisibility = NodeTooltip.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
 
 	TSharedPtr<SToolTip> TableCellTooltip =
@@ -199,7 +199,7 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetRowTooltip(const TSharedPtr<FTabl
 				[
 					SNew(STextBlock)
 					.Visibility(NodeTooltipVisibility)
-					.WrapTextAt(512.0f)
+					.WrapTextAt(1024.0f)
 					.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 					.Text(NodeTooltip)
 					.TextStyle(GetTableTreeViewTooltipNormalTextStyle())

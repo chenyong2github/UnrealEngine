@@ -51,7 +51,7 @@ public:
 	/** Initialization constructor for the filter configurator node. */
 	FFilterConfiguratorNode(const FName InName, bool bInIsGroup);
 
-	FFilterConfiguratorNode(const FFilterConfiguratorNode& Other);
+	static TSharedRef<FFilterConfiguratorNode> DeepCopy(const FFilterConfiguratorNode& Node);
 
 	bool operator==(const FFilterConfiguratorNode& Other) const;
 
@@ -72,12 +72,8 @@ public:
 
 	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetAvailableFilterOperators() const {	return AvailableFilterOperators;	}
 
-	void DeleteChildNode(FFilterConfiguratorNodePtr InNode);
-
 	const FString& GetTextBoxValue() { return TextBoxValue; }
 	void SetTextBoxValue(const FString& InValue) { TextBoxValue = InValue; }
-
-	void SetGroupPtrForChildren();
 
 	bool ApplyFilters(const class FFilterContext& Context) const;
 

@@ -10,10 +10,11 @@
 
 enum class EStackFrameFormatFlags : uint8
 {
-	Module  = 1 << 0,
-	Symbol  = 1 << 1,
-	File    = 1 << 2,
-	Line    = 1 << 3,
+	Module    = 1 << 0, // include module name
+	Symbol    = 1 << 1, // include symbol name
+	File      = 1 << 2, // include source file name
+	Line      = 1 << 3, // include source line number
+	Multiline = 1 << 4, // allow formatting on multiple lines
 
 	ModuleAndSymbol         = Module + Symbol,
 	ModuleSymbolFileAndLine = Module + Symbol + File + Line,
@@ -47,21 +48,23 @@ inline void FormatStackFrame(const TraceServices::FStackFrame& Frame, FStringBui
 			if (EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::Module))
 			{
 				OutString.Append(Frame.Symbol->Module);
-				if (FormatFlags != EStackFrameFormatFlags::Module)
+				if (FormatFlags != EStackFrameFormatFlags::Module &&
+					FormatFlags != (EStackFrameFormatFlags::Module | EStackFrameFormatFlags::Multiline))
 				{
-					OutString.AppendChar(TEXT('!'));
+					OutString.AppendChar(EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::Multiline) ? TEXT('\n') : TEXT('!'));
 				}
 			}
 			if (EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::Symbol))
 			{
 				OutString.Append(Frame.Symbol->Name);
 			}
+			if (EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::Symbol) &&
+				EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::File | EStackFrameFormatFlags::Line))
+			{
+				OutString.AppendChar(EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::Multiline) ? TEXT('\n') : TEXT(' '));
+			}
 			if (EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::File))
 			{
-				if (EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::Symbol))
-				{
-					OutString.AppendChar(TEXT(' '));
-				}
 				OutString.Append(Frame.Symbol->File);
 			}
 			if (EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::Line))
@@ -76,9 +79,10 @@ inline void FormatStackFrame(const TraceServices::FStackFrame& Frame, FStringBui
 			if (EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::Module))
 			{
 				OutString.Append(Frame.Symbol->Module);
-				if (FormatFlags != EStackFrameFormatFlags::Module)
+				if (FormatFlags != EStackFrameFormatFlags::Module &&
+					FormatFlags != (EStackFrameFormatFlags::Module | EStackFrameFormatFlags::Multiline))
 				{
-					OutString.AppendChar(TEXT('!'));
+					OutString.AppendChar(EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::Multiline) ? TEXT('\n') : TEXT('!'));
 				}
 			}
 			if (EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::Symbol))
@@ -87,7 +91,7 @@ inline void FormatStackFrame(const TraceServices::FStackFrame& Frame, FStringBui
 			}
 			if (EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::ModuleAndSymbol))
 			{
-				OutString.AppendChar(TEXT(' '));
+				OutString.AppendChar(EnumHasAnyFlags(FormatFlags, EStackFrameFormatFlags::Multiline) ? TEXT('\n') : TEXT(' '));
 			}
 			OutString.Appendf(TEXT("(%s)"), QueryResultToString((Result)));
 			break;

@@ -899,7 +899,7 @@ void SNetStatsView::CreateGroups()
 
 		for (const FNetEventNodePtr& NodePtr : NetEventNodes)
 		{
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 		}
 		TreeView->SetItemExpansion(GroupPtr, true);
 	}
@@ -916,7 +916,7 @@ void SNetStatsView::CreateGroups()
 				const FName GroupName = *NetEventNodeTypeHelper::ToText(NodeType).ToString();
 				GroupPtr = GroupNodeSet.Add(NodeType, MakeShared<FNetEventNode>(GroupName));
 			}
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 			TreeView->SetItemExpansion(GroupPtr, true);
 		}
 		GroupNodeSet.KeySort([](const ENetEventNodeType& A, const ENetEventNodeType& B) { return A < B; }); // sort groups by type
@@ -936,7 +936,7 @@ void SNetStatsView::CreateGroups()
 				const FName GroupName(FirstLetterStr);
 				GroupPtr = GroupNodeSet.Add(FirstLetter, MakeShared<FNetEventNode>(GroupName));
 			}
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 		}
 		GroupNodeSet.KeySort([](const TCHAR& A, const TCHAR& B) { return A < B; }); // sort groups alphabetically
 		GroupNodeSet.GenerateValueArray(GroupNodes);
@@ -954,7 +954,7 @@ void SNetStatsView::CreateGroups()
 				const FName GroupName(*FString::Printf(TEXT("Level %d"), Level));
 				GroupPtr = GroupNodeSet.Add(Level, MakeShared<FNetEventNode>(GroupName));
 			}
-			GroupPtr->AddChildAndSetGroupPtr(NodePtr);
+			GroupPtr->AddChildAndSetParent(NodePtr);
 			TreeView->SetItemExpansion(GroupPtr, true);
 		}
 		GroupNodeSet.KeySort([](const uint32& A, const uint32& B) { return A < B; }); // sort groups by level

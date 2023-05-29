@@ -447,6 +447,7 @@ protected:
 	void ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray<FBaseTreeNodePtr>& InNodes, bool bInExportCollapsed, bool InExportLeafs, WriteToFileCallback Callback);
 
 	FText GetTreeViewBannerText() const { return TreeViewBannerText; }
+	virtual void UpdateBannerText();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Presets

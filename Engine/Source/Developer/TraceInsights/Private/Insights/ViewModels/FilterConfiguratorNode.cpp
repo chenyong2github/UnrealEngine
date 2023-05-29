@@ -29,32 +29,33 @@ FFilterConfiguratorNode::FFilterConfiguratorNode(const FName InName, bool bInIsG
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FFilterConfiguratorNode::FFilterConfiguratorNode(const FFilterConfiguratorNode& Other)
-	: FBaseTreeNode(Other.GetName(), Other.IsGroup())
+TSharedRef<FFilterConfiguratorNode> FFilterConfiguratorNode::DeepCopy(const FFilterConfiguratorNode& InSourceNode)
 {
-	*this = Other;
-}
+	TSharedRef<FFilterConfiguratorNode> NodeCopyPtr = MakeShared<FFilterConfiguratorNode>(InSourceNode.GetName(), InSourceNode.IsGroup());
+	FFilterConfiguratorNode& NodeCopy = *NodeCopyPtr;
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+	NodeCopy.AvailableFilters = InSourceNode.AvailableFilters;
+	NodeCopy.AvailableFilterOperators = InSourceNode.AvailableFilterOperators;
+	NodeCopy.SelectedFilter = InSourceNode.SelectedFilter;
+	NodeCopy.SelectedFilterOperator = InSourceNode.SelectedFilterOperator;
+	NodeCopy.SelectedFilterGroupOperator = InSourceNode.SelectedFilterGroupOperator;
+	NodeCopy.TextBoxValue = InSourceNode.TextBoxValue;
 
-FFilterConfiguratorNode& FFilterConfiguratorNode::operator=(const FFilterConfiguratorNode& Other)
-{
-	GetChildrenMutable().Empty();
+	NodeCopy.SetExpansion(InSourceNode.IsExpanded());
 
-	AvailableFilters = Other.AvailableFilters;
-	AvailableFilterOperators = Other.AvailableFilterOperators;
-	SelectedFilter = Other.SelectedFilter;
-	SelectedFilterOperator = Other.SelectedFilterOperator;
-	SelectedFilterGroupOperator = Other.SelectedFilterGroupOperator;
-	TextBoxValue = Other.TextBoxValue;
-	SetExpansion(Other.IsExpanded());
-
-	for (FBaseTreeNodePtr Child : Other.GetChildren())
+	if (InSourceNode.IsGroup())
 	{
-		GetChildrenMutable().Add(MakeShared<FFilterConfiguratorNode>(*StaticCastSharedPtr<FFilterConfiguratorNode>(Child)));
+		check(NodeCopy.IsGroup());
+		NodeCopy.ClearChildren(InSourceNode.GetChildrenCount());
+		for (FBaseTreeNodePtr Child : InSourceNode.GetChildren())
+		{
+			check(Child.IsValid() && Child->Is<FFilterConfiguratorNode>());
+			TSharedPtr<FFilterConfiguratorNode> ChildCopy = FFilterConfiguratorNode::DeepCopy(Child->As<FFilterConfiguratorNode>());
+			NodeCopy.AddChildAndSetParent(ChildCopy);
+		}
 	}
 
-	return *this;
+	return NodeCopyPtr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -86,26 +87,6 @@ bool FFilterConfiguratorNode::operator==(const FFilterConfiguratorNode& Other) c
 const TArray<TSharedPtr<FFilterGroupOperator>>& FFilterConfiguratorNode::GetFilterGroupOperators()
 {
 	return FFilterService::Get()->GetFilterGroupOperators();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FFilterConfiguratorNode::DeleteChildNode(FFilterConfiguratorNodePtr InNode)
-{
-	FBaseTreeNodePtr Node = StaticCastSharedPtr<FBaseTreeNode>(InNode);
-	GetChildrenMutable().Remove(Node);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FFilterConfiguratorNode::SetGroupPtrForChildren()
-{
-	for (FBaseTreeNodePtr Child : GetChildrenMutable())
-	{
-		FFilterConfiguratorNodePtr CastedChild = StaticCastSharedPtr<FFilterConfiguratorNode>(Child);
-		CastedChild->SetGroupPtrForChildren();
-		CastedChild->SetGroupPtr(SharedThis(this));
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
