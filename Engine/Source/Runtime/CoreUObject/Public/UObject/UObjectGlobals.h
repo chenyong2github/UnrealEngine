@@ -2543,6 +2543,9 @@ public:
 	/** Same as AddPropertyReferences but also calls AddStructReferencedObjects on Struct and all nested structs */
 	void AddPropertyReferencesWithStructARO(const UScriptStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
 
+	/** Same as AddPropertyReferences but also calls AddStructReferencedObjects on all nested structs */
+	void AddPropertyReferencesWithStructARO(const UClass* Class, void* Instance, const UObject* ReferencingObject = nullptr);
+
 	/** Internal use only. Same as AddPropertyReferences but skips field path and interface properties. Might get removed. */
 	void AddPropertyReferencesLimitedToObjectProperties(const UStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
 
