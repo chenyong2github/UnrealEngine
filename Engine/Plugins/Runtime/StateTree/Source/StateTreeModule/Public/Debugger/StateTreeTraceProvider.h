@@ -9,7 +9,6 @@
 #include "StateTreeTypes.h" // required to compile TMap<FStateTreeInstanceDebugId, ...>
 
 namespace TraceServices { class IAnalysisSession; }
-enum class EStateTreeTraceInstanceEventType : uint8;
 class UStateTree;
 namespace UE::StateTreeDebugger { struct FInstanceDescriptor; }
 
@@ -27,7 +26,7 @@ public:
 		const TCHAR* InInstanceName,
 		double InTime,
 		double InWorldRecordingTime,
-		EStateTreeTraceInstanceEventType InEventType);
+		EStateTreeTraceEventType InEventType);
 
 protected:
 	/** IStateTreeDebuggerProvider interface */

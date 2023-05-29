@@ -67,7 +67,7 @@ void FStateTreeTraceProvider::AppendEvent(const FStateTreeInstanceDebugId InInst
 {
 	Session.WriteAccessCheck();
 
-	// It is currently possible to receive events from an instance without receiving event `EStateTreeTraceInstanceEventType::Started` first
+	// It is currently possible to receive events from an instance without receiving event `EStateTreeTraceEventType::Push` first
 	// (i.e. traces were activated after the statetree instance execution was started).    
 	// We plan to buffer the Instance events (Started/Stopped) to address this but for now we ignore events related to that instance.
 	if (const uint32* IndexPtr = InstanceIdToDebuggerEntryTimelines.Find(InInstanceId))
@@ -84,9 +84,9 @@ void FStateTreeTraceProvider::AppendInstanceEvent(
 	const TCHAR* InInstanceName,
 	const double InTime,
 	const double InWorldRecordingTime,
-	const EStateTreeTraceInstanceEventType InEventType)
+	const EStateTreeTraceEventType InEventType)
 {
-	if (InEventType == EStateTreeTraceInstanceEventType::Started)
+	if (InEventType == EStateTreeTraceEventType::Push)
 	{
 		Descriptors.Emplace(InStateTree, InInstanceId, InInstanceName, TRange<double>(InWorldRecordingTime, std::numeric_limits<double>::max()));
 
@@ -95,7 +95,7 @@ void FStateTreeTraceProvider::AppendInstanceEvent(
 		
 		EventsTimelines.Emplace(MakeShared<TraceServices::TPointTimeline<FStateTreeTraceEventVariantType>>(Session.GetLinearAllocator()));
 	}
-	else if (InEventType == EStateTreeTraceInstanceEventType::Stopped)
+	else if (InEventType == EStateTreeTraceEventType::Pop)
 	{
 		// Process only if timeline can be found. See details in AppendEvent comment.
 		if (const uint32* Index = InstanceIdToDebuggerEntryTimelines.Find(InInstanceId))

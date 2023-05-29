@@ -7,6 +7,18 @@
 
 #if WITH_STATETREE_DEBUGGER
 
+
+//----------------------------------------------------------------------//
+// FStateTreeTracePhaseEvent
+//----------------------------------------------------------------------//
+FString FStateTreeTracePhaseEvent::ToString(const UStateTree& StateTree) const
+{
+	return FString::Printf(TEXT("%s %s"),
+			*UEnum::GetDisplayValueAsText(EventType).ToString(),
+			*UEnum::GetDisplayValueAsText(Phase).ToString());
+}
+
+
 //----------------------------------------------------------------------//
 // FStateTreeTraceLogEvent
 //----------------------------------------------------------------------//
@@ -110,8 +122,8 @@ FString FStateTreeTraceConditionEvent::ToString(const UStateTree& StateTree) con
 //----------------------------------------------------------------------//
 // FStateTreeTraceActiveStatesEvent
 //----------------------------------------------------------------------//
-FStateTreeTraceActiveStatesEvent::FStateTreeTraceActiveStatesEvent(const double RecordingWorldTime, const EStateTreeUpdatePhase Phase)
-	: FStateTreeTracePhaseEvent(RecordingWorldTime, Phase)
+FStateTreeTraceActiveStatesEvent::FStateTreeTraceActiveStatesEvent(const double RecordingWorldTime)
+	: FStateTreeTraceBaseEvent(RecordingWorldTime)
 {
 }
 

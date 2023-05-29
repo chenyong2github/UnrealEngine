@@ -634,7 +634,7 @@ bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId
 		&& (SelectedInstanceId == InstanceId || SelectedInstanceId.IsInvalid())) // allow breakpoints on any instances if not specified
 	{
 		const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>();
-		if (StateEvent != nullptr && StateEvent->EventType == EStateTreeTraceNodeEventType::OnEnter)
+		if (StateEvent != nullptr && StateEvent->EventType == EStateTreeTraceEventType::OnEnter)
 		{
 			const UStateTree* InstanceStateTree = nullptr;
 			if (SelectedInstanceId.IsInvalid())

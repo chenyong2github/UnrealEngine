@@ -14,9 +14,8 @@ struct FStateTreeIndex16;
 struct FStateTreeStateHandle;
 enum class EStateTreeStateSelectionBehavior : uint8;
 enum class EStateTreeRunStatus : uint8;
-enum class EStateTreeTraceNodeEventType : uint8;
-enum class EStateTreeUpdatePhase : uint16;
-enum class EStateTreeTraceInstanceEventType : uint8;
+enum class EStateTreeTraceEventType : uint8;
+enum class EStateTreeUpdatePhase : uint8;
 
 UE_TRACE_CHANNEL_EXTERN(StateTreeDebugChannel, STATETREEMODULE_API)
 
@@ -24,13 +23,14 @@ namespace UE::StateTreeTrace
 {
 	void RegisterGlobalDelegates();
 	void UnregisterGlobalDelegates();
-	void OutputInstanceLifetimeEvent(FStateTreeInstanceDebugId InstanceId, const UStateTree* StateTree, const TCHAR* InstanceName, EStateTreeTraceInstanceEventType EventType);
-	void OutputLogEventTrace(FStateTreeInstanceDebugId InstanceId, EStateTreeUpdatePhase Phase, const TCHAR* Fmt, ...);
-	void OutputStateEventTrace(FStateTreeInstanceDebugId InstanceId, EStateTreeUpdatePhase Phase, FStateTreeStateHandle StateHandle, EStateTreeTraceNodeEventType EventType, EStateTreeStateSelectionBehavior SelectionBehavior);
-	void OutputTaskEventTrace(FStateTreeInstanceDebugId InstanceId, EStateTreeUpdatePhase Phase, FStateTreeIndex16 TaskIdx, FStateTreeDataView DataView, EStateTreeTraceNodeEventType EventType, EStateTreeRunStatus Status);
-	void OutputConditionEventTrace(FStateTreeInstanceDebugId InstanceId, EStateTreeUpdatePhase Phase, FStateTreeIndex16 ConditionIdx, FStateTreeDataView DataView, EStateTreeTraceNodeEventType EventType);
-	void OutputTransitionEventTrace(FStateTreeInstanceDebugId InstanceId, EStateTreeUpdatePhase Phase, FStateTreeIndex16 TransitionIdx, EStateTreeTraceNodeEventType EventType);
-	void OutputActiveStatesEventTrace(FStateTreeInstanceDebugId InstanceId, EStateTreeUpdatePhase Phase, const FStateTreeActiveStates& ActiveStates);
+	void ProcessPhaseScopeEvent(FStateTreeInstanceDebugId InstanceId, EStateTreeUpdatePhase Phase, EStateTreeTraceEventType EventType);
+	void OutputInstanceLifetimeEvent(FStateTreeInstanceDebugId InstanceId, const UStateTree* StateTree, const TCHAR* InstanceName, EStateTreeTraceEventType EventType);
+	void OutputLogEventTrace(FStateTreeInstanceDebugId InstanceId, const TCHAR* Fmt, ...);
+	void OutputStateEventTrace(FStateTreeInstanceDebugId InstanceId, FStateTreeStateHandle StateHandle, EStateTreeTraceEventType EventType, EStateTreeStateSelectionBehavior SelectionBehavior);
+	void OutputTaskEventTrace(FStateTreeInstanceDebugId InstanceId, FStateTreeIndex16 TaskIdx, FStateTreeDataView DataView, EStateTreeTraceEventType EventType, EStateTreeRunStatus Status);
+	void OutputConditionEventTrace(FStateTreeInstanceDebugId InstanceId, FStateTreeIndex16 ConditionIdx, FStateTreeDataView DataView, EStateTreeTraceEventType EventType);
+	void OutputTransitionEventTrace(FStateTreeInstanceDebugId InstanceId, FStateTreeIndex16 TransitionIdx, EStateTreeTraceEventType EventType);
+	void OutputActiveStatesEventTrace(FStateTreeInstanceDebugId InstanceId, const FStateTreeActiveStates& ActiveStates);
 }
 
 #define TRACE_STATETREE_INSTANCE_EVENT(InstanceID, StateTree, InstanceName, EventType) \
@@ -39,50 +39,54 @@ namespace UE::StateTreeTrace
 		UE::StateTreeTrace::OutputInstanceLifetimeEvent(InstanceID, StateTree, InstanceName, EventType); \
 	}
 
-#define TRACE_STATETREE_LOG_EVENT(InstanceId, Phase, Format, ...) \
+#define TRACE_STATETREE_PHASE_EVENT(InstanceID, Phase, EventType) \
+	UE::StateTreeTrace::ProcessPhaseScopeEvent(InstanceID, Phase, EventType); \
+
+#define TRACE_STATETREE_LOG_EVENT(InstanceId, Format, ...) \
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(StateTreeDebugChannel)) \
 	{ \
-		UE::StateTreeTrace::OutputLogEventTrace(InstanceId, Phase, Format, ##__VA_ARGS__); \
+		UE::StateTreeTrace::OutputLogEventTrace(InstanceId, Format, ##__VA_ARGS__); \
 	}
 
-#define TRACE_STATETREE_STATE_EVENT(InstanceId, Phase, StateHandle, EventType, SelectionBehavior) \
+#define TRACE_STATETREE_STATE_EVENT(InstanceId, StateHandle, EventType, SelectionBehavior) \
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(StateTreeDebugChannel)) \
 	{ \
-		UE::StateTreeTrace::OutputStateEventTrace(InstanceId, Phase, StateHandle, EventType, SelectionBehavior); \
+		UE::StateTreeTrace::OutputStateEventTrace(InstanceId, StateHandle, EventType, SelectionBehavior); \
 	}
 
-#define TRACE_STATETREE_TASK_EVENT(InstanceId, Phase, TaskIdx, DataView, EventType, Status) \
+#define TRACE_STATETREE_TASK_EVENT(InstanceId, TaskIdx, DataView, EventType, Status) \
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(StateTreeDebugChannel)) \
 	{ \
-		UE::StateTreeTrace::OutputTaskEventTrace(InstanceId, Phase, TaskIdx, DataView, EventType, Status); \
+		UE::StateTreeTrace::OutputTaskEventTrace(InstanceId, TaskIdx, DataView, EventType, Status); \
 	}
 
-#define TRACE_STATETREE_CONDITION_EVENT(InstanceId, Phase, ConditionIdx, DataView, EventType) \
+#define TRACE_STATETREE_CONDITION_EVENT(InstanceId, ConditionIdx, DataView, EventType) \
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(StateTreeDebugChannel)) \
 	{ \
-		UE::StateTreeTrace::OutputConditionEventTrace(InstanceId, Phase, ConditionIdx, DataView, EventType); \
+		UE::StateTreeTrace::OutputConditionEventTrace(InstanceId, ConditionIdx, DataView, EventType); \
 	}
 
-#define TRACE_STATETREE_TRANSITION_EVENT(InstanceId, Phase, TransitionIdx, EventType) \
+#define TRACE_STATETREE_TRANSITION_EVENT(InstanceId, TransitionIdx, EventType) \
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(StateTreeDebugChannel)) \
 	{ \
-		UE::StateTreeTrace::OutputTransitionEventTrace(InstanceId, Phase, TransitionIdx, EventType); \
+		UE::StateTreeTrace::OutputTransitionEventTrace(InstanceId, TransitionIdx, EventType); \
 	}
 
-#define TRACE_STATETREE_ACTIVE_STATES_EVENT(InstanceId, Phase, ActivateStates) \
+#define TRACE_STATETREE_ACTIVE_STATES_EVENT(InstanceId, ActivateStates) \
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(StateTreeDebugChannel)) \
 	{ \
-		UE::StateTreeTrace::OutputActiveStatesEventTrace(InstanceId, Phase, ActivateStates); \
+		UE::StateTreeTrace::OutputActiveStatesEventTrace(InstanceId, ActivateStates); \
 	}
 
 #else //STATETREE_DEBUG_TRACE_ENABLED
 
 #define TRACE_STATETREE_INSTANCE_EVENT(InstanceID, StateTree, InstanceName, EventType)
-#define TRACE_STATETREE_LOG_EVENT(InstanceId, Phase, Format, ...)
-#define TRACE_STATETREE_STATE_EVENT(InstanceId, Phase, StateHandle, EventType, SelectionBehavior)
-#define TRACE_STATETREE_TASK_EVENT(InstanceId, Phase, TaskIdx, DataView, EventType, Status)
-#define TRACE_STATETREE_CONDITION_EVENT(InstanceId, Phase, ConditionIdx, DataView, EventType)
-#define TRACE_STATETREE_TRANSITION_EVENT(InstanceId, Phase, TransitionIdx, EventType)
-#define TRACE_STATETREE_ACTIVE_STATES_EVENT(InstanceId, Phase, ActivateStates)
+#define TRACE_STATETREE_PHASE_EVENT(InstanceID, Phase, EventType)
+#define TRACE_STATETREE_LOG_EVENT(InstanceId, Format, ...)
+#define TRACE_STATETREE_STATE_EVENT(InstanceId, StateHandle, EventType, SelectionBehavior)
+#define TRACE_STATETREE_TASK_EVENT(InstanceId, TaskIdx, DataView, EventType, Status)
+#define TRACE_STATETREE_CONDITION_EVENT(InstanceId, ConditionIdx, DataView, EventType)
+#define TRACE_STATETREE_TRANSITION_EVENT(InstanceId, TransitionIdx, EventType)
+#define TRACE_STATETREE_ACTIVE_STATES_EVENT(InstanceId, ActivateStates)
 
 #endif // STATETREE_DEBUG_TRACE_ENABLED

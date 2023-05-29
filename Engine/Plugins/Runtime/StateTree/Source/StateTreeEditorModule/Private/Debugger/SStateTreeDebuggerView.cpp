@@ -739,128 +739,69 @@ void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebu
 	struct FParentInfo
 	{
 		TSharedPtr<UE::StateTreeDebugger::FEventTreeElement> Element;
-		FStateTreeStateHandle State;
+		EStateTreeUpdatePhase Phase;
 	};
-	TArray<FParentInfo, TInlineAllocator<8>> ParentStack;
-	EStateTreeUpdatePhase LastPhase = EStateTreeUpdatePhase::Unset;
-	EStateTreeUpdatePhase EventPhase = EStateTreeUpdatePhase::Unset;
+	TArray<FParentInfo, TInlineAllocator<8>> PhaseStack;
+	TArray<FStateTreeStateHandle, TInlineAllocator<8>> StateStack;
 
 	const int32 SpanIdx = ScrubState.FrameSpanIndex;
 	const int32 FirstEventIdx = Spans[SpanIdx].EventIdx;
 	const TraceServices::FFrame Frame = Spans[SpanIdx].Frame;
 	const int32 MaxEventIdx = Spans.IsValidIndex(SpanIdx+1) ? Spans[SpanIdx+1].EventIdx : Events.Num();
 	
-	auto CreateParentFunc = [this, &ParentStack, Frame](const EStateTreeUpdatePhase NodePhase, const FStateTreeStateHandle StateHandle)
-		{
-			// Create log event to describe the phase
-			FString NodeDesc;
-			if (StateHandle.IsValid())
-			{
-				const FCompactStateTreeState* CompactState = StateTree->GetStateFromHandle(StateHandle);
-				NodeDesc = FString::Printf(TEXT(" '%s'"), CompactState != nullptr ? *CompactState->Name.ToString() : *StateHandle.Describe());
-			}
-
-			FStateTreeTraceLogEvent LogEvent(/*RecordingWorldTime*/0, NodePhase, FString::Printf(TEXT("%s%s"), *UEnum::GetDisplayValueAsText(NodePhase).ToString(), *NodeDesc));
-
-			// Create Tree element to hold the event
-			const TSharedPtr<UE::StateTreeDebugger::FEventTreeElement> NewElement = MakeShareable(
-				new UE::StateTreeDebugger::FEventTreeElement(Frame, FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceLogEvent>(), LogEvent)));
-
-			// Push tree element to the proper hierarchy level
-			TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& TreeElements = (ParentStack.IsEmpty()) ? EventsTreeElements : ParentStack.Top().Element->Children;
-			return ParentStack.Push({TreeElements.Add_GetRef(NewElement), StateHandle});
-		};
-	
 	for (int32 EventIdx = FirstEventIdx; EventIdx < MaxEventIdx; EventIdx++)
 	{
 		const FStateTreeTraceEventVariantType& Event = Events[EventIdx];
-		Visit([&EventPhase](auto& TypedEvent)
-		{
-			EventPhase = TypedEvent.Phase;
-		}, Event);
-
-		// Keep track of required state push/pop to be processed after phases
-		FStateTreeStateHandle StateToPush;
-		bool bPopState = false;
 
 		if (const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>())
 		{
-			if (StateEvent->EventType == EStateTreeTraceNodeEventType::PushStateSelection)
+			if (StateEvent->EventType == EStateTreeTraceEventType::Push)
 			{
-				StateToPush = StateEvent->GetStateHandle();
+				StateStack.Push(StateEvent->GetStateHandle());
+				continue;
 			}
-			else if (StateEvent->EventType == EStateTreeTraceNodeEventType::PopStateSelection)
+			
+			if (StateEvent->EventType == EStateTreeTraceEventType::Pop)
 			{
-				bPopState = true;
+				StateStack.Pop();
+				continue;
 			}
+			// Otherwise (other EventType) we add as a child
 		}
-
-		// Create a hierarchy level for each update phase
-		if (EventPhase != LastPhase)
+		else if (const FStateTreeTracePhaseEvent* PhaseEvent = Event.TryGet<FStateTreeTracePhaseEvent>())
 		{
-			const UEnum* PhaseEnum = StaticEnum<EStateTreeUpdatePhase>();
-			EStateTreeUpdatePhase PhasesDiff = EventPhase ^ LastPhase;
-			const int32 NumEnum = PhaseEnum->NumEnums();
-			check(NumEnum > 0);
-
-			// Pop phases first from last enum (every bit in the previous phase that differs must be popped)
-			if (EnumHasAnyFlags(LastPhase, PhasesDiff))
+			if (PhaseEvent->EventType == EStateTreeTraceEventType::Push)
 			{
-				for (int i = NumEnum - 1; i >= 0; --i)
+				// Create log event to describe the phase
+				FString NodeDesc;
+				const FStateTreeStateHandle StateHandle = StateStack.IsEmpty() ? FStateTreeStateHandle::Invalid : StateStack.Top();
+				if (StateHandle.IsValid())
 				{
-					const EStateTreeUpdatePhase Phase = static_cast<EStateTreeUpdatePhase>(PhaseEnum->GetValueByIndex(i));
-					if (EnumHasAnyFlags(LastPhase & PhasesDiff, Phase))
-					{
-						check(ParentStack.Num());
-						ParentStack.Pop();
-						EnumRemoveFlags(PhasesDiff, Phase);
-						if (EnumHasAnyFlags(LastPhase, PhasesDiff) == false)
-						{
-							break;
-						}
-					}
+					const FCompactStateTreeState* CompactState = StateTree->GetStateFromHandle(StateHandle);
+					NodeDesc = FString::Printf(TEXT(" '%s'"), CompactState != nullptr ? *CompactState->Name.ToString() : *StateHandle.Describe());
 				}
-			}
 
-			// Push required phases from first enum
-			if (EnumHasAnyFlags(EventPhase, PhasesDiff))
+				FStateTreeTraceLogEvent LogEvent(/*RecordingWorldTime*/0, FString::Printf(TEXT("%s%s"), *UEnum::GetDisplayValueAsText(PhaseEvent->Phase).ToString(), *NodeDesc));
+
+				// Create Tree element to hold the event
+				const TSharedPtr<UE::StateTreeDebugger::FEventTreeElement> NewElement = MakeShareable(
+					new UE::StateTreeDebugger::FEventTreeElement(Frame, FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceLogEvent>(), LogEvent)));
+
+				// Push tree element to the proper hierarchy level
+				TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& TreeElements = (PhaseStack.IsEmpty()) ? EventsTreeElements : PhaseStack.Top().Element->Children;
+				PhaseStack.Push({TreeElements.Add_GetRef(NewElement), PhaseEvent->Phase});
+			}
+			else if (PhaseEvent->EventType == EStateTreeTraceEventType::Pop)
 			{
-				const FStateTreeStateHandle StateHandle = ParentStack.IsEmpty() ? FStateTreeStateHandle() : ParentStack.Top().State; 
-				for (int i = 0; i < NumEnum; ++i)
-				{
-					const EStateTreeUpdatePhase Phase = static_cast<EStateTreeUpdatePhase>(PhaseEnum->GetValueByIndex(i));
-					if (EnumHasAnyFlags(EventPhase & PhasesDiff, Phase))
-					{
-						CreateParentFunc(Phase, StateHandle);
-						
-						EnumRemoveFlags(PhasesDiff, Phase);
-						if (EnumHasAnyFlags(EventPhase, PhasesDiff) == false)
-						{
-							break;
-						}
-					}
-				}
+				PhaseStack.Pop();
 			}
-		}
-
-		LastPhase = EventPhase;
-
-		if (bPopState)
-		{
-			ParentStack.Pop();
-			// We use pop state to maintain the state stack but there is no element to visualize
+			
+			// We don't want to create a child for phase events since they were already used to create a custom element.  
 			continue;
 		}
 
-		if (StateToPush.IsValid())
-		{
-			// We use pushed state to create a new parent only
-			CreateParentFunc(EStateTreeUpdatePhase::StateSelection, StateToPush);
-			continue;
-		}
-
-		TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& Elements = ParentStack.IsEmpty() ? EventsTreeElements : ParentStack.Top().Element->Children;
-        Elements.Add(MakeShareable(new UE::StateTreeDebugger::FEventTreeElement(Spans[SpanIdx].Frame, Event)));
+		TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>& TreeElements = PhaseStack.IsEmpty() ? EventsTreeElements : PhaseStack.Top().Element->Children;
+		TreeElements.Add(MakeShareable(new UE::StateTreeDebugger::FEventTreeElement(Spans[SpanIdx].Frame, Event)));
 	}
 }
 

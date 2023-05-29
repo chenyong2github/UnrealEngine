@@ -441,11 +441,6 @@ protected:
 	/** Current state we're processing, or invalid if not applicable. */
 	FStateTreeStateHandle CurrentlyProcessedState;
 
-#if WITH_STATETREE_DEBUGGER
-	/** Current phase in the update. Used for debugging events */
-	EStateTreeUpdatePhase UpdatePhaseMask = EStateTreeUpdatePhase::Unset;
-#endif // WITH_STATETREE_DEBUGGER
-
 	/** True if transitions are allowed to be requested directly instead of buffering. */
 	bool bAllowDirectTransitions = false;
 

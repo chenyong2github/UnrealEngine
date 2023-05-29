@@ -23,6 +23,7 @@ private:
 	{
 		RouteId_WorldTimestamp,
 		RouteId_Instance,
+		RouteId_Phase,
 		RouteId_LogMessage,
 		RouteId_State,
 		RouteId_Task,
