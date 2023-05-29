@@ -480,6 +480,8 @@ FReply SInterchangePipelineConfigurationDialog::OnResetToDefault()
 									PipelineListViewItems.RemoveAt(PipelineIndex, 1, false);
 									PipelineListViewItems.Insert(GeneratedPipeline, PipelineIndex);
 									PipelineConfigurationDetailsView->SetObject(GeneratedPipeline, true);
+									PipelinesListView->SetSelection(PipelineListViewItems[PipelineIndex], ESelectInfo::Direct);
+									PipelinesListView->RequestListRefresh();
 									break;
 								}
 							}
