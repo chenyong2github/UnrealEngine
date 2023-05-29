@@ -13647,6 +13647,8 @@ namespace UE::Private
 				ReturnVal->PostCreation(bInitializeWithIris);
 
 				new(Context.ActiveNetDrivers) FNamedNetDriver(ReturnVal, Definition);
+
+				FWorldDelegates::OnNetDriverCreated.Broadcast(Context.World(), ReturnVal);
 			}
 		}
 

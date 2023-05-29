@@ -570,6 +570,7 @@ FWorldDelegates::FOnWorldPIEEnded FWorldDelegates::OnPIEEnded;
 #endif // WITH_EDITOR
 FWorldDelegates::FOnSeamlessTravelStart FWorldDelegates::OnSeamlessTravelStart;
 FWorldDelegates::FOnSeamlessTravelTransition FWorldDelegates::OnSeamlessTravelTransition;
+FWorldDelegates::FOnNetDriverCreated FWorldDelegates::OnNetDriverCreated;
 FWorldDelegates::FOnCopyWorldData FWorldDelegates::OnCopyWorldData;
 FWorldDelegates::FGameInstanceEvent FWorldDelegates::OnStartGameInstance;
 

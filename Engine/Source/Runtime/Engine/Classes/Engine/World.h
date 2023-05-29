@@ -4264,6 +4264,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSeamlessTravelTransition, UWorld*);
 	static FOnSeamlessTravelTransition OnSeamlessTravelTransition;
 
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNetDriverCreated, UWorld*, UNetDriver*);
+	static FOnNetDriverCreated OnNetDriverCreated;
+
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCopyWorldData, UWorld*, UWorld*);
 	static FOnCopyWorldData OnCopyWorldData;
 
