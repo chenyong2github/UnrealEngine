@@ -381,6 +381,14 @@ namespace BlackmagicDesign
 						bmdDeckLinkFrameMetadataHDRDisplayPrimariesBlueX);
 					FrameInfo.HDRMetaData.DisplayPrimariesBlueY = GetFloatMetaData(MetadataExtensions,
 						bmdDeckLinkFrameMetadataHDRDisplayPrimariesBlueY);
+					FrameInfo.HDRMetaData.MaxDisplayLuminance = GetFloatMetaData(MetadataExtensions,
+						bmdDeckLinkFrameMetadataHDRMaxDisplayMasteringLuminance);
+					FrameInfo.HDRMetaData.MinDisplayLuminance = GetFloatMetaData(MetadataExtensions,
+						bmdDeckLinkFrameMetadataHDRMinDisplayMasteringLuminance);
+					FrameInfo.HDRMetaData.MaxContentLightLevel = GetFloatMetaData(MetadataExtensions,
+					bmdDeckLinkFrameMetadataHDRMaximumContentLightLevel);
+					FrameInfo.HDRMetaData.MaxFrameAverageLightLevel = GetFloatMetaData(MetadataExtensions,
+						bmdDeckLinkFrameMetadataHDRMaximumFrameAverageLightLevel);
 
 					MetadataExtensions->Release();
 				}
@@ -420,6 +428,18 @@ namespace BlackmagicDesign
 							break;
 						case bmdDeckLinkFrameMetadataHDRWhitePointY:
 							UE_LOG(LogBlackmagicCore, Warning,TEXT("Could not get meta data HDR white point Y."));
+							break;
+						case bmdDeckLinkFrameMetadataHDRMaxDisplayMasteringLuminance:
+							UE_LOG(LogBlackmagicCore, Warning,TEXT("Could not get meta data HDR maximum mastering luminance."));
+							break;
+						case bmdDeckLinkFrameMetadataHDRMinDisplayMasteringLuminance:
+							UE_LOG(LogBlackmagicCore, Warning,TEXT("Could not get meta data HDR minimum mastering luminance."));
+							break;
+						case bmdDeckLinkFrameMetadataHDRMaximumContentLightLevel:
+							UE_LOG(LogBlackmagicCore, Warning,TEXT("Could not get meta data HDR maximum content light level."));
+							break;
+						case bmdDeckLinkFrameMetadataHDRMaximumFrameAverageLightLevel:
+							UE_LOG(LogBlackmagicCore, Warning,TEXT("Could not get meta data HDR maximum frame average light level."));
 							break;
 					}
 				}

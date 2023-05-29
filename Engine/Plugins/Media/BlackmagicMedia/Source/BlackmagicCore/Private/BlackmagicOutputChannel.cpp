@@ -110,8 +110,7 @@ namespace BlackmagicDesign
 		const uint32_t FOutputChannel::FOutputFrame::InvalidFrameIdentifier = static_cast<uint32_t>(-1);
 
 		FOutputChannel::FOutputFrame::FOutputFrame()
-			: BlackmagicFrame(nullptr)
-			, InFlightCount(0)
+			: InFlightCount(0)
 			, bVideoLineFilled(false)
 			, bVideoF2LineFilled(false) // used in interlaced
 			, bVideoScheduled(false)
@@ -121,10 +120,6 @@ namespace BlackmagicDesign
 
 		FOutputChannel::FOutputFrame::~FOutputFrame()
 		{
-			if (BlackmagicFrame)
-			{
-				BlackmagicFrame->Release();
-			}
 		}
 
 		void FOutputChannel::FOutputFrame::Clear()
@@ -432,7 +427,7 @@ namespace BlackmagicDesign
 					if (Result == S_OK)
 					{
 						FOutputFrame* NewFrame = new FOutputFrame();
-						NewFrame->BlackmagicFrame = NewBlackmagicFrame;
+						NewFrame->BlackmagicFrame = ReferencePtr<FDecklinkVideoFrame>(new FDecklinkVideoFrame(NewBlackmagicFrame, ChannelOptions.HDRMetadata));
 						AllFrames.push_back(NewFrame);
 						FrameReadyToWrite.push_back(NewFrame);
 					}
@@ -605,7 +600,7 @@ namespace BlackmagicDesign
 
 			const BMDTimeValue Duration = ChannelOptions.FormatInfo.FrameRateDenominator;
 			const BMDTimeScale Scale = ChannelOptions.FormatInfo.FrameRateNumerator;
-			HRESULT ScheduleVideoResult = DeckLinkOutput->ScheduleVideoFrame(InFrame->BlackmagicFrame, OutputTime, Duration, Scale);
+			HRESULT ScheduleVideoResult = DeckLinkOutput->ScheduleVideoFrame(static_cast<IDeckLinkVideoFrame*>(InFrame->BlackmagicFrame.Get()), OutputTime, Duration, Scale);
 
 #if PLATFORM_WINDOWS
 			// Don't call end sync complete if re-sending frame.
@@ -1560,7 +1555,7 @@ namespace BlackmagicDesign
 
 			return nullptr;
 		}
-		 
+
 		void FOutputChannel::PushWhenFrameReady(FOutputFrame* InFrame)
 		{
 			std::lock_guard<std::mutex> Lock(FrameLock);
@@ -1619,7 +1614,247 @@ namespace BlackmagicDesign
 			}
 			return true;
 		}
-}
+
+		HRESULT FDecklinkVideoFrame::QueryInterface(REFIID RIID, LPVOID* PPV)
+		{
+			HRESULT Result = S_OK;
+
+			if (PPV == nullptr)
+			{
+				return E_INVALIDARG;
+			}
+
+			if (IsEqualIID(RIID, IID_IUnknown))
+			{
+				*PPV = static_cast<IDeckLinkMutableVideoFrame*>(this);
+				AddRef();
+			}
+			else if (IsEqualIID(RIID, IID_IDeckLinkVideoFrameMetadataExtensions) && HDRMetadata.bIsAvailable)
+			{
+				*PPV = static_cast<IDeckLinkVideoFrameMetadataExtensions*>(this);
+				AddRef();
+			}
+			else
+			{
+				*PPV = nullptr;
+				Result = E_NOINTERFACE;
+			}
+
+			return Result;
+		}
+
+		ULONG FDecklinkVideoFrame::AddRef()
+		{
+			return ++RefCount;
+		}
+
+		ULONG FDecklinkVideoFrame::Release()
+		{
+			const ULONG NewRefValue = --RefCount;
+
+			if (NewRefValue == 0)
+			{
+				delete this;
+			}
+
+			return NewRefValue;
+		}
+
+		BMDFrameFlags FDecklinkVideoFrame::GetFlags(void)
+		{
+			if (HDRMetadata.bIsAvailable)
+			{
+				return WrappedVideoFrame->GetFlags() | bmdFrameContainsHDRMetadata;
+			}
+			return WrappedVideoFrame->GetFlags();
+		}
+
+		long FDecklinkVideoFrame::GetWidth(void)
+		{
+			return WrappedVideoFrame->GetWidth();
+		}
+
+		long FDecklinkVideoFrame::GetHeight(void)
+		{
+			return WrappedVideoFrame->GetHeight();
+		}
+
+		long FDecklinkVideoFrame::GetRowBytes(void)
+		{
+			return WrappedVideoFrame->GetRowBytes();
+		}
+
+		BMDPixelFormat FDecklinkVideoFrame::GetPixelFormat(void)
+		{
+			return WrappedVideoFrame->GetPixelFormat();
+		}
+
+		HRESULT FDecklinkVideoFrame::GetBytes(void** Buffer)
+		{
+			return WrappedVideoFrame->GetBytes(Buffer);
+		}
+
+		HRESULT FDecklinkVideoFrame::GetTimecode(BMDTimecodeFormat Format, IDeckLinkTimecode** Timecode)
+		{
+			return WrappedVideoFrame->GetTimecode(Format, Timecode);
+		}
+
+		HRESULT FDecklinkVideoFrame::GetAncillaryData(IDeckLinkVideoFrameAncillary** Ancillary)
+		{
+			return WrappedVideoFrame->GetAncillaryData(Ancillary);
+		}
+
+		HRESULT FDecklinkVideoFrame::SetFlags(BMDFrameFlags NewFlags)
+		{
+			return WrappedVideoFrame->SetFlags(NewFlags);
+		}
+
+		HRESULT FDecklinkVideoFrame::SetTimecode(BMDTimecodeFormat Format, IDeckLinkTimecode* Timecode)
+		{
+			return WrappedVideoFrame->SetTimecode(Format, Timecode);
+		}
+
+		HRESULT FDecklinkVideoFrame::SetTimecodeFromComponents(BMDTimecodeFormat Format, unsigned char Hours, unsigned char Minutes, unsigned char Seconds, unsigned char Frames, BMDTimecodeFlags Flags)
+		{
+			return WrappedVideoFrame->SetTimecodeFromComponents(Format, Hours, Minutes, Seconds, Frames, Flags);
+		}
+
+		HRESULT FDecklinkVideoFrame::SetAncillaryData(IDeckLinkVideoFrameAncillary* Ancillary)
+		{
+			return WrappedVideoFrame->SetAncillaryData(Ancillary);
+		}
+
+		HRESULT FDecklinkVideoFrame::SetTimecodeUserBits(BMDTimecodeFormat Format, BMDTimecodeUserBits UserBits)
+		{
+			return WrappedVideoFrame->SetTimecodeUserBits(Format, UserBits);
+		}
+
+		HRESULT FDecklinkVideoFrame::GetInt(BMDDeckLinkFrameMetadataID MetadataId, LONGLONG* Value)
+		{
+			HRESULT Result = S_OK;
+
+			switch (MetadataId)
+			{
+			case bmdDeckLinkFrameMetadataHDRElectroOpticalTransferFunc:
+			{
+				*Value = static_cast<int64>(HDRMetadata.EOTF);
+				break;
+			}
+			case bmdDeckLinkFrameMetadataColorspace:
+			{
+				switch (HDRMetadata.ColorSpace)
+				{
+				case EHDRMetaDataColorspace::Rec601:
+					*Value = bmdColorspaceRec601;
+					break;
+				case EHDRMetaDataColorspace::Rec709:
+					*Value = bmdColorspaceRec709;
+					break;
+				case EHDRMetaDataColorspace::Rec2020:
+					*Value = bmdColorspaceRec2020;
+					break;
+				default:
+					if (IsHDRLoggingOK())
+					{
+						UE_LOG(LogBlackmagicCore, Warning, TEXT("Invalid color space detected."));
+					}
+						
+					*Value = bmdColorspaceRec709;
+					break;
+				}
+				break;
+			}
+			default:
+				Result = E_INVALIDARG;
+				break;
+			}
+
+			return Result;
+		}
+
+		HRESULT FDecklinkVideoFrame::GetFloat(BMDDeckLinkFrameMetadataID MetadataId, double* Value)
+		{
+			HRESULT Result = S_OK;
+
+			switch (MetadataId)
+			{
+			case bmdDeckLinkFrameMetadataHDRDisplayPrimariesRedX:
+				*Value = HDRMetadata.DisplayPrimariesRedX;
+				break;
+			case bmdDeckLinkFrameMetadataHDRDisplayPrimariesRedY:
+				*Value = HDRMetadata.DisplayPrimariesRedY;
+				break;
+			case bmdDeckLinkFrameMetadataHDRDisplayPrimariesGreenX:
+				*Value = HDRMetadata.DisplayPrimariesGreenX;
+				break;
+			case bmdDeckLinkFrameMetadataHDRDisplayPrimariesGreenY:
+				*Value = HDRMetadata.DisplayPrimariesGreenY;
+				break;
+			case bmdDeckLinkFrameMetadataHDRDisplayPrimariesBlueX:
+				*Value = HDRMetadata.DisplayPrimariesBlueX;
+				break;
+			case bmdDeckLinkFrameMetadataHDRDisplayPrimariesBlueY:
+				*Value = HDRMetadata.DisplayPrimariesBlueY;
+				break;
+			case bmdDeckLinkFrameMetadataHDRWhitePointX:
+				*Value = HDRMetadata.WhitePointX;
+				break;
+			case bmdDeckLinkFrameMetadataHDRWhitePointY:
+                *Value = HDRMetadata.WhitePointY;
+                break;
+			case bmdDeckLinkFrameMetadataHDRMaxDisplayMasteringLuminance:
+				*Value = HDRMetadata.MaxDisplayLuminance;
+				break;
+			case bmdDeckLinkFrameMetadataHDRMinDisplayMasteringLuminance:
+				*Value = HDRMetadata.MinDisplayLuminance;
+				break;
+			case bmdDeckLinkFrameMetadataHDRMaximumContentLightLevel:
+				*Value = HDRMetadata.MaxContentLightLevel;
+				break;
+			case bmdDeckLinkFrameMetadataHDRMaximumFrameAverageLightLevel:
+				*Value = HDRMetadata.MaxFrameAverageLightLevel;
+				break;
+			default:
+				Result = E_INVALIDARG;
+				break;
+			}
+			return Result;
+		}
+
+		HRESULT FDecklinkVideoFrame::GetFlag(BMDDeckLinkFrameMetadataID MetadataId, BOOL* Value)
+		{
+			return E_INVALIDARG;
+		}
+
+		HRESULT FDecklinkVideoFrame::GetString(BMDDeckLinkFrameMetadataID MetadataId, BSTR* Value)
+		{
+			return E_INVALIDARG;
+		}
+
+		HRESULT FDecklinkVideoFrame::GetBytes(BMDDeckLinkFrameMetadataID MetadataId, void* Buffer, unsigned int* BufferSize)
+		{
+			return E_INVALIDARG;
+		}
+
+		bool FDecklinkVideoFrame::IsHDRLoggingOK()
+		{
+			// Reset log count after a few seconds.
+            if (FPlatformTime::Seconds() > LastHDRLogResetTime)
+            {
+            	HDRLogCount = 0;
+            }
+            
+            bool bIsOK = HDRLogCount < 30;
+
+            if (bIsOK)
+            {
+            	HDRLogCount++;
+            	LastHDRLogResetTime = FPlatformTime::Seconds() + 2;
+            }
+
+            return bIsOK;
+		}
+	}
 };
 
 CustomAllocator::CustomAllocator()

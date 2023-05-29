@@ -2,11 +2,12 @@
 
 #pragma once
 
+#include "Common.h"
+#include "GPUTextureTransferModule.h"
 #include "ThreadSafeQueue.h"
 #include "ThreadSafeObjectPool.h"
-#include <atomic>
 
-#include "GPUTextureTransferModule.h"
+#include <atomic>
 
 class CustomAllocator : public IDeckLinkMemoryAllocator
 {
@@ -107,6 +108,71 @@ namespace BlackmagicDesign
 			FOutputChannel* OutputChannel;
 			IDeckLinkOutput* DeckLinkOutput;
 			std::atomic_char32_t RefCount;
+		};
+
+		/**
+		 * Wrapper class around IDeckLinkMutableVideoFrame that also extends IDeckLinkVideoFrameMetadataExtensions in order to provide HDR metadata to the SDI feed.
+		 */
+		class FDecklinkVideoFrame : public IDeckLinkMutableVideoFrame, public IDeckLinkVideoFrameMetadataExtensions
+		{
+		public:
+			FDecklinkVideoFrame(IDeckLinkMutableVideoFrame* InWrappedVideoFrame, FHDRMetaData InHDRMetadata)
+				: RefCount(1)
+				, WrappedVideoFrame(InWrappedVideoFrame)
+				, HDRMetadata(MoveTemp(InHDRMetadata))
+			{
+			}
+
+			virtual ~FDecklinkVideoFrame() = default;
+
+			//~ Begin IUnknown interface
+			virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID RIID, LPVOID* PPV) override;
+			virtual ULONG STDMETHODCALLTYPE AddRef() override;
+			virtual ULONG STDMETHODCALLTYPE Release() override;
+			//~ End IUnknown interface
+
+			//~ Begin IDeckLinkVideoFrame Interface
+			virtual BMDFrameFlags STDMETHODCALLTYPE GetFlags(void) override;
+			virtual long STDMETHODCALLTYPE GetWidth(void) override;
+			virtual long STDMETHODCALLTYPE GetHeight(void) override;
+			virtual long STDMETHODCALLTYPE GetRowBytes(void) override;
+			virtual BMDPixelFormat STDMETHODCALLTYPE GetPixelFormat(void) override;
+			virtual HRESULT STDMETHODCALLTYPE GetBytes(/* [out] */ void** Buffer) override;
+			virtual HRESULT STDMETHODCALLTYPE GetTimecode(/* [in] */ BMDTimecodeFormat Format, /* [out] */ IDeckLinkTimecode** Timecode) override;
+			virtual HRESULT STDMETHODCALLTYPE GetAncillaryData(/* [out] */ IDeckLinkVideoFrameAncillary** ancillary) override;
+			//~ End IDeckLinkVideoFrame Interface
+
+			//~ Begin IDeckLinkMutableVideoFrame Interface
+			virtual HRESULT STDMETHODCALLTYPE SetFlags(/* [in] */ BMDFrameFlags NewFlags) override;
+			virtual HRESULT STDMETHODCALLTYPE SetTimecode(/* [in] */ BMDTimecodeFormat Format, /* [in] */ IDeckLinkTimecode* Timecode) override;
+			virtual HRESULT STDMETHODCALLTYPE SetTimecodeFromComponents(/* [in] */ BMDTimecodeFormat Format, /* [in] */ unsigned char Hours, /* [in] */ unsigned char Minutes, /* [in] */ unsigned char Seconds, /* [in] */ unsigned char Frames, /* [in] */ BMDTimecodeFlags Flags) override;
+			virtual HRESULT STDMETHODCALLTYPE SetAncillaryData(/* [in] */ IDeckLinkVideoFrameAncillary* Ancillary) override; 
+			virtual HRESULT STDMETHODCALLTYPE SetTimecodeUserBits(/* [in] */ BMDTimecodeFormat Format, /* [in] */ BMDTimecodeUserBits UserBits) override;
+			//~ End IDeckLinkMutableVideoFrame Interface
+
+			//~ Begin IDeckLinkVideoFrameMetadataExtensions interface
+			virtual HRESULT STDMETHODCALLTYPE GetInt(BMDDeckLinkFrameMetadataID MetadataId, LONGLONG* Value) override;
+			virtual HRESULT STDMETHODCALLTYPE GetFloat(BMDDeckLinkFrameMetadataID MetadataId, double* Value) override;
+			virtual HRESULT STDMETHODCALLTYPE GetFlag(BMDDeckLinkFrameMetadataID MetadataId, BOOL* Value) override;
+			virtual HRESULT STDMETHODCALLTYPE GetString(BMDDeckLinkFrameMetadataID MetadataId, BSTR* Value) override;
+			virtual HRESULT STDMETHODCALLTYPE GetBytes(BMDDeckLinkFrameMetadataID MetadataId, void* Buffer, unsigned int* BufferSize) override;
+			//~ End IDeckLinkVideoFrameMetadataExtensions interface
+			
+		private:
+			/** Utility function to throttle HDR warning logs. */
+			bool IsHDRLoggingOK();
+
+		private:
+			/** Used to destroy object at 0 refs. */
+			ULONG RefCount;
+			/** Wrapped video frame. */
+			ReferencePtr<IDeckLinkMutableVideoFrame> WrappedVideoFrame;
+			/** Holds HDR Metadata. */
+			FHDRMetaData HDRMetadata;
+			/** Used for throttling HDR logs. */
+			int32_t HDRLogCount;
+			/** Used for keeping track of the last HDR logging reset time.  */
+			double LastHDRLogResetTime = 0.0;
 		};
 
 		class FOutputChannel
@@ -242,7 +308,7 @@ namespace BlackmagicDesign
 
 				static const uint32_t InvalidFrameIdentifier;
 
-				IDeckLinkMutableVideoFrame* BlackmagicFrame;
+				ReferencePtr<FDecklinkVideoFrame> BlackmagicFrame;
 				uint8_t* AudioBuffer;
 				uint32_t NumAudioSamples;
 

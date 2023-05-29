@@ -8,12 +8,17 @@
 #include <locale>
 #include <thread>
 
+#include "LinuxCOM.h"
 
 // provide string the way Unreal Engine expects
 #define TCHAR char16_t
 
 // convert Windows style enums in Linux, i.e. BMDPixelFormat to _BMDPixelFormat
 #define ENUM(x) _ ## x
+
+#define BSTR const char*
+
+#define LONGLONG int64_t
 
 // simulate Windows BOOL type
 typedef bool BOOL;
@@ -22,6 +27,9 @@ class IDeckLink;
 class IDeckLinkDisplayMode;
 class IDeckLinkIterator;
 class IDeckLinkVideoConversion;
+
+/** Defined outside of namespace to match windows' implementation */
+bool IsEqualIID(REFIID LHS, REFIID RHS);
 
 namespace BlackmagicPlatform
 {

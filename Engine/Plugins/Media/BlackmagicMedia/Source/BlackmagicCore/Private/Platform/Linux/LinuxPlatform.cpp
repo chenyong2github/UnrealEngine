@@ -12,6 +12,11 @@
 #include <pthread.h>
 #include <sys/mman.h>
 
+bool IsEqualIID(REFIID LHS, REFIID RHS)
+{
+	return memcmp(&LHS, &RHS, sizeof(REFIID)) == 0;
+}
+
 namespace BlackmagicPlatform
 {
 

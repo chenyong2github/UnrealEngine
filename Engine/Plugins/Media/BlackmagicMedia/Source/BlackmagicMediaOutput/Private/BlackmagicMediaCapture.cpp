@@ -5,6 +5,7 @@
 #include "BlackmagicLib.h"
 #include "BlackmagicMediaOutput.h"
 #include "BlackmagicMediaOutputModule.h"
+#include "ColorSpace.h"
 #include "GPUTextureTransfer.h"
 #include "GPUTextureTransferModule.h"
 #include "Engine/Engine.h"
@@ -37,6 +38,63 @@ static FAutoConsoleCommand BlackmagicWriteInputRawDataCmd(
 
 namespace BlackmagicMediaCaptureHelpers
 {
+	BlackmagicDesign::FHDRMetaData MakeBlackmagicHDRMetadata(const FBlackmagicMediaHDROptions& HDROptions)
+	{
+		BlackmagicDesign::FHDRMetaData HDRMetadata;
+		HDRMetadata.bIsAvailable = true;
+		HDRMetadata.EOTF = (BlackmagicDesign::EHDRMetaDataEOTF) HDROptions.EOTF;
+
+		UE::Color::EColorSpace ColorSpaceEnum = UE::Color::EColorSpace::sRGB;
+		switch (HDROptions.Gamut)
+		{
+		case EBlackmagicHDRMetadataGamut::Rec709:
+			HDRMetadata.ColorSpace = BlackmagicDesign::EHDRMetaDataColorspace::Rec709;
+			ColorSpaceEnum = UE::Color::EColorSpace::sRGB;
+			break;
+		case EBlackmagicHDRMetadataGamut::Rec2020:
+			HDRMetadata.ColorSpace = BlackmagicDesign::EHDRMetaDataColorspace::Rec2020;
+			ColorSpaceEnum = UE::Color::EColorSpace::Rec2020;
+			break;
+		default:
+			HDRMetadata.bIsAvailable = false;
+			checkNoEntry();
+			break;
+		}
+		
+		UE::Color::FColorSpace ColorSpace(ColorSpaceEnum);
+		HDRMetadata.WhitePointX = ColorSpace.GetWhiteChromaticity().X;
+		HDRMetadata.WhitePointY = ColorSpace.GetWhiteChromaticity().Y;
+
+		HDRMetadata.DisplayPrimariesRedX = ColorSpace.GetRedChromaticity().X;
+		HDRMetadata.DisplayPrimariesRedY = ColorSpace.GetRedChromaticity().Y;
+
+		HDRMetadata.DisplayPrimariesGreenX = ColorSpace.GetGreenChromaticity().X;
+		HDRMetadata.DisplayPrimariesGreenY = ColorSpace.GetGreenChromaticity().Y;
+		
+		HDRMetadata.DisplayPrimariesBlueX = ColorSpace.GetBlueChromaticity().X;
+		HDRMetadata.DisplayPrimariesBlueY = ColorSpace.GetBlueChromaticity().Y;
+
+		return HDRMetadata;
+	}
+	
+	struct BLACKMAGICCORE_API FHDRMetaData
+	{
+		FHDRMetaData();
+
+		double WhitePointX;
+		double WhitePointY;
+		double DisplayPrimariesRedX;
+		double DisplayPrimariesRedY;
+		double DisplayPrimariesGreenX;
+		double DisplayPrimariesGreenY;
+		double DisplayPrimariesBlueX;
+		double DisplayPrimariesBlueY;
+		double MaxDisplayLuminance;
+		double MinDisplayLuminance;
+		double MaxContentLightLevel;
+		double MaxFrameAverageLightLevel;
+	};
+	
 	class FBlackmagicMediaCaptureEventCallback : public BlackmagicDesign::IOutputEventCallback
 	{
 	public:
@@ -553,6 +611,25 @@ bool UBlackmagicMediaCapture::HasFinishedProcessing() const
 	return Super::HasFinishedProcessing() || EventCallback == nullptr;
 }
 
+const FMatrix& UBlackmagicMediaCapture::GetRGBToYUVConversionMatrix() const
+{
+	if (const UBlackmagicMediaOutput* BMOutput = Cast<UBlackmagicMediaOutput>(MediaOutput))
+	{
+		switch(BMOutput->HDROptions.Gamut)
+		{
+		case EBlackmagicHDRMetadataGamut::Rec709:
+			return MediaShaders::RgbToYuvRec709Scaled;
+		case EBlackmagicHDRMetadataGamut::Rec2020:
+			return MediaShaders::RgbToYuvRec2020Scaled;
+		default:
+			checkNoEntry();
+			return MediaShaders::RgbToYuvRec709Scaled;
+		}
+	}
+		
+	return Super::GetRGBToYUVConversionMatrix();
+}
+
 bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagicMediaOutput)
 {
 	check(InBlackmagicMediaOutput);
@@ -605,6 +682,7 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 	ChannelOptions.bLogDropFrames = bLogDropFrame;
 	ChannelOptions.bUseGPUDMA = ShouldCaptureRHIResource();
 	ChannelOptions.bScheduleInDifferentThread = InBlackmagicMediaOutput->bUseMultithreadedScheduling;
+	ChannelOptions.HDRMetadata = BlackmagicMediaCaptureHelpers::MakeBlackmagicHDRMetadata(InBlackmagicMediaOutput->HDROptions);
 
 	AudioBitDepth = InBlackmagicMediaOutput->AudioBitDepth;
 	bOutputAudio = InBlackmagicMediaOutput->bOutputAudio;

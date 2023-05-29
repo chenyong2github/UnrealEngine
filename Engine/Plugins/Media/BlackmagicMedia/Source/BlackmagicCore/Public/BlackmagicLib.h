@@ -178,6 +178,44 @@ namespace BlackmagicDesign
 		bool operator==(FChannelInfo& Other) const;
 	};
 
+
+	/** HDR Metadata. */
+	struct BLACKMAGICCORE_API FHDRMetaData
+	{
+		FHDRMetaData();
+
+		/** Whether the data contained in this struct is valid. */
+		bool bIsAvailable;
+		/** Target color space. */
+		EHDRMetaDataColorspace ColorSpace;
+		/** HDR Transfer function. */
+		EHDRMetaDataEOTF EOTF;
+		/** White point X coordinate. */
+		double WhitePointX;
+		/** White point Y coordinate. */
+		double WhitePointY;
+		/** Red chromaticity X coordinate. */
+		double DisplayPrimariesRedX;
+		/** Red chromaticity Y coordinate. */
+		double DisplayPrimariesRedY;
+		/** Green chromaticity X coordinate. */
+		double DisplayPrimariesGreenX;
+		/** Green chromaticity Y coordinate. */
+		double DisplayPrimariesGreenY;
+		/** Blue chromaticity X coordinate. */
+		double DisplayPrimariesBlueX;
+		/** Blue chromaticity Y coordinate. */
+		double DisplayPrimariesBlueY;
+		/** Max display mastering luminance. */
+		double MaxDisplayLuminance;
+		/** Min display mastering luminance. */
+		double MinDisplayLuminance;
+		/** Max content light level. */
+		double MaxContentLightLevel;
+		/** Max frame average light level. */
+		double MaxFrameAverageLightLevel;
+	};
+
 	/* FInputChannelOptions definition
 	*****************************************************************************/
 	struct BLACKMAGICCORE_API FInputChannelOptions
@@ -218,6 +256,9 @@ namespace BlackmagicDesign
 		ETimecodeFormat TimecodeFormat;
 		ELinkConfiguration LinkConfiguration;
 
+		/** HDR Metadata. */
+		FHDRMetaData HDRMetadata;
+
 		bool bOutputKey;
 		bool bOutputVideo;
 		bool bOutputAudio;
@@ -251,24 +292,6 @@ namespace BlackmagicDesign
 			EPixelFormat PixelFormat;
 			EFullPixelFormat FullPixelFormat;
 			EFieldDominance FieldDominance;
-
-			// HDR
-			struct BLACKMAGICCORE_API FHDRMetaData
-			{
-				FHDRMetaData();
-
-				bool bIsAvailable;
-				EHDRMetaDataColorspace ColorSpace;
-				EHDRMetaDataEOTF EOTF;
-				double WhitePointX;
-				double WhitePointY;
-				double DisplayPrimariesRedX;
-				double DisplayPrimariesRedY;
-				double DisplayPrimariesGreenX;
-				double DisplayPrimariesGreenY;
-				double DisplayPrimariesBlueX;
-				double DisplayPrimariesBlueY;
-			};
 			FHDRMetaData HDRMetaData;
 
 			// Audio
