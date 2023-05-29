@@ -59,6 +59,20 @@ namespace GLTF
 		}
 	};
 
+	struct GLTFCORE_API FVoidBufferView final : FBufferView
+	{
+		FVoidBufferView()
+			: FBufferView(FBuffer(0), 0, 0, 0)
+		{
+
+		}
+		static FVoidBufferView& GetVoidBufferView()
+		{
+			static FVoidBufferView Void;
+			return Void;
+		}
+	};
+
 	struct GLTFCORE_API FAccessor
 	{
 		// accessor stores the data but has no usage semantics
@@ -88,13 +102,79 @@ namespace GLTF
 			Count
 		};
 
+		struct GLTFCORE_API FSparse
+		{
+			bool                     bHasSparse;
+
+			const uint32              Count;
+
+			//Indices:
+			struct FIndices
+			{
+				const int32          Count; //Helper for creating cache, equals to FSparse.Count
+
+				const FBufferView&   BufferView;
+				const uint32         ByteOffset;
+				const EComponentType ComponentType;
+
+				FIndices()
+					: Count(0)
+					, BufferView(FVoidBufferView::GetVoidBufferView())
+					, ByteOffset(0)
+					, ComponentType(EComponentType::None)
+				{
+				}
+
+				FIndices(uint32 InCount, const FBufferView& InBufferView, uint32 InByteOffset, EComponentType InComponentType);
+			} Indices;
+			
+			//Values:
+			struct FValues
+			{
+				const FBufferView&   BufferView;
+				const uint32         ByteOffset;
+				
+				FValues()
+					: BufferView(FVoidBufferView::GetVoidBufferView())
+					, ByteOffset(0)
+				{
+				}
+
+				FValues(const FBufferView& InBufferView, uint32 InByteOffset)
+					: BufferView(InBufferView)
+					, ByteOffset(InByteOffset)
+				{
+				}
+			} Values;
+			
+			FSparse()
+				: bHasSparse(false)
+				, Count(0)
+				, Indices(FIndices())
+				, Values(FValues())
+			{
+			}
+
+			FSparse(uint32 InCount,
+				const FBufferView& InIndicesBufferView, uint32 InIndicesByteOffset, EComponentType InIndicesComponentType,
+				const FBufferView& InValuesBufferView, uint32 InValuesByteOffset)
+				: bHasSparse(true)
+				, Count(InCount)
+				, Indices(InCount, InIndicesBufferView, InIndicesByteOffset, InIndicesComponentType)
+				, Values(InValuesBufferView, InValuesByteOffset)
+			{
+			}
+		};
+
 		const uint32         Count;
 		const EType          Type;
 		const EComponentType ComponentType;
 		const bool           bNormalized;
 		bool                 bQuantized;
+		const FSparse        Sparse;
 
-		FAccessor(uint32 InCount, EType InType, EComponentType InComponentType, bool bInNormalized);
+
+		FAccessor(uint32 InCount, EType InType, EComponentType InComponentType, bool bInNormalized, const FSparse& InSparse);
 
 		virtual bool IsValid() const = 0;
 		virtual FMD5Hash GetHash() const = 0;
@@ -145,7 +225,7 @@ namespace GLTF
 
 	struct GLTFCORE_API FValidAccessor final : FAccessor
 	{
-		FValidAccessor(FBufferView& InBufferView, uint32 InOffset, uint32 InCount, EType InType, EComponentType InCompType, bool bInNormalized);
+		FValidAccessor(FBufferView& InBufferView, uint32 InOffset, uint32 InCount, EType InType, EComponentType InCompType, bool bInNormalized, const FSparse& InSparse);
 
 		bool IsValid() const override;
 
@@ -174,12 +254,29 @@ namespace GLTF
 		const uint32       ByteOffset;
 		const uint32       ElementSize;
 		const uint32	   ByteStride;
+
+		//Sparse related helpers:
+		void UpdateUnsignedIntWithSparse(uint32 Index, uint32& Data) const;
+		void UpdateUnsignedInt16x4WithSparse(uint32 Index, uint16 Data[4]) const;
+
+		void UpdateFloatWithSparse(uint32 Index, float& Data) const;
+		void UpdateVec2WithSparse(uint32 Index, FVector2D& Data) const;
+		void UpdateVec3WithSparse(uint32 Index, FVector& Data) const;
+		void UpdateVec4WithSparse(uint32 Index, FVector4& Data) const;
+
+		void UpdateMat4WithSparse(uint32 Index, FMatrix& Data) const;
+
+		void UpdateFloatArrayWithSparse(float* Data) const;
+		void UpdateUnsignedIntArrayWithSparse(uint32* Data) const;
+
+		template<typename ItemType, uint32 ItemElementCount>
+		void UpdateArrayWithSparse(ItemType* Data) const;
 	};
 
 	struct GLTFCORE_API FVoidAccessor final : FAccessor
 	{
 		FVoidAccessor()
-		    : FAccessor(0, EType::Scalar, EComponentType::S8, false)
+		    : FAccessor(0, EType::Scalar, EComponentType::S8, false, FSparse())
 		{
 		}
 

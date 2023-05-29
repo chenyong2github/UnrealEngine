@@ -228,7 +228,33 @@ namespace GLTF
 			const uint32                    Count      = GetUnsignedInt(Object, TEXT("count"), 0);
 			const FAccessor::EType          Type       = AccessorTypeFromString(Object.GetStringField("type"));
 			const bool                      Normalized = GetBool(Object, TEXT("normalized"));
-			Asset->Accessors.Emplace(Asset->BufferViews[BufferViewIdx], ByteOffset, Count, Type, CompType, Normalized);
+
+			//Sparse:
+			if (Object.HasField("sparse"))
+			{
+				const FJsonObject& SparseObject = *Object.GetObjectField(TEXT("sparse"));
+
+				const uint32 SparseCount = GetUnsignedInt(SparseObject, TEXT("count"), 0);
+
+				const FJsonObject& IndicesObject = *SparseObject.GetObjectField(TEXT("indices"));
+				const uint32 IndicesBufferViewIdx = GetUnsignedInt(IndicesObject, TEXT("bufferView"), BufferViewCount);
+				const int32 IndicesByteOffset = GetUnsignedInt(IndicesObject, TEXT("byteOffset"), 0);
+				const FAccessor::EComponentType IndicesCompType = ComponentTypeFromNumber(GetUnsignedInt(IndicesObject, TEXT("componentType"), 0));
+
+				const FJsonObject& ValuesObject = *SparseObject.GetObjectField(TEXT("values"));
+				const uint32 ValuesBufferViewIdx = GetUnsignedInt(ValuesObject, TEXT("bufferView"), BufferViewCount);
+				const int32 ValuesByteOffset = GetUnsignedInt(ValuesObject, TEXT("byteOffset"), 0);
+
+				Asset->Accessors.Emplace(Asset->BufferViews[BufferViewIdx], ByteOffset, Count, Type, CompType, Normalized, 
+					FAccessor::FSparse(SparseCount, 
+						Asset->BufferViews[IndicesBufferViewIdx], IndicesByteOffset, IndicesCompType,
+						Asset->BufferViews[ValuesBufferViewIdx], ValuesByteOffset));
+			}
+			else
+			{
+				Asset->Accessors.Emplace(Asset->BufferViews[BufferViewIdx], ByteOffset, Count, Type, CompType, Normalized, FAccessor::FSparse());
+			}
+
 			ExtensionsHandler->SetupAccessorExtensions(Object, Asset->Accessors.Last());
 		}
 	}
