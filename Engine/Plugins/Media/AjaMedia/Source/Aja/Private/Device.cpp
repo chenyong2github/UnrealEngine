@@ -162,7 +162,13 @@ namespace AJA
 			: Connection(InConnection)
 		{}
 
-		bool DeviceConnection::CommandList::RegisterChannel(ETransportType InTransportType, NTV2InputSource InInputSource, NTV2Channel InChannel, bool bInIsInput, bool bConnectChannel, ETimecodeFormat InTimecodeFormat, EPixelFormat InUEPixelFormat, NTV2VideoFormat InDesiredInputFormat, bool bInAsOwner, bool bInIsAutoDetected)
+		bool DeviceConnection::CommandList::RegisterChannel(ETransportType InTransportType, NTV2InputSource InInputSource, NTV2Channel InChannel, bool bInAsInput, bool bConnectChannel, ETimecodeFormat InTimecodeFormat, EPixelFormat InUEPixelFormat, NTV2VideoFormat InDesiredInputFormat, bool bInAsOwner, bool bInIsAutoDetected)
+		{
+			FAjaHDROptions UnusedOptions;
+			return RegisterChannel(InTransportType, InInputSource, InChannel, bInAsInput, bConnectChannel, InTimecodeFormat, InUEPixelFormat, InDesiredInputFormat, UnusedOptions, bInAsOwner, bInIsAutoDetected);
+		}
+
+		bool DeviceConnection::CommandList::RegisterChannel(ETransportType InTransportType, NTV2InputSource InInputSource, NTV2Channel InChannel, bool bInIsInput, bool bConnectChannel, ETimecodeFormat InTimecodeFormat, EPixelFormat InUEPixelFormat, NTV2VideoFormat InDesiredInputFormat, FAjaHDROptions& InOutHDROptions, bool bInAsOwner, bool bInIsAutoDetected)
 		{
 			AJAAutoLock Lock(&Connection.ChannelLock);
 
@@ -185,7 +191,7 @@ namespace AJA
 
 				if (bResult)
 				{
-					bResult = Connection.Lock_EnableChannel_Helper(Connection.Card, InTransportType, InInputSource, InChannel, bInIsInput, bConnectChannel, bInIsAutoDetected, InTimecodeFormat, InUEPixelFormat, InDesiredInputFormat, VideoFormat);
+					bResult = Connection.Lock_EnableChannel_Helper(Connection.Card, InTransportType, InInputSource, InChannel, bInIsInput, bConnectChannel, bInIsAutoDetected, InTimecodeFormat, InUEPixelFormat, InDesiredInputFormat, VideoFormat, InOutHDROptions);
 				}
 
 				uint32_t NewBaseFrameBufferIndex = InvalidFrameBufferIndex;
@@ -242,7 +248,7 @@ namespace AJA
 
 					if (bResult)
 					{
-						bResult = Connection.Lock_EnableChannel_Helper(Connection.Card, InTransportType, InInputSource, InChannel, bInIsInput, bConnectChannel, bInIsAutoDetected, InTimecodeFormat, InUEPixelFormat, InDesiredInputFormat, VideoFormat);
+						bResult = Connection.Lock_EnableChannel_Helper(Connection.Card, InTransportType, InInputSource, InChannel, bInIsInput, bConnectChannel, bInIsAutoDetected, InTimecodeFormat, InUEPixelFormat, InDesiredInputFormat, VideoFormat, InOutHDROptions);
 					}
 				}
 
@@ -958,7 +964,7 @@ namespace AJA
 			return true;
 		}
 
-		bool DeviceConnection::Lock_EnableChannel_Helper(CNTV2Card* InCard, ETransportType InTransportType, NTV2InputSource InInputSource, NTV2Channel InChannel, bool bIsInput, bool bConnectChannel, bool bIsAutoDetected, ETimecodeFormat InTimecodeFormat, EPixelFormat InUEPixelFormat, NTV2VideoFormat InDesiredInputFormat, NTV2VideoFormat& OutFoundVideoFormat)
+		bool DeviceConnection::Lock_EnableChannel_Helper(CNTV2Card* InCard, ETransportType InTransportType, NTV2InputSource InInputSource, NTV2Channel InChannel, bool bIsInput, bool bConnectChannel, bool bIsAutoDetected, ETimecodeFormat InTimecodeFormat, EPixelFormat InUEPixelFormat, NTV2VideoFormat InDesiredInputFormat, NTV2VideoFormat& OutFoundVideoFormat, FAjaHDROptions& InOutHDROptions)
 		{
 			NTV2DeviceID DeviceId = Card->GetDeviceID();
 			if (InChannel >= ::NTV2DeviceGetNumFrameStores(DeviceId))
@@ -1049,6 +1055,12 @@ namespace AJA
 					UE_LOG(LogTemp, Error, TEXT("Device: Initialization of the input failed for channel %d on device '%S'. %S"), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str(), FailureReason.c_str());
 					return false;
 				}
+				
+				if (!Helpers::GetInputHDRMetadata(InCard, InChannel, InOutHDROptions))
+				{
+					UE_LOG(LogTemp, Error, TEXT("Device: Could not fetch HDR metadata from channel %d on device '%S'."), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str());
+					return false;
+				}
 			}
 
 			// Setup basic video to support Interrupt. This will be override by ChannelBase if necessary
@@ -1072,9 +1084,13 @@ namespace AJA
 			const NTV2FrameBufferFormat FrameBufferFormat = Helpers::ConvertPixelFormatToFrameBufferFormat(InUEPixelFormat);
 			AJA_CHECK(InCard->SetVideoFormat(OutFoundVideoFormat, AJA_RETAIL_DEFAULT, false, InChannel));
 
+			const NTV2HDRXferChars EOTF = Helpers::ConvertToAjaHDRXferChars(InOutHDROptions.EOTF);
+			const NTV2HDRColorimetry Colorimetry = Helpers::ConvertToAjaHDRColorimetry(InOutHDROptions.Gamut);
+			const NTV2HDRLuminance Luminance = Helpers::ConvertToAjaHDRLuminance(InOutHDROptions.Luminance);
+			
 			for (int32_t ChannelIndex = 0; ChannelIndex < NumberOfLinkChannel; ++ChannelIndex)
 			{
-				AJA_CHECK(InCard->SetFrameBufferFormat(NTV2Channel(int32_t(InChannel) + ChannelIndex), FrameBufferFormat));
+				AJA_CHECK(InCard->SetFrameBufferFormat(NTV2Channel(int32_t(InChannel) + ChannelIndex), FrameBufferFormat, AJA_RETAIL_DEFAULT, EOTF, Colorimetry, Luminance));
 			}
 
 			// Route the input for the sync, seems required

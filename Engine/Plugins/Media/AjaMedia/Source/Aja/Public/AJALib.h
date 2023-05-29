@@ -38,7 +38,7 @@ namespace AJA
 		PF_10BIT_RGB,	// As Input/Output
 		PF_10BIT_YCBCR,	// As Input/Output
 	};
-
+	
 	/* SDI transport type
 	*****************************************************************************/
 	enum class ETransportType
@@ -364,6 +364,52 @@ namespace AJA
 		uint8_t* VideoBuffer;
 	};
 
+	
+	/**
+	 * HDR Transfer function.
+	 */
+	enum class EAjaHDRMetadataEOTF : uint8
+	{
+		SDR,
+		HLG,
+		PQ,
+		Unspecified
+	};
+	
+	/**
+	 * HDR Color Gamut.
+	 */
+	enum class EAjaHDRMetadataGamut : uint8
+	{
+		Rec709,
+		Rec2020,
+		Invalid
+	};
+
+	/**
+	 * HDR Luminance.
+	 */
+	enum class EAjaHDRMetadataLuminance : uint8
+	{
+		YCbCr,
+		ICtCp
+	};
+
+	/**
+	 * Set of metadata describing a HDR video signal.
+	 */
+	struct AJACORE_API FAjaHDROptions
+	{
+		/** Transfer function to use for converting the video signal to an optical signal. */
+		EAjaHDRMetadataEOTF EOTF = EAjaHDRMetadataEOTF::SDR;
+
+		/** The color gamut of the video signal. */
+		EAjaHDRMetadataGamut Gamut = EAjaHDRMetadataGamut::Rec709;
+
+		/** Color representation format of the video signal. */
+		EAjaHDRMetadataLuminance Luminance = EAjaHDRMetadataLuminance::YCbCr;
+	};
+
 	struct AJACORE_API IAJAInputOutputChannelCallbackInterface : IAJASyncChannelCallbackInterface
 	{
 		IAJAInputOutputChannelCallbackInterface();
@@ -399,6 +445,7 @@ namespace AJA
 		uint32_t OutputNumberOfBuffers; // [1...x] supported but not suggested (min of 2 is suggested)
 		FAJAVideoFormat VideoFormatIndex;
 		EPixelFormat PixelFormat;
+		FAjaHDROptions HDROptions;
 		ETimecodeFormat TimecodeFormat;
 		EAJAReferenceType OutputReferenceType;
 		uint32_t BurnTimecodePercentY;

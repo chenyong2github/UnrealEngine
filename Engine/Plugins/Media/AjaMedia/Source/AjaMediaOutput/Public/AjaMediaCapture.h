@@ -60,8 +60,7 @@ protected:
 	{
 		return true;
 	}
-
-
+	virtual const FMatrix& GetRGBToYUVConversionMatrix() const override;
 
 private:
 	struct FAjaOutputCallback;

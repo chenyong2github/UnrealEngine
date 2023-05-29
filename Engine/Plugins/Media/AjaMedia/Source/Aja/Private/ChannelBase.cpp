@@ -311,7 +311,7 @@ namespace AJA
 				DesiredVideoFormat = Helpers::GetLevelA(DesiredVideoFormat);
 			}
 
-			if (!InCommandList.RegisterChannel(GetOptions().TransportType, InputSource, Channel, IsInput(), bConnectChannel, GetOptions().TimecodeFormat, GetOptions().PixelFormat, DesiredVideoFormat, bAsOwner, Options.bAutoDetectFormat))
+			if (!InCommandList.RegisterChannel(GetOptions().TransportType, InputSource, Channel, IsInput(), bConnectChannel, GetOptions().TimecodeFormat, GetOptions().PixelFormat, DesiredVideoFormat, Options.HDROptions, bAsOwner, Options.bAutoDetectFormat))
 			{
 				return false;
 			}
@@ -439,9 +439,14 @@ namespace AJA
 				}
 
 				const int32_t NumberOfLinkChannel = Helpers::GetNumberOfLinkChannel(GetOptions().TransportType);
+
+				const NTV2HDRXferChars ETOF = Helpers::ConvertToAjaHDRXferChars(GetOptions().HDROptions.EOTF);
+				const NTV2HDRColorimetry Colorimetry = Helpers::ConvertToAjaHDRColorimetry(GetOptions().HDROptions.Gamut);
+				const NTV2HDRLuminance Luminance = Helpers::ConvertToAjaHDRLuminance(GetOptions().HDROptions.Luminance);
+				
 				for (int32_t ChannelIndex = 0; ChannelIndex < NumberOfLinkChannel; ++ChannelIndex)
 				{
-					AJA_CHECK(Device->GetCard()->SetFrameBufferFormat(NTV2Channel(int32_t(Channel) + ChannelIndex), PixelFormat));
+					AJA_CHECK(Device->GetCard()->SetFrameBufferFormat(NTV2Channel(int32_t(Channel) + ChannelIndex), PixelFormat, AJA_RETAIL_DEFAULT, ETOF, Colorimetry, Luminance));
 				}
 
 				// if output, set the Reference type
@@ -543,7 +548,7 @@ namespace AJA
 					{
 						bConnectedChannel = false;
 						const bool bAsOwner = true;
-						if (!InCommandList.RegisterChannel(GetOptions().TransportType, KeySource, KeyChannel, IsInput(), bConnectedChannel, ETimecodeFormat::TCF_None, GetOptions().PixelFormat, DesiredVideoFormat, bAsOwner, Options.bAutoDetectFormat))
+						if (!InCommandList.RegisterChannel(GetOptions().TransportType, KeySource, KeyChannel, IsInput(), bConnectedChannel, ETimecodeFormat::TCF_None, GetOptions().PixelFormat, DesiredVideoFormat, Options.HDROptions, bAsOwner, Options.bAutoDetectFormat))
 						{
 							return false;
 						}
@@ -584,7 +589,7 @@ namespace AJA
 					{
 						const bool bUseKeyConnectedChannel = false;
 						const bool bAsOwner = true;
-						if (!InCommandList.RegisterChannel(GetOptions().TransportType, KeySource, KeyChannel, IsInput(), bUseKeyConnectedChannel, ETimecodeFormat::TCF_None, GetOptions().PixelFormat, DesiredVideoFormat, bAsOwner, Options.bAutoDetectFormat))
+						if (!InCommandList.RegisterChannel(GetOptions().TransportType, KeySource, KeyChannel, IsInput(), bUseKeyConnectedChannel, ETimecodeFormat::TCF_None, GetOptions().PixelFormat, DesiredVideoFormat, Options.HDROptions, bAsOwner, Options.bAutoDetectFormat))
 						{
 							return false;
 						}

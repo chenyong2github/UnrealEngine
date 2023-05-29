@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MediaOutput.h"
-
 #include "MediaIOCoreDefinitions.h"
 
 #include "AjaMediaOutput.generated.h"
@@ -33,6 +32,46 @@ enum class EAjaMediaOutputChannelConfiguration : uint8
 	CH_6 =   6 UMETA(DisplayName = "6 Channels"),
 	CH_8 =   8 UMETA(DisplayName = "8 Channels"),
 	CH_16 = 16 UMETA(DisplayName = "16 Channels")
+};
+
+/**
+ * HDR Transfer function.
+ * Must match AJA::EAjaHDRMetadataEOTF.
+ */
+UENUM()
+enum class EAjaHDRMetadataEOTF : uint8
+{
+	SDR,
+	HLG,
+	PQ
+};
+	
+/**
+ * HDR Color Gamut.
+ * Must match AJA::EAjaHDRMetadataGamut.
+ */
+UENUM()
+enum class EAjaHDRMetadataGamut : uint8
+{
+	Rec709,
+	Rec2020
+};
+
+/**
+ * Set of metadata describing a HDR video signal.
+ */
+USTRUCT()
+struct AJAMEDIAOUTPUT_API FAjaMediaHDROptions
+{
+	GENERATED_BODY()
+
+	/** Transfer function to use for converting the video signal to an optical signal. */
+	UPROPERTY(EditAnywhere, Category = "HDR")
+	EAjaHDRMetadataEOTF EOTF = EAjaHDRMetadataEOTF::SDR;
+
+	/** The color gamut of the video signal. */
+	UPROPERTY(EditAnywhere, Category = "HDR")
+	EAjaHDRMetadataGamut Gamut = EAjaHDRMetadataGamut::Rec709;
 };
 
 /**
@@ -110,6 +149,12 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="Output")
 	bool bInterlacedFieldsTimecodeNeedToMatch;
+
+	/**
+	 * HDR Metadata of the video signal.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Output", DisplayName="HDR")
+	FAjaMediaHDROptions HDROptions;
 
 	/** Try to maintain a the engine "Genlock" with the VSync signal. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Synchronization")
