@@ -31,7 +31,7 @@ public:
 	{
 		bool bIsReImport = false;
 		USkeleton* SkeletonReference = nullptr;
-		bool bApplySkinningOnly = false;
+		bool bApplyGeometryOnly = false;
 		TArray<FImportAssetObjectLODData> LodDatas;
 		bool IsValid() const;
 	};

@@ -57,6 +57,10 @@ void UInterchangeGenericMeshPipeline::AdjustSettingsForContext(EInterchangePipel
 			CommonSkeletalMeshesAndAnimationsProperties->Skeleton = SkeletalMesh->GetSkeleton();
 			bImportStaticMeshes = false;
 			HideCategories.Add(StaticMeshesCategory);
+			if(SkeletalMeshImportContentType == EInterchangeSkeletalMeshContentType::Geometry)
+			{
+				CommonMeshesProperties->ForceAllMeshAsType = EInterchangeForceMeshType::IFMT_SkeletalMesh;
+			}
 		}
 		else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ReimportAsset))
 		{
@@ -135,7 +139,7 @@ void UInterchangeGenericMeshPipeline::ExecutePipeline(UInterchangeBaseNodeContai
 		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericMeshPipeline: Cannot execute pre-import pipeline because InBaseNodeContrainer is null"));
 		return;
 	}
-
+	
 	BaseNodeContainer = InBaseNodeContainer;
 	SourceDatas.Empty(InSourceDatas.Num());
 	for (const UInterchangeSourceData* SourceData : InSourceDatas)
