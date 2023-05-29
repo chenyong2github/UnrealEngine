@@ -434,10 +434,10 @@ void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const 
 			}
 		}
 
-		const int32 NumIndices = FMath::Max(FMath::RoundUpToPowerOfTwo(Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize()), 1024u);
+		const int32 NumIndices = FMath::Max(FMath::RoundUpToPowerOfTwo(Scene.GPUScene.GetInstanceIdUpperBoundGPU()), 1024u);
 		const uint32 IndexSizeInBytes = GPixelFormats[PF_R32_UINT].BlockBytes;
 		const uint32 IndicesSizeInBytes = NumIndices * IndexSizeInBytes;
-		FRDGBuffer* SceneInstanceIndexToMeshCardsIndexBuffer = ResizeByteAddressBufferIfNeeded(GraphBuilder, LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer, IndicesSizeInBytes, TEXT("SceneInstanceIndexToMeshCardsIndexBuffer"));
+		FRDGBuffer* SceneInstanceIndexToMeshCardsIndexBuffer = ResizeByteAddressBufferIfNeeded(GraphBuilder, LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer, IndicesSizeInBytes, TEXT("Lumen.SceneInstanceIndexToMeshCardsIndexBuffer"));
 		FrameTemporaries.SceneInstanceIndexToMeshCardsIndexBufferSRV = GraphBuilder.CreateSRV(SceneInstanceIndexToMeshCardsIndexBuffer);
 
 		uint32 NumIndexUploads = 0;
@@ -461,12 +461,17 @@ void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const 
 				{
 					const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene.Primitives[PrimitiveIndex];
 					const int32 NumInstances = PrimitiveSceneInfo->GetNumInstanceSceneDataEntries();
+					const int32 InstanceDataOffset = PrimitiveSceneInfo->GetInstanceSceneDataOffset();
 
 					for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 					{
 						const int32 MeshCardsIndex = LumenSceneData.GetMeshCardsIndex(PrimitiveSceneInfo, InstanceIndex);
 
-						LumenSceneData.SceneInstanceIndexToMeshCardsIndexUploadBuffer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset() + InstanceIndex, &MeshCardsIndex);
+						int32 DestIndex = InstanceDataOffset + InstanceIndex;
+						if (DestIndex < NumIndices)
+						{
+							LumenSceneData.SceneInstanceIndexToMeshCardsIndexUploadBuffer.Add(DestIndex, &MeshCardsIndex);
+						}
 					}
 				}
 			}

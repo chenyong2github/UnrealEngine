@@ -38,6 +38,7 @@ static_assert(NANITE_NUM_CULLING_FLAG_BITS + NANITE_MAX_VIEWS_PER_CULL_RASTERIZE
 static_assert(1 + NANITE_NUM_CULLING_FLAG_BITS + NANITE_MAX_INSTANCES_BITS <= 32, "FCandidateNode.x fields don't fit in 32bits");
 static_assert(1 + NANITE_MAX_NODES_PER_PRIMITIVE_BITS + NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS <= 32, "FCandidateNode.y fields don't fit in 32bits");
 static_assert(1 + NANITE_MAX_BVH_NODES_PER_GROUP <= 32, "FCandidateNode.z fields don't fit in 32bits");
+static_assert(NANITE_MAX_INSTANCES <= MAX_INSTANCE_ID, "Nanite must be able to represent the full scene instance ID range");
 
 TAutoConsoleVariable<int32> CVarNaniteShowDrawEvents(
 	TEXT("r.Nanite.ShowMeshDrawEvents"),
@@ -2230,13 +2231,11 @@ FRenderer::FRenderer(
 	}
 
 	// TODO: Might this not break if the view has overridden the InstanceSceneData?
-	const uint32 NumSceneInstancesPo2 = FMath::RoundUpToPowerOfTwo(FMath::Max(1024u * 128u, uint32(Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize())));
+	const uint32 NumSceneInstancesPo2 = FMath::RoundUpToPowerOfTwo(FMath::Max(1024u * 128u, Scene.GPUScene.GetInstanceIdUpperBoundGPU()));
 	
 	PageConstants.X					= Scene.GPUScene.InstanceSceneDataSOAStride;
 	PageConstants.Y					= Nanite::GStreamingManager.GetMaxStreamingPages();
 	
-	check(NumSceneInstancesPo2 <= NANITE_MAX_INSTANCES); // There are too many instances in the scene.
-
 	QueueState						= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( (6*2 + 1) * sizeof(uint32), 1), TEXT("Nanite.QueueState"));
 
 	VisibleClustersSWHW				= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateByteAddressDesc(4*3 * Nanite::FGlobalResources::GetMaxVisibleClusters()), TEXT("Nanite.VisibleClustersSWHW"));
@@ -4115,7 +4114,7 @@ void FRenderer::DrawGeometry(
 	}
 	else
 	{
-		NumInstancesPreCull = Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize();
+		NumInstancesPreCull = Scene.GPUScene.GetInstanceIdUpperBoundGPU();
 	}
 
 	{

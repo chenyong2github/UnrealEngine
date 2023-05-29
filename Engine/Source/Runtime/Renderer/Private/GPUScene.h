@@ -295,6 +295,11 @@ public:
 	int32 GetNumInstances() const { return InstanceSceneDataAllocator.GetMaxSize(); }
 	int32 GetNumPrimitives() const { return DynamicPrimitivesOffset; }
 	int32 GetNumLightmapDataItems() const { return LightmapDataAllocator.GetMaxSize(); }
+	/**
+	 * Returns the highest instance ID that is represented in the GPU scene (which may be lower than the host allocated IDs due to various limits)
+	 * Never larger than MAX_INSTANCE_ID, see Engine\Shaders\Shared\SceneDefinitions.h
+	 */
+	uint32 GetInstanceIdUpperBoundGPU() const;
 
 	const FSpanAllocator& GetInstanceSceneDataAllocator() const { return InstanceSceneDataAllocator; }
 
@@ -332,7 +337,6 @@ public:
 	FRDGAsyncScatterUploadBuffer   PrimitiveUploadBuffer;
 
 	/** GPU primitive instance list */
-	FSpanAllocator		           InstanceSceneDataAllocator;
 	TRefCountPtr<FRDGPooledBuffer> InstanceSceneDataBuffer;
 	FRDGAsyncScatterUploadBuffer   InstanceSceneUploadBuffer;
 	uint32                         InstanceSceneDataSOAStride;	// Distance between arrays in float4s
@@ -359,6 +363,7 @@ public:
 
 	using FInstanceGPULoadBalancer = TInstanceCullingLoadBalancer<SceneRenderingAllocator>;
 private:
+	FSpanAllocator		           InstanceSceneDataAllocator;
 	FGPUSceneBufferState BufferState;
 	FGPUSceneResourceParameters ShaderParameters;
 

@@ -560,10 +560,10 @@ void FGPUScene::SetEnabled(ERHIFeatureLevel::Type InFeatureLevel)
 
 FGPUScene::FGPUScene()
 	: bUpdateAllPrimitives(false)
-	, InstanceSceneDataAllocator(CVarGPUSceneUseGrowOnlyAllocationPolicy.GetValueOnAnyThread() != 0)
 	, InstanceSceneDataSOAStride(0)
 	, InstancePayloadDataAllocator(CVarGPUSceneUseGrowOnlyAllocationPolicy.GetValueOnAnyThread() != 0)
 	, LightmapDataAllocator(CVarGPUSceneUseGrowOnlyAllocationPolicy.GetValueOnAnyThread() != 0)
+	, InstanceSceneDataAllocator(CVarGPUSceneUseGrowOnlyAllocationPolicy.GetValueOnAnyThread() != 0)
 {
 #if !UE_BUILD_SHIPPING
 	ScreenMessageDelegate = FRendererOnScreenNotification::Get().AddLambda([this](TMultiMap<FCoreDelegates::EOnScreenMessageSeverity, FText >& OutMessages)
@@ -717,7 +717,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FSceneUniformBuffer& S
 
 		// Clear the full instance data range
 		InstanceRangesToClear.Empty();
-		InstanceRangesToClear.Add(FInstanceRange{ 0U, uint32(GetNumInstances()) });
+		InstanceRangesToClear.Add(FInstanceRange{ 0U, uint32(GetInstanceIdUpperBoundGPU()) });
 
 		bUpdateAllPrimitives = false;
 	}
@@ -1766,6 +1766,11 @@ void FGPUScene::FreeInstancePayloadDataSlots(int32 InstancePayloadDataOffset, in
 	}
 }
 
+uint32 FGPUScene::GetInstanceIdUpperBoundGPU() const 
+{ 
+	return FMath::Min( uint32(InstanceSceneDataAllocator.GetMaxSize()), MAX_INSTANCE_ID); 
+}
+
 struct FPrimitiveSceneDebugNameInfo
 {
 	uint32 PrimitiveID;
@@ -2163,7 +2168,7 @@ void FGPUScene::AddClearInstancesPass(FRDGBuilder& GraphBuilder)
 	for (FInstanceRange Range : InstanceRangesToClear)
 	{
 		// Clamp the instance range to the used instances.
-		int32 RangeEnd = FMath::Min(int32(Range.InstanceSceneDataOffset + Range.NumInstanceSceneDataEntries), GetNumInstances());
+		int32 RangeEnd = FMath::Min(int32(Range.InstanceSceneDataOffset + Range.NumInstanceSceneDataEntries), int32(GetInstanceIdUpperBoundGPU()));
 		// Clamp to zero to avoid overflow since the start of the range may also be outside the valid instances
 		Range.NumInstanceSceneDataEntries = uint32(FMath::Max(0, RangeEnd - int32(Range.InstanceSceneDataOffset)));
 
