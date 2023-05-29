@@ -10,6 +10,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"
+#include "UObject/GCObject.h"
 
 #if WITH_ENGINE
 #if UE_LLT_USE_PLATFORM_FILE_STUB
@@ -92,6 +93,11 @@ void InitCoreUObject()
 		ProcessNewlyLoadedUObjects();
 
 		FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::ObjectSystemReady);
+	}
+	FGCObject::StaticInit();
+	if (GUObjectArray.IsOpenForDisregardForGC())
+	{
+		GUObjectArray.CloseDisregardForGC();
 	}
 }
 
