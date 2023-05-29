@@ -9,8 +9,6 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 
-struct FSLateColor;
-
 
 /** Entity Fixture Patch as a row in a list */
 class DMXEDITOR_API SDMXReadOnlyFixturePatchListRow
