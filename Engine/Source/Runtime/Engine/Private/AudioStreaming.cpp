@@ -532,7 +532,6 @@ void FLegacyAudioStreamingManager::ProcessPendingAsyncFileResults()
 
 		ChunkStorage->Data = AudioChunkLoadResult->DataResults;
 
-		DEC_MEMORY_STAT_BY(STAT_AsyncFileMemory, ChunkStorage->DataSize);
 		INC_DWORD_STAT_BY(STAT_AudioMemorySize, ChunkStorage->DataSize);
 		INC_DWORD_STAT_BY(STAT_AudioMemory, ChunkStorage->DataSize);
 

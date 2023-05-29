@@ -355,7 +355,6 @@ void FStreamingGeometryCacheData::ProcessCompletedChunks()
 				DEC_DWORD_STAT(STAT_OutstandingRequests);
 				INC_MEMORY_STAT_BY(STAT_ChunkDataResident, Chunk->DataSize);
 				INC_MEMORY_STAT_BY(STAT_ChunkDataStreamed, Chunk->DataSize);
-				DEC_MEMORY_STAT_BY(STAT_AsyncFileMemory, Chunk->DataSize);
 				IGeometryCacheStreamingManager::Get().IoBandwidth.Add(Chunk->DataSize);
 			}
 			else

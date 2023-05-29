@@ -718,6 +718,10 @@ protected:
 	virtual void CancelImpl() override
 	{
 	}
+
+	virtual void ReleaseMemoryOwnershipImpl() override
+	{
+	}
 };
 
 /** An IAsyncReadRequest that reads from memory that was already populated. */
@@ -754,6 +758,10 @@ protected:
 	}
 
 	virtual void CancelImpl() override
+	{
+	}
+
+	virtual void ReleaseMemoryOwnershipImpl() override
 	{
 	}
 };

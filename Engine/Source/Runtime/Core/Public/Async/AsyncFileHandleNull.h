@@ -27,6 +27,10 @@ protected:
 	virtual void CancelImpl() override
 	{
 	}
+
+	virtual void ReleaseMemoryOwnershipImpl() override
+	{
+	}
 };
 
 /**

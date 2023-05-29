@@ -135,6 +135,11 @@ public:
 		}
 		else
 		{
+			if (Memory && !bUserSuppliedMemory)
+			{
+				ReleaseMemoryOwnershipImpl();
+			}
+
 			Memory = nullptr;
 		}
 		return Result;
@@ -150,6 +155,13 @@ protected:
 
 	/** Cancel the request. This is a non-blocking async call and so does not ensure completion! **/
 	virtual void CancelImpl() = 0;
+
+	/** Transfer ownership of Memory from the async request to the outside caller (called in response to GetReadResults).
+	  * It's only relevant to Read requests, in which case the most common use is to update (decrease) the STAT_AsyncFileMemory
+	  * stat which is typically incremented when async requests allocate Memory.
+	  * It doesn't play any role in Size requests, so it may be left empty for them.
+	  */
+	virtual void ReleaseMemoryOwnershipImpl() = 0;
 
 	void SetDataComplete()
 	{

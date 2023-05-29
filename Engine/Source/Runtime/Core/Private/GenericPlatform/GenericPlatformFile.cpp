@@ -128,6 +128,11 @@ public:
 		}
 		SetComplete();
 	}
+
+protected:
+	virtual void ReleaseMemoryOwnershipImpl() override
+	{
+	}
 };
 
 class FGenericReadRequest : public FGenericBaseRequest
@@ -173,6 +178,12 @@ public:
 			return UserSuppliedMemory;
 		}
 		return nullptr;
+	}
+
+protected:
+	virtual void ReleaseMemoryOwnershipImpl() override
+	{
+		DEC_MEMORY_STAT_BY(STAT_AsyncFileMemory, BytesToRead);
 	}
 };
 

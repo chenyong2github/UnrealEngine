@@ -527,7 +527,11 @@ public:
 		while (!*(volatile bool*)&bCompleteAndCallbackCalled);
 	}
 
-	virtual void CancelImpl()
+	virtual void CancelImpl() override
+	{
+	}
+
+	virtual void ReleaseMemoryOwnershipImpl() override
 	{
 	}
 };
@@ -2715,7 +2719,6 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 		if (Block.InRequestRefCount == 0 || bWasCanceled)
 		{
 			check(Block.Size > 0);
-			DEC_MEMORY_STAT_BY(STAT_AsyncFileMemory, Block.Size);
 			FMemory::Free(Memory);
 			UE_LOG(LogPakFile, VeryVerbose, TEXT("FPakReadRequest[%016llX, %016llX) Cancelled"), Block.OffsetAndPakIndex, Block.OffsetAndPakIndex + Block.Size);
 			ClearBlock(Block);
@@ -2726,7 +2729,6 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 			check(Block.Memory && Block.Size);
 			BlockMemory += Block.Size;
 			check(BlockMemory > 0);
-			DEC_MEMORY_STAT_BY(STAT_AsyncFileMemory, Block.Size);
 			check(Block.Size > 0);
 			INC_MEMORY_STAT_BY(STAT_PakCacheMem, Block.Size);
 
@@ -3407,6 +3409,11 @@ public:
 		}
 	}
 
+	virtual void ReleaseMemoryOwnershipImpl() override
+	{
+		DEC_MEMORY_STAT_BY(STAT_AsyncFileMemory, BytesToRead);
+	}
+
 	FCachedAsyncBlock& GetBlock()
 	{
 		check(bInternalRequest && BlockPtr);
@@ -3665,6 +3672,11 @@ public:
 				}
 			}
 		}
+	}
+
+	virtual void ReleaseMemoryOwnershipImpl() override
+	{
+		DEC_MEMORY_STAT_BY(STAT_AsyncFileMemory, BytesToRead);
 	}
 
 	void RequestIsComplete()
@@ -4116,13 +4128,14 @@ public:
 				FMemory::Free(Block.Raw);
 				Block.Raw = nullptr;
 				check(Block.RawSize > 0);
-				DEC_MEMORY_STAT_BY(STAT_AsyncFileMemory, Block.RawSize);
 				Block.RawSize = 0;
 			}
 		}
 		else
 		{
 			check(Block.Raw);
+			// Even though Raw memory has already been loaded, we're treating it as part of the AsyncFileMemory budget until it's processed.
+			INC_MEMORY_STAT_BY(STAT_AsyncFileMemory, Block.RawSize);
 			Block.ProcessedSize = FileEntry.CompressionBlockSize;
 			if (Block.BlockIndex == Blocks.Num() - 1)
 			{

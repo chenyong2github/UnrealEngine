@@ -18524,7 +18524,6 @@ static void PakFileTest(const TArray<FString>& Args)
 								FMemory::Memcpy(Memory + CurrentOffset, Mem, Span);
 								bCancel = false; // we should have the memory anyway
 								FMemory::Free(Mem);
-								DEC_MEMORY_STAT_BY(STAT_AsyncFileMemory, Span);
 							}
 						}
 						ReadReq->WaitCompletion();

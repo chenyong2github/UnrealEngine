@@ -206,6 +206,7 @@ public:
 	
 	virtual void WaitCompletionImpl(float TimeLimitSeconds) override;
 	virtual void CancelImpl() override;
+	virtual void ReleaseMemoryOwnershipImpl() override;
 	virtual void HandleChunkResult(TIoStatusOr<FIoBuffer>&& Result) override;
 };
 
@@ -239,6 +240,10 @@ void FChunkReadFileRequest::CancelImpl()
 {
 	bCanceled = true;
 	CancelChunkRequest();
+}
+
+void FChunkReadFileRequest::ReleaseMemoryOwnershipImpl()
+{
 }
 
 void FChunkReadFileRequest::HandleChunkResult(TIoStatusOr<FIoBuffer>&& Result)
@@ -277,6 +282,10 @@ private:
 	}
 
 	virtual void CancelImpl() override
+	{
+	}
+
+	virtual void ReleaseMemoryOwnershipImpl() override
 	{
 	}
 };
