@@ -190,8 +190,8 @@ void UCustomizableInstancePrivateData::PrepareForUpdate(const TSharedPtr<FMutabl
 #if WITH_EDITORONLY_DATA
 				ComponentData->MeshPartPaths.Empty();
 #endif
-
-				ComponentData->Skeletons.SkeletonsToLoad.Empty();
+				ComponentData->Skeletons.Skeleton = nullptr;
+				ComponentData->Skeletons.SkeletonIds.Empty();
 				ComponentData->Skeletons.SkeletonsToMerge.Empty();
 				ComponentData->PhysicsAssets.PhysicsAssetToLoad.Empty();
 				ComponentData->PhysicsAssets.PhysicsAssetsToMerge.Empty();
@@ -1042,7 +1042,7 @@ USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectI
 {
 	MUTABLE_CPUPROFILER_SCOPE(BuildSkeletonData_MergeSkeletons);
 
-	const UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
+	UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
 
 	check(CustomizableObject);
 	check(RefSkeletalMeshData);
@@ -1052,12 +1052,20 @@ USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectI
 
 	FReferencedSkeletons& ReferencedSkeletons = ComponentData->Skeletons;
 	
+	// Merged skeleton found in the cache
+	if (ReferencedSkeletons.Skeleton)
+	{
+		USkeleton* MergedSkeleton = ReferencedSkeletons.Skeleton;
+		ReferencedSkeletons.Skeleton = nullptr;
+		return MergedSkeleton;
+	}
+
 	// No need to merge skeletons
 	if(ReferencedSkeletons.SkeletonsToMerge.Num() == 1)
 	{
 		const TObjectPtr<USkeleton> RefSkeleton = ReferencedSkeletons.SkeletonsToMerge[0];
+		ReferencedSkeletons.SkeletonIds.Empty();
 		ReferencedSkeletons.SkeletonsToMerge.Empty();
-
 		return RefSkeleton;
 	}
 
@@ -1071,10 +1079,6 @@ USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectI
 
 	FSkeletonMergeParams Params;
 	Exchange(Params.SkeletonsToMerge, ReferencedSkeletons.SkeletonsToMerge);
-
-#if !UE_BUILD_SHIPPING
-	//Params.bCheckSkeletonsCompatibility = true;
-#endif
 
 	USkeleton* FinalSkeleton = USkeletalMergingLibrary::MergeSkeletons(Params);
 	if (!FinalSkeleton)
@@ -1094,7 +1098,17 @@ USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectI
 	else
 	{
 		// The reference skeleton may be used by AnimBp as a target skeleton, add it as a compatible skeleton.
-		FinalSkeleton->AddCompatibleSkeleton(RefSkeletalMeshData->Skeleton.Get());
+		for (USkeleton* Skeleton : Params.SkeletonsToMerge)
+		{
+			if (Skeleton)
+			{
+				FinalSkeleton->AddCompatibleSkeleton(Skeleton);
+			}
+		}
+
+		// Add Skeleton to the cache
+		CustomizableObject->CacheMergedSkeleton(ComponentIndex, ReferencedSkeletons.SkeletonIds, FinalSkeleton);
+		ReferencedSkeletons.SkeletonIds.Empty();
 	}
 	
 	return FinalSkeleton;
@@ -5125,6 +5139,9 @@ FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const
 		}
 	}
 
+	// Clear invalid skeletons from the MergedSkeletons cache
+	CustomizableObject->UnCacheInvalidSkeletons();
+
 	const int32 ComponentCount = OperationData->InstanceUpdateData.Skeletons.Num();
 
 	// Load Skeletons required by the SubMeshes of the newly generated Mesh, will be merged later
@@ -5135,6 +5152,14 @@ FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const
 		FInstanceUpdateData::FSkeletonData* SkeletonData = OperationData->InstanceUpdateData.Skeletons.FindByPredicate(
 			[&ComponentIndex](FInstanceUpdateData::FSkeletonData& S) { return S.ComponentIndex == ComponentIndex; });
 		check(SkeletonData);
+
+		ComponentData.Skeletons.Skeleton = CustomizableObject->GetCachedMergedSkeleton(ComponentIndex, SkeletonData->SkeletonIds);
+		if (ComponentData.Skeletons.Skeleton)
+		{
+			ComponentData.Skeletons.SkeletonIds.Empty();
+			ComponentData.Skeletons.SkeletonsToMerge.Empty();
+			continue;
+		}
 
 		for (const uint32 SkeletonId : SkeletonData->SkeletonIds)
 		{
@@ -5156,14 +5181,15 @@ FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const
 				continue;
 			}
 
+			// Add referenced skeletons to the assets to stream
+			ComponentData.Skeletons.SkeletonIds.Add(SkeletonId);
+
 			if (USkeleton* Skeleton = AssetPtr.Get())
 			{
 				ComponentData.Skeletons.SkeletonsToMerge.Add(Skeleton);
 			}
 			else
 			{
-				// Add referenced skeletons to the assets to stream
-				ComponentData.Skeletons.SkeletonsToLoad.Add(SkeletonId);
 				AssetsToStream.Add(AssetPtr.ToSoftObjectPath());
 			}
 
@@ -5372,11 +5398,10 @@ void UCustomizableInstancePrivateData::AdditionalAssetsAsyncLoaded(UCustomizable
 	{
 		// Loaded Skeletons
 		FReferencedSkeletons& Skeletons = ComponentData.Skeletons;
-		for (const int32& SkeletonIndex : Skeletons.SkeletonsToLoad)
+		for (const int32& SkeletonIndex : Skeletons.SkeletonIds)
 		{
-			Skeletons.SkeletonsToMerge.Add(CustomizableObject->GetReferencedSkeletonAssetPtr(SkeletonIndex).Get());
+			Skeletons.SkeletonsToMerge.AddUnique(CustomizableObject->GetReferencedSkeletonAssetPtr(SkeletonIndex).Get());
 		}
-		Skeletons.SkeletonsToLoad.Empty();
 
 		// Loaded PhysicsAssets
 		FReferencedPhysicsAssets& PhysicsAssets = ComponentData.PhysicsAssets;

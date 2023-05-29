@@ -97,8 +97,11 @@ struct FReferencedSkeletons
 {
 	GENERATED_USTRUCT_BODY();
 
+	// Merged skeleton if found in the cache
+	TObjectPtr<USkeleton> Skeleton;
+
 	UPROPERTY()
-	TArray<int32> SkeletonsToLoad;
+	TArray<uint16> SkeletonIds;
 
 	UPROPERTY()
 	TArray< TObjectPtr<USkeleton> > SkeletonsToMerge;

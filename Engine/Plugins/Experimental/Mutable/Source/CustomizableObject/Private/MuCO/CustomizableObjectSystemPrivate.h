@@ -412,7 +412,7 @@ struct FInstanceUpdateData
 	{
 		int16 ComponentIndex = INDEX_NONE;
 
-		TArray<uint32> SkeletonIds;
+		TArray<uint16> SkeletonIds;
 
 		TArray<FName> BoneNames;
 		TMap<FName, FMatrix44f> BoneMatricesWithScale;

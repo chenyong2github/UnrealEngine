@@ -7,6 +7,7 @@
 #include "Async/AsyncFileHandle.h"
 #include "EdGraph/EdGraph.h"
 #include "Engine/SkeletalMesh.h"
+#include "Animation/Skeleton.h"
 #include "Engine/AssetUserData.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
@@ -37,11 +38,6 @@
 #include "MuR/Model.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObject)
-
-class UMaterialInterface;
-class UPhysicsAsset;
-class USkeletalMesh;
-class USkeleton;
 
 #define LOCTEXT_NAMESPACE "CustomizableObject"
 
@@ -1053,6 +1049,43 @@ void UCustomizableObject::OnReferenceSkeletalMeshesAsyncLoaded()
 }
 
 
+TObjectPtr<USkeleton> UCustomizableObject::GetCachedMergedSkeleton(const int32 ComponentIndex, const TArray<uint16>& SkeletonIds) const
+{
+	const FMergedSkeleton* MergedSkeleton = MergedSkeletons.FindByPredicate([&ComponentIndex, &SkeletonIds](const FMergedSkeleton& MergedSkeleton) 
+		{ return MergedSkeleton.ComponentIndex == ComponentIndex && MergedSkeleton.SkeletonIds == SkeletonIds; });
+
+	if (MergedSkeleton && MergedSkeleton->Skeleton.IsValid())
+	{
+		return MergedSkeleton->Skeleton.Get();
+	}
+
+	return nullptr;
+}
+
+
+void UCustomizableObject::CacheMergedSkeleton(const int32 ComponentIndex, const TArray<uint16>& SkeletonIds, TObjectPtr<USkeleton> Skeleton)
+{
+	if (Skeleton)
+	{
+		MergedSkeletons.AddUnique({ Skeleton, ComponentIndex, SkeletonIds });
+	}
+}
+
+
+void UCustomizableObject::UnCacheInvalidSkeletons()
+{
+	for (int32 SkeletonIndex = MergedSkeletons.Num() - 1; SkeletonIndex >= 0; --SkeletonIndex)
+	{
+		FMergedSkeleton& MergedSkeleton = MergedSkeletons[SkeletonIndex];
+		if (!MergedSkeleton.Skeleton.IsValid())
+		{
+			MergedSkeletons.RemoveSingleSwap(MergedSkeleton);
+		}
+	}
+}
+
+
+
 int32 UCustomizableObject::FindState( const FString& Name ) const
 {
 	int32 Result = -1;
@@ -1755,6 +1788,19 @@ TSharedPtr<const mu::Model, ESPMode::ThreadSafe> FCustomizableObjectPrivateData:
 {
 	return MutableModel;
 }
+
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+FMergedSkeleton::FMergedSkeleton(TObjectPtr<USkeleton> InSkeleton, const int32 InComponentIndex, const TArray<uint16>& InSkeletonIds)
+{
+	check(InSkeleton);
+	Skeleton = InSkeleton;
+	ComponentIndex = InComponentIndex;
+	SkeletonIds = InSkeletonIds;
+}
+
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------

@@ -49,6 +49,25 @@ namespace mu
 
 CUSTOMIZABLEOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogMutable, Log, All);
 
+struct FMergedSkeleton
+{
+	FMergedSkeleton(TObjectPtr<USkeleton> InSkeleton, const int32 InComponentIndex, const TArray<uint16>& InSkeletonIds);
+
+	// Merged skeleton
+	TWeakObjectPtr<USkeleton> Skeleton;
+	
+	// Component Index and Ids of the Skeletons involved in the merge. Used to identify the skeleton
+	uint16 ComponentIndex;
+	TArray<uint16> SkeletonIds;
+
+	bool operator==(const FMergedSkeleton& Other) const
+	{
+		return ComponentIndex == Other.ComponentIndex
+			&& SkeletonIds == Other.SkeletonIds;
+	}
+};
+
+
 USTRUCT()
 struct FFParameterOptionsTags
 {
@@ -1299,6 +1318,15 @@ public:
 	
 	TSoftObjectPtr<UMaterialInterface> GetReferencedMaterialAssetPtr(uint32 Index);
 
+	// Return a valid Skeletons if cached. ComponentIndex and SkeletonIds are used as a key to find the skeleton.
+	TObjectPtr<USkeleton> GetCachedMergedSkeleton(int32 ComponentIndex, const TArray<uint16>& SkeletonIds) const;
+
+	// Add merged skeleton to the cache. It'll be cached as a TWeakObjPtr.
+	void CacheMergedSkeleton(const int32 ComponentIndex, const TArray<uint16>& SkeletonIds, TObjectPtr<USkeleton> Skeleton);
+
+	// Remove skeletons that have been destroyed by the garbage collector from the cache.
+	void UnCacheInvalidSkeletons();
+
 	// Call before using Mutable's Projector testing with mask out features. It should only be loaded when needed because it can spend quite a lot of memory
 	// Can cause a loading hitch
 	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
@@ -1652,6 +1680,9 @@ public:
 	/** Unique identifier. Regenerated each time the object is compiled. */
 	UPROPERTY()
 	FGuid CompilationGuid;
+
+	/** Cache of merged skeletons */
+	TArray<FMergedSkeleton> MergedSkeletons;
 
 public:
 	FGuid GetCompilationGuid() const;
