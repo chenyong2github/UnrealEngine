@@ -494,25 +494,9 @@ namespace Jupiter.Controllers
             return new { bundle = Url.Action("GetBundle", new { namespaceId = namespaceId, locator = locator})!, export.Hash, export.Length, guid = header.Types[export.TypeIdx].Guid, type = node.GetType().Name, content = content };
         }
 
-        static readonly Dictionary<Guid, Type> s_guidToType = GetGuidToTypeMap();
-
-        static Dictionary<Guid, Type> GetGuidToTypeMap()
-        {
-            Dictionary<Guid, Type> guidToType = new Dictionary<Guid, Type>();
-            foreach (Type nodeType in new TreeReaderOptions().Types)
-            {
-                NodeTypeAttribute? attribute = nodeType.GetCustomAttribute<NodeTypeAttribute>();
-                if (attribute != null)
-                {
-                    guidToType.Add(Guid.Parse(attribute.Guid), nodeType);
-                }
-            }
-            return guidToType;
-            }
-
         static Type? GetNodeType(Guid typeGuid)
         {
-            s_guidToType.TryGetValue(typeGuid, out Type? type);
+            Node.TryGetConcreteType(typeGuid, out Type? type);
             return type;
         }
     }

@@ -888,7 +888,7 @@ namespace Jupiter.FunctionalTests.Storage
 
         public TextNode(string text) => Text = text;
 
-        public TextNode(ITreeNodeReader reader)
+        public TextNode(NodeReader reader)
         {
             Text = reader.ReadString();
         }

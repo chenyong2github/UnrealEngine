@@ -378,7 +378,7 @@ public abstract class BundlesTests
             Refs = refs;
         }
 
-        public SimpleNode(ITreeNodeReader reader)
+        public SimpleNode(NodeReader reader)
         {
             Data = new ReadOnlySequence<byte>(reader.ReadVariableLengthBytes());
             Refs = reader.ReadVariableLengthArray(() => reader.ReadRef<SimpleNode>());
