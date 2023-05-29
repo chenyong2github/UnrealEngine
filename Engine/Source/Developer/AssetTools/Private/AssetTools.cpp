@@ -3392,9 +3392,9 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 						//Add the override pipelines if we have a task that specify valid interchange override pipelines
 						if (UInterchangePipelineStackOverride* PipelineStackOverride = Cast<UInterchangePipelineStackOverride>(Params.AssetImportTask->Options))
 						{
-							for (TObjectPtr<UInterchangePipelineBase> OverridePipeline : PipelineStackOverride->OverridePipelines)
+							for (const FSoftObjectPath& OverridePipelinePath : PipelineStackOverride->OverridePipelines)
 							{
-								ImportAssetParameters.OverridePipelines.Add(OverridePipeline);
+								ImportAssetParameters.OverridePipelines.Add(OverridePipelinePath);
 							}
 						}
 					}

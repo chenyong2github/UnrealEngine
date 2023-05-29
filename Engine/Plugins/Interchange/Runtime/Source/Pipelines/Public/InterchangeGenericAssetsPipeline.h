@@ -57,23 +57,23 @@ public:
 	float ImportOffsetUniformScale = 1.0f;
 
 	//////	COMMON_MESHES_CATEGORY Properties //////
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "Common Meshes")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Instanced, Category = "Common Meshes")
 	TObjectPtr<UInterchangeGenericCommonMeshesProperties> CommonMeshesProperties;
 		
 	//////  COMMON_SKELETAL_ANIMATIONS_CATEGORY //////
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "Common Skeletal Meshes and Animations")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Instanced, Category = "Common Skeletal Meshes and Animations")
 	TObjectPtr<UInterchangeGenericCommonSkeletalMeshesAndAnimationsProperties> CommonSkeletalMeshesAndAnimationsProperties;
 
 	//////	MESHES_CATEGORY Properties //////
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "Meshes")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Instanced, Category = "Meshes")
 	TObjectPtr<UInterchangeGenericMeshPipeline> MeshPipeline;
 
 	//////	ANIMATIONS_CATEGORY Properties //////
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "Animation")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Instanced, Category = "Animation")
 	TObjectPtr<UInterchangeGenericAnimationPipeline> AnimationPipeline;
 
 	//////	MATERIALS_CATEGORY Properties //////
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "Materials")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Instanced, Category = "Materials")
 	TObjectPtr<UInterchangeGenericMaterialPipeline> MaterialPipeline;
 
 	virtual void PreDialogCleanup(const FName PipelineStackName) override;

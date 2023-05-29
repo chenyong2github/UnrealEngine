@@ -28,9 +28,11 @@
 #include "InterchangeManager.generated.h"
 
 class FAsyncTaskNotification;
+class UInterchangeBlueprintPipelineBase;
 class UInterchangeFactoryBase;
 class UInterchangeFactoryBaseNode;
 class UInterchangePipelineBase;
+class UInterchangePythonPipelineBase;
 
 /** Some utilities delegates for the automation of interchange */
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnObjectImportDoneDynamic, UObject*, Object);
@@ -306,7 +308,16 @@ class INTERCHANGEENGINE_API UInterchangePipelineStackOverride : public UObject
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
-		TArray<TObjectPtr<UInterchangePipelineBase>> OverridePipelines;
+	TArray<FSoftObjectPath> OverridePipelines;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | PipelineStackOverride")
+	void AddPythonPipeline(UInterchangePythonPipelineBase* PipelineBase);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | PipelineStackOverride")
+	void AddBlueprintPipeline(UInterchangeBlueprintPipelineBase* PipelineBase);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | PipelineStackOverride")
+	void AddPipeline(UInterchangePipelineBase* PipelineBase);
 };
 
 USTRUCT(BlueprintType)

@@ -327,6 +327,11 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 	{
 		for(TObjectPtr<UInterchangeTranslatorBase> Translator : AsyncHelper->Translators)
 		{
+			//We need a valid translator to add a result message
+			if (!Translator)
+			{
+				continue;
+			}
 			UInterchangeResultError_Generic* ErrorResult = NewObject<UInterchangeResultError_Generic>(GetTransientPackage(), UInterchangeResultError_Generic::StaticClass());
 			ErrorResult->Text = NSLOCTEXT("InterchangeTaskParsing", "TranslatorNoAssetImported", "There was no asset to import in the provided source data (found no mesh and no animation).");
 			ErrorResult->SourceAssetName = Translator->GetSourceData()->GetFilename();

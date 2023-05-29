@@ -775,6 +775,21 @@ UInterchangePipelineBase* UE::Interchange::GeneratePipelineInstance(const FSoftO
 	return GeneratedPipeline;
 }
 
+void UInterchangePipelineStackOverride::AddPythonPipeline(UInterchangePythonPipelineBase* PipelineBase)
+{
+	OverridePipelines.Add(PipelineBase);
+}
+
+void UInterchangePipelineStackOverride::AddBlueprintPipeline(UInterchangeBlueprintPipelineBase* PipelineBase)
+{
+	OverridePipelines.Add(PipelineBase);
+}
+
+void UInterchangePipelineStackOverride::AddPipeline(UInterchangePipelineBase* PipelineBase)
+{
+	OverridePipelines.Add(PipelineBase);
+}
+
 UInterchangeManager& UInterchangeManager::GetInterchangeManager()
 {
 	static TStrongObjectPtr<UInterchangeManager> InterchangeManager = nullptr;
@@ -1271,6 +1286,15 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		return EarlyExit();
 	}
 	
+	{
+		const UInterchangeTranslatorBase* Translator = GetTranslatorForSourceData(SourceData);
+		if(!Translator)
+		{
+			UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot import file, the source data is not supported. See if you can enable for interchange the extension [%s]"), *FPaths::GetExtension(SourceData->GetFilename()));
+			return EarlyExit();
+		}
+	}
+
 	if (FEngineAnalytics::IsAvailable())
 	{
 		Attribs.Add(FAnalyticsEventAttribute(TEXT("SourceExtension"), FPaths::GetExtension(SourceData->GetFilename())));
