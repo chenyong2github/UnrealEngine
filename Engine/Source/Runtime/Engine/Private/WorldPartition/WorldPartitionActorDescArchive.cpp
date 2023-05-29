@@ -6,6 +6,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionLog.h"
+#include "UObject/CoreRedirects.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
@@ -57,6 +58,26 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	else
 	{
 		InnerArchive << InActorDesc->NativeClass;
+	}
+
+	if (IsLoading())
+	{
+		auto TryRedirectClass = [](FTopLevelAssetPath& InOutClassPath)
+		{
+			if (InOutClassPath.IsValid())
+			{
+				FCoreRedirectObjectName ClassRedirect(InOutClassPath);
+				FCoreRedirectObjectName RedirectedClassRedirect = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, ClassRedirect);
+
+				if (ClassRedirect != RedirectedClassRedirect)
+				{
+					InOutClassPath = FTopLevelAssetPath(RedirectedClassRedirect.ToString());
+				}
+			}
+		};
+
+		TryRedirectClass(InActorDesc->NativeClass);
+		TryRedirectClass(InActorDesc->BaseClass);
 	}
 
 	// Get the class descriptor to do delta serialization
