@@ -5398,7 +5398,7 @@ void UCustomizableInstancePrivateData::AdditionalAssetsAsyncLoaded(UCustomizable
 	{
 		// Loaded Skeletons
 		FReferencedSkeletons& Skeletons = ComponentData.Skeletons;
-		for (const int32& SkeletonIndex : Skeletons.SkeletonIds)
+		for (int32 SkeletonIndex : Skeletons.SkeletonIds)
 		{
 			Skeletons.SkeletonsToMerge.AddUnique(CustomizableObject->GetReferencedSkeletonAssetPtr(SkeletonIndex).Get());
 		}
