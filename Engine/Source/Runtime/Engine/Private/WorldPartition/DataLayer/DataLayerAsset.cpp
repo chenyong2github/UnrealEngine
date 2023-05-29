@@ -2,6 +2,8 @@
 
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "GameFramework/Actor.h"
+#include "Engine/Level.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataLayerAsset)
 
@@ -17,6 +19,22 @@ bool UDataLayerAsset::IsPrivate() const
 }
 
 #if WITH_EDITOR
+bool UDataLayerAsset::CanBeReferencedByActor(const TSoftObjectPtr<UDataLayerAsset>& InDataLayerAsset, AActor* InActor)
+{
+	if (UDataLayerAsset* DataLayerAsset = InDataLayerAsset.Get())
+	{
+		return DataLayerAsset->CanBeReferencedByActor(InActor);
+	}
+
+	// Only accept references to unloaded UDataLayerAsset if the path is indeed an Asset Path (no sub path string)
+	return InDataLayerAsset.ToSoftObjectPath().IsAsset();
+}
+
+bool UDataLayerAsset::CanBeReferencedByActor(AActor* InActor) const
+{
+	return !IsPrivate() || GetTypedOuter<ULevel>() == InActor->GetLevel();
+}
+
 void UDataLayerAsset::PostLoad()
 {
 	if (DebugColor == FColor::Black)

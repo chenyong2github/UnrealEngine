@@ -11,6 +11,8 @@
 
 #include "DataLayerAsset.generated.h"
 
+class AActor;
+
 UCLASS(BlueprintType, editinlinenew)
 class ENGINE_API UDataLayerAsset : public UObject
 {
@@ -31,6 +33,8 @@ public:
 		DataLayerType = Type; 
 	}
 	void SetDebugColor(FColor InDebugColor) { DebugColor = InDebugColor; }
+	bool CanBeReferencedByActor(AActor* InActor) const;
+	static bool CanBeReferencedByActor(const TSoftObjectPtr<UDataLayerAsset>& InDataLayerAsset, AActor* InActor);
 #endif
 	bool IsPrivate() const;
 

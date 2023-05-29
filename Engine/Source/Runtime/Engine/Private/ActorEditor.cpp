@@ -35,6 +35,7 @@
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "UObject/SoftObjectPtr.h"
 #include "Algo/Transform.h"
+#include "Algo/RemoveIf.h"
 #include "Misc/DataValidation.h"
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
@@ -1713,6 +1714,12 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 	{ 
 		return;
 	}
+	
+	// Cleanup Data Layer assets we can't reference (Private DLs)
+	DataLayerAssets.SetNum(Algo::RemoveIf(DataLayerAssets, [this](const TSoftObjectPtr<UDataLayerAsset>& AssetPath)
+	{
+		return !UDataLayerAsset::CanBeReferencedByActor(AssetPath, this);
+	}));
 
 	// Use Actor's DataLayerManager since the fixup is relative to this level
 	UDataLayerManager* DataLayerManager = UDataLayerManager::GetDataLayerManager(this);

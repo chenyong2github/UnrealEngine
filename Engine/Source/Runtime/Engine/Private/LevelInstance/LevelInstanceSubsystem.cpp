@@ -1121,10 +1121,13 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 						// Use the raw asset list as we don't want parent DataLayers
 						for (const UDataLayerAsset* DataLayerAsset : ActorToMove->GetDataLayerAssets())
 						{
-							// Validate that there's a valid Data Layer Instance for this asset in the source level
-							if (DataLayerManager->GetDataLayerInstanceFromAsset(DataLayerAsset))
+							if (const UDataLayerInstance* DataLayerInstance = DataLayerManager->GetDataLayerInstanceFromAsset(DataLayerAsset))
 							{
-								SourceDataLayerAssets.Add(DataLayerAsset);
+								// Validate that there's a valid Data Layer Instance for this asset in the source level and that this isn't a private Data Layer
+								if (!DataLayerAsset->IsPrivate())
+								{
+									SourceDataLayerAssets.Add(DataLayerAsset);
+								}
 							}
 						}
 					}

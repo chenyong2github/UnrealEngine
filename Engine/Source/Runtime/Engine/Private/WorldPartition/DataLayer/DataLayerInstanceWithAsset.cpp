@@ -57,7 +57,7 @@ bool UDataLayerInstanceWithAsset::IsLocked() const
 
 bool UDataLayerInstanceWithAsset::CanAddActor(AActor* InActor) const
 {
-	return DataLayerAsset != nullptr && Super::CanAddActor(InActor);
+	return DataLayerAsset != nullptr && DataLayerAsset->CanBeReferencedByActor(InActor) && Super::CanAddActor(InActor);
 }
 
 bool UDataLayerInstanceWithAsset::PerformAddActor(AActor* InActor) const
