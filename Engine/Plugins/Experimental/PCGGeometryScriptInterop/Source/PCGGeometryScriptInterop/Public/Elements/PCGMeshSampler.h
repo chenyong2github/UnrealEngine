@@ -47,6 +47,10 @@ class PCGGEOMETRYSCRIPTINTEROP_API UPCGMeshSamplerSettings : public UPCGSettings
 public:
 	UPCGMeshSamplerSettings();
 
+	//~Begin UObject interface
+	virtual void PostLoad() override;
+	//~End UObject interface
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("MeshSampler")); }
@@ -67,8 +71,8 @@ public:
 	EPCGMeshSamplingMethod SamplingMethod = EPCGMeshSamplingMethod::OnePointPerTriangle;
 
 	/** Soft Object Path to the mesh to sample from. Will be loaded. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (PCG_Overridable, AllowedClasses = "/Script/Engine.StaticMesh", DisplayName = "Static Mesh"))
-	FSoftObjectPath StaticMeshPath;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (PCG_Overridable))
+	TSoftObjectPtr<UStaticMesh> StaticMesh;
 
 	/** In "One Point Per Vertex" option, will assign point density from the red component of the vertex color. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Per-Vertex Options", meta = (PCG_Overridable, EditCondition = "SamplingMethod == EPCGMeshSamplingMethod::OnePointPerVertex"))
@@ -99,6 +103,13 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Poisson sampling", meta = (PCG_Overridable, EditCondition = "SamplingMethod == EPCGMeshSamplingMethod::PoissonSampling"))
 	FGeometryScriptNonUniformPointSamplingOptions NonUniformSamplingOptions;
+
+protected:
+#if WITH_EDITORONLY_DATA
+	// Deprecated in UE 5.3 in favor of StaticMesh
+	UPROPERTY()
+	FSoftObjectPath StaticMeshPath_DEPRECATED;
+#endif
 };
 
 /**

@@ -30,6 +30,19 @@ UPCGMeshSamplerSettings::UPCGMeshSamplerSettings()
 	bUseSeed = true;
 }
 
+void UPCGMeshSamplerSettings::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (!StaticMeshPath_DEPRECATED.IsNull())
+	{
+		StaticMesh = StaticMeshPath_DEPRECATED;
+		StaticMeshPath_DEPRECATED.Reset();
+	}
+#endif
+}
+
 TArray<FPCGPinProperties> UPCGMeshSamplerSettings::InputPinProperties() const
 {
 	return TArray<FPCGPinProperties>{};
@@ -91,12 +104,12 @@ bool FPCGMeshSamplerElement::PrepareDataInternal(FPCGContext* InContext) const
 	check(Settings);
 
 	// TODO: Could be async
-	TSoftObjectPtr<UStaticMesh> StaticMeshPtr{ Settings->StaticMeshPath };
+	TSoftObjectPtr<UStaticMesh> StaticMeshPtr = Settings->StaticMesh;
 	UStaticMesh* StaticMesh = StaticMeshPtr.LoadSynchronous();
 
 	if (!StaticMesh)
 	{
-		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("MeshDoesNotExist", "Provided static mesh does not exist: '{0}'"), FText::FromString(Settings->StaticMeshPath.ToString())));
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("MeshDoesNotExist", "Provided static mesh does not exist or could not be loaded: '{0}'"), FText::FromString(StaticMeshPtr.ToString())));
 		return true;
 	}
 
