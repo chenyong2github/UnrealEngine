@@ -70,6 +70,7 @@ public:
 
 protected:
 	virtual bool OnContextMenuOpening( FMenuBuilder& MenuBuilder ) override;
+	virtual TArray<TSharedPtr<IPropertyHandle>> GetPropertyHandles(const bool& bRecursive = false) const override;
 	
 private:
 	void OnCopyProperty();

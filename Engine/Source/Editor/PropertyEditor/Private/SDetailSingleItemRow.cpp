@@ -1134,6 +1134,17 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 	return true;
 }
 
+TArray<TSharedPtr<IPropertyHandle>> SDetailSingleItemRow::GetPropertyHandles(const bool& bRecursive) const
+{
+	if (TArray<TSharedPtr<IPropertyHandle>> PropertyHandles = SDetailTableRowBase::GetPropertyHandles(bRecursive);
+		!PropertyHandles.IsEmpty())
+	{
+		return PropertyHandles;
+	}
+
+	return WidgetRow.GetPropertyHandles();
+}
+
 void SDetailSingleItemRow::OnCopyProperty()
 {
 	if (OwnerTreeNode.IsValid())

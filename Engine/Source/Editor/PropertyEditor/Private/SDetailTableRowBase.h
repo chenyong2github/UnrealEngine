@@ -77,7 +77,7 @@ protected:
 	TArray<TSharedPtr<FPropertyNode>> GetPropertyNodes(const bool& bRecursive = false) const;
 
 	/** Retrieve all property handles represented by this row, and it's children if Recursive specified. */
-	TArray<TSharedPtr<IPropertyHandle>> GetPropertyHandles(const bool& bRecursive = false) const;
+	virtual TArray<TSharedPtr<IPropertyHandle>> GetPropertyHandles(const bool& bRecursive = false) const;
 
 private:
 	void OnExpandAllClicked()
