@@ -1071,10 +1071,13 @@ void UAssetManager::RemoveScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAss
 
 void UAssetManager::RemovePrimaryAssetType(FPrimaryAssetType PrimaryAssetType)
 {
-	TSharedRef<FPrimaryAssetTypeData> TypeData;
-	if (AssetTypeMap.RemoveAndCopyValue(PrimaryAssetType, TypeData))
+	TSharedRef<FPrimaryAssetTypeData>* TypeDataRef;
+	TypeDataRef = AssetTypeMap.Find(PrimaryAssetType);
+	if (TypeDataRef)
 	{
-		TypeData->ResetAssets(AssetPathMap);
+		TSharedPtr<FPrimaryAssetTypeData> TypeDataPtr = *TypeDataRef;
+		AssetTypeMap.Remove(PrimaryAssetType);
+		TypeDataPtr->ResetAssets(AssetPathMap);
 	}
 }
 
