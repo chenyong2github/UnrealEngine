@@ -1513,13 +1513,18 @@ TSharedPtr<SDockingTabStack> FTabManager::FindPotentiallyClosedTab( const FTabId
 	FTabMatcher TabMatcher( ClosedTabId );
 
 	// Search among the COLLAPSED AREAS
-	const int32 CollapsedAreaWithMatchingTab = FindTabInCollapsedAreas( TabMatcher );
-	if ( CollapsedAreaWithMatchingTab != INDEX_NONE )
+	const int32 CollapsedAreaWithMatchingTabIndex = FindTabInCollapsedAreas( TabMatcher );
+	if ( CollapsedAreaWithMatchingTabIndex != INDEX_NONE )
 	{
-		TSharedPtr<SDockingArea> RestoredArea = RestoreArea(CollapsedDockAreas[CollapsedAreaWithMatchingTab], GetPrivateApi().GetParentWindow());
+		TSharedRef<FTabManager::FArea> CollapsedAreaWithMatchingTab = CollapsedDockAreas[CollapsedAreaWithMatchingTabIndex];
+
+		TSharedPtr<SDockingArea> RestoredArea = RestoreArea(CollapsedAreaWithMatchingTab, GetPrivateApi().GetParentWindow());
 		check(RestoredArea.IsValid());
-		// We have just un-collapsed this dock area
-		CollapsedDockAreas.RemoveAt(CollapsedAreaWithMatchingTab);
+
+		// We have just un-collapsed this dock area.
+		// Don't rely on the collapsed tab index: RestoreArea() can end up kicking the task graph which could do other tab work and modify the CollapsedDockAreas array.
+		CollapsedDockAreas.Remove(CollapsedAreaWithMatchingTab);
+
 		if (RestoredArea.IsValid())
 		{
 			StackWithClosedTab = FindTabInLiveArea(TabMatcher, StaticCastSharedRef<SDockingArea>(RestoredArea->AsShared()));
