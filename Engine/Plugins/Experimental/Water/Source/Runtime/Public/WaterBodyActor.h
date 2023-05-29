@@ -120,13 +120,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Instanced, Category = Wave, DisplayName = "Waves Source", meta = (Tooltip = ""))
 	TObjectPtr<UWaterWavesBase> WaterWaves = nullptr;
 
-	UPROPERTY(NonTransactional, TextExportTransient, NonPIEDuplicateTransient)
+	UPROPERTY(TextExportTransient, NonPIEDuplicateTransient)
 	TObjectPtr<UWaterBodyInfoMeshComponent> WaterInfoMeshComponent;
 
-	UPROPERTY(NonTransactional, TextExportTransient, NonPIEDuplicateTransient)
+	UPROPERTY(TextExportTransient, NonPIEDuplicateTransient)
 	TObjectPtr<UWaterBodyInfoMeshComponent> DilatedWaterInfoMeshComponent;
 
-	UPROPERTY(NonTransactional, TextExportTransient, NonPIEDuplicateTransient)
+	UPROPERTY(TextExportTransient, NonPIEDuplicateTransient)
 	TArray<TObjectPtr<UWaterBodyStaticMeshComponent>> WaterBodyStaticMeshComponents;
 
 #if WITH_EDITOR
