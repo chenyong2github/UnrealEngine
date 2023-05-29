@@ -168,14 +168,6 @@ void FLastResortPropertyNetSerializer::Quantize(FNetSerializationContext& Contex
 	// Capture references
 	Private::FInternalNetSerializationContext* InternalContext = Context.GetInternalContext();
 	UIrisObjectReferencePackageMap* PackageMap = InternalContext ? InternalContext->PackageMap : nullptr;
-
-	// We do not store any defaults for properties using the LastResortPropertyNetSerializer.
-	if (Context.IsInitializingDefaultState())
-	{
-		Value.ObjectReferenceStorage.AdjustSize(Context, 0);
-		AdjustStorageSize(Context, Value, 0);
-		return;
-	}
 	
 	UIrisObjectReferencePackageMap::FObjectReferenceArray ObjectReferences;
 	if (PackageMap)

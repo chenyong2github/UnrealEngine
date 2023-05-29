@@ -27,6 +27,8 @@
 #include "Misc/EnumClassFlags.h"
 #include "Templates/AlignmentTemplates.h"
 #include "UObject/UnrealType.h"
+#include "UObject/StrongObjectPtr.h"
+#include "Iris/Serialization/IrisObjectReferencePackageMap.h"
 
 #ifndef UE_NET_TEST_FAKE_REP_TAGS
 #	define UE_NET_TEST_FAKE_REP_TAGS 0
@@ -68,6 +70,17 @@ static FAutoConsoleVariableRef CVarIrisUseSupportsStructNetSerializerList(TEXT("
 
 static bool bWarnAboutStructPropertiesWithSuspectedNotReplicatedProperties = false;
 static FAutoConsoleVariableRef CVarIrisWarnAboutStructPropertiesWithSuspectedNotReplicatedProperties(TEXT("net.Iris.bWarnAboutStructPropertiesWithSuspectedNotReplicatedProperties"), bWarnAboutStructPropertiesWithSuspectedNotReplicatedProperties, TEXT("Try to detect if a struct replicated as a property might contain unannotated members, disabled by default."));
+
+static TStrongObjectPtr<UIrisObjectReferencePackageMap> s_IrisObjectReferencePackageMap = nullptr;
+
+static UIrisObjectReferencePackageMap* GetOrCreateIrisObjectReferencePackageMap()
+{
+	if (!s_IrisObjectReferencePackageMap.IsValid())
+	{
+		s_IrisObjectReferencePackageMap = TStrongObjectPtr<UIrisObjectReferencePackageMap>(NewObject<UIrisObjectReferencePackageMap>());
+	}
+	return s_IrisObjectReferencePackageMap.Get();
+}
 
 enum class EMemberPropertyTraits : uint32
 {
@@ -762,6 +775,7 @@ void FPropertyReplicationStateDescriptorBuilder::AllocateAndInitializeDefaultInt
 	// on both server and client
 	FNetSerializationContext Context;
 	FInternalNetSerializationContext InternalContext;
+	InternalContext.PackageMap = GetOrCreateIrisObjectReferencePackageMap();
 	Context.SetInternalContext(&InternalContext);
 	Context.SetIsInitializingDefaultState(true);
 
@@ -806,6 +820,7 @@ bool FPropertyReplicationStateDescriptorBuilder::CalculateDefaultStateChecksum(c
 	FNetBitStreamWriter Writer;
 	FNetSerializationContext Context(&Writer);
 	FInternalNetSerializationContext InternalContext;
+	InternalContext.PackageMap = GetOrCreateIrisObjectReferencePackageMap();
 	Context.SetInternalContext(&InternalContext);
 
 	// First try to serialize to small inline buffer
