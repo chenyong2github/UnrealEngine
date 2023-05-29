@@ -39,11 +39,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeSpatialHash)
 
-extern ENGINE_API bool GRuntimeSpatialHashUseAlignedGridLevels;
-extern ENGINE_API bool GRuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevels;
-extern ENGINE_API bool GRuntimeSpatialHashPlaceSmallActorsUsingLocation;
-extern ENGINE_API bool GRuntimeSpatialHashPlacePartitionActorsUsingLocation;
-
 #if WITH_EDITOR
 extern UNREALED_API class UEditorEngine* GEditor;
 #else
