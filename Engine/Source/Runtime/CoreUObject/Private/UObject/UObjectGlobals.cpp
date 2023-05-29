@@ -4747,7 +4747,7 @@ static void CollectStructReferences(FReferenceCollector& Collector, const Struct
 
 	FPlatformMisc::PrefetchBlock(Struct->RefLink, PropertyPrefetchBytes);
 	
-	if constexpr (EnumHasAnyFlags(CollectFlags, EPropertyCollectFlags::CallStructARO))
+	if constexpr (EnumHasAnyFlags(CollectFlags, EPropertyCollectFlags::CallStructARO) && std::is_same_v<StructType, UScriptStruct>)
 	{
 		if (Struct->StructFlags & STRUCT_AddStructReferencedObjects)
 		{
@@ -5016,6 +5016,11 @@ void FReferenceCollector::AddPropertyReferences(const UStruct* Struct, void* Ins
 void FReferenceCollector::AddPropertyReferencesWithStructARO(const UScriptStruct* Struct, void* Instance, const UObject* ReferencingObject)
 {
 	CallCollectStructReferences<EPropertyCollectFlags::CallStructARO>(*this, Struct, Instance, ReferencingObject);
+}
+
+void FReferenceCollector::AddPropertyReferencesWithStructARO(const UClass* Class, void* Instance, const UObject* ReferencingObject)
+{
+	CallCollectStructReferences<EPropertyCollectFlags::CallStructARO>(*this, Class, Instance, ReferencingObject);
 }
 
 void FReferenceCollector::AddPropertyReferencesLimitedToObjectProperties(const UStruct* Struct, void* Instance, const UObject* ReferencingObject)
