@@ -16,8 +16,8 @@ namespace UsdUtils
 {
 	class FUsdTransactorImpl;
 
-	struct FObjectChangeNotice;
-	using FObjectChangesByPath = TMap<FString, TArray<FObjectChangeNotice>>;
+	struct FSdfChangeListEntry;
+	using FObjectChangesByPath = TMap<FString, TArray<FSdfChangeListEntry>>;
 }
 
 namespace UE

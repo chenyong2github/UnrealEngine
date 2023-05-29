@@ -2728,12 +2728,12 @@ void FUsdLevelSequenceHelperImpl::OnUsdObjectsChanged(const UsdUtils::FObjectCha
 
 	FScopedBlockMonitoringChangesForTransaction BlockMonitoring{*this};
 
-	for (const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& InfoChange : InfoChanges)
+	for (const TPair<FString, TArray<UsdUtils::FSdfChangeListEntry>>& InfoChange : InfoChanges)
 	{
 		const FString& PrimPath = InfoChange.Key;
 		if (PrimPath == TEXT("/"))
 		{
-			for (const UsdUtils::FObjectChangeNotice& ObjectChange : InfoChange.Value)
+			for (const UsdUtils::FSdfChangeListEntry& ObjectChange : InfoChange.Value)
 			{
 				for (const UsdUtils::FAttributeChange& AttributeChange : ObjectChange.AttributeChanges)
 				{

@@ -141,15 +141,15 @@ namespace UsdUtils
 	{
 		InOutEdits.Edits.Reserve( InChanges.Num() + InOutEdits.Edits.Num() );
 
-		for ( const TPair<FString, TArray<FObjectChangeNotice>>& ChangesByPrimPath : InChanges )
+		for ( const TPair<FString, TArray<FSdfChangeListEntry>>& ChangesByPrimPath : InChanges )
 		{
 			const FString& PrimPath = ChangesByPrimPath.Key;
-			const TArray<FObjectChangeNotice>& Changes = ChangesByPrimPath.Value;
+			const TArray<FSdfChangeListEntry>& Changes = ChangesByPrimPath.Value;
 
 			FTransactorRecordedEdit& Edit = InOutEdits.Edits.Emplace_GetRef();
 			Edit.ObjectPath = PrimPath;
 
-			for ( const FObjectChangeNotice& Change : Changes )
+			for ( const FSdfChangeListEntry& Change : Changes )
 			{
 				FTransactorObjectChange& ConvertedChange = Edit.ObjectChanges.Emplace_GetRef();
 				ConvertedChange.Flags = Change.Flags;

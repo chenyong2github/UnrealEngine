@@ -153,7 +153,7 @@ namespace UE
 		return ( bool ) Impl->GetInner();
 	}
 
-	uint32 GetTypeHash( const UE::FSdfLayerWeak& Layer )
+	UNREALUSDWRAPPER_API uint32 GetTypeHash(const UE::FSdfLayerWeak& Layer)
 	{
 		uint32 Result = 0;
 #if USE_USD_SDK
@@ -163,8 +163,8 @@ namespace UE
 		// TfWeakPtrFacade, which is how TfWeakPtr seem to be hashed in USD.
 		// We have to clamp the size_t to uint32 here but deferring to USD is likely the best approach to guarantee
 		// that objects with non-colliding hashes in USD also not collide in UE.
-		Result = static_cast< uint32 >( pxr::TfHash()( Layer.Impl->GetInner() ) );
-#endif // #if USE_USD_SDK
+		Result = static_cast<uint32>(pxr::TfHash()(Layer.Impl->GetInner()));
+#endif	  // #if USE_USD_SDK
 		return Result;
 	}
 

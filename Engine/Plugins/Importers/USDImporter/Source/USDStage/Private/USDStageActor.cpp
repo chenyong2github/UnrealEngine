@@ -963,15 +963,15 @@ AUsdStageActor::AUsdStageActor()
 
 		UsdListener.GetOnObjectsChanged().AddUObject(this, &AUsdStageActor::OnUsdObjectsChanged);
 
-		UsdListener.GetOnLayersChanged().AddLambda(
-			[&, this](const TArray< FString >& ChangedLayerIdentifiers)
+		UsdListener.GetOnSdfLayersChanged().AddLambda(
+			[&, this](const UsdUtils::FLayerToSdfChangeList& LayersToChangeList)
 			{
-				if (!IsListeningToUsdNotices() || ChangedLayerIdentifiers.Num() == 0)
+				if (!IsListeningToUsdNotices() || LayersToChangeList.Num() == 0)
 				{
 					return;
 				}
 
-				TOptional< TGuardValue< ITransaction* > > SuppressTransaction;
+				TOptional<TGuardValue<ITransaction*>> SuppressTransaction;
 				if (this->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
 				{
 					SuppressTransaction.Emplace(GUndo, nullptr);
@@ -983,32 +983,52 @@ AUsdStageActor::AUsdStageActor()
 					return;
 				}
 
-				TSet<FString> UsedLayerIdentifiers;
-				TArray<UE::FSdfLayer> UsedLayers = Stage.GetUsedLayers();
-				UsedLayerIdentifiers.Reserve(UsedLayers.Num());
-				for (const UE::FSdfLayer& UsedLayer : UsedLayers)
+				// Check to see if any of the stage's layers reloaded, or if we added/removed any layer
+				TSet<UE::FSdfLayer> UsedLayers{Stage.GetUsedLayers()};
+				for (const TPair<UE::FSdfLayerWeak, UsdUtils::FSdfChangeList>& LayerToChangeList : LayersToChangeList)
 				{
-					UsedLayerIdentifiers.Add(UsedLayer.GetIdentifier());
-				}
-
-				// Check to see if any layer reloaded. If so, rebuild all of our animations as a single layer changing
-				// might propagate timecodes through all level sequences
-				for (const FString& ChangedLayerIdentifier : ChangedLayerIdentifiers)
-				{
-					if (!UsedLayerIdentifiers.Contains(ChangedLayerIdentifier))
+					if (!UsedLayers.Contains(LayerToChangeList.Key))
 					{
 						continue;
 					}
 
-					UE_LOG(LogUsd, Verbose, TEXT("Reloading animations because layer '%s' was added/removed/reloaded"), *ChangedLayerIdentifier);
-					ReloadAnimations();
+					for (const TPair<UE::FSdfPath, UsdUtils::FSdfChangeListEntry>& Change : LayerToChangeList.Value)
+					{
+						if (Change.Value.Flags.bDidReloadContent)
+						{
+							UE_LOG(
+								LogUsd,
+								Verbose,
+								TEXT("Reloading animations because layer '%s' was reloaded"),
+								*LayerToChangeList.Key.GetIdentifier()
+							);
+							ReloadAnimations();
 
-					// Make sure our PrimsToAnimate and the LevelSequenceHelper are kept in sync, because we'll use PrimsToAnimate to
-					// check whether we need to call LevelSequenceHelper::AddPrim within AUsdStageActor::ExpandPrim. Without this reset
-					// our prims would already be in here by the time we're checking if we need to add tracks or not, and we wouldn't re-add
-					// the tracks
-					PrimsToAnimate.Reset();
-					return;
+							// Make sure our PrimsToAnimate and the LevelSequenceHelper are kept in sync, because we'll use PrimsToAnimate to
+							// check whether we need to call LevelSequenceHelper::AddPrim within AUsdStageActor::ExpandPrim. Without this reset
+							// our prims would already be in here by the time we're checking if we need to add tracks or not, and we wouldn't re-add
+							// the tracks
+							PrimsToAnimate.Reset();
+							return;
+						}
+
+						for (const TPair<FString, UsdUtils::ESubLayerChangeType>& SubLayerChange : Change.Value.SubLayerChanges)
+						{
+							if (SubLayerChange.Value == UsdUtils::ESubLayerChangeType::SubLayerAdded
+								|| SubLayerChange.Value == UsdUtils::ESubLayerChangeType::SubLayerRemoved)
+							{
+								UE_LOG(
+									LogUsd,
+									Verbose,
+									TEXT("Reloading animations because layer '%s' was added or removed"),
+									*LayerToChangeList.Key.GetIdentifier()
+								);
+								ReloadAnimations();
+								PrimsToAnimate.Reset();
+								return;
+							}
+						}
+					}
 				}
 			}
 		);
@@ -1189,13 +1209,13 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 
 	// The most important thing here is to iterate in parent to child order, so build SortedPrimsChangedList
 	TMap< FString, bool > SortedPrimsChangedList;
-	for (const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& InfoChange : InfoChanges)
+	for (const TPair<FString, TArray<UsdUtils::FSdfChangeListEntry>>& InfoChange : InfoChanges)
 	{
 		UE::FSdfPath PrimPath = UE::FSdfPath(*InfoChange.Key).StripAllVariantSelections();
 
 		// Upgrade some info changes into resync changes
 		bool bIsResync = false;
-		for (const UsdUtils::FObjectChangeNotice& ObjectChange : InfoChange.Value)
+		for (const UsdUtils::FSdfChangeListEntry& ObjectChange : InfoChange.Value)
 		{
 			// This is in charge of resyncing components (and so calling CreateComponents instead of just
 			// UpdateComponents) whenever we change material assignments. This is important because
@@ -1254,7 +1274,7 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 		SortedPrimsChangedList.Add(UE::FSdfPath(*InfoChange.Key).StripAllVariantSelections().GetString(), bIsResync);
 	}
 	// Do Resyncs after so that they overwrite pure info changes if we have any
-	for (const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& ResyncChange : ResyncChanges)
+	for (const TPair<FString, TArray<UsdUtils::FSdfChangeListEntry>>& ResyncChange : ResyncChanges)
 	{
 		UE::FSdfPath PrimPath = UE::FSdfPath(*ResyncChange.Key).StripAllVariantSelections();
 

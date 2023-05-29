@@ -663,32 +663,64 @@ void SUsdStage::SetupStageActorDelegates()
 			}
 		);
 
-		OnLayersChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnLayersChanged().AddLambda(
-			[this](const TArray<FString>& LayersNames)
+		TFunction<bool(float)> DelayedRefreshOfLayersTreeView = [this](float Time)
+		{
+			if (bEditorIsShuttingDown)
 			{
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
-					[this](float Time)
+				return false;
+			}
+
+			AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+			if (this->UsdLayersTreeView && StageActor)
+			{
+				constexpr bool bResync = false;
+				UsdLayersTreeView->Refresh(StageActor->GetBaseUsdStage(), StageActor->GetIsolatedUsdStage(), bResync);
+			}
+
+			// Returning false means this is a one-off, and won't repeat
+			return false;
+		};
+
+		OnSdfLayersChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnSdfLayersChanged().AddLambda(
+			[this, DelayedRefreshOfLayersTreeView](const UsdUtils::FLayerToSdfChangeList& LayersToChangeList)
+			{
+				// The layers changed events are global, and so fired for every stage actor when any layer of
+				// any stage is modified. Let's update only when a layer used by our stage is updated
+				bool bRelevantToCurrentStage = false;
+				if (AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get())
+				{
+					if (const UE::FUsdStage& CurrentStage = StageActor->GetUsdStage())
 					{
-						if (bEditorIsShuttingDown)
+						TSet<UE::FSdfLayer> UsedLayers{CurrentStage.GetUsedLayers()};
+						for (const TPair<UE::FSdfLayerWeak, UsdUtils::FSdfChangeList>& LayerToChangeList : LayersToChangeList)
 						{
-							return false;
+							if (UsedLayers.Contains(LayerToChangeList.Key))
+							{
+								bRelevantToCurrentStage = true;
+								break;
+							}
 						}
-
-						AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
-						if (this->UsdLayersTreeView && StageActor)
-						{
-							constexpr bool bResync = false;
-							UsdLayersTreeView->Refresh(
-								StageActor->GetBaseUsdStage(),
-								StageActor->GetIsolatedUsdStage(),
-								bResync
-							);
-						}
-
-						// Returning false means this is a one-off, and won't repeat
-						return false;
 					}
-				));
+				}
+				if (!bRelevantToCurrentStage)
+				{
+					return;
+				}
+
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(DelayedRefreshOfLayersTreeView));
+			}
+		);
+
+		OnSdfLayerDirtinessChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnSdfLayerDirtinessChanged().AddLambda(
+			[DelayedRefreshOfLayersTreeView]()
+			{
+				// The layer dirtiness notice as we're using here is global, which means any layer of any other stage
+				// going dirty will affect us. We *could* make this notice layer-specific on the listener, but it would force us to
+				// register/unregister to every single layer... since the updates done in DelayedRefreshOfLayersTreeView are
+				// relatively light, it's probably for the best to just refresh every time than to support the churn of
+				// a bunch of separate listeners and registration/unregistration happening every time, potentially also
+				// crashing if done incorrectly when a layer is created/added/removed/etc.
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(DelayedRefreshOfLayersTreeView));
 			}
 		);
 	}
@@ -704,7 +736,8 @@ void SUsdStage::ClearStageActorDelegates()
 		StageActor->OnActorDestroyed.Remove ( OnActorDestroyedHandle );
 
 		StageActor->GetUsdListener().GetOnStageEditTargetChanged().Remove( OnStageEditTargetChangedHandle );
-		StageActor->GetUsdListener().GetOnLayersChanged().Remove( OnLayersChangedHandle );
+		StageActor->GetUsdListener().GetOnSdfLayersChanged().Remove( OnSdfLayersChangedHandle );
+		StageActor->GetUsdListener().GetOnSdfLayerDirtinessChanged().Remove( OnSdfLayerDirtinessChangedHandle );
 	}
 }
 

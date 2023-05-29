@@ -11,6 +11,11 @@
 
 class FUsdListenerImpl;
 
+namespace UE
+{
+	class FSdfPath;
+}
+
 namespace UsdUtils
 {
 	/** Analogous to pxr::SdfChangeList::Entry::_Flags */
@@ -68,7 +73,7 @@ namespace UsdUtils
 	};
 
 	/** Analogous to pxr::SdfChangeList::Entry, describes a generic change to an object */
-	struct FObjectChangeNotice
+	struct FSdfChangeListEntry
 	{
 		TArray<FAttributeChange> AttributeChanges;
 		FPrimChangeFlags Flags;
@@ -76,13 +81,17 @@ namespace UsdUtils
 		FString OldIdentifier;						// Empty if Flags.bDIdChangeIdentifier is not set
 		TArray<TPair<FString, ESubLayerChangeType>> SubLayerChanges;
 	};
+	using FObjectChangeNotice = FSdfChangeListEntry; // Renamed in 5.3 as it is used for layer changes now too
+
+	using FSdfChangeList = TArray<TPair<UE::FSdfPath, FSdfChangeListEntry>>;
+	using FLayerToSdfChangeList = TArray<TPair<UE::FSdfLayerWeak, FSdfChangeList>>;
 
 	/**
 	 * Describes USD object changes by object path.
 	 * The only difference to the USD data structures is that we store them by object path here for convenience, so
 	 * the key can be "/" to signify a stage change, or something like "/MyRoot/SomePrim" to indicate a particular prim change
 	 */
-	using FObjectChangesByPath = TMap<FString, TArray<FObjectChangeNotice>>;
+	using FObjectChangesByPath = TMap<FString, TArray<FSdfChangeListEntry>>;
 }
 
 /**
@@ -109,11 +118,21 @@ public:
 	void Unblock();
 	bool IsBlocked() const;
 
+	// Stage-specific events
 	DECLARE_EVENT( FUsdListener, FOnStageEditTargetChanged );
 	FOnStageEditTargetChanged& GetOnStageEditTargetChanged();
 
-	DECLARE_EVENT_OneParam( FUsdListener, FOnLayersChanged, const TArray< FString >& );
+	DECLARE_EVENT_OneParam( FUsdListener, UE_DEPRECATED(5.3, "Use FOnSdfLayersChanged") FOnLayersChanged, const TArray< FString >& );
+	UE_DEPRECATED(5.3, "Use GetOnSdfLayersChanged")
+  	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOnLayersChanged& GetOnLayersChanged();
+  	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	DECLARE_EVENT_OneParam(FUsdListener, FOnSdfLayersChanged, const UsdUtils::FLayerToSdfChangeList&);
+	FOnSdfLayersChanged& GetOnSdfLayersChanged();
+
+	DECLARE_EVENT(FUsdListener, FOnSdfLayerDirtinessChanged);
+	FOnSdfLayerDirtinessChanged& GetOnSdfLayerDirtinessChanged();
 
 	DECLARE_EVENT_TwoParams( FUsdListener, FOnObjectsChanged, const UsdUtils::FObjectChangesByPath& /* InfoChanges */, const UsdUtils::FObjectChangesByPath& /* ResyncChanges */ );
 	FOnObjectsChanged& GetOnObjectsChanged();

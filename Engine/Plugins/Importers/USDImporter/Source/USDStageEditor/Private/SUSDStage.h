@@ -124,7 +124,8 @@ protected:
 	FDelegateHandle OnStageChangedHandle;
 	FDelegateHandle OnStageEditTargetChangedHandle;
 	FDelegateHandle OnPrimChangedHandle;
-	FDelegateHandle OnLayersChangedHandle;
+	FDelegateHandle OnSdfLayersChangedHandle;
+	FDelegateHandle OnSdfLayerDirtinessChangedHandle;
 	FDelegateHandle OnViewportSelectionChangedHandle;
 	FDelegateHandle PostPIEStartedHandle;
 	FDelegateHandle EndPIEHandle;
