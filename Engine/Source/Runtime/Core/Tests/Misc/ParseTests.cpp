@@ -120,7 +120,7 @@ TEST_CASE("Parse::Value::ToBuffer", "[Parse][Smoke]")
 }
 
 
-TEST_CASE("Parse::GrammaredCLIParse::Callback", "[Smoke]")
+TEST_CASE("Parse::GrammaredCLIParse::Callback", "[Smoke][.]")
 {
 	struct StringKeyValue {
 		const TCHAR* Key;
