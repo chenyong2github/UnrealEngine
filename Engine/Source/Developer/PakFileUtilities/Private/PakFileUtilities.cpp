@@ -2301,6 +2301,10 @@ bool FPakWriterContext::AddPakFile(const TCHAR* Filename, const TArray<FPakInput
 		OutputPakFile->Info.GetCompressionMethodIndex(TEXT("Oodle"));
 	}
 
+	OutputPakFile->Compressor_Stat_Count.SetNumZeroed(CompressionFormatsAndNone.Num());
+	OutputPakFile->Compressor_Stat_RawBytes.SetNumZeroed(CompressionFormatsAndNone.Num());
+	OutputPakFile->Compressor_Stat_CompBytes.SetNumZeroed(CompressionFormatsAndNone.Num());
+
 	OutputPakFile->MountPoint = GetCommonRootPath(FilesToAdd);
 
 	OutputPakFile->Entries.SetNum(FilesToAdd.Num());
@@ -2347,10 +2351,6 @@ bool FPakWriterContext::AddPakFile(const TCHAR* Filename, const TArray<FPakInput
 
 	CompressionQueueEntryAddedEvent->Trigger();
 	WriteQueueEntryAddedEvent->Trigger();
-
-	OutputPakFile->Compressor_Stat_Count.SetNumZeroed(CompressionFormatsAndNone.Num());
-	OutputPakFile->Compressor_Stat_RawBytes.SetNumZeroed(CompressionFormatsAndNone.Num());
-	OutputPakFile->Compressor_Stat_CompBytes.SetNumZeroed(CompressionFormatsAndNone.Num());
 
 	TotalEntriesCount += OutputPakFile->Entries.Num();
 	if (OutputPakFile->Entries.IsEmpty())
