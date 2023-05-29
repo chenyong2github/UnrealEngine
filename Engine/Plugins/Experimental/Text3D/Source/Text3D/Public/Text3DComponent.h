@@ -27,6 +27,17 @@ enum class EText3DHorizontalTextAlignment : uint8
 	Right			UMETA(DisplayName = "Right"),
 };
 
+UENUM()
+enum class EText3DModifyFlags : uint8
+{
+	None = 0,
+	Layout = 1 << 0,
+	Geometry = 1 << 1,
+	Unfreeze = 1 << 2,
+    
+	All = Layout | Geometry | Unfreeze
+};
+ENUM_CLASS_FLAGS(EText3DModifyFlags)
 
 UCLASS(ClassGroup = (Text3D), meta=(BlueprintSpawnableComponent))
 class TEXT3D_API UText3DComponent : public USceneComponent
@@ -36,11 +47,13 @@ class TEXT3D_API UText3DComponent : public USceneComponent
 public:
 	UText3DComponent();
 
+	virtual void BeginDestroy() override;
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 #endif
 
 	/** The text to generate a 3d mesh */
@@ -275,7 +288,7 @@ protected:
 	virtual void OnHiddenInGameChanged() override;
 
 private:
-	UPROPERTY(Transient)
+	UPROPERTY()
 	TObjectPtr<class USceneComponent> TextRoot;
 
 	UPROPERTY(BlueprintAssignable, Category = Events, meta = (AllowPrivateAccess = true, DisplayName = "On Text Generated"))
@@ -286,8 +299,8 @@ private:
 	/** Flagged as true when the text mesh is being built. */
 	std::atomic<bool> bIsBuilding;
 	
-	bool bPendingBuild;
 	bool bFreezeBuild;
+	EText3DModifyFlags ModifyFlags;
 
 	FVector TextScale;
 
@@ -308,6 +321,7 @@ private:
 
 	void UpdateTransforms();
 	void Rebuild(const bool bCleanCache = false);
+	void Update();
 	void ClearTextMesh();
 	void BuildTextMesh(const bool bCleanCache = false);
 	void BuildTextMeshInternal(const bool bCleanCache);
@@ -320,4 +334,10 @@ private:
 	float GetTextHeight() const;
 	void CalculateTextScale();
 	FVector GetLineLocation(int32 LineIndex);
+	
+	bool NeedsMeshRebuild() const;
+	bool NeedsLayoutUpdate() const;
+	void MarkForGeometryUpdate();
+	void MarkForLayoutUpdate();
+	void ClearUpdateFlags();
 };
