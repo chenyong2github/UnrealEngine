@@ -47,7 +47,8 @@ FHierarchicalModelListRefresher::FHierarchicalModelListRefresher(TSharedPtr<FVie
 
 void FHierarchicalModelListRefresher::RecycleChildren(const TSharedPtr<FViewModel>& InModel, FViewModelChildren InExistingChildren)
 {
-	if (!InModel->FindChildList(EViewModelListType::Recycled))
+	TOptional<FViewModelChildren> RecycledChildren = InModel->FindChildList(EViewModelListType::Recycled);
+	if (!RecycledChildren)
 	{
 		if (RecycledLists.Num() == 0 || RecycledLists.Last().GetSlack() == 0)
 		{
@@ -57,9 +58,10 @@ void FHierarchicalModelListRefresher::RecycleChildren(const TSharedPtr<FViewMode
 
 		RecycledLists.Last().Emplace(InModel, EViewModelListType::Recycled);
 
-		FViewModelChildren RecycledChildren = InModel->GetChildList(EViewModelListType::Recycled);
-		InExistingChildren.MoveChildrenTo<IRecyclableExtension>(RecycledChildren, IRecyclableExtension::CallOnRecycle);
+		RecycledChildren = InModel->GetChildList(EViewModelListType::Recycled);
 	}
+	check(RecycledChildren.IsSet());
+	InExistingChildren.MoveChildrenTo<IRecyclableExtension>(RecycledChildren.GetValue(), IRecyclableExtension::CallOnRecycle);
 }
 
 bool FHierarchicalModelListRefresher::IsValid() const
