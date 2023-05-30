@@ -2762,6 +2762,8 @@ bool dtTileCacheHeaderSwapEndian(unsigned char* data, const int dataSize)
 	dtSwapEndian(&header->bmax[0]);
 	dtSwapEndian(&header->bmax[1]);
 	dtSwapEndian(&header->bmax[2]);
+	dtSwapEndian(&header->hmin);
+	dtSwapEndian(&header->hmax);
 
 	dtSwapEndian(&header->width);
 	dtSwapEndian(&header->height);

@@ -279,9 +279,8 @@ bool rcCreateHeightfield(rcContext* /*ctx*/, rcHeightfield& hf, int width, int h
 	{
 		for (int j = 0; j < hf.width + 2; j++)
 		{
-			constexpr int RANGE = INT_MAX;
-			hf.tempspans[i * (hf.width + 2) + j].sminmax[0] = RANGE;
-			hf.tempspans[i * (hf.width + 2) + j].sminmax[1] = -RANGE;
+			hf.tempspans[i * (hf.width + 2) + j].sminmax[0] = 32000;
+			hf.tempspans[i * (hf.width + 2) + j].sminmax[1] = -32000;
 		}
 	}
 
@@ -487,6 +486,8 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 	}
 	memset(chf.areas, RC_NULL_AREA, sizeof(unsigned char)*spanCount);
 	
+	const int MAX_HEIGHT = 0xffff;
+	
 	// Fill in cells and spans.
 	int idx = 0;
 	for (int y = 0; y < h; ++y)
@@ -503,9 +504,9 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 			{
 				if (s->data.area != RC_NULL_AREA)
 				{
-					const rcSpanInt bot = (int)s->data.smax;
-					const rcSpanInt top = s->next ? (int)s->next->data.smin : RC_SPAN_MAX_HEIGHT;
-					chf.spans[idx].y = rcClamp(bot, 0, UINT_MAX);
+					const int bot = (int)s->data.smax;
+					const int top = s->next ? (int)s->next->data.smin : MAX_HEIGHT;
+					chf.spans[idx].y = (unsigned short)rcClamp(bot, 0, 0xffff);
 					chf.spans[idx].h = (unsigned char)rcClamp(top - bot, 0, 0xff);
 					chf.areas[idx] = s->data.area;
 					idx++;

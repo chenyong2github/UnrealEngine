@@ -3212,6 +3212,8 @@ bool FRecastTileGenerator::RecastBuildTileCache(FNavMeshBuildContext& BuildConte
 		header.maxx = (unsigned short)layer->maxx;
 		header.miny = (unsigned short)layer->miny;
 		header.maxy = (unsigned short)layer->maxy;
+		header.hmin = (unsigned short)layer->hmin;
+		header.hmax = (unsigned short)layer->hmax;
 
 		// Layer bounds in unreal coords
 		FBox LayerBBox = Recast2UnrealBox(header.bmin, header.bmax);
