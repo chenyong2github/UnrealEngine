@@ -392,7 +392,7 @@ bool UActorDescContainer::ShouldRegisterDelegates()
 	UWorld* OwningWorld = GetWorldPartition() ? GetWorldPartition()->GetWorld() : nullptr;
 	// Template container will always register
 	bool bShouldRegisterForWorld = (OwningWorld && !OwningWorld->IsGameWorld()) || (IsTemplateContainer());
-	return GEditor && !IsTemplate() && !bIsInstance && bShouldRegisterForWorld;
+	return GEditor && !IsTemplate() && !IsRunningCookCommandlet() && !bIsInstance && bShouldRegisterForWorld;
 }
 
 void UActorDescContainer::RegisterEditorDelegates()
