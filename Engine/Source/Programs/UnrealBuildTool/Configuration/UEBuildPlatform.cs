@@ -175,8 +175,8 @@ namespace UnrealBuildTool
 		/// <param name="SingleArchitecture"></param>
 		public UnrealArchitectureConfig(UnrealArch SingleArchitecture)
 		{
-			this.Mode = UnrealArchitectureMode.SingleArchitecture;
-			this.AllSupportedArchitectures = new UnrealArchitectures(SingleArchitecture);
+			Mode = UnrealArchitectureMode.SingleArchitecture;
+			AllSupportedArchitectures = new UnrealArchitectures(SingleArchitecture);
 		}
 
 		/// <summary>
@@ -187,7 +187,7 @@ namespace UnrealBuildTool
 		protected UnrealArchitectureConfig(UnrealArchitectureMode Mode, IEnumerable<UnrealArch> SupportedArchitectures)
 		{
 			this.Mode = Mode;
-			this.AllSupportedArchitectures = new UnrealArchitectures(SupportedArchitectures);
+			AllSupportedArchitectures = new UnrealArchitectures(SupportedArchitectures);
 		}
 
 
@@ -995,7 +995,7 @@ namespace UnrealBuildTool
 		/// <returns>string    The binary extension (i.e. 'exe' or 'dll')</returns>
 		public virtual string GetBinaryExtension(UEBuildBinaryType InBinaryType)
 		{
-			throw new BuildException("GetBinaryExtensiton for {0} not handled in {1}", InBinaryType.ToString(), this.ToString());
+			throw new BuildException("GetBinaryExtensiton for {0} not handled in {1}", InBinaryType.ToString(), ToString());
 		}
 
 		/// <summary>
@@ -1006,7 +1006,7 @@ namespace UnrealBuildTool
 		/// <returns>string[]    The debug info extensions (i.e. 'pdb')</returns>
 		public virtual string[] GetDebugInfoExtensions(ReadOnlyTargetRules InTarget, UEBuildBinaryType InBinaryType)
 		{
-			throw new BuildException("GetDebugInfoExtensions for {0} not handled in {1}", InBinaryType.ToString(), this.ToString());
+			throw new BuildException("GetDebugInfoExtensions for {0} not handled in {1}", InBinaryType.ToString(), ToString());
 		}
 
 		/// <summary>
@@ -1063,7 +1063,9 @@ namespace UnrealBuildTool
 			ConfigHierarchy DefaultIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, (DirectoryReference?)null, Platform);
 
 			// look at all bool values
-			if (BoolKeys != null) foreach (string Key in BoolKeys)
+			if (BoolKeys != null)
+			{
+				foreach (string Key in BoolKeys)
 				{
 					bool Default = false, Project = false;
 					DefaultIni.GetBool(Section, Key, out Default);
@@ -1074,9 +1076,12 @@ namespace UnrealBuildTool
 						return false;
 					}
 				}
+			}
 
 			// look at all int values
-			if (IntKeys != null) foreach (string Key in IntKeys)
+			if (IntKeys != null)
+			{
+				foreach (string Key in IntKeys)
 				{
 					int Default = 0, Project = 0;
 					DefaultIni.GetInt32(Section, Key, out Default);
@@ -1087,9 +1092,12 @@ namespace UnrealBuildTool
 						return false;
 					}
 				}
+			}
 
 			// look for all string values
-			if (StringKeys != null) foreach (string Key in StringKeys)
+			if (StringKeys != null)
+			{
+				foreach (string Key in StringKeys)
 				{
 					string? Default = "", Project = "";
 					DefaultIni.GetString(Section, Key, out Default);
@@ -1100,6 +1108,7 @@ namespace UnrealBuildTool
 						return false;
 					}
 				}
+			}
 
 			// if we get here, we match all important settings
 			return true;

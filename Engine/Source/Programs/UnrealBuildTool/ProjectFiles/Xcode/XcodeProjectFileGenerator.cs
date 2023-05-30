@@ -71,11 +71,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// A static copy of ProjectPlatforms from the base class
 		/// </summary>
-		static public List<UnrealTargetPlatform> XcodePlatforms = new();
+		public static List<UnrealTargetPlatform> XcodePlatforms = new();
 
-		static public List<UnrealTargetPlatform?> WorkspacePlatforms = new();
-		static public List<UnrealTargetPlatform?> RunTargetPlatforms = new();
-		static public List<UnrealTargetPlatform?> NullPlatformList = new() { null };
+		public static List<UnrealTargetPlatform?> WorkspacePlatforms = new();
+		public static List<UnrealTargetPlatform?> RunTargetPlatforms = new();
+		public static List<UnrealTargetPlatform?> NullPlatformList = new() { null };
 		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildFramework>> TargetFrameworks = new();
 		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildBundleResource>> TargetBundles = new();
 
@@ -84,7 +84,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Should we generate only a run project (no build/index targets)
 		/// </summary>
-		static public bool bGenerateRunOnlyProject = false;
+		public static bool bGenerateRunOnlyProject = false;
 
 
 		public XcodeProjectFileGenerator(FileReference? InOnlyGameProject, CommandLineArguments CommandLine)
@@ -161,7 +161,7 @@ namespace UnrealBuildTool
 		}
 
 		/// File extension for project files we'll be generating (e.g. ".vcxproj")
-		override public string ProjectFileExtension => ".xcodeproj";
+		public override string ProjectFileExtension => ".xcodeproj";
 
 		/// <summary>
 		/// </summary>
@@ -324,7 +324,7 @@ namespace UnrealBuildTool
 							foreach (XcodeProjectXcconfig.XcodeProjectFile XcodeProject in SupportedProjects)
 							{
 								// if we are only generating a single target project, skip any others now
-								if (!string.IsNullOrEmpty(SingleTargetName) && !XcodeProject.ProjectTargets.Any(x => x.TargetRules?.Name == SingleTargetName))
+								if (!String.IsNullOrEmpty(SingleTargetName) && !XcodeProject.ProjectTargets.Any(x => x.TargetRules?.Name == SingleTargetName))
 								{
 									continue;
 								}

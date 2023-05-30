@@ -249,7 +249,7 @@ namespace UnrealBuildTool
 						$"-HeadersFile={HeadersOutputFile.FullName}",
 					};
 
-					Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateClangTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", AggregateActionArgs));
+					Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateClangTimingInfo>(ActionType.ParseTimingInfo, String.Join(" ", AggregateActionArgs));
 					AggregateTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 					AggregateTimingInfoAction.bCanExecuteRemotely = false;
@@ -267,7 +267,7 @@ namespace UnrealBuildTool
 						$"-ArchiveFile={ArchiveOutputFile.FullName}",
 					};
 
-					Action ArchiveTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateClangTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ArchiveActionArgs));
+					Action ArchiveTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateClangTimingInfo>(ActionType.ParseTimingInfo, String.Join(" ", ArchiveActionArgs));
 					ArchiveTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 					ArchiveTimingInfoAction.StatusDescription = $"Archiving {TimingJsonFiles.Count} Timing File(s)";
 					ArchiveTimingInfoAction.bCanExecuteRemotely = false;
@@ -675,7 +675,7 @@ namespace UnrealBuildTool
 		/// <param name="Arguments"></param>
 		protected virtual void GetCompileArguments_AdditionalArgs(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			if (!string.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
+			if (!String.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
 			{
 				Arguments.Add(CompileEnvironment.AdditionalArguments);
 			}
@@ -712,7 +712,10 @@ namespace UnrealBuildTool
 			Arguments.Add("-Xclang -analyzer-config -Xclang path-diagnostics-alternate=true");
 
 			// Run shallow analyze if requested.
-			if (StaticAnalyzerMode == StaticAnalyzerMode.Shallow) Arguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
+			if (StaticAnalyzerMode == StaticAnalyzerMode.Shallow)
+			{
+				Arguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
+			}
 
 			if (CompileEnvironment.StaticAnalyzerCheckers.Count > 0)
 			{
@@ -995,7 +998,9 @@ namespace UnrealBuildTool
 		{
 			// This is not supported for now.. If someone wants it we can implement it
 			if (CompileEnvironment.Architectures.bIsMultiArch)
+			{
 				return;
+			}
 
 			List<string> GlobalArguments = new();
 			if (!CompileEnvironment.bHasSharedResponseFile)
@@ -1039,7 +1044,10 @@ namespace UnrealBuildTool
 				// To be conservative we add a dummy define to inflate the response file size and force clang to use the response file mode when we are close to the limit.
 				int CmdLineLength = Info.Clang.ToString().Length;
 				foreach (string Line in ResponseFileContents)
+				{
 					CmdLineLength += 1 + Line.Length;
+				}
+
 				bool bIsInDangerZone = CmdLineLength >= ClangCmdlineDangerZone && CmdLineLength <= ClangCmdLineMaxSize;
 				if (bIsInDangerZone)
 				{
@@ -1110,7 +1118,7 @@ namespace UnrealBuildTool
 
 				if (RuntimePlatform.IsWindows)
 				{
-					int CmdLineLength = Info.Clang.ToString().Length + string.Join(' ', ResponseFileContents).Length;
+					int CmdLineLength = Info.Clang.ToString().Length + String.Join(' ', ResponseFileContents).Length;
 					bool bIsInDangerZone = CmdLineLength >= ClangCmdlineDangerZone && CmdLineLength <= ClangCmdLineMaxSize;
 					if (bIsInDangerZone)
 					{

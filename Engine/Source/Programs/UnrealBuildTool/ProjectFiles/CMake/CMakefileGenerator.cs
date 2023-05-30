@@ -47,7 +47,7 @@ namespace UnrealBuildTool
 		/// This determines if engine files are included in the source lists.
 		/// </remarks>
 		/// <returns><value>true</value> if we should treat this as a project build; <value>false</value> otherwise.</returns>
-		public bool IsProjectBuild => !string.IsNullOrEmpty(GameProjectName);
+		public bool IsProjectBuild => !String.IsNullOrEmpty(GameProjectName);
 
 		/// <summary>
 		/// The file extension for this project file.

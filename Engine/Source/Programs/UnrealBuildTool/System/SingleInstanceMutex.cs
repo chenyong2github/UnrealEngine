@@ -55,7 +55,7 @@ namespace UnrealBuildTool
 		public static string GetUniqueMutexForPath(string Name, string UniquePath)
 		{
 			// generate a md5 hash of the path, as GetHashCode is not guaranteed to generate a stable hash
-			return string.Format("Global\\{0}_{1}", Name, ContentHash.MD5(UniquePath.ToUpperInvariant()));
+			return String.Format("Global\\{0}_{1}", Name, ContentHash.MD5(UniquePath.ToUpperInvariant()));
 		}
 
 		/// <summary>

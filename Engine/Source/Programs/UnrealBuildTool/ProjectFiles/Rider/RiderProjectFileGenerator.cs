@@ -124,10 +124,16 @@ namespace UnrealBuildTool
 				List<UnrealTargetPlatform> FilteredPlatforms = PlatformsToGenerate.Where(it =>
 				{
 					// Skip deprecated platforms if they are not specified in commandline arguments directly 
-					if (DeprecatedPlatforms.Contains(it) && !Platforms.Contains(it)) return false;
+					if (DeprecatedPlatforms.Contains(it) && !Platforms.Contains(it))
+					{
+						return false;
+					}
 
 					if (UEBuildPlatform.IsPlatformAvailable(it))
+					{
 						return true;
+					}
+
 					Logger.LogWarning(
 						"Platform {Platform} is not a valid platform to build. Check that the SDK is installed properly",
 						it);

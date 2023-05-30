@@ -36,7 +36,7 @@ namespace UnrealBuildTool.Artifacts
 			switch (tree)
 			{
 				case ArtifactDirectoryTree.Absolute:
-					return string.Empty;
+					return String.Empty;
 				case ArtifactDirectoryTree.Engine:
 					if (Cache == null || Cache.EngineRoot == null)
 					{
@@ -203,7 +203,7 @@ namespace UnrealBuildTool.Artifacts
 
 			ArtifactMapping[] mappings = await ArtifactCache.QueryArtifactMappingsAsync(new IoHash[] { key }, cancellationToken);
 
-			string actionDescription = string.Empty;
+			string actionDescription = String.Empty;
 			if (LogCacheMisses)
 			{
 				actionDescription = $"{(action.CommandDescription ?? action.CommandPath.GetFileNameWithoutExtension())} {action.StatusDescription}".Trim();

@@ -205,7 +205,7 @@ namespace UnrealBuildTool
 			}
 			catch (ReflectionTypeLoadException Ex)
 			{
-				Console.WriteLine("TypeLoadException: {0}", string.Join("\n", Ex.LoaderExceptions.Select(x => x?.Message)));
+				Console.WriteLine("TypeLoadException: {0}", String.Join("\n", Ex.LoaderExceptions.Select(x => x?.Message)));
 				throw;
 			}
 			return ConfigTypes;

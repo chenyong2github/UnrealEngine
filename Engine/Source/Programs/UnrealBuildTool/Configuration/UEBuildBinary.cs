@@ -138,7 +138,7 @@ namespace UnrealBuildTool
 			)
 		{
 			this.Type = Type;
-			this.OutputDir = OutputFilePaths.First().Directory;
+			OutputDir = OutputFilePaths.First().Directory;
 			this.OutputFilePaths = new List<FileReference>(OutputFilePaths);
 			this.IntermediateDirectory = IntermediateDirectory;
 			this.bAllowExports = bAllowExports;

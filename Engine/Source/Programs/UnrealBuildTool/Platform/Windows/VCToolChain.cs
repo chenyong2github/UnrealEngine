@@ -34,7 +34,7 @@ namespace UnrealBuildTool
 			: base(Logger)
 		{
 			this.Target = Target;
-			this.EnvVars = Target.WindowsPlatform.Environment!;
+			EnvVars = Target.WindowsPlatform.Environment!;
 
 			Logger.LogDebug("Compiler: {Path}", EnvVars.CompilerPath);
 			Logger.LogDebug("Linker: {Path}", EnvVars.LinkerPath);
@@ -105,7 +105,7 @@ namespace UnrealBuildTool
 			ExternalDependencies.Add(FileItem.GetItemByFileReference(EnvVars.LinkerPath));
 		}
 
-		static public void AddDefinition(List<string> Arguments, string Definition)
+		public static void AddDefinition(List<string> Arguments, string Definition)
 		{
 			// Split the definition into name and value
 			int ValueIdx = Definition.IndexOf('=');
@@ -119,7 +119,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		static public void AddDefinition(List<string> Arguments, string Variable, string? Value)
+		public static void AddDefinition(List<string> Arguments, string Variable, string? Value)
 		{
 			// If the value has a space in it and isn't wrapped in quotes, do that now
 			if (Value != null && !Value.StartsWith("\"") && (Value.Contains(" ") || Value.Contains("$")))
@@ -327,7 +327,10 @@ namespace UnrealBuildTool
 					Arguments.Add("-Xclang -analyzer-config -Xclang path-diagnostics-alternate=true");
 
 					// Run shallow analyze if requested.
-					if (Target.StaticAnalyzerMode == StaticAnalyzerMode.Shallow) Arguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
+					if (Target.StaticAnalyzerMode == StaticAnalyzerMode.Shallow)
+					{
+						Arguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
+					}
 
 					if (CompileEnvironment.StaticAnalyzerCheckers.Count > 0)
 					{
@@ -1253,7 +1256,7 @@ namespace UnrealBuildTool
 			}
 
 			// Add any extra options from the target
-			if (!string.IsNullOrEmpty(Target.WindowsPlatform.AdditionalLinkerOptions))
+			if (!String.IsNullOrEmpty(Target.WindowsPlatform.AdditionalLinkerOptions))
 			{
 				Arguments.Add(Target.WindowsPlatform.AdditionalLinkerOptions);
 			}
@@ -1724,7 +1727,7 @@ namespace UnrealBuildTool
 							$"-CompileTimingFile={ExpectedCompileTimeFile}",
 						};
 
-						Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
+						Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, String.Join(" ", ActionArgs));
 						AggregateTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 						AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 						AggregateTimingInfoAction.bCanExecuteRemotely = false;
@@ -1749,7 +1752,7 @@ namespace UnrealBuildTool
 							$"-HeadersFile={HeadersOutputFile.FullName}",
 						};
 
-						Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateClangTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", AggregateActionArgs));
+						Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateClangTimingInfo>(ActionType.ParseTimingInfo, String.Join(" ", AggregateActionArgs));
 						AggregateTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 						AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 						AggregateTimingInfoAction.bCanExecuteRemotely = false;
@@ -1767,7 +1770,7 @@ namespace UnrealBuildTool
 							$"-ArchiveFile={ArchiveOutputFile.FullName}",
 						};
 
-						Action ArchiveTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateClangTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ArchiveActionArgs));
+						Action ArchiveTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateClangTimingInfo>(ActionType.ParseTimingInfo, String.Join(" ", ArchiveActionArgs));
 						ArchiveTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 						ArchiveTimingInfoAction.StatusDescription = $"Archiving {TimingJsonFiles.Count} Timing File(s)";
 						ArchiveTimingInfoAction.bCanExecuteRemotely = false;
@@ -2124,7 +2127,9 @@ namespace UnrealBuildTool
 		{
 			// This is not supported for now.. If someone wants it we can implement it
 			if (CompileEnvironment.Architectures.bIsMultiArch)
+			{
 				return;
+			}
 
 			VCCompileAction BaseCompileAction = CreateBaseCompileAction(CompileEnvironment);
 			AppendCLArguments_CPP(CompileEnvironment, BaseCompileAction.Arguments);
@@ -2326,7 +2331,7 @@ namespace UnrealBuildTool
 			List<string> InputFileNames = new List<string>();
 			foreach (FileItem InputFile in LinkEnvironment.InputFiles)
 			{
-				InputFileNames.Add(string.Format("\"{0}\"", NormalizeCommandLinePath(InputFile)));
+				InputFileNames.Add(String.Format("\"{0}\"", NormalizeCommandLinePath(InputFile)));
 				PrerequisiteItems.Add(InputFile);
 			}
 
@@ -2334,18 +2339,18 @@ namespace UnrealBuildTool
 			{
 				foreach (FileReference Library in LinkEnvironment.Libraries)
 				{
-					InputFileNames.Add(string.Format("\"{0}\"", NormalizeCommandLinePath(Library)));
+					InputFileNames.Add(String.Format("\"{0}\"", NormalizeCommandLinePath(Library)));
 					PrerequisiteItems.Add(FileItem.GetItemByFileReference(Library));
 				}
 				foreach (string SystemLibrary in LinkEnvironment.SystemLibraries)
 				{
-					InputFileNames.Add(string.Format("\"{0}\"", SystemLibrary));
+					InputFileNames.Add(String.Format("\"{0}\"", SystemLibrary));
 				}
 
 				foreach (FileItem NatvisFile in LinkEnvironment.DebuggerVisualizerFiles)
 				{
 					PrerequisiteItems.Add(NatvisFile);
-					Arguments.Add(string.Format("/NATVIS:\"{0}\"",
+					Arguments.Add(String.Format("/NATVIS:\"{0}\"",
 						NormalizeCommandLinePath(NatvisFile)));
 				}
 
@@ -2532,7 +2537,7 @@ namespace UnrealBuildTool
 				int PGCFileIndex = 0;
 				foreach (string SrcFilePath in PGCFiles)
 				{
-					string DestFileName = string.Format("{0}!{1}.pgc", LinkEnvironment.PGOFilenamePrefix, ++PGCFileIndex);
+					string DestFileName = String.Format("{0}!{1}.pgc", LinkEnvironment.PGOFilenamePrefix, ++PGCFileIndex);
 					string DestFilePath = Path.Combine(LinkEnvironment.OutputDirectory.FullName, DestFileName);
 
 					Logger.LogInformation("{Source} -> {Target}", SrcFilePath, DestFilePath);

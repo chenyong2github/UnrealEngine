@@ -144,7 +144,7 @@ namespace UnrealBuildTool
 		{
 			SetupCommonProperties(Target);
 
-			ExeBinariesSubFolder = LaunchModuleName = Name + (ExplicitTestsTarget ? string.Empty : "Tests");
+			ExeBinariesSubFolder = LaunchModuleName = Name + (ExplicitTestsTarget ? String.Empty : "Tests");
 
 			if (ExplicitTestsTarget)
 			{

@@ -88,8 +88,8 @@ namespace UnrealBuildTool
 		{
 			this.Name = Name;
 			this.ZipFile = ZipFile;
-			this.ZipOutputDirectory = OutputDirectory;
-			this.FrameworkDirectory = OutputDirectory;
+			ZipOutputDirectory = OutputDirectory;
+			FrameworkDirectory = OutputDirectory;
 			this.CopyBundledAssets = CopyBundledAssets;
 			this.bCopyFramework = bCopyFramework;
 			this.bLinkFramework = bLinkFramework;
@@ -112,7 +112,7 @@ namespace UnrealBuildTool
 			this.bCopyFramework = bCopyFramework;
 			if (this.FrameworkDirectory.FullName.EndsWith(".xcframework"))
 			{
-				this.XCFrameworkVariants = LoadXCFrameworkVariants(Logger);
+				XCFrameworkVariants = LoadXCFrameworkVariants(Logger);
 			}
 		}
 

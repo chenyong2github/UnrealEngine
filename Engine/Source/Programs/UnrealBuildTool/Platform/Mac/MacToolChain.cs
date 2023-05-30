@@ -57,7 +57,7 @@ namespace UnrealBuildTool
 			{
 				throw new BuildException("Unable to find installed MacOS SDK on remote agent.");
 			}
-			else if (!float.TryParse(MacOSSDKVersion, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture.NumberFormat, out MacOSSDKVersionFloat))
+			else if (!Single.TryParse(MacOSSDKVersion, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture.NumberFormat, out MacOSSDKVersionFloat))
 			{
 				throw new BuildException("Unable to parse installed MacOS version (\"{0}\")", MacOSSDKVersion);
 			}
@@ -120,9 +120,9 @@ namespace UnrealBuildTool
 		{
 			DirectoryReference? ProgramFinder = StartingDir;
 			while (ProgramFinder != null &&
-				string.Compare(ProgramFinder.GetDirectoryName(), "Source", true) != 0 &&
-				string.Compare(ProgramFinder.GetDirectoryName(), "Intermediate", true) != 0 &&
-				string.Compare(ProgramFinder.GetDirectoryName(), "Binaries", true) != 0)
+				String.Compare(ProgramFinder.GetDirectoryName(), "Source", true) != 0 &&
+				String.Compare(ProgramFinder.GetDirectoryName(), "Intermediate", true) != 0 &&
+				String.Compare(ProgramFinder.GetDirectoryName(), "Binaries", true) != 0)
 			{
 				ProgramFinder = ProgramFinder.ParentDirectory;
 			}
@@ -195,15 +195,15 @@ namespace UnrealBuildTool
 		/// <inheritdoc/>
 		protected override void GetCompileArguments_AdditionalArgs(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			if (!string.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
+			if (!String.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
 			{
-				string EscapedAdditionalArgs = string.Empty;
+				string EscapedAdditionalArgs = String.Empty;
 				foreach (string AdditionalArg in CompileEnvironment.AdditionalArguments.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
 				{
 					Match DefinitionMatch = Regex.Match(AdditionalArg, "-D\"?(?<Name>.*)=(?<Value>.*)\"?");
 					if (DefinitionMatch.Success)
 					{
-						EscapedAdditionalArgs += string.Format(" -D{0}=\"{1}\"", DefinitionMatch.Groups["Name"].Value, DefinitionMatch.Groups["Value"].Value);
+						EscapedAdditionalArgs += String.Format(" -D{0}=\"{1}\"", DefinitionMatch.Groups["Name"].Value, DefinitionMatch.Groups["Value"].Value);
 					}
 					else
 					{
@@ -211,7 +211,7 @@ namespace UnrealBuildTool
 					}
 				}
 
-				if (!string.IsNullOrWhiteSpace(EscapedAdditionalArgs))
+				if (!String.IsNullOrWhiteSpace(EscapedAdditionalArgs))
 				{
 					Arguments.Add(EscapedAdditionalArgs);
 				}
@@ -269,7 +269,7 @@ namespace UnrealBuildTool
 		{
 			// Pass through architecture and OS info		
 			Arguments.Add(FormatArchitectureArg(LinkEnvironment.Architectures));
-			Arguments.Add(string.Format("-isysroot \"{0}\"", SDKPath));
+			Arguments.Add(String.Format("-isysroot \"{0}\"", SDKPath));
 			Arguments.Add("-mmacosx-version-min=" + Settings.MacOSVersion);
 			Arguments.Add("-dead_strip");
 
@@ -541,7 +541,7 @@ namespace UnrealBuildTool
 				LipoAction.CommandPath = FileReference.Combine(Info.Clang.Directory, "lipo");
 				LipoAction.CommandDescription = (bBuildImportLibraryOnly ? "LipoStub" : "Lipo");
 				LipoAction.CommandVersion = Info.ClangVersionString;
-				LipoAction.CommandArguments = string.Join(" ", PerArchOutputFiles) + $" -create -output {OutputFileItem.AbsolutePath}";
+				LipoAction.CommandArguments = String.Join(" ", PerArchOutputFiles) + $" -create -output {OutputFileItem.AbsolutePath}";
 				LipoAction.StatusDescription = Path.GetFileName(OutputFileItem.AbsolutePath);
 				LipoAction.bCanExecuteRemotely = false;
 			}
@@ -578,7 +578,7 @@ namespace UnrealBuildTool
 
 				// bundle identifier
 				// plist replacements
-				DirectoryReference? DirRef = (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : (ProjectFile != null ? ProjectFile.Directory : null));
+				DirectoryReference? DirRef = (!String.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : (ProjectFile != null ? ProjectFile.Directory : null));
 				ConfigHierarchy IOSIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirRef, UnrealTargetPlatform.IOS);
 
 				string BundleIdentifier;
@@ -743,7 +743,7 @@ namespace UnrealBuildTool
 				GetLinkArguments_Global(LinkEnvironment, LinkArguments);
 			}
 
-			LinkCommand = VersionArg + " " + string.Join(' ', LinkArguments);
+			LinkCommand = VersionArg + " " + String.Join(' ', LinkArguments);
 
 			// Tell the action that we're building an import library here and it should conditionally be
 			// ignored as a prerequisite for other actions
@@ -807,15 +807,15 @@ namespace UnrealBuildTool
 					}
 					else if (AdditionalLibrary.Contains(".framework/"))
 					{
-						LinkCommand += string.Format(" \"{0}\"", AdditionalLibrary);
+						LinkCommand += String.Format(" \"{0}\"", AdditionalLibrary);
 					}
-					else if (string.IsNullOrEmpty(Path.GetDirectoryName(AdditionalLibrary)) && string.IsNullOrEmpty(Path.GetExtension(AdditionalLibrary)))
+					else if (String.IsNullOrEmpty(Path.GetDirectoryName(AdditionalLibrary)) && String.IsNullOrEmpty(Path.GetExtension(AdditionalLibrary)))
 					{
-						LinkCommand += string.Format(" -l\"{0}\"", AdditionalLibrary);
+						LinkCommand += String.Format(" -l\"{0}\"", AdditionalLibrary);
 					}
 					else
 					{
-						LinkCommand += string.Format(" \"{0}\"", Path.GetFullPath(AdditionalLibrary));
+						LinkCommand += String.Format(" \"{0}\"", Path.GetFullPath(AdditionalLibrary));
 					}
 
 					AddLibraryPathToRPaths(AdditionalLibrary, AbsolutePath, ref RPaths, ref LinkCommand, bIsBuildingAppBundle, Logger);
@@ -823,7 +823,7 @@ namespace UnrealBuildTool
 
 				foreach (string AdditionalLibrary in LinkEnvironment.DelayLoadDLLs)
 				{
-					LinkCommand += string.Format(" -weak_library \"{0}\"", Path.GetFullPath(AdditionalLibrary));
+					LinkCommand += String.Format(" -weak_library \"{0}\"", Path.GetFullPath(AdditionalLibrary));
 
 					AddLibraryPathToRPaths(AdditionalLibrary, AbsolutePath, ref RPaths, ref LinkCommand, bIsBuildingAppBundle, Logger);
 				}
@@ -877,7 +877,7 @@ namespace UnrealBuildTool
 
 					FileReference MapFilePath = new FileReference(MapFileBaseName + ".map");
 					FileItem MapFile = FileItem.GetItemByFileReference(MapFilePath);
-					LinkCommand += string.Format(" -Wl,-map,\"{0}\"", MapFilePath);
+					LinkCommand += String.Format(" -Wl,-map,\"{0}\"", MapFilePath);
 					LinkAction.ProducedItems.Add(MapFile);
 				}
 			}
@@ -888,15 +888,15 @@ namespace UnrealBuildTool
 				string? InstallName = LinkEnvironment.InstallName;
 				if (InstallName == null)
 				{
-					InstallName = string.Format("{0}/{1}", DylibsPath, Path.GetFileName(OutputFile.AbsolutePath).Replace($".dylib_{LinkEnvironment.Architecture}", ".dylib"));
+					InstallName = String.Format("{0}/{1}", DylibsPath, Path.GetFileName(OutputFile.AbsolutePath).Replace($".dylib_{LinkEnvironment.Architecture}", ".dylib"));
 				}
-				LinkCommand += string.Format(" -install_name \"{0}\"", InstallName);
+				LinkCommand += String.Format(" -install_name \"{0}\"", InstallName);
 			}
 
 			List<string> InputFileNames = new List<string>();
 			foreach (FileItem InputFile in InputFiles)
 			{
-				InputFileNames.Add(string.Format("\"{0}\"", NormalizeCommandLinePath(InputFile)));
+				InputFileNames.Add(String.Format("\"{0}\"", NormalizeCommandLinePath(InputFile)));
 				LinkAction.PrerequisiteItems.Add(InputFile);
 			}
 
@@ -906,7 +906,7 @@ namespace UnrealBuildTool
 			}
 
 			// Add the output file to the command-line.
-			LinkCommand += string.Format(" -o \"{0}\"", OutputFile.AbsolutePath);
+			LinkCommand += String.Format(" -o \"{0}\"", OutputFile.AbsolutePath);
 
 			// Add the additional arguments specified by the environment.
 			LinkCommand += LinkEnvironment.AdditionalArguments;
@@ -975,35 +975,35 @@ namespace UnrealBuildTool
 			string UniversalDsymutilScriptPath = FileReference.Combine(Unreal.EngineDirectory, "Build/BatchFiles/Mac/GenerateUniversalDSYM.sh").FullName;
 
 			string ArgumentString = "-c \"";
-			ArgumentString += string.Format("for i in {{1..30}}; ");
-			ArgumentString += string.Format("do if [ -f \\\"{0}\\\" ] ; ", MachOBinary.AbsolutePath);
-			ArgumentString += string.Format("then ");
-			ArgumentString += string.Format("break; ");
-			ArgumentString += string.Format("else ");
-			ArgumentString += string.Format("sleep 1; ");
-			ArgumentString += string.Format("fi; ");
-			ArgumentString += string.Format("done; ");
+			ArgumentString += String.Format("for i in {{1..30}}; ");
+			ArgumentString += String.Format("do if [ -f \\\"{0}\\\" ] ; ", MachOBinary.AbsolutePath);
+			ArgumentString += String.Format("then ");
+			ArgumentString += String.Format("break; ");
+			ArgumentString += String.Format("else ");
+			ArgumentString += String.Format("sleep 1; ");
+			ArgumentString += String.Format("fi; ");
+			ArgumentString += String.Format("done; ");
 
-			ArgumentString += string.Format("if [ ! -f \\\"{1}\\\" ] || [ \\\"{0}\\\" -nt \\\"{1}\\\" ] ; ", MachOBinary.AbsolutePath, OutputFile.AbsolutePath);
-			ArgumentString += string.Format("then ");
-			ArgumentString += string.Format("rm -rf \\\"{0}\\\"; ", OutputFile.AbsolutePath);
+			ArgumentString += String.Format("if [ ! -f \\\"{1}\\\" ] || [ \\\"{0}\\\" -nt \\\"{1}\\\" ] ; ", MachOBinary.AbsolutePath, OutputFile.AbsolutePath);
+			ArgumentString += String.Format("then ");
+			ArgumentString += String.Format("rm -rf \\\"{0}\\\"; ", OutputFile.AbsolutePath);
 			// use the new script for monolthic (ie large) targets
 			if (LinkEnvironment.LinkType == TargetLinkType.Monolithic)
 			{
-				ArgumentString += string.Format(" \\\"{0}\\\" \\\"{1}\\\" \\\"{2}\\\"; ",
+				ArgumentString += String.Format(" \\\"{0}\\\" \\\"{1}\\\" \\\"{2}\\\"; ",
 					UniversalDsymutilScriptPath,
 					MachOBinary.AbsolutePath,
 					OutputFile.AbsolutePath);
 			}
 			else
 			{
-				ArgumentString += string.Format(" \\\"{0}\\\" {3} -f \\\"{1}\\\" -o \\\"{2}\\\"; ",
+				ArgumentString += String.Format(" \\\"{0}\\\" {3} -f \\\"{1}\\\" -o \\\"{2}\\\"; ",
 					DsymutilPath,
 					MachOBinary.AbsolutePath,
 					OutputFile.AbsolutePath,
 					ExtraOptions);
 			}
-			ArgumentString += string.Format("fi; ");
+			ArgumentString += String.Format("fi; ");
 			ArgumentString += "\"";
 
 			GenDebugAction.CommandArguments = ArgumentString;
@@ -1042,7 +1042,7 @@ namespace UnrealBuildTool
 			FinalizeAppBundleAction.CommandArguments = "\"" + BundleScript.AbsolutePath + "\"";
 			FinalizeAppBundleAction.PrerequisiteItems.Add(Executable);
 			FinalizeAppBundleAction.ProducedItems.Add(DestFile);
-			FinalizeAppBundleAction.StatusDescription = string.Format("Finalizing app bundle: {0}.app", Path.GetFileName(Executable.AbsolutePath));
+			FinalizeAppBundleAction.StatusDescription = String.Format("Finalizing app bundle: {0}.app", Path.GetFileName(Executable.AbsolutePath));
 			FinalizeAppBundleAction.bCanExecuteRemotely = false;
 
 			return DestFile;
@@ -1061,11 +1061,11 @@ namespace UnrealBuildTool
 
 			FileItem TargetItem = FileItem.GetItemByPath(TargetPath);
 
-			CopyAction.CommandArguments = string.Format("-c \"cp -f -R \\\"{0}\\\" \\\"{1}\\\"; touch -c \\\"{2}\\\"\"", SourcePath, Path.GetDirectoryName(TargetPath)!.Replace('\\', '/') + "/", TargetPath.Replace('\\', '/'));
+			CopyAction.CommandArguments = String.Format("-c \"cp -f -R \\\"{0}\\\" \\\"{1}\\\"; touch -c \\\"{2}\\\"\"", SourcePath, Path.GetDirectoryName(TargetPath)!.Replace('\\', '/') + "/", TargetPath.Replace('\\', '/'));
 			CopyAction.PrerequisiteItems.Add(Executable);
 			CopyAction.ProducedItems.Add(TargetItem);
 			CopyAction.bShouldOutputStatusDescription = Resource.bShouldLog;
-			CopyAction.StatusDescription = string.Format("Copying {0} to app bundle", Path.GetFileName(Resource.ResourcePath));
+			CopyAction.StatusDescription = String.Format("Copying {0} to app bundle", Path.GetFileName(Resource.ResourcePath));
 			CopyAction.bCanExecuteRemotely = false;
 
 			return TargetItem;
@@ -1092,7 +1092,7 @@ namespace UnrealBuildTool
 							break;
 					}
 					string? DSYMExtension = Array.Find(DebugExtensions, element => element == ".dSYM");
-					if (!string.IsNullOrEmpty(DSYMExtension))
+					if (!String.IsNullOrEmpty(DSYMExtension))
 					{
 						string BinaryPath = BuildProductPair.Key.FullName;
 						if (BinaryPath.Contains(".app"))
@@ -1191,7 +1191,7 @@ namespace UnrealBuildTool
 			List<string> OutputFiles = Makefile.OutputItems.Select(Item => Path.ChangeExtension(Item.FullName, ".dSYM")).Distinct().ToList();
 			foreach (FileItem DebugItem in DebugInfoFiles)
 			{
-				if (OutputFiles.Any(Item => string.Equals(Item, DebugItem.FullName, StringComparison.InvariantCultureIgnoreCase)))
+				if (OutputFiles.Any(Item => String.Equals(Item, DebugItem.FullName, StringComparison.InvariantCultureIgnoreCase)))
 				{
 					Makefile.OutputItems.Add(DebugItem);
 				}

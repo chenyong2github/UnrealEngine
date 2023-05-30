@@ -66,7 +66,7 @@ namespace UnrealBuildTool
 	/// <param name="UseActionWeights">If true, use the action weight as a secondary limit</param>
 	/// <param name="MaxActions">Maximum number of action actions</param>
 	/// <param name="MaxActionWeight">Maximum weight of actions</param>
-	record ImmediateActionQueueRunner(ImmediateActionQueueRunnerType Type, ActionPhase ActionPhase, Func<LinkedAction, Func<Task>?> RunAction, bool UseActionWeights = false, int MaxActions = int.MaxValue, double MaxActionWeight = int.MaxValue)
+	record ImmediateActionQueueRunner(ImmediateActionQueueRunnerType Type, ActionPhase ActionPhase, Func<LinkedAction, Func<Task>?> RunAction, bool UseActionWeights = false, int MaxActions = Int32.MaxValue, double MaxActionWeight = Int32.MaxValue)
 	{
 		/// <summary>
 		/// Current number of active actions
@@ -380,7 +380,7 @@ namespace UnrealBuildTool
 		/// <param name="maxActions">Maximum number of action actions</param>
 		/// <param name="maxActionWeight">Maximum weight of actions</param>
 		/// <returns>Created runner</returns>
-		public ImmediateActionQueueRunner CreateManualRunner(Func<LinkedAction, Func<Task>?> runAction, bool useActionWeights = false, int maxActions = int.MaxValue, double maxActionWeight = double.MaxValue)
+		public ImmediateActionQueueRunner CreateManualRunner(Func<LinkedAction, Func<Task>?> runAction, bool useActionWeights = false, int maxActions = Int32.MaxValue, double maxActionWeight = Double.MaxValue)
 		{
 			ImmediateActionQueueRunner runner = new(ImmediateActionQueueRunnerType.Manual, ActionPhase.Compile, runAction, useActionWeights, maxActions, maxActionWeight);
 			_runners.Add(runner);
@@ -498,7 +498,7 @@ namespace UnrealBuildTool
 					}
 					if (prematureDone)
 					{
-						AddCompletedActions(int.MaxValue);
+						AddCompletedActions(Int32.MaxValue);
 					}
 					return false;
 				}
@@ -523,13 +523,13 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					ExecuteResults results = new(new List<string>(), int.MaxValue, TimeSpan.Zero, TimeSpan.Zero);
+					ExecuteResults results = new(new List<string>(), Int32.MaxValue, TimeSpan.Zero, TimeSpan.Zero);
 					OnActionCompleted(action, false, results);
 				}
 			}
 			else if (ex is OperationCanceledException)
 			{
-				ExecuteResults results = new(new List<string>(), int.MaxValue, TimeSpan.Zero, TimeSpan.Zero);
+				ExecuteResults results = new(new List<string>(), Int32.MaxValue, TimeSpan.Zero, TimeSpan.Zero);
 				OnActionCompleted(action, false, results);
 			}
 			else
@@ -539,7 +539,7 @@ namespace UnrealBuildTool
 					ExceptionUtils.FormatException(ex),
 					ExceptionUtils.FormatExceptionDetails(ex),
 				};
-				ExecuteResults results = new(text, int.MaxValue, TimeSpan.Zero, TimeSpan.Zero);
+				ExecuteResults results = new(text, Int32.MaxValue, TimeSpan.Zero, TimeSpan.Zero);
 				OnActionCompleted(action, false, results);
 			}
 		}
@@ -782,7 +782,7 @@ namespace UnrealBuildTool
 			{
 				// do nothing
 			}
-			else if (count != int.MaxValue)
+			else if (count != Int32.MaxValue)
 			{
 				if (Interlocked.Add(ref _completedActions, count) == TotalActions)
 				{
@@ -841,7 +841,7 @@ namespace UnrealBuildTool
 		private void LogAction(LinkedAction action, ExecuteResults? executeTaskResult)
 		{
 			List<string>? logLines = null;
-			int exitCode = int.MaxValue;
+			int exitCode = Int32.MaxValue;
 			TimeSpan executionTime = TimeSpan.Zero;
 			TimeSpan processorTime = TimeSpan.Zero;
 			string? additionalDescription = null;
@@ -855,7 +855,7 @@ namespace UnrealBuildTool
 			}
 
 			// Write it to the log
-			string description = string.Empty;
+			string description = String.Empty;
 			if (action.bShouldOutputStatusDescription || (logLines != null && logLines.Count == 0))
 			{
 				description = $"{(action.CommandDescription ?? action.CommandPath.GetFileNameWithoutExtension())} {action.StatusDescription}".Trim();
@@ -864,7 +864,7 @@ namespace UnrealBuildTool
 			{
 				description = $"{(action.CommandDescription ?? action.CommandPath.GetFileNameWithoutExtension())} {logLines[0]}".Trim();
 			}
-			if (!string.IsNullOrEmpty(additionalDescription))
+			if (!String.IsNullOrEmpty(additionalDescription))
 			{
 				description = $"{description} {additionalDescription}";
 			}
@@ -876,7 +876,7 @@ namespace UnrealBuildTool
 				ProgressWriter.Write(completedActions, Actions.Length);
 
 				// Canceled
-				if (exitCode == int.MaxValue)
+				if (exitCode == Int32.MaxValue)
 				{
 					Logger.LogInformation("[{CompletedActions}/{TotalActions}] {Description} canceled", completedActions, totalActions, description);
 					return;

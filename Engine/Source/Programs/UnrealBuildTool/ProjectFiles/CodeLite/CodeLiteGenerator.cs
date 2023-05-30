@@ -40,7 +40,7 @@ namespace UnrealBuildTool
 		//
 		// Returns CodeLite's project filename extension.
 		//
-		override public string ProjectFileExtension => ".project";
+		public override string ProjectFileExtension => ".project";
 		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			string SolutionFileName = PrimaryProjectName + SolutionExtension;

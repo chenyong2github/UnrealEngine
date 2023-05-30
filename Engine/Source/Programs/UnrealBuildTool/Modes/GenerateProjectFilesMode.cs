@@ -166,7 +166,7 @@ namespace UnrealBuildTool
 			}
 			if (BadPlatformNames.Count > 0)
 			{
-				Log.TraceInformationOnce("\nSome Platforms were skipped due to invalid SDK setup: {0}.\nSee the log file for detailed information\n\n", string.Join(", ", BadPlatformNames));
+				Log.TraceInformationOnce("\nSome Platforms were skipped due to invalid SDK setup: {0}.\nSee the log file for detailed information\n\n", String.Join(", ", BadPlatformNames));
 				Logger.LogInformation("");
 			}
 			Logger.LogDebug("---   SDK INFO END   ---");
@@ -292,7 +292,7 @@ namespace UnrealBuildTool
 
 			// We have a project file either via -project= or because there was something called .uproject in the arg list
 			// so now validate it
-			if (!string.IsNullOrEmpty(CandidateProjectPath))
+			if (!String.IsNullOrEmpty(CandidateProjectPath))
 			{
 				FileReference? CandidateProjectFile = FileReference.FindCorrectCase(new FileReference(CandidateProjectPath));
 
@@ -311,7 +311,7 @@ namespace UnrealBuildTool
 				if (CandidateProjectFile == null || !FileReference.Exists(CandidateProjectFile))
 				{
 					// if we didn't find anything then throw an error as the user explicitly provided a uproject
-					throw new Exception(string.Format("Unable to find project file based on argument {0}", CandidateProjectPath));
+					throw new Exception(String.Format("Unable to find project file based on argument {0}", CandidateProjectPath));
 				}
 
 				Logger.LogDebug("Resolved project argument {CandidateProjectPath} to {CandidateProjectFile}", CandidateProjectPath, CandidateProjectFile);

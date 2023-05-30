@@ -34,16 +34,25 @@ namespace UnrealBuildTool
 		{
 			foreach (FieldInfo FieldInfo in typeof(ToolchainInfo).GetFields())
 			{
-				if (FieldInfo.GetValue(this) == null) continue;
+				if (FieldInfo.GetValue(this) == null)
+				{
+					continue;
+				}
+
 				if (typeof(List<string>).IsAssignableFrom(FieldInfo.FieldType))
 				{
 					List<string> LocalField = (List<string>)FieldInfo.GetValue(this)!;
 					HashSet<string> OtherField = new HashSet<string>((List<string>)FieldInfo.GetValue(Other)!);
 					IEnumerable<string> Result = LocalField.Where(Item => OtherField.Contains(Item));
-					if (Result.Any()) yield return new Tuple<string, object?>(FieldInfo.Name, Result);
+					if (Result.Any())
+					{
+						yield return new Tuple<string, object?>(FieldInfo.Name, Result);
+					}
 				}
 				else if (!FieldInfo.GetValue(this)!.Equals(FieldInfo.GetValue(Other)))
+				{
 					yield return new Tuple<string, object?>(FieldInfo.Name, FieldInfo.GetValue(this));
+				}
 			}
 		}
 
@@ -57,8 +66,16 @@ namespace UnrealBuildTool
 
 		public bool Equals(ToolchainInfo? Other)
 		{
-			if (ReferenceEquals(null, Other)) return false;
-			if (ReferenceEquals(this, Other)) return true;
+			if (ReferenceEquals(null, Other))
+			{
+				return false;
+			}
+
+			if (ReferenceEquals(this, Other))
+			{
+				return true;
+			}
+
 			return CppStandard == Other.CppStandard && bUseRTTI == Other.bUseRTTI &&
 				bEnableExceptions == Other.bEnableExceptions && bIsBuildingLibrary == Other.bIsBuildingLibrary &&
 				bIsBuildingDLL == Other.bIsBuildingDLL && Architecture == Other.Architecture &&
@@ -73,8 +90,16 @@ namespace UnrealBuildTool
 
 		public override bool Equals(object? Obj)
 		{
-			if (ReferenceEquals(null, Obj)) return false;
-			if (ReferenceEquals(this, Obj)) return true;
+			if (ReferenceEquals(null, Obj))
+			{
+				return false;
+			}
+
+			if (ReferenceEquals(this, Obj))
+			{
+				return true;
+			}
+
 			return Obj is ToolchainInfo && Equals((ToolchainInfo)Obj);
 		}
 

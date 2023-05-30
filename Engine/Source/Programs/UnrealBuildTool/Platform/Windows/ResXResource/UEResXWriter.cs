@@ -56,7 +56,7 @@ namespace UnrealBuildTool
 				Data.Attributes.Append(Attr);
 			}
 
-			if (!string.IsNullOrEmpty(InSpace))
+			if (!System.String.IsNullOrEmpty(InSpace))
 			{
 				XmlAttribute Attr = Document.CreateAttribute("xml:space");
 				Attr.Value = "preserve";

@@ -2380,13 +2380,13 @@ namespace UnrealBuildTool
 		/// <param name="Target">Information about the target being built</param>
 		public TargetRules(TargetInfo Target)
 		{
-			this.DefaultName = Target.Name;
-			this.Platform = Target.Platform;
-			this.Configuration = Target.Configuration;
-			this.Architectures = Target.Architectures;
-			this.ProjectFile = Target.ProjectFile;
-			this.Version = Target.Version;
-			this.WindowsPlatform = new WindowsTargetRules(this);
+			DefaultName = Target.Name;
+			Platform = Target.Platform;
+			Configuration = Target.Configuration;
+			Architectures = Target.Architectures;
+			ProjectFile = Target.ProjectFile;
+			Version = Target.Version;
+			WindowsPlatform = new WindowsTargetRules(this);
 
 			// Make sure the logger was initialized by the caller
 			if (Logger == null)

@@ -81,7 +81,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Name"></param>
 		/// <returns></returns>
-		static private UnrealTargetPlatform FindOrAddByName(string Name)
+		private static UnrealTargetPlatform FindOrAddByName(string Name)
 		{
 			return new UnrealTargetPlatform(GetUniqueStringRegistry().FindOrAddByName(Name));
 		}
@@ -92,7 +92,7 @@ namespace UnrealBuildTool
 		/// <param name="Alias"></param>
 		/// /// <param name="Original"></param>
 		/// <returns></returns>
-		static private UnrealTargetPlatform AddAliasByName(string Alias, UnrealTargetPlatform Original)
+		private static UnrealTargetPlatform AddAliasByName(string Alias, UnrealTargetPlatform Original)
 		{
 			GetUniqueStringRegistry().FindOrAddAlias(Alias, Original.ToString());
 			return Original;
@@ -159,7 +159,7 @@ namespace UnrealBuildTool
 		/// <param name="Name"></param>
 		/// <param name="Platform"></param>
 		/// <returns></returns>
-		static public bool TryParse(string Name, out UnrealTargetPlatform Platform)
+		public static bool TryParse(string Name, out UnrealTargetPlatform Platform)
 		{
 			if (GetUniqueStringRegistry().HasString(Name))
 			{
@@ -182,7 +182,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Name"></param>
 		/// <returns></returns>
-		static public UnrealTargetPlatform Parse(string Name)
+		public static UnrealTargetPlatform Parse(string Name)
 		{
 			if (GetUniqueStringRegistry().HasString(Name))
 			{
@@ -195,8 +195,8 @@ namespace UnrealBuildTool
 				return new UnrealTargetPlatform(Id);
 			}
 
-			throw new BuildException(string.Format("The platform name {0} is not a valid platform name. Valid names are ({1})", Name,
-				string.Join(",", GetUniqueStringRegistry().GetStringNames())));
+			throw new BuildException(String.Format("The platform name {0} is not a valid platform name. Valid names are ({1})", Name,
+				String.Join(",", GetUniqueStringRegistry().GetStringNames())));
 		}
 
 
@@ -289,7 +289,9 @@ namespace UnrealBuildTool
 		public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
 		{
 			if (sourceType == typeof(string))
+			{
 				return true;
+			}
 
 			return base.CanConvertFrom(context, sourceType);
 		}
@@ -297,7 +299,9 @@ namespace UnrealBuildTool
 		public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
 		{
 			if (destinationType == typeof(string))
+			{
 				return true;
+			}
 
 			return base.CanConvertTo(context, destinationType);
 		}
@@ -405,7 +409,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Name"></param>
 		/// <returns></returns>
-		static private UnrealPlatformGroup FindOrAddByName(string Name)
+		private static UnrealPlatformGroup FindOrAddByName(string Name)
 		{
 			return new UnrealPlatformGroup(GetUniqueStringRegistry().FindOrAddByName(Name));
 		}
@@ -629,7 +633,7 @@ namespace UnrealBuildTool
 		/// <param name="Name"></param>
 		/// <param name="bIsX64">True if X64, false if not, or null if it's Default and will ask the platform later</param>
 		/// <returns></returns>
-		static private UnrealArch FindOrAddByName(string Name, bool? bIsX64)
+		private static UnrealArch FindOrAddByName(string Name, bool? bIsX64)
 		{
 			int Id = GetUniqueStringRegistry().FindOrAddByName(Name);
 			if (bIsX64 != null)
@@ -738,7 +742,7 @@ namespace UnrealBuildTool
 		/// <param name="Name"></param>
 		/// <param name="Arch"></param>
 		/// <returns></returns>
-		static public bool TryParse(string Name, out UnrealArch Arch)
+		public static bool TryParse(string Name, out UnrealArch Arch)
 		{
 			// handle the Host string
 			if (Name.Equals("Host", StringComparison.OrdinalIgnoreCase))
@@ -770,7 +774,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Name"></param>
 		/// <returns></returns>
-		static public UnrealArch Parse(string Name)
+		public static UnrealArch Parse(string Name)
 		{
 			// handle the Host string
 			if (Name.Equals("Host", StringComparison.OrdinalIgnoreCase))
@@ -791,8 +795,8 @@ namespace UnrealBuildTool
 				return new UnrealArch(Id);
 			}
 
-			throw new BuildException(string.Format("The Architecture name {0} is not a valid Architecture name. Valid names are ({1})", Name,
-				string.Join(",", GetUniqueStringRegistry().GetStringNames())));
+			throw new BuildException(String.Format("The Architecture name {0} is not a valid Architecture name. Valid names are ({1})", Name,
+				String.Join(",", GetUniqueStringRegistry().GetStringNames())));
 		}
 
 
@@ -850,7 +854,9 @@ namespace UnrealBuildTool
 		public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
 		{
 			if (sourceType == typeof(string))
+			{
 				return true;
+			}
 
 			return base.CanConvertFrom(context, sourceType);
 		}
@@ -858,7 +864,9 @@ namespace UnrealBuildTool
 		public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
 		{
 			if (destinationType == typeof(string))
+			{
 				return true;
+			}
 
 			return base.CanConvertTo(context, destinationType);
 		}
@@ -914,7 +922,7 @@ namespace UnrealBuildTool
 					UnrealArch Arch;
 					if (!UnrealArch.TryParse(ArchString, out Arch) || !ArchConfig.AllSupportedArchitectures.Contains(Arch))
 					{
-						string ValidArches = string.Join("\n  ", ArchConfig.AllSupportedArchitectures.Architectures);
+						string ValidArches = String.Join("\n  ", ArchConfig.AllSupportedArchitectures.Architectures);
 						throw new BuildException($"Platform {ValidationPlatform} does not support architecture {ArchString}. Valid options are:\n  {ValidArches}");
 					}
 				}
@@ -963,7 +971,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static UnrealArchitectures? FromString(string? ArchString, UnrealTargetPlatform? ValidationPlatform)
 		{
-			if (string.IsNullOrEmpty(ArchString))
+			if (String.IsNullOrEmpty(ArchString))
 			{
 				return null;
 			}
@@ -986,7 +994,7 @@ namespace UnrealBuildTool
 			{
 				if (Architectures.Count > 1)
 				{
-					throw new BuildException($"Asking CppCompileEnvironment for a single Architecture, but it has multiple Architectures ({string.Join(", ", Architectures)}). This indicates logic needs to be updated");
+					throw new BuildException($"Asking CppCompileEnvironment for a single Architecture, but it has multiple Architectures ({String.Join(", ", Architectures)}). This indicates logic needs to be updated");
 				}
 				return Architectures[0];
 			}
@@ -1002,12 +1010,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override string ToString()
 		{
-			return string.Join('+', Architectures);
+			return String.Join('+', Architectures);
 		}
 
 		internal string GetFolderNameForPlatform(UnrealArchitectureConfig Config)
 		{
-			return string.Join('+', Architectures.Select(x => Config.GetFolderNameForArchitecture(x)));
+			return String.Join('+', Architectures.Select(x => Config.GetFolderNameForArchitecture(x)));
 		}
 
 		/// <summary>
@@ -1345,9 +1353,9 @@ namespace UnrealBuildTool
 			bool bUsesTargetReceiptToEnablePlugins = (ThisRules.Type == TargetType.Editor && ThisRules.LinkType != TargetLinkType.Monolithic);
 			if (!bUsesTargetReceiptToEnablePlugins && (ThisRules.EnablePlugins.Count > 0 || ThisRules.DisablePlugins.Count > 0))
 			{
-				throw new BuildException(string.Format("Explicitly enabling and disabling plugins for a target is only supported when using a unique build environment (eg. for monolithic game targets). EnabledPlugins={0}, DisabledPlugins={1}",
-					string.Join(", ", ThisRules.EnablePlugins),
-					string.Join(", ", ThisRules.DisablePlugins)
+				throw new BuildException(String.Format("Explicitly enabling and disabling plugins for a target is only supported when using a unique build environment (eg. for monolithic game targets). EnabledPlugins={0}, DisabledPlugins={1}",
+					String.Join(", ", ThisRules.EnablePlugins),
+					String.Join(", ", ThisRules.DisablePlugins)
 				));
 			}
 		}
@@ -1601,7 +1609,7 @@ namespace UnrealBuildTool
 				ProjectDirectory = ProjectFile.Directory;
 				// programs are often compiled with another project passed in for context, so if it's using a _different_ uproject, use that uproject
 				// for the output location
-				if (Rules.Type != TargetType.Program || string.Compare(ProjectFile.GetFileNameWithoutAnyExtensions(), Rules.Name, true) != 0)
+				if (Rules.Type != TargetType.Program || String.Compare(ProjectFile.GetFileNameWithoutAnyExtensions(), Rules.Name, true) != 0)
 				{
 					OutputRootDirectory = ProjectDirectory;
 				}
@@ -2394,7 +2402,9 @@ namespace UnrealBuildTool
 			foreach (var Module in ModulesToGenerateHeadersFor)
 			{
 				if (Module.GeneratedCodeDirectoryUHT != null)
+				{
 					FileMetadataPrefetch.QueueDirectoryTree(Module.GeneratedCodeDirectoryUHT);
+				}
 			}
 
 			if (Rules.bUseSharedPCHs)
@@ -3072,10 +3082,10 @@ namespace UnrealBuildTool
 						IEnumerable<UEBuildModule> NonRedistDeps = AllDependencies.Where((DependantModule) =>
 							DependantModule.GetDirectDependencyModules().Intersect(NonRedistModules).Any()
 						);
-						string Message = string.Format("Non-editor build cannot depend on non-redistributable modules. {0} depends on '{1}'.", Binary.ToString(), string.Join("', '", NonRedistModules));
+						string Message = String.Format("Non-editor build cannot depend on non-redistributable modules. {0} depends on '{1}'.", Binary.ToString(), String.Join("', '", NonRedistModules));
 						if (NonRedistDeps.Any())
 						{
-							Message = string.Format("{0}\nDependant modules '{1}'", Message, string.Join("', '", NonRedistDeps));
+							Message = String.Format("{0}\nDependant modules '{1}'", Message, String.Join("', '", NonRedistDeps));
 						}
 						if (Rules.bBreakBuildOnLicenseViolation)
 						{
@@ -3738,7 +3748,7 @@ namespace UnrealBuildTool
 				ModuleRules? ModuleRules;
 				try
 				{
-					ModuleRules = RulesAssembly.CreateModuleRules(FilteredModuleName, this.Rules, "all modules option", Logger);
+					ModuleRules = RulesAssembly.CreateModuleRules(FilteredModuleName, Rules, "all modules option", Logger);
 				}
 				catch (BuildException)
 				{

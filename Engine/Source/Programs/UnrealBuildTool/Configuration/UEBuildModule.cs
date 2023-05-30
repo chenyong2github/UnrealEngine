@@ -1082,9 +1082,9 @@ namespace UnrealBuildTool
 				}
 
 				// No module has confessed its guilt, so this is an error.
-				if (string.IsNullOrEmpty(GuiltyModule))
+				if (String.IsNullOrEmpty(GuiltyModule))
 				{
-					string CycleChain = string.Join(" -> ", ReferenceStack);
+					string CycleChain = String.Join(" -> ", ReferenceStack);
 					Logger.LogError("Circular dependency on {Name} detected.\n" +
 						"\tFull Route: {FullRoute}\n" +
 						"\tCycled Route: is {CycleRoot}.\n" +
@@ -1105,7 +1105,7 @@ namespace UnrealBuildTool
 				// Log dependencies if required
 				if (Logger.IsEnabled((LogLevel)LogEventType.VeryVerbose))
 				{
-					Logger.LogTrace("Module {0} dependencies:", this.Name);
+					Logger.LogTrace("Module {0} dependencies:", Name);
 					LogDependencyNameList("Public:", Rules.PublicDependencyModuleNames, Logger);
 					LogDependencyNameList("Private:", Rules.PrivateDependencyModuleNames, Logger);
 					LogDependencyNameList("Dynamic:", Rules.DynamicallyLoadedModuleNames, Logger);
@@ -1329,7 +1329,7 @@ namespace UnrealBuildTool
 		/// remain in their same relative order within the original Nodes sequence.
 		/// </summary>
 		/// <param name="NodeList">The list of nodes to sort.</param>
-		static public List<UEBuildModule> StableTopologicalSort(List<UEBuildModule> NodeList)
+		public static List<UEBuildModule> StableTopologicalSort(List<UEBuildModule> NodeList)
 		{
 			int NodeCount = NodeList.Count;
 

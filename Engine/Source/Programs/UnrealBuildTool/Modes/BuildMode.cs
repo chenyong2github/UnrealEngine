@@ -535,7 +535,7 @@ namespace UnrealBuildTool
 
 				// Now that we have the dependencies object, optionally create the artifact cache
 				IActionArtifactCache? actionArtifactCache = null;
-				if (!string.IsNullOrEmpty(BuildConfiguration.ArtifactDirectory) && (BuildConfiguration.bArtifactRead || BuildConfiguration.bArtifactWrites))
+				if (!String.IsNullOrEmpty(BuildConfiguration.ArtifactDirectory) && (BuildConfiguration.bArtifactRead || BuildConfiguration.bArtifactWrites))
 				{
 					DirectoryReference artifactDirectory = new(BuildConfiguration.ArtifactDirectory);
 					DirectoryReference.CreateDirectory(artifactDirectory);

@@ -15,11 +15,11 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 	/// </summary>
 	class XcodeFrameworkWrapperProject
 	{
-		private readonly static string PROJECT_FILE_SEARCH_EXPRESSION = "*.pbxproj";
-		private readonly static string TEMPLATE_NAME = "FrameworkWrapper";
-		private readonly static string FRAMEWORK_WRAPPER_TEMPLATE_DIRECTORY = Path.Combine(Unreal.EngineDirectory.ToNormalizedPath(), "Build", "IOS", "Resources", TEMPLATE_NAME);
-		private readonly static string TEMPLATE_PROJECT_NAME = "PROJECT_NAME";
-		private readonly static string COMMANDLINE_FILENAME = "uecommandline.txt";
+		private static readonly string PROJECT_FILE_SEARCH_EXPRESSION = "*.pbxproj";
+		private static readonly string TEMPLATE_NAME = "FrameworkWrapper";
+		private static readonly string FRAMEWORK_WRAPPER_TEMPLATE_DIRECTORY = Path.Combine(Unreal.EngineDirectory.ToNormalizedPath(), "Build", "IOS", "Resources", TEMPLATE_NAME);
+		private static readonly string TEMPLATE_PROJECT_NAME = "PROJECT_NAME";
+		private static readonly string COMMANDLINE_FILENAME = "uecommandline.txt";
 
 		/// <summary>
 		/// Recursively copies all of the files and directories that are inside <paramref name="SourceDirectory"/> into <paramref name="DestinationDirectory"/>.

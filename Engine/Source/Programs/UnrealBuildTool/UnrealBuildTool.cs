@@ -20,17 +20,17 @@ namespace UnrealBuildTool
 		/// Save the application startup time. This can be used as the timestamp for build makefiles, to determine a base time after which any
 		/// modifications should invalidate it.
 		/// </summary>
-		static public DateTime StartTimeUtc { get; } = DateTime.UtcNow;
+		public static DateTime StartTimeUtc { get; } = DateTime.UtcNow;
 
 		/// <summary>
 		/// The environment at boot time.
 		/// </summary>
-		static public System.Collections.IDictionary? InitialEnvironment;
+		public static System.Collections.IDictionary? InitialEnvironment;
 
 		/// <summary>
 		/// Whether we're running with an installed project
 		/// </summary>
-		static private bool? bIsProjectInstalled;
+		private static bool? bIsProjectInstalled;
 
 		/// <summary>
 		/// If we are running with an installed project, specifies the path to it
@@ -119,7 +119,7 @@ namespace UnrealBuildTool
 		/// Returns true if UnrealBuildTool is running using an installed project (ie. a mod kit)
 		/// </summary>
 		/// <returns>True if running using an installed project</returns>
-		static public bool IsProjectInstalled()
+		public static bool IsProjectInstalled()
 		{
 			if (!bIsProjectInstalled.HasValue)
 			{
@@ -142,7 +142,7 @@ namespace UnrealBuildTool
 		/// Gets the installed project file
 		/// </summary>
 		/// <returns>Location of the installed project file</returns>
-		static public FileReference? GetInstalledProjectFile()
+		public static FileReference? GetInstalledProjectFile()
 		{
 			if (IsProjectInstalled())
 			{
@@ -159,7 +159,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="File">File to test</param>
 		/// <returns>True if the file is part of the installed distribution, false otherwise</returns>
-		static public bool IsFileInstalled(FileReference File)
+		public static bool IsFileInstalled(FileReference File)
 		{
 			if (Unreal.IsEngineInstalled() && File.IsUnderDirectory(Unreal.EngineDirectory))
 			{
@@ -177,18 +177,18 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <returns>A string containing the path to the UBT assembly.</returns>
 		[Obsolete("Deprecated in UE5.1 - use UnrealBuildTool.DotnetPath Unreal.UnrealBuildToolDllPath")]
-		static public FileReference GetUBTPath() => Unreal.UnrealBuildToolPath;
+		public static FileReference GetUBTPath() => Unreal.UnrealBuildToolPath;
 
 		/// <summary>
 		/// The Unreal remote tool ini directory.  This should be valid if compiling using a remote server
 		/// </summary>
 		/// <returns>The directory path</returns>
-		static public string? GetRemoteIniPath()
+		public static string? GetRemoteIniPath()
 		{
 			return RemoteIniPath;
 		}
 
-		static public void SetRemoteIniPath(string Path)
+		public static void SetRemoteIniPath(string Path)
 		{
 			RemoteIniPath = Path;
 		}
@@ -325,7 +325,7 @@ namespace UnrealBuildTool
 			public GlobalOptions(CommandLineArguments Arguments)
 			{
 				Arguments.ApplyTo(this);
-				if (!string.IsNullOrEmpty(RemoteIni))
+				if (!String.IsNullOrEmpty(RemoteIni))
 				{
 					UnrealBuildTool.SetRemoteIniPath(RemoteIni);
 				}
@@ -488,8 +488,8 @@ namespace UnrealBuildTool
 				AssemblyUtils.InstallAssemblyResolver(Path.GetDirectoryName(Assembly.GetEntryAssembly()!.GetOriginalLocation())!);
 
 				// Add the application directory to PATH
-				string path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-				if (!path.Split(';').Any(x => string.Compare(x, Unreal.UnrealBuildToolDllPath.Directory.FullName, true) == 0))
+				string path = Environment.GetEnvironmentVariable("PATH") ?? String.Empty;
+				if (!path.Split(';').Any(x => String.Compare(x, Unreal.UnrealBuildToolDllPath.Directory.FullName, true) == 0))
 				{
 					Environment.SetEnvironmentVariable("PATH", $"{path};{Unreal.UnrealBuildToolDllPath.Directory.FullName}");
 				}
@@ -565,7 +565,7 @@ namespace UnrealBuildTool
 					DirectoryReference RunsDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "UbtRuns");
 					Directory.CreateDirectory(RunsDir.FullName);
 					string ModuleFileName = Process.GetCurrentProcess().MainModule?.FileName ?? "";
-					if (!string.IsNullOrEmpty(ModuleFileName))
+					if (!String.IsNullOrEmpty(ModuleFileName))
 					{
 						ModuleFileName = Path.GetFullPath(ModuleFileName);
 					}
@@ -581,7 +581,7 @@ namespace UnrealBuildTool
 				try
 				{
 					// If the temp directory is already overridden from a parent process, do not override again
-					if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("UnrealBuildTool_TMP")))
+					if (String.IsNullOrEmpty(Environment.GetEnvironmentVariable("UnrealBuildTool_TMP")))
 					{
 						DirectoryReference OverrideTempDirectory = new DirectoryReference(Path.Combine(Path.GetTempPath(), "UnrealBuildTool"));
 						if (Options.TempDirectory != null)

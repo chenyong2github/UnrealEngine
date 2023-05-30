@@ -31,7 +31,7 @@ namespace UnrealBuildTool
 		}
 
 		/// File extension for project files we'll be generating (e.g. ".vcxproj")
-		override public string ProjectFileExtension => ".pro";
+		public override string ProjectFileExtension => ".pro";
 
 		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
@@ -177,7 +177,7 @@ namespace UnrealBuildTool
 					if (!DefinesOnly.Contains(define))
 					{
 						// Logger.LogInformation (CurDefine);
-						if (string.IsNullOrEmpty(value))
+						if (String.IsNullOrEmpty(value))
 						{
 							DefinesAndValues.Add("\t");
 							DefinesAndValues.Add(String.Format("{0}=", define));
@@ -201,10 +201,16 @@ namespace UnrealBuildTool
 							DefinesAndValues.Add(define);
 							DefinesAndValues.Add("=");
 							if (hasSpaces)
+							{
 								DefinesAndValues.Add("\"");
+							}
+
 							DefinesAndValues.Add(value);
 							if (hasSpaces)
+							{
 								DefinesAndValues.Add("\"");
+							}
+
 							DefinesAndValues.Add(" \\\n");
 						}
 						DefinesOnly.Add(define);
@@ -245,7 +251,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				BuildCommand = string.Format("build=bash $$unrealRootPath{0}Engine{0}Build{0}BatchFiles{0}{1}{0}Build.sh\n", Seperator, CurrentPlatform);
+				BuildCommand = String.Format("build=bash $$unrealRootPath{0}Engine{0}Build{0}BatchFiles{0}{1}{0}Build.sh\n", Seperator, CurrentPlatform);
 			}
 
 			string UnrealRootPath = Unreal.RootDirectory.FullName;

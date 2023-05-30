@@ -97,7 +97,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				Content.WriteLine("            ActionType = \"Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction\">");
 				Content.WriteLine("            <ActionContent");
 				Content.WriteLine("               title = \"Touch UBT generated tiles\"");
-				Content.WriteLine("               scriptText = \"" + string.Join("&#10;", Lines) + "\">");
+				Content.WriteLine("               scriptText = \"" + String.Join("&#10;", Lines) + "\">");
 				Content.WriteLine("               <EnvironmentBuildable>");
 				Content.WriteLine("                  <BuildableReference");
 				Content.WriteLine("                     BuildableIdentifier = \"primary\"");
@@ -164,7 +164,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				Content.WriteLine("            ReferencedContainer = \"container:" + ProjectName + ".xcodeproj\">");
 				Content.WriteLine("         </BuildableReference>");
 				Content.WriteLine("      </BuildableProductRunnable>");
-				if (string.IsNullOrEmpty(OldCommandLineArguments))
+				if (String.IsNullOrEmpty(OldCommandLineArguments))
 				{
 					if (bHasEditorConfiguration && GameProjectPath != "")
 					{

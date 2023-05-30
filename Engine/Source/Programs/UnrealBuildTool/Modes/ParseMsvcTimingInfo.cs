@@ -40,7 +40,7 @@ namespace UnrealBuildTool
 			TimingDataType CurrentType = TimingDataType.None;
 			foreach (string Line in AllLines)
 			{
-				if (string.IsNullOrWhiteSpace(Line))
+				if (String.IsNullOrWhiteSpace(Line))
 				{
 					continue;
 				}
@@ -101,7 +101,7 @@ namespace UnrealBuildTool
 			}
 
 			// Build the summary.
-			TimingData Summary = new TimingData(InputFile.FullName.Replace(".timing.txt", string.Empty), TimingDataType.Summary);
+			TimingData Summary = new TimingData(InputFile.FullName.Replace(".timing.txt", String.Empty), TimingDataType.Summary);
 			Summary.AddChild(SummarizeParsedTimingData("IncludeTimings", TimingDataType.Include, Includes));
 			Summary.AddChild(SummarizeParsedTimingData("ClassTimings", TimingDataType.Class, Classes));
 			Summary.AddChild(SummarizeParsedTimingData("FunctionTimings", TimingDataType.Function, Functions));
@@ -199,7 +199,7 @@ namespace UnrealBuildTool
 			LineDepth = TimingDataMatch.Groups["Indent"].Success ? TimingDataMatch.Groups["Indent"].Value.Count() : 0;
 
 			TimingData ParsedTimingData = new TimingData(TimingDataMatch.Groups["Name"].Value, TimingType);
-			ParsedTimingData.ExclusiveDuration = float.Parse(TimingDataMatch.Groups["Duration"].Value);
+			ParsedTimingData.ExclusiveDuration = Single.Parse(TimingDataMatch.Groups["Duration"].Value);
 
 			return ParsedTimingData;
 		}
@@ -257,7 +257,7 @@ namespace UnrealBuildTool
 
 					int Indent = Match.Groups[1].Length;
 					string FileName = Match.Groups[2].Value;
-					float Duration = float.Parse(Match.Groups[3].Value);
+					float Duration = Single.Parse(Match.Groups[3].Value);
 
 					while (Indent <= FinishTimesForIndent.Count - 1)
 					{
@@ -315,7 +315,7 @@ namespace UnrealBuildTool
 				float Time;
 				ClassNameToTime.TryGetValue(ClassName, out Time);
 
-				Time += float.Parse(Match.Groups[2].Value);
+				Time += Single.Parse(Match.Groups[2].Value);
 				ClassNameToTime[ClassName] = Time;
 			}
 

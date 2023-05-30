@@ -316,9 +316,9 @@ namespace UnrealBuildTool
 		/// <param name="Environment">Compiler executable</param>
 		public VCCompileAction(VCEnvironment Environment)
 		{
-			this.CompilerExe = FileItem.GetItemByFileReference(Environment.CompilerPath);
-			this.CompilerType = Environment.Compiler;
-			this.ToolChainVersion = Environment.ToolChainVersion.ToString();
+			CompilerExe = FileItem.GetItemByFileReference(Environment.CompilerPath);
+			CompilerType = Environment.Compiler;
+			ToolChainVersion = Environment.ToolChainVersion.ToString();
 		}
 
 		/// <summary>

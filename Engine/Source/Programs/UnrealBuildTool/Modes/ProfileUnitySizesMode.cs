@@ -71,7 +71,7 @@ namespace UnrealBuildTool
 				if (State != null)
 				{
 					string? LogText = State.ToString();
-					if (!string.IsNullOrEmpty(LogText))
+					if (!String.IsNullOrEmpty(LogText))
 					{
 						// Console.WriteLine(LogText);
 						Match ExecutorTimingMatch = ExecutorTimingRegex.Match(LogText);
@@ -95,7 +95,7 @@ namespace UnrealBuildTool
 						Match NumFilesMatch = NumFilesRegex.Match(LogText);
 						if (NumFilesMatch.Success)
 						{
-							if (!int.TryParse(NumFilesMatch.Groups[1].Value, out TimingData.NumFiles))
+							if (!Int32.TryParse(NumFilesMatch.Groups[1].Value, out TimingData.NumFiles))
 							{
 								Console.WriteLine($"Failed to parse '{LogText}'");
 							}

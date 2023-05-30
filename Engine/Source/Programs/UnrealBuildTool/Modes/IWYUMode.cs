@@ -369,13 +369,13 @@ namespace UnrealBuildTool
 
 			string? ModuleToUpdateName = GetModuleToUpdateName(TargetDescriptors[0]);
 
-			if (!string.IsNullOrEmpty(ModuleToUpdateName))
+			if (!String.IsNullOrEmpty(ModuleToUpdateName))
 			{
 				foreach (string OnlyModuleName in TargetDescriptors[0].OnlyModuleNames)
 				{
-					if (string.Compare(OnlyModuleName, ModuleToUpdateName, StringComparison.OrdinalIgnoreCase) != 0)
+					if (String.Compare(OnlyModuleName, ModuleToUpdateName, StringComparison.OrdinalIgnoreCase) != 0)
 					{
-						Logger.LogError($"ModuleToUpdate '{ModuleToUpdateName}' was not in list of specified modules: {string.Join(", ", TargetDescriptors[0].OnlyModuleNames)}");
+						Logger.LogError($"ModuleToUpdate '{ModuleToUpdateName}' was not in list of specified modules: {String.Join(", ", TargetDescriptors[0].OnlyModuleNames)}");
 						return -1;
 					}
 				}
@@ -674,7 +674,10 @@ namespace UnrealBuildTool
 							if (Info.File.Contains(".gen.cpp", StringComparison.Ordinal))
 							{
 								lock (GeneratedCppInfos)
+								{
 									GeneratedCppInfos.Add(Info);
+								}
+
 								continue;
 							}
 
@@ -729,13 +732,18 @@ namespace UnrealBuildTool
 									if (Include.Full.Contains("/UHT/"))
 									{
 										lock (GeneratedHeaderInfos)
+										{
 											GeneratedHeaderInfos.Add(Include.Full);
+										}
+
 										break;
 									}
 									else if (Include.Full.Contains("/VNI/"))
 									{
 										lock (GeneratedHeaderInfos)
+										{
 											GeneratedHeaderInfos.Add(Include.Full);
+										}
 									}
 								}
 							}
@@ -752,7 +760,9 @@ namespace UnrealBuildTool
 
 				// Something went wrong parsing iwyu files.
 				if (ReadSuccess == 0)
+				{
 					return -1;
+				}
 
 				if (bWriteToc)
 				{
@@ -984,7 +994,10 @@ namespace UnrealBuildTool
 						if (SeenInclude.Printable == Include.Printable && Infos.TryGetValue(Include.Full, out IncludeInfo))
 						{
 							foreach (string I in IncludeInfo.TransitiveIncludes.Keys)
+							{
 								SeenTransitiveIncludes.Add(I);
+							}
+
 							break;
 						}
 					}
@@ -1059,11 +1072,16 @@ namespace UnrealBuildTool
 			{
 				int LastIndexOfSlash = FilePath.LastIndexOf('/');
 				if (LastIndexOfSlash == -1)
+				{
 					break;
+				}
+
 				FilePath = FilePath.Substring(0, LastIndexOfSlash);
 				UEBuildModule? Module;
 				if (PathToModule.TryGetValue(FilePath, out Module))
+				{
 					return Module;
+				}
 			}
 			return null;
 		}
@@ -1079,7 +1097,9 @@ namespace UnrealBuildTool
 				FileReference FileReference = FileReference.Combine(Dir, Include);
 				FileItem FileItem = FileItem.GetItemByFileReference(FileReference);
 				if (FileItem.Exists)
+				{
 					return FileItem.Location.FullName.Replace('\\', '/');
+				}
 			}
 
 			bool Nested = Visited != null;
@@ -1089,7 +1109,9 @@ namespace UnrealBuildTool
 				FileReference FileReference = FileReference.Combine(FileReference.FromString(From).Directory, Include);
 				FileItem FileItem = FileItem.GetItemByFileReference(FileReference);
 				if (FileItem.Exists)
+				{
 					return FileItem.Location.FullName.Replace('\\', '/');
+				}
 			}
 
 			foreach (var PublicModule in Module.Rules.PublicDependencyModuleNames.Union(Module.Rules.PublicIncludePathModuleNames).Union(Module.Rules.PrivateIncludePathModuleNames).Union(Module.Rules.PrivateDependencyModuleNames))
@@ -1104,11 +1126,15 @@ namespace UnrealBuildTool
 						Visited.Add(DependencyModule);
 					}
 					else if (!Visited.Add(DependencyModule))
+					{
 						continue;
+					}
 
 					string? Str = GetFullName(Include, From, DependencyModule, NameToModule, Visited);
 					if (Str != null)
+					{
 						return Str;
+					}
 				}
 			}
 
@@ -1258,7 +1284,9 @@ namespace UnrealBuildTool
 			Parallel.ForEach(Infos.Values, Info =>
 			{
 				if (!IsValidForUpdate(Info, ValidPaths, true))
+				{
 					return;
+				}
 
 				bool IsCpp = Info.IsCpp;
 				bool IsPrivate = IsCpp || Info.File.Contains("/Private/");
@@ -1288,15 +1316,21 @@ namespace UnrealBuildTool
 					string NameWithoutPath = Include.Printable;
 					int LastSlash = NameWithoutPath.LastIndexOf("/");
 					if (LastSlash != -1)
+					{
 						NameWithoutPath = NameWithoutPath.Substring(LastSlash + 1);
+					}
 
 					string QuotedPrintable = Include.System ? $"<{Include.Printable}>" : $"\"{Include.Printable}\"";
 
 					bool Keep = true;
 					if (Info.File == Include.Full) // Sometimes IWYU outputs include to the same file if .gen.cpp is inlined and includes file with slightly different path. just skip those
+					{
 						Keep = false;
+					}
 					else if (IsCpp && MatchingH == NameWithoutPath)
+					{
 						Keep = true;
+					}
 					else if (!bNoTransitiveIncludes)
 					{
 						foreach (var Include2 in Info.Includes)
@@ -1308,7 +1342,10 @@ namespace UnrealBuildTool
 								if (Include2.Resolved.TransitiveIncludes!.TryGetValue(Key, out TransitivePath))
 								{
 									if (ShouldLog != null)
-										TransitivelyIncluded.TryAdd(QuotedPrintable, string.Join(" -> ", Include2.Printable, TransitivePath));
+									{
+										TransitivelyIncluded.TryAdd(QuotedPrintable, String.Join(" -> ", Include2.Printable, TransitivePath));
+									}
+
 									Keep = false;
 									break;
 								}
@@ -1373,9 +1410,13 @@ namespace UnrealBuildTool
 				foreach (IWYUIncludeEntry SeenInclude in Info.IncludesSeenInFile)
 				{
 					if (SeenInclude.System)
+					{
 						SeenIncludes.Add($"<{SeenInclude.Printable}>");
+					}
 					else
+					{
 						SeenIncludes.Add($"\"{SeenInclude.Printable}\"");
+					}
 				}
 
 
@@ -1403,7 +1444,10 @@ namespace UnrealBuildTool
 					ReadOnlySpan<char> LineSpan = Line.AsSpan().Trim();
 					bool StartsWithHash = LineSpan.Length > 0 && LineSpan[0] == '#';
 					if (StartsWithHash)
+					{
 						LineSpan = LineSpan.Slice(1).TrimStart();
+					}
+
 					if (!StartsWithHash || !LineSpan.StartsWith("include"))
 					{
 						// Might be forward declaration.. 
@@ -1418,9 +1462,13 @@ namespace UnrealBuildTool
 						if (Line.Contains("IWYU pragma: "))
 						{
 							if (Line.Contains(": begin_keep"))
+							{
 								ForceKeepScope = true;
+							}
 							else if (Line.Contains(": end_keep"))
+							{
 								ForceKeepScope = false;
+							}
 						}
 
 						// File is autogenerated by some tool, don't mess with it
@@ -1430,7 +1478,9 @@ namespace UnrealBuildTool
 						}
 
 						if (LookFor_API && !Contains_API && Line.Contains("_API", StringComparison.Ordinal))
+						{
 							Contains_API = true;
+						}
 
 						continue;
 					}
@@ -1486,14 +1536,18 @@ namespace UnrealBuildTool
 						}
 
 						if (Line.Contains("IWYU pragma: ", StringComparison.Ordinal))
+						{
 							ForceKeep = true;
+						}
 					}
 
 					string Include = IncludeSpan.ToString();
 
 					// If Include is not seen it means that it is probably inside a #if/#endif with condition false. These includes we can't touch
 					if (!SeenIncludes.Contains(Include))
+					{
 						continue;
+					}
 
 					if (!ForceKeep && !ForceKeepScope && !CleanedupIncludes.Contains(Include))
 					{
@@ -1509,7 +1563,9 @@ namespace UnrealBuildTool
 				{
 					//IncludesToAdd.Add(new IWYUIncludeEntry() { Full = PlatformInfo!.File, Printable = "HAL/Platform.h", Resolved = PlatformInfo });
 					if (!LinesToRemove.Remove("#include \"HAL/Platform.h\""))
+					{
 						IncludesToAdd.Add("\"HAL/Platform.h\"");
+					}
 				}
 
 				// Nothing has changed! early out of this file
@@ -1577,10 +1633,15 @@ namespace UnrealBuildTool
 						++LineIndex;
 
 						if (!OldLine.TrimStart().StartsWith("#pragma"))
+						{
 							continue;
+						}
+
 						NewLines.Add("");
 						foreach (string Line in LinesToAdd)
+						{
 							NewLines.Add(Line);
+						}
 
 						NewLines.AddRange(ExistingLines.Skip(LineIndex));
 						break;
@@ -1602,7 +1663,10 @@ namespace UnrealBuildTool
 						ReadOnlySpan<char> OldLineSpan = OldLine.AsSpan().TrimStart();
 						bool StartsWithHash = OldLineSpan.Length > 0 && OldLineSpan[0] == '#';
 						if (StartsWithHash)
+						{
 							OldLineSpan = OldLineSpan.Slice(1).TrimStart();
+						}
+
 						bool IsInclude = StartsWithHash && OldLineSpan.StartsWith("include");
 
 						string OldLineTrimmedStart = OldLine.TrimStart();
@@ -1623,7 +1687,9 @@ namespace UnrealBuildTool
 								{
 									// This logic is a bit shaky but handle the situations where file starts with #if and ends with #endif
 									if (LastSeenIncludeBeforeCode != -1)
+									{
 										IsInFirstIncludeBlock = false;
+									}
 								}
 
 								// This need to be inside "IsInFirstIncludeBlock" check because some files have forward declares far down in the file
@@ -1666,7 +1732,9 @@ namespace UnrealBuildTool
 						}
 
 						if (IsInFirstIncludeBlock)
+						{
 							LastSeenIncludeBeforeCode = NewLines.Count - 1;
+						}
 					}
 
 					if (LinesToAdd.Count > 0)
@@ -1681,7 +1749,9 @@ namespace UnrealBuildTool
 						LastSeenIncludeBeforeCode += LinesToAdd.Count;
 
 						if (FirstForwardDeclareLineIndex != -1 && FirstForwardDeclareLineIndex > LastSeenIncludeBeforeCode)
+						{
 							FirstForwardDeclareLineIndex += LinesToAdd.Count;
+						}
 					}
 
 					if (ForwardDeclarationsToAdd.Count > 0)
@@ -1711,7 +1781,9 @@ namespace UnrealBuildTool
 				{
 					Dictionary<string, string> PrintableToFull = new();
 					foreach (var Seen in Info.IncludesSeenInFile)
+					{
 						PrintableToFull.TryAdd(Seen.Printable, Seen.Full);
+					}
 
 					// Remove the includes in LinesRemoved
 					LinesRemoved.RemoveWhere(Line =>
@@ -1730,7 +1802,10 @@ namespace UnrealBuildTool
 						IncludeSpan = IncludeSpan.Slice(1, Index);
 						string? Full;
 						if (!PrintableToFull.TryGetValue(IncludeSpan.ToString(), out Full))
+						{
 							return false;
+						}
+
 						return Info.TransitiveIncludes.ContainsKey(Full);
 					});
 
@@ -1763,12 +1838,16 @@ namespace UnrealBuildTool
 					}
 				}
 				lock (UpdatedFiles)
+				{
 					UpdatedFiles.Add(new(Info, NewLines));
+				}
 			});
 
 			// Something went wrong processing code files.
 			if (ProcessSuccess == 0)
+			{
 				return -1;
+			}
 
 			Logger.LogInformation($"Parsed {FilesParseCount} and updated {UpdatedFiles.Count} files (Found {OutOfDateCount} .iwyu files out of date)");
 
@@ -1781,7 +1860,9 @@ namespace UnrealBuildTool
 
 			// If we have been logging we can exit now since we don't want to write any files to disk
 			if (ShouldLog != null)
+			{
 				return 0;
+			}
 
 			List<System.Diagnostics.Process> P4Processes = new();
 
@@ -1820,7 +1901,9 @@ namespace UnrealBuildTool
 				foreach (var (Info, NewLines) in UpdatedFiles)
 				{
 					if (new FileInfo(Info.File).IsReadOnly)
+					{
 						ReadOnlyFileInfos.Add(Info);
+					}
 				}
 
 				if (ReadOnlyFileInfos.Count > 0)
@@ -1833,10 +1916,14 @@ namespace UnrealBuildTool
 					{
 						Logger.LogInformation($"   edit {Info.File}");
 						if (--ShowCount == 0)
+						{
 							break;
+						}
 					}
 					if (ReadOnlyFileInfos.Count > 5)
+					{
 						Logger.LogInformation($"   ... and {ReadOnlyFileInfos.Count - 5} more.");
+					}
 
 					StringBuilder P4Arguments = new();
 					int BatchSize = 10;
@@ -1872,7 +1959,10 @@ namespace UnrealBuildTool
 			foreach (var (Info, NewLines) in UpdatedFiles)
 			{
 				if (SkippedFiles.Contains(Info.Source!))
+				{
 					continue;
+				}
+
 				try
 				{
 					File.WriteAllLines(Info.File, NewLines);
@@ -1894,7 +1984,9 @@ namespace UnrealBuildTool
 			}
 
 			if (!WriteSuccess)
+			{
 				return -1;
+			}
 
 			Logger.LogInformation($"Done!");
 			return 0;
@@ -1973,14 +2065,18 @@ namespace UnrealBuildTool
 			Parallel.ForEach(Infos.Values, Info =>
 			{
 				if (!IsValidForUpdate(Info, ValidPaths, false) || Info.File.EndsWith(".h"))
+				{
 					return;
+				}
 
 				Dictionary<string, string> SeenTransitiveIncludes = new();
 				Stack<string> Stack = new();
 				CalculateTransitive(Info, Info, Stack, SeenTransitiveIncludes, new Dictionary<string, string>(), true);
 
 				lock (InfosToCompare)
+				{
 					InfosToCompare.Add(new(Info, SeenTransitiveIncludes));
+				}
 
 				foreach (var Include in SeenTransitiveIncludes.Union(Info.TransitiveIncludes))
 				{
@@ -2014,29 +2110,49 @@ namespace UnrealBuildTool
 				long OptimizedSize = 0;
 				long SeenSize = 0;
 				foreach (var Include in Kvp.Item1.TransitiveIncludes.Keys)
+				{
 					OptimizedSize += FileToSize[Include];
+				}
+
 				foreach (var Include in Kvp.Item2.Keys)
+				{
 					SeenSize += FileToSize[Include];
+				}
+
 				long Diff = SeenSize - OptimizedSize;
 				lock (ByteSizeDiffList)
+				{
 					ByteSizeDiffList.Add(new(Diff, Kvp.Item1));
+				}
 			});
 
 			ByteSizeDiffList.Sort((a, b) =>
 			{
 				if (a.Item1 == b.Item1)
+				{
 					return 0;
+				}
+
 				if (a.Item1 < b.Item1)
+				{
 					return 1;
+				}
+
 				return -1;
 			});
 
 			Func<long, string> PrettySize = (Size) =>
 			{
 				if (Size > 1024 * 1024)
+				{
 					return (((float)Size) / (1024 * 1024)).ToString("0.00") + "mb";
+				}
+
 				if (Size > 1024)
+				{
 					return (((float)Size) / (1024)).ToString("0.00") + "kb";
+				}
+
 				return Size + "b";
 			};
 
@@ -2049,7 +2165,10 @@ namespace UnrealBuildTool
 				IWYUInfo File = ByteSizeDiffList[I].Item2;
 				long OptimizedSize = 0;
 				foreach (var Include in File.TransitiveIncludes.Keys)
+				{
 					OptimizedSize += FileToSize[Include];
+				}
+
 				float Percent = 100.0f - (((float)OptimizedSize) / (OptimizedSize + Saved) * 100.0f);
 				Logger.LogInformation($"{Path.GetFileName(File.File)}   {PrettySize(OptimizedSize + Saved)} -> {PrettySize(OptimizedSize)}  (Saved {PrettySize(Saved)} or {Percent.ToString("0.0")}%)");
 			}

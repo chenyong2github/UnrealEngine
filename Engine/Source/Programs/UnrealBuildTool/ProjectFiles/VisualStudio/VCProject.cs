@@ -74,16 +74,16 @@ namespace UnrealBuildTool
 	abstract class MSBuildProjectFile : ProjectFile
 	{
 		/// The project file version string
-		static public readonly string VCProjectFileVersionString = "10.0.30319.1";
+		public static readonly string VCProjectFileVersionString = "10.0.30319.1";
 
 		/// The build configuration name to use for stub project configurations.  These are projects whose purpose
 		/// is to make it easier for developers to find source files and to provide IntelliSense data for the module
 		/// to Visual Studio
-		static public readonly string StubProjectConfigurationName = "BuiltWithUnrealBuildTool";
+		public static readonly string StubProjectConfigurationName = "BuiltWithUnrealBuildTool";
 
 		/// The name of the Visual C++ platform to use for stub project configurations
 		/// NOTE: We always use Win32 for the stub project's platform, since that is guaranteed to be supported by Visual Studio
-		static public readonly string StubProjectPlatformName = "Win64";
+		public static readonly string StubProjectPlatformName = "Win64";
 
 		/// <summary>
 		/// The Guid representing the project type e.g. C# or C++
@@ -660,7 +660,7 @@ namespace UnrealBuildTool
 					Arguments.Add("/Zc:enumTypes");
 				}
 			}
-			return string.Empty;
+			return String.Empty;
 		}
 
 		/// <summary>
@@ -678,7 +678,7 @@ namespace UnrealBuildTool
 				return "-fcoroutines-ts";
 			}
 
-			return string.Empty;
+			return String.Empty;
 		}
 
 		HashSet<string>? InvalidConfigPlatformNames;
@@ -1353,10 +1353,10 @@ namespace UnrealBuildTool
 
 						// filter here. It's a little more graceful to do it where this info is built but easier to follow if we filter 
 						// things our right before they're written.
-						if (!string.IsNullOrEmpty(ForceIncludePaths))
+						if (!String.IsNullOrEmpty(ForceIncludePaths))
 						{
 							IEnumerable<string> PathList = ForceIncludePaths.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
-							ForceIncludePaths = string.Join(";", PathList.Where(P => !IncludePathIsFilteredOut(new DirectoryReference(P))));
+							ForceIncludePaths = String.Join(";", PathList.Where(P => !IncludePathIsFilteredOut(new DirectoryReference(P))));
 						}
 
 						ForceIncludePaths ??= String.Empty;
@@ -2063,7 +2063,7 @@ namespace UnrealBuildTool
 					// Get the output directory
 					DirectoryReference OutputDirectory = DirectoryReference.Combine(RootOutputDirectory, "Binaries", UBTPlatformName);
 
-					if (!string.IsNullOrEmpty(TargetRulesObject.ExeBinariesSubFolder))
+					if (!String.IsNullOrEmpty(TargetRulesObject.ExeBinariesSubFolder))
 					{
 						OutputDirectory = DirectoryReference.Combine(OutputDirectory, TargetRulesObject.ExeBinariesSubFolder);
 					}
@@ -2131,7 +2131,7 @@ namespace UnrealBuildTool
 
 					if (ProjGenerator != null)
 					{
-						string? ForeignUProjectPath = (IsForeignProject && !string.IsNullOrEmpty(UProjectPath)) ? UProjectPath : null;
+						string? ForeignUProjectPath = (IsForeignProject && !String.IsNullOrEmpty(UProjectPath)) ? UProjectPath : null;
 						VCUserFileContent.Append(ProjGenerator.GetVisualStudioUserFileStrings(Combination.Platform!.Value, Configuration, ConditionString, TargetRulesObject, Combination.ProjectTarget.TargetFilePath, ProjectFilePath, ProjectName, ForeignUProjectPath));
 					}
 				}
@@ -2214,7 +2214,9 @@ namespace UnrealBuildTool
 						XmlNodeList ConfigNodeList = PropertyGroup.GetElementsByTagName("Configurations");
 						// if this property group does not set configurations we do not care about it
 						if (ConfigNodeList.Count == 0)
+						{
 							continue;
+						}
 
 						if (PropertyGroup.HasAttribute("Condition"))
 						{

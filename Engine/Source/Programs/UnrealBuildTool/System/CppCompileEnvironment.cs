@@ -180,7 +180,7 @@ namespace UnrealBuildTool
 					return PerArchPrecompiledHeaderFile;
 				}
 			}
-			return this.PrecompiledHeaderFile;
+			return PrecompiledHeaderFile;
 		}
 	}
 
@@ -661,12 +661,12 @@ namespace UnrealBuildTool
 			this.Configuration = Configuration;
 			this.Architectures = Architectures;
 			this.MetadataCache = MetadataCache;
-			this.SharedPCHs = new List<PrecompiledHeaderTemplate>();
-			this.UserIncludePaths = new HashSet<DirectoryReference>();
-			this.SystemIncludePaths = new HashSet<DirectoryReference>();
-			this.SharedUserIncludePaths = new HashSet<DirectoryReference>();
-			this.SharedSystemIncludePaths = new HashSet<DirectoryReference>();
-			this.ModuleInterfacePaths = new HashSet<DirectoryReference>();
+			SharedPCHs = new List<PrecompiledHeaderTemplate>();
+			UserIncludePaths = new HashSet<DirectoryReference>();
+			SystemIncludePaths = new HashSet<DirectoryReference>();
+			SharedUserIncludePaths = new HashSet<DirectoryReference>();
+			SharedSystemIncludePaths = new HashSet<DirectoryReference>();
+			ModuleInterfacePaths = new HashSet<DirectoryReference>();
 		}
 
 		/// <summary>

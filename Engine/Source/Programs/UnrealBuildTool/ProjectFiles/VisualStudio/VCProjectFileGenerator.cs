@@ -146,11 +146,11 @@ namespace UnrealBuildTool
 
 		public override string[] GetTargetArguments(string[] Arguments)
 		{
-			return Arguments.Where(s => string.Equals(s, BuildToolOverride, StringComparison.InvariantCultureIgnoreCase)).ToArray();
+			return Arguments.Where(s => String.Equals(s, BuildToolOverride, StringComparison.InvariantCultureIgnoreCase)).ToArray();
 		}
 
 		/// File extension for project files we'll be generating (e.g. ".vcxproj")
-		override public string ProjectFileExtension => ".vcxproj";
+		public override string ProjectFileExtension => ".vcxproj";
 
 		/// <summary>
 		/// </summary>
@@ -216,7 +216,7 @@ namespace UnrealBuildTool
 
 
 		/// "4.0", "12.0", or "14.0", etc...
-		static public string GetProjectFileToolVersionString(VCProjectFileFormat ProjectFileFormat)
+		public static string GetProjectFileToolVersionString(VCProjectFileFormat ProjectFileFormat)
 		{
 			switch (ProjectFileFormat)
 			{
@@ -225,11 +225,11 @@ namespace UnrealBuildTool
 				case VCProjectFileFormat.VisualStudio2022:
 					return "17.0";
 			}
-			return string.Empty;
+			return String.Empty;
 		}
 
 		/// for instance: <PlatformToolset>v110</PlatformToolset>
-		static public string GetProjectFilePlatformToolsetVersionString(VCProjectFileFormat ProjectFileFormat)
+		public static string GetProjectFilePlatformToolsetVersionString(VCProjectFileFormat ProjectFileFormat)
 		{
 			switch (ProjectFileFormat)
 			{
@@ -239,10 +239,10 @@ namespace UnrealBuildTool
 					return "v143";
 
 			}
-			return string.Empty;
+			return String.Empty;
 		}
 
-		static public void AppendPlatformToolsetProperty(StringBuilder VCProjectFileContent, VCProjectFileFormat ProjectFileFormat)
+		public static void AppendPlatformToolsetProperty(StringBuilder VCProjectFileContent, VCProjectFileFormat ProjectFileFormat)
 		{
 			string ToolVersionString = GetProjectFileToolVersionString(ProjectFileFormat);
 			string PlatformToolsetVersionString = GetProjectFilePlatformToolsetVersionString(ProjectFileFormat);
@@ -345,7 +345,7 @@ namespace UnrealBuildTool
 										Logger.LogInformation("To force Visual Studio 2022 solutions to always be generated add the following to BuildConfiguration.xml:");
 										Logger.LogInformation("  <VCProjectFileGenerator>\r\n    <Version>VisualStudio2022</Version>\r\n  </VCProjectFileGenerator>");
 									}
-									Logger.LogInformation(string.Empty);
+									Logger.LogInformation(String.Empty);
 								}
 							}
 						}
@@ -707,7 +707,7 @@ namespace UnrealBuildTool
 						string UnrealVSGuid = "ddbf523f-7eb6-4887-bd51-85a714ff87eb";
 						VCSolutionFileContent.AppendLine("\t# UnrealVS Section");
 						VCSolutionFileContent.AppendLine("\tGlobalSection({0}) = preSolution", UnrealVSGuid);
-						VCSolutionFileContent.AppendLine("\t\tAvailablePlatforms={0}", string.Join(";", PlatformsValidForProjects.Select(platform => platform.ToString())));
+						VCSolutionFileContent.AppendLine("\t\tAvailablePlatforms={0}", String.Join(";", PlatformsValidForProjects.Select(platform => platform.ToString())));
 						VCSolutionFileContent.AppendLine("\tEndGlobalSection");
 					}
 
@@ -879,7 +879,7 @@ namespace UnrealBuildTool
 				VsConfigFileContent.AppendLine("  \"version\": \"1.0\",");
 				VsConfigFileContent.AppendLine("  \"components\": [");
 				IEnumerable<string> Components = MicrosoftPlatformSDK.GetVisualStudioSuggestedComponents(Settings.ProjectFileFormat);
-				string ComponentsString = string.Join($",{Environment.NewLine}    ", Components.Select(x => $"\"{x}\""));
+				string ComponentsString = String.Join($",{Environment.NewLine}    ", Components.Select(x => $"\"{x}\""));
 				VsConfigFileContent.AppendLine($"    {ComponentsString}");
 				VsConfigFileContent.AppendLine("  ]");
 				VsConfigFileContent.AppendLine("}");

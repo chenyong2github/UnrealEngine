@@ -720,7 +720,7 @@ namespace UnrealBuildTool
 				}
 
 				// move past blank lines between sections
-				while (string.IsNullOrWhiteSpace(Lines[NextSectionIndex - 1]))
+				while (String.IsNullOrWhiteSpace(Lines[NextSectionIndex - 1]))
 				{
 					NextSectionIndex--;
 				}

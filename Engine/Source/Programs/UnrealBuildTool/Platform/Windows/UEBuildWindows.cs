@@ -48,7 +48,11 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if (WindowsToolchainArchitectures.ContainsKey(this)) return WindowsToolchainArchitectures[this].ToolChain;
+				if (WindowsToolchainArchitectures.ContainsKey(this))
+				{
+					return WindowsToolchainArchitectures[this].ToolChain;
+				}
+
 				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.WindowsToolChain");
 			}
 		}
@@ -60,7 +64,11 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if (WindowsToolchainArchitectures.ContainsKey(this)) return WindowsToolchainArchitectures[this].LibDir;
+				if (WindowsToolchainArchitectures.ContainsKey(this))
+				{
+					return WindowsToolchainArchitectures[this].LibDir;
+				}
+
 				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.WindowsLibDir");
 			}
 		}
@@ -72,7 +80,11 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if (WindowsToolchainArchitectures.ContainsKey(this)) return WindowsToolchainArchitectures[this].SystemLibDir;
+				if (WindowsToolchainArchitectures.ContainsKey(this))
+				{
+					return WindowsToolchainArchitectures[this].SystemLibDir;
+				}
+
 				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.WindowsSystemLibDir");
 			}
 		}
@@ -84,7 +96,11 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if (WindowsToolchainArchitectures.ContainsKey(this)) return WindowsToolchainArchitectures[this].ToolChain;
+				if (WindowsToolchainArchitectures.ContainsKey(this))
+				{
+					return WindowsToolchainArchitectures[this].ToolChain;
+				}
+
 				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.WindowsName");
 			}
 		}
@@ -596,7 +612,7 @@ namespace UnrealBuildTool
 		public ReadOnlyWindowsTargetRules(WindowsTargetRules Inner)
 		{
 			this.Inner = Inner;
-			this.PVS = new ReadOnlyPVSTargetSettings(Inner.PVS);
+			PVS = new ReadOnlyPVSTargetSettings(Inner.PVS);
 		}
 
 		/// <summary>
@@ -1447,7 +1463,7 @@ namespace UnrealBuildTool
 				string PGOPlatform = Target.Platform == UnrealTargetPlatform.Win64 ? "Windows" : Target.Platform.ToString();
 
 				CompileEnvironment.PGODirectory = DirectoryReference.Combine(Target.ProjectFile.Directory, "Platforms", PGOPlatform, "Build", "PGO").FullName;
-				CompileEnvironment.PGOFilenamePrefix = string.Format("{0}-{1}-{2}", Target.Name, Target.Platform, Target.Configuration);
+				CompileEnvironment.PGOFilenamePrefix = String.Format("{0}-{1}-{2}", Target.Name, Target.Platform, Target.Configuration);
 
 				LinkEnvironment.PGODirectory = CompileEnvironment.PGODirectory;
 				LinkEnvironment.PGOFilenamePrefix = CompileEnvironment.PGOFilenamePrefix;

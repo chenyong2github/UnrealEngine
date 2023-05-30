@@ -478,7 +478,7 @@ namespace UnrealBuildTool
 		/// <param name="Text">The text to parse</param>
 		/// <param name="Value">The parsed value, if successful</param>
 		/// <returns>True if the text was parsed, false otherwise</returns>
-		static public bool TryParse(string Text, out bool Value)
+		public static bool TryParse(string Text, out bool Value)
 		{
 			// C# Boolean type expects "False" or "True" but since we're not case sensitive, we need to suppor that manually
 			if (Text == "1" || Text.Equals("true", StringComparison.InvariantCultureIgnoreCase))
@@ -504,7 +504,7 @@ namespace UnrealBuildTool
 		/// <param name="Text">The text to parse</param>
 		/// <param name="Value">The parsed value, if successful</param>
 		/// <returns>True if the text was parsed, false otherwise</returns>
-		static public bool TryParse(string Text, out int Value)
+		public static bool TryParse(string Text, out int Value)
 		{
 			return Int32.TryParse(Text, out Value);
 		}
@@ -1238,14 +1238,14 @@ namespace UnrealBuildTool
 			string? AltRegex = null;
 			if (bIsArrayProperty)
 			{
-				PrimaryRegex = string.Format("{0}\\s*=\\s*\\((.*?)\\)", Property);
+				PrimaryRegex = String.Format("{0}\\s*=\\s*\\((.*?)\\)", Property);
 			}
 			else
 			{
 				// handle quoted strings, allowing for escaped quotation marks (basically doing " followed by whatever, until we see a quote that was not proceeded by a \, and gather the whole mess in an outer group)
-				PrimaryRegex = string.Format("{0}\\s*=\\s*\"((.*?)[^\\\\])\"", Property);
+				PrimaryRegex = String.Format("{0}\\s*=\\s*\"((.*?)[^\\\\])\"", Property);
 				// when no quotes, we skip over whitespace, and we end when we see whitespace, a comma or a ). This will handle (Ip = 192.168.0.1 , Name=....) , and return only '192.168.0.1'
-				AltRegex = string.Format("{0}\\s*=\\s*(.*?)[\\s,\\)]", Property);
+				AltRegex = String.Format("{0}\\s*=\\s*(.*?)[\\s,\\)]", Property);
 			}
 
 			// attempt to match it!
@@ -1293,8 +1293,8 @@ namespace UnrealBuildTool
 		public static string? GetMapValue(string Input, string Key)
 		{
 			// handle quoted strings, allowing for escaped quotation marks (and possibly the key in quotes as well)
-			string PrimaryRegex = string.Format("{0}\"?\\s*,\\s*\"((.*?)[^\\\\])\"", Key);
-			string AltRegex = string.Format("{0}\"?\\s*,\\s*(.*?)[\\s,\\)]", Key);
+			string PrimaryRegex = String.Format("{0}\"?\\s*,\\s*\"((.*?)[^\\\\])\"", Key);
+			string AltRegex = String.Format("{0}\"?\\s*,\\s*(.*?)[\\s,\\)]", Key);
 
 			// attempt to match it!
 			Match Result = Regex.Match(Input, PrimaryRegex);

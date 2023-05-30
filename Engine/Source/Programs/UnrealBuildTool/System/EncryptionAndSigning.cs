@@ -192,7 +192,7 @@ namespace UnrealBuildTool
 			/// </summary>
 			public bool ContainsEncryptionKey(string KeyGuid)
 			{
-				if (string.IsNullOrEmpty(KeyGuid))
+				if (String.IsNullOrEmpty(KeyGuid))
 				{
 					return false;
 				}
@@ -285,7 +285,7 @@ namespace UnrealBuildTool
 						(Settings.SigningKey.PublicKey.Exponent.Length > 64) ||
 						(Settings.SigningKey.PublicKey.Modulus.Length > 64))
 					{
-						throw new Exception(string.Format("[{0}] Signing keys parsed from encryption.ini are too long. They must be a maximum of 64 bytes long!", InProjectDirectory));
+						throw new Exception(String.Format("[{0}] Signing keys parsed from encryption.ini are too long. They must be a maximum of 64 bytes long!", InProjectDirectory));
 					}
 				}
 
@@ -340,7 +340,7 @@ namespace UnrealBuildTool
 				// Parse encryption key
 				string EncryptionKeyString;
 				Ini.GetString(SectionName, "EncryptionKey", out EncryptionKeyString);
-				if (!string.IsNullOrEmpty(EncryptionKeyString))
+				if (!String.IsNullOrEmpty(EncryptionKeyString))
 				{
 					Settings.EncryptionKey = new EncryptionKey();
 					Settings.EncryptionKey.Key = System.Convert.FromBase64String(EncryptionKeyString);
@@ -515,7 +515,7 @@ namespace UnrealBuildTool
 				int CharsToParse = Math.Min(2, InString.Length);
 				string Value = InString.Substring(InString.Length - CharsToParse);
 				InString = InString.Substring(0, InString.Length - CharsToParse);
-				Bytes.Add(byte.Parse(Value, System.Globalization.NumberStyles.AllowHexSpecifier));
+				Bytes.Add(Byte.Parse(Value, System.Globalization.NumberStyles.AllowHexSpecifier));
 			}
 
 			while (Bytes.Count < InMinimumLength)

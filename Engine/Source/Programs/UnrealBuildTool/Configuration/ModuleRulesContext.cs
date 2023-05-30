@@ -56,7 +56,7 @@ namespace UnrealBuildTool
 		{
 			this.Scope = Scope;
 			this.DefaultOutputBaseDir = DefaultOutputBaseDir;
-			this.bCanUseForSharedPCH = true;
+			bCanUseForSharedPCH = true;
 		}
 
 		/// <summary>
@@ -65,14 +65,14 @@ namespace UnrealBuildTool
 		/// <param name="Other">The context to copy from</param>
 		public ModuleRulesContext(ModuleRulesContext Other)
 		{
-			this.Scope = Other.Scope;
-			this.DefaultOutputBaseDir = Other.DefaultOutputBaseDir;
-			this.Plugin = Other.Plugin;
-			this.bCanHotReload = Other.bCanHotReload;
-			this.bCanBuildDebugGame = Other.bCanBuildDebugGame;
-			this.bCanUseForSharedPCH = Other.bCanUseForSharedPCH;
-			this.bClassifyAsGameModuleForUHT = Other.bClassifyAsGameModuleForUHT;
-			this.DefaultUHTModuleType = Other.DefaultUHTModuleType;
+			Scope = Other.Scope;
+			DefaultOutputBaseDir = Other.DefaultOutputBaseDir;
+			Plugin = Other.Plugin;
+			bCanHotReload = Other.bCanHotReload;
+			bCanBuildDebugGame = Other.bCanBuildDebugGame;
+			bCanUseForSharedPCH = Other.bCanUseForSharedPCH;
+			bClassifyAsGameModuleForUHT = Other.bClassifyAsGameModuleForUHT;
+			DefaultUHTModuleType = Other.DefaultUHTModuleType;
 		}
 	}
 }

@@ -36,7 +36,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Host platform singleton.
 		/// </summary>
-		static public BuildHostPlatform Current
+		public static BuildHostPlatform Current
 		{
 			get
 			{
@@ -66,22 +66,22 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the current host platform type.
 		/// </summary>
-		abstract public UnrealTargetPlatform Platform { get; }
+		public abstract UnrealTargetPlatform Platform { get; }
 
 		/// <summary>
 		/// Gets the path to the shell for this platform
 		/// </summary>
-		abstract public FileReference Shell { get; }
+		public abstract FileReference Shell { get; }
 
 		/// <summary>
 		/// The type of shell returned by the Shell parameter
 		/// </summary>
-		abstract public ShellType ShellType { get; }
+		public abstract ShellType ShellType { get; }
 
 		/// <summary>
 		/// The executable binary suffix for this platform
 		/// </summary>
-		abstract public string BinarySuffix { get; }
+		public abstract string BinarySuffix { get; }
 
 		/// <summary>
 		/// Class that holds information about a running process
@@ -278,7 +278,7 @@ namespace UnrealBuildTool
 
 		public override ShellType ShellType => ShellType.Sh;
 
-		public override string BinarySuffix => string.Empty;
+		public override string BinarySuffix => String.Empty;
 
 		/// <summary>
 		/// Currently Mono returns incomplete process names in Process.GetProcesses() so we need to parse 'ps' output.
@@ -398,7 +398,7 @@ namespace UnrealBuildTool
 
 		public override ShellType ShellType => ShellType.Sh;
 
-		public override string BinarySuffix => string.Empty;
+		public override string BinarySuffix => String.Empty;
 
 		/// <summary>
 		/// Currently Mono returns incomplete process names in Process.GetProcesses() so we need to use /proc

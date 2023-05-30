@@ -171,7 +171,7 @@ namespace UnrealBuildTool
 						List<string> Chain = new List<string>();
 						if (IniParents.TryGetValue(Pair.Key, out CurrentPlatform))
 						{
-							while (!string.IsNullOrEmpty(CurrentPlatform))
+							while (!String.IsNullOrEmpty(CurrentPlatform))
 							{
 								// insert at 0 to reverse the order
 								Chain.Insert(0, CurrentPlatform);

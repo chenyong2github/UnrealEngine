@@ -23,7 +23,7 @@ namespace UnrealBuildTool
 		/// <returns>The default deploy folder name.</returns>
 		public static string GetDefaultDeployFolder(string ShortProjectName)
 		{
-			string DeployFolder = string.Format("{0}-{1}-{2}",
+			string DeployFolder = String.Format("{0}-{1}-{2}",
 				ShortProjectName,
 				Unreal.RootDirectory.GetDirectoryName(),
 				Environment.UserName);

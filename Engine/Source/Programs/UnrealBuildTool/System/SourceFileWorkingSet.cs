@@ -108,9 +108,9 @@ namespace UnrealBuildTool
 		public GitSourceFileWorkingSet(string GitPath, DirectoryReference RootDir, GitSourceFileWorkingSet? Inner, ILogger Logger)
 		{
 			this.RootDir = RootDir;
-			this.Files = new HashSet<FileReference>();
-			this.Directories = new List<DirectoryReference>();
-			this.ErrorOutput = new List<string>();
+			Files = new HashSet<FileReference>();
+			Directories = new List<DirectoryReference>();
+			ErrorOutput = new List<string>();
 			this.Inner = Inner;
 			this.Logger = Logger;
 

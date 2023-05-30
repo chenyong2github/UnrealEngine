@@ -17,7 +17,7 @@ namespace UnrealBuildTool
 			get;
 		}
 
-		static protected double MemoryPerActionBytesOverride
+		protected static double MemoryPerActionBytesOverride
 		{
 			get;
 			private set;

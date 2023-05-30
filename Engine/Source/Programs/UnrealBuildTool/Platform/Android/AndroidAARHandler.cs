@@ -175,10 +175,10 @@ namespace UnrealBuildTool
 			try
 			{
 				string[] Sections = VersionString.Split(".".ToCharArray());
-				Value |= (Sections.Length > 0) ? (uint.Parse(Sections[0]) << 24) : 0;
-				Value |= (Sections.Length > 1) ? (uint.Parse(Sections[1]) << 16) : 0;
-				Value |= (Sections.Length > 2) ? (uint.Parse(Sections[2]) << 8) : 0;
-				Value |= (Sections.Length > 3) ? uint.Parse(Sections[3]) : 0;
+				Value |= (Sections.Length > 0) ? (UInt32.Parse(Sections[0]) << 24) : 0;
+				Value |= (Sections.Length > 1) ? (UInt32.Parse(Sections[1]) << 16) : 0;
+				Value |= (Sections.Length > 2) ? (UInt32.Parse(Sections[2]) << 8) : 0;
+				Value |= (Sections.Length > 3) ? UInt32.Parse(Sections[3]) : 0;
 			}
 			catch (Exception)
 			{

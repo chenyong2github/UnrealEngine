@@ -324,7 +324,7 @@ namespace UnrealBuildTool
 			public GraphNode(T Data)
 			{
 				this.Data = Data;
-				this.Mark = Mark.None;
+				Mark = Mark.None;
 			}
 		}
 	}

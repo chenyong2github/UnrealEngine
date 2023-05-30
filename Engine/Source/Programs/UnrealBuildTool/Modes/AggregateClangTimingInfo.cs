@@ -71,26 +71,26 @@ namespace UnrealBuildTool
 			{
 				SourceFile = inputFile;
 
-				TotalExecuteCompiler = trace?.traceEvents?.FindLast(x => string.Equals(x.name, "Total ExecuteCompiler"))?.dur ?? 0;
+				TotalExecuteCompiler = trace?.traceEvents?.FindLast(x => String.Equals(x.name, "Total ExecuteCompiler"))?.dur ?? 0;
 
 				// Subset of execute compiler
-				TotalFrontend = trace?.traceEvents?.FindLast(x => string.Equals(x.name, "Total Frontend"))?.dur ?? 0;
-				TotalBackend = trace?.traceEvents?.FindLast(x => string.Equals(x.name, "Total Backend"))?.dur ?? 0;
+				TotalFrontend = trace?.traceEvents?.FindLast(x => String.Equals(x.name, "Total Frontend"))?.dur ?? 0;
+				TotalBackend = trace?.traceEvents?.FindLast(x => String.Equals(x.name, "Total Backend"))?.dur ?? 0;
 
 				// Subset of frontend
-				TotalSource = trace?.traceEvents?.FindLast(x => string.Equals(x.name, "Total Source"))?.dur ?? 0;
-				TotalInstantiateFunction = trace?.traceEvents?.FindLast(x => string.Equals(x.name, "Total InstantiateFunction"))?.dur ?? 0;
-				TotalCodeGenFunction = trace?.traceEvents?.FindLast(x => string.Equals(x.name, "Total CodeGen Function"))?.dur ?? 0;
+				TotalSource = trace?.traceEvents?.FindLast(x => String.Equals(x.name, "Total Source"))?.dur ?? 0;
+				TotalInstantiateFunction = trace?.traceEvents?.FindLast(x => String.Equals(x.name, "Total InstantiateFunction"))?.dur ?? 0;
+				TotalCodeGenFunction = trace?.traceEvents?.FindLast(x => String.Equals(x.name, "Total CodeGen Function"))?.dur ?? 0;
 
 				// Subset of backend
-				TotalModuleToFunctionPassAdaptor = trace?.traceEvents?.FindLast(x => string.Equals(x.name, "Total ModuleToFunctionPassAdaptor"))?.dur ?? 0;
-				TotalModuleInlinerWrapperPass = trace?.traceEvents?.FindLast(x => string.Equals(x.name, "Total ModuleInlinerWrapperPass"))?.dur ?? 0;
-				TotalOptModule = trace?.traceEvents?.FindLast(x => string.Equals(x.name, "Total OptModule"))?.dur ?? 0;
+				TotalModuleToFunctionPassAdaptor = trace?.traceEvents?.FindLast(x => String.Equals(x.name, "Total ModuleToFunctionPassAdaptor"))?.dur ?? 0;
+				TotalModuleInlinerWrapperPass = trace?.traceEvents?.FindLast(x => String.Equals(x.name, "Total ModuleInlinerWrapperPass"))?.dur ?? 0;
+				TotalOptModule = trace?.traceEvents?.FindLast(x => String.Equals(x.name, "Total OptModule"))?.dur ?? 0;
 
 				// Frontend entry counts
-				SourceEntries = trace?.traceEvents?.Where(x => string.Equals(x.name, "Source")).LongCount() ?? 0;
-				InstantiateFunctionEntries = trace?.traceEvents?.Where(x => string.Equals(x.name, "InstantiateFunction")).LongCount() ?? 0;
-				CodeGenFunctionEntries = trace?.traceEvents?.Where(x => string.Equals(x.name, "CodeGen Function")).LongCount() ?? 0;
+				SourceEntries = trace?.traceEvents?.Where(x => String.Equals(x.name, "Source")).LongCount() ?? 0;
+				InstantiateFunctionEntries = trace?.traceEvents?.Where(x => String.Equals(x.name, "InstantiateFunction")).LongCount() ?? 0;
+				CodeGenFunctionEntries = trace?.traceEvents?.Where(x => String.Equals(x.name, "CodeGen Function")).LongCount() ?? 0;
 
 				// Other
 				ObjectBytes = GetObjectSize();
@@ -135,8 +135,8 @@ namespace UnrealBuildTool
 				".pch",
 			};
 
-			public static string CsvHeader => string.Join(',', CsvColumns);
-			public string CsvLine => string.Join(',', CsvColumns.Select(x => GetType().GetProperty(x)!.GetValue(this)!.ToString()));
+			public static string CsvHeader => String.Join(',', CsvColumns);
+			public string CsvLine => String.Join(',', CsvColumns.Select(x => GetType().GetProperty(x)!.GetValue(this)!.ToString()));
 
 			private long GetObjectSize()
 			{
@@ -205,7 +205,7 @@ namespace UnrealBuildTool
 				Dictionary<FileReference, List<long>> Sources = new Dictionary<FileReference, List<long>>();
 				foreach (ClangTrace ClangTrace in ClangTraces.Where(x => x.traceEvents != null))
 				{
-					foreach (ClangTrace.TraceEvent Event in ClangTrace.traceEvents!.Where(x => string.Equals(x.name, "Source") && x.args?.ContainsKey("detail") == true))
+					foreach (ClangTrace.TraceEvent Event in ClangTrace.traceEvents!.Where(x => String.Equals(x.name, "Source") && x.args?.ContainsKey("detail") == true))
 					{
 						FileReference SourceFile = new FileReference(Event.args!["detail"].ToString()!);
 						if (!Sources.ContainsKey(SourceFile))

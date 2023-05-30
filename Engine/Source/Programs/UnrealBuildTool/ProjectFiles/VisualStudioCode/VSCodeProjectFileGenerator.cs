@@ -239,7 +239,7 @@ namespace UnrealBuildTool
 			private string TabString = "";
 		}
 
-		override public string ProjectFileExtension => ".vscode";
+		public override string ProjectFileExtension => ".vscode";
 
 		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesPath, ILogger Logger)
 		{
@@ -343,7 +343,7 @@ namespace UnrealBuildTool
 			{
 				CompilerPath = FileReference.FromString(LinuxCommon.WhichClang(Logger));
 				string? InternalSDKPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux)?.GetInternalSDKPath();
-				if (!string.IsNullOrEmpty(InternalSDKPath))
+				if (!String.IsNullOrEmpty(InternalSDKPath))
 				{
 					SysRootPath = DirectoryReference.FromString(InternalSDKPath);
 				}
@@ -620,9 +620,11 @@ namespace UnrealBuildTool
 
 							// we do not generate intellisense for every target, as that just causes a lot of redundancy, as such we will not find a mapping for a lot of the targets
 							if (BuildTarget == null)
+							{
 								continue;
+							}
 
-							string Name = string.Format("{0} {1} {2} {3} ({4})", ProjectTarget.Name, ProjectTarget.Type, BuildTarget.Platform, BuildTarget.Configuration, Project.Name);
+							string Name = String.Format("{0} {1} {2} {3} ({4})", ProjectTarget.Name, ProjectTarget.Type, BuildTarget.Platform, BuildTarget.Configuration, Project.Name);
 							WriteConfiguration(Name, Project.Name, Project.SourceProject.SourceFiles.Select(x => x.Reference), BuildTarget.CppStandard, BuildTarget.CompilerPath!, BuildTarget.SysRootPath, BuildTarget.ModuleCommandLines, OutFile, OutputDirectory);
 
 							CompilerPath = BuildTarget.CompilerPath;
@@ -740,7 +742,7 @@ namespace UnrealBuildTool
 
 			if (ShouldGenerateIntelliSenseData())
 			{
-				FileReference CompileCommands = FileReference.Combine(OutputDirectory, string.Format("compileCommands_{0}.json", ProjectName));
+				FileReference CompileCommands = FileReference.Combine(OutputDirectory, String.Format("compileCommands_{0}.json", ProjectName));
 				WriteCompileCommands(CompileCommands, SourceFiles, CompilerPath!, ModuleCommandLines);
 				OutFile.AddField("compileCommands", MakePathString(CompileCommands, bInAbsolute: true, bForceSkipQuotes: true));
 			}
@@ -954,7 +956,7 @@ namespace UnrealBuildTool
 								}
 								OutFile.AddUnnamedField("-waitmutex");
 
-								if (!string.IsNullOrEmpty(CleanParam))
+								if (!String.IsNullOrEmpty(CleanParam))
 								{
 									OutFile.AddUnnamedField(CleanParam);
 								}
@@ -1165,7 +1167,7 @@ namespace UnrealBuildTool
 			if (PackageName.Contains("[PROJECT]"))
 			{
 				// project name must start with a letter
-				if (!char.IsLetter(Target.Name[0]))
+				if (!Char.IsLetter(Target.Name[0]))
 				{
 					Trace.TraceWarning("Package name segments must all start with a letter. Please replace [PROJECT] with a valid name");
 				}
@@ -1182,7 +1184,7 @@ namespace UnrealBuildTool
 				for (int Index = 0; Index < ProjectName.Length; Index++)
 				{
 					char c = ProjectName[Index];
-					if (c != '.' && c != '_' && !char.IsLetterOrDigit(c))
+					if (c != '.' && c != '_' && !Char.IsLetterOrDigit(c))
 					{
 						Trace.TraceWarning("Project name contains illegal characters (only letters, numbers, and underscore allowed); please replace [PROJECT] with a valid name");
 						ProjectName.Replace(c, '_');
@@ -1393,7 +1395,7 @@ namespace UnrealBuildTool
 				OutFile.AddField("type", "coreclr");
 				OutFile.AddField("request", "launch");
 
-				if (!string.IsNullOrEmpty(InBuildTaskName))
+				if (!String.IsNullOrEmpty(InBuildTaskName))
 				{
 					OutFile.AddField("preLaunchTask", InBuildTaskName);
 				}

@@ -696,7 +696,7 @@ namespace UnrealBuildTool
 		{
 			this.Inner = Inner;
 			this.Target = Target;
-			this.IsHighPriority = Inner.bIsHighPriority ? 1 : 0;
+			IsHighPriority = Inner.bIsHighPriority ? 1 : 0;
 		}
 
 		/// <summary>
@@ -709,7 +709,9 @@ namespace UnrealBuildTool
 			if (VisitedActions.Add(this))
 			{
 				if (bIsHighPriority)
+				{
 					Interlocked.Exchange(ref IsHighPriority, 1);
+				}
 
 				Interlocked.Increment(ref NumTotalDependentActions);
 				foreach (LinkedAction PrerequisiteAction in PrerequisiteActions)

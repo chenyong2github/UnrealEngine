@@ -69,7 +69,7 @@ namespace UnrealBuildTool
 		/// Minimum number of actions to use XGE execution.
 		/// </summary>
 		[XmlConfigFile(Category = "XGE")]
-		static public int MinActions = 2;
+		public static int MinActions = 2;
 
 		/// <summary>
 		/// Check for a concurrent XGE build and treat the XGE executor as unavailable if it's in use.
@@ -489,7 +489,7 @@ namespace UnrealBuildTool
 				// <Tool ... />
 				XmlElement ToolElement = XGETaskDocument.CreateElement("Tool");
 				ToolsElement.AppendChild(ToolElement);
-				ToolElement.SetAttribute("Name", string.Format("Tool{0}", ActionIndex));
+				ToolElement.SetAttribute("Name", String.Format("Tool{0}", ActionIndex));
 				ToolElement.SetAttribute("AllowRemote", CanExecuteRemotely.ToString());
 
 				// The XGE documentation says that 'AllowIntercept' must be set to 'true' for all tools where 'AllowRemote' is enabled
@@ -534,7 +534,7 @@ namespace UnrealBuildTool
 				}
 				ToolElement.SetAttribute(
 					"OutputFileMasks",
-					string.Join(
+					String.Join(
 						",",
 						Action.ProducedItems.Select(
 							delegate (FileItem ProducedItem) { return ProducedItem.Location.GetFileName(); }
@@ -544,11 +544,11 @@ namespace UnrealBuildTool
 
 				if (Action.ActionType == ActionType.Compile)
 				{
-					ToolElement.SetAttribute("AutoRecover", string.Join(',', CompileAutoRecover));
+					ToolElement.SetAttribute("AutoRecover", String.Join(',', CompileAutoRecover));
 				}
 				else if (Action.ActionType == ActionType.Link)
 				{
-					ToolElement.SetAttribute("AutoRecover", string.Join(',', LinkAutoRecover));
+					ToolElement.SetAttribute("AutoRecover", String.Join(',', LinkAutoRecover));
 				}
 			}
 
@@ -567,8 +567,8 @@ namespace UnrealBuildTool
 				ProjectElement.AppendChild(TaskElement);
 				TaskElement.SetAttribute("SourceFile", "");
 				TaskElement.SetAttribute("Caption", Action.StatusDescription);
-				TaskElement.SetAttribute("Name", string.Format("Action{0}", ActionIndex));
-				TaskElement.SetAttribute("Tool", string.Format("Tool{0}", ActionIndex));
+				TaskElement.SetAttribute("Name", String.Format("Action{0}", ActionIndex));
+				TaskElement.SetAttribute("Tool", String.Format("Tool{0}", ActionIndex));
 				TaskElement.SetAttribute("WorkingDir", Action.WorkingDirectory.FullName);
 				TaskElement.SetAttribute("SkipIfProjectFailed", "true");
 				TaskElement.SetAttribute("AllowRestartOnLocal", "true");
@@ -579,13 +579,13 @@ namespace UnrealBuildTool
 				{
 					if (Actions.Contains(PrerequisiteAction))
 					{
-						DependencyNames.Add(string.Format("Action{0}", Actions.IndexOf(PrerequisiteAction)));
+						DependencyNames.Add(String.Format("Action{0}", Actions.IndexOf(PrerequisiteAction)));
 					}
 				}
 
 				if (DependencyNames.Count > 0)
 				{
-					TaskElement.SetAttribute("DependsOn", string.Join(";", DependencyNames.ToArray()));
+					TaskElement.SetAttribute("DependsOn", String.Join(";", DependencyNames.ToArray()));
 				}
 			}
 
@@ -648,7 +648,7 @@ namespace UnrealBuildTool
 
 			ProcessStartInfo XGEStartInfo = new ProcessStartInfo(
 				XgConsolePath,
-				string.Format("\"{0}\" /Rebuild /NoWait {1} /NoLogo {2} /ShowAgent /ShowTime {3}",
+				String.Format("\"{0}\" /Rebuild /NoWait {1} /NoLogo {2} /ShowAgent /ShowTime {3}",
 					TaskFilePath,
 					bStopXGECompilationAfterErrors ? "/StopOnErrors" : "",
 					SilentOption,
@@ -711,8 +711,8 @@ namespace UnrealBuildTool
 			using (ProgressWriter Writer = new ProgressWriter("Compiling C++ source files...", false, Logger))
 			{
 				int NumCompletedActions = 0;
-				string ProgressText = string.Empty;
-				string CommandDescription = string.Empty;
+				string ProgressText = String.Empty;
+				string CommandDescription = String.Empty;
 				HashSet<int> ReportedActionIndices = new();
 
 				// Create a wrapper delegate that will parse the output actions
@@ -730,7 +730,7 @@ namespace UnrealBuildTool
 							if (EndOfMarkupPrefix != -1)
 							{
 								MarkupLength = EndOfMarkupPrefix + 1;
-								if (int.TryParse(Text.Substring(ProgressMarkupPrefix.Length + 1, EndOfMarkupPrefix - ProgressMarkupPrefix.Length - 1), out ActionIndex))
+								if (Int32.TryParse(Text.Substring(ProgressMarkupPrefix.Length + 1, EndOfMarkupPrefix - ProgressMarkupPrefix.Length - 1), out ActionIndex))
 								{
 									// We keep track of the actions that we have already reported so NumCompletedActions match up with NumActions
 									if (ReportedActionIndices.Add(ActionIndex))
@@ -740,13 +740,13 @@ namespace UnrealBuildTool
 								}
 							}
 							// Flush old progress text
-							if (!string.IsNullOrEmpty(ProgressText))
+							if (!String.IsNullOrEmpty(ProgressText))
 							{
 								Logger.LogInformation("[{NumCompletedActions}/{NumActions}] Complete {ProgressText}", NumCompletedActions, NumActions, ProgressText);
-								ProgressText = string.Empty;
+								ProgressText = String.Empty;
 							}
 
-							CommandDescription = ActionIndex != -1 ? Actions[ActionIndex].CommandDescription + " " : string.Empty;
+							CommandDescription = ActionIndex != -1 ? Actions[ActionIndex].CommandDescription + " " : String.Empty;
 
 							// Strip out anything that is just an XGE timer. Some programs don't output anything except the progress text.
 							Text = Args.Data.Substring(MarkupLength);
@@ -760,11 +760,11 @@ namespace UnrealBuildTool
 							Logger.LogInformation("[{NumCompletedActions}/{NumActions}] {CommandDescription}{Text}", NumCompletedActions, NumActions, CommandDescription, Text);
 							return;
 						}
-						if (!string.IsNullOrEmpty(ProgressText))
+						if (!String.IsNullOrEmpty(ProgressText))
 						{
 							Logger.LogInformation("[{NumCompletedActions}/{NumActions}] {CommandDescription}{Text} {ProgressText}", NumCompletedActions, NumActions, CommandDescription, Text, ProgressText);
-							ProgressText = string.Empty;
-							CommandDescription = string.Empty;
+							ProgressText = String.Empty;
+							CommandDescription = String.Empty;
 							return;
 						}
 						WriteToolOutput(Text);

@@ -207,7 +207,7 @@ namespace UnrealBuildTool
 			StringBuilder ProjectFileContent = new StringBuilder();
 
 			ProjectFileContent.Append("# @Eddie Workset@" + ProjectFileGenerator.NewLine);
-			ProjectFileContent.Append("AddWorkset \"" + this.ToString() + ".wkst\" \"" + ProjectFilePath.FullName + "\"" + ProjectFileGenerator.NewLine);
+			ProjectFileContent.Append("AddWorkset \"" + ToString() + ".wkst\" \"" + ProjectFilePath.FullName + "\"" + ProjectFileGenerator.NewLine);
 
 			ParseSourceFilesIntoGroups();
 			EmitProject(ProjectFileContent, Folders, Logger);

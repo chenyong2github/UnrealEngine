@@ -306,7 +306,7 @@ namespace UnrealBuildTool
 		public static int RunLocalProcessAndPrintfOutput(ProcessStartInfo StartInfo, ILogger Logger)
 		{
 			string AppName = Path.GetFileNameWithoutExtension(StartInfo.FileName);
-			string LogFilenameBase = string.Format("{0}_{1}", AppName, DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss"));
+			string LogFilenameBase = String.Format("{0}_{1}", AppName, DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss"));
 			string LogDir = Path.Combine(Unreal.EngineDirectory.FullName, "Programs", "AutomationTool", "Saved", "Logs");
 			string LogFilename = "";
 			for (int Attempt = 1; Attempt < 100; ++Attempt)
@@ -316,7 +316,7 @@ namespace UnrealBuildTool
 					if (!Directory.Exists(LogDir))
 					{
 						string? IniPath = UnrealBuildTool.GetRemoteIniPath();
-						if (string.IsNullOrEmpty(IniPath))
+						if (String.IsNullOrEmpty(IniPath))
 						{
 							break;
 						}
@@ -356,12 +356,12 @@ namespace UnrealBuildTool
 				if (Args != null && Args.Data != null)
 				{
 					string data = Args.Data.TrimEnd();
-					if (string.IsNullOrEmpty(data))
+					if (String.IsNullOrEmpty(data))
 					{
 						return;
 					}
 
-					if (!string.IsNullOrEmpty(LogFilename))
+					if (!String.IsNullOrEmpty(LogFilename))
 					{
 						File.AppendAllLines(LogFilename, data.Split('\n'));
 					}
@@ -376,7 +376,7 @@ namespace UnrealBuildTool
 			LocalProcess.OutputDataReceived += Output;
 			LocalProcess.ErrorDataReceived += Output;
 			var ExitCode = RunLocalProcess(LocalProcess);
-			if (ExitCode != 0 && !string.IsNullOrEmpty(LogFilename))
+			if (ExitCode != 0 && !String.IsNullOrEmpty(LogFilename))
 			{
 				Logger.LogError("Process \'{AppName}\' failed. Details are in \'{LogFilename}\'", AppName, LogFilename);
 			}
@@ -673,7 +673,7 @@ namespace UnrealBuildTool
 			for (; ; )
 			{
 				// An empty path is finished
-				if (string.IsNullOrEmpty(LocalString))
+				if (String.IsNullOrEmpty(LocalString))
 				{
 					break;
 				}
@@ -816,11 +816,11 @@ namespace UnrealBuildTool
 		/*
 		 * Read and write classes with xml specifiers
 		 */
-		static private void UnknownAttributeDelegate(object? sender, XmlAttributeEventArgs e)
+		private static void UnknownAttributeDelegate(object? sender, XmlAttributeEventArgs e)
 		{
 		}
 
-		static private void UnknownNodeDelegate(object? sender, XmlNodeEventArgs e)
+		private static void UnknownNodeDelegate(object? sender, XmlNodeEventArgs e)
 		{
 		}
 
@@ -831,7 +831,7 @@ namespace UnrealBuildTool
 		/// <param name="FileName">The XML file to read from</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>New deserialized instance of type T</returns>
-		static public T ReadClass<T>(string FileName, ILogger Logger) where T : new()
+		public static T ReadClass<T>(string FileName, ILogger Logger) where T : new()
 		{
 			T Instance = new T();
 			StreamReader? XmlStream = null;
@@ -874,7 +874,7 @@ namespace UnrealBuildTool
 		/// <param name="DefaultNameSpace">Default namespace for the output elements</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the file was written successfully</returns>
-		static public bool WriteClass<T>(T Data, string FileName, string DefaultNameSpace, ILogger Logger)
+		public static bool WriteClass<T>(T Data, string FileName, string DefaultNameSpace, ILogger Logger)
 		{
 			bool bSuccess = true;
 			StreamWriter? XmlStream = null;
@@ -927,7 +927,9 @@ namespace UnrealBuildTool
 		{
 			// null objects are always invalid
 			if (p == null)
+			{
 				return false;
+			}
 			// due to multithreading on Windows, lock the object
 			lock (p)
 			{
@@ -1025,7 +1027,7 @@ namespace UnrealBuildTool
 		}
 
 		[DllImport("kernel32.dll", SetLastError = true)]
-		extern static bool GetLogicalProcessorInformationEx(LOGICAL_PROCESSOR_RELATIONSHIP RelationshipType, IntPtr Buffer, ref uint ReturnedLength);
+		static extern bool GetLogicalProcessorInformationEx(LOGICAL_PROCESSOR_RELATIONSHIP RelationshipType, IntPtr Buffer, ref uint ReturnedLength);
 
 		/// <summary>
 		/// Gets the number of logical cores. We use this rather than Environment.ProcessorCount when possible to handle machines with > 64 cores (the single group limit available to the .NET framework).
@@ -1083,7 +1085,7 @@ namespace UnrealBuildTool
 
 		// int sysctlbyname(const char *name, void *oldp, size_t *oldlenp, void *newp, size_t newlen); // from man page
 		[DllImport("libc")]
-		extern static int sysctlbyname(string name, out int oldp, ref UInt64 oldlenp, IntPtr newp, UInt64 newlen);
+		static extern int sysctlbyname(string name, out int oldp, ref UInt64 oldlenp, IntPtr newp, UInt64 newlen);
 
 		/// <summary>
 		/// Gets the number of physical cores, excluding hyper threading.
@@ -1237,11 +1239,11 @@ namespace UnrealBuildTool
 
 		// kern_return_t host_statistics64(host_t host_priv, host_flavor_t flavor, host_info64_t host_info64_out, mach_msg_type_number_t *host_info64_outCnt); // from <mach/mach_host.h>
 		[DllImport("libc")]
-		extern static int host_statistics64(IntPtr host_priv, int flavor, out vm_statistics64 host_info64_out, ref uint host_info_count);
+		static extern int host_statistics64(IntPtr host_priv, int flavor, out vm_statistics64 host_info64_out, ref uint host_info_count);
 
 		// mach_port_t mach_host_self() // from <mach/mach_init.h>
 		[DllImport("libc")]
-		extern static IntPtr mach_host_self();
+		static extern IntPtr mach_host_self();
 
 		/// <summary>
 		/// Gets the total memory bytes free, based on what is known to the garbage collector.
@@ -1584,8 +1586,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		static readonly Dictionary<FileReference, (int WriteRequestCount, int ActualWriteCount)> WriteFileIfChangedRecord = new Dictionary<FileReference, (int, int)>();
 
-		static internal FileReference? WriteFileIfChangedTrace = null;
-		static internal string WriteFileIfChangedContext = "";
+		internal static FileReference? WriteFileIfChangedTrace = null;
+		internal static string WriteFileIfChangedContext = "";
 
 		static void RecordWriteFileIfChanged(FileReference File, bool bNew, bool bChanged, ILogger Logger)
 		{
@@ -1784,7 +1786,7 @@ namespace UnrealBuildTool
 		/// <param name="Logger">Logger for output</param>
 		internal static void WriteFileIfChanged(FileItem FileItem, IEnumerable<string> ContentLines, StringComparison Comparison, ILogger Logger)
 		{
-			var Contents = string.Join(Environment.NewLine, ContentLines);
+			var Contents = String.Join(Environment.NewLine, ContentLines);
 			WriteFileIfChanged(FileItem, Contents, Comparison, Logger);
 		}
 

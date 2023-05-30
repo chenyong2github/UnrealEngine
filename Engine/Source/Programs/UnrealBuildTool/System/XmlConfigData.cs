@@ -103,7 +103,7 @@ namespace UnrealBuildTool
 
 			public ValueInfo(FieldInfo FieldInfo, object Value, FileReference SourceFile, XmlConfigFileAttribute XmlConfigAttribute)
 			{
-				this.Target = new TargetField(FieldInfo);
+				Target = new TargetField(FieldInfo);
 				this.Value = Value;
 				this.SourceFile = SourceFile;
 				this.XmlConfigAttribute = XmlConfigAttribute;
@@ -111,7 +111,7 @@ namespace UnrealBuildTool
 
 			public ValueInfo(PropertyInfo PropertyInfo, object Value, FileReference SourceFile, XmlConfigFileAttribute XmlConfigAttribute)
 			{
-				this.Target = new TargetProperty(PropertyInfo);
+				Target = new TargetProperty(PropertyInfo);
 				this.Value = Value;
 				this.SourceFile = SourceFile;
 				this.XmlConfigAttribute = XmlConfigAttribute;

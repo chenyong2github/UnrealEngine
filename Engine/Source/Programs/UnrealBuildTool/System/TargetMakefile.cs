@@ -45,7 +45,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="InlinedGenCppNames">Gen.cpp file names</param>
 		/// <returns>Hash of file names</returns>
-		static public int CalculateInlineGenCppHash(IEnumerable<string> InlinedGenCppNames)
+		public static int CalculateInlineGenCppHash(IEnumerable<string> InlinedGenCppNames)
 		{
 			int InlineHash = 0;
 			foreach (string FileName in InlinedGenCppNames)
@@ -409,9 +409,9 @@ namespace UnrealBuildTool
 			TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile,
 			FileReference[]? UbtPlugins, FileReference[]? EnabledUbtPlugins, FileReference[]? EnabledUhtPlugins)
 		{
-			this.CreateTimeUtc = UnrealBuildTool.StartTimeUtc;
-			this.ModifiedTimeUtc = CreateTimeUtc;
-			this.Diagnostics = new List<string>();
+			CreateTimeUtc = UnrealBuildTool.StartTimeUtc;
+			ModifiedTimeUtc = CreateTimeUtc;
+			Diagnostics = new List<string>();
 			this.ExternalMetadata = ExternalMetadata;
 			this.ExecutableFile = ExecutableFile;
 			this.ReceiptFile = ReceiptFile;
@@ -423,23 +423,23 @@ namespace UnrealBuildTool
 			this.UbtPlugins = UbtPlugins;
 			this.EnabledUbtPlugins = EnabledUbtPlugins;
 			this.EnabledUhtPlugins = EnabledUhtPlugins;
-			this.Actions = new List<IExternalAction>();
-			this.OutputItems = new List<FileItem>();
-			this.ModuleNameToOutputItems = new Dictionary<string, FileItem[]>(StringComparer.OrdinalIgnoreCase);
-			this.HotReloadModuleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			this.SourceDirectories = new List<DirectoryItem>();
-			this.DirectoryToSourceFiles = new();
-			this.HeaderFiles = new();
-			this.WorkingSet = new HashSet<FileItem>();
-			this.CandidatesForWorkingSet = new HashSet<FileItem>();
-			this.UObjectModules = new List<UHTModuleInfo>();
-			this.UObjectModuleHeaders = new List<UHTModuleHeaderInfo>();
+			Actions = new List<IExternalAction>();
+			OutputItems = new List<FileItem>();
+			ModuleNameToOutputItems = new Dictionary<string, FileItem[]>(StringComparer.OrdinalIgnoreCase);
+			HotReloadModuleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			SourceDirectories = new List<DirectoryItem>();
+			DirectoryToSourceFiles = new();
+			HeaderFiles = new();
+			WorkingSet = new HashSet<FileItem>();
+			CandidatesForWorkingSet = new HashSet<FileItem>();
+			UObjectModules = new List<UHTModuleInfo>();
+			UObjectModuleHeaders = new List<UHTModuleHeaderInfo>();
 #if __VPROJECT_AVAILABLE__
-			this.VNIModules = new List<VNIModuleInfo>();
+			VNIModules = new List<VNIModuleInfo>();
 #endif
-			this.PluginFiles = new HashSet<FileItem>();
-			this.ExternalDependencies = new HashSet<FileItem>();
-			this.InternalDependencies = new HashSet<FileItem>();
+			PluginFiles = new HashSet<FileItem>();
+			ExternalDependencies = new HashSet<FileItem>();
+			InternalDependencies = new HashSet<FileItem>();
 		}
 
 		/// <summary>
@@ -679,8 +679,8 @@ namespace UnrealBuildTool
 				// Check if the arguments are different
 				if (!Enumerable.SequenceEqual(Makefile.AdditionalArguments!, Arguments))
 				{
-					Logger.LogDebug("Old command line arguments:\n", string.Join(' ', Makefile.AdditionalArguments!));
-					Logger.LogDebug("New command line arguments:\n", string.Join(' ', Arguments));
+					Logger.LogDebug("Old command line arguments:\n", String.Join(' ', Makefile.AdditionalArguments!));
+					Logger.LogDebug("New command line arguments:\n", String.Join(' ', Arguments));
 					ReasonNotLoaded = "command line arguments changed";
 					return null;
 				}
@@ -827,13 +827,13 @@ namespace UnrealBuildTool
 					if (!ExternalDependency.Exists)
 					{
 						Logger.LogDebug("{File} has been deleted since makefile was built.", ExternalDependency.Location);
-						ReasonNotLoaded = string.Format("{0} deleted", ExternalDependency.Location.GetFileName());
+						ReasonNotLoaded = String.Format("{0} deleted", ExternalDependency.Location.GetFileName());
 						return false;
 					}
 					if (ExternalDependency.LastWriteTimeUtc > Makefile.CreateTimeUtc)
 					{
 						Logger.LogDebug("{File} has been modified since makefile was built.", ExternalDependency.Location);
-						ReasonNotLoaded = string.Format("{0} modified", ExternalDependency.Location.GetFileName());
+						ReasonNotLoaded = String.Format("{0} modified", ExternalDependency.Location.GetFileName());
 						return false;
 					}
 				}
@@ -844,13 +844,13 @@ namespace UnrealBuildTool
 					if (!InternalDependency.Exists)
 					{
 						Logger.LogDebug("{File} has been deleted since makefile was written.", InternalDependency.Location);
-						ReasonNotLoaded = string.Format("{0} deleted", InternalDependency.Location.GetFileName());
+						ReasonNotLoaded = String.Format("{0} deleted", InternalDependency.Location.GetFileName());
 						return false;
 					}
 					if (InternalDependency.LastWriteTimeUtc > Makefile.ModifiedTimeUtc)
 					{
 						Logger.LogDebug("{File} has been modified since makefile was written.", InternalDependency.Location);
-						ReasonNotLoaded = string.Format("{0} modified", InternalDependency.Location.GetFileName());
+						ReasonNotLoaded = String.Format("{0} modified", InternalDependency.Location.GetFileName());
 						return false;
 					}
 				}
@@ -862,7 +862,7 @@ namespace UnrealBuildTool
 					if (!Makefile.PluginFiles.Contains(PluginFileItem))
 					{
 						Logger.LogDebug("{File} has been added", PluginFile.GetFileName());
-						ReasonNotLoaded = string.Format("{0} has been added", PluginFile.GetFileName());
+						ReasonNotLoaded = String.Format("{0} has been added", PluginFile.GetFileName());
 						return false;
 					}
 				}
@@ -898,7 +898,7 @@ namespace UnrealBuildTool
 					if (!WorkingSet.Contains(SourceFile) && SourceFile.LastWriteTimeUtc > Makefile.CreateTimeUtc)
 					{
 						Logger.LogDebug("{File} was part of source working set and now is not; invalidating makefile", SourceFile.Location);
-						ReasonNotLoaded = string.Format("working set of source files changed");
+						ReasonNotLoaded = String.Format("working set of source files changed");
 						return false;
 					}
 				}
@@ -909,7 +909,7 @@ namespace UnrealBuildTool
 					if (WorkingSet.Contains(SourceFile) && SourceFile.LastWriteTimeUtc > Makefile.CreateTimeUtc)
 					{
 						Logger.LogDebug("{File} was not part of source working set and should be", SourceFile.Location);
-						ReasonNotLoaded = string.Format("working set of source files changed");
+						ReasonNotLoaded = String.Format("working set of source files changed");
 						return false;
 					}
 				}

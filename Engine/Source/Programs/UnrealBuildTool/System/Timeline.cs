@@ -60,7 +60,7 @@ namespace UnrealBuildTool
 				this.Name = Name;
 				this.StartTime = StartTime;
 				this.FinishTime = FinishTime;
-				this.Span = TraceSpan.Create(Name);
+				Span = TraceSpan.Create(Name);
 			}
 
 			/// <summary>

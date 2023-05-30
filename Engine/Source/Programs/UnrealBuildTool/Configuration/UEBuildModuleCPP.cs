@@ -71,7 +71,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Global override to force all include paths to be always added
 		/// </summary>
-		static public bool bForceAddGeneratedCodeIncludePath;
+		public static bool bForceAddGeneratedCodeIncludePath;
 
 		/// <summary>
 		/// Paths containing *.gen.cpp files for this module.  If this is null then this module doesn't have any generated code.
@@ -197,8 +197,8 @@ namespace UnrealBuildTool
 			DirectoryReference MaybeVerseDirectory = DirectoryReference.Combine(Rules.File.Directory, "Verse");
 			if (IsValidVerseDirectory(MaybeVerseDirectory))
 			{
-				this.AssociatedVerseDirectory = MaybeVerseDirectory;
-				this.bDependsOnVerse = true;
+				AssociatedVerseDirectory = MaybeVerseDirectory;
+				bDependsOnVerse = true;
 			}
 
 			if (Rules.bValidateCircularDependencies || Rules.bTreatAsEngineModule)
@@ -454,12 +454,12 @@ namespace UnrealBuildTool
 			{
 				foreach (UnrealArch Arch in CompileEnvironment.PerArchPrecompiledHeaderFiles.Keys)
 				{
-					Logger.LogDebug("Module '{ModuleName}' uses PCH '{PCHIncludeFilename}' for Architecture '{Arch}'", this.Name, Arch, CompileEnvironment.PerArchPrecompiledHeaderFiles[Arch]);
+					Logger.LogDebug("Module '{ModuleName}' uses PCH '{PCHIncludeFilename}' for Architecture '{Arch}'", Name, Arch, CompileEnvironment.PerArchPrecompiledHeaderFiles[Arch]);
 				}
 			}
 			else if (CompileEnvironment.PrecompiledHeaderFile != null)
 			{
-				Logger.LogDebug("Module '{ModuleName}' uses PCH '{PCHIncludeFilename}'", this.Name, CompileEnvironment.PrecompiledHeaderFile);
+				Logger.LogDebug("Module '{ModuleName}' uses PCH '{PCHIncludeFilename}'", Name, CompileEnvironment.PrecompiledHeaderFile);
 			}
 
 			// Write all the definitions to a separate file
@@ -611,28 +611,28 @@ namespace UnrealBuildTool
 
 				if (Target.bForceUnityBuild)
 				{
-					Logger.LogTrace("Module '{ModuleName}' using unity build mode (bForceUnityBuild enabled for this module)", this.Name);
+					Logger.LogTrace("Module '{ModuleName}' using unity build mode (bForceUnityBuild enabled for this module)", Name);
 					bModuleUsesUnityBuild = true;
 				}
 				else if (!Rules.bUseUnity)
 				{
-					Logger.LogTrace("Module '{ModuleName}' not using unity build mode (bUseUnity disabled for this module)", this.Name);
+					Logger.LogTrace("Module '{ModuleName}' not using unity build mode (bUseUnity disabled for this module)", Name);
 					bModuleUsesUnityBuild = false;
 				}
 				else if (FileCount < MinSourceFilesForUnityBuild)
 				{
-					Logger.LogTrace("Module '{ModuleName}' not using unity build mode (module with fewer than {NumFiles} source files)", this.Name, MinSourceFilesForUnityBuild);
+					Logger.LogTrace("Module '{ModuleName}' not using unity build mode (module with fewer than {NumFiles} source files)", Name, MinSourceFilesForUnityBuild);
 					bModuleUsesUnityBuild = false;
 				}
 				else
 				{
-					Logger.LogTrace("Module '{ModuleName}' using unity build mode", this.Name);
+					Logger.LogTrace("Module '{ModuleName}' using unity build mode", Name);
 					bModuleUsesUnityBuild = true;
 				}
 			}
 			else
 			{
-				Logger.LogTrace("Module '{ModuleName}' not using unity build mode", this.Name);
+				Logger.LogTrace("Module '{ModuleName}' not using unity build mode", Name);
 			}
 
 			// Compile Generated CPP Files
@@ -773,10 +773,15 @@ namespace UnrealBuildTool
 			// Find FileItems for module's pch files
 			FileItem? PrivatePchFileItem = null;
 			if (Rules.PrivatePCHHeaderFile != null)
+			{
 				PrivatePchFileItem = FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.PrivatePCHHeaderFile));
+			}
+
 			FileItem? SharedPchFileItem = null;
 			if (Rules.SharedPCHHeaderFile != null)
+			{
 				SharedPchFileItem = FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.SharedPCHHeaderFile));
+			}
 
 			Dictionary<string, FileItem> NameToFileItem = new();
 
@@ -808,7 +813,9 @@ namespace UnrealBuildTool
 			}
 
 			if (CollidingFiles.Count != 0)
+			{
 				CompileEnvironment.CollidingNames = CollidingFiles;
+			}
 
 			return HeaderFileItems;
 		}
@@ -943,7 +950,7 @@ namespace UnrealBuildTool
 				if (Rules.Target.bChainPCHs)
 				{
 					// Create a lookup table for the definitions
-					DefinitionsDictionary = Definitions.ToHashSet().ToDictionary(x => x.Split('=')[0], x => (x.Split("=").Length >= 2) ? x.Split("=")[1] : string.Empty);
+					DefinitionsDictionary = Definitions.ToHashSet().ToDictionary(x => x.Split('=')[0], x => (x.Split("=").Length >= 2) ? x.Split("=")[1] : String.Empty);
 
 					// Find all the dependencies of this module
 					HashSet<UEBuildModule> ReferencedModules = new HashSet<UEBuildModule>();
@@ -1011,7 +1018,7 @@ namespace UnrealBuildTool
 		/// <param name="ModuleCompileEnvironment">The module compile environment</param>
 		/// <param name="CompileEnvironment">The shared PCH compile environment</param>
 		/// <returns>True if the two compile enviroments are compatible</returns>
-		static internal bool IsCompatibleForSharedPCH(CppCompileEnvironment ModuleCompileEnvironment, CppCompileEnvironment CompileEnvironment)
+		internal static bool IsCompatibleForSharedPCH(CppCompileEnvironment ModuleCompileEnvironment, CppCompileEnvironment CompileEnvironment)
 		{
 			if (ModuleCompileEnvironment.bOptimizeCode != CompileEnvironment.bOptimizeCode)
 			{
@@ -1060,7 +1067,7 @@ namespace UnrealBuildTool
 		/// <param name="CompileEnvironment">The shared PCH compile environment</param>
 		/// <param name="BaseCompileEnvironment">The base compile environment</param>
 		/// <returns>The unique suffix for the shared PCH</returns>
-		static private string GetSuffixForSharedPCH(CppCompileEnvironment CompileEnvironment, CppCompileEnvironment BaseCompileEnvironment)
+		private static string GetSuffixForSharedPCH(CppCompileEnvironment CompileEnvironment, CppCompileEnvironment BaseCompileEnvironment)
 		{
 			string Variant = "";
 			if (CompileEnvironment.bOptimizeCode != BaseCompileEnvironment.bOptimizeCode)
@@ -1192,7 +1199,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ModuleCompileEnvironment">The module compile environment</param>
 		/// <param name="CompileEnvironment">The shared PCH compile environment</param>
-		static private void CopySettingsForSharedPCH(CppCompileEnvironment ModuleCompileEnvironment, CppCompileEnvironment CompileEnvironment)
+		private static void CopySettingsForSharedPCH(CppCompileEnvironment ModuleCompileEnvironment, CppCompileEnvironment CompileEnvironment)
 		{
 			CompileEnvironment.bOptimizeCode = ModuleCompileEnvironment.bOptimizeCode;
 			CompileEnvironment.bUseRTTI = ModuleCompileEnvironment.bUseRTTI;

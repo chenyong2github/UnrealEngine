@@ -59,7 +59,7 @@ namespace UnrealBuildTool
 			this.TestedModule = TestedModule;
 
 			Name = TestedModule.Name + "Tests";
-			if (!string.IsNullOrEmpty(TestedModule.ShortName))
+			if (!String.IsNullOrEmpty(TestedModule.ShortName))
 			{
 				ShortName = TestedModule.ShortName + "Tests";
 			}
@@ -300,10 +300,10 @@ namespace UnrealBuildTool
 				XDocument XInitPlatformFile = XDocument.Load(GeneratedPropertiesPlatformFile);
 
 				// Adding per-test and per-platform tags
-				string TagsValue = TestMetadata.PlatformTags.ContainsKey(ValidPlatform) ? TestMetadata.PlatformTags[ValidPlatform] : string.Empty;
+				string TagsValue = TestMetadata.PlatformTags.ContainsKey(ValidPlatform) ? TestMetadata.PlatformTags[ValidPlatform] : String.Empty;
 				AppendOrUpdateTestFlagProperty(ref XInitPlatformFile, TestMetadata.TestName, ValidPlatform.ToString(), "Tags", TagsValue);
 
-				string ExtraCompilationArgsValue = TestMetadata.PlatformCompilationExtraArgs.ContainsKey(ValidPlatform) ? TestMetadata.PlatformCompilationExtraArgs[ValidPlatform] : string.Empty;
+				string ExtraCompilationArgsValue = TestMetadata.PlatformCompilationExtraArgs.ContainsKey(ValidPlatform) ? TestMetadata.PlatformCompilationExtraArgs[ValidPlatform] : String.Empty;
 				AppendOrUpdateTestFlagProperty(ref XInitPlatformFile, TestMetadata.TestName, ValidPlatform.ToString(), "ExtraCompilationArgs", ExtraCompilationArgsValue);
 
 				string RunSupportedValue = TestMetadata.PlatformsRunUnsupported.Contains(ValidPlatform) ? "False" : "True";

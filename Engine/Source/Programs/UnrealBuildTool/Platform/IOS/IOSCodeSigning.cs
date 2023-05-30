@@ -104,12 +104,12 @@ namespace UnrealBuildTool
 		}
 
 
-		static private string CertToolData = "";
+		private static string CertToolData = "";
 
 		/// <summary>
 		/// When receiving the cert tool process call
 		/// </summary>
-		static public void OutputReceivedCertToolProcessCall(Object Sender, DataReceivedEventArgs Line)
+		public static void OutputReceivedCertToolProcessCall(Object Sender, DataReceivedEventArgs Line)
 		{
 			if ((Line != null) && !String.IsNullOrEmpty(Line.Data))
 			{
@@ -135,7 +135,7 @@ namespace UnrealBuildTool
 					Process CertTool = new Process();
 					CertTool.StartInfo.FileName = "/usr/bin/security";
 					CertTool.StartInfo.UseShellExecute = false;
-					CertTool.StartInfo.Arguments = string.Format("find-certificate -a -c \"{0}\" -p", SearchPrefix);
+					CertTool.StartInfo.Arguments = String.Format("find-certificate -a -c \"{0}\" -p", SearchPrefix);
 					CertTool.StartInfo.RedirectStandardOutput = true;
 					CertTool.StartInfo.StandardOutputEncoding = Encoding.UTF8;
 					CertTool.OutputDataReceived += new DataReceivedEventHandler(OutputReceivedCertToolProcessCall);
@@ -182,7 +182,7 @@ namespace UnrealBuildTool
 				DateTime Now = DateTime.UtcNow;
 
 				bool bCertTimeIsValid = (EffectiveDate < Now) && (ExpirationDate > Now);
-				string CertLine = string.Format("CERTIFICATE-Name:{0},Validity:{1},StartDate:{2},EndDate:{3}", GetFriendlyNameFromCert(TestCert), bCertTimeIsValid ? "VALID" : "EXPIRED", EffectiveDate.ToString("o"), ExpirationDate.ToString("o"));
+				string CertLine = String.Format("CERTIFICATE-Name:{0},Validity:{1},StartDate:{2},EndDate:{3}", GetFriendlyNameFromCert(TestCert), bCertTimeIsValid ? "VALID" : "EXPIRED", EffectiveDate.ToString("o"), ExpirationDate.ToString("o"));
 				_logger?.LogInformation(CertLine);
 				Certs.Add(CertLine);
 			}
@@ -283,7 +283,7 @@ namespace UnrealBuildTool
 				{
 					Validity = "MANAGED";
 				}
-				if ((string.IsNullOrWhiteSpace(SelectedProvision) || FoundName < 2) && Validity == "VALID" && !bDistribution)
+				if ((String.IsNullOrWhiteSpace(SelectedProvision) || FoundName < 2) && Validity == "VALID" && !bDistribution)
 				{
 					int Prev = FoundName;
 					if (bPassesNameCheck)
@@ -442,11 +442,11 @@ namespace UnrealBuildTool
 
 			string? CFBundleIdentifier = CodeSigningConfig.OverrideBundleName;
 
-			if (string.IsNullOrEmpty(CFBundleIdentifier))
+			if (String.IsNullOrEmpty(CFBundleIdentifier))
 			{
 				// Load Info.plist, which guides nearly everything else
 				string plistFile = CodeSigningConfig.EngineBuildDirectory + "/UnrealGame-Info.plist";
-				if (!string.IsNullOrEmpty(CodeSigningConfig.ProjectFile))
+				if (!String.IsNullOrEmpty(CodeSigningConfig.ProjectFile))
 				{
 					plistFile = Path.GetDirectoryName(CodeSigningConfig.ProjectFile) + "/Intermediate/" + CodeSigningConfig.OSString + "/" + Path.GetFileNameWithoutExtension(CodeSigningConfig.ProjectFile) + "-Info.plist";
 
@@ -541,7 +541,7 @@ namespace UnrealBuildTool
 			MobileProvision? MobileProvision;
 			MobileProvision.CacheMobileProvisions();
 
-			if (!string.IsNullOrEmpty(BundleID))
+			if (!String.IsNullOrEmpty(BundleID))
 			{
 				CodeSigningConfig.OverrideBundleName = BundleID;
 			}
@@ -673,7 +673,7 @@ namespace UnrealBuildTool
 				if (Value is byte[])
 				{
 					ValueElement = Doc.CreateElement("data");
-					ValueElement.InnerText = (Value is byte[] byteArray) ? Convert.ToBase64String(byteArray) : string.Empty;
+					ValueElement.InnerText = (Value is byte[] byteArray) ? Convert.ToBase64String(byteArray) : String.Empty;
 				}
 				else
 				{
@@ -1104,7 +1104,7 @@ namespace UnrealBuildTool
 		/// <param name="BasePath">The path that the file should be in</param>
 		/// <param name="FileName">The filename to check for (with and without SigningPrefix prepended to it)</param>
 		/// <returns>The path to the most desirable file (may still not exist)</returns>
-		static public string FindPrefixedFile(string BasePath, string FileName)
+		public static string FindPrefixedFile(string BasePath, string FileName)
 		{
 			return FindPrefixedFileOrDirectory(BasePath, FileName, false);
 		}
@@ -1115,7 +1115,7 @@ namespace UnrealBuildTool
 		/// GameName.mobileprovision or Distro_GameName.mobileprovision, but falling back to using the first one we find
 		/// if the correctly named one is not found helps the user if they mess up during the process.
 		/// </summary>
-		static public string FindAnyFileWithExtension(string BasePath, string FileExt)
+		public static string FindAnyFileWithExtension(string BasePath, string FileExt)
 		{
 			string[] FileList = Directory.GetFiles(BasePath);
 			foreach (string Filename in FileList)
@@ -1136,7 +1136,7 @@ namespace UnrealBuildTool
 		/// <param name="bIsDirectory">Is the desired name a directory?</param>
 		/// 
 		/// <returns>The path to the most desirable file (may still not exist)</returns>
-		static public string FindPrefixedFileOrDirectory(string BasePath, string Name, bool bIsDirectory)
+		public static string FindPrefixedFileOrDirectory(string BasePath, string Name, bool bIsDirectory)
 		{
 			string PrefixedPath = Path.Combine(BasePath, CodeSigningConfig.SigningPrefix + Name);
 
@@ -1170,7 +1170,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Get the string from the plist
 		/// </summary>
-		static public string GetStringFromPList(string KeyName)
+		public static string GetStringFromPList(string KeyName)
 		{
 			// Open the .plist and read out the specified key
 			string PListAsString;
@@ -1195,7 +1195,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Get the precompile source plist filename
 		/// </summary>
-		static public string GetPrecompileSourcePListFilename()
+		public static string GetPrecompileSourcePListFilename()
 		{
 			// check for one in the project directory
 			string SourceName = FileOperations.FindPrefixedFile(CodeSigningConfig.IntermediateDirectory, CodeSigningConfig.Program_GameName + "-Info.plist");
@@ -1226,7 +1226,7 @@ namespace UnrealBuildTool
 		/**
 		 * Handle grabbing the initial plist
 		 */
-		static public bool GetSourcePList(out string PListSource)
+		public static bool GetSourcePList(out string PListSource)
 		{
 			// Check for a premade one
 			string SourceName = GetPrecompileSourcePListFilename();
@@ -1489,7 +1489,7 @@ namespace UnrealBuildTool
 			// First checking for a contains match and then for a wildcard match
 			for (int Phase = -1; Phase < 3; ++Phase)
 			{
-				if (Phase == -1 && string.IsNullOrEmpty(CodeSigningConfig.ProvisionUUID))
+				if (Phase == -1 && String.IsNullOrEmpty(CodeSigningConfig.ProvisionUUID))
 				{
 					continue;
 				}
@@ -1514,7 +1514,7 @@ namespace UnrealBuildTool
 					}
 
 					// check to see if the platform is the same as what we are looking for
-					if (!string.IsNullOrEmpty(TestProvision.Platform) && TestProvision.Platform != CodeSigningConfig.OSString && !string.IsNullOrEmpty(CodeSigningConfig.OSString))
+					if (!String.IsNullOrEmpty(TestProvision.Platform) && TestProvision.Platform != CodeSigningConfig.OSString && !String.IsNullOrEmpty(CodeSigningConfig.OSString))
 					{
 						_logger?.LogInformation("  Failing platform {0} Config: {1}", TestProvision.Platform, CodeSigningConfig.OSString);
 						continue;

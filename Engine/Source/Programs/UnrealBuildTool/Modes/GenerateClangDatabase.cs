@@ -288,7 +288,7 @@ namespace UnrealBuildTool
 			return ExtraPlatformArguments;
 		}
 
-		static private string ConvertResponseFile(FileItem OriginalFileItem, IEnumerable<string> FileContents, ILogger Logger)
+		private static string ConvertResponseFile(FileItem OriginalFileItem, IEnumerable<string> FileContents, ILogger Logger)
 		{
 			List<string> NewFileContents = new List<string>(FileContents);
 			FileItem NewFileItem = FileItem.GetItemByFileReference(new FileReference(OriginalFileItem.AbsolutePath + ".gcd"));
@@ -333,7 +333,7 @@ namespace UnrealBuildTool
 			return NewFileItem.AbsolutePath;
 		}
 
-		static private string ConvertPath(string Line, string OldPath)
+		private static string ConvertPath(string Line, string OldPath)
 		{
 			OldPath = OldPath.Replace("\"", "");
 			if (OldPath[^1] == '\\' || OldPath[^1] == '/')

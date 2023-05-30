@@ -137,11 +137,11 @@ namespace UnrealBuildTool
 
 
 		// Remap of config names/sections
-		static private Dictionary<string, string> SectionNameRemap = new();
-		static private Dictionary<string, Dictionary<string, string>> SectionKeyRemap = new();
-		static private HashSet<string> WarnedKeys = new(StringComparer.InvariantCultureIgnoreCase);
+		private static Dictionary<string, string> SectionNameRemap = new();
+		private static Dictionary<string, Dictionary<string, string>> SectionKeyRemap = new();
+		private static HashSet<string> WarnedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
-		static private string RemapSectionOrKey(Dictionary<string, string>? Remap, string Key, string Context)
+		private static string RemapSectionOrKey(Dictionary<string, string>? Remap, string Key, string Context)
 		{
 			if (Remap != null)
 			{

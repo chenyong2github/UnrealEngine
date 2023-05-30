@@ -79,17 +79,17 @@ namespace UnrealBuildTool
 		/// <param name="Reader">Archive to read from</param>
 		public TargetInfo(BinaryArchiveReader Reader)
 		{
-			this.Name = Reader.ReadString()!;
-			this.Platform = UnrealTargetPlatform.Parse(Reader.ReadString()!);
+			Name = Reader.ReadString()!;
+			Platform = UnrealTargetPlatform.Parse(Reader.ReadString()!);
 			string ConfigurationStr = Reader.ReadString()!;
-			this.Architectures = new UnrealArchitectures(Reader.ReadArray(() => Reader.ReadString()!)!);
-			this.ProjectFile = Reader.ReadFileReferenceOrNull();
+			Architectures = new UnrealArchitectures(Reader.ReadArray(() => Reader.ReadString()!)!);
+			ProjectFile = Reader.ReadFileReferenceOrNull();
 			string[]? ArgumentStrs = Reader.ReadArray(() => Reader.ReadString()!);
 
 			if (!UnrealTargetConfiguration.TryParse(ConfigurationStr, out Configuration))
 			{
-				throw new BuildException(string.Format("The configration name {0} is not a valid configration name. Valid names are ({1})", Name,
-					string.Join(",", Enum.GetValues(typeof(UnrealTargetConfiguration)).Cast<UnrealTargetConfiguration>().Select(x => x.ToString()))));
+				throw new BuildException(String.Format("The configration name {0} is not a valid configration name. Valid names are ({1})", Name,
+					String.Join(",", Enum.GetValues(typeof(UnrealTargetConfiguration)).Cast<UnrealTargetConfiguration>().Select(x => x.ToString()))));
 			}
 
 			Arguments = ArgumentStrs == null ? null : new CommandLineArguments(ArgumentStrs);

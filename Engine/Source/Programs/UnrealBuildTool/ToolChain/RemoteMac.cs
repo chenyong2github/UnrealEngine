@@ -130,17 +130,17 @@ namespace UnrealBuildTool
 		/// <param name="bPrepareForSecondaryMac">Added arguments when preparing a secondary Mac for debug. False by default.</param>
 		public RemoteMac(FileReference? ProjectFile, ILogger Logger, bool bIsPrimary = true, bool bPrepareForSecondaryMac = false)
 		{
-			this.RsyncExe = FileReference.Combine(Unreal.EngineDirectory, "Extras", "ThirdPartyNotUE", "cwrsync", "bin", "rsync.exe");
-			this.SshExe = FileReference.Combine(Unreal.EngineDirectory, "Extras", "ThirdPartyNotUE", "cwrsync", "bin", "ssh.exe");
+			RsyncExe = FileReference.Combine(Unreal.EngineDirectory, "Extras", "ThirdPartyNotUE", "cwrsync", "bin", "rsync.exe");
+			SshExe = FileReference.Combine(Unreal.EngineDirectory, "Extras", "ThirdPartyNotUE", "cwrsync", "bin", "ssh.exe");
 			this.ProjectFile = ProjectFile;
 			if (ProjectFile != null)
 			{
-				this.ProjectDescriptor = ProjectDescriptor.FromFile(ProjectFile);
-				this.AdditionalPaths = new List<DirectoryReference>();
-				this.ProjectDescriptor.AddAdditionalPaths(this.AdditionalPaths, ProjectFile.Directory);
-				if (this.AdditionalPaths.Count == 0)
+				ProjectDescriptor = ProjectDescriptor.FromFile(ProjectFile);
+				AdditionalPaths = new List<DirectoryReference>();
+				ProjectDescriptor.AddAdditionalPaths(AdditionalPaths, ProjectFile.Directory);
+				if (AdditionalPaths.Count == 0)
 				{
-					this.AdditionalPaths = null;
+					AdditionalPaths = null;
 				}
 			}
 
@@ -163,7 +163,7 @@ namespace UnrealBuildTool
 
 				if ((bIsPrimary ? Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "RemoteServerName", out IniServerName) : Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "SecondaryRemoteServerName", out IniServerName)) && !String.IsNullOrEmpty(IniServerName))
 				{
-					this.ServerName = IniServerName;
+					ServerName = IniServerName;
 				}
 				else
 				{
@@ -174,7 +174,7 @@ namespace UnrealBuildTool
 				string IniUserName;
 				if ((bIsPrimary ? Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "RSyncUsername", out IniUserName) : Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "SecondaryRSyncUsername", out IniUserName)) && !String.IsNullOrEmpty(IniUserName))
 				{
-					this.UserName = IniUserName;
+					UserName = IniUserName;
 				}
 			}
 
@@ -183,7 +183,7 @@ namespace UnrealBuildTool
 			if (PortIdx != -1)
 			{
 				string Port = ServerName.Substring(PortIdx + 1);
-				if (!int.TryParse(Port, out ServerPort))
+				if (!Int32.TryParse(Port, out ServerPort))
 				{
 					throw new BuildException("Unable to parse port number from '{0}'", ServerName);
 				}
@@ -1019,7 +1019,7 @@ namespace UnrealBuildTool
 			{
 				ProjectDir = ProjectFile.Directory;
 			}
-			else if (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()))
+			else if (!String.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()))
 			{
 				ProjectDir = new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!);
 				if (ProjectDir.IsUnderDirectory(Unreal.EngineDirectory))

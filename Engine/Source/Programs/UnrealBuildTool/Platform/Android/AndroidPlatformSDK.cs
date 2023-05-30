@@ -93,7 +93,7 @@ namespace UnrealBuildTool
 				if (EqualsIndex > 0)
 				{
 					string[] RevisionParts = RevisionString.Substring(EqualsIndex + 1).Trim().Split('.');
-					int RevisionMinor = int.Parse(RevisionParts.Length > 1 ? RevisionParts[1] : "0");
+					int RevisionMinor = Int32.Parse(RevisionParts.Length > 1 ? RevisionParts[1] : "0");
 					char RevisionLetter = Convert.ToChar('a' + RevisionMinor);
 					NDKToolchainVersion = "r" + RevisionParts[0] + (RevisionMinor > 0 ? Char.ToString(RevisionLetter) : "");
 				}
@@ -116,7 +116,7 @@ namespace UnrealBuildTool
 		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue, string? Hint)
 		{
 			// convert r<num>[letter] to hex
-			if (!string.IsNullOrEmpty(StringValue))
+			if (!String.IsNullOrEmpty(StringValue))
 			{
 				Match Result = Regex.Match(StringValue, @"^r(\d*)([a-z])?");
 
@@ -128,7 +128,7 @@ namespace UnrealBuildTool
 					{
 						RevisionNumber = (Result.Groups[2].Value[0] - 'a') + 1;
 					}
-					string VersionString = string.Format("{0}{1:00}{2:00}", Result.Groups[1], RevisionNumber, 0);
+					string VersionString = String.Format("{0}{1:00}{2:00}", Result.Groups[1], RevisionNumber, 0);
 					return UInt64.TryParse(VersionString, out OutValue);
 				}
 			}
@@ -228,7 +228,7 @@ namespace UnrealBuildTool
 				string path;
 				foreach (KeyValuePair<string, string> kvp in EnvVarNames)
 				{
-					if (GetPath(configCacheIni, "/Script/AndroidPlatformEditor.AndroidSDKSettings", kvp.Value, out path) && !string.IsNullOrEmpty(path))
+					if (GetPath(configCacheIni, "/Script/AndroidPlatformEditor.AndroidSDKSettings", kvp.Value, out path) && !String.IsNullOrEmpty(path))
 					{
 						AndroidEnv.Add(kvp.Key, path);
 					}
@@ -326,7 +326,7 @@ namespace UnrealBuildTool
 					// JAVA_VERSION="17.0.6"
 					int VersionStartIndex = LineContents.IndexOf("\"");
 					int VersionStopIndex = LineContents.IndexOf(".");
-					int.TryParse(LineContents.Substring(VersionStartIndex, VersionStopIndex - VersionStartIndex), out JavaVersion);
+					Int32.TryParse(LineContents.Substring(VersionStartIndex, VersionStopIndex - VersionStartIndex), out JavaVersion);
 					break;
 				}
 			}

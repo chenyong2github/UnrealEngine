@@ -41,7 +41,7 @@ namespace UnrealBuildTool
 		public Subnet(IPAddress Prefix, int MaskBits)
 		{
 			this.Prefix = Prefix;
-			this.PrefixBytes = Prefix.GetAddressBytes();
+			PrefixBytes = Prefix.GetAddressBytes();
 			this.MaskBits = MaskBits;
 		}
 
@@ -54,7 +54,7 @@ namespace UnrealBuildTool
 		{
 			int SlashIdx = Text.IndexOf('/');
 			IPAddress Address = IPAddress.Parse(Text.Substring(0, SlashIdx));
-			return new Subnet(Address, int.Parse(Text.Substring(SlashIdx + 1)));
+			return new Subnet(Address, Int32.Parse(Text.Substring(SlashIdx + 1)));
 		}
 
 		/// <summary>

@@ -39,7 +39,7 @@ namespace UnrealBuildTool
 		/// <param name="Category">Category of platforms to add</param>
 		public SupportedPlatformsAttribute(UnrealPlatformClass Category)
 		{
-			this.Platforms = Utils.GetPlatformsInClass(Category);
+			Platforms = Utils.GetPlatformsInClass(Category);
 		}
 	}
 }

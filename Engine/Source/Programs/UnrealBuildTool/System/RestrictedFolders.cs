@@ -50,7 +50,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Name">Name of the folder</param>
 		/// <returns>New restricted folder instance</returns>
-		static private RestrictedFolder FindOrAddByName(string Name)
+		private static RestrictedFolder FindOrAddByName(string Name)
 		{
 			return new RestrictedFolder(StringRegistry.FindOrAddByName(Name));
 		}

@@ -127,7 +127,7 @@ namespace UnrealBuildTool
 		public TargetDescriptor(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UnrealArchitectures Architectures, CommandLineArguments? Arguments)
 		{
 			this.ProjectFile = ProjectFile;
-			this.Name = TargetName;
+			Name = TargetName;
 			this.Platform = Platform;
 			this.Configuration = Configuration;
 			if (Architectures == null)
@@ -150,7 +150,7 @@ namespace UnrealBuildTool
 				foreach (FileReference FileList in FileLists)
 				{
 					string[] Files = FileReference.ReadAllLines(FileList);
-					foreach (string File in Files.Where(x => !string.IsNullOrWhiteSpace(x)))
+					foreach (string File in Files.Where(x => !String.IsNullOrWhiteSpace(x)))
 					{
 						SpecificFilesToCompile.Add(FileReference.Combine(Unreal.RootDirectory, File));
 					}
@@ -190,7 +190,7 @@ namespace UnrealBuildTool
 
 		public TargetDescriptor Copy()
 		{
-			return (TargetDescriptor)this.MemberwiseClone();
+			return (TargetDescriptor)MemberwiseClone();
 		}
 
 		public static TargetDescriptor FromTargetInfo(TargetInfo Info)

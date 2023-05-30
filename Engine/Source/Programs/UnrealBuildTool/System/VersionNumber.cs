@@ -199,7 +199,7 @@ namespace UnrealBuildTool
 			List<int> Components = new List<int>();
 			foreach (string TextElement in Text.Split(Delimiters))
 			{
-				Components.Add(int.Parse(TextElement));
+				Components.Add(Int32.Parse(TextElement));
 			}
 			return new VersionNumber(Components.ToArray());
 		}
@@ -216,7 +216,7 @@ namespace UnrealBuildTool
 			foreach (string TextElement in Text.Split(Delimiters))
 			{
 				int Component;
-				if (!int.TryParse(TextElement, out Component))
+				if (!Int32.TryParse(TextElement, out Component))
 				{
 					OutNumber = null;
 					return false;

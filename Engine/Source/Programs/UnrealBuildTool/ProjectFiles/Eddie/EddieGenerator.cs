@@ -16,7 +16,7 @@ namespace UnrealBuildTool
 		{
 		}
 
-		override public string ProjectFileExtension => ".wkst";
+		public override string ProjectFileExtension => ".wkst";
 
 		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesPath, ILogger Logger)
 		{

@@ -429,7 +429,7 @@ namespace UnrealBuildTool
 								int LineNumber;
 								bool bFalseAlarm;
 								int Level;
-								if (int.TryParse(LineNumberStr, out LineNumber) && bool.TryParse(FalseAlarmStr, out bFalseAlarm) && int.TryParse(LevelStr, out Level))
+								if (Int32.TryParse(LineNumberStr, out LineNumber) && Boolean.TryParse(FalseAlarmStr, out bFalseAlarm) && Int32.TryParse(LevelStr, out Level))
 								{
 									bCanParse = true;
 
@@ -563,7 +563,9 @@ namespace UnrealBuildTool
 			catch (Exception Ex)
 			{
 				if (Ex is BuildException)
+				{
 					throw;
+				}
 
 				throw new BuildException(Ex, "Failed to obtain PVS-Studio version.");
 			}
@@ -627,10 +629,14 @@ namespace UnrealBuildTool
 
 			bool compileAsCCode;
 			if (CFlagLastPosition == CppFlagLastPosition)
+			{
 				//ни один флаг, определяющий язык, не задан. Определяем по расширению файла
 				compileAsCCode = Path.GetExtension(sourceFileName).Equals(".c", StringComparison.InvariantCultureIgnoreCase);
+			}
 			else
+			{
 				compileAsCCode = CFlagLastPosition > CppFlagLastPosition;
+			}
 
 			return compileAsCCode;
 		}

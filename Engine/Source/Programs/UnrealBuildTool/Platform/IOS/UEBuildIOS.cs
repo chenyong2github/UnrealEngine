@@ -41,7 +41,10 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if (AppleToolchainArchitectures.ContainsKey(this)) return AppleToolchainArchitectures[this];
+				if (AppleToolchainArchitectures.ContainsKey(this))
+				{
+					return AppleToolchainArchitectures[this];
+				}
 
 				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.AppleName");
 			}
@@ -190,7 +193,7 @@ namespace UnrealBuildTool
 
 		public string? ImportCertificatePassword => Inner.ImportCertificatePassword;
 
-		public float RuntimeVersion => float.Parse(Inner.ProjectSettings!.RuntimeVersion, System.Globalization.CultureInfo.InvariantCulture);
+		public float RuntimeVersion => Single.Parse(Inner.ProjectSettings!.RuntimeVersion, System.Globalization.CultureInfo.InvariantCulture);
 
 		public bool bEnableAddressSanitizer => Inner.bEnableAddressSanitizer;
 
@@ -415,7 +418,7 @@ namespace UnrealBuildTool
 		{
 			this.ProjectFile = ProjectFile;
 			ConfigCache.ReadSettings(DirectoryReference.FromFile(ProjectFile), Platform, this);
-			if ((ProjectFile == null || string.IsNullOrEmpty(ProjectFile.FullName)) && !string.IsNullOrEmpty(Bundle))
+			if ((ProjectFile == null || String.IsNullOrEmpty(ProjectFile.FullName)) && !String.IsNullOrEmpty(Bundle))
 			{
 				BundleIdentifier = Bundle;
 			}
@@ -451,7 +454,7 @@ namespace UnrealBuildTool
 			FileReference? ProjectFile = ProjectSettings.ProjectFile;
 			CodeSigningConfig.Initialize(ProjectFile, bIsTVOS);
 
-			if (!string.IsNullOrEmpty(SigningCertificate))
+			if (!String.IsNullOrEmpty(SigningCertificate))
 			{
 				List<string> Certs = AppleCodeSign.FindCertificates();
 				List<FileReference> Provisions = AppleCodeSign.FindProvisions(ProjectSettings.BundleIdentifier, bForDistribution, out _);
@@ -462,7 +465,7 @@ namespace UnrealBuildTool
 				bHaveCertificate = true;
 			}
 
-			if (!string.IsNullOrEmpty(MobileProvision))
+			if (!String.IsNullOrEmpty(MobileProvision))
 			{
 				DirectoryReference MobileProvisionDir;
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
@@ -589,7 +592,7 @@ namespace UnrealBuildTool
 					}
 				}
 
-				if (string.IsNullOrEmpty(MobileProvisionUUID) || string.IsNullOrEmpty(TeamUUID))
+				if (String.IsNullOrEmpty(MobileProvisionUUID) || String.IsNullOrEmpty(TeamUUID))
 				{
 					MobileProvision = null;
 					SigningCertificate = null;
@@ -612,7 +615,7 @@ namespace UnrealBuildTool
 					Logger.LogInformation("{LineData}", Line.Data);
 				}
 
-				if (!string.IsNullOrEmpty(SigningCertificate))
+				if (!String.IsNullOrEmpty(SigningCertificate))
 				{
 					if (Line.Data.Contains("CERTIFICATE-") && Line.Data.Contains(SigningCertificate))
 					{
@@ -711,11 +714,11 @@ namespace UnrealBuildTool
 
 		public override void ValidateTarget(TargetRules Target)
 		{
-			if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE")))
+			if (!String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE")))
 			{
 				Target.StaticAnalyzer = StaticAnalyzer.Default;
 				Target.StaticAnalyzerOutputType = (Environment.GetEnvironmentVariable("CLANG_ANALYZER_OUTPUT")?.Contains("html", StringComparison.OrdinalIgnoreCase) == true) ? StaticAnalyzerOutputType.Html : StaticAnalyzerOutputType.Text;
-				Target.StaticAnalyzerMode = string.Equals(Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE"), "shallow") ? StaticAnalyzerMode.Shallow : StaticAnalyzerMode.Deep;
+				Target.StaticAnalyzerMode = String.Equals(Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE"), "shallow") ? StaticAnalyzerMode.Shallow : StaticAnalyzerMode.Deep;
 			}
 			else if (Target.StaticAnalyzer == StaticAnalyzer.Clang)
 			{
@@ -778,7 +781,7 @@ namespace UnrealBuildTool
 								Args += LibLoc.FullName;
 								Args += " | grep -m1 -i \\(clang\"";
 								string StdOutResult = Utils.RunLocalProcessAndReturnStdOut("bash", Args);
-								if (string.IsNullOrEmpty(StdOutResult))
+								if (String.IsNullOrEmpty(StdOutResult))
 								{
 									continue;
 								}
@@ -848,7 +851,7 @@ namespace UnrealBuildTool
 			IOSProjectSettings? ProjectSettings = null;
 
 			// Use separate lists to prevent an overridden Bundle id polluting the standard project file. 
-			bool bCacheByBundle = !string.IsNullOrEmpty(Bundle);
+			bool bCacheByBundle = !String.IsNullOrEmpty(Bundle);
 			if (bCacheByBundle)
 			{
 				lock (CachedProjectSettingsByBundle)

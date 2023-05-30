@@ -33,24 +33,24 @@ namespace UnrealBuildTool
 
 		public IOSPostBuildSyncTarget(ReadOnlyTargetRules Target, FileReference OutputPath, DirectoryReference? ProjectIntermediateDirectory, List<string> UPLScripts, VersionNumber SdkVersion, Dictionary<string, DirectoryReference> FrameworkNameToSourceDir)
 		{
-			this.Platform = Target.Platform;
-			this.Configuration = Target.Configuration;
-			this.ProjectFile = Target.ProjectFile;
-			this.TargetName = Target.Name;
-			this.TargetType = Target.Type;
+			Platform = Target.Platform;
+			Configuration = Target.Configuration;
+			ProjectFile = Target.ProjectFile;
+			TargetName = Target.Name;
+			TargetType = Target.Type;
 			this.OutputPath = OutputPath;
 			this.UPLScripts = UPLScripts;
 			this.SdkVersion = SdkVersion;
-			this.bCreateStubIPA = Target.IOSPlatform.bCreateStubIPA;
-			this.bSkipCrashlytics = Target.IOSPlatform.bSkipCrashlytics;
-			this.ProjectDirectory = DirectoryReference.FromFile(Target.ProjectFile) ?? Unreal.EngineDirectory;
+			bCreateStubIPA = Target.IOSPlatform.bCreateStubIPA;
+			bSkipCrashlytics = Target.IOSPlatform.bSkipCrashlytics;
+			ProjectDirectory = DirectoryReference.FromFile(Target.ProjectFile) ?? Unreal.EngineDirectory;
 			this.ProjectIntermediateDirectory = ProjectIntermediateDirectory;
-			this.ImportProvision = Target.IOSPlatform.ImportProvision;
-			this.ImportCertificate = Target.IOSPlatform.ImportCertificate;
-			this.ImportCertificatePassword = Target.IOSPlatform.ImportCertificatePassword;
+			ImportProvision = Target.IOSPlatform.ImportProvision;
+			ImportCertificate = Target.IOSPlatform.ImportCertificate;
+			ImportCertificatePassword = Target.IOSPlatform.ImportCertificatePassword;
 			this.FrameworkNameToSourceDir = FrameworkNameToSourceDir;
-			this.bForDistribution = Target.IOSPlatform.bForDistribution;
-			this.bBuildAsFramework = Target.bShouldCompileAsDLL;
+			bForDistribution = Target.IOSPlatform.bForDistribution;
+			bBuildAsFramework = Target.bShouldCompileAsDLL;
 		}
 	}
 

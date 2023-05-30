@@ -231,7 +231,7 @@ namespace UnrealBuildTool
 					{
 						TemplateParamSig.Add("...");
 					}
-					string GroupName = Child.Name.Replace(Match.Groups["Template"].Value, String.Format("<{0}>", string.Join(", ", TemplateParamSig)));
+					string GroupName = Child.Name.Replace(Match.Groups["Template"].Value, String.Format("<{0}>", String.Join(", ", TemplateParamSig)));
 
 					// See if we have a group for this template already. If not, add it.
 					if (!ChildGroups.ContainsKey(GroupName))

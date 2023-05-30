@@ -192,7 +192,7 @@ namespace UnrealBuildTool
 
 			// Figure out which version number to look for
 			VersionNumber? WindowsSdkVersion = null;
-			if (!string.IsNullOrEmpty(DesiredVersion))
+			if (!String.IsNullOrEmpty(DesiredVersion))
 			{
 				if (String.Compare(DesiredVersion, "Latest", StringComparison.InvariantCultureIgnoreCase) == 0 && CachedWindowsSdkDirs!.Count > 0)
 				{
@@ -536,7 +536,7 @@ namespace UnrealBuildTool
 
 			// Figure out the actual version number that we want
 			ToolChainInstallation? ToolChain = null;
-			if (string.IsNullOrEmpty(CompilerVersion))
+			if (String.IsNullOrEmpty(CompilerVersion))
 			{
 				ToolChain = SelectToolChain(ToolChains, x => x, Architecture);
 				if (ToolChain == null)
@@ -785,14 +785,14 @@ namespace UnrealBuildTool
 						DirectoryReference? PlatformDir;
 						if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out PlatformDir))
 						{
-							string VSDir = string.Empty;
+							string VSDir = String.Empty;
 							switch (Compiler)
 							{
 								case WindowsCompiler.VisualStudio2019: VSDir = "VS2019"; break;
 								case WindowsCompiler.VisualStudio2022: VSDir = "VS2022"; break;
 							}
 
-							if (!string.IsNullOrEmpty(VSDir))
+							if (!String.IsNullOrEmpty(VSDir))
 							{
 								DirectoryReference ReleaseBaseDir = DirectoryReference.Combine(PlatformDir, "Win64", VSDir);
 								FindVisualStudioToolChains(ReleaseBaseDir, null, WindowsCompilerChannel.Latest, ToolChains, IsAutoSdk: true, Logger);
@@ -1336,14 +1336,14 @@ namespace UnrealBuildTool
 				DirectoryReference? PlatformDir;
 				if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out PlatformDir))
 				{
-					string VSDir = string.Empty;
+					string VSDir = String.Empty;
 					switch (Compiler)
 					{
 						case WindowsCompiler.VisualStudio2019: VSDir = "VS2019"; break;
 						case WindowsCompiler.VisualStudio2022: VSDir = "VS2022"; break;
 					}
 
-					if (!string.IsNullOrEmpty(VSDir))
+					if (!String.IsNullOrEmpty(VSDir))
 					{
 						DirectoryReference DiaSdkDir = DirectoryReference.Combine(PlatformDir, "Win64", "DIA SDK", VSDir);
 						if (IsValidDiaSdkDir(DiaSdkDir))

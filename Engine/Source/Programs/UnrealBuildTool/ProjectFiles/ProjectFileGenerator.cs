@@ -1453,7 +1453,9 @@ namespace UnrealBuildTool
 							bAppendPlatformSuffix = true;
 						}
 					}
-					else switch (CurArgument.ToUpperInvariant())
+					else
+					{
+						switch (CurArgument.ToUpperInvariant())
 						{
 							case "-ALLPLATFORMS":
 								IncludeAllPlatforms = true;
@@ -1538,6 +1540,7 @@ namespace UnrealBuildTool
 								bIncludeTempTargets = true;
 								break;
 						}
+					}
 				}
 			}
 
@@ -2291,7 +2294,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="InPlatform"></param>
 		/// <returns>true if valid, false if not</returns>
-		static public bool IsValidDesktopPlatform(UnrealTargetPlatform InPlatform)
+		public static bool IsValidDesktopPlatform(UnrealTargetPlatform InPlatform)
 		{
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 			{
@@ -3274,7 +3277,7 @@ namespace UnrealBuildTool
 				catch (Exception ex)
 				{
 					// Unable to write to the project file.
-					string Message = string.Format("Error while trying to write file {0}.  The file is probably read-only.", FileName);
+					string Message = String.Format("Error while trying to write file {0}.  The file is probably read-only.", FileName);
 					Logger.LogInformation("");
 					Logger.LogError("{Message}", Message);
 					throw new BuildException(ex, Message);
@@ -3544,18 +3547,31 @@ namespace UnrealBuildTool
 				if (Char.IsWhiteSpace(A) && Char.IsWhiteSpace(B) && CanIgnoreWhitespace(A) && CanIgnoreWhitespace(B))
 				{
 					// Skip whitespaces in both strings
-					for (IndexA++; IndexA < StrA.Length && Char.IsWhiteSpace(StrA[IndexA]) == true; IndexA++) ;
-					for (IndexB++; IndexB < StrB.Length && Char.IsWhiteSpace(StrB[IndexB]) == true; IndexB++) ;
+					for (IndexA++; IndexA < StrA.Length && Char.IsWhiteSpace(StrA[IndexA]) == true; IndexA++)
+					{
+						;
+					}
+
+					for (IndexB++; IndexB < StrB.Length && Char.IsWhiteSpace(StrB[IndexB]) == true; IndexB++)
+					{
+						;
+					}
 				}
 				else if (Char.IsWhiteSpace(A) && IndexA > 0 && StrA[IndexA - 1] == '\n')
 				{
 					// Skip whitespaces in StrA at the beginning of each line
-					for (IndexA++; IndexA < StrA.Length && Char.IsWhiteSpace(StrA[IndexA]) == true; IndexA++) ;
+					for (IndexA++; IndexA < StrA.Length && Char.IsWhiteSpace(StrA[IndexA]) == true; IndexA++)
+					{
+						;
+					}
 				}
 				else if (Char.IsWhiteSpace(B) && IndexB > 0 && StrB[IndexB - 1] == '\n')
 				{
 					// Skip whitespaces in StrA at the beginning of each line
-					for (IndexB++; IndexB < StrB.Length && Char.IsWhiteSpace(StrB[IndexB]) == true; IndexB++) ;
+					for (IndexB++; IndexB < StrB.Length && Char.IsWhiteSpace(StrB[IndexB]) == true; IndexB++)
+					{
+						;
+					}
 				}
 				else if (A != B)
 				{

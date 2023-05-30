@@ -116,7 +116,9 @@ namespace UnrealBuildTool
 			public void EndCurrentUnityFile()
 			{
 				if (CurrentCollection.Files.Count == 0)
+				{
 					return;
+				}
 
 				UnityFiles.Add(CurrentCollection);
 				CurrentCollection = new FileCollection();
@@ -208,9 +210,14 @@ namespace UnrealBuildTool
 					bool bAIsGenerated = A.AbsolutePath.EndsWith(".gen.cpp");
 					bool bBIsGenerated = B.AbsolutePath.EndsWith(".gen.cpp");
 					if (bAIsGenerated && !bBIsGenerated)
+					{
 						return -1;
+					}
+
 					if (!bAIsGenerated && bBIsGenerated)
+					{
 						return 1;
+					}
 
 					return String.Compare(A.AbsolutePath, B.AbsolutePath, StringComparison.OrdinalIgnoreCase);
 				});
@@ -260,16 +267,16 @@ namespace UnrealBuildTool
 				{
 					if (Target.bDetailedUnityFiles)
 					{
-						UnityCPPFileName = string.Format("{0}{1}.{2}_of_{3}.cpp", ModulePrefix, BaseName, CurrentUnityFileCount, AllUnityFiles.Count);
+						UnityCPPFileName = String.Format("{0}{1}.{2}_of_{3}.cpp", ModulePrefix, BaseName, CurrentUnityFileCount, AllUnityFiles.Count);
 					}
 					else
 					{
-						UnityCPPFileName = string.Format("{0}{1}.{2}.cpp", ModulePrefix, BaseName, CurrentUnityFileCount);
+						UnityCPPFileName = String.Format("{0}{1}.{2}.cpp", ModulePrefix, BaseName, CurrentUnityFileCount);
 					}
 				}
 				else
 				{
-					UnityCPPFileName = string.Format("{0}{1}.cpp", ModulePrefix, BaseName);
+					UnityCPPFileName = String.Format("{0}{1}.cpp", ModulePrefix, BaseName);
 				}
 				FileReference UnityCPPFilePath = FileReference.Combine(IntermediateDirectory, UnityCPPFileName);
 

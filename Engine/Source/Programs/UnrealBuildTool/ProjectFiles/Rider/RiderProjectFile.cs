@@ -78,7 +78,10 @@ namespace UnrealBuildTool
 				{
 					foreach (ProjectTarget ProjectTarget in ProjectTargets.OfType<ProjectTarget>())
 					{
-						if (TargetTypes.Any() && !TargetTypes.Contains(ProjectTarget.TargetRules!.Type)) continue;
+						if (TargetTypes.Any() && !TargetTypes.Contains(ProjectTarget.TargetRules!.Type))
+						{
+							continue;
+						}
 
 						// Skip Programs for all configs except for current platform + Development & Debug configurations
 						if (ProjectTarget.TargetRules!.Type == TargetType.Program &&
@@ -231,7 +234,7 @@ namespace UnrealBuildTool
 
 		private void ExportModuleCpp(UEBuildModuleCPP ModuleCPP, CppCompileEnvironment ModuleCompileEnvironment, JsonWriter Writer, ILogger Logger)
 		{
-			Writer.WriteValue("GeneratedCodeDirectory", ModuleCPP.GeneratedCodeDirectory != null ? ModuleCPP.GeneratedCodeDirectory.FullName : string.Empty);
+			Writer.WriteValue("GeneratedCodeDirectory", ModuleCPP.GeneratedCodeDirectory != null ? ModuleCPP.GeneratedCodeDirectory.FullName : String.Empty);
 
 			ToolchainInfo ModuleToolchainInfo = GenerateToolchainInfo(ModuleCompileEnvironment);
 			if (!ModuleToolchainInfo.Equals(RootToolchainInfo))
@@ -248,7 +251,9 @@ namespace UnrealBuildTool
 			{
 				string CorrectFilePathPch;
 				if (ExtractWrappedIncludeFile(ModuleCompileEnvironment.PrecompiledHeaderIncludeFilename, Logger, out CorrectFilePathPch))
+				{
 					Writer.WriteValue("SharedPCHFilePath", CorrectFilePathPch);
+				}
 			}
 		}
 
@@ -384,7 +389,10 @@ namespace UnrealBuildTool
 		/// <param name="Modules">Sequence of Modules to write. May be null.</param>
 		private static void ExportJsonModuleArray(JsonWriter Writer, string ArrayName, IEnumerable<UEBuildModule>? Modules)
 		{
-			if (Modules == null || !Modules.Any()) return;
+			if (Modules == null || !Modules.Any())
+			{
+				return;
+			}
 
 			Writer.WriteArrayStart(ArrayName);
 			foreach (UEBuildModule Module in Modules)
@@ -402,7 +410,10 @@ namespace UnrealBuildTool
 		/// <param name="Strings">Sequence of strings to write. May be null.</param>
 		private static void ExportJsonStringArray(JsonWriter Writer, string ArrayName, IEnumerable<string> Strings)
 		{
-			if (Strings == null || !Strings.Any()) return;
+			if (Strings == null || !Strings.Any())
+			{
+				return;
+			}
 
 			Writer.WriteArrayStart(ArrayName);
 			foreach (string String in Strings)
@@ -444,7 +455,10 @@ namespace UnrealBuildTool
 		private static void ExportPluginsFromTarget(UEBuildTarget Target, JsonWriter Writer, ILogger Logger)
 		{
 			Target.SetupPlugins(Logger);
-			if (Target.BuildPlugins == null || !Target.BuildPlugins.Any()) return;
+			if (Target.BuildPlugins == null || !Target.BuildPlugins.Any())
+			{
+				return;
+			}
 
 			Writer.WriteObjectStart("Plugins");
 			foreach (UEBuildPlugin plugin in Target.BuildPlugins!)
@@ -530,7 +544,7 @@ namespace UnrealBuildTool
 				string? UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE_LINUX_USE_LIBCXX");
 				// assumes a single architecture
 				UnrealArch TargetArchitecture = Target.Architectures.SingleArchitecture;
-				if (string.IsNullOrEmpty(UseLibcxxEnvVarOverride) || UseLibcxxEnvVarOverride == "1")
+				if (String.IsNullOrEmpty(UseLibcxxEnvVarOverride) || UseLibcxxEnvVarOverride == "1")
 				{
 					if (TargetArchitecture == UnrealArch.X64 ||
 						TargetArchitecture == UnrealArch.Arm64)
@@ -580,7 +594,10 @@ namespace UnrealBuildTool
 
 		private void ExportBuildInfo(JsonWriter Writer, UEBuildTarget Target, PlatformProjectGeneratorCollection PlatformProjectGenerators, bool bBuildByDefault)
 		{
-			if (IsStubProject) return;
+			if (IsStubProject)
+			{
+				return;
+			}
 
 			Writer.WriteObjectStart("BuildInfo");
 			UnrealTargetPlatform HostPlatform = BuildHostPlatform.Current.Platform;
@@ -683,7 +700,11 @@ namespace UnrealBuildTool
 
 		private static void WriteField(string ModuleOrTargetName, JsonWriter Writer, Tuple<string, object?> Field, ILogger Logger)
 		{
-			if (Field.Item2 == null) return;
+			if (Field.Item2 == null)
+			{
+				return;
+			}
+
 			string Name = Field.Item1;
 			if (Field.Item2 is bool)
 			{
@@ -693,7 +714,9 @@ namespace UnrealBuildTool
 			{
 				string FieldValue = (string)Field.Item2;
 				if (FieldValue != "")
+				{
 					Writer.WriteValue(Name, (string)Field.Item2);
+				}
 			}
 			else if (Field.Item2 is int)
 			{
@@ -733,7 +756,9 @@ namespace UnrealBuildTool
 			{
 				IEnumerable<string> FieldValue = (IEnumerable<string>)Field.Item2;
 				if (FieldValue.Any())
+				{
 					Writer.WriteStringArrayField(Name, FieldValue);
+				}
 			}
 			else
 			{
@@ -779,7 +804,9 @@ namespace UnrealBuildTool
 				object? Value = typeof(ReadOnlyTargetRules).GetProperty(PlatformName)?.GetValue(CurrentTarget.Rules);
 				object? CompilerField = Value?.GetType().GetProperty("Compiler")?.GetValue(Value);
 				if (CompilerField != null)
+				{
 					ToolchainInfo.Compiler = CompilerField.ToString()!;
+				}
 			}
 
 			return ToolchainInfo;
@@ -816,7 +843,7 @@ namespace UnrealBuildTool
 			private readonly Dictionary<string, IList<string>> CachedIncludePaths =
 				new Dictionary<string, IList<string>>();
 
-			private string CurrentlyProcessedSDK = string.Empty;
+			private string CurrentlyProcessedSDK = String.Empty;
 			private Process? XcrunProcess;
 			private bool IsReadingIncludesSection;
 
@@ -838,7 +865,7 @@ namespace UnrealBuildTool
 
 			private void CalculateSystemIncludePaths(string SDKPath)
 			{
-				if (CurrentlyProcessedSDK != string.Empty)
+				if (CurrentlyProcessedSDK != String.Empty)
 				{
 					throw new InvalidOperationException("Cannot calculate include paths for several platforms at once");
 				}
@@ -849,7 +876,7 @@ namespace UnrealBuildTool
 				{
 					string AppName = "xcrun";
 					string Arguments = "clang++ -Wp,-v -x c++ - -fsyntax-only" +
-									   (string.IsNullOrEmpty(SDKPath) ? string.Empty : (" -isysroot " + SDKPath));
+									   (String.IsNullOrEmpty(SDKPath) ? String.Empty : (" -isysroot " + SDKPath));
 					XcrunProcess.StartInfo.FileName = AppName;
 					XcrunProcess.StartInfo.Arguments = Arguments;
 					XcrunProcess.StartInfo.UseShellExecute = false;
@@ -868,7 +895,7 @@ namespace UnrealBuildTool
 
 				XcrunProcess = null;
 				IsReadingIncludesSection = false;
-				CurrentlyProcessedSDK = string.Empty;
+				CurrentlyProcessedSDK = String.Empty;
 			}
 
 			private void OnOutputDataReceived(object Sender, DataReceivedEventArgs Args)

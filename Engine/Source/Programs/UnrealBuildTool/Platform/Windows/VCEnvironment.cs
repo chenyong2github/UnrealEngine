@@ -118,18 +118,18 @@ namespace UnrealBuildTool
 		[SupportedOSPlatform("windows")]
 		public VCEnvironment(VCEnvironmentParameters Params, ILogger Logger)
 		{
-			this.Compiler = Params.Compiler;
-			this.CompilerDir = Params.CompilerDir;
-			this.CompilerVersion = Params.CompilerVersion;
-			this.Architecture = Params.Architecture;
-			this.ToolChain = Params.ToolChain;
-			this.ToolChainDir = Params.ToolChainDir;
-			this.ToolChainVersion = Params.ToolChainVersion;
-			this.WindowsSdkDir = Params.WindowsSdkDir;
-			this.WindowsSdkVersion = Params.WindowsSdkVersion;
-			this.RedistDir = Params.RedistDir;
-			this.bUseCPPWinRT = Params.bUseCPPWinRT;
-			this.bAllowClangLinker = Params.bAllowClangLinker;
+			Compiler = Params.Compiler;
+			CompilerDir = Params.CompilerDir;
+			CompilerVersion = Params.CompilerVersion;
+			Architecture = Params.Architecture;
+			ToolChain = Params.ToolChain;
+			ToolChainDir = Params.ToolChainDir;
+			ToolChainVersion = Params.ToolChainVersion;
+			WindowsSdkDir = Params.WindowsSdkDir;
+			WindowsSdkVersion = Params.WindowsSdkVersion;
+			RedistDir = Params.RedistDir;
+			bUseCPPWinRT = Params.bUseCPPWinRT;
+			bAllowClangLinker = Params.bAllowClangLinker;
 
 			// Get the compiler and linker paths from the Toolchain directory
 			CompilerPath = GetCompilerToolPath(Compiler, Architecture, CompilerDir);
@@ -263,7 +263,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the path to the resource compiler.
 		/// </summary>
-		virtual protected FileReference GetResourceCompilerToolPath(DirectoryReference WindowsSdkDir, VersionNumber WindowsSdkVersion, ILogger Logger)
+		protected virtual FileReference GetResourceCompilerToolPath(DirectoryReference WindowsSdkDir, VersionNumber WindowsSdkVersion, ILogger Logger)
 		{
 			FileReference ResourceCompilerPath = FileReference.Combine(WindowsSdkDir, "bin", WindowsSdkVersion.ToString(), "x64", "rc.exe");
 			if (FileReference.Exists(ResourceCompilerPath))
@@ -521,15 +521,15 @@ namespace UnrealBuildTool
 			// Store the final parameters
 			this.Platform = Platform;
 			this.Compiler = Compiler;
-			this.CompilerDir = SelectedCompilerDir;
+			CompilerDir = SelectedCompilerDir;
 			this.CompilerVersion = SelectedCompilerVersion;
 			this.Architecture = Architecture;
 			this.ToolChain = ToolChain;
-			this.ToolChainDir = SelectedToolChainDir;
-			this.ToolChainVersion = SelectedToolChainVersion;
-			this.WindowsSdkDir = SelectedWindowsSdkDir;
+			ToolChainDir = SelectedToolChainDir;
+			ToolChainVersion = SelectedToolChainVersion;
+			WindowsSdkDir = SelectedWindowsSdkDir;
 			this.WindowsSdkVersion = SelectedWindowsSdkVersion;
-			this.RedistDir = SelectedRedistDir;
+			RedistDir = SelectedRedistDir;
 			this.bUseCPPWinRT = bUseCPPWinRT;
 			this.bAllowClangLinker = bAllowClangLinker;
 		}

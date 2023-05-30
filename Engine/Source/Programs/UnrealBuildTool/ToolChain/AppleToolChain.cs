@@ -76,7 +76,7 @@ namespace UnrealBuildTool
 				{
 					throw new BuildException("Unable to get xcode version");
 				}
-				if (int.Parse(InstalledSdkVersion.Substring(0, 2)) < 13)
+				if (Int32.Parse(InstalledSdkVersion.Substring(0, 2)) < 13)
 				{
 					throw new BuildException("Building for macOS, iOS and tvOS requires Xcode 13.4.1 or newer, Xcode " + InstalledSdkVersion + " detected");
 				}
@@ -113,8 +113,8 @@ namespace UnrealBuildTool
 								string[] Tokens = SDKString.Split(".".ToCharArray());
 								if (Tokens.Length == 2)
 								{
-									Major = int.Parse(Tokens[0]);
-									Minor = int.Parse(Tokens[1]);
+									Major = Int32.Parse(Tokens[0]);
+									Minor = Int32.Parse(Tokens[1]);
 								}
 							}
 							catch (Exception)
@@ -191,7 +191,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		protected string FormatArchitectureArg(UnrealArchitectures InArchitectures)
 		{
-			return "-arch " + string.Join('+', InArchitectures.Architectures.Select(x => x.AppleName));
+			return "-arch " + String.Join('+', InArchitectures.Architectures.Select(x => x.AppleName));
 		}
 
 		protected DirectoryReference GetMacDevSrcRoot()
@@ -377,7 +377,7 @@ namespace UnrealBuildTool
 
 			bool bStaticAnalysis = false;
 			string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
-			if (!string.IsNullOrEmpty(StaticAnalysisMode))
+			if (!String.IsNullOrEmpty(StaticAnalysisMode))
 			{
 				bStaticAnalysis = true;
 			}
@@ -489,7 +489,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					if (!int.TryParse(Versions[0], out Major) || !int.TryParse(Versions[1], out Minor) || !int.TryParse(Versions[2], out Patch))
+					if (!Int32.TryParse(Versions[0], out Major) || !Int32.TryParse(Versions[1], out Minor) || !Int32.TryParse(Versions[2], out Patch))
 					{
 						Log.TraceInformationOnce("Unable to parse version tokens: {0}", Tokens[3]);
 					}
@@ -596,7 +596,7 @@ namespace UnrealBuildTool
 				"-automated",
 			};
 
-			if (!string.IsNullOrEmpty(TargetName))
+			if (!String.IsNullOrEmpty(TargetName))
 			{
 				Options.Add($"-singletarget={TargetName}");
 			}
@@ -641,7 +641,7 @@ namespace UnrealBuildTool
 				//$"-sdk {SDKName}",
 			};
 
-			return Utils.RunLocalProcessAndLogOutput("/usr/bin/env", string.Join(" ", Arguments), Logger);
+			return Utils.RunLocalProcessAndLogOutput("/usr/bin/env", String.Join(" ", Arguments), Logger);
 		}
 
 		#endregion

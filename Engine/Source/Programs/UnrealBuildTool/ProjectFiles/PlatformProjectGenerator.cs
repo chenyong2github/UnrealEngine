@@ -13,7 +13,7 @@ namespace UnrealBuildTool
 	/// </summary>
 	abstract class PlatformProjectGenerator
 	{
-		static public readonly string DefaultPlatformConfigurationType = "Makefile";
+		public static readonly string DefaultPlatformConfigurationType = "Makefile";
 		protected readonly ILogger Logger;
 
 		/// <summary>

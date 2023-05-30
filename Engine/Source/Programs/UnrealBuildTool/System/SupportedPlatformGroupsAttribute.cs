@@ -32,8 +32,8 @@ namespace UnrealBuildTool
 						SupportedPlatforms.UnionWith(UnrealTargetPlatform.GetValidPlatforms().Where(x => x.IsInGroup(Group)));
 						continue;
 					}
-					throw new BuildException(string.Format("The platform group name {0} is not a valid platform group name. Valid names are ({1})", Name,
-						string.Join(",", UnrealPlatformGroup.GetValidGroupNames())));
+					throw new BuildException(String.Format("The platform group name {0} is not a valid platform group name. Valid names are ({1})", Name,
+						String.Join(",", UnrealPlatformGroup.GetValidGroupNames())));
 				}
 			}
 			catch (BuildException Ex)

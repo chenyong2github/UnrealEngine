@@ -499,13 +499,13 @@ namespace UnrealBuildTool
 		private UnrealTargetPlatform TargetPlatform;
 
 		/** Trace flag to enable debugging */
-		static private bool bGlobalTrace = false;
-		static private bool bGlobalTraceFilename = false;
+		private static bool bGlobalTrace = false;
+		private static bool bGlobalTraceFilename = false;
 
 		/** Project file reference */
 		private FileReference? ProjectFile;
 
-		static private XDocument XMLDummy = XDocument.Parse("<manifest></manifest>");
+		private static XDocument XMLDummy = XDocument.Parse("<manifest></manifest>");
 
 		private class UPLContext
 		{
@@ -669,19 +669,19 @@ namespace UnrealBuildTool
 			StringBuilder Text = new StringBuilder();
 			foreach (KeyValuePair<string, bool> Variable in Context.BoolVariables)
 			{
-				Text.AppendLine(string.Format("\tbool {0} = {1}", Variable.Key, Variable.Value.ToString().ToLower()));
+				Text.AppendLine(String.Format("\tbool {0} = {1}", Variable.Key, Variable.Value.ToString().ToLower()));
 			}
 			foreach (KeyValuePair<string, int> Variable in Context.IntVariables)
 			{
-				Text.AppendLine(string.Format("\tint {0} = {1}", Variable.Key, Variable.Value));
+				Text.AppendLine(String.Format("\tint {0} = {1}", Variable.Key, Variable.Value));
 			}
 			foreach (KeyValuePair<string, string> Variable in Context.StringVariables)
 			{
-				Text.AppendLine(string.Format("\tstring {0} = {1}", Variable.Key, Variable.Value));
+				Text.AppendLine(String.Format("\tstring {0} = {1}", Variable.Key, Variable.Value));
 			}
 			foreach (KeyValuePair<string, XElement> Variable in Context.ElementVariables)
 			{
-				Text.AppendLine(string.Format("\telement {0} = {1}", Variable.Key, Variable.Value));
+				Text.AppendLine(String.Format("\telement {0} = {1}", Variable.Key, Variable.Value));
 			}
 			return Text.ToString();
 		}
@@ -868,7 +868,7 @@ namespace UnrealBuildTool
 		private int StringToInt(UPLContext Context, XElement Node, string? Input)
 		{
 			int Result = 0;
-			if (!int.TryParse(Input, out Result))
+			if (!Int32.TryParse(Input, out Result))
 			{
 				Logger.LogWarning("\nInvalid integer '{Input}' in '{Node}' (defaulting to 0)", Input, TraceNodeString(Context, Node));
 			}
@@ -907,7 +907,7 @@ namespace UnrealBuildTool
 			return bExpand ? ExpandVariables(Context, Result) : Result;
 		}
 
-		static private Dictionary<string, ConfigCacheIni_UPL>? ConfigCache = null;
+		private static Dictionary<string, ConfigCacheIni_UPL>? ConfigCache = null;
 
 		private ConfigCacheIni_UPL GetConfigCacheIni_UPL(string baseIniName)
 		{

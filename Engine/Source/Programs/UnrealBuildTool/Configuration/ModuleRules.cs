@@ -643,16 +643,25 @@ namespace UnrealBuildTool
 			get
 			{
 				if (OptimizeCodeOverride.HasValue)
+				{
 					return OptimizeCodeOverride.Value;
+				}
 
 				bool? ShouldOptimizeCode = null;
 				if (Target.EnableOptimizeCodeForModules?.Contains(Name) ?? false)
+				{
 					ShouldOptimizeCode = true;
+				}
+
 				if (Target.DisableOptimizeCodeForModules?.Contains(Name) ?? false)
+				{
 					ShouldOptimizeCode = false;
+				}
 
 				if (!ShouldOptimizeCode.HasValue)
+				{
 					return CodeOptimization.Default;
+				}
 
 				return ShouldOptimizeCode.Value ? CodeOptimization.Always : CodeOptimization.Never;
 			}
@@ -964,7 +973,10 @@ namespace UnrealBuildTool
 			{
 				bool UseUnity = true;
 				if (Target.DisableUnityBuildForModules?.Contains(Name) ?? false)
+				{
 					UseUnity = false;
+				}
+
 				return bUseUnityOverride ?? UseUnity;
 			}
 		}
@@ -1035,7 +1047,7 @@ namespace UnrealBuildTool
 		/// are used, and checks that source files include their matching header first.
 		/// </summary>
 		[Obsolete("Deprecated in UE5.2 - Use IWYUSupport instead.")]
-		public bool bEnforceIWYU { set { if (!value) IWYUSupport = IWYUSupport.None; } }
+		public bool bEnforceIWYU { set { if (!value) { IWYUSupport = IWYUSupport.None; } } }
 
 		/// <summary>
 		/// Allows "include what you use" to modify the source code when run. bEnforceIWYU must be true for this variable to matter.
@@ -1662,7 +1674,7 @@ namespace UnrealBuildTool
 		/// <returns>True if it's available, false otherwise</returns>
 		protected bool IsPlatformAvailable(UnrealTargetPlatform InPlatform)
 		{
-			return UEBuildPlatform.IsPlatformAvailableForTarget(InPlatform, this.Target);
+			return UEBuildPlatform.IsPlatformAvailableForTarget(InPlatform, Target);
 		}
 
 		/// <summary>
@@ -1810,8 +1822,8 @@ namespace UnrealBuildTool
 			string TargetPlatform = Target.Platform.ToString();
 			string? Platform = null;
 			string? Architecture = null;
-			string Linkage = string.Empty;
-			string Toolset = string.Empty;
+			string Linkage = String.Empty;
+			string Toolset = String.Empty;
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				Platform = "windows";
@@ -1842,7 +1854,7 @@ namespace UnrealBuildTool
 				Platform = "osx";
 			}
 
-			if (string.IsNullOrEmpty(TargetPlatform) || string.IsNullOrEmpty(Platform) || string.IsNullOrEmpty(Architecture))
+			if (String.IsNullOrEmpty(TargetPlatform) || String.IsNullOrEmpty(Platform) || String.IsNullOrEmpty(Architecture))
 			{
 				throw new System.NotSupportedException($"Platform {Target.Platform} not currently supported by vcpkg");
 			}
@@ -1867,7 +1879,7 @@ namespace UnrealBuildTool
 				throw new DirectoryNotFoundException(VcPackageRoot);
 			}
 
-			string LibraryExtension = string.Empty;
+			string LibraryExtension = String.Empty;
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				LibraryExtension = ".lib";

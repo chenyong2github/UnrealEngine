@@ -232,7 +232,7 @@ namespace UnrealBuildTool
 
 		private static bool ParseSubValue(string TrimmedLine, string Match, out string Result)
 		{
-			Result = string.Empty;
+			Result = String.Empty;
 			int MatchIndex = TrimmedLine.IndexOf(Match);
 			if (MatchIndex < 0)
 			{
@@ -376,7 +376,7 @@ namespace UnrealBuildTool
 				{
 					// Check whether filter accepts this configuration and it has required file
 					if (ConfigFilter(PlatformConfiguration)
-					&& (string.IsNullOrEmpty(PlatformConfiguration.RequiredFile)
+					&& (String.IsNullOrEmpty(PlatformConfiguration.RequiredFile)
 					|| File.Exists(PlatformConfiguration.RequiredFile)))
 					{
 						return true;
@@ -408,25 +408,25 @@ namespace UnrealBuildTool
 		private static void WriteConfigFileEntry(InstalledPlatformConfiguration Config, ref List<String> OutEntries)
 		{
 			string ConfigDescription = "+InstalledPlatformConfigurations=(";
-			ConfigDescription += string.Format("PlatformName=\"{0}\", ", Config.Platform.ToString());
+			ConfigDescription += String.Format("PlatformName=\"{0}\", ", Config.Platform.ToString());
 			if (Config.Configuration != UnrealTargetConfiguration.Unknown)
 			{
-				ConfigDescription += string.Format("Configuration=\"{0}\", ", Config.Configuration.ToString());
+				ConfigDescription += String.Format("Configuration=\"{0}\", ", Config.Configuration.ToString());
 			}
 			if (Config.PlatformType != TargetType.Program)
 			{
-				ConfigDescription += string.Format("PlatformType=\"{0}\", ", Config.PlatformType.ToString());
+				ConfigDescription += String.Format("PlatformType=\"{0}\", ", Config.PlatformType.ToString());
 			}
-			ConfigDescription += string.Format("Architecture=\"{0}\", ", Config.Architecture);
-			if (!string.IsNullOrEmpty(Config.RequiredFile))
+			ConfigDescription += String.Format("Architecture=\"{0}\", ", Config.Architecture);
+			if (!String.IsNullOrEmpty(Config.RequiredFile))
 			{
-				ConfigDescription += string.Format("RequiredFile=\"{0}\", ", Config.RequiredFile);
+				ConfigDescription += String.Format("RequiredFile=\"{0}\", ", Config.RequiredFile);
 			}
 			if (Config.ProjectType != EProjectType.Unknown)
 			{
-				ConfigDescription += string.Format("ProjectType=\"{0}\", ", Config.ProjectType.ToString());
+				ConfigDescription += String.Format("ProjectType=\"{0}\", ", Config.ProjectType.ToString());
 			}
-			ConfigDescription += string.Format("bCanBeDisplayed={0})", Config.bCanBeDisplayed.ToString());
+			ConfigDescription += String.Format("bCanBeDisplayed={0})", Config.bCanBeDisplayed.ToString());
 
 			OutEntries.Add(ConfigDescription);
 		}

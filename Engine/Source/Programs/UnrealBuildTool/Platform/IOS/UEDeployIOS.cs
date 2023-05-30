@@ -78,12 +78,12 @@ namespace UnrealBuildTool
 				// Parse the version string
 				string[] VersionParts = Parts[0].Split(new char[] { '.' });
 
-				if (!int.TryParse(VersionParts[0], out VersionMajor))
+				if (!Int32.TryParse(VersionParts[0], out VersionMajor))
 				{
 					VersionMajor = 0;
 				}
 
-				if ((VersionParts.Length < 2) || (!int.TryParse(VersionParts[1], out VersionMinor)))
+				if ((VersionParts.Length < 2) || (!Int32.TryParse(VersionParts[1], out VersionMinor)))
 				{
 					VersionMinor = 0;
 				}
@@ -286,7 +286,7 @@ namespace UnrealBuildTool
 			// Write the Google iOS URL Scheme if we need it.
 			string GoogleReversedClientId = "";
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "GoogleReversedClientId", out GoogleReversedClientId);
-			bEnableGoogleSupport = bEnableGoogleSupport && !string.IsNullOrWhiteSpace(GoogleReversedClientId);
+			bEnableGoogleSupport = bEnableGoogleSupport && !String.IsNullOrWhiteSpace(GoogleReversedClientId);
 
 			// Add remote-notifications as background mode
 			bool bRemoteNotificationsSupported = false;
@@ -326,10 +326,10 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t\t\t<string>com.Epic.Unreal</string>");
 			Text.AppendLine("\t\t\t<key>CFBundleURLSchemes</key>");
 			Text.AppendLine("\t\t\t<array>");
-			Text.AppendLine(string.Format("\t\t\t\t<string>{0}</string>", bIsUnrealGame ? "UnrealGame" : GameName));
+			Text.AppendLine(String.Format("\t\t\t\t<string>{0}</string>", bIsUnrealGame ? "UnrealGame" : GameName));
 			if (bEnableGoogleSupport)
 			{
-				Text.AppendLine(string.Format("\t\t\t\t<string>{0}</string>", GoogleReversedClientId));
+				Text.AppendLine(String.Format("\t\t\t\t<string>{0}</string>", GoogleReversedClientId));
 			}
 			Text.AppendLine("\t\t\t</array>");
 			Text.AppendLine("\t\t</dict>");
@@ -337,7 +337,7 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<key>UIStatusBarHidden</key>");
 			Text.AppendLine("\t<true/>");
 			Text.AppendLine("\t<key>UIFileSharingEnabled</key>");
-			Text.AppendLine(string.Format("\t<{0}/>", bSupportsITunesFileSharing ? "true" : "false"));
+			Text.AppendLine(String.Format("\t<{0}/>", bSupportsITunesFileSharing ? "true" : "false"));
 			if (bSupportsFilesApp)
 			{
 				Text.AppendLine("\t<key>LSSupportsOpeningDocumentsInPlace</key>");
@@ -355,7 +355,7 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<array>");
 			foreach (string Line in SupportedOrientations.Split("\r\n".ToCharArray()))
 			{
-				if (!string.IsNullOrWhiteSpace(Line))
+				if (!String.IsNullOrWhiteSpace(Line))
 				{
 					Text.AppendLine(Line);
 				}
@@ -385,15 +385,15 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<key>ITSAppUsesNonExemptEncryption</key>");
 			Text.AppendLine("\t<false/>");
 			// add location services descriptions if used
-			if (!string.IsNullOrWhiteSpace(LocationAlwaysUsageDescription))
+			if (!String.IsNullOrWhiteSpace(LocationAlwaysUsageDescription))
 			{
 				Text.AppendLine("\t<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>");
-				Text.AppendLine(string.Format("\t<string>{0}</string>", LocationAlwaysUsageDescription));
+				Text.AppendLine(String.Format("\t<string>{0}</string>", LocationAlwaysUsageDescription));
 			}
-			if (!string.IsNullOrWhiteSpace(LocationWhenInUseDescription))
+			if (!String.IsNullOrWhiteSpace(LocationWhenInUseDescription))
 			{
 				Text.AppendLine("\t<key>NSLocationWhenInUseUsageDescription</key>");
-				Text.AppendLine(string.Format("\t<string>{0}</string>", LocationWhenInUseDescription));
+				Text.AppendLine(String.Format("\t<string>{0}</string>", LocationWhenInUseDescription));
 			}
 			// disable HTTPS requirement
 			if (bDisableHTTPS)
@@ -404,12 +404,12 @@ namespace UnrealBuildTool
 				Text.AppendLine("\t\t</dict>");
 			}
 
-			if (!string.IsNullOrEmpty(ExtraData))
+			if (!String.IsNullOrEmpty(ExtraData))
 			{
 				ExtraData = ExtraData.Replace("\\n", "\n");
 				foreach (string Line in ExtraData.Split("\r\n".ToCharArray()))
 				{
-					if (!string.IsNullOrWhiteSpace(Line))
+					if (!String.IsNullOrWhiteSpace(Line))
 					{
 						Text.AppendLine("\t" + Line);
 					}
@@ -471,7 +471,7 @@ namespace UnrealBuildTool
 		{
 			// get the settings from the ini file
 			// plist replacements
-			DirectoryReference? DirRef = bIsUnrealGame ? (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : null) : new DirectoryReference(ProjectDirectory);
+			DirectoryReference? DirRef = bIsUnrealGame ? (!String.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : null) : new DirectoryReference(ProjectDirectory);
 
 			if (!AppleExports.UseModernXcode(ProjectFile))
 			{
@@ -517,7 +517,7 @@ namespace UnrealBuildTool
 
 			// get the settings from the ini file
 			// plist replacements
-			DirectoryReference? DirRef = bIsUnrealGame ? (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : null) : new DirectoryReference(ProjectDirectory);
+			DirectoryReference? DirRef = bIsUnrealGame ? (!String.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : null) : new DirectoryReference(ProjectDirectory);
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirRef, UnrealTargetPlatform.IOS);
 
 			// orientations
@@ -577,7 +577,7 @@ namespace UnrealBuildTool
 			// bundle identifier
 			string BundleIdentifier;
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleIdentifier);
-			if (!string.IsNullOrEmpty(BundleID))
+			if (!String.IsNullOrEmpty(BundleID))
 			{
 				BundleIdentifier = BundleID; // overriding bundle ID
 			}
@@ -612,7 +612,7 @@ namespace UnrealBuildTool
 			// Write the Google iOS URL Scheme if we need it.
 			string GoogleReversedClientId = "";
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "GoogleReversedClientId", out GoogleReversedClientId);
-			bEnableGoogleSupport = bEnableGoogleSupport && !string.IsNullOrWhiteSpace(GoogleReversedClientId);
+			bEnableGoogleSupport = bEnableGoogleSupport && !String.IsNullOrWhiteSpace(GoogleReversedClientId);
 
 			// Add remote-notifications as background mode
 			bool bRemoteNotificationsSupported = false;
@@ -651,10 +651,10 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t\t\t<string>com.Epic.Unreal</string>");
 			Text.AppendLine("\t\t\t<key>CFBundleURLSchemes</key>");
 			Text.AppendLine("\t\t\t<array>");
-			Text.AppendLine(string.Format("\t\t\t\t<string>{0}</string>", bIsUnrealGame ? "UnrealGame" : GameName));
+			Text.AppendLine(String.Format("\t\t\t\t<string>{0}</string>", bIsUnrealGame ? "UnrealGame" : GameName));
 			if (bEnableGoogleSupport)
 			{
-				Text.AppendLine(string.Format("\t\t\t\t<string>{0}</string>", GoogleReversedClientId));
+				Text.AppendLine(String.Format("\t\t\t\t<string>{0}</string>", GoogleReversedClientId));
 			}
 			Text.AppendLine("\t\t\t</array>");
 			Text.AppendLine("\t\t</dict>");
@@ -662,32 +662,32 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<key>CFBundleDevelopmentRegion</key>");
 			Text.AppendLine("\t<string>English</string>");
 			Text.AppendLine("\t<key>CFBundleDisplayName</key>");
-			Text.AppendLine(string.Format("\t<string>{0}</string>", EncodeBundleName(BundleDisplayName, ProjectName)));
+			Text.AppendLine(String.Format("\t<string>{0}</string>", EncodeBundleName(BundleDisplayName, ProjectName)));
 			Text.AppendLine("\t<key>CFBundleExecutable</key>");
 			string BundleExecutable = bIsUnrealGame ?
 				(bIsClient ? "UnrealClient" : "UnrealGame") :
 				(bIsClient ? GameName + "Client" : GameName);
-			Text.AppendLine(string.Format("\t<string>{0}</string>", BundleExecutable));
+			Text.AppendLine(String.Format("\t<string>{0}</string>", BundleExecutable));
 			Text.AppendLine("\t<key>CFBundleIdentifier</key>");
-			Text.AppendLine(string.Format("\t<string>{0}</string>", BundleIdentifier.Replace("[PROJECT_NAME]", ProjectName).Replace("_", "")));
+			Text.AppendLine(String.Format("\t<string>{0}</string>", BundleIdentifier.Replace("[PROJECT_NAME]", ProjectName).Replace("_", "")));
 			Text.AppendLine("\t<key>CFBundleInfoDictionaryVersion</key>");
 			Text.AppendLine("\t<string>6.0</string>");
 			Text.AppendLine("\t<key>CFBundleName</key>");
-			Text.AppendLine(string.Format("\t<string>{0}</string>", EncodeBundleName(BundleName, ProjectName)));
+			Text.AppendLine(String.Format("\t<string>{0}</string>", EncodeBundleName(BundleName, ProjectName)));
 			Text.AppendLine("\t<key>CFBundlePackageType</key>");
 			Text.AppendLine("\t<string>APPL</string>");
 			Text.AppendLine("\t<key>CFBundleSignature</key>");
 			Text.AppendLine("\t<string>????</string>");
 			Text.AppendLine("\t<key>CFBundleVersion</key>");
-			Text.AppendLine(string.Format("\t<string>{0}</string>", VersionUtilities.UpdateBundleVersion(OldPListData, InEngineDir)));
+			Text.AppendLine(String.Format("\t<string>{0}</string>", VersionUtilities.UpdateBundleVersion(OldPListData, InEngineDir)));
 			Text.AppendLine("\t<key>CFBundleShortVersionString</key>");
-			Text.AppendLine(string.Format("\t<string>{0}</string>", BundleShortVersion));
+			Text.AppendLine(String.Format("\t<string>{0}</string>", BundleShortVersion));
 			Text.AppendLine("\t<key>LSRequiresIPhoneOS</key>");
 			Text.AppendLine("\t<true/>");
 			Text.AppendLine("\t<key>UIStatusBarHidden</key>");
 			Text.AppendLine("\t<true/>");
 			Text.AppendLine("\t<key>UIFileSharingEnabled</key>");
-			Text.AppendLine(string.Format("\t<{0}/>", bSupportsITunesFileSharing ? "true" : "false"));
+			Text.AppendLine(String.Format("\t<{0}/>", bSupportsITunesFileSharing ? "true" : "false"));
 			if (bSupportsFilesApp)
 			{
 				Text.AppendLine("\t<key>LSSupportsOpeningDocumentsInPlace</key>");
@@ -705,7 +705,7 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<array>");
 			foreach (string Line in SupportedOrientations.Split("\r\n".ToCharArray()))
 			{
-				if (!string.IsNullOrWhiteSpace(Line))
+				if (!String.IsNullOrWhiteSpace(Line))
 				{
 					Text.AppendLine(Line);
 				}
@@ -715,7 +715,7 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<array>");
 			foreach (string Line in RequiredCaps.Split("\r\n".ToCharArray()))
 			{
-				if (!string.IsNullOrWhiteSpace(Line))
+				if (!String.IsNullOrWhiteSpace(Line))
 				{
 					Text.AppendLine(Line);
 				}
@@ -786,20 +786,20 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t\t<string>iPhoneOS</string>");
 			Text.AppendLine("\t</array>");
 			Text.AppendLine("\t<key>MinimumOSVersion</key>");
-			Text.AppendLine(string.Format("\t<string>{0}</string>", MinVersion));
+			Text.AppendLine(String.Format("\t<string>{0}</string>", MinVersion));
 			// disable exempt encryption
 			Text.AppendLine("\t<key>ITSAppUsesNonExemptEncryption</key>");
 			Text.AppendLine("\t<false/>");
 			// add location services descriptions if used
-			if (!string.IsNullOrWhiteSpace(LocationAlwaysUsageDescription))
+			if (!String.IsNullOrWhiteSpace(LocationAlwaysUsageDescription))
 			{
 				Text.AppendLine("\t<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>");
-				Text.AppendLine(string.Format("\t<string>{0}</string>", LocationAlwaysUsageDescription));
+				Text.AppendLine(String.Format("\t<string>{0}</string>", LocationAlwaysUsageDescription));
 			}
-			if (!string.IsNullOrWhiteSpace(LocationWhenInUseDescription))
+			if (!String.IsNullOrWhiteSpace(LocationWhenInUseDescription))
 			{
 				Text.AppendLine("\t<key>NSLocationWhenInUseUsageDescription</key>");
-				Text.AppendLine(string.Format("\t<string>{0}</string>", LocationWhenInUseDescription));
+				Text.AppendLine(String.Format("\t<string>{0}</string>", LocationWhenInUseDescription));
 			}
 			// disable HTTPS requirement
 			if (bDisableHTTPS)
@@ -810,12 +810,12 @@ namespace UnrealBuildTool
 				Text.AppendLine("\t\t</dict>");
 			}
 
-			if (!string.IsNullOrEmpty(ExtraData))
+			if (!String.IsNullOrEmpty(ExtraData))
 			{
 				ExtraData = ExtraData.Replace("\\n", "\n");
 				foreach (string Line in ExtraData.Split("\r\n".ToCharArray()))
 				{
-					if (!string.IsNullOrWhiteSpace(Line))
+					if (!String.IsNullOrWhiteSpace(Line))
 					{
 						Text.AppendLine("\t" + Line);
 					}
@@ -843,7 +843,7 @@ namespace UnrealBuildTool
 			}
 
 			// write the iCloud container identifier, if present in the old file
-			if (!string.IsNullOrEmpty(OldPListData))
+			if (!String.IsNullOrEmpty(OldPListData))
 			{
 				int index = OldPListData.IndexOf("ICloudContainerIdentifier");
 				if (index > 0)
@@ -852,7 +852,7 @@ namespace UnrealBuildTool
 					int length = OldPListData.IndexOf("</string>", index) - index;
 					string ICloudContainerIdentifier = OldPListData.Substring(index, length);
 					Text.AppendLine("\t<key>ICloudContainerIdentifier</key>");
-					Text.AppendLine(string.Format("\t<string>{0}</string>", ICloudContainerIdentifier));
+					Text.AppendLine(String.Format("\t<string>{0}</string>", ICloudContainerIdentifier));
 				}
 			}
 
@@ -1036,7 +1036,7 @@ namespace UnrealBuildTool
 				FileInfo DestFileInfo;
 				if (!Directory.Exists(ProvisionDir))
 				{
-					throw new DirectoryNotFoundException(string.Format("Provision Directory {0} not found.", ProvisionDir), null);
+					throw new DirectoryNotFoundException(String.Format("Provision Directory {0} not found.", ProvisionDir), null);
 				}
 
 				string LocalProvisionFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Library/MobileDevice/Provisioning Profiles");
@@ -1050,7 +1050,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						throw new DirectoryNotFoundException(string.Format("Local Provision Folder {0} could not be created.", LocalProvisionFolder), null);
+						throw new DirectoryNotFoundException(String.Format("Local Provision Folder {0} could not be created.", LocalProvisionFolder), null);
 					}
 				}
 
@@ -1188,7 +1188,7 @@ namespace UnrealBuildTool
 				CopyAllProvisions(BuildDirectory, Logger);
 				CopyAllProvisions(InEngineDir + "/Build/IOS", Logger);
 				string? ProvisionDirectory = Environment.GetEnvironmentVariable("ProvisionDirectory");
-				if (!string.IsNullOrWhiteSpace(ProvisionDirectory))
+				if (!String.IsNullOrWhiteSpace(ProvisionDirectory))
 				{
 					CopyAllProvisions(ProvisionDirectory, Logger);
 				}
@@ -1361,7 +1361,7 @@ namespace UnrealBuildTool
 			RecursiveFolderCopy(new DirectoryInfo(SourceDirectory), new DirectoryInfo(DestinationDirectory), bOverwrite, Filter);
 		}
 
-		static private void RecursiveFolderCopy(DirectoryInfo SourceFolderInfo, DirectoryInfo DestFolderInfo, bool bOverwrite = false, FilenameFilter? Filter = null)
+		private static void RecursiveFolderCopy(DirectoryInfo SourceFolderInfo, DirectoryInfo DestFolderInfo, bool bOverwrite = false, FilenameFilter? Filter = null)
 		{
 			foreach (FileInfo SourceFileInfo in SourceFolderInfo.GetFiles())
 			{

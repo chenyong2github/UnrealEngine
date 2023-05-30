@@ -15,10 +15,10 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Base class for VC appx manifest generation
 	/// </summary>
-	abstract public class AppXManifestGeneratorBase
+	public abstract class AppXManifestGeneratorBase
 	{
 		/// config section for platform-specific target settings
-		protected virtual string IniSection_PlatformTargetSettings => string.Format("/Script/{0}PlatformEditor.{0}TargetSettings", Platform.ToString());
+		protected virtual string IniSection_PlatformTargetSettings => String.Format("/Script/{0}PlatformEditor.{0}TargetSettings", Platform.ToString());
 
 		/// config section for general target settings
 		protected virtual string IniSection_GeneralProjectSettings => "/Script/EngineSettings.GeneralProjectSettings";
@@ -84,7 +84,7 @@ namespace UnrealBuildTool
 				{
 					string QuadElement = SplitVersionString[VersionElement];
 					int QuadValue = 0;
-					if (QuadElement.Length == 0 || !int.TryParse(QuadElement, out QuadValue))
+					if (QuadElement.Length == 0 || !Int32.TryParse(QuadElement, out QuadValue))
 					{
 						CompletedVersionString += "0";
 					}
@@ -147,14 +147,20 @@ namespace UnrealBuildTool
 		protected string? ReadIniString(string? Key, string Section, string? DefaultValue = null)
 		{
 			if (Key == null)
+			{
 				return DefaultValue;
+			}
 
 			string Value;
-			if (GameIni!.GetString(Section, Key, out Value) && !string.IsNullOrWhiteSpace(Value))
+			if (GameIni!.GetString(Section, Key, out Value) && !String.IsNullOrWhiteSpace(Value))
+			{
 				return Value;
+			}
 
-			if (EngineIni!.GetString(Section, Key, out Value) && !string.IsNullOrWhiteSpace(Value))
+			if (EngineIni!.GetString(Section, Key, out Value) && !String.IsNullOrWhiteSpace(Value))
+			{
 				return Value;
+			}
 
 			return DefaultValue;
 		}
@@ -178,7 +184,9 @@ namespace UnrealBuildTool
 			var ResultStr = ReadIniString(PlatformKey, IniSection_PlatformTargetSettings, GenericValue);
 
 			if (ResultStr == null)
+			{
 				return DefaultValue;
+			}
 
 			ResultStr = ResultStr.Trim().ToLower();
 
@@ -192,14 +200,16 @@ namespace UnrealBuildTool
 		{
 			var ConfigValue = GetConfigString(PlatformConfigKey, null, null);
 			if (ConfigValue == null)
+			{
 				return DefaultValue;
+			}
 
 			Dictionary<string, string>? Pairs;
 			int R, G, B;
 			if (ConfigHierarchy.TryParse(ConfigValue, out Pairs) &&
-				int.TryParse(Pairs["R"], out R) &&
-				int.TryParse(Pairs["G"], out G) &&
-				int.TryParse(Pairs["B"], out B))
+				Int32.TryParse(Pairs["R"], out R) &&
+				Int32.TryParse(Pairs["G"], out G) &&
+				Int32.TryParse(Pairs["B"], out B))
 			{
 				return "#" + R.ToString("X2") + G.ToString("X2") + B.ToString("X2");
 			}
@@ -243,14 +253,14 @@ namespace UnrealBuildTool
 					}
 
 					string StageId = CultureProperties["StageId"];
-					if (string.IsNullOrEmpty(StageId))
+					if (String.IsNullOrEmpty(StageId))
 					{
 						Logger.LogWarning("Missing StageId value: {Culture}", CultureResources);
 						continue;
 					}
 
 					string CultureId = CultureProperties["CultureId"];
-					if (string.IsNullOrEmpty(CultureId))
+					if (String.IsNullOrEmpty(CultureId))
 					{
 						Logger.LogWarning("Missing CultureId value: {Culture}", CultureResources);
 						continue;
@@ -323,7 +333,7 @@ namespace UnrealBuildTool
 			// Read the PackageName from config
 			var DefaultName = (ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : (TargetName ?? "DefaultUEProject");
 			var PackageName = Regex.Replace(GetConfigString("PackageName", "ProjectName", DefaultName), "[^-.A-Za-z0-9]", "");
-			if (string.IsNullOrWhiteSpace(PackageName))
+			if (String.IsNullOrWhiteSpace(PackageName))
 			{
 				Logger.LogError("Invalid package name {Name}. Package names must only contain letters, numbers, dash, and period and must be at least one character long.", PackageName);
 				Logger.LogError("Consider using the setting [{IniSection}]:PackageName to provide a specific value.", IniSection_PlatformTargetSettings);
@@ -394,7 +404,7 @@ namespace UnrealBuildTool
 			{
 				// Break apart the version number into individual elements
 				string[] SplitVersionString = VersionNumber.Split('.');
-				VersionNumber = string.Format("{0}.{1}.{2}.{3}",
+				VersionNumber = String.Format("{0}.{1}.{2}.{3}",
 					SplitVersionString[0],
 					SplitVersionString[1],
 					BuildVersionForPackage.Changelist / 10000,
@@ -494,7 +504,7 @@ namespace UnrealBuildTool
 			// generate the list of AppX cultures to stage
 			foreach (string UEStageId in SelectedUECultureIds)
 			{
-				if (!UEStageIdToAppXCultureId.TryGetValue(UEStageId, out string? AppXCultureId) || string.IsNullOrEmpty(AppXCultureId))
+				if (!UEStageIdToAppXCultureId.TryGetValue(UEStageId, out string? AppXCultureId) || String.IsNullOrEmpty(AppXCultureId))
 				{
 					// use the culture directly - no remapping required
 					AppXCultureId = UEStageId;
@@ -505,7 +515,7 @@ namespace UnrealBuildTool
 			}
 
 			// look up the default AppX culture
-			if (!UEStageIdToAppXCultureId.TryGetValue(DefaultUECultureId, out DefaultAppXCultureId) || string.IsNullOrEmpty(DefaultAppXCultureId))
+			if (!UEStageIdToAppXCultureId.TryGetValue(DefaultUECultureId, out DefaultAppXCultureId) || String.IsNullOrEmpty(DefaultAppXCultureId))
 			{
 				// use the default culture directly - no remapping required
 				DefaultAppXCultureId = DefaultUECultureId;

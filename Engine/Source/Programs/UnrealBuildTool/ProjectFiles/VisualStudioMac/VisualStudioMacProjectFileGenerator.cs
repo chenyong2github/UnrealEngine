@@ -29,7 +29,7 @@ namespace UnrealBuildTool
 		}
 
 		/// True if we should include IntelliSense data in the generated project files when possible
-		override public bool ShouldGenerateIntelliSenseData()
+		public override bool ShouldGenerateIntelliSenseData()
 		{
 			return false;
 		}

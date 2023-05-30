@@ -262,7 +262,7 @@ namespace UnrealBuildTool
 		{
 			string ProcessOutput = Utils.RunLocalProcessAndReturnStdOut(Command.FullName, ToolArg, Logger);
 
-			if (string.IsNullOrEmpty(Expression))
+			if (String.IsNullOrEmpty(Expression))
 			{
 				return ProcessOutput;
 			}

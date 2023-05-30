@@ -420,9 +420,9 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 
 			this.bMakeProjectPerTarget = bMakeProjectPerTarget;
-			this.bForDistribution = bIsForDistribution;
-			this.BundleIdentifier = BundleID;
-			this.DisplayName = string.IsNullOrEmpty(AppName) ? "$(UE_PRODUCT_NAME)" : AppName;
+			bForDistribution = bIsForDistribution;
+			BundleIdentifier = BundleID;
+			DisplayName = String.IsNullOrEmpty(AppName) ? "$(UE_PRODUCT_NAME)" : AppName;
 		}
 
 		public void InitializeUProjectFileLocation(XcodeProjectFile ProjectFile)
@@ -457,20 +457,20 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		public bool Initialize(XcodeProjectFile ProjectFile, List<UnrealTargetConfiguration> Configurations, ILogger Logger)
 		{
 			this.ProjectFile = ProjectFile;
-			this.bIsForeignProject = ProjectFile.IsForeignProject;
-			this.bIsStubProject = ProjectFile.IsStubProject;
-			this.bIsContentOnlyProject = ProjectFile.IsContentOnlyProject;
+			bIsForeignProject = ProjectFile.IsForeignProject;
+			bIsStubProject = ProjectFile.IsStubProject;
+			bIsContentOnlyProject = ProjectFile.IsContentOnlyProject;
 			this.Logger = Logger;
 
 			InitializeUProjectFileLocation(ProjectFile);
 
 			// setup BundleIdentifier from ini file (if there's a specified plist file with one, that will override this)
-			if (string.IsNullOrEmpty(BundleIdentifier))
+			if (String.IsNullOrEmpty(BundleIdentifier))
 			{
 				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UProjectFileLocation?.Directory, UnrealTargetPlatform.Mac);
 				Ini.GetString($"/Script/MacTargetPlatform.XcodeProjectSettings", "ModernBundleIdentifier", out BundleIdentifier);
 			}
-			if (string.IsNullOrEmpty(BundleIdentifier))
+			if (String.IsNullOrEmpty(BundleIdentifier))
 			{
 				BundleIdentifier = "$(UE_SIGNING_PREFIX).$(UE_PRODUCT_NAME_STRIPPED)";
 			}
@@ -483,7 +483,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			else if (ProjectFile.ProjectTargets[0].TargetRules!.Type == TargetType.Program)
 			{
 				DirectoryReference? ProgramFinder = DirectoryReference.Combine(ProjectFile.BaseDir);
-				while (ProgramFinder != null && string.Compare(ProgramFinder.GetDirectoryName(), "Source", true) != 0)
+				while (ProgramFinder != null && String.Compare(ProgramFinder.GetDirectoryName(), "Source", true) != 0)
 				{
 					ProgramFinder = ProgramFinder.ParentDirectory;
 				}
@@ -712,7 +712,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 											DirectoryReference MacBinaryDir = DirectoryReference.Combine(OutputDirectory, "Mac");
 											DirectoryReference IOSBinaryDir = DirectoryReference.Combine(OutputDirectory, "IOS");
 											DirectoryReference TVOSBinaryDir = DirectoryReference.Combine(OutputDirectory, "TVOS");
-											if (!string.IsNullOrEmpty(ProjectTarget.TargetRules.ExeBinariesSubFolder))
+											if (!String.IsNullOrEmpty(ProjectTarget.TargetRules.ExeBinariesSubFolder))
 											{
 												MacBinaryDir = DirectoryReference.Combine(MacBinaryDir, ProjectTarget.TargetRules.ExeBinariesSubFolder);
 												IOSBinaryDir = DirectoryReference.Combine(IOSBinaryDir, ProjectTarget.TargetRules.ExeBinariesSubFolder);
@@ -999,7 +999,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			MiscItems.Add($");");
 
 			//			string Script = string.Join("&#10", ScriptLines);
-			string Script = string.Join("\\n", ScriptLines);
+			string Script = String.Join("\\n", ScriptLines);
 			MiscItems.Add($"shellPath = /bin/sh;");
 			MiscItems.Add($"shellScript = \"{Script}\";");
 			if (bInstallOnly)
@@ -1252,7 +1252,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		{
 			this.TargetType = TargetType;
 			this.Platform = Platform;
-			this.UnrealData = Project.UnrealData;
+			UnrealData = Project.UnrealData;
 
 			BuildConfigList = new XcodeBuildConfigList(Platform, Name, Project.UnrealData, bIncludeAllPlatformsInConfig: false);
 			References.Add(BuildConfigList);
@@ -1481,7 +1481,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				XcodeFrameworkBuildPhase FrameworkPhase = new XcodeFrameworkBuildPhase(Project.FileCollection);
 
 				// filter frameworks that need to installed into the .app (either the framework or a bundle inside a .zip)
-				IEnumerable<UEBuildFramework> InstalledFrameworks = Frameworks.Where(x => x.bCopyFramework || !string.IsNullOrEmpty(x.CopyBundledAssets));
+				IEnumerable<UEBuildFramework> InstalledFrameworks = Frameworks.Where(x => x.bCopyFramework || !String.IsNullOrEmpty(x.CopyBundledAssets));
 				// filter frameworks that need to be unzipped before we compile
 				IEnumerable<UEBuildFramework> ZippedFrameworks = Frameworks.Where(x => x.ZipFile != null);
 
@@ -1517,7 +1517,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					}
 
 					// set up the CopyBundle to be copied
-					if (!string.IsNullOrEmpty(Framework.CopyBundledAssets))
+					if (!String.IsNullOrEmpty(Framework.CopyBundledAssets))
 					{
 						ResourcesBuildPhase.AddFolderResource(DirectoryReference.Combine(BundleRootDir, Framework.CopyBundledAssets), "Resources");
 					}
@@ -1639,7 +1639,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				// @todo: get a version for  games, like IOS has
 				MarketingVersion = MacToolChain.LoadEngineDisplayVersion();
 
-				string SupportedMacArchitectures = string.Join(" ", XcodeUtils.GetSupportedMacArchitectures(BuildConfig.BuildTarget, UnrealData.UProjectFileLocation).Architectures.Select(x => x.AppleName));
+				string SupportedMacArchitectures = String.Join(" ", XcodeUtils.GetSupportedMacArchitectures(BuildConfig.BuildTarget, UnrealData.UProjectFileLocation).Architectures.Select(x => x.AppleName));
 				ExtraConfigLines.Add($"VALID_ARCHS = {SupportedMacArchitectures}");
 			}
 			else
@@ -1668,7 +1668,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 					// only iphone deals with orientation
 					List<string> SupportedOrientations = XcodeUtils.GetSupportedOrientations(PlatformIni);
-					ExtraConfigLines.Add($"INFOPLIST_KEY_UISupportedInterfaceOrientations = \"{string.Join(" ", SupportedOrientations)}\"");
+					ExtraConfigLines.Add($"INFOPLIST_KEY_UISupportedInterfaceOrientations = \"{String.Join(" ", SupportedOrientations)}\"");
 				}
 				else // tvos
 				{
@@ -1775,11 +1775,11 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				Xcconfig.AppendLine("");
 				Xcconfig.AppendLine("// Code-signing settings");
 				Xcconfig.AppendLine("CODE_SIGN_STYLE = " + (bAutomaticSigning ? "Automatic" : "Manual"));
-				if (!string.IsNullOrEmpty(SigningTeam))
+				if (!String.IsNullOrEmpty(SigningTeam))
 				{
 					Xcconfig.AppendLine($"DEVELOPMENT_TEAM = {SigningTeam}");
 				}
-				if (!string.IsNullOrEmpty(ProvisioningProfile))
+				if (!String.IsNullOrEmpty(ProvisioningProfile))
 				{
 					Xcconfig.AppendLine($"PROVISIONING_PROFILE_SPECIFIER = {ProvisioningProfile}");
 				}

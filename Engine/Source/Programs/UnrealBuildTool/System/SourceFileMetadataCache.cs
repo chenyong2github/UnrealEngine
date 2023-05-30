@@ -160,7 +160,7 @@ namespace UnrealBuildTool
 		private SourceFileMetadataCache(FileReference Location, DirectoryReference BaseDir, SourceFileMetadataCache? Parent, ILogger Logger)
 		{
 			this.Location = Location;
-			this.BaseDirectory = BaseDir;
+			BaseDirectory = BaseDir;
 			this.Parent = Parent;
 			this.Logger = Logger;
 
@@ -315,7 +315,10 @@ namespace UnrealBuildTool
 				{
 					IncludeSpan = IncludeSpan.Slice("#include".Length).TrimStart();
 					if (IncludeSpan.IsEmpty)
+					{
 						continue;
+					}
+
 					char EndChar;
 					bool TrimQuotation = true;
 					if (IncludeSpan[0] == '"')
@@ -357,9 +360,13 @@ namespace UnrealBuildTool
 				{
 					ReadOnlySpan<char> Span = Line.AsSpan(HeaderUnitIndex + "HEADER_UNIT_".Length);
 					if (Span.StartsWith("UNSUPPORTED"))
+					{
 						HeaderFileInfo.UnitType = HeaderUnitType.Unsupported;
+					}
 					else if (Span.StartsWith("SKIP"))
+					{
 						HeaderFileInfo.UnitType = HeaderUnitType.Skip;
+					}
 				}
 			}
 

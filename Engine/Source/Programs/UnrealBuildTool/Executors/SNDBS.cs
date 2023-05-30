@@ -30,7 +30,7 @@ namespace UnrealBuildTool
 
 		private static string FindDbsExe(string ExeName)
 		{
-			string InstallPath = Path.Combine(ProgramFilesx86 ?? string.Empty, "SCE", "Common", "SN-DBS", "bin", ExeName);
+			string InstallPath = Path.Combine(ProgramFilesx86 ?? String.Empty, "SCE", "Common", "SN-DBS", "bin", ExeName);
 			if (File.Exists(InstallPath))
 			{
 				return InstallPath;
@@ -38,7 +38,7 @@ namespace UnrealBuildTool
 			else
 			{
 				// Legacy install location using SCE_ROOT_DIR
-				return Path.Combine(SCERoot ?? string.Empty, "Common", "SN-DBS", "bin", ExeName);
+				return Path.Combine(SCERoot ?? String.Empty, "Common", "SN-DBS", "bin", ExeName);
 			}
 		}
 
@@ -267,7 +267,7 @@ namespace UnrealBuildTool
 						}).ToList();
 					}
 
-					string CommandDescription = string.IsNullOrWhiteSpace(a.CommandDescription) ? a.ActionType.ToString() : a.CommandDescription;
+					string CommandDescription = String.IsNullOrWhiteSpace(a.CommandDescription) ? a.ActionType.ToString() : a.CommandDescription;
 					Job["echo"] = $"{ProgressMarkupPrefix}{CommandDescription}:{a.StatusDescription}";
 
 					return Job;
@@ -278,7 +278,7 @@ namespace UnrealBuildTool
 			bool bHasRewrites = GenerateSNDBSIncludeRewriteRules();
 
 			var ConfigList = TargetDescriptors.Select(Descriptor => $"{Descriptor.Name}|{Descriptor.Platform}|{Descriptor.Configuration}");
-			var ConfigDescription = string.Join(",", ConfigList);
+			var ConfigDescription = String.Join(",", ConfigList);
 
 			var StartInfo = new ProcessStartInfo(
 				SNDBSBuildExe,
@@ -400,19 +400,19 @@ namespace UnrealBuildTool
 				var Lines = new[]
 				{
 					@"pattern1=^COMPILED_PLATFORM_HEADER\(\s*([^ ,]+)\s*\)",
-					$"expansions1={string.Join("|", Platforms.Select(Name => $"{Name}/{Name}$1|{Name}$1"))}",
+					$"expansions1={String.Join("|", Platforms.Select(Name => $"{Name}/{Name}$1|{Name}$1"))}",
 
 					@"pattern2=^COMPILED_PLATFORM_HEADER_WITH_PREFIX\(\s*([^ ,]+)\s*,\s*([^ ,]+)\s*\)",
-					$"expansions2={string.Join("|", Platforms.Select(Name => $"$1/{Name}/{Name}$2|$1/{Name}$2"))}",
+					$"expansions2={String.Join("|", Platforms.Select(Name => $"$1/{Name}/{Name}$2|$1/{Name}$2"))}",
 
 					@"pattern3=^[A-Z]{5}_PLATFORM_HEADER_NAME\(\s*([^ ,]+)\s*\)",
-					$"expansions3={string.Join("|", Platforms.Select(Name => $"{Name}/{Name}$1|{Name}$1"))}",
+					$"expansions3={String.Join("|", Platforms.Select(Name => $"{Name}/{Name}$1|{Name}$1"))}",
 
 					@"pattern4=^[A-Z]{5}_PLATFORM_HEADER_NAME_WITH_PREFIX\(\s*([^ ,]+)\s*,\s*([^ ,]+)\s*\)",
-					$"expansions4={string.Join("|", Platforms.Select(Name => $"$1/{Name}/{Name}$2|$1/{Name}$2"))}"
+					$"expansions4={String.Join("|", Platforms.Select(Name => $"$1/{Name}/{Name}$2|$1/{Name}$2"))}"
 				};
 
-				File.WriteAllText(IncludeRewriteRulesFile.FullName, string.Join(Environment.NewLine, new[] { "[computed-include-rules]" }.Concat(Lines)));
+				File.WriteAllText(IncludeRewriteRulesFile.FullName, String.Join(Environment.NewLine, new[] { "[computed-include-rules]" }.Concat(Lines)));
 				return true;
 			}
 			else

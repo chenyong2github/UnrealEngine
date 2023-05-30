@@ -447,7 +447,7 @@ namespace UnrealBuildTool
 			{
 				DefaultCultureString = Value;
 			}
-			if (string.IsNullOrEmpty(DefaultCultureString))
+			if (String.IsNullOrEmpty(DefaultCultureString))
 			{
 				DefaultCultureString = DefaultValue;
 			}
@@ -458,7 +458,7 @@ namespace UnrealBuildTool
 			foreach (string CultureId in GetAllCultureIds())
 			{
 				Resources ThisCultureResources = GetCultureResources(CultureId);
-				if (ThisCultureResources.SourceStrings.TryGetValue(ConfigKey, out string? CultureString) && !string.IsNullOrEmpty(CultureString))
+				if (ThisCultureResources.SourceStrings.TryGetValue(ConfigKey, out string? CultureString) && !String.IsNullOrEmpty(CultureString))
 				{
 					ThisCultureResources.StringResources.Add(ResourceEntryName, CultureString + ValueSuffix);
 				}

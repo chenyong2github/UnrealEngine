@@ -30,7 +30,7 @@ namespace UnrealBuildTool
 		}
 
 		/// File extension for project files we'll be generating (e.g. ".vcxproj")
-		override public string ProjectFileExtension => ".kdev4";
+		public override string ProjectFileExtension => ".kdev4";
 
 		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
@@ -383,7 +383,7 @@ namespace UnrealBuildTool
 				foreach (string CurDefine in KDevelopProject.IntelliSensePreprocessorDefinitions)
 				{
 					SplitDefinitionAndValue(CurDefine, out Key, out Value);
-					if (string.IsNullOrEmpty(Value))
+					if (String.IsNullOrEmpty(Value))
 					{
 						DefineHolder.Add(String.Format("{0} \\\n", Key));
 					}

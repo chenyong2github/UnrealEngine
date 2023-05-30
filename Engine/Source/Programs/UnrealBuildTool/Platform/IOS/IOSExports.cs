@@ -276,7 +276,7 @@ namespace UnrealBuildTool
 				Text.AppendLine("<plist version=\"1.0\">");
 				Text.AppendLine("<dict>");
 				Text.AppendLine("\t<key>get-task-allow</key>");
-				Text.AppendLine(string.Format("\t<{0}/>", bForDistribution ? "false" : "true"));
+				Text.AppendLine(String.Format("\t<{0}/>", bForDistribution ? "false" : "true"));
 				if (bCloudKitSupported)
 				{
 					if (iCloudContainerIdentifiersXML != "")
@@ -304,7 +304,7 @@ namespace UnrealBuildTool
 					}
 
 					Text.AppendLine("\t<key>com.apple.developer.icloud-container-environment</key>");
-					Text.AppendLine(string.Format("\t<string>{0}</string>", bForDistribution ? "Production" : "Development"));
+					Text.AppendLine(String.Format("\t<string>{0}</string>", bForDistribution ? "Production" : "Development"));
 				}
 
 				bool bRemoteNotificationsSupported = false;
@@ -319,7 +319,7 @@ namespace UnrealBuildTool
 				if (bRemoteNotificationsSupported)
 				{
 					Text.AppendLine("\t<key>aps-environment</key>");
-					Text.AppendLine(string.Format("\t<string>{0}</string>", bForDistribution ? "production" : "development"));
+					Text.AppendLine(String.Format("\t<string>{0}</string>", bForDistribution ? "production" : "development"));
 				}
 
 				// for Sign in with Apple

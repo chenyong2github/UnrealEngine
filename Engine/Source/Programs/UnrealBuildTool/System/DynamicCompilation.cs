@@ -361,7 +361,7 @@ namespace UnrealBuildTool
 
 		private static string FormatVersionNumber(ReadOnlyBuildVersion Version)
 		{
-			return string.Format("{0}.{1}.{2}", Version.MajorVersion, Version.MinorVersion, Version.PatchVersion);
+			return String.Format("{0}.{1}.{2}", Version.MajorVersion, Version.MinorVersion, Version.PatchVersion);
 		}
 	}
 }

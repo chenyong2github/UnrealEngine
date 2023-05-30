@@ -12,7 +12,7 @@ namespace UnrealBuildTool
 		{
 			Process proc = new Process();
 			proc.StartInfo.FileName = "/bin/sh";
-			proc.StartInfo.Arguments = string.Format("-c 'which {0}'", name);
+			proc.StartInfo.Arguments = System.String.Format("-c 'which {0}'", name);
 			proc.StartInfo.UseShellExecute = false;
 			proc.StartInfo.CreateNoWindow = true;
 			proc.StartInfo.RedirectStandardOutput = true;
@@ -24,7 +24,7 @@ namespace UnrealBuildTool
 			string? path = proc.StandardOutput.ReadLine();
 			Logger.LogDebug("which {Name} result: ({ExitCode}) {Path}", name, proc.ExitCode, path);
 
-			if (proc.ExitCode == 0 && string.IsNullOrEmpty(proc.StandardError.ReadToEnd()))
+			if (proc.ExitCode == 0 && System.String.IsNullOrEmpty(proc.StandardError.ReadToEnd()))
 			{
 				return path;
 			}
@@ -34,7 +34,7 @@ namespace UnrealBuildTool
 		public static string? WhichClang(ILogger Logger)
 		{
 			string? InternalSDKPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux)?.GetInternalSDKPath();
-			if (!string.IsNullOrEmpty(InternalSDKPath))
+			if (!System.String.IsNullOrEmpty(InternalSDKPath))
 			{
 				return Path.Combine(InternalSDKPath, "bin", "clang++");
 			}

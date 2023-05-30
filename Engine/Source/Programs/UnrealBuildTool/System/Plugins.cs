@@ -259,7 +259,7 @@ namespace UnrealBuildTool
 			{
 				foreach (var Plugin in Pair.Value)
 				{
-					if (string.Equals(Plugin.Name, PluginName, StringComparison.InvariantCultureIgnoreCase))
+					if (String.Equals(Plugin.Name, PluginName, StringComparison.InvariantCultureIgnoreCase))
 					{
 						return Plugin;
 					}

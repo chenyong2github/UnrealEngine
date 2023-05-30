@@ -197,7 +197,7 @@ namespace UnrealBuildTool
 		// return the outerXML of the node's value
 		public string GetNodeXMLValueByName(string InValue)
 		{
-			XmlNodeList elemList = this.Document.GetElementsByTagName("key");
+			XmlNodeList elemList = Document.GetElementsByTagName("key");
 			for (int i = 0; i < elemList.Count; i++)
 			{
 				XmlNode? Node = elemList[i];
@@ -217,7 +217,7 @@ namespace UnrealBuildTool
 		// return the innerXML of the node's value
 		public string GetNodeValueByName(string InValue)
 		{
-			XmlNodeList elemList = this.Document.GetElementsByTagName("key");
+			XmlNodeList elemList = Document.GetElementsByTagName("key");
 			for (int i = 0; i < elemList.Count; i++)
 			{
 				XmlNode? Node = elemList[i];

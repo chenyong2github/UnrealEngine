@@ -37,7 +37,10 @@ namespace UnrealBuildTool
 			{
 				return CompiledAssembly.GetName().Name;
 			}
-			else return null;
+			else
+			{
+				return null;
+			}
 		}
 
 		/// <summary>
@@ -466,7 +469,7 @@ namespace UnrealBuildTool
 					(Target.ProjectFile != null && ModuleFileName.ContainsAnyNames(DisallowedPlatformsAndGroups, Target.ProjectFile.Directory)))
 				{
 					throw new BuildException("Platform module file {0} is not allowed (only platforms '{1}', and their groups, are allowed. This indicates a module reference not being checked with something like IsPlatformAvailableForTarget()).",
-						ModuleFileName, string.Join(",", Target.OptedInModulePlatforms));
+						ModuleFileName, String.Join(",", Target.OptedInModulePlatforms));
 				}
 			}
 
