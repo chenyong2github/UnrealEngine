@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HAL/PlatformMisc.h"
 #include "Iris/IrisConfig.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "Misc/CommandLine.h"
@@ -57,10 +58,14 @@ GROUP_BEFORE_GLOBAL(Catch::DefaultGroup)
 	UE::Net::SetUseIrisReplication(true);
 
 	{
+		// Find the engine directory before InitAll() enables the platform file stub. Prevents warnings.
+		FPlatformMisc::EngineDir();
+
 		// Silence some errors & warnings during initialization unrelated to the replication system
 		LOG_SCOPE_VERBOSITY_OVERRIDE(LogSlate, ELogVerbosity::Error);
 		LOG_SCOPE_VERBOSITY_OVERRIDE(LogSlateStyle, ELogVerbosity::Error);
 		LOG_SCOPE_VERBOSITY_OVERRIDE(LogUObjectGlobals, ELogVerbosity::Fatal);
+		LOG_SCOPE_VERBOSITY_OVERRIDE(LogStreaming, ELogVerbosity::Error);
 		InitAll(true, true);
 	}
 
