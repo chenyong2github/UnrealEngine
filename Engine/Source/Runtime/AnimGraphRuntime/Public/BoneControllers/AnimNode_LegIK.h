@@ -74,6 +74,7 @@ public:
 
 	void InitializeFromLegData(FAnimLegIKData& InLegData, FAnimInstanceProxy* InAnimInstanceProxy);
 	void ReachTarget(const FVector& InTargetLocation, double InReachPrecision, int32 InMaxIterations);
+	void ApplyTwistOffset(const float InTwistOffsetDegrees);
 
 	double GetMaximumReach() const
 	{
@@ -129,6 +130,12 @@ struct FAnimLegIKDefinition
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bEnableKneeTwistCorrection;
 
+	/** Name of the curve to use as the twist offset angle(in degrees).
+	* This is useful for injecting knee motion, while keeping the IK chain's goal/hand and root/hip locked in place. 
+	* Reasonable values are usually between -+15 degrees, although this is depends on how far in/out the knee is in the original pose. */
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FName TwistOffsetCurveName;
+
 	FAnimLegIKDefinition()
 		: NumBonesInLimb(2)
 		, MinRotationAngle(15.f)
@@ -136,6 +143,7 @@ struct FAnimLegIKDefinition
 		, HingeRotationAxis(EAxis::None)
 		, bEnableRotationLimit(false)
 		, bEnableKneeTwistCorrection(true)
+		, TwistOffsetCurveName(NAME_None)
 	{}
 };
 
@@ -149,6 +157,7 @@ public:
 	FTransform IKFootTransform;
 	FAnimLegIKDefinition* LegDefPtr;
 	FCompactPoseBoneIndex IKFootBoneIndex;
+	float TwistOffsetDegrees;
 	int32 NumBones;
 	TArray<FCompactPoseBoneIndex> FKLegBoneIndices;
 	TArray<FTransform> FKLegBoneTransforms;
@@ -162,6 +171,7 @@ public:
 		: IKFootTransform(FTransform::Identity)
 		, LegDefPtr(nullptr)
 		, IKFootBoneIndex(INDEX_NONE)
+		, TwistOffsetDegrees(0.0f)
 		, NumBones(INDEX_NONE)
 	{}
 };
