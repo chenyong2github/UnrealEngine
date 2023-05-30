@@ -314,13 +314,18 @@ void FNiagaraSystemInstanceController::UpdateEmitterMaterials()
 						{
 							if (ExistingMaterial)
 							{
-								if (auto MID = Cast<UMaterialInstanceDynamic>(ExistingMaterial))
+								if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(ExistingMaterial))
 								{
 									if (EmitterMaterials.FindByPredicate([&](const FMaterialOverride& ExistingOverride) -> bool { return (ExistingOverride.Material == ExistingMaterial) && (ExistingOverride.EmitterRendererProperty == Properties) && (ExistingOverride.MaterialSubIndex == MaterialIndex); }))
 									{
 										// It's a MID we've previously created and are managing. Recreate it by grabbing the parent.
 										// TODO: Are there cases where we don't always have to recreate it?
 										ExistingMaterial = MID->Parent;
+									}
+									else
+									{
+										// If we get here this is an external MID so do not create a new one
+										continue;
 									}
 								}
 
