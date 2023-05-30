@@ -860,7 +860,7 @@ void UWorldPartition::RegisterDelegates()
 	check(World); 
 
 #if WITH_EDITOR
-	if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	if (GEditor && !IsTemplate() && !World->IsGameWorld() && !IsRunningCookCommandlet())
 	{
 		if (IsMainWorldPartition())
 		{
@@ -903,7 +903,7 @@ void UWorldPartition::UnregisterDelegates()
 	check(World);
 
 #if WITH_EDITOR
-	if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	if (GEditor && !IsTemplate() && !World->IsGameWorld() && !IsRunningCookCommandlet())
 	{
 		if (IsMainWorldPartition())
 		{
