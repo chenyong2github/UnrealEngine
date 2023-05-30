@@ -188,7 +188,15 @@ public:
 	 */
 	virtual float GetSectionHeight() const { return SequencerSectionConstants::DefaultSectionHeight; }
 	
+	/**
+	 * @return The width of the section drag handles
+	 */
 	virtual float GetSectionGripSize() const { return SequencerSectionConstants::DefaultSectionGripSize; }
+
+	/**
+	 * @ return The size of keyframe widgets
+	 */
+	virtual FVector2D GetKeySize() const { return SequencerSectionConstants::KeySize; }
 
 	/**
 	 * @return Whether or not the user can resize this section.

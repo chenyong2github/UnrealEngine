@@ -39,25 +39,47 @@ public:
 	void Construct( const FArguments& InArgs, TSharedPtr<FSequencer> Sequencer, TSharedPtr<FSectionModel> InSectionModel, TSharedPtr<STrackLane> InOwningTrackLane);
 	~SSequencerSection();
 
+	/**
+	 * Get the section interface
+	 */
 	TSharedPtr<ISequencerSection> GetSectionInterface() const { return SectionInterface; }
-
-	virtual FVector2D ComputeDesiredSize(float) const override;
 
 private:
 
 	/**
-	 * Checks for user interaction (via the mouse) with the left and right edge of a section
+	 * Checks for mouse interaction with the left and right edge of the section
 	 *
 	 * @param MousePosition		The current screen space position of the mouse
 	 * @param SectionGeometry	The geometry of the section
 	 */
 	bool CheckForEdgeInteraction( const FPointerEvent& MousePosition, const FGeometry& SectionGeometry );
 
+	/**
+	 * Checks for mouse interaction with the ease in/out handles of the section
+	 *
+	 * @param MousePosition		The current screen space position of the mouse
+	 * @param SectionGeometry	The geometry of the section
+	 */
 	bool CheckForEasingHandleInteraction( const FPointerEvent& MousePosition, const FGeometry& SectionGeometry );
 
+	/**
+	 * Checks for mouse interaction with the ease in/out area of the section
+	 *
+	 * @param MousePosition		The current screen space position of the mouse
+	 * @param SectionGeometry	The geometry of the section
+	 */
 	bool CheckForEasingAreaInteraction( const FPointerEvent& MousePosition, const FGeometry& SectionGeometry );
 
-	/** SWidget interface */
+	/**
+	 * Checks for mouse interaction with the left/right grip handles of the section
+	 *
+	 * @param MousePosition		The current screen space position of the mouse
+	 * @param SectionGeometry	The geometry of the section
+	 */
+	bool CheckForSectionInteraction( const FPointerEvent& MousePosition, const FGeometry& SectionGeometry );
+
+	/*~ SWidget interface */
+	virtual FVector2D ComputeDesiredSize(float) const override;
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
@@ -66,13 +88,16 @@ private:
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
 
-	/*~ ITrackLaneWidget Interface */
+	/*~ ITrackLaneWidget interface */
 	virtual FTrackLaneScreenAlignment GetAlignment(const FTimeToPixel& TimeToPixel, const FGeometry& InParentGeometry) const override;
 	virtual int32 GetOverlapPriority() const override;
 	virtual void ReportParentGeometry(const FGeometry& InParentGeometry) override;
 	virtual TSharedRef<const SWidget> AsWidget() const override { return AsShared(); }
 	virtual bool AcceptsChildren() const override { return true; }
 	virtual void AddChildView(TSharedPtr<ITrackLaneWidget> ChildWidget, TWeakPtr<STrackLane> InWeakOwningLane) override;
+
+	/*~ ISignedObjectEventHandler interface */
+	virtual void OnModifiedIndirectly(UMovieSceneSignedObject* Object) override;
 
 	/**
 	 * Paint the easing handles for this section
@@ -93,11 +118,6 @@ private:
 	/** @return the track area view-model that this section belongs to */
 	TSharedPtr<FTrackAreaViewModel> GetTrackAreaViewModel() const;
 
-	/** 
-	 * Creates geometry for a section without space for the handles
-	 */
-	FGeometry MakeSectionGeometryWithoutHandles( const FGeometry& AllottedGeometry, const TSharedPtr<ISequencerSection>& InSectionInterface ) const;
-
 	/**
 	 * Ensure that the cached array of underlapping sections is up to date
 	 */
@@ -113,13 +133,25 @@ private:
 	 */
 	bool IsEnabled() const;
 
-	void OnModifiedIndirectly(UMovieSceneSignedObject* Object) override;
-
+	/**
+	 * Gets the visibility of this section's top-level channel
+	 */
 	EVisibility GetTopLevelChannelGroupVisibility() const;
 
+	/**
+	 * Gets the color of the top-level key bar
+	 */
 	FLinearColor GetTopLevelKeyBarColor() const;
 
+	/**
+	 * Get the padding offset around the actual section's geometry
+	 */
 	FMargin GetHandleOffsetPadding() const;
+
+	/** 
+	 * Creates geometry for a section without space for the handles
+	 */
+	FGeometry MakeSectionGeometryWithoutHandles(const FGeometry& AllottedGeometry) const;
 
 public:
 
@@ -135,13 +167,12 @@ public:
 	/** Get a value between 0 and 1 that indicates the amount of throb-scale to apply to the currently selected sections */
 	static float GetSectionSelectionThrobValue();
 
-	/**
-	 * Check to see whether the specified section is highlighted
-	 */
+	/** Check to see whether the specified section is highlighted */
 	static bool IsSectionHighlighted(UMovieSceneSection* InSection, TSharedPtr<ITrackAreaHotspot> Hotspot);
 
 private:
 
+	/** The parent sequencer */
 	TWeakPtr<FSequencer> Sequencer;
 	/** Interface to section data */
 	TSharedPtr<ISequencerSection> SectionInterface;

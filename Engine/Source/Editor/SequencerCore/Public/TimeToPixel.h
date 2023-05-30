@@ -23,7 +23,8 @@ public:
 		: ViewRangeStartSeconds( InLocalViewRange.GetLowerBoundValue() )
 		, TickResolution( InTickResolution )
 	{
-		double VisibleWidth = InLocalViewRange.Size<double>();
+		ensureMsgf(WidthPx > 0, TEXT("Got zero or negative pixel width!"));
+		const double VisibleWidth = InLocalViewRange.Size<double>();
 
 		const float MaxPixelsPerSecond = 1000.f;
 		PixelsPerSecond = VisibleWidth > 0 ? WidthPx / VisibleWidth : MaxPixelsPerSecond;
