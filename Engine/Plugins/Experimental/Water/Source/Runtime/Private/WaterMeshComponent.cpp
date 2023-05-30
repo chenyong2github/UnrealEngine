@@ -519,6 +519,9 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 				Polygon.Reserve(PolyLineVertices.Num());
 				Algo::Transform(PolyLineVertices, Polygon, [](const FVector& Vertex) { return FVector2D(Vertex); });
 
+				FBox OceanBounds = WaterBodyComponent->Bounds.GetBox();
+				OceanBounds.Max.Z += WaterBodyComponent->GetMaxWaveHeight();
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				if (!!CVarWaterMeshShowTileGenerationGeometry.GetValueOnGameThread())
 				{
@@ -530,11 +533,12 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 						const FVector2D& Point1 = Polygon[(i + 1) % NumVertices];
 						DrawDebugLine(GetWorld(), FVector(Point0.X, Point0.Y, Z), FVector(Point1.X, Point1.Y, Z), FColor::Blue);
 					}
+
+					DrawDebugBox(GetWorld(), OceanBounds.GetCenter(), OceanBounds.GetExtent(), FColor::Blue);
 				}
 #endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-				const FBox OceanBounds = Actor->GetComponentsBoundingBox();
-				WaterQuadTree.AddOcean(Polygon, FVector2D(OceanBounds.Min.Z, OceanBounds.Max.Z + WaterBodyComponent->GetMaxWaveHeight()), WaterBodyRenderDataIndex);
+				WaterQuadTree.AddOcean(Polygon, OceanBounds, WaterBodyRenderDataIndex);
 			}
 
 			// Place far mesh height just below the ocean level

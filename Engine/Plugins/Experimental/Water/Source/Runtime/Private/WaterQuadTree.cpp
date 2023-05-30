@@ -611,11 +611,11 @@ void FWaterQuadTree::AddWaterTilesInsideBounds(const FBox& InBounds, uint32 InWa
 	NodeData.Nodes[0].AddNodes(NodeData, FBox(FVector(TileRegion.Min, 0.0f), FVector(TileRegion.Max, 0.0f)),  InBounds, InWaterBodyIndex, TreeDepth, 0);
 }
 
-void FWaterQuadTree::AddOcean(const TArray<FVector2D>& InPoly, const FVector2D& InZBounds, uint32 InWaterBodyIndex)
+void FWaterQuadTree::AddOcean(const TArray<FVector2D>& InPoly, const FBox& InOceanBounds, uint32 InWaterBodyIndex)
 {
 	check(!bIsReadOnly);
-	const FBox2D OceanBounds(FVector2D(GetBounds().Min), FVector2D(GetBounds().Max));
-	AddOceanRecursive(InPoly, OceanBounds, InZBounds, true, TreeDepth * 2, InWaterBodyIndex);
+	const FBox2D OceanBounds(FVector2D(InOceanBounds.Min), FVector2D(InOceanBounds.Max));
+	AddOceanRecursive(InPoly, OceanBounds, FVector2D(InOceanBounds.Min.Z, InOceanBounds.Max.Z), true, TreeDepth * 2, InWaterBodyIndex);
 }
 
 void FWaterQuadTree::AddLake(const TArray<FVector2D>& InPoly, const FBox& InLakeBounds, uint32 InWaterBodyIndex)

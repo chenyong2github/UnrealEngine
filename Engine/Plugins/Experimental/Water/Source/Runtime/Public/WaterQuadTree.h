@@ -131,7 +131,7 @@ struct FWaterQuadTree
 	void AddWaterTilesInsideBounds(const FBox& InBounds, uint32 InWaterBodyIndex);
 
 	/** Add Ocean by giving a closed spline that represents the land mass for this ocean. */
-	void AddOcean(const TArray<FVector2D>& InPoly, const FVector2D& InZBounds, uint32 InWaterBodyIndex);
+	void AddOcean(const TArray<FVector2D>& InPoly, const FBox& InOceanBounds, uint32 InWaterBodyIndex);
 
 	/** Add Lake by giving a closed spline that represents the lake */
 	void AddLake(const TArray<FVector2D>& InPoly, const FBox& InLakeBounds, uint32 InWaterBodyIndex);
