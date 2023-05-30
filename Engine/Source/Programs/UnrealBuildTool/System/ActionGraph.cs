@@ -356,7 +356,7 @@ namespace UnrealBuildTool
 		private static ActionExecutor SelectExecutor(BuildConfiguration BuildConfiguration, int ActionCount, List<TargetDescriptor> TargetDescriptors, ILogger Logger)
 		{
 #if __BOXEXECUTOR_AVAILABLE__
-			if (BuildConfiguration.bAllowBoxExecutor)
+			if (BuildConfiguration.bAllowBoxExecutor && BoxExecutor.IsAvailable(Logger))
 			{
 				return new BoxExecutor(BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, BuildConfiguration.bCompactOutput, Logger);
 			}

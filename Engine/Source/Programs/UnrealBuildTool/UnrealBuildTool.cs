@@ -490,6 +490,13 @@ namespace UnrealBuildTool
 				// Ensure we can resolve any external assemblies that are not in the same folder as our assembly.
 				AssemblyUtils.InstallAssemblyResolver(Path.GetDirectoryName(Assembly.GetEntryAssembly()!.GetOriginalLocation())!);
 
+				// Add the application directory to PATH
+				string path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+				if (!path.Split(';').Any(x => string.Compare(x, Unreal.UnrealBuildToolDllPath.Directory.FullName, true) == 0))
+				{
+					Environment.SetEnvironmentVariable("PATH", $"{path};{Unreal.UnrealBuildToolDllPath.Directory.FullName}");
+				}
+
 				// Change the working directory to be the Engine/Source folder. We are likely running from Engine/Binaries/DotNET
 				// This is critical to be done early so any code that relies on the current directory being Engine/Source will work.
 				DirectoryReference.CreateDirectory(Unreal.EngineSourceDirectory);
