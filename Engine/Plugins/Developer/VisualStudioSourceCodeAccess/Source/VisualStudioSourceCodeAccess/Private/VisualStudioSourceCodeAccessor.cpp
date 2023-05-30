@@ -421,84 +421,6 @@ bool FVisualStudioSourceCodeAccessor::OpenVisualStudioSolutionViaDTE()
 	return bSuccess;
 }
 
-FString FVisualStudioSourceCodeAccessor::RetrieveSolutionForFileOpenRequests(const TArray<FileOpenRequest>& Requests, const TArray<FString>& CurrentlyOpenedSolutions) const
-{
-	// Based on the files being requested, make an educated guess as to which is the most appropriate solution to open them all by finding the corresponding .sln/.slnf files in the folder hierarchy: 
-	struct FSolutionInfo
-	{
-		FSolutionInfo(const FString& InSolutionFile)
-			: SolutionFile(InSolutionFile)
-		{}
-
-		// Describes the state of a solution file wrt the currently opened solutions (ordered by priority)
-		enum class EOpenedSolutionState : uint8
-		{
-			CurrentlyOpenedExactMatch = 0, // The solution is currently opened in visual studio
-			CurrentlyOpened, // A solution with same file name but not the same absolute path is currently opened in visual studio
-			NotOpened, // The solution is not currently opened in Visual Studio
-		};
-		EOpenedSolutionState OpenedSolutionState = FSolutionInfo::EOpenedSolutionState::NotOpened;
-		int32 RefCount = 0;
-		FString SolutionFile;
-	};
-
-	TArray<FSolutionInfo> SolutionFileInfos;
-	for (const FileOpenRequest& Request : Requests)
-	{
-		FString CurrentPath = FPaths::GetPath(Request.FullPath);
-		while (!CurrentPath.IsEmpty())
-		{
-			TArray<FString> FilesInDirectory;
-			IFileManager::Get().FindFiles(FilesInDirectory, *CurrentPath, TEXT(".sln"));
-			IFileManager::Get().FindFiles(FilesInDirectory, *CurrentPath, TEXT(".slnf"));
-			for (const FString& FileInDirectory : FilesInDirectory)
-			{
-				FString AbsoluteFileName = CurrentPath / FileInDirectory;
-				FPaths::NormalizeFilename(AbsoluteFileName);
-
-				FSolutionInfo* SolutionInfo = SolutionFileInfos.FindByPredicate([&AbsoluteFileName](const FSolutionInfo& InSolutionInfo) { return InSolutionInfo.SolutionFile == AbsoluteFileName; });
-				if (SolutionInfo == nullptr)
-				{
-					SolutionInfo = &SolutionFileInfos.Add_GetRef(FSolutionInfo(AbsoluteFileName));
-
-					for (const FString& OpenedSolution : CurrentlyOpenedSolutions)
-					{
-						if (OpenedSolution.Equals(AbsoluteFileName, ESearchCase::IgnoreCase))
-						{
-							SolutionInfo->OpenedSolutionState = FSolutionInfo::EOpenedSolutionState::CurrentlyOpenedExactMatch;
-							break;
-						}
-						if (FPaths::GetCleanFilename(OpenedSolution).Equals(FileInDirectory, ESearchCase::IgnoreCase))
-						{
-							SolutionInfo->OpenedSolutionState = FSolutionInfo::EOpenedSolutionState::CurrentlyOpened;
-						}
-					}
-				}
-				++SolutionInfo->RefCount;
-			}
-			CurrentPath = FPaths::GetPath(CurrentPath);
-		}
-	}
-
-	// Now that we have a list of all solutions that could be used to open all these files, pick the best one : 
-	SolutionFileInfos.Sort([](const FSolutionInfo& InLHS, const FSolutionInfo& InRHS)
-	{
-		// Sort by ref count first, so that the most requested solution comes out on top : 
-		if (InLHS.RefCount < InRHS.RefCount)
-		{
-			return false;
-		}
-		else if (InLHS.RefCount == InRHS.RefCount)
-		{
-			return (static_cast<uint8>(InLHS.OpenedSolutionState) < static_cast<uint8>(InRHS.OpenedSolutionState));
-		}
-
-		return true;
-	});
-
-	return SolutionFileInfos.IsEmpty() ? FString() : SolutionFileInfos[0].SolutionFile;
-}
-
 bool FVisualStudioSourceCodeAccessor::OpenVisualStudioFilesInternalViaDTE(const TArray<FileOpenRequest>& Requests, bool& bWasDeferred)
 {
 	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>(TEXT("SourceCodeAccess"));
@@ -1115,6 +1037,84 @@ bool FVisualStudioSourceCodeAccessor::OpenVisualStudioSolutionViaProcess()
 	}
 
 		return false;
+}
+
+FString FVisualStudioSourceCodeAccessor::RetrieveSolutionForFileOpenRequests(const TArray<FileOpenRequest>& Requests, const TArray<FString>& CurrentlyOpenedSolutions) const
+{
+	// Based on the files being requested, make an educated guess as to which is the most appropriate solution to open them all by finding the corresponding .sln/.slnf files in the folder hierarchy: 
+	struct FSolutionInfo
+	{
+		FSolutionInfo(const FString& InSolutionFile)
+			: SolutionFile(InSolutionFile)
+		{}
+
+		// Describes the state of a solution file wrt the currently opened solutions (ordered by priority)
+		enum class EOpenedSolutionState : uint8
+		{
+			CurrentlyOpenedExactMatch = 0, // The solution is currently opened in visual studio
+			CurrentlyOpened, // A solution with same file name but not the same absolute path is currently opened in visual studio
+			NotOpened, // The solution is not currently opened in Visual Studio
+		};
+		EOpenedSolutionState OpenedSolutionState = FSolutionInfo::EOpenedSolutionState::NotOpened;
+		int32 RefCount = 0;
+		FString SolutionFile;
+	};
+
+	TArray<FSolutionInfo> SolutionFileInfos;
+	for (const FileOpenRequest& Request : Requests)
+	{
+		FString CurrentPath = FPaths::GetPath(Request.FullPath);
+		while (!CurrentPath.IsEmpty())
+		{
+			TArray<FString> FilesInDirectory;
+			IFileManager::Get().FindFiles(FilesInDirectory, *CurrentPath, TEXT(".sln"));
+			IFileManager::Get().FindFiles(FilesInDirectory, *CurrentPath, TEXT(".slnf"));
+			for (const FString& FileInDirectory : FilesInDirectory)
+			{
+				FString AbsoluteFileName = CurrentPath / FileInDirectory;
+				FPaths::NormalizeFilename(AbsoluteFileName);
+
+				FSolutionInfo* SolutionInfo = SolutionFileInfos.FindByPredicate([&AbsoluteFileName](const FSolutionInfo& InSolutionInfo) { return InSolutionInfo.SolutionFile == AbsoluteFileName; });
+				if (SolutionInfo == nullptr)
+				{
+					SolutionInfo = &SolutionFileInfos.Add_GetRef(FSolutionInfo(AbsoluteFileName));
+
+					for (const FString& OpenedSolution : CurrentlyOpenedSolutions)
+					{
+						if (OpenedSolution.Equals(AbsoluteFileName, ESearchCase::IgnoreCase))
+						{
+							SolutionInfo->OpenedSolutionState = FSolutionInfo::EOpenedSolutionState::CurrentlyOpenedExactMatch;
+							break;
+						}
+						if (FPaths::GetCleanFilename(OpenedSolution).Equals(FileInDirectory, ESearchCase::IgnoreCase))
+						{
+							SolutionInfo->OpenedSolutionState = FSolutionInfo::EOpenedSolutionState::CurrentlyOpened;
+						}
+					}
+				}
+				++SolutionInfo->RefCount;
+			}
+			CurrentPath = FPaths::GetPath(CurrentPath);
+		}
+	}
+
+	// Now that we have a list of all solutions that could be used to open all these files, pick the best one : 
+	SolutionFileInfos.Sort([](const FSolutionInfo& InLHS, const FSolutionInfo& InRHS)
+	{
+		// Sort by ref count first, so that the most requested solution comes out on top : 
+		if (InLHS.RefCount < InRHS.RefCount)
+		{
+			return false;
+		}
+		else if (InLHS.RefCount == InRHS.RefCount)
+		{
+			return (static_cast<uint8>(InLHS.OpenedSolutionState) < static_cast<uint8>(InRHS.OpenedSolutionState));
+		}
+
+		return true;
+	});
+
+	return SolutionFileInfos.IsEmpty() ? FString() : SolutionFileInfos[0].SolutionFile;
 }
 
 bool FVisualStudioSourceCodeAccessor::OpenVisualStudioFilesInternalViaProcess(const TArray<FileOpenRequest>& Requests)
