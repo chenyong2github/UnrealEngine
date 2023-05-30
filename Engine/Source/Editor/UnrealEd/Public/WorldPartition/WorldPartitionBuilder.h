@@ -89,6 +89,11 @@ protected:
 	 */
 	virtual bool ShouldSkipCell(const FWorldBuilderCellCoord& CellCoord) const { return false; }
 
+	/** 
+	 * Some builders may have the ability to process non partitioned worlds.
+	 */
+	virtual bool CanProcessNonPartitionedWorlds() const { return false; }
+
 	bool OnFilesModified(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const;
 	bool OnPackagesModified(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const;
 
@@ -145,6 +150,8 @@ protected:
 	FModifiedFilesHandler ModifiedFilesHandler;
 
 private:
+	void LoadDataLayers(UWorld* InWorld);
+
 	friend struct FWorldPartitionBuilderArgsScope;
 	static FString Args;
 };
