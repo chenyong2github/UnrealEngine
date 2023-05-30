@@ -1376,22 +1376,6 @@ protected:
 	friend class FVulkanPipelineStateCacheManager;
 };
 
-#if VULKAN_RHI_RAYTRACING
-class FVulkanRayTracingLayout : public FVulkanLayout
-{
-public:
-	FVulkanRayTracingLayout(FVulkanDevice* InDevice)
-		: FVulkanLayout(InDevice)
-	{
-	}
-
-	virtual bool IsGfxLayout() const final override
-	{
-		return false;
-	}
-};
-#endif // VULKAN_RHI_RAYTRACING
-
 
 
 class FVulkanGenericDescriptorPool : FNoncopyable

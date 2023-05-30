@@ -8,7 +8,6 @@
 
 class FVulkanCommandListContext;
 class FVulkanResourceMultiBuffer;
-class FVulkanRayTracingLayout;
 
 class FVulkanRayTracingPlatform
 {
@@ -149,8 +148,6 @@ public:
 	~FVulkanRayTracingPipelineState();
 
 private:
-
-	FVulkanRayTracingLayout* Layout = nullptr;
 	VkPipeline Pipeline = VK_NULL_HANDLE;
 	FVkRtAllocation RayGenShaderBindingTable;
 	FVkRtAllocation MissShaderBindingTable;
