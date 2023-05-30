@@ -48,7 +48,7 @@ namespace UnrealBuildTool.Matchers
 					Group severity = match.Groups["severity"];
 					builder.Annotate(severity);
 					builder.Annotate(match.Groups["code"]);
-					return builder.ToMatch(LogEventPriority.Normal, severity.Value.Equals("error")? LogLevel.Error : LogLevel.Warning, KnownLogEvents.Microsoft);
+					return builder.ToMatch(LogEventPriority.Normal, severity.Value.Equals("error") ? LogLevel.Error : LogLevel.Warning, KnownLogEvents.Microsoft);
 				}
 			}
 			return null;

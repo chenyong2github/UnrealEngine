@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 
@@ -62,11 +58,11 @@ namespace UnrealBuildTool
 		/// <returns>True if the template is compatible with the given compile environment</returns>
 		public bool IsValidFor(CppCompileEnvironment CompileEnvironment)
 		{
-			if(CompileEnvironment.bIsBuildingDLL != BaseCompileEnvironment.bIsBuildingDLL)
+			if (CompileEnvironment.bIsBuildingDLL != BaseCompileEnvironment.bIsBuildingDLL)
 			{
 				return false;
 			}
-			if(CompileEnvironment.bIsBuildingLibrary != BaseCompileEnvironment.bIsBuildingLibrary)
+			if (CompileEnvironment.bIsBuildingLibrary != BaseCompileEnvironment.bIsBuildingLibrary)
 			{
 				return false;
 			}

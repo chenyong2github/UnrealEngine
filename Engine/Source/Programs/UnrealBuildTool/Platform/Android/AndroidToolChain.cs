@@ -2,14 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Microsoft.Win32;
+using System.Text.RegularExpressions;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -73,7 +72,7 @@ namespace UnrealBuildTool
 			{ UnrealArch.Arm64, new string[] { "arm64", "arm64-v8a", "arm64-android" } },
 			{ UnrealArch.X64,   new string[] { "x64", "x86_64", "x64-android" } },
 			// using Default as a placeholder to remove old folders for arches we no longer support, but licensees may have in their Build rules that we need to strip out
-			{ UnrealArch.Deprecated	, new string[] { "armv7", "armeabi-v7a", "arm-android", "x86", "x86-android" } }
+			{ UnrealArch.Deprecated  , new string[] { "armv7", "armeabi-v7a", "arm-android", "x86", "x86-android" } }
 		};
 
 		static private Dictionary<UnrealArch, string[]> LibrariesToSkip = new() {
@@ -352,7 +351,7 @@ namespace UnrealBuildTool
 			MaxPlatform = CachedMaxPlatform;
 			return CachedPlatformsValid;
 		}
-		
+
 		//This doesn't take into account SDK version overrides in packaging
 		public int GetMinSdkVersion(int MinSdk = MinimumNDKAPILevel)
 		{
@@ -437,7 +436,7 @@ namespace UnrealBuildTool
 				throw new BuildException("No NDK platforms found in {0}", PlatformsFilename);
 			}
 
-			MaxPlatform = Math.Clamp(MaxPlatform, 1, 32);	//Current NDK 25beta4 breaks existing UE NDK to SDK API mapping, so clamp it at 32
+			MaxPlatform = Math.Clamp(MaxPlatform, 1, 32);   //Current NDK 25beta4 breaks existing UE NDK to SDK API mapping, so clamp it at 32
 
 			return "android-" + MaxPlatform.ToString();
 		}
@@ -450,7 +449,7 @@ namespace UnrealBuildTool
 			IEnumerable<DirectoryReference> FilteredPaths = CompileEnvironment.UserIncludePaths.Where(x => IsDirectoryForArch(x.FullName, CompileEnvironment.Architecture));
 			Arguments.AddRange(FilteredPaths.Select(IncludePath => GetUserIncludePathArgument(IncludePath)));
 
-			FilteredPaths = CompileEnvironment.SystemIncludePaths.Where(x => IsDirectoryForArch(x.FullName, CompileEnvironment.Architecture)); 
+			FilteredPaths = CompileEnvironment.SystemIncludePaths.Where(x => IsDirectoryForArch(x.FullName, CompileEnvironment.Architecture));
 			Arguments.AddRange(FilteredPaths.Select(IncludePath => GetSystemIncludePathArgument(IncludePath)));
 		}
 
@@ -1202,7 +1201,7 @@ namespace UnrealBuildTool
 
 			return Result;
 		}
-		
+
 		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
 			CPPOutput Result = new CPPOutput();
@@ -1356,7 +1355,7 @@ namespace UnrealBuildTool
 
 				CompileAction.StatusDescription = string.Format("[{0}] [{1}]", CompileEnvironment.Architecture, Path.GetFileName(ISPCFile.AbsolutePath));
 
-				for(int i = 0; i < CompiledISPCObjFiles.Count; i++)
+				for (int i = 0; i < CompiledISPCObjFiles.Count; i++)
 				{
 					// ISPC compiler can't add suffix on the end of the arch, so copy to put into what linker expects
 					FileReference SourceFile = CompiledISPCObjFiles[i].Location;
@@ -1615,57 +1614,57 @@ namespace UnrealBuildTool
 
 			string VersionScriptFileItem = GetVersionScriptFilename(LinkEnvironment);
 			LinkAction.PrerequisiteItems.Add(FileItem.GetItemByPath(VersionScriptFileItem));
-			
+
 			Logger.LogInformation("Link: {LinkActionCommandPathFullName} {LinkActionCommandArguments}", LinkAction.CommandPath.FullName, LinkAction.CommandArguments);
 
 			// Windows can run into an issue with too long of a commandline when clang tries to call ld to link.
 			// To work around this we call clang to just get the command it would execute and generate a
 			// second response file to directly call ld with the right arguments instead of calling through clang.
-/* disable while tracking down some linker errors this introduces
-			if (RuntimePlatform.IsWindows)
-			{
-				// capture the actual link command without running it
-				ProcessStartInfo StartInfo = new ProcessStartInfo();
-				StartInfo.WorkingDirectory = LinkEnvironment.IntermediateDirectory.FullName;
-				StartInfo.FileName = LinkAction.CommandPath;
-				StartInfo.Arguments = "-### " + LinkAction.CommandArguments;
-				StartInfo.UseShellExecute = false;
-				StartInfo.CreateNoWindow = true;
-				StartInfo.RedirectStandardError = true;
+			/* disable while tracking down some linker errors this introduces
+						if (RuntimePlatform.IsWindows)
+						{
+							// capture the actual link command without running it
+							ProcessStartInfo StartInfo = new ProcessStartInfo();
+							StartInfo.WorkingDirectory = LinkEnvironment.IntermediateDirectory.FullName;
+							StartInfo.FileName = LinkAction.CommandPath;
+							StartInfo.Arguments = "-### " + LinkAction.CommandArguments;
+							StartInfo.UseShellExecute = false;
+							StartInfo.CreateNoWindow = true;
+							StartInfo.RedirectStandardError = true;
 
-				LinkerCommandline = "";
+							LinkerCommandline = "";
 
-				Process Proc = new Process();
-				Proc.StartInfo = StartInfo;
-				Proc.ErrorDataReceived += new DataReceivedEventHandler(OutputReceivedForLinker);
-				Proc.Start();
-				Proc.BeginErrorReadLine();
-				Proc.WaitForExit(5000);
+							Process Proc = new Process();
+							Proc.StartInfo = StartInfo;
+							Proc.ErrorDataReceived += new DataReceivedEventHandler(OutputReceivedForLinker);
+							Proc.Start();
+							Proc.BeginErrorReadLine();
+							Proc.WaitForExit(5000);
 
-				LinkerCommandline = LinkerCommandline.Trim();
+							LinkerCommandline = LinkerCommandline.Trim();
 
-				// the command should be in quotes; if not we'll just use clang to link as usual
-				int FirstQuoteIndex = LinkerCommandline.IndexOf('"');
-				if (FirstQuoteIndex >= 0)
-				{
-					int SecondQuoteIndex = LinkerCommandline.Substring(FirstQuoteIndex + 1).IndexOf('"');
-					if (SecondQuoteIndex >= 0)
-					{
-						LinkAction.CommandPath = LinkerCommandline.Substring(FirstQuoteIndex + 1, SecondQuoteIndex - FirstQuoteIndex);
-						LinkAction.CommandArguments = LinkerCommandline.Substring(FirstQuoteIndex + SecondQuoteIndex + 3);
+							// the command should be in quotes; if not we'll just use clang to link as usual
+							int FirstQuoteIndex = LinkerCommandline.IndexOf('"');
+							if (FirstQuoteIndex >= 0)
+							{
+								int SecondQuoteIndex = LinkerCommandline.Substring(FirstQuoteIndex + 1).IndexOf('"');
+								if (SecondQuoteIndex >= 0)
+								{
+									LinkAction.CommandPath = LinkerCommandline.Substring(FirstQuoteIndex + 1, SecondQuoteIndex - FirstQuoteIndex);
+									LinkAction.CommandArguments = LinkerCommandline.Substring(FirstQuoteIndex + SecondQuoteIndex + 3);
 
-						// replace double backslashes
-						LinkAction.CommandPath = LinkAction.CommandPath.Replace("\\\\", "/");
+									// replace double backslashes
+									LinkAction.CommandPath = LinkAction.CommandPath.Replace("\\\\", "/");
 
-						// now create a response file for the full command using ld directly
-						FileReference FinalResponseFileName = FileReference.Combine(LinkEnvironment.IntermediateDirectory, OutputFile.Location.GetFileName() + ".responseFinal");
-						FileItem FinalResponseFileItem = Graph.CreateIntermediateTextFile(FinalResponseFileName, LinkAction.CommandArguments);
-						LinkAction.CommandArguments = string.Format("@\"{0}\"", FinalResponseFileName);
-						LinkAction.PrerequisiteItems.Add(FinalResponseFileItem);
-					}
-				}
-			}
-*/
+									// now create a response file for the full command using ld directly
+									FileReference FinalResponseFileName = FileReference.Combine(LinkEnvironment.IntermediateDirectory, OutputFile.Location.GetFileName() + ".responseFinal");
+									FileItem FinalResponseFileItem = Graph.CreateIntermediateTextFile(FinalResponseFileName, LinkAction.CommandArguments);
+									LinkAction.CommandArguments = string.Format("@\"{0}\"", FinalResponseFileName);
+									LinkAction.PrerequisiteItems.Add(FinalResponseFileItem);
+								}
+							}
+						}
+			*/
 
 			return OutputFile;
 		}

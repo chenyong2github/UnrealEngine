@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
 using System.IO;
 using System.Reflection;
 using System.Runtime.Serialization;
+using EpicGames.Core;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -181,7 +181,7 @@ namespace UnrealBuildTool
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				string OutputName = "$(TargetName)";
-				if(Target.Configuration != UndecoratedConfiguration)
+				if (Target.Configuration != UndecoratedConfiguration)
 				{
 					OutputName = OutputName + "-" + Target.Platform + "-" + Target.Configuration;
 				}
@@ -317,7 +317,7 @@ namespace UnrealBuildTool
 
 			GlobalDefinitions.Add("STATS=0");
 			GlobalDefinitions.Add("TEST_FOR_VALID_FILE_SYSTEM_MEMORY=0");
-			
+
 			// LLT Globals
 			GlobalDefinitions.Add("UE_LLT_USE_PLATFORM_FILE_STUB=0");
 			GlobalDefinitions.Add("UE_LLT_WITH_MOCK_ENGINE_DEFAULTS=0");

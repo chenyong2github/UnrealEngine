@@ -6,12 +6,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
@@ -36,7 +33,7 @@ namespace UnrealBuildTool
 		{
 			// Get the path to the XML documentation
 			FileReference InputDocumentationFile = new FileReference(Assembly.GetExecutingAssembly().Location).ChangeExtension(".xml");
-			if(!FileReference.Exists(InputDocumentationFile))
+			if (!FileReference.Exists(InputDocumentationFile))
 			{
 				throw new BuildException("Generated assembly documentation not found at {0}.", InputDocumentationFile);
 			}
@@ -52,7 +49,7 @@ namespace UnrealBuildTool
 			// First read the fields
 			foreach (FieldInfo Field in RulesType.GetFields(BindingFlags.Instance | BindingFlags.SetProperty | BindingFlags.Public))
 			{
-				if(!Field.FieldType.IsClass || !Field.FieldType.Name.EndsWith("TargetRules"))
+				if (!Field.FieldType.IsClass || !Field.FieldType.Name.EndsWith("TargetRules"))
 				{
 					List<string>? Lines;
 					if (TryGetXmlComment(InputDocumentation, Field, Logger, out Lines))
@@ -354,19 +351,19 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteLine("      <dt>{0} ({1})</dt>", Setting.Name, GetPrettyTypeName(Setting.Type));
 
-				if(Lines.Count == 1)
+				if (Lines.Count == 1)
 				{
 					Writer.WriteLine("      <dd>{0}</dd>", Lines[0]);
 				}
 				else
 				{
 					Writer.WriteLine("      <dd>");
-					for(int Idx = 0; Idx < Lines.Count; Idx++)
+					for (int Idx = 0; Idx < Lines.Count; Idx++)
 					{
-						if(Lines[Idx].StartsWith("*") || Lines[Idx].StartsWith("-"))
+						if (Lines[Idx].StartsWith("*") || Lines[Idx].StartsWith("-"))
 						{
 							Writer.WriteLine("        <ul>");
-							for(; Idx < Lines.Count && (Lines[Idx].StartsWith("*") || Lines[Idx].StartsWith("-")); Idx++)
+							for (; Idx < Lines.Count && (Lines[Idx].StartsWith("*") || Lines[Idx].StartsWith("-")); Idx++)
 							{
 								Writer.WriteLine("          <li>{0}</li>", Lines[Idx].Substring(1).TrimStart());
 							}
@@ -384,7 +381,7 @@ namespace UnrealBuildTool
 
 		static string GetPrettyTypeName(Type FieldType)
 		{
-			if(FieldType.IsGenericType)
+			if (FieldType.IsGenericType)
 			{
 				return String.Format("{0}&lt;{1}&gt;", FieldType.Name.Substring(0, FieldType.Name.IndexOf('`')), String.Join(", ", FieldType.GenericTypeArguments.Select(x => GetPrettyTypeName(x))));
 			}

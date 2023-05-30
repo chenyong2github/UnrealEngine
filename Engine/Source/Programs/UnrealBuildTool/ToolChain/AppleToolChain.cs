@@ -1,17 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using System.Text.RegularExpressions;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
-using System.Linq;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -54,7 +52,7 @@ namespace UnrealBuildTool
 				{
 					throw new BuildException($"Your Mac is set to use CommandLineTools for its build tools ({DeveloperDir}). Unreal expects Xcode as the build tools. Please install Xcode if it's not already, then do one of the following:\n" +
 						"  - Run Xcode, go to Settings, and in the Locations tab, choose your Xcode in Command Line Tools dropdown.\n" +
-						"  - In Terminal, run 'sudo xcode-select -s /Applications/Xcode.app' (or an alternate location if you installed Xcode to a non-standard location)\n" + 
+						"  - In Terminal, run 'sudo xcode-select -s /Applications/Xcode.app' (or an alternate location if you installed Xcode to a non-standard location)\n" +
 						"Either way, you will need to enter your Mac password.");
 				}
 
@@ -78,7 +76,7 @@ namespace UnrealBuildTool
 				{
 					throw new BuildException("Unable to get xcode version");
 				}
-				if (int.Parse(InstalledSdkVersion.Substring(0,2)) < 13)
+				if (int.Parse(InstalledSdkVersion.Substring(0, 2)) < 13)
 				{
 					throw new BuildException("Building for macOS, iOS and tvOS requires Xcode 13.4.1 or newer, Xcode " + InstalledSdkVersion + " detected");
 				}
@@ -463,7 +461,7 @@ namespace UnrealBuildTool
 			return CompileEnvironment;
 		}
 
-		protected string GetDsymutilPath(ILogger Logger, out string ExtraOptions, bool bIsForLTOBuild=false)
+		protected string GetDsymutilPath(ILogger Logger, out string ExtraOptions, bool bIsForLTOBuild = false)
 		{
 			FileReference DsymutilLocation = new FileReference("/usr/bin/dsymutil");
 
@@ -476,7 +474,7 @@ namespace UnrealBuildTool
 
 			// tease out the version number
 			string[] Tokens = DsymutilVersionString.Split(" ".ToCharArray());
-			
+
 			// sanity check
 			if (Tokens.Length < 4 || Tokens[3].Contains(".") == false)
 			{

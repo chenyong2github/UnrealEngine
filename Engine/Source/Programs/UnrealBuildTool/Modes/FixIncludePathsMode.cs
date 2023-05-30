@@ -2,13 +2,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
-using EpicGames.Core;
-using UnrealBuildBase;
-using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
-using System.Diagnostics;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -283,7 +283,7 @@ namespace UnrealBuildTool
 													PreferredPathCache[Include] = PreferredInclude;
 												}
 											}
-												
+
 											if (PreferredInclude == null)
 											{
 												Logger.LogInformation("{FileName}({LineNumber}): Could not find path to '{IncludePath}'", InputFile.FullName, LineNumber, Include);

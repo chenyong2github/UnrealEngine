@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Diagnostics;
 using System.Linq;
 using EpicGames.Core;
@@ -30,10 +29,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		RuntimeNoCommandlet,
 
-        /// <summary>
-        /// Any target or program
-        /// </summary>
-        RuntimeAndProgram,
+		/// <summary>
+		/// Any target or program
+		/// </summary>
+		RuntimeAndProgram,
 
 		/// <summary>
 		/// Loaded only in cooked builds
@@ -78,12 +77,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Loaded only by servers
 		/// </summary>
-        ServerOnly,
+		ServerOnly,
 
 		/// <summary>
 		/// Loaded only by clients, and commandlets, and editor....
 		/// </summary>
-        ClientOnly,
+		ClientOnly,
 
 		/// <summary>
 		/// Loaded only by clients and editor (editor can run PIE which is kinda a commandlet)
@@ -410,11 +409,11 @@ namespace UnrealBuildTool
 				}
 				Writer.WriteArrayEnd();
 			}
-			if(ProgramAllowList != null && ProgramAllowList.Length > 0)
+			if (ProgramAllowList != null && ProgramAllowList.Length > 0)
 			{
 				Writer.WriteStringArrayField("ProgramAllowList", ProgramAllowList);
 			}
-			if(ProgramDenyList != null && ProgramDenyList.Length > 0)
+			if (ProgramDenyList != null && ProgramDenyList.Length > 0)
 			{
 				Writer.WriteStringArrayField("ProgramDenyList", ProgramDenyList);
 			}
@@ -459,7 +458,7 @@ namespace UnrealBuildTool
 		/// <param name="File">File containing the module declaration</param>
 		public void Validate(FileReference File)
 		{
-			if(Type == ModuleHostType.Developer)
+			if (Type == ModuleHostType.Developer)
 			{
 				Log.TraceWarningOnce("The 'Developer' module type has been deprecated in 4.24. Use 'DeveloperTool' for modules that can be loaded by game/client/server targets in non-shipping configurations, or 'UncookedOnly' for modules that should only be loaded by uncooked editor and program targets (eg. modules containing blueprint nodes)");
 				Log.TraceWarningOnce(File, "The 'Developer' module type has been deprecated in 4.24.");
@@ -481,7 +480,7 @@ namespace UnrealBuildTool
 			// important note: we don't check the length of the platform allow list, because if an unknown platform was read in, but was not valid, the 
 			// list will exist but be empty. In this case, we need to disallow all platforms from building, otherwise, build errors will occur when
 			// it starts compiling for _all_ platforms. This means we don't need to check bHasExplicitPlatforms either
-			
+
 			if (PlatformAllowList != null && !PlatformAllowList.Contains(Platform))
 			{
 				return false;
@@ -518,16 +517,16 @@ namespace UnrealBuildTool
 			}
 
 			// Special checks just for programs
-			if(TargetType == TargetType.Program)
+			if (TargetType == TargetType.Program)
 			{
 				// Check the program name is on the allow list. Note that this behavior is slightly different to other allow/deny checks; we will allow a module of any type if it's explicitly allowed for this program.
-				if(ProgramAllowList != null && ProgramAllowList.Length > 0)
+				if (ProgramAllowList != null && ProgramAllowList.Length > 0)
 				{
 					return ProgramAllowList.Contains(TargetName);
 				}
-				
+
 				// Check the program name is not denied
-				if(ProgramDenyList != null && ProgramDenyList.Contains(TargetName))
+				if (ProgramDenyList != null && ProgramDenyList.Contains(TargetName))
 				{
 					return false;
 				}
@@ -538,11 +537,11 @@ namespace UnrealBuildTool
 			{
 				case ModuleHostType.Runtime:
 				case ModuleHostType.RuntimeNoCommandlet:
-                    return TargetType != TargetType.Program;
+					return TargetType != TargetType.Program;
 				case ModuleHostType.RuntimeAndProgram:
 					return true;
 				case ModuleHostType.CookedOnly:
-                    return bBuildRequiresCookedData;
+					return bBuildRequiresCookedData;
 				case ModuleHostType.UncookedOnly:
 					return !bBuildRequiresCookedData;
 				case ModuleHostType.Developer:
@@ -556,12 +555,12 @@ namespace UnrealBuildTool
 					return TargetType == TargetType.Editor || TargetType == TargetType.Program;
 				case ModuleHostType.Program:
 					return TargetType == TargetType.Program;
-                case ModuleHostType.ServerOnly:
-                    return TargetType != TargetType.Program && TargetType != TargetType.Client;
-                case ModuleHostType.ClientOnly:
-                case ModuleHostType.ClientOnlyNoCommandlet:
-                    return TargetType != TargetType.Program && TargetType != TargetType.Server;
-            }
+				case ModuleHostType.ServerOnly:
+					return TargetType != TargetType.Program && TargetType != TargetType.Client;
+				case ModuleHostType.ClientOnly:
+				case ModuleHostType.ClientOnlyNoCommandlet:
+					return TargetType != TargetType.Program && TargetType != TargetType.Server;
+			}
 
 			return false;
 		}

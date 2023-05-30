@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
@@ -93,7 +92,7 @@ namespace UnrealBuildTool
 
 			// Build up a set of leaf actions in several iterations, ensuring that the number of leaf actions in each 
 			HashSet<LinkedAction> LeafActions = new HashSet<LinkedAction>();
-			for (;;)
+			for (; ; )
 			{
 				// Find all the leaf actions in the graph
 				List<LinkedAction> NewLeafActions = new List<LinkedAction>();

@@ -5,9 +5,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
-using System.Text.RegularExpressions;
 
 
 namespace UnrealBuildTool.XcodeProjectXcconfig
@@ -149,7 +149,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 
 			string Identifier = Plist($"Print :{Key}", PlistItem.File.FullName);
-			
+
 			// handle error
 			if (Identifier == "" || Identifier.StartsWith("Print:"))
 			{

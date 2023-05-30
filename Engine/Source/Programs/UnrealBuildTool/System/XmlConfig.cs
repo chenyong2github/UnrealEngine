@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.Serialization;
@@ -76,13 +75,13 @@ namespace UnrealBuildTool
 			List<Type> ConfigTypes = FindConfigurableTypes();
 
 			// Update the cache if necessary
-			if(OverrideCacheFile != null)
+			if (OverrideCacheFile != null)
 			{
 				// Set the cache file to the overriden value
 				CacheFile = OverrideCacheFile;
 
 				// Never rebuild the cache; just try to load it.
-				if(!XmlConfigData.TryRead(CacheFile, ConfigTypes, out Values))
+				if (!XmlConfigData.TryRead(CacheFile, ConfigTypes, out Values))
 				{
 					throw new BuildException("Unable to load XML config cache ({0})", CacheFile);
 				}
@@ -96,7 +95,7 @@ namespace UnrealBuildTool
 					if (Unreal.IsEngineInstalled())
 					{
 						DirectoryReference? UserSettingsDir = Unreal.UserSettingDirectory;
-						if(UserSettingsDir != null)
+						if (UserSettingsDir != null)
 						{
 							CacheFile = FileReference.Combine(UserSettingsDir, "UnrealEngine", String.Format("XmlConfigCache-{0}.bin", Unreal.RootDirectory.FullName.Replace(":", "").Replace(Path.DirectorySeparatorChar, '+')));
 						}
@@ -107,21 +106,21 @@ namespace UnrealBuildTool
 					CacheFile = FileReference.Combine(ProjectRootDirectory, "Intermediate", "Build", "XmlConfigCache.bin");
 					Values = null;
 				}
-				
+
 				// Find all the input files
 				List<FileReference> TemporaryInputFileLocations = InputFiles.Select(x => x.Location).ToList();
-				
+
 				if (ProjectRootDirectory != null)
 				{
 					FileReference ProjectRootConfigLocation = FileReference.Combine(ProjectRootDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.xml");
-					if(!FileReference.Exists(ProjectRootConfigLocation))
+					if (!FileReference.Exists(ProjectRootConfigLocation))
 					{
 						CreateDefaultConfigFile(ProjectRootConfigLocation);
 					}
 
 					TemporaryInputFileLocations.Add(ProjectRootConfigLocation);
 				}
-				
+
 				FileReference[] InputFileLocations = TemporaryInputFileLocations.ToArray();
 
 				// Get the path to the schema
@@ -129,16 +128,16 @@ namespace UnrealBuildTool
 
 				// Try to read the existing cache from disk
 				XmlConfigData? CachedValues;
-				if(IsCacheUpToDate(CacheFile, InputFileLocations) && FileReference.Exists(SchemaFile))
+				if (IsCacheUpToDate(CacheFile, InputFileLocations) && FileReference.Exists(SchemaFile))
 				{
-					if(XmlConfigData.TryRead(CacheFile, ConfigTypes, out CachedValues) && Enumerable.SequenceEqual(InputFileLocations, CachedValues.InputFiles))
+					if (XmlConfigData.TryRead(CacheFile, ConfigTypes, out CachedValues) && Enumerable.SequenceEqual(InputFileLocations, CachedValues.InputFiles))
 					{
 						Values = CachedValues;
 					}
 				}
 
 				// If that failed, regenerate it
-				if(Values == null)
+				if (Values == null)
 				{
 					// Find all the configurable fields from the given types
 					Dictionary<string, Dictionary<string, XmlConfigData.TargetMember>> CategoryToFields = new Dictionary<string, Dictionary<string, XmlConfigData.TargetMember>>();
@@ -146,7 +145,7 @@ namespace UnrealBuildTool
 
 					// Create a schema for the config files
 					XmlSchema Schema = CreateSchema(CategoryToFields);
-					if(!Unreal.IsEngineInstalled())
+					if (!Unreal.IsEngineInstalled())
 					{
 						WriteSchema(Schema, SchemaFile);
 					}
@@ -154,9 +153,9 @@ namespace UnrealBuildTool
 					// Read all the XML files and validate them against the schema
 					Dictionary<Type, Dictionary<XmlConfigData.TargetMember, XmlConfigData.ValueInfo>> TypeToValues =
 						new Dictionary<Type, Dictionary<XmlConfigData.TargetMember, XmlConfigData.ValueInfo>>();
-					foreach(FileReference InputFile in InputFileLocations)
+					foreach (FileReference InputFile in InputFileLocations)
 					{
-						if(!TryReadFile(InputFile, CategoryToFields, TypeToValues, Schema, Logger))
+						if (!TryReadFile(InputFile, CategoryToFields, TypeToValues, Schema, Logger))
 						{
 							throw new BuildException("Failed to properly read XML file : {0}", InputFile.FullName);
 						}
@@ -167,18 +166,18 @@ namespace UnrealBuildTool
 
 					// Create the new cache
 					Values = new XmlConfigData(InputFileLocations, TypeToValues.ToDictionary(
-							x => x.Key, 
+							x => x.Key,
 							x => x.Value.Select(x => x.Value).ToArray()));
 					Values.Write(CacheFile);
 				}
 			}
 
 			// Apply all the static field values
-			foreach(KeyValuePair<Type, XmlConfigData.ValueInfo[]> TypeValuesPair in Values.TypeToValues)
+			foreach (KeyValuePair<Type, XmlConfigData.ValueInfo[]> TypeValuesPair in Values.TypeToValues)
 			{
-				foreach(XmlConfigData.ValueInfo MemberValue in TypeValuesPair.Value)
+				foreach (XmlConfigData.ValueInfo MemberValue in TypeValuesPair.Value)
 				{
-					if(MemberValue.Target.IsStatic)
+					if (MemberValue.Target.IsStatic)
 					{
 						object Value = InstanceValue(MemberValue.Value, MemberValue.Target.Type);
 						MemberValue.Target.SetValue(null, Value);
@@ -219,11 +218,11 @@ namespace UnrealBuildTool
 		/// <returns>True if the type has a field with the XmlConfigFile attribute</returns>
 		static bool HasXmlConfigFileAttribute(Type Type)
 		{
-			foreach(FieldInfo Field in Type.GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+			foreach (FieldInfo Field in Type.GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
 			{
-				foreach(CustomAttributeData CustomAttribute in Field.CustomAttributes)
+				foreach (CustomAttributeData CustomAttribute in Field.CustomAttributes)
 				{
-					if(CustomAttribute.AttributeType == typeof(XmlConfigFileAttribute))
+					if (CustomAttribute.AttributeType == typeof(XmlConfigFileAttribute))
 					{
 						return true;
 					}
@@ -275,7 +274,7 @@ namespace UnrealBuildTool
 				}
 
 				ILogger Logger = Log.Logger;
-				
+
 				// Find all the input file locations
 				List<InputFile> InputFilesFound = new List<InputFile>(4);
 
@@ -366,16 +365,16 @@ namespace UnrealBuildTool
 		{
 			ILogger Logger = Log.Logger;
 			for (Type? TargetType = TargetObject.GetType(); TargetType != null; TargetType = TargetType.BaseType)
-			{ 
+			{
 				XmlConfigData.ValueInfo[]? FieldValues;
-				if(Values!.TypeToValues.TryGetValue(TargetType, out FieldValues))
+				if (Values!.TypeToValues.TryGetValue(TargetType, out FieldValues))
 				{
-					foreach(XmlConfigData.ValueInfo FieldValue in FieldValues)
+					foreach (XmlConfigData.ValueInfo FieldValue in FieldValues)
 					{
 						if (!FieldValue.Target.IsStatic)
 						{
 							XmlConfigData.TargetMember TargetToWrite = FieldValue.Target;
-							
+
 							// Check if setting has been deprecated
 							if (FieldValue.XmlConfigAttribute.Deprecated)
 							{
@@ -452,7 +451,7 @@ namespace UnrealBuildTool
 		/// <returns>New instance of the given value, if necessary</returns>
 		static object InstanceValue(object Value, Type ValueType)
 		{
-			if(ValueType == typeof(string[]))
+			if (ValueType == typeof(string[]))
 			{
 				return ((string[])Value).Clone();
 			}
@@ -473,16 +472,16 @@ namespace UnrealBuildTool
 		{
 			// Find all the config values for this type
 			XmlConfigData.ValueInfo[]? FieldValues;
-			if(!Values!.TypeToValues.TryGetValue(TargetType, out FieldValues))
+			if (!Values!.TypeToValues.TryGetValue(TargetType, out FieldValues))
 			{
 				Value = null;
 				return false;
 			}
 
 			// Find the value with the matching name
-			foreach(XmlConfigData.ValueInfo FieldValue in FieldValues)
+			foreach (XmlConfigData.ValueInfo FieldValue in FieldValues)
 			{
-				if(FieldValue.Target.MemberInfo.Name == Name)
+				if (FieldValue.Target.MemberInfo.Name == Name)
 				{
 					Value = FieldValue.Value;
 					return true;
@@ -501,9 +500,9 @@ namespace UnrealBuildTool
 		/// <param name="CategoryToFields">Dictionaries populated with category -> name -> field mappings on return</param>
 		static void FindConfigurableFields(IEnumerable<Type> ConfigTypes, Dictionary<string, Dictionary<string, XmlConfigData.TargetMember>> CategoryToFields)
 		{
-			foreach(Type ConfigType in ConfigTypes)
+			foreach (Type ConfigType in ConfigTypes)
 			{
-				foreach(FieldInfo FieldInfo in ConfigType.GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.GetField | BindingFlags.Public | BindingFlags.NonPublic))
+				foreach (FieldInfo FieldInfo in ConfigType.GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.GetField | BindingFlags.Public | BindingFlags.NonPublic))
 				{
 					ProcessConfigurableMember<FieldInfo>(ConfigType, FieldInfo, CategoryToFields, FieldInfo => new XmlConfigData.TargetField(FieldInfo));
 				}
@@ -542,7 +541,7 @@ namespace UnrealBuildTool
 		{
 			// Create elements for all the categories
 			XmlSchemaAll RootAll = new XmlSchemaAll();
-			foreach(KeyValuePair<string, Dictionary<string, XmlConfigData.TargetMember>> CategoryPair in CategoryToFields)
+			foreach (KeyValuePair<string, Dictionary<string, XmlConfigData.TargetMember>> CategoryPair in CategoryToFields)
 			{
 				string CategoryName = CategoryPair.Key;
 
@@ -607,32 +606,32 @@ namespace UnrealBuildTool
 			{
 				Element.SchemaTypeName = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.String).QualifiedName;
 			}
-			else if(Type == typeof(bool))
+			else if (Type == typeof(bool))
 			{
 				Element.SchemaTypeName = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Boolean).QualifiedName;
 			}
-			else if(Type == typeof(int))
+			else if (Type == typeof(int))
 			{
 				Element.SchemaTypeName = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Int).QualifiedName;
 			}
-			else if(Type == typeof(float))
+			else if (Type == typeof(float))
 			{
 				Element.SchemaTypeName = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Float).QualifiedName;
 			}
-			else if(Type == typeof(double))
+			else if (Type == typeof(double))
 			{
 				Element.SchemaTypeName = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Double).QualifiedName;
 			}
-			else if(Type == typeof(FileReference))
+			else if (Type == typeof(FileReference))
 			{
 				Element.SchemaTypeName = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.String).QualifiedName;
 			}
-			else if(Type.IsEnum)
+			else if (Type.IsEnum)
 			{
 				XmlSchemaSimpleTypeRestriction Restriction = new XmlSchemaSimpleTypeRestriction();
 				Restriction.BaseTypeName = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.String).QualifiedName;
 
-				foreach(string EnumName in Enum.GetNames(Type))
+				foreach (string EnumName in Enum.GetNames(Type))
 				{
 					XmlSchemaEnumerationFacet Facet = new XmlSchemaEnumerationFacet();
 					Facet.Value = EnumName;
@@ -643,7 +642,7 @@ namespace UnrealBuildTool
 				EnumType.Content = Restriction;
 				Element.SchemaType = EnumType;
 			}
-			else if(Type == typeof(string[]))
+			else if (Type == typeof(string[]))
 			{
 				XmlSchemaElement ItemElement = new XmlSchemaElement();
 				ItemElement.Name = "Item";
@@ -678,14 +677,14 @@ namespace UnrealBuildTool
 			Settings.NewLineChars = Environment.NewLine;
 			Settings.OmitXmlDeclaration = true;
 
-			if(CachedSchemaSerializer == null)
+			if (CachedSchemaSerializer == null)
 			{
 				CachedSchemaSerializer = XmlSerializer.FromTypes(new Type[] { typeof(XmlSchema) })[0]!;
 			}
 
 			StringBuilder Output = new StringBuilder();
 			Output.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
-			using(XmlWriter Writer = XmlWriter.Create(Output, Settings))
+			using (XmlWriter Writer = XmlWriter.Create(Output, Settings))
 			{
 				XmlSerializerNamespaces Namespaces = new XmlSerializerNamespaces();
 				Namespaces.Add("", "http://www.w3.org/2001/XMLSchema");
@@ -693,7 +692,7 @@ namespace UnrealBuildTool
 			}
 
 			string OutputText = Output.ToString();
-			if(!FileReference.Exists(Location) || File.ReadAllText(Location.FullName) != OutputText)
+			if (!FileReference.Exists(Location) || File.ReadAllText(Location.FullName) != OutputText)
 			{
 				DirectoryReference.CreateDirectory(Location.Directory);
 				File.WriteAllText(Location.FullName, OutputText);
@@ -731,22 +730,22 @@ namespace UnrealBuildTool
 		{
 			// Read the XML file, and validate it against the schema
 			XmlConfigFile? ConfigFile;
-			if(!XmlConfigFile.TryRead(Location, Schema, Logger, out ConfigFile))
+			if (!XmlConfigFile.TryRead(Location, Schema, Logger, out ConfigFile))
 			{
 				return false;
 			}
 
 			// Parse the document
-			foreach(XmlElement CategoryElement in ConfigFile.DocumentElement!.ChildNodes.OfType<XmlElement>())
+			foreach (XmlElement CategoryElement in ConfigFile.DocumentElement!.ChildNodes.OfType<XmlElement>())
 			{
 				Dictionary<string, XmlConfigData.TargetMember>? NameToField;
-				if(CategoryToFields.TryGetValue(CategoryElement.Name, out NameToField))
+				if (CategoryToFields.TryGetValue(CategoryElement.Name, out NameToField))
 				{
-					foreach(XmlElement KeyElement in CategoryElement.ChildNodes.OfType<XmlElement>())
+					foreach (XmlElement KeyElement in CategoryElement.ChildNodes.OfType<XmlElement>())
 					{
 						XmlConfigData.TargetMember? Field;
 						object Value;
-						if(NameToField.TryGetValue(KeyElement.Name, out Field))
+						if (NameToField.TryGetValue(KeyElement.Name, out Field))
 						{
 							if (Field.Type == typeof(string[]))
 							{
@@ -763,16 +762,16 @@ namespace UnrealBuildTool
 
 							// Add it to the set of values for the type containing this field
 							Dictionary<XmlConfigData.TargetMember, XmlConfigData.ValueInfo>? FieldToValue;
-							if(!TypeToValues.TryGetValue(Field.MemberInfo.DeclaringType!, out FieldToValue))
+							if (!TypeToValues.TryGetValue(Field.MemberInfo.DeclaringType!, out FieldToValue))
 							{
 								FieldToValue = new Dictionary<XmlConfigData.TargetMember, XmlConfigData.ValueInfo>();
 								TypeToValues.Add(Field.MemberInfo.DeclaringType!, FieldToValue);
 							}
-							
+
 							// Parse the corresponding value
 							XmlConfigData.ValueInfo FieldValue = new XmlConfigData.ValueInfo(Field, Value, Location,
 								Field.MemberInfo.GetCustomAttribute<XmlConfigFileAttribute>()!);
-							
+
 							FieldToValue[Field] = FieldValue;
 						}
 					}
@@ -791,11 +790,11 @@ namespace UnrealBuildTool
 		{
 			// ignore whitespace in all fields except for Strings which we leave unprocessed
 			string TrimmedText = Text.Trim();
-			if(FieldType == typeof(string))
+			if (FieldType == typeof(string))
 			{
 				return Text;
 			}
-			else if(FieldType == typeof(bool) || FieldType == typeof(bool?))
+			else if (FieldType == typeof(bool) || FieldType == typeof(bool?))
 			{
 				if (TrimmedText == "1" || TrimmedText.Equals("true", StringComparison.InvariantCultureIgnoreCase))
 				{
@@ -804,25 +803,25 @@ namespace UnrealBuildTool
 				else if (TrimmedText == "0" || TrimmedText.Equals("false", StringComparison.InvariantCultureIgnoreCase))
 				{
 					return false;
-				} 
-				else 
+				}
+				else
 				{
 					throw new Exception(String.Format("Unable to convert '{0}' to boolean. 'true/false/0/1' are the supported formats.", Text));
 				}
 			}
-			else if(FieldType == typeof(int))
+			else if (FieldType == typeof(int))
 			{
 				return Int32.Parse(TrimmedText);
 			}
-			else if(FieldType == typeof(float))
+			else if (FieldType == typeof(float))
 			{
 				return Single.Parse(TrimmedText, System.Globalization.CultureInfo.InvariantCulture);
 			}
-			else if(FieldType == typeof(double))
+			else if (FieldType == typeof(double))
 			{
 				return Double.Parse(TrimmedText, System.Globalization.CultureInfo.InvariantCulture);
 			}
-			else if(FieldType.IsEnum)
+			else if (FieldType.IsEnum)
 			{
 				return Enum.Parse(FieldType, TrimmedText);
 			}
@@ -846,7 +845,7 @@ namespace UnrealBuildTool
 		static bool IsCacheUpToDate(FileReference CacheFile, FileReference[] InputFiles)
 		{
 			// Always rebuild if the cache doesn't exist
-			if(!FileReference.Exists(CacheFile))
+			if (!FileReference.Exists(CacheFile))
 			{
 				return false;
 			}
@@ -855,15 +854,15 @@ namespace UnrealBuildTool
 			DateTime CacheWriteTime = File.GetLastWriteTimeUtc(CacheFile.FullName);
 
 			// Always rebuild if this executable is newer
-			if(File.GetLastWriteTimeUtc(Assembly.GetExecutingAssembly().Location) > CacheWriteTime)
+			if (File.GetLastWriteTimeUtc(Assembly.GetExecutingAssembly().Location) > CacheWriteTime)
 			{
 				return false;
 			}
 
 			// Check if any of the input files are newer than the cache
-			foreach(FileReference InputFile in InputFiles)
+			foreach (FileReference InputFile in InputFiles)
 			{
-				if(File.GetLastWriteTimeUtc(InputFile.FullName) > CacheWriteTime)
+				if (File.GetLastWriteTimeUtc(InputFile.FullName) > CacheWriteTime)
 				{
 					return false;
 				}
@@ -890,7 +889,7 @@ namespace UnrealBuildTool
 
 			// Get the path to the XML documentation
 			FileReference InputDocumentationFile = new FileReference(Assembly.GetExecutingAssembly().Location).ChangeExtension(".xml");
-			if(!FileReference.Exists(InputDocumentationFile))
+			if (!FileReference.Exists(InputDocumentationFile))
 			{
 				throw new BuildException("Generated assembly documentation not found at {0}.", InputDocumentationFile);
 			}
@@ -900,7 +899,7 @@ namespace UnrealBuildTool
 			InputDocumentation.Load(InputDocumentationFile.FullName);
 
 			// Make sure we can write to the output file
-			if(FileReference.Exists(OutputFile))
+			if (FileReference.Exists(OutputFile))
 			{
 				FileReference.MakeWriteable(OutputFile);
 			}
@@ -910,11 +909,11 @@ namespace UnrealBuildTool
 			}
 
 			// Generate the documentation file
-			if(OutputFile.HasExtension(".udn"))
+			if (OutputFile.HasExtension(".udn"))
 			{
 				WriteDocumentationUDN(OutputFile, InputDocumentation, CategoryToFields, Logger);
 			}
-			else if(OutputFile.HasExtension(".html"))
+			else if (OutputFile.HasExtension(".html"))
 			{
 				WriteDocumentationHTML(OutputFile, InputDocumentation, CategoryToFields, Logger);
 			}
@@ -956,7 +955,7 @@ namespace UnrealBuildTool
 					{
 						// Get the XML comment for this field
 						List<string>? Lines;
-						if(!RulesDocumentation.TryGetXmlComment(InputDocumentation, FieldPair.Value.MemberInfo, Logger, out Lines) || Lines.Count == 0)
+						if (!RulesDocumentation.TryGetXmlComment(InputDocumentation, FieldPair.Value.MemberInfo, Logger, out Lines) || Lines.Count == 0)
 						{
 							continue;
 						}

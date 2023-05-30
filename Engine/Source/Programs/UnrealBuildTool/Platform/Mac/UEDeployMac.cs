@@ -1,13 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Xml;
 using System.IO;
-using Ionic.Zip;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
@@ -15,7 +8,7 @@ namespace UnrealBuildTool
 {
 	class UEDeployMac : UEBuildDeploy
 	{
-		public UEDeployMac(ILogger InLogger) 
+		public UEDeployMac(ILogger InLogger)
 			: base(InLogger)
 		{
 		}
@@ -46,15 +39,15 @@ namespace UnrealBuildTool
 				return false;
 			}
 
-            // bundle identifier
-            // plist replacements
-            DirectoryReference? DirRef = bIsUnrealGame ? (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : null) : new DirectoryReference(ProjectDirectory);
-            ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirRef, UnrealTargetPlatform.IOS);
+			// bundle identifier
+			// plist replacements
+			DirectoryReference? DirRef = bIsUnrealGame ? (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : null) : new DirectoryReference(ProjectDirectory);
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirRef, UnrealTargetPlatform.IOS);
 
-            string BundleIdentifier;
-            Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleIdentifier);
+			string BundleIdentifier;
+			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleIdentifier);
 
-            string BundleVersion = MacToolChain.LoadEngineDisplayVersion();
+			string BundleVersion = MacToolChain.LoadEngineDisplayVersion();
 			// duplicating some logic in MacToolchain for the BundleID
 			string[] ExeNameParts = ExeName.Split('-');
 			bool bBuildingEditor = ExeNameParts[0].EndsWith("Editor");

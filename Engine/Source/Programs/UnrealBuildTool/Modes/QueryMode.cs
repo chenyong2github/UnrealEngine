@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using System.Collections.Generic;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
-using UnrealBuildTool;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -74,7 +72,7 @@ namespace UnrealBuildTool
 
 	[ToolMode("Query", ToolModeOptions.BuildPlatforms | ToolModeOptions.XmlConfig | ToolModeOptions.UseStartupTraceListener)]
 	class QueryMode : ToolMode
-	{ 
+	{
 		[CommandLine("-LogDirectory=")]
 		public DirectoryReference? LogDirectory = null;
 
@@ -128,7 +126,7 @@ namespace UnrealBuildTool
 				PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
 				WriteIndented = bIndented,
 			};
-			switch(Query)
+			switch (Query)
 			{
 				case QueryType.Capabilities:
 					Logger.LogInformation("QueryCapabilities");
@@ -148,10 +146,10 @@ namespace UnrealBuildTool
 		{
 			var Reply = new
 			{
-				Queries = new List<string>{ QueryType.Capabilities.ToString(), QueryType.AvailableTargets.ToString(), QueryType.TargetDetails.ToString() }
+				Queries = new List<string> { QueryType.Capabilities.ToString(), QueryType.AvailableTargets.ToString(), QueryType.TargetDetails.ToString() }
 			};
 			Console.WriteLine(JsonSerializer.Serialize(Reply, JsonOptions));
-			return 0;		
+			return 0;
 		}
 
 		private int QueryAvailableTargets(CommandLineArguments Arguments, ILogger Logger, JsonSerializerOptions JsonOptions)
@@ -198,9 +196,9 @@ namespace UnrealBuildTool
 				foreach (FileReference TargetFilePath in AllTargetFiles)
 				{
 					string TargetName = TargetFilePath.GetFileNameWithoutAnyExtensions();
-					FileReference? ProjectPath = Projects.FirstOrDefault(p => TargetFilePath.IsUnderDirectory( p.Directory));
+					FileReference? ProjectPath = Projects.FirstOrDefault(p => TargetFilePath.IsUnderDirectory(p.Directory));
 					Targets.Add(TargetName, new TargetConfigs() { ProjectPath = ProjectPath?.ToString() ?? "", Configurations = Configurations, Platforms = Platforms.Select(x => x.ToString()).ToList() });
-					if ( DefaultTarget == null || TargetName == "UnrealEditor")
+					if (DefaultTarget == null || TargetName == "UnrealEditor")
 					{
 						DefaultTarget = TargetName;
 					}

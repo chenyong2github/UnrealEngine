@@ -2,9 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
@@ -158,7 +156,7 @@ namespace UnrealBuildTool
 			/// Config setting to enable pak encryption
 			/// </summary>
 			public bool PakSigningRequired { get; set; } = true;
-			
+
 			/// <summary>
 			/// A set of named encryption keys that can be used to encrypt different sets of data with a different key that is delivered dynamically (i.e. not embedded within the game executable)
 			/// </summary>
@@ -252,7 +250,7 @@ namespace UnrealBuildTool
 		public static CryptoSettings ParseCryptoSettings(DirectoryReference? InProjectDirectory, UnrealTargetPlatform InTargetPlatform, ILogger Logger)
 		{
 			CryptoSettings Settings = new CryptoSettings();
-			
+
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, InProjectDirectory, InTargetPlatform);
 			Ini.GetBool("PlatformCrypto", "PlatformRequiresDataCrypto", out bool bDataCryptoRequired);
 			Settings.bDataCryptoRequired = bDataCryptoRequired;

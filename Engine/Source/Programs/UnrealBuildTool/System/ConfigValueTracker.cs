@@ -4,10 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -26,7 +23,7 @@ namespace UnrealBuildTool
 		/// Project directory to read config files from
 		/// </summary>
 		public DirectoryReference? ProjectDir;
-		
+
 		/// <summary>
 		/// The platform being built
 		/// </summary>
@@ -163,7 +160,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public bool IsValid()
 		{
-			foreach(KeyValuePair<ConfigDependencyKey, IReadOnlyList<string>?> Pair in Dependencies)
+			foreach (KeyValuePair<ConfigDependencyKey, IReadOnlyList<string>?> Pair in Dependencies)
 			{
 				// Read the appropriate hierarchy
 				ConfigHierarchy Hierarchy = ConfigCache.ReadHierarchy(Pair.Key.Type, Pair.Key.ProjectDir, Pair.Key.Platform);
@@ -173,16 +170,16 @@ namespace UnrealBuildTool
 				Hierarchy.TryGetValues(Pair.Key.SectionName, Pair.Key.KeyName, out NewValues);
 
 				// Check if they're different
-				if(Pair.Value == null)
+				if (Pair.Value == null)
 				{
-					if(NewValues != null)
+					if (NewValues != null)
 					{
 						return false;
 					}
 				}
 				else
 				{
-					if(NewValues == null || !Enumerable.SequenceEqual(Pair.Value, NewValues, StringComparer.Ordinal))
+					if (NewValues == null || !Enumerable.SequenceEqual(Pair.Value, NewValues, StringComparer.Ordinal))
 					{
 						return false;
 					}

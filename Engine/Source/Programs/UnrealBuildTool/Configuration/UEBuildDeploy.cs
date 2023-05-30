@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using System.Linq;
-using System.IO;
 using System;
+using System.IO;
 using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
@@ -46,7 +44,8 @@ namespace UnrealBuildTool
 					}
 
 					FromFile.CopyTo(ToDestFile, true);
-				} catch (Exception ex)
+				}
+				catch (Exception ex)
 				{
 					Logger.LogError(ex, "Error while copying {FromFile} from {FromDir} to {ToDir}: {Ex}", FromFile, FromDir, ToDir, ex);
 					return false;

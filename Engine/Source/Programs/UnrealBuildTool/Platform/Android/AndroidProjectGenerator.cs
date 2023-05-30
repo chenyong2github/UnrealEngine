@@ -3,8 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text;
 using System.IO;
+using System.Text;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
@@ -158,16 +158,16 @@ namespace UnrealBuildTool
 		public override string GetVisualStudioUserFileStrings(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration,
 			string InConditionString, TargetRules InTargetRules, FileReference TargetRulesPath, FileReference ProjectFilePath)
 		{
-			if (AGDEInstalled 
+			if (AGDEInstalled
 				&& (InPlatform == UnrealTargetPlatform.Android)
 				&& ((InTargetRules.Type == TargetRules.TargetType.Client) || (InTargetRules.Type == TargetRules.TargetType.Game)))
 			{
 				string UserFileEntry = "<PropertyGroup " + InConditionString + ">\n";
-				UserFileEntry		+= "	<AndroidLldbStartupCommands>" +
+				UserFileEntry += "	<AndroidLldbStartupCommands>" +
 												"command script import \"" + Path.Combine(Unreal.EngineDirectory.FullName, "Extras", "LLDBDataFormatters", "UEDataFormatters_2ByteChars.py") + "\";" +
 												"$(AndroidLldbStartupCommands)" +
 											"</AndroidLldbStartupCommands>\n";
-				UserFileEntry		+= "</PropertyGroup>\n";
+				UserFileEntry += "</PropertyGroup>\n";
 				return UserFileEntry;
 			}
 

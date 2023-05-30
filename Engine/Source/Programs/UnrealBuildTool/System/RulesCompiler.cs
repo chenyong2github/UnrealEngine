@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
 using UnrealBuildBase;
-using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
 
 namespace UnrealBuildTool
 {
@@ -125,7 +124,7 @@ namespace UnrealBuildTool
 		private static RulesAssembly CreateEngineRulesAssemblyInternal(List<DirectoryReference> RootDirectories, string AssemblyPrefix, IReadOnlyList<PluginInfo> Plugins, bool bReadOnly, bool bSkipCompile, bool bForceCompile, RulesAssembly? Parent, ILogger Logger)
 		{
 			// Scope hierarchy
-			RulesScope Scope= new RulesScope("Engine", null);
+			RulesScope Scope = new RulesScope("Engine", null);
 			RulesScope PluginsScope = new RulesScope("Engine Plugins", Scope);
 			RulesScope ProgramsScope = new RulesScope("Engine Programs", PluginsScope);
 
@@ -467,5 +466,5 @@ namespace UnrealBuildTool
 			}
 			return null;
 		}
-    }
+	}
 }

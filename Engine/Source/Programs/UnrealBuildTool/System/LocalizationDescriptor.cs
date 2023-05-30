@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Diagnostics;
-using System.Linq;
 using EpicGames.Core;
 
 namespace UnrealBuildTool

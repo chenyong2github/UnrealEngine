@@ -5,11 +5,9 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -41,14 +39,14 @@ namespace UnrealBuildTool
 		/// <returns>True if the target was found</returns>
 		public static bool TryGetProjectForTarget(string InTargetName, ILogger Logger, [NotNullWhen(true)] out FileReference? OutProjectFileName)
 		{
-			if(CachedTargetNameToProjectFile == null)
+			if (CachedTargetNameToProjectFile == null)
 			{
-				lock(LockObject)
+				lock (LockObject)
 				{
-					if(CachedTargetNameToProjectFile == null)
+					if (CachedTargetNameToProjectFile == null)
 					{
 						Dictionary<string, FileReference> TargetNameToProjectFile = new Dictionary<string, FileReference>();
-						foreach(FileReference ProjectFile in EnumerateProjectFiles(Logger))
+						foreach (FileReference ProjectFile in EnumerateProjectFiles(Logger))
 						{
 							foreach (DirectoryReference ExtensionDir in Unreal.GetExtensionDirs(ProjectFile.Directory))
 							{
@@ -92,9 +90,9 @@ namespace UnrealBuildTool
 		public static bool IsHybridContentOnlyProject(FileReference UProjectFile, ILogger Logger)
 		{
 			return RequiresTempTarget(
-				UProjectFile, 
+				UProjectFile,
 				new List<UnrealTargetPlatform>() { BuildHostPlatform.Current.Platform },
-				new List<UnrealTargetConfiguration>() { UnrealTargetConfiguration.Development, UnrealTargetConfiguration.Shipping }, 
+				new List<UnrealTargetConfiguration>() { UnrealTargetConfiguration.Development, UnrealTargetConfiguration.Shipping },
 				out _,
 				Logger);
 		}
@@ -153,7 +151,7 @@ namespace UnrealBuildTool
 				}
 				return false;
 			}
-			
+
 			// if the files existed, just leave them be
 			if (bIsHybrid && bWasHybrid)
 			{

@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
 using System.Linq;
+using System.Text;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -390,9 +390,9 @@ namespace UnrealBuildTool
 						continue;
 					}
 
-					string TargetName = TargetFile.TargetFilePath.GetFileNameWithoutAnyExtensions();		// Remove both ".cs" and ".
+					string TargetName = TargetFile.TargetFilePath.GetFileNameWithoutAnyExtensions();        // Remove both ".cs" and ".
 
-					foreach (UnrealTargetConfiguration CurConfiguration in (UnrealTargetConfiguration[]) Enum.GetValues(typeof(UnrealTargetConfiguration)))
+					foreach (UnrealTargetConfiguration CurConfiguration in (UnrealTargetConfiguration[])Enum.GetValues(typeof(UnrealTargetConfiguration)))
 					{
 						if (CurConfiguration != UnrealTargetConfiguration.Unknown && CurConfiguration != UnrealTargetConfiguration.Development)
 						{
@@ -420,10 +420,10 @@ namespace UnrealBuildTool
 			}
 
 			QMakeFileContent.Append(QMakeTargetList.TrimEnd('\\'));
-			
+
 			string FullFileName = Path.Combine(PrimaryProjectPath.FullName, FileName);
 			string QMakeFilePath = Path.Combine(ProjectFileGenerator.PrimaryProjectPath.FullName, QMakeFilesDirectory);
-			
+
 			string FullQMakeDefinesFileName = Path.Combine(QMakeFilePath, QMakeDefinesFileName);
 			string FullQMakeIncludesFileName = Path.Combine(QMakeFilePath, QMakeIncludesFileName);
 			string FullQMakeSourcePriFileName = Path.Combine(QMakeFilePath, QMakeSourcePriFileName);

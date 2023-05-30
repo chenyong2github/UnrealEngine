@@ -3,11 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Configuration;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
@@ -91,7 +86,7 @@ namespace UnrealBuildTool
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>
 		#region Read-only accessor properties 
-		#pragma warning disable CS1591
+#pragma warning disable CS1591
 
 		public bool bEnableAddressSanitizer => Inner.bEnableAddressSanitizer;
 
@@ -253,7 +248,7 @@ namespace UnrealBuildTool
 
 	class MacPlatform : UEBuildPlatform
 	{
-		public MacPlatform(UEBuildPlatformSDK InSDK, ILogger InLogger) 
+		public MacPlatform(UEBuildPlatformSDK InSDK, ILogger InLogger)
 			: base(UnrealTargetPlatform.Mac, InSDK, new MacArchitectureConfig(), InLogger)
 		{
 		}
@@ -325,7 +320,7 @@ namespace UnrealBuildTool
 
 			// Force using the ANSI allocator if ASan is enabled
 			string? AddressSanitizer = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
-			if(Target.MacPlatform.bEnableAddressSanitizer || (AddressSanitizer != null && AddressSanitizer == "YES"))
+			if (Target.MacPlatform.bEnableAddressSanitizer || (AddressSanitizer != null && AddressSanitizer == "YES"))
 			{
 				Target.GlobalDefinitions.Add("FORCE_ANSI_ALLOCATOR=1");
 			}
@@ -412,10 +407,10 @@ namespace UnrealBuildTool
 			{
 				case UEBuildBinaryType.DynamicLinkLibrary:
 				case UEBuildBinaryType.Executable:
-					return Target.bUsePDBFiles ? new string[] {".dSYM"} : new string[] {};
+					return Target.bUsePDBFiles ? new string[] { ".dSYM" } : new string[] { };
 				case UEBuildBinaryType.StaticLibrary:
 				default:
-					return new string [] {};
+					return new string[] { };
 			}
 		}
 
@@ -561,19 +556,19 @@ namespace UnrealBuildTool
 			string? ThreadSanitizer = Environment.GetEnvironmentVariable("ENABLE_THREAD_SANITIZER");
 			string? UndefSanitizerMode = Environment.GetEnvironmentVariable("ENABLE_UNDEFINED_BEHAVIOR_SANITIZER");
 
-			if(Target.MacPlatform.bEnableAddressSanitizer || (AddressSanitizer != null && AddressSanitizer == "YES"))
+			if (Target.MacPlatform.bEnableAddressSanitizer || (AddressSanitizer != null && AddressSanitizer == "YES"))
 			{
 				Options |= ClangToolChainOptions.EnableAddressSanitizer;
 			}
-			if(Target.MacPlatform.bEnableThreadSanitizer || (ThreadSanitizer != null && ThreadSanitizer == "YES"))
+			if (Target.MacPlatform.bEnableThreadSanitizer || (ThreadSanitizer != null && ThreadSanitizer == "YES"))
 			{
 				Options |= ClangToolChainOptions.EnableThreadSanitizer;
 			}
-			if(Target.MacPlatform.bEnableUndefinedBehaviorSanitizer || (UndefSanitizerMode != null && UndefSanitizerMode == "YES"))
+			if (Target.MacPlatform.bEnableUndefinedBehaviorSanitizer || (UndefSanitizerMode != null && UndefSanitizerMode == "YES"))
 			{
 				Options |= ClangToolChainOptions.EnableUndefinedBehaviorSanitizer;
 			}
-			if(Target.bShouldCompileAsDLL)
+			if (Target.bShouldCompileAsDLL)
 			{
 				Options |= ClangToolChainOptions.OutputDylib;
 			}

@@ -2,11 +2,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.IO;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -76,7 +74,7 @@ namespace UnrealBuildTool
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>
 		#region Read-only accessor properties 
-		#pragma warning disable CS1591
+#pragma warning disable CS1591
 
 		public bool bEnableAddressSanitizer => Inner.bEnableAddressSanitizer;
 
@@ -92,7 +90,7 @@ namespace UnrealBuildTool
 
 		public AndroidTargetRules TargetRules => Inner;
 
-		#pragma warning restore CS1591
+#pragma warning restore CS1591
 		#endregion
 	}
 
@@ -168,7 +166,7 @@ namespace UnrealBuildTool
 	{
 		UEBuildPlatformSDK SDK;
 
-		public AndroidPlatform(UnrealTargetPlatform InTargetPlatform, UEBuildPlatformSDK InSDK, ILogger InLogger) 
+		public AndroidPlatform(UnrealTargetPlatform InTargetPlatform, UEBuildPlatformSDK InSDK, ILogger InLogger)
 			: base(InTargetPlatform, InSDK, new AndroidArchitectureConfig(), InLogger)
 		{
 			SDK = InSDK;
@@ -266,14 +264,14 @@ namespace UnrealBuildTool
 
 		public override string[] GetDebugInfoExtensions(ReadOnlyTargetRules InTarget, UEBuildBinaryType InBinaryType)
 		{
-			return new string [] {};
+			return new string[] { };
 		}
 
 		public override void FindAdditionalBuildProductsToClean(ReadOnlyTargetRules Target, List<FileReference> FilesToDelete, List<DirectoryReference> DirectoriesToDelete)
 		{
 			base.FindAdditionalBuildProductsToClean(Target, FilesToDelete, DirectoriesToDelete);
 
-			if(Target.ProjectFile != null)
+			if (Target.ProjectFile != null)
 			{
 				DirectoriesToDelete.Add(DirectoryReference.Combine(DirectoryReference.FromFile(Target.ProjectFile), "Intermediate", "Android"));
 			}
@@ -282,7 +280,7 @@ namespace UnrealBuildTool
 		public virtual bool HasSpecificDefaultBuildConfig(UnrealTargetPlatform Platform, DirectoryReference ProjectPath, ILogger Logger)
 		{
 			string[] BoolKeys = new string[] {
-				"bBuildForArm64", "bBuildForX8664", 
+				"bBuildForArm64", "bBuildForX8664",
 				"bBuildForES31", "bBuildWithHiddenSymbolVisibility", "bSaveSymbols"
 			};
 			string[] StringKeys = new string[] {
@@ -305,7 +303,7 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
-			
+
 			// any shared-between-all-androids would be here
 
 			// check the base settings

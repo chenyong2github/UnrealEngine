@@ -2,8 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
+using System.Text;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
@@ -40,21 +40,21 @@ namespace UnrealBuildTool
 				}
 			}
 		}
-		
+
 		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
 		{
 			return new EddieProjectFile(InitFilePath, BaseDir);
 		}
-		
+
 		private bool WriteEddieWorkset(ILogger Logger)
 		{
 			bool bSuccess = false;
-			
+
 			StringBuilder WorksetDataContent = new StringBuilder();
 			WorksetDataContent.Append("# @Eddie Workset@" + ProjectFileGenerator.NewLine);
 			WorksetDataContent.Append("AddWorkset \"" + PrimaryProjectName + ".wkst\" \"" + PrimaryProjectPath + "\"" + ProjectFileGenerator.NewLine);
-			
-			System.Action< String /*Path*/, List<PrimaryProjectFolder> /* Folders */>? AddProjectsFunction = null;
+
+			System.Action<String /*Path*/, List<PrimaryProjectFolder> /* Folders */>? AddProjectsFunction = null;
 			AddProjectsFunction = (Path, FolderList) =>
 				{
 					foreach (PrimaryProjectFolder CurFolder in FolderList)
@@ -77,20 +77,20 @@ namespace UnrealBuildTool
 					}
 				};
 			AddProjectsFunction(PrimaryProjectName, RootFolder.SubFolders);
-			
+
 			string ProjectName = PrimaryProjectName;
 			string FilePath = PrimaryProjectPath + "/" + ProjectName + ".wkst";
-			
+
 			bSuccess = WriteFileIfChanged(FilePath, WorksetDataContent.ToString(), Logger, new UTF8Encoding());
-			
+
 			return bSuccess;
 		}
-		
+
 		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			return WriteEddieWorkset(Logger);
 		}
-		
+
 		protected override void ConfigureProjectFileGeneration(string[] Arguments, ref bool IncludeAllPlatforms, ILogger Logger)
 		{
 			// Call parent implementation first

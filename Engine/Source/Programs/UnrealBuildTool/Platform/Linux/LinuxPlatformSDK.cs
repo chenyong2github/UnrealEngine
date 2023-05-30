@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using EpicGames.Core;
 using System.Text.RegularExpressions;
-using UnrealBuildBase;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 ///////////////////////////////////////////////////////////////////
 // If you are looking for supported version numbers, look in the
@@ -228,7 +227,7 @@ namespace UnrealBuildTool
 			DirectoryReference? MultiArchRoot = GetSDKLocation();
 			DirectoryReference? BaseLinuxPath;
 
-			if (MultiArchRoot != null )
+			if (MultiArchRoot != null)
 			{
 				BaseLinuxPath = DirectoryReference.Combine(MultiArchRoot, Architecture.LinuxName);
 			}

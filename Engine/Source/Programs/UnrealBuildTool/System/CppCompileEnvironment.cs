@@ -1,14 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.IO;
 using EpicGames.Core;
 using UnrealBuildBase;
-using System.Runtime.InteropServices;
 
 namespace UnrealBuildTool
 {
@@ -43,12 +37,12 @@ namespace UnrealBuildTool
 		/// Supports C++20
 		/// </summary>
 		Cpp20,
-		
+
 		/// <summary>
 		/// Latest standard supported by the compiler
 		/// </summary>
 		Latest,
-		
+
 		/// <summary>
 		/// Use the default standard version
 		/// </summary>
@@ -59,7 +53,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		EngineDefault = Cpp20,
 	}
-	
+
 	/// <summary>
 	/// Specifies which C language standard to use. This enum should be kept in order, so that toolchains can check whether the requested setting is >= values that they support.
 	/// </summary>
@@ -614,7 +608,7 @@ namespace UnrealBuildTool
 		/// Which C++ standard to support. May not be compatible with all platforms.
 		/// </summary>
 		public CppStandardVersion CppStandard = CppStandardVersion.Default;
-		
+
 		/// <summary>
 		/// Which C standard to support. May not be compatible with all platforms.
 		/// </summary>

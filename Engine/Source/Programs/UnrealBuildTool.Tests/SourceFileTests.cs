@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using EpicGames.Core;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenTracing.Util;
 using UnrealBuildBase;
 using UnrealBuildTool;

@@ -2,25 +2,20 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Diagnostics;
 using System.IO;
-using System.Text.Json;
-using System.Text.RegularExpressions;
+using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
-using EpicGames.Core;
-using System.Text.Json.Serialization;
-using UnrealBuildBase;
-using System.Collections.Concurrent;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
-using OpenTracing;
-using OpenTracing.Util;
-using UnrealBuildTool.Modes;
+using EpicGames.Core;
 using EpicGames.UHT.Utils;
 using Microsoft.Extensions.Logging;
+using OpenTracing;
+using OpenTracing.Util;
+using UnrealBuildBase;
+using UnrealBuildTool.Modes;
 
 namespace UnrealBuildTool
 {
@@ -311,15 +306,15 @@ namespace UnrealBuildTool
 				if (RulesObject.Plugin != null)
 				{
 					ModuleDescriptor? Module = RulesObject.Plugin.Descriptor.Modules?.FirstOrDefault(x => x.Name == RulesObject.Name);
-					if(Module != null)
+					if (Module != null)
 					{
 						return GetGameModuleTypeFromDescriptor(Module);
 					}
 				}
-				if(ProjectDescriptor != null && ProjectDescriptor.Modules != null)
+				if (ProjectDescriptor != null && ProjectDescriptor.Modules != null)
 				{
 					ModuleDescriptor? Module = ProjectDescriptor.Modules.FirstOrDefault(x => x.Name == RulesObject.Name);
-					if(Module != null)
+					if (Module != null)
 					{
 						return UHTModuleTypeExtensions.GameModuleTypeFromHostType(Module.Type) ?? UHTModuleType.GameRuntime;
 					}
@@ -366,7 +361,7 @@ namespace UnrealBuildTool
 
 			foreach (DirectoryItem SubDirectory in BaseDirectory.EnumerateDirectories())
 			{
-				if(!ExcludeFolders.Contains(SubDirectory.Name))
+				if (!ExcludeFolders.Contains(SubDirectory.Name))
 				{
 					FindHeaders(SubDirectory, ExcludeFolders, Headers);
 				}
@@ -414,7 +409,7 @@ namespace UnrealBuildTool
 		{
 			// Find the type of each module
 			Dictionary<UEBuildModuleCPP, UHTModuleType> ModuleToType = new Dictionary<UEBuildModuleCPP, UHTModuleType>();
-			foreach(UEBuildModuleCPP Module in ModulesToGenerateHeadersFor)
+			foreach (UEBuildModuleCPP Module in ModulesToGenerateHeadersFor)
 			{
 				ModuleToType[Module] = GetModuleType(Module.Rules, ProjectDescriptor);
 			}
@@ -425,10 +420,10 @@ namespace UnrealBuildTool
 
 			// Create the info for each module in parallel
 			UHTModuleInfo[] ModuleInfoArray = new UHTModuleInfo[ModulesSortedByType.Count];
-			using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
+			using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 			{
 				IReadOnlySet<string> ExcludedFolders = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
-				for(int Idx = 0; Idx < ModulesSortedByType.Count; Idx++)
+				for (int Idx = 0; Idx < ModulesSortedByType.Count; Idx++)
 				{
 					UEBuildModuleCPP Module = ModulesSortedByType[Idx];
 
@@ -443,7 +438,7 @@ namespace UnrealBuildTool
 			}
 
 			// Filter out all the modules with reflection data
-			for(int Idx = 0; Idx < ModulesSortedByType.Count; Idx++)
+			for (int Idx = 0; Idx < ModulesSortedByType.Count; Idx++)
 			{
 				UEBuildModuleCPP Module = ModulesSortedByType[Idx];
 				UHTModuleInfo Info = ModuleInfoArray[Idx];
@@ -550,7 +545,7 @@ namespace UnrealBuildTool
 			// UObjects or not, we can skip doing a test here.
 			if (MetadataCache.ContainsReflectionMarkup(HeaderFile))
 			{
-				lock(ModuleInfo)
+				lock (ModuleInfo)
 				{
 					bool bFoundHeaderLocation = false;
 					foreach (DirectoryReference ModuleDirectory in ModuleInfo.ModuleDirectories)
@@ -775,7 +770,7 @@ namespace UnrealBuildTool
 					HashSet<string> ObjectHeadersSet = new HashSet<string>(AllUObjectHeaders.Select(x => x.AbsolutePath), FileReference.Comparer);
 					foreach (string FileName in UObjectFilesFromPreviousRun)
 					{
-						if(!ObjectHeadersSet.Contains(FileName))
+						if (!ObjectHeadersSet.Contains(FileName))
 						{
 							Logger.LogDebug("UnrealHeaderTool needs to run because the set of UObject source files in module {ModuleModuleName} has changed ({FileName})", Module.ModuleName, FileName);
 							return true;
@@ -1020,7 +1015,7 @@ namespace UnrealBuildTool
 		/// Builds and runs the header tool and touches the header directories.
 		/// Performs any early outs if headers need no changes, given the UObject modules, tool path, game name, and configuration
 		/// </summary>
-		private static async Task ExecuteHeaderToolIfNecessaryInternalAsync(BuildConfiguration BuildConfiguration, FileReference? ProjectFile, 
+		private static async Task ExecuteHeaderToolIfNecessaryInternalAsync(BuildConfiguration BuildConfiguration, FileReference? ProjectFile,
 			TargetMakefile Makefile, string TargetName, ISourceFileWorkingSet WorkingSet, ILogger Logger)
 		{
 			if (ProgressWriter.bWriteMarkup)
@@ -1200,7 +1195,7 @@ namespace UnrealBuildTool
 
 		static void ResetCachedHeaderInfo(List<UHTModuleInfo> UObjectModules)
 		{
-			foreach(UHTModuleInfo ModuleInfo in UObjectModules)
+			foreach (UHTModuleInfo ModuleInfo in UObjectModules)
 			{
 				ModuleInfo.GeneratedCodeDirectory.ResetCachedInfo();
 			}

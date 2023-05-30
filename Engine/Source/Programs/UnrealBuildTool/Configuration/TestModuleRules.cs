@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
-using UnrealBuildBase;
 using EpicGames.Core;
-using System;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -215,7 +215,7 @@ namespace UnrealBuildTool
 				if (TestNames != null)
 				{
 					XElement lastUpdatedNode = TestNames;
-						
+
 					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "Disabled", Convert.ToString(TestMetadata.Disabled));
 					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "Short", Convert.ToString(TestMetadata.TestShortName));
 					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "Target", Convert.ToString(TestTargetName));
@@ -293,7 +293,7 @@ namespace UnrealBuildTool
 					}
 					using (FileStream FileStream = System.IO.File.Create(GeneratedPropertiesPlatformFile))
 					{
-						 new XDocument(new XElement(BuildGraphNamespace + "BuildGraph", new XAttribute(XNamespace.Xmlns + "xsi", SchemaInstance), new XAttribute(SchemaInstance + "schemaLocation", SchemaLocation))).Save(FileStream);
+						new XDocument(new XElement(BuildGraphNamespace + "BuildGraph", new XAttribute(XNamespace.Xmlns + "xsi", SchemaInstance), new XAttribute(SchemaInstance + "schemaLocation", SchemaLocation))).Save(FileStream);
 					}
 				}
 

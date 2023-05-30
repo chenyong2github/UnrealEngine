@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
 using System.Linq;
+using System.Text;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -385,7 +385,7 @@ namespace UnrealBuildTool
 					SplitDefinitionAndValue(CurDefine, out Key, out Value);
 					if (string.IsNullOrEmpty(Value))
 					{
-						DefineHolder.Add (String.Format ("{0} \\\n", Key));
+						DefineHolder.Add(String.Format("{0} \\\n", Key));
 					}
 					else
 					{

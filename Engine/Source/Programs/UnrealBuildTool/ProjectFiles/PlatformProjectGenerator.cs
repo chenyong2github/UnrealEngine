@@ -13,7 +13,7 @@ namespace UnrealBuildTool
 	/// </summary>
 	abstract class PlatformProjectGenerator
 	{
-		static public readonly string DefaultPlatformConfigurationType  = "Makefile";
+		static public readonly string DefaultPlatformConfigurationType = "Makefile";
 		protected readonly ILogger Logger;
 
 		/// <summary>
@@ -306,7 +306,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the text to insert into the UnrealVS configuration file
 		/// </summary>
-		public virtual void GetUnrealVSConfigurationEntries( StringBuilder UnrealVSContent )
+		public virtual void GetUnrealVSConfigurationEntries(StringBuilder UnrealVSContent)
 		{
 		}
 

@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
 using UnrealBuildBase;
-using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
-using System.Threading.Tasks;
 using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
@@ -242,7 +242,7 @@ namespace UnrealBuildTool
 					{
 						Options |= BuildOptions.XGEExport;
 					}
-					if(bNoEngineChanges)
+					if (bNoEngineChanges)
 					{
 						Options |= BuildOptions.NoEngineChanges;
 					}
@@ -281,9 +281,9 @@ namespace UnrealBuildTool
 			ProjectDescriptor ProjectDescriptor = ProjectDescriptor.FromFile(TargetDescriptor.ProjectFile);
 			List<string[]> InitCommandBatches = new List<string[]>();
 
-			if(ProjectDescriptor != null && ProjectDescriptor.InitSteps != null)
+			if (ProjectDescriptor != null && ProjectDescriptor.InitSteps != null)
 			{
-				if(ProjectDescriptor.InitSteps.TryGetCommands(BuildHostPlatform.Current.Platform, out string[]? Commands))
+				if (ProjectDescriptor.InitSteps.TryGetCommands(BuildHostPlatform.Current.Platform, out string[]? Commands))
 				{
 					InitCommandBatches.Add(Commands);
 				}
@@ -314,7 +314,7 @@ namespace UnrealBuildTool
 		private static FileReference[] WriteInitScripts(TargetDescriptor TargetDescriptor, UnrealTargetPlatform HostPlatform, DirectoryReference Directory, string FilePrefix, List<string[]> CommandBatches)
 		{
 			List<FileReference> ScriptFiles = new List<FileReference>();
-			foreach(string[] CommandBatch in CommandBatches)
+			foreach (string[] CommandBatch in CommandBatches)
 			{
 				// Find all the standard variables
 				Dictionary<string, string> Variables = GetTargetVariables(TargetDescriptor);
@@ -325,15 +325,15 @@ namespace UnrealBuildTool
 
 				// Write it to disk
 				List<string> Contents = new List<string>();
-				if(RuntimePlatform.IsWindows)
+				if (RuntimePlatform.IsWindows)
 				{
 					Contents.Insert(0, "@echo off");
 				}
-				foreach(string Command in CommandBatch)
+				foreach (string Command in CommandBatch)
 				{
 					Contents.Add(Utils.ExpandVariables(Command, Variables));
 				}
-				if(!DirectoryReference.Exists(ScriptFile.Directory))
+				if (!DirectoryReference.Exists(ScriptFile.Directory))
 				{
 					DirectoryReference.CreateDirectory(ScriptFile.Directory);
 				}
@@ -352,13 +352,13 @@ namespace UnrealBuildTool
 		/// <returns>Map of variable names to values</returns>
 		private static Dictionary<string, string> GetTargetVariables(TargetDescriptor TargetDescriptor)
 		{
-			Dictionary<string, string> Variables = new Dictionary<string,string>();
+			Dictionary<string, string> Variables = new Dictionary<string, string>();
 			Variables.Add("RootDir", Unreal.RootDirectory.FullName);
 			Variables.Add("EngineDir", Unreal.EngineDirectory.FullName);
 			Variables.Add("TargetName", TargetDescriptor.Name);
 			Variables.Add("TargetPlatform", TargetDescriptor.Platform.ToString());
 			Variables.Add("TargetConfiguration", TargetDescriptor.Configuration.ToString());
-			if(TargetDescriptor.ProjectFile != null)
+			if (TargetDescriptor.ProjectFile != null)
 			{
 				Variables.Add("ProjectDir", TargetDescriptor.ProjectFile.Directory.FullName);
 				Variables.Add("ProjectFile", TargetDescriptor.ProjectFile.FullName);
@@ -515,7 +515,7 @@ namespace UnrealBuildTool
 					using (GlobalTracer.Instance.BuildSpan("Reading action history").StartActive())
 					{
 						TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
-						if(TargetDescriptor.ProjectFile != null)
+						if (TargetDescriptor.ProjectFile != null)
 						{
 							History.Mount(TargetDescriptor.ProjectFile.Directory);
 						}
@@ -548,7 +548,7 @@ namespace UnrealBuildTool
 					};
 
 					Logger.LogInformation("Experimental artifact system using '{directory}' in {mode} mode", artifactDirectory.FullName, mode);
-				
+
 					actionArtifactCache = ActionArtifactCache.CreateHordeFileCache(artifactDirectory, CppDependencies, Logger);
 					actionArtifactCache.EnableReads = BuildConfiguration.bArtifactRead;
 					actionArtifactCache.EnableWrites = BuildConfiguration.bArtifactWrites;
@@ -589,7 +589,7 @@ namespace UnrealBuildTool
 						Dictionary<FileItem, List<string>> ModuleImports = new Dictionary<FileItem, List<string>>();
 
 						List<FileItem> CompiledModuleInterfaces = new List<FileItem>();
-						foreach(LinkedAction ModuleDependencyAction in ModuleDependencyActions)
+						foreach (LinkedAction ModuleDependencyAction in ModuleDependencyActions)
 						{
 							ICppCompileAction? CppModulesAction = ModuleDependencyAction.Inner as ICppCompileAction;
 							if (CppModulesAction != null && CppModulesAction.CompiledModuleInterfaceFile != null)
@@ -618,7 +618,7 @@ namespace UnrealBuildTool
 								ICppCompileAction CppModulesAction = (ICppCompileAction)PrerequisiteAction.Inner;
 
 								List<string>? ImportedModules;
-								if(ModuleImports.TryGetValue(CppModulesAction.CompiledModuleInterfaceFile!, out ImportedModules))
+								if (ModuleImports.TryGetValue(CppModulesAction.CompiledModuleInterfaceFile!, out ImportedModules))
 								{
 									foreach (string ImportedModule in ImportedModules)
 									{
@@ -637,12 +637,12 @@ namespace UnrealBuildTool
 									}
 								}
 							}
-							else if(PrerequisiteAction.ActionType == ActionType.Compile)
+							else if (PrerequisiteAction.ActionType == ActionType.Compile)
 							{
-								foreach(FileItem PrerequisiteItem in PrerequisiteAction.PrerequisiteItems)
+								foreach (FileItem PrerequisiteItem in PrerequisiteAction.PrerequisiteItems)
 								{
 									string? ModuleName;
-									if(ModuleInputs.TryGetValue(PrerequisiteItem, out ModuleName))
+									if (ModuleInputs.TryGetValue(PrerequisiteItem, out ModuleName))
 									{
 										Action NewAction = new Action(PrerequisiteAction.Inner);
 										NewAction.CommandArguments += String.Format(" /reference \"{0}={1}\"", ModuleName, PrerequisiteItem.AbsolutePath);
@@ -672,7 +672,7 @@ namespace UnrealBuildTool
 
 				// Allow hot reload to override the actions
 				int HotReloadTargetIdx = -1;
-				for(int Idx = 0; Idx < TargetDescriptors.Count; Idx++)
+				for (int Idx = 0; Idx < TargetDescriptors.Count; Idx++)
 				{
 					if (TargetDescriptors[Idx].HotReloadMode != HotReloadMode.Disabled)
 					{
@@ -690,7 +690,7 @@ namespace UnrealBuildTool
 					{
 						HotReload.CheckForLiveCodingSessionActive(TargetDescriptors[Idx], Makefiles[Idx], BuildConfiguration, Logger);
 					}
-				}	
+				}
 
 				if (HotReloadTargetIdx != -1)
 				{
@@ -764,7 +764,7 @@ namespace UnrealBuildTool
 				else
 				{
 					// Execute the actions
-					if(MergedActionsToExecute.Count == 0)
+					if (MergedActionsToExecute.Count == 0)
 					{
 						if (TargetDescriptors.Any(x => !x.bQuiet))
 						{
@@ -808,7 +808,7 @@ namespace UnrealBuildTool
 					}
 
 					// Run the deployment steps
-					foreach(TargetMakefile Makefile in Makefiles)
+					foreach (TargetMakefile Makefile in Makefiles)
 					{
 						// Receipt file may not exist when compiling specific files
 						if (Makefile.bDeployAfterCompile && FileReference.Exists(Makefile.ReceiptFile))
@@ -919,7 +919,7 @@ namespace UnrealBuildTool
 		/// <param name="Logger">Logger for output</param>
 		internal static List<FileReference> GetAllSourceFilesIncludingHeader(List<FileReference> SpecificFilesToCompile, FileReference? ProjectFile, List<IExternalAction> Actions, ILogger Logger)
 		{
-			Func<FileReference, bool> IsCode = x => IsHeader(x)|| x.HasExtension(".cpp") || x.HasExtension(".c");
+			Func<FileReference, bool> IsCode = x => IsHeader(x) || x.HasExtension(".cpp") || x.HasExtension(".c");
 			List<FileReference> SpecificHeaderFiles = SpecificFilesToCompile.Where(IsHeader).ToList();
 			if (SpecificHeaderFiles.Count == 0)
 			{
@@ -1031,18 +1031,18 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if(OutputIndices.Count == 1)
+			if (OutputIndices.Count == 1)
 			{
-				foreach(string Diagnostic in Makefiles[OutputIndices[0]].Diagnostics)
+				foreach (string Diagnostic in Makefiles[OutputIndices[0]].Diagnostics)
 				{
 					Logger.LogInformation("{Diagnostic}", Diagnostic);
 				}
 			}
 			else
 			{
-				foreach(int OutputIndex in OutputIndices)
+				foreach (int OutputIndex in OutputIndices)
 				{
-					foreach(string Diagnostic in Makefiles[OutputIndex].Diagnostics)
+					foreach (string Diagnostic in Makefiles[OutputIndex].Diagnostics)
 					{
 						Logger.LogInformation("{Name}: {Diagnostic}", TargetDescriptors[OutputIndex].Name, Diagnostic);
 					}
@@ -1068,14 +1068,14 @@ namespace UnrealBuildTool
 		{
 			// Get the path to the makefile for this target
 			FileReference? MakefileLocation = null;
-			if(BuildConfiguration.bUseUBTMakefiles)
+			if (BuildConfiguration.bUseUBTMakefiles)
 			{
 				MakefileLocation = TargetMakefile.GetLocation(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Architectures, TargetDescriptor.Configuration);
 			}
 
 			// Try to load an existing makefile
 			TargetMakefile? Makefile = null;
-			if(MakefileLocation != null)
+			if (MakefileLocation != null)
 			{
 				using (GlobalTracer.Instance.BuildSpan("TargetMakefile.Load()").StartActive())
 				{
@@ -1090,7 +1090,7 @@ namespace UnrealBuildTool
 
 			// If we have a makefile, execute the pre-build steps and check it's still valid
 			bool bHasRunPreBuildScripts = false;
-			if(Makefile != null)
+			if (Makefile != null)
 			{
 				// Execute the scripts.
 				Utils.ExecuteCustomBuildSteps(Makefile.PreBuildScripts, Logger);
@@ -1100,7 +1100,7 @@ namespace UnrealBuildTool
 
 				// Check that the makefile is still valid
 				string? Reason;
-				if(!TargetMakefile.IsValidForSourceFiles(Makefile, TargetDescriptor.ProjectFile, TargetDescriptor.Platform, WorkingSet, Logger, out Reason))
+				if (!TargetMakefile.IsValidForSourceFiles(Makefile, TargetDescriptor.ProjectFile, TargetDescriptor.Platform, WorkingSet, Logger, out Reason))
 				{
 					Logger.LogInformation("Invalidating makefile for {TargetDescriptorName} ({Reason})", TargetDescriptor.Name, Reason);
 					Makefile = null;
@@ -1108,7 +1108,7 @@ namespace UnrealBuildTool
 			}
 
 			// If we couldn't load a makefile, create a new one
-			if(Makefile == null)
+			if (Makefile == null)
 			{
 				// Create the target
 				UEBuildTarget Target;
@@ -1121,7 +1121,7 @@ namespace UnrealBuildTool
 				FileReference[] PreBuildScripts = Target.CreatePreBuildScripts();
 
 				// Execute the pre-build scripts
-				if(!bHasRunPreBuildScripts)
+				if (!bHasRunPreBuildScripts)
 				{
 					Utils.ExecuteCustomBuildSteps(PreBuildScripts, Logger);
 					bHasRunPreBuildScripts = true;
@@ -1151,7 +1151,7 @@ namespace UnrealBuildTool
 				}
 
 				// Save the makefile for next time
-				if(MakefileLocation != null)
+				if (MakefileLocation != null)
 				{
 					using (GlobalTracer.Instance.BuildSpan("TargetMakefile.Save()").StartActive())
 					{
@@ -1197,16 +1197,16 @@ namespace UnrealBuildTool
 		/// <returns>List of actions that need to be executed</returns>
 		static void GatherOutputItems(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, HashSet<FileItem> OutputItems)
 		{
-			if(TargetDescriptor.SpecificFilesToCompile.Count > 0)
+			if (TargetDescriptor.SpecificFilesToCompile.Count > 0)
 			{
 			}
-			else if(TargetDescriptor.OnlyModuleNames.Count > 0)
+			else if (TargetDescriptor.OnlyModuleNames.Count > 0)
 			{
 				// Find the output items for this module
-				foreach(string OnlyModuleName in TargetDescriptor.OnlyModuleNames)
+				foreach (string OnlyModuleName in TargetDescriptor.OnlyModuleNames)
 				{
 					FileItem[]? OutputItemsForModule;
-					if(!Makefile.ModuleNameToOutputItems.TryGetValue(OnlyModuleName, out OutputItemsForModule))
+					if (!Makefile.ModuleNameToOutputItems.TryGetValue(OnlyModuleName, out OutputItemsForModule))
 					{
 						throw new BuildException("Unable to find output items for module '{0}'", OnlyModuleName);
 					}
@@ -1231,16 +1231,16 @@ namespace UnrealBuildTool
 			// Set of all output items. Knowing that there are no conflicts in produced items, we use this to eliminate duplicate actions.
 			Dictionary<FileItem, LinkedAction> OutputItemToProducingAction = new Dictionary<FileItem, LinkedAction>();
 			HashSet<LinkedAction> IgnoreConflictActions = new HashSet<LinkedAction>();
-			for(int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
+			for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 			{
 				string GroupPrefix = String.Format("{0}-{1}-{2}", TargetDescriptors[TargetIdx].Name, TargetDescriptors[TargetIdx].Platform, TargetDescriptors[TargetIdx].Configuration);
-				foreach(LinkedAction TargetAction in TargetActions[TargetIdx])
+				foreach (LinkedAction TargetAction in TargetActions[TargetIdx])
 				{
 					if (!TargetAction.ProducedItems.Any())
 					{
 						continue;
 					}
-					
+
 					if (TargetAction.IgnoreConflicts())
 					{
 						IgnoreConflictActions.Add(TargetAction);
@@ -1250,7 +1250,7 @@ namespace UnrealBuildTool
 					FileItem ProducedItem = TargetAction.ProducedItems.First();
 
 					LinkedAction? ExistingAction;
-					if(!OutputItemToProducingAction.TryGetValue(ProducedItem, out ExistingAction))
+					if (!OutputItemToProducingAction.TryGetValue(ProducedItem, out ExistingAction))
 					{
 						ExistingAction = new LinkedAction(TargetAction, TargetDescriptors[TargetIdx]);
 						OutputItemToProducingAction[ProducedItem] = ExistingAction;
@@ -1355,7 +1355,7 @@ namespace UnrealBuildTool
 					{
 						FileReference.Copy(CrashDump, FileReference.Combine(SaveCrashDumpDirectory, CrashDump.GetFileName()));
 					}
-					catch(Exception Ex)
+					catch (Exception Ex)
 					{
 						// don't stop if there was a problem copying one of the files
 						Logger.LogWarning("Failed to copy crash dump {CrashDump}: {Ex}", CrashDump, ExceptionUtils.FormatException(Ex));

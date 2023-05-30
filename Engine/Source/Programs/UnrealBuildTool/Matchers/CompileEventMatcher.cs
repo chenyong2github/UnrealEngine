@@ -24,12 +24,12 @@ namespace UnrealBuildTool.Matchers
 				@"[^:<>*?""]+" +
 				// valid source file extension (or extensionless file)
 				@"(?:\.(?i)(?:h|hpp|hxx|c|cc|cpp|cxx|inc|inl|cs|targets|verse)|[/\\][a-zA-Z0-9]+)" +
-				// or the string "<scratch space>"
+			// or the string "<scratch space>"
 			@")|<scratch space>)";
 
 		const string VisualCppLocationPattern =
 			@"\(" +
-				@"(?:" + 
+				@"(?:" +
 					@"(?<line>\d+)" + // (line)
 					@"|" +
 					@"(?:(?<line>\d+)-(?<maxline>\d+))" + // (line-line)
@@ -105,13 +105,13 @@ namespace UnrealBuildTool.Matchers
 
 				// Try to match a Visual C++ diagnostic
 				LogEventMatch? eventMatch;
-				if(TryMatchVisualCppEvent(builder, out eventMatch))
+				if (TryMatchVisualCppEvent(builder, out eventMatch))
 				{
 					LogEvent newEvent = eventMatch!.Events[eventMatch.Events.Count - 1];
 
 					// If warnings as errors is enabled, upgrade any following warnings to errors.
 					LogValue? code;
-					if(newEvent.Properties != null && newEvent.TryGetProperty("code", out code) && code.Text == "C2220")
+					if (newEvent.Properties != null && newEvent.TryGetProperty("code", out code) && code.Text == "C2220")
 					{
 						ILogCursor nextCursor = builder.Next;
 						while (nextCursor.CurrentLine != null)
@@ -150,7 +150,7 @@ namespace UnrealBuildTool.Matchers
 					{
 						SkipClangMarker(builder);
 
-						if(!builder.Next.TryMatch(s_clangNotePattern, out match))
+						if (!builder.Next.TryMatch(s_clangNotePattern, out match))
 						{
 							break;
 						}
@@ -206,7 +206,7 @@ namespace UnrealBuildTool.Matchers
 		bool TryMatchVisualCppEvent(LogEventBuilder builder, [NotNullWhen(true)] out LogEventMatch? outEvent)
 		{
 			Match? match;
-			if(!builder.Current.TryMatch(s_msvcPattern, out match) || !IsSourceFile(match))
+			if (!builder.Current.TryMatch(s_msvcPattern, out match) || !IsSourceFile(match))
 			{
 				outEvent = null;
 				return false;
@@ -258,7 +258,7 @@ namespace UnrealBuildTool.Matchers
 			string indent = ExtractIndent(builder.Current.CurrentLine ?? String.Empty);
 			string nextIndent = indent + " ";
 
-			for(; ;)
+			for (; ; )
 			{
 				while (builder.Current.StartsWith(1, nextIndent))
 				{
@@ -341,7 +341,7 @@ namespace UnrealBuildTool.Matchers
 		static LogLevel GetLogLevelFromSeverity(Match match)
 		{
 			string severity = match.Groups["severity"].Value;
-			if(severity.Equals("warning", StringComparison.Ordinal))
+			if (severity.Equals("warning", StringComparison.Ordinal))
 			{
 				return LogLevel.Warning;
 			}
@@ -354,7 +354,7 @@ namespace UnrealBuildTool.Matchers
 		static string ExtractIndent(string line)
 		{
 			int length = 0;
-			while(length < line.Length && line[length] == ' ')
+			while (length < line.Length && line[length] == ' ')
 			{
 				length++;
 			}

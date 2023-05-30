@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
-using System.Linq;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -168,7 +168,7 @@ namespace UnrealBuildTool
 				// build each Module
 				ModuleList.SortBy(module => module.Name);
 				foreach (UEBuildModule Module in ModuleList)
-				{					
+				{
 					await CompileModuleAsync(BuildConfiguration, TargetDescriptor, Target, Module, Logger);
 				}
 			}
@@ -194,7 +194,7 @@ namespace UnrealBuildTool
 
 			int BuildNum = 1;
 			await CompileModuleAsync($"  [{BuildNum++}/{TotalBuilds}] ", BuildConfiguration, TargetDescriptor, Module, Logger, CurrentModuleUnitySize, true, false);
-			
+
 			TimingData CurrentCompileTime = await GetBestCompileModuleTimeAsync($"  [{BuildNum++}/{TotalBuilds}] ", BuildConfiguration, TargetDescriptor, Module, Logger, CurrentModuleUnitySize, false, false);
 			if (!CurrentCompileTime.IsValid())
 			{

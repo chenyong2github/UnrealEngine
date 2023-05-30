@@ -11,7 +11,7 @@ using EpicGames.Core;
 namespace UnrealBuildTool.XcodeProjectXcconfig
 {
 	static class XcodeSchemeFile
-	{ 
+	{
 		private static FileReference GetUserSchemeManagementFilePath(DirectoryReference ProjectFile, UnrealTargetPlatform? Platform)
 		{
 			return FileReference.Combine(XcodeUtils.ProjectDirPathForPlatform(ProjectFile, Platform), $"xcuserdata/{Environment.UserName}.xcuserdatad/xcschemes/xcschememanagement.plist");
@@ -33,16 +33,16 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			string ProductName = UnrealData.ProductName;
 			string GameProjectPath = UnrealData.UProjectFileLocation != null ? UnrealData.UProjectFileLocation.FullName : "";
-		
+
 			foreach (XcodeRunTarget RunTarget in RunTargets)
 			{
 				string TargetName = RunTarget.Name;
 				string TargetGuid = RunTarget.Guid;
-				
+
 				bool bHasEditorConfiguration = RunTarget.BuildConfigList!.BuildConfigs.Any(x => x.Info.ProjectTarget!.TargetRules!.Type == TargetType.Editor);
 				bool bUseEditorConfiguration = bHasEditorConfiguration && !UnrealData.bMakeProjectPerTarget && !XcodeProjectFileGenerator.bGenerateRunOnlyProject;
 				string DefaultConfiguration = bUseEditorConfiguration ? "Development Editor" : "Development";
-				
+
 				FileReference SchemeFilePath = GetProjectSchemeFilePathForTarget(UnrealData.XcodeProjectFileLocation, Platform, TargetName);
 
 				DirectoryReference.CreateDirectory(SchemeFilePath.Directory);

@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.IO;
-using System.Collections.Generic;
-using System.Xml;
-using System.Reflection;
 using EpicGames.Core;
 
 namespace UnrealBuildTool
@@ -14,13 +10,13 @@ namespace UnrealBuildTool
 	/// </summary>
 	class BuildConfiguration
 	{
-        /// <summary>
-        /// Whether to ignore import library files that are out of date when building targets. Set this to true to improve iteration time.
-        /// By default, we do not bother re-linking targets if only a dependent .lib has changed, as chances are that
-        /// the import library was not actually different unless a dependent header file of this target was also changed,
-        /// in which case the target would automatically be rebuilt.
-        /// </summary>
-        [XmlConfigFile]
+		/// <summary>
+		/// Whether to ignore import library files that are out of date when building targets. Set this to true to improve iteration time.
+		/// By default, we do not bother re-linking targets if only a dependent .lib has changed, as chances are that
+		/// the import library was not actually different unless a dependent header file of this target was also changed,
+		/// in which case the target would automatically be rebuilt.
+		/// </summary>
+		[XmlConfigFile]
 		public bool bIgnoreOutdatedImportLibraries = true;
 
 		/// <summary>
@@ -137,7 +133,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// True if hot-reload from IDE is allowed.
 		/// </summary>
-		[CommandLine("-NoHotReloadFromIDE", Value="false")]
+		[CommandLine("-NoHotReloadFromIDE", Value = "false")]
 		[XmlConfigFile(Category = "UEBuildConfiguration")]
 		public bool bAllowHotReloadFromIDE = true;
 

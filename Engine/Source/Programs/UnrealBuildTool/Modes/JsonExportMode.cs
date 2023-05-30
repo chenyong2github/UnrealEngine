@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -34,14 +32,14 @@ namespace UnrealBuildTool
 			Arguments.ApplyTo(this);
 
 			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, false, false, false, Logger);
-			foreach(TargetDescriptor TargetDescriptor in TargetDescriptors)
+			foreach (TargetDescriptor TargetDescriptor in TargetDescriptors)
 			{
 				// Create the target
 				UEBuildTarget Target = UEBuildTarget.Create(TargetDescriptor, false, false, false, Logger);
 
 				// Get the output file
 				FileReference? OutputFile = TargetDescriptor.AdditionalArguments.GetFileReferenceOrDefault("-OutputFile=", null);
-				if(OutputFile == null)
+				if (OutputFile == null)
 				{
 					OutputFile = Target.ReceiptFileName.ChangeExtension(".json");
 				}

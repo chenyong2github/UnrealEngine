@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.IO;
 using EpicGames.Core;
-using System.Text.RegularExpressions;
-using Microsoft.Win32;
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 ///////////////////////////////////////////////////////////////////
@@ -41,9 +36,9 @@ namespace UnrealBuildTool
 			// iTunes is technically only need to deploy to and run on connected devices.
 			// This code removes requirement for Windows builders to have Xcode installed.
 			if (Status == SDKStatus.Invalid && !RuntimePlatform.IsMac && Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
-            {
+			{
 				Status = SDKStatus.Valid;
-            }
+			}
 			return Status;
 		}
 	}

@@ -24,7 +24,7 @@ namespace UnrealBuildTool
 		{
 			// Make sure the build platform is legal
 			UEBuildPlatform? BuildPlatform;
-			if(UEBuildPlatform.TryGetBuildPlatform(InPlatform, out BuildPlatform))
+			if (UEBuildPlatform.TryGetBuildPlatform(InPlatform, out BuildPlatform))
 			{
 				if (ProjectGeneratorDictionary.ContainsKey(InPlatform) == true)
 				{

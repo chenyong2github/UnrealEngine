@@ -7,9 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
 using System.Xml.Serialization;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
@@ -48,7 +46,7 @@ namespace UnrealBuildTool
 		MISRA = 32,
 	}
 
-  	/// <summary>
+	/// <summary>
 	/// Flags for the PVS analyzer timeout
 	/// </summary>
 	public enum AnalysisTimeoutFlags
@@ -117,7 +115,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool DisableMISRAAnalysis;
 
-    		/// <summary>
+		/// <summary>
 		/// File analysis timeout
 		/// </summary>
 		public AnalysisTimeoutFlags AnalysisTimeout;
@@ -131,7 +129,7 @@ namespace UnrealBuildTool
 		/// Enable the display of analyzer rules exceptions which can be specified by comments and .pvsconfig files.
 		/// </summary>
 		public bool ReportDisabledRules;
-    
+
 		/// <summary>
 		/// Gets the analysis mode flags from the settings
 		/// </summary>
@@ -230,8 +228,8 @@ namespace UnrealBuildTool
 		/// Private storage for the mode flags
 		/// </summary>
 		PVSAnalysisModeFlags? ModePrivate;
-    
-    		/// <summary>
+
+		/// <summary>
 		/// Override for the analysis timeoutFlag to use
 		/// </summary>
 		public AnalysisTimeoutFlags AnalysisTimeoutFlag
@@ -410,7 +408,7 @@ namespace UnrealBuildTool
 				foreach (FileReference InputFile in InputFiles)
 				{
 					string[] Lines = File.ReadAllLines(InputFile.FullName);
-					for(int LineIdx = 0; LineIdx < Lines.Length; LineIdx++)
+					for (int LineIdx = 0; LineIdx < Lines.Length; LineIdx++)
 					{
 						string Line = Lines[LineIdx];
 						if (!String.IsNullOrWhiteSpace(Line) && UniqueItems.Add(Line))
@@ -418,7 +416,7 @@ namespace UnrealBuildTool
 							bool bCanParse = false;
 
 							string[] Tokens = Line.Split(new string[] { "<#~>" }, StringSplitOptions.None);
-							if(Tokens.Length >= 9)
+							if (Tokens.Length >= 9)
 							{
 								//string Trial = Tokens[1];
 								string LineNumberStr = Tokens[2];
@@ -431,12 +429,12 @@ namespace UnrealBuildTool
 								int LineNumber;
 								bool bFalseAlarm;
 								int Level;
-								if(int.TryParse(LineNumberStr, out LineNumber) && bool.TryParse(FalseAlarmStr, out bFalseAlarm) && int.TryParse(LevelStr, out Level))
+								if (int.TryParse(LineNumberStr, out LineNumber) && bool.TryParse(FalseAlarmStr, out bFalseAlarm) && int.TryParse(LevelStr, out Level))
 								{
 									bCanParse = true;
 
 									// Ignore anything in ThirdParty folders
-									if(FileName.Replace('/', '\\').IndexOf("\\ThirdParty\\", StringComparison.InvariantCultureIgnoreCase) == -1)
+									if (FileName.Replace('/', '\\').IndexOf("\\ThirdParty\\", StringComparison.InvariantCultureIgnoreCase) == -1)
 									{
 										// Output the line to the raw output file
 										RawWriter.WriteLine(Line);
@@ -450,7 +448,7 @@ namespace UnrealBuildTool
 								}
 							}
 
-							if(!bCanParse)
+							if (!bCanParse)
 							{
 								Log.WriteLine(LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}({1}): warning: Unable to parse PVS output line '{2}' (tokens=|{3}|)", InputFile, LineIdx + 1, Line, String.Join("|", Tokens));
 							}
@@ -458,7 +456,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-			Logger.LogInformation("Written {NumItems} {Noun} to {File}.", UniqueItems.Count, (UniqueItems.Count == 1)? "diagnostic" : "diagnostics", OutputFile.FullName);
+			Logger.LogInformation("Written {NumItems} {Noun} to {File}.", UniqueItems.Count, (UniqueItems.Count == 1) ? "diagnostic" : "diagnostics", OutputFile.FullName);
 			return Task.FromResult(0);
 		}
 	}
@@ -499,7 +497,7 @@ namespace UnrealBuildTool
 			Settings = Target.WindowsPlatform.PVS;
 			ApplicationSettings = Settings.ApplicationSettings;
 
-			if(ApplicationSettings != null)
+			if (ApplicationSettings != null)
 			{
 				if (Settings.ModeFlags == 0)
 				{
@@ -515,7 +513,7 @@ namespace UnrealBuildTool
 			else
 			{
 				FileReference DefaultLicenseFile = AnalyzerFile.ChangeExtension(".lic");
-				if(FileReference.Exists(DefaultLicenseFile))
+				if (FileReference.Exists(DefaultLicenseFile))
 				{
 					LicenseFile = DefaultLicenseFile;
 				}
@@ -605,7 +603,7 @@ namespace UnrealBuildTool
 				case CppStandardVersion.Cpp17:
 					cppCfgStandard = CPP_17;
 					break;
-        			case CppStandardVersion.Cpp20:
+				case CppStandardVersion.Cpp20:
 					cppCfgStandard = CPP_20;
 					break;
 				case CppStandardVersion.Latest:
@@ -670,7 +668,7 @@ namespace UnrealBuildTool
 			CPPOutput Result = InnerToolChain.CompileAllCPPFiles(PreprocessCompileEnvironment, InputFiles, OutputDir, ModuleName, new ActionGraphCapture(Graph, PreprocessActions));
 
 			// Run the source files through PVS-Studio
-			for(int Idx = 0; Idx < PreprocessActions.Count; Idx++)
+			for (int Idx = 0; Idx < PreprocessActions.Count; Idx++)
 			{
 				VCCompileAction? PreprocessAction = PreprocessActions[Idx] as VCCompileAction;
 				if (PreprocessAction == null)
@@ -694,17 +692,17 @@ namespace UnrealBuildTool
 
 				// Write the PVS studio config file
 				StringBuilder ConfigFileContents = new StringBuilder();
-				foreach(DirectoryReference IncludePath in Target.WindowsPlatform.Environment!.IncludePaths)
+				foreach (DirectoryReference IncludePath in Target.WindowsPlatform.Environment!.IncludePaths)
 				{
 					ConfigFileContents.AppendFormat("exclude-path={0}\n", IncludePath.FullName);
 				}
-				if(ApplicationSettings != null && ApplicationSettings.PathMasks != null)
+				if (ApplicationSettings != null && ApplicationSettings.PathMasks != null)
 				{
-					foreach(string PathMask in ApplicationSettings.PathMasks)
+					foreach (string PathMask in ApplicationSettings.PathMasks)
 					{
 						if (PathMask.Contains(":") || PathMask.Contains("\\") || PathMask.Contains("/"))
 						{
-							if(Path.IsPathRooted(PathMask) && !PathMask.Contains(":"))
+							if (Path.IsPathRooted(PathMask) && !PathMask.Contains(":"))
 							{
 								ConfigFileContents.AppendFormat("exclude-path=*{0}*\n", PathMask);
 							}
@@ -715,7 +713,7 @@ namespace UnrealBuildTool
 						}
 					}
 				}
-        			if (Platform == UnrealTargetPlatform.Win64)
+				if (Platform == UnrealTargetPlatform.Win64)
 				{
 					ConfigFileContents.Append("platform=x64\n");
 				}
@@ -723,7 +721,7 @@ namespace UnrealBuildTool
 				{
 					throw new BuildException("PVS-Studio does not support this platform");
 				}
-        		ConfigFileContents.Append("preprocessor=visualcpp\n");
+				ConfigFileContents.Append("preprocessor=visualcpp\n");
 
 				bool shouldCompileAsC = ShouldCompileAsC(String.Join(" ", PreprocessAction.Arguments), SourceFileItem.AbsolutePath);
 				ConfigFileContents.AppendFormat("language={0}\n", shouldCompileAsC ? "C" : "C++");
@@ -738,8 +736,8 @@ namespace UnrealBuildTool
 					string languageStandardForCfg = GetLangStandForCfgFile(PreprocessCompileEnvironment.CppStandard, compilerVersion);
 
 					ConfigFileContents.AppendFormat("std={0}\n", languageStandardForCfg);
-          
-          			bool disableMsExtentinsFromArgs = PreprocessAction.Arguments.Any(arg => arg.Equals("/Za") || arg.Equals("-Za") || arg.Equals("/permissive-"));
+
+					bool disableMsExtentinsFromArgs = PreprocessAction.Arguments.Any(arg => arg.Equals("/Za") || arg.Equals("-Za") || arg.Equals("/permissive-"));
 					bool disableMsExtentions = isVisualCppCompiler && (languageStandardForCfg == CPP_20 || disableMsExtentinsFromArgs);
 					ConfigFileContents.AppendFormat("disable-ms-extensions={0}\n", disableMsExtentions ? "yes" : "no");
 				}
@@ -759,7 +757,7 @@ namespace UnrealBuildTool
 					ConfigFileContents.Append("report-disabled-rules=yes\n");
 				}
 
-        		int Timeout = (int)(Settings.AnalysisTimeoutFlag == AnalysisTimeoutFlags.No_timeout ? 0 : Settings.AnalysisTimeoutFlag);
+				int Timeout = (int)(Settings.AnalysisTimeoutFlag == AnalysisTimeoutFlags.No_timeout ? 0 : Settings.AnalysisTimeoutFlag);
 				ConfigFileContents.AppendFormat("timeout={0}\n", Timeout);
 
 				string BaseFileName = PreprocessedFileItem.Location.GetFileName();

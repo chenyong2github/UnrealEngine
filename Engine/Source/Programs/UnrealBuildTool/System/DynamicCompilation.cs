@@ -4,20 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.CodeDom.Compiler;
-using Microsoft.CSharp;
 using System.Reflection;
-using System.Diagnostics;
+using System.Runtime.InteropServices;
 using EpicGames.Core;
-
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Emit;
-using Microsoft.Extensions.Logging;
-using System.Reflection.Metadata;
 using Microsoft.CodeAnalysis.Text;
-using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
 using UnrealBuildBase;
 
@@ -89,30 +83,30 @@ namespace UnrealBuildTool
 			// Make sure the source files we're compiling are the same as the source files that were compiled
 			// for the assembly that we want to load
 			HashSet<FileItem> CurrentSourceFileItems = new HashSet<FileItem>();
-			foreach(string Line in Manifest.GetStringArrayField("SourceFiles"))
+			foreach (string Line in Manifest.GetStringArrayField("SourceFiles"))
 			{
 				CurrentSourceFileItems.Add(FileItem.GetItemByPath(Line));
 			}
 
 			// Get the new source files
 			HashSet<FileItem> SourceFileItems = new HashSet<FileItem>();
-			foreach(FileReference SourceFile in SourceFiles)
+			foreach (FileReference SourceFile in SourceFiles)
 			{
 				SourceFileItems.Add(FileItem.GetItemByFileReference(SourceFile));
 			}
 
 			// Check if there are any differences between the sets
-			foreach(FileItem CurrentSourceFileItem in CurrentSourceFileItems)
+			foreach (FileItem CurrentSourceFileItem in CurrentSourceFileItems)
 			{
-				if(!SourceFileItems.Contains(CurrentSourceFileItem))
+				if (!SourceFileItems.Contains(CurrentSourceFileItem))
 				{
 					Logger.LogDebug("Compiling {OutputAssemblyPath}: Removed source file ({CurrentSourceFileItem})", OutputAssemblyPath, CurrentSourceFileItem);
 					return true;
 				}
 			}
-			foreach(FileItem SourceFileItem in SourceFileItems)
+			foreach (FileItem SourceFileItem in SourceFileItems)
 			{
-				if(!CurrentSourceFileItems.Contains(SourceFileItem))
+				if (!CurrentSourceFileItems.Contains(SourceFileItem))
 				{
 					Logger.LogDebug("Compiling {OutputAssemblyPath}: Added source file ({SourceFileItem})", OutputAssemblyPath, SourceFileItem);
 					return true;
@@ -120,9 +114,9 @@ namespace UnrealBuildTool
 			}
 
 			// Check if any of the timestamps are newer
-			foreach(FileItem SourceFileItem in SourceFileItems)
+			foreach (FileItem SourceFileItem in SourceFileItems)
 			{
-				if(SourceFileItem.LastWriteTimeUtc > OutputAssemblyInfo.LastWriteTimeUtc)
+				if (SourceFileItem.LastWriteTimeUtc > OutputAssemblyInfo.LastWriteTimeUtc)
 				{
 					Logger.LogDebug("Compiling {OutputAssemblyPath}: {SourceFileItem} is newer", OutputAssemblyPath, SourceFileItem);
 					return true;
@@ -168,9 +162,9 @@ namespace UnrealBuildTool
 		private static Assembly? CompileAssembly(FileReference OutputAssemblyPath, IEnumerable<FileReference> SourceFileNames, ILogger Logger, IEnumerable<string>? ReferencedAssembies, IEnumerable<string>? PreprocessorDefines = null, bool TreatWarningsAsErrors = false)
 		{
 			CSharpParseOptions ParseOptions = new CSharpParseOptions(
-				languageVersion:LanguageVersion.Latest, 
-				kind:SourceCodeKind.Regular,
-				preprocessorSymbols:PreprocessorDefines
+				languageVersion: LanguageVersion.Latest,
+				kind: SourceCodeKind.Regular,
+				preprocessorSymbols: PreprocessorDefines
 			);
 
 			List<SyntaxTree> SyntaxTrees = new List<SyntaxTree>();
@@ -227,11 +221,11 @@ namespace UnrealBuildTool
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Runtime.Extensions").Location));
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("Microsoft.Extensions.Logging.Abstractions").Location));
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("netstandard").Location));
-			
+
 			// process start dependencies
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.ComponentModel.Primitives").Location));
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Diagnostics.Process").Location));
-			
+
 			// registry access
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("Microsoft.Win32.Registry").Location));
 
@@ -244,28 +238,28 @@ namespace UnrealBuildTool
 			MetadataReferences.Add(MetadataReference.CreateFromFile(typeof(UEBuildPlatformSDK).Assembly.Location));
 
 			CSharpCompilationOptions CompilationOptions = new CSharpCompilationOptions(
-				outputKind:OutputKind.DynamicallyLinkedLibrary,
+				outputKind: OutputKind.DynamicallyLinkedLibrary,
 #if DEBUG
 				optimizationLevel: OptimizationLevel.Debug,
 #else
 				// Optimize the managed code in Development
 				optimizationLevel: OptimizationLevel.Release,
 #endif
-				warningLevel:4,
-				assemblyIdentityComparer:DesktopAssemblyIdentityComparer.Default,
-				reportSuppressedDiagnostics:true
+				warningLevel: 4,
+				assemblyIdentityComparer: DesktopAssemblyIdentityComparer.Default,
+				reportSuppressedDiagnostics: true
 			);
 
 			CSharpCompilation Compilation = CSharpCompilation.Create(
-				assemblyName:OutputAssemblyPath.GetFileNameWithoutAnyExtensions(),
-				syntaxTrees:SyntaxTrees,
-				references:MetadataReferences,
-				options:CompilationOptions
+				assemblyName: OutputAssemblyPath.GetFileNameWithoutAnyExtensions(),
+				syntaxTrees: SyntaxTrees,
+				references: MetadataReferences,
+				options: CompilationOptions
 				);
 
 			using (FileStream AssemblyStream = FileReference.Open(OutputAssemblyPath, FileMode.Create))
 			{
-				using (FileStream? PdbStream = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)? FileReference.Open(OutputAssemblyPath.ChangeExtension(".pdb"), FileMode.Create) : null)
+				using (FileStream? PdbStream = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? FileReference.Open(OutputAssemblyPath.ChangeExtension(".pdb"), FileMode.Create) : null)
 				{
 					EmitOptions EmitOptions = new EmitOptions(
 						includePrivateMembers: true
@@ -332,9 +326,9 @@ namespace UnrealBuildTool
 					bNeedsCompilation = true;
 				}
 				catch (FileNotFoundException)
-			    {
-				    throw new BuildException("Precompiled rules assembly '{0}' does not exist.", OutputAssemblyPath);
-			    }
+				{
+					throw new BuildException("Precompiled rules assembly '{0}' does not exist.", OutputAssemblyPath);
+				}
 				catch (Exception Ex)
 				{
 					throw new BuildException(Ex, "Error while loading previously-compiled assembly file '{0}'.  (Exception: {1})", OutputAssemblyPath, Ex.Message);

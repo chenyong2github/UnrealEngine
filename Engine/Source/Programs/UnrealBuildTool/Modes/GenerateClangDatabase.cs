@@ -7,8 +7,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -298,7 +298,7 @@ namespace UnrealBuildTool
 				string Line = NewFileContents[i].TrimStart();
 
 				// Ignore empty strings
-				if (String.IsNullOrEmpty(Line)) 
+				if (String.IsNullOrEmpty(Line))
 				{
 					continue;
 				}

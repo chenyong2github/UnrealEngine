@@ -15,16 +15,15 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
-using EpicGames.Core;
 using System.Runtime.Serialization;
-using System.Text.RegularExpressions;
-using UnrealBuildBase;
 using System.Runtime.Versioning;
-using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
@@ -77,7 +76,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		ActionExecutor LocalExecutor;
 
-		public readonly static string DefaultExecutableBasePath	= Path.Combine(Unreal.EngineDirectory.FullName, "Extras", "ThirdPartyNotUE", "FASTBuild");
+		public readonly static string DefaultExecutableBasePath = Path.Combine(Unreal.EngineDirectory.FullName, "Extras", "ThirdPartyNotUE", "FASTBuild");
 
 		//////////////////////////////////////////
 		// Tweakables
@@ -89,7 +88,7 @@ namespace UnrealBuildTool
 		/// Used to specify the location of fbuild.exe if the distributed binary isn't being used
 		/// </summary>
 		[XmlConfigFile]
-		public static string? FBuildExecutablePath	= null;
+		public static string? FBuildExecutablePath = null;
 
 		/////////////////
 		// Distribution
@@ -98,13 +97,13 @@ namespace UnrealBuildTool
 		/// Controls network build distribution
 		/// </summary>
 		[XmlConfigFile]
-		public static bool bEnableDistribution		= true;
+		public static bool bEnableDistribution = true;
 
 		/// <summary>
 		/// Used to specify the location of the brokerage. If null, FASTBuild will fall back to checking FASTBUILD_BROKERAGE_PATH
 		/// </summary>
 		[XmlConfigFile]
-		public static string? FBuildBrokeragePath	= null;
+		public static string? FBuildBrokeragePath = null;
 
 		/// <summary>
 		/// Used to specify the FASTBuild coordinator IP or network name. If null, FASTBuild will fall back to checking FASTBUILD_COORDINATOR
@@ -119,19 +118,19 @@ namespace UnrealBuildTool
 		/// Controls whether to use caching at all. CachePath and FASTCacheMode are only relevant if this is enabled.
 		/// </summary>
 		[XmlConfigFile]
-		public static bool bEnableCaching			= true;
+		public static bool bEnableCaching = true;
 
 		/// <summary>
 		/// Cache access mode - only relevant if bEnableCaching is true;
 		/// </summary>
 		[XmlConfigFile]
-		public static FASTBuildCacheMode CacheMode	= FASTBuildCacheMode.ReadOnly;
+		public static FASTBuildCacheMode CacheMode = FASTBuildCacheMode.ReadOnly;
 
 		/// <summary>
 		/// Used to specify the location of the cache. If null, FASTBuild will fall back to checking FASTBUILD_CACHE_PATH
 		/// </summary>
 		[XmlConfigFile]
-		public static string? FBuildCachePath		= null;
+		public static string? FBuildCachePath = null;
 
 		/////////////////
 		// Misc Options
@@ -140,13 +139,13 @@ namespace UnrealBuildTool
 		/// Whether to force remote
 		/// </summary>
 		[XmlConfigFile]
-		public static bool bForceRemote				= false;
+		public static bool bForceRemote = false;
 
 		/// <summary>
 		/// Whether to stop on error
 		/// </summary>
 		[XmlConfigFile]
-		public static bool bStopOnError				= false;
+		public static bool bStopOnError = false;
 
 		/// <summary>
 		/// Which MSVC CRT Redist version to use
@@ -355,15 +354,15 @@ namespace UnrealBuildTool
 
 		private readonly HashSet<string> ForceOverwriteCompilerOptionModules = new HashSet<string>()
 		{
-			"Module.USDStageImporter", 
-			"Module.USDUtilities", 
-			"Module.UnrealUSDWrapper", 
-			"Module.USDStage", 
-			"Module.USDSchemas", 
+			"Module.USDStageImporter",
+			"Module.USDUtilities",
+			"Module.UnrealUSDWrapper",
+			"Module.USDStage",
+			"Module.USDSchemas",
 			"Module.GeometryCacheUSD",
-			"Module.USDStageEditorViewModels", 
-			"Module.USDTests", 
-			"Module.USDStageEditor", 
+			"Module.USDStageEditorViewModels",
+			"Module.USDTests",
+			"Module.USDStageEditor",
 			"Module.USDExporter"
 		};
 
@@ -422,7 +421,7 @@ namespace UnrealBuildTool
 				foreach (Tuple<string, Func<LinkedAction, string>, FBBuildType> BuildTypeSearchParam in BuildTypeSearchParams)
 				{
 					if (BuildTypeSearchParam.Item3.Equals(FBBuildType.Apple) &&
-						(BuildTypeSearchParam.Item2(Action).Contains("Win64", StringComparison.OrdinalIgnoreCase) || 
+						(BuildTypeSearchParam.Item2(Action).Contains("Win64", StringComparison.OrdinalIgnoreCase) ||
 						BuildTypeSearchParam.Item2(Action).Contains("X64", StringComparison.OrdinalIgnoreCase)))
 					{
 						continue;
@@ -444,16 +443,16 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		private bool IsMSVC()						{ return BuildType == FBBuildType.Windows;	}
-		private bool IsApple()						{ return BuildType == FBBuildType.Apple;	}
-		
+		private bool IsMSVC() { return BuildType == FBBuildType.Windows; }
+		private bool IsApple() { return BuildType == FBBuildType.Apple; }
+
 		private string GetCompilerName()
 		{
 			switch (BuildType)
 			{
 				default:
-				case FBBuildType.Windows:	return "UECompiler";
-				case FBBuildType.Apple:		return "UEAppleCompiler";
+				case FBBuildType.Windows: return "UECompiler";
+				case FBBuildType.Apple: return "UEAppleCompiler";
 			}
 		}
 
@@ -474,7 +473,7 @@ namespace UnrealBuildTool
 				{
 					return false;
 				}
-				
+
 				return ExecuteBffFile(FASTBuildFilePath, Logger);
 			}
 
@@ -696,23 +695,23 @@ namespace UnrealBuildTool
 				}
 
 				// Skip the following tokens:
-				if ((Token == "/I")						||
-					(Token == "/external:I")			||
-					(Token == "/l")						||
-					(Token == "/D")						||
-					(Token == "-D")						||
-					(Token == "-x")						||
-					(Token == "-F")						||
-					(Token == "-arch")					||
-					(Token == "-isysroot")				||
-					(Token == "-include")				||
-					(Token == "-current_version")		||
-					(Token == "-compatibility_version")	||
-					(Token == "-rpath")					||
-					(Token == "-weak_library")			||
-					(Token == "-weak_framework")		||
-					(Token == "-framework")				||
-					(Token == "/sourceDependencies")	||
+				if ((Token == "/I") ||
+					(Token == "/external:I") ||
+					(Token == "/l") ||
+					(Token == "/D") ||
+					(Token == "-D") ||
+					(Token == "-x") ||
+					(Token == "-F") ||
+					(Token == "-arch") ||
+					(Token == "-isysroot") ||
+					(Token == "-include") ||
+					(Token == "-current_version") ||
+					(Token == "-compatibility_version") ||
+					(Token == "-rpath") ||
+					(Token == "-weak_library") ||
+					(Token == "-weak_framework") ||
+					(Token == "-framework") ||
+					(Token == "/sourceDependencies") ||
 					(Token == "/sourceDependencies:directives"))
 				{
 					++i;
@@ -800,8 +799,8 @@ namespace UnrealBuildTool
 			{
 				// This may fail if the caller emptied PATH; we try to ignore the problem since
 				// it probably means we are building for another platform.
-                if(BuildType == FBBuildType.Windows)
-                {
+				if (BuildType == FBBuildType.Windows)
+				{
 					VCEnv = VCEnvironment.Create(
 						Compiler: WindowsPlatform.GetDefaultCompiler(null, UnrealArch.X64, Logger),
 						ToolChain: WindowsCompiler.Default,
@@ -911,7 +910,7 @@ namespace UnrealBuildTool
 					{
 						AddText("\t\t'$Root$/{cluiSubDirName}/clui.dll'\n");
 					}
-					cluiDllPath = new FileReference(VCEnv.GetToolPath() + "{cluiSubDirName}/clui.dll");					
+					cluiDllPath = new FileReference(VCEnv.GetToolPath() + "{cluiSubDirName}/clui.dll");
 				}
 				else
 				{
@@ -996,7 +995,7 @@ namespace UnrealBuildTool
 				}
 
 
-                AddText("\t}\n"); //End extra files
+				AddText("\t}\n"); //End extra files
 
 				AddText($"\t.CompilerFamily = 'msvc'\n");
 				AddText("}\n\n"); //End compiler
@@ -1279,29 +1278,29 @@ namespace UnrealBuildTool
 				}
 			}
 
-			string DistArgument				= bEnableDistribution ? "-dist" : "";
-			string ForceRemoteArgument		= bForceRemote ? "-forceremote" : "";
-			string NoStopOnErrorArgument	= bStopOnError ? "" : "-nostoponerror";
-			string IDEArgument				= IsApple() ? "" : "-ide";
-			string MaxProcesses				= "-j" + ((ParallelExecutor)LocalExecutor).NumParallelProcesses;
+			string DistArgument = bEnableDistribution ? "-dist" : "";
+			string ForceRemoteArgument = bForceRemote ? "-forceremote" : "";
+			string NoStopOnErrorArgument = bStopOnError ? "" : "-nostoponerror";
+			string IDEArgument = IsApple() ? "" : "-ide";
+			string MaxProcesses = "-j" + ((ParallelExecutor)LocalExecutor).NumParallelProcesses;
 
 			// Interesting flags for FASTBuild:
 			// -nostoponerror, -verbose, -monitor (if FASTBuild Monitor Visual Studio Extension is installed!)
 			// Yassine: The -clean is to bypass the FASTBuild internal
 			// dependencies checks (cached in the fdb) as it could create some conflicts with UBT.
 			// Basically we want FB to stupidly compile what UBT tells it to.
-			string FBCommandLine	= $"-monitor -summary {DistArgument} {CacheArgument} {IDEArgument} {MaxProcesses} -clean -config \"{BffFilePath}\" {NoStopOnErrorArgument} {ForceRemoteArgument}";
+			string FBCommandLine = $"-monitor -summary {DistArgument} {CacheArgument} {IDEArgument} {MaxProcesses} -clean -config \"{BffFilePath}\" {NoStopOnErrorArgument} {ForceRemoteArgument}";
 
 			Logger.LogInformation("FBuild Command Line Arguments: '{FBCommandLine}", FBCommandLine);
 
-			string FBExecutable		= GetExecutablePath()!;
-			string WorkingDirectory	= Path.GetFullPath(Path.Combine(Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()), "Source"));
+			string FBExecutable = GetExecutablePath()!;
+			string WorkingDirectory = Path.GetFullPath(Path.Combine(Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()), "Source"));
 
-			ProcessStartInfo FBStartInfo		= new ProcessStartInfo(FBExecutable, FBCommandLine);
-			FBStartInfo.UseShellExecute			= false;
-			FBStartInfo.WorkingDirectory		= WorkingDirectory;
-			FBStartInfo.RedirectStandardError	= true;
-			FBStartInfo.RedirectStandardOutput	= true;
+			ProcessStartInfo FBStartInfo = new ProcessStartInfo(FBExecutable, FBCommandLine);
+			FBStartInfo.UseShellExecute = false;
+			FBStartInfo.WorkingDirectory = WorkingDirectory;
+			FBStartInfo.RedirectStandardError = true;
+			FBStartInfo.RedirectStandardOutput = true;
 
 			string? Coordinator = GetCoordinator();
 			if (!string.IsNullOrEmpty(Coordinator) && !FBStartInfo.EnvironmentVariables.ContainsKey("FASTBUILD_COORDINATOR"))
@@ -1322,9 +1321,9 @@ namespace UnrealBuildTool
 
 			try
 			{
-				Process FBProcess				= new Process();
-				FBProcess.StartInfo				= FBStartInfo;
-				FBProcess.EnableRaisingEvents	= true;
+				Process FBProcess = new Process();
+				FBProcess.StartInfo = FBStartInfo;
+				FBProcess.EnableRaisingEvents = true;
 
 				DataReceivedEventHandler OutputEventHandler = (Sender, Args) =>
 				{

@@ -3,8 +3,8 @@
 using System;
 using System.Collections.Generic;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -217,7 +217,7 @@ namespace UnrealBuildTool
 				{
 					yield return UsingPchFile;
 				}
-				foreach(FileItem AdditionalPrerequisiteItem in AdditionalPrerequisiteItems)
+				foreach (FileItem AdditionalPrerequisiteItem in AdditionalPrerequisiteItems)
 				{
 					yield return AdditionalPrerequisiteItem;
 				}

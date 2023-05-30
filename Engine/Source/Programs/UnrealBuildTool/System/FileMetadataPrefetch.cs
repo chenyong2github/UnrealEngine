@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 
@@ -41,9 +38,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static void QueueEngineDirectory()
 		{
-			lock(QueuedDirectories)
+			lock (QueuedDirectories)
 			{
-				if(QueuedDirectories.Add(Unreal.EngineDirectory))
+				if (QueuedDirectories.Add(Unreal.EngineDirectory))
 				{
 					Enqueue(() => ScanEngineDirectory());
 				}
@@ -56,9 +53,9 @@ namespace UnrealBuildTool
 		/// <param name="ProjectDirectory">The project directory to prefetch</param>
 		public static void QueueProjectDirectory(DirectoryReference ProjectDirectory)
 		{
-			lock(QueuedDirectories)
+			lock (QueuedDirectories)
 			{
-				if(QueuedDirectories.Add(ProjectDirectory))
+				if (QueuedDirectories.Add(ProjectDirectory))
 				{
 					Enqueue(() => ScanProjectDirectory(DirectoryItem.GetItemByDirectoryReference(ProjectDirectory)));
 				}
@@ -71,9 +68,9 @@ namespace UnrealBuildTool
 		/// <param name="Directory">Directory to start searching from</param>
 		public static void QueueDirectoryTree(DirectoryReference Directory)
 		{
-			lock(QueuedDirectories)
+			lock (QueuedDirectories)
 			{
-				if(QueuedDirectories.Add(Directory))
+				if (QueuedDirectories.Add(Directory))
 				{
 					Enqueue(() => ScanDirectoryTree(DirectoryItem.GetItemByDirectoryReference(Directory)));
 				}
@@ -103,7 +100,7 @@ namespace UnrealBuildTool
 		/// <param name="Action">Action to enqueue</param>
 		static void Enqueue(System.Action Action)
 		{
-			Queue.Enqueue(() => { if(!CancelToken.IsCancellationRequested){ Action(); } });
+			Queue.Enqueue(() => { if (!CancelToken.IsCancellationRequested) { Action(); } });
 		}
 
 		/// <summary>

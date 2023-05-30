@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -143,7 +142,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static string[] GetNames()
 		{
-			if(Names == null)
+			if (Names == null)
 			{
 				AddConfidentialPlatforms();
 				Names = StringRegistry.GetStringNames();
@@ -157,7 +156,7 @@ namespace UnrealBuildTool
 		/// <returns>Array of restricted folder values</returns>
 		public static RestrictedFolder[] GetValues()
 		{
-			if(Values == null)
+			if (Values == null)
 			{
 				AddConfidentialPlatforms();
 				Values = Array.ConvertAll(StringRegistry.GetStringIds(), x => new RestrictedFolder(x));

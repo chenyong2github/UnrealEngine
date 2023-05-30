@@ -5,10 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
@@ -90,17 +87,17 @@ namespace UnrealBuildTool
 		{
 			// Build a mapping from name to field and attribute for this object
 			Dictionary<string, Parameter> PrefixToParameter = new Dictionary<string, Parameter>(StringComparer.InvariantCultureIgnoreCase);
-			for(Type TargetType = TargetObject.GetType(); TargetType != typeof(object); TargetType = TargetType.BaseType!)
+			for (Type TargetType = TargetObject.GetType(); TargetType != typeof(object); TargetType = TargetType.BaseType!)
 			{
-				foreach(FieldInfo FieldInfo in TargetType.GetFields(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+				foreach (FieldInfo FieldInfo in TargetType.GetFields(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
 				{
 					IEnumerable<CommandLineAttribute> Attributes = FieldInfo.GetCustomAttributes<CommandLineAttribute>();
-					foreach(CommandLineAttribute Attribute in Attributes)
+					foreach (CommandLineAttribute Attribute in Attributes)
 					{
 						string? Prefix = Attribute.Prefix;
-						if(Prefix == null)
+						if (Prefix == null)
 						{
-							if(NonNullableType(FieldInfo.FieldType) == typeof(bool))
+							if (NonNullableType(FieldInfo.FieldType) == typeof(bool))
 							{
 								Prefix = String.Format("-{0}", FieldInfo.Name);
 							}
@@ -111,7 +108,7 @@ namespace UnrealBuildTool
 						}
 						else
 						{
-							if(NonNullableType(FieldInfo.FieldType) != typeof(bool) && Attribute.Value == null && !Prefix.EndsWith("=") && !Prefix.EndsWith(":"))
+							if (NonNullableType(FieldInfo.FieldType) != typeof(bool) && Attribute.Value == null && !Prefix.EndsWith("=") && !Prefix.EndsWith(":"))
 							{
 								Prefix = Prefix + "=";
 							}
@@ -123,25 +120,25 @@ namespace UnrealBuildTool
 
 			// Step through the arguments, and remove those that we can parse
 			Dictionary<FieldInfo, Parameter> AssignedFieldToParameter = new Dictionary<FieldInfo, Parameter>();
-			for(int Idx = 0; Idx < Arguments.Count; Idx++)
+			for (int Idx = 0; Idx < Arguments.Count; Idx++)
 			{
 				string Argument = Arguments[Idx];
-				if(Argument.Length > 0 && Argument[0] == '-')
+				if (Argument.Length > 0 && Argument[0] == '-')
 				{
 					// Get the length of the argument prefix
-					int EqualsIdx = Argument.IndexOfAny(new char[]{ '=', ':' });
-					string Prefix = (EqualsIdx == -1)? Argument : Argument.Substring(0, EqualsIdx + 1);
+					int EqualsIdx = Argument.IndexOfAny(new char[] { '=', ':' });
+					string Prefix = (EqualsIdx == -1) ? Argument : Argument.Substring(0, EqualsIdx + 1);
 
 					// Check if there's a matching argument registered
 					Parameter? Parameter;
-					if(PrefixToParameter.TryGetValue(Prefix, out Parameter))
+					if (PrefixToParameter.TryGetValue(Prefix, out Parameter))
 					{
 						int NextIdx = Idx + 1;
 
 						// Parse the value
-						if(Parameter.Attribute.Value != null)
+						if (Parameter.Attribute.Value != null)
 						{
-							if(EqualsIdx != -1)
+							if (EqualsIdx != -1)
 							{
 								Logger.LogWarning("Cannot specify a value for {ParameterPrefix}", Parameter.Prefix);
 							}
@@ -150,11 +147,11 @@ namespace UnrealBuildTool
 								AssignValue(Parameter, Parameter.Attribute.Value, TargetObject, AssignedFieldToParameter, Logger);
 							}
 						}
-						else if(EqualsIdx != -1)
+						else if (EqualsIdx != -1)
 						{
 							AssignValue(Parameter, Argument.Substring(EqualsIdx + 1), TargetObject, AssignedFieldToParameter, Logger);
 						}
-						else if(NonNullableType(Parameter.FieldInfo.FieldType) == typeof(bool))
+						else if (NonNullableType(Parameter.FieldInfo.FieldType) == typeof(bool))
 						{
 							AssignValue(Parameter, "true", TargetObject, AssignedFieldToParameter, Logger);
 						}
@@ -172,16 +169,16 @@ namespace UnrealBuildTool
 
 			// Make sure there are no required parameters that are missing
 			Dictionary<FieldInfo, Parameter> MissingFieldToParameter = new Dictionary<FieldInfo, Parameter>();
-			foreach(Parameter Parameter in PrefixToParameter.Values)
+			foreach (Parameter Parameter in PrefixToParameter.Values)
 			{
-				if(Parameter.Attribute.Required && !AssignedFieldToParameter.ContainsKey(Parameter.FieldInfo) && !MissingFieldToParameter.ContainsKey(Parameter.FieldInfo))
+				if (Parameter.Attribute.Required && !AssignedFieldToParameter.ContainsKey(Parameter.FieldInfo) && !MissingFieldToParameter.ContainsKey(Parameter.FieldInfo))
 				{
 					MissingFieldToParameter.Add(Parameter.FieldInfo, Parameter);
 				}
 			}
-			if(MissingFieldToParameter.Count > 0)
+			if (MissingFieldToParameter.Count > 0)
 			{
-				if(MissingFieldToParameter.Count == 1)
+				if (MissingFieldToParameter.Count == 1)
 				{
 					throw new BuildException("Missing {0} argument", MissingFieldToParameter.First().Value.Prefix.Replace("=", "=..."));
 				}
@@ -199,9 +196,9 @@ namespace UnrealBuildTool
 		/// <param name="Logger">Logger for output</param>
 		public static void CheckNoRemainingArguments(List<string> RemainingArguments, ILogger Logger)
 		{
-			if(RemainingArguments.Count > 0)
+			if (RemainingArguments.Count > 0)
 			{
-				if(RemainingArguments.Count == 1)
+				if (RemainingArguments.Count == 1)
 				{
 					Logger.LogWarning("Invalid argument: {Arg}", RemainingArguments[0]);
 				}
@@ -238,7 +235,7 @@ namespace UnrealBuildTool
 			{
 				// Try to parse the value
 				object? Value;
-				if(!TryParseValue(Parameter.FieldInfo.FieldType, Text, out Value))
+				if (!TryParseValue(Parameter.FieldInfo.FieldType, Text, out Value))
 				{
 					Logger.LogWarning("Invalid value for {ParameterPrefix}... - ignoring {Text}", Parameter.Prefix, Text);
 					return;
@@ -246,12 +243,12 @@ namespace UnrealBuildTool
 
 				// Check if this field has already been assigned to. Output a warning if the previous value is in conflict with the new one.
 				Parameter? PreviousParameter;
-				if(AssignedFieldToParameter.TryGetValue(Parameter.FieldInfo, out PreviousParameter))
+				if (AssignedFieldToParameter.TryGetValue(Parameter.FieldInfo, out PreviousParameter))
 				{
 					object? PreviousValue = Parameter.FieldInfo.GetValue(TargetObject);
-					if(!Object.Equals(PreviousValue, Value))
+					if (!Object.Equals(PreviousValue, Value))
 					{
-						if(PreviousParameter.Prefix == Parameter.Prefix)
+						if (PreviousParameter.Prefix == Parameter.Prefix)
 						{
 							Logger.LogWarning("Conflicting {ParameterPrefix} arguments - ignoring", Parameter.Prefix);
 						}
@@ -271,7 +268,7 @@ namespace UnrealBuildTool
 			{
 				// Split the text into an array of values if necessary
 				string[] ItemArray;
-				if(Parameter.Attribute.ListSeparator == 0)
+				if (Parameter.Attribute.ListSeparator == 0)
 				{
 					ItemArray = new string[] { Text };
 				}
@@ -281,10 +278,10 @@ namespace UnrealBuildTool
 				}
 
 				// Parse each of the argument values separately
-				foreach(string Item in ItemArray)
+				foreach (string Item in ItemArray)
 				{
 					object? Value;
-					if(TryParseValue(CollectionType.GenericTypeArguments[0], Item, out Value))
+					if (TryParseValue(CollectionType.GenericTypeArguments[0], Item, out Value))
 					{
 						CollectionType.InvokeMember("Add", BindingFlags.InvokeMethod, null, Parameter.FieldInfo.GetValue(TargetObject), new object[] { Value });
 					}
@@ -306,7 +303,7 @@ namespace UnrealBuildTool
 		static bool TryParseValue(Type FieldType, string Text, [NotNullWhen(true)] out object? Value)
 		{
 			FieldType = NonNullableType(FieldType);
-			if(FieldType.IsEnum)
+			if (FieldType.IsEnum)
 			{
 				// Special handling for enums; parse the value ignoring case.
 				try
@@ -314,13 +311,13 @@ namespace UnrealBuildTool
 					Value = Enum.Parse(FieldType, Text, true);
 					return true;
 				}
-				catch(ArgumentException)
+				catch (ArgumentException)
 				{
 					Value = null;
 					return false;
 				}
 			}
-			else if(FieldType == typeof(FileReference))
+			else if (FieldType == typeof(FileReference))
 			{
 				// Construct a file reference from the string
 				try
@@ -342,7 +339,7 @@ namespace UnrealBuildTool
 					Value = Convert.ChangeType(Text, FieldType);
 					return true;
 				}
-				catch(InvalidCastException)
+				catch (InvalidCastException)
 				{
 					Value = null;
 					return false;

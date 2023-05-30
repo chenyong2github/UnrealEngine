@@ -2,14 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Diagnostics;
 using System.Linq;
 using System.Xml.Serialization;
-using System.ComponentModel;
-using System.Runtime.Serialization;
 using EpicGames.Core;
-using System.Diagnostics.CodeAnalysis;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -430,13 +427,13 @@ namespace UnrealBuildTool
 		static FileReference ExpandPathVariables(string Path, DirectoryReference EngineDir, DirectoryReference? ProjectDir)
 		{
 			const string EnginePrefix = "$(EngineDir)";
-			if(Path.StartsWith(EnginePrefix, StringComparison.InvariantCultureIgnoreCase))
+			if (Path.StartsWith(EnginePrefix, StringComparison.InvariantCultureIgnoreCase))
 			{
 				return new FileReference(EngineDir.FullName + Path.Substring(EnginePrefix.Length));
 			}
 
 			const string ProjectPrefix = "$(ProjectDir)";
-			if(ProjectDir != null && Path.StartsWith(ProjectPrefix, StringComparison.InvariantCultureIgnoreCase))
+			if (ProjectDir != null && Path.StartsWith(ProjectPrefix, StringComparison.InvariantCultureIgnoreCase))
 			{
 				return new FileReference(ProjectDir.FullName + Path.Substring(ProjectPrefix.Length));
 			}
@@ -462,7 +459,7 @@ namespace UnrealBuildTool
 			{
 				ArchitectureSuffix = BuildArchitectures.ToString();
 			}
-		
+
 			// Build the output filename
 			if (String.IsNullOrEmpty(ArchitectureSuffix) && Configuration == UnrealTargetConfiguration.Development)
 			{
@@ -544,7 +541,7 @@ namespace UnrealBuildTool
 			FileReference? ProjectFile;
 
 			string? RelativeProjectFile;
-			if(RawObject.TryGetStringField("Project", out RelativeProjectFile))
+			if (RawObject.TryGetStringField("Project", out RelativeProjectFile))
 			{
 				ProjectFile = FileReference.Combine(Location.Directory, RelativeProjectFile);
 			}
@@ -577,12 +574,12 @@ namespace UnrealBuildTool
 
 			// Read the launch executable
 			string? Launch;
-			if(RawObject.TryGetStringField("Launch", out Launch))
+			if (RawObject.TryGetStringField("Launch", out Launch))
 			{
 				Receipt.Launch = ExpandPathVariables(Launch, EngineDir, ProjectDir);
 			}
 			string? LaunchCmd;
-			if(RawObject.TryGetStringField("LaunchCmd", out LaunchCmd))
+			if (RawObject.TryGetStringField("LaunchCmd", out LaunchCmd))
 			{
 				Receipt.LaunchCmd = ExpandPathVariables(LaunchCmd, EngineDir, ProjectDir);
 			}
@@ -619,15 +616,15 @@ namespace UnrealBuildTool
 						FileReference File = ExpandPathVariables(Path, EngineDir, ProjectDir);
 
 						StagedFileType Type;
-						if(!RuntimeDependencyObject.TryGetEnumField("Type", out Type))
+						if (!RuntimeDependencyObject.TryGetEnumField("Type", out Type))
 						{
 							// Previous format included an optional IgnoreIfMissing flag, which was only used for debug files. We can explicitly reference them as DebugNonUFS files now.
 							bool bIgnoreIfMissing;
-							if(RuntimeDependencyObject.TryGetBoolField("IgnoreIfMissing", out bIgnoreIfMissing))
+							if (RuntimeDependencyObject.TryGetBoolField("IgnoreIfMissing", out bIgnoreIfMissing))
 							{
 								bIgnoreIfMissing = false;
 							}
-							Type = bIgnoreIfMissing? StagedFileType.DebugNonUFS : StagedFileType.NonUFS;
+							Type = bIgnoreIfMissing ? StagedFileType.DebugNonUFS : StagedFileType.NonUFS;
 						}
 
 						Receipt.RuntimeDependencies.Add(File, Type);
@@ -655,15 +652,15 @@ namespace UnrealBuildTool
 
 			// Read the additional properties
 			JsonObject[]? AdditionalPropertyObjects;
-			if(RawObject.TryGetObjectArrayField("AdditionalProperties", out AdditionalPropertyObjects))
+			if (RawObject.TryGetObjectArrayField("AdditionalProperties", out AdditionalPropertyObjects))
 			{
-				foreach(JsonObject AdditionalPropertyObject in AdditionalPropertyObjects)
+				foreach (JsonObject AdditionalPropertyObject in AdditionalPropertyObjects)
 				{
 					string? Name;
-					if(AdditionalPropertyObject.TryGetStringField("Name", out Name))
+					if (AdditionalPropertyObject.TryGetStringField("Name", out Name))
 					{
 						string? Value;
-						if(AdditionalPropertyObject.TryGetStringField("Value", out Value))
+						if (AdditionalPropertyObject.TryGetStringField("Value", out Value))
 						{
 							Receipt.AdditionalProperties.Add(new ReceiptProperty(Name, Value));
 						}
@@ -738,17 +735,17 @@ namespace UnrealBuildTool
 				Writer.WriteValue("IsTestTarget", IsTestTarget);
 				Writer.WriteValue("Architecture", Architectures.ToString());
 
-				if(ProjectFile != null)
+				if (ProjectFile != null)
 				{
 					Writer.WriteValue("Project", ProjectFile.MakeRelativeTo(Location.Directory).Replace(Path.DirectorySeparatorChar, '/'));
 				}
 
-				if(Launch != null)
+				if (Launch != null)
 				{
 					Writer.WriteValue("Launch", InsertPathVariables(Launch, EngineDir, ProjectDir));
 				}
 
-				if(LaunchCmd != null)
+				if (LaunchCmd != null)
 				{
 					Writer.WriteValue("LaunchCmd", InsertPathVariables(LaunchCmd, EngineDir, ProjectDir));
 				}

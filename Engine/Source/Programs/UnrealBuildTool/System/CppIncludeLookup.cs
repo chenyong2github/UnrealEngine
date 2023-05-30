@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using EpicGames.Core;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -62,7 +61,7 @@ namespace UnrealBuildTool
 					if (Version == CurrentVersion)
 					{
 						CppIncludeNameInfo[] NameInfos = Reader.ReadArray(() => new CppIncludeNameInfo(Reader.ReadString()!))!;
-						foreach(CppIncludeNameInfo NameInfo in NameInfos)
+						foreach (CppIncludeNameInfo NameInfo in NameInfos)
 						{
 							int NumFiles = Reader.ReadInt();
 							for (int Idx = 0; Idx < NumFiles; Idx++)
@@ -73,7 +72,7 @@ namespace UnrealBuildTool
 								if (NameIndexes != null)
 								{
 									FileInfo.IncludedNames = NameIndexes.Select(x => NameInfos[x]).ToList();
-									FileInfo.LastWriteTimeUtc = new DateTime(Reader.ReadLong(), DateTimeKind.Utc); 
+									FileInfo.LastWriteTimeUtc = new DateTime(Reader.ReadLong(), DateTimeKind.Utc);
 								}
 
 								NameInfo.Files.Add(FileInfo);
@@ -105,7 +104,7 @@ namespace UnrealBuildTool
 					foreach (CppIncludeFileInfo FileInfo in NameInfo.Files)
 					{
 						Writer.WriteCompactFileItem(FileInfo.File);
-						if(FileInfo.IncludedNames == null)
+						if (FileInfo.IncludedNames == null)
 						{
 							Writer.WriteIntArray(null);
 						}
@@ -328,7 +327,7 @@ namespace UnrealBuildTool
 				}
 
 				byte[]? Name = ParseIncludeName(Span, Idx);
-				if(Name != null)
+				if (Name != null)
 				{
 					Names.Add(Encoding.UTF8.GetString(Name));
 				}
@@ -347,10 +346,10 @@ namespace UnrealBuildTool
 
 			// Check it's an include directive
 			int MinIdx = Idx;
-			for (; ;)
+			for (; ; )
 			{
 				byte Char = Span[--MinIdx];
-				if(Char == '#')
+				if (Char == '#')
 				{
 					break;
 				}
@@ -363,7 +362,7 @@ namespace UnrealBuildTool
 					return null;
 				}
 			}
-			for (; MinIdx > 0; )
+			for (; MinIdx > 0;)
 			{
 				byte Char = Span[--MinIdx];
 				if (Char == '\n')
@@ -382,7 +381,7 @@ namespace UnrealBuildTool
 			{
 				return null;
 			}
-			for (;;)
+			for (; ; )
 			{
 				byte Char = Span[MinNameIdx++];
 				if (Char == '\"' || Char == '<')

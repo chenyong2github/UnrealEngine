@@ -4,10 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
@@ -71,7 +68,7 @@ namespace UnrealBuildTool
 			/// </summary>
 			public void Finish()
 			{
-				if(!FinishTime.HasValue)
+				if (!FinishTime.HasValue)
 				{
 					FinishTime = Stopwatch.Elapsed;
 				}
@@ -117,7 +114,7 @@ namespace UnrealBuildTool
 		public static void AddEvent(string Name)
 		{
 			TimeSpan Time = Stopwatch.Elapsed;
-			lock(Events)
+			lock (Events)
 			{
 				Events.Add(new Event(Name, Time, Time));
 			}
@@ -197,7 +194,7 @@ namespace UnrealBuildTool
 			}
 
 			// Remove everything from the stack
-			for(; OuterEvents.Count > 0; OuterEvents.RemoveAt(OuterEvents.Count - 1))
+			for (; OuterEvents.Count > 0; OuterEvents.RemoveAt(OuterEvents.Count - 1))
 			{
 				UpdateLastEventTime(ref LastTime, OuterEvents.Last().FinishTime!.Value, MaxUnknownTime, OuterEvents, Verbosity, Logger);
 			}
@@ -238,7 +235,7 @@ namespace UnrealBuildTool
 		{
 			StringBuilder Prefix = new StringBuilder();
 
-			for(int Idx = 0; Idx < OuterEvents.Count - 1; Idx++)
+			for (int Idx = 0; Idx < OuterEvents.Count - 1; Idx++)
 			{
 				Prefix.AppendFormat(" {0,6}          ", FormatTime(StartTime - OuterEvents[Idx].StartTime));
 			}
@@ -249,7 +246,7 @@ namespace UnrealBuildTool
 			{
 				Prefix.AppendFormat("({0,6})", "???");
 			}
-			else if(FinishTime.Value == StartTime)
+			else if (FinishTime.Value == StartTime)
 			{
 				Prefix.Append(" ------ ");
 			}

@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
-using System.Xml;
-using System.IO;
-using System.Diagnostics;
 using System.Xml.Linq;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -169,8 +166,8 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-                    // get the changelist
-                    CFBundleVersion = ReadOnlyBuildVersion.Current.Changelist.ToString();
+					// get the changelist
+					CFBundleVersion = ReadOnlyBuildVersion.Current.Changelist.ToString();
 
 				}
 
@@ -221,7 +218,7 @@ namespace UnrealBuildTool
 		{
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectLocation, UnrealTargetPlatform.IOS);
 			// required capabilities
-			List <string> RequiredCaps = new() { "arm64", "metal" };
+			List<string> RequiredCaps = new() { "arm64", "metal" };
 
 			// orientations
 			string InterfaceOrientation = "";
@@ -367,7 +364,7 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<key>UIRequiredDeviceCapabilities</key>");
 			Text.AppendLine("\t<array>");
 			foreach (string Cap in RequiredCaps)
-				{
+			{
 				Text.AppendLine($"\t\t<string>{Cap}</string>\n");
 			}
 			Text.AppendLine("\t</array>");
@@ -410,7 +407,7 @@ namespace UnrealBuildTool
 			if (!string.IsNullOrEmpty(ExtraData))
 			{
 				ExtraData = ExtraData.Replace("\\n", "\n");
-				foreach(string Line in ExtraData.Split("\r\n".ToCharArray()))
+				foreach (string Line in ExtraData.Split("\r\n".ToCharArray()))
 				{
 					if (!string.IsNullOrWhiteSpace(Line))
 					{
@@ -484,14 +481,14 @@ namespace UnrealBuildTool
 			// generate the Info.plist for future use
 			string BuildDirectory = ProjectDirectory + "/Build/IOS";
 			string IntermediateDirectory = (bIsUnrealGame ? InEngineDir : ProjectDirectory) + "/Intermediate/IOS";
-			string PListFile = IntermediateDirectory + "/" + GameName + "-Info.plist";;
+			string PListFile = IntermediateDirectory + "/" + GameName + "-Info.plist"; ;
 			ProjectName = !String.IsNullOrEmpty(ProjectName) ? ProjectName : GameName;
 			VersionUtilities.BuildDirectory = BuildDirectory;
 			VersionUtilities.GameName = GameName;
 
 			WritePlistFile(new FileReference(PListFile), DirRef, UPL, GameName, bIsUnrealGame, Logger);
 
-            if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac && !bBuildAsFramework)
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac && !bBuildAsFramework)
 			{
 				FileReference FinalPlistFile;
 				FinalPlistFile = new FileReference($"{ProjectDirectory}/Build/IOS/UBTGenerated/Info.Template.plist");
@@ -904,18 +901,18 @@ namespace UnrealBuildTool
 		}
 
 		public static VersionNumber? GetSdkVersion(TargetReceipt Receipt)
-        {
+		{
 			VersionNumber? SdkVersion = null;
-            if (Receipt != null)
-            {
-                ReceiptProperty? SdkVersionProperty = Receipt.AdditionalProperties.FirstOrDefault(x => x.Name == "SDK");
-				if(SdkVersionProperty != null)
+			if (Receipt != null)
+			{
+				ReceiptProperty? SdkVersionProperty = Receipt.AdditionalProperties.FirstOrDefault(x => x.Name == "SDK");
+				if (SdkVersionProperty != null)
 				{
 					VersionNumber.TryParse(SdkVersionProperty.Value, out SdkVersion);
 				}
 			}
 			return SdkVersion;
-        }
+		}
 
 		public static bool GetCompileAsDll(TargetReceipt? Receipt)
 		{
@@ -930,7 +927,7 @@ namespace UnrealBuildTool
 			return false;
 		}
 
- 		public bool GeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, TargetReceipt Receipt)
+		public bool GeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, TargetReceipt Receipt)
 		{
 			List<string> UPLScripts = CollectPluginDataPaths(Receipt.AdditionalProperties, Logger);
 			VersionNumber? SdkVersion = GetSdkVersion(Receipt);
@@ -1037,7 +1034,7 @@ namespace UnrealBuildTool
 			try
 			{
 				FileInfo DestFileInfo;
-				if(!Directory.Exists(ProvisionDir))
+				if (!Directory.Exists(ProvisionDir))
 				{
 					throw new DirectoryNotFoundException(string.Format("Provision Directory {0} not found.", ProvisionDir), null);
 				}
@@ -1047,7 +1044,7 @@ namespace UnrealBuildTool
 				{
 					Logger.LogDebug("Local Provision Folder {LocalProvisionFolder} not found, attempting to create...", LocalProvisionFolder);
 					Directory.CreateDirectory(LocalProvisionFolder);
-					if(Directory.Exists(LocalProvisionFolder))
+					if (Directory.Exists(LocalProvisionFolder))
 					{
 						Logger.LogDebug("Local Provision Folder {LocalProvisionFolder} created successfully.", LocalProvisionFolder);
 					}
@@ -1057,13 +1054,13 @@ namespace UnrealBuildTool
 					}
 				}
 
-				foreach(string Provision in Directory.EnumerateFiles(ProvisionDir, "*.mobileprovision", SearchOption.AllDirectories))
+				foreach (string Provision in Directory.EnumerateFiles(ProvisionDir, "*.mobileprovision", SearchOption.AllDirectories))
 				{
 					string LocalProvisionFile = Path.Combine(LocalProvisionFolder, Path.GetFileName(Provision));
 					bool LocalFileExists = File.Exists(LocalProvisionFile);
-					if(!LocalFileExists || File.GetLastWriteTime(LocalProvisionFile) < File.GetLastWriteTime(Provision))
+					if (!LocalFileExists || File.GetLastWriteTime(LocalProvisionFile) < File.GetLastWriteTime(Provision))
 					{
-						if(LocalFileExists)
+						if (LocalFileExists)
 						{
 							DestFileInfo = new FileInfo(LocalProvisionFile);
 							DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
@@ -1200,7 +1197,7 @@ namespace UnrealBuildTool
 			// install the distribution provision
 			ProvisionWithPrefix = InEngineDir + "/Build/IOS/UnrealGame_Distro.mobileprovision";
 			string ProjectDistroProvision = InProjectName + "_Distro.mobileprovision";
-			if (File.Exists(Path.Combine(BuildDirectory, ProjectDistroProvision )))
+			if (File.Exists(Path.Combine(BuildDirectory, ProjectDistroProvision)))
 			{
 				ProvisionWithPrefix = Path.Combine(BuildDirectory, ProjectDistroProvision);
 			}
@@ -1312,7 +1309,7 @@ namespace UnrealBuildTool
 
 			// collect plugin extra data paths from target receipt
 			IEnumerable<ReceiptProperty> Results = ReceiptProperties.Where(x => x.Name == "IOSPlugin");
-			foreach(ReceiptProperty Property in Results)
+			foreach (ReceiptProperty Property in Results)
 			{
 				// Keep only unique paths
 				string PluginPath = Property.Value;
@@ -1350,7 +1347,7 @@ namespace UnrealBuildTool
 			if (SourceFolderInfo.Exists)
 			{
 				FileInfo[] SourceFiles = SourceFolderInfo.GetFiles(TargetFiles);
-				foreach(FileInfo SourceFile in SourceFiles)
+				foreach (FileInfo SourceFile in SourceFiles)
 				{
 					string DestinationPath = Path.Combine(DestinationDirectory, SourceFile.Name);
 					SafeFileCopy(SourceFile, DestinationPath, bOverwrite);
@@ -1366,7 +1363,7 @@ namespace UnrealBuildTool
 
 		static private void RecursiveFolderCopy(DirectoryInfo SourceFolderInfo, DirectoryInfo DestFolderInfo, bool bOverwrite = false, FilenameFilter? Filter = null)
 		{
-			foreach(FileInfo SourceFileInfo in SourceFolderInfo.GetFiles())
+			foreach (FileInfo SourceFileInfo in SourceFolderInfo.GetFiles())
 			{
 				string DestinationPath = Path.Combine(DestFolderInfo.FullName, SourceFileInfo.Name);
 				if (Filter != null && !Filter(DestinationPath))
@@ -1376,7 +1373,7 @@ namespace UnrealBuildTool
 				SafeFileCopy(SourceFileInfo, DestinationPath, bOverwrite);
 			}
 
-			foreach(DirectoryInfo SourceSubFolderInfo in SourceFolderInfo.GetDirectories())
+			foreach (DirectoryInfo SourceSubFolderInfo in SourceFolderInfo.GetDirectories())
 			{
 				string DestFolderName = Path.Combine(DestFolderInfo.FullName, SourceSubFolderInfo.Name);
 				Directory.CreateDirectory(DestFolderName);

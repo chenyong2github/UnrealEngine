@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace UnrealBuildTool
 {
@@ -22,49 +19,49 @@ namespace UnrealBuildTool
 		public static void CopyIncludeDirectives(StreamReader Reader, StringBuilder Writer)
 		{
 			StringBuilder Token = new StringBuilder();
-			while(TryReadToken(Reader, Token))
+			while (TryReadToken(Reader, Token))
 			{
-				if(Token.Length > 1 || Token[0] != '\n')
+				if (Token.Length > 1 || Token[0] != '\n')
 				{
-					if(Token.Length != 1 || Token[0] != '#')
+					if (Token.Length != 1 || Token[0] != '#')
 					{
 						break;
 					}
-					if(!TryReadToken(Reader, Token))
+					if (!TryReadToken(Reader, Token))
 					{
 						break;
 					}
 
 					string Directive = Token.ToString();
-					if(Directive == "pragma")
+					if (Directive == "pragma")
 					{
-						if(!TryReadToken(Reader, Token) || Token.ToString() != "once")
+						if (!TryReadToken(Reader, Token) || Token.ToString() != "once")
 						{
 							break;
 						}
-						if(!TryReadToken(Reader, Token) || Token.ToString() != "\n")
+						if (!TryReadToken(Reader, Token) || Token.ToString() != "\n")
 						{
 							break;
 						}
 					}
-					else if(Directive == "include")
+					else if (Directive == "include")
 					{
-						if(!TryReadToken(Reader, Token) || Token[0] != '\"')
+						if (!TryReadToken(Reader, Token) || Token[0] != '\"')
 						{
 							break;
 						}
 
 						string IncludeFile = Token.ToString();
 
-						if(!IncludeFile.EndsWith(".h\"") && !IncludeFile.EndsWith(".h>"))
+						if (!IncludeFile.EndsWith(".h\"") && !IncludeFile.EndsWith(".h>"))
 						{
 							break;
 						}
-						if(IncludeFile.Equals("\"RequiredProgramMainCPPInclude.h\"", StringComparison.OrdinalIgnoreCase))
+						if (IncludeFile.Equals("\"RequiredProgramMainCPPInclude.h\"", StringComparison.OrdinalIgnoreCase))
 						{
 							break;
 						}
-						if(!TryReadToken(Reader, Token) || Token.ToString() != "\n")
+						if (!TryReadToken(Reader, Token) || Token.ToString() != "\n")
 						{
 							break;
 						}
@@ -90,46 +87,46 @@ namespace UnrealBuildTool
 			Token.Clear();
 
 			int NextChar;
-			for(;;)
+			for (; ; )
 			{
 				NextChar = Reader.Read();
-				if(NextChar == -1)
+				if (NextChar == -1)
 				{
 					return false;
 				}
-				if(NextChar != ' ' && NextChar != '\t' && NextChar != '\r')
+				if (NextChar != ' ' && NextChar != '\t' && NextChar != '\r')
 				{
-					if(NextChar != '/')
+					if (NextChar != '/')
 					{
 						break;
 					}
-					else if(Reader.Peek() == '/')
+					else if (Reader.Peek() == '/')
 					{
 						Reader.Read();
-						for(;;)
+						for (; ; )
 						{
 							NextChar = Reader.Read();
-							if(NextChar == -1)
+							if (NextChar == -1)
 							{
 								return false;
 							}
-							if(NextChar == '\n')
+							if (NextChar == '\n')
 							{
 								break;
 							}
 						}
 					}
-					else if(Reader.Peek() == '*')
+					else if (Reader.Peek() == '*')
 					{
 						Reader.Read();
-						for(;;)
+						for (; ; )
 						{
 							NextChar = Reader.Read();
-							if(NextChar == -1)
+							if (NextChar == -1)
 							{
 								return false;
 							}
-							if(NextChar == '*' && Reader.Peek() == '/')
+							if (NextChar == '*' && Reader.Peek() == '/')
 							{
 								break;
 							}
@@ -145,29 +142,29 @@ namespace UnrealBuildTool
 
 			Token.Append((char)NextChar);
 
-			if(Char.IsLetterOrDigit((char)NextChar))
+			if (Char.IsLetterOrDigit((char)NextChar))
 			{
-				for(;;)
+				for (; ; )
 				{
 					NextChar = Reader.Read();
-					if(NextChar == -1 || !Char.IsLetterOrDigit((char)NextChar))
+					if (NextChar == -1 || !Char.IsLetterOrDigit((char)NextChar))
 					{
 						break;
 					}
 					Token.Append((char)NextChar);
 				}
 			}
-			else if(NextChar == '\"' || NextChar == '<')
+			else if (NextChar == '\"' || NextChar == '<')
 			{
-				for(;;)
+				for (; ; )
 				{
 					NextChar = Reader.Read();
-					if(NextChar == -1)
+					if (NextChar == -1)
 					{
 						break;
 					}
 					Token.Append((char)NextChar);
-					if(NextChar == '\"' || NextChar == '>')
+					if (NextChar == '\"' || NextChar == '>')
 					{
 						break;
 					}

@@ -6,8 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
@@ -409,7 +407,7 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// How to handle linking and copying the framework
 			/// </summary>
-			public  enum FrameworkMode
+			public enum FrameworkMode
 			{
 				/// <summary>
 				/// Pass this framework to the linker
@@ -834,7 +832,7 @@ namespace UnrealBuildTool
 
 		/// <inheritdoc cref="DeterministicWarningLevelPrivate"/>
 		private WarningLevel DeterministicWarningLevelPrivate;
-		
+
 		/// <summary>
 		/// How to treat shadow variable warnings
 		/// </summary>
@@ -1313,7 +1311,7 @@ namespace UnrealBuildTool
 		/// Which stanard to use for compiling this module
 		/// </summary>
 		public CppStandardVersion? CppStandard;
-		
+
 		/// <summary>
 		/// Which standard to use for compiling this module
 		/// </summary>
@@ -1470,7 +1468,7 @@ namespace UnrealBuildTool
 					if (Target.Type == TargetType.Editor)
 					{
 						PublicDependencyModuleNames.Add("GameplayDebuggerEditor");
-					}					
+					}
 				}
 				else
 				{
@@ -1675,7 +1673,7 @@ namespace UnrealBuildTool
 		internal void PrepareModuleForTests()
 		{
 			TestTargetRules? TestTargetRules = Target.InnerTestTargetRules;
-			if (TestTargetRules == null) 
+			if (TestTargetRules == null)
 			{
 				return;
 			}

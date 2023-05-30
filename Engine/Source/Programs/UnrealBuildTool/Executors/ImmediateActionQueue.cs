@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Microsoft.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 using UnrealBuildTool.Artifacts;
 
@@ -327,10 +325,10 @@ namespace UnrealBuildTool
 			foreach (LinkedAction action in actions)
 			{
 				action.SortIndex = index;
-				Actions[index++] = new ActionState 
-				{ 
-					Action = action, 
-					Status = ActionStatus.Queued, 
+				Actions[index++] = new ActionState
+				{
+					Action = action,
+					Status = ActionStatus.Queued,
 					Phase = action.ArtifactMode.HasFlag(ArtifactMode.Enabled) ? initialPhase : ActionPhase.Compile,
 					Results = null,
 				};
@@ -431,12 +429,12 @@ namespace UnrealBuildTool
 		{
 			foreach (ActionState actionState in Actions)
 			{
-				if (actionState.Status == ActionStatus.Queued && 
-					actionState.Phase == ActionPhase.Compile && 
+				if (actionState.Status == ActionStatus.Queued &&
+					actionState.Phase == ActionPhase.Compile &&
 					GetActionReadyState(actionState.Action) == ActionReadyState.Ready)
 				{
 					yield return actionState.Action;
-				}				
+				}
 			}
 		}
 
@@ -449,7 +447,7 @@ namespace UnrealBuildTool
 		{
 
 			// Loop until we have an action or no completed actions (i.e. no propagated errors)
-			for(; ; )
+			for (; ; )
 			{
 				bool hasCanceled = false;
 

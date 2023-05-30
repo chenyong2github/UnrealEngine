@@ -2,15 +2,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using EpicGames.Core;
 using System.Diagnostics.CodeAnalysis;
-using UnrealBuildBase;
+using System.Linq;
 using System.Runtime.Versioning;
+using System.Text;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -429,7 +428,7 @@ namespace UnrealBuildTool
 			set => bStripUnreferencedSymbolsPrivate = value;
 		}
 		private bool? bStripUnreferencedSymbolsPrivate;
-			
+
 		/// <summary>
 		/// Merge identical COMDAT sections together (/OPT:ICF)
 		/// </summary>
@@ -536,7 +535,7 @@ namespace UnrealBuildTool
 				{
 					return MicrosoftPlatformSDK.FindVisualStudioInstallations(Environment!.ToolChain, Target.Logger).Select(x => x.BaseDir.FullName).FirstOrDefault();
 				}
-				catch(Exception) // Find function will throw if there is no visual studio installed! This can happen w/ clang builds
+				catch (Exception) // Find function will throw if there is no visual studio installed! This can happen w/ clang builds
 				{
 					return null;
 				}
@@ -572,7 +571,7 @@ namespace UnrealBuildTool
 			this.Target = Target;
 
 			string Platform = Target.Platform.ToString();
-			if (Target.Platform== UnrealTargetPlatform.Win64 && !Target.Architecture.bIsX64)
+			if (Target.Platform == UnrealTargetPlatform.Win64 && !Target.Architecture.bIsX64)
 			{
 				Platform += "-arm64";
 			}
@@ -604,7 +603,7 @@ namespace UnrealBuildTool
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>
 		#region Read-only accessor properties 
-		#pragma warning disable CS1591
+#pragma warning disable CS1591
 
 		public bool bUseFastGenProfile => Inner.bUseFastGenProfile;
 
@@ -716,7 +715,7 @@ namespace UnrealBuildTool
 
 		public string? IDEDir => Inner.IDEDir;
 
-		#pragma warning restore CS1591
+#pragma warning restore CS1591
 		#endregion
 	}
 
@@ -767,7 +766,7 @@ namespace UnrealBuildTool
 	class WindowsArchitectureConfig : UnrealArchitectureConfig
 	{
 		public WindowsArchitectureConfig()
-			: base(UnrealArchitectureMode.OneTargetPerArchitecture, new[] { UnrealArch.X64, UnrealArch.Arm64, UnrealArch.Arm64ec})
+			: base(UnrealArchitectureMode.OneTargetPerArchitecture, new[] { UnrealArch.X64, UnrealArch.Arm64, UnrealArch.Arm64ec })
 		{
 
 		}
@@ -785,7 +784,7 @@ namespace UnrealBuildTool
 	}
 
 	class WindowsPlatform : UEBuildPlatform
-	{		
+	{
 		MicrosoftPlatformSDK SDK;
 
 		/// <summary>
@@ -868,7 +867,7 @@ namespace UnrealBuildTool
 			{
 				Target.bCompileCEF3 = false;
 			}
-			
+
 			// If clang is selected for static analysis, switch compiler to clang and proceed
 			// as normal.
 			if (Target.StaticAnalyzer == StaticAnalyzer.Clang)
@@ -879,8 +878,8 @@ namespace UnrealBuildTool
 				}
 				Target.StaticAnalyzer = StaticAnalyzer.Default;
 			}
-			else if (Target.StaticAnalyzer != StaticAnalyzer.None && 
-			         Target.StaticAnalyzerOutputType != StaticAnalyzerOutputType.Text)
+			else if (Target.StaticAnalyzer != StaticAnalyzer.None &&
+					 Target.StaticAnalyzerOutputType != StaticAnalyzerOutputType.Text)
 			{
 				Logger.LogInformation("Defaulting static analyzer output type to text");
 			}
@@ -908,7 +907,7 @@ namespace UnrealBuildTool
 			{
 				Target.bUsePCHFiles = false;
 			}
-			
+
 			// Disable chaining PCH files if not using clang
 			if (!Target.WindowsPlatform.Compiler.IsClang())
 			{
@@ -965,29 +964,29 @@ namespace UnrealBuildTool
 				throw new BuildException("LibFuzzer MSVC support requires Visual Studio 2022 17.0 or later (14.30.0). The current compiler version was detected as: {0}", Target.WindowsPlatform.Environment.CompilerVersion.ToString());
 			}
 
-//			@Todo: Still getting reports of frequent OOM issues with this enabled as of 15.7.
-//			// Enable fast PDB linking if we're on VS2017 15.7 or later. Previous versions have OOM issues with large projects.
-//			if(!Target.bFormalBuild && !Target.bUseFastPDBLinking.HasValue && Target.WindowsPlatform.Compiler.IsMSVC())
-//			{
-//				VersionNumber Version;
-//				DirectoryReference ToolChainDir;
-//				if(TryGetVCToolChainDir(Target.WindowsPlatform.Compiler, Target.WindowsPlatform.CompilerVersion, out Version, out ToolChainDir) && Version >= new VersionNumber(14, 14, 26316))
-//				{
-//					Target.bUseFastPDBLinking = true;
-//				}
-//			}
+			//			@Todo: Still getting reports of frequent OOM issues with this enabled as of 15.7.
+			//			// Enable fast PDB linking if we're on VS2017 15.7 or later. Previous versions have OOM issues with large projects.
+			//			if(!Target.bFormalBuild && !Target.bUseFastPDBLinking.HasValue && Target.WindowsPlatform.Compiler.IsMSVC())
+			//			{
+			//				VersionNumber Version;
+			//				DirectoryReference ToolChainDir;
+			//				if(TryGetVCToolChainDir(Target.WindowsPlatform.Compiler, Target.WindowsPlatform.CompilerVersion, out Version, out ToolChainDir) && Version >= new VersionNumber(14, 14, 26316))
+			//				{
+			//					Target.bUseFastPDBLinking = true;
+			//				}
+			//			}
 		}
 
 		/// <summary>
 		/// Gets the default compiler which should be used, if it's not set explicitly by the target, command line, or config file.
 		/// </summary>
 		/// <returns>The default compiler version</returns>
-		internal static WindowsCompiler GetDefaultCompiler(FileReference? ProjectFile, UnrealArch Architecture, ILogger Logger, bool bSkipWarning=false)
+		internal static WindowsCompiler GetDefaultCompiler(FileReference? ProjectFile, UnrealArch Architecture, ILogger Logger, bool bSkipWarning = false)
 		{
 			// If there's no specific compiler set, try to pick the matching compiler for the selected IDE
 			if (ProjectFileGeneratorSettings.Format != null)
 			{
-				foreach(ProjectFileFormat Format in ProjectFileGeneratorSettings.ParseFormatList(ProjectFileGeneratorSettings.Format, Logger))
+				foreach (ProjectFileFormat Format in ProjectFileGeneratorSettings.ParseFormatList(ProjectFileGeneratorSettings.Format, Logger))
 				{
 					if (Format == ProjectFileFormat.VisualStudio2022)
 					{
@@ -997,7 +996,7 @@ namespace UnrealBuildTool
 					{
 						return WindowsCompiler.VisualStudio2019;
 					}
-				} 
+				}
 			}
 
 			// Also check the default format for the Visual Studio project generator
@@ -1017,12 +1016,12 @@ namespace UnrealBuildTool
 
 			// Check the editor settings too
 			ProjectFileFormat PreferredAccessor;
-			if(ProjectFileGenerator.GetPreferredSourceCodeAccessor(ProjectFile, out PreferredAccessor))
+			if (ProjectFileGenerator.GetPreferredSourceCodeAccessor(ProjectFile, out PreferredAccessor))
 			{
-				if(PreferredAccessor == ProjectFileFormat.VisualStudio2022)
-			    {
-				    return WindowsCompiler.VisualStudio2022;
-			    }
+				if (PreferredAccessor == ProjectFileFormat.VisualStudio2022)
+				{
+					return WindowsCompiler.VisualStudio2022;
+				}
 				else if (PreferredAccessor == ProjectFileFormat.VisualStudio2019)
 				{
 					return WindowsCompiler.VisualStudio2019;
@@ -1086,7 +1085,7 @@ namespace UnrealBuildTool
 		public static IEnumerable<DirectoryReference>? TryGetVSInstallDirs(WindowsCompiler Compiler, ILogger Logger)
 		{
 			List<VisualStudioInstallation> Installations = MicrosoftPlatformSDK.FindVisualStudioInstallations(Compiler, Logger);
-			if(Installations.Count == 0)
+			if (Installations.Count == 0)
 			{
 				return null;
 			}
@@ -1222,9 +1221,9 @@ namespace UnrealBuildTool
 			{
 				case UEBuildBinaryType.DynamicLinkLibrary:
 				case UEBuildBinaryType.Executable:
-					return new string[] {".pdb"};
+					return new string[] { ".pdb" };
 			}
-			return new string [] {};
+			return new string[] { };
 		}
 
 		public override bool HasDefaultBuildConfig(UnrealTargetPlatform Platform, DirectoryReference ProjectPath)
@@ -1252,10 +1251,10 @@ namespace UnrealBuildTool
 		public static FileReference GetWindowsApplicationIcon(FileReference? ProjectFile)
 		{
 			// Check if there's a custom icon
-			if(ProjectFile != null)
+			if (ProjectFile != null)
 			{
 				FileReference IconFile = FileReference.Combine(ProjectFile.Directory, "Build", "Windows", "Application.ico");
-				if(FileReference.Exists(IconFile))
+				if (FileReference.Exists(IconFile))
 				{
 					return IconFile;
 				}
@@ -1333,7 +1332,7 @@ namespace UnrealBuildTool
 
 			CompileEnvironment.Definitions.Add(String.Format("_WIN32_WINNT=0x{0:X4}", Target.WindowsPlatform.TargetWindowsVersion));
 			CompileEnvironment.Definitions.Add(String.Format("WINVER=0x{0:X4}", Target.WindowsPlatform.TargetWindowsVersion));
-			
+
 			CompileEnvironment.Definitions.Add("PLATFORM_WINDOWS=1");
 			CompileEnvironment.Definitions.Add("PLATFORM_MICROSOFT=1");
 
@@ -1520,7 +1519,7 @@ namespace UnrealBuildTool
 		{
 			base.GetExternalBuildMetadata(ProjectFile, Metadata);
 
-			if(ProjectFile != null)
+			if (ProjectFile != null)
 			{
 				Metadata.AppendLine("ICON: {0}", GetApplicationIcon(ProjectFile));
 			}

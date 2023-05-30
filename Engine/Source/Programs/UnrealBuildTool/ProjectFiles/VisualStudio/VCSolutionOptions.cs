@@ -2,20 +2,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Xml;
-using System.Xml.XPath;
-using System.Xml.Linq;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Diagnostics;
-
-using STATSTG = System.Runtime.InteropServices.ComTypes.STATSTG;
-using FILETIME = System.Runtime.InteropServices.ComTypes.FILETIME;
-using UnrealBuildBase;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Versioning;
+using System.Text;
+using FILETIME = System.Runtime.InteropServices.ComTypes.FILETIME;
+using STATSTG = System.Runtime.InteropServices.ComTypes.STATSTG;
 
 namespace UnrealBuildTool
 {
@@ -214,7 +209,7 @@ namespace UnrealBuildTool
 		}
 
 		[DllImport("ole32.dll")]
-		static extern int StgCreateDocfile([MarshalAs(UnmanagedType.LPWStr)]string pwcsName, STGM grfMode, uint reserved, out IOleStorage ppstgOpen);
+		static extern int StgCreateDocfile([MarshalAs(UnmanagedType.LPWStr)] string pwcsName, STGM grfMode, uint reserved, out IOleStorage ppstgOpen);
 
 		[DllImport("ole32.dll")]
 		static extern int StgOpenStorage([MarshalAs(UnmanagedType.LPWStr)] string pwcsName, IOleStorage? pstgPriority, STGM grfMode, IntPtr snbExclude, uint reserved, out IOleStorage ppstgOpen);
@@ -370,11 +365,13 @@ namespace UnrealBuildTool
 		{
 			long OpenFoldersEnd = Reader.BaseStream.Position + Reader.ReadInt32();
 
-			if(Format >= VCProjectFileFormat.VisualStudio2019)
+			if (Format >= VCProjectFileFormat.VisualStudio2019)
 			{
 				int Header1 = Reader.ReadInt32();
-				/*int Header2 =*/ Reader.ReadInt32();
-				/*int Header3 =*/ Reader.ReadByte();
+				/*int Header2 =*/
+				Reader.ReadInt32();
+				/*int Header3 =*/
+				Reader.ReadByte();
 				if (Header1 != 15)
 				{
 					throw new BuildException("Unexpected data in open projects section");
@@ -410,7 +407,7 @@ namespace UnrealBuildTool
 
 		void WriteOpenProjects(BinaryWriter Writer, VCProjectFileFormat Format)
 		{
-			if(Format >= VCProjectFileFormat.VisualStudio2019)
+			if (Format >= VCProjectFileFormat.VisualStudio2019)
 			{
 				Writer.Write(4 + (4 + 4 + 1) + 2 + OpenProjects.Sum(x => GetStringSize(x.Item1) + 2 + x.Item2.Sum(y => GetStringSize(y))));
 				Writer.Write(15);

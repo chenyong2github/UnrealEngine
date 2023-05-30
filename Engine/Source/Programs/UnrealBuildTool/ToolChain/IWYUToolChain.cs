@@ -87,7 +87,7 @@ namespace UnrealBuildTool
 			// Need to add these on cmd line.. IWYU is not parsing commands after response file expansion.
 			string CommonCommandLineArgs = " -Xiwyu --mapping_file=" + IWYUMappingFile.FullName +
 										   " -Xiwyu --prefix_header_includes=keep" +
-//										   " -Xiwyu --transitive_includes_only" +  // Since we are building headers separately (not together with their cpp) we don't need this
+										   //										   " -Xiwyu --transitive_includes_only" +  // Since we are building headers separately (not together with their cpp) we don't need this
 										   " -Xiwyu --no_check_matching_header" +
 										   " -Xiwyu --cxx17ns";
 

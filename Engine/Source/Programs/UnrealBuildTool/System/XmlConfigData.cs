@@ -6,10 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
-using UnrealBuildTool;
 
 namespace UnrealBuildTool
 {
@@ -36,27 +33,27 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// Returns Reflection.MemberInfo describing the target class member.
 			/// </summary>
-			public abstract MemberInfo               MemberInfo { get; }
+			public abstract MemberInfo MemberInfo { get; }
 
 			/// <summary>
 			/// Returns Reflection.Type of the target class member.
 			/// </summary>
-			public abstract Type                     Type       { get; }
+			public abstract Type Type { get; }
 
 			/// <summary>
 			/// Indicates whether the target class member is static or not.
 			/// </summary>
-			public abstract bool                     IsStatic   { get; }
+			public abstract bool IsStatic { get; }
 
 			/// <summary>
 			/// Returns the value setter of the target class member.
 			/// </summary>
-			public abstract Action<object?, object?> SetValue   { get; }
+			public abstract Action<object?, object?> SetValue { get; }
 
 			/// <summary>
 			/// Returns the value getter of the target class member.
 			/// </summary>
-			public abstract Func<object?, object?>   GetValue   { get; }
+			public abstract Func<object?, object?> GetValue { get; }
 		}
 
 		/// <summary>
@@ -64,11 +61,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		public class TargetField : TargetMember
 		{
-			public override MemberInfo               MemberInfo => FieldInfo;
-			public override Type                     Type       => FieldInfo.FieldType;
-			public override bool                     IsStatic   => FieldInfo.IsStatic;
-			public override Action<object?, object?> SetValue   => FieldInfo.SetValue;
-			public override Func<object?, object?>   GetValue   => FieldInfo.GetValue;
+			public override MemberInfo MemberInfo => FieldInfo;
+			public override Type Type => FieldInfo.FieldType;
+			public override bool IsStatic => FieldInfo.IsStatic;
+			public override Action<object?, object?> SetValue => FieldInfo.SetValue;
+			public override Func<object?, object?> GetValue => FieldInfo.GetValue;
 
 			private FieldInfo FieldInfo;
 
@@ -83,11 +80,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		public class TargetProperty : TargetMember
 		{
-			public override MemberInfo               MemberInfo => PropertyInfo;
-			public override Type                     Type       => PropertyInfo.PropertyType;
-			public override bool                     IsStatic   => PropertyInfo.GetGetMethod()!.IsStatic;
-			public override Action<object?, object?> SetValue   => PropertyInfo.SetValue;
-			public override Func<object?, object?>   GetValue   => PropertyInfo.GetValue;
+			public override MemberInfo MemberInfo => PropertyInfo;
+			public override Type Type => PropertyInfo.PropertyType;
+			public override bool IsStatic => PropertyInfo.GetGetMethod()!.IsStatic;
+			public override Action<object?, object?> SetValue => PropertyInfo.SetValue;
+			public override Func<object?, object?> GetValue => PropertyInfo.GetValue;
 
 			private PropertyInfo PropertyInfo;
 
@@ -128,7 +125,7 @@ namespace UnrealBuildTool
 				this.XmlConfigAttribute = XmlConfigAttribute;
 			}
 		}
-		
+
 		/// <summary>
 		/// Stores a mapping from type -> member -> value, with all the config values for configurable fields.
 		/// </summary>
@@ -165,7 +162,7 @@ namespace UnrealBuildTool
 			using (BinaryReader Reader = new BinaryReader(File.Open(Location.FullName, FileMode.Open, FileAccess.Read, FileShare.Read)))
 			{
 				// Check the serialization version matches
-				if(Reader.ReadInt32() != SerializationVersion)
+				if (Reader.ReadInt32() != SerializationVersion)
 				{
 					Data = null;
 					return false;
@@ -177,14 +174,14 @@ namespace UnrealBuildTool
 				// Read the types
 				int NumTypes = Reader.ReadInt32();
 				Dictionary<Type, ValueInfo[]> TypeToValues = new Dictionary<Type, ValueInfo[]>(NumTypes);
-				for(int TypeIdx = 0; TypeIdx < NumTypes; TypeIdx++)
+				for (int TypeIdx = 0; TypeIdx < NumTypes; TypeIdx++)
 				{
 					// Read the type name
 					string TypeName = Reader.ReadString();
 
 					// Try to find it in the list of configurable types
 					Type? Type = Types.FirstOrDefault(x => x.Name == TypeName);
-					if(Type == null)
+					if (Type == null)
 					{
 						Data = null;
 						return false;
@@ -275,11 +272,11 @@ namespace UnrealBuildTool
 
 				// Write all the categories
 				Writer.Write(TypeToValues.Count);
-				foreach(KeyValuePair<Type, ValueInfo[]> TypePair in TypeToValues)
+				foreach (KeyValuePair<Type, ValueInfo[]> TypePair in TypeToValues)
 				{
 					Writer.Write(TypePair.Key.Name);
 					Writer.Write(TypePair.Value.Length);
-					foreach(ValueInfo MemberPair in TypePair.Value)
+					foreach (ValueInfo MemberPair in TypePair.Value)
 					{
 						Writer.Write(MemberPair.Target.MemberInfo.Name);
 						Writer.Write(MemberPair.Target.Type, MemberPair.Value);

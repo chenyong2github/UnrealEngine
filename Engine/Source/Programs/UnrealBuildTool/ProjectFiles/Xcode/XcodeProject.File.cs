@@ -18,7 +18,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public XcodeSourceFile(FileReference InitFilePath, DirectoryReference? InitRelativeBaseFolder, string? FileRefGuid=null)
+		public XcodeSourceFile(FileReference InitFilePath, DirectoryReference? InitRelativeBaseFolder, string? FileRefGuid = null)
 			: base(InitFilePath, InitRelativeBaseFolder)
 		{
 			FileGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
@@ -221,7 +221,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			RootDirectory = UProjectLocation == null || UProjectLocation.ContainsName("Programs", 0) ? (Unreal.EngineDirectory) : UProjectLocation!.Directory;
 		}
 
-		public void ProcessFile(XcodeSourceFile File, bool bIsForBuild, bool bIsFolder, string? GroupName=null, string ExtraResourceSettings="", Dictionary<DirectoryReference, int>? SourceToBuildFileMap=null)
+		public void ProcessFile(XcodeSourceFile File, bool bIsForBuild, bool bIsFolder, string? GroupName = null, string ExtraResourceSettings = "", Dictionary<DirectoryReference, int>? SourceToBuildFileMap = null)
 		{
 			// remember all buildable files
 			if (bIsForBuild)
@@ -271,7 +271,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					BuildableResourceFiles.Add(Tuple.Create(File, ExtraResourceSettings));
 				}
 			}
-			
+
 			if (GroupName != "")
 			{
 				// group the files by path

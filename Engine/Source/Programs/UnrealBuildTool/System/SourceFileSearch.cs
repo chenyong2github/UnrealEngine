@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using System.Diagnostics;
 using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
@@ -14,7 +11,7 @@ namespace UnrealBuildTool
 	static class SourceFileSearch
 	{
 		// Certain file types should never be added to project files. These extensions must all be lowercase.
-		static readonly string[] DefaultExcludedFileSuffixes = new string[] 
+		static readonly string[] DefaultExcludedFileSuffixes = new string[]
 		{
 			".vcxproj",				// Visual Studio project files
 			".vcxproj.filters",		// Visual Studio filter file
@@ -33,7 +30,7 @@ namespace UnrealBuildTool
 		};
 
 		// Default directory names to exclude. Must be lowercase.
-		static readonly string[] DefaultExcludedDirectorySuffixes = new string[] 
+		static readonly string[] DefaultExcludedDirectorySuffixes = new string[]
 		{
 			Path.DirectorySeparatorChar + "intermediate",
 			Path.DirectorySeparatorChar + "source" + Path.DirectorySeparatorChar + "thirdparty",
@@ -83,7 +80,7 @@ namespace UnrealBuildTool
 
 		static void FindFilesInternal(DirectoryReference Directory, string[] ExcludedDirectorySuffixes, List<FileReference> FoundFiles, HashSet<DirectoryReference>? SearchedDirectories)
 		{
-			if(SearchedDirectories != null)
+			if (SearchedDirectories != null)
 			{
 				SearchedDirectories.Add(Directory);
 			}
@@ -117,7 +114,7 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
-			
+
 			foreach (string ExcludedSuffix in ExcludedSuffixes)
 			{
 				if (Reference.FullName.EndsWith(ExcludedSuffix, FileSystemReference.Comparison))

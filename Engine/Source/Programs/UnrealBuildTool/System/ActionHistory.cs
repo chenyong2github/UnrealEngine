@@ -6,12 +6,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
 using System.Text;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -58,7 +57,7 @@ namespace UnrealBuildTool
 		{
 			this.Location = Location;
 
-			if(FileReference.Exists(Location))
+			if (FileReference.Exists(Location))
 			{
 				Load(Logger);
 			}
@@ -71,10 +70,10 @@ namespace UnrealBuildTool
 		{
 			try
 			{
-				using(BinaryArchiveReader Reader = new BinaryArchiveReader(Location))
+				using (BinaryArchiveReader Reader = new BinaryArchiveReader(Location))
 				{
 					int Version = Reader.ReadInt();
-					if(Version != CurrentVersion)
+					if (Version != CurrentVersion)
 					{
 						Logger.LogDebug("Unable to read action history from {Location}; version {Version} vs current {CurrentVersion}", Location, Version, CurrentVersion);
 						return;
@@ -83,7 +82,7 @@ namespace UnrealBuildTool
 					OutputItemToAttributeHash = new ConcurrentDictionary<FileItem, byte[]>(Reader.ReadDictionary(() => Reader.ReadFileItem()!, () => Reader.ReadFixedSizeByteArray(HashLength))!);
 				}
 			}
-			catch(Exception Ex)
+			catch (Exception Ex)
 			{
 				Logger.LogWarning("Unable to read {Location}. See log for additional information.", Location);
 				Logger.LogDebug("{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
@@ -127,9 +126,9 @@ namespace UnrealBuildTool
 		/// <returns>True if the hashes are equal</returns>
 		static bool CompareHashes(byte[] A, byte[] B)
 		{
-			for(int Idx = 0; Idx < HashLength; Idx++)
+			for (int Idx = 0; Idx < HashLength; Idx++)
 			{
-				if(A[Idx] != B[Idx])
+				if (A[Idx] != B[Idx])
 				{
 					return false;
 				}
@@ -147,7 +146,7 @@ namespace UnrealBuildTool
 		{
 			byte[] NewHash = ComputeHash(Attributes);
 
-			for (;;)
+			for (; ; )
 			{
 				if (OutputItemToAttributeHash.TryAdd(File, NewHash))
 				{
@@ -175,8 +174,8 @@ namespace UnrealBuildTool
 							}
 						}
 					}
-				}				
-			}		
+				}
+			}
 		}
 
 		/// <summary>
@@ -190,7 +189,7 @@ namespace UnrealBuildTool
 		public static FileReference GetEngineLocation(string TargetName, UnrealTargetPlatform Platform, TargetType TargetType, UnrealArchitectures Architectures)
 		{
 			string AppName;
-			if(TargetType == TargetType.Program)
+			if (TargetType == TargetType.Program)
 			{
 				AppName = TargetName;
 			}
@@ -226,11 +225,11 @@ namespace UnrealBuildTool
 		/// <returns>Dependency cache hierarchy for the given project</returns>
 		public static IEnumerable<FileReference> GetFilesToClean(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, TargetType TargetType, UnrealArchitectures Architectures)
 		{
-			if(ProjectFile == null || !Unreal.IsEngineInstalled())
+			if (ProjectFile == null || !Unreal.IsEngineInstalled())
 			{
 				yield return GetEngineLocation(TargetName, Platform, TargetType, Architectures);
 			}
-			if(ProjectFile != null)
+			if (ProjectFile != null)
 			{
 				yield return GetProjectLocation(ProjectFile, TargetName, Platform, Architectures);
 			}
@@ -284,7 +283,7 @@ namespace UnrealBuildTool
 				lock (LockObject)
 				{
 					Layer = Layers.FirstOrDefault(x => x.Location == LayerLocation);
-					if(Layer == null)
+					if (Layer == null)
 					{
 						Layer = new ActionHistoryLayer(LayerLocation, Logger);
 
@@ -376,7 +375,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public void Save()
 		{
-			foreach(ActionHistoryLayer Layer in Layers)
+			foreach (ActionHistoryLayer Layer in Layers)
 			{
 				Layer.Save();
 			}
@@ -416,7 +415,7 @@ namespace UnrealBuildTool
 			lock (LockObject)
 			{
 				ActionHistoryPartition? Partition = Partitions.FirstOrDefault(x => x.BaseDir == BaseDir);
-				if(Partition == null)
+				if (Partition == null)
 				{
 					Partition = new ActionHistoryPartition(BaseDir);
 					Partitions.Add(Partition);

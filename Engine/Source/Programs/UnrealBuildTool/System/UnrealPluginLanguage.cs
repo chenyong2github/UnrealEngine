@@ -2,16 +2,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
-using System.Diagnostics;
-using System.IO;
 using EpicGames.Core;
-using UnrealBuildBase;
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -505,7 +504,7 @@ namespace UnrealBuildTool
 
 		/** Project file reference */
 		private FileReference? ProjectFile;
-		
+
 		static private XDocument XMLDummy = XDocument.Parse("<manifest></manifest>");
 
 		private class UPLContext
@@ -616,7 +615,7 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
-	
+
 			// create a context for each architecture
 			ContextIndex++;
 			foreach (string Architecture in Architectures)
@@ -1074,7 +1073,7 @@ namespace UnrealBuildTool
 			{
 				foreach (XElement Index in Source.Elements())
 				{
-//					if (Target.Element(Index.Name) == null)
+					//					if (Target.Element(Index.Name) == null)
 					{
 						Target.Add(Index);
 					}
@@ -2426,9 +2425,9 @@ namespace UnrealBuildTool
 									{
 										int Index = StringToInt(CurrentContext, Node, IndexStr);
 										if (Index >= 0 && Index < StringList.Count)
-                                        {
+										{
 											Value = StringList.ElementAt(Index);
-                                        }
+										}
 									}
 								}
 								if (Result == "Output")
@@ -2619,7 +2618,7 @@ namespace UnrealBuildTool
 		}
 
 		public void Init(List<string> Architectures, bool bDistribution, string EngineDirectory, string BuildDirectory, string ProjectDirectory, string Configuration, bool bIsEmbedded,
-			bool bPerArchBuildDir=false, Dictionary<string, string>? ArchRemapping = null)
+			bool bPerArchBuildDir = false, Dictionary<string, string>? ArchRemapping = null)
 		{
 			GlobalContext.BoolVariables["Distribution"] = bDistribution;
 			GlobalContext.BoolVariables["IsEmbedded"] = bIsEmbedded;
@@ -2879,8 +2878,8 @@ namespace UnrealBuildTool
 		/// <param name="Logger"></param>
 		/// <param name="EngineDirectory"></param>
 		public ConfigCacheIni_UPL(UnrealTargetPlatform Platform, string BaseIniName, string? ProjectDirectory, ILogger Logger, string? EngineDirectory = null)
-			: this(Platform, BaseIniName, 
-				  (ProjectDirectory == null) ? null : new DirectoryReference(ProjectDirectory), 
+			: this(Platform, BaseIniName,
+				  (ProjectDirectory == null) ? null : new DirectoryReference(ProjectDirectory),
 				  Logger,
 				  (EngineDirectory == null) ? null : new DirectoryReference(EngineDirectory))
 		{
@@ -3247,7 +3246,7 @@ namespace UnrealBuildTool
 				int LineIndex = 1;
 				bool bMultiLine = false;
 				string SingleValue = "";
-				string  Key = "";
+				string Key = "";
 				ParseAction LastAction = ParseAction.None;
 
 				// Parse each line
@@ -3501,13 +3500,13 @@ namespace UnrealBuildTool
 			DirectoryReference? UserSettingsFolder = Unreal.UserSettingDirectory; // Match FPlatformProcess::UserSettingsDir()
 			DirectoryReference? PersonalFolder = Unreal.UserDirectory; // Match FPlatformProcess::UserDir()
 
-			if(UserSettingsFolder != null)
+			if (UserSettingsFolder != null)
 			{
 				// <AppData>/Unreal/EngineConfig/User* ini
 				yield return FileReference.Combine(UserSettingsFolder, "Unreal Engine", "Engine", "Config", "User" + BaseIniName + ".ini");
 			}
 
-			if(PersonalFolder != null)
+			if (PersonalFolder != null)
 			{
 				// <Documents>/Unreal/EngineConfig/User* ini
 				yield return FileReference.Combine(PersonalFolder, "Unreal Engine", "Engine", "Config", "User" + BaseIniName + ".ini");

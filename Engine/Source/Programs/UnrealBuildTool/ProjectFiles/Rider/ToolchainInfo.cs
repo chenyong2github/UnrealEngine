@@ -34,13 +34,13 @@ namespace UnrealBuildTool
 		{
 			foreach (FieldInfo FieldInfo in typeof(ToolchainInfo).GetFields())
 			{
-				if(FieldInfo.GetValue(this) == null) continue;
+				if (FieldInfo.GetValue(this) == null) continue;
 				if (typeof(List<string>).IsAssignableFrom(FieldInfo.FieldType))
 				{
-					List<string> LocalField = (List<string>) FieldInfo.GetValue(this)!;
+					List<string> LocalField = (List<string>)FieldInfo.GetValue(this)!;
 					HashSet<string> OtherField = new HashSet<string>((List<string>)FieldInfo.GetValue(Other)!);
 					IEnumerable<string> Result = LocalField.Where(Item => OtherField.Contains(Item));
-					if(Result.Any()) yield return new Tuple<string, object?>(FieldInfo.Name, Result);
+					if (Result.Any()) yield return new Tuple<string, object?>(FieldInfo.Name, Result);
 				}
 				else if (!FieldInfo.GetValue(this)!.Equals(FieldInfo.GetValue(Other)))
 					yield return new Tuple<string, object?>(FieldInfo.Name, FieldInfo.GetValue(this));
@@ -75,14 +75,14 @@ namespace UnrealBuildTool
 		{
 			if (ReferenceEquals(null, Obj)) return false;
 			if (ReferenceEquals(this, Obj)) return true;
-			return Obj is ToolchainInfo && Equals((ToolchainInfo) Obj);
+			return Obj is ToolchainInfo && Equals((ToolchainInfo)Obj);
 		}
 
 		public override int GetHashCode()
 		{
 			unchecked
 			{
-				var HashCode = (int) CppStandard;
+				var HashCode = (int)CppStandard;
 				HashCode = (HashCode * 397) ^ bUseRTTI.GetHashCode();
 				HashCode = (HashCode * 397) ^ bEnableExceptions.GetHashCode();
 				HashCode = (HashCode * 397) ^ bIsBuildingLibrary.GetHashCode();

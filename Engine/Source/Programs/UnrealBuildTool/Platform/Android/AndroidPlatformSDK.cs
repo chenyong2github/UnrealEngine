@@ -3,9 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using EpicGames.Core;
-using System.Text.RegularExpressions;
 using System.Linq;
+using System.Text.RegularExpressions;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
 ///////////////////////////////////////////////////////////////////
@@ -57,7 +57,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-	
+
 			return null;
 		}
 
@@ -301,7 +301,7 @@ namespace UnrealBuildTool
 				Logger.LogInformation("NDKROOT llvm missing");
 				return false;
 			}
-			
+
 			// check JDK is valid
 			if (String.IsNullOrEmpty(JavaPath))
 			{

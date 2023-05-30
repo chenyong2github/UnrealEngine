@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 
 namespace UnrealBuildTool
@@ -15,14 +12,14 @@ namespace UnrealBuildTool
 	/// </summary>
 	public class CustomBuildSteps
 	{
-		Dictionary<UnrealTargetPlatform, string[]> HostPlatformToCommands = new Dictionary<UnrealTargetPlatform,string[]>();
+		Dictionary<UnrealTargetPlatform, string[]> HostPlatformToCommands = new Dictionary<UnrealTargetPlatform, string[]>();
 
 		/// <summary>
 		/// Construct a custom build steps object from a Json object.
 		/// </summary>
 		public CustomBuildSteps(JsonObject RawObject)
 		{
-			foreach(string HostPlatformName in RawObject.KeyNames)
+			foreach (string HostPlatformName in RawObject.KeyNames)
 			{
 				UnrealTargetPlatform Platform;
 				if (UnrealTargetPlatform.TryParse(HostPlatformName, out Platform))
@@ -42,7 +39,7 @@ namespace UnrealBuildTool
 		public static bool TryRead(JsonObject RawObject, string FieldName, [NotNullWhen(true)] out CustomBuildSteps? OutBuildSteps)
 		{
 			JsonObject? BuildStepsObject;
-			if(RawObject.TryGetObjectField(FieldName, out BuildStepsObject))
+			if (RawObject.TryGetObjectField(FieldName, out BuildStepsObject))
 			{
 				OutBuildSteps = new CustomBuildSteps(BuildStepsObject);
 				return true;
@@ -63,10 +60,10 @@ namespace UnrealBuildTool
 		public void Write(JsonWriter Writer, string FieldName)
 		{
 			Writer.WriteObjectStart(FieldName);
-			foreach(KeyValuePair<UnrealTargetPlatform, string[]> Pair in HostPlatformToCommands.OrderBy(x => x.Key.ToString()))
+			foreach (KeyValuePair<UnrealTargetPlatform, string[]> Pair in HostPlatformToCommands.OrderBy(x => x.Key.ToString()))
 			{
 				Writer.WriteArrayStart(Pair.Key.ToString());
-				foreach(string Line in Pair.Value)
+				foreach (string Line in Pair.Value)
 				{
 					Writer.WriteValue(Line);
 				}
@@ -84,7 +81,7 @@ namespace UnrealBuildTool
 		public bool TryGetCommands(UnrealTargetPlatform HostPlatform, [NotNullWhen(true)] out string[]? OutCommands)
 		{
 			string[]? Commands;
-			if(HostPlatformToCommands.TryGetValue(HostPlatform, out Commands) && Commands.Length > 0)
+			if (HostPlatformToCommands.TryGetValue(HostPlatform, out Commands) && Commands.Length > 0)
 			{
 				OutCommands = Commands;
 				return true;

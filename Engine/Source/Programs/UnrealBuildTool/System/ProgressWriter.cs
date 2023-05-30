@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
@@ -50,7 +46,7 @@ namespace UnrealBuildTool
 		{
 			Message = InMessage;
 			Logger = InLogger;
-			if(bInUpdateStatus)
+			if (bInUpdateStatus)
 			{
 				Status = new LogStatusScope(InMessage);
 			}
@@ -62,7 +58,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public void Dispose()
 		{
-			if(Status != null)
+			if (Status != null)
 			{
 				Status.Dispose();
 				Status = null;
@@ -85,7 +81,7 @@ namespace UnrealBuildTool
 				{
 					Logger.LogInformation("@progress '{Message}' {ProgressString}", Message, ProgressString);
 				}
-				if(Status != null)
+				if (Status != null)
 				{
 					Status.SetProgress(ProgressString);
 				}

@@ -1,15 +1,12 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.IO;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
@@ -143,14 +140,14 @@ namespace UnrealBuildTool
 				return;
 			}
 
-            // Also don't attempt to use a remote Mac if packaging for TVOS on PC.
-            if (Platform == UnrealTargetPlatform.TVOS && BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac)
-            {
-                return;
-            }
+			// Also don't attempt to use a remote Mac if packaging for TVOS on PC.
+			if (Platform == UnrealTargetPlatform.TVOS && BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac)
+			{
+				return;
+			}
 
 			// Compile the asset catalog immediately
-			if(BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac)
+			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac)
 			{
 				FileReference OutputFile = FileReference.Combine(StageDirectory, "Assets.car");
 
@@ -171,10 +168,10 @@ namespace UnrealBuildTool
 				}
 
 				// Run the process locally
-				using(Process Process = new Process())
+				using (Process Process = new Process())
 				{
 					Process.StartInfo.FileName = "/usr/bin/xcrun";
-					Process.StartInfo.Arguments = IOSToolChain.GetAssetCatalogArgs(Platform, ResourcesDir.FullName, OutputFile.Directory.FullName);; 
+					Process.StartInfo.Arguments = IOSToolChain.GetAssetCatalogArgs(Platform, ResourcesDir.FullName, OutputFile.Directory.FullName); ;
 					Process.StartInfo.UseShellExecute = false;
 					Utils.RunLocalProcess(Process);
 				}
@@ -185,7 +182,7 @@ namespace UnrealBuildTool
 		/// Set a secondary remote Mac to retrieve built data on a remote Mac.
 		/// </summary>
 		/// <returns></returns>
-		
+
 		public static void SetSecondaryRemoteMac(string ClientPlatform, FileReference ProjectFile, ILogger Logger)
 		{
 			RemoteMac Remote = new RemoteMac(ProjectFile, Logger, true, true);
@@ -203,7 +200,7 @@ namespace UnrealBuildTool
 		/// <param name="Logger">A logger</param>
 		/// <returns></returns>
 		public static void PrepareRemoteMacForDebugging(string ClientPlatform, FileReference ProjectFile, ILogger Logger)
-        {
+		{
 			RemoteMac Remote = new RemoteMac(ProjectFile, Logger);
 			Remote.PrepareToDebug(ClientPlatform, ProjectFile, Logger);
 		}
@@ -233,7 +230,7 @@ namespace UnrealBuildTool
 			if (MobileProvisionFile != null && File.Exists(MobileProvisionFile.FullName))
 			{
 				Console.WriteLine("Write entitlements from provisioning file {0}", MobileProvisionFile);
-				
+
 				MobileProvisionContents MobileProvisionContent = MobileProvisionContents.Read(MobileProvisionFile);
 
 				iCloudContainerIdentifier = MobileProvisionContent.GetNodeValueByName("com.apple.developer.icloud-container-identifiers");
@@ -341,7 +338,7 @@ namespace UnrealBuildTool
 					Text.AppendLine("\t<key>com.apple.developer.user-management</key>");
 					Text.AppendLine("\t<array><string>runs-as-current-user</string></array>");
 				}
-				
+
 				// End of entitlements
 				Text.AppendLine("</dict>");
 				Text.AppendLine("</plist>");

@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -52,7 +48,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Dictionary of definitions use in the CppCompileEnvironment
 		/// </summary>
-		public Dictionary<string,string>? DefinitionsDictionary;
+		public Dictionary<string, string>? DefinitionsDictionary;
 
 		/// <summary>
 		/// Constructor

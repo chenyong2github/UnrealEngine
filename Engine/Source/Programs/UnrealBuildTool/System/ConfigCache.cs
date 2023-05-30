@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.IO;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using System.Collections.Concurrent;
-using Microsoft.Build.Logging;
 
 namespace UnrealBuildTool
 {
@@ -24,7 +23,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="TargetObject">The object containing the field to be modified</param>
 		/// <param name="ValueObject">The value to add</param>
-		delegate void AddElementDelegate(object TargetObject, object? ValueObject); 
+		delegate void AddElementDelegate(object TargetObject, object? ValueObject);
 
 		/// <summary>
 		/// Caches information about a member with a [ConfigFile] attribute in a type
@@ -58,22 +57,22 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// Returns Reflection.MemberInfo describing the target class member.
 			/// </summary>
-			public abstract MemberInfo               MemberInfo { get; }
+			public abstract MemberInfo MemberInfo { get; }
 
 			/// <summary>
 			/// Returns Reflection.Type of the target class member.
 			/// </summary>
-			public abstract Type                     Type       { get; }
+			public abstract Type Type { get; }
 
 			/// <summary>
 			/// Returns the value setter of the target class member.
 			/// </summary>
-			public abstract Action<object?, object?> SetValue   { get; }
+			public abstract Action<object?, object?> SetValue { get; }
 
 			/// <summary>
 			/// Returns the value getter of the target class member.
 			/// </summary>
-			public abstract Func<object?, object?>   GetValue   { get; }
+			public abstract Func<object?, object?> GetValue { get; }
 		}
 
 		/// <summary>
@@ -97,10 +96,10 @@ namespace UnrealBuildTool
 				this.FieldInfo = FieldInfo;
 			}
 
-			public override MemberInfo               MemberInfo => FieldInfo;
-			public override Type                     Type       => FieldInfo.FieldType;
-			public override Action<object?, object?> SetValue   => FieldInfo.SetValue;
-			public override Func<object?, object?>   GetValue   => FieldInfo.GetValue;
+			public override MemberInfo MemberInfo => FieldInfo;
+			public override Type Type => FieldInfo.FieldType;
+			public override Action<object?, object?> SetValue => FieldInfo.SetValue;
+			public override Func<object?, object?> GetValue => FieldInfo.GetValue;
 		}
 
 		/// <summary>
@@ -124,10 +123,10 @@ namespace UnrealBuildTool
 				this.PropertyInfo = PropertyInfo;
 			}
 
-			public override MemberInfo               MemberInfo => PropertyInfo;
-			public override Type                     Type       => PropertyInfo.PropertyType;
-			public override Action<object?, object?> SetValue   => PropertyInfo.SetValue;
-			public override Func<object?, object?>   GetValue   => PropertyInfo.GetValue;
+			public override MemberInfo MemberInfo => PropertyInfo;
+			public override Type Type => PropertyInfo.PropertyType;
+			public override Action<object?, object?> SetValue => PropertyInfo.SetValue;
+			public override Func<object?, object?> GetValue => PropertyInfo.GetValue;
 		}
 
 		/// <summary>
@@ -303,7 +302,7 @@ namespace UnrealBuildTool
 		/// <param name="CustomConfig">Optional override config directory to search, for support of multiple target types</param>
 		/// <param name="CmdLineArgs">The command line arguments to parse</param>
 		/// <returns>The requested config hierarchy</returns>
-		public static ConfigHierarchy ReadHierarchy(ConfigHierarchyType Type, DirectoryReference? ProjectDir, UnrealTargetPlatform Platform, 
+		public static ConfigHierarchy ReadHierarchy(ConfigHierarchyType Type, DirectoryReference? ProjectDir, UnrealTargetPlatform Platform,
 			string CustomConfig, CommandLineArguments CmdLineArgs)
 		{
 			// Handle command line overrides
@@ -337,8 +336,8 @@ namespace UnrealBuildTool
 			ConfigHierarchyKey Key = new ConfigHierarchyKey(Type, ProjectDir, Platform, CustomConfig, OverrideStrings);
 
 			ILogger Logger = NullLogger.Instance;
-			
-			if(bDumpIniLoads)
+
+			if (bDumpIniLoads)
 			{
 				Logger = Log.Logger;
 			};
@@ -371,7 +370,7 @@ namespace UnrealBuildTool
 				return new ConfigHierarchy(Files);
 			});
 		}
-	
+
 		/// <summary>
 		/// Gets a list of ConfigFields for the given type
 		/// </summary>
@@ -471,10 +470,10 @@ namespace UnrealBuildTool
 				// Parse the values from the config files and update the target object
 				if (Member.AddElement == null)
 				{
-					if(Values != null && Values.Count == 1)
+					if (Values != null && Values.Count == 1)
 					{
 						object? Value;
-						if(TryParseValue(Values[0], Member.Type, out Value))
+						if (TryParseValue(Values[0], Member.Type, out Value))
 						{
 							Member.SetValue(TargetObject, Value);
 						}
@@ -482,12 +481,12 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					if(Values != null)
+					if (Values != null)
 					{
-						foreach(string Item in Values)
+						foreach (string Item in Values)
 						{
 							object? Value;
-							if(TryParseValue(Item, Member.ElementType!, out Value))
+							if (TryParseValue(Item, Member.ElementType!, out Value))
 							{
 								Member.AddElement(TargetObject, Value);
 							}
@@ -513,15 +512,15 @@ namespace UnrealBuildTool
 		/// <returns>True if the value could be parsed, false otherwise</returns>
 		public static bool TryParseValue(string Text, Type FieldType, out object? Value)
 		{
-			if(FieldType == typeof(string))
+			if (FieldType == typeof(string))
 			{
 				Value = Text;
 				return true;
 			}
-			else if(FieldType == typeof(bool))
+			else if (FieldType == typeof(bool))
 			{
 				bool BoolValue;
-				if(ConfigHierarchy.TryParse(Text, out BoolValue))
+				if (ConfigHierarchy.TryParse(Text, out BoolValue))
 				{
 					Value = BoolValue;
 					return true;
@@ -532,10 +531,10 @@ namespace UnrealBuildTool
 					return false;
 				}
 			}
-			else if(FieldType == typeof(int))
+			else if (FieldType == typeof(int))
 			{
 				int IntValue;
-				if(ConfigHierarchy.TryParse(Text, out IntValue))
+				if (ConfigHierarchy.TryParse(Text, out IntValue))
 				{
 					Value = IntValue;
 					return true;
@@ -546,10 +545,10 @@ namespace UnrealBuildTool
 					return false;
 				}
 			}
-			else if(FieldType == typeof(float))
+			else if (FieldType == typeof(float))
 			{
 				float FloatValue;
-				if(ConfigHierarchy.TryParse(Text, out FloatValue))
+				if (ConfigHierarchy.TryParse(Text, out FloatValue))
 				{
 					Value = FloatValue;
 					return true;
@@ -560,10 +559,10 @@ namespace UnrealBuildTool
 					return false;
 				}
 			}
-			else if(FieldType == typeof(double))
+			else if (FieldType == typeof(double))
 			{
 				double DoubleValue;
-				if(ConfigHierarchy.TryParse(Text, out DoubleValue))
+				if (ConfigHierarchy.TryParse(Text, out DoubleValue))
 				{
 					Value = DoubleValue;
 					return true;
@@ -574,10 +573,10 @@ namespace UnrealBuildTool
 					return false;
 				}
 			}
-			else if(FieldType == typeof(Guid))
+			else if (FieldType == typeof(Guid))
 			{
 				Guid GuidValue;
-				if(ConfigHierarchy.TryParse(Text, out GuidValue))
+				if (ConfigHierarchy.TryParse(Text, out GuidValue))
 				{
 					Value = GuidValue;
 					return true;
@@ -588,7 +587,7 @@ namespace UnrealBuildTool
 					return false;
 				}
 			}
-			else if(FieldType.IsEnum)
+			else if (FieldType.IsEnum)
 			{
 				try
 				{
@@ -601,7 +600,7 @@ namespace UnrealBuildTool
 					return false;
 				}
 			}
-			else if(FieldType.GetGenericTypeDefinition() == typeof(Nullable<>))
+			else if (FieldType.GetGenericTypeDefinition() == typeof(Nullable<>))
 			{
 				return TryParseValue(Text, FieldType.GetGenericArguments()[0], out Value);
 			}

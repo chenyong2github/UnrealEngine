@@ -3,11 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -34,7 +33,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-IncludeAllTargets")]
 		bool bIncludeAllTargets = false;
-		
+
 		/// <summary>
 		/// Execute the mode
 		/// </summary>
@@ -51,7 +50,7 @@ namespace UnrealBuildTool
 			Arguments.ApplyTo(BuildConfiguration);
 
 			// Ensure the path to the output file is valid
-			if(OutputFile == null)
+			if (OutputFile == null)
 			{
 				OutputFile = GetDefaultOutputFile(ProjectFile);
 			}
@@ -114,8 +113,8 @@ namespace UnrealBuildTool
 				foreach (string TargetName in TargetNames)
 				{
 					// skip target rules that are platform extension or platform group specializations
-					string[] TargetPathSplit = TargetName.Split(new char[]{'_'}, StringSplitOptions.RemoveEmptyEntries );
-					if (TargetPathSplit.Length > 1 && (UnrealTargetPlatform.IsValidName(TargetPathSplit.Last()) || UnrealPlatformGroup.IsValidName(TargetPathSplit.Last()) ) )
+					string[] TargetPathSplit = TargetName.Split(new char[] { '_' }, StringSplitOptions.RemoveEmptyEntries);
+					if (TargetPathSplit.Length > 1 && (UnrealTargetPlatform.IsValidName(TargetPathSplit.Last()) || UnrealPlatformGroup.IsValidName(TargetPathSplit.Last())))
 					{
 						continue;
 					}
@@ -133,7 +132,7 @@ namespace UnrealBuildTool
 						Logger.LogDebug("{Ex}", ExceptionUtils.FormatException(Ex));
 						continue;
 					}
-					
+
 					// Skip non-default targets if one is specified.
 					if (ProjectFile != null && !bIncludeAllTargets)
 					{

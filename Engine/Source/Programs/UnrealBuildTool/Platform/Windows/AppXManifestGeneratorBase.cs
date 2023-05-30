@@ -2,17 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.IO;
-using System.Text.RegularExpressions;
-using System.Xml;
-using EpicGames.Core;
-using System.Xml.Linq;
-using System.Text;
-using System.Diagnostics;
-using UnrealBuildBase;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -33,8 +29,8 @@ namespace UnrealBuildTool
 		/// default subdirectory for engine resources
 		protected const string EngineResourceSubPath = "DefaultImages";
 
-        /// Manifest compliance values
-        protected const int MaxResourceEntries = 200;
+		/// Manifest compliance values
+		protected const int MaxResourceEntries = 200;
 
 		/// cached engine ini
 		protected ConfigHierarchy? EngineIni;
@@ -49,7 +45,7 @@ namespace UnrealBuildTool
 		protected string? DefaultAppXCultureId;
 
 		/// lookup table for UE's CultureToStage StageId to AppX CultureId
-		protected Dictionary<string,string> UEStageIdToAppXCultureId = new Dictionary<string, string>();
+		protected Dictionary<string, string> UEStageIdToAppXCultureId = new Dictionary<string, string>();
 
 		/// the platform to generate the manifest for
 		protected UnrealTargetPlatform Platform;
@@ -66,7 +62,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Create a manifest generator for the given platform variant.
 		/// </summary>
-		public AppXManifestGeneratorBase( UnrealTargetPlatform InPlatform, ILogger InLogger )
+		public AppXManifestGeneratorBase(UnrealTargetPlatform InPlatform, ILogger InLogger)
 		{
 			Platform = InPlatform;
 			Logger = InLogger;
@@ -148,7 +144,7 @@ namespace UnrealBuildTool
 		/// Reads an integer from the cached ini files
 		/// </summary>
 		[return: NotNullIfNotNull("DefaultValue")]
-        protected string? ReadIniString(string? Key, string Section, string? DefaultValue = null)
+		protected string? ReadIniString(string? Key, string Section, string? DefaultValue = null)
 		{
 			if (Key == null)
 				return DefaultValue;
@@ -167,7 +163,7 @@ namespace UnrealBuildTool
 		/// Reads a string from the cached ini files
 		/// </summary>
 		[return: NotNullIfNotNull("DefaultValue")]
-        protected string? GetConfigString(string PlatformKey, string? GenericKey, string? DefaultValue = null)
+		protected string? GetConfigString(string PlatformKey, string? GenericKey, string? DefaultValue = null)
 		{
 			string? GenericValue = ReadIniString(GenericKey, IniSection_GeneralProjectSettings, DefaultValue);
 			return ReadIniString(PlatformKey, IniSection_PlatformTargetSettings, GenericValue);
@@ -225,7 +221,7 @@ namespace UnrealBuildTool
 			AppXResources!.ClearStrings();
 
 			// add all default strings
-			if (EngineIni!.GetString(IniSection_PlatformTargetSettings, "CultureStringResources", out string DefaultCultureScratchValue) && ConfigHierarchy.TryParse(DefaultCultureScratchValue, out Dictionary<string,string>? DefaultStrings))
+			if (EngineIni!.GetString(IniSection_PlatformTargetSettings, "CultureStringResources", out string DefaultCultureScratchValue) && ConfigHierarchy.TryParse(DefaultCultureScratchValue, out Dictionary<string, string>? DefaultStrings))
 			{
 				AppXResources!.AddDefaultStrings(DefaultStrings);
 			}
@@ -286,12 +282,12 @@ namespace UnrealBuildTool
 		{
 			if (ProjectFile != null)
 			{
-				AppXResources!.ProjectBinaryResourceDirectories.Add( DirectoryReference.Combine(ProjectFile.Directory, "Build", Platform.ToString(), BuildResourceSubPath) );
-				AppXResources!.ProjectBinaryResourceDirectories.Add( DirectoryReference.Combine(ProjectFile.Directory, "Platforms", Platform.ToString(), "Build", BuildResourceSubPath) );
+				AppXResources!.ProjectBinaryResourceDirectories.Add(DirectoryReference.Combine(ProjectFile.Directory, "Build", Platform.ToString(), BuildResourceSubPath));
+				AppXResources!.ProjectBinaryResourceDirectories.Add(DirectoryReference.Combine(ProjectFile.Directory, "Platforms", Platform.ToString(), "Build", BuildResourceSubPath));
 			}
 
-			AppXResources!.EngineFallbackBinaryResourceDirectories.Add( DirectoryReference.Combine(Unreal.EngineDirectory, "Build", Platform.ToString(), EngineResourceSubPath) );
-			AppXResources!.EngineFallbackBinaryResourceDirectories.Add( DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms", Platform.ToString(), "Build", EngineResourceSubPath) );
+			AppXResources!.EngineFallbackBinaryResourceDirectories.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Build", Platform.ToString(), EngineResourceSubPath));
+			AppXResources!.EngineFallbackBinaryResourceDirectories.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms", Platform.ToString(), "Build", EngineResourceSubPath));
 		}
 
 
@@ -324,14 +320,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected virtual string GetIdentityPackageName()
 		{
-            // Read the PackageName from config
+			// Read the PackageName from config
 			var DefaultName = (ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : (TargetName ?? "DefaultUEProject");
-            var PackageName = Regex.Replace(GetConfigString("PackageName", "ProjectName", DefaultName), "[^-.A-Za-z0-9]", "");
-            if (string.IsNullOrWhiteSpace(PackageName))
-            {
-                Logger.LogError("Invalid package name {Name}. Package names must only contain letters, numbers, dash, and period and must be at least one character long.", PackageName);
-                Logger.LogError("Consider using the setting [{IniSection}]:PackageName to provide a specific value.", IniSection_PlatformTargetSettings);
-            }
+			var PackageName = Regex.Replace(GetConfigString("PackageName", "ProjectName", DefaultName), "[^-.A-Za-z0-9]", "");
+			if (string.IsNullOrWhiteSpace(PackageName))
+			{
+				Logger.LogError("Invalid package name {Name}. Package names must only contain letters, numbers, dash, and period and must be at least one character long.", PackageName);
+				Logger.LogError("Consider using the setting [{IniSection}]:PackageName to provide a specific value.", IniSection_PlatformTargetSettings);
+			}
 
 			// If specified in the project settings append the users machine name onto the package name to allow sharing of devkits without stomping of deploys
 			bool bPackageNameUseMachineName;
@@ -349,7 +345,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected virtual string GetIdentityPublisherName()
 		{
-            var PublisherName = GetConfigString("PublisherName", "CompanyDistinguishedName", "CN=NoPublisher");
+			var PublisherName = GetConfigString("PublisherName", "CompanyDistinguishedName", "CN=NoPublisher");
 			return PublisherName;
 		}
 
@@ -358,15 +354,15 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected virtual string? GetIdentityVersionNumber()
 		{
-            var VersionNumber = GetConfigString("PackageVersion", "ProjectVersion", "1.0.0.0");
-            VersionNumber = ValidatePackageVersion(VersionNumber);
+			var VersionNumber = GetConfigString("PackageVersion", "ProjectVersion", "1.0.0.0");
+			VersionNumber = ValidatePackageVersion(VersionNumber);
 
-            // If specified in the project settings attempt to retrieve the current build number and increment the version number by that amount, accounting for overflows
-            bool bIncludeEngineVersionInPackageVersion;
-            if (EngineIni!.GetBool(IniSection_PlatformTargetSettings, "bIncludeEngineVersionInPackageVersion", out bIncludeEngineVersionInPackageVersion) && bIncludeEngineVersionInPackageVersion)
-            {
+			// If specified in the project settings attempt to retrieve the current build number and increment the version number by that amount, accounting for overflows
+			bool bIncludeEngineVersionInPackageVersion;
+			if (EngineIni!.GetBool(IniSection_PlatformTargetSettings, "bIncludeEngineVersionInPackageVersion", out bIncludeEngineVersionInPackageVersion) && bIncludeEngineVersionInPackageVersion)
+			{
 				VersionNumber = IncludeBuildVersionInPackageVersion(VersionNumber);
-            }
+			}
 
 			return VersionNumber;
 		}
@@ -375,18 +371,18 @@ namespace UnrealBuildTool
 		/// Get the package identity element
 		/// </summary>
 		protected XElement GetIdentity(out string IdentityName)
-        {
-            string PackageName = GetIdentityPackageName();
-            string PublisherName = GetIdentityPublisherName();
-            string? VersionNumber = GetIdentityVersionNumber();
+		{
+			string PackageName = GetIdentityPackageName();
+			string PublisherName = GetIdentityPublisherName();
+			string? VersionNumber = GetIdentityVersionNumber();
 
-            IdentityName = PackageName;
+			IdentityName = PackageName;
 
-            return new XElement("Identity",
-                new XAttribute("Name", PackageName),
-                new XAttribute("Publisher", PublisherName),
-                new XAttribute("Version", VersionNumber!));
-        }
+			return new XElement("Identity",
+				new XAttribute("Name", PackageName),
+				new XAttribute("Publisher", PublisherName),
+				new XAttribute("Version", VersionNumber!));
+		}
 
 		/// <summary>
 		/// Updates the given package version to include the engine build version, if requested
@@ -424,13 +420,13 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Return the entire manifest element
 		/// </summary>
-		protected abstract XElement GetManifest(Dictionary<UnrealTargetConfiguration,string> InExecutablePairs, out string IdentityName);
+		protected abstract XElement GetManifest(Dictionary<UnrealTargetConfiguration, string> InExecutablePairs, out string IdentityName);
 
 		/// <summary>
 		/// Perform any platform-specific processing on the manifest before it is saved
 		/// </summary>
-		protected virtual void ProcessManifest(Dictionary<UnrealTargetConfiguration,string> InExecutablePairs, string ManifestName, string ManifestTargetPath, string ManifestIntermediatePath)
-        {
+		protected virtual void ProcessManifest(Dictionary<UnrealTargetConfiguration, string> InExecutablePairs, string ManifestName, string ManifestTargetPath, string ManifestIntermediatePath)
+		{
 		}
 
 		/// <summary>
@@ -443,7 +439,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Create a manifest and return the list of modified files
 		/// </summary>
-		public List<string>? CreateManifest(string InManifestName, DirectoryReference OutputDirectory, string? InTargetName, FileReference? InProjectFile, Dictionary<UnrealTargetConfiguration,string> InExecutablePairs)
+		public List<string>? CreateManifest(string InManifestName, DirectoryReference OutputDirectory, string? InTargetName, FileReference? InProjectFile, Dictionary<UnrealTargetConfiguration, string> InExecutablePairs)
 		{
 			// Check parameter values are valid.
 			if (InExecutablePairs.Count < 1)
@@ -498,7 +494,7 @@ namespace UnrealBuildTool
 			// generate the list of AppX cultures to stage
 			foreach (string UEStageId in SelectedUECultureIds)
 			{
-				if (!UEStageIdToAppXCultureId.TryGetValue(UEStageId, out string? AppXCultureId) || string.IsNullOrEmpty(AppXCultureId) )
+				if (!UEStageIdToAppXCultureId.TryGetValue(UEStageId, out string? AppXCultureId) || string.IsNullOrEmpty(AppXCultureId))
 				{
 					// use the culture directly - no remapping required
 					AppXCultureId = UEStageId;
@@ -535,12 +531,12 @@ namespace UnrealBuildTool
 			ProcessManifest(InExecutablePairs, InManifestName, ManifestTargetFile.FullName, ManifestIntermediateFile.FullName);
 
 			// Generate the package resource index and copy all resource files to the output
-			FileReference ManifestTargetPath = FileReference.Combine( OutputDirectory, InManifestName);
-			List<FileReference> UpdatedFiles = AppXResources.GenerateAppXResources( OutputDirectory, IntermediateDirectory, ManifestTargetFile, DefaultAppXCultureId, IdentityName );
+			FileReference ManifestTargetPath = FileReference.Combine(OutputDirectory, InManifestName);
+			List<FileReference> UpdatedFiles = AppXResources.GenerateAppXResources(OutputDirectory, IntermediateDirectory, ManifestTargetFile, DefaultAppXCultureId, IdentityName);
 
 			// Clean up and reutrn the list of updated files
 			FileUtils.ForceDeleteDirectory(IntermediateDirectory);
-			return UpdatedFiles.ConvertAll( X => X.FullName );
+			return UpdatedFiles.ConvertAll(X => X.FullName);
 		}
 	}
 }

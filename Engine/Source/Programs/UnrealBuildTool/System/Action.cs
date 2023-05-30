@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -231,7 +231,7 @@ namespace UnrealBuildTool
 		/// Command-line parameters to pass to the program
 		/// </summary>
 		public string CommandArguments { get; set; } = null!;
-		
+
 		/// <summary>
 		/// Version of the command used for this action. This will be considered a dependency.
 		/// </summary>
@@ -296,7 +296,7 @@ namespace UnrealBuildTool
 			ActionType = InActionType;
 
 			// link actions are going to run locally on SN-DBS so don't try to distribute them as that generates warnings for missing tool templates
-			if ( ActionType == ActionType.Link )
+			if (ActionType == ActionType.Link)
 			{
 				bCanExecuteRemotelyWithSNDBS = false;
 			}
@@ -396,19 +396,19 @@ namespace UnrealBuildTool
 			}
 
 			string? WorkingDirectory;
-			if(Object.TryGetStringField("WorkingDirectory", out WorkingDirectory))
+			if (Object.TryGetStringField("WorkingDirectory", out WorkingDirectory))
 			{
 				Action.WorkingDirectory = new DirectoryReference(WorkingDirectory);
 			}
 
 			string? CommandPath;
-			if(Object.TryGetStringField("CommandPath", out CommandPath))
+			if (Object.TryGetStringField("CommandPath", out CommandPath))
 			{
 				Action.CommandPath = new FileReference(CommandPath);
 			}
-			
+
 			string? CommandArguments;
-			if(Object.TryGetStringField("CommandArguments", out CommandArguments))
+			if (Object.TryGetStringField("CommandArguments", out CommandArguments))
 			{
 				Action.CommandArguments = CommandArguments;
 			}
@@ -420,25 +420,25 @@ namespace UnrealBuildTool
 			}
 
 			string? CommandDescription;
-			if(Object.TryGetStringField("CommandDescription", out CommandDescription))
+			if (Object.TryGetStringField("CommandDescription", out CommandDescription))
 			{
 				Action.CommandDescription = CommandDescription;
 			}
-			
+
 			string? StatusDescription;
-			if(Object.TryGetStringField("StatusDescription", out StatusDescription))
+			if (Object.TryGetStringField("StatusDescription", out StatusDescription))
 			{
 				Action.StatusDescription = StatusDescription;
 			}
 
 			bool bCanExecuteRemotely;
-			if(Object.TryGetBoolField("bCanExecuteRemotely", out bCanExecuteRemotely))
+			if (Object.TryGetBoolField("bCanExecuteRemotely", out bCanExecuteRemotely))
 			{
 				Action.bCanExecuteRemotely = bCanExecuteRemotely;
 			}
 
 			bool bCanExecuteRemotelyWithSNDBS;
-			if(Object.TryGetBoolField("bCanExecuteRemotelyWithSNDBS", out bCanExecuteRemotelyWithSNDBS))
+			if (Object.TryGetBoolField("bCanExecuteRemotelyWithSNDBS", out bCanExecuteRemotelyWithSNDBS))
 			{
 				Action.bCanExecuteRemotelyWithSNDBS = bCanExecuteRemotelyWithSNDBS;
 			}
@@ -450,19 +450,19 @@ namespace UnrealBuildTool
 			}
 
 			bool bIsGCCCompiler;
-			if(Object.TryGetBoolField("bIsGCCCompiler", out bIsGCCCompiler))
+			if (Object.TryGetBoolField("bIsGCCCompiler", out bIsGCCCompiler))
 			{
 				Action.bIsGCCCompiler = bIsGCCCompiler;
 			}
 
 			bool bShouldOutputStatusDescription;
-			if(Object.TryGetBoolField("bShouldOutputStatusDescription", out bShouldOutputStatusDescription))
+			if (Object.TryGetBoolField("bShouldOutputStatusDescription", out bShouldOutputStatusDescription))
 			{
 				Action.bShouldOutputStatusDescription = bShouldOutputStatusDescription;
 			}
 
 			bool bProducesImportLibrary;
-			if(Object.TryGetBoolField("bProducesImportLibrary", out bProducesImportLibrary))
+			if (Object.TryGetBoolField("bProducesImportLibrary", out bProducesImportLibrary))
 			{
 				Action.bProducesImportLibrary = bProducesImportLibrary;
 			}
@@ -730,7 +730,7 @@ namespace UnrealBuildTool
 			{
 				return Math.Sign(A.SortIndex - B.SortIndex);
 			}
-			
+
 			if (A.IsHighPriority != B.IsHighPriority)
 			{
 				return B.IsHighPriority - A.IsHighPriority;

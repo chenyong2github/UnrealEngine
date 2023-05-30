@@ -2,13 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Xml;
-using System.Threading.Tasks;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -113,7 +110,7 @@ namespace UnrealBuildTool
 			this.FrameworkDirectory = FrameworkDirectory;
 			this.CopyBundledAssets = CopyBundledAssets;
 			this.bCopyFramework = bCopyFramework;
-			if(this.FrameworkDirectory.FullName.EndsWith(".xcframework"))
+			if (this.FrameworkDirectory.FullName.EndsWith(".xcframework"))
 			{
 				this.XCFrameworkVariants = LoadXCFrameworkVariants(Logger);
 			}
@@ -127,10 +124,10 @@ namespace UnrealBuildTool
 		/// <param name="Logger"></param>
 		public DirectoryReference? GetFrameworkDirectory(UnrealTargetPlatform? Platform, UnrealArch? Architecture, ILogger Logger)
 		{
-			if( XCFrameworkVariants != null && Platform != null && Architecture != null)
+			if (XCFrameworkVariants != null && Platform != null && Architecture != null)
 			{
 				XCFrameworkVariantEntry? FrameworkVariant = XCFrameworkVariants.Find(x => x.Matches(Platform.Value, Architecture.Value));
-				if( FrameworkVariant != null )
+				if (FrameworkVariant != null)
 				{
 					return DirectoryReference.Combine(FrameworkDirectory!, FrameworkVariant.LibraryIdentifier);
 				}
@@ -145,29 +142,29 @@ namespace UnrealBuildTool
 		List<XCFrameworkVariantEntry>? LoadXCFrameworkVariants(ILogger Logger)
 		{
 			XmlDocument PlistDoc = new XmlDocument();
-			PlistDoc.Load(FileReference.Combine(FrameworkDirectory!, "Info.plist" ).FullName);
+			PlistDoc.Load(FileReference.Combine(FrameworkDirectory!, "Info.plist").FullName);
 
 			// Check the plist type
 			XmlNode? CFBundlePackageType = PlistDoc.SelectSingleNode("/plist/dict[key='CFBundlePackageType']/string[1]");
-			if( CFBundlePackageType == null || CFBundlePackageType.NodeType != XmlNodeType.Element || CFBundlePackageType.InnerText != "XFWK" )
+			if (CFBundlePackageType == null || CFBundlePackageType.NodeType != XmlNodeType.Element || CFBundlePackageType.InnerText != "XFWK")
 			{
 				Logger.LogWarning("CFBundlePackageType is not set to XFWK in Info.plist for XCFramework {Name}", Name);
 				return null;
 			}
 
 			// Load Framework variants data from dictionary nodes
-			XmlNodeList? FrameworkVariantDicts = PlistDoc.SelectNodes("/plist/dict[key='AvailableLibraries']/array/dict");			
-			if( FrameworkVariantDicts == null )
+			XmlNodeList? FrameworkVariantDicts = PlistDoc.SelectNodes("/plist/dict[key='AvailableLibraries']/array/dict");
+			if (FrameworkVariantDicts == null)
 			{
 				Logger.LogWarning("Invalid Info.plist file for XCFramework {Name}. It will be used as a regular Framework", Name);
 				return null;
 			}
 
 			List<XCFrameworkVariantEntry> Variants = new List<XCFrameworkVariantEntry>();
-			foreach( XmlNode VariantDict in FrameworkVariantDicts )
+			foreach (XmlNode VariantDict in FrameworkVariantDicts)
 			{
 				XCFrameworkVariantEntry? Variant = XCFrameworkVariantEntry.Parse(VariantDict, Logger);
-				if( Variant == null )
+				if (Variant == null)
 				{
 					Logger.LogWarning("Failed to load variant from Info.plist file for XCFramework {Name}", Name);
 				}
@@ -236,18 +233,18 @@ namespace UnrealBuildTool
 			/// <param name="Architecture"></param>
 			public bool Matches(UnrealTargetPlatform Platform, UnrealArch Architecture)
 			{
-				if(( Platform == UnrealTargetPlatform.IOS && SupportedPlatform == "ios" ) ||
-				   ( Platform == UnrealTargetPlatform.Mac && SupportedPlatform == "macos" ) ||
-				   ( Platform == UnrealTargetPlatform.TVOS && SupportedPlatform == "tvos" ))
+				if ((Platform == UnrealTargetPlatform.IOS && SupportedPlatform == "ios") ||
+				   (Platform == UnrealTargetPlatform.Mac && SupportedPlatform == "macos") ||
+				   (Platform == UnrealTargetPlatform.TVOS && SupportedPlatform == "tvos"))
 				{
-					if( Architecture == UnrealArch.IOSSimulator || Architecture == UnrealArch.TVOSSimulator)
+					if (Architecture == UnrealArch.IOSSimulator || Architecture == UnrealArch.TVOSSimulator)
 					{
 						// When using -simulator we don't have the actual architecture. Assume arm64 as other parts of UBT already are doing
-						return ( SupportedPlatformVariant == "simulator" ) && SupportedArchitectures.Contains("arm64");
+						return (SupportedPlatformVariant == "simulator") && SupportedArchitectures.Contains("arm64");
 					}
 					else
 					{
-						return ( SupportedPlatformVariant == null ) && SupportedArchitectures.Contains(Architecture.AppleName);
+						return (SupportedPlatformVariant == null) && SupportedArchitectures.Contains(Architecture.AppleName);
 					}
 				}
 				return false;
@@ -261,7 +258,7 @@ namespace UnrealBuildTool
 			public static XCFrameworkVariantEntry? Parse(XmlNode DictNode, ILogger Logger)
 			{
 				// Entries from a <dict> in a plist file always contains a <key> node and a value node
-				if(( DictNode.ChildNodes.Count % 2 ) != 0)
+				if ((DictNode.ChildNodes.Count % 2) != 0)
 				{
 					Logger.LogDebug("Invalid dict in Info.plist file for XCFramework");
 					return null;
@@ -273,14 +270,14 @@ namespace UnrealBuildTool
 				string? SupportedPlatform = null;
 				string? SupportedPlatformVariant = null;
 
-				for( int i = 0; i < DictNode.ChildNodes.Count; i += 2 )
-            	{
-                	XmlNode? Key = DictNode.ChildNodes[i];
-                	XmlNode? Value = DictNode.ChildNodes[i + 1];
+				for (int i = 0; i < DictNode.ChildNodes.Count; i += 2)
+				{
+					XmlNode? Key = DictNode.ChildNodes[i];
+					XmlNode? Value = DictNode.ChildNodes[i + 1];
 
-					if( Value != null && Key != null && Key.Name == "key" )
+					if (Value != null && Key != null && Key.Name == "key")
 					{
-						switch( Key.InnerText )
+						switch (Key.InnerText)
 						{
 							case "LibraryIdentifier":
 								LibraryIdentifier = ParseString(Value, Logger);
@@ -304,12 +301,12 @@ namespace UnrealBuildTool
 				}
 
 				// All fields but SupportedPlatformVariant are allowed to be present in the framework variant descriprion
-				if( LibraryIdentifier == null || LibraryPath == null || SupportedArchitectures == null || SupportedPlatform == null )
+				if (LibraryIdentifier == null || LibraryPath == null || SupportedArchitectures == null || SupportedPlatform == null)
 				{
 					Logger.LogDebug("Missing data in Info.plist file for XCFramework");
 					return null;
 				}
-				return new XCFrameworkVariantEntry( LibraryIdentifier, LibraryPath, SupportedArchitectures, SupportedPlatform, SupportedPlatformVariant ); 
+				return new XCFrameworkVariantEntry(LibraryIdentifier, LibraryPath, SupportedArchitectures, SupportedPlatform, SupportedPlatformVariant);
 			}
 
 			/// <summary>
@@ -317,9 +314,9 @@ namespace UnrealBuildTool
 			/// </summary>
 			/// <param name="ValueNode">XmlNode we expect to contain a &lt;string&gt; value</param>			
 			/// <param name="Logger">Logger for diagnostic output</param>
-			static string? ParseString( XmlNode ValueNode, ILogger Logger )
+			static string? ParseString(XmlNode ValueNode, ILogger Logger)
 			{
-				if( ValueNode.Name != "string" )
+				if (ValueNode.Name != "string")
 				{
 					Logger.LogDebug("Unexpected tag \"{Tag}\" while expecting \"string\" in Info.plist file for XCFramework", ValueNode.Name);
 					return null;
@@ -332,21 +329,21 @@ namespace UnrealBuildTool
 			/// </summary>
 			/// <param name="ValueNode">XmlNode we expect to contain a &lt;array&gt; value with several &lt;string&gt; entries</param>			
 			/// <param name="Logger">Logger for diagnostic output</param>
-			static List<string>? ParseListOfStrings( XmlNode ValueNode, ILogger Logger )
+			static List<string>? ParseListOfStrings(XmlNode ValueNode, ILogger Logger)
 			{
-				if( ValueNode.Name != "array" )
+				if (ValueNode.Name != "array")
 				{
 					Logger.LogDebug("Unexpected tag \"{Name}\" while expecting \"array\" in Info.plist file for XCFramework", ValueNode.Name);
 					return null;
 				}
 
 				List<string> ListOfStrings = new List<string>();
-				foreach( XmlNode ChildNode in ValueNode.ChildNodes )
+				foreach (XmlNode ChildNode in ValueNode.ChildNodes)
 				{
-					string? ParsedString = ParseString( ChildNode, Logger );
-					if( ParsedString != null )
+					string? ParsedString = ParseString(ChildNode, Logger);
+					if (ParsedString != null)
 					{
-						ListOfStrings.Add( ParsedString );
+						ListOfStrings.Add(ParsedString);
 					}
 				}
 				return ListOfStrings;

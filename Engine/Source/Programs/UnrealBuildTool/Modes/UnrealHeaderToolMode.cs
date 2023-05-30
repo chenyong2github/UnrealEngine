@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Tables;
-using EpicGames.UHT.Tokenizer;
-using EpicGames.UHT.Types;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using UnrealBuildBase;
+using EpicGames.Core;
+using EpicGames.UHT.Tables;
+using EpicGames.UHT.Tokenizer;
+using EpicGames.UHT.Types;
+using EpicGames.UHT.Utils;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool.Modes
 {
@@ -1253,7 +1253,7 @@ namespace UnrealBuildTool.Modes
 					Session.ReferenceMode = UhtReferenceMode.Verify;
 				}
 
-				foreach(UhtExporter Exporter in Session.ExporterTable)
+				foreach (UhtExporter Exporter in Session.ExporterTable)
 				{
 					if (Arguments.HasOption($"-{Exporter.Name}"))
 					{

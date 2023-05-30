@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
@@ -13,7 +13,7 @@ namespace UnrealBuildTool
 	abstract class UEToolChain
 	{
 		protected readonly ILogger Logger;
-		
+
 		// Return the extension for response files
 		public static string ResponseExt => ".rsp";
 
@@ -44,7 +44,7 @@ namespace UnrealBuildTool
 		{
 			return null;
 		}
-		
+
 		public virtual FileItem? CopyDebuggerVisualizer(FileItem SourceFile, DirectoryReference IntermediateDirectory, IActionGraphBuilder Graph)
 		{
 			return null;
@@ -56,11 +56,11 @@ namespace UnrealBuildTool
 		}
 
 		protected abstract CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph);
-		 
+
 		public CPPOutput CompileAllCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
 			CPPOutput Result;
-			
+
 			UnrealArchitectureConfig ArchConfig = UnrealArchitectureConfig.ForPlatform(CompileEnvironment.Platform);
 			// compile architectures separately if needed
 			if (ArchConfig.Mode == UnrealArchitectureMode.SingleTargetCompileSeparately || ArchConfig.Mode == UnrealArchitectureMode.SingleTargetLinkSeparately)
@@ -71,7 +71,7 @@ namespace UnrealBuildTool
 					// determine the output location of intermediates (so, if OutputDir had the arch name in it, like Intermediate/x86+arm64, we would replace it with either emptry string
 					// or a single arch name depending on if the platform uses architecture directories for the architecture)
 					// @todo Add ArchitectureConfig.RequiresArchitectureFilenames but for directory -- or can we just use GetFolderNameForArch?!?!?
-//					string ArchReplacement = (Arch == ArchitectureWithoutMarkup()) ? "" : ArchConfig.GetFolderNameForArchitecture(Arch);
+					//					string ArchReplacement = (Arch == ArchitectureWithoutMarkup()) ? "" : ArchConfig.GetFolderNameForArchitecture(Arch);
 
 					string PlatformArchitecturesString = ArchConfig.GetFolderNameForArchitectures(CompileEnvironment.Architectures);
 					DirectoryReference ArchOutputDir = new(OutputDir.FullName.Replace(PlatformArchitecturesString, ArchConfig.GetFolderNameForArchitecture(Arch)));
@@ -136,7 +136,7 @@ namespace UnrealBuildTool
 				foreach (UnrealArch Arch in LinkEnvironment.Architectures.Architectures)
 				{
 					LinkEnvironment ArchEnvironment = new LinkEnvironment(LinkEnvironment, Arch);
-						
+
 					// determine the output location of intermediates (so, if OutputDir had the arch name in it, like Intermediate/x86+arm64, we would replace it with either emptry string
 					// or a single arch name
 					//string ArchReplacement = Arch == ArchitectureWithoutMarkup() ? "" : ArchConfig.GetFolderNameForArchitecture(Arch);

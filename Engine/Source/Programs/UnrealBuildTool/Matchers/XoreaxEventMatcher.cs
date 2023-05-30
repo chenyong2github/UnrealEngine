@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
@@ -14,7 +12,7 @@ namespace UnrealBuildTool.Matchers
 		public const string PropertyAgent = "agent";
 		public const string PropertyDuration = "duration";
 		public const string PropertyStartTime = "startTime";
-		
+
 		static readonly Regex s_buildService = new Regex(@"\(BuildService.exe\) is not running");
 
 		static readonly Regex s_xgConsole = new Regex(@"BUILD FAILED: (.*)xgConsole\.exe(.*)");
@@ -57,7 +55,7 @@ namespace UnrealBuildTool.Matchers
 				LogEventBuilder builder = new LogEventBuilder(cursor);
 				builder.MoveNext();
 
-				for(int idx = 0; idx < 100; idx++)
+				for (int idx = 0; idx < 100; idx++)
 				{
 					if (builder.Current.IsMatch(idx, s_buildSystemErrorEnd))
 					{
@@ -118,7 +116,7 @@ namespace UnrealBuildTool.Matchers
 					return builder.ToMatch(LogEventPriority.High, LogLevel.Information, eventId);
 				}
 			}
-			
+
 			return null;
 		}
 	}

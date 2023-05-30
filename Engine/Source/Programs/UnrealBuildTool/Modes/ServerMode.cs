@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using System.Collections.Generic;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
-using UnrealBuildTool;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -351,7 +350,7 @@ namespace UnrealBuildTool
 
 					foreach (UEBuildModuleCPP Module in Binary.Modules.OfType<UEBuildModuleCPP>())
 					{
-						if (Module.Binary != null && Module.Binary != Binary) 
+						if (Module.Binary != null && Module.Binary != Binary)
 						{
 							continue;
 						}
@@ -404,20 +403,20 @@ namespace UnrealBuildTool
 		private QueryFileResponse Handle_QueryFile(QueryFileCommand Command, ILogger Logger)
 		{
 			var FailResponse = new QueryFileResponse { Found = false };
-			if (CurrentTargetIntellisenseInfo == null )
+			if (CurrentTargetIntellisenseInfo == null)
 			{
 				return FailResponse;
 			}
-			try 
+			try
 			{
-				var Path = System.IO.Path.GetFullPath(Command.AbsolutePath); 
+				var Path = System.IO.Path.GetFullPath(Command.AbsolutePath);
 				if (CurrentTargetIntellisenseInfo.FindModuleForFile(new FileReference(Path)) != null)
 				{
 					return new QueryFileResponse { Found = true };
 				}
 				return FailResponse;
 			}
-			catch (Exception )
+			catch (Exception)
 			{
 				return FailResponse;
 			}
@@ -431,7 +430,7 @@ namespace UnrealBuildTool
 			}
 			if (Command.AbsolutePath != null)
 			{
-				var Path = System.IO.Path.GetFullPath(Command.AbsolutePath); 
+				var Path = System.IO.Path.GetFullPath(Command.AbsolutePath);
 				UEBuildModule? Module = CurrentTargetIntellisenseInfo.FindModuleForDirectory(new DirectoryReference(Path));
 				if (Module != null)
 				{
@@ -453,8 +452,8 @@ namespace UnrealBuildTool
 
 		private GetCompileSettingsResponse Handle_GetCompileSettings(GetCompileSettingsCommand Command, ILogger Logger)
 		{
-			GetCompileSettingsResponse FailResponse = new GetCompileSettingsResponse { }; 
-			try 
+			GetCompileSettingsResponse FailResponse = new GetCompileSettingsResponse { };
+			try
 			{
 				GetCompileSettingsResponse Response = new GetCompileSettingsResponse { };
 				foreach (string AbsolutePath in Command.AbsolutePaths)

@@ -4,25 +4,19 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Xml;
-using System.Runtime.Serialization;
-using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
-using EpicGames.Core;
+using System.Linq;
 using System.Reflection;
-using OpenTracing.Util;
-using UnrealBuildBase;
+using System.Runtime.Serialization;
+using System.Text;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
+using EpicGames.Core;
 using EpicGames.UHT.Utils;
 using Microsoft.Extensions.Logging;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
-using UnrealBuildTool;
-using System.Xml.Linq;
+using OpenTracing.Util;
+using UnrealBuildBase;
 
 
 namespace UnrealBuildTool
@@ -909,7 +903,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Architectures"></param>
 		/// <param name="ValidationPlatform"></param>
-		public UnrealArchitectures(IEnumerable<string> Architectures, UnrealTargetPlatform? ValidationPlatform=null)
+		public UnrealArchitectures(IEnumerable<string> Architectures, UnrealTargetPlatform? ValidationPlatform = null)
 		{
 			// validate before conversion (make sure all given architectures can be converted to an UnrealArch that is supported by the platform)
 			if (ValidationPlatform != null)
@@ -1934,7 +1928,7 @@ namespace UnrealBuildTool
 		Dictionary<FileReference, LoadOrderManifest> PrepareLoadOrderManifests(ILogger Logger)
 		{
 			Dictionary<FileReference, LoadOrderManifest> FileNameToManifest = new Dictionary<FileReference, LoadOrderManifest>();
-			
+
 			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
 
 			if (!bCompileMonolithic && BuildPlatform.RequiresLoadOrderManifest(Rules))
@@ -1970,7 +1964,7 @@ namespace UnrealBuildTool
 				Sorter.CycleHandling = TopologicalSorter<UEBuildModule>.CycleMode.BreakWithInfo;
 				Sorter.Logger = Logger;
 				Sorter.NodeToString = Module => Module.Name;
-				
+
 				if (!Sorter.Sort())
 				{
 					Logger.LogError("Failed to generate {ManifestFileName}: Couldn't sort dynamic modules in a way that would respect all dependencies (probably circular dependencies)", ManifestFileName);
@@ -2301,9 +2295,9 @@ namespace UnrealBuildTool
 
 			// Create the makefile
 			string ExternalMetadata = UEBuildPlatform.GetBuildPlatform(Platform).GetExternalBuildMetadata(ProjectFile);
-			TargetMakefile Makefile = new TargetMakefile(ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName, 
-				ProjectIntermediateDirectory, ProjectIntermediateDirectoryNoArch, TargetType, 
-				Rules.ConfigValueTracker, bDeployAfterCompile, UbtPlugins?.ToArray(), EnabledUbtPlugins?.ToArray(), 
+			TargetMakefile Makefile = new TargetMakefile(ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName,
+				ProjectIntermediateDirectory, ProjectIntermediateDirectoryNoArch, TargetType,
+				Rules.ConfigValueTracker, bDeployAfterCompile, UbtPlugins?.ToArray(), EnabledUbtPlugins?.ToArray(),
 				EnabledUhtPlugins?.ToArray());
 			Makefile.IsTestTarget = Rules.IsTestTarget;
 			TargetMakefileBuilder MakefileBuilder = new TargetMakefileBuilder(Makefile, Logger);
@@ -2447,9 +2441,9 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-			
+
 			// Copy debugger visualizer files for each module to their intermediate directory 
-			foreach (UEBuildModule Module in Modules.Values) 
+			foreach (UEBuildModule Module in Modules.Values)
 			{
 				Module.CopyDebuggerVisualizers(TargetToolChain, MakefileBuilder, Logger);
 			}
@@ -3776,18 +3770,18 @@ namespace UnrealBuildTool
 				UEBuildModule Module = FindOrCreateModuleByName(ModuleName, PrecompileReferenceChain, Logger);
 				AllModules.Add(Module);
 				Module.RecursivelyCreateModules(
-					(string ModuleName, string ReferenceChain) => 
-					{ 
+					(string ModuleName, string ReferenceChain) =>
+					{
 						UEBuildModule FoundModule = FindOrCreateModuleByName(ModuleName, ReferenceChain, Logger);
 						AllModules.Add(FoundModule);
-						return FoundModule; 
-					}, 
+						return FoundModule;
+					},
 					PrecompileReferenceChain, Logger);
 			}
 
 			// Exclude additional modules that were added only for include-path-only purposes, and those that will have their Verse dependency satisfied
 			HashSet<UEBuildModuleCPP> ValidModules = new HashSet<UEBuildModuleCPP>(
-				AllModules.OfType<UEBuildModuleCPP>() .Where(x => x.PrivateIncludePathModules != null && (!x.bDependsOnVerse || Rules.bUseVerse)));
+				AllModules.OfType<UEBuildModuleCPP>().Where(x => x.PrivateIncludePathModules != null && (!x.bDependsOnVerse || Rules.bUseVerse)));
 
 			// Make sure precompiled modules don't reference any non-precompiled modules
 			foreach (UEBuildModuleCPP ValidModule in ValidModules)
@@ -4849,7 +4843,7 @@ namespace UnrealBuildTool
 			// Check if server-only code should be compiled out.
 			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_SERVER_CODE={0}", Rules.bWithServerCode ? 1 : 0));
 
-			GlobalCompileEnvironment.Definitions.Add(String.Format("UE_FNAME_OUTLINE_NUMBER={0}", Rules.bFNameOutlineNumber? 1 : 0));
+			GlobalCompileEnvironment.Definitions.Add(String.Format("UE_FNAME_OUTLINE_NUMBER={0}", Rules.bFNameOutlineNumber ? 1 : 0));
 
 			// Set the defines for Push Model
 			if (Rules.bWithPushModel)

@@ -2,18 +2,16 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Xml;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using Microsoft.Win32;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Xml.Linq;
 using EpicGames.Core;
-using System.Security.Cryptography;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -153,7 +151,7 @@ namespace UnrealBuildTool
 
 			UPL = new UnrealPluginLanguage(ProjectFile, inPluginExtraData, NDKArches, "http://schemas.android.com/apk/res/android", "xmlns:android=\"http://schemas.android.com/apk/res/android\" xmlns:tools=\"http://schemas.android.com/tools\"", UnrealTargetPlatform.Android, Logger);
 			UPLHashCode = UPL.GetUPLHash();
-//			APL.SetTrace();
+			//			APL.SetTrace();
 		}
 
 		private void SetMinimumSDKLevelForGradle()
@@ -166,7 +164,7 @@ namespace UnrealBuildTool
 			{
 				MinimumSDKLevelForGradle = Math.Max(MinimumSDKLevelForGradle, 19);
 			}
-			if(EOSSDKPluginEnabled)
+			if (EOSSDKPluginEnabled)
 			{
 				MinimumSDKLevelForGradle = Math.Max(MinimumSDKLevelForGradle, 23);
 			}
@@ -386,10 +384,10 @@ namespace UnrealBuildTool
 			}
 
 			// don't allow higher than 30.0.3 for now (will be installed by Gradle if missing)
-//			if (BestVersion > ((30 << 24) | (0 << 16) | (3 << 8)))
-//			{
-//				BestVersionString = "30.0.3";
-//			}
+			//			if (BestVersion > ((30 << 24) | (0 << 16) | (3 << 8)))
+			//			{
+			//				BestVersionString = "30.0.3";
+			//			}
 
 			CachedBuildToolsVersion = BestVersionString;
 			LastAndroidHomePath = HomePath;
@@ -415,7 +413,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Ini"></param>
 		protected bool ReadPackageDataInsideApkFromIni(ConfigHierarchy? Ini)
-		{		
+		{
 			// make a new one if one wasn't passed in
 			if (Ini == null)
 			{
@@ -464,7 +462,7 @@ namespace UnrealBuildTool
 			}
 
 			List<string>? GoogleVRCaps = new List<string>();
-			if(Ini.GetArray("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "GoogleVRCaps", out GoogleVRCaps))
+			if (Ini.GetArray("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "GoogleVRCaps", out GoogleVRCaps))
 			{
 				return GoogleVRCaps.Contains("Daydream33") || GoogleVRCaps.Contains("Daydream63") || GoogleVRCaps.Contains("Daydream66");
 			}
@@ -581,7 +579,7 @@ namespace UnrealBuildTool
 				}
 
 				// make the dst filename with the same structure as it was in SourceDir
-				string DestFilename = Path.Combine(DestDir, Utils.MakePathRelativeTo(Filename, SourceDir)).Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar); 
+				string DestFilename = Path.Combine(DestDir, Utils.MakePathRelativeTo(Filename, SourceDir)).Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
 
 				// make the subdirectory if needed
 				string DestSubdir = Path.GetDirectoryName(DestFilename)!;
@@ -940,7 +938,7 @@ namespace UnrealBuildTool
 			public string SourceFile;
 			public string DestinationFile;
 
-			public TemplateFile(string SourceFile, string DestinationFile) 
+			public TemplateFile(string SourceFile, string DestinationFile)
 			{
 				this.SourceFile = SourceFile;
 				this.DestinationFile = DestinationFile;
@@ -958,7 +956,7 @@ namespace UnrealBuildTool
 
 		private int CachedStoreVersion = -1;
 		private int CachedStoreVersionOffsetArm64 = 0;
-		private int CachedStoreVersionOffsetX8664= 0;
+		private int CachedStoreVersionOffsetX8664 = 0;
 
 		public int GetStoreVersion(UnrealArch? Architecture)
 		{
@@ -1067,7 +1065,7 @@ namespace UnrealBuildTool
 			string AppType = "";
 			if (CookFlavor.EndsWith("Client"))
 			{
-//				AppType = ".Client";		// should always be empty now; fix up the name in batch file instead
+				//				AppType = ".Client";		// should always be empty now; fix up the name in batch file instead
 			}
 
 			int StoreVersion = GetStoreVersion(UnrealArch);
@@ -1155,9 +1153,9 @@ namespace UnrealBuildTool
 			ShimFileContent.AppendFormat("import {0}.DownloaderActivity;\n", replacements["$$PackageName$$"]);
 
 			// Do OBB file checking without using DownloadActivity to avoid transit to another activity
-				ShimFileContent.Append("import android.app.Activity;\n");
-				ShimFileContent.Append("import com.google.android.vending.expansion.downloader.Helpers;\n");
-				ShimFileContent.AppendFormat("import {0}.OBBData;\n", replacements["$$PackageName$$"]);
+			ShimFileContent.Append("import android.app.Activity;\n");
+			ShimFileContent.Append("import com.google.android.vending.expansion.downloader.Helpers;\n");
+			ShimFileContent.AppendFormat("import {0}.OBBData;\n", replacements["$$PackageName$$"]);
 
 			ShimFileContent.Append("\n\npublic class DownloadShim\n{\n");
 			ShimFileContent.Append("\tpublic static OBBDownloaderService DownloaderService;\n");
@@ -1177,11 +1175,11 @@ namespace UnrealBuildTool
 			ShimFileContent.Append("\t\t\t}\n");
 			ShimFileContent.Append("\t\t\telse if (Helpers.doesFileExistDev(activity, fileName, xf.mFileSize, false)) {\n");
 			ShimFileContent.Append("\t\t\t\tGameActivity.Log.debug(\"Found OBB here: \" + fileForDevFile);\n");
-				ShimFileContent.Append("\t\t\t}\n");
+			ShimFileContent.Append("\t\t\t}\n");
 			ShimFileContent.Append("\t\t\telse return false;\n");
 			ShimFileContent.Append("\t\t}\n");
-				ShimFileContent.Append("\t\treturn true;\n");
-				ShimFileContent.Append("\t}\n");
+			ShimFileContent.Append("\t\treturn true;\n");
+			ShimFileContent.Append("\t}\n");
 
 			ShimFileContent.Append("}\n");
 			Logger.LogInformation("\n==== Writing to shim file {ShimFileName} ====", ShimFileName);
@@ -1300,7 +1298,7 @@ namespace UnrealBuildTool
 			{
 				return "x86_64";
 			}
-			
+
 			throw new BuildException("Unknown Unreal architecture '{0}'", UnrealArch);
 		}
 
@@ -1309,13 +1307,13 @@ namespace UnrealBuildTool
 			switch (NDKArch)
 			{
 				case "arm64-v8a":
-				case "arm64":       return UnrealArch.Arm64;
+				case "arm64": return UnrealArch.Arm64;
 				case "x86_64":
-				case "x64":			return UnrealArch.X64;
-					
-//				default: throw new BuildException("Unknown NDK architecture '{0}'", NDKArch);
+				case "x64": return UnrealArch.X64;
+
+				//				default: throw new BuildException("Unknown NDK architecture '{0}'", NDKArch);
 				// future-proof by returning arm64 for unknown
-				default:            return UnrealArch.Arm64;
+				default: return UnrealArch.Arm64;
 			}
 		}
 
@@ -1383,7 +1381,7 @@ namespace UnrealBuildTool
 		private static void CopySTL(AndroidToolChain ToolChain, string UnrealBuildPath, UnrealArch UnrealArch, string NDKArch, bool bForDistribution)
 		{
 			// copy it in!
-			string SourceSTLSOName = Environment.ExpandEnvironmentVariables("%NDKROOT%/sources/cxx-stl/llvm-libc++/libs/") +  NDKArch + "/libc++_shared.so";
+			string SourceSTLSOName = Environment.ExpandEnvironmentVariables("%NDKROOT%/sources/cxx-stl/llvm-libc++/libs/") + NDKArch + "/libc++_shared.so";
 			if (!File.Exists(SourceSTLSOName))
 			{
 				// NDK25 has changed a directory where it stores libs, check it instead
@@ -1469,7 +1467,7 @@ namespace UnrealBuildTool
 			Logger.LogInformation("bBuildForES31: {bBuildForES31}", (bBuildForES31 ? "true" : "false"));
 			Logger.LogInformation("bSupportsVulkan: {bSupportsVulkan}", (bSupportsVulkan ? "true" : "false"));
 		}
-		
+
 		void CopyVulkanValidationLayers(string UnrealBuildPath, UnrealArch UnrealArch, string NDKArch, string Configuration)
 		{
 			bool bSupportsVulkan = false;
@@ -1556,7 +1554,7 @@ namespace UnrealBuildTool
 					LibName = "tsan";
 					break;
 			}
-			
+
 			string SanitizerFullLibName = "libclang_rt." + LibName + Architecture + "-android.so";
 
 			string WrapSh = Path.Combine(Unreal.EngineDirectory.ToString(), "Build", "Android", "ClangSanitizers", "wrap.sh");
@@ -1939,7 +1937,7 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		private string GetAllBuildSettings(AndroidToolChain ToolChain, UnrealPluginLanguage UPL, bool bForDistribution, bool bMakeSeparateApks, bool bPackageDataInsideApk, 
+		private string GetAllBuildSettings(AndroidToolChain ToolChain, UnrealPluginLanguage UPL, bool bForDistribution, bool bMakeSeparateApks, bool bPackageDataInsideApk,
 			bool bDisableVerifyOBBOnStartUp, bool bUseExternalFilesDir, string TemplatesHashCode)
 		{
 			// make the settings string - this will be char by char compared against last time
@@ -2015,7 +2013,7 @@ namespace UnrealBuildTool
 			{
 				foreach (string Key in Section.KeyNames)
 				{
-					if (!Key.Equals("GameDefaultMap") && 
+					if (!Key.Equals("GameDefaultMap") &&
 						!Key.Equals("GlobalDefaultGameMode"))
 					{
 						continue;
@@ -2295,7 +2293,7 @@ namespace UnrealBuildTool
 				}
 			}
 		}
-	
+
 		private void PackageForDaydream(string UnrealBuildPath)
 		{
 			bool bPackageForDaydream = IsPackagingForDaydream();
@@ -2322,7 +2320,7 @@ namespace UnrealBuildTool
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bShowLaunchImage", out bShowLaunchImage);
 			bool bPackageForOculusMobile = IsPackagingForOculusMobile(Ini); ;
 			bool bPackageForDaydream = IsPackagingForDaydream(Ini);
-			
+
 			//override the parameters if we are not showing a launch image or are packaging for Oculus Mobile and Daydream
 			if (bPackageForOculusMobile || bPackageForDaydream || !bShowLaunchImage)
 			{
@@ -2582,7 +2580,7 @@ namespace UnrealBuildTool
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bSupportAdMob", out bSupportAdMob);
 			bool bValidateTextureFormats;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bValidateTextureFormats", out bValidateTextureFormats);
-			
+
 			bool bBuildForES31 = false;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildForES31", out bBuildForES31);
 			bool bSupportsVulkan = false;
@@ -2623,7 +2621,7 @@ namespace UnrealBuildTool
 					break;
 			}
 
-			bool bEnableMulticastSupport = false; 
+			bool bEnableMulticastSupport = false;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bEnableMulticastSupport", out bEnableMulticastSupport);
 
 			// only apply density to configChanges if using android-24 or higher and minimum sdk is 17
@@ -2716,7 +2714,7 @@ namespace UnrealBuildTool
 			StringBuilder Text = new StringBuilder();
 			Text.AppendLine(XML_HEADER);
 			Text.AppendLine("<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" xmlns:tools=\"http://schemas.android.com/tools\"");
-//			Text.AppendLine(string.Format("          package=\"{0}\"", PackageName));
+			//			Text.AppendLine(string.Format("          package=\"{0}\"", PackageName));
 			if (ExtraManifestNodeTags != null)
 			{
 				foreach (string Line in ExtraManifestNodeTags)
@@ -2933,7 +2931,7 @@ namespace UnrealBuildTool
 			// Declare the 8 OpenGL program compiling services.
 			Text.AppendLine(@"		<service android:name=""com.epicgames.unreal.psoservices.OGLProgramService"" android:process="":psoprogramservice"" />");
 			// Declare the remaining 7 OpenGL program compiling services. (all derived from OGLProgramService)
-			for(int i = 1; i<8;i++)
+			for (int i = 1; i < 8; i++)
 			{
 				String serviceLine = String.Format("		<service android:name=\"com.epicgames.unreal.psoservices.OGLProgramService{0}\" android:process=\":psoprogramservice{0}\" />", i);
 				Text.AppendLine(serviceLine);
@@ -2975,7 +2973,7 @@ namespace UnrealBuildTool
 			// Max supported aspect ratio
 			string MaxAspectRatioString = MaxAspectRatioValue.ToString("f", System.Globalization.CultureInfo.InvariantCulture);
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"android.max_aspect\" android:value=\"{0}\" />", MaxAspectRatioString));
-					
+
 			Text.AppendLine("\t</application>");
 
 			Text.AppendLine("");
@@ -3000,11 +2998,11 @@ namespace UnrealBuildTool
 				}
 				Text.AppendLine("\t<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>");
 				Text.AppendLine("\t<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>");
-			//	Text.AppendLine("\t<uses-permission android:name=\"android.permission.READ_PHONE_STATE\"/>");
+				//	Text.AppendLine("\t<uses-permission android:name=\"android.permission.READ_PHONE_STATE\"/>");
 				Text.AppendLine("\t<uses-permission android:name=\"com.android.vending.CHECK_LICENSE\"/>");
 				Text.AppendLine("\t<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>");
 
-				if(bEnableMulticastSupport)
+				if (bEnableMulticastSupport)
 				{
 					// This permission is needed to be able to acquire a WifiManager.MulticastLock so broadcast/multcast traffic is 
 					// not filtered out by the device network interface 
@@ -3021,7 +3019,7 @@ namespace UnrealBuildTool
 					Text.AppendLine("\t<uses-permission android:name=\"android.permission.GET_ACCOUNTS\"/>");
 				}
 
-				if(!bPackageForOculusMobile)
+				if (!bPackageForOculusMobile)
 				{
 					Text.AppendLine("\t<uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/>");
 					Text.AppendLine("\t<uses-permission android:name=\"android.permission.VIBRATE\"/>");
@@ -3175,24 +3173,24 @@ namespace UnrealBuildTool
 					string XmlAppId = Line.Substring(StartIndex, EndIndex - StartIndex);
 
 					//validate that the AppId matches the .ini value for the GooglePlay AppId, assuming it's valid
-					if (!bInvalidIniAppId &&  IniAppId.CompareTo(XmlAppId) != 0)
+					if (!bInvalidIniAppId && IniAppId.CompareTo(XmlAppId) != 0)
 					{
 						Logger.LogInformation("Replacing Google Play AppID in GooglePlayAppID.xml with AndroidRuntimeSettings .ini value");
 
 						bInvalid = true;
 						ReplacementId = IniAppId;
-						
-					}					
-					else if(XmlAppId.Length == 0 || !Int64.TryParse(XmlAppId, out Value))
+
+					}
+					else if (XmlAppId.Length == 0 || !Int64.TryParse(XmlAppId, out Value))
 					{
 						Logger.LogWarning("\nWARNING: GooglePlay Games App ID is invalid! Replacing it with \"1\"");
 
 						//write file with something which will fail but not cause an exception if executed
 						bInvalid = true;
 						ReplacementId = "1";
-					}	
+					}
 
-					if(bInvalid)
+					if (bInvalid)
 					{
 						// remove any read only flags if invalid so it can be replaced
 						FileInfo DestFileInfo = new FileInfo(Filename);
@@ -3285,8 +3283,8 @@ namespace UnrealBuildTool
 			using (FileStream SourceStream = new FileStream(SourceFilename, FileMode.Open, FileAccess.Read, FileShare.Read))
 			using (FileStream DestStream = new FileStream(DestFilename, FileMode.Open, FileAccess.Read, FileShare.Read))
 			{
-				using(BinaryReader SourceReader = new BinaryReader(SourceStream))
-				using(BinaryReader DestReader = new BinaryReader(DestStream))
+				using (BinaryReader SourceReader = new BinaryReader(SourceStream))
+				using (BinaryReader DestReader = new BinaryReader(DestStream))
 				{
 					bool bEOF = false;
 					while (!bEOF)
@@ -3307,7 +3305,7 @@ namespace UnrealBuildTool
 					return true;
 				}
 			}
-			
+
 		}
 
 		private bool RequiresOBB(bool bDisallowPackageInAPK, string OBBLocation)
@@ -3784,7 +3782,7 @@ namespace UnrealBuildTool
 		}
 
 		private void CreateGradlePropertiesFiles(AndroidToolChain ToolChain, UnrealArch Arch, int MinSDKVersion, int TargetSDKVersion, string CompileSDKVersion, string BuildToolsVersion, string PackageName,
-			string? DestApkName, string NDKArch,	string UnrealBuildFilesPath, string GameBuildFilesPath, string UnrealBuildGradleAppPath, string UnrealBuildPath, string UnrealBuildGradlePath,
+			string? DestApkName, string NDKArch, string UnrealBuildFilesPath, string GameBuildFilesPath, string UnrealBuildGradleAppPath, string UnrealBuildPath, string UnrealBuildGradlePath,
 			bool bForDistribution, bool bIsEmbedded, List<string> OBBFiles)
 		{
 			// Create gradle.properties
@@ -4026,12 +4024,12 @@ namespace UnrealBuildTool
 			File.WriteAllText(GradleBuildScriptAdditionsFilename, UPL.ProcessPluginNode(NDKArch, "buildscriptGradleAdditions", ""));
 		}
 
-		private void MakeApk(AndroidToolChain ToolChain, string ProjectName, TargetType InTargetType, string ProjectDirectory, string OutputPath, string EngineDirectory, bool bForDistribution, string CookFlavor, 
+		private void MakeApk(AndroidToolChain ToolChain, string ProjectName, TargetType InTargetType, string ProjectDirectory, string OutputPath, string EngineDirectory, bool bForDistribution, string CookFlavor,
 			UnrealTargetConfiguration Configuration, bool bMakeSeparateApks, bool bIncrementalPackage, bool bDisallowPackagingDataInApk, bool bDisallowExternalFilesDir, bool bSkipGradleBuild)
 		{
 			Logger.LogInformation("");
 			Logger.LogInformation("===={Time}====PREPARING TO MAKE APK=================================================================", DateTime.Now.ToString());
-			
+
 			if (Architectures == null)
 			{
 				throw new BuildException("Called MakeApk without first calling SetAndroidPluginData");
@@ -4180,7 +4178,7 @@ namespace UnrealBuildTool
 				DeleteDirectory(IntermediateAndroidPath, Logger);
 				Directory.CreateDirectory(IntermediateAndroidPath);
 			}
-			
+
 			if (!System.IO.Directory.Exists(IntermediateAndroidPath))
 			{
 				System.IO.Directory.CreateDirectory(IntermediateAndroidPath);
@@ -4209,8 +4207,8 @@ namespace UnrealBuildTool
 			// Template generated files
 			string JavaTemplateSourceDir = GetUnrealTemplateJavaSourceDir(EngineDirectory);
 			IEnumerable<TemplateFile> templates = from template in Directory.EnumerateFiles(JavaTemplateSourceDir, "*.template")
-							let RealName = Path.GetFileNameWithoutExtension(template)
-							select new TemplateFile(SourceFile: template, DestinationFile: GetUnrealTemplateJavaDestination(TemplateDestinationBase, RealName));
+												  let RealName = Path.GetFileNameWithoutExtension(template)
+												  select new TemplateFile(SourceFile: template, DestinationFile: GetUnrealTemplateJavaDestination(TemplateDestinationBase, RealName));
 
 			// Generate the OBB and Shim files here
 			string ObbFileLocation = ProjectDirectory + "/Saved/StagedBuilds/Android" + CookFlavor + ".obb";
@@ -4235,7 +4233,7 @@ namespace UnrealBuildTool
 
 			WriteJavaDownloadSupportFiles(UnrealDownloadShimFileName, templates, new Dictionary<string, string>{
 				{ "$$GameName$$", ProjectName },
-				{ "$$PublicKey$$", GetPublicKey() }, 
+				{ "$$PublicKey$$", GetPublicKey() },
 				{ "$$PackageName$$",PackageName }
 			});
 
@@ -4364,9 +4362,9 @@ namespace UnrealBuildTool
 			{
 				// check if so's are up to date against various inputs
 				List<string> JavaFiles = new List<string>{
-                                                    UnrealOBBDataFileName,
-                                                    UnrealDownloadShimFileName
-                                                };
+													UnrealOBBDataFileName,
+													UnrealDownloadShimFileName
+												};
 				// Add the generated files too
 				JavaFiles.AddRange(from t in templates select t.SourceFile);
 				JavaFiles.AddRange(from t in templates select t.DestinationFile);
@@ -4391,7 +4389,7 @@ namespace UnrealBuildTool
 			}
 
 			// Initialize UPL contexts for each architecture enabled
-			UPL.Init(NDKArches, bForDistribution, EngineDirectory, IntermediateAndroidPath, ProjectDirectory, Configuration.ToString(), bSkipGradleBuild, bPerArchBuildDir:true, ArchRemapping:ArchRemapping);
+			UPL.Init(NDKArches, bForDistribution, EngineDirectory, IntermediateAndroidPath, ProjectDirectory, Configuration.ToString(), bSkipGradleBuild, bPerArchBuildDir: true, ArchRemapping: ArchRemapping);
 
 			IEnumerable<Tuple<UnrealArch, string>>? BuildList = null;
 
@@ -4430,7 +4428,7 @@ namespace UnrealBuildTool
 					UnrealArch Arch = build.Item1;
 					string Manifest = build.Item2;
 					string NDKArch = GetNDKArch(Arch);
-					
+
 					string UnrealBuildPath = Path.Combine(IntermediateAndroidPath, Arch.ToString());
 
 					Logger.LogInformation("\n===={Time}====PREPARING NATIVE CODE====={Arch}============================================================", DateTime.Now.ToString(), Arch);
@@ -4794,7 +4792,7 @@ namespace UnrealBuildTool
 				CopyPSOService(UnrealBuildPath, UnrealPreBuiltFilesPath, Arch, NDKArch);
 				CopyGfxDebugger(UnrealBuildPath, Arch, NDKArch);
 				CopyVulkanValidationLayers(UnrealBuildPath, Arch, NDKArch, Configuration.ToString());
-				
+
 				if (Sanitizer != AndroidToolChain.ClangSanitizer.None)
 				{
 					CopyClangSanitizerLib(UnrealBuildPath, Arch, NDKArch, Sanitizer);
@@ -4877,7 +4875,7 @@ namespace UnrealBuildTool
 				int TargetSDKVersion = 0;
 				int NDKLevelInt = 0;
 				GetMinTargetSDKVersions(ToolChain, Arch, UPL, NDKArch, bEnableBundle, out MinSDKVersion, out TargetSDKVersion, out NDKLevelInt);
-					
+
 				// move JavaLibs into subprojects
 				string JavaLibsDir = Path.Combine(UnrealBuildPath, "JavaLibs");
 				PrepareJavaLibsForGradle(JavaLibsDir, UnrealBuildGradlePath, MinSDKVersion.ToString(), TargetSDKVersion.ToString(), CompileSDKVersion, BuildToolsVersion, NDKArch);
@@ -4885,7 +4883,7 @@ namespace UnrealBuildTool
 				// Create local.properties
 				String LocalPropertiesFilename = Path.Combine(UnrealBuildGradlePath, "local.properties");
 				StringBuilder LocalProperties = new StringBuilder();
-//				LocalProperties.AppendLine(string.Format("ndk.dir={0}", Environment.GetEnvironmentVariable("NDKROOT")!.Replace("\\", "/")));
+				//				LocalProperties.AppendLine(string.Format("ndk.dir={0}", Environment.GetEnvironmentVariable("NDKROOT")!.Replace("\\", "/")));
 				LocalProperties.AppendLine(string.Format("sdk.dir={0}", Environment.GetEnvironmentVariable("ANDROID_HOME")!.Replace("\\", "/")));
 				File.WriteAllText(LocalPropertiesFilename, LocalProperties.ToString());
 
@@ -5505,7 +5503,7 @@ namespace UnrealBuildTool
 			TargetType Type = TargetType.Game;
 			if (CookFlavor.EndsWith("Client"))
 			{
-				Type = TargetType.Client;			
+				Type = TargetType.Client;
 			}
 			else if (CookFlavor.EndsWith("Server"))
 			{
@@ -5531,7 +5529,7 @@ namespace UnrealBuildTool
 			SavePackageInfo(ProjectName, ProjectDirectory.FullName, Type, bSkipGradleBuild);
 
 			MakeApk(ToolChain, ProjectName, Type, ProjectDirectory.FullName, ExecutablePath, EngineDirectory, bForDistribution: bForDistribution, CookFlavor: CookFlavor, Configuration: Configuration,
-				bMakeSeparateApks: ShouldMakeSeparateApks(), bIncrementalPackage: false, bDisallowPackagingDataInApk: bIsDataDeploy, bDisallowExternalFilesDir: !bForDistribution || bIsDataDeploy, bSkipGradleBuild:bSkipGradleBuild);
+				bMakeSeparateApks: ShouldMakeSeparateApks(), bIncrementalPackage: false, bDisallowPackagingDataInApk: bIsDataDeploy, bDisallowExternalFilesDir: !bForDistribution || bIsDataDeploy, bSkipGradleBuild: bSkipGradleBuild);
 			return true;
 		}
 
@@ -5680,7 +5678,7 @@ namespace UnrealBuildTool
 				bool Changed = false;
 				foreach (KeyValuePair<string, string> KVP in Replacements)
 				{
-					if(SrcLine.Contains(KVP.Key))
+					if (SrcLine.Contains(KVP.Key))
 					{
 						SrcLine = SrcLine.Replace(KVP.Key, KVP.Value);
 						Changed = true;
@@ -5796,7 +5794,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private AndroidAARHandler CreateAARHandler(string EngineDir, string UnrealBuildPath, List<string> NDKArches, bool HandleDependencies=true)
+		private AndroidAARHandler CreateAARHandler(string EngineDir, string UnrealBuildPath, List<string> NDKArches, bool HandleDependencies = true)
 		{
 			AndroidAARHandler AARHandler = new AndroidAARHandler();
 			string ImportList = "";

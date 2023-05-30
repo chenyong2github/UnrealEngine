@@ -3,15 +3,14 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -294,7 +293,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the input file exists and the dependencies were read</returns>
 		private bool TryGetDependencyInfoInternal(FileItem InputFile, [NotNullWhen(true)] out DependencyInfo? OutInfo)
 		{
-			foreach(CachePartition Partition in Partitions)
+			foreach (CachePartition Partition in Partitions)
 			{
 				if (InputFile.Location.IsUnderDirectory(Partition.BaseDir))
 				{
@@ -524,7 +523,7 @@ namespace UnrealBuildTool
 					}
 				}
 				else
-				{ 
+				{
 					if (Data.TryGetStringArrayField("ImportedModules", out string[]? ImportedModuleArray) && ImportedModuleArray.Length > 0)
 					{
 						ImportedModules =

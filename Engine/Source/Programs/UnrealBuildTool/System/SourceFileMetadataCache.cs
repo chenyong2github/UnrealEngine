@@ -164,7 +164,7 @@ namespace UnrealBuildTool
 			this.Parent = Parent;
 			this.Logger = Logger;
 
-			if(FileReference.Exists(Location))
+			if (FileReference.Exists(Location))
 			{
 				using (GlobalTracer.Instance.BuildSpan("Reading source file metadata cache").StartActive())
 				{
@@ -394,7 +394,7 @@ namespace UnrealBuildTool
 				{
 					return new SourceFile(File);
 				},
-				(k,v) =>
+				(k, v) =>
 				{
 					if (File.LastWriteTimeUtc.Ticks > v.LastWriteTimeUtc)
 					{
@@ -455,13 +455,13 @@ namespace UnrealBuildTool
 		{
 			SourceFileMetadataCache? Cache = null;
 
-			if(ProjectFile == null || !Unreal.IsEngineInstalled())
+			if (ProjectFile == null || !Unreal.IsEngineInstalled())
 			{
 				FileReference EngineCacheLocation = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "SourceFileCache.bin");
 				Cache = FindOrAddCache(EngineCacheLocation, Unreal.EngineDirectory, Cache, Logger);
 			}
 
-			if(ProjectFile != null)
+			if (ProjectFile != null)
 			{
 				FileReference ProjectCacheLocation = FileReference.Combine(ProjectFile.Directory, "Intermediate", "Build", "SourceFileCache.bin");
 				Cache = FindOrAddCache(ProjectCacheLocation, ProjectFile.Directory, Cache, Logger);
@@ -477,11 +477,11 @@ namespace UnrealBuildTool
 		/// <returns>Dependency cache hierarchy for the given project</returns>
 		public static IEnumerable<FileReference> GetFilesToClean(FileReference? ProjectFile)
 		{
-			if(ProjectFile == null || !Unreal.IsEngineInstalled())
+			if (ProjectFile == null || !Unreal.IsEngineInstalled())
 			{
 				yield return FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "SourceFileCache.bin");
 			}
-			if(ProjectFile != null)
+			if (ProjectFile != null)
 			{
 				yield return FileReference.Combine(ProjectFile.Directory, "Intermediate", "Build", "SourceFileCache.bin");
 			}
@@ -513,7 +513,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static void SaveAll()
 		{
-			Parallel.ForEach(Caches.Values, Cache => { if(Cache.bModified){ Cache.Write(); } });
+			Parallel.ForEach(Caches.Values, Cache => { if (Cache.bModified) { Cache.Write(); } });
 		}
 
 		/// <summary>
@@ -523,17 +523,17 @@ namespace UnrealBuildTool
 		{
 			try
 			{
-				using(BinaryArchiveReader Reader = new BinaryArchiveReader(Location))
+				using (BinaryArchiveReader Reader = new BinaryArchiveReader(Location))
 				{
 					int Version = Reader.ReadInt();
-					if(Version != CurrentVersion)
+					if (Version != CurrentVersion)
 					{
 						Logger.LogDebug("Unable to read dependency cache from {File}; version {Version} vs current {CurrentVersion}", Location, Version, CurrentVersion);
 						return;
 					}
 
 					int FileToMarkupFlagCount = Reader.ReadInt();
-					for(int Idx = 0; Idx < FileToMarkupFlagCount; Idx++)
+					for (int Idx = 0; Idx < FileToMarkupFlagCount; Idx++)
 					{
 						FileItem File = Reader.ReadCompactFileItem();
 
@@ -560,7 +560,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-			catch(Exception Ex)
+			catch (Exception Ex)
 			{
 				Logger.LogWarning("Unable to read {Location}. See log for additional information.", Location);
 				Logger.LogDebug(Ex, "{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
@@ -573,14 +573,14 @@ namespace UnrealBuildTool
 		private void Write()
 		{
 			DirectoryReference.CreateDirectory(Location.Directory);
-			using(FileStream Stream = File.Open(Location.FullName, FileMode.Create, FileAccess.Write, FileShare.Read))
+			using (FileStream Stream = File.Open(Location.FullName, FileMode.Create, FileAccess.Write, FileShare.Read))
 			{
-				using(BinaryArchiveWriter Writer = new BinaryArchiveWriter(Stream))
+				using (BinaryArchiveWriter Writer = new BinaryArchiveWriter(Stream))
 				{
 					Writer.WriteInt(CurrentVersion);
 
 					Writer.WriteInt(FileToHeaderFileInfo.Count);
-					foreach(KeyValuePair<FileItem, HeaderFileInfo> Pair in FileToHeaderFileInfo)
+					foreach (KeyValuePair<FileItem, HeaderFileInfo> Pair in FileToHeaderFileInfo)
 					{
 						Writer.WriteCompactFileItem(Pair.Key);
 						Writer.WriteLong(Pair.Value.LastWriteTimeUtc);

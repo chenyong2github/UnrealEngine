@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
@@ -47,7 +44,7 @@ namespace UnrealBuildTool
 			Arguments.CheckAllArgumentsUsed();
 
 			// If the -AllPlatforms argument is specified, add all the known platforms into the list
-			if(bAllPlatforms)
+			if (bAllPlatforms)
 			{
 				Platforms.UnionWith(UnrealTargetPlatform.GetValidPlatforms());
 			}
@@ -70,7 +67,7 @@ namespace UnrealBuildTool
 				{
 					Logger.LogInformation("##PlatformValidate: {Platform} INVALID {PlatformSdkString}", Platform.ToString(), PlatformSDKString);
 				}
-			} 
+			}
 			return Task.FromResult(0);
 		}
 	}

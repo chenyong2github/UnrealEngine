@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using EpicGames.Core;
 using UnrealBuildBase;
 
@@ -162,7 +160,7 @@ namespace UnrealBuildTool
 		/// The method of linking the target uses
 		/// </summary>
 		public TargetLinkType LinkType;
-		
+
 		/// <summary>
 		/// Whether we should compile using the statically-linked CRT. This is not widely supported for the whole engine, but is required for programs that need to run without dependencies.
 		/// </summary>
@@ -337,7 +335,7 @@ namespace UnrealBuildTool
 		/// List of functions that should be exported from this module
 		/// </summary>
 		public List<string> IncludeFunctions = new List<string>();
-		
+
 		/// <summary>
 		/// Debugger visualizer files to build into debug info for this binary. 
 		/// </summary>
@@ -469,4 +467,3 @@ namespace UnrealBuildTool
 		}
 	}
 }
-	

@@ -139,7 +139,7 @@ namespace UnrealBuildTool
 			}
 			else if (Platform == UnrealTargetPlatform.IOS)
 			{
-				ISPCArch += "aarch64"; 
+				ISPCArch += "aarch64";
 			}
 			else
 			{
@@ -565,7 +565,7 @@ namespace UnrealBuildTool
 			GlobalArguments.Add($"--target={TargetString}");
 			GlobalArguments.Add($"--emit-{PlatformObjectFileFormat}");
 
-			bool bByteCodeOutput = ( PlatformObjectFileFormat == "llvm" );
+			bool bByteCodeOutput = (PlatformObjectFileFormat == "llvm");
 
 			List<string> CommonArgs = new List<string>();
 			if (CompileEnvironment.Configuration == CppConfiguration.Debug)

@@ -1,21 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.IO;
+using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using EpicGames.Core;
-using System.Linq;
-using System.Text.RegularExpressions;
-using Microsoft.Win32;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.VisualStudio.Setup.Configuration;
-using System.Runtime.InteropServices;
-using System.Buffers.Binary;
-using UnrealBuildBase;
+using System.IO;
+using System.Linq;
 using System.Runtime.Versioning;
+using System.Text.RegularExpressions;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
+using Microsoft.VisualStudio.Setup.Configuration;
+using Microsoft.Win32;
+using UnrealBuildBase;
 
 ///////////////////////////////////////////////////////////////////
 // If you are looking for supported version numbers, look in the
@@ -214,7 +213,7 @@ namespace UnrealBuildTool
 			}
 			else if (CachedWindowsSdkDirs!.Count > 0)
 			{
-				WindowsSdkVersion = CachedWindowsSdkDirs.OrderBy(x => x.Key).Where( 
+				WindowsSdkVersion = CachedWindowsSdkDirs.OrderBy(x => x.Key).Where(
 					x =>
 					(MinVersion == null || x.Key >= MinVersion) &&
 					(MaxVersion == null || x.Key <= MaxVersion)).Last().Key;
@@ -1016,7 +1015,7 @@ namespace UnrealBuildTool
 			{
 				Logger.LogDebug("Found Visual Studio toolchain: {ToolChainDir} (Family={Family}, FamilyRank={FamilyRank}, Version={Version}, Is64Bit={Is64Bit}, ReleaseChannel={ReleaseChannel}, Architecture={Arch}, Error={Error}, Redist={RedistDir})", ToolChainDir, Family, FamilyRank, Version, Is64Bit, ReleaseChannel, UnrealArch.Arm64.ToString(), Error != null, RedistDir);
 				ToolChains.Add(new ToolChainInstallation(Family, FamilyRank, Version, Is64Bit, ReleaseChannel, UnrealArch.Arm64, Error, ToolChainDir, RedistDir, IsAutoSdk));
-				
+
 				if (HasArm64ECToolChain(ToolChainDir))
 				{
 					Logger.LogDebug("Found Visual Studio toolchain: {ToolChainDir} (Family={Family}, FamilyRank={FamilyRank}, Version={Version}, Is64Bit={Is64Bit}, ReleaseChannel={ReleaseChannel}, Architecture={Arch}, Error={Error}, Redist={RedistDir})", ToolChainDir, Family, FamilyRank, Version, Is64Bit, ReleaseChannel, UnrealArch.Arm64ec.ToString(), Error != null, RedistDir);

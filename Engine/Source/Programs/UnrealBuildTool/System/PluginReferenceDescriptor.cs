@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using JsonExtensions;
 
@@ -110,31 +107,31 @@ namespace UnrealBuildTool
 			Writer.WriteObjectStart();
 			Writer.WriteValue("Name", Name);
 			Writer.WriteValue("Enabled", bEnabled);
-			if(bEnabled && bOptional)
+			if (bEnabled && bOptional)
 			{
 				Writer.WriteValue("Optional", bOptional);
 			}
-			if(!String.IsNullOrEmpty(Description))
+			if (!String.IsNullOrEmpty(Description))
 			{
 				Writer.WriteValue("Description", Description);
 			}
-			if(!String.IsNullOrEmpty(MarketplaceURL))
+			if (!String.IsNullOrEmpty(MarketplaceURL))
 			{
 				Writer.WriteValue("MarketplaceURL", MarketplaceURL);
 			}
-			if(PlatformAllowList != null && PlatformAllowList.Length > 0)
+			if (PlatformAllowList != null && PlatformAllowList.Length > 0)
 			{
 				Writer.WriteStringArrayField("PlatformAllowList", PlatformAllowList.Select(x => x.ToString()).ToArray());
 			}
-			if(PlatformDenyList != null && PlatformDenyList.Length > 0)
+			if (PlatformDenyList != null && PlatformDenyList.Length > 0)
 			{
 				Writer.WriteStringArrayField("PlatformDenyList", PlatformDenyList.Select(x => x.ToString()).ToArray());
 			}
-			if(TargetConfigurationAllowList != null && TargetConfigurationAllowList.Length > 0)
+			if (TargetConfigurationAllowList != null && TargetConfigurationAllowList.Length > 0)
 			{
 				Writer.WriteEnumArrayField("TargetConfigurationAllowList", TargetConfigurationAllowList);
 			}
-			if(TargetConfigurationDenyList != null && TargetConfigurationDenyList.Length > 0)
+			if (TargetConfigurationDenyList != null && TargetConfigurationDenyList.Length > 0)
 			{
 				Writer.WriteEnumArrayField("TargetConfigurationDenyList", TargetConfigurationDenyList);
 			}
@@ -142,17 +139,17 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteEnumArrayField("TargetAllowList", TargetAllowList);
 			}
-			if(TargetDenyList != null && TargetDenyList.Length > 0)
+			if (TargetDenyList != null && TargetDenyList.Length > 0)
 			{
 				Writer.WriteEnumArrayField("TargetDenyList", TargetDenyList);
 			}
-			if(SupportedTargetPlatforms != null && SupportedTargetPlatforms.Length > 0)
+			if (SupportedTargetPlatforms != null && SupportedTargetPlatforms.Length > 0)
 			{
 				Writer.WriteStringArrayField("SupportedTargetPlatforms", SupportedTargetPlatforms.Select(x => x.ToString()).ToArray());
 			}
-			if(bHasExplicitPlatforms)
+			if (bHasExplicitPlatforms)
 			{
-				Writer.WriteValue("HasExplicitPlatforms",bHasExplicitPlatforms);
+				Writer.WriteValue("HasExplicitPlatforms", bHasExplicitPlatforms);
 			}
 			if (bEnabled && RequestedVersion != null)
 			{
@@ -184,16 +181,16 @@ namespace UnrealBuildTool
 		/// Checks the given platform names array and logs a message about any that are not known. This may simply be due to not having the platform synced in Engine/Platforms/[PlatformName].
 		/// </summary>
 		/// <param name="PlatformNames"></param>
-		private void VerifyPlatformNames( string[]? PlatformNames )
+		private void VerifyPlatformNames(string[]? PlatformNames)
 		{
 			if (PlatformNames != null)
 			{
-				foreach( string PlatformName in PlatformNames )
+				foreach (string PlatformName in PlatformNames)
 				{
 					UnrealTargetPlatform Platform;
 					if (!UnrealTargetPlatform.TryParse(PlatformName, out Platform))
 					{
-						Log.TraceLogOnce("Ignoring unknown platform '{0}' (referenced via a project's plugin descriptor for '{1}')", PlatformName, Name );
+						Log.TraceLogOnce("Ignoring unknown platform '{0}' (referenced via a project's plugin descriptor for '{1}')", PlatformName, Name);
 					}
 				}
 			}

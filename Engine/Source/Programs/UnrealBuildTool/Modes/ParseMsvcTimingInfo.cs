@@ -115,7 +115,7 @@ namespace UnrealBuildTool
 			return Task.FromResult(0);
 		}
 
-		TimingData SummarizeParsedTimingData(string SummaryName, TimingDataType TimingType,  IEnumerable<string> Lines)
+		TimingData SummarizeParsedTimingData(string SummaryName, TimingDataType TimingType, IEnumerable<string> Lines)
 		{
 			TimingData Summary = new TimingData(SummaryName, TimingDataType.Summary);
 			List<TimingData> ParsedTimingData = ParseTimingDataFromLines(TimingType, Lines);
@@ -165,7 +165,7 @@ namespace UnrealBuildTool
 					{
 						CurrentTimingData.Parent = LastTimingData!.Parent;
 						ParentData = LastTimingData.Parent;
-						
+
 					}
 					else if (LineDepth > LastDepth)
 					{

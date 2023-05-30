@@ -1,17 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Diagnostics;
-using System.IO;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
 	class TVOSProjectGenerator : IOSProjectGenerator
-    {
+	{
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -29,5 +25,5 @@ namespace UnrealBuildTool
 		{
 			yield return UnrealTargetPlatform.TVOS;
 		}
-    }
+	}
 }

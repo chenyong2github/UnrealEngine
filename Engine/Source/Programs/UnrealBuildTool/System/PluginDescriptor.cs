@@ -2,10 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
 using EpicGames.Core;
 
 namespace UnrealBuildTool
@@ -36,9 +33,9 @@ namespace UnrealBuildTool
 		ProjectPluginUnification = 3,
 
 		/// <summary>
-        /// This needs to be the last line, so we can calculate the value of Latest below
+		/// This needs to be the last line, so we can calculate the value of Latest below
 		/// </summary>
-        LatestPlusOne,
+		LatestPlusOne,
 
 		/// <summary>
 		/// The latest plugin descriptor version
@@ -312,7 +309,7 @@ namespace UnrealBuildTool
 			}
 
 			bool bEnabledByDefaultValue;
-			if(RawObject.TryGetBoolField("EnabledByDefault", out bEnabledByDefaultValue))
+			if (RawObject.TryGetBoolField("EnabledByDefault", out bEnabledByDefaultValue))
 			{
 				bEnabledByDefault = bEnabledByDefaultValue;
 			}
@@ -324,9 +321,9 @@ namespace UnrealBuildTool
 			RawObject.TryGetBoolField("Installed", out bInstalled);
 
 			bool bCanBeUsedWithUnrealHeaderTool;
-			if(RawObject.TryGetBoolField("CanBeUsedWithUnrealHeaderTool", out bCanBeUsedWithUnrealHeaderTool) && bCanBeUsedWithUnrealHeaderTool)
+			if (RawObject.TryGetBoolField("CanBeUsedWithUnrealHeaderTool", out bCanBeUsedWithUnrealHeaderTool) && bCanBeUsedWithUnrealHeaderTool)
 			{
-				Array.Resize(ref SupportedPrograms, (SupportedPrograms == null)? 1 : SupportedPrograms.Length + 1);
+				Array.Resize(ref SupportedPrograms, (SupportedPrograms == null) ? 1 : SupportedPrograms.Length + 1);
 				SupportedPrograms[SupportedPrograms.Length - 1] = "UnrealHeaderTool";
 			}
 
@@ -339,7 +336,7 @@ namespace UnrealBuildTool
 			CustomBuildSteps.TryRead(RawObject, "PostBuildSteps", out PostBuildSteps);
 
 			JsonObject[]? PluginsArray;
-			if(RawObject.TryGetObjectArrayField("Plugins", out PluginsArray))
+			if (RawObject.TryGetObjectArrayField("Plugins", out PluginsArray))
 			{
 				Plugins = Array.ConvertAll(PluginsArray, x => PluginReferenceDescriptor.FromJsonObject(x)).ToList();
 			}
@@ -396,7 +393,7 @@ namespace UnrealBuildTool
 			Writer.WriteValue("DocsURL", DocsURL);
 			Writer.WriteValue("MarketplaceURL", MarketplaceURL);
 			Writer.WriteValue("SupportURL", SupportURL);
-			if(!String.IsNullOrEmpty(EngineVersion))
+			if (!String.IsNullOrEmpty(EngineVersion))
 			{
 				Writer.WriteValue("EngineVersion", EngineVersion);
 			}
@@ -430,7 +427,7 @@ namespace UnrealBuildTool
 				Writer.WriteValue("Installed", bInstalled);
 			}
 
-			if(bRequiresBuildPlatform)
+			if (bRequiresBuildPlatform)
 			{
 				Writer.WriteValue("RequiresBuildPlatform", bRequiresBuildPlatform);
 			}
@@ -450,7 +447,7 @@ namespace UnrealBuildTool
 				Writer.WriteValue("HasExplicitPlatforms", bHasExplicitPlatforms);
 			}
 
-			if(SupportedTargetPlatforms != null && SupportedTargetPlatforms.Count > 0)
+			if (SupportedTargetPlatforms != null && SupportedTargetPlatforms.Count > 0)
 			{
 				Writer.WriteStringArrayField("SupportedTargetPlatforms", SupportedTargetPlatforms.Select<UnrealTargetPlatform, string>(x => x.ToString()).ToArray());
 			}
@@ -471,12 +468,12 @@ namespace UnrealBuildTool
 
 			LocalizationTargetDescriptor.WriteArray(Writer, "LocalizationTargets", LocalizationTargets);
 
-			if(PreBuildSteps != null)
+			if (PreBuildSteps != null)
 			{
 				PreBuildSteps.Write(Writer, "PreBuildSteps");
 			}
 
-			if(PostBuildSteps != null)
+			if (PostBuildSteps != null)
 			{
 				PostBuildSteps.Write(Writer, "PostBuildSteps");
 			}
@@ -538,7 +535,7 @@ namespace UnrealBuildTool
 		/// <returns>String list of supported target platforms</returns>
 		public string[]? GetSupportedTargetPlatformNames()
 		{
-			return SupportedTargetPlatforms?.Select( P => P.ToString() ).ToArray();
+			return SupportedTargetPlatforms?.Select(P => P.ToString()).ToArray();
 		}
 	}
 }

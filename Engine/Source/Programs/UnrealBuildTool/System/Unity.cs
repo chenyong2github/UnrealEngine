@@ -2,12 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
 using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
-using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -302,7 +300,7 @@ namespace UnrealBuildTool
 				CompileEnvironment.FileInlineGenCPPMap[UnityCPPFile] = InlinedGenCPPFilesInUnity;
 
 				// Store the mapping of source files to unity files in the makefile
-				foreach(FileItem SourceFile in UnityFile.Files)
+				foreach (FileItem SourceFile in UnityFile.Files)
 				{
 					SourceFileToUnityFile[SourceFile] = UnityCPPFile;
 				}

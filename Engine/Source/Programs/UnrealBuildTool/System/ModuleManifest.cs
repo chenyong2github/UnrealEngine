@@ -5,8 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 
 namespace UnrealBuildTool
@@ -64,7 +62,7 @@ namespace UnrealBuildTool
 			{
 				BaseName += String.Format("-{0}-{1}", Platform.ToString(), Configuration.ToString());
 			}
-			if(UnrealArchitectureConfig.ForPlatform(Platform).RequiresArchitectureFilenames(BuildArchitectures))
+			if (UnrealArchitectureConfig.ForPlatform(Platform).RequiresArchitectureFilenames(BuildArchitectures))
 			{
 				BaseName += BuildArchitectures.ToString();
 			}
@@ -122,7 +120,7 @@ namespace UnrealBuildTool
 		public void Write(FileReference FileName)
 		{
 			DirectoryReference.CreateDirectory(FileName.Directory);
-			using(StreamWriter Writer = new StreamWriter(FileName.FullName))
+			using (StreamWriter Writer = new StreamWriter(FileName.FullName))
 			{
 				Write(Writer);
 			}

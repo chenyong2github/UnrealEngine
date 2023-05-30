@@ -2,12 +2,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
+using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
 using EpicGames.Core;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
@@ -28,7 +27,7 @@ namespace UnrealBuildTool
 		public CodeLiteGenerator(FileReference? InOnlyGameProject, CommandLineArguments CommandLine)
 			: base(InOnlyGameProject)
 		{
-			if(CommandLine.HasOption("-cl10"))
+			if (CommandLine.HasOption("-cl10"))
 			{
 				ProjectFileFormat = CodeliteProjectFileFormat.CodeLite10;
 			}
@@ -170,9 +169,9 @@ namespace UnrealBuildTool
 					if (ProjectFileFormat == CodeliteProjectFileFormat.CodeLite10)
 					{
 						if ((CurrentTarget.TargetRules!.Type == TargetType.Client) ||
-						    (CurrentTarget.TargetRules.Type == TargetType.Server) ||
-						    (CurrentTarget.TargetRules.Type == TargetType.Editor) ||
-						    (CurrentTarget.TargetRules.Type == TargetType.Game))
+							(CurrentTarget.TargetRules.Type == TargetType.Server) ||
+							(CurrentTarget.TargetRules.Type == TargetType.Editor) ||
+							(CurrentTarget.TargetRules.Type == TargetType.Game))
 						{
 							if (ProjectName.Equals("UnrealClient") ||
 								ProjectName.Equals("UnrealServer") ||
@@ -217,7 +216,7 @@ namespace UnrealBuildTool
 			}
 			if (ProjectFileFormat == CodeliteProjectFileFormat.CodeLite10)
 			{
-				
+
 				if (CodeLiteWorkspaceTargetEngine != null)
 				{
 					CodeLiteWorkspace.Add(CodeLiteWorkspaceTargetEngine);

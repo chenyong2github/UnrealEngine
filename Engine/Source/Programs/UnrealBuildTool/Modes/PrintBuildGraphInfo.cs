@@ -4,10 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
@@ -67,7 +65,7 @@ namespace UnrealBuildTool
 							{
 								ModuleCPP.CreateCompileEnvironmentForIntellisense(Target.Rules, BinaryCompileEnvironment, Logger);
 							}
-							
+
 							Modules.Add(Module);
 						}
 					}
@@ -202,7 +200,7 @@ namespace UnrealBuildTool
 								}
 
 								var DepModuleArray = DepModuleStack.Reverse().ToArray();
-								for (int DepModuleIndex = 0; DepModuleIndex < DepModuleArray.Length; DepModuleIndex++) 
+								for (int DepModuleIndex = 0; DepModuleIndex < DepModuleArray.Length; DepModuleIndex++)
 								{
 									Dependencies.Append(DepModuleArray[DepModuleIndex].Name);
 									if (DepModuleIndex != DepModuleArray.Length - 1)

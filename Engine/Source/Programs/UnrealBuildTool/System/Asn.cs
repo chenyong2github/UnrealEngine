@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace UnrealBuildTool
 {
@@ -38,10 +37,10 @@ namespace UnrealBuildTool
 
 		public static class ObjectIdentifier
 		{
-			public static readonly int[] CountryName = new int[]{ 2, 5, 4, 6 };
-			public static readonly int[] OrganizationName = new int[]{ 2, 5, 4, 10 };
-			public static readonly int[] Pkcs7_SignedData = new int[]{ 1, 2, 840, 113549, 1, 7, 2 };
-			public static readonly int[] Pkcs7_Data = new int[]{ 1, 2, 840, 113549, 1, 7, 1 };
+			public static readonly int[] CountryName = new int[] { 2, 5, 4, 6 };
+			public static readonly int[] OrganizationName = new int[] { 2, 5, 4, 10 };
+			public static readonly int[] Pkcs7_SignedData = new int[] { 1, 2, 840, 113549, 1, 7, 2 };
+			public static readonly int[] Pkcs7_Data = new int[] { 1, 2, 840, 113549, 1, 7, 1 };
 		}
 
 		static readonly List<KeyValuePair<int[], string>> KnownObjectIdentifiers = new List<KeyValuePair<int[], string>>
@@ -69,7 +68,7 @@ namespace UnrealBuildTool
 
 		public static void SkipValue(BinaryReader Reader, FieldInfo Field)
 		{
-			if(Field.bPrimitive)
+			if (Field.bPrimitive)
 			{
 				Reader.BaseStream.Seek(Field.Length, SeekOrigin.Current);
 			}
@@ -78,7 +77,7 @@ namespace UnrealBuildTool
 		public static int ReadInteger(BinaryReader Reader, int Length)
 		{
 			int Value = 0;
-			for(int Idx = 0; Idx < Length; Idx++)
+			for (int Idx = 0; Idx < Length; Idx++)
 			{
 				Value = (Value << 8) | (int)Reader.ReadByte();
 			}
@@ -88,7 +87,7 @@ namespace UnrealBuildTool
 		public static int ReadLength(BinaryReader Reader)
 		{
 			int Count = (int)Reader.ReadByte();
-			if(Count <= 0x7f)
+			if (Count <= 0x7f)
 			{
 				return Count;
 			}
@@ -105,10 +104,10 @@ namespace UnrealBuildTool
 			List<int> Values = new List<int>();
 			Values.Add((int)Data[0] / 40);
 			Values.Add((int)Data[0] % 40);
-			for(int Idx = 1; Idx < Data.Length; Idx++)
+			for (int Idx = 1; Idx < Data.Length; Idx++)
 			{
 				int Value = (int)Data[Idx] & 0x7f;
-				while(((int)Data[Idx] & 0x80) != 0)
+				while (((int)Data[Idx] & 0x80) != 0)
 				{
 					Value = (Value << 7) | ((int)Data[++Idx] & 0x7f);
 				}
@@ -120,7 +119,7 @@ namespace UnrealBuildTool
 		public static string GetObjectIdentifierName(int[] Values)
 		{
 			string? Description;
-			if(!TryGetObjectIdentifierName(Values, out Description))
+			if (!TryGetObjectIdentifierName(Values, out Description))
 			{
 				Description = String.Format("Unknown ({0})", String.Join(", ", Values.Select(x => x.ToString())));
 			}
@@ -129,9 +128,9 @@ namespace UnrealBuildTool
 
 		public static bool TryGetObjectIdentifierName(int[] Values, [NotNullWhen(true)] out string? Name)
 		{
-			foreach(KeyValuePair<int[], string> KnownObjectIdentifier in KnownObjectIdentifiers)
+			foreach (KeyValuePair<int[], string> KnownObjectIdentifier in KnownObjectIdentifiers)
 			{
-				if(Enumerable.SequenceEqual(Values, KnownObjectIdentifier.Key))
+				if (Enumerable.SequenceEqual(Values, KnownObjectIdentifier.Key))
 				{
 					Name = KnownObjectIdentifier.Value;
 					return true;
@@ -148,12 +147,12 @@ namespace UnrealBuildTool
 
 			// If it's a primitive type, unpack the value
 			string DescriptionSuffix = "";
-			if(Field.bPrimitive)
+			if (Field.bPrimitive)
 			{
-				if(Field.Length > 0)
+				if (Field.Length > 0)
 				{
 					string Description;
-					switch(Field.Tag)
+					switch (Field.Tag)
 					{
 						case FieldTag.INTEGER:
 							Description = String.Format("{0}", ReadInteger(Reader, Field.Length));
@@ -177,10 +176,10 @@ namespace UnrealBuildTool
 			Console.WriteLine("{0}{1}{2}", Indent, Field.Tag, DescriptionSuffix);
 
 			// If it's not a primitive, print the contents
-			if(!Field.bPrimitive)
+			if (!Field.bPrimitive)
 			{
 				long EndOffset = Reader.BaseStream.Position + Field.Length;
-				while(Reader.BaseStream.Position < EndOffset)
+				while (Reader.BaseStream.Position < EndOffset)
 				{
 					Dump(Reader, Indent + "  ");
 				}

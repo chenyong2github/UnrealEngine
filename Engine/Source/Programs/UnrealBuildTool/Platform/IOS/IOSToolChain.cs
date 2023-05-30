@@ -2,22 +2,17 @@
 
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.IO;
 using System.Diagnostics;
-using System.Security.AccessControl;
-using System.Xml;
-using System.Xml.Linq;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using EpicGames.Core;
 using Ionic.Zip;
 using Ionic.Zlib;
-using EpicGames.Core;
-using System.Security.Cryptography.X509Certificates;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
-using System.Text.RegularExpressions;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -490,7 +485,7 @@ namespace UnrealBuildTool
 					LinkCommandArguments += string.Format(" -l\\\"{0}\\\"", AdditionalLibrary);
 				}
 
-				foreach(FileReference Library in LinkEnvironment.Libraries)
+				foreach (FileReference Library in LinkEnvironment.Libraries)
 				{
 					// for absolute library paths, convert to remote filename
 					// add it to the prerequisites to make sure it's built first (this should be the case of non-system libraries)
@@ -1204,7 +1199,7 @@ namespace UnrealBuildTool
 
 				if (Log.OutputFile != null)
 				{
-					string LogFileName = Log.OutputFile.GetFileNameWithoutExtension()+"_PostBuildSync.txt";
+					string LogFileName = Log.OutputFile.GetFileNameWithoutExtension() + "_PostBuildSync.txt";
 					LogFileName = FileReference.Combine(Log.OutputFile.Directory, LogFileName).ToString();
 					PostBuildSyncArguments += " -log=\"" + LogFileName + "\"";
 				}
@@ -1308,8 +1303,8 @@ namespace UnrealBuildTool
 			}
 
 			string FabricPath = Unreal.EngineDirectory + "/Intermediate/UnzippedFrameworks/Crashlytics/Fabric.embeddedframework";
-            if (Directory.Exists(FabricPath) && Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
-            {
+			if (Directory.Exists(FabricPath) && Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
+			{
 				//string PlistFile = ProjectDir + "/Intermediate/IOS/" + ProjectName + "-Info.plist";
 				Process FabricProcess = new Process();
 				FabricProcess.StartInfo.WorkingDirectory = Path.GetDirectoryName(DsymZip);
@@ -1380,15 +1375,15 @@ namespace UnrealBuildTool
 			FileReference.WriteAllText(MissingPlistPath, Plist);
 		}
 
-        /// <summary>
-        /// If the project is a UnrealGame project, Target.ProjectDirectory refers to the engine dir, not the actual dir of the project. So this method gets the 
-        /// actual directory of the project whether it is a UnrealGame project or not.
-        /// </summary>
-        /// <returns>The actual project directory.</returns>
-        /// <param name="ProjectFile">The path to the project file</param>
-        private static DirectoryReference GetActualProjectDirectory(FileReference? ProjectFile)
+		/// <summary>
+		/// If the project is a UnrealGame project, Target.ProjectDirectory refers to the engine dir, not the actual dir of the project. So this method gets the 
+		/// actual directory of the project whether it is a UnrealGame project or not.
+		/// </summary>
+		/// <returns>The actual project directory.</returns>
+		/// <param name="ProjectFile">The path to the project file</param>
+		private static DirectoryReference GetActualProjectDirectory(FileReference? ProjectFile)
 		{
-			DirectoryReference ProjectDirectory = (ProjectFile == null ? DirectoryReference.FromString(UnrealBuildTool.GetRemoteIniPath())! : DirectoryReference.FromFile(ProjectFile)!); 
+			DirectoryReference ProjectDirectory = (ProjectFile == null ? DirectoryReference.FromString(UnrealBuildTool.GetRemoteIniPath())! : DirectoryReference.FromFile(ProjectFile)!);
 			return ProjectDirectory;
 		}
 
@@ -1401,7 +1396,7 @@ namespace UnrealBuildTool
 			string FrameworkName = Target.TargetName;
 			string BundleId = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetBundleID(Target.ProjectDirectory, Target.ProjectFile);
 			string EnginePath = Unreal.EngineDirectory.ToString();
-			string SrcFrameworkPath = DirectoryReference.Combine(Target.ProjectDirectory , "Binaries", "IOS", Target.Configuration.ToString()).ToString(); // We use Target.ProjectDirectory because if it is a UnrealGame we want the engine dir and not the actual project dir.
+			string SrcFrameworkPath = DirectoryReference.Combine(Target.ProjectDirectory, "Binaries", "IOS", Target.Configuration.ToString()).ToString(); // We use Target.ProjectDirectory because if it is a UnrealGame we want the engine dir and not the actual project dir.
 			string CookedDataPath = DirectoryReference.Combine(ProjectDirectory, "Saved", "StagedBuilds", "IOS", "cookeddata").ToString();
 			bool GenerateFrameworkWrapperProject = ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetGenerateFrameworkWrapperProject(Target.ProjectDirectory);
 
@@ -1500,8 +1495,8 @@ namespace UnrealBuildTool
 
 				// generate the dummy project so signing works
 				DirectoryReference? XcodeWorkspaceDir = null;
-                if (!Target.bBuildAsFramework)
-                {
+				if (!Target.bBuildAsFramework)
+				{
 					if (AppName == "UnrealGame" || AppName == "UnrealClient" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
 					{
 						XcodeWorkspaceDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate/ProjectFiles", String.Format("UE5_{0}.xcworkspace", (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS")));
@@ -1510,7 +1505,7 @@ namespace UnrealBuildTool
 					{
 						XcodeWorkspaceDir = DirectoryReference.Combine(Target.ProjectDirectory, "Intermediate/ProjectFiles", String.Format("{0}_{1}.xcworkspace", Target.ProjectFile.GetFileNameWithoutExtension(), (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS")));
 					}
-                }
+				}
 
 				// Path to the temporary keychain. When -ImportCertificate is specified, we will temporarily add this to the list of keychains to search, and remove it later.
 				FileReference TempKeychain = FileReference.Combine(Target.ProjectIntermediateDirectory!, "TempKeychain.keychain");
@@ -1678,20 +1673,20 @@ namespace UnrealBuildTool
 				{
 					Logger.LogInformation("Generating project...");
 					DirectoryReference? GeneratedProjectFile;
-				    if (AppName == "UnrealGame" || AppName == "UnrealClient" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
-				    {
-					    GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), "-bundleID=" + BundleID, "-includetemptargets", "-appname=" + AppName }, Logger, out GeneratedProjectFile);
-				    }
-				    else
-				    {
-					    GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), String.Format("-project={0}", Target.ProjectFile), "-game", "-bundleID=" + BundleID, "-includetemptargets" }, Logger, out GeneratedProjectFile);
-				    }
+					if (AppName == "UnrealGame" || AppName == "UnrealClient" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
+					{
+						GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), "-bundleID=" + BundleID, "-includetemptargets", "-appname=" + AppName }, Logger, out GeneratedProjectFile);
+					}
+					else
+					{
+						GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), String.Format("-project={0}", Target.ProjectFile), "-game", "-bundleID=" + BundleID, "-includetemptargets" }, Logger, out GeneratedProjectFile);
+					}
 					Logger.LogInformation("Generated {0}!", GeneratedProjectFile?.FullName ?? "NONE");
 					// Make sure it exists
 					if (!DirectoryReference.Exists(XcodeWorkspaceDir!) || (GeneratedProjectFile != null && GeneratedProjectFile != XcodeWorkspaceDir))
-				    {
-					    throw new BuildException("Unable to create stub IPA; Xcode workspace not found at {0}", XcodeWorkspaceDir);
-				    }
+					{
+						throw new BuildException("Unable to create stub IPA; Xcode workspace not found at {0}", XcodeWorkspaceDir);
+					}
 				}
 
 				// ensure the plist, entitlements, and provision files are properly copied

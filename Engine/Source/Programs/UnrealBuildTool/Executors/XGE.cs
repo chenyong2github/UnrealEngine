@@ -3,23 +3,20 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Diagnostics;
-using System.Xml;
-using System.Text.RegularExpressions;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
-using System.Reflection;
-using Microsoft.Win32;
-using System.Text;
-using EpicGames.Core;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
-using UnrealBuildBase;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Versioning;
-using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
+using System.Xml;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
+using UnrealBuildBase;
 using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
@@ -109,12 +106,12 @@ namespace UnrealBuildTool
 			if (OperatingSystem.IsWindows())
 			{
 				string? XgConsoleExe;
-				if(TryGetXgConsoleExecutableFromRegistry(RegistryView.Registry32, out XgConsoleExe))
+				if (TryGetXgConsoleExecutableFromRegistry(RegistryView.Registry32, out XgConsoleExe))
 				{
 					OutXgConsoleExe = XgConsoleExe;
 					return true;
 				}
-				if(TryGetXgConsoleExecutableFromRegistry(RegistryView.Registry64, out XgConsoleExe))
+				if (TryGetXgConsoleExecutableFromRegistry(RegistryView.Registry64, out XgConsoleExe))
 				{
 					OutXgConsoleExe = XgConsoleExe;
 					return true;
@@ -163,17 +160,17 @@ namespace UnrealBuildTool
 		{
 			try
 			{
-				using(RegistryKey BaseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, View))
+				using (RegistryKey BaseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, View))
 				{
 					using (RegistryKey? Key = BaseKey.OpenSubKey("SOFTWARE\\Xoreax\\IncrediBuild\\Builder", false))
 					{
-						if(Key != null)
+						if (Key != null)
 						{
 							string? Folder = Key.GetValue("Folder", null) as string;
-							if(!String.IsNullOrEmpty(Folder))
+							if (!String.IsNullOrEmpty(Folder))
 							{
 								string FileName = Path.Combine(Folder, "xgConsole.exe");
-								if(File.Exists(FileName))
+								if (File.Exists(FileName))
 								{
 									OutXgConsoleExe = FileName;
 									return true;
@@ -183,7 +180,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-			catch(Exception Ex)
+			catch (Exception Ex)
 			{
 				Log.WriteException(Ex, null);
 			}
@@ -332,7 +329,7 @@ namespace UnrealBuildTool
 						return false;
 					}
 				}
-				catch(Exception Ex)
+				catch (Exception Ex)
 				{
 					Logger.LogDebug("Unable to query for status of Incredibuild service: {Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
 					return false;
@@ -377,10 +374,10 @@ namespace UnrealBuildTool
 
 		public static void ExportActions(List<LinkedAction> ActionsToExecute, ILogger Logger)
 		{
-			for(int FileNum = 0;;FileNum++)
+			for (int FileNum = 0; ; FileNum++)
 			{
 				string OutFile = Path.Combine(Unreal.EngineDirectory.FullName, "Intermediate", "Build", String.Format("UBTExport.{0}.xge.xml", FileNum.ToString("D3")));
-				if(!File.Exists(OutFile))
+				if (!File.Exists(OutFile))
 				{
 					ExportActions(ActionsToExecute, OutFile, Logger);
 					break;
@@ -481,7 +478,7 @@ namespace UnrealBuildTool
 
 				// Don't allow remote linking if on VPN.
 				bool CanExecuteRemotely = Action.bCanExecuteRemotely && Action.bCanExecuteRemotelyWithXGE;
-				if(CanExecuteRemotely && Action.ActionType == ActionType.Link)
+				if (CanExecuteRemotely && Action.ActionType == ActionType.Link)
 				{
 					if (HostOnVpn || !bAllowRemoteLinking)
 					{
@@ -511,7 +508,7 @@ namespace UnrealBuildTool
 				{
 					ToolElement.SetAttribute("OutputPrefix", OutputPrefix);
 				}
-				if(Action.GroupNames.Count > 0)
+				if (Action.GroupNames.Count > 0)
 				{
 					ToolElement.SetAttribute("GroupPrefix", String.Format("** For {0} **", String.Join(" + ", Action.GroupNames)));
 				}
@@ -540,7 +537,7 @@ namespace UnrealBuildTool
 					string.Join(
 						",",
 						Action.ProducedItems.Select(
-							delegate(FileItem ProducedItem) { return ProducedItem.Location.GetFileName(); }
+							delegate (FileItem ProducedItem) { return ProducedItem.Location.GetFileName(); }
 							).ToArray()
 						)
 					);
@@ -578,7 +575,7 @@ namespace UnrealBuildTool
 
 				// Create a semi-colon separated list of the other tasks this task depends on the results of.
 				List<string> DependencyNames = new List<string>();
-				foreach(LinkedAction PrerequisiteAction in Action.PrerequisiteActions)
+				foreach (LinkedAction PrerequisiteAction in Action.PrerequisiteActions)
 				{
 					if (Actions.Contains(PrerequisiteAction))
 					{
@@ -641,7 +638,7 @@ namespace UnrealBuildTool
 			}
 
 			string? XgConsolePath;
-			if(!TryGetXgConsoleExecutable(out XgConsolePath))
+			if (!TryGetXgConsoleExecutable(out XgConsolePath))
 			{
 				throw new BuildException("Unable to find xgConsole executable.");
 			}
@@ -721,7 +718,7 @@ namespace UnrealBuildTool
 				// Create a wrapper delegate that will parse the output actions
 				DataReceivedEventHandler EventHandlerWrapper = (Sender, Args) =>
 				{
-					if(Args.Data != null)
+					if (Args.Data != null)
 					{
 						string Text = Args.Data;
 						if (Text.StartsWith(ProgressMarkupPrefix))
@@ -753,7 +750,7 @@ namespace UnrealBuildTool
 
 							// Strip out anything that is just an XGE timer. Some programs don't output anything except the progress text.
 							Text = Args.Data.Substring(MarkupLength);
-							if(Text.StartsWith(" (") && Text.EndsWith(")"))
+							if (Text.StartsWith(" (") && Text.EndsWith(")"))
 							{
 								// Write the progress text with the next line of output if the current doesn't have any status.
 								ProgressText = Text.Trim();

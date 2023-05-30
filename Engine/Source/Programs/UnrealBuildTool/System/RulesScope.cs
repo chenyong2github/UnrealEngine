@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace UnrealBuildTool
 {
@@ -41,9 +37,9 @@ namespace UnrealBuildTool
 		/// <returns>True if this scope contains the other scope</returns>
 		public bool Contains(RulesScope Other)
 		{
-			for(RulesScope? Scope = this; Scope != null; Scope = Scope.Parent)
+			for (RulesScope? Scope = this; Scope != null; Scope = Scope.Parent)
 			{
-				if(Scope == Other)
+				if (Scope == Other)
 				{
 					return true;
 				}
@@ -57,7 +53,7 @@ namespace UnrealBuildTool
 		/// <returns>String representing the hierarchy of scopes</returns>
 		public string FormatHierarchy()
 		{
-			if(Parent == null)
+			if (Parent == null)
 			{
 				return Name;
 			}

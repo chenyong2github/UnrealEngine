@@ -6,12 +6,11 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
-using System.Reflection.Metadata;
-using System.Xml;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -506,7 +505,7 @@ namespace UnrealBuildTool
 						)
 					)
 				);
-				
+
 				StringBuilder Output = new StringBuilder();
 				Output.Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
 
@@ -841,9 +840,9 @@ namespace UnrealBuildTool
 					VCSolutionOptions Options = new VCSolutionOptions(Settings.ProjectFileFormat);
 
 					// Set the default configuration and startup project
-					VCSolutionConfigCombination? DefaultConfig = SolutionConfigCombinations.Find(x => 
+					VCSolutionConfigCombination? DefaultConfig = SolutionConfigCombinations.Find(x =>
 						x.Configuration == UnrealTargetConfiguration.Development &&
-						x.Platform == UnrealTargetPlatform.Win64 && 
+						x.Platform == UnrealTargetPlatform.Win64 &&
 						(bMakeProjectPerTarget || x.TargetConfigurationName == TargetType.Editor));
 					if (DefaultConfig != null)
 					{
@@ -916,14 +915,14 @@ namespace UnrealBuildTool
 									if (CurProject.ProjectTargets.Count == 0)
 									{
 										throw new BuildException("Expecting project '" + CurProject.ProjectFilePath +
-										                         "' to have at least one ProjectTarget associated with it!");
+																 "' to have at least one ProjectTarget associated with it!");
 									}
 
 									// Figure out the set of valid target configuration names
 									foreach (Project ProjectTarget in CurProject.ProjectTargets)
 									{
 										if (VCProjectFile.IsValidProjectPlatformAndConfiguration(ProjectTarget, CurPlatform,
-											    CurConfiguration, Logger))
+												CurConfiguration, Logger))
 										{
 											OutValidPlatforms.Add(CurPlatform);
 
@@ -950,7 +949,7 @@ namespace UnrealBuildTool
 			foreach (UnrealTargetPlatform CurPlatform in OutValidPlatforms)
 			{
 				foreach (KeyValuePair<string, Tuple<UnrealTargetConfiguration, TargetType>> SolutionConfigKeyValue in
-				         SolutionConfigurationsValidForProjects)
+						 SolutionConfigurationsValidForProjects)
 				{
 					// e.g.  "Development|Win64 = Development|Win64"
 					string SolutionConfigName = SolutionConfigKeyValue.Key;

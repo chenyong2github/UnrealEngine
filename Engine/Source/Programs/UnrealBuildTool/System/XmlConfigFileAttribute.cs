@@ -1,10 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace UnrealBuildTool
 {
@@ -30,7 +26,7 @@ namespace UnrealBuildTool
 		/// A deprecated field should also be marked with the [Obsolete] attribute.
 		/// </summary>
 		public bool Deprecated = false;
-		
+
 		/// <summary>
 		/// If the attribute has been deprecated because it has been renamed, this field can be used to apply the
 		/// value used for this field to another.

@@ -4,13 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -100,7 +97,7 @@ namespace UnrealBuildTool
 			// Acquire a different mutex to the regular UBT instance, since this mode will be called as part of a build. We need the mutex to ensure that building two modular configurations 
 			// in parallel don't clash over writing shared *.modules files (eg. DebugGame and Development editors).
 			string MutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_WriteMetadata", Unreal.RootDirectory.FullName);
-			using(new SingleInstanceMutex(MutexName, true))
+			using (new SingleInstanceMutex(MutexName, true))
 			{
 				return ExecuteInternal(Arguments, Logger);
 			}
@@ -121,7 +118,7 @@ namespace UnrealBuildTool
 			Arguments.CheckAllArgumentsUsed();
 
 			// Make sure the version number is correct
-			if(VersionNumber != CurrentVersionNumber)
+			if (VersionNumber != CurrentVersionNumber)
 			{
 				throw new BuildException("Version number to WriteMetadataMode is incorrect (expected {0}, got {1})", CurrentVersionNumber, VersionNumber);
 			}
@@ -146,10 +143,10 @@ namespace UnrealBuildTool
 			}
 
 			// Read all the existing manifests and merge them into the new ones if they have the same build id
-			foreach(KeyValuePair<FileReference, ModuleManifest> Pair in TargetInfo.FileToManifest)
+			foreach (KeyValuePair<FileReference, ModuleManifest> Pair in TargetInfo.FileToManifest)
 			{
 				ModuleManifest? SourceManifest;
-				if(TryReadManifest(Pair.Key, Logger, out SourceManifest) && SourceManifest.BuildId == BuildId)
+				if (TryReadManifest(Pair.Key, Logger, out SourceManifest) && SourceManifest.BuildId == BuildId)
 				{
 					MergeManifests(SourceManifest, Pair.Value);
 				}
@@ -159,12 +156,12 @@ namespace UnrealBuildTool
 			foreach (KeyValuePair<FileReference, ModuleManifest> Pair in TargetInfo.FileToManifest)
 			{
 				FileReference ManifestFile = Pair.Key;
-				if(!UnrealBuildTool.IsFileInstalled(ManifestFile))
+				if (!UnrealBuildTool.IsFileInstalled(ManifestFile))
 				{
 					ModuleManifest Manifest = Pair.Value;
 					Manifest.BuildId = BuildId ?? String.Empty;
 
-					if(!FileReference.Exists(ManifestFile))
+					if (!FileReference.Exists(ManifestFile))
 					{
 						// If the file doesn't already exist, just write it out
 						DirectoryReference.CreateDirectory(ManifestFile.Directory);
@@ -292,14 +289,14 @@ namespace UnrealBuildTool
 		/// <returns>True if the manifest was read correctly, false otherwise</returns>
 		public static bool TryReadManifest(FileReference ManifestFileName, ILogger Logger, [NotNullWhen(true)] out ModuleManifest? Manifest)
 		{
-			if(FileReference.Exists(ManifestFileName))
+			if (FileReference.Exists(ManifestFileName))
 			{
 				try
 				{
 					Manifest = ModuleManifest.Read(ManifestFileName);
 					return true;
 				}
-				catch(Exception Ex)
+				catch (Exception Ex)
 				{
 					Logger.LogWarning("Unable to read '{ManifestFileName}'; ignoring.", ManifestFileName);
 					Logger.LogDebug("{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
@@ -317,9 +314,9 @@ namespace UnrealBuildTool
 		/// <param name="TargetManifest">The target manifest to merge into</param>
 		static void MergeManifests(ModuleManifest SourceManifest, ModuleManifest TargetManifest)
 		{
-			foreach(KeyValuePair<string, string> ModulePair in SourceManifest.ModuleNameToFileName)
+			foreach (KeyValuePair<string, string> ModulePair in SourceManifest.ModuleNameToFileName)
 			{
-				if(!TargetManifest.ModuleNameToFileName.ContainsKey(ModulePair.Key))
+				if (!TargetManifest.ModuleNameToFileName.ContainsKey(ModulePair.Key))
 				{
 					TargetManifest.ModuleNameToFileName.Add(ModulePair.Key, ModulePair.Value);
 				}

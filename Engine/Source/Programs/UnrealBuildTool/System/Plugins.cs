@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -137,7 +137,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if(Type == PluginType.Engine)
+				if (Type == PluginType.Engine)
 				{
 					return PluginLoadedFrom.Engine;
 				}
@@ -220,7 +220,7 @@ namespace UnrealBuildTool
 				}
 			}
 		}
-		
+
 		/// <summary>
 		/// An index that we use to identify which plugin in the list is the prioritized "choice" version.
 		/// </summary>
@@ -282,7 +282,7 @@ namespace UnrealBuildTool
 				PluginSet? ExistingPluginSet;
 				if (!NameToPluginInfos.TryGetValue(Plugin.Name, out ExistingPluginSet))
 				{
-					NameToPluginInfos.Add(Plugin.Name, new PluginSet(Plugin) );
+					NameToPluginInfos.Add(Plugin.Name, new PluginSet(Plugin));
 				}
 				else if (Plugin.Type > ExistingPluginSet.ChoiceVersion?.Type)
 				{
@@ -329,8 +329,8 @@ namespace UnrealBuildTool
 				Plugins.AddRange(ReadProjectPlugins(ProjectDir));
 			}
 
-            // Scan for shared plugins in project specified additional directories
-			if(AdditionalDirectories != null)
+			// Scan for shared plugins in project specified additional directories
+			if (AdditionalDirectories != null)
 			{
 				foreach (DirectoryReference AdditionalDirectory in AdditionalDirectories)
 				{
@@ -522,7 +522,7 @@ namespace UnrealBuildTool
 					Parent.Descriptor.Plugins = Child.Descriptor.Plugins;
 				}
 				else
-				{ 
+				{
 					foreach (PluginReferenceDescriptor ChildPluginReference in Child.Descriptor.Plugins)
 					{
 						PluginReferenceDescriptor? ParentPluginReference = Parent.Descriptor.Plugins.FirstOrDefault(x => x.Name.Equals(ChildPluginReference.Name));

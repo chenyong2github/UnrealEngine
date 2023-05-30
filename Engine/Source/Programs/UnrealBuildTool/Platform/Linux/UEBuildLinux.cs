@@ -2,13 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Diagnostics;
 using System.IO;
 using EpicGames.Core;
-using System.Text.RegularExpressions;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -129,7 +126,7 @@ namespace UnrealBuildTool
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>
 		#region Read-only accessor properties 
-		#pragma warning disable CS1591
+#pragma warning disable CS1591
 
 		public bool bPreservePSYM => Inner.bPreservePSYM;
 
@@ -149,7 +146,7 @@ namespace UnrealBuildTool
 
 		public bool bEnableRayTracing => Inner.bEnableRayTracing;
 
-		#pragma warning restore CS1591
+#pragma warning restore CS1591
 		#endregion
 	}
 
@@ -157,7 +154,7 @@ namespace UnrealBuildTool
 	class LinuxArchitectureConfig : UnrealArchitectureConfig
 	{
 		public LinuxArchitectureConfig(UnrealTargetPlatform Platform)
-			:  base(Platform == UnrealTargetPlatform.Linux ? UnrealArch.X64 : UnrealArch.Arm64)
+			: base(Platform == UnrealTargetPlatform.Linux ? UnrealArch.X64 : UnrealArch.Arm64)
 		{
 		}
 	}
@@ -178,7 +175,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LinuxPlatform(LinuxPlatformSDK InSDK, ILogger Logger) 
+		public LinuxPlatform(LinuxPlatformSDK InSDK, ILogger Logger)
 			: this(UnrealTargetPlatform.Linux, InSDK, Logger)
 		{
 			SDK = InSDK;
@@ -262,7 +259,7 @@ namespace UnrealBuildTool
 			}
 
 			if (Target.GlobalDefinitions.Contains("USE_NULL_RHI=1"))
-			{				
+			{
 				Target.bCompileCEF3 = false;
 			}
 
@@ -350,14 +347,14 @@ namespace UnrealBuildTool
 				case UEBuildBinaryType.Executable:
 					if (InTarget.LinuxPlatform.bPreservePSYM)
 					{
-						return new string[] {".psym", ".sym", ".debug"};
+						return new string[] { ".psym", ".sym", ".debug" };
 					}
 					else
 					{
-						return new string[] {".sym", ".debug"};
+						return new string[] { ".sym", ".debug" };
 					}
 			}
-			return new string [] {};
+			return new string[] { };
 		}
 
 		/// <summary>
@@ -639,7 +636,7 @@ namespace UnrealBuildTool
 		}
 	}
 
-	class UEDeployLinux: UEBuildDeploy
+	class UEDeployLinux : UEBuildDeploy
 	{
 		public UEDeployLinux(ILogger InLogger)
 			: base(InLogger)

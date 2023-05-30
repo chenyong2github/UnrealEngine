@@ -103,7 +103,7 @@ namespace UnrealBuildTool.Matchers
 					builder.MoveNext();
 					builder.AnnotateSymbol(match.Groups["symbol"]);
 
-					while(builder.Next.TryMatch(new Regex(nextPrefix + "(?<symbol>[^ ].*) in "), out match))
+					while (builder.Next.TryMatch(new Regex(nextPrefix + "(?<symbol>[^ ].*) in "), out match))
 					{
 						builder.MoveNext();
 						builder.AnnotateSymbol(match.Groups["symbol"]);

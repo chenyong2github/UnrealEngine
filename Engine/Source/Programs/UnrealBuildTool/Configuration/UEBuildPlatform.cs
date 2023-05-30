@@ -2,15 +2,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using EpicGames.Core;
 using System.Reflection;
-using System.Diagnostics.CodeAnalysis;
-using OpenTracing.Util;
+using System.Text;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using OpenTracing.Util;
 
 namespace UnrealBuildTool
 {
@@ -102,7 +101,7 @@ namespace UnrealBuildTool
 			return ActiveArchitectures(ProjectFile, TargetName);
 		}
 
-	
+
 		/// <summary>
 		/// Returns the set all architectures potentially supported by this project. Can be used by project file gnenerators to restrict IDE architecture options
 		/// Defaults to AllSupportedArchitectures
@@ -291,8 +290,8 @@ namespace UnrealBuildTool
 						using (GlobalTracer.Instance.BuildSpan(CheckType.Name).StartActive())
 						{
 							UEBuildPlatformFactory TempInst = (UEBuildPlatformFactory)Activator.CreateInstance(CheckType)!;
-							
-							if(bHostPlatformOnly && TempInst.TargetPlatform != BuildHostPlatform.Current.Platform)
+
+							if (bHostPlatformOnly && TempInst.TargetPlatform != BuildHostPlatform.Current.Platform)
 							{
 								continue;
 							}
@@ -315,7 +314,7 @@ namespace UnrealBuildTool
 		/// <returns>Array of platform folders</returns>
 		public static string[] GetPlatformFolderNames()
 		{
-			if(CachedPlatformFolderNames == null)
+			if (CachedPlatformFolderNames == null)
 			{
 				List<string> PlatformFolderNames = new List<string>();
 
@@ -336,12 +335,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		public IReadOnlySet<string> GetIncludedFolderNames()
 		{
-			if(CachedIncludedFolderNames == null)
+			if (CachedIncludedFolderNames == null)
 			{
 				HashSet<string> Names = new HashSet<string>(DirectoryReference.Comparer);
 
 				Names.Add(Platform.ToString());
-				foreach(UnrealPlatformGroup Group in UEBuildPlatform.GetPlatformGroups(Platform))
+				foreach (UnrealPlatformGroup Group in UEBuildPlatform.GetPlatformGroups(Platform))
 				{
 					Names.Add(Group.ToString());
 				}
@@ -356,7 +355,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public IReadOnlySet<string> GetExcludedFolderNames()
 		{
-			if(CachedExcludedFolderNames == null)
+			if (CachedExcludedFolderNames == null)
 			{
 				CachedExcludedFolderNames = new HashSet<string>(GetPlatformFolderNames().Except(GetIncludedFolderNames()), DirectoryReference.Comparer);
 			}
@@ -598,7 +597,7 @@ namespace UnrealBuildTool
 		{
 			// find or add the list of groups for this platform
 			List<UnrealTargetPlatform>? Platforms;
-			if(!PlatformGroupDictionary.TryGetValue(InGroup, out Platforms))
+			if (!PlatformGroupDictionary.TryGetValue(InGroup, out Platforms))
 			{
 				Platforms = new List<UnrealTargetPlatform>();
 				PlatformGroupDictionary.Add(InGroup, Platforms);
@@ -637,12 +636,12 @@ namespace UnrealBuildTool
 		public static UEBuildPlatform GetBuildPlatform(UnrealTargetPlatform InPlatform)
 		{
 			UEBuildPlatform? Platform;
-			if(!TryGetBuildPlatform(InPlatform, out Platform))
+			if (!TryGetBuildPlatform(InPlatform, out Platform))
 			{
 				throw new BuildException("GetBuildPlatform: No BuildPlatform found for {0}", InPlatform.ToString());
 			}
 			return Platform;
-			}
+		}
 
 		/// <summary>
 		/// Retrieve the IUEBuildPlatform instance for the given TargetPlatform
@@ -1233,7 +1232,7 @@ namespace UnrealBuildTool
 		/// <param name="Target">The target rules in use</param>
 		/// <param name="ToolChain">The toolchain being used</param>
 		/// <param name="Graph">Action graph that is used to build the binary</param>
-		public virtual void ModifyBinaryLinkEnvironment( LinkEnvironment BinaryLinkEnvironment, CppCompileEnvironment BinaryCompileEnvironment, ReadOnlyTargetRules Target, UEToolChain ToolChain, IActionGraphBuilder Graph)
+		public virtual void ModifyBinaryLinkEnvironment(LinkEnvironment BinaryLinkEnvironment, CppCompileEnvironment BinaryCompileEnvironment, ReadOnlyTargetRules Target, UEToolChain ToolChain, IActionGraphBuilder Graph)
 		{
 		}
 

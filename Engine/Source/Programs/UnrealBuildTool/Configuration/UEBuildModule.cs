@@ -2,16 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
-using System.Xml;
-using EpicGames.Core;
-using UnrealBuildBase;
-using Microsoft.Extensions.Logging;
+using System.Text;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -246,9 +243,9 @@ namespace UnrealBuildTool
 			}
 
 			PublicAdditionalFrameworks = new HashSet<UEBuildFramework>();
-			if(Rules.PublicAdditionalFrameworks != null)
+			if (Rules.PublicAdditionalFrameworks != null)
 			{
-				foreach(ModuleRules.Framework FrameworkRules in Rules.PublicAdditionalFrameworks)
+				foreach (ModuleRules.Framework FrameworkRules in Rules.PublicAdditionalFrameworks)
 				{
 					bool bLinkFramework = FrameworkRules.Mode == ModuleRules.Framework.FrameworkMode.Link || FrameworkRules.Mode == ModuleRules.Framework.FrameworkMode.LinkAndCopy;
 					bool bCopyFramework = FrameworkRules.Mode == ModuleRules.Framework.FrameworkMode.Copy || FrameworkRules.Mode == ModuleRules.Framework.FrameworkMode.LinkAndCopy;
@@ -261,16 +258,16 @@ namespace UnrealBuildTool
 							Name: FrameworkRules.Name,
 							ZipFile: FileReference.Combine(ModuleDirectory, FrameworkRules.Path),
 							OutputDirectory: DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "UnzippedFrameworks", FrameworkRules.Name, Path.GetFileNameWithoutExtension(FrameworkRules.Path)),
-							CopyBundledAssets: FrameworkRules.CopyBundledAssets, 
+							CopyBundledAssets: FrameworkRules.CopyBundledAssets,
 							bLinkFramework, bCopyFramework);
 					}
 					else
 					{
 						// Framework on disk
 						Framework = new UEBuildFramework(
-							Name: FrameworkRules.Name, 
-							FrameworkDirectory: DirectoryReference.Combine(ModuleDirectory, FrameworkRules.Path), 
-							CopyBundledAssets: FrameworkRules.CopyBundledAssets, 
+							Name: FrameworkRules.Name,
+							FrameworkDirectory: DirectoryReference.Combine(ModuleDirectory, FrameworkRules.Path),
+							CopyBundledAssets: FrameworkRules.CopyBundledAssets,
 							bLinkFramework, bCopyFramework, Logger);
 					}
 					PublicAdditionalFrameworks.Add(Framework);
@@ -279,7 +276,7 @@ namespace UnrealBuildTool
 
 			PublicAdditionalBundleResources = Rules.AdditionalBundleResources == null ? new HashSet<UEBuildBundleResource>() : new HashSet<UEBuildBundleResource>(Rules.AdditionalBundleResources.Select(x => new UEBuildBundleResource(x)));
 			PublicDelayLoadDLLs = HashSetFromOptionalEnumerableStringParameter(Rules.PublicDelayLoadDLLs);
-			if(Rules.bUsePrecompiled)
+			if (Rules.bUsePrecompiled)
 			{
 				PrivateIncludePaths = new HashSet<DirectoryReference>();
 			}
@@ -341,26 +338,26 @@ namespace UnrealBuildTool
 			HashSet<UEBuildModule> Modules = new HashSet<UEBuildModule>();
 			Modules.UnionWith(PublicDependencyModules!);
 			Modules.UnionWith(PrivateDependencyModules!);
-			if(bWithIncludePathModules)
+			if (bWithIncludePathModules)
 			{
 				Modules.UnionWith(PublicIncludePathModules!);
 				Modules.UnionWith(PrivateIncludePathModules!);
 			}
-			if(bWithDynamicallyLoadedModules)
+			if (bWithDynamicallyLoadedModules)
 			{
 				Modules.UnionWith(DynamicallyLoadedModules!);
 			}
 			return Modules;
-        }
+		}
 
-  		/// <summary>
+		/// <summary>
 		/// Returns a list of this module's frameworks.
 		/// </summary>
 		/// <returns>A List containing the frameworks this module requires.</returns>
-        public List<string> GetPublicFrameworks()
-        {
-            return new List<string>(PublicFrameworks);
-        }
+		public List<string> GetPublicFrameworks()
+		{
+			return new List<string>(PublicFrameworks);
+		}
 
 		/// <summary>
 		/// Returns a list of this module's immediate dependencies.
@@ -377,12 +374,12 @@ namespace UnrealBuildTool
 		protected HashSet<DirectoryReference> CreateDirectoryHashSet(IEnumerable<string> InEnumerableStrings)
 		{
 			HashSet<DirectoryReference> Directories = new HashSet<DirectoryReference>();
-			if(InEnumerableStrings != null)
+			if (InEnumerableStrings != null)
 			{
-				foreach(string InputString in InEnumerableStrings)
+				foreach (string InputString in InEnumerableStrings)
 				{
 					DirectoryReference Dir = new DirectoryReference(ExpandPathVariables(InputString, null, null));
-					if(DirectoryLookupCache.DirectoryExists(Dir))
+					if (DirectoryLookupCache.DirectoryExists(Dir))
 					{
 						Directories.Add(Dir);
 					}
@@ -444,7 +441,7 @@ namespace UnrealBuildTool
 				ReferencedDirs.ExceptWith(PrivateDependencyModules!.SelectMany(x => x.RestrictedFoldersAllowList));
 
 				// Add flags for each of them
-				foreach(DirectoryReference ReferencedDir in ReferencedDirs)
+				foreach (DirectoryReference ReferencedDir in ReferencedDirs)
 				{
 					// Find the base directory containing this reference
 					DirectoryReference? BaseDir = RootDirectories.FirstOrDefault(x => ReferencedDir.IsUnderDirectory(x));
@@ -456,9 +453,9 @@ namespace UnrealBuildTool
 
 					// Add references to each of the restricted folders
 					List<RestrictedFolder> Folders = RestrictedFolders.FindRestrictedFolders(BaseDir, ReferencedDir);
-					foreach(RestrictedFolder Folder in Folders)
+					foreach (RestrictedFolder Folder in Folders)
 					{
-						if(!References.ContainsKey(Folder))
+						if (!References.ContainsKey(Folder))
 						{
 							References.Add(Folder, ReferencedDir);
 						}
@@ -476,7 +473,7 @@ namespace UnrealBuildTool
 		{
 			Directories.Add(ModuleDirectory);
 
-			foreach(DirectoryReference PublicIncludePath in PublicIncludePaths)
+			foreach (DirectoryReference PublicIncludePath in PublicIncludePaths)
 			{
 				Directories.Add(PublicIncludePath);
 			}
@@ -488,7 +485,7 @@ namespace UnrealBuildTool
 			{
 				Directories.Add(PrivateIncludePath);
 			}
-			foreach(DirectoryReference PublicSystemIncludePath in PublicSystemIncludePaths)
+			foreach (DirectoryReference PublicSystemIncludePath in PublicSystemIncludePaths)
 			{
 				Directories.Add(PublicSystemIncludePath);
 			}
@@ -647,7 +644,7 @@ namespace UnrealBuildTool
 			// Add the import or export declaration for the module
 			if (Rules.Type == ModuleRules.ModuleType.CPlusPlus)
 			{
-				if(Rules.Target.LinkType == TargetLinkType.Monolithic)
+				if (Rules.Target.LinkType == TargetLinkType.Monolithic)
 				{
 					if (Rules.Target.bShouldCompileAsDLL && (Rules.Target.bHasExports || Rules.ModuleSymbolVisibility == ModuleRules.SymbolVisibility.VisibileForDll))
 					{
@@ -658,11 +655,11 @@ namespace UnrealBuildTool
 						Definitions.Add(ModuleApiDefine + "=");
 					}
 				}
-				else if(Binary == null || SourceBinary != Binary)
+				else if (Binary == null || SourceBinary != Binary)
 				{
 					Definitions.Add(ModuleApiDefine + "=DLLIMPORT");
 				}
-				else if(!Binary.bAllowExports)
+				else if (!Binary.bAllowExports)
 				{
 					Definitions.Add(ModuleApiDefine + "=");
 				}
@@ -729,20 +726,20 @@ namespace UnrealBuildTool
 		/// <returns>The path with variables expanded</returns>
 		public string ExpandPathVariables(string Path, DirectoryReference? BinaryOutputDir, DirectoryReference? TargetOutputDir)
 		{
-			if(Path.StartsWith("$(", StringComparison.Ordinal))
+			if (Path.StartsWith("$(", StringComparison.Ordinal))
 			{
 				int StartIdx = 2;
-				for(int EndIdx = StartIdx; EndIdx < Path.Length; EndIdx++)
+				for (int EndIdx = StartIdx; EndIdx < Path.Length; EndIdx++)
 				{
-					if(Path[EndIdx] == ')')
+					if (Path[EndIdx] == ')')
 					{
-						if(MatchVariableName(Path, StartIdx, EndIdx, "EngineDir"))
+						if (MatchVariableName(Path, StartIdx, EndIdx, "EngineDir"))
 						{
 							Path = Unreal.EngineDirectory + Path.Substring(EndIdx + 1);
 						}
-						else if(MatchVariableName(Path, StartIdx, EndIdx, "ProjectDir"))
+						else if (MatchVariableName(Path, StartIdx, EndIdx, "ProjectDir"))
 						{
-							if(Rules.Target.ProjectFile == null)
+							if (Rules.Target.ProjectFile == null)
 							{
 								Path = Unreal.EngineDirectory + Path.Substring(EndIdx + 1);
 							}
@@ -751,19 +748,19 @@ namespace UnrealBuildTool
 								Path = Rules.Target.ProjectFile.Directory + Path.Substring(EndIdx + 1);
 							}
 						}
-						else if(MatchVariableName(Path, StartIdx, EndIdx, "ModuleDir"))
+						else if (MatchVariableName(Path, StartIdx, EndIdx, "ModuleDir"))
 						{
 							Path = Rules.ModuleDirectory + Path.Substring(EndIdx + 1);
 						}
-						else if(MatchVariableName(Path, StartIdx, EndIdx, "PluginDir"))
+						else if (MatchVariableName(Path, StartIdx, EndIdx, "PluginDir"))
 						{
 							Path = Rules.PluginDirectory + Path.Substring(EndIdx + 1);
 						}
-						else if(BinaryOutputDir != null && MatchVariableName(Path, StartIdx, EndIdx, "BinaryOutputDir"))
+						else if (BinaryOutputDir != null && MatchVariableName(Path, StartIdx, EndIdx, "BinaryOutputDir"))
 						{
 							Path = BinaryOutputDir.FullName + Path.Substring(EndIdx + 1);
 						}
-						else if(TargetOutputDir != null && MatchVariableName(Path, StartIdx, EndIdx, "TargetOutputDir"))
+						else if (TargetOutputDir != null && MatchVariableName(Path, StartIdx, EndIdx, "TargetOutputDir"))
 						{
 							Path = TargetOutputDir.FullName + Path.Substring(EndIdx + 1);
 						}
@@ -771,7 +768,7 @@ namespace UnrealBuildTool
 						{
 							string Name = Path.Substring(StartIdx, EndIdx - StartIdx);
 							string? Value = Environment.GetEnvironmentVariable(Name);
-							if(String.IsNullOrEmpty(Value))
+							if (String.IsNullOrEmpty(Value))
 							{
 								throw new BuildException("Environment variable '{0}' is not defined (referenced by {1})", Name, Rules.File);
 							}
@@ -806,7 +803,7 @@ namespace UnrealBuildTool
 		/// <returns>The path with variables expanded</returns>
 		private IEnumerable<string> ExpandPathVariables(IEnumerable<string> Paths, DirectoryReference? BinaryDir, DirectoryReference? ExeDir)
 		{
-			foreach(string Path in Paths)
+			foreach (string Path in Paths)
 			{
 				yield return ExpandPathVariables(Path, BinaryDir, ExeDir);
 			}
@@ -932,7 +929,7 @@ namespace UnrealBuildTool
 		public virtual List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, ISourceFileWorkingSet WorkingSet, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			// Generate type libraries for Windows
-			foreach(ModuleRules.TypeLibrary TypeLibrary in Rules.TypeLibraries)
+			foreach (ModuleRules.TypeLibrary TypeLibrary in Rules.TypeLibraries)
 			{
 				FileReference OutputFile = FileReference.Combine(IntermediateDirectory, TypeLibrary.Header);
 				ToolChain.GenerateTypeLibraryHeader(CompileEnvironment, TypeLibrary, OutputFile, Graph);
@@ -940,26 +937,26 @@ namespace UnrealBuildTool
 
 			return new List<FileItem>();
 		}
-		
+
 
 		public void CopyDebuggerVisualizers(UEToolChain ToolChain, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			if (NatvisSourceFile != null)
 			{
 				ToolChain.CopyDebuggerVisualizer(NatvisSourceFile, IntermediateDirectory, Graph);
-			}	
+			}
 		}
-		
+
 		public void LinkDebuggerVisualizers(List<FileItem> OutFiles, UEToolChain ToolChain, ILogger Logger)
 		{
-			if (NatvisSourceFile != null) 
+			if (NatvisSourceFile != null)
 			{
 				FileItem? Item = ToolChain.LinkDebuggerVisualizer(NatvisSourceFile, IntermediateDirectory);
 				if (Item != null)
 				{
 					OutFiles.Add(Item);
 				}
-			}	
+			}
 		}
 
 		// Object interface.
@@ -1052,7 +1049,7 @@ namespace UnrealBuildTool
 			// Add us to the reference stack - note do this before checking for cycles as we allow them if an element in the stack
 			// declares the next element at leading to a dependency cycle.
 			ReferenceStack.Add(this);
-			
+
 			// Check if this module is invalid for the current target, based on Module attributes
 			if (!ModuleRules.IsValidForTarget(Rules.GetType(), Rules.Target, out string? InvalidReason))
 			{
@@ -1091,7 +1088,7 @@ namespace UnrealBuildTool
 					Logger.LogError("Circular dependency on {Name} detected.\n" +
 						"\tFull Route: {FullRoute}\n" +
 						"\tCycled Route: is {CycleRoot}.\n" +
-						"Break this loop by moving dependencies into a separate module or using Private/PublicIncludePathModuleNames to reference declarations\n", 
+						"Break this loop by moving dependencies into a separate module or using Private/PublicIncludePathModuleNames to reference declarations\n",
 						ThisRefName, NextReferenceChain, CycleChain);
 
 				}
@@ -1099,11 +1096,11 @@ namespace UnrealBuildTool
 				{
 					Logger.LogDebug("Found circular reference to {ThisRefName}, but {GuiltyModule} declares a cycle on {VictimModule} which breaks the chain", ThisRefName, GuiltyModule, VictimModule);
 				}
-			}		
+			}
 
 			// Create all the referenced modules. This path can be recursive, so we check against PublicDependencyModules to ensure we don't recurse through the 
 			// same module twice (it produces better errors if something fails).
-			if(PublicDependencyModules == null)
+			if (PublicDependencyModules == null)
 			{
 				// Log dependencies if required
 				if (Logger.IsEnabled((LogLevel)LogEventType.VeryVerbose))
@@ -1214,7 +1211,7 @@ namespace UnrealBuildTool
 		{
 			if (Rules.Type == ModuleRules.ModuleType.CPlusPlus)
 			{
-				return new[] {ModuleApiDefine + "="};
+				return new[] { ModuleApiDefine + "=" };
 			}
 
 			return new string[0];
@@ -1264,7 +1261,7 @@ namespace UnrealBuildTool
 			ExportJsonStringArray(Writer, "PublicDefinitions", PublicDefinitions);
 
 			Writer.WriteArrayStart("CircularlyReferencedModules");
-			foreach(string ModuleName in Rules.CircularlyReferencedDependentModules)
+			foreach (string ModuleName in Rules.CircularlyReferencedDependentModules)
 			{
 				Writer.WriteValue(ModuleName);
 			}
@@ -1307,7 +1304,7 @@ namespace UnrealBuildTool
 			}
 			Writer.WriteArrayEnd();
 		}
-		
+
 		/// <summary>
 		/// Write an array of strings to a JSON writer
 		/// </summary>
@@ -1319,7 +1316,7 @@ namespace UnrealBuildTool
 			Writer.WriteArrayStart(ArrayName);
 			if (Strings != null)
 			{
-				foreach(string String in Strings)
+				foreach (string String in Strings)
 				{
 					Writer.WriteValue(String);
 				}

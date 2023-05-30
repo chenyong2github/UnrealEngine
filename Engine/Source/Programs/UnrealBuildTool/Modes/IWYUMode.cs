@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using EpicGames.Core;
-using UnrealBuildBase;
-using Microsoft.Extensions.Logging;
-using System.Linq;
-using System.Text.Json;
-using System.IO;
-using System.Threading.Tasks;
-using System.Text;
-using System.Diagnostics.CodeAnalysis;
-using System.Threading;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 
 // IWYUMode is a mode that can be used to clean up includes in source code. It uses the clang based tool include-what-you-use (IWYU) to figure out what is needed in each .h/.cpp file
@@ -190,7 +190,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The different headers and source files that was covered by this execution of iwyu.
 		/// </summary>
-		public List<IWYUInfo> Files { get; set; } = new ();
+		public List<IWYUInfo> Files { get; set; } = new();
 
 		/// <summary>
 		/// Name of .iwyu file
@@ -1967,7 +1967,7 @@ namespace UnrealBuildTool
 
 			ConcurrentDictionary<string, long> AllSeenIncludes = new();
 
-			List<ValueTuple<IWYUInfo, Dictionary<string, string> >> InfosToCompare = new();
+			List<ValueTuple<IWYUInfo, Dictionary<string, string>>> InfosToCompare = new();
 
 			Logger.LogInformation($"Generating transitive seen include lists...");
 			Parallel.ForEach(Infos.Values, Info =>
@@ -2050,7 +2050,7 @@ namespace UnrealBuildTool
 				long OptimizedSize = 0;
 				foreach (var Include in File.TransitiveIncludes.Keys)
 					OptimizedSize += FileToSize[Include];
-				float Percent = 100.0f - (((float)OptimizedSize)/(OptimizedSize + Saved) * 100.0f);
+				float Percent = 100.0f - (((float)OptimizedSize) / (OptimizedSize + Saved) * 100.0f);
 				Logger.LogInformation($"{Path.GetFileName(File.File)}   {PrettySize(OptimizedSize + Saved)} -> {PrettySize(OptimizedSize)}  (Saved {PrettySize(Saved)} or {Percent.ToString("0.0")}%)");
 			}
 			Logger.LogInformation("");

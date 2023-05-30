@@ -4,8 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -17,7 +17,7 @@ namespace UnrealBuildTool
 			DirectoryReference.Combine(Unreal.EngineSourceDirectory, "Programs");
 
 		private readonly CommandLineArguments Arguments;
-		
+
 		/// <summary>
 		/// List of deprecated platforms.
 		/// Don't generate project model for these platforms unless they are specified in "Platforms" console arguments. 
@@ -125,7 +125,7 @@ namespace UnrealBuildTool
 				{
 					// Skip deprecated platforms if they are not specified in commandline arguments directly 
 					if (DeprecatedPlatforms.Contains(it) && !Platforms.Contains(it)) return false;
-					
+
 					if (UEBuildPlatform.IsPlatformAvailable(it))
 						return true;
 					Logger.LogWarning(
@@ -144,7 +144,7 @@ namespace UnrealBuildTool
 				for (int ProjectFileIndex = 0; ProjectFileIndex < ProjectsToGenerate.Count; ++ProjectFileIndex)
 				{
 					RiderProjectFile? CurProject = ProjectsToGenerate[ProjectFileIndex] as RiderProjectFile;
-					if(CurProject != null)
+					if (CurProject != null)
 					{
 						if (!CurProject.WriteProjectFile(FilteredPlatforms, ConfigurationsToGenerate.ToList(),
 							PlatformProjectGenerators, Minimize, Logger))
@@ -170,7 +170,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				return FileReference.Combine( Unreal.EngineDirectory, "Intermediate", "ProjectFiles", ".Rider", GeneratedProjectName);
+				return FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "ProjectFiles", ".Rider", GeneratedProjectName);
 			}
 		}
 
@@ -262,7 +262,7 @@ namespace UnrealBuildTool
 						if (ProjectInfo == null)
 						{
 							throw new BuildException("Found a non-engine target file (" + TargetFilePath +
-							                         ") that did not exist within any of the known game folders");
+													 ") that did not exist within any of the known game folders");
 						}
 
 						GameFolder = ProjectInfo.Directory;
@@ -275,7 +275,7 @@ namespace UnrealBuildTool
 					{
 						ProjectFile? ExistingProjectFile;
 						if (ProjectFileMap.TryGetValue(GetRiderProjectLocation(ProjectFileNameBase), out ExistingProjectFile) &&
-						    ExistingProjectFile.ProjectTargets.Any(x => x.TargetRules!.Type == TargetRulesObject.Type))
+							ExistingProjectFile.ProjectTargets.Any(x => x.TargetRules!.Type == TargetRulesObject.Type))
 						{
 							GeneratedProjectName = TargetRulesObject.Name;
 						}
@@ -287,7 +287,7 @@ namespace UnrealBuildTool
 
 					FileReference ProjectFilePath = GetRiderProjectLocation(GeneratedProjectName);
 					if (TargetRulesObject.Type == TargetType.Game || TargetRulesObject.Type == TargetType.Client ||
-					    TargetRulesObject.Type == TargetType.Server)
+						TargetRulesObject.Type == TargetType.Server)
 					{
 						// Allow platforms to generate stub projects here...
 						PlatformProjectGenerators.GenerateGameProjectStubs(
@@ -376,9 +376,9 @@ namespace UnrealBuildTool
 
 						// Not expecting to have both a game and a program in the same project.  These would alias because we share the project and solution configuration names (just because it makes sense to)
 						if ((ExistingProjectTarget.TargetRules.Type == TargetType.Game &&
-						     TargetRulesObject.Type == TargetType.Program) ||
-						    (ExistingProjectTarget.TargetRules.Type == TargetType.Program &&
-						     TargetRulesObject.Type == TargetType.Game))
+							 TargetRulesObject.Type == TargetType.Program) ||
+							(ExistingProjectTarget.TargetRules.Type == TargetType.Program &&
+							 TargetRulesObject.Type == TargetType.Game))
 						{
 							throw new BuildException(
 								"Not expecting project {0} to already have a Game/Program target ({1}) associated with it while trying to add: {2}",
@@ -387,7 +387,7 @@ namespace UnrealBuildTool
 						}
 					}
 
-					ProjectTarget ProjectTarget = new ProjectTarget 
+					ProjectTarget ProjectTarget = new ProjectTarget
 					(
 						TargetRules: TargetRulesObject,
 						TargetFilePath: TargetFilePath,
@@ -416,13 +416,13 @@ namespace UnrealBuildTool
 				}
 			}
 		}
-		
+
 		private void SetupSupportedPlatformsAndConfigurations(ILogger Logger)
 		{
 			string SupportedPlatformNames;
 			SetupSupportedPlatformsAndConfigurations(true, Logger, out SupportedPlatformNames);
 		}
-		
+
 		public override bool GenerateProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators,
 			String[] arguments, bool bCacheDataForEditor, ILogger Logger)
 		{
@@ -477,7 +477,7 @@ namespace UnrealBuildTool
 
 		private void GatherProjects(PlatformProjectGeneratorCollection PlatformProjectGenerators,
 			List<FileReference> AllGameProjects, ILogger Logger)
-		{ 
+		{
 			ProjectFile? EngineProject = null;
 			List<ProjectFile>? GameProjects = null;
 			List<ProjectFile>? ModProjects = new List<ProjectFile>();
@@ -523,7 +523,7 @@ namespace UnrealBuildTool
 					foreach (VCProjectFileGenerator.VCSolutionConfigCombination Config in ValidSolutionConfigs)
 					{
 						Writer.WriteObjectStart();
-						Writer.WriteValue("Configuration", Config.Configuration.ToString() );
+						Writer.WriteValue("Configuration", Config.Configuration.ToString());
 						Writer.WriteValue("Platform", Config.Platform.ToString());
 						Writer.WriteValue("Target", Config.TargetConfigurationName.ToString());
 						Writer.WriteObjectEnd();

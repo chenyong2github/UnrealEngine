@@ -2,9 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.IO;
+using System.Linq;
 using EpicGames.Core;
 
 namespace UnrealBuildTool
@@ -35,9 +34,9 @@ namespace UnrealBuildTool
 		ProjectPluginUnification = 3,
 
 		/// <summary>
-        /// This needs to be the last line, so we can calculate the value of Latest below
+		/// This needs to be the last line, so we can calculate the value of Latest below
 		/// </summary>
-        LatestPlusOne,
+		LatestPlusOne,
 
 		/// <summary>
 		/// The latest plugin descriptor version
@@ -216,7 +215,7 @@ namespace UnrealBuildTool
 			try
 			{
 				ProjectDescriptor Descriptor = new ProjectDescriptor(RawObject, FileName.Directory, FileName);
-				if(Descriptor.Modules != null)
+				if (Descriptor.Modules != null)
 				{
 					foreach (ModuleDescriptor Module in Descriptor.Modules)
 					{
@@ -269,7 +268,7 @@ namespace UnrealBuildTool
 			Writer.WriteValue("EngineAssociation", EngineAssociation);
 			Writer.WriteValue("Category", Category);
 			Writer.WriteValue("Description", Description);
-			
+
 			if (DisableEnginePluginsByDefault)
 			{
 				Writer.WriteValue("DisableEnginePluginsByDefault", DisableEnginePluginsByDefault);
@@ -288,39 +287,39 @@ namespace UnrealBuildTool
 			PluginReferenceDescriptor.WriteArray(Writer, "Plugins", Plugins);
 
 			// Write the custom module roots
-			if(AdditionalRootDirectories.Count > 0)
+			if (AdditionalRootDirectories.Count > 0)
 			{
 				Writer.WriteStringArrayField("AdditionalRootDirectories", AdditionalRootDirectories.Select(x => x.MakeRelativeTo(BaseDir).Replace(Path.DirectorySeparatorChar, '/')));
 			}
 
 			// Write out the additional plugin directories to scan
-			if(AdditionalPluginDirectories.Count > 0)
+			if (AdditionalPluginDirectories.Count > 0)
 			{
 				Writer.WriteStringArrayField("AdditionalPluginDirectories", AdditionalPluginDirectories.Select(x => x.MakeRelativeTo(BaseDir).Replace(Path.DirectorySeparatorChar, '/')));
 			}
 
 			// Write the target platforms
-			if(TargetPlatforms != null && TargetPlatforms.Length > 0)
+			if (TargetPlatforms != null && TargetPlatforms.Length > 0)
 			{
 				Writer.WriteStringArrayField("TargetPlatforms", TargetPlatforms);
 			}
 
 			// If it's a signed sample, write the name hash
-			if(EpicSampleNameHash != 0)
+			if (EpicSampleNameHash != 0)
 			{
 				Writer.WriteValue("EpicSampleNameHash", (uint)EpicSampleNameHash);
 			}
 
 			// Write the custom build steps
-			if(InitSteps != null)
+			if (InitSteps != null)
 			{
 				InitSteps.Write(Writer, "InitSteps");
 			}
-			if(PreBuildSteps != null)
+			if (PreBuildSteps != null)
 			{
 				PreBuildSteps.Write(Writer, "PreBuildSteps");
 			}
-			if(PostBuildSteps != null)
+			if (PostBuildSteps != null)
 			{
 				PostBuildSteps.Write(Writer, "PostBuildSteps");
 			}

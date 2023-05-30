@@ -1,20 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Xml;
 using System.Linq;
+using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Security;
-using EpicGames.Core;
-using UnrealBuildBase;
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.Logging;
-using System.Reflection.Metadata;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
+using System.Xml;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -904,7 +903,7 @@ namespace UnrealBuildTool
 				{
 					SourceDirToCount.AddOrUpdate(SourceFile.Reference.Directory, _ => 1, (k, v) => v + 1);
 				});
-				
+
 				// Figure out the most common include paths
 				ConcurrentDictionary<DirectoryReference, int> IncludePathToCount = new();
 				Parallel.ForEach(SourceDirToCount, Pair =>
@@ -1699,14 +1698,14 @@ namespace UnrealBuildTool
 		private class ProjectConfigurationForGenerator : ProjectBuildConfiguration
 		{
 			public override string ConfigurationName => Combination.ProjectConfigurationName;
-			public override string BuildCommand      => $"{EscapePath(NormalizeProjectPath(CommandBuilder.BuildScript))} {CommandBuilder.GetBuildArguments()}";
+			public override string BuildCommand => $"{EscapePath(NormalizeProjectPath(CommandBuilder.BuildScript))} {CommandBuilder.GetBuildArguments()}";
 
 			private ProjectConfigAndTargetCombination Combination;
-			private BuildCommandBuilder               CommandBuilder;
+			private BuildCommandBuilder CommandBuilder;
 
 			public ProjectConfigurationForGenerator(ProjectConfigAndTargetCombination InCombination, BuildCommandBuilder InCommandBuilder)
 			{
-				Combination    = InCombination;
+				Combination = InCombination;
 				CommandBuilder = InCommandBuilder;
 			}
 		}
@@ -1855,11 +1854,11 @@ namespace UnrealBuildTool
 			public bool bIsFromMSBuild;
 
 			public PlatformProjectGenerator? ProjectGenerator;
-			
+
 			public FileReference BuildScript { get; }
 			public FileReference RebuildScript { get; }
 			public FileReference CleanScript { get; }
-			
+
 			private readonly string? BuildToolOverride;
 
 			private readonly string UProjectPath;
@@ -1876,20 +1875,20 @@ namespace UnrealBuildTool
 				ProjectTarget = InProjectTarget;
 				UProjectPath = InUProjectPath;
 				BuildToolOverride = InBuildToolOverride;
-				
+
 				DirectoryReference BatchFilesDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Build", "BatchFiles");
 				BuildScript = FileReference.Combine(BatchFilesDirectory, "Build.bat");
 				RebuildScript = FileReference.Combine(BatchFilesDirectory, "Rebuild.bat");
 				CleanScript = FileReference.Combine(BatchFilesDirectory, "Clean.bat");
 			}
-			
+
 			public string GetBuildArguments()
 			{
 				TargetRules TargetRulesObject = ProjectTarget.TargetRules!;
 				string TargetName = ProjectTarget.TargetFilePath.GetFileNameWithoutAnyExtensions();
 
 				StringBuilder BuildArguments = new StringBuilder();
-				
+
 				BuildArguments.AppendFormat("{0} {1} {2}", TargetName, Platform.ToString(), Configuration.ToString());
 				if (UProjectPath.Length > 0)
 				{
@@ -1970,7 +1969,7 @@ namespace UnrealBuildTool
 
 			return Builder;
 		}
-		
+
 		// Anonymous function that writes project configuration data
 		private void WriteConfiguration(string ProjectName, ProjectConfigAndTargetCombination Combination, StringBuilder VCProjectFileContent, PlatformProjectGeneratorCollection PlatformProjectGenerators, StringBuilder? VCUserFileContent, ILogger Logger)
 		{

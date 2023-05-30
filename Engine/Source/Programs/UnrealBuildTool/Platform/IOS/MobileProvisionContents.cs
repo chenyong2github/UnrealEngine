@@ -4,11 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
-using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -66,7 +63,7 @@ namespace UnrealBuildTool
 		public string GetUniqueId()
 		{
 			XmlElement? UniqueIdElement;
-			if(!NameToValue.TryGetValue("UUID", out UniqueIdElement))
+			if (!NameToValue.TryGetValue("UUID", out UniqueIdElement))
 			{
 				throw new BuildException("Missing UUID in MobileProvision");
 			}
@@ -122,14 +119,14 @@ namespace UnrealBuildTool
 		public bool TryGetTeamUniqueId(out string? UniqueId)
 		{
 			XmlElement? UniqueIdElement;
-			if(!NameToValue.TryGetValue("TeamIdentifier", out UniqueIdElement) || UniqueIdElement.Name != "array")
+			if (!NameToValue.TryGetValue("TeamIdentifier", out UniqueIdElement) || UniqueIdElement.Name != "array")
 			{
 				UniqueId = null;
 				return false;
 			}
 
 			XmlElement? ValueElement = UniqueIdElement.SelectSingleNode("string") as XmlElement;
-			if(ValueElement == null)
+			if (ValueElement == null)
 			{
 				UniqueId = null;
 				return false;
@@ -158,21 +155,21 @@ namespace UnrealBuildTool
 		public static XmlDocument ReadXml(FileReference Location)
 		{
 			// Provision data is stored as PKCS7-signed file in ASN.1 BER format
-			using(BinaryReader Reader = new BinaryReader(File.Open(Location.FullName, FileMode.Open, FileAccess.Read)))
+			using (BinaryReader Reader = new BinaryReader(File.Open(Location.FullName, FileMode.Open, FileAccess.Read)))
 			{
 				long Length = Reader.BaseStream.Length;
-				while(Reader.BaseStream.Position < Length)
+				while (Reader.BaseStream.Position < Length)
 				{
 					Asn.FieldInfo Field = Asn.ReadField(Reader);
-					if(Field.Tag == Asn.FieldTag.OBJECT_IDENTIFIER)
+					if (Field.Tag == Asn.FieldTag.OBJECT_IDENTIFIER)
 					{
 						int[] Identifier = Asn.ReadObjectIdentifier(Reader, Field.Length);
-						if(Enumerable.SequenceEqual(Identifier, Asn.ObjectIdentifier.Pkcs7_Data))
+						if (Enumerable.SequenceEqual(Identifier, Asn.ObjectIdentifier.Pkcs7_Data))
 						{
-							while(Reader.BaseStream.Position < Length)
+							while (Reader.BaseStream.Position < Length)
 							{
 								Asn.FieldInfo NextField = Asn.ReadField(Reader);
-								if(NextField.Tag == Asn.FieldTag.OCTET_STRING)
+								if (NextField.Tag == Asn.FieldTag.OCTET_STRING)
 								{
 									byte[] Data = Reader.ReadBytes(NextField.Length);
 

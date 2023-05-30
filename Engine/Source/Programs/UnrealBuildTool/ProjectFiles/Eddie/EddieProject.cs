@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Xml;
-using System.Xml.XPath;
-using System.Xml.Linq;
-using System.Linq;
 using System.Text;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
@@ -24,7 +19,7 @@ namespace UnrealBuildTool
 		{
 		}
 	}
-	
+
 	class EddieFolder
 	{
 		public EddieFolder(string InName, string InPath)
@@ -34,7 +29,7 @@ namespace UnrealBuildTool
 			FullPath = null;
 			bIsModuleFolder = false;
 		}
-		
+
 		public string Name;
 		public string Path;
 		public string? FullPath;
@@ -43,11 +38,11 @@ namespace UnrealBuildTool
 		public Dictionary<string, EddieFolder> Folders = new Dictionary<string, EddieFolder>();
 		public List<EddieSourceFile> Files = new List<EddieSourceFile>();
 	}
-	
+
 	class EddieProjectFile : ProjectFile
 	{
 		Dictionary<string, EddieFolder> Folders = new Dictionary<string, EddieFolder>();
-		
+
 		public EddieProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
 			: base(InitFilePath, BaseDir)
 		{
@@ -57,12 +52,12 @@ namespace UnrealBuildTool
 		{
 			return ProjectFilePath.GetFileNameWithoutExtension();
 		}
-	
+
 		private bool IsSourceCode(string Extension)
 		{
 			return Extension == ".c" || Extension == ".cc" || Extension == ".cpp" || Extension == ".m" || Extension == ".mm" || Extension == ".cs";
 		}
-		
+
 		public override SourceFile? AllocSourceFile(FileReference InitFilePath, DirectoryReference? InitProjectSubFolder)
 		{
 			if (InitFilePath.GetFileName().StartsWith("."))
@@ -71,7 +66,7 @@ namespace UnrealBuildTool
 			}
 			return new EddieSourceFile(InitFilePath, InitProjectSubFolder);
 		}
-		
+
 		public EddieFolder? FindFolderByRelativePath(ref Dictionary<string, EddieFolder> Groups, string RelativePath)
 		{
 			string[] Parts = RelativePath.Split(Path.DirectorySeparatorChar);
@@ -109,12 +104,12 @@ namespace UnrealBuildTool
 
 			return null;
 		}
-		
+
 		private static string ConvertPath(string InPath)
 		{
 			return InPath.Replace("\\", "/");
 		}
-		
+
 		private void ParseSourceFilesIntoGroups()
 		{
 			foreach (SourceFile CurSourceFile in SourceFiles)
@@ -124,11 +119,11 @@ namespace UnrealBuildTool
 				//string FileExtension = Path.GetExtension(FileName);
 				//string FilePath = SourceFile.Reference.MakeRelativeTo(ProjectFilePath.Directory);
 				//string FilePathMac = Utils.CleanDirectorySeparators(FilePath, '/');
-				
+
 				string ProjectRelativeSourceFile = CurSourceFile.Reference.MakeRelativeTo(ProjectFilePath.Directory);
 				string RelativeSourceDirectory = Path.GetDirectoryName(ProjectRelativeSourceFile)!;
 				// Use the specified relative base folder
-				if (CurSourceFile.BaseFolder != null)	// NOTE: We are looking for null strings, not empty strings!
+				if (CurSourceFile.BaseFolder != null)   // NOTE: We are looking for null strings, not empty strings!
 				{
 					RelativeSourceDirectory = Path.GetDirectoryName(CurSourceFile.Reference.MakeRelativeTo(CurSourceFile.BaseFolder))!;
 				}
@@ -140,65 +135,65 @@ namespace UnrealBuildTool
 						Group.bIsModuleFolder = true;
 						Group.WorksetPath = ProjectFilePath.FullName + "." + Group.Name + ".wkst";
 					}
-				
+
 					Group.FullPath = Path.GetDirectoryName(SourceFile.Reference.FullName);
 					Group.Files.Add(SourceFile);
 				}
 			}
 		}
-		
+
 		private void EmitProject(StringBuilder Content, Dictionary<string, EddieFolder> Folders, ILogger Logger)
 		{
 			foreach (KeyValuePair<string, EddieFolder> CurGroup in Folders)
 			{
-                if (Path.GetFileName(CurGroup.Key) != "Documentation")
-                {
-                    Content.Append("AddFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\" \"" + (CurGroup.Value.FullPath != null ? CurGroup.Value.FullPath : CurGroup.Value.Path) + "\"" + ProjectFileGenerator.NewLine);
-                
-                    if (CurGroup.Value.bIsModuleFolder)
-                    {
-                        StringBuilder ProjectFileContent = new StringBuilder();
-                
-                        ProjectFileContent.Append("# @Eddie Workset@" + ProjectFileGenerator.NewLine);
-                        ProjectFileContent.Append("AddWorkset \"" + Path.GetFileName(CurGroup.Key) + ".wkst\" \"" + CurGroup.Value.WorksetPath + "\"" + ProjectFileGenerator.NewLine);
-                
-                        ProjectFileContent.Append("AddFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\" \"" + (CurGroup.Value.FullPath != null ? CurGroup.Value.FullPath : CurGroup.Value.Path) + "\"" + ProjectFileGenerator.NewLine);
-                
-                        EmitProject(ProjectFileContent, CurGroup.Value.Folders, Logger);
-                        
-                        foreach (EddieSourceFile File in CurGroup.Value.Files)
-                        {
-                            ProjectFileContent.Append("AddFile \"" + File.Reference.GetFileName() + "\" \"" + File.Reference.FullName + "\"" + ProjectFileGenerator.NewLine);
-                        }
-                        
-                        
-                        ProjectFileContent.Append("EndFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\"" + ProjectFileGenerator.NewLine);
-                
-                        ProjectFileGenerator.WriteFileIfChanged(CurGroup.Value.WorksetPath!, ProjectFileContent.ToString(), Logger, new UTF8Encoding());
-                    
-                        Content.Append("AddFile \"" + Path.GetFileName(CurGroup.Key) + "\" \"" + CurGroup.Value.WorksetPath + "\"" + ProjectFileGenerator.NewLine);
-                    }
-                    else
-                    {
-                        EmitProject(Content, CurGroup.Value.Folders, Logger);
-                        
-                        foreach (EddieSourceFile File in CurGroup.Value.Files)
-                        {
-                            Content.Append("AddFile \"" + File.Reference.GetFileName() + "\" \"" + File.Reference.FullName + "\"" + ProjectFileGenerator.NewLine);
-                        }
-                    }
-                    
-                    Content.Append("EndFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\"" + ProjectFileGenerator.NewLine);
-                }
+				if (Path.GetFileName(CurGroup.Key) != "Documentation")
+				{
+					Content.Append("AddFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\" \"" + (CurGroup.Value.FullPath != null ? CurGroup.Value.FullPath : CurGroup.Value.Path) + "\"" + ProjectFileGenerator.NewLine);
+
+					if (CurGroup.Value.bIsModuleFolder)
+					{
+						StringBuilder ProjectFileContent = new StringBuilder();
+
+						ProjectFileContent.Append("# @Eddie Workset@" + ProjectFileGenerator.NewLine);
+						ProjectFileContent.Append("AddWorkset \"" + Path.GetFileName(CurGroup.Key) + ".wkst\" \"" + CurGroup.Value.WorksetPath + "\"" + ProjectFileGenerator.NewLine);
+
+						ProjectFileContent.Append("AddFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\" \"" + (CurGroup.Value.FullPath != null ? CurGroup.Value.FullPath : CurGroup.Value.Path) + "\"" + ProjectFileGenerator.NewLine);
+
+						EmitProject(ProjectFileContent, CurGroup.Value.Folders, Logger);
+
+						foreach (EddieSourceFile File in CurGroup.Value.Files)
+						{
+							ProjectFileContent.Append("AddFile \"" + File.Reference.GetFileName() + "\" \"" + File.Reference.FullName + "\"" + ProjectFileGenerator.NewLine);
+						}
+
+
+						ProjectFileContent.Append("EndFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\"" + ProjectFileGenerator.NewLine);
+
+						ProjectFileGenerator.WriteFileIfChanged(CurGroup.Value.WorksetPath!, ProjectFileContent.ToString(), Logger, new UTF8Encoding());
+
+						Content.Append("AddFile \"" + Path.GetFileName(CurGroup.Key) + "\" \"" + CurGroup.Value.WorksetPath + "\"" + ProjectFileGenerator.NewLine);
+					}
+					else
+					{
+						EmitProject(Content, CurGroup.Value.Folders, Logger);
+
+						foreach (EddieSourceFile File in CurGroup.Value.Files)
+						{
+							Content.Append("AddFile \"" + File.Reference.GetFileName() + "\" \"" + File.Reference.FullName + "\"" + ProjectFileGenerator.NewLine);
+						}
+					}
+
+					Content.Append("EndFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\"" + ProjectFileGenerator.NewLine);
+				}
 			}
 		}
-		
+
 		public override bool WriteProjectFile(List<UnrealTargetPlatform> InPlatforms, List<UnrealTargetConfiguration> InConfigurations, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			bool bSuccess = false;
-			
+
 			//string TargetName = ProjectFilePath.GetFileNameWithoutExtension();
-			
+
 			//FileReference GameProjectPath = null;
 			//foreach(ProjectTarget Target in ProjectTargets)
 			//{
@@ -208,17 +203,17 @@ namespace UnrealBuildTool
 			//		break;
 			//	}
 			//}
-			
+
 			StringBuilder ProjectFileContent = new StringBuilder();
-			
+
 			ProjectFileContent.Append("# @Eddie Workset@" + ProjectFileGenerator.NewLine);
 			ProjectFileContent.Append("AddWorkset \"" + this.ToString() + ".wkst\" \"" + ProjectFilePath.FullName + "\"" + ProjectFileGenerator.NewLine);
-			
+
 			ParseSourceFilesIntoGroups();
 			EmitProject(ProjectFileContent, Folders, Logger);
-			
+
 			bSuccess = ProjectFileGenerator.WriteFileIfChanged(ProjectFilePath.FullName, ProjectFileContent.ToString(), Logger, new UTF8Encoding());
-			
+
 			return bSuccess;
 		}
 	}

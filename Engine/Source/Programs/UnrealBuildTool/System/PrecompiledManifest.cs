@@ -3,9 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 
 namespace UnrealBuildTool
@@ -39,7 +36,7 @@ namespace UnrealBuildTool
 			JsonObject RawObject = JsonObject.Read(Location);
 
 			string[] OutputFiles = RawObject.GetStringArrayField("OutputFiles");
-			foreach(string OutputFile in OutputFiles)
+			foreach (string OutputFile in OutputFiles)
 			{
 				Manifest.OutputFiles.Add(FileReference.Combine(BaseDir, OutputFile));
 			}
@@ -87,7 +84,7 @@ namespace UnrealBuildTool
 				Writer.WriteObjectStart();
 
 				string[] OutputFileStrings = new string[OutputFiles.Count];
-				for(int Idx = 0; Idx < OutputFiles.Count; Idx++)
+				for (int Idx = 0; Idx < OutputFiles.Count; Idx++)
 				{
 					OutputFileStrings[Idx] = OutputFiles[Idx].MakeRelativeTo(BaseDir);
 				}

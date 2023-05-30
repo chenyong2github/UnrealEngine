@@ -7,9 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
@@ -147,7 +144,7 @@ namespace UnrealBuildTool
 		/// <returns>Location of the installed project file</returns>
 		static public FileReference? GetInstalledProjectFile()
 		{
-			if(IsProjectInstalled())
+			if (IsProjectInstalled())
 			{
 				return InstalledProjectFile;
 			}
@@ -164,11 +161,11 @@ namespace UnrealBuildTool
 		/// <returns>True if the file is part of the installed distribution, false otherwise</returns>
 		static public bool IsFileInstalled(FileReference File)
 		{
-			if(Unreal.IsEngineInstalled() && File.IsUnderDirectory(Unreal.EngineDirectory))
+			if (Unreal.IsEngineInstalled() && File.IsUnderDirectory(Unreal.EngineDirectory))
 			{
 				return true;
 			}
-			if(IsProjectInstalled() && File.IsUnderDirectory(InstalledProjectFile!.Directory))
+			if (IsProjectInstalled() && File.IsUnderDirectory(InstalledProjectFile!.Directory))
 			{
 				return true;
 			}
@@ -208,12 +205,12 @@ namespace UnrealBuildTool
 			[CommandLine(Prefix = "-h")]
 			[CommandLine(Prefix = "--help")]
 			public bool bGetHelp = false;
-			
+
 			/// <summary>
 			/// The amount of detail to write to the log
 			/// </summary>
-			[CommandLine(Prefix = "-Verbose", Value ="Verbose", Description = "Increase output verbosity")]
-			[CommandLine(Prefix = "-VeryVerbose", Value ="VeryVerbose", Description = "Increase output verbosity more")]
+			[CommandLine(Prefix = "-Verbose", Value = "Verbose", Description = "Increase output verbosity")]
+			[CommandLine(Prefix = "-VeryVerbose", Value = "VeryVerbose", Description = "Increase output verbosity more")]
 			public LogEventType LogOutputLevel = LogEventType.Log;
 
 			/// <summary>
@@ -274,35 +271,35 @@ namespace UnrealBuildTool
 			/// </summary>
 			[CommandLine("-Mode=")] // description handling is special-cased in PrintUsage()
 
-			[CommandLine("-Clean", Value="Clean", Description = "Clean build products. Equivalent to -Mode=Clean")]
+			[CommandLine("-Clean", Value = "Clean", Description = "Clean build products. Equivalent to -Mode=Clean")]
 
-			[CommandLine("-ProjectFiles", Value="GenerateProjectFiles", Description = "Generate project files based on IDE preference. Equivalent to -Mode=GenerateProjectFiles")]
-			[CommandLine("-ProjectFileFormat=", Value="GenerateProjectFiles", Description = "Generate project files in specified format. May be used multiple times.")]
-			[CommandLine("-Makefile", Value="GenerateProjectFiles", Description = "Generate Linux Makefile")]
-			[CommandLine("-CMakefile", Value="GenerateProjectFiles", Description = "Generate project files for CMake")]
-			[CommandLine("-QMakefile", Value="GenerateProjectFiles", Description = "Generate project files for QMake")]
-			[CommandLine("-KDevelopfile", Value="GenerateProjectFiles", Description = "Generate project files for KDevelop")]
-			[CommandLine("-CodeliteFiles", Value="GenerateProjectFiles", Description = "Generate project files for Codelite")]
-			[CommandLine("-XCodeProjectFiles", Value="GenerateProjectFiles", Description = "Generate project files for XCode")]
-			[CommandLine("-EddieProjectFiles", Value="GenerateProjectFiles", Description = "Generate project files for Eddie")]
-			[CommandLine("-VSCode", Value="GenerateProjectFiles", Description = "Generate project files for Visual Studio Code")]
-			[CommandLine("-VSMac", Value="GenerateProjectFiles", Description = "Generate project files for Visual Studio Mac")]
-			[CommandLine("-CLion", Value="GenerateProjectFiles", Description = "Generate project files for CLion")]
-			[CommandLine("-Rider", Value="GenerateProjectFiles", Description = "Generate project files for Rider")]
-			#if __VPROJECT_AVAILABLE__
-				[CommandLine("-VProject", Value = "GenerateProjectFiles")]
-			#endif
+			[CommandLine("-ProjectFiles", Value = "GenerateProjectFiles", Description = "Generate project files based on IDE preference. Equivalent to -Mode=GenerateProjectFiles")]
+			[CommandLine("-ProjectFileFormat=", Value = "GenerateProjectFiles", Description = "Generate project files in specified format. May be used multiple times.")]
+			[CommandLine("-Makefile", Value = "GenerateProjectFiles", Description = "Generate Linux Makefile")]
+			[CommandLine("-CMakefile", Value = "GenerateProjectFiles", Description = "Generate project files for CMake")]
+			[CommandLine("-QMakefile", Value = "GenerateProjectFiles", Description = "Generate project files for QMake")]
+			[CommandLine("-KDevelopfile", Value = "GenerateProjectFiles", Description = "Generate project files for KDevelop")]
+			[CommandLine("-CodeliteFiles", Value = "GenerateProjectFiles", Description = "Generate project files for Codelite")]
+			[CommandLine("-XCodeProjectFiles", Value = "GenerateProjectFiles", Description = "Generate project files for XCode")]
+			[CommandLine("-EddieProjectFiles", Value = "GenerateProjectFiles", Description = "Generate project files for Eddie")]
+			[CommandLine("-VSCode", Value = "GenerateProjectFiles", Description = "Generate project files for Visual Studio Code")]
+			[CommandLine("-VSMac", Value = "GenerateProjectFiles", Description = "Generate project files for Visual Studio Mac")]
+			[CommandLine("-CLion", Value = "GenerateProjectFiles", Description = "Generate project files for CLion")]
+			[CommandLine("-Rider", Value = "GenerateProjectFiles", Description = "Generate project files for Rider")]
+#if __VPROJECT_AVAILABLE__
+			[CommandLine("-VProject", Value = "GenerateProjectFiles")]
+#endif
 			public string? Mode = null;
 
 			// The following Log settings exists in this location because, at the time of writing, EpicGames.Core does
 			// not have access to XmlConfigFileAttribute.
-			
+
 			/// <summary>
 			/// Whether to backup an existing log file, rather than overwriting it.
 			/// </summary>
-			[XmlConfigFile(Category = "Log")] 
+			[XmlConfigFile(Category = "Log")]
 			public bool bBackupLogFiles = Log.BackupLogFiles;
-			
+
 			/// <summary>
 			/// The number of log file backups to preserve. Older backups will be deleted.
 			/// </summary>
@@ -453,16 +450,16 @@ namespace UnrealBuildTool
 
 				if (
 					// Print usage if there are zero arguments provided
-					ArgumentsArray.Length == 0 
+					ArgumentsArray.Length == 0
 
 					// Print usage if the user asks for help
-					|| Options.bGetHelp 
+					|| Options.bGetHelp
 					)
 				{
 					PrintUsage();
 					return Options.bGetHelp ? 0 : 1;
 				}
-				
+
 				// Configure the log system
 				Log.OutputLevel = Options.LogOutputLevel;
 				Log.IncludeTimestamps = Options.bLogTimestamps;
@@ -507,10 +504,10 @@ namespace UnrealBuildTool
 
 				// Get the type of the mode to execute, using a fast-path for the build mode.
 				Type? ModeType = typeof(BuildMode);
-				if(Options.Mode != null)
+				if (Options.Mode != null)
 				{
 					// Try to get the correct mode
-					if(!ModeNameToType.TryGetValue(Options.Mode, out ModeType))
+					if (!ModeNameToType.TryGetValue(Options.Mode, out ModeType))
 					{
 						List<string> ModuleNameList = ModeNameToType.Keys.ToList();
 						ModuleNameList.Sort(StringComparer.OrdinalIgnoreCase);
@@ -529,7 +526,7 @@ namespace UnrealBuildTool
 				}
 
 				// Start prefetching the contents of the engine folder
-				if((ModeOptions & ToolModeOptions.StartPrefetchingEngine) != 0)
+				if ((ModeOptions & ToolModeOptions.StartPrefetchingEngine) != 0)
 				{
 					using (GlobalTracer.Instance.BuildSpan("FileMetadataPrefetch.QueueEngineDirectory()").StartActive())
 					{
@@ -538,26 +535,26 @@ namespace UnrealBuildTool
 				}
 
 				// Read the XML configuration files
-				if((ModeOptions & ToolModeOptions.XmlConfig) != 0)
+				if ((ModeOptions & ToolModeOptions.XmlConfig) != 0)
 				{
 					using (GlobalTracer.Instance.BuildSpan("XmlConfig.ReadConfigFiles()").StartActive())
 					{
 						string XmlConfigMutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex_XmlConfig", Assembly.GetExecutingAssembly().Location);
-						using(SingleInstanceMutex XmlConfigMutex = new SingleInstanceMutex(XmlConfigMutexName, true))
+						using (SingleInstanceMutex XmlConfigMutex = new SingleInstanceMutex(XmlConfigMutexName, true))
 						{
 							FileReference? XmlConfigCache = Arguments.GetFileReferenceOrDefault("-XmlConfigCache=", null);
 							XmlConfig.ReadConfigFiles(XmlConfigCache, null, Logger);
 						}
 					}
-				
+
 					XmlConfig.ApplyTo(Options);
 				}
-				
+
 				Log.BackupLogFiles = Options.bBackupLogFiles;
 				Log.LogFileBackupCount = Options.LogFileBackupCount;
 
 				// Add the log writer if requested. When building a target, we'll create the writer for the default log file later.
-				if(Options.LogFileName != null)
+				if (Options.LogFileName != null)
 				{
 					Log.AddFileWriter("LogTraceListener", Options.LogFileName);
 				}
@@ -573,7 +570,7 @@ namespace UnrealBuildTool
 						ModuleFileName = Path.GetFullPath(ModuleFileName);
 					}
 					FileReference RunFileTemp = FileReference.Combine(RunsDir, $"{Process.GetCurrentProcess().Id}_{ContentHash.MD5(Encoding.UTF8.GetBytes(ModuleFileName.ToUpperInvariant()))}");
-					File.WriteAllLines(RunFileTemp.FullName, new string [] { ModuleFileName });
+					File.WriteAllLines(RunFileTemp.FullName, new string[] { ModuleFileName });
 					RunFile = RunFileTemp;
 				}
 				catch
@@ -624,7 +621,7 @@ namespace UnrealBuildTool
 				}
 
 				// Acquire a lock for this branch
-				if((ModeOptions & ToolModeOptions.SingleInstance) != 0 && !Options.bNoMutex)
+				if ((ModeOptions & ToolModeOptions.SingleInstance) != 0 && !Options.bNoMutex)
 				{
 					using (GlobalTracer.Instance.BuildSpan("SingleInstanceMutex.Acquire()").StartActive())
 					{
@@ -634,7 +631,7 @@ namespace UnrealBuildTool
 				}
 
 				// Register all the build platforms
-				if((ModeOptions & ToolModeOptions.BuildPlatforms) != 0)
+				if ((ModeOptions & ToolModeOptions.BuildPlatforms) != 0)
 				{
 					using (GlobalTracer.Instance.BuildSpan("UEBuildPlatform.RegisterPlatforms()").StartActive())
 					{

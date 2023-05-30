@@ -10,7 +10,7 @@ namespace UnrealBuildTool
 		{
 			return "r25b";
 		}
-		
+
 		public override string GetAutoSDKDirectoryForMainVersion()
 		{
 			return "-26";

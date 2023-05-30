@@ -1,13 +1,12 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.IO;
-using System.Text.RegularExpressions;
-using System.Linq;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
-using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool.ProjectFiles.Xcode
 {
@@ -56,7 +55,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		/// An enumeration specifying the type of a filesystem entry, either directory, file, or something else.
 		/// </summary>
 		private enum EntryType { None, Directory, File }
-		
+
 		/// <summary>
 		/// Gets the type of filesystem entry pointed to by <paramref name="Path"/>.
 		/// </summary>
@@ -115,13 +114,13 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 				}
 			}
 		}
-		
+
 		/// <summary>
 		/// Opens each file in <paramref name="RootDirectory"/> and replaces all occurrences of <paramref name="OldValue"/>
 		/// with <paramref name="NewValue"/>.
 		/// </summary>
 		/// <param name="RootDirectory">The directory in which all files should be subject to replacements.</param>
-        /// <param name="SearchPattern">Only replace text in files that match this pattern. Default is all files.</param>
+		/// <param name="SearchPattern">Only replace text in files that match this pattern. Default is all files.</param>
 		/// <param name="OldValue">The value that should be replaced in all files.</param>
 		/// <param name="NewValue">The replacement value.</param>
 		private static void ReplaceTextInFiles(string RootDirectory, string OldValue, string NewValue, string SearchPattern = "*")
@@ -174,15 +173,15 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 					ProjectContents = ChangeProjectSetting(ProjectContents, Setting.Key, Setting.Value);
 				}
 
-                File.WriteAllText(ProjectFiles[0], ProjectContents);
+				File.WriteAllText(ProjectFiles[0], ProjectContents);
 			}
 		}
 
-        /// <summary>
-        /// Removes the readonly attribute from all files in a directory file while retaining all other attributes, thus making them writeable.
-        /// </summary>
-        /// <param name="RootDirectory">The path to the directory that will be make writeable.</param>
-        private static void MakeAllFilesWriteable(string RootDirectory)
+		/// <summary>
+		/// Removes the readonly attribute from all files in a directory file while retaining all other attributes, thus making them writeable.
+		/// </summary>
+		/// <param name="RootDirectory">The path to the directory that will be make writeable.</param>
+		private static void MakeAllFilesWriteable(string RootDirectory)
 		{
 			IEnumerable<string> FileNames = Directory.EnumerateFiles(RootDirectory, "*", SearchOption.AllDirectories);
 			foreach (string FileName in FileNames)
@@ -201,7 +200,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		private static string ChangeProjectSetting(string ProjectContents, string SettingName, string? SettingValue)
 		{
 			string SettingNameRegexString = String.Format("(\\s+{0}\\s=\\s)\"?(.+)\"?;", SettingName);
-			
+
 			string SettingValueReplaceString = String.Format("$1\"{0}\";", SettingValue);
 
 			Regex SettingNameRegex = new Regex(SettingNameRegexString);
@@ -220,7 +219,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 				"Build",
 				"xcuserdata"
 			};
-			
+
 			IEnumerable<string> Directories = Directory.EnumerateDirectories(RootDirectory, "*", SearchOption.AllDirectories);
 			foreach (string Dir in Directories)
 			{
@@ -240,7 +239,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		/// settings in the project to accommodate the framework, and replacing text in all the files to match the framework.
 		/// </summary>
 		/// <param name="OutputDirectory">The directory in which to place the framework. The framework will be placed in 'outputDirectory/frameworkName/'.</param>
-        /// <param name="ProjectName">The name of the project. If blueprint-only, use the actual name of the project, not just UnrealGame.</param>
+		/// <param name="ProjectName">The name of the project. If blueprint-only, use the actual name of the project, not just UnrealGame.</param>
 		/// <param name="FrameworkName">The name of the framework that this project is wrapping.</param>
 		/// <param name="BundleId">The Bundle ID to give to the wrapper project.</param>
 		/// <param name="SrcFrameworkPath">The path to the directory containing the framework to be wrapped.</param>
@@ -269,10 +268,10 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		}
 
 	}
-	
+
 	class XcodeFrameworkWrapperUtils
 	{
-        private static ConfigHierarchy GetIni(DirectoryReference ProjectDirectory)
+		private static ConfigHierarchy GetIni(DirectoryReference ProjectDirectory)
 		{
 			return ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectDirectory, UnrealTargetPlatform.IOS);
 			//return ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
@@ -305,7 +304,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bBuildAsFramework", out bBuildAsFramework);
 			return bBuildAsFramework;
 		}
-		
+
 		public static bool GetGenerateFrameworkWrapperProject(DirectoryReference ProjectDirectory)
 		{
 			ConfigHierarchy Ini = GetIni(ProjectDirectory);
@@ -314,4 +313,4 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 			return bGenerateFrameworkWrapperProject;
 		}
 	}
-} 
+}

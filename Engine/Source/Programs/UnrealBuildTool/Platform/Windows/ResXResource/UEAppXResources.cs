@@ -2,13 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.IO;
-using System.Text;
-using EpicGames.Core;
 using System.Diagnostics;
-using System.Xml;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Xml;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
@@ -30,11 +30,11 @@ namespace UnrealBuildTool
 		};
 
 		readonly Dictionary<string, Resources> PerCultureResources = new();
-		readonly Dictionary<FileReference,string> FilesToCopy = new(); // source file -> target file fragment (relative to OutputDir)
+		readonly Dictionary<FileReference, string> FilesToCopy = new(); // source file -> target file fragment (relative to OutputDir)
 
 		readonly ILogger Logger;
 		readonly FileReference MakePriExe; // path to makepri.exe
-		
+
 		/// <summary>
 		/// Folders where binary resource files are located, in decreasing priority order
 		/// </summary>
@@ -73,11 +73,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Adds a reference to the given culture
 		/// </summary>
-		public void AddCulture( string AppXCultureId )
+		public void AddCulture(string AppXCultureId)
 		{
 			if (!PerCultureResources.TryGetValue(AppXCultureId, out Resources? Result) || Result == null)
 			{
-				PerCultureResources.Add( AppXCultureId, new());
+				PerCultureResources.Add(AppXCultureId, new());
 			}
 		}
 
@@ -85,9 +85,9 @@ namespace UnrealBuildTool
 		/// Adds a reference to all of the given cultures
 		/// </summary>
 		/// <param name="AppXCultureIds"></param>
-		public void AddCultures( IEnumerable<string> AppXCultureIds )
+		public void AddCultures(IEnumerable<string> AppXCultureIds)
 		{
-			foreach (string AppXCultureId in AppXCultureIds )
+			foreach (string AppXCultureId in AppXCultureIds)
 			{
 				AddCulture(AppXCultureId);
 			}
@@ -100,14 +100,14 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public IEnumerable<string> GetAllCultureIds()
 		{
-			return PerCultureResources.Keys.Where( X => X != DefaultResources );
+			return PerCultureResources.Keys.Where(X => X != DefaultResources);
 		}
 
 
 		/// <summary>
 		/// Add the given string to the default culture
 		/// </summary>
-		public void AddDefaultString( string ConfigKey, string Value )
+		public void AddDefaultString(string ConfigKey, string Value)
 		{
 			AddCultureString(DefaultResources, ConfigKey, Value);
 		}
@@ -115,15 +115,15 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Adds all of the given strings to the default culture
 		/// </summary>
-		public void AddDefaultStrings( Dictionary<string, string> Strings )
+		public void AddDefaultStrings(Dictionary<string, string> Strings)
 		{
-			AddCultureStrings(DefaultResources, Strings );
+			AddCultureStrings(DefaultResources, Strings);
 		}
 
 		/// <summary>
 		/// Add the given string to the given culture
 		/// </summary>
-		public void AddCultureString( string AppXCultureId, string ConfigKey, string Value )
+		public void AddCultureString(string AppXCultureId, string ConfigKey, string Value)
 		{
 			GetCultureResources(AppXCultureId).SourceStrings[ConfigKey] = Value;
 		}
@@ -131,10 +131,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Adds all of the given strings to the given culture
 		/// </summary>
-		public void AddCultureStrings( string AppXCultureId, Dictionary<string, string> Strings )
+		public void AddCultureStrings(string AppXCultureId, Dictionary<string, string> Strings)
 		{
 			Resources ThisCultureResources = GetCultureResources(AppXCultureId);
-			foreach (KeyValuePair<string,string> String in Strings)
+			foreach (KeyValuePair<string, string> String in Strings)
 			{
 				ThisCultureResources.SourceStrings[String.Key] = String.Value;
 			}
@@ -143,7 +143,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Returns whether the given string is known
 		/// </summary>
-		public bool HasString( string Key )
+		public bool HasString(string Key)
 		{
 			return GetDefaultResources().SourceStrings.ContainsKey(Key);
 		}
@@ -161,7 +161,7 @@ namespace UnrealBuildTool
 		}
 
 
-		Resources GetCultureResources( string AppXCultureId )
+		Resources GetCultureResources(string AppXCultureId)
 		{
 			if (PerCultureResources.TryGetValue(AppXCultureId, out Resources? Result) && Result != null)
 			{
@@ -181,8 +181,8 @@ namespace UnrealBuildTool
 
 
 
-        bool RunMakePri(string CommandLine)
-        {
+		bool RunMakePri(string CommandLine)
+		{
 			StringBuilder ProcessOutput = new StringBuilder();
 			void LocalProcessOutput(DataReceivedEventArgs Args)
 			{
@@ -192,7 +192,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			ProcessStartInfo StartInfo = new ProcessStartInfo(MakePriExe.FullName, CommandLine);			
+			ProcessStartInfo StartInfo = new ProcessStartInfo(MakePriExe.FullName, CommandLine);
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
 			StartInfo.StandardOutputEncoding = Encoding.Unicode;
@@ -216,14 +216,14 @@ namespace UnrealBuildTool
 				Logger.LogError("Exit code: {Code}", ExitCode);
 				return false;
 			}
-        }
+		}
 
 
 
 
-		private bool RemoveStaleResourceFiles( IEnumerable<string> RequiredFileFragments, DirectoryReference OutputDirectory )
+		private bool RemoveStaleResourceFiles(IEnumerable<string> RequiredFileFragments, DirectoryReference OutputDirectory)
 		{
-			DirectoryReference ResourceDirectory = DirectoryReference.Combine( OutputDirectory, BuildResourceSubPath );
+			DirectoryReference ResourceDirectory = DirectoryReference.Combine(OutputDirectory, BuildResourceSubPath);
 			if (!DirectoryReference.Exists(ResourceDirectory))
 			{
 				return false;
@@ -232,8 +232,8 @@ namespace UnrealBuildTool
 			// remove all files in the Resources/ subfolder that should not be included
 			IEnumerable<FileReference> ExistingFiles = DirectoryReference.EnumerateFiles(ResourceDirectory, "*.*", SearchOption.AllDirectories);
 			IEnumerable<FileReference> RequiredFiles = RequiredFileFragments
-				.Select( X => FileReference.Combine( OutputDirectory, X ))
-				.Where( X => X.IsUnderDirectory(ResourceDirectory))
+				.Select(X => FileReference.Combine(OutputDirectory, X))
+				.Where(X => X.IsUnderDirectory(ResourceDirectory))
 				;
 			IEnumerable<FileReference> StaleResourceFiles = ExistingFiles.Except(RequiredFiles);
 			if (!StaleResourceFiles.Any())
@@ -267,12 +267,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Attempts to locate the given resource binary file in the previously-specified resource folders
 		/// </summary>
-		bool FindResourceBinaryFile( [NotNullWhen(true)] out FileReference? SourceFilePath, string ResourceFileName, string CultureId = "", bool AllowEngineFallback = true)
+		bool FindResourceBinaryFile([NotNullWhen(true)] out FileReference? SourceFilePath, string ResourceFileName, string CultureId = "", bool AllowEngineFallback = true)
 		{
 			// look in project binary resource directories
 			foreach (DirectoryReference BinaryResourceDirectory in ProjectBinaryResourceDirectories)
 			{
-				FileReference BinaryResourceFile = FileReference.Combine(BinaryResourceDirectory, CultureId, ResourceFileName );
+				FileReference BinaryResourceFile = FileReference.Combine(BinaryResourceDirectory, CultureId, ResourceFileName);
 				if (FileReference.Exists(BinaryResourceFile))
 				{
 					SourceFilePath = BinaryResourceFile;
@@ -281,11 +281,11 @@ namespace UnrealBuildTool
 			}
 
 			// look in Engine, if allowed
-			if (AllowEngineFallback )
+			if (AllowEngineFallback)
 			{
 				foreach (DirectoryReference BinaryResourceDirectory in EngineFallbackBinaryResourceDirectories)
 				{
-					FileReference BinaryResourceFile = FileReference.Combine(BinaryResourceDirectory, CultureId, ResourceFileName );
+					FileReference BinaryResourceFile = FileReference.Combine(BinaryResourceDirectory, CultureId, ResourceFileName);
 					if (FileReference.Exists(BinaryResourceFile))
 					{
 						SourceFilePath = BinaryResourceFile;
@@ -304,7 +304,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool DoesCultureResourceBinaryFileExist(string ResourceFileName, string CultureId, bool AllowEngineFallback = true)
 		{
-			return FindResourceBinaryFile( out FileReference? _, ResourceFileName, CultureId, AllowEngineFallback );
+			return FindResourceBinaryFile(out FileReference? _, ResourceFileName, CultureId, AllowEngineFallback);
 		}
 
 		/// <summary>
@@ -312,7 +312,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool DoesDefaultResourceBinaryFileExist(string ResourceFileName, bool AllowEngineFallback = true)
 		{
-			return DoesCultureResourceBinaryFileExist( ResourceFileName, DefaultResources, AllowEngineFallback );
+			return DoesCultureResourceBinaryFileExist(ResourceFileName, DefaultResources, AllowEngineFallback);
 		}
 
 
@@ -322,14 +322,14 @@ namespace UnrealBuildTool
 		public bool AddResourceBinaryFileReference(string ResourceFileName, bool AllowEngineFallback = true)
 		{
 			// At least the default culture entry for any resource binary must always exist
-			if (!FindResourceBinaryFile( out FileReference? SourceFilePath, ResourceFileName, DefaultResources, AllowEngineFallback))
+			if (!FindResourceBinaryFile(out FileReference? SourceFilePath, ResourceFileName, DefaultResources, AllowEngineFallback))
 			{
 				return false;
 			}
 			AddFileReference(SourceFilePath, Path.Combine(BuildResourceSubPath, ResourceFileName));
 
 			// Copy all per-culture resource files
-			foreach( string CultureId in GetAllCultureIds() )
+			foreach (string CultureId in GetAllCultureIds())
 			{
 				if (FindResourceBinaryFile(out SourceFilePath, ResourceFileName, CultureId, AllowEngineFallback))
 				{
@@ -349,7 +349,7 @@ namespace UnrealBuildTool
 			FilesToCopy.Add(SourcePath, TargetPathFragment);
 		}
 
-		private static bool AreFilesDifferent( FileReference File1, FileReference File2)
+		private static bool AreFilesDifferent(FileReference File1, FileReference File2)
 		{
 			FileInfo FileInfo1 = File1.ToFileInfo();
 			FileInfo FileInfo2 = File2.ToFileInfo();
@@ -377,7 +377,7 @@ namespace UnrealBuildTool
 			}
 
 			Logger.LogDebug("Updating manifest resource files...");
-			foreach ( var FileToCopy in FilesToCopy )
+			foreach (var FileToCopy in FilesToCopy)
 			{
 				FileReference SourceFile = FileToCopy.Key;
 				FileReference TargetFile = FileReference.Combine(OutputDirectory, FileToCopy.Value);
@@ -458,7 +458,7 @@ namespace UnrealBuildTool
 			foreach (string CultureId in GetAllCultureIds())
 			{
 				Resources ThisCultureResources = GetCultureResources(CultureId);
-				if (ThisCultureResources.SourceStrings.TryGetValue(ConfigKey, out string? CultureString) && !string.IsNullOrEmpty(CultureString) )
+				if (ThisCultureResources.SourceStrings.TryGetValue(ConfigKey, out string? CultureString) && !string.IsNullOrEmpty(CultureString))
 				{
 					ThisCultureResources.StringResources.Add(ResourceEntryName, CultureString + ValueSuffix);
 				}
@@ -473,7 +473,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Generate the package resource index and copies all resources files to the output
 		/// </summary>
-		public List<FileReference> GenerateAppXResources( DirectoryReference OutputDirectory, DirectoryReference IntermediateDirectory, FileReference ManifestFile, string DefaultAppXCultureId, string? PackageIdentityName )
+		public List<FileReference> GenerateAppXResources(DirectoryReference OutputDirectory, DirectoryReference IntermediateDirectory, FileReference ManifestFile, string DefaultAppXCultureId, string? PackageIdentityName)
 		{
 			// Clean out the resources intermediate path so that we know there are no stale binary files.
 			FileUtils.ForceDeleteDirectory(DirectoryReference.Combine(IntermediateDirectory, BuildResourceSubPath));
@@ -490,24 +490,24 @@ namespace UnrealBuildTool
 				FileUtils.CreateDirectoryTree(OutputCultureResourceDirectory);
 
 				// Export the resource tables & add them to the list of files to copy
-				FileReference IntermediateResWIndexerFile = FileReference.Combine( IntermediateDirectory, BuildResourceSubPath, AppXCultureId, "resources.resw" );
+				FileReference IntermediateResWIndexerFile = FileReference.Combine(IntermediateDirectory, BuildResourceSubPath, AppXCultureId, "resources.resw");
 				UEResXWriter ResourceWriter = new(IntermediateResWIndexerFile.FullName);
 				foreach (KeyValuePair<string, string> StringResourcePair in Itr.Value.StringResources)
 				{
-					ResourceWriter.AddResource( StringResourcePair.Key, StringResourcePair.Value );
+					ResourceWriter.AddResource(StringResourcePair.Key, StringResourcePair.Value);
 				}
 				ResourceWriter.Close();
-			
-				AddFileReference( IntermediateResWIndexerFile, Path.Combine(BuildResourceSubPath, AppXCultureId, "resources.resw"));
+
+				AddFileReference(IntermediateResWIndexerFile, Path.Combine(BuildResourceSubPath, AppXCultureId, "resources.resw"));
 			}
 
 			// The resource database is dependent on everything else calculated here (manifest, resource string tables, binary resources).
 			// So if any file has been updated we'll need to run the config.
 			bool bHadStaleResources = RemoveStaleResourceFiles(FilesToCopy.Values, OutputDirectory);
 			List<FileReference> UpdatedFilePaths = CopyFilesToOutput(OutputDirectory);
-			FileReference TargetResourceIndexFile = FileReference.Combine( OutputDirectory, "resources.pri" );
+			FileReference TargetResourceIndexFile = FileReference.Combine(OutputDirectory, "resources.pri");
 
-			if (bHadStaleResources || UpdatedFilePaths.Any() || !FileReference.Exists(TargetResourceIndexFile) )
+			if (bHadStaleResources || UpdatedFilePaths.Any() || !FileReference.Exists(TargetResourceIndexFile))
 			{
 				// Create resource index configuration
 				FileReference ResourceConfigFile = FileReference.Combine(IntermediateDirectory, "priconfig.xml");
@@ -536,11 +536,11 @@ namespace UnrealBuildTool
 				PriConfig.Save(ResourceConfigFile.FullName);
 
 				// generate resources.resfiles
-				IEnumerable<FileReference> Resources = DirectoryReference.EnumerateFiles( DirectoryReference.Combine(OutputDirectory, BuildResourceSubPath), "*.*", SearchOption.AllDirectories);
+				IEnumerable<FileReference> Resources = DirectoryReference.EnumerateFiles(DirectoryReference.Combine(OutputDirectory, BuildResourceSubPath), "*.*", SearchOption.AllDirectories);
 				System.Text.StringBuilder ResourcesList = new System.Text.StringBuilder();
 				foreach (FileReference Resource in Resources)
 				{
-					ResourcesList.AppendLine( Resource.MakeRelativeTo(OutputDirectory) );
+					ResourcesList.AppendLine(Resource.MakeRelativeTo(OutputDirectory));
 				}
 				File.WriteAllText(ResourcesResFile.FullName, ResourcesList.ToString());
 
@@ -560,7 +560,7 @@ namespace UnrealBuildTool
 				UpdatedFilePaths.Add(TargetResourceIndexFile);
 
 				// .resw files are not needed - the data is embedded in the resources.pri
-				foreach (FileReference ResW in DirectoryReference.EnumerateFiles( OutputDirectory, "*.resw", SearchOption.AllDirectories))
+				foreach (FileReference ResW in DirectoryReference.EnumerateFiles(OutputDirectory, "*.resw", SearchOption.AllDirectories))
 				{
 					FileUtils.ForceDeleteFile(ResW);
 				}

@@ -1,19 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Diagnostics;
-using System.Security.AccessControl;
-using System.Text;
-using System.Linq;
-using Ionic.Zip;
-using EpicGames.Core;
 using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
-using UnrealBuildBase;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -58,11 +53,11 @@ namespace UnrealBuildTool
 			SelectSDK(BaseSDKDir, "MacOSX", ref MacOSSDKVersion, bVerbose, Logger);
 
 			// convert to float for easy comparison
-			if(String.IsNullOrWhiteSpace(MacOSSDKVersion))
+			if (String.IsNullOrWhiteSpace(MacOSSDKVersion))
 			{
 				throw new BuildException("Unable to find installed MacOS SDK on remote agent.");
 			}
-			else if(!float.TryParse(MacOSSDKVersion, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture.NumberFormat, out MacOSSDKVersionFloat))
+			else if (!float.TryParse(MacOSSDKVersion, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture.NumberFormat, out MacOSSDKVersionFloat))
 			{
 				throw new BuildException("Unable to parse installed MacOS version (\"{0}\")", MacOSSDKVersion);
 			}
@@ -107,7 +102,7 @@ namespace UnrealBuildTool
 		}
 
 		public static DirectoryReference FindProductDirectory(FileReference? ProjectFile, DirectoryReference BinaryDir, string? NameIfProgram)
-		{ 
+		{
 			// a project file is always used if there is one
 			if (ProjectFile != null)
 			{
@@ -234,7 +229,7 @@ namespace UnrealBuildTool
 			// derived data builds.
 			// This is also added to the x64 builds in case someone ever adds -mfma.
 			Arguments.Add("-ffp-contract=off");
-			
+
 
 			if (CompileEnvironment.bEnableOSX109Support)
 			{
@@ -257,7 +252,7 @@ namespace UnrealBuildTool
 				}
 			}
 		}
-		
+
 		string AddFrameworkToLinkCommand(string FrameworkName, string Arg = "-framework")
 		{
 			string Result = "";
@@ -355,7 +350,7 @@ namespace UnrealBuildTool
 			BuildVersion? Version;
 			if (BuildVersion.TryRead(BuildVersion.GetDefaultFileName(), out Version))
 			{
-				return String.Format("{0}.{1}.{2}", Version.MajorVersion, Version.MinorVersion, bIgnorePatchVersion? 0 : Version.PatchVersion);
+				return String.Format("{0}.{1}.{2}", Version.MajorVersion, Version.MinorVersion, bIgnorePatchVersion ? 0 : Version.PatchVersion);
 			}
 			else
 			{
@@ -402,7 +397,7 @@ namespace UnrealBuildTool
 		private void AddLibraryPathToRPaths(string Library, string ExeAbsolutePath, ref List<string> RPaths, ref string LinkCommand, bool bIsBuildingAppBundle, ILogger Logger)
 		{
 			string LibraryFullPath = Path.GetFullPath(Library);
- 			string LibraryDir = Path.GetDirectoryName(LibraryFullPath)!;
+			string LibraryDir = Path.GetDirectoryName(LibraryFullPath)!;
 			string ExeDir = Path.GetDirectoryName(ExeAbsolutePath)!;
 
 			// Only dylibs and frameworks, and only those that are outside of Engine/Binaries/Mac and Engine/Source/ThirdParty, and outside of the folder where the executable is need an additional RPATH entry
@@ -753,7 +748,7 @@ namespace UnrealBuildTool
 			// Tell the action that we're building an import library here and it should conditionally be
 			// ignored as a prerequisite for other actions
 			LinkAction.bProducesImportLibrary = bBuildImportLibraryOnly || LinkEnvironment.bIsBuildingDLL;
-			
+
 			// Add the output file as a production of the link action.
 			FileItem OutputFile;
 			if (bBuildImportLibraryOnly)
@@ -981,33 +976,33 @@ namespace UnrealBuildTool
 
 			string ArgumentString = "-c \"";
 			ArgumentString += string.Format("for i in {{1..30}}; ");
-				ArgumentString += string.Format("do if [ -f \\\"{0}\\\" ] ; ", MachOBinary.AbsolutePath);
-				ArgumentString += string.Format("then ");
-					ArgumentString += string.Format("break; ");
-				ArgumentString += string.Format("else ");
-					ArgumentString += string.Format("sleep 1; ");
-				ArgumentString += string.Format("fi; ");
+			ArgumentString += string.Format("do if [ -f \\\"{0}\\\" ] ; ", MachOBinary.AbsolutePath);
+			ArgumentString += string.Format("then ");
+			ArgumentString += string.Format("break; ");
+			ArgumentString += string.Format("else ");
+			ArgumentString += string.Format("sleep 1; ");
+			ArgumentString += string.Format("fi; ");
 			ArgumentString += string.Format("done; ");
 
 			ArgumentString += string.Format("if [ ! -f \\\"{1}\\\" ] || [ \\\"{0}\\\" -nt \\\"{1}\\\" ] ; ", MachOBinary.AbsolutePath, OutputFile.AbsolutePath);
 			ArgumentString += string.Format("then ");
-				ArgumentString += string.Format("rm -rf \\\"{0}\\\"; ", OutputFile.AbsolutePath);
-				// use the new script for monolthic (ie large) targets
-				if (LinkEnvironment.LinkType == TargetLinkType.Monolithic)
-				{
-					ArgumentString += string.Format(" \\\"{0}\\\" \\\"{1}\\\" \\\"{2}\\\"; ",
-						UniversalDsymutilScriptPath,
-						MachOBinary.AbsolutePath,
-						OutputFile.AbsolutePath);
-				}
-				else
-				{
-					ArgumentString += string.Format(" \\\"{0}\\\" {3} -f \\\"{1}\\\" -o \\\"{2}\\\"; ",
-						DsymutilPath,
-						MachOBinary.AbsolutePath,
-						OutputFile.AbsolutePath,
-						ExtraOptions);
-				}
+			ArgumentString += string.Format("rm -rf \\\"{0}\\\"; ", OutputFile.AbsolutePath);
+			// use the new script for monolthic (ie large) targets
+			if (LinkEnvironment.LinkType == TargetLinkType.Monolithic)
+			{
+				ArgumentString += string.Format(" \\\"{0}\\\" \\\"{1}\\\" \\\"{2}\\\"; ",
+					UniversalDsymutilScriptPath,
+					MachOBinary.AbsolutePath,
+					OutputFile.AbsolutePath);
+			}
+			else
+			{
+				ArgumentString += string.Format(" \\\"{0}\\\" {3} -f \\\"{1}\\\" -o \\\"{2}\\\"; ",
+					DsymutilPath,
+					MachOBinary.AbsolutePath,
+					OutputFile.AbsolutePath,
+					ExtraOptions);
+			}
 			ArgumentString += string.Format("fi; ");
 			ArgumentString += "\"";
 
@@ -1086,7 +1081,7 @@ namespace UnrealBuildTool
 
 				foreach (KeyValuePair<FileReference, BuildProductType> BuildProductPair in BuildProductsArray)
 				{
-					string[] DebugExtensions = new string[] {};
+					string[] DebugExtensions = new string[] { };
 					switch (BuildProductPair.Value)
 					{
 						case BuildProductType.Executable:
@@ -1100,9 +1095,9 @@ namespace UnrealBuildTool
 					if (!string.IsNullOrEmpty(DSYMExtension))
 					{
 						string BinaryPath = BuildProductPair.Key.FullName;
-						if(BinaryPath.Contains(".app"))
+						if (BinaryPath.Contains(".app"))
 						{
-							while(BinaryPath.Contains(".app"))
+							while (BinaryPath.Contains(".app"))
 							{
 								BinaryPath = Path.GetDirectoryName(BinaryPath)!;
 							}
@@ -1112,11 +1107,11 @@ namespace UnrealBuildTool
 							BuildProducts[Ref] = BuildProductType.SymbolFile;
 						}
 					}
-					else if(BuildProductPair.Value == BuildProductType.SymbolFile && BuildProductPair.Key.FullName.Contains(".app"))
+					else if (BuildProductPair.Value == BuildProductType.SymbolFile && BuildProductPair.Key.FullName.Contains(".app"))
 					{
 						BuildProducts.Remove(BuildProductPair.Key);
 					}
-					if(BuildProductPair.Value == BuildProductType.DynamicLibrary && Target.bCreateMapFile)
+					if (BuildProductPair.Value == BuildProductType.DynamicLibrary && Target.bCreateMapFile)
 					{
 						BuildProducts.Add(new FileReference(BuildProductPair.Key.FullName + ".map"), BuildProductType.MapFile);
 					}
@@ -1137,7 +1132,7 @@ namespace UnrealBuildTool
 			// We need to know what third party dylibs would be copied to the bundle
 			if (Binary.Type != UEBuildBinaryType.StaticLibrary)
 			{
-			    foreach (UEBuildBundleResource Resource in BundleResources)
+				foreach (UEBuildBundleResource Resource in BundleResources)
 				{
 					if (Directory.Exists(Resource.ResourcePath))
 					{
@@ -1196,7 +1191,7 @@ namespace UnrealBuildTool
 			List<string> OutputFiles = Makefile.OutputItems.Select(Item => Path.ChangeExtension(Item.FullName, ".dSYM")).Distinct().ToList();
 			foreach (FileItem DebugItem in DebugInfoFiles)
 			{
-				if(OutputFiles.Any(Item => string.Equals(Item, DebugItem.FullName, StringComparison.InvariantCultureIgnoreCase)))
+				if (OutputFiles.Any(Item => string.Equals(Item, DebugItem.FullName, StringComparison.InvariantCultureIgnoreCase)))
 				{
 					Makefile.OutputItems.Add(DebugItem);
 				}

@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
@@ -114,11 +110,11 @@ namespace UnrealBuildTool
 		{
 			// Get the architecture suffix. Platforms have the option of overriding whether to include this string in filenames.
 			string ArchitectureSuffix = "";
-			if(UnrealArchitectureConfig.ForPlatform(Platform).RequiresArchitectureFilenames(Architectures))
+			if (UnrealArchitectureConfig.ForPlatform(Platform).RequiresArchitectureFilenames(Architectures))
 			{
 				ArchitectureSuffix = Architectures.ToString();
 			}
-		
+
 			// Build the output filename
 			if (String.IsNullOrEmpty(ArchitectureSuffix) && Configuration == UnrealTargetConfiguration.Development)
 			{
@@ -214,8 +210,8 @@ namespace UnrealBuildTool
 			Writer.WriteValue("PatchVersion", PatchVersion);
 			Writer.WriteValue("Changelist", Changelist);
 			Writer.WriteValue("CompatibleChangelist", CompatibleChangelist);
-			Writer.WriteValue("IsLicenseeVersion", IsLicenseeVersion? 1 : 0);
-			Writer.WriteValue("IsPromotedBuild", IsPromotedBuild? 1 : 0);
+			Writer.WriteValue("IsLicenseeVersion", IsLicenseeVersion ? 1 : 0);
+			Writer.WriteValue("IsPromotedBuild", IsPromotedBuild ? 1 : 0);
 			Writer.WriteValue("BranchName", BranchName);
 			if (!String.IsNullOrEmpty(BuildId))
 			{
@@ -259,16 +255,16 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if(CurrentCached == null)
+				if (CurrentCached == null)
 				{
 					FileReference File = BuildVersion.GetDefaultFileName();
-					if(!FileReference.Exists(File))
+					if (!FileReference.Exists(File))
 					{
 						throw new BuildException("Version file is missing ({0})", File);
 					}
 
 					BuildVersion? Version;
-					if(!BuildVersion.TryRead(File, out Version))
+					if (!BuildVersion.TryRead(File, out Version))
 					{
 						throw new BuildException("Unable to read version file ({0}). Check that this file is present and well-formed JSON.", File);
 					}
@@ -283,7 +279,7 @@ namespace UnrealBuildTool
 		/// Accessors for fields on the inner BuildVersion instance
 		/// </summary>
 		#region Read-only accessor properties 
-		#pragma warning disable CS1591
+#pragma warning disable CS1591
 
 		public int MajorVersion => Inner.MajorVersion;
 
@@ -305,7 +301,7 @@ namespace UnrealBuildTool
 
 		public string? BuildVersionString => Inner.BuildVersionString;
 
-		#pragma warning restore C1591
+#pragma warning restore C1591
 		#endregion
 	}
 }

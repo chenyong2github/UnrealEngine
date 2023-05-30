@@ -5,10 +5,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using EpicGames.Core;
-using UnrealBuildBase;
-using Microsoft.Extensions.Logging;
 using System.Runtime.Serialization;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -784,7 +784,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		public bool bUseChaosMemoryTracking = false;
-		
+
 		/// <summary>
 		/// Whether to compile in Chaos Visual Debugger (CVD) support features to record the state of the physics simulation
 		/// </summary>
@@ -1202,7 +1202,7 @@ namespace UnrealBuildTool
 		/// Whether to include PerfCounters support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-        public bool bWithPerfCounters
+		public bool bWithPerfCounters
 		{
 			get => bWithPerfCountersOverride ?? (Type == TargetType.Editor || Type == TargetType.Server);
 			set => bWithPerfCountersOverride = value;
@@ -1508,7 +1508,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public WarningLevel DefaultWarningLevel
 		{
-			get => (DefaultWarningLevelPrivate == WarningLevel.Default)? (bWarningsAsErrors ? WarningLevel.Error : WarningLevel.Warning) : DefaultWarningLevelPrivate;
+			get => (DefaultWarningLevelPrivate == WarningLevel.Default) ? (bWarningsAsErrors ? WarningLevel.Error : WarningLevel.Warning) : DefaultWarningLevelPrivate;
 			set => DefaultWarningLevelPrivate = value;
 		}
 
@@ -1521,7 +1521,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public WarningLevel DeprecationWarningLevel
 		{
-			get => (DeprecationWarningLevelPrivate == WarningLevel.Default)? DefaultWarningLevel : DeprecationWarningLevelPrivate;
+			get => (DeprecationWarningLevelPrivate == WarningLevel.Default) ? DefaultWarningLevel : DeprecationWarningLevelPrivate;
 			set => DeprecationWarningLevelPrivate = value;
 		}
 
@@ -1600,9 +1600,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Forces frame pointers to be retained this is usually required when you want reliable callstacks e.g. mallocframeprofiler
 		/// </summary>
-		[XmlConfigFile(Category = "BuildConfiguration", Name="bRetainFramePointers")]
-		[CommandLine("-RetainFramePointers", Value="true")]
-		[CommandLine("-NoRetainFramePointers", Value="false")]
+		[XmlConfigFile(Category = "BuildConfiguration", Name = "bRetainFramePointers")]
+		[CommandLine("-RetainFramePointers", Value = "true")]
+		[CommandLine("-NoRetainFramePointers", Value = "false")]
 		public bool? bRetainFramePointersOverride = null;
 
 		/// <summary>
@@ -1942,7 +1942,7 @@ namespace UnrealBuildTool
 		/// Whether to force skipping deployment for platforms that require deployment by default.
 		/// </summary>
 		[CommandLine("-SkipDeploy")]
-		private bool bForceSkipDeploy = false; 
+		private bool bForceSkipDeploy = false;
 
 		/// <summary>
 		/// When enabled, allows XGE to compile pre-compiled header files on remote machines.  Otherwise, PCHs are always generated locally.
@@ -2114,8 +2114,8 @@ namespace UnrealBuildTool
 		/// Backing storage for the LinkType property.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		[CommandLine("-Monolithic", Value ="Monolithic")]
-		[CommandLine("-Modular", Value ="Modular")]
+		[CommandLine("-Monolithic", Value = "Monolithic")]
+		[CommandLine("-Modular", Value = "Modular")]
 		TargetLinkType LinkTypePrivate = TargetLinkType.Default;
 
 		/// <summary>
@@ -2415,9 +2415,9 @@ namespace UnrealBuildTool
 			bDeployAfterCompile = bForceSkipDeploy ? false : bDeployAfterCompile;
 
 			// Set the default build version
-			if(String.IsNullOrEmpty(BuildVersion))
+			if (String.IsNullOrEmpty(BuildVersion))
 			{
-				if(String.IsNullOrEmpty(Target.Version.BuildVersionString))
+				if (String.IsNullOrEmpty(Target.Version.BuildVersionString))
 				{
 					BuildVersion = String.Format("{0}-CL-{1}", Target.Version.BranchName, Target.Version.Changelist);
 				}
@@ -2472,7 +2472,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		internal void SetOverridesForTargetType()
 		{
-			if(Type == global::UnrealBuildTool.TargetType.Game)
+			if (Type == global::UnrealBuildTool.TargetType.Game)
 			{
 				GlobalDefinitions.Add("UE_GAME=1");
 			}
@@ -2622,12 +2622,12 @@ namespace UnrealBuildTool
 		{
 			yield return this;
 
-			foreach(FieldInfo Field in GetType().GetFields(BindingFlags.Public | BindingFlags.Instance))
+			foreach (FieldInfo Field in GetType().GetFields(BindingFlags.Public | BindingFlags.Instance))
 			{
-				if(Field.GetCustomAttribute<ConfigSubObjectAttribute>() != null)
+				if (Field.GetCustomAttribute<ConfigSubObjectAttribute>() != null)
 				{
 					object? Value = Field.GetValue(this);
-					if(Value != null)
+					if (Value != null)
 					{
 						yield return Value;
 					}
@@ -2681,7 +2681,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if (DefaultBuildSettings < LatestVersion) 
+			if (DefaultBuildSettings < LatestVersion)
 			{
 				Diagnostics.Add("[Upgrade]");
 				Diagnostics.Add("[Upgrade] Using backward-compatible build settings. The latest version of UE sets the following values by default, which may require code changes:");

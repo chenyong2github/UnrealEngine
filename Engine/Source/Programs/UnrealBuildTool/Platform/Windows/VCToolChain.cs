@@ -4,12 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Versioning;
 using System.Text;
 using EpicGames.Core;
-using UnrealBuildBase;
-using System.Runtime.Versioning;
-using Microsoft.Extensions.Logging;
 using Microsoft.CodeAnalysis;
+using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -52,7 +52,7 @@ namespace UnrealBuildTool
 				}
 			}
 		}
-		
+
 		public override FileReference? GetCppCompilerPath()
 		{
 			return EnvVars.CompilerPath;
@@ -84,7 +84,7 @@ namespace UnrealBuildTool
 		/// <returns>String describing the current toolchain</returns>
 		public override void GetVersionInfo(List<string> Lines)
 		{
-			if(EnvVars.Compiler == EnvVars.ToolChain)
+			if (EnvVars.Compiler == EnvVars.ToolChain)
 			{
 				Lines.Add($"Using {WindowsPlatform.GetCompilerName(EnvVars.Compiler)} {EnvVars.ToolChainVersion} toolchain ({EnvVars.ToolChainDir}) and Windows {EnvVars.WindowsSdkVersion} SDK ({EnvVars.WindowsSdkDir}).");
 			}
@@ -300,7 +300,7 @@ namespace UnrealBuildTool
 				// Sync the compatibility version with the MSVC toolchain version (14.xx which maps to advertised
 				// compiler version of 19.xx).
 				Arguments.Add($"-fms-compatibility-version=19.{EnvVars.ToolChainVersion.GetComponent(1)}");
-				
+
 				if (Target.StaticAnalyzer == StaticAnalyzer.Default && CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create && !CompileEnvironment.bDisableStaticAnalysis)
 				{
 					Arguments.Add("-Wno-unused-command-line-argument");
@@ -439,7 +439,7 @@ namespace UnrealBuildTool
 			Arguments.Add("/c");
 
 			// Put symbols into different sections so the linker can remove them.
-			if(Target.WindowsPlatform.bOptimizeGlobalData)
+			if (Target.WindowsPlatform.bOptimizeGlobalData)
 			{
 				Arguments.Add("/Gw");
 			}
@@ -509,7 +509,7 @@ namespace UnrealBuildTool
 			AddDefinition(Arguments, "_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS=1");
 
 			// Ignore secure CRT warnings on Clang
-			if(Target.WindowsPlatform.Compiler.IsClang())
+			if (Target.WindowsPlatform.Compiler.IsClang())
 			{
 				AddDefinition(Arguments, "_CRT_SECURE_NO_WARNINGS");
 			}
@@ -634,7 +634,7 @@ namespace UnrealBuildTool
 			//
 			else
 			{
-				if(!CompileEnvironment.bOptimizeCode)
+				if (!CompileEnvironment.bOptimizeCode)
 				{
 					// Disable compiler optimization.
 					Arguments.Add("/Od");
@@ -808,7 +808,7 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add("/wd4996");
 			}
-			else if(CompileEnvironment.DeprecationWarningLevel == WarningLevel.Error)
+			else if (CompileEnvironment.DeprecationWarningLevel == WarningLevel.Error)
 			{
 				Arguments.Add("/we4996");
 			}
@@ -851,19 +851,19 @@ namespace UnrealBuildTool
 			//   4305: 'identifier' : truncation from 'type1' to 'type2'
 			WarningLevel EffectiveCastWarningLevel = (Target.Platform == UnrealTargetPlatform.Win64) ? CompileEnvironment.UnsafeTypeCastWarningLevel : WarningLevel.Off;
 			if (EffectiveCastWarningLevel == WarningLevel.Error)
- 			{
- 				Arguments.Add("/we4244");
+			{
+				Arguments.Add("/we4244");
 				Arguments.Add("/we4838");
- 			}
- 			else if (EffectiveCastWarningLevel == WarningLevel.Warning)
- 			{
+			}
+			else if (EffectiveCastWarningLevel == WarningLevel.Warning)
+			{
 				// Note: The extra 4 is not a typo, /wLXXXX sets warning XXXX to level L
- 				Arguments.Add("/w44244");
+				Arguments.Add("/w44244");
 				Arguments.Add("/w44838");
 			}
 			else
- 			{
- 				Arguments.Add("/wd4244");
+			{
+				Arguments.Add("/wd4244");
 				Arguments.Add("/wd4838");
 			}
 
@@ -1002,7 +1002,7 @@ namespace UnrealBuildTool
 				// Treat all warnings as errors by default
 				Arguments.Add("-Werror");                                   // https://clang.llvm.org/docs/UsersManual.html#cmdoption-werror
 
-				ClangWarnings.GetEnabledWarnings(Arguments); 
+				ClangWarnings.GetEnabledWarnings(Arguments);
 
 				ClangWarnings.GetDisabledWarnings(CompileEnvironment,
 					Target.StaticAnalyzer,
@@ -1238,8 +1238,8 @@ namespace UnrealBuildTool
 			}
 
 			// Enable incremental linking if wanted. ( avoid /INCREMENTAL getting ignored (LNK4075) due to /LTCG, /RELEASE, and /OPT:ICF )
-			if (LinkEnvironment.bUseIncrementalLinking && 
-				LinkEnvironment.Configuration != CppConfiguration.Shipping && 
+			if (LinkEnvironment.bUseIncrementalLinking &&
+				LinkEnvironment.Configuration != CppConfiguration.Shipping &&
 				!Target.WindowsPlatform.bMergeIdenticalCOMDATs &&
 				!LinkEnvironment.bAllowLTCG &&
 				Target.WindowsPlatform.Architecture == UnrealArch.X64)
@@ -1330,12 +1330,12 @@ namespace UnrealBuildTool
 			// Add include paths to the argument list.
 			BaseCompileAction.IncludePaths.AddRange(CompileEnvironment.UserIncludePaths);
 			BaseCompileAction.SystemIncludePaths.AddRange(CompileEnvironment.SystemIncludePaths);
-			
+
 			if (!CompileEnvironment.bHasSharedResponseFile)
 			{
 				BaseCompileAction.SystemIncludePaths.AddRange(EnvVars.IncludePaths);
 			}
-			
+
 			// Remember the architecture
 			BaseCompileAction.Architecture = CompileEnvironment.Architecture;
 
@@ -1630,7 +1630,7 @@ namespace UnrealBuildTool
 				}
 
 				// Allow derived toolchains to make further changes
-				ModifyFinalCompileAction(CompileAction, CompileEnvironment, SourceFile, OutputDir, ModuleName );
+				ModifyFinalCompileAction(CompileAction, CompileEnvironment, SourceFile, OutputDir, ModuleName);
 
 				if (!ProjectFileGenerator.bGenerateProjectFiles)
 				{
@@ -1842,11 +1842,11 @@ namespace UnrealBuildTool
 					"pgosweep.exe",
 				};
 				foreach (string PGOFile in PGOFiles)
-				{			
+				{
 					FileReference SrcFile = FileReference.Combine(EnvVars.ToolChainDir, "bin", "Hostx64", "x64", PGOFile);
 					FileReference DstFile = FileReference.Combine(ExeDir, PGOFile);
 					TargetFileToSourceFile[DstFile] = SrcFile;
-					RuntimeDependencies.Add( new RuntimeDependency(DstFile, StagedFileType.NonUFS));
+					RuntimeDependencies.Add(new RuntimeDependency(DstFile, StagedFileType.NonUFS));
 				}
 			}
 		}
@@ -1881,8 +1881,8 @@ namespace UnrealBuildTool
 
 				// Resource tool can run remotely if possible
 				CompileAction.bCanExecuteRemotely = true;
-				CompileAction.bCanExecuteRemotelyWithSNDBS = false;	// no tool template for SN-DBS results in warnings
-			
+				CompileAction.bCanExecuteRemotelyWithSNDBS = false; // no tool template for SN-DBS results in warnings
+
 				List<string> Arguments = new List<string>();
 
 				// Suppress header spew
@@ -1922,7 +1922,7 @@ namespace UnrealBuildTool
 
 				// Figure the icon to use. We can only use a custom icon when compiling to a project-specific intermediate directory (and not for the shared editor executable, for example).
 				FileReference IconFile;
-				if(Target.ProjectFile != null && !CompileEnvironment.bUseSharedBuildEnvironment)
+				if (Target.ProjectFile != null && !CompileEnvironment.bUseSharedBuildEnvironment)
 				{
 					IconFile = GetApplicationIcon(Target.ProjectFile);
 				}
@@ -1936,7 +1936,7 @@ namespace UnrealBuildTool
 				AddDefinition(Arguments, $"BUILD_ICON_FILE_NAME=\"\\\"{NormalizeCommandLinePath(IconFile).Replace("\\", "\\\\")}\\\"\"");
 
 				// Apply the target settings for the resources
-				if(!CompileEnvironment.bUseSharedBuildEnvironment)
+				if (!CompileEnvironment.bUseSharedBuildEnvironment)
 				{
 					if (!String.IsNullOrEmpty(Target.WindowsPlatform.CompanyName))
 					{
@@ -2141,9 +2141,9 @@ namespace UnrealBuildTool
 		static string SanitizeMacroValue(string Value)
 		{
 			StringBuilder Result = new StringBuilder(Value.Length);
-			for(int Idx = 0; Idx < Value.Length; Idx++)
+			for (int Idx = 0; Idx < Value.Length; Idx++)
 			{
-				if(Value[Idx] != '\'' && Value[Idx] != '\"')
+				if (Value[Idx] != '\'' && Value[Idx] != '\"')
 				{
 					Result.Append(Value[Idx]);
 				}
@@ -2216,7 +2216,7 @@ namespace UnrealBuildTool
 			}
 
 			// Set up the library paths for linking this binary
-			if(bBuildImportLibraryOnly)
+			if (bBuildImportLibraryOnly)
 			{
 				// When building an import library, ignore all the libraries included via embedded #pragma lib declarations.
 				// We shouldn't need them to generate exports.
@@ -2244,8 +2244,8 @@ namespace UnrealBuildTool
 			// If we're building either an executable or a DLL, make sure we link in the 
 			// correct address sanitizer helper libs.
 			// Note: As of MSVC 16.9, this is automatically done if the /fsanitize=address flag is used.
-			if (!bBuildImportLibraryOnly && !LinkEnvironment.bIsBuildingLibrary && Target.WindowsPlatform.bEnableAddressSanitizer && 
-			    EnvVars.CompilerVersion < new VersionNumber(14, 28, 0))
+			if (!bBuildImportLibraryOnly && !LinkEnvironment.bIsBuildingLibrary && Target.WindowsPlatform.bEnableAddressSanitizer &&
+				EnvVars.CompilerVersion < new VersionNumber(14, 28, 0))
 			{
 				String ASanArchSuffix = "";
 				if (EnvVars.Architecture == UnrealArch.X64)
@@ -2283,7 +2283,7 @@ namespace UnrealBuildTool
 			}
 
 			// Enable function level hot-patching
-			if(!bBuildImportLibraryOnly && Target.WindowsPlatform.bCreateHotpatchableImage)
+			if (!bBuildImportLibraryOnly && Target.WindowsPlatform.bCreateHotpatchableImage)
 			{
 				Arguments.Add("/FUNCTIONPADMIN:6"); // For some reason, not providing the number causes full linking to happen all the time
 			}
@@ -2298,7 +2298,7 @@ namespace UnrealBuildTool
 			{
 				ImportLibraryFilePath = FileReference.Combine(LinkEnvironment.IntermediateDirectory!, LinkEnvironment.OutputFilePath.GetFileNameWithoutExtension() + ".suppressed.lib");
 			}
-			else if(Target.bShouldCompileAsDLL)
+			else if (Target.bShouldCompileAsDLL)
 			{
 				ImportLibraryFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory!, LinkEnvironment.OutputFilePath.GetFileNameWithoutExtension() + ".lib");
 			}
@@ -2341,11 +2341,11 @@ namespace UnrealBuildTool
 				{
 					InputFileNames.Add(string.Format("\"{0}\"", SystemLibrary));
 				}
-				
+
 				foreach (FileItem NatvisFile in LinkEnvironment.DebuggerVisualizerFiles)
 				{
 					PrerequisiteItems.Add(NatvisFile);
-					Arguments.Add(string.Format("/NATVIS:\"{0}\"", 
+					Arguments.Add(string.Format("/NATVIS:\"{0}\"",
 						NormalizeCommandLinePath(NatvisFile)));
 				}
 
@@ -2363,7 +2363,7 @@ namespace UnrealBuildTool
 			// For import libraries and exports generated by cross-referenced builds, we don't track output files. VS 15.3+ doesn't touch timestamps for libs
 			// and exp files with no modifications, breaking our dependency checking, but incremental linking will fall back to a full link if we delete it.
 			// Since all DLLs are typically marked as cross referenced now anyway, we can just ignore this file to allow incremental linking to work.
-			if(LinkEnvironment.bHasExports && !LinkEnvironment.bIsBuildingLibrary && !LinkEnvironment.bIsCrossReferenced)
+			if (LinkEnvironment.bHasExports && !LinkEnvironment.bIsBuildingLibrary && !LinkEnvironment.bIsCrossReferenced)
 			{
 				FileReference ExportFilePath = ImportLibraryFilePath.ChangeExtension(".exp");
 				FileItem ExportFile = FileItem.GetItemByFileReference(ExportFilePath);
@@ -2380,7 +2380,7 @@ namespace UnrealBuildTool
 					Arguments.Add($"/IMPLIB:\"{NormalizeCommandLinePath(ImportLibraryFilePath)}\"");
 
 					// Like the export file above, don't add the import library as a produced item when it's cross referenced.
-					if(!LinkEnvironment.bIsCrossReferenced)
+					if (!LinkEnvironment.bIsCrossReferenced)
 					{
 						ProducedItems.Add(ImportLibraryFile);
 					}
@@ -2410,14 +2410,14 @@ namespace UnrealBuildTool
 				}
 
 				// Add the additional arguments specified by the environment.
-				if(!String.IsNullOrEmpty(LinkEnvironment.AdditionalArguments))
+				if (!String.IsNullOrEmpty(LinkEnvironment.AdditionalArguments))
 				{
 					Arguments.Add(LinkEnvironment.AdditionalArguments.Trim());
 				}
 			}
 
 			// Add any forced references to functions
-			foreach(string IncludeFunction in LinkEnvironment.IncludeFunctions)
+			foreach (string IncludeFunction in LinkEnvironment.IncludeFunctions)
 			{
 				Arguments.Add($"/INCLUDE:{IncludeFunction}");
 			}
@@ -2438,7 +2438,7 @@ namespace UnrealBuildTool
 			string ReadableArch = UnrealArchitectureConfig.ForPlatform(LinkEnvironment.Platform).ConvertToReadableArchitecture(LinkEnvironment.Architecture);
 			LinkAction.CommandDescription += $"Link [{ReadableArch}]";
 			LinkAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-			if(bIsBuildingLibraryOrImportLibrary)
+			if (bIsBuildingLibraryOrImportLibrary)
 			{
 				LinkAction.CommandPath = EnvVars.LibraryManagerPath;
 			}
@@ -2494,7 +2494,7 @@ namespace UnrealBuildTool
 				Logger.LogInformation("...copying the profile guided optimization files to output directory...");
 
 				// prefer a PGD file that matches the output file
-				string PGDFile = Path.Combine( LinkEnvironment.PGODirectory!, LinkEnvironment.PGOFilenamePrefix + ".pgd");
+				string PGDFile = Path.Combine(LinkEnvironment.PGODirectory!, LinkEnvironment.PGOFilenamePrefix + ".pgd");
 				if (!File.Exists(PGDFile))
 				{
 					string[] PGDFiles = Directory.GetFiles(LinkEnvironment.PGODirectory!, "*.pgd");
@@ -2576,7 +2576,7 @@ namespace UnrealBuildTool
 					Arguments.Add("/FASTGENPROFILE");
 					Log.TraceInformationOnce("Enabling Fastgen Profile Guided Optimization (PGO). Linking will take a while.");
 				}
-				else 
+				else
 				{
 					if (Target.WindowsPlatform.bPGONoExtraCounters)
 					{
@@ -2587,7 +2587,7 @@ namespace UnrealBuildTool
 					{
 						Log.TraceInformationOnce("Enabling Profile Guided Optimization (PGO). Linking will take a while.");
 						Arguments.Add("/GENPROFILE");
-					}	
+					}
 				}
 			}
 		}
@@ -2604,19 +2604,19 @@ namespace UnrealBuildTool
 		{
 			// Write the list of object file directories
 			HashSet<DirectoryReference> ObjectFileDirectories = new HashSet<DirectoryReference>();
-			foreach(FileItem InputFile in LinkEnvironment.InputFiles)
+			foreach (FileItem InputFile in LinkEnvironment.InputFiles)
 			{
 				ObjectFileDirectories.Add(InputFile.Location.Directory);
 			}
-			foreach(FileReference Library in LinkEnvironment.Libraries)
+			foreach (FileReference Library in LinkEnvironment.Libraries)
 			{
 				ObjectFileDirectories.Add(Library.Directory);
 			}
-			foreach(DirectoryReference LibraryPath in LinkEnvironment.SystemLibraryPaths)
+			foreach (DirectoryReference LibraryPath in LinkEnvironment.SystemLibraryPaths)
 			{
 				ObjectFileDirectories.Add(LibraryPath);
 			}
-			foreach(string LibraryPath in (Environment.GetEnvironmentVariable("LIB") ?? "").Split(new char[]{ ';' }, StringSplitOptions.RemoveEmptyEntries))
+			foreach (string LibraryPath in (Environment.GetEnvironmentVariable("LIB") ?? "").Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
 			{
 				ObjectFileDirectories.Add(new DirectoryReference(LibraryPath));
 			}
@@ -2642,7 +2642,7 @@ namespace UnrealBuildTool
 			// extracted to populate the project file's list of include paths
 			// @todo projectfiles: Should we only do this for VC++ platforms?
 			StringBuilder IncludePaths = new StringBuilder();
-			foreach(DirectoryReference IncludePath in EnvVars.IncludePaths)
+			foreach (DirectoryReference IncludePath in EnvVars.IncludePaths)
 			{
 				IncludePaths.AppendFormat("{0};", IncludePath);
 			}
@@ -2653,7 +2653,7 @@ namespace UnrealBuildTool
 		{
 			if (Binary.Type == UEBuildBinaryType.DynamicLinkLibrary)
 			{
-				if(Target.bShouldCompileAsDLL)
+				if (Target.bShouldCompileAsDLL)
 				{
 					BuildProducts.Add(FileReference.Combine(Binary.OutputDir, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".lib"), BuildProductType.BuildResource);
 				}
@@ -2662,9 +2662,9 @@ namespace UnrealBuildTool
 					BuildProducts.Add(FileReference.Combine(Binary.IntermediateDirectory, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".lib"), BuildProductType.BuildResource);
 				}
 			}
-			if(Binary.Type == UEBuildBinaryType.Executable && Target.bCreateMapFile)
+			if (Binary.Type == UEBuildBinaryType.Executable && Target.bCreateMapFile)
 			{
-				foreach(FileReference OutputFilePath in Binary.OutputFilePaths)
+				foreach (FileReference OutputFilePath in Binary.OutputFilePaths)
 				{
 					BuildProducts.Add(FileReference.Combine(OutputFilePath.Directory, OutputFilePath.GetFileNameWithoutExtension() + ".map"), BuildProductType.MapFile);
 					BuildProducts.Add(FileReference.Combine(OutputFilePath.Directory, OutputFilePath.GetFileNameWithoutExtension() + ".objpaths"), BuildProductType.MapFile);

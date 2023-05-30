@@ -2,14 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Xml;
 using System.IO;
-using System.Diagnostics;
+using System.Text;
 using System.Xml.Linq;
 using EpicGames.Core;
-using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
@@ -17,10 +13,10 @@ namespace UnrealBuildTool
 	class UEDeployTVOS : UEDeployIOS
 	{
 
-        public UEDeployTVOS(ILogger InLogger)
+		public UEDeployTVOS(ILogger InLogger)
 			: base(InLogger)
-        {
-        }
+		{
+		}
 
 		protected override string GetTargetPlatformName()
 		{
@@ -82,16 +78,16 @@ namespace UnrealBuildTool
 			string ExtraData = "";
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "AdditionalPlistData", out ExtraData);
 
-            // create the final display name, including converting all entities for XML use
-            string FinalDisplayName = BundleDisplayName.Replace("[PROJECT_NAME]", ProjectName).Replace("_", "");
-            FinalDisplayName = FinalDisplayName.Replace("&", "&amp;");
-            FinalDisplayName = FinalDisplayName.Replace("\"", "&quot;");
-            FinalDisplayName = FinalDisplayName.Replace("\'", "&apos;");
-            FinalDisplayName = FinalDisplayName.Replace("<", "&lt;");
-            FinalDisplayName = FinalDisplayName.Replace(">", "&gt;");
+			// create the final display name, including converting all entities for XML use
+			string FinalDisplayName = BundleDisplayName.Replace("[PROJECT_NAME]", ProjectName).Replace("_", "");
+			FinalDisplayName = FinalDisplayName.Replace("&", "&amp;");
+			FinalDisplayName = FinalDisplayName.Replace("\"", "&quot;");
+			FinalDisplayName = FinalDisplayName.Replace("\'", "&apos;");
+			FinalDisplayName = FinalDisplayName.Replace("<", "&lt;");
+			FinalDisplayName = FinalDisplayName.Replace(">", "&gt;");
 
-            // generate the plist file
-            StringBuilder Text = new StringBuilder();
+			// generate the plist file
+			StringBuilder Text = new StringBuilder();
 			Text.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
 			Text.AppendLine("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
 			Text.AppendLine("<plist version=\"1.0\">");
@@ -106,7 +102,7 @@ namespace UnrealBuildTool
 				(bIsClient ? GameName + "Client" : GameName);
 			Text.AppendLine(string.Format("\t<string>{0}</string>", BundleExecutable));
 			Text.AppendLine("\t<key>CFBundleIdentifier</key>");
-			Text.AppendLine(string.Format("\t<string>{0}</string>", BundleIdentifier.Replace("[PROJECT_NAME]", ProjectName).Replace("_","")));
+			Text.AppendLine(string.Format("\t<string>{0}</string>", BundleIdentifier.Replace("[PROJECT_NAME]", ProjectName).Replace("_", "")));
 			Text.AppendLine("\t<key>CFBundleInfoDictionaryVersion</key>");
 			Text.AppendLine("\t<string>6.0</string>");
 			Text.AppendLine("\t<key>CFBundleName</key>");
@@ -130,18 +126,18 @@ namespace UnrealBuildTool
 					Text.AppendLine(Line);
 				}
 			}
-            Text.AppendLine("\t</array>");
+			Text.AppendLine("\t</array>");
 
-            Text.AppendLine("\t<key>TVTopShelfImage</key>");
-            Text.AppendLine("\t<dict>");
+			Text.AppendLine("\t<key>TVTopShelfImage</key>");
+			Text.AppendLine("\t<dict>");
 			Text.AppendLine("\t\t<key>TVTopShelfPrimaryImageWide</key>");
 			Text.AppendLine("\t\t<string>Top Shelf Image Wide</string>");
 			Text.AppendLine("\t</dict>");
 			Text.AppendLine("\t<key>CFBundleIcons</key>");
-            Text.AppendLine("\t<dict>");
-            Text.AppendLine("\t\t<key>CFBundlePrimaryIcon</key>");
-            Text.AppendLine("\t\t<string>App Icon</string>");
-            Text.AppendLine("\t</dict>");
+			Text.AppendLine("\t<dict>");
+			Text.AppendLine("\t\t<key>CFBundlePrimaryIcon</key>");
+			Text.AppendLine("\t\t<string>App Icon</string>");
+			Text.AppendLine("\t</dict>");
 			Text.AppendLine("\t<key>UILaunchStoryboardName</key>");
 			Text.AppendLine("\t<string>LaunchScreen</string>");
 
@@ -159,7 +155,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-            Text.AppendLine("</dict>");
+			Text.AppendLine("</dict>");
 			Text.AppendLine("</plist>");
 
 			// Create the intermediate directory if needed
@@ -168,7 +164,7 @@ namespace UnrealBuildTool
 				Directory.CreateDirectory(IntermediateDirectory);
 			}
 
-			if(UPL != null)
+			if (UPL != null)
 			{
 				// Allow UPL to modify the plist here
 				XDocument XDoc;
@@ -183,8 +179,8 @@ namespace UnrealBuildTool
 
 				XDoc.DocumentType!.InternalSubset = "";
 				UPL.ProcessPluginNode("None", "iosPListUpdates", "", ref XDoc);
-                string result = XDoc.Declaration?.ToString() + "\n" + XDoc.ToString().Replace("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"[]>", "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
-                File.WriteAllText(PListFile, result);
+				string result = XDoc.Declaration?.ToString() + "\n" + XDoc.ToString().Replace("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"[]>", "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
+				File.WriteAllText(PListFile, result);
 			}
 			else
 			{

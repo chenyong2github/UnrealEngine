@@ -1,21 +1,19 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Security.Cryptography.X509Certificates;
-using System.Security.Cryptography;
-using System.IO;
-using System.Diagnostics;
-using System.Xml;
-using System.Linq;
-using System.Globalization;
-using EpicGames.Core;
-using UnrealBuildBase;
 using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Text.RegularExpressions;
-using System.Runtime.ConstrainedExecution;
+using System.Xml;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -35,9 +33,9 @@ namespace UnrealBuildTool
 		public AppleCodeSign()
 		{
 			ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
-		    {
-        		builder.AddConsole();
-		    });
+			{
+				builder.AddConsole();
+			});
 			_logger = loggerFactory.CreateLogger("AppleCodeSign");
 		}
 
@@ -251,7 +249,7 @@ namespace UnrealBuildTool
 				if (p.ApplicationIdentifier.Contains("*"))
 				{
 					string CompanyName = p.ApplicationIdentifier.Substring(p.ApplicationIdentifierPrefix.Length + 1);
-				
+
 					if (CompanyName != "*")
 					{
 						CompanyName = CompanyName.Substring(0, CompanyName.LastIndexOf("."));
@@ -302,22 +300,22 @@ namespace UnrealBuildTool
 					}
 					if (Cert is not null && FoundName != Prev)
 					{
-					    SelectedProvision = p?.ProvisionName ?? "";
-    					SelectedFile = Path.GetFileName(ProvisionFile) ?? "";
-    					SelectedCert = GetFriendlyNameFromCert(Cert);
-					}	
+						SelectedProvision = p?.ProvisionName ?? "";
+						SelectedFile = Path.GetFileName(ProvisionFile) ?? "";
+						SelectedCert = GetFriendlyNameFromCert(Cert);
+					}
 				}
 				if (p != null)
 				{
-				    _logger?.LogInformation("PROVISION-File:{0},Name:{1},Validity:{2},StartDate:{3},EndDate:{4},Type:{5}", Path.GetFileName(ProvisionFile), p.ProvisionName, Validity, EffectiveDate.ToString(), ExpirationDate.ToString(), bDistribution ? "DISTRIBUTION" : "DEVELOPMENT");
+					_logger?.LogInformation("PROVISION-File:{0},Name:{1},Validity:{2},StartDate:{3},EndDate:{4},Type:{5}", Path.GetFileName(ProvisionFile), p.ProvisionName, Validity, EffectiveDate.ToString(), ExpirationDate.ToString(), bDistribution ? "DISTRIBUTION" : "DEVELOPMENT");
 				}
 				if (ProvisionFile != null)
 				{
-				    Provisions.Add(new FileReference(ProvisionFile));
+					Provisions.Add(new FileReference(ProvisionFile));
 				}
 
 			}
-		    _logger?.LogInformation(" MATCHED-Provision:{0},File:{1},Cert:{2} ", SelectedProvision, SelectedFile, SelectedCert);
+			_logger?.LogInformation(" MATCHED-Provision:{0},File:{1},Cert:{2} ", SelectedProvision, SelectedFile, SelectedCert);
 			if (SelectedProvision != "")
 			{
 				MatchedProvision = new FileReference(SelectedProvision);
@@ -579,7 +577,7 @@ namespace UnrealBuildTool
 		public XmlDocument Doc;
 
 		bool bReadOnly = false;
-		
+
 		/// <summary>
 		/// Set read only
 		/// </summary>
@@ -605,7 +603,7 @@ namespace UnrealBuildTool
 			byte[] RawPList = File.ReadAllBytes(Filename);
 			return new PListHelper(Encoding.UTF8.GetString(RawPList));
 		}
-		
+
 		/// <summary>
 		/// save the plist to file
 		/// </summary>
@@ -654,21 +652,21 @@ namespace UnrealBuildTool
 			}
 			else if (Value is PListHelper)
 			{
-    			PListHelper? PList = Value as PListHelper;
+				PListHelper? PList = Value as PListHelper;
 
-    			ValueElement = Doc.CreateElement("dict");
+				ValueElement = Doc.CreateElement("dict");
 
-    			XmlNode? docElement = PList?.Doc?.DocumentElement;
-    			XmlNode? SourceDictionaryNode = docElement?.SelectSingleNode("/plist/dict");
-   				if (SourceDictionaryNode == null)
-    			{
-			        throw new InvalidDataException("The PListHelper object contains a document without a dictionary.");
-			    }
+				XmlNode? docElement = PList?.Doc?.DocumentElement;
+				XmlNode? SourceDictionaryNode = docElement?.SelectSingleNode("/plist/dict");
+				if (SourceDictionaryNode == null)
+				{
+					throw new InvalidDataException("The PListHelper object contains a document without a dictionary.");
+				}
 
-			    foreach (XmlNode TheirChild in SourceDictionaryNode)
-			    {
-			        ValueElement.AppendChild(Doc.ImportNode(TheirChild, true));
-			    }
+				foreach (XmlNode TheirChild in SourceDictionaryNode)
+				{
+					ValueElement.AppendChild(Doc.ImportNode(TheirChild, true));
+				}
 			}
 			else if (Value is Array)
 			{
@@ -682,29 +680,29 @@ namespace UnrealBuildTool
 					ValueElement = Doc.CreateElement("array");
 					if (Value is Array array)
 					{
-					    foreach (var A in array)
-					    {
-				       		var childNode = ConvertValueToPListFormat(A);
-				        	if (childNode != null)
-	        				{
-					            ValueElement.AppendChild(childNode);
- 							}
-					    }
+						foreach (var A in array)
+						{
+							var childNode = ConvertValueToPListFormat(A);
+							if (childNode != null)
+							{
+								ValueElement.AppendChild(childNode);
+							}
+						}
 					}
 				}
 			}
 			else if (Value is IList)
 			{
 				ValueElement = Doc.CreateElement("array");
-				if (Value is IList list  && ValueElement != null)
+				if (Value is IList list && ValueElement != null)
 				{
 					foreach (var A in list)
-			        {
+					{
 						var child = ConvertValueToPListFormat(A);
-          				if (child != null)
-		            	{
-        		        	ValueElement.AppendChild(child);
-	            		}
+						if (child != null)
+						{
+							ValueElement.AppendChild(child);
+						}
 					}
 				}
 			}
@@ -746,7 +744,7 @@ namespace UnrealBuildTool
 			var newChild = ConvertValueToPListFormat(Value);
 			if (newChild != null)
 			{
-			    DictRoot.AppendChild(newChild);
+				DictRoot.AppendChild(newChild);
 			}
 		}
 
@@ -759,29 +757,29 @@ namespace UnrealBuildTool
 
 			if (Doc.DocumentElement != null)
 			{
-			    dictRoot = Doc.DocumentElement.SelectSingleNode("/plist/dict");
+				dictRoot = Doc.DocumentElement.SelectSingleNode("/plist/dict");
 			}
 
 			if (dictRoot != null)
-   			{
+			{
 				XmlNode? childNode = Doc.CreateElement("null");
-		        if (Value != null)
-        		{
-		            childNode = ConvertValueToPListFormat(Value);
-        		}
-		        else
-        		{
-        		    childNode = Doc.CreateElement("null");
-		        }
+				if (Value != null)
+				{
+					childNode = ConvertValueToPListFormat(Value);
+				}
+				else
+				{
+					childNode = Doc.CreateElement("null");
+				}
 				if (childNode != null)
 				{
-        			dictRoot.AppendChild(childNode);
+					dictRoot.AppendChild(childNode);
 				}
-		        if (Value != null)
-        		{
-            		AddKeyValuePair(dictRoot, KeyName, Value);
-		        }
-    }
+				if (Value != null)
+				{
+					AddKeyValuePair(dictRoot, KeyName, Value);
+				}
+			}
 		}
 
 		/// <summary>
@@ -795,15 +793,15 @@ namespace UnrealBuildTool
 			// Copy all of the entries in the source dictionary into the new one
 			XmlNode? NewDictRoot = Result.Doc.DocumentElement?.SelectSingleNode("/plist/dict");
 			if (NewDictRoot != null)
-		    {
+			{
 				foreach (XmlNode TheirChild in Root)
 				{
-        			XmlNode? importedNode = Result.Doc.ImportNode(TheirChild, true);
-			        if (importedNode != null)
-        			{
-			            NewDictRoot.AppendChild(importedNode);
-			        }
-    			}
+					XmlNode? importedNode = Result.Doc.ImportNode(TheirChild, true);
+					if (importedNode != null)
+					{
+						NewDictRoot.AppendChild(importedNode);
+					}
+				}
 			}
 			return Result;
 		}
@@ -813,17 +811,17 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool GetString(string Key, out string Value)
 		{
-    		string PathToValue = String.Format("/plist/dict/key[.='{0}']/following-sibling::string[1]", Key);
+			string PathToValue = String.Format("/plist/dict/key[.='{0}']/following-sibling::string[1]", Key);
 
-		    XmlNode? ValueNode = Doc.DocumentElement?.SelectSingleNode(PathToValue);
-    		if (ValueNode == null)
-		    {
-        		Value = "";
-		        return false;
-		    }
+			XmlNode? ValueNode = Doc.DocumentElement?.SelectSingleNode(PathToValue);
+			if (ValueNode == null)
+			{
+				Value = "";
+				return false;
+			}
 
-		    Value = ValueNode.InnerText ?? "";
-    		return true;
+			Value = ValueNode.InnerText ?? "";
+			return true;
 		}
 
 		/// <summary>
@@ -884,59 +882,59 @@ namespace UnrealBuildTool
 		/// </summary>
 		public void MergePlistIn(string dominantPlist)
 		{
-    		if (bReadOnly)
-    		{
-     	  		throw new AccessViolationException("PList has been set to read only and may not be modified");
-	    	}
+			if (bReadOnly)
+			{
+				throw new AccessViolationException("PList has been set to read only and may not be modified");
+			}
 
-    		XmlDocument dominant = new XmlDocument();
-    		dominant.XmlResolver = null;
-    		dominant.LoadXml(dominantPlist);
+			XmlDocument dominant = new XmlDocument();
+			dominant.XmlResolver = null;
+			dominant.LoadXml(dominantPlist);
 
-    		XmlNode? dictionaryNode = Doc.DocumentElement?.SelectSingleNode("/plist/dict");
-    		if (dictionaryNode == null)
-    		{
-    		    throw new InvalidOperationException("Invalid PList format: missing dictionary node");
-    		}
+			XmlNode? dictionaryNode = Doc.DocumentElement?.SelectSingleNode("/plist/dict");
+			if (dictionaryNode == null)
+			{
+				throw new InvalidOperationException("Invalid PList format: missing dictionary node");
+			}
 
-   			// Merge any key-value pairs in the strong .plist into the weak .plist
-    		XmlNodeList? strongKeys = dominant.DocumentElement?.SelectNodes("/plist/dict/key");
-    		if (strongKeys != null)
-    		{
-        		foreach (XmlNode strongKeyNode in strongKeys)
-        		{
-            		string strongKey = strongKeyNode.InnerText;
+			// Merge any key-value pairs in the strong .plist into the weak .plist
+			XmlNodeList? strongKeys = dominant.DocumentElement?.SelectNodes("/plist/dict/key");
+			if (strongKeys != null)
+			{
+				foreach (XmlNode strongKeyNode in strongKeys)
+				{
+					string strongKey = strongKeyNode.InnerText;
 
-            		XmlNode? weakNode = Doc.DocumentElement?.SelectSingleNode($"/plist/dict/key[.='{strongKey}']");
-            		if (weakNode == null)
-            		{
-             		   // Doesn't exist in dominant plist, inject key-value pair
-					   XmlNode? valueNode = strongKeyNode.NextSibling;
-					   if (valueNode != null)
-					   {
-							dictionaryNode.AppendChild(Doc.ImportNode(strongKeyNode, true));
-                    		dictionaryNode.AppendChild(Doc.ImportNode(valueNode, true));
-					   }
-		            }
-        	    else
-            	{
-            	    // Remove the existing value node from the weak file
-            	    XmlNode? existingValueNode = weakNode.NextSibling;
-					if (existingValueNode != null && existingValueNode.Name == "string")
+					XmlNode? weakNode = Doc.DocumentElement?.SelectSingleNode($"/plist/dict/key[.='{strongKey}']");
+					if (weakNode == null)
 					{
-						weakNode.ParentNode?.RemoveChild(existingValueNode);
+						// Doesn't exist in dominant plist, inject key-value pair
+						XmlNode? valueNode = strongKeyNode.NextSibling;
+						if (valueNode != null)
+						{
+							dictionaryNode.AppendChild(Doc.ImportNode(strongKeyNode, true));
+							dictionaryNode.AppendChild(Doc.ImportNode(valueNode, true));
+						}
+					}
+					else
+					{
+						// Remove the existing value node from the weak file
+						XmlNode? existingValueNode = weakNode.NextSibling;
+						if (existingValueNode != null && existingValueNode.Name == "string")
+						{
+							weakNode.ParentNode?.RemoveChild(existingValueNode);
 
-                    	// Insert a clone of the dominant value node
-                    	XmlNode? dominantValueNode = strongKeyNode.NextSibling;
-                    	if (dominantValueNode != null && dominantValueNode.Name == "string")
-                    	{
-                        	weakNode.ParentNode?.InsertAfter(Doc.ImportNode(dominantValueNode, true), weakNode);
-                    	}
-                	}
-            	}
-        	}
-    	}
-	}
+							// Insert a clone of the dominant value node
+							XmlNode? dominantValueNode = strongKeyNode.NextSibling;
+							if (dominantValueNode != null && dominantValueNode.Name == "string")
+							{
+								weakNode.ParentNode?.InsertAfter(Doc.ImportNode(dominantValueNode, true), weakNode);
+							}
+						}
+					}
+				}
+			}
+		}
 
 
 		/// <summary>
@@ -1027,27 +1025,27 @@ namespace UnrealBuildTool
 
 			if (ValueNode == null)
 			{
-			    KeyNode = Doc.CreateNode(XmlNodeType.Element, "key", null);
-			    KeyNode.InnerText = KeyName;
+				KeyNode = Doc.CreateNode(XmlNodeType.Element, "key", null);
+				KeyNode.InnerText = KeyName;
 
-			    ValueNode = ConvertValueToPListFormat(Value);
+				ValueNode = ConvertValueToPListFormat(Value);
 
-			    if (DictionaryNode != null && KeyNode != null && ValueNode != null)
+				if (DictionaryNode != null && KeyNode != null && ValueNode != null)
 				{
-				    DictionaryNode.AppendChild(KeyNode);
-				    DictionaryNode.AppendChild(ValueNode);
+					DictionaryNode.AppendChild(KeyNode);
+					DictionaryNode.AppendChild(ValueNode);
 				}
 			}
 			else
 			{
-			    // Remove the existing value and create a new one
-			    if (ValueNode.ParentNode != null)
-			    {
-        			ValueNode.ParentNode.RemoveChild(ValueNode);
-			    }
-			    ValueNode = ConvertValueToPListFormat(Value);
+				// Remove the existing value and create a new one
+				if (ValueNode.ParentNode != null)
+				{
+					ValueNode.ParentNode.RemoveChild(ValueNode);
+				}
+				ValueNode = ConvertValueToPListFormat(Value);
 
-			    // Insert the value after the key
+				// Insert the value after the key
 				KeyNode?.ParentNode?.InsertAfter(ValueNode!, KeyNode);
 
 			}
@@ -1163,9 +1161,9 @@ namespace UnrealBuildTool
 		public Utilities()
 		{
 			ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
-		    {
-        		builder.AddConsole();
-		    });
+			{
+				builder.AddConsole();
+			});
 			_logger = loggerFactory.CreateLogger("CodeSigningUtilities");
 		}
 
@@ -1214,10 +1212,10 @@ namespace UnrealBuildTool
 
 					if (!File.Exists(SourceName))
 					{
-						 if (_logger != null)
-						 {
+						if (_logger != null)
+						{
 							_logger.LogInformation("Failed to find " + CodeSigningConfig.Program_GameName + "-Info.plist. Please create new .plist or copy a base .plist from a provided game sample.");
-						 }
+						}
 					}
 				}
 			}
@@ -1330,9 +1328,9 @@ namespace UnrealBuildTool
 		public MobileProvision()
 		{
 			ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
-		    {
-        		builder.AddConsole();
-		    });
+			{
+				builder.AddConsole();
+			});
 			_logger = loggerFactory.CreateLogger("MobileProvision");
 		}
 
@@ -1464,20 +1462,20 @@ namespace UnrealBuildTool
 			Dictionary<string, MobileProvision> ProvisionLibrary = new Dictionary<string, MobileProvision>();
 			foreach (string Provision in Directory.EnumerateFiles(CodeSigningConfig.ProvisionDirectory, "*.mobileprovision"))
 			{
-   				MobileProvision? p = MobileProvisionParser.ParseFile(Provision);
-    			if (p != null)
-   				{
-        			ProvisionLibrary.Add(Provision, p);
-        			if (p.FileName != null && p.UUID != null && p.FileName.Contains(p.UUID) && !File.Exists(Path.Combine(CodeSigningConfig.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision")))
-        			{
-            			File.Copy(Provision, Path.Combine(CodeSigningConfig.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision"));
-            			p = MobileProvisionParser.ParseFile(Path.Combine(CodeSigningConfig.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision"));
-            			if (p != null)
-            			{
-                			ProvisionLibrary.Add(Path.Combine(CodeSigningConfig.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision"), p);
-            			}
-        			}
-    			}
+				MobileProvision? p = MobileProvisionParser.ParseFile(Provision);
+				if (p != null)
+				{
+					ProvisionLibrary.Add(Provision, p);
+					if (p.FileName != null && p.UUID != null && p.FileName.Contains(p.UUID) && !File.Exists(Path.Combine(CodeSigningConfig.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision")))
+					{
+						File.Copy(Provision, Path.Combine(CodeSigningConfig.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision"));
+						p = MobileProvisionParser.ParseFile(Path.Combine(CodeSigningConfig.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision"));
+						if (p != null)
+						{
+							ProvisionLibrary.Add(Path.Combine(CodeSigningConfig.ProvisionDirectory, "UE4_" + p.UUID + ".mobileprovision"), p);
+						}
+					}
+				}
 			}
 
 			_logger?.LogInformation("Searching for mobile provisions that match the game '{0}' (distribution: {3}) with CFBundleIdentifier='{1}' in '{2}'", GameName, CFBundleIdentifier, CodeSigningConfig.ProvisionDirectory, CodeSigningConfig.bForDistribution);
@@ -1573,19 +1571,19 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-					    if (bCheckDistro)
-    					{
-      						bool bPassesDebugCheck = TestProvision?.bDebug ?? false;
-        					if (!bPassesDebugCheck)
-        					{
-            					_logger?.LogInformation(" .. Failed debugging check (mode={0}, get-task-allow={1}, #devices={2})", CodeSigningConfig.bForDistribution, TestProvision?.bDebug ?? false, TestProvision?.ProvisionedDeviceIDs?.Count ?? 0);
+						if (bCheckDistro)
+						{
+							bool bPassesDebugCheck = TestProvision?.bDebug ?? false;
+							if (!bPassesDebugCheck)
+							{
+								_logger?.LogInformation(" .. Failed debugging check (mode={0}, get-task-allow={1}, #devices={2})", CodeSigningConfig.bForDistribution, TestProvision?.bDebug ?? false, TestProvision?.ProvisionedDeviceIDs?.Count ?? 0);
 								continue;
-					        }
-    					}
-   						else if (!TestProvision?.bDebug ?? true)
-					    {
-					        CodeSigningConfig.bForceStripSymbols = true;
-					    }
+							}
+						}
+						else if (!TestProvision?.bDebug ?? true)
+						{
+							CodeSigningConfig.bForceStripSymbols = true;
+						}
 					}
 
 
@@ -1593,9 +1591,9 @@ namespace UnrealBuildTool
 					bool bPassesDateCheck = (CurrentUTCTime >= TestProvision?.CreationDate) && (CurrentUTCTime < TestProvision?.ExpirationDate);
 					if (!bPassesDateCheck)
 					{
-					    _logger?.LogInformation("  .. Failed time period check (valid from {0} to {1}, but UTC time is now {2})",
-				        TestProvision?.CreationDate, TestProvision?.ExpirationDate, CurrentUTCTime);
-					    continue;
+						_logger?.LogInformation("  .. Failed time period check (valid from {0} to {1}, but UTC time is now {2})",
+						TestProvision?.CreationDate, TestProvision?.ExpirationDate, CurrentUTCTime);
+						continue;
 					}
 
 					// check to see if we have a certificate for this provision
@@ -1606,17 +1604,17 @@ namespace UnrealBuildTool
 						X509Certificate2? Cert;
 						try
 						{
-						    if (TestProvision == null)
+							if (TestProvision == null)
 							{
-       							throw new ArgumentNullException(nameof(TestProvision));
-						    }
-    						Cert = AppleCodeSign.FindCertificate(TestProvision);
+								throw new ArgumentNullException(nameof(TestProvision));
+							}
+							Cert = AppleCodeSign.FindCertificate(TestProvision);
 						}
 						catch (Exception ex)
 						{
-    						// handle the exception
-    						Console.WriteLine($"Error finding certificate: {ex.Message}");
-    						return "";
+							// handle the exception
+							Console.WriteLine($"Error finding certificate: {ex.Message}");
+							return "";
 						}
 						bPassesHasMatchingCertCheck = (Cert != null);
 						if (bPassesHasMatchingCertCheck && CodeSigningConfig.bCert)
@@ -1658,10 +1656,10 @@ namespace UnrealBuildTool
 
 			Data?.ProcessValueForKey("Entitlements", "dict", (XmlNode ValueNode) =>
 			{
-		    	if (ValueNode != null)
+				if (ValueNode != null)
 				{
-        			XCentPList = PListHelper.CloneDictionaryRootedAt(ValueNode)!;
-			    }
+					XCentPList = PListHelper.CloneDictionaryRootedAt(ValueNode)!;
+				}
 			});
 
 			// Modify the application-identifier to be fully qualified if needed
@@ -1860,9 +1858,9 @@ namespace UnrealBuildTool
 			});
 
 			// Modify the application-identifier to be fully qualified if needed
-			#pragma warning disable CS8602
+#pragma warning disable CS8602
 			if (!XCentPList.GetString("application-identifier", out ApplicationIdentifier))
-			#pragma warning restore CS8602 
+#pragma warning restore CS8602
 			{
 				ApplicationIdentifier = "(unknown)";
 			}
@@ -1871,9 +1869,9 @@ namespace UnrealBuildTool
 			// check for get-task-allow
 			if (XCentPList != null)
 			{
-			    bDebug = XCentPList.GetBool("get-task-allow");
+				bDebug = XCentPList.GetBool("get-task-allow");
 			}
-			
+
 			if (!Data.GetString("UUID", out UUID))
 			{
 				UUID = "(unkown)";
@@ -1899,19 +1897,19 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool ContainsUDID(string UDID)
 		{
-		    bool bFound = false;
-    		if (ProvisionedDeviceIDs != null)
-		    {
-        		foreach (string TestUDID in ProvisionedDeviceIDs)
-		        {
-        		    if (TestUDID.Equals(UDID, StringComparison.InvariantCultureIgnoreCase))
-            		{
-		                bFound = true;
-        		        break;
-            		}
-		        }
-		    }
-		return bFound;
+			bool bFound = false;
+			if (ProvisionedDeviceIDs != null)
+			{
+				foreach (string TestUDID in ProvisionedDeviceIDs)
+				{
+					if (TestUDID.Equals(UDID, StringComparison.InvariantCultureIgnoreCase))
+					{
+						bFound = true;
+						break;
+					}
+				}
+			}
+			return bFound;
 		}
 
 	}
@@ -1930,9 +1928,9 @@ namespace UnrealBuildTool
 		public MobileProvisionParser()
 		{
 			ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
-		    {
-        		builder.AddConsole();
-		    });
+			{
+				builder.AddConsole();
+			});
 			_logger = loggerFactory.CreateLogger("MobileProvisionParser");
 		}
 
@@ -2020,12 +2018,12 @@ namespace UnrealBuildTool
 			MobileProvision? Result = ParseFile(InputStream);
 			InputStream.Close();
 			if (Result == null)
-		    {
-        		throw new Exception("Failed to parse mobile provision file");
-		    }
-		    Result.FileName ??= Filename;
+			{
+				throw new Exception("Failed to parse mobile provision file");
+			}
+			Result.FileName ??= Filename;
 
-		    return Result;
+			return Result;
 		}
 	}
 
@@ -2200,7 +2198,7 @@ namespace UnrealBuildTool
 		{
 			return GetPlistOverrideFilename(false);
 		}
-		
+
 		/// <summary>
 		/// GetPlistOverrideFilename
 		/// </summary>

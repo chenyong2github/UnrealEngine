@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using UnrealBuildBase;
-using Microsoft.Extensions.Logging;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
+using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -182,7 +182,7 @@ namespace UnrealBuildTool
 		protected ClangToolChainOptions Options;
 
 		// Dummy define to work around clang compilation related to the windows maximum path length limitation
-		protected static string ClangDummyDefine; 
+		protected static string ClangDummyDefine;
 		protected const int ClangCmdLineMaxSize = 32 * 1024;
 		protected const int ClangCmdlineDangerZone = 30 * 1024;
 
@@ -323,9 +323,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected bool CompilerVersionLessThan(int Major, int Minor, int Patch) => Info.ClangVersion < new Version(Major, Minor, Patch);
 
-		protected bool IsAnalyzing(CppCompileEnvironment CompileEnvironment) => 
-				StaticAnalyzer == StaticAnalyzer.Default 
-			&&	CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create 
+		protected bool IsAnalyzing(CppCompileEnvironment CompileEnvironment) =>
+				StaticAnalyzer == StaticAnalyzer.Default
+			&& CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create
 			&& !CompileEnvironment.bDisableStaticAnalysis;
 
 		protected virtual void GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -754,7 +754,7 @@ namespace UnrealBuildTool
 			Arguments.Add("-pipe");
 
 			if (CompileEnvironment.Architecture.bIsX64)
-			{		
+			{
 				// UE5 minspec is 4.2
 				Arguments.Add("-msse4.2");
 			}
@@ -940,10 +940,10 @@ namespace UnrealBuildTool
 		}
 
 		protected virtual List<string> ExpandResponseFileContents(List<string> ResponseFileContents)
-        {
+		{
 			// This code is optimized for the scenario where ResponseFile has no variables to expand
 			List<string> NewList = ResponseFileContents;
-			for (int I=0; I!=NewList.Count; ++I)
+			for (int I = 0; I != NewList.Count; ++I)
 			{
 				string Line = ResponseFileContents[I];
 				string NewLine = Utils.ExpandVariables(Line);

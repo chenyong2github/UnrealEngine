@@ -2,13 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using EpicGames.Core;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
-using System.Threading.Tasks;
 
 namespace UnrealBuildTool
 {
@@ -56,7 +56,7 @@ namespace UnrealBuildTool
 		/// Store the single game project (when using -game -project=...) to a place that XcodeProjectLegacy can easily retrieve it
 		/// </summary>
 		public static FileReference? SingleGameProject = null;
-		
+
 		/// <summary>
 		/// If set, only write out one target/project 
 		/// </summary>

@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Backends;
-using EpicGames.Horde.Storage.Nodes;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Backends;
+using EpicGames.Horde.Storage.Nodes;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace UnrealBuildTool.Artifacts
 {
@@ -78,7 +78,7 @@ namespace UnrealBuildTool.Artifacts
 		public async Task WriteFilesAsync(TreeWriter writer, CancellationToken cancellationToken)
 		{
 			ChunkingOptionsForNodeType nodeTypeOptions = new(512 * 1024, 2 * 1024 * 1024, 1 * 1024 * 1024);
-			ChunkingOptions options = new(){ LeafOptions = nodeTypeOptions, InteriorOptions = nodeTypeOptions };
+			ChunkingOptions options = new() { LeafOptions = nodeTypeOptions, InteriorOptions = nodeTypeOptions };
 
 			ChunkedDataWriter fileWriter = new(writer, options);
 			int index = 0;
@@ -86,7 +86,7 @@ namespace UnrealBuildTool.Artifacts
 			{
 				string outputName = artifact.GetFullPath();
 				using FileStream stream = new(outputName, FileMode.Open, FileAccess.Read, FileShare.Read);
-				OutputRefs[index++] = new NodeRef<ChunkedDataNode>(await fileWriter.CreateAsync(stream, nodeTypeOptions.TargetSize, cancellationToken)); 
+				OutputRefs[index++] = new NodeRef<ChunkedDataNode>(await fileWriter.CreateAsync(stream, nodeTypeOptions.TargetSize, cancellationToken));
 			}
 		}
 	}
@@ -223,7 +223,7 @@ namespace UnrealBuildTool.Artifacts
 		/// </summary>
 		public ArtifactCacheState State
 		{
-			get => (ArtifactCacheState) Interlocked.Add(ref _state, 0);
+			get => (ArtifactCacheState)Interlocked.Add(ref _state, 0);
 			private set => Interlocked.Exchange(ref _state, (int)value);
 		}
 

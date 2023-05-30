@@ -57,7 +57,7 @@ namespace UnrealBuildToolTests
 		public void ArtifactBundleStorageTest1()
 		{
 			CancellationToken cancellationToken = default;
-			
+
 			IArtifactCache cache = HordeStorageArtifactCache.CreateMemoryCache(NullLogger.Instance);
 
 			_ = cache.WaitForReadyAsync().Result;
