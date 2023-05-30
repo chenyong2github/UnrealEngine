@@ -110,6 +110,7 @@ public:
 		SLATE_EVENT( FOnUpdateGraphPanel, OnUpdateGraphPanel )
 		SLATE_EVENT( SGraphEditor::FOnDisallowedPinConnection, OnDisallowedPinConnection )
 		SLATE_EVENT( SGraphEditor::FOnDoubleClicked, OnDoubleClicked )
+		SLATE_EVENT( SGraphEditor::FOnMouseButtonDown, OnMouseButtonDown )
 		//SLATE_ATTRIBUTE( FGraphAppearanceInfo, Appearance )
 	SLATE_END_ARGS()
 
@@ -332,6 +333,9 @@ protected:
 	/** Called when the graph itself is double clicked */
 	SGraphEditor::FOnDoubleClicked OnDoubleClicked;
 
+	/** Called when the graph itself is clicked */
+	SGraphEditor::FOnMouseButtonDown OnClicked;
+	
 	/** Whether to draw the overlay indicating we're in PIE */
 	bool bShowPIENotification;
 

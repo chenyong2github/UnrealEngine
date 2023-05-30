@@ -107,7 +107,8 @@ void SGraphPanel::Construct( const SGraphPanel::FArguments& InArgs )
 	this->OnUpdateGraphPanel = InArgs._OnUpdateGraphPanel;
 	this->OnDisallowedPinConnection = InArgs._OnDisallowedPinConnection;
 	this->OnDoubleClicked = InArgs._OnDoubleClicked;
-
+	this->OnClicked = InArgs._OnMouseButtonDown;
+	
 	this->bPreservePinPreviewConnection = false;
 	this->PinVisibility = SGraphEditor::Pin_Show;
 
@@ -854,6 +855,14 @@ FReply SGraphPanel::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		}
 	}
 
+	if (OnClicked.IsBound())
+	{
+		if (const FReply Reply = OnClicked.Execute(MyGeometry, MouseEvent); Reply.IsEventHandled())
+		{
+			return FReply::Handled();
+		}
+	}
+	
 	return SNodePanel::OnMouseButtonDown(MyGeometry, MouseEvent);
 }
 

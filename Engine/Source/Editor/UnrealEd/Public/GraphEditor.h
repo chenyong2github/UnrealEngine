@@ -122,6 +122,8 @@ public:
 
 	DECLARE_DELEGATE( FOnDoubleClicked );
 
+	DECLARE_DELEGATE_RetVal_TwoParams( FReply, FOnMouseButtonDown, const FGeometry&, const FPointerEvent& );
+
 	/** Info about events occurring in/on the graph */
 	struct FGraphEditorEvents
 	{
@@ -151,6 +153,8 @@ public:
 		FOnDisallowedPinConnection OnDisallowedPinConnection;
 		/** Called when the graph itself is double clicked */
 		FOnDoubleClicked OnDoubleClicked;
+		/** Called when the graph is clicked */
+		FOnMouseButtonDown OnMouseButtonDown;
 	};
 
 
