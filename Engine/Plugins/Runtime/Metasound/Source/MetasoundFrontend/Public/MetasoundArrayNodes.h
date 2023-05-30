@@ -140,24 +140,27 @@ namespace Metasound
 
 		virtual FDataReferenceCollection GetInputs() const override
 		{
-			using namespace ArrayNodeVertexNames;
-
-			FDataReferenceCollection Inputs;
-
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputArray), Array);
-
-			return Inputs;
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
+			checkNoEntry();
+			return {};
+		}
+
+		virtual void BindInputs(FInputVertexInterfaceData& InVertexData) override
+		{
+			using namespace ArrayNodeVertexNames;
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputArray), Array);
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) override
+		{
 			using namespace ArrayNodeVertexNames;
 
-			FDataReferenceCollection Outputs;
-
-			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputNum), Num);
-
-			return Outputs;
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputNum), Num);
 		}
 
 		void Execute()
@@ -304,26 +307,30 @@ namespace Metasound
 
 		virtual FDataReferenceCollection GetInputs() const override
 		{
-			using namespace ArrayNodeVertexNames;
-
-			FDataReferenceCollection Inputs;
-
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTriggerGet), Trigger);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputArray), Array);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputIndex), Index);
-
-			return Inputs;
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
+			checkNoEntry();
+			return {};
+		}
+
+		virtual void BindInputs(FInputVertexInterfaceData& InVertexData) override
+		{
 			using namespace ArrayNodeVertexNames;
 
-			FDataReferenceCollection Outputs;
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTriggerGet), Trigger);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputArray), Array);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputIndex), Index);
+		}
 
-			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputValue), Value);
+		virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) override
+		{
+			using namespace ArrayNodeVertexNames;
 
-			return Outputs;
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputValue), Value);
 		}
 
 		void Execute()
@@ -499,25 +506,31 @@ namespace Metasound
 
 		virtual FDataReferenceCollection GetInputs() const override
 		{
-			using namespace ArrayNodeVertexNames;
-			FDataReferenceCollection Inputs;
-
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTriggerSet), Trigger);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputArray), InitArray);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputIndex), Index);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputValue), Value);
-
-			return Inputs;
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
+			checkNoEntry();
+			return {};
+		}
+
+		virtual void BindInputs(FInputVertexInterfaceData& InVertexData) override
+		{
 			using namespace ArrayNodeVertexNames;
-			FDataReferenceCollection Outputs;
 
-			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputArraySet), Array);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTriggerSet), Trigger);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputArray), InitArray);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputIndex), Index);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputValue), Value);
+		}
 
-			return Outputs;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) override
+		{
+			using namespace ArrayNodeVertexNames;
+
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputArraySet), Array);
 		}
 
 		void Execute()
@@ -645,24 +658,30 @@ namespace Metasound
 
 		virtual FDataReferenceCollection GetInputs() const override
 		{
-			using namespace ArrayNodeVertexNames;
-			FDataReferenceCollection Inputs;
-
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTriggerGet), Trigger);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputLeftArray), LeftArray);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputRightArray), RightArray);
-
-			return Inputs;
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
+			checkNoEntry();
+			return {};
+		}
+
+		virtual void BindInputs(FInputVertexInterfaceData& InVertexData) override
+		{
 			using namespace ArrayNodeVertexNames;
-			FDataReferenceCollection Outputs;
 
-			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputArrayConcat), OutArray);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTriggerGet), Trigger);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputLeftArray), LeftArray);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputRightArray), RightArray);
+		}
 
-			return Outputs;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) override
+		{
+			using namespace ArrayNodeVertexNames;
+
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputArrayConcat), OutArray);
 		}
 
 		void Execute()
@@ -779,27 +798,31 @@ namespace Metasound
 
 		virtual FDataReferenceCollection GetInputs() const override
 		{
-			using namespace ArrayNodeVertexNames;
-
-			FDataReferenceCollection Inputs;
-
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTriggerGet), Trigger);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputArray), InputArray);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputStartIndex), StartIndex);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputEndIndex), EndIndex);
-
-			return Inputs;
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
+			checkNoEntry();
+			return {};
+		}
+
+		virtual void BindInputs(FInputVertexInterfaceData& InVertexData) override
+		{
 			using namespace ArrayNodeVertexNames;
 
-			FDataReferenceCollection Outputs;
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTriggerGet), Trigger);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputArray), InputArray);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputStartIndex), StartIndex);
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputEndIndex), EndIndex);
+		}
 
-			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputArraySubset), OutputArray);
+		virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) override
+		{
+			using namespace ArrayNodeVertexNames;
 
-			return Outputs;
+			InVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputArraySubset), OutputArray);
 		}
 
 		void Execute()

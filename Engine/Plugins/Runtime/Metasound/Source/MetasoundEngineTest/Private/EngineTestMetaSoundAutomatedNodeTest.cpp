@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "EngineTestMetaSoundAutomatedNodeTest.h"
+
 #include "Algo/AllOf.h"
 #include "AudioDevice.h"
 #include "AudioDeviceManager.h"
@@ -15,6 +17,7 @@
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundLog.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundVariableNodes.h"
 #include "MetasoundVertex.h"
 #include "MetasoundVertexData.h"
 #include "Templates/UniquePtr.h"
@@ -24,7 +27,7 @@
 
 #if WITH_EDITORONLY_DATA
 
-namespace Metasound::MetasoundEngineTestPrivate {
+namespace Metasound::EngineTest{
 
 	// Return audio mixer device if one is available
 	Audio::FMixerDevice* GetAudioMixerDevice()
@@ -33,14 +36,17 @@ namespace Metasound::MetasoundEngineTestPrivate {
 		{
 			if (FAudioDevice* AudioDevice = DeviceManager->GetMainAudioDeviceRaw())
 			{
-				return static_cast<Audio::FMixerDevice*>(AudioDevice);
+				if (AudioDevice->IsAudioMixerEnabled())
+				{
+					return static_cast<Audio::FMixerDevice*>(AudioDevice);
+				}
 			}
 		}
 		return nullptr;
 	}
 
 	// Create an example environment that generally exists for a UMetaSoundSoruce
-	FMetasoundEnvironment GetSourceEnvironment()
+	FMetasoundEnvironment GetSourceEnvironmentForTest()
 	{
 		using namespace Frontend;
 
@@ -196,16 +202,6 @@ namespace Metasound::MetasoundEngineTestPrivate {
 		}
 	};
 
-	// Interface for data reference analyzers.
-	struct IDataReferenceAnalyzer
-	{
-		virtual ~IDataReferenceAnalyzer() = default;
-		virtual FAnyDataReference Copy(const FAnyDataReference& InDataRef) const = 0;
-		virtual bool IsEqual(const FAnyDataReference& InLHS, const FAnyDataReference& InRHS) const = 0;
-		virtual bool IsValid(const FAnyDataReference& InDataRef) const = 0;
-		virtual FString ToString(const FAnyDataReference& InDataRef) const = 0;
-	};
-
 	// TDataReferenceAnalyzer fulfils the IDataReferenceAnalyzer interface and uses
 	// various templates to implement methods.
 	template<typename DataType>
@@ -269,6 +265,7 @@ namespace Metasound::MetasoundEngineTestPrivate {
 		InMap.Add(GetMetasoundDataTypeName<DataType>(), MakeShared<const TDataReferenceAnalyzer<DataType>>());
 	}
 
+	// A static registry of IDataReferenceAnalyzers
 	const TMap<FName, TSharedPtr<const IDataReferenceAnalyzer>>& GetDataTypeAnalyzerMap()
 	{
 		static TMap<FName, TSharedPtr<const IDataReferenceAnalyzer>> Map;
@@ -289,105 +286,87 @@ namespace Metasound::MetasoundEngineTestPrivate {
 		return Map;
 	}
 
-	TMap<FVertexName, FAnyDataReference> VertexState;
-
-	// Convenience class for setting node input data reference values to default, min, max or random values. 
-	struct FOutputVertexDataTestController
+	void FOutputVertexDataTestController::FAnalyzableOutput::CaptureValue()
 	{
-		struct FAnalyzableOutput
+		CapturedValue = DataReferenceAnalyzer->Copy(DataReference);
+	}
+
+	bool FOutputVertexDataTestController::FAnalyzableOutput::IsDataReferenceValid() const
+	{
+		return DataReferenceAnalyzer->IsValid(DataReference);
+	}
+
+	bool FOutputVertexDataTestController::FAnalyzableOutput::IsDataReferenceEqualToCapturedValue() const
+	{
+		return DataReferenceAnalyzer->IsEqual(CapturedValue, DataReference);
+	}
+
+	FString FOutputVertexDataTestController::FAnalyzableOutput::DataReferenceToString() const
+	{
+		return DataReferenceAnalyzer->ToString(DataReference);
+	}
+
+	FString FOutputVertexDataTestController::FAnalyzableOutput::CapturedValueToString() const
+	{
+		return DataReferenceAnalyzer->ToString(CapturedValue);
+	}
+
+	FOutputVertexDataTestController::FOutputVertexDataTestController( const FOutputVertexInterface& InOutputInterface, const FOutputVertexInterfaceData& InOutputData)
+	{
+		const TMap<FName, TSharedPtr<const IDataReferenceAnalyzer>>& AnalyzerMap = GetDataTypeAnalyzerMap();
+
+		for (const FOutputDataVertex& Vertex : InOutputInterface)
 		{
-			FAnyDataReference CapturedValue;
-			FAnyDataReference DataReference;
-			FVertexName VertexName;
-			TSharedPtr<const IDataReferenceAnalyzer> DataReferenceAnalyzer;
-
-			void CaptureValue()
+			if (AnalyzerMap.Contains(Vertex.DataTypeName))
 			{
-				CapturedValue = DataReferenceAnalyzer->Copy(DataReference);
-			}
-
-			bool IsDataReferenceValid() const
-			{
-				return DataReferenceAnalyzer->IsValid(DataReference);
-			}
-
-			bool IsDataReferenceEqualToCapturedValue() const
-			{
-				return DataReferenceAnalyzer->IsEqual(CapturedValue, DataReference);
-			}
-
-			FString DataReferenceToString() const
-			{
-				return DataReferenceAnalyzer->ToString(DataReference);
-			}
-
-			FString CapturedValueToString() const
-			{
-				return DataReferenceAnalyzer->ToString(CapturedValue);
-			}
-		};
-
-		FOutputVertexDataTestController( const FOutputVertexInterface& InOutputInterface, const FOutputVertexInterfaceData& InOutputData)
-		{
-			const TMap<FName, TSharedPtr<const IDataReferenceAnalyzer>>& AnalyzerMap = GetDataTypeAnalyzerMap();
-
-			for (const FOutputDataVertex& Vertex : InOutputInterface)
-			{
-				if (AnalyzerMap.Contains(Vertex.DataTypeName))
+				if (const FAnyDataReference* Ref = InOutputData.FindDataReference(Vertex.VertexName))
 				{
-					if (const FAnyDataReference* Ref = InOutputData.FindDataReference(Vertex.VertexName))
-					{
-						AnalyzableOutputs.Add(FAnalyzableOutput{*Ref, *Ref, Vertex.VertexName, AnalyzerMap[Vertex.DataTypeName]});
-					}
+					AnalyzableOutputs.Add(FAnalyzableOutput{*Ref, *Ref, Vertex.VertexName, AnalyzerMap[Vertex.DataTypeName]});
 				}
 			}
 		}
+	}
 
-		int32 GetNumAnalyzableOutputs() const
-		{
-			return AnalyzableOutputs.Num();
-		}
+	int32 FOutputVertexDataTestController::GetNumAnalyzableOutputs() const
+	{
+		return AnalyzableOutputs.Num();
+	}
 
-		bool AreAllAnalyzableOutputsValid() const
+	bool FOutputVertexDataTestController::AreAllAnalyzableOutputsValid() const
+	{
+		bool bAllAreValid = true;
+		for (const FAnalyzableOutput& AnalyzableOutput : AnalyzableOutputs)
 		{
-			bool bAllAreValid = true;
-			for (const FAnalyzableOutput& AnalyzableOutput : AnalyzableOutputs)
+			if (!AnalyzableOutput.IsDataReferenceValid())
 			{
-				if (!AnalyzableOutput.IsDataReferenceValid())
-				{
-					UE_LOG(LogMetaSound, Warning, TEXT("Invalid output encountered %s %s"), *AnalyzableOutput.VertexName.ToString(), *AnalyzableOutput.DataReferenceToString());
-					bAllAreValid = false;
-				}
-			}
-			return bAllAreValid;
-		}
-
-		void CaptureCurrentOutputValues()
-		{
-			for (FAnalyzableOutput& AnalyzableOutput : AnalyzableOutputs)
-			{
-				AnalyzableOutput.CaptureValue();
+				UE_LOG(LogMetaSound, Warning, TEXT("Invalid output encountered %s %s"), *AnalyzableOutput.VertexName.ToString(), *AnalyzableOutput.DataReferenceToString());
+				bAllAreValid = false;
 			}
 		}
+		return bAllAreValid;
+	}
 
-		bool AreAllOutputValuesEqualToCapturedValues() const
+	void FOutputVertexDataTestController::CaptureCurrentOutputValues()
+	{
+		for (FAnalyzableOutput& AnalyzableOutput : AnalyzableOutputs)
 		{
-			bool bAllAreEqual = true;
-			for (const FAnalyzableOutput& AnalyzableOutput : AnalyzableOutputs)
-			{
-				if (!AnalyzableOutput.IsDataReferenceEqualToCapturedValue())
-				{
-					UE_LOG(LogMetaSound, Warning, TEXT("Unequal output encountered %s found: %s expected: %s"), *AnalyzableOutput.VertexName.ToString(), *AnalyzableOutput.DataReferenceToString(), *AnalyzableOutput.CapturedValueToString());
-					bAllAreEqual = false;
-				}
-			}
-			return bAllAreEqual;
+			AnalyzableOutput.CaptureValue();
 		}
+	}
 
-	private:
-
-		TArray<FAnalyzableOutput> AnalyzableOutputs;
-	};
+	bool FOutputVertexDataTestController::AreAllOutputValuesEqualToCapturedValues() const
+	{
+		bool bAllAreEqual = true;
+		for (const FAnalyzableOutput& AnalyzableOutput : AnalyzableOutputs)
+		{
+			if (!AnalyzableOutput.IsDataReferenceEqualToCapturedValue())
+			{
+				UE_LOG(LogMetaSound, Warning, TEXT("Unequal output encountered %s found: %s expected: %s"), *AnalyzableOutput.VertexName.ToString(), *AnalyzableOutput.DataReferenceToString(), *AnalyzableOutput.CapturedValueToString());
+				bAllAreEqual = false;
+			}
+		}
+		return bAllAreEqual;
+	}
 
 
 	// TTestTypeValues should return basic bounds for tested input data types.
@@ -494,19 +473,6 @@ namespace Metasound::MetasoundEngineTestPrivate {
 		static FString Random(const FOperatorSettings& InSettings) { return TEXT("We should probably implement a random string."); }
 	};
 
-	// Interface for mutating data references
-	struct IDataReferenceMutator
-	{
-		virtual ~IDataReferenceMutator() = default;
-		virtual void SetDefault(const FOperatorSettings& InSettings, const FAnyDataReference& InDataRef) const = 0;
-		virtual void SetMax(const FOperatorSettings& InSettings, const FAnyDataReference& InDataRef) const = 0;
-		virtual void SetMin(const FOperatorSettings& InSettings, const FAnyDataReference& InDataRef) const = 0; 
-		virtual void SetRandom(const FOperatorSettings& InSettings, const FAnyDataReference& InDataRef) const = 0;
-		virtual FAnyDataReference Copy(const FAnyDataReference& InDataRef) const = 0;
-		virtual void SetValue(const FAnyDataReference& InSrcDataRef, const FAnyDataReference& InDstDataRef) const = 0;
-		virtual FString ToString(const FAnyDataReference& InDataRef) const = 0;
-	};
-
 	template<typename DataType>
 	struct TDataReferenceMutator : IDataReferenceMutator
 	{
@@ -564,7 +530,6 @@ namespace Metasound::MetasoundEngineTestPrivate {
 		}
 	};
 
-
 	template<typename DataType>
 	void AddDataReferenceMutatorEntryToMap(TMap<FName, TSharedPtr<const IDataReferenceMutator>>& InMap)
 	{
@@ -592,123 +557,107 @@ namespace Metasound::MetasoundEngineTestPrivate {
 		return Map;
 	}
 
-	using FInterfaceState = TMap<FVertexName, FAnyDataReference>;
-
 	// Convenience class for setting node input data reference values to default, min, max or random values. 
-	struct FInputVertexDataTestController
+	FInputVertexDataTestController::FInputVertexDataTestController(const FOperatorSettings& InSettings, const FInputVertexInterface& InInputInterface, const FInputVertexInterfaceData& InInputData)
+	: Settings(InSettings)
 	{
-		struct FMutableInput
-		{
-			FAnyDataReference DataReference;
-			FVertexName VertexName;
-			TSharedPtr<const IDataReferenceMutator> DataReferenceMutator;
-		};
+		const TMap<FName, TSharedPtr<const IDataReferenceMutator>>& GeneratorMap = GetDataTypeGeneratorMap();
 
-		FInputVertexDataTestController(const FOperatorSettings& InSettings, const FInputVertexInterface& InInputInterface, const FInputVertexInterfaceData& InInputData)
-		: Settings(InSettings)
+		for (const FInputDataVertex& Vertex : InInputInterface)
 		{
-			const TMap<FName, TSharedPtr<const IDataReferenceMutator>>& GeneratorMap = GetDataTypeGeneratorMap();
-
-			for (const FInputDataVertex& Vertex : InInputInterface)
+			if (GeneratorMap.Contains(Vertex.DataTypeName))
 			{
-				if (GeneratorMap.Contains(Vertex.DataTypeName))
+				if (const FAnyDataReference* Ref = InInputData.FindDataReference(Vertex.VertexName))
 				{
-					if (const FAnyDataReference* Ref = InInputData.FindDataReference(Vertex.VertexName))
+					if (EDataReferenceAccessType::Write == Ref->GetAccessType())
 					{
-						if (EDataReferenceAccessType::Write == Ref->GetAccessType())
-						{
-							MutableInputs.Add(FMutableInput{*Ref, Vertex.VertexName, GeneratorMap[Vertex.DataTypeName]});
-						}
+						MutableInputs.Add(FMutableInput{*Ref, Vertex.VertexName, GeneratorMap[Vertex.DataTypeName]});
 					}
 				}
 			}
 		}
+	}
 
-		int32 GetNumMutableInputs() const
+	int32 FInputVertexDataTestController::GetNumMutableInputs() const
+	{
+		return MutableInputs.Num();
+	}
+
+	FInterfaceState FInputVertexDataTestController::GetInterfaceState() const
+	{
+		FInterfaceState State;
+		for (const FMutableInput& MutableInput : MutableInputs)
 		{
-			return MutableInputs.Num();
+			State.Add(MutableInput.VertexName, MutableInput.DataReferenceMutator->Copy(MutableInput.DataReference));
 		}
+		return State;
+	}
 
-		FInterfaceState GetInterfaceState() const
+	void FInputVertexDataTestController::SetMutableInputsToState(const FInterfaceState& InState) 
+	{
+		for (const FMutableInput& MutableInput : MutableInputs)
 		{
-			FInterfaceState State;
-			for (const FMutableInput& MutableInput : MutableInputs)
+			if (const FAnyDataReference* Value = InState.Find(MutableInput.VertexName))
 			{
-				State.Add(MutableInput.VertexName, MutableInput.DataReferenceMutator->Copy(MutableInput.DataReference));
+				MutableInput.DataReferenceMutator->SetValue(*Value, MutableInput.DataReference);
 			}
-			return State;
 		}
+		UE_LOG(LogMetaSound, Verbose, TEXT("Setting operator input values:%s%s"), LINE_TERMINATOR, *FString::Join(GetInputValueStrings(), LINE_TERMINATOR));
+	}
 
-		void SetMutableInputsToState(const FInterfaceState& InState) 
+	void FInputVertexDataTestController::SetMutableInputsToMin()
+	{
+		for (const FMutableInput& MutableInput : MutableInputs)
 		{
-			for (const FMutableInput& MutableInput : MutableInputs)
-			{
-				if (const FAnyDataReference* Value = InState.Find(MutableInput.VertexName))
-				{
-					MutableInput.DataReferenceMutator->SetValue(*Value, MutableInput.DataReference);
-				}
-			}
-			UE_LOG(LogMetaSound, Verbose, TEXT("Setting operator input values:%s%s"), LINE_TERMINATOR, *FString::Join(GetInputValueStrings(), LINE_TERMINATOR));
+			MutableInput.DataReferenceMutator->SetMin(Settings, MutableInput.DataReference);
 		}
+		UE_LOG(LogMetaSound, Verbose, TEXT("Setting operator input values:%s%s"), LINE_TERMINATOR, *FString::Join(GetInputValueStrings(), LINE_TERMINATOR));
+	}
 
-		void SetMutableInputsToMin()
+	void FInputVertexDataTestController::SetMutableInputsToMax()
+	{
+		for (const FMutableInput& MutableInput : MutableInputs)
 		{
-			for (const FMutableInput& MutableInput : MutableInputs)
-			{
-				MutableInput.DataReferenceMutator->SetMin(Settings, MutableInput.DataReference);
-			}
-			UE_LOG(LogMetaSound, Verbose, TEXT("Setting operator input values:%s%s"), LINE_TERMINATOR, *FString::Join(GetInputValueStrings(), LINE_TERMINATOR));
+			MutableInput.DataReferenceMutator->SetMax(Settings, MutableInput.DataReference);
 		}
+		UE_LOG(LogMetaSound, Verbose, TEXT("Setting operator input values:%s%s"), LINE_TERMINATOR, *FString::Join(GetInputValueStrings(), LINE_TERMINATOR));
+	}
 
-		void SetMutableInputsToMax()
+	void FInputVertexDataTestController::SetMutableInputsToDefault()
+	{
+		for (const FMutableInput& MutableInput : MutableInputs)
 		{
-			for (const FMutableInput& MutableInput : MutableInputs)
-			{
-				MutableInput.DataReferenceMutator->SetMax(Settings, MutableInput.DataReference);
-			}
-			UE_LOG(LogMetaSound, Verbose, TEXT("Setting operator input values:%s%s"), LINE_TERMINATOR, *FString::Join(GetInputValueStrings(), LINE_TERMINATOR));
+			MutableInput.DataReferenceMutator->SetDefault(Settings, MutableInput.DataReference);
 		}
+		UE_LOG(LogMetaSound, Verbose, TEXT("Setting operator input values:%s%s"), LINE_TERMINATOR, *FString::Join(GetInputValueStrings(), LINE_TERMINATOR));
+	}
 
-		void SetMutableInputsToDefault()
+	void FInputVertexDataTestController::SetMutableInputsToRandom()
+	{
+		for (const FMutableInput& MutableInput : MutableInputs)
 		{
-			for (const FMutableInput& MutableInput : MutableInputs)
-			{
-				MutableInput.DataReferenceMutator->SetDefault(Settings, MutableInput.DataReference);
-			}
-			UE_LOG(LogMetaSound, Verbose, TEXT("Setting operator input values:%s%s"), LINE_TERMINATOR, *FString::Join(GetInputValueStrings(), LINE_TERMINATOR));
+			MutableInput.DataReferenceMutator->SetRandom(Settings, MutableInput.DataReference);
 		}
+		UE_LOG(LogMetaSound, Verbose, TEXT("Setting operator input values:%s%s"), LINE_TERMINATOR, *FString::Join(GetInputValueStrings(), LINE_TERMINATOR));
+	}
 
-		void SetMutableInputsToRandom()
+	TArray<FString> FInputVertexDataTestController::GetInputValueStrings() const
+	{
+		TArray<FString> ValueStrings;
+		for (const FMutableInput& MutableInput : MutableInputs)
 		{
-			for (const FMutableInput& MutableInput : MutableInputs)
-			{
-				MutableInput.DataReferenceMutator->SetRandom(Settings, MutableInput.DataReference);
-			}
-			UE_LOG(LogMetaSound, Verbose, TEXT("Setting operator input values:%s%s"), LINE_TERMINATOR, *FString::Join(GetInputValueStrings(), LINE_TERMINATOR));
+			ValueStrings.Add(FString::Printf(TEXT("%s %s"), *MutableInput.VertexName.ToString(), *MutableInput.DataReferenceMutator->ToString(MutableInput.DataReference)));
 		}
+		return ValueStrings;
+	}
 
-		TArray<FString> GetInputValueStrings() const
-		{
-			TArray<FString> ValueStrings;
-			for (const FMutableInput& MutableInput : MutableInputs)
-			{
-				ValueStrings.Add(FString::Printf(TEXT("%s %s"), *MutableInput.VertexName.ToString(), *MutableInput.DataReferenceMutator->ToString(MutableInput.DataReference)));
-			}
-			return ValueStrings;
-		}
-
-	private:
-
-		FOperatorSettings Settings;
-		TArray<FMutableInput> MutableInputs;
-	};
 
 	static const FLazyName TestNodeName{"TEST_NODE"};
 	static const FLazyName TestVertexName{"TEXT_VERTEX"};
 	static const FGuid TestNodeID{0xA5A5A5A5, 0xA5A5A5A5, 0xA5A5A5A5, 0xA5A5A5A5};
 
 	// Create a node from a node registry key
-	TUniquePtr<INode> CreateNode(const Frontend::FNodeRegistryKey& InNodeRegistryKey)
+	TUniquePtr<INode> CreateNodeFromRegistry(const Frontend::FNodeRegistryKey& InNodeRegistryKey)
 	{
 		using namespace Frontend;
 
@@ -787,222 +736,105 @@ namespace Metasound::MetasoundEngineTestPrivate {
 		return MoveTemp(Node);
 	}
 
-	// Create input vertex interface data for a node.
-	FInputVertexInterfaceData CreateInputVertexInterfaceData(const INode& InNode, const FOperatorSettings& InOperatorSettings)
+
+	void GetAllRegisteredNodes(TArray<FString>& OutBeautifiedNames, TArray <FString>& OutTestCommands)
 	{
-		Frontend::IDataTypeRegistry& DataTypeRegistry = Frontend::IDataTypeRegistry::Get();
+		using namespace Metasound;
 
-		// Populate inputs to node. 
-		FVertexInterface NodeVertexInterface = InNode.GetVertexInterface();
-		FInputVertexInterfaceData NodeInputVertexInterfaceData{NodeVertexInterface.GetInputInterface()};
+		// Get all the classes that have been registered
+		Frontend::ISearchEngine& NodeSearchEngine = Frontend::ISearchEngine::Get();
+		TArray<FMetasoundFrontendClass> AllClasses = NodeSearchEngine.FindAllClasses(true /* IncludeAllVersions */);
 
-		for (const FInputDataVertex& InputVertex : NodeVertexInterface.GetInputInterface())
+		FMetasoundFrontendRegistryContainer* NodeRegistry = FMetasoundFrontendRegistryContainer::Get();
+		check(nullptr != NodeRegistry);
+
+		for (const FMetasoundFrontendClass& NodeClass : AllClasses)
 		{
-			if (InputVertex.AccessType != EVertexAccessType::Reference)
+			// Exclude template classes because they cannot be created directly from the node registry
+			if (NodeClass.Metadata.GetType() == EMetasoundFrontendClassType::Template)
 			{
-				// Not testing constructor inputs.
 				continue;
 			}
 
-			// input data type must be registered in order to create it.
-			if (DataTypeRegistry.IsRegistered(InputVertex.DataTypeName))
+			Frontend::FNodeRegistryKey NodeRegistryKey = NodeRegistry->GetRegistryKey(NodeClass.Metadata);
+			
+			OutBeautifiedNames.Add(FString::Printf(TEXT("%s %s"), *NodeClass.Metadata.GetClassName().ToString(), *NodeClass.Metadata.GetVersion().ToString()));
+			// Test commands are node registry keys
+			OutTestCommands.Add(NodeRegistryKey);
+		}
+	}
+
+
+	void CreateVariables(const FOperatorSettings& InOperatorSettings, FInputVertexInterfaceData& OutVertexData)
+	{
+		using namespace MetasoundVertexDataPrivate;
+
+		// There is currently no easy way to instantiate variables. The only way
+		// they are instantiated is within the TVariableNode's IOperator. In order
+		// to create Variable inputs to nodes, we 
+		// - Create a TVariableNode
+		// - Create a IOperator from the TVariableNode
+		// - Access the variable from the outputs of the IOperator
+
+		Frontend::IDataTypeRegistry& DataTypeRegistry = Frontend::IDataTypeRegistry::Get();
+
+		for (const FInputBinding& Binding : OutVertexData)
+		{
+			const FInputDataVertex& InputVertex = Binding.GetVertex();
+
+			if (const Frontend::IDataTypeRegistryEntry* VariableEntry = DataTypeRegistry.FindDataTypeRegistryEntry(InputVertex.DataTypeName))
 			{
-				Frontend::FDataTypeRegistryInfo DataTypeInfo;
-				ensure(DataTypeRegistry.GetDataTypeInfo(InputVertex.DataTypeName, DataTypeInfo));
-
-				// Can only create data types that are parsable from a literal
-				if (DataTypeInfo.bIsParsable)
+				if (VariableEntry->GetDataTypeInfo().bIsVariable)
 				{
-					FLiteral DefaultLiteral = DataTypeRegistry.CreateDefaultLiteral(InputVertex.DataTypeName);
-					TOptional<FAnyDataReference> DataReference = DataTypeRegistry.CreateDataReference(InputVertex.DataTypeName, EDataReferenceAccessType::Write, DefaultLiteral, InOperatorSettings);
+					// Find the data type name of the data type wrapped by the variable
+					FName UnderlyingDataTypeName = *InputVertex.DataTypeName.ToString().Replace(TEXT(METASOUND_DATA_TYPE_NAME_VARIABLE_TYPE_SPECIFIER), TEXT(""));
 
-					if (!DataReference.IsSet())
+					if (const Frontend::IDataTypeRegistryEntry* DataTypeEntry = DataTypeRegistry.FindDataTypeRegistryEntry(UnderlyingDataTypeName))
 					{
-						UE_LOG(LogMetaSound, Error, TEXT("Failed to create data reference for data type %s "), *InputVertex.DataTypeName.ToString());
-						continue;
-					}
+						// Create a variable node for the underlying data type
+						FVariableNodeConstructorParams Params;
+						Params.Literal = DataTypeRegistry.CreateDefaultLiteral(UnderlyingDataTypeName);
+						TUniquePtr<INode> VariableNode = DataTypeEntry->CreateVariableNode(MoveTemp(Params));
 
-					NodeInputVertexInterfaceData.BindVertex(InputVertex.VertexName, *DataReference);
+						if (VariableNode.IsValid())
+						{
+							// Create the variable operator for the underlying data type
+							FInputVertexInterfaceData InputData(VariableNode->GetVertexInterface().GetInputInterface());
+							FBuildOperatorParams BuildParams
+							{
+								*VariableNode,
+								InOperatorSettings,
+								InputData,
+								FMetasoundEnvironment{}
+							};
+							FBuildResults OutResults;
+							TUniquePtr<IOperator> VariableOperator = VariableNode->GetDefaultOperatorFactory()->CreateOperator(BuildParams, OutResults);
+
+							if (VariableOperator.IsValid())
+							{
+								// Access the TVariable data referenced created within the operator.
+								FOutputVertexInterfaceData OutOperatorData;
+								VariableOperator->BindOutputs(OutOperatorData);
+								if (const FAnyDataReference* VariableRef = OutOperatorData.FindDataReference(METASOUND_GET_PARAM_NAME(VariableNames::OutputVariable)))
+								{
+									OutVertexData.SetVertex(InputVertex.VertexName, *VariableRef);
+								}
+							}
+						}
+					}
 				}
 			}
 		}
-		return NodeInputVertexInterfaceData;
-	}
-}
-
-IMPLEMENT_COMPLEX_AUTOMATION_TEST(FMetasoundAutomatedNodeTest, "Audio.Metasound.AutomatedNodeTest", EAutomationTestFlags::EditorContext | EAutomationTestFlags::StressFilter)
-void FMetasoundAutomatedNodeTest::GetTests(TArray<FString>& OutBeautifiedNames, TArray <FString>& OutTestCommands) const
-{
-	using namespace Metasound;
-
-	// Get all the classes that have been registered
-	Frontend::ISearchEngine& NodeSearchEngine = Frontend::ISearchEngine::Get();
-	TArray<FMetasoundFrontendClass> AllClasses = NodeSearchEngine.FindAllClasses(true /* IncludeAllVersions */);
-
-	FMetasoundFrontendRegistryContainer* NodeRegistry = FMetasoundFrontendRegistryContainer::Get();
-	check(nullptr != NodeRegistry);
-
-	for (const FMetasoundFrontendClass& NodeClass : AllClasses)
-	{
-		// Exclude template classes because they cannot be created directly from the node registry
-		if (NodeClass.Metadata.GetType() == EMetasoundFrontendClassType::Template)
-		{
-			continue;
-		}
-
-		Frontend::FNodeRegistryKey NodeRegistryKey = NodeRegistry->GetRegistryKey(NodeClass.Metadata);
-		
-		OutBeautifiedNames.Add(FString::Printf(TEXT("%s %s"), *NodeClass.Metadata.GetClassName().ToString(), *NodeClass.Metadata.GetVersion().ToString()));
-		// Test commands are node registry keys
-		OutTestCommands.Add(NodeRegistryKey);
 	}
 
-	UE_LOG(LogMetaSound, Verbose, TEXT("Found %d metasound nodes to test"), OutTestCommands.Num());
-}
-
-bool FMetasoundAutomatedNodeTest::RunTest(const FString& InRegistryKey)
-{
-	using namespace Metasound;
-	using namespace MetasoundEngineTestPrivate;
-
-	static const FOperatorSettings OperatorSettings{48000  /* samplerate */, 100.f /* block rate */};
-	static const FMetasoundEnvironment SourceEnvironment = GetSourceEnvironment();
-
-	TUniquePtr<INode> Node = CreateNode(InRegistryKey);
-	if (!Node.IsValid())
+	void CreateDefaultsAndVariables(const FOperatorSettings& InOperatorSettings, FInputVertexInterfaceData& OutVertexData)
 	{
-		AddError(FString::Printf(TEXT("Failed to create node %s from registry"), *InRegistryKey));
-		return false;
+		Frontend::CreateDefaults(InOperatorSettings, OutVertexData);
+		CreateVariables(InOperatorSettings, OutVertexData);
 	}
-
-	// Populate inputs to node. 
-	FInputVertexInterfaceData NodeInputVertexInterfaceData = CreateInputVertexInterfaceData(*Node, OperatorSettings);
-	FInputVertexInterface InputInterface = Node->GetVertexInterface().GetInputInterface();
-	FInputVertexDataTestController InputTester(OperatorSettings, InputInterface, NodeInputVertexInterfaceData);
-
-	// Create operator 
-	FBuildOperatorParams BuildParams
-	{
-		*Node,
-		OperatorSettings,
-		NodeInputVertexInterfaceData,
-		SourceEnvironment
-	};
-
-	IOperator::FResetParams ResetParams
-	{
-		OperatorSettings,
-		SourceEnvironment
-	};
-
-	// Convenience function for testing entire lifecycle of an individual operator 
-	// with a variety of inputs.
-	auto RunTestIteration = [&]()
-	{
-		// Create the operator from the node factory
-		FBuildResults BuildResults;
-		TUniquePtr<IOperator> Operator = Node->GetDefaultOperatorFactory()->CreateOperator(BuildParams, BuildResults);
-
-		if (!Operator.IsValid())
-		{
-			AddError(FString::Printf(TEXT("Failed to create operator from node %s - %s."), *InRegistryKey, *GetPrettyName(InRegistryKey)));
-		}
-
-
-		// Store a copy of the input values data values so the inputs
-		// can be reset to this value later during the test.
-		FInterfaceState InitialInputState = InputTester.GetInterfaceState();
-
-		// Bind to inputs and output data of operator.
-		FVertexInterface VertexInterface = Node->GetVertexInterface();
-		FVertexInterfaceData VertexInterfaceData{VertexInterface};
-		Operator->BindInputs(VertexInterfaceData.GetInputs());
-		Operator->BindOutputs(VertexInterfaceData.GetOutputs());
-
-		// Create output tester which will analyzer outputs of operator.
-		FOutputVertexDataTestController OutputTester{VertexInterface.GetOutputInterface(), VertexInterfaceData.GetOutputs()};
-		// Convenience method for printing errors if the OutputTester finds an error.
-		auto CheckOutputValuesAreValid = [&]()
-		{
-			if (!OutputTester.AreAllAnalyzableOutputsValid())
-			{
-				AddError(FString::Printf(TEXT("Invalid output value encountered from node %s - %s."), *InRegistryKey, *GetPrettyName(InRegistryKey)));
-			}
-		};
-		// Initial values should all be valid.
-		CheckOutputValuesAreValid();
-		
-		// Capture current state of outputs so they can be referenced at a later time.
-		// The captured values are held within the OutputTester.
-		OutputTester.CaptureCurrentOutputValues();
-
-		IOperator::FExecuteFunction OpExecFunc = Operator->GetExecuteFunction();
-		IOperator::FResetFunction OpResetFunc = Operator->GetResetFunction();
-		// Test execute function with input variations
-		if (OpExecFunc)
-		{
-			OpExecFunc(Operator.Get());
-			CheckOutputValuesAreValid();
-
-			if (InputTester.GetNumMutableInputs() > 0)
-			{
-				InputTester.SetMutableInputsToDefault();
-				OpExecFunc(Operator.Get());
-				CheckOutputValuesAreValid();
-
-				InputTester.SetMutableInputsToMin();
-				OpExecFunc(Operator.Get());
-				CheckOutputValuesAreValid();
-
-				InputTester.SetMutableInputsToMax();
-				OpExecFunc(Operator.Get());
-				CheckOutputValuesAreValid();
-
-				InputTester.SetMutableInputsToRandom();
-				OpExecFunc(Operator.Get());
-				CheckOutputValuesAreValid();
-			}
-		}
-
-		// Return inputs to initial state. 
-		InputTester.SetMutableInputsToState(InitialInputState);
-
-		if (OpResetFunc)
-		{
-			OpResetFunc(Operator.Get(), ResetParams);
-			CheckOutputValuesAreValid();
-		}
-		else if (OpExecFunc)
-		{
-			AddError(FString::Printf(TEXT("Missing initialize function when execute function exists for node %s - %s"), *InRegistryKey, *GetPrettyName(InRegistryKey)));
-		}
-
-		// Check that after returning all inputs to their original state and calling
-		// reset on the operator, that all output values have returned to their initail state. 
-		if (!OutputTester.AreAllOutputValuesEqualToCapturedValues())
-		{
-			AddError(FString::Printf(TEXT("Reset function resulted in different starting conditions for node %s - %s"), *InRegistryKey, *GetPrettyName(InRegistryKey)));
-		}
-	};
-
-	// Test entire operator lifecycle with different starting conditions if
-	// any of the inputs are mutable
-	InputTester.SetMutableInputsToDefault();
-	RunTestIteration();
-
-	if (InputTester.GetNumMutableInputs() > 0)
-	{
-		InputTester.SetMutableInputsToMin();
-		RunTestIteration();
-		InputTester.SetMutableInputsToMax();
-		RunTestIteration();
-		InputTester.SetMutableInputsToRandom();
-		RunTestIteration();
-	}
-
-	return true;
 }
 
 #endif // WITH_EDITORONLY_DATA
 
 #endif //WITH_DEV_AUTOMATION_TESTS
+

@@ -216,8 +216,15 @@ namespace Metasound
 		PreviousScale = *Scale;
 		PreviousScaleRange = FMath::Max(*ScaleRange, 1.0f);
 
-		PreviousScale.Sort();
-		PreviousNoteOut = Audio::FMidiNoteQuantizer::QuantizeMidiNote(PreviousNoteIn, PreviousRoot, PreviousScale, PreviousScaleRange);
+		if (PreviousScale.IsEmpty())
+		{
+			PreviousNoteOut = PreviousNoteIn;
+		}
+		else
+		{
+			PreviousScale.Sort();
+			PreviousNoteOut = Audio::FMidiNoteQuantizer::QuantizeMidiNote(PreviousNoteIn, PreviousRoot, PreviousScale, PreviousScaleRange);
+		}
 		*MidiNoteOut = PreviousNoteOut;
 	}
 
