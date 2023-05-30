@@ -366,6 +366,9 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	FNiagaraParameterStore RendererBindings;
 
 	UPROPERTY()
+	TArray<FNiagaraExternalUObjectInfo> RendererBindingsExternalObjects;
+
+	UPROPERTY()
 	TMap<FNiagaraVariableBase, FNiagaraVariableBase> ResolvedDIBindings;
 
 	void CopyFrom(const FVersionedNiagaraEmitterData& Source);

@@ -289,10 +289,10 @@ public:
 		return ResourceSize;
 	}
 
-	FORCEINLINE uint32 GetParametersDirty() const { return bParametersDirty; }
-	FORCEINLINE uint32 GetInterfacesDirty() const { return bInterfacesDirty; }
-	FORCEINLINE uint32 GetUObjectsDirty() const { return bUObjectsDirty; }
-	FORCEINLINE uint32 GetPositionDataDirty() const { return bPositionDataDirty; }
+	FORCEINLINE bool GetParametersDirty() const { return bParametersDirty; }
+	FORCEINLINE bool GetInterfacesDirty() const { return bInterfacesDirty; }
+	FORCEINLINE bool GetUObjectsDirty() const { return bUObjectsDirty; }
+	FORCEINLINE bool GetPositionDataDirty() const { return bPositionDataDirty; }
 
 	FORCEINLINE void MarkParametersDirty() { bParametersDirty = true; }
 	FORCEINLINE void MarkInterfacesDirty() { bInterfacesDirty = true; }

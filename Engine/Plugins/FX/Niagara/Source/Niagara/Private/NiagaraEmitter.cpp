@@ -1796,6 +1796,9 @@ void FVersionedNiagaraEmitterData::RebuildRendererBindings(const UNiagaraEmitter
 	FNiagaraParameterStore TempStore;
 	const bool bAnyRendererBindingsAdded = BuildParameterStoreRendererBindings(TempStore);
 
+	RendererBindings.Empty();
+	RendererBindingsExternalObjects.Empty();
+
 	if (bAnyRendererBindingsAdded)
 	{
 		TArray<UNiagaraScript*> TargetScripts;
@@ -1807,7 +1810,6 @@ void FVersionedNiagaraEmitterData::RebuildRendererBindings(const UNiagaraEmitter
 		const int32 EmitterScriptIndex = TargetScripts.Num();
 		GetScripts(TargetScripts, false, true);
 
-		RendererBindings.Empty();
 		TArrayView<const FNiagaraVariableWithOffset> Vars = TempStore.ReadParameterVariables();
 		for (const FNiagaraVariableWithOffset& Var : Vars)
 		{
@@ -1822,16 +1824,15 @@ void FVersionedNiagaraEmitterData::RebuildRendererBindings(const UNiagaraEmitter
 
 				// Find Resolved UObjects
 				// Note: Most parameters are pushed in as part of the DataSet -> Parameters process
-				if (Var.GetType().IsUObject())
+				if (Var.GetType().IsUObject() && !Var.GetType().IsDataInterface())
 				{
 					const ENiagaraSimTarget ScriptSimTarget = iScript < EmitterScriptIndex ? ENiagaraSimTarget::CPUSim : SimTarget;
 					if (const FNiagaraScriptExecutionParameterStore* ScriptParameterStore = Script->GetExecutionReadyParameterStore(ScriptSimTarget))
 					{
-						if (UObject* FoundObject = ScriptParameterStore->GetUObject(Var))
+						if (ScriptParameterStore->IndexOf(Var) != INDEX_NONE)
 						{
 							int32 ParameterOffset = INDEX_NONE;
 							RendererBindings.AddParameter(Var, true, false, &ParameterOffset);
-							RendererBindings.SetUObject(FoundObject, ParameterOffset);
 							bVariableFound = true;
 						}
 					}
@@ -1853,6 +1854,32 @@ void FVersionedNiagaraEmitterData::RebuildRendererBindings(const UNiagaraEmitter
 				if (bVariableFound)
 				{
 					break;
+				}
+			}
+		}
+
+		if (RendererBindings.GetUObjects().Num() > 0)
+		{
+			for (const UNiagaraScript* Script : TargetScripts)
+			{
+				for (const FNiagaraScriptUObjectCompileInfo& DefaultInfo : Script->GetCachedDefaultUObjects())
+				{
+					const FNiagaraVariableBase ReadVariable(DefaultInfo.Variable.GetType(), DefaultInfo.RegisteredParameterMapRead);
+					const bool bIsUserVariable = ReadVariable.IsInNameSpace(FNiagaraConstants::UserNamespaceString);
+					if (!bIsUserVariable)
+					{
+						continue;
+					}
+					for (const FName WriteName : DefaultInfo.RegisteredParameterMapWrites)
+					{
+						const FNiagaraVariableBase WriteVariable(DefaultInfo.Variable.GetType(), WriteName);
+						if (RendererBindings.IndexOf(WriteVariable) != INDEX_NONE)
+						{
+							FNiagaraExternalUObjectInfo& ExternalInfo = RendererBindingsExternalObjects.AddDefaulted_GetRef();
+							ExternalInfo.Variable = WriteVariable;
+							ExternalInfo.ExternalName = ReadVariable.GetName();
+						}
+					}
 				}
 			}
 		}

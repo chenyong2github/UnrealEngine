@@ -477,13 +477,14 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		{
 			if (ParentSystemInstance)
 			{
-				ParentSystemInstance->GetInstanceParameters().Bind(&RendererBindings);
 				FNiagaraSystemSimulationPtr ParentSystemSimulation = ParentSystemInstance->GetSystemSimulation();
 				if (ParentSystemSimulation.IsValid())
 				{
 					ParentSystemSimulation->GetSpawnExecutionContext()->Parameters.Bind(&RendererBindings);
 					ParentSystemSimulation->GetUpdateExecutionContext()->Parameters.Bind(&RendererBindings);
 				}
+
+				ParentSystemInstance->GetInstanceParameters().Bind(&RendererBindings);
 			}
 
 			if (GPUExecContext && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
@@ -1239,6 +1240,26 @@ void FNiagaraEmitterInstance::PreTick()
 			Data.ResetBuffers();
 		}
 	}
+
+	if (ParentSystemInstance && RendererBindings.GetUObjectsDirty())
+	{
+		if ( const FNiagaraParameterStore* SrcStore = ParentSystemInstance->GetOverrideParameters() )
+		{
+			FNiagaraParameterStore* DstStore = &RendererBindings;
+
+			for ( const FNiagaraExternalUObjectInfo& ExternalObject : CachedEmitter.GetEmitterData()->RendererBindingsExternalObjects )
+			{
+				const int32 SrcIndex = SrcStore->IndexOf(ExternalObject.GetExternalVariable());
+				const int32 DstIndex = DstStore->IndexOf(ExternalObject.Variable);
+				if (SrcIndex != INDEX_NONE && DstIndex != INDEX_NONE)
+				{
+					DstStore->SetUObject(SrcStore->GetUObject(SrcIndex), DstIndex);
+				}
+			}
+		}
+		RendererBindings.Tick();
+	}
+
 
 	++TickCount;
 	ParticleDataSet->SetIDAcquireTag(TickCount);

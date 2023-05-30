@@ -5618,12 +5618,12 @@ void TNiagaraHlslTranslator<GraphBridge>::ParameterMapSet(const FParamMapSetNode
 					FNiagaraScriptUObjectCompileInfo& Info = CompilationOutput.ScriptData.UObjectInfos[Input];
 					Info.RegisteredParameterMapWrites.AddUnique(ResolvedName);
 
-					//-TODO: We don't support Var=User.Var or Var=NPC.Var currently this requires some runtime remapping of the parameter stores
-					if (Info.Variable.IsInNameSpace(FNiagaraConstants::UserNamespaceString) || Info.Variable.IsInNameSpace(FNiagaraConstants::ParameterCollectionNamespaceString))
+					//-TODO: We don't support Var=NPC.Var currently this requires some runtime remapping of the parameter stores
+					if (Info.Variable.IsInNameSpace(FNiagaraConstants::ParameterCollectionNamespaceString))
 					{
 						Error(
 							FText::Format(
-								LOCTEXT("UObjectParameterInvalidNamespaceFormat", "Variable Write '{0}' can not read User / NPC variable '{1}'. This is not supported currently."),
+								LOCTEXT("UObjectParameterInvalidNamespaceFormat", "Variable Write '{0}' can not read NPC variable '{1}'. This is not supported currently."),
 								FText::FromName(ResolvedName),
 								FText::FromName(Info.Variable.GetName())
 							),

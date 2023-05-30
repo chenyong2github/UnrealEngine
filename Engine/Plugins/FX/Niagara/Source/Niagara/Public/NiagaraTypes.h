@@ -1833,11 +1833,11 @@ struct FNiagaraVariableBase
 	*/
 	NIAGARA_API bool ReplaceRootNamespace(const FStringView& ExpectedNamespace, const FStringView& NewNamespace);
 
-	FORCEINLINE bool IsInNameSpace(const FStringView& Namespace) const
+	static bool IsInNameSpace(const FStringView& Namespace, FName VariableName)
 	{
 		FNameBuilder NameString;
-		Name.ToString(NameString);
-		
+		VariableName.ToString(NameString);
+
 		FStringView NameStringView = NameString.ToView();
 		if (Namespace.Len() > 1 && Namespace[Namespace.Len() - 1] == '.') // Includes period in namespace
 		{
@@ -1847,6 +1847,11 @@ struct FNiagaraVariableBase
 		{
 			return (NameStringView.Len() > Namespace.Len() + 1) && (NameStringView[Namespace.Len()] == '.') && NameStringView.StartsWith(Namespace);
 		}
+	}
+
+	FORCEINLINE bool IsInNameSpace(const FStringView& Namespace) const
+	{
+		return IsInNameSpace(Namespace, Name);
 	}
 
 #if WITH_EDITORONLY_DATA

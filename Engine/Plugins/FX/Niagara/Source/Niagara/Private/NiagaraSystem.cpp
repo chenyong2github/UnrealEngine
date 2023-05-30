@@ -2020,23 +2020,6 @@ void UNiagaraSystem::ResolveParameterStoreBindings()
 
 	// Resolve Object bindings
 	{
-		TMap<FNiagaraVariableBase, UObject*> WroteUObjects;
-		ForEachScript(
-			[&](UNiagaraScript* Script)
-			{
-				for (const FNiagaraScriptUObjectCompileInfo& DefaultInfo : Script->GetCachedDefaultUObjects())
-				{
-					for (FName WriteName : DefaultInfo.RegisteredParameterMapWrites)
-					{
-						const FNiagaraVariableBase WriteVariable(DefaultInfo.Variable.GetType(), WriteName);
-						check(WroteUObjects.Contains(WriteVariable) == false);
-						WroteUObjects.Emplace(WriteVariable, DefaultInfo.Object);
-					}
-				}
-			}
-		);
-
-		// Create resolved data per script
 		ForEachScript(
 			[&](UNiagaraScript* Script)
 			{
@@ -2045,23 +2028,30 @@ void UNiagaraSystem::ResolveParameterStoreBindings()
 					return;
 				}
 
+				const FNiagaraParameterStore& InstanceParamStore = GetSystemCompiledData().InstanceParamStore;
+
 				TArray<FNiagaraResolvedUObjectInfo> ResolvedUObjects;
 				ResolvedUObjects.Reserve(Script->GetCachedDefaultUObjects().Num());
 
 				for (const FNiagaraScriptUObjectCompileInfo& DefaultInfo : Script->GetCachedDefaultUObjects())
 				{
 					const FNiagaraVariableBase ReadVariable(DefaultInfo.Variable.GetType(), DefaultInfo.RegisteredParameterMapRead);
+					const bool bIsUserVariable = ReadVariable.IsInNameSpace(FNiagaraConstants::UserNamespaceString);
 
-					//-TODO:UObject will need to handle User / NPC bindings here.  I.e. Variable=User.Variable in the stack set
-					//const bool bIsUserVariable = ReadVariable.IsInNameSpace(FNiagaraConstants::UserNamespaceString);
-
-					for (FName WriteName : DefaultInfo.RegisteredParameterMapWrites)
+					for (const FName WriteName : DefaultInfo.RegisteredParameterMapWrites)
 					{
 						FNiagaraResolvedUObjectInfo& ResolvedInfo = ResolvedUObjects.AddDefaulted_GetRef();
 						const FNiagaraVariableBase WriteVariable(DefaultInfo.Variable.GetType(), WriteName);
 						ResolvedInfo.ReadVariableName = ReadVariable.GetName();
 						ResolvedInfo.ResolvedVariable = WriteVariable;
-						ResolvedInfo.Object = WroteUObjects.FindRef(WriteVariable);
+						if (bIsUserVariable)
+						{
+							ResolvedInfo.Object = InstanceParamStore.GetUObject(ReadVariable);
+						}
+						else
+						{
+							ResolvedInfo.Object = DefaultInfo.Object;
+						}
 					}
 				}
 

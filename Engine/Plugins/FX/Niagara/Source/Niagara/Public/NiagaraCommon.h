@@ -706,6 +706,20 @@ struct NIAGARA_API FNiagaraResolvedUObjectInfo
 };
 
 USTRUCT()
+struct NIAGARA_API FNiagaraExternalUObjectInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FNiagaraVariableBase Variable;
+
+	UPROPERTY()
+	FName ExternalName;
+
+	[[nodiscard]] FNiagaraVariableBase GetExternalVariable() const { return FNiagaraVariableBase(Variable.GetType(), ExternalName); }
+};
+
+USTRUCT()
 struct NIAGARA_API FNiagaraScriptDataInterfaceInfo
 {
 	GENERATED_USTRUCT_BODY()
