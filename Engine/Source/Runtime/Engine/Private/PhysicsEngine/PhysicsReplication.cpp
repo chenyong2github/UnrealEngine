@@ -118,7 +118,7 @@ void ComputeDeltas(const FVector& CurrentPos, const FQuat& CurrentQuat, const FV
 	OutLinDiff = TargetPos - CurrentPos;
 	OutLinDiffSize = OutLinDiff.Size();
 	const FQuat InvCurrentQuat = CurrentQuat.Inverse();
-	const FQuat DeltaQuat = InvCurrentQuat * TargetQuat;
+	const FQuat DeltaQuat = TargetQuat * InvCurrentQuat;
 	DeltaQuat.ToAxisAndAngle(OutAngDiffAxis, OutAngDiff);
 	OutAngDiff = FMath::RadiansToDegrees(FMath::UnwindRadians(OutAngDiff));
 	OutAngDiffSize = FMath::Abs(OutAngDiff);
@@ -632,7 +632,7 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 
 				if (FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled())
 				{
-					LocalFrameOffset = PlayerController->GetLocalToServerAsyncPhysicsTickOffset();
+					LocalFrameOffset = PlayerController->GetServerToLocalAsyncPhysicsTickOffset();
 				}
 				//TODO: as we send physics updates down we need to record latest seen
 				//NumPredictedFrames = Solver->GetCurrentFrame() - ClientFrameInfo.LastProcessedInputFrame;

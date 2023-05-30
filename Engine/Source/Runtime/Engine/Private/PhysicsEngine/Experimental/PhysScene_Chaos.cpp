@@ -16,6 +16,7 @@
 #include "PhysicsEngine/PhysicsCollisionHandler.h"
 #include "PhysicsEngine/PhysicsObjectExternalInterface.h"
 #include "Physics/Experimental/ChaosEventRelay.h"
+#include "EngineUtils.h"
 
 #include "ChaosSolversModule.h"
 
@@ -94,7 +95,6 @@ public:
 				}
 			}
 		}
-
 
 		const UPhysicsSettings* PhysicsSettings = UPhysicsSettings::Get();
 		const bool bEnableResim = PhysicsSettings->PhysicsPrediction.bEnablePhysicsResimulation;
@@ -1209,6 +1209,33 @@ void FPhysScene_Chaos::AddToComponentMaps(UPrimitiveComponent* Component, IPhysi
 		else
 		{
 			ProxyArray->Add(InObject);
+		}
+	}
+}
+
+void FPhysScene_Chaos::PopulateReplicationCache(const int32 PhysicsStep)
+{
+	ReplicationCache.ServerFrame = PhysicsStep;
+	for (TActorIterator<AActor> It(GetOwningWorld()); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (Actor && Actor->GetIsReplicated() && Actor->IsReplicatingMovement())
+		{
+			UPrimitiveComponent* RootComponent = Cast<UPrimitiveComponent>(Actor->GetRootComponent());
+			if (RootComponent && RootComponent->IsSimulatingPhysics())
+			{
+				if (FBodyInstanceAsyncPhysicsTickHandle Handle = RootComponent->GetBodyInstanceAsyncPhysicsTickHandle())
+				{
+					FObjectKey Key(RootComponent);
+					FRigidBodyState& ReplicationState = ReplicationCache.Map.FindOrAdd(Key);
+
+					ReplicationState.Position = Handle->X();
+					ReplicationState.Quaternion = Handle->R();
+					ReplicationState.LinVel = Handle->V();
+					ReplicationState.AngVel = Handle->W();
+					ReplicationState.Flags = Handle->ObjectState() == Chaos::EObjectStateType::Sleeping ? ERigidBodyFlags::Sleeping : 0;
+				}
+			}
 		}
 	}
 }

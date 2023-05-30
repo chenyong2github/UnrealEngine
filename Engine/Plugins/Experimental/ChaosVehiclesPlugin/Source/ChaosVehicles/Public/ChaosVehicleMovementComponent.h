@@ -12,6 +12,7 @@
 #include "ChaosVehicleWheel.h"
 #include "AerofoilSystem.h"
 #include "ThrustSystem.h"
+#include "TransmissionSystem.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "SnapshotData.h"
 #include "DeferredForces.h"
@@ -29,218 +30,6 @@ class UCanvas;
 
 struct FChaosVehicleAsyncInput;
 struct FChaosVehicleManagerAsyncOutput;
-
-/** Vehicle inputs from the player controller */
-USTRUCT()
-struct CHAOSVEHICLES_API FVehicleInputs
-{
-	GENERATED_USTRUCT_BODY()
-
-		FVehicleInputs()
-		: SteeringInput(0.f)
-		, ThrottleInput(0.f)
-		, BrakeInput(0.f)
-		, PitchInput(0.f)
-		, RollInput(0.f)
-		, YawInput(0.f)
-		, HandbrakeInput(0.f)
-	{}
-
-	/** Copy the parent class properties from another instance */
-	void CopyVehicleInputs(const FVehicleInputs& VehicleInputs)
-	{
-		SteeringInput = VehicleInputs.SteeringInput;
-		ThrottleInput = VehicleInputs.ThrottleInput;
-		BrakeInput = VehicleInputs.BrakeInput;
-		PitchInput = VehicleInputs.PitchInput;
-		RollInput = VehicleInputs.RollInput;
-		YawInput = VehicleInputs.YawInput;
-		HandbrakeInput = VehicleInputs.HandbrakeInput;
-	}
-
-	// Steering output to physics system. Range -1...1
-	UPROPERTY()
-	float SteeringInput;
-
-	// Accelerator output to physics system. Range 0...1
-	UPROPERTY()
-	float ThrottleInput;
-
-	// Brake output to physics system. Range 0...1
-	UPROPERTY()
-	float BrakeInput;
-
-	// Body Pitch output to physics system. Range -1...1
-	UPROPERTY()
-	float PitchInput;
-
-	// Body Roll output to physics system. Range -1...1
-	UPROPERTY()
-	float RollInput;
-
-	// Body Yaw output to physics system. Range -1...1
-	UPROPERTY()
-	float YawInput;
-
-	// Handbrake output to physics system. Range 0...1
-	UPROPERTY()
-	float HandbrakeInput;
-};
-
-USTRUCT()
-struct CHAOSVEHICLES_API FControlInputs : public FVehicleInputs
-{
-	GENERATED_USTRUCT_BODY()
-
-		FControlInputs()
-		: FVehicleInputs()
-		, ParkingEnabled(false)
-		, TransmissionType(Chaos::ETransmissionType::Automatic)
-		, GearUpInput(false)
-		, GearDownInput(false)
-	{}
-
-	bool ParkingEnabled;
-
-	Chaos::ETransmissionType TransmissionType;
-
-	bool GearUpInput;
-	bool GearDownInput;
-};
-
-USTRUCT()
-struct CHAOSVEHICLES_API FVehicleHistoryDatas
-{
-	GENERATED_USTRUCT_BODY()
-
-	int32 DatasFrame = INDEX_NONE;
-
-	int32 SmoothFrame = INDEX_NONE;
-};
-
-/** Vehicle Inputs datas that will be used in the Inputs history to be applied while simulating */
-USTRUCT()
-struct CHAOSVEHICLES_API FVehicleInputsDatas : public FVehicleHistoryDatas
-{
-	GENERATED_USTRUCT_BODY()
-
-	FVehicleInputsDatas();
-
-	/** List of incoming control inputs coming from the local client */
-	UPROPERTY()
-	FVehicleInputs VehicleInputs;
-
-	/** Transmission change time that could be set/changed from GT */
-	UPROPERTY()
-	float TransmissionChangeTime;
-
-	/** Transmission current gear that could be set/changed from GT */
-	UPROPERTY()
-	int32 TransmissionCurrentGear;
-
-	/** Transmission target gear that could be set/changed from GT */
-	UPROPERTY()
-	int32 TransmissionTargetGear;
-};
-
-/** Vehicle states datas that will be used in the states history to rewind the simulation at some point inn time */
-USTRUCT()
-struct CHAOSVEHICLES_API FVehicleStatesDatas : public FVehicleHistoryDatas
-{
-	GENERATED_USTRUCT_BODY()
-
-	FVehicleStatesDatas();
-
-	/** Vehicle state last velocity */
-	UPROPERTY()
-	FVector StateLastVelocity;
-
-	/** Angular velocity for each wheels */
-	UPROPERTY()
-	TArray<float> WheelsOmega;
-
-	/** Angular position for each wheels */
-	UPROPERTY()
-	TArray<float> WheelsAngularPosition;
-
-	/** Suspension latest displacement to be used while simulating */
-	UPROPERTY()
-	TArray<float> SuspensionLastDisplacement;
-
-	/** Suspension latest spring length to be used while simulating  */
-	UPROPERTY()
-	TArray<float> SuspensionLastSpringLength;
-
-	/** Suspension averaged length for smoothing */
-	UPROPERTY()
-	TArray<float> SuspensionAveragedLength;
-
-	/** Suspension averaged count for smoothing */
-	UPROPERTY()
-	TArray<int32> SuspensionAveragedCount;
-
-	/** Suspension averaged number for smoothing */
-	UPROPERTY()
-	TArray<int32> SuspensionAveragedNum;
-
-	/** Engine angular velocity */
-	UPROPERTY()
-	float EngineOmega;
-};
-
-/** Vehicle states history that will be registered in the rewind datas */
-struct CHAOSVEHICLES_API FVehicleStatesHistory : public Chaos::FStatesRewindHistory<FVehicleStatesDatas>
-{
-	using Super = Chaos::FStatesRewindHistory<FVehicleStatesDatas>;
-	using DatasType = FVehicleStatesDatas;
-
-	FVehicleStatesHistory(const int32 FrameCount, const bool bIsHistoryLocal, class UChaosVehicleSimulation* ChaosSimulation);
-
-	/** Rewind the vehicle state at some point in time */
-	virtual bool RewindStates(const int32 RewindFrame, const bool bResetSolver) override;
-
-	/** Record the vehicle state from the replicated datas */
-	bool RecordStates(const int32 RecordFrame, const DatasType& ReplicatedHistory);
-
-	/** Replicate the states from the vehicle simulation*/
-	void ReplicateStates(DatasType& ReplicatedDatas);
-
-	virtual ~FVehicleStatesHistory() override;
-
-private:
-
-	class UChaosVehicleSimulation* VehicleSimulation = nullptr;
-};
-
-/** Vehicle Inputs history that will be registered in the rewind datas */
-struct CHAOSVEHICLES_API FVehicleInputsHistory : public Chaos::FInputsRewindHistory<FVehicleInputsDatas>
-{
-	using Super = Chaos::FInputsRewindHistory<FVehicleInputsDatas>;
-	using DatasType = FVehicleInputsDatas;
-
-	FVehicleInputsHistory(const int32 FrameCount, const bool bIsHistoryLocal, class UChaosVehicleSimulation* ChaosSimulation);
-
-	/** Apply the Inputs at some point in time */
-	virtual bool ApplyInputs(const int32 ApplyFrame, const bool bResetSolver) override;
-
-	/** Record the vehicle Inputs from the replicated datas */
-	bool RecordInputs(const int32 RecordFrame, const DatasType& ReplicatedHistory);
-
-	/** Replicate the Inputs from the vehicle simulation + external inputs */
-	void ReplicateInputs(
-		const float SteeringInput, const float ThrottleInput,
-		const float BrakeInput, const float HandbrakeInput, const float RollInput,
-		const float PitchInput, const float YawInput, const int32 CurrentGear, DatasType& ReplicatedDatas);
-
-	/** Smooth Inputs inputs (WIP) */
-	void SmoothInputs(const int32 ApplyFrame, const int32 ValidFrame, const bool bApplySmoothing);
-
-	virtual ~FVehicleInputsHistory() override;
-
-private:
-
-	class UChaosVehicleSimulation* VehicleSimulation = nullptr;
-};
 
 struct CHAOSVEHICLES_API FVehicleDebugParams
 {
@@ -290,50 +79,6 @@ struct CHAOSVEHICLES_API FVehicleReplicatedState : public FVehicleInputs
 	UPROPERTY()
 	float ThrottleDown;
 };
-
-/** Group of datas that needs to be replicated across all clients for rewind/resim */
-USTRUCT()
-struct CHAOSVEHICLES_API FVehicleReplicatedDatas
-{
-	GENERATED_USTRUCT_BODY()
-
-	FVehicleReplicatedDatas()
-	{}
-
-	/** Server frame at which the datas have been recorded */
-	UPROPERTY()
-	int32 ServerFrame = INDEX_NONE;
-
-	/** Group of inputs to replicate */
-	UPROPERTY()
-	FVehicleStatesDatas StatesDatas;
-
-	/** Group of inputs to replicate */
-	UPROPERTY()
-	FVehicleInputsDatas InputsDatas;
-};
-
-struct CHAOSVEHICLES_API FWheelTraceParams
-{
-	ESweepType SweepType;
-	ESweepShape SweepShape;
-};
-
-struct CHAOSVEHICLES_API FChaosVehicleDefaultAsyncInput : public FChaosVehicleAsyncInput
-{
-	float GravityZ;
-	mutable FControlInputs ControlInputs;
-	mutable FCollisionQueryParams TraceParams;
-	mutable FCollisionResponseContainer TraceCollisionResponse;
-	mutable TArray<FWheelTraceParams> WheelTraceParams;
-
-	FChaosVehicleDefaultAsyncInput();
-
-	virtual TUniquePtr<FChaosVehicleAsyncOutput> Simulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, bool& bWakeOut) const override;
-
-	virtual void ApplyDeferredForces(Chaos::FRigidBodyHandle_Internal* RigidHandle) const override;
-};
-
 
 USTRUCT()
 struct CHAOSVEHICLES_API FVehicleTorqueControlConfig
@@ -886,19 +631,19 @@ public:
 
 	virtual void UpdateConstraintHandles(TArray<FPhysicsConstraintHandle>& ConstraintHandlesIn) {}
 
-	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle);
+	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle);
 
 	/** Update the async inputs and the history ones*/
-	void SyncHistoryInputs(const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle);
+	void SyncHistoryInputs(const FChaosVehicleAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle);
 
 	/** Apply the defered forces onto the vehicles */
 	virtual void ApplyDeferredForces(Chaos::FRigidBodyHandle_Internal* Handle);
 
 	/** Update the vehicle state */
-	virtual void UpdateState(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle);
+	virtual void UpdateState(float DeltaTime, const FChaosVehicleAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle);
 
 	/** Advance the vehicle simulation */
-	virtual void UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle);
+	virtual void UpdateSimulation(float DeltaTime, const FChaosVehicleAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle);
 
 	/** Fill the vehicle output state */
 	virtual void FillOutputState(FChaosVehicleAsyncOutput& Output);
@@ -919,7 +664,7 @@ public:
 	virtual void ApplyThrustForces(float DeltaTime);
 
 	/** Apply direct control over vehicle body rotation */
-	virtual void ApplyTorqueControl(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData);
+	virtual void ApplyTorqueControl(float DeltaTime, const FChaosVehicleAsyncInput& InputData);
 
 	/** Add a force to this vehicle */
 	void AddForce(const FVector& Force, bool bAllowSubstepping = true, bool bAccelChange = false);
@@ -957,13 +702,7 @@ public:
 	FDeferredForces DeferredForces;
 
 	/** Current control inputs that is being used on the PT */
-	FVehicleInputs VehicleInputs;
-
-	/** States history uses to rewind simulation */
-	TSharedPtr<FVehicleStatesHistory> StatesHistory;
-
-	/** Inputs history used during simulation*/
-	TSharedPtr<FVehicleInputsHistory> InputsHistory;
+	FControlInputs VehicleInputs;
 
 	FVehicleInputRateConfig ThrottleInputRate;
 	FVehicleInputRateConfig SteeringInputRate;
@@ -981,8 +720,14 @@ public:
 UCLASS(Abstract, hidecategories = (PlanarMovement, "Components|Movement|Planar", Activation, "Components|Activation"))
 class CHAOSVEHICLES_API UChaosVehicleMovementComponent : public UPawnMovementComponent
 {
-	friend struct FChaosVehicleDefaultAsyncInput;
+	friend struct FChaosVehicleAsyncInput;
+	friend struct FChaosVehicleAsyncOutput;
+
+	friend struct FNetworkVehicleInputs;
+	friend struct FNetworkVehicleStates;
+
 	friend class FChaosVehicleManager;
+	friend class FChaosVehicleManagerAsyncCallback;
 
 	GENERATED_UCLASS_BODY()
 
@@ -1095,6 +840,9 @@ protected:
 
 	Chaos::ETransmissionType TransmissionType;
 
+	UPROPERTY()
+	TObjectPtr<UNetworkPhysicsComponent> NetworkPhysicsComponent = nullptr;
+
 public:
 
 	/** UObject interface */
@@ -1133,7 +881,6 @@ public:
 
 	/** Stops movement immediately (zeroes velocity, usually zeros acceleration for components with acceleration). */
 	virtual void StopMovementImmediately() override;
-
 
 	/** Set the user input for the vehicle throttle [range 0 to 1] */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
@@ -1302,18 +1049,11 @@ public:
 	};
 	TArray<FAsyncOutputWrapper> OutputsWaitingOn;
 
-	UFUNCTION()
-	virtual void OnRep_SetVehicleHistory();
-
 protected:
 
 	// replicated state of vehicle 
 	UPROPERTY(Transient, Replicated)
 	FVehicleReplicatedState ReplicatedState;
-
-	// replicated state of vehicle 
-	UPROPERTY(Transient, ReplicatedUsing = OnRep_SetVehicleHistory)
-	FVehicleReplicatedDatas ReplicatedDatas;
 
 	// accumulator for RB replication errors 
 	float AngErrorAccumulator;
@@ -1474,17 +1214,11 @@ protected:
 
 	// Setup
 
-	/** New method of applying control inputs at a specific time on the server - for network prediction */
-	UFUNCTION(Server, Reliable)
-	void ServerApplyControls(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput,
-			int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput, const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp);
-
-	/** Apply Controls locally */
-	void ApplyControls_Imp(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput,
-		int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput, const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, const bool bEnableResim = true);
-
 	/** Get our controller */
 	virtual AController* GetController() const override;
+
+	/** Retrieve the player controller of the vehicle component */
+	APlayerController* GetPlayerController() const;
 
 	/** Get the mesh this vehicle is tied to */
 	class UMeshComponent* GetMesh() const;

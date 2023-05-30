@@ -154,12 +154,15 @@ public:
 	}
 
 	// Rewind API
+	virtual void InjectInputs_External(int32 PhysicsStep, int32 NumSteps) {}
+	virtual void ProcessInputs_Internal(int32 PhysicsStep) {}
+	virtual void ProcessInputs_External(int32 PhysicsStep) {}
+	
 	virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep)
-	{ 
-		ensure(false); 
-		return INDEX_NONE; 
+	{
+		return INDEX_NONE;
 	}
-
+	
 	virtual void ApplyCorrections_Internal(int32 PhysicsStep, FSimCallbackInput* Input)
 	{
 		ensure(false);
@@ -178,7 +181,7 @@ public:
 	{
 		return HasOption(ESimCallbackOptions::RunOnFrozenGameThread);
 	}
-	
+
 protected:
 
 	ISimCallbackObject(const ESimCallbackOptions InOptions = ESimCallbackOptions::Presimulate)

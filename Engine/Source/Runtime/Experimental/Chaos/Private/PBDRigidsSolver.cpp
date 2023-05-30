@@ -638,6 +638,18 @@ namespace Chaos
 	int32 LogCorruptMap = 0;
 	FAutoConsoleVariableRef CVarLogCorruptMap(TEXT("p.LogCorruptMap"), LogCorruptMap, TEXT(""));
 
+	void FPBDRigidsSolver::ApplyCallbacks_Internal()
+	{
+		Super::ApplyCallbacks_Internal();
+
+		if (IRewindCallback* RewindCallback = GetRewindCallback())
+		{
+			if(bGameThreadFrozen)
+			{ 
+				RewindCallback->ApplyCallbacks_Internal(GetCurrentFrame(), SimCallbackObjects);
+			}
+		}
+	}
 
 	void FPBDRigidsSolver::UnregisterObject(FSingleParticlePhysicsProxy* Proxy)
 	{
@@ -965,6 +977,10 @@ namespace Chaos
 		MRewindCallback = MoveTemp(RewindCallback);
 		MarshallingManager.SetHistoryLength_Internal(NumFrames);
 		MEvolution->SetRewindData(GetRewindData());
+		if(MRewindCallback)
+		{
+			MRewindCallback->RewindData = MRewindData.Get();
+		}
 		
 		UpdateIsDeterministic();
 	}
@@ -1603,6 +1619,14 @@ namespace Chaos
 			{
 				UnregistrationWatchers.Add(SimCallbackObject);
 			}
+
+			if (SimCallbackObject->HasOption(ESimCallbackOptions::Rewind))
+			{
+				if (MRewindCallback.IsValid())
+				{
+					MRewindCallback->RegisterRewindableSimCallback_Internal(SimCallbackObject);
+				}
+			}
 		}
 
 		//save any pending data for this particular interval
@@ -1670,12 +1694,12 @@ namespace Chaos
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			if (bEnableNetworkPredictionDebug)
 			{
-				UE_LOG(LogChaos, Log, TEXT("	-> Trying to Rewind Frame = %d | At Time = %f | Num Steps = %d | Resim Step = %d | Last Step = %d"), CurrentFrame,  MTime, NumResimSteps, ResimStep, LastStep);
+				UE_LOG(LogChaos, Log, TEXT("	-> Trying to Rewind Frame = %d | At Time = %f | Num Steps = %d | Resim Step = %d | Last Step = %d | Manager Size = %d"), CurrentFrame,  MTime, NumResimSteps, ResimStep, LastStep, MarshallingManager.GetNumHistory_Internal());
 				for(auto& Handle : GetParticles().GetNonDisabledDynamicView())
 				{
 					if(!Handle.IsSleeping())
 					{
-						UE_LOG(LogChaos, Log, TEXT("Particle Active At Position = %s | Velocity = %s | Quaternion = %s | Omega = %s"),
+						UE_LOG(LogChaos, Log, TEXT("Particle Dynamic At Position = %s | Velocity = %s | Quaternion = %s | Omega = %s"),
 							*Handle.X().ToString(), *Handle.V().ToString(), *Handle.R().ToString(), *Handle.W().ToString());
 					}
 					else
@@ -1722,12 +1746,22 @@ namespace Chaos
 								UE_LOG(LogChaos, Log, TEXT("		-> Re-simulating Frame = %d "), Step);
 								for(auto& Handle : GetParticles().GetNonDisabledDynamicView())
 								{
-									if(!Handle.IsSleeping()) 
+									if (GetEvolution()->GetIslandManager().GetParticleIsland(Handle.Handle()))
 									{
-										UE_LOG(LogChaos, Log, TEXT("Particle Dynamic At Position = %s | Velocity = %s | Quaternion = %s | Omega = %s | Resim Frame = %d | Sync State = %d | Needs Resim = %d"),   
-											*Handle.X().ToString(), *Handle.V().ToString(), *Handle.R().ToString(), *Handle.W().ToString(), 
-											GetEvolution()->GetIslandManager().GetParticleIsland(Handle.Handle())->GetResimFrame(), (uint8)Handle.SyncState(),
-											GetEvolution()->GetIslandManager().GetParticleIsland(Handle.Handle())->NeedsResim());
+										if (!Handle.IsSleeping())
+										{
+											UE_LOG(LogChaos, Log, TEXT("Particle Dynamic At Position = %s | Velocity = %s | Quaternion = %s | Omega = %s | Resim Frame = %d | Sync State = %d | Needs Resim = %d | Unique Idx = %d"),
+												*Handle.X().ToString(), *Handle.V().ToString(), *Handle.R().ToString(), *Handle.W().ToString(),
+												GetEvolution()->GetIslandManager().GetParticleIsland(Handle.Handle())->GetResimFrame(), (uint8)Handle.SyncState(),
+												GetEvolution()->GetIslandManager().GetParticleIsland(Handle.Handle())->NeedsResim(), Handle.UniqueIdx().Idx);
+										}
+										else
+										{
+											UE_LOG(LogChaos, Log, TEXT("Particle Sleeping At Position = %s | Velocity = %s | Quaternion = %s | Omega = %s | Resim Frame = %d | Sync State = %d | Needs Resim = %d | Unique Idx = %d"),
+												*Handle.X().ToString(), *Handle.V().ToString(), *Handle.R().ToString(), *Handle.W().ToString(),
+												GetEvolution()->GetIslandManager().GetParticleIsland(Handle.Handle())->GetResimFrame(), (uint8)Handle.SyncState(),
+												GetEvolution()->GetIslandManager().GetParticleIsland(Handle.Handle())->NeedsResim(), Handle.UniqueIdx().Idx);
+										}
 									}
 								}
 							}
@@ -2261,6 +2295,7 @@ TRACE_COUNTER_SET(ChaosTraceCounter_##Name, Value)
 	void FPBDRigidsSolver::FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& DirtyParticles)
 	{
 		using namespace Chaos;
+
 		//Simulated objects must have their properties captured for rewind
 		if(MRewindData && DirtyParticles.Num())
 		{

@@ -327,6 +327,8 @@ namespace Chaos
 		// Interop utilities
 		void SetParticleDynamicMisc(FPBDRigidParticleHandle* Rigid, const FParticleDynamicMisc& DynamicMisc);
 
+		// Apply callbacks internally 
+		virtual void ApplyCallbacks_Internal() override;
 
 	private:
 

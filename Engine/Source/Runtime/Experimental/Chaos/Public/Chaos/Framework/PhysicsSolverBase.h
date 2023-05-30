@@ -338,10 +338,6 @@ namespace Chaos
 			}
 
 			RegisterSimCallbackObject_External(NewCallbackObject);
-			if (NewCallbackObject->HasOption(ESimCallbackOptions::Rewind))
-			{
-				EnqueueSimcallbackRewindRegisteration(NewCallbackObject);
-			}
 			return NewCallbackObject;
 		}
 
@@ -515,7 +511,7 @@ namespace Chaos
 			bGameThreadFrozen = InGameThreadFrozen;
 		}
 
-		void ApplyCallbacks_Internal()
+		virtual void ApplyCallbacks_Internal()
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(ApplySimCallbacks);
 

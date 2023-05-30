@@ -245,6 +245,9 @@ public:
 
 	UChaosEventRelay* GetChaosEventRelay() const { return ChaosEventRelay.Get(); }
 
+	/** Populate the replication cache from the list of registered components */
+	void PopulateReplicationCache(const int32 PhysicsStep);
+
 	// Storage structure for replication data
 	// probably should just expose read/write API not the structure directly itself like this.
 	struct FPrimitiveComponentReplicationCache

@@ -344,7 +344,7 @@ public:
 		if(FPBDRigidParticleHandle* Rigid =  Particle->CastToRigidParticle())
 		{
 			//if active it's already in the dirty view
-			if (!ActiveParticlesMapArray.Contains(Rigid))
+			if (!ActiveParticlesMapArray.Contains(Rigid) && !MovingKinematicsMapArray.Contains(Rigid))
 			{
 				TransientDirtyMapArray.Insert(Rigid);
 				if (bUpdateViews)
@@ -961,8 +961,11 @@ private:
 
 		if(bStillDirty)
 		{
-			//no longer active, but still dirty
-			TransientDirtyMapArray.Insert(Particle);
+			if(!MovingKinematicsMapArray.Contains(Particle))
+			{ 
+				//no longer active, but still dirty
+				TransientDirtyMapArray.Insert(Particle);
+			}
 		}
 		else
 		{

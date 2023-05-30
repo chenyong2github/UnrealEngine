@@ -386,22 +386,25 @@ protected:
 	virtual void BeginReplication() override;
 #endif // UE_WITH_IRIS
 	/** The type of async physics data object to use*/
-	UPROPERTY(EditDefaultsOnly, Category=PlayerController)
-	TSubclassOf<UAsyncPhysicsData> AsyncPhysicsDataClass;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "AsyncPhysicsDataClass is deprecated. See UInputSettings::bEnableLegacyInputScales to enable legacy behavior"))
+	TSubclassOf<UAsyncPhysicsData> AsyncPhysicsDataClass_DEPRECATED;
 
 	/** Get the async physics data to write to. This data will make its way to the async physics tick on client and server. Should not be used during async tick */
+	UE_DEPRECATED(5.3, "GetAsyncPhysicsDataToConsume is deprecated, please see the new C++ NetworkPhysicsComponent")
 	UFUNCTION(BlueprintPure, Category = PlayerController)
 	UAsyncPhysicsData* GetAsyncPhysicsDataToWrite() const;
 
 	/** Get the async physics data to execute logic off of. This data should not be modified and will NOT make its way back. Must be used during async tick */
+	UE_DEPRECATED(5.3, "GetAsyncPhysicsDataToConsume is deprecated, please see the new C++ NetworkPhysicsComponent")
 	UFUNCTION(BlueprintPure, Category = PlayerController)
 	const UAsyncPhysicsData* GetAsyncPhysicsDataToConsume() const;
 
 private:
 
-	UPROPERTY(ReplicatedUsing=OnRep_AsyncPhysicsDataComponent)
-	TObjectPtr<UAsyncPhysicsInputComponent> AsyncPhysicsDataComponent;
+	UPROPERTY(ReplicatedUsing=OnRep_AsyncPhysicsDataComponent, meta = (DeprecatedProperty, DeprecationMessage = "AsyncPhysicsDataComponent is deprecated. please see the new C++ NetworkPhysicsComponent"))
+	TObjectPtr<UAsyncPhysicsInputComponent> AsyncPhysicsDataComponent_DEPRECARED;
 
+	UE_DEPRECATED(5.3, "OnRep_AsyncPhysicsDataComponent is deprecated, please see the new C++ NetworkPhysicsComponent")
 	UFUNCTION()
 	void OnRep_AsyncPhysicsDataComponent();
 
@@ -2343,6 +2346,10 @@ private:
 	/** The estimated offset between the local async physics tick frame number and the server's
 	*	This is used to synchronize events that happen in the async physics tick */
 	int32 LocalToServerAsyncPhysicsTickOffset;
+
+	/** The estimated offset between the server async physics tick frame number and the local's
+	*	This is used to synchronize events that happen in the async physics tick */
+	int32 ServerToLocalAsyncPhysicsTickOffset = INDEX_NONE;
 	
 	/** The latest server step we've received an offset correction for. This allows us to ignore out of order corrections that arrive late */
 	int32 ClientLatestCorrectedOffsetServerStep = INDEX_NONE;
@@ -2391,6 +2398,12 @@ public:
 	/** Returns the current estimated offset between the local async physics step and the server. This is useful for dealing with low level synchronization.
 		In general it's recommended to use GetAsyncPhysicsTimestamp which accounts for the offset automatically*/
 	int32 GetLocalToServerAsyncPhysicsTickOffset() const { return LocalToServerAsyncPhysicsTickOffset; }
+
+	/** Returns the current estimated offset between the server async physics step and the local one. */
+	int32 GetServerToLocalAsyncPhysicsTickOffset() const { return (ServerToLocalAsyncPhysicsTickOffset != INDEX_NONE) ? ServerToLocalAsyncPhysicsTickOffset : LocalToServerAsyncPhysicsTickOffset; }
+
+	/** Set the offset between the server async physics step and the local one.*/
+	void SetServerToLocalAsyncPhysicsTickOffset( const int32 AsyncPhysicsTickOffset) { ServerToLocalAsyncPhysicsTickOffset = AsyncPhysicsTickOffset; }
 	
 };
 

@@ -171,7 +171,7 @@ bool UChaosWheeledVehicleSimulation::CanSimulate() const
 		&& PVehicle->Wheels.Num() == PVehicle->Suspension.Num());
 }
 
-void UChaosWheeledVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle)
+void UChaosWheeledVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicle_TickVehicle);
 
@@ -179,7 +179,7 @@ void UChaosWheeledVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTim
 }
 
 
-void UChaosWheeledVehicleSimulation::UpdateState(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
+void UChaosWheeledVehicleSimulation::UpdateState(float DeltaTime, const FChaosVehicleAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
 	UChaosVehicleSimulation::UpdateState(DeltaTime, InputData, Handle);
 
@@ -233,7 +233,7 @@ void UChaosWheeledVehicleSimulation::UpdateState(float DeltaTime, const FChaosVe
 
 		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && PVehicle->bSuspensionEnabled)
 		{
-			PerformSuspensionTraces(WheelState.Trace, InputData.TraceParams, InputData.TraceCollisionResponse, InputData.WheelTraceParams);
+			PerformSuspensionTraces(WheelState.Trace, InputData.PhysicsInputs.TraceParams, InputData.PhysicsInputs.TraceCollisionResponse, InputData.PhysicsInputs.WheelTraceParams);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -257,7 +257,7 @@ void UChaosWheeledVehicleSimulation::UpdateState(float DeltaTime, const FChaosVe
 	}
 }
 
-void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
+void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicle_UpdateSimulation);
 	
@@ -278,13 +278,13 @@ void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FCh
 
 		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && PVehicle->bSuspensionEnabled)
 		{
-			ApplySuspensionForces(DeltaTime, InputData.WheelTraceParams);
+			ApplySuspensionForces(DeltaTime, InputData.PhysicsInputs.WheelTraceParams);
 		}
 
 		///////////////////////////////////////////////////////////////////////
 		// Steering
 
-		ProcessSteering(InputData.ControlInputs);
+		ProcessSteering(InputData.PhysicsInputs.NetworkInputs.VehicleInputs);
 
 		///////////////////////////////////////////////////////////////////////
 		// Wheel Friction
@@ -530,15 +530,6 @@ void UChaosWheeledVehicleSimulation::ApplyWheelFrictionForces(float DeltaTime)
 			FMatrix Mat = FMatrix(GroundXVector, GroundYVector, GroundZVector, VehicleState.VehicleWorldTransform.GetLocation());
 			FVector FrictionForceVector = Mat.TransformVector(FrictionForceLocal);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled() && Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
-			{
-				UE_LOG(LogVehicle, Log, TEXT("Friction Force Global = %s | Transform = %s | Local = %s | Steering Angle = %f | Velocity = %s | Rotation Angle = %f | Friction Force = %s"),
-					*FrictionForceVector.ToString(), *Mat.ToString(), *FrictionForceLocal.ToString(), 
-					SteerAngleDegrees, *WheelState.LocalWheelVelocity[WheelIdx].ToString(), RotationAngle, *PWheel.GetForceFromFriction().ToString());
-			}
-#endif
-
 			check(PWheel.InContact());
 			if (PVehicle->bLegacyWheelFrictionPosition)
 			{
@@ -734,15 +725,6 @@ void UChaosWheeledVehicleSimulation::ProcessSteering(const FControlInputs& Contr
 
 			float SteeringAngle = ControlInputs.SteeringInput * SpeedScale;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (Chaos::FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled() && Chaos::FPhysicsSolverBase::CanDebugNetworkPhysicsPrediction())
-			{
-				UE_LOG(LogVehicle, Log, TEXT("Process Sterring Input = %f | Spped Scale = %f | Wheel Side = %f"),
-					ControlInputs.SteeringInput, SpeedScale, PVehicle->GetSuspension(WheelIdx).GetLocalRestingPosition().Y);
-			}
-#endif
-
-
 			if (FMath::Abs(GWheeledVehicleDebugParams.SteeringOverride) > 0.01f)
 			{
 				SteeringAngle = PWheel.MaxSteeringAngle * GWheeledVehicleDebugParams.SteeringOverride;
@@ -778,7 +760,7 @@ void UChaosWheeledVehicleSimulation::ApplyInput(const FControlInputs& ControlInp
 
 		if (ModifiedInputs.TransmissionType != PTransmission.Setup().TransmissionType)
 		{
-			PTransmission.AccessSetup().TransmissionType = ModifiedInputs.TransmissionType;
+			PTransmission.AccessSetup().TransmissionType = (Chaos::ETransmissionType)ModifiedInputs.TransmissionType;
 		}
 
 		if (ModifiedInputs.GearUpInput)
@@ -1717,7 +1699,7 @@ void UChaosWheeledVehicleMovementComponent::Update(float DeltaTime)
 		{
 			if (auto Handle = BodyInstance->ActorHandle)
 			{
-				FChaosVehicleDefaultAsyncInput* AsyncInput = static_cast<FChaosVehicleDefaultAsyncInput*>(CurAsyncInput);
+				FChaosVehicleAsyncInput* AsyncInput = static_cast<FChaosVehicleAsyncInput*>(CurAsyncInput);
 
 				TArray<AActor*> ActorsToIgnore;
 				ActorsToIgnore.Add(GetPawnOwner()); // ignore self in scene query
@@ -1726,14 +1708,14 @@ void UChaosWheeledVehicleMovementComponent::Update(float DeltaTime)
 				TraceParams.bReturnPhysicalMaterial = true;	// we need this to get the surface friction coefficient
 				TraceParams.AddIgnoredActors(ActorsToIgnore);
 				TraceParams.bTraceComplex = true;
-				AsyncInput->TraceParams = TraceParams;
-				AsyncInput->TraceCollisionResponse = WheelTraceCollisionResponses;
+				AsyncInput->PhysicsInputs.TraceParams = TraceParams;
+				AsyncInput->PhysicsInputs.TraceCollisionResponse = WheelTraceCollisionResponses;
 
-				AsyncInput->WheelTraceParams.SetNum(Wheels.Num());
+				AsyncInput->PhysicsInputs.WheelTraceParams.SetNum(Wheels.Num());
 				for (int I = 0; I < Wheels.Num(); I++)
 				{
-					AsyncInput->WheelTraceParams[I].SweepType = Wheels[I]->SweepType;
-					AsyncInput->WheelTraceParams[I].SweepShape = Wheels[I]->SweepShape;
+					AsyncInput->PhysicsInputs.WheelTraceParams[I].SweepType = Wheels[I]->SweepType;
+					AsyncInput->PhysicsInputs.WheelTraceParams[I].SweepShape = Wheels[I]->SweepShape;
 				}
 			}
 		}

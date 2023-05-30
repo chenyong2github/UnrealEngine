@@ -66,6 +66,7 @@
 #include "LevelUtils.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Physics/AsyncPhysicsInputComponent.h"
+#include "Physics/NetworkPhysicsComponent.h"
 #include "PBDRigidsSolver.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
@@ -110,6 +111,9 @@ namespace NetworkPhysicsCvars
 	int32 EnableDebugRPC = 1;
 #endif
 	FAutoConsoleVariableRef CVarEnableDebugRPC(TEXT("np2.EnableDebugRPC"), EnableDebugRPC, TEXT("Sends extra debug information to clients about server side input buffering"));
+
+	int32 NetworkPhysicsPredictionFrameOffset = 4;
+	FAutoConsoleVariableRef CVarNetworkPhysicsPredictionFrameOffset(TEXT("np2.NetworkPhysicsPredictionFrameOffset"), NetworkPhysicsPredictionFrameOffset, TEXT("Additional frame offset to be added to the local to server offset used by network prediction"));
 }
 
 const float RetryClientRestartThrottleTime = 0.5f;
@@ -196,7 +200,6 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 	if (UPhysicsSettings::Get()->PhysicsPrediction.bEnablePhysicsPrediction)
 	{
 		bAsyncPhysicsTickEnabled = true;
-		AsyncPhysicsDataClass = UAsyncPhysicsData::StaticClass();
 	}
 #if UE_ENABLE_DEBUG_DRAWING
 	CurrentInputModeDebugString = TEXT("Default");
@@ -4794,6 +4797,8 @@ void APlayerController::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	DISABLE_REPLICATED_PROPERTY(APlayerController, AsyncPhysicsDataComponent_DEPRECARED);
+
 	// These used to only replicate if PlayerCameraManager->GetViewTargetPawn() != GetPawn()
 	// But, since they also don't update unless that condition is true, these values won't change, thus won't send
 	// This is a little less efficient, but fits into the new condition system well, and shouldn't really add much overhead
@@ -4801,26 +4806,14 @@ void APlayerController::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &
 
 	// Replicate SpawnLocation for remote spectators
 	DOREPLIFETIME_CONDITION(APlayerController, SpawnLocation, COND_OwnerOnly);
-
-	DOREPLIFETIME_CONDITION(APlayerController, AsyncPhysicsDataComponent, COND_OwnerOnly);
 }
 
 void APlayerController::OnRep_AsyncPhysicsDataComponent()
-{
-	AsyncPhysicsDataComponent->SetDataClass(AsyncPhysicsDataClass);
-}
+{}
 
 void APlayerController::SetPlayer( UPlayer* InPlayer )
 {
 	FMoviePlayerProxyBlock MoviePlayerBlock;
-	if(AsyncPhysicsDataClass && GetLocalRole() == ROLE_Authority)
-	{
-		static const FName AsyncPhysicsDataComponentName(TEXT("PC_AsyncPhysicsDataComponent"));
-		AsyncPhysicsDataComponent = NewObject<UAsyncPhysicsInputComponent>(this, AsyncPhysicsDataComponentName);
-		AsyncPhysicsDataComponent->SetDataClass(AsyncPhysicsDataClass);
-		AsyncPhysicsDataComponent->RegisterComponent();
-	}
-
 	check(InPlayer!=NULL);
 
 	const bool bIsSameLevel = InPlayer->PlayerController && (InPlayer->PlayerController->GetLevel() == GetLevel());
@@ -6062,12 +6055,12 @@ void APlayerController::BeginReplication()
 
 UAsyncPhysicsData* APlayerController::GetAsyncPhysicsDataToWrite() const
 {
-	return AsyncPhysicsDataComponent ? AsyncPhysicsDataComponent->GetDataToWrite() : nullptr;
+	return nullptr;
 }
 
 const UAsyncPhysicsData* APlayerController::GetAsyncPhysicsDataToConsume() const
 {
-	return AsyncPhysicsDataComponent ? AsyncPhysicsDataComponent->GetDataToConsume() : nullptr;  
+	return nullptr;  
 }
 
 void APlayerController::ExecuteAsyncPhysicsCommand(const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, UObject* OwningObject, const TFunction<void()>& Command, const bool bEnableResim)
@@ -6097,17 +6090,7 @@ FAsyncPhysicsTimestamp APlayerController::GetAsyncPhysicsTimestamp(float DeltaSe
 				const FReal DeltaTime = Solver->GetAsyncDeltaTime();
 				const int32 PendingSteps = (DeltaTime > 0.0) ? DeltaSeconds / DeltaTime : 0;
 
-				int32 LocalPhysicsStep;
-				if(Solver->IsGameThreadFrozen())
-				{
-					//We are calling inside the async tick, so use the current frame
-					LocalPhysicsStep = Solver->GetCurrentFrame();
-				}
-				else
-				{
-					//We are on the GT so give the upcoming async tick
-					LocalPhysicsStep = Solver->GetMarshallingManager().GetExternalTimestamp_External();
-				}
+				int32 LocalPhysicsStep = Solver->GetCurrentFrame();
 				
 				LocalPhysicsStep += PendingSteps;	//Add any pending steps user wants to wait on
 				Timestamp.ServerFrame = LocalPhysicsStep;
@@ -6127,6 +6110,16 @@ FAsyncPhysicsTimestamp APlayerController::GetAsyncPhysicsTimestamp(float DeltaSe
 
 void APlayerController::UpdateServerAsyncPhysicsTickOffset()
 {
+	if (UWorld* World = GetWorld())
+	{
+		if (FPhysScene* PhysScene = World->GetPhysicsScene())
+		{
+			if(PhysScene->GetSolver()->GetEvolution()->IsResimming())
+			{
+				return;
+			}
+		}
+	}
 	FAsyncPhysicsTimestamp Timestamp = GetAsyncPhysicsTimestamp();
 	if(ClientLatestAsyncPhysicsStepSent == Timestamp.LocalFrame)
 	{
@@ -6168,8 +6161,23 @@ void APlayerController::ClientCorrectionAsyncPhysicsTimestamp_Implementation(FAs
 		return;
 	}
 
-	const int32 NewOffset = Timestamp.ServerFrame - Timestamp.LocalFrame; //The new offset as reported by the server
-	ensureMsgf(NewOffset >= LocalToServerAsyncPhysicsTickOffset, TEXT("The offset between client and server can only ever increase"));
+	if (UWorld* World = GetWorld())
+	{
+		if (FPhysScene* PhysScene = World->GetPhysicsScene())
+		{
+			if (PhysScene->GetSolver()->GetEvolution()->IsResimming())
+			{
+				return;
+			}
+		}
+	}
+	FAsyncPhysicsTimestamp CurrentTimestamp = GetAsyncPhysicsTimestamp();
+	// We need to avoid changing this offset as much as possible since it will invalidate histories and will trigger resim
+	// To deal with that we compute a safe margin based on a user cvar + half the RTT
+	// This margin will only be applied the first time we will compute the offset 
+	const int32 FrameOffset = LocalToServerAsyncPhysicsTickOffset == 0 ? (NetworkPhysicsCvars::NetworkPhysicsPredictionFrameOffset + (CurrentTimestamp.LocalFrame - Timestamp.LocalFrame) / 2) : 0;
+
+	const int32 NewOffset = FMath::Max(LocalToServerAsyncPhysicsTickOffset,Timestamp.ServerFrame - Timestamp.LocalFrame + FrameOffset); //The new offset as reported by the server
 	LocalToServerAsyncPhysicsTickOffset = NewOffset;
 }
 
@@ -6206,19 +6214,9 @@ void APlayerController::AsyncPhysicsTickActor(float DeltaTime, float SimTime)
 
 		const FAsyncPhysicsTimestamp ActualTimestamp = GetAsyncPhysicsTimestamp();
 
-		//If the pending timestamp is bigger than the server frame we simple wait, otherwise make sure they aren't too early
-		if (ServerPendingTimestamps[0].ServerFrame <= ActualTimestamp.ServerFrame)
-		{
-			if (ServerPendingTimestamps[0].ServerFrame < ActualTimestamp.ServerFrame)
-			{
-				//The earliest pending client timestamp is too early, so their offset must be bigger than they thought
-				ServerLatestTimestampToCorrect.ServerFrame = ActualTimestamp.ServerFrame;
-				ServerLatestTimestampToCorrect.LocalFrame = ServerPendingTimestamps[0].LocalFrame;	//The client's local frame stays the same there's just a mismatch on the server frame
-			}
-
-			ServerPendingTimestamps.RemoveAt(0);	//We've updated the client if needed, so can discard
-			//NOTE: we purposely don't fixup any future pending client timestamps. This is because the RPC is unreliable so it's best to send the error correction redundantly over multiple frames if needed
-		}
+		ServerLatestTimestampToCorrect.ServerFrame = ActualTimestamp.ServerFrame;
+		ServerLatestTimestampToCorrect.LocalFrame = ServerPendingTimestamps[0].LocalFrame;
+		ServerPendingTimestamps.Reset();
 	}
 }
 
