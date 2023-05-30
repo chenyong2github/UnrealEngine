@@ -239,13 +239,7 @@ namespace UnrealBuildTool
 			private string TabString = "";
 		}
 
-		override public string ProjectFileExtension
-		{
-			get
-			{
-				return ".vscode";
-			}
-		}
+		override public string ProjectFileExtension => ".vscode";
 
 		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesPath, ILogger Logger)
 		{

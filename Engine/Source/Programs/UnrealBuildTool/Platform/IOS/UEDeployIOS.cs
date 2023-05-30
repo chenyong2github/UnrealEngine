@@ -27,8 +27,8 @@ namespace UnrealBuildTool
 
 		public bool ForDistribution
 		{
-			get { return bForDistribution; }
-			set { bForDistribution = value; }
+			get => bForDistribution;
+			set => bForDistribution = value;
 		}
 		bool bForDistribution = false;
 
@@ -45,12 +45,9 @@ namespace UnrealBuildTool
 				set;
 			}
 
-			public static bool bCustomLaunchscreenStoryboard = false;			
+			public static bool bCustomLaunchscreenStoryboard = false;
 
-			static string RunningVersionFilename
-			{
-				get { return Path.Combine(BuildDirectory!, GameName + ".PackageVersionCounter"); }
-			}
+			static string RunningVersionFilename => Path.Combine(BuildDirectory!, GameName + ".PackageVersionCounter");
 
 			/// <summary>
 			/// Reads the GameName.PackageVersionCounter from disk and bumps the minor version number in it

@@ -38,18 +38,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The name that uniquely identifies the module.
 		/// </summary>
-		public string Name
-		{
-			get { return Rules.Name; }
-		}
+		public string Name => Rules.Name;
 
 		/// <summary>
 		/// Path to the module directory
 		/// </summary>
-		public DirectoryReference ModuleDirectory
-		{
-			get { return Rules.Directory; }
-		}
+		public DirectoryReference ModuleDirectory => Rules.Directory;
 
 		/// <summary>
 		/// Paths to all potential module source directories (with platform extension directories added in)
@@ -59,10 +53,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The name of the .Build.cs file this module was created from, if any
 		/// </summary>
-		public FileReference RulesFile
-		{
-			get { return Rules.File; }
-		}
+		public FileReference RulesFile => Rules.File;
 
 		/// <summary>
 		/// The binary the module will be linked into for the current target.  Only set after UEBuildBinary.BindModules is called.
@@ -192,18 +183,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The Verse source code directory associated with this module if any
 		/// </summary>
-		public virtual DirectoryReference? VerseDirectory
-		{
-			get { return null; }
-		}
+		public virtual DirectoryReference? VerseDirectory => null;
 
 		/// <summary>
 		/// If this module has Verse code associated with it (convenience function)
 		/// </summary>
-		public bool bHasVerse
-		{
-			get { return VerseDirectory != null; }
-		}
+		public bool bHasVerse => VerseDirectory != null;
 
 		/// <summary>
 		/// If this module or any of its dependencies has Verse code associated with it

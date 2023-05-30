@@ -78,40 +78,19 @@ namespace UnrealBuildTool
 		#region Read-only accessor properties 
 		#pragma warning disable CS1591
 
-		public bool bEnableAddressSanitizer
-		{
-			get { return Inner.bEnableAddressSanitizer; }
-		}
+		public bool bEnableAddressSanitizer => Inner.bEnableAddressSanitizer;
 
-		public bool bEnableHWAddressSanitizer
-		{
-			get { return Inner.bEnableHWAddressSanitizer; }
-		}
+		public bool bEnableHWAddressSanitizer => Inner.bEnableHWAddressSanitizer;
 
-		public bool bEnableThreadSanitizer
-		{
-			get { return Inner.bEnableThreadSanitizer; }
-		}
+		public bool bEnableThreadSanitizer => Inner.bEnableThreadSanitizer;
 
-		public bool bEnableUndefinedBehaviorSanitizer
-		{
-			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
-		}
+		public bool bEnableUndefinedBehaviorSanitizer => Inner.bEnableUndefinedBehaviorSanitizer;
 
-		public bool bEnableMinimalUndefinedBehaviorSanitizer
-		{
-			get { return Inner.bEnableMinimalUndefinedBehaviorSanitizer; }
-		}
+		public bool bEnableMinimalUndefinedBehaviorSanitizer => Inner.bEnableMinimalUndefinedBehaviorSanitizer;
 
-		public bool bEnableRayTracing
-		{
-			get { return Inner.bEnableRayTracing; }
-		}
+		public bool bEnableRayTracing => Inner.bEnableRayTracing;
 
-		public AndroidTargetRules TargetRules
-		{
-			get { return Inner; }
-		}
+		public AndroidTargetRules TargetRules => Inner;
 
 		#pragma warning restore CS1591
 		#endregion
@@ -626,10 +605,7 @@ namespace UnrealBuildTool
 
 	class AndroidPlatformFactory : UEBuildPlatformFactory
 	{
-		public override UnrealTargetPlatform TargetPlatform
-		{
-			get { return UnrealTargetPlatform.Android; }
-		}
+		public override UnrealTargetPlatform TargetPlatform => UnrealTargetPlatform.Android;
 
 		public override void RegisterBuildPlatforms(ILogger Logger)
 		{

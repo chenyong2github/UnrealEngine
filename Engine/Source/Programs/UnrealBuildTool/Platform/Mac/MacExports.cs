@@ -19,13 +19,7 @@ namespace UnrealBuildTool
 		/// Describes the architecture of the host. Note - this ignores translation.
 		/// IsRunningUnderRosetta can be used to detect that we're running under translation
 		/// </summary>
-		public static UnrealArch HostArchitecture
-		{
-			get
-			{
-				return IsRunningOnAppleArchitecture ? UnrealArch.Arm64 : UnrealArch.X64;
-			}
-		}
+		public static UnrealArch HostArchitecture => IsRunningOnAppleArchitecture ? UnrealArch.Arm64 : UnrealArch.X64;
 
 		/// <summary>
 		/// Cached result for AppleArch check

@@ -2141,13 +2141,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The shared (Engine) build directory (on PC)
 		/// </summary>
-		public static string EngineBuildDirectory
-		{
-			get
-			{
-				return Path.Combine(Unreal.EngineDirectory.FullName, "Build", CodeSigningConfig.OSString);
-			}
-		}
+		public static string EngineBuildDirectory => Path.Combine(Unreal.EngineDirectory.FullName, "Build", CodeSigningConfig.OSString);
 
 		/// <summary>
 		/// The local build intermediate directory (on PC)
@@ -2167,43 +2161,28 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The local directory cooked files are placed (on PC)
 		/// </summary>
-		public static string CookedDirectory
-		{
-			get { return Path.GetFullPath(GameDirectory + @"\Saved\Cooked\" + CodeSigningConfig.OSString); }
-		}
+		public static string CookedDirectory => Path.GetFullPath(GameDirectory + @"\Saved\Cooked\" + CodeSigningConfig.OSString);
 
 		/// <summary>
 		/// The local directory config files are placed (on PC)
 		/// </summary>
-		public static string ConfigDirectory
-		{
-			get { return Path.GetFullPath(GameDirectory + @"\Saved\Config"); }
-		}
+		public static string ConfigDirectory => Path.GetFullPath(GameDirectory + @"\Saved\Config");
 
 		/// <summary>
 		/// The engine config files are placed (on PC)
 		/// </summary>
-		public static string DefaultConfigDirectory
-		{
-			get { return Path.Combine(Unreal.EngineDirectory.FullName, "Engine/Config"); }
-		}
+		public static string DefaultConfigDirectory => Path.Combine(Unreal.EngineDirectory.FullName, "Engine/Config");
 
 		/// <summary>
 		/// The engine directory
 		/// </summary>
-		public static string EngineDirectory
-		{
-			get { return Unreal.EngineDirectory.FullName; }
-		}
+		public static string EngineDirectory => Unreal.EngineDirectory.FullName;
 
 		/// <summary>
 		/// The local directory that a payload (GameName.app) is assembled into before being copied to the Mac (on PC)
 		/// </summary>
-		public static string PayloadRootDirectory
-		{
-			get { return Path.GetFullPath(PCStagingRootDir + @"\Payload"); }
-		}
-		
+		public static string PayloadRootDirectory => Path.GetFullPath(PCStagingRootDir + @"\Payload");
+
 		/// <summary>
 		/// Program_Architecture
 		/// </summary>

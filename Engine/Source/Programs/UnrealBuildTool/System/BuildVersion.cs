@@ -73,10 +73,7 @@ namespace UnrealBuildTool
 		/// Returns the value which can be used as the compatible changelist. Requires that the regular changelist is also set, and defaults to the 
 		/// regular changelist if a specific compatible changelist is not set.
 		/// </summary>
-		public int EffectiveCompatibleChangelist
-		{
-			get { return (Changelist != 0 && CompatibleChangelist != 0)? CompatibleChangelist : Changelist; }
-		}
+		public int EffectiveCompatibleChangelist => (Changelist != 0 && CompatibleChangelist != 0) ? CompatibleChangelist : Changelist;
 
 		/// <summary>
 		/// Try to read a version file from disk
@@ -288,55 +285,25 @@ namespace UnrealBuildTool
 		#region Read-only accessor properties 
 		#pragma warning disable CS1591
 
-		public int MajorVersion
-		{
-			get { return Inner.MajorVersion; }
-		}
+		public int MajorVersion => Inner.MajorVersion;
 
-		public int MinorVersion
-		{
-			get { return Inner.MinorVersion; }
-		}
+		public int MinorVersion => Inner.MinorVersion;
 
-		public int PatchVersion
-		{
-			get { return Inner.PatchVersion; }
-		}
+		public int PatchVersion => Inner.PatchVersion;
 
-		public int Changelist
-		{
-			get { return Inner.Changelist; }
-		}
+		public int Changelist => Inner.Changelist;
 
-		public int CompatibleChangelist
-		{
-			get { return Inner.CompatibleChangelist; }
-		}
+		public int CompatibleChangelist => Inner.CompatibleChangelist;
 
-		public int EffectiveCompatibleChangelist
-		{
-			get { return Inner.EffectiveCompatibleChangelist; }
-		}
+		public int EffectiveCompatibleChangelist => Inner.EffectiveCompatibleChangelist;
 
-		public bool IsLicenseeVersion
-		{
-			get { return Inner.IsLicenseeVersion; }
-		}
+		public bool IsLicenseeVersion => Inner.IsLicenseeVersion;
 
-		public bool IsPromotedBuild
-		{
-			get { return Inner.IsPromotedBuild; }
-		}
+		public bool IsPromotedBuild => Inner.IsPromotedBuild;
 
-		public string? BranchName
-		{
-			get { return Inner.BranchName; }
-		}
+		public string? BranchName => Inner.BranchName;
 
-		public string? BuildVersionString
-		{
-			get { return Inner.BuildVersionString; }
-		}
+		public string? BuildVersionString => Inner.BuildVersionString;
 
 		#pragma warning restore C1591
 		#endregion

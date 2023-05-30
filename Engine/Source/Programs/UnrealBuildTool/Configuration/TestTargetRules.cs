@@ -50,8 +50,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override bool bCompileAgainstApplicationCore
 		{
-			get { return bTestsRequireApplicationCore; }
-			set { bTestsRequireApplicationCore = value; }
+			get => bTestsRequireApplicationCore;
+			set => bTestsRequireApplicationCore = value;
 		}
 
 		/// <summary>
@@ -65,8 +65,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override bool bCompileAgainstCoreUObject
 		{
-			get { return bTestsRequireCoreUObject; }
-			set { bTestsRequireCoreUObject = value; }
+			get => bTestsRequireCoreUObject;
+			set => bTestsRequireCoreUObject = value;
 		}
 
 		/// <summary>
@@ -80,8 +80,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override bool bCompileAgainstEngine
 		{
-			get { return bTestsRequireEngine; }
-			set { bTestsRequireEngine = value; }
+			get => bTestsRequireEngine;
+			set => bTestsRequireEngine = value;
 		}
 
 		/// <summary>
@@ -95,8 +95,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override bool bCompileAgainstEditor
 		{
-			get { return bTestsRequireEditor; }
-			set { bTestsRequireEditor = value; }
+			get => bTestsRequireEditor;
+			set => bTestsRequireEditor = value;
 		}
 
 		/// <summary>
@@ -108,8 +108,8 @@ namespace UnrealBuildTool
 		/// Whether to stub the platform file.
 		/// </summary>
 		public bool bUsePlatformFileStub
-		{ 
-			get { return bUsePlatformFileStubPrivate; }
+		{
+			get => bUsePlatformFileStubPrivate;
 			set
 			{
 				bUsePlatformFileStubPrivate = value;
@@ -125,7 +125,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bMockEngineDefaults
 		{
-			get { return bMockEngineDefaultsPrivate; }
+			get => bMockEngineDefaultsPrivate;
 			set
 			{
 				bMockEngineDefaultsPrivate = value;

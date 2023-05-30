@@ -184,7 +184,7 @@ namespace UnrealBuildTool
 		public bool bUseActionHistory => true;
 
 		/// <inheritdoc/>
-		public bool bIsHighPriority { get => CreatePchFile != null; }
+		public bool bIsHighPriority => CreatePchFile != null;
 
 		/// <inheritdoc/>
 		public double Weight { get; set; } = 1.0;
@@ -306,14 +306,8 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		string IExternalAction.CommandVersion
-		{
-			get
-			{
-				return ToolChainVersion;
-			}
-		}
-		
+		string IExternalAction.CommandVersion => ToolChainVersion;
+
 		#endregion
 
 		/// <summary>

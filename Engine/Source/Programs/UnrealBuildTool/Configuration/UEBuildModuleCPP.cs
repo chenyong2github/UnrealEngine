@@ -62,18 +62,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The directory for this module's generated UHT code
 		/// </summary>
-		public DirectoryReference? GeneratedCodeDirectoryUHT
-		{
-			get { return GeneratedCodeDirectory != null ? DirectoryReference.Combine(GeneratedCodeDirectory!, "UHT") : null; }
-		}
+		public DirectoryReference? GeneratedCodeDirectoryUHT => GeneratedCodeDirectory != null ? DirectoryReference.Combine(GeneratedCodeDirectory!, "UHT") : null;
 
 		/// <summary>
 		/// The directory for this module's generated VNI code
 		/// </summary>
-		public DirectoryReference? GeneratedCodeDirectoryVNI
-		{
-			get { return GeneratedCodeDirectory != null ? DirectoryReference.Combine(GeneratedCodeDirectory!, "VNI") : null; }
-		}
+		public DirectoryReference? GeneratedCodeDirectoryVNI => GeneratedCodeDirectory != null ? DirectoryReference.Combine(GeneratedCodeDirectory!, "VNI") : null;
 
 		/// <summary>
 		/// Global override to force all include paths to be always added
@@ -103,10 +97,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The Verse source code directory associated with this module if any
 		/// </summary>
-		public override DirectoryReference? VerseDirectory
-		{
-			get { return AssociatedVerseDirectory; }
-		}
+		public override DirectoryReference? VerseDirectory => AssociatedVerseDirectory;
 
 		protected override void GetReferencedDirectories(HashSet<DirectoryReference> Directories)
 		{
@@ -315,10 +306,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Path to the precompiled manifest location
 		/// </summary>
-		public virtual FileReference PrecompiledManifestLocation
-		{
-			get { return FileReference.Combine(IntermediateDirectoryNoArch, String.Format("{0}.precompiled", Name)); }
-		}
+		public virtual FileReference PrecompiledManifestLocation => FileReference.Combine(IntermediateDirectoryNoArch, String.Format("{0}.precompiled", Name));
 
 		/// <summary>
 		/// Sets up the environment for compiling any module that includes the public interface of this module.

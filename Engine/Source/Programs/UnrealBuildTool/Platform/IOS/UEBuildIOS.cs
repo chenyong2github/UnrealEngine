@@ -172,75 +172,33 @@ namespace UnrealBuildTool
 		/// </summary>
 		#region Read-only accessor properties 
 #pragma warning disable CS1591
-		public bool bStripSymbols
-		{
-			get { return Inner.bStripSymbols; }
-		}
-			
-		public bool bGenerateFrameworkWrapperProject
-		{
-			get { return Inner.bGenerateFrameworkWrapperProject; }
-		}
+		public bool bStripSymbols => Inner.bStripSymbols;
 
-		public bool bGeneratedSYM
-		{
-			get { return Inner.bGeneratedSYM; }
-		}
+		public bool bGenerateFrameworkWrapperProject => Inner.bGenerateFrameworkWrapperProject;
 
-		public bool bCreateStubIPA
-		{
-			get { return Inner.bCreateStubIPA; }
-		}
+		public bool bGeneratedSYM => Inner.bGeneratedSYM;
 
-		public bool bSkipCrashlytics
-		{
-			get { return Inner.bSkipCrashlytics; }
-		}
+		public bool bCreateStubIPA => Inner.bCreateStubIPA;
 
-		public bool bSkipClangValidation
-		{
-			get { return Inner.bSkipClangValidation; }
-		}
+		public bool bSkipCrashlytics => Inner.bSkipCrashlytics;
 
-		public bool bForDistribution
-		{
-			get { return Inner.bForDistribution; }
-		}
+		public bool bSkipClangValidation => Inner.bSkipClangValidation;
 
-		public string? ImportProvision
-		{
-			get { return Inner.ImportProvision; }
-		}
+		public bool bForDistribution => Inner.bForDistribution;
 
-		public string? ImportCertificate
-		{
-			get { return Inner.ImportCertificate; }
-		}
+		public string? ImportProvision => Inner.ImportProvision;
 
-		public string? ImportCertificatePassword
-		{
-			get { return Inner.ImportCertificatePassword; }
-		}
+		public string? ImportCertificate => Inner.ImportCertificate;
 
-		public float RuntimeVersion
-		{
-			get { return float.Parse(Inner.ProjectSettings!.RuntimeVersion, System.Globalization.CultureInfo.InvariantCulture); }
-		}
+		public string? ImportCertificatePassword => Inner.ImportCertificatePassword;
 
-		public bool bEnableAddressSanitizer
-		{
-			get { return Inner.bEnableAddressSanitizer; }
-		}
+		public float RuntimeVersion => float.Parse(Inner.ProjectSettings!.RuntimeVersion, System.Globalization.CultureInfo.InvariantCulture);
 
-		public bool bEnableThreadSanitizer
-		{
-			get { return Inner.bEnableThreadSanitizer; }
-		}
+		public bool bEnableAddressSanitizer => Inner.bEnableAddressSanitizer;
 
-		public bool bEnableUndefinedBehaviorSanitizer
-		{
-			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
-		}
+		public bool bEnableThreadSanitizer => Inner.bEnableThreadSanitizer;
+
+		public bool bEnableUndefinedBehaviorSanitizer => Inner.bEnableUndefinedBehaviorSanitizer;
 
 #pragma warning restore CS1591
 		#endregion
@@ -480,10 +438,7 @@ namespace UnrealBuildTool
 		public string? BundleIdentifier;
 		public bool bHaveCertificate = false;
 
-		public string? MobileProvision
-		{
-			get => MobileProvisionFile?.GetFileName();
-		}
+		public string? MobileProvision => MobileProvisionFile?.GetFileName();
 
 		public IOSProvisioningData(IOSProjectSettings ProjectSettings, bool bForDistribution, ILogger Logger)
 			: this(ProjectSettings, false, bForDistribution, Logger)
@@ -1289,10 +1244,7 @@ namespace UnrealBuildTool
 
 	class IOSPlatformFactory : UEBuildPlatformFactory
 	{
-		public override UnrealTargetPlatform TargetPlatform
-		{
-			get { return UnrealTargetPlatform.IOS; }
-		}
+		public override UnrealTargetPlatform TargetPlatform => UnrealTargetPlatform.IOS;
 
 		/// <summary>
 		/// Register the platform with the UEBuildPlatform class

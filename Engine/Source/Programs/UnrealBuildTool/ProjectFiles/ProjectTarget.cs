@@ -20,10 +20,7 @@ namespace UnrealBuildTool
 		/// Delegate for creating a rules instance for a given platform/configuration
 		public Func<UnrealTargetPlatform, UnrealTargetConfiguration, TargetRules> CreateRulesDelegate;
 
-		public string Name
-		{
-			get { return TargetFilePath.GetFileNameWithoutAnyExtensions(); }
-		}
+		public string Name => TargetFilePath.GetFileNameWithoutAnyExtensions();
 
 		public override string ToString()
 		{

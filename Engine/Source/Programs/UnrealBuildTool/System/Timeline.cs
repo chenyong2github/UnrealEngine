@@ -100,10 +100,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Property for the total time elapsed
 		/// </summary>
-		public static TimeSpan Elapsed
-		{
-			get { return Stopwatch.Elapsed; }
-		}
+		public static TimeSpan Elapsed => Stopwatch.Elapsed;
 
 		/// <summary>
 		/// Start the stopwatch

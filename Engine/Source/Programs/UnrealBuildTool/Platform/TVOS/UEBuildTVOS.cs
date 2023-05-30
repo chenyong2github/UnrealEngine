@@ -12,10 +12,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// which devices the game is allowed to run on
 		/// </summary>
-		public override string RuntimeDevices
-		{
-			get { return "3"; }
-		}
+		public override string RuntimeDevices => "3";
 
 		public TVOSProjectSettings(FileReference? ProjectFile, String? Bundle)
 			: base(ProjectFile, UnrealTargetPlatform.TVOS, Bundle)
@@ -127,10 +124,7 @@ namespace UnrealBuildTool
 
 	class TVOSPlatformFactory : UEBuildPlatformFactory
 	{
-		public override UnrealTargetPlatform TargetPlatform
-		{
-			get { return UnrealTargetPlatform.TVOS; }
-		}
+		public override UnrealTargetPlatform TargetPlatform => UnrealTargetPlatform.TVOS;
 
 		/// <summary>
 		/// Register the platform with the UEBuildPlatform class

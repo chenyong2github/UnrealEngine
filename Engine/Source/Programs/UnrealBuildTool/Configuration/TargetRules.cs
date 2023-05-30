@@ -427,10 +427,7 @@ namespace UnrealBuildTool
 
 				return DefaultName;
 			}
-			set
-			{
-				NameOverride = value;
-			}
+			set => NameOverride = value;
 		}
 
 		/// <summary>
@@ -454,10 +451,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether this is a low level tests target.
 		/// </summary>
-		public bool IsTestTarget
-		{
-			get { return bIsTestTargetOverride; }
-		}
+		public bool IsTestTarget => bIsTestTargetOverride;
 		/// <summary>
 		/// Override this boolean flag in inheriting classes for low level test targets.
 		/// </summary>
@@ -468,21 +462,12 @@ namespace UnrealBuildTool
 		/// Explicitley defined test targets always inherit from TestTargetRules and define their own tests.
 		/// Implicit test targets are created from existing targets when building with -Mode=Test and they include tests from all dependencies.
 		/// </summary>
-		public bool ExplicitTestsTarget
-		{
-			get { return GetType().IsSubclassOf(typeof(TestTargetRules)); }
-		}
+		public bool ExplicitTestsTarget => GetType().IsSubclassOf(typeof(TestTargetRules));
 
 		/// <summary>
 		/// Controls the value of WITH_LOW_LEVEL_TESTS that dictates whether module-specific low level tests are compiled in or not.
 		/// </summary>
-		public bool WithLowLevelTests
-		{
-			get
-			{
-				return (IsTestTarget && !ExplicitTestsTarget) || bWithLowLevelTestsOverride;
-			}
-		}
+		public bool WithLowLevelTests => (IsTestTarget && !ExplicitTestsTarget) || bWithLowLevelTestsOverride;
 		/// <summary>
 		/// Override the value of WithLowLevelTests by setting this to true in inherited classes.
 		/// </summary>
@@ -558,8 +543,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public BuildSettingsVersion DefaultBuildSettings
 		{
-			get { return DefaultBuildSettingsPrivate ?? BuildSettingsVersion.V1; }
-			set { DefaultBuildSettingsPrivate = value; }
+			get => DefaultBuildSettingsPrivate ?? BuildSettingsVersion.V1;
+			set => DefaultBuildSettingsPrivate = value;
 		}
 		private BuildSettingsVersion? DefaultBuildSettingsPrivate; // Cannot be initialized inline; potentially overridden before the constructor is called.
 
@@ -582,7 +567,7 @@ namespace UnrealBuildTool
 				}
 				return IncludeOrderVersionPrivate ?? EngineIncludeOrderVersion.Oldest;
 			}
-			set { IncludeOrderVersionPrivate = value; }
+			set => IncludeOrderVersionPrivate = value;
 		}
 		private EngineIncludeOrderVersion? IncludeOrderVersionPrivate;
 
@@ -648,8 +633,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bAllowHotReload
 		{
-			get { return bAllowHotReloadOverride ?? (Type == TargetType.Editor && LinkType == TargetLinkType.Modular); }
-			set { bAllowHotReloadOverride = value; }
+			get => bAllowHotReloadOverride ?? (Type == TargetType.Editor && LinkType == TargetLinkType.Modular);
+			set => bAllowHotReloadOverride = value;
 		}
 		private bool? bAllowHotReloadOverride;
 
@@ -905,7 +890,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bUseGameplayDebuggerCore
 		{
-			get { return (UseGameplayDebuggerOverride == GameplayDebuggerOverrideState.Core) || bUseGameplayDebugger; }
+			get => (UseGameplayDebuggerOverride == GameplayDebuggerOverrideState.Core) || bUseGameplayDebugger;
 			set
 			{
 				if (UseGameplayDebuggerOverride != GameplayDebuggerOverrideState.Full)
@@ -929,8 +914,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bBuildEditor
 		{
-			get { return (Type == TargetType.Editor || bCompileAgainstEditor); }
-			set { Logger.LogWarning("Setting {Type}.bBuildEditor is deprecated. Set {Type}.Type instead.", GetType().Name); }
+			get => (Type == TargetType.Editor || bCompileAgainstEditor);
+			set => Logger.LogWarning("Setting {Type}.bBuildEditor is deprecated. Set {Type}.Type instead.", GetType().Name);
 		}
 
 		/// <summary>
@@ -939,8 +924,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bBuildRequiresCookedData
 		{
-			get { return bBuildRequiresCookedDataOverride ?? (Type == TargetType.Game || Type == TargetType.Client || Type == TargetType.Server); }
-			set { bBuildRequiresCookedDataOverride = value; }
+			get => bBuildRequiresCookedDataOverride ?? (Type == TargetType.Game || Type == TargetType.Client || Type == TargetType.Server);
+			set => bBuildRequiresCookedDataOverride = value;
 		}
 		bool? bBuildRequiresCookedDataOverride;
 
@@ -950,8 +935,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bBuildWithEditorOnlyData
 		{
-			get { return bBuildWithEditorOnlyDataOverride ?? (Type == TargetType.Editor || Type == TargetType.Program); }
-			set { bBuildWithEditorOnlyDataOverride = value; }
+			get => bBuildWithEditorOnlyDataOverride ?? (Type == TargetType.Editor || Type == TargetType.Program);
+			set => bBuildWithEditorOnlyDataOverride = value;
 		}
 		private bool? bBuildWithEditorOnlyDataOverride;
 
@@ -966,8 +951,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bBuildDeveloperTools
 		{
-			set { bBuildDeveloperToolsOverride = value; }
-			get { return bBuildDeveloperToolsOverride ?? (bCompileAgainstEngine && (Type == TargetType.Editor || Type == TargetType.Program || (Configuration != UnrealTargetConfiguration.Test && Configuration != UnrealTargetConfiguration.Shipping))); }
+			set => bBuildDeveloperToolsOverride = value;
+			get => bBuildDeveloperToolsOverride ?? (bCompileAgainstEngine && (Type == TargetType.Editor || Type == TargetType.Program || (Configuration != UnrealTargetConfiguration.Test && Configuration != UnrealTargetConfiguration.Shipping)));
 		}
 
 		/// <summary>
@@ -981,8 +966,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bBuildTargetDeveloperTools
 		{
-			set { bBuildTargetDeveloperToolsOverride = value; }
-			get { return bBuildTargetDeveloperToolsOverride ?? bBuildDeveloperTools; }
+			set => bBuildTargetDeveloperToolsOverride = value;
+			get => bBuildTargetDeveloperToolsOverride ?? bBuildDeveloperTools;
 		}
 
 		/// <summary>
@@ -1005,8 +990,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bNeedsExtraShaderFormats
 		{
-			set { bNeedsExtraShaderFormatsOverride = value; }
-			get { return bNeedsExtraShaderFormatsOverride ?? (bForceBuildShaderFormats || bBuildDeveloperTools) && (Type == TargetType.Editor || Type == TargetType.Program); }
+			set => bNeedsExtraShaderFormatsOverride = value;
+			get => bNeedsExtraShaderFormatsOverride ?? (bForceBuildShaderFormats || bBuildDeveloperTools) && (Type == TargetType.Editor || Type == TargetType.Program);
 		}
 
 		/// <summary>
@@ -1029,8 +1014,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public virtual bool bCompileAgainstEngine
 		{
-			get { return bCompileAgainstEnginePrivate; }
-			set { bCompileAgainstEnginePrivate = value; }
+			get => bCompileAgainstEnginePrivate;
+			set => bCompileAgainstEnginePrivate = value;
 		}
 		private bool bCompileAgainstEnginePrivate = true;
 
@@ -1040,8 +1025,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public virtual bool bCompileAgainstCoreUObject
 		{
-			get { return bCompileAgainstCoreUObjectPrivate; }
-			set { bCompileAgainstCoreUObjectPrivate = value; }
+			get => bCompileAgainstCoreUObjectPrivate;
+			set => bCompileAgainstCoreUObjectPrivate = value;
 		}
 		private bool bCompileAgainstCoreUObjectPrivate = true;
 
@@ -1052,8 +1037,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public virtual bool bCompileAgainstApplicationCore
 		{
-			get { return bCompileAgainstApplicationCorePrivate; }
-			set { bCompileAgainstApplicationCorePrivate = value; }
+			get => bCompileAgainstApplicationCorePrivate;
+			set => bCompileAgainstApplicationCorePrivate = value;
 		}
 		private bool bCompileAgainstApplicationCorePrivate = true;
 
@@ -1069,8 +1054,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public virtual bool bCompileAgainstEditor
 		{
-			set { bCompileAgainstEditorOverride = value; }
-			get { return bCompileAgainstEditorOverride ?? (Type == TargetType.Editor); }
+			set => bCompileAgainstEditorOverride = value;
+			get => bCompileAgainstEditorOverride ?? (Type == TargetType.Editor);
 		}
 
 		/// <summary>
@@ -1104,8 +1089,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bCompileSpeedTree
 		{
-			set { bOverrideCompileSpeedTree = value; }
-			get { return bOverrideCompileSpeedTree ?? Type == TargetType.Editor; }
+			set => bOverrideCompileSpeedTree = value;
+			get => bOverrideCompileSpeedTree ?? Type == TargetType.Editor;
 		}
 
 		/// <summary>
@@ -1152,8 +1137,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bWithServerCode
 		{
-			get { return bWithServerCodeOverride ?? (Type != TargetType.Client); }
-			set { bWithServerCodeOverride = value; }
+			get => bWithServerCodeOverride ?? (Type != TargetType.Client);
+			set => bWithServerCodeOverride = value;
 		}
 		private bool? bWithServerCodeOverride;
 
@@ -1165,8 +1150,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bFNameOutlineNumber
 		{
-			get { return bFNameOutlineNumberOverride ?? false;  }
-			set { bFNameOutlineNumberOverride = value;  }
+			get => bFNameOutlineNumberOverride ?? false;
+			set => bFNameOutlineNumberOverride = value;
 		}
 		private bool? bFNameOutlineNumberOverride;
 
@@ -1178,14 +1163,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bWithPushModel
 		{
-			get
-			{
-				return bWithPushModelOverride ?? (Type == TargetType.Editor);
-			}
-			set
-			{
-				bWithPushModelOverride = value;
-			}
+			get => bWithPushModelOverride ?? (Type == TargetType.Editor);
+			set => bWithPushModelOverride = value;
 		}
 		private bool? bWithPushModelOverride;
 
@@ -1208,8 +1187,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bIncludePluginsForTargetPlatforms
 		{
-			get { return bIncludePluginsForTargetPlatformsOverride ?? (Type == TargetType.Editor); }
-			set { bIncludePluginsForTargetPlatformsOverride = value; }
+			get => bIncludePluginsForTargetPlatformsOverride ?? (Type == TargetType.Editor);
+			set => bIncludePluginsForTargetPlatformsOverride = value;
 		}
 		private bool? bIncludePluginsForTargetPlatformsOverride;
 
@@ -1225,8 +1204,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
         public bool bWithPerfCounters
 		{
-			get { return bWithPerfCountersOverride ?? (Type == TargetType.Editor || Type == TargetType.Server); }
-			set { bWithPerfCountersOverride = value; }
+			get => bWithPerfCountersOverride ?? (Type == TargetType.Editor || Type == TargetType.Server);
+			set => bWithPerfCountersOverride = value;
 		}
 
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bWithPerfCounters")]
@@ -1238,8 +1217,8 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bWithLiveCoding
 		{
-			get { return bWithLiveCodingPrivate ?? (Platform == UnrealTargetPlatform.Win64 && Architecture.bIsX64 && Configuration != UnrealTargetConfiguration.Shipping && Configuration != UnrealTargetConfiguration.Test && Type != TargetType.Program); }
-			set { bWithLiveCodingPrivate = value; }
+			get => bWithLiveCodingPrivate ?? (Platform == UnrealTargetPlatform.Win64 && Architecture.bIsX64 && Configuration != UnrealTargetConfiguration.Shipping && Configuration != UnrealTargetConfiguration.Test && Type != TargetType.Program);
+			set => bWithLiveCodingPrivate = value;
 		}
 		bool? bWithLiveCodingPrivate;
 
@@ -1387,8 +1366,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bHasExports
 		{
-			get { return bHasExportsOverride ?? (LinkType == TargetLinkType.Modular); }
-			set { bHasExportsOverride = value; }
+			get => bHasExportsOverride ?? (LinkType == TargetLinkType.Modular);
+			set => bHasExportsOverride = value;
 		}
 		private bool? bHasExportsOverride;
 
@@ -1414,8 +1393,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bBuildAdditionalConsoleApp
 		{
-			get { return bBuildAdditionalConsoleAppOverride ?? (Type == TargetType.Editor); }
-			set { bBuildAdditionalConsoleAppOverride = value; }
+			get => bBuildAdditionalConsoleAppOverride ?? (Type == TargetType.Editor);
+			set => bBuildAdditionalConsoleAppOverride = value;
 		}
 		private bool? bBuildAdditionalConsoleAppOverride;
 
@@ -1429,8 +1408,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bUseUnityBuild
 		{
-			get { return bUseUnityBuildOverride ?? !bEnableCppModules; }
-			set { bUseUnityBuildOverride = value; }
+			get => bUseUnityBuildOverride ?? !bEnableCppModules;
+			set => bUseUnityBuildOverride = value;
 		}
 
 		/// <summary>
@@ -1493,8 +1472,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bAdaptiveUnityDisablesPCHForProject
 		{
-			get { return bAdaptiveUnityDisablesProjectPCHForProjectPrivate ?? bAdaptiveUnityDisablesPCH; }
-			set { bAdaptiveUnityDisablesProjectPCHForProjectPrivate = value; }
+			get => bAdaptiveUnityDisablesProjectPCHForProjectPrivate ?? bAdaptiveUnityDisablesPCH;
+			set => bAdaptiveUnityDisablesProjectPCHForProjectPrivate = value;
 		}
 
 		/// <summary>
@@ -1612,12 +1591,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bRetainFramePointers
 		{
-			get 
-			{
+			get =>
 				// Default to disabled on Linux to maintain legacy behavior
-				return bRetainFramePointersOverride ?? Platform.IsInGroup(UnrealPlatformGroup.Linux) == false;
-			}
-			set { bRetainFramePointersOverride = value; }
+				bRetainFramePointersOverride ?? Platform.IsInGroup(UnrealPlatformGroup.Linux) == false;
+			set => bRetainFramePointersOverride = value;
 		}
 
 		/// <summary>
@@ -2071,8 +2048,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bLegacyPublicIncludePaths
 		{
-			get { return bLegacyPublicIncludePathsPrivate ?? (DefaultBuildSettings < BuildSettingsVersion.V2); }
-			set { bLegacyPublicIncludePathsPrivate = value; }
+			get => bLegacyPublicIncludePathsPrivate ?? (DefaultBuildSettings < BuildSettingsVersion.V2);
+			set => bLegacyPublicIncludePathsPrivate = value;
 		}
 		private bool? bLegacyPublicIncludePathsPrivate;
 
@@ -2081,8 +2058,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bLegacyParentIncludePaths
 		{
-			get { return bLegacyParentIncludePathsPrivate ?? (DefaultBuildSettings < BuildSettingsVersion.V3); }
-			set { bLegacyParentIncludePathsPrivate = value; }
+			get => bLegacyParentIncludePathsPrivate ?? (DefaultBuildSettings < BuildSettingsVersion.V3);
+			set => bLegacyParentIncludePathsPrivate = value;
 		}
 		private bool? bLegacyParentIncludePathsPrivate;
 
@@ -2129,14 +2106,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public TargetLinkType LinkType
 		{
-			get
-			{
-				return (LinkTypePrivate != TargetLinkType.Default) ? LinkTypePrivate : ((Type == global::UnrealBuildTool.TargetType.Editor) ? TargetLinkType.Modular : TargetLinkType.Monolithic);
-			}
-			set
-			{
-				LinkTypePrivate = value;
-			}
+			get => (LinkTypePrivate != TargetLinkType.Default) ? LinkTypePrivate : ((Type == global::UnrealBuildTool.TargetType.Editor) ? TargetLinkType.Modular : TargetLinkType.Monolithic);
+			set => LinkTypePrivate = value;
 		}
 
 		/// <summary>
@@ -2165,14 +2136,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public string? LaunchModuleName
 		{
-			get
-			{
-				return (LaunchModuleNamePrivate == null && Type != global::UnrealBuildTool.TargetType.Program) ? "Launch" : LaunchModuleNamePrivate;
-			}
-			set
-			{
-				LaunchModuleNamePrivate = value;
-			}
+			get => (LaunchModuleNamePrivate == null && Type != global::UnrealBuildTool.TargetType.Program) ? "Launch" : LaunchModuleNamePrivate;
+			set => LaunchModuleNamePrivate = value;
 		}
 
 		/// <summary>
@@ -2216,7 +2181,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if(BuildEnvironmentOverride.HasValue)
+				if (BuildEnvironmentOverride.HasValue)
 				{
 					return BuildEnvironmentOverride.Value;
 				}
@@ -2233,10 +2198,7 @@ namespace UnrealBuildTool
 					return TargetBuildEnvironment.Unique;
 				}
 			}
-			set
-			{
-				BuildEnvironmentOverride = value;
-			}
+			set => BuildEnvironmentOverride = value;
 		}
 
 		/// <summary>
@@ -2684,39 +2646,24 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the host platform being built on
 		/// </summary>
-		public UnrealTargetPlatform HostPlatform
-		{
-			get { return BuildHostPlatform.Current.Platform; }
-		}
+		public UnrealTargetPlatform HostPlatform => BuildHostPlatform.Current.Platform;
 
 		/// <summary>
 		/// Expose the bGenerateProjectFiles flag to targets, so we can modify behavior as appropriate for better intellisense
 		/// </summary>
-		public bool bGenerateProjectFiles
-		{
-			get { return ProjectFileGenerator.bGenerateProjectFiles; }
-		}
+		public bool bGenerateProjectFiles => ProjectFileGenerator.bGenerateProjectFiles;
 
 		/// <summary>
 		/// Indicates whether target rules should be used to explicitly enable or disable plugins. Usually not needed for project generation unless project files indicate whether referenced plugins should be built or not.
 		/// </summary>
-		public bool bShouldTargetRulesTogglePlugins
-		{
-			get
-			{
-				return ((ProjectFileGenerator.Current != null) && ProjectFileGenerator.Current.ShouldTargetRulesTogglePlugins())
+		public bool bShouldTargetRulesTogglePlugins => ((ProjectFileGenerator.Current != null) && ProjectFileGenerator.Current.ShouldTargetRulesTogglePlugins())
 					|| ((ProjectFileGenerator.Current == null) && !ProjectFileGenerator.bGenerateProjectFiles);
-			}
-		}
 
 		/// <summary>
 		/// Expose a setting for whether or not the engine is installed
 		/// </summary>
 		/// <returns>Flag for whether the engine is installed</returns>
-		public bool bIsEngineInstalled
-		{
-			get { return Unreal.IsEngineInstalled(); }
-		}
+		public bool bIsEngineInstalled => Unreal.IsEngineInstalled();
 
 		/// <summary>
 		/// Gets diagnostic messages about default settings which have changed in newer versions of the engine
@@ -2806,1152 +2753,471 @@ namespace UnrealBuildTool
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>
 		#region Read-only accessor properties
-		#pragma warning disable CS1591
+#pragma warning disable CS1591
 
-		public string Name
-		{
-			get { return Inner.Name; }
-		}
+		public string Name => Inner.Name;
 
 		public string OriginalName => Inner.OriginalName;
 
-		internal FileReference File
-		{
-			get { return Inner.File!; }
-		}
+		internal FileReference File => Inner.File!;
 
-		internal FileReference TargetSourceFile 
-		{
-			get { return Inner.TargetSourceFile!; }
-		}
+		internal FileReference TargetSourceFile => Inner.TargetSourceFile!;
 
-		internal IReadOnlySet<FileReference> TargetFiles
-		{
-			get { return Inner.TargetFiles!; }
-		}
+		internal IReadOnlySet<FileReference> TargetFiles => Inner.TargetFiles!;
 
-		public object? AdditionalData
-		{
-			get { return Inner.AdditionalData; }
-		}
+		public object? AdditionalData => Inner.AdditionalData;
 
-		public UnrealTargetPlatform Platform
-		{
-			get { return Inner.Platform; }
-		}
+		public UnrealTargetPlatform Platform => Inner.Platform;
 
-		public UnrealTargetConfiguration Configuration
-		{
-			get { return Inner.Configuration; }
-		}
+		public UnrealTargetConfiguration Configuration => Inner.Configuration;
 
-		public UnrealArchitectures Architectures
-		{
-			get { return Inner.Architectures; }
-		}
+		public UnrealArchitectures Architectures => Inner.Architectures;
 
-		public UnrealArch Architecture
-		{
-			get { return Inner.Architecture; }
-		}
+		public UnrealArch Architecture => Inner.Architecture;
 
-		public FileReference? ProjectFile
-		{
-			get { return Inner.ProjectFile; }
-		}
+		public FileReference? ProjectFile => Inner.ProjectFile;
 
-		public ReadOnlyBuildVersion Version
-		{
-			get { return Inner.Version; }
-		}
+		public ReadOnlyBuildVersion Version => Inner.Version;
 
-		public TargetType Type
-		{
-			get { return Inner.Type; }
-		}
+		public TargetType Type => Inner.Type;
 
 		/// <inheritdoc cref="TargetRules.Logger"/>
 		public ILogger Logger => Inner.Logger;
 
-		public BuildSettingsVersion DefaultBuildSettings
-		{
-			get { return Inner.DefaultBuildSettings; }
-		}
+		public BuildSettingsVersion DefaultBuildSettings => Inner.DefaultBuildSettings;
 
-		public EngineIncludeOrderVersion? ForcedIncludeOrder
-		{
-			get { return Inner.ForcedIncludeOrder; }
-		}
+		public EngineIncludeOrderVersion? ForcedIncludeOrder => Inner.ForcedIncludeOrder;
 
-		public EngineIncludeOrderVersion IncludeOrderVersion
-		{
-			get { return Inner.IncludeOrderVersion; }
-		}
+		public EngineIncludeOrderVersion IncludeOrderVersion => Inner.IncludeOrderVersion;
 
-		internal ConfigValueTracker ConfigValueTracker
-		{
-			get { return Inner.ConfigValueTracker; }
-		}
+		internal ConfigValueTracker ConfigValueTracker => Inner.ConfigValueTracker;
 
-		public string? OutputFile
-		{
-			get { return Inner.OutputFile; }
-		}
+		public string? OutputFile => Inner.OutputFile;
 
-		public bool bUsesSteam
-		{
-			get { return Inner.bUsesSteam; }
-		}
+		public bool bUsesSteam => Inner.bUsesSteam;
 
-		public bool bUsesCEF3
-		{
-			get { return Inner.bUsesCEF3; }
-		}
+		public bool bUsesCEF3 => Inner.bUsesCEF3;
 
-		public bool bUsesSlate
-		{
-			get { return Inner.bUsesSlate; }
-		}
+		public bool bUsesSlate => Inner.bUsesSlate;
 
-		public bool bUseStaticCRT
-		{
-			get { return Inner.bUseStaticCRT; }
-		}
+		public bool bUseStaticCRT => Inner.bUseStaticCRT;
 
-		public bool bDebugBuildsActuallyUseDebugCRT
-		{
-			get { return Inner.bDebugBuildsActuallyUseDebugCRT; }
-		}
+		public bool bDebugBuildsActuallyUseDebugCRT => Inner.bDebugBuildsActuallyUseDebugCRT;
 
-		public bool bLegalToDistributeBinary
-		{
-			get { return Inner.bLegalToDistributeBinary; }
-		}
+		public bool bLegalToDistributeBinary => Inner.bLegalToDistributeBinary;
 
-		public UnrealTargetConfiguration UndecoratedConfiguration
-		{
-			get { return Inner.UndecoratedConfiguration; }
-		}
+		public UnrealTargetConfiguration UndecoratedConfiguration => Inner.UndecoratedConfiguration;
 
-		public bool bAllowHotReload
-		{
-			get { return Inner.bAllowHotReload; }
-		}
+		public bool bAllowHotReload => Inner.bAllowHotReload;
 
-		public bool bBuildAllModules
-		{
-			get { return Inner.bBuildAllModules; }
-		}
+		public bool bBuildAllModules => Inner.bBuildAllModules;
 
-		public IEnumerable<string> AdditionalPlugins
-		{
-			get { return Inner.AdditionalPlugins; }
-		}
+		public IEnumerable<string> AdditionalPlugins => Inner.AdditionalPlugins;
 
-		public IEnumerable<string> EnablePlugins
-		{
-			get { return Inner.EnablePlugins; }
-		}
+		public IEnumerable<string> EnablePlugins => Inner.EnablePlugins;
 
-		public IEnumerable<string> DisablePlugins
-		{
-			get { return Inner.DisablePlugins; }
-		}
+		public IEnumerable<string> DisablePlugins => Inner.DisablePlugins;
 
-		public WarningLevel DisablePluginsConflictWarningLevel
-		{
-			get { return Inner.DisablePluginsConflictWarningLevel; }
-		}
+		public WarningLevel DisablePluginsConflictWarningLevel => Inner.DisablePluginsConflictWarningLevel;
 
-		public IEnumerable<string> BuildPlugins
-		{
-			get { return Inner.BuildPlugins; }
-		}
+		public IEnumerable<string> BuildPlugins => Inner.BuildPlugins;
 
-		public IEnumerable<string> InternalPluginDependencies
-		{
-			get { return Inner.InternalPluginDependencies; }
-		}
-		public bool bRuntimeDependenciesComeFromBuildPlugins
-		{
-			get { return Inner.bRuntimeDependenciesComeFromBuildPlugins; }
-		}
+		public IEnumerable<string> InternalPluginDependencies => Inner.InternalPluginDependencies;
+		public bool bRuntimeDependenciesComeFromBuildPlugins => Inner.bRuntimeDependenciesComeFromBuildPlugins;
 
-		public string PakSigningKeysFile
-		{
-			get { return Inner.PakSigningKeysFile; }
-		}
+		public string PakSigningKeysFile => Inner.PakSigningKeysFile;
 
-		public string SolutionDirectory
-		{
-			get { return Inner.SolutionDirectory; }
-		}
+		public string SolutionDirectory => Inner.SolutionDirectory;
 
-		public string CustomConfig
-		{
-			get { return Inner.CustomConfig; }
-		}
+		public string CustomConfig => Inner.CustomConfig;
 
-		public bool? bBuildInSolutionByDefault
-		{
-			get { return Inner.bBuildInSolutionByDefault; }
-		}
+		public bool? bBuildInSolutionByDefault => Inner.bBuildInSolutionByDefault;
 
-		public string ExeBinariesSubFolder
-		{
-			get { return Inner.ExeBinariesSubFolder; }
-		}
+		public string ExeBinariesSubFolder => Inner.ExeBinariesSubFolder;
 
-		public EGeneratedCodeVersion GeneratedCodeVersion
-		{
-			get { return Inner.GeneratedCodeVersion; }
-		}
-		public bool bEnableMeshEditor
-		{
-			get { return Inner.bEnableMeshEditor; }
-		}
+		public EGeneratedCodeVersion GeneratedCodeVersion => Inner.GeneratedCodeVersion;
+		public bool bEnableMeshEditor => Inner.bEnableMeshEditor;
 
-		public bool bUseVerse
-		{
-			get { return Inner.bUseVerse; }
-		}
+		public bool bUseVerse => Inner.bUseVerse;
 
-		public bool bUseAutoRTFMCompiler
-		{
-			get { return Inner.bUseAutoRTFMCompiler; }
-		}
+		public bool bUseAutoRTFMCompiler => Inner.bUseAutoRTFMCompiler;
 
 		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
-		public bool bCompileChaos
-		{
-			get { return Inner.bCompileChaos; }
-		}
+		public bool bCompileChaos => Inner.bCompileChaos;
 
 		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
-		public bool bUseChaos
-		{
-			get { return Inner.bUseChaos; }
-		}
+		public bool bUseChaos => Inner.bUseChaos;
 
-		public bool bUseChaosMemoryTracking
-		{
-			get { return Inner.bUseChaosMemoryTracking; }
-		}
+		public bool bUseChaosMemoryTracking => Inner.bUseChaosMemoryTracking;
 
-		public bool bCompileChaosVisualDebuggerSupport
-		{
-			get { return Inner.bCompileChaosVisualDebuggerSupport; }
-		}
+		public bool bCompileChaosVisualDebuggerSupport => Inner.bCompileChaosVisualDebuggerSupport;
 
-		public bool bUseChaosChecked
-		{
-			get { return Inner.bUseChaosChecked; }
-		}
+		public bool bUseChaosChecked => Inner.bUseChaosChecked;
 
 		[Obsolete("Deprecated in UE5.1 - No longer used in engine.")]
-		public bool bCustomSceneQueryStructure
-		{
-			get { return Inner.bCustomSceneQueryStructure; }
-		}
+		public bool bCustomSceneQueryStructure => Inner.bCustomSceneQueryStructure;
 
 		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
-		public bool bCompilePhysX
-		{
-			get { return Inner.bCompilePhysX; }
-		}
+		public bool bCompilePhysX => Inner.bCompilePhysX;
 
 		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
-		public bool bCompileAPEX
-		{
-			get { return Inner.bCompileAPEX; }
-		}
+		public bool bCompileAPEX => Inner.bCompileAPEX;
 
 		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
-		public bool bCompileNvCloth
-		{
-			get { return Inner.bCompileNvCloth; }
-		}
+		public bool bCompileNvCloth => Inner.bCompileNvCloth;
 
-		public bool bCompileICU
-		{
-			get { return Inner.bCompileICU; }
-		}
+		public bool bCompileICU => Inner.bCompileICU;
 
-		public bool bCompileCEF3
-		{
-			get { return Inner.bCompileCEF3; }
-		}
+		public bool bCompileCEF3 => Inner.bCompileCEF3;
 
-		public bool bCompileISPC
-		{
-			get { return Inner.bCompileISPC; }
-		}
+		public bool bCompileISPC => Inner.bCompileISPC;
 
-		public bool bUseGameplayDebugger
-		{
-			get { return Inner.bUseGameplayDebugger; }
-		}
+		public bool bUseGameplayDebugger => Inner.bUseGameplayDebugger;
 
-		public bool bUseGameplayDebuggerCore
-		{
-			get { return Inner.bUseGameplayDebuggerCore; }
-		}
+		public bool bUseGameplayDebuggerCore => Inner.bUseGameplayDebuggerCore;
 
-		public bool bUseIris
-		{
-			get { return Inner.bUseIris; }
-		}
+		public bool bUseIris => Inner.bUseIris;
 
-		public bool bCompileIntelMetricsDiscovery
-		{
-			get { return Inner.bCompileIntelMetricsDiscovery; }
-		}
-		
-		public bool bCompilePython
-		{
-			get { return Inner.bCompilePython; }
-		}
+		public bool bCompileIntelMetricsDiscovery => Inner.bCompileIntelMetricsDiscovery;
 
-		public bool bBuildEditor
-		{
-			get { return Inner.bBuildEditor; }
-		}
+		public bool bCompilePython => Inner.bCompilePython;
 
-		public bool bBuildRequiresCookedData
-		{
-			get { return Inner.bBuildRequiresCookedData; }
-		}
+		public bool bBuildEditor => Inner.bBuildEditor;
 
-		public bool bBuildWithEditorOnlyData
-		{
-			get { return Inner.bBuildWithEditorOnlyData; }
-		}
+		public bool bBuildRequiresCookedData => Inner.bBuildRequiresCookedData;
 
-		public bool bBuildDeveloperTools
-		{
-			get { return Inner.bBuildDeveloperTools; }
-		}
+		public bool bBuildWithEditorOnlyData => Inner.bBuildWithEditorOnlyData;
 
-		public bool bBuildTargetDeveloperTools
-		{
-			get { return Inner.bBuildTargetDeveloperTools; }
-		}
+		public bool bBuildDeveloperTools => Inner.bBuildDeveloperTools;
 
-		public bool bForceBuildTargetPlatforms
-		{
-			get { return Inner.bForceBuildTargetPlatforms; }
-		}
+		public bool bBuildTargetDeveloperTools => Inner.bBuildTargetDeveloperTools;
 
-		public bool bForceBuildShaderFormats
-		{
-			get { return Inner.bForceBuildShaderFormats; }
-		}
+		public bool bForceBuildTargetPlatforms => Inner.bForceBuildTargetPlatforms;
 
-		public bool bNeedsExtraShaderFormats
-		{
-			get { return Inner.bNeedsExtraShaderFormats; }
-		}
+		public bool bForceBuildShaderFormats => Inner.bForceBuildShaderFormats;
 
-		public bool bCompileCustomSQLitePlatform
-		{
-			get { return Inner.bCompileCustomSQLitePlatform; }
-		}
+		public bool bNeedsExtraShaderFormats => Inner.bNeedsExtraShaderFormats;
 
-		public bool bUseCacheFreedOSAllocs
-		{
-			get { return Inner.bUseCacheFreedOSAllocs; }
-		}
+		public bool bCompileCustomSQLitePlatform => Inner.bCompileCustomSQLitePlatform;
 
-		public bool bCompileAgainstEngine
-		{
-			get { return Inner.bCompileAgainstEngine; }
-		}
+		public bool bUseCacheFreedOSAllocs => Inner.bUseCacheFreedOSAllocs;
 
-		public bool bCompileAgainstCoreUObject
-		{
-			get { return Inner.bCompileAgainstCoreUObject; }
-		}
+		public bool bCompileAgainstEngine => Inner.bCompileAgainstEngine;
 
-		public bool bCompileAgainstApplicationCore
-		{
-			get { return Inner.bCompileAgainstApplicationCore; }
-		}
+		public bool bCompileAgainstCoreUObject => Inner.bCompileAgainstCoreUObject;
 
-		public bool bCompileAgainstEditor
-		{
-			get { return Inner.bCompileAgainstEditor; }
-		}
+		public bool bCompileAgainstApplicationCore => Inner.bCompileAgainstApplicationCore;
 
-		public bool bCompileRecast
-		{
-			get { return Inner.bCompileRecast; }
-		}
+		public bool bCompileAgainstEditor => Inner.bCompileAgainstEditor;
 
-		public bool bCompileNavmeshSegmentLinks
-		{
-			get { return Inner.bCompileNavmeshSegmentLinks; }
-		}
+		public bool bCompileRecast => Inner.bCompileRecast;
 
-		public bool bCompileNavmeshClusterLinks
-		{
-			get { return Inner.bCompileNavmeshClusterLinks; }
-		}
+		public bool bCompileNavmeshSegmentLinks => Inner.bCompileNavmeshSegmentLinks;
 
-		public bool bCompileSpeedTree
-		{
-			get { return Inner.bCompileSpeedTree; }
-		}
+		public bool bCompileNavmeshClusterLinks => Inner.bCompileNavmeshClusterLinks;
 
-		public bool bForceEnableExceptions
-		{
-			get { return Inner.bForceEnableExceptions; }
-		}
+		public bool bCompileSpeedTree => Inner.bCompileSpeedTree;
 
-		public bool bForceEnableObjCExceptions
-		{
-			get { return Inner.bForceEnableObjCExceptions; }
-		}
+		public bool bForceEnableExceptions => Inner.bForceEnableExceptions;
 
-		public bool bForceEnableRTTI
-		{
-			get { return Inner.bForceEnableRTTI; }
-		}
+		public bool bForceEnableObjCExceptions => Inner.bForceEnableObjCExceptions;
 
-		public bool bEnablePIE
-		{
-			get { return Inner.bEnablePIE; }
-		}
+		public bool bForceEnableRTTI => Inner.bForceEnableRTTI;
 
-		public bool bEnableStackProtection
-		{
-			get { return Inner.bEnableStackProtection; }
-		}
+		public bool bEnablePIE => Inner.bEnablePIE;
 
-		public bool bUseInlining
-		{
-			get { return Inner.bUseInlining; }
-		}
+		public bool bEnableStackProtection => Inner.bEnableStackProtection;
 
-		public bool bWithServerCode
-		{
-			get { return Inner.bWithServerCode; }
-		}
+		public bool bUseInlining => Inner.bUseInlining;
 
-		public bool bFNameOutlineNumber
-		{
-			get { return Inner.bFNameOutlineNumber;  }
-		}
+		public bool bWithServerCode => Inner.bWithServerCode;
 
-		public bool bWithPushModel
-		{
-			get { return Inner.bWithPushModel; }
-		}
+		public bool bFNameOutlineNumber => Inner.bFNameOutlineNumber;
 
-		public bool bCompileWithStatsWithoutEngine
-		{
-			get { return Inner.bCompileWithStatsWithoutEngine; }
-		}
+		public bool bWithPushModel => Inner.bWithPushModel;
 
-		public bool bCompileWithPluginSupport
-		{
-			get { return Inner.bCompileWithPluginSupport; }
-		}
+		public bool bCompileWithStatsWithoutEngine => Inner.bCompileWithStatsWithoutEngine;
 
-		public bool bIncludePluginsForTargetPlatforms
-		{
-			get { return Inner.bIncludePluginsForTargetPlatforms; }
-		}
+		public bool bCompileWithPluginSupport => Inner.bCompileWithPluginSupport;
 
-		public bool bCompileWithAccessibilitySupport
-		{
-			get { return Inner.bCompileWithAccessibilitySupport; }
-		}
+		public bool bIncludePluginsForTargetPlatforms => Inner.bIncludePluginsForTargetPlatforms;
 
-		public bool bWithPerfCounters
-		{
-			get { return Inner.bWithPerfCounters; }
-		}
+		public bool bCompileWithAccessibilitySupport => Inner.bCompileWithAccessibilitySupport;
 
-		public bool bWithLiveCoding
-		{
-			get { return Inner.bWithLiveCoding; }
-		}
+		public bool bWithPerfCounters => Inner.bWithPerfCounters;
 
-		public bool bUseDebugLiveCodingConsole
-		{
-			get { return Inner.bUseDebugLiveCodingConsole; }
-		}
+		public bool bWithLiveCoding => Inner.bWithLiveCoding;
 
-		public bool bWithDirectXMath
-		{
-			get { return Inner.bWithDirectXMath; }
-		}
+		public bool bUseDebugLiveCodingConsole => Inner.bUseDebugLiveCodingConsole;
 
-		public bool bWithFixedTimeStepSupport
-		{
-			get { return Inner.bWithFixedTimeStepSupport; }
-		}
+		public bool bWithDirectXMath => Inner.bWithDirectXMath;
 
-		public bool bUseLoggingInShipping
-		{
-			get { return Inner.bUseLoggingInShipping; }
-		}
+		public bool bWithFixedTimeStepSupport => Inner.bWithFixedTimeStepSupport;
 
-		public bool bLoggingToMemoryEnabled
-		{
-			get { return Inner.bLoggingToMemoryEnabled; }
-		}
+		public bool bUseLoggingInShipping => Inner.bUseLoggingInShipping;
 
-		public bool bUseLauncherChecks
-		{
-			get { return Inner.bUseLauncherChecks; }
-		}
+		public bool bLoggingToMemoryEnabled => Inner.bLoggingToMemoryEnabled;
 
-		public bool bUseChecksInShipping
-		{
-			get { return Inner.bUseChecksInShipping; }
-		}
+		public bool bUseLauncherChecks => Inner.bUseLauncherChecks;
 
-		public bool bTCHARIsUTF8
-		{
-			get { return Inner.bTCHARIsUTF8; }
-		}
+		public bool bUseChecksInShipping => Inner.bUseChecksInShipping;
 
-		public bool bUseEstimatedUtcNow
-		{
-			get { return Inner.bUseEstimatedUtcNow; }
-		}
+		public bool bTCHARIsUTF8 => Inner.bTCHARIsUTF8;
 
-		public bool bCompileFreeType
-		{
-			get { return Inner.bCompileFreeType; }
-		}
+		public bool bUseEstimatedUtcNow => Inner.bUseEstimatedUtcNow;
 
-		public bool bUseExecCommandsInShipping
-		{
-			get { return Inner.bUseExecCommandsInShipping; }
-		}
+		public bool bCompileFreeType => Inner.bCompileFreeType;
+
+		public bool bUseExecCommandsInShipping => Inner.bUseExecCommandsInShipping;
 
 		[Obsolete("Deprecated in UE5.1 - Please use OptimizationLevel instead.")]
-		public bool bCompileForSize
-		{
-			get { return Inner.bCompileForSize; }
-		}
-
-		public OptimizationMode OptimizationLevel
-		{
-			get { return Inner.OptimizationLevel; }
-		}
-
-		public bool bRetainFramePointers
-		{
-			get { return Inner.bRetainFramePointers; }
-		}
-
-		public bool bForceCompileDevelopmentAutomationTests
-		{
-			get { return Inner.bForceCompileDevelopmentAutomationTests; }
-		}
-
-		public bool bForceCompilePerformanceAutomationTests
-		{
-			get { return Inner.bForceCompilePerformanceAutomationTests; }
-		}
-
-		public bool bForceDisableAutomationTests
-		{
-			get { return Inner.bForceDisableAutomationTests; }
-		}
-
-		public bool bUseXGEController
-		{
-			get { return Inner.bUseXGEController; }
-		}
-
-		public bool bEventDrivenLoader
-		{
-			get { return Inner.bEventDrivenLoader; }
-		}
-
-		public PointerMemberBehavior? NativePointerMemberBehaviorOverride
-		{
-			get { return Inner.NativePointerMemberBehaviorOverride; }
-		}
-
-		public bool bIWYU
-		{
-			get { return Inner.bIWYU; }
-		}
-
-		public bool bIWYUHeadersOnly
-		{
-			get { return Inner.bIWYUHeadersOnly; }
-		}
-
-		public bool bEnforceIWYU
-		{
-			get { return Inner.bEnforceIWYU; }
-		}
-
-		public bool bWarnAboutMonolithicHeadersIncluded
-		{
-			get { return Inner.bWarnAboutMonolithicHeadersIncluded; }
-		}
-
-		public bool bHasExports
-		{
-			get { return Inner.bHasExports; }
-		}
-
-		public bool bPrecompile
-		{
-			get { return Inner.bPrecompile; }
-		}
-
-		public bool bEnableOSX109Support
-		{
-			get { return Inner.bEnableOSX109Support; }
-		}
-
-		public bool bIsBuildingConsoleApplication
-		{
-			get { return Inner.bIsBuildingConsoleApplication; }
-		}
-
-		public bool bBuildAdditionalConsoleApp
-		{
-			get { return Inner.bBuildAdditionalConsoleApp; }
-		}
-
-		public bool bDisableSymbolCache
-		{
-			get { return Inner.bDisableSymbolCache; }
-		}
-
-		public bool bUseUnityBuild
-		{
-			get { return Inner.bUseUnityBuild; }
-		}
-
-		public bool bForceUnityBuild
-		{
-			get { return Inner.bForceUnityBuild; }
-		}
-
-		public IReadOnlyList<string>? DisableMergingModuleAndGeneratedFilesInUnityFiles
-		{
-			get { return Inner.DisableMergingModuleAndGeneratedFilesInUnityFiles; }
-		}
-
-		public bool bAdaptiveUnityDisablesOptimizations
-		{
-			get { return Inner.bAdaptiveUnityDisablesOptimizations; }
-		}
-
-		public bool bAdaptiveUnityDisablesPCH
-		{
-			get { return Inner.bAdaptiveUnityDisablesPCH; }
-		}
-
-		public bool bAdaptiveUnityDisablesPCHForProject
-		{
-			get { return Inner.bAdaptiveUnityDisablesPCHForProject; }
-		}
-
-		public bool bAdaptiveUnityCreatesDedicatedPCH
-		{
-			get { return Inner.bAdaptiveUnityCreatesDedicatedPCH; }
-		}
-
-		public bool bAdaptiveUnityEnablesEditAndContinue
-		{
-			get { return Inner.bAdaptiveUnityEnablesEditAndContinue; }
-		}
-
-		public bool bAdaptiveUnityCompilesHeaderFiles
-		{
-			get { return Inner.bAdaptiveUnityCompilesHeaderFiles; }
-		}
-
-		public int MinGameModuleSourceFilesForUnityBuild
-		{
-			get { return Inner.MinGameModuleSourceFilesForUnityBuild; }
-		}
-
-		public WarningLevel DefaultWarningLevel
-		{
-			get { return Inner.DefaultWarningLevel; }
-		}
-
-		public WarningLevel DeprecationWarningLevel
-		{
-			get { return Inner.DeprecationWarningLevel; }
-		}
-
-		public WarningLevel ShadowVariableWarningLevel
-		{
-			get { return Inner.ShadowVariableWarningLevel; }
-		}
-
-		public WarningLevel UnsafeTypeCastWarningLevel
-		{
-			get { return Inner.UnsafeTypeCastWarningLevel; }
-		}
-
-		public bool bUndefinedIdentifierErrors
-		{
-			get { return Inner.bUndefinedIdentifierErrors; }
-		}
-
-		public WarningLevel PCHPerformanceIssueWarningLevel
-		{
-			get { return Inner.PCHPerformanceIssueWarningLevel; }
-		}
-
-		public WarningLevel ModuleIncludePathWarningLevel
-		{
-			get { return Inner.ModuleIncludePathWarningLevel; }
-		}
-
-		public WarningLevel ModuleIncludePrivateWarningLevel
-		{
-			get { return Inner.ModuleIncludePrivateWarningLevel; }
-		}
-
-		public WarningLevel ModuleIncludeSubdirectoryWarningLevel
-		{
-			get { return Inner.ModuleIncludeSubdirectoryWarningLevel; }
-		}
-
-		public bool bWarningsAsErrors
-		{
-			get { return Inner.bWarningsAsErrors; }
-		}
-
-		public bool bUseFastMonoCalls
-		{
-			get { return Inner.bUseFastMonoCalls; }
-		}
-
-		public int NumIncludedBytesPerUnityCPP
-		{
-			get { return Inner.NumIncludedBytesPerUnityCPP; }
-		}
-
-		public bool bDisableModuleNumIncludedBytesPerUnityCPPOverride
-		{
-			get { return Inner.bDisableModuleNumIncludedBytesPerUnityCPPOverride; }
-		}
-
-		public bool bStressTestUnity
-		{
-			get { return Inner.bStressTestUnity; }
-		}
-
-		public bool bDetailedUnityFiles
-		{
-			get { return Inner.bDetailedUnityFiles; }
-		}
-
-		public bool bDisableDebugInfo
-		{
-			get { return Inner.bDisableDebugInfo; }
-		}
-
-		public bool bDisableDebugInfoForGeneratedCode
-		{
-			get { return Inner.bDisableDebugInfoForGeneratedCode; }
-		}
-
-		public bool bOmitPCDebugInfoInDevelopment
-		{
-			get { return Inner.bOmitPCDebugInfoInDevelopment; }
-		}
-
-		public bool bUsePDBFiles
-		{
-			get { return Inner.bUsePDBFiles; }
-		}
-
-		public bool bUsePCHFiles
-		{
-			get { return Inner.bUsePCHFiles; }
-		}
-
-		public bool bDeterministic
-		{
-			get { return Inner.bDeterministic; }
-		}
-		public bool bChainPCHs
-		{
-			get { return Inner.bChainPCHs; }
-		}
-
-		public bool bForceIncludePCHHeadersForGenCppFilesWhenPCHIsDisabled
-		{
-			get { return Inner.bForceIncludePCHHeadersForGenCppFilesWhenPCHIsDisabled; }
-		}
-
-		public bool bPreprocessOnly
-		{
-			get { return Inner.bPreprocessOnly; }
-		}
-
-		public bool bPreprocessDepends
-		{
-			get { return Inner.bPreprocessDepends; }
-		}
-
-		public bool bWithAssembly
-		{
-			get { return Inner.bWithAssembly; }
-		}
-
-		public StaticAnalyzer StaticAnalyzer
-		{
-			get { return Inner.StaticAnalyzer; }
-		}
-
-		public StaticAnalyzerOutputType StaticAnalyzerOutputType
-		{
-			get { return Inner.StaticAnalyzerOutputType; }
-		}
-
-		public StaticAnalyzerMode StaticAnalyzerMode
-		{
-			get { return Inner.StaticAnalyzerMode; }
-		}
-
-		public int MinFilesUsingPrecompiledHeader
-		{
-			get { return Inner.MinFilesUsingPrecompiledHeader; }
-		}
-
-		public bool bForcePrecompiledHeaderForGameModules
-		{
-			get { return Inner.bForcePrecompiledHeaderForGameModules; }
-		}
-
-		public bool bUseIncrementalLinking
-		{
-			get { return Inner.bUseIncrementalLinking; }
-		}
-
-		public bool bAllowLTCG
-		{
-			get { return Inner.bAllowLTCG; }
-		}
-
-		public bool bPreferThinLTO
-		{
-			get { return Inner.bPreferThinLTO; }
-		}
-
-		public bool bPGOProfile
-		{
-			get { return Inner.bPGOProfile; }
-		}
-
-		public bool bPGOOptimize
-		{
-			get { return Inner.bPGOOptimize; }
-		}
-
-		public bool bSupportEditAndContinue
-		{
-			get { return Inner.bSupportEditAndContinue; }
-		}
-
-		public bool bOmitFramePointers
-		{
-			get { return Inner.bOmitFramePointers; }
-		}
-
-		public bool bEnableCppModules
-		{
-			get { return Inner.bEnableCppModules; }
-		}
-
-		public bool bEnableCppCoroutinesForEvaluation
-		{
-			get { return Inner.bEnableCppCoroutinesForEvaluation; }
-		}
-
-		public bool bEnableProcessPriorityControl
-		{
-			get { return Inner.bEnableProcessPriorityControl; }
-		}
+		public bool bCompileForSize => Inner.bCompileForSize;
+
+		public OptimizationMode OptimizationLevel => Inner.OptimizationLevel;
+
+		public bool bRetainFramePointers => Inner.bRetainFramePointers;
+
+		public bool bForceCompileDevelopmentAutomationTests => Inner.bForceCompileDevelopmentAutomationTests;
+
+		public bool bForceCompilePerformanceAutomationTests => Inner.bForceCompilePerformanceAutomationTests;
+
+		public bool bForceDisableAutomationTests => Inner.bForceDisableAutomationTests;
+
+		public bool bUseXGEController => Inner.bUseXGEController;
+
+		public bool bEventDrivenLoader => Inner.bEventDrivenLoader;
+
+		public PointerMemberBehavior? NativePointerMemberBehaviorOverride => Inner.NativePointerMemberBehaviorOverride;
+
+		public bool bIWYU => Inner.bIWYU;
+
+		public bool bIWYUHeadersOnly => Inner.bIWYUHeadersOnly;
+
+		public bool bEnforceIWYU => Inner.bEnforceIWYU;
+
+		public bool bWarnAboutMonolithicHeadersIncluded => Inner.bWarnAboutMonolithicHeadersIncluded;
+
+		public bool bHasExports => Inner.bHasExports;
+
+		public bool bPrecompile => Inner.bPrecompile;
+
+		public bool bEnableOSX109Support => Inner.bEnableOSX109Support;
+
+		public bool bIsBuildingConsoleApplication => Inner.bIsBuildingConsoleApplication;
+
+		public bool bBuildAdditionalConsoleApp => Inner.bBuildAdditionalConsoleApp;
+
+		public bool bDisableSymbolCache => Inner.bDisableSymbolCache;
+
+		public bool bUseUnityBuild => Inner.bUseUnityBuild;
+
+		public bool bForceUnityBuild => Inner.bForceUnityBuild;
+
+		public IReadOnlyList<string>? DisableMergingModuleAndGeneratedFilesInUnityFiles => Inner.DisableMergingModuleAndGeneratedFilesInUnityFiles;
+
+		public bool bAdaptiveUnityDisablesOptimizations => Inner.bAdaptiveUnityDisablesOptimizations;
+
+		public bool bAdaptiveUnityDisablesPCH => Inner.bAdaptiveUnityDisablesPCH;
+
+		public bool bAdaptiveUnityDisablesPCHForProject => Inner.bAdaptiveUnityDisablesPCHForProject;
+
+		public bool bAdaptiveUnityCreatesDedicatedPCH => Inner.bAdaptiveUnityCreatesDedicatedPCH;
+
+		public bool bAdaptiveUnityEnablesEditAndContinue => Inner.bAdaptiveUnityEnablesEditAndContinue;
+
+		public bool bAdaptiveUnityCompilesHeaderFiles => Inner.bAdaptiveUnityCompilesHeaderFiles;
+
+		public int MinGameModuleSourceFilesForUnityBuild => Inner.MinGameModuleSourceFilesForUnityBuild;
+
+		public WarningLevel DefaultWarningLevel => Inner.DefaultWarningLevel;
+
+		public WarningLevel DeprecationWarningLevel => Inner.DeprecationWarningLevel;
+
+		public WarningLevel ShadowVariableWarningLevel => Inner.ShadowVariableWarningLevel;
+
+		public WarningLevel UnsafeTypeCastWarningLevel => Inner.UnsafeTypeCastWarningLevel;
+
+		public bool bUndefinedIdentifierErrors => Inner.bUndefinedIdentifierErrors;
+
+		public WarningLevel PCHPerformanceIssueWarningLevel => Inner.PCHPerformanceIssueWarningLevel;
+
+		public WarningLevel ModuleIncludePathWarningLevel => Inner.ModuleIncludePathWarningLevel;
+
+		public WarningLevel ModuleIncludePrivateWarningLevel => Inner.ModuleIncludePrivateWarningLevel;
+
+		public WarningLevel ModuleIncludeSubdirectoryWarningLevel => Inner.ModuleIncludeSubdirectoryWarningLevel;
+
+		public bool bWarningsAsErrors => Inner.bWarningsAsErrors;
+
+		public bool bUseFastMonoCalls => Inner.bUseFastMonoCalls;
+
+		public int NumIncludedBytesPerUnityCPP => Inner.NumIncludedBytesPerUnityCPP;
+
+		public bool bDisableModuleNumIncludedBytesPerUnityCPPOverride => Inner.bDisableModuleNumIncludedBytesPerUnityCPPOverride;
+
+		public bool bStressTestUnity => Inner.bStressTestUnity;
+
+		public bool bDetailedUnityFiles => Inner.bDetailedUnityFiles;
+
+		public bool bDisableDebugInfo => Inner.bDisableDebugInfo;
+
+		public bool bDisableDebugInfoForGeneratedCode => Inner.bDisableDebugInfoForGeneratedCode;
+
+		public bool bOmitPCDebugInfoInDevelopment => Inner.bOmitPCDebugInfoInDevelopment;
+
+		public bool bUsePDBFiles => Inner.bUsePDBFiles;
+
+		public bool bUsePCHFiles => Inner.bUsePCHFiles;
+
+		public bool bDeterministic => Inner.bDeterministic;
+		public bool bChainPCHs => Inner.bChainPCHs;
+
+		public bool bForceIncludePCHHeadersForGenCppFilesWhenPCHIsDisabled => Inner.bForceIncludePCHHeadersForGenCppFilesWhenPCHIsDisabled;
+
+		public bool bPreprocessOnly => Inner.bPreprocessOnly;
+
+		public bool bPreprocessDepends => Inner.bPreprocessDepends;
+
+		public bool bWithAssembly => Inner.bWithAssembly;
+
+		public StaticAnalyzer StaticAnalyzer => Inner.StaticAnalyzer;
+
+		public StaticAnalyzerOutputType StaticAnalyzerOutputType => Inner.StaticAnalyzerOutputType;
+
+		public StaticAnalyzerMode StaticAnalyzerMode => Inner.StaticAnalyzerMode;
+
+		public int MinFilesUsingPrecompiledHeader => Inner.MinFilesUsingPrecompiledHeader;
+
+		public bool bForcePrecompiledHeaderForGameModules => Inner.bForcePrecompiledHeaderForGameModules;
+
+		public bool bUseIncrementalLinking => Inner.bUseIncrementalLinking;
+
+		public bool bAllowLTCG => Inner.bAllowLTCG;
+
+		public bool bPreferThinLTO => Inner.bPreferThinLTO;
+
+		public bool bPGOProfile => Inner.bPGOProfile;
+
+		public bool bPGOOptimize => Inner.bPGOOptimize;
+
+		public bool bSupportEditAndContinue => Inner.bSupportEditAndContinue;
+
+		public bool bOmitFramePointers => Inner.bOmitFramePointers;
+
+		public bool bEnableCppModules => Inner.bEnableCppModules;
+
+		public bool bEnableCppCoroutinesForEvaluation => Inner.bEnableCppCoroutinesForEvaluation;
+
+		public bool bEnableProcessPriorityControl => Inner.bEnableProcessPriorityControl;
 
 		[Obsolete("Deprecated in UE5.3 - No longer used as MallocProfiler is removed in favor of UnrealInsights.")]
-		public bool bUseMallocProfiler
-		{
-			get { return Inner.bUseMallocProfiler; }
-		}
+		public bool bUseMallocProfiler => Inner.bUseMallocProfiler;
 
-		public bool bShaderCompilerWorkerTrace
-        {
-			get { return Inner.bShaderCompilerWorkerTrace;  }
-        }
+		public bool bShaderCompilerWorkerTrace => Inner.bShaderCompilerWorkerTrace;
 
-		public bool bUseSharedPCHs
-		{
-			get { return Inner.bUseSharedPCHs; }
-		}
+		public bool bUseSharedPCHs => Inner.bUseSharedPCHs;
 
-		public bool bUseShippingPhysXLibraries
-		{
-			get { return Inner.bUseShippingPhysXLibraries; }
-		}
+		public bool bUseShippingPhysXLibraries => Inner.bUseShippingPhysXLibraries;
 
-		public bool bUseCheckedPhysXLibraries
-		{
-			get { return Inner.bUseCheckedPhysXLibraries; }
-		}
+		public bool bUseCheckedPhysXLibraries => Inner.bUseCheckedPhysXLibraries;
 
-		public bool bCheckLicenseViolations
-		{
-			get { return Inner.bCheckLicenseViolations; }
-		}
+		public bool bCheckLicenseViolations => Inner.bCheckLicenseViolations;
 
-		public bool bBreakBuildOnLicenseViolation
-		{
-			get { return Inner.bBreakBuildOnLicenseViolation; }
-		}
+		public bool bBreakBuildOnLicenseViolation => Inner.bBreakBuildOnLicenseViolation;
 
-		public bool? bUseFastPDBLinking
-		{
-			get { return Inner.bUseFastPDBLinking; }
-		}
+		public bool? bUseFastPDBLinking => Inner.bUseFastPDBLinking;
 
-		public bool bCreateMapFile
-		{
-			get { return Inner.bCreateMapFile; }
-		}
+		public bool bCreateMapFile => Inner.bCreateMapFile;
 
-		public bool bAllowRuntimeSymbolFiles
-		{
-			get { return Inner.bAllowRuntimeSymbolFiles; }
-		}
+		public bool bAllowRuntimeSymbolFiles => Inner.bAllowRuntimeSymbolFiles;
 
-		public string? PackagePath
-		{
-			get { return Inner.PackagePath; }
-		}
+		public string? PackagePath => Inner.PackagePath;
 
-		public string? CrashDiagnosticDirectory
-		{
-			get { return Inner.CrashDiagnosticDirectory; }
-		}
+		public string? CrashDiagnosticDirectory => Inner.CrashDiagnosticDirectory;
 
-		public string? ThinLTOCacheDirectory
-		{
-			get { return Inner.ThinLTOCacheDirectory; }
-		}
+		public string? ThinLTOCacheDirectory => Inner.ThinLTOCacheDirectory;
 
-		public string? ThinLTOCachePruningArguments
-		{
-			get { return Inner.ThinLTOCachePruningArguments; }
-		}
+		public string? ThinLTOCachePruningArguments => Inner.ThinLTOCachePruningArguments;
 
-		public string? BundleVersion
-		{
-			get { return Inner.BundleVersion; }
-		}
+		public string? BundleVersion => Inner.BundleVersion;
 
-		public bool bDeployAfterCompile
-		{
-			get { return Inner.bDeployAfterCompile; }
-		}
+		public bool bDeployAfterCompile => Inner.bDeployAfterCompile;
 
-		public bool bAllowRemotelyCompiledPCHs
-		{
-			get { return Inner.bAllowRemotelyCompiledPCHs; }
-		}
+		public bool bAllowRemotelyCompiledPCHs => Inner.bAllowRemotelyCompiledPCHs;
 
-		public bool bCheckSystemHeadersForModification
-		{
-			get { return Inner.bCheckSystemHeadersForModification; }
-		}
+		public bool bCheckSystemHeadersForModification => Inner.bCheckSystemHeadersForModification;
 
-		public bool bDisableLinking
-		{
-			get { return Inner.bDisableLinking; }
-		}
+		public bool bDisableLinking => Inner.bDisableLinking;
 
-		public bool bIgnoreBuildOutputs
-		{
-			get { return Inner.bIgnoreBuildOutputs; }
-		}
+		public bool bIgnoreBuildOutputs => Inner.bIgnoreBuildOutputs;
 
-		public bool bFormalBuild
-		{
-			get { return Inner.bFormalBuild; }
-		}
+		public bool bFormalBuild => Inner.bFormalBuild;
 
-		public bool bUseAdaptiveUnityBuild
-		{
-			get { return Inner.bUseAdaptiveUnityBuild; }
-		}
+		public bool bUseAdaptiveUnityBuild => Inner.bUseAdaptiveUnityBuild;
 
-		public bool bFlushBuildDirOnRemoteMac
-		{
-			get { return Inner.bFlushBuildDirOnRemoteMac; }
-		}
+		public bool bFlushBuildDirOnRemoteMac => Inner.bFlushBuildDirOnRemoteMac;
 
-		public bool bPrintToolChainTimingInfo
-		{
-			get { return Inner.bPrintToolChainTimingInfo; }
-		}
+		public bool bPrintToolChainTimingInfo => Inner.bPrintToolChainTimingInfo;
 
-		public bool bParseTimingInfoForTracing
-		{
-			get { return Inner.bParseTimingInfoForTracing; }
-		}
+		public bool bParseTimingInfoForTracing => Inner.bParseTimingInfoForTracing;
 
-		public bool bPublicSymbolsByDefault
-		{
-			get { return Inner.bPublicSymbolsByDefault; }
-		}
+		public bool bPublicSymbolsByDefault => Inner.bPublicSymbolsByDefault;
 
-		public string? ToolChainName
-		{
-			get { return Inner.ToolChainName; }
-		}
+		public string? ToolChainName => Inner.ToolChainName;
 
-		public float MSVCCompileActionWeight
-		{
-			get { return Inner.MSVCCompileActionWeight; }
-		}
+		public float MSVCCompileActionWeight => Inner.MSVCCompileActionWeight;
 
-		public float ClangCompileActionWeight
-		{
-			get { return Inner.ClangCompileActionWeight; }
-		}
+		public float ClangCompileActionWeight => Inner.ClangCompileActionWeight;
 
-		public bool bLegacyPublicIncludePaths
-		{
-			get { return Inner.bLegacyPublicIncludePaths; }
-		}
+		public bool bLegacyPublicIncludePaths => Inner.bLegacyPublicIncludePaths;
 
-		public bool bLegacyParentIncludePaths
-		{
-			get { return Inner.bLegacyParentIncludePaths; }
-		}
+		public bool bLegacyParentIncludePaths => Inner.bLegacyParentIncludePaths;
 
-		public CppStandardVersion CppStandard
-		{
-			get { return Inner.CppStandard; }
-		}
+		public CppStandardVersion CppStandard => Inner.CppStandard;
 
-		public CStandardVersion CStandard
-		{
-			get { return Inner.CStandard; }
-		}
+		public CStandardVersion CStandard => Inner.CStandard;
 
-		public MinimumCpuArchitectureX64 MinCpuArchX64
-		{
-			get { return Inner.MinCpuArchX64; }
-		}
+		public MinimumCpuArchitectureX64 MinCpuArchX64 => Inner.MinCpuArchX64;
 
-		internal bool bNoManifestChanges
-		{
-			get { return Inner.bNoManifestChanges; }
-		}
+		internal bool bNoManifestChanges => Inner.bNoManifestChanges;
 
-		public string? BuildVersion
-		{
-			get { return Inner.BuildVersion; }
-		}
+		public string? BuildVersion => Inner.BuildVersion;
 
-		public TargetLinkType LinkType
-		{
-			get { return Inner.LinkType; }
-		}
+		public TargetLinkType LinkType => Inner.LinkType;
 
-		public IReadOnlyList<string> GlobalDefinitions
-		{
-			get { return Inner.GlobalDefinitions.AsReadOnly(); }
-		}
+		public IReadOnlyList<string> GlobalDefinitions => Inner.GlobalDefinitions.AsReadOnly();
 
-		public IReadOnlyList<string> ProjectDefinitions
-		{
-			get { return Inner.ProjectDefinitions.AsReadOnly(); }
-		}
+		public IReadOnlyList<string> ProjectDefinitions => Inner.ProjectDefinitions.AsReadOnly();
 
-		public string? LaunchModuleName
-		{
-			get { return Inner.LaunchModuleName; }
-		}
+		public string? LaunchModuleName => Inner.LaunchModuleName;
 
-		public string? ExportPublicHeader
-		{
-			get { return Inner.ExportPublicHeader; }
-		}
+		public string? ExportPublicHeader => Inner.ExportPublicHeader;
 
-		public IReadOnlyList<string> ExtraModuleNames
-		{
-			get { return Inner.ExtraModuleNames.AsReadOnly(); }
-		}
+		public IReadOnlyList<string> ExtraModuleNames => Inner.ExtraModuleNames.AsReadOnly();
 
-		public IReadOnlyList<FileReference> ManifestFileNames
-		{
-			get { return Inner.ManifestFileNames.AsReadOnly(); }
-		}
+		public IReadOnlyList<FileReference> ManifestFileNames => Inner.ManifestFileNames.AsReadOnly();
 
-		public IReadOnlyList<FileReference> DependencyListFileNames
-		{
-			get { return Inner.DependencyListFileNames.AsReadOnly(); }
-		}
+		public IReadOnlyList<FileReference> DependencyListFileNames => Inner.DependencyListFileNames.AsReadOnly();
 
-		public TargetBuildEnvironment BuildEnvironment
-		{
-			get { return Inner.BuildEnvironment; }
-		}
+		public TargetBuildEnvironment BuildEnvironment => Inner.BuildEnvironment;
 
-		public bool bOverrideBuildEnvironment
-		{
-			get { return Inner.bOverrideBuildEnvironment; }
-		}
+		public bool bOverrideBuildEnvironment => Inner.bOverrideBuildEnvironment;
 
-		public IReadOnlyList<TargetInfo> PreBuildTargets
-		{
-			get { return Inner.PreBuildTargets; }
-		}
+		public IReadOnlyList<TargetInfo> PreBuildTargets => Inner.PreBuildTargets;
 
-		public IReadOnlyList<string> PreBuildSteps
-		{
-			get { return Inner.PreBuildSteps; }
-		}
+		public IReadOnlyList<string> PreBuildSteps => Inner.PreBuildSteps;
 
-		public IReadOnlyList<string> PostBuildSteps
-		{
-			get { return Inner.PostBuildSteps; }
-		}
+		public IReadOnlyList<string> PostBuildSteps => Inner.PostBuildSteps;
 
-		public IReadOnlyList<string> AdditionalBuildProducts
-		{
-			get { return Inner.AdditionalBuildProducts; }
-		}
+		public IReadOnlyList<string> AdditionalBuildProducts => Inner.AdditionalBuildProducts;
 
-		public string? AdditionalCompilerArguments
-		{
-			get { return Inner.AdditionalCompilerArguments; }
-		}
+		public string? AdditionalCompilerArguments => Inner.AdditionalCompilerArguments;
 
-		public string? AdditionalLinkerArguments
-		{
-			get { return Inner.AdditionalLinkerArguments; }
-		}
+		public string? AdditionalLinkerArguments => Inner.AdditionalLinkerArguments;
 
-		public double MemoryPerActionGB
-		{
-			get { return Inner.MemoryPerActionGB; }
-		}
+		public double MemoryPerActionGB => Inner.MemoryPerActionGB;
 
-		public string? GeneratedProjectName
-		{
-			get { return Inner.GeneratedProjectName; }
-		}
+		public string? GeneratedProjectName => Inner.GeneratedProjectName;
 
 		public ReadOnlyAndroidTargetRules AndroidPlatform
 		{
@@ -3983,56 +3249,26 @@ namespace UnrealBuildTool
 			private set;
 		}
 
-		public bool bShouldCompileAsDLL
-		{
-			get { return Inner.bShouldCompileAsDLL; }
-		}
+		public bool bShouldCompileAsDLL => Inner.bShouldCompileAsDLL;
 
-		public bool bGenerateProjectFiles
-		{
-			get { return Inner.bGenerateProjectFiles; }
-		}
+		public bool bGenerateProjectFiles => Inner.bGenerateProjectFiles;
 
-		public bool bIsEngineInstalled
-		{
-			get { return Inner.bIsEngineInstalled; }
-		}
+		public bool bIsEngineInstalled => Inner.bIsEngineInstalled;
 
 
-		public IReadOnlyList<string>? DisableUnityBuildForModules
-		{
-			get { return Inner.DisableUnityBuildForModules; }
-		}
+		public IReadOnlyList<string>? DisableUnityBuildForModules => Inner.DisableUnityBuildForModules;
 
-		public IReadOnlyList<string>? EnableOptimizeCodeForModules
-		{
-			get { return Inner.EnableOptimizeCodeForModules; }
-		}
+		public IReadOnlyList<string>? EnableOptimizeCodeForModules => Inner.EnableOptimizeCodeForModules;
 
-		public IReadOnlyList<string>? DisableOptimizeCodeForModules
-		{
-			get { return Inner.DisableOptimizeCodeForModules; }
-		}
+		public IReadOnlyList<string>? DisableOptimizeCodeForModules => Inner.DisableOptimizeCodeForModules;
 
-		public IReadOnlyList<string>? OptimizeForSizeModules
-		{
-			get { return Inner.OptimizeForSizeModules; }
-		}
+		public IReadOnlyList<string>? OptimizeForSizeModules => Inner.OptimizeForSizeModules;
 
-		public IReadOnlyList<string>? OptimizeForSizeAndSpeedModules
-		{
-			get { return Inner.OptimizeForSizeAndSpeedModules; }
-		}
+		public IReadOnlyList<string>? OptimizeForSizeAndSpeedModules => Inner.OptimizeForSizeAndSpeedModules;
 
-		public IReadOnlyList<UnrealTargetPlatform>? OptedInModulePlatforms
-		{
-			get { return Inner.OptedInModulePlatforms; } 
-		}
+		public IReadOnlyList<UnrealTargetPlatform>? OptedInModulePlatforms => Inner.OptedInModulePlatforms;
 
-		public TestTargetRules? InnerTestTargetRules
-		{
-			get { return Inner as TestTargetRules; }
-		}
+		public TestTargetRules? InnerTestTargetRules => Inner as TestTargetRules;
 
 #pragma warning restore C1591
 		#endregion
@@ -4040,52 +3276,34 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Provide access to the RelativeEnginePath property for code referencing ModuleRules.BuildConfiguration.
 		/// </summary>
-		public string RelativeEnginePath
-		{
-			get { return Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()) + Path.DirectorySeparatorChar; }
-		}
+		public string RelativeEnginePath => Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()) + Path.DirectorySeparatorChar;
 
 		/// <summary>
 		/// Provide access to the UEThirdPartySourceDirectory property for code referencing ModuleRules.UEBuildConfiguration.
 		/// </summary>
-		public string UEThirdPartySourceDirectory
-		{
-			get { return "ThirdParty/"; }
-		}
+		public string UEThirdPartySourceDirectory => "ThirdParty/";
 
 		/// <summary>
 		/// Provide access to the UEThirdPartyBinariesDirectory property for code referencing ModuleRules.UEBuildConfiguration.
 		/// </summary>
-		public string UEThirdPartyBinariesDirectory
-		{
-			get { return "../Binaries/ThirdParty/"; }
-		}
+		public string UEThirdPartyBinariesDirectory => "../Binaries/ThirdParty/";
 
 		/// <summary>
 		/// Whether this is a low level tests target.
 		/// </summary>
-		public bool IsTestTarget
-		{
-			get { return Inner.IsTestTarget; }
-		}
+		public bool IsTestTarget => Inner.IsTestTarget;
 
 		/// <summary>
 		/// Whether this is a test target explicitly defined.
 		/// Explicitley defined test targets always inherit from TestTargetRules and define their own tests.
 		/// Implicit test targets are created from existing targets when building with -Mode=Test and they include tests from all dependencies.
 		/// </summary>
-		public bool ExplicitTestsTarget
-		{
-			get { return Inner.ExplicitTestsTarget; }
-		}
+		public bool ExplicitTestsTarget => Inner.ExplicitTestsTarget;
 
 		/// <summary>
 		/// Controls the value of WITH_LOW_LEVEL_TESTS that dictates whether module-specific low level tests are compiled in or not.
 		/// </summary>
-		public bool WithLowLevelTests
-		{
-			get { return Inner.WithLowLevelTests; }
-		}
+		public bool WithLowLevelTests => Inner.WithLowLevelTests;
 
 		/// <summary>
 		/// Checks if current platform is part of a given platform group

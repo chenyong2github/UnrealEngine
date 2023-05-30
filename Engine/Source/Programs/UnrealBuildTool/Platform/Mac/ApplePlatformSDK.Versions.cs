@@ -41,13 +41,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The minimum macOS SDK version that a dynamic library can be built with
 		/// </summary>
-		public virtual Version MinimumDynamicLibSDKVersion
-		{
-			get
-			{
-				return new Version("12.1");		// SDK used in Xcode13.2.1
-			}
-		}
+		public virtual Version MinimumDynamicLibSDKVersion => new Version("12.1");      // SDK used in Xcode13.2.1
 
 	}
 }

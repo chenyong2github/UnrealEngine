@@ -101,10 +101,7 @@ namespace UnrealBuildTool
 			XmlConfig.ApplyTo(this);
 		}
 
-		public override string Name
-		{
-			get { return "XGE"; }
-		}
+		public override string Name => "XGE";
 
 		public static bool TryGetXgConsoleExecutable([NotNullWhen(true)] out string? OutXgConsoleExe)
 		{

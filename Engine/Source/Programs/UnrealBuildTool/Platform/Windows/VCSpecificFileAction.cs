@@ -48,7 +48,7 @@ namespace UnrealBuildTool
 			BaseAction.Write(Writer);
 		}
 
-		public DirectoryReference RootDirectory { get => SourceDir; }
+		public DirectoryReference RootDirectory => SourceDir;
 
 		public IExternalAction? CreateAction(FileItem SourceFile, ILogger Logger)
 		{

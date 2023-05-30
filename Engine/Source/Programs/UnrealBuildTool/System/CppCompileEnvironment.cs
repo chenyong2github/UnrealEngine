@@ -583,13 +583,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The file containing the precompiled header data.
 		/// </summary>
-		public FileItem? PrecompiledHeaderFile
-		{
-			get
-			{
-				return GetPrecompiledHeaderFile(PCHInstance);
-			}
-		}
+		public FileItem? PrecompiledHeaderFile => GetPrecompiledHeaderFile(PCHInstance);
 
 		/// <summary>
 		/// The parent PCH instance used when creating this PCH.
@@ -599,13 +593,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The parent's PCH header file.
 		/// </summary>
-		public FileItem? ParentPrecompiledHeaderFile
-		{
-			get
-			{
-				return GetPrecompiledHeaderFile(ParentPCHInstance);
-			}
-		}
+		public FileItem? ParentPrecompiledHeaderFile => GetPrecompiledHeaderFile(ParentPCHInstance);
 
 		/// <summary>
 		/// True if a single PRecompiledHeader exists, or at least one PerArchPrecompiledHeaderFile exists

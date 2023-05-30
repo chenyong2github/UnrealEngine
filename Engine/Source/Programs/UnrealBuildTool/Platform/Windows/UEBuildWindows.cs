@@ -382,10 +382,7 @@ namespace UnrealBuildTool
 
 		/// VS2015 updated some of the CRT definitions but not all of the Windows SDK has been updated to match.
 		/// Microsoft provides legacy_stdio_definitions library to enable building with VS2015 until they fix everything up.
-		public bool bNeedsLegacyStdioDefinitionsLib
-		{
-			get { return Compiler.IsMSVC() || Compiler.IsClang(); }
-		}
+		public bool bNeedsLegacyStdioDefinitionsLib => Compiler.IsMSVC() || Compiler.IsClang();
 
 		/// <summary>
 		/// The stack size when linking
@@ -418,8 +415,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bCreateHotPatchableImage
 		{
-			get { return bCreateHotPatchableImagePrivate ?? Target.bWithLiveCoding; }
-			set { bCreateHotPatchableImagePrivate = value; }
+			get => bCreateHotPatchableImagePrivate ?? Target.bWithLiveCoding;
+			set => bCreateHotPatchableImagePrivate = value;
 		}
 		private bool? bCreateHotPatchableImagePrivate;
 
@@ -428,8 +425,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bStripUnreferencedSymbols
 		{
-			get { return bStripUnreferencedSymbolsPrivate ?? ((Target.Configuration == UnrealTargetConfiguration.Test || Target.Configuration == UnrealTargetConfiguration.Shipping) && !Target.bWithLiveCoding); }
-			set { bStripUnreferencedSymbolsPrivate = value; }
+			get => bStripUnreferencedSymbolsPrivate ?? ((Target.Configuration == UnrealTargetConfiguration.Test || Target.Configuration == UnrealTargetConfiguration.Shipping) && !Target.bWithLiveCoding);
+			set => bStripUnreferencedSymbolsPrivate = value;
 		}
 		private bool? bStripUnreferencedSymbolsPrivate;
 			
@@ -438,8 +435,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bMergeIdenticalCOMDATs
 		{
-			get { return bMergeIdenticalCOMDATsPrivate ?? ((Target.Configuration == UnrealTargetConfiguration.Test || Target.Configuration == UnrealTargetConfiguration.Shipping) && !Target.bWithLiveCoding); }
-			set { bMergeIdenticalCOMDATsPrivate = value; }
+			get => bMergeIdenticalCOMDATsPrivate ?? ((Target.Configuration == UnrealTargetConfiguration.Test || Target.Configuration == UnrealTargetConfiguration.Shipping) && !Target.bWithLiveCoding);
+			set => bMergeIdenticalCOMDATsPrivate = value;
 		}
 		private bool? bMergeIdenticalCOMDATsPrivate;
 
@@ -493,26 +490,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Directory containing the toolchain
 		/// </summary>
-		public string? ToolChainDir
-		{
-			get { return (Environment == null)? null : Environment.ToolChainDir.FullName; }
-		}
+		public string? ToolChainDir => (Environment == null) ? null : Environment.ToolChainDir.FullName;
 
 		/// <summary>
 		/// The version number of the toolchain
 		/// </summary>
-		public string? ToolChainVersion
-		{
-			get { return (Environment == null)? null : Environment.ToolChainVersion.ToString(); }
-		}
+		public string? ToolChainVersion => (Environment == null) ? null : Environment.ToolChainVersion.ToString();
 
 		/// <summary>
 		/// Root directory containing the Windows Sdk
 		/// </summary>
-		public string? WindowsSdkDir
-		{
-			get { return (Environment == null)? null : Environment.WindowsSdkDir.FullName; }
-		}
+		public string? WindowsSdkDir => (Environment == null) ? null : Environment.WindowsSdkDir.FullName;
 
 
 		/// <summary>
@@ -535,10 +523,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Directory containing the DIA SDK
 		/// </summary>
-		public string? DiaSdkDir
-		{
-			get { return MicrosoftPlatformSDK.FindDiaSdkDirs(Environment!.ToolChain).Select(x => x.FullName).FirstOrDefault(); }
-		}
+		public string? DiaSdkDir => MicrosoftPlatformSDK.FindDiaSdkDirs(Environment!.ToolChain).Select(x => x.FullName).FirstOrDefault();
 
 		/// <summary>
 		/// Directory containing the IDE package (Professional, Community, etc...)
@@ -621,265 +606,115 @@ namespace UnrealBuildTool
 		#region Read-only accessor properties 
 		#pragma warning disable CS1591
 
-		public bool bUseFastGenProfile 
-		{
-			get { return Inner.bUseFastGenProfile; }
-		}
+		public bool bUseFastGenProfile => Inner.bUseFastGenProfile;
 
-		public bool bPGONoExtraCounters 
-		{
-			get { return Inner.bPGONoExtraCounters; }
-		}
+		public bool bPGONoExtraCounters => Inner.bPGONoExtraCounters;
 
-		public WindowsCompiler Compiler
-		{
-			get { return Inner.Compiler; }
-		}
-		
-		public UnrealArch Architecture
-		{
-			get { return Inner.Architecture; }
-		}
+		public WindowsCompiler Compiler => Inner.Compiler;
 
-		public string? CompilerVersion
-		{
-			get { return Inner.CompilerVersion; }
-		}
+		public UnrealArch Architecture => Inner.Architecture;
 
-		public string? WindowsSdkVersion
-		{
-			get { return Inner.WindowsSdkVersion; }
-		}
+		public string? CompilerVersion => Inner.CompilerVersion;
 
-		public int TargetWindowsVersion
-		{
-			get { return Inner.TargetWindowsVersion; }
-		}
+		public string? WindowsSdkVersion => Inner.WindowsSdkVersion;
 
-		public bool bPixProfilingEnabled
-		{
-			get { return Inner.bPixProfilingEnabled; }
-		}
+		public int TargetWindowsVersion => Inner.TargetWindowsVersion;
 
-		public bool bUseWindowsSDK10
-		{
-			get { return Inner.bUseWindowsSDK10; }
-		}
+		public bool bPixProfilingEnabled => Inner.bPixProfilingEnabled;
 
-		public bool bUseCPPWinRT
-		{
-			get { return Inner.bUseCPPWinRT; }
-		}
+		public bool bUseWindowsSDK10 => Inner.bUseWindowsSDK10;
 
-		public bool bVCFastFail
-		{
-			get { return Inner.bVCFastFail; }
-		}
+		public bool bUseCPPWinRT => Inner.bUseCPPWinRT;
 
-		public bool bAllowClangLinker
-		{
-			get { return Inner.bAllowClangLinker; }
-		}
+		public bool bVCFastFail => Inner.bVCFastFail;
 
-		public bool bEnableRayTracing
-		{
-			get { return Inner.bEnableRayTracing; }
-		}
+		public bool bAllowClangLinker => Inner.bAllowClangLinker;
 
-		public string? CompanyName
-		{
-			get { return Inner.CompanyName; }
-		}
+		public bool bEnableRayTracing => Inner.bEnableRayTracing;
 
-		public string? CopyrightNotice
-		{
-			get { return Inner.CopyrightNotice; }
-		}
+		public string? CompanyName => Inner.CompanyName;
 
-		public string? ProductName
-		{
-			get { return Inner.ProductName; }
-		}
+		public string? CopyrightNotice => Inner.CopyrightNotice;
 
-		public bool bEnableAddressSanitizer
-		{ 
-			get { return Inner.bEnableAddressSanitizer; }
-		}
+		public string? ProductName => Inner.ProductName;
 
-		public bool bEnableLibFuzzer
-		{ 
-			get { return Inner.bEnableLibFuzzer; }
-		}
-        
-		public bool bWriteSarif
-		{
-			get { return Inner.bWriteSarif; }
-		}
+		public bool bEnableAddressSanitizer => Inner.bEnableAddressSanitizer;
 
-		public string? ObjSrcMapFile
-		{
-			get { return Inner.ObjSrcMapFile; }
-		}
+		public bool bEnableLibFuzzer => Inner.bEnableLibFuzzer;
 
-		public string? ModuleDefinitionFile
-		{
-			get { return Inner.ModuleDefinitionFile; }
-		}
+		public bool bWriteSarif => Inner.bWriteSarif;
 
-		public string? ManifestFile
-		{
-			get { return Inner.ManifestFile; }
-		}
+		public string? ObjSrcMapFile => Inner.ObjSrcMapFile;
 
-		public string? ApplicationIcon
-		{
-			get { return Inner.ApplicationIcon; }
-		}
+		public string? ModuleDefinitionFile => Inner.ModuleDefinitionFile;
 
-		public bool bNeedsLegacyStdioDefinitionsLib
-		{
-			get { return Inner.bNeedsLegacyStdioDefinitionsLib; }
-		}
+		public string? ManifestFile => Inner.ManifestFile;
 
-		public bool bStrictConformanceMode
-		{
-			get { return Inner.bStrictConformanceMode; }
-		}
+		public string? ApplicationIcon => Inner.ApplicationIcon;
 
-		public bool bUpdatedCPPMacro
-		{
-			get { return Inner.bUpdatedCPPMacro; }
-		}
+		public bool bNeedsLegacyStdioDefinitionsLib => Inner.bNeedsLegacyStdioDefinitionsLib;
 
-		public bool bStrictInlineConformance
-		{
-			get { return Inner.bStrictInlineConformance; }
-		}
+		public bool bStrictConformanceMode => Inner.bStrictConformanceMode;
 
-		public bool bStrictPreprocessorConformance
-		{
-			get { return Inner.bStrictPreprocessorConformance; }
-		}
+		public bool bUpdatedCPPMacro => Inner.bUpdatedCPPMacro;
 
-		public bool bStrictEnumTypesConformance
-		{
-			get { return Inner.bStrictEnumTypesConformance; }
-		}
+		public bool bStrictInlineConformance => Inner.bStrictInlineConformance;
 
-		public int DefaultStackSize
-		{
-			get { return Inner.DefaultStackSize; }
-		}
+		public bool bStrictPreprocessorConformance => Inner.bStrictPreprocessorConformance;
 
-		public int DefaultStackSizeCommit
-		{
-			get { return Inner.DefaultStackSizeCommit; }
-		}
+		public bool bStrictEnumTypesConformance => Inner.bStrictEnumTypesConformance;
 
-		public int PCHMemoryAllocationFactor
-		{
-			get { return Inner.PCHMemoryAllocationFactor; }
-		}
+		public int DefaultStackSize => Inner.DefaultStackSize;
 
-		public string AdditionalLinkerOptions
-		{
-			get { return Inner.AdditionalLinkerOptions; }
-		}
+		public int DefaultStackSizeCommit => Inner.DefaultStackSizeCommit;
 
-		public bool bCreateHotpatchableImage
-		{
-			get { return Inner.bCreateHotPatchableImage; }
-		}
+		public int PCHMemoryAllocationFactor => Inner.PCHMemoryAllocationFactor;
 
-		public bool bStripUnreferencedSymbols
-		{
-			get { return Inner.bStripUnreferencedSymbols; }
-		}
+		public string AdditionalLinkerOptions => Inner.AdditionalLinkerOptions;
 
-		public bool bMergeIdenticalCOMDATs
-		{
-			get { return Inner.bMergeIdenticalCOMDATs; }
-		}
+		public bool bCreateHotpatchableImage => Inner.bCreateHotPatchableImage;
 
-		public bool bOptimizeGlobalData
-		{
-			get { return Inner.bOptimizeGlobalData; }
-		}
+		public bool bStripUnreferencedSymbols => Inner.bStripUnreferencedSymbols;
 
-		public bool bClangTimeTrace
-		{
-			get { return Inner.bClangTimeTrace; }
-		}
+		public bool bMergeIdenticalCOMDATs => Inner.bMergeIdenticalCOMDATs;
 
-		public bool bCompilerTrace
-		{
-			get { return Inner.bCompilerTrace; }
-		}
+		public bool bOptimizeGlobalData => Inner.bOptimizeGlobalData;
 
-		public bool bShowIncludes
-		{
-			get { return Inner.bShowIncludes; }
-		}
+		public bool bClangTimeTrace => Inner.bClangTimeTrace;
+
+		public bool bCompilerTrace => Inner.bCompilerTrace;
+
+		public bool bShowIncludes => Inner.bShowIncludes;
 
 		public string GetVisualStudioCompilerVersionName()
 		{
 			return Inner.GetVisualStudioCompilerVersionName();
 		}
 
-		public bool bUseBundledDbgHelp
-		{
-			get { return Inner.bUseBundledDbgHelp; }
-		}
+		public bool bUseBundledDbgHelp => Inner.bUseBundledDbgHelp;
 
-		public bool bUseXCurl
-		{
-			get { return Inner.bUseXCurl; }
-		}
+		public bool bUseXCurl => Inner.bUseXCurl;
 
 		public ReadOnlyPVSTargetSettings PVS
 		{
 			get; private set;
 		}
 
-		internal VCEnvironment? Environment
-		{
-			get { return Inner.Environment; }
-		}
+		internal VCEnvironment? Environment => Inner.Environment;
 
-		public WindowsCompiler ToolChain
-		{
-			get { return Inner.ToolChain; }
-		}
+		public WindowsCompiler ToolChain => Inner.ToolChain;
 
-		public string? ToolChainDir
-		{
-			get { return Inner.ToolChainDir; }
-		}
+		public string? ToolChainDir => Inner.ToolChainDir;
 
-		public string? ToolChainVersion
-		{
-			get { return Inner.ToolChainVersion; }
-		}
+		public string? ToolChainVersion => Inner.ToolChainVersion;
 
-		public string? WindowsSdkDir
-		{
-			get { return Inner.WindowsSdkDir; }
-		}
+		public string? WindowsSdkDir => Inner.WindowsSdkDir;
 
-		public string? NetFxSdkDir
-		{
-			get { return Inner.NetFxSdkDir; }
-		}
+		public string? NetFxSdkDir => Inner.NetFxSdkDir;
 
-		public string? DiaSdkDir
-		{
-			get { return Inner.DiaSdkDir; }
-		}
-		
-		public string? IDEDir
-		{
-			get { return Inner.IDEDir; }
-		}
+		public string? DiaSdkDir => Inner.DiaSdkDir;
+
+		public string? IDEDir => Inner.IDEDir;
 
 		#pragma warning restore CS1591
 		#endregion
@@ -1725,10 +1560,7 @@ namespace UnrealBuildTool
 
 	class WindowsPlatformFactory : UEBuildPlatformFactory
 	{
-		public override UnrealTargetPlatform TargetPlatform
-		{
-			get { return UnrealTargetPlatform.Win64; }
-		}
+		public override UnrealTargetPlatform TargetPlatform => UnrealTargetPlatform.Win64;
 
 		/// <summary>
 		/// Register the platform with the UEBuildPlatform class

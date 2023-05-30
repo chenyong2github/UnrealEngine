@@ -127,10 +127,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Returns a list of key names
 		/// </summary>
-		public IEnumerable<string> KeyNames
-		{
-			get { return KeyToValue.Keys; }
-		}
+		public IEnumerable<string> KeyNames => KeyToValue.Keys;
 
 		/// <summary>
 		/// Tries to find the value for a given key

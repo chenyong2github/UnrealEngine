@@ -57,10 +57,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The name of this context
 		/// </summary>
-		public string Name
-		{
-			get { return String.Format("{0}|{1}", ConfigurationName, PlatformName); }
-		}
+		public string Name => String.Format("{0}|{1}", ConfigurationName, PlatformName);
 
 		/// <summary>
 		/// Serializes this context to a string for debugging
@@ -92,10 +89,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The Guid representing the project type e.g. C# or C++
 		/// </summary>
-		public virtual string ProjectTypeGUID
-		{
-			get { throw new BuildException("Unrecognized type of project file for Visual Studio solution"); }
-		}
+		public virtual string ProjectTypeGUID => throw new BuildException("Unrecognized type of project file for Visual Studio solution");
 
 		static Guid PathNamespaceGuid { get; } = new Guid("2D8570D5-7FFC-4E6D-A9D7-E860E117D717");
 
@@ -296,10 +290,7 @@ namespace UnrealBuildTool
 		public const string DefaultPlatformName = "Win64";
 
 		// This is the GUID that Visual Studio uses to identify a C++ project file in the solution
-		public override string ProjectTypeGUID
-		{
-			get { return "{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}"; }
-		}
+		public override string ProjectTypeGUID => "{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}";
 
 		/// <summary>
 		/// Constructs a new project file object
@@ -530,10 +521,7 @@ namespace UnrealBuildTool
 				ProjectTarget = InProjectTarget;
 			}
 
-			public string? ProjectConfigurationAndPlatformName
-			{
-				get { return (ProjectPlatformName == null) ? null : (ProjectConfigurationName + "|" + ProjectPlatformName); }
-			}
+			public string? ProjectConfigurationAndPlatformName => (ProjectPlatformName == null) ? null : (ProjectConfigurationName + "|" + ProjectPlatformName);
 
 			public override string ToString()
 			{
@@ -2161,10 +2149,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// This is the GUID that Visual Studio uses to identify a C# project file in the solution
 		/// </summary>
-		public override string ProjectTypeGUID
-		{
-			get { return "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}"; }
-		}
+		public override string ProjectTypeGUID => "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}";
 
 		/// <summary>
 		/// Platforms that this project supports

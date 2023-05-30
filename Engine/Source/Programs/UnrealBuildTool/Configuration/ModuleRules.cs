@@ -579,13 +579,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// True if a Plugin contains this module
 		/// </summary>
-		public bool IsPlugin
-		{
-			get
-			{
-				return Plugin != null;
-			}
-		}
+		public bool IsPlugin => Plugin != null;
 
 		/// <summary>
 		/// The rules context for this instance
@@ -614,7 +608,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public PackageOverrideType OverridePackageType
 		{
-			get { return overridePackageType ?? PackageOverrideType.None; }
+			get => overridePackageType ?? PackageOverrideType.None;
 			set
 			{
 				if (!IsPlugin)
@@ -633,13 +627,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Returns true if there has been an override type specified on this module
 		/// </summary>
-		public bool HasPackageOverride
-		{
-			get
-			{
-				return OverridePackageType != PackageOverrideType.None;
-			}
-		}
+		public bool HasPackageOverride => OverridePackageType != PackageOverrideType.None;
 
 		/// <summary>
 		/// Subfolder of Binaries/PLATFORM folder to put this module in when building DLLs. This should only be used by modules that are found via searching like the
@@ -670,7 +658,7 @@ namespace UnrealBuildTool
 
 				return ShouldOptimizeCode.Value ? CodeOptimization.Always : CodeOptimization.Never;
 			}
-			set { OptimizeCodeOverride = value; }
+			set => OptimizeCodeOverride = value;
 		}
 
 		private OptimizationMode? OptimizationLevelOverride = null;
@@ -699,7 +687,7 @@ namespace UnrealBuildTool
 					return Target.OptimizationLevel;
 				}
 			}
-			set { OptimizationLevelOverride = value; }
+			set => OptimizationLevelOverride = value;
 		}
 
 		/// <summary>
@@ -750,7 +738,7 @@ namespace UnrealBuildTool
 					return PCHUsageMode.NoSharedPCHs;
 				}
 			}
-			set { PCHUsagePrivate = value; }
+			set => PCHUsagePrivate = value;
 		}
 		private PCHUsageMode? PCHUsagePrivate;
 
@@ -765,8 +753,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public BuildSettingsVersion DefaultBuildSettings
 		{
-			get { return DefaultBuildSettingsPrivate ?? Target.DefaultBuildSettings; }
-			set { DefaultBuildSettingsPrivate = value; }
+			get => DefaultBuildSettingsPrivate ?? Target.DefaultBuildSettings;
+			set => DefaultBuildSettingsPrivate = value;
 		}
 		private BuildSettingsVersion? DefaultBuildSettingsPrivate;
 
@@ -787,7 +775,7 @@ namespace UnrealBuildTool
 				}
 				return IncludeOrderVersionPrivate ?? Target.IncludeOrderVersion;
 			}
-			set { IncludeOrderVersionPrivate = value; }
+			set => IncludeOrderVersionPrivate = value;
 		}
 		private EngineIncludeOrderVersion? IncludeOrderVersionPrivate;
 
@@ -803,14 +791,8 @@ namespace UnrealBuildTool
 		[Obsolete("bUseAVX is obsolete and will be removed in UE5.4, please replace with MinCpuArchX64")]
 		public bool bUseAVX
 		{
-			get
-			{
-				return MinCpuArchX64 >= MinimumCpuArchitectureX64.AVX;
-			}
-			set
-			{
-				MinCpuArchX64 = value ? MinimumCpuArchitectureX64.AVX : MinimumCpuArchitectureX64.None;
-			}
+			get => MinCpuArchX64 >= MinimumCpuArchitectureX64.AVX;
+			set => MinCpuArchX64 = value ? MinimumCpuArchitectureX64.AVX : MinimumCpuArchitectureX64.None;
 		}
 
 		/// <summary>
@@ -846,8 +828,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public WarningLevel DeterministicWarningLevel
 		{
-			get { return (DeterministicWarningLevelPrivate == WarningLevel.Default) ? (Target.bDeterministic ? WarningLevel.Warning : WarningLevel.Off) : DeterministicWarningLevelPrivate; }
-			set { DeterministicWarningLevelPrivate = value; }
+			get => (DeterministicWarningLevelPrivate == WarningLevel.Default) ? (Target.bDeterministic ? WarningLevel.Warning : WarningLevel.Off) : DeterministicWarningLevelPrivate;
+			set => DeterministicWarningLevelPrivate = value;
 		}
 
 		/// <inheritdoc cref="DeterministicWarningLevelPrivate"/>
@@ -858,8 +840,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public WarningLevel ShadowVariableWarningLevel
 		{
-			get { return (ShadowVariableWarningLevelPrivate == WarningLevel.Default)? ((DefaultBuildSettings >= BuildSettingsVersion.V2) ? WarningLevel.Error : Target.ShadowVariableWarningLevel) : ShadowVariableWarningLevelPrivate; }
-			set { ShadowVariableWarningLevelPrivate = value; }
+			get => (ShadowVariableWarningLevelPrivate == WarningLevel.Default) ? ((DefaultBuildSettings >= BuildSettingsVersion.V2) ? WarningLevel.Error : Target.ShadowVariableWarningLevel) : ShadowVariableWarningLevelPrivate;
+			set => ShadowVariableWarningLevelPrivate = value;
 		}
 
 		/// <inheritdoc cref="ShadowVariableWarningLevelPrivate"/>
@@ -875,8 +857,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public WarningLevel UnsafeTypeCastWarningLevel
 		{
-			get { return (UnsafeTypeCastWarningLevelPrivate == WarningLevel.Default)? Target.UnsafeTypeCastWarningLevel : UnsafeTypeCastWarningLevelPrivate; }
-			set { UnsafeTypeCastWarningLevelPrivate = value; }
+			get => (UnsafeTypeCastWarningLevelPrivate == WarningLevel.Default) ? Target.UnsafeTypeCastWarningLevel : UnsafeTypeCastWarningLevelPrivate;
+			set => UnsafeTypeCastWarningLevelPrivate = value;
 		}
 
 		/// <inheritdoc cref="UnsafeTypeCastWarningLevel"/>
@@ -892,8 +874,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public WarningLevel ModuleIncludePathWarningLevel
 		{
-			get { return (ModuleIncludePathWarningLevelPrivate == WarningLevel.Default) ? Target.ModuleIncludePathWarningLevel : ModuleIncludePathWarningLevelPrivate; }
-			set { ModuleIncludePathWarningLevelPrivate = value; }
+			get => (ModuleIncludePathWarningLevelPrivate == WarningLevel.Default) ? Target.ModuleIncludePathWarningLevel : ModuleIncludePathWarningLevelPrivate;
+			set => ModuleIncludePathWarningLevelPrivate = value;
 		}
 
 		/// <inheritdoc cref="ModuleIncludePathWarningLevel"/>
@@ -904,8 +886,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public WarningLevel ModuleIncludePrivateWarningLevel
 		{
-			get { return (ModuleIncludePrivateWarningLevelPrivate == WarningLevel.Default) ? Target.ModuleIncludePrivateWarningLevel : ModuleIncludePrivateWarningLevelPrivate; }
-			set { ModuleIncludePrivateWarningLevelPrivate = value; }
+			get => (ModuleIncludePrivateWarningLevelPrivate == WarningLevel.Default) ? Target.ModuleIncludePrivateWarningLevel : ModuleIncludePrivateWarningLevelPrivate;
+			set => ModuleIncludePrivateWarningLevelPrivate = value;
 		}
 
 		/// <inheritdoc cref="ModuleIncludePrivateWarningLevel"/>
@@ -916,8 +898,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public WarningLevel ModuleIncludeSubdirectoryWarningLevel
 		{
-			get { return (ModuleIncludeSubdirectoryWarningLevelPrivate == WarningLevel.Default) ? Target.ModuleIncludeSubdirectoryWarningLevel : ModuleIncludeSubdirectoryWarningLevelPrivate; }
-			set { ModuleIncludeSubdirectoryWarningLevelPrivate = value; }
+			get => (ModuleIncludeSubdirectoryWarningLevelPrivate == WarningLevel.Default) ? Target.ModuleIncludeSubdirectoryWarningLevel : ModuleIncludeSubdirectoryWarningLevelPrivate;
+			set => ModuleIncludeSubdirectoryWarningLevelPrivate = value;
 		}
 
 		/// <inheritdoc cref="ModuleIncludeSubdirectoryWarningLevel"/>
@@ -979,7 +961,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bUseUnity
 		{
-			set { bUseUnityOverride = value; }
+			set => bUseUnityOverride = value;
 			get
 			{
 				bool UseUnity = true;
@@ -1304,8 +1286,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bLegacyPublicIncludePaths
 		{
-			set { bLegacyPublicIncludePathsPrivate = value; }
-			get { return bLegacyPublicIncludePathsPrivate ?? ((DefaultBuildSettings < BuildSettingsVersion.V2) ? Target.bLegacyPublicIncludePaths : false); }
+			set => bLegacyPublicIncludePathsPrivate = value;
+			get => bLegacyPublicIncludePathsPrivate ?? ((DefaultBuildSettings < BuildSettingsVersion.V2) ? Target.bLegacyPublicIncludePaths : false);
 		}
 		private bool? bLegacyPublicIncludePathsPrivate;
 
@@ -1315,8 +1297,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bLegacyParentIncludePaths
 		{
-			set { bLegacyParentIncludePathsPrivate = value; }
-			get { return bLegacyParentIncludePathsPrivate ?? ((DefaultBuildSettings < BuildSettingsVersion.V3) ? Target.bLegacyParentIncludePaths : false); }
+			set => bLegacyParentIncludePathsPrivate = value;
+			get => bLegacyParentIncludePathsPrivate ?? ((DefaultBuildSettings < BuildSettingsVersion.V3) ? Target.bLegacyParentIncludePaths : false);
 		}
 		private bool? bLegacyParentIncludePathsPrivate;
 
@@ -1364,13 +1346,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The current engine directory
 		/// </summary>
-		public string EngineDirectory
-		{
-			get
-			{
-				return Unreal.EngineDirectory.FullName;
-			}
-		}
+		public string EngineDirectory => Unreal.EngineDirectory.FullName;
 
 		/// <summary>
 		/// Property for the directory containing this plugin. Useful for adding paths to third party dependencies.
@@ -1393,13 +1369,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Property for the directory containing this module. Useful for adding paths to third party dependencies.
 		/// </summary>
-		public string ModuleDirectory
-		{
-			get
-			{
-				return Directory.FullName;
-			}
-		}
+		public string ModuleDirectory => Directory.FullName;
 
 		/// <summary>
 		/// Returns module's low level tests directory "Tests".
@@ -1763,10 +1733,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		internal bool IsTestModule
-		{
-			get { return bIsTestModuleOverride ?? false; }
-		}
+		internal bool IsTestModule => bIsTestModuleOverride ?? false;
 		/// <summary>
 		/// Whether this is a low level tests module.
 		/// </summary>
@@ -1829,16 +1796,10 @@ namespace UnrealBuildTool
 		/// Returns if VcPkg is supported for the build configuration.
 		/// </summary>
 		/// <returns>True if supported</returns>
-		public bool IsVcPackageSupported
-		{
-			get
-			{
-				return Target.Platform == UnrealTargetPlatform.Win64 ||
+		public bool IsVcPackageSupported => Target.Platform == UnrealTargetPlatform.Win64 ||
 					Target.Platform == UnrealTargetPlatform.Linux ||
 					Target.Platform == UnrealTargetPlatform.LinuxArm64 ||
 					Target.Platform == UnrealTargetPlatform.Mac;
-			}
-		}
 
 		/// <summary>
 		/// Returns the VcPkg root directory for the build configuration

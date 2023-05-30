@@ -81,15 +81,9 @@ namespace UnrealBuildTool
 
 		public static Lazy<MacToolChainSettings> SettingsPrivate = new Lazy<MacToolChainSettings>(() => new MacToolChainSettings(false, Log.Logger));
 
-		public static MacToolChainSettings Settings
-		{
-			get { return SettingsPrivate.Value; }
-		}
+		public static MacToolChainSettings Settings => SettingsPrivate.Value;
 
-		public static string SDKPath
-		{
-			get { return Settings.BaseSDKDir + "/MacOSX.sdk"; }
-		}
+		public static string SDKPath => Settings.BaseSDKDir + "/MacOSX.sdk";
 
 		/// <summary>
 		/// Which compiler\linker frontend to use

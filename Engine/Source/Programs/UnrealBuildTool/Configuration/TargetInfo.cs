@@ -44,10 +44,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The current build version
 		/// </summary>
-		public ReadOnlyBuildVersion Version
-		{
-			get { return ReadOnlyBuildVersion.Current; }
-		}
+		public ReadOnlyBuildVersion Version => ReadOnlyBuildVersion.Current;
 
 		/// <summary>
 		/// Additional command line arguments for this target

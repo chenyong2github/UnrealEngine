@@ -448,8 +448,8 @@ namespace UnrealBuildTool
 			/// </summary>
 			public bool UsesCatch2
 			{
-				get { return UsesCatch2Private; }
-				set { UsesCatch2Private = value; }
+				get => UsesCatch2Private;
+				set => UsesCatch2Private = value;
 			}
 
 			private Dictionary<UnrealTargetPlatform, string> PlatformTagsPrivate = new Dictionary<UnrealTargetPlatform, string>();
@@ -458,8 +458,8 @@ namespace UnrealBuildTool
 			/// </summary>
 			public Dictionary<UnrealTargetPlatform, string> PlatformTags
 			{
-				get { return PlatformTagsPrivate; }
-				set { PlatformTagsPrivate = value; }
+				get => PlatformTagsPrivate;
+				set => PlatformTagsPrivate = value;
 			}
 
 			private Dictionary<UnrealTargetPlatform, string> PlatformCompilationExtraArgsPrivate = new Dictionary<UnrealTargetPlatform, string>();
@@ -468,8 +468,8 @@ namespace UnrealBuildTool
 			/// </summary>
 			public Dictionary<UnrealTargetPlatform, string> PlatformCompilationExtraArgs
 			{
-				get { return PlatformCompilationExtraArgsPrivate; }
-				set { PlatformCompilationExtraArgsPrivate = value; }
+				get => PlatformCompilationExtraArgsPrivate;
+				set => PlatformCompilationExtraArgsPrivate = value;
 			}
 
 			private List<UnrealTargetPlatform> PlatformsRunUnsupportedPrivate = new List<UnrealTargetPlatform>() { UnrealTargetPlatform.Android, UnrealTargetPlatform.IOS };
@@ -478,8 +478,8 @@ namespace UnrealBuildTool
 			/// </summary>
 			public List<UnrealTargetPlatform> PlatformsRunUnsupported
 			{
-				get { return PlatformsRunUnsupportedPrivate;}
-				set { PlatformsRunUnsupportedPrivate = value; }
+				get => PlatformsRunUnsupportedPrivate;
+				set => PlatformsRunUnsupportedPrivate = value;
 			}
 		}
 #pragma warning restore 8618

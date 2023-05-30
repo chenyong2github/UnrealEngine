@@ -58,50 +58,32 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Accessor for the name of this plugin
 		/// </summary>
-		public string Name
-		{
-			get { return Info.Name; }
-		}
+		public string Name => Info.Name;
 
 		/// <summary>
 		/// Accessor for the file for this plugin
 		/// </summary>
-		public FileReference File
-		{
-			get { return Info.File; }
-		}
+		public FileReference File => Info.File;
 
 		/// <summary>
 		/// Accessor for the child files for this plugin
 		/// </summary>
-		public List<FileReference> ChildFiles
-		{
-			get { return Info.ChildFiles; }
-		}
+		public List<FileReference> ChildFiles => Info.ChildFiles;
 
 		/// <summary>
 		/// Accessor for the type of the plugin
 		/// </summary>
-		public PluginType Type
-		{
-			get { return Info.Type; }
-		}
+		public PluginType Type => Info.Type;
 
 		/// <summary>
 		/// Accessor for this plugin's root directory
 		/// </summary>
-		public DirectoryReference Directory
-		{
-			get { return Info.Directory; }
-		}
+		public DirectoryReference Directory => Info.Directory;
 
 		/// <summary>
 		/// Accessor for this plugin's descriptor
 		/// </summary>
-		public PluginDescriptor Descriptor
-		{
-			get { return Info.Descriptor; }
-		}
+		public PluginDescriptor Descriptor => Info.Descriptor;
 
 		/// <summary>
 		/// Returns the name of this plugin for debugging

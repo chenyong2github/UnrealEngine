@@ -209,7 +209,7 @@ namespace UnrealBuildTool
 		public PVSAnalysisModeFlags ModeFlags
 		{
 			get
- 			{
+			{
 				if (ModePrivate.HasValue)
 				{
 					return ModePrivate.Value;
@@ -223,10 +223,7 @@ namespace UnrealBuildTool
 					return PVSAnalysisModeFlags.GeneralAnalysis;
 				}
 			}
-			set
-			{
-				ModePrivate = value;
-			}
+			set => ModePrivate = value;
 		}
 
 		/// <summary>
@@ -254,10 +251,7 @@ namespace UnrealBuildTool
 					return AnalysisTimeoutFlags.After_30_minutes;
 				}
 			}
-			set
-			{
-				TimeoutPrivate = value;
-			}
+			set => TimeoutPrivate = value;
 		}
 
 		/// <summary>
@@ -285,10 +279,7 @@ namespace UnrealBuildTool
 					return false;
 				}
 			}
-			set
-			{
-				EnableNoNoisePrivate = value;
-			}
+			set => EnableNoNoisePrivate = value;
 		}
 
 		/// <summary>
@@ -316,10 +307,7 @@ namespace UnrealBuildTool
 					return false;
 				}
 			}
-			set
-			{
-				EnableReportDisabledRulesPrivate = value;
-			}
+			set => EnableReportDisabledRulesPrivate = value;
 		}
 
 		/// <summary>
@@ -350,50 +338,32 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Accessor for the Application settings
 		/// </summary>
-		internal PVSApplicationSettings? ApplicationSettings
-		{
-			get { return Inner.ApplicationSettings.Value; }
-		}
+		internal PVSApplicationSettings? ApplicationSettings => Inner.ApplicationSettings.Value;
 
 		/// <summary>
 		/// Whether to use the application settings for the mode
 		/// </summary>
-		public bool UseApplicationSettings
-		{
-			get { return Inner.UseApplicationSettings; }
-		}
+		public bool UseApplicationSettings => Inner.UseApplicationSettings;
 
 		/// <summary>
 		/// Override for the analysis mode to use
 		/// </summary>
-		public PVSAnalysisModeFlags ModeFlags
-		{
-			get { return Inner.ModeFlags; }
-		}
-    
+		public PVSAnalysisModeFlags ModeFlags => Inner.ModeFlags;
+
 		/// <summary>
 		/// Override for the analysis timeout to use
 		/// </summary>
-		public AnalysisTimeoutFlags AnalysisTimeoutFlag
-		{
-			get { return Inner.AnalysisTimeoutFlag; }
-		}
+		public AnalysisTimeoutFlags AnalysisTimeoutFlag => Inner.AnalysisTimeoutFlag;
 
 		/// <summary>
 		/// Override NoNoise analysis setting to use
 		/// </summary>
-		public bool EnableNoNoise
-		{
-			get { return Inner.EnableNoNoise; }
-		}
+		public bool EnableNoNoise => Inner.EnableNoNoise;
 
 		/// <summary>
 		/// Override EnableReportDisabledRules analysis setting to use
 		/// </summary>
-		public bool EnableReportDisabledRules
-		{
-			get { return Inner.EnableReportDisabledRules; }
-		}
+		public bool EnableReportDisabledRules => Inner.EnableReportDisabledRules;
 	}
 
 	/// <summary>

@@ -1001,10 +1001,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// True if there is is more than one architecture specified
 		/// </summary>
-		public bool bIsMultiArch
-		{
-			get { return Architectures.Count > 1; }
-		}
+		public bool bIsMultiArch => Architectures.Count > 1;
 
 		/// <summary>
 		/// Gets the Architectures list as a + delimited string

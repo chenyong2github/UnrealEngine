@@ -161,13 +161,7 @@ namespace UnrealBuildTool
 		}
 
 		/// File extension for project files we'll be generating (e.g. ".vcxproj")
-		override public string ProjectFileExtension
-		{
-			get
-			{
-				return ".xcodeproj";
-			}
-		}
+		override public string ProjectFileExtension => ".xcodeproj";
 
 		/// <summary>
 		/// </summary>

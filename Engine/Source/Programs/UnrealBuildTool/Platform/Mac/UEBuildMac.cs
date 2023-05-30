@@ -93,35 +93,17 @@ namespace UnrealBuildTool
 		#region Read-only accessor properties 
 		#pragma warning disable CS1591
 
-		public bool bEnableAddressSanitizer
-		{
-			get { return Inner.bEnableAddressSanitizer; }
-		}
+		public bool bEnableAddressSanitizer => Inner.bEnableAddressSanitizer;
 
-		public bool bEnableLibFuzzer
-		{
-			get { return Inner.bEnableLibFuzzer; }
-		}
+		public bool bEnableLibFuzzer => Inner.bEnableLibFuzzer;
 
-		public bool bEnableThreadSanitizer
-		{
-			get { return Inner.bEnableThreadSanitizer; }
-		}
+		public bool bEnableThreadSanitizer => Inner.bEnableThreadSanitizer;
 
-		public bool bEnableUndefinedBehaviorSanitizer
-		{
-			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
-		}
+		public bool bEnableUndefinedBehaviorSanitizer => Inner.bEnableUndefinedBehaviorSanitizer;
 
-		public bool bSkipClangValidation
-		{
-			get { return Inner.bSkipClangValidation; }
-		}
+		public bool bSkipClangValidation => Inner.bSkipClangValidation;
 
-		public bool bEnableRayTracing
-		{
-			get { return Inner.bEnableRayTracing; }
-		}
+		public bool bEnableRayTracing => Inner.bEnableRayTracing;
 
 #pragma warning restore CS1591
 		#endregion
@@ -608,10 +590,7 @@ namespace UnrealBuildTool
 
 	class MacPlatformFactory : UEBuildPlatformFactory
 	{
-		public override UnrealTargetPlatform TargetPlatform
-		{
-			get { return UnrealTargetPlatform.Mac; }
-		}
+		public override UnrealTargetPlatform TargetPlatform => UnrealTargetPlatform.Mac;
 
 		/// <summary>
 		/// Register the platform with the UEBuildPlatform class

@@ -15,15 +15,9 @@ namespace UnrealBuildTool
 			: base(InOnlyGameProject)
 		{
 		}
-		
-		override public string ProjectFileExtension
-		{
-			get
-			{
-				return ".wkst";
-			}
-		}
-		
+
+		override public string ProjectFileExtension => ".wkst";
+
 		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesPath, ILogger Logger)
 		{
 			FileReference PrimaryProjDeleteFilename = FileReference.Combine(InPrimaryProjectDirectory, InPrimaryProjectName + ".wkst");

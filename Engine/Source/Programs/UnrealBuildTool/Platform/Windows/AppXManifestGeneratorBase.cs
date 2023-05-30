@@ -22,10 +22,10 @@ namespace UnrealBuildTool
 	abstract public class AppXManifestGeneratorBase
 	{
 		/// config section for platform-specific target settings
-		protected virtual string IniSection_PlatformTargetSettings { get { return string.Format( "/Script/{0}PlatformEditor.{0}TargetSettings", Platform.ToString() ); } }
-		
+		protected virtual string IniSection_PlatformTargetSettings => string.Format("/Script/{0}PlatformEditor.{0}TargetSettings", Platform.ToString());
+
 		/// config section for general target settings
-		protected virtual string IniSection_GeneralProjectSettings { get { return "/Script/EngineSettings.GeneralProjectSettings"; } }
+		protected virtual string IniSection_GeneralProjectSettings => "/Script/EngineSettings.GeneralProjectSettings";
 
 		/// default subdirectory for build resources
 		protected const string BuildResourceSubPath = "Resources";

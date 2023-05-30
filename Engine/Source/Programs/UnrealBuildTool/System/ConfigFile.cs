@@ -461,10 +461,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Names of sections in this file
 		/// </summary>
-		public IEnumerable<string> SectionNames
-		{
-			get { return Sections.Keys; }
-		}
+		public IEnumerable<string> SectionNames => Sections.Keys;
 
 		/// <summary>
 		/// Tries to get a config section by name, or creates one if it doesn't exist

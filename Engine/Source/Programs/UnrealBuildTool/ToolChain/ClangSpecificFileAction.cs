@@ -44,7 +44,7 @@ namespace UnrealBuildTool
 			Writer.WriteList(RspLines.ToList(), (Str) => Writer.WriteString(Str));
 		}
 
-		public DirectoryReference RootDirectory { get => SourceDir; }
+		public DirectoryReference RootDirectory => SourceDir;
 
 		public IExternalAction? CreateAction(FileItem SourceFile, ILogger Logger)
 		{

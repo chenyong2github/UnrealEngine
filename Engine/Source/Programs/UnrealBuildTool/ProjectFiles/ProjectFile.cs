@@ -532,18 +532,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Legacy accessor for user search paths
 		/// </summary>
-		public List<string> IntelliSenseIncludeSearchPaths
-		{
-			get { return UserIncludePaths.RelativePaths; }
-		}
+		public List<string> IntelliSenseIncludeSearchPaths => UserIncludePaths.RelativePaths;
 
 		/// <summary>
 		/// Legacy accessor for system include paths
 		/// </summary>
-		public List<string> IntelliSenseSystemIncludeSearchPaths
-		{
-			get { return SystemIncludePaths.RelativePaths; }
-		}
+		public List<string> IntelliSenseSystemIncludeSearchPaths => SystemIncludePaths.RelativePaths;
 
 		/// <summary>
 		/// List of preprocessor definitions for the project

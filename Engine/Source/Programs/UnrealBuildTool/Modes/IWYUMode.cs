@@ -291,10 +291,7 @@ namespace UnrealBuildTool
 				}
 				return EngineIncludeOrderHelper.GetLatestDeprecationDefine();
 			}
-			set
-			{
-				HeaderDeprecationTagOverride = value;
-			}
+			set => HeaderDeprecationTagOverride = value;
 		}
 
 		/// <summary>

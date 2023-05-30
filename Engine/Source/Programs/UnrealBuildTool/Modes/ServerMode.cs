@@ -80,7 +80,7 @@ namespace UnrealBuildTool
 	struct DiscoverTargetsResponse : ICommandResponse
 	{
 		[JsonConverter(typeof(JsonStringEnumConverter))]
-		public CommandType Type { get { return CommandType.DiscoverTargets; } }
+		public CommandType Type => CommandType.DiscoverTargets;
 		public long Sequence { get; set; }
 		public List<string> Configurations { get; set; }
 		public List<string> Platforms { get; set; }
@@ -94,13 +94,13 @@ namespace UnrealBuildTool
 	struct SetTargetResponse : ICommandResponse
 	{
 		[JsonConverter(typeof(JsonStringEnumConverter))]
-		public CommandType Type { get { return CommandType.SetTarget; } }
+		public CommandType Type => CommandType.SetTarget;
 		public long Sequence { get; set; }
 	}
 	struct QueryFileResponse : ICommandResponse
 	{
 		[JsonConverter(typeof(JsonStringEnumConverter))]
-		public CommandType Type { get { return CommandType.QueryFile; } }
+		public CommandType Type => CommandType.QueryFile;
 		public long Sequence { get; set; }
 		public bool Found { get; set; }
 	}
@@ -108,7 +108,7 @@ namespace UnrealBuildTool
 	struct GetBrowseConfigurationResponse : ICommandResponse
 	{
 		[JsonConverter(typeof(JsonStringEnumConverter))]
-		public CommandType Type { get { return CommandType.GetBrowseConfiguration; } }
+		public CommandType Type => CommandType.GetBrowseConfiguration;
 		public long Sequence { get; set; }
 		public bool Success { get; set; }
 
@@ -120,7 +120,7 @@ namespace UnrealBuildTool
 	class GetCompileSettingsResponse : ICommandResponse
 	{
 		[JsonConverter(typeof(JsonStringEnumConverter))]
-		public CommandType Type { get { return CommandType.GetCompileSettings; } }
+		public CommandType Type => CommandType.GetCompileSettings;
 		public long Sequence { get; set; }
 		public List<TargetIntellisenseInfo.CompileSettings?> Settings { get; set; } = new();
 	}

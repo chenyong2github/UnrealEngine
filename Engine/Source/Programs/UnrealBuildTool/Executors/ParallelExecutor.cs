@@ -138,10 +138,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Returns the name of this executor
 		/// </summary>
-		public override string Name
-		{
-			get { return "Parallel"; }
-		}
+		public override string Name => "Parallel";
 
 		/// <summary>
 		/// Checks whether the task executor can be used

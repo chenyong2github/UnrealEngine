@@ -172,10 +172,7 @@ namespace UnrealBuildTool
 			this.LocalExecutor = new ParallelExecutor(MaxLocalActions, bAllCores, bCompactOutput, Logger);
 		}
 
-		public override string Name
-		{
-			get { return "FASTBuild"; }
-		}
+		public override string Name => "FASTBuild";
 
 		public static string GetExecutableName()
 		{

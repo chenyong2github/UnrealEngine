@@ -47,171 +47,78 @@ namespace UnrealBuildTool
 		/// This determines if engine files are included in the source lists.
 		/// </remarks>
 		/// <returns><value>true</value> if we should treat this as a project build; <value>false</value> otherwise.</returns>
-		public bool IsProjectBuild
-		{
-			get { return !string.IsNullOrEmpty(GameProjectName); }
-		}
+		public bool IsProjectBuild => !string.IsNullOrEmpty(GameProjectName);
 
 		/// <summary>
 		/// The file extension for this project file.
 		/// </summary>
-		public override string ProjectFileExtension
-		{
-			get
-			{
-				return ".txt";
-			}
-		}
+		public override string ProjectFileExtension => ".txt";
 
-		public string ProjectFileName
-		{
-			get
-			{
-				return "CMakeLists" + ProjectFileExtension;
-			}
-		}
+		public string ProjectFileName => "CMakeLists" + ProjectFileExtension;
 
 		/// <summary>
 		/// The CMake helper file extension
 		/// </summary>
-		public string CMakeExtension
-		{
-			get
-			{
-				return ".cmake";
-			}
-		}
+		public string CMakeExtension => ".cmake";
 
 		/// <summary>
 		/// The CMake file used to store the list of includes for the project.
 		/// </summary>
-		public string CMakeIncludesFileName
-		{
-			get
-			{
-				return "cmake-includes" + CMakeExtension;
-			}
-		}
+		public string CMakeIncludesFileName => "cmake-includes" + CMakeExtension;
 
 		/// <summary>
 		/// The CMake file used to store the configuration files (INI) for the engine.
 		/// </summary>
-		public string CMakeEngineConfigsFileName
-		{
-			get
-			{
-				return "cmake-config-engine" + CMakeExtension;
-			}
-		}
+		public string CMakeEngineConfigsFileName => "cmake-config-engine" + CMakeExtension;
 
 		/// <summary>
 		/// The CMake file used to store the configuration files (INI) for the project.
 		/// </summary>
-		public string CMakeProjectConfigsFileName
-		{
-			get
-			{
-				return "cmake-config-project" + CMakeExtension;
-			}
-		}
+		public string CMakeProjectConfigsFileName => "cmake-config-project" + CMakeExtension;
 
 		/// <summary>
 		/// The CMake file used to store the additional build configuration files (CSharp) for the engine.
 		/// </summary>
-		public string CMakeEngineCSFileName
-		{
-			get
-			{
-				return "cmake-csharp-engine" + CMakeExtension;
-			}
-		}
+		public string CMakeEngineCSFileName => "cmake-csharp-engine" + CMakeExtension;
 
 		/// <summary>
 		/// The CMake file used to store the additional configuration files (CSharp) for the project.
 		/// </summary>
-		public string CMakeProjectCSFileName
-		{
-			get
-			{
-				return "cmake-csharp-project" + CMakeExtension;
-			}
-		}
+		public string CMakeProjectCSFileName => "cmake-csharp-project" + CMakeExtension;
 
 		/// <summary>
 		/// The CMake file used to store the additional shader files (usf/ush) for the engine.
 		/// </summary>
-		public string CMakeEngineShadersFileName
-		{
-			get
-			{
-				return "cmake-shaders-engine" + CMakeExtension;
-			}
-		}
+		public string CMakeEngineShadersFileName => "cmake-shaders-engine" + CMakeExtension;
 
 		/// <summary>
 		/// The CMake file used to store the additional shader files (usf/ush) for the project.
 		/// </summary>
-		public string CMakeProjectShadersFileName
-		{
-			get
-			{
-				return "cmake-shaders-project" + CMakeExtension;
-			}
-		}
+		public string CMakeProjectShadersFileName => "cmake-shaders-project" + CMakeExtension;
 
 		/// <summary>
 		/// The CMake file used to store the list of engine headers.
 		/// </summary>
-		public string CMakeEngineHeadersFileName
-		{
-			get
-			{
-				return "cmake-headers-ue" + CMakeExtension;
-			}
-		}
+		public string CMakeEngineHeadersFileName => "cmake-headers-ue" + CMakeExtension;
 		/// <summary>
 		/// The CMake file used to store the list of engine headers.
 		/// </summary>
-		public string CMakeProjectHeadersFileName
-		{
-			get
-			{
-				return "cmake-headers-project" + CMakeExtension;
-			}
-		}
+		public string CMakeProjectHeadersFileName => "cmake-headers-project" + CMakeExtension;
 
 		/// <summary>
 		/// The CMake file used to store the list of sources for the engine.
 		/// </summary>
-		public string CMakeEngineSourcesFileName
-		{
-			get
-			{
-				return "cmake-sources-engine" + CMakeExtension;
-			}
-		}
-		
+		public string CMakeEngineSourcesFileName => "cmake-sources-engine" + CMakeExtension;
+
 		/// <summary>
 		/// The CMake file used to store the list of sources for the project.
 		/// </summary>
-		public string CMakeProjectSourcesFileName
-		{
-			get
-			{
-				return "cmake-sources-project" +  CMakeExtension;
-			}
-		}
+		public string CMakeProjectSourcesFileName => "cmake-sources-project" + CMakeExtension;
 
 		/// <summary>
 		/// The CMake file used to store the list of definitions for the project.
 		/// </summary>
-		public string CMakeDefinitionsFileName
-		{
-			get
-			{
-				return "cmake-definitions" + CMakeExtension;
-			}
-		}
+		public string CMakeDefinitionsFileName => "cmake-definitions" + CMakeExtension;
 
 
 		/// <summary>

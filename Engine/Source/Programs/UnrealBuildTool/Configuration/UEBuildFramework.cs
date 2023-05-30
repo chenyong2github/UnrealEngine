@@ -55,10 +55,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// File created after the framework has been extracted. Used to add dependencies into the action graph, used by Modern Xcode as well
 		/// </summary>
-		public FileItem? ExtractedTokenFile
-		{
-			get { return ZipOutputDirectory == null ? null : FileItem.GetItemByFileReference(new FileReference(ZipOutputDirectory!.FullName + ".extracted")); }
-		}
+		public FileItem? ExtractedTokenFile => ZipOutputDirectory == null ? null : FileItem.GetItemByFileReference(new FileReference(ZipOutputDirectory!.FullName + ".extracted"));
 		/// <summary>
 		/// For legacy xcode projects, we unzip in UBT (isntead of xcode), so we track if we've made an action for this framework yet (if two
 		/// modules use the same framework, we only want to unzip it once. Other than time waste, there could be conflicts
