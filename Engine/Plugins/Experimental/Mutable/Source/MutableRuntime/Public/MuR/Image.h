@@ -326,16 +326,16 @@ namespace mu
 		// This used to be the data in the private implementation of the image interface
 		//-----------------------------------------------------------------------------------------
 
-		//!
+		/** */
 		FImageSize m_size = FImageSize(0, 0);
 
-		//!
+		/** */
 		EImageFormat m_format = EImageFormat::IF_NONE;
 
-		//! Levels of detail (mipmaps)
+		/** Levels of detail (mipmaps) */
 		uint8 m_lods = 0;
 
-		//! These set of flags are used to cache information for images at runtime.
+		/** These set of flags are used to cache information for images at runtime. */
 		typedef enum
 		{
 			// Set if the next flag has been calculated and its value is valid.
@@ -354,19 +354,18 @@ namespace mu
 			IF_IS_REFERENCE = 1 << 4,
 		} EImageFlags;
 
-		//! Persistent flags with some image properties. The meaning will depend of every
-		//! context.
+		/** Persistent flags with some image properties. The meaning will depend of every context. */
 		mutable uint8 m_flags = 0;
 
 		/** Non-persistent relevancy map. */
 		uint16 RelevancyMinY = 0;
 		uint16 RelevancyMaxY = 0;
 
-		//! Pixel data
-		TArray<uint8> m_data;
-
 		/** Only valid if the right flags are set, this identifies a referenced image. */
 		uint32 ReferenceID = 0;
+
+		/** Pixel data for all lods. */
+		TArray<uint8> m_data;
 
 
 		// This used to be the methods in the private implementation of the image interface

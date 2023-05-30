@@ -1054,6 +1054,12 @@ namespace mu
 					{
 						Result->InitToBlack();
 					}
+					else
+					{
+						Result->m_flags = 0;
+						Result->RelevancyMinY = 0;
+						Result->RelevancyMaxY = 0;
+					}
 					return Result;
 				}
 			}

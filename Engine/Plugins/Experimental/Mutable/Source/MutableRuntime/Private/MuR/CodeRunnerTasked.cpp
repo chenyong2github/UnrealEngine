@@ -1762,11 +1762,6 @@ namespace mu
 			uint16(FMath::Max(1.0, Base->GetSizeX() * Args.factor[0] + 0.5f)),
 			uint16(FMath::Max(1.0, Base->GetSizeY() * Args.factor[1] + 0.5f)));
 
-		// Apply the mips-to-skip to the dest size
-		int32 MipsToSkip = Op.ExecutionOptions;
-		DestSize[0] = FMath::Max(DestSize[0] >> MipsToSkip, 1);
-		DestSize[1] = FMath::Max(DestSize[1] >> MipsToSkip, 1);
-
 		if (Base->GetSizeX() == DestSize[0] && Base->GetSizeY() == DestSize[1])
 		{
 			Runner->StoreImage(Op, Base);
