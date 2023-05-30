@@ -468,7 +468,7 @@ int32 FSoundWaveData::FindChunkIndexForSeeking(uint32 InTimeInAudioFrames) const
 		// In bounds and valid... 
 		InRangeChunk = i;
 	}
-	return INDEX_NONE;
+	return InRangeChunk;
 }
 
 bool FSoundWaveData::LoadZerothChunk()
