@@ -343,7 +343,6 @@ TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 
 	MenuBuilder.BeginSection("Options", LOCTEXT("TraceMenu_Section_Options", "Options"));
 	{
-#if PLATFORM_WINDOWS
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenLiveSesssionOnTraceStart", "Open Live Session on Trace Start"),
 			LOCTEXT("OpenLiveSesssionOnTraceStartDesc", "When set, the live session will be automatically opened in Unreal Insights when tracing is started.\nThis option will only apply when tracing to the trace store."),
@@ -365,7 +364,6 @@ TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
-#endif
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowInExplorerAfterTrace", "Show in Explorer after Trace"),
@@ -413,7 +411,6 @@ TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 			EUserInterfaceActionType::Button
 		);
 
-#if PLATFORM_WINDOWS
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenLiveSessionLabel", "Open Live Session"),
 			LOCTEXT("OpenLiveSessionTooltip", "Opening the live session is possible only while tracing to the trace store."),
@@ -423,7 +420,6 @@ TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
-#endif
 
 		MenuBuilder.AddSubMenu
 		(
@@ -863,7 +859,6 @@ void SInsightsStatusBarWidget::CacheTraceStorePath()
 {
 	if (TraceStorePath.IsEmpty())
 	{
-#if PLATFORM_WINDOWS
 		UE::Trace::FStoreClient* StoreClient = UE::Trace::FStoreClient::Connect(TEXT("localhost"));
 
 		if (!StoreClient)
@@ -880,9 +875,6 @@ void SInsightsStatusBarWidget::CacheTraceStorePath()
 		}
 
 		TraceStorePath = FString(Status->GetStoreDir());
-#else
-		TraceStorePath = FPaths::Combine(FPaths::EngineDir(), TEXT("/Programs/UnrealInsights/Saved/TraceSessions/"));
-#endif
 	}
 }
 

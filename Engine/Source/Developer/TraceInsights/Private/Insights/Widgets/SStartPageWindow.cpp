@@ -57,9 +57,6 @@
 
 #define LOCTEXT_NAMESPACE "STraceStoreWindow"
 
-// For now, we only support store settings on platforms that run Unreal Trace Server.
-#define STORE_SUPPORTS_SETTINGS PLATFORM_WINDOWS
-
 // Should match GDefaultChannels (from Runtime\Core\Private\ProfilingDebugging\TraceAuxiliary.cpp).
 // We cannot use GDefaultChannels directly as UE_TRACE_ENABLED may be off.
 static const TCHAR* GInsightsDefaultChannelPreset = TEXT("cpu,gpu,frame,log,bookmark,screenshot,region");
@@ -1642,7 +1639,6 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 		[
 			SNew(SHorizontalBox)
 
-#if STORE_SUPPORTS_SETTINGS
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(0.0f, 0.0f, 0.0f, 0.0f)
@@ -1658,7 +1654,6 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
-#endif
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -1671,7 +1666,6 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 				.Text_Raw(this, &STraceStoreWindow::GetConnectionStatusTooltip))
 			]
 
-#if STORE_SUPPORTS_SETTINGS
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
@@ -1690,7 +1684,6 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 				.IsReadOnly(true)
 				.BackgroundColor(FSlateColor(EStyleColor::Background))
 			]
-#endif
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -1730,7 +1723,6 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 			]
 		]
 
-#if STORE_SUPPORTS_SETTINGS
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.MaxHeight(400)
@@ -1816,7 +1808,6 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 				]
 			]
 		]
-#endif
 		;
 
 	return Widget;
