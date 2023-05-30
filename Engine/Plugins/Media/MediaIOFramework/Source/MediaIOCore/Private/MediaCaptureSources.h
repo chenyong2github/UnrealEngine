@@ -404,9 +404,11 @@ namespace UE::MediaCapture::Private
 
 		virtual FTexture2DRHIRef GetSourceTextureForInput_RenderThread(FRHICommandListImmediate& RHICmdList)
 		{
-			if (RenderTarget.IsValid() && RenderTarget->GetRenderTargetResource())
+			constexpr bool bEvenIfPendingKill = false;
+			constexpr bool bThreadSafeTest = true;
+			if (RenderTarget.IsValid(bEvenIfPendingKill, bThreadSafeTest) && RenderTarget.GetEvenIfUnreachable()->GetRenderTargetResource())
 			{
-				return RenderTarget->GetRenderTargetResource()->GetTextureRenderTarget2DResource()->GetTextureRHI();
+				return RenderTarget.GetEvenIfUnreachable()->GetRenderTargetResource()->GetTextureRenderTarget2DResource()->GetTextureRHI();
 			}
 			return nullptr;
 		}
