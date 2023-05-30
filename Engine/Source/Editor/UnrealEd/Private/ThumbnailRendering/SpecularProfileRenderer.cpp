@@ -24,10 +24,9 @@ void USpecularProfileRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Wi
 	if (LocalSpecularProfile)
 	{
 		FLinearColor Col;
-
-		Col = LocalSpecularProfile->Settings.ViewColor; Col.A = 1;
+		Col = LocalSpecularProfile->Settings.ViewColor.GetLinearColorValue(1.0f); Col.A = 1;
 		Canvas->DrawTile(0,          0, Width, Height / 2, 0, 0, 1, 1, Col);
-		Col = LocalSpecularProfile->Settings.LightColor; Col.A = 1;
+		Col = LocalSpecularProfile->Settings.LightColor.GetLinearColorValue(1.0f); Col.A = 1;
 		Canvas->DrawTile(0, Height / 2, Width, Height / 2, 0, 0, 1, 1, Col);
 
 		FCanvasTextItem TextItem(FVector2D(5.0f, 5.0f), FText::FromString(LocalSpecularProfile->Settings.IsProcedural() ? TEXT("Procedural") : TEXT("Texture")), GEngine->GetLargeFont(), FLinearColor::White);

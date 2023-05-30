@@ -62,8 +62,8 @@ public:
 		SHADER_PARAMETER(FIntPoint, TargetResolution)
 		SHADER_PARAMETER(uint32, SourceMipCount)
 		SHADER_PARAMETER(uint32, TargetIndex)
-		SHADER_PARAMETER(FVector3f, ViewColor)
-		SHADER_PARAMETER(FVector3f, LightColor)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ViewColorBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, LightColorBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, TargetTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -344,8 +344,34 @@ IPooledRenderTarget* FSpecularProfileTextureManager::GetAtlasTexture(FRDGBuilder
 			PassParameters->TargetResolution = SpecularProfileTexture->Desc.Extent;
 			PassParameters->TargetTexture = SpecularProfileUAV;
 			PassParameters->TargetIndex = LayerIt;
-			PassParameters->ViewColor = FVector3f(Data.ViewColor);
-			PassParameters->LightColor = FVector3f(Data.LightColor);
+
+			struct FLinearColor16 
+			{
+				FLinearColor16() {}
+				FLinearColor16(const FLinearColor& In) { R = In.R; G = In.G; B = In.B; A = In.A; }
+				FFloat16 R;
+				FFloat16 G;
+				FFloat16 B;
+				FFloat16 A;
+			};
+
+			TArray<FLinearColor16> ViewColorData;
+			TArray<FLinearColor16> LightColorData;
+			ViewColorData.SetNum(PassParameters->TargetResolution.X);
+			LightColorData.SetNum(PassParameters->TargetResolution.Y);
+			for (uint32 It=0; It < Resolution; ++It)
+			{
+				ViewColorData[It]  = FLinearColor16(Data.ViewColor.GetLinearColorValue(float(It + 0.5f) / Resolution));
+				LightColorData[It] = FLinearColor16(Data.LightColor.GetLinearColorValue(float(It + 0.5f) / Resolution));
+			}
+
+			FRDGBufferRef ViewColorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(8, Resolution), TEXT("ViewColor"), ERDGBufferFlags::MultiFrame);
+			GraphBuilder.QueueBufferUpload(ViewColorBuffer, ViewColorData.GetData(), 8*ViewColorData.Num(), ERDGInitialDataFlags::None);
+			PassParameters->ViewColorBuffer = GraphBuilder.CreateSRV(ViewColorBuffer, PF_FloatRGBA);
+
+			FRDGBufferRef LightColorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(8, Resolution), TEXT("LightColor"), ERDGBufferFlags::MultiFrame);
+			GraphBuilder.QueueBufferUpload(LightColorBuffer, LightColorData.GetData(), 8*LightColorData.Num(), ERDGInitialDataFlags::None);
+			PassParameters->LightColorBuffer = GraphBuilder.CreateSRV(LightColorBuffer, PF_FloatRGBA);
 
 			FSpecularProfileCopyCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FSpecularProfileCopyCS::FProcedural>(Data.IsProcedural());
@@ -378,6 +404,29 @@ int32 FSpecularProfileTextureManager::FindAllocationId(const USpecularProfile* I
 		}
 	}
 	return INDEX_NONE;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// FSpecularProfileStruct
+
+FSpecularProfileStruct::FSpecularProfileStruct()
+{
+	ViewColor.ColorCurves[0].AddKey(0, 1.f);
+	ViewColor.ColorCurves[1].AddKey(0, 1.f);
+	ViewColor.ColorCurves[2].AddKey(0, 1.f);
+	ViewColor.ColorCurves[0].AddKey(1, 1.f);
+	ViewColor.ColorCurves[1].AddKey(1, 1.f);
+	ViewColor.ColorCurves[2].AddKey(1, 1.f);
+
+	LightColor.ColorCurves[0].AddKey(0, 1.f);
+	LightColor.ColorCurves[1].AddKey(0, 1.f);
+	LightColor.ColorCurves[2].AddKey(0, 1.f);
+	LightColor.ColorCurves[0].AddKey(1, 1.f);
+	LightColor.ColorCurves[1].AddKey(1, 1.f);
+	LightColor.ColorCurves[2].AddKey(1, 1.f);
+
+	Format = ESpecularProfileFormat::ViewLightVector;
+	Texture = nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

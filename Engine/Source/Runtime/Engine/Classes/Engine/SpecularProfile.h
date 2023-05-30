@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "RenderResource.h"
+#include "Curves/CurveLinearColor.h"
 #include "SpecularProfile.generated.h"
 
 #define MAX_SPECULAR_PROFILE_COUNT 256
@@ -37,14 +38,14 @@ struct FSpecularProfileStruct
 	/**
 	* Define the view facing color
 	*/
-	UPROPERTY(Category = "Procedural", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.01", UIMax = "1.0", ClampMax = "1.0", HideAlphaChannel))
-	FLinearColor ViewColor;
+	UPROPERTY(Category = "Procedural", EditAnywhere, meta = (AllowZoomOutput = "false", ShowZoomButtons = "false", ViewMinInput = "0", ViewMaxInput = "1", ViewMinOutput = "0", ViewMaxOutput = "1", TimelineLength = "1", ShowInputGridNumbers="false", ShowOutputGridNumbers="false"))
+	FRuntimeCurveLinearColor ViewColor;
 
 	/**
 	* Define the light facing color
 	*/
-	UPROPERTY(Category = "Procedural", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.001", UIMax = "1.0", ClampMax = "1.0", HideAlphaChannel))
-	FLinearColor LightColor;
+	UPROPERTY(Category = "Procedural", EditAnywhere, meta = (AllowZoomOutput = "false", ShowZoomButtons = "false", ViewMinInput = "0", ViewMaxInput = "1", ViewMinOutput = "0", ViewMaxOutput = "1", TimelineLength = "1", ShowInputGridNumbers="false", ShowOutputGridNumbers="false"))
+	FRuntimeCurveLinearColor LightColor;
 
 	/**
 	 * Define the texture used as a specular profile
@@ -52,13 +53,7 @@ struct FSpecularProfileStruct
 	UPROPERTY(Category  ="Texture", EditAnywhere, BlueprintReadOnly, meta=(DisplayName="Texture"))
 	TObjectPtr<UTexture2D> Texture;
 
-	FSpecularProfileStruct()
-	{
-		Format = ESpecularProfileFormat::ViewLightVector;
-		ViewColor = FLinearColor(1.0f, 1.0f, 1.0f);
-		LightColor = FLinearColor(1.0f, 1.0f, 1.0f);
-		Texture = nullptr;
-	}
+	FSpecularProfileStruct();
 
 	bool IsProcedural() const { return Texture == nullptr; }
 
