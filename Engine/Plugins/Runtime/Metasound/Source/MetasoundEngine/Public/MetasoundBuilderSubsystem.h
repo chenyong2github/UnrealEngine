@@ -126,14 +126,14 @@ public:
 	// Adds a graph output node with the given name, DataType, and sets output node's input to default value.
 	// Returns the new output node's input handle if it was successfully created, or an invalid handle if it failed.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
-	UPARAM(DisplayName = "Input Handle") FMetaSoundBuilderNodeInputHandle AddGraphOutputNode(FName Name, FName DataType, FMetasoundFrontendLiteral DefaultValue, EMetaSoundBuilderResult& OutResult, bool bIsConstructorInput = false);
+	UPARAM(DisplayName = "Input Handle") FMetaSoundBuilderNodeInputHandle AddGraphOutputNode(FName Name, FName DataType, FMetasoundFrontendLiteral DefaultValue, EMetaSoundBuilderResult& OutResult, bool bIsConstructorOutput = false);
 
 	// Adds an interface registered with the given name to the graph, adding associated input and output nodes.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
 	void AddInterface(FName InterfaceName, EMetaSoundBuilderResult& OutResult);
 
 	// Adds a node to the graph using the provided MetaSound asset as its defining NodeClass.
-	// Returns a node handle to the created node if successful, or an invliad handle if it failed.
+	// Returns a node handle to the created node if successful, or an invalid handle if it failed.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", DisplayName = "Add MetaSound Node From Asset Class", meta = (ExpandEnumAsExecs = "OutResult"))
 	UPARAM(DisplayName = "Node Handle") FMetaSoundNodeHandle AddNode(const TScriptInterface<IMetaSoundDocumentInterface>& NodeClass, EMetaSoundBuilderResult& OutResult);
 

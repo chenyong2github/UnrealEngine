@@ -336,7 +336,7 @@ namespace Metasound::Frontend
 		{
 			case EMetasoundFrontendClassType::Input:
 			{
-				InputNameToIndex.Add(NodeBeingRemoved.Name);
+				InputNameToIndex.Remove(NodeBeingRemoved.Name);
 			}
 			break;
 

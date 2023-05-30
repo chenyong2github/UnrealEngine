@@ -86,14 +86,14 @@ FMetaSoundBuilderNodeOutputHandle UMetaSoundBuilderBase::AddGraphInputNode(FName
 	return NewHandle;
 }
 
-FMetaSoundBuilderNodeInputHandle UMetaSoundBuilderBase::AddGraphOutputNode(FName Name, FName DataType, FMetasoundFrontendLiteral DefaultValue, EMetaSoundBuilderResult& OutResult, bool bIsConstructorInput)
+FMetaSoundBuilderNodeInputHandle UMetaSoundBuilderBase::AddGraphOutputNode(FName Name, FName DataType, FMetasoundFrontendLiteral DefaultValue, EMetaSoundBuilderResult& OutResult, bool bIsConstructorOutput)
 {
 	FMetasoundFrontendClassOutput Description;
 	Description.Name = Name;
 	Description.TypeName = DataType;
 	Description.NodeID = FGuid::NewGuid();
 	Description.VertexID = FGuid::NewGuid();
-	Description.AccessType = bIsConstructorInput ? EMetasoundFrontendVertexAccessType::Value : EMetasoundFrontendVertexAccessType::Reference;
+	Description.AccessType = bIsConstructorOutput ? EMetasoundFrontendVertexAccessType::Value : EMetasoundFrontendVertexAccessType::Reference;
 
 	FMetaSoundBuilderNodeInputHandle NewHandle;
 	const FMetasoundFrontendNode* Node = Builder.FindGraphOutputNode(Name);
@@ -145,6 +145,7 @@ FMetaSoundNodeHandle UMetaSoundBuilderBase::AddNode(const TScriptInterface<IMeta
 			check(Interface);
 			const FMetasoundFrontendDocument& NodeClassDoc = Interface->GetDocument();
 			const FMetasoundFrontendGraphClass& NodeClassGraph = NodeClassDoc.RootGraph;
+
 			if (const FMetasoundFrontendNode* NewNode = Builder.AddGraphNode(NodeClassGraph))
 			{
 				FMetasoundFrontendClassMetadata NodeClassMetadata = NodeClassGraph.Metadata;
