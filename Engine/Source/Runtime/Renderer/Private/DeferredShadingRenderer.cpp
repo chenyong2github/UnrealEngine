@@ -1894,6 +1894,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 					PrepareRayTracingGlobalIllumination(View, RayGenShaders);
 					PrepareRayTracingGlobalIlluminationPlugin(View, RayGenShaders);
 					PrepareRayTracingTranslucency(View, RayGenShaders);
+					PrepareRayTracingVolumetricFogShadows(View, *Scene, RayGenShaders);
 
 					if (DoesPlatformSupportLumenGI(ShaderPlatform) && Lumen::UseHardwareRayTracing(ViewFamily))
 					{

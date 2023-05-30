@@ -32,6 +32,10 @@
 #define USE_EMISSIVE 1
 #endif
 
+#ifndef USE_RAYTRACED_SHADOWS
+#define USE_RAYTRACED_SHADOWS 0
+#endif
+
 RWTexture3D<float4> RWVBufferA;
 #if USE_EMISSIVE
 RWTexture3D<float4> RWVBufferB;
@@ -274,25 +278,42 @@ float2 PrevConservativeDepthTextureSize;
 Texture2D<float> PrevConservativeDepthTexture;
 uint UseConservativeDepthTexture;
 
-void InjectShadowedLocalLightPS(
-	FWriteToSliceGeometryOutput Input,
-	out float4 OutScattering : SV_Target0
-	)
-{
-	float4 SvPosition = Input.Vertex.Position;
-	OutScattering = 0;
+#if USE_RAYTRACED_SHADOWS
 
-	if (UseConservativeDepthTexture > 0)
+#include "/Engine/Private/RayTracing/RayTracingCommon.ush"
+
+RaytracingAccelerationStructure TLAS;
+
+float ComputeRayTracedShadowFactor(float3 TranslatedWorldPosition, float3 ToLight)
+{
+	uint RayFlags = RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+	uint RaytracingMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
+
+	FRayDesc Ray;
+	Ray.Origin = TranslatedWorldPosition;
+	Ray.Direction = normalize(ToLight);
+	Ray.TMin = 0.0f;
+	Ray.TMax = length(ToLight);
+
+	FMinimalPayload MinimalPayload = TraceVisibilityRay(
+		TLAS,
+		RayFlags,
+		RaytracingMask,
+		Ray);
+
+	if (MinimalPayload.IsHit())
 	{
-		const float SceneDepth = ConservativeDepthTexture.Load(uint3(SvPosition.xy, 0));
-		if (SceneDepth > SvPosition.z)
-		{
-			clip(-1); // If the froxel is behind conservative front depth, skip the light injection.
-			return;
-		}
+		return 0.0f;
 	}
 
-	uint3 GridCoordinate = uint3(Input.Vertex.Position.xy, Input.LayerIndex);
+	return 1.0;
+}
+
+#endif
+
+float4 InjectShadowedLocalLightCommon(uint3 GridCoordinate)
+{
+	float4 OutScattering = 0;
 
 	// Somehow pixels are being rasterized outside of the viewport on a 970 GTX, perhaps due to use of a geometry shader bypassing the viewport scissor.
 	// This triggers the HistoryMissSuperSampleCount path causing significant overhead for shading off-screen pixels.
@@ -360,14 +381,18 @@ void InjectShadowedLocalLightPS(
 	
 #if ENABLE_SHADOW_COMPUTATION
 			if (CombinedAttenuation > 0)
-			{			
+			{
+#if USE_RAYTRACED_SHADOWS
+				ShadowFactor = ComputeRayTracedShadowFactor(TranslatedWorldPosition, ToLight);
+#else
 				bool bUnused = false;
 				ShadowFactor = ComputeVolumeShadowing(TranslatedWorldPosition, IsPointLight, LightData.bSpotLight, bUnused);
 
 #if VIRTUAL_SHADOW_MAP
 				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld(VirtualShadowMapId, TranslatedWorldPosition);
 				ShadowFactor *= VirtualShadowMapSample.ShadowFactor;
-#endif
+#endif // VIRTUAL_SHADOW_MAP
+#endif // USE_RAYTRACED_SHADOWS
 			}
 #endif
 	
@@ -384,6 +409,61 @@ void InjectShadowedLocalLightPS(
 		// We pre-expose the buffer containing shadowed local lights luminance contribution. This helps maintaining details and color at high exposure for very bright scenes.
 		OutScattering.rgb *= View.PreExposure / (float)NumSuperSamples;
 	}
+
+	return OutScattering;
+}
+
+#if USE_RAYTRACED_SHADOWS
+
+RWTexture3D<float4> OutVolumeTexture;
+uint3 OutputOffset;
+int FirstSlice;
+
+int3 GetVoxelIndex(int ThreadIndex, int3 Resolution)
+{
+	int SliceSize = Resolution.x * Resolution.y;
+	int SliceIndex = ThreadIndex / SliceSize;
+	int SliceRemainder = ThreadIndex - SliceIndex * SliceSize;
+	
+	return int3(
+		SliceRemainder % Resolution.x,
+		SliceRemainder / Resolution.x,
+		SliceIndex
+	);
+}
+
+RAY_TRACING_ENTRY_RAYGEN(InjectShadowedLocalLightRGS)
+{
+	int3 Position = GetVoxelIndex(DispatchRaysIndex().x, VolumetricFog.ResourceGridSizeInt);
+	Position.z += FirstSlice;
+
+	float4 OutScattering = InjectShadowedLocalLightCommon(Position);
+
+	float4 DestValue = OutVolumeTexture[Position];
+	OutVolumeTexture[Position] = DestValue + OutScattering;
+}
+
+#endif // USE_RAYTRACED_SHADOWS
+
+void InjectShadowedLocalLightPS(
+	FWriteToSliceGeometryOutput Input,
+	out float4 OutScattering : SV_Target0
+	)
+{
+	float4 SvPosition = Input.Vertex.Position;
+	OutScattering = 0;
+
+	if (UseConservativeDepthTexture > 0)
+	{
+		const float SceneDepth = ConservativeDepthTexture.Load(uint3(SvPosition.xy, 0));
+		if (SceneDepth > SvPosition.z)
+		{
+			clip(-1); // If the froxel is behind conservative front depth, skip the light injection.
+			return;
+		}
+	}
+
+	OutScattering = InjectShadowedLocalLightCommon(uint3(SvPosition.xy, Input.LayerIndex));
 }
 
 Texture3D<float4> VBufferA;
