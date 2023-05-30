@@ -1365,9 +1365,6 @@ void FOpenGLDynamicRHI::Init()
 	check(!GIsRHIInitialized);
 	VERIFY_GL_SCOPE();
 
-	GRHISupportsMultithreadedShaderCreation = false;
-	GRequiredRecursiveShaders = ERecursiveShader::Resolve | ERecursiveShader::Clear | ERecursiveShader::Null;
-
 	FOpenGLProgramBinaryCache::Initialize();
 
 	InitializeStateResources();
