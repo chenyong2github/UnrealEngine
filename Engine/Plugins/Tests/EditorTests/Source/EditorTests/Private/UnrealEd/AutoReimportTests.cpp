@@ -157,7 +157,7 @@ bool CopyTestFiles(const FAutoReimportTestPayload& Test, const TArray<FSrcDstFil
 }
 
 const int32 LocalMaxRetryCounter = 5;
-const float LocalRetryDelay = 1.0f;
+const float LocalRetryDelay = 5.0f;
 
 void RetryLatentCommand(TFunction<bool(const bool)>&& LatentCommandFunction, const float RetryDelay, int32& MaxRetryCounter)
 {
