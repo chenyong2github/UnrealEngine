@@ -844,6 +844,12 @@ namespace mu
 			MeshOptions.State = m_currentStateIndex;
 			MeshOptions.ActiveTags = m_activeTags.Last();
 
+			// Ensure UV islands remain within their main layout block on lower LODs to avoid unexpected reordering 
+			// of the layout blocks when reusing a surface between LODs. Used to fix small displacements on vertices
+			// that may cause them to fall on a different block.
+			const bool bClampUVIslands = node.SharedSurfaceId != INDEX_NONE && m_currentParents.Last().m_lod > 0;
+			MeshOptions.bClampUVIslands = bClampUVIslands;
+
             GenerateMesh(MeshOptions, meshResults, pMesh );
             lastMeshOp = meshResults.meshOp;
             meshResults.extraMeshLayouts.SetNum( edits.Num() );
@@ -870,6 +876,7 @@ namespace mu
 						FMeshGenerationOptions MergedMeshOptions;
 						MergedMeshOptions.bUniqueVertexIDs = true;
 						MergedMeshOptions.bLayouts = true;
+						MergedMeshOptions.bClampUVIslands = bClampUVIslands;
 						MergedMeshOptions.State = m_currentStateIndex;
 						MergedMeshOptions.ActiveTags = m_activeTags.Last();
 						FMeshGenerationResult addResults;

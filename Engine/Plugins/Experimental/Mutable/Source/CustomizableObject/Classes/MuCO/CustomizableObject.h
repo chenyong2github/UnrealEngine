@@ -212,9 +212,6 @@ struct FCompilationOptions
 	// Used to enable AnimBp override physics mainipualtion.  
 	bool bAnimBpPhysicsManipulationEnabled = false;
 
-	// Used to enable Reuse textures between lods. Requires automatic LODs to be enabled.  
-	bool bReuseTexturesEnabled = false;
-
 	// Used to reduce the number of notifications when compiling objects
 	bool bSilentCompilation = true;
 

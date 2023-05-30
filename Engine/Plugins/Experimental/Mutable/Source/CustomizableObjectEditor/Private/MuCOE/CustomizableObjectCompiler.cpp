@@ -620,10 +620,6 @@ mu::NodeObjectPtr FCustomizableObjectCompiler::GenerateMutableRoot(
 
 	}
 
-	// Reuse textures when using automatic LODs from mesh if the LayoutManagement is disabled.
-	GenerationContext.Options.bReuseTexturesEnabled = ActualRoot->AutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh &&
-		GenerationContext.bDisableTextureLayoutManagementFlag;
-
 	// Ensure that the CO has a valid AutoLODStrategy on the ActualRoot.
 	if (ActualRoot->AutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::Inherited)
 	{

@@ -220,7 +220,9 @@ void SetSurfaceFormat( FMutableGraphGenerationContext& GenerationContext,
 
 void UpdateSharedSurfaceId(FMutableGraphGenerationContext& GenerationContext, UCustomizableObjectNodeMaterial* NodeMaterial, mu::NodeSurfaceNewPtr InNodeSurface)
 {
-	const bool bCanShareSurface = GenerationContext.Options.bReuseTexturesEnabled && GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh;
+	// Reuse materials between LODs when using automatics LODs, if texture layout management is disabled or if bReuseMaterials is enabled in the node material.
+	const bool bCanShareSurface = GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh
+		&& (GenerationContext.bDisableTextureLayoutManagementFlag || NodeMaterial->bReuseMaterialBetweenLODs);
 
 	// Set shared surface Id to reuse materials and textures between LODs if automatic LODs from mesh is being used
 	if (bCanShareSurface && InNodeSurface)

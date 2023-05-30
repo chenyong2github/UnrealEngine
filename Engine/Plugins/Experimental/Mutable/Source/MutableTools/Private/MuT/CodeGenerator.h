@@ -332,7 +332,8 @@ namespace mu
         void PrepareForLayout( LayoutPtrConst GeneratedLayout,
                                   MeshPtr currentLayoutMesh,
                                   size_t currentLayoutChannel,
-                                  const void* errorContext );
+                                  const void* errorContext,
+								  const bool bClampUVIslands);
 
         //-----------------------------------------------------------------------------------------
         //!
@@ -454,6 +455,11 @@ namespace mu
 
 			/** The meshes at the leaves will need their own layout block data. */
 			bool bLayouts = false;
+
+			/** If true, Ensure UV Islands are not split between two or more blocks. UVs shared between multiple 
+			* layout blocks will be clamped to fit the one with more vertices belonging to the UV island.
+			* Mainly used to keep consistent layouts when reusing textures between LODs. */
+			bool bClampUVIslands = false;
 
 			/** If this has something the layouts in constant meshes will be ignored, because
 			* they are supposed to match some other set of layouts. If the vector is empty, layouts
