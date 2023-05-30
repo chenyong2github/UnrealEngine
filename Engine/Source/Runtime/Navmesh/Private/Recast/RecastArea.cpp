@@ -274,7 +274,7 @@ void SeedWalkableAreasErodeFiltered(int w, int h, int lowSpanHeight, int lowSpan
 			const rcCompactCell& c = chf.cells[x + y*w];
 
 			// initialize to max height in case it needs to start with a low span
-			int32 NextAllowedLowBase = 0xffff;
+			unsigned int NextAllowedLowBase = UINT_MAX;
 
 			for (int ni = (int)c.index, i = (int)(c.index + c.count) - 1; i >= ni; i--)
 			{
@@ -338,7 +338,7 @@ void FilterLowHeightSpans(int w, int h, int lowSpanHeight, unsigned char areaId,
 			const rcCompactCell& c = chf.cells[x + y*w];
 
 			// initialize to max height in case it needs to start with a low span
-			int32 NextAllowedLowBase = 0xffff;
+			unsigned int NextAllowedLowBase = UINT_MAX;
 
 			for (int ni = (int)c.index, i = (int)(c.index + c.count) - 1; i >= ni; i--)
 			{

@@ -94,7 +94,7 @@ static void freeSpan(rcHeightfield& hf, rcSpan* ptr)
 }
 
 static void addSpan(rcHeightfield& hf, const int x, const int y,
-					const unsigned short smin, const unsigned short smax,
+					const rcSpanInt smin, const rcSpanInt smax,
 					const unsigned char area, const int flagMergeThr)
 {
 	
@@ -186,7 +186,7 @@ static void addSpan(rcHeightfield& hf, const int x, const int y,
 ///
 /// @see rcHeightfield, rcSpan.
 void rcAddSpan(rcContext* /*ctx*/, rcHeightfield& hf, const int x, const int y,
-			   const unsigned short smin, const unsigned short smax,
+			   const rcSpanInt smin, const rcSpanInt smax,
 			   const unsigned char area, const int flagMergeThr)
 {
 //	rcAssert(ctx);
@@ -322,7 +322,7 @@ static inline int SampleIndex(rcHeightfield const& hf, const int x, const int y)
 	return x + 1 + (y + 1)*(hf.width + 2);
 }
 
-static inline void addSpanSample(rcHeightfield& hf, const int x, const int y, short int sint)
+static inline void addSpanSample(rcHeightfield& hf, const int x, const int y, int sint)
 {
 	addFlatSpanSample(hf, x, y);
 	int idx = SampleIndex(hf, x, y);
@@ -355,7 +355,7 @@ static inline void intersectZ(const rcReal* v0, const rcReal* edge, rcReal cz, r
 
 static void rasterizeTriTest(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 						int xtest, int ytest,
-						short int& outsmin, short int& outsmax, 
+						int& outsmin, int& outsmax, 
 						 const unsigned char area, rcHeightfield& hf,
 						 const rcReal* bmin, const rcReal* bmax,
 						 const rcReal cs, const rcReal ics, const rcReal ich,
@@ -435,8 +435,8 @@ static void rasterizeTriTest(const rcReal* v0, const rcReal* v1, const rcReal* v
 			if (smax > by) smax = by;
 
 			// Snap the span to the heightfield height grid.
-			unsigned short ismin = (unsigned short)rcClamp((int)rcFloor(smin * ich), 0, RC_SPAN_MAX_HEIGHT);
-			unsigned short ismax = (unsigned short)rcClamp((int)rcCeil(smax * ich), (int)ismin+1, RC_SPAN_MAX_HEIGHT);
+			rcSpanInt ismin = (rcSpanInt)rcClamp((int)rcFloor(smin * ich), 0, RC_SPAN_MAX_HEIGHT);
+			rcSpanInt ismax = (rcSpanInt)rcClamp((int)rcCeil(smax * ich), (int)ismin+1, RC_SPAN_MAX_HEIGHT);
 			outsmin = ismin;
 			outsmax = ismax;
 		}
@@ -494,8 +494,8 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 		if (triangle_smax > by) triangle_smax = by;
 
 		// Snap the span to the heightfield height grid.
-		unsigned short triangle_ismin = (unsigned short)rcClamp((int)rcFloor(triangle_smin * ich), 0, RC_SPAN_MAX_HEIGHT);
-		unsigned short triangle_ismax = (unsigned short)rcClamp((int)rcCeil(triangle_smax * ich), (int)triangle_ismin+1, RC_SPAN_MAX_HEIGHT);
+		rcSpanInt triangle_ismin = (rcSpanInt)rcClamp((int)rcFloor(triangle_smin * ich), 0, RC_SPAN_MAX_HEIGHT);
+		rcSpanInt triangle_ismax = (rcSpanInt)rcClamp((int)rcCeil(triangle_smax * ich), (int)triangle_ismin+1, RC_SPAN_MAX_HEIGHT);
 		const int projectSpanToBottom = rasterizationMasks != nullptr ? (projectTriToBottom & rasterizationMasks[x0+y0*w]) : projectTriToBottom;	//UE
 		if (projectSpanToBottom) //UE
 		{
@@ -506,8 +506,10 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 		return;
 	}
 
-	const short int triangle_ismin = (short int)rcClamp((int)rcFloor(triangle_smin * ich), -32000, 32000);
-	const short int triangle_ismax = (short int)rcClamp((int)rcFloor(triangle_smax * ich), -32000, 32000);
+	constexpr int RANGE = INT_MAX;
+	
+	const int triangle_ismin = rcClamp((int)rcFloor(triangle_smin * ich), -RANGE, RANGE);
+	const int triangle_ismax = rcClamp((int)rcFloor(triangle_smax * ich), -RANGE, RANGE);
 
 	x0 = intMax(x0, 0);
 	int x1_edge = intMin(x1, w);
@@ -521,7 +523,7 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 	{
 		for (int x = x0; x <= x1; x++)
 		{
-			short int outsmin, outsmax;
+			int outsmin, outsmax;
 			rasterizeTriTest(v0, v1, v2, x, y, 
 				outsmin, outsmax, 
 				area, hf,
@@ -661,8 +663,8 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 		if (rasterizationMasks == nullptr) //UE
 		{
 			// Snap the span to the heightfield height grid.
-			unsigned short triangle_ismin_clamp = (unsigned short)rcClamp((int)triangle_ismin, 0, RC_SPAN_MAX_HEIGHT);
-			const unsigned short triangle_ismax_clamp = (unsigned short)rcClamp((int)triangle_ismax, (int)triangle_ismin_clamp+1, RC_SPAN_MAX_HEIGHT);
+			rcSpanInt triangle_ismin_clamp = (rcSpanInt)rcClamp((int)triangle_ismin, 0, RC_SPAN_MAX_HEIGHT);
+			const rcSpanInt triangle_ismax_clamp = (rcSpanInt)rcClamp((int)triangle_ismax, (int)triangle_ismin_clamp+1, RC_SPAN_MAX_HEIGHT);
 			if (projectTriToBottom) //UE
 			{
 				triangle_ismin_clamp = 0; //UE
@@ -692,8 +694,8 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 				for (int x = xloop0; x <= xloop1; x++)
 				{
 					// Snap the span to the heightfield height grid.
-					unsigned short triangle_ismin_clamp = (unsigned short)rcClamp((int)triangle_ismin, 0, RC_SPAN_MAX_HEIGHT);
-					const unsigned short triangle_ismax_clamp = (unsigned short)rcClamp((int)triangle_ismax, (int)triangle_ismin_clamp+1, RC_SPAN_MAX_HEIGHT);
+					rcSpanInt triangle_ismin_clamp = (rcSpanInt)rcClamp((int)triangle_ismin, 0, RC_SPAN_MAX_HEIGHT);
+					const rcSpanInt triangle_ismax_clamp = (rcSpanInt)rcClamp((int)triangle_ismax, (int)triangle_ismin_clamp+1, RC_SPAN_MAX_HEIGHT);
 					const int projectSpanToBottom = projectTriToBottom & rasterizationMasks[x+y*w];		//UE
 					if (projectSpanToBottom) //UE
 					{
@@ -727,7 +729,7 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 			if (intverts[basevert][0] >= x0 && intverts[basevert][0] <= x1 && intverts[basevert][1] >= y0 && intverts[basevert][1] <= y1)
 			{
 				rcReal sfloat = vertarray[basevert][1] - bmin[1];
-				short int sint = (short int)rcClamp((int)rcFloor(sfloat * ich), -32000, 32000);
+				int sint = (int)rcClamp((int)rcFloor(sfloat * ich), -RANGE, RANGE);
 	#if TEST_NEW_RASTERIZER
 				rcAssert(sint >= triangle_ismin - 1 && sint <= triangle_ismax + 1);
 	#endif
@@ -765,7 +767,7 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 					if (y >= y0 && y <= y1)
 					{
 						rcReal sfloat = temppnt[1] - bmin[1];
-						short int sint = (short int)rcClamp((int)rcFloor(sfloat * ich), -32000, 32000);
+						short int sint = (short int)rcClamp((int)rcFloor(sfloat * ich), -RANGE, RANGE);
 #if TEST_NEW_RASTERIZER
 						rcAssert(sint >= triangle_ismin - 1 && sint <= triangle_ismax + 1);
 #endif
@@ -806,7 +808,7 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 						if (x >= x0 && x <= x1)
 						{
 							rcReal sfloat = Inter[i][1] - bmin[1];
-							short int sint = (short int)rcClamp((int)rcFloor(sfloat * ich), -32000, 32000);
+							short int sint = (short int)rcClamp((int)rcFloor(sfloat * ich), -RANGE, RANGE);
 #if TEST_NEW_RASTERIZER
 							rcAssert(sint >= triangle_ismin - 1 && sint <= triangle_ismax + 1);
 #endif
@@ -835,7 +837,7 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 						}
 						for (int x = xloop0; x <= xloop1; x++, sfloat += ds)
 						{
-							short int sint = (short int)rcClamp((int)rcFloor(sfloat * ich), -32000, 32000);
+							short int sint = (short int)rcClamp((int)rcFloor(sfloat * ich), -RANGE, RANGE);
 #if TEST_NEW_RASTERIZER
 							rcAssert(sint >= triangle_ismin - 1 && sint <= triangle_ismax + 1);
 #endif
@@ -861,20 +863,20 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 				int idx = SampleIndex(hf, x, y);
 				rcTempSpan& Temp = hf.tempspans[idx];
 
-				short int smin = Temp.sminmax[0];
+				int smin = Temp.sminmax[0];
 
 				// +1 because span sample heights are computed from rcFloor instead of rcCeil (and they need to have a height of at least 1)
-				short int smax = UE::Recast::Private::bEnableSpanHeightRasterizationFix ? Temp.sminmax[1] + 1 : Temp.sminmax[1]; //UE
+				int smax = UE::Recast::Private::bEnableSpanHeightRasterizationFix ? Temp.sminmax[1] + 1 : Temp.sminmax[1]; //UE
 
 				// reset for next triangle
-				Temp.sminmax[0] = 32000;
-				Temp.sminmax[1] = -32000;
+				Temp.sminmax[0] = RANGE;
+				Temp.sminmax[1] = -RANGE;
 
 				// Skip the span if it is outside the heightfield bbox
 				if (smin >= RC_SPAN_MAX_HEIGHT || smax < 0) continue;
 
-				smin = (short)intMax(smin, 0);
-				smax = (short)intMin(intMax(smax,smin+1), RC_SPAN_MAX_HEIGHT);
+				smin = intMax(smin, 0);
+				smax = intMin(intMax(smax,smin+1), RC_SPAN_MAX_HEIGHT);
 				const int projectSpanToBottom = rasterizationMasks != nullptr ? (projectTriToBottom & rasterizationMasks[x+y*w]) : projectTriToBottom; //UE
 				if (projectSpanToBottom) //UE
 				{
@@ -883,7 +885,7 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 
 	#if TEST_NEW_RASTERIZER
 				{
-					short int outsmin, outsmax;
+					int outsmin, outsmax;
 					rasterizeTriTest(v0, v1, v2, x, y, 
 						outsmin, outsmax, 
 						area, hf,
@@ -895,8 +897,8 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 						outsmax > smax + tol || outsmax < smax - tol
 						)
 					{
-						Temp.sminmax[0] = 32000;
-						Temp.sminmax[1] = -32000;
+						Temp.sminmax[0] = RANGE;
+						Temp.sminmax[1] = -RANGE;
 						rasterizeTriTest(v0, v1, v2, x, y, 
 							outsmin, outsmax, 
 							area, hf,
@@ -905,8 +907,8 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 							flagMergeThr);
 						if (outsmin != RC_SPAN_MAX_HEIGHT)
 						{
-							Temp.sminmax[0] = 32000;
-							Temp.sminmax[1] = -32000;
+							Temp.sminmax[0] = RANGE;
+							Temp.sminmax[1] = -RANGE;
 						}
 					}
 
@@ -930,7 +932,7 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 		{
 			int idx = SampleIndex(hf, x, y);
 			rcTempSpan& Temp = hf.tempspans[idx];
-			rcAssert(Temp.sminmax[0] == 32000 && Temp.sminmax[1] == -32000);
+			rcAssert(Temp.sminmax[0] == RANGE && Temp.sminmax[1] == -RANGE);
 		}
 	}
 	rcEdgeHit& Hits = hfEdgeHits[h];

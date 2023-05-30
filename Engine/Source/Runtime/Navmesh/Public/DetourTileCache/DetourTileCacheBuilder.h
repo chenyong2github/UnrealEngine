@@ -29,7 +29,7 @@
 #include "HAL/PlatformString.h"
 
 static const int DT_TILECACHE_MAGIC = 'D'<<24 | 'T'<<16 | 'L'<<8 | 'R'; ///< 'DTLR';
-static const int DT_TILECACHE_VERSION = 1;
+static const int DT_TILECACHE_VERSION = 2;
 
 static const unsigned char DT_TILECACHE_NULL_AREA = 0;
 static const unsigned char DT_TILECACHE_WALKABLE_AREA = 63;
@@ -39,7 +39,6 @@ struct dtTileCacheLayerHeader
 {
 	short version;							///< Data version
 	int tx,ty,tlayer;
-	unsigned short hmin, hmax;				///< Height min/max range
 	unsigned short width, height;			///< Dimension of the layer.
 	unsigned short minx, maxx, miny, maxy;	///< Usable sub-region.
 	// These should be at the bottom, as they are less often used than the rest of the data.

@@ -31,7 +31,7 @@ struct rcLayerRegionMonotone
 	int chunkId;
 	rcIntArray neis;
 	rcIntArray layers;
-	unsigned short ymin, ymax;
+	unsigned int ymin, ymax;
 	unsigned short layerId;		// Layer ID
 	unsigned char base : 1;		// Flag indicating if the region is the base of merged regions.
 	unsigned char remap : 1;
@@ -248,7 +248,7 @@ static bool CollectLayerRegionsMonotone(rcContext* ctx, rcCompactHeightfield& ch
 	for (int i = 0; i < nregs; ++i)
 	{
 		regs[i].layerId = 0xffff;
-		regs[i].ymin = 0xffff;
+		regs[i].ymin = UINT_MAX;
 		regs[i].ymax = 0;
 	}
 
@@ -464,7 +464,7 @@ static bool CollectLayerRegionsChunky(rcContext* ctx, rcCompactHeightfield& chf,
 	for (int i = 0; i < nregs; ++i)
 	{
 		regs[i].layerId = 0xffff;
-		regs[i].ymin = 0xffff;
+		regs[i].ymin = UINT_MAX;
 		regs[i].ymax = 0;
 	}
 
@@ -571,8 +571,8 @@ static bool SplitAndStoreLayerRegions(rcContext* ctx, rcCompactHeightfield& chf,
 				if (root.layers.contains(nei))
 					continue;
 				// Skip if the height range would become too large.
-				const int ymin = rcMin(root.ymin, regn.ymin);
-				const int ymax = rcMax(root.ymax, regn.ymax);
+				const unsigned int ymin = rcMin(root.ymin, regn.ymin);
+				const unsigned int ymax = rcMax(root.ymax, regn.ymax);
 				if ((ymax - ymin) >= 255)
 					continue;
 
@@ -616,8 +616,8 @@ static bool SplitAndStoreLayerRegions(rcContext* ctx, rcCompactHeightfield& chf,
 				if (!overlapRange(ri.ymin,ri.ymax+mergeHeight, rj.ymin,rj.ymax+mergeHeight))
 					continue;
 				// Skip if the height range would become too large.
-				const int ymin = rcMin(ri.ymin, rj.ymin);
-				const int ymax = rcMax(ri.ymax, rj.ymax);
+				const unsigned int ymin = rcMin(ri.ymin, rj.ymin);
+				const unsigned int ymax = rcMax(ri.ymax, rj.ymax);
 				if ((ymax - ymin) >= 255)
 					continue;
 
@@ -780,13 +780,13 @@ static bool SplitAndStoreLayerRegions(rcContext* ctx, rcCompactHeightfield& chf,
 		memset(layer->cons, 0, gridSize);
 
 		// Find layer height bounds.
-		int hmin = 0, hmax = 0;
+		unsigned int hmin = 0, hmax = 0;
 		for (int j = 0; j < nregs; ++j)
 		{
 			if (regs[j].base && regs[j].layerId == curId)
 			{
-				hmin = (int)regs[j].ymin;
-				hmax = (int)regs[j].ymax;
+				hmin = regs[j].ymin;
+				hmax = regs[j].ymax;
 			}
 		}
 
@@ -987,7 +987,7 @@ struct rcLayerRegion
 	rcIntArray layers;
 	rcIntArray connections;
 	unsigned short layerId;
-	unsigned short ymin, ymax;
+	unsigned int ymin, ymax;
 	unsigned char remap : 1;
 	unsigned char visited : 1;
 	unsigned char base : 1;
@@ -1436,13 +1436,13 @@ bool rcBuildHeightfieldLayers(rcContext* ctx, rcCompactHeightfield& chf,
 		memset(layer->cons, 0, gridSize);
 
 		// Find layer height bounds.
-		int hmin = 0, hmax = 0;
+		unsigned int hmin = 0, hmax = 0;
 		for (int j = 0; j < nreg; ++j)
 		{
 			if (regions[j].base && regions[j].layerId == curId)
 			{
-				hmin = (int)regions[j].ymin;
-				hmax = (int)regions[j].ymax;
+				hmin = regions[j].ymin;
+				hmax = regions[j].ymax;
 			}
 		}
 

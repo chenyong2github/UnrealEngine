@@ -1049,8 +1049,15 @@ void FPImplRecastNavMesh::SerializeCompressedTileCacheData(FArchive& Ar, int32 N
 		Ar << Header->bmin[i];
 		Ar << Header->bmax[i];
 	}
-	Ar << Header->hmin;
-	Ar << Header->hmax;
+	
+	if (Ar.IsLoading() && NavMeshVersion < NAVMESHVER_HEIGHT_INCREASE)
+	{
+		unsigned short hmin, hmax;
+		Ar << hmin;
+		Ar << hmax;
+		// Skipping hmin and hmax, they do not exit in new header.
+	}
+	
 	Ar << Header->width;
 	Ar << Header->height;
 	Ar << Header->minx;

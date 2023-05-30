@@ -257,7 +257,6 @@ void rcFilterWalkableLowHeightSpansSequences(rcContext* ctx, int walkableHeight,
 
 	const int w = solid.width;
 	const int h = solid.height;
-	const int MAX_HEIGHT = 0xffff;
 
 	const int32 MaxSpans = 64;
 	rcCompactSpan SpanList[MaxSpans];
@@ -276,9 +275,9 @@ void rcFilterWalkableLowHeightSpansSequences(rcContext* ctx, int walkableHeight,
 			NumSpans = 0;
 			for (rcSpan* s = solid.spans[x + y*w]; s; s = s->next)
 			{
-				const int bot = (int)s->data.smax;
-				const int top = s->next ? (int)s->next->data.smin : MAX_HEIGHT;
-				SpanList[NumSpans].y = (unsigned short)rcClamp(bot, 0, 0xffff);
+				const rcSpanInt bot = s->data.smax;
+				const rcSpanInt top = s->next ? s->next->data.smin : RC_SPAN_MAX_HEIGHT;
+				SpanList[NumSpans].y = rcClamp(bot, 0, UINT_MAX);
 				SpanList[NumSpans].h = (unsigned char)rcClamp(top - bot, 0, 0xff);
 				SpanList[NumSpans].reg = s->data.area;
 				
@@ -289,7 +288,7 @@ void rcFilterWalkableLowHeightSpansSequences(rcContext* ctx, int walkableHeight,
 				}
 			}
 
-			int32 NextAllowedBase = 0xffff;
+			unsigned int NextAllowedBase = UINT_MAX;
 			for (int32 Idx = NumSpans - 1; Idx >= 0; Idx--)
 			{
 				if (SpanList[Idx].h < walkableHeight)
