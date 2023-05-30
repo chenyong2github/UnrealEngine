@@ -112,7 +112,7 @@ void ApplyCVarsFromBootHotfix()
 		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarPair.Key); 
 		if (CVar)
 		{
-			CVar->Set(*CVarPair.Value, ECVF_SetByConsoleVariablesIni);
+			CVar->Set(*CVarPair.Value, ECVF_SetByHotfix);
 		}
 	}
 #endif // !UE_SERVER
@@ -198,7 +198,7 @@ void OnSetCVarFromIniEntry(const TCHAR *IniFile, const TCHAR *Key, const TCHAR* 
 #endif // !DISABLE_CHEAT_CVARS
 		}
 
-		if (CVar->TestFlags(ECVF_SaveForNextBoot) && (SetBy & ECVF_SetByConsoleVariablesIni))
+		if (CVar->TestFlags(ECVF_SaveForNextBoot) && (SetBy == ECVF_SetByHotfix))
 		{
 			SaveCVarForNextBoot(Key, Value);
 		}

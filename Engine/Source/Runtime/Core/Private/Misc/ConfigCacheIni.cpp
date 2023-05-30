@@ -2082,7 +2082,7 @@ namespace
 	{
 		if (IniFilename == GEngineIni && SectionNames.Contains(TEXT("ConsoleVariables")))
 		{
-			FConfigCacheIni::LoadConsoleVariablesFromINI();
+			UE::ConfigUtilities::ApplyCVarSettingsFromIni(TEXT("ConsoleVariables"), *GEngineIni, ECVF_SetByHotfix);
 		}
 	}
 }
