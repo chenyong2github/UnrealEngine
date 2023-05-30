@@ -1913,6 +1913,11 @@ namespace Chaos::Private
 
 	void FPBDIslandManager::ProcessSleep()
 	{
+		if (!CVars::bChaosSolverSleepEnabled)
+		{
+			return;
+		}
+
 		// Isloated particles are not kept in any island and need to be handled separately.
 		ProcessParticlesSleep();
 
