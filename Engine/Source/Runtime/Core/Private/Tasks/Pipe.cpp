@@ -10,7 +10,8 @@ namespace UE::Tasks
 	Private::FTaskBase* FPipe::PushIntoPipe(Private::FTaskBase& Task)
 	{
 		Task.AddRef(); // the pipe holds a ref to the last task, until it's replaced by the next task or cleared on completion
-		Private::FTaskBase* LastTask_Local = LastTask.exchange(&Task, std::memory_order_release);
+		Private::FTaskBase* LastTask_Local = LastTask.exchange(&Task, std::memory_order_acq_rel); // `acq_rel` to order task construction before
+		// its usage by a thread that replaces it as the last piped task
 		checkf(LastTask_Local != &Task, TEXT("Dependency cycle: adding itself as a prerequisite (or use after destruction)"));
 
 		if (LastTask_Local == nullptr)
