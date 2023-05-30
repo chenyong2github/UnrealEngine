@@ -25,6 +25,7 @@
 #include "BasePassRendering.h"
 #include "VariableRateShadingImageManager.h"
 #include "Lumen/Lumen.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 DECLARE_CYCLE_STAT(TEXT("NaniteBasePass"), STAT_CLP_NaniteBasePass, STATGROUP_ParallelCommandListMarkers);
 
@@ -47,6 +48,19 @@ static FAutoConsoleVariableRef CVarNaniteComputeMaterials(
 	TEXT("r.Nanite.ComputeMaterials"),
 	GNaniteComputeMaterials,
 	TEXT("Whether to enable Nanite material compute shading"),
+	ECVF_RenderThreadSafe
+);
+
+static int32 GNaniteComputeMaterialsSort = 1;
+static FAutoConsoleVariableRef CVarNaniteComputeMaterialsSort(
+	TEXT("r.Nanite.ComputeMaterials.Sort"),
+	GNaniteComputeMaterialsSort,
+	TEXT(""),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		// We need to recreate scene proxies so that BuildShadingCommands can be re-evaluated.
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
 	ECVF_RenderThreadSafe
 );
 
@@ -734,6 +748,7 @@ struct FNaniteShadingCommand
 	const FMaterial* Material = nullptr;
 	TShaderRef<TBasePassComputeShaderPolicyParamType<FUniformLightMapPolicy>> ComputeShader;
 	FMeshDrawShaderBindings ShaderBindings;
+	uint32 BoundTargetMask = 0u;
 	uint16 ShadingBin = 0xFFFFu;
 };
 
@@ -832,6 +847,8 @@ void BuildShadingCommands(
 		PassShaders;
 		PassShaders.ComputeShader = BasePassComputeShader;
 
+		ShadingCommand->BoundTargetMask = PassShaders.ComputeShader->GetBoundTargetMask();
+
 		const FShaderParameterBindings& Bindings = BasePassComputeShader->Bindings;
 
 		//const FLightMapInteraction LightMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
@@ -861,6 +878,29 @@ void BuildShadingCommands(
 
 		FMeshProcessorShaders ShadersForDebugging = PassShaders.GetUntypedShaders();
 		ShadingCommand->ShaderBindings.Finalize(&ShadersForDebugging);
+	}
+
+	if (GNaniteComputeMaterialsSort != 0)
+	{
+		ShadingCommands.Sort([&ShadingCommands](auto& A, auto& B)
+		{
+			if (A->ComputeShader.GetComputeShader() != B->ComputeShader.GetComputeShader())
+			{
+				return A->ComputeShader.GetComputeShader() < B->ComputeShader.GetComputeShader();
+			}
+
+			if (A->BoundTargetMask != B->BoundTargetMask)
+			{
+				return A->BoundTargetMask < B->BoundTargetMask;
+			}
+
+			if (A->Material != B->Material)
+			{
+				return A->Material < B->Material;
+			}
+
+			return A.Get() < B.Get();
+		});
 	}
 }
 

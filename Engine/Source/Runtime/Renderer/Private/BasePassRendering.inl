@@ -127,3 +127,19 @@ void TBasePassComputeShaderPolicyParamType<LightMapPolicyType>::SetPassParameter
 	SetUAVParameter(BatchedParameters, Target7, Target7UAV);
 	SetUAVParameter(BatchedParameters, Targets, TargetsUAV);
 }
+
+template<typename LightMapPolicyType>
+uint32 TBasePassComputeShaderPolicyParamType<LightMapPolicyType>::GetBoundTargetMask() const
+{
+	uint32 TargetMask = 0u;
+	TargetMask |= Target0.IsBound() ? (1u << 0u) : 0u;
+	TargetMask |= Target1.IsBound() ? (1u << 1u) : 0u;
+	TargetMask |= Target2.IsBound() ? (1u << 2u) : 0u;
+	TargetMask |= Target3.IsBound() ? (1u << 3u) : 0u;
+	TargetMask |= Target4.IsBound() ? (1u << 4u) : 0u;
+	TargetMask |= Target5.IsBound() ? (1u << 5u) : 0u;
+	TargetMask |= Target6.IsBound() ? (1u << 6u) : 0u;
+	TargetMask |= Target7.IsBound() ? (1u << 7u) : 0u;
+	TargetMask |= Targets.IsBound() ? (1u << 8u) : 0u;
+	return TargetMask;
+}

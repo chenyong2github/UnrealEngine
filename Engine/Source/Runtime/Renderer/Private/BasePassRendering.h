@@ -377,6 +377,8 @@ public:
 		FRHIUnorderedAccessView* Targets
 	);
 
+	uint32 GetBoundTargetMask() const;
+
 private:
 	LAYOUT_FIELD(FShaderUniformBufferParameter,	ReflectionCaptureBuffer);
 	LAYOUT_FIELD(FShaderParameter,				ViewRectParam);
