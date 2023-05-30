@@ -109,7 +109,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-
 			/// <summary>
 			/// Starts a new unity file.  If the current unity file contains no files, this function has no effect, i.e. you will not get an empty unity file.
 			/// </summary>
@@ -187,7 +186,7 @@ namespace UnrealBuildTool
 			// Every single file in the module appears in the working set. Don't bother using adaptive unity for this module.
 			// Otherwise it would make full builds really slow.
 			GetAdaptiveFiles(Target, CPPFiles, HeaderFiles, CompileEnvironment, WorkingSet, BaseName, IntermediateDirectory, Graph, out NormalFiles, out AdaptiveFiles);
-			if (NormalFiles.Where(file => !file.HasExtension(".gen.cpp")).Count() == 0)
+			if (!NormalFiles.Where(file => !file.HasExtension(".gen.cpp")).Any())
 			{
 				NormalFiles = CPPFiles;
 				AdaptiveFiles.RemoveAll(new HashSet<FileItem>(NormalFiles).Contains);

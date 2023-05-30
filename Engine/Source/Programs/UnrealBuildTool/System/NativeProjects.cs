@@ -77,8 +77,6 @@ namespace UnrealBuildTool
 			return CachedTargetNameToProjectFile.TryGetValue(InTargetName, out OutProjectFileName);
 		}
 
-
-
 		#region Hybrid content-only/code-based project
 
 		/// <summary>
@@ -226,10 +224,6 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-
-
-
-
 		/// <summary>
 		/// Determines if a project (given a .uproject file) has source code. This is determined by finding at least one .Target.cs file
 		/// </summary>
@@ -242,17 +236,16 @@ namespace UnrealBuildTool
 			DirectoryReference TempSourceDir = DirectoryReference.Combine(UProjectFile.Directory, "Intermediate", "Source");
 
 			// check to see if we have a Target.cs file in Source or Intermediate/Source
-			if (DirectoryReference.Exists(SourceDir) && DirectoryReference.EnumerateFiles(SourceDir, "*.Target.cs", SearchOption.TopDirectoryOnly).Count() > 0)
+			if (DirectoryReference.Exists(SourceDir) && DirectoryReference.EnumerateFiles(SourceDir, "*.Target.cs", SearchOption.TopDirectoryOnly).Any())
 			{
 				return true;
 			}
-			if (bCheckForTempTargets && DirectoryReference.Exists(TempSourceDir) && DirectoryReference.EnumerateFiles(TempSourceDir, "*.Target.cs", SearchOption.TopDirectoryOnly).Count() > 0)
+			if (bCheckForTempTargets && DirectoryReference.Exists(TempSourceDir) && DirectoryReference.EnumerateFiles(TempSourceDir, "*.Target.cs", SearchOption.TopDirectoryOnly).Any())
 			{
 				return true;
 			}
 			return false;
 		}
-
 
 		private static bool RequiresTempTarget(FileReference UProjectFile, List<UnrealTargetPlatform> Platforms, List<UnrealTargetConfiguration> Configurations, [NotNullWhen(true)] out string? Reason, ILogger Logger)
 		{

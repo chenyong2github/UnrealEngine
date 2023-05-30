@@ -7,7 +7,6 @@ using System.Linq;
 using System.Text;
 using EpicGames.Core;
 
-
 namespace UnrealBuildTool.XcodeProjectXcconfig
 {
 	static class XcodeSchemeFile

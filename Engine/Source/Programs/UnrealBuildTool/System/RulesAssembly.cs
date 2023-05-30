@@ -473,7 +473,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-
 			// Figure out the best rules object to use
 			Type? RulesObjectType = PlatformRulesObjectType != null ? PlatformRulesObjectType : BaseRulesObjectType;
 			if (RulesObjectType == null)

@@ -610,7 +610,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		#region Updating Default Config file support
 
 		/// <summary>
@@ -658,7 +657,6 @@ namespace UnrealBuildTool
 			string LineToWrite = (UpdateType == ConfigDefaultUpdateType.AddArrayEntry ? "+" : "");
 			LineToWrite += KeyWithEquals + Value;
 
-
 			// read in all the lines so we can insert or replace one
 			List<string> Lines = File.ReadAllLines(DefaultConfigFile.FullName).ToList();
 
@@ -682,7 +680,6 @@ namespace UnrealBuildTool
 				File.WriteAllLines(DefaultConfigFile.FullName, Lines);
 				return true;
 			}
-
 
 			// find the last line in the section with the prefix
 			int LastIndexOfPrefix = -1;

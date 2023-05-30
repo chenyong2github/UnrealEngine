@@ -9,7 +9,6 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
-
 namespace UnrealBuildTool.XcodeProjectXcconfig
 {
 	static class StringBuilderExtensions
@@ -40,7 +39,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			FileReference ProjectAsFile = new FileReference(ProjectFilePath.FullName);
 			return DirectoryReference.Combine(ProjectAsFile.Directory, $"{ProjectAsFile.GetFileNameWithoutExtension()}{Suffix(Platform)}{ProjectAsFile.GetExtension()}");
 		}
-
 
 		private static IEnumerable<UnrealTargetConfiguration> GetSupportedConfigurations()
 		{
@@ -78,7 +76,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			return false;
 		}
 
-
 		public static string MakeExecutableFileName(string BinaryName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UnrealArchitectures Architectures, UnrealTargetConfiguration UndecoratedConfiguration)
 		{
 			StringBuilder Result = new StringBuilder();
@@ -97,7 +94,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			return Result.ToString();
 		}
-
 
 		// cache for the below function
 		static Dictionary<string, UnrealArchitectures> CachedMacProjectArchitectures = new();
@@ -139,7 +135,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			return Arches;
 		}
-
 
 		public static void FindPlistId(MetadataItem PlistItem, string Key, ref string? BundleId)
 		{
@@ -255,9 +250,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			return null;
 		}
-
-
-
 
 		public static List<string> GetSupportedOrientations(ConfigHierarchy Ini)
 		{

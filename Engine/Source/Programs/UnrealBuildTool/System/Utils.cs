@@ -350,7 +350,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-
 			DataReceivedEventHandler Output = (object sender, DataReceivedEventArgs Args) =>
 			{
 				if (Args != null && Args.Data != null)
@@ -383,7 +382,6 @@ namespace UnrealBuildTool
 
 			return ExitCode;
 		}
-
 
 		/// <summary>
 		/// Runs a local process and pipes the output to the log
@@ -732,7 +730,6 @@ namespace UnrealBuildTool
 			return LocalString;
 		}
 
-
 		/// <summary>
 		/// Given a file path and a directory, returns a file path that is relative to the specified directory
 		/// </summary>
@@ -790,7 +787,6 @@ namespace UnrealBuildTool
 			return RelativePath;
 		}
 
-
 		/// <summary>
 		/// Backspaces the specified number of characters, then displays a progress percentage value to the console
 		/// </summary>
@@ -811,7 +807,6 @@ namespace UnrealBuildTool
 			NumCharsToBackspaceOver = ProgressString.Length;
 			Console.Write(ProgressString);
 		}
-
 
 		/*
 		 * Read and write classes with xml specifiers
@@ -980,7 +975,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		/// <summary>
 		/// Returns true if the specified file's path is located under the specified directory, or any of that directory's sub-folders.  Does not care whether the file or directory exist or not.  This is a simple string-based check.
 		/// </summary>
@@ -1082,7 +1076,6 @@ namespace UnrealBuildTool
 			return Environment.ProcessorCount;
 		}
 
-
 		// int sysctlbyname(const char *name, void *oldp, size_t *oldlenp, void *newp, size_t newlen); // from man page
 		[DllImport("libc")]
 		static extern int sysctlbyname(string name, out int oldp, ref UInt64 oldlenp, IntPtr newp, UInt64 newlen);
@@ -1173,7 +1166,6 @@ namespace UnrealBuildTool
 			// TotalAvailableMemoryBytes will be 0 if garbage collection has not run yet
 			return MemoryInfo.TotalAvailableMemoryBytes != 0 ? MemoryInfo.TotalAvailableMemoryBytes : -1;
 		}
-
 
 		// vm_statistics64, based on the definition in <mach/vm_statistics.h>
 		[StructLayout(LayoutKind.Sequential)]

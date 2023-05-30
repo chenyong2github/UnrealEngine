@@ -124,7 +124,6 @@ namespace UnrealBuildTool
 		public List<TargetIntellisenseInfo.CompileSettings?> Settings { get; set; } = new();
 	}
 
-
 	// TODO: Deprecate 
 	[Obsolete]
 	[ToolMode("Server", ToolModeOptions.BuildPlatforms | ToolModeOptions.XmlConfig | ToolModeOptions.UseStartupTraceListener)]

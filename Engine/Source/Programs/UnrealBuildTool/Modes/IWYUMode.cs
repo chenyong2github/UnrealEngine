@@ -14,7 +14,6 @@ using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
-
 // IWYUMode is a mode that can be used to clean up includes in source code. It uses the clang based tool include-what-you-use (IWYU) to figure out what is needed in each .h/.cpp file
 // and then cleans up accordingly. This mode can be used to clean up unreal as well as plugins and projects on top of unreal.
 // Note, IWYU is not perfect. There are still c++ features not supported so even though it will do a good job cleaning up it might require a little bit of hands on but not much.
@@ -40,7 +39,6 @@ using UnrealBuildBase;
 //  4. Update Niagara plugins private code (not public api) with preview
 // 
 //   .build target UnrealEditor linux development -- -Mode=IWYU -PathToUpdate=Engine/Plugins/FX/Niagara -UpdateOnlyPrivate
-
 
 namespace UnrealBuildTool
 {
@@ -669,7 +667,6 @@ namespace UnrealBuildTool
 							Info.Source = IWYUFile;
 							Info.IsCpp = Info.File.EndsWith(".cpp");
 
-
 							// We track .gen.cpp in a special list, they need special treatment later
 							if (Info.File.Contains(".gen.cpp", StringComparison.Ordinal))
 							{
@@ -811,7 +808,6 @@ namespace UnrealBuildTool
 				{ "TOptional", SpecialIncludes["Misc/OptionalFwd.h"] },
 			};
 
-
 			// Add all .generated.h files as entries in the lookup and explicitly add the includes they have which will never be removed
 			Logger.LogInformation($"Generating infos for .generated.h files...");
 			if (GeneratedHeaderInfos.Count > 0)
@@ -865,7 +861,6 @@ namespace UnrealBuildTool
 						}
 					}
 				}
-
 
 				if (!Info.IsCpp)
 				{
@@ -1396,7 +1391,6 @@ namespace UnrealBuildTool
 					}
 				}
 
-
 				// Read all lines of the header/source file
 				string[] ExistingLines = File.ReadAllLines(Info.File);
 
@@ -1419,11 +1413,9 @@ namespace UnrealBuildTool
 					}
 				}
 
-
 				bool ForceKeepScope = false;
 				bool ErrorOnMoreIncludes = false;
 				int LineIndex = -1;
-
 
 				// This makes sure that we have at least HAL/Platform.h included if the file contains XXX_API
 				bool Contains_API = false;
@@ -1586,7 +1578,6 @@ namespace UnrealBuildTool
 					}
 				}
 
-
 				SortedSet<string> LinesToAdd = new();
 
 				foreach (string IncludeToAdd in IncludesToAdd)
@@ -1721,7 +1712,6 @@ namespace UnrealBuildTool
 									LinesToAdd.Remove(LineToAdd);
 								}
 							}
-
 
 							NewLines.Add(OldLine);
 						}

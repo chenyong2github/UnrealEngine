@@ -103,7 +103,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		private static string CertToolData = "";
 
 		/// <summary>
@@ -936,7 +935,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		/// <summary>
 		/// Returns each of the entries in the value tag of type array for a given key
 		/// If the key is missing, an empty array is returned.
@@ -1586,7 +1584,6 @@ namespace UnrealBuildTool
 						}
 					}
 
-
 					DateTime CurrentUTCTime = DateTime.UtcNow;
 					bool bPassesDateCheck = (CurrentUTCTime >= TestProvision?.CreationDate) && (CurrentUTCTime < TestProvision?.ExpirationDate);
 					if (!bPassesDateCheck)
@@ -1672,7 +1669,6 @@ namespace UnrealBuildTool
 				// Replace the application identifier
 				string NewApplicationIdentifier = String.Format("{0}.{1}", ApplicationIdentifierPrefix, CFBundleIdentifier);
 				XCentPList.SetString("application-identifier", NewApplicationIdentifier);
-
 
 				// Replace the keychain access groups
 				// Note: This isn't robust, it ignores the existing value in the wildcard and uses the same value for
@@ -1865,7 +1861,6 @@ namespace UnrealBuildTool
 				ApplicationIdentifier = "(unknown)";
 			}
 
-
 			// check for get-task-allow
 			if (XCentPList != null)
 			{
@@ -2036,7 +2031,6 @@ namespace UnrealBuildTool
 		/// The display name in title bars, popups, etc ...
 		/// </summary>
 		public static string AppDisplayName = "Unreal iOS Configuration";
-
 
 		/// <summary>
 		/// The game directory

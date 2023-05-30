@@ -92,7 +92,6 @@ namespace UnrealBuildTool
 			return StringToInstanceMap.First(x => x.Value == Id).Key;
 		}
 
-
 		/// <summary>
 		/// See if alias exists in registry
 		/// </summary>

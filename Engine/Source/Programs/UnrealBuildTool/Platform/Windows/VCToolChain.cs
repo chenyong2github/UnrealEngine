@@ -450,7 +450,6 @@ namespace UnrealBuildTool
 			// Separate functions for linker.
 			Arguments.Add("/Gy");
 
-
 			// Microsoft recommends not passing /Zm except in very limited circumstances, please see:
 			// https://learn.microsoft.com/en-us/cpp/build/reference/zm-specify-precompiled-header-memory-allocation-limit
 			if (Target.WindowsPlatform.PCHMemoryAllocationFactor > 0)
@@ -927,7 +926,6 @@ namespace UnrealBuildTool
 			// Restrictive during regular compilation.
 			Arguments.Add("/W4");
 
-
 			// Treat warnings as errors
 			if (CompileEnvironment.bWarningsAsErrors)
 			{
@@ -1260,7 +1258,6 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add(Target.WindowsPlatform.AdditionalLinkerOptions);
 			}
-
 
 			// Disable
 			//LINK : warning LNK4199: /DELAYLOAD:nvtt_64.dll ignored; no imports found from nvtt_64.dll
@@ -1824,7 +1821,6 @@ namespace UnrealBuildTool
 					throw new BuildException("Unsupported build architecture for Address Sanitizer");
 				}
 
-
 				string ASanRuntimeDLL = $"clang_rt.asan_dynamic-{ASanArchSuffix}.dll";
 				string ASanDebugRuntimeDLL = $"clang_rt.asan_dbg_dynamic-{ASanArchSuffix}.dll";
 
@@ -2204,7 +2200,6 @@ namespace UnrealBuildTool
 				Arguments.Add("/IGNORE:4221");
 			}
 
-
 			if (!bIsBuildingLibraryOrImportLibrary)
 			{
 				// Delay-load these DLLs.
@@ -2515,7 +2510,6 @@ namespace UnrealBuildTool
 
 					PGDFile = PGDFiles.First();
 				}
-
 
 				string[] PGCFiles = Directory.GetFiles(LinkEnvironment.PGODirectory!, "*.pgc");
 				if (PGCFiles.Length == 0)

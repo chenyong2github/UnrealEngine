@@ -68,7 +68,6 @@ namespace UnrealBuildTool
 			Logger = InLogger;
 		}
 
-
 		/// <summary>
 		/// Returns a valid version of the given package version string
 		/// </summary>
@@ -218,8 +217,6 @@ namespace UnrealBuildTool
 			return DefaultValue;
 		}
 
-
-
 		/// <summary>
 		/// Create all the localization data. Returns whether there is any per-culture data set up
 		/// </summary>
@@ -280,10 +277,8 @@ namespace UnrealBuildTool
 				}
 			}
 
-
 			return bHasPerCultureResources;
 		}
-
 
 		/// <summary>
 		/// Register the locations where resource binary files can be found
@@ -299,7 +294,6 @@ namespace UnrealBuildTool
 			AppXResources!.EngineFallbackBinaryResourceDirectories.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Build", Platform.ToString(), EngineResourceSubPath));
 			AppXResources!.EngineFallbackBinaryResourceDirectories.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms", Platform.ToString(), "Build", EngineResourceSubPath));
 		}
-
 
 		/// <summary>
 		/// Get the resources element
@@ -521,7 +515,6 @@ namespace UnrealBuildTool
 				DefaultAppXCultureId = DefaultUECultureId;
 				UEStageIdToAppXCultureId[DefaultUECultureId] = DefaultAppXCultureId;
 			}
-
 
 			// Warn in shipping, we can run without translated cultures they're just needed for cert
 			if (!bHasLocalizationData && InExecutablePairs.ContainsKey(UnrealTargetConfiguration.Shipping))

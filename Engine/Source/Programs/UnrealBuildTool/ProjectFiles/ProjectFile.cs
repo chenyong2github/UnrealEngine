@@ -52,7 +52,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		/// <summary>
 		/// Constructs a new project file object
 		/// </summary>
@@ -66,7 +65,6 @@ namespace UnrealBuildTool
 			ShouldBuildByDefaultForSolutionTargets = true;
 			IntelliSenseCppVersion = CppStandardVersion.Default;
 		}
-
 
 		/// Project file path
 		public FileReference ProjectFilePath
@@ -90,7 +88,6 @@ namespace UnrealBuildTool
 			get;
 			set;
 		}
-
 
 		/// Returns true if this is a "stub" project.  Stub projects function as simple containers for source files
 		/// and are never actually "built" by the primary project.  Stub projects are always "generated" projects.
@@ -158,7 +155,6 @@ namespace UnrealBuildTool
 
 		/// All of the targets in this project.  All non-stub projects must have at least one target.
 		public readonly List<Project> ProjectTargets = new List<Project>();
-
 
 		/// <summary>
 		/// Adds a list of files to this project, ignoring dupes
@@ -412,7 +408,6 @@ namespace UnrealBuildTool
 		{
 			return null;
 		}
-
 
 		public virtual void LoadGUIDFromExistingProject()
 		{

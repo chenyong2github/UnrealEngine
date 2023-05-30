@@ -258,7 +258,6 @@ namespace UnrealBuildTool
 			return Task.FromResult(0);
 		}
 
-
 		private async Task<ClangTrace> ParseTimingDataFile(FileReference SourceFile, ILogger Logger)
 		{
 			if (!ClangTraceCache.ContainsKey(SourceFile))

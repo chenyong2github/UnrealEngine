@@ -239,7 +239,6 @@ namespace UnrealBuildTool
 			ReadElfPath = Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, @"bin/llvm-readelf" + ExeExtension);
 		}
 
-
 		protected override ClangToolChainInfo GetToolChainInfo()
 		{
 			return new ClangToolChainInfo(FileReference.FromString(ClangPath)!, FileReference.FromString(ArPathArm64)!, Logger);
@@ -443,7 +442,6 @@ namespace UnrealBuildTool
 			return "android-" + MaxPlatform.ToString();
 		}
 
-
 		protected override void GetCompileArguments_IncludePaths(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			// remove paths that are not meant for this architecture
@@ -465,7 +463,6 @@ namespace UnrealBuildTool
 		protected override void GetCompileArguments_WarningsAndErrors(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			base.GetCompileArguments_WarningsAndErrors(CompileEnvironment, Arguments);
-
 
 			// @todo unlikely all needed
 			Arguments.Add("-Wno-local-type-template-args"); // engine triggers this
@@ -606,8 +603,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-
-
 			//string? SanitizerMode = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
 			//if ((SanitizerMode != null && SanitizerMode == "YES") || (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer)))
 			//{
@@ -649,7 +644,6 @@ namespace UnrealBuildTool
 
 			string NativeGluePath = Path.GetFullPath(GetNativeGluePath());
 
-
 			if (BuildWithHiddenSymbolVisibility(CompileEnvironment))
 			{
 				Arguments.Add("-fvisibility=hidden");
@@ -669,7 +663,6 @@ namespace UnrealBuildTool
 			Arguments.Add("-D_FORTIFY_SOURCE=2");       // FORTIFY default
 			Arguments.Add($"-DPLATFORM_USED_NDK_VERSION_INTEGER={NDKApiLevel64Int}");       // NDK version
 			Arguments.Add("-DPLATFORM_64BITS=1");       // NDK version
-
 
 			if (CompileEnvironment.bCompileISPC)
 			{
@@ -713,7 +706,6 @@ namespace UnrealBuildTool
 			return TargetFile;
 		}
 
-
 		protected virtual string GetLinkArguments(LinkEnvironment LinkEnvironment, UnrealArch Architecture)
 		{
 			string Result = "";
@@ -755,7 +747,6 @@ namespace UnrealBuildTool
 
 			// use lld as linker (requires llvm-strip)
 			Result += " -fuse-ld=lld";
-
 
 			// make sure the DT_SONAME field is set properly (or we can a warning toast at startup on new Android)
 			Result += " -Wl,-soname,libUnreal.so";
@@ -836,7 +827,6 @@ namespace UnrealBuildTool
 
 			return Result;
 		}
-
 
 		protected virtual void ModifyLibraries(LinkEnvironment LinkEnvironment)
 		{

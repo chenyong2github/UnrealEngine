@@ -293,7 +293,6 @@ namespace UnrealBuildTool
 			return BestTimingData;
 		}
 
-
 		/// <summary>
 		/// Compiles the module and returns the timing information
 		/// </summary>

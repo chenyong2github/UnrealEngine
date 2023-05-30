@@ -361,7 +361,7 @@ namespace UnrealBuildTool
 	/// Attribute used to mark fields which must match between targets in the shared build environment
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
-	class RequiresUniqueBuildEnvironmentAttribute : Attribute
+	sealed class RequiresUniqueBuildEnvironmentAttribute : Attribute
 	{
 	}
 
@@ -369,7 +369,7 @@ namespace UnrealBuildTool
 	/// Attribute used to mark configurable sub-objects
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
-	class ConfigSubObjectAttribute : Attribute
+	sealed class ConfigSubObjectAttribute : Attribute
 	{
 	}
 
@@ -1029,7 +1029,6 @@ namespace UnrealBuildTool
 			set => bCompileAgainstCoreUObjectPrivate = value;
 		}
 		private bool bCompileAgainstCoreUObjectPrivate = true;
-
 
 		/// <summary>
 		/// Enabled for builds that need to initialize the ApplicationCore module. Command line utilities do not normally need this.
@@ -3254,7 +3253,6 @@ namespace UnrealBuildTool
 		public bool bGenerateProjectFiles => Inner.bGenerateProjectFiles;
 
 		public bool bIsEngineInstalled => Inner.bIsEngineInstalled;
-
 
 		public IReadOnlyList<string>? DisableUnityBuildForModules => Inner.DisableUnityBuildForModules;
 

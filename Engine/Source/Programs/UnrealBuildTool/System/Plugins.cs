@@ -560,7 +560,6 @@ namespace UnrealBuildTool
 			// @todo platplug: what else do we want to support merging?!?
 		}
 
-
 		/// <summary>
 		/// Read all the plugin descriptors under the given directory
 		/// </summary>

@@ -64,7 +64,6 @@ namespace UnrealBuildTool
 			return UnrealTargetPlatform.GetValidPlatforms().Where(x => UEBuildPlatform.TryGetBuildPlatform(x, out _)).Select(x => UEBuildPlatform.GetBuildPlatform(x).ArchitectureConfig);
 		}
 
-
 		/// <summary>
 		/// The multi-architecture mode for this platform (potentially single-architecture)
 		/// </summary>
@@ -100,7 +99,6 @@ namespace UnrealBuildTool
 		{
 			return ActiveArchitectures(ProjectFile, TargetName);
 		}
-
 
 		/// <summary>
 		/// Returns the set all architectures potentially supported by this project. Can be used by project file gnenerators to restrict IDE architecture options
@@ -167,8 +165,6 @@ namespace UnrealBuildTool
 			return AllSupportedArchitectures.SingleArchitecture;
 		}
 
-
-
 		/// <summary>
 		/// Simple constructor for platforms with a single architecture
 		/// </summary>
@@ -190,11 +186,7 @@ namespace UnrealBuildTool
 			AllSupportedArchitectures = new UnrealArchitectures(SupportedArchitectures);
 		}
 
-
 	}
-
-
-
 
 	abstract class UEBuildPlatform
 	{
@@ -295,7 +287,6 @@ namespace UnrealBuildTool
 							{
 								continue;
 							}
-
 
 							// We need all platforms to be registered when we run -validateplatform command to check SDK status of each
 							if (bIncludeNonInstalledPlatforms || InstalledPlatformInfo.IsValidPlatform(TempInst.TargetPlatform))
@@ -1232,7 +1223,6 @@ namespace UnrealBuildTool
 		{
 		}
 
-
 		/// <summary>
 		/// Allows the platform to modify the binary link environment before the binary is built
 		/// </summary>
@@ -1258,7 +1248,6 @@ namespace UnrealBuildTool
 		{
 			return false;
 		}
-
 
 		/// <summary>
 		/// Checks if platform is part of a given platform group

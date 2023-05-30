@@ -84,7 +84,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		public int? RequestedVersion;
 
-
 		/// <summary>
 		/// Constructor
 		/// </summary>

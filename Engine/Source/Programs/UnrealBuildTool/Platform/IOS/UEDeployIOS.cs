@@ -213,7 +213,6 @@ namespace UnrealBuildTool
 			return MinVersionToReturn;
 		}
 
-
 		public static void WritePlistFile(FileReference PlistFile, DirectoryReference? ProjectLocation, UnrealPluginLanguage? UPL, string GameName, bool bIsUnrealGame, ILogger Logger)
 		{
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectLocation, UnrealTargetPlatform.IOS);
@@ -277,7 +276,6 @@ namespace UnrealBuildTool
 			// short version string
 			string BundleShortVersion;
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "VersionInfo", out BundleShortVersion);
-
 
 			// Get Google Support details
 			bool bEnableGoogleSupport = true;
@@ -437,7 +435,6 @@ namespace UnrealBuildTool
 			}
 			Text.AppendLine("</dict>");
 			Text.AppendLine("</plist>");
-
 
 			DirectoryReference.CreateDirectory(PlistFile.Directory);
 

@@ -1353,7 +1353,6 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 			Content.Append("\t\t};" + ProjectFileGenerator.NewLine);
 		}
 
-
 		private void AppendXCBuildConfigurationSection(StringBuilder Content, Dictionary<string, XcodeBuildConfig> ProjectBuildConfigs, Dictionary<string, XcodeBuildConfig> TargetBuildConfigs,
 				Dictionary<string, XcodeBuildConfig> BuildTargetBuildConfigs, Dictionary<string, XcodeBuildConfig> IndexTargetBuildConfigs, FileReference? GameProjectPath,
 				List<XcodeExtensionInfo> AllExtensions, ILogger Logger)
@@ -1825,7 +1824,6 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 			string SourcesBuildPhaseGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
 			string CopyExtensionsBuildPhaseGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
 			string ShellScriptSectionGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
-
 
 			// Figure out all the desired configurations
 			List<XcodeBuildConfig> BuildConfigs = GetSupportedBuildConfigs(InPlatforms, InConfigurations, Logger);

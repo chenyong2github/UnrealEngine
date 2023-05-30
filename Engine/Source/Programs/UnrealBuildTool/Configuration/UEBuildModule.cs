@@ -938,7 +938,6 @@ namespace UnrealBuildTool
 			return new List<FileItem>();
 		}
 
-
 		public void CopyDebuggerVisualizers(UEToolChain ToolChain, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			if (NatvisSourceFile != null)

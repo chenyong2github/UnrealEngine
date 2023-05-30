@@ -757,7 +757,6 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-
 		/// <summary>
 		/// Attempts to parse the given line as a UE config array (eg. ("one", "two", "three") ).
 		/// </summary>
@@ -981,7 +980,6 @@ namespace UnrealBuildTool
 			return OutString;
 		}
 
-
 		private static string? PerformExpansionReplacements(ConfigLayerExpansion Expansion, string InString)
 		{
 			// if there's replacement to do, the output is just the output
@@ -1202,7 +1200,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		#region Unreal struct/map parsing helpers
 
 		/// <summary>
@@ -1418,7 +1415,6 @@ namespace UnrealBuildTool
 			// convert to array type
 			return KeyValues;
 		}
-
 
 		#endregion
 	}

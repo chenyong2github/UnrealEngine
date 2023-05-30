@@ -695,7 +695,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-
 			foreach (UHTModuleInfo Module in UObjectModules)
 			{
 				// If we're using a precompiled engine, skip checking timestamps for modules that are under the engine directory

@@ -8,7 +8,7 @@ namespace UnrealBuildTool
 	/// Attribute indicating a value which should be populated from a UE .ini config file
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-	public class ConfigFileAttribute : Attribute
+	public sealed class ConfigFileAttribute : Attribute
 	{
 		/// <summary>
 		/// Name of the config hierarchy to read from

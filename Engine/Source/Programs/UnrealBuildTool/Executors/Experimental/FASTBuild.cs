@@ -1023,7 +1023,6 @@ namespace UnrealBuildTool
 					//AddText(string.Format("\t\t'{0}/Redist/MSVC/{1}/x64/Microsoft.VC141.CRT/vccorlib{2}.dll'\n", VCEnv.GetVCInstallDirectory(), VCEnv.ToolChainVersion, platformVersionNumber));
 				}
 
-
 				AddText("\t}\n"); //End extra files
 
 				AddText($"\t.CompilerFamily = 'msvc'\n");

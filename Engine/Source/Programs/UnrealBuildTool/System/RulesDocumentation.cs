@@ -269,7 +269,6 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-
 		static void WriteFieldUDN(SettingInfo Field, TextWriter Writer)
 		{
 			// Write the values of the enum

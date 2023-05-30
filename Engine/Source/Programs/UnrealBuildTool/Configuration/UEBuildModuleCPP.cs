@@ -665,7 +665,7 @@ namespace UnrealBuildTool
 			{
 				Unity.GetAdaptiveFiles(Target, CPPFiles, InputFiles.HeaderFiles, CompileEnvironment, WorkingSet, Rules.ShortName ?? Name, IntermediateDirectory, Graph,
 					out List<FileItem> NormalFiles, out List<FileItem> AdaptiveFiles);
-				if (NormalFiles.Where(file => !file.HasExtension(".gen.cpp")).Count() == 0)
+				if (!NormalFiles.Where(file => !file.HasExtension(".gen.cpp")).Any())
 				{
 					NormalFiles = CPPFiles;
 					AdaptiveFiles.RemoveAll(new HashSet<FileItem>(NormalFiles).Contains);

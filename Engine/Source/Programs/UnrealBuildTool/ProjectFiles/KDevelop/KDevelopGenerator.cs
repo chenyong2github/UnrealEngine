@@ -394,7 +394,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-
 			// Remove duplicates if they are present.
 			List<string> Tmp = new List<string>();
 			Tmp = DefineHolder.Distinct().ToList();
