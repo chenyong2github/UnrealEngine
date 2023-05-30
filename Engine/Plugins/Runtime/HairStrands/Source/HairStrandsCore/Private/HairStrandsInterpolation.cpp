@@ -28,6 +28,7 @@
 #include "GroomInstance.h"
 #include "SystemTextures.h"
 #include "ShaderPrintParameters.h"
+#include "HairStrandsClusterCulling.h"
 
 static float GHairRaytracingRadiusScale = 0;
 static FAutoConsoleVariableRef CVarHairRaytracingRadiusScale(TEXT("r.HairStrands.RaytracingRadiusScale"), GHairRaytracingRadiusScale, TEXT("Override the per instance scale factor for raytracing hair strands geometry (0: disabled, >0:enabled)"));

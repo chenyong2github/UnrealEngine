@@ -59,9 +59,6 @@ static FAutoConsoleVariableRef CVarHairDebugMeshProjection_Sim_HairDeformedSampl
 static int32 GHairCardsAtlasDebug = 0;
 static FAutoConsoleVariableRef CVarHairCardsAtlasDebug(TEXT("r.HairStrands.Cards.DebugAtlas"), GHairCardsAtlasDebug, TEXT("Draw debug hair cards atlas."));
 
-static int32 GHairCardsVoxelDebug = 0;
-static FAutoConsoleVariableRef CVarHairCardsVoxelDebug(TEXT("r.HairStrands.Cards.DebugVoxel"), GHairCardsVoxelDebug, TEXT("Draw debug hair cards voxel datas."));
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 FCachedGeometry GetCacheGeometryForHair(
@@ -376,87 +373,6 @@ static void AddDebugProjectionHairPass(
 		Parameters,
 		FIntVector(FMath::DivideAndRoundUp(PrimitiveCount, 256u), 1, 1));
 }	
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-class FVoxelPlainRaymarchingCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FVoxelPlainRaymarchingCS);
-	SHADER_USE_PARAMETER_STRUCT(FVoxelPlainRaymarchingCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
-		SHADER_PARAMETER(FVector2f, OutputResolution)		
-		SHADER_PARAMETER(FIntVector, Voxel_Resolution)
-		SHADER_PARAMETER(float, Voxel_VoxelSize)
-		SHADER_PARAMETER(FVector3f, Voxel_MinBound)
-		SHADER_PARAMETER(FVector3f, Voxel_MaxBound)
-		SHADER_PARAMETER_SRV(Buffer, Voxel_TangentBuffer)
-		SHADER_PARAMETER_SRV(Buffer, Voxel_NormalBuffer)
-		SHADER_PARAMETER_SRV(Buffer, Voxel_DensityBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, Voxel_ProcessedDensityBuffer)
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutputTexture)
-		END_SHADER_PARAMETER_STRUCT()
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_CARDS_VOXEL"), 1);
-	}	
-};
-
-IMPLEMENT_GLOBAL_SHADER(FVoxelPlainRaymarchingCS, "/Engine/Private/HairStrands/HairStrandsDebug.usf", "MainCS", SF_Compute);
-
-static void AddVoxelPlainRaymarchingPass(
-	FRDGBuilder& GraphBuilder,
-	const FSceneView& View,
-	FGlobalShaderMap* ShaderMap,
-	const FHairGroupInstance* Instance,
-	const FShaderPrintData* ShaderPrintData,
-	FRDGTextureRef OutputTexture)
-{
-#if 0 // #hair_todo: renable if needed
-	const FHairStrandClusterData::FHairGroup& HairGroupClusters = HairClusterData.HairGroups[DataIndex];
-
-	FViewInfo& View = Views[ViewIndex];
-	if (ShaderPrint::IsEnabled(View.ShaderPrintData))
-	{
-		if (Instance->HairGroupPublicData->VFInput.GeometryType != EHairGeometryType::Cards)
-			return;
-
-		FSceneTextureParameters SceneTextures;
-		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
-
-		const FIntPoint OutputResolution(OutputTexture->Desc.Extent);
-		const FHairCardsVoxel& CardsVoxel = Instance->HairGroupPublicData->VFInput.Cards.Voxel;
-
-		FRDGBufferRef VoxelDensityBuffer2 = nullptr;
-		AddVoxelProcessPass(GraphBuilder, View, CardsVoxel, VoxelDensityBuffer2);
-
-		FVoxelPlainRaymarchingCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelPlainRaymarchingCS::FParameters>();
-		Parameters->ViewUniformBuffer	= View.ViewUniformBuffer;
-		Parameters->OutputResolution	= OutputResolution;
-		Parameters->Voxel_Resolution	= CardsVoxel.Resolution;
-		Parameters->Voxel_VoxelSize		= CardsVoxel.VoxelSize;
-		Parameters->Voxel_MinBound		= CardsVoxel.MinBound;
-		Parameters->Voxel_MaxBound		= CardsVoxel.MaxBound;
-		Parameters->Voxel_TangentBuffer	= CardsVoxel.TangentBuffer.SRV;
-		Parameters->Voxel_NormalBuffer	= CardsVoxel.NormalBuffer.SRV;
-		Parameters->Voxel_DensityBuffer = CardsVoxel.DensityBuffer.SRV;
-		Parameters->Voxel_ProcessedDensityBuffer = GraphBuilder.CreateSRV(VoxelDensityBuffer2, PF_R32_UINT);
-
-		ShaderPrint::SetParameters(GraphBuilder, ShaderPrintData, Parameters->ShaderPrintParameters);
-		//ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
-		Parameters->OutputTexture = GraphBuilder.CreateUAV(OutputTexture);
-
-		TShaderMapRef<FVoxelPlainRaymarchingCS> ComputeShader(ShaderMap);
-		const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(OutputTexture->Desc.Extent.X, OutputTexture->Desc.Extent.Y, 1), FIntVector(8, 8, 1));
-		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VoxelPlainRaymarching"), ComputeShader, Parameters, DispatchCount);
-	}
-#endif
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1305,16 +1221,6 @@ void RunHairStrandsDebug(
 					GHairDebugMeshProjection_Sim_HairDeformedFrames > 0,
 					GHairDebugMeshProjection_Sim_HairDeformedSamples > 0);
 			}
-		}
-	}
-
-	if (GHairCardsVoxelDebug > 0)
-	{
-		for (FHairStrandsInstance* AbstractInstance : Instances)
-		{
-			FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
-
-			AddVoxelPlainRaymarchingPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, SceneColorTexture);
 		}
 	}
 
