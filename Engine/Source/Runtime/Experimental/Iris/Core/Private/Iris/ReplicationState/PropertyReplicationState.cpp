@@ -277,6 +277,36 @@ bool FPropertyReplicationState::PollPropertyReplicationState(const void* RESTRIC
 	return IsDirty();
 }
 
+bool FPropertyReplicationState::PollPropertyReplicationStateForRepNotifies(const void* RESTRICT SrcStateData)
+{
+	if (IsValid())
+	{
+		const FReplicationStateDescriptor* Descriptor = ReplicationStateDescriptor;
+		const uint8* SrcBuffer = reinterpret_cast<const uint8*>(SrcStateData);
+
+		IRIS_PROFILER_PROTOCOL_NAME(ReplicationStateDescriptor->DebugName->Name);
+
+		const FReplicationStateMemberDescriptor* MemberDescriptors = Descriptor->MemberDescriptors;
+		const FProperty** MemberProperties = Descriptor->MemberProperties;
+		const FReplicationStateMemberPropertyDescriptor* MemberPropertyDescriptors = Descriptor->MemberPropertyDescriptors;
+		const uint32 MemberCount = Descriptor->MemberCount;
+
+		for (uint32 MemberIt = 0; MemberIt < MemberCount; ++MemberIt)
+		{
+			const FReplicationStateMemberDescriptor& MemberDescriptor = MemberDescriptors[MemberIt];
+			const FReplicationStateMemberPropertyDescriptor& MemberPropertyDescriptor = MemberPropertyDescriptors[MemberIt];
+
+			if (MemberPropertyDescriptor.RepNotifyFunction)
+			{
+				const FProperty* Property = MemberProperties[MemberIt];
+				SetPropertyValue(MemberIt, SrcBuffer + Property->GetOffset_ForGC() + Property->ElementSize*MemberPropertyDescriptor.ArrayIndex);
+			}
+		}
+	}
+
+	return IsDirty();
+}
+
 void FPropertyReplicationState::PushPropertyReplicationState(void* RESTRICT DstData, bool bInPushAll) const
 {
 	// $IRIS TODO: Rewrite this to iterate over change mask instead of iterating over all members and querying the mask
@@ -379,12 +409,12 @@ void FPropertyReplicationState::CallRepNotifies(void* RESTRICT DstData, const FC
 				bool bShouldCallRepNotify = false;
 				if (Params.bOnlyCallIfDiffersFromLocal)
 				{
-					// We try to be backwards compatible and respect RepNotify_Always/RepNotify_Changed unless it is the intial state where we only will call the repnotify of the received value differs from the local one.
+					// We try to be backwards compatible and respect RepNotify_Always/RepNotify_Changed unless it is the initial state where we only will call the repnotify of the received value differs from the local one.
 					bShouldCallRepNotify = Params.bIsInit ? !Private::InternalCompareMember(Descriptor, MemberIt, ValuePtr, PrevValuePtr) : EnumHasAnyFlags(Descriptor->MemberTraitsDescriptors[MemberIt].Traits, EReplicationStateMemberTraits::HasRepNotifyAlways) || !Private::InternalCompareMember(Descriptor, MemberIt, ValuePtr, PrevValuePtr);
 				}
 				else
 				{
-					// Trust data from server and call RepNotify without doing additonal compare unless it is the inital state.
+					// Trust data from server and call RepNotify without doing additonal compare unless it is the initial state.
 					bShouldCallRepNotify = !Params.bIsInit || !Private::InternalCompareMember(Descriptor, MemberIt, ValuePtr, PrevValuePtr);
 				}
 

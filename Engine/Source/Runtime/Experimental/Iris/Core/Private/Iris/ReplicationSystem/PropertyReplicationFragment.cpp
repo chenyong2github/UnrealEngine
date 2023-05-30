@@ -39,7 +39,7 @@ FPropertyReplicationFragment::FPropertyReplicationFragment(EReplicationFragmentT
 				PrevReplicationState = MakeUnique<FPropertyReplicationState>(InDescriptor);
 
 				// Poll to get instance default for our previous state
-				PrevReplicationState->PollPropertyReplicationState(InOwner);
+				PrevReplicationState->PollPropertyReplicationStateForRepNotifies(InOwner);
 
 				Traits |= EReplicationFragmentTraits::KeepPreviousState;
 			}
@@ -126,8 +126,7 @@ void FPropertyReplicationFragment::ApplyReplicatedState(FReplicationStateApplyCo
 	// If we do not rely on received data to issue rep notifies we need to store a copy of the local state before we apply the new received state.
 	if (!bUsePrevReceivedStateForOnReps && PrevReplicationState)
 	{
-		// This could use a partial poll instead only polling RepNotify properties.
-		PrevReplicationState->PollPropertyReplicationState(Owner);
+		PrevReplicationState->PollPropertyReplicationStateForRepNotifies(Owner);
 	}
 
 	// Create a wrapping property replication state, cheap as we are simply injecting the already constructed state

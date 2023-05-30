@@ -88,6 +88,11 @@ public:
 	*/
 	IRISCORE_API bool PollPropertyReplicationState(const void* RESTRICT SrcData);
 
+	/**
+	 * Poll src data from properties which we want to store in order to determine if we need to call RepNotifies
+	*/
+	IRISCORE_API bool PollPropertyReplicationStateForRepNotifies(const void* RESTRICT SrcData);
+
 	/** Push received state data to properties in DstData buffer, Note: DstData is a UClass/UStruct containing properties
 		Compare and update representation in DstStateBuffer and update ChangeMask 
 	*/
