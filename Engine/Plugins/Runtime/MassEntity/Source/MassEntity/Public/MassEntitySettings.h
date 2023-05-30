@@ -44,6 +44,7 @@ protected:
 
 	virtual void BeginDestroy() override;
 
+	void OnPostEngineInit();
 	void BuildPhases();
 	void BuildProcessorList();
 
@@ -69,4 +70,5 @@ protected:
 	FOnSettingsChange OnSettingsChange;
 #endif // WITH_EDITORONLY_DATA
 	bool bInitialized = false;
+	bool bEngineInitialized = false;
 };

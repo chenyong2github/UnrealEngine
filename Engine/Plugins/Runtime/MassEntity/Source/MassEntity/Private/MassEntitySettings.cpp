@@ -24,7 +24,7 @@ UMassEntitySettings::UMassEntitySettings(const FObjectInitializer& ObjectInitial
 		ProcessingPhasesConfig[i].PhaseName = *UEnum::GetDisplayValueAsText(EMassProcessingPhase(i)).ToString();
 	}
 
-	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UMassEntitySettings::BuildProcessorListAndPhases);
+	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UMassEntitySettings::OnPostEngineInit);
 }
 
 void UMassEntitySettings::BeginDestroy()
@@ -33,9 +33,15 @@ void UMassEntitySettings::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void UMassEntitySettings::OnPostEngineInit()
+{
+	bEngineInitialized = true;
+	BuildProcessorListAndPhases();
+}
+
 void UMassEntitySettings::BuildProcessorListAndPhases()
 {
-	if (bInitialized)
+	if (bInitialized == true || bEngineInitialized == false)
 	{
 		return;
 	}
