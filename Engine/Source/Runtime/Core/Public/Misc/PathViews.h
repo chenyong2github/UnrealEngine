@@ -187,6 +187,16 @@ public:
 	 * case a copy of InPath will be returned instead.
 	 */
 	static FString ChangeExtension(const FStringView& InPath, const FStringView& InNewExtension);
+	
+	/**
+	 * Sets the file extension of a filename.
+	 *
+	 * @param InPath A file path with or without a pre-existing extension.
+	 * @param InNewExtension The new extension to use (prefixing with a '.' is optional)
+	 *
+	 * @return The new file path complete with the new extension.
+	 */
+	static FString SetExtension(const FStringView& InPath, const FStringView& InNewExtension);
 
 	/** Return whether the given character is a path-separator character (/ or \) */
 	static bool IsSeparator(TCHAR c);

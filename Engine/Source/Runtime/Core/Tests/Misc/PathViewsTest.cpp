@@ -585,6 +585,36 @@ TEST_CASE_NAMED(FPathViewsChangeExtensionTest, "System::Core::Misc::PathViews::C
 	RunChangeExtensionTest(TEXT("C:/Folder/First.Last/file.tar.gz"), TEXT("gz2"), TEXT("C:/Folder/First.Last/file.tar.gz2"));
 }
 
+TEST_CASE_NAMED(FPathViewsSetExtensionTest, "System::Core::Misc::PathViews::SetExtension", "[ApplicationContextMask][SmokeFilter]")
+{
+	auto RunSetExtensionTest = [this](const TCHAR* InPath, const TCHAR* InNewExt, const TCHAR* InExpectedPath)
+	{
+		// Run test
+		const FString NewPath = FPathViews::SetExtension(InPath, InNewExt);
+		if (NewPath != InExpectedPath)
+		{
+			FAIL_CHECK(FString::Printf(TEXT("Path '%s' failed to set the extension (got '%s', expected '%s')."), InPath, *NewPath, InExpectedPath));
+		}
+	};
+
+	RunSetExtensionTest(nullptr, nullptr, TEXT(""));
+	RunSetExtensionTest(TEXT(""), TEXT(""), TEXT(""));
+	RunSetExtensionTest(TEXT(""), TEXT(".txt"), TEXT(".txt"));
+	RunSetExtensionTest(TEXT("file"), TEXT("log"), TEXT("file.log"));
+	RunSetExtensionTest(TEXT("file.txt"), TEXT("log"), TEXT("file.log"));
+	RunSetExtensionTest(TEXT("file.tar.gz"), TEXT("gz2"), TEXT("file.tar.gz2"));
+	RunSetExtensionTest(TEXT("file.txt"), TEXT(""), TEXT("file"));
+	RunSetExtensionTest(TEXT("C:/Folder/file"), TEXT("log"), TEXT("C:/Folder/file.log"));
+	RunSetExtensionTest(TEXT("C:/Folder/file.txt"), TEXT("log"), TEXT("C:/Folder/file.log"));
+	RunSetExtensionTest(TEXT("C:/Folder/file.tar.gz"), TEXT("gz2"), TEXT("C:/Folder/file.tar.gz2"));
+	RunSetExtensionTest(TEXT("C:/Folder/First.Last/file"), TEXT("log"), TEXT("C:/Folder/First.Last/file.log"));
+	RunSetExtensionTest(TEXT("C:/Folder/First.Last/file.txt"), TEXT("log"), TEXT("C:/Folder/First.Last/file.log"));
+	RunSetExtensionTest(TEXT("C:/Folder/First.Last/file.tar.gz"), TEXT("gz2"), TEXT("C:/Folder/First.Last/file.tar.gz2"));
+
+	return true;
+}
+
+
 TEST_CASE_NAMED(FPathViewsEqualsAndLessTest, "System::Core::Misc::PathViews::EqualsAndLess", "[ApplicationContextMask][SmokeFilter]")
 {
 	FPathViewsTest Instance = FPathViewsTest();

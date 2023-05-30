@@ -265,6 +265,35 @@ FString FPathViews::ChangeExtension(const FStringView& InPath, const FStringView
 	}
 }
 
+FString FPathViews::SetExtension(const FStringView& InPath, const FStringView& InNewExtension)
+{
+	int32 Pos = INDEX_NONE;
+	const TCHAR* PathEndPos = Algo::FindLastByPredicate(InPath, UE4PathViews_Private::IsSlashOrBackslashOrPeriod);
+	if (PathEndPos != nullptr && *PathEndPos == TEXT('.'))
+	{
+		Pos = UE_PTRDIFF_TO_INT32(PathEndPos - InPath.GetData());
+	}
+
+	const FStringView FileWithoutExtension = Pos == INDEX_NONE ? InPath : InPath.Left(Pos);
+
+	if (!InNewExtension.IsEmpty() && !InNewExtension.StartsWith(TEXT('.')))
+	{
+		// The new extension lacks a period so we need to add it ourselves.
+		FString Result(FileWithoutExtension, InNewExtension.Len() + 1);
+		Result += TEXT('.');
+		Result += InNewExtension;
+
+		return Result;
+	}
+	else
+	{
+		FString Result(FileWithoutExtension, InNewExtension.Len());
+		Result += InNewExtension;
+
+		return Result;
+	}
+}
+
 bool FPathViews::IsSeparator(TCHAR c)
 {
 	return UE4PathViews_Private::IsSlashOrBackslash(c);
