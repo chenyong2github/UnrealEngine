@@ -70,6 +70,8 @@ $ EnablePlugins (List&lt;String&gt;): Additional plugins that should be included
 
 $ DisablePlugins (List&lt;String&gt;): List of plugins to be disabled for this target. Note that the project file may still reference them, so they should be marked as optional to avoid failing to find them at runtime.
 
+$ DisablePluginsConflictWarningLevel (WarningLevel): How to treat conflicts when a disabled plugin is being enabled by another plugin referencing it
+
 $ InternalPluginDependencies (List&lt;String&gt;): A list of Plugin names that are allowed to exist as dependencies without being defined in the uplugin descriptor
 
 $ PakSigningKeysFile (String): Path to the set of pak signing keys to embed in the executable.
