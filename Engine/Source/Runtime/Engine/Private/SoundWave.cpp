@@ -3552,14 +3552,13 @@ float USoundWave::GetSampleRateForCompressionOverrides(const FPlatformAudioCookO
 	const float* SampleRatePtr = CompressionOverrides->PlatformSampleRates.Find(SampleRateQuality);
 	if (SampleRatePtr && *SampleRatePtr > 0.0f)
 	{
-		if (GIsEditor)
+		// If in editor (but not cooking), then read from current platform 
+		// otherwise, use the given cook override sample rate 
+		if (!IsRunningCookCommandlet() && GIsEditor)
 		{
 			return GetSampleRateForCurrentPlatform();
 		}
-		else
-		{
-			return FMath::Min(*SampleRatePtr, static_cast<float>(SampleRate));
-		}
+		return FMath::Min(*SampleRatePtr, static_cast<float>(SampleRate));
 	}
 	else
 	{
