@@ -69,15 +69,12 @@ namespace Jupiter.Implementation
             );"
             ));
 
-            if (_settings.CurrentValue.ListObjectsFromOldNamespaceTable)
-            {
-                _session.Execute(new SimpleStatement(@"CREATE TABLE IF NOT EXISTS buckets (
-                    namespace text, 
-                    bucket set<text>, 
-                    PRIMARY KEY (namespace)
-                );"
-                ));
-            }
+            _session.Execute(new SimpleStatement(@"CREATE TABLE IF NOT EXISTS buckets (
+                namespace text, 
+                bucket set<text>, 
+                PRIMARY KEY (namespace)
+            );"
+            ));
 
             // BYPASS CACHE is a scylla specific extension to disable populating the cache, should be ignored by other cassandra dbs
             string cqlOptions = scyllaSessionManager.IsScylla ? "BYPASS CACHE" : "";
