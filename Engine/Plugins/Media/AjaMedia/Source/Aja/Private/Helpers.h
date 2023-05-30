@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AjaCoreModule.h"
 
 #define MSWindows 1
 #define AJA_WINDOWS 1

@@ -71,7 +71,7 @@ namespace AJA
 		{
 			if (Options.ChannelIndex > NTV2_MAX_NUM_CHANNELS || Options.ChannelIndex < 1)
 			{
-				UE_LOG(LogTemp, Error, TEXT("AJAChannel: The port index '%d' is invalid.\n"), Options.ChannelIndex);
+				UE_LOG(LogAjaCore, Error, TEXT("AJAChannel: The port index '%d' is invalid.\n"), Options.ChannelIndex);
 			}
 			else
 			{
@@ -83,12 +83,12 @@ namespace AJA
 			{
 				if (Options.KeyChannelIndex > NTV2_MAX_NUM_CHANNELS || Options.KeyChannelIndex < 1)
 				{
-					UE_LOG(LogTemp, Error, TEXT("AJAChannel: The key port index '%d' is invalid.\n"), Options.KeyChannelIndex);
+					UE_LOG(LogAjaCore, Error, TEXT("AJAChannel: The key port index '%d' is invalid.\n"), Options.KeyChannelIndex);
 					Options.bUseKey = false;
 				}
 				else if (Options.KeyChannelIndex == Options.ChannelIndex)
 				{
-					UE_LOG(LogTemp, Error, TEXT("AJAChannel: The key port index '%d' is the same as the port index '%d'.\n"), Options.KeyChannelIndex, Options.ChannelIndex);
+					UE_LOG(LogAjaCore, Error, TEXT("AJAChannel: The key port index '%d' is the same as the port index '%d'.\n"), Options.KeyChannelIndex, Options.ChannelIndex);
 					Options.bUseKey = false;
 				}
 				else
@@ -123,7 +123,7 @@ namespace AJA
 			{
 				if (Channel != Helpers::GetTransportTypeChannel(GetOptions().TransportType, Channel))
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Can't do a %S on channel '%d'. Did you mean channel '%d'?")
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Can't do a %S on channel '%d'. Did you mean channel '%d'?")
 						, Helpers::TransportTypeToString(GetOptions().TransportType)
 						, uint32_t(Channel) + 1
 						, uint32_t(Helpers::GetTransportTypeChannel(GetOptions().TransportType, Channel)) + 1);
@@ -133,7 +133,7 @@ namespace AJA
 				{
 					if (KeyChannel != Helpers::GetTransportTypeChannel(GetOptions().TransportType, KeyChannel))
 					{
-						UE_LOG(LogTemp, Error, TEXT("Device: Can't do a %S on channel '%d'. Did you mean channel '%d'?")
+						UE_LOG(LogAjaCore, Error, TEXT("Device: Can't do a %S on channel '%d'. Did you mean channel '%d'?")
 							, Helpers::TransportTypeToString(GetOptions().TransportType)
 							, uint32_t(KeyChannel) + 1
 							, uint32_t(Helpers::GetTransportTypeChannel(GetOptions().TransportType, KeyChannel)) + 1);
@@ -145,7 +145,7 @@ namespace AJA
 					NTV2Channel SyncChannel = (NTV2Channel)(Options.SynchronizeChannelIndex - 1);
 					if (SyncChannel != Helpers::GetTransportTypeChannel(GetOptions().TransportType, SyncChannel))
 					{
-						UE_LOG(LogTemp, Error, TEXT("Device: Can't do a %S on channel '%d'. Did you mean channel '%d'?")
+						UE_LOG(LogAjaCore, Error, TEXT("Device: Can't do a %S on channel '%d'. Did you mean channel '%d'?")
 							, Helpers::TransportTypeToString(GetOptions().TransportType)
 							, uint32_t(SyncChannel) + 1
 							, uint32_t(Helpers::GetTransportTypeChannel(GetOptions().TransportType, SyncChannel)) + 1);
@@ -276,7 +276,7 @@ namespace AJA
 
 			if (!Helpers::TryVideoFormatIndexToNTV2VideoFormat(GetOptions().VideoFormatIndex, DesiredVideoFormat))
 			{
-				UE_LOG(LogTemp, Error, TEXT("ConfigureVideo: The expected video format is invalid for %d.\n"), uint32_t(Channel) + 1);
+				UE_LOG(LogAjaCore, Error, TEXT("ConfigureVideo: The expected video format is invalid for %d.\n"), uint32_t(Channel) + 1);
 				return false;
 			}
 
@@ -287,13 +287,13 @@ namespace AJA
 
 			if (Options.TransportType == ETransportType::TT_SdiSingle4kTSI && GetOptions().bUseKey)
 			{
-				UE_LOG(LogTemp, Error, TEXT("ConfigureVideo: 4k Key and Fill output is not supported for this card.\n"));
+				UE_LOG(LogAjaCore, Error, TEXT("ConfigureVideo: 4k Key and Fill output is not supported for this card.\n"));
 				return false;
 			}
 
 			if (Options.bDirectlyWriteAudio && Options.bUseAutoCirculating)
 			{
-				UE_LOG(LogTemp, Error, TEXT("ConfigureVideo: Direct audio write is only available outside of auto-circulate mode..\n"));
+				UE_LOG(LogAjaCore, Error, TEXT("ConfigureVideo: Direct audio write is only available outside of auto-circulate mode..\n"));
 				return false;
 			}
 			
@@ -407,7 +407,7 @@ namespace AJA
 					std::string FailureReason;
 					if (!Helpers::GetInputVideoFormat(Device->GetCard(), GetOptions().TransportType, Channel, InputSource, DesiredVideoFormat, VideoFormat, false, FailureReason))
 					{
-						UE_LOG(LogTemp, Error, TEXT("Device: Initialization of the input failed for channel %d on device '%S'. '%S'"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str(), FailureReason.c_str());
+						UE_LOG(LogAjaCore, Error, TEXT("Device: Initialization of the input failed for channel %d on device '%S'. '%S'"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str(), FailureReason.c_str());
 						return false;
 					}
 				}
@@ -418,14 +418,14 @@ namespace AJA
 					VideoFormat = DesiredVideoFormat;
 					if (VideoFormat == NTV2_FORMAT_UNKNOWN)
 					{
-						UE_LOG(LogTemp, Error, TEXT("ConfigureVideo: Unknown video format for output channel %d on device '%S'.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+						UE_LOG(LogAjaCore, Error, TEXT("ConfigureVideo: Unknown video format for output channel %d on device '%S'.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 						return false;
 					}
 				}
 
 				if (!::NTV2DeviceCanDoVideoFormat(Device->GetCard()->GetDeviceID(), VideoFormat))
 				{
-					UE_LOG(LogTemp, Error, TEXT("ConfigureVideo: The device '%S' doesn't support the video format '%S'.\n"), GetDevice().GetDisplayName().c_str(), ::NTV2VideoFormatToString(VideoFormat).c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("ConfigureVideo: The device '%S' doesn't support the video format '%S'.\n"), GetDevice().GetDisplayName().c_str(), ::NTV2VideoFormatToString(VideoFormat).c_str());
 					return false;
 				}
 
@@ -434,7 +434,7 @@ namespace AJA
 
 				if (!::NTV2DeviceCanDoFrameBufferFormat(Device->GetCard()->GetDeviceID(), PixelFormat))
 				{
-					UE_LOG(LogTemp, Error, TEXT("ConfigureVideo: The device '%S' doesn't support the pixel format '%S'.\n"), GetDevice().GetDisplayName().c_str(), ::NTV2FrameBufferFormatToString(PixelFormat).c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("ConfigureVideo: The device '%S' doesn't support the pixel format '%S'.\n"), GetDevice().GetDisplayName().c_str(), ::NTV2FrameBufferFormatToString(PixelFormat).c_str());
 					return false;
 				}
 
@@ -457,7 +457,7 @@ namespace AJA
 					{
 						if (GetOptions().SynchronizeChannelIndex > NTV2_MAX_NUM_CHANNELS || GetOptions().SynchronizeChannelIndex < 1)
 						{
-							UE_LOG(LogTemp, Error, TEXT("ConfigureVideo: The synchronization port index '%d' is invalid.\n"), GetOptions().SynchronizeChannelIndex);
+							UE_LOG(LogAjaCore, Error, TEXT("ConfigureVideo: The synchronization port index '%d' is invalid.\n"), GetOptions().SynchronizeChannelIndex);
 							return false;
 						}
 						else
@@ -489,7 +489,7 @@ namespace AJA
 			}
 			else
 			{
-				UE_LOG(LogTemp, Error, TEXT("ConfigureVideo: Invalid video options for channel %d on device '%S'."), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("ConfigureVideo: Invalid video options for channel %d on device '%S'."), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 				return false;
 			}
 
@@ -528,7 +528,7 @@ namespace AJA
 					{
 						if (GetOptions().bConvertOutputLevelAToB)
 						{
-							UE_LOG(LogTemp, Warning,  TEXT("ConfigureVideo: Can't convert level A to B for channel %d on device '%S'."), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+							UE_LOG(LogAjaCore, Warning,  TEXT("ConfigureVideo: Can't convert level A to B for channel %d on device '%S'."), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 						}
 					}
 
@@ -560,7 +560,7 @@ namespace AJA
 							{
 								if (GetOptions().bConvertOutputLevelAToB)
 								{
-									UE_LOG(LogTemp, Warning,  TEXT("ConfigureVideo: Can't convert level A to B on key for channel %d on device '%S'."), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+									UE_LOG(LogAjaCore, Warning,  TEXT("ConfigureVideo: Can't convert level A to B on key for channel %d on device '%S'."), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 								}
 							}
 							Helpers::RouteKeySignal(Device->GetCard(), GetOptions().TransportType, Channel, KeyChannel, InPixelFormat, false);
@@ -620,7 +620,7 @@ namespace AJA
 				bool bSupportAnc = ::NTV2DeviceCanDoCustomAnc(GetDevice().GetDeviceID());
 				if (!bSupportAnc)
 				{
-					UE_LOG(LogTemp, Warning,  TEXT("ConfigureAncillary: Device doesn't support Anc.\n"));
+					UE_LOG(LogAjaCore, Warning,  TEXT("ConfigureAncillary: Device doesn't support Anc.\n"));
 					Options.bUseAncillary = false;
 				}
 			}
@@ -647,7 +647,7 @@ namespace AJA
 				AudioSystem = NTV2InputSourceToAudioSystem(InputSource);
 				if (NTV2_IS_VALID_AUDIO_SYSTEM(AudioSystem) == false)
 				{
-					UE_LOG(LogTemp, Error, TEXT("ConfigureAudio: Could not get valid AudioSystem from InputSource %d for channel %d on device %S."), uint32_t(InputSource), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("ConfigureAudio: Could not get valid AudioSystem from InputSource %d for channel %d on device %S."), uint32_t(InputSource), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 					return false;
 				}
 			}
@@ -655,7 +655,7 @@ namespace AJA
 			{
 				if (UseAudio())
 				{
-					UE_LOG(LogTemp, Error, TEXT("ConfigureAudio: Invalid audio options for channel %d on device %S."), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("ConfigureAudio: Invalid audio options for channel %d on device %S."), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 					return false;
 				}
 			}
@@ -683,7 +683,7 @@ namespace AJA
 				if (NumberOfAudioChannel > MaxNumOfChannels)
 				{
 					NumberOfAudioChannel = MaxNumOfChannels;
-					UE_LOG(LogTemp, Warning,  TEXT("ConfigureAudio: Changed number of audio channel to %d.\n"), NumberOfAudioChannel);
+					UE_LOG(LogAjaCore, Warning,  TEXT("ConfigureAudio: Changed number of audio channel to %d.\n"), NumberOfAudioChannel);
 				}
 
 				Card.SetNumberAudioChannels(NumberOfAudioChannel, AudioSystem);

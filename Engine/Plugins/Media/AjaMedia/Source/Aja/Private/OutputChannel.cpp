@@ -492,7 +492,7 @@ namespace AJA
 
 			if (InAncillaryBuffer == nullptr || InAncillaryBufferSize > AncBufferSize || (!bIsProgressive && InAncillaryBufferSize > AncF2BufferSize))
 			{
-				UE_LOG(LogTemp, Error, TEXT("SetFrameData: Can't set the ancillary. The buffer is invalid or the buffer size is not the same as the AJA for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("SetFrameData: Can't set the ancillary. The buffer is invalid or the buffer size is not the same as the AJA for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 				return false;
 			}
 
@@ -550,7 +550,7 @@ namespace AJA
 			
 			if (InAudioBufferSize > AudioBufferSize)
 			{
-				UE_LOG(LogTemp, Error, TEXT("SetAudioFrameData: Can't set the audio. The buffer size is not the same as the AJA Audio Format for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("SetAudioFrameData: Can't set the audio. The buffer size is not the same as the AJA Audio Format for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 				return false;
 			}
 
@@ -587,7 +587,7 @@ namespace AJA
 
 			if (InVideoBuffer == nullptr || InVideoBufferSize > VideoBufferSize)
 			{
-				UE_LOG(LogTemp, Error, TEXT("SetVideoFrameData: Can't set the video. The buffer is invalid or the buffer size is not the same as the AJA Video Format for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("SetVideoFrameData: Can't set the video. The buffer is invalid or the buffer size is not the same as the AJA Video Format for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 				return false;
 			}
 
@@ -654,7 +654,7 @@ namespace AJA
 
 			if (!bIsProgressive)
 			{
-				UE_LOG(LogTemp, Error, TEXT("SetVideoFrameData: Can't set the video, GPUTextureTransfer is not supported with interlaced video for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("SetVideoFrameData: Can't set the video, GPUTextureTransfer is not supported with interlaced video for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 				return false;
 			}
 
@@ -665,13 +665,13 @@ namespace AJA
 
 			if (!RHITexture)
 			{
-				UE_LOG(LogTemp, Error, TEXT("SetVideoFrameData: Can't set the video. The RHI texture is invalid for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("SetVideoFrameData: Can't set the video. The RHI texture is invalid for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 				return false;
 			}
 
 			if (!TextureTransfer || !GetOptions().bUseGPUDMA)
 			{
-				UE_LOG(LogTemp, Error, TEXT("SetVideoFrameData: Can't set the video. GPU DMA was not setup correctly for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("SetVideoFrameData: Can't set the video. GPU DMA was not setup correctly for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 				return false;
 			}
 
@@ -785,7 +785,7 @@ namespace AJA
 						bResult &= GetDevice().StartAudioOutput(AudioSystem);
 						if (bResult == false)
 						{
-							UE_LOG(LogTemp, Error, TEXT("ConfigureAudio: Could not start audio output for audio system %d for channel %d on device %S."), uint32_t(AudioSystem), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+							UE_LOG(LogAjaCore, Error, TEXT("ConfigureAudio: Could not start audio output for audio system %d for channel %d on device %S."), uint32_t(AudioSystem), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 						}
 					}
 				}
@@ -882,14 +882,14 @@ namespace AJA
 
 				if (!bRunning)
 				{
-					UE_LOG(LogTemp, Error, TEXT("AutoCirculate: Can't wait for the output field for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("AutoCirculate: Can't wait for the output field for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 				}
 
 				AUTOCIRCULATE_STATUS ChannelStatus;
 				bRunning = GetDevice().AutoCirculateGetStatus(Channel, ChannelStatus);
 				if (!bRunning)
 				{
-					UE_LOG(LogTemp, Error, TEXT("AutoCirculate: Can't get the status for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("AutoCirculate: Can't get the status for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 					break;
 				}
 
@@ -1126,7 +1126,7 @@ namespace AJA
 
 				if (!bRunning)
 				{
-					UE_LOG(LogTemp, Error, TEXT("PingPong: Can't wait for the output field for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("PingPong: Can't wait for the output field for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 					break;
 				}
 
@@ -1198,7 +1198,7 @@ namespace AJA
 
 					if (!bRunning)
 					{
-						UE_LOG(LogTemp, Error, TEXT("PingPong: Can't do the DMA frame transfer for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+						UE_LOG(LogAjaCore, Error, TEXT("PingPong: Can't do the DMA frame transfer for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 						Thread_PushAvailableReadingFrame(AvailableReadingFrame);
 						break;
 					}
@@ -1244,7 +1244,7 @@ namespace AJA
 					}
 
 					TRACE_CPUPROFILER_EVENT_SCOPE(OutputChannel::NoFramesAvailable);
-					UE_LOG(LogTemp, Warning,  TEXT("PingPong: No frames are available for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Warning,  TEXT("PingPong: No frames are available for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 				}
 			}
 
@@ -1301,12 +1301,12 @@ namespace AJA
 			bool pIsSecondLineWhite = IsLineWhite(pSecondLine);
 			if (bIsFirstLineWhite == pIsSecondLineWhite)
 			{
-				UE_LOG(LogTemp, Error, TEXT("INTERLACED TEST - The 2 lines are the same color. %d\n"), InterlacedTest_FrameCounter);
+				UE_LOG(LogAjaCore, Error, TEXT("INTERLACED TEST - The 2 lines are the same color. %d\n"), InterlacedTest_FrameCounter);
 			}
 			if (bIsFirstLineWhite != bInterlacedTest_ExpectFirstLineToBeWhite)
 			{
 				bInterlacedTest_ExpectFirstLineToBeWhite = !bInterlacedTest_ExpectFirstLineToBeWhite;
-				UE_LOG(LogTemp, Error, TEXT("INTERLACED TEST - The lines has swap color. %d\n"), InterlacedTest_FrameCounter);
+				UE_LOG(LogAjaCore, Error, TEXT("INTERLACED TEST - The lines has swap color. %d\n"), InterlacedTest_FrameCounter);
 			}
 			++InterlacedTest_FrameCounter;
 		}
@@ -1410,7 +1410,7 @@ namespace AJA
 
 			if (bIsPaused && bAudioOutputRunning && !Thread_ShouldPauseAudioOutput())
 			{
-				UE_LOG(LogTemp, Verbose, TEXT("%s: Resuming audio output."), *OutputMethod);
+				UE_LOG(LogAjaCore, Verbose, TEXT("%s: Resuming audio output."), *OutputMethod);
 				bool bPausePlayback = false;
 				bAudioSuccess &= GetDevice().SetAudioOutputPause(AudioSystem, bPausePlayback);
 				bIsPaused = true;
@@ -1427,7 +1427,7 @@ namespace AJA
 
 				CurrentAudioWriteOffset = InitialOffset;
 
-				UE_LOG(LogTemp, Verbose, TEXT("%s: Starting audio output."), *OutputMethod);
+				UE_LOG(LogAjaCore, Verbose, TEXT("%s: Starting audio output."), *OutputMethod);
 				bAudioSuccess &= GetDevice().StartAudioOutput(AudioSystem); // This resets the playhead to 0, we have to override that to something closer to the write head in order to reduce audio delay
 			}
 
@@ -1440,7 +1440,7 @@ namespace AJA
 				AudioPlayheadLastPosition = PlayHeadPosition;
 				
 				SET_FLOAT_STAT(STAT_AjaMediaCapture_Audio_Delay, OffsetInSeconds);
-				UE_LOG(LogTemp, Verbose, TEXT("%s: Play head: %d, Write Head: %d, Offset: %f"), *OutputMethod, AudioPlayheadLastPosition.load(), CurrentAudioWriteOffset.load(), OffsetInSeconds);
+				UE_LOG(LogAjaCore, Verbose, TEXT("%s: Play head: %d, Write Head: %d, Offset: %f"), *OutputMethod, AudioPlayheadLastPosition.load(), CurrentAudioWriteOffset.load(), OffsetInSeconds);
 
 				bAudioTransferWasSuccessful &= Thread_TransferAudioBuffer(AvailableReadingFrame->AudioBuffer, AvailableReadingFrame->CopiedAudioBufferSize);
 
@@ -1449,17 +1449,17 @@ namespace AJA
 
 				if (bAudioSuccess && Thread_ShouldPauseAudioOutput())
 				{
-					UE_LOG(LogTemp, Warning, TEXT("%s: Audio play head is catching up to write head for channel %d on device %S.\n"), *OutputMethod, uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Warning, TEXT("%s: Audio play head is catching up to write head for channel %d on device %S.\n"), *OutputMethod, uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 
 					bool bPausePlayout = true;
 					GetDevice().SetAudioOutputPause(AudioSystem, bPausePlayout);
 
-					UE_LOG(LogTemp, Verbose, TEXT("%s Pausing audio output because the play head is catching up to the write head. Last playhead position: %d"), *OutputMethod, AudioPlayheadLastPosition.load());
+					UE_LOG(LogAjaCore, Verbose, TEXT("%s Pausing audio output because the play head is catching up to the write head. Last playhead position: %d"), *OutputMethod, AudioPlayheadLastPosition.load());
 				}
 			}
 			else
 			{
-				UE_LOG(LogTemp, Verbose, TEXT("%s Audio output failed."), *OutputMethod);
+				UE_LOG(LogAjaCore, Verbose, TEXT("%s Audio output failed."), *OutputMethod);
 			}
 
 			return bAudioTransferWasSuccessful;
@@ -1480,12 +1480,12 @@ namespace AJA
 			bool bAudioOutputRunning = false;
 			bAudioSuccess &= GetDevice().IsAudioOutputRunning(AudioSystem, bAudioOutputRunning);
 
-			UE_CLOG(!bAudioSuccess, LogTemp, Verbose, TEXT("IsAudioOutputRunning returned false."));
+			UE_CLOG(!bAudioSuccess, LogAjaCore, Verbose, TEXT("IsAudioOutputRunning returned false."));
 
 			bool bIsPaused = false;
 			bAudioSuccess &= GetDevice().GetAudioOutputPause(AudioSystem, bIsPaused);
 
-			UE_CLOG(!bAudioSuccess, LogTemp, Verbose, TEXT("GetAudioOutputPause returned false."));
+			UE_CLOG(!bAudioSuccess, LogAjaCore, Verbose, TEXT("GetAudioOutputPause returned false."));
 
 			// Start audio output as late as possible to reduce delay.
 			if (!bAudioOutputRunning)
@@ -1499,20 +1499,20 @@ namespace AJA
 
 				CurrentAudioWriteOffset = InitialOffset;
 
-				UE_LOG(LogTemp, Verbose, TEXT("PingPong: Starting audio output."));
+				UE_LOG(LogAjaCore, Verbose, TEXT("PingPong: Starting audio output."));
 				bAudioSuccess &= GetDevice().StartAudioOutput(AudioSystem); // This resets the playhead to 0, we have to override that to something closer to the write head in order to reduce audio delay
 			}
 
 			double OffsetInSeconds = 0;
 			bAudioSuccess &= Thread_GetAudioOffsetInSeconds(OffsetInSeconds);
-			UE_CLOG(!bAudioSuccess, LogTemp, Verbose, TEXT("Thread_GetAudioOffsetInSeconds returned false."));
+			UE_CLOG(!bAudioSuccess, LogAjaCore, Verbose, TEXT("Thread_GetAudioOffsetInSeconds returned false."));
 			ULWord PlayHeadPosition = 0;
 			bAudioSuccess &= GetDevice().ReadAudioLastOut(PlayHeadPosition, AudioSystem);
-			UE_CLOG(!bAudioSuccess, LogTemp, Verbose, TEXT("ReadAudioLastOut returned false."));
+			UE_CLOG(!bAudioSuccess, LogAjaCore, Verbose, TEXT("ReadAudioLastOut returned false."));
 			
 			AudioPlayheadLastPosition = PlayHeadPosition;
 			SET_FLOAT_STAT(STAT_AjaMediaCapture_Audio_Delay, OffsetInSeconds);
-			UE_LOG(LogTemp, Verbose, TEXT("%s: Play head: %d, Write Head: %d, Offset: %f"), TEXT("PingPong"), AudioPlayheadLastPosition.load(), CurrentAudioWriteOffset.load(), OffsetInSeconds);
+			UE_LOG(LogAjaCore, Verbose, TEXT("%s: Play head: %d, Write Head: %d, Offset: %f"), TEXT("PingPong"), AudioPlayheadLastPosition.load(), CurrentAudioWriteOffset.load(), OffsetInSeconds);
 
 			bAudioSuccess &= Thread_TransferAudioBuffer(InAudioBuffer, BufferSize);
 			
@@ -1536,7 +1536,7 @@ namespace AJA
 				{
 					constexpr bool bPausePlayout = true;
 					bAudioSuccess &= GetDevice().SetAudioOutputPause(AudioSystem, bPausePlayout);
-					UE_LOG(LogTemp, Warning, TEXT("Pausing audio output. Last playhead position: %d"), AudioPlayheadLastPosition.load());
+					UE_LOG(LogAjaCore, Warning, TEXT("Pausing audio output. Last playhead position: %d"), AudioPlayheadLastPosition.load());
 				}
 			}
 

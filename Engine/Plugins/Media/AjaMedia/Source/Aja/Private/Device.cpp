@@ -19,7 +19,7 @@ namespace AJA
 		{
 			if (InDeviceOption.DeviceIndex >= MaxNumberOfDevice || InDeviceOption.DeviceIndex < 0)
 			{
-				UE_LOG(LogTemp, Error, TEXT("DeviceCache: The device index '%d' is invalid.\n"), InDeviceOption.DeviceIndex);
+				UE_LOG(LogAjaCore, Error, TEXT("DeviceCache: The device index '%d' is invalid.\n"), InDeviceOption.DeviceIndex);
 				return std::shared_ptr<DeviceConnection>();
 			}
 
@@ -240,7 +240,7 @@ namespace AJA
 				{
 					if (!FoundChannel->bIsAutoDetected)
 					{
-						UE_LOG(LogTemp, Warning,  TEXT("Device: Autodetect reinitialized channel '%d' on device '%S' but the channel was not in autodetect mode.\n")
+						UE_LOG(LogAjaCore, Warning,  TEXT("Device: Autodetect reinitialized channel '%d' on device '%S' but the channel was not in autodetect mode.\n")
 							, uint32_t(InChannel) + 1, Connection.Card->GetDisplayName().c_str());
 					}
 
@@ -254,7 +254,7 @@ namespace AJA
 
 				if (bResult && FoundChannel->bIsOwned && bInAsOwner)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Trying to enable the channel '%d' on device '%S' as the owner but it was already enabled. Do you already have an '%S' running on the same channel?\n")
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Trying to enable the channel '%d' on device '%S' as the owner but it was already enabled. Do you already have an '%S' running on the same channel?\n")
 						, uint32_t(InChannel) + 1, Connection.Card->GetDisplayName().c_str()
 						, FoundChannel->bIsInput ? "input" : "output");
 					bResult = false;
@@ -262,7 +262,7 @@ namespace AJA
 
 				if (bResult && FoundChannel->TransportType != InTransportType)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Trying to enable the channel '%d' on device '%S' as a '%S' but it was already enabled as a '%S'.\n")
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Trying to enable the channel '%d' on device '%S' as a '%S' but it was already enabled as a '%S'.\n")
 						, uint32_t(InChannel) + 1
 						, Connection.Card->GetDisplayName().c_str()
 						, Helpers::TransportTypeToString(InTransportType)
@@ -272,7 +272,7 @@ namespace AJA
 
 				if (bResult && FoundChannel->bIsInput != bInIsInput)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Trying to enable the channel '%d' on device '%S' as an '%S' but it was already enabled as an '%S'.\n")
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Trying to enable the channel '%d' on device '%S' as an '%S' but it was already enabled as an '%S'.\n")
 						, uint32_t(InChannel) + 1
 						, Connection.Card->GetDisplayName().c_str()
 						, bInIsInput ? "input" : "output"
@@ -285,14 +285,14 @@ namespace AJA
 					std::string FailureReason;
 					if (!Helpers::GetInputVideoFormat(Connection.Card, InTransportType, InChannel, InInputSource, InDesiredInputFormat, VideoFormat, false, FailureReason))
 					{
-						UE_LOG(LogTemp, Error, TEXT("Device: Initialization of the input failed for channel %d on device %S. %S"), uint32_t(InChannel) + 1, Connection.Card->GetDisplayName().c_str(), FailureReason.c_str());
+						UE_LOG(LogAjaCore, Error, TEXT("Device: Initialization of the input failed for channel %d on device %S. %S"), uint32_t(InChannel) + 1, Connection.Card->GetDisplayName().c_str(), FailureReason.c_str());
 						bResult = false;
 					}
 
 					if (bResult && !bInIsAutoDetected && VideoFormat != FoundChannel->VideoFormat)
 					{
 						const bool bForRetailDisplay = true;
-						UE_LOG(LogTemp, Error, TEXT("Device: Try to enable with the video format '%S' the channel '%d' on device '%S' that was already enabled with '%S'.\n")
+						UE_LOG(LogAjaCore, Error, TEXT("Device: Try to enable with the video format '%S' the channel '%d' on device '%S' that was already enabled with '%S'.\n")
 							, NTV2FrameRateToString(GetNTV2FrameRateFromVideoFormat(VideoFormat), bForRetailDisplay).c_str()
 							, uint32_t(InChannel) + 1, Connection.Card->GetDisplayName().c_str()
 							, NTV2FrameRateToString(GetNTV2FrameRateFromVideoFormat(FoundChannel->VideoFormat), bForRetailDisplay).c_str());
@@ -302,7 +302,7 @@ namespace AJA
 
 				if (bResult && FoundChannel->TimecodeFormat != InTimecodeFormat && !bInIsAutoDetected)
 				{
-					UE_LOG(LogTemp, Warning,  TEXT("Device: Try to enable the channel '%d' on device '%S' with a timecode format that is not the same as the previous one. Timecode may not be decoded properly.\n")
+					UE_LOG(LogAjaCore, Warning,  TEXT("Device: Try to enable the channel '%d' on device '%S' with a timecode format that is not the same as the previous one. Timecode may not be decoded properly.\n")
 						, uint32_t(InChannel) + 1, Connection.Card->GetDisplayName().c_str());
 				}
 
@@ -357,7 +357,7 @@ namespace AJA
 			auto FoundIterator = std::find_if(std::begin(ConnectionChannelInfos), std::end(ConnectionChannelInfos), [=](const ChannelInfo* Other) { return Other->Channel == InChannel; });
 			if (FoundIterator == std::end(ConnectionChannelInfos))
 			{
-				UE_LOG(LogTemp, Error, TEXT("Device: Try to unregister the channel '%d' on device '%S' when it's not registered.\n"), uint32_t(InChannel) + 1, Connection.Card->GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("Device: Try to unregister the channel '%d' on device '%S' when it's not registered.\n"), uint32_t(InChannel) + 1, Connection.Card->GetDisplayName().c_str());
 				assert(false);
 				return false;
 			}
@@ -462,7 +462,7 @@ namespace AJA
 			
 			if (!NTV2_IS_VALID_NTV2FrameRate(InFrameRate))
 			{
-				UE_LOG(LogTemp, Error, TEXT("Device: Trying to read LTC from the reference input '%d' on device '%S' but it is not supported by the device.\n"), uint32_t(InSource) + 1, Connection.Card->GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("Device: Trying to read LTC from the reference input '%d' on device '%S' but it is not supported by the device.\n"), uint32_t(InSource) + 1, Connection.Card->GetDisplayName().c_str());
 				return false;
 			}
 
@@ -470,14 +470,14 @@ namespace AJA
 			bool bResult = true;
 			if (bResult && ::NTV2DeviceGetNumLTCInputs(Connection.Card->GetDeviceID()) <= (uint32_t)InSource)
 			{
-				UE_LOG(LogTemp, Error, TEXT("Device: Trying to read LTC from the LTC input '%d' on device '%S' but it is not supported by the device.\n"), uint32_t(InSource) + 1, Connection.Card->GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("Device: Trying to read LTC from the LTC input '%d' on device '%S' but it is not supported by the device.\n"), uint32_t(InSource) + 1, Connection.Card->GetDisplayName().c_str());
 				bResult = false;
 			}
 			
 			//If there are other LTC readers, exit, only one LTC input is supported
 			if (Connection.LTCFrameRate != NTV2_FRAMERATE_INVALID)
 			{
-				UE_LOG(LogTemp, Error, TEXT("Device: The device '%S' is already reading timecode from LTC input with frame rate '%S' and only one is supported."), Connection.Card->GetDisplayName().c_str(), NTV2FrameRateToString(Connection.LTCFrameRate).c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("Device: The device '%S' is already reading timecode from LTC input with frame rate '%S' and only one is supported."), Connection.Card->GetDisplayName().c_str(), NTV2FrameRateToString(Connection.LTCFrameRate).c_str());
 				bResult = false;
 			}
 
@@ -486,21 +486,21 @@ namespace AJA
 			{
 				if (!::NTV2DeviceCanDoLTCInOnRefPort(Connection.Card->GetDeviceID()))
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Trying to read LTC from reference pin on device '%S' but it doesn't have that capability.\n"), Connection.Card->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Trying to read LTC from reference pin on device '%S' but it doesn't have that capability.\n"), Connection.Card->GetDisplayName().c_str());
 					bResult = false;
 				}
 
 				//Verify if we are already reading LTC from ref pin
 				if (bResult && Connection.bAnalogLtcFromReferenceInput)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: The reference pin is already used to read LTC timecode on device '%S'.\n"), Connection.Card->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("Device: The reference pin is already used to read LTC timecode on device '%S'.\n"), Connection.Card->GetDisplayName().c_str());
 					bResult = false;
 				}
 
 				//Verify if we are already using ref pin for genlock
 				if (bResult && Connection.bOutputReferenceSet && Connection.OutputReferenceType == EAJAReferenceType::EAJA_REFERENCETYPE_EXTERNAL)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Trying to read LTC from the reference input on device '%S' but the reference is already used as a genlock source.\n"), Connection.Card->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Trying to read LTC from the reference input on device '%S' but the reference is already used as a genlock source.\n"), Connection.Card->GetDisplayName().c_str());
 					bResult = false;
 				}
 			}
@@ -518,13 +518,13 @@ namespace AJA
 					{
 						if (!::IsMultiFormatCompatible(InFrameRate, ChannelFrameRate))
 						{
-							UE_LOG(LogTemp, Error, TEXT("Device: Trying to read LTC with FrameRate '%S' but it's not compatible with card's (channel 1) current FrameRate of '%S' on device '%S'.\n"), NTV2FrameRateToString(InFrameRate).c_str(), NTV2FrameRateToString(ChannelFrameRate).c_str(), Connection.Card->GetDisplayName().c_str());
+							UE_LOG(LogAjaCore, Error, TEXT("Device: Trying to read LTC with FrameRate '%S' but it's not compatible with card's (channel 1) current FrameRate of '%S' on device '%S'.\n"), NTV2FrameRateToString(InFrameRate).c_str(), NTV2FrameRateToString(ChannelFrameRate).c_str(), Connection.Card->GetDisplayName().c_str());
 							bResult = false;
 						}
 					}
 					else if (InFrameRate != ChannelFrameRate)
 					{
-						UE_LOG(LogTemp, Error, TEXT("Device: Trying to read LTC with FrameRate '%S' but card's (channel 1) current FrameRate is '%S' and device '%S' can't do multi-format.\n"), NTV2FrameRateToString(InFrameRate).c_str(), NTV2FrameRateToString(ChannelFrameRate).c_str(), Connection.Card->GetDisplayName().c_str());
+						UE_LOG(LogAjaCore, Error, TEXT("Device: Trying to read LTC with FrameRate '%S' but card's (channel 1) current FrameRate is '%S' and device '%S' can't do multi-format.\n"), NTV2FrameRateToString(InFrameRate).c_str(), NTV2FrameRateToString(ChannelFrameRate).c_str(), Connection.Card->GetDisplayName().c_str());
 						bResult = false;
 					}
 				}
@@ -586,13 +586,13 @@ namespace AJA
 			{
 				if (Connection.OutputReferenceType != InOutputReferenceType)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Couldn't set the reference for output on device %S. The type was already setup with %d.\n"), Connection.Card->GetDisplayName().c_str(), int(Connection.OutputReferenceType));
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't set the reference for output on device %S. The type was already setup with %d.\n"), Connection.Card->GetDisplayName().c_str(), int(Connection.OutputReferenceType));
 					return false;
 				}
 
 				if (Connection.OutputReferenceType == EAJAReferenceType::EAJA_REFERENCETYPE_INPUT && Connection.OutputReferenceChannel != InOutputReferenceChannel)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Couldn't set the reference for output on device %S. The input was already setup with %d.\n"), Connection.Card->GetDisplayName().c_str(), Connection.OutputReferenceChannel);
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't set the reference for output on device %S. The input was already setup with %d.\n"), Connection.Card->GetDisplayName().c_str(), Connection.OutputReferenceChannel);
 					return false;
 				}
 
@@ -605,7 +605,7 @@ namespace AJA
 			{
 				if (Connection.bAnalogLtcFromReferenceInput)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Couldn't set the reference for output channel %d on device %S. The reference is used to read analog LTC.\n"), InOutputReferenceChannel, Connection.Card->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't set the reference for output channel %d on device %S. The reference is used to read analog LTC.\n"), InOutputReferenceChannel, Connection.Card->GetDisplayName().c_str());
 					return false;
 				}
 				AJA_CHECK(Connection.Card->SetLTCInputEnable(false));
@@ -617,7 +617,7 @@ namespace AJA
 				NTV2ReferenceSource Input = NTV2InputSourceToReferenceSource(NTV2ChannelToInputSource(InOutputReferenceChannel));
 				if (Input == NTV2_NUM_REFERENCE_INPUTS)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Couldn't set the reference source on device '%S. The Channel index is invalid."), Connection.Card->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't set the reference source on device '%S. The Channel index is invalid."), Connection.Card->GetDisplayName().c_str());
 					return false;
 				}
 				AJA_CHECK(Connection.Card->SetReference(Input));
@@ -657,7 +657,7 @@ namespace AJA
 				const DWORD TimeoutMilli = 2000;
 				if (Counter * SleepMilli > TimeoutMilli)
 				{
-					UE_LOG(LogTemp, Warning,  TEXT("Device: Can't get the device initialized.\n"));
+					UE_LOG(LogAjaCore, Warning,  TEXT("Device: Can't get the device initialized.\n"));
 					delete Result;
 					return nullptr;
 				}
@@ -913,7 +913,7 @@ namespace AJA
 			{
 				if (TransportChannel != InChannel)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Can't do a %S on channel '%d'. Did you mean channel '%d'?")
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Can't do a %S on channel '%d'. Did you mean channel '%d'?")
 						, Helpers::TransportTypeToString(InTransportType)
 						, uint32_t(InChannel) + 1
 						, uint32_t(TransportChannel) + 1);
@@ -933,7 +933,7 @@ namespace AJA
 				{
 					if (Itt->TransportType != InTransportType)
 					{
-						UE_LOG(LogTemp, Error, TEXT("Device: Trying to enable the channel '%d' on device '%S' as a '%S' but channel '%d' was already enabled.\n")
+						UE_LOG(LogAjaCore, Error, TEXT("Device: Trying to enable the channel '%d' on device '%S' as a '%S' but channel '%d' was already enabled.\n")
 							, int32_t(InChannel) + 1
 							, InCard->GetDisplayName().c_str()
 							, Helpers::TransportTypeToString(InTransportType)
@@ -950,7 +950,7 @@ namespace AJA
 					const bool bNewMaxInConflict = NewMaxChannel >= IttMinChannel && NewMaxChannel <= IttMaxChannel;
 					if (bNewMinInConflict || bNewMaxInConflict)
 					{
-						UE_LOG(LogTemp, Error, TEXT("Device: Trying to enable the channel '%d' on device '%S' as a '%S' but it was already enabled as a '%S' by channel '%d'.\n")
+						UE_LOG(LogAjaCore, Error, TEXT("Device: Trying to enable the channel '%d' on device '%S' as a '%S' but it was already enabled as a '%S' by channel '%d'.\n")
 							, uint32_t(InChannel) + 1
 							, InCard->GetDisplayName().c_str()
 							, Helpers::TransportTypeToString(InTransportType)
@@ -969,7 +969,7 @@ namespace AJA
 			NTV2DeviceID DeviceId = Card->GetDeviceID();
 			if (InChannel >= ::NTV2DeviceGetNumFrameStores(DeviceId))
 			{
-				UE_LOG(LogTemp, Error, TEXT("Device: The device '%S' doesn't support channel '%d'"), InCard->GetDisplayName().c_str(), uint32_t(InChannel) + 1);
+				UE_LOG(LogAjaCore, Error, TEXT("Device: The device '%S' doesn't support channel '%d'"), InCard->GetDisplayName().c_str(), uint32_t(InChannel) + 1);
 				return false;
 			}
 
@@ -994,7 +994,7 @@ namespace AJA
 				{
 					if (InChannel == NTV2Channel::NTV2_CHANNEL1 && !::IsMultiFormatCompatible(LTCFrameRate, ::GetNTV2FrameRateFromVideoFormat(OutFoundVideoFormat)))
 					{
-						UE_LOG(LogTemp, Error, TEXT("Device: The device '%S' does support Multi Format but channel %d requested format's frame rate ('%S') and it's not compatible with the LTC reference frame rate ('%S')."), InCard->GetDisplayName().c_str(), uint32_t(InChannel) + 1, NTV2FrameRateToString(::GetNTV2FrameRateFromVideoFormat(OutFoundVideoFormat)).c_str(), NTV2FrameRateToString(LTCFrameRate).c_str());
+						UE_LOG(LogAjaCore, Error, TEXT("Device: The device '%S' does support Multi Format but channel %d requested format's frame rate ('%S') and it's not compatible with the LTC reference frame rate ('%S')."), InCard->GetDisplayName().c_str(), uint32_t(InChannel) + 1, NTV2FrameRateToString(::GetNTV2FrameRateFromVideoFormat(OutFoundVideoFormat)).c_str(), NTV2FrameRateToString(LTCFrameRate).c_str());
 						return false;
 					}
 				}
@@ -1002,7 +1002,7 @@ namespace AJA
 				{
 					if (LTCFrameRate != ::GetNTV2FrameRateFromVideoFormat(OutFoundVideoFormat))
 					{
-						UE_LOG(LogTemp, Warning,  TEXT("Device: The device '%S' doesn't support Multi Format and channel %d requested format's frame rate ('%S') and it's not the same as the LTC reference frame rate ('%S')."), InCard->GetDisplayName().c_str(), uint32_t(InChannel) + 1, NTV2FrameRateToString(::GetNTV2FrameRateFromVideoFormat(OutFoundVideoFormat)).c_str(), NTV2FrameRateToString(LTCFrameRate).c_str());
+						UE_LOG(LogAjaCore, Warning,  TEXT("Device: The device '%S' doesn't support Multi Format and channel %d requested format's frame rate ('%S') and it's not the same as the LTC reference frame rate ('%S')."), InCard->GetDisplayName().c_str(), uint32_t(InChannel) + 1, NTV2FrameRateToString(::GetNTV2FrameRateFromVideoFormat(OutFoundVideoFormat)).c_str(), NTV2FrameRateToString(LTCFrameRate).c_str());
 						return false;
 					}
 				}
@@ -1016,13 +1016,13 @@ namespace AJA
 				{
 					if (!::IsMultiFormatCompatible(NotMultiVideoFormat, OutFoundVideoFormat))
 					{
-						UE_LOG(LogTemp, Error, TEXT("Device: The device '%S' does support Multi Format but channel %d requested format ('%S') and it's not compatible with the previous format ('%S')."), InCard->GetDisplayName().c_str(), uint32_t(InChannel) + 1, NTV2VideoFormatToString(OutFoundVideoFormat).c_str(), NTV2VideoFormatToString(NotMultiVideoFormat).c_str()); 
+						UE_LOG(LogAjaCore, Error, TEXT("Device: The device '%S' does support Multi Format but channel %d requested format ('%S') and it's not compatible with the previous format ('%S')."), InCard->GetDisplayName().c_str(), uint32_t(InChannel) + 1, NTV2VideoFormatToString(OutFoundVideoFormat).c_str(), NTV2VideoFormatToString(NotMultiVideoFormat).c_str()); 
 						return false;
 					}
 				}
 				else if (!bIsAutoDetected)
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: The device '%S' doesn't support Multi Format and channel %d requested format ('%S') which is not the same as previous format ('%S')."), InCard->GetDisplayName().c_str(), uint32_t(InChannel) + 1, NTV2VideoFormatToString(OutFoundVideoFormat).c_str(), NTV2VideoFormatToString(NotMultiVideoFormat).c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("Device: The device '%S' doesn't support Multi Format and channel %d requested format ('%S') which is not the same as previous format ('%S')."), InCard->GetDisplayName().c_str(), uint32_t(InChannel) + 1, NTV2VideoFormatToString(OutFoundVideoFormat).c_str(), NTV2VideoFormatToString(NotMultiVideoFormat).c_str());
 					return false;
 				}
 			}
@@ -1052,13 +1052,13 @@ namespace AJA
 				std::string FailureReason;
 				if (!Helpers::GetInputVideoFormat(InCard, InTransportType, InChannel, InInputSource, InDesiredInputFormat, OutFoundVideoFormat, true, FailureReason))
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Initialization of the input failed for channel %d on device '%S'. %S"), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str(), FailureReason.c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Initialization of the input failed for channel %d on device '%S'. %S"), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str(), FailureReason.c_str());
 					return false;
 				}
 				
 				if (!Helpers::GetInputHDRMetadata(InCard, InChannel, InOutHDROptions))
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Could not fetch HDR metadata from channel %d on device '%S'."), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Could not fetch HDR metadata from channel %d on device '%S'."), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str());
 					return false;
 				}
 			}
@@ -1148,7 +1148,7 @@ namespace AJA
 				std::string FailureReason;
 				if (!Helpers::GetInputVideoFormat(InCard, InTransportType, InChannel, InInputSource, InDesiredInputFormat, OutFoundVideoFormat, true, FailureReason))
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Initialization of the input failed for channel %d on device '%S'. %S"), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str(), FailureReason.c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Initialization of the input failed for channel %d on device '%S'. %S"), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str(), FailureReason.c_str());
 					return false;
 				}
 			}
@@ -1196,7 +1196,7 @@ namespace AJA
 			int32_t  CurrentAppPID(0);
 			if (!Card->GetStreamingApplication(&CurrentAppFourCC, &CurrentAppPID))
 			{
-				UE_LOG(LogTemp, Error, TEXT("Device: Couldn't get current stream using Aja. Something is wrong when tryin to access registers on device '%S'."), Card->GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't get current stream using Aja. Something is wrong when tryin to access registers on device '%S'."), Card->GetDisplayName().c_str());
 				delete Card;
 				Card = nullptr;
 				return false;
@@ -1222,11 +1222,11 @@ namespace AJA
 #endif
 					FourCCBuffer[4] = '\0';
 
-					UE_LOG(LogTemp, Error, TEXT("Device: Couldn't acquire stream for Unreal Engine application on device '%S'. Used by application '%S' with PID '%d'."), Card->GetDisplayName().c_str(), FourCCBuffer, CurrentAppPID);
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't acquire stream for Unreal Engine application on device '%S'. Used by application '%S' with PID '%d'."), Card->GetDisplayName().c_str(), FourCCBuffer, CurrentAppPID);
 				}
 				else
 				{
-					UE_LOG(LogTemp, Error, TEXT("Device: Couldn't acquire stream for Unreal Engine application on device '%S'."), Card->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("Device: Couldn't acquire stream for Unreal Engine application on device '%S'."), Card->GetDisplayName().c_str());
 				}
 
 				delete Card;
@@ -1235,10 +1235,10 @@ namespace AJA
 			}
 			
 			{
-				UE_LOG(LogTemp,  Display, TEXT("Connected to %S with SDK %d.%d.%d.%d"), Card->GetDeviceVersionString().c_str(), AJA_NTV2_SDK_VERSION_MAJOR, AJA_NTV2_SDK_VERSION_MINOR, AJA_NTV2_SDK_VERSION_POINT, AJA_NTV2_SDK_BUILD_NUMBER);
+				UE_LOG(LogAjaCore,  Display, TEXT("Connected to %S with SDK %d.%d.%d.%d"), Card->GetDeviceVersionString().c_str(), AJA_NTV2_SDK_VERSION_MAJOR, AJA_NTV2_SDK_VERSION_MINOR, AJA_NTV2_SDK_VERSION_POINT, AJA_NTV2_SDK_BUILD_NUMBER);
 				if (AJA_NTV2_SDK_VERSION_MAJOR < 14)
 				{
-					UE_LOG(LogTemp, Warning,  TEXT("Unreal Engine's implementation of AJA support SDK 14 and up."));
+					UE_LOG(LogAjaCore, Warning,  TEXT("Unreal Engine's implementation of AJA support SDK 14 and up."));
 				}
 			}
 
@@ -1268,7 +1268,7 @@ namespace AJA
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning,  TEXT("Device: The device '%S' doesn't support Multi Format."), Card->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Warning,  TEXT("Device: The device '%S' doesn't support Multi Format."), Card->GetDisplayName().c_str());
 				}
 			}
 
@@ -1306,7 +1306,7 @@ namespace AJA
 			}
 			else
 			{
-				UE_LOG(LogTemp, Error, TEXT("Device: Too many Frames Indexes requested on device '%S'.\n"), Card->GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("Device: Too many Frames Indexes requested on device '%S'.\n"), Card->GetDisplayName().c_str());
 				return InvalidFrameBufferIndex;
 			}
 		}

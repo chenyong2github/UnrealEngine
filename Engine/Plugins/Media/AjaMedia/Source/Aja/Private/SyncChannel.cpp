@@ -141,7 +141,7 @@ namespace AJA
 		{
 			if (InOptions.ChannelIndex > NTV2_MAX_NUM_CHANNELS || InOptions.ChannelIndex < 1)
 			{
-				UE_LOG(LogTemp, Error, TEXT("SyncChannel: The port index '%d' is invalid.\n"), InOptions.ChannelIndex);
+				UE_LOG(LogAjaCore, Error, TEXT("SyncChannel: The port index '%d' is invalid.\n"), InOptions.ChannelIndex);
 			}
 			else
 			{
@@ -244,7 +244,7 @@ namespace AJA
 
 			if (!Helpers::TryVideoFormatIndexToNTV2VideoFormat(SyncOption.VideoFormatIndex, DesiredVideoFormat))
 			{
-				UE_LOG(LogTemp, Error, TEXT("SyncChannel: The expected video format is invalid for %d.\n"), uint32_t(Channel) + 1);
+				UE_LOG(LogAjaCore, Error, TEXT("SyncChannel: The expected video format is invalid for %d.\n"), uint32_t(Channel) + 1);
 				return false;
 			}
 
@@ -279,7 +279,7 @@ namespace AJA
 
 			if (!Device->WaitForInputOrOutputInterrupt(Channel, 12 * 2))
 			{
-				UE_LOG(LogTemp, Error, TEXT("SyncChannel: Was not able to lock on device %S for channel %d.\n"), GetDevice().GetDisplayName().c_str(), uint32_t(Channel) + 1);
+				UE_LOG(LogAjaCore, Error, TEXT("SyncChannel: Was not able to lock on device %S for channel %d.\n"), GetDevice().GetDisplayName().c_str(), uint32_t(Channel) + 1);
 				return false;
 			}
 
@@ -301,7 +301,7 @@ namespace AJA
 
 				if (!FoundFormat.has_value())
 				{
-					UE_LOG(LogTemp, Error, TEXT("Sync: The VideoFormat was invalid for channel %d on device %S. %S\n")
+					UE_LOG(LogAjaCore, Error, TEXT("Sync: The VideoFormat was invalid for channel %d on device %S. %S\n")
 						, uint32_t(Channel) + 1
 						, GetDevice().GetDisplayName().c_str()
 						, FailureReason.c_str()
@@ -318,7 +318,7 @@ namespace AJA
 					}
 					else
 					{
-						UE_LOG(LogTemp, Error, TEXT("Sync: The VideoFormat changed for channel %d on device %S. %S\n")
+						UE_LOG(LogAjaCore, Error, TEXT("Sync: The VideoFormat changed for channel %d on device %S. %S\n")
 							, uint32_t(Channel) + 1
 							, GetDevice().GetDisplayName().c_str()
 							, FailureReason.c_str()

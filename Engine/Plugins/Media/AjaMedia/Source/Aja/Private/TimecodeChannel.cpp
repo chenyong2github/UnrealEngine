@@ -115,7 +115,7 @@ namespace AJA
 			{
 				if (InOptions.ChannelIndex > NTV2_MAX_NUM_CHANNELS || InOptions.ChannelIndex < 1)
 				{
-					UE_LOG(LogTemp, Error, TEXT("SyncChannel: The port index '%d' is invalid.\n"), InOptions.ChannelIndex);
+					UE_LOG(LogAjaCore, Error, TEXT("SyncChannel: The port index '%d' is invalid.\n"), InOptions.ChannelIndex);
 				}
 				else
 				{
@@ -227,7 +227,7 @@ namespace AJA
 				case 1: LtcSource = EAnalogLTCSource::LTC1; break;
 				case 2: LtcSource = EAnalogLTCSource::LTC2; break;
 				default:
-					UE_LOG(LogTemp, Error, TEXT("TimecodeChannel: The LTC source Index is invalid on device %S.\n"), GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("TimecodeChannel: The LTC source Index is invalid on device %S.\n"), GetDevice().GetDisplayName().c_str());
 					return false;
 				}
 
@@ -244,7 +244,7 @@ namespace AJA
 
 				if (!Helpers::TryVideoFormatIndexToNTV2VideoFormat(TimecodeOption.VideoFormatIndex, DesiredVideoFormat))
 				{
-					UE_LOG(LogTemp, Error, TEXT("TimecodeChannel: The expected video format is invalid for %d.\n"), uint32_t(Channel) + 1);
+					UE_LOG(LogAjaCore, Error, TEXT("TimecodeChannel: The expected video format is invalid for %d.\n"), uint32_t(Channel) + 1);
 					return false;
 				}
 
@@ -270,7 +270,7 @@ namespace AJA
 
 				if (!Device->WaitForInputOrOutputInterrupt(Channel, 12 * 2))
 				{
-					UE_LOG(LogTemp, Error, TEXT("TimecodeChannel: Was not able to lock on device %S for channel %d.\n"), GetDevice().GetDisplayName().c_str(), uint32_t(Channel) + 1);
+					UE_LOG(LogAjaCore, Error, TEXT("TimecodeChannel: Was not able to lock on device %S for channel %d.\n"), GetDevice().GetDisplayName().c_str(), uint32_t(Channel) + 1);
 					return false;
 				}
 			}

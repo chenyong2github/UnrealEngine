@@ -315,7 +315,7 @@ namespace AJA
 			{
 				if (bInLogError)
 				{
-					UE_LOG(LogTemp, Warning,  TEXT("AJA: The timecode type is not present for LTC Input '%d' on device '%S'.\n"), uint32_t(AnalogLTCInput)+1, InCard->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Warning,  TEXT("AJA: The timecode type is not present for LTC Input '%d' on device '%S'.\n"), uint32_t(AnalogLTCInput)+1, InCard->GetDisplayName().c_str());
 				}
 				return false;
 			}
@@ -325,7 +325,7 @@ namespace AJA
 			{
 				if (bInLogError)
 				{
-					UE_LOG(LogTemp, Warning,  TEXT("AJA: The timecode type is not present for LTC Input '%d' on device '%S'.\n"), uint32_t(AnalogLTCInput) + 1, InCard->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Warning,  TEXT("AJA: The timecode type is not present for LTC Input '%d' on device '%S'.\n"), uint32_t(AnalogLTCInput) + 1, InCard->GetDisplayName().c_str());
 				}
 				return false;
 			}
@@ -637,7 +637,7 @@ namespace AJA
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning,  TEXT("RouteSignal: This input routing is not supported. %S.\n"), Helpers::TransportTypeToString(InTransportType));
+					UE_LOG(LogAjaCore, Warning,  TEXT("RouteSignal: This input routing is not supported. %S.\n"), Helpers::TransportTypeToString(InTransportType));
 				}
 			}
 			else //is output
@@ -751,7 +751,7 @@ namespace AJA
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning,  TEXT("RouteSignal: This output routing is not supported. %S.\n"), Helpers::TransportTypeToString(InTransportType));
+					UE_LOG(LogAjaCore, Warning,  TEXT("RouteSignal: This output routing is not supported. %S.\n"), Helpers::TransportTypeToString(InTransportType));
 				}
 			}
 		}
@@ -940,7 +940,7 @@ namespace AJA
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning,  TEXT("RouteKeySignal: Key routing is not supported. %S.\n"), Helpers::TransportTypeToString(InTransportType));
+				UE_LOG(LogAjaCore, Warning,  TEXT("RouteKeySignal: Key routing is not supported. %S.\n"), Helpers::TransportTypeToString(InTransportType));
 			}
 		}
 
@@ -989,7 +989,7 @@ namespace AJA
 			{
 				if (InInputSource != NTV2_INPUTSOURCE_HDMI1 && InInputSource != NTV2_INPUTSOURCE_HDMI2)
 				{
-					UE_LOG(LogTemp, Warning,  TEXT("AJA: 4K HDMI is only supported in inputs 1 and 2.\n"));
+					UE_LOG(LogAjaCore, Warning,  TEXT("AJA: 4K HDMI is only supported in inputs 1 and 2.\n"));
 					return NTV2_OUTPUT_CROSSPOINT_INVALID;
 				}
 			}
@@ -1038,7 +1038,7 @@ namespace AJA
 					NTV2DeviceInfo DeviceInfo;
 					if (!Scanner.GetDeviceInfo(DeviceIndex, DeviceInfo, false))
 					{
-						UE_LOG(LogTemp, Error, TEXT("ConfigureVideo: Device not found.\n"));
+						UE_LOG(LogAjaCore, Error, TEXT("ConfigureVideo: Device not found.\n"));
 						return false;
 					}
 					DeviceID = DeviceInfo.deviceID;
@@ -1356,7 +1356,7 @@ namespace AJA
 			{
 				if (bInLogError)
 				{
-					UE_LOG(LogTemp, Warning,  TEXT("AJA: There is no timecode present for channel '%d' on device '%S'.\n"), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Warning,  TEXT("AJA: There is no timecode present for channel '%d' on device '%S'.\n"), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str());
 				}
 				return false;
 			}
@@ -1372,7 +1372,7 @@ namespace AJA
 					{
 						if (bInLogError)
 						{
-							UE_LOG(LogTemp, Warning,  TEXT("AJA: The timecode type is not present for channel '%d' on device '%S'.\n"), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str());
+							UE_LOG(LogAjaCore, Warning,  TEXT("AJA: The timecode type is not present for channel '%d' on device '%S'.\n"), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str());
 						}
 					}
 					break;
@@ -1384,7 +1384,7 @@ namespace AJA
 					{
 						if (bInLogError)
 						{
-							UE_LOG(LogTemp, Warning,  TEXT("AJA: The timecode type is not present for channel '%d' on device '%S'.\n"), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str());
+							UE_LOG(LogAjaCore, Warning,  TEXT("AJA: The timecode type is not present for channel '%d' on device '%S'.\n"), uint32_t(InChannel) + 1, InCard->GetDisplayName().c_str());
 						}
 					}
 					break;
