@@ -42,7 +42,7 @@ class FOperatorDml;
 //
 //
 //
-class FModel : public FModelRDG
+class FModelInstance : public FModelInstanceRDG
 {
 	class FGraphBuilder;
 	class FBindingTable;
@@ -50,8 +50,8 @@ class FModel : public FModelRDG
 
 public:
 
-	FModel();
-	~FModel();
+	FModelInstance();
+	~FModelInstance();
 
 	bool Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* InDevCtx);
 
@@ -95,6 +95,19 @@ private:
 	uint64								MemSizeTemp;
 	uint64								MemSizePersist;
 	ID3D12DynamicRHI*					DynamicRHI;
+};
+
+class FModel : public NNECore::IModelRDG
+{
+public:
+	FModel(TConstArrayView<uint8> InModelData, FDmlDeviceContext* InDevCtx);
+	virtual ~FModel() {};
+
+	virtual TUniquePtr<UE::NNECore::IModelInstanceRDG> CreateModelInstance() override;
+
+private:
+	TArray<uint8> ModelData;
+	FDmlDeviceContext* DevCtx;
 };
 
 #endif // NNE_USE_DIRECTML

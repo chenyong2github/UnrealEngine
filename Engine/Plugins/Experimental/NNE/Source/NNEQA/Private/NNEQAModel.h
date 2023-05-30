@@ -17,15 +17,15 @@
 namespace UE::NNEQA::Private 
 {
 
-// This class is a wrapper around a NNECore::IModelCPU and NNECore::IModelRDG
-// Allowing to run a model on CPU or GPU using IModelCPU interface only.
-class FModelQA : NNECore::IModelCPU
+// This class is a wrapper around a NNECore::IModelInstanceCPU and NNECore::IModelInstanceRDG
+// Allowing to run a model on CPU or GPU using IModelInstanceCPU interface only.
+class FModelQA : NNECore::IModelInstanceCPU
 {
 private:
 
-	TUniquePtr<NNECore::IModelCPU> ModelCPU;
-	TUniquePtr<NNECore::IModelGPU> ModelGPU;
-	TUniquePtr<NNECore::IModelRDG> ModelRDG;
+	TUniquePtr<NNECore::IModelInstanceCPU> ModelInstanceCPU;
+	TUniquePtr<NNECore::IModelInstanceGPU> ModelInstanceGPU;
+	TUniquePtr<NNECore::IModelInstanceRDG> ModelInstanceRDG;
 
 public:
 	struct FReadbackEntry

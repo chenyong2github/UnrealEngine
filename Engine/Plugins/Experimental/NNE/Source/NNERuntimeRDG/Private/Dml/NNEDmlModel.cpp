@@ -62,7 +62,7 @@ bool FModelInfo::ValidateGuidAndVersion(const uint8* InGuid, const uint8* InVers
 //
 //
 //
-class FModel::FDebugName
+class FModelInstance::FDebugName
 {
 	static constexpr int32 Size = 128;
 
@@ -110,11 +110,11 @@ private:
 //
 //
 //
-class FModel::FBindingTable
+class FModelInstance::FBindingTable
 {
 public:
 
-	bool Init(FModel* InModel)
+	bool Init(FModelInstance* InModel)
 	{
 		Model = InModel;
 		DynamicRHI = InModel->DynamicRHI;
@@ -299,13 +299,13 @@ private:
 	TArray<DML_BUFFER_BINDING, TInlineAllocator<MaxNumOutputs>>		OutputBinds;
 	TArray<DML_BINDING_DESC, TInlineAllocator<MaxNumOutputs>>		OutputBindDescs;
 	ID3D12DynamicRHI*												DynamicRHI;
-	FModel*															Model;
+	FModelInstance*															Model;
 };
 
 //
 //
 //
-class FModel::FGraphBuilder
+class FModelInstance::FGraphBuilder
 {
 public:
 
@@ -822,21 +822,21 @@ private:
 //
 //
 //
-FModel::FModel()
+FModelInstance::FModelInstance()
 {
 }
 
 //
 //
 //
-FModel::~FModel()
+FModelInstance::~FModelInstance()
 {
 }
 
 //
 //
 //
-bool FModel::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* InDevCtx)
+bool FModelInstance::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* InDevCtx)
 {
 	ConstantCPUTensorIndices.Reset();
 
@@ -984,7 +984,7 @@ bool FModel::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* InDevCtx)
 //
 //
 //
-bool FModel::InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 TensorDataSize)
+bool FModelInstance::InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 TensorDataSize)
 {
 	static constexpr EBufferUsageFlags	WeightBuffUsage = BUF_UnorderedAccess;
 	static constexpr ERHIAccess			WeightBuffAccess = ERHIAccess::UAVMask;
@@ -1178,7 +1178,7 @@ END_SHADER_PARAMETER_STRUCT()
 //
 //
 //
-void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
+void FModelInstance::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
 	FDmlModelDispatchPassParameters* DispatchParams = GraphBuilder.AllocParameters<FDmlModelDispatchPassParameters>();
 
@@ -1299,7 +1299,7 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 //
 // Create operator
 //
-FOperatorDml* FModel::OpCreate(const FString& OpName, TArrayView<const NNECore::Internal::FTensor> InputTensorDescs, TArrayView<const NNECore::Internal::FTensor> OutputTensorDescs, const NNECore::FAttributeMap& Attributes)
+FOperatorDml* FModelInstance::OpCreate(const FString& OpName, TArrayView<const NNECore::Internal::FTensor> InputTensorDescs, TArrayView<const NNECore::Internal::FTensor> OutputTensorDescs, const NNECore::FAttributeMap& Attributes)
 {
 	FOperatorRegistryDml::OperatorCreateFunc CreateFn = FOperatorRegistryDml::Get()->OpFind(OpName);
 
@@ -1324,7 +1324,7 @@ FOperatorDml* FModel::OpCreate(const FString& OpName, TArrayView<const NNECore::
 	return Op;
 }
 
-FBufferRHIRef FModel::CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, ERHIAccess Access, const TCHAR* DbgName)
+FBufferRHIRef FModelInstance::CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, ERHIAccess Access, const TCHAR* DbgName)
 {
 	FBufferRHIRef Buff = nullptr;
 
@@ -1339,7 +1339,7 @@ FBufferRHIRef FModel::CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint
 	return Buff;
 }
 
-ID3D12Resource* FModel::CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState, D3D12_HEAP_TYPE HeapType, const TCHAR* DebugName)
+ID3D12Resource* FModelInstance::CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState, D3D12_HEAP_TYPE HeapType, const TCHAR* DebugName)
 {
 	ID3D12Resource* Resource = nullptr;
 
@@ -1372,7 +1372,7 @@ ID3D12Resource* FModel::CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES Res
 //
 //
 //
-int FModel::PrepareTensorShapesAndData()
+int FModelInstance::PrepareTensorShapesAndData()
 {
 	for (NNECore::FTensorDesc SymbolicTensorDesc : AllSymbolicTensorDescs)
 	{
@@ -1384,6 +1384,25 @@ int FModel::PrepareTensorShapesAndData()
 	}
 
 	return 0;
+}
+
+TUniquePtr<UE::NNECore::IModelInstanceRDG> FModel::CreateModelInstance()
+{
+	FModelInstance* ModelInstance = new FModelInstance();
+
+	if (!ModelInstance->Init(ModelData, DevCtx))
+	{
+		delete ModelInstance;
+		return TUniquePtr<UE::NNECore::IModelInstanceRDG>();
+	}
+
+	UE::NNECore::IModelInstanceRDG* IModelInstance = static_cast<UE::NNECore::IModelInstanceRDG*>(ModelInstance);
+	return TUniquePtr<UE::NNECore::IModelInstanceRDG>(IModelInstance);
+}
+
+FModel::FModel(TConstArrayView<uint8> InModelData, FDmlDeviceContext* InDevCtx) 
+	: ModelData(InModelData), DevCtx(InDevCtx)
+{
 }
 
 #endif // NNE_USE_DIRECTML

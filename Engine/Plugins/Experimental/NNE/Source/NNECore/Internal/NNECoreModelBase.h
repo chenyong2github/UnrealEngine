@@ -8,11 +8,11 @@
 
 namespace UE::NNECore::Internal
 {
-	template <class ModelInterface> class FModelBase : public ModelInterface
+	template <class ModelInterface> class FModelInstanceBase : public ModelInterface
 	{
 	public:
 
-		virtual ~FModelBase() = default;
+		virtual ~FModelInstanceBase() = default;
 
 		virtual TConstArrayView<NNECore::FTensorDesc> GetInputTensorDescs() const override;
 		virtual TConstArrayView<NNECore::FTensorDesc> GetOutputTensorDescs() const override;
@@ -22,7 +22,7 @@ namespace UE::NNECore::Internal
 
 	protected:
 
-		FModelBase() {}
+		FModelInstanceBase() {}
 
 		TArray<FTensorShape>	InputTensorShapes;
 		TArray<FTensorShape>	OutputTensorShapes;
@@ -30,27 +30,27 @@ namespace UE::NNECore::Internal
 		TArray<FTensorDesc>		OutputSymbolicTensors;
 	};
 
-	template <class T> TConstArrayView<FTensorDesc> FModelBase<T>::GetInputTensorDescs() const
+	template <class T> TConstArrayView<FTensorDesc> FModelInstanceBase<T>::GetInputTensorDescs() const
 	{
 		return InputSymbolicTensors;
 	}
 
-	template <class T> TConstArrayView<FTensorDesc> FModelBase<T>::GetOutputTensorDescs() const
+	template <class T> TConstArrayView<FTensorDesc> FModelInstanceBase<T>::GetOutputTensorDescs() const
 	{
 		return OutputSymbolicTensors;
 	}
 
-	template <class T> TConstArrayView<FTensorShape> FModelBase<T>::GetInputTensorShapes() const
+	template <class T> TConstArrayView<FTensorShape> FModelInstanceBase<T>::GetInputTensorShapes() const
 	{
 		return InputTensorShapes;
 	}
 
-	template <class T> TConstArrayView<FTensorShape> FModelBase<T>::GetOutputTensorShapes() const
+	template <class T> TConstArrayView<FTensorShape> FModelInstanceBase<T>::GetOutputTensorShapes() const
 	{
 		return OutputTensorShapes;
 	}
 
-	template <class T> int FModelBase<T>::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
+	template <class T> int FModelInstanceBase<T>::SetInputTensorShapes(TConstArrayView<FTensorShape> InInputShapes)
 	{
 		InputTensorShapes.Reset(InInputShapes.Num());
 

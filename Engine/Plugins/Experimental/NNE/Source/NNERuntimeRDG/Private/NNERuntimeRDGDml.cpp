@@ -147,26 +147,18 @@ bool UNNERuntimeRDGDmlImpl::CanCreateModelRDG(TObjectPtr<UNNEModelData> ModelDat
 #endif
 };
 
-TUniquePtr<UE::NNECore::IModelRDG> UNNERuntimeRDGDmlImpl::CreateModelRDG(TObjectPtr<UNNEModelData> ModelData)
+TUniquePtr<UE::NNECore::IModelRDG> UNNERuntimeRDGDmlImpl::CreateModel(TObjectPtr<UNNEModelData> ModelData)
 {
 #ifdef NNE_USE_DIRECTML
-	TUniquePtr<FModel>	Model;
-
 	if (!CanCreateModelRDG(ModelData))
 	{
-		return Model;
+		return TUniquePtr<UE::NNECore::IModelRDG>();
 	}
 
-	// Create the model and initialize it with the data not including the header
-	Model = MakeUnique<FModel>();
 	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
+	FModel* Model = new FModel(Data, Ctx);
 
-	if (!Model->Init(Data, Ctx))
-	{
-		Model.Reset();
-	}
-
-	return Model;
+	return TUniquePtr<UE::NNECore::IModelRDG>(Model);
 #else
 	return TUniquePtr<UE::NNECore::IModelRDG>();
 #endif

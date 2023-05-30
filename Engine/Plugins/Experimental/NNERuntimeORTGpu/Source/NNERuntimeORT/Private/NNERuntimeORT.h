@@ -50,5 +50,5 @@ public:
 	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) override;
 
 	virtual bool CanCreateModelGPU(TObjectPtr<UNNEModelData> ModelData) const override;
-	virtual TUniquePtr<UE::NNECore::IModelGPU> CreateModelGPU(TObjectPtr<UNNEModelData> ModelData) override;
+	virtual TUniquePtr<UE::NNECore::IModelGPU> CreateModel(TObjectPtr<UNNEModelData> ModelData) override;
 };

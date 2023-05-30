@@ -11,11 +11,11 @@
 
 namespace UE::NNERuntimeRDG::Private
 {
-	class FModelRDG : public NNECore::Internal::FModelBase<NNECore::IModelRDG>
+	class FModelInstanceRDG : public NNECore::Internal::FModelInstanceBase<NNECore::IModelInstanceRDG>
 	{
 	public:
-		FModelRDG() {};
-		virtual ~FModelRDG() = default;
+		FModelInstanceRDG() {};
+		virtual ~FModelInstanceRDG() = default;
 
 		virtual int SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes) override;
 		virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNECore::FTensorBindingRDG> InInputBindings, TConstArrayView<NNECore::FTensorBindingRDG> InOutputBindings) override;

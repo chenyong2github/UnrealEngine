@@ -11,12 +11,12 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 {
 struct FOperatorHlsl;
 
-class FModel : public FModelRDG
+class FModelInstance : public FModelInstanceRDG
 {
 	
 public:
 
-	~FModel() = default;
+	~FModelInstance() = default;
 
 	bool Init(TConstArrayView<uint8> ModelData);
 
@@ -33,6 +33,18 @@ private:
 	TArray<FOperatorHlsl*>	Operators;
 	TArray<TRefCountPtr<FRDGPooledBuffer>> WeightsExternalRDGResources;
 	TArray<TRefCountPtr<FRDGPooledBuffer>> ConstantsExternalRDGResources;
+};
+
+class FModel : public NNECore::IModelRDG
+{
+public:
+	FModel(TConstArrayView<uint8> ModelData);
+	virtual ~FModel() {};
+
+	virtual TUniquePtr<UE::NNECore::IModelInstanceRDG> CreateModelInstance() override;
+
+private:
+	TArray<uint8> ModelData;
 };
 
 } // namespace UE::NNERuntimeRDG::Private::Hlsl

@@ -25,7 +25,7 @@ void UMLAdapterAgent_Inference::PostInitProperties()
 		return;
 	}
 
-	Brain = Runtime->CreateModelCPU(ModelData);
+	Brain = Runtime->CreateModel(ModelData)->CreateModelInstance();
 
 	TConstArrayView<UE::NNECore::FTensorDesc> InputTensorDescs = Brain->GetInputTensorDescs();
 	if (InputTensorDescs.Num() != 1)

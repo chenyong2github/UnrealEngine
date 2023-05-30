@@ -129,60 +129,60 @@ namespace FModelQAHelpers
 	
 TConstArrayView<NNECore::FTensorDesc> FModelQA::GetInputTensorDescs() const
 { 
-	if (ModelCPU.IsValid()) 
-		return ModelCPU->GetInputTensorDescs();
-	if (ModelGPU.IsValid())
-		return ModelGPU->GetInputTensorDescs();
-	if (ModelRDG.IsValid())
-		return ModelRDG->GetInputTensorDescs();
+	if (ModelInstanceCPU.IsValid()) 
+		return ModelInstanceCPU->GetInputTensorDescs();
+	if (ModelInstanceGPU.IsValid())
+		return ModelInstanceGPU->GetInputTensorDescs();
+	if (ModelInstanceRDG.IsValid())
+		return ModelInstanceRDG->GetInputTensorDescs();
 	else
 		return {};
 };
 		
 TConstArrayView<NNECore::FTensorDesc> FModelQA::GetOutputTensorDescs() const
 {
-	if (ModelCPU.IsValid())
-		return ModelCPU->GetOutputTensorDescs();
-	if (ModelGPU.IsValid())
-		return ModelGPU->GetOutputTensorDescs();
-	if (ModelRDG.IsValid())
-		return ModelRDG->GetOutputTensorDescs();
+	if (ModelInstanceCPU.IsValid())
+		return ModelInstanceCPU->GetOutputTensorDescs();
+	if (ModelInstanceGPU.IsValid())
+		return ModelInstanceGPU->GetOutputTensorDescs();
+	if (ModelInstanceRDG.IsValid())
+		return ModelInstanceRDG->GetOutputTensorDescs();
 	else
 		return {};
 }
 
 TConstArrayView<NNECore::FTensorShape> FModelQA::GetInputTensorShapes() const
 {
-	if (ModelCPU.IsValid())
-		return ModelCPU->GetInputTensorShapes();
-	if (ModelGPU.IsValid())
-		return ModelGPU->GetInputTensorShapes();
-	if (ModelRDG.IsValid())
-		return ModelRDG->GetInputTensorShapes();
+	if (ModelInstanceCPU.IsValid())
+		return ModelInstanceCPU->GetInputTensorShapes();
+	if (ModelInstanceGPU.IsValid())
+		return ModelInstanceGPU->GetInputTensorShapes();
+	if (ModelInstanceRDG.IsValid())
+		return ModelInstanceRDG->GetInputTensorShapes();
 	else
 		return {};
 }
 
 TConstArrayView<NNECore::FTensorShape> FModelQA::GetOutputTensorShapes() const
 {
-	if (ModelCPU.IsValid())
-		return ModelCPU->GetOutputTensorShapes();
-	if (ModelGPU.IsValid())
-		return ModelGPU->GetOutputTensorShapes();
-	if (ModelRDG.IsValid())
-		return ModelRDG->GetOutputTensorShapes();
+	if (ModelInstanceCPU.IsValid())
+		return ModelInstanceCPU->GetOutputTensorShapes();
+	if (ModelInstanceGPU.IsValid())
+		return ModelInstanceGPU->GetOutputTensorShapes();
+	if (ModelInstanceRDG.IsValid())
+		return ModelInstanceRDG->GetOutputTensorShapes();
 	else
 		return {};
 }
 
 int FModelQA::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes)
 {
-	if (ModelCPU.IsValid())
-		return ModelCPU->SetInputTensorShapes(InInputShapes);
-	if (ModelGPU.IsValid())
-		return ModelGPU->SetInputTensorShapes(InInputShapes);
-	if (ModelRDG.IsValid())
-		return ModelRDG->SetInputTensorShapes(InInputShapes);
+	if (ModelInstanceCPU.IsValid())
+		return ModelInstanceCPU->SetInputTensorShapes(InInputShapes);
+	if (ModelInstanceGPU.IsValid())
+		return ModelInstanceGPU->SetInputTensorShapes(InInputShapes);
+	if (ModelInstanceRDG.IsValid())
+		return ModelInstanceRDG->SetInputTensorShapes(InInputShapes);
 	else
 		return {};
 }
@@ -193,7 +193,7 @@ int FModelQA::EnqueueRDG(FRDGBuilder& RDGBuilder,
 {
 	check(IsInRenderingThread());
 			
-	if (!ModelRDG.IsValid())
+	if (!ModelInstanceRDG.IsValid())
 	{
 		return -1;
 	}
@@ -201,12 +201,12 @@ int FModelQA::EnqueueRDG(FRDGBuilder& RDGBuilder,
 	TArray<NNECore::FTensorBindingRDG> InputBindingsRDG;
 	TArray<NNECore::FTensorBindingRDG> OutputBindingsRDG;
 			
-	FModelQAHelpers::ConvertBinding(RDGBuilder, ModelRDG->GetInputTensorDescs(), InInputBindings, InputBindingsRDG, true);
-	FModelQAHelpers::ConvertBinding(RDGBuilder, ModelRDG->GetOutputTensorDescs(), InOutputBindings, OutputBindingsRDG, false);
+	FModelQAHelpers::ConvertBinding(RDGBuilder, ModelInstanceRDG->GetInputTensorDescs(), InInputBindings, InputBindingsRDG, true);
+	FModelQAHelpers::ConvertBinding(RDGBuilder, ModelInstanceRDG->GetOutputTensorDescs(), InOutputBindings, OutputBindingsRDG, false);
 			
 	FModelQAHelpers::UploadsBindingToGPU(RDGBuilder, InInputBindings, InputBindingsRDG);
 
-	int32 Res = ModelRDG->EnqueueRDG(RDGBuilder, InputBindingsRDG, OutputBindingsRDG);
+	int32 Res = ModelInstanceRDG->EnqueueRDG(RDGBuilder, InputBindingsRDG, OutputBindingsRDG);
 
 	FModelQAHelpers::DownloadBindingToCPU(RDGBuilder, Readbacks, OutputBindingsRDG, InOutputBindings);
 			
@@ -215,19 +215,19 @@ int FModelQA::EnqueueRDG(FRDGBuilder& RDGBuilder,
 
 int FModelQA::RunSync(TConstArrayView<NNECore::FTensorBindingCPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingCPU> InOutputBindings)
 {
-	if (ModelCPU.IsValid())
+	if (ModelInstanceCPU.IsValid())
 	{
-		return ModelCPU->RunSync(InInputBindings, InOutputBindings);
+		return ModelInstanceCPU->RunSync(InInputBindings, InOutputBindings);
 	}
-	if (ModelGPU.IsValid())
+	if (ModelInstanceGPU.IsValid())
 	{
 		TArray<NNECore::FTensorBindingGPU> InputBindingsGPU;
 		TArray<NNECore::FTensorBindingGPU> OutputBindingsGPU;
 		FModelQAHelpers::ConvertBinding(InInputBindings, InputBindingsGPU);
 		FModelQAHelpers::ConvertBinding(InOutputBindings, OutputBindingsGPU);
-		return ModelGPU->RunSync(InputBindingsGPU, OutputBindingsGPU);
+		return ModelInstanceGPU->RunSync(InputBindingsGPU, OutputBindingsGPU);
 	}
-	else if (ModelRDG.IsValid())
+	else if (ModelInstanceRDG.IsValid())
 	{
 		//Note: ok if pending?
 		Readbacks.Empty();
@@ -300,15 +300,15 @@ TUniquePtr<FModelQA> FModelQA::MakeModelQA(const FNNEModelRaw& ONNXModelData, co
 	}
 	if (RuntimeCPU.IsValid())
 	{
-		ModelQA->ModelCPU = RuntimeCPU->CreateModelCPU(ModelData);
+		ModelQA->ModelInstanceCPU = RuntimeCPU->CreateModel(ModelData)->CreateModelInstance();
 	}
 	else if (RuntimeGPU.IsValid())
 	{
-		ModelQA->ModelGPU = RuntimeGPU->CreateModelGPU(ModelData);
+		ModelQA->ModelInstanceGPU = RuntimeGPU->CreateModel(ModelData)->CreateModelInstance();
 	}
 	else if (RuntimeRDG.IsValid())
 	{
-		ModelQA->ModelRDG = RuntimeRDG->CreateModelRDG(ModelData);
+		ModelQA->ModelInstanceRDG = RuntimeRDG->CreateModel(ModelData)->CreateModelInstance();
 	}
 	else
 	{

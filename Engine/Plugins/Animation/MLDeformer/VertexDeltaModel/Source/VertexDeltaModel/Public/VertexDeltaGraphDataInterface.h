@@ -85,7 +85,7 @@ namespace UE::VertexDeltaModel
 
 	protected:
 		FSkeletalMeshObject* SkeletalMeshObject = nullptr;
-		UE::NNECore::IModelRDG* NNEModelRDG = nullptr;
+		UE::NNECore::IModelInstanceRDG* NNEModelInstanceRDG = nullptr;
 		UVertexDeltaModelInstance* VertexDeltaModelInstance = nullptr;
 		FRHIShaderResourceView* VertexMapBufferSRV = nullptr;
 		FRDGBuffer* Buffer = nullptr;

@@ -38,12 +38,12 @@ NNE_THIRD_PARTY_INCLUDES_END
 namespace UE::NNERuntimeORT::Private
 {
 
-	FModelORT::FModelORT() :
+	FModelInstanceORT::FModelInstanceORT() :
 		bIsLoaded(false),
 		bHasRun(false)
 	{ }
 
-	FModelORT::FModelORT(
+	FModelInstanceORT::FModelInstanceORT(
 		Ort::Env* InORTEnvironment,
 		const FRuntimeConf& InRuntimeConf) :
 		bIsLoaded(false),
@@ -52,7 +52,7 @@ namespace UE::NNERuntimeORT::Private
 		ORTEnvironment(InORTEnvironment)
 	{ }
 
-	bool FModelORT::Init(TConstArrayView<uint8> ModelData)
+	bool FModelInstanceORT::Init(TConstArrayView<uint8> ModelData)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelORT_Init"), STAT_FModelORT_Init, STATGROUP_NNE);
 		
@@ -118,12 +118,12 @@ namespace UE::NNERuntimeORT::Private
 		return IsLoaded();
 	}
 
-	bool FModelORT::IsLoaded() const
+	bool FModelInstanceORT::IsLoaded() const
 	{
 		return bIsLoaded;
 	}
 
-	bool FModelORT::InitializedAndConfigureMembers()
+	bool FModelInstanceORT::InitializedAndConfigureMembers()
 	{
 		// Initialize 
 		// Setting up ORT
@@ -143,7 +143,7 @@ namespace UE::NNERuntimeORT::Private
 	}
 
 
-	bool FModelORT::ConfigureTensors(const bool InIsInput)
+	bool FModelInstanceORT::ConfigureTensors(const bool InIsInput)
 	{
 		const bool bIsInput = InIsInput;
 
@@ -188,14 +188,14 @@ namespace UE::NNERuntimeORT::Private
 		return true;
 	}
 	
-	int FModelORT::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes)
+	int FModelInstanceORT::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes)
 	{
 		InputTensors.Reset();
 		OutputTensors.Reset();
 		OutputTensorShapes.Reset();
 
 		// Verify input shape are valid for the model and set InputTensorShapes
-		if (FModelBase<IModelGPU>::SetInputTensorShapes(InInputShapes) != 0)
+		if (FModelInstanceBase<IModelInstanceGPU>::SetInputTensorShapes(InInputShapes) != 0)
 		{
 			return -1;
 		}
@@ -229,7 +229,7 @@ namespace UE::NNERuntimeORT::Private
 		return 0;
 	}
 
-	int FModelORT::RunSync(TConstArrayView<NNECore::FTensorBindingGPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingGPU> InOutputBindings)
+	int FModelInstanceORT::RunSync(TConstArrayView<NNECore::FTensorBindingGPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingGPU> InOutputBindings)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelORT_Run"), STAT_FModelORT_Run, STATGROUP_NNE);
 
@@ -305,31 +305,76 @@ namespace UE::NNERuntimeORT::Private
 		return 0;
 	}
 
-	float FModelORT::GetLastRunTimeMSec() const
+	float FModelInstanceORT::GetLastRunTimeMSec() const
 	{
 		return RunStatisticsEstimator.GetLastSample();
 	}
 
-	NNEProfiling::Internal::FStatistics FModelORT::GetRunStatistics() const
+	NNEProfiling::Internal::FStatistics FModelInstanceORT::GetRunStatistics() const
 	{
 		return RunStatisticsEstimator.GetStats();
 	}
 
-	NNEProfiling::Internal::FStatistics FModelORT::GetInputMemoryTransferStats() const
+	NNEProfiling::Internal::FStatistics FModelInstanceORT::GetInputMemoryTransferStats() const
 	{
 		return InputTransferStatisticsEstimator.GetStats();
 	}
 
-	void FModelORT::ResetStats()
+	void FModelInstanceORT::ResetStats()
 	{
 		RunStatisticsEstimator.ResetStats();
 		InputTransferStatisticsEstimator.ResetStats();
 	}
 
 #if PLATFORM_WINDOWS
-	bool FModelORTDml::InitializedAndConfigureMembers()
+
+	TUniquePtr<UE::NNECore::IModelInstanceGPU> FModelORTDml::CreateModelInstance()
 	{
-		if (!FModelORT::InitializedAndConfigureMembers())
+		const FRuntimeConf InConf;
+		FModelInstanceORTDml* ModelInstance = new FModelInstanceORTDml(ORTEnvironment, InConf);
+
+		if (!ModelInstance->Init(ModelData))
+		{
+			delete ModelInstance;
+			return TUniquePtr<UE::NNECore::IModelInstanceGPU>();
+		}
+
+		UE::NNECore::IModelInstanceGPU* IModelInstance = static_cast<UE::NNECore::IModelInstanceGPU*>(ModelInstance);
+		return TUniquePtr<UE::NNECore::IModelInstanceGPU>(IModelInstance);
+	}
+
+	FModelORTDml::FModelORTDml(Ort::Env* InORTEnvironment, TConstArrayView<uint8> InModelData) :
+		ORTEnvironment(InORTEnvironment),
+		ModelData(InModelData)
+	{
+
+	}
+
+	TUniquePtr<UE::NNECore::IModelInstanceGPU> FModelORTCuda::CreateModelInstance()
+	{
+		const FRuntimeConf InConf;
+		FModelInstanceORTCuda* ModelInstance = new FModelInstanceORTCuda(ORTEnvironment, InConf);
+
+		if (!ModelInstance->Init(ModelData))
+		{
+			delete ModelInstance;
+			return TUniquePtr<UE::NNECore::IModelInstanceGPU>();
+		}
+
+		UE::NNECore::IModelInstanceGPU* IModelInstance = static_cast<UE::NNECore::IModelInstanceGPU*>(ModelInstance);
+		return TUniquePtr<UE::NNECore::IModelInstanceGPU>(IModelInstance);
+	}
+
+	FModelORTCuda::FModelORTCuda(Ort::Env* InORTEnvironment, TConstArrayView<uint8> InModelData) :
+		ORTEnvironment(InORTEnvironment),
+		ModelData(InModelData)
+	{
+
+	}
+
+	bool FModelInstanceORTDml::InitializedAndConfigureMembers()
+	{
+		if (!FModelInstanceORT::InitializedAndConfigureMembers())
 		{
 			return false;
 		}
@@ -398,9 +443,9 @@ namespace UE::NNERuntimeORT::Private
 		return true;
 	}
 
-	bool FModelORTCuda::InitializedAndConfigureMembers()
+	bool FModelInstanceORTCuda::InitializedAndConfigureMembers()
 	{
-		if (!FModelORT::InitializedAndConfigureMembers())
+		if (!FModelInstanceORT::InitializedAndConfigureMembers())
 		{
 			return false;
 		}

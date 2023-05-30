@@ -65,7 +65,7 @@ bool UNNERuntimeORTCpuImpl::CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelDat
 	return bResult;
 }
 
-TUniquePtr<UE::NNECore::IModelCPU> UNNERuntimeORTCpuImpl::CreateModelCPU(TObjectPtr<UNNEModelData> ModelData)
+TUniquePtr<UE::NNECore::IModelCPU> UNNERuntimeORTCpuImpl::CreateModel(TObjectPtr<UNNEModelData> ModelData)
 {
 	check(ModelData != nullptr);
 	
@@ -74,15 +74,8 @@ TUniquePtr<UE::NNECore::IModelCPU> UNNERuntimeORTCpuImpl::CreateModelCPU(TObject
 		return TUniquePtr<UE::NNECore::IModelCPU>();
 	}
 
-	const UE::NNERuntimeORTCpu::Private::FRuntimeConf InConf;
-	UE::NNERuntimeORTCpu::Private::FModelCPU* Model = new UE::NNERuntimeORTCpu::Private::FModelCPU(&NNEEnvironmentCPU, InConf);
 	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
-	
-	if (!Model->Init(Data))
-	{
-		delete Model;
-		return TUniquePtr<UE::NNECore::IModelCPU>();
-	}
+	UE::NNERuntimeORTCpu::Private::FModelCPU* Model = new UE::NNERuntimeORTCpu::Private::FModelCPU(&NNEEnvironmentCPU, Data);
 	UE::NNECore::IModelCPU* IModel = static_cast<UE::NNECore::IModelCPU*>(Model);
 	return TUniquePtr<UE::NNECore::IModelCPU>(IModel);
 }

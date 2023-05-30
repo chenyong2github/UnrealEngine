@@ -115,9 +115,9 @@ namespace UE::VertexDeltaModel
 			if (VertexDeltaModelInstance)
 			{
 				SkeletalMeshObject = ModelInstance->GetSkeletalMeshComponent()->MeshObject;
-				NNEModelRDG = VertexDeltaModelInstance->GetNNEModelRDG();
+				NNEModelInstanceRDG = VertexDeltaModelInstance->GetNNEModelInstanceRDG();
 
-				if (NNEModelRDG)
+				if (NNEModelInstanceRDG)
 				{
 					const FVertexMapBuffer& VertexMapBuffer = VertexDeltaModel->GetVertexMapBuffer();
 					Weight = DeformerComponent->GetWeight();
@@ -134,7 +134,7 @@ namespace UE::VertexDeltaModel
 			return false;
 		}
 
-		if (!bCanRunNeuralNet || SkeletalMeshObject == nullptr || NNEModelRDG == nullptr || VertexMapBufferSRV == nullptr)
+		if (!bCanRunNeuralNet || SkeletalMeshObject == nullptr || NNEModelInstanceRDG == nullptr || VertexMapBufferSRV == nullptr)
 		{
 			return false;
 		}

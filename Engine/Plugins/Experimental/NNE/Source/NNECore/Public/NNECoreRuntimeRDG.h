@@ -25,15 +25,16 @@ struct NNECORE_API FTensorBindingRDG
 };
 
 /**
- * The interface of a model that can run on RDG.
+ * The interface of a model instance that can run on RDG.
  *
+ * Use UE::NNECore::IModelRDG::CreateModelInstance() to get a model instance.
  * Use UE::NNECore::GetRuntime<INNERuntimeRDG>(RuntimeName) to get a runtime capable of creating RDG models.
  */
-class NNECORE_API IModelRDG
+class NNECORE_API IModelInstanceRDG
 {
 public:
 
-	virtual ~IModelRDG() = default;
+	virtual ~IModelInstanceRDG() = default;
 
 	/**
 	 * Get the input tensor descriptions as defined by the model, potentially with variable dimensions.
@@ -96,6 +97,28 @@ public:
 	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FTensorBindingRDG> Inputs, TConstArrayView<FTensorBindingRDG> Outputs) = 0;
 };
 
+/**
+ * The interface of a model capable of creating model instance that can run on RDG.
+ *
+ * Use UE::NNECore::GetRuntime<INNERuntimeRDG>(RuntimeName) to get a runtime capable of creating RDG models.
+ */
+class NNECORE_API IModelRDG
+{
+public:
+
+	virtual ~IModelRDG() = default;
+
+	/**
+	 * Create a model instance for inference
+	 *
+	 * The runtime have the opportunity to share the model weights among multiple IModelInstanceRDG created from an IModelRDG instance, however this is not mandatory.
+	 * The caller can decide to convert the result into a shared pointer if required (e.g. if the model needs to be shared with an async task for evaluation).
+	 *
+	 * @return A caller owned model representing the neural network instance created.
+	 */
+	virtual TUniquePtr<UE::NNECore::IModelInstanceRDG> CreateModelInstance() = 0;
+};
+
 } // UE::NNECore
 
 UINTERFACE()
@@ -133,5 +156,5 @@ public:
 	 * @param ModelData The model data for which to create a model.
 	 * @return A caller owned model representing the neural network created from ModelData.
 	 */
-	virtual TUniquePtr<UE::NNECore::IModelRDG> CreateModelRDG(TObjectPtr<UNNEModelData> ModelData) = 0;
+	virtual TUniquePtr<UE::NNECore::IModelRDG> CreateModel(TObjectPtr<UNNEModelData> ModelData) = 0;
 };

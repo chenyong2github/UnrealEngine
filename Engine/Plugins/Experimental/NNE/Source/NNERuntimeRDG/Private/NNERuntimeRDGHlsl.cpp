@@ -118,20 +118,15 @@ TArray<uint8> UNNERuntimeRDGHlslImpl::CreateModelData(FString FileType, TConstAr
 	return Result;
 };
 
-TUniquePtr<UE::NNECore::IModelRDG> UNNERuntimeRDGHlslImpl::CreateModelRDG(TObjectPtr<UNNEModelData> ModelData)
+TUniquePtr<UE::NNECore::IModelRDG> UNNERuntimeRDGHlslImpl::CreateModel(TObjectPtr<UNNEModelData> ModelData)
 {
 	if (!CanCreateModelRDG(ModelData))
 	{
 		return TUniquePtr<UE::NNECore::IModelRDG>();
 	}
 
-	UE::NNERuntimeRDG::Private::Hlsl::FModel* Model = new UE::NNERuntimeRDG::Private::Hlsl::FModel();
 	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
-	
-	if (!Model->Init(Data))
-	{
-		delete Model;
-		return TUniquePtr<UE::NNECore::IModelRDG>();
-	}
+	UE::NNERuntimeRDG::Private::Hlsl::FModel* Model = new UE::NNERuntimeRDG::Private::Hlsl::FModel(Data);
+
 	return TUniquePtr<UE::NNECore::IModelRDG>(Model);
 }

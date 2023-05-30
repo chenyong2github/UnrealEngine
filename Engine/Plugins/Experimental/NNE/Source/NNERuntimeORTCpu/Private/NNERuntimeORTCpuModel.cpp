@@ -7,12 +7,12 @@
 namespace UE::NNERuntimeORTCpu::Private
 {
 
-	FModelCPU::FModelCPU() :
+	FModelInstanceCPU::FModelInstanceCPU() :
 		bIsLoaded(false),
 		bHasRun(false)
 	{ }
 
-	FModelCPU::FModelCPU(
+	FModelInstanceCPU::FModelInstanceCPU(
 		Ort::Env* InORTEnvironment,
 		const FRuntimeConf& InRuntimeConf) :
 		bIsLoaded(false),
@@ -21,9 +21,9 @@ namespace UE::NNERuntimeORTCpu::Private
 		ORTEnvironment(InORTEnvironment)
 	{ }
 
-	bool FModelCPU::Init(TConstArrayView<uint8> ModelData)
+	bool FModelInstanceCPU::Init(TConstArrayView<uint8> ModelData)
 	{
-		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelCPU_Init"), STAT_FModelCPU_Init, STATGROUP_NNE);
+		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelInstanceCPU_Init"), STAT_FModelInstanceCPU_Init, STATGROUP_NNE);
 		
 		// Get the header size
 		int32 GuidSize = sizeof(UNNERuntimeORTCpuImpl::GUID);
@@ -37,7 +37,7 @@ namespace UE::NNERuntimeORTCpu::Private
 		{
 			if (ModelBuffer.Num() == 0)
 			{
-				UE_LOG(LogNNE, Warning, TEXT("FModelCPU::Load(): Input model data is empty."));
+				UE_LOG(LogNNE, Warning, TEXT("FModelInstanceCPU::Load(): Input model data is empty."));
 				return false;
 			}
 
@@ -54,7 +54,7 @@ namespace UE::NNERuntimeORTCpu::Private
 			}
 
 			{
-				DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelCPU_Init_CreateORTSession"), STAT_FModelCPU_Init_CreateORTSession, STATGROUP_NNE);
+				DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelInstanceCPU_Init_CreateORTSession"), STAT_FModelInstanceCPU_Init_CreateORTSession, STATGROUP_NNE);
 				// Read model from InferenceModel
 				Session = MakeUnique<Ort::Session>(*ORTEnvironment, ModelBuffer.GetData(), ModelBuffer.Num(), *SessionOptions);
 			}
@@ -87,12 +87,12 @@ namespace UE::NNERuntimeORTCpu::Private
 		return IsLoaded();
 	}
 
-	bool FModelCPU::IsLoaded() const
+	bool FModelInstanceCPU::IsLoaded() const
 	{
 		return bIsLoaded;
 	}
 
-	bool FModelCPU::InitializedAndConfigureMembers()
+	bool FModelInstanceCPU::InitializedAndConfigureMembers()
 	{
 		// Initialize 
 		// Set up ORT and create an environment
@@ -115,7 +115,7 @@ namespace UE::NNERuntimeORTCpu::Private
 	}
 
 
-	bool FModelCPU::ConfigureTensors(const bool InIsInput)
+	bool FModelInstanceCPU::ConfigureTensors(const bool InIsInput)
 	{
 		const bool bIsInput = InIsInput;
 
@@ -162,14 +162,14 @@ namespace UE::NNERuntimeORTCpu::Private
 		return true;
 	}
 	
-	int FModelCPU::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes)
+	int FModelInstanceCPU::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes)
 	{
 		InputTensors.Reset();
 		OutputTensors.Reset();
 		OutputTensorShapes.Reset();
 
 		// Verify input shape are valid for the model and set InputTensorShapes
-		if (FModelBase<IModelCPU>::SetInputTensorShapes(InInputShapes) != 0)
+		if (FModelInstanceBase<IModelInstanceCPU>::SetInputTensorShapes(InInputShapes) != 0)
 		{
 			return -1;
 		}
@@ -203,14 +203,14 @@ namespace UE::NNERuntimeORTCpu::Private
 		return 0;
 	}
 
-	int FModelCPU::RunSync(TConstArrayView<NNECore::FTensorBindingCPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingCPU> InOutputBindings)
+	int FModelInstanceCPU::RunSync(TConstArrayView<NNECore::FTensorBindingCPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingCPU> InOutputBindings)
 	{
-		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelCPU_Run"), STAT_FModelCPU_Run, STATGROUP_NNE);
+		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelInstanceCPU_Run"), STAT_FModelInstanceCPU_Run, STATGROUP_NNE);
 
 		// Sanity check
 		if (!bIsLoaded)
 		{
-			UE_LOG(LogNNE, Warning, TEXT("FModelCPU::Run(): Call FModelCPU::Load() to load a model first."));
+			UE_LOG(LogNNE, Warning, TEXT("FModelInstanceCPU::Run(): Call FModelInstanceCPU::Load() to load a model first."));
 			return -1;
 		}
 
@@ -279,25 +279,47 @@ namespace UE::NNERuntimeORTCpu::Private
 		return 0;
 	}
 
-	float FModelCPU::GetLastRunTimeMSec() const
+	float FModelInstanceCPU::GetLastRunTimeMSec() const
 	{
 		return RunStatisticsEstimator.GetLastSample();
 	}
 
-	NNEProfiling::Internal::FStatistics FModelCPU::GetRunStatistics() const
+	NNEProfiling::Internal::FStatistics FModelInstanceCPU::GetRunStatistics() const
 	{
 		return RunStatisticsEstimator.GetStats();
 	}
 
-	NNEProfiling::Internal::FStatistics FModelCPU::GetInputMemoryTransferStats() const
+	NNEProfiling::Internal::FStatistics FModelInstanceCPU::GetInputMemoryTransferStats() const
 	{
 		return InputTransferStatisticsEstimator.GetStats();
 	}
 
-	void FModelCPU::ResetStats()
+	void FModelInstanceCPU::ResetStats()
 	{
 		RunStatisticsEstimator.ResetStats();
 		InputTransferStatisticsEstimator.ResetStats();
+	}
+
+	TUniquePtr<UE::NNECore::IModelInstanceCPU> FModelCPU::CreateModelInstance()
+	{
+		const UE::NNERuntimeORTCpu::Private::FRuntimeConf InConf;
+		UE::NNERuntimeORTCpu::Private::FModelInstanceCPU* ModelInstance = new UE::NNERuntimeORTCpu::Private::FModelInstanceCPU(ORTEnvironment, InConf);
+
+		if (!ModelInstance->Init(ModelData))
+		{
+			delete ModelInstance;
+			return TUniquePtr<UE::NNECore::IModelInstanceCPU>();
+		}
+
+		UE::NNECore::IModelInstanceCPU* IModelInstance = static_cast<UE::NNECore::IModelInstanceCPU*>(ModelInstance);
+		return TUniquePtr<UE::NNECore::IModelInstanceCPU>(IModelInstance);
+	}
+
+	FModelCPU::FModelCPU(Ort::Env* InORTEnvironment, TConstArrayView<uint8> InModelData) :
+		ORTEnvironment(InORTEnvironment),
+		ModelData(InModelData)
+	{
+
 	}
 
 } // namespace UE::NNERuntimeORTCpu::Private

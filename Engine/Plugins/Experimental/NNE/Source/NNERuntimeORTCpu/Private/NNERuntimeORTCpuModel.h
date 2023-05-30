@@ -25,13 +25,13 @@ namespace UE::NNERuntimeORTCpu::Private
 		EThreadPriority ThreadPriority = EThreadPriority::TPri_Normal;
 	};
 
-	class FModelCPU : public NNECore::Internal::FModelBase<NNECore::IModelCPU>
+	class FModelInstanceCPU : public NNECore::Internal::FModelInstanceBase<NNECore::IModelInstanceCPU>
 	{
 
 	public:
-		FModelCPU();
-		FModelCPU(Ort::Env* InORTEnvironment, const FRuntimeConf& InRuntimeConf);
-		virtual ~FModelCPU() {};
+		FModelInstanceCPU();
+		FModelInstanceCPU(Ort::Env* InORTEnvironment, const FRuntimeConf& InRuntimeConf);
+		virtual ~FModelInstanceCPU() {};
 
 		virtual int SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes) override;
 		virtual int RunSync(TConstArrayView<NNECore::FTensorBindingCPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingCPU> InOutputBindings) override;
@@ -78,6 +78,19 @@ namespace UE::NNERuntimeORTCpu::Private
 		UE::NNEProfiling::Internal::FStatisticsEstimator RunStatisticsEstimator;
 		UE::NNEProfiling::Internal::FStatisticsEstimator InputTransferStatisticsEstimator;
 
+	};
+
+	class FModelCPU : public NNECore::IModelCPU
+	{
+	public:
+		FModelCPU(Ort::Env* InORTEnvironment, TConstArrayView<uint8> ModelData);
+		virtual ~FModelCPU() {};
+
+		virtual TUniquePtr<UE::NNECore::IModelInstanceCPU> CreateModelInstance() override;
+
+	private:
+		Ort::Env* ORTEnvironment;
+		TArray<uint8> ModelData;
 	};
 	
 } // UE::NNERuntimeORTCpu::Private

@@ -26,15 +26,16 @@ struct NNECORE_API FTensorBindingCPU
 };
 
 /**
- * The interface of a model that can run on CPU.
+ * The interface of a model instance that can run on CPU.
  *
+ * Use UE::NNECore::IModelCPU::CreateModelInstance() to get a model instance.
  * Use UE::NNECore::GetRuntime<INNERuntimeCPU>(RuntimeName) to get a runtime capable of creating CPU models.
  */
-class NNECORE_API IModelCPU
+class NNECORE_API IModelInstanceCPU
 {
 public:
 
-	virtual ~IModelCPU() = default;
+	virtual ~IModelInstanceCPU() = default;
 
 	/**
 	 * Get the input tensor descriptions as defined by the model, potentially with variable dimensions.
@@ -96,6 +97,28 @@ public:
 	virtual int RunSync(TConstArrayView<FTensorBindingCPU> InInputTensors, TConstArrayView<FTensorBindingCPU> InOutputTensors) = 0;
 };
 
+/**
+ * The interface of a model capable of creating model instance that can run on CPU.
+ *
+ * Use UE::NNECore::GetRuntime<INNERuntimeCPU>(RuntimeName) to get a runtime capable of creating CPU models.
+ */
+class NNECORE_API IModelCPU
+{
+public:
+
+	virtual ~IModelCPU() = default;
+
+	/**
+	 * Create a model instance for inference
+	 *
+	 * The runtime have the opportunity to share the model weights among multiple IModelInstanceCPU created from an IModelCPU instance, however this is not mandatory.
+	 * The caller can decide to convert the result into a shared pointer if required (e.g. if the model needs to be shared with an async task for evaluation).
+	 *
+	 * @return A caller owned model representing the neural network instance created.
+	 */
+	virtual TUniquePtr<UE::NNECore::IModelInstanceCPU> CreateModelInstance() = 0;
+};
+
 } // UE::NNECore
 
 UINTERFACE()
@@ -133,5 +156,5 @@ public:
 	 * @param ModelData The model data for which to create a model.
 	 * @return A caller owned model representing the neural network created from ModelData.
 	 */
-	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModelCPU(TObjectPtr<UNNEModelData> ModelData) = 0;
+	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModel(TObjectPtr<UNNEModelData> ModelData) = 0;
 };

@@ -31,10 +31,10 @@ public:
 	virtual void PostMLDeformerComponentInit() override;
 
 	/**
-	 * Get the RDG Neural Network Model
-	 * @return The IModelRDG if successfully created, or nullptr
+	 * Get the RDG Neural Network Model Instance
+	 * @return The IModelInstanceRDG if successfully created, or nullptr
 	 */
-	UE::NNECore::IModelRDG* GetNNEModelRDG() const;
+	UE::NNECore::IModelInstanceRDG* GetNNEModelInstanceRDG() const;
 
 	/**
 	 * Get the output vertex delta buffer
@@ -44,7 +44,7 @@ public:
 
 	/**
 	 * Get the render graph buffer description required for the output of a neural network. Return false if a flat buffer is not appropriate
-	 * @return True if the OutputTensorDescs can be rppresented by a flat float  FRDGBuffer
+	 * @return True if the OutputTensorDescs can be represented by a flat float  FRDGBuffer
 	 */
 	bool GetRDGVertexBufferDesc(TConstArrayView<UE::NNECore::FTensorDesc>& InOutputTensorDescs, FRDGBufferDesc& OutBufferDesc);
 
@@ -60,7 +60,7 @@ private:
 	TRefCountPtr<FRDGPooledBuffer> RDGVertexDeltaBuffer;
 
 	// The NNE RDG Model 
-	TUniquePtr<UE::NNECore::IModelRDG> ModelRDG;
+	TUniquePtr<UE::NNECore::IModelInstanceRDG> ModelInstanceRDG;
 	
 	// The CPU Input Tensor Buffer
 	TArray<float> NNEInputTensorBuffer;

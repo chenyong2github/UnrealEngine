@@ -60,7 +60,7 @@ FTensorRDGRef GetTensorRefIfWeightAndOnlyUsedByOperator(int32 TensorIndex, int32
 
 } // namespace ModelUtils
 
-bool FModel::PrepareModelRDG(FRDGBuilder& RDGBuilder)
+bool FModelInstance::PrepareModelRDG(FRDGBuilder& RDGBuilder)
 {
 	//Register constant tensors to graph, uploading if needed
 	check(IntermediateTensorRDGs.Num() == ConstantsExternalRDGResources.Num());
@@ -104,7 +104,7 @@ bool FModel::PrepareModelRDG(FRDGBuilder& RDGBuilder)
 	return true;
 }
 
-bool FModel::Init(TConstArrayView<uint8> ModelData)
+bool FModelInstance::Init(TConstArrayView<uint8> ModelData)
 {
 	check(ModelData.Num() > 0);
 	FNNERuntimeFormat	Format;
@@ -166,7 +166,7 @@ bool FModel::Init(TConstArrayView<uint8> ModelData)
 	return true;
 }
 
-void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
+void FModelInstance::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
 	static constexpr int32 MaxExpectedInput = 10;
 	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
@@ -207,7 +207,7 @@ void FModel::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 	}
 }
 
-int FModel::PrepareTensorShapesAndData()
+int FModelInstance::PrepareTensorShapesAndData()
 {
 	check(AllTensorRDGRefs.Num() == AllSymbolicTensorDescs.Num());
 	
@@ -307,7 +307,7 @@ void EnqueueTensorUpload(TArray<TRefCountPtr<FRDGPooledBuffer>>& OutExternalRDGR
 
 		FEvent* Signal = FGenericPlatformProcess::GetSynchEventFromPool(false);
 
-		ENQUEUE_RENDER_COMMAND(FModel_UploadTensors)
+		ENQUEUE_RENDER_COMMAND(FModelInstance_UploadTensors)
 		(
 			[Signal, &OutExternalRDGResources, &TensorToUploadRDGs, CopyDataFlag](FRHICommandListImmediate& RHICmdList)
 			{
@@ -354,7 +354,7 @@ void EnqueueTensorUpload(TArray<TRefCountPtr<FRDGPooledBuffer>>& OutExternalRDGR
 	}
 }
 
-bool FModel::PrepareWeights()
+bool FModelInstance::PrepareWeights()
 {
 	check(WeightsExternalRDGResources.IsEmpty());
 
@@ -363,5 +363,21 @@ bool FModel::PrepareWeights()
 
 	return true;
 }
+
+TUniquePtr<UE::NNECore::IModelInstanceRDG> FModel::CreateModelInstance()
+{
+	FModelInstance* ModelInstance = new FModelInstance();
+
+	if (!ModelInstance->Init(ModelData))
+	{
+		delete ModelInstance;
+		return TUniquePtr<UE::NNECore::IModelInstanceRDG>();
+	}
+
+	UE::NNECore::IModelInstanceRDG* IModelInstance = static_cast<UE::NNECore::IModelInstanceRDG*>(ModelInstance);
+	return TUniquePtr<UE::NNECore::IModelInstanceRDG>(IModelInstance);
+}
+
+FModel::FModel(TConstArrayView<uint8> InModelData) : ModelData(InModelData) {}
 
 } // namespace UE::NNERuntimeRDG::Private::Hlsl

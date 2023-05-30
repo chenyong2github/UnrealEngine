@@ -12,9 +12,9 @@ UVertexDeltaModel* UVertexDeltaModelInstance::GetVertexDeltaModel() const
 }
 
 
-UE::NNECore::IModelRDG* UVertexDeltaModelInstance::GetNNEModelRDG() const
+UE::NNECore::IModelInstanceRDG* UVertexDeltaModelInstance::GetNNEModelInstanceRDG() const
 {
-	return ModelRDG.Get();
+	return ModelInstanceRDG.Get();
 }
 
 TRefCountPtr<FRDGPooledBuffer> UVertexDeltaModelInstance::GetOutputRDGBuffer() const
@@ -27,10 +27,10 @@ FString UVertexDeltaModelInstance::CheckCompatibility(USkeletalMeshComponent* In
 	FString ErrorString = Super::CheckCompatibility(InSkelMeshComponent, bLogIssues);
 
 	// Verify the number of inputs versus the expected number of inputs.	
-	const UE::NNECore::IModelRDG* RDGModel = GetNNEModelRDG();
-	if (RDGModel && Model->GetDeformerAsset())
+	const UE::NNECore::IModelInstanceRDG* RDGModelInstance = GetNNEModelInstanceRDG();
+	if (RDGModelInstance && Model->GetDeformerAsset())
 	{
-		TConstArrayView<UE::NNECore::FTensorDesc> GPUTensorDesc = RDGModel->GetInputTensorDescs();
+		TConstArrayView<UE::NNECore::FTensorDesc> GPUTensorDesc = RDGModelInstance->GetInputTensorDescs();
 		const int64 NumNeuralNetInputs = GPUTensorDesc[0].GetShape().Rank();
 		const int64 NumDeformerAssetInputs = static_cast<int64>(Model->GetInputInfo()->CalcNumNeuralNetInputs(Model->GetNumFloatsPerBone(), Model->GetNumFloatsPerCurve()));
 		if (NumNeuralNetInputs != NumDeformerAssetInputs)
@@ -49,14 +49,14 @@ FString UVertexDeltaModelInstance::CheckCompatibility(USkeletalMeshComponent* In
 
 bool UVertexDeltaModelInstance::IsValidForDataProvider() const
 {
-	return ModelRDG.IsValid(); 
+	return ModelInstanceRDG.IsValid(); 
 }
 
 void UVertexDeltaModelInstance::Execute(float ModelWeight)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModelInstance::Execute)
 
-	if (ModelRDG)
+	if (ModelInstanceRDG)
 	{
 		ENQUEUE_RENDER_COMMAND(RunNeuralNetwork)
 			(
@@ -82,11 +82,11 @@ void UVertexDeltaModelInstance::Execute(float ModelWeight)
 					UE::NNECore::FTensorBindingRDG& OutputBindingRDG = OutputBindingsRDG.Emplace_GetRef();
 					OutputBindingRDG.Buffer = GraphBuilder.RegisterExternalBuffer(RDGVertexDeltaBuffer);
 
-					if (!ModelRDG.IsValid())
+					if (!ModelInstanceRDG.IsValid())
 					{
 						return;
 					}
-					int32 Res = ModelRDG->EnqueueRDG(GraphBuilder, InputBindingsRDG, OutputBindingsRDG);
+					int32 Res = ModelInstanceRDG->EnqueueRDG(GraphBuilder, InputBindingsRDG, OutputBindingsRDG);
 	
 					GraphBuilder.Execute();
 				}
@@ -157,7 +157,7 @@ void UVertexDeltaModelInstance::PostMLDeformerComponentInit()
 
 void UVertexDeltaModelInstance::CreateNNEModel()
 {
-	if (!ModelRDG.IsValid())
+	if (!ModelInstanceRDG.IsValid())
 	{
 		UVertexDeltaModel* VertexDeltaModel = Cast<UVertexDeltaModel>(Model);
 		if (VertexDeltaModel)
@@ -177,19 +177,19 @@ void UVertexDeltaModelInstance::CreateNNEModel()
 				if (RuntimeRDG.IsValid())
 				{
 					// allocate tensor inputs and outputs
-					ModelRDG = RuntimeRDG->CreateModelRDG(ModelData);
+					ModelInstanceRDG = RuntimeRDG->CreateModel(ModelData)->CreateModelInstance();
 
-					if (ModelRDG)
+					if (ModelInstanceRDG)
 					{
 						// setup inputs
-						TConstArrayView<UE::NNECore::FTensorDesc> InputTensorDescs = ModelRDG->GetInputTensorDescs();
+						TConstArrayView<UE::NNECore::FTensorDesc> InputTensorDescs = ModelInstanceRDG->GetInputTensorDescs();
 						UE::NNECore::FTensorShape InputTensorShape = UE::NNECore::FTensorShape::MakeFromSymbolic(InputTensorDescs[0].GetShape());
-						ModelRDG->SetInputTensorShapes({ InputTensorShape });
+						ModelInstanceRDG->SetInputTensorShapes({ InputTensorShape });
 						check(InputTensorDescs[0].GetElemByteSize() == sizeof(float));
 						NNEInputTensorBuffer.SetNumUninitialized(InputTensorShape.Volume());
 
 						// setup outputs
-						TConstArrayView<UE::NNECore::FTensorDesc> OutputTensorDescs = ModelRDG->GetOutputTensorDescs();
+						TConstArrayView<UE::NNECore::FTensorDesc> OutputTensorDescs = ModelInstanceRDG->GetOutputTensorDescs();
 						CreateRDGBuffers(OutputTensorDescs);
 					}
 					else
@@ -218,12 +218,12 @@ bool UVertexDeltaModelInstance::SetupInputs()
 
 	// Get the network and make sure it's loaded.
 
-	if (!ModelRDG)
+	if (!ModelInstanceRDG)
 	{
 		return false;
 	}
 
-	TConstArrayView<UE::NNECore::FTensorDesc> InputTensorDescs = ModelRDG->GetInputTensorDescs();
+	TConstArrayView<UE::NNECore::FTensorDesc> InputTensorDescs = ModelInstanceRDG->GetInputTensorDescs();
 	const UE::NNECore::FTensorShape InputTensorShape = UE::NNECore::FTensorShape::MakeFromSymbolic(InputTensorDescs[0].GetShape());
 	const int64 NumNeuralNetInputs = InputTensorShape.Volume();
 	const int64 NumDeformerAssetInputs = Model->GetInputInfo()->CalcNumNeuralNetInputs(Model->GetNumFloatsPerBone(), Model->GetNumFloatsPerCurve());
