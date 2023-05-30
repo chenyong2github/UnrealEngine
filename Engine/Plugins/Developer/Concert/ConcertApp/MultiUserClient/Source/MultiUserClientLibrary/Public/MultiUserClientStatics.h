@@ -35,6 +35,36 @@ struct FMultiUserClientInfo
 	TArray<FName> Tags;
 };
 
+/**
+ * BP copy of FConcertSessionInfo
+ * Holds info on a connected session.
+ */
+USTRUCT(BlueprintType)
+struct FMultiUserSessionInfo
+{
+	GENERATED_BODY()
+
+	/** Holds the server endpoint id for this session. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Session Info")
+	FGuid ServerEndpointId;
+
+	/** Holds the session name current connected. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Session Info")
+	FString SessionName;
+
+	/** Holds the server name for the connected session. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Session Info")
+	FString ServerName;
+
+	/** Holds the resolved endpoint name (HostPC) for the connected session. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Session Info")
+	FString EndpointName;
+
+	/** Indicates if the current session info is valid. If we are connected to a session this is true, otherwise false. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Session Info")
+	bool bValid = false;
+};
+
 UCLASS()
 class UMultiUserClientSyncDatabase : public UObject
 {
@@ -173,6 +203,10 @@ public:
 	/** Get the local ClientInfo. Works when not connected to a session. */
 	UFUNCTION(BlueprintCallable, Category = "Multi-User Client", meta=(DevelopmentOnly, DisplayName = "Get Local Multi-User Client Info"))
 	static FMultiUserClientInfo GetLocalMultiUserClientInfo();
+
+	/** Get the current SessionInfo. Works when not connected to a session, but returns an empty session info. */
+	UFUNCTION(BlueprintCallable, Category = "Multi-User Client", meta=(DevelopmentOnly, DisplayName = "Get Multi-User Session Info"))
+	static FMultiUserSessionInfo GetMultiUserSessionInfo();
 
 	/** Get the ClientInfo for any Multi-User participant by name. The local user is found even when not connected to a session. Returns false is no client was found. */
 	UFUNCTION(BlueprintCallable, Category = "Multi-User Client", meta=(DevelopmentOnly, DisplayName = "Get Multi-User Client Info by Name"))

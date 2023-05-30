@@ -4,6 +4,8 @@
 #include "Logging/LogMacros.h"
 
 #if WITH_CONCERT
+#include "Algo/Find.h"
+
 #include "IMultiUserClientModule.h"
 #include "IConcertSyncClient.h"
 #include "IConcertClient.h"
@@ -55,6 +57,17 @@ UConcertClientConfig* ModifyClientConfig(const FMultiUserClientConfig& InClientC
 EMultiUserConnectionStatus ConvertConnectionStatus(EConcertConnectionStatus ConnectionStatus)
 {
 	return static_cast<EMultiUserConnectionStatus>(ConnectionStatus);
+}
+
+FMultiUserSessionInfo ConvertSessionInfo(const FConcertSessionInfo& InSessionInfo, const FConcertServerInfo& InServerInfo)
+{
+	FMultiUserSessionInfo ReturnVal;
+	ReturnVal.SessionName = InSessionInfo.SessionName;
+	ReturnVal.ServerName = InServerInfo.ServerName;
+	ReturnVal.EndpointName = InServerInfo.InstanceInfo.InstanceName;
+	ReturnVal.ServerEndpointId = InSessionInfo.ServerInstanceId;
+	ReturnVal.bValid = true;
+	return ReturnVal;
 }
 
 } // namespace MultiUserClientUtil
@@ -250,6 +263,34 @@ FMultiUserClientInfo UMultiUserClientStatics::GetLocalMultiUserClientInfo()
 	}
 #endif
 	return ClientInfo;
+}
+
+FMultiUserSessionInfo UMultiUserClientStatics::GetMultiUserSessionInfo()
+{
+#if WITH_CONCERT
+	if (IMultiUserClientModule::IsAvailable())
+	{
+		if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IMultiUserClientModule::Get().GetClient())
+		{
+			IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
+			TSharedPtr<IConcertClientSession> ClientSession = ConcertClient->GetCurrentSession();
+			if (ClientSession)
+			{
+				const FConcertSessionInfo& SessionInfo = ClientSession->GetSessionInfo();
+				TArray<FConcertServerInfo> Servers = ConcertClient->GetKnownServers();
+				FConcertServerInfo* ServerInfo = Algo::FindByPredicate(Servers, [&SessionInfo](const FConcertServerInfo& InServerInfo)
+				{
+					return InServerInfo.InstanceInfo.InstanceId == SessionInfo.ServerInstanceId;
+				});
+				if (ServerInfo)
+				{
+					return MultiUserClientUtil::ConvertSessionInfo(SessionInfo, *ServerInfo);
+				}
+			}
+		}
+	}
+#endif
+	return {};
 }
 
 bool UMultiUserClientStatics::GetMultiUserClientInfoByName(const FString& ClientName, FMultiUserClientInfo& ClientInfo)
