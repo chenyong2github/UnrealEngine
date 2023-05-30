@@ -163,6 +163,16 @@ FVector FNiagaraLWCConverter::ConvertSimulationVectorToWorld(FVector3f Simulatio
 	return FVector(SimulationPosition) + SystemWorldPos;
 }
 
+FMatrix FNiagaraLWCConverter::ConvertWorldToSimulationMatrix(const FMatrix& Matrix) const
+{
+	return Matrix.ConcatTranslation(-SystemWorldPos);
+}
+
+FMatrix FNiagaraLWCConverter::ConvertSimulationToWorldMatrix(const FMatrix& Matrix) const
+{
+	return Matrix.ConcatTranslation(SystemWorldPos);
+}
+
 FNiagaraStructConversionStep::FNiagaraStructConversionStep()
 {
 }

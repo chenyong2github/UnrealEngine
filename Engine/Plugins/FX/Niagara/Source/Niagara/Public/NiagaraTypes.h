@@ -227,13 +227,16 @@ struct NIAGARA_API FNiagaraAssetVersion
 
 struct NIAGARA_API FNiagaraLWCConverter
 {
-	FNiagaraLWCConverter(FVector InSystemWorldPos = FVector::ZeroVector);
+	explicit FNiagaraLWCConverter(FVector InSystemWorldPos = FVector::ZeroVector);
 
-	FVector3f ConvertWorldToSimulationVector(FVector WorldPosition) const;
-	FNiagaraPosition ConvertWorldToSimulationPosition(FVector WorldPosition) const;
+	[[nodiscard]] FVector3f ConvertWorldToSimulationVector(FVector WorldPosition) const;
+	[[nodiscard]] FNiagaraPosition ConvertWorldToSimulationPosition(FVector WorldPosition) const;
 	
-	FVector ConvertSimulationPositionToWorld(FNiagaraPosition SimulationPosition) const;
-	FVector ConvertSimulationVectorToWorld(FVector3f SimulationPosition) const;
+	[[nodiscard]] FVector ConvertSimulationPositionToWorld(FNiagaraPosition SimulationPosition) const;
+	[[nodiscard]] FVector ConvertSimulationVectorToWorld(FVector3f SimulationPosition) const;
+
+	[[nodiscard]] FMatrix ConvertWorldToSimulationMatrix(const FMatrix& Matrix) const;
+	[[nodiscard]] FMatrix ConvertSimulationToWorldMatrix(const FMatrix& Matrix) const;
 
 private:
 	FVector SystemWorldPos;

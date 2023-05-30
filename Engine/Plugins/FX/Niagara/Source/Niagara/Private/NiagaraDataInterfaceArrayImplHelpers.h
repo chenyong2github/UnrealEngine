@@ -249,6 +249,72 @@ struct FNDIArrayImplHelper<FQuat4f> : public FNDIArrayImplHelperBase<FQuat4f>
 };
 
 template<>
+struct FNDIArrayImplHelper<FMatrix44f> : public FNDIArrayImplHelperBase<FMatrix44f>
+{
+	typedef FMatrix44f TVMArrayType;
+
+	static constexpr TCHAR const* HLSLVariableType = TEXT("float4x4");
+	static constexpr EPixelFormat ReadPixelFormat = PF_A32B32G32R32F;
+	static constexpr TCHAR const* ReadHLSLBufferType = TEXT("float4");
+	static constexpr TCHAR const* ReadHLSLBufferRead = TEXT("Value = float4x4(BUFFER_NAME[Index * 4 + 0], BUFFER_NAME[Index * 4 + 1], BUFFER_NAME[Index * 4 + 2], BUFFER_NAME[Index * 4 + 3]);");
+	static constexpr EPixelFormat RWPixelFormat = PF_R32_FLOAT;
+	static constexpr TCHAR const* RWHLSLBufferType = TEXT("float");
+	static constexpr TCHAR const* RWHLSLBufferRead = TEXT(R"(Value = float4x4(
+		BUFFER_NAME[Index * 16 +  0], BUFFER_NAME[Index * 16 +  1], BUFFER_NAME[Index * 16 +  2], BUFFER_NAME[Index * 16 +  3],
+		BUFFER_NAME[Index * 16 +  4], BUFFER_NAME[Index * 16 +  5], BUFFER_NAME[Index * 16 +  6], BUFFER_NAME[Index * 16 +  7],
+		BUFFER_NAME[Index * 16 +  8], BUFFER_NAME[Index * 16 +  9], BUFFER_NAME[Index * 16 + 10], BUFFER_NAME[Index * 16 + 11],
+		BUFFER_NAME[Index * 16 + 12], BUFFER_NAME[Index * 16 + 13], BUFFER_NAME[Index * 16 + 14], BUFFER_NAME[Index * 16 + 15]);
+	)");
+	static constexpr TCHAR const* RWHLSLBufferWrite =
+		TEXT("BUFFER_NAME[Index * 16 +  0] = Value[0].x, BUFFER_NAME[Index * 16 +  1] = Value[0].y, BUFFER_NAME[Index * 16 +  2] = Value[0].z, BUFFER_NAME[Index * 16 +  3] = Value[0].w,")
+		TEXT("BUFFER_NAME[Index * 16 +  4] = Value[1].x, BUFFER_NAME[Index * 16 +  5] = Value[1].y, BUFFER_NAME[Index * 16 +  6] = Value[1].z, BUFFER_NAME[Index * 16 +  7] = Value[1].w,")
+		TEXT("BUFFER_NAME[Index * 16 +  8] = Value[2].x, BUFFER_NAME[Index * 16 +  9] = Value[2].y, BUFFER_NAME[Index * 16 + 10] = Value[2].z, BUFFER_NAME[Index * 16 + 11] = Value[2].w,")
+		TEXT("BUFFER_NAME[Index * 16 + 12] = Value[3].x, BUFFER_NAME[Index * 16 + 13] = Value[3].y, BUFFER_NAME[Index * 16 + 14] = Value[3].z, BUFFER_NAME[Index * 16 + 15] = Value[3].w;");
+
+	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetMatrix4Def(); }
+	static const FMatrix44f GetDefaultValue() { return FMatrix44f::Identity; }
+
+	static void CopyCpuToCpuMemory(FMatrix44f* Dest, const FMatrix44f* Src, int32 NumElements)
+	{
+		FMemory::Memcpy(Dest, Src, NumElements * sizeof(FMatrix44f));
+	}
+
+	static void CopyCpuToCpuMemory(FMatrix44f* Dest, const FMatrix* Src, int32 NumElements)
+	{
+		for (int32 i = 0; i < NumElements; ++i)
+		{
+			Dest[i] = FMatrix44f(Src[i]);
+		}
+	}
+
+	static void CopyCpuToCpuMemory(FMatrix* Dest, const FMatrix44f* Src, int32 NumElements)
+	{
+		for (int32 i = 0; i < NumElements; ++i)
+		{
+			Dest[i] = FMatrix(Src[i]);
+		}
+	}
+
+	static void AppendValueToString(const FMatrix44f& Value, FString& OutString)
+	{
+		for (int32 r=0; r < 4; ++r)
+		{
+			for (int32 c=0; c < 4; ++c)
+			{
+				if (r + c == 0)
+				{
+					OutString.Appendf(TEXT("%f"), Value.M[r][c]);
+				}
+				else
+				{
+					OutString.Appendf(TEXT(", %f"), Value.M[r][c]);
+				}
+			}
+		}
+	}
+};
+
+template<>
 struct FNDIArrayImplHelper<int32> : public FNDIArrayImplHelperBase<int32>
 {
 	typedef int32 TVMArrayType;

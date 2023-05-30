@@ -1216,6 +1216,63 @@ struct FNDIInputParam<FQuat4f>
 };
 
 template<>
+struct FNDIInputParam<FMatrix44f>
+{
+	VectorVM::FExternalFuncInputHandler<float> M[16];
+
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) { Init(Context); }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context)
+	{
+		for (int32 i=0; i < 16; ++i)
+		{
+			M[i].Init(Context);
+		}
+	}
+	FORCEINLINE FMatrix44f GetAndAdvance()
+	{
+		FMatrix44f Matrix;
+		for (int32 i=0; i < 16; ++i)
+		{
+			Matrix.M[i/4][i%4] = M[i].GetAndAdvance();
+		}
+		return Matrix;
+	}
+	FORCEINLINE FMatrix44f Get()
+	{
+		FMatrix44f Matrix;
+		for (int32 i = 0; i < 16; ++i)
+		{
+			Matrix.M[i / 4][i % 4] = M[i].Get();
+		}
+		return Matrix;
+	}
+	FORCEINLINE void Advance(int32 Count = 1)
+	{
+		for (int32 i = 0; i < 16; ++i)
+		{
+			M[i].Advance(Count);
+		}
+	}
+	FORCEINLINE bool IsConstant() const
+	{
+		bool bConstant = true;
+		for (int32 i = 0; i < 16; ++i)
+		{
+			bConstant &= M[i].IsConstant();
+		}
+		return bConstant;
+	}
+	FORCEINLINE void Reset()
+	{
+		for (int32 i = 0; i < 16; ++i)
+		{
+			M[i].Reset();
+		}
+	}
+};
+
+template<>
 struct FNDIInputParam<FLinearColor>
 {
 	VectorVM::FExternalFuncInputHandler<float> R;

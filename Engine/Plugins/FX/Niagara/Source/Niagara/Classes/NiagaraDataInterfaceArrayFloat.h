@@ -108,3 +108,20 @@ public:
 
 	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayQuat, FQuat4f, QuatData)
 };
+
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Matrix Array"), Blueprintable, BlueprintType)
+class NIAGARA_API UNiagaraDataInterfaceArrayMatrix : public UNiagaraDataInterfaceArray
+{
+public:
+	GENERATED_BODY()
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
+	TArray<FMatrix> MatrixData;
+#endif
+
+	UPROPERTY()
+	TArray<FMatrix44f> InternalMatrixData;
+
+	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayMatrix, FMatrix44f, MatrixData)
+};
