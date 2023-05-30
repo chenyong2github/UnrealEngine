@@ -151,9 +151,13 @@ public:
 
 	bool CanAddEdge(const FMetasoundFrontendEdge& InEdge) const;
 
+	void ClearGraph();
+
 	bool ContainsEdge(const FMetasoundFrontendEdge& InEdge) const;
 	bool ContainsNode(const FGuid& InNodeID) const;
+
 	bool ConvertFromPreset();
+	bool ConvertToPreset(const FMetasoundFrontendDocument& InReferencedDocument);
 
 	static bool FindDeclaredInterfaces(const FMetasoundFrontendDocument& InDocument, TArray<const Metasound::Frontend::IInterfaceRegistryEntry*>& OutInterfaces);
 	bool FindDeclaredInterfaces(TArray<const Metasound::Frontend::IInterfaceRegistryEntry*>& OutInterfaces) const;
@@ -191,6 +195,7 @@ public:
 
 	bool IsInterfaceDeclared(FName InInterfaceName) const;
 	bool IsInterfaceDeclared(const FMetasoundFrontendVersion& InInterfaceVersion) const;
+	bool IsPreset() const;
 
 	bool ModifyInterfaces(Metasound::Frontend::FModifyInterfaceOptions&& InOptions);
 
@@ -211,7 +216,9 @@ public:
 	void SetAuthor(const FString& InAuthor);
 #endif // WITH_EDITOR
 
+	bool SetGraphInputDefault(FName InputName, const FMetasoundFrontendLiteral& InDefaultLiteral);
 	bool SetNodeInputDefault(const FGuid& InNodeID, const FGuid& InVertexID, const FMetasoundFrontendLiteral& InLiteral);
+
 	bool SwapGraphInput(const FMetasoundFrontendClassVertex& InExistingInputVertex, const FMetasoundFrontendClassVertex& NewInputVertex);
 	bool SwapGraphOutput(const FMetasoundFrontendClassVertex& InExistingOutputVertex, const FMetasoundFrontendClassVertex& NewOutputVertex);
 
@@ -233,4 +240,6 @@ private:
 	const FMetasoundFrontendClassOutput* FindNodeOutputClassOutput(const FGuid& InNodeID, const FGuid& InVertexID) const;
 
 	void ReloadCache();
+
+	bool SetInputInheritsDefault(FName InName, bool bInputInheritsDefault);
 };

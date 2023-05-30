@@ -3,6 +3,7 @@
 
 #include "Algo/AnyOf.h"
 #include "Algo/Find.h"
+#include "Algo/ForEach.h"
 #include "Algo/NoneOf.h"
 #include "Algo/Sort.h"
 #include "Algo/Transform.h"
@@ -11,6 +12,7 @@
 #include "MetasoundAssetBase.h"
 #include "MetasoundAssetManager.h"
 #include "MetasoundDocumentInterface.h"
+#include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocumentCache.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
@@ -1043,6 +1045,19 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveUnusedDependencies()
 	return bDidEdit;
 }
 
+void FMetaSoundFrontendDocumentBuilder::ClearGraph()
+{
+	FMetasoundFrontendGraphClass& GraphClass = GetDocument().RootGraph;
+	GraphClass.Graph.Nodes.Reset();
+	GraphClass.Graph.Edges.Reset();
+	GraphClass.Interface.Inputs.Reset();
+	GraphClass.Interface.Outputs.Reset();
+	GraphClass.PresetOptions.InputsInheritingDefault.Reset();
+	GetDocument().Interfaces.Reset();
+	RemoveUnusedDependencies();
+	ReloadCache();
+}
+
 bool FMetaSoundFrontendDocumentBuilder::ContainsEdge(const FMetasoundFrontendEdge& InEdge) const
 {
 	using namespace Metasound::Frontend;
@@ -1061,17 +1076,56 @@ bool FMetaSoundFrontendDocumentBuilder::ConvertFromPreset()
 {
 	using namespace Metasound::Frontend;
 
-	FMetasoundFrontendDocument& Document = GetDocument();
-	FMetasoundFrontendGraphClass& RootGraphClass = Document.RootGraph;
-	FMetasoundFrontendGraphClassPresetOptions& PresetOptions = RootGraphClass.PresetOptions;
-	PresetOptions.bIsPreset = false;
+	if (IsPreset())
+	{
+		FMetasoundFrontendDocument& Document = GetDocument();
+		FMetasoundFrontendGraphClass& RootGraphClass = Document.RootGraph;
+		FMetasoundFrontendGraphClassPresetOptions& PresetOptions = RootGraphClass.PresetOptions;
+		PresetOptions.bIsPreset = false;
 
 #if WITH_EDITOR
-	FMetasoundFrontendGraphStyle& Style = Document.RootGraph.Graph.Style;
-	Style.bIsGraphEditable = true;
+		FMetasoundFrontendGraphStyle& Style = Document.RootGraph.Graph.Style;
+		Style.bIsGraphEditable = true;
 #endif // WITH_EDITOR
 
-	return true;
+		return true;
+	}
+
+	return false;
+}
+
+bool FMetaSoundFrontendDocumentBuilder::ConvertToPreset(const FMetasoundFrontendDocument& InReferencedDocument)
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
+	ClearGraph();
+
+	FMetasoundFrontendGraphClass& PresetAssetRootGraph = GetDocument().RootGraph;
+	FMetasoundFrontendGraph& PresetAssetGraph = PresetAssetRootGraph.Graph;
+	// Mark preset as auto-update and non-editable
+#if WITH_EDITORONLY_DATA
+	PresetAssetGraph.Style.bIsGraphEditable = false;
+#endif // WITH_EDITORONLY_DATA
+
+	// Mark all inputs as inherited by default
+	TArray<FName> InputsInheritingDefault;
+	Algo::Transform(PresetAssetRootGraph.Interface.Inputs, InputsInheritingDefault, [](const FMetasoundFrontendClassInput& Input)
+	{
+		return Input.Name;
+	});
+
+	PresetAssetRootGraph.PresetOptions.bIsPreset = true;
+	PresetAssetRootGraph.PresetOptions.InputsInheritingDefault = TSet<FName>(InputsInheritingDefault);
+
+	// Apply root graph transform 
+	FRebuildPresetRootGraph RebuildPresetRootGraph(InReferencedDocument);
+	if (RebuildPresetRootGraph.Transform(GetDocument()))
+	{
+		ReloadCache();
+		return true;
+	}
+	return false;
 }
 
 bool FMetaSoundFrontendDocumentBuilder::FindDeclaredInterfaces(TArray<const Metasound::Frontend::IInterfaceRegistryEntry*>& OutInterfaces) const
@@ -1464,6 +1518,11 @@ bool FMetaSoundFrontendDocumentBuilder::IsInterfaceDeclared(FName InInterfaceNam
 bool FMetaSoundFrontendDocumentBuilder::IsInterfaceDeclared(const FMetasoundFrontendVersion& InInterfaceVersion) const
 {
 	return GetDocument().Interfaces.Contains(InInterfaceVersion);
+}
+
+bool FMetaSoundFrontendDocumentBuilder::IsPreset() const
+{
+	return GetDocument().RootGraph.PresetOptions.bIsPreset;
 }
 
 bool FMetaSoundFrontendDocumentBuilder::ModifyInterfaces(Metasound::Frontend::FModifyInterfaceOptions&& InOptions)
@@ -1872,6 +1931,31 @@ void FMetaSoundFrontendDocumentBuilder::SetAuthor(const FString& InAuthor)
 }
 #endif // WITH_EDITOR
 
+bool FMetaSoundFrontendDocumentBuilder::SetGraphInputDefault(FName InputName, const FMetasoundFrontendLiteral& InDefaultLiteral)
+{
+	using namespace Metasound::Frontend;
+
+	auto NameMatchesInput = [&InputName](const FMetasoundFrontendClassInput& Input) { return Input.Name == InputName; };
+	TArray<FMetasoundFrontendClassInput>& Inputs = GetDocument().RootGraph.Interface.Inputs;
+	if (FMetasoundFrontendClassInput* Input = Inputs.FindByPredicate(NameMatchesInput))
+	{
+		if (IDataTypeRegistry::Get().IsLiteralTypeSupported(Input->TypeName, InDefaultLiteral.GetType()))
+		{
+			Input->DefaultLiteral = InDefaultLiteral;
+
+			// Set the input as no longer inheriting default for presets
+			if (IsPreset())
+			{
+				return SetInputInheritsDefault(InputName, /*bInputInheritsDefault=*/false);
+			}
+			return true;
+		}
+		UE_LOG(LogMetaSound, Error, TEXT("Attempting to set graph input of type '%s' with unsupported literal type"), *Input->TypeName.ToString());
+	}
+
+	return false;
+}
+
 bool FMetaSoundFrontendDocumentBuilder::SetNodeInputDefault(const FGuid& InNodeID, const FGuid& InVertexID, const FMetasoundFrontendLiteral& InLiteral)
 {
 	using namespace Metasound::Frontend;
@@ -1900,6 +1984,28 @@ bool FMetaSoundFrontendDocumentBuilder::SetNodeInputDefault(const FGuid& InNodeI
 			}
 
 			return true;
+		}
+	}
+
+	return false;
+}
+
+
+bool FMetaSoundFrontendDocumentBuilder::SetInputInheritsDefault(FName InName, bool bInputInheritsDefault)
+{
+	FMetasoundFrontendGraphClassPresetOptions& PresetOptions = GetDocument().RootGraph.PresetOptions;
+	if (bInputInheritsDefault)
+	{
+		if (PresetOptions.bIsPreset)
+		{
+			return PresetOptions.InputsInheritingDefault.Add(InName).IsValidId();
+		}
+	}
+	else
+	{
+		if (PresetOptions.bIsPreset)
+		{
+			return PresetOptions.InputsInheritingDefault.Remove(InName) > 0;
 		}
 	}
 

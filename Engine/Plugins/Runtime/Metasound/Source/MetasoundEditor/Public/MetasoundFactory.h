@@ -22,7 +22,6 @@ class UMetaSoundBaseFactory : public UFactory
 	TObjectPtr<UObject> ReferencedMetaSoundObject;
 
 	static void InitAsset(UObject& InNewMetaSound, UObject* InReferencedMetaSound = nullptr);
-	static void InitEdGraph(UObject& InMetaSound);
 };
 
 UCLASS(hidecategories=Object, MinimalAPI)

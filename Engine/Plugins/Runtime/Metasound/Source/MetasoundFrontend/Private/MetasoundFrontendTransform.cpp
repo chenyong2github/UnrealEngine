@@ -775,6 +775,18 @@ namespace Metasound
 
 			return true;
 		}
+	
+		FRebuildPresetRootGraph::FRebuildPresetRootGraph(const FMetasoundFrontendDocument& InReferencedDocument)
+		{
+			// TODO: Swap implementation to not use access pointers/controllers
+			ReferencedDocument = IDocumentController::CreateDocumentHandle(InReferencedDocument);
+		}
+
+		bool FRebuildPresetRootGraph::Transform(FMetasoundFrontendDocument& InDocument) const
+		{
+			// TODO: Swap implementation to not use access pointers/controllers
+			return Transform(IDocumentController::CreateDocumentHandle(InDocument));
+		}
 
 		void FRebuildPresetRootGraph::AddAndConnectInputs(const TArray<FMetasoundFrontendClassInput>& InClassInputs, FGraphHandle& InPresetGraphHandle, FNodeHandle& InReferencedNode) const
 		{

@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundFactory.h"
 
-#include "Kismet/KismetSystemLibrary.h"
 #include "Metasound.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphSchema.h"
-#include "MetasoundEditorSettings.h"
+#include "MetasoundEditorSubsystem.h"
 #include "MetasoundFrontendDocumentBuilder.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundSource.h"
@@ -47,47 +46,34 @@ void UMetaSoundBaseFactory::InitAsset(UObject& InNewMetaSound, UObject* InRefere
 	TScriptInterface<IMetaSoundDocumentInterface> DocInterface = &InNewMetaSound;
 	FMetaSoundFrontendDocumentBuilder Builder(DocInterface);
 	Builder.InitDocument();
+#if WITH_EDITORONLY_DATA
 	Builder.InitNodeLocations();
+#endif // WITH_EDITORONLY_DATA
 
-	FString Author = UKismetSystemLibrary::GetPlatformUserName();
-	if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
-	{
-		if (!EditorSettings->DefaultAuthor.IsEmpty())
-		{
-			Author = EditorSettings->DefaultAuthor;
-		}
-	}
+	const FString& Author = UMetaSoundEditorSubsystem::GetChecked().GetDefaultAuthor();
 	Builder.SetAuthor(Author);
 
+	// Initialize asset as a preset
 	if (InReferencedMetaSound)
 	{
-		FGraphBuilder::InitMetaSoundPreset(*InReferencedMetaSound, InNewMetaSound);
+		// Ensure the referenced MetaSound is registered already
+		UMetaSoundEditorSubsystem::GetChecked().RegisterGraphWithFrontend(*InReferencedMetaSound);
+		
+		// Initialize preset with referenced Metasound 
+		TScriptInterface<IMetaSoundDocumentInterface> ReferencedDocInterface = InReferencedMetaSound;
+		const IMetaSoundDocumentInterface* ReferencedInterface = ReferencedDocInterface.GetInterface();
+		check(ReferencedInterface);
+		Builder.ConvertToPreset(ReferencedInterface->GetDocument());
+		
+		// Update asset object data from interfaces 
+		FMetasoundAssetBase* PresetAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InNewMetaSound);
+		check(PresetAsset);
+		PresetAsset->ConformObjectDataToInterfaces();
 	}
 
 	// Initial graph generation is not something to be managed by the transaction
 	// stack, so don't track dirty state until after initial setup if necessary.
-	InitEdGraph(InNewMetaSound);
-}
-
-void UMetaSoundBaseFactory::InitEdGraph(UObject& InMetaSound)
-{
-	using namespace Metasound;
-	using namespace Metasound::Editor;
-
-	FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
-	checkf(MetaSoundAsset, TEXT("EdGraph can only be initialized on registered MetaSoundAsset type"));
-
-	UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(MetaSoundAsset->GetGraph());
-	if (!Graph)
-	{
-		Graph = NewObject<UMetasoundEditorGraph>(&InMetaSound, FName(), RF_Transactional);
-		Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
-		MetaSoundAsset->SetGraph(Graph);
-
-		// Has to be done inline to have valid graph initially when opening editor for the first
-		// time (as opposed to being applied on tick when the document's modify context has updates)
-		FGraphBuilder::SynchronizeGraph(InMetaSound);
-	}
+	UMetaSoundEditorSubsystem::GetChecked().InitEdGraph(InNewMetaSound);
 }
 
 UMetaSoundFactory::UMetaSoundFactory(const FObjectInitializer& ObjectInitializer)

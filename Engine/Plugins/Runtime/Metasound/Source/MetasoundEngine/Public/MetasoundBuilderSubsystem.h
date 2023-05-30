@@ -267,13 +267,25 @@ public:
 	// Returns if a given node output is connected.
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
 	UPARAM(DisplayName = "Connected") bool NodeOutputIsConnected(const FMetaSoundBuilderNodeOutputHandle& OutputHandle) const;
+		
+	// Returns whether this is a preset.
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
+	bool IsPreset() const;
+
+	// Converts this preset to a fully accessible MetaSound; sets result to succeeded if it was converted successfully and failed if it was not.
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
+	void ConvertFromPreset(EMetaSoundBuilderResult& OutResult);
+
+	// Convert this builder to a MetaSound source preset with the given referenced source builder 
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
+	void ConvertToPreset(const TScriptInterface<IMetaSoundDocumentInterface>& ReferencedNodeClass, EMetaSoundBuilderResult& OutResult);
 
 	// Removes graph input if it exists; sets result to succeeded if it was removed and failed if it was not.
-	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
 	void RemoveGraphInput(FName Name, EMetaSoundBuilderResult& OutResult);
 
 	// Removes graph output if it exists; sets result to succeeded if it was removed and failed if it was not.
-	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
 	void RemoveGraphOutput(FName Name, EMetaSoundBuilderResult& OutResult);
 
 	// Removes the interface with the given name from the builder's MetaSound. Removes any graph inputs
@@ -293,6 +305,10 @@ public:
 	// Sets the node's input default value (used if no connection to the given node input is present)
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
 	void SetNodeInputDefault(const FMetaSoundBuilderNodeInputHandle& NodeInputHandle, const FMetasoundFrontendLiteral& Literal, EMetaSoundBuilderResult& OutResult);
+
+	// Sets the input node's default value, overriding the default if the graph is a preset. 
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
+	void SetGraphInputDefault(FName InputName, const FMetasoundFrontendLiteral& Literal, EMetaSoundBuilderResult& OutResult);
 
 	virtual TScriptInterface<IMetaSoundDocumentInterface> Build(UObject* Parent, const FMetaSoundBuilderOptions& Options) const PURE_VIRTUAL(UMetaSoundBuilderBase::Build, return { }; );
 
@@ -381,7 +397,7 @@ protected:
 	friend class UMetaSoundBuilderSubsystem;
 };
 
-/** Builder in charge of building a MetaSound */
+/** Builder in charge of building a MetaSound Patch */
 UCLASS(Transient, BlueprintType)
 class METASOUNDENGINE_API UMetaSoundPatchBuilder : public UMetaSoundBuilderBase
 {
@@ -451,6 +467,12 @@ public:
 		EMetaSoundBuilderResult& OutResult,
 		EMetaSoundOutputAudioFormat OutputFormat = EMetaSoundOutputAudioFormat::Mono,
 		bool bIsOneShot = true);
+	
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder",  meta = (ExpandEnumAsExecs = "OutResult"))
+	UPARAM(DisplayName = "Patch Preset Builder") UMetaSoundPatchBuilder* CreatePatchPresetBuilder(FName BuilderName, const TScriptInterface<IMetaSoundDocumentInterface>& ReferencedPatchClass, EMetaSoundBuilderResult& OutResult);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
+	UPARAM(DisplayName = "Source Preset Builder") UMetaSoundSourceBuilder* CreateSourcePresetBuilder(FName BuilderName, const TScriptInterface<IMetaSoundDocumentInterface>& ReferencedSourceClass, EMetaSoundBuilderResult& OutResult);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (DisplayName = "Create MetaSound Bool Literal"))
 	UPARAM(DisplayName = "Bool Literal") FMetasoundFrontendLiteral CreateBoolMetaSoundLiteral(bool Value, FName& DataType);

@@ -166,7 +166,10 @@ namespace Metasound
 			{
 			}
 
-			bool Transform(FDocumentHandle InDocument) const override;
+			FRebuildPresetRootGraph(const FMetasoundFrontendDocument& InReferencedDocument);
+
+			virtual bool Transform(FDocumentHandle InDocument) const override;
+			virtual bool Transform(FMetasoundFrontendDocument& InOutDocument) const override;
 
 		private:
 
@@ -184,7 +187,7 @@ namespace Metasound
 			// Add outputs to parent graph and connect to wrapped graph node.
 			void AddAndConnectOutputs(const TArray<FMetasoundFrontendClassOutput>& InClassOutputs, FGraphHandle& InParentGraphHandle, FNodeHandle& InReferencedNode) const;
 
-			FConstDocumentHandle ReferencedDocument;
+			FConstDocumentHandle ReferencedDocument = IDocumentController::GetInvalidHandle();
 		};
 
 		/** Automatically updates all nodes and respective dependencies in graph where

@@ -21,4 +21,19 @@ class METASOUNDEDITOR_API UMetaSoundEditorSubsystem : public UEditorSubsystem
 public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder|Editor", meta = (WorldContext = "Parent", ExpandEnumAsExecs = "OutResult"))
 	UPARAM(DisplayName = "MetaSound Asset") TScriptInterface<IMetaSoundDocumentInterface> BuildToAsset(UMetaSoundBuilderBase* InBuilder, const FString& Author, const FString& AssetName, const FString& PackagePath, EMetaSoundBuilderResult& OutResult);
+
+	// Initialize UMetasoundEditorGraph for a given MetaSound object
+	void InitEdGraph(UObject& InMetaSound);
+
+	// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
+	// @param InMetaSound - MetaSound to register
+	// @param bInForceSynchronize - Forces the synchronize flag for all open graphs being registered by this call (all referenced graphs and
+	// referencing graphs open in editors)
+	void RegisterGraphWithFrontend(UObject& InMetaSound, bool bInForceViewSynchronization = false);
+
+	// Get the default author for a MetaSound asset
+	const FString GetDefaultAuthor();
+
+	static UMetaSoundEditorSubsystem& GetChecked();
+	static const UMetaSoundEditorSubsystem& GetConstChecked(); 
 };
