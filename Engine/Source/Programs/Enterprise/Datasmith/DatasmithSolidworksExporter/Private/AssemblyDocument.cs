@@ -50,9 +50,18 @@ namespace DatasmithSolidworks
 			Dictionary<int, FMaterial> MaterialsMap = new Dictionary<int, FMaterial>();
 			Dictionary<FComponentName, FObjectMaterials> CurrentDocMaterialsMap  = new Dictionary<FComponentName, FObjectMaterials>();
 
-			foreach (bool _ in FObjectMaterials.LoadAssemblyMaterialsEnum(AsmDocumentTracker, AllExportedComponents, CurrentDocMaterialsMap, MaterialsMap))
+			List<FComponentName> InvalidComponents = new List<FComponentName>();
+			foreach (bool _ in FObjectMaterials.LoadAssemblyMaterialsEnum(AsmDocumentTracker, AllExportedComponents, CurrentDocMaterialsMap, MaterialsMap, InvalidComponents))
 			{
-				yield return _;
+				yield return true;
+			}
+
+			// Workaround for lack of notifications for some types of component deletion:
+			//   - a component was deleted which is internal to a subassembly of another assembly. As opposed to a component representing subassembly instance in the parent assembly which is notified when deleted.
+			//      in UI: right-click on such a subcomponent, select Delete and dialog should appear whether to delete the whole subassembly or the component in this subassembly. Select deleting just the component
+			foreach (FComponentName ComponentName in InvalidComponents)
+			{
+				AsmDocumentTracker.ComponentDeleted(ComponentName);	
 			}
 
 			HashSet<FComponentName> Components =  SyncState.ComponentsMaterialsMap == null ? new HashSet<FComponentName>() : new HashSet<FComponentName>(SyncState.ComponentsMaterialsMap.Keys);

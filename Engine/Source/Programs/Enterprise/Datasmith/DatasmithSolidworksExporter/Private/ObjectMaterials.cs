@@ -482,7 +482,7 @@ namespace DatasmithSolidworks
 			return DocMaterials.Count > 0 ? DocMaterials : null;
 		}
 
-		public static IEnumerable<bool> LoadAssemblyMaterialsEnum(FAssemblyDocumentTracker InAsmDoc, HashSet<FComponentName> InComponentsSet, Dictionary<FComponentName, FObjectMaterials> CurrentDocMaterialsMap, Dictionary<int, FMaterial> MaterialsMap)
+		public static IEnumerable<bool> LoadAssemblyMaterialsEnum(FAssemblyDocumentTracker InAsmDoc, HashSet<FComponentName> InComponentsSet, Dictionary<FComponentName, FObjectMaterials> CurrentDocMaterialsMap, Dictionary<int, FMaterial> MaterialsMap, List<FComponentName> InvalidComponents)
 		{
 			FObjectMaterials.LoadMaterialsWithUsers(InAsmDoc, swDisplayStateOpts_e.swThisDisplayState, null,
 				CurrentDocMaterialsMap, MaterialsMap);
@@ -490,13 +490,18 @@ namespace DatasmithSolidworks
 
 			foreach (FComponentName CompName in InComponentsSet.OrderBy(Name => Name.GetString()))
 			{
-				FObjectMaterials.UpdateComponentMaterials(InAsmDoc, CompName, CurrentDocMaterialsMap,
+				bool bIsComponentValid = FObjectMaterials.UpdateComponentMaterials(InAsmDoc, CompName, CurrentDocMaterialsMap,
 					MaterialsMap);
+				if (!bIsComponentValid)
+				{
+					InvalidComponents.Add(CompName);
+				}
 				yield return true;
 			}
 		}
 
-		public static void UpdateComponentMaterials(FAssemblyDocumentTracker InAsmDoc, FComponentName CompName,
+		/// Returns whether component was found valid for export(not suppressed/not deleted)
+		public static bool UpdateComponentMaterials(FAssemblyDocumentTracker InAsmDoc, FComponentName CompName,
 			Dictionary<FComponentName, FObjectMaterials> DocMaterials, Dictionary<int, FMaterial> MaterialsMap)
 		{
 			LogDebug($"Component '{CompName}' - adding DocMaterials");
@@ -507,6 +512,13 @@ namespace DatasmithSolidworks
 				if (!DocMaterials.ContainsKey(CompName))
 				{
 					LogDebug($"Adding to DocMaterials");
+
+					if (Comp.GetModelDoc2() == null)
+					{
+						// Component's model doc might be null if component is suppressed/lightweight (in which case we treat it as hidden)
+						// or has already been deleted
+						return false;
+					}
 
 					LogIndent();
 					FObjectMaterials ComponentMaterials = FObjectMaterials.LoadComponentMaterials(InAsmDoc,
@@ -542,6 +554,8 @@ namespace DatasmithSolidworks
 			}
 
 			LogDedent();
+
+			return true;
 		}
 
 		// Parse materials within document and return components using them
