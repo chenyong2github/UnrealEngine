@@ -2,12 +2,14 @@
 
 #pragma once
 
+#include "GraphEditorDragDropAction.h"
 #include "SGraphActionMenu.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FAssetEditorToolkit;
 class SGraphActionMenu;
+class UMovieGraphVariable;
 struct FEdGraphSchemaAction;
 struct FGraphActionListBuilderBase;
 
@@ -37,6 +39,9 @@ public:
 	SLATE_END_ARGS();
 	
 	void Construct(const FArguments& InArgs);
+
+	/** Handler for when an action in the action menu is dragged. */
+	FReply OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent);
 
 	/** Creates the widget for an action within the action menu. */
 	TSharedRef<SWidget> CreateActionWidget(FCreateWidgetForActionData* CreateWidgetForActionData) const;
@@ -95,4 +100,26 @@ private:
 	
 	/** Delegate to call when an action is selected */
 	FOnActionSelected OnActionSelected;
+};
+
+/* Drag-and-drop action which handles variable members. */
+class FMovieGraphDragAction_Variable : public FGraphSchemaActionDragDropAction
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FMovieGraphDragAction_Variable, FGraphSchemaActionDragDropAction)
+
+	static TSharedRef<FMovieGraphDragAction_Variable> New(
+		TSharedPtr<FEdGraphSchemaAction> InAction, UMovieGraphVariable* InVariable);
+
+	virtual void HoverTargetChanged() override;
+	virtual FReply DroppedOnPanel(
+		const TSharedRef<SWidget>& InPanel, FVector2D InScreenPosition, FVector2D InGraphPosition, UEdGraph& InGraph) override;
+
+protected:
+	virtual void GetDefaultStatusSymbol(
+		const FSlateBrush*& OutPrimaryBrush, FSlateColor& OutIconColor, FSlateBrush const*& OutSecondaryBrush, FSlateColor& OutSecondaryColor) const override;
+
+private:
+	/** The variable member that the drag-and-drop is associated with. */
+	TWeakObjectPtr<UMovieGraphVariable> WeakVariable;
 };

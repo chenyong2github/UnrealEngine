@@ -260,91 +260,96 @@ void UMovieGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* 
 	RuntimeGraph->RemoveEdge(SourceRuntimeNode, SourcePin->PinName, TargetRuntimeNode, TargetPin->PinName);
 }
 
-FLinearColor UMovieGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
+FLinearColor UMovieGraphSchema::GetTypeColor(const FName& InType)
 {
 	const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
 
-	if (PinType.PinCategory == PC_Branch)
+	if (InType == PC_Branch)
 	{
 		return Settings->ExecutionPinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_Boolean)
+	if (InType == PC_Boolean)
 	{
 		return Settings->BooleanPinTypeColor;
 	}
 	
-	if (PinType.PinCategory == PC_Byte)
+	if (InType == PC_Byte)
 	{
 		return Settings->BytePinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_Integer)
+	if (InType == PC_Integer)
 	{
 		return Settings->IntPinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_Int64)
+	if (InType == PC_Int64)
 	{
 		return Settings->Int64PinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_Float)
+	if (InType == PC_Float)
 	{
 		return Settings->FloatPinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_Double)
+	if (InType == PC_Double)
 	{
 		return Settings->DoublePinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_Name)
+	if (InType == PC_Name)
 	{
 		return Settings->NamePinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_String)
+	if (InType == PC_String)
 	{
 		return Settings->StringPinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_Text)
+	if (InType == PC_Text)
 	{
 		return Settings->TextPinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_Enum)
+	if (InType == PC_Enum)
 	{
 		return Settings->BytePinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_Struct)
+	if (InType == PC_Struct)
 	{
 		return Settings->StructPinTypeColor;
 	}
 	
-	if (PinType.PinCategory == PC_Object)
+	if (InType == PC_Object)
 	{
 		return Settings->ObjectPinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_SoftObject)
+	if (InType == PC_SoftObject)
 	{
 		return Settings->SoftObjectPinTypeColor;
 	}
 	
-	if (PinType.PinCategory == PC_Class)
+	if (InType == PC_Class)
     {
     	return Settings->ClassPinTypeColor;
     }
 
-	if (PinType.PinCategory == PC_SoftClass)
+	if (InType == PC_SoftClass)
 	{
 		return Settings->SoftClassPinTypeColor;
 	}
 	
 	return Settings->DefaultPinTypeColor;
+}
+
+FLinearColor UMovieGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
+{
+	return GetTypeColor(PinType.PinCategory);
 }
 
 FConnectionDrawingPolicy* UMovieGraphSchema::CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID,

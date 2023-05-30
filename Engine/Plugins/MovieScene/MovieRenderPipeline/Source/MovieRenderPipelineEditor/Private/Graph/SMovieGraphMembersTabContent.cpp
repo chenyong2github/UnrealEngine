@@ -6,6 +6,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Graph/MovieGraphConfig.h"
 #include "Graph/MovieGraphSchema.h"
+#include "Graph/Nodes/MovieGraphVariableNode.h"
 #include "MovieEdGraphNode.h"
 #include "SGraphActionMenu.h"
 #include "Toolkits/AssetEditorToolkit.h"
@@ -32,6 +33,18 @@ namespace UE::MovieGraph::Private
 
 		return nullptr;
 	}
+
+	static bool GetIconAndColorFromDataType(EMovieGraphValueType VariableType, const FSlateBrush*& OutPrimaryBrush, FSlateColor& OutIconColor, const FSlateBrush*& OutSecondaryBrush, FSlateColor& OutSecondaryColor)
+	{
+		constexpr bool bIsBranch = false;
+		const FEdGraphPinType PinType = UMoviePipelineEdGraphNodeBase::GetPinType(VariableType, bIsBranch);
+
+		OutPrimaryBrush = FAppStyle::GetBrush("Kismet.AllClasses.VariableIcon");
+		OutIconColor = UMovieGraphSchema::GetTypeColor(PinType.PinCategory);
+		OutSecondaryBrush = nullptr;
+		
+		return true;
+	}
 }
 
 const TArray<FText> SMovieGraphMembersTabContent::ActionMenuSectionNames
@@ -54,6 +67,7 @@ void SMovieGraphMembersTabContent::Construct(const FArguments& InArgs)
 		.OnActionSelected(OnActionSelected)
 		.AutoExpandActionMenu(true)
 		.AlphaSortItems(false)
+		.OnActionDragged(this, &SMovieGraphMembersTabContent::OnActionDragged)
 		.OnCreateWidgetForAction(this, &SMovieGraphMembersTabContent::CreateActionWidget)
 		.OnCollectStaticSections(this, &SMovieGraphMembersTabContent::CollectStaticSections)
 		.OnContextMenuOpening(this, &SMovieGraphMembersTabContent::OnContextMenuOpening)
@@ -63,6 +77,25 @@ void SMovieGraphMembersTabContent::Construct(const FArguments& InArgs)
 		.OnCollectAllActions(this, &SMovieGraphMembersTabContent::CollectAllActions)
 		.OnActionMatchesName(this, &SMovieGraphMembersTabContent::ActionMatchesName)
 	];
+}
+
+FReply SMovieGraphMembersTabContent::OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent)
+{
+	const TSharedPtr<FEdGraphSchemaAction> Action(!InActions.IsEmpty() ? InActions[0] : nullptr);
+	if (!Action.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+	
+	const FMovieGraphSchemaAction* GraphSchemaAction = static_cast<FMovieGraphSchemaAction*>(Action.Get());
+	const TObjectPtr<UObject> ActionTarget = GraphSchemaAction->ActionTarget;
+
+	if (UMovieGraphVariable* VariableMember = Cast<UMovieGraphVariable>(ActionTarget.Get()))
+	{
+		return FReply::Handled().BeginDragDrop(FMovieGraphDragAction_Variable::New(Action, VariableMember));
+	}
+	
+	return FReply::Unhandled();
 }
 
 TSharedRef<SWidget> SMovieGraphMembersTabContent::CreateActionWidget(FCreateWidgetForActionData* InCreateData) const
@@ -371,6 +404,54 @@ void SMovieGraphMembersTabContent::RefreshMemberActions(UMovieGraphMember* Updat
 	if (SelectedMember && (SelectedMember == UpdatedMember))
 	{
 		ActionMenu->SelectItemByName(FName(SelectedMember->Name));
+	}
+}
+
+TSharedRef<FMovieGraphDragAction_Variable> FMovieGraphDragAction_Variable::New(
+	TSharedPtr<FEdGraphSchemaAction> InAction, UMovieGraphVariable* InVariable)
+{
+	TSharedRef<FMovieGraphDragAction_Variable> DragAction = MakeShared<FMovieGraphDragAction_Variable>();
+	DragAction->SourceAction = InAction;
+	DragAction->WeakVariable = InVariable;
+	DragAction->Construct();
+	
+	return DragAction;
+}
+
+void FMovieGraphDragAction_Variable::HoverTargetChanged()
+{
+	FGraphSchemaActionDragDropAction::HoverTargetChanged();
+}
+
+FReply FMovieGraphDragAction_Variable::DroppedOnPanel(
+	const TSharedRef<SWidget>& InPanel, FVector2D InScreenPosition, FVector2D InGraphPosition, UEdGraph& InGraph)
+{
+	const UMovieGraphVariable* VariableMember = WeakVariable.Get();
+	if (!VariableMember)
+	{
+		return FReply::Unhandled();
+	}
+
+	// When creating the new action, since it's only being used to create a node, the category, display name, and tooltip can just be empty
+	const TSharedPtr<FMovieGraphSchemaAction> NewAction = MakeShared<FMovieGraphSchemaAction_NewVariableNode>(
+		FText::GetEmpty(), FText::GetEmpty(), VariableMember->GetGuid(), FText::GetEmpty());
+	NewAction->NodeClass = UMovieGraphVariableNode::StaticClass();
+	
+	constexpr UEdGraphPin* FromPin = nullptr;
+	constexpr bool bSelectNewNode = true;
+	NewAction->PerformAction(&InGraph, FromPin, InGraphPosition, bSelectNewNode);
+
+	return FReply::Handled();
+}
+
+void FMovieGraphDragAction_Variable::GetDefaultStatusSymbol(
+	const FSlateBrush*& OutPrimaryBrush, FSlateColor& OutIconColor, const FSlateBrush*& OutSecondaryBrush, FSlateColor& OutSecondaryColor) const
+{
+	const UMovieGraphVariable* VariableMember = WeakVariable.Get();
+	if (!VariableMember ||
+		!UE::MovieGraph::Private::GetIconAndColorFromDataType(VariableMember->GetValueType(), OutPrimaryBrush, OutIconColor, OutSecondaryBrush, OutSecondaryColor))
+	{
+		return FGraphSchemaActionDragDropAction::GetDefaultStatusSymbol(OutPrimaryBrush, OutIconColor, OutSecondaryBrush, OutSecondaryColor);
 	}
 }
 
