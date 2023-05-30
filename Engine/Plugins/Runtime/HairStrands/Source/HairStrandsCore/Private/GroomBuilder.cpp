@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r33");
+	return TEXT("v8r37");
 }
 
 namespace FHairStrandsDecimation
@@ -2993,13 +2993,11 @@ static void BuildClusterData(
 	Out.PointLODs.Init(0, Out.PointCount);
 
 	// 4. Write out cluster information
-	Out.ClusterLODInfos.SetNum(LODCount * Out.ClusterCount);
 	TArray<uint8> VertexLODMasks;
 	VertexLODMasks.SetNum(InRenStrandsData.GetNumPoints());
 
 	// Local variable for being capture by the lambda
 	TArray<FHairClusterInfo>& LocalClusterInfos = Out.ClusterInfos;
-	TArray<FHairClusterLODInfo>& LocalClusterLODInfos = Out.ClusterLODInfos;
 	TArray<uint32>& LocalCurveToClusterIds = Out.CurveToClusterIds;
 	TArray<uint32>& LocalPointLODs = Out.PointLODs;
 #define USE_PARALLE_FOR 0
@@ -3013,7 +3011,6 @@ static void BuildClusterData(
 			&InRenStrandsData,
 			&ClusterGrid,
 			&LocalClusterInfos,
-			&LocalClusterLODInfos,
 			&LocalCurveToClusterIds,
 			&VertexLODMasks,
 		]
@@ -3136,12 +3133,11 @@ static void BuildClusterData(
 
 		FHairClusterInfo& ClusterInfo = LocalClusterInfos[ClusterIt];
 		ClusterInfo.LODCount = LODCount;
-		ClusterInfo.LODInfoOffset = LODCount * ClusterIt;
 		for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
 		{
-			FHairClusterLODInfo& ClusterLODInfo = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
-			ClusterLODInfo.RadiusScale0 = 0;
-			ClusterLODInfo.RadiusScale1 = 0;
+			ClusterInfo.ScreenSize[LODIt] = 1.f;
+			ClusterInfo.RadiusScale[LODIt]= 1.f;
+			ClusterInfo.bIsVisible[LODIt] = false;
 
 			const uint32 CurveCount = LODCurveCount[LODIt];
 			const uint32 NextCurveCount = LODIt < LODCount - 1 ? LODCurveCount[LODIt + 1] : CurveCount;
@@ -3203,17 +3199,7 @@ static void BuildClusterData(
 
 			ClusterInfo.ScreenSize[LODIt] = InSettings.LODs[LODIt].ScreenSize * ScreenSizeScale;
 			ClusterInfo.bIsVisible[LODIt] = InSettings.LODs[LODIt].bVisible;
-			FHairClusterLODInfo& ClusterLODInfo = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
-			ClusterLODInfo.RadiusScale0 = LODScale;
-			ClusterLODInfo.RadiusScale1 = LODScale;
-		}
-
-		// Fill in transition radius between LOD to insure that the interpolation is continuous
-		for (uint8 LODIt = 0; LODIt < LODCount - 1; ++LODIt)
-		{
-			FHairClusterLODInfo& Curr = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
-			FHairClusterLODInfo& Next = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt + 1];
-			Curr.RadiusScale1 = Next.RadiusScale0;
+			ClusterInfo.RadiusScale[LODIt]= LODScale;
 		}
 	}
 #if USE_PARALLE_FOR
@@ -3237,18 +3223,15 @@ static void BuildClusterBulkData(
 	Out.Header.ClusterCount		= In.ClusterCount;
 	Out.Header.PointCount		= In.PointCount;
 	Out.Header.CurveCount		= In.CurveCount;
-	Out.Header.ClusterLODCount 	= In.ClusterLODInfos.Num();
 
 	Out.Header.CPULODScreenSize	= In.CPULODScreenSize;
 	Out.Header.LODVisibility	= In.LODVisibility;
 	Out.Header.LODInfos			= In.LODInfos;
 
 	// Sanity check
-	check(Out.Header.ClusterCount		== uint32(In.ClusterInfos.Num()));
-	check(Out.Header.ClusterLODCount	== uint32(In.ClusterLODInfos.Num()));
-	check(Out.Header.CurveCount			== uint32(In.CurveToClusterIds.Num()));
+	check(Out.Header.ClusterCount	== uint32(In.ClusterInfos.Num()));
+	check(Out.Header.CurveCount		== uint32(In.CurveToClusterIds.Num()));
 	
-	HairStrandsBuilder::CopyToBulkData<FHairClusterLODInfoFormat>(Out.Data.ClusterLODInfos, In.ClusterLODInfos);
 	HairStrandsBuilder::CopyToBulkData<FHairClusterIndexFormat>(Out.Data.CurveToClusterIds, In.CurveToClusterIds);
 
 	// Pack point LOD data
@@ -3275,36 +3258,76 @@ static void BuildClusterBulkData(
 		check(uint32(In.ClusterInfos.Num()) == Out.Header.ClusterCount);
 		check(uint32(In.CurveToClusterIds.Num()) == Out.Header.CurveCount);
 	
+		float MinScreenSize = FLT_MAX;
+		float MaxScreenSize = 0.f; 
+
+		float MinRadiusScale = FLT_MAX; 
+		float MaxRadiusScale = 0.f; 
+		for (const FHairClusterInfo& Info : In.ClusterInfos)
+		{
+			for (uint32 LODIt = 0; LODIt < Info.LODCount; ++LODIt)
+			{
+				MinScreenSize = FMath::Min(MinScreenSize, Info.ScreenSize[LODIt]);
+				MaxScreenSize = FMath::Max(MaxScreenSize, Info.ScreenSize[LODIt]);
+
+				MinRadiusScale = FMath::Min(MinRadiusScale, Info.RadiusScale[LODIt]);
+				MaxRadiusScale = FMath::Max(MaxRadiusScale, Info.RadiusScale[LODIt]);
+			}
+		}
+		check(MinScreenSize <= MaxScreenSize);
+		check(MinRadiusScale <= MaxRadiusScale);
+
+		const float ScreenOffset = MinScreenSize;
+		const float ScreenScale = FMath::Abs(MaxScreenSize - MinScreenSize) > 1e-4f ? (MaxScreenSize - MinScreenSize) : 1.f;
+		const float InvScreenScale = 1.f / ScreenScale;
+
+		const float RadiusOffset = MinRadiusScale;
+		const float RadiusScale = FMath::Abs(MaxRadiusScale - MinRadiusScale) > 1e-4f ? (MaxRadiusScale - MinRadiusScale) : 1.f;
+		const float InvRadiusScale = 1.f / RadiusScale;
+
+		Out.Header.ClusterInfoParameters = FVector4f(ScreenScale, ScreenOffset, RadiusScale, RadiusOffset);
+
+		auto Quantize8Bits = [](float In, float InScale, float InOffset)
+		{
+			const float N = (In - InOffset) * InScale;
+			return FMath::Clamp(uint32(N * 0xFFu), 0u, 0xFFu);
+		};
+
 		TArray<FHairClusterInfo::Packed> PackedClusterInfos;
 		PackedClusterInfos.Reserve(In.ClusterInfos.Num());
 		for (const FHairClusterInfo& Info : In.ClusterInfos)
 		{
-			FHairClusterInfo::Packed& PackedInfo = PackedClusterInfos.AddDefaulted_GetRef();
-			// Sanity check
-			check(Info.LODCount <= 8);
+			FHairClusterInfo::Packed& Packed = PackedClusterInfos.AddDefaulted_GetRef();
 
-			PackedInfo.LODCount = FMath::Clamp(Info.LODCount, 0u, 0xFFu);
-			PackedInfo.LODInfoOffset = FMath::Clamp(Info.LODInfoOffset, 0u, (1u << 24u) - 1u);
-			PackedInfo.LOD_ScreenSize_0 = to10Bits(Info.ScreenSize[0]);
-			PackedInfo.LOD_ScreenSize_1 = to10Bits(Info.ScreenSize[1]);
-			PackedInfo.LOD_ScreenSize_2 = to10Bits(Info.ScreenSize[2]);
-			PackedInfo.LOD_ScreenSize_3 = to10Bits(Info.ScreenSize[3]);
-			PackedInfo.LOD_ScreenSize_4 = to10Bits(Info.ScreenSize[4]);
-			PackedInfo.LOD_ScreenSize_5 = to10Bits(Info.ScreenSize[5]);
-			PackedInfo.LOD_ScreenSize_6 = to10Bits(Info.ScreenSize[6]);
-			PackedInfo.LOD_ScreenSize_7 = to10Bits(Info.ScreenSize[7]);
-			PackedInfo.LOD_bIsVisible = 0;
+			uint32 bIsVisible = 0;
 			for (uint32 LODIt = 0; LODIt < FHairClusterInfo::MaxLOD; ++LODIt)
 			{
 				if (Info.bIsVisible[LODIt])
 				{
-					PackedInfo.LOD_bIsVisible = PackedInfo.LOD_bIsVisible | (1 << LODIt);
+					bIsVisible = bIsVisible | (1 << LODIt);
 				}
 			}
 
-			PackedInfo.Pad0 = 0;
-			PackedInfo.Pad1 = 0;
-			PackedInfo.Pad2 = 0;
+			// Sanity check
+			check(Info.LODCount <= 8);
+
+			Packed.Screen0 = Info.LODCount;
+			Packed.Screen0 = Packed.Screen0 | (Quantize8Bits(Info.ScreenSize[1], InvScreenScale, ScreenOffset) << 8);
+			Packed.Screen0 = Packed.Screen0 | (Quantize8Bits(Info.ScreenSize[2], InvScreenScale, ScreenOffset) << 16);
+			Packed.Screen0 = Packed.Screen0 | (Quantize8Bits(Info.ScreenSize[3], InvScreenScale, ScreenOffset) << 24);
+			Packed.Screen1 = Packed.Screen1 | (Quantize8Bits(Info.ScreenSize[4], InvScreenScale, ScreenOffset) << 0);
+			Packed.Screen1 = Packed.Screen1 | (Quantize8Bits(Info.ScreenSize[5], InvScreenScale, ScreenOffset) << 8);
+			Packed.Screen1 = Packed.Screen1 | (Quantize8Bits(Info.ScreenSize[6], InvScreenScale, ScreenOffset) << 16);
+			Packed.Screen1 = Packed.Screen1 | (Quantize8Bits(Info.ScreenSize[7], InvScreenScale, ScreenOffset) << 24);
+
+			Packed.Radius0 = bIsVisible & 0xFF;
+			Packed.Radius0 = Packed.Radius0 | (Quantize8Bits(Info.RadiusScale[1], InvRadiusScale, RadiusOffset) << 8);
+			Packed.Radius0 = Packed.Radius0 | (Quantize8Bits(Info.RadiusScale[2], InvRadiusScale, RadiusOffset) << 16);
+			Packed.Radius0 = Packed.Radius0 | (Quantize8Bits(Info.RadiusScale[3], InvRadiusScale, RadiusOffset) << 24);
+			Packed.Radius1 = Packed.Radius1 | (Quantize8Bits(Info.RadiusScale[4], InvRadiusScale, RadiusOffset) << 0);
+			Packed.Radius1 = Packed.Radius1 | (Quantize8Bits(Info.RadiusScale[5], InvRadiusScale, RadiusOffset) << 8);
+			Packed.Radius1 = Packed.Radius1 | (Quantize8Bits(Info.RadiusScale[6], InvRadiusScale, RadiusOffset) << 16);
+			Packed.Radius1 = Packed.Radius1 | (Quantize8Bits(Info.RadiusScale[7], InvRadiusScale, RadiusOffset) << 24);
 
 			static_assert(sizeof(FHairClusterInfo::Packed) == sizeof(FHairClusterInfo::BulkType));
 		}

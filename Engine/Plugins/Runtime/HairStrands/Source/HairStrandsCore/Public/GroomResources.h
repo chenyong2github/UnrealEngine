@@ -329,7 +329,6 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	{
 		uint32 Total = 0;
 		Total += GetBufferTotalNumBytes(ClusterInfoBuffer);
-		Total += GetBufferTotalNumBytes(ClusterLODInfoBuffer);
 		Total += GetBufferTotalNumBytes(CurveToClusterIdBuffer);
 		Total += GetBufferTotalNumBytes(PointLODBuffer);
 		return Total;
@@ -337,10 +336,9 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 
 	/* Cluster info buffer */
 	FRDGExternalBuffer ClusterInfoBuffer;
-	FRDGExternalBuffer ClusterLODInfoBuffer;
 
 	/* CurveId => ClusterId to know which AABB to contribute to*/
-	FRDGExternalBuffer CurveToClusterIdBuffer; // remove?
+	FRDGExternalBuffer CurveToClusterIdBuffer;
 
 	/* Min. LOD a which a Point becomes visible */
 	FRDGExternalBuffer PointLODBuffer;

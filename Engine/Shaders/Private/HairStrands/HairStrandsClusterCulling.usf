@@ -300,12 +300,12 @@ float LODBias;
 uint CurveCount;
 uint CurvePerGroup;
 uint DispatchCountX;
+float4 ClusterInfoParameters;
 
 Buffer<uint> CurveBuffer;
 Buffer<uint> CurveToClusterIdBuffer;
 Buffer<uint> PointLODBuffer;
 StructuredBuffer<FPackedHairClusterInfo> ClusterInfoBuffer;
-StructuredBuffer<FPackedHairClusterLODInfo> ClusterLODInfoBuffer; 
 
 RWBuffer<uint>  OutPointCounter;
 RWBuffer<uint>  OutIndexBuffer;
@@ -372,14 +372,11 @@ void Main(uint3 DispatchThreadId : SV_DispatchThreadID, uint ThreadIndex : SV_Gr
 		// 1.1 Cluster ID
 		const uint ClusterId = CurveToClusterIdBuffer[GlobalCurveIndex];
 	
-		// 1.2 Get cluster info (i.e. map all info per LOD for a given cluster ID)
-		const FHairClusterInfo ClusterInfo = UnpackHairClusterInfo(ClusterInfoBuffer[ClusterId]);
-	
-		// 1.3 Derive effective LOD data (radius scale)
-		const FHairClusterLOD ClusterLODInfo = GetHairClusterLOD(ClusterInfo, ClusterLODInfoBuffer, LODIndex);
+		// 1.3 Get cluster info (i.e. map all info per LOD for a given cluster ID) and derive effective LOD data (radius scale)
+		const FHairClusterLOD ClusterLODInfo = GetHairClusterLOD(ClusterInfoBuffer[ClusterId], ClusterInfoParameters, LODIndex);
 		ClusterLOD[LocalCurveIndex] 		 = ClusterLODInfo.LOD;
 		ClusterRadiusScale[LocalCurveIndex]  = ClusterLODInfo.RadiusScale;
-		LODCount[LocalCurveIndex]			 = ClusterInfo.LODCount;
+		LODCount[LocalCurveIndex]			 = ClusterLODInfo.LODCount;
 
 		// 1.4 Curve's point count/offset
 		const FHairCurve Curve = UnpackHairCurve(CurveBuffer[GlobalCurveIndex]);
@@ -500,7 +497,7 @@ groupshared float CulledPointFadeScales[HAIR_MAX_NUM_POINT_PER_CURVE];
 // Version for curve with >32 points
 [numthreads(GROUP_SIZE, 1, 1)]
 void Main(uint3 DispatchThreadId : SV_DispatchThreadID, uint ThreadIndex : SV_GroupIndex, uint2 GroupIndex : SV_GroupID)
-{
+{	
 	// 1. Read the Curve data
 	const uint CurveIndex = GetGlobalCurveIndex(ThreadIndex, GroupIndex);
 	
@@ -509,14 +506,11 @@ void Main(uint3 DispatchThreadId : SV_DispatchThreadID, uint ThreadIndex : SV_Gr
 		// 1.1 Cluster ID
 		const uint ClusterId = CurveToClusterIdBuffer[CurveIndex];
 	
-		// 1.2 Get cluster info (i.e. map all info per LOD for a given cluster ID)
-		const FHairClusterInfo ClusterInfo = UnpackHairClusterInfo(ClusterInfoBuffer[ClusterId]);
-	
-		// 1.3 Derive effective LOD data (radius scale)
-		const FHairClusterLOD ClusterLODInfo = GetHairClusterLOD(ClusterInfo, ClusterLODInfoBuffer, LODIndex);
+		// 1.2 Get cluster info (i.e. map all info per LOD for a given cluster ID) and derive effective LOD data (radius scale)
+		const FHairClusterLOD ClusterLODInfo = GetHairClusterLOD(ClusterInfoBuffer[ClusterId], ClusterInfoParameters, LODIndex);
 		ClusterLOD = ClusterLODInfo.LOD;
 		ClusterRadiusScale = ClusterLODInfo.RadiusScale;
-		LODCount = ClusterInfo.LODCount;
+		LODCount = ClusterLODInfo.LODCount;
 
 		// 1.4 Curve's point count/offset
 		const FHairCurve Curve = UnpackHairCurve(CurveBuffer[CurveIndex]);

@@ -179,20 +179,7 @@ struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 		}
 
 		uint32 GetDataSize() const;
-#if 0
-		{
-			uint32 Total = 0;
-			Total += FBaseWithInterpolation::GetDataSize();
 
-			Total += ClusterCullingBulkData.Header.LODVisibility.GetAllocatedSize();
-			Total += ClusterCullingBulkData.Header.CPULODScreenSize.GetAllocatedSize();
-			Total += ClusterCullingBulkData.Data.ClusterInfos.IsBulkDataLoaded()		? ClusterCullingBulkData.Data.ClusterInfos.GetBulkDataSize() : 0;
-			Total += ClusterCullingBulkData.Data.ClusterLODInfos.IsBulkDataLoaded()		? ClusterCullingBulkData.Data.ClusterLODInfos.GetBulkDataSize() : 0;
-			Total += ClusterCullingBulkData.Data.CurveToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.CurveToClusterIds.GetBulkDataSize() : 0;
-			Total += ClusterCullingBulkData.Data.ClusterVertexIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.ClusterVertexIds.GetBulkDataSize() : 0;
-			return Total;
-		}
-#endif
 		FHairStrandsClusterCullingBulkData	ClusterCullingBulkData;
 		FHairStrandsClusterCullingResource* ClusterCullingResource = nullptr;
 

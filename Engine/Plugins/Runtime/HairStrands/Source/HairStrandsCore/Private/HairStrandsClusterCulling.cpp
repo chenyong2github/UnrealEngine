@@ -53,12 +53,12 @@ class FHairClusterCullCS: public FGlobalShader
 		SHADER_PARAMETER(float, LODBias)
 		SHADER_PARAMETER(uint32, CurveCount)
 		SHADER_PARAMETER(uint32, DispatchCountX)
+		SHADER_PARAMETER(FVector4f, ClusterInfoParameters)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CurveBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CurveToClusterIdBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PointLODBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedHairClusterInfo>, ClusterInfoBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedHairClusterLODInfo>, ClusterLODInfoBuffer)
 	
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutPointCounter)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutIndexBuffer)
@@ -133,7 +133,7 @@ static void AddClusterCullingPass(
 		Parameters->CurveToClusterIdBuffer=RegisterAsSRV(GraphBuilder, *ClusterData.CurveToClusterIdBuffer);
 		Parameters->PointLODBuffer 		 = RegisterAsSRV(GraphBuilder, *ClusterData.PointLODBuffer);
 		Parameters->ClusterInfoBuffer 	 = RegisterAsSRV(GraphBuilder, *ClusterData.ClusterInfoBuffer);
-		Parameters->ClusterLODInfoBuffer = RegisterAsSRV(GraphBuilder, *ClusterData.ClusterLODInfoBuffer);
+		Parameters->ClusterInfoParameters= ClusterData.ClusterInfoParameters;
 
 		Parameters->OutPointCounter 	 = PointCounterUAV;
 		Parameters->OutIndexBuffer 		 = RegisterAsUAV(GraphBuilder, *ClusterData.GetCulledVertexIdBuffer());
@@ -276,8 +276,8 @@ void AddInstanceToClusterData(FHairGroupInstance* In, FHairStrandClusterData& Ou
 	HairGroupCluster.CurveBuffer = &In->Strands.RestResource->CurveBuffer;
 	HairGroupCluster.PointLODBuffer = &In->Strands.ClusterCullingResource->PointLODBuffer;
 
+	HairGroupCluster.ClusterInfoParameters = In->Strands.ClusterCullingResource->BulkData.Header.ClusterInfoParameters;
 	HairGroupCluster.ClusterInfoBuffer = &In->Strands.ClusterCullingResource->ClusterInfoBuffer;
-	HairGroupCluster.ClusterLODInfoBuffer = &In->Strands.ClusterCullingResource->ClusterLODInfoBuffer;
 	HairGroupCluster.CurveToClusterIdBuffer = &In->Strands.ClusterCullingResource->CurveToClusterIdBuffer;
 
 	HairGroupCluster.HairGroupPublicPtr = In->HairGroupPublicData;

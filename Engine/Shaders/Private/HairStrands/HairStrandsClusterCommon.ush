@@ -34,7 +34,9 @@ uint GetHairStrandsVertexFetchIndex_Culled(uint2 InDispatchThreadId, uint InGrou
 struct FHairClusterInfo
 {
 	uint  LODCount;
-	uint  LODInfoOffset;
+	uint  LOD_bIsVisible;
+
+	// ScreenSize
 	float LOD0_ScreenSize;
 	float LOD1_ScreenSize;
 	float LOD2_ScreenSize;
@@ -43,58 +45,57 @@ struct FHairClusterInfo
 	float LOD5_ScreenSize;
 	float LOD6_ScreenSize;
 	float LOD7_ScreenSize;
-	uint  LOD_bIsVisible;
+
+	// Scale
+	float LOD0_RadiusScale;
+	float LOD1_RadiusScale;
+	float LOD2_RadiusScale;
+	float LOD3_RadiusScale;
+	float LOD4_RadiusScale;
+	float LOD5_RadiusScale;
+	float LOD6_RadiusScale;
+	float LOD7_RadiusScale;
 };
 
 struct FPackedHairClusterInfo
 {
-	uint LODCount_LODInfoOffset;
-	uint LOD_ScreenSize_0_1_2;
-	uint LOD_ScreenSize_3_4_5;
-	uint LOD_ScreenSize_6_7_IsVisible_Pad;
+	uint ScreenSizeX123;
+	uint ScreenSize4567;
+	uint RadiusScaleX123;
+	uint RadiusScale4567;
 };
 
-FHairClusterInfo UnpackHairClusterInfo(FPackedHairClusterInfo In)
+FHairClusterInfo UnpackHairClusterInfo(FPackedHairClusterInfo In, float4 InParameters)
 {
+	const float4 Screen0 = UnpackRGBA8(In.ScreenSizeX123);
+	const float4 Screen1 = UnpackRGBA8(In.ScreenSize4567);
+
+	const float4 Radius0 = UnpackRGBA8(In.RadiusScaleX123);
+	const float4 Radius1 = UnpackRGBA8(In.RadiusScale4567);
+
+
 	FHairClusterInfo Out;
-	Out.LODCount		= (In.LODCount_LODInfoOffset >> 24) & 0xFF;
-	Out.LODInfoOffset   = (In.LODCount_LODInfoOffset & 0x00FFFFFF);
+	Out.LOD0_ScreenSize = 1.f;
+	Out.LOD1_ScreenSize = Screen0.y * InParameters.x + InParameters.y;
+	Out.LOD2_ScreenSize = Screen0.z * InParameters.x + InParameters.y;
+	Out.LOD3_ScreenSize = Screen0.w * InParameters.x + InParameters.y;
+	Out.LOD4_ScreenSize = Screen1.x * InParameters.x + InParameters.y;
+	Out.LOD5_ScreenSize = Screen1.y * InParameters.x + InParameters.y;
+	Out.LOD6_ScreenSize = Screen1.z * InParameters.x + InParameters.y;
+	Out.LOD7_ScreenSize = Screen1.w * InParameters.x + InParameters.y;
 
-	Out.LOD0_ScreenSize = (0x3FF & (In.LOD_ScreenSize_0_1_2)) / 1023.f;
-	Out.LOD1_ScreenSize = (0x3FF & (In.LOD_ScreenSize_0_1_2 >> 10)) / 1023.f;
-	Out.LOD2_ScreenSize = (0x3FF & (In.LOD_ScreenSize_0_1_2 >> 20)) / 1023.f;
+	Out.LOD0_RadiusScale = 1.f;
+	Out.LOD1_RadiusScale = Radius0.y * InParameters.z + InParameters.w;
+	Out.LOD2_RadiusScale = Radius0.z * InParameters.z + InParameters.w;
+	Out.LOD3_RadiusScale = Radius0.w * InParameters.z + InParameters.w;
+	Out.LOD4_RadiusScale = Radius1.x * InParameters.z + InParameters.w;
+	Out.LOD5_RadiusScale = Radius1.y * InParameters.z + InParameters.w;
+	Out.LOD6_RadiusScale = Radius1.z * InParameters.z + InParameters.w;
+	Out.LOD7_RadiusScale = Radius1.w * InParameters.z + InParameters.w;
 
-	Out.LOD3_ScreenSize = (0x3FF & (In.LOD_ScreenSize_3_4_5)) / 1023.f;
-	Out.LOD4_ScreenSize = (0x3FF & (In.LOD_ScreenSize_3_4_5 >> 10)) / 1023.f;
-	Out.LOD5_ScreenSize = (0x3FF & (In.LOD_ScreenSize_3_4_5 >> 20)) / 1023.f;
+	Out.LODCount		= In.ScreenSizeX123 & 0xFFu;
+	Out.LOD_bIsVisible  = In.RadiusScaleX123 & 0xFFu;
 
-	Out.LOD6_ScreenSize = (0x3FF & (In.LOD_ScreenSize_6_7_IsVisible_Pad)) / 1023.f;
-	Out.LOD7_ScreenSize = (0x3FF & (In.LOD_ScreenSize_6_7_IsVisible_Pad >> 10)) / 1023.f;
-
-	Out.LOD_bIsVisible  = (0xFF  & (In.LOD_ScreenSize_6_7_IsVisible_Pad >> 20));
-	
-	return Out;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Store info about a specific cluster LOD
-
-struct FPackedHairClusterLODInfo
-{
-	uint RadiusScale01;
-};
-
-struct FHairClusterLODInfo
-{
-	float RadiusScale0;
-	float RadiusScale1;
-};
-
-FHairClusterLODInfo UnpackHairClusterLODInfo(FPackedHairClusterLODInfo In)
-{
-	FHairClusterLODInfo Out;
-	Out.RadiusScale0 = f16tof32(0xFFFF & (In.RadiusScale01));
-	Out.RadiusScale1 = f16tof32(0xFFFF & (In.RadiusScale01 >> 16));
 	return Out;
 }
 
@@ -104,6 +105,7 @@ struct FHairClusterLOD
 {
 	float RadiusScale;
 	float LOD;
+	uint  LODCount;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -171,31 +173,32 @@ float GetLOD(FHairClusterInfo InInfo, float InScreenSize, float InLODBias)
 
 // Compute the hair cluster LOD for a given LOD level
 FHairClusterLOD GetHairClusterLOD(
-	FHairClusterInfo InClusterInfo, 
-	StructuredBuffer<FPackedHairClusterLODInfo> InClusterLODInfoBuffer,
+	FPackedHairClusterInfo InPacked, 
+	float4 InClusterInfoParameters,
 	float LOD)
 {
-	const uint iLOD = clamp(floor(LOD), 0, InClusterInfo.LODCount-1);
-	FHairClusterLODInfo ClusterLODInfo = UnpackHairClusterLODInfo(InClusterLODInfoBuffer[InClusterInfo.LODInfoOffset + iLOD]);
+	const FHairClusterInfo InInfo = UnpackHairClusterInfo(InPacked, InClusterInfoParameters);
 
+	float RadiusScale[MAX_HAIR_LOD] = 
+	{
+		InInfo.LOD0_RadiusScale,
+		InInfo.LOD1_RadiusScale,
+		InInfo.LOD2_RadiusScale,
+		InInfo.LOD3_RadiusScale,
+		InInfo.LOD4_RadiusScale,
+		InInfo.LOD5_RadiusScale,
+		InInfo.LOD6_RadiusScale,
+		InInfo.LOD7_RadiusScale
+	};
+
+	const uint iLOD = clamp(floor(LOD), 0, InInfo.LODCount-1);
 	const float S = LOD - iLOD;
 
 	FHairClusterLOD Out;
-	Out.RadiusScale = lerp(ClusterLODInfo.RadiusScale0, ClusterLODInfo.RadiusScale1, S);
+	Out.RadiusScale = lerp(RadiusScale[iLOD], RadiusScale[uint(min(iLOD + 1, InInfo.LODCount - 1))], S);
 	Out.LOD = LOD;
-
+	Out.LODCount = InInfo.LODCount;
 	return Out;
-}
-
-// Compute the hair cluster LOD based on screen size and lod bias
-FHairClusterLOD GetHairClusterLOD(
-	FHairClusterInfo InClusterInfo,
-	StructuredBuffer<FPackedHairClusterLODInfo> InClusterLODInfoBuffer,
-	float InScreenSize, 
-	float InLODBias)
-{
-	const float LOD = GetLOD(InClusterInfo, InScreenSize, InLODBias);
-	return GetHairClusterLOD(InClusterInfo, InClusterLODInfoBuffer, LOD);
 }
 
 // Compute the screen size of a bounding sphere

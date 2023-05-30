@@ -18,7 +18,7 @@ struct FHairStrandClusterData
 		uint32 ClusterCount = 0;
 		uint32 VertexCount = 0;
 		uint32 MaxPointPerCurve = 0;
-
+		FVector4f ClusterInfoParameters = FVector4f::Zero();
 		float LODIndex = -1;
 		float LODBias = 0.0f;
 		bool bVisible = false;
@@ -30,7 +30,6 @@ struct FHairStrandClusterData
 		FRDGExternalBuffer* GroupAABBBuffer = nullptr;
 		FRDGExternalBuffer* ClusterAABBBuffer = nullptr;
 		FRDGExternalBuffer* ClusterInfoBuffer = nullptr; // SRV
-		FRDGExternalBuffer* ClusterLODInfoBuffer = nullptr; // SRV
 		FRDGExternalBuffer* CurveToClusterIdBuffer = nullptr; // SRV
 
 		TRefCountPtr<FRDGPooledBuffer> ClusterIdBuffer;

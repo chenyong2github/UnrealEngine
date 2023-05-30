@@ -257,23 +257,10 @@ struct FHairClusterInfo
 
 	struct Packed
 	{
-		uint32 LODInfoOffset : 24;
-		uint32 LODCount : 8;
-
-		uint32 LOD_ScreenSize_0 : 10;
-		uint32 LOD_ScreenSize_1 : 10;
-		uint32 LOD_ScreenSize_2 : 10;
-		uint32 Pad0 : 2;
-
-		uint32 LOD_ScreenSize_3 : 10;
-		uint32 LOD_ScreenSize_4 : 10;
-		uint32 LOD_ScreenSize_5 : 10;
-		uint32 Pad1 : 2;
-
-		uint32 LOD_ScreenSize_6 : 10;
-		uint32 LOD_ScreenSize_7 : 10;
-		uint32 LOD_bIsVisible : 8;
-		uint32 Pad2 : 4;
+		uint32 Screen0;
+		uint32 Screen1;
+		uint32 Radius0;
+		uint32 Radius1;
 	};
 	typedef FUintVector4 BulkType;
 
@@ -282,22 +269,15 @@ struct FHairClusterInfo
 		for (uint32 LODIt = 0; LODIt < MaxLOD; ++LODIt)
 		{
 			ScreenSize[LODIt] = 0;
+			RadiusScale[LODIt] = 1.f;
 			bIsVisible[LODIt] = true;
 		}
 	}
 
 	uint32 LODCount = 0;
-	uint32 LODInfoOffset = 0;
 	TStaticArray<float,MaxLOD> ScreenSize;
+	TStaticArray<float,MaxLOD> RadiusScale;
 	TStaticArray<bool, MaxLOD> bIsVisible;
-};
-
-/*  Structure describing the LOD settings common to all clusters. The layout of this structure is
-	identical the GPU data layout (HairStrandsClusterCommon.ush). This uses by the GPU LOD selection. */
-struct FHairClusterLODInfo
-{
-	FFloat16 RadiusScale0 = 0;
-	FFloat16 RadiusScale1 = 0;
 };
 
 struct FHairLODInfo
@@ -310,13 +290,6 @@ struct FHairClusterInfoFormat
 {
 	typedef FHairClusterInfo::Packed Type;
 	typedef FHairClusterInfo::Packed BulkType;
-	static const uint32 SizeInByte = sizeof(Type);
-};
-
-struct FHairClusterLODInfoFormat
-{
-	typedef FHairClusterLODInfo Type;
-	typedef FHairClusterLODInfo BulkType;
 	static const uint32 SizeInByte = sizeof(Type);
 };
 
@@ -729,7 +702,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 
 	/* LOD info for the various clusters for LOD management on GPU */
 	TArray<FHairClusterInfo>	ClusterInfos;
-	TArray<FHairClusterLODInfo> ClusterLODInfos;
 	TArray<uint32>				CurveToClusterIds;
 	TArray<FHairLODInfo>		LODInfos;
 	TArray<uint32>				PointLODs;
@@ -749,7 +721,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 	virtual void GetResources(FQuery& Out) override;
 
 	bool IsValid() const { return Header.ClusterCount > 0 && Header.PointCount > 0; }
-	void Validate(bool bIsSaving);
 
 	struct FHeader
 	{
@@ -763,16 +734,15 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 		TArray<FHairLODInfo> LODInfos;
 	
 		uint32 ClusterCount = 0;
-		uint32 ClusterLODCount = 0;
 		uint32 PointCount = 0;
 		uint32 CurveCount = 0;
+		FVector4f ClusterInfoParameters = FVector4f::Zero(); // xy:Scale/Offset for ScreenSize, zw:Scale/Offset for Radius
 	} Header;
 
 	struct FData
 	{
 		/* LOD info for the various clusters for LOD management on GPU */
 		FHairBulkContainer	PackedClusterInfos;		// Size - ClusterCount
-		FHairBulkContainer	ClusterLODInfos;		// Size - ClusterLODCount
 		FHairBulkContainer	CurveToClusterIds;		// Size - CurveCount
 		FHairBulkContainer	PointLODs;				// Size - PointCount / HAIR_POINT_LOD_COUNT_PER_UINT
 	} Data;
