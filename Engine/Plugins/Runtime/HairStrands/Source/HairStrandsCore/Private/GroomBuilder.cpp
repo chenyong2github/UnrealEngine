@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r32");
+	return TEXT("v8r33");
 }
 
 namespace FHairStrandsDecimation
@@ -2992,10 +2992,6 @@ static void BuildClusterData(
 	Out.LODInfos.SetNum(LODCount);
 	Out.PointLODs.Init(0, Out.PointCount);
 
-	// Conservative allocation for inserting vertex indices for the various curves LOD
-	uint32* RawClusterVertexIds = new uint32[LODCount * InRenStrandsData.GetNumPoints()];
-	TAtomic<uint32> RawClusterVertexCount(0);
-
 	// 4. Write out cluster information
 	Out.ClusterLODInfos.SetNum(LODCount * Out.ClusterCount);
 	TArray<uint8> VertexLODMasks;
@@ -3020,8 +3016,6 @@ static void BuildClusterData(
 			&LocalClusterLODInfos,
 			&LocalCurveToClusterIds,
 			&VertexLODMasks,
-			&RawClusterVertexIds,
-			&RawClusterVertexCount
 		]
 	(uint32 ClusterIt)
 #else
@@ -3036,9 +3030,9 @@ static void BuildClusterData(
 		// Sort curve to have largest area first, so that lower area curves with less influence are removed first.
 		// This also helps the radius scaling to not explode.
 		Cluster.ClusterCurves.Sort([](const FClusterGrid::FCurve& A, const FClusterGrid::FCurve& B) -> bool
-			{
-				return A.Area > B.Area;
-			});
+		{
+			return A.Area > B.Area;
+		});
 
 		// 4.2 Compute cluster's area & fill in the vertex to cluster ID mapping
 		float ClusterArea = 0;
@@ -3138,26 +3132,7 @@ static void BuildClusterData(
 			}
 		}
 
-		// 4.5 Record/Insert vertex indices for each LOD of the current cluster
-		// Vertex offset is stored into the cluster LOD info
-		// Stores the accumulated vertex count per LOD
-		//
-		// ClusterVertexIds contains the vertex index of curve belonging to a cluster.
-		// Since for a given LOD, both the number of curve and vertices varies, we stores 
-		// this information per LOD.
-		//
-		//  Global Vertex index
-		//            v
-		// ||0 1 2 3 4 5 6 7 8 9 ||0 1 3 5 7 9 ||0 5 9 | |0 1 2 3 4 5 6 7 || 0 1 5 7 ||0 9 ||||11 12 ...
-		// ||____________________||____________||______| |________________||_________||____||||_____ _ _ 
-		// ||        LOD 0			 LOD 1		 LOD2  | |    LOD 0			 LOD 1	  LOD2 ||||  LOD 0
-		// ||__________________________________________| | ________________________________||||_____ _ _ 
-		// |                   Curve 0								Curve 1				    ||   Curve 0
-		// |________________________________________________________________________________||_____ _ _ 
-		//										Cluster 0										Cluster 1
-
-		TArray<uint32> LocalClusterVertexIds;
-		LocalClusterVertexIds.Reserve(LODCount * Cluster.ClusterCurves.Num() * 32); // Guestimate pre-allocation (32 points per curve in average)
+		// 4.5 Record/Insert vertex min LOD for each curve
 
 		FHairClusterInfo& ClusterInfo = LocalClusterInfos[ClusterIt];
 		ClusterInfo.LODCount = LODCount;
@@ -3165,9 +3140,6 @@ static void BuildClusterData(
 		for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
 		{
 			FHairClusterLODInfo& ClusterLODInfo = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
-			ClusterLODInfo.VertexOffset = LocalClusterVertexIds.Num(); // At the end, it will be the offset at which the data are inserted into ClusterVertexIds
-			ClusterLODInfo.VertexCount0 = 0;
-			ClusterLODInfo.VertexCount1 = 0;
 			ClusterLODInfo.RadiusScale0 = 0;
 			ClusterLODInfo.RadiusScale1 = 0;
 
@@ -3183,34 +3155,11 @@ static void BuildClusterData(
 					const uint8 LODMask = VertexLODMasks[GlobalPointIndex];
 					if (LODMask & (1 << LODIt))
 					{
-						// Count the number of vertices for all curves in the cluster as well as the vertex 
-						// of the remaining curves once the cluster has been decimated with the current LOD 
-						// settings
-						++ClusterLODInfo.VertexCount0;
-						if (CurveIt < NextCurveCount)
-						{
-							++ClusterLODInfo.VertexCount1;
-						}
-
-						LocalClusterVertexIds.Add(GlobalPointIndex);
-
 						// Store the minimum/coarser LOD at which the current point is visible
 						LocalPointLODs[GlobalPointIndex] = LODIt;
 					}
 				}
 			}
-		}
-
-		// 4.5.1 Insert vertex indices for each LOD into the final array
-		// Since this runs in parallel, we prefill LocalClusterVertexIds with 
-		// all indices, then we insert the indices into the final array with a single allocation + memcopy
-		// We also patch the vertex offset so that it is correct
-		const uint32 AllocOffset = RawClusterVertexCount.AddExchange(LocalClusterVertexIds.Num());
-		FMemory::Memcpy(RawClusterVertexIds + AllocOffset, LocalClusterVertexIds.GetData(), LocalClusterVertexIds.Num() * sizeof(uint32));
-		for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
-		{
-			FHairClusterLODInfo& ClusterLODInfo = LocalClusterLODInfos[ClusterInfo.LODInfoOffset + LODIt];
-			ClusterLODInfo.VertexOffset += AllocOffset;
 		}
 
 		// 4.6 Compute the radius scaling to preserve the cluster apperance as we decimate 
@@ -3219,17 +3168,13 @@ static void BuildClusterData(
 		{
 			// Compute the visible area for various orientation? 
 			// Reference: Stochastic Simplification of Aggregate Detail
-			float  LODArea = 0;
 			float  LODAvgRadiusRef = 0;
 			float  LODMaxRadiusRef = 0;
-			uint32 LODVertexCount = 0;
 
 			const uint32 ClusterCurveCount = LODCurveCount[LODIt];
 			for (uint32 CurveIt = 0; CurveIt < ClusterCurveCount; ++CurveIt)
 			{
 				const FClusterGrid::FCurve& ClusterCurve = Cluster.ClusterCurves[CurveIt];
-				LODVertexCount += ClusterCurve.Count;
-				LODArea += ClusterCurve.Area;
 				LODAvgRadiusRef += ClusterCurve.AvgRadius;
 				LODMaxRadiusRef = FMath::Max(LODMaxRadiusRef, ClusterCurve.MaxRadius);
 			}
@@ -3281,13 +3226,6 @@ static void BuildClusterData(
 		Out.CPULODScreenSize.Add(InSettings.LODs[LODIt].ScreenSize);
 		Out.LODVisibility.Add(InSettings.LODs[LODIt].bVisible);
 	}
-
-	// Copy the final value to the array which will be used to copy data to the GPU.
-	// This operations is not needer per se. We could just keep & use RawClusterVertexIds
-	Out.ClusterVertexIds.SetNum(RawClusterVertexCount);
-	FMemory::Memcpy(Out.ClusterVertexIds.GetData(), RawClusterVertexIds, RawClusterVertexCount * sizeof(uint32));
-
-	delete[] RawClusterVertexIds;
 }
 
 static void BuildClusterBulkData(
@@ -3299,7 +3237,6 @@ static void BuildClusterBulkData(
 	Out.Header.ClusterCount		= In.ClusterCount;
 	Out.Header.PointCount		= In.PointCount;
 	Out.Header.CurveCount		= In.CurveCount;
-	Out.Header.VertexLODCount	= In.ClusterVertexIds.Num();
 	Out.Header.ClusterLODCount 	= In.ClusterLODInfos.Num();
 
 	Out.Header.CPULODScreenSize	= In.CPULODScreenSize;
@@ -3310,11 +3247,9 @@ static void BuildClusterBulkData(
 	check(Out.Header.ClusterCount		== uint32(In.ClusterInfos.Num()));
 	check(Out.Header.ClusterLODCount	== uint32(In.ClusterLODInfos.Num()));
 	check(Out.Header.CurveCount			== uint32(In.CurveToClusterIds.Num()));
-	check(Out.Header.VertexLODCount		== uint32(In.ClusterVertexIds.Num()));
 	
 	HairStrandsBuilder::CopyToBulkData<FHairClusterLODInfoFormat>(Out.Data.ClusterLODInfos, In.ClusterLODInfos);
 	HairStrandsBuilder::CopyToBulkData<FHairClusterIndexFormat>(Out.Data.CurveToClusterIds, In.CurveToClusterIds);
-	HairStrandsBuilder::CopyToBulkData<FHairClusterIndexFormat>(Out.Data.ClusterVertexIds, In.ClusterVertexIds);
 
 	// Pack point LOD data
 	// |                          32bits                               |

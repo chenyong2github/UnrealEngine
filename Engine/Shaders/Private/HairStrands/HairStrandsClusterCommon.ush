@@ -81,17 +81,11 @@ FHairClusterInfo UnpackHairClusterInfo(FPackedHairClusterInfo In)
 
 struct FPackedHairClusterLODInfo
 {
-	uint VertexOffset;
-	uint VertexCount0;
-	uint VertexCount1;
 	uint RadiusScale01;
 };
 
 struct FHairClusterLODInfo
 {
-	uint VertexOffset;
-	uint VertexCount0;
-	uint VertexCount1;
 	float RadiusScale0;
 	float RadiusScale1;
 };
@@ -99,9 +93,6 @@ struct FHairClusterLODInfo
 FHairClusterLODInfo UnpackHairClusterLODInfo(FPackedHairClusterLODInfo In)
 {
 	FHairClusterLODInfo Out;
-	Out.VertexOffset = In.VertexOffset;
-	Out.VertexCount0 = In.VertexCount0;
-	Out.VertexCount1 = In.VertexCount1;
 	Out.RadiusScale0 = f16tof32(0xFFFF & (In.RadiusScale01));
 	Out.RadiusScale1 = f16tof32(0xFFFF & (In.RadiusScale01 >> 16));
 	return Out;
@@ -111,8 +102,6 @@ FHairClusterLODInfo UnpackHairClusterLODInfo(FPackedHairClusterLODInfo In)
 
 struct FHairClusterLOD
 {
-	uint  VertexOffset;
-	uint  VertexCount;
 	float RadiusScale;
 	float LOD;
 };
@@ -192,8 +181,6 @@ FHairClusterLOD GetHairClusterLOD(
 	const float S = LOD - iLOD;
 
 	FHairClusterLOD Out;
-	Out.VertexOffset = ClusterLODInfo.VertexOffset;
-	Out.VertexCount = lerp(ClusterLODInfo.VertexCount0, ClusterLODInfo.VertexCount1, S);
 	Out.RadiusScale = lerp(ClusterLODInfo.RadiusScale0, ClusterLODInfo.RadiusScale1, S);
 	Out.LOD = LOD;
 

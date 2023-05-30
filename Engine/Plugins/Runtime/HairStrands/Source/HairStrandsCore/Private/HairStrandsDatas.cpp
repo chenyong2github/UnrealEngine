@@ -657,7 +657,6 @@ void FHairStrandsClusterCullingBulkData::Reset()
 	Header.ClusterLODCount = 0;
 	Header.PointCount = 0;
 	Header.CurveCount = 0;
-	Header.VertexLODCount = 0;
 
 	Header.LODVisibility.Empty();
 	Header.CPULODScreenSize.Empty();
@@ -665,14 +664,12 @@ void FHairStrandsClusterCullingBulkData::Reset()
 
 	Data.ClusterLODInfos.RemoveBulkData();
 	Data.CurveToClusterIds.RemoveBulkData();
-	Data.ClusterVertexIds.RemoveBulkData();
 	Data.PackedClusterInfos.RemoveBulkData();
 	Data.PointLODs.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
 	Data.ClusterLODInfos 	= FHairBulkContainer();
 	Data.CurveToClusterIds  = FHairBulkContainer();
-	Data.ClusterVertexIds 	= FHairBulkContainer();
 	Data.PackedClusterInfos = FHairBulkContainer();
 	Data.PointLODs			= FHairBulkContainer();
 }
@@ -681,8 +678,8 @@ void FHairStrandsClusterCullingBulkData::ResetLoadedSize()
 {
 	Data.ClusterLODInfos.LoadedSize 	= 0;
 	Data.CurveToClusterIds.LoadedSize 	= 0;
-	Data.ClusterVertexIds.LoadedSize 	= 0;
 	Data.PackedClusterInfos.LoadedSize	= 0;
+	Data.PointLODs.LoadedSize			= 0;
 }
 
 void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
@@ -691,7 +688,6 @@ void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* 
 	Ar << Header.ClusterLODCount;
 	Ar << Header.PointCount;
 	Ar << Header.CurveCount;
-	Ar << Header.VertexLODCount;
 	Ar << Header.LODVisibility;
 	Ar << Header.CPULODScreenSize;
 	uint32 LODInfosCount = Header.LODInfos.Num();
@@ -724,11 +720,6 @@ void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQ
 	if (Header.CurveCount)
 	{
 		Out.Add(Data.CurveToClusterIds, TEXT("_CurveToClusterIds"), 0, 0); // Load all data
-	}
-
-	if (Header.VertexLODCount)
-	{
-		Out.Add(Data.ClusterVertexIds, TEXT("_ClusterVertexIds"), 0, 0); // Load all data
 	}
 
 	if (Header.ClusterCount)

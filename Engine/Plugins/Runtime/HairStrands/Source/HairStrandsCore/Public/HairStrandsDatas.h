@@ -296,9 +296,6 @@ struct FHairClusterInfo
 	identical the GPU data layout (HairStrandsClusterCommon.ush). This uses by the GPU LOD selection. */
 struct FHairClusterLODInfo
 {
-	uint32 VertexOffset = 0;
-	uint32 VertexCount0 = 0;
-	uint32 VertexCount1 = 0;
 	FFloat16 RadiusScale0 = 0;
 	FFloat16 RadiusScale1 = 0;
 };
@@ -734,7 +731,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 	TArray<FHairClusterInfo>	ClusterInfos;
 	TArray<FHairClusterLODInfo> ClusterLODInfos;
 	TArray<uint32>				CurveToClusterIds;
-	TArray<uint32>				ClusterVertexIds;
 	TArray<FHairLODInfo>		LODInfos;
 	TArray<uint32>				PointLODs;
 
@@ -770,7 +766,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 		uint32 ClusterLODCount = 0;
 		uint32 PointCount = 0;
 		uint32 CurveCount = 0;
-		uint32 VertexLODCount = 0;
 	} Header;
 
 	struct FData
@@ -779,7 +774,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 		FHairBulkContainer	PackedClusterInfos;		// Size - ClusterCount
 		FHairBulkContainer	ClusterLODInfos;		// Size - ClusterLODCount
 		FHairBulkContainer	CurveToClusterIds;		// Size - CurveCount
-		FHairBulkContainer	ClusterVertexIds;		// Size - VertexLODCount // TODO REMOVE
 		FHairBulkContainer	PointLODs;				// Size - PointCount / HAIR_POINT_LOD_COUNT_PER_UINT
 	} Data;
 };
