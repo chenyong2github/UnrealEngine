@@ -27,6 +27,9 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- end }}
       {{- if .Values.affinity }}
       affinity: {{- include "common.tplvalues.render" (dict "value" .Values.affinity "context" $) | nindent 8 }}
       {{- else }}
@@ -90,6 +93,15 @@ spec:
           timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
           successThreshold: {{ .Values.readinessProbe.successThreshold }}
           failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+        {{- end }}
+        {{- if .Values.preStopHookDelay }}
+        lifecycle:
+          preStop:
+            exec:
+              command: 
+              # Load balancers can be slow to deregister instances, this can be used to introduce a delay to provide zero downtime
+              - "sleep"
+              - "{{ .Values.preStopHookDelay }}"
         {{- end }}
         {{- if .Values.resources }}
         resources: {{- toYaml .Values.resources | nindent 12 }}
@@ -158,6 +170,15 @@ spec:
           timeoutSeconds: {{ .Values.nginx.readinessProbe.timeoutSeconds }}
           successThreshold: {{ .Values.nginx.readinessProbe.successThreshold }}
           failureThreshold: {{ .Values.nginx.readinessProbe.failureThreshold }}
+        {{- end }}
+        {{- if .Values.preStopHookDelay }}
+        lifecycle:
+          preStop:
+            exec:
+              command: 
+              # Load balancers can be slow to deregister instances, this can be used to introduce a delay to provide zero downtime
+              - "sleep"
+              - "{{ .Values.preStopHookDelay }}"
         {{- end }}
         volumeMounts:
           - name: nginx
