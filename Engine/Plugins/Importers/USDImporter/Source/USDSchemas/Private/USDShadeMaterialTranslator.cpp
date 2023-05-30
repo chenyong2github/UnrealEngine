@@ -489,11 +489,13 @@ void FUsdShadeMaterialTranslator::PostImportMaterial(const FString& MaterialHash
 			else if (bIsOwnedByTransientPackage)
 			{
 				FString FilePath;
+#if WITH_EDITOR
 				if(UAssetImportData* TextureImportData = Texture->AssetImportData.Get())
 				{
 					FilePath = TextureImportData->GetFirstFilename();
 				}
 				else
+#endif // WITH_EDITOR
 				{
 					FilePath = Texture->GetName();
 				}
