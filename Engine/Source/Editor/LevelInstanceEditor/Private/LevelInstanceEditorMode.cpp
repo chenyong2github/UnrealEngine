@@ -48,7 +48,7 @@ void ULevelInstanceEditorMode::UpdateEngineShowFlags()
 		{
 			if(ULevelInstanceSubsystem* LevelInstanceSubsystem = LevelVC->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 			{
-				const bool bEditingLevelInstance = !!LevelInstanceSubsystem->GetEditingLevelInstance() && IsContextRestrictionCommandEnabled();
+				const bool bEditingLevelInstance = IsContextRestrictedForWorld(LevelVC->GetWorld());
 				// Make sure we update both Game/Editor showflags
 				LevelVC->EngineShowFlags.EditingLevelInstance = bEditingLevelInstance;
 				LevelVC->LastEngineShowFlags.EditingLevelInstance = bEditingLevelInstance;
@@ -80,6 +80,13 @@ void ULevelInstanceEditorMode::Exit()
 void ULevelInstanceEditorMode::CreateToolkit()
 {
 	Toolkit = MakeShared<FLevelInstanceEditorModeToolkit>();
+}
+
+void ULevelInstanceEditorMode::ModeTick(float DeltaTime)
+{
+	Super::ModeTick(DeltaTime);
+
+	UpdateEngineShowFlags();
 }
 
 bool ULevelInstanceEditorMode::IsCompatibleWith(FEditorModeID OtherModeID) const
@@ -126,38 +133,37 @@ void ULevelInstanceEditorMode::BindCommands()
 
 bool ULevelInstanceEditorMode::IsSelectionDisallowed(AActor* InActor, bool bInSelection) const
 {
-	const bool bRestrict = bContextRestriction && bInSelection;
+	UWorld* World = InActor->GetWorld();
+	const bool bRestrict = bInSelection && IsContextRestrictedForWorld(World);
 
 	if (bRestrict)
 	{
-		if (UWorld* World = InActor->GetWorld())
+		check(World);
+		if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(InActor))
 		{
-			if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(InActor))
+			if (LevelInstance->IsEditing())
 			{
-				if (LevelInstance->IsEditing())
+				return false;
+			}
+		}
+
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
+		{
+			ILevelInstanceInterface* EditingLevelInstance = LevelInstanceSubsystem->GetEditingLevelInstance();
+			ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(InActor);
+			// Allow selection on actors that are part of the currently edited Level Instance hierarchy because AActor::GetRootSelectionParent() will eventually
+			// Bubble up the selection to its parent.
+			while (LevelInstance != nullptr)
+			{
+				if (LevelInstance == EditingLevelInstance)
 				{
 					return false;
 				}
+
+				LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(CastChecked<AActor>(LevelInstance));
 			}
 
-			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
-			{
-				ILevelInstanceInterface* EditingLevelInstance = LevelInstanceSubsystem->GetEditingLevelInstance();
-				ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(InActor);
-				// Allow selection on actors that are part of the currently edited Level Instance hierarchy because AActor::GetRootSelectionParent() will eventually
-				// Bubble up the selection to its parent.
-				while (LevelInstance != nullptr)
-				{
-					if (LevelInstance == EditingLevelInstance)
-					{
-						return false;
-					}
-
-					LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(CastChecked<AActor>(LevelInstance));
-				}
-
-				return EditingLevelInstance != nullptr;
-			}
+			return EditingLevelInstance != nullptr;
 		}
 	}
 
@@ -188,6 +194,19 @@ void ULevelInstanceEditorMode::ToggleContextRestrictionCommand()
 bool ULevelInstanceEditorMode::IsContextRestrictionCommandEnabled() const
 {
 	return bContextRestriction;
+}
+
+bool ULevelInstanceEditorMode::IsContextRestrictedForWorld(UWorld* InWorld) const
+{
+	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = InWorld? InWorld->GetSubsystem<ULevelInstanceSubsystem>() : nullptr)
+	{
+		if (ILevelInstanceInterface* EditingLevelInstance = LevelInstanceSubsystem->GetEditingLevelInstance())
+		{
+			return bContextRestriction && LevelInstanceSubsystem->GetLevelInstanceLevel(EditingLevelInstance) == InWorld->GetCurrentLevel();
+		}
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

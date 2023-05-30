@@ -23,6 +23,7 @@ public:
 	virtual void Enter() override;
 	virtual void Exit() override;
 	virtual void CreateToolkit() override;
+	virtual void ModeTick(float DeltaTime) override;
 	
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override;
 
@@ -40,6 +41,7 @@ private:
 	void ExitModeCommand();
 	void ToggleContextRestrictionCommand();
 	bool IsContextRestrictionCommandEnabled() const;
+	bool IsContextRestrictedForWorld(UWorld* InWorld) const;
 
 	bool bContextRestriction;
 };

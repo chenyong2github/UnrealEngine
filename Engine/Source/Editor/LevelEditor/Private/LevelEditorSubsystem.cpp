@@ -56,6 +56,33 @@ TSharedPtr<SLevelViewport> GetLevelViewport(const FName& ViewportConfigKey)
 	return nullptr;
 }
 
+bool IsEditingLevelInstanceCurrentLevel(UWorld* InWorld)
+{
+	if (InWorld)
+	{
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = InWorld->GetSubsystem<ULevelInstanceSubsystem>())
+		{
+			if (ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetEditingLevelInstance())
+			{
+				return LevelInstanceSubsystem->GetLevelInstanceLevel(LevelInstance) == InWorld->GetCurrentLevel();
+			}
+		}
+	}
+
+	return false;
+}
+
+AActor* GetEditingLevelInstance(UWorld* InWorld)
+{
+	ULevelInstanceSubsystem* LevelInstanceSubsystem = InWorld ? InWorld->GetSubsystem<ULevelInstanceSubsystem>() : nullptr;
+	return LevelInstanceSubsystem ? Cast<AActor>(LevelInstanceSubsystem->GetEditingLevelInstance()) : nullptr;
+}
+
+bool IsActorEditorContextVisible(UWorld* InWorld)
+{
+	return InWorld && (InWorld->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1 && (!InWorld->IsPartitionedWorld() || GetEditingLevelInstance(InWorld) != nullptr));
+}
+
 }
 
 void ULevelEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -750,11 +777,16 @@ public:
 		World = (InArgs._World);
 		GEditor->GetEditorWorldContext().AddRef(World);
 		CommandList = MakeShareable(new FUICommandList);
-
-		// No option to change current level for partitioned worlds
-		if (World && World->IsPartitionedWorld())
-		{
-			ChildSlot
+				
+		ChildSlot
+		[
+			SNew(SComboButton)
+			.Cursor(EMouseCursor::Default)
+			.VAlign(VAlign_Center)
+			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+			.Visibility(this, &SCurrentLevelWidget::GetCurrentLevelButtonVisibility)
+			.OnGetMenuContent(this, &SCurrentLevelWidget::GenerateLevelMenu)
+			.ButtonContent()
 			[
 				// Current Level
 				SNew(SVerticalBox)
@@ -771,7 +803,7 @@ public:
 				.AutoHeight()
 				[
 					SNew(SHorizontalBox)
-					.Visibility_Lambda([this]() { return GetEditingLevelInstance() ? EVisibility::Visible : EVisibility::Collapsed; })
+					.Visibility_Lambda([this]() { return IsEditingLevelInstanceCurrentLevel() ? EVisibility::Visible : EVisibility::Collapsed; })
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
 					[
@@ -795,7 +827,7 @@ public:
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Text_Lambda([this]() 
+						.Text_Lambda([this]()
 						{
 							AActor* LevelInstance = GetEditingLevelInstance();
 							return LevelInstance ? FText::FromString(LevelInstance->GetActorLabel()) : FText::GetEmpty();
@@ -810,34 +842,19 @@ public:
 						.Text(LOCTEXT("FromEnd", ")"))
 					]
 				]
-			];
-		}
-		else
-		{
-			ChildSlot
-			[
-				SNew(SComboButton)
-				.Cursor(EMouseCursor::Default)
-				.VAlign(VAlign_Center)
-				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
-				.Visibility(this, &SCurrentLevelWidget::GetCurrentLevelButtonVisibility)
-				.OnGetMenuContent(this, &SCurrentLevelWidget::GenerateLevelMenu)
-				.ButtonContent()
-				[
-					SNew(STextBlock)
-					.Visibility(this, &SCurrentLevelWidget::GetCurrentLevelTextVisibility)
-					.Text(this, &SCurrentLevelWidget::GetCurrentLevelText)
-					.ShadowOffset(FVector2D(1, 1))
-				]
-			];
-		}
+			]
+		];
 	}
 
 private:
 	AActor* GetEditingLevelInstance() const
 	{
-		ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>();
-		return LevelInstanceSubsystem ? Cast<AActor>(LevelInstanceSubsystem->GetEditingLevelInstance()) : nullptr;
+		return InternalEditorLevelLibrary::GetEditingLevelInstance(GetWorld());
+	}
+
+	bool IsEditingLevelInstanceCurrentLevel() const
+	{
+		return InternalEditorLevelLibrary::IsEditingLevelInstanceCurrentLevel(GetWorld());
 	}
 
 	FText GetCurrentLevelText() const
@@ -859,7 +876,7 @@ private:
 	
 	bool IsVisible() const
 	{
-		return (GetWorld() && (GetWorld()->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1) && (!GetWorld()->IsPartitionedWorld() || (GetWorld()->GetCurrentLevel() != GetWorld()->PersistentLevel)));
+		return InternalEditorLevelLibrary::IsActorEditorContextVisible(GetWorld());
 	}
 
 	EVisibility GetCurrentLevelTextVisibility() const
@@ -897,8 +914,7 @@ private:
 
 bool ULevelEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEditorContextClientDisplayInfo& OutDiplayInfo) const
 {
-	const bool bIsVisible = InWorld && (InWorld->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1) && (!InWorld->IsPartitionedWorld() || (InWorld->GetCurrentLevel() != InWorld->PersistentLevel));
-	if (bIsVisible)
+	if (InternalEditorLevelLibrary::IsActorEditorContextVisible(InWorld))
 	{
 		OutDiplayInfo.Title = TEXT("Level");
 		OutDiplayInfo.Brush = FSlateIconFinder::FindIconBrushForClass(UWorld::StaticClass());
