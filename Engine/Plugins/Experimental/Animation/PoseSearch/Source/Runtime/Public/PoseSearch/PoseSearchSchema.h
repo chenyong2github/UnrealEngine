@@ -113,8 +113,6 @@ public:
 
 	bool IsValid () const;
 
-	float GetSamplingInterval() const { return 1.0f / SampleRate; }
-
 	TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetChannels() const { return FinalizedChannels; }
 
 	void AddChannel(UPoseSearchFeatureChannel* Channel);

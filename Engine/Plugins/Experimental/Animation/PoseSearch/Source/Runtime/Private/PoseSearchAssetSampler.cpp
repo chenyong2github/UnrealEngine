@@ -146,20 +146,6 @@ static FTransform ExtractBlendSpaceRootMotion(float StartTime, float DeltaTime, 
 	return RootMotionParams.GetRootMotionTransform();
 }
 
-static void ProcessPlayLength(const UBlendSpace* BlendSpace, const FVector& BlendParameters, float& CachedPlayLength)
-{
-	TArray<FBlendSampleData> BlendSamples;
-	int32 TriangulationIndex = 0;
-	if (BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true))
-	{
-		CachedPlayLength = BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
-	}
-	else
-	{
-		CachedPlayLength = 0.f;
-	}
-}
-
 static void ProcessRootTransform(const UBlendSpace* BlendSpace, const FVector& BlendParameters, float CachedPlayLength, const FBoneContainer& BoneContainer,
 	int32 RootTransformSamplingRate, bool bIsLoopable, TArray<FTransform>& AccumulatedRootTransform)
 {
@@ -259,14 +245,30 @@ void FAnimationAssetSampler::Init(TWeakObjectPtr<const UAnimationAsset> InAnimat
 	AnimationAsset = InAnimationAsset;
 	BlendParameters = InBlendParameters;
 	RootTransformSamplingRate = InRootTransformSamplingRate;
+	CachedPlayLength = GetPlayLength(AnimationAsset.Get(), BlendParameters);
+}
 
-	if (const UAnimationAsset* AnimAsset = AnimationAsset.Get())
+bool FAnimationAssetSampler::IsInitialized() const
+{
+	return AnimationAsset != nullptr;
+}
+
+float FAnimationAssetSampler::GetPlayLength(const UAnimationAsset* AnimAsset, const FVector& BlendParameters)
+{
+	float PlayLength = 0.f;
+	if (AnimAsset)
 	{
 		if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimAsset))
 		{
 			FMemMark Mark(FMemStack::Get());
-			ProcessPlayLength(BlendSpace, BlendParameters, CachedPlayLength);
-			
+
+			TArray<FBlendSampleData> BlendSamples;
+			int32 TriangulationIndex = 0;
+			if (BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true))
+			{
+				PlayLength = BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+			}
+
 #if !NO_LOGGING
 			const TArray<FName>* UniqueMarkerNames = const_cast<UBlendSpace*>(BlendSpace)->GetUniqueMarkerNames();
 			if (UniqueMarkerNames && !UniqueMarkerNames->IsEmpty())
@@ -277,14 +279,11 @@ void FAnimationAssetSampler::Init(TWeakObjectPtr<const UAnimationAsset> InAnimat
 		}
 		else
 		{
-			CachedPlayLength = AnimAsset->GetPlayLength();
+			PlayLength = AnimAsset->GetPlayLength();
 		}
 	}
-}
 
-bool FAnimationAssetSampler::IsInitialized() const
-{
-	return AnimationAsset != nullptr;
+	return PlayLength;
 }
 
 const UAnimationAsset* FAnimationAssetSampler::GetAsset() const

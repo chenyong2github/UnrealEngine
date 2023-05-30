@@ -42,7 +42,7 @@ static void PopulateNonSelectableIdx(FNonSelectableIdx& NonSelectableIdx, FSearc
 	const FPoseSearchIndexAsset* CurrentIndexAsset = SearchContext.GetCurrentResult().GetSearchIndexAsset();
 	if (CurrentIndexAsset && SearchContext.IsCurrentResultFromDatabase(Database) && SearchContext.GetPoseJumpThresholdTime() > 0.f)
 	{
-		const int32 PoseJumpIndexThreshold = FMath::FloorToInt(SearchContext.GetPoseJumpThresholdTime() / Database->Schema->GetSamplingInterval());
+		const int32 PoseJumpIndexThreshold = FMath::FloorToInt(SearchContext.GetPoseJumpThresholdTime() * Database->Schema->SampleRate);
 		const bool IsLooping = Database->IsSourceAssetLooping(*CurrentIndexAsset);
 
 		for (int32 i = -PoseJumpIndexThreshold; i <= -1; ++i)
@@ -55,7 +55,7 @@ static void PopulateNonSelectableIdx(FNonSelectableIdx& NonSelectableIdx, FSearc
 
 				while (PoseIdx < CurrentIndexAsset->FirstPoseIdx)
 				{
-					PoseIdx += CurrentIndexAsset->NumPoses;
+					PoseIdx += CurrentIndexAsset->GetNumPoses();
 				}
 			}
 			else if (CurrentIndexAsset->IsPoseInRange(PoseIdx))
@@ -87,9 +87,9 @@ static void PopulateNonSelectableIdx(FNonSelectableIdx& NonSelectableIdx, FSearc
 			{
 				bIsPoseInRange = true;
 
-				while (PoseIdx >= CurrentIndexAsset->FirstPoseIdx + CurrentIndexAsset->NumPoses)
+				while (PoseIdx >= CurrentIndexAsset->FirstPoseIdx + CurrentIndexAsset->GetNumPoses())
 				{
-					PoseIdx -= CurrentIndexAsset->NumPoses;
+					PoseIdx -= CurrentIndexAsset->GetNumPoses();
 				}
 			}
 			else if (CurrentIndexAsset->IsPoseInRange(PoseIdx))
@@ -455,39 +455,7 @@ const FPoseSearchIndex& UPoseSearchDatabase::GetSearchIndex() const
 int32 UPoseSearchDatabase::GetPoseIndexFromTime(float Time, const FPoseSearchIndexAsset& SearchIndexAsset) const
 {
 	const bool bIsLooping = IsSourceAssetLooping(SearchIndexAsset);
-	const bool bHasPoseIndex = SearchIndexAsset.FirstPoseIdx != INDEX_NONE && SearchIndexAsset.NumPoses > 0 && (bIsLooping || SearchIndexAsset.SamplingInterval.Contains(Time));
-	if (bHasPoseIndex)
-	{
-		int32 PoseOffset = FMath::RoundToInt(Schema->SampleRate * (Time - SearchIndexAsset.SamplingInterval.Min));
-		
-		if (PoseOffset < 0)
-		{
-			if (bIsLooping)
-			{
-				PoseOffset = (PoseOffset % SearchIndexAsset.NumPoses) + SearchIndexAsset.NumPoses;
-			}
-			else
-			{
-				PoseOffset = 0;
-			}
-		}
-		else if (PoseOffset >= SearchIndexAsset.NumPoses)
-		{
-			if (bIsLooping)
-			{
-				PoseOffset = PoseOffset % SearchIndexAsset.NumPoses;
-			}
-			else
-			{
-				PoseOffset = SearchIndexAsset.NumPoses - 1;
-			}
-		}
-
-		int32 PoseIdx = SearchIndexAsset.FirstPoseIdx + PoseOffset;
-		return PoseIdx;
-	}
-
-	return INDEX_NONE;
+	return SearchIndexAsset.GetPoseIndexFromTime(Time, bIsLooping, Schema->SampleRate);
 }
 
 bool UPoseSearchDatabase::GetPoseIndicesAndLerpValueFromTime(float Time, const FPoseSearchIndexAsset& SearchIndexAsset, int32& PrevPoseIdx, int32& PoseIdx, int32& NextPoseIdx, float& LerpValue) const
@@ -501,7 +469,7 @@ bool UPoseSearchDatabase::GetPoseIndicesAndLerpValueFromTime(float Time, const F
 		return false;
 	}
 
-	const float FloatPoseOffset = Schema->SampleRate * (Time - SearchIndexAsset.SamplingInterval.Min);
+	const float FloatPoseOffset = Schema->SampleRate * Time - SearchIndexAsset.FirstSampleIdx;
 	const int32 PoseOffset = FMath::RoundToInt(FloatPoseOffset);
 	LerpValue = FloatPoseOffset - float(PoseOffset);
 
@@ -682,23 +650,28 @@ void UPoseSearchDatabase::Serialize(FArchive& Ar)
 	}
 }
 
-float UPoseSearchDatabase::GetAssetTime(int32 PoseIdx) const
+float UPoseSearchDatabase::GetRealAssetTime(int32 PoseIdx) const
 {
 	check(Schema);
-	const float SamplingInterval = Schema->GetSamplingInterval();
+	const FPoseSearchIndexAsset& Asset = GetSearchIndex().GetAssetForPose(PoseIdx);
+	return Asset.GetTimeFromPoseIndex(PoseIdx, Schema->SampleRate);
+}
+
+float UPoseSearchDatabase::GetNormalizedAssetTime(int32 PoseIdx) const
+{
+	check(Schema);
 	const FPoseSearchIndexAsset& Asset = GetSearchIndex().GetAssetForPose(PoseIdx);
 	const bool bIsBlendSpace = AnimationAssets[Asset.SourceAssetIdx].GetPtr<FPoseSearchDatabaseBlendSpace>() != nullptr;
-	const FFloatInterval& SamplingRange = Asset.SamplingInterval;
 
 	// sequences or anim composites
-	float AssetTime = FMath::Min(SamplingRange.Min + SamplingInterval * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max);
+	float AssetTime = Asset.GetTimeFromPoseIndex(PoseIdx, Schema->SampleRate);
 
-	if (bIsBlendSpace && Asset.NumPoses > 1)
+	if (bIsBlendSpace && Asset.GetNumPoses() > 1)
 	{
-		check(SamplingInterval > UE_KINDA_SMALL_NUMBER);
 		// For BlendSpaces the AssetTime is in the range [0, 1] while the Sampling Range
-		// is in real time (seconds)
-		AssetTime = AssetTime / ((Asset.NumPoses - 1) * SamplingInterval);
+		// is in real time (seconds). We should be using but FAnimationAssetSampler::GetPlayLength(...) to normalize precisely,
+		// but Asset.GetNumPoses() - 1 is a good enough estimator
+		AssetTime = AssetTime * Schema->SampleRate / float(Asset.GetNumPoses() - 1);
 		check(AssetTime >= 0.f && AssetTime <= 1.f);
 	}
 
@@ -765,7 +738,7 @@ FPoseSearchCost UPoseSearchDatabase::SearchContinuingPose(UE::PoseSearch::FSearc
 	const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = GetAnimationAssetStruct(SearchIndexAsset).GetPtr<FPoseSearchDatabaseAnimationAssetBase>();
 	check(DatabaseAnimationAssetBase);
 	const FAnimationAssetSampler SequenceBaseSampler(DatabaseAnimationAssetBase->GetAnimationAsset(), SearchIndexAsset.BlendParameters);
-	const float SampleTime = GetAssetTime(PoseIdx);
+	const float SampleTime = GetNormalizedAssetTime(PoseIdx);
 
 	// @todo: change ExtractPoseSearchNotifyStates api to avoid NotifyStates allocation
 	TArray<UAnimNotifyState_PoseSearchBase*> NotifyStates;
@@ -925,7 +898,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	// finalizing Result properties
 	if (Result.PoseIdx != INDEX_NONE)
 	{
-		Result.AssetTime = GetAssetTime(Result.PoseIdx);
+		Result.AssetTime = GetNormalizedAssetTime(Result.PoseIdx);
 		Result.Database = this;
 	}
 
@@ -998,7 +971,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	// finalizing Result properties
 	if (Result.PoseIdx != INDEX_NONE)
 	{
-		Result.AssetTime = GetAssetTime(Result.PoseIdx);
+		Result.AssetTime = GetNormalizedAssetTime(Result.PoseIdx);
 		Result.Database = this;
 	}
 

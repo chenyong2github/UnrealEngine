@@ -41,9 +41,9 @@ public:
 	FVector GetSamplePosition(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime);
 	FVector GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseCharacterSpaceVelocities = true, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime);
 
-	int32 GetBeginSampleIdx() const { return FirstIndexedSample; }
-	int32 GetEndSampleIdx() const { return LastIndexedSample + 1; }
-	int32 GetNumIndexedPoses() const { return GetEndSampleIdx() - GetBeginSampleIdx(); }
+	int32 GetBeginSampleIdx() const;
+	int32 GetEndSampleIdx() const;
+	int32 GetNumIndexedPoses() const;
 	
 	TArrayView<float> GetPoseVector(int32 SampleIdx) const;
 	const UPoseSearchSchema* GetSchema() const;
@@ -85,9 +85,6 @@ private:
 	const UPoseSearchSchema& Schema;
 	const FAnimationAssetSampler& AssetSampler;
 	
-	int32 FirstIndexedSample = 0;
-	int32 LastIndexedSample = 0;
-
 	TArrayView<float> FeatureVectorTable;
 	TArrayView<FPoseSearchPoseMetadata> PoseMetadata;
 

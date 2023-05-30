@@ -246,7 +246,7 @@ void FDebugDrawParams::DrawFeatureVector(int32 PoseIdx)
 //////////////////////////////////////////////////////////////////////////
 // FSearchContext
 FSearchContext::FSearchContext(const FPoseSearchQueryTrajectory* InTrajectory, const IPoseHistory* InHistory, float InDesiredPermutationTimeOffset, const FPoseIndicesHistory* InPoseIndicesHistory,
-	EPoseSearchBooleanRequest InQueryMirrorRequest, const FSearchResult& InCurrentResult, float InPoseJumpThresholdTime, bool bInForceInterrupt, bool bInCanAdvance)
+	EPoseSearchBooleanRequest InQueryMirrorRequest, const FSearchResult& InCurrentResult, float InPoseJumpThresholdTime, bool bInForceInterrupt)
 : Trajectory(InTrajectory)
 , History(InHistory)
 , DesiredPermutationTimeOffset(InDesiredPermutationTimeOffset)
@@ -255,7 +255,6 @@ FSearchContext::FSearchContext(const FPoseSearchQueryTrajectory* InTrajectory, c
 , CurrentResult(InCurrentResult)
 , PoseJumpThresholdTime(InPoseJumpThresholdTime)
 , bForceInterrupt(bInForceInterrupt)
-, bCanAdvance(bInCanAdvance)
 {
 	if (CurrentResult.IsValid())
 	{

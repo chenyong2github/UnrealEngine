@@ -80,19 +80,22 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 	FPoseSearchIndexAsset() {}
 
 	FPoseSearchIndexAsset(
-		int32 InSourceAssetIdx, 
+		int32 InSourceAssetIdx,
+		int32 InFirstPoseIdx,
 		bool bInMirrored, 
 		const FFloatInterval& InSamplingInterval,
+		int32 SchemaSampleRate,
 		int32 InPermutationIdx,
 		FVector InBlendParameters = FVector::Zero())
 		: SourceAssetIdx(InSourceAssetIdx)
 		, bMirrored(bInMirrored)
-		, SamplingInterval(InSamplingInterval)
 		, PermutationIdx(InPermutationIdx)
 		, BlendParameters(InBlendParameters)
-		, FirstPoseIdx(INDEX_NONE)
-		, NumPoses(INDEX_NONE)
+		, FirstPoseIdx(InFirstPoseIdx)
+		, FirstSampleIdx(FMath::CeilToInt(InSamplingInterval.Min * SchemaSampleRate))
+		, LastSampleIdx(FMath::FloorToInt(InSamplingInterval.Max * SchemaSampleRate))
 	{
+		check(SchemaSampleRate > 0);
 	}
 
 	// Index of the source asset in search index's container (i.e. UPoseSearchDatabase)
@@ -101,9 +104,6 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 
 	UPROPERTY(meta = (NeverInHash))
 	bool bMirrored = false;
-
-	UPROPERTY(meta = (NeverInHash))
-	FFloatInterval SamplingInterval;
 
 	UPROPERTY(meta = (NeverInHash))
 	int32 PermutationIdx = INDEX_NONE;
@@ -115,10 +115,66 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 	int32 FirstPoseIdx = INDEX_NONE;
 
 	UPROPERTY(meta = (NeverInHash))
-	int32 NumPoses = INDEX_NONE;
+	int32 FirstSampleIdx = INDEX_NONE;
 
-	bool IsPoseInRange(int32 PoseIdx) const { return (PoseIdx >= FirstPoseIdx) && (PoseIdx < FirstPoseIdx + NumPoses); }
-	bool IsInitialized() const { return SourceAssetIdx != INDEX_NONE && PermutationIdx != INDEX_NONE && FirstPoseIdx != INDEX_NONE && NumPoses != INDEX_NONE; }
+	UPROPERTY(meta = (NeverInHash))
+	int32 LastSampleIdx = INDEX_NONE;
+
+	bool IsPoseInRange(int32 PoseIdx) const { return (PoseIdx >= FirstPoseIdx) && (PoseIdx < FirstPoseIdx + GetNumPoses()); }
+	bool IsInitialized() const 
+	{
+		return 
+			SourceAssetIdx != INDEX_NONE &&
+			PermutationIdx != INDEX_NONE &&
+			FirstPoseIdx != INDEX_NONE &&
+			FirstSampleIdx != INDEX_NONE &&
+			LastSampleIdx != INDEX_NONE;
+	}
+
+	int32 GetBeginSampleIdx() const { return FirstSampleIdx; }
+	int32 GetEndSampleIdx() const {	return LastSampleIdx + 1; }
+	int32 GetNumPoses() const { return GetEndSampleIdx() - GetBeginSampleIdx(); }
+
+	float GetFirstSampleTime(int32 SchemaSampleRate) const { check(SchemaSampleRate > 0); return FirstSampleIdx / float(SchemaSampleRate); }
+	float GetLastSampleTime(int32 SchemaSampleRate) const { check(SchemaSampleRate > 0); return LastSampleIdx / float(SchemaSampleRate); }
+
+	int32 GetPoseIndexFromTime(float Time, bool bIsLooping, int32 SchemaSampleRate) const
+	{
+		check(IsInitialized());
+
+		const int32 NumPoses = GetNumPoses();
+		int32 PoseOffset = FMath::RoundToInt(SchemaSampleRate * Time) - FirstSampleIdx;
+		if (bIsLooping)
+		{
+			if (PoseOffset < 0)
+			{
+				PoseOffset = (PoseOffset % NumPoses) + NumPoses;
+			}
+			else if (PoseOffset >= NumPoses)
+			{
+				PoseOffset = PoseOffset % NumPoses;
+			}
+			return FirstPoseIdx + PoseOffset;
+		}
+
+		if (PoseOffset >= 0 && PoseOffset < NumPoses)
+		{
+			return FirstPoseIdx + PoseOffset;
+		}
+
+		return INDEX_NONE;
+	}
+
+	float GetTimeFromPoseIndex(int32 PoseIdx, int32 SchemaSampleRate) const
+	{
+		check(SchemaSampleRate > 0);
+
+		const int32 PoseOffset = PoseIdx - FirstPoseIdx;
+		check(PoseOffset >= 0 && PoseOffset < GetNumPoses());
+
+		const float Time = (FirstSampleIdx + PoseOffset) / float(SchemaSampleRate);
+		return Time;
+	}
 
 	friend FArchive& operator<<(FArchive& Ar, FPoseSearchIndexAsset& IndexAsset);
 };

@@ -84,11 +84,6 @@ FAssetIndexer::FAssetIndexer(const FBoneContainer& InBoneContainer, const FPoseS
 , Schema(InSchema)
 , AssetSampler(InAssetSampler)
 {
-	check(Schema.IsValid());
-
-	FirstIndexedSample = FMath::FloorToInt(SearchIndexAsset.SamplingInterval.Min * Schema.SampleRate);
-	// @todo: parhaps we should use FMath::CeilToInt to avoid sampling over teh length of the animation
-	LastIndexedSample = FMath::Max(0, FMath::CeilToInt(SearchIndexAsset.SamplingInterval.Max * Schema.SampleRate));
 }
 
 void FAssetIndexer::AssignWorkingData(TArrayView<float> InOutFeatureVectorTable, TArrayView<FPoseSearchPoseMetadata> InOutPoseMetadata)
@@ -353,7 +348,7 @@ FTransform FAssetIndexer::CalculateComponentSpaceTransform(FAssetIndexer::Cached
 
 float FAssetIndexer::CalculateSampleTime(int32 SampleIdx) const
 {
-	return SampleIdx * Schema.GetSamplingInterval();
+	return SampleIdx / float(Schema.SampleRate);
 }
 
 FQuat FAssetIndexer::GetSampleRotation(float SampleTimeOffset, int32 SampleIdx, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, EPermutationTimeType PermutationTimeType)
@@ -460,6 +455,21 @@ FVector FAssetIndexer::GetSampleVelocity(float SampleTimeOffset, int32 SampleIdx
 		LinearVelocity = (BonePositionFuture - BonePositionPresent) / FiniteDelta;
 	}
 	return LinearVelocity;
+}
+
+int32 FAssetIndexer::GetBeginSampleIdx() const
+{
+	return SearchIndexAsset.GetBeginSampleIdx();
+}
+
+int32 FAssetIndexer::GetEndSampleIdx() const
+{
+	return SearchIndexAsset.GetEndSampleIdx();
+}
+
+int32 FAssetIndexer::GetNumIndexedPoses() const
+{
+	return SearchIndexAsset.GetNumPoses();
 }
 
 int32 FAssetIndexer::GetVectorIdx(int32 SampleIdx) const

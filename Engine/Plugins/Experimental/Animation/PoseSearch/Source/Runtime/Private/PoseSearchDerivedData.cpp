@@ -277,6 +277,7 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, const UPose
 	TArray<FFloatRange> ValidRanges;
 	TArray<FBlendSampleData> BlendSamples;
 
+	int32 TotalPoses = 0;
 	for (int32 AnimationAssetIndex = 0; AnimationAssetIndex < Database->AnimationAssets.Num(); ++AnimationAssetIndex)
 	{
 		const FInstancedStruct& DatabaseAssetStruct = Database->GetAnimationAssetStruct(AnimationAssetIndex);
@@ -289,6 +290,7 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, const UPose
 
 			const bool bAddUnmirrored = DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::UnmirroredOnly || DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::UnmirroredAndMirrored;
 			const bool bAddMirrored = DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::MirroredOnly || DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::UnmirroredAndMirrored;
+			const int32 SchemaSampleRate = Database->Schema->SampleRate;
 
 			if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
 			{
@@ -312,12 +314,22 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, const UPose
 						{
 							if (bAddUnmirrored)
 							{
-								SearchIndex.Assets.Emplace(AnimationAssetIndex, false, FFloatInterval(0.0f, PlayLength), PermutationIdx, BlendParameters);
+								const FPoseSearchIndexAsset PoseSearchIndexAsset(AnimationAssetIndex, TotalPoses, false, FFloatInterval(0.f, PlayLength), SchemaSampleRate, PermutationIdx, BlendParameters);
+								if (PoseSearchIndexAsset.GetNumPoses() > 0)
+								{
+									SearchIndex.Assets.Add(PoseSearchIndexAsset);
+									TotalPoses += PoseSearchIndexAsset.GetNumPoses();
+								}
 							}
 
 							if (bAddMirrored)
 							{
-								SearchIndex.Assets.Emplace(AnimationAssetIndex, true, FFloatInterval(0.0f, PlayLength), PermutationIdx, BlendParameters);
+								const FPoseSearchIndexAsset PoseSearchIndexAsset(AnimationAssetIndex, TotalPoses, true, FFloatInterval(0.f, PlayLength), SchemaSampleRate, PermutationIdx, BlendParameters);
+								if (PoseSearchIndexAsset.GetNumPoses() > 0)
+								{
+									SearchIndex.Assets.Add(PoseSearchIndexAsset);
+									TotalPoses += PoseSearchIndexAsset.GetNumPoses();
+								}
 							}
 						}
 					}
@@ -335,12 +347,22 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, const UPose
 					{
 						if (bAddUnmirrored)
 						{
-							SearchIndex.Assets.Emplace(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
+							const FPoseSearchIndexAsset PoseSearchIndexAsset(AnimationAssetIndex, TotalPoses, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), SchemaSampleRate, PermutationIdx);
+							if (PoseSearchIndexAsset.GetNumPoses() > 0)
+							{
+								SearchIndex.Assets.Add(PoseSearchIndexAsset);
+								TotalPoses += PoseSearchIndexAsset.GetNumPoses();
+							}
 						}
 
 						if (bAddMirrored)
 						{
-							SearchIndex.Assets.Emplace(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
+							const FPoseSearchIndexAsset PoseSearchIndexAsset(AnimationAssetIndex, TotalPoses, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), SchemaSampleRate, PermutationIdx);
+							if (PoseSearchIndexAsset.GetNumPoses() > 0)
+							{
+								SearchIndex.Assets.Add(PoseSearchIndexAsset);
+								TotalPoses += PoseSearchIndexAsset.GetNumPoses();
+							}
 						}
 					}
 				}

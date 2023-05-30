@@ -53,41 +53,6 @@ void FMotionMatchingState::AdjustAssetTime(float AssetTime)
 	CurrentSearchResult.Update(AssetTime);
 }
 
-bool FMotionMatchingState::CanAdvance(float DeltaTime) const
-{
-	if (CurrentSearchResult.IsValid())
-	{
-		ETypeAdvanceAnim AdvanceType = ETypeAdvanceAnim::ETAA_Default;
-		float SteppedTime = CurrentSearchResult.AssetTime;
-		const FPoseSearchIndexAsset* SearchIndexAsset = CurrentSearchResult.GetSearchIndexAsset(true);
-		const FInstancedStruct& DatabaseAsset = CurrentSearchResult.Database->GetAnimationAssetStruct(*SearchIndexAsset);
-		if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
-		{
-			TArray<FBlendSampleData> BlendSamples;
-			int32 TriangulationIndex = 0;
-			DatabaseBlendSpace->BlendSpace->GetSamplesFromBlendInput(SearchIndexAsset->BlendParameters, BlendSamples, TriangulationIndex, true);
-
-			const float PlayLength = DatabaseBlendSpace->BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
-
-			// Asset player time for blend spaces is normalized [0, 1] so we need to convert it back to real time before we advance it
-			SteppedTime = CurrentSearchResult.AssetTime * PlayLength;
-			AdvanceType = FAnimationRuntime::AdvanceTime(DatabaseBlendSpace->IsLooping(), DeltaTime, SteppedTime, PlayLength);
-		}
-		else if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimationAssetBase>())
-		{
-			const float AssetLength = DatabaseAnimationAssetBase->GetAnimationAsset()->GetPlayLength();
-			AdvanceType = FAnimationRuntime::AdvanceTime(DatabaseAnimationAssetBase->IsLooping(), DeltaTime, SteppedTime, AssetLength);
-		}
-
-		if (AdvanceType != ETAA_Finished)
-		{
-			return SearchIndexAsset->SamplingInterval.Contains(SteppedTime);
-		}
-	}
-
-	return false;
-}
-
 static void RequestInertialBlend(const FAnimationUpdateContext& Context, float BlendTime)
 {
 	// Use inertial blending to smooth over the transition
@@ -343,17 +308,19 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 
 	const FPoseSearchQueryTrajectory TrajectoryRootSpace = ProcessTrajectory(Trajectory, Context.AnimInstanceProxy->GetComponentTransform(), InOutMotionMatchingState.GetRootBoneDeltaYaw(), RootBoneDeltaYawBlendTime, TrajectorySpeedMultiplier);
 	FSearchContext SearchContext(&TrajectoryRootSpace, History, 0.f, &InOutMotionMatchingState.PoseIndicesHistory, QueryMirrorRequest,
-		InOutMotionMatchingState.CurrentSearchResult, PoseJumpThresholdTime, bForceInterrupt, InOutMotionMatchingState.CanAdvance(DeltaTime));
+		InOutMotionMatchingState.CurrentSearchResult, PoseJumpThresholdTime, bForceInterrupt);
+
+	const bool bMustSearch = !InOutMotionMatchingState.CurrentSearchResult.IsValid();
 
 	// If we can't advance or enough time has elapsed since the last pose jump then search
-	const bool bSearch = !SearchContext.CanAdvance() || (bShouldSearch && (InOutMotionMatchingState.ElapsedPoseSearchTime >= SearchThrottleTime));
+	const bool bSearch = bMustSearch || (bShouldSearch && (InOutMotionMatchingState.ElapsedPoseSearchTime >= SearchThrottleTime));
 	if (bSearch)
 	{
 		InOutMotionMatchingState.ElapsedPoseSearchTime = 0.f;
 
 		// Evaluate continuing pose
 		FSearchResult SearchResult;
-		if (!SearchContext.IsForceInterrupt() && SearchContext.CanAdvance() && SearchContext.GetCurrentResult().Database.IsValid())
+		if (!SearchContext.IsForceInterrupt() && SearchContext.GetCurrentResult().IsValid())
 		{
 			SearchResult.PoseCost = SearchContext.GetCurrentResult().Database->SearchContinuingPose(SearchContext);
 			SearchContext.UpdateCurrentBestCost(SearchResult.PoseCost);

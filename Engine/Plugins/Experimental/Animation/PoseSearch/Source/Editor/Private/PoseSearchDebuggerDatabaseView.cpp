@@ -161,7 +161,7 @@ static void AddUnfilteredDatabaseRow(const UPoseSearchDatabase* Database,
 	{
 		TSharedRef<FDebuggerDatabaseRowData>& Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>(SharedData));
 
-		const float Time = Database->GetAssetTime(DbPoseIdx);
+		const float Time = Database->GetNormalizedAssetTime(DbPoseIdx);
 
 		Row->PoseIdx = DbPoseIdx;
 		Row->PoseCandidateFlags = PoseCandidateFlags;

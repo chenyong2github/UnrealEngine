@@ -363,9 +363,7 @@ void UPoseSearchFeatureChannel_Phase::IndexAsset(UE::PoseSearch::FAssetIndexer& 
 	static float BoneSamplingCentralDifferencesTime = 0.2f; // seconds
 	static float SmoothingWindowTime = 0.3f; // seconds
 
-
 	const UPoseSearchSchema* Schema = Indexer.GetSchema();
-	const float FiniteDelta = Schema->GetSamplingInterval();
 
 	TArray<FVector2D> Phases;
 	TArray<float> Signal;
@@ -376,10 +374,10 @@ void UPoseSearchFeatureChannel_Phase::IndexAsset(UE::PoseSearch::FAssetIndexer& 
 	CollectBonePositions(BonePositions, Indexer, SchemaBoneIdx);
 
 	// @todo: have different way of calculating signals, for example: height of the bone transform, acceleration, etc?
-	const int32 BoneSamplingCentralDifferencesOffset = FMath::Max(FMath::CeilToInt(BoneSamplingCentralDifferencesTime / FiniteDelta), 1);
+	const int32 BoneSamplingCentralDifferencesOffset = FMath::Max(FMath::CeilToInt(BoneSamplingCentralDifferencesTime * Schema->SampleRate), 1);
 	CalculateSignal(BonePositions, Signal, BoneSamplingCentralDifferencesOffset);
 
-	const int32 SmoothingWindowOffset = FMath::Max(FMath::CeilToInt(SmoothingWindowTime / FiniteDelta), 1);
+	const int32 SmoothingWindowOffset = FMath::Max(FMath::CeilToInt(SmoothingWindowTime * Schema->SampleRate), 1);
 	SmoothSignal(Signal, SmoothedSignal, SmoothingWindowOffset);
 
 	FindLocalMinMax(SmoothedSignal, LocalMinMax);

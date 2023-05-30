@@ -47,6 +47,8 @@ struct POSESEARCH_API FAnimationAssetSampler
 
 	void Process(const FBoneContainer& BoneContainer);
 
+	static float GetPlayLength(const UAnimationAsset* AnimAsset, const FVector& BlendParameters = FVector::ZeroVector);
+
 protected:
 	TWeakObjectPtr<const UAnimationAsset> AnimationAsset;
 

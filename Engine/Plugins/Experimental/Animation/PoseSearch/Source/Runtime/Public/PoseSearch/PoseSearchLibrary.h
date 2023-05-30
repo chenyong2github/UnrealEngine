@@ -31,9 +31,6 @@ struct POSESEARCH_API FMotionMatchingState
 	// Reset the state to a default state using the current Database
 	void Reset();
 
-	// Checks if the currently playing asset can advance and stay in bounds under the provided DeltaTime.
-	bool CanAdvance(float DeltaTime) const;
-
 	// Attempts to set the internal state to match the provided asset time including updating the internal DbPoseIdx. 
 	// If the provided asset time is out of bounds for the currently playing asset then this function will reset the 
 	// state back to the default state.
