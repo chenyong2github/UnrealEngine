@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
 using UnrealBuildBase;
 
+
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -96,6 +97,7 @@ namespace UnrealBuildTool
 			GetUniqueStringRegistry().FindOrAddAlias(Alias, Original.ToString());
 			return Original;
 		}
+
 
 		/// <summary>
 		/// 
@@ -196,6 +198,7 @@ namespace UnrealBuildTool
 			throw new BuildException(String.Format("The platform name {0} is not a valid platform name. Valid names are ({1})", Name,
 				String.Join(",", GetUniqueStringRegistry().GetStringNames())));
 		}
+
 
 		/// <summary>
 		/// 
@@ -456,6 +459,7 @@ namespace UnrealBuildTool
 
 		#endregion
 
+
 		/// <summary>
 		/// Return the string representation
 		/// </summary>
@@ -510,6 +514,8 @@ namespace UnrealBuildTool
 		{
 			return GetUniqueStringRegistry().HasString(Name);
 		}
+
+
 
 		/// <summary>
 		/// this group is just to lump Win32 and Win64 into Windows directories, removing the special Windows logic in MakeListOfUnsupportedPlatforms
@@ -729,6 +735,7 @@ namespace UnrealBuildTool
 			return Name;
 		}
 
+
 		/// <summary>
 		/// 
 		/// </summary>
@@ -791,6 +798,7 @@ namespace UnrealBuildTool
 			throw new BuildException(String.Format("The Architecture name {0} is not a valid Architecture name. Valid names are ({1})", Name,
 				String.Join(",", GetUniqueStringRegistry().GetStringNames())));
 		}
+
 
 		/// <summary>
 		/// 
@@ -970,6 +978,7 @@ namespace UnrealBuildTool
 
 			return new UnrealArchitectures(ArchString, ValidationPlatform);
 		}
+
 
 		/// <summary>
 		/// The list of architecture names in this set, sorted by architecture name
@@ -1234,6 +1243,7 @@ namespace UnrealBuildTool
 
 				RulesObject.DependencyListFileNames.Add(DependencyListFile);
 			}
+
 
 			// If we're compiling a plugin, and this target is monolithic, just create the object files
 			if (Descriptor.ForeignPlugin != null && RulesObject.LinkType == TargetLinkType.Monolithic)
@@ -3067,7 +3077,7 @@ namespace UnrealBuildTool
 							!IsRedistributable(DependencyModule) && DependencyModule.Name != AppName
 						);
 
-					if (NonRedistModules.Any())
+					if (NonRedistModules.Count() != 0)
 					{
 						IEnumerable<UEBuildModule> NonRedistDeps = AllDependencies.Where((DependantModule) =>
 							DependantModule.GetDirectDependencyModules().Intersect(NonRedistModules).Any()
@@ -5321,6 +5331,7 @@ namespace UnrealBuildTool
 				throw new BuildException("Couldn't find referenced module '{0}'.", Name);
 			}
 		}
+
 
 		/// <summary>
 		/// Combines a list of paths with a base path.

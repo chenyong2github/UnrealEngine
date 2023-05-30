@@ -82,6 +82,8 @@ namespace UnrealBuildTool
 			return false;
 		}
 
+
+
 		#region Windows Specific SDK discovery
 
 		#region Cached Locations
@@ -506,14 +508,14 @@ namespace UnrealBuildTool
 		/// <returns>True if the given compiler is installed</returns>
 		public static bool HasCompiler(WindowsCompiler Compiler, UnrealArch Architecture, ILogger Logger)
 		{
-			return FindToolChainInstallations(Compiler, Logger).Where(x => (x.Architecture == Architecture)).Any();
+			return FindToolChainInstallations(Compiler, Logger).Where(x => (x.Architecture == Architecture)).Count() > 0;
 		}
 
 		public static bool HasValidCompiler(WindowsCompiler Compiler, UnrealArch Architecture, ILogger Logger)
 		{
 			// since this is static, we get the instance for it
 			MicrosoftPlatformSDK SDK = (MicrosoftPlatformSDK)GetSDKForPlatform("Win64")!;
-			return FindToolChainInstallations(Compiler, Logger).Where(x => (x.Version >= MinimumVisualCppVersion && x.Architecture == Architecture)).Any();
+			return FindToolChainInstallations(Compiler, Logger).Where(x => (x.Version >= MinimumVisualCppVersion && x.Architecture == Architecture)).Count() > 0;
 		}
 
 		/// <summary>
@@ -652,7 +654,7 @@ namespace UnrealBuildTool
 				.ThenByDescending(x => x.IsAutoSdk)
 				.ThenByDescending(x => x.Version);
 
-			if (SortedToolChains.Any())
+			if (SortedToolChains.Count() > 0)
 			{
 				IEnumerable<ToolChainInstallation> AvailableToolChains = SortedToolChains.Where(x => x.Error == null);
 				IEnumerable<ToolChainInstallation> UnavailableToolChains = SortedToolChains.Where(x => x.Error != null);
@@ -935,6 +937,7 @@ namespace UnrealBuildTool
 			}
 		}
 
+
 		/// <summary>
 		/// Finds the most appropriate redist directory for the given toolchain version
 		/// </summary>
@@ -1053,6 +1056,7 @@ namespace UnrealBuildTool
 			}
 		}
 
+
 		/// <summary>
 		/// Add an Intel OneAPI toolchain
 		/// </summary>
@@ -1148,6 +1152,7 @@ namespace UnrealBuildTool
 				return MachineType == IMAGE_FILE_MACHINE_AMD64;
 			}
 		}
+
 
 		/// <summary>
 		/// Determines if the given path is a valid Visual C++ version number

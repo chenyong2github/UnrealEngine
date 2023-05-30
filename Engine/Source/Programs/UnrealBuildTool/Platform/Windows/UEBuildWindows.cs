@@ -152,6 +152,7 @@ namespace UnrealBuildTool
 		Experimental,
 	}
 
+
 	/// <summary>
 	/// Extension methods for WindowsCompilier enum
 	/// </summary>
@@ -177,6 +178,7 @@ namespace UnrealBuildTool
 			return Compiler >= WindowsCompiler.VisualStudio2019;
 		}
 	}
+
 
 	/// <summary>
 	/// Windows-specific target settings
@@ -514,6 +516,7 @@ namespace UnrealBuildTool
 		/// Root directory containing the Windows Sdk
 		/// </summary>
 		public string? WindowsSdkDir => (Environment == null) ? null : Environment.WindowsSdkDir.FullName;
+
 
 		/// <summary>
 		/// Directory containing the NETFXSDK
@@ -927,6 +930,7 @@ namespace UnrealBuildTool
 				Target.bChainPCHs = false;
 			}
 
+
 			// E&C support.
 			if (Target.bSupportEditAndContinue || Target.bAdaptiveUnityEnablesEditAndContinue)
 			{
@@ -1148,11 +1152,14 @@ namespace UnrealBuildTool
 			return FileReference.Exists(FileReference.Combine(DiaSdkDir, "bin", "amd64", "msdia140.dll"));
 		}
 
+
+
 		[SupportedOSPlatform("windows")]
 		public static bool TryGetWindowsSdkDir(string? DesiredVersion, ILogger Logger, [NotNullWhen(true)] out VersionNumber? OutSdkVersion, [NotNullWhen(true)] out DirectoryReference? OutSdkDir)
 		{
 			return MicrosoftPlatformSDK.TryGetWindowsSdkDir(DesiredVersion, Logger, out OutSdkVersion, out OutSdkDir);
 		}
+
 
 		/// <summary>
 		/// Gets the platform name that should be used.
@@ -1282,6 +1289,7 @@ namespace UnrealBuildTool
 		{
 			return GetWindowsApplicationIcon(ProjectFile);
 		}
+
 
 		/// <summary>
 		/// Modify the rules for a newly created module, in a target that's being built for this platform.

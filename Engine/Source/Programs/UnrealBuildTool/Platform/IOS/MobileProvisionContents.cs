@@ -103,6 +103,7 @@ namespace UnrealBuildTool
 				}
 			}
 
+
 			if (UniqueIdElement == null)
 			{
 				throw new BuildException("Missing Bundle Identifier in MobileProvision");

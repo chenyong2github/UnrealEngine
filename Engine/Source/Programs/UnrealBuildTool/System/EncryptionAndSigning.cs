@@ -320,7 +320,7 @@ namespace UnrealBuildTool
 			ConfigHierarchySection CryptoSection = Ini.FindSection(SectionName);
 
 			// If we have new format crypto keys, read them in over the top of the legacy settings
-			if (CryptoSection != null && CryptoSection.KeyNames.Any())
+			if (CryptoSection != null && CryptoSection.KeyNames.Count() > 0)
 			{
 				Ini.GetBool(SectionName, "bEnablePakSigning", out bool bEnablePakSigning);
 				Settings.bEnablePakSigning = bEnablePakSigning;

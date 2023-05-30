@@ -169,6 +169,7 @@ namespace UnrealBuildTool
 			StringWriter Out = new StringWriter();
 			Out.NewLine = bUseCmdExe ? "\r\n" : "\n";
 
+
 			if (!Options.HasFlag(ClangToolChainOptions.DisableDumpSyms) || Options.HasFlag(ClangToolChainOptions.PreservePSYM))
 			{
 				// dump_syms
@@ -988,6 +989,7 @@ namespace UnrealBuildTool
 		{
 			return FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePath);
 		}
+
 
 		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{

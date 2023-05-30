@@ -20,20 +20,29 @@ namespace UnrealBuildTool
 	class ParallelExecutor : ActionExecutor
 	{
 		/// <summary>
+		/// Maximum processor count for local execution. 
+		/// </summary>
+		[XmlConfigFile]
+		[Obsolete("ParallelExecutor.MaxProcessorCount is deprecated. Please update xml to use BuildConfiguration.MaxParallelActions")]
+#pragma warning disable 0169
+		private static int MaxProcessorCount;
+#pragma warning restore 0169
+
+		/// <summary>
 		/// Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
 		/// When using the local executor (not XGE), run a single action on each CPU core. Note that you can set this to a larger value
 		/// to get slightly faster build times in many cases, but your computer's responsiveness during compiling may be much worse.
 		/// This value is ignored if the CPU does not support hyper-threading.
 		/// </summary>
 		[XmlConfigFile]
-		private static double ProcessorCountMultiplier { get; set; } = 1.0;
+		private static double ProcessorCountMultiplier = 1.0;
 
 		/// <summary>
 		/// Free memory per action in bytes, used to limit the number of parallel actions if the machine is memory starved.
 		/// Set to 0 to disable free memory checking.
 		/// </summary>
 		[XmlConfigFile]
-		private static double MemoryPerActionBytes { get; set; } = 1.5 * 1024 * 1024 * 1024;
+		private static double MemoryPerActionBytes = 1.5 * 1024 * 1024 * 1024;
 
 		/// <summary>
 		/// The priority to set for spawned processes.
@@ -41,54 +50,54 @@ namespace UnrealBuildTool
 		/// Default: BelowNormal or Normal for an Asymmetrical processor as BelowNormal can cause scheduling issues.
 		/// </summary>
 		[XmlConfigFile]
-		protected static ProcessPriorityClass ProcessPriority { get; set; } = Utils.IsAsymmetricalProcessor() ? ProcessPriorityClass.Normal : ProcessPriorityClass.BelowNormal;
+		protected static ProcessPriorityClass ProcessPriority = Utils.IsAsymmetricalProcessor() ? ProcessPriorityClass.Normal : ProcessPriorityClass.BelowNormal;
 
 		/// <summary>
 		/// When enabled, will stop compiling targets after a compile error occurs.
 		/// </summary>
 		[XmlConfigFile]
-		private static bool bStopCompilationAfterErrors { get; set; } = false;
+		private static bool bStopCompilationAfterErrors = false;
 
 		/// <summary>
 		/// Whether to show compilation times along with worst offenders or not.
 		/// </summary>
 		[XmlConfigFile]
-		private static bool bShowCompilationTimes { get; set; } = false;
+		private static bool bShowCompilationTimes = false;
 
 		/// <summary>
 		/// Whether to show compilation times for each executed action
 		/// </summary>
 		[XmlConfigFile]
-		private static bool bShowPerActionCompilationTimes { get; set; } = false;
+		private static bool bShowPerActionCompilationTimes = false;
 
 		/// <summary>
 		/// Whether to log command lines for actions being executed
 		/// </summary>
 		[XmlConfigFile]
-		private static bool bLogActionCommandLines { get; set; } = false;
+		private static bool bLogActionCommandLines = false;
 
 		/// <summary>
 		/// Add target names for each action executed
 		/// </summary>
 		[XmlConfigFile]
-		private static bool bPrintActionTargetNames { get; set; } = false;
+		private static bool bPrintActionTargetNames = false;
 
 		/// <summary>
 		/// Whether to take into account the Action's weight when determining to do more work or not.
 		/// </summary>
 		[XmlConfigFile]
-		protected static bool bUseActionWeights { get; set; } = false;
+		protected static bool bUseActionWeights = false;
 
 		/// <summary>
 		/// Whether to show CPU utilization after the work is complete.
 		/// </summary>
 		[XmlConfigFile]
-		protected static bool bShowCPUUtilization { get; set; } = false;
+		protected static bool bShowCPUUtilization = false;
 
 		/// <summary>
 		/// Collapse non-error output lines
 		/// </summary>
-		private bool bCompactOutput { get; set; } = false;
+		private bool bCompactOutput = false;
 
 		/// <summary>
 		/// How many processes that will be executed in parallel

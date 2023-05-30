@@ -2728,6 +2728,7 @@ namespace UnrealBuildTool
 			{ }
 		}
 
+
 		/// <summary>
 		/// command class for being able to create config caches over and over without needing to read the ini files
 		/// </summary>
@@ -3452,6 +3453,7 @@ namespace UnrealBuildTool
 			// Engine/Config/NotForLicensees/Base* ini
 			yield return FileReference.Combine(EngineDirectory, "Restricted", "NotForLicensees", "Config", "Base" + BaseIniName + ".ini");
 		}
+
 
 		/// <summary>
 		/// Returns a list of INI filenames for the given project

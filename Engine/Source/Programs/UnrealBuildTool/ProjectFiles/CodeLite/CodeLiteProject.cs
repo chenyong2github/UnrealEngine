@@ -331,6 +331,7 @@ namespace UnrealBuildTool
 						throw new BuildException("Unsupported platform.");
 					}
 
+
 					// Is this project a Game type?
 					XAttribute GeneralExecutableToRun = new XAttribute("Command", ExecutableToRun);
 					if (ProjectTargetType == TargetType.Game)
@@ -406,6 +407,8 @@ namespace UnrealBuildTool
 					// End of Add the working directory for the custom build commands.
 					//
 
+
+
 					//
 					// Make Build Target.
 					//
@@ -451,6 +454,7 @@ namespace UnrealBuildTool
 
 					CustomCleanCommand.Add(CleanCommandLine);
 
+
 					//
 					// End of Clean Build Target.
 					//
@@ -469,6 +473,7 @@ namespace UnrealBuildTool
 					//
 					// End of Clean Build Target.
 					//
+
 
 					//
 					// Some other fun Custom Targets.

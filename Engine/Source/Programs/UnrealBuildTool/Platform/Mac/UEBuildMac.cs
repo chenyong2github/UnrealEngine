@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+
 using System;
 using System.Collections.Generic;
 using EpicGames.Core;
@@ -357,6 +358,7 @@ namespace UnrealBuildTool
 				}
 			}
 		}
+
 
 		/// <summary>
 		/// Determines if the given name is a build product for a target.

@@ -998,6 +998,7 @@ namespace UnrealBuildTool
 				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetX8664", out CachedStoreVersionOffsetX8664);
 			}
 
+
 			if (Architecture == UnrealArch.Arm64)
 			{
 				return CachedStoreVersion + CachedStoreVersionOffsetArm64;
@@ -2514,6 +2515,7 @@ namespace UnrealBuildTool
 
 			return EngineMajorVersion + "." + EngineMinorVersion + "." + EnginePatchVersion;
 		}
+
 
 		private string GenerateManifest(AndroidToolChain ToolChain, string ProjectName, TargetType InTargetType, string EngineDirectory, bool bIsForDistribution, bool bPackageDataInsideApk, string GameBuildFilesPath, bool bHasOBBFiles, bool bDisableVerifyOBBOnStartUp, UnrealArch UnrealArch, string CookFlavor, bool bUseExternalFilesDir, string Configuration, int SDKLevelInt, bool bIsEmbedded, bool bEnableBundle)
 		{

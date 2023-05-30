@@ -135,6 +135,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		Dictionary<string, ConfigFileSection> Sections = new Dictionary<string, ConfigFileSection>(StringComparer.InvariantCultureIgnoreCase);
 
+
 		// Remap of config names/sections
 		private static Dictionary<string, string> SectionNameRemap = new();
 		private static Dictionary<string, Dictionary<string, string>> SectionKeyRemap = new();
@@ -157,6 +158,7 @@ namespace UnrealBuildTool
 			}
 			return Key;
 		}
+
 
 		/// <summary>
 		/// Static (class) constructor which is called before any ConfigFile instance is created

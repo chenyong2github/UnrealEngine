@@ -58,6 +58,7 @@ namespace UnrealBuildTool
 				return true;
 			}
 
+
 			// Make sure we have a manifest of source files used to compile the output assembly.  If it doesn't exist
 			// for some reason (not an expected case) then we'll need to recompile.
 			FileItem AssemblySourceListFile = FileItem.GetItemByFileReference(AssemblyManifestFilePath);
@@ -77,6 +78,7 @@ namespace UnrealBuildTool
 				Logger.LogDebug("Compiling {OutputAssemblyPath}: Engine Version changed from {EngineVersionManifest} to {EngineVersionCurrent}", OutputAssemblyPath, EngineVersionManifest, EngineVersionCurrent);
 				return true;
 			}
+
 
 			// Make sure the source files we're compiling are the same as the source files that were compiled
 			// for the assembly that we want to load

@@ -747,6 +747,7 @@ namespace UnrealBuildTool
 				Module.SetupPrivateLinkEnvironment(this, BinaryLinkEnvironment, BinaryDependencies, LinkEnvironmentVisitedModules, ExeDir);
 			}
 
+
 			// Allow the binary dependencies to modify the link environment.
 			foreach (UEBuildBinary BinaryDependency in BinaryDependencies)
 			{
@@ -819,6 +820,7 @@ namespace UnrealBuildTool
 
 			// Allow the platform to modify the binary link environment for platform-specific resources etc.
 			UEBuildPlatform.GetBuildPlatform(Target.Platform).ModifyBinaryLinkEnvironment(BinaryLinkEnvironment, BinaryCompileEnvironment, Target, ToolChain, Graph);
+
 
 			return BinaryLinkEnvironment;
 		}

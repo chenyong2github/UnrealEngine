@@ -109,6 +109,9 @@ namespace UnrealBuildTool
 			return Architecture == UnrealArch.Arm64 ? "a" : "x";
 		}
 
+
+
+
 		private static UnrealArchitectures? CachedActiveArchitectures = null;
 		private static FileReference? CachedActiveArchesProject = null;
 		private UnrealArchitectures GetProjectArchitectures(FileReference? ProjectFile, bool bGetAllSupported)
@@ -202,6 +205,7 @@ namespace UnrealBuildTool
 
 			Target.bCompileRecast = true;
 			Target.bCompileISPC = false;
+
 
 			// disable plugins by architecture (if we are compiling for multiple architectures, we still need to disable the plugin for all architectures)
 			if (Target.Architectures.Contains(UnrealArch.Arm64) && Target.Name != "UnrealHeaderTool")
@@ -595,6 +599,7 @@ namespace UnrealBuildTool
 			new UEDeployAndroid(Receipt.ProjectFile, false, Logger).PrepTargetForDeployment(Receipt);
 		}
 	}
+
 
 	class AndroidPlatformFactory : UEBuildPlatformFactory
 	{

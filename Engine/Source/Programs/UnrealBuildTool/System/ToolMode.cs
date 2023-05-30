@@ -62,7 +62,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Attribute used to specify options for a UBT mode.
 	/// </summary>
-	sealed class ToolModeAttribute : Attribute
+	class ToolModeAttribute : Attribute
 	{
 		/// <summary>
 		/// Name of this mode

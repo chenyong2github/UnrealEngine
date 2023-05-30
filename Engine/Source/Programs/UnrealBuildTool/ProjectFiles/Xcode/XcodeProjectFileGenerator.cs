@@ -67,6 +67,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static FileReference ContentOnlySettingsFile = FileReference.Combine(Unreal.EngineDirectory, "Build/Xcode/ContentOnlySettings.xcconfig");
 
+
 		/// <summary>
 		/// A static copy of ProjectPlatforms from the base class
 		/// </summary>
@@ -78,15 +79,19 @@ namespace UnrealBuildTool
 		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildFramework>> TargetFrameworks = new();
 		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildBundleResource>> TargetBundles = new();
 
+
+
 		/// <summary>
 		/// Should we generate only a run project (no build/index targets)
 		/// </summary>
 		public static bool bGenerateRunOnlyProject = false;
 
+
 		public XcodeProjectFileGenerator(FileReference? InOnlyGameProject, CommandLineArguments CommandLine)
 			: base(InOnlyGameProject)
 		{
 			SingleGameProject = InOnlyGameProject;
+
 
 			if (CommandLine.HasOption("-distribution"))
 			{
@@ -400,6 +405,7 @@ namespace UnrealBuildTool
 		{
 			return WriteXcodeWorkspace(Logger);
 		}
+
 
 		/// <inheritdoc/>
 		protected override void ConfigureProjectFileGeneration(string[] Arguments, ref bool IncludeAllPlatforms, ILogger Logger)

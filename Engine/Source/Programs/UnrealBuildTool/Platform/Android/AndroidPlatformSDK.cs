@@ -112,6 +112,7 @@ namespace UnrealBuildTool
 			return NDKToolchainVersion;
 		}
 
+
 		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue, string? Hint)
 		{
 			// convert r<num>[letter] to hex
@@ -136,6 +137,7 @@ namespace UnrealBuildTool
 			return false;
 		}
 
+
 		//public override SDKStatus PrintSDKInfoAndReturnValidity(LogEventType Verbosity, LogFormatOptions Options, LogEventType ErrorVerbosity, LogFormatOptions ErrorOptions)
 		//{
 		//	SDKStatus Validity = base.PrintSDKInfoAndReturnValidity(Verbosity, Options, ErrorVerbosity, ErrorOptions);
@@ -147,6 +149,7 @@ namespace UnrealBuildTool
 
 		//	return Validity;
 		//}
+
 
 		protected override bool PlatformSupportsAutoSDKs()
 		{

@@ -113,6 +113,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		}
 	}
 
+
 	class XcodeFileCollection
 	{
 		static readonly string[] ResourceExtensions =
@@ -160,6 +161,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 		const string FileTypeDefault = "file.txt";
 
+
 		class ManualFileReference
 		{
 			public string Guid = XcodeProjectFileGenerator.MakeXcodeGuid();
@@ -186,6 +188,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 		private List<ManualFileReference> ManualFiles = new();
 		private Dictionary<string, string> GuidsForGroups = new();
+
 
 		public XcodeFileCollection(XcodeProjectFile ProjectFile)
 		{
@@ -233,7 +236,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					{
 						if (!SourceToBuildFileMap.TryGetValue(SourceDir, out BuildFileOffset))
 						{
-							while (SourceDir != null && !DirectoryReference.EnumerateFiles(SourceDir, "*.Build.cs").Any())
+							while (SourceDir != null && DirectoryReference.EnumerateFiles(SourceDir, "*.Build.cs").Count() == 0)
 							{
 								SourceDir = SourceDir.ParentDirectory!;
 							}
@@ -340,6 +343,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 		}
 
+
 		public void Write(StringBuilder Content)
 		{
 			Content.WriteLine("/* Begin PBXBuildFile section */");
@@ -360,6 +364,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 			Content.WriteLine("/* End PBXBuildFile section */");
 			Content.WriteLine();
+
 
 			Content.WriteLine("/* Begin PBXFileReference section */");
 			foreach (XcodeSourceFile File in AllFiles)
@@ -396,6 +401,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			Content.WriteLine("/* Begin PBXGroup section */");
 
+
 			// write main/root group and it's children (adding the manual groups to the main group, which is the true param here0
 			WriteGroup(Content, RootGroup, bIsRootGroup: true);
 
@@ -418,6 +424,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			Content.WriteLine("/* End PBXGroup section */");
 		}
+
 
 		private void WriteGroup(StringBuilder Content, XcodeFileGroup Group, bool bIsRootGroup)
 		{
@@ -486,6 +493,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 			return null;
 		}
+
 
 		/// <summary>
 		/// Gets Xcode file type based on its extension
@@ -563,6 +571,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					{
 						return null;
 					}
+
 
 					CurrentGroup = new XcodeFileGroup(Path.GetFileName(CurrentPath), CurrentPath, GetFileType(Path.GetExtension(CurrentPath)).StartsWith("folder"));
 					if (Groups.Count == 0)

@@ -214,6 +214,7 @@ namespace UnrealBuildTool
 			return new VCProjectFile(InitFilePath, BaseDir, Settings.ProjectFileFormat, bUsePrecompiled, bMakeProjectPerTarget, BuildToolOverride, Settings);
 		}
 
+
 		/// "4.0", "12.0", or "14.0", etc...
 		public static string GetProjectFileToolVersionString(VCProjectFileFormat ProjectFileFormat)
 		{
@@ -360,6 +361,7 @@ namespace UnrealBuildTool
 			}
 		}
 
+
 		/// <summary>
 		/// Used to sort VC solution config names along with the config and platform values
 		/// </summary>
@@ -395,6 +397,7 @@ namespace UnrealBuildTool
 				this.VCSolutionConfigAndPlatformName = VCSolutionConfigAndPlatformName;
 			}
 		}
+
 
 		/// <summary>
 		/// Composes a string to use for the Visual Studio solution configuration, given a build configuration and target rules configuration name
@@ -521,6 +524,7 @@ namespace UnrealBuildTool
 			return true;
 		}
 
+
 		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			bool bSuccess = true;
@@ -609,6 +613,7 @@ namespace UnrealBuildTool
 						VCSolutionFileContent.AppendLine("EndProject");
 					}
 				}
+
 
 				// Project files
 				//List<MSBuildProjectFile> AllProjectFilesSorted = AllProjectFiles.OrderBy((ProjFile) => ProjFile.ProjectFilePath.GetFileNameWithoutExtension()).Cast<MSBuildProjectFile>().ToList();
@@ -741,6 +746,7 @@ namespace UnrealBuildTool
 						VCSolutionFileContent.AppendLine("	EndGlobalSection");
 					}
 
+
 					// Setup other solution properties
 					{
 						// HideSolutionNode sets whether or not the top-level solution entry is completely hidden in the UI.
@@ -749,6 +755,8 @@ namespace UnrealBuildTool
 						VCSolutionFileContent.AppendLine("		HideSolutionNode = FALSE");
 						VCSolutionFileContent.AppendLine("	EndGlobalSection");
 					}
+
+
 
 					// Solution directory hierarchy
 					{
@@ -797,12 +805,14 @@ namespace UnrealBuildTool
 				VCSolutionFileContent.AppendLine("EndGlobal");
 			}
 
+
 			// Save the solution file
 			if (bSuccess)
 			{
 				string SolutionFilePath = FileReference.Combine(PrimaryProjectPath, SolutionFileName).FullName;
 				bSuccess = WriteFileIfChanged(SolutionFilePath, VCSolutionFileContent.ToString(), Logger);
 			}
+
 
 			// Save a solution config file which selects the development editor configuration by default.
 			// .suo file writable only on Windows, requires ole32

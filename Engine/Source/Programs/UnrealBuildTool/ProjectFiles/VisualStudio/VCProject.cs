@@ -124,6 +124,7 @@ namespace UnrealBuildTool
 			}
 		}
 
+
 		/// <summary>
 		/// Attempts to load the project's GUID from an existing project file on disk
 		/// </summary>
@@ -198,6 +199,7 @@ namespace UnrealBuildTool
 				}
 			}
 
+
 			UEBuildPlatform? BuildPlatform;
 			if (!UEBuildPlatform.TryGetBuildPlatform(Platform, out BuildPlatform))
 			{
@@ -208,6 +210,7 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
+
 
 			List<UnrealTargetConfiguration> SupportedConfigurations = new List<UnrealTargetConfiguration>();
 			List<UnrealTargetPlatform> SupportedPlatforms = new List<UnrealTargetPlatform>();
@@ -749,6 +752,7 @@ namespace UnrealBuildTool
 			}
 		}
 
+
 		/// <summary>
 		/// If found writes a debug project file to disk
 		/// </summary>
@@ -761,6 +765,7 @@ namespace UnrealBuildTool
 			List<Tuple<ProjectFile, string>> ProjectFiles = new List<Tuple<ProjectFile, string>>();
 
 			BuildProjectConfigAndTargetCombinations(InPlatforms, InConfigurations, PlatformProjectGenerators, Logger);
+
 
 			foreach (ProjectConfigAndTargetCombination Combination in ProjectConfigAndTargetCombinations!)
 			{
@@ -1649,6 +1654,7 @@ namespace UnrealBuildTool
 				bSuccess = ProjectFileGenerator.WriteFileIfChanged(ProjectFilePath.FullName, VCProjectFileContent.ToString(), Logger);
 			}
 
+
 			// Save the filters file
 			if (bSuccess)
 			{
@@ -2090,6 +2096,7 @@ namespace UnrealBuildTool
 						VCProjectFileContent.Append(PathsStringBuilder.ToString());
 					}
 
+
 					// This is the standard UE based project NMake build line:
 					//	..\..\Build\BatchFiles\Build.bat <TARGETNAME> <PLATFORM> <CONFIGURATION>
 					//	ie ..\..\Build\BatchFiles\Build.bat BlankProgram Win64 Debug
@@ -2131,6 +2138,7 @@ namespace UnrealBuildTool
 			}
 		}
 	}
+
 
 	/// <summary>
 	/// A Visual C# project.

@@ -155,6 +155,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		//	XcodeProjectRelative = File.MakeRelativeTo(XcodeProjectFile.ParentDirectory!);
 		//}
 
+
 		// Location: Can be key of setting entry in .ini, or the full file path
 		// CopyFromFolderIfNotFound: If the file at "Location" does not exist, try to copy the same named file from this folder
 		public MetadataItem(DirectoryReference ProductDirectory, DirectoryReference XcodeProject, ConfigHierarchy Ini, string Location, MetadataMode InMode, DirectoryReference CopyFromFolderIfNotFound)
@@ -241,6 +242,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		public Dictionary<MetadataPlatform, MetadataItem> EntitlementsFiles = new();
 		public Dictionary<MetadataPlatform, MetadataItem> ShippingEntitlementsFiles = new();
 
+
 		public Metadata(DirectoryReference ProductDirectory, DirectoryReference XcodeProject, ConfigHierarchy Ini, bool bSupportsMac, bool bSupportsIOSOrTVOS, ILogger Logger)
 		{
 			DirectoryReference ResourceFolder = DirectoryReference.Combine(Unreal.EngineDirectory, "Build/Mac/Resources/");
@@ -325,6 +327,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		}
 	}
 
+
 	class UnrealData
 	{
 		public bool bIsStubProject;
@@ -402,6 +405,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		{
 			return Platform == null || XcodeProjectFileGenerator.XcodePlatforms.Contains((UnrealTargetPlatform)Platform);
 		}
+
 
 		public UnrealData(FileReference XcodeProjectFileLocation, bool bIsForDistribution, string BundleID, string AppName, bool bMakeProjectPerTarget)
 		{
@@ -743,6 +747,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		/// <param name="Content"></param>
 		public abstract void Write(StringBuilder Content);
 
+
 		/// <summary>
 		/// Walks the references of the given node to find all nodes of the given type. 
 		/// </summary>
@@ -771,6 +776,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			return Return.OfType<T>();
 		}
 
+
 		public void CreateXcconfigFile(XcodeProject Project, UnrealTargetPlatform? Platform, string Name)
 		{
 			DirectoryReference XcodeProjectDirectory = Project.UnrealData.XcodeProjectFileLocation.ParentDirectory!;
@@ -782,6 +788,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		{
 
 		}
+
 
 		/// <summary>
 		/// THhis will walk the node reference tree and call WRite on each node to add all needed nodes to the xcode poject file
@@ -811,12 +818,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		}
 	}
 
+
 	class XcodeDependency : XcodeProjectNode
 	{
 		public XcodeTarget Target;
 		public string Guid = XcodeProjectFileGenerator.MakeXcodeGuid();
 		public string ProxyGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
 		public string ProjectGuid;
+
 
 		public XcodeDependency(XcodeTarget Target, string ProjectGuid)
 		{
@@ -999,6 +1008,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 		}
 	}
+
+
 
 	class XcodeBuildConfig : XcodeProjectNode
 	{
@@ -1272,6 +1283,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				Config.CreateXcconfigFile(Project, Platform, $"{Name}_{Config.Info.DisplayName.Replace(" ", "")}");
 			}
 		}
+
 
 		/// <summary>
 		/// Write some scripts to do some fixup with how UBT links files. There is currently a difference between Mac and IOS/TVOS:
@@ -1611,6 +1623,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "ModernSigningPrefix", out SigningPrefix);
 			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "AppCategory", out AppCategory);
 
+
 			if (Platform == UnrealTargetPlatform.Mac)
 			{
 				// editor vs game metadata
@@ -1673,12 +1686,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				}
 			}
 
+
 			// get metadata for the platform set above
 			MetadataItem PlistMetadata = UnrealData.Metadata!.PlistFiles[MetadataPlatform];
 			// now pull the bundle id's out, as xcode will warn if they don't match (this has to happen after each platform set bundle id above)
 			XcodeUtils.FindPlistId(PlistMetadata, "CFBundleIdentifier", ref BundleIdentifier);
 			// if the user had a ini setting, but also set it in the template plist, the plist one should win (this is only used if we are updating a template plist)
 			XcodeUtils.FindPlistId(PlistMetadata, "LSApplicationCategoryType", ref AppCategory);
+
 
 			// include another xcconfig for versions that UBT writes out
 			Xcconfig!.AppendLine($"#include? \"{ProjectOrEngineDir}/Intermediate/Build/Versions.xcconfig\"");
@@ -1741,6 +1756,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			Xcconfig.AppendLine($"PRODUCT_BUNDLE_IDENTIFIER = {BundleIdentifier}");
 			Xcconfig.AppendLine($"{DeploymentTargetKey} = {DeploymentTarget}");
 
+
 			Xcconfig.AppendLine("");
 			Xcconfig.AppendLine("// Plist settings");
 			Xcconfig.AppendLine($"INFOPLIST_FILE = {PlistMetadata.XcodeProjectRelative}");
@@ -1775,6 +1791,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			Xcconfig.Write();
 
+
+
 			// Now for each config write out the specific settings
 			DirectoryReference? GameDir = UnrealData.UProjectFileLocation?.Directory;
 			string? GamePath = GameDir != null ? XcodeFileCollection.ConvertPath(GameDir.FullName) : null;
@@ -1804,6 +1822,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				string ExetuableSubPath = PlatformExecutablePath.MakeRelativeTo(ConfigBuildDir);
 				string ProductName = ExecutableName;
 				string ExecutableKey = $"UE_{Platform.ToString().ToUpper()}_EXECUTABLE_NAME";
+
 
 				MetadataItem EntitlementsMetadata = UnrealData.Metadata!.EntitlementsFiles[MetadataPlatform];
 
@@ -1867,6 +1886,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			CreateXcconfigFile(Project, Project.Platform, Name);
 			// hook up each buildconfig to this Xcconfig
 			BuildConfigList.BuildConfigs.ForEach(x => x.Xcconfig = Xcconfig);
+
 
 			// add all of the files to be natively compiled by this target
 			XcodeSourcesBuildPhase SourcesBuildPhase = new XcodeSourcesBuildPhase();
@@ -2032,6 +2052,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		/// </summary>
 		public Dictionary<XcodeProject, UnrealTargetPlatform?> RootProjects = new();
 
+
 		private XcodeProjectLegacy.XcodeProjectFile? LegacyProjectFile = null;
 		private bool bHasCheckedForLegacy = false;
 		public bool bHasLegacyProject => LegacyProjectFile != null;
@@ -2139,6 +2160,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 		}
 
+
 		public FileReference ProjectFilePathForPlatform(UnrealTargetPlatform? Platform)
 		{
 			return new FileReference(XcodeUtils.ProjectDirPathForPlatform(UnrealData.XcodeProjectFileLocation, Platform).FullName);
@@ -2157,6 +2179,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			{
 				return true;
 			}
+
 
 			ConditionalCreateLegacyProject();
 
@@ -2179,6 +2202,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			// @todo this for per-platform!
 			UnrealData.bIsMergingProjects = FileReference.Exists(TemplateProject);
 			UnrealData.bWriteCodeSigningSettings = !UnrealData.bIsMergingProjects;
+
 
 			// turn all UE files into internal representation
 			ProcessSourceFiles();
@@ -2209,6 +2233,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				{
 					// write metadata now so we can add them to the FileCollection
 					ConditionalWriteMetadataFiles(UnrealTargetPlatform.IOS);
+
 
 					StringBuilder Content = new StringBuilder();
 
@@ -2316,6 +2341,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			FileReference ImportFile = FileReference.Combine(PBXProjFilePath.Directory, "import.plist");
 			File.WriteAllText(ImportFile.FullName, Content.ToString());
 
+
 			// cache some standard guids from the template project
 			string ProjectGuid = Plist($"Print :rootObject");
 			string TemplateMainGroupGuid = Plist($"Print :objects:{ProjectGuid}:mainGroup");
@@ -2345,6 +2371,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			// and import it into the template
 			Plist($"Merge \"{ImportFile.FullName}\" :objects");
 
+
 			// get all the targets in the template that are application types
 			IEnumerable<string> AppTargetGuids = XcodeUtils.PlistArray($":objects:{ProjectGuid}:targets")
 				.Where(TargetGuid => (Plist($"Print :objects:{TargetGuid}:productType") == "com.apple.product-type.application"));
@@ -2363,6 +2390,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			{
 				Plist($"Add :objects:{ProjectGuid}:targets:0 string {Target.Guid}");
 			}
+
 
 			// hook up Xcconfig files to the project and the project configs
 			// @todo how to manage with conflicts already present...

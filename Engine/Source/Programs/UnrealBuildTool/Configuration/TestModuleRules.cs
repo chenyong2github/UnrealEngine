@@ -147,6 +147,7 @@ namespace UnrealBuildTool
 			}
 		}
 
+
 #pragma warning disable 8602
 #pragma warning disable 8604
 		/// <summary>
@@ -247,6 +248,7 @@ namespace UnrealBuildTool
 			}
 
 			GenPropsDoc.Save(GeneratedPropertiesScriptFile);
+
 
 			// Platform-specific configurations
 			string GeneratedPropertiesPlatformFile;
@@ -359,8 +361,9 @@ namespace UnrealBuildTool
 		{
 			IEnumerable<XElement> NextChunk = ElementUpsertAfter.ElementsAfterSelf(BuildGraphNamespace + "Property")
 				.Where(prop => prop.Attribute("Name").Value.EndsWith(FlagSuffix));
-			if (!NextChunk
-				.Where(prop => prop.Attribute("Name").Value == TestName + FlagSuffix).Any())
+			if (NextChunk
+				.Where(prop => prop.Attribute("Name").Value == TestName + FlagSuffix)
+				.Count() == 0)
 			{
 				XElement ElementInsert = new XElement(BuildGraphNamespace + "Property");
 				ElementInsert.SetAttributeValue("Name", TestName + FlagSuffix);
@@ -379,8 +382,9 @@ namespace UnrealBuildTool
 		{
 			IEnumerable<XElement> NextChunk = ElementUpsertAfter.ElementsAfterSelf(BuildGraphNamespace + "Option")
 				.Where(prop => prop.Attribute("Name").Value.StartsWith(OptionPrefix) && prop.Attribute("Name").Value.EndsWith(OptionSuffix));
-			if (!NextChunk
-				.Where(prop => prop.Attribute("Name").Value == OptionPrefix + OptionRadix + OptionSuffix).Any())
+			if (NextChunk
+				.Where(prop => prop.Attribute("Name").Value == OptionPrefix + OptionRadix + OptionSuffix)
+				.Count() == 0)
 			{
 				XElement ElementInsert = new XElement(BuildGraphNamespace + "Option");
 				ElementInsert.SetAttributeValue("Name", OptionPrefix + OptionRadix + OptionSuffix);

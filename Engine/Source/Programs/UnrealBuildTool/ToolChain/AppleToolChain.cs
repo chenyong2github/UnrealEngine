@@ -229,6 +229,8 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
+
+
 		protected void StripSymbolsWithXcode(FileReference SourceFile, FileReference TargetFile, string ToolchainDir)
 		{
 			if (SourceFile != TargetFile)
@@ -420,6 +422,7 @@ namespace UnrealBuildTool
 			}
 		}
 
+
 		/// <inheritdoc/>
 		protected override void GetCompileArguments_Debugging(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
@@ -519,6 +522,7 @@ namespace UnrealBuildTool
 			return DsymutilLocation.FullName;
 		}
 
+
 		public override ICollection<FileItem> PostBuild(ReadOnlyTargetRules Target, FileItem Executable, LinkEnvironment BinaryLinkEnvironment, IActionGraphBuilder Graph)
 		{
 			List<FileItem> OutputFiles = new List<FileItem>(base.PostBuild(Target, Executable, BinaryLinkEnvironment, Graph));
@@ -534,6 +538,7 @@ namespace UnrealBuildTool
 
 			return OutputFiles;
 		}
+
 
 		#region Stub Xcode Projects
 
@@ -721,6 +726,7 @@ namespace UnrealBuildTool
 			ApplePostBuildSyncTarget PostBuildSync = new(Target);
 			FileReference PostBuildSyncFile = FileReference.Combine(IntermediateDir!, "PostBuildSync.dat");
 			BinaryFormatterUtils.Save(PostBuildSyncFile, PostBuildSync);
+
 
 			string PostBuildSyncArguments = String.Format("-modernxcode -Input=\"{0}\" -XmlConfigCache=\"{1}\" -remoteini=\"{2}\"", PostBuildSyncFile, XmlConfig.CacheFile, UnrealBuildTool.GetRemoteIniPath());
 			Action PostBuildSyncAction = Graph.CreateRecursiveAction<ApplePostBuildSyncMode>(ActionType.CreateAppBundle, PostBuildSyncArguments);

@@ -225,6 +225,7 @@ namespace UnrealBuildTool
 							}
 							Writer.WriteEndElement();   // nodes
 
+
 							Writer.WriteStartElement("edges");
 							{
 								for (int EdgeId = 0; EdgeId < GraphEdges.Count; EdgeId++)

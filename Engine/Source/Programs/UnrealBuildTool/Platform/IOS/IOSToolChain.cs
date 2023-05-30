@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -811,6 +812,7 @@ namespace UnrealBuildTool
 					const int UNIX_WRITE = 2;
 					const int UNIX_READ = 4;
 
+
 					int MyPermissions = UNIX_READ | UNIX_WRITE;
 					int OtherPermissions = UNIX_READ;
 
@@ -1485,6 +1487,8 @@ namespace UnrealBuildTool
 			DirectoryReference.CreateDirectory(StagedExecutablePath.Directory);
 			FileReference.Copy(Target.OutputPath, StagedExecutablePath, true);
 			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
+
+
 
 			if (Target.bCreateStubIPA || Target.bBuildAsFramework)
 			{

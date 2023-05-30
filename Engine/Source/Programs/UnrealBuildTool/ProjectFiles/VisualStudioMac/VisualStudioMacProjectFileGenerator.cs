@@ -82,6 +82,7 @@ namespace UnrealBuildTool
 				return false;
 			}
 
+
 			// Write AutomationReferences file
 			if (AutomationProjectFiles.Any())
 			{

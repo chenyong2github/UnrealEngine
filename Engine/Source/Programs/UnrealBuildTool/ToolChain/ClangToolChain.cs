@@ -990,6 +990,7 @@ namespace UnrealBuildTool
 			NewCompileEnvironment.AdditionalResponseFiles.Add(FileItem);
 			NewCompileEnvironment.bHasSharedResponseFile = true;
 
+
 			return NewCompileEnvironment;
 		}
 

@@ -103,6 +103,7 @@ namespace UnrealBuildTool
 							ConfigFile Config = new ConfigFile(FileRef, ConfigLineAction.Add);
 							ConfigDataDrivenPlatformInfo NewInfo = new ConfigDataDrivenPlatformInfo();
 
+
 							// we must have the key section 
 							ConfigFileSection? Section = null;
 							if (Config.TryGetSection("DataDrivenPlatformInfo", out Section))

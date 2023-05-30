@@ -99,6 +99,9 @@ namespace UnrealBuildTool
 			return AppleExports.FinalizeAppWithXcode(GeneratedProjectFile!, Platform, TargetName, Configuration.ToString(), XcodeBuildAction, ExtraOptions + $" UE_XCODE_BUILD_MODE={BuildMode}", Logger);
 		}
 
+
+
+
 		/// <summary>
 		/// Genearate an run-only Xcode project, that is not meant to be used for anything else besides code-signing/running/etc of the native .app bundle
 		/// </summary>

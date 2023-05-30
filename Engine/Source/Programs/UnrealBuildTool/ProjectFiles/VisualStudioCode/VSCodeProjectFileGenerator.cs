@@ -476,6 +476,7 @@ namespace UnrealBuildTool
 			public List<Project> AllProjects = new List<Project>();
 		}
 
+
 		private ProjectData GatherProjectData(List<ProjectFile> InProjects, ILogger Logger)
 		{
 			ProjectData ProjectData = new ProjectData();
@@ -530,6 +531,7 @@ namespace UnrealBuildTool
 				else
 				{
 					VCSharpProjectFile VCSharpProject = (VCSharpProjectFile)Project;
+
 
 					string ProjectName = Project.ProjectFilePath.GetFileNameWithoutExtension();
 
@@ -941,6 +943,7 @@ namespace UnrealBuildTool
 									CleanParam = "-clean";
 								}
 							}
+
 
 							OutFile.BeginArray("args");
 							{
