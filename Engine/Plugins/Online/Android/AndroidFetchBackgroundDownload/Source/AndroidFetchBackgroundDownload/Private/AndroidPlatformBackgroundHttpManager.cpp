@@ -370,7 +370,11 @@ void FAndroidPlatformBackgroundHttpManager::ActivatePendingRequests()
 				UE_LOG(LogBackgroundHttpManager, Display, TEXT("Attempting to schedule UEDownloadableWorker for background work. DownloadDescriptionList FileName:%s"), *FileNameForDownloadDescList);
 				bDidSuccessfullyScheduleWork  = FUEWorkManagerNativeWrapper::ScheduleBackgroundWork(BackgroundHTTPWorkID, WorkParams);
 			}
-			
+			else
+			{
+				UE_LOG(LogBackgroundHttpManager, Error, TEXT("Failed to write DownloadDescriptionList FileName:%s"), *FileNameForDownloadDescList);
+			}
+
 			if (ensureAlwaysMsgf(bDidSuccessfullyScheduleWork, TEXT("Failure to schedule background download worker!")))
 			{
 				//We have now scheduled some BG work so make sure we know its safe to call delegates
@@ -382,6 +386,8 @@ void FAndroidPlatformBackgroundHttpManager::ActivatePendingRequests()
 			//We failed to schedule our background worker due to some error, so need to handle error case
 			else
 			{
+				UE_LOG(LogBackgroundHttpManager, Error, TEXT("Failed to schedule background download worker!"));
+
 				//Go through and mark all requests as completed so that they can all send failure completions since our worker failed to schedule
 				for (FAndroidBackgroundHttpRequestPtr& Request : RequestsToSendToJavaLayer)
 				{

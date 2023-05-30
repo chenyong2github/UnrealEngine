@@ -42,7 +42,7 @@ public class UEWorker extends Worker
 		}
 		catch(Exception exp)
 		{
-			Log.error("Exception hit during doWork for Worker:" + GetWorkID());
+			Log.error("Exception hit during doWork for Worker:" + GetWorkID() + " : " + exp);
 
 			//Only want to fail on exception if we haven't already recieved a result from UE4.
 			//Want to honor the UE4 result even if we hit an exception after it finished since it represents expected behavior

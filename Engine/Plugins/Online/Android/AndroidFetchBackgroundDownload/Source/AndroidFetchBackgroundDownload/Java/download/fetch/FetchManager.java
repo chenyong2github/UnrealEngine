@@ -199,6 +199,13 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 			FetchEnqueueResultListener.FetchEnqueueErrorCallback ErrorCallback = new FetchEnqueueResultListener.FetchEnqueueErrorCallback(this, Description.RequestID);
 		
 			Request FetchRequest = BuildFetchRequest(Description);
+			if (FetchRequest == null)
+			{
+				Log.error("Invalid FetchRequest generated for " + Description.RequestID +" . Ending request with error as this shouldn't happen.");
+				CompleteDownload(Description, ECompleteReason.Error, true);
+				return;
+			}
+
 			Description.CachedFetchID = FetchRequest.getId();
 
 			//Needed for callbacks
@@ -334,9 +341,17 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 	private Request BuildFetchRequest(DownloadDescription Description)
 	{
 		String URL = GetNextURL(Description);
+		String TempDownloadLoc = GetTempDownloadDestination(Description);
+
+		//Can not build a valid FetchRequest with a null URL (will crash when trying to enqueue)
+		if ((URL == null) || (TempDownloadLoc == null))
+		{
+			Log.error("URL or TempDownloadLoction to build Uri from are null! Can not create a valid FetchRequest! RequestID:" + Description.RequestID);
+			return null;
+		}
 
 		//Want to download the file to the DestinationLocation with the TempFileExtension appended. This gets removed when the file is finished
-		Uri DownloadUri = Uri.parse(GetTempDownloadDestination(Description));
+		Uri DownloadUri = Uri.parse(TempDownloadLoc);
 
 		Request FetchRequest = new Request(URL, DownloadUri);
 		FetchRequest.setPriority(GetFetchPriority(Description));
@@ -395,6 +410,7 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 	{
 		if (IsOutOfRetries(Description))
 		{
+			Log.error("Download calling GetNextURL even though it is out of retries! Shouldn't happen!");
 			return null;
 		}
 		
@@ -484,6 +500,7 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 				if (FetchListener != null)
 				{
 					Log.error("Unexpected FetchListener still active during InitFetch creation!");
+					FetchInstance.removeListener(FetchListener);
 					FetchListener = null;
 				}
 
@@ -759,7 +776,18 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 	@Override
 	public void OnFetchEnqueueErrorCallback(@NonNull String RequestID, @NonNull Error EnqueueError)
 	{
-		Log.error("Error Enqueing Request! " + RequestID + "Error: " + EnqueueError);
+		Log.error("Error Enqueing Request! " + RequestID + " Error: " + EnqueueError);
+		
+		//If no real error supplied, lets check for fetch having already enqueued this in a separate listener
+		if (IsFetchInstanceValid() && IsErrorPossiblyIndicatingPreviouslyQueued(EnqueueError))
+		{
+			Log.error("Enqueue Error " + EnqueueError + " could be because of a previous enqueue already succeeding. Checking if Request is already enqueued before erroring. " + RequestID);
+						
+			CheckForQueuedDownload CheckForQueueFunc = new CheckForQueuedDownload(this, RequestID);
+			FetchInstance.getDownloadsByTag(RequestID,CheckForQueueFunc);
+		
+			return;
+		}
 
 		DownloadDescription MatchingDescription = RequestedDownloads.get(RequestID);
 		if (null == MatchingDescription)
@@ -771,6 +799,80 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 		MatchingDescription.ProgressListener.OnDownloadEnqueued(RequestID, false);
 	}
 	
+	public void HandleEnqueueCheckCallback(String RequestID, @Nullable Download FetchDownload)
+	{
+		boolean bIsAlreadyEnqueued = false;
+
+		//No existing download, so it wasn't enqueued previously
+		if (FetchDownload == null) 
+		{
+			bIsAlreadyEnqueued = false;
+		}
+		//It was already queued (or further) and we can just complete with an enqueue success and move on
+		else if ((FetchDownload.getStatus() == Status.valueOf("QUEUED"))
+				|| (FetchDownload.getStatus() == Status.valueOf("DOWNLOADING"))
+				|| (FetchDownload.getStatus() == Status.valueOf("COMPLETED")))
+		{
+			bIsAlreadyEnqueued = true;
+		}
+		//download exists but it's in some other state that shouldn't count as previously enqeued (such as failed, cancelled, etc)
+		else
+		{
+			bIsAlreadyEnqueued = false;
+		}
+
+		
+		DownloadDescription MatchingDescription = RequestedDownloads.get(RequestID);
+		
+		//If we weren't already enqueued or this request does't map to an existing download we should remove it from the fetch instance
+		//to try and allow any future retries to complete successfully
+		if (IsFetchInstanceValid() 
+			&& (FetchDownload != null) 
+			&& (!bIsAlreadyEnqueued || (MatchingDescription == null)))
+		{
+			FetchInstance.delete(FetchDownload.getId());
+			FetchInstance.remove(FetchDownload.getId());
+		}
+				
+		if (null == MatchingDescription)
+		{
+			Log.debug("No DownloadDescription matches " + RequestID + " can not send enqueue callback with result " + bIsAlreadyEnqueued);
+			return;
+		}
+		
+		//Update our cached fetch ID with the found one
+		if (FetchDownload != null)
+		{
+			MatchingDescription.CachedFetchID = FetchDownload.getId();
+		}
+
+		MatchingDescription.ProgressListener.OnDownloadEnqueued(RequestID, bIsAlreadyEnqueued);
+	}
+
+	public boolean IsErrorPossiblyIndicatingPreviouslyQueued(@NonNull Error EnqueueError)
+	{
+		//Unfortunately I have seen the UNKNOWN error returned for cases where the request is already successfully Enqueued
+		//even though we have EnqueueAction set to UPDATE_ACCORDINGLY. I'm checking all these cases to cover our bases since
+		//they all seem like they could be returned if a previous enqueue already enqueued the request
+		Error ErrorsThatCouldBePreviousEnqueueErrors[] = {
+			Error.UNKNOWN,
+			Error.REQUEST_ALREADY_EXIST, 
+			Error.REQUEST_WITH_ID_ALREADY_EXIST, 
+			Error.REQUEST_WITH_FILE_PATH_ALREADY_EXIST, 
+			Error.FAILED_TO_UPDATE_REQUEST
+		};
+		
+		for (int ErrorIndex = 0; ErrorIndex < ErrorsThatCouldBePreviousEnqueueErrors.length; ++ErrorIndex)
+		{
+			if (EnqueueError == ErrorsThatCouldBePreviousEnqueueErrors[ErrorIndex])
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	//if UEDownloadableWorker is calling into it, the only thing it should need is the RequestID
 	public void RetryDownload(String RequestID)
 	{
@@ -836,6 +938,40 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 		{
 			QueueNewDownloadDescription(DownloadDesc, true);
 		}
+	}
+
+	private class CheckForQueuedDownload implements Func<List<Download>>
+	{
+		public CheckForQueuedDownload (FetchManager Owner, String CachedRequestID)
+		{
+			this.Owner = Owner;
+			this.CachedRequestID = CachedRequestID;
+		}
+
+		@Override
+		public void call(List<Download> MatchingDownloads)
+		{
+			//Callback for first found download
+			if ((MatchingDownloads != null) && (MatchingDownloads.size() > 0))
+			{
+				Owner.HandleEnqueueCheckCallback(CachedRequestID, MatchingDownloads.get(0));
+			}
+			//remove and delete any other downloads that might have been found after the first
+			for (int DownloadIndex = 1; DownloadIndex < MatchingDownloads.size(); ++DownloadIndex)
+			{
+				if (!IsFetchInstanceValid())
+				{
+					return;
+				}
+					
+				Download FoundDownload = MatchingDownloads.get(DownloadIndex);
+				FetchInstance.remove(FoundDownload.getId());
+				FetchInstance.delete(FoundDownload.getId());
+			}
+		}
+
+		private FetchManager Owner;
+		private String CachedRequestID = null;
 	}
 
 	private class RetryDownloadFunc implements Func2<Download>
@@ -964,6 +1100,13 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 			Log.verbose("Call to CompleteDownload taking no action as complete reason was intentional! RequestID:" + DownloadDesc.RequestID + " CompleteReason:" + CompleteReason);
 			return;
 		}
+
+		//Since this download was completed, lets reset it's CurrentRetryCount, this way if it's requeued
+		//by any future work before this DownloadDescription is removed, it will correctly retry the download
+		//with the correct amount of retries
+		//NOTE: This is happening after the IsCompleteReasonIntentional check because we don't want worker requeues or other intentional download removal/delete/cancels
+		//to clear out the CurrentRetryCount as we didn't actually finish this download yet and need to keep the retry state for when it is restarted.
+		DownloadDesc.CurrentRetryCount = 0;
 
 		//Test if we were successful, and if so lets try and move our successful download to the non-temp location
 		if (CompleteReason == FetchRequestProgressListener.ECompleteReason.Success)
@@ -1116,7 +1259,7 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 	}
 	private volatile Fetch FetchInstance = null;
 
-	private FetchRequestProgressListener FetchListener = null;
+	private volatile FetchRequestProgressListener FetchListener = null;
 	
 	private volatile HashMap<String, DownloadDescription> RequestedDownloads = new HashMap<String, DownloadDescription>();
 	private volatile HashMap<String, DownloadDescription> CompletedDownloads = new HashMap<String, DownloadDescription>();
