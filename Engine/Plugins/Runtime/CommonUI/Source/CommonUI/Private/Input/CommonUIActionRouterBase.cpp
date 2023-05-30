@@ -34,15 +34,6 @@ static const FAutoConsoleVariableRef CVarAlwaysShowCursor(
 	bAlwaysShowCursor,
 	TEXT(""));
 
-bool bRollbackResetInputConfigOnDormancy = false;
-static const FAutoConsoleVariableRef CVarRollbackResetInputConfigOnDormancy(
-	TEXT("CommonUI.RollbackResetInputConfigOnDormancy"),
-	bRollbackResetInputConfigOnDormancy,
-	TEXT("Old Code : This is to revert back a change to fix FORT-590348. On return to the Frontend from the game, the non - primary splitscreen player's"
-		"root layout would become dormant before input mode could change to Menu. Also, when dormant we would automatically reset the mode to Game."
-		"The fix prevents dormant changes to input mode and resets input mode to default when layout is made dormant."
-		"Set to true to disable the fix. FORT-605617 is the task to remove this rollback if all is good."));
-
 bool bAutoFlushPressedKeys = true;
 static const FAutoConsoleVariableRef CVarAutoFlushInput(
 	TEXT("CommonUI.AutoFlushPressedKeys"),
@@ -1182,11 +1173,8 @@ void UCommonUIActionRouterBase::SetActiveRoot(FActivatableTreeRootPtr NewActiveR
 		bForceResetActiveRoot = false;
 		ActiveRootNode.Reset();
 
-		if (!bRollbackResetInputConfigOnDormancy)
-		{
-			// Reset the input config when dormant so we don't get stuck in a non-default input mode when layout is dormant
-			SetActiveUIInputConfig(FUIInputConfig(ECommonInputMode::All, EMouseCaptureMode::NoCapture));
-		}
+		// Reset the input config when dormant so we don't get stuck in a non-default input mode when layout is dormant
+		SetActiveUIInputConfig(FUIInputConfig(ECommonInputMode::All, EMouseCaptureMode::NoCapture));
 	}
 	else
 	{
@@ -1393,13 +1381,10 @@ void UCommonUIActionRouterBase::SetActiveUIInputConfig(const FUIInputConfig& New
 
 void UCommonUIActionRouterBase::RefreshActionDomainLeafNodeConfig()
 {
-	if (!bRollbackResetInputConfigOnDormancy)
+	// We don't want to refresh if the activatable tree is not enabled as we don't want input mode changes when dormant
+	if (!bIsActivatableTreeEnabled)
 	{
-		// We don't want to refresh if the activatable tree is not enabled as we don't want input mode changes when dormant
-		if (!bIsActivatableTreeEnabled)
-		{
-			return;
-		}
+		return;
 	}
 
 	if (UCommonInputSubsystem* CommonInputSubsystem = GetLocalPlayer() ? GetLocalPlayer()->GetSubsystem<UCommonInputSubsystem>() : nullptr)
