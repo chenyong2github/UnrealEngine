@@ -515,6 +515,20 @@ void UUnrealEdEngine::SelectActor(AActor* Actor, bool bInSelected, bool bNotify,
 			? SelectionSet->SelectElement(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor), SelectionOptions)
 			: SelectionSet->DeselectElement(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor), SelectionOptions);
 
+		// Clear all active selected elements if the selection is disabled by locking the level
+		// FLevelUtils::IsLevelLocked(SelectionLevel) is 'false' when the user just locked the level, 
+		// so it was previously 'false' and the user is trying to make it 'true' now.
+		// 
+		// StreamingLevel is used to handle the case when a sub-level is locked but not the main level
+		// if we don't check "StreamingLevel == NULL: when a user locks a sub-level, the user's current selections will be cleared.
+		ULevel* SelectionLevel = Actor->GetLevel();
+		ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel( SelectionLevel );
+
+		if (StreamingLevel == NULL && !FLevelUtils::IsLevelLocked(SelectionLevel))
+		{
+			SelectionSet->ClearSelection(FTypedElementSelectionOptions());
+		}
+
 		if (bSelectionChanged)
 		{
 			if (bNotify)

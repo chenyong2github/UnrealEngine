@@ -7,12 +7,25 @@
 #include "Elements/Framework/TypedElementList.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 
+#include "LevelUtils.h"
+#include "EditorModeManager.h"
+#include "Toolkits/IToolkitHost.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogSMInstanceLevelEditorSelection, Log, All);
 
 bool FSMInstanceElementLevelEditorSelectionCustomization::CanSelectElement(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandleChecked(InElementSelectionHandle);
 	if (!SMInstance)
+	{
+		return false;
+	}
+
+	AActor* Owner = SMInstance.GetISMComponent()->GetOwner();
+	AActor* SelectionRoot = Owner->GetRootSelectionParent();
+	ULevel* SelectionLevel = (SelectionRoot != nullptr) ? SelectionRoot->GetLevel() : Owner->GetLevel();
+
+	if (!Owner->IsTemplate() && FLevelUtils::IsLevelLocked(SelectionLevel))
 	{
 		return false;
 	}
@@ -27,6 +40,16 @@ bool FSMInstanceElementLevelEditorSelectionCustomization::CanDeselectElement(con
 	if (!SMInstance)
 	{
 		return false;
+	}
+
+	AActor* Owner = SMInstance.GetISMComponent()->GetOwner();
+	AActor* SelectionRoot = Owner->GetRootSelectionParent();
+	ULevel* SelectionLevel = (SelectionRoot != nullptr) ? SelectionRoot->GetLevel() : Owner->GetLevel();
+
+	if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
+	{
+		// Allow active modes to determine whether the deselection is allowed
+		return ToolkitHostPtr->GetEditorModeManager().IsSelectionAllowed(Owner, /*bInSelected*/false);
 	}
 
 	// Bail if global selection is locked
