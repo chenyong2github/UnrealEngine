@@ -90,63 +90,61 @@ void SAssetTableTreeView::Tick(const FGeometry& AllottedGeometry, const double I
 
 void SAssetTableTreeView::RebuildTree(bool bResync)
 {
+	if (!bResync)
+	{
+		// There are no incremental updates.
+		return;
+	}
+
 	UE::Insights::FStopwatch Stopwatch;
 	Stopwatch.Start();
 
 	UE::Insights::FStopwatch SyncStopwatch;
 	SyncStopwatch.Start();
 
-	if (bResync)
-	{
-		TableTreeNodes.Empty();
-	}
+	CancelCurrentAsyncOp();
 
-	const int32 PreviousNodeCount = TableTreeNodes.Num();
+	const int32 PreviousNodeCount = TableRowNodes.Num();
+	TableRowNodes.Empty();
 
 	TSharedPtr<FAssetTable> AssetTable = GetAssetTable();
-	const TArray<FAssetTableRow>& Assets = AssetTable->GetAssets();
-	const int32 VisibleAssetCount = AssetTable->GetVisibleAssetCount();
+	const int32 VisibleAssetCount = AssetTable.IsValid() ? AssetTable->GetVisibleAssetCount() : 0;
 
-	if (VisibleAssetCount != PreviousNodeCount)
+	if (VisibleAssetCount > 0)
 	{
-		UE_LOG(LogInsights, Log, TEXT("[AssetTree] Creating nodes (%d nodes --> %d assets)..."), PreviousNodeCount, VisibleAssetCount);
+		UE_LOG(LogInsights, Log, TEXT("[AssetTree] Creating %d asset nodes (previously: %d nodes)..."), VisibleAssetCount, PreviousNodeCount);
 
-		if (VisibleAssetCount < PreviousNodeCount)
-		{
-			TableTreeNodes.Empty();
-		}
-		TableTreeNodes.Reserve(VisibleAssetCount);
+		TableRowNodes.Reserve(VisibleAssetCount);
 
-		//const FName BaseNodeName(TEXT("asset"));
-		for (int32 AssetIndex = TableTreeNodes.Num(); AssetIndex < VisibleAssetCount; ++AssetIndex)
+		ensure(TableRowNodes.Num() == 0);
+		for (int32 AssetIndex = 0; AssetIndex < VisibleAssetCount; ++AssetIndex)
 		{
 			const FAssetTableRow* Asset = AssetTable->GetAsset(AssetIndex);
 
-			//FName NodeName(BaseNodeName, AssetIndex + 1);
 			FName NodeName(Asset->GetName());
 			FAssetTreeNodePtr NodePtr = MakeShared<FAssetTreeNode>(NodeName, AssetTable, AssetIndex);
-			TableTreeNodes.Add(NodePtr);
+			TableRowNodes.Add(NodePtr);
 		}
-		ensure(TableTreeNodes.Num() == VisibleAssetCount);
+		ensure(TableRowNodes.Num() == VisibleAssetCount);
+	}
+	else
+	{
+		UE_LOG(LogInsights, Log, TEXT("[AssetTree] Resetting tree (previously: %d nodes)..."), PreviousNodeCount);
 	}
 
 	SyncStopwatch.Stop();
 
-	if (bResync || TableTreeNodes.Num() != PreviousNodeCount)
-	{
-		UE_LOG(LogInsights, Log, TEXT("[AssetTree] Update tree..."));
-		UpdateTree();
-		TreeView->RebuildList();
-		TreeView->ClearSelection();
-		SelectedIndices.Empty();
-		SelectedAssetNode.Reset();
-	}
+	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Update tree..."));
+	UpdateTree();
+	TreeView->RebuildList();
+	TreeView->ClearSelection();
+	TreeView_OnSelectionChanged(nullptr, ESelectInfo::Type::Direct);
 
 	Stopwatch.Stop();
 	const double TotalTime = Stopwatch.GetAccumulatedTime();
 	const double SyncTime = SyncStopwatch.GetAccumulatedTime();
-	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d nodes (%d added)"),
-		TotalTime, SyncTime, TotalTime - SyncTime, TableTreeNodes.Num(), TableTreeNodes.Num() - PreviousNodeCount);
+	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d asset nodes"),
+		TotalTime, SyncTime, TotalTime - SyncTime, TableRowNodes.Num());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -558,19 +556,6 @@ void SAssetTableTreeView::InternalCreateGroupings()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool SAssetTableTreeView::ApplyCustomAdvancedFilters(const UE::Insights::FTableTreeNodePtr& NodePtr)
-{
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SAssetTableTreeView::AddCustomAdvancedFilters()
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void SAssetTableTreeView::ExportDependencyData() const
 {
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
@@ -666,6 +651,8 @@ void SAssetTableTreeView::ExportDependencyData() const
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TArray<FAssetData> SAssetTableTreeView::GetAssetDataForSelection() const
 {
 	TArray<FAssetData> Assets;
@@ -689,6 +676,8 @@ TArray<FAssetData> SAssetTableTreeView::GetAssetDataForSelection() const
 
 	return Assets;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SAssetTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 {
@@ -839,41 +828,46 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 
 	for (const UE::Insights::FTableTreeNodePtr& Node : SelectedNodes)
 	{
-		if (Node->Is<FAssetTreeNode>() && !Node->IsGroup())
+		if (Node->Is<FAssetTreeNode>() && Node->As<FAssetTreeNode>().IsValidAsset())
 		{
 			NewSelectedAssetNode = StaticCastSharedPtr<FAssetTreeNode>(Node);
 			NewlySelectedAssetRowIndex = NewSelectedAssetNode->GetRowIndex();
 			SelectionSetIndices.Add(NewlySelectedAssetRowIndex);
 			++NumSelectedAssets;
 		}
-		else if (Node->Is<UE::Insights::FCustomTableTreeNode>() && Node->IsGroup())
-		{
-			int32 RowIndex = Node->GetRowIndex();
-			if (RowIndex != UE::Insights::FTableRowId::InvalidRowIndex)
-			{
-				SelectionSetIndices.Add(RowIndex);
-				NewlySelectedAssetRowIndex = RowIndex;
-				++NumSelectedAssets;
-			}
-		}
 	}
 
+	const int32 FilteredAssetCount = FilteredNodesPtr->Num();
 	const int32 VisibleAssetCount = GetAssetTable()->GetVisibleAssetCount();
+
 	if (NumSelectedAssets == 0)
 	{
-		FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt0", "{0} assets"), FText::AsNumber(VisibleAssetCount));
+		if (FilteredAssetCount != VisibleAssetCount)
+		{
+			FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt_NoSelected_Filtered", "{0} / {1} assets"), FText::AsNumber(FilteredAssetCount), FText::AsNumber(VisibleAssetCount));
+		}
+		else
+		{
+			FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt_NoSelected_NoFiltered", "{0} assets"), FText::AsNumber(VisibleAssetCount));
+		}
 		FooterCenterText1 = FText();
 		FooterCenterText2 = FText();
 		FooterRightText1 = FText();
 	}
 	else if (NumSelectedAssets == 1)
 	{
-		FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt1", "{0} assets (1 selected)"), FText::AsNumber(VisibleAssetCount));
-
+		if (FilteredAssetCount != VisibleAssetCount)
+		{
+			FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt_1Selected_Filtered", "{0}/{1} assets (1 selected)"), FText::AsNumber(FilteredAssetCount), FText::AsNumber(VisibleAssetCount));
+		}
+		else
+		{
+			FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt_1Selected_NoFiltered", "{0} assets (1 selected)"), FText::AsNumber(VisibleAssetCount));
+		}
 		const FAssetTableRow& AssetTableRow = GetAssetTable()->GetAssetChecked(NewlySelectedAssetRowIndex);
 		FooterCenterText1 = FText::FromString(AssetTableRow.GetPath());
 		FooterCenterText2 = FText::FromString(AssetTableRow.GetName());
-		FooterRightText1 = FText::Format(LOCTEXT("FooterRightFmt3", "Self: {0} Unique: {1} Shared: {2} External: {3}"),
+		FooterRightText1 = FText::Format(LOCTEXT("FooterRightFmt", "Self: {0}    Unique: {1}    Shared: {2}    External: {3}"),
 			FText::AsMemory(AssetTableRow.GetStagedCompressedSize()),
 			FText::AsMemory(AssetTableRow.GetOrComputeTotalSizeUniqueDependencies(*GetAssetTable(), NewlySelectedAssetRowIndex)),
 			FText::AsMemory(AssetTableRow.GetOrComputeTotalSizeSharedDependencies(*GetAssetTable(), NewlySelectedAssetRowIndex)),
@@ -881,7 +875,14 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 	}
 	else
 	{
-		FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt2", "{0} assets ({1} selected)"), FText::AsNumber(VisibleAssetCount), FText::AsNumber(NumSelectedAssets));
+		if (FilteredAssetCount != VisibleAssetCount)
+		{
+			FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt_ManySelected_Filtered", "{0} / {1} assets ({2} selected)"), FText::AsNumber(FilteredAssetCount), FText::AsNumber(VisibleAssetCount), FText::AsNumber(NumSelectedAssets));
+		}
+		else
+		{
+			FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt_ManySelected_NoFiltered", "{0} assets ({1} selected)"), FText::AsNumber(VisibleAssetCount), FText::AsNumber(NumSelectedAssets));
+		}
 		FooterCenterText1 = FText();
 		FooterCenterText2 = FText();
 
@@ -893,7 +894,7 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 
 		int64 TotalExternalDependencySize = FAssetTableRow::ComputeTotalSizeExternalDependencies(*GetAssetTable(), SelectionSetIndices);
 		FAssetTableDependencySizes Sizes = FAssetTableRow::ComputeDependencySizes(*GetAssetTable(), SelectionSetIndices, nullptr, nullptr);
-		FooterRightText1 = FText::Format(LOCTEXT("FooterRightFmt3", "Self: {0} Unique: {1} Shared: {2} External: {3}"),
+		FooterRightText1 = FText::Format(LOCTEXT("FooterRightFmt", "Self: {0}    Unique: {1}    Shared: {2}    External: {3}"),
 			FText::AsMemory(TotalSelfSize),
 			FText::AsMemory(Sizes.UniqueDependenciesSize),
 			FText::AsMemory(Sizes.SharedDependenciesSize),

@@ -820,7 +820,6 @@ void SAssetAuditBrowser::TreeView_OnSelectionChanged(const TArray<TSharedPtr<UE:
 	TSharedPtr<FAssetTreeNode> SelectedAssetNode = AssetTableTreeView->GetSingleSelectedAssetNode();
 	if (SelectedAssetNode.IsValid())
 	{
-		check(!SelectedAssetNode->IsGroup());
 		check(SelectedAssetNode->IsValidAsset());
 		const FAssetTableRow& AssetTableRow = SelectedAssetNode->GetAssetChecked();
 		//...

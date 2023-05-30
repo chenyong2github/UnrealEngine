@@ -84,9 +84,6 @@ protected:
 	virtual void TreeView_OnSelectionChanged(UE::Insights::FTableTreeNodePtr SelectedItem, ESelectInfo::Type SelectInfo) override;
 
 private:
-	bool virtual ApplyCustomAdvancedFilters(const UE::Insights::FTableTreeNodePtr& NodePtr) override;
-	virtual void AddCustomAdvancedFilters() override;
-
 	void InitAvailableViewPresets();
 
 	void ExportDependencyData() const;

@@ -15,6 +15,10 @@ namespace UE
 namespace Insights
 {
 
+class FFilter;
+class FFilterGroupOperator;
+class IFilterOperator;
+
 /** Widget that represents a table row in the Filter's tree control. Generates widgets for each column on demand. */
 class SFilterConfiguratorRow : public SMultiColumnTableRow<FFilterConfiguratorNodePtr>
 {
@@ -32,27 +36,27 @@ public:
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& InColumnName) override;
 
 private:
-	const TArray<TSharedPtr<struct FFilter>>* GetAvailableFilters();
+	const TArray<TSharedPtr<FFilter>>* GetAvailableFilters();
 
-	TSharedRef<SWidget> AvailableFilters_OnGenerateWidget(TSharedPtr<struct FFilter> InFilter);
+	TSharedRef<SWidget> AvailableFilters_OnGenerateWidget(TSharedPtr<FFilter> InFilter);
 
-	void AvailableFilters_OnSelectionChanged(TSharedPtr<struct FFilter> InFilter, ESelectInfo::Type SelectInfo);
+	void AvailableFilters_OnSelectionChanged(TSharedPtr<FFilter> InFilter, ESelectInfo::Type SelectInfo);
 
 	FText AvailableFilters_GetSelectionText() const;
 
-	const TArray<TSharedPtr<class IFilterOperator>>* GetAvailableFilterOperators();
+	const TArray<TSharedPtr<IFilterOperator>>* GetAvailableFilterOperators();
 
-	TSharedRef<SWidget> AvailableFilterOperators_OnGenerateWidget(TSharedPtr<class IFilterOperator> InFilter);
+	TSharedRef<SWidget> AvailableFilterOperators_OnGenerateWidget(TSharedPtr<IFilterOperator> InFilter);
 
-	void AvailableFilterOperators_OnSelectionChanged(TSharedPtr<class IFilterOperator> InFilter, ESelectInfo::Type SelectInfo);
+	void AvailableFilterOperators_OnSelectionChanged(TSharedPtr<IFilterOperator> InFilter, ESelectInfo::Type SelectInfo);
 
 	FText AvailableFilterOperators_GetSelectionText() const;
 
-	const TArray<TSharedPtr<struct FFilterGroupOperator>>* GetFilterGroupOperators();
+	const TArray<TSharedPtr<FFilterGroupOperator>>* GetFilterGroupOperators();
 
-	TSharedRef<SWidget> FilterGroupOperators_OnGenerateWidget(TSharedPtr<struct FFilterGroupOperator> InFilter);
+	TSharedRef<SWidget> FilterGroupOperators_OnGenerateWidget(TSharedPtr<FFilterGroupOperator> InFilter);
 
-	void FilterGroupOperators_OnSelectionChanged(TSharedPtr<struct FFilterGroupOperator> InFilter, ESelectInfo::Type SelectInfo);
+	void FilterGroupOperators_OnSelectionChanged(TSharedPtr<FFilterGroupOperator> InFilter, ESelectInfo::Type SelectInfo);
 
 	FText FilterGroupOperators_GetSelectionText() const;
 
@@ -79,11 +83,11 @@ private:
 private:
 	FFilterConfiguratorNodePtr FilterConfiguratorNodePtr;
 
-	TSharedPtr<SComboBox<TSharedPtr<struct FFilter>>> FilterTypeComboBox;
+	TSharedPtr<SComboBox<TSharedPtr<FFilter>>> FilterTypeComboBox;
 
-	TSharedPtr<SComboBox<TSharedPtr<class IFilterOperator>>> FilterOperatorComboBox;
+	TSharedPtr<SComboBox<TSharedPtr<IFilterOperator>>> FilterOperatorComboBox;
 
-	TSharedPtr<SComboBox<TSharedPtr<struct FFilterGroupOperator>>> FilterGroupOperatorComboBox;
+	TSharedPtr<SComboBox<TSharedPtr<FFilterGroupOperator>>> FilterGroupOperatorComboBox;
 
 	FString SuggestionTextBoxValue;
 };

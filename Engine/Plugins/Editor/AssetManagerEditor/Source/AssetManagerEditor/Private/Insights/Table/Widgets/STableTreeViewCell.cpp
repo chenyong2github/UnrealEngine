@@ -106,7 +106,6 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.NameText"))
 			.ColorAndOpacity(this, &STableTreeViewCell::GetDisplayNameColorAndOpacity)
 			.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity)
-			.ToolTip(RowToolTip)
 		]
 
 		// Name Suffix
@@ -122,7 +121,6 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.NameText"))
 			.ColorAndOpacity(this, &STableTreeViewCell::GetExtraDisplayNameColorAndOpacity)
 			.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity)
-			.ToolTip(RowToolTip)
 		]
 	;
 }

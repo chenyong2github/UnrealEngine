@@ -41,8 +41,8 @@ FFilterConfigurator& FFilterConfigurator::operator=(const FFilterConfigurator& O
 		return *this;
 	}
 
-	RootNode = MakeShared<FFilterConfiguratorNode>(*Other.RootNode);
-	RootNode->SetGroupPtrForChildren();
+	RootNode = FFilterConfiguratorNode::DeepCopy(*Other.RootNode);
+
 	AvailableFilters = Other.AvailableFilters;
 	OnDestroyedEvent = Other.OnDestroyedEvent;
 

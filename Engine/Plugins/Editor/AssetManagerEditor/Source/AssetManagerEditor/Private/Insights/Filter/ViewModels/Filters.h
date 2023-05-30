@@ -9,8 +9,6 @@
 
 #include "Insights/Common/SimpleRtti.h"
 
-#define LOCTEXT_NAMESPACE "Filters"
-
 class FSpawnTabArgs;
 class SDockTab;
 class SWidget;
@@ -49,9 +47,8 @@ enum class EFilterOperator : uint8
 class IFilterOperator
 {
 public:
-
-	virtual EFilterOperator GetKey() = 0;
-	virtual FString GetName() = 0;
+	virtual EFilterOperator GetKey() const = 0;
+	virtual FString GetName() const = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -60,26 +57,29 @@ template<typename T>
 class FFilterOperator : public IFilterOperator
 {
 public:
-	typedef TFunction<bool(T, T)> OperatorFunc;
+	typedef TFunction<bool(T, T)> FOperatorFunc;
 
-	FFilterOperator(EFilterOperator InKey, FString InName, OperatorFunc InFunc)
-		: Func(InFunc)
-		, Key(InKey)
+public:
+	FFilterOperator(EFilterOperator InKey, FString InName, FOperatorFunc InFunc)
+		: Key(InKey)
 		, Name(InName)
+		, Func(InFunc)
 	{
 	}
+
 	virtual ~FFilterOperator()
 	{
 	}
 
-	virtual EFilterOperator GetKey() override { return Key; }
-	virtual FString GetName() override { return Name; };
+	virtual EFilterOperator GetKey() const override { return Key; }
+	virtual FString GetName() const override { return Name; };
 
-	OperatorFunc Func;
+	bool Apply(T InValueA, T InValueB) const { return Func(InValueA, InValueB); }
 
 private:
 	EFilterOperator Key;
 	FString Name;
+	FOperatorFunc Func;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,8 +92,9 @@ enum class EFilterGroupOperator
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FFilterGroupOperator
+class FFilterGroupOperator
 {
+public:
 	FFilterGroupOperator(EFilterGroupOperator InType, FText InName, FText InDesc)
 		: Type(InType)
 		, Name(InName)
@@ -101,6 +102,11 @@ struct FFilterGroupOperator
 	{
 	}
 
+	EFilterGroupOperator GetType() const { return Type; }
+	const FText& GetName() const { return Name; }
+	const FText& GetDesc() const { return Desc; }
+
+private:
 	EFilterGroupOperator Type;
 	FText Name;
 	FText Desc;
@@ -121,25 +127,33 @@ public:
 
 typedef TSharedPtr<const TArray<TSharedPtr<IFilterOperator>>> SupportedOperatorsArrayPtr;
 
-struct FFilter
+class FFilter
 {
 	INSIGHTS_DECLARE_RTTI_BASE(FFilter)
 
 public:
-	FFilter(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, SupportedOperatorsArrayPtr InSupportedOperators)
+	FFilter(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, TSharedPtr<IFilterValueConverter> InConverter, SupportedOperatorsArrayPtr InSupportedOperators)
 		: Key(InKey)
 		, Name(InName)
 		, Desc(InDesc)
 		, DataType(InDataType)
+		, Converter(InConverter)
 		, SupportedOperators(InSupportedOperators)
 	{
 	}
+
 	virtual ~FFilter()
 	{
 	}
 
+	int32 GetKey() const { return Key; }
+	const FText& GetName() const { return Name; }
+	const FText& GetDesc() const { return Desc; }
+	EFilterDataType GetDataType() const { return DataType; }
+	const TSharedPtr<IFilterValueConverter>& GetConverter() const { return Converter; }
 	SupportedOperatorsArrayPtr GetSupportedOperators() const { return SupportedOperators; }
 
+private:
 	int32 Key;
 	FText Name;
 	FText Desc;
@@ -150,15 +164,16 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FFilterWithSuggestions : FFilter
+class FFilterWithSuggestions : public FFilter
 {
-	typedef TFunction<void(const FString& /*Text*/, TArray<FString>& OutSuggestions)> GetSuggestionsCallback;
-
 	INSIGHTS_DECLARE_RTTI(FFilterWithSuggestions, FFilter)
 
 public:
-	FFilterWithSuggestions(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, SupportedOperatorsArrayPtr InSupportedOperators)
-		: FFilter(InKey, InName, InDesc, InDataType, InSupportedOperators)
+	typedef TFunction<void(const FString& /*Text*/, TArray<FString>& OutSuggestions)> FGetSuggestionsCallback;
+
+public:
+	FFilterWithSuggestions(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, TSharedPtr<IFilterValueConverter> InConverter, SupportedOperatorsArrayPtr InSupportedOperators)
+		: FFilter(InKey, InName, InDesc, InDataType, InConverter, InSupportedOperators)
 	{
 	}
 
@@ -166,7 +181,12 @@ public:
 	{
 	}
 
-	GetSuggestionsCallback Callback;
+	const FGetSuggestionsCallback& GetCallback() const { return Callback; }
+	void SetCallback(FGetSuggestionsCallback InCallback) { Callback = InCallback; }
+	void GetSuggestions(const FString& Text, TArray<FString>& OutSuggestions) { Callback(Text, OutSuggestions); }
+
+private:
+	FGetSuggestionsCallback Callback;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -174,31 +194,8 @@ public:
 class FFilterStorage
 {
 public:
-	FFilterStorage()
-	{
-		DoubleOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
-		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Lt, TEXT("<"), std::less<>{})));
-		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Lte, TEXT("\u2264"), std::less_equal<>())));
-		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Eq, TEXT("="), std::equal_to<>())));
-		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Gt, TEXT(">"), std::greater<>())));
-		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Gte, TEXT("\u2265"), std::greater_equal<>())));
-
-		IntegerOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
-		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Lt, TEXT("<"), std::less<>{})));
-		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Lte, TEXT("\u2264"), std::less_equal<>())));
-		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Eq, TEXT("="), std::equal_to<>())));
-		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Gt, TEXT(">"), std::greater<>())));
-		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Gte, TEXT("\u2265"), std::greater_equal<>())));
-
-		StringOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
-		StringOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Eq, TEXT("IS"), [](const FString& lhs, const FString& rhs) { return lhs.Equals(rhs); })));
-		StringOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::NotEq, TEXT("IS NOT"), [](const FString& lhs, const FString& rhs) { return !lhs.Equals(rhs); })));
-		StringOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("CONTAINS"), [](const FString& lhs, const FString& rhs) { return lhs.Contains(rhs); })));
-		StringOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::NotContains, TEXT("NOT CONTAINS"), [](const FString& lhs, const FString& rhs) { return !lhs.Contains(rhs); })));
-
-		FilterGroupOperators.Add(MakeShared<FFilterGroupOperator>(EFilterGroupOperator::And, LOCTEXT("AllOf", "All Of (AND)"), LOCTEXT("AllOfDesc", "All of the children must be true for the group to return true. Equivalent to an AND operation.")));
-		FilterGroupOperators.Add(MakeShared<FFilterGroupOperator>(EFilterGroupOperator::Or, LOCTEXT("AnyOf", "Any Of (OR)"), LOCTEXT("AnyOfDesc", "Any of the children must be true for the group to return true. Equivalent to an OR operation.")));
-	}
+	FFilterStorage();
+	~FFilterStorage();
 
 	const TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators() const { return FilterGroupOperators; }
 
@@ -254,6 +251,7 @@ class FFilterContext
 public:
 	typedef TVariant<double, int64, FString> ContextData;
 
+public:
 	template<typename T>
 	void AddFilterData(int32 Key, const T& InData)
 	{
@@ -295,5 +293,3 @@ private:
 
 } // namespace Insights
 } // namespace UE
-
-#undef LOCTEXT_NAMESPACE

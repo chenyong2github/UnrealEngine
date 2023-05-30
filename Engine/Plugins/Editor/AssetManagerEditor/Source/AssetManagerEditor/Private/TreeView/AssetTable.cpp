@@ -831,19 +831,23 @@ void FAssetTable::AddDefaultColumns()
 		public:
 			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
 			{
-				if (Node.IsGroup())
+				if (Node.Is<FAssetTreeNode>() && Node.As<FAssetTreeNode>().IsValidAsset())
+				{
+					if (Node.Is<FAssetDependenciesGroupTreeNode>())
+					{
+						return TOptional<FTableCellValue>();
+					}
+					const FAssetTreeNode& TreeNode = Node.As<FAssetTreeNode>();
+					const FAssetTableRow& Asset = TreeNode.GetAssetChecked();
+					return FTableCellValue(static_cast<int64>(Asset.GetStagedCompressedSize()));
+				}
+				else if (Node.IsGroup())
 				{
 					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
 					if (NodePtr.HasAggregatedValue(Column.GetId()))
 					{
 						return NodePtr.GetAggregatedValue(Column.GetId());
 					}
-				}
-				else //if (Node->Is<FAssetTreeNode>())
-				{
-					const FAssetTreeNode& TreeNode = static_cast<const FAssetTreeNode&>(Node);
-					const FAssetTableRow& Asset = TreeNode.GetAssetChecked();
-					return FTableCellValue(static_cast<int64>(Asset.GetStagedCompressedSize()));
 				}
 
 				return TOptional<FTableCellValue>();

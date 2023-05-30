@@ -18,6 +18,8 @@ namespace UE
 namespace Insights
 {
 
+class FFilterConfigurator;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -39,7 +41,7 @@ public:
 	 * Construct this widget
 	 * @param InArgs - The declaration data for this widget
 	 */
-	void Construct(const FArguments& InArgs, TSharedPtr<class FFilterConfigurator> InFilterConfiguratorViewModel);
+	void Construct(const FArguments& InArgs, TSharedPtr<FFilterConfigurator> InFilterConfiguratorViewModel);
 
 	void Reset();
 
@@ -64,7 +66,7 @@ private:
 	void SetInitialExpansionRec(const FFilterConfiguratorNodePtr& Node, bool Value);
 
 private:
-	TSharedPtr<class FFilterConfigurator> FilterConfiguratorViewModel;
+	TSharedPtr<FFilterConfigurator> FilterConfiguratorViewModel;
 
 	/** The tree widget which holds the filters. */
 	TSharedPtr<STreeView<FFilterConfiguratorNodePtr>> TreeView;

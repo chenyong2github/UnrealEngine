@@ -23,18 +23,20 @@ public:
 	FFilterConfigurator& operator=(const FFilterConfigurator& Other);
 
 	bool operator==(const FFilterConfigurator& Other) const;
-
 	bool operator!=(const FFilterConfigurator& Other) const { return !(*this == Other); }
 
 	virtual ~FFilterConfigurator();
 
-	FFilterConfiguratorNodePtr GetRootNode() { return RootNode; }
+	bool IsEmpty() const { return RootNode->GetChildrenCount() == 0; }
 
 	virtual bool ApplyFilters(const FFilterContext& Context) const override;
 
 	bool IsKeyUsed(int32 Key) const;
 
-	TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& GetAvailableFilters() { return AvailableFilters; }
+	FFilterConfiguratorNodePtr GetRootNode() { return RootNode; }
+	TSharedPtr<TArray<TSharedPtr<FFilter>>>& GetAvailableFilters() { return AvailableFilters; }
+
+	void Add(TSharedPtr<FFilter> InFilter) { AvailableFilters->Add(InFilter); }
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// OnDestroyedEvent
@@ -66,7 +68,7 @@ private:
 private:
 	FFilterConfiguratorNodePtr RootNode;
 
-	TSharedPtr<TArray<TSharedPtr<struct FFilter>>> AvailableFilters;
+	TSharedPtr<TArray<TSharedPtr<FFilter>>> AvailableFilters;
 
 	TSet<int32> KeysUsed;
 };

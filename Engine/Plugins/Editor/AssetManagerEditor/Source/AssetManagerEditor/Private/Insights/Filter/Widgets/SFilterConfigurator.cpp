@@ -17,7 +17,7 @@
 #include "Insights/Filter/Widgets/SFilterConfiguratorRow.h"
 #include "Insights/Filter/ViewModels/FilterConfigurator.h"
 
-#define LOCTEXT_NAMESPACE "SFilterConfigurator"
+#define LOCTEXT_NAMESPACE "UE::Insights::SFilterConfigurator"
 
 namespace UE
 {

@@ -14,37 +14,40 @@ class FAssetTreeNode : public UE::Insights::FTableTreeNode
 	INSIGHTS_DECLARE_RTTI(FAssetTreeNode, UE::Insights::FTableTreeNode)
 
 public:
-	/** Hidden constructor. */
-	//explicit FAssetTreeNode(const FName InName, TWeakPtr<UE::Insights::FTable> InParentTable, int32 InRowIndex) = delete;
-
-	/** Hidden constructor. */
-	//explicit FAssetTreeNode(const FName InGroupName, TWeakPtr<UE::Insights::FTable> InParentTable) = delete;
-
 	/** Initialization constructor for the asset node. */
 	explicit FAssetTreeNode(const FName InName, TWeakPtr<FAssetTable> InParentTable, int32 InRowIndex)
 		: FTableTreeNode(InName, InParentTable, InRowIndex)
-		, AssetTable(InParentTable.Pin().Get())
+		, AssetTablePtr(InParentTable.Pin().Get())
 	{
 	}
 
 	/** Initialization constructor for the group node. */
 	explicit FAssetTreeNode(const FName InGroupName, TWeakPtr<FAssetTable> InParentTable)
 		: FTableTreeNode(InGroupName, InParentTable)
-		, AssetTable(InParentTable.Pin().Get())
+		, AssetTablePtr(InParentTable.Pin().Get())
+	{
+	}
+
+	/** Initialization constructor for the asset and/or group node. */
+	explicit FAssetTreeNode(const FName InName, TWeakPtr<FAssetTable> InParentTable, int32 InRowIndex, bool bIsGroup)
+		: FTableTreeNode(InName, InParentTable, InRowIndex, bIsGroup)
+		, AssetTablePtr(InParentTable.Pin().Get())
 	{
 	}
 
 	virtual ~FAssetTreeNode() {}
 
-	bool IsValidAsset() const { return AssetTable && AssetTable->IsValidRowIndex(RowId.RowIndex); }
-	FAssetTable& GetAssetTableChecked() const { return *AssetTable; }
-	const FAssetTableRow& GetAssetChecked() const { return AssetTable->GetAssetChecked(RowId.RowIndex); }
+	TWeakPtr<FAssetTable> GetAssetTableWeak() const { return StaticCastWeakPtr<FAssetTable>(GetParentTable()); }
+
+	bool IsValidAsset() const { return AssetTablePtr && AssetTablePtr->IsValidRowIndex(RowId.RowIndex); }
+	FAssetTable& GetAssetTableChecked() const { return *AssetTablePtr; }
+	const FAssetTableRow& GetAssetChecked() const { return AssetTablePtr->GetAssetChecked(RowId.RowIndex); }
 
 	virtual const FSlateBrush* GetIcon() const override;
 	virtual FLinearColor GetColor() const override;
 
 private:
-	FAssetTable* AssetTable;
+	FAssetTable* AssetTablePtr;
 };
 
 /** Type definition for shared pointers to instances of FAssetTreeNode. */
@@ -61,25 +64,16 @@ typedef TWeakPtr<class FAssetTreeNode> FAssetTreeNodeWeak;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FAssetDependenciesGroupTreeNode : public UE::Insights::FTableTreeNode
+class FAssetDependenciesGroupTreeNode : public FAssetTreeNode
 {
-	INSIGHTS_DECLARE_RTTI(FAssetDependenciesGroupTreeNode, UE::Insights::FTableTreeNode)
+	INSIGHTS_DECLARE_RTTI(FAssetDependenciesGroupTreeNode, FAssetTreeNode)
 
 public:
-	/** Hidden constructor. */
-	//explicit FAssetDependenciesGroupTreeNode(const FName InName, TWeakPtr<UE::Insights::FTable> InParentTable, int32 InRowIndex) = delete;
-
-	/** Hidden constructor. */
-	//explicit FAssetDependenciesGroupTreeNode(const FName InGroupName, TWeakPtr<UE::Insights::FTable> InParentTable) = delete;
-
 	/** Initialization constructor for the group node. */
 	explicit FAssetDependenciesGroupTreeNode(const FName InGroupName, TWeakPtr<FAssetTable> InParentTable, int32 InParentRowIndex)
-		: FTableTreeNode(InGroupName, InParentTable, InParentRowIndex)
+		: FAssetTreeNode(InGroupName, InParentTable, InParentRowIndex, true)
 		, bAreChildrenCreated(false)
 	{
-		// This is actually a group node.
-		InitGroupData();
-
 		// Initially collapsed. Lazy create children when first expanded.
 		SetExpansion(false);
 	}
@@ -88,6 +82,7 @@ public:
 
 	virtual const FText GetExtraDisplayName() const;
 
+	virtual const FSlateBrush* GetIcon() const override;
 	virtual FLinearColor GetColor() const override;
 
 	virtual bool OnLazyCreateChildren(TSharedPtr<class UE::Insights::STableTreeView> InTableTreeView) override;

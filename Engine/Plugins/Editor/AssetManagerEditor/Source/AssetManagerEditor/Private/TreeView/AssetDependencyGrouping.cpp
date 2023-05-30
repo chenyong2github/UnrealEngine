@@ -40,8 +40,6 @@ void FAssetDependencyGrouping::GroupNodes(const TArray<UE::Insights::FTableTreeN
 	TSharedPtr<FAssetTable> AssetTable = StaticCastSharedPtr<FAssetTable>(InParentTable.Pin());
 	check(AssetTable.IsValid());
 
-	const FSlateBrush* AssetGroupNodeIconBrush = FBaseTreeNode::GetDefaultIcon(true);
-
 	for (FTableTreeNodePtr NodePtr : Nodes)
 	{
 		if (InAsyncOperationProgress.ShouldCancelAsyncOp())
@@ -51,7 +49,7 @@ void FAssetDependencyGrouping::GroupNodes(const TArray<UE::Insights::FTableTreeN
 
 		if (NodePtr->IsGroup() || !NodePtr->Is<FAssetTreeNode>())
 		{
-			ParentGroup.AddChildAndSetGroupPtr(NodePtr);
+			ParentGroup.AddChildAndSetParent(NodePtr);
 			continue;
 		}
 
@@ -91,28 +89,28 @@ void FAssetDependencyGrouping::GroupNodes(const TArray<UE::Insights::FTableTreeN
 		if (Asset.GetNumDependencies() > 0)
 		{
 			// Create a group for the asset node (self) + dependencies.
-			FTableTreeNodePtr AssetGroupPtr = MakeShared<FCustomTableTreeNode>(Asset.GetNodeName(), InParentTable, AssetNode.GetRowIndex(), AssetGroupNodeIconBrush, Asset.GetColor(), true);
+			FTableTreeNodePtr AssetGroupPtr = MakeShared<FAssetTreeNode>(Asset.GetNodeName(), AssetNode.GetAssetTableWeak(), AssetNode.GetRowIndex(), true);
 			AssetGroupPtr->SetExpansion(false);
-			ParentGroup.AddChildAndSetGroupPtr(AssetGroupPtr);
+			ParentGroup.AddChildAndSetParent(AssetGroupPtr);
 
 			// Add the asset node (self) under a "_self" group node.
 			static FName SelfGroupName(TEXT("_Self_")); // used _ prefix to sort before "Dependencies"
-			FTableTreeNodePtr SelfGroupPtr = MakeShared<FCustomTableTreeNode>(SelfGroupName, InParentTable, AssetNode.GetRowIndex(), AssetGroupNodeIconBrush, Asset.GetColor(), true);
+			FTableTreeNodePtr SelfGroupPtr = MakeShared<FAssetTreeNode>(SelfGroupName, AssetNode.GetAssetTableWeak(), AssetNode.GetRowIndex(), true);
 			SelfGroupPtr->SetExpansion(false);
-			SelfGroupPtr->AddChildAndSetGroupPtr(NodePtr);
-			AssetGroupPtr->AddChildAndSetGroupPtr(SelfGroupPtr);
+			SelfGroupPtr->AddChildAndSetParent(NodePtr);
+			AssetGroupPtr->AddChildAndSetParent(SelfGroupPtr);
 
 			// Create a group node for all dependent assets of the current asset.
 			// The actual nodes for the dependent assets are lazy created by this group node.
 			static FName DependenciesGroupName(TEXT("Dependencies"));
 			TSharedPtr<FAssetDependenciesGroupTreeNode> DependenciesGroupPtr = MakeShared<FAssetDependenciesGroupTreeNode>(DependenciesGroupName, AssetTable, AssetNode.GetRowIndex());
 			DependenciesGroupPtr->SetExpansion(false);
-			AssetGroupPtr->AddChildAndSetGroupPtr(DependenciesGroupPtr);
+			AssetGroupPtr->AddChildAndSetParent(DependenciesGroupPtr);
 		}
 		else
 		{
 			// No dependencies. Just add the asset node (self).
-			ParentGroup.AddChildAndSetGroupPtr(NodePtr);
+			ParentGroup.AddChildAndSetParent(NodePtr);
 		}
 	}
 }

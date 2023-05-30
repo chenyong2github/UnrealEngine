@@ -19,21 +19,11 @@ INSIGHTS_IMPLEMENT_RTTI(FAssetDependenciesGroupTreeNode)
 
 const FSlateBrush* FAssetTreeNode::GetIcon() const
 {
-#if 0 // debug / mock code
-	if (RowId.RowIndex % 7)
+	if (IsValidAsset())
 	{
-		return UE::Insights::FInsightsStyle::GetBrush("Icons.Package.TreeItem");
+		return FBaseTreeNode::GetDefaultIcon(false); // default icon for leaf nodes
 	}
-	if (RowId.RowIndex % 3)
-	{
-		return UE::Insights::FInsightsStyle::GetBrush("Icons.Asset.TreeItem");
-	}
-#endif
-
-	//const FAssetTableRow& AssetRpw = GetAssetChecked();
-	//TODO: switch (AssetRow->GetType()) --> icon
-
-	return FBaseTreeNode::GetDefaultIcon(false); // default icon for leaf nodes
+	return FBaseTreeNode::GetDefaultIcon(IsGroup()); // default icon
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -45,6 +35,13 @@ FLinearColor FAssetTreeNode::GetColor() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FAssetDependenciesGroupTreeNode
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FSlateBrush* FAssetDependenciesGroupTreeNode::GetIcon() const
+{
+	return FBaseTreeNode::GetDefaultIcon(true); // default icon for group nodes
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FLinearColor FAssetDependenciesGroupTreeNode::GetColor() const
@@ -78,19 +75,19 @@ bool FAssetDependenciesGroupTreeNode::OnLazyCreateChildren(TSharedPtr<UE::Insigh
 		return false;
 	}
 
-	TSharedPtr<FAssetTable> AssetTable = StaticCastSharedPtr<FAssetTable>(GetParentTable().Pin());
-	const FAssetTableRow& AssetRow = AssetTable->GetAssetChecked(GetRowIndex());
+	FAssetTable& AssetTable = GetAssetTableChecked();
+	const FAssetTableRow& AssetRow = AssetTable.GetAssetChecked(GetRowIndex());
 	const TArray<int32>& Dependencies = AssetRow.GetDependencies();
 	TArray<UE::Insights::FTableTreeNodePtr> AddedNodes;
 	for (int32 DepAssetIndex : Dependencies)
 	{
-		if (!ensure(AssetTable->IsValidRowIndex(DepAssetIndex)))
+		if (!ensure(AssetTable.IsValidRowIndex(DepAssetIndex)))
 		{
 			continue;
 		}
-		const FAssetTableRow& DepAssetRow = AssetTable->GetAssetChecked(DepAssetIndex);
+		const FAssetTableRow& DepAssetRow = AssetTable.GetAssetChecked(DepAssetIndex);
 		FName DepAssetNodeName(DepAssetRow.GetName());
-		FAssetTreeNodePtr DepAssetNodePtr = MakeShared<FAssetTreeNode>(DepAssetNodeName, AssetTable, DepAssetIndex);
+		FAssetTreeNodePtr DepAssetNodePtr = MakeShared<FAssetTreeNode>(DepAssetNodeName, GetAssetTableWeak(), DepAssetIndex);
 		AddedNodes.Add(DepAssetNodePtr);
 	}
 
