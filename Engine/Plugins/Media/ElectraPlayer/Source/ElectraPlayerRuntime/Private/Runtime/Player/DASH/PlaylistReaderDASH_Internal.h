@@ -16,6 +16,7 @@ namespace Electra
 {
 class FManifestDASHInternal;
 class IParserISO14496_12;
+class IParserMKV;
 
 
 struct FMPDLoadRequestDASH : public IHTTPResourceRequestObject
@@ -63,15 +64,16 @@ struct FMPDLoadRequestDASH : public IHTTPResourceRequestObject
 	}
 
 	FMPDLoadRequestDASH() : LoadType(ELoadType::MPD) {}
-	FString			URL;	// For xlink requests this could be "urn:mpeg:dash:resolve-to-zero:2013" indicating removal of the element.
-	FString			Range;
-	FString			Verb;
+	FString URL;	// For xlink requests this could be "urn:mpeg:dash:resolve-to-zero:2013" indicating removal of the element.
+	FString Range;
+	FString Range2;
+	FString Verb;
 	TArray<HTTP::FHTTPHeader> Headers;
-	FTimeValue		ExecuteAtUTC;
+	FTimeValue ExecuteAtUTC;
 
 	FOnRequestCompleted	CompleteCallback;
 
-	ELoadType		LoadType;
+	ELoadType LoadType;
 	// XLink specific information to which the remote element applies.
 	TWeakPtrTS<IDashMPDElement> XLinkElement;
 	// The manifest for which this request is made. Not set for an initial MPD fetch but set for everything else.
@@ -79,6 +81,11 @@ struct FMPDLoadRequestDASH : public IHTTPResourceRequestObject
 	TWeakPtrTS<FManifestDASHInternal> OwningManifest;
 
 	IPlayerSessionServices* PlayerSessionServices = nullptr;
+	TSharedPtrTS<FHTTPResourceRequest> Request;
+	int32 Attempt = 0;
+
+	TArray<TSharedPtrTS<FMPDLoadRequestDASH>> CompletedRequestChain;
+	int32 NumRemainingInChain = 0;
 
 	const HTTP::FConnectionInfo* GetConnectionInfo() const
 	{
@@ -88,9 +95,6 @@ struct FMPDLoadRequestDASH : public IHTTPResourceRequestObject
 	{
 		return GetConnectionInfo() ? GetConnectionInfo()->StatusInfo.ErrorDetail.GetMessage() : FString();
 	}
-
-	TSharedPtrTS<FHTTPResourceRequest>	Request;
-	int32			Attempt = 0;
 };
 
 
@@ -161,6 +165,12 @@ public:
 			int64 PTO = 0;
 			uint32 Timescale = 0;
 		};
+		enum class EContainerType
+		{
+			ISO14496_12,
+			Matroska
+		};
+		EContainerType ContainerType = EContainerType::ISO14496_12;
 		FURL InitializationURL;
 		FURL MediaURL;
 		FTimeValue ATO;
@@ -287,10 +297,22 @@ public:
 			return bIsEnabled && bIsUsable;
 		}
 
+		enum class EStreamContainerType
+		{
+			Undefined,
+			ISO14496_12,
+			Matroska
+		};
+		EStreamContainerType GetStreamContainerType() const
+		{
+			return StreamContainerType;
+		}
+
 	private:
 		ESearchResult PrepareSegmentIndex(IPlayerSessionServices* PlayerSessionServices, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests);
 
-		ESearchResult FindSegment_Base(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase);
+		ESearchResult FindSegment_Base_MP4(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase);
+		ESearchResult FindSegment_Base_MKV(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase);
 		ESearchResult FindSegment_Template(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation, const TArray<TSharedPtrTS<FDashMPD_SegmentTemplateType>>& SegmentTemplate);
 		ESearchResult FindSegment_Timeline(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation, const TArray<TSharedPtrTS<FDashMPD_SegmentTemplateType>>& SegmentTemplate, const TSharedPtrTS<FDashMPD_SegmentTimelineType>& SegmentTimeline);
 		ESearchResult SetupSideloadedFile(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& OutSegmentInfo, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation);
@@ -321,10 +343,13 @@ public:
 		bool bWarnedAboutInconsistentAvailabilityTimeComplete = false;
 		//
 		bool bNeedsSegmentIndex = true;
-		TSharedPtrTS<const IParserISO14496_12> SegmentIndex;
+		TSharedPtrTS<const IParserISO14496_12> SegmentIndexMP4;
+		TSharedPtrTS<const IParserMKV> SegmentMKV;
 		int64 SegmentIndexRangeStart = 0;
 		int64 SegmentIndexRangeSize = 0;
 		TSharedPtrTS<FMPDLoadRequestDASH> PendingSegmentIndexLoadRequest;
+		FString StreamMimeType;
+		EStreamContainerType StreamContainerType = EStreamContainerType::Undefined;
 		//
 		bool bIsSideloadedSubtitle = false;
 

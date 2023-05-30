@@ -253,17 +253,14 @@ bool FElectraDecoderResourceManagerLinux::SetupRenderBufferFromDecoderOutput(IMe
 
 	TMap<FString, FVariant> ExtraValues;
 	InDecoderOutput->GetExtraValues(ExtraValues);
-	// Presently we handle only decoder output from libavcodec
-	if (!ElectraDecodersUtil::GetVariantValueFString(ExtraValues, TEXT("decoder")).Equals(TEXT("libavcodec")))
-	{
-		return false;
-	}
 
 	TSharedPtr<FElectraPlayerVideoDecoderOutputLinux, ESPMode::ThreadSafe> DecoderOutput = InOutBufferToSetup->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputLinux>();
 	if (DecoderOutput.IsValid())
 	{
 		ILibavDecoderDecodedImage* DecodedImage = reinterpret_cast<ILibavDecoderDecodedImage*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::LibavDecoderDecodedImage));
-		if (DecodedImage)
+		IElectraDecoderVideoOutputImageBuffers* ImageBuffers = !DecodedImage ? reinterpret_cast<IElectraDecoderVideoOutputImageBuffers*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::ImageBuffers)) : nullptr;
+
+		if (DecodedImage || ImageBuffers)
 		{
 			FElectraVideoDecoderOutputCropValues Crop = InDecoderOutput->GetCropValues();
 			InOutBufferPropertes->Set(TEXT("width"), FVariantValue((int64) InDecoderOutput->GetWidth()));
@@ -285,20 +282,39 @@ bool FElectraDecoderResourceManagerLinux::SetupRenderBufferFromDecoderOutput(IMe
 			InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) num_bits));
 			InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)((num_bits <= 8) ? EPixelFormat::PF_NV12 : EPixelFormat::PF_P010)));
 
-			InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)InDecoderOutput->GetDecodedWidth() * ((num_bits <= 8) ? 1 : 2)));
-
-#if WITH_LIBAV
-			const ILibavDecoderVideoCommon::FOutputInfo& DecodedImageInfo = DecodedImage->GetOutputInfo();
-			FIntPoint BufferDim(DecodedImageInfo.Planes[0].Width, DecodedImageInfo.Planes[0].Height);
-			if (DecoderOutput->InitializeForBuffer(BufferDim, num_bits <= 8 ? EPixelFormat::PF_NV12 : EPixelFormat::PF_P010, num_bits, InOutBufferPropertes))
+			if (DecodedImage)
 			{
-				TArray<uint8>& ImgBuf = DecoderOutput->GetMutableBuffer();
-				LibavcodecConversion::ConvertDecodedImageToNV12(ImgBuf, DecoderOutput->GetBufferDimensions(), num_bits, DecodedImage);
-				// Have the decoder output keep a reference to the decoded image in case it will share data with it at some point.
-				DecoderOutput->SetDecodedImage(DecodedImage->AsShared());
-			}
+#if WITH_LIBAV
+				InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)InDecoderOutput->GetDecodedWidth() * ((num_bits <= 8) ? 1 : 2)));
+
+				const ILibavDecoderVideoCommon::FOutputInfo& DecodedImageInfo = DecodedImage->GetOutputInfo();
+				FIntPoint BufferDim(DecodedImageInfo.Planes[0].Width, DecodedImageInfo.Planes[0].Height);
+				if (DecoderOutput->InitializeForBuffer(BufferDim, num_bits <= 8 ? EPixelFormat::PF_NV12 : EPixelFormat::PF_P010, num_bits, InOutBufferPropertes, true))
+				{
+					LibavcodecConversion::ConvertDecodedImageToNV12(*DecoderOutput->GetMutableBuffer(), DecoderOutput->GetBufferDimensions(), num_bits, DecodedImage);
+					// Have the decoder output keep a reference to the decoded image in case it will share data with it at some point.
+					DecoderOutput->SetDecodedImage(DecodedImage->AsShared());
+					return true;
+				}
 #endif
-			return true;
+			}
+			else if (ImageBuffers && ImageBuffers->GetNumberOfBuffers() == 1)
+			{
+				// Compatible format?
+				if ((ImageBuffers->GetBufferFormatByIndex(0) == EElectraDecoderPlatformPixelFormat::NV12 || ImageBuffers->GetBufferFormatByIndex(0) == EElectraDecoderPlatformPixelFormat::P010)&&
+					ImageBuffers->GetBufferEncodingByIndex(0) == EElectraDecoderPlatformPixelEncoding::Native)
+				{
+					InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)ImageBuffers->GetBufferPitchByIndex(0)));
+
+					FIntPoint BufferDim((int32) InDecoderOutput->GetWidth(), (int32) InDecoderOutput->GetHeight());
+					if (DecoderOutput->InitializeForBuffer(BufferDim, num_bits <= 8 ? EPixelFormat::PF_NV12 : EPixelFormat::PF_P010, num_bits, InOutBufferPropertes, false))
+					{
+						// Share the output buffer.
+						DecoderOutput->GetMutableBuffer() = ImageBuffers->GetBufferDataByIndex(0);
+						return true;
+					}
+				}
+			}
 		}
 	}
 	return false;

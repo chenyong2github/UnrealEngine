@@ -6943,6 +6943,119 @@ private:
 		return ParseError;
 	}
 
+	static UEMediaError ParseCOLRBox(FStreamCodecInformation& OutInfo, const FMP4Box* InCOLR)
+	{
+		UEMediaError Error = UEMEDIA_ERROR_OK;
+		const FMP4BoxIgnored* Box = static_cast<const FMP4BoxIgnored*>(InCOLR);
+		if (Box && Box->GetFillerData())
+		{
+			TArray<uint8> BoxData((const uint8*)Box->GetFillerData()->Data, Box->GetFillerData()->Size);
+			FDataBufferReader BufferReader(BoxData);
+			FMP4BoxReader Reader(&BufferReader, nullptr);
+			uint32 Type;
+			uint16 colour_primaries, transfer_characteristics, matrix_coeffs;
+			uint8 video_full_range_flag = 0;
+			RETURN_IF_ERROR(Reader.Read(Type));
+			if (Type == Utils::Make4CC('n','c','l','x') || Type == Utils::Make4CC('n', 'c', 'l', 'c'))
+			{
+				RETURN_IF_ERROR(Reader.Read(colour_primaries));
+				RETURN_IF_ERROR(Reader.Read(transfer_characteristics));
+				RETURN_IF_ERROR(Reader.Read(matrix_coeffs));
+				if (Type == Utils::Make4CC('n', 'c', 'l', 'x'))
+				{
+					RETURN_IF_ERROR(Reader.Read(video_full_range_flag));
+				}
+				OutInfo.GetCodecVideoColorInfo().ColourPrimaries = colour_primaries;
+				OutInfo.GetCodecVideoColorInfo().TransferCharacteristics = transfer_characteristics;
+				OutInfo.GetCodecVideoColorInfo().MatrixCoefficients = matrix_coeffs;
+				OutInfo.GetCodecVideoColorInfo().VideoFullRangeFlag = video_full_range_flag;
+			}
+		}
+		return Error;
+	}
+
+
+	static UEMediaError ParseCOLLBox(FStreamCodecInformation& OutInfo, const FMP4Box* InCOLL, bool bIsCOLL)
+	{
+		UEMediaError Error = UEMEDIA_ERROR_OK;
+		const FMP4BoxIgnored* Box = static_cast<const FMP4BoxIgnored*>(InCOLL);
+		if (Box && Box->GetFillerData())
+		{
+			TArray<uint8> BoxData((const uint8*)Box->GetFillerData()->Data, Box->GetFillerData()->Size);
+			FDataBufferReader BufferReader(BoxData);
+			FMP4BoxReader Reader(&BufferReader, nullptr);
+			if (bIsCOLL)
+			{
+				uint8 Version;
+				RETURN_IF_ERROR(Reader.Read(Version));
+				// A version 0 `coll` box is the same as a `clli` box, which we can handle.
+				if (Version)
+				{
+					return Error;
+				}
+				// Skip the remaining 3 bytes of the full box.
+				Reader.Read(Version);
+				Reader.Read(Version);
+				Reader.Read(Version);
+			}
+			// Read the `clli` box.
+			uint16 max_content_light_level;			// MaxCLL
+			uint16 max_pic_average_light_level;		// MaxFALL
+			RETURN_IF_ERROR(Reader.Read(max_content_light_level));
+			RETURN_IF_ERROR(Reader.Read(max_pic_average_light_level));
+			OutInfo.GetCodecVideoColorInfo().CLLI = { max_content_light_level, max_pic_average_light_level };
+		}
+		return Error;
+	}
+
+	static UEMediaError ParseMDCVBox(FStreamCodecInformation& OutInfo, const FMP4Box* InMDCV)
+	{
+		UEMediaError Error = UEMEDIA_ERROR_OK;
+		const FMP4BoxIgnored* Box = static_cast<const FMP4BoxIgnored*>(InMDCV);
+		if (Box && Box->GetFillerData())
+		{
+			TArray<uint8> BoxData((const uint8*)Box->GetFillerData()->Data, Box->GetFillerData()->Size);
+			FDataBufferReader BufferReader(BoxData);
+			FMP4BoxReader Reader(&BufferReader, nullptr);
+
+			struct mastering_display_colour_volume
+			{
+				uint16 display_primaries_x[3]{ 0 };
+				uint16 display_primaries_y[3]{ 0 };
+				uint16 white_point_x = 0;
+				uint16 white_point_y = 0;
+				uint32 max_display_mastering_luminance = 0;
+				uint32 min_display_mastering_luminance = 0;
+			};
+			mastering_display_colour_volume boxData;
+			for(int32 i=0; i<3; ++i)
+			{
+				RETURN_IF_ERROR(Reader.Read(boxData.display_primaries_x[i]));
+				RETURN_IF_ERROR(Reader.Read(boxData.display_primaries_y[i]));
+			}
+			RETURN_IF_ERROR(Reader.Read(boxData.white_point_x));
+			RETURN_IF_ERROR(Reader.Read(boxData.white_point_y));
+			RETURN_IF_ERROR(Reader.Read(boxData.max_display_mastering_luminance));
+			RETURN_IF_ERROR(Reader.Read(boxData.min_display_mastering_luminance));
+			const float ST2086_Chroma_Scale = 50000.0f;
+			const float ST2086_Luma_Scale = 10000.0f;
+			FVideoDecoderHDRMetadata_mastering_display_colour_volume mdcv;
+			// The order in the MDCV box is G,B,R
+			mdcv.display_primaries_x[0] = boxData.display_primaries_x[2] / ST2086_Chroma_Scale;
+			mdcv.display_primaries_y[0] = boxData.display_primaries_y[2] / ST2086_Chroma_Scale;
+			mdcv.display_primaries_x[1] = boxData.display_primaries_x[0] / ST2086_Chroma_Scale;
+			mdcv.display_primaries_y[1] = boxData.display_primaries_y[0] / ST2086_Chroma_Scale;
+			mdcv.display_primaries_x[2] = boxData.display_primaries_x[1] / ST2086_Chroma_Scale;
+			mdcv.display_primaries_y[2] = boxData.display_primaries_y[1] / ST2086_Chroma_Scale;
+			mdcv.white_point_x = boxData.white_point_x / ST2086_Chroma_Scale;
+			mdcv.white_point_y = boxData.white_point_y / ST2086_Chroma_Scale;
+			mdcv.max_display_mastering_luminance = boxData.max_display_mastering_luminance / ST2086_Luma_Scale;
+			mdcv.min_display_mastering_luminance = boxData.min_display_mastering_luminance / ST2086_Luma_Scale;
+			OutInfo.GetCodecVideoColorInfo().MDCV = mdcv;
+		}
+		return Error;
+	}
+
 
 	UEMediaError FParserISO14496_12::ParseAVCxSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox, int32 InAvcType)
 	{
@@ -7029,6 +7142,26 @@ private:
 					{
 						break;
 					}
+					case FMP4Box::kBox_colr:
+					{
+						ParseCOLRBox(Track->CodecInformation, SampleEntry);
+						break;
+					}
+					case FMP4Box::kBox_clli:
+					{
+						ParseCOLLBox(Track->CodecInformation, SampleEntry, false);
+						break;
+					}
+					case FMP4Box::kBox_coll:
+					{
+						ParseCOLLBox(Track->CodecInformation, SampleEntry, true);
+						break;
+					}
+					case FMP4Box::kBox_mdcv:
+					{
+						ParseMDCVBox(Track->CodecInformation, SampleEntry);
+						break;
+					}
 					default:
 					{
 						break;
@@ -7107,6 +7240,26 @@ private:
 					}
 					case FMP4Box::kBox_pasp:
 					{
+						break;
+					}
+					case FMP4Box::kBox_colr:
+					{
+						ParseCOLRBox(Track->CodecInformation, SampleEntry);
+						break;
+					}
+					case FMP4Box::kBox_clli:
+					{
+						ParseCOLLBox(Track->CodecInformation, SampleEntry, false);
+						break;
+					}
+					case FMP4Box::kBox_coll:
+					{
+						ParseCOLLBox(Track->CodecInformation, SampleEntry, true);
+						break;
+					}
+					case FMP4Box::kBox_mdcv:
+					{
+						ParseMDCVBox(Track->CodecInformation, SampleEntry);
 						break;
 					}
 					default:
@@ -7350,7 +7503,7 @@ private:
 					for(int32 i=0,iMax=VisualSampleEntry->GetNumberOfChildren(); i<iMax; ++i)
 					{
 						const FMP4Box* SampleEntry = VisualSampleEntry->GetChildBox(i);
-						switch (SampleEntry->GetType())
+						switch(SampleEntry->GetType())
 						{
 							case FMP4Box::kBox_pasp:
 							{
@@ -7368,6 +7521,19 @@ private:
 							}
 							default:
 							{
+								if (SampleEntry->GetType() == FMP4Box::kBox_colr)
+								{
+									ParseCOLRBox(CodecInformation, SampleEntry);
+								}
+								else if (SampleEntry->GetType() == FMP4Box::kBox_clli || SampleEntry->GetType() == FMP4Box::kBox_coll)
+								{
+									ParseCOLLBox(CodecInformation, SampleEntry, SampleEntry->GetType() == FMP4Box::kBox_coll);
+								}
+								else if (SampleEntry->GetType() == FMP4Box::kBox_mdcv)
+								{
+									ParseMDCVBox(CodecInformation, SampleEntry);
+								}
+
 								// Note: adding the box via the filler data only works as long as these boxes are not explicitly handled in this module!
 								FString BoxName = Utils::Printable4CC(SampleEntry->GetType());
 								BoxName.Append(TEXT("_box"));

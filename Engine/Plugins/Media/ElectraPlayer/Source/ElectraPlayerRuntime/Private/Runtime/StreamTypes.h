@@ -5,6 +5,7 @@
 #include "PlayerCore.h"
 #include "PlayerTime.h"
 #include "ParameterDictionary.h"
+#include "MediaVideoDecoderOutput.h"
 
 namespace Electra
 {
@@ -479,6 +480,16 @@ namespace Electra
 			return CSD;
 		}
 
+		void SetDecoderConfigRecord(const TArray<uint8>& InDCR)
+		{
+			DCR = InDCR;
+		}
+
+		const TArray<uint8>& GetDecoderConfigRecord() const
+		{
+			return DCR;
+		}
+
 		void SetBitrate(int32 InBitrate)
 		{
 			Bitrate = InBitrate;
@@ -522,6 +533,8 @@ namespace Electra
 			Codec4CC = 0;
 			Extras.Clear();
 			CSD.Empty();
+			DCR.Empty();
+			CodecVideoColorInfo.Reset();
 		}
 
 		bool IsDifferentFromOtherVideo(const FStreamCodecInformation& Other) const
@@ -558,6 +571,32 @@ namespace Electra
 			}
 			return false;
 		}
+
+		struct FCodecVideoColorInfo
+		{
+			void Reset()
+			{
+				ColourPrimaries.Reset();
+				TransferCharacteristics.Reset();
+				MatrixCoefficients.Reset();
+				VideoFullRangeFlag.Reset();
+				VideoFormat.Reset();
+				BitDepthLuma.Reset();
+				ChromaSubsampling.Reset();
+			}
+			TOptional<int32> ColourPrimaries;
+			TOptional<int32> TransferCharacteristics;
+			TOptional<int32> MatrixCoefficients;
+			TOptional<int32> VideoFullRangeFlag;
+			TOptional<int32> VideoFormat;
+			TOptional<int32> BitDepthLuma;
+			TOptional<int32> ChromaSubsampling;
+			TOptional<FVideoDecoderHDRMetadata_content_light_level_info> CLLI;
+			TOptional<FVideoDecoderHDRMetadata_mastering_display_colour_volume> MDCV;
+		};
+		FCodecVideoColorInfo& GetCodecVideoColorInfo()
+		{ return CodecVideoColorInfo; }
+
 
 	private:
 		struct FProfileLevel
@@ -614,6 +653,8 @@ namespace Electra
 		uint32			Codec4CC;
 		FParamDict		Extras;						//!< Additional details/properties, depending on playlist.
 		TArray<uint8>	CSD;						//!< Codec specific data, if available.
+		TArray<uint8>	DCR;						//!< Decoder configuration record, if available.
+		FCodecVideoColorInfo CodecVideoColorInfo;
 	};
 
 

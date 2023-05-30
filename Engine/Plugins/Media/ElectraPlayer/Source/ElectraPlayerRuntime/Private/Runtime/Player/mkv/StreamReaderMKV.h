@@ -115,10 +115,10 @@ public:
 	void CancelRequests() override;
 
 	// Methods from IParserMKV::IReader
-	int64 ReadData(void* InDestinationBuffer, int64 InNumBytesToRead, int64 InFromOffset) override;
-	int64 GetCurrentFileOffset() const override;
-	int64 GetTotalSize() override;
-	bool HasReadBeenAborted() const override;
+	int64 MKVReadData(void* InDestinationBuffer, int64 InNumBytesToRead, int64 InFromOffset) override;
+	int64 MKVGetCurrentFileOffset() const override;
+	int64 MKVGetTotalSize() override;
+	bool MKVHasReadBeenAborted() const override;
 
 private:
 	void WorkerThread();
@@ -214,7 +214,6 @@ private:
 			DurationSuccessfullyRead.SetToZero();
 			DurationSuccessfullyDelivered.SetToZero();
 			bIsFirstInSequence = true;
-			bGotKeyframe = false;
 			bReadPastLastPTS = false;
 			bGotAllSamples = false;
 			bReachedEndOfKnownDuration = false;
@@ -251,7 +250,6 @@ private:
 		EStreamType StreamType = EStreamType::Unsupported;
 		int32 Bitrate = 0;
 		bool bIsFirstInSequence = true;
-		bool bGotKeyframe = false;
 		bool bReadPastLastPTS = false;
 		TArray<FSample> AccessUnitFIFO;
 		TArray<FSample> SortedAccessUnitFIFO;

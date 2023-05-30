@@ -102,6 +102,7 @@ public:
 	bool SafeGetBool(bool Default=false) const;
 	FTimeValue SafeGetTimeValue(const FTimeValue& Default=FTimeValue()) const;
 	void* SafeGetPointer(void* Default=nullptr) const;
+	const TArray<uint8>& SafeGetArray() const;
 
 	enum class EDataType
 	{

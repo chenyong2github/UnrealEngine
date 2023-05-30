@@ -80,7 +80,8 @@ namespace Electra
 		int64						SequenceIndex;
 		uint32						AUSize;							//!< Size of this access unit
 		void*						AUData;							//!< Access unit data
-		TSharedPtrTS<CodecData>		AUCodecData;					//!< If set, points to sideband data for this access unit.
+		TSharedPtrTS<CodecData>		AUCodecData;					//!< If set, points to constant sideband data for this access unit.
+		TUniquePtr<TMap<uint32, TArray<uint8>>> DynamicSidebandData;	//!< If set, contains a map of dynamically changing sideband data for just this access unit.
 		uint8						DropState;						//!< If set this access unit is not to be rendered. If possible also not to be decoded.
 		bool						bIsFirstInSequence;				//!< true for the first AU in a segment
 		bool						bIsLastInPeriod;				//!< true if this is the last AU in the playing period.

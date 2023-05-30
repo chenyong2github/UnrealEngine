@@ -7,17 +7,18 @@
 #include "Player/DASH/PlaylistReaderDASH_Internal.h"
 #include "Player/DASH/PlayerEventDASH.h"
 #include "Demuxer/ParserISO14496-12.h"
+#include "Demuxer/ParserMKV.h"
 #include "HTTP/HTTPManager.h"
 #include "Player/DRM/DRMManager.h"
 
 namespace Electra
 {
 
-class FStreamSegmentRequestFMP4DASH : public IStreamSegment
+class FStreamSegmentRequestDASH : public IStreamSegment
 {
 public:
-	FStreamSegmentRequestFMP4DASH();
-	virtual ~FStreamSegmentRequestFMP4DASH();
+	FStreamSegmentRequestDASH();
+	virtual ~FStreamSegmentRequestDASH();
 
 	void SetPlaybackSequenceID(uint32 PlaybackSequenceID) override;
 	uint32 GetPlaybackSequenceID() const override;
@@ -46,7 +47,7 @@ public:
 	TSharedPtrTS<IPlaybackAssetAdaptationSet>				AdaptationSet;										//!< The adaptation set the representation belongs to.
 	TSharedPtrTS<ITimelineMediaAsset>						Period;												//!< The period the adaptation set belongs to.
 	FManifestDASHInternal::FSegmentInformation				Segment;											//!< Segment information (URLs and timing values)
-	TArray<TSharedPtrTS<FStreamSegmentRequestFMP4DASH>>		DependentStreams;									//!< Streams this segment depends on. Currently only used to hold the set of requests for the initial playback start.
+	TArray<TSharedPtrTS<FStreamSegmentRequestDASH>>			DependentStreams;									//!< Streams this segment depends on. Currently only used to hold the set of requests for the initial playback start.
 	bool													bIsEOSSegment = false;								//!< true if this is not an actual request but a stream-has-already-ended request.
 	bool													bIsInitialStartRequest = false;						//!< true if this is the initial playback start request.
 	FTimeValue												PeriodStart;										//!< Value to add to all DTS & PTS to map them into the Period timeline
@@ -81,11 +82,11 @@ public:
 /**
  *
 **/
-class FStreamReaderFMP4DASH : public IStreamReader
+class FStreamReaderDASH : public IStreamReader
 {
 public:
-	FStreamReaderFMP4DASH();
-	virtual ~FStreamReaderFMP4DASH();
+	FStreamReaderDASH();
+	virtual ~FStreamReaderDASH();
 
 	virtual UEMediaError Create(IPlayerSessionServices* PlayerSessionService, const CreateParam& InCreateParam) override;
 	virtual void Close() override;
@@ -100,9 +101,9 @@ public:
 	virtual void CancelRequests() override;
 
 private:
-	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHFMP4Reader);
+	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHStreamReader);
 
-	struct FStreamHandler : public FMediaThread, public IParserISO14496_12::IReader, public IParserISO14496_12::IBoxCallback
+	struct FStreamHandler : public FMediaThread, public IParserISO14496_12::IReader, public IParserISO14496_12::IBoxCallback, public IParserMKV::IReader
 	{
 		struct FReadBuffer
 		{
@@ -121,10 +122,112 @@ private:
 			int64												MaxParsePos;
 		};
 
+
+		struct FActiveTrackData
+		{
+			void Reset()
+			{
+				BufferSourceInfo.Reset();
+				DurationSuccessfullyRead.SetToZero();
+				DurationSuccessfullyDelivered.SetToZero();
+				AverageDuration.SetToZero();
+				LargestDTS.SetToInvalid();
+				SmallestPTS.SetToInvalid();
+				LargestPTS.SetToInvalid();
+				NumAddedTotal = 0;
+				bIsFirstInSequence = true;
+				bReadPastLastPTS = false;
+				bGotAllSamples = false;
+				bReachedEndOfKnownDuration = false;
+
+				AccessUnitFIFO.Empty();
+				SortedAccessUnitFIFO.Empty();
+				CSD.Reset();
+				StreamType = EStreamType::Unsupported;
+				Bitrate = 0;
+				bNeedToRecalculateDurations = false;
+			}
+
+			struct FSample
+			{
+				FTimeValue PTS;
+				FAccessUnit* AU = nullptr;
+				FSample(FAccessUnit* InAU) : PTS(InAU->PTS), AU(InAU) { InAU->AddRef(); }
+				FSample(const FSample& rhs)
+				{
+					PTS = rhs.PTS;
+					if ((AU = rhs.AU) != nullptr)
+					{
+						AU->AddRef();
+					}
+				}
+				void Release()
+				{
+					FAccessUnit::Release(AU);
+					AU = nullptr;
+				}
+				~FSample()
+				{
+					Release();
+				}
+			};
+
+			void AddAccessUnit(FAccessUnit* InAU)
+			{
+				if (InAU)
+				{
+					AccessUnitFIFO.Emplace(FActiveTrackData::FSample(InAU));
+					if (bNeedToRecalculateDurations)
+					{
+						SortedAccessUnitFIFO.Emplace(FActiveTrackData::FSample(InAU));
+						SortedAccessUnitFIFO.Sort([](const FActiveTrackData::FSample& a, const FActiveTrackData::FSample& b){return a.PTS < b.PTS;});
+					}
+					// If a valid non-zero duration exists on the AU we take it as the average duration.
+					if ((!AverageDuration.IsValid() || AverageDuration.IsZero()) && InAU->Duration.IsValid() && InAU->Duration > FTimeValue::GetZero())
+					{
+						AverageDuration = InAU->Duration;
+					}
+					if (!LargestDTS.IsValid() || InAU->DTS > LargestDTS)
+					{
+						LargestDTS = InAU->DTS;
+					}
+					if (!SmallestPTS.IsValid() || InAU->PTS < SmallestPTS)
+					{
+						SmallestPTS = InAU->PTS;
+					}
+					if (!LargestPTS.IsValid() || AccessUnitFIFO.Last().AU->PTS > LargestPTS)
+					{
+						LargestPTS = AccessUnitFIFO.Last().AU->PTS;
+					}
+					++NumAddedTotal;
+				}
+			}
+
+			TArray<FSample> AccessUnitFIFO;
+			TArray<FSample> SortedAccessUnitFIFO;
+			FTimeValue DurationSuccessfullyRead {(int64)0};
+			FTimeValue DurationSuccessfullyDelivered {(int64)0};
+			FTimeValue AverageDuration {(int64)0};
+			FTimeValue SmallestPTS;
+			FTimeValue LargestPTS;
+			FTimeValue LargestDTS;
+			TSharedPtrTS<FAccessUnit::CodecData> CSD;
+			TSharedPtrTS<FBufferSourceInfo> BufferSourceInfo;
+			EStreamType StreamType = EStreamType::Unsupported;
+			uint32 NumAddedTotal = 0;
+			int32 Bitrate = 0;
+			bool bIsFirstInSequence = true;
+			bool bReadPastLastPTS = false;
+			bool bGotAllSamples = false;
+			bool bNeedToRecalculateDurations = false;
+			bool bReachedEndOfKnownDuration = false;
+		};
+
+
 		static uint32											UniqueDownloadID;
 
 		IStreamReader::CreateParam								Parameters;
-		TSharedPtrTS<FStreamSegmentRequestFMP4DASH>				CurrentRequest;
+		TSharedPtrTS<FStreamSegmentRequestDASH>					CurrentRequest;
 		FMediaSemaphore											WorkSignal;
 		FMediaEvent												IsIdleSignal;
 		bool													bRunOnThreadPool = false;
@@ -142,11 +245,7 @@ private:
 		FMediaEvent												DownloadCompleteSignal;
 		TSharedPtrTS<IParserISO14496_12>						MP4Parser;
 		int32													NumMOOFBoxesFound = 0;
-
-		TMediaQueueDynamicNoLock<FAccessUnit *>					AccessUnitFIFO;
-		FTimeValue 												DurationSuccessfullyRead;
-		FTimeValue 												DurationSuccessfullyDelivered;
-
+		FActiveTrackData										ActiveTrackData;
 		TArray<TSharedPtrTS<DASH::FPlayerEvent>>				SegmentEventsFound;
 
 		FMediaCriticalSection									MetricUpdateLock;
@@ -162,9 +261,13 @@ private:
 		void WorkerThread();
 		void RunInThreadPool();
 		void HandleRequest();
+		void HandleRequestMP4();
+		void HandleRequestMKV();
 
-		FErrorDetail GetInitSegment(TSharedPtrTS<const IParserISO14496_12>& OutMP4InitSegment, const TSharedPtrTS<FStreamSegmentRequestFMP4DASH>& InRequest);
-		FErrorDetail RetrieveSideloadedFile(TSharedPtrTS<const TArray<uint8>>& OutData, const TSharedPtrTS<FStreamSegmentRequestFMP4DASH>& InRequest);
+		FErrorDetail LoadInitSegment(TSharedPtrTS<FMPDLoadRequestDASH>& OutLoadRequest, Metrics::FSegmentDownloadStats& OutStats, const TSharedPtrTS<FStreamSegmentRequestDASH>& Request);
+		FErrorDetail GetInitSegment(TSharedPtrTS<const IParserISO14496_12>& OutMP4InitSegment, const TSharedPtrTS<FStreamSegmentRequestDASH>& InRequest);
+		FErrorDetail GetInitSegment(TSharedPtrTS<const IParserMKV>& OutMKVInitSegment, const TSharedPtrTS<FStreamSegmentRequestDASH>& InRequest);
+		FErrorDetail RetrieveSideloadedFile(TSharedPtrTS<const TArray<uint8>>& OutData, const TSharedPtrTS<FStreamSegmentRequestDASH>& InRequest);
 		void CheckForInbandDASHEvents();
 		void HandleEventMessages();
 
@@ -176,14 +279,36 @@ private:
 
 		bool HasErrored() const;
 
+		enum class EEmitType
+		{
+			UntilBlocked,
+			AllRemaining,
+			KnownDurationOnly
+		};
+		enum class EEmitResult
+		{
+			SentNothing,
+			Sent,
+			AllReachedEOS,
+		};
+		EEmitResult EmitSamples(EEmitType InEmitType, const TSharedPtrTS<FStreamSegmentRequestDASH>& InRequest);
+		void UpdateAUDropState(FAccessUnit* InAU, const TSharedPtrTS<FStreamSegmentRequestDASH>& InRequest);
+
+
 		// Methods from IParserISO14496_12::IReader
-		virtual int64 ReadData(void* IntoBuffer, int64 NumBytesToRead) override;
-		virtual bool HasReachedEOF() const override;
-		virtual bool HasReadBeenAborted() const override;
-		virtual int64 GetCurrentOffset() const override;
+		int64 ReadData(void* IntoBuffer, int64 NumBytesToRead) override;
+		bool HasReachedEOF() const override;
+		bool HasReadBeenAborted() const override;
+		int64 GetCurrentOffset() const override;
 		// Methods from IParserISO14496_12::IBoxCallback
-		virtual IParserISO14496_12::IBoxCallback::EParseContinuation OnFoundBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
-		virtual IParserISO14496_12::IBoxCallback::EParseContinuation OnEndOfBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
+		IParserISO14496_12::IBoxCallback::EParseContinuation OnFoundBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
+		IParserISO14496_12::IBoxCallback::EParseContinuation OnEndOfBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
+	
+		// Methods from IParserMKV::IReader
+		int64 MKVReadData(void* InDestinationBuffer, int64 InNumBytesToRead, int64 InFromOffset) override;
+		int64 MKVGetCurrentFileOffset() const override;
+		int64 MKVGetTotalSize() override;
+		bool MKVHasReadBeenAborted() const override;
 	};
 
 	FStreamHandler						StreamHandlers[3];		// 0 = video, 1 = audio, 2 = subtitle 

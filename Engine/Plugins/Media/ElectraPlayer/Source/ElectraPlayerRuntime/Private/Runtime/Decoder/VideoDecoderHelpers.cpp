@@ -92,6 +92,34 @@ void FHDRHelper::Reset()
 	bIsFirst = true;
 }
 
+void FHDRHelper::SetHDRType(int32 BitDepth, const FColorimetryHelper& InColorimetry)
+{
+	// Set HDR type from colorimetry!
+	IVideoDecoderHDRInformation::EType hdrType = IVideoDecoderHDRInformation::EType::Unknown;
+	uint8 colour_primaries, transfer_characteristics, matrix_coeffs;
+	InColorimetry.GetCurrentValues(colour_primaries, transfer_characteristics, matrix_coeffs);
+	if (colour_primaries == 9 && matrix_coeffs == 9)
+	{
+		if (BitDepth == 10 && transfer_characteristics == 16)
+		{
+			hdrType = IVideoDecoderHDRInformation::EType::PQ10;
+			if (CurrentHDRInfo.IsValid() && CurrentHDRInfo->GetMasteringDisplayColourVolume() && CurrentHDRInfo->GetContentLightLevelInfo())
+			{
+				hdrType = IVideoDecoderHDRInformation::EType::HDR10;
+			}
+		}
+		else if (BitDepth >= 10 && (transfer_characteristics == 18 || (transfer_characteristics == 14 && CurrentAlternativeTransferCharacteristics == 18)))
+		{
+			hdrType = IVideoDecoderHDRInformation::EType::HLG10;
+		}
+	}
+	if (CurrentHDRInfo.IsValid())
+	{
+		CurrentHDRInfo->SetHDRType(hdrType);
+	}
+}
+
+
 void FHDRHelper::Update(int32 BitDepth, const FColorimetryHelper& InColorimetry, const TArray<ElectraDecodersUtil::MPEG::FSEIMessage>& InGlobalPrefixSEIs, const TArray<ElectraDecodersUtil::MPEG::FSEIMessage>& InLocalPrefixSEIs, bool bIsNewCLVS)
 {
 	auto UseSEI = [](TOptional<ElectraDecodersUtil::MPEG::FSEIMessage>& InOutWhere, const TArray<ElectraDecodersUtil::MPEG::FSEIMessage>& InSeis, ElectraDecodersUtil::MPEG::FSEIMessage::EPayloadType InWhich) -> bool
@@ -175,30 +203,7 @@ void FHDRHelper::Update(int32 BitDepth, const FColorimetryHelper& InColorimetry,
 		}
 	}
 
-	// Set HDR type from colorimetry!
-	IVideoDecoderHDRInformation::EType hdrType = IVideoDecoderHDRInformation::EType::Unknown;
-	uint8 colour_primaries, transfer_characteristics, matrix_coeffs;
-	InColorimetry.GetCurrentValues(colour_primaries, transfer_characteristics, matrix_coeffs);
-	if (colour_primaries == 9 && matrix_coeffs == 9)
-	{
-		if (BitDepth == 10 && transfer_characteristics == 16)
-		{
-			hdrType = IVideoDecoderHDRInformation::EType::PQ10;
-			if (CurrentHDRInfo.IsValid() && CurrentHDRInfo->GetMasteringDisplayColourVolume() && CurrentHDRInfo->GetContentLightLevelInfo())
-			{
-				hdrType = IVideoDecoderHDRInformation::EType::HDR10;
-			}
-		}
-		else if (BitDepth >= 10 && (transfer_characteristics == 18 || (transfer_characteristics == 14 && CurrentAlternativeTransferCharacteristics == 18)))
-		{
-			hdrType = IVideoDecoderHDRInformation::EType::HLG10;
-		}
-	}
-	if (CurrentHDRInfo.IsValid())
-	{
-		CurrentHDRInfo->SetHDRType(hdrType);
-	}
-
+	SetHDRType(BitDepth, InColorimetry);
 	bIsFirst = false;
 }
 
@@ -272,29 +277,28 @@ void FHDRHelper::UpdateFromMPEGBoxes(int32 BitDepth, const FColorimetryHelper& I
 		CurrentHDRInfo->SetContentLightLevelInfo(ll);
 	}
 
-	// Set HDR type from colorimetry!
-	IVideoDecoderHDRInformation::EType hdrType = IVideoDecoderHDRInformation::EType::Unknown;
-	uint8 colour_primaries, transfer_characteristics, matrix_coeffs;
-	InColorimetry.GetCurrentValues(colour_primaries, transfer_characteristics, matrix_coeffs);
-	if (colour_primaries == 9 && matrix_coeffs == 9)
+	SetHDRType(BitDepth, InColorimetry);
+}
+
+void FHDRHelper::Update(int32 BitDepth, const FColorimetryHelper& InColorimetry, const TOptional<FVideoDecoderHDRMetadata_mastering_display_colour_volume>& InMDCV, const TOptional<FVideoDecoderHDRMetadata_content_light_level_info>& InCLLI)
+{
+	if (!InMDCV.IsSet() && !InCLLI.IsSet())
 	{
-		if (BitDepth == 10 && transfer_characteristics == 16)
-		{
-			hdrType = IVideoDecoderHDRInformation::EType::PQ10;
-			if (CurrentHDRInfo.IsValid() && CurrentHDRInfo->GetMasteringDisplayColourVolume() && CurrentHDRInfo->GetContentLightLevelInfo())
-			{
-				hdrType = IVideoDecoderHDRInformation::EType::HDR10;
-			}
-		}
-		else if (BitDepth >= 10 && (transfer_characteristics == 18 || (transfer_characteristics == 14 && CurrentAlternativeTransferCharacteristics == 18)))
-		{
-			hdrType = IVideoDecoderHDRInformation::EType::HLG10;
-		}
+		return;
 	}
-	if (CurrentHDRInfo.IsValid())
+	if (!CurrentHDRInfo.IsValid())
 	{
-		CurrentHDRInfo->SetHDRType(hdrType);
+		CurrentHDRInfo = MakeShareable(new FVideoDecoderHDRInformation);
 	}
+	if (InMDCV.IsSet())
+	{
+		CurrentHDRInfo->SetMasteringDisplayColourVolume(InMDCV.GetValue());
+	}
+	if (InCLLI.IsSet())
+	{
+		CurrentHDRInfo->SetContentLightLevelInfo(InCLLI.GetValue());
+	}
+	SetHDRType(BitDepth, InColorimetry);
 }
 
 

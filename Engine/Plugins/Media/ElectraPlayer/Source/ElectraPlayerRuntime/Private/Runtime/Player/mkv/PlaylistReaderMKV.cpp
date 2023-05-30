@@ -76,13 +76,13 @@ public:
 
 private:
 	// Methods from IParserMKV::IReader
-	int64 ReadData(void* IntoBuffer, int64 NumBytesToRead, int64 InFromOffset) override;
-	int64 GetCurrentFileOffset() const override;
-	int64 GetTotalSize() override
+	bool MKVHasReadBeenAborted() const override;
+	int64 MKVReadData(void* IntoBuffer, int64 NumBytesToRead, int64 InFromOffset) override;
+	int64 MKVGetCurrentFileOffset() const override;
+	int64 MKVGetTotalSize() override
 	{
 		return FileSize;
 	}
-	bool HasReadBeenAborted() const override;
 
 	void StartWorkerThread();
 	void StopWorkerThread();
@@ -330,10 +330,10 @@ void FPlaylistReaderMKV::WorkerThread()
 	CSV_SCOPED_TIMING_STAT(ElectraPlayer, MKV_PlaylistWorker);
 
 	MKVParser = IParserMKV::CreateParser(PlayerSessionServices);
-	LastErrorDetail = MKVParser->ParseHeader(this);
+	LastErrorDetail = MKVParser->ParseHeader(this, IParserMKV::EParserFlags::ParseFlag_Default);
 	ClearRequest();
 
-	if (!HasReadBeenAborted())
+	if (!MKVHasReadBeenAborted())
 	{
 		// Notify the download of the "master playlist". This indicates the download only, not the parsing thereof.
 		PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistDownloadMessage::Create(&ConnectionInfo, Playlist::EListType::Master, Playlist::ELoadType::Initial));
@@ -390,7 +390,7 @@ void FPlaylistReaderMKV::WorkerThread()
  * @param NumBytesToRead The number of bytes to read. Must not read more bytes and no less than requested.
  * @return The number of bytes read or -1 on a read error.
  */
-int64 FPlaylistReaderMKV::ReadData(void* IntoBuffer, int64 NumBytesToRead, int64 InFromOffset)
+int64 FPlaylistReaderMKV::MKVReadData(void* IntoBuffer, int64 NumBytesToRead, int64 InFromOffset)
 {
 	ReadChunk(reinterpret_cast<uint8*>(IntoBuffer), InFromOffset, NumBytesToRead);
 	while(1)
@@ -409,7 +409,7 @@ int64 FPlaylistReaderMKV::ReadData(void* IntoBuffer, int64 NumBytesToRead, int64
 	return NumBytesToRead;
 }
 
-int64 FPlaylistReaderMKV::GetCurrentFileOffset() const
+int64 FPlaylistReaderMKV::MKVGetCurrentFileOffset() const
 {
 	check(!"This is not expected to be called using a buffered reader");
 	return -1;
@@ -420,7 +420,7 @@ int64 FPlaylistReaderMKV::GetCurrentFileOffset() const
  *
  * @return true if reading/parsing has been aborted, false otherwise.
  */
-bool FPlaylistReaderMKV::HasReadBeenAborted() const
+bool FPlaylistReaderMKV::MKVHasReadBeenAborted() const
 {
 	return bAbort;
 }

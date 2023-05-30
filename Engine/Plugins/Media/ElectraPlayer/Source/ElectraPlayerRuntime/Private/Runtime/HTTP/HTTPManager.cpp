@@ -572,11 +572,6 @@ namespace Electra
 				Handle->LocalByteStream = MakeShareable<FLocalByteStream>(FileStream);
 				FileStream->Filename = Filename.Mid(7); /* file:// */
 				FileStream->Archive = MakeShareable(IFileManager::Get().CreateFileReader(*FileStream->Filename));
-				if (!FileStream->Archive.IsValid())
-				{
-					OutError.Set(ERRCODE_HTTP_FILE_COULDNT_READ_FILE, FString::Printf(TEXT("Failed to open media file \"%s\""), *Request->Parameters.URL));
-					return nullptr;
-				}
 			}
 			else
 			{
@@ -1585,50 +1580,59 @@ namespace Electra
 			Request->ConnectionInfo.HTTPVersionReceived = 11;
 			Request->ConnectionInfo.bIsChunked = false;
 
-			// Range request?
-			if (!Request->Parameters.Range.IsSet())
+			if (Archive.IsValid())
 			{
-				Request->ConnectionInfo.ContentLength = Archive->TotalSize();
-				Request->ConnectionInfo.StatusInfo.HTTPStatus = 200;
-				FileStartOffset = 0;
-				FileSize = Archive->TotalSize();
-				FileSizeToGo = FileSize;
-				Request->ConnectionInfo.ContentLengthHeader = FString::Printf(TEXT("Content-Length: %lld"), (long long int)FileSize);
+				// Range request?
+				if (!Request->Parameters.Range.IsSet())
+				{
+					Request->ConnectionInfo.ContentLength = Archive->TotalSize();
+					Request->ConnectionInfo.StatusInfo.HTTPStatus = 200;
+					FileStartOffset = 0;
+					FileSize = Archive->TotalSize();
+					FileSizeToGo = FileSize;
+					Request->ConnectionInfo.ContentLengthHeader = FString::Printf(TEXT("Content-Length: %lld"), (long long int)FileSize);
+				}
+				else
+				{
+					int64 fs = Archive->TotalSize();
+					int64 off = 0;
+					int64 end = fs - 1;
+					// For now we support partial data only from the beginning of the file, not the end (aka, seek_set and not seek_end)
+					check(Request->Parameters.Range.Start >= 0);
+					if (Request->Parameters.Range.Start >= 0)
+					{
+						off = Request->Parameters.Range.Start;
+						if (off < fs)
+						{
+							end = Request->Parameters.Range.EndIncluding;
+							if (end < 0 || end >= fs)
+							{
+								end = fs - 1;
+							}
+							int64 numBytes = end - off + 1;
+
+							Request->ConnectionInfo.ContentLength = numBytes;
+							Request->ConnectionInfo.StatusInfo.HTTPStatus = 206;
+							FileStartOffset = off;
+							FileSize = Archive->TotalSize();
+							FileSizeToGo = numBytes;
+							Request->ConnectionInfo.ContentLengthHeader = FString::Printf(TEXT("Content-Length: %lld"), (long long int)numBytes);
+							Request->ConnectionInfo.ContentRangeHeader = FString::Printf(TEXT("Content-Range: bytes %lld-%lld/%lld"), (long long int)off, (long long int)end, (long long int)fs);
+							Archive->Seek(off);
+						}
+						else
+						{
+							Request->ConnectionInfo.StatusInfo.HTTPStatus = 416;		// Range not satisfiable
+							Request->ConnectionInfo.ContentRangeHeader = FString::Printf(TEXT("Content-Range: bytes */%lld"), (long long int)fs);
+						}
+					}
+				}
 			}
 			else
 			{
-				int64 fs = Archive->TotalSize();
-				int64 off = 0;
-				int64 end = fs - 1;
-				// For now we support partial data only from the beginning of the file, not the end (aka, seek_set and not seek_end)
-				check(Request->Parameters.Range.Start >= 0);
-				if (Request->Parameters.Range.Start >= 0)
-				{
-					off = Request->Parameters.Range.Start;
-					if (off < fs)
-					{
-						end = Request->Parameters.Range.EndIncluding;
-						if (end < 0 || end >= fs)
-						{
-							end = fs - 1;
-						}
-						int64 numBytes = end - off + 1;
-
-						Request->ConnectionInfo.ContentLength = numBytes;
-						Request->ConnectionInfo.StatusInfo.HTTPStatus = 206;
-						FileStartOffset = off;
-						FileSize = Archive->TotalSize();
-						FileSizeToGo = numBytes;
-						Request->ConnectionInfo.ContentLengthHeader = FString::Printf(TEXT("Content-Length: %lld"), (long long int)numBytes);
-						Request->ConnectionInfo.ContentRangeHeader = FString::Printf(TEXT("Content-Range: bytes %lld-%lld/%lld"), (long long int)off, (long long int)end, (long long int)fs);
-						Archive->Seek(off);
-					}
-					else
-					{
-						Request->ConnectionInfo.StatusInfo.HTTPStatus = 416;		// Range not satisfiable
-						Request->ConnectionInfo.ContentRangeHeader = FString::Printf(TEXT("Content-Range: bytes */%lld"), (long long int)fs);
-					}
-				}
+				Request->ConnectionInfo.StatusInfo.HTTPStatus = 404;	// File not found
+				Request->ConnectionInfo.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("HTTP returned status 404")));
+				Request->ConnectionInfo.StatusInfo.ErrorCode = ERRCODE_HTTP_RETURNED_ERROR;
 			}
 		}
 	}

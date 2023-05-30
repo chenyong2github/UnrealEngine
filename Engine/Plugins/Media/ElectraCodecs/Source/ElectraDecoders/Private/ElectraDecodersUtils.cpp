@@ -190,6 +190,117 @@ bool ParseCodecH265(FMimeTypeVideoCodecInfo& OutInfo, const FString& InCodecForm
 	return false;
 }
 
+bool ParseCodecVP8(FMimeTypeVideoCodecInfo& OutInfo, const FString& InCodecFormat, const TArray<uint8>& InvpcCBox)
+{
+	if (InCodecFormat.StartsWith("vp08"))
+	{
+		FString oti = InCodecFormat;
+		if (!InvpcCBox.IsEmpty())
+		{
+			// Enough data to represent the `vpcC` box, and is it of version 1?
+			if (InvpcCBox.Num() < 12 || InvpcCBox[0] != 1)
+			{
+				return false;
+			}
+
+			OutInfo.Profile = InvpcCBox[4];
+			OutInfo.Level = InvpcCBox[5];
+			OutInfo.NumBitsLuma = InvpcCBox[6] >> 4;
+			return true;
+		}
+		if (oti.Len() > 4)
+		{
+			OutInfo.Codec = TEXT("vp08");
+			FString Temp;
+			int32 DotPos;
+			if (oti.FindChar(TCHAR('.'), DotPos))
+			{
+				int32 Components[8] {0}, NumComponents=0;
+				oti.RightChopInline(DotPos + 1);
+				while(oti.Len() && NumComponents<UE_ARRAY_COUNT(Components))
+				{
+					if (oti.FindChar(TCHAR('.'), DotPos))
+					{
+						Temp = oti.Left(DotPos);
+						oti.RightChopInline(DotPos + 1);
+						LexFromString(Components[NumComponents++], *Temp);
+					}
+					else
+					{
+						LexFromString(Components[NumComponents++], *oti);
+						break;
+					}
+				}
+				OutInfo.Profile = Components[0];
+				OutInfo.Level = Components[1];
+				OutInfo.NumBitsLuma = Components[2];
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool ParseCodecVP9(FMimeTypeVideoCodecInfo& OutInfo, const FString& InCodecFormat, const TArray<uint8>& InvpcCBox)
+{
+	if (InCodecFormat.StartsWith("vp09"))
+	{
+		FString oti = InCodecFormat;
+		if (!InvpcCBox.IsEmpty())
+		{
+			// Enough data to represent the `vpcC` box, and is it of version 1?
+			if (InvpcCBox.Num() < 12 || InvpcCBox[0] != 1)
+			{
+				return false;
+			}
+
+			OutInfo.Extras[0] = OutInfo.Profile = InvpcCBox[4];
+			OutInfo.Extras[1] = OutInfo.Level = InvpcCBox[5];
+			OutInfo.Extras[2] = OutInfo.NumBitsLuma = InvpcCBox[6] >> 4;
+			OutInfo.Extras[3] = (InvpcCBox[6] >> 1) & 7;
+			OutInfo.Extras[4] = InvpcCBox[7];
+			OutInfo.Extras[5] = InvpcCBox[8];
+			OutInfo.Extras[6] = InvpcCBox[9];
+			OutInfo.Extras[7] = InvpcCBox[6] & 1;
+			return true;
+		}
+		if (oti.Len() > 4)
+		{
+			OutInfo.Codec = TEXT("vp09");
+			FString Temp;
+			int32 DotPos;
+			if (oti.FindChar(TCHAR('.'), DotPos))
+			{
+				int32 Components[8] {0}, NumComponents=0;
+				oti.RightChopInline(DotPos + 1);
+				while(oti.Len() && NumComponents<UE_ARRAY_COUNT(Components))
+				{
+					if (oti.FindChar(TCHAR('.'), DotPos))
+					{
+						Temp = oti.Left(DotPos);
+						oti.RightChopInline(DotPos + 1);
+						LexFromString(Components[NumComponents++], *Temp);
+					}
+					else
+					{
+						LexFromString(Components[NumComponents++], *oti);
+						break;
+					}
+				}
+				OutInfo.Extras[0] = OutInfo.Profile = Components[0];
+				OutInfo.Extras[1] = OutInfo.Level = Components[1];
+				OutInfo.Extras[2] = OutInfo.NumBitsLuma = Components[2];
+				OutInfo.Extras[3] = Components[3];
+				OutInfo.Extras[4] = Components[4];
+				OutInfo.Extras[5] = Components[5];
+				OutInfo.Extras[6] = Components[6];
+				OutInfo.Extras[7] = Components[7];
+				return true;
+			}
+		}
+	}
+	return false;
+}
 
 
 int64 GetVariantValueSafeI64(const TMap<FString, FVariant>& InFromMap, const FString& InName, int64 InDefaultValue)

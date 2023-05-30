@@ -3,8 +3,11 @@
 #include "VideoDecoderInputBitstreamProcessor.h"
 #include "BitstreamProcessors/VideoDecoderInputBitstreamProcessorH264.h"
 #include "BitstreamProcessors/VideoDecoderInputBitstreamProcessorH265.h"
+#include "BitstreamProcessors/VideoDecoderInputBitstreamProcessorVP8.h"
+#include "BitstreamProcessors/VideoDecoderInputBitstreamProcessorVP9.h"
 #include "IElectraDecoderOutputVideo.h"
 #include "Decoder/VideoDecoderHelpers.h"
+#include "StreamAccessUnitBuffer.h"
 
 namespace Electra
 {
@@ -21,8 +24,8 @@ public:
 	}
 	EProcessResult ProcessAccessUnitForDecoding(FBitstreamInfo& OutBSI, FAccessUnit* InOutAccessUnit) override
 	{ 
-		OutBSI.bIsSyncFrame = true;
-		OutBSI.bIsDiscardable = true;
+		OutBSI.bIsSyncFrame = InOutAccessUnit->bIsSyncSample;
+		OutBSI.bIsDiscardable = false;
 		return EProcessResult::None; 
 	}
 	void SetPropertiesOnOutput(TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, FParamDict* InOutProperties, const FBitstreamInfo& InFromBSI) override
@@ -95,6 +98,14 @@ TSharedPtr<IVideoDecoderInputBitstreamProcessor, ESPMode::ThreadSafe> IVideoDeco
 	else if (InCodec.StartsWith(TEXT("hvc1")) || InCodec.StartsWith(TEXT("hev1")))
 	{
 		return IVideoDecoderInputBitstreamProcessorH265::Create(InCodec, InDecoderConfigOptions);
+	}
+	else if (InCodec.StartsWith(TEXT("vp08")))
+	{
+		return IVideoDecoderInputBitstreamProcessorVP8::Create(InCodec, InDecoderConfigOptions);
+	}
+	else if (InCodec.StartsWith(TEXT("vp09")))
+	{
+		return IVideoDecoderInputBitstreamProcessorVP9::Create(InCodec, InDecoderConfigOptions);
 	}
 
 	TSharedPtr<FVideoDecoderInputBitstreamProcessorNull, ESPMode::ThreadSafe> bsp = MakeShared<FVideoDecoderInputBitstreamProcessorNull, ESPMode::ThreadSafe>();

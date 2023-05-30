@@ -91,6 +91,11 @@ public:
 		return bIsValid;
 	}
 
+	bool IsZero() const
+	{
+		return bIsValid && HNS == 0;
+	}
+
 	bool IsInfinity() const
 	{
 		return bIsInfinity;

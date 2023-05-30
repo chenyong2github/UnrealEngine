@@ -44,32 +44,40 @@ namespace Electra
 			 * @return The number of bytes read or -1 on a read error. If the read would go beyond the size of the file then
 			 *         returning fewer bytes than requested is permitted in this case ONLY.
 			 */
-			virtual int64 ReadData(void* InDestinationBuffer, int64 InNumBytesToRead, int64 InFromOffset) = 0;
+			virtual int64 MKVReadData(void* InDestinationBuffer, int64 InNumBytesToRead, int64 InFromOffset) = 0;
 
-			virtual int64 GetCurrentFileOffset() const = 0;
+			virtual int64 MKVGetCurrentFileOffset() const = 0;
 
 			/**
 			 * Returns the total size of the file.
 			 * This should be possible after performing the first ReadData().
 			 * If the total length is not known, return -1.
 			 */
-			virtual int64 GetTotalSize() = 0;
+			virtual int64 MKVGetTotalSize() = 0;
 
 			/**
 			 * Checks if reading of the file and therefor parsing has been aborted.
 			 *
 			 * @return true if reading/parsing has been aborted, false otherwise.
 			 */
-			virtual bool HasReadBeenAborted() const = 0;
+			virtual bool MKVHasReadBeenAborted() const = 0;
 		};
 
 
 		static TSharedPtrTS<IParserMKV> CreateParser(IPlayerSessionServices* PlayerSession);
 
+		enum EParserFlags
+		{
+			ParseFlag_Default = 0,
+			ParseFlag_OnlyTracks = 1 << 0,
+			ParseFlag_OnlyEssentialLevel1 = 1 << 1,
+			ParseFlag_SuppressCueWarning = 1 << 2,
+		};
+
 		/**
 		 * Parses the header boxes.
 		 */
-		virtual FErrorDetail ParseHeader(IReader* DataReader) = 0;
+		virtual FErrorDetail ParseHeader(IReader* DataReader, EParserFlags ParseFlags) = 0;
 
 
 		/*******************************************************************************************************************/
@@ -117,13 +125,13 @@ namespace Electra
 
 			enum class EParseAction
 			{
-				SkipOver,		// Skip over the next n bytes. GetAction() returns an IActionSkipOver action.
-				PrependData,	// Prepend the frame data with constant data. GetAction() returns an IActionPrependData action.
-				ReadFrameData,	// Read the next n bytes as frame data. GetAction() returns an IActionReadFrameData action.
-				DecryptData,	// Decrypt the frame data. GetAction() returns an IActionDecryptData action.
-				FrameDone,		// Finished this frame data, continue with the next frame. GetAction() returns an IActionFrameDone action. All values (ie timestamps) are valid only now.
-				EndOfData,		// All cluster input consumed or skipped over. GetAction() returns nullptr.
-				Failure			// An error occurred. GetAction() returns nullptr.
+				SkipOver,			// Skip over the next n bytes. GetAction() returns an IActionSkipOver action.
+				PrependData,		// Prepend the frame data with constant data. GetAction() returns an IActionPrependData action.
+				ReadFrameData,		// Read the next n bytes as frame data. GetAction() returns an IActionReadFrameData action.
+				DecryptData,		// Decrypt the frame data. GetAction() returns an IActionDecryptData action.
+				FrameDone,			// Finished this frame data, continue with the next frame. GetAction() returns an IActionFrameDone action. All values (ie timestamps) are valid only now.
+				EndOfData,			// All cluster input consumed or skipped over. GetAction() returns nullptr.
+				Failure				// An error occurred. GetAction() returns nullptr.
 			};
 
 			class IAction
@@ -167,6 +175,7 @@ namespace Electra
 			class IActionFrameDone : public IAction
 			{
 			public:
+				virtual const TMap<uint64, TArray<uint8>>& GetBlockAdditionalData() const = 0;
 			};
 
 			/**
@@ -221,11 +230,18 @@ namespace Electra
 		virtual const ITrack* GetTrackByIndex(int32 Index) const = 0;
 		virtual const ITrack* GetTrackByTrackID(uint64 TrackID) const = 0;
 
+		enum EClusterParseFlags
+		{
+			ClusterParseFlag_Default = 0,
+			// Allow the data to be a full EBML document instead of just a cluster.
+			ClusterParseFlag_AllowFullDocument = 1 << 0,
+		};
+
 		/**
 		 * Create a cluster parser.
 		 * The data reader MUST start reading on a Matroska cluster.
 		 */
-		virtual TSharedPtrTS<IClusterParser> CreateClusterParser(IReader* DataReader, const TArray<uint64>& TrackIDsToParse) = 0;
+		virtual TSharedPtrTS<IClusterParser> CreateClusterParser(IReader* DataReader, const TArray<uint64>& TrackIDsToParse, EClusterParseFlags ParseFlags) const = 0;
 
 		// Adds a cue of it does not exist yet. This may be called during cluster parsing for sync samples since not all
 		// sync samples may have been added as cues in the multiplexing process.

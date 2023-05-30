@@ -39,7 +39,7 @@ namespace Electra
 			DASHMPDParser,
 			DASHMPDBuilder,
 			DASHManifest,
-			DASHFMP4Reader,
+			DASHStreamReader,
 			EntityCache,
 			DRM,
 			SubtitleDecoder,
@@ -98,8 +98,8 @@ namespace Electra
 					return TEXT("DASH MPD builder");
 				case EFacility::DASHManifest:
 					return TEXT("DASH manifest");
-				case EFacility::DASHFMP4Reader:
-					return TEXT("DASH fmp4 reader");
+				case EFacility::DASHStreamReader:
+					return TEXT("DASH stream reader");
 				case EFacility::EntityCache:
 					return TEXT("Entity cache");
 				case EFacility::DRM:

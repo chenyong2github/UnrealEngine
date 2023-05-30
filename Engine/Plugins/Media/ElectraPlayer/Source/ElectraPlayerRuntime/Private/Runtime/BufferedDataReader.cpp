@@ -42,6 +42,18 @@ namespace Electra
 				{
 					NewArea->bEOS = true;
 				}
+				// Any existing area before this one can't be at EOS any more.
+				for(auto &a : Areas)
+				{
+					if (a->StartOffset < FromOffset)
+					{
+						a->bEOS = false;
+					}
+					else
+					{
+						break;
+					}
+				}
 				NewArea->Size = NumRead;
 				BytesRemainingInArea = NewArea->Size;
 				CurrentArea = NewArea.Get();
@@ -159,9 +171,23 @@ namespace Electra
 				return false;
 			}
 		}
+		if (BytesRemainingInArea < NumBytes)
+		{
+			return false;
+		}
 		UpdateReadDataPointer();
 		return true;
 	}
+
+	bool FBufferedDataReader::IsAtEOS()
+	{
+		if (CurrentArea)
+		{
+			return BytesRemainingInArea == 0 && CurrentArea->bEOS;
+		}
+		return false;
+	}
+
 
 	bool FBufferedDataReader::SkipOver(int64 NumBytes)
 	{

@@ -82,6 +82,9 @@ namespace
 		TEXT("urn:dvb:dash:profile:dvb-dash:isoff-ext-live:2014"),
 		// Low latency Live
 		TEXT("http://www.dashif.org/guidelines/low-latency-live-v5"),
+		// WebM profiles
+		TEXT("urn:webm:dash:profile:webm-on-demand:2012"),
+		TEXT("urn:mpeg:dash:profile:webm-on-demand:2012"),
 	};
 
 	const TCHAR* const ScanTypeInterlace = TEXT("interlace");
@@ -1523,6 +1526,7 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 						MPDCodecs.Emplace(TEXT("stpp"));
 					}
 					Representation->bIsSideloadedSubtitle = true;
+					Representation->StreamContainerType = FRepresentation::EStreamContainerType::ISO14496_12;
 				}
 				else if (MimeType.Equals(SubtitleMimeType_SideloadedVTT))
 				{
@@ -1531,6 +1535,7 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 						MPDCodecs.Emplace(TEXT("wvtt"));
 					}
 					Representation->bIsSideloadedSubtitle = true;
+					Representation->StreamContainerType = FRepresentation::EStreamContainerType::ISO14496_12;
 				}
 
 				// Check for thumbnails
@@ -1553,6 +1558,16 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 
 				Representation->ID = MPDRepresentation->GetID();
 				Representation->Bitrate = MPDRepresentation->GetBandwidth();
+				Representation->StreamMimeType = MimeType;
+				if (MimeType.Contains(TEXT("mp4"), ESearchCase::IgnoreCase))
+				{
+					Representation->StreamContainerType = FRepresentation::EStreamContainerType::ISO14496_12;
+				}
+				else if (MimeType.Contains(TEXT("webm"), ESearchCase::IgnoreCase) || MimeType.Contains(TEXT("matroska"), ESearchCase::IgnoreCase))
+				{
+					Representation->StreamContainerType = FRepresentation::EStreamContainerType::Matroska;
+				}
+
 				Representation->CodecInfo.SetBitrate(Representation->Bitrate);
 
 				// Propagate the language code from the AdaptationSet into the codec info

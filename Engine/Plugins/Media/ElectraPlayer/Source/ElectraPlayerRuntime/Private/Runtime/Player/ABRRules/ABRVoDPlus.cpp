@@ -716,8 +716,8 @@ IAdaptiveStreamSelector::ESegmentAction FABROnDemandPlus::EvaluateForError(TArra
 						// Did we abort that stream in ReportDownloadProgress() ?
 						if (!Stats.bWasAborted)
 						{
-							// Take a video stream offline for a brief moment unless it is the worst one. Audio is usually the only one with no alternative to switch to, so don't do that!
-							if (Stats.StreamType == EStreamType::Video)
+							// Take a stream offline for a brief moment unless it is the worst one.
+							if (Stats.StreamType == EStreamType::Video || IsAudioOnly())
 							{
 								if (CurrentStreamInfo->QualityIndex != 0)
 								{

@@ -57,6 +57,8 @@ namespace ElectraDecodersUtil
 		uint32 CompatibilityFlags = 0;
 		uint64 Constraints = 0;
 		int32 Tier = 0;
+		int32 NumBitsLuma = 0;
+		int32 Extras[8] {0};
 	};
 
 
@@ -77,6 +79,8 @@ namespace ElectraDecodersUtil
 
 	bool ELECTRADECODERS_API ParseCodecH264(FMimeTypeVideoCodecInfo& OutInfo, const FString& InCodecFormat);
 	bool ELECTRADECODERS_API ParseCodecH265(FMimeTypeVideoCodecInfo& OutInfo, const FString& InCodecFormat);
+	bool ELECTRADECODERS_API ParseCodecVP8(FMimeTypeVideoCodecInfo& OutInfo, const FString& InCodecFormat, const TArray<uint8>& InvpcCBox);
+	bool ELECTRADECODERS_API ParseCodecVP9(FMimeTypeVideoCodecInfo& OutInfo, const FString& InCodecFormat, const TArray<uint8>& InvpcCBox);
 
 
 	int64 ELECTRADECODERS_API GetVariantValueSafeI64(const TMap<FString, FVariant>& InFromMap, const FString& InName, int64 InDefaultValue=0);

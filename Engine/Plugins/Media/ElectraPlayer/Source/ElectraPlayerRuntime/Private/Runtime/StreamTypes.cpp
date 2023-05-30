@@ -4,6 +4,7 @@
 #include "StreamTypes.h"
 #include "Utilities/StringHelpers.h"
 #include "Utilities/Utilities.h"
+#include "ElectraDecodersUtils.h"
 
 namespace Electra
 {
@@ -254,6 +255,57 @@ namespace Electra
 			Codec4CC = Make4CC('O','p','u','s');
 			return true;
 		}
+		else if (CodecOTI.StartsWith(TEXT("vp08")))
+		{
+			ElectraDecodersUtil::FMimeTypeVideoCodecInfo ci;
+			if (ElectraDecodersUtil::ParseCodecVP8(ci, CodecOTI, Extras.GetValue(TEXT("vpcC_box")).SafeGetArray()))
+			{
+				StreamType = EStreamType::Video;
+				CodecSpecifier = CodecOTI;
+				Codec = ECodec::Video4CC;
+				Codec4CC = Make4CC('v','p','0','8');
+				SetProfile(ci.Profile);
+				SetProfileLevel(ci.Level);
+				SetCodecSpecifierRFC6381(FString::Printf(TEXT("vp08.%02d.%02d.%02d"), ci.Profile, ci.Level, ci.NumBitsLuma));
+				return true;
+			}
+			return false;
+		}
+		else if (CodecOTI.Equals(TEXT("vp8")))
+		{
+			StreamType = EStreamType::Video;
+			CodecSpecifier = CodecOTI;
+			Codec = ECodec::Video4CC;
+			Codec4CC = Make4CC('v','p','0','8');
+			SetCodecSpecifierRFC6381(FString::Printf(TEXT("vp08.%02d.%02d.%02d"), 0, 0, 8));
+			return true;
+		}
+		else if (CodecOTI.StartsWith(TEXT("vp09")))
+		{
+			ElectraDecodersUtil::FMimeTypeVideoCodecInfo ci;
+			if (ElectraDecodersUtil::ParseCodecVP9(ci, CodecOTI, Extras.GetValue(TEXT("vpcC_box")).SafeGetArray()))
+			{
+				StreamType = EStreamType::Video;
+				CodecSpecifier = CodecOTI;
+				Codec = ECodec::Video4CC;
+				Codec4CC = Make4CC('v','p','0','9');
+				SetProfile(ci.Profile);
+				SetProfileLevel(ci.Level);
+				SetCodecSpecifierRFC6381(FString::Printf(TEXT("vp09.%02d.%02d.%02d.%02d.%02d.%02d.%02d.%02d"), ci.Profile, ci.Level, ci.NumBitsLuma, ci.Extras[3], ci.Extras[4], ci.Extras[5], ci.Extras[6], ci.Extras[7]));
+				return true;
+			}
+			return false;
+		}
+		else if (CodecOTI.Equals(TEXT("vp9")))
+		{
+			StreamType = EStreamType::Video;
+			CodecSpecifier = CodecOTI;
+			Codec = ECodec::Video4CC;
+			Codec4CC = Make4CC('v','p','0','9');
+			SetCodecSpecifierRFC6381(FString::Printf(TEXT("vp09.%02d.%02d.%02d"), 0, 0, 8));
+			return true;
+		}
+
 		else if (CodecOTI.Equals(TEXT("wvtt")))
 		{
 			StreamType = EStreamType::Subtitle;

@@ -11,6 +11,7 @@ namespace Electra
 {
 class IPlayerSessionServices;
 class IParserISO14496_12;
+class IParserMKV;
 
 
 
@@ -32,6 +33,7 @@ public:
 		FString Range;
 		FTimeValue ExpiresAtUTC;
 		TSharedPtrTS<const IParserISO14496_12>	Parsed14496_12Data;
+		TSharedPtrTS<const IParserMKV>	ParsedMatroskaData;
 		TSharedPtrTS<const TArray<uint8>> RawPayloadData;
 	};
 

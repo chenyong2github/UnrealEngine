@@ -392,6 +392,19 @@ void* FVariantValue::SafeGetPointer(void* Default) const
 	return Default;
 }
 
+const TArray<uint8>& FVariantValue::SafeGetArray() const
+{
+	if (DataType == EDataType::TypeU8Array)
+	{
+		const TArray<uint8>* Array = reinterpret_cast<const TArray<uint8>*>(&DataBuffer);
+		return *Array;
+	}
+	else
+	{
+		static TArray<uint8> Empty;
+		return Empty;
+	}
+}
 
 
 

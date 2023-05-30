@@ -9,6 +9,7 @@
 
 #include "h264/H264_VideoDecoder_Linux.h"
 #include "h265/H265_VideoDecoder_Linux.h"
+#include "vpx/VPx_VideoDecoder_Linux.h"
 #include "aac/AAC_AudioDecoder_Linux.h"
 
 namespace PlatformElectraDecodersLinux
@@ -47,6 +48,8 @@ void FPlatformElectraDecodersLinux::RegisterWithCodecFactory(IElectraCodecRegist
 			RegisterFactory(FH264VideoDecoderLinux::CreateFactory());
 			// H.265 video decoder
 			RegisterFactory(FH265VideoDecoderLinux::CreateFactory());
+			// VP8/VP9 video decoder
+			RegisterFactory(FVPxVideoDecoderLinux::CreateFactory());
 			// AAC audio decoder
 			RegisterFactory(FAACAudioDecoderLinux::CreateFactory());
 		}

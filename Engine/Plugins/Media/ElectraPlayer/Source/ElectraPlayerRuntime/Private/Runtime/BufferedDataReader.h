@@ -65,7 +65,7 @@ namespace Electra
 		bool SkipOver(int64 NumBytes);
 		bool ReadByteArray(TArray<uint8>& OutValue, int64 NumBytes);
 		bool SeekTo(int64 AbsolutePosition);
-
+		bool IsAtEOS();
 	protected:
 		enum
 		{

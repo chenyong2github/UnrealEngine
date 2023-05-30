@@ -9,6 +9,7 @@
 #include "PlaylistReaderMKV.h"
 #include "Utilities/Utilities.h"
 #include "Utilities/TimeUtilities.h"
+#include "Utils/Google/ElectraUtilsVPxVideo.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ElectraPlayerPrivate.h"
 #include "Player/PlayerStreamReader.h"
@@ -377,7 +378,8 @@ void FStreamReaderMKV::HandleRequest()
 	PlayerSessionServices->GetHTTPManager()->AddRequest(HTTPRequest, false);
 
 	check(Request->MKVParser.IsValid());
-	TSharedPtrTS<IParserMKV::IClusterParser> ClusterParser = Request->MKVParser->CreateClusterParser(this, Request->EnabledTrackIDs);
+	TSharedPtrTS<IParserMKV::IClusterParser> ClusterParser = Request->MKVParser->CreateClusterParser(this, Request->EnabledTrackIDs, IParserMKV::EClusterParseFlags::ClusterParseFlag_Default);
+
 	check(ClusterParser.IsValid());
 
 	uint32 PlaybackSequenceID = Request->GetPlaybackSequenceID();
@@ -501,6 +503,36 @@ void FStreamReaderMKV::HandleRequest()
 					// Set the associated stream metadata
 					AccessUnit->BufferSourceInfo = SelectedTrack.BufferSourceInfo;
 
+					// VP9 codec?
+					if (SelectedTrack.CSD->ParsedInfo.GetCodec4CC() == Utils::Make4CC('v','p','0','9'))
+					{
+						// We cannot trust the keyframe indicator from the demuxer.
+						ElectraDecodersUtil::VPxVideo::FVP9UncompressedHeader Header;
+						if (ElectraDecodersUtil::VPxVideo::ParseVP9UncompressedHeader(Header, AccessUnit->AUData, AccessUnit->AUSize))
+						{
+							AccessUnit->bIsSyncSample = Header.IsKeyframe();
+						}
+
+						// Any additional data?
+						const TMap<uint64, TArray<uint8>>& BlockAdditionalData = Action->GetBlockAdditionalData();
+						// What type of additional data is there?
+						if (BlockAdditionalData.Contains(4))	// VP9 ITU T.35 metadata?
+						{
+							AccessUnit->DynamicSidebandData = MakeUnique<TMap<uint32, TArray<uint8>>>();
+							AccessUnit->DynamicSidebandData->Emplace(Utils::Make4CC('i','t','3','5'), BlockAdditionalData[4]);
+						}
+					}
+					// VP8 codec?
+					else if (SelectedTrack.CSD->ParsedInfo.GetCodec4CC() == Utils::Make4CC('v','p','0','8'))
+					{
+						ElectraDecodersUtil::VPxVideo::FVP8UncompressedHeader Header;
+						if (ElectraDecodersUtil::VPxVideo::ParseVP8UncompressedHeader(Header, AccessUnit->AUData, AccessUnit->AUSize))
+						{
+							AccessUnit->bIsSyncSample = Header.IsKeyframe();
+						}
+					}
+
+
 					SelectedTrack.bIsFirstInSequence = false;
 					// Update the duration read with the duration from the sample. This may not be correct since we are
 					// recalculating the duration of video frames later, but this is only for download statistics and
@@ -534,10 +566,6 @@ void FStreamReaderMKV::HandleRequest()
 						{
 							Request->MKVParser->AddCue(Action->GetTimestamp(), Action->GetTrackID(), Action->GetSegmentRelativePosition(), 0, Action->GetClusterPosition());
 						}
-					}
-					else
-					{
-					int x=0;
 					}
 				}
 				FAccessUnit::Release(AccessUnit);
@@ -631,7 +659,7 @@ void FStreamReaderMKV::HandleRequest()
 			// Anything still not sent off we delete when we were aborted or asked to terminate.
 			// On regular completion we keep the remaining AUs to emit with the next request.
 			// We have to keep them in order to calculate the sample durations.
-			if (bTerminate || HasReadBeenAborted())
+			if (bTerminate || MKVHasReadBeenAborted())
 			{
 				for(auto &ActiveTrk : ActiveTrackMap)
 				{
@@ -697,7 +725,7 @@ FStreamReaderMKV::EEmitResult FStreamReaderMKV::EmitSamples(EEmitType InEmitType
 	EEmitResult Result = EEmitResult::SentNothing;
 	// Emit all remaining pending AUs
 	bool bAllSentOff = false;
-	while(!bAllSentOff && !bTerminate && !HasReadBeenAborted())
+	while(!bAllSentOff && !bTerminate && !MKVHasReadBeenAborted())
 	{
 		bAllSentOff = true;
 		for(auto &ActiveTrk : ActiveTrackMap)
@@ -710,7 +738,7 @@ FStreamReaderMKV::EEmitResult FStreamReaderMKV::EmitSamples(EEmitType InEmitType
 				td.SortedAccessUnitFIFO.Empty();
 			}
 
-			while(td.AccessUnitFIFO.Num() && !HasReadBeenAborted())
+			while(td.AccessUnitFIFO.Num() && !MKVHasReadBeenAborted())
 			{
 				if (td.bNeedToRecalculateDurations)
 				{
@@ -839,7 +867,7 @@ FStreamReaderMKV::EEmitResult FStreamReaderMKV::EmitSamples(EEmitType InEmitType
 
 
 	// Check that buffers are how they are supposed to be
-	if (!bTerminate && !HasReadBeenAborted() && InEmitType == EEmitType::AllRemaining)
+	if (!bTerminate && !MKVHasReadBeenAborted() && InEmitType == EEmitType::AllRemaining)
 	{
 		for(auto &ActiveTrk : ActiveTrackMap)
 		{
@@ -912,10 +940,10 @@ int32 FStreamReaderMKV::FReadBuffer::ReadTo(void* IntoBuffer, int64 NumBytesToRe
 }
 
 
-int64 FStreamReaderMKV::ReadData(void* InDestinationBuffer, int64 InNumBytesToRead, int64 InFromOffset)
+int64 FStreamReaderMKV::MKVReadData(void* InDestinationBuffer, int64 InNumBytesToRead, int64 InFromOffset)
 {
-	check(InFromOffset == GetCurrentFileOffset());
-	if (InFromOffset != GetCurrentFileOffset())
+	check(InFromOffset == MKVGetCurrentFileOffset());
+	if (InFromOffset != MKVGetCurrentFileOffset())
 	{
 		return -1;
 	}
@@ -929,16 +957,16 @@ int64 FStreamReaderMKV::ReadData(void* InDestinationBuffer, int64 InNumBytesToRe
 	return nb;
 }
 
-int64 FStreamReaderMKV::GetCurrentFileOffset() const
+int64 FStreamReaderMKV::MKVGetCurrentFileOffset() const
 {
 	return ReadBuffer.GetStartOffset() + ReadBuffer.GetCurrentOffset();
 }
 
-int64 FStreamReaderMKV::GetTotalSize()
+int64 FStreamReaderMKV::MKVGetTotalSize()
 {
 	return ReadBuffer.GetTotalSize();
 }
-bool FStreamReaderMKV::HasReadBeenAborted() const
+bool FStreamReaderMKV::MKVHasReadBeenAborted() const
 {
 	return HasBeenAborted();
 }

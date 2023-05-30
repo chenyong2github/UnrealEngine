@@ -87,7 +87,7 @@ bool FAdaptiveStreamingPlayer::CanDecodeStream(const FStreamCodecInformation& In
 			return false;
 		}
 
-		return IVideoDecoder::CanDecodeStream(InStreamCodecInfo);;
+		return IVideoDecoder::CanDecodeStream(InStreamCodecInfo);
 	}
 	else if (InStreamCodecInfo.IsAudioCodec())
 	{
