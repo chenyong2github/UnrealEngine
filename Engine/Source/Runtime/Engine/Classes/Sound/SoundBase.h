@@ -319,7 +319,7 @@ public:
 	//~ End IInterface_AssetUserData Interface
 
 	/** Called from the Game Thread prior to attempting to pass parameters to the ParameterTransmitter. */
-	virtual void InitParameters(TArray<FAudioParameter>& ParametersToInit, FName InFeatureName);
+	virtual void InitParameters(TArray<FAudioParameter>& ParametersToInit, FName InFeatureName = NAME_None);
 
 	/** Called from the Game Thread prior to attempting to initialize a sound instance. */
 	virtual void InitResources() { }

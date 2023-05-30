@@ -143,15 +143,17 @@ void USoundNodeWavePlayer::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 		if (*RequiresInitialization)
 		{
 			bPlayFailed = 0;
-			
-			Audio::FParameterTransmitterInitParams Params;
-			Params.DefaultParams = ActiveSound.GetTransmitter()->GetParameters();
-			Params.InstanceID = Audio::GetTransmitterID(ActiveSound.GetAudioComponentID(), NodeWaveInstanceHash, ActiveSound.GetPlayOrder()); 
-			Params.SampleRate = AudioDevice->GetSampleRate();
-			Params.AudioDeviceID = AudioDevice->DeviceID;
 
 			if (FSoundCueParameterTransmitter* SoundCueTransmitter = static_cast<FSoundCueParameterTransmitter*>(ActiveSound.GetTransmitter()))
 			{
+				Audio::FParameterTransmitterInitParams Params;
+				Params.DefaultParams = ActiveSound.GetTransmitter()->GetParameters();
+				Params.InstanceID = Audio::GetTransmitterID(ActiveSound.GetAudioComponentID(), NodeWaveInstanceHash, ActiveSound.GetPlayOrder()); 
+				Params.SampleRate = AudioDevice->GetSampleRate();
+				Params.AudioDeviceID = AudioDevice->DeviceID;
+
+				SoundWave->InitParameters(Params.DefaultParams);
+				
 				const TSharedPtr<Audio::IParameterTransmitter> SoundWaveTransmitter = SoundWave->CreateParameterTransmitter(MoveTemp(Params));
 				
 				if (SoundWaveTransmitter.IsValid())

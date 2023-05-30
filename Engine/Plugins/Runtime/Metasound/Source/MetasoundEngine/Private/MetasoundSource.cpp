@@ -437,12 +437,10 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& ParametersToInit,
 		return true;
 	};
 
-	auto ConstructProxies = [this, FeatureName = InFeatureName](FAudioParameter& OutParamToInit)
+	auto ConstructProxies = [this](FAudioParameter& OutParamToInit)
 	{
 		using namespace Metasound;
 		using namespace Metasound::Frontend;
-
-		const Audio::FProxyDataInitParams ProxyInitParams { FeatureName };
 
 		switch (OutParamToInit.ParamType)
 		{

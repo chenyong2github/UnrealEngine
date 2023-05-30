@@ -647,8 +647,7 @@ void USoundCue::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceH
 
 					if (USoundBase* Sound = Instance->WaveData)
 					{
-						static const FName ProxyFeatureName("SoundCueParameterTransmitter");
-						Sound->InitParameters(Params, ProxyFeatureName);
+						Sound->InitParameters(Params);
 					}
 
 					if (!Params.IsEmpty())

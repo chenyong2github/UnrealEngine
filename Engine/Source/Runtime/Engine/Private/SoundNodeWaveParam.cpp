@@ -47,9 +47,10 @@ void USoundNodeWaveParam::ParseNodes(FAudioDevice* AudioDevice, const UPTRINT No
 				Params.DefaultParams = ActiveSound.GetTransmitter()->GetParameters();
 				Params.InstanceID = Audio::GetTransmitterID(ActiveSound.GetAudioComponentID(), WaveHash, ActiveSound.GetPlayOrder()); 
 				Params.SampleRate = AudioDevice->GetSampleRate();
-				
 				Params.AudioDeviceID = AudioDevice->DeviceID;
 				
+				NewWave->InitParameters(Params.DefaultParams);
+
 				const TSharedPtr<Audio::IParameterTransmitter> SoundWaveTransmitter = NewWave->CreateParameterTransmitter(MoveTemp(Params));
 			
 				if (SoundWaveTransmitter.IsValid())

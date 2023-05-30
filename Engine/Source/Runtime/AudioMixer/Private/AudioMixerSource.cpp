@@ -1129,6 +1129,7 @@ namespace Audio
 			if (Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter())
 			{
 				DefaultParameters = Transmitter->GetParameters();
+				SoundWave.InitParameters(DefaultParameters);
 			}
 		}
 
