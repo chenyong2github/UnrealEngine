@@ -13,12 +13,13 @@
 #include "Experimental/Containers/RobinHoodHashTable.h"
 
 struct FSceneTexturesConfig;
+class FRHIComputeShader;
 class FMaterial;
 class FVertexFactoryType;
 class FGraphicsPipelineStateInitializer;
 enum class EVertexInputStreamType : uint8;
 
-#define PSO_PRECACHING_VALIDATE (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+#define PSO_PRECACHING_VALIDATE (!UE_BUILD_SHIPPING && !WITH_EDITOR)
 
 /**
  * Parameters which are needed to collect all possible PSOs used by the PSO collectors
@@ -344,7 +345,6 @@ extern ENGINE_API void ReleasePSOPrecacheData(const TArray<FMaterialPSOPrecacheR
  */
 extern ENGINE_API void BoostPSOPriority(const TArray<FMaterialPSOPrecacheRequestID>& MaterialPSORequestIDs);
 
-
 #if PSO_PRECACHING_VALIDATE
 
 /**
@@ -352,7 +352,24 @@ extern ENGINE_API void BoostPSOPriority(const TArray<FMaterialPSOPrecacheRequest
  */
 namespace PSOCollectorStats
 {
+	enum class EPSOPrecacheValidationMode : uint8 {
+		Disabled = 0,
+		Lightweight = 1,
+		Full = 2
+	};
+
 	extern ENGINE_API int32 IsPrecachingValidationEnabled();
+	extern ENGINE_API EPSOPrecacheValidationMode GetPrecachingValidationMode();
+
+	/**
+	 * Compute the hash of a graphics PSO initializer to be used by PSO precaching validation.
+	 */
+	extern ENGINE_API uint64 GetPSOPrecacheHash(const FGraphicsPipelineStateInitializer& GraphicsPSOInitializer);
+
+	/**
+	 * Compute the hash of a compute shader to be used by PSO precaching validation.
+	 */
+	extern ENGINE_API uint64 GetPSOPrecacheHash(const FRHIComputeShader& ComputeShader);
 
 	using VertexFactoryCountTableType = Experimental::TRobinHoodHashMap<const FVertexFactoryType*, uint32>;
 	struct FShaderStateUsage
@@ -362,44 +379,82 @@ namespace PSOCollectorStats
 	};
 
 	/**
-	 * Track precache stats in total, per mesh pass type and per vertex factory type
+	 * Track a PSO precache stat's total count, and optionally also track the counts at
+	 * the mesh pass type and vertex factory type granularity.
 	 */
-	struct FPrecacheUsageData
+	class FPrecacheUsageData
 	{
-		FPrecacheUsageData()
+	public:
+		FPrecacheUsageData(FName StatFName = FName())
+			: StatFName(StatFName)
 		{
 			Empty();
 		}
 
+		uint64 GetTotalCount() const
+		{
+			return FPlatformAtomics::AtomicRead(&Count);
+		}
+
 		void Empty()
 		{
-			Count = 0;
-			FMemory::Memzero(PerMeshPassCount, FPSOCollectorCreateManager::MaxPSOCollectorCount * sizeof(uint32));
-			PerVertexFactoryCount.Empty();
+			if (!StatFName.IsNone())
+			{
+				SET_DWORD_STAT_FName(StatFName, 0)
+			}
+
+			FPlatformAtomics::InterlockedExchange(&Count, 0);
+
+			if (GetPrecachingValidationMode() == EPSOPrecacheValidationMode::Full)
+			{
+				FScopeLock Lock(&StatsLock);
+
+				FMemory::Memzero(PerMeshPassCount, FPSOCollectorCreateManager::MaxPSOCollectorCount * sizeof(uint32));
+				PerVertexFactoryCount.Empty();
+			}
 		}
 
 		void UpdateStats(uint32 MeshPassType, const FVertexFactoryType* VFType)
 		{
-			Count++;
-
-			if (MeshPassType < FPSOCollectorCreateManager::MaxPSOCollectorCount)
+			if (!StatFName.IsNone())
 			{
-				PerMeshPassCount[MeshPassType]++;
+				INC_DWORD_STAT_FName(StatFName);
 			}
 
-			if (VFType != nullptr)
+			FPlatformAtomics::InterlockedIncrement(&Count);
+
+			if (ShouldRecordFullStats(MeshPassType, VFType))
 			{
-				Experimental::FHashElementId TableId = PerVertexFactoryCount.FindId(VFType);
-				if (!TableId.IsValid())
+				FScopeLock Lock(&StatsLock);
+
+				if (MeshPassType < FPSOCollectorCreateManager::MaxPSOCollectorCount)
 				{
-					TableId = PerVertexFactoryCount.FindOrAddId(VFType, uint32());
+					PerMeshPassCount[MeshPassType]++;
 				}
-				uint32& Value = PerVertexFactoryCount.GetByElementId(TableId).Value;
-				Value++;
+
+				if (VFType != nullptr)
+				{
+					uint32* Value = PerVertexFactoryCount.FindOrAdd(VFType, 0);
+					Value++;
+				}
 			}
 		}
 
-		uint32 Count;
+	private:
+		bool ShouldRecordFullStats(uint32 MeshPassType, const FVertexFactoryType* VFType) const 
+		{
+			return GetPrecachingValidationMode() == EPSOPrecacheValidationMode::Full &&
+				(MeshPassType < FPSOCollectorCreateManager::MaxPSOCollectorCount || VFType != nullptr);
+		}
+
+		volatile int64 Count;
+
+		FName StatFName;
+
+		// Full stats by mesh pass type and by vertex factory type.
+		// Only used when the validation mode is set to EPSOPrecacheValidationMode::Full,
+		// and when the mesh pass and vertex factory type are known.
+		FCriticalSection StatsLock;
 		uint32 PerMeshPassCount[FPSOCollectorCreateManager::MaxPSOCollectorCount];
 		VertexFactoryCountTableType PerVertexFactoryCount;
 	};
@@ -409,6 +464,15 @@ namespace PSOCollectorStats
 	 */
 	struct FPrecacheStats
 	{
+		FPrecacheStats(FName UntrackedStatFName = FName(), FName MissStatFName = FName(), FName HitStatFName = FName(), FName UsedStatFName = FName(), FName TooLateStatFName = FName())
+			: UsageData(UsedStatFName)
+			, HitData(HitStatFName)
+			, MissData(MissStatFName)
+			, TooLateData(TooLateStatFName)
+			, UntrackedData(UntrackedStatFName)
+		{
+		}
+
 		void Empty()
 		{
 			PrecacheData.Empty();
@@ -431,20 +495,51 @@ namespace PSOCollectorStats
 	{
 	public:
 		FPrecacheStatsCollector(FName UntrackedStatFName = FName(), FName MissStatFName = FName(), FName HitStatFName = FName(), FName UsedStatFName = FName(), FName TooLateStatFName = FName())
-			:UntrackedStatFName(UntrackedStatFName),
-			MissStatFName(MissStatFName),
-			HitStatFName(HitStatFName),
-			UsedStatFName(UsedStatFName),
-			TooLateStatFName(TooLateStatFName)
+			: Stats(UntrackedStatFName, MissStatFName, HitStatFName, UsedStatFName, TooLateStatFName)
 		{
 		}
 
-		void AddStateToCacheByHash(const uint64 PrecacheStateHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
+		void ResetStats()
+		{
+			Stats.Empty();
+		}
+
+		const FPrecacheStats& GetStats() const { return Stats; }
 
 		template <typename TPrecacheState>
-		EPSOPrecacheResult CheckStateInCache(const TPrecacheState& PrecacheState, const uint64 PrecacheStateHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
+		void AddStateToCache(const TPrecacheState& PrecacheState, uint64 HashFn(const TPrecacheState&), uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
 		{
-			if (!IsPrecachingValidationEnabled()) {
+			if (!IsPrecachingValidationEnabled())
+			{
+				return;
+			}
+
+			uint64 PrecacheStateHash = HashFn(PrecacheState);
+
+			// Only update stats once per state.
+			bool bUpdateStats = false;
+			{
+				FScopeLock Lock(&StateMapLock);
+
+				FShaderStateUsage* Value = HashedStateMap.FindOrAdd(PrecacheStateHash, FShaderStateUsage());
+				if (!Value->bPrecached)
+				{
+					Value->bPrecached = true;
+					bUpdateStats = true;
+				}
+			}
+
+			if (bUpdateStats)
+			{
+				Stats.PrecacheData.UpdateStats(MeshPassType, VertexFactoryType);
+			}
+		}
+
+		template <typename TPrecacheState>
+		EPSOPrecacheResult CheckStateInPipelineCache(const TPrecacheState& PrecacheState, uint64 HashFn(const TPrecacheState&), uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
+		{
+			if (!IsPrecachingValidationEnabled())
+			{
 				return EPSOPrecacheResult::Unknown;
 			}
 
@@ -457,6 +552,8 @@ namespace PSOCollectorStats
 				PrecacheResult = PipelineStateCache::CheckPipelineStateInCache(PrecacheState);
 			}
 
+			uint64 PrecacheStateHash = HashFn(PrecacheState);
+			
 			UpdatePrecacheStats(PrecacheStateHash, MeshPassType, VertexFactoryType, bTracked, PrecacheResult);
 			
 			return PrecacheResult;
@@ -464,7 +561,8 @@ namespace PSOCollectorStats
 
 		void CheckStateInCacheByHash(const uint64 PrecacheStateHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
 		{
-			if (!IsPrecachingValidationEnabled()) {
+			if (!IsPrecachingValidationEnabled())
+			{
 				return;
 			}
 
@@ -473,19 +571,14 @@ namespace PSOCollectorStats
 		}
 
 	private:
-		bool IsStateTracked(uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
+		bool IsStateTracked(uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType) const;
 
 		void UpdatePrecacheStats(uint64 PrecacheHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType, bool bTracked, EPSOPrecacheResult PrecacheResult);
 
-		FCriticalSection StatsLock;
 		FPrecacheStats Stats;
-		Experimental::TRobinHoodHashMap<uint64, FShaderStateUsage> HashedStateMap;
 
-		FName UntrackedStatFName;
-		FName MissStatFName;
-		FName HitStatFName;
-		FName UsedStatFName;
-		FName TooLateStatFName;
+		FCriticalSection StateMapLock;
+		Experimental::TRobinHoodHashMap<uint64, FShaderStateUsage> HashedStateMap;
 	};
 
 	extern ENGINE_API FPrecacheStatsCollector& GetShadersOnlyPSOPrecacheStatsCollector();

@@ -2009,8 +2009,20 @@ protected:
 
 namespace PSOCollectorStats
 {
+	/**
+	 * Create a shaders-only initializer where all state except for shaders is removed from the given initializer.
+	 */
 	RENDERER_API extern FGraphicsMinimalPipelineStateInitializer GetShadersOnlyInitializer(const FGraphicsMinimalPipelineStateInitializer& Initializer);
+
+	/**
+	 * Apply a custom mask to the given initializer removing some state.
+	 */
 	RENDERER_API extern FGraphicsMinimalPipelineStateInitializer PatchMinimalPipelineStateToCheck(const FGraphicsMinimalPipelineStateInitializer& Initializer);
+
+	/**
+	 * Compute the hash of a minimal graphics PSO initializer to be used by PSO precaching validation.
+	 */
+	RENDERER_API extern uint64 GetPSOPrecacheHash(const FGraphicsMinimalPipelineStateInitializer& Initializer);
 }
 
 #endif // PSO_PRECACHING_VALIDATE

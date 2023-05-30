@@ -279,9 +279,9 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	MinimalPipelineStateInitializer.ComputePrecachePSOHash();
 #if PSO_PRECACHING_VALIDATE
 	FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(MinimalPipelineStateInitializer);
-	PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().AddStateToCacheByHash(ShadersOnlyInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
+	PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().AddStateToCache(ShadersOnlyInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
 	FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(MinimalPipelineStateInitializer);
-	PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().AddStateToCacheByHash(PatchedMinimalInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
+	PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().AddStateToCache(PatchedMinimalInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
 #endif // PSO_PRECACHING_VALIDATE
 
 	// NOTE: AsGraphicsPipelineStateInitializer will create the RHIShaders internally if they are not cached yet

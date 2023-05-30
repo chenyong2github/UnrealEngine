@@ -1357,17 +1357,14 @@ bool FMeshDrawCommand::SubmitDrawBegin(
 
 		EPSOPrecacheResult PSOPrecacheResult = EPSOPrecacheResult::Unknown;
 #if PSO_PRECACHING_VALIDATE
-		if (PSOCollectorStats::IsPrecachingValidationEnabled() && GraphicsPSOInit.bPSOPrecache)
-		{
-			// Retrieve state from cache - can be be cached on the MeshPipelineState to not retrieve it anymore after the final state is known
 #if MESH_DRAW_COMMAND_DEBUG_DATA
-			PSOPrecacheResult = PSOCollectorStats::GetFullPSOPrecacheStatsCollector().CheckStateInCache(GraphicsPSOInit, RHIComputePrecachePSOHash(GraphicsPSOInit),
-				MeshDrawCommand.DebugData.MeshPassType, MeshDrawCommand.DebugData.VertexFactoryType);
+		// Retrieve state from cache - can be be cached on the MeshPipelineState to not retrieve it anymore after the final state is known
+		PSOPrecacheResult = PSOCollectorStats::GetFullPSOPrecacheStatsCollector().CheckStateInPipelineCache(GraphicsPSOInit, PSOCollectorStats::GetPSOPrecacheHash,
+			MeshDrawCommand.DebugData.MeshPassType, MeshDrawCommand.DebugData.VertexFactoryType);
 #else
-			PSOPrecacheResult = PSOCollectorStats::GetFullPSOPrecacheStatsCollector().CheckStateInCache(GraphicsPSOInit, RHIComputePrecachePSOHash(GraphicsPSOInit),
-				EMeshPass::Num, nullptr);
+		PSOPrecacheResult = PSOCollectorStats::GetFullPSOPrecacheStatsCollector().CheckStateInPipelineCache(GraphicsPSOInit, PSOCollectorStats::GetPSOPrecacheHash,
+			EMeshPass::Num, nullptr);
 #endif // MESH_DRAW_COMMAND_DEBUG_DATA
-		}
 #endif // PSO_PRECACHING_VALIDATE
 
 		// Check if skip draw is needed when the PSO is still precaching
@@ -2293,6 +2290,11 @@ FGraphicsMinimalPipelineStateInitializer PSOCollectorStats::PatchMinimalPipeline
 	//PatchedInitializer.ComputePrecachePSOHash();
 
 	return PatchedInitializer;
+}
+
+uint64 PSOCollectorStats::GetPSOPrecacheHash(const FGraphicsMinimalPipelineStateInitializer& GraphicsPSOInitializer)
+{
+	return GraphicsPSOInitializer.PrecachePSOHash;
 }
 
 #endif // PSO_PRECACHING_VALIDATE

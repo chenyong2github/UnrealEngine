@@ -1697,9 +1697,9 @@ void CollectRasterPSOInitializersForPermutation(
 			MinimalPipelineStateInitializer.ComputePrecachePSOHash();
 		#if PSO_PRECACHING_VALIDATE
 			FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(MinimalPipelineStateInitializer);
-			PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().AddStateToCacheByHash(ShadersOnlyInitializer.PrecachePSOHash, (uint32)EMeshPass::NaniteMeshPass, nullptr);
+			PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().AddStateToCache(ShadersOnlyInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)EMeshPass::NaniteMeshPass, nullptr);
 			FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(MinimalPipelineStateInitializer);
-			PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().AddStateToCacheByHash(PatchedMinimalInitializer.PrecachePSOHash, (uint32)EMeshPass::NaniteMeshPass, nullptr);
+			PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().AddStateToCache(PatchedMinimalInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)EMeshPass::NaniteMeshPass, nullptr);
 		#endif
 
 			// NOTE: AsGraphicsPipelineStateInitializer will create the RHIShaders internally if they are not cached yet
