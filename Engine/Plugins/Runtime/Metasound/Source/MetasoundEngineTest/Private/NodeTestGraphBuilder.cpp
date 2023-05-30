@@ -34,6 +34,17 @@ namespace Metasound::Test
 		return Node;
 	}
 
+
+	FNodeHandle FNodeTestGraphBuilder::GetInput(const FName& InName) const
+	{
+		return RootGraph->GetInputNodeWithName(InName);
+	}
+
+	FNodeHandle FNodeTestGraphBuilder::GetOutput(const FName& InName) const
+	{
+		return RootGraph->GetOutputNodeWithName(InName);
+	}
+
 	FNodeHandle FNodeTestGraphBuilder::AddInput(
 		const FName& InputName,
 		const FName& TypeName,
@@ -171,4 +182,70 @@ namespace Metasound::Test
 		// build the graph
 		return Builder.BuildGenerator(SampleRate, SamplesPerBlock);
 	}
+
+	bool FNodeTestGraphBuilder::ConnectNodes(const Frontend::FNodeHandle& LeftNode, const FName& OutputName, const Frontend::FNodeHandle& RightNode, const FName& InputName)
+	{
+		if (!LeftNode->IsValid() || !RightNode->IsValid())
+		{
+			return false;
+		}
+
+		FOutputHandle OutputToConnect = LeftNode->GetOutputWithVertexName(OutputName);
+		FInputHandle InputToConnect = RightNode->GetInputWithVertexName(InputName);
+
+		if (!OutputToConnect->IsValid() || !InputToConnect->IsValid())
+		{
+			return false;
+		}
+		return InputToConnect->Connect(*OutputToConnect);
+	}
+
+	bool FNodeTestGraphBuilder::ConnectNodes(const Frontend::FNodeHandle& LeftNode, const Frontend::FNodeHandle& RightNode, const FName& InputOutputName)
+	{
+		return ConnectNodes(LeftNode, InputOutputName, RightNode, InputOutputName);
+	}
+
+	bool FNodeTestGraphBuilder::AddAndConnectDataReferenceInputs(const Frontend::FNodeHandle& NodeHandle)
+	{
+		// add the inputs and connect them
+		for (FInputHandle Input : NodeHandle->GetInputs())
+		{
+			if (Input->GetVertexAccessType() != EMetasoundFrontendVertexAccessType::Reference)
+			{
+				continue;
+			}
+
+			FNodeHandle InputNode = AddInput(Input->GetName(), Input->GetDataType(), Input->GetVertexAccessType());
+
+			if (!InputNode->IsValid())
+			{
+				return false;
+			}
+
+			FOutputHandle OutputToConnect = InputNode->GetOutputWithVertexName(Input->GetName());
+			FInputHandle InputToConnect = NodeHandle->GetInputWithVertexName(Input->GetName());
+
+			if (!InputToConnect->Connect(*OutputToConnect))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	FNodeHandle FNodeTestGraphBuilder::AddAndConnectDataReferenceInput(const FNodeHandle& NodeToConnect, const FName& InputName, const FName& TypeName) const
+	{
+		FNodeHandle InputNode = AddInput(InputName, TypeName);
+		check(ConnectNodes(InputNode, NodeToConnect, InputName));
+		return InputNode;
+	}
+
+	FNodeHandle FNodeTestGraphBuilder::AddAndConnectDataReferenceOutput(const FNodeHandle& NodeToConnect, const FName& OutputName, const FName& TypeName)
+	{
+		FNodeHandle OutputNode = AddOutput(OutputName, TypeName);
+		check(ConnectNodes(NodeToConnect, OutputNode, OutputName));
+		return OutputNode;
+	}
+
 }
