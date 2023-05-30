@@ -601,7 +601,7 @@ uint32 FVoiceEngineImpl::SubmitRemoteVoiceData(const FUniqueNetIdWrapper& Remote
 
 			ApplyVoiceSettings(QueuedData.VoipSynthComponent.Get(), InSettings);
 
-			QueuedData.VoipSynthComponent->ResetBuffer(InSampleCount, UVOIPStatics::GetBufferingDelay());
+			QueuedData.VoipSynthComponent->ResetBuffer(int32(InSampleCount), UVOIPStatics::GetBufferingDelay());
 			QueuedData.VoipSynthComponent->Start();
 			QueuedData.CachedTalkerPtr = OwningTalker;
 
@@ -883,7 +883,7 @@ bool FVoiceEngineImpl::PatchRemoteTalkerOutputToEndpoint(const FString& InDevice
 		MuteAudioEngineOutputCVar->Set(1, ECVF_SetByGameSetting);
 	}
 	
-	TUniquePtr<FVoiceEndpoint>& Endpoint = ExternalEndpoints.Emplace_GetRef(new FVoiceEndpoint(InDeviceName, UVOIPStatics::GetVoiceSampleRate(), UVOIPStatics::GetVoiceNumChannels()));
+	TUniquePtr<FVoiceEndpoint>& Endpoint = ExternalEndpoints.Emplace_GetRef(new FVoiceEndpoint(InDeviceName, float(UVOIPStatics::GetVoiceSampleRate()), UVOIPStatics::GetVoiceNumChannels()));
 	Audio::FPatchOutputStrongPtr OutputPatch = AllRemoteTalkerAudio.AddNewOutput(4096 * 2, 1.0f);
 	Endpoint->PatchInOutput(OutputPatch);
 	return true;
@@ -892,7 +892,7 @@ bool FVoiceEngineImpl::PatchRemoteTalkerOutputToEndpoint(const FString& InDevice
 bool FVoiceEngineImpl::PatchLocalTalkerOutputToEndpoint(const FString& InDeviceName)
 {
 	// Local talker patched output is always mixed down to mono.
-	TUniquePtr<FVoiceEndpoint>& Endpoint = ExternalEndpoints.Emplace_GetRef(new FVoiceEndpoint(InDeviceName, UVOIPStatics::GetVoiceSampleRate(), 1));
+	TUniquePtr<FVoiceEndpoint>& Endpoint = ExternalEndpoints.Emplace_GetRef(new FVoiceEndpoint(InDeviceName, float(UVOIPStatics::GetVoiceSampleRate()), 1));
 	Audio::FPatchOutputStrongPtr OutputPatch = VoiceCapture->GetMicrophoneAudio(4096 * 2, 1.0f);
 	Endpoint->PatchInOutput(OutputPatch);
 	return true;
@@ -959,7 +959,7 @@ FVoiceEndpoint::FVoiceEndpoint(const FString& InEndpointName, float InSampleRate
 		OpenParams.NumBuffers = 3;
 		OpenParams.NumFrames = NumFrames;
 		OpenParams.OutputDeviceIndex = DeviceIndex;
-		OpenParams.SampleRate = InSampleRate;
+		OpenParams.SampleRate = uint32(InSampleRate);
 		OpenParams.AudioMixer = this;
 		OpenParams.MaxSources = 0;
 

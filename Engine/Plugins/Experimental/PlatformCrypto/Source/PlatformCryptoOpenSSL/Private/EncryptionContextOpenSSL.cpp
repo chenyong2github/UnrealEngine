@@ -406,7 +406,7 @@ bool FEncryptionContextOpenSSL::GenerateKey_RSA(const int32 InNumKeyBits, TArray
 	return true;
 }
 
-static void LoadBinaryIntoBigNum(const uint8* InData, int64 InDataSize, BIGNUM* InBigNum)
+static void LoadBinaryIntoBigNum(const uint8* InData, int32 InDataSize, BIGNUM* InBigNum)
 {
 #if USE_LEGACY_OPENSSL
 	TArray<uint8> Bytes(InData, InDataSize);

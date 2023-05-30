@@ -87,9 +87,9 @@ void UInAppPurchaseQueryCallbackProxy2::CreateProxyProductInformation(TArray<FOn
 		CurrentProduct.Description = SourceProduct->Description;
 		CurrentProduct.LongDescription = SourceProduct->LongDescription;
 		CurrentProduct.RegularPriceText = SourceProduct->RegularPriceText;
-		CurrentProduct.RegularPrice = SourceProduct->RegularPrice;
+		CurrentProduct.RegularPrice = int32(SourceProduct->RegularPrice);
 		CurrentProduct.PriceText = SourceProduct->PriceText;
-		CurrentProduct.NumericPrice = SourceProduct->NumericPrice;
+		CurrentProduct.NumericPrice = int32(SourceProduct->NumericPrice);
 		CurrentProduct.CurrencyCode = SourceProduct->CurrencyCode;
 		CurrentProduct.ReleaseDate = SourceProduct->ReleaseDate;
 		CurrentProduct.ExpirationDate = SourceProduct->ExpirationDate;

@@ -15,8 +15,8 @@ void FPIELoginSettingsInternal::Encrypt()
 		int32 SrcSize = SrcCharArray.Num() * sizeof(TCHAR);
 		const int64 PaddedEncryptedFileSize = Align(SrcSize + 1, FAES::AESBlockSize);
 
-		TokenBytes.Empty(PaddedEncryptedFileSize);
-		TokenBytes.AddUninitialized(PaddedEncryptedFileSize);
+		TokenBytes.Empty(int32(PaddedEncryptedFileSize));
+		TokenBytes.AddUninitialized(int32(PaddedEncryptedFileSize));
 
 		// Store the length of the password
 		ensure(SrcSize < MAX_uint8);
@@ -49,8 +49,8 @@ void FPIELoginSettingsInternal::Decrypt()
 		if (PaddedEncryptedFileSize > 0 && PaddedEncryptedFileSize == TokenBytes.Num())
 		{
 			TArray<uint8> TempArray;
-			TempArray.Empty(PaddedEncryptedFileSize);
-			TempArray.AddUninitialized(PaddedEncryptedFileSize);
+			TempArray.Empty(int32(PaddedEncryptedFileSize));
+			TempArray.AddUninitialized(int32(PaddedEncryptedFileSize));
 			FMemory::Memcpy(TempArray.GetData(), TokenBytes.GetData(), PaddedEncryptedFileSize);
 			
 			// XOR Cipher

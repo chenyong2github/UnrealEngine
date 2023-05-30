@@ -166,10 +166,10 @@ void TestKeyValuePairs()
 		CopyValue = OrigKeyValuePair; 
 		UE_LOG_ONLINE(Display, TEXT("uint64 Test %s == %s"), *OrigKeyValuePair.ToString(), *CopyValue.ToString()); 
 
-		OrigKeyValuePair.Increment<uint64,EOnlineKeyValuePairDataType::Int64>(1.0);
+		OrigKeyValuePair.Increment<uint64,EOnlineKeyValuePairDataType::Int64>(1);
 		UE_LOG_ONLINE(Display, TEXT("+1 Now is %s"), *OrigKeyValuePair.ToString());
 
-		OrigKeyValuePair.Decrement<uint64,EOnlineKeyValuePairDataType::Int64>(1.0);
+		OrigKeyValuePair.Decrement<uint64,EOnlineKeyValuePairDataType::Int64>(1);
 		UE_LOG_ONLINE(Display, TEXT("-1 Now is %s"), *OrigKeyValuePair.ToString());
 
 		bSuccess = bSuccess && (OrigKeyValuePair == CopyValue);

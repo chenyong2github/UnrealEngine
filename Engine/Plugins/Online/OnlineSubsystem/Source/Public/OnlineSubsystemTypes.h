@@ -472,7 +472,7 @@ namespace EOnlineSessionState
 /** The types of advertisement of settings to use */
 namespace EOnlineDataAdvertisementType
 {
-	enum Type
+	enum Type : uint8
 	{
 		/** Don't advertise via the online service or QoS data */
 		DontAdvertise,

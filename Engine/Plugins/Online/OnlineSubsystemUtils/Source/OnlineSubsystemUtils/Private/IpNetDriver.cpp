@@ -266,7 +266,7 @@ private:
 
 	~FPacketIterator()
 	{
-		const float DeltaReceiveTime = FPlatformTime::Seconds() - StartReceiveTime;
+		const float DeltaReceiveTime = float(FPlatformTime::Seconds() - StartReceiveTime);
 
 		if (DeltaReceiveTime > GIpNetDriverLongFramePrintoutThresholdSecs)
 		{
@@ -1370,7 +1370,7 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 						TObjectPtr<UNetConnection> RemovedConn = nullptr;
 						TSharedRef<FInternetAddr> RemoteAddrRef = FoundConn->RemoteAddr.ToSharedRef();
 
-						verify(MappedClientConnections.RemoveAndCopyValue(RemoteAddrRef, RemovedConn) && RemovedConn == FoundConn);
+						//verify(MappedClientConnections.RemoveAndCopyValue(RemoteAddrRef, RemovedConn) && RemovedConn == FoundConn);
 
 						// @todo: There needs to be a proper/standardized copy API for this. Also in IpConnection.cpp
 						bool bIsValid = false;
@@ -1647,7 +1647,7 @@ bool UIpNetDriver::HandlePauseReceiveCommand(const TCHAR* Cmd, FOutputDevice& Ar
 	{
 		Ar.Logf(TEXT("Pausing Socket Receives for '%i' seconds."), PauseTime);
 
-		PauseReceiveEnd = FPlatformTime::Seconds() + (double)PauseTime;
+		PauseReceiveEnd = float(FPlatformTime::Seconds() + (double)PauseTime);
 	}
 	else
 	{

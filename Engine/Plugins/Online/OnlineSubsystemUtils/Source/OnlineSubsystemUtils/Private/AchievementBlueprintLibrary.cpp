@@ -29,7 +29,7 @@ void UAchievementBlueprintLibrary::GetCachedAchievementProgress(UObject* WorldCo
 			if (Achievements->GetCachedAchievement(*Helper.UserID, AchievementID.ToString(), AchievementStatus) == EOnlineCachedResult::Success)
 			{
 				bFoundID = true;
-				Progress = AchievementStatus.Progress;
+				Progress = float(AchievementStatus.Progress);
 			}
 		}
 		else

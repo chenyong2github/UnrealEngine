@@ -54,7 +54,7 @@ bool UVoipListenerSynthComponent::Init(int32& SampleRate)
 {
 	NumChannels = UVOIPStatics::GetVoiceNumChannels();
 	SampleRate = UVOIPStatics::GetVoiceSampleRate();
-	MySampleRate = SampleRate;
+	MySampleRate = float(SampleRate);
 
 #if DEBUG_BUFFERING
 	FMToneGenerator = FDebugFMTone(MySampleRate, 660.0, 0.2, 0.8, 4.0);
@@ -111,10 +111,10 @@ UVoipListenerSynthComponent::~UVoipListenerSynthComponent()
 void UVoipListenerSynthComponent::OpenPacketStream(uint64 BeginningSampleCount, int32 BufferSize, float JitterDelay)
 {
 	ClosePacketStream();
-	PacketBuffer.Reset(new FVoicePacketBuffer(BufferSize, NumSecondsUntilIdling * MySampleRate, BeginningSampleCount));
+	PacketBuffer.Reset(new FVoicePacketBuffer(BufferSize, int32(NumSecondsUntilIdling * MySampleRate), BeginningSampleCount));
 	
 	JitterDelayInSeconds = JitterDelay;
-	PreDelaySampleCounter = JitterDelay * MySampleRate;
+	PreDelaySampleCounter = int32(JitterDelay * MySampleRate);
 }
 
 void UVoipListenerSynthComponent::ClosePacketStream()
@@ -128,7 +128,7 @@ void UVoipListenerSynthComponent::ResetBuffer(int32 InStartSample, float JitterD
 	if (PacketBuffer.IsValid())
 	{
 		PacketBuffer->Reset(InStartSample);
-		PreDelaySampleCounter = JitterDelay * MySampleRate;
+		PreDelaySampleCounter = int32(JitterDelay * MySampleRate);
 	}
 }
 

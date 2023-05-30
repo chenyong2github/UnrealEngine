@@ -128,7 +128,7 @@ void UIpConnection::InitBase(UNetDriver* InDriver, class FSocket* InSocket, cons
 
 	if (CVarNetEnableCongestionControl.GetValueOnAnyThread() > 0)
 	{
-		NetworkCongestionControl.Emplace(CurrentNetSpeed, FNetPacketNotify::SequenceHistoryT::Size);
+		NetworkCongestionControl.Emplace(CurrentNetSpeed, uint32(FNetPacketNotify::SequenceHistoryT::Size));
 	}
 }
 
@@ -551,7 +551,7 @@ void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& 
 				// Always flush this profiler data now. Technically this could be incorrect if the send in the task fails,
 				// but this keeps the bookkeeping simpler for now.
 				NETWORK_PROFILER(GNetworkProfiler.FlushOutgoingBunches(this));
-				NETWORK_PROFILER(GNetworkProfiler.TrackSocketSendTo(CurSocket->GetDescription(), DataToSend, CountBytes, NumPacketIdBits, NumBunchBits, NumAckBits, NumPaddingBits, this));
+				NETWORK_PROFILER(GNetworkProfiler.TrackSocketSendTo(CurSocket->GetDescription(), DataToSend, uint16(CountBytes), uint16(NumPacketIdBits), uint16(NumBunchBits), uint16(NumAckBits), uint16(NumPaddingBits), this));
 			}
 			else
 			{
@@ -565,7 +565,7 @@ void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& 
 				{
 					UNCLOCK_CYCLES(Driver->SendCycles);
 					NETWORK_PROFILER(GNetworkProfiler.FlushOutgoingBunches(this));
-					NETWORK_PROFILER(GNetworkProfiler.TrackSocketSendTo(CurSocket->GetDescription(), DataToSend, SendResult.BytesSent, NumPacketIdBits, NumBunchBits, NumAckBits, NumPaddingBits, this));
+					NETWORK_PROFILER(GNetworkProfiler.TrackSocketSendTo(CurSocket->GetDescription(), DataToSend, uint16(SendResult.BytesSent), uint16(NumPacketIdBits), uint16(NumBunchBits), uint16(NumAckBits), uint16(NumPaddingBits), this));
 
 					if (bNotifyOnSuccess)
 					{

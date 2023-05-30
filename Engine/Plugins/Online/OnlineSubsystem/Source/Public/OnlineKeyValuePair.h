@@ -8,7 +8,7 @@ class UStruct;
 
 namespace EOnlineKeyValuePairDataType
 {
-	enum Type
+	enum Type : uint8
 	{
 		/** Means the data in the OnlineData value fields should be ignored */
 		Empty,

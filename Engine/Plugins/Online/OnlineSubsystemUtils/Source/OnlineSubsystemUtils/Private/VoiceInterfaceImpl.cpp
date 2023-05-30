@@ -182,7 +182,7 @@ bool FOnlineVoiceImpl::RegisterLocalTalker(uint32 LocalUserNum)
 		// Get at the local talker's cached data
 		FLocalTalker& Talker = LocalTalkers[LocalUserNum];
 		// Make local user capable of sending voice data
-		StartNetworkedVoice(LocalUserNum);
+		StartNetworkedVoice(uint8(LocalUserNum));
 		// Don't register talkers when voice is disabled
 		if (VoiceEngine.IsValid())
 		{
@@ -747,7 +747,7 @@ void FOnlineVoiceImpl::ProcessLocalVoicePackets()
 								LocalTalkers[Index].LastNotificationTime = VoiceNotificationDelta;
 
 								// Update the length based on what it copied
-								VoiceData.LocalPackets[Index].Length += SpaceAvail;
+								VoiceData.LocalPackets[Index].Length += uint16(SpaceAvail);
 								VoiceData.LocalPackets[Index].SampleCount = SampleCount;
 
 #if VOICE_LOOPBACK

@@ -498,17 +498,17 @@ int GetStringDigitCount(int64 Value)
 	if (Value < 0)
 	{
 		const int SignLength = 1;
-		return FMath::CeilToInt64(FMath::LogX(10.f, -Value)) + SignLength;
+		return int(FMath::CeilToInt64(FMath::LogX(10.f, -Value)) + SignLength);
 	}
 	else
 	{
-		return FMath::CeilToInt64(FMath::LogX(10.f, Value));
+		return int(FMath::CeilToInt64(FMath::LogX(10.f, Value)));
 	}
 }
 
 int GetStringDigitCount(uint64 Value)
 {
-	return FMath::CeilToInt64(FMath::LogX(10.f, Value));
+	return int(FMath::CeilToInt64(FMath::LogX(10.f, Value)));
 }
 
 int GetStringDigitCount(int32 Value)
@@ -1414,7 +1414,7 @@ bool FVariantDataConverter::ConvertScalarVariantToFProperty(const FVariantData* 
 			FString StrValue;
 			Variant->GetValue(StrValue);
 
-			int32 IntValue = Enum->GetValueByName(FName(*StrValue));
+			int32 IntValue = int32(Enum->GetValueByName(FName(*StrValue)));
 			if (IntValue == INDEX_NONE)
 			{
 				UE_LOG_ONLINE(Error, TEXT("ConvertScalarVariantToFProperty - Unable import enum %s from string value %s for property %s"), *Enum->CppType, *StrValue, *Property->GetNameCPP());
