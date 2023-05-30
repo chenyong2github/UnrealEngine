@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "TraceServices/Model/Diagnostics.h"
@@ -12,10 +13,9 @@ public:
 	explicit FDiagnosticsProvider(IAnalysisSession& Session);
 	virtual ~FDiagnosticsProvider() {}
 
-public:
-	void SetSessionInfo(const FSessionInfo& InSessionInfo);
-	virtual const FSessionInfo& GetSessionInfo() const override;
 	virtual bool IsSessionInfoAvailable() const override;
+	virtual const FSessionInfo& GetSessionInfo() const override;
+	void SetSessionInfo(const FSessionInfo& InSessionInfo);
 
 private:
 	IAnalysisSession& Session;

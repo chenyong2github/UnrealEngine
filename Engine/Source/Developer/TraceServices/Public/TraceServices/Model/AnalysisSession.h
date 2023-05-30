@@ -44,6 +44,25 @@ public:
 	virtual void EditAccessCheck() const { unimplemented(); }
 };
 
+struct FTraceSessionMetadata
+{
+	enum class EType
+	{
+		Int64,
+		Double,
+		String
+	};
+
+	FName Name;
+	EType Type;
+	union
+	{
+		int64 Int64Value;
+		double DoubleValue;
+	};
+	FString StringValue;
+};
+
 class IAnalysisSession
 {
 public:
@@ -54,6 +73,7 @@ public:
 	virtual const TCHAR* GetName() const = 0;
 	virtual uint32 GetTraceId() const = 0;
 	virtual bool IsAnalysisComplete() const = 0;
+
 	virtual double GetDurationSeconds() const = 0;
 	/**
 	 * Update the internal estimation of the session duration with a new timestamp.
@@ -61,6 +81,13 @@ public:
 	 * estimated.
 	 */
 	virtual void UpdateDurationSeconds(double Duration) = 0;
+
+	virtual uint32 GetMetadataCount() const = 0;
+	virtual void EnumerateMetadata(TFunctionRef<void(const FTraceSessionMetadata& Metadata)> Callback) const = 0;
+	virtual void AddMetadata(FName InName, int64 InValue) = 0;
+	virtual void AddMetadata(FName InName, double InValue) = 0;
+	virtual void AddMetadata(FName InName, FString InValue) = 0;
+
 	virtual FMessageLog* GetLog() const = 0;
 
 	virtual void BeginRead() const = 0;

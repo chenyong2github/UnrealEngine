@@ -122,7 +122,11 @@ private:
 	void BeginSection(TSharedPtr<SVerticalBox> InVerticalBox, const FText& InSectionName) const;
 	void EndSection(TSharedPtr<SVerticalBox> InVerticalBox) const;
 	TSharedRef<SWidget> CreateTextBox(const TAttribute<FText>& InText, bool bMultiLine) const;
-	void AddInfoLine(TSharedPtr<SVerticalBox> InVerticalBox, const FText& InHeader, const TAttribute<FText>& InValue, bool bMultiLine = false) const;
+	void AddInfoLine(TSharedPtr<SVerticalBox> InVerticalBox,
+					 const FText& InHeader,
+					 FText(SSessionInfoWindow::* InGetTextMethodPtr)() const,
+					 EVisibility(SSessionInfoWindow::* InVisibilityMethodPtr)() const,
+					 bool bMultiLine = false) const;
 	void AddSimpleInfoLine(TSharedPtr<SVerticalBox> InVerticalBox, const TAttribute<FText>& InValue, bool bMultiLine = false) const;
 
 	TSharedRef<SDockTab> SpawnTab_SessionInfo(const FSpawnTabArgs& Args);
@@ -133,12 +137,27 @@ private:
 
 	FText GetPlatformText() const { return PlatformText; }
 	FText GetAppNameText() const { return AppNameText; }
+	FText GetProjectNameText() const { return ProjectNameText; }
 	FText GetBranchText() const { return BranchText; }
 	FText GetBuildVersionText() const { return BuildVersionText; }
 	FText GetChangelistText() const { return ChangelistText; }
 	FText GetBuildConfigText() const { return BuildConfigurationTypeText; }
 	FText GetBuildTargetText() const { return BuildTargetTypeText; }
 	FText GetCommandLineText() const { return CommandLineText; }
+	FText GetOtherMetadataText() const { return OtherMetadataText; }
+
+	EVisibility IsAlwaysVisible() const { return EVisibility::Visible; }
+
+	EVisibility IsVisiblePlatformText() const { return PlatformText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }
+	EVisibility IsVisibleAppNameText() const { return AppNameText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }
+	EVisibility IsVisibleProjectNameText() const { return ProjectNameText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }
+	EVisibility IsVisibleBranchText() const { return BranchText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }
+	EVisibility IsVisibleBuildVersionText() const { return BuildVersionText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }
+	EVisibility IsVisibleChangelistText() const { return ChangelistText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }
+	EVisibility IsVisibleBuildConfigText() const { return BuildConfigurationTypeText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }
+	EVisibility IsVisibleBuildTargetText() const { return BuildTargetTypeText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }
+	EVisibility IsVisibleCommandLineText() const { return CommandLineText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }
+	EVisibility IsVisibleOtherMetadataText() const { return OtherMetadataText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }
 
 	FText GetFileSizeText() const;
 	FText GetStatusText() const;
@@ -161,12 +180,14 @@ private:
 
 	FText PlatformText;
 	FText AppNameText;
+	FText ProjectNameText;
 	FText BranchText;
 	FText BuildVersionText;
 	FText ChangelistText;
 	FText BuildConfigurationTypeText;
 	FText BuildTargetTypeText;
 	FText CommandLineText;
+	FText OtherMetadataText;
 
 	TSharedPtr<const TraceServices::IAnalysisSession> AnalysisSession;
 	bool bIsSessionInfoSet = false;

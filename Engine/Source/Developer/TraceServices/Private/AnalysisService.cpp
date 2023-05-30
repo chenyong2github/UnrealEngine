@@ -131,6 +131,42 @@ void FAnalysisSession::Wait() const
 	Processor.Wait();
 }
 
+void FAnalysisSession::EnumerateMetadata(TFunctionRef<void(const FTraceSessionMetadata& Metadata)> Callback) const
+{
+	Lock.ReadAccessCheck();
+	for (const auto& KV : Metadata)
+	{
+		Callback(KV.Value);
+	}
+}
+
+void FAnalysisSession::AddMetadata(FName InName, int64 InValue)
+{
+	Lock.WriteAccessCheck();
+	FTraceSessionMetadata& Value = Metadata.Add(InName);
+	Value.Name = InName;
+	Value.Type = FTraceSessionMetadata::EType::Int64;
+	Value.Int64Value = InValue;
+}
+
+void FAnalysisSession::AddMetadata(FName InName, double InValue)
+{
+	Lock.WriteAccessCheck();
+	FTraceSessionMetadata& Value = Metadata.Add(InName);
+	Value.Name = InName;
+	Value.Type = FTraceSessionMetadata::EType::Double;
+	Value.DoubleValue = InValue;
+}
+
+void FAnalysisSession::AddMetadata(FName InName, FString InValue)
+{
+	Lock.WriteAccessCheck();
+	FTraceSessionMetadata& Value = Metadata.Add(InName);
+	Value.Name = InName;
+	Value.Type = FTraceSessionMetadata::EType::String;
+	Value.StringValue = InValue;
+}
+
 FMessageLog* FAnalysisSession::GetLog() const
 {
 	return Processor.GetLog();

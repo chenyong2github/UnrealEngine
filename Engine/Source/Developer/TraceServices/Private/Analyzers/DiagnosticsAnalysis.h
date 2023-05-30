@@ -18,15 +18,19 @@ class FDiagnosticsAnalyzer
 public:
 	FDiagnosticsAnalyzer(IAnalysisSession& Session, FDiagnosticsProvider* InProvider);
 	~FDiagnosticsAnalyzer();
+
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
 private:
+	void UpdateSessionMetadata(const UE::Trace::IAnalyzer::FEventData& EventData);
+
 	enum : uint16
 	{
 		RouteId_Session,
 		RouteId_Session2,
 	};
+
 	IAnalysisSession& Session;
 	FDiagnosticsProvider* Provider;
 };

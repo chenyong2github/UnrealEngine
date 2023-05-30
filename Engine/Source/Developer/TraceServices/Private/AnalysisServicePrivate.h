@@ -37,15 +37,24 @@ class FAnalysisSession
 public:
 	FAnalysisSession(uint32 TraceId, const TCHAR* SessionName, TUniquePtr<UE::Trace::IInDataStream>&& InDataStream);
 	virtual ~FAnalysisSession();
+
 	void Start();
 	virtual void Stop(bool bAndWait) const override;
 	virtual void Wait() const override;
+	virtual bool IsAnalysisComplete() const override { return !Processor.IsActive(); }
 
 	virtual const TCHAR* GetName() const override { return *Name; }
 	virtual uint32 GetTraceId() const override { return TraceId; }
-	virtual bool IsAnalysisComplete() const override { return !Processor.IsActive(); }
+
 	virtual double GetDurationSeconds() const override { Lock.ReadAccessCheck(); return DurationSeconds; }
 	virtual void UpdateDurationSeconds(double Duration) override { Lock.WriteAccessCheck(); DurationSeconds = FMath::Max(Duration, DurationSeconds); }
+
+	virtual uint32 GetMetadataCount() const override { Lock.ReadAccessCheck(); return Metadata.Num(); }
+	virtual void EnumerateMetadata(TFunctionRef<void(const FTraceSessionMetadata& Metadata)> Callback) const override;
+	virtual void AddMetadata(FName InName, int64 InValue) override;
+	virtual void AddMetadata(FName InName, double InValue) override;
+	virtual void AddMetadata(FName InName, FString InValue) override;
+
 	virtual FMessageLog* GetLog() const override;
 
 	virtual ILinearAllocator& GetLinearAllocator() override { return Allocator; }
@@ -72,11 +81,12 @@ private:
 	virtual const IProvider* ReadProviderPrivate(const FName& Name) const override;
 	virtual IEditableProvider* EditProviderPrivate(const FName& Name) override;
 
+private:
 	mutable FAnalysisSessionLock Lock;
-
 	FString Name;
-	uint32 TraceId;
+	uint32 TraceId = 0;
 	double DurationSeconds = 0.0;
+	TMap<FName, FTraceSessionMetadata> Metadata;
 	FSlabAllocator Allocator;
 	FStringStore StringStore;
 	FAnalysisCache Cache;

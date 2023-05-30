@@ -203,13 +203,18 @@ TSharedRef<SWidget> SSessionInfoWindow::CreateTextBox(const TAttribute<FText>& I
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SSessionInfoWindow::AddInfoLine(TSharedPtr<SVerticalBox> InVerticalBox, const FText& InHeader, const TAttribute<FText>& InValue, bool bMultiLine) const
+void SSessionInfoWindow::AddInfoLine(TSharedPtr<SVerticalBox> InVerticalBox,
+									 const FText& InHeader,
+									 FText(SSessionInfoWindow::* InGetTextMethodPtr)() const,
+									 EVisibility(SSessionInfoWindow::* InVisibilityMethodPtr)() const,
+									 bool bMultiLine) const
 {
 	InVerticalBox->AddSlot()
 		.AutoHeight()
-		.Padding(16.0f, 4.0f, 16.0f, 4.0f)
+		.Padding(16.0f, 0.0f, 16.0f, 0.0f)
 		[
 			SNew(SHorizontalBox)
+			.Visibility(this, InVisibilityMethodPtr)
 
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Right)
@@ -218,7 +223,7 @@ void SSessionInfoWindow::AddInfoLine(TSharedPtr<SVerticalBox> InVerticalBox, con
 			.Padding(0.0f)
 			[
 				SNew(SBox)
-				.Padding(FMargin(0.0f, 4.0f, 16.0f, 4.0f))
+				.Padding(FMargin(0.0f, 8.0f, 16.0f, 4.0f))
 				.HAlign(HAlign_Right)
 				.MinDesiredWidth(160.0f)
 				[
@@ -231,9 +236,9 @@ void SSessionInfoWindow::AddInfoLine(TSharedPtr<SVerticalBox> InVerticalBox, con
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Top)
 			.FillWidth(1.0f)
-			.Padding(0.0f)
+			.Padding(FMargin(0.0f, 4.0f, 0.0f, 4.0f))
 			[
-				CreateTextBox(InValue, bMultiLine)
+				CreateTextBox(TAttribute<FText>(this, InGetTextMethodPtr), bMultiLine)
 			]
 		];
 }
@@ -294,17 +299,20 @@ TSharedRef<SDockTab> SSessionInfoWindow::SpawnTab_SessionInfo(const FSpawnTabArg
 		];
 
 	BeginSection(VerticalBox, LOCTEXT("SessionInfo_SectionText", "Session Info"));
-	AddInfoLine(VerticalBox, LOCTEXT("SessionName_HeaderText",	"Session Name"),		TAttribute<FText>(this, &SSessionInfoWindow::GetSessionNameText));
-	AddInfoLine(VerticalBox, LOCTEXT("Uri_HeaderText",			"URI"),					TAttribute<FText>(this, &SSessionInfoWindow::GetUriText));
-	//AddInfoLine(VerticalBox, LOCTEXT("FileSize_HeaderText",		"File Size"),			TAttribute<FText>(this, &SSessionInfoWindow::GetFileSizeText));
-	AddInfoLine(VerticalBox, LOCTEXT("Platform_HeaderText",		"Platform"),			TAttribute<FText>(this, &SSessionInfoWindow::GetPlatformText));
-	AddInfoLine(VerticalBox, LOCTEXT("AppName_HeaderText",		"Application Name"),	TAttribute<FText>(this, &SSessionInfoWindow::GetAppNameText));
-	AddInfoLine(VerticalBox, LOCTEXT("Branch_HeaderText",		"Branch"),				TAttribute<FText>(this, &SSessionInfoWindow::GetBranchText));
-	AddInfoLine(VerticalBox, LOCTEXT("BuildVersion_HeaderText",	"Build Version"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildVersionText));
-	AddInfoLine(VerticalBox, LOCTEXT("Changelist_HeaderText",	"Changelist"),			TAttribute<FText>(this, &SSessionInfoWindow::GetChangelistText));
-	AddInfoLine(VerticalBox, LOCTEXT("BuildConfig_HeaderText",	"Build Config"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildConfigText));
-	AddInfoLine(VerticalBox, LOCTEXT("BuildTarget_HeaderText",	"Build Target"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildTargetText));
-	AddInfoLine(VerticalBox, LOCTEXT("CommandLine_HeaderText",	"Command Line"),		TAttribute<FText>(this, &SSessionInfoWindow::GetCommandLineText), true);
+
+	AddInfoLine(VerticalBox, LOCTEXT("SessionName_HeaderText",		"Session Name"),		&SSessionInfoWindow::GetSessionNameText,	&SSessionInfoWindow::IsAlwaysVisible);
+	AddInfoLine(VerticalBox, LOCTEXT("Uri_HeaderText",				"URI"),					&SSessionInfoWindow::GetUriText,			&SSessionInfoWindow::IsAlwaysVisible);
+	AddInfoLine(VerticalBox, LOCTEXT("Platform_HeaderText",			"Platform"),			&SSessionInfoWindow::GetPlatformText,		&SSessionInfoWindow::IsVisiblePlatformText);
+	AddInfoLine(VerticalBox, LOCTEXT("AppName_HeaderText",			"Application Name"),	&SSessionInfoWindow::GetAppNameText,		&SSessionInfoWindow::IsVisibleAppNameText);
+	AddInfoLine(VerticalBox, LOCTEXT("ProjectName_HeaderText",		"Project Name"),		&SSessionInfoWindow::GetProjectNameText,	&SSessionInfoWindow::IsVisibleProjectNameText);
+	AddInfoLine(VerticalBox, LOCTEXT("Branch_HeaderText",			"Branch"),				&SSessionInfoWindow::GetBranchText,			&SSessionInfoWindow::IsVisibleBranchText);
+	AddInfoLine(VerticalBox, LOCTEXT("BuildVersion_HeaderText",		"Build Version"),		&SSessionInfoWindow::GetBuildVersionText,	&SSessionInfoWindow::IsVisibleBuildVersionText);
+	AddInfoLine(VerticalBox, LOCTEXT("Changelist_HeaderText",		"Changelist"),			&SSessionInfoWindow::GetChangelistText,		&SSessionInfoWindow::IsVisibleChangelistText);
+	AddInfoLine(VerticalBox, LOCTEXT("BuildConfig_HeaderText",		"Build Config"),		&SSessionInfoWindow::GetBuildConfigText,	&SSessionInfoWindow::IsVisibleBuildConfigText);
+	AddInfoLine(VerticalBox, LOCTEXT("BuildTarget_HeaderText",		"Build Target"),		&SSessionInfoWindow::GetBuildTargetText,	&SSessionInfoWindow::IsVisibleBuildTargetText);
+	AddInfoLine(VerticalBox, LOCTEXT("CommandLine_HeaderText",		"Command Line"),		&SSessionInfoWindow::GetCommandLineText,	&SSessionInfoWindow::IsVisibleCommandLineText, true);
+	AddInfoLine(VerticalBox, LOCTEXT("OtherMetadata_HeaderText",	"Other Metadata"),		&SSessionInfoWindow::GetOtherMetadataText,	&SSessionInfoWindow::IsVisibleOtherMetadataText, true);
+
 	EndSection(VerticalBox);
 
 	BeginSection(VerticalBox, LOCTEXT("AnalysisStatus_SectionText", "Analysis Status"));
@@ -367,12 +375,14 @@ void SSessionInfoWindow::Tick(const FGeometry& AllottedGeometry, const double In
 
 		PlatformText = FText::GetEmpty();
 		AppNameText = FText::GetEmpty();
+		ProjectNameText = FText::GetEmpty();
 		BranchText = FText::GetEmpty();
 		BuildVersionText = FText::GetEmpty();
 		ChangelistText = FText::GetEmpty();
 		BuildConfigurationTypeText = FText::GetEmpty();
 		BuildTargetTypeText = FText::GetEmpty();
 		CommandLineText = FText::GetEmpty();
+		OtherMetadataText = FText::GetEmpty();
 	}
 
 	// If we already have the session info data, we no longer poll for it.
@@ -387,12 +397,83 @@ void SSessionInfoWindow::Tick(const FGeometry& AllottedGeometry, const double In
 			TraceServices::FSessionInfo SessionInfo = DiagnosticsProvider->GetSessionInfo();
 			PlatformText = FText::FromString(SessionInfo.Platform);
 			AppNameText = FText::FromString(SessionInfo.AppName);
+			ProjectNameText = FText::FromString(SessionInfo.ProjectName);
 			BranchText = FText::FromString(SessionInfo.Branch);
 			BuildVersionText = FText::FromString(SessionInfo.BuildVersion);
 			ChangelistText = FText::AsNumber(SessionInfo.Changelist, &FNumberFormattingOptions::DefaultNoGrouping());
 			BuildConfigurationTypeText = FText::FromString(LexToString(SessionInfo.ConfigurationType));
 			BuildTargetTypeText = FText::FromString(LexToString(SessionInfo.TargetType));
 			CommandLineText = FText::FromString(SessionInfo.CommandLine);
+
+			TStringBuilder<1024> OtherMetadata;
+
+			if (Session->GetTraceId() != 0)
+			{
+				OtherMetadata.Appendf(TEXT("TraceId=0x%X"), Session->GetTraceId());
+			}
+
+			Session->EnumerateMetadata([&OtherMetadata](const TraceServices::FTraceSessionMetadata& Metadata)
+				{
+					static FName ExcludedMetadata[]
+					{
+						FName("Platform"),
+						FName("AppName"),
+						FName("ProjectName"),
+						FName("Branch"),
+						FName("BuildVersion"),
+						FName("Changelist"),
+						FName("ConfigurationType"),
+						FName("TargetType"),
+						FName("CommandLine"),
+					};
+
+					for (int32 Index = 0; Index < UE_ARRAY_COUNT(ExcludedMetadata); ++Index)
+					{
+						if (Metadata.Name == ExcludedMetadata[Index])
+						{
+							return;
+						}
+					}
+
+					switch (Metadata.Type)
+					{
+						case TraceServices::FTraceSessionMetadata::EType::Int64:
+						{
+							if (OtherMetadata.Len() > 0)
+							{
+								OtherMetadata.Append(TEXT("\n"));
+							}
+							OtherMetadata.Append(Metadata.Name.GetPlainNameString());
+							OtherMetadata.Append(TEXT("="));
+							OtherMetadata.Appendf(TEXT("%lld"), Metadata.Int64Value);
+							break;
+						}
+						case TraceServices::FTraceSessionMetadata::EType::Double:
+						{
+							if (OtherMetadata.Len() > 0)
+							{
+								OtherMetadata.Append(TEXT("\n"));
+							}
+							OtherMetadata.Append(Metadata.Name.GetPlainNameString());
+							OtherMetadata.Append(TEXT("="));
+							OtherMetadata.Appendf(TEXT("%f"), Metadata.DoubleValue);
+							break;
+						}
+						case TraceServices::FTraceSessionMetadata::EType::String:
+						{
+							if (OtherMetadata.Len() > 0)
+							{
+								OtherMetadata.Append(TEXT("\n"));
+							}
+							OtherMetadata.Append(Metadata.Name.GetPlainNameString());
+							OtherMetadata.Append(TEXT("="));
+							OtherMetadata.Append(Metadata.StringValue);
+							break;
+						}
+					}
+				});
+
+			OtherMetadataText = FText::FromString(FString(OtherMetadata.ToView()));
 
 			bIsSessionInfoSet = true;
 		}
