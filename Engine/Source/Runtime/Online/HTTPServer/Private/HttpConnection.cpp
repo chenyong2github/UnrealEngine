@@ -149,7 +149,7 @@ void FHttpConnection::ContinueRead(float DeltaTime)
 		break;
 
 	case EHttpConnectionContextState::Error:
-		HandleReadError(ReadContext.GetRequest()->HttpVersion, ReadContext.GetErrorCode(), *ReadContext.GetErrorStr());
+		HandleReadError(ReadContext.GetErrorCode(), *ReadContext.GetErrorStr());
 		break;
 	}
 }
@@ -311,14 +311,24 @@ void FHttpConnection::Destroy(EConnectionDestroyReason Reason)
 	}
 }
 
-void FHttpConnection::HandleReadError(HttpVersion::EHttpServerHttpVersion HttpVersion, EHttpServerResponseCodes ErrorCode, const TCHAR* ErrorCodeStr)
+void FHttpConnection::HandleReadError(EHttpServerResponseCodes ErrorCode, const TCHAR* ErrorCodeStr)
 {
 	UE_LOG(LogHttpConnection, Error, TEXT("%s"), ErrorCodeStr);
 
 	// Forcibly Reply
 	bKeepAlive = false;
-	auto Response = FHttpServerResponse::Error(ErrorCode, ErrorCodeStr);
-	Response->HttpVersion = HttpVersion;
+	TUniquePtr<FHttpServerResponse> Response = FHttpServerResponse::Error(ErrorCode, ErrorCodeStr);
+	TSharedPtr<FHttpServerRequest> Request = ReadContext.GetRequest();
+	if (Request.IsValid())
+	{
+		Response->HttpVersion = Request->HttpVersion;
+	}
+	else
+	{
+		UE_LOG(LogHttpConnection, Verbose, TEXT("Http Request is null, unable to parse version."));
+		Response->HttpVersion = HttpVersion::EHttpServerHttpVersion::HTTP_VERSION_UNKNOWN;
+	}
+
 	BeginWrite(MoveTemp(Response), LastRequestNumber);
 }
 

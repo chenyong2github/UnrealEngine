@@ -164,11 +164,10 @@ private:
 	/**
 	 * Logs and responds with the caller-supplied error code
 	 *
-	 * @param HttpVersion The HTTP version to be used for the error response
 	 * @param ErrorCode The HTTP error code
 	 * @param ErrorCodeStr The machine-readable error description
 	 */
-	void HandleReadError(HttpVersion::EHttpServerHttpVersion HttpVersion, EHttpServerResponseCodes ErrorCode,  const TCHAR* ErrorCodeStr);
+	void HandleReadError(EHttpServerResponseCodes ErrorCode, const TCHAR* ErrorCodeStr);
 
 	/**
 	 * Logs the caller-supplied error code and closes the connection
