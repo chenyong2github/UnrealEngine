@@ -667,12 +667,14 @@ void FHairStrandsClusterCullingBulkData::Reset()
 	Data.CurveToClusterIds.RemoveBulkData();
 	Data.ClusterVertexIds.RemoveBulkData();
 	Data.PackedClusterInfos.RemoveBulkData();
+	Data.PointLODs.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
 	Data.ClusterLODInfos 	= FHairBulkContainer();
 	Data.CurveToClusterIds  = FHairBulkContainer();
 	Data.ClusterVertexIds 	= FHairBulkContainer();
 	Data.PackedClusterInfos = FHairBulkContainer();
+	Data.PointLODs			= FHairBulkContainer();
 }
 
 void FHairStrandsClusterCullingBulkData::ResetLoadedSize()
@@ -707,7 +709,7 @@ void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* 
 
 uint32 FHairStrandsClusterCullingBulkData::GetResourceCount() const
 {
-	return 4;
+	return 5;
 }
 
 bool ValidateHairBulkData();
@@ -732,6 +734,10 @@ void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQ
 	if (Header.ClusterCount)
 	{
 		Out.Add(Data.PackedClusterInfos, TEXT("_PackedClusterInfos"), 0, 0); // Load all data
+	}
+
+	{
+		Out.Add(Data.PointLODs, TEXT("_PointLODs"), 0, 0); // Load all data. TODO load data based on active curve/point count
 	}
 
 	if (ValidateHairBulkData() && (Out.Type == FHairStrandsBulkCommon::FQuery::WriteDDC || Out.Type == FHairStrandsBulkCommon::FQuery::ReadWriteIO))

@@ -736,6 +736,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 	TArray<uint32>				CurveToClusterIds;
 	TArray<uint32>				ClusterVertexIds;
 	TArray<FHairLODInfo>		LODInfos;
+	TArray<uint32>				PointLODs;
 
 	uint32 ClusterCount = 0;		// Number of clusters
 	uint32 PointCount = 0;			// Number of points
@@ -778,7 +779,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 		FHairBulkContainer	PackedClusterInfos;		// Size - ClusterCount
 		FHairBulkContainer	ClusterLODInfos;		// Size - ClusterLODCount
 		FHairBulkContainer	CurveToClusterIds;		// Size - CurveCount
-		FHairBulkContainer	ClusterVertexIds;		// Size - VertexLODCount
+		FHairBulkContainer	ClusterVertexIds;		// Size - VertexLODCount // TODO REMOVE
+		FHairBulkContainer	PointLODs;				// Size - PointCount / HAIR_POINT_LOD_COUNT_PER_UINT
 	} Data;
 };
 

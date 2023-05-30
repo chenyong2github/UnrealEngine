@@ -88,3 +88,10 @@
 
 #define PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(Out, In) PACK_HAIR_ATTRIBUTE_OFFSETS(Out, In, HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT, HAIR_CURVE_ATTRIBUTE_COUNT)
 #define PACK_POINT_HAIR_ATTRIBUTE_OFFSETS(Out, In) PACK_HAIR_ATTRIBUTE_OFFSETS(Out, In, HAIR_POINT_ATTRIBUTE_OFFSET_COUNT, HAIR_POINT_ATTRIBUTE_COUNT)
+
+// Data for LODing points of a curve
+// The number of bits per vertex describe the maxium LOD decomposition
+// Each curve's point encode its minium LOD at which it becomes active
+#define HAIR_POINT_LOD_BIT_COUNT 4
+#define HAIR_POINT_LOD_COUNT_PER_UINT (32u/4u)
+#define HAIR_POINT_LOD_COUNT_PER_UINT_DIV_AS_SHIFT 3

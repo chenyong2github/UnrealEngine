@@ -501,7 +501,7 @@ static void RunHairStrandsInterpolation_Strands(
 				}
 			}
 		}
-		ComputeHairStrandsClustersCulling(GraphBuilder, *ShaderMap, Views, ClusterData);
+		ComputeHairStrandsClustersCulling(GraphBuilder, *ShaderMap, Views, ShaderPrintData, ClusterData);
 
 		// Run cluster debug view here (instead of GroomDebug.h/.cpp, as we need to have the (transient) cluster data 
 		const EGroomViewMode ViewMode = GetGroomViewMode(*View);

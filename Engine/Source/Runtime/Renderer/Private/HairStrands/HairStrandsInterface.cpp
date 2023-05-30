@@ -340,6 +340,7 @@ void FHairGroupPublicData::Allocate(FRDGBuilder& GraphBuilder)
 	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), ClusterCount * 6, EPixelFormat::PF_R32_SINT, ClusterAABBBuffer, TEXT("Hair.Cluster_ClusterAABBBuffer"), GetOwnerName());
 	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), 6, EPixelFormat::PF_R32_SINT, GroupAABBBuffer, TEXT("Hair.Cluster_GroupAABBBuffer"), GetOwnerName());
 
+	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), RestCurveCount, EPixelFormat::PF_R32_UINT, CulledCurveBuffer, TEXT("Hair.Cluster_CulledCurveBuffer"), GetOwnerName());
 	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(int32), RestPointCount, EPixelFormat::PF_R32_UINT, CulledVertexIdBuffer, TEXT("Hair.Cluster_CulledVertexIdBuffer"), GetOwnerName());
 	InternalCreateVertexBufferRDG(GraphBuilder, sizeof(float), RestPointCount, EPixelFormat::PF_R32_FLOAT, CulledVertexRadiusScaleBuffer, TEXT("Hair.Cluster_CulledVertexRadiusScaleBuffer"), GetOwnerName(), true);
 
@@ -359,6 +360,7 @@ void FHairGroupPublicData::Release()
 	DrawIndirectRasterComputeBuffer.Release();
 	ClusterAABBBuffer.Release();
 	GroupAABBBuffer.Release();
+	CulledCurveBuffer.Release();
 	CulledVertexIdBuffer.Release();
 	CulledVertexRadiusScaleBuffer.Release();
 	bIsInitialized = false;
@@ -376,6 +378,7 @@ uint32 FHairGroupPublicData::GetResourcesSize() const
 	Total += ExtractSize(DrawIndirectRasterComputeBuffer.Buffer);
 	Total += ExtractSize(ClusterAABBBuffer.Buffer);
 	Total += ExtractSize(GroupAABBBuffer.Buffer);
+	Total += ExtractSize(CulledCurveBuffer.Buffer);
 	Total += ExtractSize(CulledVertexIdBuffer.Buffer);
 	Total += ExtractSize(CulledVertexRadiusScaleBuffer.Buffer);
 	return Total;

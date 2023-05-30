@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r30");
+	return TEXT("v8r32");
 }
 
 namespace FHairStrandsDecimation
@@ -2990,6 +2990,7 @@ static void BuildClusterData(
 	Out.ClusterInfos.Init(FHairClusterInfo(), Out.ClusterCount);
 	Out.CurveToClusterIds.SetNum(Out.CurveCount);
 	Out.LODInfos.SetNum(LODCount);
+	Out.PointLODs.Init(0, Out.PointCount);
 
 	// Conservative allocation for inserting vertex indices for the various curves LOD
 	uint32* RawClusterVertexIds = new uint32[LODCount * InRenStrandsData.GetNumPoints()];
@@ -3004,6 +3005,7 @@ static void BuildClusterData(
 	TArray<FHairClusterInfo>& LocalClusterInfos = Out.ClusterInfos;
 	TArray<FHairClusterLODInfo>& LocalClusterLODInfos = Out.ClusterLODInfos;
 	TArray<uint32>& LocalCurveToClusterIds = Out.CurveToClusterIds;
+	TArray<uint32>& LocalPointLODs = Out.PointLODs;
 #define USE_PARALLE_FOR 0
 #if USE_PARALLE_FOR
 	ParallelFor(Out.ClusterCount,
@@ -3191,6 +3193,9 @@ static void BuildClusterData(
 						}
 
 						LocalClusterVertexIds.Add(GlobalPointIndex);
+
+						// Store the minimum/coarser LOD at which the current point is visible
+						LocalPointLODs[GlobalPointIndex] = LODIt;
 					}
 				}
 			}
@@ -3310,6 +3315,25 @@ static void BuildClusterBulkData(
 	HairStrandsBuilder::CopyToBulkData<FHairClusterLODInfoFormat>(Out.Data.ClusterLODInfos, In.ClusterLODInfos);
 	HairStrandsBuilder::CopyToBulkData<FHairClusterIndexFormat>(Out.Data.CurveToClusterIds, In.CurveToClusterIds);
 	HairStrandsBuilder::CopyToBulkData<FHairClusterIndexFormat>(Out.Data.ClusterVertexIds, In.ClusterVertexIds);
+
+	// Pack point LOD data
+	// |                          32bits                               |
+	// |      4bits    |      4bits    |      4bits    |      4bits    |
+	// | Point0 MinLOD | Point1 MinLOD | Point2 MinLOD | Point3 MinLOD |
+	static_assert(HAIR_POINT_LOD_BIT_COUNT == 4);
+	TArray<uint32> PackedPointLODs;
+	PackedPointLODs.SetNum(FMath::DivideAndRoundUp(uint32(In.PointLODs.Num()), HAIR_POINT_LOD_COUNT_PER_UINT));
+	for (uint32 PackedIt = 0, PackedCount = PackedPointLODs.Num(); PackedIt<PackedCount; ++PackedIt)
+	{
+		uint32 Packed = 0;
+		for (uint32 It = 0; It < HAIR_POINT_LOD_COUNT_PER_UINT; ++It)
+		{
+			const uint32 InIndex = FMath::Min(PackedIt * HAIR_POINT_LOD_COUNT_PER_UINT + It, uint32(In.PointLODs.Num()-1));
+			Packed = Packed | ((In.PointLODs[InIndex] & 0xF) << (It * HAIR_POINT_LOD_BIT_COUNT));
+		}
+		PackedPointLODs[PackedIt] = Packed;
+	}
+	HairStrandsBuilder::CopyToBulkData<FHairClusterIndexFormat>(Out.Data.PointLODs, PackedPointLODs);
 
 	// Pack LODInfo into GPU format
 	{

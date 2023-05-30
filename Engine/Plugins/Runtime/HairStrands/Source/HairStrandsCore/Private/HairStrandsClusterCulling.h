@@ -25,4 +25,5 @@ void ComputeHairStrandsClustersCulling(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap& ShaderMap,
 	const TArray<const FSceneView*>& Views,
+	const FShaderPrintData* ShaderPrintData,
 	FHairStrandClusterData& ClusterDatas);

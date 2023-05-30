@@ -235,9 +235,11 @@ public:
 	FRDGExternalBuffer& GetGroupAABBBuffer() { return GroupAABBBuffer; }
 	const FRDGExternalBuffer& GetGroupAABBBuffer() const { return GroupAABBBuffer; }
 
+	const FRDGExternalBuffer& GetCulledCurveBuffer() const { return CulledCurveBuffer; }
 	const FRDGExternalBuffer& GetCulledVertexIdBuffer() const { return CulledVertexIdBuffer; }
 	const FRDGExternalBuffer& GetCulledVertexRadiusScaleBuffer() const { return CulledVertexRadiusScaleBuffer; }
 
+	FRDGExternalBuffer& GetCulledCurveBuffer() { return CulledCurveBuffer; }
 	FRDGExternalBuffer& GetCulledVertexIdBuffer() { return CulledVertexIdBuffer; }
 	FRDGExternalBuffer& GetCulledVertexRadiusScaleBuffer() { return CulledVertexRadiusScaleBuffer; }
 
@@ -382,6 +384,7 @@ public:
 	bool bClusterAABBValid = false;
 
 	/* Culling & LODing results for a hair group */ // Better to be transient?
+	FRDGExternalBuffer CulledCurveBuffer;
 	FRDGExternalBuffer CulledVertexIdBuffer;
 	FRDGExternalBuffer CulledVertexRadiusScaleBuffer;
 	bool bCullingResultAvailable = false;
@@ -429,17 +432,21 @@ struct FHairStrandClusterData
 	{
 		uint32 ClusterCount = 0;
 		uint32 VertexCount = 0;
+		uint32 MaxPointPerCurve = 0;
 
 		float LODIndex = -1;
 		float LODBias = 0.0f;
 		bool bVisible = false;
 
+		FRDGExternalBuffer* CurveBuffer = nullptr;
+		FRDGExternalBuffer* PointLODBuffer = nullptr;
+
 		// See FHairStrandsClusterCullingResource fro details about those buffers.
 		FRDGExternalBuffer* GroupAABBBuffer = nullptr;
 		FRDGExternalBuffer* ClusterAABBBuffer = nullptr;
-		FRDGExternalBuffer* ClusterInfoBuffer = nullptr;
-		FRDGExternalBuffer* ClusterLODInfoBuffer = nullptr;
-		FRDGExternalBuffer* CurveToClusterIdBuffer = nullptr;
+		FRDGExternalBuffer* ClusterInfoBuffer = nullptr; // SRV
+		FRDGExternalBuffer* ClusterLODInfoBuffer = nullptr; // SRV
+		FRDGExternalBuffer* CurveToClusterIdBuffer = nullptr; // SRV
 		FRDGExternalBuffer* ClusterVertexIdBuffer = nullptr;
 
 		TRefCountPtr<FRDGPooledBuffer> ClusterIdBuffer;
@@ -447,6 +454,7 @@ struct FHairStrandClusterData
 		TRefCountPtr<FRDGPooledBuffer> ClusterIndexCountBuffer;
 
 		// Culling & LOD output
+		FRDGExternalBuffer* GetCulledCurveBuffer() const				{ return HairGroupPublicPtr ? &HairGroupPublicPtr->GetCulledCurveBuffer() : nullptr; }
 		FRDGExternalBuffer* GetCulledVertexIdBuffer() const				{ return HairGroupPublicPtr ? &HairGroupPublicPtr->GetCulledVertexIdBuffer() : nullptr; }
 		FRDGExternalBuffer* GetCulledVertexRadiusScaleBuffer() const	{ return HairGroupPublicPtr ? &HairGroupPublicPtr->GetCulledVertexRadiusScaleBuffer() : nullptr; }
 		bool GetCullingResultAvailable() const							{ return HairGroupPublicPtr ? HairGroupPublicPtr->GetCullingResultAvailable() : false; }
