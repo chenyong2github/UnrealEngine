@@ -149,7 +149,7 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 	LandscapeSubSystem->IncNaniteBuild();
 
 	FGraphEventRef StaticMeshBuildCompleteEvent = FGraphEvent::CreateGraphEvent();
-	TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> AsyncBuildData = Landscape->MakeAsyncNaniteBuildData();
+	TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> AsyncBuildData = Landscape->MakeAsyncNaniteBuildData(GetLandscapeActor()->GetNaniteLODIndex());
 	
 	FGraphEventRef ExportMeshEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([AsyncBuildData, Name = Landscape->GetActorNameOrLabel()]()
 		{			

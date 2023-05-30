@@ -3608,11 +3608,11 @@ int32 ALandscapeProxy::FRawMeshExportParams::GetNumUVChannelsNeeded() const
 }
 
 
-TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> ALandscapeProxy::MakeAsyncNaniteBuildData() const
+TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> ALandscapeProxy::MakeAsyncNaniteBuildData(int32 InLODToExport) const
 {
 	TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> AsyncBuildData = MakeShared<UE::Landscape::Nanite::FAsyncBuildData>();
 
-	AsyncBuildData->LOD = GetLandscapeActor()->NaniteLODIndex;
+	AsyncBuildData->LOD = InLODToExport;;
 	AsyncBuildData->LandscapeWeakRef = MakeWeakObjectPtr(const_cast<ALandscapeProxy*>(this));
 	AsyncBuildData->LandscapeSubSystemWeakRef = MakeWeakObjectPtr(GetWorld()->GetSubsystem<ULandscapeSubsystem>());
 
@@ -3640,11 +3640,10 @@ TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> ALandscapeProxy::MakeAsyncNan
 
 	// take a copy of the height and visility data for each component.
 	// Add an sync version of ForEachComponent?  
-	ForEachComponent<ULandscapeComponent>(true, [AsyncBuildData](ULandscapeComponent* LandscapeComponent)
+	ForEachComponent<ULandscapeComponent>(true, [AsyncBuildData, InLODToExport](ULandscapeComponent* LandscapeComponent)
 		{
-			int32 MipLevel = 0;
 			TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::MakeAsyncBuildData-CopyHeightAndVisibility);
-			FLandscapeComponentDataInterface DataInterface(LandscapeComponent, MipLevel, false);
+			FLandscapeComponentDataInterface DataInterface(LandscapeComponent, InLODToExport, false);
 
 			UE::Landscape::Nanite::FAsyncComponentData AsyncComponentData;
 
@@ -3652,8 +3651,8 @@ TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> ALandscapeProxy::MakeAsyncNan
 			DataInterface.GetWeightmapTextureData(LandscapeComponent->GetVisibilityLayer(), AsyncComponentData.Visibility);
 
 		
-			AsyncComponentData.ComponentDataInterface = MakeShared<FLandscapeComponentDataInterfaceBase>(LandscapeComponent, 0, false);
-			int32 HeightmapSize = ((LandscapeComponent->SubsectionSizeQuads + 1) * LandscapeComponent->NumSubsections) >> MipLevel;
+			AsyncComponentData.ComponentDataInterface = MakeShared<FLandscapeComponentDataInterfaceBase>(LandscapeComponent, InLODToExport, false);
+			int32 HeightmapSize = ((LandscapeComponent->SubsectionSizeQuads + 1) * LandscapeComponent->NumSubsections) >> InLODToExport;
 			AsyncComponentData.ComponentDataInterface->HeightmapStride = HeightmapSize;
 			AsyncComponentData.ComponentDataInterface->HeightmapComponentOffsetX = 0;
 			AsyncComponentData.ComponentDataInterface->HeightmapComponentOffsetY = 0;
@@ -3666,8 +3665,14 @@ TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> ALandscapeProxy::MakeAsyncNan
 
 bool ALandscapeProxy::ExportToRawMesh(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh) const
 {
-	TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> AsyncBuildData = MakeAsyncNaniteBuildData();
-	return ExportToRawMeshDataCopy(InExportParams, OutRawMesh, AsyncBuildData.Get());
+	FRawMeshExportParams ExportParams = InExportParams;
+	if (InExportParams.ExportLOD != INDEX_NONE)
+	{
+		ExportParams.ExportLOD = FMath::Clamp<int32>(InExportParams.ExportLOD, 0, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
+	}
+
+	TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> AsyncBuildData = MakeAsyncNaniteBuildData(ExportParams.ExportLOD);
+	return ExportToRawMeshDataCopy(ExportParams, OutRawMesh, AsyncBuildData.Get());
 }
 
 bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh, const UE::Landscape::Nanite::FAsyncBuildData& AsyncData) const
@@ -3690,13 +3695,7 @@ bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExpo
 		return false;
 	}
 
-	int32 LandscapeLODToExport = ExportLOD;
-	// User specified LOD to export : 
-	if (InExportParams.ExportLOD != INDEX_NONE)
-	{
-		LandscapeLODToExport = FMath::Clamp<int32>(InExportParams.ExportLOD, 0, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
-	}
-
+	
 	checkf(!InExportParams.ComponentsUVConfiguration.IsSet() || InExportParams.ComponentsUVConfiguration->Num() == ComponentsToExport.Num(), TEXT("If ComponentsUVConfiguration is passed (per-component UV configuration), it must have the same number of entries as the number of components to export."))
 	checkf(!InExportParams.ComponentsMaterialSlotName.IsSet() || InExportParams.ComponentsMaterialSlotName->Num() == ComponentsToExport.Num(), TEXT("If ComponentsMaterialSlotName is passed (per-component material slot), it must have the same number of entries as the number of components to export."))
 
@@ -3757,8 +3756,8 @@ bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExpo
 		const FRawMeshExportParams::FUVConfiguration& ComponentUVConfiguration = InExportParams.GetUVConfiguration(ComponentIndex);
 
 		const FLandscapeComponentDataInterfaceBase& CDI = *AsyncData.ComponentData.Find(Component)->ComponentDataInterface;
-		const int32 ComponentSizeQuadsLOD = ((Component->ComponentSizeQuads + 1) >> LandscapeLODToExport) - 1;
-		const int32 SubsectionSizeQuadsLOD = ((Component->SubsectionSizeQuads + 1) >> LandscapeLODToExport) - 1;
+		const int32 ComponentSizeQuadsLOD = ((Component->ComponentSizeQuads + 1) >> InExportParams.ExportLOD) - 1;
+		const int32 SubsectionSizeQuadsLOD = ((Component->SubsectionSizeQuads + 1) >> InExportParams.ExportLOD) - 1;
 		float LODScale = (float)ComponentSizeQuadsLOD / ComponentSizeQuads;
 
 		const FIntPoint ComponentOffsetRelativeToProxyBoundsQuads = Component->GetSectionBase() - LandscapeSectionOffset - LandscapeProxyBoundsRect.Min;
