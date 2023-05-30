@@ -16,6 +16,7 @@
 
 #include "Math/UnrealMathUtility.h"
 
+#include "Spatial/PointHashGrid3.h"
 
 namespace mu
 {
@@ -24,72 +25,56 @@ namespace mu
     //! Create a map from vertices into vertices, collapsing vertices that have the same position, 
 	//! This version uses UE Containers to return.	
     //---------------------------------------------------------------------------------------------
-    inline void MeshCreateCollapsedVertexMap( const Mesh* pMesh, TArray<int32>& OutCollapsedVertexMap, TArray<FVector3f>& Vertices )
-    {
-        MUTABLE_CPUPROFILER_SCOPE(MeshCreateCollapsedVertexMap);
-    	
-        int32 VCount = pMesh->GetVertexCount();
+	inline void MeshCreateCollapsedVertexMap(const Mesh* pMesh,	TArray<int32>& OutCollapsedVertices, TArray<FVector3f>& OutVertices)
+	{
+		MUTABLE_CPUPROFILER_SCOPE(MeshCreateCollapsedVertexMap);
 
-        OutCollapsedVertexMap.SetNum(VCount);
-        Vertices.SetNum(VCount);
+		const int32 NumVertices = pMesh->GetVertexCount();
 
-        const FMeshBufferSet& MBSPriv = pMesh->GetVertexBuffers();
-        for (int32 b = 0; b < MBSPriv.m_buffers.Num(); ++b)
-        {
-            for (int32 c = 0; c < MBSPriv.m_buffers[b].m_channels.Num(); ++c)
-            {
-                MESH_BUFFER_SEMANTIC Sem = MBSPriv.m_buffers[b].m_channels[c].m_semantic;
-                int32 SemIndex = MBSPriv.m_buffers[b].m_channels[c].m_semanticIndex;
+		// Used to speed up vertex comparison
+		UE::Geometry::TPointHashGrid3f<int32> VertHash(0.01f, INDEX_NONE);
+		VertHash.Reserve(NumVertices);
 
-                UntypedMeshBufferIteratorConst It(pMesh->GetVertexBuffers(), Sem, SemIndex);
+		// Info to collect. Vertices and collapsed vertices
+		OutVertices.SetNumUninitialized(NumVertices);
+		OutCollapsedVertices.Init(INDEX_NONE, NumVertices);
 
-                switch (Sem)
-                {
-                case MBS_POSITION:
-				{
-                    // First create a cache of the vertices in the vertices array
-                    for (int32 V = 0; V < VCount; ++V)
-                    {
-                        FVector3f Vertex(0.0f, 0.0f, 0.0f);
-                        for (int32 I = 0; I < 3; ++I)
-                        {
-                            ConvertData(I, &Vertex[0], MBF_FLOAT32, It.ptr(), It.GetFormat());
-                        }
+		// Get Vertices
+		mu::UntypedMeshBufferIteratorConst ItPosition = mu::UntypedMeshBufferIteratorConst(pMesh->GetVertexBuffers(), mu::MBS_POSITION);
+		FVector3f* VertexData = OutVertices.GetData();
 
-                        Vertices[V] = Vertex;
+		for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+		{
+			*VertexData = ItPosition.GetAsVec3f();
+			VertHash.InsertPointUnsafe(VertexIndex, *VertexData);
 
-                        ++It;
-                    }
-					
-                    // Create map to store which vertices are the same (collapse nearby vertices)
-					const int32 VerticesNum = Vertices.Num();
-                    for (int32 V = 0; V < VerticesNum; ++V)
-                    {
-                        OutCollapsedVertexMap[V] = V;
+			++ItPosition;
+			++VertexData;
+		}
 
-                        for (int32 CandidateV = 0; CandidateV < V; ++CandidateV)
-                        {
-                            const int32 CollapsedCandidateVIdx = OutCollapsedVertexMap[CandidateV];
+		// Find unique vertices
+		TArray<int32> NearbyVertices;
+		for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+		{
+			if (OutCollapsedVertices[VertexIndex] != INDEX_NONE)
+			{
+				continue;
+			}
 
-                            // Test whether v and the collapsed candidate are close enough to be collapsed
-                            const FVector3f R = Vertices[CollapsedCandidateVIdx] - Vertices[V];
+			const FVector3f& Vertex = OutVertices[VertexIndex];
 
-                            if (R.Dot(R) <= TMathUtilConstants<float>::ZeroTolerance)
-                            {
-                                OutCollapsedVertexMap[V] = CollapsedCandidateVIdx;
-                                break;
-                            }
-                        }
-                    }
+			NearbyVertices.Reset();
+			VertHash.FindPointsInBall(Vertex, TMathUtilConstants<float>::ZeroTolerance,
+				[&Vertex, &OutVertices](const int32& Other) -> float {return FVector3f::DistSquared(OutVertices[Other], Vertex); },
+				NearbyVertices);
 
-                    break;
-				}
-                default:
-                    break;
-                }
-            }
-        }
-    }
+			for (int32 NearbyVertexIndex : NearbyVertices)
+			{
+				OutCollapsedVertices[NearbyVertexIndex] = VertexIndex;
+			}
+		}
+	}
+
 
     //---------------------------------------------------------------------------------------------
     //! Return true if a mesh is closed

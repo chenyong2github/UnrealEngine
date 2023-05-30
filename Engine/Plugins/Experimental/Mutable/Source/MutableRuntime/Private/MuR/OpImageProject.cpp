@@ -10,7 +10,6 @@
 #include "MuR/MeshPrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"
-#include "MuR/Octree.h"
 #include "MuR/OpMeshClipWithMesh.h"
 #include "MuR/Parameters.h"
 #include "MuR/ParametersPrivate.h"
@@ -25,6 +24,8 @@
 #include "Math/UnrealMathUtility.h"
 
 #include "Math/VectorRegister.h"
+
+#include "Spatial/PointHashGrid3.h"
 
 namespace mu
 {
@@ -1444,88 +1445,59 @@ constexpr float vert_collapse_eps = 0.0001f;
 //! Create a map from vertices into vertices, collapsing vertices that have the same position
 //---------------------------------------------------------------------------------------------
 inline void MeshCreateCollapsedVertexMap( const Mesh* pMesh,
-	TArray<int>& collapsedVertexMap,
-	TArray<FVector3f>& vertices,
-	TMultiMap<int, int>& collapsedVertsMap
-)
+	TArray<int32>& CollapsedVertices,
+	TMultiMap<int32, int32>& CollapsedVerticesMap,
+	TArray<FVector3f>& OutVertices)
 {
 	MUTABLE_CPUPROFILER_SCOPE(CreateCollapseMap);
 
-    int vcount = pMesh->GetVertexCount();
-    collapsedVertexMap.SetNum(vcount);
-    vertices.SetNum(vcount);
-	collapsedVertsMap.Reserve(vcount);
+	const int32 NumVertices = pMesh->GetVertexCount();
 
-    const FMeshBufferSet& MBSPriv = pMesh->GetVertexBuffers();
-    for (int32 b = 0; b < MBSPriv.m_buffers.Num(); ++b)
-    {
-        for (int32 c = 0; c < MBSPriv.m_buffers[b].m_channels.Num(); ++c)
-        {
-            MESH_BUFFER_SEMANTIC sem = MBSPriv.m_buffers[b].m_channels[c].m_semantic;
-            int semIndex = MBSPriv.m_buffers[b].m_channels[c].m_semanticIndex;
+	// Used to speed up vertex comparison
+	UE::Geometry::TPointHashGrid3f<int32> VertHash(0.01f, INDEX_NONE);
+	VertHash.Reserve(NumVertices);
 
-			UntypedMeshBufferIteratorConst it = UntypedMeshBufferIteratorConst(pMesh->GetVertexBuffers(), sem, semIndex);
+	// Info to collect. Vertices, collapsed vertices and unique vertices to nearby vertices map
+	OutVertices.SetNumUninitialized(NumVertices);
+	CollapsedVertices.Init(INDEX_NONE, NumVertices);
+	CollapsedVerticesMap.Reserve(NumVertices);
 
-			box<FVector3f> meshBoundingBox;
-			Octree* pOctree = nullptr;
+	// Get Vertices
+	mu::UntypedMeshBufferIteratorConst ItPosition = mu::UntypedMeshBufferIteratorConst(pMesh->GetVertexBuffers(), mu::MBS_POSITION);
+	FVector3f* VertexData = OutVertices.GetData();
+	
+	for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+	{
+		*VertexData = ItPosition.GetAsVec3f();
+		VertHash.InsertPointUnsafe(VertexIndex, *VertexData);
 
-            switch (sem)
-            {
-            case MBS_POSITION:
+		++ItPosition;
+		++VertexData;
+	}
 
-                // First create a cache of the vertices in the vertices array
-                for (int v = 0; v < vcount; ++v)
-                {
-                    FVector3f vertex(0.0f, 0.0f, 0.0f);
-                    for (int i = 0; i < 3; ++i)
-                    {
-                        ConvertData(i, &vertex[0], MBF_FLOAT32, it.ptr(), it.GetFormat());
-                    }
 
-                    vertices[v] = vertex;
+	// Find unique vertices
+	TArray<int32> NearbyVertices;
+	for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+	{
+		if (CollapsedVertices[VertexIndex] != INDEX_NONE)
+		{
+			continue;
+		}
 
-                    ++it;
-                }
-				
-				//Initializing Octree boundingbox
-				meshBoundingBox.min = vertices[0];
-				meshBoundingBox.size = FVector3f(0.0f, 0.0f, 0.0f);
-				for (int32 i = 1; i < vertices.Num(); ++i)
-				{
-					meshBoundingBox.Bound3(vertices[i]);
-				}
+		const FVector3f& Vertex = OutVertices[VertexIndex];
 
-				//Initializing and filling Octree
-				pOctree = new Octree(meshBoundingBox.min, meshBoundingBox.min + meshBoundingBox.size,0.001f);
-				for (int32 itr = 0; itr < vertices.Num(); ++itr)
-				{
-					pOctree->InsertElement(vertices[itr], int(itr));
-				}
+		NearbyVertices.Reset();
+		VertHash.FindPointsInBall(Vertex, vert_collapse_eps,
+			[&Vertex, &OutVertices](const int32& Other) -> float {return FVector3f::DistSquared(OutVertices[Other], Vertex); },
+			NearbyVertices);
 
-				// Create map to store which vertices are the same (collapse nearby vertices)
-				for (int32 itr = 0; itr < vertices.Num(); ++itr)
-				{
-					int collapsed_candidate_v_idx = pOctree->GetNearests(vertices[itr], vert_collapse_eps, int(itr));
-					collapsedVertexMap[itr] = collapsed_candidate_v_idx;
-
-					if (collapsed_candidate_v_idx != int(itr))
-					{
-						collapsedVertsMap.Add(collapsed_candidate_v_idx, itr);
-					}
-				}
-                break;
-
-            default:
-                break;
-            }
-
-			if (pOctree)
-			{
-				delete pOctree;
-				pOctree = nullptr;
-			}
-        }
-    }
+		for (int32 NearbyVertexIndex : NearbyVertices)
+		{
+			CollapsedVertices[NearbyVertexIndex] = VertexIndex;
+			CollapsedVerticesMap.Add(VertexIndex, NearbyVertexIndex);
+		}
+	}
 }
 
 
@@ -1972,10 +1944,10 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 	faceStep.SetNum(faceCount);
 
     // Map vertices to the one they are collapsed to because they are very similar, if they aren't collapsed then they are mapped to themselves
-    TArray<int> collapsedVertexMap;
+    TArray<int32> collapsedVertexMap;
 	TArray<FVector3f> vertices;
-    TMultiMap<int, int> collapsedVertsMap; // Maps a collapsed vertex to all the vertices that collapse to it
-    MeshCreateCollapsedVertexMap(pMesh, collapsedVertexMap, vertices, collapsedVertsMap);
+    TMultiMap<int32, int32> collapsedVertsMap; // Maps a collapsed vertex to all the vertices that collapse to it
+    MeshCreateCollapsedVertexMap(pMesh, collapsedVertexMap, collapsedVertsMap, vertices);
 
     // Used to speed up connectivity building
 	TMultiMap<int, int> vertToFacesMap;
@@ -1990,9 +1962,6 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
         vertToFacesMap.Add(collapsedVertexMap[i0], f);
         vertToFacesMap.Add(collapsedVertexMap[i1], f);
         vertToFacesMap.Add(collapsedVertexMap[i2], f);
-        //vertToFacesMap.insert(std::pair<int, int>(i0, f));
-        //vertToFacesMap.insert(std::pair<int, int>(i1, f));
-        //vertToFacesMap.insert(std::pair<int, int>(i2, f));
     }
 
     // Trace a ray in the projection direction to find the face that will be projected planarly and be the root of the unfolding
