@@ -2,6 +2,7 @@
 #include "WidgetMockNonTemplate.h"
 #include "Dom/JsonObject.h"
 #include "Misc/GeneratedTypeName.h"
+#include "Rendering/DrawElements.h"
 #include "Rendering/DrawElementPayloads.h"
 #include "Serialization/JsonReader.h"
 #include "SlateTestHelper.h"
