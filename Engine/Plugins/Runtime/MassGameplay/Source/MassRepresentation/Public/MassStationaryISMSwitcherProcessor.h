@@ -5,6 +5,11 @@
 #include "MassProcessor.h"
 #include "MassStationaryISMSwitcherProcessor.generated.h"
 
+namespace UE::Mass::Signals
+{
+	const FName SwitchedToActor = FName(TEXT("SwitchedToActor"));
+	const FName SwitchedToISM = FName(TEXT("SwitchedToISM"));
+}
 
 /** 
  * This processor's sole responsibility is to process all entities tagged with FMassStaticRepresentationTag

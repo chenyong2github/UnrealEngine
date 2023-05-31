@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"RHI",
 					"MassMovement",
+					"MassSignals",
 				}
 			);
 
