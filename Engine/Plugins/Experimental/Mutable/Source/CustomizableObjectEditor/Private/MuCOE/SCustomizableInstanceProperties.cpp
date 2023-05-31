@@ -685,7 +685,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+					.Image(UE_MUTABLE_GET_BRUSH("PropertyWindow.DiffersFromDefault"))
 				]
 			]
 
@@ -760,7 +760,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+						.Image(UE_MUTABLE_GET_BRUSH("PropertyWindow.DiffersFromDefault"))
 					]
 				]
 			];
@@ -808,7 +808,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+					.Image(UE_MUTABLE_GET_BRUSH("PropertyWindow.DiffersFromDefault"))
 				]
 			]
 
@@ -856,7 +856,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 				.Content()
 				[
 					SNew(SImage)
-					.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+					.Image(UE_MUTABLE_GET_BRUSH("PropertyWindow.DiffersFromDefault"))
 				]
 			]
 		];

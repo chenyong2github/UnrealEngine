@@ -388,7 +388,7 @@ bool FMutableTextureMipDataProvider::PollMips(const FTextureUpdateSyncOptions& S
 
 				// Check Mip DataSize for consistency, but skip if 0 because it's optional and might be zero in cooked mips
 				check(Level.DataSize == 0 || MipDataSize == Level.DataSize);
-				FMemory::Memcpy(Dest, Mip->GetMipData(MipIndex), Level.DataSize);
+				FMemory::Memcpy(Dest, Mip->GetMipData(MipIndex), MipDataSize);
 			}
 			++MipIndex;
 		}

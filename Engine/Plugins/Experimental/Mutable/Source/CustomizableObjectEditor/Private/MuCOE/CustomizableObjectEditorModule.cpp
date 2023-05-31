@@ -342,17 +342,17 @@ void FCustomizableObjectEditorModule::OpenCOIE(const TArray<FString>& Arguments)
 		UWorld* WorldForCurrentCOI = nullptr;
 		const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
 		for (const FWorldContext& Context : WorldContexts)
-	{
+		{
 			if ((Context.WorldType == EWorldType::Game) && (Context.World() != NULL))
 			{
 				WorldForCurrentCOI = Context.World();
-	}
-}
+			}
+		}
 		// Fall back to GWorld if we don't actually have a world.
 		if (WorldForCurrentCOI == nullptr)
-{
+		{
 			WorldForCurrentCOI = GWorld;
-	}
+		}
 		return WorldForCurrentCOI;
 	}();
 	const int32 PlayerIndex = 0;
