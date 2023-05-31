@@ -110,6 +110,14 @@ struct PCG_API FPCGSplineSamplerParams
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (EditCondition = "Dimension==EPCGSplineSamplingDimension::OnInterior"))
 	FRuntimeFloatCurve InteriorDensityFalloffCurve;
 
+	/** Each PCG point represents a discretized, volumetric region of world space. The points' Steepness value [0.0 to
+	 * 1.0] establishes how "hard" or "soft" that volume will be represented. From 0, it will ramp up linearly
+	 * increasing its influence over the density from the point's center to up to two times the bounds. At 1, it will
+	 * represent a binary box function with the size of the point's bounds.
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Points", meta=(ClampMin="0", ClampMax="1", PCG_Overridable))
+	float PointSteepness = 0.5f;
+
 	/** Controls whether we will seed the sampled points using the final world position or the local position */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Seeding")
 	bool bSeedFromLocalPosition = false;

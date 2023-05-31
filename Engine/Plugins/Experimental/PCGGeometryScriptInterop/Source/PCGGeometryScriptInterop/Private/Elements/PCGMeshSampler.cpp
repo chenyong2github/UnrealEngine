@@ -223,6 +223,7 @@ bool FPCGMeshSamplerElement::ExecuteInternal(FPCGContext* InContext) const
 			OutPoint.Transform = FTransform{ FRotationMatrix::MakeFromZ(Normal).Rotator(), Position, FVector{1.0, 1.0, 1.0} };
 			OutPoint.Density = Settings->bUseRedAsDensity ? Color.R : 1.0f;
 			OutPoint.Color = Color;
+			OutPoint.Steepness = Settings->PointSteepness;
 
 			UPCGBlueprintHelpers::SetSeedFromPosition(OutPoint);
 
@@ -238,7 +239,7 @@ bool FPCGMeshSamplerElement::ExecuteInternal(FPCGContext* InContext) const
 
 		const TArray<int32>& TriangleIds = *Context->TriangleIds.List.Get();
 
-		auto IterationBody = [DynamicMesh = Context->DynamicMesh, &TriangleIds](int32 Index, FPCGPoint& OutPoint) -> bool
+		auto IterationBody = [DynamicMesh = Context->DynamicMesh, PointSteepness = Settings->PointSteepness, &TriangleIds](int32 Index, FPCGPoint& OutPoint) -> bool
 		{
 			const int32 TriangleId = TriangleIds[Index];
 
@@ -253,6 +254,7 @@ bool FPCGMeshSamplerElement::ExecuteInternal(FPCGContext* InContext) const
 			OutPoint = FPCGPoint{};
 			OutPoint.Transform = FTransform{ FRotationMatrix::MakeFromZ(Normal).Rotator(), Position, FVector{1.0, 1.0, 1.0} };
 			OutPoint.Density = 1.0f;
+			OutPoint.Steepness = PointSteepness;
 
 			UPCGBlueprintHelpers::SetSeedFromPosition(OutPoint);
 
@@ -318,6 +320,7 @@ bool FPCGMeshSamplerElement::ExecuteInternal(FPCGContext* InContext) const
 					FPCGPoint& OutPoint = Points.Emplace_GetRef();
 					OutPoint.Transform = Sample.ToTransform();
 					OutPoint.Density = 1.0f;
+					OutPoint.Steepness = Settings->PointSteepness;
 
 					UPCGBlueprintHelpers::SetSeedFromPosition(OutPoint);
 				}

@@ -532,6 +532,7 @@ namespace PCGSplineSampler
 			FPCGPoint OutPoint;
 			OutPoint.Density = 1.0f;
 			OutPoint.SetLocalBounds(InResult.Box);
+			OutPoint.Steepness = Params.PointSteepness;
 
 			if (ProjectionTargetData)
 			{
@@ -652,6 +653,7 @@ namespace PCGSplineSampler
 					}
 
 					SetSeed(OutPoint, TentativeLocationLS, Params);
+					OutPoint.Steepness = Params.PointSteepness;
 					SetMetadata(InResult, OutPoint, OutPointData->Metadata);
 					OutPointData->GetMutablePoints().Add(OutPoint);
 				}
@@ -1104,6 +1106,7 @@ namespace PCGSplineSampler
 				Point.Density = InteriorPoint.Get<2>();
 				Point.BoundsMin = BoundsMin;
 				Point.BoundsMax = BoundsMax;
+				Point.Steepness = Params.PointSteepness;
 			}
 		}
 	}
