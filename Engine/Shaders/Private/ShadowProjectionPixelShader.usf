@@ -321,6 +321,11 @@ void Main(
 				{
 					TransmissionParams = GetTransmissionProfileParams(StrataSubSurfaceHeaderGetProfileId(SSSHeader));
 				}
+				else if (SSSType == SSS_TYPE_DIFFUSION)
+				{
+					TransmissionParams = InitTransmissionProfileParams(); // IOR and phase are incorrect. but not used
+					TransmissionParams.ExtinctionScale = StrataSubSurfaceHeaderGetMFP(SSSHeader);
+				}
 			#else // STRATA_ENABLED
 				float3 WorldNormal = GBufferData.WorldNormal;
 				FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(ExtractSubsurfaceProfileInt(GBufferData));
