@@ -12,6 +12,9 @@
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 #include "/Engine/Shared/RayTracingBuiltInResources.h"
 
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/SceneData.ush"
+
 uint3 LoadIndices16Bit(ByteAddressBuffer SourceBuffer, uint OffsetInBytes)
 {
 	uint3 Result;
@@ -108,6 +111,23 @@ uint GetHitGroupUserData()
 uint GetBaseInstanceIndex()
 {
 	return HitGroupSystemRootConstants.BaseInstanceIndex;
+}
+
+uint GetGPUSceneInstanceIndex(uint PrimitiveIndex, uint InstanceIndex)
+{
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	FPrimitiveSceneData PrimData = GetPrimitiveData(PrimitiveIndex);
+	// Handle ray tracing auto instancing which can cause PrimitiveInstanceIndex to be above 0 for meshes with a single instance
+	if (PrimData.NumInstanceSceneDataEntries == 1)
+	{
+		InstanceIndex = 0;
+	}
+
+	return PrimData.InstanceSceneDataOffset + InstanceIndex;
+#else
+
+	return 0;
+#endif
 }
 
 float3 GetGeometryNormalFromTriangleBaseAttributes(uint PrimitiveIndex)
