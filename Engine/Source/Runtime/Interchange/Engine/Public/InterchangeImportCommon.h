@@ -115,7 +115,7 @@ namespace UE::Interchange
 		 * @oaram AssetName: Asset name of the actual object to reimport
 		 * @oaram SubPathString: Optional subobject name
 		 */
-		static 	UObject* GetObjectToReimport(UObject* ReimportObject, const FString& PackageName, const FString& AssetName, const FString& SubPathString = FString());
+		static 	UObject* GetObjectToReimport(UObject* ReimportObject, const UInterchangeFactoryBaseNode& FactoryNode, const FString& PackageName, const FString& AssetName, const FString& SubPathString = FString());
 
 		/**
 		 * If the ReimportObject is a UInterchangeSceneImportAsset, returns the factory node

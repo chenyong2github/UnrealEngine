@@ -100,44 +100,16 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeSceneImportAssetFactory:
 	{
 		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create InterchangeSceneImportAsset asset %s"), *Arguments.AssetName);
 	}
+	//Getting the file Hash will cache it into the source data
+	else if (ensure(Arguments.SourceData))
+	{
+		Arguments.SourceData->GetFileContentHash();
+	}
 
 	FImportAssetResult Result;
 	Result.ImportedObject = SceneImportAsset;
-	
+
 	return Result;
-}
-
-UObject* UInterchangeSceneImportAssetFactory::ImportAssetObject_Async(const FImportAssetObjectParams& Arguments)
-{
-	using namespace UE::Interchange::Private::InterchangeSceneImportAssetFactory;
-
-	UClass* TargetClass = GetFactoryClass();
-
-	const UInterchangeSceneImportAssetFactoryNode* FactoryNode = GetFactoryNode(Arguments, TargetClass);
-	if (!FactoryNode)
-	{
-		return nullptr;
-	}
-
-	UInterchangeSceneImportAsset* SceneImportAsset = Cast<UInterchangeSceneImportAsset>(FindOrCreateAsset(Arguments, TargetClass));
-
-	if (!ensure(SceneImportAsset))
-	{
-		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
-		Message->SourceAssetName = Arguments.SourceData->GetFilename();
-		Message->DestinationAssetName = Arguments.AssetName;
-		Message->AssetType = UInterchangeSceneImportAsset::StaticClass();
-		Message->Text = FText::Format(LOCTEXT("CreateAssetFailed", "Could not create nor find SceneImportAsset asset {0}."), FText::FromString(Arguments.AssetName));
-		return nullptr;
-	}
-
-	/** Apply all FactoryNode custom attributes to the level sequence asset */
-	FactoryNode->ApplyAllCustomAttributeToObject(SceneImportAsset);
-
-	//Getting the file Hash will cache it into the source data
-	Arguments.SourceData->GetFileContentHash();
-
-	return SceneImportAsset;
 }
 
 void UInterchangeSceneImportAssetFactory::SetupObject_GameThread(const FSetupObjectParams& Arguments)
@@ -145,27 +117,26 @@ void UInterchangeSceneImportAssetFactory::SetupObject_GameThread(const FSetupObj
 	check(IsInGameThread());
 	Super::SetupObject_GameThread(Arguments);
 
-#if WITH_EDITORONLY_DATA
-	using namespace UE::Interchange;
-
-	if (ensure(Arguments.ImportedObject && Arguments.SourceData))
+	UInterchangeSceneImportAsset* SceneImportAsset = Cast<UInterchangeSceneImportAsset>(Arguments.ImportedObject);
+	UInterchangeSceneImportAssetFactoryNode* FactoryNode = Cast<UInterchangeSceneImportAssetFactoryNode>(Arguments.FactoryNode);
+	if (ensure(FactoryNode && SceneImportAsset && Arguments.SourceData))
 	{
-		// We must call the Update of the asset source file in the main thread because UAssetImportData::Update execute some delegate we do not control
-		UInterchangeSceneImportAsset* SceneImportAsset = Cast<UInterchangeSceneImportAsset>(Arguments.ImportedObject);
-		if (ensure(SceneImportAsset))
-		{
-			if (Arguments.bIsReimport)
-			{
-				ensure(SceneImportAsset->AssetImportData);
-				SceneImportAsset->UpdateSceneObjects();
-			}
+		/** Apply all FactoryNode custom attributes to the level sequence asset */
+		FactoryNode->ApplyAllCustomAttributeToObject(SceneImportAsset);
 
-			FFactoryCommon::FUpdateImportAssetDataParameters Parameters(SceneImportAsset, SceneImportAsset->AssetImportData, Arguments.SourceData, Arguments.NodeUniqueID, Arguments.NodeContainer, Arguments.OriginalPipelines);
-			SceneImportAsset->AssetImportData = Cast<UInterchangeAssetImportData>(FFactoryCommon::UpdateImportAssetData(Parameters));
+#if WITH_EDITORONLY_DATA
+		using namespace UE::Interchange;
+
+		if (Arguments.bIsReimport)
+		{
+			ensure(SceneImportAsset->AssetImportData);
+			SceneImportAsset->UpdateSceneObjects();
 		}
 
-	}
+		FFactoryCommon::FUpdateImportAssetDataParameters Parameters(SceneImportAsset, SceneImportAsset->AssetImportData, Arguments.SourceData, Arguments.NodeUniqueID, Arguments.NodeContainer, Arguments.OriginalPipelines);
+		SceneImportAsset->AssetImportData = Cast<UInterchangeAssetImportData>(FFactoryCommon::UpdateImportAssetData(Parameters));
 #endif
+	}
 }
 
 void UInterchangeSceneImportAssetFactory::FinalizeObject_GameThread(const FSetupObjectParams& Arguments)
@@ -173,11 +144,15 @@ void UInterchangeSceneImportAssetFactory::FinalizeObject_GameThread(const FSetup
 	check(IsInGameThread());
 	Super::FinalizeObject_GameThread(Arguments);
 
-#if WITH_EDITOR
-	if (UInterchangeSceneImportAsset* SceneImportAsset = Cast<UInterchangeSceneImportAsset>(Arguments.ImportedObject))
+	UInterchangeSceneImportAsset* SceneImportAsset = Cast<UInterchangeSceneImportAsset>(Arguments.ImportedObject);
+	if (!ensure(SceneImportAsset && Arguments.FactoryNode))
 	{
-		SceneImportAsset->RegisterWorldRenameCallbacks();
+		return;
 	}
+
+
+#if WITH_EDITOR
+	SceneImportAsset->RegisterWorldRenameCallbacks();
 #endif
 }
 

@@ -197,7 +197,7 @@ namespace UE::Interchange::Private
 		FString AssetName;
 		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
 		bool bSkipAsset = false;
-		UObject* ReimportObject = UE::Interchange::FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, PackageName, AssetName);
+		UObject* ReimportObject = UE::Interchange::FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, *FactoryNode, PackageName, AssetName);
 		if (ReimportObject)
 		{
 			UInterchangeBaseNodeContainer* NodeContainer = nullptr;
@@ -313,7 +313,7 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 	FString AssetName;
 	Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
 
-	UObject* ReimportObject = FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, PackageName, AssetName);
+	UObject* ReimportObject = FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, *FactoryNode, PackageName, AssetName);
 	if (!ensure(!IsGarbageCollecting()))
 	{
 		//Skip this asset
@@ -603,7 +603,10 @@ void UE::Interchange::FTaskImportObjectFinalize_GameThread::DoTask(ENamedThreads
 				AssetInfo.Factory = Factory;
 				AssetInfo.FactoryNode = FactoryNode;
 
-				const UObject* ReimportObject = FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, ImportAssetResult.ImportedObject->GetPathName(), ImportAssetResult.ImportedObject->GetName());
+
+				const FString PackagePathName = ImportAssetResult.ImportedObject->GetPathName();
+				const FString AssetName = ImportAssetResult.ImportedObject->GetName();
+				const UObject* ReimportObject = FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, *FactoryNode, PackagePathName, AssetName);
 				AssetInfo.bIsReimport = bool(ReimportObject != nullptr);
 			}
 

@@ -199,7 +199,33 @@ UObject* UInterchangeSceneImportAsset::GetSceneObject(const FString& PackageName
 
 	if (SceneObjects.Find(ObjectPath))
 	{
-		return ObjectPath.TryLoad();
+		if (UObject* SceneObject = ObjectPath.TryLoad())
+		{
+			if (IsValid(SceneObject))
+			{
+				if (SceneObject->IsA<AActor>())
+				{
+					return SceneObject;
+				}
+
+				// Most likely an asset, check whether SceneObject has actually already been imported
+				TArray<UObject*> SubObjects;
+				GetObjectsWithOuter(SceneObject, SubObjects);
+				for (UObject* SubObject : SubObjects)
+				{
+					if (SubObject && SubObject->IsA<UInterchangeAssetImportData>())
+					{
+						return SceneObject;
+					}
+				}
+
+				return nullptr;
+			}
+
+			// SceneObject is still in memory but invalid. Move it to TransientPackage
+			// Call UObject::Rename because for actors AActor::Rename will unnecessarily unregister and re-register components
+			SceneObject->UObject::Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+		}
 	}
 #endif
 

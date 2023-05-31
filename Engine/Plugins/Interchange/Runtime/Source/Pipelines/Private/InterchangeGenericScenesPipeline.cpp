@@ -33,7 +33,7 @@
 
 namespace UE::Interchange::Private
 {
-	//Either a non-joint, or a rootjoint can be a parent (only those get FactoryNodes) :
+	//Either a non-joint, or a root joint can be a parent (only those get FactoryNodes) :
 	FString FindFactoryParentSceneNodeUid(UInterchangeBaseNodeContainer* BaseNodeContainer, const UInterchangeSceneNode* SceneNode)
 	{
 		FString ParentUid = SceneNode->GetParentUid();
@@ -65,6 +65,21 @@ namespace UE::Interchange::Private
 		}
 
 		return UInterchangeBaseNode::InvalidNodeUid();
+	}
+
+	void UpdateReimportStrategyFlags(UInterchangeBaseNodeContainer& NodeContainer, UInterchangeFactoryBaseNode& FactoryNode, EReimportStrategyFlags ReimportPropertyStrategy)
+	{
+		FactoryNode.SetReimportStrategyFlags(ReimportPropertyStrategy);
+
+		TArray<FString> ActorDependencies;
+		FactoryNode.GetFactoryDependencies(ActorDependencies);
+		for (const FString& FactoryNodeID : ActorDependencies)
+		{
+			if (UInterchangeFactoryBaseNode* DependencyFactoryNode = NodeContainer.GetFactoryNode(FactoryNodeID))
+			{
+				UpdateReimportStrategyFlags(NodeContainer, *DependencyFactoryNode, ReimportPropertyStrategy);
+			}
+		}
 	}
 }
 
@@ -184,6 +199,8 @@ void UInterchangeGenericLevelPipeline::ExecutePipeline(UInterchangeBaseNodeConta
 
 void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransform& GlobalOffsetTransform, const UInterchangeSceneNode* SceneNode)
 {
+	using namespace UE::Interchange;
+
 	if (!BaseNodeContainer || !SceneNode)
 	{
 		return;
@@ -285,8 +302,8 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransfor
 		SetUpFactoryNode(ActorFactoryNode, SceneNode, TranslatedAssetNode);
 	}
 
-	//Make sure all actor factory nodes have the specified strategy
-	ActorFactoryNode->SetReimportStrategyFlags(ReimportStrategy);
+	//Make sure all actor factory nodes and dependencies have the specified strategy
+	Private::UpdateReimportStrategyFlags(*BaseNodeContainer, *ActorFactoryNode, ReimportStrategy);
 
 #if WITH_EDITORONLY_DATA
 	// Add dependency to newly created factory node

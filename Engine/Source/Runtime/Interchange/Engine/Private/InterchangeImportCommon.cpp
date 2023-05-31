@@ -313,12 +313,15 @@ namespace UE::Interchange
 		}
 	}
 
-	UObject* FFactoryCommon::GetObjectToReimport(UObject* ReimportObject, const FString& PackageName, const FString& AssetName, const FString& SubPathString)
+	UObject* FFactoryCommon::GetObjectToReimport(UObject* ReimportObject, const UInterchangeFactoryBaseNode& FactoryNode, const FString& PackageName, const FString& AssetName, const FString& SubPathString)
 	{
 #if WITH_EDITORONLY_DATA
-		if (UInterchangeSceneImportAsset* SceneImportAsset = Cast<UInterchangeSceneImportAsset>(ReimportObject))
+		if (ReimportObject && !ReimportObject->GetClass()->IsChildOf(FactoryNode.GetObjectClass()))
 		{
-			return SceneImportAsset->GetSceneObject(PackageName, AssetName, SubPathString);
+			if (UInterchangeSceneImportAsset* SceneImportAsset = Cast<UInterchangeSceneImportAsset>(ReimportObject))
+			{
+				return SceneImportAsset->GetSceneObject(PackageName, AssetName, SubPathString);
+			}
 		}
 #endif
 

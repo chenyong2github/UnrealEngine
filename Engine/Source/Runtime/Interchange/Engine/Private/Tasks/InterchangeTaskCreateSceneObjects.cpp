@@ -64,6 +64,11 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 
 	for (UInterchangeFactoryBaseNode* FactoryNode : FactoryNodes)
 	{
+		if (!FactoryNode)
+		{
+			continue;
+		}
+
 		UInterchangeFactoryBase* Factory = NewObject<UInterchangeFactoryBase>(GetTransientPackage(), FactoryClass);
 		Factory->SetResultsContainer(AsyncHelper->AssetImportResult->GetResults());
 		AsyncHelper->AddCreatedFactory(FactoryNode->GetUniqueID(), Factory);
@@ -75,7 +80,7 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 		CreateSceneObjectsParams.ObjectName = NodeDisplayName;
 		CreateSceneObjectsParams.FactoryNode = FactoryNode;
 		CreateSceneObjectsParams.Level = CurrentLevel;
-		CreateSceneObjectsParams.ReimportObject = FFactoryCommon::GetObjectToReimport(ReimportObject, WorldPath, WorldName, NodePrefix + NodeDisplayName);
+		CreateSceneObjectsParams.ReimportObject = FFactoryCommon::GetObjectToReimport(ReimportObject, *FactoryNode, WorldPath, WorldName, NodePrefix + NodeDisplayName);
 		CreateSceneObjectsParams.ReimportFactoryNode = FFactoryCommon::GetFactoryNode(ReimportObject, WorldPath, WorldName, NodePrefix + NodeDisplayName);
 
 		if (AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
