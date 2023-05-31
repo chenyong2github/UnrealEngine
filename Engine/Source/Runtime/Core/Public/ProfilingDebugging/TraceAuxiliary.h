@@ -150,7 +150,14 @@ public:
 	 *  Returns the destination string that is currently being traced to.
 	 *  Contains either a file path or network address. Points to an empty string if tracing is disabled.
 	 */
+	UE_DEPRECATED(5.3, "Use GetTraceDestinationString instead.")
 	static const TCHAR*	GetTraceDestination();
+	
+	/**
+	 *  Returns the destination string that is currently being traced to.
+	 *  Contains either a file path or network address. Empty if tracing is disabled.
+	 */
+	static FString GetTraceDestinationString();
 	
 	/**
 	 *  Returns whether the trace system is currently connected to a trace sink (file or network)

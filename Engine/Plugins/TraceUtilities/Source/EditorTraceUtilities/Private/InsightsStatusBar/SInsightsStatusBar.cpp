@@ -60,7 +60,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(FTraceAuxiliary::GetTraceDestination());
+		FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(FTraceAuxiliary::GetTraceDestinationString());
 	}
 };
 
@@ -490,7 +490,7 @@ FText SInsightsStatusBarWidget::GetTitleToolTipText() const
 {
 	FTextBuilder DescBuilder;
 
-	const TCHAR* Dest = FTraceAuxiliary::GetTraceDestination();
+	const FString Dest = FTraceAuxiliary::GetTraceDestinationString();
 	
 	if (*Dest != 0)
 	{
@@ -572,7 +572,7 @@ void SInsightsStatusBarWidget::OpenLiveSession_OnClicked()
 
 void SInsightsStatusBarWidget::OpenLiveSession()
 {
-	FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(FTraceAuxiliary::GetTraceDestination());
+	FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(FTraceAuxiliary::GetTraceDestinationString());
 }
 
 void SInsightsStatusBarWidget::OpenProfilingDirectory_OnClicked()
@@ -738,7 +738,7 @@ void SInsightsStatusBarWidget::ToggleTracing_OnClicked()
 		bool bResult = StartTracing();
 		if (bResult)
 		{
-			FString TraceDestinationStr = FTraceAuxiliary::GetTraceDestination();
+			FString TraceDestinationStr = FTraceAuxiliary::GetTraceDestinationString();
 			if (TraceDestinationStr.IsEmpty())
 			{
 				TraceDestinationStr = TEXT("External Target");
