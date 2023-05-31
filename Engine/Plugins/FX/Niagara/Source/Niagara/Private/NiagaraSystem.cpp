@@ -2112,14 +2112,15 @@ void UNiagaraSystem::UpdateDITickFlags()
 		{
 			for (FNiagaraScriptDataInterfaceCompileInfo& Info : Script->GetVMExecutableData().DataInterfaceInfo)
 			{
-				UNiagaraDataInterface* DefaultDataInterface = Info.GetDefaultDataInterface();
-				if (DefaultDataInterface && DefaultDataInterface->HasPostSimulateTick())
+				if(UNiagaraDataInterface* DefaultDataInterface = Info.GetDefaultDataInterface())
 				{
-					bHasDIsWithPostSimulateTick |= true;
-					bAllDIsPostSimulateCanOverlapFrames &= DefaultDataInterface->PostSimulateCanOverlapFrames();
-				}
-				
-				bAllDIsPostStageCanOverlapTickGroups &= DefaultDataInterface->PostStageCanOverlapTickGroups();
+					if (DefaultDataInterface->HasPostSimulateTick())
+					{
+						bHasDIsWithPostSimulateTick |= true;
+						bAllDIsPostSimulateCanOverlapFrames &= DefaultDataInterface->PostSimulateCanOverlapFrames();
+					}
+					bAllDIsPostStageCanOverlapTickGroups &= DefaultDataInterface->PostStageCanOverlapTickGroups();
+				}				
 			}
 		}
 	};
