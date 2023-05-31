@@ -20,7 +20,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphVariableNode::GetOutputPinProperties
 	
 	if (GraphVariable)
 	{
-		Properties.Add(FMovieGraphPinProperties(FName(GraphVariable->Name), GraphVariable->GetValueType(), false));
+		Properties.Add(FMovieGraphPinProperties(FName(GraphVariable->GetMemberName()), GraphVariable->GetValueType(), false));
 	}
 	else
 	{
@@ -32,7 +32,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphVariableNode::GetOutputPinProperties
 
 FString UMovieGraphVariableNode::GetResolvedValueForOutputPin(const FName& InPinName, const FMovieGraphTraversalContext* InContext) const
 {
-	if (GraphVariable && (GraphVariable->Name == InPinName))
+	if (GraphVariable && (GraphVariable->GetMemberName() == InPinName))
 	{
 		// If there's a valid job in the traversal context, and the job has an enabled variable assignment, use that
 		// instead of the variable value set in the graph
@@ -43,7 +43,7 @@ FString UMovieGraphVariableNode::GetResolvedValueForOutputPin(const FName& InPin
 			{
 				if (bIsEnabled)
 				{
-					return InContext->Job->VariableAssignments->GetValueSerializedString(FName(GraphVariable->Name));
+					return InContext->Job->VariableAssignments->GetValueSerializedString(FName(GraphVariable->GetMemberName()));
 				}
 			}
 		}
@@ -72,7 +72,7 @@ void UMovieGraphVariableNode::SetVariable(UMovieGraphVariable* InVariable)
 #if WITH_EDITOR
 FText UMovieGraphVariableNode::GetNodeTitle(const bool bGetDescriptive) const
 {
-	return GraphVariable ? FText::FromString(GraphVariable->Name) : FText();
+	return GraphVariable ? FText::FromString(GraphVariable->GetMemberName()) : FText();
 }
 	
 FText UMovieGraphVariableNode::GetMenuCategory() const
@@ -112,7 +112,7 @@ void UMovieGraphVariableNode::UpdateOutputPin(UMovieGraphMember* ChangedVariable
 	if (!OutputPins.IsEmpty() && ChangedVariable)
 	{
 		// Update the output pin to reflect the variable data model
-		OutputPins[0]->Properties.Label = FName(ChangedVariable->Name);
+		OutputPins[0]->Properties.Label = FName(ChangedVariable->GetMemberName());
 		OutputPins[0]->Properties.Type = ChangedVariable->GetValueType();
 	}
 

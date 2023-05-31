@@ -14,6 +14,71 @@
 
 static const FName MovieGraphGlobalsMemberName("Globals");
 
+UMovieGraphConfig* UMovieGraphMember::GetOwningGraph() const
+{
+	return GetTypedOuter<UMovieGraphConfig>();
+}
+
+bool UMovieGraphMember::SetMemberName(const FString& InNewName)
+{
+	FText UnusedError;
+	if (CanRename(FText::FromString(InNewName), UnusedError))
+	{
+		Name = InNewName;
+		return true;
+	}
+
+	return false;
+}
+
+bool UMovieGraphMember::CanRename(const FText& InNewName, FText& OutError) const
+{
+	static const FString InvalidChars("\"',\n\r\t");
+	
+	if (InNewName.IsEmptyOrWhitespace())
+	{
+		OutError = LOCTEXT("InvalidMemberRename_Empty", "The name cannot be empty.");
+		return false;
+	}
+
+	const FString NewNameString = InNewName.ToString();
+	if (!FName::IsValidXName(NewNameString, InvalidChars, &OutError))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool UMovieGraphVariable::CanRename(const FText& InNewName, FText& OutError) const
+{
+	if (!Super::CanRename(InNewName, OutError))
+	{
+		return false;
+	}
+
+	if (const UMovieGraphConfig* Graph = GetOwningGraph())
+	{
+		constexpr bool bIncludeGlobal = true;
+		if (!IsUniqueNameInMemberArray(InNewName, Graph->GetVariables(bIncludeGlobal)))
+		{
+			OutError = LOCTEXT("InvalidVariableRename_Exists", "A variable with this name already exists.");
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool UMovieGraphVariable::SetMemberName(const FString& InNewName)
+{
+#if WITH_EDITOR
+	OnMovieGraphVariableChangedDelegate.Broadcast(this);
+#endif
+	
+	return Super::SetMemberName(InNewName);
+}
+
 #if WITH_EDITOR
 void UMovieGraphVariable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -29,6 +94,34 @@ bool UMovieGraphInput::IsDeletable() const
 	return Name != MovieGraphGlobalsMemberName;
 }
 
+bool UMovieGraphInput::CanRename(const FText& InNewName, FText& OutError) const
+{
+	if (!Super::CanRename(InNewName, OutError))
+	{
+		return false;
+	}
+
+	if (const UMovieGraphConfig* Graph = GetOwningGraph())
+	{
+		if (!IsUniqueNameInMemberArray(InNewName, Graph->GetInputs()))
+		{
+			OutError = LOCTEXT("InvalidInputRename_Exists", "An input with this name already exists.");
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool UMovieGraphInput::SetMemberName(const FString& InNewName)
+{
+#if WITH_EDITOR
+	OnMovieGraphInputChangedDelegate.Broadcast(this);
+#endif
+	
+	return Super::SetMemberName(InNewName);
+}
+
 #if WITH_EDITOR
 void UMovieGraphInput::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -42,6 +135,34 @@ bool UMovieGraphOutput::IsDeletable() const
 {
 	// The output is deletable as long as it's not the Globals output
 	return Name != MovieGraphGlobalsMemberName;
+}
+
+bool UMovieGraphOutput::CanRename(const FText& InNewName, FText& OutError) const
+{
+	if (!Super::CanRename(InNewName, OutError))
+	{
+		return false;
+	}
+
+	if (const UMovieGraphConfig* Graph = GetOwningGraph())
+	{
+		if (!IsUniqueNameInMemberArray(InNewName, Graph->GetOutputs()))
+		{
+			OutError = LOCTEXT("InvalidOutputRename_Exists", "An output with this name already exists.");
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool UMovieGraphOutput::SetMemberName(const FString& InNewName)
+{
+#if WITH_EDITOR
+	OnMovieGraphOutputChangedDelegate.Broadcast(this);
+#endif
+	
+	return Super::SetMemberName(InNewName);
 }
 
 #if WITH_EDITOR
@@ -110,7 +231,7 @@ UMovieGraphVariable* UMovieGraphConfig::AddGlobalVariable(const FName& InName, E
 	// Don't add duplicate global variables
 	const bool VariableExists = Variables.ContainsByPredicate([&InName](const TObjectPtr<UMovieGraphVariable>& Variable)
 	{
-		return Variable && (Variable->Name == InName);
+		return Variable && (Variable->GetMemberName() == InName);
 	});
 
 	if (VariableExists)
@@ -133,19 +254,19 @@ void UMovieGraphConfig::AddDefaultMembers()
 {
 	const bool InputGlobalsExists = Inputs.ContainsByPredicate([](const UMovieGraphMember* Member)
 	{
-		return Member && (Member->Name == MovieGraphGlobalsMemberName);
+		return Member && (Member->GetMemberName() == MovieGraphGlobalsMemberName);
 	});
 
 	const bool OutputGlobalsExists = Outputs.ContainsByPredicate([](const UMovieGraphMember* Member)
 	{
-		return Member && (Member->Name == MovieGraphGlobalsMemberName);
+		return Member && (Member->GetMemberName() == MovieGraphGlobalsMemberName);
 	});
 
 	// Ensure there is a Globals input member
 	if (!InputGlobalsExists)
 	{
 		UMovieGraphInput* NewInput = AddInput();
-		NewInput->Name = MovieGraphGlobalsMemberName.ToString();
+		NewInput->SetMemberName(MovieGraphGlobalsMemberName.ToString());
 
 		InputNode->UpdatePins();
 	}
@@ -154,7 +275,7 @@ void UMovieGraphConfig::AddDefaultMembers()
 	if (!OutputGlobalsExists)
 	{
 		UMovieGraphOutput* NewOutput = AddOutput();
-		NewOutput->Name = MovieGraphGlobalsMemberName.ToString();
+		NewOutput->SetMemberName(MovieGraphGlobalsMemberName.ToString());
 
 		OutputNode->UpdatePins();
 	}
@@ -424,8 +545,8 @@ T* UMovieGraphConfig::AddMember(TArray<TObjectPtr<T>>& InMemberArray, const FNam
 
 	// Generate and set a unique name
 	TArray<FString> ExistingMemberNames;
-	Algo::Transform(InMemberArray, ExistingMemberNames, [](const T* Member) { return Member->Name; });
-	NewMember->Name = GetUniqueName(ExistingMemberNames, InBaseName.ToString());
+	Algo::Transform(InMemberArray, ExistingMemberNames, [](const T* Member) { return Member->GetMemberName(); });
+	NewMember->SetMemberName(GetUniqueName(ExistingMemberNames, InBaseName.ToString()));
 
 	return NewMember;
 }
@@ -525,7 +646,7 @@ bool UMovieGraphConfig::DeleteMember(UMovieGraphMember* MemberToDelete)
 
 	if (!MemberToDelete->IsDeletable())
 	{
-		UE_LOG(LogMovieRenderPipeline, Error, TEXT("DeleteMember: The member '%s' cannot be deleted because it is flagged as non-deletable."), *MemberToDelete->Name);
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("DeleteMember: The member '%s' cannot be deleted because it is flagged as non-deletable."), *MemberToDelete->GetMemberName());
 		return false;
 	}
 
@@ -607,7 +728,7 @@ bool UMovieGraphConfig::DeleteInputMember(UMovieGraphInput* InputMemberToDelete)
 	if (InputMemberToDelete)
 	{
 		Inputs.RemoveSingle(InputMemberToDelete);
-		RemoveOutboundEdges(InputNode, FName(InputMemberToDelete->Name));
+		RemoveOutboundEdges(InputNode, FName(InputMemberToDelete->GetMemberName()));
 
 		// This calls OnNodeChangedDelegate to update the graph
 		InputNode->UpdatePins();
@@ -623,7 +744,7 @@ bool UMovieGraphConfig::DeleteOutputMember(UMovieGraphOutput* OutputMemberToDele
 	if (OutputMemberToDelete)
 	{
 		Outputs.RemoveSingle(OutputMemberToDelete);
-		RemoveInboundEdges(OutputNode, FName(OutputMemberToDelete->Name));
+		RemoveInboundEdges(OutputNode, FName(OutputMemberToDelete->GetMemberName()));
 
 		// This calls OnNodeChangedDelegate to update the graph
 		OutputNode->UpdatePins();

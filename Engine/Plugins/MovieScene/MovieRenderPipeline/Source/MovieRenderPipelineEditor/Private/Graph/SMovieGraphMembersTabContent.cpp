@@ -209,7 +209,7 @@ void SMovieGraphMembersTabContent::CollectAllActions(FGraphActionListBuilderBase
 	// Creates a new action in the action menu under a specific section w/ the provided action target
 	auto AddToActionMenu = [&ActionMenuBuilder](UMovieGraphMember* ActionTarget, const EActionSection Section, const FText& Category) -> void
 	{
-		const FText MemberActionDesc = FText::FromString(ActionTarget->Name);
+		const FText MemberActionDesc = FText::FromString(ActionTarget->GetMemberName());
 		const FText MemberActionTooltip;
 		const FText MemberActionKeywords;
 		const int32 MemberActionSectionID = static_cast<int32>(Section);
@@ -271,7 +271,7 @@ bool SMovieGraphMembersTabContent::ActionMatchesName(FEdGraphSchemaAction* InAct
 {
 	if (const UMovieGraphMember* Member = UE::MovieGraph::Private::GetMemberFromAction(InAction))
 	{
-		return InName == Member->Name;
+		return InName == Member->GetMemberName();
 	}
 
 	return false;
@@ -403,7 +403,7 @@ void SMovieGraphMembersTabContent::RefreshMemberActions(UMovieGraphMember* Updat
 	// automatically based on action name, but the member may have been renamed (so an explicit re-select is needed).
 	if (SelectedMember && (SelectedMember == UpdatedMember))
 	{
-		ActionMenu->SelectItemByName(FName(SelectedMember->Name));
+		ActionMenu->SelectItemByName(FName(SelectedMember->GetMemberName()));
 	}
 }
 

@@ -2,10 +2,13 @@
 
 #pragma once
 
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
 #include "IDetailCustomization.h"
 #include "Graph/MovieGraphConfig.h"
 #include "PropertyHandle.h"
+#include "Widgets/Input/SEditableTextBox.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineEditor"
 
@@ -23,6 +26,25 @@ protected:
 	virtual void CustomizeDetails(const TSharedPtr<IDetailLayoutBuilder>& DetailBuilder) override
 	{
 		CustomizeDetails(*DetailBuilder);
+	}
+
+	void OnNameChanged(const FText& InText, UMovieGraphMember* MovieGraphMember) const
+	{
+		NameEditableTextBox->SetError(FText::GetEmpty());
+
+		FText Error;
+		if (!MovieGraphMember->CanRename(InText, Error))
+		{
+			NameEditableTextBox->SetError(Error);
+		}
+	}
+	
+	void OnNameCommitted(const FText& InText, ETextCommit::Type Arg, UMovieGraphMember* MovieGraphMember) const
+	{
+		if (MovieGraphMember->SetMemberName(InText.ToString()))
+		{
+			NameEditableTextBox->SetError(FText::GetEmpty());
+		}
 	}
 
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override
@@ -54,9 +76,39 @@ protected:
 					DetailBuilder.EditDefaultProperty(ValueProperty)->IsEnabled(Variable->IsEditable());
 				}
 			}
+
+			UMovieGraphMember* MemberObject = Cast<UMovieGraphMember>(CustomizedObject);
+			if (!MemberObject)
+			{
+				continue;
+			}
+
+			// Add a custom row for the Name property (to allow for proper validation)
+			IDetailCategoryBuilder& GeneralCategory = DetailBuilder.EditCategory("General");
+			GeneralCategory.AddCustomRow(FText::GetEmpty())
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("MemberPropertyLabel_Name", "Name"))
+				.Font(DetailBuilder.GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SAssignNew(NameEditableTextBox, SEditableTextBox)
+				.Text_Lambda([MemberObject]() { return FText::FromString(MemberObject->GetMemberName()); })
+				.OnTextChanged(this, &FGraphMemberCustomization::OnNameChanged, MemberObject)
+				.OnTextCommitted(this, &FGraphMemberCustomization::OnNameCommitted, MemberObject)
+				.IsReadOnly_Lambda([MemberObject]() { return !MemberObject->IsEditable(); })
+				.SelectAllTextWhenFocused(true)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			];
 		}
 	}
 	//~ End IDetailCustomization interface
+
+private:
+	/** Text box for the "Name" property. */
+	TSharedPtr<SEditableTextBox> NameEditableTextBox;
 };
 
 #undef LOCTEXT_NAMESPACE

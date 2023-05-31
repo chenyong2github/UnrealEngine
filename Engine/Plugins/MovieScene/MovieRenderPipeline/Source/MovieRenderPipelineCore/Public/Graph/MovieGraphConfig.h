@@ -30,6 +30,21 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphMember : public UMovieGraphValueCon
 public:
 	UMovieGraphMember() = default;
 
+	/** Gets the graph that owns this member, or nullptr if one was not found. */
+	UMovieGraphConfig* GetOwningGraph() const;
+
+	/** Gets the name of this member. */
+	FString GetMemberName() const { return Name; }
+
+	/** Sets the name of this member. Returns true if the rename was successful, else false. */
+	virtual bool SetMemberName(const FString& InNewName);
+
+	/**
+	 * Determines if this member can be renamed to the specified name. If the rename is not possible, returns false
+	 * and OutError is populated with the reason, else returns true.
+	 */
+	virtual bool CanRename(const FText& InNewName, FText& OutError) const;
+
 	/** Gets the GUID that uniquely identifies this member. */
 	const FGuid& GetGuid() const { return Guid; }
 
@@ -41,18 +56,34 @@ public:
 
 	/** Gets whether this member is editable via the UI. */
 	virtual bool IsEditable() const { return bIsEditable; }
+	
+protected:
+    /** Determines if InName is a unique name within the members in MemberArray. */
+	template<class T>
+    bool IsUniqueNameInMemberArray(const FText& InName, const TArray<T*>& InMemberArray) const
+	{
+		const FString NameString = InName.ToString();
+	
+		const bool bExists = InMemberArray.ContainsByPredicate([&NameString](const T* Member)
+		{
+			return Member->GetMemberName() == NameString;
+		});
+
+		// Check against the current name as well; this method shouldn't flag the provided name as non-unique if it's
+		// the member's current name
+		return !bExists || (NameString == Name);
+	}
 
 public:
-	// TODO: Need a details customization that validates whether or not the name is valid/unique
-	/** The name of this member, which is user-facing. */
-	UPROPERTY(EditAnywhere, Category = "General", meta=(EditCondition="bIsEditable", HideEditConditionToggle))
-	FString Name;
-
 	/** The optional description of this member, which is user-facing. */
 	UPROPERTY(EditAnywhere, Category = "General", meta=(EditCondition="bIsEditable", HideEditConditionToggle))
 	FString Description;
 
-private:
+protected:
+	/** The name of this member, which is user-facing. */
+	UPROPERTY()
+	FString Name;
+	
 	/** A GUID that uniquely identifies this member within its graph. */
 	UPROPERTY()
 	FGuid Guid;
@@ -85,6 +116,8 @@ public:
 
 	//~ Begin UMovieGraphMember interface
 	virtual bool IsDeletable() const override { return !bIsGlobal; }
+	virtual bool CanRename(const FText& InNewName, FText& OutError) const override;
+	virtual bool SetMemberName(const FString& InNewName) override;
 	//~ End UMovieGraphMember interface
 
 public:
@@ -127,7 +160,11 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphInput : public UMovieGraphInterface
 public:
 	UMovieGraphInput() = default;
 
+	//~ Begin UMovieGraphMember interface
 	virtual bool IsDeletable() const override;
+	virtual bool CanRename(const FText& InNewName, FText& OutError) const override;
+	virtual bool SetMemberName(const FString& InNewName) override;
+	//~ End UMovieGraphMember interface
 
 public:
 #if WITH_EDITOR
@@ -150,7 +187,11 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphOutput : public UMovieGraphInterfac
 public:
 	UMovieGraphOutput() = default;
 
+	//~ Begin UMovieGraphMember interface
 	virtual bool IsDeletable() const override;
+	virtual bool CanRename(const FText& InNewName, FText& OutError) const override;
+	virtual bool SetMemberName(const FString& InNewName) override;
+	//~ End UMovieGraphMember interface
 
 public:
 #if WITH_EDITOR

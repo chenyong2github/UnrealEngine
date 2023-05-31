@@ -223,7 +223,7 @@ bool UMovieJobVariableAssignmentContainer::FindOrGenerateVariableOverride(
 {
 	if (InGraphVariable)
 	{
-		if (const FPropertyBagPropertyDesc* Desc = Value.FindPropertyDescByName(FName(InGraphVariable->Name)))
+		if (const FPropertyBagPropertyDesc* Desc = Value.FindPropertyDescByName(FName(InGraphVariable->GetMemberName())))
 		{
 			if (OutPropDesc)
 			{
@@ -260,7 +260,7 @@ bool UMovieJobVariableAssignmentContainer::GenerateVariableOverride(const UMovie
 	NewProperty.ValueType = static_cast<EPropertyBagPropertyType>(InGraphVariable->GetValueType());
 	NewProperty.ValueTypeObject = InGraphVariable->GetValueTypeObject();
 	NewProperty.ContainerTypes = { static_cast<EPropertyBagContainerType>(InGraphVariable->GetValueContainerType()) };
-	NewProperty.Name = FName(InGraphVariable->Name);
+	NewProperty.Name = FName(InGraphVariable->GetMemberName());
 	NewProperty.ID = FGuid::NewGuid();
 #if WITH_EDITOR
 	NewProperty.MetaData.Add(FPropertyBagPropertyDescMetaData("VariableGUID", InGraphVariable->GetGuid().ToString()));
@@ -371,10 +371,10 @@ void UMovieJobVariableAssignmentContainer::UpdateGraphVariableOverrides()
 
 			const UMovieGraphVariable* Variable = *FoundVariable;
 
-			if (Desc.Name != FName(Variable->Name))
+			if (Desc.Name != FName(Variable->GetMemberName()))
 			{
 				bNeedsToRegenerate = true;
-				Desc.Name = FName(Variable->Name);
+				Desc.Name = FName(Variable->GetMemberName());
 			}
 
 			if ((uint8)Desc.ValueType != (uint8)(Variable->GetValueType()))
@@ -443,7 +443,7 @@ bool UMovieJobVariableAssignmentContainer::SetVariableAssignmentEnableState(cons
 {
 	if (FindOrGenerateVariableOverride(InGraphVariable))
 	{
-		const FString EditCondPropName = FString::Format(TEXT("{0}{1}"), {EditConditionPrefix, InGraphVariable->Name});
+		const FString EditCondPropName = FString::Format(TEXT("{0}{1}"), {EditConditionPrefix, InGraphVariable->GetMemberName()});
 		const EPropertyBagResult Result = Value.SetValueBool(FName(EditCondPropName), bIsEnabled);
 		
 		return Result == EPropertyBagResult::Success;

@@ -22,7 +22,7 @@ namespace UE::MovieGraph::Private
 			[](const UMovieGraphInterfaceBase* Member) -> FMovieGraphPinProperties
 			{
 				constexpr bool bAllowMultipleConnections = false;
-				FMovieGraphPinProperties Properties(FName(Member->Name), Member->GetValueType(), bAllowMultipleConnections);
+				FMovieGraphPinProperties Properties(FName(Member->GetMemberName()), Member->GetValueType(), bAllowMultipleConnections);
 				Properties.bIsBranch = Member->bIsBranch;
 				return Properties;
 			});
