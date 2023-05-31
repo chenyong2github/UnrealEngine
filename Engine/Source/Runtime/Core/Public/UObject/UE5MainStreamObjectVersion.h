@@ -363,6 +363,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Cloth collection tether initialization
 		ClothCollectionTetherInitialization,
+
+		// OpenColorIO transforms now serialize their generated texture(s) and shader code normally into the uasset.
+		OpenColorIOAssetCacheSerialization,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

@@ -47,10 +47,10 @@ public:
 
 #if WITH_EDITOR
 	/** Apply the color transform in-place to the specified image. */
-	bool EditorTransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& InOutImage) const;
+	bool TransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& InOutImage) const;
 
 	/** Apply the color transform from the source image to the destination image. (The destination FImageView is const but what it points at is not.) */
-	bool EditorTransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& SrcImage, const FImageView& DestImage) const;
+	bool TransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& SrcImage, const FImageView& DestImage) const;
 #endif
 
 	/** This forces to reload colorspaces and corresponding shaders if those are not loaded already. */
@@ -69,8 +69,10 @@ public:
 protected:
 
 	const TObjectPtr<UOpenColorIOColorTransform>* FindTransform(const FOpenColorIOColorConversionSettings& InSettings) const;
+#if WITH_EDITOR
 	void CreateColorTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace);
 	void CreateColorTransform(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection);
+#endif
 	void CleanupTransforms();
 
 	/** Same as above except user can specify the path manually. */
@@ -98,10 +100,12 @@ public:
 	//~ End UObject interface
 
 private:
+#if WITH_EDITOR
 	void LoadConfiguration();
 
 	/** This method resets the status of Notification dialog and reacts depending on user's choice. */
 	void OnToastCallback(bool bInReloadColorspaces);
+#endif
 
 public:
 
@@ -138,6 +142,10 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Private implementation of the OpenColorIO config object. */
 	TPimplPtr<FOpenColorIOWrapperConfig> Config = nullptr;
+
+	/** Hash of all of the config content, including relevant external file information. */
+	UPROPERTY()
+	FString ConfigHash;
 #endif
 };
 

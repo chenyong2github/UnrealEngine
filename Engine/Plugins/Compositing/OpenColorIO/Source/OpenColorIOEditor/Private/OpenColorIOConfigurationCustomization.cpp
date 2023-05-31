@@ -4,6 +4,7 @@
 
 #include "OpenColorIOColorSpaceCustomization.h"
 #include "OpenColorIOConfiguration.h"
+#include "OpenColorIOWrapper.h"
 #include "Containers/StringConv.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
@@ -46,6 +47,8 @@ void FOpenColorIOConfigurationCustomization::CustomizeDetails(IDetailLayoutBuild
 			{
 				if(UOpenColorIOConfiguration* OpenColorIOConfig = Cast<UOpenColorIOConfiguration>(Objects[0].Get()))
 				{
+					OpenColorIOWrapper::ClearAllCaches();
+
 					OpenColorIOConfig->ReloadExistingColorspaces();
 				}
 				return FReply::Handled();

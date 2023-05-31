@@ -59,6 +59,13 @@ const TCHAR* OpenColorIOWrapper::GetVersion()
 #endif // WITH_OCIO
 }
 
+void OpenColorIOWrapper::ClearAllCaches()
+{
+#if WITH_OCIO
+	OCIO_NAMESPACE::ClearAllCaches();
+#endif
+}
+
 struct FOpenColorIOConfigPimpl
 {
 #if WITH_OCIO
@@ -867,6 +874,18 @@ bool FOpenColorIOWrapperProcessor::IsValid() const
 #endif // WITH_OCIO
 }
 
+FString FOpenColorIOWrapperProcessor::GetCacheID() const
+{
+#if WITH_OCIO
+	if (IsValid())
+	{
+		return StringCast<TCHAR>(Pimpl->Processor->getCacheID()).Get();
+	}
+#endif // WITH_OCIO
+
+	return {};
+}
+
 FString FOpenColorIOWrapperProcessor::GetTransformToWorkingColorSpaceName(const FOpenColorIOWrapperSourceColorSettings& InSourceColorSettings)
 {
 	const uint32 SettingsId = (uint32)InSourceColorSettings.EncodingOverride | (uint32)InSourceColorSettings.ColorSpace << 8u | (uint32)InSourceColorSettings.ChromaticAdaptationMethod << 16u;
@@ -1070,15 +1089,15 @@ bool FOpenColorIOWrapperGPUProcessor::IsValid() const
 #endif // WITH_OCIO
 }
 
-bool FOpenColorIOWrapperGPUProcessor::GetShader(FString& OutShaderCode, FString& OutShaderCacheID) const
+bool FOpenColorIOWrapperGPUProcessor::GetShader(FString& OutShaderCacheID, FString& OutShaderCode) const
 {
 #if WITH_OCIO
 	if (IsValid())
 	{
 		ensureMsgf(GPUPimpl->ShaderDescription->getNumDynamicProperties() == 0, TEXT("We do not currently support dynamic properties."));
 
-		OutShaderCode = StringCast<TCHAR>(GPUPimpl->ShaderDescription->getShaderText()).Get();
 		OutShaderCacheID = StringCast<TCHAR>(GPUPimpl->ShaderDescription->getCacheID()).Get();
+		OutShaderCode = StringCast<TCHAR>(GPUPimpl->ShaderDescription->getShaderText()).Get();
 
 		return true;
 	}

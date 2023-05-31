@@ -134,21 +134,21 @@ bool UOpenColorIOConfiguration::Validate() const
 }
 
 #if WITH_EDITOR
-bool UOpenColorIOConfiguration::EditorTransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& InOutImage) const
+bool UOpenColorIOConfiguration::TransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& InOutImage) const
 {
 	if (const TObjectPtr<UOpenColorIOColorTransform>* TransformPtr = FindTransform(InSettings))
 	{
-		return (*TransformPtr)->EditorTransformImage(InOutImage);
+		return (*TransformPtr)->TransformImage(InOutImage);
 	}
 
 	return false;
 }
 
-bool UOpenColorIOConfiguration::EditorTransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& SrcImage, const FImageView& DestImage) const
+bool UOpenColorIOConfiguration::TransformImage(const FOpenColorIOColorConversionSettings& InSettings, const FImageView& SrcImage, const FImageView& DestImage) const
 {
 	if (const TObjectPtr<UOpenColorIOColorTransform>* TransformPtr = FindTransform(InSettings))
 	{
-		return (*TransformPtr)->EditorTransformImage(SrcImage, DestImage);
+		return (*TransformPtr)->TransformImage(SrcImage, DestImage);
 	}
 
 	return false;
@@ -158,72 +158,103 @@ bool UOpenColorIOConfiguration::EditorTransformImage(const FOpenColorIOColorConv
 void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 {
 #if WITH_EDITOR
-	TArray<FOpenColorIOColorSpace> ColorSpacesToBeReloaded = DesiredColorSpaces;
-	TArray<FOpenColorIODisplayView> DisplayViewsToBeReloaded = DesiredDisplayViews;
-	DesiredColorSpaces.Reset();
-	DesiredDisplayViews.Reset();
-	ColorTransforms.Reset();
 	LoadConfiguration();
 
-	if (Config == nullptr)
+	if (Config && Config->IsValid())
 	{
-		return;
-	}
+		const FString LoadedConfigHash = Config->GetCacheID() + FString(OpenColorIOWrapper::GetVersion());
 
-	// This will make sure that all colorspaces are up to date in case an index, family or name is changed.
-	for (const FOpenColorIOColorSpace& ExistingColorSpace : ColorSpacesToBeReloaded)
-	{
-		int ColorSpaceIndex = Config->GetColorSpaceIndex(*ExistingColorSpace.ColorSpaceName);
-		if (ColorSpaceIndex < 0)
+		// Hash is different, proceed with the regeneration...
+		if (ConfigHash != LoadedConfigHash)
 		{
-			// Name not found, therefore we don't need to re-add this colorspace.
-			continue;
-		}
+			ConfigHash = LoadedConfigHash;
 
-		FOpenColorIOColorSpace ColorSpace;
-		ColorSpace.ColorSpaceIndex = ColorSpaceIndex;
-		ColorSpace.ColorSpaceName = ExistingColorSpace.ColorSpaceName;
-		ColorSpace.FamilyName = Config->GetColorSpaceFamilyName(*ExistingColorSpace.ColorSpaceName);
-		DesiredColorSpaces.Add(ColorSpace);
-	}
+			TArray<FOpenColorIOColorSpace> ColorSpacesToBeReloaded = DesiredColorSpaces;
+			TArray<FOpenColorIODisplayView> DisplayViewsToBeReloaded = DesiredDisplayViews;
+			DesiredColorSpaces.Reset();
+			DesiredDisplayViews.Reset();
+			ColorTransforms.Reset();
 
-	for (const FOpenColorIODisplayView& ExistingDisplayView : DisplayViewsToBeReloaded)
-	{
-		for (int32 ViewIndex = 0; ViewIndex < Config->GetNumViews(*ExistingDisplayView.Display); ++ViewIndex)
-		{
-			const FString ViewName = Config->GetViewName(*ExistingDisplayView.Display, ViewIndex);
-			
-			if (ViewName == ExistingDisplayView.View)
+			// This will make sure that all colorspaces are up to date in case an index, family or name is changed.
+			for (const FOpenColorIOColorSpace& ExistingColorSpace : ColorSpacesToBeReloaded)
 			{
-				DesiredDisplayViews.Add(ExistingDisplayView);
+				int ColorSpaceIndex = Config->GetColorSpaceIndex(*ExistingColorSpace.ColorSpaceName);
+				if (ColorSpaceIndex < 0)
+				{
+					// Name not found, therefore we don't need to re-add this colorspace.
+					UE_LOG(LogOpenColorIO, Display, TEXT("Removing %s, not found."), *ExistingColorSpace.ToString());
+					continue;
+				}
+
+				FOpenColorIOColorSpace ColorSpace;
+				ColorSpace.ColorSpaceIndex = ColorSpaceIndex;
+				ColorSpace.ColorSpaceName = ExistingColorSpace.ColorSpaceName;
+				ColorSpace.FamilyName = Config->GetColorSpaceFamilyName(*ExistingColorSpace.ColorSpaceName);
+				DesiredColorSpaces.Add(ColorSpace);
+			}
+
+			for (const FOpenColorIODisplayView& ExistingDisplayView : DisplayViewsToBeReloaded)
+			{
+				bool bDisplayViewFound = false;
+				for (int32 ViewIndex = 0; ViewIndex < Config->GetNumViews(*ExistingDisplayView.Display); ++ViewIndex)
+				{
+					const FString ViewName = Config->GetViewName(*ExistingDisplayView.Display, ViewIndex);
+
+					if (ViewName == ExistingDisplayView.View)
+					{
+						DesiredDisplayViews.Add(ExistingDisplayView);
+						bDisplayViewFound = true;
+						break;
+					}
+				}
+
+				if (!bDisplayViewFound)
+				{
+					UE_LOG(LogOpenColorIO, Display, TEXT("Removing %s, not found."), *ExistingDisplayView.ToString());
+				}
+			}
+
+			const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
+
+			// Genereate new shaders.
+			for (int32 indexTop = 0; indexTop < DesiredColorSpaces.Num(); ++indexTop)
+			{
+				const FOpenColorIOColorSpace& TopColorSpace = DesiredColorSpaces[indexTop];
+
+				for (int32 indexOther = indexTop + 1; indexOther < DesiredColorSpaces.Num(); ++indexOther)
+				{
+					const FOpenColorIOColorSpace& OtherColorSpace = DesiredColorSpaces[indexOther];
+
+					CreateColorTransform(TopColorSpace.ColorSpaceName, OtherColorSpace.ColorSpaceName);
+					CreateColorTransform(OtherColorSpace.ColorSpaceName, TopColorSpace.ColorSpaceName);
+				}
+
+				for (const FOpenColorIODisplayView& DisplayView : DesiredDisplayViews)
+				{
+					CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Forward);
+
+					if (Settings->bSupportInverseViewTransforms)
+					{
+						CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Inverse);
+					}
+				}
 			}
 		}
+		else
+		{
+			UE_LOG(LogOpenColorIO, Verbose, TEXT("Reload skipped, no differences identified."));
+		}
+	}
+	else
+	{
+		DesiredColorSpaces.Reset();
+		DesiredDisplayViews.Reset();
+		ColorTransforms.Reset();
 	}
 
-	const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
-
-	// Genereate new shaders.
-	for (int32 indexTop = 0; indexTop < DesiredColorSpaces.Num(); ++indexTop)
+	if (!MarkPackageDirty())
 	{
-		const FOpenColorIOColorSpace& TopColorSpace = DesiredColorSpaces[indexTop];
-
-		for (int32 indexOther = indexTop + 1; indexOther < DesiredColorSpaces.Num(); ++indexOther)
-		{
-			const FOpenColorIOColorSpace& OtherColorSpace = DesiredColorSpaces[indexOther];
-
-			CreateColorTransform(TopColorSpace.ColorSpaceName, OtherColorSpace.ColorSpaceName);
-			CreateColorTransform(OtherColorSpace.ColorSpaceName, TopColorSpace.ColorSpaceName);
-		}
-
-		for (const FOpenColorIODisplayView& DisplayView : DesiredDisplayViews)
-		{
-			CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Forward);
-
-			if (Settings->bSupportInverseViewTransforms)
-			{
-				CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Inverse);
-			}
-		}
+		UE_LOG(LogOpenColorIO, Display, TEXT("%s should be resaved for faster loads. Changes in the config or the library version were detected."), *GetPathName());
 	}
 #endif
 }
@@ -341,6 +372,7 @@ const TObjectPtr<UOpenColorIOColorTransform>* UOpenColorIOConfiguration::FindTra
 		});
 }
 
+#if WITH_EDITOR
 void UOpenColorIOConfiguration::CreateColorTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace)
 {
 	if (InSourceColorSpace.IsEmpty() || InDestinationColorSpace.IsEmpty())
@@ -392,6 +424,7 @@ void UOpenColorIOConfiguration::CreateColorTransform(const FString& InSourceColo
 		UE_LOG(LogOpenColorIO, Warning, TEXT("Could not create color space transform from %s to %s - %s. Verify your OCIO config file, it may have errors in it."), *InSourceColorSpace, *InDisplay, *InView);
 	}
 }
+#endif
 
 void UOpenColorIOConfiguration::CleanupTransforms()
 {
@@ -442,13 +475,14 @@ void UOpenColorIOConfiguration::PostInitProperties()
 {
 	Super::PostInitProperties();
 
+#if WITH_EDITOR
 	if (!HasAnyFlags(RF_NeedLoad | RF_ClassDefaultObject))
 	{
 		ConfigurationFile.FilePath = TEXT("ocio://default");
-
 		// Ensure the default built-in configuration is loaded.
 		LoadConfiguration();
 	}
+#endif //WITH_EDITOR
 }
 
 void UOpenColorIOConfiguration::PostLoad()
@@ -584,11 +618,9 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
-#endif //WITH_EDITOR
 
 void UOpenColorIOConfiguration::LoadConfiguration()
 {
-#if WITH_EDITOR
 	Config.Reset();
 
 	if (ConfigurationFile.FilePath.IsEmpty())
@@ -628,7 +660,6 @@ void UOpenColorIOConfiguration::LoadConfiguration()
 	{
 		UE_LOG(LogOpenColorIO, Error, TEXT("Could not load OCIO configuration file %s. Verify that the path is good or that the file is valid."), *FilePath);
 	}
-#endif
 }
 
 void UOpenColorIOConfiguration::OnToastCallback(bool bInReloadColorspaces)
@@ -642,11 +673,13 @@ void UOpenColorIOConfiguration::OnToastCallback(bool bInReloadColorspaces)
 
 	if (bInReloadColorspaces)
 	{
+		OpenColorIOWrapper::ClearAllCaches();
+
 		ReloadExistingColorspaces();
 	}
 }
 
-#if WITH_EDITOR
+
 FOpenColorIOEditorConfigurationInspector::FOpenColorIOEditorConfigurationInspector(const UOpenColorIOConfiguration& InConfiguration)
 	: Configuration(InConfiguration)
 {

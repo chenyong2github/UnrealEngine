@@ -37,7 +37,7 @@ bool UOpenColorIOEditorBlueprintLibrary::ApplyColorSpaceCompressionTransformToTe
 		FImage ImageMip0;
 		if (InOutTexture->Source.GetMipImage(ImageMip0, 0))
 		{
-			bool bTransformSucceeded = ConversionSettings.ConfigurationSource->EditorTransformImage(ConversionSettings, ImageMip0);
+			bool bTransformSucceeded = ConversionSettings.ConfigurationSource->TransformImage(ConversionSettings, ImageMip0);
 			if (bTransformSucceeded)
 			{
 				InOutTexture->PreEditChange(nullptr);
