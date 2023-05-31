@@ -718,7 +718,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheWriteFrame(UObject* Storag
 				SVTCreateInfo.AttributesFormats[1] = PF_Unknown;
 
 				UE::SVT::FTextureData SparseTextureData{};
-				SparseTextureData.CreateFromDense(SVTCreateInfo, MakeArrayView<uint8>((uint8*)TextureData.GetData(), TextureData.Num() * sizeof(TextureData[0])), TArrayView<uint8>());
+				SparseTextureData.CreateFromDense(SVTCreateInfo, TArrayView<uint8, int64>((uint8*)TextureData.GetData(), (int64)TextureData.Num() * sizeof(TextureData[0])), TArrayView<uint8>());
 				
 				CurrCache->AppendFrame(SparseTextureData);
 #endif

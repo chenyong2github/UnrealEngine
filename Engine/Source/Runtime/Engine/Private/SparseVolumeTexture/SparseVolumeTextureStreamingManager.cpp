@@ -116,8 +116,8 @@ static FIntVector3 ComputeTileDataVolumeResolution(int32 NumAllocatedPages)
 
 static FIntVector3 ComputeLargestPossibleTileDataVolumeResolution(int32 VoxelMemSize)
 {
-	const int64 TileMemSize = SVTNumVoxelsPerPaddedTile * VoxelMemSize;
-	const int64 NumMaxTiles = int64(INT32_MAX) / TileMemSize;
+	const int64 TileMemSize = SVT::NumVoxelsPerPaddedTile * VoxelMemSize;
+	const int64 NumMaxTiles = SVT::MaxResourceSize / TileMemSize;
 	int64 ResourceSize = NumMaxTiles * TileMemSize;
 
 	// Find a cube with a volume as close to NumMaxTiles as possible
@@ -143,8 +143,8 @@ static FIntVector3 ComputeLargestPossibleTileDataVolumeResolution(int32 VoxelMem
 	}
 
 	const FIntVector3 Resolution = ResolutionInTiles * SPARSE_VOLUME_TILE_RES_PADDED;
-	check(Resolution.X <= SVTMaxVolumeTextureDim && Resolution.Y <= SVTMaxVolumeTextureDim && Resolution.Z <= SVTMaxVolumeTextureDim);
-	check(((int64)Resolution.X * (int64)Resolution.Y * (int64)Resolution.Z) < int64(INT32_MAX));
+	check(Resolution.X <= SVT::MaxVolumeTextureDim && Resolution.Y <= SVT::MaxVolumeTextureDim && Resolution.Z <= SVT::MaxVolumeTextureDim);
+	check(((int64)Resolution.X * (int64)Resolution.Y * (int64)Resolution.Z) < SVT::MaxResourceSize);
 
 	return Resolution;
 }
@@ -271,7 +271,7 @@ public:
 				TileCoordsPtr = (uint8*)RHILockBuffer(DstTileCoordsUploadBuffer->GetRHI(), 0, MaxNumTiles * sizeof(uint32), RLM_WriteOnly);
 			}
 
-			const int32 NumVoxels = MaxNumTiles * UE::SVT::SVTNumVoxelsPerPaddedTile;
+			const int32 NumVoxels = MaxNumTiles * SVT::NumVoxelsPerPaddedTile;
 
 			// TileData
 			if (FormatSizeA > 0)
@@ -303,8 +303,8 @@ public:
 		check(FormatSizeB <= 0 || TileDataBPtr);
 
 		OutPackedPhysicalTileCoordsPtr = TileCoordsPtr + NumWrittenTiles * sizeof(uint32);
-		OutPtrA = TileDataAPtr ? TileDataAPtr + (NumWrittenTiles * UE::SVT::SVTNumVoxelsPerPaddedTile * FormatSizeA) : nullptr;
-		OutPtrB = TileDataBPtr ? TileDataBPtr + (NumWrittenTiles * UE::SVT::SVTNumVoxelsPerPaddedTile * FormatSizeB) : nullptr;
+		OutPtrA = TileDataAPtr ? TileDataAPtr + (NumWrittenTiles * UE::SVT::NumVoxelsPerPaddedTile * FormatSizeA) : nullptr;
+		OutPtrB = TileDataBPtr ? TileDataBPtr + (NumWrittenTiles * UE::SVT::NumVoxelsPerPaddedTile * FormatSizeB) : nullptr;
 
 		NumWrittenTiles += NumTiles;
 	}
@@ -1133,7 +1133,7 @@ void FStreamingManager::AddInternal(FRDGBuilder& GraphBuilder, FNewSparseVolumeT
 			uint8* DataBPtr = nullptr;
 			RootTileUploader.Add_GetRef(1, TileCoordsPtr, DataAPtr, DataBPtr);
 			FMemory::Memcpy(TileCoordsPtr, &NullTileCoord, sizeof(NullTileCoord));
-			for (int32 VoxelIdx = 0; VoxelIdx < UE::SVT::SVTNumVoxelsPerPaddedTile; ++VoxelIdx)
+			for (int32 VoxelIdx = 0; VoxelIdx < SVT::NumVoxelsPerPaddedTile; ++VoxelIdx)
 			{
 				if (SVTInfo.FormatA != PF_Unknown)
 				{
@@ -1852,8 +1852,8 @@ void FStreamingManager::InstallReadyMipLevels()
 
 		// Tile data
 		{
-			check(MipLevelStreamingInfo.TileDataASize == (SVTNumVoxelsPerPaddedTile * GPixelFormats[SVTInfo->TileDataTexture->FormatA].BlockBytes * NumPhysicalTiles));
-			check(MipLevelStreamingInfo.TileDataBSize == (SVTNumVoxelsPerPaddedTile * GPixelFormats[SVTInfo->TileDataTexture->FormatB].BlockBytes * NumPhysicalTiles));
+			check(MipLevelStreamingInfo.TileDataASize == (SVT::NumVoxelsPerPaddedTile * GPixelFormats[SVTInfo->TileDataTexture->FormatA].BlockBytes * NumPhysicalTiles));
+			check(MipLevelStreamingInfo.TileDataBSize == (SVT::NumVoxelsPerPaddedTile * GPixelFormats[SVTInfo->TileDataTexture->FormatB].BlockBytes * NumPhysicalTiles));
 
 			FUploadTask& Task = UploadTasks.AddDefaulted_GetRef();
 			Task.TaskType = FUploadTask::ETaskType::TileData;
@@ -2051,9 +2051,9 @@ FStreamingManager::FTileDataTexture::FTileDataTexture(const FIntVector3& InResol
 	
 	// Ensure that the tile data texture(s) do not exceed the memory size and resolution limits.
 	if (PhysicalTilesCapacity > LargestPossiblePhysicalTilesCapacity
-		|| (ResolutionInTiles.X * SPARSE_VOLUME_TILE_RES_PADDED) > SVTMaxVolumeTextureDim
-		|| (ResolutionInTiles.Y * SPARSE_VOLUME_TILE_RES_PADDED) > SVTMaxVolumeTextureDim
-		|| (ResolutionInTiles.Z * SPARSE_VOLUME_TILE_RES_PADDED) > SVTMaxVolumeTextureDim)
+		|| (ResolutionInTiles.X * SPARSE_VOLUME_TILE_RES_PADDED) > SVT::MaxVolumeTextureDim
+		|| (ResolutionInTiles.Y * SPARSE_VOLUME_TILE_RES_PADDED) > SVT::MaxVolumeTextureDim
+		|| (ResolutionInTiles.Z * SPARSE_VOLUME_TILE_RES_PADDED) > SVT::MaxVolumeTextureDim)
 	{
 		ResolutionInTiles = LargestPossibleResolution;
 		PhysicalTilesCapacity = LargestPossiblePhysicalTilesCapacity;
@@ -2064,9 +2064,9 @@ FStreamingManager::FTileDataTexture::FTileDataTexture(const FIntVector3& InResol
 	}
 
 	const FIntVector3 Resolution = ResolutionInTiles * SPARSE_VOLUME_TILE_RES_PADDED;
-	check(Resolution.X <= SVTMaxVolumeTextureDim && Resolution.Y <= SVTMaxVolumeTextureDim && Resolution.Z <= SVTMaxVolumeTextureDim);
-	check(((int64)Resolution.X * (int64)Resolution.Y * (int64)Resolution.Z * (int64)GPixelFormats[FormatA].BlockBytes) <= int64(INT32_MAX));
-	check(((int64)Resolution.X * (int64)Resolution.Y * (int64)Resolution.Z * (int64)GPixelFormats[FormatB].BlockBytes) <= int64(INT32_MAX));
+	check(Resolution.X <= SVT::MaxVolumeTextureDim && Resolution.Y <= SVT::MaxVolumeTextureDim && Resolution.Z <= SVT::MaxVolumeTextureDim);
+	check(((int64)Resolution.X * (int64)Resolution.Y * (int64)Resolution.Z * (int64)GPixelFormats[FormatA].BlockBytes) <= SVT::MaxResourceSize);
+	check(((int64)Resolution.X * (int64)Resolution.Y * (int64)Resolution.Z * (int64)GPixelFormats[FormatB].BlockBytes) <= SVT::MaxResourceSize);
 	
 	TileCoords.SetNum(PhysicalTilesCapacity);
 
