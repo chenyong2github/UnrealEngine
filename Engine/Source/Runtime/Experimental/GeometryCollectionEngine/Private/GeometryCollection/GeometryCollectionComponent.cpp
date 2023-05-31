@@ -1016,7 +1016,7 @@ void UGeometryCollectionComponent::DispatchBreakEvent(const FBreakChaosEvent& Ev
 	// bp
 	if (OnChaosBreakEvent.IsBound())
 	{
-		OnChaosBreakEvent.Broadcast(FChaosBreakEvent(Event));
+		OnChaosBreakEvent.Broadcast(Event);
 	}
 }
 
@@ -1028,7 +1028,7 @@ void UGeometryCollectionComponent::DispatchRemovalEvent(const FRemovalChaosEvent
 	// bp
 	if (OnChaosRemovalEvent.IsBound())
 	{
-		OnChaosRemovalEvent.Broadcast(FChaosRemovalEvent(Event));
+		OnChaosRemovalEvent.Broadcast(Event);
 	}
 }
 
@@ -1037,7 +1037,7 @@ void UGeometryCollectionComponent::DispatchCrumblingEvent(const FCrumblingChaosE
 	// bp
 	if (OnChaosCrumblingEvent.IsBound())
 	{
-		OnChaosCrumblingEvent.Broadcast(FChaosCrumblingEvent(Event));
+		OnChaosCrumblingEvent.Broadcast(Event);
 	}
 }
 
@@ -3172,7 +3172,7 @@ void UGeometryCollectionComponent::OnPostPhysicsSync()
 			{
 				if (OnRootBreakEvent.IsBound())
 				{
-					FChaosBreakEvent Event;
+					FBreakChaosEvent Event;
 					Event.Index = GetRootIndex();
 					Event.Component = this;
 					OnRootBreakEvent.Broadcast(Event);

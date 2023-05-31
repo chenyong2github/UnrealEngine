@@ -561,7 +561,7 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 				if ((BreakingData.EmitterFlag & Chaos::EventEmitterFlag::OwnDispatcher) && BreakingData.Proxy)
 				{
 					UPrimitiveComponent* const PrimComp = Scene.GetOwningComponent<UPrimitiveComponent>(BreakingData.Proxy);
-					if (PrimComp && BreakEventRegistrations.Contains(PrimComp))
+					if (PrimComp)
 					{
 						// queue them up so we can release the physics data before trigging BP events
 						FBreakChaosEvent& BreakEvent = PendingBreakEvents.Emplace_GetRef(BreakingData);
@@ -664,19 +664,16 @@ void UChaosGameplayEventDispatcher::HandleCrumblingEvents(const Chaos::FCrumblin
 			{
 				if (UPrimitiveComponent* const PrimComp = Scene.GetOwningComponent<UPrimitiveComponent>(CrumblingDataItem.Proxy))
 				{
-					if (CrumblingEventRegistrations.Contains(PrimComp))
-					{
-						// queue them up so we can release the physics data before triggering BP events
-						FCrumblingChaosEvent& CrumblingEvent = PendingCrumblingEvent.AddZeroed_GetRef();
-						CrumblingEvent.Component = PrimComp;
-						CrumblingEvent.Location = CrumblingDataItem.Location;
-						CrumblingEvent.Orientation = CrumblingDataItem.Orientation;
-						CrumblingEvent.LinearVelocity = CrumblingDataItem.LinearVelocity;
-						CrumblingEvent.AngularVelocity = CrumblingDataItem.AngularVelocity;
-						CrumblingEvent.Mass = static_cast<float>(CrumblingDataItem.Mass);
-						CrumblingEvent.LocalBounds = FBox(CrumblingDataItem.LocalBounds.Min(), CrumblingDataItem.LocalBounds.Max());
-						CrumblingEvent.Children = CrumblingDataItem.Children;
-					}
+					// queue them up so we can release the physics data before triggering BP events
+					FCrumblingChaosEvent& CrumblingEvent = PendingCrumblingEvent.AddZeroed_GetRef();
+					CrumblingEvent.Component = PrimComp;
+					CrumblingEvent.Location = CrumblingDataItem.Location;
+					CrumblingEvent.Orientation = CrumblingDataItem.Orientation;
+					CrumblingEvent.LinearVelocity = CrumblingDataItem.LinearVelocity;
+					CrumblingEvent.AngularVelocity = CrumblingDataItem.AngularVelocity;
+					CrumblingEvent.Mass = static_cast<float>(CrumblingDataItem.Mass);
+					CrumblingEvent.LocalBounds = FBox(CrumblingDataItem.LocalBounds.Min(), CrumblingDataItem.LocalBounds.Max());
+					CrumblingEvent.Children = CrumblingDataItem.Children;
 				}
 			}
 		}

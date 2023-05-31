@@ -20,32 +20,9 @@ namespace Chaos
 	struct FBreakingData;
 }
 
-// FChaosBreakEvent has been moved from ChaosSolverEngine to Engine, this structure need to be kept for backward compatibility.
-USTRUCT(BlueprintType)
-struct CHAOSSOLVERENGINE_API FChaosBreakEvent : public FBreakChaosEvent
-{
-	GENERATED_BODY()
-	FChaosBreakEvent() : FBreakChaosEvent() {}
-	FChaosBreakEvent(const FBreakChaosEvent& BreakChaosEvent) : FBreakChaosEvent(BreakChaosEvent) {}
-	FChaosBreakEvent(const Chaos::FBreakingData& BreakingData) : FBreakChaosEvent(BreakingData) {}
-};
-
-USTRUCT(BlueprintType)
-struct CHAOSSOLVERENGINE_API FChaosRemovalEvent : public FRemovalChaosEvent
-{
-	GENERATED_BODY()
-	FChaosRemovalEvent() : FRemovalChaosEvent() {}
-	FChaosRemovalEvent(const FRemovalChaosEvent& RemovalChaosEvent) : FRemovalChaosEvent(RemovalChaosEvent) {}
-};
-
-USTRUCT(BlueprintType)
-struct CHAOSSOLVERENGINE_API FChaosCrumblingEvent : public FCrumblingChaosEvent
-{
-	GENERATED_BODY()
-	FChaosCrumblingEvent() : FCrumblingChaosEvent() {}
-	FChaosCrumblingEvent(const FCrumblingChaosEvent& CrumbleChaosEvent) : FCrumblingChaosEvent(CrumbleChaosEvent) {}
-};
-
+typedef FBreakChaosEvent FChaosBreakEvent;
+typedef FRemovalChaosEvent FChaosRemovalEvent;
+typedef FCrumblingChaosEvent FChaosCrumblingEvent;
 
 typedef TFunction<void(const FBreakChaosEvent&)> FOnBreakEventCallback;
 
