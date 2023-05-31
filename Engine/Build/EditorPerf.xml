@@ -22,7 +22,7 @@
 
 	<!-- Platform Options -->
 	<Option Name="Platforms" DefaultValue="Win64" Description="The list of platforms to profile"/>
-	<Property Name="Win64CompileAgentType" Value="Win64"/>
+	<Property Name="Win64CompileAgentType" Value="Win64Compile;Win64"/>
 	<Property Name="MacCompileAgentType" Value="TestMac"/>
 	<Property Name="LinuxCompileAgentType" Value="Linux"/>
 	<Error Message="No platforms specified" If="'$(Platforms)' == ''"/>
