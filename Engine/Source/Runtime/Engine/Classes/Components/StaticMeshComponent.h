@@ -386,6 +386,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|LOD")
 	void SetEvaluateWorldPositionOffset(bool NewValue);
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|LOD")
+	void SetWorldPositionOffsetDisableDistance(int32 NewValue);
+
 	/** Get the initial value of bEvaluateWorldPositionOffset. This is the value when BeginPlay() was last called. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|LOD")
 	bool GetInitialEvaluateWorldPositionOffset() { return bInitialEvaluateWorldPositionOffset; }

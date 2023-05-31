@@ -404,6 +404,8 @@ public:
 	virtual bool GetInstanceDrawDistanceMinMax(FVector2f& OutCullRange) const override;
 	virtual bool GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const override;
 
+	virtual void SetWorldPositionOffsetDisableDistance_GameThread(int32 NewValue) override;
+
 	const UStaticMesh* GetStaticMesh() const
 	{
 		return StaticMesh;

@@ -1792,6 +1792,27 @@ bool FSceneProxy::GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODis
 	return InstanceWPODisableDistance != 0;
 }
 
+void FSceneProxy::SetWorldPositionOffsetDisableDistance_GameThread(int32 NewValue)
+{
+	ENQUEUE_RENDER_COMMAND(CmdSetWPODisableDistance)(
+		[this, NewValue](FRHICommandList&)
+		{
+			const bool bUpdatePrimitiveData = InstanceWPODisableDistance != NewValue;
+			const bool bUpdateDrawCmds = bUpdatePrimitiveData && (InstanceWPODisableDistance == 0 || NewValue == 0);
+
+			if (bUpdatePrimitiveData)
+			{
+				InstanceWPODisableDistance = NewValue;
+				GetPrimitiveSceneInfo()->SetNeedsUniformBufferUpdate(true);
+				GetScene().RequestGPUSceneUpdate(*GetPrimitiveSceneInfo(), EPrimitiveDirtyState::ChangedOther);
+				if (bUpdateDrawCmds)
+				{
+					GetRendererModule().BeginDeferredUpdateOfPrimitiveSceneInfo(GetPrimitiveSceneInfo());
+				}
+			}
+		});
+}
+
 #if RHI_RAYTRACING
 bool FSceneProxy::HasRayTracingRepresentation() const
 {

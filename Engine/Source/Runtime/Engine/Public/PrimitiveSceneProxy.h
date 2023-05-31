@@ -240,6 +240,8 @@ public:
 	/** Enqueue updated setting for evaluation of World Position Offset. */
 	void SetEvaluateWorldPositionOffset_GameThread(bool bEvaluate);
 
+	virtual void SetWorldPositionOffsetDisableDistance_GameThread(int32 NewValue) {}
+
 	/** @return True if the primitive is visible in the given View. */
 	ENGINE_API bool IsShown(const FSceneView* View) const;
 
