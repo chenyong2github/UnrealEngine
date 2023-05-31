@@ -149,7 +149,7 @@ spec:
         - name: nginx-corp-h2
           containerPort: 8092
         - containerPort: 18080
-        - name: nginx-https-redirect
+        - name: nginx-redirect
           containerPort: 18090
         {{- if .Values.nginx.livenessProbe.enabled }}
         livenessProbe:
