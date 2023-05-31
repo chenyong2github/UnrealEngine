@@ -201,7 +201,7 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineStaticMesh()
 			{
 				// If we haven't yet managed to build a factory node, look at static mesh geometry directly.
 				TArray<FString> MeshUids;
-				PipelineMeshesUtilities->GetAllStaticMeshGeometry(MeshUids, bConvertSkeletalMeshToStaticMesh);
+				PipelineMeshesUtilities->GetAllStaticMeshGeometry(MeshUids, bConvertSkeletalMeshToStaticMesh, bConvertStaticsWithMorphTargetsToSkeletals);
 
 				TMap<int32, TArray<FString>> MeshUidsPerLodIndex;
 
@@ -282,7 +282,7 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineStaticMesh()
 			if (!bFoundMeshes)
 			{
 				TArray<FString> MeshUids;
-				PipelineMeshesUtilities->GetAllStaticMeshGeometry(MeshUids, bConvertSkeletalMeshToStaticMesh);
+				PipelineMeshesUtilities->GetAllStaticMeshGeometry(MeshUids, bConvertSkeletalMeshToStaticMesh, bConvertStaticsWithMorphTargetsToSkeletals);
 
 				// Work out which meshes are collision meshes which correspond to another mesh
 				TMap<FString, TArray<FString>> MeshToCollisionMeshMap;

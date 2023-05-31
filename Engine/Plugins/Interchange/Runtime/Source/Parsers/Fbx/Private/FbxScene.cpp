@@ -701,55 +701,74 @@ namespace UE
 						continue;
 					}
 					
-					FString SkeletonUid;
+					TSet<FString> SkeletonUids;
 					if (MorphTargetAnimationBuildingData.InterchangeMeshNode->IsSkinnedMesh())
 					{
-						//Find the root joint for this MeshGeometry
-						FString JointNodeUid;
-						FString ParentNodeUid;
-						MorphTargetAnimationBuildingData.InterchangeMeshNode->GetSkeletonDependency(0, JointNodeUid);
-						ParentNodeUid = JointNodeUid;
-
-						while (!JointNodeUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
+						//Find the root joint(s) for this MeshGeometry
+						TArray<FString> SkeletonDependencies;
+						MorphTargetAnimationBuildingData.InterchangeMeshNode->GetSkeletonDependencies(SkeletonDependencies);
+						for (const FString& SkeletonDependency : SkeletonDependencies)
 						{
-							if (const UInterchangeSceneNode* Node = Cast< UInterchangeSceneNode >(NodeContainer.GetNode(ParentNodeUid)))
+							FString JointNodeUid = SkeletonDependency;
+							FString ParentNodeUid = SkeletonDependency;
+
+							while (!JointNodeUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
 							{
-								if (Node->IsSpecializedTypeContains(FSceneNodeStaticData::GetJointSpecializeTypeString()))
+								if (const UInterchangeSceneNode* Node = Cast< UInterchangeSceneNode >(NodeContainer.GetNode(ParentNodeUid)))
 								{
-									JointNodeUid = ParentNodeUid;
-									ParentNodeUid = Node->GetParentUid();
+									if (Node->IsSpecializedTypeContains(FSceneNodeStaticData::GetJointSpecializeTypeString()))
+									{
+										JointNodeUid = ParentNodeUid;
+										ParentNodeUid = Node->GetParentUid();
+									}
+									else
+									{
+										break;
+									}
 								}
 								else
 								{
 									break;
 								}
 							}
-							else
-							{
-								break;
-							}
-						}
 
-						if (!JointNodeUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
-						{
-							SkeletonUid = JointNodeUid;
+							if (!JointNodeUid.Equals(UInterchangeBaseNode::InvalidNodeUid()))
+							{
+								SkeletonUids.Add(JointNodeUid);
+							}
 						}
 					}
 					else
 					{
-						//If it is not skinned then the only way to get this animation to show up is by mesh type forcing to Skeleton,
-						//where the root node id is going to be the Skeleton id:
-						FbxNode* RootNode = SDKScene->GetRootNode();
-						SkeletonUid = Parser.GetFbxHelper()->GetFbxNodeHierarchyName(RootNode);
+						//Find MeshInstances: where CustomAssetInstanceUid == MeshNode->GetUniqueID
+						// For every occurance create a morphtarget entry with given MeshNode->GetUniqueID 
+						NodeContainer.IterateNodesOfType<UInterchangeSceneNode>([&](const FString& NodeUid, UInterchangeSceneNode* SceneNode)
+							{
+								FString AssetInstanceUid;
+								if (SceneNode->GetCustomAssetInstanceUid(AssetInstanceUid) && AssetInstanceUid == MorphTargetAnimationBuildingData.InterchangeMeshNode->GetUniqueID())
+								{
+									SkeletonUids.Add(SceneNode->GetUniqueID());
+								}
+							});
+						
+						if (SkeletonUids.Num() == 0)
+						{
+							//If it is not skinned and does not have an instantation, then it is presumed to get used on the RootNode level.
+							FbxNode* RootNode = SDKScene->GetRootNode();
+							SkeletonUids.Add(Parser.GetFbxHelper()->GetFbxNodeHierarchyName(RootNode));
+						}						
 					}
 
-					if (const UInterchangeSceneNode* SkeletonNode = Cast< UInterchangeSceneNode >(NodeContainer.GetNode(SkeletonUid)))
+					for (const FString& SkeletonUid : SkeletonUids)
 					{
-						//For the given skeleton:
-						TMap<int32, TArray<FMorphTargetAnimationBuildingData>>& MorphTargetAnimationPerAnimationIndex = MorphTargetAnimationsBuildingDataGrouped.FindOrAdd(SkeletonNode);
-						//For the given skeleton and animationindex:
-						TArray<FMorphTargetAnimationBuildingData>& MorphTargetAnimations = MorphTargetAnimationPerAnimationIndex.FindOrAdd(MorphTargetAnimationBuildingData.AnimationIndex);
-						MorphTargetAnimations.Add(MorphTargetAnimationBuildingData);
+						if (const UInterchangeSceneNode* SkeletonNode = Cast< UInterchangeSceneNode >(NodeContainer.GetNode(SkeletonUid)))
+						{
+							//For the given skeleton:
+							TMap<int32, TArray<FMorphTargetAnimationBuildingData>>& MorphTargetAnimationPerAnimationIndex = MorphTargetAnimationsBuildingDataGrouped.FindOrAdd(SkeletonNode);
+							//For the given skeleton and animationindex:
+							TArray<FMorphTargetAnimationBuildingData>& MorphTargetAnimations = MorphTargetAnimationPerAnimationIndex.FindOrAdd(MorphTargetAnimationBuildingData.AnimationIndex);
+							MorphTargetAnimations.Add(MorphTargetAnimationBuildingData);
+						}
 					}
 				}
 				

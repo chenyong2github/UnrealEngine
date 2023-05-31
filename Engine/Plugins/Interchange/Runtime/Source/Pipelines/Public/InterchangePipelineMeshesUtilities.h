@@ -192,12 +192,12 @@ public:
 	* Get all static mesh geometry unique ids.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Pipeline | Meshes")
-	void GetAllStaticMeshGeometry(TArray<FString>& MeshGeometryUids, const bool bConvertSkeletalMeshToStaticMesh) const;
+	void GetAllStaticMeshGeometry(TArray<FString>& MeshGeometryUids, const bool bConvertSkeletalMeshToStaticMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const;
 
 	/**
 	* Iterate all static mesh geometry.
 	*/
-	void IterateAllStaticMeshGeometry(TFunctionRef<void(const FInterchangeMeshGeometry&)> IterationLambda, const bool bConvertSkeletalMeshToStaticMesh) const;
+	void IterateAllStaticMeshGeometry(TFunctionRef<void(const FInterchangeMeshGeometry&)> IterationLambda, const bool bConvertSkeletalMeshToStaticMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const;
 
 	/**
 	* Get all not instanced mesh geometry unique ids.
