@@ -490,15 +490,36 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		AWorldPartitionReplay::Initialize(World);
 	}
 
-#if WITH_EDITOR
 	const bool bIsGame = IsRunningGame();
 	const bool bIsEditor = !World->IsGameWorld();
 	const bool bIsCooking = IsRunningCookCommandlet();
+	const bool bIsPIEWorldTravel = (World->WorldType == EWorldType::PIE) && !StreamingPolicy;
 	const bool bIsDedicatedServer = IsRunningDedicatedServer();
-	const bool bPIEWorldTravel = (World->WorldType == EWorldType::PIE) && !StreamingPolicy;
 
-	UE_LOG(LogWorldPartition, Log, TEXT("UWorldPartition::Initialize(Asset=%s, IsEditor=%d, bPIEWorldTravel=%d IsGame=%d, IsCooking=%d)"), *OuterWorld->GetName(), bIsEditor ? 1 : 0, bPIEWorldTravel ? 1 : 0, bIsGame ? 1 : 0, bIsCooking ? 1 : 0);
+	UE_LOG(LogWorldPartition, Log, TEXT("UWorldPartition::Initialize : World = %s, World Type = %s, IsMainWorldPartition = %d, Location = %s, Rotation = %s, IsEditor = %d, IsGame = %d, IsPIEWorldTravel = %d, IsCooking = %d"),
+		*OuterWorld->GetName(),
+		LexToString(World->WorldType),
+		IsMainWorldPartition() ? 1 : 0,
+		*InTransform.GetLocation().ToCompactString(),
+		*InTransform.Rotator().ToCompactString(),
+		bIsEditor,
+		bIsGame,
+		bIsPIEWorldTravel,
+		bIsCooking);
 
+	if (World->IsGameWorld())
+	{
+		UE_LOG(LogWorldPartition, Log, TEXT("UWorldPartition::Initialize Context : World NetMode = %s, IsServer = %d, IsDedicatedServer = %d, IsServerStreamingEnabled = %d, IsServerStreamingOutEnabled = %d, IsUsingMakingVisibleTransaction = %d, IsUsingMakingInvisibleTransaction = %d"),
+			*ToString(World->GetNetMode()),
+			IsServer() ? 1 : 0, 
+			bIsDedicatedServer ? 1 : 0, 
+			IsServerStreamingEnabled() ? 1 : 0, 
+			IsServerStreamingOutEnabled() ? 1 : 0, 
+			UseMakingVisibleTransactionRequests() ? 1 : 0, 
+			UseMakingInvisibleTransactionRequests() ? 1 : 0);
+	}
+
+#if WITH_EDITOR
 	if (bEnableStreaming)
 	{
 		bStreamingWasEnabled = true;
@@ -534,7 +555,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	RuntimeHash->SetFlags(RF_Transactional);
 
 	TArray<FGuid> ForceLoadedActorGuids;
-	if (bIsEditor || bIsGame || bPIEWorldTravel || bIsDedicatedServer)
+	if (bIsEditor || bIsGame || bIsPIEWorldTravel || bIsDedicatedServer)
 	{
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
 
@@ -657,9 +678,9 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 #if WITH_EDITOR
 	if (!bIsEditor)
 	{
-		if (bIsGame || bPIEWorldTravel || bIsDedicatedServer)
+		if (bIsGame || bIsPIEWorldTravel || bIsDedicatedServer)
 		{
-			if (bPIEWorldTravel)
+			if (bIsPIEWorldTravel)
 			{
 				check(!bIsPIE);
 				bIsPIE = true;
@@ -891,10 +912,6 @@ void UWorldPartition::RegisterDelegates()
 			FCoreDelegates::OnGetOnScreenMessages.AddUObject(this, &UWorldPartition::GetOnScreenMessages);
 #endif
 		}
-		else
-		{
-			FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UWorldPartition::OnLevelRemovedFromWorld);
-		}
 	}
 }
 
@@ -939,20 +956,6 @@ void UWorldPartition::UnregisterDelegates()
 			FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
 #endif
 		}
-		else
-		{
-			FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
-		}
-	}
-}
-
-void UWorldPartition::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
-{
-	check(!IsMainWorldPartition());
-	if ((World == InWorld) && (InLevel == GetTypedOuter<UWorld>()->PersistentLevel))
-	{
-		check(!CanStream());
-		Uninitialize();
 	}
 }
 
@@ -1097,30 +1100,41 @@ bool UWorldPartition::IsServerStreamingEnabled() const
 	if (!bCachedIsServerStreamingEnabled.IsSet())
 	{
 		bool bIsEnabled = false;
-		if (ServerStreamingMode == EWorldPartitionServerStreamingMode::ProjectDefault)
+		UWorld* OwningWorld = GetWorld();
+		if (OwningWorld && OwningWorld->IsGameWorld())
 		{
-			switch (UWorldPartition::GlobalEnableServerStreaming)
+			if (ServerStreamingMode == EWorldPartitionServerStreamingMode::ProjectDefault)
 			{
-			case 1:	bIsEnabled = true;
+				UWorldPartition* MainWorldPartition = OwningWorld->GetWorldPartition();
+				if (MainWorldPartition && (this != MainWorldPartition))
+				{
+					bIsEnabled = MainWorldPartition->IsServerStreamingEnabled();
+				}
+				else
+				{
+					switch (UWorldPartition::GlobalEnableServerStreaming)
+					{
+					case 1:	bIsEnabled = true;
 #if WITH_EDITOR
-			case 2: bIsEnabled = bIsPIE;
+					case 2: bIsEnabled = bIsPIE;
 #endif
+					}
+				}
 			}
-		}
-		else
-		{
-			if ((ServerStreamingMode == EWorldPartitionServerStreamingMode::Enabled)
-#if WITH_EDITOR
-				|| (bIsPIE && (ServerStreamingMode == EWorldPartitionServerStreamingMode::EnabledInPIE))
-#endif
-				)
+			else
 			{
-				bIsEnabled = true;
+				if ((ServerStreamingMode == EWorldPartitionServerStreamingMode::Enabled)
+#if WITH_EDITOR
+					|| (bIsPIE && (ServerStreamingMode == EWorldPartitionServerStreamingMode::EnabledInPIE))
+#endif
+					)
+				{
+					bIsEnabled = true;
+				}
 			}
 		}
 
-		UWorld* OwningWorld = GetWorld();
-		bCachedIsServerStreamingEnabled = (OwningWorld && OwningWorld->IsGameWorld() && bIsEnabled);
+		bCachedIsServerStreamingEnabled = bIsEnabled;
 	}
 	
 	return bCachedIsServerStreamingEnabled.Get(false);
@@ -1131,9 +1145,28 @@ bool UWorldPartition::IsServerStreamingOutEnabled() const
 	// Resolve once (we don't allow changing the state at runtime)
 	if (!bCachedIsServerStreamingOutEnabled.IsSet())
 	{
+		bool bEnableServerStreamingOut = false;
 		UWorld* OwningWorld = GetWorld();
-		const bool bEnableServerStreamingOut = (ServerStreamingOutMode == EWorldPartitionServerStreamingOutMode::ProjectDefault) ? UWorldPartition::bGlobalEnableServerStreamingOut : (ServerStreamingOutMode == EWorldPartitionServerStreamingOutMode::Enabled);
-		bCachedIsServerStreamingOutEnabled = OwningWorld && OwningWorld->IsGameWorld() && IsServerStreamingEnabled() && bEnableServerStreamingOut;
+		if (OwningWorld && OwningWorld->IsGameWorld() && IsServerStreamingEnabled())
+		{
+			if (ServerStreamingMode == EWorldPartitionServerStreamingMode::ProjectDefault)
+			{
+				UWorldPartition* MainWorldPartition = OwningWorld->GetWorldPartition();
+				if (MainWorldPartition && (this != MainWorldPartition))
+				{
+					bEnableServerStreamingOut = MainWorldPartition->IsServerStreamingOutEnabled();
+				}
+				else
+				{
+					bEnableServerStreamingOut = UWorldPartition::bGlobalEnableServerStreamingOut;
+				}
+			}
+			else
+			{
+				bEnableServerStreamingOut = (ServerStreamingOutMode == EWorldPartitionServerStreamingOutMode::Enabled);
+			}
+		}
+		bCachedIsServerStreamingOutEnabled = bEnableServerStreamingOut;
 	}
 
 	return bCachedIsServerStreamingOutEnabled.Get(false);

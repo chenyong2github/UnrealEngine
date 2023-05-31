@@ -477,7 +477,6 @@ private:
 	static FAutoConsoleVariableRef CVarUseMakingInvisibleTransactionRequests;
 
 	void OnWorldMatchStarting();
-	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
 	void OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot);
 
 	// Delegates registration

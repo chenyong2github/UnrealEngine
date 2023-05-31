@@ -431,6 +431,8 @@ void UWorldPartitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	GetWorld()->OnWorldPartitionUninitialized().AddUObject(this, &UWorldPartitionSubsystem::OnWorldPartitionUninitialized);
 	if (GetWorld()->IsGameWorld())
 	{
+		FLevelStreamingDelegates::OnLevelBeginMakingVisible.AddUObject(this, &UWorldPartitionSubsystem::OnLevelBeginMakingVisible);
+		FLevelStreamingDelegates::OnLevelBeginMakingInvisible.AddUObject(this, &UWorldPartitionSubsystem::OnLevelBeginMakingInvisible);
 		FLevelStreamingDelegates::OnLevelStreamingTargetStateChanged.AddUObject(this, &UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged);
 	}
 }
@@ -449,6 +451,8 @@ void UWorldPartitionSubsystem::Deinitialize()
 	GetWorld()->OnWorldPartitionUninitialized().RemoveAll(this);
 	if (GetWorld()->IsGameWorld())
 	{
+		FLevelStreamingDelegates::OnLevelBeginMakingVisible.RemoveAll(this);
+		FLevelStreamingDelegates::OnLevelBeginMakingInvisible.RemoveAll(this);
 		FLevelStreamingDelegates::OnLevelStreamingTargetStateChanged.RemoveAll(this);
 	}
 
@@ -522,21 +526,51 @@ void UWorldPartitionSubsystem::OnWorldPartitionUninitialized(UWorldPartition* In
 	}
 }
 
-void UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged(UWorld* World, const ULevelStreaming* StreamingLevel, ULevel* LevelIfLoaded, ELevelStreamingState CurrentState, ELevelStreamingTargetState PrevTarget, ELevelStreamingTargetState NewTarget)
+void UWorldPartitionSubsystem::OnLevelBeginMakingVisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel)
 {
-	if (World != GetWorld())
+	if ((InWorld != GetWorld()) || !GetWorld()->IsGameWorld())
+	{
+		return;
+	}
+
+	if (UWorldPartition* WorldPartition = InLoadedLevel->GetWorldPartition())
+	{
+		check(WorldPartition != InWorld->GetWorldPartition());
+		WorldPartition->Initialize(InWorld, InStreamingLevel->LevelTransform);
+	}
+}
+
+void UWorldPartitionSubsystem::OnLevelBeginMakingInvisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel)
+{
+	if ((InWorld != GetWorld()) || !GetWorld()->IsGameWorld())
+	{
+		return;
+	}
+
+	if (UWorldPartition* WorldPartition = InLoadedLevel->GetWorldPartition())
+	{
+		check(WorldPartition != InWorld->GetWorldPartition());
+		check(WorldPartition->GetWorld() == GetWorld());
+		check(InLoadedLevel == WorldPartition->GetTypedOuter<UWorld>()->PersistentLevel);
+		WorldPartition->Uninitialize();
+	}
+}
+
+void UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLevelIfLoaded, ELevelStreamingState InCurrentState, ELevelStreamingTargetState InPrevTarget, ELevelStreamingTargetState InNewTarget)
+{
+	if (InWorld != GetWorld())
 	{
 		return;
 	}
 
 	// Make sure when a WorldPartition is LevelStreamed that changing its state to remove it from world will update the target states of its Cells right away.
-	if(LevelIfLoaded && NewTarget != ELevelStreamingTargetState::LoadedVisible)
+	if(InLevelIfLoaded && InNewTarget != ELevelStreamingTargetState::LoadedVisible)
 	{
-		UWorldPartition* WorldPartition = LevelIfLoaded->GetTypedOuter<UWorld>()->GetWorldPartition();
+		UWorldPartition* WorldPartition = InLevelIfLoaded->GetTypedOuter<UWorld>()->GetWorldPartition();
 		if (WorldPartition && WorldPartition->IsInitialized() && !WorldPartition->CanStream())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged);
-			UWorldPartitionSubsystem::UpdateStreamingStateInternal(World, { WorldPartition });
+			UWorldPartitionSubsystem::UpdateStreamingStateInternal(InWorld, { WorldPartition });
 		}
 	}
 }

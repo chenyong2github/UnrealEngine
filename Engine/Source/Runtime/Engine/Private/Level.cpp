@@ -3028,21 +3028,10 @@ void ULevel::OnLevelLoaded()
 			UE_LOG(LogWorldPartition, Log, TEXT("ULevel::OnLevelLoaded(%s)(bIsOwningWorldGameWorld=%d, bIsOwningWorldPartitioned=%d, bIsValidLevelInstance=%d, InitializeForMainWorld=%d, InitializeForEditor=%d, InitializeForGame=%d)"), 
 				*GetTypedOuter<UWorld>()->GetName(), bIsOwningWorldGameWorld ? 1 : 0, bIsOwningWorldPartitioned ? 1 : 0, bIsValidLevelInstance ? 1 : 0, bIsMainWorldLevel ? 1 : 0, bInitializeForEditor ? 1 : 0, bInitializeForGame ? 1 : 0);
 
-			if (bIsMainWorldLevel || bInitializeForEditor || bInitializeForGame)
+			if (bIsMainWorldLevel || bInitializeForEditor)
 			{
 				FTransform Transform = LevelStreaming ? LevelStreaming->LevelTransform : FTransform::Identity;
-
-				// It is allowed for a WorldPartition to already be initialized in the case where a partitioned sub-level 
-				// was streamed-out and is streamed-in again, without a CleanupLevel (GC).
-				if (!WorldPartition->IsInitialized())
-				{
-					WorldPartition->Initialize(OwningWorld, Transform);
-				}
-				else
-				{
-					check(OwningWorld->IsGameWorld());
-					check(WorldPartition->GetInstanceTransform().Equals(Transform));
-				}
+				WorldPartition->Initialize(OwningWorld, Transform);
 			}
 		}
 	}
