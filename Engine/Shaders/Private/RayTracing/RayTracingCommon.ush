@@ -14,6 +14,9 @@
 
 #include "../ShadingCommon.ush"
 #include "../OctahedralCommon.ush"
+#include "../SceneData.ush"
+#include "../Common.ush"
+
 #include "/Engine/Shared/RayTracingDefinitions.h"
 #include "/Engine/Shared/RayTracingPayloadType.h"
 #include "RayTracingRayCone.ush"
@@ -1196,5 +1199,22 @@ FMaterialClosestHitPayload TraceMaterialRay(
 #endif // !COMPUTESHADER
 
 #endif // !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
+
+uint GetGPUSceneInstanceIndex(uint PrimitiveIndex, uint InstanceIndex)
+{
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	FPrimitiveSceneData PrimData = GetPrimitiveData(PrimitiveIndex);
+	// Handle ray tracing auto instancing which can cause PrimitiveInstanceIndex to be above 0 for meshes with a single instance
+	if (PrimData.NumInstanceSceneDataEntries == 1)
+	{
+		InstanceIndex = 0;
+	}
+
+	return PrimData.InstanceSceneDataOffset + InstanceIndex;
+#else
+
+	return 0;
+#endif
+}
 
 #endif // RAYTRACINGCOMMON_USH_INCLUDED // Workarround for UE-66460

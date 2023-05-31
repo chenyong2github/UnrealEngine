@@ -17,7 +17,6 @@
 #if !COMPUTESHADER
 	#include "../RayTracing/RayTracingDeferredShadingCommon.ush"
 	#include "../RayTracing/RayTracingLightingCommon.ush"
-	#include "../RayTracing/RayTracingHitGroupCommon.ush"
 #endif
 #include "../RayTracing/RayTracingReflectionEnvironment.ush"
 #include "LumenHardwareRayTracingPayloadCommon.ush"
