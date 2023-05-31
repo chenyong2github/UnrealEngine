@@ -2946,6 +2946,26 @@ void UNiagaraDataInterfaceDebugDraw::GetParameterDefinitionHLSL(const FNiagaraDa
 
 bool UNiagaraDataInterfaceDebugDraw::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
+	static const TSet<FName> PersistentFunctions =
+	{
+		NDIDebugDrawLocal::DrawLinePersistentName,
+		NDIDebugDrawLocal::DrawRectanglePersistentName,
+		NDIDebugDrawLocal::DrawCirclePersistentName,
+		NDIDebugDrawLocal::DrawBoxPersistentName,
+		NDIDebugDrawLocal::DrawSpherePersistentName,
+		NDIDebugDrawLocal::DrawCylinderPersistentName,
+		NDIDebugDrawLocal::DrawConePersistentName,
+		NDIDebugDrawLocal::DrawTorusPersistentName,
+		NDIDebugDrawLocal::DrawCoordinateSystemPersistentName,
+		NDIDebugDrawLocal::DrawGrid2DPersistentName,
+		NDIDebugDrawLocal::DrawGrid3DPersistentName,
+	};
+	if (PersistentFunctions.Contains(FunctionInfo.DefinitionName))
+	{
+		OutHLSL.Appendf(TEXT("Make%s(%s)\r\n"), *FunctionInfo.DefinitionName.ToString(), *FunctionInfo.InstanceName);
+		return true;
+	}
+
 	static const TSet<FName> ValidGpuFunctions =
 	{
 		NDIDebugDrawLocal::DrawLineName,
@@ -2959,19 +2979,7 @@ bool UNiagaraDataInterfaceDebugDraw::GetFunctionHLSL(const FNiagaraDataInterface
 		NDIDebugDrawLocal::DrawCoordinateSystemName,
 		NDIDebugDrawLocal::DrawGrid2DName,
 		NDIDebugDrawLocal::DrawGrid3DName,
-		NDIDebugDrawLocal::DrawLinePersistentName,
-		NDIDebugDrawLocal::DrawRectanglePersistentName,
-		NDIDebugDrawLocal::DrawCirclePersistentName,
-		NDIDebugDrawLocal::DrawBoxPersistentName,
-		NDIDebugDrawLocal::DrawSpherePersistentName,
-		NDIDebugDrawLocal::DrawCylinderPersistentName,
-		NDIDebugDrawLocal::DrawConePersistentName,
-		NDIDebugDrawLocal::DrawTorusPersistentName,
-		NDIDebugDrawLocal::DrawCoordinateSystemPersistentName,
-		NDIDebugDrawLocal::DrawGrid2DPersistentName,
-		NDIDebugDrawLocal::DrawGrid3DPersistentName,
 	};
-
 	return ValidGpuFunctions.Contains(FunctionInfo.DefinitionName);
 }
 
