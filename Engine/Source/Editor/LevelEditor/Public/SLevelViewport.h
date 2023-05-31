@@ -913,8 +913,8 @@ private:
 	/** Storage for actors we always want to preview.  This comes from MU transactions .*/
 	TSet<TWeakObjectPtr<AActor>> AlwaysPreviewActors;
 
-	/** The slot index in the SOverlay for the PIE mouse control label */
-	int32 PIEOverlaySlotIndex;
+	/** The border in the SOverlay for the PIE mouse control label */
+	TSharedPtr<class SBorder> PIEOverlayBorder;
 
 	/** Separate curve to control fading out the PIE mouse control label */
 	FCurveSequence PIEOverlayAnim;

@@ -13,12 +13,13 @@ void SOverlay::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeIn
 	FOverlaySlot::RegisterAttributes(Initializer);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void SOverlay::FOverlaySlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
 {
+	ZOrder = InArgs._ZOrder.Get(0);
 	TBasicLayoutWidgetSlot<FOverlaySlot>::Construct(SlotOwner, MoveTemp(InArgs));
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void SOverlay::FOverlaySlot::SetZOrder(int32 InZOrder)
 {
 	if (SWidget* OwnerWidget = FSlotBase::GetOwnerWidget())
@@ -114,9 +115,9 @@ SOverlay::SOverlay()
 	bCanSupportFocus = false;
 }
 
-SOverlay::FOverlaySlot::FSlotArguments SOverlay::Slot()
+SOverlay::FOverlaySlot::FSlotArguments SOverlay::Slot( int32 ZOrder )
 {
-	return FOverlaySlot::FSlotArguments(MakeUnique<FOverlaySlot>(0));
+	return FOverlaySlot::FSlotArguments(MakeUnique<FOverlaySlot>(ZOrder));
 }
 
 void SOverlay::Construct( const SOverlay::FArguments& InArgs )
@@ -125,7 +126,13 @@ void SOverlay::Construct( const SOverlay::FArguments& InArgs )
 	//The Slot has a unique_ptr. It can't be copied.
 	//Previously, the Children.Add(), was wrong if we added the same slot twice (it would create a lot of issues).
 	//Because of that, it doesn't matter if we steal the slot from the FArguments and it enforces that a slot cannot be added twice.
-	Children.AddSlots(MoveTemp(const_cast<TArray<FOverlaySlot::FSlotArguments>&>(InArgs._Slots)));
+	TArray<FOverlaySlot::FSlotArguments>& SlotArguments = const_cast<TArray<FOverlaySlot::FSlotArguments>&>(InArgs._Slots);
+	SlotArguments.StableSort([](const FOverlaySlot::FSlotArguments& A, const FOverlaySlot::FSlotArguments& B)
+	{
+		return A._ZOrder.Get(0) < B._ZOrder.Get(0);
+	});
+
+	Children.AddSlots(MoveTemp(SlotArguments));
 }
 
 void SOverlay::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
@@ -258,17 +265,33 @@ SOverlay::FScopedWidgetSlotArguments SOverlay::AddSlot( int32 ZOrder )
 	return MoveTemp(Result);
 }
 
+bool SOverlay::HasSlotWithZOrder( int32 ZOrder ) const
+{
+	return GetChildIndexByZOrder( ZOrder ) != INDEX_NONE;
+}
+
+int32 SOverlay::GetChildIndexByZOrder( int32 ZOrder ) const
+{
+	for( int32 ChildIndex=0; ChildIndex < Children.Num(); ++ChildIndex )
+	{
+		if ( Children[ChildIndex].GetZOrder() == ZOrder )
+		{
+			return ChildIndex;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
 void SOverlay::RemoveSlot( int32 ZOrder )
 {
 	if (ZOrder != INDEX_NONE)
 	{
-		for( int32 ChildIndex=0; ChildIndex < Children.Num(); ++ChildIndex )
+		const int32 ChildIndex = GetChildIndexByZOrder( ZOrder );
+		if (ChildIndex != INDEX_NONE)
 		{
-			if ( Children[ChildIndex].GetZOrder() == ZOrder )
-			{
-				Children.RemoveAt( ChildIndex );
-				return;
-			}
+			Children.RemoveAt( ChildIndex );
+			return;
 		}
 
 		ensureMsgf(false, TEXT("Could not remove slot. There are no children with ZOrder %d."), ZOrder);

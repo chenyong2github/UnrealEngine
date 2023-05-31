@@ -136,7 +136,6 @@ SLevelViewport::SLevelViewport()
 	, ViewTransitionType( EViewTransition::None )
 	, bViewTransitionAnimPending( false )
 	, DeviceProfile("Default")
-	, PIEOverlaySlotIndex(INDEX_NONE)
 	, bPIEHasFocus(false)
 	, bPIEContainsFocus(false)
 	, UserAllowThrottlingValue(0)
@@ -1112,7 +1111,7 @@ void SLevelViewport::Tick( const FGeometry& AllottedGeometry, const double InCur
 	{
 		if(ViewTransitionType == EViewTransition::StartingPlayInEditor)
 		{
-			if(PIEOverlaySlotIndex != INDEX_NONE)
+			if (PIEOverlayBorder.IsValid())
 			{
 				PIEOverlayAnim = FCurveSequence(0.0f, SLevelViewportPIEAnimation::MouseControlLabelFadeout, ECurveEaseFunction::CubicInOut);
 				PIEOverlayAnim.Play(this->AsShared());
@@ -4156,13 +4155,11 @@ void SLevelViewport::ShowMouseCaptureLabel(ELabelAnchorMode AnchorMode)
 	EHorizontalAlignment HAlign = (EHorizontalAlignment)((AnchorMode%3)+1);
 	
 	{
-		SOverlay::FScopedWidgetSlotArguments ScopedSlotArgumnet = ViewportOverlay->AddSlot();
-		PIEOverlaySlotIndex = ScopedSlotArgumnet.GetSlot()->GetZOrder();
-
-		ScopedSlotArgumnet.HAlign(HAlign)
+		ViewportOverlay->AddSlot()
+		.HAlign(HAlign)
 		.VAlign(VAlign)
 		[
-			SNew( SBorder )
+			SAssignNew( PIEOverlayBorder, SBorder )
 			.BorderImage( FAppStyle::GetBrush("NoBorder") )
 			.Visibility(this, &SLevelViewport::GetMouseCaptureLabelVisibility)
 			.ColorAndOpacity( this, &SLevelViewport::GetMouseCaptureLabelColorAndOpacity )
@@ -4208,10 +4205,10 @@ void SLevelViewport::ShowMouseCaptureLabel(ELabelAnchorMode AnchorMode)
 
 void SLevelViewport::HideMouseCaptureLabel()
 {
-	if (PIEOverlaySlotIndex != INDEX_NONE)
+	if (PIEOverlayBorder.IsValid())
 	{
-		ViewportOverlay->RemoveSlot(PIEOverlaySlotIndex);
-		PIEOverlaySlotIndex = INDEX_NONE;
+		ViewportOverlay->RemoveSlot(PIEOverlayBorder.ToSharedRef());
+		PIEOverlayBorder.Reset();
 	}
 }
 

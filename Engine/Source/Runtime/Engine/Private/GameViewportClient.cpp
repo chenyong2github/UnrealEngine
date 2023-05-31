@@ -2892,6 +2892,22 @@ void UGameViewportClient::RemoveAllViewportWidgets()
 	}
 }
 
+void UGameViewportClient::AddGameLayerWidget(TSharedRef<SWidget> ViewportContent, const int32 ZOrder)
+{
+	if (const TSharedPtr<IGameLayerManager> GameLayerManager = GameLayerManagerPtr.Pin())
+	{
+		GameLayerManager->AddGameLayer(ViewportContent, ZOrder);
+	}
+}
+
+void UGameViewportClient::RemoveGameLayerWidget(TSharedRef<SWidget> ViewportContent)
+{
+	if (const TSharedPtr<IGameLayerManager> GameLayerManager = GameLayerManagerPtr.Pin())
+	{
+		GameLayerManager->RemoveGameLayer(ViewportContent);
+	}
+}
+
 void UGameViewportClient::VerifyPathRenderingComponents()
 {
 	const bool bShowPaths = !!EngineShowFlags.Navigation;

@@ -74,6 +74,9 @@ public:
 
 	virtual void ClearWidgets() = 0;
 
+	virtual void AddGameLayer(TSharedRef<SWidget> ViewportContent, int32 ZOrder) = 0;
+	virtual void RemoveGameLayer(TSharedRef<SWidget> ViewportContent) = 0;
+
 	virtual void SetDefaultWindowTitleBarHeight(float Height) = 0;
 	virtual void SetWindowTitleBarState(const TSharedPtr<SWidget>& TitleBarContent, EWindowTitleBarMode Mode, bool bTitleBarDragEnabled, bool bWindowButtonsVisible, bool bTitleBarVisible) = 0;
 	virtual void RestorePreviousWindowTitleBarState() = 0;
@@ -98,6 +101,17 @@ public:
 		SLATE_ATTRIBUTE(FSceneViewport*, SceneViewport)
 
 	SLATE_END_ARGS()
+
+	enum class EGameLayerOrder : int32
+	{
+		Player = 100,
+		Viewport = 200,
+		TitleBar = 300,
+		Tooltip = 400,
+		Debug = 500,
+
+		// Add others with an increment of 100 to have enough space for injecting new layers in-between
+	};
 
 	SGameLayerManager();
 
@@ -126,6 +140,9 @@ public:
 	virtual bool AddLayerForPlayer(ULocalPlayer* Player, const FName& LayerName, TSharedRef<IGameLayer> Layer, int32 ZOrder) override;
 
 	virtual void ClearWidgets() override;
+
+	virtual void AddGameLayer(TSharedRef<SWidget> ViewportContent, int32 ZOrder) override;
+	virtual void RemoveGameLayer(TSharedRef<SWidget> ViewportContent) override;
 
 	virtual void SetDefaultWindowTitleBarHeight(float Height);
 	virtual void SetWindowTitleBarState(const TSharedPtr<SWidget>& TitleBarContent, EWindowTitleBarMode Mode, bool bTitleBarDragEnabled, bool bWindowButtonsVisible, bool bTitleBarVisible);
@@ -201,6 +218,7 @@ private:
 	TSharedPtr<SWindowTitleBarArea> TitleBarAreaVerticalBox;
 	TSharedPtr<SBox> WindowTitleBarVerticalBox;
 	TSharedPtr<SBox> WindowTitleBarOverlay;
+	TSharedPtr<SOverlay> WindowOverlay;
 
 	struct FWindowTitleBarState
 	{
