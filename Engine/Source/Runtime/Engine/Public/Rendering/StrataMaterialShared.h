@@ -115,6 +115,9 @@ public:
 	//// The following data is only needed when compiling with the editor.
 	////
 
+	// Note we use LAYOUT_FIELD_EDITORONLY for bools because LAYOUT_BITFIELD_EDITORONLY was causing issues when serialising the structure.
+	// STRATA_TODO pack that data.
+
 	/** The Strata verbose description */
 	LAYOUT_FIELD_EDITORONLY(FMemoryImageString, StrataMaterialDescription);
 
@@ -131,7 +134,7 @@ public:
 	LAYOUT_FIELD_EDITORONLY(uint8, MaterialType);
 
 	/** The byte per pixel count supported by the platform the material has been compiled against */
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bMaterialOutOfBudgetHasBeenSimplified, 1);
+	LAYOUT_FIELD_EDITORONLY(uint8, bMaterialOutOfBudgetHasBeenSimplified, 1);
 
 	LAYOUT_FIELD_EDITORONLY(uint8, RootOperatorIndex);
 	LAYOUT_ARRAY_EDITORONLY(FStrataOperator, Operators, STRATA_COMPILATION_OUTPUT_MAX_OPERATOR);

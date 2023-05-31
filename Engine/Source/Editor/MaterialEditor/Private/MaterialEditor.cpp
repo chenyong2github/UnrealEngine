@@ -7063,20 +7063,23 @@ FGraphAppearanceInfo FMaterialEditor::GetGraphAppearance() const
 		AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_Material", "MATERIAL"); 
 	}
 
-	UMaterial* MaterialForStats = this->bStatsFromPreviewMaterial ? this->Material : this->OriginalMaterial;
-	const FMaterialResource* MaterialResource = MaterialForStats->GetMaterialResource(GMaxRHIFeatureLevel);
-	if (MaterialResource)
+	if (Strata::IsStrataEnabled())
 	{
-		FString MaterialDescription;
-	
-		FMaterialShaderMap* ShaderMap = MaterialResource->GetGameThreadShaderMap();
-		if (ShaderMap)
+		UMaterial* MaterialForStats = this->bStatsFromPreviewMaterial ? this->Material : this->OriginalMaterial;
+		const FMaterialResource* MaterialResource = MaterialForStats->GetMaterialResource(GMaxRHIFeatureLevel);
+		if (MaterialResource)
 		{
-			const FStrataMaterialCompilationOutput& CompilationOutput = ShaderMap->GetStrataMaterialCompilationOutput();
-			if (CompilationOutput.bMaterialOutOfBudgetHasBeenSimplified)
-			{
-				AppearanceInfo.WarningText = LOCTEXT("AppearanceWarningText_Material", "Substrate material was out of budget and has been simplified.");
+			FString MaterialDescription;
 
+			FMaterialShaderMap* ShaderMap = MaterialResource->GetGameThreadShaderMap();
+			if (ShaderMap)
+			{
+				const FStrataMaterialCompilationOutput& CompilationOutput = ShaderMap->GetStrataMaterialCompilationOutput();
+				if (CompilationOutput.bMaterialOutOfBudgetHasBeenSimplified)
+				{
+					AppearanceInfo.WarningText = LOCTEXT("AppearanceWarningText_Material", "Substrate material was out of budget and has been simplified.");
+
+				}
 			}
 		}
 	}
