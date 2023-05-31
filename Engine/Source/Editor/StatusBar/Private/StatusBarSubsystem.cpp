@@ -490,7 +490,6 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 			.Visibility(MakeAttributeLambda(IsConsoleInputBoxBorderVisible))
 			[
 				SNew(SBox)
-				.WidthOverride(350.f)
 				[
 					ConsoleInputBox
 				]

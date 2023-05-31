@@ -207,18 +207,24 @@ void SConsoleInputBox::Construct(const FArguments& InArgs)
 			]
 
 			+SHorizontalBox::Slot()
+			.AutoWidth()
 			[
-				SAssignNew(InputText, SMultiLineEditableTextBox)
-				.Font(FOutputLogStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal").Font)
-				.HintText(this, &SConsoleInputBox::GetActiveCommandExecutorHintText)
-				.AllowMultiLine(this, &SConsoleInputBox::GetActiveCommandExecutorAllowMultiLine)
-				.OnTextCommitted(this, &SConsoleInputBox::OnTextCommitted)
-				.OnTextChanged(this, &SConsoleInputBox::OnTextChanged)
-				.OnKeyCharHandler(this, &SConsoleInputBox::OnKeyCharHandler)
-				.OnKeyDownHandler(this, &SConsoleInputBox::OnKeyDownHandler)
-				.OnIsTypedCharValid(FOnIsTypedCharValid::CreateLambda([](const TCHAR InCh) { return true; })) // allow tabs to be typed into the field
-				.ClearKeyboardFocusOnCommit(false)
-				.ModiferKeyForNewLine(EModifierKey::Shift)
+				SNew(SBox)
+				.MinDesiredWidth(300.f)
+				.MaxDesiredWidth(600.f)
+				[
+					SAssignNew(InputText, SMultiLineEditableTextBox)
+					.Font(FOutputLogStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal").Font)
+					.HintText(this, &SConsoleInputBox::GetActiveCommandExecutorHintText)
+					.AllowMultiLine(this, &SConsoleInputBox::GetActiveCommandExecutorAllowMultiLine)
+					.OnTextCommitted(this, &SConsoleInputBox::OnTextCommitted)
+					.OnTextChanged(this, &SConsoleInputBox::OnTextChanged)
+					.OnKeyCharHandler(this, &SConsoleInputBox::OnKeyCharHandler)
+					.OnKeyDownHandler(this, &SConsoleInputBox::OnKeyDownHandler)
+					.OnIsTypedCharValid(FOnIsTypedCharValid::CreateLambda([](const TCHAR InCh) { return true; })) // allow tabs to be typed into the field
+					.ClearKeyboardFocusOnCommit(false)
+					.ModiferKeyForNewLine(EModifierKey::Shift)
+				]
 			]
 		]
 		.MenuContent
@@ -732,6 +738,7 @@ FReply SConsoleInputBox::OnKeyDownHandler(const FGeometry& MyGeometry, const FKe
 	// Intercept the "open console" key
 	if (ActiveCommandExecutor && (ActiveCommandExecutor->AllowHotKeyClose() && ActiveCommandExecutor->GetHotKey() == InputChord))
 	{
+		SuggestionBox->SetIsOpen(false);
 		OnCloseConsole.ExecuteIfBound();
 		return FReply::Handled();
 	}
