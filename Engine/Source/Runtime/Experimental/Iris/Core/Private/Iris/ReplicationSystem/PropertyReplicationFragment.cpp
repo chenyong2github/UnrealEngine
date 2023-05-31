@@ -11,13 +11,12 @@
 namespace UE::Net
 {
 
-static bool bUsePrevReceivedStateForOnReps = true;
+static bool bUsePrevReceivedStateForOnReps = false;
 static FAutoConsoleVariableRef CVarUsePrevReceivedStateForOnReps(
 		TEXT("net.Iris.UsePrevReceivedStateForOnReps"),
 		bUsePrevReceivedStateForOnReps,
 		TEXT("If true OnReps will use the previous received state when doing onreps and not do any compares, if set to false we will copy the local state and do a compare before issuing onreps"
 		));
-
 
 FPropertyReplicationFragment::FPropertyReplicationFragment(EReplicationFragmentTraits InTraits, UObject* InOwner, const FReplicationStateDescriptor* InDescriptor)
 : FReplicationFragment(InTraits)
