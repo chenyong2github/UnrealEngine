@@ -45,6 +45,9 @@ public:
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	// End of Swidget interface
 
+	/** Returns the view offset */
+	FVector2D GetViewOffset() const;
+
 	/** Gets the current zoom factor. */
 	float GetZoomAmount() const;
 
@@ -69,8 +72,6 @@ protected:
 
 	FText GetZoomText() const;
 	FSlateColor GetZoomTextColorAndOpacity() const;
-
-	FVector2D GetViewOffset() const;
 
 	FSlateRect ComputeSensibleBounds() const;
 

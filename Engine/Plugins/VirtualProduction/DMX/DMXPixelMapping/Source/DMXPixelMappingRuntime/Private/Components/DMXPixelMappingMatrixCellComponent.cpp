@@ -233,7 +233,7 @@ void UDMXPixelMappingMatrixCellComponent::QueueDownsample()
 		return;
 	}
 
-	UTexture* InputTexture = RendererComponent->GetRendererInputTexture();
+	UTexture* InputTexture = RendererComponent->GetRenderedInputTexture();
 	if (!ensure(InputTexture))
 	{
 		return;

@@ -16,6 +16,7 @@ class IDMXPixelMappingOutputComponentWidgetInterface;
 class SDMXPixelMappingRuler;
 class SDMXPixelMappingSourceTextureViewport;
 class SDMXPixelMappingTransformHandle;
+class SDMXPixelMappingZoomPan;
 class UDMXPixelMappingBaseComponent;
 class UDMXPixelMappingOutputComponent;
 class UDMXPixelMappingRendererComponent;
@@ -31,7 +32,7 @@ class SOverlay;
 
 class SDMXPixelMappingDesignerView
 	: public SDMXPixelMappingSurface
-	, public FEditorUndoClient
+	, public FSelfRegisteringEditorUndoClient
 {
 private:
 	struct FComponentHitResult
@@ -47,12 +48,10 @@ private:
 		{}
 	};
 public:
-
-	SLATE_BEGIN_ARGS(SDMXPixelMappingDesignerView) { }
+	SLATE_BEGIN_ARGS(SDMXPixelMappingDesignerView) 
+	{}
+	
 	SLATE_END_ARGS()
-
-	/** Destructor */
-	virtual ~SDMXPixelMappingDesignerView();
 
 	/**
 	 * Constructs the widget.
@@ -61,14 +60,8 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit);
 
-	/** The width of the preview screen for the UI */
-	FOptionalSize GetPreviewAreaWidth() const;
-
-	/** The height of the preview screen for the UI */
-	FOptionalSize GetPreviewAreaHeight() const;
-
-	/** Gets the scale of the preview screen */
-	float GetPreviewScale() const;
+	/** Returns the geometry of the graph */
+	const FGeometry& GetGraphTickSpaceGeometry() const;
 
 protected:
 	// Begin SWidget interface
@@ -172,8 +165,6 @@ private:
 	/** Returns the cursor position in graph space */
 	bool GetGraphSpaceCursorPosition(FVector2D& OutGraphSpaceCursorPosition) const;
 
-	void GetPreviewAreaAndSize(FVector2D& Area, FVector2D& Size) const;
-
 	FGeometry GetDesignerGeometry() const;
 
 	FGeometry MakeGeometryWindowLocal(const FGeometry& WidgetGeometry) const;
@@ -209,6 +200,8 @@ private:
 	TMap<TWeakPtr<SWidget>, FArrangedWidget> CachedWidgetGeometry;
 
 	TWeakObjectPtr<UDMXPixelMappingRendererComponent> CachedRendererComponent;
+
+	TSharedPtr<SDMXPixelMappingZoomPan> ZoomPan;
 
 	/** The ruler bar at the top of the designer. */
 	TSharedPtr<SDMXPixelMappingRuler> TopRuler;

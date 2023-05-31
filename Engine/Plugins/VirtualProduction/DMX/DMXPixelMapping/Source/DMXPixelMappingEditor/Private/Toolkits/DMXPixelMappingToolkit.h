@@ -107,25 +107,25 @@ public:
 	const TSet<FDMXPixelMappingComponentReference>& GetSelectedComponents() const { return SelectedComponents; }
 
 	/** Gets or creates the Input Source View for this Pixel Mapping instance */
-	TSharedRef<SWidget> CreateOrGetView_InputSourceView();
+	TSharedRef<SDMXPixelMappingInputSourceView> GetOrCreateInputSourceView();
 
 	/** Gets or creates the DMX Library View for this Pixel Mapping instance */
-	TSharedRef<SWidget> CreateOrGetView_DMXLibraryView();
+	TSharedRef<SDMXPixelMappingDMXLibraryView> GetOrCreateDMXLibraryView();
 
 	/** Gets or creates the Hierarchy View for this Pixel Mapping instance */
-	TSharedRef<SWidget> CreateOrGetView_HierarchyView();
+	TSharedRef<SDMXPixelMappingHierarchyView> GetOrCreateHierarchyView();
 
 	/** Gets or creates the Designer View for this Pixel Mapping instance */
-	TSharedRef<SWidget> CreateOrGetView_DesignerView();
+	TSharedRef<SDMXPixelMappingDesignerView> GetOrCreateDesignerView();
 
 	/** Gets or creates the Preview View for this Pixel Mapping instance */
-	TSharedRef<SWidget> CreateOrGetView_PreviewView();
+	TSharedRef<SDMXPixelMappingPreviewView> GetOrCreatePreviewView();
 
 	/** Gets or creates the Details View for this Pixel Mapping instance */
-	TSharedRef<SWidget> CreateOrGetView_DetailsView();
+	TSharedRef<SDMXPixelMappingDetailsView> GetOrCreateDetailsView();
 
 	/** Gets or creates the Layout View for this Pixel Mapping instance */
-	TSharedRef<SWidget> CreateOrGetView_LayoutView();
+	TSharedRef<SDMXPixelMappingLayoutView> GetOrCreateLayoutView();
 
 	bool IsPlayingDMX() const { return bIsPlayingDMX; }
 
@@ -153,9 +153,6 @@ public:
 
 	/** Deletes the selected Components */
 	void DeleteSelectedComponents();
-
-	/** Zooms to fit */
-	void ZoomToFit();
 
 	/** Returns true if the selected component can be sized to texture */
 	bool CanSizeSelectedComponentToTexture() const;

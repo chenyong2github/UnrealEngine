@@ -30,54 +30,58 @@ struct FFixedZoomLevelsContainerDesignSurface : public FZoomLevelsContainer
 {
 	FFixedZoomLevelsContainerDesignSurface()
 	{
-		ZoomLevels.Add(FZoomLevelEntry(0.025f, FText::FromString("-15"), EGraphRenderingLOD::LowestDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.050f, FText::FromString("-14"), EGraphRenderingLOD::LowestDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.075f, FText::FromString("-13"), EGraphRenderingLOD::LowestDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.100f, FText::FromString("-12"), EGraphRenderingLOD::LowestDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.125f, FText::FromString("-11"), EGraphRenderingLOD::LowestDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.150f, FText::FromString("-10"), EGraphRenderingLOD::LowestDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.175f, FText::FromString("-9"), EGraphRenderingLOD::LowestDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.200f, FText::FromString("-8"), EGraphRenderingLOD::LowestDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.225f, FText::FromString("-7"), EGraphRenderingLOD::LowDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.250f, FText::FromString("-6"), EGraphRenderingLOD::LowDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.375f, FText::FromString("-5"), EGraphRenderingLOD::MediumDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.500f, FText::FromString("-4"), EGraphRenderingLOD::MediumDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.675f, FText::FromString("-3"), EGraphRenderingLOD::MediumDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.750f, FText::FromString("-2"), EGraphRenderingLOD::DefaultDetail));
-		ZoomLevels.Add(FZoomLevelEntry(0.875f, FText::FromString("-1"), EGraphRenderingLOD::DefaultDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.025f, FText::FromString("1:40"), EGraphRenderingLOD::LowestDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.050f, FText::FromString("1:20"), EGraphRenderingLOD::LowestDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.066666666666f, FText::FromString("1:15"), EGraphRenderingLOD::LowestDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.100f, FText::FromString("1:10"), EGraphRenderingLOD::LowestDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.111111111111f, FText::FromString("1:9"), EGraphRenderingLOD::MediumDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.125f, FText::FromString("1:8"), EGraphRenderingLOD::MediumDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.142857142857f, FText::FromString("1:7"), EGraphRenderingLOD::MediumDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.166666666666f, FText::FromString("1:6"), EGraphRenderingLOD::MediumDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.2f, FText::FromString("1:5"), EGraphRenderingLOD::MediumDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.25f, FText::FromString("1:4"), EGraphRenderingLOD::MediumDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.333333333333f, FText::FromString("1:3"), EGraphRenderingLOD::MediumDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.5f, FText::FromString("1:2"), EGraphRenderingLOD::MediumDetail));
 		ZoomLevels.Add(FZoomLevelEntry(1.000f, FText::FromString("1:1"), EGraphRenderingLOD::DefaultDetail));
-		ZoomLevels.Add(FZoomLevelEntry(1.250f, FText::FromString("+1"), EGraphRenderingLOD::DefaultDetail));
-		ZoomLevels.Add(FZoomLevelEntry(1.500f, FText::FromString("+2"), EGraphRenderingLOD::DefaultDetail));
-		ZoomLevels.Add(FZoomLevelEntry(1.750f, FText::FromString("+3"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(2.000f, FText::FromString("+4"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(2.250f, FText::FromString("+5"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(2.500f, FText::FromString("+6"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(2.750f, FText::FromString("+7"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(3.000f, FText::FromString("+8"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(3.250f, FText::FromString("+9"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(3.500f, FText::FromString("+10"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(4.000f, FText::FromString("+11"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(5.000f, FText::FromString("+12"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(6.000f, FText::FromString("+13"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(7.000f, FText::FromString("+14"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(8.000f, FText::FromString("+15"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(9.000f, FText::FromString("+16"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(10.000f, FText::FromString("+17"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(11.000f, FText::FromString("+18"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(12.000f, FText::FromString("+19"), EGraphRenderingLOD::FullyZoomedIn));
-				ZoomLevels.Add(FZoomLevelEntry(13.000f, FText::FromString("+20"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(14.000f, FText::FromString("+21"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(15.000f, FText::FromString("+22"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(16.000f, FText::FromString("+23"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(17.000f, FText::FromString("+24"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(18.000f, FText::FromString("+25"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(19.000f, FText::FromString("+26"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(20.000f, FText::FromString("+27"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(21.000f, FText::FromString("+28"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(22.000f, FText::FromString("+29"), EGraphRenderingLOD::FullyZoomedIn));
-		ZoomLevels.Add(FZoomLevelEntry(23.000f, FText::FromString("+30"), EGraphRenderingLOD::FullyZoomedIn));
-	}
+		ZoomLevels.Add(FZoomLevelEntry(1.250f, FText::FromString("1.25:1"), EGraphRenderingLOD::DefaultDetail));
+		ZoomLevels.Add(FZoomLevelEntry(1.500f, FText::FromString("1.5:1"), EGraphRenderingLOD::DefaultDetail));
+		ZoomLevels.Add(FZoomLevelEntry(1.750f, FText::FromString("1.75:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(2.000f, FText::FromString("2:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(2.250f, FText::FromString("2.25:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(2.500f, FText::FromString("2.5:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(2.750f, FText::FromString("2.75:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(3.000f, FText::FromString("3:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(3.250f, FText::FromString("3.25:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(3.500f, FText::FromString("3.5:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(4.000f, FText::FromString("4:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(5.000f, FText::FromString("5:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(6.000f, FText::FromString("6:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(7.000f, FText::FromString("7:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(8.000f, FText::FromString("8:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(9.000f, FText::FromString("9:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(10.000f, FText::FromString("10:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(11.000f, FText::FromString("11:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(12.000f, FText::FromString("12:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(13.000f, FText::FromString("13:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(14.000f, FText::FromString("14:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(15.000f, FText::FromString("15:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(16.000f, FText::FromString("16:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(17.000f, FText::FromString("17:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(18.000f, FText::FromString("18:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(19.000f, FText::FromString("19:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(20.000f, FText::FromString("20:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(21.000f, FText::FromString("20:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(22.000f, FText::FromString("22:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(23.000f, FText::FromString("23:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(24.000f, FText::FromString("24:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(25.000f, FText::FromString("25:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(30.000f, FText::FromString("30:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(40.000f, FText::FromString("40:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(50.000f, FText::FromString("50:1"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(100.000f, FText::FromString("100:1"), EGraphRenderingLOD::FullyZoomedIn));
 
+	}
+	
 	float GetZoomAmount(int32 InZoomLevel) const override
 	{
 		checkSlow(ZoomLevels.IsValidIndex(InZoomLevel));
@@ -372,9 +376,10 @@ FReply SDMXPixelMappingSurface::OnTouchEnded(const FGeometry& MyGeometry, const 
 	return FReply::Unhandled();
 }
 
-inline float FancyMod(float Value, float Size)
+
+FVector2D SDMXPixelMappingSurface::GetViewOffset() const
 {
-	return ((Value >= 0) ? 0.0f : Size) + FMath::Fmod(Value, Size);
+	return ViewOffset;
 }
 
 float SDMXPixelMappingSurface::GetZoomAmount() const
@@ -549,11 +554,6 @@ FSlateRect SDMXPixelMappingSurface::ComputeAreaBounds() const
 	FSlateRect Bounds = FSlateRect(0.f, 0.f, 0.f, 0.f);
 
 	return Bounds;
-}
-
-FVector2D SDMXPixelMappingSurface::GetViewOffset() const
-{
-	return ViewOffset;
 }
 
 FVector2D SDMXPixelMappingSurface::GraphCoordToPanelCoord(const FVector2D& GraphSpaceCoordinate) const

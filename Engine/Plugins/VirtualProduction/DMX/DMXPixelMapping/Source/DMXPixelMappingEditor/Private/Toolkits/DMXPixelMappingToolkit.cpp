@@ -413,16 +413,7 @@ void FDMXPixelMappingToolkit::DeleteSelectedComponents()
 
 		UpdateBlueprintNodes(DMXPixelMapping);
 	}
-}
-
-void FDMXPixelMappingToolkit::ZoomToFit()
-{
-	if (DesignerView.IsValid())
-	{
-		constexpr bool bInstantZoom = false;
-		DesignerView->ZoomToFit(bInstantZoom);
-	}
-}
+}	
 
 bool FDMXPixelMappingToolkit::CanSizeSelectedComponentToTexture() const
 {
@@ -743,13 +734,13 @@ TSharedRef<SDockTab> FDMXPixelMappingToolkit::SpawnTab_LayoutView(const FSpawnTa
 
 void FDMXPixelMappingToolkit::CreateInternalViews()
 {
-	CreateOrGetView_InputSourceView();
-	CreateOrGetView_DMXLibraryView();
-	CreateOrGetView_HierarchyView();
-	CreateOrGetView_DesignerView();
-	CreateOrGetView_PreviewView();
-	CreateOrGetView_DetailsView();
-	CreateOrGetView_LayoutView();
+	GetOrCreateInputSourceView();
+	GetOrCreateDMXLibraryView();
+	GetOrCreateHierarchyView();
+	GetOrCreateDesignerView();
+	GetOrCreatePreviewView();
+	GetOrCreateDetailsView();
+	GetOrCreateLayoutView();
 }
 
 void FDMXPixelMappingToolkit::OnComponentRenamed(UDMXPixelMappingBaseComponent* InComponent)
@@ -757,7 +748,7 @@ void FDMXPixelMappingToolkit::OnComponentRenamed(UDMXPixelMappingBaseComponent* 
 	UpdateBlueprintNodes(GetDMXPixelMapping());
 }
 
-TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_InputSourceView()
+TSharedRef<SDMXPixelMappingInputSourceView> FDMXPixelMappingToolkit::GetOrCreateInputSourceView()
 {
 	if (!InputSourceView.IsValid())
 	{
@@ -767,7 +758,7 @@ TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_InputSourceView()
 	return InputSourceView.ToSharedRef();
 }
 
-TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_DMXLibraryView()
+TSharedRef<SDMXPixelMappingDMXLibraryView> FDMXPixelMappingToolkit::GetOrCreateDMXLibraryView()
 {
 	if (!DMXLibraryView.IsValid())
 	{
@@ -777,7 +768,7 @@ TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_DMXLibraryView()
 	return DMXLibraryView.ToSharedRef();
 }
 
-TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_HierarchyView()
+TSharedRef<SDMXPixelMappingHierarchyView> FDMXPixelMappingToolkit::GetOrCreateHierarchyView()
 {
 	if (!HierarchyView.IsValid())
 	{
@@ -787,7 +778,7 @@ TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_HierarchyView()
 	return HierarchyView.ToSharedRef();
 }
 
-TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_DesignerView()
+TSharedRef<SDMXPixelMappingDesignerView> FDMXPixelMappingToolkit::GetOrCreateDesignerView()
 {
 	if (!DesignerView.IsValid())
 	{
@@ -797,7 +788,7 @@ TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_DesignerView()
 	return DesignerView.ToSharedRef();
 }
 
-TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_PreviewView()
+TSharedRef<SDMXPixelMappingPreviewView> FDMXPixelMappingToolkit::GetOrCreatePreviewView()
 {
 	if (!PreviewView.IsValid())
 	{
@@ -807,7 +798,7 @@ TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_PreviewView()
 	return PreviewView.ToSharedRef();
 }
 
-TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_DetailsView()
+TSharedRef<SDMXPixelMappingDetailsView> FDMXPixelMappingToolkit::GetOrCreateDetailsView()
 {
 	if (!DetailsView.IsValid())
 	{
@@ -817,7 +808,7 @@ TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_DetailsView()
 	return DetailsView.ToSharedRef();
 }
 
-TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_LayoutView()
+TSharedRef<SDMXPixelMappingLayoutView> FDMXPixelMappingToolkit::GetOrCreateLayoutView()
 {
 	if (!LayoutView.IsValid())
 	{

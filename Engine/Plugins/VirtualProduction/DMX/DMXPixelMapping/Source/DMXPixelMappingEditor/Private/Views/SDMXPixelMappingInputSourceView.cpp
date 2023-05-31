@@ -14,6 +14,7 @@
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Views/SDMXPixelMappingDesignerView.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -241,12 +242,16 @@ FReply SDMXPixelMappingInputSourceView::OnAddButtonClicked()
 	{
 		Toolkit->AddRenderer();
 		
-		if (UDMXPixelMappingRendererComponent* RendererComponentToSelect = Toolkit->GetActiveRendererComponent())
+		UDMXPixelMappingRendererComponent* RendererComponentToSelect = Toolkit->GetActiveRendererComponent();
+		if (RendererComponentToSelect)
 		{
 			const FDMXPixelMappingComponentReference ComponentRefToSelect(Toolkit, RendererComponentToSelect);
 			const TSet<FDMXPixelMappingComponentReference> NewSelection{ ComponentRefToSelect };
 			Toolkit->SelectComponents(NewSelection);
-			Toolkit->ZoomToFit();
+
+			const TSharedRef<SDMXPixelMappingDesignerView> DesignerView = Toolkit->GetOrCreateDesignerView();
+			constexpr bool bInstantZoom = false;
+			DesignerView->ZoomToFit(bInstantZoom);
 		}
 
 		RequestRefresh();

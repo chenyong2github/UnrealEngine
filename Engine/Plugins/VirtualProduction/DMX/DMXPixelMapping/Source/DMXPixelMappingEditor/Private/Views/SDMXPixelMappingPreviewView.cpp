@@ -300,7 +300,7 @@ EVisibility SDMXPixelMappingPreviewView::IsZoomPanVisible() const
 	{
 		if (UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent())
 		{
-			if (RendererComponent->GetRendererInputTexture())
+			if (RendererComponent->GetRenderedInputTexture())
 			{
 				return EVisibility::Visible;
 			}

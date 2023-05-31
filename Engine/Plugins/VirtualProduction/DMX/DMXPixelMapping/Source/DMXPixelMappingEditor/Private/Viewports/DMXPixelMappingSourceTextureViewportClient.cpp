@@ -1,46 +1,125 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Viewports/DMXPixelMappingSourceTextureViewportClient.h"
-#include "Engine/Texture.h"
-#include "TextureResource.h"
-#include "Widgets/SDMXPixelMappingSourceTextureViewport.h"
-#include "Components/DMXPixelMappingRendererComponent.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
 
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "Components/DMXPixelMappingRendererComponent.h"
+#include "Engine/Texture.h"
 #include "Slate/SceneViewport.h"
+#include "Texture2DPreview.h"
+#include "TextureResource.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Views/SDMXPixelMappingDesignerView.h"
+#include "Widgets/SDMXPixelMappingSourceTextureViewport.h"
 
-FDMXPixelMappingSourceTextureViewportClient::FDMXPixelMappingSourceTextureViewportClient(const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit, TWeakPtr<SDMXPixelMappingSourceTextureViewport> InViewport)
-	: ToolkitWeakPtr(InToolkit)
-	, WeakViewport(InViewport)
+
+FDMXPixelMappingSourceTextureViewportClient::FDMXPixelMappingSourceTextureViewportClient(const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit, TWeakPtr<SDMXPixelMappingSourceTextureViewport> InSourceTextureViewport)
+	: WeakToolkit(InToolkit)
+	, WeakSourceTextureViewport(InSourceTextureViewport)
+{}
+
+
+bool FDMXPixelMappingSourceTextureViewportClient::DrawOnlyVisibleRect() const
 {
-	check(ToolkitWeakPtr.IsValid() && WeakViewport.IsValid());
+	if (!WeakToolkit.IsValid())
+	{
+		return 0.0;
+	}
+	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
+	const TSharedRef<SDMXPixelMappingDesignerView> DesignerView = Toolkit->GetOrCreateDesignerView();
+
+	UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent();
+	UTexture* InputTexture = RendererComponent ? RendererComponent->GetRenderedInputTexture() : nullptr;
+	if (!InputTexture)
+	{
+		return false;
+	}
+
+	const int32 ExcessThreshold = GMaxTextureDimensions / 4;
+
+	return
+		InputTexture->GetSurfaceWidth() * DesignerView->GetZoomAmount() > ExcessThreshold ||
+		InputTexture->GetSurfaceHeight() * DesignerView->GetZoomAmount() > ExcessThreshold;
+}
+
+FBox2D FDMXPixelMappingSourceTextureViewportClient::GetVisibleTextureBoxGraphSpace() const
+{
+	if (!WeakToolkit.IsValid())
+	{
+		return FBox2D();
+	}
+	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
+	const TSharedRef<SDMXPixelMappingDesignerView> DesignerView = Toolkit->GetOrCreateDesignerView();
+
+	UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent();
+	UTexture* InputTexture = RendererComponent ? RendererComponent->GetRenderedInputTexture() : nullptr;
+	if (!InputTexture || !InputTexture->GetResource())
+	{
+		return FBox2D();
+	}
+
+	// Compute texture box in graph space
+	const FVector2D TextureDimensions = FVector2D(InputTexture->GetSurfaceWidth(), InputTexture->GetSurfaceHeight());
+	const FBox2D TextureBox(FVector2D::ZeroVector, TextureDimensions);
+
+	// Compute graph box in graph space
+	const FGeometry& GraphGeometry = DesignerView->GetGraphTickSpaceGeometry();
+	const FVector2D GraphSize = GraphGeometry.GetAbsoluteSize() / DesignerView->GetZoomAmount();
+	const FVector2D ViewOffset = DesignerView->GetViewOffset();
+	const FBox2D GraphBox(ViewOffset, ViewOffset + GraphSize);
+
+	return TextureBox.Overlap(GraphBox);
 }
 
 void FDMXPixelMappingSourceTextureViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 {
 	Canvas->Clear(FColor::Transparent);
 
-	TSharedPtr<SDMXPixelMappingSourceTextureViewport> Viewport = WeakViewport.Pin();
-	check(Viewport.IsValid());
-	TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
-	check(Toolkit.IsValid());
-	const TSharedPtr<FSceneViewport> SceneViewport = Viewport->GetViewport();
-	check(SceneViewport.IsValid());
-
-	UTexture* InputTexture = nullptr;
-	if (UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent())
+	if (!WeakToolkit.IsValid())
 	{
-		InputTexture = RendererComponent->GetRendererInputTexture();
+		return;
+	}
+	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
+	const TSharedRef<SDMXPixelMappingDesignerView> DesignerView = Toolkit->GetOrCreateDesignerView();
+
+	UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent();
+	UTexture* InputTexture = RendererComponent ? RendererComponent->GetRenderedInputTexture() : nullptr;
+	if (!InputTexture || !InputTexture->GetResource())
+	{
+		return;
 	}
 
-	if (InputTexture && InputTexture->GetResource())
+	const TSharedPtr<SDMXPixelMappingSourceTextureViewport> ViewportWidget = WeakSourceTextureViewport.Pin();
+	if (!ViewportWidget.IsValid())
 	{
-		const uint32 Width = SceneViewport->GetSizeXY().X;
-		const uint32 Height = SceneViewport->GetSizeXY().Y;
+		return;
+	}
 
-		FCanvasTileItem TileItem(FVector2D(0, 0), InputTexture->GetResource(), FVector2D(Width, Height), FLinearColor::White);
+	// Compute texture box in graph space
+	const FVector2D TextureDimensions = FVector2D(InputTexture->GetSurfaceWidth(), InputTexture->GetSurfaceHeight());
+	const FBox2D TextureBox(FVector2D::ZeroVector, TextureDimensions);
+
+	// Get the visible rect in grap space, and the UVs
+	const FBox2D VisibleRectBox = GetVisibleTextureBoxGraphSpace();
+	const FVector2D UV0 = VisibleRectBox.Min / TextureBox.GetSize();
+	const FVector2D UV1 = VisibleRectBox.Max / TextureBox.GetSize();
+
+	if (DrawOnlyVisibleRect())
+	{
+		const TSharedPtr<FSceneViewport> SceneViewport = ViewportWidget->GetViewport();
+		if (!SceneViewport.IsValid())
+		{
+			return;
+		}
+
+		FCanvasTileItem TileItem(FVector2D::ZeroVector, InputTexture->GetResource(), SceneViewport->GetSizeXY(), UV0, UV1, FLinearColor::White);
+		TileItem.BlendMode = ESimpleElementBlendMode::SE_BLEND_MAX;
+		Canvas->DrawItem(TileItem);
+	}
+	else
+	{
+		FCanvasTileItem TileItem(VisibleRectBox.Min * DesignerView->GetZoomAmount(), InputTexture->GetResource(), VisibleRectBox.GetSize() * DesignerView->GetZoomAmount(), UV0, UV1, FLinearColor::White);
 		TileItem.BlendMode = ESimpleElementBlendMode::SE_BLEND_MAX;
 		Canvas->DrawItem(TileItem);
 	}

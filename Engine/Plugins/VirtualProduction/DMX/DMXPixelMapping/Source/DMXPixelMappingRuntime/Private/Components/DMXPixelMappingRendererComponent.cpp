@@ -131,7 +131,20 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 		}
 	}
 
-	Initialize();
+	if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::Interactive)
+	{
+		// Apply interactive changes only once per frame
+		static uint64 Frame = GFrameCounter;
+		if (Frame != GFrameCounter)
+		{
+			Initialize();
+			Frame = GFrameCounter;
+		}
+	}
+	else
+	{
+		Initialize();
+	}
 }
 #endif // WITH_EDITOR
 
@@ -300,7 +313,7 @@ void UDMXPixelMappingRendererComponent::Render()
 
 	// 1. Render the input texture
 	RendererInputTexture();
-	UTexture* DownsampleInputTexture = GetRendererInputTexture();
+	UTexture* DownsampleInputTexture = GetRenderedInputTexture();
 	if (!DownsampleInputTexture)
 	{
 		return;
@@ -369,11 +382,6 @@ UWorld* UDMXPixelMappingRendererComponent::GetWorld() const
 
 void UDMXPixelMappingRendererComponent::Initialize()
 {
-	if (InputWidget)
-	{
-		UserWidget = CreateWidget(GetWorld(), InputWidget);
-	}
-
 	if (!PixelMappingRenderer.IsValid())
 	{
 		PixelMappingRenderer = IDMXPixelMappingRendererModule::Get().CreateRenderer();
@@ -391,6 +399,7 @@ void UDMXPixelMappingRendererComponent::Initialize()
 		break;
 
 	case(EDMXPixelMappingRendererType::UMG):
+		UserWidget = CreateWidget(GetWorld(), InputWidget);
 		PreprocessRenderer->SetInputUserWidget(UserWidget.Get());
 		break;
 
@@ -417,23 +426,9 @@ void UDMXPixelMappingRendererComponent::RendererInputTexture()
 	SCOPE_CYCLE_COUNTER(STAT_RenderInputTexture);
 
 	PreprocessRenderer->Render();
-
-//#if WITH_EDITOR
-//	if (RendererType == EDMXPixelMappingRendererType::Texture)
-//	{
-//		if (InputTexture && InputTexture->GetResource())
-//		{
-//			ResizePreviewRenderTarget(InputTexture->GetResource()->GetSizeX(), InputTexture->GetResource()->GetSizeY());
-//		}
-//	}
-//	else
-//	{
-//		ResizePreviewRenderTarget(GetSize().X, GetSize().Y);
-//	}
-//#endif
 }
 
-UTexture* UDMXPixelMappingRendererComponent::GetRendererInputTexture() const
+UTexture* UDMXPixelMappingRendererComponent::GetRenderedInputTexture() const
 {
 	return PreprocessRenderer->GetRenderedTexture();
 }

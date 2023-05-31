@@ -199,7 +199,7 @@ EVisibility FDMXPixelMappingDetailCustomization_Renderer::GetInputTextureWarning
 {
 	if (UDMXPixelMappingRendererComponent* Component = RendererComponent.Get())
 	{
-		if (Component->GetRendererInputTexture() == nullptr)
+		if (!Component->GetRenderedInputTexture())
 		{
 			return EVisibility::Visible;
 		}
@@ -212,7 +212,7 @@ FText FDMXPixelMappingDetailCustomization_Renderer::GetInputTextureWarningText()
 {
 	if (UDMXPixelMappingRendererComponent* Component = RendererComponent.Get())
 	{
-		if (Component->GetRendererInputTexture() == nullptr)
+		if (!Component->GetRenderedInputTexture())
 		{
 			if (Component->RendererType == EDMXPixelMappingRendererType::Texture)
 			{

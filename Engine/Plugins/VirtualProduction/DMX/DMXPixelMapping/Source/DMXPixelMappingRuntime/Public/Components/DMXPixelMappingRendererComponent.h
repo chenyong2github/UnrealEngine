@@ -60,8 +60,8 @@ public:
 	UTextureRenderTarget2D* GetPreviewRenderTarget();
 #endif
 
-	/** Get reference to the active input texture */
-	UTexture* GetRendererInputTexture() const;
+	/** Gets the rendered input texture, or nullptr if no input texture is currently rendered */
+	UTexture* GetRenderedInputTexture() const;
 
 	/**
 	 * Get pixel position in downsample buffer target based on pixel index
