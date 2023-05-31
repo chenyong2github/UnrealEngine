@@ -12,6 +12,11 @@
 	#include "eos_friends_types.h"
 	#include "eos_connect_types.h"
 
+#define INVALID_LOCAL_USER -1
+
+template <typename ValueType>
+using TLocalUserArray = TSparseArray<ValueType, TInlineSparseArrayAllocator<MAX_LOCAL_PLAYERS>>;
+
 class FOnlineSubsystemEOS;
 class IOnlineSubsystem;
 
@@ -279,22 +284,23 @@ public:
 	virtual FUniqueNetIdPtr GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId) override;
 // ~IOnlineUser Interface
 
+	const FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS(int32 LocalUserNum) const;
+	const FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS() const;
 	EOS_EpicAccountId GetLocalEpicAccountId(int32 LocalUserNum) const;
 	EOS_EpicAccountId GetLocalEpicAccountId() const;
 	EOS_ProductUserId GetLocalProductUserId(int32 LocalUserNum) const;
 	EOS_ProductUserId GetLocalProductUserId() const;
-	EOS_EpicAccountId GetLocalEpicAccountId(EOS_ProductUserId UserId) const;
-	EOS_ProductUserId GetLocalProductUserId(EOS_EpicAccountId AccountId) const;
-	FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS(int32 LocalUserNum) const;
-	FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS(EOS_ProductUserId UserId) const;
-	FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS(EOS_EpicAccountId AccountId) const;
-	FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS() const
-	{
-		return GetLocalUniqueNetIdEOS(GetDefaultLocalUser());
-	}
 
 	int32 GetLocalUserNumFromUniqueNetId(const FUniqueNetId& NetId) const;
+	int32 GetLocalUserNumFromEpicAccountId(const EOS_EpicAccountId& EpicAccountId) const;
+	int32 GetLocalUserNumFromProductUserId(const EOS_ProductUserId& ProductUserId) const;
+
+	const FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS(const EOS_EpicAccountId& EpicAccountId) const;
+	const FUniqueNetIdEOSPtr GetLocalUniqueNetIdEOS(const EOS_ProductUserId& ProductUserId) const;
+
 	bool IsLocalUser(const FUniqueNetId& NetId) const;
+	bool IsLocalUser(const EOS_EpicAccountId& EpicAccountId) const;
+	bool IsLocalUser(const EOS_ProductUserId& ProductUserId) const;
 
 	typedef TFunction<void(TMap<EOS_ProductUserId, FUniqueNetIdEOSRef> ResolvedUniqueNetIds)> FResolveUniqueNetIdsCallback;
 	typedef TFunction<void(FUniqueNetIdEOSRef ResolvedUniqueNetId)> FResolveUniqueNetIdCallback;
@@ -362,12 +368,9 @@ private:
 	TMap<int32, FNotificationIdCallbackPair*> LocalUserNumToConnectLoginNotifcationMap;
 
 	/** Ids mapped to locally registered users */
-	TMap<int32, EOS_EpicAccountId> UserNumToAccountIdMap;
-	TMap<EOS_EpicAccountId, int32> AccountIdToUserNumMap;
-	TMap<int32, FUniqueNetIdEOSPtr> UserNumToNetIdMap;
-	TMap<int32, EOS_ProductUserId> UserNumToProductUserIdMap;
-	TMap<EOS_ProductUserId, int32> ProductUserIdToUserNumMap;
-	TMap<FString, FUserOnlineAccountEOSRef> StringToUserAccountMap;
+	TLocalUserArray<FUniqueNetIdEOSRef> LocalUserUniqueNetIds;
+	/** General map for all registered online users */
+	TUniqueNetIdMap<FUserOnlineAccountEOSRef> UniqueNetIdToUserAccountMap;
 
 	/** General account mappings */
 	TMap<EOS_EpicAccountId, FString> AccountIdToStringMap;
