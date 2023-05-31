@@ -170,6 +170,14 @@ uint32 UWorldPartitionStreamingPolicy::ComputeUpdateStreamingHash(bool bCanOptim
 		{
 			HashBuilder << Source.GetHash(bIsStreaming3D);
 		}
+
+		if (WorldPartition->IsServer())
+		{
+			TArray<FName> ClientsVisibleLevelNames = ServerClientsVisibleLevelNames.Array();
+			ClientsVisibleLevelNames.Sort(FNameFastLess());
+			HashBuilder << ClientsVisibleLevelNames;
+		}
+
 		return HashBuilder.GetHash();
 	}
 
@@ -275,6 +283,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		CriticalPerformanceBlockTillLevelStreamingCompletedEpoch = World->GetBlockTillLevelStreamingCompletedEpoch();
 	}
 
+	const bool bIsServer = WorldPartition->IsServer();
 	const bool bCanStream = WorldPartition->CanStream();
 	const bool bForceFrameUpdate = (UWorldPartitionStreamingPolicy::ForceUpdateFrameCount > 0) ? ((UpdateStreamingStateCalls % UWorldPartitionStreamingPolicy::ForceUpdateFrameCount) == 0) : false;
 	const bool bCanOptimizeUpdate =
@@ -289,6 +298,21 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	// Update streaming sources
 	UpdateStreamingSources(bCanOptimizeUpdate);
 
+	if (bIsServer)
+	{
+		// Gather Client visible level names
+		ServerClientsVisibleLevelNames.Reset();
+		if (const UNetDriver* NetDriver = GetWorld()->GetNetDriver())
+		{
+			for (UNetConnection* Connection : NetDriver->ClientConnections)
+			{
+				ServerClientsVisibleLevelNames.Add(Connection->GetClientWorldPackageName());
+				ServerClientsVisibleLevelNames.Append(Connection->ClientVisibleLevelNames);
+				ServerClientsVisibleLevelNames.Append(Connection->GetClientMakingVisibleLevelNames());
+			}
+		}
+	}
+
 	// Detect if nothing relevant changed and early out
 	const uint32 NewUpdateStreamingHash = ComputeUpdateStreamingHash(bCanOptimizeUpdate);
 	const bool bShouldSkipUpdate = NewUpdateStreamingHash && (UpdateStreamingHash == NewUpdateStreamingHash);
@@ -300,7 +324,6 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	// Update new streaming sources hash
 	UpdateStreamingHash = NewUpdateStreamingHash;
 
-	TSet<FName> ClientVisibleLevelNames;
 	bool bUpdateEpoch = false;
 
 	check(FrameActivateCells.IsEmpty());
@@ -313,7 +336,6 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		FrameLoadCells.Reset();
 	};
 
-	const bool bIsServer = WorldPartition->IsServer();
 	const bool bIsServerStreamingEnabled = WorldPartition->IsServerStreamingEnabled();
 	const int32 NewServerStreamingEnabledEpoch = ComputeServerStreamingEnabledEpoch();
 
@@ -368,17 +390,6 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			}
 
 			bUpdateEpoch = true;
-
-			// Gather Client visible level names
-			if (const UNetDriver* NetDriver = World->GetNetDriver())
-			{
-				for (UNetConnection* Connection : NetDriver->ClientConnections)
-				{
-					ClientVisibleLevelNames.Add(Connection->GetClientWorldPackageName());
-					ClientVisibleLevelNames.Append(Connection->ClientVisibleLevelNames);
-					ClientVisibleLevelNames.Append(Connection->GetClientMakingVisibleLevelNames());
-				}
-			}
 
 			const UDataLayerManager* DataLayerManager = WorldPartition->GetDataLayerManager();
 			TSet<FName> EffectiveActiveDataLayerNames = DataLayerManager->GetEffectiveActiveDataLayerNames();
@@ -457,12 +468,12 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		}
 	}
 
-	auto ShouldWaitForClientVisibility = [bIsServer, &ClientVisibleLevelNames, &bUpdateEpoch](const UWorldPartitionRuntimeCell* Cell)
+	auto ShouldWaitForClientVisibility = [bIsServer, this, &bUpdateEpoch](const UWorldPartitionRuntimeCell* Cell)
 	{
 		check(bIsServer);
 		if (ULevel* Level = Cell->GetLevel())
 		{
-			if (ClientVisibleLevelNames.Contains(Cell->GetLevel()->GetPackage()->GetFName()))
+			if (ServerClientsVisibleLevelNames.Contains(Cell->GetLevel()->GetPackage()->GetFName()))
 			{
 				UE_CLOG(bUpdateEpoch, LogWorldPartition, Verbose, TEXT("Server epoch update delayed by client visibility"));
 				bUpdateEpoch = false;

@@ -717,13 +717,11 @@ void ULevelStreaming::ServerUpdateLevelVisibility(bool bIsVisible, bool bTryMake
 	}
 }
 
-bool ULevelStreaming::ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest InRequestType, bool bInShouldBeVisible)
+bool ULevelStreaming::ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest InRequestType)
 {
 	if (IsWaitingForNetVisibilityTransactionAck(InRequestType))
 	{
-		const bool bTargetShouldBeVisible = (NetVisibilityState.PendingRequestType == ENetLevelVisibilityRequest::MakingVisible);
-		const bool bTargetStateMatches = (bInShouldBeVisible == bTargetShouldBeVisible);
-		if (bTargetStateMatches && NetVisibilityState.bHasClientPendingRequest)
+		if (NetVisibilityState.bHasClientPendingRequest)
 		{
 			// We have a pending request, IncrementTransactionIndex and send ServerUpdateLevelVisibility request to server
 			FNetLevelVisibilityTransactionId TransactionId;
@@ -785,7 +783,7 @@ bool ULevelStreaming::CanMakeInvisible()
 
 	if (ShouldClientUseMakingInvisibleTransactionRequest())
 	{
-		if (ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest::MakingInvisible, bShouldBeVisible))
+		if (ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest::MakingInvisible))
 		{
 			return false;
 		}
@@ -808,7 +806,7 @@ bool ULevelStreaming::CanMakeVisible()
 
 	if (ShouldClientUseMakingVisibleTransactionRequest())
 	{
-		if (ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest::MakingVisible, true))
+		if (ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest::MakingVisible))
 		{
 			return false;
 		}
@@ -949,10 +947,7 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 			{
 				// Only respond with ServerTransactionId if the is the target visibility state is supposed to be visible
 				FNetLevelVisibilityTransactionId TransactionId;
-				if (bShouldBeVisible)
-				{
-					TransactionId.SetTransactionIndex(NetVisibilityState.ServerRequestIndex);
-				}
+				TransactionId.SetTransactionIndex(NetVisibilityState.ServerRequestIndex);
 
 				// Calling CanMakeVisible will trigger a request for visibility if necessary
 				if (!CanMakeVisible())
@@ -1004,11 +999,7 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 			}
 
 			FNetLevelVisibilityTransactionId TransactionId;
-			// Only respond with ServerTransactionId if the is the target visibility state is supposed to be not visible
-			if (bShouldBeVisible == false)
-			{
-				TransactionId.SetTransactionIndex(NetVisibilityState.ServerRequestIndex);
-			}
+			TransactionId.SetTransactionIndex(NetVisibilityState.ServerRequestIndex);
 
 			// Hide loaded level, incrementally if necessary
 			World->RemoveFromWorld(LoadedLevel, !ShouldBlockOnUnload() && World->IsGameWorld(), TransactionId, this);
@@ -1068,7 +1059,7 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 			SetCurrentState(ELevelStreamingState::MakingVisible);
 			// Make sure client pending visibility request (if any) matches current state
 			NetVisibilityState.InvalidateClientPendingRequest();
-			BeginClientNetVisibilityRequest(ShouldBeVisible());
+			BeginClientNetVisibilityRequest(true);
 			bOutUpdateAgain = true;
 			break;
 
@@ -1116,7 +1107,7 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 			SetCurrentState(ELevelStreamingState::MakingInvisible);
 			// Make sure client pending visibility request (if any) matches current state
 			NetVisibilityState.InvalidateClientPendingRequest();
-			BeginClientNetVisibilityRequest(ShouldBeVisible());
+			BeginClientNetVisibilityRequest(false);
 			bOutUpdateAgain = true;
 			break;
 

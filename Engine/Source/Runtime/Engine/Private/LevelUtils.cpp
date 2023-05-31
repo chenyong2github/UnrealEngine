@@ -114,12 +114,20 @@ bool FLevelUtils::IsServerStreamingLevelVisible(UWorld* InWorld, const FName& In
 		return true;
 	}
 
-	if (const AServerStreamingLevelsVisibility* ServerStreamingLevelsVisibility = InWorld->GetServerStreamingLevelsVisibility())
-	{
-		return ServerStreamingLevelsVisibility && ServerStreamingLevelsVisibility->Contains(InPackageName);
-	}
+	const AServerStreamingLevelsVisibility* ServerStreamingLevelsVisibility = InWorld->GetServerStreamingLevelsVisibility();
+	return ServerStreamingLevelsVisibility && ServerStreamingLevelsVisibility->Contains(InPackageName);
+}
 
-	return false;
+ULevelStreaming* FLevelUtils::GetServerVisibleStreamingLevel(UWorld* InWorld, const FName& InPackageName)
+{
+	if (SupportsMakingVisibleTransactionRequests(InWorld))
+	{
+		if (const AServerStreamingLevelsVisibility* ServerStreamingLevelsVisibility = InWorld->GetServerStreamingLevelsVisibility())
+		{
+			return ServerStreamingLevelsVisibility->GetVisibleStreamingLevel(InPackageName);
+		}
+	}
+	return nullptr;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

@@ -3065,7 +3065,7 @@ const AServerStreamingLevelsVisibility* UWorld::GetServerStreamingLevelsVisibili
 	return ServerStreamingLevelsVisibility;
 }
 
-void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool bConsiderTimeLimit, FNetLevelVisibilityTransactionId TransactionId, ULevelStreaming* OwningLevelStreaming)
+void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool bConsiderTimeLimit, FNetLevelVisibilityTransactionId TransactionId, ULevelStreaming* InOwningLevelStreaming)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AddToWorld);
 	SCOPE_CYCLE_COUNTER(STAT_AddToWorldTime);
@@ -3075,6 +3075,9 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 	check(!Level->IsUnreachable());
 
 	FScopeCycleCounterUObject ContextScope(Level);
+
+	// If not provided, find the owning streaming level
+	ULevelStreaming* OwningLevelStreaming = InOwningLevelStreaming ? InOwningLevelStreaming : FLevelUtils::FindStreamingLevel(Level);
 
 	// Set flags to indicate that we are associating a level with the world to e.g. perform slower/ better octree insertion 
 	// and such, as opposed to the fast path taken for run-time/ gameplay objects.
@@ -3371,7 +3374,7 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 			if (IsValid(ServerStreamingLevelsVisibility))
 			{
 				check(IsNetMode(NM_ListenServer) || IsNetMode(NM_DedicatedServer));
-				ServerStreamingLevelsVisibility->SetIsVisible(UnmappedPackageName, true);
+				ServerStreamingLevelsVisibility->SetIsVisible(OwningLevelStreaming, true);
 			}
 		}
 
@@ -3459,7 +3462,7 @@ void UWorld::BeginTearingDown()
 // Cumulated time doing IncrementalUnregisterComponents in UWorld::RemoveFromWorld since last call to UWorld::UpdateLevelStreaming.
 static double GRemoveFromWorldUnregisterComponentTimeCumul = 0.0;
 
-void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNetLevelVisibilityTransactionId TransactionId, ULevelStreaming* OwningLevelStreaming)
+void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNetLevelVisibilityTransactionId TransactionId, ULevelStreaming* InOwningLevelStreaming)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RemoveFromWorld);
 	SCOPE_CYCLE_COUNTER(STAT_RemoveFromWorldTime);
@@ -3473,7 +3476,10 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNet
 
 	Level->bIsDisassociatingLevel = true;
 
-	auto BeginRemoval = [Level, this, OwningLevelStreaming]()
+	// If not provided, find the owning streaming level
+	ULevelStreaming* OwningLevelStreaming = InOwningLevelStreaming ? InOwningLevelStreaming : FLevelUtils::FindStreamingLevel(Level);
+
+	auto BeginRemoval = [Level, bIsGameWorld, this, OwningLevelStreaming]()
 	{
 		FWorldDelegates::PreLevelRemovedFromWorld.Broadcast(Level, this);
 		Level->bIsBeingRemoved = true;
@@ -3487,6 +3493,16 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNet
 		{
 			Level->bIsVisible = false;
 			ULevelStreaming::BroadcastLevelVisibleStatus(this, Level->GetOutermost()->GetFName(), false);
+		}
+
+		// Set server level as not visible right away so that clients trying to make visible
+		// will fail for this level as it is currently removed from world on the server
+		if (bIsGameWorld && !Level->bClientOnlyVisible && IsValid(ServerStreamingLevelsVisibility))
+		{
+			// Update server's visible levels
+			check(IsNetMode(NM_ListenServer) || IsNetMode(NM_DedicatedServer));
+			check(OwningLevelStreaming || !ServerStreamingLevelsVisibility->Contains(Level->GetPackage()->GetFName()));
+			ServerStreamingLevelsVisibility->SetIsVisible(OwningLevelStreaming, false);
 		}
 	};
 
@@ -3607,12 +3623,6 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNet
 						LevelVisibility.VisibilityRequestId = TransactionId;
 						LocalPlayerController->ServerUpdateLevelVisibility(LevelVisibility);
 					}
-				}
-				// update server's visible levels
-				if (IsValid(ServerStreamingLevelsVisibility))
-				{
-					check(IsNetMode(NM_ListenServer) || IsNetMode(NM_DedicatedServer));
-					ServerStreamingLevelsVisibility->SetIsVisible(UnmappedPackageName, false);
 				}
 			}
 

@@ -63,6 +63,15 @@ public:
 	 */
 	static bool IsServerStreamingLevelVisible(UWorld* InWorld, const FName& InPackageName);
 
+	/**
+	 * Returns the streaming level by package name if visible on server, or NULL if none exists.
+	 *
+	 * @param		InWorld			World to look in for the streaming level
+	 * @param		PackageName		Name of the package containing the ULevel to query
+	 * @return						The level's streaming level if visible on server, or NULL if none exists.
+	 */
+	static ULevelStreaming* GetServerVisibleStreamingLevel(UWorld* InWorld, const FName& InPackageName);
+
 	/** Returns whether the world supports for a client to use "making visible" transaction requests to the server. */
 	static bool SupportsMakingVisibleTransactionRequests(UWorld* InWorld);
 

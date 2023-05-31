@@ -1662,7 +1662,9 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 			const FNetLevelVisibilityTransactionId VisibilityRequestId = LevelVisibility.VisibilityRequestId;
 			check(VisibilityRequestId.IsValid() && VisibilityRequestId.IsClientTransaction());
 
-			if (FLevelUtils::IsServerStreamingLevelVisible(GetWorld(), LevelVisibility.PackageName))
+			// Only consider visible levels with their streaming level in the LoadedVisible state and returning ShouldBeVisible()
+			ULevelStreaming* ServerVisibleStreamingLevel = FLevelUtils::GetServerVisibleStreamingLevel(GetWorld(), LevelVisibility.PackageName);
+			if (ServerVisibleStreamingLevel && ServerVisibleStreamingLevel->ShouldBeVisible() && (ServerVisibleStreamingLevel->GetLevelStreamingState() == ELevelStreamingState::LoadedVisible))
 			{
 				ClientMakingVisibleLevelNames.Add(LevelVisibility.PackageName);
 				check(!ClientVisibleLevelNames.Contains(LevelVisibility.PackageName));

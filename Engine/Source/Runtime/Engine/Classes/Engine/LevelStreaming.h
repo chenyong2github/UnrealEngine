@@ -373,7 +373,7 @@ private:
 	/** If true client will wait for acknowledgment from server before making streaming levels visible */
 	bool ShouldClientUseMakingVisibleTransactionRequest() const;
 	/** Returns whether the streaming level should wait for the server ack before changing its visibility. */
-	bool ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest InRequestType, bool bInShouldBeVisible);
+	bool ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest InRequestType);
 	/** Ack a client instigated visibility/streaming transaction */
 	void AckNetVisibilityTransaction(FNetLevelVisibilityTransactionId AckedClientTransactionId, bool bClientAckCanMakeVisible);
 

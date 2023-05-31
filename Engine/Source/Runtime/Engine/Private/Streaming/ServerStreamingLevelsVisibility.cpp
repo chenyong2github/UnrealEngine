@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Streaming/ServerStreamingLevelsVisibility.h"
+#include "UObject/Package.h"
 #include "Engine/LevelStreaming.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ServerStreamingLevelsVisibility)
@@ -29,7 +31,7 @@ AServerStreamingLevelsVisibility* AServerStreamingLevelsVisibility::SpawnServerA
 			{
 				if (StreamingLevel && StreamingLevel->IsLevelVisible())
 				{
-					ServerStreamingLevelVisibility->SetIsVisible(StreamingLevel->GetWorldAssetPackageFName(), true);
+					ServerStreamingLevelVisibility->SetIsVisible(StreamingLevel, true);
 				}
 			}
 			return ServerStreamingLevelVisibility;
@@ -40,20 +42,30 @@ AServerStreamingLevelsVisibility* AServerStreamingLevelsVisibility::SpawnServerA
 
 bool AServerStreamingLevelsVisibility::Contains(const FName& InLevelPackageName) const
 {
-	return ServerVisibleLevelNames.Contains(InLevelPackageName);
+	return ServerVisibleStreamingLevels.Contains(InLevelPackageName);
 }
 
-void AServerStreamingLevelsVisibility::SetIsVisible(const FName& InLevelPackageName, bool bInIsVisible)
+ULevelStreaming* AServerStreamingLevelsVisibility::GetVisibleStreamingLevel(const FName& InPackageName) const
+{
+	const TWeakObjectPtr<ULevelStreaming>* StreamingLevel = ServerVisibleStreamingLevels.Find(InPackageName);
+	return StreamingLevel ? StreamingLevel->Get() : nullptr;
+}
+
+void AServerStreamingLevelsVisibility::SetIsVisible(ULevelStreaming* InStreamingLevel, bool bInIsVisible)
 {
 	if (ensure(GetLocalRole() == ROLE_Authority))
 	{
-		if (bInIsVisible)
+		if (InStreamingLevel)
 		{
-			ServerVisibleLevelNames.Add(InLevelPackageName);
-		}
-		else
-		{
-			ServerVisibleLevelNames.Remove(InLevelPackageName);
+			const FName PackageName = InStreamingLevel->GetWorldAssetPackageFName();
+			if (bInIsVisible)
+			{
+				ServerVisibleStreamingLevels.Add(PackageName, InStreamingLevel);
+			}
+			else
+			{
+				ServerVisibleStreamingLevels.Remove(PackageName);
+			}
 		}
 	}
 }
