@@ -53,9 +53,6 @@
         <Content Include="..\..\..\..\Restricted\NotForLicensees\Binaries\Win64\Box\BoxVisualizer.exe">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
-        <Content Include="..\..\..\..\Restricted\NotForLicensees\Binaries\Win64\Box\Ijwhost.dll">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
       </ItemGroup>
     </When>
   </Choose>
