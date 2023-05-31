@@ -9,7 +9,7 @@ import { projectStore } from './ProjectStore';
 
 
 // Update interval for relatively static global data such as projects, schedules, templates
-const updateInterval = 120 * 1000;
+const updateInterval = 900 * 1000;
 
 export class Backend {
 
