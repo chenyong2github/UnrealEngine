@@ -711,11 +711,21 @@ bool AssetViewUtils::MoveFolders(const TArray<FString>& InSourcePathNames, const
 			MoveAssets( PathIt.Value(), Destination, PathIt.Key() );
 		}
 
+		TArray<FString> PathsToRescan;
+		PathsToRescan.Add(Destination);
+
 		// Attempt to remove the old path
 		if (DeleteEmptyFolderFromDisk(SourcePath))
 		{
 			AssetRegistryModule.Get().RemovePath(SourcePath);
 		}
+		else if (PathIt.Value().Num() > 0)
+		{
+			PathsToRescan.Add(SourcePath);
+		}
+
+		const bool bForceRescan = true;
+		AssetRegistryModule.Get().ScanPathsSynchronous(PathsToRescan, bForceRescan);
 
 		const TOptional<FLinearColor> FolderColor = GetPathColor(SourcePath);
 		if (FolderColor.IsSet())
