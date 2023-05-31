@@ -41,10 +41,6 @@
 #include "UObject/NameTypes.h"
 #include "UObject/UnrealNames.h"
 
-#ifndef DETECT_NESTED_THREAD_IDLE_STAT_SCOPES
-	#define DETECT_NESTED_THREAD_IDLE_STAT_SCOPES	0		// This will cause check()s to fire if thread idle scopes are nested and hence double counting idle time.
-#endif // DETECT_NESTED_THREAD_IDLE_STAT_SCOPES
-
 class FOutputDevice;
 class FScopeCycleCounter;
 class FThreadStats;
@@ -62,9 +58,7 @@ class CORE_API FThreadIdleStats : public TThreadSingleton<FThreadIdleStats>
 		: Waits(0)
 		, WaitsCriticalPath(0)
 		, IsCriticalPathCounter(1)
-#if DETECT_NESTED_THREAD_IDLE_STAT_SCOPES
 		, bInIdleScope(false)
-#endif
 	{}
 
 public:
@@ -76,10 +70,7 @@ public:
 	uint32 WaitsCriticalPath;
 
 	int IsCriticalPathCounter;
-
-#if DETECT_NESTED_THREAD_IDLE_STAT_SCOPES
 	bool bInIdleScope;
-#endif
 
 	static void BeginCriticalPath()
 	{
@@ -119,19 +110,20 @@ public:
 
 	struct FScopeIdle
 	{
+#if defined(DISABLE_THREAD_IDLE_STATS) && DISABLE_THREAD_IDLE_STATS
+		FScopeIdle( bool bInIgnore = false )
+		{}
+#else
 		/** Starting cycle counter. */
 		const uint32 Start;
 
 		/** If true, we ignore this thread idle stats. */
 		const bool bIgnore;
 
-#if defined(DISABLE_THREAD_IDLE_STATS) && DISABLE_THREAD_IDLE_STATS
-		FScopeIdle( bool bInIgnore = false )
-			: Start(0)
-			, bIgnore( bInIgnore )
-		{
-		}
-#else
+#if CPUPROFILERTRACE_ENABLED
+		FCpuProfilerTrace::FEventScope TraceEventScope;
+#endif
+
 		CORE_API FScopeIdle(bool bInIgnore = false);
 
 		~FScopeIdle()
@@ -147,15 +139,9 @@ public:
 					IdleStats.WaitsCriticalPath += CyclesElapsed;
 				}
 
-#if DETECT_NESTED_THREAD_IDLE_STAT_SCOPES
 				IdleStats.bInIdleScope = false;
-#endif
 			}
 		}
-
-#if CPUPROFILERTRACE_ENABLED
-		FCpuProfilerTrace::FEventScope TraceEventScope;
-#endif
 #endif
 	};
 };

@@ -64,27 +64,26 @@ DEFINE_STAT(STAT_FrameTime);
 DEFINE_STAT(STAT_NamedMarker);
 DEFINE_STAT(STAT_SecondsPerCycle);
 
+#if !(defined(DISABLE_THREAD_IDLE_STATS) && DISABLE_THREAD_IDLE_STATS)
 #if CPUPROFILERTRACE_ENABLED
 	UE_TRACE_CHANNEL_DEFINE(ThreadIdleScopeChannel);
-	TRACE_CPUPROFILER_EVENT_DECLARE(TraceEventScopeId);
+	TRACE_CPUPROFILER_EVENT_DECLARE(ThreadIdleScopeTraceEventId);
 #endif
 
 CORE_API FThreadIdleStats::FScopeIdle::FScopeIdle(bool bInIgnore /* = false */)
 	: Start(FPlatformTime::Cycles())
-	, bIgnore(bInIgnore)
+	, bIgnore(bInIgnore || FThreadIdleStats::Get().bInIdleScope)
 #if CPUPROFILERTRACE_ENABLED
-	, TraceEventScope(TraceEventScopeId, TEXT("FThreadIdleStats::FScopeIdle"), ThreadIdleScopeChannel, !bInIgnore, __FILE__, __LINE__)
+	, TraceEventScope(ThreadIdleScopeTraceEventId, TEXT("FThreadIdleStats::FScopeIdle"), ThreadIdleScopeChannel, !bIgnore, __FILE__, __LINE__)
 #endif
 {
-#if DETECT_NESTED_THREAD_IDLE_STAT_SCOPES
-		if (!bInIgnore)
-		{
-			FThreadIdleStats& IdleStats = FThreadIdleStats::Get();
-			checkf(!IdleStats.bInIdleScope, TEXT("Nested FThreadIdleStats::FScopeIdle encountered"));
-			IdleStats.bInIdleScope = true;
-		}
-#endif
+	if (!bIgnore)
+	{
+		FThreadIdleStats& IdleStats = FThreadIdleStats::Get();
+		IdleStats.bInIdleScope = true;
+	}
 }
+#endif // #if !(defined(DISABLE_THREAD_IDLE_STATS) && DISABLE_THREAD_IDLE_STATS)
 
 /*-----------------------------------------------------------------------------
 	DebugLeakTest, for the stats based memory profiler
