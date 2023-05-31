@@ -797,9 +797,9 @@ void SAssetAuditBrowser::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAs
 		OutRow.Chunks = AssetTable.StoreStr(Str);
 	}
 
-	if (EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::GameFeaturePluginsName, Str))
+	if (EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::PluginName, Str))
 	{
-		OutRow.GameFeaturePlugin = AssetTable.StoreStr(Str);
+		OutRow.PluginName = AssetTable.StoreStr(Str);
 	}
 
 	OutRow.NativeClass = AssetTable.StoreStr(AssetData.AssetClassPath.GetAssetName().ToString());

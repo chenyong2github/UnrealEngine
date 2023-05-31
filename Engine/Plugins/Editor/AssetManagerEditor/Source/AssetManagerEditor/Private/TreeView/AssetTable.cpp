@@ -34,7 +34,7 @@ const FName FAssetTableColumns::TotalSizeExternalDependenciesColumnId(TEXT("Tota
 const FName FAssetTableColumns::TotalUsageCountColumnId(TEXT("TotalUsageCount"));
 const FName FAssetTableColumns::ChunksColumnId(TEXT("Chunks"));
 const FName FAssetTableColumns::NativeClassColumnId(TEXT("NativeClass"));
-const FName FAssetTableColumns::GameFeaturePluginColumnId(TEXT("GameFeaturePlugin"));
+const FName FAssetTableColumns::PluginNameColumnId(TEXT("PluginName"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FAssetTableStringStore
@@ -170,7 +170,7 @@ FAssetTable::FAssetTable()
 		Asset.TotalUsageCount = 10;
 		Asset.StagedCompressedSize = 1;
 		Asset.NativeClass = StoreStr(FString::Printf(TEXT("NativeClass%02d"), (Id * Id * Id) % 8));
-		Asset.GameFeaturePlugin = StoreStr(TEXT("MockGFP"));
+		Asset.PluginName = StoreStr(TEXT("MockGFP"));
 	}
 
 	for (int32 TestIndex = 0; TestIndex < 5; TestIndex++)
@@ -1235,16 +1235,16 @@ void FAssetTable::AddDefaultColumns()
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
-	// GameFeaturePlugin Column
+	// PluginName Column
 	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FAssetTableColumns::GameFeaturePluginColumnId);
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FAssetTableColumns::PluginNameColumnId);
 		FTableColumn& Column = *ColumnRef;
 
 		Column.SetIndex(ColumnIndex++);
 
-		Column.SetShortName(LOCTEXT("GameFeaturePluginColumnName", "GameFeaturePlugin"));
-		Column.SetTitleName(LOCTEXT("GameFeaturePluginColumnTitle", "GameFeaturePlugin"));
-		Column.SetDescription(LOCTEXT("GameFeaturePluginColumnDesc", "GameFeaturePlugin of the asset"));
+		Column.SetShortName(LOCTEXT("PluginColumnName", "Plugin"));
+		Column.SetTitleName(LOCTEXT("PluginColumnTitle", "Plugin"));
+		Column.SetDescription(LOCTEXT("PluginColumnDesc", "Plugin (Game Feature or Engine) of the asset"));
 
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
@@ -1270,7 +1270,7 @@ void FAssetTable::AddDefaultColumns()
 				{
 					const FAssetTreeNode& TreeNode = static_cast<const FAssetTreeNode&>(Node);
 					const FAssetTableRow& Asset = TreeNode.GetAssetChecked();
-					return FTableCellValue(Asset.GetGameFeaturePlugin());
+					return FTableCellValue(Asset.GetPluginName());
 				}
 
 				return TOptional<FTableCellValue>();
@@ -1292,7 +1292,7 @@ void FAssetTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 }
 
-/*static*/TSet<int32> FAssetTableRow::GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToGFPs)
+/*static*/TSet<int32> FAssetTableRow::GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToPlugins)
 {
 	// "visit" ThisIndex to seed the exploration
 	TSet<int32> VisitedIndices;
@@ -1313,7 +1313,7 @@ void FAssetTable::AddDefaultColumns()
 		Iterator.RemoveCurrent();
 
 		const FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
-		if (ShouldSkipDueToGFP(RestrictToGFPs, Row.GetGameFeaturePlugin()) || AdditionalNodesToStopAt.Contains(CurrentIndex))
+		if (ShouldSkipDueToPlugin(RestrictToPlugins, Row.GetPluginName()) || AdditionalNodesToStopAt.Contains(CurrentIndex))
 		{
 			// Don't traverse outside this plugin
 			continue;
@@ -1352,7 +1352,7 @@ void FAssetTable::AddDefaultColumns()
 		Iterator.RemoveCurrent();
 
 		const FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
-		if (ShouldSkipDueToGFP(RestrictToGFPs, Row.GetGameFeaturePlugin()))
+		if (ShouldSkipDueToPlugin(RestrictToGFPs, Row.GetPluginName()))
 		{
 			// Don't traverse outside this plugin
 			continue;
@@ -1405,21 +1405,21 @@ void FAssetTable::AddDefaultColumns()
 
 	FAssetTableDependencySizes Result;
 
-	TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>> RestrictToGFPs;
+	TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>> RestrictToPlugins;
 	for (int32 RootIndex : RootIndices)
 	{
-		RestrictToGFPs.Add(OwningTable.GetAssetChecked(RootIndex).GetGameFeaturePlugin());
+		RestrictToPlugins.Add(OwningTable.GetAssetChecked(RootIndex).GetPluginName());
 	}
 
 
-	TSet<int32> VisitedIndices = GatherAllReachableNodes(RootIndices.Array(), OwningTable, TSet<int32>(), RestrictToGFPs);
+	TSet<int32> VisitedIndices = GatherAllReachableNodes(RootIndices.Array(), OwningTable, TSet<int32>(), RestrictToPlugins);
 
 	// Iteratively separate the graph of "all things referenced by ThisIndex, directly or indirectly"
 	// into "UniqueDependencies -- things referenced ONLY by ThisIndex and by other things themselves referenced ONLY by ThisIndex" limited to the GFPs of the RootIndices
 	// and "SharedDependencies" -- things removed from the list of "all things referenced by ThisIndex" in order to identify UniqueDependencies, limited to the GFPs of the RootIndices
 	TSet<int32> UniqueDependencies;
 	TSet<int32> SharedDependencies;
-	RefineDependencies(VisitedIndices, OwningTable, RootIndices, RestrictToGFPs, UniqueDependencies, SharedDependencies);
+	RefineDependencies(VisitedIndices, OwningTable, RootIndices, RestrictToPlugins, UniqueDependencies, SharedDependencies);
 
 	// If there's only one root provided, the dependencies shouldn't include it. If more than one root is provided,
 	// some roots might be included as dependencies of other roots
@@ -1453,7 +1453,7 @@ void FAssetTable::AddDefaultColumns()
 
 		const FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
 		VisitedIndices.Add(CurrentIndex);
-		if (ShouldSkipDueToGFP(RestrictToGFPs, Row.GetGameFeaturePlugin()))
+		if (ShouldSkipDueToPlugin(RestrictToPlugins, Row.GetPluginName()))
 		{
 			// Don't traverse outside this plugin
 			continue;
@@ -1486,10 +1486,10 @@ void FAssetTable::AddDefaultColumns()
 	Stopwatch.Start();
 
 	TSet<int32> AllReachableNodes = GatherAllReachableNodes(StartingNodes.Array(), OwningTable, TSet<int32>{}, TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>{});
-	TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>> SourceGFPs;
+	TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>> SourcePlugins;
 	for (int32 RootIndex : StartingNodes)
 	{
-		SourceGFPs.Add(OwningTable.GetAsset(RootIndex)->GetGameFeaturePlugin());
+		SourcePlugins.Add(OwningTable.GetAsset(RootIndex)->GetPluginName());
 	}
 
 	int64 TotalSizeExternalDependencies = 0;
@@ -1498,7 +1498,7 @@ void FAssetTable::AddDefaultColumns()
 	{
 		const FAssetTableRow& Row = *OwningTable.GetAsset(Index);
 		// Only include EXTERNAL dependencies
-		if (!SourceGFPs.Contains(Row.GameFeaturePlugin))
+		if (!SourcePlugins.Contains(Row.PluginName))
 		{
 			if (OutExternalDependencies != nullptr)
 			{

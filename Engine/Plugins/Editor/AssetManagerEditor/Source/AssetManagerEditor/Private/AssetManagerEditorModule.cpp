@@ -109,7 +109,7 @@ const FName IAssetManagerEditorModule::CookRuleName = FName("CookRule");
 const FName IAssetManagerEditorModule::ChunksName = FName("Chunks");
 const FName IAssetManagerEditorModule::StageChunkSizeName = FName("Stage_ChunkSize");
 const FName IAssetManagerEditorModule::StageChunkCompressedSizeName = FName("Stage_ChunkCompressedSize");
-const FName IAssetManagerEditorModule::GameFeaturePluginsName = FName("GameFeaturePlugins");
+const FName IAssetManagerEditorModule::PluginName = FName("GameFeaturePlugins");
 
 const FString FAssetManagerEditorRegistrySource::EditorSourceName = TEXT("Editor");
 const FString FAssetManagerEditorRegistrySource::CustomSourceName = TEXT("Custom");
@@ -1310,7 +1310,7 @@ bool FAssetManagerEditorModule::GetStringValueForCustomColumn(const FAssetData& 
 		}
 		return true;
 	}
-	else if (ColumnName == GameFeaturePluginsName)
+	else if (ColumnName == PluginName)
 	{
 		TArray<FString> ParsedPath;
 		const FString& PackageNameString = AssetData.PackageName.ToString();
@@ -1386,7 +1386,7 @@ bool FAssetManagerEditorModule::GetDisplayTextForCustomColumn(const FAssetData& 
 			return true;
 		}
 	}
-	else if (ColumnName == ChunksName || ColumnName == GameFeaturePluginsName)
+	else if (ColumnName == ChunksName || ColumnName == PluginName)
 	{
 		FString OutString;
 

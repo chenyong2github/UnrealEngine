@@ -123,7 +123,7 @@ struct FAssetTableColumns
 	static const FName TotalUsageCountColumnId;
 	static const FName ChunksColumnId;
 	static const FName NativeClassColumnId;
-	static const FName GameFeaturePluginColumnId;
+	static const FName PluginNameColumnId;
 };
 
 struct FAssetTableDependencySizes
@@ -159,7 +159,7 @@ public:
 	int64 GetTotalUsageCount() const { return TotalUsageCount; }
 	const TCHAR* GetChunks() const { return Chunks; }
 	const TCHAR* GetNativeClass() const { return NativeClass; }
-	const TCHAR* GetGameFeaturePlugin() const { return GameFeaturePlugin; }
+	const TCHAR* GetPluginName() const { return PluginName; }
 	int32 GetNumDependencies() const { return Dependencies.Num(); }
 	const TArray<int32>& GetDependencies() const { return Dependencies; }
 	int32 GetNumReferencers() const { return Referencers.Num(); }
@@ -173,10 +173,10 @@ public:
 
 private:
 	static void RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, const FAssetTable& OwningTable, const TSet<int32> RootIndices, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToGFPs, TSet<int32>& OutUniqueIndices, TSet<int32>& OutSharedIndices);
-	static inline bool ShouldSkipDueToGFP(const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToGFPs, const TCHAR* GFP) { return (RestrictToGFPs.Num() > 0) && !RestrictToGFPs.Contains(GFP); }
+	static inline bool ShouldSkipDueToPlugin(const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToPlugins, const TCHAR* PluginName) { return (RestrictToPlugins.Num() > 0) && !RestrictToPlugins.Contains(PluginName); }
 
 	// Finds all nodes reachable from StartingNodes INCLUDING those in StartingNodes
-	static TSet<int32> GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToGFPs);
+	static TSet<int32> GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToPlugins);
 
 private:
 	FSoftObjectPath SoftObjectPath; // Used to allow you to go to that asset in the content browser or to open its editor after lookingup the FAssetData in the original registry state
@@ -192,7 +192,7 @@ private:
 	int64 TotalUsageCount = 0;
 	const TCHAR* Chunks = nullptr;
 	const TCHAR* NativeClass = nullptr;
-	const TCHAR* GameFeaturePlugin = nullptr;
+	const TCHAR* PluginName = nullptr;
 	TArray<int32> Dependencies;
 	TArray<int32> Referencers;
 	FLinearColor Color;

@@ -383,7 +383,7 @@ public:
 	static const FName ChunksName;
 	static const FName StageChunkSizeName;
 	static const FName StageChunkCompressedSizeName;
-	static const FName GameFeaturePluginsName;
+	static const FName PluginName;
 
 	/** Gets the value of a "virtual" column for an asset data, this will query the AssetManager for you and takes current platform into account. Returns true and sets out parameter if found */
 	virtual bool GetStringValueForCustomColumn(const FAssetData& AssetData, FName ColumnName, FString& OutValue) = 0;
