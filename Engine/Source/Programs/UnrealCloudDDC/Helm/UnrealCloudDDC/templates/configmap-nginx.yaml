@@ -168,6 +168,7 @@ data:
         }
       }
 
+      # nginx status
       server {
         listen 18080;
 
@@ -181,6 +182,12 @@ data:
         location / {
           return 404;
         }
+      }
+
+      # https redirect
+      server {
+          listen 18090;
+          return 301 https://$server_name$request_uri;
       }
     }  
 {{ end }}
