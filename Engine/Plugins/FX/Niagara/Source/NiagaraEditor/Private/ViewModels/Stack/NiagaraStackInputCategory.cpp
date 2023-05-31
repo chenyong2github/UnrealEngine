@@ -188,7 +188,14 @@ void SetValuesFromFunctionInputsInternal(UNiagaraStackInputCategory* Category, c
 		{
 			if (InputMatchesFilter(ChildInput) && ChildInput->GetInputParameterHandle().GetName() == ClipboardFunctionInput->InputName && ChildInput->GetInputType() == ClipboardFunctionInput->InputType)
 			{
-				ChildInput->SetValueFromClipboardFunctionInput(*ClipboardFunctionInput);
+				if (ClipboardFunctionInput->ValueMode == ENiagaraClipboardFunctionInputValueMode::ResetToDefault)
+				{
+					ChildInput->Reset();
+				}
+				else
+				{
+					ChildInput->SetValueFromClipboardFunctionInput(*ClipboardFunctionInput);
+				}
 				if(OwningFunctionCollection)
 				{
 					OwningFunctionCollection->RefreshChildren();

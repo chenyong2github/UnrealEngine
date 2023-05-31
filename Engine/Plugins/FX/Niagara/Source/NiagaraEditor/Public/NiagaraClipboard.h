@@ -24,7 +24,8 @@ enum class ENiagaraClipboardFunctionInputValueMode
 	Data,
 	ObjectAsset,
 	Expression,
-	Dynamic
+	Dynamic,
+	ResetToDefault // special paste mode where it resets to the default value
 };
 
 class UNiagaraClipboardFunction;
@@ -47,6 +48,8 @@ public:
 
 	static const UNiagaraClipboardFunctionInput* CreateDynamicValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, FString InDynamicValueName, UNiagaraScript* InDynamicValue, const FGuid& InScriptVersion);
 
+	static const UNiagaraClipboardFunctionInput* CreateDefaultInputValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType);
+	
 	UPROPERTY()
 	FName InputName;
 

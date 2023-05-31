@@ -98,6 +98,13 @@ const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateDyna
 	return NewInput;
 }
 
+const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateDefaultInputValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType)
+{
+	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, TOptional<bool>(), ENiagaraClipboardFunctionInputValueMode::ResetToDefault);
+	NewInput->Local.SetNumZeroed(InInputType.GetSize());
+	return NewInput;
+}
+
 
 bool UNiagaraClipboardFunctionInput::CopyValuesFrom(const UNiagaraClipboardFunctionInput* InOther)
 {

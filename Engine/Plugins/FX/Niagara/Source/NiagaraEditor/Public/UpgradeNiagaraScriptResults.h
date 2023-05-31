@@ -146,6 +146,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
 	void SetNewInput(const FString& InputName, UNiagaraPythonScriptModuleInput* Value);
 
+	UFUNCTION(BlueprintCallable, Category = "Scripting")
+	void ResetToDefault(const FString& InputName);
+
 private:
 	UNiagaraPythonScriptModuleInput* GetNewInput(const FName& InputName) const;
 

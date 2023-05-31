@@ -319,6 +319,15 @@ void UUpgradeNiagaraScriptResults::SetNewInput(const FString& InputName, UNiagar
 	}
 }
 
+void UUpgradeNiagaraScriptResults::ResetToDefault(const FString& InputName)
+{
+	if (UNiagaraPythonScriptModuleInput* ModuleInput = GetNewInput(FName(InputName)))
+	{
+		const UNiagaraClipboardFunctionInput* CurrentInput = ModuleInput->Input;
+		ModuleInput->Input = UNiagaraClipboardFunctionInput::CreateDefaultInputValue(ModuleInput, CurrentInput->InputName, CurrentInput->InputType);
+	}
+}
+
 UNiagaraPythonScriptModuleInput* UUpgradeNiagaraScriptResults::GetNewInput(const FName& InputName) const
 {
 	for (UNiagaraPythonScriptModuleInput* ModuleInput : NewInputs)

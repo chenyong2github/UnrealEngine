@@ -1460,6 +1460,41 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 				NewClipboardContent->FunctionInputs = NewClipboardContent->Functions[0]->Inputs;
 				NewClipboardContent->Functions.Empty();
 			}
+
+			// There can be hidden inputs due to static switches, so we need to add all of them to the clipboard for the python script to see them.
+			TArray<FNiagaraVariable> StaticSwitchInputs = FunctionCallNode->GetCalledGraph()->FindStaticSwitchInputs();
+			TArray<FNiagaraVariable> InputVariables;
+			TSet<FNiagaraVariable> HiddenInputVariables;
+			FCompileConstantResolver Resolver = GetEmitterViewModel().IsValid() ?
+			FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*FunctionCallNode)) :
+			FCompileConstantResolver(&GetSystemViewModel()->GetSystem(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*FunctionCallNode));
+			GetStackFunctionInputs(*FunctionCallNode, InputVariables, HiddenInputVariables, Resolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+
+			TSet<FNiagaraVariableBase> SeenVars;
+			for (const UNiagaraClipboardFunctionInput* Input : NewClipboardContent->FunctionInputs)
+			{
+				SeenVars.Add(FNiagaraVariable(Input->GetTypeDef(), Input->InputName));
+			}
+			for (const FNiagaraVariableBase& StaticVar : StaticSwitchInputs)
+			{
+				if (!SeenVars.Contains(StaticVar))
+				{
+					NewClipboardContent->FunctionInputs.Add(UNiagaraClipboardFunctionInput::CreateDefaultInputValue(NewClipboardContent, StaticVar.GetName(), StaticVar.GetType()));
+					SeenVars.Add(StaticVar);
+				}
+			}
+			for (const FNiagaraVariableBase& InputVar : InputVariables)
+			{
+				FString InputName = InputVar.GetName().ToString();
+				InputName.RemoveFromStart(PARAM_MAP_MODULE_STR);
+				FNiagaraVariableBase NewVar(InputVar.GetType(), FName(InputName));
+				if (!SeenVars.Contains(NewVar))
+				{
+					NewClipboardContent->FunctionInputs.Add(UNiagaraClipboardFunctionInput::CreateDefaultInputValue(NewClipboardContent, NewVar.GetName(), NewVar.GetType()));
+					SeenVars.Add(NewVar);
+				}
+			}
+			
 			FunctionCallNode->PythonUpgradeScriptWarnings.Empty();
 			FText Warnings;
 			if (UNiagaraClipboardContent* NewInputs = FNiagaraEditorUtilities::RunPythonConversionScript(*NewScriptData, NewClipboardContent, *OldScriptData, OldClipboardContent, Warnings))
