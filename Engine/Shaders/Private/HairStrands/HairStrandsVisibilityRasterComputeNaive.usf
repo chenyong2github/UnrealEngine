@@ -221,7 +221,7 @@ void CSMain(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV
 		const uint NumSteps = (uint)ceil(max(DeltaAbs.x, DeltaAbs.y)) + 1;
 		const float RcpNumSteps = NumSteps > 1 ? (1.0f / (NumSteps - 1)) : 1.0f;
 		const bool bIsSteep = DeltaAbs.y > DeltaAbs.x;
-		const uint PrimMatID = PackHairVisPrimitiveMaterialId(PrimID, HairMaterialId);
+		const uint PrimMatID = PackHairVisControlPointMaterialId(PrimID, HairMaterialId);
 
 		LOOP for (int J = 0; J < NumSteps; ++J)
 		{

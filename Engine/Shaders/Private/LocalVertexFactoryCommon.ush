@@ -46,8 +46,8 @@ struct FVertexFactoryInterpolantsVSToPS
 
 
 #if HAIR_STRAND_MESH_FACTORY
-		nointerpolation uint HairPrimitiveId		: HAIR_PRIMITIVE_ID;	// Control point ID
-		float2 HairPrimitiveUV						: HAIR_PRIMITIVE_UV;	// U: parameteric distance between the two surrounding control points. V: parametric distance along the width.
+	nointerpolation uint HairControlPointId			: HAIR_PRIMITIVE_ID;	// Control point ID
+	float2 HairPrimitiveUV							: HAIR_PRIMITIVE_UV;	// U: parameteric distance between the two surrounding control points. V: parametric distance along the width.
 #endif
 #if HAIR_CARD_MESH_FACTORY
 	float2 HairPrimitiveUV							: HAIR_PRIMITIVE_UV;	// Atlas UV

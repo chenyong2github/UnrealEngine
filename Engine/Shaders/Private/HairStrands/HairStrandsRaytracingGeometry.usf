@@ -127,7 +127,7 @@ void SetBodySegment(uint InVertexIndex)
 	{
 		// Note that this vertex ordering is carefully chosen to work with the Vertex Factory in RT mode
 		// In particular, we _must_ put one of the bottom point as the last vertex of the triangle
-		// so that the interpolation step will copy the right HairPrimitiveId onwards
+		// so that the interpolation step will copy the right HairControlPointId onwards
 		OutputIndexBuffer[OutIndex + 0] = TopPoint + PrevIdx;
 		OutputIndexBuffer[OutIndex + 1] = TopPoint + Idx;
 		OutputIndexBuffer[OutIndex + 2] = BotPoint + PrevIdx;

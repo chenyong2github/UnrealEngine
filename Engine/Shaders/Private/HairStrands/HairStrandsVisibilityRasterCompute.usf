@@ -956,7 +956,7 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 			uint Prim = GroupThreadID;
 			uint PrimID = VisTilePrims[PrimOffset + Prim];
 
-			group_PrimMatID[Prim] = PackHairVisPrimitiveMaterialId(PrimID, HairMaterialId);
+			group_PrimMatID[Prim] = PackHairVisControlPointMaterialId(PrimID, HairMaterialId);
 
 			uint TypeDummy;
 			CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID], group_PositionOffset, group_SP0[Prim], group_Rad0[Prim], TypeDummy);
@@ -975,7 +975,7 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 				Coord += uint2(((PackedTileMin >> 0) & 0xffff), ((PackedTileMin >> 16) & 0xffff));
 
 				group_SubTile[LinearIndex].x = OutDepthCovTexture[uint3(Coord, 0)];
-				group_SubTile[LinearIndex].y = GetInvalidHairPrimitiveId();
+				group_SubTile[LinearIndex].y = GetInvalidHairControlPointId();
 				group_SubTile[LinearIndex].z = 0;
 				group_SubTile[LinearIndex].w = PackHairVisDepthCoverage(SceneDepthTexture.Load(uint3(Coord, 0)), 1.0f);
 			}
@@ -1005,7 +1005,7 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 			else
 			{
 				uint PrimID = VisTilePrims[PrimOffset + Prim];
-				PrimMatID = PackHairVisPrimitiveMaterialId(PrimID, HairMaterialId);
+				PrimMatID = PackHairVisControlPointMaterialId(PrimID, HairMaterialId);
 
 				uint TypeDummy;
 				CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID], group_PositionOffset, SP0, Rad0, TypeDummy);
@@ -1139,7 +1139,7 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 
 				Coord += uint2(((PackedTileMin >> 0) & 0xffff), ((PackedTileMin >> 16) & 0xffff));
 
-				if (group_SubTile[LinearIndex].y != GetInvalidHairPrimitiveId())
+				if (group_SubTile[LinearIndex].y != GetInvalidHairControlPointId())
 				{
 					uint oldValue;
 					InterlockedMax(OutDepthCovTexture[uint3(Coord, 0)], group_SubTile[LinearIndex].x, oldValue);
@@ -1354,7 +1354,7 @@ void RasterMultiSampleCS(uint DispatchThreadID : SV_DispatchThreadID, uint Group
 		if (bThreadValid)
 		{
 			const uint PrimID = VisTilePrims[PrimOffset + Prim];
-			PrimMatID = PackHairVisPrimitiveMaterialId(PrimID, HairMaterialId);
+			PrimMatID = PackHairVisControlPointMaterialId(PrimID, HairMaterialId);
 
 			uint Type;
 			CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID], group_PositionOffset, SP0, Rad0, Type);
@@ -1388,7 +1388,7 @@ void RasterMultiSampleCS(uint DispatchThreadID : SV_DispatchThreadID, uint Group
 				{
 					const uint HairDepth = OutDepthCovTexture[uint3(Coord, SampleIdx)];
 					group_SubTileHairDepth[SampleIdx][GroupThreadID] = HairDepth;
-					group_SubTilePrimMatID[SampleIdx][GroupThreadID] = GetInvalidHairPrimitiveId();
+					group_SubTilePrimMatID[SampleIdx][GroupThreadID] = GetInvalidHairControlPointId();
 				}
 			}
 
@@ -1447,7 +1447,7 @@ void RasterMultiSampleCS(uint DispatchThreadID : SV_DispatchThreadID, uint Group
 					const uint3 SampleCoord = uint3(Coord, SampleIdx);
 					
 					const uint PrimMatID = group_SubTilePrimMatID[SampleIdx][GroupThreadID];
-					if (PrimMatID != GetInvalidHairPrimitiveId())
+					if (PrimMatID != GetInvalidHairControlPointId())
 					{
 						const uint HairDepth = group_SubTileHairDepth[SampleIdx][GroupThreadID];
 

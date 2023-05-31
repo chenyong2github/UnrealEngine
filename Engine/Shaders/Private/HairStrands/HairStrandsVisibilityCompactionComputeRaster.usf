@@ -88,8 +88,8 @@ void ComputeUniqueSamples(const uint2 PixelCoord, out uint4 OutSamples[PERMUTATI
 		// Note: PrimMatTexture contains both the primitive ID and the material ID. However 
 		// the material ID is constant along the primitive, so it is correct to use this as a 
 		// sorting/deduplication key
-		const uint PrimitiveId = PrimMatTexture.Load(uint4(PixelCoord, SampleIt, 0));
-		const bool bIsValid = PrimitiveId != GetInvalidHairPrimitiveId();
+		const uint HairControlPointId = PrimMatTexture.Load(uint4(PixelCoord, SampleIt, 0));
+		const bool bIsValid = HairControlPointId != GetInvalidHairControlPointId();
 		if (!bIsValid)
 		{
 			continue;
@@ -109,10 +109,10 @@ void ComputeUniqueSamples(const uint2 PixelCoord, out uint4 OutSamples[PERMUTATI
 			const float UniqueDepth = asfloat(OutSamples[UniqueIt].w);
 			const float UniqueSceneDepth = ConvertFromDeviceZ(UniqueDepth);
 			const bool bIsSimilar =
-				PrimitiveId == OutSamples[UniqueIt].x ||
+				HairControlPointId == OutSamples[UniqueIt].x ||
 				abs(UniqueSceneDepth - SceneDepth) < DepthTheshold;
 #else
-			const bool bIsSimilar = PrimitiveId == OutSamples[UniqueIt].x;
+			const bool bIsSimilar = HairControlPointId == OutSamples[UniqueIt].x;
 #endif
 			if (bIsSimilar)
 			{
@@ -123,7 +123,7 @@ void ComputeUniqueSamples(const uint2 PixelCoord, out uint4 OutSamples[PERMUTATI
 				if (IntDepth > OutSamples[UniqueIt].w)
 				{
 #if MERGE_SAMPLE
-					OutSamples[UniqueIt].x = PrimitiveId;
+					OutSamples[UniqueIt].x = HairControlPointId;
 #endif
 					OutSamples[UniqueIt].z = SampleIt;
 					OutSamples[UniqueIt].w = asuint(SampleDepth);
@@ -136,7 +136,7 @@ void ComputeUniqueSamples(const uint2 PixelCoord, out uint4 OutSamples[PERMUTATI
 
 		if (!bAlreadyExist)
 		{
-			OutSamples[OutSet.UniqueSampleCount].x = PrimitiveId;
+			OutSamples[OutSet.UniqueSampleCount].x = HairControlPointId;
 			OutSamples[OutSet.UniqueSampleCount].y = 1;
 			OutSamples[OutSet.UniqueSampleCount].z = SampleIt;
 			OutSamples[OutSet.UniqueSampleCount].w = asuint(SampleDepth);
@@ -189,7 +189,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID, uint3 G
 	}
 
 	FSampleSetDesc SampleDesc;
-	uint4 Samples[PERMUTATION_MULTI_SAMPLE_COUNT]; // x:PrimitiveId|MaterialId, y:Weight, z:SampleIt, w:Depth (as uint)
+	uint4 Samples[PERMUTATION_MULTI_SAMPLE_COUNT]; // x:ControlPointId|MaterialId, y:Weight, z:SampleIt, w:Depth (as uint)
 
 	ComputeUniqueSamples(PixelCoord, Samples, SampleDesc);
 
@@ -221,7 +221,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID, uint3 G
 			{
 				// VisibilityData.Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by Categorization.PixelCoverage.
 				FHairVis OutNodeVis;
-				OutNodeVis.PrimitiveId	= UnpackHairVisPrimitiveId(Samples[OutIndex].x);
+				OutNodeVis.ControlPointId	= UnpackHairVisControlPointId(Samples[OutIndex].x);
 				OutNodeVis.MaterialId	= UnpackHairVisMaterialId(Samples[OutIndex].x);
 				OutNodeVis.Depth		= asfloat(Samples[OutIndex].w);
 				OutNodeVis.Coverage8bit = To8bitCoverage(Samples[OutIndex].y / float(SampleDesc.ValidSampleCount)); // 0xff;

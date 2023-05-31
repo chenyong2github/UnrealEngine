@@ -1131,7 +1131,7 @@ void MainCS(uint InGroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispa
 		Newline(Context2);
 
 		Print(Context2, Sample.MacroGroupId, FontYellow);						Newline(Context2);
-		Print(Context2, Sample.PrimitiveId, FontEmerald);						Newline(Context2);
+		Print(Context2, Sample.ControlPointId, FontEmerald);						Newline(Context2);
 	#endif
 		Print(Context2, Sample.Coverage8bit, FontOrange);						Newline(Context2);
 	}
@@ -2497,7 +2497,7 @@ void CSMain(
 		if (VisNode.MaterialId == MaterialId)
 		{
 			FHairControlPoint Out = UnpackHairControlPoint(
-				HairInstance_PositionBuffer[VisNode.PrimitiveId],
+				HairInstance_PositionBuffer[VisNode.ControlPointId],
 				HairInstance_PositionOffsetBuffer[0].xyz,
 				HairInstance_Radius,
 				HairInstance_RootScale,
@@ -2508,17 +2508,17 @@ void CSMain(
 
 			FShaderPrintContext Ctx = InitShaderPrintContext(true, uint2(PixelCoord) + uint2(20, 0));
 			Print(Ctx, TEXT("Group    : "), FontName); Print(Ctx, GetHairStrandsGroupIndex(), FontValue); Newline(Ctx);
-			Print(Ctx, TEXT("Radius   : "), FontName); Print(Ctx, GetHairStrandsDimensions(VisNode.PrimitiveId, 0).y, FontValue); Newline(Ctx);
-			Print(Ctx, TEXT("Seed     : "), FontName); Print(Ctx, GetHairStrandsSeed(VisNode.PrimitiveId), FontValue); Newline(Ctx);
-			Print(Ctx, TEXT("CoordU   : "), FontName); Print(Ctx, GetHairStrandsUV(VisNode.PrimitiveId, float2(0, 0.5f)).x, FontValue); Newline(Ctx);
+			Print(Ctx, TEXT("Radius   : "), FontName); Print(Ctx, GetHairStrandsDimensions(VisNode.ControlPointId, 0).y, FontValue); Newline(Ctx);
+			Print(Ctx, TEXT("Seed     : "), FontName); Print(Ctx, GetHairStrandsSeed(VisNode.ControlPointId), FontValue); Newline(Ctx);
+			Print(Ctx, TEXT("CoordU   : "), FontName); Print(Ctx, GetHairStrandsUV(VisNode.ControlPointId, float2(0, 0.5f)).x, FontValue); Newline(Ctx);
 			Newline(Ctx);
 
-			if (HasHairStrandsRootUV()) 	{ Print(Ctx, TEXT("RootUV   : "), FontName); Print(Ctx, GetHairStrandsRootUV(VisNode.PrimitiveId),  FontValue); Newline(Ctx); }
-			if (HasHairStrandsClumpId()) 	{ Print(Ctx, TEXT("Clump ID : "), FontName); Print(Ctx, GetHairStrandsClumpID(VisNode.PrimitiveId).x, FontValue); Newline(Ctx); }
-			if (HasHairStrandsClumpId3()) 	{ Print(Ctx, TEXT("Clump IDs: "), FontName); Print(Ctx, GetHairStrandsClumpID(VisNode.PrimitiveId), FontValue); Newline(Ctx); }
-			if (HasHairStrandsColor()) 		{ Print(Ctx, TEXT("Color    : "), FontName); Print(Ctx, GetHairStrandsColor(VisNode.PrimitiveId, 0), FontValue); Newline(Ctx); }
-			if (HasHairStrandsRoughness()) 	{ Print(Ctx, TEXT("Roughness: "), FontName); Print(Ctx, GetHairStrandsRoughness(VisNode.PrimitiveId, 0), FontValue); Newline(Ctx); }
-			if (HasHairStrandsAO()) 		{ Print(Ctx, TEXT("AO       : "), FontName); Print(Ctx, GetHairStrandsAO(VisNode.PrimitiveId, 0), FontValue); Newline(Ctx); }
+			if (HasHairStrandsRootUV()) 	{ Print(Ctx, TEXT("RootUV   : "), FontName); Print(Ctx, GetHairStrandsRootUV(VisNode.ControlPointId),  FontValue); Newline(Ctx); }
+			if (HasHairStrandsClumpId()) 	{ Print(Ctx, TEXT("Clump ID : "), FontName); Print(Ctx, GetHairStrandsClumpID(VisNode.ControlPointId).x, FontValue); Newline(Ctx); }
+			if (HasHairStrandsClumpId3()) 	{ Print(Ctx, TEXT("Clump IDs: "), FontName); Print(Ctx, GetHairStrandsClumpID(VisNode.ControlPointId), FontValue); Newline(Ctx); }
+			if (HasHairStrandsColor()) 		{ Print(Ctx, TEXT("Color    : "), FontName); Print(Ctx, GetHairStrandsColor(VisNode.ControlPointId, 0), FontValue); Newline(Ctx); }
+			if (HasHairStrandsRoughness()) 	{ Print(Ctx, TEXT("Roughness: "), FontName); Print(Ctx, GetHairStrandsRoughness(VisNode.ControlPointId, 0), FontValue); Newline(Ctx); }
+			if (HasHairStrandsAO()) 		{ Print(Ctx, TEXT("AO       : "), FontName); Print(Ctx, GetHairStrandsAO(VisNode.ControlPointId, 0), FontValue); Newline(Ctx); }
 			Newline(Ctx);
 		}
 	}

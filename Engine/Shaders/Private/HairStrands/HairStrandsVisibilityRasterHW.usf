@@ -127,7 +127,7 @@ VSOutput VSMain(VSInput Input)
 	
 	Output.Position = mul(float4(WP, 1.0f), LWCHackToFloat(PrimaryView.WorldToClip));
 	Output.Radius = CPWorldRadius * 2000.0f;
-	Output.PrimMatID = PackHairVisPrimitiveMaterialId(PrimID, HairMaterialId);
+	Output.PrimMatID = PackHairVisControlPointMaterialId(PrimID, HairMaterialId);
 
 	return Output;
 }

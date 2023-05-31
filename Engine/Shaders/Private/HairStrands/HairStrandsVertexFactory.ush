@@ -102,7 +102,7 @@ struct FVertexFactoryInput
 struct FVertexInfo
 {
 	uint VertexIndex;
-	uint HairPrimitiveId;
+	uint HairControlPointId;
 	uint IsTip;				// The vertex is on the quad side toward the tip of the strand.
 #if !RAYHITGROUPSHADER
 	uint IsLeft;
@@ -130,7 +130,7 @@ FVertexInfo GetVertexInfo(FVertexFactoryInput Input)
 	VertexInfo.IsTip		= QuadIndex == 0 || QuadIndex == 2 || QuadIndex == 4 ? 0 : 1;
 	VertexInfo.IsLeft		= QuadIndex == 0 || QuadIndex == 1 || QuadIndex == 5 ? 1 : 0;
 #endif
-	VertexInfo.HairPrimitiveId = BaseIndex;
+	VertexInfo.HairControlPointId = BaseIndex;
 	VertexInfo.VertexIndex = BaseIndex + VertexInfo.IsTip;
 #if !RAYHITGROUPSHADER
 	VertexInfo.LodRadiusScale = 1.0f;
@@ -145,7 +145,7 @@ FVertexInfo GetVertexInfo(FVertexFactoryInput Input)
 		VertexInfo.LodRadiusScale = HairStrandsVF.CullingRadiusScaleBuffer[BaseIndex + VertexInfo.IsTip];
 		VertexInfo.bForceInvalidQuad = VertexInfo.LodRadiusScale <= 0.0f;
 #endif
-		VertexInfo.HairPrimitiveId = VertexInfo.VertexIndex - VertexInfo.IsTip;
+		VertexInfo.HairControlPointId = VertexInfo.VertexIndex - VertexInfo.IsTip;
 	}
 #endif
 
@@ -181,7 +181,7 @@ struct FVertexFactoryIntermediates
 	half3x3 TangentToLocal;
 	half3x3 TangentToWorld;
 	half TangentToWorldSign;
-	uint HairPrimitiveId;
+	uint HairControlPointId;
 	float2 HairPrimitiveUV;
 	float2 HairDimensions;  // This is kept on the intermediate as this is used in several vertex shader for the actual coverage.
 	float  HairDensity;
@@ -189,9 +189,9 @@ struct FVertexFactoryIntermediates
 	FSceneDataIntermediates SceneData;
 };
 
-uint GetHairPrimitiveId(FVertexFactoryInput Input)
+uint GetHairControlPointId(FVertexFactoryInput Input)
 {
-	return GetVertexInfo(Input).HairPrimitiveId;
+	return GetVertexInfo(Input).HairControlPointId;
 }
 
 FHairControlPoint GetVertexPosition(const FVertexInfo VertexInfo, bool bInvalidJointVertex=true)
@@ -299,7 +299,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 
 	Result.TwoSidedSign = 1;
 	Result.PrimitiveId = ToScalarMemory(GetPrimitiveId(Interpolants));
-	Result.HairPrimitiveId = Interpolants.HairPrimitiveId;
+	Result.HairControlPointId = Interpolants.HairControlPointId;
 	Result.HairPrimitiveUV = float2(Interpolants.HairPrimitiveUV);
 
 	return Result;
@@ -577,7 +577,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 
 
 #endif // ENABLE_PROCEDURAL_INTERSECTOR
-	Result.HairPrimitiveId = VertexIndex0;
+	Result.HairControlPointId = VertexIndex0;
 	Result.HairPrimitiveUV = float2(UCoord, VCoord);
 
 	// Required for previewing materials that use ParticleColor
@@ -614,7 +614,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 {
 	FVertexFactoryIntermediates Intermediates;
 	Intermediates.SceneData			= VF_GPUSCENE_GET_INTERMEDIATES(Input);
-	Intermediates.HairPrimitiveId	= GetHairPrimitiveId(Input);
+	Intermediates.HairControlPointId= GetHairControlPointId(Input);
 	Intermediates.HairPrimitiveUV	= GetSegmentUVCoord(Input);
 	Intermediates.HairDensity		= HairStrandsVF.Density;
 	Intermediates.HairDimensions	= float2(0.f, GetWorldStrandRadius(Input));
@@ -663,10 +663,10 @@ float4 ComputeViewAlignedWorldPosition(FVertexFactoryInput Input, float3 WorldTa
 
 // @return translated world position 
 // Specialized version of VertexFactoryGetWorldPosition & ComputeViewAlignedWorldPosition, for visibility VS shader.
-float4 VertexFactoryGetWorldPosition_Visibility(FVertexFactoryInput Input, FHairViewInfo HairViewInfo, inout uint OutHairPrimitiveId)
+float4 VertexFactoryGetWorldPosition_Visibility(FVertexFactoryInput Input, FHairViewInfo HairViewInfo, inout uint OutHairControlPointId)
 {
 	const FVertexInfo VertexInfo = GetVertexInfo(Input);
-	OutHairPrimitiveId = VertexInfo.HairPrimitiveId;
+	OutHairControlPointId = VertexInfo.HairControlPointId;
 
 	FHairControlPoint ControlPoint = GetVertexPosition(VertexInfo);
 
@@ -757,7 +757,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	Interpolants.EyeIndex = 0;
 #endif
 	
-	Interpolants.HairPrimitiveId = Intermediates.HairPrimitiveId;
+	Interpolants.HairControlPointId = Intermediates.HairControlPointId;
 	Interpolants.HairPrimitiveUV = Intermediates.HairPrimitiveUV;
 	SetPrimitiveId(Interpolants, Intermediates.SceneData.PrimitiveId);
 
@@ -893,7 +893,7 @@ FVertexFactoryRayTracingInterpolants VertexFactoryInterpolate(FVertexFactoryRayT
 	INTERPOLATE_MEMBER(InterpolantsVSToPS.TexCoords[0]);
 #endif
 
-	O.InterpolantsVSToPS.HairPrimitiveId = a.InterpolantsVSToPS.HairPrimitiveId;
+	O.InterpolantsVSToPS.HairControlPointId = a.InterpolantsVSToPS.HairControlPointId;
 	INTERPOLATE_MEMBER(InterpolantsVSToPS.HairPrimitiveUV);
 	return O;
 }

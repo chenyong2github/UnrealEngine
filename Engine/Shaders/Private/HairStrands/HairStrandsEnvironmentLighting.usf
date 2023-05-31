@@ -287,7 +287,7 @@ float MaxComponent3(float3 In)
 	return max(In.x, max(In.y, In.z));
 }
 
-float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2 SvPosition, uint PrimitiveId, uint MacroGroupId)
+float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2 SvPosition, uint ControlPointId, uint MacroGroupId)
 {
 	const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 	const float3 CameraToPixel = normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
@@ -295,8 +295,8 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 	const float  PixelSceneDepth = GBuffer.Depth;
 	const float  PixelRadius = VirtualVoxel.HairCoveragePixelRadiusAtDepth1 * PixelSceneDepth;
 
-	const uint PrimitiveIdMod8 = (PrimitiveId % 8);
-	const float3 VoxelOffset =  GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8 + PrimitiveIdMod8, VirtualVoxel.JitterMode);
+	const uint ControlPointIdMod8 = (ControlPointId % 8);
+	const float3 VoxelOffset =  GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8 + ControlPointIdMod8, VirtualVoxel.JitterMode);
 
 	const float3 V = -CameraToPixel;
 	const float3 T = GBuffer.WorldNormal;
@@ -602,7 +602,7 @@ float3 ReflectionEnvironmentUniformSampling(
 	FGBufferData GBuffer, 
 	float2 ScreenPosition, 
 	float2 SvPosition, 
-	uint PrimitiveId, 
+	uint HairControlPointId, 
 	uint MacroGroupId,
 	bool bDebugEnabled)
 {
@@ -611,8 +611,6 @@ float3 ReflectionEnvironmentUniformSampling(
 	const uint2  PixelPosition = SvPosition - ResolvedView.ViewRectMin.xy;
 	const float  PixelSceneDepth = GBuffer.Depth;
 	const float  PixelRadius = VirtualVoxel.HairCoveragePixelRadiusAtDepth1 * PixelSceneDepth;
-
-	const uint PrimitiveIdMod8 = (PrimitiveId % 8);
 
 	const float3 V = -CameraToPixel;
 	const float3 T = GBuffer.WorldNormal;
@@ -705,7 +703,7 @@ float3 ReflectionEnvironmentSH(
 	FGBufferData GBuffer,
 	float2 ScreenPosition,
 	float2 SvPosition,
-	uint PrimitiveId,
+	uint HairControlPointId,
 	uint MacroGroupId,
 	bool bDebugEnabled)
 {
@@ -773,7 +771,7 @@ float3 ReflectionEnvironmentSH(
 #if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SCENECOLOR
 Texture2D<float4> SceneColorTexture;
 
-float3 ComputeThinTransmission(FGBufferData GBuffer, float2 ScreenPosition, float2 SvPosition, uint PrimitiveId)
+float3 ComputeThinTransmission(FGBufferData GBuffer, float2 ScreenPosition, float2 SvPosition, uint HairControlPointId)
 {
 	const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 	const float3 CameraToPixel = normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
@@ -867,13 +865,13 @@ void MainPS(
 	{
 		const float3 SkyLighting =
 		#if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SCENECOLOR
-			ComputeThinTransmission(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId);
+			ComputeThinTransmission(GBuffer, ScreenPosition, SvPosition, Sample.ControlPointId);
 		#elif PERMUTATION_INTEGRATION_TYPE == INTEGRATION_ADHOC
-			ReflectionEnvironment(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, Sample.MacroGroupId);
+			ReflectionEnvironment(GBuffer, ScreenPosition, SvPosition, Sample.ControlPointId, Sample.MacroGroupId);
 		#elif PERMUTATION_INTEGRATION_TYPE == INTEGRATION_UNIFORM
-			ReflectionEnvironmentUniformSampling(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, Sample.MacroGroupId, bDebugEnabled);
+			ReflectionEnvironmentUniformSampling(GBuffer, ScreenPosition, SvPosition, Sample.ControlPointId, Sample.MacroGroupId, bDebugEnabled);
 		#elif PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SH
-			ReflectionEnvironmentSH(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, Sample.MacroGroupId, bDebugEnabled);
+			ReflectionEnvironmentSH(GBuffer, ScreenPosition, SvPosition, Sample.ControlPointId, Sample.MacroGroupId, bDebugEnabled);
 		#endif
 
 		const float SampleCoverage = saturate(From8bitCoverage(Sample.Coverage8bit));

@@ -211,7 +211,7 @@ void CSMain(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV
 					Out.Depth			= DeviceZ;
 					Out.Coverage		= 1;
 					Out.Coverage8bit	= 255;
-					Out.PrimitiveId		= PrimID;
+					Out.ControlPointId		= PrimID;
 					Out.MaterialId		= HairMaterialId;
 
 					uint PackedW = f32tof16(Point0.WorldRadius);
@@ -248,7 +248,7 @@ void CSMain(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV
 	
 	GroupMemoryBarrierWithGroupSync();
 
-	uint   PrimID = DispatchThreadID;
+	uint   ControlPointId = DispatchThreadID;
 	bool   bIsPrimVisibile = false;
 	uint   PrimWriteOffset = 0;
 	float  DeviceZ = 0;
@@ -257,14 +257,14 @@ void CSMain(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV
 	FHairControlPoint Point0 = (FHairControlPoint)0;
 
 	// Count valid segments
-	bool bIsPrimValid = PrimID < ControlPointCount;
+	bool bIsPrimValid = ControlPointId < ControlPointCount;
 	if (bIsPrimValid)
 	{
 		const float3 PositionOffset = HairStrandsVF_PositionOffsetBuffer[0].xyz;
 
 		// Fetch both control points
 		FHairControlPoint CP0 = UnpackHairControlPoint(
-			HairStrandsVF_PositionBuffer[PrimID],
+			HairStrandsVF_PositionBuffer[ControlPointId],
 			PositionOffset,
 			HairStrandsVF_Radius,
 			HairStrandsVF_RootScale,
@@ -274,7 +274,7 @@ void CSMain(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV
 		if (CP0.Type != HAIR_CONTROLPOINT_END)
 		{
 			CP1 = UnpackHairControlPoint(
-				HairStrandsVF_PositionBuffer[PrimID + 1],
+				HairStrandsVF_PositionBuffer[ControlPointId + 1],
 				PositionOffset,
 				HairStrandsVF_Radius,
 				HairStrandsVF_RootScale,
@@ -319,7 +319,7 @@ void CSMain(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV
 		Out.Depth			= DeviceZ;
 		Out.Coverage		= 1;
 		Out.Coverage8bit	= 255;
-		Out.PrimitiveId		= PrimID;
+		Out.ControlPointId	= ControlPointId;
 		Out.MaterialId		= HairMaterialId;
 
 		uint PackedW = f32tof16(Point0.WorldRadius);

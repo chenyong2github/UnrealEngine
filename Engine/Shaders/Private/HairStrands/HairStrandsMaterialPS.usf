@@ -25,7 +25,7 @@ void Main(
 
 		float SampleDepth = InNode.Depth;
 		uint SampleCoverage8bit = InNode.Coverage8bit;
-		uint SamplePrimitiveId = InNode.PrimitiveId;
+		uint SampleControlPointId = InNode.ControlPointId;
 		uint SampleMaterialId = InNode.MaterialId;
 
 		if (SampleMaterialId == MaterialPass_MaterialId)
@@ -33,7 +33,7 @@ void Main(
 			FEvaluateOutput Out = (FEvaluateOutput)0;
 			if (SampleDepth > 0)
 			{
-				Out = Evaluate(SamplePixelCoord, SampleDepth, SamplePrimitiveId, SampleCoverage8bit, InPrimitiveId, MaterialPassParameters.bUpdateSampleCoverage > 0, MaterialPassParameters.bInterpolationEnabled);
+				Out = Evaluate(SamplePixelCoord, SampleDepth, SampleControlPointId, SampleCoverage8bit, InPrimitiveId, MaterialPassParameters.bUpdateSampleCoverage > 0, MaterialPassParameters.bInterpolationEnabled);
 			}
 
 			// Note: Use the syntax _ over the syntax . as on certain platform the UAV buffers are 

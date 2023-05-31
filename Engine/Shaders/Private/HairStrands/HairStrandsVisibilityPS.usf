@@ -40,7 +40,7 @@ EARLYDEPTHSTENCIL	// Required for UAV operations to not happen.
 #endif
 void MainVisibility(
 #if HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY
-	nointerpolation uint HairPrimitiveId : HAIR_PRIMITIVE_ID 
+	nointerpolation uint HairControlPointId : HAIR_PRIMITIVE_ID 
 #else
 	centroid FVertexFactoryInterpolantsVSToPS Interpolants
 #endif
@@ -94,7 +94,7 @@ void MainVisibility(
 #endif
 
 #if HAIR_RENDER_MODE == RENDER_MODE_PPLL && HAIR_STRAND_MESH_FACTORY
-	const uint HairPrimitiveId = Interpolants.HairPrimitiveId;
+	const uint HairControlPointId = Interpolants.HairControlPointId;
 	const uint2 PixelCoord = SvPosition.xy;
 	const float2 NDC = SvPosition.xy / SvPosition.w;
 	const float2 ScreenUV = NDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
@@ -111,7 +111,7 @@ void MainVisibility(
 		const FPackedHairVisPPLL Node = PackHairVisPPLL(
 			SvPosition.z, 
 			Coverage, 
-			HairPrimitiveId,
+			HairControlPointId,
 			HairVisibilityPass_HairMaterialId,
 			NextNodeIndex);
 		HairVisibilityPass.PPLLNodeData[NodeIndex] = Node;
@@ -120,7 +120,7 @@ void MainVisibility(
 
 #if HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY
   #if HAIR_STRAND_MESH_FACTORY
-	OutColor0 = PackHairVisPrimitiveMaterialId(HairPrimitiveId, HairVisibilityPass_HairMaterialId);
+	OutColor0 = PackHairVisControlPointMaterialId(HairControlPointId, HairVisibilityPass_HairMaterialId);
   #else
 	OutColor0 = 0;
   #endif

@@ -56,7 +56,7 @@ struct FHairVertexData
 };
 
 // GPUCULL_TODO: this should be switched over to use Instance ID instead of Primitive ID.
-FVertexFactoryInterpolantsVSToPS GetInterpolants(uint PrimitiveId, uint HairPrimitiveId, inout FHairVertexData OutHairVertex)
+FVertexFactoryInterpolantsVSToPS GetInterpolants(uint PrimitiveId, uint HairControlPointId, inout FHairVertexData OutHairVertex)
 {
 	FMaterialVertexParameters Empty = MakeInitializedMaterialVertexParameters();
 
@@ -65,7 +65,7 @@ FVertexFactoryInterpolantsVSToPS GetInterpolants(uint PrimitiveId, uint HairPrim
 	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, PrimitiveId, 0U);
 	// * USE_HAIR_TRIANGLE_STRIP=0: the vertex factory expect triangles strip index. A quad is made of two triangles with indices: 0,1.
 	// * USE_HAIR_TRIANGLE_STRIP=1: the vertex factory expect triangles list index. A quad is made of two triangles with indices: 0,1,2,3,4,5.
-	Input.VertexId = HairPrimitiveId * HAIR_POINT_TO_VERTEX; 
+	Input.VertexId = HairControlPointId * HAIR_POINT_TO_VERTEX; 
 
 	FVertexFactoryIntermediates	Intermediates = GetVertexFactoryIntermediates(Input);
 	FVertexFactoryInterpolantsVSToPS Interpolants = VertexFactoryGetInterpolantsVSToPS(Input, Intermediates, Empty);
@@ -83,7 +83,7 @@ FVertexFactoryInterpolantsVSToPS GetInterpolants(uint PrimitiveId, uint HairPrim
 FEvaluateOutput Evaluate(
 	in float2 SamplePixelCoord,
 	in float SampleDepth,
-	in uint SamplePrimitiveId,
+	in uint SampleControlPointId,
 	in uint SampleCoverage8bit,
 	in uint PrimitiveId,
 	in bool bUpdateSampleCoverage,
@@ -100,20 +100,20 @@ FEvaluateOutput Evaluate(
 	float WorldStrandRadius = 0;
 	FVertexFactoryInterpolantsVSToPS Interpolants;
 	{
-		const uint HairPrimitiveId0 = SamplePrimitiveId;
+		const uint HairControlPointId0 = SampleControlPointId;
 
 		FHairVertexData Vertex0;
-		FVertexFactoryInterpolantsVSToPS Interpolants0 = GetInterpolants(PrimitiveId, HairPrimitiveId0, Vertex0);
+		FVertexFactoryInterpolantsVSToPS Interpolants0 = GetInterpolants(PrimitiveId, HairControlPointId0, Vertex0);
 		Interpolants = Interpolants0;
 
 		float SegmentU = 0.0f;
 		float SegmentV = 0.5f;
 		if (bInterpolationEnabled)
 		{
-			const uint HairPrimitiveId1 = HairPrimitiveId0 + 1; //TODO: min(HairPrimitiveId0 + 1, MaxVertexCount-1);
+			const uint HairControlPointId1 = HairControlPointId0 + 1; //TODO: min(HairControlPointId0 + 1, MaxVertexCount-1);
 
 			FHairVertexData Vertex1;
-			FVertexFactoryInterpolantsVSToPS Interpolants1 = GetInterpolants(PrimitiveId, HairPrimitiveId1, Vertex1);
+			FVertexFactoryInterpolantsVSToPS Interpolants1 = GetInterpolants(PrimitiveId, HairControlPointId1, Vertex1);
 
 			// Compute U
 			// Use the projection of the current sample point onto the hair segment (which is in the middle of the hair strands)
@@ -156,7 +156,7 @@ FEvaluateOutput Evaluate(
 #if VF_USE_PRIMITIVE_SCENE_DATA
 		Interpolants.PrimitiveId	 = PrimitiveId;
 #endif // VF_USE_PRIMITIVE_SCENE_DATA
-		Interpolants.HairPrimitiveId = HairPrimitiveId0;
+		Interpolants.HairControlPointId = HairControlPointId0;
 		Interpolants.HairPrimitiveUV = float2(SegmentU, SegmentV);
 	}
 	
@@ -194,7 +194,7 @@ FEvaluateOutput Evaluate(
 	FHairSample OutSample		= (FHairSample)0;
 	OutSample.Depth				= SampleDepth;
 	OutSample.Coverage8bit		= SampleCoverage8bit;
-	OutSample.PrimitiveId		= SamplePrimitiveId;
+	OutSample.ControlPointId	= SampleControlPointId;
 	OutSample.MacroGroupId		= MaterialPass_MacroGroupId;
 	OutSample.LightChannelMask	= MaterialPass_LightChannelMask;
 	OutSample.bScatterSceneLighting = UseScatterSceneLighting();

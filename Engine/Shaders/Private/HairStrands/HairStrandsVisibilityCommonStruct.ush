@@ -5,7 +5,7 @@
 struct FPackedHairSample
 {
 	float Depth;
-	uint  PrimitiveID_MacroGroupID;
+	uint  ControlPointID_MacroGroupID;
 	uint  Tangent_Coverage8bit;
 	uint  BaseColor_Roughness;
 	uint  Specular_LightChannels_Backlit;
@@ -14,12 +14,12 @@ struct FPackedHairSample
 struct FPackedHairVis
 {
 	uint Depth_Coverage8bit;
-	uint PrimitiveID_MaterialID;
+	uint ControlPointID_MaterialID;
 };
 
 struct FPackedHairVisPPLL
 {
 	uint Depth_Coverage8bit;
-	uint PrimitiveID_MaterialID;
+	uint ControlPointID_MaterialID;
 	uint NextNodeIndex;
 };

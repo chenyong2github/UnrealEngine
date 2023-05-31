@@ -132,7 +132,7 @@ namespace HairStrandsVisibilityInternal
 	struct NodeData
 	{
 		uint32 Depth;
-		uint32 PrimitiveId_MacroGroupId;
+		uint32 ControlPointId_MacroGroupId;
 		uint32 Tangent_Coverage;
 		uint32 BaseColor_Roughness;
 		uint32 Specular;
@@ -142,7 +142,7 @@ namespace HairStrandsVisibilityInternal
 	struct NodeVis
 	{
 		uint32 Depth_Coverage;
-		uint32 PrimitiveId_MacroGroupId;
+		uint32 ControlPointId_MacroGroupId;
 	};
 }
 
@@ -603,7 +603,7 @@ private:
 		const FMaterial& RESTRICT MaterialResource,
 		const int32 MacroGroupId,
 		const int32 HairMaterialId,
-		const int32 HairPrimitiveId,
+		const int32 HairControlPointId,
 		const uint32 HairPrimitiveLightChannelMask,
 		const float HairCoverageScale);
 
@@ -686,7 +686,7 @@ bool FHairMaterialProcessor::Process(
 	const FMaterial& RESTRICT MaterialResource,
 	const int32 MacroGroupId,
 	const int32 HairMaterialId,
-	const int32 HairPrimitiveId,
+	const int32 HairControlPointId,
 	const uint32 HairPrimitiveLightChannelMask,
 	const float HairCoverageScale)
 {
@@ -713,7 +713,7 @@ bool FHairMaterialProcessor::Process(
 	}
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
-	FHairMaterialShaderElementData ShaderElementData(MacroGroupId, HairMaterialId, HairPrimitiveId, HairPrimitiveLightChannelMask, HairCoverageScale);
+	FHairMaterialShaderElementData ShaderElementData(MacroGroupId, HairMaterialId, HairControlPointId, HairPrimitiveLightChannelMask, HairCoverageScale);
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
 
 	const bool bReverseCulling = ViewIfDynamicMeshCommand ? ViewIfDynamicMeshCommand->bIsPlanarReflection : false;
@@ -1230,7 +1230,7 @@ END_SHADER_PARAMETER_STRUCT()
 struct FPackedHairVisPPLL
 {
 	uint32 Depth;
-	uint32 PrimitiveId_MacroGroupId;
+	uint32 ControlPointId_MacroGroupId;
 	uint32 NextNodeIndex;
 };
 
@@ -1716,10 +1716,10 @@ static FRDGBufferRef AddCopyIndirectArgPass(
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-class FHairVisibilityPrimitiveIdCompactionCS : public FGlobalShader
+class FHairVisibilityControlPointIdCompactionCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FHairVisibilityPrimitiveIdCompactionCS);
-	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityPrimitiveIdCompactionCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FHairVisibilityControlPointIdCompactionCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityControlPointIdCompactionCS, FGlobalShader);
 
 	class FGroupSize	: SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUPSIZE", 32, 64);
 	class FPPLL 		: SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_PPLL", 0, 8, 16, 32); // See GetPPLLMaxRenderNodePerPixel
@@ -1789,9 +1789,9 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FHairVisibilityPrimitiveIdCompactionCS, "/Engine/Private/HairStrands/HairStrandsVisibilityCompaction.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FHairVisibilityControlPointIdCompactionCS, "/Engine/Private/HairStrands/HairStrandsVisibilityCompaction.usf", "MainCS", SF_Compute);
 
-static void AddHairVisibilityPrimitiveIdCompactionPass(
+static void AddHairVisibilityControlPointIdCompactionPass(
 	const bool bUsePPLL,
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -1799,7 +1799,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const uint32 NodeGroupSize,
 	const FHairStrandsTiles& TileData,
-	FHairVisibilityPrimitiveIdCompactionCS::FParameters* PassParameters,
+	FHairVisibilityControlPointIdCompactionCS::FParameters* PassParameters,
 	FRDGTextureRef& OutCompactCounter,
 	FRDGTextureRef& OutCompactNodeIndex,
 	FRDGBufferRef& OutCompactNodeVis,
@@ -1859,11 +1859,11 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	// Pixel coord of the node. Stored as 2*R16_UINT
 	OutCompactNodeCoord = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxRenderNodeCount), TEXT("Hair.VisibilityNodeCoord"));
 
-	FHairVisibilityPrimitiveIdCompactionCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FGroupSize>(FHairStrandsTiles::GroupSize);
-	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FPPLL>(bUsePPLL ? PPLLMaxRenderNodePerPixel : 0);
-	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FMSAACount>(MSAASampleCount);
-	PermutationVector = FHairVisibilityPrimitiveIdCompactionCS::RemapPermutation(PermutationVector);
+	FHairVisibilityControlPointIdCompactionCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FHairVisibilityControlPointIdCompactionCS::FGroupSize>(FHairStrandsTiles::GroupSize);
+	PermutationVector.Set<FHairVisibilityControlPointIdCompactionCS::FPPLL>(bUsePPLL ? PPLLMaxRenderNodePerPixel : 0);
+	PermutationVector.Set<FHairVisibilityControlPointIdCompactionCS::FMSAACount>(MSAASampleCount);
+	PermutationVector = FHairVisibilityControlPointIdCompactionCS::RemapPermutation(PermutationVector);
 
 	PassParameters->ResolutionOffset = FIntPoint(0,0);
 	PassParameters->OutputResolution = Resolution;
@@ -1887,7 +1887,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	PassParameters->TileDataBuffer		= TileData.GetTileBufferSRV(TileType);
 	PassParameters->IndirectBufferArgs	= TileData.TileIndirectDispatchBuffer;
  
-	TShaderMapRef<FHairVisibilityPrimitiveIdCompactionCS> ComputeShader(View.ShaderMap, PermutationVector);
+	TShaderMapRef<FHairVisibilityControlPointIdCompactionCS> ComputeShader(View.ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrands::VisibilityCompaction"),
@@ -1997,7 +1997,7 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 	const uint32 MSAASampleCount = GetHairVisibilityRenderMode(View.GetShaderPlatform()) == HairVisibilityRenderMode_MSAA_Visibility ? MaxSamplePerPixel : 1;
 	const uint32 PPLLMaxRenderNodePerPixel = MaxSamplePerPixel;
 	const uint32 MaxRenderNodeCount = GetTotalSampleCountForAllocation(Resolution, View.GetShaderPlatform());
-	OutCompactNodeVis = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(HairStrandsVisibilityInternal::NodeVis), MaxRenderNodeCount), TEXT("Hair.VisibilityPrimitiveIdCompactNodeData"));
+	OutCompactNodeVis = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(HairStrandsVisibilityInternal::NodeVis), MaxRenderNodeCount), TEXT("Hair.VisibilityControlPointIdCompactNodeData"));
 	OutCompactNodeCoord = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxRenderNodeCount), TEXT("Hair.VisibilityPrimitiveIdCompactNodeCoord"));
 
 	FRDGTextureRef DefaultTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
@@ -4188,12 +4188,12 @@ void DrawHitProxies(
 			VisIdTexture,
 			VisDepthTexture);
 
-		FHairVisibilityPrimitiveIdCompactionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityPrimitiveIdCompactionCS::FParameters>();
+		FHairVisibilityControlPointIdCompactionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityControlPointIdCompactionCS::FParameters>();
 		PassParameters->MSAA_DepthTexture = VisDepthTexture;
 		PassParameters->MSAA_IDTexture = VisIdTexture;
 		PassParameters->ViewTransmittanceTexture = ViewTransmittance.TransmittanceTexture;
 
-		AddHairVisibilityPrimitiveIdCompactionPass(
+		AddHairVisibilityControlPointIdCompactionPass(
 			false, // bUsePPLL
 			GraphBuilder,
 			View,
@@ -4637,7 +4637,7 @@ void RenderHairStrandsVisibilityBuffer(
 				VisibilityData.HairOnlyDepthTexture = HairOnlyDepthTexture;
 				
 				{
-					FHairVisibilityPrimitiveIdCompactionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityPrimitiveIdCompactionCS::FParameters>();
+					FHairVisibilityControlPointIdCompactionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityControlPointIdCompactionCS::FParameters>();
 					PassParameters->MSAA_DepthTexture = MsaaVisibilityResources.DepthTexture;
 					PassParameters->MSAA_IDTexture = MsaaVisibilityResources.IdTexture;
 					PassParameters->ViewTransmittanceTexture = ViewTransmittance.TransmittanceTexture;
@@ -4645,7 +4645,7 @@ void RenderHairStrandsVisibilityBuffer(
 					FRDGBufferRef CompactNodeCoord;
 					FRDGBufferRef IndirectArgsBuffer;
 					FRDGTextureRef ResolveMaskTexture = nullptr;
-					AddHairVisibilityPrimitiveIdCompactionPass(
+					AddHairVisibilityControlPointIdCompactionPass(
 						false, // bUsePPLL
 						GraphBuilder,
 						View,
@@ -4792,7 +4792,7 @@ void RenderHairStrandsVisibilityBuffer(
 
 				// Linked list sorting pass and compaction into common representation
 				{
-					FHairVisibilityPrimitiveIdCompactionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityPrimitiveIdCompactionCS::FParameters>();
+					FHairVisibilityControlPointIdCompactionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityControlPointIdCompactionCS::FParameters>();
 					PassParameters->PPLLCounter  = PPLLNodeCounterTexture;
 					PassParameters->PPLLNodeIndex= PPLLNodeIndexTexture;
 					PassParameters->PPLLNodeData = GraphBuilder.CreateSRV(PPLLNodeDataBuffer);
@@ -4801,7 +4801,7 @@ void RenderHairStrandsVisibilityBuffer(
 					FRDGBufferRef CompactNodeCoord;
 					FRDGBufferRef IndirectArgsBuffer;
 					FRDGTextureRef ResolveMaskTexture = nullptr;
-					AddHairVisibilityPrimitiveIdCompactionPass(
+					AddHairVisibilityControlPointIdCompactionPass(
 						true, // bUsePPLL
 						GraphBuilder,
 						View,
