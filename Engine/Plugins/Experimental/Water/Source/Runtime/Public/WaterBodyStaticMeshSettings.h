@@ -18,6 +18,6 @@ struct FWaterBodyStaticMeshSettings
 	bool bSectionWaterBodyStaticMesh = false;
 
 	/** The size of each section tile if sectioning is enabled. */
-	UPROPERTY(Category = StaticMesh, EditAnywhere, AdvancedDisplay, meta = (EditCondition = "bSectionWaterBodyStaticMesh"))
+	UPROPERTY(Category = StaticMesh, EditAnywhere, AdvancedDisplay, meta = (EditCondition = "bEnableWaterBodyStaticMesh && bSectionWaterBodyStaticMesh"))
 	double SectionSize = 8192.0;
 };
