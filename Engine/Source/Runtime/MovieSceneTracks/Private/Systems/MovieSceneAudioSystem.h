@@ -74,6 +74,7 @@ public:
 	//~ UMovieSceneEntitySystem members
 	virtual void OnLink() override;
 	virtual void OnUnlink() override;
+	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 	/**
@@ -97,6 +98,11 @@ public:
 	 * Stop the audio on the audio component associated with the given audio section.
 	 */
 	void StopSound(FObjectKey ActorKey, FObjectKey SectionKey);
+
+	/**
+	 * Reset shared accumulation data required every evaluation frame
+	 */
+	void ResetSharedData();
 
 private:
 

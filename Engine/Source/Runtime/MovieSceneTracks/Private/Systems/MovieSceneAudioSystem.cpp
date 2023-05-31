@@ -131,7 +131,7 @@ struct FGatherAudioInputs
 				double, double, double,
 				double, double, double,
 				FString, int32, bool>
-			AudioInputResults)
+			AudioInputResults) const
 	{
 		FAudioInputsBySectionKey& AudioInputsBySectionKey = AudioSystem->AudioInputsBySectionKey;
 
@@ -204,7 +204,7 @@ struct FGatherAudioTriggers
 	void ForEachAllocation(
 		const FEntityAllocation* Allocation,
 		TRead<FMovieSceneAudioComponentData> AudioDatas,
-		TRead<FName> AudioTriggerNames)
+		TRead<FName> AudioTriggerNames) const
 	{
 		FAudioInputsBySectionKey& AudioInputsBySectionKey = AudioSystem->AudioInputsBySectionKey;
 
@@ -269,7 +269,7 @@ struct FEvaluateAudio
 			TRead<FMovieSceneAudioComponentData> AudioDatas,
 			TRead<double> VolumeMultipliers,
 			TRead<double> PitchMultipliers,
-			TReadOptional<UObject*> BoundObjects)
+			TReadOptional<UObject*> BoundObjects) const
 	{
 		const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
@@ -303,7 +303,7 @@ private:
 			double VolumeMultiplier,
 			double PitchMultiplier,
 			UObject* BoundObject,
-			bool bWantsRestoreState)
+			bool bWantsRestoreState) const
 	{
 		const FMovieSceneContext& Context = Instance.GetContext();
 		IMovieScenePlayer* Player = Instance.GetPlayer();
@@ -680,6 +680,7 @@ UMovieSceneAudioSystem::UMovieSceneAudioSystem(const FObjectInitializer& ObjInit
 	using namespace UE::MovieScene;
 
 	RelevantComponent = FMovieSceneTracksComponentTypes::Get()->Audio;
+	Phase = ESystemPhase::Scheduling;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -731,6 +732,72 @@ void UMovieSceneAudioSystem::OnUnlink()
 
 }
 
+void UMovieSceneAudioSystem::ResetSharedData()
+{
+	AudioInputsBySectionKey.Reset();
+	for (TPair<FObjectKey, FAudioComponentBySectionKey>& AudioComponentsForActor : AudioComponentsByActorKey)
+	{
+		for (TPair<FObjectKey, FAudioComponentEvaluationData>& AudioComponentForSection : AudioComponentsForActor.Value)
+		{
+			AudioComponentForSection.Value.bEvaluatedThisFrame = false;
+		}
+	}
+}
+
+void UMovieSceneAudioSystem::OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler)
+{
+	if (!GEngine || !GEngine->UseSound())
+	{
+		return;
+	}
+
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
+
+	// Reset shared data.
+	FTaskID ResetSharedDataTask = TaskScheduler->AddMemberFunctionTask(FTaskParams(TEXT("Reset Audio Data")), this, &UMovieSceneAudioSystem::ResetSharedData);
+
+	// Gather audio input values computed by the channel evaluators.
+	FTaskID GatherInputsTask = FEntityTaskBuilder()
+	.Read(TrackComponents->Audio)
+	.Read(TrackComponents->AudioInputs)
+	.ReadOneOrMoreOf(
+			BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2], 
+			BuiltInComponents->DoubleResult[3], BuiltInComponents->DoubleResult[4], BuiltInComponents->DoubleResult[5], 
+			BuiltInComponents->DoubleResult[6], BuiltInComponents->DoubleResult[7], BuiltInComponents->DoubleResult[8], 
+			BuiltInComponents->StringResult,
+			BuiltInComponents->IntegerResult,
+			BuiltInComponents->BoolResult)
+	.Schedule_PerAllocation<FGatherAudioInputs>(&Linker->EntityManager, TaskScheduler, this);
+
+	TaskScheduler->AddPrerequisite(ResetSharedDataTask, GatherInputsTask);
+
+	// Gather up audio triggers
+	FTaskID GatherTriggersTask = FEntityTaskBuilder()
+	.Read(TrackComponents->Audio)
+	.Read(TrackComponents->AudioTriggerName)
+	.Schedule_PerAllocation<FGatherAudioTriggers>(&Linker->EntityManager, TaskScheduler, this);
+
+	TaskScheduler->AddPrerequisite(ResetSharedDataTask, GatherTriggersTask);
+
+	// Next, evaluate audio to play and use the gathered audio input values to set on the audio components.
+	FTaskID EvaluateAudioTask = FEntityTaskBuilder()
+	.ReadEntityIDs()
+	.Read(BuiltInComponents->RootInstanceHandle)
+	.Read(BuiltInComponents->InstanceHandle)
+	.Read(TrackComponents->Audio)
+	.Read(BuiltInComponents->DoubleResult[0]) // Volume
+	.Read(BuiltInComponents->DoubleResult[1]) // Pitch multiplier
+	.ReadOptional(BuiltInComponents->BoundObject)
+	.SetDesiredThread(Linker->EntityManager.GetGatherThread())
+	.Schedule_PerAllocation<FEvaluateAudio>(&Linker->EntityManager, TaskScheduler, this);
+
+	TaskScheduler->AddPrerequisite(GatherInputsTask, EvaluateAudioTask);
+	TaskScheduler->AddPrerequisite(GatherTriggersTask, EvaluateAudioTask);
+}
+
 void UMovieSceneAudioSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_AudioTrack_Evaluate)
@@ -746,14 +813,7 @@ void UMovieSceneAudioSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FS
 	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
 
 	// Reset shared data.
-	AudioInputsBySectionKey.Reset();
-	for (TPair<FObjectKey, FAudioComponentBySectionKey>& AudioComponentsForActor : AudioComponentsByActorKey)
-	{
-		for (TPair<FObjectKey, FAudioComponentEvaluationData>& AudioComponentForSection : AudioComponentsForActor.Value)
-		{
-			AudioComponentForSection.Value.bEvaluatedThisFrame = false;
-		}
-	}
+	ResetSharedData();
 
 	// Gather audio input values computed by the channel evaluators.
 	FSystemTaskPrerequisites Prereqs;
