@@ -2899,6 +2899,7 @@ FArchive& operator<<(FArchive& Ar, FShaderCompilerInput& Input)
 	Ar << Input.bCompilingForShaderPipeline;
 	Ar << Input.bIncludeUsedOutputs;
 	Ar << Input.bCachePreprocessed;
+	Ar << Input.bIndependentPreprocessed;
 	Ar << Input.UsedOutputs;
 	Ar << Input.DumpDebugInfoRootPath;
 	Ar << Input.DumpDebugInfoPath;
@@ -3173,6 +3174,19 @@ void FShaderCompileJob::OnComplete()
 
 void FShaderCompileJob::SerializeWorkerOutput(FArchive& Ar)
 {
+	// Only serialize the modified source/entry point if either:
+	// (a) this job is using the preprocessed cache and requires debug output (since this is done in the cooker process the modified source is needed outside of SCW)
+	// or (b) the "extract shader source" setting is enabled (i.e. something upstream explicitly wants the final source passed to the compiler).
+	Output.bSerializeModifiedSource = (Input.bCachePreprocessed && Input.DumpDebugInfoEnabled()) || Input.ExtraSettings.bExtractShaderSource;
+
+	// edge case for backends which have implemented independent preprocessing API when the preprocessed cache is not enabled.
+	// if no modifications have occurred as part of the compile step, we still need a copy of the source back in the cooker
+	// if bExtractShaderSource is set, so explicitly serialize just that portion of the preprocess output struct here.
+	if (Input.ExtraSettings.bExtractShaderSource && Input.bIndependentPreprocessed && !Input.bCachePreprocessed && Output.ModifiedShaderSource.IsEmpty())
+	{
+		Ar << PreprocessOutput.EditSource();
+	}
+
 	Ar << Output;
 	bool bSucceededTemp = (bool)bSucceeded;
 	Ar << bSucceededTemp;
@@ -3186,6 +3200,23 @@ void FShaderCompileJob::SerializeWorkerInput(FArchive& Ar)
 	if (Input.bCachePreprocessed)
 	{
 		Ar << PreprocessOutput;
+	}
+}
+
+const FString& FShaderCompileJob::GetFinalSource() const
+{
+	 // if the backend supports independent preprocessing, any modifications to the source
+	// done as part of the compile step will be written to the "ModifiedShaderSource" field
+	if (Input.bIndependentPreprocessed)
+	{
+		// if there are no such modifications, return the "unstripped" version of the source code (with comments & line directives maintained),
+		// otherwise return whatever the final modified source is as input to the compiler by the backend.
+		return Output.ModifiedShaderSource.IsEmpty() ? PreprocessOutput.GetUnstrippedSource() : Output.ModifiedShaderSource;
+	}
+	else
+	{
+		// backends that do not implement the independent preprocessing API populate this field based on the bExtractShaderSource setting.
+		return Output.OptionalFinalShaderSource;
 	}
 }
 

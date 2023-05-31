@@ -64,9 +64,11 @@ public:
 		return PreprocessedSource;
 	}
 
-	const FString& GetOriginalSource() const
+	const FString& GetUnstrippedSource() const
 	{
-		return OriginalPreprocessedSource;
+		// if the unstripped source is requested, check if the "original source" field has been populated
+		// if not then stripping hasn't occurred so there's only one preprocessed source; return it
+		return OriginalPreprocessedSource.IsEmpty() ? PreprocessedSource : OriginalPreprocessedSource;
 	}
 
 	FString& EditSource()

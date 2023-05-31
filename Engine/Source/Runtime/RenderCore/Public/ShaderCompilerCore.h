@@ -27,7 +27,7 @@ class FShaderPipelineCompileJob;
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
 inline const int32 ShaderCompileWorkerInputVersion = 19;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
-inline const int32 ShaderCompileWorkerOutputVersion = 13;
+inline const int32 ShaderCompileWorkerOutputVersion = 14;
 // this is for the protocol, not the data.
 inline const int32 ShaderCompileWorkerSingleJobHeader = 'S';
 // this is for the protocol, not the data.
@@ -222,6 +222,9 @@ struct FShaderCompilerInput
 	// Indicates which additional debug outputs should be written for this compile job.
 	EShaderDebugInfoFlags DebugInfoFlags;
 
+	// True if the backend for this job implements the independent preprocessing API.
+	bool bIndependentPreprocessed;
+
 	// True if the cache key for this job should be based on preprocessed source. If so,
 	// preprocessing will be executed in the cook process independent of compilation (and
 	// as such this will only ever be set for jobs whose shader format supports independent
@@ -268,6 +271,7 @@ struct FShaderCompilerInput
 		Target(SF_NumFrequencies, SP_NumPlatforms),
 		bSkipPreprocessedCache(false),
 		DebugInfoFlags(EShaderDebugInfoFlags::Default),
+		bIndependentPreprocessed(false),
 		bCachePreprocessed(false),
 		bCompilingForShaderPipeline(false),
 		bIncludeUsedOutputs(false)
@@ -527,6 +531,7 @@ struct FShaderCompilerOutput
 	,	bSucceeded(false)
 	,	bSupportsQueryingUsedAttributes(false)
 	,	bUsedHLSLccCompiler(false)
+	,	bSerializeModifiedSource(false)
 	{
 	}
 
@@ -545,6 +550,7 @@ struct FShaderCompilerOutput
 	bool bFailedRemovingUnused;
 	bool bSupportsQueryingUsedAttributes;
 	bool bUsedHLSLccCompiler;
+	bool bSerializeModifiedSource;
 	TArray<FString> UsedAttributes;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -559,7 +565,24 @@ struct FShaderCompilerOutput
 
 	TArray<FShaderCodeValidationStride> ParametersStrideToValidate;
 
+	/** This field should be set by backends which do not implement the independent preprocessing API to contain the "final" shader source as 
+	 * passed to the platform compiler. For backends that do implement this API this is superceded by ModifiedShaderSource (and will eventually
+	 * be deprecated).
+	 */
 	FString OptionalFinalShaderSource;
+
+	/** Use this field to store the shader source code if it's modified as part of the shader format's compilation process. This field is only 
+	 * currently required for shader formats which implement the independent preprocessing API and should only be set when additional manipulation 
+	 * is required that is not part of the implementation of PreprocessShader. This version of the source, if set, will be what is written as part
+	 * of the debug dumps of preprocessed source, as well as used in place of OptionalFinalShaderSource for upstream code which explicitly requests
+	 * the final source code for other purposes (i.e. when ExtraSettings.bExtractShaderSource is set on the FShaderCompilerInput struct)
+	 */
+	FString ModifiedShaderSource;
+
+	/** Use this field to store the entry point name if it's modified as part of the shader format's compilation process. This field is only 
+	 * currently required for shader formats which implement the independent preprocessing API And should only be set when compilation requires
+	 * a different entry point than was set on the FShaderCompilerInput struct. */
+	FString ModifiedEntryPointName;
 
 	TArray<uint8> PlatformDebugData;
 
@@ -580,6 +603,12 @@ struct FShaderCompilerOutput
 		Ar << Output.CompileTime;
 		Ar << Output.PreprocessTime;
 		Ar << Output.OptionalFinalShaderSource;
+		Ar << Output.bSerializeModifiedSource;
+		if (Output.bSerializeModifiedSource)
+		{
+			Ar << Output.ModifiedShaderSource;
+			Ar << Output.ModifiedEntryPointName;
+		}
 		Ar << Output.PlatformDebugData;
 
 		return Ar;

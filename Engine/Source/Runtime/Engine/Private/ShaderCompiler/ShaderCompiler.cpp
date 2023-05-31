@@ -6824,9 +6824,13 @@ void GlobalBeginCompileShader(
 	checkf(Format, TEXT("Shader format %s cannot be found"), *ShaderFormatName.ToString());
 	Format->ModifyShaderCompilerInput(Input);
 
-	if (Format->SupportsIndependentPreprocessing() && CVarPreprocessedJobCache.GetValueOnAnyThread())
+	if (Format->SupportsIndependentPreprocessing())
 	{
-		Input.bCachePreprocessed = true;
+		Input.bIndependentPreprocessed = true;
+		if (CVarPreprocessedJobCache.GetValueOnAnyThread())
+		{
+			Input.bCachePreprocessed = true;
+		}
 	}
 
 	// Allow the GBuffer and other shader defines to cause dependend environment changes, but minimizing the #ifdef magic in the shaders, which

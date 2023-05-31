@@ -549,16 +549,17 @@ static bool CompileErrorsContainInternalError(ID3DBlob* Errors)
 
 // Generate the dumped usf file; call the D3D compiler, gather reflection information and generate the output data
 static bool CompileAndProcessD3DShaderFXCExt(
-	const FString& PreprocessedShaderSource,
+	const FShaderPreprocessOutput& PreprocessOutput,
 	uint32 CompileFlags,
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
-	const FString& EntryPointName,
 	const TCHAR* ShaderProfile, bool bSecondPassAferUnusedInputRemoval,
 	TArray<FString>& FilteredErrors, FShaderCompilerOutput& Output)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CompileAndProcessD3DShaderFXCExt);
 
+	const FString& PreprocessedShaderSource = Output.ModifiedShaderSource.IsEmpty() ? PreprocessOutput.GetSource() : Output.ModifiedShaderSource;
+	const FString& EntryPointName = Output.ModifiedEntryPointName.IsEmpty() ? Input.EntryPointName : Output.ModifiedEntryPointName;
 	auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
 
 	bool bDumpDebugInfo = Input.DumpDebugInfoEnabled();
@@ -851,19 +852,19 @@ static bool CompileAndProcessD3DShaderFXCExt(
 					// Since unused inputs are passed to the next stage, that will cause us to generate a vertex shader that does not output B, but our pixel shader will still be expecting B on input,
 					// as it was rewritten based on the pass1 results.
 
-					FString ModifiedSource = PreprocessedShaderSource;
-					FString ModifiedEntryPointName = EntryPointName;
 					FShaderCompilerOutput OriginalOutput = Output;
 					const int kMaxReasonableAttempts = 64;
 					for (int32 Attempt = 0; Attempt < kMaxReasonableAttempts; ++Attempt)
 					{
 						TArray<FString> RemoveErrors;
-						ModifiedSource = PreprocessedShaderSource;
-						ModifiedEntryPointName = EntryPointName;
-						if (RemoveUnusedInputs(ModifiedSource, ShaderInputs, ModifiedEntryPointName, RemoveErrors))
+						FString ModifiedShaderSource = PreprocessOutput.GetSource();
+						FString ModifiedEntryPointName = Input.EntryPointName;
+						if (RemoveUnusedInputs(ModifiedShaderSource, ShaderInputs, ModifiedEntryPointName, RemoveErrors))
 						{
 							Output = OriginalOutput;
-							if (!CompileAndProcessD3DShaderFXCExt(ModifiedSource, CompileFlags, Input, ShaderParameterParser, ModifiedEntryPointName, ShaderProfile, true, FilteredErrors, Output))
+							Output.ModifiedShaderSource = MoveTemp(ModifiedShaderSource);
+							Output.ModifiedEntryPointName = MoveTemp(ModifiedEntryPointName);
+							if (!CompileAndProcessD3DShaderFXCExt(PreprocessOutput, CompileFlags, Input, ShaderParameterParser, ShaderProfile, true, FilteredErrors, Output))
 							{
 								// if we failed to compile the shader, propagate the error up
 								return false;
@@ -921,11 +922,6 @@ static bool CompileAndProcessD3DShaderFXCExt(
 							}
 							break;
 						}
-					}
-
-					if (Input.ExtraSettings.bExtractShaderSource)
-					{
-						Output.OptionalFinalShaderSource = ModifiedSource;
 					}
 				}
 			}
@@ -1040,10 +1036,9 @@ static bool CompileAndProcessD3DShaderFXCExt(
 	return SUCCEEDED(Result);
 }
 
-bool CompileAndProcessD3DShaderFXC(const FString& PreprocessedShaderSource,
+bool CompileAndProcessD3DShaderFXC(const FShaderPreprocessOutput& PreprocessOutput,
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
-	const FString& EntryPointName,
 	const TCHAR* ShaderProfile,
 	bool bSecondPassAferUnusedInputRemoval,
 	FShaderCompilerOutput& Output)
@@ -1080,7 +1075,7 @@ bool CompileAndProcessD3DShaderFXC(const FString& PreprocessedShaderSource,
 		});
 
 	TArray<FString> FilteredErrors;
-	const bool bSuccess = CompileAndProcessD3DShaderFXCExt(PreprocessedShaderSource, CompileFlags, Input, ShaderParameterParser, EntryPointName, ShaderProfile, false, FilteredErrors, Output);
+	const bool bSuccess = CompileAndProcessD3DShaderFXCExt(PreprocessOutput, CompileFlags, Input, ShaderParameterParser, ShaderProfile, false, FilteredErrors, Output);
 
 	// Process errors
 	for (int32 ErrorIndex = 0; ErrorIndex < FilteredErrors.Num(); ErrorIndex++)
@@ -1224,11 +1219,6 @@ void CompileD3DShader(const FShaderCompilerInput& Input, const FShaderPreprocess
 		return;
 	}
 
-	const FString* PreprocessedSource = &PreprocessOutput.GetSource();
-	const FString* EntryPoint = &Input.EntryPointName;
-	
-	FString ModifiedSource;
-	FString ModifiedEntryPoint;
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_ForceRemoveUnusedInterpolators) && Input.Target.Frequency == SF_Vertex && Input.bCompilingForShaderPipeline)
 	{
 		// Always add SV_Position
@@ -1259,11 +1249,11 @@ void CompileD3DShader(const FShaderCompilerInput& Input, const FShaderPreprocess
 		Exceptions.AddUnique(TEXT("SV_CullDistance6"));
 		Exceptions.AddUnique(TEXT("SV_CullDistance7"));
 
-		ModifiedSource = *PreprocessedSource;
-		ModifiedEntryPoint = *EntryPoint;
+		Output.ModifiedShaderSource = PreprocessOutput.GetSource();
+		Output.ModifiedEntryPointName = Input.EntryPointName;
 
 		TArray<FString> Errors;
-		if (!RemoveUnusedOutputs(ModifiedSource, UsedOutputs, Exceptions, ModifiedEntryPoint, Errors))
+		if (!RemoveUnusedOutputs(Output.ModifiedShaderSource, UsedOutputs, Exceptions, Output.ModifiedEntryPointName, Errors))
 		{
 			UE_LOG(LogD3D11ShaderCompiler, Warning, TEXT("Failed to remove unused outputs from shader: %s"), *Input.GenerateShaderName());
 			for (const FString& ErrorReport : Errors)
@@ -1275,18 +1265,13 @@ void CompileD3DShader(const FShaderCompilerInput& Input, const FShaderPreprocess
 				Output.Errors.Add(NewError);
 			}
 		}
-		else
-		{
-			PreprocessedSource = &ModifiedSource;
-			EntryPoint = &ModifiedEntryPoint;
-		}
 	}
 
 	const FShaderParameterParser& ShaderParameterParser = PreprocessOutput.GetParameterParser();
 
 	const bool bSuccess = bUseDXC
-		? CompileAndProcessD3DShaderDXC(*PreprocessedSource, Input, ShaderParameterParser, *EntryPoint, ShaderProfile, Language, false, Output)
-		: CompileAndProcessD3DShaderFXC(*PreprocessedSource, Input, ShaderParameterParser, *EntryPoint, ShaderProfile, false, Output);
+		? CompileAndProcessD3DShaderDXC(PreprocessOutput, Input, ShaderParameterParser, ShaderProfile, Language, false, Output)
+		: CompileAndProcessD3DShaderFXC(PreprocessOutput, Input, ShaderParameterParser, ShaderProfile, false, Output);
 
 	if (!bSuccess && !Output.Errors.Num())
 	{
@@ -1302,12 +1287,5 @@ void CompileD3DShader(const FShaderCompilerInput& Input, const FShaderPreprocess
 		{
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), *Error.GetErrorStringWithLineMarker());
 		}
-	}
-
-	// Only set OptionalFinalShaderSource if it wasn't already set by the compile function 
-	// (FXC path can further modify the preprocessed source during unused output removal)
-	if (Input.ExtraSettings.bExtractShaderSource && Output.OptionalFinalShaderSource.IsEmpty())
-	{
-		Output.OptionalFinalShaderSource = *PreprocessedSource;
 	}
 }

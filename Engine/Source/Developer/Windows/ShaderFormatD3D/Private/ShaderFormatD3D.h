@@ -39,18 +39,18 @@ void CompileD3DShader(
 /**
  * @param bSecondPassAferUnusedInputRemoval whether we're compiling the shader second time, after having removed the unused inputs discovered in the first pass
  */
-bool CompileAndProcessD3DShaderFXC(const FString& PreprocessedShaderSource,
+bool CompileAndProcessD3DShaderFXC(
+	const FShaderPreprocessOutput& PreprocessOutput,
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
-	const FString& EntryPointName,
 	const TCHAR* ShaderProfile,
 	bool bSecondPassAferUnusedInputRemoval,
 	FShaderCompilerOutput& Output);
 
-bool CompileAndProcessD3DShaderDXC(const FString& PreprocessedShaderSource,
+bool CompileAndProcessD3DShaderDXC(
+	const FShaderPreprocessOutput& PreprocessOutput,
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
-	const FString& EntryPointName,
 	const TCHAR* ShaderProfile,
 	ELanguage Language,
 	bool bProcessingSecondTime,

@@ -9,6 +9,7 @@
 #include "Misc/FileHelper.h"
 #include "HAL/FileManager.h"
 #include "Serialization/MemoryWriter.h"
+#include "ShaderPreprocessTypes.h"
 #include "RayTracingDefinitions.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogD3D12ShaderCompiler, Log, All);
@@ -866,16 +867,18 @@ static bool DXCRewriteWrapper(
 }
 
 // Generate the dumped usf file; call the D3D compiler, gather reflection information and generate the output data
-bool CompileAndProcessD3DShaderDXC(const FString& PreprocessedShaderSource,
+bool CompileAndProcessD3DShaderDXC(const FShaderPreprocessOutput& PreprocessOutput,
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
-	const FString& EntryPointName,
 	const TCHAR* ShaderProfile,
 	ELanguage Language,
 	bool bProcessingSecondTime,
 	FShaderCompilerOutput& Output)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CompileAndProcessD3DShaderDXC);
+
+	const FString& PreprocessedShaderSource = Output.ModifiedShaderSource.IsEmpty() ? PreprocessOutput.GetSource() : Output.ModifiedShaderSource;
+	const FString& EntryPointName = Output.ModifiedEntryPointName.IsEmpty() ? Input.EntryPointName : Output.ModifiedEntryPointName;
 
 	auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
 

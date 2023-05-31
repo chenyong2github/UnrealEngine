@@ -1403,7 +1403,9 @@ namespace UE::ShaderCompilerCommon
 {
 	void FBaseShaderFormat::OutputDebugData(const FString& InputHash, const FShaderCompilerInput& Input, const FShaderPreprocessOutput& PreprocessOutput, const FShaderCompilerOutput& Output) const
 	{
-		DumpDebugShaderData(Input, Input.bCachePreprocessed ? PreprocessOutput.GetOriginalSource() : PreprocessOutput.GetSource());
+		const FString& SourceToDump = Output.ModifiedShaderSource.IsEmpty() ? PreprocessOutput.GetUnstrippedSource() : Output.ModifiedShaderSource;
+		DumpDebugShaderData(Input, SourceToDump);
+		
 		FString OutputHashFileName = FPaths::Combine(Input.DumpDebugInfoPath, TEXT("OutputHash.txt"));
 		FFileHelper::SaveStringToFile(Output.OutputHash.ToString(), *OutputHashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
 
