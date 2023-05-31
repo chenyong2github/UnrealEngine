@@ -13,6 +13,8 @@
 #include "Misc/Paths.h"
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
+#include "RHIFeatureLevel.h"
+#include "RHIStrings.h"
 
 #if WITH_ENGINE
 	#include "Engine/Engine.h"
@@ -486,23 +488,28 @@ void FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName(const TAr
 }
 #endif
 
-FString GetRHIForAutomation()
+TSet<FName> GetRHIForAutomation()
 {
 	// Remove any extra information in () from RHI string
 	FString RHI = FApp::GetGraphicsRHI();
+	FString FeatureLevel = LexToString(GMaxRHIFeatureLevel);
 	int Pos;
 	if (RHI.FindChar(*TEXT("("), Pos))
 	{
 		RHI = RHI.Left(Pos).TrimEnd();
 	}
-	return RHI;
+	else if (RHI.IsEmpty())
+	{
+		FeatureLevel = RHI = FAutomationTestExcludeOptions::GetRHIOptionName(ETEST_RHI_Options::Null);
+	}
+	return TSet<FName> {FName(RHI), FName(FeatureLevel)};
 }
 
 bool FAutomationWorkerModule::IsTestExcluded(const FString& InTestToRun, FString* OutReason, bool* OutWarn) const
 {
 	FName SkipReason;
 	UAutomationTestExcludelist* Excludelist = UAutomationTestExcludelist::Get();
-	static FString RHI = GetRHIForAutomation();
+	static const TSet<FName> RHI = GetRHIForAutomation();
 	if (Excludelist->IsTestExcluded(InTestToRun, RHI, &SkipReason, OutWarn))
 	{
 		if (OutReason)
