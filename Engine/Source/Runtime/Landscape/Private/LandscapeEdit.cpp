@@ -1810,6 +1810,11 @@ bool ULandscapeComponent::CanUpdatePhysicalMaterial()
 		return false;
 	}
 
+	if (SceneProxy == nullptr)
+	{
+		return false;
+	}
+
 	return GetCollisionComponent() != nullptr;
 }
 
