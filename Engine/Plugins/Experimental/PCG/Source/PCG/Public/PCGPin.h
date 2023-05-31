@@ -4,12 +4,14 @@
 
 #include "PCGCommon.h"
 
+#include "Kismet/BlueprintFunctionLibrary.h"
+
 #include "PCGPin.generated.h"
 
 class UPCGNode;
 class UPCGEdge;
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta=(HasNativeBreak="/Script/PCG.PCGBlueprintPinHelpers.BreakPinProperty", HasNativeMake="/Script/PCG.PCGBlueprintPinHelpers.MakePinProperty"))
 struct PCG_API FPCGPinProperties
 {
 	GENERATED_BODY()
@@ -39,6 +41,69 @@ struct PCG_API FPCGPinProperties
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FText Tooltip;
 #endif
+};
+
+UCLASS()
+class PCG_API UPCGBlueprintPinHelpers : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+
+public:
+	UFUNCTION(BlueprintPure, Category="PCG|Pins", meta = (NativeBreakFunc))
+	static void BreakPinProperty(const FPCGPinProperties& PinProperty, FName& Label, EPCGExclusiveDataType& AllowedType, bool& bAllowMultipleData, bool& bAllowMultipleConnections, bool& bAdvancedPin)
+	{
+		Label = PinProperty.Label;
+
+		const UEnum* DataTypeEnum = StaticEnum<EPCGDataType>();
+		const UEnum* ExclusiveDataTypeEnum = StaticEnum<EPCGExclusiveDataType>();
+
+		AllowedType = EPCGExclusiveDataType::Other;
+
+		if (DataTypeEnum && ExclusiveDataTypeEnum)
+		{
+			FName DataTypeName = DataTypeEnum->GetNameByValue(static_cast<__underlying_type(EPCGDataType)>(PinProperty.AllowedTypes));
+			if (DataTypeName != NAME_None)
+			{
+				const int64 MatchingType = ExclusiveDataTypeEnum->GetValueByName(DataTypeName);
+
+				if (MatchingType != INDEX_NONE)
+				{
+					AllowedType = static_cast<EPCGExclusiveDataType>(MatchingType);
+				}
+			}
+		}
+
+		bAllowMultipleData = PinProperty.bAllowMultipleData;
+		bAllowMultipleConnections = PinProperty.bAllowMultipleConnections;
+		bAdvancedPin = PinProperty.bAdvancedPin;
+	}
+
+	UFUNCTION(BlueprintPure, Category="PCG|Pins", meta = (NativeMakeFunc))
+	static FPCGPinProperties MakePinProperty(FName Label, EPCGExclusiveDataType AllowedType, bool bAllowMultipleData, bool bAllowMultipleConnections, bool bAdvancedPin)
+	{
+		const UEnum* DataTypeEnum = StaticEnum<EPCGDataType>();
+		const UEnum* ExclusiveDataTypeEnum = StaticEnum<EPCGExclusiveDataType>();
+
+		EPCGDataType DataType = EPCGDataType::Other;
+
+		if (DataTypeEnum && ExclusiveDataTypeEnum)
+		{
+			FName ExclusiveDataTypeName = ExclusiveDataTypeEnum->GetNameByValue(static_cast<__underlying_type(EPCGExclusiveDataType)>(AllowedType));
+			if (ensure(ExclusiveDataTypeName != NAME_None))
+			{
+				const int64 MatchingType = DataTypeEnum->GetValueByName(ExclusiveDataTypeName);
+				if (ensure(MatchingType != INDEX_NONE))
+				{
+					DataType = static_cast<EPCGDataType>(MatchingType);
+				}
+			}
+		}
+
+		FPCGPinProperties PinProperties = FPCGPinProperties(Label, DataType, bAllowMultipleConnections, bAllowMultipleData);
+		PinProperties.bAdvancedPin = bAdvancedPin;
+
+		return PinProperties;
+	}
 };
 
 UCLASS(ClassGroup = (Procedural))

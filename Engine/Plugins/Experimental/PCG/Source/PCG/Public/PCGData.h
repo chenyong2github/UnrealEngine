@@ -217,19 +217,19 @@ public:
 	static TArray<FPCGTaggedData> GetInputs(const FPCGDataCollection& InCollection);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
-	static TArray<FPCGTaggedData> GetInputsByPin(const FPCGDataCollection& InCollection, const FName& InPinLabel);
+	static TArray<FPCGTaggedData> GetInputsByPinLabel(const FPCGDataCollection& InCollection, const FName& InPinLabel);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
-	static TArray<FPCGTaggedData> GetTaggedInputs(const FPCGDataCollection& InCollection, const FString& InTag);
+	static TArray<FPCGTaggedData> GetInputsByTag(const FPCGDataCollection& InCollection, const FString& InTag);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
 	static TArray<FPCGTaggedData> GetParams(const FPCGDataCollection& InCollection);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
-	static TArray<FPCGTaggedData> GetParamsByPin(const FPCGDataCollection& InCollection, const FName& InPinLabel);
+	static TArray<FPCGTaggedData> GetParamsByPinLabel(const FPCGDataCollection& InCollection, const FName& InPinLabel);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
-	static TArray<FPCGTaggedData> GetTaggedParams(const FPCGDataCollection& InCollection, const FString& InTag);
+	static TArray<FPCGTaggedData> GetParamsByTag(const FPCGDataCollection& InCollection, const FString& InTag);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
 	static TArray<FPCGTaggedData> GetAllSettings(const FPCGDataCollection& InCollection);

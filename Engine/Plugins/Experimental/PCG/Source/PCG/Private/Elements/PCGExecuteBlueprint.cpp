@@ -231,6 +231,38 @@ TArray<FPCGPinProperties> UPCGBlueprintElement::GetOutputPins() const
 	return CustomOutputPins;
 }
 
+bool UPCGBlueprintElement::GetInputPinByLabel(FName InPinLabel, FPCGPinProperties& OutFoundPin) const
+{
+	TArray<FPCGPinProperties> InputPinProperties = GetInputPins();
+	for (const FPCGPinProperties& InputPin : InputPinProperties)
+	{
+		if (InputPin.Label == InPinLabel)
+		{
+			OutFoundPin = InputPin;
+			return true;
+		}
+	}
+
+	OutFoundPin = FPCGPinProperties();
+	return false;;
+}
+
+bool UPCGBlueprintElement::GetOutputPinByLabel(FName InPinLabel, FPCGPinProperties& OutFoundPin) const
+{
+	TArray<FPCGPinProperties> OutputPinProperties = GetOutputPins();
+	for (const FPCGPinProperties& OutputPin : OutputPinProperties)
+	{
+		if (OutputPin.Label == InPinLabel)
+		{
+			OutFoundPin = OutputPin;
+			return true;
+		}
+	}
+
+	OutFoundPin = FPCGPinProperties();
+	return false;
+}
+
 int UPCGBlueprintElement::GetSeed(FPCGContext& InContext) const 
 {
 	return InContext.GetSeed();

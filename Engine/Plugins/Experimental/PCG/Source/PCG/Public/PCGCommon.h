@@ -20,6 +20,10 @@ enum class EPCGChangeType : uint8
 };
 ENUM_CLASS_FLAGS(EPCGChangeType);
 
+// Bitmask containing the various data types supported in PCG. Note that this enum cannot be a blueprint type because
+// enums have to be uint8 for blueprint, and we already use more than 8 bits in the bitmask.
+// This is why we have a parallel enum just below that must match on a name basis 1:1 to allow the make/break functions to work properly
+// in blueprint.
 UENUM(meta = (Bitflags))
 enum class EPCGDataType : uint32
 {
@@ -54,6 +58,31 @@ enum class EPCGDataType : uint32
 	Any = (1 << 30) - 1
 };
 ENUM_CLASS_FLAGS(EPCGDataType);
+
+// As discussed just before, a parallel version for "exclusive" (as in only type) of the EPCGDataType enum. Needed for blueprint compatibility.
+UENUM(BlueprintType, meta=(DisplayName="PCG Data Type"))
+enum class EPCGExclusiveDataType : uint8
+{
+	None = 0 UMETA(Hidden),
+	Point,
+	Spline,
+	LandscapeSpline,
+	PolyLine UMETA(DisplayName = "Curve"),
+	Landscape,
+	Texture,
+	RenderTarget,
+	BaseTexture UMETA(Hidden),
+	Surface,
+	Volume,
+	Primitive,
+	Concrete,
+	Composite UMETA(Hidden),
+	Spatial,
+	Param UMETA(DisplayName = "Attribute Set"),
+	Settings UMETA(Hidden),
+	Other,
+	Any
+};
 
 namespace PCGPinConstants
 {

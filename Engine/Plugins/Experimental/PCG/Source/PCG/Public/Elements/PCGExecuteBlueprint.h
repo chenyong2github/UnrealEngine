@@ -102,6 +102,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Input & Output", meta = (HideSelfPin = "true"))
 	TArray<FPCGPinProperties> GetOutputPins() const;
 
+	/** Returns true if there is an input pin with the matching label. If found, will copy the pin properties in OutFoundPin */
+	UFUNCTION(BlueprintCallable, Category = "PCG|Input & Output", meta = (HideSelfPin = "true"))
+	bool GetInputPinByLabel(FName InPinLabel, FPCGPinProperties& OutFoundPin) const;
+
+	/** Returns true if there is an output pin with the matching label. If found, will copy the pin properties in OutFoundPin */
+	UFUNCTION(BlueprintCallable, Category = "PCG|Input & Output", meta = (HideSelfPin = "true"))
+	bool GetOutputPinByLabel(FName InPinLabel, FPCGPinProperties& OutFoundPin) const;
+
 	/** Gets the seed from the associated settings & source component */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Random")
 	int GetSeed(UPARAM(ref) FPCGContext& InContext) const;

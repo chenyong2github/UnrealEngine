@@ -506,12 +506,12 @@ TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetInputs(const FPCGDataCollecti
 	return InCollection.GetInputs();
 }
 
-TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetInputsByPin(const FPCGDataCollection& InCollection, const FName& InPinLabel)
+TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetInputsByPinLabel(const FPCGDataCollection& InCollection, const FName& InPinLabel)
 {
 	return InCollection.GetInputsByPin(InPinLabel);
 }
 
-TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetTaggedInputs(const FPCGDataCollection& InCollection, const FString& InTag)
+TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetInputsByTag(const FPCGDataCollection& InCollection, const FString& InTag)
 {
 	return InCollection.GetTaggedInputs(InTag);
 }
@@ -521,12 +521,12 @@ TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetParams(const FPCGDataCollecti
 	return InCollection.GetAllParams();
 }
 
-TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetParamsByPin(const FPCGDataCollection& InCollection, const FName& InPinLabel)
+TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetParamsByPinLabel(const FPCGDataCollection& InCollection, const FName& InPinLabel)
 {
 	return InCollection.GetParamsByPin(InPinLabel);
 }
 
-TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetTaggedParams(const FPCGDataCollection& InCollection, const FString& InTag)
+TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetParamsByTag(const FPCGDataCollection& InCollection, const FString& InTag)
 {
 	return InCollection.GetTaggedParams(InTag);
 }
