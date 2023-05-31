@@ -18,12 +18,12 @@ namespace EpicGames.Horde.Storage.Nodes
 		class HandleMapper
 		{
 			public IReadOnlyList<NodeLocator> Locators { get; }
-			public List<NodeHandle> Handles { get; }
+			public List<HashedNodeHandle> Handles { get; }
 
 			public HandleMapper(IReadOnlyList<NodeLocator> locators)
 			{
 				Locators = locators;
-				Handles = new List<NodeHandle>(locators.Count);
+				Handles = new List<HashedNodeHandle>(locators.Count);
 			}
 
 			public void IterateField(CbField field)
@@ -31,7 +31,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				if (field.IsAttachment())
 				{
 					NodeLocator locator = Locators[Handles.Count];
-					Handles.Add(new NodeHandle(field.AsAttachment(), locator));
+					Handles.Add(new HashedNodeHandle(field.AsAttachment(), new NodeHandle(locator)));
 				}
 				else if (field.IsArray())
 				{

@@ -168,11 +168,10 @@ public class StorageClient : IStorageClientJupiter
             }
 
             RefInlinePayload inlinePayload = CbSerializer.Deserialize<RefInlinePayload>(record.InlinePayload);
-            IoHash nodeHash = inlinePayload.BlobHash;
             BlobLocator blobLocator = new BlobLocator(inlinePayload.BlobLocator);
             int exportId = inlinePayload.ExportId;
 
-            return new NodeHandle(nodeHash, blobLocator, exportId);
+            return new NodeHandle(new NodeLocator(blobLocator, exportId));
         }
         catch (ObjectNotFoundException )
         {
@@ -183,7 +182,7 @@ public class StorageClient : IStorageClientJupiter
     public async Task<NodeHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default)
     {
         BlobLocator locator = await this.WriteBundleAsync(bundle, prefix, cancellationToken);
-        NodeHandle target = new NodeHandle(bundle.Header.Exports[exportIdx].Hash, locator, exportIdx);
+        NodeHandle target = new NodeHandle(new NodeLocator(locator, exportIdx));
         await WriteRefTargetAsync(name, target, options, cancellationToken);
 
         return target;
@@ -195,7 +194,7 @@ public class StorageClient : IStorageClientJupiter
         IoHashKey refKey = IoHashKey.FromName(refName.ToString());
         RefInlinePayload inlinePayload = new RefInlinePayload()
         {
-            BlobHash = target.Hash, BlobLocator = target.Locator.Blob.ToString(), ExportId = target.Locator.ExportIdx
+            BlobLocator = target.Locator.Blob.ToString(), ExportId = target.Locator.ExportIdx
         };
         byte[] payload = CbSerializer.SerializeToByteArray(inlinePayload);
         BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(payload);
@@ -213,9 +212,6 @@ public class StorageClient : IStorageClientJupiter
 
 public class RefInlinePayload
 {
-    [CbField("hash")]
-    public IoHash BlobHash { get; set; }
-
     [CbField("loc")]
     public string BlobLocator { get; set; } = null!;
 

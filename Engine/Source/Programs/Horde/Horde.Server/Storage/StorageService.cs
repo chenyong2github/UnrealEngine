@@ -278,9 +278,6 @@ namespace Horde.Server.Storage
 			[BsonElement("alias")]
 			public string Alias { get; set; } = String.Empty;
 
-			[BsonElement("hash")]
-			public IoHash Hash { get; set; }
-
 			[BsonElement("idx")]
 			public int Index { get; set; }
 
@@ -288,10 +285,9 @@ namespace Horde.Server.Storage
 			{
 			}
 
-			public ExportInfo(string alias, IoHash hash, int index)
+			public ExportInfo(string alias, int index)
 			{
 				Alias = alias;
-				Hash = hash;
 				Index = index;
 			}
 		}
@@ -342,9 +338,6 @@ namespace Horde.Server.Storage
 			[BsonElement("name")]
 			public RefName Name { get; set; }
 
-			[BsonElement("hash")]
-			public IoHash Hash { get; set; }
-
 			[BsonElement("blob")]
 			public BlobLocator BlobLocator { get; set; }
 
@@ -361,7 +354,7 @@ namespace Horde.Server.Storage
 			public TimeSpan? Lifetime { get; set; }
 
 			[BsonIgnore]
-			public NodeHandle Target => new NodeHandle(Hash, BlobLocator, ExportIdx);
+			public NodeHandle Target => new NodeHandle(new NodeLocator(BlobLocator, ExportIdx));
 
 			public RefInfo()
 			{
@@ -373,7 +366,6 @@ namespace Horde.Server.Storage
 			{
 				NamespaceId = namespaceId;
 				Name = name;
-				Hash = target.Hash;
 				BlobLocator = target.Locator.Blob;
 				BlobInfoId = blobInfoId;
 				ExportIdx = target.Locator.ExportIdx;
@@ -696,7 +688,7 @@ namespace Horde.Server.Storage
 			}
 
 			FilterDefinition<BlobInfo> filter = Builders<BlobInfo>.Filter.Expr(x => x.NamespaceId == blobInfo.NamespaceId && x.BlobId == target.Locator.Blob.BlobId);
-			UpdateDefinition<BlobInfo> update = Builders<BlobInfo>.Update.Push(x => x.Exports, new ExportInfo(alias.ToString(), target.Hash, target.Locator.ExportIdx));
+			UpdateDefinition<BlobInfo> update = Builders<BlobInfo>.Update.Push(x => x.Exports, new ExportInfo(alias.ToString(), target.Locator.ExportIdx));
 			await _blobCollection.UpdateOneAsync(filter, update, cancellationToken: cancellationToken);
 		}
 
@@ -730,7 +722,7 @@ namespace Horde.Server.Storage
 					{
 						if (exportInfo.Alias == alias)
 						{
-							yield return new NodeHandle(exportInfo.Hash, blobInfo.Locator, exportInfo.Index);
+							yield return new NodeHandle(new NodeLocator(blobInfo.Locator, exportInfo.Index));
 						}
 					}
 				}

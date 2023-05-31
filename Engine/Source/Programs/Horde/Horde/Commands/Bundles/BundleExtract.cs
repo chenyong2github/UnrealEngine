@@ -29,7 +29,7 @@ namespace Horde.Commands.Bundles
 			if (File != null)
 			{
 				store = new FileStorageClient(File.Directory, logger);
-				handle = NodeHandle.Parse(await FileReference.ReadAllTextAsync(File));
+				handle = new NodeHandle(NodeLocator.Parse(await FileReference.ReadAllTextAsync(File)));
 			}
 			else if (Ref != null)
 			{

@@ -252,7 +252,7 @@ namespace Horde.Server.Tools
 
 			IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
 
-			NodeHandle handle;
+			HashedNodeHandle handle;
 			using (TreeWriter writer = new TreeWriter(client, refName))
 			{
 				DirectoryNode directoryNode = new DirectoryNode();
@@ -260,7 +260,7 @@ namespace Horde.Server.Tools
 				handle = await writer.WriteAsync(refName, directoryNode, cancellationToken: cancellationToken);
 			}
 
-			return await CreateDeploymentAsync(tool, options, handle, globalConfig, cancellationToken);
+			return await CreateDeploymentAsync(tool, options, handle.Handle, globalConfig, cancellationToken);
 		}
 
 		/// <summary>

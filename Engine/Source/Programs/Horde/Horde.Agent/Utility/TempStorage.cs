@@ -602,7 +602,7 @@ namespace Horde.Storage.Utility
 			fileList.Save(localFileListLocation);
 
 			ChunkedDataWriter fileNodeWriter = new ChunkedDataWriter(writer, new ChunkingOptions());
-			NodeHandle handle = await fileNodeWriter.CreateAsync(localFileListLocation.ToFileInfo(), cancellationToken);
+			HashedNodeHandle handle = await fileNodeWriter.CreateAsync(localFileListLocation.ToFileInfo(), cancellationToken);
 
 			return new FileEntry(localFileListLocation.GetFileName(), FileEntryFlags.None, fileNodeWriter.Length, handle);
 		}

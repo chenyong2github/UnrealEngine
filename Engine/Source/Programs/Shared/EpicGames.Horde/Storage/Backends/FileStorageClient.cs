@@ -117,7 +117,7 @@ namespace EpicGames.Horde.Storage.Backends
 
 			_logger.LogInformation("Reading {File}", file);
 			string text = await FileReference.ReadAllTextAsync(file, cancellationToken);
-			return NodeHandle.Parse(text);
+			return new NodeHandle(NodeLocator.Parse(text));
 		}
 
 		/// <inheritdoc/>

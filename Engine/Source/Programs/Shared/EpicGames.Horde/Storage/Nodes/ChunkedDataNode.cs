@@ -211,7 +211,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			while (nodeReader.GetMemory(0).Length > 0)
 			{
 				NodeRef nodeRef = nodeReader.ReadRef();
-				await ChunkedDataNode.CopyToStreamAsync(reader, nodeRef.Handle!.Locator, outputStream, cancellationToken);
+				await ChunkedDataNode.CopyToStreamAsync(reader, nodeRef.Handle!.Handle.Locator, outputStream, cancellationToken);
 			}
 		}
 	}

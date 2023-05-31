@@ -83,7 +83,7 @@ namespace EpicGames.Horde.Tests
 				data[idx] = (byte)idx;
 			}
 
-			NodeHandle handle;
+			HashedNodeHandle handle;
 
 			const int NumIterations = 100;
 			{
@@ -97,7 +97,7 @@ namespace EpicGames.Horde.Tests
 				handle = await fileWriter.FlushAsync(CancellationToken.None);
 			}
 
-			ChunkedDataNode root = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Locator);
+			ChunkedDataNode root = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Handle.Locator);
 
 			byte[] result;
 			using (MemoryStream stream = new MemoryStream())

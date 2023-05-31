@@ -64,10 +64,10 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Reads the next reference to another node
 		/// </summary>
-		public NodeHandle ReadNodeHandle()
+		public HashedNodeHandle ReadNodeHandle()
 		{
 			IoHash hash = this.ReadIoHash();
-			return new NodeHandle(hash, _nodeData.Refs[_refIdx++]);
+			return new HashedNodeHandle(hash, new NodeHandle(_nodeData.Refs[_refIdx++]));
 		}
 	}
 

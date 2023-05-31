@@ -55,11 +55,6 @@ namespace Horde.Server.Storage
 	public class FindNodeResponse
 	{
 		/// <summary>
-		/// Hash of the target node
-		/// </summary>
-		public IoHash Hash { get; set; }
-
-		/// <summary>
 		/// Locator for the target blob
 		/// </summary>
 		public BlobLocator Blob { get; set; }
@@ -74,7 +69,6 @@ namespace Horde.Server.Storage
 		/// </summary>
 		public FindNodeResponse(NodeHandle target)
 		{
-			Hash = target.Hash;
 			Blob = target.Locator.Blob;
 			ExportIdx = target.Locator.ExportIdx;
 		}
@@ -122,11 +116,6 @@ namespace Horde.Server.Storage
 	public class ReadRefResponse
 	{
 		/// <summary>
-		/// Hash of the target node
-		/// </summary>
-		public IoHash Hash { get; set; }
-
-		/// <summary>
 		/// Locator for the target blob
 		/// </summary>
 		public BlobLocator Blob { get; set; }
@@ -146,7 +135,6 @@ namespace Horde.Server.Storage
 		/// </summary>
 		public ReadRefResponse(NodeHandle target, string link)
 		{
-			Hash = target.Hash;
 			Blob = target.Locator.Blob;
 			ExportIdx = target.Locator.ExportIdx;
 			Link = link;
@@ -363,7 +351,7 @@ namespace Horde.Server.Storage
 			}
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-			NodeHandle target = new NodeHandle(request.Hash, request.Blob, request.ExportIdx);
+			NodeHandle target = new NodeHandle(new NodeLocator(request.Blob, request.ExportIdx));
 			await client.WriteRefTargetAsync(refName, target, request.Options, cancellationToken);
 
 			return Ok();
@@ -590,7 +578,9 @@ namespace Horde.Server.Storage
 			return new { bundle = $"{linkBase}/bundles/{locator}", export.Hash, export.Length, guid = header.Types[export.TypeIdx].Guid, type = node.GetType().Name, content = content };
 		}
 
-		static string GetNodeLink(string linkBase, NodeRef treeNodeRef) => $"{linkBase}/nodes/{treeNodeRef.Handle!.Locator.Blob}?export={treeNodeRef.Handle!.Locator.ExportIdx}";
+		static string GetNodeLink(string linkBase, NodeRef treeNodeRef) => GetNodeLink(linkBase, treeNodeRef.Handle!.Handle.Locator);
+		
+		static string GetNodeLink(string linkBase, NodeLocator locator) => $"{linkBase}/nodes/{locator.Blob}?export={locator.ExportIdx}";
 
 		static Type? GetNodeType(Guid typeGuid)
 		{

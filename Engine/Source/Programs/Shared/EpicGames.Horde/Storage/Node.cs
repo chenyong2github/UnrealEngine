@@ -254,7 +254,7 @@ namespace EpicGames.Horde.Storage
 		/// Writes a reference to another node
 		/// </summary>
 		/// <param name="handle">Handle to the target node</param>
-		void WriteNodeHandle(NodeHandle handle);
+		void WriteNodeHandle(HashedNodeHandle handle);
 	}
 
 	/// <summary>
@@ -356,7 +356,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refOptions">Options for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Location of node targetted by the ref</returns>
-		public static async Task<NodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, Node node, TreeOptions? options = null, Utf8String prefix = default, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
+		public static async Task<HashedNodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, Node node, TreeOptions? options = null, Utf8String prefix = default, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
 		{
 			using TreeWriter writer = new TreeWriter(store, options, prefix.IsEmpty ? name.Text : prefix);
 			return await writer.WriteAsync(name, node, refOptions, cancellationToken);

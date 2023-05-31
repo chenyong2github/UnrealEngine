@@ -120,7 +120,7 @@ namespace Horde.Server.Tests
 			for(int idx = 0; idx < 2; idx++)
 			{
 				RefName refName = new RefName("hello");
-				await store.WriteRefTargetAsync(refName, new NodeHandle(bundle3.Header.Exports[0].Hash, locator3, 0));
+				await store.WriteRefTargetAsync(refName, new NodeHandle(new NodeLocator(locator3, 0)));
 				NodeHandle refTarget = await store.ReadRefTargetAsync(refName);
 				Assert.AreEqual(locator3, refTarget.Locator.Blob);
 			}
@@ -140,7 +140,7 @@ namespace Horde.Server.Tests
 
 			Bundle bundle1 = CreateTestBundle(new byte[] { 1, 2, 3 }, Array.Empty<BlobLocator>());
 			BlobLocator locator1 = await store.WriteBundleAsync(bundle1);
-			NodeHandle target = new NodeHandle(bundle1.Header.Exports[0].Hash, locator1, 0);
+			NodeHandle target = new NodeHandle(new NodeLocator(locator1, 0));
 
 			await store.WriteRefTargetAsync("test-ref-1", target);
 			await store.WriteRefTargetAsync("test-ref-2", target, new RefOptions { Lifetime = TimeSpan.FromMinutes(30.0), Extend = true });

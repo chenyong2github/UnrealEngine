@@ -486,9 +486,9 @@ namespace Jupiter.FunctionalTests.Storage
             using TreeWriter writer = new TreeWriter(store, new TreeOptions { CompressionFormat = BundleCompressionFormat.None });
 
             TextNode node = new TextNode(contents);
-            NodeHandle handle = await writer.FlushAsync(node, CancellationToken.None);
+            HashedNodeHandle handle = await writer.FlushAsync(node, CancellationToken.None);
 
-            return await store.ReadBundleAsync(handle.Locator.Blob);
+            return await store.ReadBundleAsync(handle.Handle.Locator.Blob);
         }
 
         [TestMethod]

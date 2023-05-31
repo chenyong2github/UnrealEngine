@@ -64,9 +64,9 @@ namespace EpicGames.Horde.Tests
 			using TreeWriter writer = new TreeWriter(store, new TreeOptions { CompressionFormat = BundleCompressionFormat.None });
 
 			TextNode node = new TextNode("Hello world");
-			NodeHandle handle = await writer.FlushAsync(node, CancellationToken.None);
+			HashedNodeHandle handle = await writer.FlushAsync(node, CancellationToken.None);
 
-			return await store.ReadBundleAsync(handle.Locator.Blob);
+			return await store.ReadBundleAsync(handle.Handle.Locator.Blob);
 		}
 
 		static Bundle CreateBundleManually()
@@ -264,7 +264,7 @@ namespace EpicGames.Horde.Tests
 				DirectoryNode hello = root.AddDirectory("hello");
 
 				ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, new ChunkingOptions());
-				NodeHandle fileHandle = await fileWriter.CreateAsync(Encoding.UTF8.GetBytes("world"), CancellationToken.None);
+				HashedNodeHandle fileHandle = await fileWriter.CreateAsync(Encoding.UTF8.GetBytes("world"), CancellationToken.None);
 				hello.AddFile("world", FileEntryFlags.None, fileWriter.Length, fileHandle);
 
 				await writer.WriteAsync(new RefName("test"), root);
@@ -322,8 +322,8 @@ namespace EpicGames.Horde.Tests
 					await fileWriter.AppendAsync(chunk.AsMemory(idx * 16, 16), CancellationToken.None);
 				}
 
-				NodeHandle handle = await fileWriter.FlushAsync(CancellationToken.None);
-				locator = handle.Locator;
+				HashedNodeHandle handle = await fileWriter.FlushAsync(CancellationToken.None);
+				locator = handle.Handle.Locator;
 			}
 
 			// Check we can read it back in
@@ -371,7 +371,7 @@ namespace EpicGames.Horde.Tests
 				options.LeafOptions.MaxSize = 64 * 1024;
 
 				ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, options);
-				NodeHandle handle = await fileWriter.CreateAsync(data, CancellationToken.None);
+				HashedNodeHandle handle = await fileWriter.CreateAsync(data, CancellationToken.None);
 				root.AddFile("test", FileEntryFlags.None, fileWriter.Length, handle);
 
 				await writer.WriteAsync(new RefName("test"), root);

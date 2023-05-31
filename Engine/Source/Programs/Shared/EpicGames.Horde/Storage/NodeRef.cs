@@ -46,7 +46,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Handle to the node if in storage (or pending write to storage)
 		/// </summary>
-		public NodeHandle? Handle { get; private set; }
+		public HashedNodeHandle? Handle { get; private set; }
 
 		/// <summary>
 		/// Creates a reference to a node in memory.
@@ -61,7 +61,7 @@ namespace EpicGames.Horde.Storage
 		/// Creates a reference to a node in storage.
 		/// </summary>
 		/// <param name="handle">Handle to the referenced node</param>
-		public NodeRef(NodeHandle handle)
+		public NodeRef(HashedNodeHandle handle)
 		{
 			Handle = handle;
 		}
@@ -97,7 +97,7 @@ namespace EpicGames.Horde.Storage
 		/// Updates the hash and revision number for the ref.
 		/// </summary>
 		/// <returns></returns>
-		internal void MarkAsPendingWrite(NodeHandle handle)
+		internal void MarkAsPendingWrite(HashedNodeHandle handle)
 		{
 			OnCollapse();
 			Handle = handle;
@@ -134,7 +134,7 @@ namespace EpicGames.Horde.Storage
 		{
 			if (Target == null)
 			{
-				NodeData nodeData = await reader.ReadNodeDataAsync(Handle!.Locator, cancellationToken);
+				NodeData nodeData = await reader.ReadNodeDataAsync(Handle!.Handle.Locator, cancellationToken);
 				Target = Node.Deserialize(nodeData);
 				OnExpand();
 			}
@@ -191,7 +191,7 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="handle">Handle to the referenced node</param>
-		public NodeRef(NodeHandle handle) : base(handle)
+		public NodeRef(HashedNodeHandle handle) : base(handle)
 		{
 		}
 
@@ -226,7 +226,7 @@ namespace EpicGames.Horde.Storage
 			{
 				throw new InvalidOperationException("TreeNodeRef has not been serialized to storage");
 			}
-			return await reader.ReadNodeAsync<T>(Handle.Locator, cancellationToken);
+			return await reader.ReadNodeAsync<T>(Handle.Handle.Locator, cancellationToken);
 		}
 	}
 
@@ -254,9 +254,9 @@ namespace EpicGames.Horde.Storage
 				_refs = refs;
 			}
 
-			public void WriteNodeHandle(NodeHandle target)
+			public void WriteNodeHandle(HashedNodeHandle target)
 			{
-				if (_refs[_refIdx] != target)
+				if (_refs[_refIdx] != target.Handle)
 				{
 					throw new InvalidOperationException("Referenced node does not match the handle returned by owner's EnumerateRefs method.");
 				}
@@ -287,9 +287,9 @@ namespace EpicGames.Horde.Storage
 		internal class NodeWriteCallback : TreeWriter.WriteCallback
 		{
 			readonly NodeRef _nodeRef;
-			readonly NodeHandle _handle;
+			readonly HashedNodeHandle _handle;
 
-			public NodeWriteCallback(NodeRef nodeRef, NodeHandle handle)
+			public NodeWriteCallback(NodeRef nodeRef, HashedNodeHandle handle)
 			{
 				_nodeRef = nodeRef;
 				_handle = handle;
@@ -311,7 +311,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="nodeRef">Reference to the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>A flag indicating whether the node is dirty, and if it is, an optional bundle that contains it</returns>
-		public static async ValueTask<NodeHandle> WriteAsync(this TreeWriter writer, NodeRef nodeRef, CancellationToken cancellationToken)
+		public static async ValueTask<HashedNodeHandle> WriteAsync(this TreeWriter writer, NodeRef nodeRef, CancellationToken cancellationToken)
 		{
 			// Check we actually have a target node. If we don't, we don't need to write anything.
 			Node? target = nodeRef.Target;
@@ -326,12 +326,12 @@ namespace EpicGames.Horde.Storage
 			List<NodeHandle> nextRefHandles = new List<NodeHandle>(nextRefs.Count);
 			foreach (NodeRef nextRef in nextRefs)
 			{
-				NodeHandle nextRefHandle = await WriteAsync(writer, nextRef, cancellationToken);
-				if (!nextRefHandle.Locator.IsValid())
+				HashedNodeHandle nextRefHandle = await WriteAsync(writer, nextRef, cancellationToken);
+				if (!nextRefHandle.Handle.Locator.IsValid())
 				{
 					nodeRef.MarkAsDirty();
 				}
-				nextRefHandles.Add(nextRefHandle);
+				nextRefHandles.Add(nextRefHandle.Handle);
 			}
 
 			// If the target node hasn't been modified, use the existing serialized state.
@@ -339,7 +339,7 @@ namespace EpicGames.Horde.Storage
 			{
 				// Make sure the locator is valid. The node may be queued for writing but not flushed to disk yet.
 				Debug.Assert(nodeRef.Handle != null);
-				if (nodeRef.Handle.Locator.IsValid())
+				if (nodeRef.Handle.Handle.Locator.IsValid())
 				{
 					nodeRef.Collapse();
 				}
@@ -351,11 +351,11 @@ namespace EpicGames.Horde.Storage
 			target.Serialize(nodeWriter);
 
 			// Write the final data
-			NodeHandle handle = await writer.WriteNodeAsync(nodeWriter.Length, nextRefHandles, target.NodeType, cancellationToken);
+			HashedNodeHandle handle = await writer.WriteNodeAsync(nodeWriter.Length, nextRefHandles, target.NodeType, cancellationToken);
 			target.Hash = handle.Hash;
 
 			NodeWriteCallback writeState = new NodeWriteCallback(nodeRef, handle);
-			handle.AddWriteCallback(writeState);
+			handle.Handle.AddWriteCallback(writeState);
 
 			nodeRef.MarkAsPendingWrite(handle);
 			return handle;
@@ -370,14 +370,14 @@ namespace EpicGames.Horde.Storage
 		/// <param name="options"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task<NodeHandle> WriteAsync(this TreeWriter writer, RefName name, Node node, RefOptions? options = null, CancellationToken cancellationToken = default)
+		public static async Task<HashedNodeHandle> WriteAsync(this TreeWriter writer, RefName name, Node node, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
 			NodeRef nodeRef = new NodeRef(node);
 			await writer.WriteAsync(nodeRef, cancellationToken);
 			await writer.FlushAsync(cancellationToken);
 
 			Debug.Assert(nodeRef.Handle != null);
-			await writer.Store.WriteRefTargetAsync(name, nodeRef.Handle, options, cancellationToken);
+			await writer.Store.WriteRefTargetAsync(name, nodeRef.Handle.Handle, options, cancellationToken);
 			return nodeRef.Handle;
 		}
 
@@ -388,11 +388,11 @@ namespace EpicGames.Horde.Storage
 		/// <param name="root">Root for the tree</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public static async Task<NodeHandle> FlushAsync(this TreeWriter writer, Node root, CancellationToken cancellationToken = default)
+		public static async Task<HashedNodeHandle> FlushAsync(this TreeWriter writer, Node root, CancellationToken cancellationToken = default)
 		{
 			NodeRef rootRef = new NodeRef(root);
 
-			NodeHandle handle = await writer.WriteAsync(rootRef, cancellationToken);
+			HashedNodeHandle handle = await writer.WriteAsync(rootRef, cancellationToken);
 			writer._traceLogger?.LogInformation("Written root node {Handle}", handle);
 
 			await writer.FlushAsync(cancellationToken);
