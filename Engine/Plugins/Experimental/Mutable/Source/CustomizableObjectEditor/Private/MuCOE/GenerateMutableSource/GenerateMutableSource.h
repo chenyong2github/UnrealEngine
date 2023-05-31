@@ -533,7 +533,8 @@ struct FMutableGraphGenerationContext
 		{
 			/** Source mesh data. */
 			const UObject* Mesh = nullptr;
-			int32 LOD = 0;
+			int32 LOD = 0; // Mesh Data LOD (i.e., LOD where we are getting the vertices from)
+			int32 CurrentLOD = 0; // Derived data LOD (i.e., LOD where we are generating the non-Core Data like morphs)
 			int32 MaterialIndex = 0;
 
 			/** Flag used to generate this mesh. Bit mask of EMutableMeshConversionFlags */
@@ -547,7 +548,7 @@ struct FMutableGraphGenerationContext
 
 			bool operator==( const FKey& OtherKey ) const
 			{
-				return Mesh == OtherKey.Mesh && LOD == OtherKey.LOD && MaterialIndex == OtherKey.MaterialIndex
+				return Mesh == OtherKey.Mesh && LOD == OtherKey.LOD && CurrentLOD == OtherKey.CurrentLOD && MaterialIndex == OtherKey.MaterialIndex
 					&& Flags == OtherKey.Flags && Tags == OtherKey.Tags;
 			}
 		};

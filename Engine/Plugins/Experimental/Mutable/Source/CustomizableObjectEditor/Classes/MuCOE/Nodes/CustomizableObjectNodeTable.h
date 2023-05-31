@@ -94,7 +94,7 @@ public:
 	UPROPERTY()
 	int32 LOD = 0;
 
-	/** Material Index (Surface Index) of the mesh related to this Mesh pin */
+	/** Section Index (Surface Index) of the mesh related to this Mesh pin */
 	UPROPERTY()
 	int32 Material = 0;
 
@@ -196,7 +196,7 @@ public:
 	FString GetMutableColumnName(const UEdGraphPin* Pin, const int32& LOD) const;
 
 	// Returns the LOD of the mesh associated to the input pin
-	void GetPinLODAndMaterial(const UEdGraphPin* Pin, int32& LOD, int32& Material) const;
+	void GetPinLODAndSection(const UEdGraphPin* Pin, int32& LODIndex, int32& SectionIndex) const;
 
 	// Get the anim blueprint and anim slot columns related to a mesh
 	void GetAnimationColumns(const FString& ColumnName, FString& AnimBPColumnName, FString& AnimSlotColumnName, FString& AnimTagColumnName) const;

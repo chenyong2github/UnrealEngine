@@ -927,17 +927,17 @@ FString UCustomizableObjectNodeTable::GetMutableColumnName(const UEdGraphPin* Pi
 }
 
 
-void UCustomizableObjectNodeTable::GetPinLODAndMaterial(const UEdGraphPin* Pin, int32& LOD, int32& Material) const
+void UCustomizableObjectNodeTable::GetPinLODAndSection(const UEdGraphPin* Pin, int32& LODIndex, int32& SectionIndex) const
 {
 	if (const UCustomizableObjectNodeTableMeshPinData* PinData = Cast<UCustomizableObjectNodeTableMeshPinData >(GetPinData(*Pin)))
 	{
-		LOD = PinData->LOD;
-		Material = PinData->Material;
+		LODIndex = PinData->LOD;
+		SectionIndex = PinData->Material;
 	}
 	else
 	{
-		LOD = -1;
-		Material = -1;
+		LODIndex = -1;
+		SectionIndex = -1;
 	}
 }
 
