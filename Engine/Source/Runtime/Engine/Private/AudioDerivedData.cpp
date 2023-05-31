@@ -158,7 +158,6 @@ FName FStreamedAudioPlatformData::GetAudioFormat() const
 	return AudioFormat;
 }
 
-#if WITH_EDITORONLY_DATA
 
 /*------------------------------------------------------------------------------
 Derived data key generation.
@@ -166,7 +165,10 @@ Derived data key generation.
 
 // If you want to bump this version, generate a new guid using
 // VS->Tools->Create GUID and paste it here. https://www.guidgen.com works too.
-#define STREAMEDAUDIO_DERIVEDDATA_VER		TEXT("F6F8FA984D96440B8A28C73F2ABAE692")
+#define AUDIO_DERIVEDDATA_VER				TEXT("4CC71E548D764B6989612C03CBF8E376")				// Change this if you want to bump all audio formats at once
+#define STREAMEDAUDIO_DERIVEDDATA_VER		TEXT("F6F8FA984D96440B8A28C73F2ABAE692")				// This depends on the above key, but will regenerate all streaming chunk data derived from the compressed audio
+
+#if WITH_EDITORONLY_DATA
 
 #ifndef CASE_ENUM_TO_TEXT
 #define CASE_ENUM_TO_TEXT(X) case X: return TEXT(#X);
@@ -1915,6 +1917,11 @@ static void CookSurroundWave(const FAudioCookInputs& Inputs,  TArray<uint8>& Out
 FDerivedAudioDataCompressor::FDerivedAudioDataCompressor(USoundWave* InSoundNode, FName InBaseFormat, FName InHashedFormat, const FPlatformAudioCookOverrides* InCompressionOverrides)
 	: CookInputs(MakeUnique<FAudioCookInputs>(InSoundNode, InBaseFormat, InHashedFormat, InCompressionOverrides))
 {
+}
+
+const TCHAR* FDerivedAudioDataCompressor::GetVersionString() const
+{	
+	return AUDIO_DERIVEDDATA_VER;
 }
 
 FString FDerivedAudioDataCompressor::GetPluginSpecificCacheKeySuffix() const
