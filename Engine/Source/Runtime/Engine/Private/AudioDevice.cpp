@@ -5061,7 +5061,6 @@ void FAudioDevice::AddNewActiveSound(const FActiveSound& NewActiveSound, TArray<
 	if (USoundBase* Sound = NewActiveSound.GetSound())
 	{
 		Sound->InitResources();
-		Sound->InitParameters(InDefaultParams, "NewSoundRequest");
 	}
 
 	AddNewActiveSoundInternal(NewActiveSound, MoveTemp(InDefaultParams));
