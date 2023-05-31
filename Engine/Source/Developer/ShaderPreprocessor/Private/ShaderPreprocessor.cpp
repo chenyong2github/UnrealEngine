@@ -98,44 +98,50 @@ struct FStbPreprocessContext
 	}
 };
 
-inline bool IsEndOfLine(ANSICHAR C)
+inline bool IsEndOfLine(TCHAR C)
 {
-	return C == '\r' || C == '\n';
+	return C == TEXT('\r') || C == TEXT('\n');
 }
 
-inline bool CommentStripNeedsHandling(ANSICHAR C)
+inline bool CommentStripNeedsHandling(TCHAR C)
 {
-	return IsEndOfLine(C) || C == '/' || C == 0;
+	return IsEndOfLine(C) || C == TEXT('/') || C == 0;
 }
 
-inline int NewlineCharCount(ANSICHAR First, ANSICHAR Second)
+inline int NewlineCharCount(TCHAR First, TCHAR Second)
 {
-	return ((First + Second) == '\r' + '\n') ? 2 : 1;
+	return ((First + Second) == TEXT('\r') + TEXT('\n')) ? 2 : 1;
 }
 
+// Given an FString containing the contents of a shader source file, populates the given array with contents of
+// that source file with all comments stripped. This is needed since the STB preprocessor itself does not strip 
+// comments.
+// This function is used when reading in-memory source from compile environments.
 void ConvertAndStripComments(const FString& ShaderSource, TArray<ANSICHAR>& OutStripped)
 {
-	auto ShaderSourceAnsiConvert = StringCast<ANSICHAR>(*ShaderSource);
-
 	// STB preprocessor does not strip comments, so we do so here before returning the loaded source
 	// Doing so is barely more costly than the memcopy we require anyways so has negligible overhead.
 	// Reserve worst case (i.e. assuming there are no comments at all) to avoid reallocation
-	// Note: there's a potential future optimization here if we convert and strip at the same time;
-	// currently this is incurring an extra heap allocation and copy in the case where the StringCast
-	// is not a straight pointer copy (one alloc for the conversion and another for the stripped char array).
-	OutStripped.SetNumUninitialized(ShaderSourceAnsiConvert.Length() + 1); // +1 to append null terminator
+	int32 BufferSize = ShaderSource.Len() + 1; // +1 to append null terminator
+	OutStripped.SetNumUninitialized(BufferSize);
 
 	ANSICHAR* CurrentOut = OutStripped.GetData();
 
-	const ANSICHAR* const End = ShaderSourceAnsiConvert.Get() + ShaderSourceAnsiConvert.Length();
+	const TCHAR* const End = ShaderSource.GetCharArray().GetData() + ShaderSource.Len();
+
 	// We rely on null termination to avoid the need to check Current < End in some cases
-	check(*End == '\0');
-	for (const ANSICHAR* Current = ShaderSourceAnsiConvert.Get(); Current < End;)
+	check(*End == TEXT('\0'));
+	for (const TCHAR* Current = ShaderSource.GetCharArray().GetData(); Current < End;)
 	{
-		// CommentStripNeedsHandling returns true when *Current == '\0;
+		// sanity check that we're not overrunning the buffer
+		check(CurrentOut < (OutStripped.GetData() + BufferSize));
+		// CommentStripNeedsHandling returns true when *Current == '\0';
 		while (!CommentStripNeedsHandling(*Current))
 		{
-			*CurrentOut++ = *Current++;
+			// straight cast to ansichar; since this is a character in hlsl source that's not in a comment
+			// we assume that it must be valid to do so. if this assumption is not valid the shader source was
+			// broken/corrupt anyways.
+			*CurrentOut++ = (ANSICHAR)(*Current++);
 		}
 
 		if (IsEndOfLine(*Current))
@@ -175,61 +181,65 @@ void ConvertAndStripComments(const FString& ShaderSource, TArray<ANSICHAR>& OutS
 			}
 			else
 			{
-				*CurrentOut++ = *Current++;
+				*CurrentOut++ = (ANSICHAR)(*Current++);
 			}
 		}
 	}
 	// Null terminate after comment-stripped copy
+	check(CurrentOut < (OutStripped.GetData() + BufferSize));
 	*CurrentOut++ = 0;
 
 	// Set correct length after stripping but don't bother shrinking/reallocating, minor memory overhead to save time
 	OutStripped.SetNum(CurrentOut - OutStripped.GetData(), /* bAllowShrinking */false);
 }
 
-const FString* FindInMemorySource(const FShaderCompilerEnvironment& Environment, const FString& FilenameConverted)
+const TArray<ANSICHAR>* FindInMemorySource(FStbPreprocessContext& Context, const FString& FilenameConverted)
 {
-	const FString* InMemorySource = Environment.IncludeVirtualPathToContentsMap.Find(FilenameConverted);
-	if (!InMemorySource)
+	// Note: we can't use the shared cache for this path as different environments may have different in-memory source
+	// for the same virtual file path; we instead use a separate cache in the context to save time/memory in the event
+	// the same in-memory include is included in multiple places in the same shader.
+	TArray<ANSICHAR>* ContentsCached = Context.LoadedIncludesCache.Find(FilenameConverted);
+	if (!ContentsCached)
 	{
-		const FThreadSafeSharedStringPtr* SharedPtr = Environment.IncludeVirtualPathToExternalContentsMap.Find(FilenameConverted);
-		InMemorySource = SharedPtr ? SharedPtr->Get() : nullptr;
+		const FString* InMemorySource = Context.Environment.IncludeVirtualPathToContentsMap.Find(FilenameConverted);
+		if (!InMemorySource)
+		{
+			const FThreadSafeSharedStringPtr* SharedPtr = Context.Environment.IncludeVirtualPathToExternalContentsMap.Find(FilenameConverted);
+			InMemorySource = SharedPtr ? SharedPtr->Get() : nullptr;
+		}
+
+		// if we found a match in one of the two maps in the environment, convert to ANSICHAR, strip comments and add to our cache
+		if (InMemorySource)
+		{
+			ContentsCached = &Context.LoadedIncludesCache.Add(FilenameConverted);
+			ConvertAndStripComments(*InMemorySource, *ContentsCached);
+		}
 	}
-	return InMemorySource;
+
+	return ContentsCached;
 }
 
 static const ANSICHAR* StbLoadFile(const ANSICHAR* Filename, void* RawContext, size_t* OutLength)
 {
 	FStbPreprocessContext& Context = *reinterpret_cast<FStbPreprocessContext*>(RawContext);
 	FString FilenameConverted = StringCast<TCHAR>(Filename).Get();
-	TArray<ANSICHAR>* ContentsCached = Context.LoadedIncludesCache.Find(FilenameConverted);
-	if (!ContentsCached)
+
+	const TArray<ANSICHAR>* Source = FindInMemorySource(Context, FilenameConverted);
+	if (!Source)
 	{
-		ContentsCached = &Context.LoadedIncludesCache.Add(FilenameConverted);
-		// Local FString used for the LoadShaderSourceFile path; we should consider retrieving source from the shader file cache as a reference
-		// (avoid an extra alloc+copy)
-		FString SourceCopy;
-
-		const FString* InMemorySource = FindInMemorySource(Context.Environment, FilenameConverted);
-
-		if (!InMemorySource)
-		{
-			CheckShaderHashCacheInclude(FilenameConverted, Context.ShaderInput.Target.GetPlatform(), Context.ShaderInput.ShaderFormat.ToString());
-			LoadShaderSourceFile(*FilenameConverted, Context.ShaderInput.Target.GetPlatform(), &SourceCopy, nullptr);
-			InMemorySource = &SourceCopy;
-		}
-		check(InMemorySource && !InMemorySource->IsEmpty());
-		ConvertAndStripComments(*InMemorySource, *ContentsCached);
+		CheckShaderHashCacheInclude(FilenameConverted, Context.ShaderInput.Target.GetPlatform(), Context.ShaderInput.ShaderFormat.ToString());
+		Source = LoadShaderSourceFileForPreprocessor(FilenameConverted);
 	}
-	check(ContentsCached);
-	*OutLength = ContentsCached->Num();
-	return ContentsCached->GetData();
+	checkf(Source, TEXT("Cannot load shader file %s"), *Filename);
+
+	*OutLength = Source->Num();
+	return Source->GetData();
 }
 
 static void StbFreeFile(const ANSICHAR* Filename, const ANSICHAR* Contents, void* RawContext)
 {
-	FStbPreprocessContext& Context = *reinterpret_cast<FStbPreprocessContext*>(RawContext);
-	FString FilenameConverted = StringCast<TCHAR>(Filename).Get();
-	Context.LoadedIncludesCache.FindAndRemoveChecked(FilenameConverted);
+	// No-op; shader source loaded from the compile environment will be freed from the cache in FStbPreprocessContext when it's destructed, 
+	// and those loaded off disk are intentionally kept around indefinitely in the shared cache.
 }
 
 static const ANSICHAR* StbResolveInclude(const ANSICHAR* PathInSource, uint32 PathLen, const ANSICHAR* ParentPathAnsi, void* RawContext)
@@ -244,11 +254,7 @@ static const ANSICHAR* StbResolveInclude(const ANSICHAR* PathInSource, uint32 Pa
 		FPaths::CollapseRelativeDirectories(PathModified);
 	}
 
-	// Substitute virtual platform path here to make sure that #line directives refer to the platform-specific file.
-	ReplaceVirtualFilePathForShaderPlatform(PathModified, Context.ShaderInput.Target.GetPlatform());
-
-	// Fixup autogen file
-	ReplaceVirtualFilePathForShaderAutogen(PathModified, Context.ShaderInput.Target.GetPlatform(), &Context.ShaderInput.ShaderPlatformName);
+	FixupShaderFilePath(PathModified, Context.ShaderInput.Target.GetPlatform(), &Context.ShaderInput.ShaderPlatformName);
 
 	FString PathModifiedLowerCase = PathModified.ToLower();
 	const TUniquePtr<ANSICHAR[]>* SeenPath = Context.SeenPathsLowerCase.Find(PathModifiedLowerCase);
@@ -262,9 +268,9 @@ static const ANSICHAR* StbResolveInclude(const ANSICHAR* PathInSource, uint32 Pa
 	bool bExists =
 		Context.Environment.IncludeVirtualPathToContentsMap.Contains(PathModified) ||
 		Context.Environment.IncludeVirtualPathToExternalContentsMap.Contains(PathModified) ||
-		// LoadShaderSourceFile will load the file if it exists, but then cache it internally, so the next call in StbLoadFile will be cheap
-		// (and hence this is not overly wasteful)
-		LoadShaderSourceFile(*PathModified, Context.ShaderInput.Target.GetPlatform(), nullptr, nullptr);
+		// LoadShaderSourceFileForPreprocessor will load the file if it exists, but then cache it internally, so the next call in StbLoadFile will be cheap
+		// (and hence this is not wasteful, just performs the loading earlier)
+		LoadShaderSourceFileForPreprocessor(*PathModified);
 
 	if (bExists)
 	{

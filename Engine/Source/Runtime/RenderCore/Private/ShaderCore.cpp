@@ -128,6 +128,17 @@ struct FShaderFileCache
 	TMap<FString, FString> Map;
 } GShaderFileCache[GSHADERFILECACHE_BUCKETS];
 
+struct FPreprocessorShaderFileCache
+{
+	/** Protects Map from simultaneous access by multiple threads. */
+	FRWLock Lock;
+
+	/** The preprocessor shader file cache (differs from the above in that files are stored as 
+	 *  arrays of ANSICHAR with comments stripped, instead of FString containing the full file
+	 *  text), used to minimize shader file reads */
+	TMap<FString, TArray<ANSICHAR>> Map;
+} GPreprocessorShaderFileCache[GSHADERFILECACHE_BUCKETS];
+
 class FShaderHashCache
 {
 public:
@@ -1594,6 +1605,147 @@ void LoadShaderSourceFileChecked(const TCHAR* VirtualFilePath, EShaderPlatform S
 	}
 }
 
+// Reads a single ANSICHAR from the given archive, returning '\0' if all have been read
+inline ANSICHAR ReadChar(FArchive& Ar)
+{
+	if (Ar.AtEnd())
+	{
+		return 0;
+	}
+	ANSICHAR Char;
+	Ar << Char;
+	return Char;
+}
+
+// Given an archive pointing to a shader source file, populates the given array with contents of that source file
+// with all comments stripped. This is needed since the STB preprocessor itself does not strip comments.
+// Used when loading shader files from disk into our internal cache.
+void LoadAndStripComments(FArchive& Ar, TArray<ANSICHAR>& OutStripped)
+{
+	// Reserve worst case (i.e. assuming there are no comments at all) to avoid reallocation
+	int32 BufferSize = Ar.TotalSize() + 1;
+	OutStripped.SetNumUninitialized(BufferSize);
+
+	// empty file case; unlikely in practice but handle it just in case
+	if (Ar.AtEnd())
+	{
+		OutStripped[0] = 0;
+		return;
+	}
+
+	ANSICHAR* CurrentOut = OutStripped.GetData();
+
+	ANSICHAR Char0 = ReadChar(Ar);
+	ANSICHAR Char1 = ReadChar(Ar);
+
+	// skip past UTF8 BOM if it exists
+	if ((uint8)Char0 == 0xef && (uint8)Char1 == 0xbb)
+	{
+		ANSICHAR Char2 = ReadChar(Ar);
+		check((uint8)Char2 == 0xbf);
+
+		Char0 = ReadChar(Ar);
+		Char1 = ReadChar(Ar);
+	}
+
+	while (Char0 != 0)
+	{
+		// sanity check that we're not overrunning the buffer
+		check(CurrentOut < OutStripped.GetData() + BufferSize);
+		if (Char0 == '\r')
+		{
+			// skip over carriage return to normalize line endings to just '\n' (will be appended below)
+			Char0 = Char1;
+			Char1 = ReadChar(Ar);
+		}
+		else if (Char0 == '/')
+		{
+			// single line comment, skip all chars until we find a newline
+			if (Char1 == '/')
+			{
+				Char0 = ReadChar(Ar);
+				Char1 = ReadChar(Ar);
+				while (Char0 != 0 && Char0 != '\r' && Char0 != '\n')
+				{
+					Char0 = Char1;
+					Char1 = ReadChar(Ar);
+				}
+				continue;
+			}
+			else if (Char1 == '*')
+			{
+				Char0 = ReadChar(Ar);
+				Char1 = ReadChar(Ar);
+				while (Char0 != 0)
+				{
+					if (Char0 == '*' && Char1 == '/')
+					{
+						Char0 = ReadChar(Ar);
+						Char1 = ReadChar(Ar);
+						break;
+					}
+					// include newlines (normalized to just \n) from multiline comments to preserve line count
+					else if (Char0 == '\r' || Char0 == '\n')
+					{
+						*CurrentOut++ = '\n';
+						Char0 = Char0 == '\r' ? ReadChar(Ar) : Char1;
+						Char1 = ReadChar(Ar);
+						continue;
+					}
+					Char0 = Char1;
+					Char1 = ReadChar(Ar);
+				}
+				continue;
+			}
+		}
+		
+		*CurrentOut++ = Char0;
+		Char0 = Char1;
+		Char1 = ReadChar(Ar);
+	}
+	// Null terminate after comment-stripped file read
+	check(CurrentOut < OutStripped.GetData() + BufferSize);
+	*CurrentOut++ = 0;
+
+	// Set correct length after stripping but don't bother shrinking/reallocating, minor memory overhead to save time
+	OutStripped.SetNum(CurrentOut - OutStripped.GetData(), /* bAllowShrinking */false);
+}
+
+const TArray<ANSICHAR>* LoadShaderSourceFileForPreprocessor(const FString& VirtualFilePath)
+{
+	uint32 CurrentHash = GetTypeHash(VirtualFilePath);
+	const TArray<ANSICHAR>* CachedFile = nullptr;
+	FPreprocessorShaderFileCache& ShaderFileCache = GPreprocessorShaderFileCache[CurrentHash % GSHADERFILECACHE_BUCKETS];
+	{
+		FRWScopeLock ScopeLock(ShaderFileCache.Lock, SLT_ReadOnly);
+		CachedFile = ShaderFileCache.Map.FindByHash(CurrentHash, VirtualFilePath);
+	}
+
+	if (!CachedFile)
+	{
+		FRWScopeLock ScopeLock(ShaderFileCache.Lock, SLT_Write);
+
+		// Double-check the cache while holding exclusive lock as another thread may have added the item we're looking for
+		CachedFile = ShaderFileCache.Map.FindByHash(CurrentHash, VirtualFilePath);
+
+		if (!CachedFile)
+		{
+			FString ShaderFilePath = GetShaderSourceFilePath(VirtualFilePath);
+			FArchive* Reader = IFileManager::Get().CreateFileReader(*ShaderFilePath);
+			if (Reader)
+			{
+				TArray<ANSICHAR>& FileArray = ShaderFileCache.Map.AddByHash(CurrentHash, VirtualFilePath);
+				check(!ShaderFilePath.IsEmpty());
+				LoadAndStripComments(*Reader, FileArray);
+
+				CachedFile = &FileArray;
+				delete Reader;
+			}
+		}
+	}
+	return CachedFile;
+}
+
 /**
  * Walks InStr until we find either an end-of-line or TargetChar.
  */
@@ -2124,6 +2276,13 @@ void FlushShaderFileCache()
 		{
 			FRWScopeLock ScopeLock(GShaderFileCache[Index].Lock, SLT_Write);
 			GShaderFileCache[Index].Map.Empty();
+		}
+	}
+	{
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(GPreprocessorShaderFileCache); ++Index)
+		{
+			FRWScopeLock ScopeLock(GPreprocessorShaderFileCache[Index].Lock, SLT_Write);
+			GPreprocessorShaderFileCache[Index].Map.Empty();
 		}
 	}
 
