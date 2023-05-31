@@ -91,6 +91,7 @@
 #include "LocalHeightFogRendering.h"
 #include "Shadows/ShadowScene.h"
 #include "Lumen/LumenHardwareRayTracingCommon.h"
+#include "SparseVolumeTexture/SparseVolumeTextureStreamingManager.h"
 
 #if !UE_BUILD_SHIPPING
 #include "RenderCaptureInterface.h"
@@ -2647,6 +2648,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 #endif
 	}
 
+	UE::SVT::GStreamingManager.BeginAsyncUpdate(GraphBuilder);
+
 	bool bUpdateNaniteStreaming = false;
 	bool bVisualizeNanite = false;
 	if (bNaniteEnabled)
@@ -3009,6 +3012,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			DynamicReadBufferForInitViews.Commit();
 		}
 	}
+
+	UE::SVT::GStreamingManager.EndAsyncUpdate(GraphBuilder);
 
 	FHairStrandsBookmarkParameters& HairStrandsBookmarkParameters = *GraphBuilder.AllocObject<FHairStrandsBookmarkParameters>();
 	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && RendererOutput == ERendererOutput::FinalSceneColor)

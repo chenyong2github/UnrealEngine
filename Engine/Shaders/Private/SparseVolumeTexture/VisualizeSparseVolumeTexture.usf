@@ -45,6 +45,7 @@ SamplerState TileDataTextureSampler;
 Texture3D<uint> SparseVolumeTexturePageTable;
 Texture3D<float4> SparseVolumeTextureA;
 Texture3D<float4> SparseVolumeTextureB;
+ByteAddressBuffer StreamingInfoBuffer;
 uint4 PackedSVTUniforms0;
 uint4 PackedSVTUniforms1;
 float3 SparseVolumeTextureResolution;
@@ -131,7 +132,7 @@ void VisualizeSparseVolumeTexturePS(
 		tMax.y *= tDelta.y;
 		tMax.z *= tDelta.z;
 
-		const FSparseVolumeTextureUniforms SVTUniforms = SparseVolumeTextureUnpackUniforms(PackedSVTUniforms0, PackedSVTUniforms1);
+		const FSparseVolumeTextureUniforms SVTUniforms = SparseVolumeTextureUnpackUniforms(PackedSVTUniforms0, PackedSVTUniforms1, StreamingInfoBuffer);
 
 		float StepLength = 1.0f;
 
@@ -140,7 +141,7 @@ void VisualizeSparseVolumeTexturePS(
 		{
 			const float3 UVW = P * RcpVolumeResolution;
 			const float3 VoxelUVW = SparseVolumeTextureSamplePageTable(SparseVolumeTexturePageTable, SVTUniforms, UVW, SVTADDRESSMODE_CLAMP, SVTADDRESSMODE_CLAMP, SVTADDRESSMODE_CLAMP, MipLevel);
-			const float3 UVWTileSize = (SVTUniforms.TileSize + 2.0f * SVTUniforms.BorderSize) * SVTUniforms.TileDataTexelSize;
+			const float3 UVWTileSize = float(SPARSE_VOLUME_TILE_RES_PADDED) * SVTUniforms.TileDataTexelSize;
 			if (any(VoxelUVW >= UVWTileSize)) // skip on null tile
 			{
 				const int PhysicalTileDataIndex = ComponentToVisualize < 4 ? 0 : 1;

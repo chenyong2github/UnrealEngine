@@ -8,7 +8,14 @@
 #include "SceneViewExtension.h"
 
 class USparseVolumeTextureViewerComponent;
-class FSparseVolumeTextureSceneProxy;
+namespace UE
+{
+	namespace SVT
+	{
+		class FTextureRenderResources;
+	}
+}
+
 
 // Proxy representing the rendering of the SparseVolumeTextureViewer component on the render thread.
 class FSparseVolumeTextureViewerSceneProxy : public FPrimitiveSceneProxy
@@ -17,11 +24,9 @@ public:
 	FSparseVolumeTextureViewerSceneProxy(const USparseVolumeTextureViewerComponent* InComponent, int32 FrameIndex, FName ResourceName = NAME_None);
 	virtual ~FSparseVolumeTextureViewerSceneProxy() = default;
 
-	const FSparseVolumeTextureSceneProxy* SparseVolumeTextureSceneProxy = nullptr;
+	const UE::SVT::FTextureRenderResources* TextureRenderResources;
 	FMatrix44f WorldToLocal;
 	FMatrix44f WorldToLocalNoScale;
-	FUintVector4 PackedSVTUniforms0;
-	FUintVector4 PackedSVTUniforms1;
 	FVector3f VolumeResolution;
 	int32 MipLevel;
 	uint32 ComponentToVisualize;

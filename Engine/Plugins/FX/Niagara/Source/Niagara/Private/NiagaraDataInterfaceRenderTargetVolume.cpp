@@ -24,12 +24,12 @@
 #include "Misc/PathViews.h"
 #include "Misc/Paths.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "GlobalRenderResources.h"
 
 #include "RenderGraphUtils.h"
 
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
 #include "SparseVolumeTexture/SparseVolumeTextureData.h"
-#include "SparseVolumeTexture/SparseVolumeTextureSceneProxy.h"
 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRenderTargetVolume)
@@ -709,7 +709,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheWriteFrame(UObject* Storag
 #if WITH_EDITOR
 				UAnimatedSparseVolumeTexture* CurrCache = CastChecked<UAnimatedSparseVolumeTexture>(StorageObject);
 				
-				FSparseVolumeTextureDataCreateInfo SVTCreateInfo;
+				UE::SVT::FTextureDataCreateInfo SVTCreateInfo;
 				SVTCreateInfo.VirtualVolumeAABBMin = FIntVector3::ZeroValue;
 				SVTCreateInfo.VirtualVolumeAABBMax = InstanceData_GT->Size;
 				SVTCreateInfo.FallbackValues[0] = FVector4f(0, 0, 0, 0);
@@ -717,7 +717,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheWriteFrame(UObject* Storag
 				SVTCreateInfo.AttributesFormats[0] = PF_FloatRGBA;
 				SVTCreateInfo.AttributesFormats[1] = PF_Unknown;
 
-				FSparseVolumeTextureData SparseTextureData{};
+				UE::SVT::FTextureData SparseTextureData{};
 				SparseTextureData.CreateFromDense(SVTCreateInfo, MakeArrayView<uint8>((uint8*)TextureData.GetData(), TextureData.Num() * sizeof(TextureData[0])), TArrayView<uint8>());
 				
 				CurrCache->AppendFrame(SparseTextureData);
@@ -826,11 +826,8 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* Storage
 	{			
 		UAnimatedSparseVolumeTexture* SVT = Cast<UAnimatedSparseVolumeTexture>(StorageObject);
 		
-		USparseVolumeTextureFrame *SVTFrame = USparseVolumeTextureFrame::GetFrame(SVT, FrameA);
-		
-		FUintVector4 CurrentPackedUniforms0 = FUintVector4();
-		FUintVector4 CurrentPackedUniforms1 = FUintVector4();
-		SVTFrame->GetPackedUniforms(CurrentPackedUniforms0, CurrentPackedUniforms1);
+		const int32 MipLevel = 0;
+		USparseVolumeTextureFrame *SVTFrame = USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest(SVT, FrameA + Interp, MipLevel);
 
 		FIntVector VolumeResolution = SVT->GetVolumeResolution();						
 
@@ -848,14 +845,17 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* Storage
 		ENQUEUE_RENDER_COMMAND(NDIRenderTargetVolumeUpdate)
 			(
 				[RT_Proxy, RT_InstanceID = SystemInstance->GetId(),
-				RT_VolumeResolution = VolumeResolution, RT_SVTProxy = SVTFrame->GetSparseVolumeTextureSceneProxy(),
-				FeatureLevel = SystemInstance->GetFeatureLevel(),
-				CurrentPackedUniforms0, CurrentPackedUniforms1](FRHICommandListImmediate& RHICmdList)
+				RT_VolumeResolution = VolumeResolution, RT_SVTRenderResources = SVTFrame->GetTextureRenderResources(),
+				FeatureLevel = SystemInstance->GetFeatureLevel()](FRHICommandListImmediate& RHICmdList)
 				{
-					if (RT_SVTProxy == nullptr)
+					if (RT_SVTRenderResources == nullptr)
 					{
 						return;
 					}
+
+					FUintVector4 CurrentPackedUniforms0 = FUintVector4();
+					FUintVector4 CurrentPackedUniforms1 = FUintVector4();
+					RT_SVTRenderResources->GetPackedUniforms(CurrentPackedUniforms0, CurrentPackedUniforms1);
 
 					if (FRenderTargetVolumeRWInstanceData_RenderThread * InstanceData_RT = RT_Proxy->SystemInstancesToProxyData_RT.Find(RT_InstanceID))
 					{
@@ -896,12 +896,14 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* Storage
 							);
 						}						
 
-						FRHITexture* PageTableTexture = RT_SVTProxy->GetPageTableTextureRHI();
-						FRHITexture* TextureA = RT_SVTProxy->GetPhysicalTileDataATextureRHI();						
+						FRHITexture* PageTableTexture = RT_SVTRenderResources->GetPageTableTextureRHI();
+						FRHITexture* TextureA = RT_SVTRenderResources->GetPhysicalTileDataATextureRHI();
+						FRHIShaderResourceView* StreamingInfoBufferSRV = RT_SVTRenderResources->GetStreamingInfoBufferSRVRHI();
 
 						PassParameters->TileDataTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-						PassParameters->SparseVolumeTexturePageTable = PageTableTexture;
-						PassParameters->SparseVolumeTextureA = TextureA;
+						PassParameters->SparseVolumeTexturePageTable = PageTableTexture ? PageTableTexture : GBlackUintVolumeTexture->TextureRHI.GetReference();
+						PassParameters->SparseVolumeTextureA = TextureA ? TextureA : GBlackVolumeTexture->TextureRHI.GetReference();
+						PassParameters->StreamingInfoBuffer = StreamingInfoBufferSRV ? StreamingInfoBufferSRV : GEmptyVertexBufferWithUAV->ShaderResourceViewRHI.GetReference();
 							
 						PassParameters->PackedSVTUniforms0 = CurrentPackedUniforms0;
 						PassParameters->PackedSVTUniforms1 = CurrentPackedUniforms1;

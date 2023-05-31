@@ -281,7 +281,7 @@ static EPixelFormat GetMultiComponentFormat(ESparseVolumeAttributesFormat Format
 
 #if OPENVDB_AVAILABLE
 
-class FSparseVolumeTextureDataProviderOpenVDB : public ISparseVolumeTextureDataProvider
+class FSparseVolumeTextureDataProviderOpenVDB : public UE::SVT::ITextureDataProvider
 {
 public:
 
@@ -423,7 +423,7 @@ public:
 		return true;
 	}
 
-	virtual FSparseVolumeTextureDataCreateInfo GetCreateInfo() const override
+	virtual UE::SVT::FTextureDataCreateInfo GetCreateInfo() const override
 	{
 		return SVTCreateInfo;
 	}
@@ -462,13 +462,13 @@ private:
 	TArray<TArray<FSingleGridToComponentMapping, TInlineAllocator<4>>> GridToComponentMappings;
 	TStaticArray<FOpenVDBSparseVolumeAttributesDesc, NumAttributesDescs> Attributes;
 	TStaticArray<uint32, NumAttributesDescs> NumComponents;
-	FSparseVolumeTextureDataCreateInfo SVTCreateInfo;
+	UE::SVT::FTextureDataCreateInfo SVTCreateInfo;
 	FIntVector3 VolumeBoundsMin;
 };
 
 #endif // OPENVDB_AVAILABLE
 
-bool ConvertOpenVDBToSparseVolumeTexture(TArray64<uint8>& SourceFile, const FOpenVDBImportOptions& ImportOptions, const FIntVector3& VolumeBoundsMin, FSparseVolumeTextureData& OutResult)
+bool ConvertOpenVDBToSparseVolumeTexture(TArray64<uint8>& SourceFile, const FOpenVDBImportOptions& ImportOptions, const FIntVector3& VolumeBoundsMin, UE::SVT::FTextureData& OutResult)
 {
 #if OPENVDB_AVAILABLE
 	FSparseVolumeTextureDataProviderOpenVDB DataProvider;

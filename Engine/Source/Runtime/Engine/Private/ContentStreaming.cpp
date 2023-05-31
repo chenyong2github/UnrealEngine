@@ -19,7 +19,6 @@
 #include "AudioCompressionSettingsUtils.h"
 #include "VT/VirtualTextureChunkManager.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
-#include "SparseVolumeTexture/SparseVolumeTextureStreaming.h"
 
 #if WITH_EDITOR
 #include "AudioDevice.h"
@@ -795,9 +794,6 @@ FStreamingManagerCollection::FStreamingManagerCollection()
 
 	VirtualTextureStreamingManager = new FVirtualTextureChunkStreamingManager();
 	AddStreamingManager(VirtualTextureStreamingManager);
-
-	SparseVolumeTextureStreamingManager = new FSparseVolumeTextureStreamingManager();
-	AddStreamingManager(SparseVolumeTextureStreamingManager);
 }
 
 FStreamingManagerCollection::~FStreamingManagerCollection()
@@ -808,10 +804,6 @@ FStreamingManagerCollection::~FStreamingManagerCollection()
 		delete NaniteCoarseMeshStreamingManager;
 		NaniteCoarseMeshStreamingManager = nullptr;
 	}
-
-	RemoveStreamingManager(SparseVolumeTextureStreamingManager);
-	delete SparseVolumeTextureStreamingManager;
-	SparseVolumeTextureStreamingManager = nullptr;
 
 	RemoveStreamingManager(VirtualTextureStreamingManager);
 	delete VirtualTextureStreamingManager;
@@ -1075,12 +1067,6 @@ FVirtualTextureChunkStreamingManager& FStreamingManagerCollection::GetVirtualTex
 Nanite::FCoarseMeshStreamingManager* FStreamingManagerCollection::GetNaniteCoarseMeshStreamingManager() const
 {
 	return NaniteCoarseMeshStreamingManager;
-}
-
-ENGINE_API ISparseVolumeTextureStreamingManager& FStreamingManagerCollection::GetSparseVolumeTextureStreamingManager() const
-{
-	check(SparseVolumeTextureStreamingManager);
-	return *SparseVolumeTextureStreamingManager;
 }
 
 /** Don't stream world resources for the next NumFrames. */

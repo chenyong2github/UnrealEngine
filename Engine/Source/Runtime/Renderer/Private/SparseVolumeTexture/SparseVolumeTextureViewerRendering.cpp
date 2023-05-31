@@ -3,7 +3,6 @@
 #include "SparseVolumeTexture/SparseVolumeTextureViewerRendering.h"
 #include "SparseVolumeTexture/SparseVolumeTextureViewerSceneProxy.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
-#include "SparseVolumeTexture/SparseVolumeTextureSceneProxy.h"
 
 #include "DataDrivenShaderPlatformInfo.h"
 #include "SceneView.h"
@@ -61,6 +60,7 @@ class FVisualizeSparseVolumeTexturePS : public FGlobalShader
 		SHADER_PARAMETER_TEXTURE(Texture3D<uint>, SparseVolumeTexturePageTable)
 		SHADER_PARAMETER_TEXTURE(Texture3D, SparseVolumeTextureA)
 		SHADER_PARAMETER_TEXTURE(Texture3D, SparseVolumeTextureB)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, StreamingInfoBuffer)
 		SHADER_PARAMETER(FUintVector4, PackedSVTUniforms0)
 		SHADER_PARAMETER(FUintVector4, PackedSVTUniforms1)
 		SHADER_PARAMETER(FVector3f, SparseVolumeTextureResolution)
@@ -117,10 +117,10 @@ void AddSparseVolumeTextureViewerRenderPass(FRDGBuilder& GraphBuilder, FSceneRen
 	{
 		const FIntRect& ViewportRect = View.ViewRect;
 
-		for (auto& SVTProxy : Scene->SparseVolumeTextureViewers)
+		for (auto& SVTSceneProxy : Scene->SparseVolumeTextureViewers)
 		{
-			const FMatrix44f& WorldToLocal = SVTProxy->WorldToLocal;
-			const FMatrix44f& WorldToLocalNoScale = SVTProxy->WorldToLocalNoScale;
+			const FMatrix44f& WorldToLocal = SVTSceneProxy->WorldToLocal;
+			const FMatrix44f& WorldToLocalNoScale = SVTSceneProxy->WorldToLocalNoScale;
 			
 			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 			FVisualizeSparseVolumeTextureVS::FPermutationDomain VsPermutationVector;
@@ -135,35 +135,44 @@ void AddSparseVolumeTextureViewerRenderPass(FRDGBuilder& GraphBuilder, FSceneRen
 			PsPassParameters->SparseVolumeTexturePageTable = GBlackUintVolumeTexture->TextureRHI;
 			PsPassParameters->SparseVolumeTextureA = GBlackVolumeTexture->TextureRHI;
 			PsPassParameters->SparseVolumeTextureB = GBlackVolumeTexture->TextureRHI;
-			PsPassParameters->PackedSVTUniforms0 = SVTProxy->PackedSVTUniforms0;
-			PsPassParameters->PackedSVTUniforms1 = SVTProxy->PackedSVTUniforms1;
-			PsPassParameters->SparseVolumeTextureResolution = SVTProxy->VolumeResolution;
-			PsPassParameters->MipLevel = SVTProxy->MipLevel;
+			PsPassParameters->StreamingInfoBuffer = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
+			PsPassParameters->PackedSVTUniforms0 = FUintVector4(0);
+			PsPassParameters->PackedSVTUniforms1 = FUintVector4(0);
+			PsPassParameters->SparseVolumeTextureResolution = SVTSceneProxy->VolumeResolution;
+			PsPassParameters->MipLevel = SVTSceneProxy->MipLevel;
 			PsPassParameters->WorldToLocal0 = FVector4f(WorldToLocal.M[0][0], WorldToLocal.M[1][0], WorldToLocal.M[2][0], WorldToLocal.M[3][0]);
 			PsPassParameters->WorldToLocal1 = FVector4f(WorldToLocal.M[0][1], WorldToLocal.M[1][1], WorldToLocal.M[2][1], WorldToLocal.M[3][1]);
 			PsPassParameters->WorldToLocal2 = FVector4f(WorldToLocal.M[0][2], WorldToLocal.M[1][2], WorldToLocal.M[2][2], WorldToLocal.M[3][2]);
 			PsPassParameters->WorldToLocalNoScale0 = FVector3f(WorldToLocalNoScale.M[0][0], WorldToLocalNoScale.M[1][0], WorldToLocalNoScale.M[2][0]);
 			PsPassParameters->WorldToLocalNoScale1 = FVector3f(WorldToLocalNoScale.M[0][1], WorldToLocalNoScale.M[1][1], WorldToLocalNoScale.M[2][1]);
 			PsPassParameters->WorldToLocalNoScale2 = FVector3f(WorldToLocalNoScale.M[0][2], WorldToLocalNoScale.M[1][2], WorldToLocalNoScale.M[2][2]);
-			PsPassParameters->ComponentToVisualize = SVTProxy->ComponentToVisualize;
-			PsPassParameters->Extinction = SVTProxy->Extinction;
+			PsPassParameters->ComponentToVisualize = SVTSceneProxy->ComponentToVisualize;
+			PsPassParameters->Extinction = SVTSceneProxy->Extinction;
 			
-			if (SVTProxy->SparseVolumeTextureSceneProxy)
+			const UE::SVT::FTextureRenderResources* RenderResources = SVTSceneProxy->TextureRenderResources;
+			if (RenderResources)
 			{
-				FRHITexture* PageTableTexture = SVTProxy->SparseVolumeTextureSceneProxy->GetPageTableTextureRHI();
+				SVTSceneProxy->TextureRenderResources->GetPackedUniforms(PsPassParameters->PackedSVTUniforms0, PsPassParameters->PackedSVTUniforms1);
+
+				FRHITexture* PageTableTexture = RenderResources->GetPageTableTextureRHI();
 				if (PageTableTexture)
 				{
 					PsPassParameters->SparseVolumeTexturePageTable = PageTableTexture;
 				}
-				FRHITexture* TextureA = SVTProxy->SparseVolumeTextureSceneProxy->GetPhysicalTileDataATextureRHI();
+				FRHITexture* TextureA = RenderResources->GetPhysicalTileDataATextureRHI();
 				if (TextureA)
 				{
 					PsPassParameters->SparseVolumeTextureA = TextureA;
 				}
-				FRHITexture* TextureB = SVTProxy->SparseVolumeTextureSceneProxy->GetPhysicalTileDataBTextureRHI();
+				FRHITexture* TextureB = RenderResources->GetPhysicalTileDataBTextureRHI();
 				if (TextureB)
 				{
 					PsPassParameters->SparseVolumeTextureB = TextureB;
+				}
+				FRHIShaderResourceView* StreamingInfoBufferSRV = RenderResources->GetStreamingInfoBufferSRVRHI();
+				if (StreamingInfoBufferSRV)
+				{
+					PsPassParameters->StreamingInfoBuffer = StreamingInfoBufferSRV;
 				}
 			}
 

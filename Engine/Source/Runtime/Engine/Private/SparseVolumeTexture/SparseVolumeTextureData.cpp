@@ -16,7 +16,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTextureData, Log, All);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FSparseVolumeTextureData::Serialize(FArchive& Ar)
+namespace UE
+{
+namespace SVT
+{
+
+void FTextureData::Serialize(FArchive& Ar)
 {
 	Header.Serialize(Ar);
 
@@ -42,16 +47,16 @@ void FSparseVolumeTextureData::Serialize(FArchive& Ar)
 	}
 	else
 	{
-		// FSparseVolumeTextureData needs to account for new version
+		// FTextureData needs to account for new version
 		check(false);
 	}
 }
 
-bool FSparseVolumeTextureData::Create(const ISparseVolumeTextureDataProvider& DataProvider)
+bool FTextureData::Create(const ITextureDataProvider& DataProvider)
 {
-	const FSparseVolumeTextureDataCreateInfo CreateInfo = DataProvider.GetCreateInfo();
+	const FTextureDataCreateInfo CreateInfo = DataProvider.GetCreateInfo();
 
-	Header = FSparseVolumeTextureHeader(CreateInfo.VirtualVolumeAABBMin, CreateInfo.VirtualVolumeAABBMax, CreateInfo.AttributesFormats[0], CreateInfo.AttributesFormats[1], CreateInfo.FallbackValues[0], CreateInfo.FallbackValues[1]);
+	Header = UE::SVT::FHeader(CreateInfo.VirtualVolumeAABBMin, CreateInfo.VirtualVolumeAABBMax, CreateInfo.AttributesFormats[0], CreateInfo.AttributesFormats[1], CreateInfo.FallbackValues[0], CreateInfo.FallbackValues[1]);
 
 	if (Header.PageTableVolumeResolution.X > UE::SVT::SVTMaxVolumeTextureDim
 		|| Header.PageTableVolumeResolution.Y > UE::SVT::SVTMaxVolumeTextureDim
@@ -160,15 +165,15 @@ bool FSparseVolumeTextureData::Create(const ISparseVolumeTextureDataProvider& Da
 							for (int32 X = 0; X < SPARSE_VOLUME_TILE_RES_PADDED; ++X)
 							{
 								const FIntVector3 WriteCoord = FIntVector3(X - 1, Y - 1, Z - 1);
-								WriteTileDataVoxel(TileIndex, WriteCoord, 0 /*MipLevel*/, 0 /*AttributesIndex*/, Header.NullTileValues[0]);
-								WriteTileDataVoxel(TileIndex, WriteCoord, 0 /*MipLevel*/, 1 /*AttributesIndex*/, Header.NullTileValues[1]);
+								WriteTileDataVoxel(TileIndex, WriteCoord, 0 /*MipLevel*/, 0 /*AttributesIndex*/, Header.FallbackValues[0]);
+								WriteTileDataVoxel(TileIndex, WriteCoord, 0 /*MipLevel*/, 1 /*AttributesIndex*/, Header.FallbackValues[1]);
 							}
 						}
 					}
 				});
 
-			Header.NullTileValuesQuantized[0] = ReadTileDataVoxel(0, FIntVector::ZeroValue, 0 /*MipLevel*/, 0 /*AttributesIndex*/);
-			Header.NullTileValuesQuantized[1] = ReadTileDataVoxel(0, FIntVector::ZeroValue, 0 /*MipLevel*/, 1 /*AttributesIndex*/);
+			FallbackValuesQuantized[0] = ReadTileDataVoxel(0, FIntVector::ZeroValue, 0 /*MipLevel*/, 0 /*AttributesIndex*/);
+			FallbackValuesQuantized[1] = ReadTileDataVoxel(0, FIntVector::ZeroValue, 0 /*MipLevel*/, 1 /*AttributesIndex*/);
 		}
 
 		// Set up the page table entries
@@ -205,9 +210,9 @@ bool FSparseVolumeTextureData::Create(const ISparseVolumeTextureDataProvider& Da
 	return true;
 }
 
-bool FSparseVolumeTextureData::CreateFromDense(const FSparseVolumeTextureDataCreateInfo& CreateInfo, const TArrayView<uint8>& VoxelDataA, const TArrayView<uint8>& VoxelDataB)
+bool FTextureData::CreateFromDense(const FTextureDataCreateInfo& CreateInfo, const TArrayView<uint8>& VoxelDataA, const TArrayView<uint8>& VoxelDataB)
 {	
-	Header = FSparseVolumeTextureHeader(CreateInfo.VirtualVolumeAABBMin, CreateInfo.VirtualVolumeAABBMax, CreateInfo.AttributesFormats[0], CreateInfo.AttributesFormats[1], CreateInfo.FallbackValues[0], CreateInfo.FallbackValues[1]);
+	Header = UE::SVT::FHeader(CreateInfo.VirtualVolumeAABBMin, CreateInfo.VirtualVolumeAABBMax, CreateInfo.AttributesFormats[0], CreateInfo.AttributesFormats[1], CreateInfo.FallbackValues[0], CreateInfo.FallbackValues[1]);
 
 	if (Header.PageTableVolumeResolution.X > UE::SVT::SVTMaxVolumeTextureDim
 		|| Header.PageTableVolumeResolution.Y > UE::SVT::SVTMaxVolumeTextureDim
@@ -227,7 +232,7 @@ bool FSparseVolumeTextureData::CreateFromDense(const FSparseVolumeTextureDataCre
 		if (CreateInfo.AttributesFormats[i] != PF_Unknown)
 		{
 			UE::SVT::WriteVoxel(0, NullTileValuesU8[i], CreateInfo.AttributesFormats[i], CreateInfo.FallbackValues[i]);
-			Header.NullTileValuesQuantized[i] = UE::SVT::ReadVoxel(0, NullTileValuesU8[i], CreateInfo.AttributesFormats[i]);
+			FallbackValuesQuantized[i] = UE::SVT::ReadVoxel(0, NullTileValuesU8[i], CreateInfo.AttributesFormats[i]);
 		}
 	}
 
@@ -372,10 +377,10 @@ bool FSparseVolumeTextureData::CreateFromDense(const FSparseVolumeTextureDataCre
 	return true;
 }
 
-void FSparseVolumeTextureData::CreateDefault()
+void FTextureData::CreateDefault()
 {
 	// Store a single 1x1x1 mip level with the page table pointing to a (zero-valued) null tile.
-	Header = FSparseVolumeTextureHeader(FIntVector3::ZeroValue, FIntVector3(1, 1, 1), PF_R8, PF_Unknown, FVector4f(), FVector4f());
+	Header = UE::SVT::FHeader(FIntVector3::ZeroValue, FIntVector3(1, 1, 1), PF_R8, PF_Unknown, FVector4f(), FVector4f());
 
 	MipMaps.SetNum(1);
 	MipMaps[0].PageTable.SetNumZeroed(1);
@@ -384,7 +389,7 @@ void FSparseVolumeTextureData::CreateDefault()
 	MipMaps[0].NumPhysicalTiles = 0;
 }
 
-uint32 FSparseVolumeTextureData::ReadPageTable(const FIntVector3& PageTableCoord, int32 MipLevel) const
+uint32 FTextureData::ReadPageTable(const FIntVector3& PageTableCoord, int32 MipLevel) const
 {
 	if (!MipMaps.IsValidIndex(MipLevel))
 	{
@@ -410,7 +415,7 @@ uint32 FSparseVolumeTextureData::ReadPageTable(const FIntVector3& PageTableCoord
 	return INDEX_NONE;
 }
 
-FVector4f FSparseVolumeTextureData::ReadTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 MipLevel, int32 AttributesIdx) const
+FVector4f FTextureData::ReadTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 MipLevel, int32 AttributesIdx) const
 {
 	check(AttributesIdx >= 0 && AttributesIdx <= 1);
 	if (TileIndex == INDEX_NONE || (AttributesIdx == 0 && MipMaps[MipLevel].PhysicalTileDataA.IsEmpty()) || (AttributesIdx == 1 && MipMaps[MipLevel].PhysicalTileDataB.IsEmpty()))
@@ -435,7 +440,7 @@ FVector4f FSparseVolumeTextureData::ReadTileDataVoxel(int32 TileIndex, const FIn
 	return UE::SVT::ReadVoxel(VoxelIndex, TileData, Format);
 }
 
-FVector4f FSparseVolumeTextureData::Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx, const FSparseVolumeTextureDataAddressingInfo& AddressingInfo) const
+FVector4f FTextureData::Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx, const FTextureDataAddressingInfo& AddressingInfo) const
 {
 	auto ApplyAddressMode = [](int32 x, int32 Width, TextureAddress Mode)
 	{
@@ -464,14 +469,14 @@ FVector4f FSparseVolumeTextureData::Load(const FIntVector3& VolumeCoord, int32 M
 	const uint32 TileIndex = ReadPageTable(PageTableCoord, MipLevel);
 	if (TileIndex == 0)
 	{
-		return Header.NullTileValuesQuantized[AttributesIdx];
+		return FallbackValuesQuantized[AttributesIdx];
 	}
 	const FIntVector3 VoxelCoord = AddressModeVolumeCoord % SPARSE_VOLUME_TILE_RES;
 	const FVector4f Sample = ReadTileDataVoxel(TileIndex - 1, VoxelCoord, MipLevel, AttributesIdx); // -1 because we don't store the null tile in memory.
 	return Sample;
 }
 
-void FSparseVolumeTextureData::WriteTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 MipLevel, int32 AttributesIdx, const FVector4f& Value, int32 DstComponent)
+void FTextureData::WriteTileDataVoxel(int32 TileIndex, const FIntVector3& TileDataCoord, int32 MipLevel, int32 AttributesIdx, const FVector4f& Value, int32 DstComponent)
 {
 	check(AttributesIdx >= 0 && AttributesIdx <= 1);
 	if ((AttributesIdx == 0 && MipMaps[MipLevel].PhysicalTileDataA.IsEmpty()) || (AttributesIdx == 1 && MipMaps[MipLevel].PhysicalTileDataB.IsEmpty()))
@@ -500,7 +505,7 @@ void FSparseVolumeTextureData::WriteTileDataVoxel(int32 TileIndex, const FIntVec
 	UE::SVT::WriteVoxel(VoxelIndex, TileData, Format, Value, DstComponent);
 }
 
-bool FSparseVolumeTextureData::GenerateMipMaps(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels)
+bool FTextureData::GenerateMipMaps(const FTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels)
 {
 	const int32 FormatSize[] = { GPixelFormats[Header.AttributesFormats[0]].BlockBytes, GPixelFormats[Header.AttributesFormats[1]].BlockBytes };
 
@@ -643,7 +648,7 @@ bool FSparseVolumeTextureData::GenerateMipMaps(const FSparseVolumeTextureDataAdd
 	return true;
 }
 
-bool FSparseVolumeTextureData::GenerateBorderVoxels(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 MipLevel, const TArray<FIntVector3>& PageCoords)
+bool FTextureData::GenerateBorderVoxels(const FTextureDataAddressingInfo& AddressingInfo, int32 MipLevel, const TArray<FIntVector3>& PageCoords)
 {
 	const FIntVector3 PageTableVolumeResolution = FIntVector3(
 		FMath::Max(1, Header.PageTableVolumeResolution.X >> MipLevel), 
@@ -679,7 +684,7 @@ bool FSparseVolumeTextureData::GenerateBorderVoxels(const FSparseVolumeTextureDa
 	return true;
 }
 
-bool FSparseVolumeTextureData::DeduplicateTiles()
+bool FTextureData::DeduplicateTiles()
 {
 	const int32 NumMipLevels = MipMaps.Num();
 	const int32 FormatSize[] = { GPixelFormats[Header.AttributesFormats[0]].BlockBytes, GPixelFormats[Header.AttributesFormats[1]].BlockBytes };
@@ -782,9 +787,9 @@ bool FSparseVolumeTextureData::DeduplicateTiles()
 	return true;
 }
 
-bool FSparseVolumeTextureData::BuildDerivedData(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels, bool bMoveMip0FromThis, FSparseVolumeTextureData& OutDerivedData)
+bool FTextureData::BuildDerivedData(const FTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels, bool bMoveMip0FromThis, FTextureData& OutDerivedData)
 {
-	OutDerivedData = FSparseVolumeTextureData{};
+	OutDerivedData = FTextureData{};
 	OutDerivedData.Header = Header;
 	OutDerivedData.MipMaps.SetNum(1);
 	if (bMoveMip0FromThis)
@@ -836,6 +841,9 @@ bool FSparseVolumeTextureData::BuildDerivedData(const FSparseVolumeTextureDataAd
 	}
 
 	return true;
+}
+
+}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

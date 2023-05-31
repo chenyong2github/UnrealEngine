@@ -20,19 +20,16 @@ namespace Private
 
 uint32 UE::SVT::PackPageTableEntry(const FIntVector3& Coord)
 {
-	// A page encodes the physical tile coord as unsigned int of 11 11 10 bits
-	// This means a page coord cannot be larger than 2047 for x and y and 1023 for z
-	// which mean we cannot have more than 2048*2048*1024 = 4 Giga tiles of 16^3 tiles.
-	uint32 Result = (Coord.X & 0x7FF) | ((Coord.Y & 0x7FF) << 11) | ((Coord.Z & 0x3FF) << 22);
+	uint32 Result = (Coord.X & 0xFFu) | ((Coord.Y & 0xFFu) << 8u) | ((Coord.Z & 0xFFu) << 16u);
 	return Result;
 }
 
 FIntVector3 UE::SVT::UnpackPageTableEntry(uint32 Packed)
 {
 	FIntVector3 Result;
-	Result.X = Packed & 0x7FF;
-	Result.Y = (Packed >> 11) & 0x7FF;
-	Result.Z = (Packed >> 22) & 0x3FF;
+	Result.X = Packed & 0xFFu;
+	Result.Y = (Packed >> 8u) & 0xFFu;
+	Result.Z = (Packed >> 16u) & 0xFFu;
 	return Result;
 }
 

@@ -149,14 +149,11 @@ void USparseVolumeTextureViewerComponent::SendRenderTransformCommand()
 	{
 		FVector VolumeExtent = FVector(SVTViewerDefaultVolumeExtent);
 		FVector VolumeResolution = FVector(SVTViewerDefaultVolumeExtent * 2.0);
-		FUintVector4 PackedSVTUniforms0 = FUintVector4();
-		FUintVector4 PackedSVTUniforms1 = FUintVector4();
 		if (SparseVolumeTextureFrame)
 		{
 			VolumeResolution = FVector(SparseVolumeTextureFrame->GetVolumeResolution());
 			const double MaxBoundsDim = FMath::Max(FMath::Max(VolumeResolution.X, VolumeResolution.Y), VolumeResolution.Z);
 			VolumeExtent = VolumeResolution / MaxBoundsDim * SVTViewerDefaultVolumeExtent;
-			SparseVolumeTextureFrame->GetPackedUniforms(PackedSVTUniforms0, PackedSVTUniforms1);
 		}
 
 		const FTransform ToWorldTransform = GetComponentTransform();
@@ -178,13 +175,11 @@ void USparseVolumeTextureViewerComponent::SendRenderTransformCommand()
 
 		FSparseVolumeTextureViewerSceneProxy* SVTViewerSceneProxy = SparseVolumeTextureViewerSceneProxy;
 		ENQUEUE_RENDER_COMMAND(FUpdateSparseVolumeTextureViewerProxyTransformCommand)(
-			[SVTViewerSceneProxy, ToLocalMat, ToLocalMatNoScale, CompIdx = (uint32)ComponentToVisualize, Ext = Extinction, Mip = MipLevel, PackedSVTUniforms0, PackedSVTUniforms1, VolumeRes3f]
+			[SVTViewerSceneProxy, ToLocalMat, ToLocalMatNoScale, CompIdx = (uint32)ComponentToVisualize, Ext = Extinction, Mip = MipLevel, VolumeRes3f]
 		(FRHICommandList& RHICmdList)
 			{
 				SVTViewerSceneProxy->WorldToLocal = ToLocalMat;
 				SVTViewerSceneProxy->WorldToLocalNoScale = ToLocalMatNoScale;
-				SVTViewerSceneProxy->PackedSVTUniforms0 = PackedSVTUniforms0;
-				SVTViewerSceneProxy->PackedSVTUniforms1 = PackedSVTUniforms1;
 				SVTViewerSceneProxy->VolumeResolution = VolumeRes3f;
 				SVTViewerSceneProxy->MipLevel = Mip;
 				SVTViewerSceneProxy->ComponentToVisualize = CompIdx;
@@ -197,19 +192,21 @@ void USparseVolumeTextureViewerComponent::TickComponent(float DeltaTime, enum EL
 {
 	if (SparseVolumeTexturePreview)
 	{
+		const int32 NumFrames = SparseVolumeTexturePreview->GetNumFrames();
+		float FrameIndexF = 0.0f;
 		if (bAnimate)
 		{
-			const int32 NumFrames = SparseVolumeTexturePreview->GetNumFrames();
-			const float AnimationDuration = NumFrames / (FrameRate + UE_SMALL_NUMBER);
-			AnimationTime = FMath::Fmod(AnimationTime + DeltaTime, (AnimationDuration + UE_SMALL_NUMBER));
-			FrameIndex = int32(AnimationTime * FrameRate);
+			const float AnimationDuration = (NumFrames / (FrameRate + UE_SMALL_NUMBER)) + UE_SMALL_NUMBER;
+			AnimationTime = FMath::Fmod(AnimationTime + AnimationDuration + (bReversePlayback ? -DeltaTime : DeltaTime), AnimationDuration);
+			FrameIndexF = AnimationTime * FrameRate;
 		}
 		else
 		{
-			FrameIndex = int32(AnimationFrame * float(SparseVolumeTexturePreview->GetNumFrames()));
+			FrameIndexF = AnimationFrame * float(NumFrames);
 		}
-
-		SparseVolumeTextureFrame = USparseVolumeTextureFrame::GetFrame(SparseVolumeTexturePreview, FrameIndex);
+		FrameIndexF = FMath::Clamp(FrameIndexF, 0, static_cast<float>(NumFrames - 1));
+		FrameIndex = FrameIndexF;
+		SparseVolumeTextureFrame = USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest(SparseVolumeTexturePreview, FrameIndexF, MipLevel);
 	}
 	else
 	{

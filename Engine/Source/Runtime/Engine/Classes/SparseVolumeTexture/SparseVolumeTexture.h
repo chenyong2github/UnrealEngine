@@ -8,6 +8,7 @@
 
 #include "Serialization/EditorBulkData.h"
 #include "Containers/Array.h"
+#include "Containers/StaticArray.h"
 #include "UnrealClient.h"
 #include "UObject/ObjectSaveContext.h"
 #include "Engine/TextureDefines.h"
@@ -17,14 +18,20 @@
 namespace UE { namespace Shader	{ enum class EValueType : uint8; } }
 namespace UE { namespace DerivedData { class FRequestOwner; } }
 
+// SVT_TODO: Unify with macros in SparseVolumeTextureCommon.ush
 #define SPARSE_VOLUME_TILE_RES 16
 #define SPARSE_VOLUME_TILE_BORDER 1
 #define SPARSE_VOLUME_TILE_RES_PADDED (SPARSE_VOLUME_TILE_RES + 2 * SPARSE_VOLUME_TILE_BORDER)
 
-struct FSparseVolumeTextureData;
-class FSparseVolumeTextureSceneProxy;
+namespace UE
+{
+namespace SVT
+{
 
-struct ENGINE_API FSparseVolumeTextureHeader
+struct FTextureData;
+class FStreamingManager;
+
+struct ENGINE_API FHeader
 {
 	static const uint32 kVersion = 0; // The current data format version for the header.
 	uint32 Version = kVersion; // This version can be used to convert existing header to new version later.
@@ -36,13 +43,123 @@ struct ENGINE_API FSparseVolumeTextureHeader
 	FIntVector3 PageTableVolumeAABBMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
 	FIntVector3 PageTableVolumeAABBMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
 	TStaticArray<EPixelFormat, 2> AttributesFormats = TStaticArray<EPixelFormat, 2>(InPlace, PF_Unknown);
-	TStaticArray<FVector4f, 2> NullTileValues = TStaticArray<FVector4f, 2>(InPlace, FVector4f());
-	TStaticArray<FVector4f, 2> NullTileValuesQuantized = TStaticArray<FVector4f, 2>(InPlace, FVector4f()); // Values after converting/quantizing original fallback values to the given attribute formats
+	TStaticArray<FVector4f, 2> FallbackValues = TStaticArray<FVector4f, 2>(InPlace, FVector4f());
 
-	FSparseVolumeTextureHeader() = default;
-	FSparseVolumeTextureHeader(const FIntVector3& AABBMin, const FIntVector3& AABBMax, EPixelFormat FormatA, EPixelFormat FormatB, const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
+	FHeader() = default;
+	FHeader(const FIntVector3& AABBMin, const FIntVector3& AABBMax, EPixelFormat FormatA, EPixelFormat FormatB, const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
 	void Serialize(FArchive& Ar);
 };
+
+// Describes a mip level of a SVT frame in terms of the sizes and offsets of the data in the built bulk data.
+struct FMipLevelStreamingInfo
+{
+	int32 BulkOffset;
+	int32 BulkSize;
+	int32 PageTableOffset; // relative to BulkOffset
+	int32 PageTableSize;
+	int32 TileDataAOffset; // relative to BulkOffset
+	int32 TileDataASize;
+	int32 TileDataBOffset; // relative to BulkOffset
+	int32 TileDataBSize;
+	int32 NumPhysicalTiles;
+};
+
+enum EResourceFlag : uint32
+{
+	EResourceFlag_StreamingDataInDDC = 1 << 0u, // FResources was cached, so MipLevelStreamingInfo can be streamed from DDC
+};
+
+// Represents the derived data of a SVT that is needed by the streaming manager.
+struct FResources
+{
+public:
+	FHeader Header;
+	uint32 ResourceFlags = 0;
+	// Info about sizes and offsets into the streamable mip level data. The last entry refers to the root mip level which is stored in RootData, not StreamableMipLevels.
+	TArray<FMipLevelStreamingInfo> MipLevelStreamingInfo;
+	// Data for the highest/"root" mip level
+	TArray<uint8> RootData;
+	// Data for all streamable mip levels
+	FByteBulkData StreamableMipLevels;
+#if WITH_EDITORONLY_DATA
+	// FTextureData from which all the other data can be built with a call to Build()
+	UE::Serialization::FEditorBulkData SourceData;
+#endif
+
+	// These are used for logging and retrieving StreamableMipLevels from DDC in FStreamingManager
+#if WITH_EDITORONLY_DATA
+	FString ResourceName;
+	FIoHash DDCKeyHash;
+	FIoHash DDCRawHash;
+#endif
+
+	// Called when serializing to/from DDC buffers and when serializing the owning USparseVolumeTextureFrame.
+	void Serialize(FArchive& Ar, UObject* Owner, bool bCooked);
+	// Returns true if there are streamable mip levels.
+	bool HasStreamingData() const;
+#if WITH_EDITORONLY_DATA
+	// Removes the StreamableMipLevels bulk data if it was successfully cached to DDC.
+	void DropBulkData();
+	// Fills StreamableMipLevels with data from DDC. Returns true when done.
+	bool RebuildBulkDataFromCacheAsync(const UObject* Owner, bool& bFailed);
+	// Builds all the data from SourceData. Is called by Cache().
+	bool Build(USparseVolumeTextureFrame* Owner);
+	// Cache the built data to/from DDC.
+	void Cache(USparseVolumeTextureFrame* Owner);
+#endif
+
+private:
+#if WITH_EDITORONLY_DATA
+	enum class EDDCRebuildState : uint8
+	{
+		Initial,
+		Pending,
+		Succeeded,
+		Failed,
+	};
+	TDontCopy<TPimplPtr<UE::DerivedData::FRequestOwner>> DDCRequestOwner;
+	std::atomic<EDDCRebuildState> DDCRebuildState;
+	void BeginRebuildBulkDataFromCache(const UObject* Owner);
+	void EndRebuildBulkDataFromCache();
+#endif
+};
+
+// Encapsulates RHI resources needed to render a SparseVolumeTexture.
+class ENGINE_API FTextureRenderResources : public ::FRenderResource
+{
+	friend class FStreamingManager;
+public:
+	const FHeader& GetHeader() const								{ check(IsInParallelRenderingThread()); return Header; }
+	FIntVector3 GetTileDataTextureResolution() const				{ check(IsInParallelRenderingThread()); return TileDataTextureResolution; }
+	int32 GetFrameIndex() const										{ check(IsInParallelRenderingThread()); return FrameIndex; }
+	int32 GetNumLogicalMipLevels() const							{ check(IsInParallelRenderingThread()); return NumLogicalMipLevels; }
+	FTextureRHIRef GetPageTableTextureRHI() const					{ check(IsInParallelRenderingThread()); return PageTableTextureRHI; }
+	FTextureRHIRef GetPhysicalTileDataATextureRHI() const			{ check(IsInParallelRenderingThread()); return PhysicalTileDataATextureRHI; }
+	FTextureRHIRef GetPhysicalTileDataBTextureRHI() const			{ check(IsInParallelRenderingThread()); return PhysicalTileDataBTextureRHI; }
+	FShaderResourceViewRHIRef GetStreamingInfoBufferSRVRHI() const	{ check(IsInParallelRenderingThread()); return StreamingInfoBufferSRVRHI; }
+	void GetPackedUniforms(FUintVector4& OutPacked0, FUintVector4& OutPacked1) const;
+	// Updates the GlobalVolumeResolution member in a thread-safe way.
+	void SetGlobalVolumeResolution_GameThread(const FIntVector3& GlobalVolumeResolution);
+
+	//~ Begin FRenderResource Interface.
+	virtual void InitRHI() override { /* Managed by FStreamingManager */ }
+	virtual void ReleaseRHI() override { /* Managed by FStreamingManager */ }
+	//~ End FRenderResource Interface.
+
+private:
+	FHeader Header;
+	FIntVector3 GlobalVolumeResolution = FIntVector3::ZeroValue; // The virtual resolution of the union of the AABBs of all frames. Needed for GetPackedUniforms().
+	FIntVector3 TileDataTextureResolution = FIntVector3::ZeroValue;
+	int32 FrameIndex = INDEX_NONE;
+	int32 NumLogicalMipLevels = 0; // Might not all be resident in GPU memory
+	FTextureRHIRef PageTableTextureRHI;
+	FTextureRHIRef PhysicalTileDataATextureRHI;
+	FTextureRHIRef PhysicalTileDataBTextureRHI;
+	FShaderResourceViewRHIRef StreamingInfoBufferSRVRHI;
+};
+
+}
+}
 
 enum ESparseVolumeTextureShaderUniform
 {
@@ -80,21 +197,15 @@ public:
 	virtual int32 GetNumMipLevels() const { return 0; }
 
 	virtual FIntVector GetVolumeResolution() const { return FIntVector(); }
+	virtual EPixelFormat GetFormat(int32 AttributesIndex) const { return PF_Unknown; }
+	virtual FVector4f GetFallbackValue(int32 AttributesIndex) const { return FVector4f(); }
 	virtual TextureAddress GetTextureAddressX() const { return TA_Wrap; }
 	virtual TextureAddress GetTextureAddressY() const { return TA_Wrap; }
 	virtual TextureAddress GetTextureAddressZ() const { return TA_Wrap; }
-
-	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const { return nullptr; }
+	virtual const UE::SVT::FTextureRenderResources* GetTextureRenderResources() const { return nullptr; }
 
 	/** Getter for the shader uniform parameters with index as ESparseVolumeTextureShaderUniform. */
-	FVector4 GetUniformParameter(int32 Index) const;
-
-	void GetPackedUniforms(FUintVector4& OutPacked0, FUintVector4& OutPacked1) const;
-
-	/** In order to keep the contents of an animated SVT sequence stable in world space, we need to account for the fact that
-		different frames of the sequence have different AABBs. We solve this by scaling and biasing UVs that are relative to
-		the volume bounds into the UV space represented by the AABB of each animation frame.*/
-	void GetFrameUVScaleBias(FVector* OutScale, FVector* OutBias) const;
+	FVector4 GetUniformParameter(int32 Index) const { return FVector4(ForceInitToZero); } // SVT_TODO: This mechanism is no longer needed and can be removed
 
 	/** Getter for the shader uniform parameter type with index as ESparseVolumeTextureShaderUniform. */
 	static UE::Shader::EValueType GetUniformParameterType(int32 Index);
@@ -116,20 +227,29 @@ class ENGINE_API USparseVolumeTextureFrame : public USparseVolumeTexture
 {
 	GENERATED_UCLASS_BODY()
 
-	// SVT_TODO: Remove this once the new streaming manager has been implemented. For now we need this to keep the old system running.
-	friend struct FStreamingSparseVolumeTextureData;
+	friend class UE::SVT::FStreamingManager;
+	friend class UStreamableSparseVolumeTexture;
 
 public:
 
 	USparseVolumeTextureFrame();
 	virtual ~USparseVolumeTextureFrame() = default;
 
-	static USparseVolumeTextureFrame* GetFrame(USparseVolumeTexture* SparseVolumeTexture, int32 FrameIndex);
+	// Retrieves a frame from the given SparseVolumeTexture and also issues a streaming request for it. 
+	// FrameIndex is of float type so that the streaming system can use the fractional part to more easily keep track of playback speed and direction (forward/reverse playback).
+	// MipLevel is the lowest mip level that the caller intends to use but does not guarantee that the mip is actually resident.
+	static USparseVolumeTextureFrame* GetFrameAndIssueStreamingRequest(USparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel);
 
-	bool Initialize(USparseVolumeTexture* InOwner, int32 InFrameIndex, FSparseVolumeTextureData& UncookedFrame);
-	bool BuildDerivedData(FSparseVolumeTextureData* OutMippedTextureData);
+	bool Initialize(USparseVolumeTexture* InOwner, int32 InFrameIndex, UE::SVT::FTextureData& UncookedFrame);
 	int32 GetFrameIndex() const { return FrameIndex; }
-	void GenerateOrLoadDDCRuntimeData(UE::DerivedData::FRequestOwner& DDCRequestOwner);
+	UE::SVT::FResources* GetResources() { return &Resources; }
+	// Creates TextureRenderResources if they don't already exist. Returns false if they already existed.
+	bool CreateTextureRenderResources();
+
+#if WITH_EDITORONLY_DATA
+	// Caches the derived data (FResources) of this frame to/from DDC and ensures that FTextureRenderResources exists.
+	void Cache();
+#endif
 
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
@@ -137,30 +257,33 @@ public:
 	virtual void BeginDestroy() override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+#if WITH_EDITOR
+	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
+	virtual void WillNeverCacheCookedPlatformDataAgain() override;
+	virtual void ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	virtual void ClearAllCachedCookedPlatformData() override;
+#endif
 	//~ End UObject Interface.
 
 	//~ Begin USparseVolumeTexture Interface.
 	virtual int32 GetNumFrames() const override { return 1; }
-	virtual int32 GetNumMipLevels() const { return Owner->GetNumMipLevels(); }
-	virtual FIntVector GetVolumeResolution() const { return Owner->GetVolumeResolution(); }
-	virtual TextureAddress GetTextureAddressX() const { return Owner->GetTextureAddressX(); }
-	virtual TextureAddress GetTextureAddressY() const { return Owner->GetTextureAddressY(); }
-	virtual TextureAddress GetTextureAddressZ() const { return Owner->GetTextureAddressZ(); }
-	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const { return SceneProxy; }
+	virtual int32 GetNumMipLevels() const override { return Owner->GetNumMipLevels(); }
+	virtual FIntVector GetVolumeResolution() const override { return Owner->GetVolumeResolution(); }
+	virtual EPixelFormat GetFormat(int32 AttributesIndex) const override { return Owner->GetFormat(AttributesIndex); }
+	virtual FVector4f GetFallbackValue(int32 AttributesIndex) const override { return Owner->GetFallbackValue(AttributesIndex); }
+	virtual TextureAddress GetTextureAddressX() const override { return Owner->GetTextureAddressX(); }
+	virtual TextureAddress GetTextureAddressY() const override { return Owner->GetTextureAddressY(); }
+	virtual TextureAddress GetTextureAddressZ() const override { return Owner->GetTextureAddressZ(); }
+	virtual const UE::SVT::FTextureRenderResources* GetTextureRenderResources() const override { return TextureRenderResources; }
 	//~ End USparseVolumeTexture Interface.
 
 private:
 	UPROPERTY()
 	TObjectPtr<USparseVolumeTexture> Owner;
 	int32 FrameIndex;
-
-	FSparseVolumeTextureSceneProxy* SceneProxy;
-	FByteBulkData StreamingData;
-
-#if WITH_EDITORONLY_DATA
-	/** The raw data that can be loaded when we want to update cook the data with different settings or updated code without re importing. */
-	UE::Serialization::FEditorBulkData	RawData;
-#endif
+	UE::SVT::FResources Resources;
+	UE::SVT::FTextureRenderResources* TextureRenderResources;
 };
 
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
@@ -184,6 +307,18 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Texture")
 	int32 NumMipLevels;
 
+	UPROPERTY(VisibleAnywhere, Category = "Texture")
+	TEnumAsByte<enum EPixelFormat> FormatA;
+
+	UPROPERTY(VisibleAnywhere, Category = "Texture")
+	TEnumAsByte<enum EPixelFormat> FormatB;
+
+	UPROPERTY(VisibleAnywhere, Category = "Texture")
+	FVector4f FallbackValueA;
+
+	UPROPERTY(VisibleAnywhere, Category = "Texture")
+	FVector4f FallbackValueB;
+
 	/** The addressing mode to use for the X axis.								*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (DisplayName = "X-axis Tiling Method"), AssetRegistrySearchable, AdvancedDisplay)
 	TEnumAsByte<enum TextureAddress> AddressX;
@@ -203,13 +338,12 @@ public:
 	// The NumExpectedFrames parameter on BeginInitialize() just serves as a potential optimization to reserve memory for the frames to be appended
 	// and doesn't need to match the exact number if it is not known at the time.
 	virtual bool BeginInitialize(int32 NumExpectedFrames);
-	virtual bool AppendFrame(FSparseVolumeTextureData& UncookedFrame);
+	virtual bool AppendFrame(UE::SVT::FTextureData& UncookedFrame);
 	virtual bool EndInitialize(int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
 
 	// Convenience function wrapping the multi-phase initialization functions above
-	virtual bool Initialize(const TArrayView<FSparseVolumeTextureData>& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
-
-	const FSparseVolumeTextureSceneProxy* GetStreamedFrameProxyOrFallback(int32 FrameIndex, int32 MipLevel) const;
+	virtual bool Initialize(const TArrayView<UE::SVT::FTextureData>& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
+	// Consider using USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest() if the frame should have streaming requests issued.
 	USparseVolumeTextureFrame* GetFrame(int32 FrameIndex) const { return Frames.IsValidIndex(FrameIndex) ? Frames[FrameIndex] : nullptr; }
 
 	//~ Begin UObject Interface.
@@ -227,10 +361,12 @@ public:
 	virtual int32 GetNumFrames() const override { return Frames.Num(); }
 	virtual int32 GetNumMipLevels() const override { return NumMipLevels; }
 	virtual FIntVector GetVolumeResolution() const override { return VolumeResolution; };
+	virtual EPixelFormat GetFormat(int32 AttributesIndex) const override { check(AttributesIndex >= 0 && AttributesIndex < 2) return AttributesIndex == 0 ? FormatA : FormatB; }
+	virtual FVector4f GetFallbackValue(int32 AttributesIndex) const override { check(AttributesIndex >= 0 && AttributesIndex < 2) return AttributesIndex == 0 ? FallbackValueA : FallbackValueB; }
 	virtual TextureAddress GetTextureAddressX() const override { return AddressX; }
 	virtual TextureAddress GetTextureAddressY() const override { return AddressY; }
 	virtual TextureAddress GetTextureAddressZ() const override { return AddressZ; }
-	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return GetStreamedFrameProxyOrFallback(0 /*FrameIndex*/, 0 /*MipLevel*/); };
+	virtual const UE::SVT::FTextureRenderResources* GetTextureRenderResources() const override { return Frames.IsEmpty() ? nullptr : Frames[0]->GetTextureRenderResources(); }
 	//~ End USparseVolumeTexture Interface.
 
 protected:
@@ -241,9 +377,11 @@ protected:
 	FIntVector VolumeBoundsMin;
 	FIntVector VolumeBoundsMax;
 	EInitState InitState = EInitState::Uninitialized;
-#endif // WITH_EDITORONLY_DATA
 
-	void GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
+	// Ensures all frames have derived data (based on the source data and the current settings like TextureAddress modes etc.) cached to DDC and are ready for rendering.
+	// Disconnects this SVT from the streaming manager, calls Cache() on all frames and finally connects to FStreamingManager again.
+	void RecacheFrames();
+#endif // WITH_EDITORONLY_DATA
 };
 
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
@@ -257,7 +395,7 @@ public:
 	virtual ~UStaticSparseVolumeTexture() = default;
 
 	// Override AppendFrame() to ensure that there is never more than a single frame in a static SVT
-	virtual bool AppendFrame(FSparseVolumeTextureData& UncookedFrame) override;
+	virtual bool AppendFrame(UE::SVT::FTextureData& UncookedFrame) override;
 
 	//~ Begin USparseVolumeTexture Interface.
 	int32 GetNumFrames() const override { return 1; }
@@ -278,12 +416,11 @@ public:
 	virtual ~UAnimatedSparseVolumeTexture() = default;
 
 	//~ Begin USparseVolumeTexture Interface.
-	const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override;
+	virtual const UE::SVT::FTextureRenderResources* GetTextureRenderResources() const override { return Frames.IsValidIndex(PreviewFrameIndex) ? Frames[PreviewFrameIndex]->GetTextureRenderResources() : nullptr; }
 	//~ End USparseVolumeTexture Interface.
 
 private:
 	int32 PreviewFrameIndex;
-	int32 PreviewMipLevel;
 };
 
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))

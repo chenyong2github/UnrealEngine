@@ -498,7 +498,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 		ExpandVolumeBounds(ImportOptions, PreviewData.GridInfo, VolumeBoundsMin, VolumeBoundsMax);
 
-		FSparseVolumeTextureData TextureData{};
+		UE::SVT::FTextureData TextureData{};
 		const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(PreviewData.LoadedFile, ImportOptions, VolumeBoundsMin, TextureData);
 
 		if (!bConversionSuccess)
@@ -508,7 +508,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		}
 
 		UStaticSparseVolumeTexture* StaticSVTexture = NewObject<UStaticSparseVolumeTexture>(InParent, UStaticSparseVolumeTexture::StaticClass(), InName, Flags);
-		const bool bInitSuccess = StaticSVTexture->Initialize(MakeArrayView<FSparseVolumeTextureData>(&TextureData, 1));
+		const bool bInitSuccess = StaticSVTexture->Initialize(MakeArrayView<UE::SVT::FTextureData>(&TextureData, 1));
 		if (!bInitSuccess)
 		{
 			UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("Failed to initialize SparseVolumeTexture: %s"), *Filename);
@@ -537,7 +537,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		ImportTask.MakeDialog(true);
 
 		// Allocate space for each frame
-		TArray<FSparseVolumeTextureData> UncookedFramesData;
+		TArray<UE::SVT::FTextureData> UncookedFramesData;
 		UncookedFramesData.SetNum(NumFrames);
 
 		std::atomic_bool bErrored = false;
@@ -659,7 +659,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 						return;
 					}
 
-					FSparseVolumeTextureData TextureData{};
+					UE::SVT::FTextureData TextureData{};
 					const bool bConversionSuccess = ConvertOpenVDBToSparseVolumeTexture(LoadedFrameFile, ImportOptions, VolumeBoundsMin, TextureData);
 
 					if (!bConversionSuccess)

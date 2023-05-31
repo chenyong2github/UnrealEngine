@@ -2,7 +2,6 @@
 
 #include "NiagaraDataInterfaceSparseVolumeTexture.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
-#include "SparseVolumeTexture/SparseVolumeTextureSceneProxy.h"
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
@@ -37,8 +36,7 @@ struct FNDISparseVolumeTextureFunctionVersion
 struct FNDISparseVolumeTextureInstanceData_GameThread
 {
 	TWeakObjectPtr<USparseVolumeTexture> CurrentTexture = nullptr;
-	FUintVector4 CurrentPackedUniforms0 = FUintVector4();
-	FUintVector4 CurrentPackedUniforms1 = FUintVector4();
+	const UE::SVT::FTextureRenderResources* CurrentRenderResources = nullptr;
 	FIntVector3 CurrentTextureSize = FIntVector3::ZeroValue;
 	int32 CurrentTextureMipLevels = 0;
 	FNiagaraParameterDirectBinding<UObject*> UserParamBinding;
@@ -46,11 +44,7 @@ struct FNDISparseVolumeTextureInstanceData_GameThread
 
 struct FNDISparseVolumeTextureInstanceData_RenderThread
 {
-	FTextureRHIRef PageTableTextureRHI = nullptr;
-	FTextureRHIRef PhysicalTileDataATextureRHI = nullptr;
-	FTextureRHIRef PhysicalTileDataBTextureRHI = nullptr;
-	FUintVector4 PackedUniforms0 = FUintVector4();
-	FUintVector4 PackedUniforms1 = FUintVector4();
+	const UE::SVT::FTextureRenderResources* RenderResources = nullptr;
 	FIntVector3 TextureSize = FIntVector3::ZeroValue;
 	int32 MipLevels = 0;
 };
@@ -189,60 +183,39 @@ bool UNiagaraDataInterfaceSparseVolumeTexture::PerInstanceTick(void* PerInstance
 	FNDISparseVolumeTextureInstanceData_GameThread* InstanceData = static_cast<FNDISparseVolumeTextureInstanceData_GameThread*>(PerInstanceData);
 
 	USparseVolumeTexture* CurrentTexture = InstanceData->UserParamBinding.GetValueOrDefault<USparseVolumeTexture>(SparseVolumeTexture);
-	FUintVector4 CurrentPackedUniforms0 = FUintVector4();
-	FUintVector4 CurrentPackedUniforms1 = FUintVector4();
+	const UE::SVT::FTextureRenderResources* CurrentRenderResources = nullptr;
 	FIntVector3 CurrentTextureSize = FIntVector3::ZeroValue;
 	int32 CurrentTextureMipLevels = 0;
 	if (CurrentTexture)
 	{
-		CurrentTexture->GetPackedUniforms(CurrentPackedUniforms0, CurrentPackedUniforms1);
+		CurrentRenderResources = CurrentTexture->GetTextureRenderResources();
 		CurrentTextureSize = FIntVector3(CurrentTexture->GetVolumeResolution());
 		CurrentTextureMipLevels = CurrentTexture->GetNumMipLevels();
 	}
 
 	if ((InstanceData->CurrentTexture != CurrentTexture) 
+		|| (InstanceData->CurrentRenderResources != CurrentRenderResources)
 		|| (InstanceData->CurrentTextureSize != CurrentTextureSize) 
-		|| (InstanceData->CurrentTextureMipLevels != CurrentTextureMipLevels)
-		|| (InstanceData->CurrentPackedUniforms0 != CurrentPackedUniforms0)
-		|| (InstanceData->CurrentPackedUniforms1 != CurrentPackedUniforms1))
+		|| (InstanceData->CurrentTextureMipLevels != CurrentTextureMipLevels))
 	{
 		InstanceData->CurrentTexture = CurrentTexture;
+		InstanceData->CurrentRenderResources = CurrentRenderResources;
 		InstanceData->CurrentTextureSize = CurrentTextureSize;
 		InstanceData->CurrentTextureMipLevels = CurrentTextureMipLevels;
-		InstanceData->CurrentPackedUniforms0 = CurrentPackedUniforms0;
-		InstanceData->CurrentPackedUniforms1 = CurrentPackedUniforms1;
 
 		ENQUEUE_RENDER_COMMAND(NDISparseVolumeTexture_UpdateInstance)
 		(
-			[RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxySparseVolumeTexture>(), RT_InstanceID = SystemInstance->GetId(), RT_Texture = CurrentTexture, RT_Packed0 = CurrentPackedUniforms0, 
-			RT_Packed1 = CurrentPackedUniforms1, RT_TextureSize = CurrentTextureSize, RT_MipLevels = CurrentTextureMipLevels] (FRHICommandListImmediate&)
+			[RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxySparseVolumeTexture>(),
+			RT_InstanceID = SystemInstance->GetId(),
+			RT_RenderResources = CurrentRenderResources,
+			RT_TextureSize = CurrentTextureSize, 
+			RT_MipLevels = CurrentTextureMipLevels] 
+		(FRHICommandListImmediate&)
 			{
 				FNDISparseVolumeTextureInstanceData_RenderThread& RTInstanceData = RT_Proxy->InstanceData_RT.FindOrAdd(RT_InstanceID);
-				const FSparseVolumeTextureSceneProxy* SceneProxy = RT_Texture ? RT_Texture->GetSparseVolumeTextureSceneProxy() : nullptr;
-				if (RT_Texture && SceneProxy)
-				{
-					FRHITexture* PageTableTexture = SceneProxy->GetPageTableTextureRHI();
-					FRHITexture* TextureA = SceneProxy->GetPhysicalTileDataATextureRHI();
-					FRHITexture* TextureB = SceneProxy->GetPhysicalTileDataBTextureRHI();
-
-					RTInstanceData.PageTableTextureRHI = PageTableTexture;
-					RTInstanceData.PhysicalTileDataATextureRHI = TextureA;
-					RTInstanceData.PhysicalTileDataBTextureRHI = TextureB;
-					RTInstanceData.PackedUniforms0 = RT_Packed0;
-					RTInstanceData.PackedUniforms1 = RT_Packed1;
-					RTInstanceData.TextureSize = RT_TextureSize;
-					RTInstanceData.MipLevels = RT_MipLevels;
-				}
-				else
-				{
-					RTInstanceData.PageTableTextureRHI = nullptr;
-					RTInstanceData.PhysicalTileDataATextureRHI = nullptr;
-					RTInstanceData.PhysicalTileDataBTextureRHI = nullptr;
-					RTInstanceData.PackedUniforms0 = FUintVector4();
-					RTInstanceData.PackedUniforms1 = FUintVector4();
-					RTInstanceData.TextureSize = FIntVector3::ZeroValue;
-					RTInstanceData.MipLevels = 0;
-				}
+				RTInstanceData.RenderResources = RT_RenderResources;
+				RTInstanceData.TextureSize = RT_TextureSize;
+				RTInstanceData.MipLevels = RT_MipLevels;
 			}
 		);
 	}
@@ -309,25 +282,29 @@ void UNiagaraDataInterfaceSparseVolumeTexture::SetShaderParameters(const FNiagar
 
 	FShaderParameters* Parameters = Context.GetParameterNestedStruct<FShaderParameters>();
 	Parameters->TileDataTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	if (RTInstanceData && RTInstanceData->PageTableTextureRHI.IsValid() && (RTInstanceData->PhysicalTileDataATextureRHI.IsValid() || RTInstanceData->PhysicalTileDataBTextureRHI.IsValid()))
+	Parameters->PageTableTexture = GBlackUintVolumeTexture->TextureRHI;
+	Parameters->PhysicalTileDataATexture = GBlackVolumeTexture->TextureRHI;
+	Parameters->PhysicalTileDataBTexture = GBlackVolumeTexture->TextureRHI;
+	Parameters->StreamingInfoBuffer = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
+	Parameters->PackedUniforms0 = FUintVector4();
+	Parameters->PackedUniforms1 = FUintVector4();
+	Parameters->TextureSize = FIntVector3::ZeroValue;
+	Parameters->MipLevels = 0;
+	
+	if (RTInstanceData && RTInstanceData->RenderResources)
 	{
-		Parameters->PageTableTexture = RTInstanceData->PageTableTextureRHI;
-		Parameters->PhysicalTileDataATexture = RTInstanceData->PhysicalTileDataATextureRHI.IsValid() ? RTInstanceData->PhysicalTileDataATextureRHI : GBlackVolumeTexture->TextureRHI;
-		Parameters->PhysicalTileDataBTexture = RTInstanceData->PhysicalTileDataBTextureRHI.IsValid() ? RTInstanceData->PhysicalTileDataBTextureRHI : GBlackVolumeTexture->TextureRHI;
-		Parameters->PackedUniforms0 = RTInstanceData->PackedUniforms0;
-		Parameters->PackedUniforms1 = RTInstanceData->PackedUniforms1;
+		FTextureRHIRef PageTableTexture = RTInstanceData->RenderResources->GetPageTableTextureRHI();
+		FTextureRHIRef PhysicalTileDataATexture = RTInstanceData->RenderResources->GetPhysicalTileDataATextureRHI();
+		FTextureRHIRef PhysicalTileDataBTexture = RTInstanceData->RenderResources->GetPhysicalTileDataBTextureRHI();
+		FShaderResourceViewRHIRef StreamingInfoBufferSRV = RTInstanceData->RenderResources->GetStreamingInfoBufferSRVRHI();
+
+		Parameters->PageTableTexture = PageTableTexture ? PageTableTexture.GetReference() : Parameters->PageTableTexture;
+		Parameters->PhysicalTileDataATexture = PhysicalTileDataATexture ? PhysicalTileDataATexture.GetReference() : Parameters->PhysicalTileDataATexture;
+		Parameters->PhysicalTileDataBTexture = PhysicalTileDataBTexture ? PhysicalTileDataBTexture.GetReference() : Parameters->PhysicalTileDataBTexture;
+		Parameters->StreamingInfoBuffer = StreamingInfoBufferSRV ? StreamingInfoBufferSRV.GetReference() : Parameters->StreamingInfoBuffer;
+		RTInstanceData->RenderResources->GetPackedUniforms(Parameters->PackedUniforms0, Parameters->PackedUniforms1);
 		Parameters->TextureSize = RTInstanceData->TextureSize;
 		Parameters->MipLevels = RTInstanceData->MipLevels;
-	}
-	else
-	{
-		Parameters->PageTableTexture = GBlackUintVolumeTexture->TextureRHI;
-		Parameters->PhysicalTileDataATexture = GBlackVolumeTexture->TextureRHI;
-		Parameters->PhysicalTileDataBTexture = GBlackVolumeTexture->TextureRHI;
-		Parameters->PackedUniforms0 = FUintVector4();
-		Parameters->PackedUniforms1 = FUintVector4();
-		Parameters->TextureSize = FIntVector3::ZeroValue;
-		Parameters->MipLevels = 0;
 	}
 }
 

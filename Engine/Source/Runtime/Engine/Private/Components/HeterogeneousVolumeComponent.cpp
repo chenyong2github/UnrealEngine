@@ -289,9 +289,10 @@ void UHeterogeneousVolumeComponent::TickComponent(float DeltaTime, ELevelTick Ti
 			{
 				if (bAnimate)
 				{
-					int32 FrameIndex = int32(Time * Framerate) % DefaultSVT->GetNumFrames();
-					int32 MipLevel = 0;
-					USparseVolumeTextureFrame* SVTFrame = USparseVolumeTextureFrame::GetFrame(DefaultSVT, FrameIndex);
+					const int32 FrameCount = DefaultSVT->GetNumFrames();
+					const float FrameIndexF = FMath::Fmod(Time * Framerate, (float)FrameCount);
+					const int32 MipLevel = 0;
+					USparseVolumeTextureFrame* SVTFrame = USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest(DefaultSVT, FrameIndexF, MipLevel);
 					MaterialInstanceDynamic->SetSparseVolumeTextureParameterValue(SVTParameterInfo[MaterialIndex].Name, SVTFrame);
 
 					VolumeResolution = SVTFrame ? SVTFrame->GetVolumeResolution() : FIntVector(1);
