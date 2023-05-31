@@ -12,6 +12,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SToolTip.h"
 #include "Styling/AppStyle.h"
+#include "Styling/StyleColors.h"
 #include "IPropertyTableCell.h"
 #include "Widgets/Layout/SBox.h"
 #include "IPropertyTableCellPresenter.h"
