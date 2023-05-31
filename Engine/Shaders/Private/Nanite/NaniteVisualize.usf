@@ -131,7 +131,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 	const uint VisualizeMode = GetVisualizeMode();
 
 	const uint2 PickingPos	= uint2(PickingPixelPos);
-	const uint2 PixelPos	= DTID.xy;
+	const uint2 PixelPos	= DTID.xy + uint2(View.ViewRectMin.xy);
 	const uint2 TilePos		= GID.xy; // 8x8 tile 2D coord
 
 	const UlongType VisPixel = VisBuffer64[PixelPos];

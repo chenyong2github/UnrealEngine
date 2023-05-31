@@ -33,7 +33,7 @@ RWTexture2D<uint4> MaterialZLayout;
 void DepthDecode(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 {
 	const uint2 PixelLocalPos = SwizzleThreadIndex(ThreadIndex & 63u);
-	const uint2 PixelPos = (GroupId << 3) | PixelLocalPos;
+	const uint2 PixelPos = ((GroupId << 3) | PixelLocalPos) + uint2(ViewRect.xy);
 
 	if (any(PixelPos.xy >= ViewRect.zw)) // TODO: Support offset views
 	{

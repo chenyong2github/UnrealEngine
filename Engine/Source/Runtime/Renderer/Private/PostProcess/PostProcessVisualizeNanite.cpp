@@ -45,7 +45,7 @@ void AddVisualizeNanitePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FS
 				Parameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 				Parameters->RenderTargets[0] = FRenderTargetBinding(Output.Texture, ERenderTargetLoadAction::ELoad);
 
-				const FScreenPassTextureViewport InputViewport(Visualization.ModeOutput->Desc.Extent);
+				const FScreenPassTextureViewport InputViewport(Visualization.ModeOutput->Desc.Extent, View.ViewRect);
 				const FScreenPassTextureViewport OutputViewport(Output);
 
 				TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
