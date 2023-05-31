@@ -344,26 +344,6 @@ static int FMemory_GCreateMalloc_ThreadUnsafe()
 	// Setup malloc crash as soon as possible.
 	FPlatformMallocCrash::Get( GMalloc );
 
-#if UE_TRACE_ENABLED && ENABLE_LOW_LEVEL_MEM_TRACKER
-	// Only hookup LLM support for UE::Trace if something hasn't already set it. This means that
-	// LLM support for UE::Trace is only possible if nothing else is using these hooks.
-	if (!UE::Trace::AreMemoryHooksSet())
-	{
-		auto TraceAlloc = [] (SIZE_T Size, uint32 Alignment) -> void*
-		{
-			FLLMScope LLMScope(ELLMTag::Trace, false, ELLMTagSet::None, ELLMTracker::Default);
-			return FMemory::Malloc(Size);
-		};
-
-		auto TraceFree = [] (void* Address, SIZE_T Size)
-		{
-			FMemory::Free(Address);
-		};
-
-		UE::Trace::SetMemoryHooks(TraceAlloc, TraceFree);
-	}
-#endif // UE_TRACE_ENABLED && ENABLE_LOW_LEVEL_MEM_TRACKER
-
 #if PLATFORM_USES_FIXED_GMalloc_CLASS
 #if MALLOC_VERIFY || MALLOC_LEAKDETECTION || UE_USE_MALLOC_FILL_BYTES
 #error "Turn off PLATFORM_USES_FIXED_GMalloc_CLASS in order to use special allocator proxies"
