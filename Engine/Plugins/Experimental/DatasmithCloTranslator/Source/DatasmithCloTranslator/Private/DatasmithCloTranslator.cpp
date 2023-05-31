@@ -159,17 +159,17 @@ bool FDatasmithCloTranslator::LoadCloth(const TSharedRef<IDatasmithClothElement>
 		Panel.SimRestPosition = MoveTemp(CloPanel.Positions3D);
 		Panel.SimTriangleIndices = MoveTemp(CloPanel.TriangleIndices);
 
-		// Invert winding order
-		for (int32 TriIndex = 0; TriIndex < Panel.SimTriangleIndices.Num() / 3; ++TriIndex)
+		// Apply import scale and reverse winding order/Y axis for Unreal's left hand coordinate system
+		for (FVector3f& SimRestPosition : Panel.SimRestPosition)
 		{
-			Swap(Panel.SimTriangleIndices[3 * TriIndex + 1], Panel.SimTriangleIndices[3 * TriIndex + 2]);
+			SimRestPosition = FVector3f(-SimRestPosition.Y, -SimRestPosition.X, SimRestPosition.Z) * ImportOptions.Scale;
 		}
 
 		if (ImportOptions.Scale != 1.0f)
 		{
-			for (auto& Vertex : Panel.SimRestPosition)
+			for (FVector2f& SimPosition : Panel.SimPosition)
 			{
-				Vertex *= ImportOptions.Scale;
+				SimPosition *= ImportOptions.Scale;
 			}
 		}
 
@@ -509,8 +509,8 @@ bool FDatasmithCloTranslator::ParseFromJson()
 
 			FCloSewingInfo& SewInfo = CloCloth.SewingInfos.AddDefaulted_GetRef();
 			SewInfo.Index = SewingInfoJsonObject->GetIntegerField(TEXT("index"));
-			SewInfo.Seam0PanelIndex = SewingInfoJsonObject->GetIntegerField(TEXT("seam0PanelIndex"));
-			SewInfo.Seam1PanelIndex = SewingInfoJsonObject->GetIntegerField(TEXT("seam1PanelIndex"));
+			SewInfo.Seam0PanelIndex = SewingInfoJsonObject->GetIntegerField(TEXT("seam0PatternIndex"));
+			SewInfo.Seam1PanelIndex = SewingInfoJsonObject->GetIntegerField(TEXT("seam1PatternIndex"));
 			AppendIntList(SewingInfoJsonObject->GetArrayField(TEXT("seam0MeshIndexList")), SewInfo.Seam0MeshIndices);
 			AppendIntList(SewingInfoJsonObject->GetArrayField(TEXT("seam1MeshIndexList")), SewInfo.Seam1MeshIndices);
 		}
