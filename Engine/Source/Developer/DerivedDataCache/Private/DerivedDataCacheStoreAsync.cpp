@@ -25,7 +25,7 @@ namespace UE::DerivedData
 class FCacheStoreAsync : public ILegacyCacheStore
 {
 public:
-	FCacheStoreAsync(ILegacyCacheStore* InnerCache, ECacheStoreFlags InnerFlags, IMemoryCacheStore* MemoryCache);
+	FCacheStoreAsync(ILegacyCacheStore* InnerCache, IMemoryCacheStore* MemoryCache);
 
 	virtual void Put(
 		TConstArrayView<FCachePutRequest> Requests,
@@ -114,27 +114,18 @@ private:
 	ILegacyCacheStore* InnerCache;
 	IMemoryCacheStore* MemoryCache;
 	FDerivedDataCacheUsageStats UsageStats;
-	ECacheStoreFlags InnerFlags;
 };
 
-FCacheStoreAsync::FCacheStoreAsync(ILegacyCacheStore* InInnerCache, ECacheStoreFlags InInnerFlags, IMemoryCacheStore* InMemoryCache)
+FCacheStoreAsync::FCacheStoreAsync(ILegacyCacheStore* InInnerCache, IMemoryCacheStore* InMemoryCache)
 	: InnerCache(InInnerCache)
 	, MemoryCache(InMemoryCache)
-	, InnerFlags(InInnerFlags)
 {
 	check(InnerCache);
 }
 
 void FCacheStoreAsync::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
-	OutNode = {TEXT("Async"), TEXT(""), EnumHasAnyFlags(InnerFlags, ECacheStoreFlags::Local)};
-	OutNode.UsageStats.Add(TEXT(""), UsageStats);
-
-	InnerCache->LegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get());
-	if (MemoryCache)
-	{
-		MemoryCache->LegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get());
-	}
+	InnerCache->LegacyStats(OutNode);
 }
 
 template <typename RequestType, typename OnCompleteType, typename OnExecuteType>
@@ -183,9 +174,9 @@ void FCacheStoreAsync::Execute(
 		});
 }
 
-ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, ECacheStoreFlags InnerFlags, IMemoryCacheStore* MemoryCache)
+ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, IMemoryCacheStore* MemoryCache)
 {
-	return new FCacheStoreAsync(InnerCache, InnerFlags, MemoryCache);
+	return new FCacheStoreAsync(InnerCache, MemoryCache);
 }
 
 } // UE::DerivedData

@@ -64,9 +64,6 @@ enum class EBackendSpeedClass
 /** Debug options that can be applied to backends to simulate different behavior */
 struct FBackendDebugOptions
 {
-	/** Apply behavior of this speed class */
-	EBackendSpeedClass	SpeedClass;
-
 	/** Filter to control the keys for which to simulate a miss. */
 	FCacheKeyFilter SimulateMissFilter;
 
