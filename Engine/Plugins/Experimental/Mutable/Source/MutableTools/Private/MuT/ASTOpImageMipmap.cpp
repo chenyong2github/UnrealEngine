@@ -113,6 +113,27 @@ namespace mu
 	}
 
 
+	mu::Ptr<ASTOp> ASTOpImageMipmap::OptimiseSemantic(const FModelOptimizationOptions& options, int32 Pass) const
+	{
+		mu::Ptr<ASTOp> at;
+
+		// \TODO: This seems to fail with the bandit test model.
+		//if (Source.child())
+		//{
+		//	ASTOp::FGetImageDescContext context;
+		//	FImageDesc ChildDesc = Source.child()->GetImageDesc(false, &context);
+
+		//	if (ChildDesc.m_lods>0 && ChildDesc.m_lods>=Levels)
+		//	{
+		//		// We can skip the mipmaps, because the child will always contain all lods anyway.
+		//		at = Source.child();
+		//	}
+		//}
+
+		return at;
+	}
+
+
 	mu::Ptr<ASTOp> ASTOpImageMipmap::OptimiseSink(const FModelOptimizationOptions& options, FOptimizeSinkContext& context) const
 	{
 		mu::Ptr<ASTOp> at;
@@ -425,7 +446,11 @@ namespace mu
 					newOp->patch = Visit(newOp->patch.child(), newMip.get());
 					newAt = newOp;
 
-					if (currentMipmapOp->Levels != currentMipmapOp->BlockLevels)
+					if (currentMipmapOp->Levels != currentMipmapOp->BlockLevels						
+						// If the current levels are all of them, we will want to rebuild the mips after patch.
+						// This happens if ignoring layouts, in which case there is no top-most mipmap to ensure the tail already.
+						|| currentMipmapOp->BlockLevels == 0 
+						)
 					{
 						// We need to add a mipmap on top to finish the mipmapping
 						mu::Ptr<ASTOpImageMipmap> topMipOp = mu::Clone<ASTOpImageMipmap>(currentMipmapOp);

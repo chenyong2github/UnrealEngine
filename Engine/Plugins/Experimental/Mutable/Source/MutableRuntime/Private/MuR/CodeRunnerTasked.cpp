@@ -1401,6 +1401,12 @@ namespace mu
 		// At least keep the levels we already have.
 		int StartLevel = Base->GetLODCount();
 		LevelCount = FMath::Max(StartLevel, LevelCount);
+		
+		if (LevelCount == Base->GetLODCount())
+		{
+			Runner->StoreImage(Op, Base);
+			return false;
+		}
 
 		// Create destination data
 		Result = Runner->CreateImage(Base->GetSizeX(), Base->GetSizeY(), LevelCount, Base->GetFormat(), EInitializationType::NotInitialized);
@@ -1430,8 +1436,6 @@ namespace mu
 
 		// This runs in the Runner thread
 		Runner->Release(Base);
-
-		check(Result);
 
 		// If no shortcut was taken
 		if (Result)

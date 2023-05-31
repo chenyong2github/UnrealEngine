@@ -182,6 +182,29 @@ namespace impl
 
 				check(Image);
 
+				int32 FullMipCount = Image->GetMipmapCount(Image->GetSizeX(), Image->GetSizeY());
+				int32 RealMipCount = Image->GetLODCount();
+
+				bool bForceMipchain =
+					// Did we fail to generate the entire mipchain (if we have mips at all)?
+					(RealMipCount != 1) && (RealMipCount != FullMipCount);
+
+				if (bForceMipchain)
+				{
+					MUTABLE_CPUPROFILER_SCOPE(GetImage_MipFix);
+
+					UE_LOG(LogMutable, Warning, TEXT("Mutable generated an incomplete mip chain for image."));
+
+					// Force the right number of mips. The missing data will be black.
+					mu::Ptr<mu::Image> NewImage = new mu::Image(Image->GetSizeX(), Image->GetSizeY(), FullMipCount, Image->GetFormat());
+					check(NewImage);
+					if (NewImage->GetDataSize() >= Image->GetDataSize())
+					{
+						FMemory::Memcpy(NewImage->GetData(), Image->GetData(), Image->GetDataSize());
+					}
+					Image = NewImage;
+				}
+
 				OperationData->Result = Image;
 			}
 
@@ -344,17 +367,29 @@ bool FMutableTextureMipDataProvider::PollMips(const FTextureUpdateSyncOptions& S
 		// The counter must be zero meaning the Mutable image operation has finished
 		check(SyncOptions.Counter->GetValue() == 0);
 
-		mu::ImagePtrConst Mip = OperationData->Result;
+		mu::Ptr<const mu::Image> Mip = OperationData->Result;
 		int32 MipIndex = 0;
 		check(Mip->GetSizeX() == OperationData->Levels[0].SizeX);
 		check(Mip->GetSizeY() == OperationData->Levels[0].SizeY);
 
 		for (FMutableMipUpdateLevel& Level : OperationData->Levels)
 		{
-			// Check Mip DataSize for consistency, but skip if 0 because it's optional and might be zero in cooked mips
-			check(Level.DataSize == 0 || Mip->GetLODDataSize(MipIndex) == Level.DataSize);
 			void* Dest = Level.Dest;
-			FMemory::Memcpy(Dest, Mip->GetMipData(MipIndex), Mip->GetLODDataSize(MipIndex));
+
+			if (MipIndex >= Mip->GetLODCount())
+			{
+				// Mutable didn't generate all the expected mips
+				UE_LOG(LogMutable, Warning, TEXT("Mutable image is missing mips."));
+				FMemory::Memzero(Dest, Level.DataSize);
+			}
+			else
+			{
+				int32 MipDataSize = Mip->GetLODDataSize(MipIndex);
+
+				// Check Mip DataSize for consistency, but skip if 0 because it's optional and might be zero in cooked mips
+				check(Level.DataSize == 0 || MipDataSize == Level.DataSize);
+				FMemory::Memcpy(Dest, Mip->GetMipData(MipIndex), Level.DataSize);
+			}
 			++MipIndex;
 		}
 	}

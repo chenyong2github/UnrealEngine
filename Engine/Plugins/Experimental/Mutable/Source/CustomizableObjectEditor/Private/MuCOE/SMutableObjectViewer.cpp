@@ -215,7 +215,9 @@ void SMutableObjectViewer::Construct(const FArguments& InArgs, UCustomizableObje
 void SMutableObjectViewer::GenerateMutableGraphPressed()
 {
 	// Convert from Unreal graph to Mutable graph.
-	mu::NodePtr RootNode = Compiler.Export(CustomizableObject, CompileOptions);
+	bool bDisableLayouts = false;
+
+	mu::NodePtr RootNode = Compiler.Export(CustomizableObject, CompileOptions, bDisableLayouts);
 	if (!RootNode)
 	{
 		// TODO: Show errors
@@ -239,6 +241,8 @@ void SMutableObjectViewer::GenerateMutableGraphPressed()
 
 void SMutableObjectViewer::CompileMutableCodePressed()
 {
+	bool bDisableLayouts = false;
+
 	if (CompileOptions.bForceLargeLODBias)
 	{
 		// Debug compile with many different biasses
@@ -247,7 +251,7 @@ void SMutableObjectViewer::CompileMutableCodePressed()
 		{
 			CompileOptions.DebugBias = Bias;
 				
-			mu::NodePtr RootNode = Compiler.Export(CustomizableObject, CompileOptions);
+			mu::NodePtr RootNode = Compiler.Export(CustomizableObject, CompileOptions, bDisableLayouts);
 			if (!RootNode)
 			{
 				// TODO: Show errors
@@ -255,7 +259,7 @@ void SMutableObjectViewer::CompileMutableCodePressed()
 			}
 
 			// Do the compilation to Mutable Code synchronously.
-			TSharedPtr<FCustomizableObjectCompileRunnable> CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(RootNode, false));
+			TSharedPtr<FCustomizableObjectCompileRunnable> CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(RootNode, bDisableLayouts));
 			CompileTask->Options = CompileOptions;
 			CompileTask->Init();
 			CompileTask->Run();
@@ -264,7 +268,7 @@ void SMutableObjectViewer::CompileMutableCodePressed()
 	}
 
 	// Convert from Unreal graph to Mutable graph.
-	mu::NodePtr RootNode = Compiler.Export(CustomizableObject, CompileOptions);
+	mu::NodePtr RootNode = Compiler.Export(CustomizableObject, CompileOptions, bDisableLayouts);
 	if (!RootNode)
 	{
 		// TODO: Show errors
@@ -272,7 +276,7 @@ void SMutableObjectViewer::CompileMutableCodePressed()
 	}
 
 	// Do the compilation to Mutable Code synchronously.
-	TSharedPtr<FCustomizableObjectCompileRunnable> CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(RootNode, false));
+	TSharedPtr<FCustomizableObjectCompileRunnable> CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(RootNode, bDisableLayouts));
 	CompileTask->Options = CompileOptions;
 	CompileTask->Init();
 	CompileTask->Run();

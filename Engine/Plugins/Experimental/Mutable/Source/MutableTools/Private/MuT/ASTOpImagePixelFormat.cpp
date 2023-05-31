@@ -405,7 +405,7 @@ namespace mu
 				if (acceptable)
 				{
 					// We move the format down the two paths
-					auto newOp = mu::Clone<ASTOpImageCompose>(at);
+					Ptr<ASTOpImageCompose> newOp = mu::Clone<ASTOpImageCompose>(at);
 
 					// TODO: We have to make sure we don't end up with two different formats if
 					// there is an formatIfAlpha
@@ -428,7 +428,7 @@ namespace mu
 			if (isBlockFormat)
 			{
 				// We move the format down the two paths
-				auto newOp = mu::Clone<ASTOpImagePatch>(at);
+				Ptr<ASTOpImagePatch> newOp = mu::Clone<ASTOpImagePatch>(at);
 
 				newOp->base = Visit(newOp->base.child(), currentFormatOp);
 				newOp->patch = Visit(newOp->patch.child(), currentFormatOp);
@@ -441,7 +441,7 @@ namespace mu
 
 		case OP_TYPE::IM_MIPMAP:
 		{
-			auto typedSource = dynamic_cast<const ASTOpImageMipmap*>(at.get());
+			const ASTOpImageMipmap* typedSource = dynamic_cast<const ASTOpImageMipmap*>(at.get());
 
 			// If its a compressed format, only sink formats on mipmap operations that
 			// generate the tail. To avoid optimization loop.

@@ -1090,7 +1090,7 @@ namespace mu
 
 				if (acceptable)
 				{
-					auto newOp = mu::Clone<ASTOpImageCompose>(at);
+					Ptr<ASTOpImageCompose> newOp = mu::Clone<ASTOpImageCompose>(at);
 
 					Ptr<ASTOp> baseOp = newOp->Base.child();
 					newOp->Base = Visit(baseOp, currentSinkingOp);
@@ -1106,7 +1106,7 @@ namespace mu
 
 			case OP_TYPE::IM_PATCH:
 			{
-				auto newOp = mu::Clone<ASTOpImagePatch>(at);
+				Ptr<ASTOpImagePatch> newOp = mu::Clone<ASTOpImagePatch>(at);
 
 				newOp->base = Visit(newOp->base.child(), currentSinkingOp);
 				newOp->patch = Visit(newOp->patch.child(), currentSinkingOp);
@@ -1122,7 +1122,7 @@ namespace mu
 
 			case OP_TYPE::IM_MIPMAP:
 			{
-				auto newOp = mu::Clone<ASTOpImageMipmap>(at.get());
+				Ptr<ASTOpImageMipmap> newOp = mu::Clone<ASTOpImageMipmap>(at.get());
 				Ptr<ASTOp> baseOp = newOp->Source.child();
 				newOp->Source = Visit(baseOp, currentSinkingOp);
 				newAt = newOp;

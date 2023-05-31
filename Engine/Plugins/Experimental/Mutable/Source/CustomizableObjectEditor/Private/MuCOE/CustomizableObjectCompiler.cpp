@@ -1350,7 +1350,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 }
 
 
-mu::NodePtr FCustomizableObjectCompiler::Export(UCustomizableObject* Object, const FCompilationOptions& InCompilerOptions)
+mu::NodePtr FCustomizableObjectCompiler::Export(UCustomizableObject* Object, const FCompilationOptions& InCompilerOptions, bool& bOutDisableLayouts)
 {
 	UE_LOG(LogMutable, Log, TEXT("Started Customizable Object Export %s."), *Object->GetName());
 
@@ -1392,6 +1392,8 @@ mu::NodePtr FCustomizableObjectCompiler::Export(UCustomizableObject* Object, con
 		PendingTexturesToLoad = true;
 		UpdatePendingTextureConversion(false);
 	}
+
+	bOutDisableLayouts = GenerationContext.bDisableTextureLayoutManagementFlag;
 
 	return MutableRoot;
 }
