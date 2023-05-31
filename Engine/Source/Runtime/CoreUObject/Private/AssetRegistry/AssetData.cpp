@@ -802,6 +802,12 @@ void FAssetData::SerializeForCacheOldVersionWithTagsAndBundles(FArchive& Ar, FAs
 	SerializeForCacheInternal(Ar, Version, SerializeTagsAndBundles);
 }
 
+bool FAssetData::IsRedirectorClassName(FTopLevelAssetPath ClassPathName)
+{
+	static const FTopLevelAssetPath ObjectRedirectorClassPathName = UObjectRedirector::StaticClass()->GetClassPathName();
+	return ClassPathName == ObjectRedirectorClassPathName;
+}
+
 FTopLevelAssetPath FAssetData::TryConvertShortClassNameToPathName(FName InClassName, ELogVerbosity::Type FailureMessageVerbosity /*= ELogVerbosity::Warning*/)
 {
 	FTopLevelAssetPath ClassPath;

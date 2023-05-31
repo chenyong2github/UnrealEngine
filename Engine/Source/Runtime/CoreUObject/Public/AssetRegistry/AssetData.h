@@ -726,13 +726,9 @@ private:
 		return PackageBaseName.Equals(ObjectPathName, ESearchCase::IgnoreCase);
 	}
 
-	static bool IsRedirectorClassName(FTopLevelAssetPath ClassPathName)
-	{
-		static const FTopLevelAssetPath ObjectRedirectorClassPathName = UObjectRedirector::StaticClass()->GetClassPathName();
-		return ClassPathName == ObjectRedirectorClassPathName;
-	}
-
 public:
+	COREUOBJECT_API static bool IsRedirectorClassName(FTopLevelAssetPath ClassPathName);
+
 	/** Helper function that tries to convert short class name to path name */
 	COREUOBJECT_API static FTopLevelAssetPath TryConvertShortClassNameToPathName(FName InClassName, ELogVerbosity::Type FailureMessageVerbosity = ELogVerbosity::Warning);
 

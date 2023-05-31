@@ -282,6 +282,8 @@ private:
 	 * If TickStartTime is < 0, the entire list of gathered assets will be cached. Also used in sychronous searches
 	 */
 	void AssetSearchDataGathered(Impl::FEventContext& EventContext, const double TickStartTime, TMultiMap<FName, FAssetData*>& AssetResults);
+	/** Validate assets gathered from disk before adding them to the AssetRegistry. */
+	bool ShouldSkipGatheredAsset(FAssetData& AssetData);
 
 	/**
 	 * Called every tick when data is retrieved by the background path search.
