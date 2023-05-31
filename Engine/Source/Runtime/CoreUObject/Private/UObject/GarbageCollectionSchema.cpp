@@ -276,7 +276,7 @@ FSchemaBuilder::FSchemaBuilder(uint32 InStride, std::initializer_list<FMemberDec
 	: Members(InMembers)
 	, StructStride(InStride) 
 {
-	check((StructStride % 8) == 0);
+	checkf(StructStride % 8 == 0, TEXT("Structs containing TObjectPtr/UObject* references must be 8-byte aligned"));
 
 	for (FMemberDeclaration& Member : Members)
 	{
@@ -286,6 +286,10 @@ FSchemaBuilder::FSchemaBuilder(uint32 InStride, std::initializer_list<FMemberDec
 
 FSchemaBuilder::~FSchemaBuilder()
 {
+	check(StructStride % 8 == 0); // Builder memory stomp
+	check(!BuiltSchema || BuiltSchema->Get().IsEmpty() || FSchemaView(BuiltSchema->Get()).GetHeader().RefCount.load() > 0); // Schema ref-count bug or header memory stomp
+	check(!BuiltSchema || BuiltSchema->Get().IsEmpty() || FSchemaView(BuiltSchema->Get()).GetHeader().StructStride == StructStride); // Header memory stomp
+
 	for (FMemberDeclaration& Member : Members)
 	{
 		TryDropSchemaReference(Member);
@@ -479,6 +483,7 @@ static FMemberDeclaration GenerateTerminator(ObjectAROFn ARO)
 
 FSchemaView FSchemaBuilder::Build(ObjectAROFn ARO)
 {
+	check(StructStride % 8 == 0); // Memory stomp or use-after-free
 	if (BuiltSchema.IsSet())
 	{
 		return BuiltSchema.GetValue().Get();
@@ -494,7 +499,7 @@ FSchemaView FSchemaBuilder::Build(ObjectAROFn ARO)
 
 	// Pack into words and generate jump instructions
 	FSchemaPacker Packed(Members);
-	check(Packed.DebugNames.IsEmpty() == !UE_GC_DEBUGNAMES) ;
+	check(Packed.DebugNames.IsEmpty() == !UE_GC_DEBUGNAMES);
 
 	// Allocate and initialize schema data
 	const SIZE_T Bytes = Align(sizeof(FSchemaHeader), sizeof(FMemberWord)) + sizeof(FMemberWord) * Packed.Words.Num() + sizeof(FName) * Packed.DebugNames.Num();

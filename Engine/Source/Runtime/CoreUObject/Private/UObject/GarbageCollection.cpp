@@ -1745,8 +1745,16 @@ struct FStructArrayWithoutStride
 	int32 Num;
 };
 
+FORCEINLINE_DEBUGGABLE void CheckValid(FSchemaView Schema)
+{
+	check(!Schema.IsEmpty());
+	check(Schema.GetHeader().RefCount.load(std::memory_order_relaxed) > 0); // Memory stomp or using destroyed schema
+	check(Schema.GetHeader().StructStride % 8 == 0); // Memory stomp or using destroyed schema
+}
+
 static FStructArray CopyAndLoadStride(FStructArrayWithoutStride In)
 {
+	CheckValid(In.Schema);
 	return {In.Schema, In.Data, In.Num, In.Schema.GetStructStride() };
 }
 
@@ -1762,7 +1770,7 @@ public:
 
 	FORCEINLINE_DEBUGGABLE void PushSparseStructArray(FSchemaView Schema, FScriptSparseArray& Array)
 	{
-		check(!Schema.IsEmpty());
+		CheckValid(Schema);
 
 		UnvalidatedSparseStructArrays.Push({ Schema, &Array, Array.Num(), Schema.GetStructStride() });
 		if (UnvalidatedSparseStructArrays.IsFull())
@@ -1773,7 +1781,7 @@ public:
 	
 	FORCEINLINE_DEBUGGABLE void PushStructArray(FSchemaView Schema, uint8* Data, int32 Num)
 	{
-		check(!Schema.IsEmpty());
+		CheckValid(Schema);
 
 		UnvalidatedStructArrays.Push({Schema, Data, Num});
 		if (UnvalidatedStructArrays.IsFull())
@@ -3367,7 +3375,8 @@ void TFastReferenceCollector<ProcessorType, CollectorType>::ProcessStructs(Dispa
 
 				const FStructArray AoS = *ArrayIt;
 				check(AoS.Num > 0);
-				check(AoS.Stride % 8 == 0);
+				CheckValid(AoS.Schema);
+				check(AoS.Stride == AoS.Schema.GetStructStride());
 				uint8* StructIt = AoS.Data;
 				uint8* StructEnd = AoS.Data + AoS.Num * AoS.Stride;
 				do
