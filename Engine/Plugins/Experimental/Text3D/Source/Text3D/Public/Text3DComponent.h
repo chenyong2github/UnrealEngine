@@ -10,6 +10,9 @@
 
 #include "Text3DComponent.generated.h"
 
+class FTextLayout;
+class ITextLayoutMarshaller;
+
 UENUM()
 enum class EText3DVerticalTextAlignment : uint8
 {
@@ -55,6 +58,10 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 #endif
+
+	/** Whether to allow automatic refresh/mesh generation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetRefreshOnChange, Category = "Text3D", AdvancedDisplay)
+	bool bRefreshOnChange = true;
 
 	/** The text to generate a 3d mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetText, Category = "Text3D", meta = (MultiLine = true))
@@ -160,6 +167,10 @@ public:
 	 */
 	DECLARE_MULTICAST_DELEGATE(FTextGeneratedNative);
 	FTextGeneratedNative& OnTextGenerated() { return TextGeneratedNativeDelegate; }
+
+	/** Set whether to allow automatic refresh/mesh generation */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	void SetRefreshOnChange(const bool& Value);
 
 	/** Set the text value and signal the primitives to be rebuilt */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
@@ -275,7 +286,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	UStaticMeshComponent* GetGlyphMeshComponent(int32 Index);
 
-	/** Gets all the glyph meshes*/
+	/** Gets all the glyph meshes */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	const TArray<UStaticMeshComponent*>& GetGlyphMeshComponents();
 	
@@ -283,9 +294,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	FVector GetTextScale();
 
+	/** Manually update the geometry, ignoring RefreshOnChange (but still accounting for the Freeze flag) */
+	void Rebuild();
+
 protected:
 	virtual void OnVisibilityChanged() override;
 	virtual void OnHiddenInGameChanged() override;
+
+	void ClearTextMesh();
 
 private:
 	UPROPERTY()
@@ -307,6 +323,9 @@ private:
 	TSharedPtr<struct FText3DShapedText> ShapedText;
 	TArray<TSharedPtr<int32>> CachedCounterReferences;
 
+	TSharedPtr<FTextLayout> TextLayout;
+	TSharedPtr<ITextLayoutMarshaller> TextLayoutMarshaller;
+
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<USceneComponent>> CharacterKernings;
 
@@ -320,11 +339,9 @@ private:
 	void SetMaterial(const EText3DGroupType Type, class UMaterialInterface* Material);
 
 	void UpdateTransforms();
-	void Rebuild(const bool bCleanCache = false);
-	void Update();
-	void ClearTextMesh();
-	void BuildTextMesh(const bool bCleanCache = false);
-	void BuildTextMeshInternal(const bool bCleanCache);
+	void RebuildInternal(const bool& bIsAutoUpdate = true, const bool& bCleanCache = false);
+	void BuildTextMesh(const bool& bCleanCache = false);
+	void BuildTextMeshInternal(const bool& bCleanCache);
 	void CheckBevel();
 	float MaxBevel() const;
 

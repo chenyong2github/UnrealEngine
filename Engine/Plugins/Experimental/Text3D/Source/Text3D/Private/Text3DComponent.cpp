@@ -2,20 +2,23 @@
 
 #include "Text3DComponent.h"
 
-#include "Glyph.h"
-#include "MeshCreator.h"
-#include "Text3DEngineSubsystem.h"
-#include "Text3DPrivate.h"
-#include "TextShaper.h"
 #include "Algo/Count.h"
 #include "Async/Async.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "Engine/StaticMesh.h"
+#include "Fonts/SlateTextShaper.h"
+#include "Framework/Text/PlainTextLayoutMarshaller.h"
+#include "Glyph.h"
 #include "Materials/Material.h"
+#include "MeshCreator.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/TransactionObjectEvent.h"
+#include "Styling/StyleDefaults.h"
+#include "Text3DEngineSubsystem.h"
+#include "Text3DPrivate.h"
+#include "TextShaper.h"
 #include "UObject/ConstructorHelpers.h"
 
 #define LOCTEXT_NAMESPACE "Text3D"
@@ -141,7 +144,7 @@ void UText3DComponent::OnRegister()
 		TextRoot->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
 	}
 
-	Update();
+	RebuildInternal();
 }
 
 void UText3DComponent::OnUnregister()
@@ -218,7 +221,7 @@ void UText3DComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 		MarkForLayoutUpdate();
 	}
 
-	Update();
+	RebuildInternal();
 }
 
 void UText3DComponent::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
@@ -228,10 +231,18 @@ void UText3DComponent::PostTransacted(const FTransactionObjectEvent& Transaction
 	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
 	{
 		ModifyFlags |= EText3DModifyFlags::All;
-		Update();
+		RebuildInternal();
 	}
 }
 #endif
+
+void UText3DComponent::SetRefreshOnChange(const bool& Value)
+{
+	if (bRefreshOnChange != Value)
+	{
+		bRefreshOnChange = Value;
+	}
+}
 
 void UText3DComponent::SetText(const FText& Value)
 {
@@ -239,7 +250,7 @@ void UText3DComponent::SetText(const FText& Value)
 	{
 		Text = Value;
 		MarkForGeometryUpdate();
-		Update();
+		RebuildInternal();
 	}
 }
 
@@ -249,7 +260,7 @@ void UText3DComponent::SetFont(UFont* const InFont)
 	{
 		Font = InFont;
 		MarkForGeometryUpdate();
-		Update();
+		RebuildInternal();
 	}
 }
 
@@ -258,8 +269,8 @@ void UText3DComponent::SetOutline(const bool bValue)
 	if (bOutline != bValue)
 	{
 		bOutline = bValue;
-		MarkForGeometryUpdate();
-		Update();
+		MarkForGeometryUpdate();	
+		RebuildInternal();
 	}
 }
 
@@ -270,7 +281,7 @@ void UText3DComponent::SetOutlineExpand(const float Value)
 	{
 		OutlineExpand = NewValue;
 		MarkForGeometryUpdate();
-		Update();
+		RebuildInternal();
 	}
 }
 
@@ -282,7 +293,7 @@ void UText3DComponent::SetExtrude(const float Value)
 		Extrude = NewValue;
 		MarkForGeometryUpdate();
 		CheckBevel();
-		Update();
+		RebuildInternal();
 	}
 }
 
@@ -294,7 +305,7 @@ void UText3DComponent::SetBevel(const float Value)
 	{
 		Bevel = NewValue;
 		MarkForGeometryUpdate();
-		Update();
+		RebuildInternal();
 	}
 }
 
@@ -304,7 +315,7 @@ void UText3DComponent::SetBevelType(const EText3DBevelType Value)
 	{
 		BevelType = Value;
 		MarkForGeometryUpdate();
-		Update();
+		RebuildInternal();
 	}
 }
 
@@ -321,7 +332,7 @@ void UText3DComponent::SetBevelSegments(const int32 Value)
 	{
 		BevelSegments = NewValue;
 		MarkForGeometryUpdate();
-		Update();
+		RebuildInternal();
 	}
 }
 
@@ -586,7 +597,7 @@ void UText3DComponent::SetFreeze(const bool bFreeze)
 	}
 	else if (EnumHasAnyFlags(ModifyFlags,EText3DModifyFlags::Unfreeze))
 	{
-		Rebuild();
+		RebuildInternal();
 	}
 }
 
@@ -640,19 +651,23 @@ const TArray<UStaticMeshComponent*>& UText3DComponent::GetGlyphMeshComponents()
 	return CharacterMeshes;
 }
 
-void UText3DComponent::Rebuild(const bool bCleanCache)
+void UText3DComponent::Rebuild()
 {
-	if (!bFreezeBuild)
-	{
-		BuildTextMesh(bCleanCache);
-	}
+	// Rebuild, ignoring RefreshOnChange
+	RebuildInternal(false);
 }
 
-void UText3DComponent::Update()
+void UText3DComponent::RebuildInternal(const bool& bIsAutoUpdate, const bool& bCleanCache)
 {
-	if (NeedsMeshRebuild())
+	// If this is an auto update, but the flag is off, ignore this rebuild request
+	if (bIsAutoUpdate && bRefreshOnChange == false)
 	{
-		Rebuild();
+		return;
+	}
+
+	if (NeedsMeshRebuild() && !bFreezeBuild)
+	{
+		BuildTextMesh(bCleanCache);
 	}
 	else if (NeedsLayoutUpdate())
 	{
@@ -776,7 +791,7 @@ void UText3DComponent::UpdateTransforms()
 		for (int32 LineGlyph = 0; LineGlyph < Line.GlyphsToRender.Num(); LineGlyph++)
 		{
 			const FVector CharLocation = Location;
-			Location.Y += Line.GetAdvanced(LineGlyph, Kerning, WordSpacing);
+			Location.Y += Line.GetAdvance(LineGlyph, Kerning, WordSpacing);
 			if (!Line.GlyphsToRender[LineGlyph].bIsVisible)
 			{
 				continue;
@@ -837,7 +852,7 @@ void UText3DComponent::ClearTextMesh()
 	}
 }
 
-void UText3DComponent::BuildTextMesh(const bool bCleanCache)
+void UText3DComponent::BuildTextMesh(const bool& bCleanCache)
 {
 	// If we're already building, or have a build pending, don't do anything.
 	if (bIsBuilding)
@@ -862,7 +877,7 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 	});
 }
 
-void UText3DComponent::BuildTextMeshInternal(const bool bCleanCache)
+void UText3DComponent::BuildTextMeshInternal(const bool& bCleanCache)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("UText3DComponent::Rebuild"));
 
@@ -897,7 +912,54 @@ void UText3DComponent::BuildTextMeshInternal(const bool bCleanCache)
 	ShapedText->LineHeight = Face->size->metrics.height * FontInverseScale;
 	ShapedText->FontAscender = Face->size->metrics.ascender * FontInverseScale;
 	ShapedText->FontDescender = Face->size->metrics.descender * FontInverseScale;
-	FTextShaper::Get()->ShapeBidirectionalText(Face, Text.ToString(), ShapedText->Lines);
+
+	constexpr int32 AdjustedFontSize = 48; // Magic number that makes font scale consistent with previous implementation
+	FSlateFontInfo FontInfo(Font, AdjustedFontSize);
+	FontInfo.CompositeFont = FStyleDefaults::GetFontInfo().CompositeFont;
+	
+	FTextBlockStyle Style;
+	Style.SetFont(FontInfo);
+
+	if (!TextLayout.IsValid())
+	{
+		TextLayout = MakeShared<FText3DLayout>(Style);
+	}
+
+	if (!TextLayoutMarshaller.IsValid())
+	{
+		TextLayoutMarshaller = FPlainTextLayoutMarshaller::Create();
+	}
+
+	FTextShaper::Get()->ShapeBidirectionalText(Style, Text.ToString(), TextLayout, TextLayoutMarshaller, ShapedText->Lines);
+
+	const int32 ApproximateGlyphNum = Algo::TransformAccumulate(ShapedText->Lines,
+		[](const FShapedGlyphLine& InLine)
+		{
+			return InLine.GlyphsToRender.Num();
+		},
+		0);
+
+	TMap<uint32, TSharedPtr<FFreeTypeFace>> GlyphIndexToFontFace;
+	GlyphIndexToFontFace.Reserve(ApproximateGlyphNum);
+
+	for (int32 LineIndex = 0; LineIndex < ShapedText->Lines.Num(); ++LineIndex)
+	{
+		for (const FShapedGlyphEntry& GlyphEntry : ShapedText->Lines[LineIndex].GlyphsToRender)
+		{
+			if (!GlyphEntry.FontFaceData.IsValid())
+			{
+				// Add as nullptr if not already in map
+				if (!GlyphIndexToFontFace.Contains(GlyphEntry.GlyphIndex))
+				{
+					GlyphIndexToFontFace.Add(GlyphEntry.GlyphIndex, nullptr);
+				}
+				
+				continue;
+			}
+			
+			GlyphIndexToFontFace.FindOrAdd(GlyphEntry.GlyphIndex, GlyphEntry.FontFaceData->FontFace.Pin());
+		}
+	}
 	
 	CalculateTextWidth();
 	CalculateTextScale();
@@ -922,7 +984,7 @@ void UText3DComponent::BuildTextMeshInternal(const bool bCleanCache)
 		for (int32 LineGlyph = 0; LineGlyph < ShapedLine.GlyphsToRender.Num(); LineGlyph++)
 		{
 			FVector GlyphLocation = Location;
-			Location.Y += ShapedLine.GetAdvanced(LineGlyph, Kerning, WordSpacing);
+			Location.Y += ShapedLine.GetAdvance(LineGlyph, Kerning, WordSpacing);
 
 			const FShapedGlyphEntry& ShapedGlyph = ShapedLine.GlyphsToRender[LineGlyph];
 			if (!ShapedGlyph.bIsVisible)
@@ -933,7 +995,8 @@ void UText3DComponent::BuildTextMeshInternal(const bool bCleanCache)
 			// Count even when mesh is nullptr (allocation still creates components to avoid mesh building in allocation step)
 			const int32 GlyphId = GlyphIndex++;
 
-			UStaticMesh* CachedMesh = CachedFontData.GetGlyphMesh(ShapedGlyph.GlyphIndex, FGlyphMeshParameters{Extrude, Bevel, BevelType, BevelSegments, bOutline, OutlineExpand});
+			TSharedPtr<FFreeTypeFace> FontFace = GlyphIndexToFontFace[ShapedGlyph.GlyphIndex];
+			UStaticMesh* CachedMesh = CachedFontData.GetGlyphMesh(ShapedGlyph.GlyphIndex, FGlyphMeshParameters{Extrude, Bevel, BevelType, BevelSegments, bOutline, OutlineExpand}, FontFace);
 			if (!CachedMesh || FMath::IsNearlyZero(CachedMesh->GetBounds().SphereRadius))
 			{
 				continue;

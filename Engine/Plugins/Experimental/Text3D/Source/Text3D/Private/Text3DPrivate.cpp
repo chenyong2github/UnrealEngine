@@ -18,15 +18,12 @@ FText3DModule::FText3DModule()
 void FText3DModule::StartupModule()
 {
 	FT_Init_FreeType(&FreeTypeLib);
-	FTextShaper::Initialize();
 }
 
 void FText3DModule::ShutdownModule()
 {
 	FT_Done_FreeType(FreeTypeLib);
 	FreeTypeLib = nullptr;
-
-	FTextShaper::Cleanup();
 }
 
 FT_Library FText3DModule::GetFreeTypeLibrary()

@@ -10,8 +10,8 @@
 #include "MeshCreator.h"
 #include "GlyphLoader.h"
 #include "ContourNode.h"
+#include "Fonts/FontCacheFreeType.h"
 #include "UObject/ConstructorHelpers.h"
-
 
 FCachedFontMeshes::FCachedFontMeshes()
 {
@@ -195,7 +195,7 @@ TSharedPtr<int32> FCachedFontData::GetMeshesCacheCounter(const FGlyphMeshParamet
 	return CachedMeshes.GetCacheCounter();
 }
 
-UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshParameters& Parameters)
+UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshParameters& Parameters, const TSharedPtr<FFreeTypeFace>& FontFaceData)
 {
 	const uint32 HashParameters = GetTypeHash(Parameters);
 	FCachedFontMeshes& CachedMeshes = Meshes.FindOrAdd(HashParameters);
@@ -211,7 +211,7 @@ UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshPa
 	HashGroup = HashCombine(HashGroup, GetTypeHash(GlyphIndex));
 	const FString StaticMeshName = FString::Printf(TEXT("Text3D_Char_%u_%u"), HashGroup, HashParameters);
 
-	const TSharedContourNode Root = GetGlyphContours(GlyphIndex);
+	const TSharedContourNode Root = GetGlyphContours(GlyphIndex, FontFaceData);
 	if (Root->Children.Num() == 0)
 	{
 		return nullptr;
@@ -241,16 +241,30 @@ const FString& FCachedFontData::GetFontName()
 	return FontName;
 }
 
-TSharedContourNode FCachedFontData::GetGlyphContours(uint32 GlyphIndex)
+TSharedContourNode FCachedFontData::GetGlyphContours(uint32 GlyphIndex, const TSharedPtr<FFreeTypeFace>& FontFaceData)
 {
-	check(FreeTypeFace);
+	const FT_Face& GlyphFreeTypeFace = FontFaceData.IsValid() && FontFaceData->IsFaceValid()
+		? FontFaceData->GetFace()
+		: FreeTypeFace;
+	check(GlyphFreeTypeFace);
 
-	if (FT_Load_Glyph(FreeTypeFace, GlyphIndex, FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP))
+	if (FT_Load_Glyph(GlyphFreeTypeFace, GlyphIndex, FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP))
 	{
 		return nullptr;
 	}
 
-	FGlyphLoader GlyphLoader(FreeTypeFace->glyph);
+#if UE_BUILD_DEBUG
+	// If true, the symbol itself was probably bitmap-only, and this will have placeholder contours
+	bool bIsLastResort = FontFaceData->GetFace()->family_name
+		? FString(FontFaceData->GetFace()->family_name) == TEXT("LastResort")
+		: false;
+	if (bIsLastResort)
+	{
+		UE_LOG(LogText3D, Warning, TEXT("The following glyph index is bitmap-only: %i"), GlyphIndex);
+	}
+#endif
+
+	FGlyphLoader GlyphLoader(GlyphFreeTypeFace->glyph);
 	TSharedContourNode Root = GlyphLoader.GetContourList();
 
 	return Root;

@@ -11,6 +11,8 @@
 
 #include "Text3DEngineSubsystem.generated.h"
 
+class FFreeTypeFace;
+
 USTRUCT()
 struct FGlyphMeshParameters
 {
@@ -87,8 +89,8 @@ public:
 	TSharedPtr<int32> GetCacheCounter();
 	TSharedPtr<int32> GetMeshesCacheCounter(const FGlyphMeshParameters& Parameters);
 
-	UStaticMesh* GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshParameters& Parameters);
-	TSharedContourNode GetGlyphContours(uint32 GlyphIndex);
+	UStaticMesh* GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshParameters& Parameters, const TSharedPtr<FFreeTypeFace>& FontFaceData = nullptr);
+	TSharedContourNode GetGlyphContours(uint32 GlyphIndex, const TSharedPtr<FFreeTypeFace>& FontFaceData = nullptr);
 
 	UPROPERTY()
 	TObjectPtr<class UFont> Font;
