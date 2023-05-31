@@ -398,6 +398,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 class FVulkanDynamicRHIModule : public IDynamicRHIModule
 {
 public:
+	// IModuleInterface
+	virtual void StartupModule() override;
+
 	// IDynamicRHIModule
 	virtual bool IsSupported() override;
 	virtual bool IsSupported(ERHIFeatureLevel::Type RequestedFeatureLevel) override;

@@ -325,6 +325,13 @@ static bool CheckVulkanProfile(ERHIFeatureLevel::Type FeatureLevel, bool bRaytra
 	return false;
 }
 
+void FVulkanDynamicRHIModule::StartupModule()
+{
+#if VULKAN_USE_LLM
+	LLM(VulkanLLM::Initialize());
+#endif
+}
+
 bool FVulkanDynamicRHIModule::IsSupported()
 {
 	if (FVulkanPlatform::IsSupported())
@@ -493,9 +500,7 @@ FVulkanDynamicRHI::FVulkanDynamicRHI()
 		GGPUCrashDebuggingEnabled = (GPUCrashDebuggingCVar && GPUCrashDebuggingCVar->GetInt() != 0) || FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging"));
 	}
 
-#if VULKAN_USE_LLM
-	LLM(VulkanLLM::Initialize());
-#endif
+
 
 	CreateInstance();
 	SelectDevice();
