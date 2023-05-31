@@ -122,10 +122,10 @@ void BinShadingQuad(uint2 Coord, uint ThreadIndex)
 	FShadingMask ShadingMaskBR = UnpackShadingMask(QuadShadingMask.w);
 
 	const bool4 ValidMask = bool4(
-		QuadTLCoord.x < ViewWidth,
-		QuadTLCoord.y < ViewHeight,
-		QuadTLCoord.x < ViewWidth  - 1u,
-		QuadTLCoord.y < ViewHeight - 1u
+		QuadTLCoord.x < ViewWidth + ViewRect.x,
+		QuadTLCoord.y < ViewHeight + ViewRect.y,
+		QuadTLCoord.x < ViewWidth + ViewRect.x - 1u,
+		QuadTLCoord.y < ViewHeight + ViewRect.y - 1u
 	);
 
 	bool4 ValidPixels = bool4(
