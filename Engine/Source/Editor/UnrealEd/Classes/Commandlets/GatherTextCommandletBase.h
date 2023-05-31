@@ -18,7 +18,7 @@ struct UNREALED_API FGatherTextDelegates
 };
 
 /** Performs fuzzy path matching against a set of include and exclude paths */
-class FFuzzyPathMatcher
+class UNREALED_API FFuzzyPathMatcher
 {
 public:
 	enum class EPathMatch
