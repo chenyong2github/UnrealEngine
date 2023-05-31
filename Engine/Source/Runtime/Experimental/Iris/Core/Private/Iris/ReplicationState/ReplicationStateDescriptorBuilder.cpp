@@ -823,6 +823,9 @@ bool FPropertyReplicationStateDescriptorBuilder::CalculateDefaultStateChecksum(c
 	InternalContext.PackageMap = GetOrCreateIrisObjectReferencePackageMap();
 	Context.SetInternalContext(&InternalContext);
 
+	// Tell serializers we are serializing default state. It allows serializers to opt out of being part of the checksum by simply not serializing any data.
+	Context.SetIsInitializingDefaultState(true);
+
 	// First try to serialize to small inline buffer
 	Writer.InitBytes((uint8*)TempBuffer.GetData(), SmallBufferSize);
 	FReplicationStateOperations::Serialize(Context, Descriptor->DefaultStateBuffer, Descriptor);

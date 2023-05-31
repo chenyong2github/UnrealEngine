@@ -116,16 +116,15 @@ void FTestNameNetSerializer::TestIsEqual()
 	for (int32 ValueIt = 0, ValueEndIt = TestNameCount; ValueIt != ValueEndIt; ++ValueIt)
 	{
 		CompareValues[1].Add(TestNames[(ValueIt + 1) % ValueEndIt]);
-		ExpectedResults[1].Add(TestNames[ValueIt].IsEqual(TestNames[(ValueIt + 1) % ValueEndIt], ENameCase::CaseSensitive, true));
+		ExpectedResults[1].Add(TestNames[ValueIt].IsEqual(TestNames[(ValueIt + 1) % ValueEndIt], ENameCase::IgnoreCase, true));
 	}
 
 	// Do two rounds of testing per config, one where we compare each value with itself and one where we compare against a value in range.
 	for (SIZE_T TestRoundIt : {0, 1})
 	{
 		// Do both quantized and regular compares
-		for (SIZE_T CompareIt : {0, 1})
+		for (bool bQuantizedCompare : {false, true})
 		{
-			bool bQuantizedCompare = CompareIt == 0;
 			const bool bSuccess = Super::TestIsEqual(TestNames, CompareValues[TestRoundIt].GetData(), ExpectedResults[TestRoundIt].GetData(), TestNameCount, SerializerConfig, bQuantizedCompare);
 			if (!bSuccess)
 			{
