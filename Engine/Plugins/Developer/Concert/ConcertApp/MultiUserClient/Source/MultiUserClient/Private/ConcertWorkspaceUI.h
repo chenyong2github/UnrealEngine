@@ -67,6 +67,9 @@ private:
 	friend class SConcertWorkspaceModifiedByOtherTooltip;
 	friend class SConcertWorkspaceSequencerToolbarExtension;
 
+	/** On end frame callback. */
+	void OnEndFrame();
+
 	/** Check out and optionally submit files to source control. */
 	bool SubmitChangelist(const FConcertPersistCommand& PersistCommand, FText& OperationMessage);
 
@@ -174,4 +177,7 @@ private:
 
 	/** Toolbar extender for sequencer toolbar */
 	TSharedPtr<FExtender> ToolbarExtender;
+
+	/** Set to track dirty packages per frame. */
+	TSet<FName> PerFramePackageDirtyList;
 };
