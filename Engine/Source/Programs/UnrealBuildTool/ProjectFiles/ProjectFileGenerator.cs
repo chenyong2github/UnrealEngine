@@ -684,8 +684,12 @@ namespace UnrealBuildTool
 			{
 				if (RulesAssemblies.TryGetValue(CurrentParent, out DirectoryReference? FSParentPathBase))
 				{
-					DirectoryReference ProjectFilesParentDirectory = DirectoryReference.Combine(FSParentPathBase, "Intermediate", "Build", "BuildRulesProjects", CurrentParent.GetSimpleAssemblyName()!);
-					ReferencedProjects.Add(FileReference.Combine(ProjectFilesParentDirectory, CurrentParent.GetSimpleAssemblyName() + ".csproj"));
+					string? assemblyName = CurrentParent.GetSimpleAssemblyName();
+					if (assemblyName != null)
+					{
+						DirectoryReference ProjectFilesParentDirectory = DirectoryReference.Combine(FSParentPathBase, "Intermediate", "Build", "BuildRulesProjects", assemblyName);
+						ReferencedProjects.Add(FileReference.Combine(ProjectFilesParentDirectory, CurrentParent.GetSimpleAssemblyName() + ".csproj"));
+					}
 				}
 				CurrentParent = CurrentParent.Parent;
 			}
@@ -1246,9 +1250,12 @@ namespace UnrealBuildTool
 
 					foreach (KeyValuePair<RulesAssembly, DirectoryReference> RulesAssemblyEntry in RulesAssemblies)
 					{
-						VCSharpProjectFile RulesProject = CreateRulesAssemblyProject(RulesAssemblies, RulesAssemblyEntry.Key, RulesAssemblyEntry.Value, Logger);
-						AddExistingProjectFile(RulesProject, bForceDevelopmentConfiguration: false);
-						RootFolder.AddSubFolder("Rules").ChildProjects.Add(RulesProject);
+						if (RulesAssemblyEntry.Key.GetSimpleAssemblyName() != null)
+						{
+							VCSharpProjectFile RulesProject = CreateRulesAssemblyProject(RulesAssemblies, RulesAssemblyEntry.Key, RulesAssemblyEntry.Value, Logger);
+							AddExistingProjectFile(RulesProject, bForceDevelopmentConfiguration: false);
+							RootFolder.AddSubFolder("Rules").ChildProjects.Add(RulesProject);
+						}
 					}
 				}
 
