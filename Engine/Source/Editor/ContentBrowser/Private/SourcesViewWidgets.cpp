@@ -10,6 +10,7 @@
 #include "ContentBrowserDataSource.h"
 #include "ContentBrowserItem.h"
 #include "ContentBrowserItemData.h"
+#include "ContentBrowserModule.h"
 #include "ContentBrowserPluginFilters.h"
 #include "ContentBrowserUtils.h"
 #include "DragAndDrop/AssetDragDropOp.h"
@@ -91,7 +92,6 @@ void SAssetTreeItem::Construct( const FArguments& InArgs )
 			]
 
 			+SHorizontalBox::Slot()
-			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
 				SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
@@ -104,6 +104,12 @@ void SAssetTreeItem::Construct( const FArguments& InArgs )
 					.IsSelected( InArgs._IsSelected )
 					.IsReadOnly( this, &SAssetTreeItem::IsReadOnly )
 			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			[
+				GenerateStateIcons()
+			]
 		]
 	];
 
@@ -111,6 +117,46 @@ void SAssetTreeItem::Construct( const FArguments& InArgs )
 	{
 		EnterEditingModeDelegateHandle = TreeItem.Pin()->OnRenameRequested().AddSP( InlineRenameWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode );
 	}
+}
+
+TSharedRef<SWidget> SAssetTreeItem::GenerateStateIcons()
+{
+	TSharedRef<SBox> ContainingBox = SNew(SBox);
+	TSharedPtr<SHorizontalBox> HorizonalBox;
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
+	if (const TSharedPtr<FTreeItem> TreeItemPinned = TreeItem.Pin())
+	{
+		const FContentBrowserItem& ContentBrowserItem = TreeItemPinned->GetItem();
+		for(const FPathViewStateIconGenerator& Generator: ContentBrowserModule.GetAllPathViewStateIconGenerators())
+		{
+			if (Generator.IsBound())
+			{
+				if (TSharedPtr<SWidget> IconWidget = Generator.Execute(ContentBrowserItem))
+				{
+					if (!HorizonalBox)
+					{
+						HorizonalBox = SNew(SHorizontalBox);
+					}
+					
+					HorizonalBox->AddSlot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(4, 0, 0, 0)
+					[
+						IconWidget.ToSharedRef()
+					];
+				}
+			}
+		}
+		// If we created any content, add it to the containg box
+		// and set padding
+		if (HorizonalBox)
+		{
+			ContainingBox->SetContent(HorizonalBox.ToSharedRef());
+			ContainingBox->SetPadding(FMargin(2, 0, 4, 0));
+		}
+	}
+	return ContainingBox;
 }
 
 SAssetTreeItem::~SAssetTreeItem()

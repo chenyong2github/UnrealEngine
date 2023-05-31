@@ -99,6 +99,9 @@ private:
 	/** Returns the image for the border around this item. Used for drag/drop operations */
 	const FSlateBrush* GetBorderImage() const;
 
+	/** Returns a widget that combines the results of calling all registered PathViewStateIconGenerators **/
+	TSharedRef<SWidget> GenerateStateIcons();
+	
 private:
 	enum class EFolderType : uint8
 	{

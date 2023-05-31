@@ -163,6 +163,7 @@ public:
 	virtual TArray<FContentBrowserMenuExtender>& GetAllCollectionViewContextMenuExtenders() {return CollectionViewContextMenuExtenders;}
 	virtual TArray<FContentBrowserMenuExtender_SelectedAssets>& GetAllAssetViewContextMenuExtenders() {return AssetViewContextMenuExtenders;}
 	virtual TArray<FContentBrowserMenuExtender>& GetAllAssetViewViewMenuExtenders() {return AssetViewViewMenuExtenders;}
+	virtual TArray<FPathViewStateIconGenerator>& GetAllPathViewStateIconGenerators() {return PathViewStateIconGenerators;}
 
 	/** Delegates to call to extend the command/keybinds for content browser */
 	virtual TArray<FContentBrowserCommandExtender>& GetAllContentBrowserCommandExtenders() { return ContentBrowserCommandExtenders; }
@@ -232,6 +233,7 @@ private:
 	TArray<FContentBrowserMenuExtender> CollectionViewContextMenuExtenders;
 	TArray<FContentBrowserMenuExtender_SelectedAssets> AssetViewContextMenuExtenders;
 	TArray<FContentBrowserMenuExtender> AssetViewViewMenuExtenders;
+	TArray<FPathViewStateIconGenerator> PathViewStateIconGenerators;
 	TArray<FContentBrowserCommandExtender> ContentBrowserCommandExtenders;
 
 	/** All delegates generating extra state indicators */
