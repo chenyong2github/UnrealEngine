@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"Version": 8,
 	"VersionName": "0.1",
-	"FriendlyName": "Procedural Content Generation Framework",
+	"FriendlyName": "Procedural Content Generation Framework (PCG)",
 	"Description": "Visual scripting framework for procedurally populating worlds with content in editor and/or at run-time.",
 	"Category": "Editor",
 	"CreatedBy": "Epic Games, Inc.",
