@@ -12,6 +12,15 @@
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 #include "/Engine/Shared/RayTracingBuiltInResources.h"
 
+#if NANITE_RAY_TRACING
+	#define NANITE_USE_RAYTRACING_UNIFORM_BUFFER 1
+	#define NANITE_NUM_TEXCOORDS_TO_DECODE 0
+
+	#include "/Engine/Private/Nanite/NaniteDataDecode.ush"
+	#include "/Engine/Private/Nanite/NaniteAttributeDecode.ush"
+	#include "/Engine/Private/Nanite/NaniteVertexFactory.ush"
+#endif
+
 uint3 LoadIndices16Bit(ByteAddressBuffer SourceBuffer, uint OffsetInBytes)
 {
 	uint3 Result;
@@ -112,6 +121,42 @@ uint GetBaseInstanceIndex()
 
 float3 GetGeometryNormalFromTriangleBaseAttributes(uint PrimitiveIndex)
 {
+#if NANITE_RAY_TRACING
+	const int ScenePrimitiveIndex = GetInstanceUserData();
+	const int SceneInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
+
+	const uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(ScenePrimitiveIndex, SceneInstanceIndex);
+
+	FInstanceSceneData InstanceData = GetInstanceSceneData(GPUSceneInstanceIndex, Scene.GPUScene.InstanceDataSOAStride);
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(ScenePrimitiveIndex);
+
+	const uint FirstTriangle = HitGroupSystemRootConstants.FirstPrimitive;
+	const uint PackedTriangleData = RayTracingDataBuffer[PrimitiveData.NaniteRayTracingDataOffset + FirstTriangle + PrimitiveIndex];
+
+	const uint PageIndex = PackedTriangleData & NANITE_MAX_GPU_PAGES_MASK;
+	const uint ClusterIndex = (PackedTriangleData >> NANITE_MAX_GPU_PAGES_BITS) & NANITE_MAX_CLUSTERS_PER_PAGE_MASK;
+	const uint TriIndex = (PackedTriangleData >> (NANITE_MAX_GPU_PAGES_BITS + NANITE_MAX_CLUSTERS_PER_PAGE_BITS)) & NANITE_MAX_CLUSTER_TRIANGLES_MASK;
+
+	FCluster Cluster = GetCluster(PageIndex, ClusterIndex);
+
+	const uint3 TriIndices = DecodeTriangleIndices(Cluster, TriIndex);
+
+	const float3 PointLocalNoWPO[3] =
+	{
+		DecodePosition(TriIndices.x, Cluster),
+		DecodePosition(TriIndices.y, Cluster),
+		DecodePosition(TriIndices.z, Cluster)
+	};
+
+	float3 LocalEdges[2] = {
+		PointLocalNoWPO[1] - PointLocalNoWPO[0],
+		PointLocalNoWPO[2] - PointLocalNoWPO[0]
+	};
+	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);
+
+	float3x3 InverseTranspose3x3 = transpose((float3x3)WorldToObject4x3());
+	float3 WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
+#else
 	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex);
 
 	float3 LocalEdges[2] = {
@@ -122,6 +167,7 @@ float3 GetGeometryNormalFromTriangleBaseAttributes(uint PrimitiveIndex)
 
 	float3x3 InverseTranspose3x3 = transpose((float3x3)WorldToObject4x3());
 	float3 WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
+#endif
 	return WorldNormal;
 }
 

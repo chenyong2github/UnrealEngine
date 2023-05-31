@@ -2187,6 +2187,7 @@ public:
 	/** Sets ray hit group shaders on the mesh command and allocates room for the shader bindings. */
 	RENDERER_API void SetShaders(const FMeshProcessorShaders& Shaders);
 
+	RENDERER_API bool IsUsingNaniteRayTracing() const;
 private:
 	FShaderUniformBufferParameter ViewUniformBufferParameter;
 	FShaderUniformBufferParameter SceneUniformBufferParameter;

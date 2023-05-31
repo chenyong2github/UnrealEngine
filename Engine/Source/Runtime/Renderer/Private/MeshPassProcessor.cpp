@@ -1020,6 +1020,11 @@ void FRayTracingMeshCommand::SetShaders(const FMeshProcessorShaders& Shaders)
 	ShaderBindings.Initialize(Shaders);
 }
 
+bool FRayTracingMeshCommand::IsUsingNaniteRayTracing() const
+{
+	return NaniteUniformBufferParameter.IsBound();
+}
+
 void FRayTracingShaderCommand::SetRayTracingShaderBindings(
 	FRayTracingLocalShaderBindingWriter* BindingWriter,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
