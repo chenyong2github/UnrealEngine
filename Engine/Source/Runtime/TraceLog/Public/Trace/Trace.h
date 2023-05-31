@@ -116,6 +116,7 @@ struct FSendFlags
 };
 
 UE_TRACE_API void	SetMemoryHooks(AllocFunc Alloc, FreeFunc Free) UE_TRACE_IMPL();
+UE_TRACE_API bool	AreMemoryHooksSet() UE_TRACE_IMPL(false);
 UE_TRACE_API void	Initialize(const FInitializeDesc& Desc) UE_TRACE_IMPL();
 UE_TRACE_API void	StartWorkerThread() UE_TRACE_IMPL();	
 UE_TRACE_API void	Shutdown() UE_TRACE_IMPL();

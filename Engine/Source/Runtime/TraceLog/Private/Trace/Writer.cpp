@@ -209,6 +209,12 @@ void Writer_MemorySetHooks(decltype(AllocHook) Alloc, decltype(FreeHook) Free)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+bool Writer_AreMemoryHooksSet()
+{
+	return (AllocHook != nullptr) || (FreeHook != nullptr);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 {
 	void* Ret = nullptr;

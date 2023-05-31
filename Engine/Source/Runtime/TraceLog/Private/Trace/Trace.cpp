@@ -16,6 +16,7 @@ namespace Private
 
 ////////////////////////////////////////////////////////////////////////////////
 void	Writer_MemorySetHooks(AllocFunc, FreeFunc);
+bool	Writer_AreMemoryHooksSet();
 void	Writer_Initialize(const FInitializeDesc&);
 void	Writer_WorkerCreate();
 void	Writer_Shutdown();
@@ -56,6 +57,12 @@ static uint32 ToAnsiCheap(ANSICHAR (&Dest)[DestSize], const SRC_TYPE* Src)
 void SetMemoryHooks(AllocFunc Alloc, FreeFunc Free)
 {
 	Private::Writer_MemorySetHooks(Alloc, Free);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool AreMemoryHooksSet()
+{
+	return Private::Writer_AreMemoryHooksSet();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
