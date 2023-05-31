@@ -94,7 +94,7 @@ namespace UnrealBuildTool
 			{
 				// Make sure we have a useful friendly name
 				string FriendlyName = Cert.FriendlyName;
-				if ((FriendlyName == "") || (FriendlyName == null))
+				if (String.IsNullOrEmpty(FriendlyName))
 				{
 					FriendlyName = GetCommonNameFromCert(Cert);
 				}
@@ -103,13 +103,12 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		private static string CertToolData = "";
 
 		/// <summary>
 		/// When receiving the cert tool process call
 		/// </summary>
-		public static void OutputReceivedCertToolProcessCall(Object Sender, DataReceivedEventArgs Line)
+		public static void OutputReceivedCertToolProcessCall(object Sender, DataReceivedEventArgs Line)
 		{
 			if ((Line != null) && !String.IsNullOrEmpty(Line.Data))
 			{
@@ -246,7 +245,7 @@ namespace UnrealBuildTool
 				bool bPassesNameCheck = p.ApplicationIdentifier.Substring(p.ApplicationIdentifierPrefix.Length + 1) == CFBundleIdentifier;
 				bool bPassesCompanyCheck = false;
 				bool bPassesWildCardCheck = false;
-				if (p.ApplicationIdentifier.Contains("*"))
+				if (p.ApplicationIdentifier.Contains('*'))
 				{
 					string CompanyName = p.ApplicationIdentifier.Substring(p.ApplicationIdentifierPrefix.Length + 1);
 
@@ -313,10 +312,9 @@ namespace UnrealBuildTool
 				{
 					Provisions.Add(new FileReference(ProvisionFile));
 				}
-
 			}
 			_logger?.LogInformation(" MATCHED-Provision:{0},File:{1},Cert:{2} ", SelectedProvision, SelectedFile, SelectedCert);
-			if (SelectedProvision != "")
+			if (!String.IsNullOrEmpty(SelectedProvision))
 			{
 				MatchedProvision = new FileReference(SelectedProvision);
 			}
@@ -463,7 +461,7 @@ namespace UnrealBuildTool
 				try
 				{
 					string RawInfoPList = File.ReadAllText(plistFile, Encoding.UTF8);
-					Info = new PListHelper(RawInfoPList); ;
+					Info = new PListHelper(RawInfoPList);
 				}
 				catch (Exception ex)
 				{
@@ -645,7 +643,7 @@ namespace UnrealBuildTool
 			else if (Value is Dictionary<string, object> dict)
 			{
 				ValueElement = Doc.CreateElement("dict");
-				foreach (var KVP in dict)
+				foreach (KeyValuePair<string, object> KVP in dict)
 				{
 					AddKeyValuePair(ValueElement, KVP.Key, KVP.Value);
 				}
@@ -680,9 +678,9 @@ namespace UnrealBuildTool
 					ValueElement = Doc.CreateElement("array");
 					if (Value is Array array)
 					{
-						foreach (var A in array)
+						foreach (object? A in array)
 						{
-							var childNode = ConvertValueToPListFormat(A);
+							XmlElement? childNode = ConvertValueToPListFormat(A);
 							if (childNode != null)
 							{
 								ValueElement.AppendChild(childNode);
@@ -696,9 +694,9 @@ namespace UnrealBuildTool
 				ValueElement = Doc.CreateElement("array");
 				if (Value is IList list && ValueElement != null)
 				{
-					foreach (var A in list)
+					foreach (object? A in list)
 					{
-						var child = ConvertValueToPListFormat(A);
+						XmlElement? child = ConvertValueToPListFormat(A);
 						if (child != null)
 						{
 							ValueElement.AppendChild(child);
@@ -706,19 +704,19 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-			else if (Value is bool)
+			else if (Value is bool vbool)
 			{
-				ValueElement = Doc.CreateElement(((bool)Value) ? "true" : "false");
+				ValueElement = Doc.CreateElement(vbool ? "true" : "false");
 			}
-			else if (Value is double)
+			else if (Value is double vdouble)
 			{
 				ValueElement = Doc.CreateElement("real");
-				ValueElement.InnerText = ((double)Value).ToString();
+				ValueElement.InnerText = vdouble.ToString();
 			}
-			else if (Value is int)
+			else if (Value is int vint)
 			{
 				ValueElement = Doc.CreateElement("integer");
-				ValueElement.InnerText = ((int)Value).ToString();
+				ValueElement.InnerText = vint.ToString();
 			}
 			else
 			{
@@ -741,7 +739,7 @@ namespace UnrealBuildTool
 			KeyElement.InnerText = KeyName;
 
 			DictRoot.AppendChild(KeyElement);
-			var newChild = ConvertValueToPListFormat(Value);
+			XmlElement? newChild = ConvertValueToPListFormat(Value);
 			if (newChild != null)
 			{
 				DictRoot.AppendChild(newChild);
@@ -936,7 +934,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		/// <summary>
 		/// Returns each of the entries in the value tag of type array for a given key
 		/// If the key is missing, an empty array is returned.
@@ -1049,7 +1046,6 @@ namespace UnrealBuildTool
 				KeyNode?.ParentNode?.InsertAfter(ValueNode!, KeyNode);
 
 			}
-
 		}
 
 		/// <summary>
@@ -1534,7 +1530,7 @@ namespace UnrealBuildTool
 					}
 					else if (Phase == 1)
 					{
-						if (TestProvision.ApplicationIdentifier.Contains("*"))
+						if (TestProvision.ApplicationIdentifier.Contains('*'))
 						{
 							string CompanyName = TestProvision.ApplicationIdentifier.Substring(TestProvision.ApplicationIdentifierPrefix.Length + 1);
 							if (CompanyName != "*")
@@ -1546,7 +1542,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						if (TestProvision.ApplicationIdentifier.Contains("*"))
+						if (TestProvision.ApplicationIdentifier.Contains('*'))
 						{
 							string CompanyName = TestProvision.ApplicationIdentifier.Substring(TestProvision.ApplicationIdentifierPrefix.Length + 1);
 							bPassesNameCheck = CompanyName == "*";
@@ -1585,7 +1581,6 @@ namespace UnrealBuildTool
 							CodeSigningConfig.bForceStripSymbols = true;
 						}
 					}
-
 
 					DateTime CurrentUTCTime = DateTime.UtcNow;
 					bool bPassesDateCheck = (CurrentUTCTime >= TestProvision?.CreationDate) && (CurrentUTCTime < TestProvision?.ExpirationDate);
@@ -1673,7 +1668,6 @@ namespace UnrealBuildTool
 				string NewApplicationIdentifier = String.Format("{0}.{1}", ApplicationIdentifierPrefix, CFBundleIdentifier);
 				XCentPList.SetString("application-identifier", NewApplicationIdentifier);
 
-
 				// Replace the keychain access groups
 				// Note: This isn't robust, it ignores the existing value in the wildcard and uses the same value for
 				// each entry.  If there is a legitimate need for more than one entry in the access group list, then
@@ -1683,7 +1677,7 @@ namespace UnrealBuildTool
 				for (int i = 0; i < KeyGroups.Count; ++i)
 				{
 					string Entry = KeyGroups[i];
-					if (Entry.Contains("*"))
+					if (Entry.Contains('*'))
 					{
 						Entry = NewApplicationIdentifier;
 					}
@@ -1757,7 +1751,7 @@ namespace UnrealBuildTool
 						XCentPList.GetString("com.apple.developer.associated-domains", out AssociatedDomainsString);
 
 						//check if the value is string
-						if (AssociatedDomainsString != null && AssociatedDomainsString.Contains("*"))
+						if (AssociatedDomainsString != null && AssociatedDomainsString.Contains('*'))
 						{
 							XCentPList.RemoveKeyValue("com.apple.developer.associated-domains");
 						}
@@ -1766,7 +1760,7 @@ namespace UnrealBuildTool
 							//check if the value is an array
 							List<string> AssociatedDomainsGroup = XCentPList.GetArray("com.apple.developer.associated-domains", "string");
 
-							if (AssociatedDomainsGroup.Count == 1 && AssociatedDomainsGroup[0].Contains("*"))
+							if (AssociatedDomainsGroup.Count == 1 && AssociatedDomainsGroup[0].Contains('*'))
 							{
 								XCentPList.RemoveKeyValue("com.apple.developer.associated-domains");
 							}
@@ -1865,7 +1859,6 @@ namespace UnrealBuildTool
 				ApplicationIdentifier = "(unknown)";
 			}
 
-
 			// check for get-task-allow
 			if (XCentPList != null)
 			{
@@ -1911,7 +1904,6 @@ namespace UnrealBuildTool
 			}
 			return bFound;
 		}
-
 	}
 
 	/// <summary>
@@ -2036,7 +2028,6 @@ namespace UnrealBuildTool
 		/// The display name in title bars, popups, etc ...
 		/// </summary>
 		public static string AppDisplayName = "Unreal iOS Configuration";
-
 
 		/// <summary>
 		/// The game directory
@@ -2421,6 +2412,5 @@ namespace UnrealBuildTool
 			return true;
 		}
 	}
-
 }
 

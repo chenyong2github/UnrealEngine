@@ -18,7 +18,6 @@ using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
 using UnrealBuildBase;
 
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -97,7 +96,6 @@ namespace UnrealBuildTool
 			GetUniqueStringRegistry().FindOrAddAlias(Alias, Original.ToString());
 			return Original;
 		}
-
 
 		/// <summary>
 		/// 
@@ -198,7 +196,6 @@ namespace UnrealBuildTool
 			throw new BuildException(String.Format("The platform name {0} is not a valid platform name. Valid names are ({1})", Name,
 				String.Join(",", GetUniqueStringRegistry().GetStringNames())));
 		}
-
 
 		/// <summary>
 		/// 
@@ -459,7 +456,6 @@ namespace UnrealBuildTool
 
 		#endregion
 
-
 		/// <summary>
 		/// Return the string representation
 		/// </summary>
@@ -514,8 +510,6 @@ namespace UnrealBuildTool
 		{
 			return GetUniqueStringRegistry().HasString(Name);
 		}
-
-
 
 		/// <summary>
 		/// this group is just to lump Win32 and Win64 into Windows directories, removing the special Windows logic in MakeListOfUnsupportedPlatforms
@@ -735,7 +729,6 @@ namespace UnrealBuildTool
 			return Name;
 		}
 
-
 		/// <summary>
 		/// 
 		/// </summary>
@@ -798,7 +791,6 @@ namespace UnrealBuildTool
 			throw new BuildException(String.Format("The Architecture name {0} is not a valid Architecture name. Valid names are ({1})", Name,
 				String.Join(",", GetUniqueStringRegistry().GetStringNames())));
 		}
-
 
 		/// <summary>
 		/// 
@@ -978,7 +970,6 @@ namespace UnrealBuildTool
 
 			return new UnrealArchitectures(ArchString, ValidationPlatform);
 		}
-
 
 		/// <summary>
 		/// The list of architecture names in this set, sorted by architecture name
@@ -1243,7 +1234,6 @@ namespace UnrealBuildTool
 
 				RulesObject.DependencyListFileNames.Add(DependencyListFile);
 			}
-
 
 			// If we're compiling a plugin, and this target is monolithic, just create the object files
 			if (Descriptor.ForeignPlugin != null && RulesObject.LinkType == TargetLinkType.Monolithic)
@@ -2399,7 +2389,7 @@ namespace UnrealBuildTool
 			}
 
 			// Prefetch directory items for UHT folders since they are going to be used later
-			foreach (var Module in ModulesToGenerateHeadersFor)
+			foreach (UEBuildModuleCPP Module in ModulesToGenerateHeadersFor)
 			{
 				if (Module.GeneratedCodeDirectoryUHT != null)
 				{
@@ -2421,9 +2411,9 @@ namespace UnrealBuildTool
 			VNITask.Wait();
 #endif
 
-			foreach (var Module in Modules.Values.OfType<UEBuildModuleCPP>())
+			foreach (UEBuildModuleCPP Module in Modules.Values.OfType<UEBuildModuleCPP>())
 			{
-				foreach (var (Subdirectory, Func) in Module.Rules.GenerateHeaderFuncs)
+				foreach ((string Subdirectory, Action<ILogger, DirectoryReference> Func) in Module.Rules.GenerateHeaderFuncs)
 				{
 					DirectoryReference GenDirectory = DirectoryReference.Combine(Module.GeneratedCodeDirectory!, Subdirectory);
 					DirectoryReference.CreateDirectory(GenDirectory);
@@ -3077,7 +3067,7 @@ namespace UnrealBuildTool
 							!IsRedistributable(DependencyModule) && DependencyModule.Name != AppName
 						);
 
-					if (NonRedistModules.Count() != 0)
+					if (NonRedistModules.Any())
 					{
 						IEnumerable<UEBuildModule> NonRedistDeps = AllDependencies.Where((DependantModule) =>
 							DependantModule.GetDirectDependencyModules().Intersect(NonRedistModules).Any()
@@ -3523,7 +3513,7 @@ namespace UnrealBuildTool
 			// Create the PCH instances
 			for (int SharedPCHIndex = NumSharedPCHs - 1; SharedPCHIndex >= 0; SharedPCHIndex--)
 			{
-				foreach (var ModuleInfo in ModuleInfos[SharedPCHIndex])
+				foreach (Tuple<UEBuildModuleCPP, CppCompileEnvironment> ModuleInfo in ModuleInfos[SharedPCHIndex])
 				{
 					ModuleInfo.Item1.FindOrCreateSharedPCH(ToolChain, GlobalCompileEnvironment.SharedPCHs[SharedPCHIndex], ModuleInfo.Item2, Graph);
 				}
@@ -3565,7 +3555,7 @@ namespace UnrealBuildTool
 						// OptimizeCode
 						foreach (PrecompiledHeaderInstance Instance in SharedPCH.Instances.Where(instance => instance.Modules.First().Rules.OptimizeCode == ModuleRules.CodeOptimization.Never))
 						{
-							foreach (var Module in Instance.Modules)
+							foreach (UEBuildModuleCPP Module in Instance.Modules)
 							{
 								if (Module.RulesFile.ToFileInfo().IsReadOnly && !(Target.DisableOptimizeCodeForModules?.Contains(Module.Name) ?? false)) // support for local module changes
 								{
@@ -5331,7 +5321,6 @@ namespace UnrealBuildTool
 				throw new BuildException("Couldn't find referenced module '{0}'.", Name);
 			}
 		}
-
 
 		/// <summary>
 		/// Combines a list of paths with a base path.

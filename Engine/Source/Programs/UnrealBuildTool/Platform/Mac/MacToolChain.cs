@@ -230,7 +230,6 @@ namespace UnrealBuildTool
 			// This is also added to the x64 builds in case someone ever adds -mfma.
 			Arguments.Add("-ffp-contract=off");
 
-
 			if (CompileEnvironment.bEnableOSX109Support)
 			{
 				Arguments.Add("-faligned-new"); // aligned operator new is supported only on macOS 10.14 and above
@@ -472,7 +471,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		public override FileItem[] LinkImportLibrary(LinkEnvironment LinkEnvironment, IActionGraphBuilder Graph)
 		{
 			// we actually create Actions for every dylib, but we never return a FileItem. Instead depend on a Link action
@@ -679,7 +677,6 @@ namespace UnrealBuildTool
 				AppendMacLine(FinalizeAppBundleScript, FormatCopyCommand(TempInfoPlist, XcodeInputPListFile));
 				AppendMacLine(FinalizeAppBundleScript, "chmod 644 \"{0}\"", XcodeInputPListFile);
 
-
 				// Generate PkgInfo file
 				string TempPkgInfo = "$TMPDIR/TempPkgInfo";
 				AppendMacLine(FinalizeAppBundleScript, "echo 'echo -n \"APPL????\"' | bash > \"{0}\"", TempPkgInfo);
@@ -687,7 +684,6 @@ namespace UnrealBuildTool
 
 				// Make sure OS X knows the bundle was updated
 				AppendMacLine(FinalizeAppBundleScript, "touch -c \"{0}.app\"", ExeName);
-
 
 				// codesign with ad-hoc signature for when building outside of Xcode the there will be at least some signature
 				// (and it can be a BuildProduct down in ModifyBuildProducts)
@@ -697,7 +693,6 @@ namespace UnrealBuildTool
 
 				FinalizeAppBundleScript.Close();
 			}
-
 
 			return OutputFiles.ToArray();
 		}
@@ -787,7 +782,7 @@ namespace UnrealBuildTool
 				IEnumerable<string> AdditionalLibraries = Enumerable.Concat(LinkEnvironment.SystemLibraries, LinkEnvironment.Libraries.Select(x => x.FullName));
 				foreach (string AdditionalLibrary in AdditionalLibraries)
 				{
-					if (Path.GetDirectoryName(AdditionalLibrary) != "" &&
+					if (!String.IsNullOrEmpty(Path.GetDirectoryName(AdditionalLibrary)) &&
 							 (Path.GetDirectoryName(AdditionalLibrary)!.Contains("Binaries/Mac") ||
 							 Path.GetDirectoryName(AdditionalLibrary)!.Contains("Binaries\\Mac")))
 					{

@@ -463,7 +463,7 @@ namespace UnrealBuildTool
 				if ((!Action.bCanExecuteRemotely || Action.ActionType == ActionType.Link) && Action.PrerequisiteActions.Count > 0)
 				{
 					int LastSortIndex = 0;
-					foreach (var Prereq in Action.PrerequisiteActions)
+					foreach (LinkedAction Prereq in Action.PrerequisiteActions)
 					{
 						LastSortIndex = Math.Max(LastSortIndex, Prereq.SortIndex);
 					}
@@ -889,7 +889,7 @@ namespace UnrealBuildTool
 
 			using (GlobalTracer.Instance.BuildSpan("Cache outdated actions based on recursive prerequisites").StartActive())
 			{
-				foreach (var Action in Actions)
+				foreach (LinkedAction Action in Actions)
 				{
 					IsActionOutdatedDueToPrerequisites(Action, OutdatedActions, bIgnoreOutdatedImportLibraries, Logger);
 				}

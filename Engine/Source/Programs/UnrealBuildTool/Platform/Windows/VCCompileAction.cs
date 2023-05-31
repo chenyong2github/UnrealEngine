@@ -475,7 +475,7 @@ namespace UnrealBuildTool
 			foreach (string Definition in Definitions)
 			{
 				// Escape all quotation marks so that they get properly passed with the command line.
-				string DefinitionArgument = Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
+				string DefinitionArgument = Definition.Contains('"') ? Definition.Replace("\"", "\\\"") : Definition;
 				VCToolChain.AddDefinition(Arguments, DefinitionArgument);
 			}
 

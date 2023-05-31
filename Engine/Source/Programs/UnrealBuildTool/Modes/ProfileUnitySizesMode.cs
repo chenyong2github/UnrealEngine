@@ -293,7 +293,6 @@ namespace UnrealBuildTool
 			return BestTimingData;
 		}
 
-
 		/// <summary>
 		/// Compiles the module and returns the timing information
 		/// </summary>
@@ -311,7 +310,7 @@ namespace UnrealBuildTool
 					Logger.LogInformation($"{LogPrefix}Deleting intermediate directory...");
 					try
 					{
-						var IntermDir = DirectoryItem.GetItemByDirectoryReference(Module.IntermediateDirectory);
+						DirectoryItem IntermDir = DirectoryItem.GetItemByDirectoryReference(Module.IntermediateDirectory);
 						IntermDir.CacheFiles();
 						IntermDir.ResetCachedInfo();
 						DirectoryReference.Delete(Module.IntermediateDirectory, true);

@@ -336,7 +336,7 @@ namespace UnrealBuildTool
 
 			if (readArtifacts)
 			{
-				var runAction = (LinkedAction action) =>
+				Func<LinkedAction, Func<Task>> runAction = (LinkedAction action) =>
 				{
 					return new Func<Task>(async () =>
 					{
@@ -1028,7 +1028,6 @@ namespace UnrealBuildTool
 					{
 						Logger.LogInformation("{Description} [ Time {ExecutionTime:0.00} s ]", Description, Result.ExecutionTime.TotalSeconds);
 					}
-
 				}
 				Logger.LogInformation("");
 			}

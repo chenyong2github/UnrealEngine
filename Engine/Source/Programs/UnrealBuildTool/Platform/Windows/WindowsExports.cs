@@ -105,6 +105,5 @@ namespace UnrealBuildTool
 		{
 			MicrosoftPlatformSDK.EnumerateSdkRootDirs(RootDirs, Logger);
 		}
-
 	}
 }

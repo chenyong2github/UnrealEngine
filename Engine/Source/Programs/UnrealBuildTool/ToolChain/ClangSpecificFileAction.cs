@@ -123,5 +123,4 @@ namespace UnrealBuildTool
 
 		public IEnumerable<string> ContentLines = Enumerable.Empty<string>();
 	}
-
 }

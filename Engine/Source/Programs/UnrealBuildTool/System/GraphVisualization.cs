@@ -149,7 +149,7 @@ namespace UnrealBuildTool
 									// @todo: Add support for edge attributes, not just node attributes
 									Writer.WriteAttributeString("class", "node");   // Node attributes, not edges!
 
-									foreach (var Attribute in AllAttributes.Values)
+									foreach (GraphAttribute Attribute in AllAttributes.Values)
 									{
 										Writer.WriteStartElement("attribute");
 										{
@@ -202,12 +202,12 @@ namespace UnrealBuildTool
 										{
 											Writer.WriteStartElement("attvalues");
 											{
-												foreach (var AttributeHashEntry in GraphNode.Attributes)
+												foreach (KeyValuePair<string, object> AttributeHashEntry in GraphNode.Attributes)
 												{
-													var AttributeName = AttributeHashEntry.Key;
-													var AttributeValue = AttributeHashEntry.Value;
+													string AttributeName = AttributeHashEntry.Key;
+													object AttributeValue = AttributeHashEntry.Value;
 
-													var Attribute = AllAttributes[AttributeName];
+													GraphAttribute Attribute = AllAttributes[AttributeName];
 
 													Writer.WriteStartElement("attvalue");
 													{
@@ -224,7 +224,6 @@ namespace UnrealBuildTool
 								}
 							}
 							Writer.WriteEndElement();   // nodes
-
 
 							Writer.WriteStartElement("edges");
 							{
@@ -272,7 +271,6 @@ namespace UnrealBuildTool
 
 					Writer.Flush();
 				}
-
 			}
 			finally
 			{

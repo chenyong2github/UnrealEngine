@@ -123,7 +123,7 @@ namespace UnrealBuildTool
 		{
 			string Processed = CommonMakePathString(InRef, InPathType, InRelativeRoot);
 
-			if (Processed.Contains(" "))
+			if (Processed.Contains(' '))
 			{
 				if (HostPlatform == UnrealTargetPlatform.Win64 && InQuoteType == EQuoteType.Double)
 				{
@@ -267,7 +267,7 @@ namespace UnrealBuildTool
 			if (bForeignProject)
 			{
 				Projects = new List<ProjectFile>();
-				foreach (var Project in AllProjectFiles)
+				foreach (ProjectFile Project in AllProjectFiles)
 				{
 					if (GameProjectName == Project.ProjectFilePath.GetFileNameWithoutAnyExtensions())
 					{
@@ -476,7 +476,6 @@ namespace UnrealBuildTool
 			public List<Project> AllProjects = new List<Project>();
 		}
 
-
 		private ProjectData GatherProjectData(List<ProjectFile> InProjects, ILogger Logger)
 		{
 			ProjectData ProjectData = new ProjectData();
@@ -531,7 +530,6 @@ namespace UnrealBuildTool
 				else
 				{
 					VCSharpProjectFile VCSharpProject = (VCSharpProjectFile)Project;
-
 
 					string ProjectName = Project.ProjectFilePath.GetFileNameWithoutExtension();
 
@@ -847,7 +845,6 @@ namespace UnrealBuildTool
 				}
 				OutFile.EndObject();
 			}
-
 		}
 
 		private void WriteCompileCommands(FileReference CompileCommandsFile, IEnumerable<FileReference> SourceFiles,
@@ -943,7 +940,6 @@ namespace UnrealBuildTool
 									CleanParam = "-clean";
 								}
 							}
-
 
 							OutFile.BeginArray("args");
 							{
@@ -1174,7 +1170,7 @@ namespace UnrealBuildTool
 
 				string ProjectName = Target.Name;
 				// hyphens not allowed so change them to underscores in project name
-				if (ProjectName.Contains("-"))
+				if (ProjectName.Contains('-'))
 				{
 					Trace.TraceWarning("Project name contained hyphens, converted to underscore");
 					ProjectName = ProjectName.Replace("-", "_");
@@ -1317,7 +1313,6 @@ namespace UnrealBuildTool
 									}
 								}
 							}
-
 						}
 						OutFile.EndArray();
 					}

@@ -120,7 +120,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		public string CMakeDefinitionsFileName => "cmake-definitions" + CMakeExtension;
 
-
 		/// <summary>
 		/// Writes the primary project file (e.g. Visual Studio Solution file)
 		/// </summary>

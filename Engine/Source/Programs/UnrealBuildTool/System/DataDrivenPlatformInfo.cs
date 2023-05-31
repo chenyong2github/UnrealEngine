@@ -74,7 +74,7 @@ namespace UnrealBuildTool
 			{
 				if (PlatformInfos == null)
 				{
-					var PlatformInfosDict = new Dictionary<string, ConfigDataDrivenPlatformInfo>(StringComparer.OrdinalIgnoreCase);
+					Dictionary<string, ConfigDataDrivenPlatformInfo> PlatformInfosDict = new Dictionary<string, ConfigDataDrivenPlatformInfo>(StringComparer.OrdinalIgnoreCase);
 					PlatformInfos = PlatformInfosDict;
 					Dictionary<string, string> IniParents = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -102,7 +102,6 @@ namespace UnrealBuildTool
 							// load the DataDrivenPlatformInfo from the path (with Add support in a file that doesn't use +'s in the arrays for C++ usage)
 							ConfigFile Config = new ConfigFile(FileRef, ConfigLineAction.Add);
 							ConfigDataDrivenPlatformInfo NewInfo = new ConfigDataDrivenPlatformInfo();
-
 
 							// we must have the key section 
 							ConfigFileSection? Section = null;

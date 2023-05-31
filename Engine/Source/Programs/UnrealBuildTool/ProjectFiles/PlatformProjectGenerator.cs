@@ -47,7 +47,6 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-
 		///
 		///	VisualStudio project generation functions
 		///	

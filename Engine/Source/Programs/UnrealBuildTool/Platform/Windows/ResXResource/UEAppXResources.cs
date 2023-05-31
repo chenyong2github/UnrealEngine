@@ -69,7 +69,6 @@ namespace UnrealBuildTool
 			AddCulture(DefaultResources);
 		}
 
-
 		/// <summary>
 		/// Adds a reference to the given culture
 		/// </summary>
@@ -93,16 +92,14 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		/// <summary>
 		/// Returns a collection of all registered cultures
 		/// </summary>
 		/// <returns></returns>
 		public IEnumerable<string> GetAllCultureIds()
 		{
-			return PerCultureResources.Keys.Where(X => X != DefaultResources);
+			return PerCultureResources.Keys.Where(X => !String.IsNullOrEmpty(X));
 		}
-
 
 		/// <summary>
 		/// Add the given string to the default culture
@@ -148,7 +145,6 @@ namespace UnrealBuildTool
 			return GetDefaultResources().SourceStrings.ContainsKey(Key);
 		}
 
-
 		/// <summary>
 		/// Clear all stored strings for all cultures
 		/// </summary>
@@ -159,7 +155,6 @@ namespace UnrealBuildTool
 				Itr.Value.SourceStrings.Clear();
 			}
 		}
-
 
 		Resources GetCultureResources(string AppXCultureId)
 		{
@@ -177,9 +172,6 @@ namespace UnrealBuildTool
 		{
 			return GetCultureResources(DefaultResources);
 		}
-
-
-
 
 		bool RunMakePri(string CommandLine)
 		{
@@ -217,9 +209,6 @@ namespace UnrealBuildTool
 				return false;
 			}
 		}
-
-
-
 
 		private bool RemoveStaleResourceFiles(IEnumerable<string> RequiredFileFragments, DirectoryReference OutputDirectory)
 		{
@@ -262,7 +251,6 @@ namespace UnrealBuildTool
 
 			return true;
 		}
-
 
 		/// <summary>
 		/// Attempts to locate the given resource binary file in the previously-specified resource folders
@@ -315,7 +303,6 @@ namespace UnrealBuildTool
 			return DoesCultureResourceBinaryFileExist(ResourceFileName, DefaultResources, AllowEngineFallback);
 		}
 
-
 		/// <summary>
 		/// Adds the given resource binary file(s) to the manifest files
 		/// </summary>
@@ -340,7 +327,6 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-
 		/// <summary>
 		/// Adds the given file to the manifest files
 		/// </summary>
@@ -363,8 +349,6 @@ namespace UnrealBuildTool
 			return !Enumerable.SequenceEqual(FileContents1, FileContents2);
 		}
 
-
-
 		/// <summary>
 		/// Copies all of the generated files to the output folder
 		/// </summary>
@@ -377,7 +361,7 @@ namespace UnrealBuildTool
 			}
 
 			Logger.LogDebug("Updating manifest resource files...");
-			foreach (var FileToCopy in FilesToCopy)
+			foreach (KeyValuePair<FileReference, string> FileToCopy in FilesToCopy)
 			{
 				FileReference SourceFile = FileToCopy.Key;
 				FileReference TargetFile = FileReference.Combine(OutputDirectory, FileToCopy.Value);
@@ -433,8 +417,6 @@ namespace UnrealBuildTool
 			return UpdatedFiles;
 		}
 
-
-
 		/// <summary>
 		/// Adds the given string to the culture string writers
 		/// </summary>
@@ -453,7 +435,6 @@ namespace UnrealBuildTool
 			}
 			DefaultCultureResources.StringResources.Add(ResourceEntryName, DefaultCultureString + ValueSuffix);
 
-
 			// Get the localized culture values
 			foreach (string CultureId in GetAllCultureIds())
 			{
@@ -466,9 +447,6 @@ namespace UnrealBuildTool
 
 			return "ms-resource:" + ResourceEntryName;
 		}
-
-
-
 
 		/// <summary>
 		/// Generate the package resource index and copies all resources files to the output

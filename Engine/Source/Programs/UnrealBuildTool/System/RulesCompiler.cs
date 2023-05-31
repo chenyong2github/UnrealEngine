@@ -294,7 +294,7 @@ namespace UnrealBuildTool
 				FindModuleRulesForPlugins(ProjectPlugins, DefaultModuleContext, ModuleFiles);
 
 				Logger.LogTrace(" Found {Count} Modules:", ModuleFiles.Count);
-				foreach (var Item in ModuleFiles)
+				foreach (KeyValuePair<FileReference, ModuleRulesContext> Item in ModuleFiles)
 				{
 					Logger.LogTrace("  {Module}", Item.Key);
 				}
@@ -375,7 +375,7 @@ namespace UnrealBuildTool
 				FindModuleRulesForPlugins(ForeignPlugins, PluginModuleContext, ModuleFiles);
 
 				Logger.LogTrace(" Found {Count} Modules:", ModuleFiles.Count);
-				foreach (var Item in ModuleFiles)
+				foreach (KeyValuePair<FileReference, ModuleRulesContext> Item in ModuleFiles)
 				{
 					Logger.LogTrace("  {Module}", Item.Key);
 				}

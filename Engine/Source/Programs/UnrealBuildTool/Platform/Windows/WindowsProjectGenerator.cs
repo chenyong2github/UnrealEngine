@@ -72,7 +72,6 @@ namespace UnrealBuildTool
 			VCUserFileContent.AppendLine("    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>");
 			VCUserFileContent.AppendLine("  </PropertyGroup>");
 
-
 			return VCUserFileContent.ToString();
 		}
 

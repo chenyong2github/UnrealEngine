@@ -194,7 +194,6 @@ namespace UnrealBuildTool
 					CleanMode.Clean(TargetDescriptors.Where(D => D.bRebuild).ToList(), BuildConfiguration, Logger);
 				}
 
-
 				// Handle remote builds
 				for (int Idx = 0; Idx < TargetDescriptors.Count; ++Idx)
 				{
@@ -909,7 +908,6 @@ namespace UnrealBuildTool
 			return ProducedItems;
 		}
 
-
 		/// <summary>
 		/// If there are headers in the specific list, this function will exand the list to include all files that include those headers
 		/// </summary>
@@ -987,7 +985,6 @@ namespace UnrealBuildTool
 					}
 				}
 			});
-
 
 			SortedSet<FileReference> NewFiles = new();
 			List<FileReference> FoundFiles = IncludeLookup.FindFiles(SpecificFilesToCompile.Select(x => x.GetFileName())).Select(x => x.Location).ToList();

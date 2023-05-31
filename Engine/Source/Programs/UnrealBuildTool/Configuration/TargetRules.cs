@@ -1030,7 +1030,6 @@ namespace UnrealBuildTool
 		}
 		private bool bCompileAgainstCoreUObjectPrivate = true;
 
-
 		/// <summary>
 		/// Enabled for builds that need to initialize the ApplicationCore module. Command line utilities do not normally need this.
 		/// </summary>
@@ -3254,7 +3253,6 @@ namespace UnrealBuildTool
 		public bool bGenerateProjectFiles => Inner.bGenerateProjectFiles;
 
 		public bool bIsEngineInstalled => Inner.bIsEngineInstalled;
-
 
 		public IReadOnlyList<string>? DisableUnityBuildForModules => Inner.DisableUnityBuildForModules;
 

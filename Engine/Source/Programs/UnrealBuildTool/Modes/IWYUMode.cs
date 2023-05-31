@@ -14,7 +14,6 @@ using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
-
 // IWYUMode is a mode that can be used to clean up includes in source code. It uses the clang based tool include-what-you-use (IWYU) to figure out what is needed in each .h/.cpp file
 // and then cleans up accordingly. This mode can be used to clean up unreal as well as plugins and projects on top of unreal.
 // Note, IWYU is not perfect. There are still c++ features not supported so even though it will do a good job cleaning up it might require a little bit of hands on but not much.
@@ -40,7 +39,6 @@ using UnrealBuildBase;
 //  4. Update Niagara plugins private code (not public api) with preview
 // 
 //   .build target UnrealEditor linux development -- -Mode=IWYU -PathToUpdate=Engine/Plugins/FX/Niagara -UpdateOnlyPrivate
-
 
 namespace UnrealBuildTool
 {
@@ -437,9 +435,9 @@ namespace UnrealBuildTool
 				// Traverse all modules to figure out which ones should be updated. This is based on -ModuleToUpdate and -PathToUpdate
 				List<UEBuildModule> ReferencedModules = new();
 				HashSet<UEBuildModule> IgnoreReferencedModules = new();
-				foreach (var Binary in Target.Binaries)
+				foreach (UEBuildBinary Binary in Target.Binaries)
 				{
-					foreach (var Module in Binary.Modules)
+					foreach (UEBuildModule Module in Binary.Modules)
 					{
 						if (IgnoreReferencedModules.Add(Module))
 						{
@@ -451,13 +449,13 @@ namespace UnrealBuildTool
 				foreach (UEBuildModule Module in ReferencedModules)
 				{
 					NameToModule.TryAdd(Module.Name, Module);
-					foreach (var Module2 in Module.GetDependencies(true, true))
+					foreach (UEBuildModule Module2 in Module.GetDependencies(true, true))
 					{
 						NameToModule.TryAdd(Module2.Name, Module2);
 					}
 				}
 
-				foreach (var Module in NameToModule.Values)
+				foreach (UEBuildModule Module in NameToModule.Values)
 				{
 					bool ShouldUpdate = false;
 					string ModuleDir = Module.ModuleDirectory.FullName.Replace('\\', '/');
@@ -486,14 +484,14 @@ namespace UnrealBuildTool
 						{
 							if (Module.PublicDependencyModules != null)
 							{
-								foreach (var Dependency in Module.PublicDependencyModules)
+								foreach (UEBuildModule Dependency in Module.PublicDependencyModules)
 								{
 									DependsOnModule = DependsOnModule || Dependency == UEModuleToUpdate;
 								}
 							}
 							if (Module.PrivateDependencyModules != null)
 							{
-								foreach (var Dependency in Module.PrivateDependencyModules!)
+								foreach (UEBuildModule Dependency in Module.PrivateDependencyModules!)
 								{
 									DependsOnModule = DependsOnModule || Dependency == UEModuleToUpdate;
 								}
@@ -636,7 +634,7 @@ namespace UnrealBuildTool
 
 					TocContent = new();
 
-					foreach (var OutputItem in OutputItems)
+					foreach (FileItem OutputItem in OutputItems)
 					{
 						if (OutputItem.Name.EndsWith(".iwyu"))
 						{
@@ -664,11 +662,10 @@ namespace UnrealBuildTool
 						IWYUFile!.Name = IWYUFilePath;
 
 						// Traverse the cpp/inl/h file entries inside the .iwyu file
-						foreach (var Info in IWYUFile!.Files)
+						foreach (IWYUInfo Info in IWYUFile!.Files)
 						{
 							Info.Source = IWYUFile;
 							Info.IsCpp = Info.File.EndsWith(".cpp");
-
 
 							// We track .gen.cpp in a special list, they need special treatment later
 							if (Info.File.Contains(".gen.cpp", StringComparison.Ordinal))
@@ -687,7 +684,7 @@ namespace UnrealBuildTool
 								if (!Infos.TryAdd(Info.File, Info))
 								{
 									// This is a valid scenario when Foo.cpp also registers Foo.h... and then Foo.h registers itself.
-									var ExistingEntry = Infos[Info.File];
+									IWYUInfo ExistingEntry = Infos[Info.File];
 									if (IWYUFile.Files.Count == 1)
 									{
 										if (ExistingEntry.Source!.Files.Count == 1)
@@ -727,7 +724,7 @@ namespace UnrealBuildTool
 							if (Info.File.EndsWith(".h"))
 							{
 								// We need to add entries for .generated.h. They are not in the iwyu files
-								foreach (var Include in Info.Includes)
+								foreach (IWYUIncludeEntry Include in Info.Includes)
 								{
 									if (Include.Full.Contains("/UHT/"))
 									{
@@ -791,7 +788,7 @@ namespace UnrealBuildTool
 				return new(Include, Entry);
 			}
 
-			var SpecialIncludes = new Dictionary<string, IWYUIncludeEntry?>(
+			Dictionary<string, IWYUIncludeEntry?> SpecialIncludes = new Dictionary<string, IWYUIncludeEntry?>(
 				new[]
 				{
 					GetInfo("UObject/ObjectMacros.h", "Source/Runtime/CoreUObject/Public/UObject/ObjectMacros.h"),
@@ -802,7 +799,7 @@ namespace UnrealBuildTool
 				}
 			);
 
-			var ForwardingHeaders = new Dictionary<string, IWYUIncludeEntry?>()
+			Dictionary<string, IWYUIncludeEntry?> ForwardingHeaders = new Dictionary<string, IWYUIncludeEntry?>()
 			{
 				{ "TMap", SpecialIncludes["Containers/ContainersFwd.h"] },
 				{ "TSet", SpecialIncludes["Containers/ContainersFwd.h"] },
@@ -810,7 +807,6 @@ namespace UnrealBuildTool
 				{ "TArrayView", SpecialIncludes["Containers/ContainersFwd.h"] },
 				{ "TOptional", SpecialIncludes["Misc/OptionalFwd.h"] },
 			};
-
 
 			// Add all .generated.h files as entries in the lookup and explicitly add the includes they have which will never be removed
 			Logger.LogInformation($"Generating infos for .generated.h files...");
@@ -820,7 +816,7 @@ namespace UnrealBuildTool
 				IWYUIncludeEntry ScriptMacrosInclude = SpecialIncludes["UObject/ScriptMacros.h"]!;
 				IWYUIncludeEntry VerseInteropUtilsInclude = SpecialIncludes["VerseInteropUtils.h"]!;
 
-				foreach (var Gen in GeneratedHeaderInfos)
+				foreach (string Gen in GeneratedHeaderInfos)
 				{
 					IWYUInfo GenInfo = new();
 					GenInfo.File = Gen;
@@ -844,7 +840,7 @@ namespace UnrealBuildTool
 
 			Logger.LogInformation($"Resolving Includes...");
 
-			var PlatformSDK = new LinuxPlatformSDK(Logger);
+			LinuxPlatformSDK PlatformSDK = new LinuxPlatformSDK(Logger);
 			DirectoryReference? BaseLinuxPath = PlatformSDK.GetBaseLinuxPathForArchitecture(LinuxPlatform.DefaultHostArchitecture);
 			string SystemPath = BaseLinuxPath!.FullName.Replace('\\', '/');
 
@@ -865,7 +861,6 @@ namespace UnrealBuildTool
 						}
 					}
 				}
-
 
 				if (!Info.IsCpp)
 				{
@@ -930,7 +925,7 @@ namespace UnrealBuildTool
 					}
 				}
 				*/
-				foreach (var Include in Info.Includes)
+				foreach (IWYUIncludeEntry Include in Info.Includes)
 				{
 					if (Include.Resolved == null)
 					{
@@ -985,10 +980,10 @@ namespace UnrealBuildTool
 			{
 				// First, check which files .gen.cpp will see
 				HashSet<string> SeenTransitiveIncludes = new();
-				foreach (var SeenInclude in GeneratedCpp.IncludesSeenInFile)
+				foreach (IWYUIncludeEntry SeenInclude in GeneratedCpp.IncludesSeenInFile)
 				{
 					SeenTransitiveIncludes.Add(SeenInclude.Full);
-					foreach (var Include in GeneratedCpp.Includes)
+					foreach (IWYUIncludeEntry Include in GeneratedCpp.Includes)
 					{
 						IWYUInfo? IncludeInfo;
 						if (SeenInclude.Printable == Include.Printable && Infos.TryGetValue(Include.Full, out IncludeInfo))
@@ -1010,7 +1005,7 @@ namespace UnrealBuildTool
 				{
 					int NameStart = GeneratedCpp.File.LastIndexOf('/');
 					string HeaderName = GeneratedCpp.File.Substring(NameStart + 1, GeneratedCpp.File.Length - NameStart - ".gen.cpp".Length) + "h";
-					foreach (var Include in GeneratedCpp.Includes)
+					foreach (IWYUIncludeEntry Include in GeneratedCpp.Includes)
 					{
 						NameStart = Include.Full.LastIndexOf('/');
 						string IncludeName = Include.Full.Substring(NameStart + 1);
@@ -1031,7 +1026,7 @@ namespace UnrealBuildTool
 					return;
 				}
 
-				foreach (var Include in GeneratedCpp.Includes)
+				foreach (IWYUIncludeEntry Include in GeneratedCpp.Includes)
 				{
 					if (SeenTransitiveIncludes.Contains(Include.Full))
 					{
@@ -1092,7 +1087,7 @@ namespace UnrealBuildTool
 			{
 				return null;
 			}
-			foreach (var Dir in Module.PublicIncludePaths.Union(Module.PrivateIncludePaths).Union(Module.PublicSystemIncludePaths))
+			foreach (DirectoryReference? Dir in Module.PublicIncludePaths.Union(Module.PrivateIncludePaths).Union(Module.PublicSystemIncludePaths))
 			{
 				FileReference FileReference = FileReference.Combine(Dir, Include);
 				FileItem FileItem = FileItem.GetItemByFileReference(FileReference);
@@ -1114,7 +1109,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			foreach (var PublicModule in Module.Rules.PublicDependencyModuleNames.Union(Module.Rules.PublicIncludePathModuleNames).Union(Module.Rules.PrivateIncludePathModuleNames).Union(Module.Rules.PrivateDependencyModuleNames))
+			foreach (string? PublicModule in Module.Rules.PublicDependencyModuleNames.Union(Module.Rules.PublicIncludePathModuleNames).Union(Module.Rules.PrivateIncludePathModuleNames).Union(Module.Rules.PrivateDependencyModuleNames))
 			{
 				UEBuildModule? DependencyModule;
 				if (NameToModule.TryGetValue(PublicModule, out DependencyModule))
@@ -1149,7 +1144,7 @@ namespace UnrealBuildTool
 
 		static void ParseSkippedHeaders(Dictionary<string, IWYUInfo> SkippedHeaders, Dictionary<string, IWYUInfo> Infos, Dictionary<string, UEBuildModule> PathToModule, Dictionary<string, UEBuildModule> NameToModule)
 		{
-			foreach (var Kvp in SkippedHeaders)
+			foreach (KeyValuePair<string, IWYUInfo> Kvp in SkippedHeaders)
 			{
 				Infos.Add(Kvp.Key, Kvp.Value);
 			}
@@ -1190,14 +1185,14 @@ namespace UnrealBuildTool
 						}
 						else if (LineSpan.StartsWith("include"))
 						{
-							var IncludeSpan = LineSpan.Slice("include".Length).TrimStart();
+							ReadOnlySpan<char> IncludeSpan = LineSpan.Slice("include".Length).TrimStart();
 							char LeadingIncludeChar = IncludeSpan[0];
 							if (LeadingIncludeChar == '"' || LeadingIncludeChar == '<')
 							{
-								var Start = IncludeSpan.Slice(1);
-								var EndIndex = Start.IndexOf(LeadingIncludeChar == '"' ? '"' : '>');
-								var FileSpan = Start.Slice(0, EndIndex);
-								var Include = FileSpan.ToString();
+								ReadOnlySpan<char> Start = IncludeSpan.Slice(1);
+								int EndIndex = Start.IndexOf(LeadingIncludeChar == '"' ? '"' : '>');
+								ReadOnlySpan<char> FileSpan = Start.Slice(0, EndIndex);
+								string Include = FileSpan.ToString();
 								string? File = GetFullName(Include, Info.File, Info.Module, NameToModule);
 								if (File != null)
 								{
@@ -1310,7 +1305,7 @@ namespace UnrealBuildTool
 				SortedSet<string> CleanedupIncludes = new();
 				SortedSet<string> ForwardDeclarationsToAdd = new();
 
-				foreach (var Include in Info.Includes)
+				foreach (IWYUIncludeEntry Include in Info.Includes)
 				{
 					// We never remove header with name matching cpp
 					string NameWithoutPath = Include.Printable;
@@ -1333,7 +1328,7 @@ namespace UnrealBuildTool
 					}
 					else if (!bNoTransitiveIncludes)
 					{
-						foreach (var Include2 in Info.Includes)
+						foreach (IWYUIncludeEntry Include2 in Info.Includes)
 						{
 							if (Include2.Resolved != null && Include != Include2)
 							{
@@ -1362,7 +1357,7 @@ namespace UnrealBuildTool
 				if (!bRemoveRedundantIncludes)
 				{
 					List<string> ToReadd = new();
-					foreach (var Seen in Info.IncludesSeenInFile)
+					foreach (IWYUIncludeEntry Seen in Info.IncludesSeenInFile)
 					{
 						string QuotedPrintable = Seen.System ? $"<{Seen.Printable}>" : $"\"{Seen.Printable}\"";
 						if (!CleanedupIncludes.Contains(QuotedPrintable) && Info.TransitiveIncludes.ContainsKey(Seen.Full))
@@ -1375,12 +1370,12 @@ namespace UnrealBuildTool
 				// Ignore forward declarations for cpp files. They are very rarely needed and we let the user add them manually instead
 				if (!IsCpp)
 				{
-					foreach (var ForwardDeclaration in Info.ForwardDeclarations)
+					foreach (IWYUForwardEntry ForwardDeclaration in Info.ForwardDeclarations)
 					{
 						bool Add = ForwardDeclaration.Present == false;
 						if (!bNoTransitiveIncludes)
 						{
-							foreach (var Include2 in Info.Includes)
+							foreach (IWYUIncludeEntry Include2 in Info.Includes)
 							{
 								if (Include2.Resolved != null && Include2.Resolved.TransitiveForwardDeclarations!.ContainsKey(ForwardDeclaration.Printable))
 								{
@@ -1395,7 +1390,6 @@ namespace UnrealBuildTool
 						}
 					}
 				}
-
 
 				// Read all lines of the header/source file
 				string[] ExistingLines = File.ReadAllLines(Info.File);
@@ -1419,25 +1413,23 @@ namespace UnrealBuildTool
 					}
 				}
 
-
 				bool ForceKeepScope = false;
 				bool ErrorOnMoreIncludes = false;
 				int LineIndex = -1;
-
 
 				// This makes sure that we have at least HAL/Platform.h included if the file contains XXX_API
 				bool Contains_API = false;
 				bool LookFor_API = false;
 				if (Info.Includes.Count == 0)
 				{
-					foreach (var Missing in Info.MissingIncludes)
+					foreach (IWYUMissingInclude Missing in Info.MissingIncludes)
 					{
 						LookFor_API = LookFor_API || Missing.Full.Contains("Definitions.h");
 					}
 				}
 
 				// Traverse all lines in file and figure out which includes that should be added or removed
-				foreach (var Line in ExistingLines)
+				foreach (string Line in ExistingLines)
 				{
 					++LineIndex;
 
@@ -1586,7 +1578,6 @@ namespace UnrealBuildTool
 					}
 				}
 
-
 				SortedSet<string> LinesToAdd = new();
 
 				foreach (string IncludeToAdd in IncludesToAdd)
@@ -1599,11 +1590,11 @@ namespace UnrealBuildTool
 					lock (ShouldLog)
 					{
 						System.Console.WriteLine(Info.File);
-						foreach (var I in LinesToAdd)
+						foreach (string I in LinesToAdd)
 						{
 							System.Console.WriteLine("  +" + I);
 						}
-						foreach (var Pair in LinesToRemove)
+						foreach (KeyValuePair<string, string> Pair in LinesToRemove)
 						{
 							System.Console.Write("  -" + Pair.Key);
 							string? Reason;
@@ -1613,7 +1604,7 @@ namespace UnrealBuildTool
 							}
 							System.Console.WriteLine();
 						}
-						foreach (var I in ForwardDeclarationsToAdd)
+						foreach (string I in ForwardDeclarationsToAdd)
 						{
 							System.Console.WriteLine("  +" + I);
 						}
@@ -1722,7 +1713,6 @@ namespace UnrealBuildTool
 								}
 							}
 
-
 							NewLines.Add(OldLine);
 						}
 						else
@@ -1780,7 +1770,7 @@ namespace UnrealBuildTool
 				if (!IsPrivate && Info.File.StartsWith(EngineDir) && !String.IsNullOrEmpty(HeaderDeprecationTag))
 				{
 					Dictionary<string, string> PrintableToFull = new();
-					foreach (var Seen in Info.IncludesSeenInFile)
+					foreach (IWYUIncludeEntry Seen in Info.IncludesSeenInFile)
 					{
 						PrintableToFull.TryAdd(Seen.Printable, Seen.Full);
 					}
@@ -1881,7 +1871,7 @@ namespace UnrealBuildTool
 			Func<bool> WaitForP4 = () =>
 			{
 				bool P4Success = true;
-				foreach (var P4Process in P4Processes)
+				foreach (System.Diagnostics.Process P4Process in P4Processes)
 				{
 					P4Process.WaitForExit();
 					if (P4Process.ExitCode != 0)
@@ -1898,7 +1888,7 @@ namespace UnrealBuildTool
 			if (!bNoP4)
 			{
 				List<IWYUInfo> ReadOnlyFileInfos = new();
-				foreach (var (Info, NewLines) in UpdatedFiles)
+				foreach ((IWYUInfo Info, List<string> NewLines) in UpdatedFiles)
 				{
 					if (new FileInfo(Info.File).IsReadOnly)
 					{
@@ -1912,7 +1902,7 @@ namespace UnrealBuildTool
 					// Should probably revisit this code to prevent 100s of p4 processes to start at once
 					Logger.LogInformation($"Opening {ReadOnlyFileInfos.Count} files for edit in P4... ({SkippedCount} files skipped)");
 					int ShowCount = 8;
-					foreach (var Info in ReadOnlyFileInfos)
+					foreach (IWYUInfo Info in ReadOnlyFileInfos)
 					{
 						Logger.LogInformation($"   edit {Info.File}");
 						if (--ShowCount == 0)
@@ -1929,7 +1919,7 @@ namespace UnrealBuildTool
 					int BatchSize = 10;
 					int BatchCount = 0;
 					int Index = 0;
-					foreach (var Info in ReadOnlyFileInfos)
+					foreach (IWYUInfo Info in ReadOnlyFileInfos)
 					{
 						if (!SkippedFiles.Contains(Info.Source!))
 						{
@@ -1956,7 +1946,7 @@ namespace UnrealBuildTool
 			bool WriteSuccess = true;
 			Logger.LogInformation($"Writing {UpdatedFiles.Count - SkippedCount} files to disk...");
 
-			foreach (var (Info, NewLines) in UpdatedFiles)
+			foreach ((IWYUInfo Info, List<string> NewLines) in UpdatedFiles)
 			{
 				if (SkippedFiles.Contains(Info.Source!))
 				{
@@ -1998,7 +1988,7 @@ namespace UnrealBuildTool
 		static void CalculateTransitive(IWYUInfo Root, IWYUInfo Info, Stack<string> Stack, Dictionary<string, string> TransitiveIncludes, Dictionary<string, string> TransitiveForwardDeclarations, bool UseSeenIncludes)
 		{
 			List<IWYUIncludeEntry> Includes = UseSeenIncludes ? Info.IncludesSeenInFile : Info.Includes;
-			foreach (var Include in Includes)
+			foreach (IWYUIncludeEntry Include in Includes)
 			{
 				string Key = Include.Full;
 
@@ -2017,7 +2007,7 @@ namespace UnrealBuildTool
 				Stack.Pop();
 			}
 
-			foreach (var ForwardDeclaration in Info.ForwardDeclarations)
+			foreach (IWYUForwardEntry ForwardDeclaration in Info.ForwardDeclarations)
 			{
 				string Key = ForwardDeclaration.Printable;
 				TransitiveForwardDeclarations.TryAdd(Key, Info.File);
@@ -2033,7 +2023,7 @@ namespace UnrealBuildTool
 			Logger.LogInformation($"Parsing seen headers not supporting being compiled...");
 			Parallel.ForEach(Infos.Values, Info =>
 			{
-				foreach (var Include in Info.IncludesSeenInFile)
+				foreach (IWYUIncludeEntry Include in Info.IncludesSeenInFile)
 				{
 					if (Include.Resolved == null)
 					{
@@ -2078,7 +2068,7 @@ namespace UnrealBuildTool
 					InfosToCompare.Add(new(Info, SeenTransitiveIncludes));
 				}
 
-				foreach (var Include in SeenTransitiveIncludes.Union(Info.TransitiveIncludes))
+				foreach (KeyValuePair<string, string> Include in SeenTransitiveIncludes.Union(Info.TransitiveIncludes))
 				{
 					AllSeenIncludes.TryAdd(Include.Key, 0);
 				}
@@ -2095,7 +2085,7 @@ namespace UnrealBuildTool
 				*/
 			});
 
-			var FileToSize = new Dictionary<string, long>(AllSeenIncludes);
+			Dictionary<string, long> FileToSize = new Dictionary<string, long>(AllSeenIncludes);
 
 			Logger.LogInformation($"Reading file sizes...");
 			Parallel.ForEach(AllSeenIncludes, Info =>
@@ -2109,12 +2099,12 @@ namespace UnrealBuildTool
 			{
 				long OptimizedSize = 0;
 				long SeenSize = 0;
-				foreach (var Include in Kvp.Item1.TransitiveIncludes.Keys)
+				foreach (string Include in Kvp.Item1.TransitiveIncludes.Keys)
 				{
 					OptimizedSize += FileToSize[Include];
 				}
 
-				foreach (var Include in Kvp.Item2.Keys)
+				foreach (string? Include in Kvp.Item2.Keys)
 				{
 					SeenSize += FileToSize[Include];
 				}
@@ -2164,7 +2154,7 @@ namespace UnrealBuildTool
 				long Saved = ByteSizeDiffList[I].Item1;
 				IWYUInfo File = ByteSizeDiffList[I].Item2;
 				long OptimizedSize = 0;
-				foreach (var Include in File.TransitiveIncludes.Keys)
+				foreach (string Include in File.TransitiveIncludes.Keys)
 				{
 					OptimizedSize += FileToSize[Include];
 				}

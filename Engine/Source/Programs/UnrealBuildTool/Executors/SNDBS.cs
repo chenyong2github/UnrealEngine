@@ -91,7 +91,7 @@ namespace UnrealBuildTool
 			{
 				string BrokerHostName = "";
 				Regex FindHost = new Regex(@"Active broker is ""(\S +)"" \((\S+)\)");
-				var LocalProcess = new Process();
+				Process LocalProcess = new Process();
 				LocalProcess.StartInfo = new ProcessStartInfo(SNDBSUtilExe, $"-connected");
 				LocalProcess.OutputDataReceived += (Sender, Args) =>
 				{
@@ -242,14 +242,14 @@ namespace UnrealBuildTool
 
 			int IdCounter = 0;
 			// Build the json script file to describe all the actions and their dependencies
-			var ActionIds = Actions.ToDictionary(a => a, a => new Guid(++IdCounter, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0).ToString());
+			Dictionary<LinkedAction, string> ActionIds = Actions.ToDictionary(a => a, a => new Guid(++IdCounter, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0).ToString());
 			JsonSerializerOptions JsonOption = new JsonSerializerOptions();
 			JsonOption.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
 			File.WriteAllText(ScriptFile.FullName, JsonSerializer.Serialize(new Dictionary<string, object>()
 			{
 				["jobs"] = Actions.Select(a =>
 				{
-					var Job = new Dictionary<string, object>()
+					Dictionary<string, object> Job = new Dictionary<string, object>()
 					{
 						["id"] = ActionIds[a],
 						["title"] = a.StatusDescription,
@@ -259,7 +259,7 @@ namespace UnrealBuildTool
 						["run_locally"] = !(a.bCanExecuteRemotely && a.bCanExecuteRemotelyWithSNDBS)
 					};
 
-					if (a.PrerequisiteItems.Count() > 0)
+					if (a.PrerequisiteItems.Any())
 					{
 						Job["explicit_input_files"] = a.PrerequisiteItems.Where(i => !(i.AbsolutePath.EndsWith(".rsp") || i.AbsolutePath.EndsWith(".response"))).Select(i => new Dictionary<string, object>()
 						{
@@ -277,10 +277,10 @@ namespace UnrealBuildTool
 			PrepareToolTemplates();
 			bool bHasRewrites = GenerateSNDBSIncludeRewriteRules();
 
-			var ConfigList = TargetDescriptors.Select(Descriptor => $"{Descriptor.Name}|{Descriptor.Platform}|{Descriptor.Configuration}");
-			var ConfigDescription = String.Join(",", ConfigList);
+			IEnumerable<string> ConfigList = TargetDescriptors.Select(Descriptor => $"{Descriptor.Name}|{Descriptor.Platform}|{Descriptor.Configuration}");
+			string ConfigDescription = String.Join(",", ConfigList);
 
-			var StartInfo = new ProcessStartInfo(
+			ProcessStartInfo StartInfo = new ProcessStartInfo(
 				SNDBSBuildExe,
 				$"-q -p \"{ConfigDescription}\" -s \"{ScriptFile}\" -templates \"{IntermediateDir}\""
 				);
@@ -317,7 +317,7 @@ namespace UnrealBuildTool
 							Writer.Write(++NumCompletedActions, NumActions);
 
 							Text = Args.Data.Substring(ProgressMarkupPrefix.Length).Trim();
-							var ActionInfo = Text.Split(':');
+							string[] ActionInfo = Text.Split(':');
 							Logger.LogInformation("[{NumCompletedActions}/{NumActions}] {ActionInfo0} {ActionInfo1}", NumCompletedActions, NumActions, ActionInfo[0], ActionInfo[1]);
 							CurrentStatus = ActionInfo[1];
 							return;
@@ -369,10 +369,10 @@ namespace UnrealBuildTool
 
 		private void PrepareToolTemplates()
 		{
-			foreach (var Template in ActiveTemplates)
+			foreach (KeyValuePair<string, string> Template in ActiveTemplates)
 			{
-				var TemplateFile = FileReference.Combine(IntermediateDir, $"{Template.Key}.sn-dbs-tool.ini");
-				var TemplateText = Template.Value;
+				FileReference TemplateFile = FileReference.Combine(IntermediateDir, $"{Template.Key}.sn-dbs-tool.ini");
+				string TemplateText = Template.Value;
 
 				foreach (Nullable<DictionaryEntry> Variable in Environment.GetEnvironmentVariables(EnvironmentVariableTarget.Process))
 				{
@@ -389,7 +389,7 @@ namespace UnrealBuildTool
 		private bool GenerateSNDBSIncludeRewriteRules()
 		{
 			// Get all distinct platform names being used in this build.
-			var Platforms = TargetDescriptors
+			List<string> Platforms = TargetDescriptors
 				.Select(TargetDescriptor => UEBuildPlatform.GetBuildPlatform(TargetDescriptor.Platform).GetPlatformName())
 				.Distinct()
 				.ToList();
@@ -397,7 +397,7 @@ namespace UnrealBuildTool
 			if (Platforms.Count > 0)
 			{
 				// language=regex
-				var Lines = new[]
+				string[] Lines = new[]
 				{
 					@"pattern1=^COMPILED_PLATFORM_HEADER\(\s*([^ ,]+)\s*\)",
 					$"expansions1={String.Join("|", Platforms.Select(Name => $"{Name}/{Name}$1|{Name}$1"))}",

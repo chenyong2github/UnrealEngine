@@ -339,7 +339,7 @@ namespace UnrealBuildTool
 					IncludePaths.Add(GeneratedCodeDirectoryVNI!);
 				}
 
-				foreach (var (Subdirectory, _) in Rules.GenerateHeaderFuncs)
+				foreach ((string Subdirectory, Action<ILogger, DirectoryReference> _) in Rules.GenerateHeaderFuncs)
 				{
 					IncludePaths.Add(DirectoryReference.Combine(GeneratedCodeDirectory, Subdirectory));
 				}
@@ -480,7 +480,7 @@ namespace UnrealBuildTool
 			// Compile all the generated CPP files
 			if (GeneratedCppDirectories != null && !CompileEnvironment.bHackHeaderGenerator)
 			{
-				var GeneratedFiles = new Dictionary<string, FileItem>();
+				Dictionary<string, FileItem> GeneratedFiles = new Dictionary<string, FileItem>();
 				foreach (string GeneratedDir in GeneratedCppDirectories)
 				{
 					if (!Directory.Exists(GeneratedDir))
@@ -507,7 +507,7 @@ namespace UnrealBuildTool
 					// Remove any generated files from the compile list if they are inlined
 					foreach (FileItem CPPFileItem in CPPFiles)
 					{
-						var ListOfInlinedGenCpps = ModuleCompileEnvironment.MetadataCache.GetListOfInlinedGeneratedCppFiles(CPPFileItem);
+						IList<string> ListOfInlinedGenCpps = ModuleCompileEnvironment.MetadataCache.GetListOfInlinedGeneratedCppFiles(CPPFileItem);
 						foreach (string ListOfInlinedGenCppsItem in ListOfInlinedGenCpps)
 						{
 							string Prefix = "UHT/";
@@ -529,12 +529,12 @@ namespace UnrealBuildTool
 
 					if (Rules.bEnableNonInlinedGenCppWarnings)
 					{
-						var CPPFilesLookup = new Dictionary<string, FileItem>();
-						foreach (var CPPFile in CPPFiles)
+						Dictionary<string, FileItem> CPPFilesLookup = new Dictionary<string, FileItem>();
+						foreach (FileItem CPPFile in CPPFiles)
 						{
 							CPPFilesLookup.Add(Utils.GetFilenameWithoutAnyExtensions(CPPFile.Name), CPPFile);
 						}
-						foreach (var Name in GeneratedFiles.Keys)
+						foreach (string Name in GeneratedFiles.Keys)
 						{
 							if (!Name.StartsWith("UHT/"))
 							{
@@ -665,7 +665,7 @@ namespace UnrealBuildTool
 			{
 				Unity.GetAdaptiveFiles(Target, CPPFiles, InputFiles.HeaderFiles, CompileEnvironment, WorkingSet, Rules.ShortName ?? Name, IntermediateDirectory, Graph,
 					out List<FileItem> NormalFiles, out List<FileItem> AdaptiveFiles);
-				if (NormalFiles.Where(file => !file.HasExtension(".gen.cpp")).Count() == 0)
+				if (!NormalFiles.Where(file => !file.HasExtension(".gen.cpp")).Any())
 				{
 					NormalFiles = CPPFiles;
 					AdaptiveFiles.RemoveAll(new HashSet<FileItem>(NormalFiles).Contains);
@@ -967,7 +967,7 @@ namespace UnrealBuildTool
 									return false;
 								}
 
-								foreach (var Definition in DefinitionsDictionary)
+								foreach (KeyValuePair<string, string> Definition in DefinitionsDictionary)
 								{
 									if (ParentInstance.DefinitionsDictionary.TryGetValue(Definition.Key, out string? ParentValue))
 									{

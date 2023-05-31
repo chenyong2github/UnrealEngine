@@ -211,7 +211,7 @@ namespace UnrealBuildTool
 		private int GetApiLevelInt(string ApiString)
 		{
 			int VersionInt = 0;
-			if (ApiString.Contains("-"))
+			if (ApiString.Contains('-'))
 			{
 				int Version;
 				if (Int32.TryParse(ApiString.Substring(ApiString.LastIndexOf('-') + 1), out Version))
@@ -236,7 +236,7 @@ namespace UnrealBuildTool
 				string ProjectSDKLevel;
 				Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "SDKAPILevelOverride", out ProjectSDKLevel);
 				ProjectSDKLevel = ProjectSDKLevel.Trim();
-				if (ProjectSDKLevel != "")
+				if (!String.IsNullOrEmpty(ProjectSDKLevel))
 				{
 					SDKLevel = ProjectSDKLevel;
 				}
@@ -326,7 +326,7 @@ namespace UnrealBuildTool
 			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 			Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "BuildToolsOverride", out BestVersionString);
 
-			if (BestVersionString == null || BestVersionString == "" || BestVersionString == "latest")
+			if (BestVersionString == null || String.IsNullOrEmpty(BestVersionString) || BestVersionString == "latest")
 			{
 				// get a list of the directories in build-tools.. may be more than one set installed (or none which is bad)
 				string[] Subdirs = Directory.GetDirectories(Path.Combine(HomePath, "build-tools"));
@@ -998,7 +998,6 @@ namespace UnrealBuildTool
 				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetX8664", out CachedStoreVersionOffsetX8664);
 			}
 
-
 			if (Architecture == UnrealArch.Arm64)
 			{
 				return CachedStoreVersion + CachedStoreVersionOffsetArm64;
@@ -1503,7 +1502,7 @@ namespace UnrealBuildTool
 
 				Logger.LogInformation("DebugVulkanLayerDirectory {LayerDir}", LayerDir);
 
-				if (LayerDir != "")
+				if (!String.IsNullOrEmpty(LayerDir))
 				{
 					string VulkanLayersDir = Path.Combine(Environment.ExpandEnvironmentVariables(LayerDir), NDKArch);
 
@@ -1595,7 +1594,7 @@ namespace UnrealBuildTool
 			// see https://github.com/dotnet/runtime/issues/29857
 			// also see UE-102580
 			// for rules see https://docs.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
-			if (Params.Contains("\'"))
+			if (Params.Contains('\''))
 			{
 				Params = Params.Replace("\"", "\\\"");
 				Params = Params.Replace('\'', '\"');
@@ -1605,7 +1604,7 @@ namespace UnrealBuildTool
 			{
 				Logger.LogInformation("\nRunning: {Command} {Params}", Command, Params);
 			}
-			else if (OverrideDesc != "")
+			else if (!String.IsNullOrEmpty(OverrideDesc))
 			{
 				Logger.LogInformation("{Message}", OverrideDesc);
 				Logger.LogDebug("\nRunning: {Command} {Params}", Command, Params);
@@ -1633,7 +1632,7 @@ namespace UnrealBuildTool
 			// see https://github.com/dotnet/runtime/issues/29857
 			// also see UE-102580
 			// for rules see https://docs.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
-			if (Params.Contains("\'"))
+			if (Params.Contains('\''))
 			{
 				Params = Params.Replace("\"", "\\\"");
 				Params = Params.Replace('\'', '\"');
@@ -1643,7 +1642,7 @@ namespace UnrealBuildTool
 			{
 				Logger.LogInformation("\nRunning: {Command} {Params}", Command, Params);
 			}
-			else if (OverrideDesc != "")
+			else if (!String.IsNullOrEmpty(OverrideDesc))
 			{
 				Logger.LogInformation("{Message}", OverrideDesc);
 				Logger.LogDebug("\nRunning: {Command} {Params}", Command, Params);
@@ -1833,7 +1832,7 @@ namespace UnrealBuildTool
 			// see https://github.com/dotnet/runtime/issues/29857
 			// also see UE-102580
 			// for rules see https://docs.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
-			if (Params.Contains("\'"))
+			if (Params.Contains('\''))
 			{
 				Params = Params.Replace("\"", "\\\"");
 				Params = Params.Replace('\'', '\"');
@@ -1843,7 +1842,7 @@ namespace UnrealBuildTool
 			{
 				Logger.LogInformation("\nRunning: {Command} {Params}", Command, Params);
 			}
-			else if (OverrideDesc != "")
+			else if (!String.IsNullOrEmpty(OverrideDesc))
 			{
 				Logger.LogInformation("{Message}", OverrideDesc);
 				Logger.LogDebug("\nRunning: {Command} {Params}", Command, Params);
@@ -2410,7 +2409,7 @@ namespace UnrealBuildTool
 					}
 
 					// hyphens not allowed so change them to underscores in project name
-					if (ProjectName.Contains("-"))
+					if (ProjectName.Contains('-'))
 					{
 						Trace.TraceWarning("Project name contained hyphens, converted to underscore");
 						ProjectName = ProjectName.Replace("-", "_");
@@ -2438,7 +2437,7 @@ namespace UnrealBuildTool
 				}
 
 				// hyphens not allowed
-				if (PackageName.Contains("-"))
+				if (PackageName.Contains('-'))
 				{
 					throw new BuildException("Package names may not contain hyphens; please change in Android Project Settings. Currently set to '" + PackageName + "'");
 				}
@@ -2515,7 +2514,6 @@ namespace UnrealBuildTool
 
 			return EngineMajorVersion + "." + EngineMinorVersion + "." + EnginePatchVersion;
 		}
-
 
 		private string GenerateManifest(AndroidToolChain ToolChain, string ProjectName, TargetType InTargetType, string EngineDirectory, bool bIsForDistribution, bool bPackageDataInsideApk, string GameBuildFilesPath, bool bHasOBBFiles, bool bDisableVerifyOBBOnStartUp, UnrealArch UnrealArch, string CookFlavor, bool bUseExternalFilesDir, string Configuration, int SDKLevelInt, bool bIsEmbedded, bool bEnableBundle)
 		{
@@ -2709,7 +2707,7 @@ namespace UnrealBuildTool
 			string CookedFlavors = (bETC2Enabled ? "ETC2," : "") +
 									(bDXTEnabled ? "DXT," : "") +
 									(bASTCEnabled ? "ASTC," : "");
-			CookedFlavors = (CookedFlavors == "") ? "" : CookedFlavors.Substring(0, CookedFlavors.Length - 1);
+			CookedFlavors = (String.IsNullOrEmpty(CookedFlavors)) ? "" : CookedFlavors.Substring(0, CookedFlavors.Length - 1);
 
 			StringBuilder Text = new StringBuilder();
 			Text.AppendLine(XML_HEADER);
@@ -3036,7 +3034,7 @@ namespace UnrealBuildTool
 					foreach (string Permission in ExtraPermissions)
 					{
 						string TrimmedPermission = Permission.Trim(' ');
-						if (TrimmedPermission != "")
+						if (!String.IsNullOrEmpty(TrimmedPermission))
 						{
 							string PermissionString = String.Format("\t<uses-permission android:name=\"{0}\"/>", TrimmedPermission);
 							if (!Text.ToString().Contains(PermissionString))
@@ -3309,7 +3307,6 @@ namespace UnrealBuildTool
 					return true;
 				}
 			}
-
 		}
 
 		private bool RequiresOBB(bool bDisallowPackageInAPK, string OBBLocation)
@@ -4813,7 +4810,7 @@ namespace UnrealBuildTool
 
 				// check if any plugins want to increase the required compile SDK version
 				string CompileSDKMin = UPL.ProcessPluginNode(NDKArch, "minimumSDKAPI", "");
-				if (CompileSDKMin != "")
+				if (!String.IsNullOrEmpty(CompileSDKMin))
 				{
 					int CompileSDKVersionInt;
 					if (!Int32.TryParse(CompileSDKVersion, out CompileSDKVersionInt))
@@ -4937,7 +4934,7 @@ namespace UnrealBuildTool
 							string ShellParametersEnd = RuntimePlatform.IsWindows ? "" : "'";
 							RunCommandLineProgramWithExceptionAndFiltering(UnrealBuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, Logger, "Making .apk with Gradle...");
 
-							if (GradleSecondCallOptions != "")
+							if (!String.IsNullOrEmpty(GradleSecondCallOptions))
 							{
 								RunCommandLineProgramWithExceptionAndFiltering(UnrealBuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleSecondCallOptions + ShellParametersEnd, Logger, "Additional Gradle steps...");
 							}
@@ -5311,7 +5308,7 @@ namespace UnrealBuildTool
 					string ShellParametersEnd = RuntimePlatform.IsWindows ? "" : "'";
 					RunCommandLineProgramWithExceptionAndFiltering(UnrealBuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, Logger, "Making .aab with Gradle...");
 
-					if (GradleSecondCallOptions != "")
+					if (!String.IsNullOrEmpty(GradleSecondCallOptions))
 					{
 						RunCommandLineProgramWithExceptionAndFiltering(UnrealBuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleSecondCallOptions + ShellParametersEnd, Logger, "Additional Gradle steps...");
 					}
@@ -5373,7 +5370,7 @@ namespace UnrealBuildTool
 						string ShellParametersEnd = RuntimePlatform.IsWindows ? "" : "'";
 						RunCommandLineProgramWithExceptionAndFiltering(UnrealBuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, Logger, "Making .aab with Gradle...");
 
-						if (GradleSecondCallOptions != "")
+						if (!String.IsNullOrEmpty(GradleSecondCallOptions))
 						{
 							RunCommandLineProgramWithExceptionAndFiltering(UnrealBuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleSecondCallOptions + ShellParametersEnd, Logger, "Additional Gradle steps...");
 						}
@@ -5975,19 +5972,19 @@ namespace UnrealBuildTool
 					}
 				}
 
-				if (VersionCode != "")
+				if (!String.IsNullOrEmpty(VersionCode))
 				{
 					BuildGradleContent.AppendLine(String.Format("\t\tversionCode {0}", VersionCode));
 				}
-				if (VersionName != "")
+				if (!String.IsNullOrEmpty(VersionName))
 				{
 					BuildGradleContent.AppendLine(String.Format("\t\tversionName \"{0}\"", VersionName));
 				}
-				if (MinSdkVersion != "")
+				if (!String.IsNullOrEmpty(MinSdkVersion))
 				{
 					BuildGradleContent.AppendLine(String.Format("\t\tminSdkVersion = {0}", MinSdkVersion));
 				}
-				if (TargetSdkVersion != "")
+				if (!String.IsNullOrEmpty(TargetSdkVersion))
 				{
 					BuildGradleContent.AppendLine(String.Format("\t\ttargetSdkVersion = {0}", TargetSdkVersion));
 				}

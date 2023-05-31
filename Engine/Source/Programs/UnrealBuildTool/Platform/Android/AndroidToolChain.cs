@@ -239,7 +239,6 @@ namespace UnrealBuildTool
 			ReadElfPath = Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, @"bin/llvm-readelf" + ExeExtension);
 		}
 
-
 		protected override ClangToolChainInfo GetToolChainInfo()
 		{
 			return new ClangToolChainInfo(FileReference.FromString(ClangPath)!, FileReference.FromString(ArPathArm64)!, Logger);
@@ -301,7 +300,7 @@ namespace UnrealBuildTool
 		{
 			string NDKVersion = GetNdkApiLevel();
 			int NDKVersionInt = MinNdk;
-			if (NDKVersion.Contains("-"))
+			if (NDKVersion.Contains('-'))
 			{
 				int Version;
 				if (Int32.TryParse(NDKVersion.Substring(NDKVersion.LastIndexOf('-') + 1), out Version))
@@ -371,7 +370,7 @@ namespace UnrealBuildTool
 				return false;
 			}
 
-			if (ApiString.Contains("-"))
+			if (ApiString.Contains('-'))
 			{
 				int Version;
 				if (Int32.TryParse(ApiString.Substring(ApiString.LastIndexOf('-') + 1), out Version))
@@ -393,7 +392,7 @@ namespace UnrealBuildTool
 			string ProjectNDKLevel;
 			Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "NDKAPILevelOverride", out ProjectNDKLevel!);
 			ProjectNDKLevel = ProjectNDKLevel.Trim();
-			if (ProjectNDKLevel != "")
+			if (!String.IsNullOrEmpty(ProjectNDKLevel))
 			{
 				NDKLevel = ProjectNDKLevel;
 			}
@@ -443,7 +442,6 @@ namespace UnrealBuildTool
 			return "android-" + MaxPlatform.ToString();
 		}
 
-
 		protected override void GetCompileArguments_IncludePaths(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			// remove paths that are not meant for this architecture
@@ -458,14 +456,13 @@ namespace UnrealBuildTool
 		/// <inheritdoc/>
 		protected override string EscapePreprocessorDefinition(string Definition)
 		{
-			return Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
+			return Definition.Contains('"') ? Definition.Replace("\"", "\\\"") : Definition;
 		}
 
 		/// <inheritdoc/>
 		protected override void GetCompileArguments_WarningsAndErrors(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			base.GetCompileArguments_WarningsAndErrors(CompileEnvironment, Arguments);
-
 
 			// @todo unlikely all needed
 			Arguments.Add("-Wno-local-type-template-args"); // engine triggers this
@@ -586,7 +583,6 @@ namespace UnrealBuildTool
 				Arguments.Add("-ffunction-sections");   // Places each function in its own section of the output file, linker may be able to perform opts to improve locality of reference
 				Arguments.Add("-fdata-sections");       // Places each data item in its own section of the output file, linker may be able to perform opts to improve locality of reference
 			}
-
 		}
 
 		/// <inheritdoc/>
@@ -605,8 +601,6 @@ namespace UnrealBuildTool
 					Arguments.Add("-fno-omit-frame-pointer -DRUNNING_WITH_ASAN=1 -DFORCE_ANSI_ALLOCATOR=1");
 				}
 			}
-
-
 
 			//string? SanitizerMode = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
 			//if ((SanitizerMode != null && SanitizerMode == "YES") || (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer)))
@@ -649,7 +643,6 @@ namespace UnrealBuildTool
 
 			string NativeGluePath = Path.GetFullPath(GetNativeGluePath());
 
-
 			if (BuildWithHiddenSymbolVisibility(CompileEnvironment))
 			{
 				Arguments.Add("-fvisibility=hidden");
@@ -669,7 +662,6 @@ namespace UnrealBuildTool
 			Arguments.Add("-D_FORTIFY_SOURCE=2");       // FORTIFY default
 			Arguments.Add($"-DPLATFORM_USED_NDK_VERSION_INTEGER={NDKApiLevel64Int}");       // NDK version
 			Arguments.Add("-DPLATFORM_64BITS=1");       // NDK version
-
 
 			if (CompileEnvironment.bCompileISPC)
 			{
@@ -713,7 +705,6 @@ namespace UnrealBuildTool
 			return TargetFile;
 		}
 
-
 		protected virtual string GetLinkArguments(LinkEnvironment LinkEnvironment, UnrealArch Architecture)
 		{
 			string Result = "";
@@ -755,7 +746,6 @@ namespace UnrealBuildTool
 
 			// use lld as linker (requires llvm-strip)
 			Result += " -fuse-ld=lld";
-
 
 			// make sure the DT_SONAME field is set properly (or we can a warning toast at startup on new Android)
 			Result += " -Wl,-soname,libUnreal.so";
@@ -836,7 +826,6 @@ namespace UnrealBuildTool
 
 			return Result;
 		}
-
 
 		protected virtual void ModifyLibraries(LinkEnvironment LinkEnvironment)
 		{
@@ -1239,7 +1228,7 @@ namespace UnrealBuildTool
 				{
 					string ObjTarget = Target;
 
-					if (Target.Contains("-"))
+					if (Target.Contains('-'))
 					{
 						// Remove lane width and gang size from obj file name
 						ObjTarget = Target.Split('-')[0];

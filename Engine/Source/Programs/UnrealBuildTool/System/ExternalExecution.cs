@@ -502,7 +502,7 @@ namespace UnrealBuildTool
 				using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 				{
 					IReadOnlySet<string> ExcludedFolders = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
-					foreach (var Module in IncludePathModules)
+					foreach (UEBuildModuleCPP Module in IncludePathModules)
 					{
 						Queue.Enqueue(() =>
 						{
@@ -694,7 +694,6 @@ namespace UnrealBuildTool
 					throw new BuildException("Could not find CoreUObject in list of all UObjectModules");
 				}
 			}
-
 
 			foreach (UHTModuleInfo Module in UObjectModules)
 			{

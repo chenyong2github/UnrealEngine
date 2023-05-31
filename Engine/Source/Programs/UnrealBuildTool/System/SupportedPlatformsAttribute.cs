@@ -30,7 +30,6 @@ namespace UnrealBuildTool
 				EpicGames.Core.ExceptionUtils.AddContext(Ex, "while parsing a SupportedPlatforms attribute");
 				throw;
 			}
-
 		}
 
 		/// <summary>

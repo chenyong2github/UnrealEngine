@@ -51,7 +51,6 @@ namespace UnrealBuildTool
 			private set;
 		}
 
-
 		/// <summary>
 		/// Adds a new sub-folder to this folder
 		/// </summary>
@@ -89,7 +88,6 @@ namespace UnrealBuildTool
 
 			return ResultFolder!;
 		}
-
 
 		/// <summary>
 		/// Recursively searches for the specified project and returns the folder that it lives in, or null if not found
@@ -679,7 +677,7 @@ namespace UnrealBuildTool
 				FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "UnrealBuildTool", "UnrealBuildTool.csproj")
 			};
 
-			var CurrentParent = RulesAssembly.Parent;
+			RulesAssembly? CurrentParent = RulesAssembly.Parent;
 			while (CurrentParent != null)
 			{
 				if (RulesAssemblies.TryGetValue(CurrentParent, out DirectoryReference? FSParentPathBase))
@@ -842,7 +840,6 @@ namespace UnrealBuildTool
 					return true;
 				}
 			}
-
 
 			Format = ProjectFileFormat.VisualStudio;
 			return false;
@@ -1165,7 +1162,6 @@ namespace UnrealBuildTool
 					{
 						DebugProjectFiles.AddRange(NewProjectFiles);
 					}
-
 				}
 
 				//Related Debug Project Files - Tuple has the related Debug Project, SolutionFolder
@@ -1579,7 +1575,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		/// <summary>
 		/// Adds all game project files, including target projects and config files
 		/// </summary>
@@ -1600,7 +1595,6 @@ namespace UnrealBuildTool
 				if (UniqueGameProjectDirectories.Add(GameProjectDirectory))
 				{
 					// @todo projectfiles: We have engine localization files, but should we also add GAME localization files?
-
 
 					// Game restricted source files, since they won't be added via a module FileReference
 					foreach (DirectoryReference GameRestrictedSourceDirectory in Unreal.GetExtensionDirs(GameProjectDirectory, "Source", bIncludePlatformDirectories: false, bIncludeBaseDirectory: false))
@@ -1641,7 +1635,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		/// Adds all engine localization text files to the specified project
 		private void AddEngineLocalizationFiles(ProjectFile EngineProject)
 		{
@@ -1652,7 +1645,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		/// Adds all engine template text files to the specified project
 		private void AddEngineTemplateFiles(ProjectFile EngineProject)
 		{
@@ -1662,7 +1654,6 @@ namespace UnrealBuildTool
 				EngineProject.AddFilesToProject(SourceFileSearch.FindFiles(EngineTemplateDirectory), Unreal.EngineDirectory);
 			}
 		}
-
 
 		/// Adds all engine config files to the specified project
 		private void AddEngineConfigFiles(ProjectFile EngineProject)
@@ -1842,7 +1833,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		/// <summary>
 		/// Recursively collapses all sub-folders that are redundant.  Should only be called after we're done adding
 		/// files and projects to the primary project.
@@ -1862,7 +1852,6 @@ namespace UnrealBuildTool
 			// Additionally, if KeepSourceSubDirectories==false, we can eliminate directories called "Source".
 			//
 			// Also, we can kill folders that are completely empty.
-
 
 			foreach (PrimaryProjectFolder SubFolder in Folder.SubFolders)
 			{
@@ -2218,7 +2207,6 @@ namespace UnrealBuildTool
 
 		}
 
-
 		/// <summary>
 		/// Selects which platforms and build configurations we want in the project file
 		/// </summary>
@@ -2435,7 +2423,6 @@ namespace UnrealBuildTool
 						Logger.LogInformation("Searching for third-party source files...");
 					}
 
-
 					// Find all of the source files (and other files) and add them to the project
 					List<FileReference> FoundFiles = SourceFileSearch.FindModuleSourceFiles(CurModuleFile, SearchSubdirectories: SearchSubdirectories);
 					// remove any target files, they are technically not part of the module and are explicitly added when the project is created
@@ -2522,7 +2509,6 @@ namespace UnrealBuildTool
 				ProjectFile.AddFilesToProject(SourceFileSearch.FindFiles(PluginShadersFolder), BaseFolder);
 			}
 		}
-
 
 		private ProjectFile FindOrAddProjectHelper(string InProjectFileNameBase, DirectoryReference InBaseFolder)
 		{
@@ -2903,7 +2889,6 @@ namespace UnrealBuildTool
 						ProjectFile.AddFilesToProject(AllSubTargetFilesPerTarget[TargetName], BaseFolder);
 					}
 
-
 					Logger.LogDebug("Generating target {Target} for {Project}", TargetRulesObject.Type.ToString(), ProjectFilePath);
 				}
 			}
@@ -2921,10 +2906,10 @@ namespace UnrealBuildTool
 					}
 
 					// hook up to the engine target(s)
-					foreach (var EngineProject in EngineProjects)
+					foreach (ProjectFile EngineProject in EngineProjects)
 					{
 						ProjectFile? ProjectFile = null;
-						foreach (var EngineTarget in EngineProject.ProjectTargets)
+						foreach (Project EngineTarget in EngineProject.ProjectTargets)
 						{
 							if (bMakeProjectPerTarget)
 							{
@@ -3010,7 +2995,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		/// Adds engine build infrastructure files to the specified project
 		protected void AddEngineBuildFiles(ProjectFile EngineProject)
 		{
@@ -3021,8 +3005,6 @@ namespace UnrealBuildTool
 
 			EngineProject.AddFilesToProject(SourceFileSearch.FindFiles(BuildDirectory, SubdirectoryNamesToExclude), Unreal.EngineDirectory);
 		}
-
-
 
 		/// Adds engine documentation to the specified project
 		protected void AddEngineDocumentation(ProjectFile EngineProject, ILogger Logger)
@@ -3083,9 +3065,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
-
-
 		/// <summary>
 		/// Adds a new project file and returns an object that represents that project file (or if the project file is already known, returns that instead.)
 		/// </summary>
@@ -3122,7 +3101,6 @@ namespace UnrealBuildTool
 			return NewProjectFile;
 		}
 
-
 		/// <summary>
 		/// Allocates a generator-specific project file object
 		/// </summary>
@@ -3130,7 +3108,6 @@ namespace UnrealBuildTool
 		/// <param name="BaseDir">The base directory for files within this project</param>
 		/// <returns>The newly allocated project file object</returns>
 		protected abstract ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir);
-
 
 		/// <summary>
 		/// Returns a list of all the known project files
@@ -3146,7 +3123,6 @@ namespace UnrealBuildTool
 				return CombinedList;
 			}
 		}
-
 
 		/// <summary>
 		/// Writes the project files to disk
@@ -3200,7 +3176,6 @@ namespace UnrealBuildTool
 		/// <returns>True if successful</returns>
 		protected abstract bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger);
 
-
 		/// <summary>
 		/// Writes any additional solution-wide debug files (e.g. UnrealVS hints)
 		/// </summary>
@@ -3220,8 +3195,6 @@ namespace UnrealBuildTool
 		protected virtual void AddAdditionalNativeTargetInformation(PlatformProjectGeneratorCollection PlatformProjectGenerators, List<Tuple<ProjectFile, ProjectTarget>> Targets, ILogger Logger)
 		{
 		}
-
-
 
 		/// <summary>
 		/// Writes the specified string content to a file.  Before writing to the file, it loads the existing file (if present) to see if the contents have changed
@@ -3247,7 +3220,6 @@ namespace UnrealBuildTool
 					Logger.LogInformation("Error while trying to load existing file {FileName}.  Ignored.", FileName);
 				}
 			}
-
 
 			// Don't bother saving anything out if the new file content is the same as the old file's content
 			bool FileNeedsSave = true;
@@ -3408,7 +3380,6 @@ namespace UnrealBuildTool
 								bFoundDebugConfig = true;
 							}
 						}
-
 					}
 				}
 				catch

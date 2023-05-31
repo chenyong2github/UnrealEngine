@@ -186,11 +186,11 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				var UpdateSourceFileInfo = (FileItem SourceFile) =>
+				Func<FileItem, SourceFileInfo> UpdateSourceFileInfo = (FileItem SourceFile) =>
 				{
-					var SourceFileInfo = new SourceFileInfo();
-					var FileText = FileReference.ReadAllText(SourceFile.Location);
-					var FileTextLines = FileText.Split('\n');
+					SourceFileInfo SourceFileInfo = new SourceFileInfo();
+					string FileText = FileReference.ReadAllText(SourceFile.Location);
+					string[] FileTextLines = FileText.Split('\n');
 
 					SourceFileInfo.LastWriteTimeUtc = SourceFile.LastWriteTimeUtc.Ticks;
 
@@ -265,11 +265,11 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				var UpdateHeaderFileInfo = (FileItem HeaderFile) =>
+				Func<FileItem, HeaderFileInfo> UpdateHeaderFileInfo = (FileItem HeaderFile) =>
 				{
-					var HeaderFileInfo = new HeaderFileInfo();
-					var FileText = FileReference.ReadAllText(HeaderFile.Location);
-					var FileTextLines = FileText.Split('\n');
+					HeaderFileInfo HeaderFileInfo = new HeaderFileInfo();
+					string FileText = FileReference.ReadAllText(HeaderFile.Location);
+					string[] FileTextLines = FileText.Split('\n');
 
 					HeaderFileInfo.LastWriteTimeUtc = HeaderFile.LastWriteTimeUtc.Ticks;
 

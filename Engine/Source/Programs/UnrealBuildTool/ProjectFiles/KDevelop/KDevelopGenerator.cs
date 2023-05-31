@@ -77,7 +77,6 @@ namespace UnrealBuildTool
 				{
 					ProjectCmdArg = " -makefile -kdevelopfile " + ProjectCmdArg + " -game -engine ";
 				}
-
 			}
 			else if (TargetName == (GameProjectName + "Editor"))
 			{
@@ -87,7 +86,6 @@ namespace UnrealBuildTool
 				{
 					ProjectCmdArg = " -makefile -kdevelopfile " + ProjectCmdArg + " -game -engine ";
 				}
-
 			}
 			else
 			{
@@ -284,7 +282,6 @@ namespace UnrealBuildTool
 						SystemIncludeDirectories.Add(String.Format("{0}", FullPath));
 						IncludeIndex++;
 					}
-
 				}
 
 				foreach (string CurPath in KDevelopProject.IntelliSenseSystemIncludeSearchPaths)
@@ -393,7 +390,6 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-
 
 			// Remove duplicates if they are present.
 			List<string> Tmp = new List<string>();

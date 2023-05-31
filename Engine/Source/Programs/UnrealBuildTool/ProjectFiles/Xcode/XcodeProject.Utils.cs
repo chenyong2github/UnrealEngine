@@ -9,7 +9,6 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
-
 namespace UnrealBuildTool.XcodeProjectXcconfig
 {
 	static class StringBuilderExtensions
@@ -40,7 +39,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			FileReference ProjectAsFile = new FileReference(ProjectFilePath.FullName);
 			return DirectoryReference.Combine(ProjectAsFile.Directory, $"{ProjectAsFile.GetFileNameWithoutExtension()}{Suffix(Platform)}{ProjectAsFile.GetExtension()}");
 		}
-
 
 		private static IEnumerable<UnrealTargetConfiguration> GetSupportedConfigurations()
 		{
@@ -78,7 +76,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			return false;
 		}
 
-
 		public static string MakeExecutableFileName(string BinaryName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UnrealArchitectures Architectures, UnrealTargetConfiguration UndecoratedConfiguration)
 		{
 			StringBuilder Result = new StringBuilder();
@@ -97,7 +94,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			return Result.ToString();
 		}
-
 
 		// cache for the below function
 		static Dictionary<string, UnrealArchitectures> CachedMacProjectArchitectures = new();
@@ -140,7 +136,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			return Arches;
 		}
 
-
 		public static void FindPlistId(MetadataItem PlistItem, string Key, ref string? BundleId)
 		{
 			if (PlistItem.File == null || !FileReference.Exists(PlistItem.File))
@@ -151,7 +146,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			string Identifier = Plist($"Print :{Key}", PlistItem.File.FullName);
 
 			// handle error
-			if (Identifier == "" || Identifier.StartsWith("Print:"))
+			if (String.IsNullOrEmpty(Identifier) || Identifier.StartsWith("Print:"))
 			{
 				if (PlistItem.Mode == MetadataMode.UsePremade)
 				{
@@ -186,7 +181,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		{
 			string AddOutput = Plist($"Add {Entry} {Type} {Value}");
 			// error will be non-empty string
-			if (AddOutput != "")
+			if (!String.IsNullOrEmpty(AddOutput))
 			{
 				Plist($"Set {Entry} {Value}");
 			}
@@ -255,9 +250,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			return null;
 		}
-
-
-
 
 		public static List<string> GetSupportedOrientations(ConfigHierarchy Ini)
 		{

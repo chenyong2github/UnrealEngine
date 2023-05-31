@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 using System;
 using System.Collections.Generic;
 using EpicGames.Core;
@@ -243,7 +242,6 @@ namespace UnrealBuildTool
 
 			return new UnrealArchitectures(Architectures);
 		}
-
 	}
 
 	class MacPlatform : UEBuildPlatform
@@ -358,7 +356,6 @@ namespace UnrealBuildTool
 				}
 			}
 		}
-
 
 		/// <summary>
 		/// Determines if the given name is a build product for a target.

@@ -172,7 +172,7 @@ namespace UnrealBuildTool
 			HashSet<T> AllNodes = new HashSet<T>();
 
 			// Create a collection of all nodes based on the ones used in Edges.
-			foreach (var Edge in Edges)
+			foreach (Tuple<T, T> Edge in Edges)
 			{
 				AllNodes.Add(Edge.Item1);
 				AllNodes.Add(Edge.Item2);
@@ -190,7 +190,7 @@ namespace UnrealBuildTool
 			}
 
 			// Add edges to the graph.
-			foreach (var Edge in Edges)
+			foreach (Tuple<T, T> Edge in Edges)
 			{
 				GraphNode? NodeSrc;
 				GraphNode? NodeDst;

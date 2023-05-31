@@ -100,14 +100,14 @@ namespace UnrealBuildTool
 				return true;
 			}
 
-			return Obj is ToolchainInfo && Equals((ToolchainInfo)Obj);
+			return Obj is ToolchainInfo info && Equals(info);
 		}
 
 		public override int GetHashCode()
 		{
 			unchecked
 			{
-				var HashCode = (int)CppStandard;
+				int HashCode = (int)CppStandard;
 				HashCode = (HashCode * 397) ^ bUseRTTI.GetHashCode();
 				HashCode = (HashCode * 397) ^ bEnableExceptions.GetHashCode();
 				HashCode = (HashCode * 397) ^ bIsBuildingLibrary.GetHashCode();

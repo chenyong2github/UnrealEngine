@@ -400,7 +400,6 @@ namespace UnrealBuildTool
 			Parallel.ForEach(GlobalPartitions.Values, Cache => { if (Cache.bModified) { Cache.Write(); } });
 		}
 
-
 		/// <summary>
 		/// Reads dependencies from the given file.
 		/// </summary>

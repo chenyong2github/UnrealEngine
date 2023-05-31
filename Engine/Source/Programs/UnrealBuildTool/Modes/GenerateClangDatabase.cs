@@ -240,7 +240,7 @@ namespace UnrealBuildTool
 										}
 
 										// find source file
-										var SourceFile = Action.PrerequisiteItems.FirstOrDefault(fi => fi.HasExtension(".cpp") || fi.HasExtension(".c") || fi.HasExtension(".c"));
+										FileItem? SourceFile = Action.PrerequisiteItems.FirstOrDefault(fi => fi.HasExtension(".cpp") || fi.HasExtension(".c") || fi.HasExtension(".c"));
 										if (SourceFile != null)
 										{
 											FileToCommand[SourceFile.Location] = CommandBuilder.ToString();
@@ -341,7 +341,7 @@ namespace UnrealBuildTool
 				OldPath = OldPath.Remove(OldPath.Length - 1, 1);
 			}
 
-			var FileReference = new FileReference(OldPath);
+			FileReference FileReference = new FileReference(OldPath);
 			return Line.Replace(OldPath, FileReference.FullName.Replace("\\", "/"));
 		}
 	}

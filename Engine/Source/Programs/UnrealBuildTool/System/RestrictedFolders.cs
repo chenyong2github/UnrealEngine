@@ -84,7 +84,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the restricted folder is equal to the other instance</returns>
 		public override bool Equals(object? Other)
 		{
-			return Other is RestrictedFolder && Id == ((RestrictedFolder)Other).Id;
+			return Other is RestrictedFolder folder && Id == folder.Id;
 		}
 
 		/// <summary>

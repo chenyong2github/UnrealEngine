@@ -83,8 +83,8 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		static ActionSerialization()
 		{
-			var TypeToSerializerDict = new Dictionary<Type, IActionSerializer>();
-			var NameToSerializerDict = new Dictionary<string, IActionSerializer>(StringComparer.Ordinal);
+			Dictionary<Type, IActionSerializer> TypeToSerializerDict = new Dictionary<Type, IActionSerializer>();
+			Dictionary<string, IActionSerializer> NameToSerializerDict = new Dictionary<string, IActionSerializer>(StringComparer.Ordinal);
 
 			Type[] Types = Assembly.GetExecutingAssembly().GetTypes();
 			foreach (Type Type in Types)

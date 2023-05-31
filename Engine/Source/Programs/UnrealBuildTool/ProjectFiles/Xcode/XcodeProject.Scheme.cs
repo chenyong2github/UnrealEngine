@@ -7,7 +7,6 @@ using System.Linq;
 using System.Text;
 using EpicGames.Core;
 
-
 namespace UnrealBuildTool.XcodeProjectXcconfig
 {
 	static class XcodeSchemeFile
@@ -166,7 +165,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				Content.WriteLine("      </BuildableProductRunnable>");
 				if (String.IsNullOrEmpty(OldCommandLineArguments))
 				{
-					if (bHasEditorConfiguration && GameProjectPath != "")
+					if (bHasEditorConfiguration && !String.IsNullOrEmpty(GameProjectPath))
 					{
 						Content.WriteLine("      <CommandLineArguments>");
 						if (UnrealData.bIsForeignProject)

@@ -371,7 +371,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 		/// <summary>
 		/// Creates an environment with the given settings
 		/// </summary>
@@ -400,8 +399,6 @@ namespace UnrealBuildTool
 		{
 			return new VCEnvironment(Params, Logger);
 		}
-
-
 	}
 
 	/// <summary>

@@ -147,7 +147,6 @@ namespace UnrealBuildTool
 				{
 					AddIncludeDirectory(ref SystemIncludeDirectories, CurPath, Path.GetDirectoryName(QMakeProject.ProjectFilePath.FullName)!);
 				}
-
 			}
 
 			// Remove duplicate paths from include dir and system include dir list
@@ -189,7 +188,7 @@ namespace UnrealBuildTool
 							// If the value contains spaces, we must put the whole value inside quotes
 							value = value.Replace("\"", "\\\\\\\"");
 							bool hasSpaces = false;
-							if (value.Contains(" "))
+							if (value.Contains(' '))
 							{
 								value = value.Replace(" ", "\\ ");
 								hasSpaces = true;
@@ -372,7 +371,6 @@ namespace UnrealBuildTool
 						}
 					}
 				}
-
 			}
 
 			// Add section end to section strings;

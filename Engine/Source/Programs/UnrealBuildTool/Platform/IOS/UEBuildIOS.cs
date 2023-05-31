@@ -25,7 +25,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static UnrealArch TVOSSimulator = FindOrAddByName("tvossimulator", bIsX64: false);
 
-
 		private static IReadOnlyDictionary<UnrealArch, string> AppleToolchainArchitectures = new Dictionary<UnrealArch, string>()
 		{
 			{ UnrealArch.Arm64,         "arm64" },
@@ -49,10 +48,7 @@ namespace UnrealBuildTool
 				throw new BuildException($"Unknown architecture {ToString()} passed to UnrealArch.AppleName");
 			}
 		}
-
-
 	}
-
 
 	/// <summary>
 	/// IOS-specific target settings
@@ -672,7 +668,6 @@ namespace UnrealBuildTool
 		{
 		}
 
-
 		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference? ProjectFile, ReadOnlyTargetRules Target)
 		{
 			List<FileReference> BinaryPaths = new List<FileReference>();
@@ -758,7 +753,6 @@ namespace UnrealBuildTool
 					Target.ExportPublicHeader = "Headers/PreIOSEmbeddedView.h";
 				}
 			}
-
 
 			Target.bCheckSystemHeadersForModification = false;
 		}
@@ -1241,7 +1235,6 @@ namespace UnrealBuildTool
 			}
 		}
 	}
-
 
 	class IOSPlatformFactory : UEBuildPlatformFactory
 	{

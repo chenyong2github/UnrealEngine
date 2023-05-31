@@ -27,7 +27,6 @@ namespace UnrealBuildTool
 		{
 			// @todo tvos: THIS!
 
-
 			// generate the Info.plist for future use
 			string BuildDirectory = ProjectDirectory + "/Build/TVOS";
 			bool bSkipDefaultPNGs = false;

@@ -226,7 +226,7 @@ namespace UnrealBuildTool
 				});
 			}
 
-			var DeleteDirectories = Task.Run(() =>
+			Task DeleteDirectories = Task.Run(() =>
 			{
 				using ScopedTimer Timer = new ScopedTimer($"Delete {DirectoriesToDelete.Count} directories", Logger);
 				Parallel.ForEach(DirectoriesToDelete, DirectoryToDelete =>
@@ -249,7 +249,7 @@ namespace UnrealBuildTool
 				});
 			});
 
-			var DeleteFiles = Task.Run(() =>
+			Task DeleteFiles = Task.Run(() =>
 			{
 				using ScopedTimer Timer = new ScopedTimer($"Delete {FilesToDelete.Count} files", Logger);
 				Parallel.ForEach(FilesToDelete, FileToDelete =>

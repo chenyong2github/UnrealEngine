@@ -124,5 +124,4 @@ namespace UnrealBuildTool
 			Action.Write(Writer);
 		}
 	}
-
 }

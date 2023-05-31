@@ -121,7 +121,7 @@ namespace UnrealBuildTool
 				return Task.FromResult(0);
 			}
 
-			var ResponseOptions = new JsonSerializerOptions
+			JsonSerializerOptions ResponseOptions = new JsonSerializerOptions
 			{
 				PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
 				WriteIndented = bIndented,
@@ -229,7 +229,7 @@ namespace UnrealBuildTool
 			}
 
 			GenerateProjectFilesMode.TryParseProjectFileArgument(Arguments, Logger, out FileReference? ProjectFileArg);
-			var RawArgs = new List<string> { TargetName, TargetConfiguration, TargetPlatform };
+			List<string> RawArgs = new List<string> { TargetName, TargetConfiguration, TargetPlatform };
 			if (ProjectFileArg != null)
 			{
 				RawArgs.Add(ProjectFileArg.ToString());
@@ -254,8 +254,8 @@ namespace UnrealBuildTool
 					CurrentTarget = UEBuildTarget.Create(TargetDescriptors[0], false, false, bUsePrecompiled, Logger);
 				}
 
-				var CurrentTargetIntellisenseInfo = new TargetIntellisenseInfo();
-				var CurrentBrowseConfiguration = new GetBrowseConfigurationResponse { Success = true };
+				TargetIntellisenseInfo CurrentTargetIntellisenseInfo = new TargetIntellisenseInfo();
+				GetBrowseConfigurationResponse CurrentBrowseConfiguration = new GetBrowseConfigurationResponse { Success = true };
 
 				// Partially duplicated from UEBuildTarget.Build because we just want to get C++ compile actions without running UHT
 				// or generating link actions / full dependency graph 
@@ -303,7 +303,7 @@ namespace UnrealBuildTool
 							BrowseConfigurationFolders.Add(Dir.ToString());
 						}
 
-						var Settings = new TargetIntellisenseInfo.CompileSettings();
+						TargetIntellisenseInfo.CompileSettings Settings = new TargetIntellisenseInfo.CompileSettings();
 						if (OperatingSystem.IsWindows())
 						{
 							if (CurrentTarget.Platform == UnrealTargetPlatform.Win64)

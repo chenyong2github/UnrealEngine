@@ -89,7 +89,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the keys are equal, false otherwise</returns>
 		public override bool Equals(object? Other)
 		{
-			return (Other is ConfigDependencyKey) && Equals((ConfigDependencyKey)Other);
+			return (Other is ConfigDependencyKey key) && Equals(key);
 		}
 
 		/// <summary>

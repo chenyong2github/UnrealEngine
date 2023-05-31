@@ -53,7 +53,6 @@ namespace UnrealBuildTool
 							string PathVar = BashProfileContents[LineIndex].Split('=')[1].Replace("\"", "");
 							return PathVar;
 						}
-
 					}
 				}
 			}
@@ -112,8 +111,7 @@ namespace UnrealBuildTool
 			return NDKToolchainVersion;
 		}
 
-
-		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue, string? Hint)
+		public override bool TryConvertVersionToInt(string? StringValue, out ulong OutValue, string? Hint)
 		{
 			// convert r<num>[letter] to hex
 			if (!String.IsNullOrEmpty(StringValue))
@@ -137,7 +135,6 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-
 		//public override SDKStatus PrintSDKInfoAndReturnValidity(LogEventType Verbosity, LogFormatOptions Options, LogEventType ErrorVerbosity, LogFormatOptions ErrorOptions)
 		//{
 		//	SDKStatus Validity = base.PrintSDKInfoAndReturnValidity(Verbosity, Options, ErrorVerbosity, ErrorOptions);
@@ -149,7 +146,6 @@ namespace UnrealBuildTool
 
 		//	return Validity;
 		//}
-
 
 		protected override bool PlatformSupportsAutoSDKs()
 		{

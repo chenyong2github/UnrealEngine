@@ -77,7 +77,7 @@ namespace UnrealBuildTool
 			{
 				EddieFolder CurrentGroup;
 
-				if (CurrentPath != "")
+				if (!System.String.IsNullOrEmpty(CurrentPath))
 				{
 					CurrentPath += Path.DirectorySeparatorChar;
 				}
@@ -166,7 +166,6 @@ namespace UnrealBuildTool
 							ProjectFileContent.Append("AddFile \"" + File.Reference.GetFileName() + "\" \"" + File.Reference.FullName + "\"" + ProjectFileGenerator.NewLine);
 						}
 
-
 						ProjectFileContent.Append("EndFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\"" + ProjectFileGenerator.NewLine);
 
 						ProjectFileGenerator.WriteFileIfChanged(CurGroup.Value.WorksetPath!, ProjectFileContent.ToString(), Logger, new UTF8Encoding());
@@ -217,5 +216,4 @@ namespace UnrealBuildTool
 			return bSuccess;
 		}
 	}
-
 }

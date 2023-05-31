@@ -124,7 +124,6 @@ namespace UnrealBuildTool
 		public List<TargetIntellisenseInfo.CompileSettings?> Settings { get; set; } = new();
 	}
 
-
 	// TODO: Deprecate 
 	[Obsolete]
 	[ToolMode("Server", ToolModeOptions.BuildPlatforms | ToolModeOptions.XmlConfig | ToolModeOptions.UseStartupTraceListener)]
@@ -167,7 +166,7 @@ namespace UnrealBuildTool
 
 			while (KeepRunning)
 			{
-				var Line = Console.ReadLine();
+				string? Line = Console.ReadLine();
 				if (Line == null) { continue; }
 				HandleCommand(Line, Logger);
 			}
@@ -176,11 +175,11 @@ namespace UnrealBuildTool
 
 		private void HandleCommand(string CommandString, ILogger Logger)
 		{
-			var jsonOptions = new JsonSerializerOptions
+			JsonSerializerOptions jsonOptions = new JsonSerializerOptions
 			{
 				PropertyNameCaseInsensitive = true
 			};
-			var responseOptions = new JsonSerializerOptions
+			JsonSerializerOptions responseOptions = new JsonSerializerOptions
 			{
 				PropertyNamingPolicy = JsonNamingPolicy.CamelCase
 			};
@@ -193,7 +192,7 @@ namespace UnrealBuildTool
 					return;
 				}
 				Logger.LogInformation($"Got command {CommandString}");
-				var command = MaybeCommand.Value;
+				Command command = MaybeCommand.Value;
 				switch (command.Type)
 				{
 					case CommandType.Quit:
@@ -201,35 +200,35 @@ namespace UnrealBuildTool
 						break;
 					case CommandType.DiscoverTargets:
 						{
-							var response = Handle_DiscoverTargets(Logger);
+							DiscoverTargetsResponse response = Handle_DiscoverTargets(Logger);
 							response.Sequence = command.Sequence;
 							Console.WriteLine(JsonSerializer.Serialize(response, responseOptions));
 						}
 						break;
 					case CommandType.SetTarget:
 						{
-							var response = Handle_SetTarget(JsonSerializer.Deserialize<SetTargetCommand>(CommandString, jsonOptions), Logger);
+							SetTargetResponse response = Handle_SetTarget(JsonSerializer.Deserialize<SetTargetCommand>(CommandString, jsonOptions), Logger);
 							response.Sequence = command.Sequence;
 							Console.WriteLine(JsonSerializer.Serialize(response, responseOptions));
 						}
 						break;
 					case CommandType.QueryFile:
 						{
-							var response = Handle_QueryFile(JsonSerializer.Deserialize<QueryFileCommand>(CommandString, jsonOptions), Logger);
+							QueryFileResponse response = Handle_QueryFile(JsonSerializer.Deserialize<QueryFileCommand>(CommandString, jsonOptions), Logger);
 							response.Sequence = command.Sequence;
 							Console.WriteLine(JsonSerializer.Serialize(response, responseOptions));
 						}
 						break;
 					case CommandType.GetBrowseConfiguration:
 						{
-							var response = Handle_GetBrowseConfiguration(JsonSerializer.Deserialize<GetBrowseConfigurationCommand>(CommandString, jsonOptions), Logger);
+							GetBrowseConfigurationResponse response = Handle_GetBrowseConfiguration(JsonSerializer.Deserialize<GetBrowseConfigurationCommand>(CommandString, jsonOptions), Logger);
 							response.Sequence = command.Sequence;
 							Console.WriteLine(JsonSerializer.Serialize(response, responseOptions));
 						}
 						break;
 					case CommandType.GetCompileSettings:
 						{
-							var response = Handle_GetCompileSettings(JsonSerializer.Deserialize<GetCompileSettingsCommand>(CommandString, jsonOptions), Logger);
+							GetCompileSettingsResponse response = Handle_GetCompileSettings(JsonSerializer.Deserialize<GetCompileSettingsCommand>(CommandString, jsonOptions), Logger);
 							response.Sequence = command.Sequence;
 							Console.WriteLine(JsonSerializer.Serialize(response, responseOptions));
 						}
@@ -291,7 +290,7 @@ namespace UnrealBuildTool
 
 			// TODO: Handle 0 target names
 
-			var Reply = new DiscoverTargetsResponse
+			DiscoverTargetsResponse Reply = new DiscoverTargetsResponse
 			{
 				Configurations = Configurations,
 				Platforms = Platforms.Select(x => x.ToString()).ToList(),
@@ -375,7 +374,7 @@ namespace UnrealBuildTool
 							BrowseConfigurationFolders.Add(Dir.ToString());
 						}
 
-						var Settings = new TargetIntellisenseInfo.CompileSettings();
+						TargetIntellisenseInfo.CompileSettings Settings = new TargetIntellisenseInfo.CompileSettings();
 						Settings.IncludePaths.AddRange(ModuleCompileEnvironment.SystemIncludePaths.Select(x => x.ToString()));
 						Settings.IncludePaths.AddRange(ModuleCompileEnvironment.UserIncludePaths.Select(x => x.ToString()));
 						Settings.Defines = ModuleCompileEnvironment.Definitions;
@@ -394,7 +393,7 @@ namespace UnrealBuildTool
 
 			CurrentBrowseConfiguration.Paths = BrowseConfigurationFolders.ToList();
 
-			var Reply = new SetTargetResponse
+			SetTargetResponse Reply = new SetTargetResponse
 			{
 			};
 			return Reply;
@@ -402,14 +401,14 @@ namespace UnrealBuildTool
 
 		private QueryFileResponse Handle_QueryFile(QueryFileCommand Command, ILogger Logger)
 		{
-			var FailResponse = new QueryFileResponse { Found = false };
+			QueryFileResponse FailResponse = new QueryFileResponse { Found = false };
 			if (CurrentTargetIntellisenseInfo == null)
 			{
 				return FailResponse;
 			}
 			try
 			{
-				var Path = System.IO.Path.GetFullPath(Command.AbsolutePath);
+				string Path = System.IO.Path.GetFullPath(Command.AbsolutePath);
 				if (CurrentTargetIntellisenseInfo.FindModuleForFile(new FileReference(Path)) != null)
 				{
 					return new QueryFileResponse { Found = true };
@@ -430,13 +429,13 @@ namespace UnrealBuildTool
 			}
 			if (Command.AbsolutePath != null)
 			{
-				var Path = System.IO.Path.GetFullPath(Command.AbsolutePath);
+				string Path = System.IO.Path.GetFullPath(Command.AbsolutePath);
 				UEBuildModule? Module = CurrentTargetIntellisenseInfo.FindModuleForDirectory(new DirectoryReference(Path));
 				if (Module != null)
 				{
 					Response.Success = true;
 					Response.Paths.AddRange(Module.ModuleDirectories.Select(x => x.ToString()));
-					if (CurrentTargetIntellisenseInfo.ModuleToCompileSettings.TryGetValue(Module, out var Settings))
+					if (CurrentTargetIntellisenseInfo.ModuleToCompileSettings.TryGetValue(Module, out TargetIntellisenseInfo.CompileSettings? Settings))
 					{
 						Response.Paths.AddRange(Settings.IncludePaths);
 						Response.WindowsSdkVersion = Settings.WindowsSdkVersion;
@@ -459,7 +458,7 @@ namespace UnrealBuildTool
 				foreach (string AbsolutePath in Command.AbsolutePaths)
 				{
 					TargetIntellisenseInfo.CompileSettings? Settings = null;
-					var Path = System.IO.Path.GetFullPath(AbsolutePath); // convert absolute path to dos? 
+					string Path = System.IO.Path.GetFullPath(AbsolutePath); // convert absolute path to dos? 
 					UEBuildModule? Module = CurrentTargetIntellisenseInfo!.FindModuleForFile(new FileReference(Path));
 					if (Module is not null)
 					{

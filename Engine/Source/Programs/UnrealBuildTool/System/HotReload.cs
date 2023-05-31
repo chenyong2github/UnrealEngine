@@ -1194,7 +1194,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-
 			// Do another pass and update any actions that depended on the original file names that we changed
 			foreach (LinkedAction Action in Actions)
 			{
@@ -1214,7 +1213,6 @@ namespace UnrealBuildTool
 				NewAction.PrerequisiteItems = new SortedSet<FileItem>(UpdatePrerequisiteItems);
 				Action.Inner = NewAction;
 			}
-
 
 			if (OriginalFileNameAndNewFileNameList_NoExtensions.Count > 0)
 			{

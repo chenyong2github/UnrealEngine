@@ -169,7 +169,6 @@ namespace UnrealBuildTool
 			StringWriter Out = new StringWriter();
 			Out.NewLine = bUseCmdExe ? "\r\n" : "\n";
 
-
 			if (!Options.HasFlag(ClangToolChainOptions.DisableDumpSyms) || Options.HasFlag(ClangToolChainOptions.PreservePSYM))
 			{
 				// dump_syms
@@ -551,7 +550,7 @@ namespace UnrealBuildTool
 			if (String.IsNullOrEmpty(Key)) { return ""; }
 			if (!String.IsNullOrEmpty(Value))
 			{
-				if (!Value.StartsWith("\"") && (Value.Contains(" ") || Value.Contains("$")))
+				if (!Value.StartsWith("\"") && (Value.Contains(' ') || Value.Contains('$')))
 				{
 					Value = Value.Trim('\"');       // trim any leading or trailing quotes
 					Value = "\"" + Value + "\"";    // ensure wrap string with double quotes
@@ -990,7 +989,6 @@ namespace UnrealBuildTool
 			return FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePath);
 		}
 
-
 		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			Debug.Assert(!bBuildImportLibraryOnly);
@@ -1184,7 +1182,7 @@ namespace UnrealBuildTool
 				{
 					// static library passed in, pass it along but make path absolute, because FixDependencies script may be executed in a different directory
 					string AbsoluteAdditionalLibrary = Path.GetFullPath(AdditionalLibrary);
-					if (AbsoluteAdditionalLibrary.Contains(" "))
+					if (AbsoluteAdditionalLibrary.Contains(' '))
 					{
 						AbsoluteAdditionalLibrary = String.Format("\"{0}\"", AbsoluteAdditionalLibrary);
 					}

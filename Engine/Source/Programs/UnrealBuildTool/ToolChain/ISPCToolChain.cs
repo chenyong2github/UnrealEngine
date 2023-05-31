@@ -648,7 +648,7 @@ namespace UnrealBuildTool
 				{
 					string ObjTarget = Target;
 
-					if (Target.Contains("-"))
+					if (Target.Contains('-'))
 					{
 						// Remove lane width and gang size from obj file name
 						ObjTarget = Target.Split('-')[0];

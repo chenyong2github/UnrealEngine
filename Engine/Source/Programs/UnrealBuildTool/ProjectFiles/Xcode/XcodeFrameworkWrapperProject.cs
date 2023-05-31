@@ -266,7 +266,6 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 			ReplaceTextInFiles(OutputDir, TEMPLATE_PROJECT_NAME, ProjectName, COMMANDLINE_FILENAME);
 
 		}
-
 	}
 
 	class XcodeFrameworkWrapperUtils

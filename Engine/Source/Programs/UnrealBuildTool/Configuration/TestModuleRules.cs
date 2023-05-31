@@ -147,7 +147,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-
 #pragma warning disable 8602
 #pragma warning disable 8604
 		/// <summary>
@@ -228,7 +227,7 @@ namespace UnrealBuildTool
 					InsertOrUpdateTestOption(ref lastUpdatedNode, TestMetadata.TestName, "Run" + TestMetadata.TestShortName + "Tests", "Run", "Tests", false.ToString());
 
 					List<UnrealTargetPlatform> AllSupportedPlatforms = new List<UnrealTargetPlatform>();
-					var SupportedPlatforms = GetType().GetCustomAttributes(typeof(SupportedPlatformsAttribute), false);
+					object[] SupportedPlatforms = GetType().GetCustomAttributes(typeof(SupportedPlatformsAttribute), false);
 					// If none specified we assume Win64
 					if (SupportedPlatforms.Length == 0)
 					{
@@ -237,18 +236,17 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						foreach (var Platform in SupportedPlatforms)
+						foreach (object Platform in SupportedPlatforms)
 						{
 							AllSupportedPlatforms.AddRange(((SupportedPlatformsAttribute)Platform).Platforms);
 						}
 					}
 
-					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "SupportedPlatforms", AllSupportedPlatforms.Aggregate("", (current, next) => (current == "" ? next.ToString() : current + ";" + next.ToString())));
+					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "SupportedPlatforms", AllSupportedPlatforms.Aggregate("", (current, next) => (String.IsNullOrEmpty(current) ? next.ToString() : current + ";" + next.ToString())));
 				}
 			}
 
 			GenPropsDoc.Save(GeneratedPropertiesScriptFile);
-
 
 			// Platform-specific configurations
 			string GeneratedPropertiesPlatformFile;
@@ -256,7 +254,7 @@ namespace UnrealBuildTool
 			string NonPublicPathPlatform;
 
 			// Generate peroperty file for each platform
-			foreach (var ValidPlatform in UnrealTargetPlatform.GetValidPlatforms())
+			foreach (UnrealTargetPlatform ValidPlatform in UnrealTargetPlatform.GetValidPlatforms())
 			{
 				bool IsRestrictedPlatformName = IsPlatformRestricted(ValidPlatform);
 				if (IsRestrictedPlatformName)
@@ -361,9 +359,8 @@ namespace UnrealBuildTool
 		{
 			IEnumerable<XElement> NextChunk = ElementUpsertAfter.ElementsAfterSelf(BuildGraphNamespace + "Property")
 				.Where(prop => prop.Attribute("Name").Value.EndsWith(FlagSuffix));
-			if (NextChunk
-				.Where(prop => prop.Attribute("Name").Value == TestName + FlagSuffix)
-				.Count() == 0)
+			if (!NextChunk
+				.Where(prop => prop.Attribute("Name").Value == TestName + FlagSuffix).Any())
 			{
 				XElement ElementInsert = new XElement(BuildGraphNamespace + "Property");
 				ElementInsert.SetAttributeValue("Name", TestName + FlagSuffix);
@@ -382,9 +379,8 @@ namespace UnrealBuildTool
 		{
 			IEnumerable<XElement> NextChunk = ElementUpsertAfter.ElementsAfterSelf(BuildGraphNamespace + "Option")
 				.Where(prop => prop.Attribute("Name").Value.StartsWith(OptionPrefix) && prop.Attribute("Name").Value.EndsWith(OptionSuffix));
-			if (NextChunk
-				.Where(prop => prop.Attribute("Name").Value == OptionPrefix + OptionRadix + OptionSuffix)
-				.Count() == 0)
+			if (!NextChunk
+				.Where(prop => prop.Attribute("Name").Value == OptionPrefix + OptionRadix + OptionSuffix).Any())
 			{
 				XElement ElementInsert = new XElement(BuildGraphNamespace + "Option");
 				ElementInsert.SetAttributeValue("Name", OptionPrefix + OptionRadix + OptionSuffix);

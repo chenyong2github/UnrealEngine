@@ -753,7 +753,7 @@ namespace UnrealBuildTool.Modes
 					int BodyEndPos = BodyStartPos;
 					while (true)
 					{
-						using var SaveState = new UhtTokenSaveState(Reader);
+						using UhtTokenSaveState SaveState = new UhtTokenSaveState(Reader);
 						UhtToken Token = Reader.GetLine();
 						if (Token.TokenType == UhtTokenType.EndOfFile)
 						{

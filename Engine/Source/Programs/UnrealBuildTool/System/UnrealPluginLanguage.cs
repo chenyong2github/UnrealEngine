@@ -530,7 +530,7 @@ namespace UnrealBuildTool
 				StringVariables = new Dictionary<string, string>();
 				ElementVariables = new Dictionary<string, XElement>();
 
-				if (PluginDir == null || PluginDir == "")
+				if (PluginDir == null || String.IsNullOrEmpty(PluginDir))
 				{
 					PluginDir = ".";
 				}
@@ -1816,7 +1816,7 @@ namespace UnrealBuildTool
 							string? Filespec = GetAttribute(CurrentContext, Node, "filespec");
 							if (Filespec != null)
 							{
-								if (Filespec.Contains(":") || Filespec.Contains(".."))
+								if (Filespec.Contains(':') || Filespec.Contains(".."))
 								{
 									Logger.LogInformation("\nFilespec {FileSpec} not allowed; ignored.", Filespec);
 								}
@@ -2728,7 +2728,6 @@ namespace UnrealBuildTool
 			{ }
 		}
 
-
 		/// <summary>
 		/// command class for being able to create config caches over and over without needing to read the ini files
 		/// </summary>
@@ -3454,7 +3453,6 @@ namespace UnrealBuildTool
 			yield return FileReference.Combine(EngineDirectory, "Restricted", "NotForLicensees", "Config", "Base" + BaseIniName + ".ini");
 		}
 
-
 		/// <summary>
 		/// Returns a list of INI filenames for the given project
 		/// </summary>
@@ -3534,5 +3532,4 @@ namespace UnrealBuildTool
 			}
 		}
 	}
-
 }

@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -812,7 +811,6 @@ namespace UnrealBuildTool
 					const int UNIX_WRITE = 2;
 					const int UNIX_READ = 4;
 
-
 					int MyPermissions = UNIX_READ | UNIX_WRITE;
 					int OtherPermissions = UNIX_READ;
 
@@ -1488,8 +1486,6 @@ namespace UnrealBuildTool
 			FileReference.Copy(Target.OutputPath, StagedExecutablePath, true);
 			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
 
-
-
 			if (Target.bCreateStubIPA || Target.bBuildAsFramework)
 			{
 				string FrameworkDerivedDataDir = Path.GetFullPath(Target.ProjectDirectory + "/Intermediate/" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS") + "/DerivedData");
@@ -1579,7 +1575,7 @@ namespace UnrealBuildTool
 						MobileProvisionFile = ProvisioningData.MobileProvisionFile;
 						MobileProvisionUUID = ProvisioningData.MobileProvisionUUID;
 						TeamUUID = ProvisioningData.TeamUUID;
-						if (ProvisioningData.BundleIdentifier == null || !ProvisioningData.BundleIdentifier.Contains("*"))
+						if (ProvisioningData.BundleIdentifier == null || !ProvisioningData.BundleIdentifier.Contains('*'))
 						{
 							// If the BundleIndentifer contains a wild card it will not be valid to use in the plist.
 							BundleID = ProvisioningData.BundleIdentifier;
@@ -1593,7 +1589,7 @@ namespace UnrealBuildTool
 						MobileProvisionUUID = MobileProvision.GetUniqueId();
 						MobileProvision.TryGetTeamUniqueId(out TeamUUID);
 						string BundleIdentifier = MobileProvision.GetBundleIdentifier();
-						if (!BundleIdentifier.Contains("*"))
+						if (!BundleIdentifier.Contains('*'))
 						{
 							// If the BundleIndentifer contains a wild card it will not be valid to use in the plist.
 							BundleID = BundleIdentifier;
@@ -1861,6 +1857,5 @@ namespace UnrealBuildTool
 				BundleDependencies.Add(FileItem.GetItemByFileReference(Binary.OutputFilePath));
 			}
 		}
-
 	};
 }

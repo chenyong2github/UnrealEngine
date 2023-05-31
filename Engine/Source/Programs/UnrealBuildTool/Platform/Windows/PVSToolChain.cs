@@ -706,9 +706,9 @@ namespace UnrealBuildTool
 				{
 					foreach (string PathMask in ApplicationSettings.PathMasks)
 					{
-						if (PathMask.Contains(":") || PathMask.Contains("\\") || PathMask.Contains("/"))
+						if (PathMask.Contains(':') || PathMask.Contains('\\') || PathMask.Contains('/'))
 						{
-							if (Path.IsPathRooted(PathMask) && !PathMask.Contains(":"))
+							if (Path.IsPathRooted(PathMask) && !PathMask.Contains(':'))
 							{
 								ConfigFileContents.AppendFormat("exclude-path=*{0}*\n", PathMask);
 							}

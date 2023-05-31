@@ -145,7 +145,7 @@ namespace UnrealBuildTool
 
 		private bool IsPlatformInHostGroup(UnrealTargetPlatform Platform)
 		{
-			var Groups = UEBuildPlatform.GetPlatformGroups(BuildHostPlatform.Current.Platform);
+			IEnumerable<UnrealPlatformGroup> Groups = UEBuildPlatform.GetPlatformGroups(BuildHostPlatform.Current.Platform);
 			foreach (UnrealPlatformGroup Group in Groups)
 			{
 				// Desktop includes Linux, Mac and Windows.
@@ -539,7 +539,7 @@ namespace UnrealBuildTool
 			else if (UEBuildPlatform.IsPlatformInGroup(Target.Platform, UnrealPlatformGroup.Linux) ||
 					UEBuildPlatform.IsPlatformInGroup(Target.Platform, UnrealPlatformGroup.Unix))
 			{
-				var EngineDirectory = Unreal.EngineDirectory.ToString();
+				string EngineDirectory = Unreal.EngineDirectory.ToString();
 
 				string? UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE_LINUX_USE_LIBCXX");
 				// assumes a single architecture
@@ -571,7 +571,7 @@ namespace UnrealBuildTool
 				}
 
 				string PlatformSdkVersionString = UEBuildPlatformSDK.GetSDKForPlatform(BuildPlatform.GetPlatformName())!.GetInstalledVersion()!;
-				var Version = GetLinuxToolchainVersionFromFullString(PlatformSdkVersionString);
+				string Version = GetLinuxToolchainVersionFromFullString(PlatformSdkVersionString);
 
 				string? InternalSdkPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux)!.GetInternalSDKPath();
 				if (InternalSdkPath != null)
@@ -706,25 +706,24 @@ namespace UnrealBuildTool
 			}
 
 			string Name = Field.Item1;
-			if (Field.Item2 is bool)
+			if (Field.Item2 is bool vbool)
 			{
-				Writer.WriteValue(Name, (bool)Field.Item2);
+				Writer.WriteValue(Name, vbool);
 			}
-			else if (Field.Item2 is string)
+			else if (Field.Item2 is string vstring)
 			{
-				string FieldValue = (string)Field.Item2;
-				if (FieldValue != "")
+				if (!String.IsNullOrEmpty(vstring))
 				{
-					Writer.WriteValue(Name, (string)Field.Item2);
+					Writer.WriteValue(Name, vstring);
 				}
 			}
-			else if (Field.Item2 is int)
+			else if (Field.Item2 is int vint)
 			{
-				Writer.WriteValue(Name, (int)Field.Item2);
+				Writer.WriteValue(Name, vint);
 			}
-			else if (Field.Item2 is double)
+			else if (Field.Item2 is double vdouble)
 			{
-				Writer.WriteValue(Name, (double)Field.Item2);
+				Writer.WriteValue(Name, vdouble);
 			}
 			else if (Field.Item2 is CppStandardVersion version)
 			{
@@ -752,9 +751,8 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteValue(Name, Field.Item2.ToString());
 			}
-			else if (Field.Item2 is IEnumerable<string>)
+			else if (Field.Item2 is IEnumerable<string> FieldValue)
 			{
-				IEnumerable<string> FieldValue = (IEnumerable<string>)Field.Item2;
 				if (FieldValue.Any())
 				{
 					Writer.WriteStringArrayField(Name, FieldValue);
@@ -865,7 +863,7 @@ namespace UnrealBuildTool
 
 			private void CalculateSystemIncludePaths(string SDKPath)
 			{
-				if (CurrentlyProcessedSDK != String.Empty)
+				if (!String.IsNullOrEmpty(CurrentlyProcessedSDK))
 				{
 					throw new InvalidOperationException("Cannot calculate include paths for several platforms at once");
 				}

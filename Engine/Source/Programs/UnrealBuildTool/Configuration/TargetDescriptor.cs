@@ -377,7 +377,6 @@ namespace UnrealBuildTool
 				string ParamArchitectureList = Arguments.GetStringOrDefault("-Architecture=", "") + Arguments.GetStringOrDefault("-Architectures=", "");
 				UnrealArchitectures? ParamArchitectures = UnrealArchitectures.FromString(ParamArchitectureList, Platform);
 
-
 				foreach (UnrealTargetConfiguration Configuration in Configurations)
 				{
 					// Create all the target descriptors for targets specified by type

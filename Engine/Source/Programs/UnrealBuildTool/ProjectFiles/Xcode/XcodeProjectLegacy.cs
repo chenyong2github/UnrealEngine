@@ -900,7 +900,7 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 			Content.Append("\t\t\t\tHEADER_SEARCH_PATHS = (" + ProjectFileGenerator.NewLine);
 			foreach (string SearchPath in IntelliSenseSystemIncludeSearchPaths)
 			{
-				string Path = SearchPath.Contains(" ") ? "\\\"" + SearchPath + "\\\"" : SearchPath;
+				string Path = SearchPath.Contains(' ') ? "\\\"" + SearchPath + "\\\"" : SearchPath;
 				Content.Append("\t\t\t\t\t\"" + Path + "\"," + ProjectFileGenerator.NewLine);
 			}
 			Content.Append("\t\t\t\t);" + ProjectFileGenerator.NewLine);
@@ -908,7 +908,7 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 			Content.Append("\t\t\t\tUSER_HEADER_SEARCH_PATHS = (" + ProjectFileGenerator.NewLine);
 			foreach (string SearchPath in IntelliSenseIncludeSearchPaths)
 			{
-				string Path = SearchPath.Contains(" ") ? "\\\"" + SearchPath + "\\\"" : SearchPath;
+				string Path = SearchPath.Contains(' ') ? "\\\"" + SearchPath + "\\\"" : SearchPath;
 				Content.Append("\t\t\t\t\t\"" + Path + "\"," + ProjectFileGenerator.NewLine);
 			}
 			Content.Append("\t\t\t\t);" + ProjectFileGenerator.NewLine);
@@ -1353,7 +1353,6 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 			Content.Append("\t\t};" + ProjectFileGenerator.NewLine);
 		}
 
-
 		private void AppendXCBuildConfigurationSection(StringBuilder Content, Dictionary<string, XcodeBuildConfig> ProjectBuildConfigs, Dictionary<string, XcodeBuildConfig> TargetBuildConfigs,
 				Dictionary<string, XcodeBuildConfig> BuildTargetBuildConfigs, Dictionary<string, XcodeBuildConfig> IndexTargetBuildConfigs, FileReference? GameProjectPath,
 				List<XcodeExtensionInfo> AllExtensions, ILogger Logger)
@@ -1662,7 +1661,7 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 			Content.Append("      </BuildableProductRunnable>" + ProjectFileGenerator.NewLine);
 			if (String.IsNullOrEmpty(OldCommandLineArguments))
 			{
-				if (bHasEditorConfiguration && GameProjectPath != "")
+				if (bHasEditorConfiguration && !String.IsNullOrEmpty(GameProjectPath))
 				{
 					Content.Append("      <CommandLineArguments>" + ProjectFileGenerator.NewLine);
 					if (IsForeignProject)
@@ -1825,7 +1824,6 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 			string SourcesBuildPhaseGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
 			string CopyExtensionsBuildPhaseGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
 			string ShellScriptSectionGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
-
 
 			// Figure out all the desired configurations
 			List<XcodeBuildConfig> BuildConfigs = GetSupportedBuildConfigs(InPlatforms, InConfigurations, Logger);

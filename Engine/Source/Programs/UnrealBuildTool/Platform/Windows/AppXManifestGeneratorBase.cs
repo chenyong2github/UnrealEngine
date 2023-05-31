@@ -68,7 +68,6 @@ namespace UnrealBuildTool
 			Logger = InLogger;
 		}
 
-
 		/// <summary>
 		/// Returns a valid version of the given package version string
 		/// </summary>
@@ -180,8 +179,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected bool GetConfigBool(string PlatformKey, string? GenericKey, bool DefaultValue = false)
 		{
-			var GenericValue = ReadIniString(GenericKey, IniSection_GeneralProjectSettings, null);
-			var ResultStr = ReadIniString(PlatformKey, IniSection_PlatformTargetSettings, GenericValue);
+			string? GenericValue = ReadIniString(GenericKey, IniSection_GeneralProjectSettings, null);
+			string? ResultStr = ReadIniString(PlatformKey, IniSection_PlatformTargetSettings, GenericValue);
 
 			if (ResultStr == null)
 			{
@@ -198,7 +197,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected string GetConfigColor(string PlatformConfigKey, string DefaultValue)
 		{
-			var ConfigValue = GetConfigString(PlatformConfigKey, null, null);
+			string? ConfigValue = GetConfigString(PlatformConfigKey, null, null);
 			if (ConfigValue == null)
 			{
 				return DefaultValue;
@@ -217,8 +216,6 @@ namespace UnrealBuildTool
 			Logger.LogWarning("Failed to parse color config value. Using default.");
 			return DefaultValue;
 		}
-
-
 
 		/// <summary>
 		/// Create all the localization data. Returns whether there is any per-culture data set up
@@ -280,10 +277,8 @@ namespace UnrealBuildTool
 				}
 			}
 
-
 			return bHasPerCultureResources;
 		}
-
 
 		/// <summary>
 		/// Register the locations where resource binary files can be found
@@ -299,7 +294,6 @@ namespace UnrealBuildTool
 			AppXResources!.EngineFallbackBinaryResourceDirectories.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Build", Platform.ToString(), EngineResourceSubPath));
 			AppXResources!.EngineFallbackBinaryResourceDirectories.Add(DirectoryReference.Combine(Unreal.EngineDirectory, "Platforms", Platform.ToString(), "Build", EngineResourceSubPath));
 		}
-
 
 		/// <summary>
 		/// Get the resources element
@@ -319,7 +313,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the culture list. This list is unordered except that the default language must be first which we already took care of above.
-			var CultureElements = ResourceCulturesList.Select(c =>
+			IEnumerable<XElement> CultureElements = ResourceCulturesList.Select(c =>
 				new XElement("Resource", new XAttribute("Language", c)));
 
 			return new XElement("Resources", CultureElements);
@@ -331,8 +325,8 @@ namespace UnrealBuildTool
 		protected virtual string GetIdentityPackageName()
 		{
 			// Read the PackageName from config
-			var DefaultName = (ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : (TargetName ?? "DefaultUEProject");
-			var PackageName = Regex.Replace(GetConfigString("PackageName", "ProjectName", DefaultName), "[^-.A-Za-z0-9]", "");
+			string DefaultName = (ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : (TargetName ?? "DefaultUEProject");
+			string PackageName = Regex.Replace(GetConfigString("PackageName", "ProjectName", DefaultName), "[^-.A-Za-z0-9]", "");
 			if (String.IsNullOrWhiteSpace(PackageName))
 			{
 				Logger.LogError("Invalid package name {Name}. Package names must only contain letters, numbers, dash, and period and must be at least one character long.", PackageName);
@@ -343,7 +337,7 @@ namespace UnrealBuildTool
 			bool bPackageNameUseMachineName;
 			if (EngineIni!.GetBool(IniSection_PlatformTargetSettings, "bPackageNameUseMachineName", out bPackageNameUseMachineName) && bPackageNameUseMachineName)
 			{
-				var MachineName = Regex.Replace(Environment.MachineName.ToString(), "[^-.A-Za-z0-9]", "");
+				string MachineName = Regex.Replace(Environment.MachineName.ToString(), "[^-.A-Za-z0-9]", "");
 				PackageName = PackageName + ".NOT.SHIPPABLE." + MachineName;
 			}
 
@@ -355,7 +349,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected virtual string GetIdentityPublisherName()
 		{
-			var PublisherName = GetConfigString("PublisherName", "CompanyDistinguishedName", "CN=NoPublisher");
+			string PublisherName = GetConfigString("PublisherName", "CompanyDistinguishedName", "CN=NoPublisher");
 			return PublisherName;
 		}
 
@@ -364,7 +358,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected virtual string? GetIdentityVersionNumber()
 		{
-			var VersionNumber = GetConfigString("PackageVersion", "ProjectVersion", "1.0.0.0");
+			string? VersionNumber = GetConfigString("PackageVersion", "ProjectVersion", "1.0.0.0");
 			VersionNumber = ValidatePackageVersion(VersionNumber);
 
 			// If specified in the project settings attempt to retrieve the current build number and increment the version number by that amount, accounting for overflows
@@ -511,7 +505,6 @@ namespace UnrealBuildTool
 					UEStageIdToAppXCultureId[UEStageId] = AppXCultureId;
 					AppXResources.AddCulture(UEStageId);
 				}
-
 			}
 
 			// look up the default AppX culture
@@ -522,7 +515,6 @@ namespace UnrealBuildTool
 				UEStageIdToAppXCultureId[DefaultUECultureId] = DefaultAppXCultureId;
 			}
 
-
 			// Warn in shipping, we can run without translated cultures they're just needed for cert
 			if (!bHasLocalizationData && InExecutablePairs.ContainsKey(UnrealTargetConfiguration.Shipping))
 			{
@@ -531,7 +523,7 @@ namespace UnrealBuildTool
 
 			// Create the manifest document
 			string? IdentityName = null;
-			var ManifestXmlDocument = new XDocument(GetManifest(InExecutablePairs, out IdentityName));
+			XDocument ManifestXmlDocument = new XDocument(GetManifest(InExecutablePairs, out IdentityName));
 
 			// Export manifest to the intermediate directory and add it to the manifest resources files for copying
 			FileReference ManifestIntermediateFile = FileReference.Combine(IntermediateDirectory, InManifestName);

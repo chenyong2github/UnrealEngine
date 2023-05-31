@@ -20,7 +20,7 @@ namespace UnrealBuildTool
 
 		protected bool CopyFilesRecursively(string FromDir, string ToDir)
 		{
-			var FromDirInfo = new DirectoryInfo(FromDir);
+			DirectoryInfo FromDirInfo = new DirectoryInfo(FromDir);
 
 			if (!FromDirInfo.Exists)
 			{
@@ -37,7 +37,7 @@ namespace UnrealBuildTool
 				try
 				{
 					// Ensure we can overrwrite dest file as non-read only.
-					var ToDestFile = Path.Combine(ToDir, FromFile.Name);
+					string ToDestFile = Path.Combine(ToDir, FromFile.Name);
 					if (File.Exists(ToDestFile))
 					{
 						File.SetAttributes(ToDestFile, File.GetAttributes(ToDestFile) & ~FileAttributes.ReadOnly);

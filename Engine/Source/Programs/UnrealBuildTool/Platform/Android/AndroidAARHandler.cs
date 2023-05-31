@@ -195,7 +195,7 @@ namespace UnrealBuildTool
 			string WorkVersion = InVersion;
 
 			// if has commas, keep the rightmost part with actual numbers
-			if (WorkVersion.Contains(","))
+			if (WorkVersion.Contains(','))
 			{
 				string[] CommaParts = WorkVersion.Split(',');
 				WorkVersion = "";
@@ -632,6 +632,5 @@ namespace UnrealBuildTool
 				return OutputFileNames;
 			}
 		}
-
 	}
 }

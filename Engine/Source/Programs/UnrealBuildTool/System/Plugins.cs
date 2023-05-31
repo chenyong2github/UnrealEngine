@@ -255,9 +255,9 @@ namespace UnrealBuildTool
 		/// <returns>The cached plugin info, or null if not found.</returns>
 		public static PluginInfo? GetPlugin(string PluginName)
 		{
-			foreach (var Pair in PluginInfoCache)
+			foreach (KeyValuePair<DirectoryReference, List<PluginInfo>> Pair in PluginInfoCache)
 			{
-				foreach (var Plugin in Pair.Value)
+				foreach (PluginInfo Plugin in Pair.Value)
 				{
 					if (String.Equals(Plugin.Name, PluginName, StringComparison.InvariantCultureIgnoreCase))
 					{
@@ -559,7 +559,6 @@ namespace UnrealBuildTool
 			}
 			// @todo platplug: what else do we want to support merging?!?
 		}
-
 
 		/// <summary>
 		/// Read all the plugin descriptors under the given directory

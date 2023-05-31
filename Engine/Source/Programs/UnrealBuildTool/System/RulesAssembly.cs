@@ -137,7 +137,7 @@ namespace UnrealBuildTool
 			{
 				// Add the parent assemblies as references so they can be used
 				List<string>? ReferencedAssembies = null;
-				var CurrentParent = Parent;
+				RulesAssembly? CurrentParent = Parent;
 				while (CurrentParent != null && CurrentParent.CompiledAssembly != null)
 				{
 					if (ReferencedAssembies == null)
@@ -473,7 +473,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-
 			// Figure out the best rules object to use
 			Type? RulesObjectType = PlatformRulesObjectType != null ? PlatformRulesObjectType : BaseRulesObjectType;
 			if (RulesObjectType == null)
@@ -533,7 +532,7 @@ namespace UnrealBuildTool
 				}
 
 				// Add the parent assemblies to the assembly cache so the types in them can be used when the constructor is called
-				var CurrentParent = Parent;
+				RulesAssembly? CurrentParent = Parent;
 				while (CurrentParent != null && CurrentParent.CompiledAssembly != null)
 				{
 					EpicGames.Core.AssemblyUtils.AddFileToAssemblyCache(CurrentParent.CompiledAssembly.Location);
@@ -874,7 +873,7 @@ namespace UnrealBuildTool
 		{
 			for (RulesAssembly? Assembly = this; Assembly != null; Assembly = Assembly.Parent)
 			{
-				if (Assembly.ModuleFileToContext.TryGetValue(ModuleFile, out var Context))
+				if (Assembly.ModuleFileToContext.TryGetValue(ModuleFile, out ModuleRulesContext? Context))
 				{
 					return Context;
 				}

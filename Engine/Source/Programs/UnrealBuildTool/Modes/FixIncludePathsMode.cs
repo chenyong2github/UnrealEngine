@@ -111,12 +111,12 @@ namespace UnrealBuildTool
 							InputFiles.AddRange(InputFileCollection.CCFiles);
 							InputFiles.AddRange(InputFileCollection.CFiles);
 
-							var FileList = new List<FileReference>();
+							List<FileReference> FileList = new List<FileReference>();
 							foreach (FileItem InputFile in InputFiles)
 							{
 								if (FileFilter == null || FileFilter.Matches(InputFile.Location.MakeRelativeTo(Unreal.RootDirectory)))
 								{
-									var fileRef = new FileReference(InputFile.AbsolutePath);
+									FileReference fileRef = new FileReference(InputFile.AbsolutePath);
 									FileList.Add(fileRef);
 								}
 							}
@@ -126,7 +126,7 @@ namespace UnrealBuildTool
 							{
 								if (IncludeFilter == null || IncludeFilter.Matches(InputFile.Location.MakeRelativeTo(Unreal.RootDirectory)))
 								{
-									var fileRef = new FileReference(InputFile.AbsolutePath);
+									FileReference fileRef = new FileReference(InputFile.AbsolutePath);
 									IncludeFileList.Add(fileRef);
 								}
 							}
@@ -155,7 +155,7 @@ namespace UnrealBuildTool
 							Dictionary<string, string?> PreferredPathCache = new();
 							CppCompileEnvironment env = Module.CreateCompileEnvironmentForIntellisense(Target.Rules, BinaryCompileEnvironment, Logger);
 
-							foreach (var InputFile in FileList)
+							foreach (FileReference InputFile in FileList)
 							{
 								List<int> LinesUpdated = new();
 								string[] Text = FileReference.ReadAllLines(InputFile);
@@ -163,7 +163,7 @@ namespace UnrealBuildTool
 
 								for (int i = 0; i < Text.Length; i++)
 								{
-									var Line = Text[i];
+									string Line = Text[i];
 									int LineNumber = i + 1;
 									Match IncludeMatch = IncludeRegex.Match(Line);
 									if (IncludeMatch.Success)
@@ -195,7 +195,7 @@ namespace UnrealBuildTool
 											// search include paths
 											FileReference? FoundIncludeFile = null;
 											DirectoryReference? FoundIncludePath = null;
-											foreach (var IncludePath in IncludePaths)
+											foreach (DirectoryReference IncludePath in IncludePaths)
 											{
 												string Path = System.IO.Path.GetFullPath(System.IO.Path.Combine(IncludePath.FullName, Include));
 												if (System.IO.File.Exists(Path))
@@ -405,10 +405,10 @@ namespace UnrealBuildTool
 
 		private void SortIncludes(FileReference File, List<int> LinesUpdated, string[] Text)
 		{
-			var HeaderSort = new HeaderSortComparison(File.GetFileNameWithoutExtension() + ".h");
-			foreach (var LineIndex in LinesUpdated)
+			HeaderSortComparison HeaderSort = new HeaderSortComparison(File.GetFileNameWithoutExtension() + ".h");
+			foreach (int LineIndex in LinesUpdated)
 			{
-				var FirstIncludeIndex = LineIndex;
+				int FirstIncludeIndex = LineIndex;
 				for (int i = LineIndex - 1; i >= 0; i--)
 				{
 					Match IncludeMatch = IncludeRegex.Match(Text[i]);
@@ -422,7 +422,7 @@ namespace UnrealBuildTool
 					}
 				}
 
-				var LastIncludeIndex = LineIndex;
+				int LastIncludeIndex = LineIndex;
 				for (int i = LineIndex + 1; i < Text.Length; i++)
 				{
 					Match IncludeMatch = IncludeRegex.Match(Text[i]);

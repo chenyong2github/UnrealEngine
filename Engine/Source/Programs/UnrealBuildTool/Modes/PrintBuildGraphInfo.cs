@@ -199,7 +199,7 @@ namespace UnrealBuildTool
 									Dependencies.Append("!!! ");
 								}
 
-								var DepModuleArray = DepModuleStack.Reverse().ToArray();
+								UEBuildModule[] DepModuleArray = DepModuleStack.Reverse().ToArray();
 								for (int DepModuleIndex = 0; DepModuleIndex < DepModuleArray.Length; DepModuleIndex++)
 								{
 									Dependencies.Append(DepModuleArray[DepModuleIndex].Name);

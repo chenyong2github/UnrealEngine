@@ -26,7 +26,6 @@ namespace UnrealBuildTool
 			return TargetPlatformName;
 		}
 
-
 		protected override string? GetInstalledSDKVersion()
 		{
 			// @todo turnkey: ForceUseSystemCompiler() returns true, we should probably run system clang -V or similar to get version
@@ -51,7 +50,6 @@ namespace UnrealBuildTool
 
 			return SDKVersionString;
 		}
-
 
 		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue, string? Hint)
 		{
@@ -88,8 +86,6 @@ namespace UnrealBuildTool
 		{
 			return false;
 		}
-
-
 
 		/// <summary>
 		/// Platform name (embeds architecture for now)

@@ -180,7 +180,7 @@ namespace UnrealBuildTool
 
 			if (AggregateFile != null)
 			{
-				var Tasks = Task.WhenAll(SourceFiles.Select(x => GetTraceData(x, Logger)));
+				Task<TraceData[]> Tasks = Task.WhenAll(SourceFiles.Select(x => GetTraceData(x, Logger)));
 				Tasks.Wait();
 				List<TraceData> TraceDatas = Tasks.Result.OrderBy(x => x.Module).ThenBy(x => x.Name).ToList();
 
@@ -198,7 +198,7 @@ namespace UnrealBuildTool
 
 			if (HeadersFile != null)
 			{
-				var Tasks = Task.WhenAll(SourceFiles.Select(x => ParseTimingDataFile(x, Logger)));
+				Task<ClangTrace[]> Tasks = Task.WhenAll(SourceFiles.Select(x => ParseTimingDataFile(x, Logger)));
 				Tasks.Wait();
 				List<ClangTrace> ClangTraces = Tasks.Result.ToList();
 
@@ -221,7 +221,7 @@ namespace UnrealBuildTool
 				using (StreamWriter Writer = new StreamWriter(TempFilePath))
 				{
 					Writer.WriteLine("Source,Count,Total,Min,Max,Average");
-					foreach (var Data in Sources.OrderBy(x => x.Key.FullName).Where(x => x.Key.HasExtension(".h") || x.Key.HasExtension(".inl")))
+					foreach (KeyValuePair<FileReference, List<long>> Data in Sources.OrderBy(x => x.Key.FullName).Where(x => x.Key.HasExtension(".h") || x.Key.HasExtension(".inl")))
 					{
 						Writer.WriteLine($"{Data.Key.FullName},{Data.Value.Count},{Data.Value.Sum()},{Data.Value.Min()},{Data.Value.Max()},{Data.Value.Average()}");
 					}
@@ -257,7 +257,6 @@ namespace UnrealBuildTool
 
 			return Task.FromResult(0);
 		}
-
 
 		private async Task<ClangTrace> ParseTimingDataFile(FileReference SourceFile, ILogger Logger)
 		{

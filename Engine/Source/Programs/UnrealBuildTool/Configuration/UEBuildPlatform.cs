@@ -64,7 +64,6 @@ namespace UnrealBuildTool
 			return UnrealTargetPlatform.GetValidPlatforms().Where(x => UEBuildPlatform.TryGetBuildPlatform(x, out _)).Select(x => UEBuildPlatform.GetBuildPlatform(x).ArchitectureConfig);
 		}
 
-
 		/// <summary>
 		/// The multi-architecture mode for this platform (potentially single-architecture)
 		/// </summary>
@@ -100,7 +99,6 @@ namespace UnrealBuildTool
 		{
 			return ActiveArchitectures(ProjectFile, TargetName);
 		}
-
 
 		/// <summary>
 		/// Returns the set all architectures potentially supported by this project. Can be used by project file gnenerators to restrict IDE architecture options
@@ -167,8 +165,6 @@ namespace UnrealBuildTool
 			return AllSupportedArchitectures.SingleArchitecture;
 		}
 
-
-
 		/// <summary>
 		/// Simple constructor for platforms with a single architecture
 		/// </summary>
@@ -189,12 +185,7 @@ namespace UnrealBuildTool
 			this.Mode = Mode;
 			AllSupportedArchitectures = new UnrealArchitectures(SupportedArchitectures);
 		}
-
-
 	}
-
-
-
 
 	abstract class UEBuildPlatform
 	{
@@ -295,7 +286,6 @@ namespace UnrealBuildTool
 							{
 								continue;
 							}
-
 
 							// We need all platforms to be registered when we run -validateplatform command to check SDK status of each
 							if (bIncludeNonInstalledPlatforms || InstalledPlatformInfo.IsValidPlatform(TempInst.TargetPlatform))
@@ -813,7 +803,7 @@ namespace UnrealBuildTool
 
 				foreach (DirectoryReference Path in PublicSystemIncludePaths.Where(x => !x.IsUnderDirectory(Module.ModuleDirectory)))
 				{
-					var OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
+					UEBuildModule? OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
 					if (OtherModule is UEBuildModuleExternal)
 					{
 						LoggerFunc("External module '{Name}' is adding '{Path}' from external module '{OtherModule}' to PublicSystemIncludePaths. Did you intend to add a public reference?", Module.Name, Path, OtherModule.Name);
@@ -856,7 +846,7 @@ namespace UnrealBuildTool
 						}
 					}
 
-					var OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
+					UEBuildModule? OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
 					if (OtherModule is UEBuildModuleExternal)
 					{
 						LoggerFunc("Module '{Name}' is adding '{Path}' from external module '{OtherModule}' to PublicIncludePaths. Did you intend to add a public reference?", Module.Name, Path, OtherModule.Name);
@@ -897,7 +887,7 @@ namespace UnrealBuildTool
 						}
 					}
 
-					var OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
+					UEBuildModule? OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
 					if (OtherModule is UEBuildModuleExternal)
 					{
 						LoggerFunc("Module '{Name}' is adding '{Path}' from external module '{OtherModule}' to PrivateIncludePaths. Did you intend to add a private reference?", Module.Name, Path, OtherModule.Name);
@@ -941,7 +931,7 @@ namespace UnrealBuildTool
 						}
 					}
 
-					var OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
+					UEBuildModule? OtherModule = OtherModules.FirstOrDefault(x => Path.IsUnderDirectory(x.ModuleDirectory));
 					if (OtherModule is UEBuildModuleExternal)
 					{
 						LoggerFunc("Module '{Name}' is adding '{Path}' from external module '{OtherModule}' to InternalncludePaths. Did you intend to add a public reference?", Module.Name, Path, OtherModule.Name);
@@ -1232,7 +1222,6 @@ namespace UnrealBuildTool
 		{
 		}
 
-
 		/// <summary>
 		/// Allows the platform to modify the binary link environment before the binary is built
 		/// </summary>
@@ -1258,7 +1247,6 @@ namespace UnrealBuildTool
 		{
 			return false;
 		}
-
 
 		/// <summary>
 		/// Checks if platform is part of a given platform group

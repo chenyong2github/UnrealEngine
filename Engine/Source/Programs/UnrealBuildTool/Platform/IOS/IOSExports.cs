@@ -238,21 +238,21 @@ namespace UnrealBuildTool
 
 				string entitlementXML = MobileProvisionContent.GetNodeXMLValueByName("com.apple.developer.icloud-services");
 
-				if (!entitlementXML.Contains("*") || Platform == UnrealTargetPlatform.TVOS)
+				if (!entitlementXML.Contains('*') || Platform == UnrealTargetPlatform.TVOS)
 				{
 					// for iOS, replace the generic value (*) with the default
 					iCloudServicesXML = entitlementXML;
 				}
 
 				entitlementXML = MobileProvisionContent.GetNodeXMLValueByName("com.apple.developer.ubiquity-container-identifiers");
-				if (!entitlementXML.Contains("*") || !bForDistribution)
+				if (!entitlementXML.Contains('*') || !bForDistribution)
 				{
 					// for distribution, replace the generic value (*) with the default
 					UbiquityContainerIdentifiersXML = entitlementXML;
 				}
 
 				entitlementXML = MobileProvisionContent.GetNodeXMLValueByName("com.apple.developer.ubiquity-kvstore-identifier");
-				if (!entitlementXML.Contains("*") || !bForDistribution)
+				if (!entitlementXML.Contains('*') || !bForDistribution)
 				{
 					// for distribution, replace the generic value (*) with the default
 					UbiquityKVStoreIdentifiersXML = entitlementXML;
@@ -279,25 +279,25 @@ namespace UnrealBuildTool
 				Text.AppendLine(String.Format("\t<{0}/>", bForDistribution ? "false" : "true"));
 				if (bCloudKitSupported)
 				{
-					if (iCloudContainerIdentifiersXML != "")
+					if (!String.IsNullOrEmpty(iCloudContainerIdentifiersXML))
 					{
 						Text.AppendLine("\t<key>com.apple.developer.icloud-container-identifiers</key>");
 						Text.AppendLine(iCloudContainerIdentifiersXML);
 					}
 
-					if (iCloudServicesXML != "")
+					if (!String.IsNullOrEmpty(iCloudServicesXML))
 					{
 						Text.AppendLine("\t<key>com.apple.developer.icloud-services</key>");
 						Text.AppendLine(iCloudServicesXML);
 					}
 
-					if (UbiquityContainerIdentifiersXML != "")
+					if (!String.IsNullOrEmpty(UbiquityContainerIdentifiersXML))
 					{
 						Text.AppendLine("\t<key>com.apple.developer.ubiquity-container-identifiers</key>");
 						Text.AppendLine(UbiquityContainerIdentifiersXML);
 					}
 
-					if (UbiquityKVStoreIdentifiersXML != "")
+					if (!String.IsNullOrEmpty(UbiquityKVStoreIdentifiersXML))
 					{
 						Text.AppendLine("\t<key>com.apple.developer.ubiquity-kvstore-identifier</key>");
 						Text.AppendLine(UbiquityKVStoreIdentifiersXML);
@@ -362,7 +362,7 @@ namespace UnrealBuildTool
 
 			// create a pList key named ICloudContainerIdentifier
 			// to be used at run-time when intializing the CloudKit services
-			if (iCloudContainerIdentifier != "")
+			if (!String.IsNullOrEmpty(iCloudContainerIdentifier))
 			{
 				string PListFile = IntermediateDir + "/" + AppName + "-Info.plist";
 				if (File.Exists(PListFile))
@@ -411,10 +411,8 @@ namespace UnrealBuildTool
 					{
 						throw new BuildException("plist is invalid {0}\n{1}", e, OldPListData);
 					}
-
 				}
 			}
 		}
-
 	}
 }

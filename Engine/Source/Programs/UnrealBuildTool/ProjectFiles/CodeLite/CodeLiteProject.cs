@@ -158,7 +158,7 @@ namespace UnrealBuildTool
 					//
 					foreach (string FolderName in SplitFolders)
 					{
-						if (FolderName.Equals(""))
+						if (String.IsNullOrEmpty(FolderName))
 						{
 							continue;
 						}
@@ -267,7 +267,6 @@ namespace UnrealBuildTool
 								ExecutableToRun += PlatformConfiguration;
 							}
 						}
-
 					}
 					else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 					{
@@ -283,7 +282,6 @@ namespace UnrealBuildTool
 							{
 								ExecutableToRun += PlatformConfiguration;
 							}
-
 						}
 						else if (ProjectTargetType == TargetType.Editor)
 						{
@@ -300,7 +298,6 @@ namespace UnrealBuildTool
 								ExecutableToRun += PlatformConfiguration;
 							}
 						}
-
 					}
 					else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 					{
@@ -331,7 +328,6 @@ namespace UnrealBuildTool
 						throw new BuildException("Unsupported platform.");
 					}
 
-
 					// Is this project a Game type?
 					XAttribute GeneralExecutableToRun = new XAttribute("Command", ExecutableToRun);
 					if (ProjectTargetType == TargetType.Game)
@@ -355,7 +351,7 @@ namespace UnrealBuildTool
 					}
 					else if (ProjectTargetType == TargetType.Editor)
 					{
-						if (TargetName != "UnrealEditor" && GameProjectFile != "")
+						if (TargetName != "UnrealEditor" && !String.IsNullOrEmpty(GameProjectFile))
 						{
 							string commandArguments = "\"" + GameProjectFile + "\"" + " -game";
 							XAttribute CommandArguments = new XAttribute("CommandArguments", commandArguments);
@@ -407,8 +403,6 @@ namespace UnrealBuildTool
 					// End of Add the working directory for the custom build commands.
 					//
 
-
-
 					//
 					// Make Build Target.
 					//
@@ -454,7 +448,6 @@ namespace UnrealBuildTool
 
 					CustomCleanCommand.Add(CleanCommandLine);
 
-
 					//
 					// End of Clean Build Target.
 					//
@@ -473,7 +466,6 @@ namespace UnrealBuildTool
 					//
 					// End of Clean Build Target.
 					//
-
 
 					//
 					// Some other fun Custom Targets.
