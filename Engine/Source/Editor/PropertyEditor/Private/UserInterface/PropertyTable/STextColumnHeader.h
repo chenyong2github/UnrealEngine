@@ -52,7 +52,7 @@ public:
 		if ( !CellPresenter.IsValid() && Cell->IsBound() )
 		{
 			TSharedRef< FPropertyEditor > PropertyEditor = FPropertyEditor::Create( Cell->GetNode().ToSharedRef(), Utilities.ToSharedRef() );
-			CellPresenter = MakeShareable( new FTextPropertyTableCellPresenter( PropertyEditor, Utilities.ToSharedRef() ) );
+			CellPresenter = MakeShareable( new FTextPropertyTableCellPresenter( PropertyEditor, Utilities.ToSharedRef(), FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ), Cell ) );
 		}
 
 		return SNew( SPropertyTableCell, Cell )

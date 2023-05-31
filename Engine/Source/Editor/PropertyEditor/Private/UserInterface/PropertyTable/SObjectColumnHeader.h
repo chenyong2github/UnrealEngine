@@ -64,7 +64,7 @@ class SObjectColumnHeader : public SColumnHeader
 			}
 			else
 			{
-				CellPresenter = MakeShareable( new FTextPropertyTableCellPresenter( PropertyEditor, Utilities.ToSharedRef() ) );
+				CellPresenter = MakeShareable( new FTextPropertyTableCellPresenter( PropertyEditor, Utilities.ToSharedRef(), FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ), Cell ) );
 			}
 		}
 

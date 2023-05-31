@@ -6,9 +6,12 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBorder.h"
+#include "IPropertyTable.h"
+#include "IPropertyTableCell.h"
 #include "IPropertyTableUtilities.h"
 #include "PropertyEditorHelpers.h"
 #include "SResetToDefaultPropertyEditor.h"
+#include "Styling/StyleColors.h"
 
 #include "UserInterface/PropertyEditor/SPropertyEditor.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorNumeric.h"
@@ -19,11 +22,11 @@
 #include "UserInterface/PropertyEditor/SPropertyEditorColor.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorDateTime.h"
 
-
-FTextPropertyTableCellPresenter::FTextPropertyTableCellPresenter( const TSharedRef< class FPropertyEditor >& InPropertyEditor, const TSharedRef< class IPropertyTableUtilities >& InPropertyUtilities, FSlateFontInfo InFont /*= FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ) */ )
+FTextPropertyTableCellPresenter::FTextPropertyTableCellPresenter( const TSharedRef< class FPropertyEditor >& InPropertyEditor, const TSharedRef< class IPropertyTableUtilities >& InPropertyUtilities, FSlateFontInfo InFont /*= FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ) */, const TSharedPtr< IPropertyTableCell >& InCell /*= nullptr*/ )
 	: PropertyWidget( NULL )
 	, PropertyEditor( InPropertyEditor )
 	, PropertyUtilities( InPropertyUtilities )
+	, Cell(InCell)
 	, HasReadOnlyEditingWidget( false )
 	, Font(InFont)
 {
@@ -40,6 +43,7 @@ TSharedRef< class SWidget > FTextPropertyTableCellPresenter::ConstructDisplayWid
 		[
 			SNew( STextBlock )
 			.Text( PropertyEditor->GetValueAsText() )
+			.ColorAndOpacity(this, &FTextPropertyTableCellPresenter::GetTextForegroundColor)
 			.ToolTipText( PropertyEditor->GetToolTipText() )
 			.Font( Font )
 		];
@@ -235,4 +239,14 @@ FString FTextPropertyTableCellPresenter::GetValueAsString()
 FText FTextPropertyTableCellPresenter::GetValueAsText()
 {
 	return PropertyEditor->GetValueAsText();
+}
+
+FSlateColor FTextPropertyTableCellPresenter::GetTextForegroundColor() const
+{
+	if(Cell && Cell->GetTable()->GetSelectedCells().Contains( Cell.ToSharedRef() ))
+	{
+		return FStyleColors::White;
+	}
+
+	return FSlateColor::UseForeground();
 }

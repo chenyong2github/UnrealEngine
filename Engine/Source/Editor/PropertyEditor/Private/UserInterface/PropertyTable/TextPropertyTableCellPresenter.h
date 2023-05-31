@@ -8,11 +8,13 @@
 #include "IPropertyTableCellPresenter.h"
 #include "UserInterface/PropertyTable/PropertyTableConstants.h"
 
+class IPropertyTableCell;
+
 class FTextPropertyTableCellPresenter : public TSharedFromThis< FTextPropertyTableCellPresenter >, public IPropertyTableCellPresenter
 {
 public:
 
-	FTextPropertyTableCellPresenter( const TSharedRef< class FPropertyEditor >& InPropertyEditor, const TSharedRef< class IPropertyTableUtilities >& InPropertyUtilities, FSlateFontInfo InFont = FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ) );
+	FTextPropertyTableCellPresenter( const TSharedRef< class FPropertyEditor >& InPropertyEditor, const TSharedRef< class IPropertyTableUtilities >& InPropertyUtilities, FSlateFontInfo InFont = FAppStyle::GetFontStyle( PropertyTableConstants::NormalFontStyle ), const TSharedPtr< IPropertyTableCell >& InCell = nullptr );
 
 	virtual ~FTextPropertyTableCellPresenter() {}
 
@@ -39,6 +41,7 @@ private:
 
 	bool CalculateIfUsingReadOnlyEditingWidget() const;
 
+	FSlateColor GetTextForegroundColor() const;
 
 private:
 
@@ -46,6 +49,8 @@ private:
 
 	TSharedRef< class FPropertyEditor > PropertyEditor;
 	TSharedRef< class IPropertyTableUtilities > PropertyUtilities;
+	
+	TSharedPtr< IPropertyTableCell > Cell;
 
 	bool HasReadOnlyEditingWidget;
 	FSlateFontInfo Font;

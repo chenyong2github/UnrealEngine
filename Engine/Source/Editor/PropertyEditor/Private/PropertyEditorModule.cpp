@@ -360,7 +360,7 @@ TSharedRef< IPropertyTableWidgetHandle > FPropertyEditorModule::CreatePropertyTa
 }
 
 TSharedRef< IPropertyTableCellPresenter > FPropertyEditorModule::CreateTextPropertyCellPresenter(const TSharedRef< class FPropertyNode >& InPropertyNode, const TSharedRef< class IPropertyTableUtilities >& InPropertyUtilities, 
-																								 const FSlateFontInfo* InFontPtr /* = NULL */)
+																								 const FSlateFontInfo* InFontPtr /* = NULL */ , const TSharedPtr< IPropertyTableCell >& InCell /* = nullptr */)
 {
 	FSlateFontInfo InFont;
 
@@ -375,7 +375,7 @@ TSharedRef< IPropertyTableCellPresenter > FPropertyEditorModule::CreateTextPrope
 	}
 
 	TSharedRef< FPropertyEditor > PropertyEditor = FPropertyEditor::Create( InPropertyNode, InPropertyUtilities );
-	return MakeShareable( new FTextPropertyTableCellPresenter( PropertyEditor, InPropertyUtilities, InFont) );
+	return MakeShareable( new FTextPropertyTableCellPresenter( PropertyEditor, InPropertyUtilities, InFont, InCell) );
 }
 
 FStructProperty* FPropertyEditorModule::RegisterStructOnScopeProperty(TSharedRef<FStructOnScope> StructOnScope)

@@ -95,6 +95,7 @@ private:
 					SNew( STextBlock )
 					.Font( FAppStyle::GetFontStyle( TextFontStyle ) )
 					.Text( FText::FromString(DisplayNamePieces[ Index ]) )
+					.ColorAndOpacity(this, &FObjectNameTableCellPresenter::GetTextForegroundColor)
 				];
 
 			if ( Index < DisplayNamePieces.Num() - 1 )
@@ -114,6 +115,15 @@ private:
 		return NameBox;
 	}
 
+	FSlateColor GetTextForegroundColor() const
+	{
+		if(Cell->GetTable()->GetSelectedCells().Contains( Cell ))
+		{
+			return FStyleColors::White;
+		}
+
+		return FSlateColor::UseForeground();
+	}
 
 private:
 

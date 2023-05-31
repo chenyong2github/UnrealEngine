@@ -61,6 +61,7 @@ namespace FPropertyAccess
 
 
 class IPropertyHandle;
+class IPropertyTableCell;
 class SPropertyTreeViewImpl;
 class SWindow;
 class IPropertyTableCellPresenter;
@@ -383,7 +384,7 @@ public:
 	virtual TSharedRef< class IPropertyTableWidgetHandle > CreatePropertyTableWidgetHandle( const TSharedRef< IPropertyTable >& PropertyTable, const TArray< TSharedRef< class IPropertyTableCustomColumn > >& Customizations );
 
 	virtual TSharedRef< IPropertyTableCellPresenter > CreateTextPropertyCellPresenter( const TSharedRef< class FPropertyNode >& InPropertyNode, const TSharedRef< class IPropertyTableUtilities >& InPropertyUtilities, 
-		const FSlateFontInfo* InFontPtr = NULL);
+		const FSlateFontInfo* InFontPtr = NULL, const TSharedPtr< IPropertyTableCell >& InCell = nullptr);
 
 	/**
 	 * Register a floating struct on scope so that the details panel may use it as a property
