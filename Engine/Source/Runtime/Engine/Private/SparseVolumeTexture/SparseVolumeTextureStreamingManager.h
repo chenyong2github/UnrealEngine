@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "SparseVolumeTexture/ISparseVolumeTextureStreamingManager.h"
 #include "IO/IoDispatcher.h"
 #include "Memory/SharedBuffer.h"
 #include "Serialization/BulkData.h"
@@ -72,23 +73,27 @@ struct FStreamingRequest
 	}
 };
 
-class FStreamingManager : public FRenderResource
+class FStreamingManager : public FRenderResource, public IStreamingManager
 {
 public:
 	FStreamingManager();
 
+	//~ Begin FRenderResource Interface.
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
+	//~ End FRenderResource Interface.
 
-	ENGINE_API void Add_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture);
-	ENGINE_API void Remove_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture);
-	ENGINE_API void BeginAsyncUpdate(FRDGBuilder& GraphBuilder);
-	ENGINE_API void EndAsyncUpdate(FRDGBuilder& GraphBuilder);
-
+	//~ Begin IStreamingManager Interface.
+	virtual void Add_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture) override;
+	virtual void Remove_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture) override;
 	// Request a frame to be streamed in. FrameIndex is of float type so that the fractional part can be used to better track the playback speed/direction.
 	// This function automatically also requests all higher mip levels and adds prefetch requests for upcoming frames.
-	ENGINE_API void Request_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel);
-	ENGINE_API void Request(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel);
+	virtual void Request_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel) override;
+	
+	virtual void Request(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel) override;
+	virtual void BeginAsyncUpdate(FRDGBuilder& GraphBuilder) override;
+	virtual void EndAsyncUpdate(FRDGBuilder& GraphBuilder) override;
+	//~ End IStreamingManager Interface.
 
 private:
 	friend class FStreamingUpdateTask;
@@ -352,8 +357,6 @@ private:
 	void RequestDDCData(TConstArrayView<UE::DerivedData::FCacheGetChunkRequest> DDCRequests);
 #endif
 };
-
-extern ENGINE_API TGlobalResource<FStreamingManager> GStreamingManager;
 
 }
 }

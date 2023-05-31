@@ -74,6 +74,13 @@ namespace UE
 namespace SVT
 {
 
+TGlobalResource<FStreamingManager> GStreamingManager;
+
+IStreamingManager& GetStreamingManager()
+{
+	return GStreamingManager;
+}
+
 static bool DoesPlatformSupportSparseVolumeTexture(EShaderPlatform Platform)
 {
 	// SVT_TODO: This is a bit of a hack: FStreamingManager::Add_GameThread() issues a rendering thread lambda for creating the RHI resources and uploading root tile data.
@@ -741,6 +748,103 @@ void FStreamingManager::Remove_GameThread(UStreamableSparseVolumeTexture* Sparse
 		});
 }
 
+void FStreamingManager::Request_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel)
+{
+	if (!DoesPlatformSupportSparseVolumeTexture(GMaxRHIShaderPlatform) || !SparseVolumeTexture)
+	{
+		return;
+	}
+	ENQUEUE_RENDER_COMMAND(SVTRequest)(
+		[this, SparseVolumeTexture, FrameIndex, MipLevel](FRHICommandListImmediate& RHICmdList)
+		{
+			Request(SparseVolumeTexture, FrameIndex, MipLevel);
+		});
+}
+
+void FStreamingManager::Request(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel)
+{
+	check(IsInRenderingThread());
+	if (!DoesPlatformSupportSparseVolumeTexture(GMaxRHIShaderPlatform) || !SparseVolumeTexture)
+	{
+		return;
+	}
+
+	FStreamingInfo* SVTInfo = StreamingInfo.Find(SparseVolumeTexture);
+	if (SVTInfo)
+	{
+		const int32 NumFrames = SVTInfo->PerFrameInfo.Num();
+		const int32 FrameIndexI32 = static_cast<int32>(FrameIndex);
+		if (FrameIndexI32 < 0 || FrameIndexI32 >= NumFrames)
+		{
+			return;
+		}
+
+		// Try to find a FStreamingWindow around the requested frame index. This will inform us about which direction we need to prefetch into.
+		FStreamingWindow* StreamingWindow = nullptr;
+		for (FStreamingWindow& Window : SVTInfo->StreamingWindows)
+		{
+			if (FMath::Abs(FrameIndex - Window.CenterFrame) <= FStreamingWindow::WindowSize)
+			{
+				StreamingWindow = &Window;
+				break;
+			}
+		}
+		// Found an existing window!
+		if (StreamingWindow)
+		{
+			const bool bForward = StreamingWindow->LastCenterFrame <= FrameIndex;
+			if (StreamingWindow->LastRequested < NextUpdateIndex)
+			{
+				StreamingWindow->LastCenterFrame = StreamingWindow->CenterFrame;
+				StreamingWindow->CenterFrame = FrameIndex;
+				StreamingWindow->NumRequestsThisUpdate = 1;
+				StreamingWindow->LastRequested = NextUpdateIndex;
+				StreamingWindow->bPlayForward = bForward;
+				StreamingWindow->bPlayBackward = !bForward;
+			}
+			else
+			{
+				// Update the average center frame
+				StreamingWindow->CenterFrame = (StreamingWindow->CenterFrame * StreamingWindow->NumRequestsThisUpdate + FrameIndex) / (StreamingWindow->NumRequestsThisUpdate + 1.0f);
+				++StreamingWindow->NumRequestsThisUpdate;
+				StreamingWindow->bPlayForward |= bForward;
+				StreamingWindow->bPlayBackward |= !bForward;
+			}
+		}
+		// No existing window. Create a new one.
+		else
+		{
+			StreamingWindow = &SVTInfo->StreamingWindows.AddDefaulted_GetRef();
+			StreamingWindow->CenterFrame = FrameIndex;
+			StreamingWindow->LastCenterFrame = FrameIndex;
+			StreamingWindow->NumRequestsThisUpdate = 1;
+			StreamingWindow->LastRequested = NextUpdateIndex;
+			StreamingWindow->bPlayForward = true; // No prior data, so just take a guess that playback is forwards
+			StreamingWindow->bPlayBackward = false;
+		}
+
+		check(StreamingWindow);
+		const int32 OffsetMagnitude = GSVTStreamingNumPrefetchFrames;
+		const int32 LowerFrameOffset = StreamingWindow->bPlayBackward ? -OffsetMagnitude : 0;
+		const int32 UpperFrameOffset = StreamingWindow->bPlayForward ? OffsetMagnitude : 0;
+
+		for (int32 i = LowerFrameOffset; i <= UpperFrameOffset; ++i)
+		{
+			const int32 RequestFrameIndex = (static_cast<int32>(FrameIndex) + i + NumFrames) % NumFrames;
+			const int32 RequestMipLevelOffset = FMath::Abs(i) + GSVTStreamingPrefetchMipLevelBias;
+			FStreamingRequest Request;
+			Request.Key.SVT = SparseVolumeTexture;
+			Request.Key.FrameIndex = RequestFrameIndex;
+			Request.Key.MipLevelIndex = FMath::Clamp(MipLevel + RequestMipLevelOffset, 0, SVTInfo->PerFrameInfo[RequestFrameIndex].NumMipLevels);
+			Request.Priority = FMath::Max(0, OffsetMagnitude - FMath::Abs(i));
+			AddRequest(Request);
+		}
+
+		// Clean up unused streaming windows
+		SVTInfo->StreamingWindows.RemoveAll([&](const FStreamingWindow& Window) { return (NextUpdateIndex - Window.LastRequested) > 5; });
+	}
+}
+
 void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 {
 	check(IsInRenderingThread());
@@ -930,98 +1034,6 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 #endif
 	}
 #endif // DO_CHECK
-}
-
-void FStreamingManager::Request_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel)
-{
-	if (!DoesPlatformSupportSparseVolumeTexture(GMaxRHIShaderPlatform) || !SparseVolumeTexture)
-	{
-		return;
-	}
-	ENQUEUE_RENDER_COMMAND(SVTRequest)(
-		[this, SparseVolumeTexture, FrameIndex, MipLevel](FRHICommandListImmediate& RHICmdList)
-		{
-			Request(SparseVolumeTexture, FrameIndex, MipLevel);
-		});
-}
-
-void FStreamingManager::Request(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel)
-{
-	check(IsInRenderingThread());
-	FStreamingInfo* SVTInfo = StreamingInfo.Find(SparseVolumeTexture);
-	if (SVTInfo)
-	{
-		const int32 NumFrames = SVTInfo->PerFrameInfo.Num();
-		const int32 FrameIndexI32 = static_cast<int32>(FrameIndex);
-		if (FrameIndexI32 < 0 || FrameIndexI32 >= NumFrames)
-		{
-			return;
-		}
-
-		// Try to find a FStreamingWindow around the requested frame index. This will inform us about which direction we need to prefetch into.
-		FStreamingWindow* StreamingWindow = nullptr;
-		for (FStreamingWindow& Window : SVTInfo->StreamingWindows)
-		{
-			if (FMath::Abs(FrameIndex - Window.CenterFrame) <= FStreamingWindow::WindowSize)
-			{
-				StreamingWindow = &Window;
-				break;
-			}
-		}
-		// Found an existing window!
-		if (StreamingWindow)
-		{
-			const bool bForward = StreamingWindow->LastCenterFrame <= FrameIndex;
-			if (StreamingWindow->LastRequested < NextUpdateIndex)
-			{
-				StreamingWindow->LastCenterFrame = StreamingWindow->CenterFrame;
-				StreamingWindow->CenterFrame = FrameIndex;
-				StreamingWindow->NumRequestsThisUpdate = 1;
-				StreamingWindow->LastRequested = NextUpdateIndex;
-				StreamingWindow->bPlayForward = bForward;
-				StreamingWindow->bPlayBackward = !bForward;
-			}
-			else
-			{
-				// Update the average center frame
-				StreamingWindow->CenterFrame = (StreamingWindow->CenterFrame * StreamingWindow->NumRequestsThisUpdate + FrameIndex) / (StreamingWindow->NumRequestsThisUpdate + 1.0f);
-				++StreamingWindow->NumRequestsThisUpdate;
-				StreamingWindow->bPlayForward |= bForward;
-				StreamingWindow->bPlayBackward |= !bForward;
-			}
-		}
-		// No existing window. Create a new one.
-		else
-		{
-			StreamingWindow = &SVTInfo->StreamingWindows.AddDefaulted_GetRef();
-			StreamingWindow->CenterFrame = FrameIndex;
-			StreamingWindow->LastCenterFrame = FrameIndex;
-			StreamingWindow->NumRequestsThisUpdate = 1;
-			StreamingWindow->LastRequested = NextUpdateIndex;
-			StreamingWindow->bPlayForward = true; // No prior data, so just take a guess that playback is forwards
-			StreamingWindow->bPlayBackward = false;
-		}
-
-		check(StreamingWindow);
-		const int32 OffsetMagnitude = GSVTStreamingNumPrefetchFrames;
-		const int32 LowerFrameOffset = StreamingWindow->bPlayBackward ? -OffsetMagnitude : 0;
-		const int32 UpperFrameOffset = StreamingWindow->bPlayForward ? OffsetMagnitude : 0;
-
-		for (int32 i = LowerFrameOffset; i <= UpperFrameOffset; ++i)
-		{
-			const int32 RequestFrameIndex = (static_cast<int32>(FrameIndex) + i + NumFrames) % NumFrames;
-			const int32 RequestMipLevelOffset = FMath::Abs(i) + GSVTStreamingPrefetchMipLevelBias;
-			FStreamingRequest Request;
-			Request.Key.SVT = SparseVolumeTexture;
-			Request.Key.FrameIndex = RequestFrameIndex;
-			Request.Key.MipLevelIndex = FMath::Clamp(MipLevel + RequestMipLevelOffset, 0, SVTInfo->PerFrameInfo[RequestFrameIndex].NumMipLevels);
-			Request.Priority = FMath::Max(0, OffsetMagnitude - FMath::Abs(i));
-			AddRequest(Request);
-		}
-
-		// Clean up unused streaming windows
-		SVTInfo->StreamingWindows.RemoveAll([&](const FStreamingWindow& Window) { return (NextUpdateIndex - Window.LastRequested) > 5; });
-	}
 }
 
 void FStreamingManager::AddInternal(FRDGBuilder& GraphBuilder, FNewSparseVolumeTextureInfo&& NewSVTInfo)
@@ -2095,8 +2107,6 @@ void FStreamingManager::FTileDataTexture::InitRHI()
 void FStreamingManager::FTileDataTexture::ReleaseRHI()
 {
 }
-
-TGlobalResource<FStreamingManager> GStreamingManager;
 
 }
 }

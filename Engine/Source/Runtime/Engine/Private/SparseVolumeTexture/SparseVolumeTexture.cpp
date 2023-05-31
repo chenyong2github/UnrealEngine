@@ -16,7 +16,7 @@
 #include "UObject/Package.h"
 #include "SparseVolumeTexture/SparseVolumeTextureData.h"
 #include "SparseVolumeTexture/SparseVolumeTextureUtility.h"
-#include "SparseVolumeTexture/SparseVolumeTextureStreamingManager.h"
+#include "SparseVolumeTexture/ISparseVolumeTextureStreamingManager.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Misc/ScopedSlowTask.h"
@@ -647,7 +647,7 @@ USparseVolumeTextureFrame* USparseVolumeTextureFrame::GetFrameAndIssueStreamingR
 {
 	if (UStreamableSparseVolumeTexture* StreamableSVT = Cast<UStreamableSparseVolumeTexture>(SparseVolumeTexture))
 	{
-		UE::SVT::GStreamingManager.Request_GameThread(StreamableSVT, FrameIndex, MipLevel);
+		UE::SVT::GetStreamingManager().Request_GameThread(StreamableSVT, FrameIndex, MipLevel);
 		return StreamableSVT->GetFrame(static_cast<int32>(FrameIndex));
 	}
 	return nullptr;
@@ -699,7 +699,7 @@ void USparseVolumeTextureFrame::BeginDestroy()
 	// Ensure that the streamable SVT has been removed from the streaming manager
 	if (IsValid(Owner))
 	{
-		UE::SVT::GStreamingManager.Remove_GameThread(CastChecked<UStreamableSparseVolumeTexture>(Owner));
+		UE::SVT::GetStreamingManager().Remove_GameThread(CastChecked<UStreamableSparseVolumeTexture>(Owner));
 	}
 	
 	if (TextureRenderResources)
@@ -961,7 +961,7 @@ void UStreamableSparseVolumeTexture::PostLoad()
 	{
 		Frame->CreateTextureRenderResources();
 	}
-	UE::SVT::GStreamingManager.Add_GameThread(this); // RecacheFrames() handles this in editor builds
+	UE::SVT::GetStreamingManager().Add_GameThread(this); // RecacheFrames() handles this in editor builds
 #endif
 }
 
@@ -973,7 +973,7 @@ void UStreamableSparseVolumeTexture::FinishDestroy()
 void UStreamableSparseVolumeTexture::BeginDestroy()
 {
 	Super::BeginDestroy();
-	UE::SVT::GStreamingManager.Remove_GameThread(this);
+	UE::SVT::GetStreamingManager().Remove_GameThread(this);
 }
 
 void UStreamableSparseVolumeTexture::Serialize(FArchive& Ar)
@@ -1055,7 +1055,7 @@ void UStreamableSparseVolumeTexture::RecacheFrames()
 	FScopedSlowTask RecacheTask(static_cast<float>(Frames.Num() + 2), LOCTEXT("SparseVolumeTextureCacheFrames", "Caching SparseVolumeTexture frames in Derived Data Cache"));
 	RecacheTask.MakeDialog(true);
 
-	UE::SVT::GStreamingManager.Remove_GameThread(this);
+	UE::SVT::GetStreamingManager().Remove_GameThread(this);
 	RecacheTask.EnterProgressFrame(1.0f);
 
 	for (USparseVolumeTextureFrame* Frame : Frames)
@@ -1065,7 +1065,7 @@ void UStreamableSparseVolumeTexture::RecacheFrames()
 	}
 
 	RecacheTask.EnterProgressFrame(1.0f);
-	UE::SVT::GStreamingManager.Add_GameThread(this);
+	UE::SVT::GetStreamingManager().Add_GameThread(this);
 }
 #endif
 
