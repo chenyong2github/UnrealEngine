@@ -125,15 +125,18 @@ protected:
 	UE_DEPRECATED(5.3, "This method is deprecated.")
 	bool GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection) { return false; }
 
-	UE_DEPRECATED(5.3, "This method is deprecated.")
-	bool UpdateShaderInfo(FString& OutShaderCodeHash, FString& OutShaderCode, FString& OutRawConfigHash);
-
 	/**
 	 * Helper function returning the color space transform name based on source and destination color spaces.
 	 */
 	FString GetTransformFriendlyName() const;
 
 #if WITH_EDITOR
+	/**
+	 * Fetch shader code and hash from the OCIO library
+	 * @return: true if shader could be generated from the library
+	 */
+	bool UpdateShaderInfo(FString& OutShaderCodeHash, FString& OutShaderCode, FString& OutRawConfigHash);
+
 	/**
 	 * Helper function taking raw 3D LUT data coming from the library and initializing a UVolumeTexture with it.
 	 */
