@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "GameFramework/Actor.h"
@@ -12,6 +13,9 @@
 
 class UHLODLayer;
 class UHLODSubsystem;
+class UWorldPartitionHLODSourceActors;
+
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogHLODHash, Log, All);
 
 UCLASS(NotPlaceable)
 class ENGINE_API AWorldPartitionHLOD : public AActor
@@ -33,11 +37,9 @@ public:
 #if WITH_EDITOR
 	void SetHLODComponents(const TArray<UActorComponent*>& InHLODComponents);
 
-	void SetSubActors(const TArray<FHLODSubActor>& InSubActorMappings);
-	const TArray<FHLODSubActor>& GetSubActors() const;
-
-	void SetSubActorsHLODLayer(const UHLODLayer* InSubActorsHLODLayer);
-	const UHLODLayer* GetSubActorsHLODLayer() const { return SubActorsHLODLayer; }
+	void SetSourceActors(UWorldPartitionHLODSourceActors* InSourceActors);
+	UWorldPartitionHLODSourceActors* GetSourceActors();
+	const UWorldPartitionHLODSourceActors* GetSourceActors() const;
 
 	void SetRequireWarmup(bool InRequireWarmup) { bRequireWarmup = InRequireWarmup; }
 
@@ -89,12 +91,13 @@ protected:
 	//~ End AActor Interface.
 
 private:
+#if WITH_EDITOR
+	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
+#endif
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<FHLODSubActor> HLODSubActors;
-
-	UPROPERTY()
-	TObjectPtr<const UHLODLayer> SubActorsHLODLayer;
+	TObjectPtr<UWorldPartitionHLODSourceActors> SourceActors;
 
 	UPROPERTY()
 	FBox HLODBounds;
@@ -116,13 +119,21 @@ private:
 	bool bRequireWarmup;
 
 	UPROPERTY()
+	FGuid SourceCellGuid;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
 	TSoftObjectPtr<UWorldPartitionRuntimeCell> SourceCell_DEPRECATED;
 
 	UPROPERTY()
 	FName SourceCellName_DEPRECATED;
 
 	UPROPERTY()
-	FGuid SourceCellGuid;
+	TArray<FHLODSubActor> HLODSubActors_DEPRECATED;
+
+	UPROPERTY()
+	TObjectPtr<const UHLODLayer> SubActorsHLODLayer_DEPRECATED;
+#endif	
 };
 
 DEFINE_ACTORDESC_TYPE(AWorldPartitionHLOD, FHLODActorDesc);

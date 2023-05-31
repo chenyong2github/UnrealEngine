@@ -5,30 +5,77 @@
 #include "WorldPartition/HLOD/HLODStats.h"
 
 #if WITH_EDITOR
+
+#include "Engine/World.h"
 #include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
+#include "WorldPartition/HLOD/HLODSourceActorsFromCell.h"
+
 
 void FHLODActorDesc::Init(const AActor* InActor)
 {
 	FWorldPartitionActorDesc::Init(InActor);
 
+	const UWorldPartition* WorldPartition = InActor->GetWorld() ? InActor->GetWorld()->GetWorldPartition() : nullptr;
 	const AWorldPartitionHLOD* HLODActor = CastChecked<AWorldPartitionHLOD>(InActor);
+	const UWorldPartitionHLODSourceActors* HLODSourceActors = HLODActor->GetSourceActors();
+	const UWorldPartitionHLODSourceActorsFromCell* HLODCellSourceActors = Cast<UWorldPartitionHLODSourceActorsFromCell>(HLODSourceActors);
 
-	HLODSubActors.Reserve(HLODActor->GetSubActors().Num());
-	Algo::Transform(HLODActor->GetSubActors(), HLODSubActors, [](const FHLODSubActor& SubActor) { return FHLODSubActorDesc(SubActor.ActorGuid, SubActor.ContainerID); });
-
-	SourceHLODLayerName = NAME_None;
-	if (const UHLODLayer* SourceHLODLayer = HLODActor->GetSubActorsHLODLayer())
+	if (HLODCellSourceActors && WorldPartition)
 	{
-		SourceHLODLayerName = SourceHLODLayer->GetFName();
+		for (const FHLODSubActor& SubActor : HLODCellSourceActors->GetActors())
+		{
+			if (SubActor.ContainerID.IsMainContainer())
+			{
+				const FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActor.ActorGuid);
+				if (SubActorDesc && SubActorDesc->GetActorNativeClass()->IsChildOf<AWorldPartitionHLOD>())
+				{
+					ChildHLODActors.Add(SubActor.ActorGuid);
+				}
+			}
+		}
+	}
+
+	if (HLODSourceActors)
+	{
+		SourceHLODLayerName = NAME_None;
+		if (const UHLODLayer* SourceHLODLayer = HLODSourceActors->GetHLODLayer())
+		{
+			SourceHLODLayerName = SourceHLODLayer->GetFName();
+		}
 	}
 	
 	HLODStats = HLODActor->GetStats();
+}
+
+struct FHLODSubActorDescDeprecated
+{
+	friend FArchive& operator<<(FArchive& Ar, FHLODSubActorDescDeprecated& SubActor);
+	FGuid ActorGuid;
+	FActorContainerID ContainerID;
+};
+
+FArchive& operator<<(FArchive& Ar, FHLODSubActorDescDeprecated& SubActor)
+{
+	Ar << SubActor.ActorGuid;
+
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionFActorContainerIDu64ToGuid)
+	{
+		uint64 ContainerID;
+		Ar << ContainerID;
+	}
+	else
+	{
+		Ar << SubActor.ContainerID;
+	}
+
+	return Ar;
 }
 
 void FHLODActorDesc::Serialize(FArchive& Ar)
@@ -46,9 +93,14 @@ void FHLODActorDesc::Serialize(FArchive& Ar)
 			TArray<FGuid> SubActors;
 			Ar << SubActors;
 		}
+		else if(Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionHLODSourceActorsRefactor)
+		{
+			TArray<FHLODSubActorDescDeprecated> HLODSubActors;
+			Ar << HLODSubActors;
+		}
 		else
 		{
-			Ar << HLODSubActors;
+			Ar << ChildHLODActors;
 		}
 	
 		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionHLODActorDescSerializeHLODLayer)
@@ -97,7 +149,7 @@ bool FHLODActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
 		const FHLODActorDesc& HLODActorDesc = *(FHLODActorDesc*)Other;
 		return SourceHLODLayerName == HLODActorDesc.SourceHLODLayerName &&
 			   HLODStats.OrderIndependentCompareEqual(HLODActorDesc.GetStats()) &&
-			   CompareUnsortedArrays(HLODSubActors, HLODActorDesc.HLODSubActors);
+			   CompareUnsortedArrays(ChildHLODActors, HLODActorDesc.ChildHLODActors);
 	}
 	return false;
 }

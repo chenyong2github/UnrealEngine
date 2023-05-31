@@ -6,6 +6,12 @@
 #include "WorldPartition/WorldPartitionBuilder.h"
 #include "WorldPartitionHLODsBuilder.generated.h"
 
+
+class UWorld;
+class UWorldPartition;
+class FSourceControlHelper;
+
+
 struct FHLODModifiedFiles
 {
 	enum EFileOperation
@@ -78,8 +84,10 @@ public:
 	virtual bool RequiresCommandletRendering() const override;
 	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::Custom; }
 	virtual bool PreWorldInitialization(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
+
 protected:
 	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool CanProcessNonPartitionedWorlds() const override { return true; }
 	// UWorldPartitionBuilder interface end
 
 	bool IsDistributedBuild() const { return bDistributedBuild; }
@@ -106,8 +114,9 @@ protected:
 	bool AddBuildProducts(const TArray<FString>& BuildProducts) const;
 
 private:
-	class UWorldPartition* WorldPartition;
-	class FSourceControlHelper* SourceControlHelper;
+	UWorld* World;
+	UWorldPartition* WorldPartition;
+	FSourceControlHelper* SourceControlHelper;
 
 	// Options --
 	EHLODBuildStep BuildOptions;

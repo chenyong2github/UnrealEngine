@@ -328,6 +328,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Add customizable values for several UWorldPartitionRuntimeSpatialHash cvars
 		WorldPartitionRuntimeSpatialHashCVarOverrides,
 
+		// WorldPartition HLOD now contains a source actors object
+		WorldPartitionHLODSourceActorsRefactor,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

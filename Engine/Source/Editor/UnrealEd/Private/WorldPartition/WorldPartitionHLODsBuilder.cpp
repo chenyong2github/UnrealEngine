@@ -29,6 +29,7 @@
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
+#include "WorldPartition/HLOD/HLODProviderInterface.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionHLODsBuilder, All, All);
@@ -249,11 +250,11 @@ bool UWorldPartitionHLODsBuilder::ValidateParams() const
 	return true;
 }
 
-bool UWorldPartitionHLODsBuilder::PreWorldInitialization(UWorld* World, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionHLODsBuilder::PreWorldInitialization(UWorld* InWorld, FPackageSourceControlHelper& PackageHelper)
 {
 	if (bDistributedBuild)
 	{
-		uint32 WorldPackageHash = GetTypeHash(World->GetPackage()->GetFullName());
+		uint32 WorldPackageHash = GetTypeHash(InWorld->GetPackage()->GetFullName());
 		DistributedBuildWorkingDir = FString::Printf(TEXT("%s/%s/%08x"), *FPaths::RootDir(), *DistributedBuildWorkingDirName, WorldPackageHash);
 		DistributedBuildManifest = DistributedBuildWorkingDir / DistributedBuildManifestName;
 
@@ -282,11 +283,11 @@ bool UWorldPartitionHLODsBuilder::PreWorldInitialization(UWorld* World, FPackage
 	return bRet;
 }
 
-bool UWorldPartitionHLODsBuilder::RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionHLODsBuilder::RunInternal(UWorld* InWorld, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper)
 {
+	World = InWorld;
 	WorldPartition = World->GetWorldPartition();
-	check(WorldPartition);
-
+	
 	// Allows HLOD Streaming levels to be GCed properly
 	FLevelStreamingGCHelper::EnableForCommandlet();
 
@@ -327,6 +328,12 @@ bool UWorldPartitionHLODsBuilder::RunInternal(UWorld* World, const FCellInfo& In
 
 bool UWorldPartitionHLODsBuilder::SetupHLODActors()
 {
+	// No setup needed for non partitioned worlds
+	if (!WorldPartition)
+	{
+		return true;
+	}
+
 	auto ActorFolderAddedDelegateHandle = GEngine->OnActorFolderAdded().AddLambda([this](UActorFolder* InActorFolder)
 	{
 		UPackage* ActorFolderPackage = InActorFolder->GetPackage();
@@ -439,41 +446,8 @@ bool UWorldPartitionHLODsBuilder::SetupHLODActors()
 
 bool UWorldPartitionHLODsBuilder::BuildHLODActors()
 {
-	TArray<FGuid> HLODActorsToBuild;
-	if (!GetHLODActorsToBuild(HLODActorsToBuild))
+	auto SaveHLODActor = [this](AWorldPartitionHLOD* HLODActor)
 	{
-		return false;
-	}
-
-	if (!ValidateWorkload(HLODActorsToBuild))
-	{
-		return false;
-	}
-
-	UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Building %d HLOD actors ####"), HLODActorsToBuild.Num());
-	if (bResumeBuild)
-	{
-		UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Resuming build at %d ####"), ResumeBuildIndex);
-	}
-
-	for (int32 CurrentActor = ResumeBuildIndex; CurrentActor < HLODActorsToBuild.Num(); ++CurrentActor)
-	{
-		TRACE_BOOKMARK(TEXT("BuildHLOD Start - %d"), CurrentActor);
-
-		const FGuid& HLODActorGuid = HLODActorsToBuild[CurrentActor];
-
-		FWorldPartitionReference ActorRef(WorldPartition, HLODActorGuid);
-		FWorldPartitionActorDesc* ActorDesc = ActorRef.Get();
-
-		AWorldPartitionHLOD* HLODActor = CastChecked<AWorldPartitionHLOD>(ActorDesc->GetActor());
-
-		UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("[%d / %d] Building HLOD actor %s..."), CurrentActor + 1, HLODActorsToBuild.Num(), *HLODActor->GetActorLabel());
-
-		// Simulate an engine tick to make sure engine & render resources that are queued for deletion are processed.
-		FWorldPartitionHelpers::FakeEngineTick(WorldPartition->GetWorld());
-
-		HLODActor->BuildHLOD(bForceBuild);
-
 		UPackage* ActorPackage = HLODActor->GetPackage();
 		if (ActorPackage->IsDirty())
 		{
@@ -487,15 +461,86 @@ bool UWorldPartitionHLODsBuilder::BuildHLODActors()
 			}
 		}
 
-		if (FWorldPartitionHelpers::ShouldCollectGarbage())
+		return true;
+	};
+
+	if (WorldPartition)
+	{
+		TArray<FGuid> HLODActorsToBuild;
+		if (!GetHLODActorsToBuild(HLODActorsToBuild))
 		{
-			FWorldPartitionHelpers::DoCollectGarbage();
+			return false;
 		}
 
-		TRACE_BOOKMARK(TEXT("BuildHLOD End - %d"), CurrentActor);
+		if (!ValidateWorkload(HLODActorsToBuild))
+		{
+			return false;
+		}
+
+		UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Building %d HLOD actors ####"), HLODActorsToBuild.Num());
+		if (bResumeBuild)
+		{
+			UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Resuming build at %d ####"), ResumeBuildIndex);
+		}
+
+		for (int32 CurrentActor = ResumeBuildIndex; CurrentActor < HLODActorsToBuild.Num(); ++CurrentActor)
+		{
+			TRACE_BOOKMARK(TEXT("BuildHLOD Start - %d"), CurrentActor);
+
+			const FGuid& HLODActorGuid = HLODActorsToBuild[CurrentActor];
+
+			FWorldPartitionReference ActorRef(WorldPartition, HLODActorGuid);
+			FWorldPartitionActorDesc* ActorDesc = ActorRef.Get();
+
+			AWorldPartitionHLOD* HLODActor = CastChecked<AWorldPartitionHLOD>(ActorDesc->GetActor());
+
+			UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("[%d / %d] Building HLOD actor %s..."), CurrentActor + 1, HLODActorsToBuild.Num(), *HLODActor->GetActorLabel());
+
+			// Simulate an engine tick to make sure engine & render resources that are queued for deletion are processed.
+			FWorldPartitionHelpers::FakeEngineTick(WorldPartition->GetWorld());
+
+			HLODActor->BuildHLOD(bForceBuild);
+
+			bool bSaved = SaveHLODActor(HLODActor);
+			if (!bSaved)
+			{
+				return false;
+			}
+
+			if (FWorldPartitionHelpers::ShouldCollectGarbage())
+			{
+				FWorldPartitionHelpers::DoCollectGarbage();
+			}
+
+			TRACE_BOOKMARK(TEXT("BuildHLOD End - %d"), CurrentActor);
+		}
+
+		UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Built %d HLOD actors ####"), HLODActorsToBuild.Num());
+	}
+	else
+	{
+		uint32 NumHLODActors = 0;
+		for (TActorIterator<AActor> ActorIt(World); ActorIt; ++ActorIt)
+		{
+			if (IWorldPartitionHLODProvider* HLODProvider = Cast<IWorldPartitionHLODProvider>(*ActorIt))
+			{
+				AWorldPartitionHLOD* HLODActor = HLODProvider->CreateHLODActor();
+				if (HLODActor)
+				{
+					HLODActor->BuildHLOD(bForceBuild);
+
+					bool bSaved = SaveHLODActor(HLODActor);
+					if (!bSaved)
+					{
+						return false;
+					}
+					NumHLODActors++;
+				}
+			}
+		}
+		UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Built %d HLOD actor ####"), NumHLODActors);
 	}
 
-	UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("#### Built %d HLOD actors ####"), HLODActorsToBuild.Num());
 
 	// Move modified files to the temporary working dir, to be submitted later in the final "submit" pass, from a single machine.
 	if (IsDistributedBuild())
@@ -632,6 +677,8 @@ bool UWorldPartitionHLODsBuilder::GetHLODActorsToBuild(TArray<FGuid>& HLODActors
 
 TArray<TArray<FGuid>> UWorldPartitionHLODsBuilder::GetHLODWorkloads(int32 NumWorkloads) const
 {
+	check(WorldPartition);
+
 	// Build a mapping of 1 HLOD[Level] -> N HLOD[Level - 1]
 	TMap<FGuid, TArray<FGuid>>	HLODParenting;
 	for (FActorDescContainerCollection::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
@@ -648,19 +695,7 @@ TArray<TArray<FGuid>> UWorldPartitionHLODsBuilder::GetHLODWorkloads(int32 NumWor
 			continue;
 		}
 
-		TArray<FGuid>& ChildHLODs = HLODParenting.Add(HLODIterator->GetGuid());
-
-		for (const FHLODSubActorDesc& SubActor : HLODIterator->GetSubActors())
-		{
-			if (SubActor.ContainerID.IsMainContainer())
-			{
-				FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActor.ActorGuid);
-				if (SubActorDesc && SubActorDesc->GetActorNativeClass()->IsChildOf<AWorldPartitionHLOD>())
-				{
-					ChildHLODs.Add(SubActor.ActorGuid);
-				}
-			}
-		}
+		HLODParenting.Add(HLODIterator->GetGuid(), HLODIterator->GetChildHLODActors());
 	}
 
 	// All child HLODs must be built before their parent HLOD
@@ -722,8 +757,10 @@ TArray<TArray<FGuid>> UWorldPartitionHLODsBuilder::GetHLODWorkloads(int32 NumWor
 	return Workloads;
 }
 
-bool UWorldPartitionHLODsBuilder::ValidateWorkload(const TArray<FGuid>&Workload) const
+bool UWorldPartitionHLODsBuilder::ValidateWorkload(const TArray<FGuid>& Workload) const
 {
+	check(WorldPartition);
+
 	TSet<FGuid> ProcessedHLOD;
 	ProcessedHLOD.Reserve(Workload.Num());
 
@@ -745,23 +782,12 @@ bool UWorldPartitionHLODsBuilder::ValidateWorkload(const TArray<FGuid>&Workload)
 
 		const FHLODActorDesc* HLODActorDesc = static_cast<const FHLODActorDesc*>(ActorDesc);
 
-		for (const FHLODSubActorDesc& SubActor : HLODActorDesc->GetSubActors())
+		for (const FGuid& ChildHLODActorGuid : HLODActorDesc->GetChildHLODActors())
 		{
-			if (SubActor.ContainerID.IsMainContainer())
+			if (!ProcessedHLOD.Contains(ChildHLODActorGuid))
 			{
-				FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActor.ActorGuid);
-
-				// Invalid sub actor guid found, this is unexpected when running distributed builds as the build step is always preceeded by the setup step.
-				check(SubActorDesc || !bDistributedBuild);
-
-				if (SubActorDesc && SubActorDesc->GetActorNativeClass()->IsChildOf<AWorldPartitionHLOD>())
-				{
-					if (!ProcessedHLOD.Contains(SubActor.ActorGuid))
-					{
-						UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Child HLOD actor missing or out of order in HLOD workload, exiting..."));
-						return false;
-					}
-				}
+				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Child HLOD actor missing or out of order in HLOD workload, exiting..."));
+				return false;
 			}
 		}
 
@@ -773,6 +799,8 @@ bool UWorldPartitionHLODsBuilder::ValidateWorkload(const TArray<FGuid>&Workload)
 
 bool UWorldPartitionHLODsBuilder::GenerateBuildManifest(TMap<FString, int32>& FilesToBuilderMap) const
 {
+	check(WorldPartition);
+
 	TArray<TArray<FGuid>> BuildersWorkload = GetHLODWorkloads(BuilderCount);
 
 	FConfigFile ConfigFile;

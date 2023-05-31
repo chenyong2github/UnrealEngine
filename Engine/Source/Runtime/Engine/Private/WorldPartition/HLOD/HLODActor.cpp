@@ -15,16 +15,22 @@
 #include "WorldPartition/WorldPartitionHelpers.h"
 
 #if WITH_EDITOR
+#include "Editor.h"
+#include "Modules/ModuleManager.h"
 #include "Misc/ArchiveMD5.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODStats.h"
 #include "WorldPartition/HLOD/IWorldPartitionHLODUtilities.h"
 #include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
-
-#include "Modules/ModuleManager.h"
+#include "WorldPartition/HLOD/HLODSourceActorsFromCell.h"
 #endif
+
+
+DEFINE_LOG_CATEGORY(LogHLODHash);
+
 
 static int32 GWorldPartitionHLODForceDisableShadows = 0;
 static FAutoConsoleVariableRef CVarWorldPartitionHLODForceDisableShadows(
@@ -32,27 +38,6 @@ static FAutoConsoleVariableRef CVarWorldPartitionHLODForceDisableShadows(
 	GWorldPartitionHLODForceDisableShadows,
 	TEXT("Force disable CastShadow flag on World Partition HLOD actors"),
 	ECVF_Scalability);
-
-#if WITH_EDITORONLY_DATA
-FArchive& operator<<(FArchive& Ar, FHLODSubActorDesc& SubActor)
-{
-	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
-
-	Ar << SubActor.ActorGuid;
-
-	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionFActorContainerIDu64ToGuid)
-	{
-		uint64 ContainerID;
-		Ar << ContainerID;
-	}
-	else
-	{
-		Ar << SubActor.ContainerID;
-	}
-
-	return Ar;
-}
-#endif
 
 AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -71,6 +56,10 @@ AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitial
 #if WITH_EDITORONLY_DATA
 	HLODHash = 0;
 	HLODBounds = FBox(EForceInit::ForceInit);
+#endif
+
+#if WITH_EDITOR
+	FWorldDelegates::OnWorldCleanup.AddUObject(this, &AWorldPartitionHLOD::OnWorldCleanup);
 #endif
 }
 
@@ -121,21 +110,33 @@ void AWorldPartitionHLOD::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 #if WITH_EDITOR
-	if(Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionStreamingCellsNamingShortened)
+	if (Ar.IsLoading())
 	{
-		SourceCell_DEPRECATED = SourceCell_DEPRECATED.ToString().Replace(TEXT("WPRT_"), TEXT(""), ESearchCase::CaseSensitive).Replace(TEXT("Cell_"), TEXT(""), ESearchCase::CaseSensitive);
-	}
-
-	if(Ar.IsLoading() && Ar.CustomVer(FUE5PrivateFrostyStreamObjectVersion::GUID) < FUE5PrivateFrostyStreamObjectVersion::ConvertWorldPartitionHLODsCellsToName)
-	{
-		FString CellName;
-		FString CellContext;
-		const FString CellPath = FPackageName::GetShortName(SourceCell_DEPRECATED.ToSoftObjectPath().GetSubPathString());
-		if (!CellPath.Split(TEXT("."), &CellContext, &CellName, ESearchCase::CaseSensitive, ESearchDir::FromEnd))
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionStreamingCellsNamingShortened)
 		{
-			CellName = CellPath;
+			SourceCell_DEPRECATED = SourceCell_DEPRECATED.ToString().Replace(TEXT("WPRT_"), TEXT(""), ESearchCase::CaseSensitive).Replace(TEXT("Cell_"), TEXT(""), ESearchCase::CaseSensitive);
 		}
-		SourceCellName_DEPRECATED = *CellName;
+
+		if (Ar.CustomVer(FUE5PrivateFrostyStreamObjectVersion::GUID) < FUE5PrivateFrostyStreamObjectVersion::ConvertWorldPartitionHLODsCellsToName)
+		{
+			FString CellName;
+			FString CellContext;
+			const FString CellPath = FPackageName::GetShortName(SourceCell_DEPRECATED.ToSoftObjectPath().GetSubPathString());
+			if (!CellPath.Split(TEXT("."), &CellContext, &CellName, ESearchCase::CaseSensitive, ESearchDir::FromEnd))
+			{
+				CellName = CellPath;
+			}
+			SourceCellName_DEPRECATED = *CellName;
+		}
+
+		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionHLODSourceActorsRefactor)
+		{
+			check(!SourceActors)
+			UWorldPartitionHLODSourceActorsFromCell* SourceActorsFromCell = NewObject<UWorldPartitionHLODSourceActorsFromCell>(this);
+			SourceActorsFromCell->SetActors(HLODSubActors_DEPRECATED);
+			SourceActorsFromCell->SetHLODLayer(SubActorsHLODLayer_DEPRECATED);
+			SourceActors = SourceActorsFromCell;
+		}
 	}
 #endif
 }
@@ -160,11 +161,11 @@ void AWorldPartitionHLOD::PostLoad()
 #if WITH_EDITOR
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionStreamingCellsNamingShortened)
 	{
-		if (!HLODSubActors.IsEmpty())
+		if (!HLODSubActors_DEPRECATED.IsEmpty())
 		{
 			// As we may be dealing with an unsaved world created from a template map, get
 			// the source package name of this HLOD actor and figure out the world name from there
-			FName ExternalActorsPath = HLODSubActors[0].ContainerPackage;
+			FName ExternalActorsPath = HLODSubActors_DEPRECATED[0].ContainerPackage;
 			FString WorldName = FPackageName::GetShortName(ExternalActorsPath);
 
 			// Strip "WorldName_" from the cell name
@@ -262,6 +263,31 @@ void AWorldPartitionHLOD::RerunConstructionScripts()
 {
 }
 
+void AWorldPartitionHLOD::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
+{
+	// Close all asset editors associated with this HLOD actor
+	const UWorld* World = GetWorld();
+	if (World == InWorld)
+	{
+		if (!World->IsGameWorld())
+		{
+			UPackage* HLODPackage = GetPackage();
+
+			// Find all assets being edited
+			UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+			TArray<UObject*> AllAssets = AssetEditorSubsystem->GetAllEditedAssets();
+
+			for (UObject* Asset : AllAssets)
+			{
+				if (Asset->GetPackage() == HLODPackage)
+				{
+					AssetEditorSubsystem->CloseAllEditorsForAsset(Asset);
+				}
+			}
+		}
+	}
+}
+
 TUniquePtr<FWorldPartitionActorDesc> AWorldPartitionHLOD::CreateClassActorDesc() const
 {
 	return TUniquePtr<FWorldPartitionActorDesc>(new FHLODActorDesc());
@@ -321,20 +347,19 @@ void AWorldPartitionHLOD::SetHLODComponents(const TArray<UActorComponent*>& InHL
 	});
 }
 
-void AWorldPartitionHLOD::SetSubActors(const TArray<FHLODSubActor>& InHLODSubActors)
+void AWorldPartitionHLOD::SetSourceActors(UWorldPartitionHLODSourceActors* InHLODSourceActors)
 {
-	HLODSubActors = InHLODSubActors;
+	SourceActors = InHLODSourceActors;
 }
 
-const TArray<FHLODSubActor>& AWorldPartitionHLOD::GetSubActors() const
+const UWorldPartitionHLODSourceActors* AWorldPartitionHLOD::GetSourceActors() const
 {
-	return HLODSubActors;
+	return SourceActors;
 }
 
-void AWorldPartitionHLOD::SetSubActorsHLODLayer(const UHLODLayer* InSubActorsHLODLayer)
+UWorldPartitionHLODSourceActors* AWorldPartitionHLOD::GetSourceActors()
 {
-	SubActorsHLODLayer = InSubActorsHLODLayer;
-	bRequireWarmup = SubActorsHLODLayer->DoesRequireWarmup();
+	return SourceActors;
 }
 
 void AWorldPartitionHLOD::SetSourceCellGuid(const FGuid& InSourceCellGuid)

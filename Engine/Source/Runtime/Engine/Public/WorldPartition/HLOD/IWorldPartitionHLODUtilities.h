@@ -27,8 +27,6 @@ struct FHLODCreationParams
 {
 	UWorldPartition* WorldPartition;
 
-	FName HLODLayerName;
-
 	FGuid CellGuid;
 	FString CellName;
 	FBox  CellBounds;
