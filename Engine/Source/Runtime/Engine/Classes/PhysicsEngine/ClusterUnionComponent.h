@@ -190,6 +190,8 @@ public:
 	// Lambda returns whether or not iteration should continue;
 	void VisitAllCurrentChildComponents(const TFunction<bool(UPrimitiveComponent*)>& Lambda) const;
 
+	int32 NumChildClusterComponents() const;
+
 	friend class UClusterUnionReplicatedProxyComponent;
 protected:
 

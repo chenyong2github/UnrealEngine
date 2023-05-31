@@ -1202,3 +1202,8 @@ void UClusterUnionComponent::AddReferencedObjects(UObject* InThis, FReferenceCol
 		}
 	}
 }
+
+int32 UClusterUnionComponent::NumChildClusterComponents() const
+{
+	return PendingComponentSync.Num() + ComponentToPhysicsObjects.Num();
+}

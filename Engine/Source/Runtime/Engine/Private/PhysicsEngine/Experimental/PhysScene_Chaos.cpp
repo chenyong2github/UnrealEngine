@@ -2172,9 +2172,13 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 
 				// make sure we have at least a child to be added to the acceleration structure 
 				// this avoid the invalid bounds to cause the particle to be added to the global acceleration structure array
-				if (ParentComponent->GetNumChildrenComponents() > 0)
+				if (ParentComponent->NumChildClusterComponents() > 0)
 				{
 					Interface->AddToSpatialAcceleration({ &Handle, 1 }, Outer->GetSpacialAcceleration());
+				}
+				else
+				{
+					Interface->RemoveFromSpatialAcceleration({ &Handle, 1 }, Outer->GetSpacialAcceleration());
 				}
 				ParentComponent->SyncClusterUnionFromProxy();
 				DirtyParticle->ClearEvents();
