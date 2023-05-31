@@ -21,6 +21,7 @@ namespace UE::DecoupledOutputProvider::Private
 	public:
 		
 		static FDecoupledOutputProviderModule& Get() { return FModuleManager::Get().LoadModuleChecked<FDecoupledOutputProviderModule>(TEXT("DecoupledOutputProvider")); }
+		static bool IsAvailable() { return FModuleManager::Get().IsModuleLoaded(TEXT("DecoupledOutputProvider")); }
 
 		//~ Begin IModuleInterface Interface
 		virtual void StartupModule() override;

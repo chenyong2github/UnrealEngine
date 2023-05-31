@@ -39,6 +39,15 @@ namespace UE::DecoupledOutputProvider::Private
 			return OutputProvider;
 		}
 	};
+
+	template<typename TLambda>
+	static void SafeModuleCall(TLambda Lambda)
+	{
+		if (FDecoupledOutputProviderModule::IsAvailable())
+		{
+			Lambda(FDecoupledOutputProviderModule::Get());
+		}
+	}
 }
 
 void UDecoupledOutputProvider::Initialize()
@@ -46,7 +55,7 @@ void UDecoupledOutputProvider::Initialize()
 	using namespace UE::DecoupledOutputProvider::Private;
 	const auto SuperFunc = [this](){ Super::Initialize(); };
 	FOutputProviderEvent EventScope(*this, SuperFunc);
-	FDecoupledOutputProviderModule::Get().OnInitialize(EventScope);
+	SafeModuleCall([&](FDecoupledOutputProviderModule& Module){ Module.OnInitialize(EventScope); });
 }
 
 void UDecoupledOutputProvider::Deinitialize()
@@ -54,7 +63,7 @@ void UDecoupledOutputProvider::Deinitialize()
 	using namespace UE::DecoupledOutputProvider::Private;
 	const auto SuperFunc = [this](){ Super::Deinitialize(); };
 	FOutputProviderEvent EventScope(*this, SuperFunc);
-	FDecoupledOutputProviderModule::Get().OnDeinitialize(EventScope);
+	SafeModuleCall([&](FDecoupledOutputProviderModule& Module){ Module.OnDeinitialize(EventScope); });
 }
 
 void UDecoupledOutputProvider::Tick(const float DeltaTime)
@@ -62,7 +71,7 @@ void UDecoupledOutputProvider::Tick(const float DeltaTime)
 	using namespace UE::DecoupledOutputProvider::Private;
 	const auto SuperFunc = [this, DeltaTime](){ Super::Tick(DeltaTime); };
 	FOutputProviderEvent EventScope(*this, SuperFunc);
-	FDecoupledOutputProviderModule::Get().OnTick(EventScope, DeltaTime);
+	SafeModuleCall([&](FDecoupledOutputProviderModule& Module){ Module.OnTick(EventScope, DeltaTime); });
 }
 
 void UDecoupledOutputProvider::OnActivate()
@@ -70,7 +79,7 @@ void UDecoupledOutputProvider::OnActivate()
 	using namespace UE::DecoupledOutputProvider::Private;
 	const auto SuperFunc = [this](){ Super::OnActivate(); };
 	FOutputProviderEvent EventScope(*this, SuperFunc);
-	FDecoupledOutputProviderModule::Get().OnActivate(EventScope);
+	SafeModuleCall([&](FDecoupledOutputProviderModule& Module){ Module.OnActivate(EventScope); });
 }
 
 void UDecoupledOutputProvider::OnDeactivate()
@@ -78,7 +87,7 @@ void UDecoupledOutputProvider::OnDeactivate()
 	using namespace UE::DecoupledOutputProvider::Private;
 	const auto SuperFunc = [this](){ Super::OnDeactivate(); };
 	FOutputProviderEvent EventScope(*this, SuperFunc);
-	FDecoupledOutputProviderModule::Get().OnDeactivate(EventScope);
+	SafeModuleCall([&](FDecoupledOutputProviderModule& Module){ Module.OnDeactivate(EventScope); });
 }
 
 void UDecoupledOutputProvider::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -87,7 +96,7 @@ void UDecoupledOutputProvider::AddReferencedObjects(UObject* InThis, FReferenceC
 	UDecoupledOutputProvider* CastThis = CastChecked<UDecoupledOutputProvider>(InThis);
 	const auto SuperFunc = [InThis, &Collector](){ Super::AddReferencedObjects(InThis, Collector); };
 	FOutputProviderEvent EventScope(*CastThis, SuperFunc);
-	FDecoupledOutputProviderModule::Get().OnAddReferencedObjects(EventScope, Collector);
+	SafeModuleCall([&](FDecoupledOutputProviderModule& Module){ Module.OnAddReferencedObjects(EventScope, Collector); });
 }
 
 void UDecoupledOutputProvider::BeginDestroy()
@@ -95,7 +104,7 @@ void UDecoupledOutputProvider::BeginDestroy()
 	using namespace UE::DecoupledOutputProvider::Private;
 	const auto SuperFunc = [this](){ Super::BeginDestroy(); };
 	FOutputProviderEvent EventScope(*this, SuperFunc);
-	FDecoupledOutputProviderModule::Get().OnBeginDestroy(EventScope);
+	SafeModuleCall([&](FDecoupledOutputProviderModule& Module){ Module.OnBeginDestroy(EventScope); });
 }
 
 void UDecoupledOutputProvider::Serialize(FArchive& Ar)
@@ -103,7 +112,7 @@ void UDecoupledOutputProvider::Serialize(FArchive& Ar)
 	using namespace UE::DecoupledOutputProvider::Private;
 	const auto SuperFunc = [this, &Ar](){ Super::Serialize(Ar); };
 	FOutputProviderEvent EventScope(*this, SuperFunc);
-	FDecoupledOutputProviderModule::Get().OnSerialize(EventScope, Ar);
+	SafeModuleCall([&](FDecoupledOutputProviderModule& Module){ Module.OnSerialize(EventScope, Ar); });
 }
 
 void UDecoupledOutputProvider::PostLoad()
@@ -111,7 +120,7 @@ void UDecoupledOutputProvider::PostLoad()
 	using namespace UE::DecoupledOutputProvider::Private;
 	const auto SuperFunc = [this](){ Super::PostLoad(); };
 	FOutputProviderEvent EventScope(*this, SuperFunc);
-	FDecoupledOutputProviderModule::Get().OnPostLoad(EventScope);
+	SafeModuleCall([&](FDecoupledOutputProviderModule& Module){ Module.OnPostLoad(EventScope); });
 }
 
 #if WITH_EDITOR
@@ -120,6 +129,6 @@ void UDecoupledOutputProvider::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	using namespace UE::DecoupledOutputProvider::Private;
 	const auto SuperFunc = [this, &PropertyChangedEvent](){ Super::PostEditChangeProperty(PropertyChangedEvent); };
 	FOutputProviderEvent EventScope(*this, SuperFunc);
-	FDecoupledOutputProviderModule::Get().OnPostEditChangeProperty(EventScope, PropertyChangedEvent);
+	SafeModuleCall([&](FDecoupledOutputProviderModule& Module){ Module.OnPostEditChangeProperty(EventScope, PropertyChangedEvent); });
 }
 #endif
