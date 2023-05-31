@@ -601,6 +601,15 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 		if (!GetPackage()->HasAnyPackageFlags(PKG_Cooked))
 		{
 			PrepareToConformSparseClassData();
+			if(ClassDefaultObject)
+			{
+				// conform immediately, so that child types can correct delta serialize their
+				// sparse data - we can't check RF_LoadCompleted because it is going to be set by the 
+				// preload call that is causing SerializeDefaultObject to run, but Super::SerializeDefaultObject
+				// has run...
+				ConformSparseClassData(ClassDefaultObject);
+				ClassDefaultObject->MoveDataToSparseClassDataStruct();
+			}
 		}
 #endif
 	}
