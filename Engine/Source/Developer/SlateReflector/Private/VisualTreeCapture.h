@@ -13,6 +13,7 @@ class FPaintArgs;
 struct FGeometry;
 class FSlateRect;
 class FSlateInvalidationRoot;
+struct FSlateDebuggingElementTypeAddedEventArgs;
 enum class EElementType : uint8;
 
 class FVisualEntry
@@ -81,7 +82,7 @@ private:
 	void EndWidgetPaint(const SWidget* Widget, const FSlateWindowElementList& ElementList, int32 LayerId);
 
 	/**  */
-	void ElementTypeAdded(const FSlateWindowElementList& ElementList, int32 InElementIndex, EElementType InElementType);
+	void ElementTypeAdded(const FSlateDebuggingElementTypeAddedEventArgs& ElementTypeAddedArgs);
 
 	void OnWindowBeingDestroyed(const SWindow& WindowBeingDestoyed);
 private:

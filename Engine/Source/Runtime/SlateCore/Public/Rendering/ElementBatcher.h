@@ -158,14 +158,10 @@ public:
 
 	SLATECORE_API void ResetData();
 
-	/**
-	* Returns a list of element batches for this window
-	*/
+	/** Returns a list of element batches for this window */
 	const TArray<FSlateRenderBatch>& GetRenderBatches() const { return RenderBatches; }
 
-	/**
-	*
-	*/
+	/** True if stencil buffer / clipping is needed. */
 	SLATECORE_API bool IsStencilClippingRequired() const;
 
 	int32 GetFirstRenderBatchIndex() const { return FirstRenderBatchIndex; }
@@ -178,22 +174,18 @@ public:
 	const FSlateIndexArray& GetFinalIndexData() const { return FinalIndexData; }
 
 	/**
-	* Fills batch data into the actual vertex and index buffer
-	*
-	* @param VertexBuffer	Pointer to the actual memory for the vertex buffer
-	* @param IndexBuffer	Pointer to the actual memory for an index buffer
-	* @param bAbsoluteIndices	Whether to write absolute indices (simplifies draw call setup on RHIs that do not support BaseVertex)
-	*/
+	 * Fills batch data into the actual vertex and index buffer
+	 *
+	 * @param VertexBuffer	Pointer to the actual memory for the vertex buffer
+	 * @param IndexBuffer	Pointer to the actual memory for an index buffer
+	 * @param bAbsoluteIndices	Whether to write absolute indices (simplifies draw call setup on RHIs that do not support BaseVertex)
+	 */
 	SLATECORE_API void FillVertexAndIndexBuffer(uint8* VertexBuffer, uint8* IndexBuffer, bool bAbsoluteIndices);
 
-	/**
-	* Creates rendering data from batched elements
-	*/
-	//SLATECORE_API void CreateRenderBatches(class FElementBatchMap& LayerToElementBatches);
-
+	/** Merges render batches across all elements where possible for final submit to GPU */
 	SLATECORE_API void MergeRenderBatches();
 
-	/** */
+	/** Adds a new render batch to list of batches */
 	FSlateRenderBatch& AddRenderBatch(
 		int32 InLayer,
 		const FShaderParams& InShaderParams,
@@ -204,6 +196,7 @@ public:
 		ESlateBatchDrawFlag InDrawFlags,
 		int8 SceneIndex);
 
+	/** Adds a cached batch, used in retained rendering */
 	void AddCachedBatches(const TSparseArray<FSlateRenderBatch>& InCachedBatches);
 private:
 	void FillBuffersFromNewBatch(FSlateRenderBatch& Batch, FSlateVertexArray& FinalVertices, FSlateIndexArray& FinalIndices);
@@ -279,6 +272,23 @@ private:
 	void AddElementsInternal(const FSlateDrawElementMap& DrawElements, FVector2f ViewportSize);
 	void AddCachedElements(FSlateCachedElementData& CachedElementData, FVector2f ViewportSize);
 
+	/**
+	 * Generates Vertices, Indices, Renderbatches, & associates each of these together correctly
+	 * Attempts to reuse renderbatches across elements if possible. 
+	 * 
+	 * Note: Future more efficient and less generic reuse is something we may consider.
+	 * 
+	 * @param DrawElements - Elements to iterate over
+	 * @param InElementAdder - Functor to add an individual slate draw element
+	 * @param InElementBatchParamCreator - Functor that generates batch params given a slate draw element, used during batch-reuse
+	 * @param InElementBatchReserver - Functor that reserves vertexes and indicies given an element range and list of elements
+	 */
+	template<typename ElementAdder, typename ElementBatchParamCreator, typename ElementBatchReserver>
+	FORCEINLINE void GenerateIndexedVertexBatches(const FSlateDrawElementArray& DrawElements
+		, ElementAdder&& InElementAdder
+		, ElementBatchParamCreator&& InElementBatchParamCreator
+		, ElementBatchReserver&& InElementBatchReserver);
+
 	/** 
 	 * Creates vertices necessary to draw a Quad element 
 	 */
@@ -286,10 +296,9 @@ private:
 	void AddDebugQuadElement( const FSlateDrawElement& DrawElement);
 
 	/** 
-	 * Creates vertices necessary to draw a 3x3 element
+	 * Creates vertices necessary to draw multiple 3x3 elements
 	 */
-	template<ESlateVertexRounding Rounding>
-	void AddBoxElement( const FSlateDrawElement& DrawElement );
+	void AddBoxElements( const FSlateDrawElementArray& DrawElement );
 
 	/** 
 	 * Creates vertices necessary to draw a string (one quad per character)
@@ -315,10 +324,9 @@ private:
 	void AddSplineElement( const FSlateDrawElement& DrawElement );
 
 	/** 
-	 * Creates vertices necessary to draw a series of attached line segments
+	 * Creates vertices necessary to draw a multiple attached line segments
 	 */
-	template<ESlateVertexRounding Rounding>
-	void AddLineElement( const FSlateDrawElement& DrawElement );
+	void AddLineElements(const FSlateDrawElementArray& DrawElements);
 	
 	/** 
 	 * Creates vertices necessary to draw a viewport (just a textured quad)
@@ -346,10 +354,36 @@ private:
 		ESlateShader ShaderType,
 		ESlateDrawEffect DrawEffects,
 		ESlateBatchDrawFlag DrawFlags,
+		int8 SceneIndex,
+		const FSlateClippingState* ClippingState)
+	{
+		return CreateRenderBatch(BatchData, Layer, ShaderParams, InResource, PrimitiveType, ShaderType, DrawEffects, DrawFlags, SceneIndex, ClippingState);
+	}
+
+	FSlateRenderBatch& CreateRenderBatch(
+		int32 Layer,
+		const FShaderParams& ShaderParams,
+		const FSlateShaderResource* InResource,
+		ESlateDrawPrimitive PrimitiveType,
+		ESlateShader ShaderType,
+		ESlateDrawEffect DrawEffects,
+		ESlateBatchDrawFlag DrawFlags,
 		const FSlateDrawElement& DrawElement)
 	{
 		return CreateRenderBatch(BatchData, Layer, ShaderParams, InResource, PrimitiveType, ShaderType, DrawEffects, DrawFlags, DrawElement);
 	}
+
+	FSlateRenderBatch& CreateRenderBatch(
+		FSlateBatchData* SlateBatchData,
+		int32 Layer,
+		const FShaderParams& ShaderParams,
+		const FSlateShaderResource* InResource,
+		ESlateDrawPrimitive PrimitiveType,
+		ESlateShader ShaderType,
+		ESlateDrawEffect DrawEffects,
+		ESlateBatchDrawFlag DrawFlags,
+		int8 SceneIndex, 
+		const FSlateClippingState* ClippingState);
 
 	FSlateRenderBatch& CreateRenderBatch(
 		FSlateBatchData* SlateBatchData,
