@@ -73,8 +73,9 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex, uint QueueStateIndex)
 
 	uint CandidateNodesOffset = 0;
 
+	const bool bOutputChild = bVisible && bLoaded;
 	BRANCH
-	if (bVisible && !HierarchyNodeSlice.bLeaf)
+	if (bOutputChild && !HierarchyNodeSlice.bLeaf)
 	{
 		WaveInterlockedAddScalar_(GroupNumCandidateNodes, 1, CandidateNodesOffset);
 	}
@@ -90,7 +91,6 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex, uint QueueStateIndex)
 	AllMemoryBarrierWithGroupSync();
 
 	// GPU might not be filled, so latency is important here. Kick new jobs as soon as possible.
-	bool bOutputChild = bVisible && bLoaded;
 	if (bOutputChild && !HierarchyNodeSlice.bLeaf)
 	{
 		CandidateNodesOffset += GroupCandidateNodesOffset;
