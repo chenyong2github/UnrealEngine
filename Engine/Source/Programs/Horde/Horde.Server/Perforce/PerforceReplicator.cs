@@ -518,17 +518,15 @@ namespace Horde.Server.Perforce
 
 		static async Task<CommitNode?> FindParentAsync(TreeReader reader, RefName refName, int change, CancellationToken cancellationToken)
 		{
-			NodeRef<CommitNode>? parentRef = await reader.TryReadNodeRefAsync<CommitNode>(refName, cancellationToken: cancellationToken);
-			while (parentRef != null)
+			CommitNode? commitNode = await reader.TryReadNodeAsync<CommitNode>(refName, cancellationToken: cancellationToken);
+			if (commitNode != null)
 			{
-				CommitNode parent = await parentRef.ExpandCopyAsync(reader, cancellationToken);
-				if (parent.Number < change)
+				while (commitNode.Parent != null && commitNode.Number >= change)
 				{
-					return parent;
+					commitNode = await commitNode.Parent.ExpandAsync(reader, cancellationToken);
 				}
-				parentRef = parent.Parent;
 			}
-			return null;
+			return commitNode;
 		}
 
 		static int GetFileOffset(Utf8String path)
