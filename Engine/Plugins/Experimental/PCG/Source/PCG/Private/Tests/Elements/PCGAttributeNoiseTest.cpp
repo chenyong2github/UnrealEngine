@@ -6,17 +6,18 @@
 #include "PCGComponent.h"
 
 #include "Data/PCGPointData.h"
-#include "Elements/PCGDensityNoise.h"
+#include "Elements/PCGAttributeNoise.h"
 #include "PCGContext.h"
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDensityNoiseTest, FPCGTestBaseClass, "pcg.tests.DensityNoise.Basic", PCGTestsCommon::TestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGAttributeNoiseDensityTest, FPCGTestBaseClass, "pcg.tests.AttributeNoise.Density", PCGTestsCommon::TestFlags)
 
-bool FPCGDensityNoiseTest::RunTest(const FString& Parameters)
+bool FPCGAttributeNoiseDensityTest::RunTest(const FString& Parameters)
 {
 	PCGTestsCommon::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
-	PCGDeterminismTests::GenerateSettings<UPCGDensityNoiseSettings>(TestData);
-	UPCGDensityNoiseSettings* Settings = CastChecked<UPCGDensityNoiseSettings>(TestData.Settings);
-	FPCGElementPtr DensityNoiseElement = TestData.Settings->GetElement();
+	PCGDeterminismTests::GenerateSettings<UPCGAttributeNoiseSettings>(TestData);
+	UPCGAttributeNoiseSettings* Settings = CastChecked<UPCGAttributeNoiseSettings>(TestData.Settings);
+	Settings->InputSource.SetPointProperty(EPCGPointProperties::Density);
+	FPCGElementPtr NoiseElement = TestData.Settings->GetElement();
 
 	TObjectPtr<UPCGPointData> PointData = PCGTestsCommon::CreateEmptyPointData();
 	TArray<FPCGPoint>& Points = PointData->GetMutablePoints();
@@ -32,11 +33,11 @@ bool FPCGDensityNoiseTest::RunTest(const FString& Parameters)
 	FPCGTaggedData& TaggedData = TestData.InputData.TaggedData.Emplace_GetRef(FPCGTaggedData());
 	TaggedData.Data = PointData;
 
-	auto ValidateDensityNoise = [this, &TestData, DensityNoiseElement, Settings](TArray<float> ExpectedOutput) -> bool
+	auto ValidateDensityNoise = [this, &TestData, NoiseElement, Settings](TArray<float> ExpectedOutput) -> bool
 	{
 		TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();
 
-		while (!DensityNoiseElement->Execute(Context.Get()))
+		while (!NoiseElement->Execute(Context.Get()))
 		{}
 
 		const TArray<FPCGTaggedData>& Inputs = Context->InputData.GetInputs();
@@ -98,119 +99,119 @@ bool FPCGDensityNoiseTest::RunTest(const FString& Parameters)
 
 	auto ValidateDensityNoiseForAllDensityModes = [this, &bTestPassed, ValidateDensityNoise, Settings]()
 	{
-		Settings->DensityMode = EPCGDensityNoiseMode::Set;
+		Settings->Mode = EPCGAttributeNoiseMode::Set;
 		bTestPassed &= ValidateDensityNoise({});
 
-		Settings->DensityMode = EPCGDensityNoiseMode::Minimum;
+		Settings->Mode = EPCGAttributeNoiseMode::Minimum;
 		bTestPassed &= ValidateDensityNoise({});
 
-		Settings->DensityMode = EPCGDensityNoiseMode::Maximum;
+		Settings->Mode = EPCGAttributeNoiseMode::Maximum;
 		bTestPassed &= ValidateDensityNoise({});
 
-		Settings->DensityMode = EPCGDensityNoiseMode::Add;
+		Settings->Mode = EPCGAttributeNoiseMode::Add;
 		bTestPassed &= ValidateDensityNoise({});
 
-		Settings->DensityMode = EPCGDensityNoiseMode::Multiply;
+		Settings->Mode = EPCGAttributeNoiseMode::Multiply;
 		bTestPassed &= ValidateDensityNoise({});
 	};
 
 	// Test [0-1]
 	{
-		Settings->DensityNoiseMin = 0.f;
-		Settings->DensityNoiseMax = 1.f;
-		Settings->bInvertSourceDensity = false;
+		Settings->NoiseMin = 0.f;
+		Settings->NoiseMax = 1.f;
+		Settings->bInvertSource = false;
 		ValidateDensityNoiseForAllDensityModes();
 
-		Settings->bInvertSourceDensity = true;
+		Settings->bInvertSource = true;
 		ValidateDensityNoiseForAllDensityModes();
 	}
 
 	// Test [0-0.5]
 	{
-		Settings->DensityNoiseMin = 0.f;
-		Settings->DensityNoiseMax = 0.5f;
-		Settings->bInvertSourceDensity = false;
+		Settings->NoiseMin = 0.f;
+		Settings->NoiseMax = 0.5f;
+		Settings->bInvertSource = false;
 		ValidateDensityNoiseForAllDensityModes();
 		
-		Settings->bInvertSourceDensity = true;
+		Settings->bInvertSource = true;
 		ValidateDensityNoiseForAllDensityModes();
 	}
 
 	// Test [0.5-1]
 	{
-		Settings->DensityNoiseMin = 0.5f;
-		Settings->DensityNoiseMax = 1.f;
-		Settings->bInvertSourceDensity = false;
+		Settings->NoiseMin = 0.5f;
+		Settings->NoiseMax = 1.f;
+		Settings->bInvertSource = false;
 		ValidateDensityNoiseForAllDensityModes();
 
-		Settings->bInvertSourceDensity = true;
+		Settings->bInvertSource = true;
 		ValidateDensityNoiseForAllDensityModes();
 	}
 
 	// Test [1-0]
 	{
-		Settings->DensityNoiseMin = 1.f;
-		Settings->DensityNoiseMax = 0.f;
-		Settings->bInvertSourceDensity = false;
+		Settings->NoiseMin = 1.f;
+		Settings->NoiseMax = 0.f;
+		Settings->bInvertSource = false;
 		ValidateDensityNoiseForAllDensityModes();
 
-		Settings->bInvertSourceDensity = true;
+		Settings->bInvertSource = true;
 		ValidateDensityNoiseForAllDensityModes();
 	}
 
 	// Test [0.5-0]
 	{
-		Settings->DensityNoiseMin = 0.5f;
-		Settings->DensityNoiseMax = 0.f;
-		Settings->bInvertSourceDensity = false;
+		Settings->NoiseMin = 0.5f;
+		Settings->NoiseMax = 0.f;
+		Settings->bInvertSource = false;
 		ValidateDensityNoiseForAllDensityModes();
 		
-		Settings->bInvertSourceDensity = true;
+		Settings->bInvertSource = true;
 		ValidateDensityNoiseForAllDensityModes();
 	}
 
 	// Test [1-0.5]
 	{
-		Settings->DensityNoiseMin = 1.f;
-		Settings->DensityNoiseMax = 0.5f;
-		Settings->bInvertSourceDensity = false;
+		Settings->NoiseMin = 1.f;
+		Settings->NoiseMax = 0.5f;
+		Settings->bInvertSource = false;
 		ValidateDensityNoiseForAllDensityModes();
 
-		Settings->bInvertSourceDensity = true;
+		Settings->bInvertSource = true;
 		ValidateDensityNoiseForAllDensityModes();
 	}
 
-	Settings->bInvertSourceDensity = false;
+	Settings->bInvertSource = false;
 
 	// Test expected values for Set
 	{
-		Settings->DensityNoiseMin = 0.5f;
-		Settings->DensityNoiseMax = 0.5f;
-		Settings->DensityMode = EPCGDensityNoiseMode::Set;
+		Settings->NoiseMin = 0.5f;
+		Settings->NoiseMax = 0.5f;
+		Settings->Mode = EPCGAttributeNoiseMode::Set;
 		bTestPassed &= ValidateDensityNoise({ 0.5f, 0.5f, 0.5f, 0.5f, 0.5f });
 	}
 
 	// Test expected values for Minimum
 	{
-		Settings->DensityNoiseMin = 0.f;
-		Settings->DensityNoiseMax = 0.f;
-		Settings->DensityMode = EPCGDensityNoiseMode::Minimum;
+		Settings->NoiseMin = 0.f;
+		Settings->NoiseMax = 0.f;
+		Settings->Mode = EPCGAttributeNoiseMode::Minimum;
 		bTestPassed &= ValidateDensityNoise({ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f });
 	}
 
 	// Test expected values for Maximum
 	{
-		Settings->DensityNoiseMin = 1.f;
-		Settings->DensityNoiseMax = 1.f;
-		Settings->DensityMode = EPCGDensityNoiseMode::Maximum;
+		Settings->NoiseMin = 1.f;
+		Settings->NoiseMax = 1.f;
+		Settings->Mode = EPCGAttributeNoiseMode::Maximum;
 		bTestPassed &= ValidateDensityNoise({ 1.f, 1.f, 1.f, 1.f, 1.f });
 	}
 
 	// Test expected values for Add
 	{
-		Settings->DensityNoiseMin = 0.f;
-		Settings->DensityNoiseMax = 0.f;
-		Settings->DensityMode = EPCGDensityNoiseMode::Add;
+		Settings->NoiseMin = 0.f;
+		Settings->NoiseMax = 0.f;
+		Settings->Mode = EPCGAttributeNoiseMode::Add;
 		bTestPassed &= ValidateDensityNoise({ 
 			Points[0].Density,
 			Points[1].Density,
@@ -222,9 +223,9 @@ bool FPCGDensityNoiseTest::RunTest(const FString& Parameters)
 
 	// Test expected values for Multiply
 	{
-		Settings->DensityNoiseMin = 0.f;
-		Settings->DensityNoiseMax = 0.f;
-		Settings->DensityMode = EPCGDensityNoiseMode::Multiply;
+		Settings->NoiseMin = 0.f;
+		Settings->NoiseMax = 0.f;
+		Settings->Mode = EPCGAttributeNoiseMode::Multiply;
 		bTestPassed &= ValidateDensityNoise({ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f });
 	}
 
