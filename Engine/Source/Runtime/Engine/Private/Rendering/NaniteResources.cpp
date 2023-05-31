@@ -1803,7 +1803,7 @@ void FSceneProxy::SetWorldPositionOffsetDisableDistance_GameThread(int32 NewValu
 			if (bUpdatePrimitiveData)
 			{
 				InstanceWPODisableDistance = NewValue;
-				GetPrimitiveSceneInfo()->RequestUniformBufferUpdate();
+				GetScene().RequestUniformBufferUpdate(*GetPrimitiveSceneInfo());
 				GetScene().RequestGPUSceneUpdate(*GetPrimitiveSceneInfo(), EPrimitiveDirtyState::ChangedOther);
 				if (bUpdateDrawCmds)
 				{
