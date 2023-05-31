@@ -13,55 +13,6 @@ class FSlateRenderDataHandle;
 
 struct FSlateDataPayload;
 
-
-struct FSlateRenderBatchParams
-{
-	FSlateRenderBatchParams(
-		int32 InLayer,
-		const FShaderParams& InShaderParams,
-		const FSlateShaderResource* InResource,
-		ESlateDrawPrimitive InPrimitiveType,
-		ESlateShader InShaderType,
-		ESlateDrawEffect InDrawEffects,
-		ESlateBatchDrawFlag InDrawFlags,
-		int8 InSceneIndex,
-		const FSlateClippingState* InClippingState)
-		: Layer(InLayer)
-		, ShaderParams(InShaderParams)
-		, Resource(InResource)
-		, PrimitiveType(InPrimitiveType)
-		, ShaderType(InShaderType)
-		, DrawEffects(InDrawEffects)
-		, DrawFlags(InDrawFlags)
-		, SceneIndex(InSceneIndex)
-		, ClippingState(InClippingState)
-	{ 
-	}
-
-	int32 Layer;
-	const FShaderParams& ShaderParams;
-	const FSlateShaderResource* Resource;
-	ESlateDrawPrimitive PrimitiveType;
-	ESlateShader ShaderType;
-	ESlateDrawEffect DrawEffects;
-	ESlateBatchDrawFlag DrawFlags;
-	int8 SceneIndex;
-	const FSlateClippingState* ClippingState;
-
-	bool IsBatchableWith(const FSlateRenderBatchParams& Other) const
-	{
-		return Layer == Other.Layer 
-			&& ShaderParams == Other.ShaderParams 
-			&& Resource == Other.Resource 
-			&& PrimitiveType == Other.PrimitiveType 
-			&& ShaderType == Other.ShaderType 
-			&& DrawEffects == Other.DrawEffects 
-			&& DrawFlags == Other.DrawFlags 
-			&& SceneIndex == Other.SceneIndex
-			&& ClippingState == Other.ClippingState;
-	}
-};
-
 class FSlateRenderBatch
 {
 public:
@@ -102,18 +53,6 @@ public:
 		++NumIndices;
 	}
 
-	void EmplaceVertex(FSlateVertex&& Vertex)
-	{
-		SourceVertices->Emplace(Vertex);
-		++NumVertices;
-	}
-
-	void EmplaceIndex(SlateIndex Index)
-	{
-		SourceIndices->Emplace(Index);
-		++NumIndices;
-	}
-
 	void AddVertices(const TArray<FSlateVertex>& InVertices)
 	{
 		SourceVertices->Append(InVertices);
@@ -121,18 +60,6 @@ public:
 	}
 
 	void AddIndices(const TArray<SlateIndex>& InIndices)
-	{
-		SourceIndices->Append(InIndices);
-		NumIndices += InIndices.Num();
-	}
-
-	void AddVertices(TArray<FSlateVertex>&& InVertices)
-	{
-		SourceVertices->Append(InVertices);
-		NumVertices += InVertices.Num();
-	}
-
-	void AddIndices(TArray<SlateIndex>&& InIndices)
 	{
 		SourceIndices->Append(InIndices);
 		NumIndices += InIndices.Num();

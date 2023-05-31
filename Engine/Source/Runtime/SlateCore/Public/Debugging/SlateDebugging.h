@@ -255,25 +255,6 @@ public:
 	FText ToText() const;
 };
 
-struct SLATECORE_API FSlateDebuggingElementTypeAddedEventArgs
-{
-public:
-	FSlateDebuggingElementTypeAddedEventArgs(
-		const FSlateWindowElementList& InElementList,
-		int32 InElementIndex,
-		EElementType InElementType
-	);
-
-	/** Element list containing the element */
-	const FSlateWindowElementList& ElementList;
-
-	/** Index into the element within the corresponding typed container */
-	int32 ElementIndex;
-
-	/** Type of the element, element will reside in a container dedicated for that type */
-	EElementType ElementType;
-};
-
 /**
  * 
  */
@@ -314,7 +295,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * Called as soon as the element is added to the element list.
 	 * NOTE: These elements are not valid until the widget finishes painting, or you can resolve them all after the window finishes painting.
 	 */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FDrawElementType, const FSlateDebuggingElementTypeAddedEventArgs& /*ElementTypeAddedArgs*/);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FDrawElementType, const FSlateWindowElementList& /*ElementList*/, int32 /*ElementIndex*/, EElementType /*ElementType*/);
 	static FDrawElementType ElementTypeAdded;
 
 public:

@@ -70,7 +70,7 @@ FSlateDebuggingFocusEventArgs::FSlateDebuggingFocusEventArgs(
 	, NewFocusedWidgetPath(InNewFocusedWidgetPath)
 	, NewFocusedWidget(InNewFocusedWidget)
 {
-} 
+}
 
 FText FSlateDebuggingFocusEventArgs::ToText() const
 {
@@ -347,16 +347,6 @@ FSlateDebuggingWidgetUpdatedEventArgs::FSlateDebuggingWidgetUpdatedEventArgs(
 	: Widget(InWidget)
 	, UpdateFlags(InUpdateFlags)
 	, bFromPaint(bInFromPaint)
-{
-}
-
-FSlateDebuggingElementTypeAddedEventArgs::FSlateDebuggingElementTypeAddedEventArgs(
-	const FSlateWindowElementList& InElementList,
-	int32 InElementIndex,
-	EElementType InElementType)
-	: ElementList(InElementList)
-	, ElementIndex(InElementIndex)
-	, ElementType(InElementType)
 {
 }
 

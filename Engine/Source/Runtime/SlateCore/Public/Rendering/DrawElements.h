@@ -38,6 +38,30 @@ struct FSlateBrush;
 struct FSlateDataPayload;
 struct FSlateGradientStop;
 
+enum class EElementType : uint8
+{
+	ET_Box,
+	ET_DebugQuad,
+	ET_Text,
+	ET_ShapedText,
+	ET_Spline,
+	ET_Line,
+	ET_Gradient,
+	ET_Viewport,
+	ET_Border,
+	ET_Custom,
+	ET_CustomVerts,
+	ET_PostProcessPass,
+	ET_RoundedBox,
+	/** 
+	 * We map draw elements by type on add for better cache coherency if possible, 
+	 * this type is used when that grouping is not possible. 
+	 * Grouping is also planned to be used for bulk element type processing.
+	 */
+	ET_NonMapped,
+	/** Total number of draw commands */
+	ET_Count,
+};
 
 
 /**
@@ -337,9 +361,6 @@ private:
 	uint8 bIsCached : 1;
 };
 
-/**
- * Data holder for info used in cached renderbatches. Primarily clipping state, vertices and indices
- */
 struct FSlateCachedFastPathRenderingData
 {
 	~FSlateCachedFastPathRenderingData()
@@ -354,11 +375,6 @@ struct FSlateCachedFastPathRenderingData
 
 struct FSlateCachedElementData;
 
-/**
- * Cached list of elements corresponding to a particular widget. 
- * This class is used as an interfaces for renderbatches to interact with cached rendering data with
- * In particular verticies and indicies
- */
 struct FSlateCachedElementList
 {
 	FSlateCachedElementList(FSlateCachedElementData* InParentData, const SWidget* InWidget)
@@ -385,16 +401,6 @@ struct FSlateCachedElementList
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
-	/**
-	 * Returns true if all typed containers are empty, else false
-	 */
-	SLATECORE_API bool IsEmpty();
-
-	/**
-	 * Returns number of elements in all containers summed
-	 */
-	SLATECORE_API int32 NumElements();
-	
 private:
 	SLATECORE_API void DestroyCachedData();
 
@@ -412,12 +418,6 @@ public:
 	FSlateCachedFastPathRenderingData* CachedRenderingData;
 };
 
-
-/**
- * Handle used to uniquely identify a cached element list with some widget
- * Used when a widget gets invalidated / additional elements added
- * So we can modify that widget's existing cached element list
- */
 struct FSlateCachedElementsHandle
 {
 	friend struct FSlateCachedElementData;
@@ -444,57 +444,16 @@ private:
 	TWeakPtr<FSlateCachedElementList> Ptr;
 };
 
-/**
- * Top level class responsible for cached elements within a particular invalidation root.
- * Equivalent to the plain FSlateBatchData in that it manages multiple renderbatches,
- * element lists (Per widget), & new element lists (Per invalidated widgets).
- * 
- * Note: Just as each window may have multiple invalidation roots, each window element list 
- * may have multiple 'FSlateCachedElementData' for each root
- */
 struct FSlateCachedElementData
 {
 	friend class FSlateElementBatcher;
 	friend struct FSlateCachedElementsHandle;
 
-	/** Reset all cached data, except num elements, call EmptyCachedNumElements for that */
 	void Empty();
 
-	/** Create a new CachedElementList, occurs when adding a cached element whose top level draw widget is not already part of some cache */
 	FSlateCachedElementsHandle AddCache(const SWidget* Widget);
 
-	static const FSlateClippingState* GetClipStateFromParent(const FSlateClippingManager& ParentClipManager);
-
-	FORCEINLINE void ValidateWidgetOwner(TSharedPtr<FSlateCachedElementList> List, const SWidget* CurrentWidget);
-
-	template<EElementType ElementType>
-	FSlateDrawElement& AddCachedElement(FSlateCachedElementsHandle& CacheHandle, const FSlateClippingManager& ParentClipManager, const SWidget* CurrentWidget)
-	{
-		TSharedPtr<FSlateCachedElementList> List = CacheHandle.Ptr.Pin(); 
-
-#if WITH_SLATE_DEBUGGING
-		ValidateWidgetOwner(List, CurrentWidget);
-#endif
-
-		FSlateDrawElementContainer& Container = List->DrawElements.Get<(uint8)ElementType>();
-		FSlateDrawElement& NewElement = Container.Elements.AddDefaulted_GetRef();
-		NewElement.SetIsCached(true);
-
-		// Check if slow vs checking a flag on the list to see if it contains new data.
-		ListsWithNewData.AddUnique(List.Get());
-
-		const FSlateClippingState* ExistingClipState = FSlateCachedElementData::GetClipStateFromParent(ParentClipManager);
-
-		if (ExistingClipState)
-		{
-			// We need to cache this clip state for the next time the element draws
-			FSlateCachedClipState& CachedClipState = FindOrAddCachedClipState(ExistingClipState);
-			List->AddCachedClipState(CachedClipState);
-			NewElement.SetCachedClippingState(&CachedClipState.ClippingState.Get());
-		}
-
-		return NewElement;
-	}
+	FSlateDrawElement& AddCachedElement(FSlateCachedElementsHandle& CacheHandle, const FSlateClippingManager& ParentClipManager, const SWidget* Widget, EElementType InElementType);
 
 	FSlateRenderBatch& AddCachedRenderBatch(FSlateRenderBatch&& NewBatch, int32& OutIndex);
 	void RemoveCachedRenderBatches(const TArray<int32>& CachedRenderBatchIndices);
@@ -517,13 +476,10 @@ private:
 	/** List of cached batches to submit for drawing */
 	TSparseArray<FSlateRenderBatch> CachedBatches;
 
-	/** List of cached element lists used to redraw when no invalidation occurs, each list corresponds to a particular widget. See 'FSlateCachedElementsHandle' */
 	TArray<TSharedPtr<FSlateCachedElementList>> CachedElementLists;
 
-	/** List of pointers to instances of the element lists above which have new data or have been invalidated */
 	TArray<FSlateCachedElementList*, TInlineAllocator<50>> ListsWithNewData;
 
-	/** List of clip states used later when rendering */
 	TArray<FSlateCachedClipState> CachedClipStates;
 };
 
@@ -600,39 +556,9 @@ public:
 	}
 
 	/**
-	 * Creates an uninitialized draw element if using caching will create a new cached draw list
-	 * if needed (Whenever a top level draw widget's cache handle doesn't match the current cached handle).
+	 * Creates an uninitialized draw element
 	 */
-	template<EElementType ElementType = EElementType::ET_NonMapped>
-	FSlateDrawElement& AddUninitialized()
-	{
-		const bool bAllowCache = CachedElementDataListStack.Num() > 0 && WidgetDrawStack.Num() && !WidgetDrawStack.Top().bIsVolatile;
-
-		if (bAllowCache)
-		{
-			// @todo get working with slate debugging
-			return AddCachedElement<ElementType>();
-		}
-		else
-		{
-			FSlateDrawElementMap& Elements = UncachedDrawElements;
-			FSlateDrawElementContainer& Container = Elements.Get<(uint8)ElementType>();
-			const int32 InsertIdx = Container.Elements.AddDefaulted();
-
-#if WITH_SLATE_DEBUGGING
-			FSlateDebuggingElementTypeAddedEventArgs ElementTypeAddedArgs{*this, InsertIdx, ElementType};
-			FSlateDebugging::ElementTypeAdded.Broadcast(ElementTypeAddedArgs);
-#endif
-
-			FSlateDrawElement& NewElement = Container.Elements[InsertIdx];
-			return NewElement;
-		}
-	}
-
-	/**
-	 * Calls AddUninitialized, resolving template version based on enum
-	 */
-	SLATECORE_API FSlateDrawElement& AddUninitializedLookup(EElementType InElementType = EElementType::ET_NonMapped);
+	SLATECORE_API FSlateDrawElement& AddUninitialized(EElementType InElementType = EElementType::ET_NonMapped);
 
 
 	//--------------------------------------------------------------------------
@@ -751,23 +677,7 @@ public:
 		}
 	}
 private:
-	/** Adds a cached element, generating a new cached list for the widget at the top of the cache if needed */
-	template<EElementType ElementType>
-	FSlateDrawElement& AddCachedElement()
-	{
-		FSlateCachedElementData* CurrentCachedElementData = GetCurrentCachedElementData();
-		check(CurrentCachedElementData);
-
-		FWidgetDrawElementState& CurrentWidgetState = WidgetDrawStack.Top();
-		check(!CurrentWidgetState.bIsVolatile);
-
-		if (!CurrentWidgetState.CacheHandle.IsValid())
-		{
-			CurrentWidgetState.CacheHandle = CurrentCachedElementData->AddCache(CurrentWidgetState.Widget);
-		}
-
-		return CurrentCachedElementData->AddCachedElement<ElementType>(CurrentWidgetState.CacheHandle, GetClippingManager(), CurrentWidgetState.Widget);
-	}
+	FSlateDrawElement& AddCachedElement(EElementType InElementType);
 
 	TArrayView<FSlateCachedElementData* const> GetCachedElementDataList() const { return MakeArrayView(CachedElementDataList.GetData(), CachedElementDataList.Num()); }
 
