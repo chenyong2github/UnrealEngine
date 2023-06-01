@@ -643,6 +643,7 @@ void FMassEntityManager::BatchDestroyEntities(TConstArrayView<FMassEntityHandle>
 
 		FMassArchetypeData* Archetype = EntityData.CurrentArchetype.Get();
 		check(Archetype);
+		ObserverManager.OnPreEntityDestroyed(Archetype->GetCompositionDescriptor(), Entity);
 		Archetype->RemoveEntity(Entity);
 
 		EntityData.Reset();
