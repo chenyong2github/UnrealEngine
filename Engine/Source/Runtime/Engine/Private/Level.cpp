@@ -4573,5 +4573,3 @@ void ULevel::OnMultipleLSAsPopupDismissed()
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
-
-UE_ENABLE_OPTIMIZATION
