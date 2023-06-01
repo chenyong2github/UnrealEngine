@@ -898,7 +898,7 @@ public:
 
 	int64 GetEntryLength(const FString & Path)
 	{
-		TSharedPtr<FFileHandleAndroid> File = Entries[Path]->File;
+		TSharedPtr<FFileHandleAndroid>& File = Entries[Path]->File;
 		return File != nullptr ? File->Size() : 0;
 	}
 
