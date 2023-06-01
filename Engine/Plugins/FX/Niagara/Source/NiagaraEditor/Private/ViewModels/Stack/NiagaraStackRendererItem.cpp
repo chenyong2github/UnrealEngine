@@ -521,7 +521,36 @@ void UNiagaraStackRendererItem::ProcessRendererIssues(const TArray<FNiagaraRende
 		TArray<FStackIssueFix> Fixes;
 		if (Item.IsFixable())
 		{
-			Fixes.Add(FStackIssueFix(Item.GetFixDescriptionText(), FStackIssueFixDelegate::CreateLambda([Item]() { Item.TryFix(); })));
+			Fixes.Emplace(
+				Item.GetFixDescriptionText(),
+				FStackIssueFixDelegate::CreateLambda(
+					[WeakStackItem=TWeakObjectPtr<UNiagaraStackRendererItem>(this), Item]()
+					{
+						if ( Item.IsFixable() )
+						{
+							const FScopedTransaction ScopedTransaction(LOCTEXT("RendererItemFixTransaction", "Apply renderer fix"));
+
+							UNiagaraStackRendererItem* StackItem = WeakStackItem.Get();
+							UNiagaraRendererProperties* RendererProperties = StackItem ? StackItem->GetRendererProperties() : nullptr;
+							if (RendererProperties)
+							{
+								RendererProperties->Modify();
+							}
+
+							Item.TryFix();
+
+							if (RendererProperties)
+							{
+								RendererProperties->PostEditChange();
+
+								TArray<UObject*> ChangedObjects;
+								ChangedObjects.Add(RendererProperties);
+								StackItem->OnDataObjectModified().Broadcast(ChangedObjects, ENiagaraDataObjectChange::Changed);
+							}
+						}
+					}
+				)
+			);
 		}
 		FStackIssue TargetSupportError(Severity, Item.GetSummaryText(), Item.GetDescriptionText(), GetStackEditorDataKey(), Item.IsDismissable(), Fixes);
 		OutIssues.Add(TargetSupportError);
