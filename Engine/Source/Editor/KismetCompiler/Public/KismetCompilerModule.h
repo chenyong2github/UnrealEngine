@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SubclassOf.h"
 
 class FBlueprintCompileReinstancer;
 class FCompilerResultsLog;
