@@ -1707,7 +1707,7 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 				if (UWidget* WidgetTemplate = ParentWidgetRef.GetTemplate())
 				{
 					ParentWidget = WidgetTemplate->GetParent();
-					if (ParentWidget)
+					if (ParentWidget && ParentWidget->CanHaveMultipleChildren())
 					{
 						IndexToInsert = ParentWidget->GetChildIndex(WidgetTemplate) + 1;
 					}
