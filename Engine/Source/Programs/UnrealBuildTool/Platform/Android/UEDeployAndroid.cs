@@ -270,7 +270,7 @@ namespace UnrealBuildTool
 				}
 
 				// validate the platform SDK is installed
-				string PlatformsDir = Environment.ExpandEnvironmentVariables("%ANDROID_HOME%/platforms");
+				string PlatformsDir = Path.Combine(Environment.ExpandEnvironmentVariables("%ANDROID_HOME%"), "platforms");
 				if (!ValidateSDK(PlatformsDir, SDKLevel))
 				{
 					Logger.LogWarning("The SDK API requested '{SdkLevel}' not installed in {PlatformsDir}; Gradle will attempt to download it.", SDKLevel, PlatformsDir);

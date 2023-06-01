@@ -437,8 +437,6 @@ namespace UnrealBuildTool
 				throw new BuildException("No NDK platforms found in {0}", PlatformsFilename);
 			}
 
-			MaxPlatform = Math.Clamp(MaxPlatform, 1, 32);   //Current NDK 25beta4 breaks existing UE NDK to SDK API mapping, so clamp it at 32
-
 			return "android-" + MaxPlatform.ToString();
 		}
 
