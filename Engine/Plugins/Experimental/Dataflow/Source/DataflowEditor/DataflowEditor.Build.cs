@@ -6,6 +6,13 @@ namespace UnrealBuildTool.Rules
 	{
         public DataflowEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PublicIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"SkeletonEditor"
+				}
+			);
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

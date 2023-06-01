@@ -38,13 +38,15 @@ public class MeshMergeUtilities : ModuleRules
 
         PublicIncludePathModuleNames.AddRange(
           new string[] {
-               "HierarchicalLODUtilities",
-               "MeshUtilities",
                "MeshReductionInterface",
-			   "SkeletalMeshEditor",
-			   "Persona",
           }
         );
+		
+		PrivateIncludePathModuleNames.AddRange(
+			new string [] {
+				"HierarchicalLODUtilities"
+			}
+		);
 
         DynamicallyLoadedModuleNames.AddRange(
             new string[] {

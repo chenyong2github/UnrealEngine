@@ -57,9 +57,10 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			PrivateIncludePathModuleNames.AddRange(
+			PublicIncludePathModuleNames.AddRange(
 				new string[]
 				{
+					"Persona",
 				}
 			);
 		}

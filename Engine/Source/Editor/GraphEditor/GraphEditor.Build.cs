@@ -32,6 +32,7 @@ public class GraphEditor : ModuleRules
 				"KismetWidgets",
 				"BlueprintGraph",
 				"Documentation",
+				"Persona",
 				"RenderCore",
 				"RHI",
 				"ToolMenus",

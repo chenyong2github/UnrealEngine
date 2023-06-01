@@ -11,8 +11,15 @@ public class EngineAssetDefinitions : ModuleRules
 			{
 				"Core",
 			}
-		);			
-		
+		);
+
+		PublicIncludePathModuleNames.AddRange(
+			new string[]
+			{
+				"SkeletalMeshEditor",
+			}
+		);
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

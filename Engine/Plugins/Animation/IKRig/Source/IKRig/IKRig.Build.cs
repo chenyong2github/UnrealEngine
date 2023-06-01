@@ -39,6 +39,12 @@ public class IKRig : ModuleRules
 					"ApplicationCore",
 					"MessageLog",
 				});
+
+			PublicIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"AnimationWidgets",
+				});
 		}
 	}
 }

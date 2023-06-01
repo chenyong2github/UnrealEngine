@@ -23,6 +23,7 @@ public class SkeletalMeshModelingTools : ModuleRules
 				"MeshModelingToolsExp",
 				"ModelingComponentsEditorOnly",
 				"ModelingToolsEditorMode",
+				"SkeletalMeshEditor",
 				"SkeletalMeshUtilitiesCommon",
 				"Slate",
 				"SlateCore",

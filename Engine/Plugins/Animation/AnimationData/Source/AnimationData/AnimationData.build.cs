@@ -21,7 +21,8 @@ public class AnimationData : ModuleRules
                 "AnimationDataController",
                 "AnimationCore",
                 "AnimationBlueprintLibrary",
-                "TimeManagement"
+				"AnimationEditor",
+				"TimeManagement"
             });
 
         PublicDependencyModuleNames.AddRange(

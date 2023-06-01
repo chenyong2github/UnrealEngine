@@ -38,7 +38,8 @@ public class ModelingEditorUI : ModuleRules
 				"ToolWidgets",
 				"EditorWidgets",
 				"DeveloperSettings", 
-				"MeshModelingToolsExp"
+				"MeshModelingToolsExp",
+				"Persona"
 			}
 			);
 
