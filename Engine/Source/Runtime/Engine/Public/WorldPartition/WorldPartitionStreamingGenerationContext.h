@@ -2,9 +2,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WorldPartition/WorldPartitionStreamingGeneration.h"
 #include "WorldPartition/WorldPartitionActorContainerID.h"
 
+class FActorDescViewMap;
+class FStreamingGenerationActorDescCollection;
+class FWorldPartitionActorDescView;
+class UActorDescContainer;
 class UDataLayerInstance;
 
 #if WITH_EDITOR
@@ -20,7 +23,7 @@ public:
 	{
 		FActorSetContainer()
 			: ActorDescViewMap(nullptr)
-			, ActorDescContainer(nullptr)
+			, ActorDescCollection(nullptr)
 		{}
 
 		// Non-copyable
@@ -28,7 +31,7 @@ public:
 		FActorSetContainer& operator=(const FActorSetContainer&) = delete;
 
 		const FActorDescViewMap* ActorDescViewMap;
-		const UActorDescContainer* ActorDescContainer;
+		const FStreamingGenerationActorDescCollection* ActorDescCollection;
 		TArray<TUniquePtr<FActorSet>> ActorSets;
 	};
 

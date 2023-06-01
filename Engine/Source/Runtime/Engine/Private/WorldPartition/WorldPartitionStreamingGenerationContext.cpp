@@ -21,6 +21,6 @@ const FTransform& IStreamingGenerationContext::FActorInstance::GetTransform() co
 
 const UActorDescContainer* IStreamingGenerationContext::FActorInstance::GetActorDescContainer() const
 {
-	return ActorSetInstance->ContainerInstance->ActorDescContainer;
+	return GetActorDescView().GetActorDesc()->GetContainer();
 }
 #endif

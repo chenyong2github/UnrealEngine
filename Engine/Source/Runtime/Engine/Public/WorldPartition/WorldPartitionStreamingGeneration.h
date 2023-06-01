@@ -4,6 +4,7 @@
 #if WITH_EDITOR
 #include "CoreMinimal.h"
 #include "OverrideVoidReturnInvoker.h"
+#include "WorldPartition/ActorDescContainerCollection.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 
 class ENGINE_API FActorDescViewMap
@@ -98,6 +99,31 @@ protected:
 
 	TMap<FGuid, FWorldPartitionActorDescView*> ActorDescViewsByGuid;
 	TMultiMap<FName, const FWorldPartitionActorDescView*> ActorDescViewsByClass;
+};
+
+class ENGINE_API FStreamingGenerationActorDescCollection : public TActorDescContainerCollection<const UActorDescContainer*>
+{
+public:
+	FStreamingGenerationActorDescCollection() = default;
+	FStreamingGenerationActorDescCollection(std::initializer_list<const UActorDescContainer*> ActorDescContainerArray);
+
+	UWorld* GetWorld() const;
+
+	// @todo_ow : Remove once conversion to ExternalDataLayer is complete. 
+	// It is present to handle content bundles streaming generation via the same code path. 
+	FGuid GetContentBundleGuid() const;
+
+	const UActorDescContainer* GetMainActorDescContainer() const;
+	FName GetMainContainerPackageName() const;
+	TArrayView<const UActorDescContainer*> GetExternalDataLayerContainers();
+
+	virtual void OnCollectionChanged() override;
+
+private:
+	void SortCollection();
+
+	static constexpr int MainContainerIdx = 0;
+	static constexpr int ExternalDataLayerContainerStartIdx = MainContainerIdx + 1;
 };
 
 #endif // WITH_EDITOR

@@ -8,10 +8,12 @@
 
 #if WITH_EDITOR
 class UActorDescContainer;
-class FActorDescContainerCollection;
 class FWorldPartitionActorDesc;
 struct FWorldPartitionHandleImpl;
 struct FWorldPartitionReferenceImpl;
+
+template<class U>
+class TActorDescContainerCollection;
 
 class ENGINE_API FWorldPartitionLoadingContext
 {
@@ -119,7 +121,8 @@ public:
 		}
 	}
 
-	FORCEINLINE TWorldPartitionHandle(FActorDescContainerCollection* ContainerCollection, const FGuid& ActorGuid)
+	template<class U>
+	FORCEINLINE TWorldPartitionHandle(TActorDescContainerCollection<U>* ContainerCollection, const FGuid& ActorGuid)
 		: Container(Impl::GetActorDescContainer(ContainerCollection, ActorGuid))
 		, ActorDesc(nullptr)
 	{
@@ -339,8 +342,13 @@ struct ENGINE_API FWorldPartitionImplBase
 {
 	static TUniquePtr<FWorldPartitionActorDesc>* GetActorDesc(UActorDescContainer* Container, const FGuid& ActorGuid);
 	static UActorDescContainer* GetActorDescContainer(TUniquePtr<FWorldPartitionActorDesc>* ActorDesc);
-	static UActorDescContainer* GetActorDescContainer(FActorDescContainerCollection* ContainerCollection, const FGuid& ActorGuid);
 	static bool IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc);
+
+	template<class U>
+	static UActorDescContainer* GetActorDescContainer(TActorDescContainerCollection<U>* ContainerCollection, const FGuid& ActorGuid)
+	{
+		return ContainerCollection ? ContainerCollection->GetActorDescContainer(ActorGuid) : nullptr;
+	}
 };
 
 struct ENGINE_API FWorldPartitionHandleImpl : FWorldPartitionImplBase

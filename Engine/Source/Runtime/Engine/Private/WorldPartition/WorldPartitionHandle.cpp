@@ -24,11 +24,6 @@ UActorDescContainer* FWorldPartitionImplBase::GetActorDescContainer(TUniquePtr<F
 	return ActorDesc ? ActorDesc->Get()->GetContainer() : nullptr;
 }
 
-UActorDescContainer* FWorldPartitionImplBase::GetActorDescContainer(FActorDescContainerCollection* ContainerCollection, const FGuid& ActorGuid)
-{
-	return ContainerCollection ? ContainerCollection->GetActorDescContainer(ActorGuid) : nullptr;
-}
-
 bool FWorldPartitionImplBase::IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc)
 {
 	return ActorDesc->IsLoaded();

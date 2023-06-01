@@ -442,7 +442,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 	IStreamingGenerationContext::FActorSetContainer* MainActorSetContainer = const_cast<IStreamingGenerationContext::FActorSetContainer*>(StreamingGenerationContext->GetMainWorldContainer());
-	const UActorDescContainer* ActorDescContainer = MainActorSetContainer->ActorDescContainer;
+	const FStreamingGenerationActorDescCollection* MainContainerCollection = MainActorSetContainer->ActorDescCollection;
 
 	// Find all used HLOD layers
 	TMap<UHLODLayer*, int32> HLODLayersLevels = GatherHLODLayers(StreamingGenerationContext, WorldPartition);
@@ -465,7 +465,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 	// HLOD creation context
 	FHLODCreationContext Context;
-	for (FActorDescList::TConstIterator<AWorldPartitionHLOD> HLODIterator(ActorDescContainer); HLODIterator; ++HLODIterator)
+	for (FActorDescList::TConstIterator<AWorldPartitionHLOD> HLODIterator(MainContainerCollection->GetMainActorDescContainer()); HLODIterator; ++HLODIterator)
 	{
 		FWorldPartitionHandle HLODActorHandle(WorldPartition, HLODIterator->GetGuid());
 		Context.HLODActorDescs.Emplace(HLODIterator->GetActorName(), MoveTemp(HLODActorHandle));
@@ -556,7 +556,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 			{
 				NewHLODActorSetInstance.DataLayers = DataLayerManager->GetRuntimeDataLayerInstances(HLODActorDescView.GetRuntimeDataLayerInstanceNames());
 			}
-			NewHLODActorSetInstance.ContentBundleID = MainActorSetContainer->ActorDescContainer->GetContentBundleGuid();
+			NewHLODActorSetInstance.ContentBundleID = MainContainerCollection->GetContentBundleGuid();
 			NewHLODActorSetInstance.ContainerInstance = MainActorSetContainer;
 			NewHLODActorSetInstance.ActorSet = MainActorSetContainer->ActorSets.Add_GetRef(MakeUnique<IStreamingGenerationContext::FActorSet>()).Get();
 			const_cast<IStreamingGenerationContext::FActorSet*>(NewHLODActorSetInstance.ActorSet)->Actors.Add(HLODActorDescView.GetGuid());
@@ -584,7 +584,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	}
 
 	// Create/destroy HLOD grid actors
-	UpdateHLODGridsActors(GetWorld(), ActorDescContainer, HLODGrids, SourceControlHelper);
+	UpdateHLODGridsActors(GetWorld(), MainContainerCollection->GetMainActorDescContainer(), HLODGrids, SourceControlHelper);
 
 	return true;
 }

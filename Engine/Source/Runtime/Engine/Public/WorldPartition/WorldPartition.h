@@ -17,6 +17,7 @@
 #include "WorldPartition/Cook/WorldPartitionCookPackageGenerator.h"
 
 #if WITH_EDITOR
+#include "WorldPartition/WorldPartitionStreamingGeneration.h"
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 #include "WorldPartition/WorldPartitionEditorLoaderAdapter.h"
 #include "PackageSourceControlHelper.h"
@@ -187,10 +188,14 @@ public:
 		FGenerateStreamingParams()
 		{}
 
-		const UActorDescContainer* ActorDescContainer = nullptr;
+		FStreamingGenerationActorDescCollection ActorDescCollection;
 		TOptional<const FString> OutputLogPath;
 
-		FGenerateStreamingParams& SetActorDescContainer(const UActorDescContainer* InActorDescContainer) { ActorDescContainer = InActorDescContainer; return *this; }
+		FGenerateStreamingParams& SetActorDescContainer(const UActorDescContainer* InActorDescContainer) 
+		{ 
+			ActorDescCollection.AddContainer(InActorDescContainer);
+			return *this;
+		}
 		FGenerateStreamingParams& SetOutputLogPath(const FString& InOutputLogPath) { OutputLogPath = InOutputLogPath; return *this; }
 	};
 

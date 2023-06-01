@@ -70,13 +70,13 @@ class ENGINE_API FWorldPartitionActorDesc
 {
 	friend class AActor;
 	friend class UWorldPartition;
-	friend class FActorDescContainerCollection;
 	friend struct FWorldPartitionHandleImpl;
 	friend struct FWorldPartitionReferenceImpl;
 	friend struct FWorldPartitionActorDescUtils;
 	friend struct FWorldPartitionActorDescUnitTestAcccessor;
 	friend class FAssetRootPackagePatcher;
 	friend class FActorDescArchive;
+	template<class U> friend class TActorDescContainerCollection;
 
 public:
 	struct FContainerInstance
