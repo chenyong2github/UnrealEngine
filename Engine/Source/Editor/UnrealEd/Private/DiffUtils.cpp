@@ -66,23 +66,65 @@ namespace UEDiffUtils_Private
 	}
 }
 
+FPropertySoftPath::FPropertySoftPath()
+	: RootTypeHint(nullptr)
+{
+}
+
+FPropertySoftPath::FPropertySoftPath(TArray<FName> InPropertyChain)
+	: RootTypeHint(nullptr)
+{
+	for (FName PropertyName : InPropertyChain)
+	{
+		PropertyChain.Push(FChainElement(PropertyName));
+	}
+}
+
+FPropertySoftPath::FPropertySoftPath(FPropertyPath InPropertyPath)
+	: RootTypeHint(nullptr)
+{
+	for (int32 PropertyIndex = 0, end = InPropertyPath.GetNumProperties(); PropertyIndex != end; ++PropertyIndex)
+	{
+		const FPropertyInfo& Info = InPropertyPath.GetPropertyInfo(PropertyIndex);
+		if (Info.ArrayIndex != INDEX_NONE)
+		{
+			PropertyChain.Push(FName(*FString::FromInt(Info.ArrayIndex)));
+		}
+		else
+		{
+			PropertyChain.Push(FChainElement(Info.Property.Get()));
+		}
+	}
+
+	if (InPropertyPath.GetNumProperties() > 0)
+	{
+		const FProperty* RootProperty = InPropertyPath.GetPropertyInfo(0).Property.Get();
+		if(RootProperty)
+		{
+			RootTypeHint = RootProperty->GetOwnerStruct();
+		}
+	}
+}
+
+FPropertySoftPath::FPropertySoftPath(const FPropertySoftPath& SubPropertyPath, const FProperty* LeafProperty)
+	: PropertyChain(SubPropertyPath.PropertyChain)
+	, RootTypeHint(SubPropertyPath.RootTypeHint)
+{
+	PropertyChain.Push(FChainElement(LeafProperty));
+}
+
+FPropertySoftPath::FPropertySoftPath(const FPropertySoftPath& SubPropertyPath, int32 ContainerIndex)
+	: PropertyChain(SubPropertyPath.PropertyChain)
+	, RootTypeHint(SubPropertyPath.RootTypeHint)
+{
+	PropertyChain.Push(FName(*FString::FromInt(ContainerIndex)));
+}
+
 FResolvedProperty FPropertySoftPath::Resolve(const UObject* Object) const
 {
 	FResolvedProperty ResolvedProperty = Resolve(Object->GetClass(), Object);
-	if (!ResolvedProperty.Property && Object->HasAnyFlags(RF_ClassDefaultObject))
-	{
-		if (const UScriptStruct* SparseClassDataStruct = Object->GetClass()->GetSparseClassDataStruct())
-		{
-			if (const void* SparseClassData = Object->GetClass()->GetSparseClassData(EGetSparseClassDataMethod::ReturnIfNull))
-			{
-				ResolvedProperty = Resolve(SparseClassDataStruct, SparseClassData);
-			}
-		}
-	}
 	return ResolvedProperty;
 }
-
-
 
 int32 FPropertySoftPath::TryReadIndex(const TArray<FChainElement>& LocalPropertyChain, int32& OutIndex)
 {
@@ -100,6 +142,21 @@ int32 FPropertySoftPath::TryReadIndex(const TArray<FChainElement>& LocalProperty
 
 FResolvedProperty FPropertySoftPath::Resolve(const UStruct* Struct, const void* StructData) const
 {
+	if (RootTypeHint && RootTypeHint != Struct)
+	{
+		if (const UClass* AsClass = Cast<UClass>(Struct))
+		{
+			const UScriptStruct* SparseClassDataStruct = AsClass->GetSparseClassDataStruct();
+			if (SparseClassDataStruct && SparseClassDataStruct->IsChildOf(RootTypeHint))
+			{
+				if (const void* SparseClassData = const_cast<UClass*>(AsClass)->GetSparseClassData(EGetSparseClassDataMethod::ReturnIfNull))
+				{
+					return Resolve(RootTypeHint, SparseClassData);
+				}
+			}
+		}
+	}
+
 	// dig into the object, finding nested objects, etc:
 	const void* CurrentBlock = StructData;
 	const UStruct* NextClass = Struct;

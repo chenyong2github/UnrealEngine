@@ -62,45 +62,11 @@ struct FResolvedProperty
  */
 struct FPropertySoftPath
 {
-	FPropertySoftPath()
-	{
-	}
-
-	FPropertySoftPath(TArray<FName> InPropertyChain)
-	{
-		for (FName PropertyName : InPropertyChain)
-		{
-			PropertyChain.Push(FChainElement(PropertyName));
-		}
-	}
-
-	FPropertySoftPath( FPropertyPath InPropertyPath )
-	{
-		for (int32 PropertyIndex = 0, end = InPropertyPath.GetNumProperties(); PropertyIndex != end; ++PropertyIndex)
-		{
-			const FPropertyInfo& Info = InPropertyPath.GetPropertyInfo(PropertyIndex);
-			if (Info.ArrayIndex != INDEX_NONE)
-			{
-				PropertyChain.Push(FName(*FString::FromInt(Info.ArrayIndex)));
-			}
-			else
-			{
-				PropertyChain.Push(FChainElement(Info.Property.Get()));
-			}
-		}
-	}
-
-	FPropertySoftPath(const FPropertySoftPath& SubPropertyPath, const FProperty* LeafProperty)
-		: PropertyChain(SubPropertyPath.PropertyChain)
-	{
-		PropertyChain.Push(FChainElement(LeafProperty));
-	}
-
-	FPropertySoftPath(const FPropertySoftPath& SubPropertyPath, int32 ContainerIndex)
-		: PropertyChain(SubPropertyPath.PropertyChain)
-	{
-		PropertyChain.Push(FName(*FString::FromInt(ContainerIndex)));
-	}
+	UNREALED_API FPropertySoftPath();
+	UNREALED_API FPropertySoftPath(TArray<FName> InPropertyChain);
+	UNREALED_API FPropertySoftPath(FPropertyPath InPropertyPath);
+	UNREALED_API FPropertySoftPath(const FPropertySoftPath& SubPropertyPath, const FProperty* LeafProperty);
+	UNREALED_API FPropertySoftPath(const FPropertySoftPath& SubPropertyPath, int32 ContainerIndex);
 
 	UNREALED_API FResolvedProperty Resolve(const UObject* Object) const;
 	UNREALED_API FResolvedProperty Resolve(const UStruct* Struct, const void* StructData) const;
@@ -176,6 +142,7 @@ private:
 
 	friend uint32 GetTypeHash( FPropertySoftPath const& Path );
 	TArray<FChainElement> PropertyChain;
+	const UStruct* RootTypeHint;
 };
 
 struct FSCSIdentifier
