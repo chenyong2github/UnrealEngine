@@ -1013,6 +1013,58 @@ namespace UnrealBuildTool
 			}
 		}
 
+		/// <summary>
+		/// Gathers all the module dependencies a PCH would have
+		/// </summary>
+		public HashSet<UEBuildModule> GetAllDependencyModulesForPCH()
+		{
+			HashSet<UEBuildModule> ReferencedModules = new HashSet<UEBuildModule>();
+			InternalGetAllDependencyModulesForPCH(ReferencedModules, new HashSet<UEBuildModule>(), true);
+			return ReferencedModules;
+		}
+
+		/// <summary>
+		/// Internal function that gathers all the module dependencies a PCH would have
+		/// </summary>
+		/// <param name="ReferencedModules">Hash of all referenced modules with their addition index.</param>
+		/// <param name="IgnoreReferencedModules">Hashset used to ignore modules which are already added to the list</param>
+		/// <param name="bIncludePrivateDependencyModules">Whether to include private dependencies.</param>
+		private void InternalGetAllDependencyModulesForPCH(HashSet<UEBuildModule> ReferencedModules, HashSet<UEBuildModule> IgnoreReferencedModules, bool bIncludePrivateDependencyModules)
+		{
+			List<UEBuildModule> AllDependencyModules = new List<UEBuildModule>(
+				((bIncludePrivateDependencyModules && PrivateDependencyModules != null) ? PrivateDependencyModules.Count : 0) +
+				(PublicDependencyModules != null ? PublicDependencyModules.Count : 0) +
+				(PublicIncludePathModules != null ? PublicIncludePathModules!.Count : 0)
+				);
+			if (bIncludePrivateDependencyModules && PrivateDependencyModules != null)
+			{
+				AllDependencyModules.AddRange(PrivateDependencyModules);
+			}
+			if (PublicDependencyModules != null)
+			{
+				AllDependencyModules.AddRange(PublicDependencyModules!);
+			}
+			if (PublicIncludePathModules != null)
+			{
+				AllDependencyModules.AddRange(PublicIncludePathModules);
+			}
+
+			foreach (UEBuildModule DependencyModule in AllDependencyModules)
+			{
+				// Don't follow circular back-references!
+				if (!HasCircularDependencyOn(DependencyModule.Name))
+				{
+					if (IgnoreReferencedModules.Add(DependencyModule))
+					{
+						// Recurse into dependent modules first
+						DependencyModule.InternalGetAllDependencyModulesForPCH(ReferencedModules, IgnoreReferencedModules, false);
+
+						ReferencedModules.Add(DependencyModule);
+					}
+				}
+			}
+		}
+
 		public delegate UEBuildModule CreateModuleDelegate(string Name, string ReferenceChain);
 
 		/// <summary>

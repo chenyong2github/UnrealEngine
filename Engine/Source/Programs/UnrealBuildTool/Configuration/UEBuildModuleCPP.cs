@@ -449,7 +449,7 @@ namespace UnrealBuildTool
 			}
 
 			// Configure the precompiled headers for this module
-			CompileEnvironment = SetupPrecompiledHeaders(Target, ToolChain, CompileEnvironment, LinkInputFiles, Graph);
+			CompileEnvironment = SetupPrecompiledHeaders(Target, ToolChain, CompileEnvironment, LinkInputFiles, Graph, Logger);
 			if (CompileEnvironment.PerArchPrecompiledHeaderFiles != null)
 			{
 				foreach (UnrealArch Arch in CompileEnvironment.PerArchPrecompiledHeaderFiles.Keys)
@@ -841,7 +841,7 @@ namespace UnrealBuildTool
 				PrecompiledHeaderDir = IntermediateDirectory;
 			}
 
-			return new PrecompiledHeaderTemplate(this, CompileEnvironment, HeaderFile, PrecompiledHeaderDir);
+			return new PrecompiledHeaderTemplate(this, CompileEnvironment, HeaderFile, PrecompiledHeaderDir, GetAllDependencyModulesForPCH());
 		}
 
 		static HashSet<string> GetImmutableDefinitions(List<string> Definitions)
@@ -1404,7 +1404,8 @@ namespace UnrealBuildTool
 		/// <param name="CompileEnvironment">The current compile environment</param>
 		/// <param name="LinkInputFiles">List of files that will be linked for the target</param>
 		/// <param name="Graph">List of build actions</param>
-		CppCompileEnvironment SetupPrecompiledHeaders(ReadOnlyTargetRules Target, UEToolChain? ToolChain, CppCompileEnvironment CompileEnvironment, List<FileItem> LinkInputFiles, IActionGraphBuilder Graph)
+		/// <param name="Logger">Logger for output</param>
+		CppCompileEnvironment SetupPrecompiledHeaders(ReadOnlyTargetRules Target, UEToolChain? ToolChain, CppCompileEnvironment CompileEnvironment, List<FileItem> LinkInputFiles, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			if (Target.bUsePCHFiles && Rules.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs)
 			{
@@ -1425,13 +1426,35 @@ namespace UnrealBuildTool
 				// Try to find a suitable shared PCH for this module
 				if (CompileEnvironment.bHasPrecompiledHeader == false && CompileEnvironment.SharedPCHs.Count > 0 && !CompileEnvironment.bIsBuildingLibrary && Rules.PCHUsage != ModuleRules.PCHUsageMode.NoSharedPCHs)
 				{
-					// Find all the dependencies of this module
-					HashSet<UEBuildModule> ReferencedModules = new HashSet<UEBuildModule>();
-					GetAllDependencyModules(new List<UEBuildModule>(), ReferencedModules, bIncludeDynamicallyLoaded: false, bForceCircular: false, bOnlyDirectDependencies: true);
+					// Find only the direct dependencies of this module
+					// Note that this is the old shared chooser logic that needs to be removed in the future
+					HashSet<UEBuildModule> OnlyDirectDependencies = new HashSet<UEBuildModule>();
+					GetAllDependencyModules(new List<UEBuildModule>(), OnlyDirectDependencies, bIncludeDynamicallyLoaded: false, bForceCircular: false, bOnlyDirectDependencies: true);
+					PrecompiledHeaderTemplate? OldTemplateValue = CompileEnvironment.SharedPCHs.FirstOrDefault(x => OnlyDirectDependencies.Contains(x.Module) && x.IsValidFor(CompileEnvironment));
 
-					// Find the first shared PCH module we can use
-					PrecompiledHeaderTemplate? Template = CompileEnvironment.SharedPCHs.FirstOrDefault(x => ReferencedModules.Contains(x.Module));
-					if (Template != null && Template.IsValidFor(CompileEnvironment))
+					// Find the first shared PCH module we can use that doesn't reference this module
+					HashSet<UEBuildModule> AllDependencies = GetAllDependencyModulesForPCH();
+					PrecompiledHeaderTemplate? Template = CompileEnvironment.SharedPCHs.FirstOrDefault(x => !x.ModuleDependencies.Contains(this) && AllDependencies.Contains(x.Module) && x.IsValidFor(CompileEnvironment));
+
+					if (Template != OldTemplateValue)
+					{
+						if (OldTemplateValue != null && Template != null)
+						{
+							/*
+							If GetAllDependencyModules returns a better shared pch than GetAllDependencyModulesForPCH then use that pch instead. This can happen if a circular dependency was 
+							found in the GetAllDependencyModulesForPCH code path. We shouldn't need to do this but there are too many circular dependencies not being detected by UBT ATM. We 
+							should be able to remove this when the circular dependencies have been addressed in the engine.
+							*/
+							var NewIndex = CompileEnvironment.SharedPCHs.IndexOf(Template);
+							var OldIndex = CompileEnvironment.SharedPCHs.IndexOf(OldTemplateValue);
+							if (NewIndex > OldIndex)
+							{
+								Template = OldTemplateValue;
+							}
+						}
+					}
+
+					if (Template != null)
 					{
 						PrecompiledHeaderInstance Instance = FindOrCreateSharedPCH(ToolChain, Template, CompileEnvironment, Graph);
 
@@ -1697,7 +1720,7 @@ namespace UnrealBuildTool
 		public CppCompileEnvironment CreateCompileEnvironmentForIntellisense(ReadOnlyTargetRules Target, CppCompileEnvironment BaseCompileEnvironment, ILogger Logger)
 		{
 			CppCompileEnvironment CompileEnvironment = CreateModuleCompileEnvironment(Target, BaseCompileEnvironment, Logger);
-			CompileEnvironment = SetupPrecompiledHeaders(Target, null, CompileEnvironment, new List<FileItem>(), new NullActionGraphBuilder(Logger));
+			CompileEnvironment = SetupPrecompiledHeaders(Target, null, CompileEnvironment, new List<FileItem>(), new NullActionGraphBuilder(Logger), Logger);
 			CreateHeaderForDefinitions(CompileEnvironment, IntermediateDirectory, null, new NullActionGraphBuilder(Logger));
 			return CompileEnvironment;
 		}

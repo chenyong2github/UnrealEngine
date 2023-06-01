@@ -37,18 +37,25 @@ namespace UnrealBuildTool
 		public List<PrecompiledHeaderInstance> Instances = new List<PrecompiledHeaderInstance>();
 
 		/// <summary>
+		/// All the module dependencies this template has
+		/// </summary>
+		public HashSet<UEBuildModule> ModuleDependencies = new HashSet<UEBuildModule>();
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Module">The module with a valid shared PCH</param>
 		/// <param name="BaseCompileEnvironment">The compile environment to use</param>
 		/// <param name="HeaderFile">The header file to generate a PCH from</param>
 		/// <param name="OutputDir">Output directory for instances of this PCH</param>
-		public PrecompiledHeaderTemplate(UEBuildModuleCPP Module, CppCompileEnvironment BaseCompileEnvironment, FileItem HeaderFile, DirectoryReference OutputDir)
+		/// <param name="ModuleDependencies">All the module dependencies this template has</param>
+		public PrecompiledHeaderTemplate(UEBuildModuleCPP Module, CppCompileEnvironment BaseCompileEnvironment, FileItem HeaderFile, DirectoryReference OutputDir, HashSet<UEBuildModule> ModuleDependencies)
 		{
 			this.Module = Module;
 			this.BaseCompileEnvironment = BaseCompileEnvironment;
 			this.HeaderFile = HeaderFile;
 			this.OutputDir = OutputDir;
+			this.ModuleDependencies = ModuleDependencies;
 		}
 
 		/// <summary>
