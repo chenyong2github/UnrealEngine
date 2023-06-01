@@ -12,7 +12,6 @@
 class UAnimSequenceBase;
 class UNiagaraSystem;
 class USkeletalMeshComponent;
-class UNiagaraSystemComponent;
 class UNiagaraSystem;
 class UFXSystemComponent;
 
