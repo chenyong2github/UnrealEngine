@@ -21,6 +21,7 @@
 #include "UObject/ICookInfo.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Interfaces/ITargetPlatform.h"
 
 class UTexture2D;
 
