@@ -1120,23 +1120,25 @@ void UAppleARKitCameraVideoTexture::UpdateFrame(const FAppleARKitFrame& InFrame)
 #if SUPPORTS_ARKIT_1_0
 	if (InFrame.CapturedYImage && InFrame.CapturedCbCrImage)
 	{
-		if (auto VideoResource = static_cast<FARKitCameraVideoResource*>(GetResource()))
+		CVMetalTextureRef CapturedYImageCopy = InFrame.CapturedYImage;
+		CVMetalTextureRef CapturedCbCrImageCopy = InFrame.CapturedCbCrImage;
+		CFRetain(CapturedYImageCopy);
+		CFRetain(CapturedCbCrImageCopy);
+		const FIntPoint CapturedYImageSize = InFrame.CapturedYImageSize;
+		const FIntPoint CapturedCbCrImageSize = InFrame.CapturedCbCrImageSize;
+		const EDeviceScreenOrientation DeviceOrientation = FPlatformMisc::GetDeviceOrientation();
+
+		Size = CapturedYImageSize;
+
+		ENQUEUE_RENDER_COMMAND(UpdateVideoTexture)(
+			[this, CapturedYImageCopy, CapturedCbCrImageCopy, CapturedYImageSize, CapturedCbCrImageSize, DeviceOrientation](FRHICommandListImmediate& RHICmdList)
 		{
-			auto CapturedYImageCopy = InFrame.CapturedYImage;
-			auto CapturedCbCrImageCopy = InFrame.CapturedCbCrImage;
-			CFRetain(CapturedYImageCopy);
-			CFRetain(CapturedCbCrImageCopy);
-			const auto CapturedYImageSize = InFrame.CapturedYImageSize;
-			const auto CapturedCbCrImageSize = InFrame.CapturedCbCrImageSize;
-			const auto DeviceOrientation = FPlatformMisc::GetDeviceOrientation();
-			ENQUEUE_RENDER_COMMAND(UpdateVideoTexture)(
-				[VideoResource, CapturedYImageCopy, CapturedCbCrImageCopy, CapturedYImageSize, CapturedCbCrImageSize, DeviceOrientation](FRHICommandListImmediate& RHICmdList)
-			{
+			FARKitCameraVideoResource* VideoResource = static_cast<FARKitCameraVideoResource*>(GetResource());
+			if (VideoResource != nullptr)
+			{	
 				VideoResource->UpdateVideoTexture(RHICmdList, CapturedYImageCopy, CapturedYImageSize, CapturedCbCrImageCopy, CapturedCbCrImageSize, DeviceOrientation);
-			});
-			
-			Size = CapturedYImageSize;
-		}
+			}
+		});
 	}
 #endif
 }
