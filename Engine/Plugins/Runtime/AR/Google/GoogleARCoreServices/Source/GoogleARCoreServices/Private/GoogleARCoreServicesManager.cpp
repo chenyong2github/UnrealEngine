@@ -53,7 +53,7 @@ bool FGoogleARCoreServicesManager::ConfigGoogleARCoreServices(FGoogleARCoreServi
 	return bConfigSucceed;
 }
 
-UCloudARPin* FGoogleARCoreServicesManager::CreateAndHostCloudARPin(UARPin* ARPinToHost, EARPinCloudTaskResult& OutTaskResult)
+UCloudARPin* FGoogleARCoreServicesManager::CreateAndHostCloudARPin(UARPin* ARPinToHost, int32 LifetimeInDays, EARPinCloudTaskResult& OutTaskResult)
 {
 	OutTaskResult = CheckCloudTaskError();
 	if (OutTaskResult != EARPinCloudTaskResult::Success)
@@ -61,7 +61,7 @@ UCloudARPin* FGoogleARCoreServicesManager::CreateAndHostCloudARPin(UARPin* ARPin
 		return nullptr;
 	}
 
-	UCloudARPin* NewCloudARPin = CloudARPinManager->CreateAndHostCloudARPin(ARPinToHost, OutTaskResult);
+	UCloudARPin* NewCloudARPin = CloudARPinManager->CreateAndHostCloudARPin(ARPinToHost, LifetimeInDays, OutTaskResult);
 
 	return NewCloudARPin;
 }

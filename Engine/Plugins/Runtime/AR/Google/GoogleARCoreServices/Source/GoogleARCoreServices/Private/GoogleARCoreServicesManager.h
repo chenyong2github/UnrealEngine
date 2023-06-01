@@ -19,7 +19,7 @@ public:
 
 	bool ConfigGoogleARCoreServices(FGoogleARCoreServicesConfig& ServiceConfig);
 
-	UCloudARPin* CreateAndHostCloudARPin(UARPin* ARPinToHost, EARPinCloudTaskResult& OutTaskResult);
+	UCloudARPin* CreateAndHostCloudARPin(UARPin* ARPinToHost, int32 InLifetimeInDays, EARPinCloudTaskResult& OutTaskResult);
 
 	UCloudARPin* ResolveAncCreateCloudARPin(FString CloudId, EARPinCloudTaskResult& OutTaskResult);
 

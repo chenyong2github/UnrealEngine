@@ -19,18 +19,20 @@ public:
 	FWeakObjectPtr CallbackTarget;
 	bool bHostStarted;
 	UCloudARPin* NewCloudARPin;
+	int32 LifetimeInDays;
 
 	UARPin* PinToHost;
 	EARPinCloudTaskResult& OutHostingResult;
 	UCloudARPin*& OutCloudARPin;
 
-	FARCoreServicesHostARPinAction(const FLatentActionInfo& InLatentInfo, UARPin* InPinToHost, EARPinCloudTaskResult& InHostingResult, UCloudARPin*& InCloudARPin)
+	FARCoreServicesHostARPinAction(const FLatentActionInfo& InLatentInfo, UARPin* InPinToHost, int32 InLifetimeInDays, EARPinCloudTaskResult& InHostingResult, UCloudARPin*& InCloudARPin)
 		: FPendingLatentAction()
 		, ExecutionFunction(InLatentInfo.ExecutionFunction)
 		, OutputLink(InLatentInfo.Linkage)
 		, CallbackTarget(InLatentInfo.CallbackTarget)
 		, bHostStarted(false)
 		, NewCloudARPin(nullptr)
+		, LifetimeInDays(InLifetimeInDays)
 		, PinToHost(InPinToHost)
 		, OutHostingResult(InHostingResult)
 		, OutCloudARPin(InCloudARPin)
@@ -42,7 +44,7 @@ public:
 		if (!bHostStarted)
 		{
 			UE_LOG(LogGoogleARCoreServices, Verbose, TEXT("Creating and Hosting CloudARPin."));
-			NewCloudARPin = FGoogleARCoreServicesModule::GetARCoreServicesManager()->CreateAndHostCloudARPin(PinToHost, OutHostingResult);
+			NewCloudARPin = FGoogleARCoreServicesModule::GetARCoreServicesManager()->CreateAndHostCloudARPin(PinToHost, LifetimeInDays, OutHostingResult);
 			if (OutHostingResult != EARPinCloudTaskResult::Started)
 			{
 				// No task is scheduled. Return the task result.
@@ -80,7 +82,7 @@ public:
 #endif
 };
 
-void UGoogleARCoreServicesFunctionLibrary::CreateAndHostCloudARPinLatentAction(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPinToHost, EARPinCloudTaskResult& OutHostingResult, UCloudARPin*& OutCloudARPin)
+void UGoogleARCoreServicesFunctionLibrary::CreateAndHostCloudARPinLatentAction(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPinToHost, int32 LifetimeInDays, EARPinCloudTaskResult& OutHostingResult, UCloudARPin*& OutCloudARPin)
 {
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
@@ -91,7 +93,7 @@ void UGoogleARCoreServicesFunctionLibrary::CreateAndHostCloudARPinLatentAction(U
 			LatentManager.FindExistingAction<FARCoreServicesHostARPinAction>(LatentInfo.CallbackTarget, LatentInfo.UUID));
 		if (ExistAction == nullptr || ExistAction->PinToHost != ARPinToHost)
 		{
-			FARCoreServicesHostARPinAction* NewAction = new FARCoreServicesHostARPinAction(LatentInfo, ARPinToHost, OutHostingResult, OutCloudARPin);
+			FARCoreServicesHostARPinAction* NewAction = new FARCoreServicesHostARPinAction(LatentInfo, ARPinToHost, LifetimeInDays, OutHostingResult, OutCloudARPin);
 			LatentManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, NewAction);
 		}
 		else
@@ -183,9 +185,9 @@ void UGoogleARCoreServicesFunctionLibrary::CreateAndResolveCloudARPinLatentActio
 	}
 }
 
-UCloudARPin* UGoogleARCoreServicesFunctionLibrary::CreateAndHostCloudARPin(UARPin* ARPinToHost, EARPinCloudTaskResult& OutTaskResult)
+UCloudARPin* UGoogleARCoreServicesFunctionLibrary::CreateAndHostCloudARPin(UARPin* ARPinToHost, int32 LifetimeInDays, EARPinCloudTaskResult& OutTaskResult)
 {
-	return FGoogleARCoreServicesModule::GetARCoreServicesManager()->CreateAndHostCloudARPin(ARPinToHost, OutTaskResult);
+	return FGoogleARCoreServicesModule::GetARCoreServicesManager()->CreateAndHostCloudARPin(ARPinToHost, LifetimeInDays, OutTaskResult);
 }
 
 UCloudARPin* UGoogleARCoreServicesFunctionLibrary::CreateAndResolveCloudARPin(FString CloudId, EARPinCloudTaskResult& OutTaskResult)

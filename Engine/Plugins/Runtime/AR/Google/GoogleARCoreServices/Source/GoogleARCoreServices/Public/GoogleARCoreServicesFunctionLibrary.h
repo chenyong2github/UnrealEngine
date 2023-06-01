@@ -40,11 +40,12 @@ public:
 	 * to see why the hosting failed.
 	 *
 	 * @param ARPinToHost       The ARPin to host.
+	 * @param LifetimeInDays	The lifetime of the cloud anchor in days.
 	 * @param OutHostingResult  The ARPin hosting result.
 	 * @param OutCloudARPin     A new instance of UCloudARPin created using the input ARPinToHost.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "GoogleARCoreServices|CloudARPin", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "googlear ar service host cloud"))
-	static void CreateAndHostCloudARPinLatentAction(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPinToHost, EARPinCloudTaskResult& OutHostingResult, UCloudARPin*& OutCloudARPin);
+	UFUNCTION(BlueprintCallable, Category = "GoogleARCoreServices|CloudARPin", meta = (Latent, LatentInfo = "LatentInfo", LifetimeInDays = 1, WorldContext = "WorldContextObject", Keywords = "googlear ar service host cloud"))
+	static void CreateAndHostCloudARPinLatentAction(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UARPin* ARPinToHost, int32 LifetimeInDays, EARPinCloudTaskResult& OutHostingResult, UCloudARPin*& OutCloudARPin);
 
 	/**
 	 * This will start a Latent Action to create UCloudARPin using the given CloudId. The complete flow
@@ -67,8 +68,8 @@ public:
 	 * Note that this function only start the hosting process. Call GetARPinCloudState to check 
 	 * if the hosting is finished or failed with error.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "GoogleARCoreServices|CloudARPin", meta = (Keywords = "googlear ar service remove "))
-	static UCloudARPin* CreateAndHostCloudARPin(UARPin* ARPinToHost, EARPinCloudTaskResult& OutTaskResult);
+	UFUNCTION(BlueprintCallable, Category = "GoogleARCoreServices|CloudARPin", meta = (LifetimeInDays = 1, Keywords = "googlear ar service remove "))
+	static UCloudARPin* CreateAndHostCloudARPin(UARPin* ARPinToHost, int32 LifetimeInDays, EARPinCloudTaskResult& OutTaskResult);
 
 	/**
 	 * Creating and Resolving a CloudARPin and return it immediately.

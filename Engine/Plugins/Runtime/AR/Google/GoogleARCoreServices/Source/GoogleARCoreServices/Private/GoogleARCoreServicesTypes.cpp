@@ -1,13 +1,68 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GoogleARCoreServicesTypes.h"
+#include "GoogleARCoreUtils.h"
+
+GoogleARFutureHolderPtr FGoogleARFutureHolder::MakeHostFuture()
+{
+	return MakeShared<FGoogleARFutureHolder>(ECloudAnchorFutureType::Host);
+}
+GoogleARFutureHolderPtr FGoogleARFutureHolder::MakeResolveFuture()
+{
+	return MakeShared<FGoogleARFutureHolder>(ECloudAnchorFutureType::Resolve);
+}
+
+FGoogleARFutureHolder::FGoogleARFutureHolder(ECloudAnchorFutureType InFutureType)
+	: FutureType(InFutureType)
+	, Future(nullptr)
+{
+}
+
+FGoogleARFutureHolder::~FGoogleARFutureHolder()
+{
+#if ARCORE_SERVICE_SUPPORTED_PLATFORM
+	if (Future != nullptr)
+	{
+		ArFuture_release(Future);
+		Future = nullptr;
+	}
+#endif
+}
+
+ArHostCloudAnchorFuture** FGoogleARFutureHolder::GetHostFuturePtr()
+{
+	check(FutureType == ECloudAnchorFutureType::Host);
+	return &HostFuture;
+}
+ArResolveCloudAnchorFuture** FGoogleARFutureHolder::GetResolveFuturePtr()
+{
+	check(FutureType == ECloudAnchorFutureType::Resolve);
+	return &ResolveFuture;
+}
+
+ECloudAnchorFutureType FGoogleARFutureHolder::GetFutureType() const
+{
+	return FutureType;
+}
+
+ArFuture* const FGoogleARFutureHolder::AsFuture() const
+{
+	return Future;
+}
+ArHostCloudAnchorFuture* const FGoogleARFutureHolder::AsHostFuture() const
+{
+	return FutureType == ECloudAnchorFutureType::Host ? HostFuture : nullptr;
+}
+ArResolveCloudAnchorFuture* const FGoogleARFutureHolder::AsResolveFuture() const
+{
+	return FutureType == ECloudAnchorFutureType::Resolve ? ResolveFuture : nullptr;
+}
 
 UCloudARPin::UCloudARPin()
 	: UARPin()
+	, CloudState(ECloudARPinCloudState::NotHosted)
 {
-	CloudState = ECloudARPinCloudState::NotHosted;
 	CloudID = FString("");
-	NativeResource = nullptr;
 }
 
 FString UCloudARPin::GetCloudID()
@@ -20,8 +75,33 @@ ECloudARPinCloudState UCloudARPin::GetARPinCloudState()
 	return CloudState;
 }
 
-void UCloudARPin::UpdateCloudState(ECloudARPinCloudState NewCloudState, FString NewCloudID)
+void UCloudARPin::SetFuture(GoogleARFutureHolderPtr InFuture)
+{
+	Future = InFuture;
+}
+
+GoogleARFutureHolderPtr UCloudARPin::GetFuture() const
+{
+	return Future;
+}
+
+void UCloudARPin::UpdateCloudState(ECloudARPinCloudState NewCloudState)
 {
 	CloudState = NewCloudState;
+}
+
+void UCloudARPin::SetCloudID(FString NewCloudID)
+{
 	CloudID = NewCloudID;
 }
+
+bool UCloudARPin::IsPending() const
+{
+	return Future.IsValid();
+}
+
+void UCloudARPin::ReleaseFuture()
+{
+	Future = nullptr;
+}
+

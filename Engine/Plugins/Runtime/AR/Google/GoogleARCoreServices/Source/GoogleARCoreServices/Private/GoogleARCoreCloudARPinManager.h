@@ -20,7 +20,7 @@ public:
 	virtual bool SetCloudARPinMode(EARPinCloudMode NewMode) = 0;
 
 	// Start a background task to host a CloudARPin.
-	virtual UCloudARPin* CreateAndHostCloudARPin(UARPin* PinToHost, EARPinCloudTaskResult& OutTaskResult);
+	virtual UCloudARPin* CreateAndHostCloudARPin(UARPin* PinToHost, int32 LifetimeInDays, EARPinCloudTaskResult& OutTaskResult);
 
 	// Start a background task to create a new CloudARPin and resolve it from the CloudID.
 	virtual UCloudARPin* ResolveAndCreateCloudARPin(FString CloudID, EARPinCloudTaskResult& OutTaskResult);
@@ -74,8 +74,11 @@ protected:
 	// protected properties:
 	TSharedRef<FARSupportInterface, ESPMode::ThreadSafe> ARSystem;
 	TArray<TObjectPtr<UCloudARPin>> AllCloudARPins;
-	
+	TArray<TObjectPtr<UCloudARPin>> PendingCloudARPins; // CloudARPins that have an async action pending.
+
 #if	ARCORE_SERVICE_SUPPORTED_PLATFORM
+	virtual void UpdateCloudARPin(UCloudARPin* CloudARPin, ArSession* SessionHandle);
+
 	virtual ArSession* GetSessionHandle() = 0;
 
 	virtual ArFrame* GetARFrameHandle() = 0;

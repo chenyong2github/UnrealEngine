@@ -26,16 +26,17 @@ namespace {
 		case AR_ERROR_NOT_TRACKING:
 			return EARPinCloudTaskResult::NotTracking;
 		case AR_ERROR_ANCHOR_NOT_SUPPORTED_FOR_HOSTING:
-				return EARPinCloudTaskResult::InvalidPin;
+			return EARPinCloudTaskResult::InvalidPin;
 #if PLATFORM_ANDROID
 		case AR_ERROR_SESSION_PAUSED:
 			return EARPinCloudTaskResult::SessionPaused;
 		case AR_ERROR_CLOUD_ANCHORS_NOT_CONFIGURED:
 			return EARPinCloudTaskResult::CloudARPinNotEnabled;
 		case AR_ERROR_RESOURCE_EXHAUSTED:
-			return EARPinCloudTaskResult::Failed;
+			return EARPinCloudTaskResult::ResourceExhausted;
 #endif
 		default:
+			UE_LOG(LogGoogleARCoreServices, Warning, TEXT("ToCloudTaskResult defaulting to EARPinCloudTaskResult::Failed for ArStatus %d"), Status);
 			ensureAlwaysMsgf(false, TEXT("Unknown conversion from ArStatus %d to EARPinCloudTaskResult"), Status);
 			return EARPinCloudTaskResult::Failed;
 		}
@@ -45,18 +46,16 @@ namespace {
 	{
 		switch (State)
 		{
+		// Note: ECloudARPinCloudState::InProgress and ECloudARPinCloudState::Cancelled result from an ArFutureState, not 
+		// an ArCloudAnchorState, so this function does not ever return those values.
 		case AR_CLOUD_ANCHOR_STATE_NONE:
 			return ECloudARPinCloudState::NotHosted;
-		case AR_CLOUD_ANCHOR_STATE_TASK_IN_PROGRESS:
-			return ECloudARPinCloudState::InProgress;
 		case AR_CLOUD_ANCHOR_STATE_SUCCESS:
 			return ECloudARPinCloudState::Success;
 		case AR_CLOUD_ANCHOR_STATE_ERROR_INTERNAL:
 			return ECloudARPinCloudState::ErrorInternalError;
 		case AR_CLOUD_ANCHOR_STATE_ERROR_NOT_AUTHORIZED:
 			return ECloudARPinCloudState::ErrorNotAuthorized;
-		case AR_CLOUD_ANCHOR_STATE_ERROR_HOSTING_SERVICE_UNAVAILABLE:
-			return ECloudARPinCloudState::ErrorServiceUnavailable;
 		case AR_CLOUD_ANCHOR_STATE_ERROR_RESOURCE_EXHAUSTED:
 			return ECloudARPinCloudState::ErrorResourceExhausted;
 		case AR_CLOUD_ANCHOR_STATE_ERROR_HOSTING_DATASET_PROCESSING_FAILED:
@@ -67,24 +66,43 @@ namespace {
 			return ECloudARPinCloudState::ErrorSDKVersionTooOld;
 		case AR_CLOUD_ANCHOR_STATE_ERROR_RESOLVING_SDK_VERSION_TOO_NEW:
 			return ECloudARPinCloudState::ErrorSDKVersionTooNew;
+		case AR_CLOUD_ANCHOR_STATE_ERROR_HOSTING_SERVICE_UNAVAILABLE:
+			return ECloudARPinCloudState::ErrorServiceUnavailable;
 		default:
-			ensureAlwaysMsgf(false, TEXT("Unknown conversion from ArCloudAnchorState %d to ECloudARPinCloudState"), State);
+			ensureAlwaysMsgf(false, TEXT("Unknown value when attempting conversion from ArCloudAnchorState %d to ECloudARPinCloudState"), State);
 			return ECloudARPinCloudState::ErrorInternalError;
 		}
 	}
 
-	void UpdateCloudARPin(UCloudARPin* CloudARPin, ArSession* SessionHandle, ArAnchor* AnchorHandle)
+	const TCHAR* ToTCHAR(ArCloudAnchorState State)
 	{
-		ArCloudAnchorState NewCloudState = AR_CLOUD_ANCHOR_STATE_NONE;
-		ArAnchor_getCloudAnchorState(SessionHandle, AnchorHandle, &NewCloudState);
-		char* RawCloudID;
-		ArAnchor_acquireCloudAnchorId(SessionHandle, AnchorHandle, &RawCloudID);
-		FString CloudID(ANSI_TO_TCHAR(RawCloudID));
-		CloudARPin->UpdateCloudState(ToARPinCloudState(NewCloudState), CloudID);
-		ArString_release(RawCloudID);
-	} 
-	
-#endif
+		switch (State)
+		{
+		case AR_CLOUD_ANCHOR_STATE_NONE:
+			return TEXT("AR_CLOUD_ANCHOR_STATE_NONE");
+		case AR_CLOUD_ANCHOR_STATE_SUCCESS:
+			return TEXT("AR_CLOUD_ANCHOR_STATE_SUCCESS");
+		case AR_CLOUD_ANCHOR_STATE_ERROR_INTERNAL:
+			return TEXT("AR_CLOUD_ANCHOR_STATE_ERROR_INTERNAL");
+		case AR_CLOUD_ANCHOR_STATE_ERROR_NOT_AUTHORIZED:
+			return TEXT("AR_CLOUD_ANCHOR_STATE_ERROR_NOT_AUTHORIZED");
+		case AR_CLOUD_ANCHOR_STATE_ERROR_RESOURCE_EXHAUSTED:
+			return TEXT("AR_CLOUD_ANCHOR_STATE_ERROR_RESOURCE_EXHAUSTED");
+		case AR_CLOUD_ANCHOR_STATE_ERROR_HOSTING_DATASET_PROCESSING_FAILED:
+			return TEXT("AR_CLOUD_ANCHOR_STATE_ERROR_HOSTING_DATASET_PROCESSING_FAILED");
+		case AR_CLOUD_ANCHOR_STATE_ERROR_CLOUD_ID_NOT_FOUND:
+			return TEXT("AR_CLOUD_ANCHOR_STATE_ERROR_CLOUD_ID_NOT_FOUND");
+		case AR_CLOUD_ANCHOR_STATE_ERROR_RESOLVING_SDK_VERSION_TOO_OLD:
+			return TEXT("AR_CLOUD_ANCHOR_STATE_ERROR_RESOLVING_SDK_VERSION_TOO_OLD");
+		case AR_CLOUD_ANCHOR_STATE_ERROR_RESOLVING_SDK_VERSION_TOO_NEW:
+			return TEXT("AR_CLOUD_ANCHOR_STATE_ERROR_RESOLVING_SDK_VERSION_TOO_NEW");
+		case AR_CLOUD_ANCHOR_STATE_ERROR_HOSTING_SERVICE_UNAVAILABLE:
+			return TEXT("AR_CLOUD_ANCHOR_STATE_ERROR_HOSTING_SERVICE_UNAVAILABLE");
+		default:
+			return TEXT("AR_CLOUD_ANCHOR_STATE_? Unknown ArCloudAnchorState encountered.");
+		}
+	}
+#endif // ARCORE_SERVICE_SUPPORTED_PLATFORM
 } // namespace
 
 #if PLATFORM_ANDROID
@@ -140,7 +158,6 @@ protected:
 		ensureMsgf(FrameHandle != nullptr, TEXT("Failed to get raw frame pointer."));
 		return FrameHandle;
 	}
-
 };
 #endif // PLATFORM_ANDROID
 
@@ -263,7 +280,115 @@ FGoogleARCoreCloudARPinManager* FGoogleARCoreCloudARPinManager::CreateCloudARPin
 	return nullptr;
 }
 
-UCloudARPin* FGoogleARCoreCloudARPinManager::CreateAndHostCloudARPin(UARPin* PinToHost, EARPinCloudTaskResult& OutTaskResult)
+#if ARCORE_SERVICE_SUPPORTED_PLATFORM
+void FGoogleARCoreCloudARPinManager::UpdateCloudARPin(UCloudARPin* CloudARPin, ArSession* SessionHandle)
+{
+	ArFuture* Future = CloudARPin->GetFuture()->AsFuture();
+	if (Future == nullptr)
+	{
+		// We should not call this function on pins that are not pending.
+		check(false);
+		return;
+	}
+
+	ArFutureState FutureState;
+	ArFuture_getState(SessionHandle, Future, &FutureState);
+	switch (FutureState)
+	{
+	case AR_FUTURE_STATE_PENDING:
+	{
+		CloudARPin->UpdateCloudState(ECloudARPinCloudState::InProgress);
+		return;
+	}
+	case AR_FUTURE_STATE_CANCELLED:
+	{
+		UE_LOG(LogGoogleARCoreServices, Verbose, TEXT("UpdateCloudARPin Future for CloudARPin %s %s CANCELLED"), *CloudARPin->GetDebugName().ToString(), *CloudARPin->GetCloudID());
+		CloudARPin->UpdateCloudState(ECloudARPinCloudState::Cancelled);
+		CloudARPin->ReleaseFuture();
+		return;
+	}
+	case AR_FUTURE_STATE_DONE:
+	{
+		UE_LOG(LogGoogleARCoreServices, Verbose, TEXT("UpdateCloudARPin Future for CloudARPin %s %s DONE"), *CloudARPin->GetDebugName().ToString(), *CloudARPin->GetCloudID());
+
+		switch (CloudARPin->GetFuture()->GetFutureType())
+		{
+		case ECloudAnchorFutureType::Host:
+		{
+			ArHostCloudAnchorFuture* HostFuture = CloudARPin->GetFuture()->AsHostFuture();
+			check(HostFuture);
+			ArCloudAnchorState CloudAnchorState;
+			ArHostCloudAnchorFuture_getResultCloudAnchorState(SessionHandle, HostFuture, &CloudAnchorState);
+			CloudARPin->UpdateCloudState(ToARPinCloudState(CloudAnchorState));
+
+			if (CloudAnchorState == AR_CLOUD_ANCHOR_STATE_SUCCESS)
+			{
+				UE_LOG(LogGoogleARCoreServices, Verbose, TEXT("UpdateCloudARPin Future for Host of CloudARPin %s (%s) AR_CLOUD_ANCHOR_STATE_SUCCESS"), *CloudARPin->GetDebugName().ToString(), *CloudARPin->GetCloudID());
+
+				char* RawCloudID;
+				ArHostCloudAnchorFuture_acquireResultCloudAnchorId(SessionHandle, HostFuture, &RawCloudID);
+				CloudARPin->SetCloudID(ANSI_TO_TCHAR(RawCloudID));
+				ArString_release(RawCloudID);
+			}
+			else
+			{
+				UE_LOG(LogGoogleARCoreServices, Warning, TEXT("UpdateCloudARPin Future for Host of CloudARPin %s (%s) not success: %i %s"), *CloudARPin->GetDebugName().ToString(), *CloudARPin->GetCloudID(), (int)CloudAnchorState, ToTCHAR(CloudAnchorState));
+			}
+
+			CloudARPin->ReleaseFuture();
+			return;
+		}
+		case ECloudAnchorFutureType::Resolve:
+		{
+			ArResolveCloudAnchorFuture* ResolveFuture = CloudARPin->GetFuture()->AsResolveFuture();
+			check(ResolveFuture);
+			ArCloudAnchorState CloudAnchorState;
+			ArResolveCloudAnchorFuture_getResultCloudAnchorState(SessionHandle, ResolveFuture, &CloudAnchorState);
+
+			if (CloudAnchorState == AR_CLOUD_ANCHOR_STATE_SUCCESS)
+			{
+				UE_LOG(LogGoogleARCoreServices, Verbose, TEXT("UpdateCloudARPin Future for Resolve of CloudARPin %s (%s) AR_CLOUD_ANCHOR_STATE_SUCCESS"), *CloudARPin->GetDebugName().ToString(), *CloudARPin->GetCloudID());
+
+				ArAnchor* AnchorHandle = nullptr;
+				ArResolveCloudAnchorFuture_acquireResultAnchor(SessionHandle, ResolveFuture, &AnchorHandle);
+
+				ArPose* PoseHandle = nullptr;
+				float WorldToMeterScale = ARSystem->GetXRTrackingSystem()->GetWorldToMetersScale();
+				ArPose_create(SessionHandle, nullptr, &PoseHandle);
+
+				ArAnchor_getPose(SessionHandle, AnchorHandle, PoseHandle);
+
+				FTransform PinTrackingTransform = ARCorePoseToUnrealTransform(PoseHandle, SessionHandle, WorldToMeterScale);
+				UE_LOG(LogGoogleARCoreServices, Verbose, TEXT("UpdateCloudARPin PinTrackingTransform %s"), *PinTrackingTransform.ToString());
+				CloudARPin->InitARPin(ARSystem, nullptr, PinTrackingTransform, nullptr, FName(TEXT("Cloud AR Pin(Acquired)")));
+				CloudARPin->UpdateCloudState(ToARPinCloudState(CloudAnchorState));
+
+				HandleToCloudPinMap.Add(AnchorHandle, CloudARPin);
+
+				ArPose_destroy(PoseHandle);
+			}
+			else
+			{
+				UE_LOG(LogGoogleARCoreServices, Warning, TEXT("UpdateCloudARPin Future for Resolve of CloudARPin %s (%s) not success: %i %s"), *CloudARPin->GetDebugName().ToString(), *CloudARPin->GetCloudID(), (int)CloudAnchorState, ToTCHAR(CloudAnchorState));
+			}
+
+			CloudARPin->ReleaseFuture();
+			return;
+		}
+		// Any other supported FutureTypes would need support inserted here.
+		default:
+			check(false);
+			return;
+		}
+		check(false);
+	}
+	default:
+		check(false);
+	}
+}
+#endif // ARCORE_SERVICE_SUPPORTED_PLATFORM
+
+UCloudARPin* FGoogleARCoreCloudARPinManager::CreateAndHostCloudARPin(UARPin* PinToHost, int32 LifetimeInDays, EARPinCloudTaskResult& OutTaskResult)
 {
 #if ARCORE_SERVICE_SUPPORTED_PLATFORM
 	if (PinToHost == nullptr)
@@ -274,78 +399,73 @@ UCloudARPin* FGoogleARCoreCloudARPinManager::CreateAndHostCloudARPin(UARPin* Pin
 
 	float WorldToMeterScale = ARSystem->GetXRTrackingSystem()->GetWorldToMetersScale();
 	ArSession* SessionHandle = GetSessionHandle();
-	ArAnchor* NewAnchorHandle = nullptr;
 #if PLATFORM_ANDROID
+	GoogleARFutureHolderPtr FutureHolder = FGoogleARFutureHolder::MakeHostFuture();
 	ArAnchor* AnchorHandle = reinterpret_cast<ArAnchor*> (PinToHost->GetNativeResource());
 	ensure(AnchorHandle != nullptr);
 
-	OutTaskResult = ToCloudTaskResult(ArSession_hostAndAcquireNewCloudAnchor(SessionHandle, AnchorHandle, &NewAnchorHandle));
+	ArStatus Result = ArSession_hostCloudAnchorAsync(SessionHandle, AnchorHandle, LifetimeInDays, nullptr, nullptr, FutureHolder->GetHostFuturePtr());
+	OutTaskResult = ToCloudTaskResult(Result);
+	UE_LOG(LogGoogleARCoreServices, Verbose, TEXT("ArSession_hostCloudAnchorAsync returns TaskResult: %i for Anchor: %p"), (int)OutTaskResult, AnchorHandle);
+
 #elif PLATFORM_IOS
 	ARKitAnchor* AnchorHandle = nullptr;
-	ArPose *PoseHandle = nullptr;
+	ARKitAnchor* ExistingAnchorHandle = nullptr;
+	ArPose* PoseHandle = nullptr;
 	ArPose_create(SessionHandle, nullptr, &PoseHandle);
 	UnrealTransformToARCorePose(PinToHost->GetLocalToTrackingTransform_NoAlignment(), SessionHandle, &PoseHandle, WorldToMeterScale);
-	ARKitAnchor_create(PoseHandle, &AnchorHandle);
+	ARKitAnchor_create(PoseHandle, &ExistingAnchorHandle);
 
 	ArPose_destroy(PoseHandle);
 	PoseHandle = nullptr;
 
-	OutTaskResult = ToCloudTaskResult(ArSession_hostAndAcquireNewCloudAnchor(SessionHandle, AnchorHandle, &NewAnchorHandle));
+	OutTaskResult = ToCloudTaskResult(ArSession_hostAndAcquireNewCloudAnchor(SessionHandle, ExistingAnchorHandle, &AnchorHandle));
+	UE_LOG(LogGoogleARCoreServices, Verbose, TEXT("ArSession_hostAndAcquireNewCloudAnchor returns TaskResult: %u, Anchor: %p"), (int)OutTaskResult, AnchorHandle);
 #endif
 
-	UE_LOG(LogGoogleARCoreServices, Log, TEXT("ArSession_hostAndAcquireNewCloudAnchor returns TaskResult: %u, Anchor: %p"), (int)OutTaskResult, NewAnchorHandle);
-
 	UCloudARPin* NewCloudARPin = nullptr;
-
-	if (OutTaskResult == EARPinCloudTaskResult::Started)
+	if (OutTaskResult == EARPinCloudTaskResult::Started || OutTaskResult == EARPinCloudTaskResult::Success)
 	{
 		NewCloudARPin = NewObject<UCloudARPin>();
 		FTransform PinTrackingTransform = PinToHost->GetLocalToTrackingTransform_NoAlignment();
 		NewCloudARPin->InitARPin(ARSystem, nullptr, PinTrackingTransform, PinToHost->GetTrackedGeometry(), FName(TEXT("Cloud AR Pin(Hosted)")));
-
-		UpdateCloudARPin(NewCloudARPin, SessionHandle, NewAnchorHandle);
+		NewCloudARPin->SetFuture(FutureHolder);
 
 		AllCloudARPins.Add(NewCloudARPin);
-		HandleToCloudPinMap.Add(NewAnchorHandle, NewCloudARPin);
+		PendingCloudARPins.Add(NewCloudARPin);
+		HandleToCloudPinMap.Add(AnchorHandle, NewCloudARPin);
 	}
 
 	return NewCloudARPin;
-#endif
-
+#else
 	return nullptr;
+#endif
 }
 
 UCloudARPin* FGoogleARCoreCloudARPinManager::ResolveAndCreateCloudARPin(FString CloudID, EARPinCloudTaskResult& OutTaskResult)
 {
 #if ARCORE_SERVICE_SUPPORTED_PLATFORM
 	ArSession* SessionHandle = GetSessionHandle();
-	ArAnchor* AnchorHandle = nullptr;
-	ArPose *PoseHandle = nullptr;
-	float WorldToMeterScale = ARSystem->GetXRTrackingSystem()->GetWorldToMetersScale();
-	ArPose_create(SessionHandle, nullptr, &PoseHandle);
 
-	OutTaskResult = ToCloudTaskResult(
-		ArSession_resolveAndAcquireNewCloudAnchor(SessionHandle, TCHAR_TO_ANSI(*CloudID), &AnchorHandle));
-	UE_LOG(LogGoogleARCoreServices, Log, TEXT("ArSession_resolveAndAcquireNewCloudAnchor returns TaskResult: %d, Anchor: %p, CloudID: %s"), (int)OutTaskResult, AnchorHandle, *CloudID);
-	ensure(AnchorHandle != nullptr);
+	GoogleARFutureHolderPtr FutureHolder = FGoogleARFutureHolder::MakeResolveFuture();
+	ArResolveCloudAnchorFuture* ResolveFutureHandle = nullptr;
+	OutTaskResult = ToCloudTaskResult(ArSession_resolveCloudAnchorAsync(SessionHandle, TCHAR_TO_ANSI(*CloudID), nullptr, nullptr, FutureHolder->GetResolveFuturePtr()));
 
-	ArAnchor_getPose(SessionHandle, AnchorHandle, PoseHandle);
+	UCloudARPin* NewCloudARPin = nullptr;
+	if (OutTaskResult == EARPinCloudTaskResult::Started || OutTaskResult == EARPinCloudTaskResult::Success)
+	{
+		NewCloudARPin = NewObject<UCloudARPin>();
+		NewCloudARPin->SetFuture(FutureHolder);
+		NewCloudARPin->SetCloudID(CloudID);
 
-	UCloudARPin* NewCloudARPin = NewObject<UCloudARPin>();
-	FTransform PinTrackingTransform = ARCorePoseToUnrealTransform(PoseHandle, SessionHandle, WorldToMeterScale);
-	NewCloudARPin->InitARPin(ARSystem, nullptr, PinTrackingTransform, nullptr, FName(TEXT("Cloud AR Pin(Acquired)")));
-
-	UpdateCloudARPin(NewCloudARPin, SessionHandle, AnchorHandle);
-
-	AllCloudARPins.Add(NewCloudARPin);
-	HandleToCloudPinMap.Add(AnchorHandle, NewCloudARPin);
-
-	ArPose_destroy(PoseHandle);
+		AllCloudARPins.Add(NewCloudARPin);
+		PendingCloudARPins.Add(NewCloudARPin);
+	}
 
 	return NewCloudARPin;
-#endif
-
+#else
 	return nullptr;
+#endif
 }
 
 void FGoogleARCoreCloudARPinManager::RemoveCloudARPin(UCloudARPin* PinToRemove)
@@ -393,6 +513,14 @@ void FGoogleARCoreCloudARPinManager::UpdateAllCloudARPins()
 		return;
 	}
 
+	// Update any PendingCloudARPins
+	for (UCloudARPin* CloudPin : PendingCloudARPins)
+	{
+		UpdateCloudARPin(CloudPin, SessionHandle);
+	}
+	// Remove no longer pending CloudARPins
+	PendingCloudARPins.RemoveAllSwap([](const UCloudARPin* CloudPin) { return !CloudPin->IsPending(); });
+
 	float WorldToMeterScale = ARSystem->GetXRTrackingSystem()->GetWorldToMetersScale();
 
 	ArAnchorList* UpdatedAnchorListHandle = nullptr;
@@ -433,9 +561,6 @@ void FGoogleARCoreCloudARPinManager::UpdateAllCloudARPins()
 			FTransform AnchorPose = ARCorePoseToUnrealTransform(SketchPoseHandle, SessionHandle, WorldToMeterScale);
 			CloudPin->OnTransformUpdated(AnchorPose);
 		}
-
-		// Update Cloud state and ID.
-		UpdateCloudARPin(CloudPin, SessionHandle, AnchorHandle);
 
 		ArAnchor_release(AnchorHandle);
 	}
