@@ -523,6 +523,8 @@ TArray<FEnhancedActionKeyMapping> IEnhancedInputSubsystemInterface::GetAllPlayer
 	return PlayerMappableMappings;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 int32 IEnhancedInputSubsystemInterface::AddPlayerMappedKey(const FName MappingName, const FKey NewKey, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
 {
 	return AddPlayerMappedKeyInSlot(MappingName, NewKey, FPlayerMappableKeySlot::FirstKeySlot, Options);
@@ -535,24 +537,25 @@ int32 IEnhancedInputSubsystemInterface::K2_AddPlayerMappedKeyInSlot(const FName 
 
 int32 IEnhancedInputSubsystemInterface::AddPlayerMappedKeyInSlot(const FName MappingName, const FKey NewKey, const FPlayerMappableKeySlot& KeySlot /*= FPlayerMappableKeySlot::FirstKeySlot*/, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
 {
-	int32 NumMappingsApplied = 0;
-	if (MappingName != NAME_None)
+	if (UEnhancedInputUserSettings* Settings = GetUserSettings())
 	{
-		if (UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
-		{
-			TMap<FPlayerMappableKeySlot, FKey>& PlayerMappedKeySlots = PlayerMappedSettings.FindOrAdd(MappingName);
-			FKey& KeyInSlot = PlayerMappedKeySlots.FindOrAdd(KeySlot);
-			KeyInSlot = NewKey;
-			++NumMappingsApplied;
-		}
+		FMapPlayerKeyArgs Args = {};
+		Args.MappingName = MappingName;
+		Args.NewKey = NewKey;
+		Args.Slot = static_cast<EPlayerMappableKeySlot>(KeySlot.GetSlotNumber());
 
-		RequestRebuildControlMappings(Options);
+		FGameplayTagContainer FailureReason;
+		Settings->MapPlayerKey(Args, FailureReason);
+
+		if (!FailureReason.IsEmpty())
+		{
+			UE_LOG(LogEnhancedInput, Warning, TEXT("IEnhancedInputSubsystemInterface::AddPlayerMappedKeyInSlot Failed! Reasoning: %s"), *FailureReason.ToString());
+			return 0;
+		}
 	}
-	else
-	{
-		UE_LOG(LogEnhancedInput, Warning, TEXT("Attempted to AddPlayerMappedKeyInSlot with an invalid MappingName! Mapping has not been applied."));
-	}
-	return NumMappingsApplied;
+
+	RequestRebuildControlMappings(Options);
+	return 1;
 }
 
 int32 IEnhancedInputSubsystemInterface::RemovePlayerMappedKey(const FName MappingName, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
@@ -567,38 +570,55 @@ int32 IEnhancedInputSubsystemInterface::K2_RemovePlayerMappedKeyInSlot(const FNa
 
 int32 IEnhancedInputSubsystemInterface::RemovePlayerMappedKeyInSlot(const FName MappingName, const FPlayerMappableKeySlot& KeySlot /*= FPlayerMappableKeySlot::FirstKeySlot*/, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
 {
-	int32 NumMappingsRemoved = 0;
-	if (UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
+	if (UEnhancedInputUserSettings* Settings = GetUserSettings())
 	{
-		if (TMap<FPlayerMappableKeySlot, FKey>* PlayerMappedKeySlots = PlayerMappedSettings.Find(MappingName))
+		FMapPlayerKeyArgs Args = {};
+		Args.MappingName = MappingName;
+		Args.Slot = static_cast<EPlayerMappableKeySlot>(KeySlot.GetSlotNumber());
+		
+		FGameplayTagContainer FailureReason;
+		Settings->UnMapPlayerKey(Args, FailureReason);
+
+		if (!FailureReason.IsEmpty())
 		{
-			NumMappingsRemoved = PlayerMappedKeySlots->Remove(KeySlot);
+			UE_LOG(LogEnhancedInput, Warning, TEXT("IEnhancedInputSubsystemInterface::RemovePlayerMappedKeyInSlot Failed! Reasoning: %s"), *FailureReason.ToString());
+			return 0;
+		}
+	}
+	
+	RequestRebuildControlMappings(Options);
+
+	return 1;
+}
+
+int32 IEnhancedInputSubsystemInterface::RemoveAllPlayerMappedKeysForMapping(const FName MappingName, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
+{
+	if (UEnhancedInputUserSettings* Settings = GetUserSettings())
+	{
+		FMapPlayerKeyArgs Args = {};
+		Args.MappingName = MappingName;
+
+		FGameplayTagContainer FailureReason;
+		Settings->ResetAllPlayerKeysInRow(Args, FailureReason);
+		
+		if (!FailureReason.IsEmpty())
+		{
+			UE_LOG(LogEnhancedInput, Warning, TEXT("IEnhancedInputSubsystemInterface::RemovePlayerMappedKeyInSlot Failed! Reasoning: %s"), *FailureReason.ToString());
+			return 0;
 		}
 	}
 
 	RequestRebuildControlMappings(Options);
 
-	return NumMappingsRemoved;
-}
-
-int32 IEnhancedInputSubsystemInterface::RemoveAllPlayerMappedKeysForMapping(const FName MappingName, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
-{
-	int32 NumMappingsRemoved = 0;
-	if (UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
-	{
-		NumMappingsRemoved = PlayerMappedSettings.Remove(MappingName);
-	}
-
-	RequestRebuildControlMappings(Options);
-
-	return NumMappingsRemoved;
+	return 1;
 }
 
 void IEnhancedInputSubsystemInterface::RemoveAllPlayerMappedKeys(const FModifyContextOptions& Options)
 {
-	if (UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
+	if (UEnhancedInputUserSettings* Settings = GetUserSettings())
 	{
-		PlayerMappedSettings.Empty();
+		FGameplayTagContainer FailureReason;
+		Settings->ResetKeyProfileToDefault(Settings->GetCurrentKeyProfileIdentifier(), FailureReason);
 	}
 
 	RequestRebuildControlMappings(Options);
@@ -616,24 +636,42 @@ FKey IEnhancedInputSubsystemInterface::K2_GetPlayerMappedKeyInSlot(const FName M
 
 FKey IEnhancedInputSubsystemInterface::GetPlayerMappedKeyInSlot(const FName MappingName, const FPlayerMappableKeySlot& KeySlot /*= FPlayerMappableKeySlot()*/) const
 {
-	if (const TMap<FPlayerMappableKeySlot, FKey>* PlayerMappedKeySlots = PlayerMappedSettings.Find(MappingName))
+	if (const UEnhancedInputUserSettings* Settings = GetUserSettings())
 	{
-		if (const FKey* PlayerMappedKey = PlayerMappedKeySlots->Find(KeySlot))
+		if (const UEnhancedPlayerMappableKeyProfile* KeyProfile = Settings->GetCurrentKeyProfile())
 		{
-			return *PlayerMappedKey;
+			FPlayerMappableKeyQueryOptions Opts = {};
+			Opts.MappingName = MappingName;
+			Opts.SlotToMatch = static_cast<EPlayerMappableKeySlot>(KeySlot.GetSlotNumber());
+
+			TArray<FKey> Keys;
+			KeyProfile->QueryPlayerMappedKeys(Opts, OUT Keys);
+			
+			if (!Keys.IsEmpty())
+			{
+				return Keys[0];
+			}
 		}
 	}
+	
 	return EKeys::Invalid;
 }
 
 TArray<FKey> IEnhancedInputSubsystemInterface::GetAllPlayerMappedKeys(const FName MappingName) const
 {
 	TArray<FKey> PlayerMappedKeys;
-	if (const TMap<FPlayerMappableKeySlot, FKey>* PlayerMappedKeySlots = PlayerMappedSettings.Find(MappingName))
+	
+	if (const UEnhancedInputUserSettings* Settings = GetUserSettings())
 	{
-		PlayerMappedKeySlots->GenerateValueArray(PlayerMappedKeys);
-		return PlayerMappedKeys;
+		if (const UEnhancedPlayerMappableKeyProfile* KeyProfile = Settings->GetCurrentKeyProfile())
+		{
+			FPlayerMappableKeyQueryOptions Opts = {};
+			Opts.MappingName = MappingName;
+			
+			KeyProfile->QueryPlayerMappedKeys(Opts, OUT PlayerMappedKeys);
+		}
 	}
+	
 	return PlayerMappedKeys;
 }
 
@@ -668,6 +706,8 @@ void IEnhancedInputSubsystemInterface::RemovePlayerMappableConfig(const UPlayerM
 		}	
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 template<typename T>
 void DeepCopyPtrArray(const TArray<T*>& From, TArray<T*>& To)
@@ -868,10 +908,6 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 			if (PlayerKeyProfile && GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
 			{
 				PlayerKeyProfile->GetPlayerMappedKeysForRebuildControlMappings(Mapping, MappedKeysToActionName);
-			}
-			else if (const TMap<FPlayerMappableKeySlot, FKey>* PlayerMappedKeySlots = PlayerMappedSettings.Find(Mapping.GetMappingName()))
-			{
-				PlayerMappedKeySlots->GenerateValueArray(MappedKeysToActionName);
 			}
 
 			// True if there were any player mapped keys to this mapping and we are using those instead.

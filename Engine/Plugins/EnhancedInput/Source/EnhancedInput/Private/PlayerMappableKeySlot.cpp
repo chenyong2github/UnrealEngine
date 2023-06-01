@@ -2,6 +2,8 @@
 
 #include "PlayerMappableKeySlot.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 FPlayerMappableKeySlot FPlayerMappableKeySlot::FirstKeySlot = FPlayerMappableKeySlot(0);
 FPlayerMappableKeySlot FPlayerMappableKeySlot::SecondKeySlot = FPlayerMappableKeySlot(1);
 FPlayerMappableKeySlot FPlayerMappableKeySlot::ThirdKeySlot = FPlayerMappableKeySlot(2);
@@ -9,7 +11,6 @@ FPlayerMappableKeySlot FPlayerMappableKeySlot::FourthKeySlot = FPlayerMappableKe
 
 FPlayerMappableKeySlot::FPlayerMappableKeySlot() { }
 FPlayerMappableKeySlot::FPlayerMappableKeySlot(const int32 InSlotNumber) : SlotNumber(InSlotNumber) { }
-FPlayerMappableKeySlot::~FPlayerMappableKeySlot() { }
 
 int32 FPlayerMappableKeySlot::GetSlotNumber() const
 {
@@ -20,3 +21,5 @@ uint32 GetTypeHash(const FPlayerMappableKeySlot& Ref)
 {
 	return GetTypeHash(Ref.GetSlotNumber());
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
