@@ -218,6 +218,8 @@ protected:
 	void UnregisterDelegates();
 	void ReleaseGarbageReferences();
 
+	bool IsCulledByDetailMode() const;
+
 	virtual void UpdateSceneCaptureContents(FSceneInterface* Scene) {};
 
 	/**

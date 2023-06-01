@@ -30,6 +30,7 @@
 #include "Logging/MessageLog.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "UnrealEngine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SceneCaptureComponent)
 
@@ -60,6 +61,12 @@ static TAutoConsoleVariable<int32> CVarSCOrthographicNumYTiles(
 	TEXT("r.SceneCapture.OrthographicNumYTiles"),
 	4,
 	TEXT("Number of Y tiles to render. Ignored in Perspective mode, works only in Orthographic mode and when r.SceneCapture.OverrideOrthographicTilingValues is on."),
+	ECVF_Scalability);
+
+static TAutoConsoleVariable<bool> CVarSCCullByDetailMode(
+	TEXT("r.SceneCapture.CullByDetailMode"),
+	1,
+	TEXT("Whether to prevent scene capture updates according to the current detail mode"),
 	ECVF_Scalability);
 
 ASceneCapture::ASceneCapture(const FObjectInitializer& ObjectInitializer)
@@ -527,6 +534,11 @@ void USceneCaptureComponent::OnUnregister()
 	Super::OnUnregister();
 }
 
+bool USceneCaptureComponent::IsCulledByDetailMode() const
+{
+	return CVarSCCullByDetailMode.GetValueOnAnyThread() && DetailMode > GetCachedScalabilityCVars().DetailMode;
+}
+
 // -----------------------------------------------
 
 
@@ -671,7 +683,7 @@ void USceneCaptureComponent2D::GetCameraView(float DeltaTime, FMinimalViewInfo& 
 void USceneCaptureComponent2D::CaptureSceneDeferred()
 {
 	UWorld* World = GetWorld();
-	if (World && World->Scene && IsVisible())
+	if (World && World->Scene && IsVisible() && !IsCulledByDetailMode())
 	{
 		// Defer until after updates finish
 		// Needs some CS because of parallel updates.
@@ -683,12 +695,12 @@ void USceneCaptureComponent2D::CaptureSceneDeferred()
 void USceneCaptureComponent2D::CaptureScene()
 {
 	UWorld* World = GetWorld();
-	if (World && World->Scene && IsVisible())
+	if (World && World->Scene && IsVisible() && !IsCulledByDetailMode())
 	{
 		// We must push any deferred render state recreations before causing any rendering to happen, to make sure that deleted resource references are updated
 		World->SendAllEndOfFrameUpdates();
 		UpdateSceneCaptureContents(World->Scene);
-	}	
+	}
 
 	if (bCaptureEveryFrame)
 	{
@@ -1249,7 +1261,7 @@ void USceneCaptureComponentCube::UpdateDrawFrustum()
 void USceneCaptureComponentCube::CaptureSceneDeferred()
 {
 	UWorld* World = GetWorld();
-	if (World && World->Scene && IsVisible())
+	if (World && World->Scene && IsVisible() && !IsCulledByDetailMode())
 	{
 		// Defer until after updates finish
 		// Needs some CS because of parallel updates.
@@ -1261,7 +1273,7 @@ void USceneCaptureComponentCube::CaptureSceneDeferred()
 void USceneCaptureComponentCube::CaptureScene()
 {
 	UWorld* World = GetWorld();
-	if (World && World->Scene && IsVisible())
+	if (World && World->Scene && IsVisible() && !IsCulledByDetailMode())
 	{
 		// We must push any deferred render state recreations before causing any rendering to happen, to make sure that deleted resource references are updated
 		World->SendAllEndOfFrameUpdates();

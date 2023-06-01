@@ -155,7 +155,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	void RemoveBlendable(TScriptInterface<IBlendableInterface> InBlendableObject) { PostProcessSettings.RemoveBlendable(InBlendableObject); }
 
-	/** Render the scene to the texture the next time the main view is rendered. */
+	/**
+	 * Render the scene to the texture the next time the main view is rendered.
+	 * If r.SceneCapture.CullByDetailMode is set, nothing will happen if DetailMode is higher than r.DetailMode.
+	 */
 	void CaptureSceneDeferred();
 
 	// For backwards compatibility
@@ -164,6 +167,7 @@ public:
 	/** 
 	 * Render the scene to the texture target immediately.  
 	 * This should not be used if bCaptureEveryFrame is enabled, or the scene capture will render redundantly. 
+	 * If r.SceneCapture.CullByDetailMode is set, nothing will happen if DetailMode is higher than r.DetailMode.
 	 */
 	UFUNCTION(BlueprintCallable,Category = "Rendering|SceneCapture")
 	void CaptureScene();
