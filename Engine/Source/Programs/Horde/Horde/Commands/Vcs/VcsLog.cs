@@ -34,7 +34,7 @@ namespace Horde.Commands.Vcs
 
 			List<CommitNode> commits = new List<CommitNode>();
 
-			CommitNode? tip = await reader.TryReadNodeAsync<CommitNode>(workspaceState.Branch);
+			CommitNode? tip = await store.TryReadNodeAsync<CommitNode>(workspaceState.Branch);
 			if (tip != null)
 			{
 				for (int idx = 0; idx < Count; idx++)
@@ -46,7 +46,7 @@ namespace Horde.Commands.Vcs
 						break;
 					}
 
-					tip = await tip.Parent.ExpandAsync(reader);
+					tip = await tip.Parent.ExpandAsync();
 				}
 			}
 

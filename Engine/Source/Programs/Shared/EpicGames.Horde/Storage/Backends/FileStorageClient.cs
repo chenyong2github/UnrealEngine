@@ -17,7 +17,7 @@ namespace EpicGames.Horde.Storage.Backends
 	/// <summary>
 	/// Implementation of <see cref="IStorageClient"/> which writes data to files on disk.
 	/// </summary>
-	public class FileStorageClient : StorageClientBase
+	public class FileStorageClient : BundleStorageClient
 	{
 		readonly DirectoryReference _rootDir;
 		readonly ILogger _logger;

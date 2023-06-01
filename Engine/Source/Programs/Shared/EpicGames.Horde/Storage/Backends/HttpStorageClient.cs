@@ -20,7 +20,7 @@ namespace EpicGames.Horde.Storage.Backends
 	/// <summary>
 	/// Implementation of <see cref="IStorageClient"/> which communicates with an upstream Horde instance via HTTP.
 	/// </summary>
-	public class HttpStorageClient : StorageClientBase
+	public class HttpStorageClient : BundleStorageClient
 	{
 		/// <summary>
 		/// Name of clients created from the http client factory

@@ -225,14 +225,13 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Finds or adds a file with the given path
 		/// </summary>
-		/// <param name="reader">Reader for node data</param>
 		/// <param name="path">Path to the file</param>
 		/// <param name="flags">Flags for the new file</param>
 		/// <param name="handle">The file node</param>
 		/// <param name="length">Length of the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new directory object</returns>
-		public async ValueTask<FileEntry> AddFileByPathAsync(TreeReader reader, Utf8String path, FileEntryFlags flags, long length, HashedNodeHandle handle, CancellationToken cancellationToken = default)
+		public async ValueTask<FileEntry> AddFileByPathAsync(Utf8String path, FileEntryFlags flags, long length, HashedNodeHandle handle, CancellationToken cancellationToken = default)
 		{
 			DirectoryNode directory = this;
 
@@ -261,7 +260,7 @@ namespace EpicGames.Horde.Storage.Nodes
 
 				if (pathLength > 0)
 				{
-					directory = await directory.FindOrAddDirectoryAsync(reader, remainingPath.Slice(0, pathLength), cancellationToken);
+					directory = await directory.FindOrAddDirectoryAsync(remainingPath.Slice(0, pathLength), cancellationToken);
 				}
 				remainingPath = remainingPath.Slice(pathLength + 1);
 			}
@@ -300,11 +299,10 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Attempts to get a file entry from a path
 		/// </summary>
-		/// <param name="reader">Reader for node data</param>
 		/// <param name="path">Path to the directory</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>The directory with the given path, or null if it was not found</returns>
-		public async ValueTask<FileEntry?> GetFileEntryByPathAsync(TreeReader reader, Utf8String path, CancellationToken cancellationToken)
+		public async ValueTask<FileEntry?> GetFileEntryByPathAsync(Utf8String path, CancellationToken cancellationToken)
 		{
 			FileEntry? fileEntry;
 
@@ -318,7 +316,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 			else
 			{
-				DirectoryNode? directoryNode = await GetDirectoryByPathAsync(reader, path.Slice(0, slashIdx), cancellationToken);
+				DirectoryNode? directoryNode = await GetDirectoryByPathAsync(path.Slice(0, slashIdx), cancellationToken);
 				if (directoryNode == null)
 				{
 					return null;
@@ -335,13 +333,12 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Attempts to get a directory entry from a path
 		/// </summary>
-		/// <param name="reader">Reader for node data</param>
 		/// <param name="path">Path to the directory</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>The directory with the given path, or null if it was not found</returns>
-		public ValueTask<DirectoryNode?> GetDirectoryByPathAsync(TreeReader reader, Utf8String path, CancellationToken cancellationToken) => GetDirectoryByPathAsync(this, reader, path, cancellationToken);
+		public ValueTask<DirectoryNode?> GetDirectoryByPathAsync(Utf8String path, CancellationToken cancellationToken) => GetDirectoryByPathAsync(this, path, cancellationToken);
 
-		static async ValueTask<DirectoryNode?> GetDirectoryByPathAsync(DirectoryNode directoryNode, TreeReader reader, Utf8String path, CancellationToken cancellationToken)
+		static async ValueTask<DirectoryNode?> GetDirectoryByPathAsync(DirectoryNode directoryNode, Utf8String path, CancellationToken cancellationToken)
 		{
 			while(path.Length > 0)
 			{
@@ -365,7 +362,7 @@ namespace EpicGames.Horde.Storage.Nodes
 					return null;
 				}
 
-				directoryNode = await directoryEntry.ExpandAsync(reader, cancellationToken);
+				directoryNode = await directoryEntry.ExpandAsync(cancellationToken);
 			}
 			return directoryNode;
 		}
@@ -373,11 +370,10 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Deletes a file with the given path
 		/// </summary>
-		/// <param name="reader">Reader for existing node data</param>
 		/// <param name="path"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public async ValueTask<bool> DeleteFileByPathAsync(TreeReader reader, Utf8String path, CancellationToken cancellationToken)
+		public async ValueTask<bool> DeleteFileByPathAsync(Utf8String path, CancellationToken cancellationToken)
 		{
 			Utf8String remainingPath = path;
 			for (DirectoryNode? directory = this; directory != null;)
@@ -389,7 +385,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				}
 				if (length > 0)
 				{
-					directory = await directory.FindDirectoryAsync(reader, remainingPath.Slice(0, length), cancellationToken);
+					directory = await directory.FindDirectoryAsync(remainingPath.Slice(0, length), cancellationToken);
 				}
 				remainingPath = remainingPath.Slice(length + 1);
 			}
@@ -462,15 +458,14 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Tries to get a directory with the given name
 		/// </summary>
-		/// <param name="reader">Reader for node data</param>
 		/// <param name="name">Name of the new directory</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new directory object</returns>
-		public async ValueTask<DirectoryNode?> FindDirectoryAsync(TreeReader reader, Utf8String name, CancellationToken cancellationToken)
+		public async ValueTask<DirectoryNode?> FindDirectoryAsync(Utf8String name, CancellationToken cancellationToken)
 		{
 			if (TryGetDirectoryEntry(name, out DirectoryEntry? entry))
 			{
-				return await entry.ExpandAsync(reader, cancellationToken);
+				return await entry.ExpandAsync(cancellationToken);
 			}
 			else
 			{
@@ -481,13 +476,12 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Tries to get a directory with the given name
 		/// </summary>
-		/// <param name="reader">Reader for node data</param>
 		/// <param name="name">Name of the new directory</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new directory object</returns>
-		public async ValueTask<DirectoryNode> FindOrAddDirectoryAsync(TreeReader reader, Utf8String name, CancellationToken cancellationToken)
+		public async ValueTask<DirectoryNode> FindOrAddDirectoryAsync(Utf8String name, CancellationToken cancellationToken)
 		{
-			DirectoryNode? directory = await FindDirectoryAsync(reader, name, cancellationToken);
+			DirectoryNode? directory = await FindDirectoryAsync(name, cancellationToken);
 			if (directory == null)
 			{
 				directory = AddDirectory(name);
@@ -635,7 +629,7 @@ namespace EpicGames.Horde.Storage.Nodes
 						}
 						else
 						{
-							directory = await FindOrAddDirectoryAsync(null!, fullName.Substring(0, slashIdx), cancellationToken);
+							directory = await FindOrAddDirectoryAsync(fullName.Substring(0, slashIdx), cancellationToken);
 						}
 
 						FileEntryFlags flags = FileEntryFlags.None;
@@ -776,12 +770,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Utility function to allow extracting a packed directory to disk
 		/// </summary>
-		/// <param name="reader">Reader to retrieve data from</param>
 		/// <param name="directoryInfo"></param>
 		/// <param name="logger"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public async Task CopyToDirectoryAsync(TreeReader reader, DirectoryInfo directoryInfo, ILogger logger, CancellationToken cancellationToken)
+		public async Task CopyToDirectoryAsync(DirectoryInfo directoryInfo, ILogger logger, CancellationToken cancellationToken)
 		{
 			directoryInfo.Create();
 
@@ -789,14 +782,14 @@ namespace EpicGames.Horde.Storage.Nodes
 			foreach (FileEntry fileEntry in _nameToFileEntry.Values)
 			{
 				FileInfo fileInfo = new FileInfo(Path.Combine(directoryInfo.FullName, fileEntry.Name.ToString()));
-				ChunkedDataNode fileNode = await fileEntry.ExpandAsync(reader, cancellationToken);
-				tasks.Add(Task.Run(() => fileNode.CopyToFileAsync(reader, fileInfo, cancellationToken), cancellationToken));
+				ChunkedDataNode fileNode = await fileEntry.ExpandAsync(cancellationToken);
+				tasks.Add(Task.Run(() => fileNode.CopyToFileAsync(fileInfo, cancellationToken), cancellationToken));
 			}
 			foreach (DirectoryEntry directoryEntry in _nameToDirectoryEntry.Values)
 			{
 				DirectoryInfo subDirectoryInfo = directoryInfo.CreateSubdirectory(directoryEntry.Name.ToString());
-				DirectoryNode subDirectoryNode = await directoryEntry.ExpandAsync(reader, cancellationToken);
-				tasks.Add(Task.Run(() => subDirectoryNode.CopyToDirectoryAsync(reader, subDirectoryInfo, logger, cancellationToken), cancellationToken));
+				DirectoryNode subDirectoryNode = await directoryEntry.ExpandAsync(cancellationToken);
+				tasks.Add(Task.Run(() => subDirectoryNode.CopyToDirectoryAsync(subDirectoryInfo, logger, cancellationToken), cancellationToken));
 			}
 
 			await Task.WhenAll(tasks);
@@ -805,10 +798,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Returns a stream containing the zipped contents of this directory
 		/// </summary>
-		/// <param name="reader">Reader for other nodes</param>
 		/// <param name="filter">Filter for files to include in the zip</param>
 		/// <returns>Stream containing zipped archive data</returns>
-		public Stream AsZipStream(TreeReader reader, FileFilter? filter = null) => new DirectoryNodeZipStream(reader, this, filter);
+		public Stream AsZipStream(FileFilter? filter = null) => new DirectoryNodeZipStream(this, filter);
 	}
 
 	/// <summary>
@@ -840,13 +832,12 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="reader">Reader to read nodes through</param>
 		/// <param name="node">Root node to copy from</param>
 		/// <param name="filter">Filter for files to include in the zip</param>
-		public DirectoryNodeZipStream(TreeReader reader, DirectoryNode node, FileFilter? filter)
+		public DirectoryNodeZipStream(DirectoryNode node, FileFilter? filter)
 		{
 			_pipe = new Pipe();
-			_backgroundTask = BackgroundTask.StartNew(ctx => CopyToPipeAsync(reader, node, filter, _pipe.Writer, ctx));
+			_backgroundTask = BackgroundTask.StartNew(ctx => CopyToPipeAsync(node, filter, _pipe.Writer, ctx));
 		}
 
 		/// <inheritdoc/>
@@ -890,22 +881,22 @@ namespace EpicGames.Horde.Storage.Nodes
 			return length;
 		}
 
-		static async Task CopyToPipeAsync(TreeReader reader, DirectoryNode node, FileFilter? filter, PipeWriter writer, CancellationToken cancellationToken)
+		static async Task CopyToPipeAsync(DirectoryNode node, FileFilter? filter, PipeWriter writer, CancellationToken cancellationToken)
 		{
 			using Stream outputStream = writer.AsStream();
 			using ZipArchive archive = new ZipArchive(outputStream, ZipArchiveMode.Create);
-			await CopyFilesAsync(reader, node, "", filter, archive, cancellationToken);
+			await CopyFilesAsync(node, "", filter, archive, cancellationToken);
 		}
 
-		static async Task CopyFilesAsync(TreeReader reader, DirectoryNode directory, string prefix, FileFilter? filter, ZipArchive archive, CancellationToken cancellationToken)
+		static async Task CopyFilesAsync(DirectoryNode directory, string prefix, FileFilter? filter, ZipArchive archive, CancellationToken cancellationToken)
 		{
 			foreach (DirectoryEntry directoryEntry in directory.Directories)
 			{
 				string directoryPath = $"{prefix}{directoryEntry.Name}/";
 				if (filter == null || filter.PossiblyMatches(directoryPath))
 				{
-					DirectoryNode node = await directoryEntry.ExpandAsync(reader, cancellationToken);
-					await CopyFilesAsync(reader, node, directoryPath, filter, archive, cancellationToken);
+					DirectoryNode node = await directoryEntry.ExpandAsync(cancellationToken);
+					await CopyFilesAsync(node, directoryPath, filter, archive, cancellationToken);
 				}
 			}
 
@@ -926,7 +917,7 @@ namespace EpicGames.Horde.Storage.Nodes
 					}
 
 					using Stream entryStream = entry.Open();
-					await fileEntry.CopyToStreamAsync(reader, entryStream, cancellationToken);
+					await fileEntry.CopyToStreamAsync(entryStream, cancellationToken);
 				}
 			}
 		}

@@ -34,7 +34,7 @@ namespace EpicGames.Horde.Storage
 	/// Multiple refs MAY point to the same target object.
 	/// 
 	/// To read an untracked object that can be added to a new ref, call <see cref="TreeReader.ReadNodeDataAsync(NodeLocator, CancellationToken)"/> 
-	/// directly, or use <see cref="NodeRef{T}.ExpandCopyAsync(TreeReader, CancellationToken)"/>.
+	/// directly, or use <see cref="NodeRef{T}.ExpandCopyAsync(CancellationToken)"/>.
 	/// </summary>
 	public class NodeRef
 	{
@@ -127,14 +127,13 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Resolve this reference to a concrete node
 		/// </summary>
-		/// <param name="reader">Reader to use for expanding this ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async ValueTask<Node> ExpandAsync(TreeReader reader, CancellationToken cancellationToken = default)
+		public async ValueTask<Node> ExpandAsync(CancellationToken cancellationToken = default)
 		{
 			if (Target == null)
 			{
-				NodeData nodeData = await reader.ReadNodeDataAsync(Handle!.Handle.Locator, cancellationToken);
+				NodeData nodeData = await Handle!.Handle.ReadAsync(cancellationToken);
 				Target = Node.Deserialize(nodeData);
 				OnExpand();
 			}
@@ -206,27 +205,27 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Resolve this reference to a concrete node
 		/// </summary>
-		/// <param name="reader">Reader to use for expanding this ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public new async ValueTask<T> ExpandAsync(TreeReader reader, CancellationToken cancellationToken = default)
+		public new async ValueTask<T> ExpandAsync(CancellationToken cancellationToken = default)
 		{
-			return (T)await base.ExpandAsync(reader, cancellationToken);
+			return (T)await base.ExpandAsync(cancellationToken);
 		}
 
 		/// <summary>
 		/// Resolve this reference to a concrete node
 		/// </summary>
-		/// <param name="reader">Reader to use for expanding this ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async ValueTask<T> ExpandCopyAsync(TreeReader reader, CancellationToken cancellationToken = default)
+		public async ValueTask<T> ExpandCopyAsync(CancellationToken cancellationToken = default)
 		{
 			if (Handle == null)
 			{
 				throw new InvalidOperationException("TreeNodeRef has not been serialized to storage");
 			}
-			return await reader.ReadNodeAsync<T>(Handle.Handle.Locator, cancellationToken);
+
+			NodeData nodeData = await Handle.Handle.ReadAsync(cancellationToken);
+			return Node.Deserialize<T>(nodeData);
 		}
 	}
 

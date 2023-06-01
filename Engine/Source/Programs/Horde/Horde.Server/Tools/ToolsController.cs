@@ -503,8 +503,7 @@ namespace Horde.Server.Tools
 
 			IStorageClient client = await _toolCollection.GetStorageClientAsync(tool, cancellationToken);
 
-			TreeReader reader = new TreeReader(client, _cache, _logger);
-			DirectoryNode node = await reader.ReadNodeAsync<DirectoryNode>(deployment.RefName, DateTime.UtcNow - TimeSpan.FromDays(2.0), cancellationToken);
+			DirectoryNode node = await client.ReadNodeAsync<DirectoryNode>(deployment.RefName, DateTime.UtcNow - TimeSpan.FromDays(2.0), cancellationToken);
 
 			if (node.Directories.Count == 0 && node.Files.Count == 1 && action != GetToolAction.Zip)
 			{
@@ -516,10 +515,10 @@ namespace Horde.Server.Tools
 					contentType = "application/octet-stream";
 				}
 
-				return new FileStreamResult(entry.AsStream(reader), contentType) { FileDownloadName = entry.Name.ToString() };
+				return new FileStreamResult(entry.AsStream(), contentType) { FileDownloadName = entry.Name.ToString() };
 			}
 
-			Stream stream = node.AsZipStream(reader);
+			Stream stream = node.AsZipStream();
 			return new FileStreamResult(stream, "application/zip") { FileDownloadName = $"{tool.Id}-{deployment.Version}.zip" };
 		}
 

@@ -412,7 +412,6 @@ namespace Horde.Server.Logs
 		/// </summary>
 		class NewLoggerResponseStream : Stream
 		{
-			readonly TreeReader _reader;
 			readonly LogNode _rootNode;
 
 			/// <summary>
@@ -453,9 +452,8 @@ namespace Horde.Server.Logs
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			public NewLoggerResponseStream(TreeReader reader, LogNode rootNode, long offset, long length)
+			public NewLoggerResponseStream(LogNode rootNode, long offset, long length)
 			{
-				_reader = reader;
 				_rootNode = rootNode;
 
 				_responseOffset = offset;
@@ -528,7 +526,7 @@ namespace Horde.Server.Logs
 
 						// Get the chunk data
 						LogChunkRef chunk = _rootNode.TextChunkRefs[_chunkIdx];
-						LogChunkNode chunkNode = await chunk.ExpandCopyAsync(_reader, cancellationToken);
+						LogChunkNode chunkNode = await chunk.ExpandCopyAsync(cancellationToken);
 
 						// Get the source data
 						_sourceBuffer = chunkNode.Data;
@@ -650,18 +648,18 @@ namespace Horde.Server.Logs
 
 			if (logFile.UseNewStorageBackend)
 			{
-				TreeReader reader = await GetTreeReaderAsync(cancellationToken);
+				IStorageClient storageClient = await GetStorageClientAsync(cancellationToken);
 
 				int maxIndex = index + count;
 
-				LogNode? root = await reader.TryReadNodeAsync<LogNode>(logFile.RefName, cancellationToken: cancellationToken);
+				LogNode? root = await storageClient.TryReadNodeAsync<LogNode>(logFile.RefName, cancellationToken: cancellationToken);
 				if (root != null)
 				{
 					int chunkIdx = root.TextChunkRefs.GetChunkForLine(index);
 					for (; index < maxIndex && chunkIdx < root.TextChunkRefs.Count; chunkIdx++)
 					{
 						LogChunkRef chunk = root.TextChunkRefs[chunkIdx];
-						LogChunkNode chunkData = await chunk.ExpandAsync(reader, cancellationToken);
+						LogChunkNode chunkData = await chunk.ExpandAsync(cancellationToken);
 
 						for (; index < maxIndex && index < chunk.LineIndex; index++)
 						{
@@ -1078,9 +1076,9 @@ namespace Horde.Server.Logs
 		{
 			if (logFile.UseNewStorageBackend)
 			{
-				TreeReader reader = await GetTreeReaderAsync(cancellationToken);
+				IStorageClient storageClient = await GetStorageClientAsync(cancellationToken);
 
-				LogNode? root = await reader.TryReadNodeAsync<LogNode>(logFile.RefName, cancellationToken: cancellationToken);
+				LogNode? root = await storageClient.TryReadNodeAsync<LogNode>(logFile.RefName, cancellationToken: cancellationToken);
 				if (root == null || root.TextChunkRefs.Count == 0)
 				{
 					return new MemoryStream(Array.Empty<byte>(), false);
@@ -1096,14 +1094,14 @@ namespace Horde.Server.Logs
 						long lastChunkLength = lastChunk.Length;
 						if (lastChunkLength <= 0)
 						{
-							LogChunkNode lastChunkNode = await lastChunk.ExpandAsync(reader, cancellationToken);
+							LogChunkNode lastChunkNode = await lastChunk.ExpandAsync(cancellationToken);
 							lastChunkLength = lastChunkNode.Length;
 						}
 						length = Math.Min(length, (lastChunk.Offset + lastChunkLength) - offset);
 					}
 
 					// Create the new stream
-					return new NewLoggerResponseStream(reader, root, offset, length);
+					return new NewLoggerResponseStream(root, offset, length);
 				}
 			}
 			else
@@ -1217,10 +1215,9 @@ namespace Horde.Server.Logs
 			}
 		}
 
-		async Task<TreeReader> GetTreeReaderAsync(CancellationToken cancellationToken)
+		async Task<IStorageClient> GetStorageClientAsync(CancellationToken cancellationToken)
 		{
-			IStorageClient store = await _storageService.GetClientAsync(Namespace.Logs, cancellationToken);
-			return new TreeReader(store, _logFileCache, _logger);
+			return await _storageService.GetClientAsync(Namespace.Logs, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -1228,9 +1225,9 @@ namespace Horde.Server.Logs
 		{
 			if (logFile.UseNewStorageBackend)
 			{
-				TreeReader reader = await GetTreeReaderAsync(cancellationToken);
+				IStorageClient storageClient = await GetStorageClientAsync(cancellationToken);
 
-				LogNode? root = await reader.TryReadNodeAsync<LogNode>(logFile.RefName, cancellationToken: cancellationToken);
+				LogNode? root = await storageClient.TryReadNodeAsync<LogNode>(logFile.RefName, cancellationToken: cancellationToken);
 				if (root == null)
 				{
 					return (0, 0);
@@ -1238,7 +1235,7 @@ namespace Horde.Server.Logs
 
 				int chunkIdx = root.TextChunkRefs.GetChunkForLine(lineIdx);
 				LogChunkRef chunk = root.TextChunkRefs[chunkIdx];
-				LogChunkNode chunkData = await chunk.ExpandAsync(reader, cancellationToken);
+				LogChunkNode chunkData = await chunk.ExpandAsync(cancellationToken);
 
 				if (lineIdx < chunk.LineIndex)
 				{
@@ -1889,16 +1886,16 @@ namespace Horde.Server.Logs
 		async IAsyncEnumerable<int> SearchLogDataInternalNewAsync(ILogFile logFile, string text, int firstLine, SearchStats searchStats, [EnumeratorCancellation] CancellationToken cancellationToken)
 		{
 			SearchTerm searchText = new SearchTerm(text);
-			TreeReader reader = await GetTreeReaderAsync(cancellationToken);
+			IStorageClient storageClient = await GetStorageClientAsync(cancellationToken);
 
 			// Search the index
 			if (logFile.LineCount > 0)
 			{
-				LogNode? root = await reader.ReadNodeAsync<LogNode>(logFile.RefName, cancellationToken: cancellationToken);
+				LogNode? root = await storageClient.ReadNodeAsync<LogNode>(logFile.RefName, cancellationToken: cancellationToken);
 				if(root != null)
 				{
-					LogIndexNode index = await root.IndexRef.ExpandAsync(reader, cancellationToken);
-					await foreach (int lineIdx in index.Search(reader, firstLine, searchText, searchStats, cancellationToken))
+					LogIndexNode index = await root.IndexRef.ExpandAsync(cancellationToken);
+					await foreach (int lineIdx in index.Search(firstLine, searchText, searchStats, cancellationToken))
 					{
 						yield return lineIdx;
 					}

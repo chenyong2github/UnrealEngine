@@ -27,19 +27,16 @@ namespace Horde.Commands.Vcs
 
 			RefName branchName = new RefName(Branch ?? "ue5-main");
 
-			IStorageClient store = await GetStorageClientAsync();
+			IStorageClient storageClient = await GetStorageClientAsync();
 
-			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			TreeReader reader = new TreeReader(store, cache, logger);
-
-			CommitNode? tip = await GetCommitAsync(reader, branchName, Change);
+			CommitNode? tip = await GetCommitAsync(storageClient, branchName, Change);
 			if (tip == null)
 			{
 				logger.LogError("Unable to find change {Change}", Change);
 				return 1;
 			}
 
-			workspaceState.Tree = await RealizeAsync(reader, tip.Contents, BaseDir, null, true, logger);
+			workspaceState.Tree = await RealizeAsync(tip.Contents, BaseDir, null, true, logger);
 			await WriteStateAsync(BaseDir, workspaceState);
 
 			return 0;

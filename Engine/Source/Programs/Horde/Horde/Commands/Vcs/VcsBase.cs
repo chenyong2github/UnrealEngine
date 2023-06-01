@@ -346,9 +346,9 @@ namespace Horde.Commands.Vcs
 			}
 		}
 
-		protected static async Task<CommitNode?> GetCommitAsync(TreeReader reader, RefName branchName, int change = 0)
+		protected static async Task<CommitNode?> GetCommitAsync(IStorageClient storageClient, RefName branchName, int change = 0)
 		{
-			CommitNode tip = await reader.ReadNodeAsync<CommitNode>(branchName);
+			CommitNode tip = await storageClient.ReadNodeAsync<CommitNode>(branchName);
 			if (change != 0)
 			{
 				while (tip.Number != change)
@@ -357,7 +357,7 @@ namespace Horde.Commands.Vcs
 					{
 						return null;
 					}
-					tip = await tip.Parent.ExpandAsync(reader);
+					tip = await tip.Parent.ExpandAsync();
 				}
 			}
 			return tip;

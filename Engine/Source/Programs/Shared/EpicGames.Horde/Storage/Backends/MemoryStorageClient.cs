@@ -18,7 +18,7 @@ namespace EpicGames.Horde.Storage.Backends
 	/// <summary>
 	/// Implementation of <see cref="IStorageClient"/> which stores data in memory. Not intended for production use.
 	/// </summary>
-	public class MemoryStorageClient : StorageClientBase
+	public class MemoryStorageClient : BundleStorageClient
 	{
 		record class ExportEntry(NodeHandle Handle, ExportEntry? Next);
 

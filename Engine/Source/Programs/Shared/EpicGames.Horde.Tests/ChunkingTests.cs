@@ -102,7 +102,7 @@ namespace EpicGames.Horde.Tests
 			byte[] result;
 			using (MemoryStream stream = new MemoryStream())
 			{
-				await root.CopyToStreamAsync(reader, stream, CancellationToken.None);
+				await root.CopyToStreamAsync(stream, CancellationToken.None);
 				result = stream.ToArray();
 			}
 
@@ -134,7 +134,7 @@ namespace EpicGames.Horde.Tests
 				int childCount = interiorNode.Children.Count;
 				for (int idx = 0; idx < childCount; idx++)
 				{
-					ChunkedDataNode childNode = await interiorNode.Children[idx].ExpandAsync(reader, CancellationToken.None);
+					ChunkedDataNode childNode = await interiorNode.Children[idx].ExpandAsync(CancellationToken.None);
 					await CheckSizes(reader, childNode, options, idx == childCount - 1);
 				}
 			}

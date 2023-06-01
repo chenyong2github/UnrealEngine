@@ -52,10 +52,7 @@ namespace Horde.Commands.Vcs
 
 			IStorageClient store = await GetStorageClientAsync();
 
-			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			TreeReader reader = new TreeReader(store, cache, logger);
-
-			CommitNode? tip = await reader.TryReadNodeAsync<CommitNode>(workspaceState.Branch);
+			CommitNode? tip = await store.TryReadNodeAsync<CommitNode>(workspaceState.Branch);
 			NodeRef<CommitNode>? tipRef = (tip == null) ? null : new NodeRef<CommitNode>(tip);
 
 			DirectoryNode rootNode;
@@ -65,14 +62,14 @@ namespace Horde.Commands.Vcs
 			}
 			else
 			{
-				rootNode = await tip.Contents.ExpandCopyAsync(reader);
+				rootNode = await tip.Contents.ExpandCopyAsync();
 			}
 
 			DirectoryNodeRef rootRef = new DirectoryNodeRef(rootNode);
 
 			List<(DirectoryNode, FileInfo, FileState)> files = new List<(DirectoryNode, FileInfo, FileState)>();
 			List<(DirectoryNodeRef, DirectoryState)> directories = new List<(DirectoryNodeRef, DirectoryState)>();
-			await UpdateTreeAsync(reader, rootRef, rootDir, oldState, newState, files, directories);
+			await UpdateTreeAsync(rootRef, rootDir, oldState, newState, files, directories);
 
 			using IStorageWriter writer = store.CreateWriter();
 			await DirectoryNode.CopyFromDirectoryAsync(files.ConvertAll(x => (x.Item1, x.Item2)), new ChunkingOptions(), writer, null, CancellationToken.None);
@@ -107,11 +104,11 @@ namespace Horde.Commands.Vcs
 			return 0;
 		}
 
-		private async Task UpdateTreeAsync(TreeReader reader, DirectoryNodeRef rootRef, DirectoryReference rootDir, DirectoryState? oldState, DirectoryState newState, List<(DirectoryNode, FileInfo, FileState)> files, List<(DirectoryNodeRef, DirectoryState)> directories)
+		private async Task UpdateTreeAsync(DirectoryNodeRef rootRef, DirectoryReference rootDir, DirectoryState? oldState, DirectoryState newState, List<(DirectoryNode, FileInfo, FileState)> files, List<(DirectoryNodeRef, DirectoryState)> directories)
 		{
 			directories.Add((rootRef, newState));
 
-			DirectoryNode root = await rootRef.ExpandAsync(reader);
+			DirectoryNode root = await rootRef.ExpandAsync();
 			foreach ((Utf8String name, DirectoryState? oldSubDirState, DirectoryState? newSubDirState) in EnumerableExtensions.Zip(oldState?.Directories, newState.Directories))
 			{
 				if (newSubDirState == null)
@@ -120,7 +117,7 @@ namespace Horde.Commands.Vcs
 				}
 				else if (oldSubDirState != newSubDirState)
 				{
-					await UpdateTreeAsync(reader, root.FindOrAddDirectoryEntry(name), DirectoryReference.Combine(rootDir, name.ToString()), oldSubDirState, newSubDirState, files, directories);
+					await UpdateTreeAsync(root.FindOrAddDirectoryEntry(name), DirectoryReference.Combine(rootDir, name.ToString()), oldSubDirState, newSubDirState, files, directories);
 				}
 			}
 

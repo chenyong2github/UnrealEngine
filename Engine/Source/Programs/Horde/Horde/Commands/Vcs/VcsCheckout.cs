@@ -57,30 +57,27 @@ namespace Horde.Commands.Vcs
 
 			IStorageClient store = await GetStorageClientAsync();
 
-			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			TreeReader reader = new TreeReader(store, cache, logger);
-
-			CommitNode? tip = await GetCommitAsync(reader, branchName, Change);
+			CommitNode? tip = await GetCommitAsync(store, branchName, Change);
 			if (tip == null)
 			{
 				logger.LogError("Unable to find change {Change}", Change);
 				return 1;
 			}
 
-			workspaceState.Tree = await RealizeAsync(reader, tip.Contents, rootDir, newState, Clean, logger);
+			workspaceState.Tree = await RealizeAsync(tip.Contents, rootDir, newState, Clean, logger);
 			await WriteStateAsync(rootDir, workspaceState);
 
 			logger.LogInformation("Updated workspace to change {Number}", tip.Number);
 			return 0;
 		}
 
-		protected static async Task<DirectoryState> RealizeAsync(TreeReader reader, DirectoryNodeRef directoryRef, DirectoryReference dirPath, DirectoryState? directoryState, bool clean, ILogger logger)
+		protected static async Task<DirectoryState> RealizeAsync(DirectoryNodeRef directoryRef, DirectoryReference dirPath, DirectoryState? directoryState, bool clean, ILogger logger)
 		{
 			DirectoryReference.CreateDirectory(dirPath);
 
 			DirectoryState newState = new DirectoryState();
 
-			DirectoryNode directoryNode = await directoryRef.ExpandAsync(reader);
+			DirectoryNode directoryNode = await directoryRef.ExpandAsync();
 			foreach ((Utf8String name, DirectoryEntry? subDirEntry, DirectoryState? subDirState) in EnumerableExtensions.Zip(directoryNode.NameToDirectory, directoryState?.Directories))
 			{
 				DirectoryReference subDirPath = DirectoryReference.Combine(dirPath, name.ToString());
@@ -93,7 +90,7 @@ namespace Horde.Commands.Vcs
 				}
 				else
 				{
-					newState.Directories[name] = await RealizeAsync(reader, subDirEntry, subDirPath, subDirState, clean, logger);
+					newState.Directories[name] = await RealizeAsync(subDirEntry, subDirPath, subDirState, clean, logger);
 				}
 			}
 
@@ -109,7 +106,7 @@ namespace Horde.Commands.Vcs
 				}
 				else if (fileState == null || fileState.Hash != fileEntry.Hash)
 				{
-					newState.Files[name] = await CheckoutFileAsync(reader, fileEntry, filePath.ToFileInfo(), logger);
+					newState.Files[name] = await CheckoutFileAsync(fileEntry, filePath.ToFileInfo(), logger);
 				}
 				else
 				{
@@ -121,11 +118,11 @@ namespace Horde.Commands.Vcs
 			return newState;
 		}
 
-		static async Task<FileState> CheckoutFileAsync(TreeReader reader, FileEntry fileRef, FileInfo fileInfo, ILogger logger)
+		static async Task<FileState> CheckoutFileAsync(FileEntry fileRef, FileInfo fileInfo, ILogger logger)
 		{
 			logger.LogInformation("Updating {File} to {Hash}", fileInfo, fileRef.Hash);
-			ChunkedDataNode fileNode = await fileRef.ExpandAsync(reader);
-			await fileNode.CopyToFileAsync(reader, fileInfo, CancellationToken.None);
+			ChunkedDataNode fileNode = await fileRef.ExpandAsync();
+			await fileNode.CopyToFileAsync(fileInfo, CancellationToken.None);
 			fileInfo.Refresh();
 			return new FileState(fileInfo, fileRef.Hash);
 		}

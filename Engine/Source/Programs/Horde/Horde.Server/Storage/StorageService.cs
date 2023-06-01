@@ -94,7 +94,7 @@ namespace Horde.Server.Storage
 	/// </summary>
 	public sealed class StorageService : IHostedService, IDisposable, IStorageClientFactory
 	{
-		sealed class StorageClient : StorageClientBase, IStorageClientImpl
+		sealed class StorageClient : BundleStorageClient, IStorageClientImpl
 		{
 			readonly StorageService _outer;
 			readonly string _prefix;

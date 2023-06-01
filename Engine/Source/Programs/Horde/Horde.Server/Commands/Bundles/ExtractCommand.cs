@@ -43,12 +43,11 @@ namespace Horde.Server.Commands.Bundles
 
 			IStorageClient store = await storageService.GetClientAsync(NamespaceId, default);
 
-			TreeReader reader = new TreeReader(store, serviceProvider.GetRequiredService<IMemoryCache>(), serviceProvider.GetRequiredService<ILogger<ExtractCommand>>());
-			CommitNode commit = await reader.ReadNodeAsync<CommitNode>(RefName);
+			CommitNode commit = await store.ReadNodeAsync<CommitNode>(RefName);
 			logger.LogInformation("Extracting {Number}: {Description} to {OutputDir}", commit.Number, (commit.Message ?? String.Empty).Replace("\n", "\\n", StringComparison.Ordinal), OutputDir);
 
-			DirectoryNode contents = await commit.Contents.ExpandAsync(reader);
-			await contents.CopyToDirectoryAsync(reader, OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
+			DirectoryNode contents = await commit.Contents.ExpandAsync();
+			await contents.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 
 			return 0;
 		}

@@ -12,9 +12,9 @@ using Microsoft.Extensions.Logging;
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
-	/// Base class for an implementation of <see cref="IStorageClient"/>, providing implementations for some common functionality.
+	/// Base class for an implementation of <see cref="IStorageClient"/>, providing implementations for some common functionality using bundles.
 	/// </summary>
-	public abstract class StorageClientBase : IStorageClient
+	public abstract class BundleStorageClient : IStorageClient
 	{
 		/// <summary>
 		/// Reader for node data
@@ -24,7 +24,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		protected StorageClientBase(IMemoryCache? memoryCache, ILogger logger)
+		protected BundleStorageClient(IMemoryCache? memoryCache, ILogger logger)
 		{
 			TreeReader = new TreeReader(this, memoryCache, logger);
 		}

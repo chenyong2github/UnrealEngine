@@ -238,12 +238,12 @@ namespace Horde.Server.Artifacts
 				return Forbid(ArtifactAclAction.ReadArtifact, artifact.AclScope);
 			}
 
-			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
+			IStorageClient storageClient = await _storageService.GetClientAsync(artifact.NamespaceId, cancellationToken);
 
 			DirectoryNode directoryNode;
 			try
 			{
-				directoryNode = await reader.ReadNodeAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
+				directoryNode = await storageClient.ReadNodeAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
 			}
 			catch (RefNameNotFoundException)
 			{
@@ -259,44 +259,44 @@ namespace Horde.Server.Artifacts
 					{
 						return NotFound();
 					}
-					directoryNode = await nextDirectoryEntry.ExpandAsync(reader, cancellationToken);
+					directoryNode = await nextDirectoryEntry.ExpandAsync(cancellationToken);
 				}
 			}
 
 			GetArtifactDirectoryResponse response = new GetArtifactDirectoryResponse();
-			await ExpandDirectoriesAsync(reader, directoryNode, 0, response, cancellationToken);
+			await ExpandDirectoriesAsync(directoryNode, 0, response, cancellationToken);
 			return PropertyFilter.Apply(response, filter);
 		}
 
-		async Task ExpandDirectoriesAsync(TreeReader reader, DirectoryNode directoryNode, int depth, GetArtifactDirectoryResponse response, CancellationToken cancellationToken)
+		async Task ExpandDirectoriesAsync(DirectoryNode directoryNode, int depth, GetArtifactDirectoryResponse response, CancellationToken cancellationToken)
 		{
 			if (directoryNode.Directories.Count > 0)
 			{
 				response.Directories = new List<GetArtifactDirectoryEntryResponse>();
 				foreach (DirectoryEntry subDirectoryEntry in directoryNode.Directories)
 				{
-					DirectoryNode subDirectoryNode = await subDirectoryEntry.ExpandAsync(reader, cancellationToken);
+					DirectoryNode subDirectoryNode = await subDirectoryEntry.ExpandAsync(cancellationToken);
 
 					GetArtifactDirectoryEntryResponse subDirectoryEntryResponse = new GetArtifactDirectoryEntryResponse(subDirectoryEntry);
 					if (depth == 0)
 					{
 						if (subDirectoryNode.Directories.Count + subDirectoryNode.Files.Count < 16)
 						{
-							await ExpandDirectoriesAsync(reader, subDirectoryNode, depth + 1, subDirectoryEntryResponse, cancellationToken);
+							await ExpandDirectoriesAsync(subDirectoryNode, depth + 1, subDirectoryEntryResponse, cancellationToken);
 						}
 					}
 					else if (depth == 1)
 					{
 						if (subDirectoryNode.Directories.Count + subDirectoryNode.Files.Count < 8)
 						{
-							await ExpandDirectoriesAsync(reader, subDirectoryNode, depth + 1, subDirectoryEntryResponse, cancellationToken);
+							await ExpandDirectoriesAsync(subDirectoryNode, depth + 1, subDirectoryEntryResponse, cancellationToken);
 						}
 					}
 					else if (depth < 10)
 					{
 						if (subDirectoryNode.Directories.Count == 1 && subDirectoryNode.Files.Count == 0)
 						{
-							await ExpandDirectoriesAsync(reader, subDirectoryNode, depth + 1, subDirectoryEntryResponse, cancellationToken);
+							await ExpandDirectoriesAsync(subDirectoryNode, depth + 1, subDirectoryEntryResponse, cancellationToken);
 						}
 					}
 					response.Directories.Add(subDirectoryEntryResponse);
@@ -331,10 +331,10 @@ namespace Horde.Server.Artifacts
 				return Forbid(ArtifactAclAction.ReadArtifact, artifact.AclScope);
 			}
 
-			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
-			DirectoryNode directory = await reader.ReadNodeAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
+			IStorageClient storageClient = await _storageService.GetClientAsync(artifact.NamespaceId, cancellationToken);
+			DirectoryNode directory = await storageClient.ReadNodeAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
 
-			FileEntry? fileEntry = await directory.GetFileEntryByPathAsync(reader, path, cancellationToken);
+			FileEntry? fileEntry = await directory.GetFileEntryByPathAsync(path, cancellationToken);
 			if (fileEntry == null)
 			{
 				return NotFound($"Unable to find file {path}");
@@ -346,7 +346,7 @@ namespace Horde.Server.Artifacts
 				contentType = "application/octet-stream";
 			}
 
-			Stream stream = fileEntry.AsStream(reader);
+			Stream stream = fileEntry.AsStream();
 			if (inline)
 			{
 				return new InlineFileStreamResult(stream, contentType, Path.GetFileName(path));
@@ -403,10 +403,10 @@ namespace Horde.Server.Artifacts
 				filter = new FileFilter(fileFilter);
 			}
 
-			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
-			DirectoryNode directory = await reader.ReadNodeAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
+			IStorageClient storageClient = await _storageService.GetClientAsync(artifact.NamespaceId, cancellationToken);
+			DirectoryNode directory = await storageClient.ReadNodeAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
 
-			Stream stream = directory.AsZipStream(reader, filter);
+			Stream stream = directory.AsZipStream(filter);
 			return new FileStreamResult(stream, "application/zip") { FileDownloadName = $"{artifact.RefName}.zip" };
 		}
 

@@ -20,24 +20,15 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace EpicGames.Horde.Tests
 {
 	[TestClass]
-	public sealed class LogTests : IDisposable
+	public sealed class LogTests
 	{
-		readonly IMemoryCache _cache;
 		readonly MemoryStorageClient _store;
-		readonly TreeReader _reader;
 
 		private readonly byte[] _data = Resources.TextFile;
 
 		public LogTests()
 		{
-			_cache = new MemoryCache(new MemoryCacheOptions());
 			_store = new MemoryStorageClient();
-			_reader = new TreeReader(_store, _cache, NullLogger.Instance);
-		}
-
-		public void Dispose()
-		{
-			_cache.Dispose();
 		}
 
 		[TestMethod]
@@ -87,18 +78,19 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Flush it to storage, and read the finished log node
-			HashedNodeHandle target;
+			NodeRef<LogNode> logRef;
 			using (IStorageWriter writer = _store.CreateWriter())
 			{
-				target = await builder.FlushAsync(writer, true, CancellationToken.None);
+				HashedNodeHandle target = await builder.FlushAsync(writer, true, CancellationToken.None);
+				logRef = new NodeRef<LogNode>(target);
 			}
-			LogNode log = await _reader.ReadNodeAsync<LogNode>(target.Handle.Locator);
+			LogNode log = await logRef.ExpandAsync();
 
 			// Read the data back out and check it's the same
 			byte[] readData = new byte[_data.Length];
 
 			int writeOffset = 0;
-			await foreach (ReadOnlyMemory<byte> line in log.ReadLogLinesAsync(_reader, 0, CancellationToken.None))
+			await foreach (ReadOnlyMemory<byte> line in log.ReadLogLinesAsync(0, CancellationToken.None))
 			{
 				line.CopyTo(readData.AsMemory(writeOffset));
 				writeOffset += line.Length;
@@ -112,7 +104,7 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(equalSize, readOffset);
 
 			// Test some searches
-			LogIndexNode index = await log.IndexRef.ExpandAsync(_reader);
+			LogIndexNode index = await log.IndexRef.ExpandAsync();
 			await SearchLogDataTestAsync(index);
 		}
 
@@ -134,15 +126,16 @@ namespace EpicGames.Horde.Tests
 				builder.WriteData(Encoding.UTF8.GetBytes(lines[lineIdx]));
 			}
 
-			HashedNodeHandle rootNodeHandle;
+			NodeRef<LogNode> rootNodeRef;
 			using (IStorageWriter writer = _store.CreateWriter())
 			{
-				rootNodeHandle = await builder.FlushAsync(writer, true, CancellationToken.None);
+				HashedNodeHandle rootNodeHandle = await builder.FlushAsync(writer, true, CancellationToken.None);
+				rootNodeRef = new NodeRef<LogNode>(rootNodeHandle);
 			}
 
 			// Read it back in and test the index
-			LogNode rootNode = await _reader.ReadNodeAsync<LogNode>(rootNodeHandle.Handle.Locator);
-			LogIndexNode index = await rootNode.IndexRef.ExpandAsync(_reader);
+			LogNode rootNode = await rootNodeRef.ExpandAsync();
+			LogIndexNode index = await rootNode.IndexRef.ExpandAsync();
 		
 			for (int lineIdx = 0; lineIdx < lines.Length; lineIdx++)
 			{
@@ -153,7 +146,7 @@ namespace EpicGames.Horde.Tests
 						string str = lines[lineIdx].Substring(strOfs, strLen);
 
 						SearchStats stats = new SearchStats();
-						List<int> results = await index.Search(_reader, 0, new SearchTerm(str), stats, CancellationToken.None).ToListAsync();
+						List<int> results = await index.Search(0, new SearchTerm(str), stats, CancellationToken.None).ToListAsync();
 						Assert.AreEqual(1, results.Count);
 						Assert.AreEqual(lineIdx, results[0]);
 
@@ -209,7 +202,7 @@ namespace EpicGames.Horde.Tests
 			}
 		}
 */
-		async Task SearchLogDataTestAsync(LogIndexNode index)
+		static async Task SearchLogDataTestAsync(LogIndexNode index)
 		{
 			await SearchLogDataTestAsync(index, "HISPANIOLA", 0, 4, new[] { 1503, 1520, 1525, 1595 });
 			await SearchLogDataTestAsync(index, "Hispaniola", 0, 4, new[] { 1503, 1520, 1525, 1595 });
@@ -218,10 +211,10 @@ namespace EpicGames.Horde.Tests
 			await SearchLogDataTestAsync(index, "NEWSLETTER", 0, 100, new[] { 7886 });
 		}
 
-		async Task SearchLogDataTestAsync(LogIndexNode index, string text, int firstLine, int count, int[] expectedLines)
+		static async Task SearchLogDataTestAsync(LogIndexNode index, string text, int firstLine, int count, int[] expectedLines)
 		{
 			SearchStats stats = new SearchStats();
-			List<int> lines = await index.Search(_reader, firstLine, new SearchTerm(text), stats, CancellationToken.None).Take(count).ToListAsync();
+			List<int> lines = await index.Search(firstLine, new SearchTerm(text), stats, CancellationToken.None).Take(count).ToListAsync();
 			Assert.IsTrue(lines.SequenceEqual(expectedLines));
 		}
 	}

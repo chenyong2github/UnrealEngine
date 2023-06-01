@@ -174,13 +174,12 @@ namespace EpicGames.Horde.Logs
 		/// <summary>
 		/// Search for the given text in the index
 		/// </summary>
-		/// <param name="reader">Reader for node data</param>
 		/// <param name="firstLineIndex">First line index to search from</param>
 		/// <param name="text">Text to search for</param>
 		/// <param name="stats">Receives stats for the search</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>List of line numbers for the text</returns>
-		public async IAsyncEnumerable<int> Search(TreeReader reader, int firstLineIndex, SearchTerm text, SearchStats stats, [EnumeratorCancellation] CancellationToken cancellationToken)
+		public async IAsyncEnumerable<int> Search(int firstLineIndex, SearchTerm text, SearchStats stats, [EnumeratorCancellation] CancellationToken cancellationToken)
 		{
 			int lastBlockCount = 0;
 			foreach (int blockIdx in EnumeratePossibleChunks(text.Bytes, firstLineIndex))
@@ -194,7 +193,7 @@ namespace EpicGames.Horde.Logs
 				lastBlockCount = blockIdx + 1;
 
 				// Decompress the text
-				LogChunkNode chunk = await indexChunk.ExpandAsync(reader, cancellationToken);
+				LogChunkNode chunk = await indexChunk.ExpandAsync(cancellationToken);
 
 				// Find the initial offset within this block
 				int offset = 0;

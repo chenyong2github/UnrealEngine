@@ -131,33 +131,30 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Creates a stream that returns the contents of this file
 		/// </summary>
-		/// <param name="reader">Reader for node data</param>
 		/// <returns>The content stream</returns>
-		public Stream AsStream(TreeReader reader) => new FileEntryContentStream(reader, this);
+		public Stream AsStream() => new FileEntryContentStream(this);
 
 		/// <summary>
 		/// Copies the contents of this node and its children to the given output stream
 		/// </summary>
-		/// <param name="reader">Reader for retrieving existing node data</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken)
+		public async Task CopyToStreamAsync(Stream outputStream, CancellationToken cancellationToken)
 		{
-			ChunkedDataNode node = await ExpandAsync(reader, cancellationToken);
-			await node.CopyToStreamAsync(reader, outputStream, cancellationToken);
+			ChunkedDataNode node = await ExpandAsync(cancellationToken);
+			await node.CopyToStreamAsync(outputStream, cancellationToken);
 		}
 
 		/// <summary>
 		/// Extracts the contents of this node to a file
 		/// </summary>
-		/// <param name="reader">Reader for retrieving existing node data</param>
 		/// <param name="file">File to write with the contents of this node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async Task CopyToFileAsync(TreeReader reader, FileInfo file, CancellationToken cancellationToken)
+		public async Task CopyToFileAsync(FileInfo file, CancellationToken cancellationToken)
 		{
-			ChunkedDataNode node = await ExpandAsync(reader, cancellationToken);
-			await node.CopyToFileAsync(reader, file, cancellationToken);
+			ChunkedDataNode node = await ExpandAsync(cancellationToken);
+			await node.CopyToFileAsync(file, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -191,13 +188,12 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="reader">Reader to read nodes through</param>
 		/// <param name="entry">The file entry to copy from</param>
-		public FileEntryContentStream(TreeReader reader, FileEntry entry)
+		public FileEntryContentStream(FileEntry entry)
 		{
 			_pipe = new Pipe();
 			_readStream = _pipe.Reader.AsStream();
-			_writeTask = BackgroundTask.StartNew(ctx => WriteDataAsync(reader, entry, _pipe.Writer, ctx));
+			_writeTask = BackgroundTask.StartNew(ctx => WriteDataAsync(entry, _pipe.Writer, ctx));
 
 			Length = entry.Length;
 		}
@@ -212,10 +208,10 @@ namespace EpicGames.Horde.Storage.Nodes
 			_readStream.Dispose();
 		}
 
-		static async Task WriteDataAsync(TreeReader reader, FileEntry entry, PipeWriter pipeWriter, CancellationToken cancellationToken)
+		static async Task WriteDataAsync(FileEntry entry, PipeWriter pipeWriter, CancellationToken cancellationToken)
 		{
 			using Stream stream = pipeWriter.AsStream();
-			await entry.CopyToStreamAsync(reader, stream, cancellationToken);
+			await entry.CopyToStreamAsync(stream, cancellationToken);
 		}
 
 		/// <inheritdoc/>

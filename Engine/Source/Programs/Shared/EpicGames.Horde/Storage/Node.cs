@@ -161,6 +161,13 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Deserialize a node from the given reader
+		/// </summary>
+		/// <param name="nodeData">Data to deserialize from</param>
+		/// <returns>New node instance</returns>
+		public static TNode Deserialize<TNode>(NodeData nodeData) where TNode : Node => (TNode)Deserialize(nodeData);
+
+		/// <summary>
 		/// Static constructor. Registers all the types in the current assembly.
 		/// </summary>
 		static Node()
@@ -263,6 +270,19 @@ namespace EpicGames.Horde.Storage
 	public static class NodeExtensions
 	{
 		/// <summary>
+		/// Reads and deserializes a node from storage
+		/// </summary>
+		/// <typeparam name="TNode"></typeparam>
+		/// <param name="handle"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public static async ValueTask<TNode> ReadAsync<TNode>(this NodeHandle handle, CancellationToken cancellationToken = default) where TNode : Node
+		{
+			NodeData nodeData = await handle.ReadAsync(cancellationToken);
+			return Node.Deserialize<TNode>(nodeData);
+		}
+
+		/// <summary>
 		/// Read an untyped ref from the reader
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
@@ -359,6 +379,44 @@ namespace EpicGames.Horde.Storage
 		{
 			using IStorageWriter writer = store.CreateWriter(name, options);
 			return await writer.WriteAsync(name, node, refOptions, cancellationToken);
+		}
+
+		/// <summary>
+		/// Reads data for a ref from the store, along with the node's contents.
+		/// </summary>
+		/// <param name="store">Store instance to write to</param>
+		/// <param name="name">The ref name</param>
+		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Node for the given ref, or null if it does not exist</returns>
+		public static async Task<TNode?> TryReadNodeAsync<TNode>(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : Node
+		{
+			NodeHandle? refTarget = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			if (refTarget == null)
+			{
+				return null;
+			}
+
+			NodeData nodeData = await refTarget.ReadAsync(cancellationToken);
+			return Node.Deserialize<TNode>(nodeData);
+		}
+
+		/// <summary>
+		/// Reads a ref from the store, throwing an exception if it does not exist
+		/// </summary>
+		/// <param name="store">Store instance to write to</param>
+		/// <param name="name">Id for the ref</param>
+		/// <param name="cacheTime">Minimum coherency of any cached result</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The blob instance</returns>
+		public static async Task<TNode> ReadNodeAsync<TNode>(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : Node
+		{
+			TNode? refValue = await store.TryReadNodeAsync<TNode>(name, cacheTime, cancellationToken);
+			if (refValue == null)
+			{
+				throw new RefNameNotFoundException(name);
+			}
+			return refValue;
 		}
 	}
 }

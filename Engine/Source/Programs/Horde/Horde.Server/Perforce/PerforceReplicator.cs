@@ -257,22 +257,20 @@ namespace Horde.Server.Perforce
 		{
 			IStorageClient store = await _storageService.GetClientAsync(Namespace.Perforce, cancellationToken);
 
-			TreeReader reader = new TreeReader(store, _memoryCache, _logger);
-
 			// Find the parent node
 			RefName refName = GetRefName(streamConfig.Id);
-			CommitNode? parent = await FindParentAsync(reader, refName, change, cancellationToken);
+			CommitNode? parent = await FindParentAsync(store, refName, change, cancellationToken);
 			NodeRef<CommitNode>? parentRef = (parent == null) ? null : new NodeRef<CommitNode>(parent);
 			int parentChange = parent?.Number ?? 0;
 
 			// Read the current incremental state or create a new node to track the incremental state
 			RefName incRefName = GetIncrementalRefName(streamConfig.Id);
-			SyncNode? syncNode = await reader.TryReadNodeAsync<SyncNode>(incRefName, cancellationToken: cancellationToken);
+			SyncNode? syncNode = await store.TryReadNodeAsync<SyncNode>(incRefName, cancellationToken: cancellationToken);
 			if (syncNode == null || syncNode.Change != change || syncNode.ParentChange != parentChange)
 			{
 				syncNode = new SyncNode(change, parentChange, parent?.Contents ?? new NodeRef<DirectoryNode>(new DirectoryNode()));
 			}
-			DirectoryNode root = await syncNode.Contents.ExpandAsync(reader, cancellationToken);
+			DirectoryNode root = await syncNode.Contents.ExpandAsync(cancellationToken);
 
 			// Create a client to replicate from this stream
 			ReplicationClient clientInfo = await FindOrAddReplicationClientAsync(streamConfig);
@@ -456,7 +454,7 @@ namespace Horde.Server.Perforce
 						else if (io.Command == PerforceIoCommand.Close)
 						{
 							FileInfo info = await fileWriter.CloseAsync(io.File, cancellationToken);
-							FileEntry entry = await root.AddFileByPathAsync(reader, info.Path, info.Flags, info.Length, info.Node, cancellationToken);
+							FileEntry entry = await root.AddFileByPathAsync(info.Path, info.Flags, info.Length, info.Node, cancellationToken);
 							entry.CustomData = info.Md5;
 							await writer.WriteAsync(entry, cancellationToken);
 						}
@@ -464,7 +462,7 @@ namespace Horde.Server.Perforce
 						{
 							UnpackUnlinkPayload(io.Payload, out Utf8String path);
 							Utf8String file = GetClientRelativePath(path, clientInfo.Client.Root);
-							await root.DeleteFileByPathAsync(reader, file, cancellationToken);
+							await root.DeleteFileByPathAsync(file, cancellationToken);
 						}
 						else
 						{
@@ -516,14 +514,14 @@ namespace Horde.Server.Perforce
 			await writer.WriteAsync(refName, commitNode, options.RefOptions, cancellationToken); 
 		}
 
-		static async Task<CommitNode?> FindParentAsync(TreeReader reader, RefName refName, int change, CancellationToken cancellationToken)
+		static async Task<CommitNode?> FindParentAsync(IStorageClient storageClient, RefName refName, int change, CancellationToken cancellationToken)
 		{
-			CommitNode? commitNode = await reader.TryReadNodeAsync<CommitNode>(refName, cancellationToken: cancellationToken);
+			CommitNode? commitNode = await storageClient.TryReadNodeAsync<CommitNode>(refName, cancellationToken: cancellationToken);
 			if (commitNode != null)
 			{
 				while (commitNode.Parent != null && commitNode.Number >= change)
 				{
-					commitNode = await commitNode.Parent.ExpandAsync(reader, cancellationToken);
+					commitNode = await commitNode.Parent.ExpandAsync(cancellationToken);
 				}
 			}
 			return commitNode;

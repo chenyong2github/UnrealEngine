@@ -289,14 +289,13 @@ namespace UnrealBuildTool.Artifacts
 			await _semaphore.WaitAsync(cancellationToken);
 			try
 			{
-				TreeReader reader = CreateTreeReader();
 				foreach (IoHash key in partialKeys)
 				{
 					lock (_pendingMappings)
 					{
 						mappings.AddRange(_pendingMappings.Where(x => x.Key == key));
 					}
-					ArtifactMappingCollectionNode? node = await reader.TryReadNodeAsync<ArtifactMappingCollectionNode>(GetRefName(key), default, cancellationToken);
+					ArtifactMappingCollectionNode? node = await _store.TryReadNodeAsync<ArtifactMappingCollectionNode>(GetRefName(key), default, cancellationToken);
 					if (node != null)
 					{
 						foreach (HordeArtifactMapping mapping in node.Mappings.Values)
@@ -321,7 +320,6 @@ namespace UnrealBuildTool.Artifacts
 				return null;
 			}
 
-			TreeReader reader = CreateTreeReader();
 			bool[] output = new bool[mappings.Length];
 			Array.Fill(output, false);
 
@@ -329,7 +327,7 @@ namespace UnrealBuildTool.Artifacts
 			{
 				output[index] = false;
 				ArtifactMapping mapping = mappings[index];
-				ArtifactMappingCollectionNode? node = await reader.TryReadNodeAsync<ArtifactMappingCollectionNode>(GetRefName(mapping.Key), default, cancellationToken);
+				ArtifactMappingCollectionNode? node = await _store.TryReadNodeAsync<ArtifactMappingCollectionNode>(GetRefName(mapping.Key), default, cancellationToken);
 				if (node != null)
 				{
 					if (node.Mappings.TryGetValue(mapping.MappingKey, out HordeArtifactMapping hordeArtifactMapping))
@@ -348,7 +346,7 @@ namespace UnrealBuildTool.Artifacts
 							{
 								string outputName = hordeArtifactMapping.ArtifactMapping.Outputs[refIndex++].GetFullPath(mapping.DirectoryMapping);
 								using FileStream stream = new(outputName, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-								await ChunkedDataNode.CopyToStreamAsync(reader, artifactRef.Handle.Handle.Locator, stream, cancellationToken);
+								await ChunkedDataNode.CopyToStreamAsync(artifactRef.Handle.Handle, stream, cancellationToken);
 							}
 							catch (Exception)
 							{
@@ -486,8 +484,6 @@ namespace UnrealBuildTool.Artifacts
 				return tasks;
 			}
 
-			TreeReader reader = CreateTreeReader();
-
 			// Loop through the mappings
 			foreach (ArtifactMapping mapping in mappings)
 			{
@@ -498,7 +494,7 @@ namespace UnrealBuildTool.Artifacts
 					RefName refName = GetRefName(mapping.Key);
 
 					// Locate the destination collection for this key
-					ArtifactMappingCollectionNode? node = reader.TryReadNodeAsync<ArtifactMappingCollectionNode>(refName, default, cancellationToken).Result;
+					ArtifactMappingCollectionNode? node = _store!.TryReadNodeAsync<ArtifactMappingCollectionNode>(refName, default, cancellationToken).Result;
 					node ??= new ArtifactMappingCollectionNode();
 
 					// Update the mapping collection
@@ -560,15 +556,6 @@ namespace UnrealBuildTool.Artifacts
 		private static RefName GetRefName(IoHash key)
 		{
 			return new RefName($"action_artifact_v2_{key}");
-		}
-
-		/// <summary>
-		/// Create a new tree reader
-		/// </summary>
-		/// <returns>TreeReader</returns>
-		private TreeReader CreateTreeReader()
-		{
-			return new(_store!, null, NullLogger.Instance);
 		}
 	}
 }

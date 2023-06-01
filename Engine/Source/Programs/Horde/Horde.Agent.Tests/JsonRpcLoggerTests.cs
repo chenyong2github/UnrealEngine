@@ -166,10 +166,10 @@ namespace Horde.Agent.Tests
 			// Check the index text
 			List<Utf8String> extractedIndexText = new List<Utf8String>();
 
-			LogIndexNode index = await file.IndexRef.ExpandAsync(reader);
+			LogIndexNode index = await file.IndexRef.ExpandAsync();
 			foreach (LogChunkRef block in index.PlainTextChunkRefs)
 			{
-				LogChunkNode text = await block.ExpandAsync(reader);
+				LogChunkNode text = await block.ExpandAsync();
 				extractedIndexText.AddRange(text.Lines);
 			}
 
@@ -184,7 +184,7 @@ namespace Horde.Agent.Tests
 
 			foreach (LogChunkRef blockRef in file.TextChunkRefs)
 			{
-				LogChunkNode blockText = await blockRef.ExpandAsync(reader);
+				LogChunkNode blockText = await blockRef.ExpandAsync();
 				foreach (Utf8String line in blockText.Lines)
 				{
 					LogEvent logEvent = LogEvent.Read(line.Span);

@@ -98,12 +98,12 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(2, ((InteriorChunkedDataNode)node).Children.Count);
 			await TestBufferlessReadsAsync(reader, handle.Handle.Locator, data.AsMemory(0, 9));
 
-			ChunkedDataNode? childNode1 = await ((InteriorChunkedDataNode)node).Children[0].ExpandAsync(reader);
+			ChunkedDataNode? childNode1 = await ((InteriorChunkedDataNode)node).Children[0].ExpandAsync();
 			Assert.IsNotNull(childNode1);
 			Assert.IsTrue(childNode1 is LeafChunkedDataNode);
 			Assert.AreEqual(8, ((LeafChunkedDataNode)childNode1!).Data.Length);
 
-			ChunkedDataNode? childNode2 = await ((InteriorChunkedDataNode)node).Children[1].ExpandAsync(reader);
+			ChunkedDataNode? childNode2 = await ((InteriorChunkedDataNode)node).Children[1].ExpandAsync();
 			Assert.IsNotNull(childNode2);
 			Assert.IsTrue(childNode2 is LeafChunkedDataNode);
 			Assert.AreEqual(1, ((LeafChunkedDataNode)childNode2!).Data.Length);
@@ -190,7 +190,6 @@ namespace EpicGames.Horde.Tests
 		public async Task BasicTestDirectory()
 		{
 			MemoryStorageClient store = _storage;
-			TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
 
 			DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 			DirectoryNode node = root.AddDirectory("hello");
@@ -210,16 +209,16 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(3, bundle.Header.Exports.Count);
 
 			// Create a new bundle and read it back in again
-			DirectoryNode newRoot = await reader.ReadNodeAsync<DirectoryNode>(refName);
+			DirectoryNode newRoot = await store.ReadNodeAsync<DirectoryNode>(refName);
 
 			Assert.AreEqual(0, newRoot.Files.Count);
 			Assert.AreEqual(1, newRoot.Directories.Count);
-			DirectoryNode? outputNode = await newRoot.FindDirectoryAsync(reader, "hello", CancellationToken.None);
+			DirectoryNode? outputNode = await newRoot.FindDirectoryAsync("hello", CancellationToken.None);
 			Assert.IsNotNull(outputNode);
 
 			Assert.AreEqual(0, outputNode!.Files.Count);
 			Assert.AreEqual(1, outputNode!.Directories.Count);
-			DirectoryNode? outputNode2 = await outputNode.FindDirectoryAsync(reader, "world", CancellationToken.None);
+			DirectoryNode? outputNode2 = await outputNode.FindDirectoryAsync("world", CancellationToken.None);
 			Assert.IsNotNull(outputNode2);
 
 			Assert.AreEqual(0, outputNode2!.Files.Count);
@@ -270,20 +269,18 @@ namespace EpicGames.Horde.Tests
 			}
 
 			{
-				TreeReader reader = new TreeReader(_storage, null, NullLogger.Instance);
+				DirectoryNode root = await _storage.ReadNodeAsync<DirectoryNode>(refName);
 
-				DirectoryNode root = await reader.ReadNodeAsync<DirectoryNode>(refName);
-
-				DirectoryNode? newNode1 = await root.FindDirectoryAsync(reader, "node1", CancellationToken.None);
+				DirectoryNode? newNode1 = await root.FindDirectoryAsync("node1", CancellationToken.None);
 				Assert.IsNotNull(newNode1);
 
-				DirectoryNode? newNode2 = await newNode1!.FindDirectoryAsync(reader, "node2", CancellationToken.None);
+				DirectoryNode? newNode2 = await newNode1!.FindDirectoryAsync("node2", CancellationToken.None);
 				Assert.IsNotNull(newNode2);
 
-				DirectoryNode? newNode3 = await newNode2!.FindDirectoryAsync(reader, "node3", CancellationToken.None);
+				DirectoryNode? newNode3 = await newNode2!.FindDirectoryAsync("node3", CancellationToken.None);
 				Assert.IsNotNull(newNode3);
 
-				DirectoryNode? newNode4 = await newNode3!.FindDirectoryAsync(reader, "node4", CancellationToken.None);
+				DirectoryNode? newNode4 = await newNode3!.FindDirectoryAsync("node4", CancellationToken.None);
 				Assert.IsNotNull(newNode4);
 			}
 		}

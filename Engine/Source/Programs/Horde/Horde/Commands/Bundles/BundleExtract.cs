@@ -47,7 +47,7 @@ namespace Horde.Commands.Bundles
 			Stopwatch timer = Stopwatch.StartNew();
 
 			DirectoryNode node = await reader.ReadNodeAsync<DirectoryNode>(handle.Locator);
-			await node.CopyToDirectoryAsync(reader, OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
+			await node.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 
 			logger.LogInformation("Elapsed: {Time}s", timer.Elapsed.TotalSeconds);
 			return 0;

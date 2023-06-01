@@ -433,10 +433,9 @@ namespace Horde.Server.Tools
 		{
 			IStorageClient client = await GetStorageClientAsync(tool, cancellationToken);
 
-			TreeReader reader = new TreeReader(client, _cache, _logger);
-			DirectoryNode node = await reader.ReadNodeAsync<DirectoryNode>(deployment.RefName, DateTime.UtcNow - TimeSpan.FromDays(2.0), cancellationToken);
+			DirectoryNode node = await client.ReadNodeAsync<DirectoryNode>(deployment.RefName, DateTime.UtcNow - TimeSpan.FromDays(2.0), cancellationToken);
 
-			return node.AsZipStream(reader);
+			return node.AsZipStream();
 		}
 	}
 }

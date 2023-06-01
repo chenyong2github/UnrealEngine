@@ -330,7 +330,7 @@ namespace EpicGames.Horde.Logs
 		{
 			foreach (LogChunkRef textChunkRef in logNode.TextChunkRefs)
 			{
-				LogChunkNode textChunk = await textChunkRef.ExpandAsync(reader, cancellationToken);
+				LogChunkNode textChunk = await textChunkRef.ExpandAsync(cancellationToken);
 				yield return textChunk.Data;
 			}
 		}
@@ -339,18 +339,17 @@ namespace EpicGames.Horde.Logs
 		/// Reads lines from a line
 		/// </summary>
 		/// <param name="logNode">Log to read from</param>
-		/// <param name="reader">Reader to pull nodes from</param>
 		/// <param name="index">Zero-based index of the first line to read from</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Sequence of line buffers</returns>
-		public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadLogLinesAsync(this LogNode logNode, TreeReader reader, int index, [EnumeratorCancellation] CancellationToken cancellationToken)
+		public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadLogLinesAsync(this LogNode logNode, int index, [EnumeratorCancellation] CancellationToken cancellationToken)
 		{
 			foreach (LogChunkRef textChunkRef in logNode.TextChunkRefs)
 			{
 				int lineIdx = Math.Max(index - textChunkRef.LineIndex, 0);
 				if (lineIdx < textChunkRef.LineCount)
 				{
-					LogChunkNode textChunk = await textChunkRef.ExpandAsync(reader, cancellationToken);
+					LogChunkNode textChunk = await textChunkRef.ExpandAsync(cancellationToken);
 
 					int offset = textChunk.LineOffsets[lineIdx];
 					for (; lineIdx < textChunk.LineCount; lineIdx++)

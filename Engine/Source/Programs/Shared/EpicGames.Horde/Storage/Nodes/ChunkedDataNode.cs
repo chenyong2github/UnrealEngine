@@ -20,10 +20,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Copies the contents of this node and its children to the given output stream
 		/// </summary>
-		/// <param name="reader">Reader for nodes in the tree</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public abstract Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken);
+		public abstract Task CopyToStreamAsync(Stream outputStream, CancellationToken cancellationToken);
 
 		static readonly Guid s_leafNodeGuid = Node.GetNodeType<LeafChunkedDataNode>().Guid;
 		static readonly Guid s_interiorNodeGuid = Node.GetNodeType<InteriorChunkedDataNode>().Guid;
@@ -31,20 +30,19 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Copy the contents of the node to the output stream without creating the intermediate FileNodes
 		/// </summary>
-		/// <param name="reader">Reader for nodes in the tree</param>
-		/// <param name="locator">File node to be copied</param>
+		/// <param name="handle">Handle to the data to read</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CopyToStreamAsync(TreeReader reader, NodeLocator locator, Stream outputStream, CancellationToken cancellationToken)
+		public static async Task CopyToStreamAsync(NodeHandle handle, Stream outputStream, CancellationToken cancellationToken)
 		{
-			NodeData nodeData = await reader.ReadNodeDataAsync(locator, cancellationToken);
+			NodeData nodeData = await handle.ReadAsync(cancellationToken);
 			if (nodeData.Type.Guid == s_leafNodeGuid)
 			{
 				await LeafChunkedDataNode.CopyToStreamAsync(nodeData, outputStream, cancellationToken);
 			}
 			else if (nodeData.Type.Guid == s_interiorNodeGuid)
 			{
-				await InteriorChunkedDataNode.CopyToStreamAsync(reader, nodeData, outputStream, cancellationToken);
+				await InteriorChunkedDataNode.CopyToStreamAsync(nodeData, outputStream, cancellationToken);
 			}
 			else
 			{
@@ -55,11 +53,10 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Extracts the contents of this node to a file
 		/// </summary>
-		/// <param name="reader">Reader for nodes in the tree</param>
 		/// <param name="file">File to write with the contents of this node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async Task CopyToFileAsync(TreeReader reader, FileInfo file, CancellationToken cancellationToken)
+		public async Task CopyToFileAsync(FileInfo file, CancellationToken cancellationToken)
 		{
 			if(file.Exists && (file.Attributes & FileAttributes.ReadOnly) != 0)
 			{
@@ -67,21 +64,20 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 			using (FileStream stream = file.Open(FileMode.Create, FileAccess.Write, FileShare.Read))
 			{
-				await CopyToStreamAsync(reader, stream, cancellationToken);
+				await CopyToStreamAsync(stream, cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Serialize this node and its children into a byte array
 		/// </summary>
-		/// <param name="reader">Reader for nodes in the tree</param>
 		/// <param name="cancellationToken"></param>
 		/// <returns>Array of data stored by the tree</returns>
-		public async Task<byte[]> ToByteArrayAsync(TreeReader reader, CancellationToken cancellationToken)
+		public async Task<byte[]> ToByteArrayAsync(CancellationToken cancellationToken)
 		{
 			using (MemoryStream stream = new MemoryStream())
 			{
-				await CopyToStreamAsync(reader, stream, cancellationToken);
+				await CopyToStreamAsync(stream, cancellationToken);
 				return stream.ToArray();
 			}
 		}
@@ -124,7 +120,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		public override IEnumerable<NodeRef> EnumerateRefs() => Enumerable.Empty<NodeRef>();
 
 		/// <inheritdoc/>
-		public override async Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken)
+		public override async Task CopyToStreamAsync(Stream outputStream, CancellationToken cancellationToken)
 		{
 			await outputStream.WriteAsync(Data, cancellationToken);
 		}
@@ -189,29 +185,28 @@ namespace EpicGames.Horde.Storage.Nodes
 		public override IEnumerable<NodeRef> EnumerateRefs() => Children;
 
 		/// <inheritdoc/>
-		public override async Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken)
+		public override async Task CopyToStreamAsync(Stream outputStream, CancellationToken cancellationToken)
 		{
 			foreach (NodeRef<ChunkedDataNode> childNodeRef in Children)
 			{
-				ChunkedDataNode childNode = await childNodeRef.ExpandAsync(reader, cancellationToken);
-				await childNode.CopyToStreamAsync(reader, outputStream, cancellationToken);
+				ChunkedDataNode childNode = await childNodeRef.ExpandAsync(cancellationToken);
+				await childNode.CopyToStreamAsync(outputStream, cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Copy the contents of the node to the output stream without creating the intermediate FileNodes
 		/// </summary>
-		/// <param name="reader">Reader for nodes in the tree</param>
 		/// <param name="nodeData">Source data</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CopyToStreamAsync(TreeReader reader, NodeData nodeData, Stream outputStream, CancellationToken cancellationToken)
+		public static async Task CopyToStreamAsync(NodeData nodeData, Stream outputStream, CancellationToken cancellationToken)
 		{
 			NodeReader nodeReader = new NodeReader(nodeData);
 			while (nodeReader.GetMemory(0).Length > 0)
 			{
 				NodeRef nodeRef = nodeReader.ReadRef();
-				await ChunkedDataNode.CopyToStreamAsync(reader, nodeRef.Handle!.Handle.Locator, outputStream, cancellationToken);
+				await ChunkedDataNode.CopyToStreamAsync(nodeRef.Handle!.Handle, outputStream, cancellationToken);
 			}
 		}
 	}
