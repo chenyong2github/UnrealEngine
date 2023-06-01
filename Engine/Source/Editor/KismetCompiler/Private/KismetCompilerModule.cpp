@@ -35,8 +35,6 @@ DECLARE_CYCLE_STAT(TEXT("Compile Generated Class"), EKismetCompilerStats_Compile
 
 #define LOCTEXT_NAMESPACE "KismetCompiler"
 
-#pragma optimize("", off)
-
 //////////////////////////////////////////////////////////////////////////
 // FKismet2CompilerModule - The Kismet 2 Compiler module
 class FKismet2CompilerModule : public IKismetCompilerInterface
