@@ -58,6 +58,7 @@
 #include "Engine/InheritableComponentHandler.h"
 #include "Serialization/ArchiveScriptReferenceCollector.h"
 #include "UObject/UnrealTypePrivate.h"
+#include "KismetCompilerModule.h"
 
 static bool bDebugPropertyPropagation = false;
 
@@ -4791,6 +4792,9 @@ void FKismetCompilerContext::CompileClassLayout(EInternalCompilerFlags InternalF
 		// managed to get into this state - the UI does not provide a way to fix these objects manually
 		FBlueprintEditorUtils::ConformDelegateSignatureGraphs(Blueprint);
 	}
+
+	IKismetCompilerInterface& KismetCompilerModule = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>("KismetCompiler");
+	KismetCompilerModule.ValidateBPAndClassType(Blueprint, MessageLog);
 
 	// If applicable, register any delegate proxy functions and their captured actor variables
 	RegisterClassDelegateProxiesFromBlueprint();

@@ -94,6 +94,13 @@ public:
 	 */
 	virtual TArray<IBlueprintCompiler*>& GetCompilers() = 0;
 
+	/** Facilities for establishing mappings between UClasses, UBlueprints, and UBlueprintGenerated Classes*/
+	virtual void OverrideBPTypeForClass(UClass* Class, TSubclassOf<UBlueprint> BlueprintType) = 0;
+	virtual void OverrideBPTypeForClassInEditor(UClass* Class, TSubclassOf<UBlueprint> BlueprintType) = 0;
+	virtual void OverrideBPGCTypeForBPType(TSubclassOf<UBlueprint> BlueprintType, TSubclassOf<UBlueprintGeneratedClass> BPGCType) = 0;
+
+	virtual void ValidateBPAndClassType(UBlueprint* BP, FCompilerResultsLog& OutResults) = 0;
+
 	/**
 	 * Get the blueprint class and generated blueprint class for a particular class type.  Not every
 	 * blueprint is a normal UBlueprint, like UUserWidget blueprints should be UWidgetBlueprints.
