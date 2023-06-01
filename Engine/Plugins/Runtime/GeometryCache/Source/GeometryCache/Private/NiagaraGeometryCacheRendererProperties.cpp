@@ -56,14 +56,16 @@ UMaterialInterface* FNiagaraGeometryCacheReference::ResolveMaterial(UGeometryCac
 
 UNiagaraGeometryCacheRendererProperties::UNiagaraGeometryCacheRendererProperties()
 {
-	AttributeBindings.Reserve(6);
-	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&RotationBinding);
-	AttributeBindings.Add(&ScaleBinding);
-	AttributeBindings.Add(&ElapsedTimeBinding);
-	AttributeBindings.Add(&EnabledBinding);
-	AttributeBindings.Add(&RendererVisibilityTagBinding);
-	AttributeBindings.Add(&ArrayIndexBinding);
+	AttributeBindings =
+	{
+		&PositionBinding,
+		&RotationBinding,
+		&ScaleBinding,
+		&ElapsedTimeBinding,
+		&EnabledBinding,
+		&RendererVisibilityTagBinding,
+		&ArrayIndexBinding,
+	};
 
 	if (GeometryCaches.Num() == 0)
 	{

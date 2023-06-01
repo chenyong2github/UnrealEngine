@@ -79,13 +79,15 @@ namespace NiagaraVolumeRendererPropertiesLocal
 
 UNiagaraVolumeRendererProperties::UNiagaraVolumeRendererProperties()
 {
-	AttributeBindings.Reserve(ENiagaraVolumeVFLayout::Num);
-	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&RotationBinding);
-	AttributeBindings.Add(&ScaleBinding);
-	AttributeBindings.Add(&RendererVisibilityTagBinding);
-	AttributeBindings.Add(&VolumeResolutionMaxAxisBinding);
-	AttributeBindings.Add(&VolumeWorldSpaceSizeBinding);
+	AttributeBindings =
+	{
+		&PositionBinding,
+		&RotationBinding,
+		&ScaleBinding,
+		&RendererVisibilityTagBinding,
+		&VolumeResolutionMaxAxisBinding,
+		&VolumeWorldSpaceSizeBinding,
+	};
 }
 
 void UNiagaraVolumeRendererProperties::PostLoad()

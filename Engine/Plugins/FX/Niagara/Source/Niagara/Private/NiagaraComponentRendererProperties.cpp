@@ -199,9 +199,11 @@ UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
 	FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UNiagaraComponentRendererProperties::OnObjectsReplacedCallback);
 #endif
 
-	AttributeBindings.Reserve(2);
-	AttributeBindings.Add(&EnabledBinding);
-	AttributeBindings.Add(&RendererVisibilityTagBinding);
+	AttributeBindings =
+	{
+		&EnabledBinding,
+		&RendererVisibilityTagBinding,
+	};
 	IsSetterMappingDirty.store(true);
 }
 

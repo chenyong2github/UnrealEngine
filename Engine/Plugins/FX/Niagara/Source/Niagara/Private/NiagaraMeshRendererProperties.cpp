@@ -257,32 +257,34 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	NumFlipbookFrames = 1;
 #endif
 
-	AttributeBindings.Reserve(21);
-	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&VelocityBinding);
-	AttributeBindings.Add(&ColorBinding);
-	AttributeBindings.Add(&ScaleBinding);
-	AttributeBindings.Add(&MeshOrientationBinding);
-	AttributeBindings.Add(&MaterialRandomBinding);
-	AttributeBindings.Add(&NormalizedAgeBinding);
-	AttributeBindings.Add(&CustomSortingBinding);
-	AttributeBindings.Add(&SubImageIndexBinding);
-	AttributeBindings.Add(&DynamicMaterialBinding);
-	AttributeBindings.Add(&DynamicMaterial1Binding);
-	AttributeBindings.Add(&DynamicMaterial2Binding);
-	AttributeBindings.Add(&DynamicMaterial3Binding);
-	AttributeBindings.Add(&CameraOffsetBinding);
+	AttributeBindings =
+	{
+		&PositionBinding,
+		&VelocityBinding,
+		&ColorBinding,
+		&ScaleBinding,
+		&MeshOrientationBinding,
+		&MaterialRandomBinding,
+		&NormalizedAgeBinding,
+		&CustomSortingBinding,
+		&SubImageIndexBinding,
+		&DynamicMaterialBinding,
+		&DynamicMaterial1Binding,
+		&DynamicMaterial2Binding,
+		&DynamicMaterial3Binding,
+		&CameraOffsetBinding,
 
-	// These are associated with attributes in the VF layout only if bGenerateAccurateMotionVectors is true
-	AttributeBindings.Add(&PrevPositionBinding);
-	AttributeBindings.Add(&PrevScaleBinding);
-	AttributeBindings.Add(&PrevMeshOrientationBinding);
-	AttributeBindings.Add(&PrevCameraOffsetBinding);
-	AttributeBindings.Add(&PrevVelocityBinding);
+		// These are associated with attributes in the VF layout only if bGenerateAccurateMotionVectors is true
+		&PrevPositionBinding,
+		&PrevScaleBinding,
+		&PrevMeshOrientationBinding,
+		&PrevCameraOffsetBinding,
+		&PrevVelocityBinding,
 
-	// The remaining bindings are not associated with attributes in the VF layout
-	AttributeBindings.Add(&RendererVisibilityTagBinding);
-	AttributeBindings.Add(&MeshIndexBinding);
+		// The remaining bindings are not associated with attributes in the VF layout
+		&RendererVisibilityTagBinding,
+		&MeshIndexBinding,
+	};
 }
 
 FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)

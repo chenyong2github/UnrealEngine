@@ -62,40 +62,41 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	, AlphaThreshold(0.1f)
 #endif // WITH_EDITORONLY_DATA
 {
-	AttributeBindings.Reserve(27);
+	AttributeBindings =
+	{
+		// NOTE: These bindings' indices have to align to their counterpart in ENiagaraSpriteVFLayout
+		&PositionBinding,
+		&ColorBinding,
+		&VelocityBinding,
+		&SpriteRotationBinding,
+		&SpriteSizeBinding,
+		&SpriteFacingBinding,
+		&SpriteAlignmentBinding,
+		&SubImageIndexBinding,
+		&DynamicMaterialBinding,
+		&DynamicMaterial1Binding,
+		&DynamicMaterial2Binding,
+		&DynamicMaterial3Binding,
+		&CameraOffsetBinding,
+		&UVScaleBinding,
+		&PivotOffsetBinding,
+		&MaterialRandomBinding,
+		&CustomSortingBinding,
+		&NormalizedAgeBinding,
 
-	// NOTE: These bindings' indices have to align to their counterpart in ENiagaraSpriteVFLayout
-	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&ColorBinding);
-	AttributeBindings.Add(&VelocityBinding);
-	AttributeBindings.Add(&SpriteRotationBinding);
-	AttributeBindings.Add(&SpriteSizeBinding);
-	AttributeBindings.Add(&SpriteFacingBinding);
-	AttributeBindings.Add(&SpriteAlignmentBinding);
-	AttributeBindings.Add(&SubImageIndexBinding);
-	AttributeBindings.Add(&DynamicMaterialBinding);
-	AttributeBindings.Add(&DynamicMaterial1Binding);
-	AttributeBindings.Add(&DynamicMaterial2Binding);
-	AttributeBindings.Add(&DynamicMaterial3Binding);
-	AttributeBindings.Add(&CameraOffsetBinding);
-	AttributeBindings.Add(&UVScaleBinding);
-	AttributeBindings.Add(&PivotOffsetBinding);
-	AttributeBindings.Add(&MaterialRandomBinding);
-	AttributeBindings.Add(&CustomSortingBinding);
-	AttributeBindings.Add(&NormalizedAgeBinding);
+		// These bindings are only actually used with accurate motion vectors (indices still need to align)
+		&PrevPositionBinding,
+		&PrevVelocityBinding,
+		&PrevSpriteRotationBinding,
+		&PrevSpriteSizeBinding,
+		&PrevSpriteFacingBinding,
+		&PrevSpriteAlignmentBinding,
+		&PrevCameraOffsetBinding,
+		&PrevPivotOffsetBinding,
 
-	// These bindings are only actually used with accurate motion vectors (indices still need to align)
-	AttributeBindings.Add(&PrevPositionBinding);
-	AttributeBindings.Add(&PrevVelocityBinding);
-	AttributeBindings.Add(&PrevSpriteRotationBinding);
-	AttributeBindings.Add(&PrevSpriteSizeBinding);
-	AttributeBindings.Add(&PrevSpriteFacingBinding);
-	AttributeBindings.Add(&PrevSpriteAlignmentBinding);
-	AttributeBindings.Add(&PrevCameraOffsetBinding);
-	AttributeBindings.Add(&PrevPivotOffsetBinding);
-
-	// The remaining bindings are not associated with attributes in the VF layout
-	AttributeBindings.Add(&RendererVisibilityTagBinding);
+		// The remaining bindings are not associated with attributes in the VF layout
+		&RendererVisibilityTagBinding,
+	};
 }
 
 FNiagaraRenderer* UNiagaraSpriteRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)

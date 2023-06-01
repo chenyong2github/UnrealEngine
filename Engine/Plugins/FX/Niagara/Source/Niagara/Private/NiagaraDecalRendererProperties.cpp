@@ -81,15 +81,17 @@ namespace NiagaraDecalRendererPropertiesLocal
 
 UNiagaraDecalRendererProperties::UNiagaraDecalRendererProperties()
 {
-	AttributeBindings.Reserve(6);
-	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&DecalOrientationBinding);
-	AttributeBindings.Add(&DecalSizeBinding);
-	AttributeBindings.Add(&DecalFadeBinding);
-	AttributeBindings.Add(&DecalSortOrderBinding);
-	AttributeBindings.Add(&DecalColorBinding);
-	AttributeBindings.Add(&DecalVisibleBinding);
-	AttributeBindings.Add(&RendererVisibilityTagBinding);
+	AttributeBindings =
+	{
+		&PositionBinding,
+		&DecalOrientationBinding,
+		&DecalSizeBinding,
+		&DecalFadeBinding,
+		&DecalSortOrderBinding,
+		&DecalColorBinding,
+		&DecalVisibleBinding,
+		&RendererVisibilityTagBinding,
+	};
 }
 
 void UNiagaraDecalRendererProperties::PostLoad()

@@ -31,14 +31,16 @@ UNiagaraLightRendererProperties::UNiagaraLightRendererProperties()
 	, DefaultExponent(1.0f)
 	, ColorAdd(FVector(0.0f, 0.0f, 0.0f))
 {
-	AttributeBindings.Reserve(7);
-	AttributeBindings.Add(&LightRenderingEnabledBinding);
-	AttributeBindings.Add(&LightExponentBinding);
-	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&ColorBinding);
-	AttributeBindings.Add(&RadiusBinding);
-	AttributeBindings.Add(&VolumetricScatteringBinding);
-	AttributeBindings.Add(&RendererVisibilityTagBinding);
+	AttributeBindings =
+	{
+		&LightRenderingEnabledBinding,
+		&LightExponentBinding,
+		&PositionBinding,
+		&ColorBinding,
+		&RadiusBinding,
+		&VolumetricScatteringBinding,
+		&RendererVisibilityTagBinding,
+	};
 }
 
 void UNiagaraLightRendererProperties::PostLoad()
