@@ -65,15 +65,31 @@ void UMassSpawnLocationProcessor::Execute(FMassEntityManager& EntityManager, FMa
 		}
 	}
 
-	EntityQuery.ForEachEntityChunk(EntityManager, Context, [&Transforms, this](FMassExecutionContext& Context)
-		{
-			const TArrayView<FTransformFragment> LocationList = Context.GetMutableFragmentView<FTransformFragment>();
-			const int32 NumEntities = Context.GetNumEntities();
-			for (int32 i = 0; i < NumEntities; ++i)
+	if (AuxData.bRandomize)
+	{
+		EntityQuery.ForEachEntityChunk(EntityManager, Context, [&Transforms, this](FMassExecutionContext& Context)
 			{
-				const int32 AuxIndex = FMath::RandRange(0, Transforms.Num() - 1);
-				LocationList[i].GetMutableTransform() = Transforms[AuxIndex];
-				Transforms.RemoveAtSwap(AuxIndex, 1, /*bAllowShrinking=*/false);
-			}
-		});
+				const TArrayView<FTransformFragment> LocationList = Context.GetMutableFragmentView<FTransformFragment>();
+				const int32 NumEntities = Context.GetNumEntities();
+				for (int32 i = 0; i < NumEntities; ++i)
+				{
+					const int32 AuxIndex = FMath::RandRange(0, Transforms.Num() - 1);
+					LocationList[i].GetMutableTransform() = Transforms[AuxIndex];
+					Transforms.RemoveAtSwap(AuxIndex, 1, /*bAllowShrinking=*/false);
+				}
+			});
+	}
+	else
+	{
+		int32 NextTransformIndex = 0;
+		EntityQuery.ForEachEntityChunk(EntityManager, Context, [&Transforms, &NextTransformIndex, this](FMassExecutionContext& Context)
+			{
+				const int32 NumEntities = Context.GetNumEntities();
+				TArrayView<FTransformFragment> LocationList = Context.GetMutableFragmentView<FTransformFragment>();
+				check(NextTransformIndex + NumEntities <= Transforms.Num());
+	
+				FMemory::Memcpy(LocationList.GetData(), &Transforms[NextTransformIndex], NumEntities * LocationList.GetTypeSize());
+				NextTransformIndex += NumEntities;
+			});
+	}
 }
