@@ -466,12 +466,26 @@ int32 FElectraH264VideoDecoderAndroidJava::InitializeDecoder(const FCreateParame
 		}
 
 		// Pass along decoder output surface
-		JEnv->SetObjectField(CreateParams, FCreateParameters_VideoCodecSurface, InCreateParams.VideoCodecSurface);
+		jobject GlobalSurfaceRef = nullptr;
+		if (InCreateParams.VideoCodecSurface)
+		{
+			// Make sure we pass a valid global ref.
+			GlobalSurfaceRef = JEnv->NewGlobalRef(InCreateParams.VideoCodecSurface);
+			if (GlobalSurfaceRef)
+			{
+				JEnv->SetObjectField(CreateParams, FCreateParameters_VideoCodecSurface, GlobalSurfaceRef);
+			}
+		}
 		JEnv->SetBooleanField(CreateParams, FCreateParameters_bSurfaceIsView, InCreateParams.bSurfaceIsView);
 
 		// Create and initialize a decoder instance.
 		result = CallMethodNoVerify<int>(ConfigureDecoderFN, CreateParams);
 		JEnv->DeleteLocalRef(CreateParams);
+		if (GlobalSurfaceRef)
+		{
+			JEnv->DeleteGlobalRef(GlobalSurfaceRef);
+		}
+
 		GClearException(JEnv);
 		if (result != 0)
 		{
