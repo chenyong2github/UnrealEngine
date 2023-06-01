@@ -516,10 +516,7 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 #endif
 
 	// Create replication manager
-	PhysicsReplication
-		= PhysicsReplicationFactory.IsValid()
-		? PhysicsReplicationFactory->CreatePhysicsReplication(this)
-		: MakeUnique<FPhysicsReplication>(this);
+	CreatePhysicsReplication();
 
 	FPhysicsDelegates::OnPhysSceneInit.Broadcast(this);
 
@@ -770,6 +767,18 @@ void FPhysScene_Chaos::RemoveObject(Chaos::FClusterUnionPhysicsProxy* InObject)
 
 IPhysicsReplication* FPhysScene_Chaos::GetPhysicsReplication()
 {
+	return PhysicsReplication.Get();
+}
+
+IPhysicsReplication* FPhysScene_Chaos::CreatePhysicsReplication()
+{
+	// Create replication manager
+	PhysicsReplication
+		= PhysicsReplicationFactory.IsValid()
+		? PhysicsReplicationFactory->CreatePhysicsReplication(this)
+		: MakeUnique<FPhysicsReplication>(this);
+
+	// Return ptr to the new physics rep
 	return PhysicsReplication.Get();
 }
 

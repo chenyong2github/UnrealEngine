@@ -155,7 +155,9 @@ public:
 
 	IPhysicsReplication* GetPhysicsReplication();
 
-	UE_DEPRECATED(5.3, "Can no longer direclty set physics replication at runtime. For now, specify a PhysicsReplication factory instead. This function will take ownership of the IPhysicsReplication's lifetime.")
+	IPhysicsReplication* CreatePhysicsReplication();
+
+	UE_DEPRECATED(5.3, "If possible, avoid directly setting physics replication at runtime - this function will take ownership of the IPhysicsReplication's lifetime. Instead, specify a PhysicsReplication factory and if you must change the replication class at runtime run RecreatePhysicsReplication after having set the factory.")
 	void SetPhysicsReplication(IPhysicsReplication* InPhysicsReplication);
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;

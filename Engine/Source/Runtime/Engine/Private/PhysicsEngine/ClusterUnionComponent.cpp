@@ -518,29 +518,22 @@ void UClusterUnionComponent::HandleComponentPhysicsStateChangePostAddIntoCluster
 	RemoveComponentFromCluster(ChangedComponent);
 }
 
-void UClusterUnionComponent::SyncVelocitiesFromPhysics(const FVector& LinearVelocity, const FVector& AngularVelocity)
-{
-	if (!IsAuthority())
-	{
-		return;
-	}
-
-	ReplicatedRigidState.LinVel = LinearVelocity;
-	ReplicatedRigidState.AngVel = AngularVelocity;
-	MARK_PROPERTY_DIRTY_FROM_NAME(UClusterUnionComponent, ReplicatedRigidState, this);
-}
-
 void UClusterUnionComponent::SyncClusterUnionFromProxy()
 {
+	//SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponent_SyncClusterUnionFromProxy);
+
 	// NOTE THAT WE ARE ON THE GAME THREAD HERE.
 	if (!PhysicsProxy)
 	{
 		return;
 	}
 
-	ReplicatedRigidState.bIsAnchored = PhysicsProxy->IsAnchored_External();
-	ReplicatedRigidState.ObjectState = static_cast<uint8>(PhysicsProxy->GetObjectState_External());
-	MARK_PROPERTY_DIRTY_FROM_NAME(UClusterUnionComponent, ReplicatedRigidState, this);
+	if (IsAuthority())
+	{
+		ReplicatedRigidState.bIsAnchored = PhysicsProxy->IsAnchored_External();
+		ReplicatedRigidState.ObjectState = static_cast<uint8>(PhysicsProxy->GetObjectState_External());
+		MARK_PROPERTY_DIRTY_FROM_NAME(UClusterUnionComponent, ReplicatedRigidState, this);
+	}
 	
 	const Chaos::FClusterUnionSyncedData& FullData = PhysicsProxy->GetSyncedData_External();
 
@@ -806,8 +799,6 @@ void UClusterUnionComponent::OnRep_RigidState()
 		return;
 	}
 
-	PhysicsProxy->SetLinearVelocity_External(ReplicatedRigidState.LinVel);
-	PhysicsProxy->SetAngularVelocity_External(ReplicatedRigidState.AngVel);
 	PhysicsProxy->SetIsAnchored_External(ReplicatedRigidState.bIsAnchored);
 	PhysicsProxy->SetObjectState_External(static_cast<Chaos::EObjectStateType>(ReplicatedRigidState.ObjectState));
 }
@@ -820,6 +811,11 @@ void UClusterUnionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	Params.bIsPushBased = true;
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UClusterUnionComponent, ReplicatedRigidState, Params);
+
+	// Allow the physical parameters of this component to be replicated via
+	// physicsreplication even if component replication is enabled
+	DISABLE_REPLICATED_PROPERTY_FAST(USceneComponent, RelativeLocation);
+	DISABLE_REPLICATED_PROPERTY_FAST(USceneComponent, RelativeRotation);
 }
 
 void UClusterUnionComponent::ForceSetChildToParent(UPrimitiveComponent* InComponent, const TArray<int32>& BoneIds, const TArray<FTransform>& ChildToParent)

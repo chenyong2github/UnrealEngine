@@ -19,6 +19,27 @@ namespace Chaos
 	struct FSimCallbackInput;
 }
 
+namespace CharacterMovementCVars
+{
+	extern ENGINE_API int32 SkipPhysicsReplication;
+	extern ENGINE_API float NetPingExtrapolation;
+	extern ENGINE_API float NetPingLimit;
+	extern ENGINE_API float ErrorPerLinearDifference;
+	extern ENGINE_API float ErrorPerAngularDifference;
+	extern ENGINE_API float ErrorAccumulationSeconds;
+	extern ENGINE_API float ErrorAccumulationDistanceSq;
+	extern ENGINE_API float ErrorAccumulationSimilarity;
+	extern ENGINE_API float MaxLinearHardSnapDistance;
+	extern ENGINE_API float MaxRestoredStateError;
+	extern ENGINE_API float PositionLerp;
+	extern ENGINE_API float LinearVelocityCoefficient;
+	extern ENGINE_API float AngleLerp;
+	extern ENGINE_API float AngularVelocityCoefficient;
+	extern ENGINE_API int32 AlwaysHardSnap;
+	extern ENGINE_API int32 AlwaysResetPhysics;
+	extern ENGINE_API int32 ApplyAsyncSleepState;
+}
+
 #if !UE_BUILD_SHIPPING
 namespace PhysicsReplicationCVars
 {
@@ -117,6 +138,7 @@ protected:
 	/** Update the physics body state given a set of replicated targets */
 	virtual void OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimitiveComponent>, FReplicatedPhysicsTarget>& ComponentsToTargets);
 	virtual void OnTargetRestored(TWeakObjectPtr<UPrimitiveComponent> Component, const FReplicatedPhysicsTarget& Target) {}
+	virtual void OnSetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame, FReplicatedPhysicsTarget& Target) {}
 
 	/** Called when a dynamic rigid body receives a physics update */
 	virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay, int32 LocalFrame, int32 NumPredictedFrames);

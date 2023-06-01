@@ -21,55 +21,55 @@ namespace CharacterMovementCVars
 	extern int32 NetShowCorrections;
 	extern float NetCorrectionLifetime;
 
-	static int32 SkipPhysicsReplication = 0;
+	int32 SkipPhysicsReplication = 0;
 	static FAutoConsoleVariableRef CVarSkipPhysicsReplication(TEXT("p.SkipPhysicsReplication"), SkipPhysicsReplication, TEXT(""));
 
-	static float NetPingExtrapolation = -1.0f;
+	float NetPingExtrapolation = -1.0f;
 	static FAutoConsoleVariableRef CVarNetPingExtrapolation(TEXT("p.NetPingExtrapolation"), NetPingExtrapolation, TEXT(""));
 
-	static float NetPingLimit = -1.f;
+	float NetPingLimit = -1.f;
 	static FAutoConsoleVariableRef CVarNetPingLimit(TEXT("p.NetPingLimit"), NetPingLimit, TEXT(""));
 
-	static float ErrorPerLinearDifference = -1.0f;
+	float ErrorPerLinearDifference = -1.0f;
 	static FAutoConsoleVariableRef CVarErrorPerLinearDifference(TEXT("p.ErrorPerLinearDifference"), ErrorPerLinearDifference, TEXT(""));
 
-	static float ErrorPerAngularDifference = -1.0f;
+	float ErrorPerAngularDifference = -1.0f;
 	static FAutoConsoleVariableRef CVarErrorPerAngularDifference(TEXT("p.ErrorPerAngularDifference"), ErrorPerAngularDifference, TEXT(""));
 
-	static float ErrorAccumulationSeconds = -1.0f;
+	float ErrorAccumulationSeconds = -1.0f;
 	static FAutoConsoleVariableRef CVarErrorAccumulation(TEXT("p.ErrorAccumulationSeconds"), ErrorAccumulationSeconds, TEXT(""));
 
-	static float ErrorAccumulationDistanceSq = -1.0f;
+	float ErrorAccumulationDistanceSq = -1.0f;
 	static FAutoConsoleVariableRef CVarErrorAccumulationDistanceSq(TEXT("p.ErrorAccumulationDistanceSq"), ErrorAccumulationDistanceSq, TEXT(""));
 
-	static float ErrorAccumulationSimilarity = -1.f;
+	float ErrorAccumulationSimilarity = -1.f;
 	static FAutoConsoleVariableRef CVarErrorAccumulationSimilarity(TEXT("p.ErrorAccumulationSimilarity"), ErrorAccumulationSimilarity, TEXT(""));
 
-	static float MaxLinearHardSnapDistance = -1.f;
+	float MaxLinearHardSnapDistance = -1.f;
 	static FAutoConsoleVariableRef CVarMaxLinearHardSnapDistance(TEXT("p.MaxLinearHardSnapDistance"), MaxLinearHardSnapDistance, TEXT(""));
 
-	static float MaxRestoredStateError = -1.0f;
+	float MaxRestoredStateError = -1.0f;
 	static FAutoConsoleVariableRef CVarMaxRestoredStateError(TEXT("p.MaxRestoredStateError"), MaxRestoredStateError, TEXT(""));
 
-	static float PositionLerp = -1.0f;
+	float PositionLerp = -1.0f;
 	static FAutoConsoleVariableRef CVarLinSet(TEXT("p.PositionLerp"), PositionLerp, TEXT(""));
 
-	static float LinearVelocityCoefficient = -1.0f;
+	float LinearVelocityCoefficient = -1.0f;
 	static FAutoConsoleVariableRef CVarLinLerp(TEXT("p.LinearVelocityCoefficient"), LinearVelocityCoefficient, TEXT(""));
 
-	static float AngleLerp = -1.0f;
+	float AngleLerp = -1.0f;
 	static FAutoConsoleVariableRef CVarAngSet(TEXT("p.AngleLerp"), AngleLerp, TEXT(""));
 
-	static float AngularVelocityCoefficient = -1.0f;
+	float AngularVelocityCoefficient = -1.0f;
 	static FAutoConsoleVariableRef CVarAngLerp(TEXT("p.AngularVelocityCoefficient"), AngularVelocityCoefficient, TEXT(""));
 
-	static int32 AlwaysHardSnap = 0;
+	int32 AlwaysHardSnap = 0;
 	static FAutoConsoleVariableRef CVarAlwaysHardSnap(TEXT("p.AlwaysHardSnap"), AlwaysHardSnap, TEXT(""));
 
-	static int32 AlwaysResetPhysics = 0;
+	int32 AlwaysResetPhysics = 0;
 	static FAutoConsoleVariableRef CVarAlwaysResetPhysics(TEXT("p.AlwaysResetPhysics"), AlwaysResetPhysics, TEXT(""));
 
-	static int32 ApplyAsyncSleepState = 1;
+	int32 ApplyAsyncSleepState = 1;
 	static FAutoConsoleVariableRef CVarApplyAsyncSleepState(TEXT("p.ApplyAsyncSleepState"), ApplyAsyncSleepState, TEXT(""));
 }
 
@@ -112,16 +112,19 @@ private:
 	}
 };
 
-void ComputeDeltas(const FVector& CurrentPos, const FQuat& CurrentQuat, const FVector& TargetPos, const FQuat& TargetQuat, FVector& OutLinDiff, float& OutLinDiffSize,
-	FVector& OutAngDiffAxis, float& OutAngDiff, float& OutAngDiffSize)
+namespace
 {
-	OutLinDiff = TargetPos - CurrentPos;
-	OutLinDiffSize = OutLinDiff.Size();
-	const FQuat InvCurrentQuat = CurrentQuat.Inverse();
-	const FQuat DeltaQuat = TargetQuat * InvCurrentQuat;
-	DeltaQuat.ToAxisAndAngle(OutAngDiffAxis, OutAngDiff);
-	OutAngDiff = FMath::RadiansToDegrees(FMath::UnwindRadians(OutAngDiff));
-	OutAngDiffSize = FMath::Abs(OutAngDiff);
+	void ComputeDeltas(const FVector& CurrentPos, const FQuat& CurrentQuat, const FVector& TargetPos, const FQuat& TargetQuat, FVector& OutLinDiff, float& OutLinDiffSize,
+		FVector& OutAngDiffAxis, float& OutAngDiff, float& OutAngDiffSize)
+	{
+		OutLinDiff = TargetPos - CurrentPos;
+		OutLinDiffSize = OutLinDiff.Size();
+		const FQuat InvCurrentQuat = CurrentQuat.Inverse();
+		const FQuat DeltaQuat = TargetQuat * InvCurrentQuat;
+		DeltaQuat.ToAxisAndAngle(OutAngDiffAxis, OutAngDiff);
+		OutAngDiff = FMath::RadiansToDegrees(FMath::UnwindRadians(OutAngDiff));
+		OutAngDiffSize = FMath::Abs(OutAngDiff);
+	}
 }
 
 FPhysicsReplication::~FPhysicsReplication()
@@ -843,6 +846,8 @@ void FPhysicsReplication::SetReplicatedTarget(UPrimitiveComponent* Component, FN
 		ensure(!Target->PrevPos.ContainsNaN());
 		ensure(!Target->PrevPosTarget.ContainsNaN());
 		ensure(!Target->TargetState.Position.ContainsNaN());
+
+		OnSetReplicatedTarget(Component, BoneName, ReplicatedTarget, ServerFrame, *Target);
 	}
 }
 

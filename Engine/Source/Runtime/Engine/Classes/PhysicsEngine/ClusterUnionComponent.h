@@ -78,12 +78,6 @@ struct FClusterUnionReplicatedData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FVector_NetQuantize100 LinVel;
-
-	UPROPERTY()
-	FVector_NetQuantize100 AngVel;
-
-	UPROPERTY()
 	uint8 ObjectState = 0;
 
 	UPROPERTY()
@@ -164,8 +158,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Cluster Union")
 	void SetIsAnchored(bool bIsAnchored);
 
-	// The SyncVelocitiesFromPhysics will set replicated state using data from the physics thread. 
-	void SyncVelocitiesFromPhysics(const FVector& LinearVelocity, const FVector& AngularVelocity);
 	// SyncClusterUnionFromProxy will examine the make up of the cluster union (particles, child to parent, etc.) and do whatever is needed on the GT in terms of bookkeeping.
 	void SyncClusterUnionFromProxy();
 
