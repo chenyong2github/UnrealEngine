@@ -88,7 +88,7 @@ namespace EpicGames.Horde.Tests
 
 			// Flush it to storage, and read the finished log node
 			HashedNodeHandle target;
-			using (TreeWriter writer = new TreeWriter(_store))
+			using (IStorageWriter writer = _store.CreateWriter())
 			{
 				target = await builder.FlushAsync(writer, true, CancellationToken.None);
 			}
@@ -135,7 +135,7 @@ namespace EpicGames.Horde.Tests
 			}
 
 			HashedNodeHandle rootNodeHandle;
-			using (TreeWriter writer = new TreeWriter(_store))
+			using (IStorageWriter writer = _store.CreateWriter())
 			{
 				rootNodeHandle = await builder.FlushAsync(writer, true, CancellationToken.None);
 			}

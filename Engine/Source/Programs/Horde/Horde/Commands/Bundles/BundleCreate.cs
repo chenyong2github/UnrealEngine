@@ -66,7 +66,7 @@ namespace Horde.Commands.Bundles
 			// Create the bundle
 			Stopwatch timer = Stopwatch.StartNew();
 
-			using (TreeWriter writer = new TreeWriter(store))
+			using (IStorageWriter writer = store.CreateWriter())
 			{
 				DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 

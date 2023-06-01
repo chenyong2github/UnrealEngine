@@ -74,7 +74,7 @@ namespace Horde.Commands.Vcs
 			List<(DirectoryNodeRef, DirectoryState)> directories = new List<(DirectoryNodeRef, DirectoryState)>();
 			await UpdateTreeAsync(reader, rootRef, rootDir, oldState, newState, files, directories);
 
-			using TreeWriter writer = new TreeWriter(store);
+			using IStorageWriter writer = store.CreateWriter();
 			await DirectoryNode.CopyFromDirectoryAsync(files.ConvertAll(x => (x.Item1, x.Item2)), new ChunkingOptions(), writer, null, CancellationToken.None);
 
 			CommitNode newTip;

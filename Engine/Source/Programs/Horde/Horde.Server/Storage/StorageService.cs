@@ -63,6 +63,15 @@ namespace Horde.Server.Storage
 		/// </summary>
 		bool SupportsRedirects { get; }
 
+		/// <inheritdoc cref="IStorageClient.AddAliasAsync(Utf8String, NodeHandle, CancellationToken)"/>
+		Task AddAliasAsync(Utf8String name, NodeLocator target, CancellationToken cancellationToken = default);
+
+		/// <inheritdoc cref="IStorageClient.RemoveAliasAsync(Utf8String, NodeHandle, CancellationToken)"/>
+		Task RemoveAliasAsync(Utf8String name, NodeLocator target, CancellationToken cancellationToken = default); 
+
+		/// <inheritdoc cref="IStorageClient.WriteRefTargetAsync(RefName, NodeHandle, RefOptions?, CancellationToken)"/>
+		Task WriteRefTargetAsync(RefName name, NodeLocator handle, RefOptions? options = null, CancellationToken cancellationToken = default);
+
 		/// <summary>
 		/// Gets a redirect for a read request
 		/// </summary>
@@ -98,7 +107,8 @@ namespace Horde.Server.Storage
 
 			public bool SupportsRedirects { get; }
 
-			public StorageClient(StorageService outer, NamespaceConfig config, IStorageBackend backend)
+			public StorageClient(StorageService outer, NamespaceConfig config, IStorageBackend backend, IMemoryCache? memoryCache, ILogger logger)
+				: base(memoryCache, logger)
 			{
 				_outer = outer;
 				Config = config;
@@ -214,23 +224,46 @@ namespace Horde.Server.Storage
 			#region Nodes
 
 			/// <inheritdoc/>
-			public override Task AddAliasAsync(Utf8String name, NodeHandle locator, CancellationToken cancellationToken = default) => _outer.AddAliasAsync(NamespaceId, name, locator, cancellationToken);
-		
-			/// <inheritdoc/>
-			public override Task RemoveAliasAsync(Utf8String name, NodeHandle locator, CancellationToken cancellationToken = default) => _outer.RemoveAliasAsync(NamespaceId, name, locator, cancellationToken);
+			public override Task AddAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default) => _outer.AddAliasAsync(NamespaceId, name, handle.Locator, cancellationToken);
 
 			/// <inheritdoc/>
-			public override IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, CancellationToken cancellationToken = default) => _outer.FindNodesAsync(NamespaceId, alias, cancellationToken);
+			public Task AddAliasAsync(Utf8String name, NodeLocator locator, CancellationToken cancellationToken = default) => _outer.AddAliasAsync(NamespaceId, name, locator, cancellationToken);
+
+			/// <inheritdoc/>
+			public override Task RemoveAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default) => _outer.RemoveAliasAsync(NamespaceId, name, handle.Locator, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task RemoveAliasAsync(Utf8String name, NodeLocator locator, CancellationToken cancellationToken = default) => _outer.RemoveAliasAsync(NamespaceId, name, locator, cancellationToken);
+
+			/// <inheritdoc/>
+			public override async IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+			{
+				await foreach (NodeLocator locator in _outer.FindNodesAsync(NamespaceId, alias, cancellationToken))
+				{
+					yield return new NodeHandle(TreeReader, locator);
+				}
+			}
 
 			#endregion
 
 			#region Refs
 
 			/// <inheritdoc/>
-			public override Task<NodeHandle?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => _outer.TryReadRefTargetAsync(NamespaceId, name, cacheTime, cancellationToken);
+			public override async Task<NodeHandle?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+			{
+				NodeLocator? locator = await _outer.TryReadRefTargetAsync(NamespaceId, name, cacheTime, cancellationToken);
+				if (locator == null)
+				{
+					return null;
+				}
+				return new NodeHandle(TreeReader, locator.Value);
+			}
 
 			/// <inheritdoc/>
-			public override Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default) => _outer.WriteRefTargetAsync(NamespaceId, name, target, options, cancellationToken);
+			public override Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default) => _outer.WriteRefTargetAsync(NamespaceId, name, target.Locator, options, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task WriteRefTargetAsync(RefName name, NodeLocator target, RefOptions? options = null, CancellationToken cancellationToken = default) => _outer.WriteRefTargetAsync(NamespaceId, name, target, options, cancellationToken);
 
 			/// <inheritdoc/>
 			public override Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default) => _outer.DeleteRefAsync(NamespaceId, name, cancellationToken);
@@ -354,7 +387,7 @@ namespace Horde.Server.Storage
 			public TimeSpan? Lifetime { get; set; }
 
 			[BsonIgnore]
-			public NodeHandle Target => new NodeHandle(new NodeLocator(BlobLocator, ExportIdx));
+			public NodeLocator Target => new NodeLocator(BlobLocator, ExportIdx);
 
 			public RefInfo()
 			{
@@ -362,13 +395,13 @@ namespace Horde.Server.Storage
 				BlobLocator = BlobLocator.Empty;
 			}
 
-			public RefInfo(NamespaceId namespaceId, RefName name, NodeHandle target, ObjectId blobInfoId)
+			public RefInfo(NamespaceId namespaceId, RefName name, NodeLocator target, ObjectId blobInfoId)
 			{
 				NamespaceId = namespaceId;
 				Name = name;
-				BlobLocator = target.Locator.Blob;
+				BlobLocator = target.Blob;
 				BlobInfoId = blobInfoId;
-				ExportIdx = target.Locator.ExportIdx;
+				ExportIdx = target.ExportIdx;
 			}
 
 			public bool HasExpired(DateTime utcNow) => ExpiresAtUtc.HasValue && utcNow >= ExpiresAtUtc.Value;
@@ -553,7 +586,7 @@ namespace Horde.Server.Storage
 					foreach (NamespaceConfig namespaceConfig in storageConfig.Namespaces)
 					{
 						IStorageBackend backend = _storageBackendProvider.CreateBackend(namespaceConfig.BackendConfig);
-						StorageClient client = new StorageClient(this, namespaceConfig, backend);
+						StorageClient client = new StorageClient(this, namespaceConfig, backend, _cache, _logger);
 						nextState.Namespaces.Add(namespaceConfig.Id, new NamespaceInfo(namespaceConfig, client, backend));
 					}
 				}
@@ -674,21 +707,21 @@ namespace Horde.Server.Storage
 		/// <param name="target">Target node for the alias</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Sequence of thandles</returns>
-		async Task AddAliasAsync(NamespaceId namespaceId, Utf8String alias, NodeHandle target, CancellationToken cancellationToken = default)
+		async Task AddAliasAsync(NamespaceId namespaceId, Utf8String alias, NodeLocator target, CancellationToken cancellationToken = default)
 		{
-			BlobInfo? blobInfo = await _blobCollection.Find(x => x.NamespaceId == namespaceId && x.BlobId == target.Locator.Blob.BlobId).FirstOrDefaultAsync(cancellationToken);
+			BlobInfo? blobInfo = await _blobCollection.Find(x => x.NamespaceId == namespaceId && x.BlobId == target.Blob.BlobId).FirstOrDefaultAsync(cancellationToken);
 			if (blobInfo == null)
 			{
-				throw new KeyNotFoundException($"Missing blob {target.Locator.Blob}");
+				throw new KeyNotFoundException($"Missing blob {target.Blob}");
 			}
 
-			if (blobInfo.Exports != null && blobInfo.Exports.Any(x => x.Alias == alias && x.Index == target.Locator.ExportIdx))
+			if (blobInfo.Exports != null && blobInfo.Exports.Any(x => x.Alias == alias && x.Index == target.ExportIdx))
 			{
 				return;
 			}
 
-			FilterDefinition<BlobInfo> filter = Builders<BlobInfo>.Filter.Expr(x => x.NamespaceId == blobInfo.NamespaceId && x.BlobId == target.Locator.Blob.BlobId);
-			UpdateDefinition<BlobInfo> update = Builders<BlobInfo>.Update.Push(x => x.Exports, new ExportInfo(alias.ToString(), target.Locator.ExportIdx));
+			FilterDefinition<BlobInfo> filter = Builders<BlobInfo>.Filter.Expr(x => x.NamespaceId == blobInfo.NamespaceId && x.BlobId == target.Blob.BlobId);
+			UpdateDefinition<BlobInfo> update = Builders<BlobInfo>.Update.Push(x => x.Exports, new ExportInfo(alias.ToString(), target.ExportIdx));
 			await _blobCollection.UpdateOneAsync(filter, update, cancellationToken: cancellationToken);
 		}
 
@@ -700,7 +733,7 @@ namespace Horde.Server.Storage
 		/// <param name="target">Target node for the alias</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Sequence of thandles</returns>
-		Task RemoveAliasAsync(NamespaceId namespaceId, Utf8String alias, NodeHandle target, CancellationToken cancellationToken = default)
+		Task RemoveAliasAsync(NamespaceId namespaceId, Utf8String alias, NodeLocator target, CancellationToken cancellationToken = default)
 		{
 			throw new NotSupportedException();
 		}
@@ -712,7 +745,7 @@ namespace Horde.Server.Storage
 		/// <param name="alias">Alias for the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Sequence of thandles</returns>
-		async IAsyncEnumerable<NodeHandle> FindNodesAsync(NamespaceId namespaceId, Utf8String alias, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+		async IAsyncEnumerable<NodeLocator> FindNodesAsync(NamespaceId namespaceId, Utf8String alias, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 		{
 			await foreach (BlobInfo blobInfo in _blobCollection.Find(x => x.NamespaceId == namespaceId && x.Exports!.Any(y => y.Alias == alias)).ToAsyncEnumerable(cancellationToken))
 			{
@@ -722,7 +755,7 @@ namespace Horde.Server.Storage
 					{
 						if (exportInfo.Alias == alias)
 						{
-							yield return new NodeHandle(new NodeLocator(blobInfo.Locator, exportInfo.Index));
+							yield return new NodeLocator(blobInfo.Locator, exportInfo.Index);
 						}
 					}
 				}
@@ -814,7 +847,7 @@ namespace Horde.Server.Storage
 		}
 
 		/// <inheritdoc/>
-		async Task<NodeHandle?> TryReadRefTargetAsync(NamespaceId namespaceId, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		async Task<NodeLocator?> TryReadRefTargetAsync(NamespaceId namespaceId, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			RefCacheValue entry;
 			if (!_cache.TryGetValue(name, out entry) || entry.Time < cacheTime)
@@ -846,12 +879,12 @@ namespace Horde.Server.Storage
 		}
 
 		/// <inheritdoc/>
-		async Task WriteRefTargetAsync(NamespaceId namespaceId, RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default)
+		async Task WriteRefTargetAsync(NamespaceId namespaceId, RefName name, NodeLocator target, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
-			BlobInfo? newBlobInfo = await _blobCollection.Find(x => x.NamespaceId == namespaceId && x.BlobId == target.Locator.Blob.BlobId).FirstOrDefaultAsync(cancellationToken);
+			BlobInfo? newBlobInfo = await _blobCollection.Find(x => x.NamespaceId == namespaceId && x.BlobId == target.Blob.BlobId).FirstOrDefaultAsync(cancellationToken);
 			if (newBlobInfo == null)
 			{
-				throw new Exception($"Invalid/unknown blob identifier '{target.Locator.Blob.BlobId}' in namespace {namespaceId}");
+				throw new Exception($"Invalid/unknown blob identifier '{target.Blob.BlobId}' in namespace {namespaceId}");
 			}
 
 			RefInfo newRefInfo = new RefInfo(namespaceId, name, target, newBlobInfo.Id);

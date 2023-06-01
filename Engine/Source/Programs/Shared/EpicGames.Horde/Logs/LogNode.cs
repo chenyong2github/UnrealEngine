@@ -269,7 +269,7 @@ namespace EpicGames.Horde.Logs
 		/// <param name="writer">Writer for the output nodes</param>
 		/// <param name="complete">Whether the log is complete</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<HashedNodeHandle> FlushAsync(TreeWriter writer, bool complete, CancellationToken cancellationToken)
+		public async Task<HashedNodeHandle> FlushAsync(IStorageWriter writer, bool complete, CancellationToken cancellationToken)
 		{
 			// Capture the new data that needs to be written
 			IReadOnlyList<LogChunkNode> writeTextChunks;

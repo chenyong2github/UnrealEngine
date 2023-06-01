@@ -307,7 +307,7 @@ public abstract class BundlesTests
         RefName leafRefName = new RefName("leaf");
         HttpMessageHandler httpMessageHandler = Server!.CreateHandler();
 
-        HttpStorageClient blobStore = new HttpStorageClient(() => new HttpClient(httpMessageHandler) {BaseAddress = new Uri(Server.BaseAddress, $"api/v1/storage/{TestNamespaceName}/")}!, () => null!, NullLogger.Instance);
+        HttpStorageClient blobStore = new HttpStorageClient(() => new HttpClient(httpMessageHandler) {BaseAddress = new Uri(Server.BaseAddress, $"api/v1/storage/{TestNamespaceName}/")}!, () => null!, null, NullLogger.Instance);
         await SeedTreeAsync(blobStore, rootRefName, leafRefName, new TreeOptions { MaxBlobSize = 1 });
 
         IBlobIndex blobIndex = Server.Services.GetService<IBlobIndex>()!;
@@ -396,7 +396,7 @@ public abstract class BundlesTests
     {
         // Generate a tree
         {
-            using TreeWriter writer = new TreeWriter(store, options, "test");
+            using IStorageWriter writer = store.CreateWriter(new RefName("test"), options);
 
             SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<NodeRef<SimpleNode>>());
             SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new NodeRef<SimpleNode>(node1) });

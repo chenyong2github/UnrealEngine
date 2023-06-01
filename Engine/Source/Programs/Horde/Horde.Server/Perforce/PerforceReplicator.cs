@@ -120,18 +120,18 @@ namespace Horde.Server.Perforce
 				public long _sizeWritten;
 				public readonly IncrementalHash _hash = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
 
-				public Handle(TreeWriter writer, ChunkingOptions options)
+				public Handle(IStorageWriter writer, ChunkingOptions options)
 				{
 					_fileWriter = new ChunkedDataWriter(writer, options);
 				}
 			}
 
-			readonly TreeWriter _writer;
+			readonly IStorageWriter _writer;
 			readonly ChunkingOptions _options;
 			readonly Stack<Handle> _freeHandles = new Stack<Handle>();
 			readonly Dictionary<int, Handle> _openHandles = new Dictionary<int, Handle>();
 
-			public FileWriter(TreeWriter writer, ChunkingOptions options)
+			public FileWriter(IStorageWriter writer, ChunkingOptions options)
 			{
 				_writer = writer;
 				_options = options;
@@ -336,7 +336,7 @@ namespace Horde.Server.Perforce
 			_logger.LogInformation("Total sync size: {Size:n1}mb", totalSize / (1024.0 * 1024.0));
 
 			// Create the tree writer
-			using TreeWriter writer = new TreeWriter(store, refName, options.TreeOptions);
+			using IStorageWriter writer = store.CreateWriter(refName, options.TreeOptions);
 
 			// Sync incrementally
 			long syncedSize = 0;

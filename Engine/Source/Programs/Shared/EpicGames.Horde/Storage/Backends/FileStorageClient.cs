@@ -28,11 +28,21 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <param name="rootDir">Root directory for storing blobs</param>
 		/// <param name="logger">Logger interface</param>
 		public FileStorageClient(DirectoryReference rootDir, ILogger logger)
+			: base(null, logger)
 		{
 			_rootDir = rootDir;
 			_logger = logger;
 
 			DirectoryReference.CreateDirectory(_rootDir);
+		}
+
+		/// <summary>
+		/// Reads a ref from a file on disk
+		/// </summary>
+		public async ValueTask<NodeHandle> ReadRefAsync(FileReference file)
+		{
+			string text = await FileReference.ReadAllTextAsync(file);
+			return new NodeHandle(TreeReader, NodeLocator.Parse(text));
 		}
 
 		FileReference GetRefFile(RefName name) => FileReference.Combine(_rootDir, name.ToString() + ".ref");
@@ -117,7 +127,7 @@ namespace EpicGames.Horde.Storage.Backends
 
 			_logger.LogInformation("Reading {File}", file);
 			string text = await FileReference.ReadAllTextAsync(file, cancellationToken);
-			return new NodeHandle(NodeLocator.Parse(text));
+			return new NodeHandle(TreeReader, NodeLocator.Parse(text));
 		}
 
 		/// <inheritdoc/>

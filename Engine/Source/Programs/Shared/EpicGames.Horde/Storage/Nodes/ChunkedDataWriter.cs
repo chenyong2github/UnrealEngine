@@ -115,7 +115,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		static readonly NodeType s_leafNodeType = Node.GetNodeType<LeafChunkedDataNode>();
 		static readonly NodeType s_interiorNodeType = Node.GetNodeType<InteriorChunkedDataNode>();
 
-		readonly TreeWriter _writer;
+		readonly IStorageWriter _writer;
 		readonly ChunkingOptions _options;
 
 		// Tree state
@@ -137,7 +137,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="writer">Writer for new nodes</param>
 		/// <param name="options">Chunking options</param>
-		public ChunkedDataWriter(TreeWriter writer, ChunkingOptions options)
+		public ChunkedDataWriter(IStorageWriter writer, ChunkingOptions options)
 		{
 			_writer = writer;
 			_options = options;

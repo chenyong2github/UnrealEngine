@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using EpicGames.Core;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Horde.Storage.Backends
@@ -59,7 +60,8 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public HttpStorageClient(Func<HttpClient> createClient, Func<HttpClient> createRedirectClient, ILogger logger) 
+		public HttpStorageClient(Func<HttpClient> createClient, Func<HttpClient> createRedirectClient, IMemoryCache? memoryCache, ILogger logger) 
+			: base(memoryCache, logger)
 		{
 			_createClient = createClient;
 			_createRedirectClient = createRedirectClient;
@@ -69,8 +71,8 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public HttpStorageClient(IHttpClientFactory httpClientFactory, Uri baseAddress, string? bearerToken, ILogger logger)
-			: this(() => CreateAuthenticatedClient(httpClientFactory, baseAddress, bearerToken), () => CreateClient(httpClientFactory), logger)
+		public HttpStorageClient(IHttpClientFactory httpClientFactory, Uri baseAddress, string? bearerToken, IMemoryCache? memoryCache, ILogger logger)
+			: this(() => CreateAuthenticatedClient(httpClientFactory, baseAddress, bearerToken), () => CreateClient(httpClientFactory), memoryCache, logger)
 		{
 		}
 
@@ -217,7 +219,7 @@ namespace EpicGames.Horde.Storage.Backends
 						FindNodesResponse? message = await response.Content.ReadFromJsonAsync<FindNodesResponse>(cancellationToken: cancellationToken);
 						foreach (FindNodeResponse node in message!.Nodes)
 						{
-							yield return new NodeHandle(new NodeLocator(node.Blob, node.ExportIdx));
+							yield return new NodeHandle(TreeReader, new NodeLocator(node.Blob, node.ExportIdx));
 						}
 					}
 				}
@@ -268,7 +270,7 @@ namespace EpicGames.Horde.Storage.Backends
 							response.EnsureSuccessStatusCode();
 							ReadRefResponse? data = await response.Content.ReadFromJsonAsync<ReadRefResponse>(cancellationToken: cancellationToken);
 							_logger.LogDebug("Read ref {RefName} -> {Blob}#{ExportIdx}", name, data!.Blob, data!.ExportIdx);
-							return new NodeHandle(new NodeLocator(data!.Blob, data!.ExportIdx));
+							return new NodeHandle(TreeReader, new NodeLocator(data!.Blob, data!.ExportIdx));
 						}
 					}
 				}

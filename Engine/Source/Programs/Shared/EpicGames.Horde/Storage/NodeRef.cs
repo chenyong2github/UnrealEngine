@@ -238,7 +238,7 @@ namespace EpicGames.Horde.Storage
 		// Implementation of INodeWriter that tracks refs
 		class NodeWriter : ITreeNodeWriter
 		{
-			readonly TreeWriter _treeWriter;
+			readonly IStorageWriter _treeWriter;
 
 			Memory<byte> _memory;
 			int _length;
@@ -247,7 +247,7 @@ namespace EpicGames.Horde.Storage
 
 			public int Length => _length;
 
-			public NodeWriter(TreeWriter treeWriter, IReadOnlyList<NodeHandle> refs)
+			public NodeWriter(IStorageWriter treeWriter, IReadOnlyList<NodeHandle> refs)
 			{
 				_treeWriter = treeWriter;
 				_memory = treeWriter.GetOutputBuffer(0, 256 * 1024);
@@ -311,7 +311,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="nodeRef">Reference to the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>A flag indicating whether the node is dirty, and if it is, an optional bundle that contains it</returns>
-		public static async ValueTask<HashedNodeHandle> WriteAsync(this TreeWriter writer, NodeRef nodeRef, CancellationToken cancellationToken)
+		public static async ValueTask<HashedNodeHandle> WriteAsync(this IStorageWriter writer, NodeRef nodeRef, CancellationToken cancellationToken)
 		{
 			// Check we actually have a target node. If we don't, we don't need to write anything.
 			Node? target = nodeRef.Target;
@@ -370,7 +370,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="options"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task<HashedNodeHandle> WriteAsync(this TreeWriter writer, RefName name, Node node, RefOptions? options = null, CancellationToken cancellationToken = default)
+		public static async Task<HashedNodeHandle> WriteAsync(this IStorageWriter writer, RefName name, Node node, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
 			NodeRef nodeRef = new NodeRef(node);
 			await writer.WriteAsync(nodeRef, cancellationToken);
@@ -388,15 +388,15 @@ namespace EpicGames.Horde.Storage
 		/// <param name="root">Root for the tree</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public static async Task<HashedNodeHandle> FlushAsync(this TreeWriter writer, Node root, CancellationToken cancellationToken = default)
+		public static async Task<HashedNodeHandle> FlushAsync(this IStorageWriter writer, Node root, CancellationToken cancellationToken = default)
 		{
 			NodeRef rootRef = new NodeRef(root);
 
 			HashedNodeHandle handle = await writer.WriteAsync(rootRef, cancellationToken);
-			writer._traceLogger?.LogInformation("Written root node {Handle}", handle);
+//			writer._traceLogger?.LogInformation("Written root node {Handle}", handle);
 
 			await writer.FlushAsync(cancellationToken);
-			writer._traceLogger?.LogInformation("Flushed root node {Handle}", handle);
+//			writer._traceLogger?.LogInformation("Flushed root node {Handle}", handle);
 
 			return rootRef.Handle!;
 		}

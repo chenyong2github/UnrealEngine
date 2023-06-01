@@ -22,7 +22,7 @@ namespace Horde.Server.Tests
 		public async Task BlobCollectionTest()
 		{
 			StorageService storageService = ServiceProvider.GetRequiredService<StorageService>();
-			IStorageClient client = await storageService.GetClientAsync(new NamespaceId("memory"), default);
+			IStorageClientImpl client = await storageService.GetClientAsync(new NamespaceId("memory"), default);
 
 			List<NodeType> types = new List<NodeType>();
 			types.Add(new NodeType(Guid.Parse("{11C2D886-3349-4164-946F-E9D10BD12E3D}"), 0));
@@ -44,9 +44,9 @@ namespace Horde.Server.Tests
 			Bundle bundle = new Bundle(header, Array.Empty<ReadOnlyMemory<byte>>());
 			BlobLocator locator = await client.WriteBundleAsync(bundle);
 
-			await client.AddAliasAsync("foo", new NodeHandle(new NodeLocator(locator, 0)));
-			await client.AddAliasAsync("foo", new NodeHandle(new NodeLocator(locator, 1)));
-			await client.AddAliasAsync("bar", new NodeHandle(new NodeLocator(locator, 2)));
+			await client.AddAliasAsync("foo", new NodeLocator(locator, 0));
+			await client.AddAliasAsync("foo", new NodeLocator(locator, 1));
+			await client.AddAliasAsync("bar", new NodeLocator(locator, 2));
 
 			List<NodeHandle> handles;
 			

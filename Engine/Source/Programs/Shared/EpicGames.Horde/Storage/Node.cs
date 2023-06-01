@@ -352,13 +352,12 @@ namespace EpicGames.Horde.Storage
 		/// <param name="name">Name of the ref containing this node</param>
 		/// <param name="node">Node to be written</param>
 		/// <param name="options">Options for the node writer</param>
-		/// <param name="prefix">Prefix for uploaded blobs</param>
 		/// <param name="refOptions">Options for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Location of node targetted by the ref</returns>
-		public static async Task<HashedNodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, Node node, TreeOptions? options = null, Utf8String prefix = default, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
+		public static async Task<HashedNodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, Node node, TreeOptions? options = null, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
 		{
-			using TreeWriter writer = new TreeWriter(store, options, prefix.IsEmpty ? name.Text : prefix);
+			using IStorageWriter writer = store.CreateWriter(name, options);
 			return await writer.WriteAsync(name, node, refOptions, cancellationToken);
 		}
 	}

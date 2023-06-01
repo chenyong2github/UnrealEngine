@@ -61,7 +61,7 @@ namespace EpicGames.Horde.Tests
 		static async Task<Bundle> CreateBundleNormalAsync()
 		{
 			MemoryStorageClient store = new MemoryStorageClient();
-			using TreeWriter writer = new TreeWriter(store, new TreeOptions { CompressionFormat = BundleCompressionFormat.None });
+			using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { CompressionFormat = BundleCompressionFormat.None });
 
 			TextNode node = new TextNode("Hello world");
 			HashedNodeHandle handle = await writer.FlushAsync(node, CancellationToken.None);
@@ -143,7 +143,7 @@ namespace EpicGames.Horde.Tests
 		{
 			// Generate a tree
 			{
-				using TreeWriter writer = new TreeWriter(store, options, "test");
+				using IStorageWriter writer = store.CreateWriter(new RefName("test"), options);
 
 				SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<NodeRef<SimpleNode>>());
 				SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new NodeRef<SimpleNode>(node1) });
@@ -258,7 +258,7 @@ namespace EpicGames.Horde.Tests
 
 			// Generate a tree
 			{
-				using TreeWriter writer = new TreeWriter(store, new TreeOptions());
+				using IStorageWriter writer = store.CreateWriter();
 
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 				DirectoryNode hello = root.AddDirectory("hello");
@@ -309,7 +309,7 @@ namespace EpicGames.Horde.Tests
 			// Generate a tree
 			NodeLocator locator;
 			{
-				using TreeWriter writer = new TreeWriter(store, new TreeOptions { MaxBlobSize = 1024 });
+				using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { MaxBlobSize = 1024 });
 
 				ChunkingOptions options = new ChunkingOptions();
 				options.LeafOptions.MinSize = 128;
@@ -361,7 +361,7 @@ namespace EpicGames.Horde.Tests
 			// Generate a tree
 			DirectoryNode root;
 			{
-				using TreeWriter writer = new TreeWriter(store, new TreeOptions { MaxBlobSize = 1024 });
+				using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { MaxBlobSize = 1024 });
 
 				root = new DirectoryNode(DirectoryFlags.None);
 

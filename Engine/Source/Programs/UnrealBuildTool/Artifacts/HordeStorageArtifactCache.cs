@@ -75,7 +75,7 @@ namespace UnrealBuildTool.Artifacts
 		/// <param name="writer">Destination writer</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Task</returns>
-		public async Task WriteFilesAsync(TreeWriter writer, CancellationToken cancellationToken)
+		public async Task WriteFilesAsync(IStorageWriter writer, CancellationToken cancellationToken)
 		{
 			ChunkingOptionsForNodeType nodeTypeOptions = new(512 * 1024, 2 * 1024 * 1024, 1 * 1024 * 1024);
 			ChunkingOptions options = new() { LeafOptions = nodeTypeOptions, InteriorOptions = nodeTypeOptions };
@@ -507,7 +507,7 @@ namespace UnrealBuildTool.Artifacts
 					node.MarkAsDirty();
 
 					// Save the mapping file
-					using TreeWriter writer = CreateTreeWriter();
+					using IStorageWriter writer = _store!.CreateWriter();
 					await hordeArtifactMapping.WriteFilesAsync(writer, cancellationToken);
 
 					// Save the collection
@@ -569,15 +569,6 @@ namespace UnrealBuildTool.Artifacts
 		private TreeReader CreateTreeReader()
 		{
 			return new(_store!, null, NullLogger.Instance);
-		}
-
-		/// <summary>
-		/// Create a new tree writer 
-		/// </summary>
-		/// <returns>TreeWriter</returns>
-		private TreeWriter CreateTreeWriter()
-		{
-			return new(_store!, null, default, null, NullLogger.Instance);
 		}
 	}
 }

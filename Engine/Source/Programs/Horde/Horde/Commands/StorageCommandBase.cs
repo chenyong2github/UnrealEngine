@@ -54,7 +54,7 @@ namespace Horde.Commands
 			}
 
 			server = new Uri(server, Path);
-			return new HttpStorageClient(() => CreateDefaultHttpClient(server, token), () => new HttpClient(), logger);
+			return new HttpStorageClient(() => CreateDefaultHttpClient(server, token), () => new HttpClient(), null, logger);
 		}
 
 		static HttpClient CreateDefaultHttpClient(Uri server, string token)

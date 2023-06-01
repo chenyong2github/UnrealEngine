@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace EpicGames.Horde.Storage.Backends
 {
@@ -46,6 +47,7 @@ namespace EpicGames.Horde.Storage.Backends
 		/// Constructor
 		/// </summary>
 		public MemoryStorageClient() 
+			: base(null, NullLogger.Instance)
 		{
 		}
 

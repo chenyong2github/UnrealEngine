@@ -19,7 +19,7 @@ namespace Horde.Server.Tests
 	[TestClass]
 	public class BlobStoreTests : TestSetup
 	{
-		async Task<IStorageClient> CreateStorageClientAsync()
+		async Task<IStorageClientImpl> CreateStorageClientAsync()
 		{
 			GlobalConfig globalConfig = new GlobalConfig();
 			globalConfig.Storage.Backends.Add(new BackendConfig { Id = new BackendId("default-backend"), Type = StorageBackendType.Memory });
@@ -94,7 +94,7 @@ namespace Horde.Server.Tests
 		[TestMethod]
 		public async Task ReferenceTest()
 		{
-			IStorageClient store = await CreateStorageClientAsync();
+			IStorageClientImpl store = await CreateStorageClientAsync();
 
 			byte[] input1 = CreateTestData(256, 1);
 			Bundle bundle1 = CreateTestBundle(input1, Array.Empty<BlobLocator>());
@@ -120,7 +120,7 @@ namespace Horde.Server.Tests
 			for(int idx = 0; idx < 2; idx++)
 			{
 				RefName refName = new RefName("hello");
-				await store.WriteRefTargetAsync(refName, new NodeHandle(new NodeLocator(locator3, 0)));
+				await store.WriteRefTargetAsync(refName, new NodeLocator(locator3, 0));
 				NodeHandle refTarget = await store.ReadRefTargetAsync(refName);
 				Assert.AreEqual(locator3, refTarget.Locator.Blob);
 			}
@@ -136,35 +136,35 @@ namespace Horde.Server.Tests
 		[TestMethod]
 		public async Task RefExpiryTest()
 		{
-			IStorageClient store = await CreateStorageClientAsync();
+			IStorageClientImpl store = await CreateStorageClientAsync();
 
 			Bundle bundle1 = CreateTestBundle(new byte[] { 1, 2, 3 }, Array.Empty<BlobLocator>());
 			BlobLocator locator1 = await store.WriteBundleAsync(bundle1);
-			NodeHandle target = new NodeHandle(new NodeLocator(locator1, 0));
+			NodeLocator target = new NodeLocator(locator1, 0);
 
 			await store.WriteRefTargetAsync("test-ref-1", target);
 			await store.WriteRefTargetAsync("test-ref-2", target, new RefOptions { Lifetime = TimeSpan.FromMinutes(30.0), Extend = true });
 			await store.WriteRefTargetAsync("test-ref-3", target, new RefOptions { Lifetime = TimeSpan.FromMinutes(30.0), Extend = false });
 
-			Assert.AreEqual(target.Locator, await TryReadRefTargetAsync(store, "test-ref-1"));
-			Assert.AreEqual(target.Locator, await TryReadRefTargetAsync(store, "test-ref-2"));
-			Assert.AreEqual(target.Locator, await TryReadRefTargetAsync(store, "test-ref-3"));
+			Assert.AreEqual(target, await TryReadRefTargetAsync(store, "test-ref-1"));
+			Assert.AreEqual(target, await TryReadRefTargetAsync(store, "test-ref-2"));
+			Assert.AreEqual(target, await TryReadRefTargetAsync(store, "test-ref-3"));
 
 			await Clock.AdvanceAsync(TimeSpan.FromMinutes(25.0));
 
-			Assert.AreEqual(target.Locator, await TryReadRefTargetAsync(store, "test-ref-1"));
-			Assert.AreEqual(target.Locator, await TryReadRefTargetAsync(store, "test-ref-2"));
-			Assert.AreEqual(target.Locator, await TryReadRefTargetAsync(store, "test-ref-3"));
+			Assert.AreEqual(target, await TryReadRefTargetAsync(store, "test-ref-1"));
+			Assert.AreEqual(target, await TryReadRefTargetAsync(store, "test-ref-2"));
+			Assert.AreEqual(target, await TryReadRefTargetAsync(store, "test-ref-3"));
 
 			await Clock.AdvanceAsync(TimeSpan.FromMinutes(25.0));
 
-			Assert.AreEqual(target.Locator, await TryReadRefTargetAsync(store, "test-ref-1"));
-			Assert.AreEqual(target.Locator, await TryReadRefTargetAsync(store, "test-ref-2"));
+			Assert.AreEqual(target, await TryReadRefTargetAsync(store, "test-ref-1"));
+			Assert.AreEqual(target, await TryReadRefTargetAsync(store, "test-ref-2"));
 			Assert.AreEqual(default, await TryReadRefTargetAsync(store, "test-ref-3"));
 
 			await Clock.AdvanceAsync(TimeSpan.FromMinutes(35.0));
 
-			Assert.AreEqual(target.Locator, await TryReadRefTargetAsync(store, "test-ref-1"));
+			Assert.AreEqual(target, await TryReadRefTargetAsync(store, "test-ref-1"));
 			Assert.AreEqual(default, await TryReadRefTargetAsync(store, "test-ref-2"));
 			Assert.AreEqual(default, await TryReadRefTargetAsync(store, "test-ref-3"));
 		}

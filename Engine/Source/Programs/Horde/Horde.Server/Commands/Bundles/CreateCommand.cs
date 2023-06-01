@@ -54,7 +54,7 @@ namespace Horde.Server.Commands.Bundles
 				storageClient = fileStorageClient;
 			}
 		
-			using TreeWriter writer = new TreeWriter(storageClient, prefix: RefName.Text);
+			using IStorageWriter writer = storageClient.CreateWriter(RefName);
 
 			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), writer, new CopyStatsLogger(logger), CancellationToken.None);

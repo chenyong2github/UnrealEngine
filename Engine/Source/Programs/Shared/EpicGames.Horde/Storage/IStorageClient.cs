@@ -109,6 +109,18 @@ namespace EpicGames.Horde.Storage
 
 		#endregion
 
+		#region Nodes
+
+		/// <summary>
+		/// Creates a new writer for storage nodes
+		/// </summary>
+		/// <param name="refName">Name of the ref being written.</param>
+		/// <param name="options"></param>
+		/// <returns>New writer instance. Must be disposed after use.</returns>
+		IStorageWriter CreateWriter(RefName refName = default, TreeOptions? options = null);
+
+		#endregion
+
 		#region Aliases
 
 		/// <summary>
@@ -178,6 +190,47 @@ namespace EpicGames.Horde.Storage
 		Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default);
 
 		#endregion
+	}
+
+	/// <summary>
+	/// Interface for writing new nodes to the store
+	/// </summary>
+	public interface IStorageWriter : IDisposable
+	{
+		/// <summary>
+		/// Accessor for the store instance
+		/// </summary>
+		IStorageClient Store { get; }
+
+		/// <summary>
+		/// Create another writer instance, allowing multiple threads to write in parallel.
+		/// </summary>
+		/// <returns>New writer instance</returns>
+		IStorageWriter Fork();
+
+		/// <summary>
+		/// Flush any pending nodes to storage
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		Task FlushAsync(CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Gets an output buffer for writing.
+		/// </summary>
+		/// <param name="usedSize">Current size in the existing buffer that has been written to</param>
+		/// <param name="desiredSize">Desired size of the returned buffer</param>
+		/// <returns>Buffer to be written into.</returns>
+		Memory<byte> GetOutputBuffer(int usedSize, int desiredSize);
+
+		/// <summary>
+		/// Finish writing a node.
+		/// </summary>
+		/// <param name="size">Used size of the buffer</param>
+		/// <param name="references">References to other nodes</param>
+		/// <param name="type">Type of the node that was written</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Handle to the written node</returns>
+		ValueTask<HashedNodeHandle> WriteNodeAsync(int size, IReadOnlyList<NodeHandle> references, NodeType type, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>

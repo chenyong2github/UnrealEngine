@@ -12,6 +12,7 @@ using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Jupiter.Implementation.Blob;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jupiter.Implementation.Bundles;
 
@@ -20,6 +21,7 @@ public interface IStorageClientJupiter : IStorageClient
     Task<(BlobLocator Locator, Uri UploadUrl)?> GetWriteRedirectAsync(string prefix, CancellationToken cancellationToken);
     bool SupportsRedirects { get; set; }
     Task<Uri?> GetReadRedirectAsync(BlobLocator locator, CancellationToken cancellationToken);
+    Task WriteRefTargetAsync(RefName refName, NodeLocator target, RefOptions? requestOptions, CancellationToken cancellationToken);
 }
 
 public interface IStorageService
@@ -51,6 +53,7 @@ public class StorageClient : IStorageClientJupiter
     private readonly IReferencesStore _refStore;
     private readonly IBlobIndex _blobIndex;
     private readonly BucketId _defaultBucket = new BucketId("bundles");
+    private readonly TreeReader _treeReader;
 
     public bool SupportsRedirects { get; set; } = true;
 
@@ -60,6 +63,7 @@ public class StorageClient : IStorageClientJupiter
         _blobService = blobService;
         _refStore = refStore;
         _blobIndex = blobIndex;
+        _treeReader = new TreeReader(this, null, NullLogger.Instance);
     }
 
     public async Task<(BlobLocator Locator, Uri UploadUrl)?> GetWriteRedirectAsync(string prefix, CancellationToken cancellationToken)
@@ -171,7 +175,7 @@ public class StorageClient : IStorageClientJupiter
             BlobLocator blobLocator = new BlobLocator(inlinePayload.BlobLocator);
             int exportId = inlinePayload.ExportId;
 
-            return new NodeHandle(new NodeLocator(blobLocator, exportId));
+            return new NodeHandle(_treeReader, new NodeLocator(blobLocator, exportId));
         }
         catch (ObjectNotFoundException )
         {
@@ -182,19 +186,24 @@ public class StorageClient : IStorageClientJupiter
     public async Task<NodeHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default)
     {
         BlobLocator locator = await this.WriteBundleAsync(bundle, prefix, cancellationToken);
-        NodeHandle target = new NodeHandle(new NodeLocator(locator, exportIdx));
+        NodeHandle target = new NodeHandle(_treeReader, new NodeLocator(locator, exportIdx));
         await WriteRefTargetAsync(name, target, options, cancellationToken);
 
         return target;
     }
 
-    public async Task WriteRefTargetAsync(RefName refName, NodeHandle target, RefOptions? requestOptions, CancellationToken cancellationToken)
+    public Task WriteRefTargetAsync(RefName refName, NodeHandle target, RefOptions? requestOptions, CancellationToken cancellationToken)
     {
-        BlobIdentifier bundleBlob = BlobIdentifier.FromBlobLocator(target.Locator.Blob);
+        return WriteRefTargetAsync(refName, target.Locator, requestOptions, cancellationToken);
+    }
+
+    public async Task WriteRefTargetAsync(RefName refName, NodeLocator target, RefOptions? requestOptions, CancellationToken cancellationToken)
+    {
+        BlobIdentifier bundleBlob = BlobIdentifier.FromBlobLocator(target.Blob);
         IoHashKey refKey = IoHashKey.FromName(refName.ToString());
         RefInlinePayload inlinePayload = new RefInlinePayload()
         {
-            BlobLocator = target.Locator.Blob.ToString(), ExportId = target.Locator.ExportIdx
+            BlobLocator = target.Blob.ToString(), ExportId = target.ExportIdx
         };
         byte[] payload = CbSerializer.SerializeToByteArray(inlinePayload);
         BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(payload);
@@ -207,6 +216,11 @@ public class StorageClient : IStorageClientJupiter
     public  async Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default)
     {
         await _refStore.Delete(_namespaceId, _defaultBucket, IoHashKey.FromName(name.ToString()));
+    }
+
+    public IStorageWriter CreateWriter(RefName refName = default, TreeOptions? options = null)
+    {
+        return new TreeWriter(this, _treeReader, refName, options);
     }
 }
 

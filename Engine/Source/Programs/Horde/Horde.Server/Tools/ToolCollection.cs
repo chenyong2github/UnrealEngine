@@ -253,14 +253,14 @@ namespace Horde.Server.Tools
 			IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
 
 			HashedNodeHandle handle;
-			using (TreeWriter writer = new TreeWriter(client, refName))
+			using (IStorageWriter writer = client.CreateWriter(refName))
 			{
 				DirectoryNode directoryNode = new DirectoryNode();
 				await directoryNode.CopyFromZipStreamAsync(stream, writer, cancellationToken);
 				handle = await writer.WriteAsync(refName, directoryNode, cancellationToken: cancellationToken);
 			}
 
-			return await CreateDeploymentAsync(tool, options, handle.Handle, globalConfig, cancellationToken);
+			return await CreateDeploymentAsync(tool, options, handle.Handle.Locator, globalConfig, cancellationToken);
 		}
 
 		/// <summary>
@@ -268,17 +268,17 @@ namespace Horde.Server.Tools
 		/// </summary>
 		/// <param name="tool">The tool to update</param>
 		/// <param name="options">Options for the new deployment</param>
-		/// <param name="handle">Handle for the tool data</param>
+		/// <param name="locator">Handle for the tool data</param>
 		/// <param name="globalConfig">The current configuration</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Updated tool document, or null if it does not exist</returns>
-		public async Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, NodeHandle handle, GlobalConfig globalConfig, CancellationToken cancellationToken)
+		public async Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, NodeLocator locator, GlobalConfig globalConfig, CancellationToken cancellationToken)
 		{
 			ToolDeploymentId deploymentId = ToolDeploymentId.GenerateNewId();
 			RefName refName = new RefName($"{tool.Id}/{deploymentId}");
 
-			IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
-			await client.WriteRefTargetAsync(refName, handle, cancellationToken: cancellationToken);
+			IStorageClientImpl client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
+			await client.WriteRefTargetAsync(refName, locator, cancellationToken: cancellationToken);
 
 			return await CreateDeploymentInternalAsync(tool, deploymentId, options, refName, globalConfig, cancellationToken);
 		}

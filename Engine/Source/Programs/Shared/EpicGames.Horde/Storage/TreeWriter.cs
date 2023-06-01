@@ -59,6 +59,8 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	public class NodeHandle
 	{
+		readonly TreeReader _reader;
+
 		/// <summary>
 		/// Location of the node in storage
 		/// </summary>
@@ -72,9 +74,11 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="reader">Reader for new node data</param>
 		/// <param name="locator">Location of the node in storage</param>
-		public NodeHandle(NodeLocator locator)
+		public NodeHandle(TreeReader reader, NodeLocator locator)
 		{
+			_reader = reader;
 			Locator = locator;
 		}
 
@@ -90,6 +94,12 @@ namespace EpicGames.Horde.Storage
 				Debug.Assert(Locator.IsValid());
 				callback.OnWrite();
 			}
+		}
+
+		/// <inheritdoc/>
+		public async ValueTask<NodeData> ReadAsync(CancellationToken cancellationToken = default)
+		{
+			return await _reader.ReadNodeDataAsync(Locator, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -120,28 +130,6 @@ namespace EpicGames.Horde.Storage
 		{
 			Hash = hash;
 			Handle = handle;
-		}
-
-		/// <summary>
-		/// Parse a node handle value from a string
-		/// </summary>
-		/// <param name="text">Text to parse</param>
-		/// <returns>Parsed node handle</returns>
-		public static HashedNodeHandle Parse(string text)
-		{
-			int hashLength = IoHash.NumBytes * 2;
-			if (text.Length == hashLength)
-			{
-				return new HashedNodeHandle(IoHash.Parse(text), new NodeHandle(default));
-			}
-			else if (text[hashLength] == '@')
-			{
-				return new HashedNodeHandle(IoHash.Parse(text.Substring(0, hashLength)), new NodeHandle(NodeLocator.Parse(text.Substring(hashLength + 1))));
-			}
-			else
-			{
-				throw new FormatException("Invalid NodeHandle value");
-			}
 		}
 
 		/// <inheritdoc/>
@@ -192,28 +180,6 @@ namespace EpicGames.Horde.Storage
 			}
 		}
 
-		/// <summary>
-		/// Adds nodes exported from a bundle to the cache
-		/// </summary>
-		/// <param name="locator">Locator for the bundle</param>
-		/// <param name="header">The bundle header</param>
-		public void Add(BlobLocator locator, BundleHeader header)
-		{
-			lock (_lockObject)
-			{
-				for (int idx = 0; idx < header.Exports.Count; idx++)
-				{
-					BundleExport export = header.Exports[idx];
-
-					NodeKey key = new NodeKey(export.Hash, header.Types[export.TypeIdx]);
-					NodeLocator node = new NodeLocator(locator, idx);
-					NodeHandle handle = new NodeHandle(node);
-
-					AddInternal(key, handle);
-				}
-			}
-		}
-
 		void AddInternal(NodeKey key, NodeHandle handle)
 		{
 			NodeKey? prevKey;
@@ -243,7 +209,7 @@ namespace EpicGames.Horde.Storage
 	/// Writes nodes of a tree to an <see cref="IStorageClient"/>, packed into bundles. Each <see cref="TreeWriter"/> instance is single threaded,
 	/// but multiple instances may be written to in parallel.
 	/// </summary>
-	public sealed class TreeWriter : IDisposable
+	public sealed class TreeWriter : IStorageWriter
 	{
 		/// <summary>
 		/// Object to receive notifications on a node being written
@@ -264,8 +230,8 @@ namespace EpicGames.Horde.Storage
 			public readonly int Length;
 			public readonly NodeHandle[] Refs;
 
-			public PendingNode(NodeKey key, int packet, int offset, int length, IReadOnlyList<NodeHandle> refs, PendingBundle pendingBundle)
-				: base(default)
+			public PendingNode(TreeReader reader, NodeKey key, int packet, int offset, int length, IReadOnlyList<NodeHandle> refs, PendingBundle pendingBundle)
+				: base(reader, default)
 			{
 				Key = key;
 				Packet = packet;
@@ -296,6 +262,7 @@ namespace EpicGames.Horde.Storage
 			static int s_lastBundleId = 0;
 			public int BundleId { get; } = Interlocked.Increment(ref s_lastBundleId);
 
+			readonly TreeReader _treeReader;
 			readonly int _maxPacketSize;
 			readonly BundleCompressionFormat _compressionFormat;
 
@@ -341,8 +308,9 @@ namespace EpicGames.Horde.Storage
 			// Task signalled after the write is complete
 			public Task CompleteTask => _completeEvent.Task;
 
-			public PendingBundle(int maxPacketSize, int maxBlobSize, BundleCompressionFormat compressionFormat)
+			public PendingBundle(TreeReader treeReader, int maxPacketSize, int maxBlobSize, BundleCompressionFormat compressionFormat)
 			{
+				_treeReader = treeReader;
 				_maxPacketSize = maxPacketSize;
 				_compressionFormat = compressionFormat;
 				_encodedPacketWriter = new ChunkedMemoryWriter(maxBlobSize);
@@ -438,7 +406,7 @@ namespace EpicGames.Horde.Storage
 				_currentPacketLength += size;
 				UncompressedLength += size;
 
-				PendingNode pendingNode = new PendingNode(nodeKey, _currentPacketIdx, offset, (int)size, refs, this);
+				PendingNode pendingNode = new PendingNode(_treeReader, nodeKey, _currentPacketIdx, offset, (int)size, refs, this);
 				_queue.Add(pendingNode);
 				_nodeKeyToInfo.Add(nodeKey, pendingNode);
 
@@ -637,6 +605,7 @@ namespace EpicGames.Horde.Storage
 		static readonly TreeOptions s_defaultOptions = new TreeOptions();
 
 		readonly IStorageClient _store;
+		readonly TreeReader _treeReader;
 		readonly TreeOptions _options;
 		readonly Utf8String _prefix;
 
@@ -662,13 +631,15 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="store">Store to write data to</param>
+		/// <param name="treeReader">Reader for serialized node data</param>
 		/// <param name="options">Options for the writer</param>
 		/// <param name="prefix">Prefix for blobs written to the store</param>
 		/// <param name="nodeCache">Cache of nodes for deduplication</param>
 		/// <param name="traceLogger">Optional logger for trace information</param>
-		public TreeWriter(IStorageClient store, TreeOptions? options = null, Utf8String prefix = default, NodeCache? nodeCache = null, ILogger? traceLogger = null)
+		public TreeWriter(IStorageClient store, TreeReader treeReader, TreeOptions? options = null, Utf8String prefix = default, NodeCache? nodeCache = null, ILogger? traceLogger = null)
 		{
 			_store = store;
+			_treeReader = treeReader;
 			_options = options ?? s_defaultOptions;
 			_prefix = prefix;
 			_nodeCache = nodeCache ?? new NodeCache(_options.NodeCacheSize);
@@ -679,11 +650,12 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="store">Store to write data to</param>
+		/// <param name="reader">Reader for serialized node data</param>
 		/// <param name="refName">Ref being written. Will be used as a prefix for storing blobs.</param>
 		/// <param name="options">Options for the writer</param>
 		/// <param name="traceLogger">Optional logger for trace information</param>
-		public TreeWriter(IStorageClient store, RefName refName, TreeOptions? options = null, ILogger? traceLogger = null)
-			: this(store, options, refName.Text)
+		public TreeWriter(IStorageClient store, TreeReader reader, RefName refName, TreeOptions? options = null, ILogger? traceLogger = null)
+			: this(store, reader, options, refName.Text, traceLogger: traceLogger)
 		{
 		}
 
@@ -692,9 +664,12 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="other"></param>
 		public TreeWriter(TreeWriter other)
-			: this(other._store, other._options, other._prefix, other._nodeCache, other._traceLogger)
+			: this(other._store, other._treeReader, other._options, other._prefix, other._nodeCache, other._traceLogger)
 		{
 		}
+
+		/// <inheritdoc/>
+		IStorageWriter IStorageWriter.Fork() => new TreeWriter(this);
 
 		/// <inheritdoc/>
 		public void Dispose()
@@ -792,7 +767,7 @@ namespace EpicGames.Horde.Storage
 			if (_currentBundle == null || _currentBundle.IsReadOnly)
 			{
 				int bufferSize = (int)(_options.MinCompressionPacketSize * 1.2);
-				_currentBundle = new PendingBundle(bufferSize, _options.MaxBlobSize, _options.CompressionFormat);
+				_currentBundle = new PendingBundle(_treeReader, bufferSize, _options.MaxBlobSize, _options.CompressionFormat);
 			}
 			return _currentBundle;
 		}

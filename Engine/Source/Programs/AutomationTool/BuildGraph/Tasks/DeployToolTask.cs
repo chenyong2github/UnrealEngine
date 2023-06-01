@@ -150,8 +150,8 @@ namespace AutomationTool.Tasks
 
 			HashedNodeHandle handle;
 
-			HttpStorageClient storageClient = new HttpStorageClient(CreateHttpClient, () => new HttpClient(), Logger);
-			using (TreeWriter treeWriter = new TreeWriter(storageClient))
+			HttpStorageClient storageClient = new HttpStorageClient(CreateHttpClient, () => new HttpClient(), null, Logger);
+			using (IStorageWriter treeWriter = storageClient.CreateWriter())
 			{
 				DirectoryNode sandbox = new DirectoryNode();
 				if (Parameters.File != null)

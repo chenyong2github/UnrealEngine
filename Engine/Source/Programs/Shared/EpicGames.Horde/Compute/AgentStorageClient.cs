@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace EpicGames.Horde.Compute
 {
@@ -23,6 +24,7 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="channel"></param>
 		public AgentStorageClient(AgentMessageChannel channel)
+			: base(null, NullLogger.Instance)
 		{
 			_channel = channel;
 			_semaphore = new SemaphoreSlim(1);

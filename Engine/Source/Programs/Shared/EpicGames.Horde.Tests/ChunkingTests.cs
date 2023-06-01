@@ -73,7 +73,7 @@ namespace EpicGames.Horde.Tests
 
 			MemoryStorageClient store = new MemoryStorageClient();
 			TreeReader reader = new TreeReader(store, cache, NullLogger.Instance);
-			using TreeWriter writer = new TreeWriter(store, new TreeOptions());
+			using IStorageWriter writer = store.CreateWriter();
 
 			byte[] data = new byte[4096];
 			new Random(0).NextBytes(data);

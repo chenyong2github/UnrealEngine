@@ -566,7 +566,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="writer">Writer for new node data</param>
 		/// <param name="progress">Feedback interface for progress updates</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task CopyFilesAsync(DirectoryReference baseDir, IEnumerable<FileReference> files, ChunkingOptions options, TreeWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
+		public async Task CopyFilesAsync(DirectoryReference baseDir, IEnumerable<FileReference> files, ChunkingOptions options, IStorageWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
 		{
 			Dictionary<DirectoryReference, DirectoryNode> dirToNode = new Dictionary<DirectoryReference, DirectoryNode>();
 			dirToNode.Add(baseDir, this);
@@ -610,7 +610,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="stream">Input stream</param>
 		/// <param name="writer">Writer for new nodes</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task CopyFromZipStreamAsync(Stream stream, TreeWriter writer, CancellationToken cancellationToken = default)
+		public async Task CopyFromZipStreamAsync(Stream stream, IStorageWriter writer, CancellationToken cancellationToken = default)
 		{
 			ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, new ChunkingOptions());
 			using (ZipArchive archive = new ZipArchive(stream, ZipArchiveMode.Read, true))
@@ -659,7 +659,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="writer">Writer for new node data</param>
 		/// <param name="progress">Feedback interface for progress updates</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task CopyFromDirectoryAsync(DirectoryInfo directoryInfo, ChunkingOptions options, TreeWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken = default)
+		public async Task CopyFromDirectoryAsync(DirectoryInfo directoryInfo, ChunkingOptions options, IStorageWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken = default)
 		{
 			// Enumerate all the files below this directory
 			List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files = new List<(DirectoryNode, FileInfo)>();
@@ -676,7 +676,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="progress">Progress notification object</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public static async Task CopyFromDirectoryAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, ChunkingOptions options, TreeWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken = default)
+		public static async Task CopyFromDirectoryAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, ChunkingOptions options, IStorageWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken = default)
 		{
 			const int MaxWriters = 32;
 			const long MinSizePerWriter = 1024 * 1024;
@@ -740,14 +740,14 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 		}
 
-		static async Task CopyFilesAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, int minIdx, int maxIdx, FileEntry[] entries, ChunkingOptions options, TreeWriter baseWriter, CopyStats? copyStats, CancellationToken cancellationToken)
+		static async Task CopyFilesAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, int minIdx, int maxIdx, FileEntry[] entries, ChunkingOptions options, IStorageWriter baseWriter, CopyStats? copyStats, CancellationToken cancellationToken)
 		{
-			TreeWriter writer = baseWriter;
+			IStorageWriter writer = baseWriter;
 			try
 			{
 				if (minIdx != 0)
 				{
-					writer = new TreeWriter(baseWriter);
+					writer = baseWriter.Fork();
 				}
 
 				ChunkedDataWriter fileNodeWriter = new ChunkedDataWriter(writer, options);

@@ -11,6 +11,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Horde.Server.Commands.Bundles
 {
@@ -19,6 +20,13 @@ namespace Horde.Server.Commands.Bundles
 	{
 		class FakeStorageClient : IStorageClient
 		{
+			readonly TreeReader _reader;
+
+			public FakeStorageClient()
+			{
+				_reader = new TreeReader(this, null, NullLogger.Instance);
+			}
+
 			public Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default) => Task.CompletedTask;
 			public Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default) => throw new NotImplementedException();
 			public Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default) => throw new NotImplementedException();
@@ -29,6 +37,8 @@ namespace Horde.Server.Commands.Bundles
 			public Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default) => Task.FromResult(BlobLocator.Create(HostId.Empty));
 			public Task<NodeHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default) => throw new NotImplementedException();
 			public Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+			public IStorageWriter CreateWriter(RefName refName = default, TreeOptions? options = null) => new TreeWriter(this, _reader, options);
 		}
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
@@ -37,7 +47,7 @@ namespace Horde.Server.Commands.Bundles
 
 			TreeOptions options = new TreeOptions();
 			options.CompressionFormat = BundleCompressionFormat.None;
-			using TreeWriter writer = new TreeWriter(store, options);
+			using IStorageWriter writer = store.CreateWriter(options: options);
 
 			ChunkingOptions chunkingOptions = new ChunkingOptions();
 //			chunkingOptions.LeafOptions = new ChunkingOptionsForNodeType(64 * 1024);

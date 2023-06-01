@@ -6,6 +6,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Horde.Storage
 {
@@ -15,10 +17,16 @@ namespace EpicGames.Horde.Storage
 	public abstract class StorageClientBase : IStorageClient
 	{
 		/// <summary>
+		/// Reader for node data
+		/// </summary>
+		protected TreeReader TreeReader { get; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		protected StorageClientBase()
+		protected StorageClientBase(IMemoryCache? memoryCache, ILogger logger)
 		{
+			TreeReader = new TreeReader(this, memoryCache, logger);
 		}
 
 		#region Blobs
@@ -35,6 +43,16 @@ namespace EpicGames.Horde.Storage
 		#endregion
 
 		#region Nodes
+
+		/// <inheritdoc/>
+		public IStorageWriter CreateWriter(RefName refName = default, TreeOptions? options = null)
+		{
+			return new TreeWriter(this, TreeReader, refName, options);
+		}
+
+		#endregion
+
+		#region Aliases
 
 		/// <inheritdoc/>
 		public abstract Task AddAliasAsync(Utf8String name, NodeHandle locator, CancellationToken cancellationToken = default);
@@ -59,7 +77,7 @@ namespace EpicGames.Horde.Storage
 		public virtual async Task<NodeHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx = 0, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
 			BlobLocator locator = await this.WriteBundleAsync(bundle, prefix, cancellationToken);
-			NodeHandle target = new NodeHandle(new NodeLocator(locator, exportIdx));
+			NodeHandle target = new NodeHandle(TreeReader, new NodeLocator(locator, exportIdx));
 			await WriteRefTargetAsync(name, target, options, cancellationToken);
 			return target;
 		}

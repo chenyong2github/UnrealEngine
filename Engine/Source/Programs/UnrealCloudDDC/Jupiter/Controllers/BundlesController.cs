@@ -314,8 +314,8 @@ namespace Jupiter.Controllers
             {
                 return result;
             }
-            IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-            NodeHandle target = new NodeHandle(new NodeLocator(request.Blob, request.ExportIdx));
+            IStorageClientJupiter client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
+            NodeLocator target = new NodeLocator(request.Blob, request.ExportIdx);
             await client.WriteRefTargetAsync(refName, target, request.Options, cancellationToken);
 
             return Ok();

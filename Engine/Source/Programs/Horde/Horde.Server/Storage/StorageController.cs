@@ -350,8 +350,8 @@ namespace Horde.Server.Storage
 				return Forbid(StorageAclAction.WriteRefs, namespaceId);
 			}
 
-			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-			NodeHandle target = new NodeHandle(new NodeLocator(request.Blob, request.ExportIdx));
+			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
+			NodeLocator target = new NodeLocator(request.Blob, request.ExportIdx);
 			await client.WriteRefTargetAsync(refName, target, request.Options, cancellationToken);
 
 			return Ok();

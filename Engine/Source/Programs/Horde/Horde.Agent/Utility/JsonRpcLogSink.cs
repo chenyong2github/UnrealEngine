@@ -82,7 +82,7 @@ namespace Horde.Agent.Utility
 		readonly string _logId;
 		readonly LogBuilder _builder;
 		readonly IJsonRpcLogSink? _inner;
-		readonly TreeWriter _writer;
+		readonly IStorageWriter _writer;
 		readonly ILogger _logger;
 
 		int _bufferLength;
@@ -101,7 +101,7 @@ namespace Horde.Agent.Utility
 			_logId = logId;
 			_builder = new LogBuilder(LogFormat.Json, logger);
 			_inner = inner;
-			_writer = new TreeWriter(store);
+			_writer = store.CreateWriter();
 			_logger = logger;
 
 			_tailTaskStop = new AsyncEvent();
