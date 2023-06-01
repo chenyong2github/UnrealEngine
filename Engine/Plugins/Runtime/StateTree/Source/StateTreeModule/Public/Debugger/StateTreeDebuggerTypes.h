@@ -165,8 +165,11 @@ public:
 	int32 ActiveStatesIndex = INDEX_NONE;
 	EScrubTimeBoundState ScrubTimeBoundState = EScrubTimeBoundState::Unset;
 	
-
-	void SetScrubTime(double NewScrubTime);
+	/**
+	 * Updates internal indices based on the new time.
+	 * @return true if values were updated; false otherwise (i.e. no changes)
+	 */
+	bool SetScrubTime(double NewScrubTime);
 
 	/**
 	 * Indicates if the current scrub state points to a valid frame.

@@ -369,10 +369,12 @@ FText FStateTreeDebugger::GetSelectedTraceDescription() const
 
 void FStateTreeDebugger::SetScrubTime(const double ScrubTime)
 {
-	ScrubState.SetScrubTime(ScrubTime);
-	OnScrubStateChanged.Execute(ScrubState);
+	if (ScrubState.SetScrubTime(ScrubTime))
+	{
+		OnScrubStateChanged.Execute(ScrubState);
 
-	RefreshActiveStates();
+		RefreshActiveStates();
+	}
 }
 
 bool FStateTreeDebugger::IsActiveInstance(const double Time, const FStateTreeInstanceDebugId InstanceId) const

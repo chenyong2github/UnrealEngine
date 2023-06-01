@@ -33,8 +33,13 @@ const FInstanceEventCollection FInstanceEventCollection::Invalid;
 //----------------------------------------------------------------//
 // FScrubState
 //----------------------------------------------------------------//
-void FScrubState::SetScrubTime(const double NewScrubTime)
+bool FScrubState::SetScrubTime(const double NewScrubTime)
 {
+	if (NewScrubTime == ScrubTime)
+	{
+		return false;
+	}
+
 	ScrubTimeBoundState = EScrubTimeBoundState::Unset;
 	TraceFrameIndex = INDEX_NONE;
 	FrameSpanIndex = INDEX_NONE;
@@ -74,6 +79,8 @@ void FScrubState::SetScrubTime(const double NewScrubTime)
 	// This will set back to the exact value provided since SetFrameSpanIndex will snap it to the start time of the matching frame.
 	// It will be consistent with the case where EventCollectionIndex is not set.
 	ScrubTime = NewScrubTime;
+
+	return true;
 }
 
 void FScrubState::SetFrameSpanIndex(const int32 NewFrameSpanIndex)
