@@ -364,7 +364,7 @@ void StitchParallelEdges(TArray<FTopologicalVertex*>& VerticesToProcess, double 
 	{
 		FTopologicalVertex* Vertex = VerticesToProcess[VertexI];
 
-		if (Vertex->IsDeleted() || !Vertex->IsBorderVertex())
+		if (!Vertex || Vertex->IsDeleted() || !Vertex->IsBorderVertex())
 		{
 			continue;
 		}
