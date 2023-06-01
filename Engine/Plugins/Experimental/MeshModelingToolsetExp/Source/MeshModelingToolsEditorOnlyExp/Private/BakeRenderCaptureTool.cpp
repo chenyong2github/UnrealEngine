@@ -418,15 +418,12 @@ void UBakeRenderCaptureTool::OnShutdown(EToolShutdownType ShutdownType)
 	UE::ToolTarget::ShowSourceObject(Targets[0]);
 }
 
-// TODO Move the BakeRC Tool into MeshModellingToolsEditorOnlyExp (this function uses WITH_EDITOR functionality, other
-// functions may also use editor only features)
 void UBakeRenderCaptureTool::CreateAssets(UWorld* SourceWorld, UObject* SourceAsset)
 {
 	const FString BaseName = UE::ToolTarget::GetTargetActor(Targets[0])->GetActorNameOrLabel();
 	const bool bPackedMRS = ResultSettings->PackedMRSMap != nullptr;
 	const bool bSubsurfaceMaterial = ResultSettings->SubsurfaceColorMap || ResultSettings->OpacityMap;
 
-#if WITH_EDITOR
 	{
 		// Choose the material
 		TObjectPtr<UMaterialInstanceDynamic> Material = ResultSettings->PackedMRSMap ? PreviewMaterialPackedRC : PreviewMaterialRC;
@@ -480,7 +477,6 @@ void UBakeRenderCaptureTool::CreateAssets(UWorld* SourceWorld, UObject* SourceAs
 			NewMaterial->PostEditChange();
 		}
 	}
-#endif // WITH_EDITOR
 
 	auto CreateTextureAsset = [this, &BaseName, &SourceWorld, &SourceAsset] (
 		const FString& TexParamName,

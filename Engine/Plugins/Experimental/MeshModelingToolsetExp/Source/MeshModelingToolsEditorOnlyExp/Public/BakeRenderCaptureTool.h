@@ -34,7 +34,7 @@ class FSceneCapturePhotoSet;
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeRenderCaptureResults  : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UBakeRenderCaptureResults  : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -77,7 +77,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeRenderCaptureToolBuilder : public UMultiSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API UBakeRenderCaptureToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -97,7 +97,7 @@ protected:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API URenderCaptureProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API URenderCaptureProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -182,7 +182,7 @@ public:
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeRenderCaptureToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UBakeRenderCaptureToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -226,7 +226,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeRenderCaptureInputToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UBakeRenderCaptureInputToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -256,7 +256,7 @@ public:
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeRenderCaptureVisualizationProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UBakeRenderCaptureVisualizationProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -288,7 +288,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeRenderCaptureTool :
+class MESHMODELINGTOOLSEDITORONLYEXP_API UBakeRenderCaptureTool :
 	public UMultiSelectionMeshEditingTool,
 	public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshMapBaker>,
 	public IInteractiveToolExclusiveToolAPI
