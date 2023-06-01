@@ -11,6 +11,7 @@
 #include "Misc/FeedbackContext.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/Package.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureMipDataProviderFactory.h"
 #include "ContentStreaming.h"
