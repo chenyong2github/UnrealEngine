@@ -1084,7 +1084,83 @@ TEST_CASE("CoreUObject::TObjectPtr::ConstArrayViewConversion")
 
 	
 }
+TEST_CASE("CoreUObject::TObjectPtr::GetOuter")
+{
+	UPackage* TestPackage = NewObject<UPackage>(nullptr, "/Test/MyPackage", RF_Transient);
+	TestPackage->AddToRoot();
+	TObjectPtr<UObject> Obj1 = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("Obj1"));
+	TObjectPtr<UObject> Obj2 = NewObject<UObjectPtrTestClass>(Obj1, TEXT("Obj2"));
+	int ResolveCount = 0;
 
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	FObjectPtr Ptr1(MakeUnresolvedHandle(TestPackage));
+	FObjectPtr Ptr2(MakeUnresolvedHandle(Obj1));
+	FObjectPtr Ptr3(MakeUnresolvedHandle(Obj2));
+
+	TObjectPtr<UPackage> PackagePtr = *reinterpret_cast<TObjectPtr<UPackage>*>(&Ptr1);
+	TObjectPtr<UObject> Obj1Ptr = *reinterpret_cast<TObjectPtr<UObject>*>(&Ptr2);
+	TObjectPtr<UObject> Obj2Ptr = *reinterpret_cast<TObjectPtr<UObject>*>(&Ptr3);
+
+
+	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReferenceResolvedCallback([&ResolveCount](const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object)
+		{
+			++ResolveCount;
+		});
+	ON_SCOPE_EXIT
+	{
+		UE::CoreUObject::RemoveObjectHandleReferenceResolvedCallback(CallbackHandle);
+	};
+#else
+	TObjectPtr<UPackage> PackagePtr = TestPackage;
+	TObjectPtr<UObject> Obj1Ptr = Obj1;
+	TObjectPtr<UObject> Obj2Ptr = Obj2;
+#endif
+	TObjectPtr<UObject> Obj1RawOuter = Obj1->GetOuter();
+	TObjectPtr<UObject> Obj2RawOuter = Obj2->GetOuter();
+
+	TObjectPtr<UObject> PackageOuter = PackagePtr.GetOuter();
+	TObjectPtr<UObject> Obj1Outer = Obj1Ptr.GetOuter();
+	TObjectPtr<UObject> Obj2Outer = Obj2Ptr.GetOuter();
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	CHECK(!Obj1Outer.IsResolved());
+	CHECK(!Obj2Outer.IsResolved());
+
+	//sanity check that the packed refs are identical
+	CHECK(Obj1Outer.GetHandle().PointerOrRef == PackagePtr.GetHandle().PointerOrRef);
+	CHECK(Obj2Outer.GetHandle().PointerOrRef == Obj1Ptr.GetHandle().PointerOrRef);
+
+#endif
+
+	CHECK(Obj1Outer.GetHandle() == PackagePtr.GetHandle());
+	CHECK(Obj2Outer.GetHandle() == Obj1Ptr.GetHandle());
+
+	CHECK(PackageOuter == TestPackage->GetOuter());
+	CHECK(PackageOuter == nullptr);
+	CHECK(Obj1Outer == Obj1RawOuter);
+	CHECK(Obj1Outer.GetFName() == Obj1RawOuter->GetFName());
+	CHECK(Obj1Outer.GetPathName() == Obj1RawOuter->GetPathName());
+	CHECK(Obj1Outer.GetFullName() == Obj1RawOuter->GetFullName());
+	CHECK(Obj1Outer.GetClass() == Obj1RawOuter->GetClass());
+
+	CHECK(Obj2Outer == Obj2RawOuter);
+	
+	CHECK(Obj2Outer.GetFName() == Obj2RawOuter->GetFName());
+	CHECK(Obj2Outer.GetPathName() == Obj2RawOuter->GetPathName());
+	CHECK(Obj2Outer.GetFullName() == Obj2RawOuter->GetFullName());
+	CHECK(Obj2Outer.GetClass() == Obj2RawOuter->GetClass());
+
+
+	TObjectPtr<UPackage> Package = PackagePtr.GetPackage();
+	TObjectPtr<UPackage> Obj1Package = Obj1Ptr.GetPackage();
+	TObjectPtr<UPackage> Obj2Package = Obj2Ptr.GetPackage();
+
+	CHECK(Package == PackagePtr);
+	CHECK(Obj1Package == PackagePtr);
+	CHECK(Obj2Package == PackagePtr);
+
+	CHECK(ResolveCount == 0);
+}
 // @TODO: OBJPTR: We should have a test that ensures that lazy loading of an object with an external package is handled correctly.
 //				  This should also include external packages in the outer chain of the target object.
 // IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestExternalPackages, FObjectPtrTestBase, TEXT(TEST_NAME_ROOT ".ExternalPackages"), ObjectPtrTestFlags)

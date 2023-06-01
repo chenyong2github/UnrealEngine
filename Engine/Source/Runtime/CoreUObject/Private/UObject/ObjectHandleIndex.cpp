@@ -64,47 +64,59 @@ namespace UE::CoreUObject::Private
 			return Id == Other.Id;
 		}
 	};
-	enum class EObjectId : uint32
+	
+	struct FObjectId
 	{
-		Invalid = 0,
-	};
-
-	union FObjectId
-	{
-	private:
-		uint32 RawData = 0;
 	public:
-		struct
-		{
-			uint32 DataClassDescriptorId : 8;
-			uint32 ObjectPathId : 24;
-		} Components;
-
 		FObjectId() = default;
-		FObjectId(EObjectId Id) : RawData(static_cast<uint32>(Id)) {}
+		
+		explicit FObjectId(uint32 Index)
+			: PackedIndex(Index)
+		{
+		}
 
-		bool operator==(EObjectId Id) { return RawData == static_cast<uint32>(Id); }
-		bool operator!=(EObjectId Id) { return RawData != static_cast<uint32>(Id); }
+		static FObjectId FromIndex(uint32 Index)
+		{
+			return FObjectId(Index);
+		}
 
 		inline uint32 ToIndex() const
 		{
-			return Components.ObjectPathId - 1;
+			check(PackedIndex != 0);
+			return PackedIndex - 1;
 		}
+
+		inline uint32 ToPackedIndex() const
+		{
+			return PackedIndex;
+		}
+
+		inline bool IsNone() const
+		{
+			return PackedIndex == 0;
+		}
+
+	private:
+		uint32 PackedIndex = 0;
 	};
 
 	static_assert(sizeof(FObjectId) == sizeof(uint32), "FObjectId type must always compile to something equivalent to a uint32 size.");
 
+	struct FObjectDescriptor
+	{
+		FObjectPathId ObjectPath;
+		FObjectHandleDataClassDescriptor ClassDescriptor;
+	};
+
 	struct FObjectHandlePackageData
 	{
 		FMinimalName PackageName;
-		TArray<FObjectPathId> ObjectPaths;
-		TArray<FObjectHandleDataClassDescriptor> DataClassDescriptors;
+		TArray<FObjectDescriptor> ObjectDescriptors;
 		FRWLock Lock;
 	};
 
 	static_assert(STRUCT_OFFSET(FObjectHandlePackageData, PackageName) == STRUCT_OFFSET(FObjectHandlePackageDebugData, PackageName), "FObjectHandlePackageData and FObjectHandlePackageDebugData must match in position of PackageNameField.");
-	static_assert(STRUCT_OFFSET(FObjectHandlePackageData, ObjectPaths) == STRUCT_OFFSET(FObjectHandlePackageDebugData, ObjectPaths), "FObjectHandlePackageData and FObjectHandlePackageDebugData must match in position of ObjectPaths.");
-	static_assert(STRUCT_OFFSET(FObjectHandlePackageData, DataClassDescriptors) == STRUCT_OFFSET(FObjectHandlePackageDebugData, DataClassDescriptors), "FObjectHandlePackageData and FObjectHandlePackageDebugData must match in position of DataClassDescriptors.");
+	static_assert(STRUCT_OFFSET(FObjectHandlePackageData, ObjectDescriptors) == STRUCT_OFFSET(FObjectHandlePackageDebugData, ObjectDescriptors), "FObjectHandlePackageData and FObjectHandlePackageDebugData must match in position of ObjectPaths.");
 	static_assert(sizeof(FObjectHandlePackageData) == sizeof(FObjectHandlePackageDebugData), "FObjectHandlePackageData and FObjectHandlePackageDebugData must match in size.");
 
 	struct FObjectHandleIndex
@@ -170,16 +182,13 @@ namespace UE::CoreUObject::Private
 	{
 		checkf(PackageId.ToIndex() <= 0x7FFFFFFF, TEXT("Package count exceeded the space permitted within packed object references.  This implies over 2 billion packages are in use."));
 		return { static_cast<UPTRINT>(PackageId.ToIndex()) << PackageIdShift |
-				static_cast<UPTRINT>(ObjectId.Components.DataClassDescriptorId) << DataClassDescriptorIdShift |
-				static_cast<UPTRINT>(ObjectId.Components.ObjectPathId) << ObjectPathIdShift |
-				1 };
+				static_cast<UPTRINT>(ObjectId.ToPackedIndex() << ObjectIdShift) | 1 };
 	}
 
 	static inline void Unpack(FPackedObjectRef PackedObjectRef, FPackageId& OutPackageId, FObjectId& OutObjectId)
 	{
 		checkf((PackedObjectRef.EncodedRef & 1) == 1, TEXT("Packed object reference is malformed."));
-		OutObjectId.Components.ObjectPathId = (static_cast<uint32>((PackedObjectRef.EncodedRef >> ObjectPathIdShift) & ObjectPathIdMask));
-		OutObjectId.Components.DataClassDescriptorId = (static_cast<uint32>((PackedObjectRef.EncodedRef >> DataClassDescriptorIdShift) & DataClassDescriptorIdMask));
+		OutObjectId = FObjectId::FromIndex(static_cast<uint32>(PackedObjectRef.EncodedRef >> ObjectIdShift));
 		OutPackageId = FPackageId::FromIndex(static_cast<uint32>((PackedObjectRef.EncodedRef >> PackageIdShift) & PackageIdMask));
 	}
 
@@ -225,67 +234,62 @@ namespace UE::CoreUObject::Private
 		//since the package is new, GlobalLockScope is write locked and nothing can be added or read
 		if (PackageCreated)
 		{
-			if (!ClassName.IsNone() && !ClassPackageName.IsNone())
-			{
-				FObjectHandleDataClassDescriptor DataClassDesc{ NameToMinimalName(ClassPackageName), NameToMinimalName(ClassName) };
-				uint32 DataClassDescriptorIndex = PackageData->DataClassDescriptors.Add(DataClassDesc);
-				checkf(((DataClassDescriptorIndex + 1) & ~DataClassDescriptorIdMask) == 0, TEXT("Data class descriptor id overflowed space in ObjectHandle"));
-				OutObjectId.Components.DataClassDescriptorId = DataClassDescriptorIndex + 1;
-			}
 			if (!ObjectPath.IsNone())
 			{
-				int32 PathIndex = PackageData->ObjectPaths.Add(ObjectPath);
-				checkf(((PathIndex + 1) & ~ObjectPathIdMask) == 0, TEXT("Path id overflowed space in ObjectHandle"));
-				OutObjectId.Components.ObjectPathId = PathIndex + 1;
+				FObjectHandleDataClassDescriptor DataClassDesc;
+				if (!ClassName.IsNone() && !ClassPackageName.IsNone())
+				{
+					DataClassDesc.PackageName = NameToMinimalName(ClassPackageName);
+					DataClassDesc.ClassName = NameToMinimalName(ClassName);
+				}
+			
+				FObjectDescriptor ObjectDesc = { ObjectPath, DataClassDesc };
+				OutObjectId = FObjectId::FromIndex(PackageData->ObjectDescriptors.Add(ObjectDesc) + 1);
 			}
 			return;
 		}
 		else if (ObjectPath.IsNone())
 		{
-			FRWScopeLock LocalLockScope(PackageData->Lock, SLT_ReadOnly);
-			if (!ClassName.IsNone() && !ClassPackageName.IsNone())
-			{
-				FObjectHandleDataClassDescriptor DataClassDesc{ NameToMinimalName(ClassPackageName), NameToMinimalName(ClassName) };
-				uint32 DataClassDescriptorIndex = PackageData->DataClassDescriptors.AddUnique(DataClassDesc);
-				checkf(((DataClassDescriptorIndex + 1) & ~DataClassDescriptorIdMask) == 0, TEXT("Data class descriptor id overflowed space in ObjectHandle"));
-				OutObjectId.Components.DataClassDescriptorId = DataClassDescriptorIndex + 1;
-			}
+			//don't store anything for packages
 			return;
 		}
 
 		FRWScopeLock LocalLockScope(PackageData->Lock, SLT_ReadOnly);
-		int32 PathIndex = PackageData->ObjectPaths.Find(ObjectPath); //linear search is fine as typically there is only one.
+		int32 PathIndex = PackageData->ObjectDescriptors.IndexOfByPredicate([&ObjectPath](const FObjectDescriptor& Desc)
+			{
+				return Desc.ObjectPath == ObjectPath;
+
+			}); //linear search is fine as typically there is only one.
+
 		if (PathIndex == INDEX_NONE)
 		{
 			//ObjectPaths could have been modified when the read lock was released and the write
 			//lock was acquired, so we must check and see if the ObjectPath was added in that window.
 			LocalLockScope.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
-			PathIndex = PackageData->ObjectPaths.AddUnique(ObjectPath);
+			PathIndex = PathIndex = PackageData->ObjectDescriptors.IndexOfByPredicate([&ObjectPath](const FObjectDescriptor& Desc)
+				{
+					return Desc.ObjectPath == ObjectPath;
 
-			if (!ClassName.IsNone() && !ClassPackageName.IsNone())
+				}); //linear search is fine as typically there is only one.
+
+			if (PathIndex == INDEX_NONE)
 			{
-				FObjectHandleDataClassDescriptor DataClassDesc{ NameToMinimalName(ClassPackageName), NameToMinimalName(ClassName) };
-				uint32 DataClassDescriptorIndex = PackageData->DataClassDescriptors.AddUnique(DataClassDesc);
-				checkf(((DataClassDescriptorIndex + 1) & ~DataClassDescriptorIdMask) == 0, TEXT("Data class descriptor id overflowed space in ObjectHandle"));
-				OutObjectId.Components.DataClassDescriptorId = DataClassDescriptorIndex + 1;
+				FObjectHandleDataClassDescriptor DataClassDesc;
+				if (!ClassName.IsNone() && !ClassPackageName.IsNone())
+				{
+					DataClassDesc.PackageName = NameToMinimalName(ClassPackageName);
+					DataClassDesc.ClassName = NameToMinimalName(ClassName);
+				}
+
+				FObjectDescriptor ObjDesc = { ObjectPath, DataClassDesc };
+				PathIndex = PackageData->ObjectDescriptors.Add(ObjDesc) + 1;
+				OutObjectId = FObjectId::FromIndex(PathIndex);
 			}
 		}
 		else
 		{
-			if (!ClassName.IsNone() && !ClassPackageName.IsNone())
-			{
-				FObjectHandleDataClassDescriptor DataClassDesc{ NameToMinimalName(ClassPackageName), NameToMinimalName(ClassName) };
-				uint32 DataClassDescriptorIndex = PackageData->DataClassDescriptors.Find(DataClassDesc);
-				if (DataClassDescriptorIndex != INDEX_NONE)
-				{
-					checkf(((DataClassDescriptorIndex + 1) & ~DataClassDescriptorIdMask) == 0, TEXT("Data class descriptor id overflowed space in ObjectHandle"));
-					OutObjectId.Components.DataClassDescriptorId = DataClassDescriptorIndex + 1;
-				}
-			}
+			OutObjectId = FObjectId::FromIndex(PathIndex + 1);
 		}
-
-		checkf(((PathIndex + 1) & ~ObjectPathIdMask) == 0, TEXT("Path id overflowed space in ObjectHandle"));
-		OutObjectId.Components.ObjectPathId = PathIndex + 1;
 		return;
 	}
 
@@ -299,13 +303,14 @@ namespace UE::CoreUObject::Private
 
 	static void GetObjectDataFromId(FPackageId PackageId, FObjectId ObjectId, FMinimalName& OutPackageName, FObjectPathId& OutPathId, FMinimalName& OutClassPackageName, FMinimalName& OutClassName)
 	{
-		if ((ObjectId == EObjectId::Invalid) || !PackageId.IsValid())
+		if (!PackageId.IsValid())
 		{
 			return;
 		}
 
 		FRWScopeLock GlobalLockScope(GObjectHandleIndex.Lock, SLT_ReadOnly);
 		const uint32 PackageIndex = PackageId.ToIndex();
+
 		if (PackageIndex >= static_cast<uint32>(GObjectHandleIndex.PackageData.Num()))
 		{
 			//checkf(false, TEXT("FObjectHandle: PackageIndex invalid.  This ObjectHandle is from malformed data."));
@@ -315,34 +320,91 @@ namespace UE::CoreUObject::Private
 		FRWScopeLock LocalLockScope(FoundPackageData.Lock, SLT_ReadOnly);
 		OutPackageName = FoundPackageData.PackageName;
 
-		if ((ObjectId.Components.ObjectPathId >= static_cast<uint32>(FoundPackageData.ObjectPaths.Num() + 1)) ||
-			(ObjectId.Components.DataClassDescriptorId >= static_cast<uint32>(FoundPackageData.DataClassDescriptors.Num() + 1)))
+		if (!ObjectId.IsNone())
 		{
-			//checkf(false, TEXT("FObjectHandle: ObjectId.Components.ObjectPathId or ObjectId.Components.DataClassDescriptorId invalid.  This ObjectHandle is from malformed data."));
-			return;
-		}
-
-		if (ObjectId.Components.ObjectPathId != 0)
-		{
-			OutPathId = FoundPackageData.ObjectPaths[ObjectId.Components.ObjectPathId - 1];
+			int32 ObjectIndex = ObjectId.ToIndex();
+			if (ObjectIndex >= FoundPackageData.ObjectDescriptors.Num())
+			{
+				//must reset to empty as the object id is invalid
+				OutPackageName = FMinimalName();
+				return;
+			}
+			const auto& ObjDesc = FoundPackageData.ObjectDescriptors[ObjectIndex];
+			OutPathId = ObjDesc.ObjectPath;
+			OutClassPackageName = ObjDesc.ClassDescriptor.PackageName;
+			OutClassName = ObjDesc.ClassDescriptor.ClassName;
 		}
 		else
 		{
 			OutPathId = FObjectPathId();
+			OutClassPackageName = FMinimalName(UPackage::StaticClass()->GetPackage()->GetFName());
+			OutClassName = FMinimalName(UPackage::StaticClass()->GetFName());
 		}
+	}
 
-		if (ObjectId.Components.DataClassDescriptorId > 0)
+	FPackedObjectRef GetOuter(FPackedObjectRef PackedRef)
+	{
+		if (PackedRef.IsNull())
 		{
-			FObjectHandleDataClassDescriptor& Desc = FoundPackageData.DataClassDescriptors[ObjectId.Components.DataClassDescriptorId - 1];
-			OutClassPackageName = Desc.PackageName;
-			OutClassName = Desc.ClassName;
+			return PackedRef;
+		}
+		FPackageId PackageId;
+		FObjectId ObjectId;
+		Unpack(PackedRef, PackageId, ObjectId);
+
+		FMinimalName PackageName;
+		FObjectPathId PathId(FObjectPathId::Invalid);
+		FMinimalName ClassPackageName;
+		FMinimalName ClassName;
+		GetObjectDataFromId(PackageId, ObjectId, PackageName, PathId, ClassPackageName, ClassName);
+
+		if (PathId.IsNone())
+		{
+			return { 0 }; //return null for packages as they have no outer
+		}
+		else if (PathId.IsSimple())
+		{
+			FObjectId PackageObjectId;
+			return Pack(PackageId, PackageObjectId);
+		}
+		else if (PathId.IsWeakObj())
+		{
+			return MakePackedObjectRef(PathId.GetWeakObjPtr().Get()->GetOuter());
 		}
 		else
 		{
-			//@TODO OBJPTR: Is this an error case we should check on?
-			//checkf(false, TEXT("FObjectHandle: ObjectId.Components.ObjectPathId or ObjectId.Components.DataClassDescriptorId invalid.  This ObjectHandle is from malformed data."));
-			return;
+			TStringBuilder<256> StringBuilder;
+			FObjectPathId::ResolvedNameContainerType Names;
+			PathId.Resolve(Names);
+			for (int32 i = 0; i < Names.Num() - 1; ++i)
+			{
+				const FName& Name = Names[i];
+				if (i != 0)
+				{
+					StringBuilder << '.'; //separate subobjects by periods a colon is unnecessary to produce a correct FObjectPathId
+				}
+				Name.AppendString(StringBuilder);
+			}
+			FObjectPathId OuterPathId(StringBuilder);
+			FPackedObjectRef OuterPackedRef = MakePackedObjectRef(FName(PackageName), FName(), FName(), OuterPathId);
+
+			return OuterPackedRef;
 		}
+	}
+	
+	FPackedObjectRef GetPackage(FPackedObjectRef PackedRef)
+	{
+		if (PackedRef.IsNull())
+		{
+			return PackedRef;
+		}
+		FPackageId PackageId;
+		FObjectId ObjectId;
+		Unpack(PackedRef, PackageId, ObjectId);
+
+		//object id's for packages are always 0
+		FPackedObjectRef PackagePackedRef = Pack(PackageId, FObjectId());
+		return PackagePackedRef;
 	}
 
 	void FreeObjectHandle(const UObjectBase* Object)
@@ -388,7 +450,7 @@ namespace UE::CoreUObject::Private
 		}
 
 		//must make a copy to avoid changing data while we are comparing
-		FObjectPathId OldObjectPath = PackageData.ObjectPaths[ObjectId.ToIndex()];
+		FObjectPathId OldObjectPath = PackageData.ObjectDescriptors[ObjectId.ToIndex()].ObjectPath;
 		if (OldObjectPath.IsWeakObj())
 		{
 			return;
@@ -413,9 +475,9 @@ namespace UE::CoreUObject::Private
 		}
 
 		//update all paths that start with OldObjectPath. including itself
-		for (int32 PathIndex = 0; PathIndex < PackageData.ObjectPaths.Num(); ++PathIndex)
+		for (int32 PathIndex = 0; PathIndex < PackageData.ObjectDescriptors.Num(); ++PathIndex)
 		{
-			auto& CurrentObjectPath = PackageData.ObjectPaths[PathIndex];
+			auto& CurrentObjectPath = PackageData.ObjectDescriptors[PathIndex].ObjectPath;
 			if (CurrentObjectPath.IsWeakObj())
 			{
 				continue;

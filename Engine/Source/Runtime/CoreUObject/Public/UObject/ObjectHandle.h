@@ -301,8 +301,7 @@ namespace UE::CoreUObject::Private
 	struct FObjectHandlePackageDebugData
 	{
 		FMinimalName PackageName;
-		FScriptArray ObjectPaths;
-		FScriptArray DataClassDescriptors;
+		FScriptArray ObjectDescriptors;
 		uint8 _Padding[sizeof(FRWLock)];
 	};
 
@@ -321,6 +320,12 @@ namespace UE::CoreUObject::Private
 		static constexpr uint32 SimpleNameMask = WeakObjectMask >> 1; //second most significant bits
 	};
 
+	struct FObjectDescriptorDebug
+	{
+		FObjectPathIdDebug ObjectPath;
+		FObjectHandleDataClassDescriptor ClassDescriptor;
+	};
+
 	struct FStoredObjectPathDebug
 	{
 		static constexpr const int32 NumInlineElements = 3;
@@ -333,11 +338,8 @@ namespace UE::CoreUObject::Private
 		};
 	};
 
+	constexpr uint32 ObjectIdShift = 1;
 	constexpr uint32 PackageIdShift = 33;
-	constexpr uint32 ObjectPathIdShift = 1;
-	constexpr uint32 ObjectPathIdMask = 0x00FF'FFFF;
-	constexpr uint32 DataClassDescriptorIdShift = 25;
-	constexpr uint32 DataClassDescriptorIdMask = 0x0000'00FF;
 	constexpr uint32 PackageIdMask = 0x7FFF'FFFF;
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE

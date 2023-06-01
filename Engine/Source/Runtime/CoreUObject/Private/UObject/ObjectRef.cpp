@@ -92,7 +92,7 @@ void FObjectRef::AppendPathName(FStringBuilderBase& OutPathNameBuilder) const
 		return;
 	}
 
-	PackageName.ToString(OutPathNameBuilder);
+	PackageName.AppendString(OutPathNameBuilder);
 
 	UE::CoreUObject::Private::FObjectPathId ObjectPath = GetObjectPath();
 	UE::CoreUObject::Private::FObjectPathId::ResolvedNameContainerType ResolvedNames;

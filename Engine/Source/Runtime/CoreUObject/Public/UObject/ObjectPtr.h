@@ -161,6 +161,14 @@ public:
 		return GetFName().ToString();
 	}
 
+	// Gets the Outer UObject for this Object
+	// returns unresolved if this object ptr is unresolved
+	COREUOBJECT_API FObjectPtr GetOuter() const;
+
+	// Gets the package for this Object
+	// returns unresolved if this object ptr is unresolved
+	COREUOBJECT_API FObjectPtr GetPackage() const;
+
 	/** Returns the full name for the object in the form: Class ObjectPath */
 	COREUOBJECT_API FString GetFullName(EObjectFullNameFlags Flags = EObjectFullNameFlags::None) const;
 #else
@@ -181,6 +189,17 @@ public:
 		return GetFName().ToString();
 	}
 
+	FObjectPtr GetOuter() const
+	{
+		const UObject* ResolvedObject = Get();
+		return ResolvedObject ? FObjectPtr(ResolvedObject->GetOuter()) : FObjectPtr(nullptr);
+	}
+
+	FObjectPtr GetPackage() const
+	{
+		const UObject* ResolvedObject = Get();
+		return ResolvedObject ? FObjectPtr(ResolvedObject->GetPackage()) : FObjectPtr(nullptr);
+	}
 	/**
 	 * Returns the fully qualified pathname for this object as well as the name of the class, in the format:
 	 * 'ClassName Outermost.[Outer:]Name'.
@@ -359,6 +378,11 @@ public:
 	{
 	}
 
+	explicit FORCEINLINE TObjectPtr(FObjectPtr ObjPtr)
+		: ObjectPtr(ObjPtr)
+	{
+	}
+
 	template <
 		typename U,
 		decltype(ImplicitConv<T*>(std::declval<U*>()))* = nullptr
@@ -489,6 +513,17 @@ public:
 	//			isn't called as frequently.
 	FORCEINLINE T* Get() const { return (T*)(ObjectPtr.Get()); }
 	FORCEINLINE UClass* GetClass() const { return ObjectPtr.GetClass(); }
+	FORCEINLINE TObjectPtr<UObject> GetOuter() const
+	{ 
+		FObjectPtr Ptr = ObjectPtr.GetOuter();
+		return TObjectPtr<UObject>(Ptr);
+	}
+
+	FORCEINLINE TObjectPtr<UPackage> GetPackage() const
+	{
+		FObjectPtr Ptr = ObjectPtr.GetPackage();
+		return TObjectPtr<UPackage>(Ptr);
+	}
 	
 	FORCEINLINE operator T* () const { return Get(); }
 	template <typename U>

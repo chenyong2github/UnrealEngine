@@ -157,6 +157,7 @@ TEST_CASE("CoreUObject::FObjectHandle::Names")
 		TestPackage->RemoveFromRoot();
 	};
 
+	FObjectPtr Test;
 	FObjectPtr PackagePtr(MakeUnresolvedHandle(TestPackage));
 	FObjectPtr Obj1Ptr(MakeUnresolvedHandle(Obj1));
 
@@ -164,14 +165,14 @@ TEST_CASE("CoreUObject::FObjectHandle::Names")
 	CHECK(TestPackage->GetPathName() == PackagePtr.GetPathName());
 	CHECK(TestPackage->GetFName() == PackagePtr.GetFName());
 	CHECK(TestPackage->GetName() == PackagePtr.GetName());
-	//CHECK(TestPackage->GetFullName() == PackagePtr.GetFullName()); TODO always been broken
+	CHECK(TestPackage->GetFullName() == PackagePtr.GetFullName());
 	CHECK(!PackagePtr.IsResolved());
 
 	CHECK(!Obj1Ptr.IsResolved());
 	CHECK(Obj1->GetPathName() == Obj1Ptr.GetPathName());
 	CHECK(Obj1->GetFName() == Obj1Ptr.GetFName());
 	CHECK(Obj1->GetName() == Obj1Ptr.GetName());
-	//CHECK(Obj1->GetFullName() == Obj1Ptr.GetFullName()); TODO always been broken
+	CHECK(Obj1->GetFullName() == Obj1Ptr.GetFullName());
 	CHECK(!Obj1Ptr.IsResolved());
 }
 #endif
@@ -347,6 +348,15 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior"
 
 TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Malformed Handle", "[CoreUObject][ObjectHandle]")
 {
+	// make one packed ref guarantee something is in the object handle index
+	FObjectRef TargetRef(FName("/Test/DummyPackage"), FName("ClassPackageName"), FName("ClassName"), UE::CoreUObject::Private::FObjectPathId("DummyObjectName"));
+	UE::CoreUObject::Private::MakePackedObjectRef(TargetRef);
+
+	uint32 ObjectId = ~0u;
+	UPTRINT PackedId = ObjectId << 1 | 1;
+	UE::CoreUObject::Private::FPackedObjectRef PackedObjectRef = { PackedId };
+	TestResolveFailure(PackedObjectRef); // packed ref has a valid package id but invalid object id
+
 	TestResolveFailure(UE::CoreUObject::Private::FPackedObjectRef { 0xFFFF'FFFF'FFFF'FFFFull });
 	TestResolveFailure(UE::CoreUObject::Private::FPackedObjectRef { 0xEFEF'EFEF'EFEF'EFEFull });
 }

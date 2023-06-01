@@ -5,6 +5,12 @@
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 
+namespace  UE::CoreUObject::Private
+{
+	FPackedObjectRef GetOuter(FPackedObjectRef);
+	FPackedObjectRef GetPackage(FPackedObjectRef);
+}
+
 FString FObjectPtr::GetPathName() const
 {
 	FObjectHandle LocalHandle = Handle;
@@ -47,6 +53,29 @@ FString FObjectPtr::GetFullName(EObjectFullNameFlags Flags) const
 	}
 }
 
+FObjectPtr FObjectPtr::GetOuter() const
+{
+	FObjectHandle LocalHandle = Handle;
+	if (IsObjectHandleResolved(LocalHandle) && !IsObjectHandleNull(LocalHandle))
+	{
+		return FObjectPtr(Get()->GetOuter());
+	}
+	UE::CoreUObject::Private::FPackedObjectRef PackedRef = UE::CoreUObject::Private::GetOuter(ReadObjectHandlePackedObjectRefNoCheck(LocalHandle));
+	FObjectPtr Ptr({ PackedRef.EncodedRef });
+	return Ptr;
+}
+
+FObjectPtr FObjectPtr::GetPackage() const
+{
+	FObjectHandle LocalHandle = Handle;
+	if (IsObjectHandleResolved(LocalHandle) && !IsObjectHandleNull(LocalHandle))
+	{
+		return FObjectPtr(Get()->GetPackage());
+	}
+	UE::CoreUObject::Private::FPackedObjectRef PackedRef = UE::CoreUObject::Private::GetPackage(ReadObjectHandlePackedObjectRefNoCheck(LocalHandle));
+	FObjectPtr Ptr({ PackedRef.EncodedRef });
+	return Ptr;
+}
 #endif
 
 bool FObjectPtr::IsA(const UClass* SomeBase) const
