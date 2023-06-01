@@ -245,6 +245,12 @@ void UBakeRenderCaptureTool::Setup()
 		OpState |= EBakeOpState::Evaluate;
 	});
 
+	// Put these properties before the list of preview textures so its easier to find
+	VisualizationProps = NewObject<UBakeRenderCaptureVisualizationProperties>(this);
+	VisualizationProps->RestoreProperties(this);
+	AddToolPropertySource(VisualizationProps);
+	VisualizationProps->WatchProperty(VisualizationProps->bPreviewAsMaterial, [this](bool) { UpdateVisualization(); });
+
 	RenderCaptureProperties = NewObject<URenderCaptureProperties>(this);
 	RenderCaptureProperties->RestoreProperties(this);
 	AddToolPropertySource(RenderCaptureProperties);
@@ -287,11 +293,6 @@ void UBakeRenderCaptureTool::Setup()
 	ResultSettings->RestoreProperties(this);
 	AddToolPropertySource(ResultSettings);
 	SetToolPropertySourceEnabled(ResultSettings, true);
-
-	VisualizationProps = NewObject<UBakeRenderCaptureVisualizationProperties>(this);
-	VisualizationProps->RestoreProperties(this);
-	AddToolPropertySource(VisualizationProps);
-	VisualizationProps->WatchProperty(VisualizationProps->bPreviewAsMaterial, [this](bool) { UpdateVisualization(); });
 
 	TargetUVLayerToError.Reset();
 
