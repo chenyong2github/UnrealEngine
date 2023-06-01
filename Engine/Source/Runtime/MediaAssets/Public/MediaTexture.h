@@ -256,7 +256,8 @@ public:
 	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	virtual FGuid GetExternalTextureGuid() const override;
 	void SetRenderedExternalTextureGuid(const FGuid& InNewGuid);
-	virtual ETextureClass GetTextureClass() const { return ETextureClass::Other2DNoSource; }
+	virtual ETextureClass GetTextureClass() const override { return ETextureClass::Other2DNoSource; }
+	virtual uint32 CalcTextureMemorySizeEnum(ETextureMipCount Enum) const override;
 
 public:
 

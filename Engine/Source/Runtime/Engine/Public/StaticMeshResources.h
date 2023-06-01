@@ -718,7 +718,7 @@ public:
 	ENGINE_API void ReleaseResources();
 
 	/** Compute the size of this resource. */
-	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
+	ENGINE_API void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 
 	/** Get the estimated memory overhead of buffers marked as NeedsCPUAccess. */
 	SIZE_T GetCPUAccessMemoryOverhead() const;

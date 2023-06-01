@@ -220,6 +220,12 @@ void UMediaTexture::SetRenderedExternalTextureGuid(const FGuid& InNewGuid)
 	CurrentRenderedGuid = InNewGuid;
 }
 
+
+uint32 UMediaTexture::CalcTextureMemorySizeEnum(ETextureMipCount Enum) const
+{
+	return Size;
+}
+
 /* UObject interface
  *****************************************************************************/
 
