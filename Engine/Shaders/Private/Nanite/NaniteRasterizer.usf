@@ -6,11 +6,8 @@
 #include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
 #include "NaniteWritePixel.ush"
 #include "NaniteCullingCommon.ush"
-#include "../WaveOpUtil.ush"
 
-#define DISPLACEMENT_ENABLED (NANITE_TESSELLATION && USES_DISPLACEMENT)
-
-#if DISPLACEMENT_ENABLED
+#if NANITE_TESSELLATION
 #include "NaniteTessellation.ush"
 #include "NaniteDice.ush"
 #endif
@@ -36,9 +33,9 @@ ALLOW_NO_PS_EXPORT
 #endif
 
 #if NANITE_VERT_REUSE_BATCH
-	#define SWRASTER_NUM_THREADS 32
+	#define THREADGROUP_SIZE 32
 #else
-	#define SWRASTER_NUM_THREADS 64
+	#define THREADGROUP_SIZE 64
 #endif
 
 HOIST_DESCRIPTORS
@@ -244,167 +241,22 @@ FRaster CreateRaster( FNaniteView NaniteView, FInstanceSceneData InstanceData, F
 	return Raster;
 }
 
-int FindNthSetBit( uint Mask, int Index )
-{
-	int Last = countbits( Mask ) - Index - 1;
-
-	uint p = 16;
-	p += countbits( Mask >> p ) <= Last ? -8 : 8;
-	p += countbits( Mask >> p ) <= Last ? -4 : 4;
-	p += countbits( Mask >> p ) <= Last ? -2 : 2;
-	p += countbits( Mask >> p ) <= Last ? -1 : 1;
-	p  = countbits( Mask >> p ) == Last ? (p - 1) : p;
-	return p;
-}
-
-int FindNthSetBit( uint2 Mask, int Index )
-{
-	int LowPop = countbits( Mask.x );
-	return FindNthSetBit( Index < LowPop ? Mask.x : Mask.y, Index < LowPop ? Index : Index - LowPop ) + ( Index < LowPop ? 0 : 32 );
-}
-
-/*int FindNthSetBit_Scalar( uint Mask, int Index )
-{
-	return firstbitlow( WaveBallot( WavePrefixCountBits(x) == Index ) ) - 1;
-	return firstbitlow( WaveBallot( MaskedBitCount( Mask ) == Index ) ) - 1;
-}*/
-
-groupshared uint GroupBaseVertIndex;
-groupshared uint2 GroupUsedVertMask;
-
-// DeduplicateVertIndexes sets up processing of a set of triangles and their associated vertices.
-// If bNeedsCrossLaneVertexRead is enabled, triangle vertex references are limited
-// to vertices from the same wave. This can be computationally convenient as
-// triangles can then access vertex data directly using WaveReadLaneAt, without having to
-// allocate or access group shared memory.
-
-// For wave sizes of at least 32, or when no cross-lane vertex reads are required by the caller,
-// processed never requires more than a single pass. Multiple passes can be necessary when the
-// wave size is less than 32 and bNeedsCrossLaneVertexRead is true.
-
-// The function returns whether another pass is needed after this one.
-template<bool bNeedsCrossLaneVertexRead>
-bool DeduplicateVertIndexes( FCluster Cluster, uint TriIndex, uint GroupThreadIndex, inout bool bInOutTrianglePending, out bool bOutTriangleActive, out uint OutNumUniqueVerts, out uint OutLaneVertIndex, out uint3 OutCornerLaneIndexes )
-{
-	const uint WaveSize = WaveGetLaneCount();
-	const uint LaneIndex = WaveGetLaneIndex();
-	const bool bMultiWave = (WaveSize < 32);
-
-	uint3 VertIndexes = 0;
-	if (bInOutTrianglePending)
-	{
-		VertIndexes = DecodeTriangleIndices(Cluster, TriIndex);
-	}
-
-	// Calculate smallest active vertex
-	uint BaseVertIndex;
-	BRANCH
-	if (bMultiWave && !bNeedsCrossLaneVertexRead)
-	{
-		if (GroupThreadIndex == 0)
-		{
-			GroupBaseVertIndex = 0xFFFFFFFFu;
-			GroupUsedVertMask = 0;
-		}
-		GroupMemoryBarrierWithGroupSync();
-		if (bInOutTrianglePending) WaveInterlockedMin(GroupBaseVertIndex, VertIndexes.x);	// VertIndexes.x is always smallest
-		GroupMemoryBarrierWithGroupSync();
-		BaseVertIndex = GroupBaseVertIndex;
-	}
-	else
-	{
-		BaseVertIndex = WaveActiveMin(bInOutTrianglePending ? VertIndexes.x : 0xFFFFFFFFu);	// VertIndexes.x is always smallest
-	}
-	
-	uint2 TriangleVertMask = 0;
-	if (bInOutTrianglePending)
-	{
-		VertIndexes -= BaseVertIndex;
-	
-		UNROLL
-		for (uint i = 0; i < 3; i++)
-		{
-			bool bDstLow = VertIndexes[i] < 32;
-			uint DstMask = 1u << ( VertIndexes[i] & 31 );
-
-			if( bDstLow )
-				TriangleVertMask.x |= DstMask;
-			else
-				TriangleVertMask.y |= DstMask;
-		}
-	}
-
-	bool bContinue;
-
-	uint2 UsedVertMask;
-	BRANCH
-	if (!bMultiWave || !bNeedsCrossLaneVertexRead)
-	{
-		if (!bMultiWave)
-		{
-			UsedVertMask.x = WaveActiveBitOr(TriangleVertMask.x);
-			UsedVertMask.y = WaveActiveBitOr(TriangleVertMask.y);
-		}
-		else
-		{
-			WaveInterlockedOr(GroupUsedVertMask.x, UsedVertMask.x);
-			WaveInterlockedOr(GroupUsedVertMask.y, UsedVertMask.y);
-			GroupMemoryBarrierWithGroupSync();
-			UsedVertMask = GroupUsedVertMask;
-		}
-
-		bOutTriangleActive = bInOutTrianglePending;
-		bInOutTrianglePending = false;	
-		bContinue = false;	// Unconditionally setting it to false causes DCE to eliminate the rasterizer loop.
-	}
-	else
-	{
-		// This is the fallback path for when cross-lane vertex reads are required on a wave size smaller than 32.
-		// Since a wave of triangles might require more than one wave of vertices, we will likely have to loop.
-
-		// If we start out by selecting a wave of referenced vertices first, there is a risk that none of the triangles
-		// will have all three corners inside the selected set of vertices, which means we cannot make progress.
-
-		// To be safe, we start by selecting the set of triangles instead. Conceptually, we keep adding triangles as long
-		// as the number of unique vertices is within the wave budget. To accelerate this, we calculate the prefix 'OR' of
-		// the vertex usage masks and find the last element that has no more than wavesize vertex bits.
-
-		// Calculate prefix 'OR' of the triangle vertex masks
-		uint2 PrefixVertMask = TriangleVertMask;
-		for (uint Step = 1; Step < WaveSize; Step *= 2)
-		{
-			const uint2 LaneData = WaveReadLaneAt(PrefixVertMask, LaneIndex - Step);
-			PrefixVertMask |= (LaneIndex >= Step) ? LaneData : 0u;
-		}
-
-		// Select the last vertex mask from the prefix array that fits within the wave budget.
-		const uint LastIndex = firstbithigh(WaveBallot(CountBits(PrefixVertMask) <= WaveSize).x);
-		UsedVertMask = WaveReadLaneAt(PrefixVertMask, LastIndex);
-
-		// Mark all pending triangles with all corners inside the selected set of vertices for processing.
-		// This can include triangles that were not in the initial range of triangles used to select the vertices.
-		const bool bCornersInVertBatch = all((UsedVertMask & TriangleVertMask) == TriangleVertMask);
-		bOutTriangleActive = false;
-		if (bInOutTrianglePending && bCornersInVertBatch)
-		{
-			bInOutTrianglePending = false;
-			bOutTriangleActive = true;
-		}
-		bContinue = WaveActiveAnyTrue(bInOutTrianglePending);
-	}
-
-	OutCornerLaneIndexes.x = MaskedBitCount(UsedVertMask, VertIndexes.x);
-	OutCornerLaneIndexes.y = MaskedBitCount(UsedVertMask, VertIndexes.y);
-	OutCornerLaneIndexes.z = MaskedBitCount(UsedVertMask, VertIndexes.z);
-
-	OutLaneVertIndex = FindNthSetBit(UsedVertMask, LaneIndex) + BaseVertIndex;
-	OutNumUniqueVerts = CountBits(UsedVertMask);
-
-	return bContinue;
-}
-
 #define VERTEX_CACHE_SIZE 256
 groupshared float3 GroupVerts[VERTEX_CACHE_SIZE];
+
+struct FCachedVertex
+{
+	FNaniteTransformedVert TransformedVert;
+	float4 PointSubpixelClip;
+};
+
+FCachedVertex WaveReadLaneAt( FCachedVertex Vert, uint SrcIndex )
+{
+	FCachedVertex Result;
+	Result.TransformedVert		= WaveReadLaneAt( Vert.TransformedVert,		SrcIndex );
+	Result.PointSubpixelClip	= WaveReadLaneAt( Vert.PointSubpixelClip,	SrcIndex );
+	return Result;
+}
 
 void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex ) 
 {
@@ -446,7 +298,7 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, InstanceDynamicData.bHasMoved);
 
 		UNROLL
-		for (uint Offset = 0; Offset < NANITE_VSM_PAGE_TABLE_CACHE_DIM * NANITE_VSM_PAGE_TABLE_CACHE_DIM; Offset += SWRASTER_NUM_THREADS)
+		for (uint Offset = 0; Offset < NANITE_VSM_PAGE_TABLE_CACHE_DIM * NANITE_VSM_PAGE_TABLE_CACHE_DIM; Offset += THREADGROUP_SIZE)
 		{
 			FetchAndCachePageTableEntry(NaniteView, VisibleCluster.vPage, VisibleCluster.vPageEnd, PageFlagMask, Offset + GroupThreadIndex);
 		}
@@ -454,97 +306,126 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 	}
 #endif
 
-#if NANITE_VERT_REUSE_BATCH
-	const uint TriIndex = TriRange.Start + GroupThreadIndex;
+#if NANITE_TESSELLATION
+	uint TriIndex = TriRange.Start + GroupThreadIndex;
+	bool bTriValid = GroupThreadIndex < TriRange.Num;
+
+	uint3 VertIndexes = 0;
+	if( bTriValid )
+	{
+		VertIndexes = DecodeTriangleIndices(Cluster, TriIndex);
+	}
 
 	uint NumUniqueVerts;
 	uint LaneVertIndex;
 	uint3 VertLaneIndexes;
-	bool bTriangleActive;
-	bool bTrianglePending = GroupThreadIndex < TriRange.Num;
-	bool bDone;
+	DeduplicateVertIndexes( VertIndexes, GroupThreadIndex, bTriValid, NumUniqueVerts, LaneVertIndex, VertLaneIndexes );
+
+	FNaniteTransformedVert Vert;
+	float3 PointView;
+
+	if (GroupThreadIndex < NumUniqueVerts)
+	{
+		Vert = FetchTransformedNaniteVertex( InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, bEvaluateWPO );
+		PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
+	}
+
+	float3 TriPointView[3];
+	TriPointView[0] = WaveReadLaneAt( PointView, VertLaneIndexes[0] );
+	TriPointView[1] = WaveReadLaneAt( PointView, VertLaneIndexes[1] );
+	TriPointView[2] = WaveReadLaneAt( PointView, VertLaneIndexes[2] );
+
+	float3 TessFactors = GetTessFactors( NaniteView, TriPointView );
+
+	const uint ImmediateDiceLimit = 8;
+	const uint ImmediateSplitLimit = 8;
+
+	bool bCanDice = all( TessFactors <= ImmediateDiceLimit );
+
+	{
+		FDiceTask DiceTask;
+		DiceTask.Raster				= Raster;
+		DiceTask.Shader				= MaterialShader;
+		DiceTask.PixelValue			= ( VisibleIndex + 1 ) << 7;
+		DiceTask.VisualizeValues	= GetVisualizeValues();
+		DiceTask.Vert				= Vert;
+
+		uint NumVerts = 0;
+		uint NumTris = 0;
+		if( bTriValid && bCanDice )
+		{
+			DiceTask.Init( TessFactors, VertLaneIndexes, TriIndex );
+			NumVerts = DiceTask.TessellatedPatch.GetNumVerts();
+			NumTris  = DiceTask.TessellatedPatch.GetNumTris();
+		}
+
+		//DiceTask.FirstVert = WavePrefixSum( NumVerts );
+		//DiceTask.NumCached = 0;
+
+		DistributeWork( DiceTask, GroupThreadIndex, NumTris );
+	}
+
+	{
+		FClusterSplitTask SplitTask;
+
+		uint NumVerts = 0;
+		uint NumTris = 0;
+		if( bTriValid && !bCanDice )
+		{
+			float3 SplitFactors = min( GetSplitFactors( TessFactors ), ImmediateSplitLimit );
+
+			SplitTask.Init( SplitFactors, VisibleIndex, TriIndex );
+			NumVerts = SplitTask.TessellatedPatch.GetNumVerts();
+			NumTris  = SplitTask.TessellatedPatch.GetNumTris();
+		}
+
+		DistributeWork( SplitTask, GroupThreadIndex, NumTris );
+	}
+
+#elif NANITE_PIXEL_PROGRAMMABLE
+
+	TSlidingWindowVertexCache< FCachedVertex > VertexCache;
+	VertexCache.Init();
+
+	uint NumTrisProcessed = 0;
 	do
 	{
-		bDone = !DeduplicateVertIndexes<true>(Cluster, TriIndex, GroupThreadIndex, bTrianglePending, bTriangleActive, NumUniqueVerts, LaneVertIndex, VertLaneIndexes);
+		uint TriIndex = NumTrisProcessed + GroupThreadIndex;
+		bool bTriValid = TriIndex < TriRange.Num;
+		TriIndex += TriRange.Start;
 
-		FNaniteTransformedVert Vert;
-	
-		float3 PointView;
-		float4 PointClip;
-		float4 PointSubpixelClip;
-
-		if (WaveGetLaneIndex() < NumUniqueVerts)
+		uint3 VertIndexes = 0;
+		if( bTriValid )
 		{
-			Vert = FetchTransformedNaniteVertex(InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, bEvaluateWPO);
-			PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
-			PointClip = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToClip );
-			PointSubpixelClip = CalculateSubpixelCoordinates(Raster, PointClip);
+			VertIndexes = DecodeTriangleIndices(Cluster, TriIndex);
+			if( bReverseWindingOrder )
+				VertIndexes.yz = VertIndexes.zy;
 		}
 
-	#if DISPLACEMENT_ENABLED
-		float3 TriPointView[3];
-		TriPointView[0] = WaveReadLaneAt( PointView, VertLaneIndexes[0] );
-		TriPointView[1] = WaveReadLaneAt( PointView, VertLaneIndexes[1] );
-		TriPointView[2] = WaveReadLaneAt( PointView, VertLaneIndexes[2] );
+		uint LaneVertIndex = VertexCache.PullExisting( VertIndexes );
 
-		float3 TessFactors = GetTessFactors( NaniteView, TriPointView );
+		if( LaneVertIndex < VertexCache.NumCached )
+		{
+			VertexCache.CachedVert.TransformedVert = FetchTransformedNaniteVertex( InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, bEvaluateWPO );
+			VertexCache.CachedVert.PointSubpixelClip = CalculateSubpixelCoordinates( Raster, VertexCache.CachedVert.TransformedVert.PointClip );
+		}
 
-		bool bCanDice = all( TessFactors <= TessellationTable_Size );
-	
-		{
-			FDiceTask DiceTask;
-			DiceTask.Raster				= Raster;
-			DiceTask.Shader				= MaterialShader;
-			DiceTask.PixelValue			= ( VisibleIndex + 1 ) << 7;
-			DiceTask.VisualizeValues	= GetVisualizeValues();
-			DiceTask.Vert				= Vert;
-	
-			uint NumVerts = 0;
-			uint NumTris = 0;
-			if( bTriangleActive && bCanDice )
-			{
-				DiceTask.Init( TessFactors, VertLaneIndexes, TriIndex );
-				NumVerts = DiceTask.TessellatedPatch.GetNumVerts();
-				NumTris  = DiceTask.TessellatedPatch.GetNumTris();
-			}
-	
-			//DiceTask.FirstVert = WavePrefixSum( NumVerts );
-			//DiceTask.NumCached = 0;
-	
-			DistributeWork( DiceTask, GroupThreadIndex, NumTris );
-		}
-	
-		if(1)
-		{
-			FClusterSplitTask SplitTask;
-	
-			uint NumVerts = 0;
-			uint NumTris = 0;
-			if( bTriangleActive && !bCanDice )
-			{
-				SplitTask.Init( GetSplitFactors( TessFactors ), VisibleIndex, TriIndex );
-				NumVerts = SplitTask.TessellatedPatch.GetNumVerts();
-				NumTris  = SplitTask.TessellatedPatch.GetNumTris();
-			}
-	
-			DistributeWork( SplitTask, GroupThreadIndex, NumTris );
-		}
-	#else
-		if( bReverseWindingOrder )
-			VertLaneIndexes.yz = VertLaneIndexes.zy;
+		uint NumTrisInBatch = VertexCache.PullRemaining( VertIndexes );
+
+		NumTrisProcessed += NumTrisInBatch;
+		bTriValid &= GroupThreadIndex < NumTrisInBatch;
 
 		float4 Verts[3];
 		UNROLL
-		for (uint Corner = 0; Corner < 3; ++Corner)
+		for( uint k = 0; k < 3; k++ )
 		{
-			Verts[Corner] = WaveReadLaneAt(PointSubpixelClip, VertLaneIndexes[Corner]);
+			MaterialShader.TransformedTri.Verts[k]	= VertexCache.TriangleVerts[k].TransformedVert;
+			Verts[k]								= VertexCache.TriangleVerts[k].PointSubpixelClip;
 		}
-
-		MaterialShader.TransformedTri = MakeTransformedNaniteTriangle(Vert, VertLaneIndexes);
 
 		FRasterTri Tri = SetupTriangle< NANITE_SUBPIXEL_SAMPLES, !NANITE_TWO_SIDED >( Raster.ScissorRect, Verts );
 
-		if(bTriangleActive && Tri.bIsValid)
+		if( Tri.bIsValid && bTriValid )
 		{
 			uint PixelValue = (VisibleIndex + 1) << 7;
 			PixelValue |= TriIndex;
@@ -574,12 +455,12 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 				RasterizeTri_Adaptive( Tri, NaniteWritePixel );
 			}
 		}
-	#endif
-	} while(!bDone);
+	}
+	while( NumTrisProcessed < TriRange.Num );
 
-#else // !NANITE_VERT_REUSE_BATCH
+#else
 	UNROLL
-	for( uint i = 0; i < VERTEX_CACHE_SIZE; i += SWRASTER_NUM_THREADS )
+	for( uint i = 0; i < VERTEX_CACHE_SIZE; i += THREADGROUP_SIZE )
 	{
 		const uint VertIndex = GroupThreadIndex + i;
 		
@@ -607,10 +488,11 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 	GroupMemoryBarrierWithGroupSync();
 
 	UNROLL
-	for( uint j = 0; j < NANITE_MAX_CLUSTER_TRIANGLES; j += SWRASTER_NUM_THREADS )
+	for( uint j = 0; j < NANITE_MAX_CLUSTER_TRIANGLES; j += THREADGROUP_SIZE )
 	{
 		const uint ThreadIndex = GroupThreadIndex + j;
 		const uint TriIndex = ThreadIndex + TriRange.Start;
+
 		uint3 VertIndexes = DecodeTriangleIndices(Cluster, TriIndex);
 		if( bReverseWindingOrder )
 			VertIndexes.yz = VertIndexes.zy;
@@ -657,38 +539,21 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 			}
 		}
 	}
-#endif // NANITE_VERT_REUSE_BATCH
-}
-
-uint MaskedBitCount2( uint2 Bits, uint Index )
-{
-	uint Mask = 1u << ( Index & 31 );
-	Mask -= 1;
-
-	uint A = Index < 32 ? Bits.x : Bits.y;
-	uint B = Index < 32 ? 0 : countbits( Bits.x );
-
-	return countbits( A & Mask ) + B;
+#endif
 }
 
 void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex ) 
 {
-#if DISPLACEMENT_ENABLED
-	const uint NumVisiblePatches = RasterBinMeta[ ActiveRasterBin ].BinSWCount;
-	
-	bool bPatchPending = VisibleIndex < NumVisiblePatches;
-	
+#if NANITE_TESSELLATION
 	uint4 RasterBin = FetchSWRasterBin(VisibleIndex);
 	VisibleIndex = RasterBin.x;
 
-	uint4 PatchEncoded = 0;
-	if( bPatchPending )
-		PatchEncoded = VisiblePatches.Load4( VisibleIndex * 16 );
+	uint4 PatchEncoded = VisiblePatches.Load4( VisibleIndex * 16 );
 
 	FSplitPatch Patch;
 	Patch.Decode( PatchEncoded );
 
-#if 1
+#if 0
 	while( WaveActiveAnyTrue( bPatchPending ) )
 	{
 		uint2 ExecMask = WaveBallot( bPatchPending );
@@ -699,7 +564,8 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		bool bPatchValid = bPatchPending && VisibleClusterIndex == Patch.VisibleClusterIndex;
 #else
 	{
-		uint VisibleClusterIndex = Patch.VisibleClusterIndex;
+		uint VisibleClusterIndex	= Patch.VisibleClusterIndex;
+		uint PatchIndex				= Patch.TriIndex;
 #endif
 
 		FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleClusterIndex, VIRTUAL_TEXTURE_TARGET );
@@ -743,102 +609,84 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 	#endif
 
 #if 0
-		// TODO If this code is ever used, combine with DeduplicateVertIndexes
+		if( bPatchValid )
+			bPatchPending = false;
+
+		uint PatchMask = WaveBallot( bPatchValid ).x;
+		while( PatchMask )
+		{
+			uint PatchLane = firstbitlow( PatchMask );
+			PatchMask ^= 1u << PatchLane;
+
+			PatchEncoded = WaveReadLaneAt( WavePatchEncoded, PatchLane );
+
+			//MaterialShader.TransformedTri = MakeTransformedNaniteTriangle( Vert, WaveReadLaneAt( VertLaneIndexes, PatchLane ) );
+
+			FSplitPatch Patch;
+			Patch.Decode( PatchEncoded );
+#endif
+
+#if 0
 		uint3 VertIndexes = 0;
-		uint BaseVertIndex = 0;
 		if( bPatchValid )
 		{
 			VertIndexes = DecodeTriangleIndices( Cluster, Patch.TriIndex );
-		
-			// VertIndexes.x is always smallest
-			BaseVertIndex = WaveActiveMin( VertIndexes.x );
-			VertIndexes -= BaseVertIndex;
-
-			bPatchValid = all( VertIndexes.yz < 64 );
-		}
-		BaseVertIndex = WaveReadLaneAt( BaseVertIndex, firstbitlow( WaveBallot( bPatchValid ).x ) );
-
-		uint2 UsedVertMask = 0;
-		if( bPatchValid )
-		{
-			UNROLL
-			for( uint i = 0; i < 3; i++ )
-			{
-				bool bDstLow = VertIndexes[i] < 32;
-				uint DstMask = 1u << ( VertIndexes[i] & 31 );
-
-				if( bDstLow )
-					UsedVertMask.x |= DstMask;
-				else
-					UsedVertMask.y |= DstMask;
-			}
 		}
 	
-		UsedVertMask.x = WaveActiveBitOr( UsedVertMask.x );
-		UsedVertMask.y = WaveActiveBitOr( UsedVertMask.y );
-
-#if 1
-		uint LaneIndex = GroupThreadIndex;
-
-		bool2 bIsUsed = ( UsedVertMask & (1u << LaneIndex) ) != 0u;
-		uint2 UsedPrefixSum =
-		{
-			MaskedBitCount( uint2( UsedVertMask.x, 0 ) ),
-			MaskedBitCount( uint2( UsedVertMask.y, 0 ) ) + countbits( UsedVertMask.x )
-		};
-
-		if( bIsUsed.x )
-			WorkBoundary[ UsedPrefixSum.x ] = LaneIndex;
-		if( bIsUsed.y && UsedPrefixSum.y < 32 )
-			WorkBoundary[ UsedPrefixSum.y ] = LaneIndex + 32;
-
-		uint MyVertIndex = WorkBoundary[ LaneIndex ] + BaseVertIndex;
-
+		uint NumUniqueVerts;
+		uint LaneVertIndex;
 		uint3 VertLaneIndexes;
-		VertLaneIndexes.x = MaskedBitCount2( UsedVertMask, VertIndexes.x );
-		VertLaneIndexes.y = MaskedBitCount2( UsedVertMask, VertIndexes.y );
-		VertLaneIndexes.z = MaskedBitCount2( UsedVertMask, VertIndexes.z );
-		//VertLaneIndexes.x = WaveReadLaneAt( VertIndexes.x < 32 ? UsedPrefixSum.x : UsedPrefixSum.y, VertIndexes.x & 31 );
-		//VertLaneIndexes.y = WaveReadLaneAt( VertIndexes.y < 32 ? UsedPrefixSum.x : UsedPrefixSum.y, VertIndexes.y & 31 );
-		//VertLaneIndexes.z = WaveReadLaneAt( VertIndexes.z < 32 ? UsedPrefixSum.x : UsedPrefixSum.y, VertIndexes.z & 31 );
-#else
-		uint MyVertIndex = FindNthSetBit( UsedVertMask, GroupThreadIndex ) + BaseVertIndex;
-
-		uint3 VertLaneIndexes;
-		VertLaneIndexes.x = MaskedBitCount( UsedVertMask, VertIndexes.x );
-		VertLaneIndexes.y = MaskedBitCount( UsedVertMask, VertIndexes.y );
-		VertLaneIndexes.z = MaskedBitCount( UsedVertMask, VertIndexes.z );
-#endif
-		bPatchValid &= all( VertLaneIndexes < 32 );
-
-		uint NumUniqueVerts = countbits( UsedVertMask.x ) + countbits( UsedVertMask.y );
-
+		DeduplicateVertIndexes( VertIndexes, GroupThreadIndex, bPatchValid, NumUniqueVerts, LaneVertIndex, VertLaneIndexes );
+	
 		FNaniteTransformedVert Vert;
 		float3 PointView;
-
-		if( GroupThreadIndex < NumUniqueVerts )
+	
+		if (GroupThreadIndex < NumUniqueVerts)
 		{
-			Vert = FetchTransformedNaniteVertex( InstanceData, MaterialShader.VertTransforms, Cluster, MyVertIndex, false );
+			Vert =  = FetchTransformedNaniteVertex( InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, false );
 			PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
 		}
-
+	
 		float3 TriPointView[3];
 		TriPointView[0] = WaveReadLaneAt( PointView, VertLaneIndexes[0] );
 		TriPointView[1] = WaveReadLaneAt( PointView, VertLaneIndexes[1] );
 		TriPointView[2] = WaveReadLaneAt( PointView, VertLaneIndexes[2] );
+	
+		float3 TessFactors = GetTessFactors( NaniteView, TriPointView );
+#elif 0
+		uint3 VertIndexes = DecodeTriangleIndices( Cluster, Patch.TriIndex );
+
+		FNaniteTransformedVert Vert;
+		float3 PointView;
+
+		if( GroupThreadIndex < 3 )
+		{
+			Vert = FetchTransformedNaniteVertex( InstanceData, MaterialShader.VertTransforms, Cluster, VertIndexes[ GroupThreadIndex ], false );
+			PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
+		}
+
+		FNaniteTransformedTri TransformedTri = MakeTransformedNaniteTriangle( Vert, uint3(0,1,2) );
+		MaterialShader.TransformedTri = TransformedTri;
 
 		float3 PatchPointView[3];
-		for( int i = 0; i < 3; i++ )
+		PatchPointView[0] = WaveReadLaneAt( PointView, 0 );
+		PatchPointView[1] = WaveReadLaneAt( PointView, 1 );
+		PatchPointView[2] = WaveReadLaneAt( PointView, 2 );
+
+		if( GroupThreadIndex < 3 )
 		{
-			PatchPointView[i] =
-				TriPointView[0] * Patch.Barycentrics[i].x +
-				TriPointView[1] * Patch.Barycentrics[i].y +
-				TriPointView[2] * Patch.Barycentrics[i].z;
+			PointView =
+				PatchPointView[0] * Patch.Barycentrics[ GroupThreadIndex ].x +
+				PatchPointView[1] * Patch.Barycentrics[ GroupThreadIndex ].y +
+				PatchPointView[2] * Patch.Barycentrics[ GroupThreadIndex ].z;
 		}
+
+		PatchPointView[0] = WaveReadLaneAt( PointView, 0 );
+		PatchPointView[1] = WaveReadLaneAt( PointView, 1 );
+		PatchPointView[2] = WaveReadLaneAt( PointView, 2 );
 
 		float3 TessFactors = GetTessFactors( NaniteView, PatchPointView );
 #else
-		// TODO don't load triangle data if not from this VisibleCluster
 		uint3 VertIndexes = DecodeTriangleIndices( Cluster, Patch.TriIndex );
 		FNaniteTransformedTri TransformedTri = FetchTransformedNaniteTriangle(InstanceData, MaterialShader.VertTransforms, Cluster, VertIndexes, false);
 		MaterialShader.TransformedTri = TransformedTri;
@@ -857,51 +705,74 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		float3 TessFactors = GetTessFactors( NaniteView, PointView );
 #endif
 
-		FDiceTask DiceTask;
-		DiceTask.Raster				= Raster;
-		DiceTask.Shader				= MaterialShader;
-		DiceTask.PixelValue			= ( VisibleClusterIndex + 1 ) << 7;
-		DiceTask.VisualizeValues	= GetVisualizeValues();
-		//DiceTask.Vert				= Vert;
+		uint PixelValue			= ( VisibleClusterIndex + 1 ) << 7;
+		uint2 VisualizeValues	= GetVisualizeValues();
 
-		DiceTask.Encoded			= PatchEncoded;
+		FTessellatedPatch TessellatedPatch;
+		TessellatedPatch.Init( TessFactors, PatchEncoded.yzw );
 
-		uint NumVerts = 0;
-		uint NumTris = 0;
-#if 1
-		if( bPatchValid )
+		uint NumVerts = TessellatedPatch.GetNumVerts();
+		uint NumTris  = TessellatedPatch.GetNumTris();
+
+		// Decode again since corners may have rotated.
+		Patch.Decode( PatchEncoded );
+
+		for( uint VertIndex = GroupThreadIndex; VertIndex < NumVerts; VertIndex += THREADGROUP_SIZE )
 		{
-			DiceTask.Init( TessFactors, 0, 0 );
-			//DiceTask.Init( TessFactors, VertLaneIndexes, TriIndex );
-			NumVerts = DiceTask.TessellatedPatch.GetNumVerts();
-			NumTris  = DiceTask.TessellatedPatch.GetNumTris();
-			bPatchPending = false;
+			FBarycentrics Barycentrics;
+			Barycentrics.UVW	= TessellatedPatch.GetVert( VertIndex );
+			Barycentrics.UVW_dx	= 0;
+			Barycentrics.UVW_dy	= 0;
+	
+			Barycentrics.UVW	= Patch.TransformBarycentrics( Barycentrics.UVW );
+
+			GroupVerts[ VertIndex ] = CalculateSubpixelCoordinates( Raster, MaterialShader.EvaluateDomain( Barycentrics ) ).xyz;
 		}
-
-		//DiceTask.FirstVert = WavePrefixSum( NumVerts );
-		//DiceTask.NumCached = 0;
-
-		DistributeWork( DiceTask, GroupThreadIndex, NumTris );
-#else
-		DiceTask.Create( TessFactors, NumVerts, NumTris );
+	
+		GroupMemoryBarrierWithGroupSync();
 
 		for( uint TriIndex = GroupThreadIndex; TriIndex < NumTris; TriIndex += THREADGROUP_SIZE )
 		{
-			DiceTask.RunChild( TriIndex );
+			uint3 VertIndexes = TessellatedPatch.GetIndexes( TriIndex );
+	
+			// TODO
+			bool bReverseWindingOrder = false;
+			if( bReverseWindingOrder )
+				VertIndexes.yz = VertIndexes.zy;
+
+			float4 Verts[3];
+			Verts[0] = float4( GroupVerts[ VertIndexes.x ], 1 );
+			Verts[1] = float4( GroupVerts[ VertIndexes.y ], 1 );
+			Verts[2] = float4( GroupVerts[ VertIndexes.z ], 1 );
+	
+			FRasterTri Tri = SetupTriangle< NANITE_SUBPIXEL_SAMPLES, !NANITE_TWO_SIDED >( Raster.ScissorRect, Verts );
+	
+			if( Tri.bIsValid )
+			{
+			#if VISUALIZE
+				VisualizeValues.x = TriIndex;
+			#endif
+
+				RasterizeDicedTri(
+					Tri,
+					Raster,
+					MaterialShader,
+					PixelValue | PatchIndex,
+					VisualizeValues );
+			}
 		}
-#endif
 	}
 #endif
 }
 
-[numthreads(SWRASTER_NUM_THREADS, 1, 1)]
+[numthreads(THREADGROUP_SIZE, 1, 1)]
 void MicropolyRasterize(
 	uint DispatchThreadID	: SV_DispatchThreadID,
 	uint GroupID			: SV_GroupID,
 	uint GroupIndex			: SV_GroupIndex) 
 {
 #if PATCHES
-	PatchRasterize( DispatchThreadID, GroupIndex );
+	PatchRasterize( GroupID, GroupIndex );
 #else
 	ClusterRasterize( GroupID, GroupIndex );
 #endif
@@ -1159,15 +1030,21 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	
 	const uint TriIndex = TriRange.Start + GroupThreadID;
 	
+	bool bTriValid = GroupThreadID < TriRange.Num;
+
+	uint3 VertIndexes = 0;
+	if (bTriValid)
+	{
+		VertIndexes = DecodeTriangleIndices(Cluster, TriIndex);
+
+		if( bReverseWindingOrder )
+			VertIndexes.yz = VertIndexes.zy;
+	}
+
 	uint NumUniqueVerts;
 	uint3 VertLaneIndexes;
 	uint LaneVertIndex;
-	bool bTriangleActive;
-	bool bTrianglePending = GroupThreadID < TriRange.Num;
-	DeduplicateVertIndexes<false>(Cluster, TriIndex, GroupThreadID, bTrianglePending, bTriangleActive, NumUniqueVerts, LaneVertIndex, VertLaneIndexes);
-
-	if( bReverseWindingOrder )
-		VertLaneIndexes.yz = VertLaneIndexes.zy;
+	DeduplicateVertIndexes(VertIndexes, GroupThreadID, bTriValid, NumUniqueVerts, LaneVertIndex, VertLaneIndexes);
 
 	PrimitiveOutput PrimOutput;
 	PrimOutput.VertCount = NumUniqueVerts;
@@ -1179,13 +1056,13 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 		PrimOutput.Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, LaneVertIndex, PixelValue, bReverseWindingOrder);
 	}
 
-	if (GroupThreadID < TriRange.Num)
+	if (bTriValid)
 	{
 		PrimOutput.PrimExport = PackTriangleExport(VertLaneIndexes);
 	}
 
 #if VERTEX_TO_TRIANGLE_MASKS
-	if (GroupThreadID < TriRange.Num)
+	if (bTriValid)
 	{
 		InterlockedOr(GroupVertToTriMasks[VertLaneIndexes.x], 1 << GroupThreadID);
 		InterlockedOr(GroupVertToTriMasks[VertLaneIndexes.y], 1 << GroupThreadID);
@@ -1367,22 +1244,24 @@ void HWRasterizeMS(
 
 	uint NumUniqueVerts;
 	uint LaneVertIndex;
-	uint3 VertIndexes;
-#if NANITE_VERT_REUSE_BATCH	
-	bool bTriangleActive;
-	bool bTrianglePending = GroupThreadID < TriRange.Num;
-	DeduplicateVertIndexes<false>(Cluster, TriIndex, GroupThreadID, bTrianglePending, bTriangleActive, NumUniqueVerts, LaneVertIndex, VertIndexes);
-#else
-	if (GroupThreadID < TriRange.Num)
+
+	bool bTriValid = GroupThreadID < TriRange.Num;
+
+	uint3 VertIndexes = 0;
+	if (bTriValid)
 	{
 		VertIndexes = DecodeTriangleIndices(Cluster, TriIndex);
+		
+		if( bReverseWindingOrder )
+			VertIndexes.yz = VertIndexes.zy;
 	}
 
+#if NANITE_VERT_REUSE_BATCH
+	DeduplicateVertIndexes(VertIndexes, GroupThreadID, bTriValid, NumUniqueVerts, LaneVertIndex, VertIndexes);
+#else
 	LaneVertIndex = GroupThreadID;
 	NumUniqueVerts = Cluster.NumVerts;
 #endif
-	if( bReverseWindingOrder )
-		VertIndexes.yz = VertIndexes.zy;
 
 	SetMeshOutputCounts(NumUniqueVerts, TriRange.Num);
 

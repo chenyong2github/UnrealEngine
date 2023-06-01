@@ -237,7 +237,8 @@ uint FSplitTask::Run()
 	}
 	else
 	{
-		TessellatedPatch.Init( GetSplitFactors( TessFactors ), Encoded.yzw );
+		float3 SplitFactors = min( GetSplitFactors( TessFactors ), 8 );
+		TessellatedPatch.Init( SplitFactors, Encoded.yzw );
 		return TessellatedPatch.GetNumTris();
 	}
 

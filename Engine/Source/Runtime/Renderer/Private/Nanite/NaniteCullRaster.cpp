@@ -1853,7 +1853,7 @@ void FTessellationTableResources::InitRHI()
 {
 	if( DoesPlatformSupportNanite( GMaxRHIShaderPlatform ) )
 	{
-		FTessellationTable TessellationTable(8);
+		FTessellationTable TessellationTable(16);
 
 		CreateAndUpload( Offsets,	TessellationTable.OffsetTable,	TEXT("TessellationTable.Offsets") );
 		CreateAndUpload( Verts,		TessellationTable.Verts,		TEXT("TessellationTable.Verts") );

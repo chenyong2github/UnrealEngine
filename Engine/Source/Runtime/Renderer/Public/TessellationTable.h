@@ -38,6 +38,8 @@ private:
 	void		RecursiveSplit( const FIntVector& TessFactors );
 	void		UniformTessellateAndSnap( const FIntVector& TessFactors );
 
+	void		ConstrainToCacheWindow();
+
 	int32		FirstVert;
 	int32		FirstTri;
 

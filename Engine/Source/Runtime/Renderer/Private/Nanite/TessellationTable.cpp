@@ -42,6 +42,7 @@ FTessellationTable::FTessellationTable( uint32 InMaxTessFactor )
 		{
 			//RecursiveSplit( TessFactors );
 			UniformTessellateAndSnap( TessFactors );
+			//ConstrainToCacheWindow();
 		}
 	}
 
@@ -452,6 +453,208 @@ void FTessellationTable::UniformTessellateAndSnap( const FIntVector& TessFactors
 		Indexes.Add( VertIndexes[0] | ( VertIndexes[1] << 10 ) | ( VertIndexes[2] << 20 ) );
 	}
 }
+
+
+#define CACHE_WINDOW_SIZE	32
+
+// Weights for individual cache entries based on simulated annealing optimization on DemoLevel.
+static int16 CacheWeightTable[ CACHE_WINDOW_SIZE ] = {
+	 577,	 616,	 641,  512,		 614,  635,  478,  651,
+	  65,	 213,	 719,  490,		 213,  726,  863,  745,
+	 172,	 939,	 805,  885,		 958, 1208, 1319, 1318,
+	1475,	1779,	2342,  159,		2307, 1998, 1211,  932
+};
+
+// Constrain index buffer to only use vertex references that are within a fixed sized trailing window from the current highest encountered vertex index.
+// Triangles are reordered based on a FIFO-style cache optimization to minimize the number of vertices that need to be duplicated.
+void FTessellationTable::ConstrainToCacheWindow()
+{
+	uint32 NumOldVertices = Verts.Num() - FirstVert;
+	uint32 NumOldTriangles = Indexes.Num() - FirstTri;
+
+	check( MaxTessFactor <= 16 );
+	constexpr uint32 MaxNumTris = 16 * 16;
+	constexpr uint32 MaxTrianglesInDwords = ( MaxNumTris + 31 ) / 32;
+
+	uint32 VertexToTriangleMasks[ MaxNumTris * 3 ][ MaxTrianglesInDwords ] = {};
+
+	// Generate vertex to triangle masks
+	for( uint32 i = 0; i < NumOldTriangles; i++ )
+	{
+		const uint32 i0 = ( Indexes[ FirstTri + i ] >>  0 ) & 1023;
+		const uint32 i1 = ( Indexes[ FirstTri + i ] >> 10 ) & 1023;
+		const uint32 i2 = ( Indexes[ FirstTri + i ] >> 20 ) & 1023;
+		check( i0 != i1 && i1 != i2 && i2 != i0 ); // Degenerate input triangle!
+
+		VertexToTriangleMasks[ i0 ][ i >> 5 ] |= 1 << ( i & 31 );
+		VertexToTriangleMasks[ i1 ][ i >> 5 ] |= 1 << ( i & 31 );
+		VertexToTriangleMasks[ i2 ][ i >> 5 ] |= 1 << ( i & 31 );
+	}
+
+	uint32 TrianglesEnabled[ MaxTrianglesInDwords ] = {};	// Enabled triangles are in the current material range and have not yet been visited.
+	uint32 TrianglesTouched[ MaxTrianglesInDwords ] = {};	// Touched triangles have had at least one of their vertices visited.
+
+	uint32 NumNewVertices = 0;
+	uint32 NumNewTriangles = 0;
+	uint16 OldToNewVertex[ MaxNumTris * 3 ];
+
+	uint32 NewVerts[ MaxNumTris * 3 ] = {};	// Initialize to make static analysis happy
+	uint32 NewIndexes[ MaxNumTris ];
+	
+	FMemory::Memset( OldToNewVertex, -1, sizeof( OldToNewVertex ) );
+
+	uint32 DwordEnd	= NumOldTriangles / 32;
+	uint32 BitEnd	= NumOldTriangles & 31;
+
+	FMemory::Memset( TrianglesEnabled, -1, DwordEnd * sizeof( uint32 ) );
+
+	if( BitEnd != 0 )
+		TrianglesEnabled[ DwordEnd ] = ( 1u << BitEnd ) - 1u;
+
+	auto ScoreVertex = [ &OldToNewVertex, &NumNewVertices ] ( uint32 OldVertex )
+	{
+		uint16 NewIndex = OldToNewVertex[ OldVertex ];
+
+		int32 CacheScore = 0;
+		if( NewIndex != 0xFFFF )
+		{
+			uint32 CachePosition = ( NumNewVertices - 1 ) - NewIndex;
+			if( CachePosition < CACHE_WINDOW_SIZE )
+				CacheScore = CacheWeightTable[ CachePosition ];
+		}
+
+		return CacheScore;
+	};
+
+	while( true )
+	{
+		uint32 NextTriangleIndex = 0xFFFF;
+		int32  NextTriangleScore = 0;
+
+		// Pick highest scoring available triangle
+		for( uint32 TriangleDwordIndex = 0; TriangleDwordIndex < MaxTrianglesInDwords; TriangleDwordIndex++ )
+		{
+			uint32 CandidateMask = TrianglesTouched[ TriangleDwordIndex ] & TrianglesEnabled[ TriangleDwordIndex ];
+			while( CandidateMask )
+			{
+				uint32 TriangleDwordOffset = FMath::CountTrailingZeros( CandidateMask );
+				CandidateMask &= CandidateMask - 1;
+
+				int32 TriangleIndex = ( TriangleDwordIndex << 5 ) + TriangleDwordOffset;
+
+				int32 TriangleScore = 0;
+				TriangleScore += ScoreVertex( ( Indexes[ FirstTri + TriangleIndex ] >>  0 ) & 1023 );
+				TriangleScore += ScoreVertex( ( Indexes[ FirstTri + TriangleIndex ] >> 10 ) & 1023 );
+				TriangleScore += ScoreVertex( ( Indexes[ FirstTri + TriangleIndex ] >> 20 ) & 1023 );
+
+				if( TriangleScore > NextTriangleScore )
+				{
+					NextTriangleIndex = TriangleIndex;
+					NextTriangleScore = TriangleScore;
+				}
+			}
+		}
+
+		if( NextTriangleIndex == 0xFFFF )
+		{
+			// If we didn't find a triangle. It might be because it is part of a separate component. Look for an unvisited triangle to restart from.
+			for( uint32 TriangleDwordIndex = 0; TriangleDwordIndex < MaxTrianglesInDwords; TriangleDwordIndex++ )
+			{
+				uint32 EnableMask = TrianglesEnabled[ TriangleDwordIndex ];
+				if( EnableMask )
+				{
+					NextTriangleIndex = ( TriangleDwordIndex << 5 ) + FMath::CountTrailingZeros( EnableMask );
+					break;
+				}
+			}
+
+			if( NextTriangleIndex == 0xFFFF )
+				break;
+		}
+
+		uint32 OldIndex[3];
+		OldIndex[0] = ( Indexes[ FirstTri + NextTriangleIndex ] >>  0 ) & 1023;
+		OldIndex[1] = ( Indexes[ FirstTri + NextTriangleIndex ] >> 10 ) & 1023;
+		OldIndex[2] = ( Indexes[ FirstTri + NextTriangleIndex ] >> 20 ) & 1023;
+
+		// Mark incident triangles
+		for( uint32 i = 0; i < MaxTrianglesInDwords; i++ )
+		{
+			TrianglesTouched[i] |= VertexToTriangleMasks[ OldIndex[0] ][i];
+			TrianglesTouched[i] |= VertexToTriangleMasks[ OldIndex[1] ][i];
+			TrianglesTouched[i] |= VertexToTriangleMasks[ OldIndex[2] ][i];
+		}
+
+		uint32 NewIndex[3];
+		NewIndex[0] = OldToNewVertex[ OldIndex[0] ];
+		NewIndex[1] = OldToNewVertex[ OldIndex[1] ];
+		NewIndex[2] = OldToNewVertex[ OldIndex[2] ];
+
+		uint32 NumNew = (NewIndex[0] == 0xFFFF) + (NewIndex[1] == 0xFFFF) + (NewIndex[2] == 0xFFFF);
+
+		// Generate new indices such that they are all within a trailing window of CACHE_WINDOW_SIZE of NumNewVertices.
+		// This can require multiple iterations as new/duplicate vertices can push other vertices outside the window.			
+		uint32 TestNumNewVertices = NumNewVertices;
+		TestNumNewVertices += NumNew;
+
+		while(true)
+		{
+			if (NewIndex[0] != 0xFFFF && TestNumNewVertices - NewIndex[0] >= CACHE_WINDOW_SIZE)
+			{
+				NewIndex[0] = 0xFFFF;
+				TestNumNewVertices++;
+				continue;
+			}
+
+			if (NewIndex[1] != 0xFFFF && TestNumNewVertices - NewIndex[1] >= CACHE_WINDOW_SIZE)
+			{
+				NewIndex[1] = 0xFFFF;
+				TestNumNewVertices++;
+				continue;
+			}
+
+			if (NewIndex[2] != 0xFFFF && TestNumNewVertices - NewIndex[2] >= CACHE_WINDOW_SIZE)
+			{
+				NewIndex[2] = 0xFFFF;
+				TestNumNewVertices++;
+				continue;
+			}
+			break;
+		}
+
+		for( int k = 0; k < 3; k++ )
+		{
+			if( NewIndex[k] == 0xFFFF)
+				NewIndex[k] = NumNewVertices++;
+
+			OldToNewVertex[ OldIndex[k] ] = (uint16)NewIndex[k];
+
+			NewVerts[ NewIndex[k] ] = Verts[ FirstVert + OldIndex[k] ];
+		}
+
+		// Rotate triangle such that 1st index is smallest
+		const uint32 i0 = FMath::Min3Index( NewIndex[0], NewIndex[1], NewIndex[2] );
+		const uint32 i1 = (1 << i0) & 3;
+		const uint32 i2 = (1 << i1) & 3;
+
+		// Output triangle
+		NewIndexes[ NumNewTriangles++ ] = NewIndex[ i0 ] | ( NewIndex[ i1 ] << 10 ) | ( NewIndex[ i2 ] << 20 );
+
+		// Disable selected triangle
+		TrianglesEnabled[ NextTriangleIndex >> 5 ] &= ~( 1 << ( NextTriangleIndex & 31 ) );
+	}
+
+
+	check( NumNewTriangles == NumOldTriangles );
+
+	if( NumNewVertices > NumOldVertices )
+		Verts.AddUninitialized( NumNewVertices - NumOldVertices );
+
+	// Write back new triangle order
+	FMemory::Memcpy( &Verts[ FirstVert ],	NewVerts,	NumNewVertices * sizeof( uint32 ) );
+	FMemory::Memcpy( &Indexes[ FirstTri ],	NewIndexes,	NumNewTriangles * sizeof( uint32 ) );
+}
+
 
 FTessellationTable& GetTessellationTable( uint32 MaxTessFactor )
 {

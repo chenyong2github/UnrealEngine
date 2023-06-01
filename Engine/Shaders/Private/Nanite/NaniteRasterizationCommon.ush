@@ -4,6 +4,7 @@
 
 #include "../Common.ush"
 #include "../SceneData.ush"
+#include "../WaveOpUtil.ush"
 #include "NaniteRasterizer.ush"
 #include "NaniteAttributeDecode.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapPageAccessCommon.ush"
@@ -70,6 +71,203 @@ FBarycentrics CalculateBarycentrics( FRasterTri Tri, float3 C )
 
 	return Barycentrics;
 }
+
+int FindNthSetBit( uint Mask, int Index )
+{
+	int Last = countbits( Mask ) - Index - 1;
+
+	uint p = 16;
+	p += countbits( Mask >> p ) <= Last ? -8 : 8;
+	p += countbits( Mask >> p ) <= Last ? -4 : 4;
+	p += countbits( Mask >> p ) <= Last ? -2 : 2;
+	p += countbits( Mask >> p ) <= Last ? -1 : 1;
+	p  = countbits( Mask >> p ) == Last ? (p - 1) : p;
+	return p;
+}
+
+int FindNthSetBit( uint2 Mask, int Index )
+{
+	int LowPop = countbits( Mask.x );
+	return FindNthSetBit( Index < LowPop ? Mask.x : Mask.y, Index < LowPop ? Index : Index - LowPop ) + ( Index < LowPop ? 0 : 32 );
+}
+
+/*int FindNthSetBit_Scalar( uint Mask, int Index )
+{
+	return firstbitlow( WaveBallot( WavePrefixCountBits(x) == Index ) ) - 1;
+	return firstbitlow( WaveBallot( MaskedBitCount( Mask ) == Index ) ) - 1;
+}*/
+
+uint MaskedBitCount2( uint2 Bits, uint Index )
+{
+	uint Mask = 1u << ( Index & 31 );
+	Mask -= 1;
+
+	uint A = Index < 32 ? Bits.x : Bits.y;
+	uint B = Index < 32 ? 0 : countbits( Bits.x );
+
+	return countbits( A & Mask ) + B;
+}
+
+groupshared uint GroupBaseVertIndex;
+groupshared uint2 GroupUsedVertMask;
+//groupshared uint GroupUniqueVertIndex[32];
+
+void DeduplicateVertIndexes( uint3 VertIndexes, uint GroupThreadIndex, bool bTriValid, out uint OutNumUniqueVerts, out uint OutLaneVertIndex, out uint3 OutCornerLaneIndexes )
+{
+	const uint LaneCount = WaveGetLaneCount();
+
+	// Calculate smallest active vertex
+	uint BaseVertIndex;
+	BRANCH
+	if( LaneCount < 32 )
+	{
+		if (GroupThreadIndex == 0)
+		{
+			GroupBaseVertIndex = 0xFFFFFFFFu;
+			GroupUsedVertMask = 0;
+		}
+		GroupMemoryBarrierWithGroupSync();
+		if (bTriValid) WaveInterlockedMin(GroupBaseVertIndex, VertIndexes.x);	// VertIndexes.x is always smallest
+		GroupMemoryBarrierWithGroupSync();
+		BaseVertIndex = GroupBaseVertIndex;
+	}
+	else
+	{
+		BaseVertIndex = WaveActiveMin(bTriValid ? VertIndexes.x : 0xFFFFFFFFu);	// VertIndexes.x is always smallest
+	}
+	
+	uint2 TriangleVertMask = 0;
+	if( bTriValid )
+	{
+		VertIndexes -= BaseVertIndex;
+	
+		UNROLL
+		for (uint i = 0; i < 3; i++)
+		{
+			bool bDstLow = VertIndexes[i] < 32;
+			uint DstMask = 1u << ( VertIndexes[i] & 31 );
+
+			if( bDstLow )
+				TriangleVertMask.x |= DstMask;
+			else
+				TriangleVertMask.y |= DstMask;
+		}
+	}
+
+	uint2 UsedVertMask;
+	BRANCH
+	if( LaneCount < 32 )
+	{
+		WaveInterlockedOr(GroupUsedVertMask.x, UsedVertMask.x);
+		WaveInterlockedOr(GroupUsedVertMask.y, UsedVertMask.y);
+		GroupMemoryBarrierWithGroupSync();
+		UsedVertMask = GroupUsedVertMask;
+	}
+	else
+	{
+		UsedVertMask.x = WaveActiveBitOr(TriangleVertMask.x);
+		UsedVertMask.y = WaveActiveBitOr(TriangleVertMask.y);
+	}
+
+	OutCornerLaneIndexes.x = MaskedBitCount(UsedVertMask, VertIndexes.x);
+	OutCornerLaneIndexes.y = MaskedBitCount(UsedVertMask, VertIndexes.y);
+	OutCornerLaneIndexes.z = MaskedBitCount(UsedVertMask, VertIndexes.z);
+
+#if 0
+	bool2 bIsUsed = ( UsedVertMask & (1u << GroupThreadIndex) ) != 0u;
+	uint2 UsedPrefixSum =
+	{
+		MaskedBitCount( uint2( UsedVertMask.x, 0 ) ),
+		MaskedBitCount( uint2( UsedVertMask.y, 0 ) ) + countbits( UsedVertMask.x )
+	};
+
+	if( bIsUsed.x )
+		GroupUniqueVertIndex[ UsedPrefixSum.x ] = GroupThreadIndex;
+	if( bIsUsed.y && UsedPrefixSum.y < 32 )
+		GroupUniqueVertIndex[ UsedPrefixSum.y ] = GroupThreadIndex + 32;
+
+	OutLaneVertIndex = GroupUniqueVertIndex[ GroupThreadIndex ] + BaseVertIndex;
+#else
+	OutLaneVertIndex = FindNthSetBit(UsedVertMask, GroupThreadIndex) + BaseVertIndex;
+#endif
+	OutNumUniqueVerts = CountBits(UsedVertMask);
+}
+
+
+// Only works for WaveSize >= 32 and only efficient for == 32.
+// A sliding window approach like this relies on the index buffer being constrained such that a triangle
+// can't referance a vertex >= window size back from the largest seen index so far in the index buffer.
+// In addition the WaveSize must be at least as large as the window so that vertices referenced by triangles
+// in this wave must either be present in the cache from the previous iteration (Lane0 - Window) or  in this iteration.
+// Since we constrain to 32 when building the clusters the WaveSize that makes sense is the matching 32.
+// Larger WaveSize could also work but the code would need to be changed.
+template< typename FVertex >
+struct TSlidingWindowVertexCache
+{
+	FVertex	CachedVert;
+	uint	NumCached;
+	bool	bFirstPass;
+
+	FVertex	TriangleVerts[3];
+	bool	TriangleVertsRead[3];
+
+	void Init()
+	{
+		NumCached = 0;
+		bFirstPass = true;
+	}
+
+	// Grab what's there for this triangle before updating cache. Otherwise cache would need to be double size.
+	uint PullExisting( uint3 VertIndexes )
+	{
+		BRANCH
+		if( !bFirstPass )
+		{
+			UNROLL
+			for( uint k = 0; k < 3; k++ )
+			{
+				TriangleVerts[k] = WaveReadLaneAt( CachedVert, VertIndexes[k] & 31 );
+				TriangleVertsRead[k] = VertIndexes[k] < NumCached;
+			}
+		}
+
+		uint MaxVertIndex = max( VertIndexes.y, VertIndexes.z );
+		uint WaveMaxVertIndex = WaveActiveMax( MaxVertIndex );
+		uint NewNumCached = min( WaveMaxVertIndex + 1, NumCached + 32 );
+	
+		uint FirstUncachedLane = NumCached & 31;
+		uint LaneVertIndex = ( WaveGetLaneIndex() - FirstUncachedLane ) & 31;
+		LaneVertIndex += NumCached;
+		NumCached = NewNumCached;
+
+		return LaneVertIndex;
+	}
+
+	uint PullRemaining( uint3 VertIndexes )
+	{
+		UNROLL
+		for( uint k = 0; k < 3; k++ )
+		{
+			BRANCH
+			if( bFirstPass )
+			{
+				TriangleVerts[k] = WaveReadLaneAt( CachedVert, VertIndexes[k] & 31 );
+			}
+			else
+			{
+				FVertex TempVert = WaveReadLaneAt( CachedVert, VertIndexes[k] & 31 );
+				if( !TriangleVertsRead[k] )
+					TriangleVerts[k] = TempVert;
+			}
+		}
+		bFirstPass = false;
+
+		uint MaxVertIndex = max( VertIndexes.y, VertIndexes.z );
+		uint InvalidMask = WaveBallot( MaxVertIndex >= NumCached ).x;
+		uint NumTrisCached = InvalidMask ? firstbitlow( InvalidMask ) : 32;
+		return NumTrisCached;
+	}
+};
 
 
 struct FNullTranslation

@@ -200,7 +200,7 @@ uint AllocateRasterBinCluster(uint BinIndex, bool bSoftware, uint BatchCount)
 void ExportRasterBin(uint RasterBin, uint ClusterIndex, uint RangeStart, uint RangeEnd, uint BatchCount, uint BatchInfoOffset, FCluster Cluster, bool bBatchInfoInlined, bool bSoftware)
 {
 	const FNaniteMaterialFlags BinMaterialFlags = GetRasterBinMaterialFlags(RasterBin);
-	bool bUseBatch = bSoftware ? BinMaterialFlags.bPixelProgrammable : (bUsePrimOrMeshShader && BinMaterialFlags.bVertexProgrammable);
+	bool bUseBatch = !bSoftware && bUsePrimOrMeshShader && BinMaterialFlags.bVertexProgrammable;
 	if (BinMaterialFlags.bDisplacement)
 	{
 		// Displacement forces 100% software, and also the vert reuse batching
@@ -301,7 +301,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 
 	#if RASTER_BIN_SCATTER
 		// TODO Do this during RasterBinReserve.
-		OutRasterBinArgsSWHW[ RasterBin * NANITE_RASTERIZER_ARG_COUNT ] = ( OutRasterBinMeta[ RasterBin ].BinSWCount + 31 ) / 32;
+		OutRasterBinArgsSWHW[ RasterBin * NANITE_RASTERIZER_ARG_COUNT ] = OutRasterBinMeta[ RasterBin ].BinSWCount;
 
 		const uint BinMapping = GetRasterBinOffset( RasterBin ) + IndexInBin;
 

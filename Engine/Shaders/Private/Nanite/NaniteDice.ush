@@ -7,6 +7,43 @@
 
 #if NANITE_TESSELLATION
 
+void RasterizeDicedTri(
+	FRasterTri		Tri,
+	FRaster			Raster,
+	FMaterialShader	Shader,
+	uint			PixelValue,
+	uint2			VisualizeValues )
+{
+#if VIRTUAL_TEXTURE_TARGET && NANITE_LATE_VSM_PAGE_TRANSLATION
+	if (!Raster.bSinglePage)
+	{
+		TNaniteWritePixel< FMaterialShader, FCachedPageTable > NaniteWritePixel = { Raster, Shader, PixelValue, VisualizeValues };
+		RasterizeTri_Rect( Tri, NaniteWritePixel );
+	}
+	else
+#elif VIRTUAL_TEXTURE_TARGET
+	if (!Raster.bSinglePage)
+	{
+		TNaniteWritePixel< FMaterialShader, FFetchPageTable > NaniteWritePixel =
+		{
+			Raster,
+			Shader,
+			PixelValue,
+			VisualizeValues,
+			Shader.NaniteView.TargetMipLevel,
+			CalcPageTableLevelOffset( Shader.NaniteView.TargetLayerIndex, Shader.NaniteView.TargetMipLevel ).LevelOffset
+		};
+		
+		RasterizeTri_Rect( Tri, NaniteWritePixel );
+	}
+	else
+#endif
+	{
+		TNaniteWritePixel< FMaterialShader > NaniteWritePixel = { Raster, Shader, PixelValue, VisualizeValues };
+		RasterizeTri_Rect( Tri, NaniteWritePixel );
+	}
+}
+
 struct FDiceTask
 {
 	FRaster			Raster;
@@ -26,11 +63,7 @@ struct FDiceTask
 
 	void Init( float3 TessFactors, uint3 VertIndexes, uint TriIndex )
 	{
-	#if PATCHES
-		TessellatedPatch.Init( TessFactors, Encoded.yzw );
-	#else
 		TessellatedPatch.Init( TessFactors, VertIndexes );
-	#endif
 	
 		PatchData  = VertIndexes.x << 0;
 		PatchData |= VertIndexes.y << 8;
@@ -52,10 +85,6 @@ struct FDiceTask
 		ChildTask.PatchData			= WaveReadLaneAt( PatchData, ParentLaneIndex );
 		//ChildTask.FirstVert		= WaveReadLaneAt( FirstVert, ParentLaneIndex );
 
-	#if PATCHES
-		for( uint k = 0; k < 3; k++ )
-			ChildTask.Shader.TransformedTri.Verts[k] = WaveReadLaneAt( Shader.TransformedTri.Verts[k], ParentLaneIndex );
-	#else
 		uint3 PatchVertIndexes;
 		PatchVertIndexes.x = ( ChildTask.PatchData >>  0 ) & 0xff;
 		PatchVertIndexes.y = ( ChildTask.PatchData >>  8 ) & 0xff;
@@ -63,24 +92,8 @@ struct FDiceTask
 
 		FNaniteTransformedTri TransformedTri = MakeTransformedNaniteTriangle( Vert, PatchVertIndexes );
 		ChildTask.Shader.TransformedTri = TransformedTri;	// TODO mutable. This is weird
-	#endif
 
 		return ChildTask;
-	}
-
-	float3 TransformBarycentrics( float3 Barycentrics )
-	{
-	#if PATCHES
-		FSplitPatch Patch;
-		Patch.Decode( Encoded );
-
-		return
-			Patch.Barycentrics[0] * Barycentrics.x +
-			Patch.Barycentrics[1] * Barycentrics.y +
-			Patch.Barycentrics[2] * Barycentrics.z;
-	#else
-		return Barycentrics;
-	#endif
 	}
 
 	void RunChild( uint LocalItemIndex );
@@ -91,14 +104,7 @@ struct FDiceTask
 
 void FDiceTask::RunChild( uint LocalItemIndex )
 {
-#if PATCHES
-	FSplitPatch Patch;
-	Patch.Decode( Encoded );
-
-	uint PatchIndex = Patch.TriIndex;
-#else
 	uint PatchIndex = PatchData >> 24;
-#endif
 
 	uint3 VertIndexes = TessellatedPatch.GetIndexes( LocalItemIndex );
 
@@ -138,10 +144,6 @@ void FDiceTask::RunChild( uint LocalItemIndex )
 		Barycentrics.UVW_dx	= 0;
 		Barycentrics.UVW_dy	= 0;
 
-	#if PATCHES
-		Barycentrics.UVW	= Patch.TransformBarycentrics( Barycentrics.UVW );
-	#endif
-
 		VertCache( FirstVert + MaxVertIndex ) = CalculateSubpixelCoordinates( Raster, Shader.EvaluateDomain( Barycentrics ) );
 	}
 			
@@ -166,12 +168,6 @@ void FDiceTask::RunChild( uint LocalItemIndex )
 		Barycentrics.UVW_dx	= 0;	// float3( -1, 1, 0 ) / TessFactors.x;
 		Barycentrics.UVW_dy	= 0;	// float3( 0, -1, 1 ) / TessFactors.y;
 
-	#if PATCHES
-		Barycentrics.UVW	= Patch.TransformBarycentrics( Barycentrics.UVW );
-		//Barycentrics.UVW_dx	= Patch.TransformBarycentrics( Barycentrics.UVW_dx );
-		//Barycentrics.UVW_dy	= Patch.TransformBarycentrics( Barycentrics.UVW_dy );
-	#endif
-
 		Verts[i] = CalculateSubpixelCoordinates( Raster, Shader.EvaluateDomain( Barycentrics ) );
 	}
 #endif
@@ -180,39 +176,16 @@ void FDiceTask::RunChild( uint LocalItemIndex )
 
 	if( Tri.bIsValid )
 	{
-	#if VIRTUAL_TEXTURE_TARGET && NANITE_LATE_VSM_PAGE_TRANSLATION
-		if (!Raster.bSinglePage)
-		{
-			TNaniteWritePixel< FMaterialShader, FCachedPageTable > NaniteWritePixel = { Raster, Shader, PixelValue | PatchIndex, VisualizeValues };
-			RasterizeTri_Rect( Tri, NaniteWritePixel );
-		}
-		else
-	#elif VIRTUAL_TEXTURE_TARGET
-		if (!Raster.bSinglePage)
-		{
-			TNaniteWritePixel< FMaterialShader, FFetchPageTable > NaniteWritePixel =
-			{
-				Raster,
-				Shader,
-				PixelValue | PatchIndex,
-				VisualizeValues,
-				Shader.NaniteView.TargetMipLevel,
-				CalcPageTableLevelOffset( Shader.NaniteView.TargetLayerIndex, Shader.NaniteView.TargetMipLevel ).LevelOffset
-			};
-			
-			RasterizeTri_Rect( Tri, NaniteWritePixel );
-		}
-		else
+	#if VISUALIZE
+		VisualizeValues.x = LocalItemIndex;
 	#endif
-		{
-			TNaniteWritePixel< FMaterialShader > NaniteWritePixel = { Raster, Shader, PixelValue | PatchIndex, VisualizeValues };
-		#if VISUALIZE
-			NaniteWritePixel.VisualizeValues.x = LocalItemIndex;
-		#endif
-			//Shader.TransformedTri = TransformedTri;	// FIXME this should be the diced tri not the patch
-				
-			RasterizeTri_Rect( Tri, NaniteWritePixel );
-		}
+
+		RasterizeDicedTri(
+			Tri,
+			Raster,
+			Shader,
+			PixelValue | PatchIndex,
+			VisualizeValues );
 	}
 }
 
