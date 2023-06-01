@@ -393,6 +393,15 @@ namespace UnrealBuildTool
 		[CommandLine("-StrictEnumTypes")]
 		public bool bStrictEnumTypesConformance = false;
 
+		/// <summary>
+		/// Specify an alternate location for the PDB file. This option does not change the location of the generated PDB file,
+		/// it changes the name that is embedded into the executable. Path can contain %_PDB% which will be expanded to the original
+		/// PDB file name of the target, without the directory.
+		/// See https://learn.microsoft.com/en-us/cpp/build/reference/pdbaltpath-use-alternate-pdb-path
+		/// </summary>
+		[CommandLine("-PdbAltPath")]
+		public string? PdbAlternatePath = null;
+
 		/// VS2015 updated some of the CRT definitions but not all of the Windows SDK has been updated to match.
 		/// Microsoft provides legacy_stdio_definitions library to enable building with VS2015 until they fix everything up.
 		public bool bNeedsLegacyStdioDefinitionsLib => Compiler.IsMSVC() || Compiler.IsClang();
@@ -675,6 +684,8 @@ namespace UnrealBuildTool
 		public bool bStrictPreprocessorConformance => Inner.bStrictPreprocessorConformance;
 
 		public bool bStrictEnumTypesConformance => Inner.bStrictEnumTypesConformance;
+
+		public string? PdbAlternatePath => Inner.PdbAlternatePath;
 
 		public int DefaultStackSize => Inner.DefaultStackSize;
 

@@ -1163,8 +1163,16 @@ namespace UnrealBuildTool
 				Arguments.Add("/DLL");
 			}
 
-			// Don't embed the full PDB path; we want to be able to move binaries elsewhere. They will always be side by side.
-			Arguments.Add("/PDBALTPATH:%_PDB%");
+			if (String.IsNullOrEmpty(Target.WindowsPlatform.PdbAlternatePath))
+			{
+				// Don't embed the full PDB path; we want to be able to move binaries elsewhere. They will always be side by side.
+				Arguments.Add("/PDBALTPATH:%_PDB%");
+			}
+			else
+			{
+				// Embed an alternate PDB path into the executable
+				Arguments.Add($"/PDBALTPATH:\"{Target.WindowsPlatform.PdbAlternatePath}\"");
+			}
 
 			// Deterministic link support
 			if (LinkEnvironment.bDeterministic)
