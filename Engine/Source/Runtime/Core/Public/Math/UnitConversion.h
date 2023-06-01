@@ -36,7 +36,10 @@ enum class EUnit : uint8
 	Ounces, Pounds, Stones,
 
 	/** Force units */
-	Newtons, PoundsForce, KilogramsForce,
+	Newtons, PoundsForce, KilogramsForce, KilogramCentimetersPerSecondSquared,
+
+	/** Torque Units */
+	NewtonMeters, KilogramCentimetersSquaredPerSecondSquared,
 
 	/** Frequency units */
 	Hertz, Kilohertz, Megahertz, Gigahertz, RevolutionsPerMinute,
@@ -66,7 +69,7 @@ enum class EUnit : uint8
 /** Enumeration that specifies particular classes of unit */
 enum class EUnitType
 {
-	Distance, Angle, Speed, Temperature, Mass, Force, Frequency, DataSize, LuminousFlux, LuminousIntensity, Illuminance, Luminance, Time, PixelDensity, Multipliers, ExposureValue, Stress,
+	Distance, Angle, Speed, Temperature, Mass, Force, Torque, Frequency, DataSize, LuminousFlux, LuminousIntensity, Illuminance, Luminance, Time, PixelDensity, Multipliers, ExposureValue, Stress,
 
 	// Symbolic entry - do not use directly
 	NumberOf,

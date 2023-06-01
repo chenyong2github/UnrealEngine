@@ -64,6 +64,10 @@ FParseCandidate ParseCandidates[] = {
 	{ TEXT("Newtons"),				EUnit::Newtons },				{ TEXT("N"),		EUnit::Newtons },
 	{ TEXT("PoundsForce"),			EUnit::PoundsForce },			{ TEXT("lbf"),		EUnit::PoundsForce },
 	{ TEXT("KilogramsForce"),		EUnit::KilogramsForce },		{ TEXT("kgf"),		EUnit::KilogramsForce },
+	{ TEXT("KilogramsCentimetersPerSecondSquared"),	EUnit::KilogramCentimetersPerSecondSquared },	{ TEXT("kgcm/s2"),	EUnit::KilogramCentimetersPerSecondSquared },	{ TEXT("kgcm/s\u00B2"),	EUnit::KilogramCentimetersPerSecondSquared },
+
+	{ TEXT("NewtonMeters"),			EUnit::NewtonMeters },			{ TEXT("Nm"),		EUnit::NewtonMeters },
+	{ TEXT("KilogramsCentimetersSquaredPerSecondSquared"),	EUnit::KilogramCentimetersSquaredPerSecondSquared },		{ TEXT("kgcm2/s2"),	EUnit::KilogramCentimetersSquaredPerSecondSquared },	{ TEXT("kgcm\u00B2/s\u00B2"),	EUnit::KilogramCentimetersSquaredPerSecondSquared },
 
 	{ TEXT("Hertz"),				EUnit::Hertz },					{ TEXT("Hz"),		EUnit::Hertz },
 	{ TEXT("Kilohertz"),			EUnit::Kilohertz },				{ TEXT("KHz"),		EUnit::Kilohertz },
@@ -120,7 +124,9 @@ const TCHAR* const DisplayStrings[] = {
 	TEXT("\u00B5g"), TEXT("mg"), TEXT("g"), TEXT("kg"), TEXT("t"),
 	TEXT("oz"), TEXT("lb"), TEXT("st"),
 
-	TEXT("N"), TEXT("lbf"), TEXT("kgf"),
+	TEXT("N"), TEXT("lbf"), TEXT("kgf"), TEXT("kgcm/s\u00B2"),
+
+	TEXT("Nm"), TEXT("kgcm\u00B2/s\u00B2"),
 
 	TEXT("Hz"), TEXT("KHz"), TEXT("MHz"), TEXT("GHz"), TEXT("rpm"),
 
@@ -153,7 +159,9 @@ const EUnitType UnitTypes[] = {
 	EUnitType::Mass,		EUnitType::Mass,		EUnitType::Mass,		EUnitType::Mass,		EUnitType::Mass,
 	EUnitType::Mass,		EUnitType::Mass,		EUnitType::Mass,
 
-	EUnitType::Force,		EUnitType::Force,		EUnitType::Force,
+	EUnitType::Force,		EUnitType::Force,		EUnitType::Force,		EUnitType::Force,
+
+	EUnitType::Torque,		EUnitType::Torque,
 
 	EUnitType::Frequency,	EUnitType::Frequency,	EUnitType::Frequency,	EUnitType::Frequency,	EUnitType::Frequency,
 
@@ -437,6 +445,7 @@ FUnitSettings::FUnitSettings()
 	DisplayUnits[(uint8)EUnitType::Temperature].Add(EUnit::Celsius);
 	DisplayUnits[(uint8)EUnitType::Mass].Add(EUnit::Kilograms);
 	DisplayUnits[(uint8)EUnitType::Force].Add(EUnit::Newtons);
+	DisplayUnits[(uint8)EUnitType::Torque].Add(EUnit::NewtonMeters);
 	DisplayUnits[(uint8)EUnitType::Frequency].Add(EUnit::Hertz);
 	DisplayUnits[(uint8)EUnitType::DataSize].Add(EUnit::Megabytes);
 	DisplayUnits[(uint8)EUnitType::LuminousFlux].Add(EUnit::Lumens);
@@ -622,9 +631,20 @@ namespace UnitConversion
 		// Convert to Newtons
 		switch (From)
 		{
-			case EUnit::PoundsForce:		return 4.44822162;
-			case EUnit::KilogramsForce:		return 9.80665;
-			default: 						return 1;
+		case EUnit::PoundsForce:							return 4.44822162;
+		case EUnit::KilogramsForce:							return 9.80665;
+		case EUnit::KilogramCentimetersPerSecondSquared:	return 0.01;
+		default: 											return 1;
+		}
+	}
+
+	double TorqueUnificationFactor(EUnit From)
+	{
+		// Convert to NewtonMeters
+		switch (From)
+		{
+		case EUnit::KilogramCentimetersSquaredPerSecondSquared:	return 0.0001;
+		default: 												return 1;
 		}
 	}
 

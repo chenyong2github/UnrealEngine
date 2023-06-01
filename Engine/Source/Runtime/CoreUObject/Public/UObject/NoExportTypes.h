@@ -375,7 +375,10 @@ enum class EUnit : uint8
 	Micrograms, Milligrams, Grams, Kilograms, MetricTons, Ounces, Pounds, Stones,
 	
 	/** Force units */
-	Newtons, PoundsForce, KilogramsForce,
+	Newtons, PoundsForce, KilogramsForce, KilogramCentimetersPerSecondSquared,
+
+	/** Torque units */
+	NewtonMeters, KilogramCentimetersSquaredPerSecondSquared,
 	
 	/** Frequency units */
 	Hertz, Kilohertz, Megahertz, Gigahertz, RevolutionsPerMinute,

@@ -30,6 +30,8 @@ namespace UnitConversion
 	CORE_API double MassUnificationFactor(EUnit From);
 	/** Find the common quantization factor for the specified force unit. Quantizes to Newtons. */
 	CORE_API double ForceUnificationFactor(EUnit From);
+	/** Find the common quantization factor for the specified torque unit. Quantizes to Newton meters. */
+	CORE_API double TorqueUnificationFactor(EUnit From);
 	/** Find the common quantization factor for the specified frequency unit. Quantizes to KHz. */
 	CORE_API double FrequencyUnificationFactor(EUnit From);
 	/** Find the common quantization factor for the specified data size unit. Quantizes to MB. */
@@ -83,6 +85,7 @@ T FUnitConversion::Convert(T InValue, EUnit From, EUnit To)
 		case EUnitType::Speed:				return InValue * SpeedUnificationFactor(From) 			* (1.0 / SpeedUnificationFactor(To));
 		case EUnitType::Mass:				return InValue * MassUnificationFactor(From) 			* (1.0 / MassUnificationFactor(To));
 		case EUnitType::Force:				return InValue * ForceUnificationFactor(From) 			* (1.0 / ForceUnificationFactor(To));
+		case EUnitType::Torque:				return InValue * TorqueUnificationFactor(From)			* (1.0 / TorqueUnificationFactor(To));
 		case EUnitType::Frequency:			return InValue * FrequencyUnificationFactor(From) 		* (1.0 / FrequencyUnificationFactor(To));
 		case EUnitType::DataSize:			return InValue * DataSizeUnificationFactor(From) 		* (1.0 / DataSizeUnificationFactor(To));
 		case EUnitType::LuminousFlux:		return InValue;
