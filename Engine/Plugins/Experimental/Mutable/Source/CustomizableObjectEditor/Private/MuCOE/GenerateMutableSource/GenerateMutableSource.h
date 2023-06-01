@@ -376,7 +376,7 @@ struct FMutableComponentInfo
 	USkeleton* RefSkeleton = nullptr;
 
 	// Map to check skeleton compatibility
-	TMap<USkeleton*, bool> SkeletonCompatibility;
+	TMap<const USkeleton*, bool> SkeletonCompatibility;
 	
 	// Hierarchy hash from parent-bone to root bone, used to check if additional skeletons are compatible with
 	// the RefSkeleton
@@ -546,10 +546,16 @@ struct FMutableGraphGenerationContext
 			*/
 			FString Tags;
 
+			/**
+			* SkeletalMeshNode is needed to disambiguate realtime morph selection from diferent nodes.
+			* TODO: Consider using the actual selection.
+			*/
+			const UCustomizableObjectNode* SkeletalMeshNode = nullptr;
+
 			bool operator==( const FKey& OtherKey ) const
 			{
 				return Mesh == OtherKey.Mesh && LOD == OtherKey.LOD && CurrentLOD == OtherKey.CurrentLOD && MaterialIndex == OtherKey.MaterialIndex
-					&& Flags == OtherKey.Flags && Tags == OtherKey.Tags;
+					&& Flags == OtherKey.Flags && Tags == OtherKey.Tags && SkeletalMeshNode == OtherKey.SkeletalMeshNode;
 			}
 		};
 
