@@ -10,14 +10,14 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
-					"CoreUObject",
-					"Engine"
+					"CoreUObject"
                 }
              );
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
-				{					
+				{
+					"Engine",
 					"MovieScene"
 				}
 			);
