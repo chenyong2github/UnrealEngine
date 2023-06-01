@@ -29,7 +29,7 @@ public class DepotFileFixture
 		ClientFile = clientFile;
 		Size = content.Length;
 		Revision = revision;
-		Digest = PerforceFixture.CalcMd5(content);
+		Digest = PerforceFixture.CalcMd5(content).ToUpperInvariant();
 		Content = content;
 	}
 }
@@ -145,9 +145,9 @@ public class ChangelistFixture
 				
 				// Since content of files in fixture are only single lines, the trick below works to workaround
 				// differences in line endings after sync (client vs server).
-				content = content.Replace("\r\n", "", StringComparison.Ordinal);
+				content = content.Replace("\r\n", "\n", StringComparison.Ordinal);
 				long size = content.Length;
-				return (clientFile, size, PerforceFixture.CalcMd5(content));
+				return (clientFile, size, PerforceFixture.CalcMd5(content).ToUpperInvariant());
 			}));
 		
 		return (localFiles, streamFiles);
@@ -166,6 +166,11 @@ public class ChangelistFixture
 		streamFiles.Sort();
 		
 		return (localFiles, streamFiles);
+	}
+
+	public DepotFileFixture? GetFile(string depotPath)
+	{
+		return new List<DepotFileFixture>(StreamFiles).Find(x => x.DepotFile == depotPath);
 	}
 }
 
@@ -208,62 +213,62 @@ public class PerforceFixture
 			new(2, "Initial import",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #1", 1),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #1", 1),
-					new("//Foo/Main/common.h", "common.h", "This is change common.h #1", 1),
-					new("//Foo/Main/unused.cpp", "unused.cpp", "This is change unused.cpp #1", 1),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #1\n", 1),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #1\n", 1),
+					new("//Foo/Main/common.h", "common.h", "This is change common.h #1\n", 1),
+					new("//Foo/Main/unused.cpp", "unused.cpp", "This is change unused.cpp #1\n", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1\n", 1),
 				}),
 			new(3, "Improvement to main.cpp",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2", 2),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #1", 1),
-					new("//Foo/Main/common.h", "common.h", "This is change common.h #1", 1),
-					new("//Foo/Main/unused.cpp", "unused.cpp", "This is change unused.cpp #1", 1),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2\n", 2),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #1\n", 1),
+					new("//Foo/Main/common.h", "common.h", "This is change common.h #1\n", 1),
+					new("//Foo/Main/unused.cpp", "unused.cpp", "This is change unused.cpp #1\n", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1\n", 1),
 				}),
 			new(4, "Delete an unused file",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2", 2),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #1", 1),
-					new("//Foo/Main/common.h", "common.h", "This is change common.h #1", 1),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2\n", 2),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #1\n", 1),
+					new("//Foo/Main/common.h", "common.h", "This is change common.h #1\n", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1\n", 1),
 				}),
 			new(5, "Rename common.h to shared.h",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2", 2),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #1", 1),
-					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1", 1),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #2\n", 2),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #1\n", 1),
+					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1\n", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1\n", 1),
 				}),
 			new(6, "Some updates to main",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #3", 3),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #2", 2),
-					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1", 1),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #3\n", 3),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #2\n", 2),
+					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1\n", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1\n", 1),
 				}),
 			new(7, "Add more data",
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #3", 3),
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #2", 2),
-					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1", 1),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
-					new("//Foo/Main/Data/moredata.txt", "Data/moredata.txt", "This is change moredata.txt #1", 1),
+					new("//Foo/Main/main.cpp", "main.cpp", "This is change main.cpp #3\n", 3),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #2\n", 2),
+					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1\n", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1\n", 1),
+					new("//Foo/Main/Data/moredata.txt", "Data/moredata.txt", "This is change moredata.txt #1\n", 1),
 				}),
 			new(8, "A shelved CL", // Assumes base CL is 7
 				new List<DepotFileFixture>()
 				{
-					new("//Foo/Main/main.h", "main.h", "This is change main.h #3", 3),
-					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1", 1),
-					new("//Foo/Main/shelved.cpp", "shelved.cpp", "This is change shelved.cpp #1", 1),
-					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
-					new("//Foo/Main/Data/moredata.txt", "Data/moredata.txt", "This is change moredata.txt #1", 1),
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #3\n", 3),
+					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1\n", 1),
+					new("//Foo/Main/shelved.cpp", "shelved.cpp", "This is change shelved.cpp #1\n", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1\n", 1),
+					new("//Foo/Main/Data/moredata.txt", "Data/moredata.txt", "This is change moredata.txt #1\n", 1),
 				}, true),
 		});
 
@@ -271,5 +276,67 @@ public class PerforceFixture
 	{
 		byte[] data = Encoding.ASCII.GetBytes(content);
 		return Md5Hash.Compute(data).ToString();
+	}
+	
+	/// <summary>
+	/// Assert cache contains exactly the provided digests
+	/// </summary>
+	/// <param name="cacheDir">Directory path to cache</param>
+	/// <param name="digests">Digest expected to be in the cache</param>
+	public static void AssertCacheEquals(string cacheDir, params string[] digests)
+	{
+		HashSet<(string cacheId, string digest, long fileSize)> cachedFiles = GetCachedFiles(cacheDir);
+
+		HashSet<string> actual = new (cachedFiles.Select(x => x.digest));
+		HashSet<string> expected = new (digests);
+
+		if (!expected.SetEquals(actual))
+		{
+			List<string> expectedList = new(expected);
+			List<string> actualList = new(actual);
+			
+			expectedList.Sort();
+			actualList.Sort();
+			
+			Console.WriteLine("Expected ------------------------------------------------------");
+			foreach (string digest in expectedList)
+			{
+				Console.WriteLine($"{digest}");
+			}
+			
+			Console.WriteLine("");
+			Console.WriteLine("Actual --------------------------------------------------------");
+			foreach (string digest in actual)
+			{
+				Console.WriteLine($"{digest}");
+			}
+		
+			Assert.Fail("Digests in cache does not match given list");
+		}
+	}
+	
+	private static HashSet<(string cacheId, string digest, long fileSize)> GetCachedFiles(string cacheDir)
+	{
+		EnumerationOptions options = new () { RecurseSubdirectories = true };
+
+		return new(Directory.EnumerateFiles(cacheDir, "*", options)
+			.Select(x => Path.GetRelativePath(cacheDir, x))
+			.Select(clientFile =>
+			{
+				string absPath = Path.Join(cacheDir, clientFile);
+				string content = File.ReadAllText(absPath);
+				
+				// Since content of files in fixture are only single lines, the trick below works to workaround
+				// differences in line endings after sync (client vs server).
+				content = content.Replace("\r\n", "\n", StringComparison.Ordinal);
+				long size = content.Length;
+				string fileName = Path.GetFileName(clientFile);
+				string digest = CalcMd5(content).ToUpperInvariant();
+				
+				// This is a simplification. The fileName/cache ID can theoretically differ if they collide.
+				// See cache ID implementation in ManagedWorkspace
+				Assert.AreEqual(fileName, digest[..16]);
+				return (fileName, digest, size);
+			}));
 	}
 }

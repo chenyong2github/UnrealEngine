@@ -14,9 +14,11 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace EpicGames.Perforce.Managed.Tests;
 
 [TestClass]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:Identifiers should not contain underscores")]
 public class ManagedWorkspaceTest : BasePerforceFixtureTest
 {
 	private string SyncDir => Path.Join(TempDir.FullName, "Sync");
+	private string CacheDir => Path.Join(TempDir.FullName, "Cache");
 	private string StreamName => Fixture.StreamFooMain.Root;
 	private StreamFixture Stream => Fixture.StreamFooMain;
 
@@ -191,6 +193,79 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 		
 		// Have-table still correspond to CL 7 as CL 8 is shelved, only p4 printed to workspace
 		await Stream.GetChangelist(7).AssertHaveTableAsync(PerforceConnection, useHaveTable);
+	}
+	
+	[TestMethod]
+	[DataRow(true, DisplayName = "With have-table")]
+	[DataRow(false, DisplayName = "Without have-table")]
+	public async Task Caching_SyncingNewChangelist_UnusedFilesMovedToCache(bool useHaveTable)
+	{
+		// Arrange
+		ManagedWorkspace ws = await GetManagedWorkspace(useHaveTable);
+		await SyncAsync(ws, 7);
+		
+		// Act
+		await SyncAsync(ws, 1);
+
+		// Assert - all files from CL 7 are moved to the cache
+		PerforceFixture.AssertCacheEquals(CacheDir, Stream.GetChangelist(7).StreamFiles.Select(x => x.Digest).ToArray());
+	}
+	
+	[TestMethod]
+	[DataRow(true, DisplayName = "With have-table")]
+	[DataRow(false, DisplayName = "Without have-table")]
+	public async Task Caching_SyncingWithCachedData_FilesPopulatedFromCache(bool useHaveTable)
+	{
+		// Arrange
+		ManagedWorkspace ws = await GetManagedWorkspace(useHaveTable);
+		await SyncAsync(ws, 7);
+		await SyncAsync(ws, 1);
+		
+		// Act
+		await SyncAsync(ws, 7);
+
+		// Assert - cache becomes empty
+		PerforceFixture.AssertCacheEquals(CacheDir, Array.Empty<string>());
+	}
+
+	[TestMethod]
+	public async Task FixtureMetadataMatchesServerMetadata()
+	{
+		FStatOptions options = FStatOptions.IncludeFileSizes;
+
+		string fileSpec = "//Foo/Main/...";
+		List<ChangesRecord> submittedChanges = await PerforceConnection.GetChangesAsync(ChangesOptions.None, -1, ChangeStatus.Submitted, fileSpec);
+		List<ChangesRecord> shelvedChanges = await PerforceConnection.GetChangesAsync(ChangesOptions.None, -1, ChangeStatus.Shelved, fileSpec);
+		foreach (ChangesRecord cr in submittedChanges.Concat(shelvedChanges).OrderBy(x => x.Number))
+		{
+			HashSet<(string clientFile, int rev, long size, string digest)> depotFiles = new();
+			List<FStatRecord> fstatRecords = await PerforceConnection.FStatAsync(options, fileSpec + "@" + cr.Number).ToListAsync();
+			foreach (FStatRecord fsr in fstatRecords)
+			{
+				if (fsr.HeadAction is FileAction.Add or FileAction.MoveAdd or FileAction.Edit)
+				{
+					depotFiles.Add((fsr.DepotFile!, fsr.HeadRevision, fsr.FileSize, fsr.Digest!));	
+				}
+			}
+			
+			HashSet<(string clientFile, int rev, long size, string digest)> fixtureFiles = new();
+			ChangelistFixture changelist = Stream.GetChangelist(cr.Number);
+			if (changelist.IsShelved) continue;
+			
+			foreach (DepotFileFixture depotFile in changelist.StreamFiles)
+			{
+				fixtureFiles.Add((depotFile.DepotFile, depotFile.Revision, depotFile.Size, depotFile.Digest));
+			}
+			
+			Assert.AreEqual(depotFiles.Count, fixtureFiles.Count);
+			foreach ((string clientFile, int rev, long size, string digest) tuple in fixtureFiles)
+			{
+				if (!depotFiles.Contains(tuple))
+				{
+					Assert.Fail("File in fixtures does not exist in depot: " + tuple);	
+				}
+			}
+		}
 	}
 	
 	[TestMethod]
