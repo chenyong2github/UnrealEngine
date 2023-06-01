@@ -151,7 +151,7 @@ template <
 	uint32 N,
 	std::enable_if_t<!std::is_same_v<const T, const TCHAR>>* = nullptr
 >
-//UE_DEPRECATED(all, "Hashing arrays is deprecated - use PointerHash() instead to force a conversion to a pointer or GetArrayHash to hash the array contents")
+UE_DEPRECATED(all, "Hashing arrays is deprecated - use PointerHash() instead to force a conversion to a pointer or GetArrayHash to hash the array contents")
 inline uint32 GetTypeHash(T (&Array)[N])
 {
 	return PointerHash(Array);
@@ -161,7 +161,7 @@ template <
 	typename T,
 	std::enable_if_t<std::is_same_v<const T, const TCHAR>>* = nullptr
 >
-//UE_DEPRECATED(5.3, "Hashing TCHAR arrays is deprecated - use PointerHash() to force a conversion to a pointer or FCrc::Strihash_DEPRECATED to do a string hash, or use TStringPointerSetKeyFuncs_DEPRECATED or TStringPointerMapKeyFuncs_DEPRECATED as keyfuncs for a TSet or TMap respectively")
+UE_DEPRECATED(5.3, "Hashing TCHAR arrays is deprecated - use PointerHash() to force a conversion to a pointer or FCrc::Strihash_DEPRECATED to do a string hash, or use TStringPointerSetKeyFuncs_DEPRECATED or TStringPointerMapKeyFuncs_DEPRECATED as keyfuncs for a TSet or TMap respectively")
 inline uint32 GetTypeHash(T* Value)
 {
 	// Hashing a TCHAR* array differently from a void* is dangerous and is deprecated.

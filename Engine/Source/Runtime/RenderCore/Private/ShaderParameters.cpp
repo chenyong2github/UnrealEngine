@@ -399,7 +399,7 @@ void UE::ShaderParameters::AddUniformBufferIncludesToEnvironment(FShaderCompiler
 	for (const TCHAR* UniformBufferName : InUniformBufferNames)
 	{
 		FStringView UniformBufferNameView(UniformBufferName);
-		if (!OutEnvironment.UniformBufferMap.FindByHash(GetTypeHash(UniformBufferName), UniformBufferName))
+		if (!OutEnvironment.UniformBufferMap.FindByHash(FCrc::Strihash_DEPRECATED(UniformBufferName), UniformBufferName))
 		{
 			if (const FShaderParametersMetadata* Metadata = FindShaderParametersMetadataWithVariableName(UniformBufferName))
 			{

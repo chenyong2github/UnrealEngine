@@ -166,7 +166,7 @@ void FTreeNodeGroupingByUniqueValueCString::GroupNodes(const TArray<FTableTreeNo
 {
 	FTableTreeNodePtr UnsetGroupPtr = nullptr; // for unset FTableCellValue
 	FTableTreeNodePtr EmptyGroupPtr = nullptr; // for nullptr and empty strings
-	TMap<const TCHAR*, FTableTreeNodePtr> GroupMap; // for valid strings
+	TMap<const TCHAR*, FTableTreeNodePtr, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, FTableTreeNodePtr>> GroupMap; // for valid strings
 	TMap<FName, FTableTreeNodePtr> GroupNameMap; // for valid strings
 
 	ParentGroup.ClearChildren();
