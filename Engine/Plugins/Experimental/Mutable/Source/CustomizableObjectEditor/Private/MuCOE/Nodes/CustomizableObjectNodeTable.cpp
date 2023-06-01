@@ -369,7 +369,7 @@ void UCustomizableObjectNodeTable::AllocateDefaultPins(UCustomizableObjectNodeRe
 }
 
 
-void UCustomizableObjectNodeTable::GenerateMeshPins(UObject* Mesh, FString Name)
+void UCustomizableObjectNodeTable::GenerateMeshPins(UObject* Mesh, const FString& Name)
 {
 	if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Mesh))
 	{
@@ -382,7 +382,7 @@ void UCustomizableObjectNodeTable::GenerateMeshPins(UObject* Mesh, FString Name)
 
 			for (int32 MatIndex = 0; MatIndex < NumMaterials; ++MatIndex)
 			{
-				FString TableMeshPinName = Name + FString::Printf(TEXT(" LOD_%d "), LODIndex) + FString::Printf(TEXT("Mat_%d"), MatIndex);
+				FString TableMeshPinName = GenerateSkeletalMeshMutableColumName(Name, LODIndex, MatIndex);
 
 				UCustomizableObjectNodeTableMeshPinData* PinData = NewObject<UCustomizableObjectNodeTableMeshPinData>(this);
 				PinData->ColumnName = Name;
@@ -424,36 +424,25 @@ void UCustomizableObjectNodeTable::GenerateMeshPins(UObject* Mesh, FString Name)
 	
 	else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Mesh))
 	{
-		int NumLODs = StaticMesh->GetRenderData()->LODResources.Num();
 		const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
 
-		for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
+		if (StaticMesh->GetRenderData()->LODResources.Num())
 		{
-			int32 NumMaterials = StaticMesh->GetRenderData()->LODResources[LODIndex].Sections.Num();
+			int32 NumMaterials = StaticMesh->GetRenderData()->LODResources[0].Sections.Num();
 
 			for (int32 MatIndex = 0; MatIndex < NumMaterials; ++MatIndex)
 			{
-				FString TableMeshPinName = Name + FString::Printf(TEXT(" LOD_%d "), LODIndex) + FString::Printf(TEXT("Mat_%d"), MatIndex);
+				FString TableMeshPinName = GenerateStaticMeshMutableColumName(Name, MatIndex);
 
 				UCustomizableObjectNodeTableMeshPinData* PinData = NewObject<UCustomizableObjectNodeTableMeshPinData>(this);
 				PinData->ColumnName = Name;
 				PinData->MutableColumnName = TableMeshPinName;
-				PinData->LOD = LODIndex;
+				PinData->LOD = 0;
 				PinData->Material = MatIndex;
 
 				UEdGraphPin* MeshPin = CustomCreatePin(EGPD_Output, Schema->PC_Mesh, FName(*TableMeshPinName), PinData);
 				MeshPin->PinFriendlyName = FText::FromString(TableMeshPinName);
 				MeshPin->SafeSetHidden(false);
-
-				UCustomizableObjectLayout* Layout = NewObject<UCustomizableObjectLayout>(this);
-				FString LayoutName = TableMeshPinName;
-
-				if (Layout)
-				{
-					PinData->Layouts.Add(Layout);
-					Layout->SetLayout(StaticMesh, LODIndex, MatIndex, 0);
-					Layout->SetLayoutName(LayoutName);
-				}
 			}
 		}
 	}
@@ -533,8 +522,8 @@ bool UCustomizableObjectNodeTable::IsNodeOutDatedAndNeedsRefresh()
 
 							for (int32 MatIndex = 0; MatIndex < NumMaterials; ++MatIndex)
 							{
-								FString PinName = DataTableUtils::GetPropertyExportName(ColumnProperty);
-								PinName += FString::Printf(TEXT(" LOD_%d "), LODIndex) + FString::Printf(TEXT("Mat_%d"), MatIndex);
+								FString PropertyName = DataTableUtils::GetPropertyExportName(ColumnProperty);
+								FString PinName = GenerateSkeletalMeshMutableColumName(PropertyName, LODIndex, MatIndex);
 
 								if (CheckPinUpdated(PinName, Schema->PC_Mesh))
 								{
@@ -547,16 +536,14 @@ bool UCustomizableObjectNodeTable::IsNodeOutDatedAndNeedsRefresh()
 					}
 					else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Object))
 					{
-						int NumLODs = StaticMesh->GetRenderData()->LODResources.Num();
-
-						for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
+						if (StaticMesh->GetRenderData()->LODResources.Num())
 						{
-							int32 NumMaterials = StaticMesh->GetRenderData()->LODResources[LODIndex].Sections.Num();
+							int32 NumMaterials = StaticMesh->GetRenderData()->LODResources[0].Sections.Num();
 
 							for (int32 MatIndex = 0; MatIndex < NumMaterials; ++MatIndex)
 							{
-								FString PinName = DataTableUtils::GetPropertyExportName(ColumnProperty);
-								PinName += FString::Printf(TEXT(" LOD_%d "), LODIndex) + FString::Printf(TEXT("Mat_%d"), MatIndex);
+								FString PropertyName = DataTableUtils::GetPropertyExportName(ColumnProperty);
+								FString PinName = GenerateStaticMeshMutableColumName(PropertyName, MatIndex);
 
 								if (CheckPinUpdated(PinName, Schema->PC_Mesh))
 								{
@@ -678,20 +665,23 @@ void UCustomizableObjectNodeTable::RemapPinsData(const TMap<UEdGraphPin*, UEdGra
 					PinDataNewPin->AnimTagColumnName = PinDataOldPin->AnimTagColumnName;
 				}
 
-				// Keeping information added in layout editor if the layout is the same
-				for (TObjectPtr<UCustomizableObjectLayout>& NewLayout : PinDataNewPin->Layouts)
+				if (GetPinMeshType(Pair.Value) == ETableMeshPinType::SKELETAL_MESH)
 				{
-					for (TObjectPtr<UCustomizableObjectLayout>& OldLayout : PinDataOldPin->Layouts)
+					// Keeping information added in layout editor if the layout is the same
+					for (TObjectPtr<UCustomizableObjectLayout>& NewLayout : PinDataNewPin->Layouts)
 					{
-						if (NewLayout->GetLayoutName() == OldLayout->GetLayoutName())
+						for (TObjectPtr<UCustomizableObjectLayout>& OldLayout : PinDataOldPin->Layouts)
 						{
-							NewLayout->Blocks = OldLayout->Blocks;
-							NewLayout->SetGridSize(OldLayout->GetGridSize());
-							NewLayout->SetMaxGridSize(OldLayout->GetMaxGridSize());
-							NewLayout->SetPackingStrategy(OldLayout->GetPackingStrategy());
-							NewLayout->SetBlockReductionMethod(OldLayout->GetBlockReductionMethod());
+							if (NewLayout->GetLayoutName() == OldLayout->GetLayoutName())
+							{
+								NewLayout->Blocks = OldLayout->Blocks;
+								NewLayout->SetGridSize(OldLayout->GetGridSize());
+								NewLayout->SetMaxGridSize(OldLayout->GetMaxGridSize());
+								NewLayout->SetPackingStrategy(OldLayout->GetPackingStrategy());
+								NewLayout->SetBlockReductionMethod(OldLayout->GetBlockReductionMethod());
 
-							break;
+								break;
+							}
 						}
 					}
 				}
@@ -1174,7 +1164,7 @@ bool UCustomizableObjectNodeTable::IsImagePinDefault(UEdGraphPin* Pin)
 }
 
 
-ETableTextureType UCustomizableObjectNodeTable::GetColumnImageMode(FString ColumnName) const
+ETableTextureType UCustomizableObjectNodeTable::GetColumnImageMode(const FString& ColumnName) const
 {
 	for (UEdGraphPin* Pin : Pins)
 	{
@@ -1188,6 +1178,42 @@ ETableTextureType UCustomizableObjectNodeTable::GetColumnImageMode(FString Colum
 	}
 
 	return DefaultImageMode;
+}
+
+
+ETableMeshPinType UCustomizableObjectNodeTable::GetPinMeshType(const UEdGraphPin* Pin) const
+{
+	if (Pin && Pin->PinType.PinCategory == UEdGraphSchema_CustomizableObject::PC_Mesh)
+	{
+		FString ColumnName = GetColumnNameByPin(Pin);
+		FProperty* Property = Table->FindTableProperty(FName(*ColumnName));
+
+		if (const FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(Property))
+		{
+			if (SoftObjectProperty->PropertyClass->IsChildOf(USkeletalMesh::StaticClass()))
+			{
+				return ETableMeshPinType::SKELETAL_MESH;
+			}
+			else if (SoftObjectProperty->PropertyClass->IsChildOf(UStaticMesh::StaticClass()))
+			{
+				return ETableMeshPinType::STATIC_MESH;
+			}
+		}
+	}
+
+	return ETableMeshPinType::NONE;
+}
+
+
+FString UCustomizableObjectNodeTable::GenerateSkeletalMeshMutableColumName(const FString& PinName, int32 LODIndex, int32 MaterialIndex) const
+{
+	return PinName + FString::Printf(TEXT(" LOD_%d "), LODIndex) + FString::Printf(TEXT("Mat_%d"), MaterialIndex);
+}
+
+
+FString UCustomizableObjectNodeTable::GenerateStaticMeshMutableColumName(const FString& PinName, int32 MaterialIndex) const
+{
+	return PinName + FString::Printf(TEXT(" Mat_%d"), MaterialIndex);
 }
 
 #undef LOCTEXT_NAMESPACE

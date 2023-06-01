@@ -3547,7 +3547,10 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				bSuccess = false;
 			}
 
-			if (bSuccess && !TypedNodeTable->GetColumnDefaultAssetByType<USkeletalMesh>(Pin))
+			USkeletalMesh* DefaultSkeletalMesh = TypedNodeTable->GetColumnDefaultAssetByType<USkeletalMesh>(Pin);
+			UStaticMesh* DefaultStaticMesh = TypedNodeTable->GetColumnDefaultAssetByType<UStaticMesh>(Pin);
+
+			if (bSuccess && !DefaultSkeletalMesh && !DefaultStaticMesh)
 			{
 				FString Msg = FString::Printf(TEXT("Couldn't find a default value in the data table's struct for the column [%s]."), *DataTableColumnName);
 				GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
@@ -3564,16 +3567,15 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				if (Table)
 				{
 					mu::NodeMeshTablePtr MeshTableNode = new mu::NodeMeshTable();
-					USkeletalMesh* SkeletalMesh = TypedNodeTable->GetColumnDefaultAssetByType<USkeletalMesh>(Pin);
 
 					int32 LODIndex = 0;
 					int32 SectionIndex = 0;
 
 					TypedNodeTable->GetPinLODAndSection(Pin, LODIndex, SectionIndex);
 
-					if (SkeletalMesh)
+					if (DefaultSkeletalMesh)
 					{
-						GetEffectiveLODAndSection(GenerationContext, *Node, *SkeletalMesh, LODIndex, SectionIndex);
+						GetEffectiveLODAndSection(GenerationContext, *Node, *DefaultSkeletalMesh, LODIndex, SectionIndex);
 					}
 
 					// Getting the mutable table mesh column name
@@ -3601,12 +3603,12 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 						GenerationContext.AddParameterNameUnique(Node, TypedNodeTable->ParameterName);
 
-						if (SkeletalMesh)
+						if (DefaultSkeletalMesh)
 						{
 							// TODO: this should be made for all the meshes of the Column to support meshes with different values
 							// Filling Mesh Data
-							FSkeletalMeshModel* importModel = SkeletalMesh->GetImportedModel();
-							MeshData.bHasVertexColors = SkeletalMesh->GetHasVertexColors();
+							FSkeletalMeshModel* importModel = DefaultSkeletalMesh->GetImportedModel();
+							MeshData.bHasVertexColors = DefaultSkeletalMesh->GetHasVertexColors();
 							MeshData.NumTexCoordChannels = importModel->LODModels[LODIndex].NumTexCoords;
 							MeshData.MaxBoneIndexTypeSizeBytes = importModel->LODModels[LODIndex].RequiredBones.Num() > 256 ? 2 : 1;
 							MeshData.MaxNumBonesPerVertex = importModel->LODModels[LODIndex].GetMaxBoneInfluences();
@@ -3665,7 +3667,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 						}
 
 						// Applying Mesh Morph Nodes
-						if (GenerationContext.MeshMorphStack.Num())
+						if (DefaultSkeletalMesh && GenerationContext.MeshMorphStack.Num())
 						{
 							MorphResult = GenerateMorphMesh(Pin, GenerationContext.MeshMorphStack, 0, Result, GenerationContext, MeshData, MutableColumnName);
 						}

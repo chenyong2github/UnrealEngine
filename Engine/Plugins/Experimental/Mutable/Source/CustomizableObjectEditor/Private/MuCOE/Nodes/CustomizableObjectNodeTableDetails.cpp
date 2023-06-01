@@ -298,7 +298,7 @@ void FCustomizableObjectNodeTableDetails::GenerateMeshColumnComboBoxOptions()
 					{
 						const UCustomizableObjectNodeTableMeshPinData* PinData = Cast<UCustomizableObjectNodeTableMeshPinData >(Node->GetPinData(*Pin));
 
-						if (!PinData || PinData->ColumnName != MeshColumnName)
+						if (!PinData || PinData->ColumnName != MeshColumnName || Node->GetPinMeshType(Pin) != ETableMeshPinType::SKELETAL_MESH)
 						{
 							continue;
 						}

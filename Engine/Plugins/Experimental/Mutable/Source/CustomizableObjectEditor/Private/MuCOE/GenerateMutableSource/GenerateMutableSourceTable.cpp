@@ -188,7 +188,7 @@ bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 
 			for (int32 MatIndex = 0; MatIndex < Materials; ++MatIndex)
 			{
-				FString MutableColumnName = ColumnName + FString::Printf(TEXT(" LOD_%d "), LOD) + FString::Printf(TEXT("Mat_%d"), MatIndex);
+				FString MutableColumnName = TableNode->GenerateSkeletalMeshMutableColumName(ColumnName, LOD, MatIndex);
 
 				CurrentColumn = MutableTable.get()->FindColumn(StringCast<ANSICHAR>(*MutableColumnName).Get());
 
@@ -278,8 +278,9 @@ bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 				return false;
 			}
 
-			// Parameter used for LOD differences
-			int32 CurrentLOD = LOD;
+			// Static Meshes only support LOD 0 at the moment (TODO)
+			//int32 CurrentLOD = LOD;
+			int32 CurrentLOD = 0;
 
 			int NumLODs = StaticMesh->GetRenderData()->LODResources.Num();
 
@@ -308,7 +309,7 @@ bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 
 			for (int32 MatIndex = 0; MatIndex < Materials; ++MatIndex)
 			{
-				FString MutableColumnName = ColumnName + FString::Printf(TEXT(" LOD_%d "), LOD) + FString::Printf(TEXT("Mat_%d"), MatIndex);
+				FString MutableColumnName = TableNode->GenerateStaticMeshMutableColumName(ColumnName, MatIndex);
 
 				CurrentColumn = MutableTable.get()->FindColumn(StringCast<ANSICHAR>(*MutableColumnName).Get());
 

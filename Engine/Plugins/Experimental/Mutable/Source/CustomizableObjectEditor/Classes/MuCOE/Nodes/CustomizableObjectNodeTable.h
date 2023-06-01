@@ -29,6 +29,15 @@ enum class ETableTextureType : uint8
 };
 
 
+/** Enum class for the different types of pin meshes */
+enum class ETableMeshPinType : uint8
+{
+	NONE = 0,
+	SKELETAL_MESH = 1,
+	STATIC_MESH = 2
+};
+
+
 /** Base class for all Table Pins. */
 UCLASS()
 class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeTableObjectPinData : public UCustomizableObjectNodePinData
@@ -292,7 +301,14 @@ public:
 	bool IsImagePinDefault(UEdGraphPin* Pin);
 
 	// Returns the image mode of the column
-	ETableTextureType GetColumnImageMode(FString ColumnName) const;
+	ETableTextureType GetColumnImageMode(const FString& ColumnName) const;
+
+	// Returns the mesh type of the Pin
+	ETableMeshPinType GetPinMeshType(const UEdGraphPin* Pin) const;
+
+	// Functions to generate the names of a mutable table's column
+	FString GenerateSkeletalMeshMutableColumName(const FString& PinName, int32 LODIndex, int32 MaterialIndex) const;
+	FString GenerateStaticMeshMutableColumName(const FString& PinName, int32 MaterialIndex) const;
 
 private:
 
@@ -303,7 +319,7 @@ private:
 	FDelegateHandle OnTableChangedDelegateHandle;
 	
 	// Generates a mesh pin for each LOD and Material Surface of the reference SkeletalMesh
-	void GenerateMeshPins(UObject* Mesh, FString Name);
+	void GenerateMeshPins(UObject* Mesh, const FString& Name);
 
 	// Checks if a pin already exists and if it has the same type as before the node refresh
 	bool CheckPinUpdated(const FString& PinName, const FName& PinType) const;
