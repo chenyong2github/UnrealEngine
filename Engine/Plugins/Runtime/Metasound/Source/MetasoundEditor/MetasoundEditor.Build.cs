@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 					"MetasoundGenerator",
 					"MetasoundGraphCore",
 					"SignalProcessing",
+					"SubobjectEditor",
 					"ToolMenus",
 					"ToolWidgets",
 					"WaveTable",

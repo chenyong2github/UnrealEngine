@@ -15,6 +15,7 @@ public class Blutility : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"AutomationController",
 				"Core",
 				"CoreUObject",
 				"Engine",

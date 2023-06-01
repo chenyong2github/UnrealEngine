@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
 					"BlueprintGraph",	// For K2 Schema
 					"DesktopWidgets",
 					"ContentBrowserFileDataSource",
+					"SubobjectEditor",
 				}
 			);
 		}
