@@ -347,28 +347,7 @@ UK2Node::ERedirectType UK2Node_BreakStruct::DoPinsMatchForReconstruction(const U
 	ERedirectType Result = UK2Node::DoPinsMatchForReconstruction(NewPin, NewPinIndex, OldPin, OldPinIndex);
 	if ((ERedirectType_None == Result) && DoRenamedPinsMatch(NewPin, OldPin, true))
 	{
-		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-		check(K2Schema);
-		const UClass* CallingContext = GetBlueprint()->GeneratedClass;
-		check(CallingContext);
-
-		const bool bPinsAreTypeCompatible = K2Schema->ArePinTypesCompatible(OldPin->PinType, NewPin->PinType, CallingContext);
-
-		if (bPinsAreTypeCompatible)
-		{
-			Result = ERedirectType_Name;
-		}
-		else
-		{
-			if (K2Schema->SearchForAutocastFunction(OldPin->PinType, NewPin->PinType).IsSet())
-			{
-				Result = static_cast<ERedirectType>(static_cast<uint8>(ERedirectType_Name) | static_cast<uint8>(ERedirectType_Type));
-			}
-			else
-			{
-				Result = ERedirectType_None;
-			}
-		}
+		Result = ERedirectType_Name;
 	}
 
 	return Result;

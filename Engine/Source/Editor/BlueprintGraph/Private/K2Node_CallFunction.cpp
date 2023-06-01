@@ -767,27 +767,6 @@ UEdGraphPin* FindSelfPin(TArray<UEdGraphPin*>& Pins)
 	return NULL;
 }
 
-UK2Node::ERedirectType UK2Node_CallFunction::DoPinsMatchForReconstruction(const UEdGraphPin* NewPin, int32 NewPinIndex, const UEdGraphPin* OldPin, int32 OldPinIndex) const
-{
-	ERedirectType Result = Super::DoPinsMatchForReconstruction(NewPin, NewPinIndex, OldPin, OldPinIndex);
-	const bool bNeedsAutoConvert = (Result & ERedirectType_Type);
-	if (bNeedsAutoConvert)
-	{
-		// Function call nodes implicitly handle interface->object type redirects on self pins.
-		const UEdGraphSchema_K2* K2Schema = CastChecked<const UEdGraphSchema_K2>(GetSchema());
-		if (K2Schema->IsSelfPin(*OldPin)
-			&& OldPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface
-			&& NewPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object)
-		{
-			// Remove the conversion flag as we aren't going to explicitly add one here; instead,
-			// we add it into the intermediate graph at expansion time (for backwards-compatibility).
-			Result = static_cast<ERedirectType>(static_cast<uint8>(Result) & ~static_cast<uint8>(ERedirectType_Type));
-		}
-	}
-
-	return Result;
-}
-
 void UK2Node_CallFunction::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins)
 {
 	// BEGIN TEMP
