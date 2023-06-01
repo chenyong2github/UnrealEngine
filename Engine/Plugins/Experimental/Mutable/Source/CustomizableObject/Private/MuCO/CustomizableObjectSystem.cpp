@@ -89,7 +89,7 @@ static TAutoConsoleVariable<int32> CVarWorkingMemory(
 
 
 TAutoConsoleVariable<bool> CVarClearWorkingMemoryOnUpdateEnd(
-	TEXT("mutable.CVarClearWorkingMemoryOnUpdateEnd"),
+	TEXT("mutable.ClearWorkingMemoryOnUpdateEnd"),
 	false,
 	TEXT("Clear the working memory and cache after every Mutable operation."),
 	ECVF_Scalability);
