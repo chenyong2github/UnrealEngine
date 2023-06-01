@@ -102,6 +102,7 @@ void SCheckBoxList::Construct(const FArguments& InArgs, const TArray<TSharedRef<
 	}
 
 	bool bShowHeaderCheckbox = InArgs._IncludeGlobalCheckBoxInHeaderRow;
+	OnItemCheckStateChanged = InArgs._OnItemCheckStateChanged;
 
 	TSharedRef<SHeaderRow> HeaderRowWidget = SNew(SHeaderRow)
 		+ SHeaderRow::Column(CheckBoxList::ColumnID_CheckBox)
@@ -191,13 +192,21 @@ void SCheckBoxList::OnToggleSelectedCheckBox(ECheckBoxState InNewState)
 		Item->bIsChecked = bNewValue;
 	}
 	bAllCheckedState = bNewValue ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	
+	OnItemCheckStateChanged.ExecuteIfBound(-1);
+}
+
+void SCheckBoxList::OnItemCheckBox(TSharedRef<CheckBoxList::FItemPair> InItem)
+{
+	UpdateAllChecked();
+	OnItemCheckStateChanged.ExecuteIfBound(Items.IndexOfByKey(InItem));
 }
 
 TSharedRef<ITableRow> SCheckBoxList::HandleGenerateRow(TSharedRef<CheckBoxList::FItemPair> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(CheckBoxList::SItemPair, OwnerTable, InItem)
 		.CheckBoxStyle(CheckBoxStyle)
-		.OnCheckUpdated(FSimpleDelegate::CreateSP(this, &SCheckBoxList::UpdateAllChecked));
+		.OnCheckUpdated(FSimpleDelegate::CreateLambda([this, InItem]() { OnItemCheckBox(InItem); }));
 }
 
 #undef LOCTEXT_NAMESPACE
