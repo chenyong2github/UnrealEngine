@@ -175,6 +175,7 @@ namespace Chaos
 		TClusterIndexOpMap<FClusterUnionIndex> PendingClusterIndexOperations;
 		TClusterIndexOpMap<FClusterUnionExplicitIndex> PendingExplicitIndexOperations;
 		TMap<FPBDRigidClusteredParticleHandle*, FClusterUnionChildToParentUpdate> PendingChildToParentUpdates;
+		TSet<FPBDRigidClusteredParticleHandle*> PendingParticlesToUndoChildToParentLock;
 
 		template<typename TIndex>
 		void AddPendingOperation(TClusterIndexOpMap<TIndex>& OpMap, TIndex Index, EClusterUnionOperation Op, const TArray<FPBDRigidParticleHandle*>& Particles)
