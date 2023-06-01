@@ -12,9 +12,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeLevelStreamingCell)
 
-#if WITH_EDITOR
-#endif
-
 UWorldPartitionRuntimeLevelStreamingCell::UWorldPartitionRuntimeLevelStreamingCell(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, LevelStreaming(nullptr)
@@ -260,6 +257,23 @@ void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartit
 		InContainerID.GetActorGuid(ActorDescView.GetGuid()),
 		false
 	);
+}
+
+void UWorldPartitionRuntimeLevelStreamingCell::Fixup()
+{
+	TMap<FGuid, FWorldPartitionRuntimeCellObjectMapping> UniquePackages;
+	UniquePackages.Reserve(Packages.Num());
+
+	for (FWorldPartitionRuntimeCellObjectMapping& Package : Packages)
+	{
+		FWorldPartitionRuntimeCellObjectMapping& UniquePackage = UniquePackages.FindOrAdd(Package.ActorInstanceGuid, Package);
+		UniquePackage.bIsEditorOnly &= Package.bIsEditorOnly;
+	};
+
+	if (UniquePackages.Num() != Packages.Num())
+	{
+		UniquePackages.GenerateValueArray(Packages);
+	}
 }
 
 bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages)
