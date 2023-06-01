@@ -1491,6 +1491,7 @@ struct FRHITextureDesc
 		Hash = HashCombine(Hash, GetTypeHash(Desc.ArraySize	));
 		Hash = HashCombine(Hash, GetTypeHash(Desc.NumMips	));
 		Hash = HashCombine(Hash, GetTypeHash(Desc.NumSamples));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.FastVRAMPercentage));
 		Hash = HashCombine(Hash, GetTypeHash(Desc.ClearValue));
 		Hash = HashCombine(Hash, GetTypeHash(Desc.ExtData   ));
 		Hash = HashCombine(Hash, GetTypeHash(Desc.GPUMask.GetNative()));
@@ -1508,6 +1509,7 @@ struct FRHITextureDesc
 			&& ArraySize  == Other.ArraySize
 			&& NumMips    == Other.NumMips
 			&& NumSamples == Other.NumSamples
+			&& FastVRAMPercentage == Other.FastVRAMPercentage
 			&& ClearValue == Other.ClearValue
 			&& ExtData    == Other.ExtData
 			&& GPUMask    == Other.GPUMask;
@@ -2476,7 +2478,7 @@ static_assert(TIsTrivial<FRHIViewDesc>::Value, "FRHIViewDesc must be a trivial t
 struct FRHIViewDesc::FBufferSRV::FInitializer : private FRHIViewDesc
 {
 	friend FRHIViewDesc;
-	friend FRHICommandListImmediate;
+	friend FRHICommandListBase;
 	friend struct FShaderResourceViewInitializer;
 	friend struct FRawBufferShaderResourceViewInitializer;
 
@@ -2538,7 +2540,7 @@ public:
 struct FRHIViewDesc::FBufferUAV::FInitializer : private FRHIViewDesc
 {
 	friend FRHIViewDesc;
-	friend FRHICommandListImmediate;
+	friend FRHICommandListBase;
 
 protected:
 	FInitializer()
@@ -2610,7 +2612,7 @@ public:
 struct FRHIViewDesc::FTextureSRV::FInitializer : private FRHIViewDesc
 {
 	friend FRHIViewDesc;
-	friend FRHICommandListImmediate;
+	friend FRHICommandListBase;
 
 protected:
 	FInitializer()
@@ -2697,7 +2699,7 @@ public:
 struct FRHIViewDesc::FTextureUAV::FInitializer : private FRHIViewDesc
 {
 	friend FRHIViewDesc;
-	friend FRHICommandListImmediate;
+	friend FRHICommandListBase;
 
 protected:
 	FInitializer()

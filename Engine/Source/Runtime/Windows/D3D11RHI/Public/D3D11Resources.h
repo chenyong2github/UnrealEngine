@@ -481,7 +481,7 @@ class FD3D11ShaderResourceView final : public FRHIShaderResourceView, public FD3
 public:
 	TRefCountPtr<ID3D11ShaderResourceView> View;
 
-	FD3D11ShaderResourceView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc);
+	FD3D11ShaderResourceView(FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc);
 	FD3D11ViewableResource* GetBaseResource() const;
 
 	virtual void UpdateView() override;
@@ -493,7 +493,7 @@ class FD3D11UnorderedAccessView final : public FRHIUnorderedAccessView, public F
 public:
 	TRefCountPtr<ID3D11UnorderedAccessView> View;
 
-	FD3D11UnorderedAccessView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc);
+	FD3D11UnorderedAccessView(FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc);
 	FD3D11ViewableResource* GetBaseResource() const;
 
 	virtual void UpdateView() override;

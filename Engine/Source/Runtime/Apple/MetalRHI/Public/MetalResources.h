@@ -495,7 +495,7 @@ private:
 class FMetalShaderResourceView final : public FRHIShaderResourceView, public FMetalResourceViewBase
 {
 public:
-	FMetalShaderResourceView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc);
+	FMetalShaderResourceView(FRHICommandListBase& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc);
 	FMetalViewableResource* GetBaseResource() const;
 
 	virtual void UpdateView() override;
@@ -504,7 +504,7 @@ public:
 class FMetalUnorderedAccessView final : public FRHIUnorderedAccessView, public FMetalResourceViewBase
 {
 public:
-	FMetalUnorderedAccessView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc);
+	FMetalUnorderedAccessView(FRHICommandListBase& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc);
 	FMetalViewableResource* GetBaseResource() const;
 
 	virtual void UpdateView() override;

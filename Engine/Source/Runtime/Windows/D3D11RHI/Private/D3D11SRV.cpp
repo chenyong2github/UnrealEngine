@@ -16,10 +16,10 @@ void FD3D11ViewableResource::UpdateLinkedViews()
 //
 // -----------------------------------------------------------------------------------------------------
 
-FD3D11ShaderResourceView::FD3D11ShaderResourceView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+FD3D11ShaderResourceView::FD3D11ShaderResourceView(FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 	: FRHIShaderResourceView(Resource, ViewDesc)
 {
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&)
+	RHICmdList.EnqueueLambda([this](FRHICommandListBase&)
 	{
 		LinkHead(GetBaseResource()->LinkedViews);
 		UpdateView();
@@ -157,7 +157,7 @@ FD3D11ViewableResource* FD3D11ShaderResourceView::GetBaseResource() const
 //
 // -----------------------------------------------------------------------------------------------------
 
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(class FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 {
 	return new FD3D11ShaderResourceView(RHICmdList, Resource, ViewDesc);
 }

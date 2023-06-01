@@ -375,9 +375,9 @@ private:
 template <typename TParent>
 struct FD3D12DeferredInitView : public FD3D12LinkedAdapterObject<TParent>
 {
-	void CreateViews(FRHICommandListImmediate& RHICmdList, bool bDynamic)
+	void CreateViews(FRHICommandListBase& RHICmdList, bool bDynamic)
 	{
-		auto InitLambda = [this](FRHICommandListImmediate&)
+		auto InitLambda = [this](FRHICommandListBase&)
 		{
 			for (TParent& LinkedView : *this)
 			{

@@ -372,11 +372,11 @@ static VkDescriptorType GetDescriptorTypeForViewDesc(FRHIViewDesc const& ViewDes
 }
 
 
-FVulkanShaderResourceView::FVulkanShaderResourceView(FRHICommandListImmediate& RHICmdList, FVulkanDevice& InDevice, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
+FVulkanShaderResourceView::FVulkanShaderResourceView(FRHICommandListBase& RHICmdList, FVulkanDevice& InDevice, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
 	: FRHIShaderResourceView(InResource, InViewDesc)
 	, FVulkanLinkedView(InDevice, GetDescriptorTypeForViewDesc(InViewDesc))
 {
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&)
+	RHICmdList.EnqueueLambda([this](FRHICommandListBase&)
 	{
 		LinkHead(GetBaseResource()->LinkedViews);
 		UpdateView();
@@ -460,11 +460,11 @@ void FVulkanShaderResourceView::UpdateView()
 
 
 
-FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FRHICommandListImmediate& RHICmdList, FVulkanDevice& InDevice, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
+FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FRHICommandListBase& RHICmdList, FVulkanDevice& InDevice, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
 	: FRHIUnorderedAccessView(InResource, InViewDesc)
 	, FVulkanLinkedView(InDevice, GetDescriptorTypeForViewDesc(InViewDesc))
 {
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&)
+	RHICmdList.EnqueueLambda([this](FRHICommandListBase&)
 	{
 		LinkHead(GetBaseResource()->LinkedViews);
 		UpdateView();
@@ -670,12 +670,12 @@ void FVulkanCommandListContext::RHIClearUAVUint(FRHIUnorderedAccessView* Unorder
 	ResourceCast(UnorderedAccessViewRHI)->Clear(RHICmdList, &Values, false);
 }
 
-FShaderResourceViewRHIRef  FVulkanDynamicRHI::RHICreateShaderResourceView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+FShaderResourceViewRHIRef  FVulkanDynamicRHI::RHICreateShaderResourceView(class FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 {
 	return new FVulkanShaderResourceView(RHICmdList, *Device, Resource, ViewDesc);
 }
 
-FUnorderedAccessViewRHIRef FVulkanDynamicRHI::RHICreateUnorderedAccessView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+FUnorderedAccessViewRHIRef FVulkanDynamicRHI::RHICreateUnorderedAccessView(class FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 {
 	return new FVulkanUnorderedAccessView(RHICmdList, *Device, Resource, ViewDesc);
 }

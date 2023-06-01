@@ -446,11 +446,11 @@ public:
 		RHI->RHIUnlockBufferMGPU(RHICmdList, Buffer, GPUIndex);
 	}
 
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc) override final
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(class FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc) override final
 	{
 		return RHI->RHICreateShaderResourceView(RHICmdList, Resource, ViewDesc);
 	}
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc) override final
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(class FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc) override final
 	{
 		return RHI->RHICreateUnorderedAccessView(RHICmdList, Resource, ViewDesc);
 	}
@@ -1249,9 +1249,9 @@ public:
 
 
 #if RHI_RAYTRACING
-	virtual FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer) override final
+	virtual FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(FRHICommandListBase& RHICmdList, const FRayTracingGeometryInitializer& Initializer) override final
 	{
-		FRayTracingGeometryRHIRef Result = RHI->RHICreateRayTracingGeometry(Initializer);
+		FRayTracingGeometryRHIRef Result = RHI->RHICreateRayTracingGeometry(RHICmdList, Initializer);
 		Result->InitBarrierTracking(ERHIAccess::BVHWrite, *Initializer.DebugName.ToString()); // BVHs are always created in BVHWrite state
 		return Result;
 	}

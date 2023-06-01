@@ -194,12 +194,12 @@ public:
 		return this->RHICreateTexture(Desc);
 	}
 
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(class FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 	{
 		return new FRHIShaderResourceView(Resource, ViewDesc);
 	}
 
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(class FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 	{
 		return new FRHIUnorderedAccessView(Resource, ViewDesc);
 	}

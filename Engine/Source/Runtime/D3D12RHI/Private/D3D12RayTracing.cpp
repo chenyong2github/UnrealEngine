@@ -3200,10 +3200,10 @@ FRayTracingPipelineStateRHIRef FD3D12DynamicRHI::RHICreateRayTracingPipelineStat
 	return Result;
 }
 
-FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
+FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(FRHICommandListBase& RHICmdList, const FRayTracingGeometryInitializer& Initializer)
 {
 	FD3D12Adapter& Adapter = GetAdapter();
-	return new FD3D12RayTracingGeometry(&Adapter, Initializer);
+	return new FD3D12RayTracingGeometry(RHICmdList, &Adapter, Initializer);
 }
 
 void FD3D12DynamicRHI::RHITransferRayTracingGeometryUnderlyingResource(FRHIRayTracingGeometry* DestGeometry, FRHIRayTracingGeometry* SrcGeometry)
@@ -3309,7 +3309,7 @@ FString GetGeometryInitializerDebugString(const FRayTracingGeometryInitializer& 
 	return Result.ToString();
 }
 
-FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const FRayTracingGeometryInitializer& InInitializer)
+FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FRHICommandListBase& RHICmdList, FD3D12Adapter* Adapter, const FRayTracingGeometryInitializer& InInitializer)
 	: FRHIRayTracingGeometry(InInitializer), FD3D12AdapterChild(Adapter)
 {
 	INC_DWORD_STAT(STAT_D3D12RayTracingAllocatedBLAS);
@@ -3328,7 +3328,7 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 		FRHIResourceCreateInfo CreateInfo(TEXT("NullTransformBuffer"));
 		CreateInfo.ResourceArray = &NullTransformData;
 
-		FD3D12RayTracingGeometry::NullTransformBuffer = RHICreateVertexBuffer(NullTransformData.GetResourceDataSize(), BUF_Static, CreateInfo);
+		FD3D12RayTracingGeometry::NullTransformBuffer = RHICmdList.CreateBuffer(NullTransformData.GetResourceDataSize(), BUF_VertexBuffer | BUF_Static, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 	}
 
 	RegisterD3D12RayTracingGeometry(this);
@@ -3428,8 +3428,6 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 		}
 
 		FMemory::Memcpy(DstDataBase, Data, Size);
-
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 		if (bOnAsyncThread)
 		{

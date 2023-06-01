@@ -1168,7 +1168,7 @@ public:
 class FOpenGLUnorderedAccessView final : public FRHIUnorderedAccessView, public FOpenGLView
 {
 public:
-	FOpenGLUnorderedAccessView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc);
+	FOpenGLUnorderedAccessView(FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc);
 	virtual ~FOpenGLUnorderedAccessView();
 
 	FOpenGLViewableResource* GetBaseResource() const;
@@ -1203,7 +1203,7 @@ private:
 class FOpenGLShaderResourceView final : public FRHIShaderResourceView, public FOpenGLView
 {
 public:
-	FOpenGLShaderResourceView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc);
+	FOpenGLShaderResourceView(FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc);
 	virtual ~FOpenGLShaderResourceView();
 
 	FOpenGLViewableResource* GetBaseResource() const;

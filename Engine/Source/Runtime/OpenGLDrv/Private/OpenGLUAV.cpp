@@ -37,10 +37,10 @@ static void BindGLTexBufferRange(GLenum Target, GLenum InternalFormat, GLuint Bu
 	}
 }
 
-FOpenGLShaderResourceView::FOpenGLShaderResourceView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
+FOpenGLShaderResourceView::FOpenGLShaderResourceView(FRHICommandListBase& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
 	: FRHIShaderResourceView(InResource, InViewDesc)
 {
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&)
+	RHICmdList.EnqueueLambda([this](FRHICommandListBase&)
 	{
 		LinkHead(GetBaseResource()->LinkedViews);
 		UpdateView();
@@ -164,10 +164,10 @@ FOpenGLShaderResourceView::~FOpenGLShaderResourceView()
 	Invalidate();
 }
 
-FOpenGLUnorderedAccessView::FOpenGLUnorderedAccessView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
+FOpenGLUnorderedAccessView::FOpenGLUnorderedAccessView(FRHICommandListBase& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
 	: FRHIUnorderedAccessView(InResource, InViewDesc)
 {
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&)
+	RHICmdList.EnqueueLambda([this](FRHICommandListBase&)
 	{
 		LinkHead(GetBaseResource()->LinkedViews);
 		UpdateView();
@@ -368,12 +368,12 @@ void FOpenGLDynamicRHI::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccess
 	}
 }
 
-FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(class FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 {
 	return new FOpenGLShaderResourceView(RHICmdList, Resource, ViewDesc);
 }
 
-FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(class FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 {
 	return new FOpenGLUnorderedAccessView(RHICmdList, Resource, ViewDesc);
 }

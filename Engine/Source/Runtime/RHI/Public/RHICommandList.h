@@ -741,6 +741,177 @@ public:
 		GDynamicRHI->RHIUpdateTexture3D(*this, Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
 	}
 
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIBuffer* Buffer, FRHIViewDesc::FBufferSRV::FInitializer const& ViewDesc)
+	{
+		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateShaderResourceView"));
+		return GDynamicRHI->RHICreateShaderResourceView(*this, Buffer, ViewDesc);
+	}
+
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, FRHIViewDesc::FTextureSRV::FInitializer const& ViewDesc)
+	{
+		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateShaderResourceView"));
+		checkf(Texture->GetTextureReference() == nullptr, TEXT("Creating a shader resource view of an FRHITextureReference is not supported."));
+
+		return GDynamicRHI->RHICreateShaderResourceView(*this, Texture, ViewDesc);
+	}
+
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIBuffer* Buffer, FRHIViewDesc::FBufferUAV::FInitializer const& ViewDesc)
+	{
+		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateUnorderedAccessView"));
+		return GDynamicRHI->RHICreateUnorderedAccessView(*this, Buffer, ViewDesc);
+	}
+
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, FRHIViewDesc::FTextureUAV::FInitializer const& ViewDesc)
+	{
+		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateUnorderedAccessView"));
+		checkf(Texture->GetTextureReference() == nullptr, TEXT("Creating an unordered access view of an FRHITextureReference is not supported."));
+
+		return GDynamicRHI->RHICreateUnorderedAccessView(*this, Texture, ViewDesc);
+	}
+
+	//UE_DEPRECATED(5.3, "Use the CreateUnorderedAccessView function that takes an FRHIViewDesc.")
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
+	{
+		return CreateUnorderedAccessView(Buffer, FRHIViewDesc::CreateBufferUAV()
+			.SetTypeFromBuffer(Buffer)
+			.SetAtomicCounter(bUseUAVCounter)
+			.SetAppendBuffer(bAppendBuffer)
+		);
+	}
+
+	//UE_DEPRECATED(5.3, "Use the CreateUnorderedAccessView function that takes an FRHIViewDesc.")
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIBuffer* Buffer, uint8 Format)
+	{
+		// For back-compat reasons, SRVs of byte-address buffers created via this function ignore the Format, and instead create raw views.
+		if (Buffer && EnumHasAnyFlags(Buffer->GetDesc().Usage, BUF_ByteAddressBuffer))
+		{
+			return CreateUnorderedAccessView(Buffer, FRHIViewDesc::CreateBufferUAV()
+				.SetType(FRHIViewDesc::EBufferType::Raw)
+			);
+		}
+		else
+		{
+			return CreateUnorderedAccessView(Buffer, FRHIViewDesc::CreateBufferUAV()
+				.SetType(FRHIViewDesc::EBufferType::Typed)
+				.SetFormat(EPixelFormat(Format))
+			);
+		}
+	}
+
+	//UE_DEPRECATED(5.3, "Use the CreateUnorderedAccessView function that takes an FRHIViewDesc.")
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
+	{
+		check(MipLevel < 256);
+
+		return CreateUnorderedAccessView(Texture, FRHIViewDesc::CreateTextureUAV()
+			.SetDimensionFromTexture(Texture)
+			.SetMipLevel(uint8(MipLevel))
+			.SetArrayRange(FirstArraySlice, NumArraySlices)
+		);
+	}
+
+	//UE_DEPRECATED(5.3, "Use the CreateUnorderedAccessView function that takes an FRHIViewDesc.")
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format, uint16 FirstArraySlice, uint16 NumArraySlices)
+	{
+		check(MipLevel < 256);
+
+		return CreateUnorderedAccessView(Texture, FRHIViewDesc::CreateTextureUAV()
+			.SetDimensionFromTexture(Texture)
+			.SetMipLevel(uint8(MipLevel))
+			.SetFormat(EPixelFormat(Format))
+			.SetArrayRange(FirstArraySlice, NumArraySlices)
+		);
+	}
+
+	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIBuffer* Buffer)
+	{
+		FShaderResourceViewRHIRef SRVRef = CreateShaderResourceView(Buffer, FRHIViewDesc::CreateBufferSRV()
+			.SetTypeFromBuffer(Buffer));
+		checkf(SRVRef->GetDesc().Buffer.SRV.BufferType != FRHIViewDesc::EBufferType::Typed,
+			TEXT("Typed buffer should be created using CreateShaderResourceView where Format is specified."));
+		return SRVRef;
+	}
+
+	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIBuffer* Buffer, uint32 Stride, uint8 Format)
+	{
+		check(Format != PF_Unknown);
+		check(Stride == GPixelFormats[Format].BlockBytes);
+
+		// For back-compat reasons, SRVs of byte-address buffers created via this function ignore the Format, and instead create raw views.
+		if (Buffer && EnumHasAnyFlags(Buffer->GetDesc().Usage, BUF_ByteAddressBuffer))
+		{
+			return CreateShaderResourceView(Buffer, FRHIViewDesc::CreateBufferSRV()
+				.SetType(FRHIViewDesc::EBufferType::Raw)
+			);
+		}
+		else
+		{
+			return CreateShaderResourceView(Buffer, FRHIViewDesc::CreateBufferSRV()
+				.SetType(FRHIViewDesc::EBufferType::Typed)
+				.SetFormat(EPixelFormat(Format))
+			);
+		}
+	}
+
+	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)
+	{
+		return CreateShaderResourceView(Texture, FRHIViewDesc::CreateTextureSRV()
+			.SetDimensionFromTexture(Texture)
+			.SetFormat     (CreateInfo.Format)
+			.SetMipRange   (CreateInfo.MipLevel, CreateInfo.NumMipLevels)
+			.SetDisableSRGB(CreateInfo.SRGBOverride == SRGBO_ForceDisable)
+			.SetArrayRange (CreateInfo.FirstArraySlice, CreateInfo.NumArraySlices)
+			.SetPlane      (CreateInfo.MetaData)
+		);
+	}
+
+	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, uint8 MipLevel)
+	{
+		return CreateShaderResourceView(Texture, FRHIViewDesc::CreateTextureSRV()
+			.SetDimensionFromTexture(Texture)
+			.SetMipRange(MipLevel, 1)
+		);
+	}
+
+	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, uint8 MipLevel, uint8 NumMipLevels, EPixelFormat Format)
+	{
+		return CreateShaderResourceView(Texture, FRHIViewDesc::CreateTextureSRV()
+			.SetDimensionFromTexture(Texture)
+			.SetMipRange(MipLevel, NumMipLevels)
+			.SetFormat(Format)
+		);
+	}
+
+	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceViewWriteMask(FRHITexture2D* Texture2DRHI)
+	{
+		return CreateShaderResourceView(Texture2DRHI, FRHIViewDesc::CreateTextureSRV()
+			.SetDimensionFromTexture(Texture2DRHI)
+			.SetPlane(ERHITexturePlane::CMask)
+		);
+	}
+
+	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceViewFMask(FRHITexture2D* Texture2DRHI)
+	{
+		return CreateShaderResourceView(Texture2DRHI, FRHIViewDesc::CreateTextureSRV()
+			.SetDimensionFromTexture(Texture2DRHI)
+			.SetPlane(ERHITexturePlane::FMask)
+		);
+	}
+
+#if RHI_RAYTRACING
+	FORCEINLINE FRayTracingGeometryRHIRef CreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
+	{
+		return GDynamicRHI->RHICreateRayTracingGeometry(*this, Initializer);
+	}
+#endif
+
 	inline FRHIBatchedShaderParameters& GetScratchShaderParameters()
 	{
 		if (!ensureMsgf(!ScratchShaderParameters.HasParameters(), TEXT("Scratch shader parameters left without committed parameters")))
@@ -4043,168 +4214,6 @@ public:
 		GDynamicRHI->RHIUnlockBufferMGPU(*this, Buffer, GPUIndex);
 	}
 
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIBuffer* Buffer, FRHIViewDesc::FBufferSRV::FInitializer const& ViewDesc)
-	{
-		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateShaderResourceView"));
-		return GDynamicRHI->RHICreateShaderResourceView(*this, Buffer, ViewDesc);
-	}
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, FRHIViewDesc::FTextureSRV::FInitializer const& ViewDesc)
-	{
-		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateShaderResourceView"));
-		checkf(Texture->GetTextureReference() == nullptr, TEXT("Creating a shader resource view of an FRHITextureReference is not supported."));
-
-		return GDynamicRHI->RHICreateShaderResourceView(*this, Texture, ViewDesc);
-	}
-
-	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIBuffer* Buffer, FRHIViewDesc::FBufferUAV::FInitializer const& ViewDesc)
-	{
-		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateUnorderedAccessView"));
-		return GDynamicRHI->RHICreateUnorderedAccessView(*this, Buffer, ViewDesc);
-	}
-	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, FRHIViewDesc::FTextureUAV::FInitializer const& ViewDesc)
-	{
-		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateUnorderedAccessView"));
-		checkf(Texture->GetTextureReference() == nullptr, TEXT("Creating an unordered access view of an FRHITextureReference is not supported."));
-
-		return GDynamicRHI->RHICreateUnorderedAccessView(*this, Texture, ViewDesc);
-	}
-
-	//UE_DEPRECATED(5.3, "Use the CreateUnorderedAccessView function that takes an FRHIViewDesc.")
-	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
-	{
-		return CreateUnorderedAccessView(Buffer, FRHIViewDesc::CreateBufferUAV()
-			.SetTypeFromBuffer(Buffer)
-			.SetAtomicCounter(bUseUAVCounter)
-			.SetAppendBuffer(bAppendBuffer)
-		);
-	}
-
-	//UE_DEPRECATED(5.3, "Use the CreateUnorderedAccessView function that takes an FRHIViewDesc.")
-	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIBuffer* Buffer, uint8 Format)
-	{
-		// For back-compat reasons, SRVs of byte-address buffers created via this function ignore the Format, and instead create raw views.
-		if (Buffer && EnumHasAnyFlags(Buffer->GetDesc().Usage, BUF_ByteAddressBuffer))
-		{
-			return CreateUnorderedAccessView(Buffer, FRHIViewDesc::CreateBufferUAV()
-				.SetType(FRHIViewDesc::EBufferType::Raw)
-			);
-		}
-		else
-		{
-			return CreateUnorderedAccessView(Buffer, FRHIViewDesc::CreateBufferUAV()
-				.SetType(FRHIViewDesc::EBufferType::Typed)
-				.SetFormat(EPixelFormat(Format))
-			);
-		}
-	}
-
-	//UE_DEPRECATED(5.3, "Use the CreateUnorderedAccessView function that takes an FRHIViewDesc.")
-	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
-	{
-		check(MipLevel < 256);
-
-		return CreateUnorderedAccessView(Texture, FRHIViewDesc::CreateTextureUAV()
-			.SetDimensionFromTexture(Texture)
-			.SetMipLevel(uint8(MipLevel))
-			.SetArrayRange(FirstArraySlice, NumArraySlices)
-		);
-	}
-
-	//UE_DEPRECATED(5.3, "Use the CreateUnorderedAccessView function that takes an FRHIViewDesc.")
-	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format, uint16 FirstArraySlice, uint16 NumArraySlices)
-	{
-		check(MipLevel < 256);
-
-		return CreateUnorderedAccessView(Texture, FRHIViewDesc::CreateTextureUAV()
-			.SetDimensionFromTexture(Texture)
-			.SetMipLevel(uint8(MipLevel))
-			.SetFormat(EPixelFormat(Format))
-			.SetArrayRange(FirstArraySlice, NumArraySlices)
-		);
-	}
-
-	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIBuffer* Buffer)
-	{
-		FShaderResourceViewRHIRef SRVRef = CreateShaderResourceView(Buffer, FRHIViewDesc::CreateBufferSRV()
-				.SetTypeFromBuffer(Buffer));
-		checkf(SRVRef->GetDesc().Buffer.SRV.BufferType != FRHIViewDesc::EBufferType::Typed,
-			TEXT("Typed buffer should be created using CreateShaderResourceView where Format is specified."));
-		return SRVRef;
-	}
-	
-	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIBuffer* Buffer, uint32 Stride, uint8 Format)
-	{
-		check(Format != PF_Unknown);
-		check(Stride == GPixelFormats[Format].BlockBytes);
-
-		// For back-compat reasons, SRVs of byte-address buffers created via this function ignore the Format, and instead create raw views.
-		if (Buffer && EnumHasAnyFlags(Buffer->GetDesc().Usage, BUF_ByteAddressBuffer))
-		{
-			return CreateShaderResourceView(Buffer, FRHIViewDesc::CreateBufferSRV()
-				.SetType(FRHIViewDesc::EBufferType::Raw)
-			);
-		}
-		else
-		{
-			return CreateShaderResourceView(Buffer, FRHIViewDesc::CreateBufferSRV()
-				.SetType(FRHIViewDesc::EBufferType::Typed)
-				.SetFormat(EPixelFormat(Format))
-			);
-		}
-	}
-
-	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)
-	{
-		return CreateShaderResourceView(Texture, FRHIViewDesc::CreateTextureSRV()
-			.SetDimensionFromTexture(Texture)
-			.SetFormat     (CreateInfo.Format)
-			.SetMipRange   (CreateInfo.MipLevel, CreateInfo.NumMipLevels)
-			.SetDisableSRGB(CreateInfo.SRGBOverride == SRGBO_ForceDisable)
-			.SetArrayRange (CreateInfo.FirstArraySlice, CreateInfo.NumArraySlices)
-			.SetPlane      (CreateInfo.MetaData)
-		);
-	}
-
-	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, uint8 MipLevel)
-	{
-		return CreateShaderResourceView(Texture, FRHIViewDesc::CreateTextureSRV()
-			.SetDimensionFromTexture(Texture)
-			.SetMipRange(MipLevel, 1)
-		);
-	}
-
-	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, uint8 MipLevel, uint8 NumMipLevels, EPixelFormat Format)
-	{
-		return CreateShaderResourceView(Texture, FRHIViewDesc::CreateTextureSRV()
-			.SetDimensionFromTexture(Texture)
-			.SetMipRange(MipLevel, NumMipLevels)
-			.SetFormat(Format)
-		);
-	}
-
-	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceViewWriteMask(FRHITexture2D* Texture2DRHI)
-	{
-		return CreateShaderResourceView(Texture2DRHI, FRHIViewDesc::CreateTextureSRV()
-			.SetDimensionFromTexture(Texture2DRHI)
-			.SetPlane(ERHITexturePlane::CMask)
-		);
-	}
-
-	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceViewFMask(FRHITexture2D* Texture2DRHI)
-	{
-		return CreateShaderResourceView(Texture2DRHI, FRHIViewDesc::CreateTextureSRV()
-			.SetDimensionFromTexture(Texture2DRHI)
-			.SetPlane(ERHITexturePlane::FMask)
-		);
-	}
-
 	UE_DEPRECATED(5.2, "Use the global scope RHIGetTextureMemoryStats function.")
 	FORCEINLINE void GetTextureMemoryStats(FTextureMemoryStats& OutStats)
 	{
@@ -5318,6 +5327,13 @@ FORCEINLINE void RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer)
 {
 	 FRHICommandListExecutor::GetImmediateCommandList().UnlockStagingBuffer(StagingBuffer);
 }
+
+#if RHI_RAYTRACING
+FORCEINLINE FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateRayTracingGeometry(Initializer);
+}
+#endif
 
 namespace UE::RHI
 {

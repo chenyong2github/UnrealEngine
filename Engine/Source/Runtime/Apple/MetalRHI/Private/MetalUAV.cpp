@@ -69,10 +69,10 @@ void FMetalResourceViewBase::InitAsTextureBufferBacked(FMetalTexture& Texture, F
     Storage.Emplace<FTextureBufferBacked>(Texture, Buffer, Offset, Size, Format);
 }
 
-FMetalShaderResourceView::FMetalShaderResourceView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
+FMetalShaderResourceView::FMetalShaderResourceView(FRHICommandListBase& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
 	: FRHIShaderResourceView(InResource, InViewDesc)
 {
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&)
+	RHICmdList.EnqueueLambda([this](FRHICommandListBase&)
 	{
 		LinkHead(GetBaseResource()->LinkedViews);
 		UpdateView();
@@ -262,10 +262,10 @@ void FMetalShaderResourceView::UpdateView()
 
 
 
-FMetalUnorderedAccessView::FMetalUnorderedAccessView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
+FMetalUnorderedAccessView::FMetalUnorderedAccessView(FRHICommandListBase& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
 	: FRHIUnorderedAccessView(InResource, InViewDesc)
 {
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&)
+	RHICmdList.EnqueueLambda([this](FRHICommandListBase&)
 	{
 		LinkHead(GetBaseResource()->LinkedViews);
 		UpdateView();
@@ -438,14 +438,14 @@ void FMetalUnorderedAccessView::UpdateView()
 	}
 }
 
-FShaderResourceViewRHIRef FMetalDynamicRHI::RHICreateShaderResourceView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+FShaderResourceViewRHIRef FMetalDynamicRHI::RHICreateShaderResourceView(FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 {
 	@autoreleasepool {
 		return new FMetalShaderResourceView(RHICmdList, Resource, ViewDesc);
 	}
 }
 
-FUnorderedAccessViewRHIRef FMetalDynamicRHI::RHICreateUnorderedAccessView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+FUnorderedAccessViewRHIRef FMetalDynamicRHI::RHICreateUnorderedAccessView(FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 {
 	@autoreleasepool {
 		return new FMetalUnorderedAccessView(RHICmdList, Resource, ViewDesc);

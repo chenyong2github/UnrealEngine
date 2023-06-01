@@ -1187,7 +1187,7 @@ public:
 class FVulkanUnorderedAccessView final : public FRHIUnorderedAccessView, public FVulkanLinkedView
 {
 public:
-	FVulkanUnorderedAccessView(FRHICommandListImmediate& RHICmdList, FVulkanDevice& InDevice, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc);
+	FVulkanUnorderedAccessView(FRHICommandListBase& RHICmdList, FVulkanDevice& InDevice, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc);
 
 	FVulkanViewableResource* GetBaseResource() const;
 	void UpdateView() override;
@@ -1204,7 +1204,7 @@ public:
 class FVulkanShaderResourceView final : public FRHIShaderResourceView, public FVulkanLinkedView
 {
 public:
-	FVulkanShaderResourceView(FRHICommandListImmediate& RHICmdList, FVulkanDevice& InDevice, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc);
+	FVulkanShaderResourceView(FRHICommandListBase& RHICmdList, FVulkanDevice& InDevice, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc);
 
 	FVulkanViewableResource* GetBaseResource() const;
 	void UpdateView() override;

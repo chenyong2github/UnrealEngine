@@ -9,10 +9,10 @@
 //
 // -----------------------------------------------------------------------------------------------------
 
-FD3D11UnorderedAccessView::FD3D11UnorderedAccessView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+FD3D11UnorderedAccessView::FD3D11UnorderedAccessView(FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 	: FRHIUnorderedAccessView(Resource, ViewDesc)
 {
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&)
+	RHICmdList.EnqueueLambda([this](FRHICommandListBase&)
 	{
 		LinkHead(GetBaseResource()->LinkedViews);
 		UpdateView();
@@ -127,7 +127,7 @@ FD3D11ViewableResource* FD3D11UnorderedAccessView::GetBaseResource() const
 //
 // -----------------------------------------------------------------------------------------------------
 
-FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(class FRHICommandListBase& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 {
 	return new FD3D11UnorderedAccessView(RHICmdList, Resource, ViewDesc);
 }
