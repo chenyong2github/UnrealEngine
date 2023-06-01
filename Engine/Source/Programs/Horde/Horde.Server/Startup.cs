@@ -99,6 +99,7 @@ using OpenTelemetry.Trace;
 using Polly;
 using Polly.Extensions.Http;
 using Horde.Server.Jobs.Bisect;
+using Microsoft.AspNetCore.Diagnostics;
 
 namespace Horde.Server
 {
@@ -1065,6 +1066,8 @@ namespace Horde.Server
 			{
 				app.UseMiddleware<RequestTrackerMiddleware>();	
 			}
+
+			app.UseExceptionHandler("/api/v1/exception");
 
 			app.UseDefaultFiles();
 			app.UseStaticFiles();
