@@ -1220,8 +1220,7 @@ bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InAc
 bool UWorldPartition::GenerateStreaming(const FGenerateStreamingParams& InParams, FGenerateStreamingContext& InContext)
 {
 	check(InParams.ActorDescCollection.IsEmpty());
-	FGenerateStreamingParams Params = FGenerateStreamingParams(InParams);
-	Params.ActorDescCollection.Append(*this);
+	FGenerateStreamingParams Params = FGenerateStreamingParams(InParams).SetActorDescContainer(ActorDescContainer);
 
 	OnPreGenerateStreaming.Broadcast(InContext.PackagesToGenerate);
 
