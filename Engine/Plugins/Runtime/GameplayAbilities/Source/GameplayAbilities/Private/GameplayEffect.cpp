@@ -5099,6 +5099,7 @@ FGameplayEffectQuery& FGameplayEffectQuery::operator=(FGameplayEffectQuery&& Oth
 	CustomMatchDelegate_BP = MoveTemp(Other.CustomMatchDelegate_BP);
 	OwningTagQuery = MoveTemp(Other.OwningTagQuery);
 	EffectTagQuery = MoveTemp(Other.EffectTagQuery);
+	SourceAggregateTagQuery = MoveTemp(Other.SourceAggregateTagQuery);
 	SourceTagQuery = MoveTemp(Other.SourceTagQuery);
 	ModifyingAttribute = MoveTemp(Other.ModifyingAttribute);
 	EffectSource = Other.EffectSource;
@@ -5113,6 +5114,7 @@ FGameplayEffectQuery& FGameplayEffectQuery::operator=(const FGameplayEffectQuery
 	CustomMatchDelegate_BP = Other.CustomMatchDelegate_BP;
 	OwningTagQuery = Other.OwningTagQuery;
 	EffectTagQuery = Other.EffectTagQuery;
+	SourceAggregateTagQuery = Other.SourceAggregateTagQuery;
 	SourceTagQuery = Other.SourceTagQuery;
 	ModifyingAttribute = Other.ModifyingAttribute;
 	EffectSource = Other.EffectSource;
@@ -5199,11 +5201,19 @@ bool FGameplayEffectQuery::Matches(const FGameplayEffectSpec& Spec) const
 		}
 	}
 
+	if (SourceAggregateTagQuery.IsEmpty() == false)
+	{
+		FGameplayTagContainer const& SourceAggregateTags = *Spec.CapturedSourceTags.GetAggregatedTags();
+		if (SourceAggregateTagQuery.Matches(SourceAggregateTags) == false)
+		{
+			return false;
+		}
+	}
+
 	if (SourceTagQuery.IsEmpty() == false)
 	{
-		// Prior to UE5.3 this checked against the SpecTags, which seems like an obvious bug.
-		FGameplayTagContainer const& SourceTags = *Spec.CapturedSourceTags.GetAggregatedTags();
-		if (SourceTagQuery.Matches(SourceTags) == false)
+		FGameplayTagContainer const& SourceSpecTags = Spec.CapturedSourceTags.GetSpecTags();
+		if (SourceTagQuery.Matches(SourceSpecTags) == false)
 		{
 			return false;
 		}
@@ -5259,6 +5269,7 @@ bool FGameplayEffectQuery::IsEmpty() const
 	(
 		OwningTagQuery.IsEmpty() &&
 		EffectTagQuery.IsEmpty() &&
+		SourceAggregateTagQuery.IsEmpty() &&
 		SourceTagQuery.IsEmpty() &&
 		!ModifyingAttribute.IsValid() &&
 		!EffectSource &&
@@ -5321,7 +5332,7 @@ FGameplayEffectQuery FGameplayEffectQuery::MakeQuery_MatchNoEffectTags(const FGa
 }
 
 // static
-FGameplayEffectQuery FGameplayEffectQuery::MakeQuery_MatchAnySourceTags(const FGameplayTagContainer& InTags)
+FGameplayEffectQuery FGameplayEffectQuery::MakeQuery_MatchAnySourceSpecTags(const FGameplayTagContainer& InTags)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MakeGameplayEffectQuery);
 	FGameplayEffectQuery OutQuery;
@@ -5330,7 +5341,7 @@ FGameplayEffectQuery FGameplayEffectQuery::MakeQuery_MatchAnySourceTags(const FG
 }
 
 // static
-FGameplayEffectQuery FGameplayEffectQuery::MakeQuery_MatchAllSourceTags(const FGameplayTagContainer& InTags)
+FGameplayEffectQuery FGameplayEffectQuery::MakeQuery_MatchAllSourceSpecTags(const FGameplayTagContainer& InTags)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MakeGameplayEffectQuery);
 	FGameplayEffectQuery OutQuery;
@@ -5339,7 +5350,7 @@ FGameplayEffectQuery FGameplayEffectQuery::MakeQuery_MatchAllSourceTags(const FG
 }
 
 // static
-FGameplayEffectQuery FGameplayEffectQuery::MakeQuery_MatchNoSourceTags(const FGameplayTagContainer& InTags)
+FGameplayEffectQuery FGameplayEffectQuery::MakeQuery_MatchNoSourceSpecTags(const FGameplayTagContainer& InTags)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MakeGameplayEffectQuery);
 	FGameplayEffectQuery OutQuery;
@@ -5352,6 +5363,7 @@ bool FGameplayEffectQuery::operator==(const FGameplayEffectQuery& Other) const
 	return CustomMatchDelegate_BP == Other.CustomMatchDelegate_BP &&
 	OwningTagQuery == Other.OwningTagQuery &&
 	EffectTagQuery == Other.EffectTagQuery &&
+	SourceAggregateTagQuery == Other.SourceAggregateTagQuery &&
 	SourceTagQuery == Other.SourceTagQuery &&
 	ModifyingAttribute == Other.ModifyingAttribute &&
 	EffectSource == Other.EffectSource &&

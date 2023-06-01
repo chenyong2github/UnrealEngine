@@ -1532,7 +1532,7 @@ int32 UAbilitySystemComponent::RemoveActiveEffectsWithSourceTags(FGameplayTagCon
 {
 	if (IsOwnerActorAuthoritative())
 	{
-		return RemoveActiveEffects(FGameplayEffectQuery::MakeQuery_MatchAnySourceTags(Tags));
+		return RemoveActiveEffects(FGameplayEffectQuery::MakeQuery_MatchAnySourceSpecTags(Tags));
 	}
 	return 0;
 }
