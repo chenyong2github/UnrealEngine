@@ -255,14 +255,27 @@ FVolumeTrackingResult VolumeSampleDistance(float3 PathThroughput, float3 Origin,
 	{
 		float RandValue = RandomSequence_GenerateSample1D(RandSequence);
 		TrackingResult.Distance = SampleSpectralTransmittance(RandValue, SigmaBar, PathThroughput);
-		TrackingResult.Throughput = EvaluateSpectralTransmittanceHit(TrackingResult.Distance, SigmaBar, PathThroughput).xyz;
-		float3 SpectralPdf = PathThroughput * rcp(PathThroughput.x + PathThroughput.y + PathThroughput.z);
-		float3 DistancePdf = TrackingResult.Throughput;
-		if (TrackingResult.Distance < Interval.VolumeTMax)
+		if (TrackingResult.Distance < 0.0)
 		{
-			DistancePdf *= SigmaBar;
+			return TrackingResult;
 		}
-		TrackingResult.Pdf = dot(DistancePdf, SpectralPdf);
+
+		TrackingResult.SigmaBar = SigmaBar;
+		TrackingResult.Throughput = PathThroughput;
+		TrackingResult.bIsCollision = Interval.VolumeTMin + TrackingResult.Distance < Interval.VolumeTMax;
+		if (TrackingResult.bIsCollision)
+		{
+			float4 Evaluation = EvaluateSpectralTransmittanceHit(TrackingResult.Distance, SigmaBar, PathThroughput);
+			TrackingResult.Throughput *= Evaluation.xyz;
+			TrackingResult.Pdf = Evaluation.w;
+			TrackingResult.Distance += Interval.VolumeTMin;
+		}
+		else
+		{
+			float4 Evaluation = EvaluateSpectralTransmittanceMiss(Interval.VolumeTMax - Interval.VolumeTMin, SigmaBar, PathThroughput);
+			TrackingResult.Throughput *= Evaluation.xyz;
+			TrackingResult.Pdf = Evaluation.w;
+		}
 	}
 	return TrackingResult;
 }
