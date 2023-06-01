@@ -592,14 +592,15 @@ void CullDistanceFieldObjectsForLight(
 		FCullObjectsForShadowCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FCullObjectsForShadowCS::FPrimitiveType >(PrimitiveType);
 		auto ComputeShader = View.ShaderMap->GetShader<FCullObjectsForShadowCS>(PermutationVector);
-		const int32 GroupSize = FMath::DivideAndRoundUp<uint32>(NumObjectsInBuffer, UpdateObjectsGroupSize);
+
+		const FIntVector GroupCount = FComputeShaderUtils::GetGroupCountWrapped(NumObjectsInBuffer, UpdateObjectsGroupSize);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("CullMeshSDFObjectsToFrustum"),
 			ComputeShader,
 			PassParameters,
-			FIntVector(GroupSize, 1, 1));
+			GroupCount);
 	}
 
 	// Allocate tile resolution based on world space size
