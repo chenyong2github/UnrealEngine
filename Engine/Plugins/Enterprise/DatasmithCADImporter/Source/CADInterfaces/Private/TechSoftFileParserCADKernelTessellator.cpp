@@ -260,8 +260,8 @@ void FTechSoftFileParserCADKernelTessellator::GenerateBodyMesh(A3DRiRepresentati
 		if(FailureReason == EFailureReason::Curve3D)
 		{
 			bConvertionFailed = true;
-			return;
 		}
+		return;
 	}
 
 	if (CADFileData.GetImportParameters().GetStitchingTechnique() == StitchingHeal)
