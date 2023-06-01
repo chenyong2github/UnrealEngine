@@ -5,6 +5,10 @@
 #include "Factories/Factory.h"
 #include "MoviePipelineConfigFactory.generated.h"
 
+// For backwards compatibility 5.2
+UE_DEPRECATED(5.2, "UMoviePipelineMasterConfigFactory is deprecated. Please use UMoviePipelinePrimaryConfigFactory.")
+typedef UMoviePipelinePrimaryConfigFactory UMoviePipelineMasterConfigFactory;
+
 // Forward Declare
 UCLASS(BlueprintType)
 class MOVIERENDERPIPELINEEDITOR_API UMoviePipelinePrimaryConfigFactory : public UFactory
