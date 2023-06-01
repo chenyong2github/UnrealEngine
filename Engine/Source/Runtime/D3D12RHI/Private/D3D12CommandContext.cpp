@@ -931,9 +931,9 @@ FD3D12CommandContextRedirector::FD3D12CommandContextRedirector(class FD3D12Adapt
 		Context = nullptr;
 }
 
-void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const FTransferResourceParams> Params)
-{
 #if WITH_MGPU
+void FD3D12CommandContextRedirector::RHITransferResources(TConstArrayView<FTransferResourceParams> Params)
+{
 	if (Params.Num() == 0)
 		return;
 
@@ -1149,10 +1149,9 @@ void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const
 		// The dest waits for the src to be at this place in the frame before using the data.
 		MGPUSync(SrcMask, DstMask);
 	}
-#endif // WITH_MGPU
 }
 
-void FD3D12CommandContextRedirector::RHITransferResourceSignal(const TArrayView<FTransferResourceFenceData* const> FenceDatas, FRHIGPUMask SrcGPUMask)
+void FD3D12CommandContextRedirector::RHITransferResourceSignal(TConstArrayView<FTransferResourceFenceData*> FenceDatas, FRHIGPUMask SrcGPUMask)
 {
 	check(FenceDatas.Num() == SrcGPUMask.GetNumActive());
 
@@ -1170,9 +1169,8 @@ void FD3D12CommandContextRedirector::RHITransferResourceSignal(const TArrayView<
 	}
 }
 
-void FD3D12CommandContextRedirector::RHITransferResourceWait(const TArrayView<FTransferResourceFenceData* const> FenceDatas)
+void FD3D12CommandContextRedirector::RHITransferResourceWait(TConstArrayView<FTransferResourceFenceData*> FenceDatas)
 {
-#if WITH_MGPU
 	FRHIGPUMask AllMasks;
 	for (int32 Index = 0; Index < FenceDatas.Num(); ++Index)
 	{
@@ -1207,13 +1205,10 @@ void FD3D12CommandContextRedirector::RHITransferResourceWait(const TArrayView<FT
 
 		delete FenceData;
 	}
-
-#endif // WITH_MGPU
 }
 
-void FD3D12CommandContextRedirector::RHICrossGPUTransfer(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer, const TArrayView<FCrossGPUTransferFence* const> PostTransfer)
+void FD3D12CommandContextRedirector::RHICrossGPUTransfer(TConstArrayView<FTransferResourceParams> Params, TConstArrayView<FCrossGPUTransferFence*> PreTransfer, TConstArrayView<FCrossGPUTransferFence*> PostTransfer)
 {
-#if WITH_MGPU
 	if (Params.Num() == 0)
 		return;
 
@@ -1306,12 +1301,10 @@ void FD3D12CommandContextRedirector::RHICrossGPUTransfer(const TArrayView<const 
 		SyncPoint->AddRef();
 		PostTransferSyncPoint->SyncPoint = SyncPoint.GetReference();
 	}
-#endif // WITH_MGPU
 }
 
-void FD3D12CommandContextRedirector::RHICrossGPUTransferSignal(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer)
+void FD3D12CommandContextRedirector::RHICrossGPUTransferSignal(TConstArrayView<FTransferResourceParams> Params, TConstArrayView<FCrossGPUTransferFence*> PreTransfer)
 {
-#if WITH_MGPU
 	for (const FTransferResourceParams& Param : Params)
 	{
 		FD3D12CommandContext* DstContext = PhysicalContexts[Param.DestGPUIndex];
@@ -1344,12 +1337,10 @@ void FD3D12CommandContextRedirector::RHICrossGPUTransferSignal(const TArrayView<
 
 		TransferSyncPoint->SyncPoint = SyncPoint;
 	}
-#endif
 }
 
-void FD3D12CommandContextRedirector::RHICrossGPUTransferWait(const TArrayView<FCrossGPUTransferFence* const> PostTransfer)
+void FD3D12CommandContextRedirector::RHICrossGPUTransferWait(TConstArrayView<FCrossGPUTransferFence*> PostTransfer)
 {
-#if WITH_MGPU
 	for (FCrossGPUTransferFence* TransferSyncPoint : PostTransfer)
 	{
 		if (TransferSyncPoint->SyncPoint)
@@ -1362,6 +1353,6 @@ void FD3D12CommandContextRedirector::RHICrossGPUTransferWait(const TArrayView<FC
 
 		delete TransferSyncPoint;
 	}
+}
 
 #endif // WITH_MGPU
-}

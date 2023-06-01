@@ -665,7 +665,7 @@ public:
 	// Should be called before RHIBuildAccelerationStructures when multiple GPU support is present (for example, from FD3D12CommandContextRedirector::RHIBuildAccelerationStructures)
 	static void UnregisterAccelerationStructuresInternalMGPU(const TArrayView<const FRayTracingGeometryBuildParams> Params, FRHIGPUMask GPUMask);
 #endif
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange) final override;
+	virtual void RHIBuildAccelerationStructures(TConstArrayView<FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange) final override;
 	virtual void RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams) final override;
 	virtual void RHIClearRayTracingBindings(FRHIRayTracingScene* Scene) final override;
 	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRHIRayTracingShader* RayGenShader,
@@ -797,14 +797,16 @@ public:
 		ContextRedirect(RHIEndTransitions(Transitions));
 	}
 
-	virtual void RHITransferResources(const TArrayView<const FTransferResourceParams> Params) final override;
-	virtual void RHITransferResourceSignal(const TArrayView<FTransferResourceFenceData* const> FenceDatas, FRHIGPUMask SrcGPUMask) final override;
-	virtual void RHITransferResourceWait(const TArrayView<FTransferResourceFenceData* const> FenceDatas) final override;
+#if WITH_MGPU
+	virtual void RHITransferResources(TConstArrayView<FTransferResourceParams> Params) final override;
+	virtual void RHITransferResourceSignal(TConstArrayView<FTransferResourceFenceData*> FenceDatas, FRHIGPUMask SrcGPUMask) final override;
+	virtual void RHITransferResourceWait(TConstArrayView<FTransferResourceFenceData*> FenceDatas) final override;
 
 	// New and improved cross GPU transfer API
-	virtual void RHICrossGPUTransfer(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer, const TArrayView<FCrossGPUTransferFence* const> PostTransfer) final override;
-	virtual void RHICrossGPUTransferSignal(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer) final override;
-	virtual void RHICrossGPUTransferWait(const TArrayView<FCrossGPUTransferFence* const> PostTransfer) final override;
+	virtual void RHICrossGPUTransfer(TConstArrayView<FTransferResourceParams> Params, TConstArrayView<FCrossGPUTransferFence*> PreTransfer, TConstArrayView<FCrossGPUTransferFence*> PostTransfer) final override;
+	virtual void RHICrossGPUTransferSignal(TConstArrayView<FTransferResourceParams> Params, TConstArrayView<FCrossGPUTransferFence*> PreTransfer) final override;
+	virtual void RHICrossGPUTransferWait(TConstArrayView<FCrossGPUTransferFence*> PostTransfer) final override;
+#endif // WITH_MGPU
 
 	FORCEINLINE virtual void RHICopyToStagingBuffer(FRHIBuffer* SourceBuffer, FRHIStagingBuffer* DestinationStagingBuffer, uint32 Offset, uint32 NumBytes) final override
 	{
@@ -1026,7 +1028,7 @@ public:
 	}
 
 #if D3D12_RHI_RAYTRACING
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange) final override
+	virtual void RHIBuildAccelerationStructures(TConstArrayView<FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange) final override
 	{
 #if WITH_MGPU
 		FD3D12CommandContext::UnregisterAccelerationStructuresInternalMGPU(Params, GPUMask);

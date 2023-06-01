@@ -287,8 +287,8 @@ public:
 	virtual void RHIBeginUAVOverlap() {}
 	virtual void RHIEndUAVOverlap() {}
 
-	virtual void RHIBeginUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs) {}
-	virtual void RHIEndUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs) {}
+	virtual void RHIBeginUAVOverlap(TConstArrayView<FRHIUnorderedAccessView*> UAVs) {}
+	virtual void RHIEndUAVOverlap(TConstArrayView<FRHIUnorderedAccessView*> UAVs) {}
 
 	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
 	virtual void RHISetShaderTexture(FRHIComputeShader* ComputeShader, uint32 TextureIndex, FRHITexture* NewTexture) = 0;
@@ -391,11 +391,12 @@ public:
 		return FRHIGPUMask::GPU0();
 	}
 
+#if WITH_MGPU
 	/**
 	 * Synchronizes the content of a resource between two GPUs using a copy operation.
 	 * @param Params - the parameters for each resource or texture region copied between GPUs.
 	 */
-	virtual void RHITransferResources(const TArrayView<const FTransferResourceParams> Params)
+	virtual void RHITransferResources(TConstArrayView<FTransferResourceParams> Params)
 	{
 		/* empty default implementation */
 	}
@@ -406,26 +407,22 @@ public:
 	 * GPU mask of the context (which specifies the destination GPUs), and the number of items in the "FenceDatas" array MUST match the
 	 * number of bits set in SrcGPUMask.
 	 */
-	virtual void RHITransferResourceSignal(const TArrayView<FTransferResourceFenceData* const> FenceDatas, FRHIGPUMask SrcGPUMask)
+	virtual void RHITransferResourceSignal(TConstArrayView<FTransferResourceFenceData*> FenceDatas, FRHIGPUMask SrcGPUMask)
 	{
 		/* default noop implementation */
-#if WITH_MGPU
 		for (FTransferResourceFenceData* FenceData : FenceDatas)
 		{
 			delete FenceData;
 		}
-#endif
 	}
 
-	virtual void RHITransferResourceWait(const TArrayView<FTransferResourceFenceData* const> FenceDatas)
+	virtual void RHITransferResourceWait(TConstArrayView<FTransferResourceFenceData*> FenceDatas)
 	{
 		/* default noop implementation */
-#if WITH_MGPU
 		for (FTransferResourceFenceData* FenceData : FenceDatas)
 		{
 			delete FenceData;
 		}
-#endif
 	}
 
 	/**
@@ -434,34 +431,31 @@ public:
 	 * @param PreTransfer - Fences to wait on before copying the relevant data (initialized with RHITransferResourceSignal before this function)
 	 * @param PostTransfer - Fences that can be waited on after copy (waited on by RHITransferResourceWait after this function)
 	 */
-	virtual void RHICrossGPUTransfer(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer, const TArrayView<FCrossGPUTransferFence* const> PostTransfer)
+	virtual void RHICrossGPUTransfer(TConstArrayView<FTransferResourceParams> Params, TConstArrayView<FCrossGPUTransferFence*> PreTransfer, TConstArrayView<FCrossGPUTransferFence*> PostTransfer)
 	{
 		/** empty default implementation. */
 	}
 
-	virtual void RHICrossGPUTransferSignal(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer)
+	virtual void RHICrossGPUTransferSignal(TConstArrayView<FTransferResourceParams> Params, TConstArrayView<FCrossGPUTransferFence*> PreTransfer)
 	{
 		/* default noop implementation */
-#if WITH_MGPU
 		for (FCrossGPUTransferFence* SyncPoint : PreTransfer)
 		{
 			delete SyncPoint;
 		}
-#endif
 	}
 
-	virtual void RHICrossGPUTransferWait(const TArrayView<FCrossGPUTransferFence* const> SyncPoints)
+	virtual void RHICrossGPUTransferWait(TConstArrayView<FCrossGPUTransferFence*> SyncPoints)
 	{
 		/* default noop implementation */
-#if WITH_MGPU
 		for (FCrossGPUTransferFence* SyncPoint : SyncPoints)
 		{
 			delete SyncPoint;
 		}
-#endif
 	}
+#endif // WITH_MGPU
 
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
+	virtual void RHIBuildAccelerationStructures(TConstArrayView<FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
 	{
 		checkNoEntry();
 	}
@@ -533,7 +527,7 @@ public:
 };
 
 // Utility function to generate pre-transfer sync points to pass to CrossGPUTransferSignal and CrossGPUTransfer
-RHI_API void RHIGenerateCrossGPUPreTransferFences(const TArrayView<const FTransferResourceParams> Params, TArray<FCrossGPUTransferFence*>& OutPreTransfer);
+RHI_API void RHIGenerateCrossGPUPreTransferFences(TConstArrayView<FTransferResourceParams> Params, TArray<FCrossGPUTransferFence*>& OutPreTransfer);
 
 enum class EAccelerationStructureBuildMode
 {
@@ -553,7 +547,7 @@ struct FRayTracingGeometryBuildParams
 
 	// Optional array of geometry segments that can be used to change per-segment vertex buffers.
 	// Only fields related to vertex buffer are used. If empty, then geometry vertex buffers are not changed.
-	TArrayView<const FRayTracingGeometrySegment> Segments;
+	TConstArrayView<FRayTracingGeometrySegment> Segments;
 };
 
 struct FRayTracingSceneBuildParams
@@ -800,12 +794,12 @@ public:
 		checkNoEntry();
 	}
 
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
+	virtual void RHIBuildAccelerationStructures(TConstArrayView<FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
 	{
 		checkNoEntry();
 	}
 
-	void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params)
+	void RHIBuildAccelerationStructures(TConstArrayView<FRayTracingGeometryBuildParams> Params)
 	{
 		checkNoEntry();
 	}

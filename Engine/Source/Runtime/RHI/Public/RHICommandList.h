@@ -1106,9 +1106,9 @@ FRHICOMMAND_MACRO(FRHICommandSetGPUMask)
 
 FRHICOMMAND_MACRO(FRHICommandTransferResources)
 {
-	TArray<FTransferResourceParams, TInlineAllocator<4>> Params;
+	TConstArrayView<FTransferResourceParams> Params;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandTransferResources(TArrayView<const FTransferResourceParams> InParams)
+	FORCEINLINE_DEBUGGABLE FRHICommandTransferResources(TConstArrayView<FTransferResourceParams> InParams)
 		: Params(InParams)
 	{
 	}
@@ -1118,11 +1118,12 @@ FRHICOMMAND_MACRO(FRHICommandTransferResources)
 
 FRHICOMMAND_MACRO(FRHICommandTransferResourceSignal)
 {
-	TArray<FTransferResourceFenceData*, TInlineAllocator<1>> FenceDatas;
+	TConstArrayView<FTransferResourceFenceData*> FenceDatas;
 	FRHIGPUMask SrcGPUMask;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandTransferResourceSignal(TArrayView<FTransferResourceFenceData* const> InFenceDatas, FRHIGPUMask InSrcGPUMask)
-		: FenceDatas(InFenceDatas), SrcGPUMask(InSrcGPUMask)
+	FORCEINLINE_DEBUGGABLE FRHICommandTransferResourceSignal(TConstArrayView<FTransferResourceFenceData*> InFenceDatas, FRHIGPUMask InSrcGPUMask)
+		: FenceDatas(InFenceDatas)
+		, SrcGPUMask(InSrcGPUMask)
 	{
 	}
 
@@ -1131,9 +1132,9 @@ FRHICOMMAND_MACRO(FRHICommandTransferResourceSignal)
 
 FRHICOMMAND_MACRO(FRHICommandTransferResourceWait)
 {
-	TArray<FTransferResourceFenceData*, TInlineAllocator<4>> FenceDatas;
+	TConstArrayView<FTransferResourceFenceData*> FenceDatas;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandTransferResourceWait(TArrayView<FTransferResourceFenceData* const> InFenceDatas)
+	FORCEINLINE_DEBUGGABLE FRHICommandTransferResourceWait(TConstArrayView<FTransferResourceFenceData*> InFenceDatas)
 		: FenceDatas(InFenceDatas)
 	{
 	}
@@ -1143,12 +1144,14 @@ FRHICOMMAND_MACRO(FRHICommandTransferResourceWait)
 
 FRHICOMMAND_MACRO(FRHICommandCrossGPUTransfer)
 {
-	TArray<FTransferResourceParams, TInlineAllocator<4>> Params;
-	TArray<FCrossGPUTransferFence*, TInlineAllocator<1>> PreTransfer;
-	TArray<FCrossGPUTransferFence*, TInlineAllocator<1>> PostTransfer;
+	TConstArrayView<FTransferResourceParams> Params;
+	TConstArrayView<FCrossGPUTransferFence*> PreTransfer;
+	TConstArrayView<FCrossGPUTransferFence*> PostTransfer;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandCrossGPUTransfer(TArrayView<const FTransferResourceParams> InParams, const TArrayView<FCrossGPUTransferFence* const> InPreTransfer, const TArrayView<FCrossGPUTransferFence* const> InPostTransfer)
-		: Params(InParams), PreTransfer(InPreTransfer), PostTransfer(InPostTransfer)
+	FORCEINLINE_DEBUGGABLE FRHICommandCrossGPUTransfer(TConstArrayView<FTransferResourceParams> InParams, TConstArrayView<FCrossGPUTransferFence*> InPreTransfer, TConstArrayView<FCrossGPUTransferFence*> InPostTransfer)
+		: Params(InParams)
+		, PreTransfer(InPreTransfer)
+		, PostTransfer(InPostTransfer)
 	{
 	}
 
@@ -1157,11 +1160,12 @@ FRHICOMMAND_MACRO(FRHICommandCrossGPUTransfer)
 
 FRHICOMMAND_MACRO(FRHICommandCrossGPUTransferSignal)
 {
-	TArray<FTransferResourceParams, TInlineAllocator<4>> Params;
-	TArray<FCrossGPUTransferFence*, TInlineAllocator<1>> PreTransfer;
+	TConstArrayView<FTransferResourceParams> Params;
+	TConstArrayView<FCrossGPUTransferFence*> PreTransfer;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandCrossGPUTransferSignal(TArrayView<const FTransferResourceParams> InParams, TArrayView<FCrossGPUTransferFence* const> InPreTransfer)
-		: Params(InParams), PreTransfer(InPreTransfer)
+	FORCEINLINE_DEBUGGABLE FRHICommandCrossGPUTransferSignal(TConstArrayView<FTransferResourceParams> InParams, TConstArrayView<FCrossGPUTransferFence*> InPreTransfer)
+		: Params(InParams)
+		, PreTransfer(InPreTransfer)
 	{
 	}
 
@@ -1170,9 +1174,9 @@ FRHICOMMAND_MACRO(FRHICommandCrossGPUTransferSignal)
 
 FRHICOMMAND_MACRO(FRHICommandCrossGPUTransferWait)
 {
-	TArray<FCrossGPUTransferFence*, TInlineAllocator<4>> SyncPoints;
+	TConstArrayView<FCrossGPUTransferFence*> SyncPoints;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandCrossGPUTransferWait(TArrayView<FCrossGPUTransferFence* const> InSyncPoints)
+	FORCEINLINE_DEBUGGABLE FRHICommandCrossGPUTransferWait(TConstArrayView<FCrossGPUTransferFence*> InSyncPoints)
 		: SyncPoints(InSyncPoints)
 	{
 	}
@@ -1979,12 +1983,14 @@ FRHICOMMAND_MACRO(FRHICommandClearRayTracingBindings)
 
 FRHICOMMAND_UNNAMED(FRHICommandBuildAccelerationStructures)
 {
-	const TArrayView<const FRayTracingGeometryBuildParams> Params;
+	TConstArrayView<FRayTracingGeometryBuildParams> Params;
 	FRHIBufferRange ScratchBufferRange;
 	FRHIBuffer* ScratchBuffer;
 
-	explicit FRHICommandBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> InParams, const FRHIBufferRange& ScratchBufferRange)
-		: Params(InParams), ScratchBufferRange(ScratchBufferRange), ScratchBuffer(ScratchBufferRange.Buffer)
+	explicit FRHICommandBuildAccelerationStructures(TConstArrayView<FRayTracingGeometryBuildParams> InParams, const FRHIBufferRange& ScratchBufferRange)
+		: Params(InParams)
+		, ScratchBufferRange(ScratchBufferRange)
+		, ScratchBuffer(ScratchBufferRange.Buffer)
 	{}
 
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -2656,7 +2662,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransferResources(const TArrayView<const FTransferResourceParams> Params)
+	FORCEINLINE_DEBUGGABLE void TransferResources(TConstArrayView<FTransferResourceParams> Params)
 	{
 #if WITH_MGPU
 		if (Bypass())
@@ -2665,12 +2671,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{
-			ALLOC_COMMAND(FRHICommandTransferResources)(Params);
+			ALLOC_COMMAND(FRHICommandTransferResources)(AllocArray(Params));
 		}
 #endif // WITH_MGPU
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransferResourceSignal(const TArrayView<FTransferResourceFenceData* const> FenceDatas, FRHIGPUMask SrcGPUMask)
+	FORCEINLINE_DEBUGGABLE void TransferResourceSignal(TConstArrayView<FTransferResourceFenceData*> FenceDatas, FRHIGPUMask SrcGPUMask)
 	{
 #if WITH_MGPU
 		if (Bypass())
@@ -2679,12 +2685,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{
-			ALLOC_COMMAND(FRHICommandTransferResourceSignal)(FenceDatas, SrcGPUMask);
+			ALLOC_COMMAND(FRHICommandTransferResourceSignal)(AllocArray(FenceDatas), SrcGPUMask);
 		}
 #endif // WITH_MGPU
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransferResourceWait(const TArrayView<FTransferResourceFenceData* const> FenceDatas)
+	FORCEINLINE_DEBUGGABLE void TransferResourceWait(TConstArrayView<FTransferResourceFenceData*> FenceDatas)
 	{
 #if WITH_MGPU
 		if (Bypass())
@@ -2693,12 +2699,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{
-			ALLOC_COMMAND(FRHICommandTransferResourceWait)(FenceDatas);
+			ALLOC_COMMAND(FRHICommandTransferResourceWait)(AllocArray(FenceDatas));
 		}
 #endif // WITH_MGPU
 	}
 
-	FORCEINLINE_DEBUGGABLE void CrossGPUTransfer(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer, const TArrayView<FCrossGPUTransferFence* const> PostTransfer)
+	FORCEINLINE_DEBUGGABLE void CrossGPUTransfer(TConstArrayView<FTransferResourceParams> Params, TConstArrayView<FCrossGPUTransferFence*> PreTransfer, TConstArrayView<FCrossGPUTransferFence*> PostTransfer)
 	{
 #if WITH_MGPU
 		if (Bypass())
@@ -2707,12 +2713,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{
-			ALLOC_COMMAND(FRHICommandCrossGPUTransfer)(Params, PreTransfer, PostTransfer);
+			ALLOC_COMMAND(FRHICommandCrossGPUTransfer)(AllocArray(Params), AllocArray(PreTransfer), AllocArray(PostTransfer));
 		}
 #endif // WITH_MGPU
 	}
 
-	FORCEINLINE_DEBUGGABLE void CrossGPUTransferSignal(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer)
+	FORCEINLINE_DEBUGGABLE void CrossGPUTransferSignal(TConstArrayView<FTransferResourceParams> Params, TConstArrayView<FCrossGPUTransferFence*> PreTransfer)
 	{
 #if WITH_MGPU
 		if (Bypass())
@@ -2721,12 +2727,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{
-			ALLOC_COMMAND(FRHICommandCrossGPUTransferSignal)(Params, PreTransfer);
+			ALLOC_COMMAND(FRHICommandCrossGPUTransferSignal)(AllocArray(Params), AllocArray(PreTransfer));
 		}
 #endif // WITH_MGPU
 	}
 
-	FORCEINLINE_DEBUGGABLE void CrossGPUTransferWait(const TArrayView<FCrossGPUTransferFence* const> SyncPoints)
+	FORCEINLINE_DEBUGGABLE void CrossGPUTransferWait(TConstArrayView<FCrossGPUTransferFence*> SyncPoints)
 	{
 #if WITH_MGPU
 		if (Bypass())
@@ -2735,7 +2741,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{
-			ALLOC_COMMAND(FRHICommandCrossGPUTransferWait)(SyncPoints);
+			ALLOC_COMMAND(FRHICommandCrossGPUTransferWait)(AllocArray(SyncPoints));
 		}
 #endif // WITH_MGPU
 	}
@@ -2753,9 +2759,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if RHI_RAYTRACING
 	RHI_API void BuildAccelerationStructure(FRHIRayTracingGeometry* Geometry);
-	RHI_API void BuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params);
+	RHI_API void BuildAccelerationStructures(TConstArrayView<FRayTracingGeometryBuildParams> Params);
 
-	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
+	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructures(TConstArrayView<FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
 	{
 		if (Bypass())
 		{

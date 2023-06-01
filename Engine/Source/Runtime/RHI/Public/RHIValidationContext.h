@@ -177,7 +177,7 @@ public:
 		RHIContext->RHIEndUAVOverlap();
 	}
 
-	virtual void RHIBeginUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs) final override
+	virtual void RHIBeginUAVOverlap(TConstArrayView<FRHIUnorderedAccessView*> UAVs) final override
 	{
 		for (FRHIUnorderedAccessView* UAV : UAVs)
 		{
@@ -186,7 +186,7 @@ public:
 		RHIContext->RHIBeginUAVOverlap(UAVs);
 	}
 
-	virtual void RHIEndUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs) final override
+	virtual void RHIEndUAVOverlap(TConstArrayView<FRHIUnorderedAccessView*> UAVs) final override
 	{
 		for (FRHIUnorderedAccessView* UAV : UAVs)
 		{
@@ -312,7 +312,39 @@ public:
 
 	virtual void RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRHIStagingBuffer* DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes) override final;
 
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange) override final
+#if WITH_MGPU
+	virtual void RHITransferResources(TConstArrayView<FTransferResourceParams> Params)
+	{
+		RHIContext->RHITransferResources(Params);
+	}
+
+	virtual void RHITransferResourceSignal(TConstArrayView<FTransferResourceFenceData*> FenceDatas, FRHIGPUMask SrcGPUMask)
+	{
+		RHIContext->RHITransferResourceSignal(FenceDatas, SrcGPUMask);
+	}
+
+	virtual void RHITransferResourceWait(TConstArrayView<FTransferResourceFenceData*> FenceDatas)
+	{
+		RHIContext->RHITransferResourceWait(FenceDatas);
+	}
+
+	virtual void RHICrossGPUTransfer(TConstArrayView<FTransferResourceParams> Params, TConstArrayView<FCrossGPUTransferFence*> PreTransfer, TConstArrayView<FCrossGPUTransferFence*> PostTransfer)
+	{
+		RHIContext->RHICrossGPUTransfer(Params, PreTransfer, PostTransfer);
+	}
+
+	virtual void RHICrossGPUTransferSignal(TConstArrayView<FTransferResourceParams> Params, TConstArrayView<FCrossGPUTransferFence*> PreTransfer)
+	{
+		RHIContext->RHICrossGPUTransferSignal(Params, PreTransfer);
+	}
+
+	virtual void RHICrossGPUTransferWait(TConstArrayView<FCrossGPUTransferFence*> SyncPoints)
+	{
+		RHIContext->RHICrossGPUTransferWait(SyncPoints);
+	}
+#endif // WITH_MGPU
+
+	virtual void RHIBuildAccelerationStructures(TConstArrayView<FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange) override final
 	{
 		// #yuriy_todo: explicit transitions and state validation for BLAS
 		RHIContext->RHIBuildAccelerationStructures(Params, ScratchBufferRange);
@@ -443,7 +475,7 @@ public:
 		RHIContext->RHIEndUAVOverlap();
 	}
 
-	virtual void RHIBeginUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs) final override
+	virtual void RHIBeginUAVOverlap(TConstArrayView<FRHIUnorderedAccessView*> UAVs) final override
 	{
 		for (FRHIUnorderedAccessView* UAV : UAVs)
 		{
@@ -452,7 +484,7 @@ public:
 		RHIContext->RHIBeginUAVOverlap(UAVs);
 	}
 
-	virtual void RHIEndUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs) final override
+	virtual void RHIEndUAVOverlap(TConstArrayView<FRHIUnorderedAccessView*> UAVs) final override
 	{
 		for (FRHIUnorderedAccessView* UAV : UAVs)
 		{
@@ -1104,7 +1136,7 @@ public:
 		RHIContext->RHIClearRayTracingBindings(Scene);
 	}
 
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange) override final
+	virtual void RHIBuildAccelerationStructures(TConstArrayView<FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange) override final
 	{
 		// #yuriy_todo: explicit transitions and state validation for BLAS
 		RHIContext->RHIBuildAccelerationStructures(Params, ScratchBufferRange);
