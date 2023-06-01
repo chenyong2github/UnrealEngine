@@ -20,6 +20,8 @@
 	#include "ImageUtils.h"
 	#include "Tests/AutomationCommon.h"
 	#include "UnrealClient.h"
+	#include "RHIFeatureLevel.h"
+	#include "RHIStrings.h"
 #endif
 
 #if WITH_EDITOR
@@ -486,23 +488,36 @@ void FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName(const TAr
 }
 #endif
 
-FString GetRHIForAutomation()
+TSet<FName> GetRHIForAutomation()
 {
-	// Remove any extra information in () from RHI string
 	FString RHI = FApp::GetGraphicsRHI();
+	if (RHI.IsEmpty())
+	{
+		RHI = FAutomationTestExcludeOptions::GetRHIOptionName(ETEST_RHI_Options::Null);
+		return TSet<FName> {FName(RHI), FName(RHI)};
+	}
+
+	// Remove any extra information in () from RHI string
 	int Pos;
 	if (RHI.FindChar(*TEXT("("), Pos))
 	{
 		RHI = RHI.Left(Pos).TrimEnd();
 	}
-	return RHI;
+
+#if WITH_ENGINE
+	FString FeatureLevel = LexToString(GMaxRHIFeatureLevel);
+#else
+	FString FeatureLevel = TEXT("N/A");
+#endif
+
+	return TSet<FName> {FName(RHI), FName(FeatureLevel)};
 }
 
 bool FAutomationWorkerModule::IsTestExcluded(const FString& InTestToRun, FString* OutReason, bool* OutWarn) const
 {
 	FName SkipReason;
 	UAutomationTestExcludelist* Excludelist = UAutomationTestExcludelist::Get();
-	static FString RHI = GetRHIForAutomation();
+	static const TSet<FName> RHI = GetRHIForAutomation();
 	if (Excludelist->IsTestExcluded(InTestToRun, RHI, &SkipReason, OutWarn))
 	{
 		if (OutReason)

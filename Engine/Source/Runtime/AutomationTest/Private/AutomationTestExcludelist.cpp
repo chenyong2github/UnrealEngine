@@ -111,7 +111,7 @@ void UAutomationTestExcludelist::RemoveFromExcludeTest(const FString& TestName)
 	}
 }
 
-bool UAutomationTestExcludelist::IsTestExcluded(const FString& TestName, const FString& RHI, FName* OutReason, bool* OutWarn)
+bool UAutomationTestExcludelist::IsTestExcluded(const FString& TestName, const TSet<FName>& RHI, FName* OutReason, bool* OutWarn)
 {
 	if (auto Entry = GetExcludeTestEntry(TestName, RHI))
 	{
@@ -131,7 +131,7 @@ bool UAutomationTestExcludelist::IsTestExcluded(const FString& TestName, const F
 	return false;
 }
 
-FAutomationTestExcludelistEntry* UAutomationTestExcludelist::GetExcludeTestEntry(const FString& TestName, const FString& RHI)
+FAutomationTestExcludelistEntry* UAutomationTestExcludelist::GetExcludeTestEntry(const FString& TestName, const TSet<FName>& RHI)
 {
 	if (TestName.IsEmpty())
 		return nullptr;
@@ -155,7 +155,8 @@ FAutomationTestExcludelistEntry* UAutomationTestExcludelist::GetExcludeTestEntry
 					OutEntry = &Entry;
 					continue;
 				}
-				if (Entry.RHIs.Contains(*RHI))
+				const int8 IntersectNum = RHI.Intersect(Entry.RHIs).Num();
+				if (IntersectNum > 0 && IntersectNum == Entry.NumRHIType())
 				{
 					return &Entry;
 				}
