@@ -458,8 +458,6 @@ TGlobalResource<FRayTracingDebugResources> GRayTracingDebugResources;
 
 void BindRayTracingDebugCHSMaterialBindings(FRHICommandList& RHICmdList, const FViewInfo& View, FRHIUniformBuffer* SceneUniformBuffer, FRayTracingPipelineState* PipelineState)
 {
-	const bool bNaniteRayTracingMode = Nanite::GetRayTracingMode() != Nanite::ERayTracingMode::Fallback;
-
 	FSceneRenderingBulkObjectAllocator Allocator;
 
 	auto Alloc = [&](uint32 Size, uint32 Align)

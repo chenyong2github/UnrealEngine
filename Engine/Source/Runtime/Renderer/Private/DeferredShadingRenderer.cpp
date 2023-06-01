@@ -2323,7 +2323,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 			// When Lumen passes are running in inline-only mode we need to build bindings for HitGroupData here instead of when building the pipeline.
 			if (bAnyLumenHardwareInlineRayTracingPassEnabled && !GRHISupportsRayTracingShaders)
 			{
-				LumenHardwareRayTracingMaterialBindings = BuildLumenHardwareRayTracingMaterialBindings(RHICmdList, ReferenceView, ReferenceView.LumenHardwareRayTracingHitDataBuffer, true);
+				LumenHardwareRayTracingMaterialBindings = BuildLumenHardwareRayTracingMaterialBindings(RHICmdList, ReferenceView, PassParams->Scene->GetRHI(), ReferenceView.LumenHardwareRayTracingHitDataBuffer, true);
 			}
 
 			if (GRHISupportsRayTracingShaders)
@@ -2337,7 +2337,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 				if (ReferenceView.LumenHardwareRayTracingMaterialPipeline)
 				{
 					RHICmdList.SetRayTracingMissShader(ReferenceView.GetRayTracingSceneChecked(), RAY_TRACING_MISS_SHADER_SLOT_DEFAULT, ReferenceView.LumenHardwareRayTracingMaterialPipeline, 0 /* MissShaderPipelineIndex */, 0, nullptr, 0);
-					BindLumenHardwareRayTracingMaterialPipeline(RHICmdList, LumenHardwareRayTracingMaterialBindings, ReferenceView, ReferenceView.LumenHardwareRayTracingMaterialPipeline, ReferenceView.LumenHardwareRayTracingHitDataBuffer);
+					BindLumenHardwareRayTracingMaterialPipeline(RHICmdList, LumenHardwareRayTracingMaterialBindings, ReferenceView, PassParams->Scene->GetRHI(), ReferenceView.LumenHardwareRayTracingMaterialPipeline, ReferenceView.LumenHardwareRayTracingHitDataBuffer);
 				}
 			}
 		}
