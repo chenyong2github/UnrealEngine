@@ -432,6 +432,7 @@ private:
 #if !UE_BUILD_SHIPPING
 	FDelegateHandle ScreenMessageDelegate;
 	bool bLoggedInstanceOverflow = false;
+	uint32 MaxInstancesDuringPrevUpdate = 0;
 #endif // UE_BUILD_SHIPPING
 
 };
