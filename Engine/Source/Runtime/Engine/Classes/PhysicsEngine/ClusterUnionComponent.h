@@ -162,7 +162,7 @@ public:
 	void SyncClusterUnionFromProxy();
 
 	UFUNCTION()
-	bool IsComponentAdded(UPrimitiveComponent* Component) { return ComponentToPhysicsObjects.Contains(Component); }
+	bool IsComponentAdded(UPrimitiveComponent* Component) { return ComponentToPhysicsObjects.Contains(Component) || PendingComponentSync.Contains(Component); }
 
 	bool HasReceivedTransform() const { return bHasReceivedTransform; }
 
