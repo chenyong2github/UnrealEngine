@@ -18,6 +18,7 @@ const TCHAR *const FJsonWebToken::TYPE_VALUE_JWT = TEXT("JWT");
 const TCHAR *const FJsonWebToken::CLAIM_ISSUER = TEXT("iss");
 const TCHAR *const FJsonWebToken::CLAIM_ISSUED_AT = TEXT("iat");
 const TCHAR *const FJsonWebToken::CLAIM_EXPIRATION = TEXT("exp");
+const TCHAR* const FJsonWebToken::CLAIM_NOT_BEFORE = TEXT("nbf");
 const TCHAR *const FJsonWebToken::CLAIM_SUBJECT = TEXT("sub");
 const TCHAR *const FJsonWebToken::CLAIM_AUDIENCE = TEXT("aud");
 
@@ -299,6 +300,36 @@ bool FJsonWebToken::GetKeyId(FString& OutValue) const
 bool FJsonWebToken::GetAlgorithm(FString& OutValue) const
 {
 	return Header->TryGetStringField(HEADER_ALGORITHM, OutValue);
+}
+
+bool FJsonWebToken::GetIssuer(FString& OutValue) const
+{
+	return Payload->TryGetStringField(CLAIM_ISSUER, OutValue);
+}
+
+bool FJsonWebToken::GetIssuedAt(int64& OutValue) const
+{
+	return Payload->TryGetNumberField(CLAIM_ISSUED_AT, OutValue);
+}
+
+bool FJsonWebToken::GetExpiration(int64& OutValue) const
+{
+	return Payload->TryGetNumberField(CLAIM_EXPIRATION, OutValue);
+}
+
+bool FJsonWebToken::GetNotBefore(int64& OutValue) const
+{
+	return Payload->TryGetNumberField(CLAIM_NOT_BEFORE, OutValue);
+}
+
+bool FJsonWebToken::GetSubject(FString& OutValue) const
+{
+	return Payload->TryGetStringField(CLAIM_SUBJECT, OutValue);
+}
+
+bool FJsonWebToken::GetAudience(FString& OutValue) const
+{
+	return Payload->TryGetStringField(CLAIM_AUDIENCE, OutValue);
 }
 
 bool FJsonWebToken::GetClaim(const FStringView InName, TSharedPtr<FJsonValue>& OutClaim) const

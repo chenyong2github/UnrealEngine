@@ -50,6 +50,54 @@ public:
 	bool GetAlgorithm(FString& OutValue) const;
 
 	/**
+	 * Gets the issuer domain.
+	 * 
+	 * @param OutValue The value to output on success.
+	 * @return Whether the value exists and was successfully outputted.
+	 */
+	bool GetIssuer(FString& OutValue) const;
+
+	/**
+	 * Gets the issued at timestamp.
+	 *
+	 * @param OutValue The value to output on success.
+	 * @return Whether the value exists and was successfully outputted.
+	 */
+	bool GetIssuedAt(int64& OutValue) const;
+
+	/**
+	 * Gets the expiration timestamp.
+	 *
+	 * @param OutValue The value to output on success.
+	 * @return Whether the value exists and was successfully outputted.
+	 */
+	bool GetExpiration(int64& OutValue) const;
+
+	/**
+	 * Gets the not valid before timestamp.
+	 *
+	 * @param OutValue The value to output on success.
+	 * @return Whether the value exists and was successfully outputted.
+	 */
+	bool GetNotBefore(int64& OutValue) const;
+
+	/**
+	 * Gets the subject.
+	 *
+	 * @param OutValue The value to output on success.
+	 * @return Whether the value exists and was successfully outputted.
+	 */
+	bool GetSubject(FString& OutValue) const;
+
+	/**
+	 * Gets the audience.
+	 *
+	 * @param OutValue The value to output on success.
+	 * @return Whether the value exists and was successfully outputted.
+	 */
+	bool GetAudience(FString& OutValue) const;
+
+	/**
 	 * Gets a claim by name.
 	 * This method can be used to get custom claims that are not reserved as part of the JWT specification.
 	 *
@@ -97,6 +145,7 @@ public:
 	static const TCHAR *const CLAIM_ISSUER;
 	static const TCHAR *const CLAIM_ISSUED_AT;
 	static const TCHAR *const CLAIM_EXPIRATION;
+	static const TCHAR* const CLAIM_NOT_BEFORE;
 	static const TCHAR *const CLAIM_SUBJECT;
 	static const TCHAR *const CLAIM_AUDIENCE;
 
