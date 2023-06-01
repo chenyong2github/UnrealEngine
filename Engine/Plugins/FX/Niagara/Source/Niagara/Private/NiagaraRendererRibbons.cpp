@@ -647,6 +647,49 @@ private:
 	void GenerateAllGPUData(FRHICommandListImmediate& RHICmdList, TArray<FNiagaraRibbonGPUInitParameters>& RenderersToGenerate);
 };
 
+struct FNiagaraGenerationInputDataCPUAccessors
+{
+	FNiagaraGenerationInputDataCPUAccessors(const UNiagaraRibbonRendererProperties * Properties, const FNiagaraDataSet & Data)
+		: TotalNumParticles(Data.GetCurrentDataChecked().GetNumInstances())
+		, RibbonLinkOrderFloatData(Properties->RibbonLinkOrderFloatAccessor.GetReader(Data))
+		, RibbonLinkOrderInt32Data(Properties->RibbonLinkOrderInt32Accessor.GetReader(Data))
+		, SimpleRibbonIDData(Properties->RibbonIdDataSetAccessor.GetReader(Data))
+		, FullRibbonIDData(Properties->RibbonFullIDDataSetAccessor.GetReader(Data))
+		, PosData(Properties->PositionDataSetAccessor.GetReader(Data))
+		, AgeData(Properties->NormalizedAgeAccessor.GetReader(Data))
+		, SizeData(Properties->SizeDataSetAccessor.GetReader(Data))
+		, TwistData(Properties->TwistDataSetAccessor.GetReader(Data))
+	{
+	}
+
+	template<typename TContainer>
+	void RibbonLinkOrderSort(TContainer& Container) const
+	{
+		if (RibbonLinkOrderFloatData.IsValid())
+		{
+			Container.Sort([this](const uint32& A, const uint32& B) { return RibbonLinkOrderFloatData[A] < RibbonLinkOrderFloatData[B]; });
+		}
+		else
+		{
+			Container.Sort([this](const uint32& A, const uint32& B) { return RibbonLinkOrderInt32Data[A] > RibbonLinkOrderInt32Data[B]; });
+		}
+	}
+
+	bool HasRibbonLinkOrder() const { return RibbonLinkOrderFloatData.IsValid() || RibbonLinkOrderInt32Data.IsValid(); }
+
+	const uint32 TotalNumParticles;
+
+	const FNiagaraDataSetReaderFloat<float>	RibbonLinkOrderFloatData;
+	const FNiagaraDataSetReaderInt32<int32>	RibbonLinkOrderInt32Data;
+
+	const FNiagaraDataSetReaderInt32<int> SimpleRibbonIDData;
+	const FNiagaraDataSetReaderStruct<FNiagaraID> FullRibbonIDData;
+
+	const FNiagaraDataSetReaderFloat<FNiagaraPosition> PosData;
+	const FNiagaraDataSetReaderFloat<float> AgeData;
+	const FNiagaraDataSetReaderFloat<float> SizeData;
+	const FNiagaraDataSetReaderFloat<float> TwistData;
+};
 
 FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 	: FNiagaraRenderer(FeatureLevel, InProps, Emitter)
@@ -666,7 +709,9 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	FacingMode = Properties->FacingMode;
 	DrawDirection = Properties->DrawDirection;
 	RendererLayout = &Properties->RendererLayout;
-	
+	bGpuRibbonLinkIsFloat = Properties->bGpuRibbonLinkIsFloat;
+	GpuRibbonLinkOrderOffset = Properties->GpuRibbonLinkOrderOffset;
+
 	InitializeShape(Properties);
 	InitializeTessellation(Properties);	
 }
@@ -886,7 +931,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 				
 				DynamicData->GenerationOutput = MakeShared<FNiagaraRibbonCPUGeneratedVertexData>();
 
-				if (CPUData.PosData.IsValid() && CPUData.SortKeyReader.IsValid() && CPUData.TotalNumParticles >= 2)
+				if (CPUData.PosData.IsValid() && CPUData.HasRibbonLinkOrder() && CPUData.TotalNumParticles >= 2)
 				{
 					GenerateVertexBufferCPU(CPUData, *DynamicData->GenerationOutput);
 				}
@@ -1577,11 +1622,10 @@ void FNiagaraRendererRibbons::GenerateVertexBufferForMultiRibbonInternal(const F
 	for (TPair<IDType, FIndexArray>& Pair : MultiRibbonSortedIndices)
 	{
 		FIndexArray& SortedIndices = Pair.Value;
-		const auto& SortKeyReader = CPUData.SortKeyReader;
-		SortedIndices.Sort([&SortKeyReader](const uint32& A, const uint32& B) { return (SortKeyReader[A] < SortKeyReader[B]); });
+		CPUData.RibbonLinkOrderSort(SortedIndices);
 		GenerateVertexBufferForRibbonPart<bWantsTessellation, bHasTwist, true>(CPUData, SortedIndices, RibbonIndex, OutputData);
 		RibbonIndex++;
-	};
+	}
 }
 
 template<typename IDType, typename ReaderType>
@@ -1608,7 +1652,7 @@ void FNiagaraRendererRibbons::GenerateVertexBufferCPU(const FNiagaraGenerationIn
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderRibbonsGenVerticesCPU);
 	
-	check(CPUData.PosData.IsValid() && CPUData.SortKeyReader.IsValid());
+	check(CPUData.PosData.IsValid() && CPUData.HasRibbonLinkOrder());
 
 	// TODO: Move sorting to share code with sprite and mesh sorting and support the custom sorting key.
 	FMemMark Mark(FMemStack::Get());
@@ -1636,8 +1680,7 @@ void FNiagaraRendererRibbons::GenerateVertexBufferCPU(const FNiagaraGenerationIn
 		}
 		OutputData.RibbonInfoLookup.AddZeroed(1);
 
-		const auto& SortKeyReader = CPUData.SortKeyReader;
-		SortedIndices.Sort([&SortKeyReader](const uint32& A, const uint32& B) {	return (SortKeyReader[A] < SortKeyReader[B]); });
+		CPUData.RibbonLinkOrderSort(SortedIndices);
 
 		OutputData.SortedIndices.Reserve(OutputData.SortedIndices.Num() + CPUData.TotalNumParticles + 1);
 		OutputData.TangentAndDistances.Reserve(OutputData.TangentAndDistances.Num() + CPUData.TotalNumParticles + 1);
@@ -1989,8 +2032,6 @@ void FNiagaraRendererRibbons::SetupPerViewUniformBuffer(FNiagaraIndexGenerationI
 	PerViewUniformParameters.FacingDataOffset = bShouldDoFacing ? VFVariables[ENiagaraRibbonVFLayout::Facing].GetGPUOffset() : -1;
 	PerViewUniformParameters.PrevFacingDataOffset = bShouldDoFacing ? VFVariables[ENiagaraRibbonVFLayout::PrevRibbonFacing].GetGPUOffset() : -1;
 
-	PerViewUniformParameters.LinkOrderDataOffset = VFVariables[ENiagaraRibbonVFLayout::LinkOrder].GetGPUOffset();
-
 	PerViewUniformParameters.U0DistributionMode = static_cast<int32>(UV0Settings.DistributionMode);
 	PerViewUniformParameters.U1DistributionMode = static_cast<int32>(UV1Settings.DistributionMode);
 	PerViewUniformParameters.PackedVData.X = float(UV0Settings.Scale.Y);
@@ -2330,7 +2371,7 @@ FRibbonComputeUniformParameters FNiagaraRendererRibbons::SetupComputeVertexGenPa
 	CommonParams.FacingDataOffset = bShouldDoFacing ? VFVariables[ENiagaraRibbonVFLayout::Facing].GetGPUOffset() : -1;
 	CommonParams.PrevFacingDataOffset = bShouldDoFacing ? VFVariables[ENiagaraRibbonVFLayout::PrevRibbonFacing].GetGPUOffset() : -1;
 
-	CommonParams.RibbonLinkOrderDataOffset = GenerationConfig.HasCustomLinkOrder()? VFVariables[ENiagaraRibbonVFLayout::LinkOrder].GetGPUOffset() : -1;
+	CommonParams.RibbonLinkOrderDataOffset = GpuRibbonLinkOrderOffset;
 
 	CommonParams.U0DistributionMode = static_cast<int32>(UV0Settings.DistributionMode);
 	CommonParams.U1DistributionMode = static_cast<int32>(UV1Settings.DistributionMode);
@@ -2371,7 +2412,7 @@ void FNiagaraRendererRibbons::InitializeVertexBuffersGPU(FRHICommandListImmediat
 		FNiagaraRibbonSortPhase1CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRibbonHasFullRibbonID>(GenerationConfig.HasFullRibbonIDs());
 		PermutationVector.Set<FRibbonHasRibbonID>(GenerationConfig.HasSimpleRibbonIDs());
-		PermutationVector.Set<FRibbonHasCustomLinkOrder>(GenerationConfig.HasCustomLinkOrder());
+		PermutationVector.Set<FRibbonLinkIsFloat>(bGpuRibbonLinkIsFloat);
 		
 		TShaderMapRef<FNiagaraRibbonSortPhase1CS> BubbleSortShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 		TShaderMapRef<FNiagaraRibbonSortPhase2CS> MergeSortShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);

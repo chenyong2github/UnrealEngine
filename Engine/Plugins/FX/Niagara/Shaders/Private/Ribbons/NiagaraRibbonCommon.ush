@@ -11,8 +11,6 @@
 #define PACKED_PER_RIBBON_STARTPARTICLEOFFSET 6
 #define PACKED_PER_RIBBON_ENDPARTICLEOFFSET 7
 
-
-
 #if RIBBONS_WANTS_AUTOMATIC_TESSELLATION
 #define VERTEX_GEN_OUTPUT_DATA_STRIDE 15
 #else
@@ -225,21 +223,16 @@ static const FNiagaraID InvalidID = { INT_MIN, INT_MIN };
 
 #endif
 
-
-#if RIBBON_HAS_LINK_ORDER
-
+#if RIBBONLINK_IS_FLOAT
 	float GetRibbonLinkID(int InstanceID)
 	{
 		return GetFloat(RibbonLinkOrderDataOffset, InstanceID);
 	}
-
 #else
-
-	float GetRibbonLinkID(int InstanceID)
+	int GetRibbonLinkID(int InstanceID)
 	{
-		return GetFloat(NormalizedAgeDataOffset, InstanceID);
+		return GetInt(RibbonLinkOrderDataOffset, InstanceID);
 	}
-
 #endif
 
 // max absolute error 9.0x10^-3

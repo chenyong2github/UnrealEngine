@@ -25,36 +25,7 @@ struct FNiagaraRibbonRenderingFrameResources;
 struct FNiagaraRibbonRenderingFrameViewResources;
 struct FNiagaraRibbonGPUInitParameters;
 struct FNiagaraRibbonGPUInitComputeBuffers;
-
-struct FNiagaraGenerationInputDataCPUAccessors
-{
-	FNiagaraGenerationInputDataCPUAccessors(const UNiagaraRibbonRendererProperties* Properties, const FNiagaraDataSet& Data)
-		: TotalNumParticles(Data.GetCurrentDataChecked().GetNumInstances())
-		, SortKeyReader(Properties->SortKeyDataSetAccessor.GetReader(Data))
-		, RibbonLinkOrderData(Properties->RibbonLinkOrderDataSetAccessor.GetReader(Data))
-		, SimpleRibbonIDData(Properties->RibbonIdDataSetAccessor.GetReader(Data))
-		, FullRibbonIDData(Properties->RibbonFullIDDataSetAccessor.GetReader(Data))
-		, PosData(Properties->PositionDataSetAccessor.GetReader(Data))
-		, AgeData(Properties->NormalizedAgeAccessor.GetReader(Data))
-		, SizeData(Properties->SizeDataSetAccessor.GetReader(Data))
-		, TwistData(Properties->TwistDataSetAccessor.GetReader(Data))
-	{
-		
-	}
-	
-	const uint32 TotalNumParticles;
-	
-	const FNiagaraDataSetReaderFloat<float> SortKeyReader;
-	const FNiagaraDataSetReaderFloat<float> RibbonLinkOrderData;
-	
-	const FNiagaraDataSetReaderInt32<int> SimpleRibbonIDData;
-	const FNiagaraDataSetReaderStruct<FNiagaraID> FullRibbonIDData;
-	
-	const FNiagaraDataSetReaderFloat<FNiagaraPosition> PosData;
-	const FNiagaraDataSetReaderFloat<float> AgeData;
-	const FNiagaraDataSetReaderFloat<float> SizeData;
-	const FNiagaraDataSetReaderFloat<float> TwistData;
-};
+struct FNiagaraGenerationInputDataCPUAccessors;
 
 struct FNiagaraIndexGenerationInput
 {
@@ -87,7 +58,6 @@ public:
 		, MaxNumRibbons(Properties->MaxNumRibbons)
 		, bHasFullRibbonIDs(Properties->RibbonFullIDDataSetAccessor.IsValid())
 		, bHasSimpleRibbonIDs(Properties->RibbonIdDataSetAccessor.IsValid())
-		, bHasCustomLinkOrder(Properties->RibbonLinkOrderDataSetAccessor.IsValid())
 		, bHasTwist(Properties->TwistDataSetAccessor.IsValid() && Properties->SizeDataSetAccessor.IsValid())
 		, bHasCustomU0Data(Properties->UV0Settings.bEnablePerParticleUOverride && Properties->U0OverrideIsBound)
 		, bHasCustomU1Data(Properties->UV1Settings.bEnablePerParticleUOverride && Properties->U1OverrideIsBound)
@@ -106,7 +76,6 @@ public:
 	bool HasSimpleRibbonIDs() const { return bHasSimpleRibbonIDs; }
 	bool HasRibbonIDs() const { return HasFullRibbonIDs() || HasSimpleRibbonIDs(); };
 	
-	bool HasCustomLinkOrder() const { return bHasCustomLinkOrder; }
 	bool HasTwist() const { return bHasTwist; }
 	
 	bool HasCustomU0Data() const { return bHasCustomU0Data; }
@@ -124,7 +93,6 @@ private:
 	
 	const uint32 bHasFullRibbonIDs : 1;
 	const uint32 bHasSimpleRibbonIDs : 1;
-	const uint32 bHasCustomLinkOrder : 1;
 	const uint32 bHasTwist : 1;
 	
 	const uint32 bHasCustomU0Data : 1;
@@ -423,6 +391,8 @@ protected:
 	ENiagaraRibbonDrawDirection DrawDirection;
 	
 	const FNiagaraRendererLayout* RendererLayout;
+	bool bGpuRibbonLinkIsFloat = false;
+	uint32 GpuRibbonLinkOrderOffset = INDEX_NONE;
 
 	mutable FNiagaraRibbonVertexBuffers VertexBuffers;
 	

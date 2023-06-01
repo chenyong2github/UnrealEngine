@@ -185,7 +185,6 @@ namespace ENiagaraRibbonVFLayout
 		PrevRibbonWidth,
 		PrevRibbonFacing,
 		PrevRibbonTwist,
-		LinkOrder,
 		Num,
 	};
 };
@@ -321,6 +320,9 @@ public:
 	/** If checked, use the ribbon's screen space percentage to adaptively adjust the tessellation factor. */
 	UPROPERTY(EditAnywhere, Category = "Ribbon Tessellation", meta = (DisplayName = "Screen Space", EditCondition = "TessellationMode == ENiagaraRibbonTessellationMode::Custom && !bUseConstantFactor", EditConditionHides, DisplayAfter="TessellationAngle"))
 	uint8 bScreenSpaceTessellation : 1;
+
+	UPROPERTY()
+	uint8 bLinkOrderUseUniqueID : 1;
 
 	/** Tessellation factor to apply to the width of the ribbon.
 	* Ranges from 1 to 16. Greater values increase amount of tessellation.
@@ -467,8 +469,8 @@ public:
 	UPROPERTY()
 	uint32 MaterialParamValidMask = 0;
 
-	bool								bSortKeyDataSetAccessorIsAge = false;
-	FNiagaraDataSetAccessor<float>		SortKeyDataSetAccessor;
+	FNiagaraDataSetAccessor<float>		RibbonLinkOrderFloatAccessor;
+	FNiagaraDataSetAccessor<int32>		RibbonLinkOrderInt32Accessor;
 	FNiagaraDataSetAccessor<FNiagaraPosition>	PositionDataSetAccessor;
 	FNiagaraDataSetAccessor<float>		NormalizedAgeAccessor;
 	FNiagaraDataSetAccessor<float>		SizeDataSetAccessor;
@@ -485,7 +487,8 @@ public:
 	FNiagaraDataSetAccessor<int32>		RibbonIdDataSetAccessor;
 	FNiagaraDataSetAccessor<FNiagaraID>	RibbonFullIDDataSetAccessor;
 	
-	FNiagaraDataSetAccessor<float>		RibbonLinkOrderDataSetAccessor;
+	bool								bGpuRibbonLinkIsFloat = false;
+	uint32								GpuRibbonLinkOrderOffset = INDEX_NONE;
 
 	FNiagaraRendererLayout RendererLayout;
 
@@ -498,6 +501,4 @@ protected:
 	void UpdateMICs();
 
 	virtual bool NeedsMIDsForMaterials() const { return MaterialParameters.HasAnyBindings(); }
-private: 
-	static TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> RibbonRendererPropertiesToDeferredInit;
 };

@@ -59,7 +59,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 class FRibbonHasFullRibbonID : SHADER_PERMUTATION_BOOL("RIBBONID_IS_NIAGARAID");
 class FRibbonHasRibbonID : SHADER_PERMUTATION_BOOL("RIBBONID_IS_INT");
-class FRibbonHasCustomLinkOrder : SHADER_PERMUTATION_BOOL("RIBBON_HAS_LINK_ORDER");
+class FRibbonLinkIsFloat : SHADER_PERMUTATION_BOOL("RIBBONLINK_IS_FLOAT");
 
 class FRibbonWantsConstantTessellation : SHADER_PERMUTATION_BOOL("RIBBONS_WANTS_CONSTANT_TESSELLATION");
 class FRibbonWantsAutomaticTessellation : SHADER_PERMUTATION_BOOL("RIBBONS_WANTS_AUTOMATIC_TESSELLATION");
@@ -101,7 +101,7 @@ class FNiagaraRibbonSortPhase1CS : public FGlobalShader
 	static constexpr uint32 BubbleSortGroupWidth = 32;
 
 	using FParameters = FRibbonOrderSortParameters;
-	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonHasCustomLinkOrder>;
+	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonLinkIsFloat>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
@@ -117,7 +117,7 @@ class FNiagaraRibbonSortPhase2CS : public FGlobalShader
 	static constexpr uint32 ThreadGroupSize = 64;
 
 	using FParameters = FRibbonOrderSortParameters;
-	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonHasCustomLinkOrder>;
+	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonLinkIsFloat>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };

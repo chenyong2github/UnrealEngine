@@ -24,8 +24,13 @@
 
 #define LOCTEXT_NAMESPACE "UNiagaraRibbonRendererProperties"
 
-TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> UNiagaraRibbonRendererProperties::RibbonRendererPropertiesToDeferredInit;
+namespace NiagaraRibbonRendererPropertiesPrivate
+{
+	static const FName NAME_UniqueID("UniqueID");
+	static FNiagaraVariableBase GetUniqueIDVariable() { return FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_UniqueID); }
 
+	TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> RibbonRendererPropertiesToDeferredInit;
+}
 
 FNiagaraRibbonShapeCustomVertex::FNiagaraRibbonShapeCustomVertex()
 	: Position(0.0f)
@@ -63,6 +68,7 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	, bUseGPUInit(false)
 	, bUseConstantFactor(false)
 	, bScreenSpaceTessellation(true)
+	, bLinkOrderUseUniqueID(true)
 	, WidthSegmentationCount(1)
 	, MultiPlaneCount(2)
 	, TubeSubdivisions(3)
@@ -71,32 +77,34 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	, TessellationFactor(16)
 	, TessellationAngle(15)
 {
-	AttributeBindings.Reserve(19);
-	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&ColorBinding);
-	AttributeBindings.Add(&VelocityBinding);
-	AttributeBindings.Add(&NormalizedAgeBinding);
-	AttributeBindings.Add(&RibbonTwistBinding);
-	AttributeBindings.Add(&RibbonWidthBinding);
-	AttributeBindings.Add(&RibbonFacingBinding);
-	AttributeBindings.Add(&RibbonIdBinding);
-	AttributeBindings.Add(&RibbonLinkOrderBinding);
+	AttributeBindings =
+	{
+		&PositionBinding,
+		&ColorBinding,
+		&VelocityBinding,
+		&NormalizedAgeBinding,
+		&RibbonTwistBinding,
+		&RibbonWidthBinding,
+		&RibbonFacingBinding,
+		&RibbonIdBinding,
+		&RibbonLinkOrderBinding,
 	
-	AttributeBindings.Add(&MaterialRandomBinding);
-	AttributeBindings.Add(&DynamicMaterialBinding);
-	AttributeBindings.Add(&DynamicMaterial1Binding);
-	AttributeBindings.Add(&DynamicMaterial2Binding);
-	AttributeBindings.Add(&DynamicMaterial3Binding);
-	AttributeBindings.Add(&RibbonUVDistance);
-	AttributeBindings.Add(&U0OverrideBinding);
-	AttributeBindings.Add(&V0RangeOverrideBinding);
-	AttributeBindings.Add(&U1OverrideBinding);
-	AttributeBindings.Add(&V1RangeOverrideBinding);
+		&MaterialRandomBinding,
+		&DynamicMaterialBinding,
+		&DynamicMaterial1Binding,
+		&DynamicMaterial2Binding,
+		&DynamicMaterial3Binding,
+		&RibbonUVDistance,
+		&U0OverrideBinding,
+		&V0RangeOverrideBinding,
+		&U1OverrideBinding,
+		&V1RangeOverrideBinding,
 
-	AttributeBindings.Add(&PrevPositionBinding);
-	AttributeBindings.Add(&PrevRibbonWidthBinding);
-	AttributeBindings.Add(&PrevRibbonFacingBinding);
-	AttributeBindings.Add(&PrevRibbonTwistBinding);
+		&PrevPositionBinding,
+		&PrevRibbonWidthBinding,
+		&PrevRibbonFacingBinding,
+		&PrevRibbonTwistBinding,
+	};
 }
 
 FNiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)
@@ -143,6 +151,11 @@ void UNiagaraRibbonRendererProperties::PostLoad()
 	{
 		UpgradeUVSettings(UV0Settings, UV0TilingDistance_DEPRECATED, UV0Offset_DEPRECATED, UV0Scale_DEPRECATED);
 		UpgradeUVSettings(UV1Settings, UV1TilingDistance_DEPRECATED, UV1Offset_DEPRECATED, UV1Scale_DEPRECATED);
+	}
+
+	if (NiagaraVer < FNiagaraCustomVersion::RibbonRendererLinkOrderDefaultIsUniqueID)
+	{
+		bLinkOrderUseUniqueID = false;
 	}
 
 	ChangeToPositionBinding(PositionBinding);
@@ -219,6 +232,12 @@ bool UNiagaraRibbonRendererProperties::IsBackfaceCullingDisabled() const
 TArray<FNiagaraVariable> UNiagaraRibbonRendererProperties::GetBoundAttributes() const 
 {
 	TArray<FNiagaraVariable> BoundAttributes = Super::GetBoundAttributes();
+
+	if (bLinkOrderUseUniqueID)
+	{
+		BoundAttributes.AddUnique(NiagaraRibbonRendererPropertiesPrivate::GetUniqueIDVariable());
+	}
+
 	BoundAttributes.Reserve(BoundAttributes.Num() + MaterialParameters.AttributeBindings.Num());
 
 	for (const FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameters.AttributeBindings)
@@ -274,7 +293,7 @@ void UNiagaraRibbonRendererProperties::PostInitProperties()
 		// We can end up hitting PostInitProperties before the Niagara Module has initialized bindings this needs, mark this object for deferred init and early out.
 		if (FModuleManager::Get().IsModuleLoaded("Niagara") == false)
 		{
-			RibbonRendererPropertiesToDeferredInit.Add(this);
+			NiagaraRibbonRendererPropertiesPrivate::RibbonRendererPropertiesToDeferredInit.Add(this);
 			return;
 		}
 		InitBindings();
@@ -312,7 +331,7 @@ void UNiagaraRibbonRendererProperties::InitCDOPropertiesAfterModuleStartup()
 	UNiagaraRibbonRendererProperties* CDO = CastChecked<UNiagaraRibbonRendererProperties>(UNiagaraRibbonRendererProperties::StaticClass()->GetDefaultObject());
 	CDO->InitBindings();
 
-	for (TWeakObjectPtr<UNiagaraRibbonRendererProperties>& WeakRibbonRendererProperties : RibbonRendererPropertiesToDeferredInit)
+	for (TWeakObjectPtr<UNiagaraRibbonRendererProperties>& WeakRibbonRendererProperties : NiagaraRibbonRendererPropertiesPrivate::RibbonRendererPropertiesToDeferredInit)
 	{
 		if (WeakRibbonRendererProperties.Get())
 		{
@@ -377,12 +396,18 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 	UpdateMICs();
 
 	// Initialize accessors
-	bSortKeyDataSetAccessorIsAge = false;
-	SortKeyDataSetAccessor.Init(CompiledData, RibbonLinkOrderBinding.GetDataSetBindableVariable().GetName());
-	if (!SortKeyDataSetAccessor.IsValid())
+	RibbonLinkOrderFloatAccessor.Init(CompiledData, RibbonLinkOrderBinding.GetDataSetBindableVariable().GetName());
+	RibbonLinkOrderInt32Accessor.Init(nullptr, NAME_None);
+	if (!RibbonLinkOrderFloatAccessor.IsValid())
 	{
-		bSortKeyDataSetAccessorIsAge = true;
-		SortKeyDataSetAccessor.Init(CompiledData, NormalizedAgeBinding.GetDataSetBindableVariable().GetName());
+		if (bLinkOrderUseUniqueID)
+		{
+			RibbonLinkOrderInt32Accessor.Init(CompiledData, NiagaraRibbonRendererPropertiesPrivate::NAME_UniqueID);
+		}
+		if (!RibbonLinkOrderInt32Accessor.IsValid())
+		{
+			RibbonLinkOrderFloatAccessor.Init(CompiledData, NormalizedAgeBinding.GetDataSetBindableVariable().GetName());
+		}
 	}
 
 	NormalizedAgeAccessor.Init(CompiledData, NormalizedAgeBinding.GetDataSetBindableVariable().GetName());
@@ -417,8 +442,6 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 		RibbonIdDataSetAccessor.Init(CompiledData, RibbonIdBinding.GetDataSetBindableVariable().GetName());
 	}
 
-	RibbonLinkOrderDataSetAccessor.Init(CompiledData, RibbonLinkOrderBinding.GetDataSetBindableVariable().GetName());
-
 	const bool bShouldDoFacing = FacingMode == ENiagaraRibbonFacingMode::Custom || FacingMode == ENiagaraRibbonFacingMode::CustomSideVector;
 
 	// Initialize layout
@@ -452,9 +475,35 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 		RendererLayout.SetVariableFromBinding(CompiledData, PrevRibbonTwistBinding, ENiagaraRibbonVFLayout::PrevRibbonTwist);
 	}
 
-	RendererLayout.SetVariableFromBinding(CompiledData, RibbonLinkOrderBinding, ENiagaraRibbonVFLayout::LinkOrder);
-	
 	RendererLayout.Finalize();
+
+	// Find Ribbon link order for GPU.  VF bindings don't support Int's at the moment, and there's no point any CPU emitter caring about this data.
+	bGpuRibbonLinkIsFloat = false;
+	GpuRibbonLinkOrderOffset = INDEX_NONE;
+	if (CompiledData)
+	{
+		if (const FNiagaraVariableLayoutInfo* BindingLinkOrderInfo = CompiledData->FindVariableLayoutInfo(RibbonLinkOrderBinding.GetDataSetBindableVariable()))
+		{
+			bGpuRibbonLinkIsFloat = true;
+			GpuRibbonLinkOrderOffset = BindingLinkOrderInfo->GetFloatComponentStart();
+		}
+		else if (bLinkOrderUseUniqueID)
+		{
+			if (const FNiagaraVariableLayoutInfo* UniqueIDLinkOrderInfo = CompiledData->FindVariableLayoutInfo(NiagaraRibbonRendererPropertiesPrivate::GetUniqueIDVariable()))
+			{
+				bGpuRibbonLinkIsFloat = false;
+				GpuRibbonLinkOrderOffset = UniqueIDLinkOrderInfo->GetInt32ComponentStart();
+			}
+		}
+		if (GpuRibbonLinkOrderOffset == INDEX_NONE)
+		{
+			if (const FNiagaraVariableLayoutInfo* NormAgeLinkOrderInfo = CompiledData->FindVariableLayoutInfo(NormalizedAgeBinding.GetDataSetBindableVariable()))
+			{
+				bGpuRibbonLinkIsFloat = true;
+				GpuRibbonLinkOrderOffset = NormAgeLinkOrderInfo->GetFloatComponentStart();
+			}
+		}
+	}
 
 #if WITH_EDITORONLY_DATA
 	// Build dynamic parameter mask
@@ -600,6 +649,21 @@ void UNiagaraRibbonRendererProperties::GetRendererFeedback(const FVersionedNiaga
 
 	const FVersionedNiagaraEmitterData* EmitterData = InEmitter.GetEmitterData();
 
+	// If this is a renderer made before we used UniqueID give the user an option to switch into the new mode
+	if (EmitterData && bLinkOrderUseUniqueID == false)
+	{
+		const FNiagaraVMExecutableData& ExecData = EmitterData->SpawnScriptProps.Script->GetVMExecutableData();
+		if (!ExecData.Attributes.Contains(RibbonLinkOrderBinding.GetDataSetBindableVariable()))
+		{
+			OutInfo.Emplace(
+				LOCTEXT("RibbonLinkOrderUsesNormalizedAgeSummary", "RibbonLinkOrder will use normalized age if the link order binding does not exist.  This can produce unpredictable results with burst modules, new renderers will use Particles.UniqueID to fix this issue."),
+				LOCTEXT("RibbonLinkOrderUsesNormalizedAgeDesc", "RibbonLinkOrder will fallback to normalized age"),
+				LOCTEXT("RibbonLinkOrderUsesNormalizedAgeFix", "Change fallback to use Particles.UniqueID"),
+				FNiagaraRendererFeedbackFix::CreateLambda([Renderer = const_cast<UNiagaraRibbonRendererProperties*>(this)]() { Renderer->bLinkOrderUseUniqueID = true; }),
+				true
+			);
+		}
+	}
 
 	// If we're in a gpu sim, then uv mode uniform by segment can cause some visual oddity due to non-existent
 	// culling of near particles like the cpu initialization pipeline runs
@@ -619,7 +683,6 @@ void UNiagaraRibbonRendererProperties::GetRendererFeedback(const FVersionedNiaga
 		CheckUVSettingsForChannel(UV1Settings, 1);
 	}
 
-
 	// If we're in multiplane shape, and multiplane count is even while we're in camera facing mode then one
 	// slice out of the set will be invisible because the camera will be coplanar to it
 	if (FacingMode == ENiagaraRibbonFacingMode::Screen && Shape == ENiagaraRibbonShapeMode::MultiPlane && MultiPlaneCount % 2 == 0)
@@ -630,7 +693,6 @@ void UNiagaraRibbonRendererProperties::GetRendererFeedback(const FVersionedNiaga
 		const FNiagaraRendererFeedbackFix MultiPlaneFix = FNiagaraRendererFeedbackFix::CreateLambda([this]() { const_cast<UNiagaraRibbonRendererProperties*>(this)->MultiPlaneCount = FMath::Clamp(this->MultiPlaneCount - 1, 1, 16); });
 		OutWarnings.Add(FNiagaraRendererFeedback(ErrorDescription, ErrorSummary, ErrorFix, MultiPlaneFix, true));	
 	}	
-
 
 	if (MaterialParameters.HasAnyBindings())
 	{
