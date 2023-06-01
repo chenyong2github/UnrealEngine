@@ -12,7 +12,6 @@
 #include <atomic>
 
 struct FFileStatData;
-class FImportParameters;
 
 class FDatasmithCADWorkerImpl
 {
