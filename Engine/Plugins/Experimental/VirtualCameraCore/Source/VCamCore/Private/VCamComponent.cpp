@@ -690,11 +690,6 @@ FKey UVCamComponent::GetPlayerMappedKey(const FName MappingName) const
 
 void UVCamComponent::Update()
 {
-	if (GetWorld()->IsGameWorld())
-	{
-		int32 i = 0;
-	}
-	
 	if (!CanUpdate())
 	{
 		return;
