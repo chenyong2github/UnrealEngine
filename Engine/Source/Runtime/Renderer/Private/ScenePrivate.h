@@ -2002,6 +2002,11 @@ public:
 		TArray<FDistanceFieldAssetMipId>& DistanceFieldAssetAdds,
 		TArray<FSetElementId>& DistanceFieldAssetRemoves);
 
+	bool HasPendingUploads() const
+	{
+		return IndicesToUpdateInObjectBuffers.Num() > 0;
+	}
+
 	bool HasPendingOperations() const
 	{
 		return PendingAddOperations.Num() > 0 || PendingUpdateOperations.Num() > 0 || PendingRemoveOperations.Num() > 0;
@@ -2087,7 +2092,6 @@ public:
 	TArray<FPrimitiveSceneInfo*> HeightfieldPrimitives;
 	/** Pending operations on the object buffers to be processed next frame. */
 	TSet<FPrimitiveSceneInfo*> PendingAddOperations;
-	TSet<FPrimitiveSceneInfo*> PendingThrottledOperations;
 	TSet<FPrimitiveSceneInfo*> PendingUpdateOperations;
 	TArray<FPrimitiveRemoveInfo> PendingRemoveOperations;
 	TArray<FBox> PrimitiveModifiedBounds[GDF_Num];
