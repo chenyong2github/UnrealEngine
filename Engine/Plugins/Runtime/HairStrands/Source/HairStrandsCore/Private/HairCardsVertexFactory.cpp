@@ -257,7 +257,7 @@ void FHairCardsVertexFactory::ValidateCompiledResult(const FVertexFactoryType* T
 void FHairCardsVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
 {
 	// Manual vertex fetch is available for this factory so only primitive ID stream is used
-	Elements.Add(FVertexElement(1, 0, VET_UInt, 13, 0, true));
+	Elements.Add(FVertexElement(0, 0, VET_UInt, 13, 0, true));
 }
 
 void FHairCardsVertexFactory::SetData(const FDataType& InData)
