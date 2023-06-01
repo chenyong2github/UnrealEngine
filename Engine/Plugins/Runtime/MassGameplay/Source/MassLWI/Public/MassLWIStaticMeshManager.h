@@ -34,6 +34,11 @@ public:
 	void MarkRegisteredWithMass(const FMassLWIManagerRegistrationHandle RegistrationIndex);
 	void MarkUnregisteredWithMass();
 
+	// Returns the index of the light weight instance associated with InEntity if one exists; otherwise we return INDEX_NONE
+	int32 FindIndexForEntity(const FMassEntityHandle Entity) const;
+
+	static AMassLWIStaticMeshManager* GetMassLWIManagerForEntity(const FMassEntityManager& EntityManager, const FMassEntityHandle Entity);
+
 protected:
 	// UObject API
 	virtual void PostLoad() override;

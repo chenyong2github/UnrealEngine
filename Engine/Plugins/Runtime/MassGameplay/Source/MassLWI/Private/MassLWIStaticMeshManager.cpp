@@ -3,9 +3,11 @@
 #include "MassLWIStaticMeshManager.h"
 #include "MassLWITypes.h"
 #include "MassLWISubsystem.h"
+#include "MassLWITypes.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "MassCommonFragments.h"
 #include "MassEntitySubsystem.h"
+#include "MassEntityView.h"
 #include "MassRepresentationSubsystem.h"
 #include "MassSpawnerSubsystem.h"
 #include "MassSpawnerTypes.h"
@@ -104,28 +106,19 @@ void AMassLWIStaticMeshManager::TransferDataToMass(FMassEntityManager& EntityMan
 		check(SpawnerSystem);
 		const int32 NumEntities = InstanceTransforms.Num();
 		
-		if (ManagerLocation.IsNearlyZero())
+		FMassTransformsSpawnData SpawnLocationData;
+		SpawnLocationData.bRandomize = false;
+		SpawnLocationData.Transforms = InstanceTransforms;
+		if (ManagerLocation.IsNearlyZero() == false)
 		{
-			// a tiny bit hacky conversion of InstanceTransforms to FMassTransformsSpawnData. Static assert here should catch if the type doesn't match
-			static_assert(sizeof(FMassTransformsSpawnData::FTransformsContainerType) == sizeof(InstanceTransforms)
-				// @todo use some "TTypeOf" template 
-				, "the InstanceTransforms-to-FMassTransformsSpawnData conversion relies on FMassTransformsSpawnData having only a single property that matches InstanceTransforms' type exactly");
-			FConstStructView SpawnLocationDataView(FMassTransformsSpawnData::StaticStruct(), reinterpret_cast<const uint8*>(&InstanceTransforms));
-
-			SpawnerSystem->SpawnEntities(FinalizedTemplate->GetTemplateID(), NumEntities, SpawnLocationDataView, UMassSpawnLocationProcessor::StaticClass(), Entities);
-		}
-		else
-		{
-			FMassTransformsSpawnData SpawnLocationData;
-			SpawnLocationData.Transforms = InstanceTransforms;
 			for (FTransform& EntityTransform : SpawnLocationData.Transforms)
 			{
 				EntityTransform.AddToTranslation(ManagerLocation);
 			}
-
-			FConstStructView SpawnLocationDataView(FMassTransformsSpawnData::StaticStruct(), reinterpret_cast<const uint8*>(&SpawnLocationData));
-			SpawnerSystem->SpawnEntities(FinalizedTemplate->GetTemplateID(), NumEntities, SpawnLocationDataView, UMassSpawnLocationProcessor::StaticClass(), Entities);
 		}
+
+		FConstStructView SpawnLocationDataView = FConstStructView::Make(SpawnLocationData);
+		SpawnerSystem->SpawnEntities(FinalizedTemplate->GetTemplateID(), NumEntities, SpawnLocationDataView, UMassSpawnLocationProcessor::StaticClass(), Entities);
 
 		// destroy actors that have already been created
 		for (const TPair<int32, TObjectPtr<AActor>>& ActorPair : Actors)
@@ -145,6 +138,27 @@ void AMassLWIStaticMeshManager::TransferDataToMass(FMassEntityManager& EntityMan
 		InstancedStaticMeshComponent->UnregisterComponent();
 		InstancedStaticMeshComponent->DestroyComponent();
 	}
+}
+
+int32 AMassLWIStaticMeshManager::FindIndexForEntity(const FMassEntityHandle Entity) const
+{
+	return Entities.IndexOfByKey(Entity);
+}
+
+AMassLWIStaticMeshManager* AMassLWIStaticMeshManager::GetMassLWIManagerForEntity(const FMassEntityManager& EntityManager, const FMassEntityHandle Entity)
+{
+	FMassEntityView EntityView(EntityManager, Entity);
+	if (EntityView.IsSet())
+	{	
+		const FMassLWIManagerSharedFragment* LWIManagerSharedFragmentPtr = EntityView.GetSharedFragmentDataPtr<FMassLWIManagerSharedFragment>();
+		if (ensure(LWIManagerSharedFragmentPtr))
+		{
+			AMassLWIStaticMeshManager* LWIManager = LWIManagerSharedFragmentPtr->LWIManager.Get();
+			return LWIManager;
+		}
+	}
+
+	return nullptr;
 }
 
 void AMassLWIStaticMeshManager::CreateMassTemplate(FMassEntityManager& EntityManager)
@@ -237,6 +251,12 @@ void AMassLWIStaticMeshManager::CreateMassTemplate(FMassEntityManager& EntityMan
 		RepresentationFragment.HighResTemplateActorIndex = TemplateActorIndex;
 		//RepresentationFragment.LowResTemplateActorIndex = TemplateActorIndex;
 	}
+
+	FMassLWIManagerSharedFragment LWIManagerSharedFragment;
+	LWIManagerSharedFragment.LWIManager = this;
+	uint32 LWIManagerHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(LWIManagerSharedFragment));
+	FSharedStruct LWIManagerFragment = EntityManager.GetOrCreateSharedFragmentByHash<FMassLWIManagerSharedFragment>(LWIManagerHash, LWIManagerSharedFragment);
+	NewTemplate.AddSharedFragment(LWIManagerFragment);
 
 	FMassEntityTemplateRegistry& TemplateRegistry = SpawnerSystem->GetMutableTemplateRegistryInstance();
 	const uint32 FlavorHash = GetTypeHash(GetNameSafe(RepresentedClass));
