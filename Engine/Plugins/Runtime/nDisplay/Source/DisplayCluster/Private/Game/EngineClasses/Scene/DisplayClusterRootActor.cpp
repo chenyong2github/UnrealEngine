@@ -101,6 +101,12 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 	// Enabled by default to avoid being active on Stage
 	SetActorHiddenInGame(true);
 
+	// By default, we don't want the NDC to be spatially loaded.
+#if WITH_EDITORONLY_DATA
+	bIsSpatiallyLoaded = false;
+#endif
+
+
 #if WITH_EDITOR
 	Constructor_Editor();
 #endif

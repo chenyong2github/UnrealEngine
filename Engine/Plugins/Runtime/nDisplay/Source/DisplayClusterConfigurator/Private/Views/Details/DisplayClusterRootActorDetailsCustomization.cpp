@@ -36,6 +36,7 @@ namespace DisplayClusterRootActorDetailsCustomizationUtils
 			DisplayClusterConfigurationStrings::categories::LightcardCategory,
 			DisplayClusterConfigurationStrings::categories::OverrideCategory,
 			TEXT("Rendering"),
+			TEXT("WorldPartition"),
 			DisplayClusterConfigurationStrings::categories::PreviewCategory,
 			DisplayClusterConfigurationStrings::categories::ConfigurationCategory,
 			DisplayClusterConfigurationStrings::categories::AdvancedCategory,
