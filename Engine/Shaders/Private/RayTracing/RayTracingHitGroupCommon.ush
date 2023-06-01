@@ -18,7 +18,6 @@
 
 	#include "/Engine/Private/Nanite/NaniteDataDecode.ush"
 	#include "/Engine/Private/Nanite/NaniteAttributeDecode.ush"
-	#include "/Engine/Private/Nanite/NaniteVertexFactory.ush"
 #endif
 
 uint3 LoadIndices16Bit(ByteAddressBuffer SourceBuffer, uint OffsetInBytes)
