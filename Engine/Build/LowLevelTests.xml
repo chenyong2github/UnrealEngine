@@ -13,10 +13,37 @@
 
 	<Property Name="AlternateDevicePoolPlatformsProperty" Value=""/>
 
+	<!-- Platform specific macros -->
+	<Macro Name="Catch2BuildAppendExtraCMakeArgsPlatform" Arguments="Platform"/>
+	<Macro Name="Catch2BuildAppendExtraCMakeArgs" Arguments="ExtraArgValue">
+		<Property Name="ExtraCMakeArgs" Value="-CMakeAdditionalArguments=&quot;$(CommonExtraCmakeArgs)$(ExtraArgValue)&quot;"/>
+	</Macro>
+	<Macro Name="SelectAgentType" Arguments="Platform;BuildPlatform"/>
+
+	<Macro Name="SetupPlatformProperties" Arguments="Platform;BuildPlatform" OptionalArguments="AlternateDevicePool">
+		<Property Name="AllTestablePlatforms" Value="$(AllTestablePlatforms);$(Platform)"/>
+		<Do If="'$(BuildPlatform)' == 'Win64'">
+			<Property Name="PlatformsBuiltFromWin64" Value="$(PlatformsBuiltFromWin64);$(Platform)"/>
+		</Do>
+		<Do If="'$(BuildPlatform)' == 'Mac'">
+			<Property Name="PlatformsBuiltFromMac" Value="$(PlatformsBuiltFromMac);$(Platform)"/>
+		</Do>
+		<Do If="'$(BuildPlatform)' == 'Linux'">
+			<Property Name="PlatformsBuiltFromLinux" Value="$(PlatformsBuiltFromLinux);$(Platform)"/>
+		</Do>
+		<Do If="'$(AlternateDevicePool)' != ''">
+			<Property Name="AlternateDevicePoolPlatformsProperty" Value="$(AlternateDevicePoolPlatformsProperty);$(AlternateDevicePool)"/>
+		</Do>
+	</Macro>
+	<Macro Name="SetupAllPlatformProperties"/>
+
+	<!-- All test metadata scripts along with platform specific versions for both public and internal paths -->
 	<Include Script="LowLevelTests/*.xml"/>
 	<Include Script="../Platforms/*/Build/LowLevelTests/*.xml"/>
 	<Include Script="../Restricted/NotForLicensees/Build/LowLevelTests/*.xml"/>
 	<Include Script="../Restricted/NotForLicensees/Platforms/*/Build/LowLevelTests/*.xml"/>
+
+	<Expand Name="SetupAllPlatformProperties"/>
 
 	<Option Name="BuildCatch2Libs" DefaultValue="false" Description="True if building Catch2 static libraries"/>
 	<Option Name="TestCatch2Libs" DefaultValue="false" Description="True if additionally building Catch2 with extras and tests"/>
@@ -114,9 +141,7 @@
 	<ForEach Name="BuildPlatform" Values="$(BuildPlatforms)">
 		<ForEach Name="Platform" Values="$(PlatformsBuiltFrom$(BuildPlatform))">
 			<Property Name="AgentType" Value="$(BuildPlatform)"/>
-			<Do If="'$($(Platform)RequiresSpecialAgent)' == 'True'">
-				<Expand Name="SelectAgentType" Platform="$(Platform)" BuildPlatform="$(BuildPlatform)" />
-			</Do>
+			<Expand Name="SelectAgentType" Platform="$(Platform)" BuildPlatform="$(BuildPlatform)" />
 			<Property Name="BuildAgentType" Value="$(AgentType)"/>
 			<Do If="'$(Platform)' == 'Linux'">
 				<Property Name="BuildAgentType" Value="Win64"/>
@@ -142,9 +167,7 @@
 						</Do>
 						<Property Name="ExtraCMakeArgs" Value="-TargetArchitecture=x64 -CMakeAdditionalArguments=&quot;$(CommonExtraCmakeArgs)-DSET_CONFIG_NO_COLOUR_WIN32=OFF&quot;"/>
 					</Do>
-					<Do If="'$($(Platform)RequiresCatch2BuildExtraCMakeArgs)' == 'True'">
-						<Expand Name="Catch2BuildAppendExtraCMakeArgs" Platform="$(Platform)" />
-					</Do>
+					<Expand Name="Catch2BuildAppendExtraCMakeArgsPlatform" Platform="$(Platform)"/>
 					<Do If="'$(BuildPlatform)' == 'Mac'">
 						<Property Name="Generator" Value="Xcode"/>
 						<Property Name="TargetConfigs" Value="Debug+Release"/>

@@ -6,7 +6,7 @@
   <Property Name="HeadlessChaosShort" Value="Headless Chaos" />
   <Property Name="HeadlessChaosTarget" Value="HeadlessChaos" />
   <Property Name="HeadlessChaosBinariesRelative" Value="Engine\Binaries" />
-  <Property Name="HeadlessChaosReportType" />
+  <Property Name="HeadlessChaosReportType" Value="console" />
   <Property Name="HeadlessChaosInitialExtraArgs" />
   <Property Name="HeadlessChaosHasAfterSteps" Value="False" />
   <Property Name="HeadlessChaosUsesCatch2" Value="False" />

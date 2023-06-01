@@ -608,7 +608,7 @@ namespace LowLevelTests
 
 		public string CopyDeviceReportTo(IAppInstall InAppInstall, UnrealTargetPlatform InPlatform, string InTestApp, string InBuildPath, string InTargetDirectory)
 		{
-			string ReportRelativePath = GetTargetReportPath(InPlatform, InTestApp, InBuildPath);
+			string ReportRelativePath = Path.GetFileName(GetTargetReportPath(InPlatform, InTestApp, InBuildPath));
 			string ReportPath = Path.Combine(InBuildPath, ReportRelativePath);
 			string ExpectedLocalPath = Path.Combine(InTargetDirectory, ReportRelativePath);
 			if (!ExpectedLocalPath.Equals(ReportPath))

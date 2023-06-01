@@ -6,7 +6,7 @@
   <Property Name="ReplicationSystemShort" Value="Replication System" />
   <Property Name="ReplicationSystemTarget" Value="ReplicationSystemLowLevelTests" />
   <Property Name="ReplicationSystemBinariesRelative" Value="Engine\Binaries" />
-  <Property Name="ReplicationSystemReportType" />
+  <Property Name="ReplicationSystemReportType" Value="console" />
   <Property Name="ReplicationSystemInitialExtraArgs" />
   <Property Name="ReplicationSystemHasAfterSteps" Value="False" />
   <Property Name="ReplicationSystemUsesCatch2" Value="True" />

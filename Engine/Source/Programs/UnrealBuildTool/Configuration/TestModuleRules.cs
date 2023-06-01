@@ -417,10 +417,14 @@ namespace UnrealBuildTool
 			/// </summary>
 			public string TestShortName { get; set; }
 
+			private string ReportTypePrivate = "console";
 			/// <summary>
 			/// Type of Catch2 report, defaults to console.
 			/// </summary>
-			public string ReportType { get; set; }
+			public string ReportType {
+				get => ReportTypePrivate;
+				set => ReportTypePrivate = value;
+			}
 
 			/// <summary>
 			/// Is this test disabled?
