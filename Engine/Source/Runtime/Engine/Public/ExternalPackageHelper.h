@@ -7,7 +7,6 @@
 #include "UObject/LinkerLoad.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectThreadContext.h"
-#include "UObject/ObjectMacros.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/ArchiveMD5.h"
@@ -100,8 +99,6 @@ void FExternalPackageHelper::LoadObjectsFromExternalPackages(UObject* InOuter, T
 	Filter.ClassPaths.Add(T::StaticClass()->GetClassPathName());
 	Filter.bRecursiveClasses = true;
 	Filter.PackagePaths.Add(*ExternalObjectsPath);
-	// @todo_ow: remove once bIncludeOnlyOnDiskAssets=true doesn't return PIE Packages anymore
-	Filter.WithoutPackageFlags = PKG_PlayInEditor;
 	TArray<FAssetData> Assets;
 	AssetRegistry.GetAssets(Filter, Assets);
 

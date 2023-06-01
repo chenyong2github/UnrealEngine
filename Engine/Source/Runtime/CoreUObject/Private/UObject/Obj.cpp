@@ -2363,8 +2363,8 @@ bool UObject::IsAsset() const
 		// Don't count objects embedded in other objects (e.g. font textures, sequences, material expressions)
 		if ( UPackage* LocalOuterPackage = dynamic_cast<UPackage*>(GetOuter()) )
 		{
-			// Also exclude any objects found in the transient package, or in a package that is transient.
-			return LocalOuterPackage != GetTransientPackage() && !LocalOuterPackage->HasAnyFlags(RF_Transient);
+			// Also exclude any objects found in the transient package, in a package that is transient or in a play in editor package.
+			return LocalOuterPackage != GetTransientPackage() && !LocalOuterPackage->HasAnyFlags(RF_Transient) && !LocalOuterPackage->HasAnyPackageFlags(PKG_PlayInEditor);
 		}
 	}
 

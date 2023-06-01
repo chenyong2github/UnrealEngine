@@ -1997,6 +1997,9 @@ void EnumerateMemoryAssetsHelper(const FARCompiledFilter& InFilter, TSet<FName>&
 				return;
 			}
 
+			check(!Obj->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor));
+			check(!Obj->GetOutermostObject()->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor));
+
 			UPackage* InMemoryPackage = Obj->GetOutermost();
 
 			// Skip assets with any of the specified 'without' package flags 
@@ -7042,7 +7045,7 @@ void UAssetRegistryImpl::ReadLockEnumerateTagToAssetDatas(TFunctionRef<void(FNam
 void UAssetRegistryImpl::Broadcast(UE::AssetRegistry::Impl::FEventContext& EventContext)
 {
 	using namespace UE::AssetRegistry::Impl;
-	if (!IsInGameThread())
+	if (!IsInGameThread() || FUObjectThreadContext::Get().IsRoutingPostLoad)
 	{
 		// By contract events (and PackageLoads) can only be sent on the game thread; some legacy systems depend on 
 		// this and are not threadsafe. If we're not in the game thread, defer all events in the EventContext

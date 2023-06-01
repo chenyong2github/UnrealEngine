@@ -58,7 +58,6 @@ Level.cpp: Level-related functions
 #include "EditorActorFolders.h"
 #include "UObject/MetaData.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
-#include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/PathViews.h"
 #include "Selection.h"
@@ -3955,19 +3954,20 @@ TArray<FString> ULevel::GetOnDiskExternalActorPackages(const FString& ExternalAc
 	TArray<FString> ActorPackageNames;
 	if (!ExternalActorsPath.IsEmpty())
 	{
-		IFileManager::Get().IterateDirectoryRecursively(*FPackageName::LongPackageNameToFilename(ExternalActorsPath), [&ActorPackageNames](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
-		{
-			if (!bIsDirectory)
-			{
-				FString Filename(FilenameOrDirectory);
-				if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
-				{
-					ActorPackageNames.Add(FPackageName::FilenameToLongPackageName(Filename));
-				}
-			}
-			return true;
-		});
+		FARFilter Filter;
+		Filter.bIncludeOnlyOnDiskAssets = true;
+		Filter.PackagePaths.Add(*ExternalActorsPath);
+		Filter.bRecursivePaths = true;
+	
+		TArray<FAssetData> ActorAssets;
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		AssetRegistry.ScanSynchronous({ ExternalActorsPath }, TArray<FString>());
+		AssetRegistry.GetAssets(Filter, ActorAssets);
+
+		ActorPackageNames.Reserve(ActorAssets.Num());
+		Algo::Transform(ActorAssets, ActorPackageNames, [](const FAssetData& ActorAssetData) { return ActorAssetData.PackageName.ToString(); });
 	}
+
 	return ActorPackageNames;
 }
 
@@ -4573,3 +4573,5 @@ void ULevel::OnMultipleLSAsPopupDismissed()
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+
+UE_ENABLE_OPTIMIZATION
