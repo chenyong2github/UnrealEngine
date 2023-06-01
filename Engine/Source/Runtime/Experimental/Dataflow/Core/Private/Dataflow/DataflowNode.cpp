@@ -350,9 +350,8 @@ bool FDataflowNode::ValidateConnections()
 						UE_LOG(LogChaos, Warning, TEXT("Missing dataflow RegisterOutputConnection in constructor for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
 						bHasValidConnections = false;
 					}
-
-					// Validate passthrough connections if they exist
-					if (const FString* PassthroughName = Property->FindMetaData(FDataflowNode::DataflowPassthrough))
+					// If OutputConnection is valid, validate passthrough connections if they exist
+					else if (const FString* PassthroughName = Property->FindMetaData(FDataflowNode::DataflowPassthrough))
 					{
 						void* PassthroughConnectionAddress = OutputConnection->GetPassthroughRealAddress();
 						if(PassthroughConnectionAddress == nullptr)
