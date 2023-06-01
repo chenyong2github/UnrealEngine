@@ -10,7 +10,7 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsEngine/BodyInstance.h"
 
-#include "Chaos/Collision/ParticlePairCollisionDetector.h"
+#include "Chaos/Collision/BasicCollisionDetector.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Evolution/PBDMinEvolution.h"
 #include "Chaos/Joint/ChaosJointLog.h"

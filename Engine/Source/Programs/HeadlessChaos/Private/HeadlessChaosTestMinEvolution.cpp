@@ -2,8 +2,7 @@
 
 #include "HeadlessChaos.h"
 
-#include "Chaos/Collision/ParticlePairBroadPhase.h"
-#include "Chaos/Collision/ParticlePairCollisionDetector.h"
+#include "Chaos/Collision/BasicCollisionDetector.h"
 #include "Chaos/Evolution/PBDMinEvolution.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"

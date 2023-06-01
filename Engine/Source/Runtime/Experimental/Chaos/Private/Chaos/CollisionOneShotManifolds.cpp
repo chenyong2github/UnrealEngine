@@ -4,7 +4,6 @@
 
 #include "Chaos/Box.h"
 #include "Chaos/CollisionResolution.h"
-#include "Chaos/Collision/ContactTriangles.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/Convex.h"
 #include "Chaos/Defines.h"

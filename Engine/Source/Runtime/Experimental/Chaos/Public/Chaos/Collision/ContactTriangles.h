@@ -118,40 +118,28 @@ namespace Chaos
 		}
 	};
 
-	/**
-	 * @brief A set of triangles assocuated with some contact points.
-	*/
-	class CHAOS_API FContactTriangles
-	{
-	public:
-
-		inline const int32 Num() const
-		{
-			return Triangles.Num();
-		}
-
-		inline const FContactTriangle& At(const int32 Index) const
-		{
-			return Triangles[Index];
-		}
-
-
-	private:
-		TArray<FContactTriangle> Triangles;
-	};
-
 	using FContactVertexID = int32;
 
 	struct FContactEdgeID
 	{
 		FContactEdgeID()
-			: VertexIDs{ INDEX_NONE < INDEX_NONE }
+			: VertexIDs{ INDEX_NONE, INDEX_NONE }
 		{
 		}
 
-		FContactEdgeID(const FContactVertexID VertextIndexA, const FContactVertexID VertexIndexB)
-			: VertexIDs{ FMath::Min(VertextIndexA, VertexIndexB), FMath::Max(VertextIndexA, VertexIndexB) }
+		FContactEdgeID(const FContactVertexID VertexIndexA, const FContactVertexID VertexIndexB)
 		{
+			// EdgeID is the same if we swap the vertex indices
+			if (VertexIndexA < VertexIndexB)
+			{
+				VertexIDs[0] = VertexIndexA;
+				VertexIDs[1] = VertexIndexB;
+			}
+			else
+			{
+				VertexIDs[0] = VertexIndexB;
+				VertexIDs[1] = VertexIndexA;
+			}
 		}
 
 		bool IsValid() const

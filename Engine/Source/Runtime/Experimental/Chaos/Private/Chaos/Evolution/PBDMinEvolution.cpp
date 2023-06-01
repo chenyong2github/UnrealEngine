@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/Evolution/PBDMinEvolution.h"
-#include "Chaos/Collision/ParticlePairCollisionDetector.h"
+#include "Chaos/Collision/BasicCollisionDetector.h"
 #include "Chaos/Evolution/SolverConstraintContainer.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDConstraintContainer.h"
