@@ -17,6 +17,7 @@
 #include "LevelUtils.h"
 #include "EngineUtils.h"
 #include "UObject/UObjectAnnotation.h"
+#include "UObject/ReferenceChainSearch.h"
 #if WITH_EDITOR
 	#include "Framework/Notifications/NotificationManager.h"
 	#include "Widgets/Notifications/SNotificationList.h"

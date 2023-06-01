@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
-#include "UObject/ReferenceChainSearch.h"
+#include "UObject/PrintStaleReferencesOptions.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Misc/Guid.h"

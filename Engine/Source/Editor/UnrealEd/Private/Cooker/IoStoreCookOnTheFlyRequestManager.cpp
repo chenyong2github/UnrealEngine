@@ -24,6 +24,7 @@
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 #include "Templates/Function.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "UObject/SavePackage.h"
 #include "ZenStoreWriter.h"
 

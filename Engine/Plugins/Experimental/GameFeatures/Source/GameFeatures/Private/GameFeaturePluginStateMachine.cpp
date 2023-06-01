@@ -25,6 +25,7 @@
 #include "String/ParseTokens.h"
 #include "GameFeaturesProjectPolicies.h"
 #include "UObject/ObjectRename.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "UObject/UObjectAllocator.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/NoExportTypes.h"
