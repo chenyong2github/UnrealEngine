@@ -268,7 +268,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				}
 			}
 
-			if (!String.IsNullOrEmpty(GroupName))
+			if (GroupName == null || GroupName.Length > 0)
 			{
 				// group the files by path
 				XcodeFileGroup? Group = GroupName == null ? FindGroupByAbsolutePath(File.Reference.Directory) : null;
