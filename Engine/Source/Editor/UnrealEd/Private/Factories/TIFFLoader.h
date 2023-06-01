@@ -7,14 +7,14 @@
 
 // DEPRECATED
 // use Tiff ImageWrapper instead
-// delete me in UE 5.3
+// delete me in UE 5.4
 
 class UTexture2D;
 
 struct FIBITMAP;
 struct FIMEMORY;
 
-class FTiffLoadHelper
+class UE_DEPRECATED(5.3,"Use Tiff ImageWrapper instead") FTiffLoadHelper
 {
 public:
 
