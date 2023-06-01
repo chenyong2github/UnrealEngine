@@ -296,7 +296,7 @@ private:
  * Buffer structure for communicating simulation state between game and physics
  * threads.
  */
-class FGeometryCollectionResults
+class FGeometryCollectionResults: public FRefCountedObject
 {
 public:
 	FGeometryCollectionResults();

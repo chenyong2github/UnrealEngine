@@ -66,7 +66,32 @@ struct FDirtyRigidParticleReplicationErrorData : public TBasePullData<FSinglePar
 
 struct FDirtyGeometryCollectionData : public TBasePullData<FGeometryCollectionPhysicsProxy, FProxyTimestampBase>
 {
-	FGeometryCollectionResults Results;
+public:
+	bool HasResults() const { return ResultPtr.IsValid(); }
+
+	FDirtyGeometryCollectionData()
+		: ResultPtr(new FGeometryCollectionResults)
+	{}
+
+	FDirtyGeometryCollectionData(const FDirtyGeometryCollectionData& Other) = default;
+	FDirtyGeometryCollectionData(FDirtyGeometryCollectionData&& Other) = default;
+	FDirtyGeometryCollectionData& operator=(const FDirtyGeometryCollectionData& Other) = default;
+	FDirtyGeometryCollectionData& operator=(FDirtyGeometryCollectionData&& Other) = default;
+
+	FGeometryCollectionResults& Results()
+	{
+		check(ResultPtr);
+		return *ResultPtr;
+	}
+
+	const FGeometryCollectionResults& Results() const 
+	{
+		check(ResultPtr);
+		return *ResultPtr;
+	}
+
+private:
+	TRefCountPtr<FGeometryCollectionResults> ResultPtr;
 };
 
 struct FDirtyClusterUnionParticleData
