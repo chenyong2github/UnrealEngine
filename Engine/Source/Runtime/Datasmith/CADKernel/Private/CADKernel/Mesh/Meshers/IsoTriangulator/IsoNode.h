@@ -63,16 +63,16 @@ protected:
 	TArray<FIsoSegment*> ConnectedSegments;
 	EIsoNodeStates States;
 
-	int32 Index; // Index of the node either in loop nodes either in inner nodes
-	int32 FaceIndex; // Index of the node in the face
+	int32 LocalIndex; // Index of the node either in loop nodes either in inner nodes
+	int32 GlobalIndex; // Index of the node in the face
 	int32 NodeId; // Id of the node in the mesh
 
 public:
 	FIsoNode(int32 InNodeIndex, int32 InFaceIndex, int32 InNodeId)
 		: ConnectedSegments()
 		, States(EIsoNodeStates::None)
-		, Index(InNodeIndex)
-		, FaceIndex(InFaceIndex)
+		, LocalIndex(InNodeIndex)
+		, GlobalIndex(InFaceIndex)
 		, NodeId(InNodeId)
 	{
 		ConnectedSegments.Reserve(5);
@@ -83,7 +83,7 @@ public:
 	virtual void Delete()
 	{
 		ConnectedSegments.Empty();
-		FaceIndex = -1;
+		GlobalIndex = -1;
 
 		States = EIsoNodeStates::Delete;
 	}
@@ -95,12 +95,12 @@ public:
 
 	const int32 GetIndex() const
 	{
-		return Index;
+		return LocalIndex;
 	}
 
-	const int32 GetFaceIndex() const
+	const int32 GetGlobalIndex() const
 	{
-		return FaceIndex;
+		return GlobalIndex;
 	}
 
 	const int32 GetNodeId() const
@@ -254,8 +254,8 @@ protected:
 	FLoopNode* ConnectedLoopNodes[2];
 
 public:
-	FLoopNode(int32 InLoopIndex, int32 InNodeIndex, int32 InFaceIndex, int32 NodeId)
-		: FIsoNode(InNodeIndex, InFaceIndex, NodeId)
+	FLoopNode(int32 InLoopIndex, int32 InNodeLoopIndex, int32 InNodeFaceIndex, int32 NodeId)
+		: FIsoNode(InNodeLoopIndex, InNodeFaceIndex, NodeId)
 		, LoopIndex(InLoopIndex)
 		, ConnectedLoopNodes{ nullptr, nullptr }
 	{
@@ -329,22 +329,22 @@ public:
 	 */
 	virtual const FPoint2D& Get2DPoint(EGridSpace Space, const FGrid& Grid) const override
 	{
-		return Grid.GetLoop2DPoint(Space, LoopIndex, Index);
+		return Grid.GetLoop2DPoint(Space, LoopIndex, LocalIndex);
 	}
 
 	virtual void Set2DPoint(EGridSpace Space, FGrid& Grid, const FPoint2D& NewCoordinate) override
 	{
-		Grid.SetLoop2DPoint(Space, LoopIndex, Index, NewCoordinate);
+		Grid.SetLoop2DPoint(Space, LoopIndex, LocalIndex, NewCoordinate);
 	}
 
 	virtual const FPoint& Get3DPoint(const FGrid& Grid) const override
 	{
-		return Grid.GetLoops3D()[LoopIndex][Index];
+		return Grid.GetLoops3D()[LoopIndex][LocalIndex];
 	}
 
 	virtual const FVector3f& GetNormal(const FGrid& Grid) const override
 	{
-		return Grid.GetLoopNormals()[LoopIndex][Index];
+		return Grid.GetLoopNormals()[LoopIndex][LocalIndex];
 	}
 
 	/**
@@ -357,7 +357,7 @@ public:
 		case EGridSpace::Default2D:
 		case EGridSpace::Scaled:
 		case EGridSpace::UniformScaled:
-			return Grid.GetLoop2DPoint(Space, LoopIndex, Index);
+			return Grid.GetLoop2DPoint(Space, LoopIndex, LocalIndex);
 		}
 		return FPoint::ZeroPoint;
 	}
@@ -502,22 +502,22 @@ public:
 
 	virtual const FPoint2D& Get2DPoint(EGridSpace Space, const FGrid& Grid) const override
 	{
-		return Grid.GetInner2DPoint(Space, Index);
+		return Grid.GetInner2DPoint(Space, LocalIndex);
 	}
 
 	virtual void Set2DPoint(EGridSpace Space, FGrid& Grid, const FPoint2D& NewCoordinate) override
 	{
-		return Grid.SetInner2DPoint(Space, Index, NewCoordinate);
+		return Grid.SetInner2DPoint(Space, LocalIndex, NewCoordinate);
 	}
 
 	virtual const FPoint& Get3DPoint(const FGrid& Grid) const override
 	{
-		return Grid.GetInner3DPoint(Index);
+		return Grid.GetInner3DPoint(LocalIndex);
 	}
 
 	virtual const FVector3f& GetNormal(const FGrid& Grid) const override
 	{
-		return Grid.GetPointNormal(Index);
+		return Grid.GetPointNormal(LocalIndex);
 	}
 
 	/**
@@ -530,7 +530,7 @@ public:
 		case EGridSpace::Default2D:
 		case EGridSpace::Scaled:
 		case EGridSpace::UniformScaled:
-			return Grid.GetInner2DPoint(Space, Index);
+			return Grid.GetInner2DPoint(Space, LocalIndex);
 		}
 		return FPoint::ZeroPoint;
 	}

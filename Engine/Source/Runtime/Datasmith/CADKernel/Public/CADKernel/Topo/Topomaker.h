@@ -132,7 +132,7 @@ public:
 	 */
 	void UnlinkEdgesOfSeparateShells();
 
-	void RemoveThinFaces(TArray<FTopologicalEdge*>& NewBorderEdges);
+	void RemoveThinFaces();
 
 #ifdef CADKERNEL_DEV
 	void PrintSewReport()

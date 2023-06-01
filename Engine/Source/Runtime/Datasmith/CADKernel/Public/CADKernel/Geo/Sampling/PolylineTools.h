@@ -525,7 +525,7 @@ public:
 	 * @param ToleranceOfProjection: Max error between the both curve to stop the search of projection
 	 *    if ToleranceOfProjection < 0, it's compute with ComputeSquareToleranceForProjection
 	 */
-	void ProjectCoincidentalPolyline(const TArray<PointType>& InPointsToProject, bool bSameOrientation, TArray<double>& OutProjectedPointCoords, const double ToleranceOfProjection) const
+	void ProjectCoincidentalPolyline(const FLinearBoundary& InBoundary, const TArray<PointType>& InPointsToProject, bool bSameOrientation, TArray<double>& OutProjectedPointCoords, const double ToleranceOfProjection) const
 	{
 #ifdef DEBUG_PROJECT_COINCIDENTAL_POLYLINE
 		static int32 Counter = 0;
@@ -547,8 +547,11 @@ public:
 
 		const double SquareTol = ToleranceOfProjection > 0 ? FMath::Square(ToleranceOfProjection) : PolylineTools::ComputeSquareToleranceForProjection(PolylinePoints);
 
-		int32 StartIndex = 0;
-		const int32 EndIndex = PolylinePoints.Num() - 1;
+		int32 BoundaryIndices[2];
+		GetStartEndIndex(InBoundary, BoundaryIndices);
+
+		int32 StartIndex = BoundaryIndices[0];
+		const int32 EndIndex = BoundaryIndices[1] + 1;
 
 		TFunction<double(const PointType&)> ProjectPointToPolyline = [&](const PointType& InPointToProject)
 		{

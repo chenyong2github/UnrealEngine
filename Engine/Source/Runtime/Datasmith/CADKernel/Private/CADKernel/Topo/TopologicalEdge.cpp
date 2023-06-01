@@ -722,7 +722,7 @@ void FTopologicalEdge::ProjectTwinEdgePointsOn2DCurve(const TSharedRef<FTopologi
 
 		bool bSameDirection = IsSameDirection(*InTwinEdge);
 		const double ToleranceOfProjection = Length3D * 0.1;
-		Curve->ProjectTwinCurvePoints(Points3D, bSameDirection, Coordinates, ToleranceOfProjection);
+		Curve->ProjectTwinCurvePoints(Boundary, Points3D, bSameDirection, Coordinates, ToleranceOfProjection);
 		Curve->Approximate2DPoints(Coordinates, OutPoints2D);
 	}
 }
@@ -1362,11 +1362,11 @@ void FTopologicalEdge::SpawnIdent(FDatabase& Database)
 	}
 }
 
-TSharedPtr<FTopologicalVertex> FTopologicalEdge::SplitAt(double SplittingCoordinate, const FPoint& NewVertexCoordinate, bool bKeepStartVertexConnectivity, TSharedPtr<FTopologicalEdge>& NewEdge)
+FTopologicalVertex* FTopologicalEdge::SplitAt(double SplittingCoordinate, const FPoint& NewVertexCoordinate, bool bKeepStartVertexConnectivity, TSharedPtr<FTopologicalEdge>& NewEdge)
 {
 	if (GetTwinEntityCount() > 1)
 	{
-		return TSharedPtr<FTopologicalVertex>();
+		return nullptr;
 		// TODO
 	}
 
@@ -1384,7 +1384,7 @@ TSharedPtr<FTopologicalVertex> FTopologicalEdge::SplitAt(double SplittingCoordin
 	}
 	if (!NewEdge.IsValid())
 	{
-		return TSharedPtr<FTopologicalVertex>();
+		return nullptr;
 	}
 
 	if (bKeepStartVertexConnectivity)
@@ -1404,7 +1404,7 @@ TSharedPtr<FTopologicalVertex> FTopologicalEdge::SplitAt(double SplittingCoordin
 	ComputeLength();
 
 	Loop->SplitEdge(*this, NewEdge, bKeepStartVertexConnectivity);
-	return MiddelVertex;
+	return &MiddelVertex.Get();
 }
 
 bool FTopologicalEdge::IsSharpEdge() const

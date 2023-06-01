@@ -720,7 +720,7 @@ public:
 	void ProjectTwinEdgePoints(const TArray<FPoint>& InPointsToProject, bool bSameOrientation, TArray<double>& OutProjectedPointCoords) const
 	{
 		const double ToleranceOfProjection = Length3D * 0.1;
-		Curve->ProjectTwinCurvePoints(InPointsToProject, bSameOrientation, OutProjectedPointCoords, ToleranceOfProjection);
+		Curve->ProjectTwinCurvePoints(Boundary, InPointsToProject, bSameOrientation, OutProjectedPointCoords, ToleranceOfProjection);
 	}
 
 	/**
@@ -771,7 +771,7 @@ public:
 	 * @param bKeepStartVertexConnectivity: if true the new edge is connected to endVertex, otherwise the new edge is connected to start vertex
 	 * @param OutNewEdge, the second edge
 	 */
-	TSharedPtr<FTopologicalVertex> SplitAt(double SplittingCoordinate, const FPoint& NewVertexCoordinate, bool bKeepStartVertexConnectivity, TSharedPtr<FTopologicalEdge>& OutNewEdge);
+	FTopologicalVertex* SplitAt(double SplittingCoordinate, const FPoint& NewVertexCoordinate, bool bKeepStartVertexConnectivity, TSharedPtr<FTopologicalEdge>& OutNewEdge);
 
 	/**
 	 * Extend the Edge to the NewVertex.

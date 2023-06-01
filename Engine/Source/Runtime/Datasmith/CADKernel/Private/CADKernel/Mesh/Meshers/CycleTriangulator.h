@@ -82,7 +82,7 @@ struct FAdditionalIso
 	{
 		NodeIndices[Index] =  -1;
 		Nodes[Index] = nullptr;
-		EquilateralCriteria[Index] = Slope::NullSlope;
+		EquilateralCriteria[Index] = Slope::TwoPiSlope;
 	}
 
 	void Reset()
@@ -109,7 +109,7 @@ private:
 	const TArray<bool>& CycleOrientation;
 
 	const EGridSpace Space = EGridSpace::UniformScaled;
-	const FIntersectionNodePairTool& InnerToOuterSegmentsIntersectionTool;
+	const FIntersectionNodePairTool& InnerToOuterIsoSegmentsIntersectionTool;
 	FFaceMesh& Mesh;
 	TFactory<FIsoSegment>& IsoSegmentFactory;
 
@@ -127,8 +127,11 @@ private:
 	TArray<FIsoNode*> SubCycleNodes;
 
 	TArray<TPair<int32, double>> VertexIndexToSlopes;
-
+	double MeanSquareLength = 0;
 	bool bAcuteTriangle = false;
+
+	int32 IntersectionCountAllowed = 0;
+	int32 MaxIntersectionCounted = 0;
 
 	int32 FirstSideStartIndex = -1;
 	int32 FirstSideEndIndex = -1;
@@ -200,7 +203,7 @@ private:
 	 * Valid additional nodes i.e. check if they can be added in The Side Of Selected Triangle
 	 */
 	void ValidateComplementaryNodesWithInsideAndIntersectionsCriteria(FAdditionalIso& Side);
-	bool ValidComplementaryNode(FAdditionalIso& Side, int32 Index);
+	bool ValidComplementaryNodeOrDeleteIt(FAdditionalIso& Side, int32 Index);
 	bool IsInnerSideSegmentInsideCycle(FAdditionalIso& Side);
 
 	void SelectFinalNodes(FAdditionalIso& Side1, FAdditionalIso& Side2);
@@ -222,14 +225,15 @@ private:
 
 	int32 IsIntersectingIso(const TArray<FIsoNode*>& Nodes)
 	{
-		const FIsoNode* StartNode = Nodes.Last();
-		for (const FIsoNode* Node : Nodes)
+		for (int32 IndexA = 0; IndexA < Nodes.Num() - 1; ++IndexA)
 		{
-			if (InnerToOuterSegmentsIntersectionTool.CountIntersections(*StartNode, *Node))
+			for (int32 IndexB = IndexA + 1; IndexB < Nodes.Num() - 1; ++IndexB)
 			{
-				return true;
+				if (InnerToOuterIsoSegmentsIntersectionTool.DoesIntersect(*Nodes[IndexA], *Nodes[IndexB]))
+				{
+					return true;
+				}
 			}
-			StartNode = Node;
 		}
 		return false;
 	}
@@ -240,8 +244,7 @@ private:
 		for (const FCandidateNode& CNode : Nodes)
 		{
 			const FIsoNode* Node = CNode.Node;
-
-			if (InnerToOuterSegmentsIntersectionTool.CountIntersections(*StartNode, *Node))
+			if (InnerToOuterIsoSegmentsIntersectionTool.DoesIntersect(*StartNode, *Node))
 			{
 				return true;
 			}
@@ -251,9 +254,10 @@ private:
 
 	int32 CountIntersectionWithIso()
 	{
-		const FIsoNode* StartNode = CandidateNodes[0].Node;
-		const FIsoNode* EndNode = CandidateNodes.Last().Node;
+		FirstSideStartNode = SubCycleNodes[FirstSideStartIndex];
+		FirstSideEndNode = SubCycleNodes[FirstSideEndIndex];
 
+		NodeToIntersection.Reserve(CandidateNodes.Num());
 		int32 Max = 0;
 		for (int32 Index = 0; Index < CandidateNodes.Num(); ++Index)
 		{
@@ -265,8 +269,9 @@ private:
 
 			const FIsoNode* Node = CNode.Node;
 
-			int32 IntersectionCount = InnerToOuterSegmentsIntersectionTool.CountIntersections(*StartNode, *Node);
-			IntersectionCount = FMath::Max(IntersectionCount, InnerToOuterSegmentsIntersectionTool.CountIntersections(*EndNode, *Node));
+			int32 IntersectionCount = InnerToOuterIsoSegmentsIntersectionTool.CountIntersections(*FirstSideStartNode, *Node);
+			IntersectionCount = FMath::Max(IntersectionCount, InnerToOuterIsoSegmentsIntersectionTool.CountIntersections(*FirstSideEndNode, *Node));
+
 			NodeToIntersection.Emplace(&CNode, IntersectionCount);
 			if (Max < IntersectionCount)
 			{

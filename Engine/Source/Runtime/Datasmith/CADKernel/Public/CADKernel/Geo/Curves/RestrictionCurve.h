@@ -150,9 +150,9 @@ public:
 	 * Project a set of points of a twin curve on the 3D polyline and return the coordinate of the projected point
 	 * @param ToleranceOfProjection: Max error between the both curve to stop the search of projection of a point 
 	 */
-	void ProjectTwinCurvePoints(const TArray<FPoint>& InPointsToProject, bool bSameOrientation, TArray<double>& OutProjectedPointCoords, double ToleranceOfProjection) const
+	void ProjectTwinCurvePoints(const FLinearBoundary& InBoundary, const TArray<FPoint>& InPointsToProject, bool bSameOrientation, TArray<double>& OutProjectedPointCoords, double ToleranceOfProjection) const
 	{
-		Polyline.ProjectCoincidentalPolyline(InPointsToProject, bSameOrientation, OutProjectedPointCoords, ToleranceOfProjection);
+		Polyline.ProjectCoincidentalPolyline(InBoundary, InPointsToProject, bSameOrientation, OutProjectedPointCoords, ToleranceOfProjection);
 	}
 
 	void ComputeIntersectionsWithIsos(const FLinearBoundary& InBoundary, const TArray<double>& InIsoCoordinates, const EIso InTypeIso, const FSurfacicTolerance& ToleranceIso, TArray<double>& OutIntersection) const

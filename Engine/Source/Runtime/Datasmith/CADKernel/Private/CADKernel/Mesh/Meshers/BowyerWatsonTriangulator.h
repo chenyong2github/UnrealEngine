@@ -556,6 +556,13 @@ public:
 		}
 	}
 
+	TArray<int32> GetOuterVertices() const
+	{
+		TSet<int32> OuterVertices;
+		GetOuterVertices(OuterVertices);
+		return OuterVertices.Array();
+	}
+
 	void GetMesh(TArray<int32>& Triangles)
 	{
 		Triangles.Reset(TriangleSet.Num() * 3);

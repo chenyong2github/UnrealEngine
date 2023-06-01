@@ -245,17 +245,6 @@ public:
 		return IndexV * CuttingCount[EIso::IsoU] + IndexU;
 	}
 
-#ifdef WIP
-	/**
-	 * @return the Index of the position in the arrays of a point [IndexU, IndexV] of the grid
-	 */
-	void UVIndexFromGlobalIndex(int32 GLobalIndex, int32& OutIndexU, int32& OutIndexV) const
-	{
-		OutIndexU = GLobalIndex % CuttingCount[EIso::IsoU];
-		OutIndexV = GLobalIndex / CuttingCount[EIso::IsoU];
-	}
-#endif
-
 #ifdef CADKERNEL_DEBUG
 
 	// ======================================================================================================================================================================================================================

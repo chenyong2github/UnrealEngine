@@ -47,6 +47,7 @@ public:
 
 			UE::CADKernel::FTopomaker Topomaker(CADKernelSession, TopomakerOptions);
 			Topomaker.Sew();
+			Topomaker.SplitIntoConnectedShells();
 			Topomaker.OrientShells();
 		}
 

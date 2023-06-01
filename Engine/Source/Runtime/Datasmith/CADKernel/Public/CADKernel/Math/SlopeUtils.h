@@ -126,6 +126,11 @@ inline double TransformIntoOrientedSlope(double Slope)
 	return WrapTo(Slope, -Slope::PiSlope, Slope::PiSlope, Slope::TwoPiSlope);
 }
 
+inline double TransformIntoClockwiseSlope(double Slope)
+{
+	return Slope::TwoPiSlope - Slope;
+}
+
 /**
  * Transform a positive slope into an unoriented slope [0, 4] i.e. an equivalent angle between [0, Pi]
  * @return a slope between [0, 4]
@@ -281,7 +286,7 @@ inline double ComputePositiveSlope(const FPoint2D& StartPoint, const FPoint2D& E
 
 inline double ClockwiseSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
 {
-	return Slope::TwoPiSlope - ComputePositiveSlope(StartPoint, EndPoint, ReferenceSlope);
+	return TransformIntoClockwiseSlope(ComputePositiveSlope(StartPoint, EndPoint, ReferenceSlope));
 }
 
 inline double CounterClockwiseSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)

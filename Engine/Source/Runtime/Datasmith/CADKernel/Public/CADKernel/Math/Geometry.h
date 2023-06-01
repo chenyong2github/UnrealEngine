@@ -620,6 +620,14 @@ inline bool FindIntersectionOfLines2D(const FSegment2D& LineAB, const FSegment2D
 CADKERNEL_API bool DoIntersect(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD);
 CADKERNEL_API bool DoIntersectInside(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD);
 
+inline bool AreParallel(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD)
+{
+	const FPoint2D AB = SegmentAB.GetVector().Normalize();
+	const FPoint2D CD = SegmentCD.GetVector().Normalize();
+	const double ParallelCoef = AB ^ CD;
+	return (FMath::IsNearlyZero(ParallelCoef, DOUBLE_KINDA_SMALL_NUMBER));
+};
+
 inline double ComputeCosinus(FVector Vector, FVector OtherVector)
 {
 	Vector.Normalize();

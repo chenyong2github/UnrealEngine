@@ -13,117 +13,308 @@
 namespace UE::CADKernel
 {
 class FGrid;
+class FIsoTriangulator;
+
+struct FLoopCell
+{
+	int32 Id;
+	FPoint2D Barycenter;
+	TArray<FLoopNode*> Nodes;
+	TArray<FLoopConnexion*> Connexions;
+	bool bIsOuterLoop = false;
+
+	FLoopCell(const int32 InIndex, TArray<FLoopNode*>& InNodes, const FGrid& Grid)
+		: Id(InIndex)
+		, Barycenter(FPoint::ZeroPoint)
+		, Nodes(InNodes)
+		, bIsOuterLoop(Nodes[0]->GetLoopIndex() == 0)
+	{
+		for (const FLoopNode* Node : Nodes)
+		{
+			Barycenter += Node->Get2DPoint(EGridSpace::UniformScaled, Grid);
+		}
+		Barycenter /= (double)Nodes.Num();
+	}
+};
+
+struct FLoopConnexion
+{
+	bool bIsConnexionWithBorder = false;
+	FLoopCell& Loop1;
+	FLoopCell& Loop2;
+
+	double MinDistance = HUGE_VALUE_SQUARE;
+
+	FLoopNode* NodeA = nullptr;
+	FLoopNode* NodeB = nullptr;
+
+	FIsoSegment* Segment = nullptr;
+
+	FLoopConnexion(FLoopCell& InLoop1, FLoopCell& InLoop2, bool bIsConnectingBoder = false)
+		: bIsConnexionWithBorder(bIsConnectingBoder)
+		, Loop1(InLoop1)
+		, Loop2(InLoop2)
+	{
+	}
+
+	void LinkToLoop()
+	{
+		Loop1.Connexions.Add(this);
+		Loop2.Connexions.Add(this);
+	}
+
+	const FLoopCell* GetOtherLoop(const FLoopCell* Loop)
+	{
+		return (Loop == &Loop1) ? &Loop2 : &Loop1;
+	}
+
+	bool IsShortestPath()
+	{
+		TMap<const FLoopCell*, double> DistanceToLoops;
+		DistanceToLoops.Add(&Loop1, 0.);
+		double MinPathDistance = HUGE_VALUE;
+		while (true)
+		{
+			double DistanceToCurrent = HUGE_VALUE;
+			TPair<const FLoopCell*, double>* CurrentLoop = nullptr;
+			for (TPair<const FLoopCell*, double>& DistanceToLoop : DistanceToLoops)
+			{
+				if (DistanceToLoop.Value >= 0. && DistanceToLoop.Value < DistanceToCurrent)
+				{
+					DistanceToCurrent = DistanceToLoop.Value;
+					CurrentLoop = &DistanceToLoop;
+				}
+			}
+
+			if (!CurrentLoop || CurrentLoop->Value > MinDistance)
+			{
+				return true;
+			}
+
+			if (CurrentLoop->Key == &Loop2)
+			{
+				return (CurrentLoop->Value > MinDistance);
+			}
+
+			for (FLoopConnexion* Connexion : CurrentLoop->Key->Connexions)
+			{
+				if (Connexion == this || Connexion->bIsConnexionWithBorder)
+				{
+					continue;
+				}
+
+				const FLoopCell* NextLoop = Connexion->GetOtherLoop(CurrentLoop->Key);
+				const double DistanceToNextByCurrent = CurrentLoop->Value + Connexion->MinDistance;
+
+				double* DistanceToNextLoop = DistanceToLoops.Find(NextLoop);
+				if (DistanceToNextLoop)
+				{
+					if (*DistanceToNextLoop > DistanceToNextByCurrent)
+					{
+						*DistanceToNextLoop = DistanceToNextByCurrent;
+					}
+				}
+				else
+				{
+					DistanceToLoops.Add(NextLoop, DistanceToNextByCurrent);
+				}
+			}
+
+			CurrentLoop->Value = -HUGE_VALUE;
+		}
+
+		return true;
+	}
+};
+
+struct FCellPath
+{
+	double Length = 0;
+	FLoopCell* CurrentLoop;
+	TArray<FLoopCell> Path;
+};
 
 struct FCell
 {
+	FIsoTriangulator& Triangulator;
 	const FGrid& Grid;
 	int32 Id;
-	int32 LoopNodeCount;
-	bool bHasOuterLoop = false;
+
 	int32 InnerLoopCount = 0;
-
-	TArray<int32> LoopIndexToIndex;
-	TArray<TArray<FLoopNode*>> SubLoops;
-
-	// the outer loop is subdivide into connected (in the cell) nodes
-	TArray<TArray<FLoopNode*>> OuterLoopSubdivision;
+	int32 OuterLoopCount = 0;
 
 	TArray<FIsoSegment*> CandidateSegments;
 	TArray<FIsoSegment*> FinalSegments;
+
 	FIntersectionSegmentTool IntersectionTool;
 
-	/** Loop that barycenter is on the border of the barycenter mesh */
-	TSet<int32> BorderLoopIndices;
+	TArray<FLoopCell> LoopCells;
+	TArray<FLoopConnexion> LoopConnexions;
+	TArray<int32> LoopCellBorderIndices;
 
-	FCell(const int32 InLoopIndex, const TArray<FLoopNode*>& InNodes, const FGrid& InGrid)
-		: Grid(InGrid)
+	FCell(const int32 InLoopIndex, TArray<FLoopNode*>& InNodes, FIsoTriangulator& InTriangulator)
+		: Triangulator(InTriangulator)
+		, Grid(Triangulator.GetGrid())
 		, Id(InLoopIndex)
-		, LoopNodeCount(InNodes.Num())
-		, IntersectionTool(Grid)
+		, IntersectionTool(Triangulator.GetGrid())
 	{
-		ensureCADKernel(InNodes.Num() > 0);
+		const int32 NodeCount = InNodes.Num();
+		ensureCADKernel(NodeCount > 0);
 
-		int32 FaceLoopCount = Grid.GetFace().LoopCount();
+		// Subdivide InNodes in SubLoop
+		Algo::Sort(InNodes, [&](const FLoopNode* LoopNode1, const FLoopNode* LoopNode2)
+			{
+				return LoopNode1->GetGlobalIndex() < LoopNode2->GetGlobalIndex();
+			});
+
 		int32 LoopCount = 0;
-		{
-			TArray<int32> LoopVertexCount;
-			LoopVertexCount.Init(0, FaceLoopCount);
-			for (const FLoopNode* Node : InNodes)
-			{
-				LoopVertexCount[Node->GetLoopIndex()]++;
-			}
-
-			for (const int32& VertexCount : LoopVertexCount)
-			{
-				if (VertexCount > 0)
-				{
-					LoopCount++;
-				}
-			}
-
-			SubLoops.SetNum(LoopCount);
-			int32 Index = 0;
-			for (int32 LoopIndex = 0; LoopIndex < FaceLoopCount; ++LoopIndex)
-			{
-				if (LoopVertexCount[LoopIndex] > 0)
-				{
-					SubLoops[Index].Reserve(LoopVertexCount[LoopIndex]);
-					LoopVertexCount[LoopIndex] = Index;
-					Index++;
-				}
-			}
-			Swap(LoopIndexToIndex, LoopVertexCount);
-		}
-
+		FLoopNode* PreviousNode = nullptr;
 		for (FLoopNode* Node : InNodes)
 		{
-			int32 Index = LoopIndexToIndex[Node->GetLoopIndex()];
-			SubLoops[Index].Add(Node);
+			if (&Node->GetPreviousNode() != PreviousNode)
+			{
+				LoopCount++;
+			}
+			PreviousNode = Node;
 		}
 
-		bHasOuterLoop = (SubLoops[0][0]->GetLoopIndex() == 0);
-		InnerLoopCount = bHasOuterLoop ? (SubLoops.Num() - 1) : SubLoops.Num();
+		LoopCells.Reserve(LoopCount);
 
-		if (bHasOuterLoop)
+		LoopCount = 0;
+		TArray<FLoopNode*> LoopNodes;
+		LoopNodes.Reserve(NodeCount);
+
+		int32 LoopIndex = -1;
+		FLoopCell* FirstLoopCell = nullptr;
+
+		TFunction<void(TArray<FLoopNode*>&)> MakeLoopCell = [&FirstLoopCell, &LoopCells = LoopCells, &LoopIndex, &Grid = Grid](TArray<FLoopNode*>& LoopNodes)
 		{
-			// Subdivide Loop0 in SubLoop
-			TArray<FLoopNode*>& Loop0 = SubLoops[0];
-			Algo::Sort(Loop0, [&](const FLoopNode* LoopNode1, const FLoopNode* LoopNode2)
-				{
-					return LoopNode1->GetIndex() < LoopNode2->GetIndex();
-				});
-
-			OuterLoopSubdivision.Reserve(Loop0.Num());
-			FLoopNode* PreviousNode = nullptr;
-			TArray<FLoopNode*>* SubLoop = nullptr;
-			for (FLoopNode* Node : Loop0)
+			if (LoopNodes.Num())
 			{
-				if (&Node->GetPreviousNode() != PreviousNode)
+				if ((LoopIndex == LoopNodes[0]->GetLoopIndex()) && (&LoopNodes.Last()->GetNextNode() == FirstLoopCell->Nodes[0]))
 				{
-					SubLoop = &OuterLoopSubdivision.Emplace_GetRef();
+					LoopNodes.Append(FirstLoopCell->Nodes);
+					FirstLoopCell->Nodes = LoopNodes;
 				}
-				SubLoop->Add(Node);
-				PreviousNode = Node;
+				else
+				{
+					LoopCells.Emplace(LoopCells.Num(), LoopNodes, Grid);
+				}
+
+				if (LoopIndex != LoopNodes[0]->GetLoopIndex())
+				{
+					LoopIndex = LoopNodes[0]->GetLoopIndex();
+					FirstLoopCell = &LoopCells.Last();
+				}
+			}
+		};
+
+		PreviousNode = nullptr;
+		for (FLoopNode* Node : InNodes)
+		{
+			if (Node->IsDelete())
+			{
+				continue;
+			}
+
+			if (&Node->GetPreviousNode() != PreviousNode)
+			{
+				MakeLoopCell(LoopNodes);
+				LoopNodes.Reset(NodeCount);
+			}
+			LoopNodes.Add(Node);
+			PreviousNode = Node;
+		}
+		MakeLoopCell(LoopNodes);
+
+		for(const FLoopCell& LoopCell : LoopCells)
+		{
+			if (LoopCell.bIsOuterLoop)
+			{
+				OuterLoopCount++;
+			}
+			else
+			{
+				InnerLoopCount++;
 			}
 		}
 	}
 
-	void SelectSegmentInCandidateSegments(TFactory<FIsoSegment>& SegmentFactory)
+	void InitLoopConnexions();
+
+	TArray<TPair<int32, FPoint2D>> GetLoopBarycenters()
+	{
+		TArray<TPair<int32, FPoint2D>> LoopBarycenters;
+		LoopBarycenters.Reserve(LoopCells.Num());
+		for (const FLoopCell& LoopCell : LoopCells)
+		{
+			if(!LoopCell.bIsOuterLoop)
+			{
+				LoopBarycenters.Emplace(LoopCell.Id, LoopCell.Barycenter);
+			}
+		}
+		return MoveTemp(LoopBarycenters);
+	}
+
+	void ConnectLoopsByNeighborhood();
+
+	/**
+	 *  SubLoopA                  SubLoopB
+	 *      --X---X             X-----X--
+	 *             \           /
+	 *              \         /
+	 *               X=======X
+	 *              /         \
+	 *             /           \
+	 *      --X---X             X-----X--
+	 *
+	 *     ======= ShortestSegment
+	 */
+	void TryToConnectTwoSubLoopsWithShortestSegment(FLoopConnexion& LoopConnexion);
+
+	void TryToCreateSegment(FLoopConnexion& LoopConnexion);
+
+	void SelectSegmentInCandidateSegments(TFactory<FIsoSegment>& SegmentFactory, bool bSelectWithCellSizeCriteria)
 	{
 #ifdef DEBUG_SELECT_SEGMENT
 		F3DDebugSession _(Grid.bDisplay, TEXT("SelectSegmentInCandidateSegments "));
-		IntersectionTool.Display(TEXT("Cell.IntersectionTool at SelectSegmentInCandidateSegments start"));
-		//Wait();
+		if(Grid.bDisplay)
+		{
+			IntersectionTool.Display(Grid.bDisplay, TEXT("Cell.IntersectionTool at SelectSegmentInCandidateSegments start"));
+			Wait();
+		}
 #endif
 
-		Algo::Sort(CandidateSegments, [&](const FIsoSegment* Segment1, const FIsoSegment* Segment2)
-			{
-				return Segment1->Get2DLengthSquare(EGridSpace::UniformScaled, Grid) < Segment2->Get2DLengthSquare(EGridSpace::UniformScaled, Grid);
-			});
+		double CellSquareLength = HUGE_VALUE;
+		if(bSelectWithCellSizeCriteria)
+		{
+			int32 IndexU;
+			int32 IndexV;
+			Grid.UVIndexFromGlobalIndex(Id, IndexU, IndexV);
 
-		// Validate all candidate segments
+			CellSquareLength = Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV).SquareDistance(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV + 1));
+			const double CellLength2 = Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV).SquareDistance(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV));
+			CellSquareLength = FMath::Min(CellSquareLength, CellLength2);
+		}
+
+		TArray<TPair<double, FIsoSegment*>> LengthOfCandidateSegments;
+		LengthOfCandidateSegments.Reserve(CandidateSegments.Num());
 		for (FIsoSegment* Segment : CandidateSegments)
 		{
+			LengthOfCandidateSegments.Emplace(Segment->Get2DLengthSquare(EGridSpace::UniformScaled, Grid), Segment);
+		}
+
+		Algo::Sort(LengthOfCandidateSegments, [&](const TPair<double, FIsoSegment*>& P1, const TPair < double, FIsoSegment*>& P2) { return P1.Key < P2.Key; });
+
+		// Validate all candidate segments
+		for (const TPair<double, FIsoSegment*>& Candidate : LengthOfCandidateSegments)
+		{
+			if (Candidate.Key > CellSquareLength)
+			{
+				break;
+			}
+
+			FIsoSegment* Segment = Candidate.Value;
 #ifdef DEBUG_SELECT_SEGMENT
 			F3DDebugSession _(Grid.bDisplay, TEXT("Segment"));
 #endif
@@ -156,13 +347,6 @@ struct FCell
 			Segment->ConnectToNode();
 		}
 		CandidateSegments.Empty();
-	}
-
-	bool Contains(FLoopNode* NodeToFind)
-	{
-		int32 LoopIndex = NodeToFind->GetLoopIndex();
-		int32 Index = LoopIndexToIndex[LoopIndex];
-		return SubLoops[Index].Find(NodeToFind) != INDEX_NONE;
 	}
 
 };

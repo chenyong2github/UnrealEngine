@@ -57,50 +57,6 @@ const FVertexMesh* FModelMesh::GetMeshOfVertexNodeId(const int32 Ident) const
 	return nullptr;
 }
 
-#ifdef OLD
-const int32 FModelMesh::GetIndexOfVertexFromId(const int32 Ident) const
-{
-	for (const FVertexMesh* VertexMesh : VertexMeshes)
-	{
-		if (Ident == VertexMesh->GetStartVertexId())
-		{
-			return VertexMesh->GetIndexInMeshModel();
-		}
-	}
-	return -1;
-}
-
-const int32 FModelMesh::GetIndexOfEdgeFromId(const int32 Ident) const
-{
-	for (const FEdgeMesh* EdgeMesh : EdgeMeshes)
-	{
-		if (Ident >= EdgeMesh->GetStartVertexId())
-		{
-			if (Ident <= EdgeMesh->GetLastVertexIndex())
-			{
-				return EdgeMesh->GetIndexInMeshModel();
-			}
-		}
-	}
-	return -1;
-}
-
-const int32 FModelMesh::GetIndexOfSurfaceFromId(const int32 Ident) const
-{
-	for (const TSharedPtr<FFaceMesh>& FaceMesh : FaceMeshes)
-	{
-		if (Ident >= FaceMesh->GetStartVertexId())
-		{
-			if (Ident <= FaceMesh->GetLastVertexIndex())
-			{
-				return FaceMesh->GetIndexInMeshModel();
-			}
-		}
-	}
-	return -1;
-}
-#endif
-
 void FModelMesh::GetNodeCoordinates(TArray<FPoint>& NodeCoordinates) const
 {
 	NodeCoordinates.Reserve(LastIdUsed + 1);

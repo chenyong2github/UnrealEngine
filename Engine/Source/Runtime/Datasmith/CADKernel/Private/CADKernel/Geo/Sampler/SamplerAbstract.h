@@ -274,7 +274,6 @@ protected:
 	{
 		if (NeededPointNumber > 50)
 		{
-			FMessage::Printf(EVerboseLevel::Debug, TEXT("SamplerAbstract needed point number %d\n"), NeededPointNumber);
 			NeededPointNumber = 50;
 		}
 

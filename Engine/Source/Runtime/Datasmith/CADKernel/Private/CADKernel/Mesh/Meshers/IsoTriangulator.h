@@ -26,6 +26,8 @@ struct FCell;
 
 using FMeshPolygonFunc = TFunction<void(const FGrid&, FIsoNode*[], FFaceMesh&)>;
 
+struct FLoopConnexion;
+
 struct CADKERNEL_API FIsoTriangulatorChronos
 {
 	FDuration TriangulateDuration = FChrono::Init();
@@ -77,6 +79,7 @@ class FIsoTriangulator
 	friend class FCycleTriangulator;
 	friend class FLoopCleaner;
 	friend class FParametricMesher;
+	friend struct FCell;
 
 protected:
 
@@ -114,7 +117,7 @@ protected:
 	FIntersectionSegmentTool LoopSegmentsIntersectionTool;
 	FIntersectionSegmentTool InnerSegmentsIntersectionTool;
 	FIntersectionSegmentTool InnerToLoopSegmentsIntersectionTool;
-	FIntersectionNodePairTool InnerToOuterSegmentsIntersectionTool;
+	FIntersectionNodePairTool InnerToOuterIsoSegmentsIntersectionTool;
 	FIntersectionSegmentTool ThinZoneIntersectionTool;
 
 
@@ -136,8 +139,6 @@ protected:
 	 *
 	 */
 	TArray<FIsoSegment*> CandidateSegments;
-
-	TArray<FIsoSegment*> NewTestSegments;
 
 	bool bDisplay = false;
 
@@ -207,29 +208,7 @@ public:
 	void ConnectCellLoops();
 	void FindCellContainingBoundaryNodes(TArray<FCell>& Cells);
 
-	/**
-	 * The closest loops are connected together
-	 * To do it, a Delaunay triangulation of the loop barycenter is realized.
-	 * Each edge of this mesh defined a near loops pair
-	 * The shortest segment is then build between this pair of loops
-	 */
-	void ConnectCellSubLoopsByNeighborhood(FCell& cell);
-
-	void FindIsoSegmentToLinkOuterLoopNodes(FCell& Cell);	
-
-	void FindSegmentToLinkOuterLoopNodes(FCell& Cell);
-
-	void FindSegmentToLinkOuterToInnerLoopNodes(FCell& Cell);
-
-	void ConnectCellCornerToInnerLoop(FCell& Cell);
-
-	/**
-	 * The goal of this algorithm is to connect iso U (or V) aligned loop nodes as soon as they are nearly in the same iso V (or U) strip.
-	 * I.e.:
-	 * - Iso U aligned: NodeA.U = NodeB.U +/-TolU
-	 * - In the same strip: each node of the segment has the same index "i" that verify: isoV[i] - TolV < Node.V < isoV[i+1] + TolV
-	 */
-	void FindIsoSegmentToLinkLoopToLoop();
+	void ConnectCellCornerToLoops(FCell& Cell);
 
 	void FindCandidateSegmentsToLinkInnerAndLoop();
 
@@ -247,7 +226,7 @@ public:
 
 	/**
 	 * Find in the network a minimal cycle stating from a segment
-	 * @return false if the new cycle crosses a segement already used
+	 * @return false if the new cycle crosses a segment already used
 	 */
 	bool FindCycle(FIsoSegment* StartSegment, bool bLeftSide, TArray<FIsoSegment*>& Cycle, TArray<bool>& CycleOrientation);
 
@@ -297,6 +276,11 @@ public:
 			});
 	}
 
+	const FGrid& GetGrid() const
+	{
+		return Grid;
+	}
+
 private:
 
 	FIsoSegment* FindNextSegment(EGridSpace Space, const FIsoSegment* StartSegment, const FIsoNode* StartNode, SlopeMethod GetSlop) const;
@@ -304,20 +288,6 @@ private:
 	// ==========================================================================================
 	// 	   Create segments
 	// ==========================================================================================
-
-	/**
-	 *  SubLoopA                  SubLoopB
-	 *      --X---X             X-----X--
-	 *             \           /
-	 *              \         /
-	 *               X=======X
-	 *              /         \
-	 *             /           \
-	 *      --X---X             X-----X--
-	 *
-	 *     ======= ShortestSegment
-	 */
-	void TryToConnectTwoSubLoopsWithShortestSegment(FCell& Cell, const TArray<FLoopNode*>& SubLoopA, const TArray<FLoopNode*>& SubLoopB);
 
 	void TryToConnectTwoLoopsWithIsocelesTriangle(FCell& Cell, const TArray<FLoopNode*>& SubLoopA, const TArray<FLoopNode*>& SubLoopB);
 

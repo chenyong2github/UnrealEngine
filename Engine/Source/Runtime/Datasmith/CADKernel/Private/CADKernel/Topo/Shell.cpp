@@ -133,6 +133,10 @@ void FShell::SpreadBodyOrientation()
 		{
 			Face.Entity->SetBackOriented();
 		}
+		else
+		{
+			Face.Entity->ResetBackOriented();
+		}
 	}
 }
 
@@ -346,8 +350,8 @@ int32 FShell::Orient()
 					continue;
 				}
 
-				bool EdgesAreWellOriented = (Edge->IsSameDirection(*NeighboringEdge) == (OrientedNeighboringEdge->Direction != OrientedEdge.Direction));
-				bool FacesHaveSameOrientation = Face.IsBackOriented() == NeighboringFace->IsBackOriented();
+				const bool EdgesAreWellOriented = (Edge->IsSameDirection(*NeighboringEdge) == (OrientedNeighboringEdge->Direction != OrientedEdge.Direction));
+				const bool FacesHaveSameOrientation = Face.IsBackOriented() == NeighboringFace->IsBackOriented();
 
 				if (EdgesAreWellOriented != FacesHaveSameOrientation)
 				{

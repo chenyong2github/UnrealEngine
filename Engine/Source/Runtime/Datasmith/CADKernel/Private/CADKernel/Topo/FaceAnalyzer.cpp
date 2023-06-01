@@ -259,10 +259,10 @@ void FFaceAnalyzer::DisplayLoopSegments(Topo::FThinFaceContext& Context)
 	//Wait();
 #endif
 }
-
+sadf
+#ifdef CADKERNEL_DEV
 void FFaceAnalyzer::DisplayClosedSegments(Topo::FThinFaceContext& Context)
 {
-#ifdef DEBUG_THIN_FACE
 	F3DDebugSession _(TEXT("Closed Segment"));
 	for (const Topo::FEdgeSegment* Segment : Context.LoopSegments)
 	{
@@ -280,8 +280,8 @@ void FFaceAnalyzer::DisplayClosedSegments(Topo::FThinFaceContext& Context)
 		}
 	}
 	//Wait();
-#endif
 }
+#endif
 #endif
 }
 

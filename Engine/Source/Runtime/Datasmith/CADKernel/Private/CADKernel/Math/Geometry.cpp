@@ -67,12 +67,12 @@ void FindLoopIntersectionsWithIso(const EIso Iso, const double IsoParameter, con
 
 bool DoIntersectInside(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD)
 {
-	constexpr const double Min = DOUBLE_SMALL_NUMBER;
-	constexpr const double Max = 1. - DOUBLE_SMALL_NUMBER;
+	constexpr const double Min = DOUBLE_KINDA_SMALL_NUMBER;
+	constexpr const double Max = 1. - DOUBLE_KINDA_SMALL_NUMBER;
 
 	TFunction<bool(double, double, double, double)> Intersect = [](double A, double B, double C, double D)
 	{
-		return !((D < A + DOUBLE_SMALL_NUMBER) || (B < C + DOUBLE_SMALL_NUMBER));
+		return !((D < A + DOUBLE_KINDA_SMALL_NUMBER) || (B < C + DOUBLE_KINDA_SMALL_NUMBER));
 	};
 
 	TFunction<bool(double, double, double, double)> TestWhenParallel = [&](double A, double B, double C, double D)
@@ -106,10 +106,10 @@ bool DoIntersectInside(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD)
 	const FPoint2D CA = SegmentAB[0] - SegmentCD[0];
 
 	const double ParallelCoef = CD ^ AB;
-	if (FMath::IsNearlyZero(ParallelCoef))
+	if (FMath::IsNearlyZero(ParallelCoef, DOUBLE_KINDA_SMALL_NUMBER))
 	{
 		const double ParallelCoef2 = CA ^ AB;
-		if (!FMath::IsNearlyZero(ParallelCoef2))
+		if (!FMath::IsNearlyZero(ParallelCoef2, DOUBLE_KINDA_SMALL_NUMBER))
 		{
 			return false;
 		}
@@ -170,10 +170,10 @@ bool DoIntersect(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& 
 	const FPoint2D CA = SegmentAB[0] - SegmentCD[0];
 
 	const double ParallelCoef = CD ^ AB;
-	if (FMath::IsNearlyZero(ParallelCoef))
+	if (FMath::IsNearlyZero(ParallelCoef, DOUBLE_KINDA_SMALL_NUMBER))
 	{
 		const double ParallelCoef2 = CA ^ AB;
-		if (!FMath::IsNearlyZero(ParallelCoef2))
+		if (!FMath::IsNearlyZero(ParallelCoef2, DOUBLE_KINDA_SMALL_NUMBER))
 		{
 			return false;
 		}

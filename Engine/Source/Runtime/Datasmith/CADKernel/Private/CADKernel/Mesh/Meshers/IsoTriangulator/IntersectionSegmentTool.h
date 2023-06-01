@@ -64,7 +64,7 @@ struct FSegment
 		return nullptr;
 	}
 
-	EConnectionType IsSuperimposed(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD, bool bSameOrientation) const
+	static EConnectionType IsSuperimposed(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD, bool bSameOrientation)
 	{
 		const FPoint2D AB = SegmentAB.GetVector().Normalize();
 		const FPoint2D CD = SegmentCD.GetVector().Normalize();
@@ -158,7 +158,7 @@ struct FSegment
 		return true;
 	}
 
-	bool DoesItIntersect(const FSegment& Segment) const
+	virtual bool DoesItIntersect(const FSegment& Segment) const
 	{
 		if (!CouldItIntersect(Segment.Boundary))
 		{
@@ -166,6 +166,11 @@ struct FSegment
 		}
 
 		return DoIntersect(Segment2D, Segment.Segment2D);
+	}
+
+	bool IsParallelWith(const FSegment& Segment) const
+	{
+		return AreParallel(Segment2D, Segment.Segment2D);
 	}
 };
 }
@@ -226,6 +231,16 @@ struct FSegment : public IntersectionToolBase::FSegment
 		return EndNode;
 	}
 
+	virtual bool DoesItIntersect(const IntersectionToolBase::FSegment& Segment) const override
+	{
+		if (!CouldItIntersect(Segment.Boundary))
+		{
+			return false;
+		}
+
+		return DoIntersectInside(Segment2D, Segment.Segment2D);
+	}
+
 };
 
 }
@@ -238,11 +253,13 @@ protected:
 
 	TArray<SegmentType> Segments;
 	bool bSegmentsAreSorted;
+	const bool bAllowOverlapping;
 
 public:
-	TIntersectionSegmentTool(const FGrid& InGrid)
+	TIntersectionSegmentTool(const FGrid& InGrid, bool bInAllowOverlapping = false)
 		: Grid(InGrid)
 		, bSegmentsAreSorted(false)
+		, bAllowOverlapping(bInAllowOverlapping)
 	{
 	}
 
@@ -287,12 +304,12 @@ public:
 	}
 
 	template<typename ExtremityType1, typename ExtremityType2>
-	const FIsoSegment* FindIntersectingSegment(const ExtremityType1* StartExtremity, const ExtremityType2* EndExtremity) const
+	const SegmentType* FindIntersectingSegment(const ExtremityType1* StartExtremity, const ExtremityType2* EndExtremity) const
 	{
 		using namespace IntersectionSegmentTool;
-		FSegment InSegment(Grid, *StartExtremity, *EndExtremity);
+		const SegmentType InSegment(Grid, *StartExtremity, *EndExtremity);
 
-		for (const FSegment& Segment : Segments)
+		for (const SegmentType& Segment : Segments)
 		{
 			if (!Segment.IsValid())
 			{
@@ -312,13 +329,18 @@ public:
 				}
 			}
 
+			if (bAllowOverlapping && Segment.IsParallelWith(InSegment))
+			{
+				continue;
+			}
+
 			switch (Segment.DoesItStartFromAndSuperimposed(StartExtremity, EndExtremity, InSegment.Segment2D))
 			{
 			case EConnectionType::SameSegment:
 			case EConnectionType::StartFrom:
 				continue;
 			case EConnectionType::SuperimposedByOrOn:
-				return Segment.IsoSegment;
+				return &Segment;
 			case EConnectionType::DoesntStartFrom:
 			default:
 				break;
@@ -326,7 +348,7 @@ public:
 
 			if (Segment.DoesItIntersect(InSegment))
 			{
-				return Segment.IsoSegment;
+				return &Segment;
 			}
 		}
 
@@ -363,6 +385,11 @@ public:
 				}
 			}
 
+			if (bAllowOverlapping && Segment.IsParallelWith(InSegment))
+			{
+				continue;
+			}
+
 			switch (Segment.DoesItStartFromAndSuperimposed(StartExtremity, EndExtremity, InSegment.Segment2D))
 			{
 			case EConnectionType::StartFrom:
@@ -376,6 +403,7 @@ public:
 					OutIntersectedSegments->Add(Segment.GetIsoSegment());
 				}
 				continue;
+
 			case EConnectionType::DoesntStartFrom:
 			default:
 				break;
@@ -536,7 +564,12 @@ public:
 	 */
 	const FIsoSegment* FindIntersectingSegment(const FIsoNode& StartNode, const FIsoNode& EndNode) const
 	{
-		return TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegment(&StartNode, &EndNode);
+		const IntersectionSegmentTool::FSegment* IntersectingSegment = TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegment(&StartNode, &EndNode);
+		if (IntersectingSegment)
+		{
+			return IntersectingSegment->IsoSegment;
+		}
+		return nullptr;
 	}
 
 	bool FindIntersectingSegments(const FIsoNode& StartNode, const FIsoNode& EndNode, TArray<const FIsoSegment*>& OutIntersections) const
@@ -550,8 +583,8 @@ class FIntersectionNodePairTool : public TIntersectionSegmentTool<IntersectionNo
 {
 
 public:
-	FIntersectionNodePairTool(const FGrid& InGrid)
-		: TIntersectionSegmentTool<IntersectionNodePairTool::FSegment>(InGrid)
+	FIntersectionNodePairTool(const FGrid& InGrid, bool bInAllowOverlaping)
+		: TIntersectionSegmentTool<IntersectionNodePairTool::FSegment>(InGrid, bInAllowOverlaping)
 	{
 	}
 
@@ -572,6 +605,10 @@ public:
 		return TIntersectionSegmentTool<IntersectionNodePairTool::FSegment>::FindIntersectingSegments(&StartNode, &EndNode, nullptr);
 	}
 
+	bool DoesIntersect(const FIsoNode& StartNode, const FIsoNode& EndNode) const
+	{
+		return TIntersectionSegmentTool<IntersectionNodePairTool::FSegment>::FindIntersectingSegment(&StartNode, &EndNode) != nullptr;
+	}
 };
 
 } // namespace UE::CADKernel

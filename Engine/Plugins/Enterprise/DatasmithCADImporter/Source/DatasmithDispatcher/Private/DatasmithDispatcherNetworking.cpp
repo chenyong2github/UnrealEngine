@@ -5,6 +5,8 @@
 #include "DatasmithDispatcherLog.h"
 
 #include "CoreMinimal.h"
+#include "HAL/PlatformTime.h"
+#include "HAL/PlatformProcess.h"
 #include "SocketSubsystem.h"
 #include "Sockets.h"
 #include "Serialization/MemoryReader.h"

@@ -3,6 +3,7 @@
 
 #include "CADKernel/Core/HaveStates.h"
 #include "CADKernel/Core/Types.h"
+#include "CADKernel/UI/Visu.h"
 
 #include "CADKernel/Math/Point.h"
 
@@ -96,6 +97,12 @@ public:
 	void ComputeMeshGapCount(int32& OutCycleCount, int32& OutChainCount) const;
 	double ComputeMaxAngle() const;
 	bool CheckOrientation() const;
+
+	void Display();
+
+private:
+	void DisplayTriangle(const Analyzer::FTriangle& Triangle);
+	void DisplayEdge(const Analyzer::FEdge& Edge, EVisuProperty Property);
 
 };
 
