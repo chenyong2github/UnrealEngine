@@ -17,6 +17,7 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { HistoryModal } from "./HistoryModal";
 import { LeaseStatusIcon, StepStatusIcon } from "./StatusIcon";
 import { TopNav } from "./TopNav";
+import { AgentPanel } from "./AgentView";
 
 
 type PendingBatch = {
@@ -339,6 +340,18 @@ enum StepState {
    Active = "Active",
    Pending = "Pending",
    Previous = "Previous"
+}
+
+const PoolAgentPanel: React.FC<{poolId:string}> = ({poolId}) => {
+
+   return <Stack styles={{ root: { paddingTop: 18, paddingLeft: 12, paddingRight: 12 } }} >
+      <Stack tokens={{ childrenGap: 12 }}>
+         <Stack>
+            <Text variant="mediumPlus" styles={{ root: { fontFamily: "Horde Open Sans SemiBold" } }}>Agents</Text>
+         </Stack>
+         <AgentPanel poolId={poolId} />
+      </Stack>
+   </Stack>
 }
 
 const StepPanel: React.FC<{ stepState: StepState }> = ({ stepState }) => {
@@ -1069,9 +1082,9 @@ const PoolPanel: React.FC = () => {
 
       if (column.name === "Value") {
          if (item.name === "Agents") {
-            return <Stack horizontal tokens={{childrenGap: 4}}>
+            return <Stack horizontal tokens={{ childrenGap: 4 }}>
                <Stack>{item.value}</Stack>
-               <Stack horizontal tokens={{childrenGap: 4}}>
+               <Stack horizontal tokens={{ childrenGap: 4 }}>
                   <Stack> - </Stack>
                   <Stack><Link to={`/reports/utilization?pools=${pool.id}`}>Utilization</Link></Stack>
                </Stack>
@@ -1273,6 +1286,7 @@ export const PoolView: React.FC = observer(() => {
                         <Stack className={hordeClasses.raised} style={{ width: 1443, height: "fit-content" }}>
                            <Stack tokens={{ childrenGap: 18 }}>
                               <PoolPanel />
+                              <PoolAgentPanel poolId={poolId} />
                               <StepPanel stepState={StepState.Active} />
                               <ConformPanel />
                               <StepPanel stepState={StepState.Pending} />
