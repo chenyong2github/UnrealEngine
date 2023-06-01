@@ -45,7 +45,7 @@ static FExpressionInput* GetExpressionInputByName(UMaterialExpression* Expressio
 	check(Expression);
 	FExpressionInput* Result = nullptr;
 
-	TArray<FExpressionInput*> Inputs = Expression->GetInputs();
+	TArrayView<FExpressionInput*> Inputs = Expression->GetInputsView();
 
 	// Return first input if no name specified
 	if (InputName.IsNone())
@@ -184,7 +184,7 @@ namespace MaterialEditingLibraryImpl
 
 		MaterialExpressionsToLayout.Add( MaterialExpression ) = MoveTemp( LayoutInfo );
 
-		for ( FExpressionInput* ExpressionInput : MaterialExpression->GetInputs() )
+		for ( FExpressionInput* ExpressionInput : MaterialExpression->GetInputsView() )
 		{
 			LayoutMaterialExpression( ExpressionInput->Expression, MaterialExpression, MaterialExpressionsToLayout, Row, Depth + 1 );
 		}
@@ -420,7 +420,7 @@ static void BreakLinksToExpression(TConstArrayView<TObjectPtr<UMaterialExpressio
 		// Don't check myself, though that shouldn't really matter...
 		if (TestExp != Expression)
 		{
-			TArray<FExpressionInput*> Inputs = TestExp->GetInputs();
+			TArrayView<FExpressionInput*> Inputs = TestExp->GetInputsView();
 			for (FExpressionInput* Input : Inputs)
 			{
 				if (Input->Expression == Expression)
@@ -854,7 +854,7 @@ TArray<UMaterialExpression*> UMaterialEditingLibrary::GetInputsForMaterialExpres
 	TArray<UMaterialExpression*> MaterialExpressions;
 	if (Material)
 	{
-		for (const FExpressionInput* Input : MaterialExpression->GetInputs())
+		for (const FExpressionInput* Input : MaterialExpression->GetInputsView())
 		{
 			MaterialExpressions.Add(Input->Expression);
 		}
@@ -866,7 +866,7 @@ TArray<UMaterialExpression*> UMaterialEditingLibrary::GetInputsForMaterialExpres
 bool UMaterialEditingLibrary::GetInputNodeOutputNameForMaterialExpression(UMaterialExpression* MaterialExpression, UMaterialExpression* InputNode, FString& OutputName)
 {
 	OutputName = TEXT("");
-	for (const FExpressionInput* Input : MaterialExpression->GetInputs())
+	for (const FExpressionInput* Input : MaterialExpression->GetInputsView())
 	{
 		if (Input->Expression == InputNode)
 		{

@@ -62,14 +62,15 @@ void UMaterialExpressionPhysicalMaterialOutput::GetCaption(TArray<FString>& OutC
 	OutCaptions.Add(FString(TEXT("Physical Material Output")));
 }
 
-const TArray<FExpressionInput*> UMaterialExpressionPhysicalMaterialOutput::GetInputs()
+TArrayView<FExpressionInput*> UMaterialExpressionPhysicalMaterialOutput::GetInputsView()
 {
-	TArray<FExpressionInput*> OutInputs;
+	CachedInputs.Empty();
+	CachedInputs.Reserve(Inputs.Num());
 	for (auto& Input : Inputs)
 	{
-		OutInputs.Add(&Input.Input);
+		CachedInputs.Add(&Input.Input);
 	}
-	return OutInputs;
+	return CachedInputs;
 }
 
 FExpressionInput* UMaterialExpressionPhysicalMaterialOutput::GetInput(int32 InputIndex)

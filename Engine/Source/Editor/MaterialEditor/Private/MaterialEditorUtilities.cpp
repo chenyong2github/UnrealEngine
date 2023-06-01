@@ -621,7 +621,7 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 		}
 		else
 		{
-			const TArray<FExpressionInput*>& ExpressionInputs = MaterialExpressionKey.Expression->GetInputs();
+			TArrayView<FExpressionInput*> ExpressionInputs = MaterialExpressionKey.Expression->GetInputsView();
 			for (int32 ExpressionInputIndex = 0; ExpressionInputIndex < ExpressionInputs.Num(); ExpressionInputIndex++)
 			{
 				//retrieve the expression input and then start parsing its children
@@ -729,7 +729,7 @@ bool FMaterialEditorUtilities::HasCompatibleConnection(UClass* ExpressionClass, 
 		UMaterialExpression* DefaultExpression = CastChecked<UMaterialExpression>(ExpressionClass->GetDefaultObject());
 		if (TestDirection == EGPD_Output)
 		{
-			int32 NumInputs = DefaultExpression->GetInputs().Num();
+			int32 NumInputs = DefaultExpression->GetInputsView().Num();
 			for (int32 Index = 0; Index < NumInputs; ++Index)
 			{
 				uint32 InputType = DefaultExpression->GetInputType(Index);
