@@ -20,7 +20,7 @@ namespace UE::Interchange::Tests::Private
 		const UMaterialEditorOnlyData* MaterialEditorOnly = Material.GetEditorOnlyData();
 		if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(MaterialEditorOnly->BaseColor.Expression))
 		{
-			const TArray<FExpressionInput*>& Inputs = FunctionCall->GetInputs();
+			TArrayView<FExpressionInput*> Inputs = FunctionCall->GetInputsView();
 			InputNames.Empty(Inputs.Num());
 			for (const FExpressionInput* InputExpression : Inputs)
 			{

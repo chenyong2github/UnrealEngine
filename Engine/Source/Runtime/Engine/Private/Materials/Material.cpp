@@ -6074,7 +6074,7 @@ bool UMaterial::RecursiveGetExpressionChain(
 			else
 			{
 				// Follow all properties.
-				Inputs = InExpression->GetInputs();
+				Inputs = InExpression->GetInputsView();
 				InputsFrequency.Init(InShaderFrequency, Inputs.Num());
 			}
 		}
@@ -6092,7 +6092,7 @@ bool UMaterial::RecursiveGetExpressionChain(
 	}
 	else if ((SetMaterialAttributesExp = Cast<UMaterialExpressionSetMaterialAttributes>(InExpression)) != nullptr)
 	{
-		checkf(!SetMaterialAttributesExp->GetInputs().IsEmpty() && (SetMaterialAttributesExp->GetInputType(0) == MCT_MaterialAttributes), TEXT("There must always be one input at least : the material attribute pin"));
+		checkf(!SetMaterialAttributesExp->GetInputsView().IsEmpty() && (SetMaterialAttributesExp->GetInputType(0) == MCT_MaterialAttributes), TEXT("There must always be one input at least : the material attribute pin"));
 		// Always add the material attribute input, so that we keep on traversing up the property chain : 
 		Inputs.Add(SetMaterialAttributesExp->GetInput(0));
 		InputsFrequency.Add(InShaderFrequency);
@@ -6122,7 +6122,7 @@ bool UMaterial::RecursiveGetExpressionChain(
 			else
 			{
 				// Follow all properties.
-				Inputs = InExpression->GetInputs();
+				Inputs = InExpression->GetInputsView();
 				InputsFrequency.Init(InShaderFrequency, Inputs.Num());
 			}
 		}
@@ -6176,7 +6176,7 @@ bool UMaterial::RecursiveGetExpressionChain(
 		}
 
 		// here we assume ALL inputs to the MaterialFunctionCall are active
-		auto ExprInputs = InExpression->GetInputs();
+		auto ExprInputs = InExpression->GetInputsView();
 		for (int i = 0; i < ExprInputs.Num(); i++)
 		{
 			Inputs.Add(ExprInputs[i]);
@@ -6185,7 +6185,7 @@ bool UMaterial::RecursiveGetExpressionChain(
 	}
 	else
 	{
-		Inputs = InExpression->GetInputs();
+		Inputs = InExpression->GetInputsView();
 		InputsFrequency.Init(InShaderFrequency, Inputs.Num());
 	}
 
@@ -6279,7 +6279,7 @@ void UMaterial::RecursiveUpdateRealtimePreview( UMaterialExpression* InExpressio
 	}
 
 	// We need to examine our inputs. If any of them need realtime preview, so do we.
-	TArray<FExpressionInput*> Inputs = InExpression->GetInputs();
+	TArrayView<FExpressionInput*> Inputs = InExpression->GetInputsView();
 	for (int32 InputIdx = 0; InputIdx < Inputs.Num(); InputIdx++)
 	{
 		FExpressionInput* InnerInput = Inputs[InputIdx];
