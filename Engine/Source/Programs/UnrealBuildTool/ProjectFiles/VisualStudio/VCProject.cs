@@ -14,6 +14,7 @@ using System.Xml;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
+using Newtonsoft.Json.Linq;
 
 namespace UnrealBuildTool
 {
@@ -1066,13 +1067,7 @@ namespace UnrealBuildTool
 			{
 				VCProjectFileContent.AppendLine("  <PropertyGroup Label=\"Globals\">");
 				VCProjectFileContent.AppendLine("    <ProjectGuid>{0}</ProjectGuid>", ProjectGUID.ToString("B").ToUpperInvariant());
-				VCProjectFileContent.AppendLine("    <Keyword>MakeFileProj</Keyword>");
 				VCProjectFileContent.AppendLine("    <RootNamespace>{0}</RootNamespace>", ProjectName);
-				VCProjectFileGenerator.AppendPlatformToolsetProperty(VCProjectFileContent, ProjectFileFormat);
-				VCProjectFileContent.AppendLine("    <MinimumVisualStudioVersion>{0}</MinimumVisualStudioVersion>", VCProjectFileGenerator.GetProjectFileToolVersionString(ProjectFileFormat));
-				VCProjectFileContent.AppendLine("    <VCProjectVersion>{0}</VCProjectVersion>", VCProjectFileGenerator.GetProjectFileToolVersionString(ProjectFileFormat));
-				VCProjectFileContent.AppendLine("    <NMakeUseOemCodePage>true</NMakeUseOemCodePage>"); // Fixes mojibake with non-Latin character sets (UE-102825)
-				VCProjectFileContent.AppendLine("    <TargetRuntime>Native</TargetRuntime>");
 				VCProjectFileContent.AppendLine("  </PropertyGroup>");
 			}
 
@@ -1142,14 +1137,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-			VCProjectFileContent.AppendLine("  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.Default.props\" />");
-
-			// Write the default configuration info
-			VCProjectFileContent.AppendLine("  <PropertyGroup Label=\"Configuration\">");
-			VCProjectFileContent.AppendLine($"    <ConfigurationType>{PlatformProjectGenerator.DefaultPlatformConfigurationType}</ConfigurationType>");
-			VCProjectFileGenerator.AppendPlatformToolsetProperty(VCProjectFileContent, ProjectFileFormat);
-			VCProjectFileContent.AppendLine("  </PropertyGroup>");
-
 			// Write the per platform/config configuration info
 			foreach (Tuple<string, UnrealTargetConfiguration> ConfigurationTuple in ProjectConfigurationNameAndConfigurations)
 			{
@@ -1194,41 +1181,9 @@ namespace UnrealBuildTool
 				}
 			}
 
-			VCProjectFileContent.AppendLine("  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.props\" />");
+			VCProjectFileContent.AppendLine("  <Import Project=\"UECommon.props\" />");
 			VCProjectFileContent.AppendLine("  <ImportGroup Label=\"ExtensionSettings\" />");
 			VCProjectFileContent.AppendLine("  <PropertyGroup Label=\"UserMacros\" />");
-
-			// Write the common and invalid configuration values
-			{
-				const string InvalidMessage = "echo The selected platform/configuration is not valid for this target.";
-
-				string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "Unused"));
-
-				VCProjectFileContent.AppendLine("  <PropertyGroup>");
-				VCProjectFileContent.AppendLine("    <NMakeBuildCommandLine>{0}</NMakeBuildCommandLine>", InvalidMessage);
-				VCProjectFileContent.AppendLine("    <NMakeReBuildCommandLine>{0}</NMakeReBuildCommandLine>", InvalidMessage);
-				VCProjectFileContent.AppendLine("    <NMakeCleanCommandLine>{0}</NMakeCleanCommandLine>", InvalidMessage);
-				VCProjectFileContent.AppendLine("    <NMakeOutput>Invalid Output</NMakeOutput>", InvalidMessage);
-				VCProjectFileContent.AppendLine("    <OutDir>{0}{1}</OutDir>", ProjectRelativeUnusedDirectory, Path.DirectorySeparatorChar);
-				VCProjectFileContent.AppendLine("    <IntDir>{0}{1}</IntDir>", ProjectRelativeUnusedDirectory, Path.DirectorySeparatorChar);
-				// NOTE: We are intentionally overriding defaults for these paths with empty strings.  We never want Visual Studio's
-				//       defaults for these fields to be propagated, since they are version-sensitive paths that may not reflect
-				//       the environment that UBT is building in.  We'll set these environment variables ourselves!
-				// NOTE: We don't touch 'ExecutablePath' because that would result in Visual Studio clobbering the system "Path"
-				//       environment variable
-				VCProjectFileContent.AppendLine("    <IncludePath />");
-				VCProjectFileContent.AppendLine("    <ReferencePath />");
-				VCProjectFileContent.AppendLine("    <LibraryPath />");
-				VCProjectFileContent.AppendLine("    <LibraryWPath />");
-				VCProjectFileContent.AppendLine("    <SourcePath />");
-				VCProjectFileContent.AppendLine("    <ExcludePath />");
-				VCProjectFileContent.AppendLine("  </PropertyGroup>");
-			}
-
-			// Write default import group
-			VCProjectFileContent.AppendLine("  <ImportGroup Label=\"PropertySheets\">");
-			VCProjectFileContent.AppendLine("    <Import Project=\"$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props\" Condition=\"exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')\" Label=\"LocalAppDataPlatform\" />");
-			VCProjectFileContent.AppendLine("  </ImportGroup>");
 
 			// Write each project configuration
 			foreach (ProjectConfigAndTargetCombination Combination in ProjectConfigAndTargetCombinations)
@@ -1375,58 +1330,98 @@ namespace UnrealBuildTool
 				{
 					StringBuilder CommonProjectFileContent = new StringBuilder();
 
+					var AddProperties = (IDictionary<DirectoryReference, string> DirectoryToStringDict, string CommonPropertyPrefix, string PropertyNamePrefix, string PropertyValuePrefix) =>
+					{
+						Dictionary<string, string> UpdatedValues = new();
+						List<KeyValuePair<DirectoryReference, string>> KVPList = DirectoryToStringDict.ToList();
+						KVPList.SortBy(kvp => kvp.Key);
+
+						// Map each directory to a property
+						{
+							int PropertyIndex = 0;
+							foreach (KeyValuePair<DirectoryReference, string> DirectoryKVP in KVPList)
+							{
+								string? Value = DirectoryKVP.Value;
+								if (!String.IsNullOrEmpty(Value))
+								{
+									if (!UpdatedValues.ContainsKey(Value))
+									{
+										string PropertyName = PropertyNamePrefix;
+										if (PropertyIndex > 0)
+										{
+											PropertyName += "_" + PropertyIndex;
+										}
+										PropertyIndex++;
+										UpdatedValues.Add(Value, PropertyName);
+									}
+									DirectoryToStringDict[DirectoryKVP.Key] = UpdatedValues[Value];
+								}
+							}
+						}
+
+						// Find the common property values
+						Dictionary<string, string> ValueToCommonPropertyDict = new();
+						{
+							Dictionary<string, int> ValueAndCount = new();
+							foreach (var PropertyValue in UpdatedValues.Keys)
+							{
+								if (!String.IsNullOrEmpty(PropertyValue))
+								{
+									IEnumerable<string> PathList = PropertyValue.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+									foreach (string Path in PathList)
+									{
+										if (ValueAndCount.TryGetValue(Path, out int PathCount))
+										{
+											ValueAndCount[Path] = ++PathCount;
+										}
+										else
+										{
+											ValueAndCount[Path] = 1;
+										}
+									}
+								}
+							}
+
+							var CommonProperties = ValueAndCount.Where(kvp => kvp.Value > 1).Select(kvp => kvp.Key).ToList();
+							CommonProperties.Sort();
+
+							// Write out the common property values
+							int CommonPropertyValueIndex = 0;
+							foreach (var CommonProperty in CommonProperties)
+							{
+								string PropertyName = CommonPropertyPrefix;
+								if (CommonPropertyValueIndex > 0)
+								{
+									PropertyName += "_" + CommonPropertyValueIndex;
+								}
+								CommonPropertyValueIndex++;
+								ValueToCommonPropertyDict.Add(CommonProperty, $"$({PropertyName})");
+								CommonProjectFileContent.AppendLine($"    <{PropertyName}>{CommonProperty}</{PropertyName}>");
+							}
+						}
+
+						// Write out the updated properties
+						foreach (KeyValuePair<string, string> kvp in UpdatedValues)
+						{
+							string[] PathArray = kvp.Key.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+							for (int Index = 0; Index < PathArray.Length; Index++)
+							{
+								if (ValueToCommonPropertyDict.TryGetValue(PathArray[Index], out string? PropertyValue) && !String.IsNullOrEmpty(PropertyValue))
+								{
+									PathArray[Index] = PropertyValue;
+								}
+							}
+							string NewValue = String.Join(";", PathArray);
+							CommonProjectFileContent.AppendLine($"    <{kvp.Value}>{PropertyValuePrefix}{NewValue}</{kvp.Value}>");
+						}
+					};
+
 					//AdditionalIncludeDirectories
-					{
-						int ValueIndex = 0;
-						Dictionary<string, string> UpdatedValues = new();
-						List<KeyValuePair<DirectoryReference, string>> KVPList = DirectoryToIncludeSearchPaths.ToList();
-						KVPList.SortBy(kvp => kvp.Key);
-						foreach (KeyValuePair<DirectoryReference, string> DirectoryKVP in KVPList)
-						{
-							string? Value = DirectoryKVP.Value;
-							if (!String.IsNullOrEmpty(Value))
-							{
-								if (!UpdatedValues.ContainsKey(Value))
-								{
-									string PropertyName = "ClCompile_AdditionalIncludeDirectories";
-									if (ValueIndex > 0)
-									{
-										PropertyName += "_" + ValueIndex;
-									}
-									ValueIndex++;
-									UpdatedValues.Add(Value, PropertyName);
-									CommonProjectFileContent.AppendLine($"    <{PropertyName}>$(NMakeIncludeSearchPath);{Value}</{PropertyName}>");
-								}
-								DirectoryToIncludeSearchPaths[DirectoryKVP.Key] = UpdatedValues[Value];
-							}
-						}
-					}
+					AddProperties(DirectoryToIncludeSearchPaths, "ProjectAdditionalIncludeDirectories", "ClCompile_AdditionalIncludeDirectories", "$(NMakeIncludeSearchPath);");
+
 					//ForcedIncludeFiles
-					{
-						int ValueIndex = 0;
-						Dictionary<string, string> UpdatedValues = new();
-						List<KeyValuePair<DirectoryReference, string>> KVPList = DirectoryToForceIncludePaths.ToList();
-						KVPList.SortBy(kvp => kvp.Key);
-						foreach (KeyValuePair<DirectoryReference, string> DirectoryKVP in KVPList)
-						{
-							string? Value = DirectoryKVP.Value;
-							if (!String.IsNullOrEmpty(Value))
-							{
-								if (!UpdatedValues.ContainsKey(Value))
-								{
-									string PropertyName = "ClCompile_ForcedIncludeFiles";
-									if (ValueIndex > 0)
-									{
-										PropertyName += "_" + ValueIndex;
-									}
-									ValueIndex++;
-									UpdatedValues.Add(Value, PropertyName);
-									CommonProjectFileContent.AppendLine($"    <{PropertyName}>{Value}</{PropertyName}>");
-								}
-								DirectoryToForceIncludePaths[DirectoryKVP.Key] = UpdatedValues[Value];
-							}
-						}
-					}
+					AddProperties(DirectoryToForceIncludePaths, "ProjectForcedIncludeFiles", "ClCompile_ForcedIncludeFiles", String.Empty);
+
 					// AdditionalOptions
 					{
 						int ValueIndex = 0;
@@ -2098,9 +2093,9 @@ namespace UnrealBuildTool
 					string BuildArguments = Builder.GetBuildArguments();
 
 					// NMake Build command line
-					VCProjectFileContent.AppendLine("    <NMakeBuildCommandLine>{0} {1}</NMakeBuildCommandLine>", EscapePath(NormalizeProjectPath(Builder.BuildScript)), BuildArguments);
-					VCProjectFileContent.AppendLine("    <NMakeReBuildCommandLine>{0} {1}</NMakeReBuildCommandLine>", EscapePath(NormalizeProjectPath(Builder.RebuildScript)), BuildArguments);
-					VCProjectFileContent.AppendLine("    <NMakeCleanCommandLine>{0} {1}</NMakeCleanCommandLine>", EscapePath(NormalizeProjectPath(Builder.CleanScript)), BuildArguments);
+					VCProjectFileContent.AppendLine("    <NMakeBuildCommandLine>$(BuildBatchScript) {0}</NMakeBuildCommandLine>", BuildArguments);
+					VCProjectFileContent.AppendLine("    <NMakeReBuildCommandLine>$(RebuildBatchScript) {0}</NMakeReBuildCommandLine>", BuildArguments);
+					VCProjectFileContent.AppendLine("    <NMakeCleanCommandLine>$(CleanBatchScript) {0}</NMakeCleanCommandLine>", BuildArguments);
 					VCProjectFileContent.AppendLine("    <NMakeOutput>{0}</NMakeOutput>", NormalizeProjectPath(NMakePath.FullName));
 					VCProjectFileContent.AppendLine("    <AdditionalOptions>{0} {1} {2}</AdditionalOptions>", GetCppStandardCompileArgument(TargetRulesObject.CppStandard), GetEnableCoroutinesArgument(), GetConformanceCompileArguments(TargetRulesObject));
 
@@ -2344,4 +2339,5 @@ namespace UnrealBuildTool
 		/// Cache of parsed info about this project
 		protected readonly Dictionary<UnrealTargetConfiguration, CsProjectInfo> CachedProjectInfo = new Dictionary<UnrealTargetConfiguration, CsProjectInfo>();
 	}
+
 }

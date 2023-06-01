@@ -11,6 +11,7 @@ using System.Xml.Linq;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
+using Newtonsoft.Json.Linq;
 
 namespace UnrealBuildTool
 {
@@ -472,12 +473,87 @@ namespace UnrealBuildTool
 			return MakeMd5Guid(Input);
 		}
 
+		private void WriteCommonPropsFile(ILogger Logger)
+		{
+			using (ProgressWriter Progress = new ProgressWriter("Creating common properties file...", true, Logger))
+			{
+				StringBuilder VCCommonTargetFileContent = new StringBuilder();
+				VCCommonTargetFileContent.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+				VCCommonTargetFileContent.AppendLine("<Project xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
+
+				// Project globals (project GUID, project type, SCC bindings, etc)
+				{
+					string ToolVersionString = GetProjectFileToolVersionString(Settings.ProjectFileFormat);
+					VCCommonTargetFileContent.AppendLine("  <PropertyGroup Label=\"Globals\">");
+					VCCommonTargetFileContent.AppendLine("    <Keyword>MakeFileProj</Keyword>");
+					AppendPlatformToolsetProperty(VCCommonTargetFileContent, Settings.ProjectFileFormat);
+					VCCommonTargetFileContent.AppendLine("    <MinimumVisualStudioVersion>{0}</MinimumVisualStudioVersion>", ToolVersionString);
+					VCCommonTargetFileContent.AppendLine("    <VCProjectVersion>{0}</VCProjectVersion>", ToolVersionString);
+					VCCommonTargetFileContent.AppendLine("    <NMakeUseOemCodePage>true</NMakeUseOemCodePage>"); // Fixes mojibake with non-Latin character sets (UE-102825)
+					VCCommonTargetFileContent.AppendLine("    <TargetRuntime>Native</TargetRuntime>");
+					VCCommonTargetFileContent.AppendLine("  </PropertyGroup>");
+				}
+
+				// Write the default configuration info
+				VCCommonTargetFileContent.AppendLine("  <PropertyGroup Label=\"Configuration\">");
+				VCCommonTargetFileContent.AppendLine($"    <ConfigurationType>{PlatformProjectGenerator.DefaultPlatformConfigurationType}</ConfigurationType>");
+				AppendPlatformToolsetProperty(VCCommonTargetFileContent, Settings.ProjectFileFormat);
+				VCCommonTargetFileContent.AppendLine("  </PropertyGroup>");
+
+				VCCommonTargetFileContent.AppendLine("  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.Default.props\" />");
+				VCCommonTargetFileContent.AppendLine("  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.props\" />");
+
+				// Write the common and invalid configuration values
+				{
+					const string InvalidMessage = "echo The selected platform/configuration is not valid for this target.";
+
+					string ProjectRelativeUnusedDirectory = ProjectFile.NormalizeProjectPath(DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "Unused"));
+
+					VCCommonTargetFileContent.AppendLine("  <PropertyGroup>");
+
+					DirectoryReference BatchFilesDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Build", "BatchFiles");
+					VCCommonTargetFileContent.AppendLine("    <BuildBatchScript>{0}</BuildBatchScript>", ProjectFile.EscapePath(ProjectFile.NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Build.bat"))));
+					VCCommonTargetFileContent.AppendLine("    <RebuildBatchScript>{0}</RebuildBatchScript>", ProjectFile.EscapePath(ProjectFile.NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Rebuild.bat"))));
+					VCCommonTargetFileContent.AppendLine("    <CleanBatchScript>{0}</CleanBatchScript>", ProjectFile.EscapePath(ProjectFile.NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Clean.bat"))));
+					VCCommonTargetFileContent.AppendLine("    <NMakeBuildCommandLine>{0}</NMakeBuildCommandLine>", InvalidMessage);
+					VCCommonTargetFileContent.AppendLine("    <NMakeReBuildCommandLine>{0}</NMakeReBuildCommandLine>", InvalidMessage);
+					VCCommonTargetFileContent.AppendLine("    <NMakeCleanCommandLine>{0}</NMakeCleanCommandLine>", InvalidMessage);
+					VCCommonTargetFileContent.AppendLine("    <NMakeOutput>Invalid Output</NMakeOutput>", InvalidMessage);
+					VCCommonTargetFileContent.AppendLine("    <OutDir>{0}{1}</OutDir>", ProjectRelativeUnusedDirectory, Path.DirectorySeparatorChar);
+					VCCommonTargetFileContent.AppendLine("    <IntDir>{0}{1}</IntDir>", ProjectRelativeUnusedDirectory, Path.DirectorySeparatorChar);
+					// NOTE: We are intentionally overriding defaults for these paths with empty strings.  We never want Visual Studio's
+					//       defaults for these fields to be propagated, since they are version-sensitive paths that may not reflect
+					//       the environment that UBT is building in.  We'll set these environment variables ourselves!
+					// NOTE: We don't touch 'ExecutablePath' because that would result in Visual Studio clobbering the system "Path"
+					//       environment variable
+					VCCommonTargetFileContent.AppendLine("    <IncludePath />");
+					VCCommonTargetFileContent.AppendLine("    <ReferencePath />");
+					VCCommonTargetFileContent.AppendLine("    <LibraryPath />");
+					VCCommonTargetFileContent.AppendLine("    <LibraryWPath />");
+					VCCommonTargetFileContent.AppendLine("    <SourcePath />");
+					VCCommonTargetFileContent.AppendLine("    <ExcludePath />");
+					VCCommonTargetFileContent.AppendLine("  </PropertyGroup>");
+				}
+
+				// Write default import group
+				VCCommonTargetFileContent.AppendLine("  <ImportGroup Label=\"PropertySheets\">");
+				VCCommonTargetFileContent.AppendLine("    <Import Project=\"$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props\" Condition=\"exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')\" Label=\"LocalAppDataPlatform\" />");
+				VCCommonTargetFileContent.AppendLine("  </ImportGroup>");
+
+				VCCommonTargetFileContent.AppendLine("</Project>");
+
+				Utils.WriteFileIfChanged(FileReference.Combine(IntermediateProjectFilesPath, "UECommon.props"), VCCommonTargetFileContent.ToString(), Logger);
+			}
+		}
+
 		/// <summary>
 		/// Writes the project files to disk
 		/// </summary>
 		/// <returns>True if successful</returns>
 		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
+			WriteCommonPropsFile(Logger);
+
 			if (!base.WriteProjectFiles(PlatformProjectGenerators, Logger))
 			{
 				return false;
