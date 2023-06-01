@@ -3828,16 +3828,23 @@ void FControlRigParameterTrackEditor::BuildTrackContextMenu(FMenuBuilder& MenuBu
 		return;
 	}
 
-	TArray<FFBXNodeAndChannels>* NodeAndChannels = Track->GetNodeAndChannelMappings(SectionToKey);
+	TArray<FRigControlFBXNodeAndChannels>* NodeAndChannels = Track->GetNodeAndChannelMappings(SectionToKey);
 
-	MenuBuilder.BeginSection("Import To Control Rig", LOCTEXT("ImportToControlRig", "Import To Control Rig"));
+	MenuBuilder.BeginSection("Control Rig IO", LOCTEXT("ControlRigIO", "Control Rig I/O"));
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ImportControlRigFBX", "Import Control Rig FBX"),
-			LOCTEXT("ImportControlRigFBXTooltip", "Import Control Rig FBX"),
+			LOCTEXT("ImportControlRigFBXTooltip", "Import Control Rig animation from FBX"),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateRaw(this, &FControlRigParameterTrackEditor::ImportFBX, Track, SectionToKey, NodeAndChannels)));
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ExportControlRigFBX", "Export Control Rig FBX"),
+			LOCTEXT("ExportControlRigFBXTooltip", "Export Control Rig animation to FBX"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FControlRigParameterTrackEditor::ExportFBX, Track, SectionToKey)));
 	}
 	MenuBuilder.EndSection();
 
@@ -3962,12 +3969,21 @@ void FControlRigParameterTrackEditor::ToggleFKControlRig(UMovieSceneControlRigPa
 
 
 void FControlRigParameterTrackEditor::ImportFBX(UMovieSceneControlRigParameterTrack* InTrack, UMovieSceneControlRigParameterSection* InSection,
-	TArray<FFBXNodeAndChannels>* NodeAndChannels)
+	TArray<FRigControlFBXNodeAndChannels>* NodeAndChannels)
 {
 	if (NodeAndChannels)
 	{
-		//NodeAndChannels will be deleted later
-		MovieSceneToolHelpers::ImportFBXIntoChannelsWithDialog(GetSequencer().ToSharedRef(), NodeAndChannels);
+		// NodeAndChannels will be deleted later
+		MovieSceneToolHelpers::ImportFBXIntoControlRigChannelsWithDialog(GetSequencer().ToSharedRef(), NodeAndChannels);
+	}
+}
+
+void FControlRigParameterTrackEditor::ExportFBX(UMovieSceneControlRigParameterTrack* InTrack, UMovieSceneControlRigParameterSection* InSection)
+{
+	if (InTrack && InTrack->GetControlRig())
+	{
+		// ControlComponentTransformsMapping will be deleted later
+		MovieSceneToolHelpers::ExportFBXFromControlRigChannelsWithDialog(GetSequencer().ToSharedRef(), InTrack);
 	}
 }
 

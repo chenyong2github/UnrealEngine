@@ -174,7 +174,11 @@ private:
 
 	/** Import FBX*/
 	void ImportFBX(UMovieSceneControlRigParameterTrack* InTrack, UMovieSceneControlRigParameterSection* InSection, 
-		TArray<FFBXNodeAndChannels>* NodeAndChannels);
+		TArray<FRigControlFBXNodeAndChannels>* NodeAndChannels);
+
+	/** Export FBX*/
+	void ExportFBX(UMovieSceneControlRigParameterTrack* InTrack, UMovieSceneControlRigParameterSection* InSection);
+	
 	/** Find Track for given ControlRig*/
 	UMovieSceneControlRigParameterTrack* FindTrack(const UControlRig* InControlRig) const;
 

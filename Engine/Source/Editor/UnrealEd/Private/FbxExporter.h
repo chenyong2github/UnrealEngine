@@ -11,6 +11,7 @@
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "MovieSceneFwd.h"
 #include "FbxImporter.h"
+#include "INodeAndChannelMappings.h"
 #include "UObject/GCObject.h"
 #include "Animation/AnimTypes.h"
 
@@ -165,6 +166,12 @@ public:
 	 */
 	bool ExportLevelSequence(UMovieScene* MovieScene, const TArray<FGuid>& InBindings, IMovieScenePlayer* MovieScenePlayer, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef SequenceID, const FMovieSceneSequenceTransform& RootToLocalTransform);
 
+	/** Add timecode attributes to the given fbx node and add a key at the sequence playback start, using the timecode of the source section */
+	void AddTimecodeAttributesAndSetKey(const UMovieSceneSection* InSection, FbxNode* InFbxNode, const FMovieSceneSequenceTransform& RootToLocalTransform);
+
+	/** Export an FBX from the given control rig section. Optionally remapping and filtering controls. */
+	bool ExportControlRigSection(const UMovieSceneSection* Section, const TArray<FControlRigFbxNodeMapping>& ChannelsMapping, const TArray<FName>& FilterControls, const FMovieSceneSequenceTransform& RootToLocalTransform);
+	
 	/**
 	 * Exports the given level sequence track information into a FBX document.
 	 *
@@ -456,6 +463,15 @@ private:
 
 	/** Exports a movie scene integer channel to an fbx animation curve. */
 	void ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovieSceneIntegerChannel& InChannel, FFrameRate TickResolution, const FMovieSceneSequenceTransform& RootToLocalTransform = FMovieSceneSequenceTransform());
+
+	void ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovieSceneBoolChannel& InChannel, FFrameRate TickResolution, const FMovieSceneSequenceTransform& RootToLocalTransform);
+	
+	void ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovieSceneByteChannel& InChannel, FFrameRate TickResolution, const FMovieSceneSequenceTransform& RootToLocalTransform);
+
+	template <class ChannelType, typename T>
+	void ExportConstantChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const ChannelType& InChannel, FFrameRate TickResolution, const FMovieSceneSequenceTransform& RootToLocalTransform);
+
+	void ExportTransformChannelsToFbxCurve(FbxNode* InFbxNode, FMovieSceneFloatChannel* ChannelX, FMovieSceneFloatChannel* ChannelY, FMovieSceneFloatChannel* ChannelZ, int TmPropertyIndex, const UMovieSceneTrack* Track, const FMovieSceneSequenceTransform& RootToLocalTransform);
 
 	/**
 	 * Finds the given actor in the already-exported list of structures

@@ -51,8 +51,11 @@ public:
 #endif
 
 	//INodeAndMappingsInterface
-	virtual TArray<FFBXNodeAndChannels>* GetNodeAndChannelMappings(UMovieSceneSection* InSection)  override;
+	virtual TArray<FRigControlFBXNodeAndChannels>* GetNodeAndChannelMappings(UMovieSceneSection* InSection)  override;
 	virtual void GetSelectedNodes(TArray<FName>& OutSelectedNodes) override;
+#if WITH_EDITOR
+	virtual bool GetFbxCurveDataFromChannelMetadata(const FMovieSceneChannelMetaData& MetaData, FControlRigFbxCurveData& OutCurveData) override;
+#endif // WITH_EDITOR
 
 	//UControlRig Delegates
 	void HandleOnInitialized_GameThread();

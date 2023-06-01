@@ -2569,7 +2569,7 @@ bool UControlRigSequencerEditorLibrary::ImportFBXToControlRigTrack(UWorld* World
 	INodeAndChannelMappings* ChannelMapping = Cast<INodeAndChannelMappings>(InTrack);
 	if (ChannelMapping)
 	{
-		TArray<FFBXNodeAndChannels>* NodeAndChannels = ChannelMapping->GetNodeAndChannelMappings(InSection);
+		TArray<FRigControlFBXNodeAndChannels>* NodeAndChannels = ChannelMapping->GetNodeAndChannelMappings(InSection);
 		TArray<FName> SelectedControls;
 		for (const FString& StringName : ControlRigNames)
 		{
@@ -2585,6 +2585,36 @@ bool UControlRigSequencerEditorLibrary::ImportFBXToControlRigTrack(UWorld* World
 		}
 	}
 	return bValid;
+}
+
+bool UControlRigSequencerEditorLibrary::ExportFBXFromControlRigSection(ULevelSequence* Sequence, const UMovieSceneControlRigParameterSection* Section, const UMovieSceneUserExportFBXControlRigSettings* ExportFBXControlRigSettings)
+{
+	if (!Sequence || !ExportFBXControlRigSettings ||
+		!Section || !Section->GetControlRig() ||
+		!Sequence->GetMovieScene() || Sequence->GetMovieScene()->IsReadOnly())
+	{
+		return false;
+	}
+
+	TArray<FName> SelectedControls;
+	if (UMovieSceneControlRigParameterTrack* Track = Section->GetTypedOuter<UMovieSceneControlRigParameterTrack>())
+	{
+		Track->GetSelectedNodes(SelectedControls);
+	}
+
+	FMovieSceneSequenceTransform RootToLocalTransform;
+	if (IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Sequence, false))
+	{
+		if (const ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor))
+		{
+			if (const TSharedPtr<ISequencer> Sequencer = LevelSequenceEditor->GetSequencer())
+			{
+				RootToLocalTransform = Sequencer->GetFocusedMovieSceneSequenceTransform();
+			}
+		}
+	}
+	
+	return  MovieSceneToolHelpers::ExportFBXFromControlRigChannels(Section, ExportFBXControlRigSettings, SelectedControls, RootToLocalTransform);
 }
 
 bool UControlRigSequencerEditorLibrary::CollapseControlRigAnimLayersWithSettings(ULevelSequence* InSequence, UMovieSceneControlRigParameterTrack* InTrack, const FBakingAnimationKeySettings& InSettings)

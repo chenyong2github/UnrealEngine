@@ -529,7 +529,41 @@ namespace UnFbx {
 		}
 	}
 
+	void FFbxCurvesAPI::GetConvertedNonTransformCurveData(const FString& NodeName, bool bUseSequencerCurve, float UniformScale, TMap<FName, FRichCurve>& OutCurves)
+	{
+		for (TPair<uint64, FFbxAnimNodeHandle> AnimNodeKvp : CurvesData)
+		{
+			const FFbxAnimNodeHandle& AnimNodeHandle = AnimNodeKvp.Value;
+			if (AnimNodeHandle.Name.Compare(NodeName))
+			{
+				continue;
+			}
+			for (auto NodePropertyKvp : AnimNodeHandle.NodeProperties)
+			{
+				FFbxAnimPropertyHandle& AnimPropertyHandle = NodePropertyKvp.Value;
+				for (FFbxAnimCurveHandle& CurveHandle : AnimPropertyHandle.CurveHandles)
+				{
+					if (CurveHandle.CurveType != FFbxAnimCurveHandle::NotTransform)
+					{
+						continue;
+					}
+					FRichCurve RichCurve;
 
+					if (bUseSequencerCurve)
+					{
+						GetCurveDataForSequencer(CurveHandle, RichCurve, false, UniformScale);
+					}
+					else
+					{
+						GetCurveData(CurveHandle, RichCurve, false, UniformScale);
+					}
+
+					OutCurves.Add(*AnimPropertyHandle.Name, RichCurve);
+				}
+			}
+		}
+	}
+	
 	void FFbxCurvesAPI::GetConvertedTransformCurveData(const FString& NodeName, FRichCurve& TranslationX, FRichCurve& TranslationY, FRichCurve& TranslationZ,
 		FRichCurve& EulerRotationX, FRichCurve& EulerRotationY, FRichCurve& EulerRotationZ,
 		FRichCurve& ScaleX, FRichCurve& ScaleY, FRichCurve& ScaleZ,

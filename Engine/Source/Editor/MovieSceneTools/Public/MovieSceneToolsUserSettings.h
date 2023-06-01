@@ -8,6 +8,8 @@
 #include "Misc/FrameNumber.h"
 #include "MovieSceneToolHelpers.h"
 #include "SceneTypes.h"
+#include "Exporters/FbxExportOption.h"
+
 #include "MovieSceneToolsUserSettings.generated.h"
 
 UENUM()
@@ -217,6 +219,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "String Matching Options", meta = (ToolTip = "Strings In Imported Node To Find And Replace"))
 	TArray< FControlFindReplaceString> FindAndReplaceStrings;
 
+	/** Strip namespaces from FBX node names */
+	UPROPERTY(EditAnywhere, config, Category = "Import Options", meta = (ToolTip = "Will strip any namespace from the FBX node names"))
+	bool bStripNamespace = true;
+	
 	/** Whether to force the front axis to be align with X instead of -Y. */
 	UPROPERTY(EditAnywhere, config, Category = "Import Options", meta = (ToolTip = "Convert the scene from FBX coordinate system to UE coordinate system with front X axis instead of -Y"))
 	bool bForceFrontXAxis;
@@ -256,4 +262,50 @@ public:
 	/** Mappings for how Control Rig Control Attributes Map to the incoming Transforms*/
 	UPROPERTY(Config, EditAnywhere, Category = "Control Attribute Mappings")
 	TArray<FControlToTransformMappings> ControlChannelMappings;
+
+public:
+	/** Load the default or metahuman preset into the current mappings */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
+	void LoadControlMappingsFromPreset(bool bMetaHumanPreset);
+};
+
+UCLASS(BlueprintType, config = EditorSettings)
+class MOVIESCENETOOLS_API UMovieSceneUserExportFBXControlRigSettings : public UObject
+{
+public:
+	UMovieSceneUserExportFBXControlRigSettings(const FObjectInitializer& Initializer);
+
+	GENERATED_BODY()
+	/** Imported File Name */
+	UPROPERTY(EditAnywhere, Category = "Imported File Information")
+	FString ExportFileName;
+	
+	/** This will set the fbx sdk compatibility when exporting to fbx file. The default value is 2013 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
+	EFbxExportCompatibility FbxExportCompatibility = EFbxExportCompatibility::FBX_2018;
+
+	/** If enabled, save as ascii instead of binary */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, config, Category = Exporter)
+	uint32 bASCII : 1;
+
+	/** Whether to force the front axis to be align with X instead of -Y. */
+	UPROPERTY(EditAnywhere, config, Category = Exporter, meta = (ToolTip = "Convert the scene from FBX coordinate system to UE coordinate system with front X axis instead of -Y"))
+	bool bForceFrontXAxis = false;
+
+	/** Whether or not import onto selected controls or all controls*/
+	UPROPERTY(EditAnywhere, config, Category = "Control Rig")
+	bool bExportOnlySelectedControls = false;
+
+	/** Mappings for how Control Rig Control Attributes Map to the incoming Transforms*/
+	UPROPERTY(Config, EditAnywhere, Category = "Control Rig")
+	TArray<FControlToTransformMappings> ControlChannelMappings;
+
+	/** If enabled, export sequencer animation in its local time, relative to its sequence. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Animation)
+	uint32 bExportLocalTime : 1;
+
+public:
+	/** Load the default or metahuman preset into the current mappings */
+	UFUNCTION(BlueprintCallable, Category = "Control Rig")
+	void LoadControlMappingsFromPreset(bool bMetaHumanPreset);
 };

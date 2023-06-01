@@ -375,6 +375,8 @@ public:
 
 	UNREALED_API void GetBakeCurveData(const FFbxAnimCurveHandle &CurveHandle, TArray<float>& CurveData, float PeriodTime, float StartTime = 0.0f, float StopTime = -1.0f, bool bNegative = false, float Scale = 1.0f) const;
 
+	UNREALED_API void GetConvertedNonTransformCurveData(const FString& NodeName, bool bUseSequencerCurve, float UniformScale, TMap<FName, FRichCurve>& OutCurves);
+	
 	//Conversion API
 	UE_DEPRECATED(4.21, "Please use FRichCurve version instead to get tangent weight support")
 	UNREALED_API void GetConvertedTransformCurveData(const FString& NodeName, FInterpCurveFloat& TranslationX, FInterpCurveFloat& TranslationY, FInterpCurveFloat& TranslationZ,

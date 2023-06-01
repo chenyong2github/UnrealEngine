@@ -282,6 +282,10 @@ public:
 	static bool ImportFBXToControlRig(UWorld* World, ULevelSequence* InSequence, const FString& ActorWithControlRigTrack, const TArray<FString>& SelectedControlRigNames,
 		UMovieSceneUserImportFBXControlRigSettings* ImportFBXControlRigSettings,
 		const FString& ImportFilename);
+
+	/** Exports an FBX from the section to key of the control rig track of the actor with the given name. */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
+	static bool ExportFBXFromControlRig(ULevelSequence* Sequence, const FString& ActorWithControlRigTrack, const UMovieSceneUserExportFBXControlRigSettings* ExportFBXControlRigSettings);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

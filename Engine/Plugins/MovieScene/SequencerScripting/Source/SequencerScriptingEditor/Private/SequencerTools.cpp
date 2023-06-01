@@ -736,7 +736,7 @@ bool USequencerToolsFunctionLibrary::ImportFBXToControlRig(UWorld* World, ULevel
 				INodeAndChannelMappings* ChannelMapping = Cast<INodeAndChannelMappings>(Track); 
 				if (ChannelMapping)
 				{
-					TArray<FFBXNodeAndChannels>* NodeAndChannels = ChannelMapping->GetNodeAndChannelMappings(nullptr);
+					TArray<FRigControlFBXNodeAndChannels>* NodeAndChannels = ChannelMapping->GetNodeAndChannelMappings(nullptr);
 					//use passed in controls for selected, actually selected controls should almost be empty anyway since we just loaded/set everything up.
 					for (const FString& StringName : ControlRigNames)
 					{
@@ -760,6 +760,51 @@ bool USequencerToolsFunctionLibrary::ImportFBXToControlRig(UWorld* World, ULevel
 	return false;
 	
 
+}
+
+bool USequencerToolsFunctionLibrary::ExportFBXFromControlRig(ULevelSequence* Sequence,
+	const FString& ActorWithControlRigTrack,
+	const UMovieSceneUserExportFBXControlRigSettings* ExportFBXControlRigSettings)
+{
+	bool bValid = false;
+
+	if (!Sequence || !ExportFBXControlRigSettings)
+	{
+		return false;
+	}
+	
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (!MovieScene || MovieScene->IsReadOnly())
+	{
+		return false;
+	}
+
+	const TArray<FMovieSceneBinding>& Bindings =  MovieScene->GetBindings();
+	for (const FMovieSceneBinding& Binding : Bindings)
+	{
+		if (Binding.GetName() != ActorWithControlRigTrack)
+		{
+			continue;
+		}
+
+		for (UMovieSceneTrack* Track : Binding.GetTracks())
+		{
+			INodeAndChannelMappings* ChannelMapping = Cast<INodeAndChannelMappings>(Track);
+			const UMovieSceneSection* Section = Track->GetSectionToKey();
+			if (!ChannelMapping || !Section)
+			{
+				continue;
+			}
+
+			TArray<FName> SelectedControls;
+			ChannelMapping->GetSelectedNodes(SelectedControls);
+
+			const FMovieSceneSequenceTransform RootToLocalTransform;
+			return MovieSceneToolHelpers::ExportFBXFromControlRigChannels(Section, ExportFBXControlRigSettings, SelectedControls, RootToLocalTransform);
+		}
+	}
+
+	return false;
 }
 
 

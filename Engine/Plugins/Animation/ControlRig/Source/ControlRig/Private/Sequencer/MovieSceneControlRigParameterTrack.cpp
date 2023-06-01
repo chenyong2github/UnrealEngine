@@ -665,7 +665,61 @@ void UMovieSceneControlRigParameterTrack::GetSelectedNodes(TArray<FName>& Select
 	}
 }
 
-TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChannelMappings(UMovieSceneSection* InSection )
+#if WITH_EDITOR
+bool UMovieSceneControlRigParameterTrack::GetFbxCurveDataFromChannelMetadata(const FMovieSceneChannelMetaData& MetaData, FControlRigFbxCurveData& OutCurveData)
+{
+	const FString ChannelName = MetaData.Name.ToString();
+	TArray<FString> ChannelParts;
+
+	// The channel has an attribute
+	if (ChannelName.ParseIntoArray(ChannelParts, TEXT(".")) > 1)
+	{
+		// Retrieve the attribute
+		OutCurveData.AttributeName = ChannelParts.Last();
+		
+		// The control name (left part) will be used as the node name
+		OutCurveData.NodeName = ChannelParts[0];
+		OutCurveData.ControlName = *OutCurveData.NodeName;
+
+		// The channel has 3 parts, the middle one (i.e. Location) will be treated as the property name
+		if (ChannelParts.Num() > 2)
+		{
+			OutCurveData.AttributePropertyName = ChannelParts[1];
+		}
+	}
+	// The channel does not have an attribute
+	else
+	{
+		// Thus no property above the attribute
+		OutCurveData.AttributePropertyName.Empty();
+		
+		// The channel group will be used as the node name (name of the control this channel is grouped under - i.e. for animation channels)
+		OutCurveData.NodeName = MetaData.Group.ToString();
+
+		// The channel name will be used as the control name and attribute name (i.e. Weight)
+		OutCurveData.ControlName = *ChannelName;
+		OutCurveData.AttributeName = OutCurveData.ControlName.ToString();
+	}
+
+	if (OutCurveData.NodeName.IsEmpty() || OutCurveData.AttributeName.IsEmpty())
+	{
+		return false;
+	}
+	
+	// Retrieve the control type
+	if (GetControlRig())
+	{
+		if (FRigControlElement* Control = GetControlRig()->FindControl(OutCurveData.ControlName))
+		{
+			OutCurveData.ControlType = (FFBXControlRigTypeProxyEnum)(uint8)Control->Settings.ControlType;
+			return true;
+		}
+	}
+	return false;
+}
+#endif
+
+TArray<FRigControlFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChannelMappings(UMovieSceneSection* InSection )
 {
 #if WITH_EDITOR
 	if (GetControlRig() == nullptr)
@@ -690,11 +744,10 @@ TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChan
 	const FName EnumChannelTypeName = FMovieSceneByteChannel::StaticStruct()->GetFName();
 	const FName IntegerChannelTypeName = FMovieSceneIntegerChannel::StaticStruct()->GetFName();
 
-
+	// Our resulting mapping containing FBX node & UE channels data for each control
+	TArray<FRigControlFBXNodeAndChannels>* NodeAndChannels = new TArray<FRigControlFBXNodeAndChannels>();
+	
 	FMovieSceneChannelProxy& ChannelProxy = CurrentSectionToKey->GetChannelProxy();
-	TArray<FFBXNodeAndChannels>* NodeAndChannels = new TArray<FFBXNodeAndChannels>();
-	TArray<FString> StringArray;
-
 	for (const FMovieSceneChannelEntry& Entry : CurrentSectionToKey->GetChannelProxy().GetAllEntries())
 	{
 		const FName ChannelTypeName = Entry.GetChannelTypeName();
@@ -704,58 +757,67 @@ TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChan
 			continue;
 		}
 
-		TArrayView<FMovieSceneChannel* const>        Channels = Entry.GetChannels();
+		TArrayView<FMovieSceneChannel* const> Channels = Entry.GetChannels();
 		TArrayView<const FMovieSceneChannelMetaData> AllMetaData = Entry.GetMetaData();
 
 		for (int32 Index = 0; Index < Channels.Num(); ++Index)
 		{
 			FMovieSceneChannelHandle Channel = ChannelProxy.MakeHandle(ChannelTypeName, Index);
-
 			const FMovieSceneChannelMetaData& MetaData = AllMetaData[Index];
-			StringArray.SetNum(0);
-			FString String = MetaData.Name.ToString();
-			String.ParseIntoArray(StringArray, TEXT("."));
-			if (StringArray.Num() > 0)
+
+			FControlRigFbxCurveData FbxCurveData;
+			if (!GetFbxCurveDataFromChannelMetadata(MetaData, FbxCurveData))
 			{
-				FString NodeName = StringArray[0];
-				FRigControlElement* ControlElement = GetControlRig() ? GetControlRig()->FindControl(FName(*StringArray[0])) : nullptr;
-				if (ControlElement)
-				{
-					NodeName = NodeName.ToUpper();
-					if (NodeAndChannels->Num() == 0 || (*NodeAndChannels)[NodeAndChannels->Num() - 1].NodeName != NodeName)
-					{
-						FFBXNodeAndChannels NodeAndChannel;
-						NodeAndChannel.MovieSceneTrack = this;
-						NodeAndChannel.ControlType = (FFBXControlRigTypeProxyEnum)(uint8)ControlElement->Settings.ControlType;
-						NodeAndChannel.NodeName = NodeName;
-						NodeAndChannels->Add(NodeAndChannel);
-					}
-					if (ChannelTypeName == DoubleChannelTypeName)
-					{
-						FMovieSceneDoubleChannel* DoubleChannel = Channel.Cast<FMovieSceneDoubleChannel>().Get();
-						(*NodeAndChannels)[NodeAndChannels->Num() - 1].DoubleChannels.Add(DoubleChannel);
-					}
-					else if (ChannelTypeName == FloatChannelTypeName)
-					{
-						FMovieSceneFloatChannel* FloatChannel = Channel.Cast<FMovieSceneFloatChannel>().Get();
-						(*NodeAndChannels)[NodeAndChannels->Num() - 1].FloatChannels.Add(FloatChannel);
-					}
-					else if (ChannelTypeName == BoolChannelTypeName)
-					{
-						FMovieSceneBoolChannel* BoolChannel = Channel.Cast<FMovieSceneBoolChannel>().Get();
-						(*NodeAndChannels)[NodeAndChannels->Num() - 1].BoolChannels.Add(BoolChannel);
-					}
-					else if (ChannelTypeName == EnumChannelTypeName)
-					{
-						FMovieSceneByteChannel* EnumChannel = Channel.Cast<FMovieSceneByteChannel>().Get();
-						(*NodeAndChannels)[NodeAndChannels->Num() - 1].EnumChannels.Add(EnumChannel);
-					}
-					else if (ChannelTypeName == IntegerChannelTypeName)
-					{
-						FMovieSceneIntegerChannel* IntegerChannel = Channel.Cast<FMovieSceneIntegerChannel>().Get();
-						(*NodeAndChannels)[NodeAndChannels->Num() - 1].IntegerChannels.Add(IntegerChannel);
-					}
-				}
+				continue;
+			}
+
+			// Retrieve the current control node, usually the last one but not given
+			FRigControlFBXNodeAndChannels* CurrentNodeAndChannel;
+
+			const int i = NodeAndChannels->FindLastByPredicate([FbxCurveData](const FRigControlFBXNodeAndChannels& A)
+				{ return A.NodeName == FbxCurveData.NodeName && A.ControlName == FbxCurveData.ControlName; }
+			);
+			if (i != INDEX_NONE)
+			{
+				CurrentNodeAndChannel = &(*NodeAndChannels)[i];
+			}
+			// Create the node if not created yet
+			else
+			{
+				NodeAndChannels->Add(FRigControlFBXNodeAndChannels());
+				
+				CurrentNodeAndChannel = &NodeAndChannels->Last();
+
+				CurrentNodeAndChannel->MovieSceneTrack = this;
+				CurrentNodeAndChannel->ControlType = FbxCurveData.ControlType;
+				CurrentNodeAndChannel->NodeName = FbxCurveData.NodeName;
+				CurrentNodeAndChannel->ControlName = FbxCurveData.ControlName;
+			}
+
+			if (ChannelTypeName == DoubleChannelTypeName)
+			{
+				FMovieSceneDoubleChannel* DoubleChannel = Channel.Cast<FMovieSceneDoubleChannel>().Get();
+				CurrentNodeAndChannel->DoubleChannels.Add(DoubleChannel);
+			}
+			else if (ChannelTypeName == FloatChannelTypeName)
+			{
+				FMovieSceneFloatChannel* FloatChannel = Channel.Cast<FMovieSceneFloatChannel>().Get();
+				CurrentNodeAndChannel->FloatChannels.Add(FloatChannel);
+			}
+			else if (ChannelTypeName == BoolChannelTypeName)
+			{
+				FMovieSceneBoolChannel* BoolChannel = Channel.Cast<FMovieSceneBoolChannel>().Get();
+				CurrentNodeAndChannel->BoolChannels.Add(BoolChannel);
+			}
+			else if (ChannelTypeName == EnumChannelTypeName)
+			{
+				FMovieSceneByteChannel* EnumChannel = Channel.Cast<FMovieSceneByteChannel>().Get();
+				CurrentNodeAndChannel->EnumChannels.Add(EnumChannel);
+			}
+			else if (ChannelTypeName == IntegerChannelTypeName)
+			{
+				FMovieSceneIntegerChannel* IntegerChannel = Channel.Cast<FMovieSceneIntegerChannel>().Get();
+				CurrentNodeAndChannel->IntegerChannels.Add(IntegerChannel);
 			}
 		}
 	}

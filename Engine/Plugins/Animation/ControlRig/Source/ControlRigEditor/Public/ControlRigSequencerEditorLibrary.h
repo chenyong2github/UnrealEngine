@@ -14,6 +14,7 @@
 #include "Tools/ControlRigSnapper.h"
 #include "TransformNoScale.h"
 #include "EulerTransform.h"
+#include "MovieSceneToolsUserSettings.h"
 #include "Tools/ControlRigSnapSettings.h"
 #include "SequenceTimeUnit.h"
 #include "RigSpacePickerBakeSettings.h"
@@ -924,6 +925,11 @@ public:
 			const TArray<FString>& SelectedControlRigNames,
 			UMovieSceneUserImportFBXControlRigSettings* ImportFBXControlRigSettings,
 			const FString& ImportFilename);
+
+	/** Exports an FBX from the given control rig section. */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
+	static bool ExportFBXFromControlRigSection(ULevelSequence* Sequence, const UMovieSceneControlRigParameterSection* Section,
+	                                    const UMovieSceneUserExportFBXControlRigSettings* ExportFBXControlRigSettings);
 
 	/*
 	 * Collapse and bake all sections and layers on a control rig track to just one section.

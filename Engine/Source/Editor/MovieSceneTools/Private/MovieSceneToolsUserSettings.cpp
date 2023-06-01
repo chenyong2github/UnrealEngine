@@ -42,24 +42,10 @@ UMovieSceneUserImportFBXSettings::UMovieSceneUserImportFBXSettings(const FObject
 }
 
 
-UMovieSceneUserImportFBXControlRigSettings::UMovieSceneUserImportFBXControlRigSettings(const FObjectInitializer& Initializer)
-	: Super(Initializer)
+void SetControlRigIOChannelMappingPresets(TArray<FControlToTransformMappings>& ControlChannelMappings, const bool bMetaHuman)
 {
-	bForceFrontXAxis = false;
-	bConvertSceneUnit = true;
-	ImportUniformScale = 1.0f;
-	bSpecifyTimeRange = false;
-	StartTimeRange = 0;
-	EndTimeRange = 0;
-	TimeToInsertOrReplaceAnimation = 0;
-	bInsertAnimation = true;
-	bImportOntoSelectedControls = false;
-
-	FControlFindReplaceString FirstFindReplace;
-	FirstFindReplace.Find = FString("");
-	FirstFindReplace.Replace = FString("");
-	FindAndReplaceStrings.Add(FirstFindReplace);
-
+	// Since we can't change the API unfortunately need to do this here.
+	ControlChannelMappings.SetNum(0); //clear and reset
 	FControlToTransformMappings Bool;
 	Bool.bNegate = false;
 	Bool.ControlChannel = FControlRigChannelEnum::Bool;
@@ -69,7 +55,14 @@ UMovieSceneUserImportFBXControlRigSettings::UMovieSceneUserImportFBXControlRigSe
 	FControlToTransformMappings Float;
 	Float.bNegate = false;
 	Float.ControlChannel = FControlRigChannelEnum::Float;
-	Float.FBXChannel = FTransformChannelEnum::TranslateX;
+	if (bMetaHuman)
+	{
+		Float.FBXChannel = FTransformChannelEnum::TranslateY;  // use Y for metahuman
+	}
+	else
+	{
+		Float.FBXChannel = FTransformChannelEnum::TranslateX;
+	}
 	ControlChannelMappings.Add(Float);
 
 	FControlToTransformMappings Vector2DX;
@@ -137,8 +130,46 @@ UMovieSceneUserImportFBXControlRigSettings::UMovieSceneUserImportFBXControlRigSe
 	ScaleZ.ControlChannel = FControlRigChannelEnum::ScaleZ;
 	ScaleZ.FBXChannel = FTransformChannelEnum::ScaleZ;
 	ControlChannelMappings.Add(ScaleZ);
-
 }
+
+
+UMovieSceneUserImportFBXControlRigSettings::UMovieSceneUserImportFBXControlRigSettings(const FObjectInitializer& Initializer)
+	: Super(Initializer)
+{
+	bForceFrontXAxis = false;
+	bConvertSceneUnit = true;
+	ImportUniformScale = 1.0f;
+	bSpecifyTimeRange = false;
+	StartTimeRange = 0;
+	EndTimeRange = 0;
+	TimeToInsertOrReplaceAnimation = 0;
+	bInsertAnimation = true;
+	bImportOntoSelectedControls = false;
+
+	FControlFindReplaceString FirstFindReplace;
+	FirstFindReplace.Find = FString("");
+	FirstFindReplace.Replace = FString("");
+	FindAndReplaceStrings.Add(FirstFindReplace);
+
+	SetControlRigIOChannelMappingPresets(ControlChannelMappings, false);
+}
+
+void UMovieSceneUserImportFBXControlRigSettings::LoadControlMappingsFromPreset(bool bMetaHumanPreset)
+{
+	SetControlRigIOChannelMappingPresets(ControlChannelMappings, bMetaHumanPreset);
+}
+
+UMovieSceneUserExportFBXControlRigSettings::UMovieSceneUserExportFBXControlRigSettings(
+	const FObjectInitializer& Initializer)
+{
+}
+
+void UMovieSceneUserExportFBXControlRigSettings::LoadControlMappingsFromPreset(bool bMetaHumanPreset)
+{
+	SetControlRigIOChannelMappingPresets(ControlChannelMappings, bMetaHumanPreset);
+}
+
+
 /*
 enum class ERigControlType : uint8
 {

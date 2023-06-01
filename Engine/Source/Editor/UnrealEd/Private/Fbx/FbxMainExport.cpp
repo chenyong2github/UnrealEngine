@@ -19,10 +19,13 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/LightComponent.h"
 #include "Model.h"
+
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneStringChannel.h"
+#include "Channels/MovieSceneByteChannel.h"
+
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimSequence.h"
@@ -63,6 +66,10 @@
 #include "StaticMeshResources.h"
 
 #include "FbxExporter.h"
+#include "Exporters/FbxExportOption.h"
+#include "FbxExportOptionsWindow.h"
+#include "FbxAnimUtils.h"
+#include "INodeAndChannelMappings.h"
 
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
@@ -96,10 +103,9 @@
 #include "Chaos/Particles.h"
 #include "Chaos/Plane.h"
 #include "ChaosCheck.h"
+#include "Animation/AnimationSettings.h"
 #include "Chaos/Convex.h"
 
-#include "Exporters/FbxExportOption.h"
-#include "FbxExportOptionsWindow.h"
 #include "Widgets/SWindow.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -2003,6 +2009,398 @@ bool FFbxExporter::ExportLevelSequence(UMovieScene* MovieScene, const TArray<FGu
 	return true;
 }
 
+void FFbxExporter::AddTimecodeAttributesAndSetKey(const UMovieSceneSection* InSection, FbxNode* InFbxNode, const FMovieSceneSequenceTransform& RootToLocalTransform)
+{
+	FbxAnimLayer* BaseLayer = AnimStack->GetMember<FbxAnimLayer>(0);
+	const FFrameRate TickResolution = InSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
+	
+	FName TCHourAttrName(TEXT("TCHour"));
+	FName TCMinuteAttrName(TEXT("TCMinute"));
+	FName TCSecondAttrName(TEXT("TCSecond"));
+	FName TCFrameAttrName(TEXT("TCFrame"));
+
+	if (const UAnimationSettings* AnimationSettings = UAnimationSettings::Get())
+	{
+		TCHourAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.HourAttributeName;
+		TCMinuteAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.MinuteAttributeName;
+		TCSecondAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.SecondAttributeName;
+		TCFrameAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.FrameAttributeName;
+	}
+
+	const TArray<FString> TimecodePropertyNames = {
+		TCHourAttrName.ToString(),
+		TCMinuteAttrName.ToString(),
+		TCSecondAttrName.ToString(),
+		TCFrameAttrName.ToString()
+	};
+
+	const TArray<int32> TimecodeValues = {
+		InSection->TimecodeSource.Timecode.Hours,
+		InSection->TimecodeSource.Timecode.Minutes,
+		InSection->TimecodeSource.Timecode.Seconds,
+		InSection->TimecodeSource.Timecode.Frames
+	};
+
+	const FFrameNumber KeyTime = InSection->GetTypedOuter<UMovieScene>()->GetPlaybackRange().GetLowerBoundValue();
+		
+	for (int i = 0; i < TimecodePropertyNames.Num(); i++)
+	{
+		const FString PropertyName = TimecodePropertyNames[i];
+		CreateAnimatableUserProperty(InFbxNode, 0.0, StringCast<char>(*PropertyName).Get(), StringCast<char>(*PropertyName).Get(), FbxFloatDT);
+		FbxProperty Property = InFbxNode->FindProperty(StringCast<char>(*PropertyName).Get());
+
+		if (Property.IsValid())
+		{
+			if (FbxAnimCurve* AnimCurve = Property.GetCurve(BaseLayer, nullptr, true))
+			{
+				const float KeyValue = (float)TimecodeValues[i];
+					
+				AnimCurve->KeyModifyBegin();
+					
+				FbxTime FbxTime;
+				const double KeyTimeSeconds = GetExportOptions()->bExportLocalTime ? KeyTime / TickResolution : (KeyTime * RootToLocalTransform.InverseLinearOnly()) / TickResolution;
+
+				FbxTime.SetSecondDouble(KeyTimeSeconds);
+
+				const int FbxKeyIndex = AnimCurve->KeyAdd(FbxTime);
+				AnimCurve->KeySet(FbxKeyIndex, FbxTime, KeyValue, FbxAnimCurveDef::eInterpolationConstant);
+				AnimCurve->KeySetConstantMode(FbxKeyIndex, FbxAnimCurveDef::EConstantMode::eConstantStandard);
+
+				AnimCurve->KeyModifyEnd();
+			}
+		}
+	}
+}
+
+bool FFbxExporter::ExportControlRigSection(const UMovieSceneSection* Section, const TArray<FControlRigFbxNodeMapping>& ChannelsMapping,
+	const TArray<FName>& FilterControls, const FMovieSceneSequenceTransform& RootToLocalTransform)
+{
+	if (!Section)
+	{
+		return false;
+	}
+	
+	UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
+
+	FbxAnimLayer* BaseLayer = AnimStack->GetMember<FbxAnimLayer>(0);
+
+	const FFrameRate TickResolution = Track->GetTypedOuter<UMovieScene>()->GetTickResolution();
+
+	// Helpers to convert channel/property names to indices and vice versa
+	const TArray<FString> TransformComponentsArray = {"X", "Y", "Z"};
+	const TArray<FString> TransformPropertyArray = {"Location", "Rotation", "Scale"};
+
+	// Cached transform channels for a single property to bake and export the 3 channels in one go
+	FMovieSceneFloatChannel* CachedTransformChannels[3] = {nullptr, nullptr, nullptr};
+	// Cached transform property index keep track of which property we are currently caching to bake & export Transforms & TransformNoScale
+	int CurrentTmPropertyIndex = 0;
+	
+	// The control rig parent group node
+	FbxNode* RootFbxNode = CreateNode(Track->GetDisplayName().ToString());
+
+	// Export timecode
+	AddTimecodeAttributesAndSetKey(Section, RootFbxNode, RootToLocalTransform);
+	
+	const FName BoolChannelTypeName = FMovieSceneBoolChannel::StaticStruct()->GetFName();
+	const FName ByteChannelTypeName = FMovieSceneByteChannel::StaticStruct()->GetFName();
+	const FName DoubleChannelTypeName = FMovieSceneDoubleChannel::StaticStruct()->GetFName();
+	const FName FloatChannelTypeName = FMovieSceneFloatChannel::StaticStruct()->GetFName();
+	const FName IntegerChannelTypeName = FMovieSceneIntegerChannel::StaticStruct()->GetFName();
+	
+	FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
+	for (const FMovieSceneChannelEntry& Entry : ChannelProxy.GetAllEntries())
+	{
+		TArrayView<FMovieSceneChannel* const> Channels = Entry.GetChannels();
+		TArrayView<const FMovieSceneChannelMetaData> AllMetaData = Entry.GetMetaData();
+
+		for (int32 Index = 0; Index < Channels.Num(); ++Index)
+		{
+			const FName ChannelTypeName = Entry.GetChannelTypeName();
+			FMovieSceneChannelHandle ChannelHandle = ChannelProxy.MakeHandle(ChannelTypeName, Index);
+
+			FMovieSceneBoolChannel* BoolChannel = ChannelTypeName == BoolChannelTypeName ? ChannelHandle.Cast<FMovieSceneBoolChannel>().Get() : nullptr;
+			FMovieSceneByteChannel* ByteChannel = ChannelTypeName == ByteChannelTypeName ? ChannelHandle.Cast<FMovieSceneByteChannel>().Get() : nullptr;
+			FMovieSceneDoubleChannel* DoubleChannel = ChannelTypeName == DoubleChannelTypeName ? ChannelHandle.Cast<FMovieSceneDoubleChannel>().Get() : nullptr;
+			FMovieSceneFloatChannel* FloatChannel = ChannelTypeName == FloatChannelTypeName ? ChannelHandle.Cast<FMovieSceneFloatChannel>().Get() : nullptr;
+			FMovieSceneIntegerChannel* IntegerChannel = ChannelTypeName == IntegerChannelTypeName ? ChannelHandle.Cast<FMovieSceneIntegerChannel>().Get() : nullptr;
+
+			if (!BoolChannel && !ByteChannel && !DoubleChannel && !FloatChannel && !IntegerChannel)
+			{
+				continue;
+			}
+
+			// Find the node and attribute names
+			const FMovieSceneChannelMetaData& MetaData = AllMetaData[Index];
+			const FString ChannelName = MetaData.Name.ToString();
+
+			FControlRigFbxCurveData FbxCurveData;
+			if (INodeAndChannelMappings* ChannelMapping = Cast<INodeAndChannelMappings>(Track))
+			{
+				if (!ChannelMapping->GetFbxCurveDataFromChannelMetadata(MetaData, FbxCurveData))
+				{
+					continue;
+				}
+			}
+
+			// Skip any control not in the filter if the filter isn't empty
+			if (!FilterControls.IsEmpty() && !FilterControls.Contains(FbxCurveData.ControlName))
+			{
+				continue;
+			}
+
+			// Find or create the node
+			FbxNode* ControlFbxNode = RootFbxNode->FindChild(StringCast<char>(*FbxCurveData.NodeName).Get());
+			if (ControlFbxNode == nullptr)
+			{
+				ControlFbxNode = FbxNode::Create(Scene, StringCast<char>(*FbxCurveData.NodeName).Get());
+				RootFbxNode->AddChild(ControlFbxNode);
+			}
+
+			// Remap channel, optionally baking & exporting it for transforms & rotations 
+			bool bNegate = false;
+			int TmComponentIndex = TransformComponentsArray.Find(FbxCurveData.AttributeName);
+
+			// Find the attribute to remap onto and whether to negate the channel if required
+			const FControlRigFbxNodeMapping* NodeMapping = ChannelsMapping.FindByPredicate(
+				[ChannelTypeName, FbxCurveData, TmComponentIndex](const FControlRigFbxNodeMapping& AMapping)
+			{
+				// If the control is treated as an attribute of another control, we don't need to check the attribute to remap
+				const bool bRemapControl = AMapping.ChannelType == ChannelTypeName && AMapping.ControlType == FbxCurveData.ControlType;
+				return bRemapControl && (!FbxCurveData.IsControlNode() || AMapping.ChannelAttrIndex == TmComponentIndex);
+			});
+			
+			if (TmComponentIndex != INDEX_NONE)
+			{
+				// Retrieve property name for Vector2D, Position, Scale
+				if (FbxCurveData.ControlType == FFBXControlRigTypeProxyEnum::Vector2D || FbxCurveData.ControlType == FFBXControlRigTypeProxyEnum::Position)
+				{
+					FbxCurveData.AttributePropertyName = "Location";
+				}
+				if (FbxCurveData.ControlType == FFBXControlRigTypeProxyEnum::Scale)
+				{
+					FbxCurveData.AttributePropertyName = "Scale";
+				}
+				
+				// Export converted & baked for Rotations & Transforms
+				if ((uint8)FbxCurveData.ControlType >= (uint8)FFBXControlRigTypeProxyEnum::Rotator)
+				{
+					const bool bExportCachedTransforms = TmComponentIndex == 2;
+					const bool bRotator = FbxCurveData.ControlType == FFBXControlRigTypeProxyEnum::Rotator;
+					
+					int TmPropertyIndex = bRotator ? 1 : CurrentTmPropertyIndex;
+
+					// todo: am: does not handle remapping to another property (i.e. rotation to location)
+					// Remap transform channel
+					if (NodeMapping)
+					{
+						TmPropertyIndex = NodeMapping->FbxAttrIndex / 3;
+						TmComponentIndex = NodeMapping->FbxAttrIndex % 3;
+						bNegate = NodeMapping->bNegate;
+					}
+
+					// Cache a single transform property channel
+					CachedTransformChannels[TmComponentIndex] = FloatChannel;
+
+					// Once all 3 channels in the current property have been cached, export baked
+					if (bExportCachedTransforms)
+					{
+						for (int i = 0; i < 3; i++)
+						{
+							if (CachedTransformChannels[i] && CachedTransformChannels[i]->GetNumKeys() > 0)
+							{
+								// Only export baked if at least one curve has keys
+								ExportTransformChannelsToFbxCurve(ControlFbxNode, CachedTransformChannels[0],
+									CachedTransformChannels[1], CachedTransformChannels[2],
+									TmPropertyIndex, Track, RootToLocalTransform);
+								
+								break;
+							}
+						}
+
+						// Increase or reset CurrentTmPropertyIndex to keep track of which property in a Transform we are currently caching
+						const bool bNoScale = FbxCurveData.ControlType == FFBXControlRigTypeProxyEnum::TransformNoScale;
+						const bool bTransformProcessed = bRotator || CurrentTmPropertyIndex == 2 || (bNoScale && CurrentTmPropertyIndex == 1);
+						CurrentTmPropertyIndex = bTransformProcessed ? 0 : CurrentTmPropertyIndex + 1;
+					}
+
+					continue;
+				}
+			}
+			// Remap non channels if required (apart from rotations & transforms, remapped separately)
+			if (NodeMapping)
+			{
+				FbxCurveData.AttributePropertyName = TransformPropertyArray[NodeMapping->FbxAttrIndex / 3];
+				FbxCurveData.AttributeName = TransformComponentsArray[NodeMapping->FbxAttrIndex % 3];
+				bNegate = NodeMapping->bNegate;
+			}
+			
+			FbxProperty Property;
+			
+			// Use AttributeName (i.e. Weight) as the property if no AttributePropertyName (i.e. Scale). Use NodeName if AttributeName was also empty...
+			const FString FbxPropertyName = FbxCurveData.AttributePropertyName.IsEmpty() ? (!FbxCurveData.AttributeName.IsEmpty() ? FbxCurveData.AttributeName : FbxCurveData.NodeName) : FbxCurveData.AttributePropertyName;
+
+			// Try and find the existing property
+			if (FbxCurveData.AttributePropertyName == "Location")
+			{
+				Property = ControlFbxNode->LclTranslation;
+			}
+			else if (FbxCurveData.AttributePropertyName == "Rotation")
+			{
+				Property = ControlFbxNode->LclRotation;
+			}
+			else if (FbxCurveData.AttributePropertyName == "Scale")
+			{
+				Property = ControlFbxNode->LclScaling;
+			}
+			else
+			{
+				Property = ControlFbxNode->FindProperty(StringCast<char>(*FbxPropertyName).Get());
+			}
+
+			// Or create it otherwise
+			if (!Property.IsValid())
+			{
+				if (DoubleChannel)
+				{
+					double Default = DoubleChannel->GetDefault().Get(0);
+					CreateAnimatableUserProperty(ControlFbxNode, Default, StringCast<char>(*FbxPropertyName).Get(), StringCast<char>(*FbxPropertyName).Get(), FbxDoubleDT);
+				}
+				else if (FloatChannel)
+				{
+					float Default = FloatChannel->GetDefault().Get(0);
+					CreateAnimatableUserProperty(ControlFbxNode, Default, StringCast<char>(*FbxPropertyName).Get(), StringCast<char>(*FbxPropertyName).Get(), FbxFloatDT);
+				}
+				else if (IntegerChannel)
+				{
+					int32 Default = IntegerChannel->GetDefault().Get(0);
+					CreateAnimatableUserProperty(ControlFbxNode, Default, StringCast<char>(*FbxPropertyName).Get(), StringCast<char>(*FbxPropertyName).Get(), FbxIntDT);
+				}
+				else if (BoolChannel)
+				{
+					bool Default = BoolChannel->GetDefault().Get(false);
+					CreateAnimatableUserProperty(ControlFbxNode, Default, StringCast<char>(*FbxPropertyName).Get(), StringCast<char>(*FbxPropertyName).Get(), FbxBoolDT);
+				}
+				else if (ByteChannel)
+				{
+					uint8 Default = ByteChannel->GetDefault().Get(0);
+					CreateAnimatableUserProperty(ControlFbxNode, Default, StringCast<char>(*FbxPropertyName).Get(), StringCast<char>(*FbxPropertyName).Get(), FbxEnumDT);
+				}
+
+				Property = ControlFbxNode->FindProperty(StringCast<char>(*FbxPropertyName).Get());
+			}
+
+			if (!Property.IsValid())
+			{
+				continue;
+			}
+
+			// If AttributePropertyName was found (i.e Scale), use AttributeName as the property channel (i.e. X) 
+			const FString FbxCurveChannel = FbxCurveData.AttributePropertyName.IsEmpty() ? "" : FbxCurveData.AttributeName;
+
+			// Create the anim curve, optionally of the given name if the attribute had a component 
+			FbxAnimCurve* AnimCurve = Property.GetCurve(BaseLayer, StringCast<char>(*FbxCurveChannel).Get(), true);
+			if (!AnimCurve)
+			{
+				continue;
+			}
+
+			// Export the curve
+			if (BoolChannel)
+			{
+				ExportChannelToFbxCurve(*AnimCurve, *BoolChannel, TickResolution, RootToLocalTransform);
+			}
+			else if (ByteChannel)
+			{
+				ExportChannelToFbxCurve(*AnimCurve, *ByteChannel, TickResolution, RootToLocalTransform);
+			}
+			else if (DoubleChannel)
+			{
+				ExportChannelToFbxCurve(*AnimCurve, *DoubleChannel, TickResolution, ERichCurveValueMode::Default, bNegate, RootToLocalTransform);
+			}
+			else if (FloatChannel)
+			{
+				ExportChannelToFbxCurve(*AnimCurve, *FloatChannel, TickResolution, ERichCurveValueMode::Default, bNegate, RootToLocalTransform);
+			}
+			else if (IntegerChannel)
+			{
+				ExportChannelToFbxCurve(*AnimCurve, *IntegerChannel, TickResolution, RootToLocalTransform);
+			}
+		}
+	}
+	return true;
+}
+
+void FFbxExporter::ExportTransformChannelsToFbxCurve(FbxNode* InFbxNode, FMovieSceneFloatChannel* ChannelX, FMovieSceneFloatChannel* ChannelY, FMovieSceneFloatChannel* ChannelZ, int TmPropertyIndex, const UMovieSceneTrack* Track, const FMovieSceneSequenceTransform& RootToLocalTransform)
+{
+	FbxAnimLayer* BaseLayer = AnimStack->GetMember<FbxAnimLayer>(0);
+
+	FbxProperty Property = TmPropertyIndex == 0 ? InFbxNode->LclTranslation : TmPropertyIndex == 1 ? InFbxNode->LclRotation : InFbxNode->LclScaling;
+	
+	FbxAnimCurve* FbxCurveX = Property.GetCurve(BaseLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+	FbxAnimCurve* FbxCurveY = Property.GetCurve(BaseLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+	FbxAnimCurve* FbxCurveZ = Property.GetCurve(BaseLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+
+	FTransform RotationDirectionConvert;
+
+	FbxCurveX->KeyModifyBegin();
+	FbxCurveY->KeyModifyBegin();
+	FbxCurveZ->KeyModifyBegin();
+
+	FFrameRate TickResolution = Track->GetTypedOuter<UMovieScene>()->GetTickResolution();
+	FFrameRate DisplayRate = Track->GetTypedOuter<UMovieScene>()->GetDisplayRate();
+	TRange<FFrameNumber> PlaybackRange = Track->GetTypedOuter<UMovieScene>()->GetPlaybackRange();
+	
+	int32 LocalStartFrame = FFrameRate::TransformTime(FFrameTime(UE::MovieScene::DiscreteInclusiveLower(PlaybackRange)), TickResolution, DisplayRate).RoundToFrame().Value;
+	int32 StartFrame = FFrameRate::TransformTime(FFrameTime(UE::MovieScene::DiscreteInclusiveLower(PlaybackRange) * RootToLocalTransform.InverseLinearOnly()), TickResolution, DisplayRate).RoundToFrame().Value;
+	int32 AnimationLength = FFrameRate::TransformTime(FFrameTime(FFrameNumber(UE::MovieScene::DiscreteSize(PlaybackRange))), TickResolution, DisplayRate).RoundToFrame().Value;
+
+	for (int32 FrameCount = 0; FrameCount <= AnimationLength; ++FrameCount)
+	{
+		int32 LocalFrame = LocalStartFrame + FrameCount;
+
+		FFrameTime LocalTime = FFrameRate::TransformTime(FFrameTime(LocalFrame), DisplayRate, TickResolution);
+
+		FVector3f Vec = FVector3f::ZeroVector;
+		if (ChannelX)
+		{
+			ChannelX->Evaluate(LocalTime, Vec.X);
+		}
+		if (ChannelY)
+		{
+			ChannelY->Evaluate(LocalTime, Vec.Y);
+		}
+		if (ChannelZ)
+		{
+			ChannelZ->Evaluate(LocalTime, Vec.Z);
+		}
+
+		FbxVector4 KeyVec;
+
+		if (TmPropertyIndex == 0)
+		{
+			KeyVec = Converter.ConvertToFbxPos((FVector)Vec);
+		}
+		else if (TmPropertyIndex == 1)
+		{
+			KeyVec = Converter.ConvertToFbxRot((FVector)Vec);
+		}
+		else
+		{
+			KeyVec = Converter.ConvertToFbxScale((FVector)Vec);
+		}
+
+		FbxTime FbxTime;
+		FbxTime.SetSecondDouble(GetExportOptions()->bExportLocalTime ? DisplayRate.AsSeconds(LocalFrame) : DisplayRate.AsSeconds(StartFrame + FrameCount));
+
+		FbxCurveX->KeySet(FbxCurveX->KeyAdd(FbxTime), FbxTime, KeyVec[0]);
+		FbxCurveY->KeySet(FbxCurveY->KeyAdd(FbxTime), FbxTime, KeyVec[1]);
+		FbxCurveZ->KeySet(FbxCurveZ->KeyAdd(FbxTime), FbxTime, KeyVec[2]);
+	}
+
+	FbxCurveX->KeyModifyEnd();
+	FbxCurveY->KeyModifyEnd();
+	FbxCurveZ->KeyModifyEnd();
+}
 
 /**
  * Exports a scene node with the placement indicated by a given actor.
@@ -2422,18 +2820,33 @@ void FFbxExporter::ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovi
 
 void FFbxExporter::ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovieSceneIntegerChannel& InChannel, FFrameRate TickResolution, const FMovieSceneSequenceTransform& RootToLocalTransform)
 {
+	ExportConstantChannelToFbxCurve<FMovieSceneIntegerChannel, int32>(InFbxCurve, InChannel, TickResolution, RootToLocalTransform);
+}
+
+void FFbxExporter::ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovieSceneBoolChannel& InChannel, FFrameRate TickResolution, const FMovieSceneSequenceTransform& RootToLocalTransform)
+{
+	ExportConstantChannelToFbxCurve<FMovieSceneBoolChannel, bool>(InFbxCurve, InChannel, TickResolution, RootToLocalTransform);
+}
+
+void FFbxExporter::ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovieSceneByteChannel& InChannel, FFrameRate TickResolution, const FMovieSceneSequenceTransform& RootToLocalTransform)
+{
+	ExportConstantChannelToFbxCurve<FMovieSceneByteChannel, uint8>(InFbxCurve, InChannel, TickResolution, RootToLocalTransform);
+}
+
+template<typename ChannelType, typename T>
+void FFbxExporter::ExportConstantChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const ChannelType& InChannel, FFrameRate TickResolution, const FMovieSceneSequenceTransform& RootToLocalTransform)
+{
 	InFbxCurve.KeyModifyBegin();
 
-	TArrayView<const FFrameNumber> Times  = InChannel.GetTimes();
-	TArrayView<const int32> Values = InChannel.GetValues();
+	const TArrayView<const FFrameNumber> Times  = InChannel.GetTimes();
+	const TArrayView<const T> Values = InChannel.GetValues();
 
 	for (int32 Index = 0; Index < Times.Num(); ++Index)
 	{
 		const FFrameNumber KeyTime = Times[Index];
-		int32 KeyValue = Values[Index];
+		const T KeyValue = Values[Index];
 
 		FbxTime FbxTime;
-		FbxAnimCurveKey FbxKey;
 		const double KeyTimeSeconds = GetExportOptions()->bExportLocalTime ? KeyTime / TickResolution : (KeyTime * RootToLocalTransform.InverseLinearOnly()) / TickResolution;
 
 		FbxTime.SetSecondDouble(KeyTimeSeconds);
@@ -2441,6 +2854,7 @@ void FFbxExporter::ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovi
 		const int FbxKeyIndex = InFbxCurve.KeyAdd(FbxTime);
 
 		InFbxCurve.KeySet(FbxKeyIndex, FbxTime, KeyValue, FbxAnimCurveDef::eInterpolationConstant);
+		InFbxCurve.KeySetConstantMode(FbxKeyIndex, FbxAnimCurveDef::EConstantMode::eConstantStandard);
 	}
 	InFbxCurve.KeyModifyEnd();
 }

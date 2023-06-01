@@ -29,6 +29,7 @@ class UMovieSceneTrack;
 struct FMovieSceneEvaluationTrack;
 class UMovieSceneUserImportFBXSettings;
 class UMovieSceneUserImportFBXControlRigSettings;
+class UMovieSceneUserExportFBXControlRigSettings;
 struct FMovieSceneDoubleValue;
 struct FMovieSceneFloatValue;
 class INodeNameAdapter;
@@ -517,15 +518,26 @@ public:
 	static FString GetCameraName(fbxsdk::FbxCamera* InCamera);
 
 	/*
-	 * Import FBX into Channels With Dialog
+	 * Import FBX into Control Rig Channels With Dialog
 	 */
-	static bool ImportFBXIntoChannelsWithDialog(const TSharedRef<ISequencer>& InSequencer, TArray<FFBXNodeAndChannels>* NodeAndChannels);
+	static bool ImportFBXIntoControlRigChannelsWithDialog(const TSharedRef<ISequencer>& InSequencer, TArray<FRigControlFBXNodeAndChannels>* NodeAndChannels);
 
 	/*
-	* Import FBX into Channels
+	** Export FBX from Control Rig Channels With Dialog
+	*/
+	static bool ExportFBXFromControlRigChannelsWithDialog(const TSharedRef<ISequencer>& InSequencer, UMovieSceneTrack* Track);
+
+	/*
+	* Import FBX into Control Rig Channels
 	*/	
 	static bool ImportFBXIntoControlRigChannels(UMovieScene* MovieScene, const FString& ImportFilename,  UMovieSceneUserImportFBXControlRigSettings *ControlRigSettings,
-		TArray<FFBXNodeAndChannels>* NodeAndChannels, const TArray<FName>& SelectedControlNames, FFrameRate FrameRate);
+		TArray<FRigControlFBXNodeAndChannels>* NodeAndChannels, const TArray<FName>& SelectedControlNames, FFrameRate FrameRate);
+
+	/*
+	** Export FBX from Control Rig Channels
+	*/	
+	static bool ExportFBXFromControlRigChannels(const UMovieSceneSection* Section, const UMovieSceneUserExportFBXControlRigSettings* ExportFBXControlRigSettings,
+	                                            const TArray<FName>& SelectedControlNames, const FMovieSceneSequenceTransform& RootToLocalTransform);
 
 	/*
 	* Acquire first SkeletalMeshComponent from the Object
