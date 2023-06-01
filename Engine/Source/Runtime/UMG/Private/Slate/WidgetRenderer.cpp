@@ -304,6 +304,7 @@ bool FWidgetRenderer::DrawInvalidationRoot(TSharedRef<SVirtualWindow>& VirtualWi
 			ISlate3DRenderer::FScopedAcquireDrawBuffer ScopedDrawBuffer{ *Renderer, bDeferRenderTargetUpdate };
 			FSlateWindowElementList& WindowElementList = ScopedDrawBuffer.GetDrawBuffer().AddWindowElementList(VirtualWindow);
 
+			// Populates cached element data lists using the providied invalidation root
 			ContextCopy.WindowElementList = &WindowElementList;
 			FSlateInvalidationResult Result = Root.PaintInvalidationRoot(ContextCopy);
 

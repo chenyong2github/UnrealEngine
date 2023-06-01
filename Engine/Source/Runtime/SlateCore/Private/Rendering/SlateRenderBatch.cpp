@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/SlateRenderBatch.h"
+#include "Rendering/DrawElements.h"
 #include "Rendering/ElementBatcher.h"
 #include "Textures/SlateShaderResource.h"
 
@@ -43,5 +44,3 @@ FSlateRenderBatch::FSlateRenderBatch(
 {
 	check(ShaderResource == nullptr || !ShaderResource->Debug_IsDestroyed());
 }
-
-
