@@ -7,11 +7,12 @@
 #include "PCGPin.h"
 #include "PCGSettings.h"
 #include "Metadata/PCGAttributePropertySelector.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+
+#include "Templates/UniquePtr.h"
 
 #include "PCGAttributeNoise.generated.h"
-
-class IPCGAttributeAccessor;
-class IPCGAttributeAccessorKeys;
 
 UENUM()
 enum class EPCGAttributeNoiseMode : uint8
