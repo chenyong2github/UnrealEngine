@@ -156,9 +156,8 @@ namespace UE
 		// Whether the value's data is stored in InlineData or in the memory pointed to by HeapData.
 		bool IsInline() const
 		{
-			constexpr uint8 InlineDataMinAlignmentLogTwo = FMath::ConstExprCeilLogTwo(alignof(UPTRINT));
 			return Type->GetNumBytes() <= sizeof(UPTRINT)
-				&& Type->GetMinAlignmentLogTwo() <= InlineDataMinAlignmentLogTwo;
+				&& Type->GetMinAlignmentLogTwo() <= UE_FORCE_CONSTEVAL(FMath::ConstExprCeilLogTwo(alignof(UPTRINT)));
 		}
 
 		// Allocates heap memory for the value if it uses it.

@@ -209,6 +209,26 @@ OutType FloatCastChecked(InType In, InType Precision)
 	#define VTABLE_OFFSET( Class, MultipleInheritenceParent )	( ((PTRINT) static_cast<MultipleInheritenceParent*>((Class*)1)) - 1)
 #endif
 
+namespace UE::Core::Private
+{
+	template <typename T, T Val>
+	constexpr T TForceConstEval_V = Val;
+}
+
+// Forces an expression to be evaluated at compile-time, even if it is part of a runtime expression:
+//
+// Example:
+//   // Arg 3 is evaluated at runtime as it's used in a runtime context, despite the function being marked constexpr and having a compile-time argument.
+//   // Requires an optimizer pass to eliminate.
+//   RegisterTypeWithSizeAndLog2Alignment("MyType", sizeof(FMyType), FMath::ConstExprCeilLogTwo(alignof(FMyType)));
+//
+//   // Arg 3 is evaluated at compile-time, but is non-intuitive and requires another variable to be introduced
+//   constexpr SIZE_T AlignOfMyTypeLog2 = alignof(FMyType);
+//   RegisterTypeWithSizeAndLog2Alignment("MyType", sizeof(FMyType), AlignOfMyTypeLog2);
+//
+//   // Arg 3 is evaluated at compile time with a more direct syntax
+//   RegisterTypeWithSizeAndLog2Alignment("MyType", sizeof(FMyType), UE_FORCE_CONSTEVAL(FMath::ConstExprCeilLogTwo(alignof(FMyType))));
+#define UE_FORCE_CONSTEVAL(expr) UE::Core::Private::TForceConstEval_V<std::decay_t<decltype(expr)>, (expr)>
 
 /**
  * works just like std::min_element.
