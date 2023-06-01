@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProxyTableFunctionLibrary.h"
+
+#include "LookupProxy.h"
 #include "ProxyTable.h"
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -44,3 +46,12 @@ UObject* UProxyTableFunctionLibrary::EvaluateProxyTable(const UObject* ContextOb
 	
 	return nullptr;
 }
+
+
+FInstancedStruct UProxyTableFunctionLibrary::MakeLookupProxy(UProxyAsset* Proxy)
+ {
+ 	FInstancedStruct Struct;
+ 	Struct.InitializeAs(FLookupProxy::StaticStruct());
+ 	Struct.GetMutable<FLookupProxy>().Proxy = Proxy;
+ 	return Struct;
+ }

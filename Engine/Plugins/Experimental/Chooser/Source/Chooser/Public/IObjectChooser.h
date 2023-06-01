@@ -22,7 +22,7 @@ public:
 };
 
 #if WITH_EDITOR
-struct FChooserDebuggingInfo
+struct CHOOSER_API FChooserDebuggingInfo
 {
 	bool bCurrentDebugTarget = false;
 };
@@ -30,14 +30,14 @@ struct FChooserDebuggingInfo
 
 
 USTRUCT()
-struct FChooserEvaluationInputObject
+struct CHOOSER_API FChooserEvaluationInputObject
 {
 	GENERATED_BODY()
 	TObjectPtr<UObject> Object;
 };
 
 USTRUCT(BlueprintType)
-struct FChooserEvaluationContext
+struct CHOOSER_API FChooserEvaluationContext
 {
 	#if WITH_EDITOR
     	FChooserDebuggingInfo DebuggingInfo;

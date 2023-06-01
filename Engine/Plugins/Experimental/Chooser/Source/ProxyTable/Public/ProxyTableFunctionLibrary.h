@@ -23,7 +23,7 @@ public:
 		* @param ProxyTable				(in) The ProxyTable asset
 		* @param Key					(in) The Key from the ProxyTable asset
 	*/
-	UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe), Category = "Animation")
+	UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe, BlueprintInternalUseOnly="true"), Category = "Animation")
 	static UObject* EvaluateProxyTable(const UObject* ContextObject, const UProxyTable* ProxyTable, FName Key);
 	
 	/**
@@ -33,7 +33,14 @@ public:
 	* @param ProxyAsset				(in) The ProxyAsset asset
 	* @param ObjectClass			(in) Expected type of result objects
 	*/
-	UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe, DeterminesOutputType = "ObjectClass"), Category = "Animation")
+	UFUNCTION(BlueprintPure, meta = (BlueprintThreadSafe, DeterminesOutputType = "ObjectClass", BlueprintInternalUseOnly="true"), Category = "Animation")
 	static UObject* EvaluateProxyAsset(const UObject* ContextObject, const UProxyAsset* Proxy, TSubclassOf<UObject> ObjectClass);
-
+	
+	/**
+	* Create a LookupProxy struct
+	*
+	* @param Chooser				(in) the ChooserTable asset to evaluate
+	*/
+	UFUNCTION(BlueprintPure, Category = "Animation", meta = (BlueprintThreadSafe, BlueprintInternalUseOnly="true", NativeMakeFunc))
+	static FInstancedStruct MakeLookupProxy(UProxyAsset* Proxy);
 };

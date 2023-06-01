@@ -34,7 +34,7 @@ void UProxyAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		}
 		CachedPreviousType = Type;
 	}
-	else if (PropertyChangedEvent.Property->GetName() == ContextClassName)
+	else
 	{
 		OnContextClassChanged.Broadcast();
 	}

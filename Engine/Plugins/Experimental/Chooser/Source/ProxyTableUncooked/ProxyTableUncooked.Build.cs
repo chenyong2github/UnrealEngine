@@ -12,6 +12,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
+					"Chooser",
 					"Engine",
 					"AssetTools",
 					"UnrealEd",
