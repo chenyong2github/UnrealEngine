@@ -694,13 +694,6 @@ extern RENDERCORE_API void FixupShaderFilePath(FString& VirtualFilePath, EShader
  */
 extern RENDERCORE_API bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors, const FName* ShaderPlatformName = nullptr);
 
-/**
- * Loads the shader file with the given name into an array of ANSICHARs and strips all comments while preserving newlines (and so line counts).
- * @param FilePath - The file path of the shader file to load; it is assumed FixupShaderFilePath has already been called.
- * @return The resulting array of ANSICHARs, or nullptr if the file was not successfully loaded. 
- */
-extern RENDERCORE_API const TArray<ANSICHAR>* LoadShaderSourceFileForPreprocessor(const FString& FilePath);
-
 enum class EShaderCompilerWorkerType : uint8
 {
 	None,
