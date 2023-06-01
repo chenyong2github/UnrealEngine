@@ -62,6 +62,7 @@ void FContentBundleClient::RequestUnregister()
 {
 	if (State != EContentBundleClientState::Unregistered)
 	{
+		DoOnClientToUnregister();
 		GEngine->GetEngineSubsystem<UContentBundleEngineSubsystem>()->UnregisterContentBundle(*this);
 		SetState(EContentBundleClientState::Unregistered);
 	}

@@ -61,6 +61,8 @@ protected:
 	virtual void DoOnContentInjectedInWorld(EContentBundleStatus InjectionStatus, UWorld* InjectedWorld) {};
 	virtual void DoOnContentRemovedFromWorld(UWorld* InjectedWorld) {};
 
+	virtual void DoOnClientToUnregister() {};
+
 private:
 	bool HasContentToRemove() const;
 
