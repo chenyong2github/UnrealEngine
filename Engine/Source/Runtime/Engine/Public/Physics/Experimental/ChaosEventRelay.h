@@ -12,9 +12,9 @@
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCollisionEventSignature, const TArray<FCollisionChaosEvent>&, CollisionEvents);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FBreakEventSignature, const TArray<FBreakChaosEvent>&, BreakEvents);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRemovalEventSignature, const TArray<FRemovalChaosEvent>&, RemovalEvents);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCrumblingEventSignature, const TArray<FCrumblingChaosEvent>&, CrumblingEvents);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FBreakEventSignature, const TArray<FChaosBreakEvent>&, BreakEvents);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRemovalEventSignature, const TArray<FChaosRemovalEvent>&, RemovalEvents);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCrumblingEventSignature, const TArray<FChaosCrumblingEvent>&, CrumblingEvents);
 
 
 /**
@@ -30,9 +30,9 @@ public:
 	UChaosEventRelay();
 
 	void DispatchPhysicsCollisionEvents(const TArray<FCollisionChaosEvent>& CollisionEvents);
-	void DispatchPhysicsBreakEvents(const TArray<FBreakChaosEvent>& BreakEvents);
-	void DispatchPhysicsRemovalEvents(const TArray<FRemovalChaosEvent>& RemovalEvents);
-	void DispatchPhysicsCrumblingEvents(const TArray<FCrumblingChaosEvent>& CrumblingEvents);
+	void DispatchPhysicsBreakEvents(const TArray<FChaosBreakEvent>& BreakEvents);
+	void DispatchPhysicsRemovalEvents(const TArray<FChaosRemovalEvent>& RemovalEvents);
+	void DispatchPhysicsCrumblingEvents(const TArray<FChaosCrumblingEvent>& CrumblingEvents);
 
 	
 	UPROPERTY(BlueprintAssignable, Category = "Physics Events")

@@ -57,11 +57,11 @@ namespace Chaos { enum class EObjectStateType: int8; }
 template<class InElementType> class TManagedArray;
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosBreakEvent, const FBreakChaosEvent&, BreakEvent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosBreakEvent, const FChaosBreakEvent&, BreakEvent);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosRemovalEvent, const FRemovalChaosEvent&, RemovalEvent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosRemovalEvent, const FChaosRemovalEvent&, RemovalEvent);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosCrumblingEvent, const FCrumblingChaosEvent&, CrumbleEvent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosCrumblingEvent, const FChaosCrumblingEvent&, CrumbleEvent);
 
 namespace GeometryCollection
 {
@@ -1009,10 +1009,10 @@ public:
 	void SetNotifyGlobalCrumblings(bool bNewNotifyGlobalCrumblings, bool bGlobalNewCrumblingEventIncludesChildren);
 	
 	/** Overrideable native notification */
-	virtual void NotifyBreak(const FBreakChaosEvent& Event) {};
+	virtual void NotifyBreak(const FChaosBreakEvent& Event) {};
 
 	/** Overrideable native notification */
-	virtual void NotifyRemoval(const FRemovalChaosEvent& Event) {};
+	virtual void NotifyRemoval(const FChaosRemovalEvent& Event) {};
 
 	UPROPERTY(BlueprintAssignable, Category = "Chaos")
 	FOnChaosBreakEvent OnChaosBreakEvent;
@@ -1026,11 +1026,11 @@ public:
 	// todo(chaos) remove when no longer necessary
 	FOnChaosBreakEvent OnRootBreakEvent;
 
-	void DispatchBreakEvent(const FBreakChaosEvent& Event);
+	void DispatchBreakEvent(const FChaosBreakEvent& Event);
 
-	void DispatchRemovalEvent(const FRemovalChaosEvent& Event);
+	void DispatchRemovalEvent(const FChaosRemovalEvent& Event);
 
-	void DispatchCrumblingEvent(const FCrumblingChaosEvent& Event);
+	void DispatchCrumblingEvent(const FChaosCrumblingEvent& Event);
 
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Interp, Category = "Chaos")
 	float DesiredCacheTime;

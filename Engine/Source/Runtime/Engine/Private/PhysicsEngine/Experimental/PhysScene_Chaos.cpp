@@ -1081,13 +1081,13 @@ void FPhysScene_Chaos::HandleBreakingEvents(const Chaos::FBreakingEventData& Eve
 	{
 		LastBreakEventDispatchTime = Event.BreakingData.TimeCreated;
 		Chaos::FBreakingDataArray const& BreakingDataArray = Event.BreakingData.AllBreakingsArray;
-		TArray<FBreakChaosEvent> PendingBreakEvents;
+		TArray<FChaosBreakEvent> PendingBreakEvents;
 		for (const Chaos::FBreakingData& BreakingData: BreakingDataArray)
 		{
 			if ((BreakingData.EmitterFlag & Chaos::EventEmitterFlag::GlobalDispatcher) && BreakingData.Proxy)
 			{
 				UPrimitiveComponent* Comp = GetOwningComponent<UPrimitiveComponent>(BreakingData.Proxy);
-				FBreakChaosEvent& BreakEvent = PendingBreakEvents.Emplace_GetRef(BreakingData);
+				FChaosBreakEvent& BreakEvent = PendingBreakEvents.Emplace_GetRef(BreakingData);
 				BreakEvent.Component = Comp;
 			}
 		}
@@ -1106,7 +1106,7 @@ void FPhysScene_Chaos::HandleRemovalEvents(const Chaos::FRemovalEventData& Event
 	if (RemovalDataTimestamp > LastRemovalEventDispatchTime)
 	{
 		LastRemovalEventDispatchTime = RemovalDataTimestamp;
-		TArray<FRemovalChaosEvent> PendingRemovalEvents;
+		TArray<FChaosRemovalEvent> PendingRemovalEvents;
 		Chaos::FRemovalDataArray const& RemovalData = Event.RemovalData.AllRemovalArray;
 		for (Chaos::FRemovalData const& RemovalDataItem : RemovalData)
 		{
@@ -1115,7 +1115,7 @@ void FPhysScene_Chaos::HandleRemovalEvents(const Chaos::FRemovalEventData& Event
 				UPrimitiveComponent* Comp = GetOwningComponent<UPrimitiveComponent>(RemovalDataItem.Proxy);
 				if (GlobalRemovalEventRegistrations.Contains(Comp))
 				{
-					FRemovalChaosEvent& RemovalEvent = PendingRemovalEvents.AddZeroed_GetRef();
+					FChaosRemovalEvent& RemovalEvent = PendingRemovalEvents.AddZeroed_GetRef();
 					RemovalEvent.Component = Comp;
 					RemovalEvent.Location = RemovalDataItem.Location;
 					RemovalEvent.Mass = RemovalDataItem.Mass;
@@ -1137,12 +1137,12 @@ void FPhysScene_Chaos::HandleCrumblingEvents(const Chaos::FCrumblingEventData& E
 	if (Event.CrumblingData.bHasGlobalEvent && CrumblingDataTimestamp > LastCrumblingEventDispatchTime)
 	{
 		LastCrumblingEventDispatchTime = CrumblingDataTimestamp;
-		TArray<FCrumblingChaosEvent> PendingCrumblingEvent;
+		TArray<FChaosCrumblingEvent> PendingCrumblingEvent;
 		for (const Chaos::FCrumblingData& CrumblingDataItem : Event.CrumblingData.AllCrumblingsArray)
 		{
 			if ((CrumblingDataItem.EmitterFlag & Chaos::EventEmitterFlag::GlobalDispatcher) && CrumblingDataItem.Proxy)
 			{
-				FCrumblingChaosEvent& CrumblingEvent = PendingCrumblingEvent.AddZeroed_GetRef();
+				FChaosCrumblingEvent& CrumblingEvent = PendingCrumblingEvent.AddZeroed_GetRef();
 				CrumblingEvent.Component = GetOwningComponent<UPrimitiveComponent>(CrumblingDataItem.Proxy);
 				CrumblingEvent.Location = CrumblingDataItem.Location;
 				CrumblingEvent.Orientation = CrumblingDataItem.Orientation;

@@ -42,9 +42,9 @@ void UChaosGameplayEventDispatcher::OnUnregister()
 }
 
 // internal
-static void DispatchPendingBreakEvents(TArray<FBreakChaosEvent> const& Events, TMap<TObjectPtr<UPrimitiveComponent>, FBreakEventCallbackWrapper> const& Registrations)
+static void DispatchPendingBreakEvents(TArray<FChaosBreakEvent> const& Events, TMap<TObjectPtr<UPrimitiveComponent>, FBreakEventCallbackWrapper> const& Registrations)
 {
-	for (FBreakChaosEvent const& E : Events)
+	for (FChaosBreakEvent const& E : Events)
 	{
 		if (E.Component)
 		{
@@ -57,9 +57,9 @@ static void DispatchPendingBreakEvents(TArray<FBreakChaosEvent> const& Events, T
 	}
 }
 
-static void DispatchPendingRemovalEvents(TArray<FRemovalChaosEvent> const& Events, TMap<TObjectPtr<UPrimitiveComponent>, FRemovalEventCallbackWrapper> const& Registrations)
+static void DispatchPendingRemovalEvents(TArray<FChaosRemovalEvent> const& Events, TMap<TObjectPtr<UPrimitiveComponent>, FRemovalEventCallbackWrapper> const& Registrations)
 {
-	for (FRemovalChaosEvent const& E : Events)
+	for (FChaosRemovalEvent const& E : Events)
 	{
 		if (E.Component)
 		{
@@ -72,9 +72,9 @@ static void DispatchPendingRemovalEvents(TArray<FRemovalChaosEvent> const& Event
 	}
 }
 
-static void DispatchPendingCrumblingEvents(TArray<FCrumblingChaosEvent> const& Events, TMap<TObjectPtr<UPrimitiveComponent>, FCrumblingEventCallbackWrapper> const& Registrations)
+static void DispatchPendingCrumblingEvents(TArray<FChaosCrumblingEvent> const& Events, TMap<TObjectPtr<UPrimitiveComponent>, FCrumblingEventCallbackWrapper> const& Registrations)
 {
-	for (FCrumblingChaosEvent const& E : Events)
+	for (FChaosCrumblingEvent const& E : Events)
 	{
 		if (E.Component)
 		{
@@ -541,7 +541,7 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 
 	// BREAK EVENTS
 
-	TArray<FBreakChaosEvent> PendingBreakEvents;
+	TArray<FChaosBreakEvent> PendingBreakEvents;
 
 	const float BreakingDataTimestamp = Event.BreakingData.TimeCreated;
 	if (BreakingDataTimestamp > LastBreakingDataTime)
@@ -564,7 +564,7 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 					if (PrimComp)
 					{
 						// queue them up so we can release the physics data before trigging BP events
-						FBreakChaosEvent& BreakEvent = PendingBreakEvents.Emplace_GetRef(BreakingData);
+						FChaosBreakEvent& BreakEvent = PendingBreakEvents.Emplace_GetRef(BreakingData);
 						BreakEvent.Component = PrimComp;
 					}
 				}
@@ -605,7 +605,7 @@ void UChaosGameplayEventDispatcher::HandleRemovalEvents(const Chaos::FRemovalEve
 {
 	// REMOVAL EVENTS
 
-	TArray<FRemovalChaosEvent> PendingRemovalEvents;
+	TArray<FChaosRemovalEvent> PendingRemovalEvents;
 
 	const float RemovalDataTimestamp = Event.RemovalData.TimeCreated;
 	if (RemovalDataTimestamp > LastRemovalDataTime)
@@ -627,7 +627,7 @@ void UChaosGameplayEventDispatcher::HandleRemovalEvents(const Chaos::FRemovalEve
 					if (PrimComp && RemovalEventRegistrations.Contains(PrimComp))
 					{
 						// queue them up so we can release the physics data before trigging BP events
-						FRemovalChaosEvent& RemovalEvent = PendingRemovalEvents.AddZeroed_GetRef();
+						FChaosRemovalEvent& RemovalEvent = PendingRemovalEvents.AddZeroed_GetRef();
 						RemovalEvent.Component = PrimComp;
 						RemovalEvent.Location = RemovalDataItem.Location;
 						RemovalEvent.Mass = RemovalDataItem.Mass;
@@ -657,7 +657,7 @@ void UChaosGameplayEventDispatcher::HandleCrumblingEvents(const Chaos::FCrumblin
 		const FPhysScene& Scene = *(GetWorld()->GetPhysicsScene());
 
 		// let's assume crumbles are rare, so we will iterate breaks instead of registered components for now
-		TArray<FCrumblingChaosEvent> PendingCrumblingEvent;
+		TArray<FChaosCrumblingEvent> PendingCrumblingEvent;
 		for (const Chaos::FCrumblingData& CrumblingDataItem : Event.CrumblingData.AllCrumblingsArray)
 		{	
 			if ((CrumblingDataItem.EmitterFlag & Chaos::EventEmitterFlag::OwnDispatcher) && CrumblingDataItem.Proxy)
@@ -665,7 +665,7 @@ void UChaosGameplayEventDispatcher::HandleCrumblingEvents(const Chaos::FCrumblin
 				if (UPrimitiveComponent* const PrimComp = Scene.GetOwningComponent<UPrimitiveComponent>(CrumblingDataItem.Proxy))
 				{
 					// queue them up so we can release the physics data before triggering BP events
-					FCrumblingChaosEvent& CrumblingEvent = PendingCrumblingEvent.AddZeroed_GetRef();
+					FChaosCrumblingEvent& CrumblingEvent = PendingCrumblingEvent.AddZeroed_GetRef();
 					CrumblingEvent.Component = PrimComp;
 					CrumblingEvent.Location = CrumblingDataItem.Location;
 					CrumblingEvent.Orientation = CrumblingDataItem.Orientation;

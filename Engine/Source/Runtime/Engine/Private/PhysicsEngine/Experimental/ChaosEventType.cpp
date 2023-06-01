@@ -44,7 +44,7 @@ FCollisionChaosEvent::FCollisionChaosEvent(const Chaos::FCollidingData& Collisio
 
 }
 
-FBreakChaosEvent::FBreakChaosEvent()
+FChaosBreakEvent::FChaosBreakEvent()
 	: Component(nullptr)
 	, Location(FVector::ZeroVector)
 	, Velocity(FVector::ZeroVector)
@@ -56,7 +56,7 @@ FBreakChaosEvent::FBreakChaosEvent()
 {
 }
 
-FBreakChaosEvent::FBreakChaosEvent(const Chaos::FBreakingData& BreakingData)
+FChaosBreakEvent::FChaosBreakEvent(const Chaos::FBreakingData& BreakingData)
 	: Component(nullptr)
 	, Location(BreakingData.Location)
 	, Velocity(BreakingData.Velocity)
@@ -68,7 +68,7 @@ FBreakChaosEvent::FBreakChaosEvent(const Chaos::FBreakingData& BreakingData)
 {
 }
 
-FRemovalChaosEvent::FRemovalChaosEvent()
+FChaosRemovalEvent::FChaosRemovalEvent()
 	: Component(nullptr)
 	, Location(FVector::ZeroVector)
 	, Mass(0.0f)

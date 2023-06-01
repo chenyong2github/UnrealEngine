@@ -20,11 +20,7 @@ namespace Chaos
 	struct FBreakingData;
 }
 
-typedef FBreakChaosEvent FChaosBreakEvent;
-typedef FRemovalChaosEvent FChaosRemovalEvent;
-typedef FCrumblingChaosEvent FChaosCrumblingEvent;
-
-typedef TFunction<void(const FBreakChaosEvent&)> FOnBreakEventCallback;
+typedef TFunction<void(const FChaosBreakEvent&)> FOnBreakEventCallback;
 
 /** UStruct wrapper so we can store the TFunction in a TMap */
 USTRUCT()
@@ -36,7 +32,7 @@ public:
 	FOnBreakEventCallback BreakEventCallback;
 };
 
-typedef TFunction<void(const FRemovalChaosEvent&)> FOnRemovalEventCallback;
+typedef TFunction<void(const FChaosRemovalEvent&)> FOnRemovalEventCallback;
 
 /** UStruct wrapper so we can store the TFunction in a TMap */
 USTRUCT()
@@ -48,7 +44,7 @@ public:
 	FOnRemovalEventCallback RemovalEventCallback;
 };
 
-typedef TFunction<void(const FCrumblingChaosEvent&)> FOnCrumblingEventCallback;
+typedef TFunction<void(const FChaosCrumblingEvent&)> FOnCrumblingEventCallback;
 
 /** UStruct wrapper so we can store the TFunction in a TMap */
 USTRUCT()

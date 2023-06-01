@@ -15,7 +15,7 @@ void UChaosEventRelay::DispatchPhysicsCollisionEvents(const TArray<FCollisionCha
 	}
 }
 
-void UChaosEventRelay::DispatchPhysicsBreakEvents(const TArray<FBreakChaosEvent>& BreakEvents)
+void UChaosEventRelay::DispatchPhysicsBreakEvents(const TArray<FChaosBreakEvent>& BreakEvents)
 {
 	if (OnBreakEvent.IsBound())
 	{
@@ -23,7 +23,7 @@ void UChaosEventRelay::DispatchPhysicsBreakEvents(const TArray<FBreakChaosEvent>
 	}
 }
 
-void UChaosEventRelay::DispatchPhysicsRemovalEvents(const TArray<FRemovalChaosEvent>& RemovalEvents)
+void UChaosEventRelay::DispatchPhysicsRemovalEvents(const TArray<FChaosRemovalEvent>& RemovalEvents)
 {
 	if (OnRemovalEvent.IsBound())
 	{
@@ -31,7 +31,7 @@ void UChaosEventRelay::DispatchPhysicsRemovalEvents(const TArray<FRemovalChaosEv
 	}
 }
 
-void UChaosEventRelay::DispatchPhysicsCrumblingEvents(const TArray<FCrumblingChaosEvent>& CrumblingEvents)
+void UChaosEventRelay::DispatchPhysicsCrumblingEvents(const TArray<FChaosCrumblingEvent>& CrumblingEvents)
 {
 	if (OnCrumblingEvent.IsBound())
 	{

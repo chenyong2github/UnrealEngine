@@ -1008,7 +1008,7 @@ void UGeometryCollectionComponent::AddTorqueInRadians(FVector Torque, FName Bone
 	DispatchFieldCommand(Command);
 }
 
-void UGeometryCollectionComponent::DispatchBreakEvent(const FBreakChaosEvent& Event)
+void UGeometryCollectionComponent::DispatchBreakEvent(const FChaosBreakEvent& Event)
 {
 	// native
 	NotifyBreak(Event);
@@ -1020,7 +1020,7 @@ void UGeometryCollectionComponent::DispatchBreakEvent(const FBreakChaosEvent& Ev
 	}
 }
 
-void UGeometryCollectionComponent::DispatchRemovalEvent(const FRemovalChaosEvent& Event)
+void UGeometryCollectionComponent::DispatchRemovalEvent(const FChaosRemovalEvent& Event)
 {
 	// native
 	NotifyRemoval(Event);
@@ -1032,7 +1032,7 @@ void UGeometryCollectionComponent::DispatchRemovalEvent(const FRemovalChaosEvent
 	}
 }
 
-void UGeometryCollectionComponent::DispatchCrumblingEvent(const FCrumblingChaosEvent& Event)
+void UGeometryCollectionComponent::DispatchCrumblingEvent(const FChaosCrumblingEvent& Event)
 {
 	// bp
 	if (OnChaosCrumblingEvent.IsBound())
@@ -1473,7 +1473,7 @@ void UGeometryCollectionComponent::PostEditChangeProperty(FPropertyChangedEvent&
 }
 #endif
 
-static void DispatchGeometryCollectionBreakEvent(const FBreakChaosEvent& Event)
+static void DispatchGeometryCollectionBreakEvent(const FChaosBreakEvent& Event)
 {
 	if (UGeometryCollectionComponent* const GC = Cast<UGeometryCollectionComponent>(Event.Component))
 	{
@@ -1481,7 +1481,7 @@ static void DispatchGeometryCollectionBreakEvent(const FBreakChaosEvent& Event)
 	}
 }
 
-static void DispatchGeometryCollectionRemovalEvent(const FRemovalChaosEvent& Event)
+static void DispatchGeometryCollectionRemovalEvent(const FChaosRemovalEvent& Event)
 {
 	if (UGeometryCollectionComponent* const GC = Cast<UGeometryCollectionComponent>(Event.Component))
 	{
@@ -1489,7 +1489,7 @@ static void DispatchGeometryCollectionRemovalEvent(const FRemovalChaosEvent& Eve
 	}
 }
 
-static void DispatchGeometryCollectionCrumblingEvent(const FCrumblingChaosEvent& Event)
+static void DispatchGeometryCollectionCrumblingEvent(const FChaosCrumblingEvent& Event)
 {
 	if (UGeometryCollectionComponent* const GC = Cast<UGeometryCollectionComponent>(Event.Component))
 	{
@@ -3172,7 +3172,7 @@ void UGeometryCollectionComponent::OnPostPhysicsSync()
 			{
 				if (OnRootBreakEvent.IsBound())
 				{
-					FBreakChaosEvent Event;
+					FChaosBreakEvent Event;
 					Event.Index = GetRootIndex();
 					Event.Component = this;
 					OnRootBreakEvent.Broadcast(Event);
