@@ -740,7 +740,7 @@ namespace Horde.Server.Server
 					}
 					else
 					{
-						_logger.LogInformation("Creating index {IndexName} in {CollectionName}: {Definition}", createIndex.Name, collectionName, createIndex.ToJson());
+						_logger.LogInformation("Creating index {IndexName} in {CollectionName}", createIndex.Name, collectionName);
 
 						CreateIndexOptions<T> options = new CreateIndexOptions<T>();
 						options.Name = createIndex.Name;
