@@ -385,7 +385,7 @@ int32 FMaterialHLSLGenerator::FindInputIndex(const FExpressionInput* Input) cons
 	int32 Index = INDEX_NONE;
 	if (OwnerMaterialExpression)
 	{
-		TArrayView<FExpressionInput*> Inputs = OwnerMaterialExpression->GetInputsView();
+		const TArray<FExpressionInput*> Inputs = OwnerMaterialExpression->GetInputs();
 		Index = Inputs.Find(const_cast<FExpressionInput*>(Input));
 	}
 	return Index;

@@ -84,7 +84,7 @@ namespace UE
 				{
 					int32 ExpressionInputIndex = 0;
 
-					for (const FExpressionInput* ExpressionInput : MaterialExpression.GetInputsView())
+					for (const FExpressionInput* ExpressionInput : MaterialExpression.GetInputs())
 					{
 						// MaterialFuncCall appends the type to the input name when calling GetInputName
 						// and the InputName in FExpressionInput is optional so we'll check both here to be safe

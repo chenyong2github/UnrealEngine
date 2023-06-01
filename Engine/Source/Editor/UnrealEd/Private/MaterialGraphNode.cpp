@@ -671,7 +671,7 @@ void UMaterialGraphNode::CreateInputPins()
 		NewPin->PinFriendlyName = SpaceText;
 	}
 
-	TArrayView<FExpressionInput*> ExpressionInputs = MaterialExpression->GetInputsView();
+	TArray<FExpressionInput*> ExpressionInputs = MaterialExpression->GetInputs();
 	const int32 NumExpressionInputs = ExpressionInputs.Num();
 	for (int32 Index = 0; Index < NumExpressionInputs; ++Index)
 	{

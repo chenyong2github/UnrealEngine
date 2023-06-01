@@ -1834,15 +1834,14 @@ void UMaterialExpressionLandscapeGrassOutput::GetCaption(TArray<FString>& OutCap
 	OutCaptions.Add(TEXT("Landscape Grass"));
 }
 
-TArrayView<FExpressionInput*> UMaterialExpressionLandscapeGrassOutput::GetInputsView()
+const TArray<FExpressionInput*> UMaterialExpressionLandscapeGrassOutput::GetInputs()
 {
-	CachedInputs.Empty();
-	CachedInputs.Reserve(GrassTypes.Num());
+	TArray<FExpressionInput*> OutInputs;
 	for (auto& GrassType : GrassTypes)
 	{
-		CachedInputs.Add(&GrassType.Input);
+		OutInputs.Add(&GrassType.Input);
 	}
-	return CachedInputs;
+	return OutInputs;
 }
 
 FExpressionInput* UMaterialExpressionLandscapeGrassOutput::GetInput(int32 InputIndex)

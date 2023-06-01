@@ -45,7 +45,7 @@ static FExpressionInput* GetExpressionInputByName(UMaterialExpression* Expressio
 	check(Expression);
 	FExpressionInput* Result = nullptr;
 
-	TArrayView<FExpressionInput*> Inputs = Expression->GetInputsView();
+	TArray<FExpressionInput*> Inputs = Expression->GetInputs();
 
 	// Return first input if no name specified
 	if (InputName.IsNone())
@@ -184,7 +184,7 @@ namespace MaterialEditingLibraryImpl
 
 		MaterialExpressionsToLayout.Add( MaterialExpression ) = MoveTemp( LayoutInfo );
 
-		for ( FExpressionInput* ExpressionInput : MaterialExpression->GetInputsView() )
+		for ( FExpressionInput* ExpressionInput : MaterialExpression->GetInputs() )
 		{
 			LayoutMaterialExpression( ExpressionInput->Expression, MaterialExpression, MaterialExpressionsToLayout, Row, Depth + 1 );
 		}
@@ -420,7 +420,7 @@ static void BreakLinksToExpression(TConstArrayView<TObjectPtr<UMaterialExpressio
 		// Don't check myself, though that shouldn't really matter...
 		if (TestExp != Expression)
 		{
-			TArrayView<FExpressionInput*> Inputs = TestExp->GetInputsView();
+			TArray<FExpressionInput*> Inputs = TestExp->GetInputs();
 			for (FExpressionInput* Input : Inputs)
 			{
 				if (Input->Expression == Expression)
@@ -854,7 +854,7 @@ TArray<UMaterialExpression*> UMaterialEditingLibrary::GetInputsForMaterialExpres
 	TArray<UMaterialExpression*> MaterialExpressions;
 	if (Material)
 	{
-		for (const FExpressionInput* Input : MaterialExpression->GetInputsView())
+		for (const FExpressionInput* Input : MaterialExpression->GetInputs())
 		{
 			MaterialExpressions.Add(Input->Expression);
 		}
@@ -866,7 +866,7 @@ TArray<UMaterialExpression*> UMaterialEditingLibrary::GetInputsForMaterialExpres
 bool UMaterialEditingLibrary::GetInputNodeOutputNameForMaterialExpression(UMaterialExpression* MaterialExpression, UMaterialExpression* InputNode, FString& OutputName)
 {
 	OutputName = TEXT("");
-	for (const FExpressionInput* Input : MaterialExpression->GetInputsView())
+	for (const FExpressionInput* Input : MaterialExpression->GetInputs())
 	{
 		if (Input->Expression == InputNode)
 		{

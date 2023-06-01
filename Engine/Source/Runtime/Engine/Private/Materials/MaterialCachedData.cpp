@@ -762,7 +762,7 @@ struct FMaterialConnectedPropertiesAnalyzer
 			// If otherwise specified, explore all input expressions to this node.
 			if (bVisitAllInputExpressions)
 			{
-				for (FExpressionInput* ExpressionInput : Expression->GetInputsView())
+				for (FExpressionInput* ExpressionInput : Expression->GetInputs())
 				{
 					PushUnexploredExpression(ExpressionInput->Expression);
 				}

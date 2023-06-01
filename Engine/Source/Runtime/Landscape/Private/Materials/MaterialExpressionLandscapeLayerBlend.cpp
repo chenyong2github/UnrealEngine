@@ -54,19 +54,18 @@ void UMaterialExpressionLandscapeLayerBlend::Serialize(FStructuredArchive::FReco
 
 #if WITH_EDITOR
 
-TArrayView<FExpressionInput*> UMaterialExpressionLandscapeLayerBlend::GetInputsView()
+const TArray<FExpressionInput*> UMaterialExpressionLandscapeLayerBlend::GetInputs()
 {
-	CachedInputs.Empty();
-	CachedInputs.Reserve(Layers.Num() * 2);
+	TArray<FExpressionInput*> Result;
 	for (int32 LayerIdx = 0; LayerIdx<Layers.Num(); LayerIdx++)
 	{
-		CachedInputs.Add(&Layers[LayerIdx].LayerInput);
+		Result.Add(&Layers[LayerIdx].LayerInput);
 		if (Layers[LayerIdx].BlendType == LB_HeightBlend)
 		{
-			CachedInputs.Add(&Layers[LayerIdx].HeightInput);
+			Result.Add(&Layers[LayerIdx].HeightInput);
 		}
 	}
-	return CachedInputs;
+	return Result;
 }
 
 

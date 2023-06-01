@@ -497,7 +497,7 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 			continue;
 		}
 
-		TArrayView<FExpressionInput*> ExpressionInputs = Expression->GetInputsView();
+		const TArray<FExpressionInput*> ExpressionInputs = Expression->GetInputs();
 
 		TArray<FExpressionExecOutputEntry> ExecOutputs;
 		Expression->GetExecOutputs(ExecOutputs);
@@ -631,7 +631,7 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph()
 						Expression->Desc = GraphNode->NodeComment;
 					}
 
-					TArrayView<FExpressionInput*> ExpressionInputs = Expression->GetInputsView();
+					const TArray<FExpressionInput*> ExpressionInputs = Expression->GetInputs();
 
 					TArray<FExpressionExecOutputEntry> ExecOutputs;
 					Expression->GetExecOutputs(ExecOutputs);

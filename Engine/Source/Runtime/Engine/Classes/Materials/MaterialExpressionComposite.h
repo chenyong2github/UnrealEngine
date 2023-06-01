@@ -73,7 +73,7 @@ class UMaterialExpressionComposite : public UMaterialExpression
 	virtual void SetEditableName(const FString& NewName);
 
 	virtual TArray<FExpressionOutput>& GetOutputs() override;
-	virtual TArrayView<FExpressionInput*> GetInputsView() override;
+	virtual const TArray<FExpressionInput*> GetInputs() override;
 	virtual FExpressionInput* GetInput(int32 InputIndex) override;
 	virtual FName GetInputName(int32 InputIndex) const override;
 	virtual uint32 GetInputType(int32 InputIndex) override;

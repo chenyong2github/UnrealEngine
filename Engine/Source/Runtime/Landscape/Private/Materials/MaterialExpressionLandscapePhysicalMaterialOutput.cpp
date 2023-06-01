@@ -41,15 +41,14 @@ void UMaterialExpressionLandscapePhysicalMaterialOutput::GetCaption(TArray<FStri
 	OutCaptions.Add(FString(TEXT("Landscape Physical Material Output")));
 }
 
-TArrayView<FExpressionInput*> UMaterialExpressionLandscapePhysicalMaterialOutput::GetInputsView()
+const TArray<FExpressionInput*> UMaterialExpressionLandscapePhysicalMaterialOutput::GetInputs()
 {
-	CachedInputs.Empty();
-	CachedInputs.Reserve(Inputs.Num());
+	TArray<FExpressionInput*> OutInputs;
 	for (auto& Input : Inputs)
 	{
-		CachedInputs.Add(&Input.Input);
+		OutInputs.Add(&Input.Input);
 	}
-	return CachedInputs;
+	return OutInputs;
 }
 
 FExpressionInput* UMaterialExpressionLandscapePhysicalMaterialOutput::GetInput(int32 InputIndex)

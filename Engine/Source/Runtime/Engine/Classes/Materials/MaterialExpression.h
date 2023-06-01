@@ -345,13 +345,8 @@ class ENGINE_API UMaterialExpression : public UObject
 	 *	@param	Outputs		The TArray of outputs to fill in.
 	 */
 	virtual TArray<FExpressionOutput>& GetOutputs();
-	
 	/** Get the expression inputs supported by this expression (Note: property inputs NOT included). */
-	virtual TArrayView<FExpressionInput*> GetInputsView();
-	
-	UE_DEPRECATED(5.2, "Use GetInputsView() instead.")
-	const TArray<FExpressionInput*> GetInputs() { return TArray<FExpressionInput*>{ GetInputsView() }; }
-
+	virtual const TArray<FExpressionInput*> GetInputs();
 	virtual FExpressionInput* GetInput(int32 InputIndex);
 	virtual FName GetInputName(int32 InputIndex) const;
 	virtual bool IsInputConnectionRequired(int32 InputIndex) const;
@@ -575,16 +570,6 @@ class ENGINE_API UMaterialExpression : public UObject
 	bool ContainsInputLoop(const bool bStopOnFunctionCall = true);
 
 protected:
-	/** Caches the list of expression inputs this expression has. */
-	TArray<FExpressionInput*> CachedInputs;
-
-private:
-	/**
-	 * Helper struct to represent nodes the trail of nodes we're coming from when visiting a new
-	 * expression input node.
-	 */
-	struct FContainsInputLoopInternalExpressionStack;
-
 	/**
 	 * Checks whether any inputs to this expression create a loop by recursively
 	 * calling itself and keeping a list of inputs as expression keys.
@@ -592,8 +577,7 @@ private:
 	 * @param ExpressionStack    List of expression keys that have been checked already in the current stack
 	 * @param VisitedExpressions List of all expression keys that have been visited
 	 */
-	bool ContainsInputLoopInternal(const FContainsInputLoopInternalExpressionStack& ExpressionStack, TSet<class FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall);
-
+	bool ContainsInputLoopInternal(TArray<class FMaterialExpressionKey>& ExpressionStack, TSet<class FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall);
 #endif // WITH_EDITOR
 };
 

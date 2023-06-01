@@ -737,22 +737,6 @@ UMaterialExpression::UMaterialExpression(const FObjectInitializer& ObjectInitial
 	bCollapsed = true;
 	bShowMaskColorsOnPin = true;
 #endif // WITH_EDITORONLY_DATA
-
-#if WITH_EDITOR
-	// Iterate over the properties of derived expression struct, searching for properties of type FExpressionInput, and add them to the list of cached inputs.
-	for (TFieldIterator<FStructProperty> InputIt(GetClass(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated); InputIt; ++InputIt)
-	{
-		FStructProperty* StructProp = *InputIt;
-		if (StructProp->Struct->GetFName() == NAME_ExpressionInput)
-		{
-			for (int32 ArrayIndex = 0; ArrayIndex < StructProp->ArrayDim; ArrayIndex++)
-			{
-				CachedInputs.Add(StructProp->ContainerPtrToValuePtr<FExpressionInput>(this, ArrayIndex));
-			}
-		}
-	}
-	CachedInputs.Shrink();
-#endif
 }
 
 UObject* UMaterialExpression::GetAssetOwner() const
@@ -842,7 +826,7 @@ void UMaterialExpression::CopyMaterialExpressions(const TArray<UMaterialExpressi
 	for( int32 NewExpressionIndex = 0 ; NewExpressionIndex < OutNewExpressions.Num() ; ++NewExpressionIndex )
 	{
 		UMaterialExpression* NewExpression = OutNewExpressions[NewExpressionIndex];
-		TArrayView<FExpressionInput*> ExpressionInputs = NewExpression->GetInputsView();
+		const TArray<FExpressionInput*>& ExpressionInputs = NewExpression->GetInputs();
 		for ( int32 ExpressionInputIndex = 0 ; ExpressionInputIndex < ExpressionInputs.Num() ; ++ExpressionInputIndex )
 		{
 			FExpressionInput* Input = ExpressionInputs[ExpressionInputIndex];
@@ -895,7 +879,7 @@ void UMaterialExpression::Serialize(FStructuredArchive::FRecord Record)
 	const int32 RenderVer = Archive.CustomVer(FRenderingObjectVersion::GUID);
 	const int32 UE5Ver = Archive.CustomVer(FUE5MainStreamObjectVersion::GUID);
 
-	TArrayView<FExpressionInput*> Inputs = GetInputsView();
+	const TArray<FExpressionInput*> Inputs = GetInputs();
 	for (int32 InputIndex = 0; InputIndex < Inputs.Num(); ++InputIndex)
 	{
 		FExpressionInput* Input = Inputs[InputIndex];
@@ -965,7 +949,7 @@ TArray<FProperty*> UMaterialExpression::GetInputPinProperty(int32 PinIndex)
 	TArray<FProperty*> Properties;
 	// Explicit input pins are before property input pins
 	TArray<FProperty*> PropertyInputs = GetPropertyInputs();
-	const int32 NumInputs = GetInputsView().Num();
+	const int32 NumInputs = GetInputs().Num();
 	if (PinIndex < NumInputs)
 	{
 		FExpressionInput* Input = GetInput(PinIndex);
@@ -1479,7 +1463,7 @@ void UMaterialExpression::PostEditChangeProperty(FPropertyChangedEvent& Property
 	if (MemberPropertyThatChanged != nullptr && GraphNode)
 	{
 		int32 PinIndex = -1;
-		TArrayView<FExpressionInput*> AllInputs = GetInputsView();
+		const TArray<FExpressionInput*> AllInputs = GetInputs();
 
 		// Find the expression input this UPROPERTY points to with OverridingInputProperty meta data
 		static FName OverridingInputPropertyMetaData(TEXT("OverridingInputProperty"));
@@ -1670,30 +1654,58 @@ TArray<FExpressionOutput>& UMaterialExpression::GetOutputs()
 }
 
 
-TArrayView<FExpressionInput*> UMaterialExpression::GetInputsView()
+const TArray<FExpressionInput*> UMaterialExpression::GetInputs()
 {
-	return CachedInputs;
+	TArray<FExpressionInput*> Result;
+	for( TFieldIterator<FStructProperty> InputIt(GetClass(), EFieldIteratorFlags::IncludeSuper,  EFieldIteratorFlags::ExcludeDeprecated) ; InputIt ; ++InputIt )
+	{
+		FStructProperty* StructProp = *InputIt;
+		if( StructProp->Struct->GetFName() == NAME_ExpressionInput)
+		{
+			for (int32 ArrayIndex = 0; ArrayIndex < StructProp->ArrayDim; ArrayIndex++)
+			{
+				Result.Add(StructProp->ContainerPtrToValuePtr<FExpressionInput>(this, ArrayIndex));
+			}
+		}
+	}
+	return Result;
 }
 
 
 FExpressionInput* UMaterialExpression::GetInput(int32 InputIndex)
 {
-	TArrayView<FExpressionInput*> Inputs = GetInputsView();
-	return InputIndex < Inputs.Num() ? Inputs[InputIndex] : nullptr;
+	int32 Index = 0;
+	for( TFieldIterator<FStructProperty> InputIt(GetClass(), EFieldIteratorFlags::IncludeSuper,  EFieldIteratorFlags::ExcludeDeprecated) ; InputIt ; ++InputIt )
+	{
+		FStructProperty* StructProp = *InputIt;
+		if( StructProp->Struct->GetFName() == NAME_ExpressionInput)
+		{
+			for (int32 ArrayIndex = 0; ArrayIndex < StructProp->ArrayDim; ArrayIndex++)
+			{
+			if( Index == InputIndex )
+			{
+					return StructProp->ContainerPtrToValuePtr<FExpressionInput>(this, ArrayIndex);
+			}
+			Index++;
+		}
+	}
+	}
+
+	return nullptr;
 }
 
 
 FName UMaterialExpression::GetInputName(int32 InputIndex) const
 {
 	int32 Index = 0;
-	for (TFieldIterator<FStructProperty> InputIt(GetClass(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated); InputIt; ++InputIt)
+	for( TFieldIterator<FStructProperty> InputIt(GetClass(),EFieldIteratorFlags::IncludeSuper,  EFieldIteratorFlags::ExcludeDeprecated) ; InputIt ; ++InputIt )
 	{
 		FStructProperty* StructProp = *InputIt;
-		if (StructProp->Struct->GetFName() == NAME_ExpressionInput)
+		if( StructProp->Struct->GetFName() == NAME_ExpressionInput)
 		{
 			for (int32 ArrayIndex = 0; ArrayIndex < StructProp->ArrayDim; ArrayIndex++)
 			{
-				if (Index == InputIndex)
+				if( Index == InputIndex )
 				{
 					FExpressionInput const* Input = StructProp->ContainerPtrToValuePtr<FExpressionInput>(this, ArrayIndex);
 
@@ -2103,7 +2115,7 @@ bool UMaterialExpression::GetAllInputExpressions(TArray<UMaterialExpression*>& I
 		bool bFoundRepeat = false;
 		InputExpressions.Add(this);
 
-		TArrayView<FExpressionInput*> Inputs = GetInputsView();
+		const TArray<FExpressionInput*> Inputs = GetInputs();
 
 		for (int32 Index = 0; Index < Inputs.Num(); Index++)
 		{
@@ -2185,73 +2197,45 @@ bool UMaterialExpression::HasConnectedOutputs() const
 	return bIsConnected;
 }
 
-struct UMaterialExpression::FContainsInputLoopInternalExpressionStack
-{
-	const FMaterialExpressionKey* Key;
-	const FContainsInputLoopInternalExpressionStack* Previous;
-
-	FContainsInputLoopInternalExpressionStack(const FMaterialExpressionKey* Key, const FContainsInputLoopInternalExpressionStack* Previous)
-		: Key{ Key }
-		, Previous{ Previous }
-	{}
-
-	bool Contains(const FMaterialExpressionKey& OtherKey) const
-	{
-		const FContainsInputLoopInternalExpressionStack* Node = this;
-		while (Node->Key)
-		{
-			if (*Node->Key == OtherKey)
-			{
-				return true;
-			}
-			Node = Node->Previous;
-		}
-		return false;
-	}
-};
-
 bool UMaterialExpression::ContainsInputLoop(const bool bStopOnFunctionCall /*= true*/)
 {
-	FContainsInputLoopInternalExpressionStack ExpressionStack{ nullptr, nullptr };
+	TArray<FMaterialExpressionKey> ExpressionStack;
 	TSet<FMaterialExpressionKey> VisitedExpressions;
 	return ContainsInputLoopInternal(ExpressionStack, VisitedExpressions, bStopOnFunctionCall);
 }
 
-bool UMaterialExpression::ContainsInputLoopInternal(const FContainsInputLoopInternalExpressionStack& ExpressionStack, TSet<FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall)
+bool UMaterialExpression::ContainsInputLoopInternal(TArray<FMaterialExpressionKey>& ExpressionStack, TSet<FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall)
 {
-	for (FExpressionInput* Input : GetInputsView())
+	const TArray<FExpressionInput*> Inputs = GetInputs();
+	for (int32 Index = 0; Index < Inputs.Num(); ++Index)
 	{
-		UMaterialExpression* InputExpression = Input->Expression;
-		if (!InputExpression)
+		FExpressionInput* Input = Inputs[Index];
+		if (Input->Expression)
 		{
-			continue;
-		}
+			// ContainsInputLoop primarily used to detect safe traversal path for IsResultMaterialAttributes.
+			// In those cases we can bail on a function as the inputs are strongly typed
+			UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Input->Expression);
+			UMaterialExpressionMaterialAttributeLayers* Layers = Cast<UMaterialExpressionMaterialAttributeLayers>(Input->Expression);
+			if (bStopOnFunctionCall && (FunctionCall || Layers))
+			{
+				continue;
+			}
 
-		// ContainsInputLoop primarily used to detect safe traversal path for IsResultMaterialAttributes.
-		// In those cases we can bail on a function as the inputs are strongly typed
-		UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(InputExpression);
-		UMaterialExpressionMaterialAttributeLayers* Layers = Cast<UMaterialExpressionMaterialAttributeLayers>(InputExpression);
-		if (bStopOnFunctionCall && (FunctionCall || Layers))
-		{
-			continue;
-		}
-
-		// A cycle is detected if one of this node's inputs leads back to a node we're coming from.
-		FMaterialExpressionKey InputExpressionKey(InputExpression, Input->OutputIndex);
-		if (ExpressionStack.Contains(InputExpressionKey))
-		{
-			return true;
-		}
-
-		// Prevent recurring visits to expressions we've already checked
-		if (!VisitedExpressions.Contains(InputExpressionKey))
-		{
-			VisitedExpressions.Add(InputExpressionKey);
-
-			FContainsInputLoopInternalExpressionStack ExpressionStackWithThisInput{ &InputExpressionKey, &ExpressionStack };
-			if (InputExpression->ContainsInputLoopInternal(ExpressionStackWithThisInput, VisitedExpressions, bStopOnFunctionCall))
+			FMaterialExpressionKey InputExpressionKey(Input->Expression, Input->OutputIndex);
+			if (ExpressionStack.Contains(InputExpressionKey))
 			{
 				return true;
+			}
+			// prevent recurring visits to expressions we've already checked
+			else if (!VisitedExpressions.Contains(InputExpressionKey))
+			{
+				VisitedExpressions.Add(InputExpressionKey);
+				ExpressionStack.Add(InputExpressionKey);
+				if (Input->Expression->ContainsInputLoopInternal(ExpressionStack, VisitedExpressions, bStopOnFunctionCall))
+				{
+					return true;
+				}
+				ExpressionStack.Pop();
 			}
 		}
 	}
@@ -2526,16 +2510,18 @@ void UMaterialExpressionTextureSample::PostLoad()
 	}
 }
 
-TArrayView<FExpressionInput*> UMaterialExpressionTextureSample::GetInputsView()
+const TArray<FExpressionInput*> UMaterialExpressionTextureSample::GetInputs()
 {
-	CachedInputs.Empty();
+	TArray<FExpressionInput*> OutInputs;
+
 	// todo: we should remove GetInputs() and make this the common code for all expressions
 	uint32 InputIndex = 0;
-	while (FExpressionInput* Ptr = GetInput(InputIndex++))
+	while(FExpressionInput* Ptr = GetInput(InputIndex++))
 	{
-		CachedInputs.Add(Ptr);
+		OutInputs.Add(Ptr);
 	}
-	return CachedInputs;
+
+	return OutInputs;
 }
 
 // this define is only used for the following function
@@ -3539,7 +3525,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureReplace::Compile(class FMaterialCo
 
 bool UMaterialExpressionRuntimeVirtualTextureReplace::IsResultMaterialAttributes(int32 OutputIndex)
 {
-	for (FExpressionInput* ExpressionInput : GetInputsView())
+	for (FExpressionInput* ExpressionInput : GetInputs())
 	{
 		if (ExpressionInput->GetTracedInput().Expression && !ExpressionInput->Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
 		{
@@ -3599,7 +3585,7 @@ int32 UMaterialExpressionVirtualTextureFeatureSwitch::Compile(class FMaterialCom
 
 bool UMaterialExpressionVirtualTextureFeatureSwitch::IsResultMaterialAttributes(int32 OutputIndex)
 {
-	for (FExpressionInput* ExpressionInput : GetInputsView())
+	for (FExpressionInput* ExpressionInput : GetInputs())
 	{
 		if (ExpressionInput->GetTracedInput().Expression && !ExpressionInput->Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
 		{
@@ -3797,13 +3783,7 @@ UMaterialExpressionTextureObjectParameter::UMaterialExpressionTextureObjectParam
 
 	Outputs.Empty();
 	Outputs.Add(FExpressionOutput(TEXT("")));
-
 #endif // WITH_EDITORONLY_DATA
-
-#if WITH_EDITOR
-	// Hide the texture coordinate input
-	CachedInputs.Empty();
-#endif
 }
 
 #if WITH_EDITOR
@@ -3822,6 +3802,12 @@ void UMaterialExpressionTextureObjectParameter::GetCaption(TArray<FString>& OutC
 {
 	OutCaptions.Add(TEXT("Param Tex Object")); 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
+}
+
+const TArray<FExpressionInput*> UMaterialExpressionTextureObjectParameter::GetInputs()
+{
+	// Hide the texture coordinate input
+	return TArray<FExpressionInput*>();
 }
 
 int32 UMaterialExpressionTextureObjectParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
@@ -6789,11 +6775,6 @@ UMaterialExpressionBreakMaterialAttributes::UMaterialExpressionBreakMaterialAttr
 	Outputs.Add(FExpressionOutput(TEXT("ShadingModel"), 0, 0, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Displacement"), 1, 1, 0, 0, 0));
 #endif
-
-#if WITH_EDITOR
-	CachedInputs.Empty();
-	CachedInputs.Add(&MaterialAttributes);
-#endif
 }
 
 void UMaterialExpressionBreakMaterialAttributes::Serialize(FStructuredArchive::FRecord Record)
@@ -6897,6 +6878,23 @@ void UMaterialExpressionBreakMaterialAttributes::GetCaption(TArray<FString>& Out
 	OutCaptions.Add(TEXT("BreakMaterialAttributes"));
 }
 
+const TArray<FExpressionInput*> UMaterialExpressionBreakMaterialAttributes::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&MaterialAttributes);
+	return Result;
+}
+
+
+FExpressionInput* UMaterialExpressionBreakMaterialAttributes::GetInput(int32 InputIndex)
+{
+	if( 0 == InputIndex )
+	{
+		return &MaterialAttributes;
+	}
+
+	return nullptr;
+}
 
 FName UMaterialExpressionBreakMaterialAttributes::GetInputName(int32 InputIndex) const
 {
@@ -6954,9 +6952,6 @@ UMaterialExpressionGetMaterialAttributes::UMaterialExpressionGetMaterialAttribut
 	// Add default output pins
 	Outputs.Reset();
 	Outputs.Add(FExpressionOutput(TEXT("MaterialAttributes"), 0, 0, 0, 0, 0));
-
-	CachedInputs.Empty();
-	CachedInputs.Push(&MaterialAttributes);
 #endif
 }
 
@@ -7001,6 +6996,23 @@ int32 UMaterialExpressionGetMaterialAttributes::Compile(class FMaterialCompiler*
 void UMaterialExpressionGetMaterialAttributes::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("GetMaterialAttributes"));
+}
+
+const TArray<FExpressionInput*> UMaterialExpressionGetMaterialAttributes::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&MaterialAttributes);
+	return Result;
+}
+
+FExpressionInput* UMaterialExpressionGetMaterialAttributes::GetInput(int32 InputIndex)
+{
+	if (InputIndex == 0)
+	{
+		return &MaterialAttributes;
+	}
+
+	return nullptr;
 }
 
 FName UMaterialExpressionGetMaterialAttributes::GetInputName(int32 InputIndex) const
@@ -7273,15 +7285,14 @@ void UMaterialExpressionSetMaterialAttributes::GetCaption(TArray<FString>& OutCa
 	OutCaptions.Add(TEXT("SetMaterialAttributes"));
 }
 
-TArrayView<FExpressionInput*> UMaterialExpressionSetMaterialAttributes::GetInputsView()
+const TArray<FExpressionInput*> UMaterialExpressionSetMaterialAttributes::GetInputs()
 {
-	CachedInputs.Empty();
-	CachedInputs.Reserve(Inputs.Num());
+	TArray<FExpressionInput*> Result;
 	for (FExpressionInput& Input : Inputs)
 	{
-		CachedInputs.Push(&Input);
+		Result.Add(&Input);
 	}
-	return CachedInputs;
+	return Result;
 }
 
 FExpressionInput* UMaterialExpressionSetMaterialAttributes::GetInput(int32 InputIndex)
@@ -7450,14 +7461,6 @@ UMaterialExpressionBlendMaterialAttributes::UMaterialExpressionBlendMaterialAttr
 	Outputs.Reset();
 	Outputs.Add(FExpressionOutput(TEXT(""), 0, 0, 0, 0, 0));
 #endif
-
-#if WITH_EDITOR
-	CachedInputs.Empty();
-	CachedInputs.Reserve(3);
-	CachedInputs.Add(&A);
-	CachedInputs.Add(&B);
-	CachedInputs.Add(&Alpha);
-#endif
 }
 
 #if WITH_EDITOR
@@ -7520,6 +7523,33 @@ int32 UMaterialExpressionBlendMaterialAttributes::Compile(class FMaterialCompile
 void UMaterialExpressionBlendMaterialAttributes::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("BlendMaterialAttributes"));
+}
+
+const TArray<FExpressionInput*> UMaterialExpressionBlendMaterialAttributes::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&A);
+	Result.Add(&B);
+	Result.Add(&Alpha);
+	return Result;
+}
+
+FExpressionInput* UMaterialExpressionBlendMaterialAttributes::GetInput(int32 InputIndex)
+{
+	if (InputIndex == 0)
+	{
+		return &A;
+	}
+	else if (InputIndex == 1)
+	{
+		return &B;
+	}
+	else if (InputIndex == 2)
+	{
+		return &Alpha;
+	}
+
+	return nullptr;
 }
 
 FName UMaterialExpressionBlendMaterialAttributes::GetInputName(int32 InputIndex) const
@@ -7616,9 +7646,6 @@ UMaterialExpressionMaterialAttributeLayers::UMaterialExpressionMaterialAttribute
 
 #if WITH_EDITOR
 	DefaultLayers.AddDefaultBackgroundLayer();
-	
-	CachedInputs.Empty();
-	CachedInputs.Push(&Input);
 #endif
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialAttributes);
@@ -8047,6 +8074,23 @@ void UMaterialExpressionMaterialAttributeLayers::GetCaption(TArray<FString>& Out
 void UMaterialExpressionMaterialAttributeLayers::GetExpressionToolTip(TArray<FString>& OutToolTip) 
 {
 	ConvertToMultilineToolTip(TEXT("Evaluates the active material layer stack and outputs the merged attributes."), 40, OutToolTip);
+}
+
+const TArray<FExpressionInput*> UMaterialExpressionMaterialAttributeLayers::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&Input);
+	return Result;
+}
+
+FExpressionInput* UMaterialExpressionMaterialAttributeLayers::GetInput(int32 InputIndex)
+{
+	if (InputIndex == 0)
+	{
+		return &Input;
+	}
+
+	return nullptr;
 }
 
 FName UMaterialExpressionMaterialAttributeLayers::GetInputName(int32 InputIndex) const
@@ -9447,6 +9491,30 @@ void UMaterialExpressionQualitySwitch::GetCaption(TArray<FString>& OutCaptions) 
 	OutCaptions.Add(FString(TEXT("Quality Switch")));
 }
 
+const TArray<FExpressionInput*> UMaterialExpressionQualitySwitch::GetInputs()
+{
+	TArray<FExpressionInput*> OutInputs;
+
+	OutInputs.Add(&Default);
+
+	for (int32 InputIndex = 0; InputIndex < UE_ARRAY_COUNT(Inputs); InputIndex++)
+	{
+		OutInputs.Add(&Inputs[InputIndex]);
+	}
+
+	return OutInputs;
+}
+
+FExpressionInput* UMaterialExpressionQualitySwitch::GetInput(int32 InputIndex)
+{
+	if (InputIndex == 0)
+	{
+		return &Default;
+	}
+
+	return &Inputs[InputIndex - 1];
+}
+
 FName UMaterialExpressionQualitySwitch::GetInputName(int32 InputIndex) const
 {
 	if (InputIndex == 0)
@@ -9465,7 +9533,7 @@ bool UMaterialExpressionQualitySwitch::IsInputConnectionRequired(int32 InputInde
 bool UMaterialExpressionQualitySwitch::IsResultMaterialAttributes(int32 OutputIndex)
 {
 	check(OutputIndex == 0);
-	TArrayView<FExpressionInput*> ExpressionInputs = GetInputsView();
+	TArray<FExpressionInput*> ExpressionInputs = GetInputs();
 
 	for (FExpressionInput* ExpressionInput : ExpressionInputs)
 	{
@@ -9569,6 +9637,30 @@ void UMaterialExpressionFeatureLevelSwitch::GetCaption(TArray<FString>& OutCapti
 	OutCaptions.Add(FString(TEXT("Feature Level Switch")));
 }
 
+const TArray<FExpressionInput*> UMaterialExpressionFeatureLevelSwitch::GetInputs()
+{
+	TArray<FExpressionInput*> OutInputs;
+
+	OutInputs.Add(&Default);
+
+	for (int32 InputIndex = 0; InputIndex < UE_ARRAY_COUNT(Inputs); InputIndex++)
+	{
+		OutInputs.Add(&Inputs[InputIndex]);
+	}
+
+	return OutInputs;
+}
+
+FExpressionInput* UMaterialExpressionFeatureLevelSwitch::GetInput(int32 InputIndex)
+{
+	if (InputIndex == 0)
+	{
+		return &Default;
+	}
+
+	return &Inputs[InputIndex - 1];
+}
+
 FName UMaterialExpressionFeatureLevelSwitch::GetInputName(int32 InputIndex) const
 {
 	if (InputIndex == 0)
@@ -9590,7 +9682,7 @@ bool UMaterialExpressionFeatureLevelSwitch::IsInputConnectionRequired(int32 Inpu
 bool UMaterialExpressionFeatureLevelSwitch::IsResultMaterialAttributes(int32 OutputIndex)
 {
 	check(OutputIndex == 0);
-	TArrayView<FExpressionInput*> ExpressionInputs = GetInputsView();
+	TArray<FExpressionInput*> ExpressionInputs = GetInputs();
 
 	for (FExpressionInput* ExpressionInput : ExpressionInputs)
 	{
@@ -9736,6 +9828,27 @@ bool UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::IsInputConnectionReq
 	return true;
 }
 
+const TArray<FExpressionInput*> UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&InputTrue);
+	Result.Add(&InputFalse);
+	return Result;
+}
+
+FExpressionInput* UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::GetInput(int32 InputIndex)
+{
+	if (InputIndex == 0)
+	{
+		return &InputTrue;
+	}
+	else if (InputIndex == 1)
+	{
+		return &InputFalse;
+	}
+	return nullptr;
+}
+
 FName UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::GetInputName(int32 InputIndex) const
 {
 	TStringBuilder<128> Condition;
@@ -9778,7 +9891,7 @@ FName UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::GetInputName(int32 
 bool UMaterialExpressionDataDrivenShaderPlatformInfoSwitch::IsResultMaterialAttributes(int32 OutputIndex)
 {
 	check(OutputIndex == 0);
-	TArrayView<FExpressionInput*> ExpressionInputs = GetInputsView();
+	TArray<FExpressionInput*> ExpressionInputs = GetInputs();
 
 	for (FExpressionInput* ExpressionInput : ExpressionInputs)
 	{
@@ -9874,6 +9987,30 @@ void UMaterialExpressionShadingPathSwitch::GetCaption(TArray<FString>& OutCaptio
 	OutCaptions.Add(FString(TEXT("Shading Path Switch")));
 }
 
+const TArray<FExpressionInput*> UMaterialExpressionShadingPathSwitch::GetInputs()
+{
+	TArray<FExpressionInput*> OutInputs;
+
+	OutInputs.Add(&Default);
+
+	for (int32 InputIndex = 0; InputIndex < UE_ARRAY_COUNT(Inputs); InputIndex++)
+	{
+		OutInputs.Add(&Inputs[InputIndex]);
+	}
+
+	return OutInputs;
+}
+
+FExpressionInput* UMaterialExpressionShadingPathSwitch::GetInput(int32 InputIndex)
+{
+	if (InputIndex == 0)
+	{
+		return &Default;
+	}
+
+	return &Inputs[InputIndex - 1];
+}
+
 FName UMaterialExpressionShadingPathSwitch::GetInputName(int32 InputIndex) const
 {
 	if (InputIndex == 0)
@@ -9894,7 +10031,9 @@ bool UMaterialExpressionShadingPathSwitch::IsInputConnectionRequired(int32 Input
 bool UMaterialExpressionShadingPathSwitch::IsResultMaterialAttributes(int32 OutputIndex)
 {
 	check(OutputIndex == 0);
-	for (FExpressionInput* ExpressionInput : GetInputsView())
+	TArray<FExpressionInput*> ExpressionInputs = GetInputs();
+
+	for (FExpressionInput* ExpressionInput : ExpressionInputs)
 	{
 		// If there is a loop anywhere in this expression's inputs then we can't risk checking them
 		if (ExpressionInput->Expression && !ExpressionInput->Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
@@ -11844,22 +11983,22 @@ TArray<FExpressionOutput>& UMaterialExpressionComposite::GetOutputs()
 	return Outputs;
 }
 
-TArrayView<FExpressionInput*> UMaterialExpressionComposite::GetInputsView()
+const TArray<FExpressionInput*> UMaterialExpressionComposite::GetInputs()
 {
+	TArray<FExpressionInput*> ExpressionInputs;
+
 	// InputExpressions may be null if we are using the default object
-	CachedInputs.Empty();
 	if (InputExpressions)
 	{
-		CachedInputs.Reserve(InputExpressions->ReroutePins.Num());
 		for (const FCompositeReroute& ReroutePin : InputExpressions->ReroutePins)
 		{
 			if (ReroutePin.Expression)
 			{
-				CachedInputs.Add(ReroutePin.Expression->GetInput(0));
+				ExpressionInputs.Add(ReroutePin.Expression->GetInput(0));
 			}
 		}
 	}
-	return CachedInputs;
+	return ExpressionInputs;
 }
 
 FExpressionInput* UMaterialExpressionComposite::GetInput(int32 InputIndex)
@@ -12094,21 +12233,20 @@ TArray<FExpressionOutput>& UMaterialExpressionPinBase::GetOutputs()
 	return Outputs;
 }
 
-TArrayView<FExpressionInput*> UMaterialExpressionPinBase::GetInputsView()
+const TArray<FExpressionInput*> UMaterialExpressionPinBase::GetInputs()
 {
-	CachedInputs.Empty();
+	TArray<FExpressionInput*> ExpressionInputs;
 	if (PinDirection == EGPD_Input)
 	{
-		CachedInputs.Reserve(ReroutePins.Num());
 		for (const FCompositeReroute& ReroutePin : ReroutePins)
 		{
 			if (ReroutePin.Expression)
 			{
-				CachedInputs.Add(ReroutePin.Expression->GetInput(0));
+				ExpressionInputs.Add(ReroutePin.Expression->GetInput(0));
 			}
 		}
 	}
-	return CachedInputs;
+	return ExpressionInputs;
 }
 
 FExpressionInput* UMaterialExpressionPinBase::GetInput(int32 InputIndex)
@@ -12931,7 +13069,7 @@ int32 UMaterialExpressionDistanceFieldsRenderingSwitch::Compile(class FMaterialC
 
 bool UMaterialExpressionDistanceFieldsRenderingSwitch::IsResultMaterialAttributes(int32 OutputIndex)
 {
-	for (FExpressionInput* ExpressionInput : GetInputsView())
+	for (FExpressionInput* ExpressionInput : GetInputs())
 	{
 		if (ExpressionInput->GetTracedInput().Expression && !ExpressionInput->Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
 		{
@@ -13155,15 +13293,14 @@ void UMaterialExpressionCustom::GetCaption(TArray<FString>& OutCaptions) const
 }
 
 
-TArrayView<FExpressionInput*> UMaterialExpressionCustom::GetInputsView()
+const TArray<FExpressionInput*> UMaterialExpressionCustom::GetInputs()
 {
-	CachedInputs.Empty();
-	CachedInputs.Reserve(Inputs.Num());
+	TArray<FExpressionInput*> Result;
 	for( int32 i = 0; i < Inputs.Num(); i++ )
 	{
-		CachedInputs.Add(&Inputs[i].Input);
+		Result.Add(&Inputs[i].Input);
 	}
-	return CachedInputs;
+	return Result;
 }
 
 FExpressionInput* UMaterialExpressionCustom::GetInput(int32 InputIndex)
@@ -13550,17 +13687,16 @@ void UMaterialExpressionSwitch::GetCaption(TArray<FString>& OutCaptions) const
 }
 
 
-TArrayView<FExpressionInput*> UMaterialExpressionSwitch::GetInputsView()
+const TArray<FExpressionInput*> UMaterialExpressionSwitch::GetInputs()
 {
-	CachedInputs.Empty();
-	CachedInputs.Reserve(2 + Inputs.Num());
-	CachedInputs.Add(&SwitchValue);
-	CachedInputs.Add(&Default);
+	TArray<FExpressionInput*> Result;
+	Result.Add(&SwitchValue);
+	Result.Add(&Default);
 	for (int32 i = 0; i < Inputs.Num(); i++)
 	{
-		CachedInputs.Add(&Inputs[i].Input);
+		Result.Add(&Inputs[i].Input);
 	}
-	return CachedInputs;
+	return Result;
 }
 
 FExpressionInput* UMaterialExpressionSwitch::GetInput(int32 InputIndex)
@@ -16063,15 +16199,14 @@ void UMaterialExpressionMaterialFunctionCall::GetCaption(TArray<FString>& OutCap
 	}
 }
 
-TArrayView<FExpressionInput*> UMaterialExpressionMaterialFunctionCall::GetInputsView()
+const TArray<FExpressionInput*> UMaterialExpressionMaterialFunctionCall::GetInputs()
 {
-	CachedInputs.Empty();
-	CachedInputs.Reserve(FunctionInputs.Num());
+	TArray<FExpressionInput*> Result;
 	for (int32 i = 0; i < FunctionInputs.Num(); i++)
 	{
-		CachedInputs.Add(&FunctionInputs[i].Input);
+		Result.Add(&FunctionInputs[i].Input);
 	}
-	return CachedInputs;
+	return Result;
 }
 
 FExpressionInput* UMaterialExpressionMaterialFunctionCall::GetInput(int32 InputIndex)
@@ -16421,7 +16556,7 @@ void UMaterialExpressionMaterialFunctionCall::UpdateFromFunctionResource(bool bR
 static void FixupReferencingInputs(
 	const TArray<FFunctionExpressionOutput>& NewOutputs,
 	const TArray<FFunctionExpressionOutput>& OriginalOutputs,
-	TArrayView<FExpressionInput*> Inputs, 
+	const TArray<FExpressionInput*>& Inputs, 
 	UMaterialExpressionMaterialFunctionCall* FunctionExpression,
 	bool bMatchByName)
 {
@@ -16472,7 +16607,7 @@ void UMaterialExpressionMaterialFunctionCall::FixupReferencingExpressions(
 		UMaterialExpression* CurrentExpression = Expressions[ExpressionIndex];
 		if (CurrentExpression)
 		{
-			TArrayView<FExpressionInput*> Inputs = CurrentExpression->GetInputsView();
+			TArray<FExpressionInput*> Inputs = CurrentExpression->GetInputs();
 			FixupReferencingInputs(NewOutputs, OriginalOutputs, Inputs, this, bMatchByName);
 		}
 	}
@@ -17619,7 +17754,7 @@ int32 UMaterialExpressionMaterialProxyReplace::Compile(class FMaterialCompiler* 
 
 bool UMaterialExpressionMaterialProxyReplace::IsResultMaterialAttributes(int32 OutputIndex)
 {
-	for (FExpressionInput* ExpressionInput : GetInputsView())
+	for (FExpressionInput* ExpressionInput : GetInputs())
 	{
 		if (ExpressionInput->GetTracedInput().Expression && !ExpressionInput->Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
 		{
@@ -22922,6 +23057,31 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 	return OutputCodeChunk;
 }
 
+const TArray<FExpressionInput*> UMaterialExpressionStrataLegacyConversion::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&BaseColor);
+	Result.Add(&Metallic);
+	Result.Add(&Specular);
+	Result.Add(&Roughness);
+	Result.Add(&Anisotropy);
+	Result.Add(&EmissiveColor);
+	Result.Add(&Normal);
+	Result.Add(&Tangent);
+	Result.Add(&SubSurfaceColor);
+	Result.Add(&ClearCoat);
+	Result.Add(&ClearCoatRoughness);
+	Result.Add(&Opacity);
+	Result.Add(&TransmittanceColor);
+	Result.Add(&WaterScatteringCoefficients);
+	Result.Add(&WaterAbsorptionCoefficients);
+	Result.Add(&WaterPhaseG);
+	Result.Add(&ColorScaleBehindWater);
+	Result.Add(&ClearCoatNormal);
+	Result.Add(&CustomTangent);
+	Result.Add(&ShadingModel);
+	return Result;
+}
 
 void UMaterialExpressionStrataLegacyConversion::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -23234,6 +23394,31 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		!StrataOperator.bUseParameterBlending || (StrataOperator.bUseParameterBlending && StrataOperator.bRootOfParameterBlendingSubTree) ? &StrataOperator : nullptr);
 
 	return OutputCodeChunk;
+}
+
+
+const TArray<FExpressionInput*> UMaterialExpressionStrataSlabBSDF::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&DiffuseAlbedo);
+	Result.Add(&F0);
+	Result.Add(&F90);
+	Result.Add(&Roughness);
+	Result.Add(&Anisotropy);
+	Result.Add(&Normal);
+	Result.Add(&Tangent);
+	Result.Add(&SSSMFP);
+	Result.Add(&SSSMFPScale);
+	Result.Add(&SSSPhaseAnisotropy);
+	Result.Add(&EmissiveColor);
+	Result.Add(&SecondRoughness);
+	Result.Add(&SecondRoughnessWeight);
+	Result.Add(&FuzzRoughness);
+	Result.Add(&FuzzAmount);
+	Result.Add(&FuzzColor);
+	Result.Add(&GlintValue);
+	Result.Add(&GlintUV);
+	return Result;
 }
 
 void UMaterialExpressionStrataSlabBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -23583,6 +23768,20 @@ int32 UMaterialExpressionStrataSimpleClearCoatBSDF::Compile(class FMaterialCompi
 		!StrataOperator.bUseParameterBlending || (StrataOperator.bUseParameterBlending && StrataOperator.bRootOfParameterBlendingSubTree) ? &StrataOperator : nullptr);
 
 	return OutputCodeChunk;
+}
+
+
+const TArray<FExpressionInput*> UMaterialExpressionStrataSimpleClearCoatBSDF::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&DiffuseAlbedo);
+	Result.Add(&F0);
+	Result.Add(&Roughness);
+	Result.Add(&ClearCoatCoverage);
+	Result.Add(&ClearCoatRoughness);
+	Result.Add(&Normal);
+	Result.Add(&EmissiveColor);
+	return Result;
 }
 
 void UMaterialExpressionStrataSimpleClearCoatBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -26178,12 +26377,7 @@ UMaterialExpressionSparseVolumeTextureTextureObjectParameter::UMaterialExpressio
 
 	Outputs.Empty();
 	Outputs.Add(FExpressionOutput(TEXT("")));
-#endif
-
-#if WITH_EDITOR
-	// Hide the texture coordinate input
-	CachedInputs.Empty();
-#endif
+#endif // WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITOR
@@ -26208,6 +26402,12 @@ int32 UMaterialExpressionSparseVolumeTextureTextureObjectParameter::Compile(clas
 uint32 UMaterialExpressionSparseVolumeTextureTextureObjectParameter::GetOutputType(int32 OutputIndex)
 {
 	return MCT_SparseVolumeTexture;
+}
+
+const TArray<FExpressionInput*> UMaterialExpressionSparseVolumeTextureTextureObjectParameter::GetInputs()
+{
+	// Hide the texture coordinate input
+	return TArray<FExpressionInput*>();
 }
 
 #endif // WITH_EDITOR
