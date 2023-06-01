@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterRootActor.h"
+#include "DisplayClusterRootActorPreviewRenderingManager.h"
 
 #include "Async/ParallelFor.h"
 #include "Components/SceneComponent.h"
@@ -130,7 +131,19 @@ void ADisplayClusterRootActor::CreateViewportManagerImpl()
 	{
 		ViewportManager = MakeShared<FDisplayClusterViewportManager, ESPMode::ThreadSafe>();
 		ViewportManager->Initialize();
+
+		// Preview rendering depends on the DC VM
+		FDisplayClusterRootActorPreviewRenderingManager::HandleEvent(EDisplayClusterRootActorPreviewEvent::Create, this);
 	}
+}
+
+void ADisplayClusterRootActor::RemoveViewportManagerImpl()
+{
+	// Preview rendering depends on the  DC VM
+	FDisplayClusterRootActorPreviewRenderingManager::HandleEvent(EDisplayClusterRootActorPreviewEvent::Remove, this);
+
+	// Immediately release the viewport manager with resources
+	ViewportManager.Reset();
 }
 
 bool ADisplayClusterRootActor::IsRunningGameOrPIE() const
@@ -1018,7 +1031,14 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 
 #if WITH_EDITOR
 	// Tick editor preview
-	Tick_Editor(DeltaSeconds);
+	if (!IsPreviewEnabled())
+	{
+		ResetPreviewInternals_Editor();
+	}
+	else
+	{
+		FDisplayClusterRootActorPreviewRenderingManager::HandleEvent(EDisplayClusterRootActorPreviewEvent::Render, this);
+	}
 #endif
 
 	SetLightCardOwnership();
@@ -1064,7 +1084,7 @@ void ADisplayClusterRootActor::Destroyed()
 #endif
 
 	// Release viewport manager with resources immediatelly
-	ViewportManager.Reset();
+	RemoveViewportManagerImpl();
 
 	Super::Destroyed();
 }
@@ -1075,7 +1095,7 @@ void ADisplayClusterRootActor::BeginDestroy()
 	BeginDestroy_Editor();
 #endif
 
-	ViewportManager.Reset();
+	RemoveViewportManagerImpl();
 
 	Super::BeginDestroy();
 }

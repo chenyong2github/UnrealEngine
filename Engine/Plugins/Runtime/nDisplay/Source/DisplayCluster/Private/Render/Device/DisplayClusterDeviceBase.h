@@ -91,10 +91,18 @@ protected:
 	virtual bool OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex, float& BlendWeight) override;
 	virtual void EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex) override;
 
+	/** Get a pointer to the DC ViewportManager if it still exists. */
+	IDisplayClusterViewportManager* GetViewportManager() const;
+
+	/** Get a pointer to the DC ViewportManagerProxy if it still exists. */
+	FDisplayClusterViewportManagerProxy* GetViewportManagerProxy_RenderThread() const;
+
 private:
-	// Runtime viewport manager api for game and render threads. Internal usage only
-	TSharedPtr<IDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManager;
-	TSharedPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxy;
+	// Pointer to the DC ViewportManager from the active DCRA that is currently being used for rendering.
+	TWeakPtr<IDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManagerWeakPtr;
+
+	// Pointer to the DC ViewportManagerProxy from the active DCRA that is currently being used for rendering.
+	TWeakPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxyWeakPtr;
 
 	EDisplayClusterRenderFrameMode RenderFrameMode = EDisplayClusterRenderFrameMode::Mono;
 	int32 DesiredNumberOfViews = 0;

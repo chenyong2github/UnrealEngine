@@ -205,11 +205,14 @@ public:
 	}
 
 private:
-	/** Create new viewport manager instance if not exists. */
+	/** Create a new instance of the viewport manager if it does not exist. */
 	void CreateViewportManagerImpl();
 
+	/** Release the viewport manager instance, if it exists. */
+	void RemoveViewportManagerImpl();
+
 private:
-	// Viewport manager for this configuration
+	// DC ViewportManager instance for this DCRA
 	TSharedPtr<class FDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManager;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -458,7 +461,9 @@ public:
 	void Constructor_Editor();
 	void Destructor_Editor();
 
-	void Tick_Editor(float DeltaSeconds);
+	/** Perform a rendering of the DCRA preview. */
+	void RenderPreview_Editor();
+
 	void PostLoad_Editor();
 	void PostActorCreated_Editor();
 	void EndPlay_Editor(const EEndPlayReason::Type EndPlayReason);

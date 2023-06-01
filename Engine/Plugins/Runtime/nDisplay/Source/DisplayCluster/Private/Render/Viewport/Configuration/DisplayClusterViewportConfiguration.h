@@ -51,8 +51,15 @@ private:
 	/** Get alpha channel capture mode (for LightCard, ChromaKey).*/
 	EDisplayClusterRenderFrameAlphaChannelCaptureMode GetAlphaChannelCaptureMode() const;
 
+	/** Get a pointer to the DC ViewportManager if it still exists. */
+	FDisplayClusterViewportManager* GetViewportManager() const
+	{
+		return ViewportManagerWeakPtr.IsValid() ? ViewportManagerWeakPtr.Pin().Get() : nullptr;
+	}
+
 private:
-	const TSharedRef<FDisplayClusterViewportManager> ViewportManager;
+	/** A reference to the owning viewport manager */
+	const TWeakPtr<FDisplayClusterViewportManager> ViewportManagerWeakPtr;
 
 	FDisplayClusterActorRef            RootActorRef;
 	FDisplayClusterRenderFrameSettings RenderFrameSettings;

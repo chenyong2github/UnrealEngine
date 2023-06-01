@@ -120,7 +120,7 @@ static FAutoConsoleVariableRef CVarDisplayClusterAlphaChannelCaptureMode(
 // FDisplayClusterViewportConfiguration
 ///////////////////////////////////////////////////////////////////
 FDisplayClusterViewportConfiguration::FDisplayClusterViewportConfiguration(FDisplayClusterViewportManager& InViewportManager)
-	: ViewportManager(InViewportManager.AsShared())
+	: ViewportManagerWeakPtr(InViewportManager.AsShared())
 { }
 
 FDisplayClusterViewportConfiguration::~FDisplayClusterViewportConfiguration()
@@ -200,7 +200,8 @@ bool FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(EDisplayClust
 	if (RootActor)
 	{
 		const UDisplayClusterConfigurationData* ConfigurationData = RootActor->GetConfigData();
-		if (ConfigurationData)
+		FDisplayClusterViewportManager* ViewportManager = GetViewportManager();
+		if (ConfigurationData && ViewportManager)
 		{
 			FDisplayClusterViewportConfigurationBase ConfigurationBase(*ViewportManager, *RootActor, *ConfigurationData);
 			FDisplayClusterViewportConfigurationICVFX ConfigurationICVFX(*RootActor);
@@ -333,8 +334,10 @@ bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(EDisplayCl
 void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationVisibility(ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationData& ConfigurationData) const
 {
 	// Hide root actor components for all viewports
+	FDisplayClusterViewportManager* ViewportManager = GetViewportManager();
+
 	TSet<FPrimitiveComponentId> RootActorHidePrimitivesList;
-	if (RootActor.GetHiddenInGamePrimitives(RootActorHidePrimitivesList))
+	if (ViewportManager && RootActor.GetHiddenInGamePrimitives(RootActorHidePrimitivesList))
 	{
 		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager->ImplGetViewports())
 		{
@@ -348,9 +351,12 @@ void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationVisibility(ADi
 
 void FDisplayClusterViewportConfiguration::ImplPostUpdateRenderFrameConfiguration()
 {
-	// Some frame postprocess require additional render targetable resources
-	RenderFrameSettings.bShouldUseAdditionalFrameTargetableResource = ViewportManager->ShouldUseAdditionalFrameTargetableResource();
-	RenderFrameSettings.bShouldUseFullSizeFrameTargetableResource = ViewportManager->ShouldUseFullSizeFrameTargetableResource();
+	if (FDisplayClusterViewportManager* ViewportManager = GetViewportManager())
+	{
+		// Some frame postprocess require additional render targetable resources
+		RenderFrameSettings.bShouldUseAdditionalFrameTargetableResource = ViewportManager->ShouldUseAdditionalFrameTargetableResource();
+		RenderFrameSettings.bShouldUseFullSizeFrameTargetableResource = ViewportManager->ShouldUseFullSizeFrameTargetableResource();
+	}
 }
 
 void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(const FDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration)

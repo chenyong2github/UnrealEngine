@@ -124,7 +124,7 @@ void ADisplayClusterRootActor::Destructor_Editor()
 	}
 }
 
-void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
+void ADisplayClusterRootActor::RenderPreview_Editor()
 {
 	if (IsPreviewEnabled())
 	{
@@ -162,7 +162,7 @@ void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 			if(ViewportManager->GetRenderMode() == EDisplayClusterRenderFrameMode::PreviewInScene)
 			{
 				// Release viewport manager with resources immediatelly for preview in scene
-				ViewportManager.Reset();
+				RemoveViewportManagerImpl();
 			}
 		}
 	}

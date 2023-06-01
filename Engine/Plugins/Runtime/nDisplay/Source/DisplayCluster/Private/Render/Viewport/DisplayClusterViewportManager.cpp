@@ -475,7 +475,7 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 {
 	check(IsInGameThread());
 
-	OutRenderFrame.ViewportManager = this->AsShared();
+	OutRenderFrame.ViewportManagerWeakPtr = this->AsShared();
 
 	// Handle world runtime update
 	UWorld* CurrentWorld = GetCurrentWorld();

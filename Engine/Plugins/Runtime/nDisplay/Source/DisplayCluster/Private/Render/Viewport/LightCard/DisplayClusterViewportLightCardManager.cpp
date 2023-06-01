@@ -26,7 +26,7 @@ static TAutoConsoleVariable<int32> CVarUVLightCardTextureSize(
 // FDisplayClusterViewportLightCardManager
 ///////////////////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterViewportLightCardManager::FDisplayClusterViewportLightCardManager(FDisplayClusterViewportManager& InViewportManager)
-	: ViewportManager(InViewportManager.AsShared())
+	: ViewportManagerWeakPtr(InViewportManager.AsShared())
 {
 	LightCardManagerProxy = MakeShared<FDisplayClusterViewportLightCardManagerProxy, ESPMode::ThreadSafe>();
 }
@@ -88,6 +88,12 @@ void FDisplayClusterViewportLightCardManager::ReleaseUVLightCardData()
 void FDisplayClusterViewportLightCardManager::UpdateUVLightCardData()
 {
 	ReleaseUVLightCardData();
+
+	FDisplayClusterViewportManager* ViewportManager = GetViewportManager();
+	if (!ViewportManager)
+	{
+		return;
+	}
 
 	/** The list of UV light card actors that are referenced by the root actor */
 	TArray<ADisplayClusterLightCardActor*> UVLightCardActors;
@@ -165,7 +171,8 @@ void FDisplayClusterViewportLightCardManager::UpdateUVLightCardResource()
 void FDisplayClusterViewportLightCardManager::RenderUVLightCard()
 {
 	// Render UV LightCard:
-	UWorld* World = ViewportManager->GetCurrentWorld();
+	FDisplayClusterViewportManager* ViewportManager = GetViewportManager();
+	UWorld* World = ViewportManager ? ViewportManager->GetCurrentWorld() : nullptr;
 	if (IsUVLightCardEnabled() && World && LightCardManagerProxy.IsValid())
 	{
 		UpdateUVLightCardResource();

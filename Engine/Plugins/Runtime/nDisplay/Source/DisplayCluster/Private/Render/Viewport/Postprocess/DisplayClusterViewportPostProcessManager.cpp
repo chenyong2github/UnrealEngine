@@ -62,7 +62,7 @@ static TAutoConsoleVariable<int32> CVarPostprocessFrameAfterWarpBlend(
 // FDisplayClusterViewportPostProcessManager
 //----------------------------------------------------------------------------------------------------------
 FDisplayClusterViewportPostProcessManager::FDisplayClusterViewportPostProcessManager(FDisplayClusterViewportManager& InViewportManager)
-	: ViewportManager(InViewportManager.AsShared())
+	: ViewportManagerWeakPtr(InViewportManager.AsShared())
 {
 	OutputRemap = MakeShared<FDisplayClusterViewportPostProcessOutputRemap, ESPMode::ThreadSafe>();
 }
@@ -74,7 +74,7 @@ FDisplayClusterViewportPostProcessManager::~FDisplayClusterViewportPostProcessMa
 
 FDisplayClusterViewportManager* FDisplayClusterViewportPostProcessManager::GetViewportManager() const
 {
-	return &(ViewportManager.Get());
+	return ViewportManagerWeakPtr.IsValid() ? ViewportManagerWeakPtr.Pin().Get() : nullptr;
 }
 
 void FDisplayClusterViewportPostProcessManager::Release()
@@ -96,13 +96,14 @@ bool FDisplayClusterViewportPostProcessManager::HandleStartScene()
 {
 	check(IsInGameThread());;
 
-	if (ViewportManager->IsSceneOpened())
+	FDisplayClusterViewportManager* ViewportManager = GetViewportManager();
+	if (ViewportManager && ViewportManager->IsSceneOpened())
 	{
 		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& It : Postprocess)
 		{
 			if (It.IsValid())
 			{
-				It->HandleStartScene(GetViewportManager());
+				It->HandleStartScene(ViewportManager);
 			}
 		}
 	}
@@ -114,11 +115,14 @@ void FDisplayClusterViewportPostProcessManager::HandleEndScene()
 {
 	check(IsInGameThread());
 
-	for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& It : Postprocess)
+	if (FDisplayClusterViewportManager* ViewportManager = GetViewportManager())
 	{
-		if (It.IsValid())
+		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& It : Postprocess)
 		{
-			It->HandleEndScene(GetViewportManager());
+			if (It.IsValid())
+			{
+				It->HandleEndScene(ViewportManager);
+			}
 		}
 	}
 }
@@ -162,9 +166,10 @@ bool FDisplayClusterViewportPostProcessManager::CreatePostprocess(const FString&
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("PostProcess '%s', type '%s' : Created"), *InConfigurationPostprocess->Type, *InPostprocessId);
 
-			if (ViewportManager->IsSceneOpened())
+			FDisplayClusterViewportManager* ViewportManager = GetViewportManager();
+			if (ViewportManager && ViewportManager->IsSceneOpened())
 			{
-				PostProcessInstance->HandleStartScene(GetViewportManager());
+				PostProcessInstance->HandleStartScene(ViewportManager);
 			}
 
 			for (int32 Order = 0; Order < Postprocess.Num(); Order++)
@@ -339,22 +344,24 @@ void FDisplayClusterViewportPostProcessManager::Tick()
 
 void FDisplayClusterViewportPostProcessManager::HandleSetupNewFrame()
 {
-	if (CVarCustomPPEnabled.GetValueOnGameThread() != 0)
+	FDisplayClusterViewportManager* ViewportManager = GetViewportManager();
+	if (ViewportManager && CVarCustomPPEnabled.GetValueOnGameThread() != 0)
 	{
 		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : Postprocess)
 		{
-			It->HandleSetupNewFrame(GetViewportManager());
+			It->HandleSetupNewFrame(ViewportManager);
 		}
 	}
 }
 
 void FDisplayClusterViewportPostProcessManager::HandleBeginNewFrame(FDisplayClusterRenderFrame& InOutRenderFrame)
 {
-	if (CVarCustomPPEnabled.GetValueOnGameThread() != 0)
+	FDisplayClusterViewportManager* ViewportManager = GetViewportManager();
+	if (ViewportManager && CVarCustomPPEnabled.GetValueOnGameThread() != 0)
 	{
 		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : Postprocess)
 		{
-			It->HandleBeginNewFrame(GetViewportManager(), InOutRenderFrame);
+			It->HandleBeginNewFrame(ViewportManager, InOutRenderFrame);
 		}
 	}
 }

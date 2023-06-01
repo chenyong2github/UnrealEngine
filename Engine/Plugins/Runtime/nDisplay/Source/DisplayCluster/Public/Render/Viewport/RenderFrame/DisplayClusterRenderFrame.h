@@ -83,6 +83,13 @@ struct FDisplayClusterRenderFrameTarget
 class FDisplayClusterRenderFrame
 {
 public:
+	/** Returns a pointer to the DCViewportManager used for this frame. */
+	IDisplayClusterViewportManager* GetViewportManager() const
+	{
+		return ViewportManagerWeakPtr.IsValid() ? ViewportManagerWeakPtr.Pin().Get() : nullptr;
+	}
+
+public:
 	// Render frame to this targets
 	TArray<FDisplayClusterRenderFrameTarget> RenderTargets;
 	
@@ -93,5 +100,5 @@ public:
 	int32 DesiredNumberOfViews = 0;
 
 	// Ref to the DC Viewport Manager
-	TSharedPtr<IDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManager;
+	TWeakPtr<IDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManagerWeakPtr;
 };

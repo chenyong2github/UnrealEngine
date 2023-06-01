@@ -71,6 +71,8 @@ public:
 
 private:
 	TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> ImplFindPostProcess(const FString& InPostprocessId) const;
+
+	/** Get a pointer to the DC ViewportManager if it still exists. */
 	FDisplayClusterViewportManager* GetViewportManager() const;
 
 protected:
@@ -84,7 +86,8 @@ protected:
 	TArray<TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>> Postprocess;
 
 private:
-	const TSharedRef<FDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManager;
+	/** A reference to the owning viewport manager */
+	const TWeakPtr<FDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManagerWeakPtr;
 
 	// Render thread instances
 	TArray<TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>> PostprocessProxy;

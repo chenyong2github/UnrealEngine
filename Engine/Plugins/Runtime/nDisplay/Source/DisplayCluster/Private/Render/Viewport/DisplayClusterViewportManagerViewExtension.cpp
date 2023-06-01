@@ -214,7 +214,7 @@ bool FDisplayClusterViewportManagerViewExtension::IsActiveThisFrame_Internal(con
 	if (Context.IsA(MoveTempIfPossible(DCViewExtensionContext)))
 	{
 		const FDisplayClusterSceneViewExtensionContext& DisplayContext = static_cast<const FDisplayClusterSceneViewExtensionContext&>(Context);
-		if (DisplayContext.ViewportManager.Get() == GetViewportManager())
+		if (DisplayContext.GetViewportManager() == GetViewportManager())
 		{
 			// Apply only for DC viewports
 			return true;
