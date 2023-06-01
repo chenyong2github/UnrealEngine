@@ -23,7 +23,7 @@ There is working code for this already but the concept/API needs more fleshing o
 
 
 #include "NiagaraDataInterfaceDataChannelCommon.h"
-#include "NiagaraDataInterface.h"
+#include "NiagaraDataInterfaceRW.h"
 #include "NiagaraDataInterfaceEmitterBinding.h"
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraDataInterfaceDataChannelRead.generated.h"
@@ -52,7 +52,7 @@ enum class ENDIDataChannelSpawnMode
 };
 
 UCLASS(Experimental, EditInlineNew, Category = "Data Channels", CollapseCategories, meta = (DisplayName = "Data Channel Reader"))
-class NIAGARA_API UNiagaraDataInterfaceDataChannelRead : public UNiagaraDataInterface
+class NIAGARA_API UNiagaraDataInterfaceDataChannelRead : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()
 protected:
@@ -221,10 +221,11 @@ struct FNDIDataChannelReadInstanceData
 	bool PostTick(UNiagaraDataInterfaceDataChannelRead* Interface, FNiagaraSystemInstance* Instance);
 };
 
-struct FNiagaraDataInterfaceProxy_DataChannelRead : public FNiagaraDataInterfaceProxy
+struct FNiagaraDataInterfaceProxy_DataChannelRead : public FNiagaraDataInterfaceProxyRW
 {
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override;
+	virtual void GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context) override;
 
 	/** Persistent per instance data on the RT. Constructed when consuming data passed from GT->RT. */
 	struct FInstanceData

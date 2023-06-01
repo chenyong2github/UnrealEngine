@@ -1444,6 +1444,7 @@ void UNiagaraDataInterfaceDataChannelRead::GetParameterDefinitionHLSL(FNiagaraDa
 
 			//Finally generate the final code for this function and add it to the final hlsl.
 			OutHLSL += FString::Format(*FunctionTemplateFile, HlslTemplateArgs);
+			OutHLSL += TEXT("\n");
 		}
 	}
 }
@@ -1549,6 +1550,19 @@ void FNiagaraDataInterfaceProxy_DataChannelRead::ConsumePerInstanceDataFromGameT
 int32 FNiagaraDataInterfaceProxy_DataChannelRead::PerInstanceDataPassedToRenderThreadSize() const
 {
 	return sizeof(FNDIDataChannelReadInstanceData_RT);
+}
+
+void FNiagaraDataInterfaceProxy_DataChannelRead::GetDispatchArgs(const FNDIGpuComputeDispatchArgsGenContext& Context)
+{
+	const FNiagaraDataInterfaceProxy_DataChannelRead::FInstanceData* InstanceData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
+	if (InstanceData && InstanceData->ChannelDataRTProxy)
+	{
+		FNiagaraDataBuffer* Data = InstanceData->bReadPrevFrame ? InstanceData->ChannelDataRTProxy->PrevFrameData.GetReference() : InstanceData->ChannelDataRTProxy->GPUDataSet->GetCurrentData();
+		if (Data)
+		{
+			Context.SetDirect(Data->GetNumInstances());
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
