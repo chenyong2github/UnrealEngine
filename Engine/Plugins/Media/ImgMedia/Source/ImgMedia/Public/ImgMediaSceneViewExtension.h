@@ -45,8 +45,8 @@ public:
 	 */
 	IMGMEDIA_API const TArray<FImgMediaViewInfo>& GetViewInfos() const { return CachedViewInfos; };
 
-	void SetupViewFamily(FSceneViewFamily& InViewFamily) override;
-	void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override;
+	void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
+	void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
 	void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
 	int32 GetPriority() const override;
 

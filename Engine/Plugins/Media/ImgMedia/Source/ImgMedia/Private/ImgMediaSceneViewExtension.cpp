@@ -41,32 +41,14 @@ FImgMediaSceneViewExtension::FImgMediaSceneViewExtension(const FAutoRegister& Au
 {
 }
 
-void FImgMediaSceneViewExtension::SetupViewFamily(FSceneViewFamily& InViewFamily)
-{
-}
-
-void FImgMediaSceneViewExtension::SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FImgMediaSceneViewExtension::SetupView);
-
-	/**
-	* NOTE: Scene captures call `SetupView` after the primary `BeginRenderViewFamily` call:
-	* FRendererModule::BeginRenderingViewFamilies
-	*     -> USceneCaptureComponent::UpdateDeferredCaptures
-	*         -> FScene::UpdateSceneCaptureContents
-	*             -> ISceneViewExtension::SetupView
-	* Therefore, the view infos we cache here will be correctly kept until the next frame.
-	*/
-	if (InView.bIsSceneCapture)
-	{
-		CacheViewInfo(InViewFamily, InView);
-	}
-}
-
 void FImgMediaSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FImgMediaSceneViewExtension::BeginRenderViewFamily);
 
+	/**
+	* NOTE: Scene captures call this function after the primary `BeginRenderViewFamily` with the same frame number.
+	* Therefore, the view infos we cache here will be correctly kept until the next frame.
+	*/
 	if (LastFrameNumber != InViewFamily.FrameNumber)
 	{
 		CachedViewInfos.Reset();
@@ -75,8 +57,7 @@ void FImgMediaSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InView
 
 	for (const FSceneView* View : InViewFamily.Views)
 	{
-		/** NOTE: Scene captures currently don't call BeginRenderViewFamily() so we handle them separately in SetupView. */
-		if (View && !View->bIsSceneCapture)
+		if (View != nullptr)
 		{
 			CacheViewInfo(InViewFamily, *View);
 		}
