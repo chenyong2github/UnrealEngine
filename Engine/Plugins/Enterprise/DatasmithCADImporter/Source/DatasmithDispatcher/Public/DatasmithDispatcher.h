@@ -18,7 +18,7 @@ class DATASMITHDISPATCHER_API FDatasmithDispatcher
 public:
 	FDatasmithDispatcher(const CADLibrary::FImportParameters& InImportParameters, const FString& InCacheDir, int32 InNumberOfWorkers, TMap<uint32, FString>& CADFileToUnrealFileMap, TMap<uint32, FString>& CADFileToUnrealGeomMap);
 
-	void AddTask(const CADLibrary::FFileDescriptor & FileDescription);
+	void AddTask(const CADLibrary::FFileDescriptor & FileDescription, CADLibrary::EMesher Mesher);
 	TOptional<FTask> GetNextTask();
 	void SetTaskState(int32 TaskIndex, ETaskState TaskState);
 

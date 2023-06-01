@@ -18,13 +18,13 @@ namespace CADLibrary
 		: CADFileData(ImportParams, InFile, InCachePath)
 	{
 #ifdef USE_TECHSOFT_SDK
-		if (FImportParameters::bGDisableCADKernelTessellation)
+		if (ImportParams.GetMesher() == EMesher::CADKernel)
 		{
-			CADParser = MakeUnique<FTechSoftFileParser>(CADFileData, EnginePluginsPath);
+			CADParser = MakeUnique<FTechSoftFileParserCADKernelTessellator>(CADFileData, EnginePluginsPath);
 		}
 		else
 		{
-			CADParser = MakeUnique<FTechSoftFileParserCADKernelTessellator>(CADFileData, EnginePluginsPath);
+			CADParser = MakeUnique<FTechSoftFileParser>(CADFileData, EnginePluginsPath);
 		}
 #endif
 	}

@@ -276,8 +276,9 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 				NumberOfWorkers = 1;
 			}
 
+			const EMesher Mesher = FImportParameters::bGDisableCADKernelTessellation ? EMesher::TechSoft : EMesher::CADKernel;
 			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumberOfWorkers, CADFileToUEFileMap, CADFileToUEGeomMap);
-			Dispatcher.AddTask(FileDescriptor);
+			Dispatcher.AddTask(FileDescriptor, Mesher);
 
 			Dispatcher.Process(GMaxImportThreads != 1);
 		}
@@ -321,11 +322,16 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 
 	CADLibrary::FMeshParameters MeshParameters;
 
+	// Two meshers can be used (TechSoft and CADKernel) during the import indeed in case of failure of one, the other is tried.
+	// At this stage, the only clue to know which mesher has been used for the current body is the extension of the rawdata file
+	const TCHAR* FileName = MeshElement->GetFile();
+	FString Extension = FPaths::GetExtension(FileName);
+
 	if (TOptional< FMeshDescription > Mesh = MeshBuilderPtr->GetMeshDescription(MeshElement, MeshParameters))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
 
-		if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
+		if (Extension == TEXT("prc"))
 		{
 			ParametricSurfaceUtils::AddSurfaceData(MeshElement->GetFile(), ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
 		}

@@ -164,11 +164,13 @@ protected:
 	ECADFormat Format;
 	bool bForceSew = false;
 
-	EModellerType ModellerType;
+	EModelerType ModelerType;
 	double FileUnit = 1;
 
 	TMap<A3DRiRepresentationItem*, FCadId> RepresentationItemsCache;
 	TMap<A3DAsmProductOccurrence*, FCadId> ReferenceCache;
+
+	bool bConvertionFailed = false;
 
 	std::atomic<bool> bProcessIsRunning;
 

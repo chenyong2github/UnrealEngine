@@ -79,7 +79,11 @@ class FRunTaskCommand : public ICommand
 {
 public:
 	FRunTaskCommand() = default;
-	FRunTaskCommand(const FTask& Task) : JobFileDescription(Task.FileDescription), JobIndex(Task.Index) {}
+	FRunTaskCommand(const FTask& Task) 
+		: JobFileDescription(Task.FileDescription)
+		, Mesher(Task.Mesher)
+		, JobIndex(Task.Index) 
+	{}
 	virtual ECommandId GetType() const override { return ECommandId::RunTask; }
 
 protected:
@@ -87,6 +91,8 @@ protected:
 
 public:
 	CADLibrary::FFileDescriptor JobFileDescription;
+	CADLibrary::EMesher Mesher;
+
 	int32 JobIndex = -1;
 };
 

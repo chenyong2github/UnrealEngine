@@ -329,23 +329,35 @@ void FDatasmithWorkerHandler::ProcessCommand(FPingCommand& PingCommand)
 
 void FDatasmithWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTaskCommand)
 {
+	using namespace CADLibrary;
 	if (!CurrentTask.IsSet())
 	{
 		return;
 	}
 
-	for (const CADLibrary::FFileDescriptor& ExternalReferenceFile : CompletedTaskCommand.ExternalReferences)
+	const EMesher DefaultMesher = FImportParameters::bGDisableCADKernelTessellation ? EMesher::TechSoft : EMesher::CADKernel;
+
+	if(CompletedTaskCommand.ProcessResult == ETaskState::ProcessOk)
 	{
-		if (ExternalReferenceFile.GetFileName().IsEmpty())
+		for (const FFileDescriptor& ExternalReferenceFile : CompletedTaskCommand.ExternalReferences)
 		{
-			continue;
+			if (ExternalReferenceFile.GetFileName().IsEmpty())
+			{
+				continue;
+			}
+			Dispatcher.AddTask(ExternalReferenceFile, DefaultMesher);
 		}
-		Dispatcher.AddTask(ExternalReferenceFile);
+		UE_LOG(LogDatasmithDispatcher, Log, TEXT("   - Task completed: %s"), *CurrentTask->FileDescription.GetFileName());
+	}
+	else if (CompletedTaskCommand.ProcessResult == ETaskState::ProcessFailed && DefaultMesher == EMesher::CADKernel)
+	{
+		UE_LOG(LogDatasmithDispatcher, Log, TEXT("   - Task failed with CADKernel: %s"), *CurrentTask->FileDescription.GetFileName());
+		UE_LOG(LogDatasmithDispatcher, Log, TEXT("      => Add task to process with Techsoft"));
+		Dispatcher.AddTask(CurrentTask->FileDescription, EMesher::TechSoft);
 	}
 
 	Dispatcher.SetTaskState(CurrentTask->Index, CompletedTaskCommand.ProcessResult);
 
-	UE_LOG(LogDatasmithDispatcher, Log, TEXT("   - Task completed: %s"), *CurrentTask->FileDescription.GetFileName());
 
 	Dispatcher.LinkCTFileToUnrealCacheFile(CurrentTask->FileDescription, CompletedTaskCommand.SceneGraphFileName, CompletedTaskCommand.GeomFileName);
 	Dispatcher.LogMessages(CompletedTaskCommand.Messages);

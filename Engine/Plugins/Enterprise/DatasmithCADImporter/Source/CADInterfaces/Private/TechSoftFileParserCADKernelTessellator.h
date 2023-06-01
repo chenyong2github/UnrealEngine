@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 #include "TechSoftFileParser.h"
+#include "CADOptions.h"
 
 namespace UE::CADKernel
 {

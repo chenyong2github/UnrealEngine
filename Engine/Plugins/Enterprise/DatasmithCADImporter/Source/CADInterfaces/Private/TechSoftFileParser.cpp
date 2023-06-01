@@ -405,7 +405,7 @@ ECADParsingResult FTechSoftFileParser::Process()
 			return ECADParsingResult::ProcessFailed;
 		}
 
-		ModellerType = (EModellerType)ModelFileData->m_eModellerType;
+		ModelerType = (EModelerType) ModelFileData->m_eModellerType;
 		FileUnit = TechSoftInterface::GetModelFileUnit(ModelFile.Get());
 	}
 
@@ -451,6 +451,10 @@ ECADParsingResult FTechSoftFileParser::Process()
 	if (Result == ECADParsingResult::ProcessOk)
 	{
 		GenerateBodyMeshes();
+		if (bConvertionFailed)
+		{
+			Result = ECADParsingResult::ProcessFailed;
+		}
 
 		FString TechSoftVersion = TechSoftInterface::GetTechSoftVersion();
 		if (!TechSoftVersion.IsEmpty())
@@ -490,6 +494,10 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 		A3DRiRepresentationItem* RepresentationItemPtr = Entry.Key;
 		FArchiveBody& Body = SceneGraph.GetBody(Entry.Value);
 		GenerateBodyMesh(RepresentationItemPtr, Body);
+		if (bConvertionFailed)
+		{
+			return;
+		}
 	}
 	CADFileData.GetRecord().MeshTime = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartGenerateBodyMeshesTime);
 }
@@ -1289,7 +1297,7 @@ void FTechSoftFileParser::CountUnderRepresentationSet(const A3DRiSet* Representa
 
 void FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, FArchiveReference& Parent)
 {
-	FArchiveBody& BRep = SceneGraph.AddBody(Parent);
+	FArchiveBody& BRep = SceneGraph.AddBody(Parent, CADFileData.GetImportParameters().GetMesher());
 	ExtractMetaData(BRepModelPtr, BRep);
 	BRep.DefineGraphicsPropertiesFromNoOverwrite(Parent);
 
@@ -1314,7 +1322,7 @@ void FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, FArchi
 
 void FTechSoftFileParser::TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalPtr, FArchiveReference& Parent)
 {
-	FArchiveBody& BRep = SceneGraph.AddBody(Parent);
+	FArchiveBody& BRep = SceneGraph.AddBody(Parent, EMesher::TechSoft);
 	BRep.bIsFromCad = false;
 
 	ExtractMetaData(PolygonalPtr, BRep);
@@ -1523,9 +1531,9 @@ void FTechSoftFileParser::BuildRepresentationSetName(FArchiveCADObject& Occurren
 void FTechSoftFileParser::ExtractSpecificMetaData(const A3DAsmProductOccurrence* Occurrence, FArchiveCADObject& OutMetaData)
 {
 	//----------- Export Specific information per CAD format -----------
-	switch (ModellerType)
+	switch (ModelerType)
 	{
-	case ModellerSlw:
+	case ModelerSlw:
 	{
 		TUniqueTSObj<A3DAsmProductOccurrenceDataSLW> SolidWorksSpecificData(Occurrence);
 		if (SolidWorksSpecificData.IsValid())
@@ -1540,7 +1548,7 @@ void FTechSoftFileParser::ExtractSpecificMetaData(const A3DAsmProductOccurrence*
 		}
 		break;
 	}
-	case ModellerUnigraphics:
+	case ModelerUnigraphics:
 	{
 #ifdef WIP
 		TUniqueTSObj<A3DAsmProductOccurrenceDataUg> UnigraphicsSpecificData(Occurrence);
@@ -1610,7 +1618,7 @@ void FTechSoftFileParser::ExtractSpecificMetaData(const A3DAsmProductOccurrence*
 		break;
 	}
 
-	case ModellerCatiaV5:
+	case ModelerCatiaV5:
 	{
 		TUniqueTSObj<A3DAsmProductOccurrenceDataCV5> CatiaV5SpecificData(Occurrence);
 		if (CatiaV5SpecificData.IsValid())

@@ -107,7 +107,7 @@ public:
 
 	const FString GetBodyCachePath(uint32 BodyHash) const
 	{
-		return CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), BodyHash);
+		return CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), BodyHash, ImportParameters.GetMesher());
 	}
 
 	/**

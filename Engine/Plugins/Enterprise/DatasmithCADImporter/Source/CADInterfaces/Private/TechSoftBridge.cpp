@@ -246,7 +246,7 @@ UE::CADKernel::FBody* FTechSoftBridge::AddBody(A3DRiBrepModel* A3DBRepModel, TMa
 		TraverseBrepData(BRepModelData->m_pBrepData, Body);
 	}
 
-	if(Body->FaceCount() == 0)
+	if (Body->FaceCount() == 0 || bConvertionFailed)
 	{
 		Body->Delete();
 		return nullptr;
@@ -288,6 +288,10 @@ void FTechSoftBridge::TraverseBrepData(const A3DTopoBrepData* A3DBrepData, TShar
 		for (A3DUns32 Index = 0; Index < TopoBrepData->m_uiConnexSize; ++Index)
 		{
 			TraverseConnex(TopoBrepData->m_ppConnexes[Index], Body);
+			if (bConvertionFailed)
+			{
+				return;
+			}
 		}
 	}
 }
@@ -303,6 +307,10 @@ void FTechSoftBridge::TraverseConnex(const A3DTopoConnex* A3DTopoConnex, TShared
 		for (A3DUns32 Index = 0; Index < TopoConnexData->m_uiShellSize; ++Index)
 		{
 			TraverseShell(TopoConnexData->m_ppShells[Index], Body);
+			if (bConvertionFailed)
+			{
+				return;
+			}
 		}
 	}
 }
@@ -327,6 +335,10 @@ void FTechSoftBridge::TraverseShell(const A3DTopoShell* A3DShell, TSharedRef<UE:
 		for (A3DUns32 Index = 0; Index < ShellData->m_uiFaceSize; ++Index)
 		{
 			AddFace(ShellData->m_ppFaces[Index], ShellData->m_pucOrientationWithShell[Index] == 1 ? UE::CADKernel::Front : UE::CADKernel::Back, Shell, Index);
+			if (bConvertionFailed)
+			{
+				return;
+			}
 		}
 	}
 }
@@ -632,6 +644,8 @@ TSharedPtr<UE::CADKernel::FTopologicalEdge> FTechSoftBridge::AddEdge(const A3DTo
 
 	if (CoEdgeData->m_pUVCurve == nullptr)
 	{
+		bConvertionFailed = true;
+		FailureReason = EFailureReason::Curve3D;
 		return TSharedPtr<UE::CADKernel::FTopologicalEdge>();
 	}
 

@@ -71,16 +71,17 @@ FDatasmithDispatcher::FDatasmithDispatcher(const CADLibrary::FImportParameters& 
 	}
 }
 
-void FDatasmithDispatcher::AddTask(const CADLibrary::FFileDescriptor& InFileDescription)
+void FDatasmithDispatcher::AddTask(const CADLibrary::FFileDescriptor& InFileDescription, const CADLibrary::EMesher Mesher)
 {
+	using namespace CADLibrary;
 	FScopeLock Lock(&TaskPoolCriticalSection);
 
-	if (Algo::FindByPredicate(TaskPool, [&InFileDescription](const FTask& Task) { return Task.FileDescription == InFileDescription; }))
+	if (Algo::FindByPredicate(TaskPool, [&InFileDescription, &Mesher](const FTask& Task) { return Task.FileDescription == InFileDescription && Task.Mesher == Mesher; }))
 	{
 		return;
 	}
 
-	int32 TaskIndex = TaskPool.Emplace(InFileDescription);
+	int32 TaskIndex = TaskPool.Emplace(InFileDescription, Mesher);
 	TaskPool[TaskIndex].Index = TaskIndex;
 }
 
@@ -160,8 +161,20 @@ void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 			break;
 		}
 
-		case ETaskState::ProcessOk:
 		case ETaskState::ProcessFailed:
+		{
+			if (Task.Mesher == CADLibrary::EMesher::CADKernel)
+			{
+				UE_LOG(LogDatasmithDispatcher, Log, TEXT("   - Task failed with CADKernel: %s"), *Task.FileDescription.GetFileName());
+				UE_LOG(LogDatasmithDispatcher, Log, TEXT("      => Add task to process with Techsoft"));
+				AddTask(Task.FileDescription, CADLibrary::EMesher::TechSoft);
+			}
+
+			CompletedTaskCount++;
+			break;
+		}
+
+		case ETaskState::ProcessOk:
 		case ETaskState::FileNotFound:
 		{
 			CompletedTaskCount++;
@@ -362,26 +375,32 @@ void FDatasmithDispatcher::CloseHandlers()
 
 void FDatasmithDispatcher::ProcessLocal()
 {
+	using namespace CADLibrary;
+	EMesher DefaultMesher = FImportParameters::bGDisableCADKernelTessellation ? EMesher::TechSoft : EMesher::CADKernel;
+
 	bool bCheckMemory = true;
 	while (TOptional<FTask> Task = GetNextTask())
 	{
-		CADLibrary::FFileDescriptor& FileDescription = Task->FileDescription;
+		FFileDescriptor& FileDescription = Task->FileDescription;
+		FImportParameters FileImporParameters(ImportParameters, Task->Mesher);
 
-		CADLibrary::FCADFileReader FileReader(ImportParameters, FileDescription, *FPaths::EnginePluginsDir(), ProcessCacheFolder);
+		FCADFileReader FileReader(FileImporParameters, FileDescription, *FPaths::EnginePluginsDir(), ProcessCacheFolder);
 		ETaskState ProcessResult = FileReader.ProcessFile();
 
 		ETaskState TaskState = ProcessResult;
 		SetTaskState(Task->Index, TaskState);
 
-		if (TaskState == ETaskState::ProcessOk)
+		switch (TaskState)
 		{
-			const CADLibrary::FCADFileData& CADFileData = FileReader.GetCADFileData();
-			const TArray<CADLibrary::FFileDescriptor>& ExternalRefSet = CADFileData.GetExternalRefSet();
+		case ETaskState::ProcessOk:
+		{
+			const FCADFileData& CADFileData = FileReader.GetCADFileData();
+			const TArray<FFileDescriptor>& ExternalRefSet = CADFileData.GetExternalRefSet();
 			if (ExternalRefSet.Num() > 0)
 			{
-				for (const CADLibrary::FFileDescriptor& ExternalFile : ExternalRefSet)
+				for (const FFileDescriptor& ExternalFile : ExternalRefSet)
 				{
-					AddTask(ExternalFile);
+					AddTask(ExternalFile, DefaultMesher);
 				}
 			}
 
@@ -406,6 +425,18 @@ void FDatasmithDispatcher::ProcessLocal()
 				}
 				bCheckMemory = false;
 			}
+			break;
+		}
+		case ETaskState::ProcessFailed:
+		{
+			if (Task->Mesher == EMesher::CADKernel)
+			{
+				AddTask(Task->FileDescription, EMesher::TechSoft);
+			}
+			break;
+		}
+		default:
+			break;
 		}
 	}
 }

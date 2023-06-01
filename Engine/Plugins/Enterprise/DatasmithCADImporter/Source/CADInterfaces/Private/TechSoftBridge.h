@@ -6,6 +6,7 @@
 
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Math/MatrixH.h"
+#include "CADOptions.h"
 
 #include "TechSoftInterface.h"
 
@@ -175,6 +176,9 @@ private:
 	TMap<UE::CADKernel::FBody*, const A3DEntity*> CADKernelToTechSoft;
 	TMap<const A3DTopoCoEdge*, TSharedPtr<UE::CADKernel::FTopologicalEdge>> A3DEdgeToEdge;
 
+	EFailureReason FailureReason = EFailureReason::None;
+	bool bConvertionFailed = false;
+
 	double BodyScale = 1;
 
 public:
@@ -182,6 +186,11 @@ public:
 	UE::CADKernel::FBody* AddBody(A3DRiBrepModel* A3DBRepModel, TMap<FString, FString> MetaData, const double InBodyScale);
 	UE::CADKernel::FBody* GetBody(A3DRiBrepModel* A3DBRepModel);
 	const A3DRiBrepModel* GetA3DBody(UE::CADKernel::FBody* BRepModel);
+
+	EFailureReason GetFailureReason()
+	{
+		return FailureReason;
+	}
 
 private:
 

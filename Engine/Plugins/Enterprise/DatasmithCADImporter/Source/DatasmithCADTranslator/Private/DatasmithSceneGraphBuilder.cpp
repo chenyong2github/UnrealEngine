@@ -514,7 +514,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithSceneBaseGraphBuilder::FindOrAddMesh
 
 	BodyUuidToMeshElement.Add(Body.MeshActorUId, MeshElement);
 
-	FString BodyCachePath = CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), Body.MeshActorUId);
+	FString BodyCachePath = CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), Body.MeshActorUId, CADLibrary::EMesher::CADKernel);
 	MeshElement->SetFile(*BodyCachePath);
 
 	return MeshElement;

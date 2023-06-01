@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "CADData.h"
+#include "CADOptions.h"
 
 namespace DatasmithDispatcher
 {
@@ -13,15 +14,18 @@ struct FTask
 {
 	FTask() = default;
 
-	FTask(const CADLibrary::FFileDescriptor& InFile)
+	FTask(const CADLibrary::FFileDescriptor& InFile, const CADLibrary::EMesher InMesher)
 		: FileDescription(InFile)
+		, Mesher(InMesher)
 		, State(ETaskState::UnTreated)
 	{
 	}
 
 	CADLibrary::FFileDescriptor FileDescription;
+	CADLibrary::EMesher Mesher;
 	int32 Index = -1;
 	ETaskState State = ETaskState::Unknown;
+
 };
 
 } // NS DatasmithDispatcher

@@ -72,6 +72,10 @@ void FTechSoftFileParserCADKernelTessellator::SewAndGenerateBodyMeshes()
 	for (TPair<FCadId, TArray<A3DRiRepresentationItem*>>& Representations : OccurenceIdToRepresentations)
 	{
 		SewAndMesh(Representations.Value);
+		if (bConvertionFailed)
+		{
+			return;
+		}
 	}
 
 	// Delete unused ArchiveBody
@@ -108,6 +112,28 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 		FArchiveBody& Body = SceneGraph.GetBody(*BodyIndex);
 
 		FBody* CADKernelBody = TechSoftBridge.AddBody(Representation, Body.MetaData, Body.Unit);
+		if (CADKernelBody == nullptr)
+		{
+			const EFailureReason FailureReason = TechSoftBridge.GetFailureReason();
+			switch(FailureReason)
+			{
+				case EFailureReason::Curve3D :
+				{
+					// The failure of the current body is due to an incompatibility of modeler.
+					// Reimport of the full file with another modeler
+					bConvertionFailed = true;
+					return;
+				}
+
+				case EFailureReason::Unknown:
+				default:
+				{
+					// The failure of the current body is not due to an incompatibility of modeler.
+					// A reimport of the full file with another modeler is not wanted
+					break;
+				}
+			}
+		}
 	}
 
 	// Sew if needed
@@ -230,7 +256,12 @@ void FTechSoftFileParserCADKernelTessellator::GenerateBodyMesh(A3DRiRepresentati
 	if (CADKernelBody == nullptr)
 	{
 		ArchiveBody.Delete();
-		return;
+		const EFailureReason FailureReason = TechSoftBridge.GetFailureReason();
+		if(FailureReason == EFailureReason::Curve3D)
+		{
+			bConvertionFailed = true;
+			return;
+		}
 	}
 
 	if (CADFileData.GetImportParameters().GetStitchingTechnique() == StitchingHeal)

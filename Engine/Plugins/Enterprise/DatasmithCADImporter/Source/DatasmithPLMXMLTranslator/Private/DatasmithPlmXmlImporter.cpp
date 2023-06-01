@@ -255,8 +255,11 @@ namespace PlmXml
 		// Adds geom file to load and returns Id to use in InstantiateMesh later(after all is loaded)
 		int32 AddMeshToLoad(const FString& FullPath)
 		{
-			CADLibrary::FFileDescriptor FileDescription(*FullPath);
-			DatasmithDispatcher->AddTask(FileDescription);
+			using namespace CADLibrary;
+			const EMesher Mesher = FImportParameters::bGDisableCADKernelTessellation ? EMesher::TechSoft : EMesher::CADKernel;
+
+			FFileDescriptor FileDescription(*FullPath);
+			DatasmithDispatcher->AddTask(FileDescription, Mesher);
 			return FilePaths.Add(FullPath);
 		}
 

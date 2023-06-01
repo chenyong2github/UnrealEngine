@@ -61,6 +61,7 @@ FArchive& operator<<(FArchive& Ar, FArchiveBody& Body)
 	Ar << (FArchiveCADObject&) Body;
 	Ar << Body.MaterialFaceSet;
 	Ar << Body.ColorFaceSet;
+	Ar << Body.Mesher;
 	Ar << Body.ParentId;
 	Ar << Body.MeshActorUId;
 
@@ -341,12 +342,12 @@ void FArchiveSceneGraph::RemoveLastUnloadedReference()
 	CADIdToIndex.SetNum(CADIdToIndex.Num() - 1, false);
 }
 
-FArchiveBody& FArchiveSceneGraph::AddBody(FArchiveReference& Parent)
+FArchiveBody& FArchiveSceneGraph::AddBody(FArchiveReference& Parent, EMesher InMesher)
 {
 	ensure(Bodies.Num() < Bodies.Max());
 
 	const int32 BodyId = LastEntityId++;
-	int32 Index = Bodies.Emplace(BodyId, Parent);
+	int32 Index = Bodies.Emplace(BodyId, Parent, InMesher);
 	CADIdToIndex.Add(Index);
 
 	return Bodies[Index];

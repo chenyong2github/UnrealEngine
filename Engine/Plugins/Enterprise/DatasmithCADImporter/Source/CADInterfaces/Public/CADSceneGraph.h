@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 #include "CADData.h"
+#include "CADOptions.h"
 
 class FArchive;
 
@@ -112,9 +113,10 @@ class CADINTERFACES_API FArchiveBody : public FArchiveCADObject
 {
 public:
 	FArchiveBody() = default;
-	FArchiveBody(FCadId Id, const FArchiveCADObject& Parent)
+	FArchiveBody(FCadId Id, const FArchiveCADObject& Parent, EMesher InMesher)
 		: FArchiveCADObject(Id, Parent)
 		, ParentId(Parent.Id)
+		, Mesher(InMesher)
 	{
 	}
 
@@ -126,6 +128,8 @@ public:
 
 	TSet<FMaterialUId> MaterialFaceSet;
 	TSet<FMaterialUId> ColorFaceSet;
+
+	EMesher Mesher = EMesher::TechSoft;
 
 	void Delete();
 
@@ -225,7 +229,7 @@ public:
 	void RemoveLastUnloadedReference();
 	bool IsAUnloadedReference(FCadId CadId) const;
 
-	FArchiveBody& AddBody(FArchiveReference& Parent);
+	FArchiveBody& AddBody(FArchiveReference& Parent, EMesher InMesher);
 	FArchiveBody& GetBody(FCadId CadId);
 	void RemoveLastBody();
 	bool IsABody(FCadId CadId) const;
