@@ -872,9 +872,6 @@ namespace UnrealBuildTool
 				// Set the project file name
 				PrimaryProjectName = OnlyGameProject.GetFileNameWithoutExtension();
 
-				// Write out the name of the primary project file, so the runtime knows to use it
-				WritePrimaryProjectNameTxt = true;
-
 				if (!bAllowContentOnlyProjects && !DirectoryReference.Exists(DirectoryReference.Combine(PrimaryProjectPath, "Source")))
 				{
 					if (!DirectoryReference.Exists(DirectoryReference.Combine(PrimaryProjectPath, "Intermediate", "Source")))
