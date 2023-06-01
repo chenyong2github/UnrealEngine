@@ -1010,7 +1010,7 @@ namespace Horde.Server.Perforce
 						}
 						else
 						{
-							throw new PerforceException($"Unable to submit new changelist for {filePath} after {MaxAttempts} attempts");
+							throw new PerforceException($"Unable to submit new changelist for {filePath} after {MaxAttempts} attempts: {ex.Message}");
 						}
 					}
 					finally
