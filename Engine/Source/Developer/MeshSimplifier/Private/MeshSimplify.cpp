@@ -175,14 +175,7 @@ void FMeshSimplifier::CalcEdgeQuadric( uint32 EdgeIndex )
 		}
 	}
 
-	const QVec3 p0 = GetPosition( Indexes[ TriIndex * 3 + 0 ] );
-	const QVec3 p1 = GetPosition( Indexes[ TriIndex * 3 + 1 ] );
-	const QVec3 p2 = GetPosition( Indexes[ TriIndex * 3 + 2 ] );
-
-	const QVec3 Normal = ( p2 - p0 ) ^ ( p1 - p0 );
-
 	// Didn't find matching edge. Add edge constraint.
-	//EdgeQuadrics[ EdgeIndex ] = FEdgeQuadric( GetPosition( VertIndex0 ), GetPosition( VertIndex1 ), Normal, Weight );
 	EdgeQuadrics[ EdgeIndex ] = FEdgeQuadric( GetPosition( VertIndex0 ), GetPosition( VertIndex1 ), Weight );
 	EdgeQuadricsValid[ EdgeIndex ] = true;
 }
@@ -751,6 +744,27 @@ bool FMeshSimplifier::TriWillInvert( uint32 TriIndex, const FVector3f& NewPositi
 	return false;
 }
 
+void FMeshSimplifier::RemoveTri( uint32 TriIndex )
+{
+	check( !TriRemoved[ TriIndex ] );
+
+	TriRemoved[ TriIndex ] = true;
+	RemainingNumTris--;
+
+	// Remove references to tri
+	for( uint32 k = 0; k < 3; k++ )
+	{
+		uint32 Corner = TriIndex * 3 + k;
+		uint32 VertIndex = Indexes[ Corner ];
+		uint32 Hash = HashPosition( GetPosition( VertIndex ) );
+
+		CornerHash.Remove( Hash, Corner );
+		EdgeQuadricsValid[ Corner ] = false;
+
+		SetVertIndex( Corner, ~0u );
+	}
+}
+
 void FMeshSimplifier::FixUpTri( uint32 TriIndex )
 {
 	check( !TriRemoved[ TriIndex ] );
@@ -781,27 +795,9 @@ void FMeshSimplifier::FixUpTri( uint32 TriIndex )
 	}
 
 	if( bRemoveTri )
-	{
-		TriRemoved[ TriIndex ] = true;
-		RemainingNumTris--;
-
-		// Remove references to tri
-		for( uint32 k = 0; k < 3; k++ )
-		{
-			uint32 Corner = TriIndex * 3 + k;
-			uint32 VertIndex = Indexes[ Corner ];
-			uint32 Hash = HashPosition( GetPosition( VertIndex ) );
-
-			CornerHash.Remove( Hash, Corner );
-			EdgeQuadricsValid[ Corner ] = false;
-
-			SetVertIndex( Corner, ~0u );
-		}
-	}
+		RemoveTri( TriIndex );
 	else
-	{
 		CalcTriQuadric( TriIndex );
-	}
 }
 
 bool FMeshSimplifier::IsDuplicateTri( uint32 TriIndex ) const
@@ -957,6 +953,32 @@ float FMeshSimplifier::Simplify(
 			PairHeap.Add( MergeError, PairIndex );
 		}
 		ReevaluatePairs.Reset();
+	}
+
+	// If couldn't hit targets through regular edge collapses, resort to randomly removing triangles.
+	{
+		uint32 TriIndex = 0;
+		while(1)
+		{
+			if( RemainingNumVerts	<= TargetNumVerts &&
+				RemainingNumTris	<= TargetNumTris &&
+				MaxError			>= TargetError )
+			{
+				break;
+			}
+	
+			if( RemainingNumVerts	<= LimitNumVerts ||
+				RemainingNumTris	<= LimitNumTris ||
+				MaxError			>= LimitError )
+			{
+				break;
+			}
+
+			while( TriRemoved[ TriIndex ] )
+				TriIndex++;
+	
+			RemoveTri( TriIndex );
+		}
 	}
 	
 	return MaxError;

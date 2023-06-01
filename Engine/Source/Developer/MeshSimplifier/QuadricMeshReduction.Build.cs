@@ -7,13 +7,19 @@ public class QuadricMeshReduction : ModuleRules
 {
 	public QuadricMeshReduction(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateDependencyModuleNames.Add("Core");
-		PrivateDependencyModuleNames.Add("CoreUObject");
-		PrivateDependencyModuleNames.Add("Engine");
-		PrivateDependencyModuleNames.Add("RenderCore");
-        PrivateDependencyModuleNames.Add("MeshDescription");
-        PrivateDependencyModuleNames.Add("MeshUtilitiesCommon");
-        PrivateDependencyModuleNames.Add("StaticMeshDescription");
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Core",
+				"CoreUObject",
+				"Engine",
+				"RenderCore",
+				"NaniteUtilities",
+				"MeshUtilitiesCommon",
+				"MeshDescription",
+				"StaticMeshDescription",
+			}
+		);
 
         PrivateIncludePathModuleNames.AddRange(
         new string[] {

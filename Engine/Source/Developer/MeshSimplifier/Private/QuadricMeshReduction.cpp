@@ -5,7 +5,7 @@
 #include "MeshUtilities.h"
 #include "MeshBuild.h"
 #include "MeshSimplify.h"
-#include "SimpVert.h"
+#include "LerpVert.h"
 #include "OverlappingCorners.h"
 #include "Templates/UniquePtr.h"
 #include "Features/IModularFeatures.h"
@@ -66,8 +66,7 @@ public:
 		// bool bUseQuadricSimplier = SplitVersionString[0].Equals("QuadricMeshReduction");
 
 		static FString Version = TEXT("QuadricMeshReduction_V2.1");
-		static FString AltVersion = TEXT("QuadricMeshReduction_V2.0_OldSimplifier");
-		return bUseOldMeshSimplifier ? AltVersion : Version;
+		return Version;
 	}
 
 	virtual void ReduceMeshDescription(
@@ -91,9 +90,9 @@ public:
 			FStaticMeshOperations::BuildWeldedVertexIDRemap(InMesh, ReductionSettings.WeldingThreshold, VertexIDRemap);
 		}
 
-		TArray< TVertSimp< NumTexCoords > >	Verts;
-		TArray< uint32 >					Indexes;
-		TArray< int32 >						MaterialIndexes;
+		TArray< FLerpVert >	Verts;
+		TArray< uint32 >	Indexes;
+		TArray< int32 >		MaterialIndexes;
 
 		TMap< int32, int32 > VertsMap;
 
@@ -142,38 +141,38 @@ public:
 				const int32 VertexInstanceValue = VertexInstanceID.GetValue();
 				const FVector3f& VertexPosition = CornerPositions[TriVert];
 
-				TVertSimp< NumTexCoords > NewVert;
+				FLerpVert NewVert;
 
 				NewVert.Position = CornerPositions[TriVert];
-				NewVert.Tangents[0] = InVertexTangents[ VertexInstanceID ];
-				NewVert.Normal = InVertexNormals[ VertexInstanceID ];
-				NewVert.Tangents[1] = FVector3f(0.0f);
-				if (!NewVert.Normal.IsNearlyZero(SMALL_NUMBER) && !NewVert.Tangents[0].IsNearlyZero(SMALL_NUMBER))
+				NewVert.TangentX = InVertexTangents[ VertexInstanceID ];
+				NewVert.TangentZ = InVertexNormals[ VertexInstanceID ];
+				NewVert.TangentY = FVector3f(0.0f);
+				if (!NewVert.TangentZ.IsNearlyZero(SMALL_NUMBER) && !NewVert.TangentX.IsNearlyZero(SMALL_NUMBER))
 				{
-					NewVert.Tangents[1] = FVector3f::CrossProduct(NewVert.Normal, NewVert.Tangents[0]).GetSafeNormal() * InVertexBinormalSigns[ VertexInstanceID ];
+					NewVert.TangentY = FVector3f::CrossProduct(NewVert.TangentZ, NewVert.TangentX).GetSafeNormal() * InVertexBinormalSigns[ VertexInstanceID ];
 				}
 
 				// Fix bad tangents
-				NewVert.Tangents[0] = NewVert.Tangents[0].ContainsNaN() ? FVector3f::ZeroVector : NewVert.Tangents[0];
-				NewVert.Tangents[1] = NewVert.Tangents[1].ContainsNaN() ? FVector3f::ZeroVector : NewVert.Tangents[1];
-				NewVert.Normal = NewVert.Normal.ContainsNaN() ? FVector3f::ZeroVector : NewVert.Normal;
+				NewVert.TangentX = NewVert.TangentX.ContainsNaN() ? FVector3f::ZeroVector : NewVert.TangentX;
+				NewVert.TangentY = NewVert.TangentY.ContainsNaN() ? FVector3f::ZeroVector : NewVert.TangentY;
+				NewVert.TangentZ = NewVert.TangentZ.ContainsNaN() ? FVector3f::ZeroVector : NewVert.TangentZ;
 				NewVert.Color = FLinearColor(InVertexColors[ VertexInstanceID ]);
 
 				for (int32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++)
 				{
 					if (UVIndex < InVertexUVs.GetNumChannels())
 					{
-						NewVert.TexCoords[UVIndex] = InVertexUVs.Get(VertexInstanceID, UVIndex);
+						NewVert.UVs[UVIndex] = InVertexUVs.Get(VertexInstanceID, UVIndex);
 						InMeshNumTexCoords = FMath::Max(UVIndex + 1, InMeshNumTexCoords);
 					}
 					else
 					{
-						NewVert.TexCoords[UVIndex] = FVector2f::ZeroVector;
+						NewVert.UVs[UVIndex] = FVector2f::ZeroVector;
 					}
 				}
 
 				// Make sure this vertex is valid from the start
-				NewVert.Correct();
+				CorrectAttributes( (float*)&NewVert.TangentX );
 					
 
 				//Never add duplicated vertex instance
@@ -192,13 +191,28 @@ public:
 					int32* Location = VertsMap.Find(DupVerts[k]);
 					if (Location)
 					{
-						TVertSimp< NumTexCoords >& FoundVert = Verts[*Location];
+						FLerpVert& FoundVert = Verts[*Location];
 
-						if (NewVert.Equals(FoundVert))
+						if( !PointsEqual(	NewVert.Position, FoundVert.Position ) ||
+							!NormalsEqual(	NewVert.TangentX, FoundVert.TangentX ) ||
+							!NormalsEqual(	NewVert.TangentY, FoundVert.TangentY ) ||
+							!NormalsEqual(	NewVert.TangentZ, FoundVert.TangentZ ) ||
+							!NewVert.Color.Equals( FoundVert.Color ) )
 						{
-							Index = *Location;
-							break;
+							continue;
 						}
+				
+						// UVs
+						for( int32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+						{
+							if( !UVsEqual( NewVert.UVs[ UVIndex ], FoundVert.UVs[ UVIndex ] ) )
+							{
+								continue;
+							}
+						}
+
+						Index = *Location;
+						break;
 					}
 				}
 				if (Index == INDEX_NONE)
@@ -259,183 +273,85 @@ public:
 		// Clamp to a minimum of 4 vertices, ReductionSettings.PercentVertices can be zero which makes TargetNumVerts also zero
 		TargetNumVerts = FMath::Max(TargetNumVerts, 4u);
 
-		if (bUseOldMeshSimplifier)
+		if( TargetNumVerts < NumVerts || TargetNumTris < NumTris )
 		{
-			static_assert(NumTexCoords == 8, "NumTexCoords changed, fix AttributeWeights");
-			const uint32 NumAttributes = (sizeof(TVertSimp< NumTexCoords >) - sizeof(FVector3f)) / sizeof(float);
-			float AttributeWeights[] =
+			const uint32 NumAttributes = ( sizeof( FLerpVert ) - sizeof( FVector3f ) ) / sizeof(float);
+			float AttributeWeights[ NumAttributes ] =
 			{
-				16.0f, 16.0f, 16.0f,	// Normal
-				0.1f, 0.1f, 0.1f,		// Tangent[0]
-				0.1f, 0.1f, 0.1f,		// Tangent[1]
-				0.1f, 0.1f, 0.1f, 0.1f,	// Color
-				0.5f, 0.5f,				// TexCoord[0]
-				0.5f, 0.5f,				// TexCoord[1]
-				0.5f, 0.5f,				// TexCoord[2]
-				0.5f, 0.5f,				// TexCoord[3]
-				0.5f, 0.5f,				// TexCoord[4]
-				0.5f, 0.5f,				// TexCoord[5]
-				0.5f, 0.5f,				// TexCoord[6]
-				0.5f, 0.5f,				// TexCoord[7]
+				16.0f, 16.0f, 16.0f,// Normal
+				0.1f, 0.1f, 0.1f,	// Tangent[0]
+				0.1f, 0.1f, 0.1f	// Tangent[1]
 			};
-			float* ColorWeights = AttributeWeights + 3 + 3 + 3;
-			float* TexCoordWeights = ColorWeights + 4;
+			float* ColorWeights = AttributeWeights + 9;
+			float* UVWeights = ColorWeights + 4;
 
-			// Re-scale the weights for UV channels that exceed the expected 0-1 range.
-			// Otherwise garbage on the UVs will dominate the simplification quadric.
+			bool bHasColors = true;
+
+			// Set weights if they are used
+			if( bHasColors )
 			{
-				float XLength[MAX_STATIC_TEXCOORDS] = { 0 };
-				float YLength[MAX_STATIC_TEXCOORDS] = { 0 };
-				{
-					for (int32 TexCoordId = 0; TexCoordId < NumTexCoords; ++TexCoordId)
-					{
-						float XMax = -FLT_MAX;
-						float YMax = -FLT_MAX;
-						float XMin = FLT_MAX;
-						float YMin = FLT_MAX;
-						for (const TVertSimp< NumTexCoords >& SimpVert : Verts)
-						{
-							const FVector2f& UVs = SimpVert.TexCoords[TexCoordId];
-							XMax = FMath::Max(XMax, UVs.X);
-							XMin = FMath::Min(XMin, UVs.X);
-
-							YMax = FMath::Max(YMax, UVs.Y);
-							YMin = FMath::Min(YMin, UVs.Y);
-						}
-
-						XLength[TexCoordId] = (XMax > XMin) ? XMax - XMin : 0.f;
-						YLength[TexCoordId] = (YMax > YMin) ? YMax - YMin : 0.f;
-					}
-				}
-
-				for (int32 TexCoordId = 0; TexCoordId < NumTexCoords; ++TexCoordId)
-				{
-
-					if (XLength[TexCoordId] > 1.f)
-					{
-						TexCoordWeights[2 * TexCoordId + 0] /= XLength[TexCoordId];
-					}
-					if (YLength[TexCoordId] > 1.f)
-					{
-						TexCoordWeights[2 * TexCoordId + 1] /= YLength[TexCoordId];
-					}
-				}
+				ColorWeights[0] = 0.1f;
+				ColorWeights[1] = 0.1f;
+				ColorWeights[2] = 0.1f;
+				ColorWeights[3] = 0.1f;
 			}
 
-			// Zero out weights that aren't used
+			float UVWeight = 0.5f;
+			for( int32 UVIndex = 0; UVIndex < InVertexUVs.GetNumChannels(); UVIndex++ )
 			{
-				//TODO Check if we have vertex color
+				// Normalize UVWeights using min/max UV range.
 
-				for (int32 TexCoordIndex = 0; TexCoordIndex < NumTexCoords; TexCoordIndex++)
+				float MinUV = +FLT_MAX;
+				float MaxUV = -FLT_MAX;
+
+				for( int32 VertexIndex = 0; VertexIndex < Verts.Num(); VertexIndex++ )
 				{
-					if (TexCoordIndex >= InVertexUVs.GetNumChannels())
-					{
-						TexCoordWeights[2 * TexCoordIndex + 0] = 0.0f;
-						TexCoordWeights[2 * TexCoordIndex + 1] = 0.0f;
-					}
+					MinUV = FMath::Min( MinUV, Verts[ VertexIndex ].UVs[ UVIndex ].X );
+					MinUV = FMath::Min( MinUV, Verts[ VertexIndex ].UVs[ UVIndex ].Y );
+					MaxUV = FMath::Max( MaxUV, Verts[ VertexIndex ].UVs[ UVIndex ].X );
+					MaxUV = FMath::Max( MaxUV, Verts[ VertexIndex ].UVs[ UVIndex ].Y );
 				}
+
+				UVWeights[ 2 * UVIndex + 0 ] = UVWeight / FMath::Max( 1.0f, MaxUV - MinUV );
+				UVWeights[ 2 * UVIndex + 1 ] = UVWeight / FMath::Max( 1.0f, MaxUV - MinUV );
 			}
 
-			TMeshSimplifier< TVertSimp< NumTexCoords >, NumAttributes >* MeshSimp = new TMeshSimplifier< TVertSimp< NumTexCoords >, NumAttributes >(Verts.GetData(), NumVerts, Indexes.GetData(), NumIndexes);
+			FMeshSimplifier Simplifier( (float*)Verts.GetData(), Verts.Num(), Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
 
-			MeshSimp->SetAttributeWeights(AttributeWeights);
-			MeshSimp->SetEdgeWeight(256.0f);
-			//MeshSimp->SetBoundaryLocked();
-			MeshSimp->InitCosts();
+			Simplifier.SetAttributeWeights( AttributeWeights );
+			Simplifier.SetCorrectAttributes( CorrectAttributes );
+			Simplifier.SetEdgeWeight( 512.0f );
+			Simplifier.SetLimitErrorToSurfaceArea( false );
 
-			float MaxErrorSqr = MeshSimp->SimplifyMesh(MAX_FLT, TargetNumTris, TargetNumVerts);
+			Simplifier.DegreePenalty = 100.0f;
+			Simplifier.InversionPenalty = 1000000.0f;
 
-			MeshSimp->OutputMesh(Verts.GetData(), Indexes.GetData(), &NumVerts, &NumIndexes);
-			MeshSimp->CompactFaceData(MaterialIndexes);
-			NumTris = NumIndexes / 3;
-			delete MeshSimp;
+			float MaxErrorSqr = Simplifier.Simplify( TargetNumVerts, TargetNumTris, 0.0f, 4, 2, MAX_flt );
 
-			OutMaxDeviation = FMath::Sqrt(MaxErrorSqr) / 8.0f;
+			if( Simplifier.GetRemainingNumVerts() == 0 || Simplifier.GetRemainingNumTris() == 0 )
+			{
+				// Reduced to nothing so just return the orignial.
+				OutReducedMesh = InMesh;
+				OutMaxDeviation = 0.0f;
+				return;
+			}
+	
+			Simplifier.Compact();
+
+			Verts.SetNum( Simplifier.GetRemainingNumVerts() );
+			Indexes.SetNum( Simplifier.GetRemainingNumTris() * 3 );
+			MaterialIndexes.SetNum( Simplifier.GetRemainingNumTris() );
+
+			NumVerts = Simplifier.GetRemainingNumVerts();
+			NumTris = Simplifier.GetRemainingNumTris();
+			NumIndexes = NumTris * 3;
+
+			OutMaxDeviation = FMath::Sqrt( MaxErrorSqr ) / 8.0f;
 		}
 		else
 		{
-			if( TargetNumVerts < NumVerts || TargetNumTris < NumTris )
-			{
-				using VertType = TVertSimp< NumTexCoords >;
-
-				const uint32 NumAttributes = ( sizeof( VertType ) - sizeof( FVector3f ) ) / sizeof(float);
-				float AttributeWeights[ NumAttributes ] =
-				{
-					16.0f, 16.0f, 16.0f,// Normal
-					0.1f, 0.1f, 0.1f,	// Tangent[0]
-					0.1f, 0.1f, 0.1f	// Tangent[1]
-				};
-				float* ColorWeights = AttributeWeights + 9;
-				float* UVWeights = ColorWeights + 4;
-
-				bool bHasColors = true;
-
-				// Set weights if they are used
-				if( bHasColors )
-				{
-					ColorWeights[0] = 0.1f;
-					ColorWeights[1] = 0.1f;
-					ColorWeights[2] = 0.1f;
-					ColorWeights[3] = 0.1f;
-				}
-
-				float UVWeight = 0.5f;
-				for( int32 UVIndex = 0; UVIndex < InVertexUVs.GetNumChannels(); UVIndex++ )
-				{
-					// Normalize UVWeights using min/max UV range.
-
-					float MinUV = +FLT_MAX;
-					float MaxUV = -FLT_MAX;
-
-					for( int32 VertexIndex = 0; VertexIndex < Verts.Num(); VertexIndex++ )
-					{
-						MinUV = FMath::Min( MinUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].X );
-						MinUV = FMath::Min( MinUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].Y );
-						MaxUV = FMath::Max( MaxUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].X );
-						MaxUV = FMath::Max( MaxUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].Y );
-					}
-
-					UVWeights[ 2 * UVIndex + 0 ] = UVWeight / FMath::Max( 1.0f, MaxUV - MinUV );
-					UVWeights[ 2 * UVIndex + 1 ] = UVWeight / FMath::Max( 1.0f, MaxUV - MinUV );
-				}
-
-				FMeshSimplifier Simplifier( (float*)Verts.GetData(), Verts.Num(), Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
-
-				Simplifier.SetAttributeWeights( AttributeWeights );
-				Simplifier.SetCorrectAttributes( CorrectAttributes );
-				Simplifier.SetEdgeWeight( 512.0f );
-				Simplifier.SetLimitErrorToSurfaceArea( false );
-
-				Simplifier.DegreePenalty = 100.0f;
-				Simplifier.InversionPenalty = 1000000.0f;
-
-				float MaxErrorSqr = Simplifier.Simplify( TargetNumVerts, TargetNumTris, 0.0f, 4, 2, MAX_flt );
-
-				if( Simplifier.GetRemainingNumVerts() == 0 || Simplifier.GetRemainingNumTris() == 0 )
-				{
-					// Reduced to nothing so just return the orignial.
-					OutReducedMesh = InMesh;
-					OutMaxDeviation = 0.0f;
-					return;
-				}
-		
-				Simplifier.Compact();
-
-				Verts.SetNum( Simplifier.GetRemainingNumVerts() );
-				Indexes.SetNum( Simplifier.GetRemainingNumTris() * 3 );
-				MaterialIndexes.SetNum( Simplifier.GetRemainingNumTris() );
-
-				NumVerts = Simplifier.GetRemainingNumVerts();
-				NumTris = Simplifier.GetRemainingNumTris();
-				NumIndexes = NumTris * 3;
-
-				OutMaxDeviation = FMath::Sqrt( MaxErrorSqr ) / 8.0f;
-			}
-			else
-			{
-				// Rare but could happen with rounding or only 2 triangles.
-				OutMaxDeviation = 0.0f;
-			}
+			// Rare but could happen with rounding or only 2 triangles.
+			OutMaxDeviation = 0.0f;
 		}
 
 		{
@@ -492,9 +408,12 @@ public:
 					check(AddedVertexInstanceId.GetValue() == VertexInstanceIndex);
 
 					//NTBs information
-					OutVertexTangents[AddedVertexInstanceId] = Verts[Indexes[VertexInstanceIndex]].Tangents[0];
-					OutVertexBinormalSigns[AddedVertexInstanceId] = GetBasisDeterminantSign((FVector)Verts[Indexes[VertexInstanceIndex]].Tangents[0].GetSafeNormal(), (FVector)Verts[Indexes[VertexInstanceIndex]].Tangents[1].GetSafeNormal(), (FVector)Verts[Indexes[VertexInstanceIndex]].Normal.GetSafeNormal());
-					OutVertexNormals[AddedVertexInstanceId] = Verts[Indexes[VertexInstanceIndex]].Normal;
+					OutVertexTangents[AddedVertexInstanceId] = Verts[Indexes[VertexInstanceIndex]].TangentX;
+					OutVertexBinormalSigns[AddedVertexInstanceId] = GetBasisDeterminantSign(
+						(FVector)Verts[Indexes[VertexInstanceIndex]].TangentX,
+						(FVector)Verts[Indexes[VertexInstanceIndex]].TangentY,
+						(FVector)Verts[Indexes[VertexInstanceIndex]].TangentZ);
+					OutVertexNormals[AddedVertexInstanceId] = Verts[Indexes[VertexInstanceIndex]].TangentZ;
 
 					//Vertex Color
 					OutVertexColors[AddedVertexInstanceId] = Verts[Indexes[VertexInstanceIndex]].Color;
@@ -502,7 +421,7 @@ public:
 					//Texture coord
 					for (int32 TexCoordIndex = 0; TexCoordIndex < InMeshNumTexCoords; TexCoordIndex++)
 					{
-						OutVertexUVs.Set(AddedVertexInstanceId, TexCoordIndex, Verts[Indexes[VertexInstanceIndex]].TexCoords[TexCoordIndex]);
+						OutVertexUVs.Set(AddedVertexInstanceId, TexCoordIndex, Verts[Indexes[VertexInstanceIndex]].UVs[TexCoordIndex]);
 					}
 				}
 				
@@ -624,20 +543,12 @@ public:
 		return false;
 	}
 
-	FQuadricSimplifierMeshReduction()
-		: bUseOldMeshSimplifier(false)
-	{
-		GConfig->GetBool(TEXT("/Script/Engine.MeshSimplificationSettings"), TEXT("bMeshReductionBackwardCompatible"), bUseOldMeshSimplifier, GEngineIni);
-	}
-
 	virtual ~FQuadricSimplifierMeshReduction() {}
 
 	static FQuadricSimplifierMeshReduction* Create()
 	{
 		return new FQuadricSimplifierMeshReduction;
 	}
-
-	bool bUseOldMeshSimplifier;
 };
 
 TUniquePtr<FQuadricSimplifierMeshReduction> GQuadricSimplifierMeshReduction;
