@@ -59,25 +59,20 @@ void FVisualEntry::Resolve(const FSlateWindowElementList& ElementList)
 		return;
 	}
 
-	auto ResolveBounds = [&](const FSlateDrawElementContainer& Container, uint8 InElementType)
+	if (const FSlateDrawElementContainer* Container = ElementList.GetUncachedDrawElements().Find(ElementType))
 	{
-		if (InElementType == (uint8)ElementType)
-		{
-			const FSlateDrawElement& Element = Container.Elements[ElementIndex];
-			const FSlateRenderTransform& Transform = Element.GetRenderTransform();
-			const FVector2D LocalSize = Element.GetLocalSize();
+		const FSlateDrawElement& Element = Container->Elements[ElementIndex];
+		const FSlateRenderTransform& Transform = Element.GetRenderTransform();
+		const FVector2D LocalSize = Element.GetLocalSize();
 
-			TopLeft = Transform.TransformPoint(FVector2D(0, 0));
-			TopRight = Transform.TransformPoint(FVector2D(LocalSize.X, 0));
-			BottomLeft = Transform.TransformPoint(FVector2D(0, LocalSize.Y));
-			BottomRight = Transform.TransformPoint(LocalSize);
+		TopLeft = Transform.TransformPoint(FVector2D(0, 0));
+		TopRight = Transform.TransformPoint(FVector2D(LocalSize.X, 0));
+		BottomLeft = Transform.TransformPoint(FVector2D(0, LocalSize.Y));
+		BottomRight = Transform.TransformPoint(LocalSize);
 
-			LayerId = Element.GetLayer();
-			ClippingIndex = Element.GetPrecachedClippingIndex();
-		}
-	};
-
-	VisitTupleElements(ResolveBounds, ElementList.GetUncachedDrawElements(), UE::Slate::MakeTupleIndicies<uint8, (uint8)EElementType::ET_Count>());
+		LayerId = Element.GetLayer();
+		ClippingIndex = Element.GetPrecachedClippingIndex();
+	}
 }
 
 bool FVisualEntry::IsPointInside(const FVector2D& Point) const
@@ -187,9 +182,9 @@ void FVisualTreeCapture::AddInvalidationRootCachedEntries(TSharedRef<FVisualTree
 	const TArray<TSharedPtr<FSlateCachedElementList>>& CachedElements = Data.GetCachedElementLists();
 	for (const TSharedPtr<FSlateCachedElementList>& CachedElement : CachedElements)
 	{
-		auto AddTypedEntries = [&](FSlateDrawElementContainer& Container)
+		for (TPair<EElementType, FSlateDrawElementContainer>& DrawElement : CachedElement->DrawElements)
 		{
-			const FSlateDrawElementArray& DrawElementArray = Container.Elements;
+			const FSlateDrawElementArray& DrawElementArray = DrawElement.Value.Elements;
 			const SWidget* Widget = CachedElement->OwningWidget;
 			// todo, should check if parents has the metadata also
 			if (Widget && !Widget->GetMetaData<FInvisibleToWidgetReflectorMetaData>())
@@ -210,9 +205,7 @@ void FVisualTreeCapture::AddInvalidationRootCachedEntries(TSharedRef<FVisualTree
 					}
 				}
 			}
-		};
-
-		VisitTupleElements(AddTypedEntries, CachedElement->DrawElements);
+		}
 	}
 }
 
@@ -304,20 +297,20 @@ void FVisualTreeCapture::EndWidgetPaint(const SWidget* Widget, const FSlateWindo
 	}
 }
 
-void FVisualTreeCapture::ElementTypeAdded(const FSlateDebuggingElementTypeAddedEventArgs& ElementTypeAddedArgs)
+void FVisualTreeCapture::ElementTypeAdded(const FSlateWindowElementList& ElementList, int32 InElementIndex, EElementType InElementType)
 {
 	if (WindowIsInvalidationRootCounter > 0 || WidgetIsInvalidationRootCounter > 0 || WidgetIsInvisibleToWidgetReflectorCounter > 0)
 	{
 		return;
 	}
 
-	TSharedPtr<FVisualTreeSnapshot> Tree = VisualTrees.FindRef(ElementTypeAddedArgs.ElementList.GetPaintWindow());
+	TSharedPtr<FVisualTreeSnapshot> Tree = VisualTrees.FindRef(ElementList.GetPaintWindow());
 	if (Tree.IsValid())
 	{
 		if (Tree->WidgetStack.Num() > 0)
 		{
 			// Ignore any element added from a widget that's invisible to the widget reflector.
-			Tree->Entries.Emplace(Tree->WidgetStack.Top(), ElementTypeAddedArgs.ElementIndex, ElementTypeAddedArgs.ElementType);
+			Tree->Entries.Emplace(Tree->WidgetStack.Top(), InElementIndex, InElementType);
 		}
 	}
 }

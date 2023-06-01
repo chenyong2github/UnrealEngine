@@ -8,6 +8,10 @@ FSlateResourceHandle::FSlateResourceHandle()
 {
 }
 
+FSlateResourceHandle::~FSlateResourceHandle()
+{
+}
+
 bool FSlateResourceHandle::IsValid() const
 {
 	return Data.IsValid() && Data->Proxy;

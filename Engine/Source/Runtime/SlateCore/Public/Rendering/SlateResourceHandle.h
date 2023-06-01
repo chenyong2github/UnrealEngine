@@ -18,6 +18,7 @@ class SLATECORE_API FSlateResourceHandle
 	friend class FSlateNullShaderResourceManager;
 public:
 	FSlateResourceHandle();
+	~FSlateResourceHandle();
 
 	/**
 	 * @return true if the handle still points to a valid rendering resource

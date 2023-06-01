@@ -394,7 +394,6 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 				BuildFastPathWidgetList(RootWidget);
 			}
 
-			// Repopulates cached element lists
 			CachedMaxLayerId = PaintSlowPath(Context);
 #if WITH_SLATE_DEBUGGING
 			SetLastPaintType(ESlateInvalidationPaintType::Slow);

@@ -10,10 +10,7 @@
 #include "Input/Reply.h"
 #include "Input/NavigationReply.h"
 #include "Input/PopupMethodReply.h"
-#include "Rendering/DrawElementTypes.h"
 #include "SlateGlobals.h"
-#include <utility>
-
 #include "RenderingCommon.generated.h"
 
 class FSlateInstanceBufferUpdate;
@@ -47,7 +44,7 @@ enum class ESlateDrawPrimitive : uint8
 	LineList,
 	TriangleList,
 };
-
+ 
 /**
  * Shader types. NOTE: mirrored in the shader file   
  * If you add a type here you must also implement the proper shader type (TSlateElementPS).  See SlateShaders.h
@@ -221,13 +218,12 @@ struct SLATECORE_API FSlateVertex
 	/** Local size of the element */
 	uint16 PixelSize[2];
 
-	FSlateVertex() 
-	{}
-
+	FSlateVertex() {}
+	
 public:
 
 	template<ESlateVertexRounding Rounding>
-	FORCEINLINE static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector2f InTexCoord, const FVector2f InTexCoord2, const FColor InColor, const FColor SecondaryColor = FColor())
+	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector2f InTexCoord, const FVector2f InTexCoord2, const FColor InColor, const FColor SecondaryColor = FColor())
 	{
 		FSlateVertex Vertex;
 		Vertex.TexCoords[0] = InTexCoord.X;
@@ -240,7 +236,7 @@ public:
 	}
 
 	template<ESlateVertexRounding Rounding>
-	FORCEINLINE static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector2f InTexCoord, const FColor& InColor, const FColor SecondaryColor = FColor())
+	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector2f InTexCoord, const FColor& InColor, const FColor SecondaryColor = FColor())
 	{
 		FSlateVertex Vertex;
 		Vertex.TexCoords[0] = InTexCoord.X;
@@ -253,7 +249,7 @@ public:
 	}
 
 	template<ESlateVertexRounding Rounding>
-	FORCEINLINE static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector4f InTexCoords, const FVector2f InMaterialTexCoords, const FColor InColor, const FColor SecondaryColor = FColor())
+	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector4f InTexCoords, const FVector2f InMaterialTexCoords, const FColor InColor, const FColor SecondaryColor = FColor())
 	{
 		FSlateVertex Vertex;
 		Vertex.TexCoords[0] = InTexCoords.X;
@@ -267,7 +263,7 @@ public:
 	}
 
 	template<ESlateVertexRounding Rounding>
-	FORCEINLINE static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector2f InLocalSize, float Scale, const FVector4f InTexCoords, const FColor InColor, const FColor SecondaryColor = FColor())
+	static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector2f InLocalSize, float Scale, const FVector4f InTexCoords, const FColor InColor, const FColor SecondaryColor = FColor())
 	{
 		FSlateVertex Vertex;
 		Vertex.TexCoords[0] = InTexCoords.X;
@@ -288,42 +284,12 @@ public:
 		ensureMsgf((int32)Vertex.PixelSize[1] == PixelSizeY, TEXT("Conversion of PixelSizeY is bigger than 16. Cast:%d, int16:%d, int32:%d")
 			, (int32)Vertex.PixelSize[1], Vertex.PixelSize[1], PixelSizeY);
 #endif
+		Vertex.MaterialTexCoords = FVector2f(InLocalPosition.X / InLocalSize.X, InLocalPosition.Y / InLocalSize.Y);
 
 		return Vertex;
 	}
-	
-	FORCEINLINE static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector2f InTexCoord, const FVector2f InTexCoord2, const FColor InColor, const FColor SecondaryColor = FColor(), const ESlateVertexRounding InRounding = ESlateVertexRounding::Disabled)
-	{
-		return InRounding == ESlateVertexRounding::Enabled
-			? FSlateVertex::Make<ESlateVertexRounding::Enabled>(RenderTransform, InLocalPosition, InTexCoord, InTexCoord2, InColor, SecondaryColor)
-			: FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, InLocalPosition, InTexCoord, InTexCoord2, InColor, SecondaryColor);
-	}
 
-	
-	FORCEINLINE static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector2f InTexCoord, const FColor& InColor, const FColor SecondaryColor = FColor(), const ESlateVertexRounding InRounding = ESlateVertexRounding::Disabled)
-	{
-		return InRounding == ESlateVertexRounding::Enabled
-			? FSlateVertex::Make<ESlateVertexRounding::Enabled>(RenderTransform, InLocalPosition, InTexCoord, InColor, SecondaryColor)
-			: FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, InLocalPosition, InTexCoord, InColor, SecondaryColor);
-	}
-
-	
-	FORCEINLINE static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector4f InTexCoords, const FVector2f InMaterialTexCoords, const FColor InColor, const FColor SecondaryColor = FColor(), const ESlateVertexRounding InRounding = ESlateVertexRounding::Disabled)
-	{
-		return InRounding == ESlateVertexRounding::Enabled
-			? FSlateVertex::Make<ESlateVertexRounding::Enabled>(RenderTransform, InLocalPosition, InTexCoords, InMaterialTexCoords, InColor, SecondaryColor)
-			: FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, InLocalPosition, InTexCoords, InMaterialTexCoords, InColor, SecondaryColor);
-	}
-
-	
-	FORCEINLINE static FSlateVertex Make(const FSlateRenderTransform& RenderTransform, const FVector2f InLocalPosition, const FVector2f InLocalSize, float Scale, const FVector4f InTexCoords, const FColor InColor, const FColor SecondaryColor = FColor(), const ESlateVertexRounding InRounding = ESlateVertexRounding::Disabled)
-	{
-		return InRounding == ESlateVertexRounding::Enabled
-			? FSlateVertex::Make<ESlateVertexRounding::Enabled>(RenderTransform, InLocalPosition, InLocalSize, Scale, InTexCoords, InColor, SecondaryColor)
-			: FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, InLocalPosition, InLocalSize, Scale, InTexCoords, InColor, SecondaryColor);
-	}
-
-	FORCEINLINE void SetTexCoords(const FVector4f InTexCoords)
+	void SetTexCoords(const FVector4f InTexCoords)
 	{
 		TexCoords[0] = InTexCoords.X;
 		TexCoords[1] = InTexCoords.Y;
@@ -331,7 +297,7 @@ public:
 		TexCoords[3] = InTexCoords.W;
 	}
 
-	FORCEINLINE void SetPosition(const FVector2f InPosition)
+	void SetPosition(const FVector2f InPosition)
 	{
 		Position = InPosition;
 	}
@@ -343,7 +309,7 @@ private:
 	{
 		Position = TransformPoint(RenderTransform, InLocalPosition);
 
-		if constexpr ( Rounding == ESlateVertexRounding::Enabled )
+		if ( Rounding == ESlateVertexRounding::Enabled )
 		{
 			Position.X = FMath::RoundToFloat(Position.X);
 			Position.Y = FMath::RoundToFloat(Position.Y);
@@ -356,7 +322,6 @@ private:
 
 template<> struct TIsPODType<FSlateVertex> { enum { Value = true }; };
 static_assert(TIsTriviallyDestructible<FSlateVertex>::Value == true, "FSlateVertex should be trivially destructible");
-static_assert(std::is_trivially_copyable_v<FSlateVertex> == true, "FSlateVertex should be trivially copyable");
 
 /** Stores an aligned rect as shorts. */
 struct FShortRect
@@ -416,37 +381,6 @@ struct FShortRect
 
 template<> struct TIsPODType<FShortRect> { enum { Value = true }; };
 static_assert(TIsTriviallyDestructible<FShortRect>::Value == true, "FShortRect should be trivially destructible");
-
-namespace UE::Slate
-{
-	template<std::size_t, typename T>
-	using TypeRepeater = T;
-
-	template<typename ElementType, std::size_t... Indices>
-	auto MakeTupleWithNumInner(std::index_sequence<Indices...>)
-	{
-		return TTuple<TypeRepeater<Indices, ElementType>... >();
-	};
-
-	template<typename ElementType, std::size_t Num, typename Indices = std::make_index_sequence<Num>>
-	auto MakeTupleWithNum()
-	{
-		return MakeTupleWithNumInner<ElementType>(Indices{});
-	}
-
-	template<typename IndexType, IndexType...Indices>
-	auto MakeTupleIndiciesInner(std::integer_sequence<IndexType, Indices...>)
-	{
-		return MakeTuple<IndexType>(Indices...);
-	};
-
-	template<typename IndexType, std::size_t Num, typename Indices = std::make_integer_sequence<IndexType, Num>>
-	auto MakeTupleIndicies()
-	{
-		return MakeTupleIndiciesInner(Indices{});
-	};
-};
-
 
 #if STATS
 
@@ -548,21 +482,8 @@ struct FSlateDrawElementContainer
 	FSlateDrawElementArray Elements;
 };
 
-using FSlateDrawElementMap = TTuple<
-	FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer>;
+enum class EElementType : uint8;
+typedef TMap<EElementType, FSlateDrawElementContainer> FSlateDrawElementMap;
 
 #else
 
@@ -575,21 +496,8 @@ struct FSlateDrawElementContainer
 	FSlateDrawElementArray Elements;
 };
 
-using FSlateDrawElementMap = TTuple<
-	FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer>;
+enum class EElementType : uint8;
+typedef TMap<EElementType, FSlateDrawElementContainer> FSlateDrawElementMap;
 
 #endif
 
