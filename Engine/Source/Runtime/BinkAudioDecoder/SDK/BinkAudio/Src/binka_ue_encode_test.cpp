@@ -20,7 +20,7 @@ int main(int argc, char** argv)
 
     void* Compressed;
     uint32_t CompressedLen;
-    UECompressBinkAudio(data, 48000*2, 48000, 1, 0, 1, allocator_thunk, free_thunk, &Compressed, &CompressedLen);
+    UECompressBinkAudio(data, 48000*2, 48000, 1, 0, 1, 4096, allocator_thunk, free_thunk, &Compressed, &CompressedLen);
 
     printf("Compressed %d %d\n", 48000*2, CompressedLen);
 
