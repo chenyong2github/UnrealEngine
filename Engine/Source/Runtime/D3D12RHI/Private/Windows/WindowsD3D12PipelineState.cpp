@@ -599,7 +599,7 @@ static void DumpShaderAsm(FString& String, const D3D12_SHADER_BYTECODE& Shader)
 			static const TCHAR* CompilerPath = TEXT("Binaries/ThirdParty/Windows/DirectX/x64/d3dcompiler_47.dll");
 			if (CompilerDLL == NULL)
 			{
-				CompilerDLL = LoadLibrary(CompilerPath);
+				CompilerDLL = LoadLibrary(*(FPaths::EngineDir() / CompilerPath));
 			}
 
 			if (CompilerDLL != NULL)
