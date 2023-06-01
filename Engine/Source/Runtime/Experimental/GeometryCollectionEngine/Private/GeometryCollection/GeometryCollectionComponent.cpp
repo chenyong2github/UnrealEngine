@@ -3718,7 +3718,8 @@ FGeometryCollectionEdit::~FGeometryCollectionEdit()
 
 		auto ProcessComponent = [this](UGeometryCollectionComponent* ToProcess)
 		{
-			if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Dynamic))
+			// Note: Reset dynamic collection for both rest and dynamic updates, since we don't want the dynamic to be out of sync with the rest
+			if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Dynamic | GeometryCollection::EEditUpdate::Rest))
 			{
 				ToProcess->ResetDynamicCollection();
 			}
