@@ -11,16 +11,17 @@
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
 
-/** When greater than one, indicates that SLI rendering is enabled */
 #if PLATFORM_DESKTOP
-#define WITH_SLI 1	// Implicit SLI
 #define WITH_MGPU 1	// Explicit MGPU
+#else
+#define WITH_MGPU 0
+#endif
+
+#if WITH_MGPU
 #define MAX_NUM_GPUS 8
 extern RHI_API uint32 GNumExplicitGPUsForRendering;
 extern RHI_API uint32 GVirtualMGPU;
 #else
-#define WITH_SLI 0
-#define WITH_MGPU 0
 #define MAX_NUM_GPUS 1
 #define GNumExplicitGPUsForRendering 1
 #define GVirtualMGPU 0

@@ -6,7 +6,7 @@
 
 #include "MultiGPU.h"
 
-#if WITH_SLI || WITH_MGPU
+#if WITH_MGPU
 uint32 GNumExplicitGPUsForRendering = 1;
 uint32 GVirtualMGPU = 0;
 #endif
