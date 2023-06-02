@@ -200,15 +200,21 @@ TEST_CASE_NAMED(FTSTickerTest,"System::Core::Containers::TSTicker", "[Applicatio
 
 TEST_CASE_NAMED(ExecuteOnGameThreadTest, "System::Core::Containers::TSTicker::ExecuteOnGameThreadTest", "[ApplicationContextMask][EngineFilter]")
 {
-	uint32 NumExecuted = 0;
-	ExecuteOnGameThread(UE_SOURCE_LOCATION, [&NumExecuted] { ++NumExecuted; });
-	check(NumExecuted == 0);
+	{
+		uint32 NumExecuted = 0;
+		ExecuteOnGameThread(UE_SOURCE_LOCATION, [&NumExecuted] { ++NumExecuted; });
+		check(NumExecuted == 0);
 
-	FTSTicker::GetCoreTicker().Tick(0.0f); // the command above is executed by the core ticker
-	check(NumExecuted == 1);
+		FTSTicker::GetCoreTicker().Tick(0.0f); // the command above is executed by the core ticker
+		check(NumExecuted == 1);
 
-	FTSTicker::GetCoreTicker().Tick(0.0f); // tick again to check that the command was executed only once
-	check(NumExecuted == 1);
+		FTSTicker::GetCoreTicker().Tick(0.0f); // tick again to check that the command was executed only once
+		check(NumExecuted == 1);
+	}
+
+	{	// mutable functor
+		ExecuteOnGameThread(UE_SOURCE_LOCATION, [i = 0]() mutable { ++i; });
+	}
 }
 
 #endif // WITH_TESTS

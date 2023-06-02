@@ -166,7 +166,7 @@ template<typename FunctorType>
 void ExecuteOnGameThread(const TCHAR* DebugName, FunctorType&& Functor)
 {
 	FTSTicker::GetCoreTicker().AddTicker(DebugName, 0.0f,
-		[Functor = MoveTemp(Functor)](float)
+		[Functor = MoveTemp(Functor)] (float) mutable
 		{
 			Functor();
 			return false;
