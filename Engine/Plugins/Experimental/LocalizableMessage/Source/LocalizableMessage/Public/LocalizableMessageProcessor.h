@@ -3,13 +3,13 @@
 #pragma once
 
 #include "Containers/Map.h"
+#include "InstancedStruct.h"
 #include "Templates/Function.h"
 #include "Templates/Tuple.h"
 #include "UObject/NameTypes.h"
 
 class FText;
 struct FLocalizableMessage;
-struct FLocalizableMessageParameter;
 struct FLocalizationContext;
 
 class FLocalizableMessageProcessor
@@ -32,9 +32,9 @@ public:
 	template <typename UserType>
 	void RegisterLocalizableType(const TFunction<FText(const UserType&, const FLocalizationContext&)>& LocalizeValueFunctor, FScopedRegistrations& ScopedRegistrations)
 	{
-		auto FncLocalizeValue = [LocalizeValueFunctor](const FLocalizableMessageParameter& Localizable, const FLocalizationContext& LocalizationContext)
+		auto FncLocalizeValue = [LocalizeValueFunctor](const FInstancedStruct& Localizable, const FLocalizationContext& LocalizationContext)
 		{
-			return LocalizeValueFunctor(static_cast<const UserType&>(Localizable), LocalizationContext);
+			return LocalizeValueFunctor(Localizable.Get<UserType>(), LocalizationContext);
 		};
 
 		FName UserId = UserType::StaticStruct()->GetFName();
@@ -45,7 +45,7 @@ public:
 	LOCALIZABLEMESSAGE_API void UnregisterLocalizableTypes(FScopedRegistrations& ScopedRegistrations);
 
 private:
-	using LocalizeValueFnc = TFunction<FText(const FLocalizableMessageParameter&, const FLocalizationContext&)>;
+	using LocalizeValueFnc = TFunction<FText(const FInstancedStruct&, const FLocalizationContext&)>;
 
 	TMap<FName, LocalizeValueFnc> LocalizeValueMapping;
 };

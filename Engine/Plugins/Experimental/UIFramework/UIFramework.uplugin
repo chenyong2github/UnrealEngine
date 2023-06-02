@@ -29,6 +29,10 @@
 		{
 			"Name": "LocalizableMessage",
 			"Enabled": true
+		},
+		{
+			"Name": "StructUtils",
+			"Enabled": true
 		}
 	]
 }

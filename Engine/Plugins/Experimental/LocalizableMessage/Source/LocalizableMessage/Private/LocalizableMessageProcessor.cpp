@@ -3,7 +3,6 @@
 #include "LocalizableMessageProcessor.h"
 
 #include "Internationalization/Text.h"
-#include "LocalizableMessageParameter.h"
 #include "LocalizableMessage.h"
 #include "LocalizationContext.h"
 
@@ -26,11 +25,11 @@ FText FLocalizableMessageProcessor::Localize(const FLocalizableMessage& Message,
 
 	for (const FLocalizableMessageParameterEntry& Substitution : Message.Substitutions)
 	{
-		if (const LocalizeValueFnc* Functor = LocalizeValueMapping.Find(Substitution.Value->GetScriptStruct()->GetFName()))
+		if (ensure(Substitution.Value.IsValid()))
 		{
-			if (ensure(Substitution.Value != nullptr))
+			if (const LocalizeValueFnc* Functor = LocalizeValueMapping.Find(Substitution.Value.GetScriptStruct()->GetFName()))
 			{
-				SubstitutionResult = (*Functor)(*Substitution.Value, Context);
+				SubstitutionResult = (*Functor)(Substitution.Value, Context);
 
 				if (SubstitutionResult.IsEmpty() == false)
 				{
@@ -39,12 +38,12 @@ FText FLocalizableMessageProcessor::Localize(const FLocalizableMessage& Message,
 			}
 			else
 			{
-				ensureMsgf(false, TEXT("Message contained null substitution."));
+				ensureMsgf(false, TEXT("Localization type %s not registered in Localization Processor."), *Substitution.Value.GetScriptStruct()->GetFName().ToString());
 			}
 		}
 		else
 		{
-			ensureMsgf(false, TEXT("Localization type %s not registered in Localization Processor."), *Substitution.Value->GetScriptStruct()->GetFName().ToString());
+			ensureMsgf(false, TEXT("Message contained null substitution."));
 		}
 	}
 
