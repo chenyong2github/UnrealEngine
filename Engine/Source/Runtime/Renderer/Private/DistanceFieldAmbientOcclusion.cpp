@@ -421,7 +421,11 @@ void ComputeDistanceFieldNormal(
 				ERDGPassFlags::Raster,
 				[&View, PassParameters](FRHICommandList& RHICmdList)
 			{
-				RHICmdList.SetViewport(0, 0, 0.0f, View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor, 1.0f);
+				const float ViewportMinX = View.ViewRect.Min.X / GAODownsampleFactor;
+				const float ViewportMinY = View.ViewRect.Min.Y / GAODownsampleFactor;
+				const float ViewportMaxX = View.ViewRect.Max.X / GAODownsampleFactor;
+				const float ViewportMaxY = View.ViewRect.Max.Y / GAODownsampleFactor;
+				RHICmdList.SetViewport(ViewportMinX, ViewportMinY, 0.0f, ViewportMaxX, ViewportMaxY, 1.0f);
 
 				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 
