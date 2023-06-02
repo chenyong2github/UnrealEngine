@@ -76,6 +76,8 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	ZeroBuffer = nullptr;
 #endif // PLATFORM_WINDOWS
 
+	GRHIGlobals.SupportsMultiDrawIndirect = true;
+
 	GRHISupportsMultithreading = true;
 	GRHISupportsMultithreadedResources = true;
 	GRHISupportsAsyncGetRenderQueryResult = true;

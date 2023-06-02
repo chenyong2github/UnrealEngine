@@ -751,6 +751,21 @@ public:
 
 	virtual void RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuffer, FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset) = 0;
 
+	/**
+	* Similar to RHIDrawIndexedPrimitiveIndirect, but allows many draw arguments to be provided at once.
+	* GRHIGlobals.SupportsDrawIndirect must be checked to detect support on the current machine.
+	* @ param IndexBuffer			Buffer containing primitive indices
+	* @ param ArgumentsBuffer		Buffer containing FRHIDrawIndexedIndirectParameters structures
+	* @ param ArgumentOffset		Offset in bytes of the first element in ArgumentsBuffer that will be used for drawing
+	* @ param CountBuffer			Buffer containing uint32 count of valid draw arguments that should be consumed (may be nullptr, indicating that only MaxDrawArguments value should be used)
+	* @ param CountBuffeOffset		Offset in bytes for the CountBuffer element that will be used to source the draw argument count
+	* @ param MaxDrawArguments		How many draw arguments should be processed at most, i.e. NumDrawArguments = min(MaxDrawArguments, ValueFromCountBuffer)
+	*/
+	virtual void RHIMultiDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuffer, FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset, FRHIBuffer* CountBuffer, uint32 CountBuffeOffset, uint32 MaxDrawArguments)
+	{
+		checkNoEntry();
+	}
+
 	virtual void RHIDispatchMeshShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
 	{
 		/* empty default implementation */

@@ -1696,6 +1696,26 @@ FRHICOMMAND_MACRO(FRHICommandDrawIndexedPrimitiveIndirect)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+FRHICOMMAND_MACRO(FRHICommandMultiDrawIndexedPrimitiveIndirect)
+{
+	FRHIBuffer* IndexBuffer;
+	FRHIBuffer* ArgumentBuffer;
+	uint32 ArgumentOffset;
+	FRHIBuffer* CountBuffer;
+	uint32 CountBufferOffset;
+	uint32 MaxDrawArguments;
+	FORCEINLINE_DEBUGGABLE FRHICommandMultiDrawIndexedPrimitiveIndirect(FRHIBuffer* InIndexBuffer, FRHIBuffer* InArgumentBuffer, uint32 InArgumentOffset, FRHIBuffer* InCountBuffer, uint32 InCountBufferOffset, uint32 InMaxDrawArguments)
+		: IndexBuffer(InIndexBuffer)
+		, ArgumentBuffer(InArgumentBuffer)
+		, ArgumentOffset(InArgumentOffset)
+		, CountBuffer(InCountBuffer)
+		, CountBufferOffset(InCountBufferOffset)
+		, MaxDrawArguments(InMaxDrawArguments)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase & CmdList);
+};
+
 FRHICOMMAND_MACRO(FRHICommandDispatchMeshShader)
 {
 	uint32 ThreadGroupCountX;
@@ -3488,6 +3508,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandDrawIndexedPrimitiveIndirect)(IndexBuffer, ArgumentsBuffer, ArgumentOffset);
+	}
+
+	FORCEINLINE_DEBUGGABLE void MultiDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuffer, FRHIBuffer* ArgumentsBuffer, uint32 ArgumentOffset, FRHIBuffer* CountBuffer, uint32 CountBufferOffset, uint32 MaxDrawArguments)
+	{
+		//check(IsOutsideRenderPass());
+		PreDraw();
+		if (Bypass())
+		{
+			GetContext().RHIMultiDrawIndexedPrimitiveIndirect(IndexBuffer, ArgumentsBuffer, ArgumentOffset, CountBuffer, CountBufferOffset, MaxDrawArguments);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandMultiDrawIndexedPrimitiveIndirect)(IndexBuffer, ArgumentsBuffer, ArgumentOffset, CountBuffer, CountBufferOffset, MaxDrawArguments);
 	}
 
 	FORCEINLINE_DEBUGGABLE void DispatchMeshShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)

@@ -1765,7 +1765,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, i
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
-void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBufferRHI, FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
+void FD3D12CommandContext::RHIMultiDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBufferRHI, FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset, FRHIBuffer* CountBufferRHI, uint32 CountBufferOffset, uint32 MaxDrawArguments)
 {
 	FD3D12Buffer* IndexBuffer = RetrieveObject<FD3D12Buffer>(IndexBufferRHI);
 
@@ -1780,6 +1780,18 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 
 	const uint32 IndexBufferStride = FD3D12DynamicRHI::ResourceCast(IndexBufferRHI)->GetStride();
 	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
+
+	ID3D12Resource* CountBufferResource = nullptr;
+	uint64 CountBufferOffsetFromResourceBase = 0;
+	if (CountBufferRHI)
+	{
+		FD3D12Buffer* CountBuffer = RetrieveObject<FD3D12Buffer>(CountBufferRHI);
+		FD3D12ResourceLocation& CounterLocation = CountBuffer->ResourceLocation;
+		CountBufferResource = CounterLocation.GetResource()->GetResource();
+		TransitionResource(CounterLocation.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+		CountBufferOffsetFromResourceBase = CounterLocation.GetOffsetFromBaseOfResource() + CountBufferOffset;
+		UpdateResidency(CounterLocation.GetResource());
+	}
 
 	RHI_DRAW_CALL_INC();
 	if (bTrackingEvents)
@@ -1805,11 +1817,11 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 
 	GraphicsCommandList()->ExecuteIndirect(
 		GetParentDevice()->GetParentAdapter()->GetDrawIndexedIndirectCommandSignature(),
-		1,
+		MaxDrawArguments,
 		Location.GetResource()->GetResource(),
 		Location.GetOffsetFromBaseOfResource() + ArgumentOffset,
-		NULL,
-		0
+		CountBufferResource,
+		CountBufferOffsetFromResourceBase
 	);
 
 	UpdateResidency(Location.GetResource());
@@ -1817,6 +1829,12 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 	ConditionalSplitCommandList();
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
+}
+
+void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBufferRHI, FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
+{
+	// DrawIndexedPrimitiveIndirect is a special case of a more general MDI in D3D12
+	RHIMultiDrawIndexedPrimitiveIndirect(IndexBufferRHI, ArgumentBufferRHI, ArgumentOffset, nullptr /*CounterBuffer*/, 0 /*CounterBufferOffset*/, 1 /*MaxDrawArguments*/);
 }
 
 #if PLATFORM_SUPPORTS_MESH_SHADERS

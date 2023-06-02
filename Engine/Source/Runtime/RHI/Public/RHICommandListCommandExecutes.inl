@@ -32,6 +32,7 @@ struct FRHICommandDrawIndexedPrimitive;
 struct FRHICommandDrawIndexedPrimitiveIndirect;
 struct FRHICommandDrawPrimitive;
 struct FRHICommandDrawPrimitiveIndirect;
+struct FRHICommandMultiDrawPrimitiveIndirect;
 struct FRHICommandSetDepthBounds;
 struct FRHICommandEndDrawingViewport;
 struct FRHICommandEndFrame;
@@ -281,6 +282,12 @@ void FRHICommandDrawIndexedPrimitiveIndirect::Execute(FRHICommandListBase& CmdLi
 {
 	RHISTAT(DrawIndexedPrimitiveIndirect);
 	INTERNAL_DECORATOR(RHIDrawIndexedPrimitiveIndirect)(IndexBuffer, ArgumentsBuffer, ArgumentOffset);
+}
+
+void FRHICommandMultiDrawIndexedPrimitiveIndirect::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(MultiDrawIndexedPrimitiveIndirect);
+	INTERNAL_DECORATOR(RHIMultiDrawIndexedPrimitiveIndirect)(IndexBuffer, ArgumentBuffer, ArgumentOffset, CountBuffer, CountBufferOffset, MaxDrawArguments);
 }
 
 void FRHICommandDispatchMeshShader::Execute(FRHICommandListBase& CmdList)
