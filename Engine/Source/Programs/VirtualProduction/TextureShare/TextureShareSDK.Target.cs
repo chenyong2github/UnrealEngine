@@ -47,7 +47,8 @@ public class TextureShareSDKTarget : TargetRules
 	public TextureShareSDKTarget(TargetInfo Target)
 		: base(Target)
 	{
-		DefaultBuildSettings = BuildSettingsVersion.V2;
+		DefaultBuildSettings = BuildSettingsVersion.Latest;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
