@@ -2,26 +2,16 @@
 
 #include "ChaosVDObjectDetailsTab.h"
 
+#include "ChaosVDScene.h"
 #include "ChaosVDStyle.h"
-#include "ChaosVDTabsIDs.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "Selection.h"
 #include "Templates/SharedPointer.h"
 #include "Editor.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 
 #define LOCTEXT_NAMESPACE "ChaosVisualDebugger"
-
-FChaosVDObjectDetailsTab::~FChaosVDObjectDetailsTab()
-{
-	if (GEditor == nullptr || GEditor->GetSelectedActors() == nullptr)
-	{
-		return;
-	}
-
-	GEditor->GetSelectedActors()->SelectionChangedEvent.Remove(SelectionDelegateHandle);
-}
 
 TSharedRef<SDockTab> FChaosVDObjectDetailsTab::HandleTabSpawned(const FSpawnTabArgs& Args)
 {
@@ -30,23 +20,19 @@ TSharedRef<SDockTab> FChaosVDObjectDetailsTab::HandleTabSpawned(const FSpawnTabA
 	DetailsViewArgs.bAllowSearch = false;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 
+	TSharedPtr<FChaosVDScene> ScenePtr = GetChaosVDScene().Pin();
+	check(ScenePtr);
+
 	DetailsPanel = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
-	//TODO: This is just for testing. We will not use global selection events in the final version as these affect the entire editor
-	SelectionDelegateHandle = GEditor->GetSelectedActors()->SelectionChangedEvent.AddLambda(
-	[this](UObject* Object)
-	{
-		TArray<AActor*> SelectedActors;
-		GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(SelectedActors);
-
-		UpdateSelectedObject(SelectedActors.Num() > 0 ? SelectedActors[0] : nullptr);
-	} );
+	RegisterSelectionSetObject(ScenePtr->GetElementSelectionSet());
 
 	TSharedRef<SDockTab> DetailsPanelTab =
 		SNew(SDockTab)
 		.TabRole(ETabRole::MajorTab)
 		.Label(LOCTEXT("DetailsPanel", "Details"))
 		.ToolTipText(LOCTEXT("DetailsPanelToolTip", "See the details of the selected object"));
+
 	DetailsPanelTab->SetContent
 	(
 		DetailsPanel.ToSharedRef()
@@ -57,9 +43,17 @@ TSharedRef<SDockTab> FChaosVDObjectDetailsTab::HandleTabSpawned(const FSpawnTabA
 	return DetailsPanelTab;
 }
 
-void FChaosVDObjectDetailsTab::UpdateSelectedObject(AActor* NewObject) const
+void FChaosVDObjectDetailsTab::HandlePostSelectionChange(const UTypedElementSelectionSet* ChangedSelectionSet)
 {
-	DetailsPanel->SetObject(NewObject, true);
+	TArray<AActor*> SelectedActors = ChangedSelectionSet->GetSelectedObjects<AActor>();
+
+	if (SelectedActors.Num() > 0)
+	{
+		// We don't support multi selection yet
+		ensure(SelectedActors.Num() == 1);
+
+		DetailsPanel->SetObject(SelectedActors[0], true);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

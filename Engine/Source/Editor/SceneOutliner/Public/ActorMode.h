@@ -13,7 +13,7 @@ namespace SceneOutliner
 	};
 
 	/** Functor which can be used to get actors from a selection including component parents */
-	struct FActorSelector
+	struct SCENEOUTLINER_API FActorSelector
 	{
 		bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, AActor*& ActorPtrOut) const;
 	};

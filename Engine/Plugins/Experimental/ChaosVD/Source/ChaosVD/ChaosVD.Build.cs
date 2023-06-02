@@ -14,7 +14,7 @@ public class ChaosVD : ModuleRules
 				"Engine",
 				"ChaosVDRuntime", 
 				"TraceServices",
-				"ChaosVDData"
+				"ChaosVDData",
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -28,8 +28,7 @@ public class ChaosVD : ModuleRules
 				"ToolMenus",
 				"Slate",
 				"SlateCore", 
-				"OutputLog", 
-				"SceneOutliner", 
+				"OutputLog",
 				"WorkspaceMenuStructure", 
 				"TraceAnalysis", 
 				"TraceInsights",
@@ -39,7 +38,10 @@ public class ChaosVD : ModuleRules
 				"MeshConversion",
 				"MeshDescription",
 				"StaticMeshDescription", 
-				"DynamicMesh"
+				"DynamicMesh",
+				"SceneOutliner",
+				"TypedElementRuntime",
+				"TypedElementFramework"
 			}
 			);
 

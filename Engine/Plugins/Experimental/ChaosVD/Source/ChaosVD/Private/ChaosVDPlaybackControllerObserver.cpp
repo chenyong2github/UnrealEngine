@@ -2,6 +2,8 @@
 
 #include "ChaosVDPlaybackControllerObserver.h"
 #include "ChaosVDPlaybackController.h"
+#include "ChaosVDScene.h"
+
 
 FChaosVDPlaybackControllerObserver::~FChaosVDPlaybackControllerObserver()
 {
@@ -25,7 +27,12 @@ void FChaosVDPlaybackControllerObserver::RegisterNewController(TWeakPtr<FChaosVD
 		PlaybackController = NewController;
 
 		if (const TSharedPtr<FChaosVDPlaybackController> NewPlaybackControllerPtr = PlaybackController.Pin())
-		{	
+		{
+			if (TSharedPtr<FChaosVDScene> ScenePtr = NewPlaybackControllerPtr->GetControllerScene().Pin())
+			{
+				RegisterSelectionSetObject(ScenePtr->GetElementSelectionSet());
+			}
+	
 			NewPlaybackControllerPtr->OnDataUpdated().AddRaw(this, &FChaosVDPlaybackControllerObserver::HandlePlaybackControllerDataUpdated);
 			NewPlaybackControllerPtr->OnTrackFrameUpdated().AddRaw(this, &FChaosVDPlaybackControllerObserver::HandleControllerTrackFrameUpdated);
 			HandlePlaybackControllerDataUpdated(PlaybackController);

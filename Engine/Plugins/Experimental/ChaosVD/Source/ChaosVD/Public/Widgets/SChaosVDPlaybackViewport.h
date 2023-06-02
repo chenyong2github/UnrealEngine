@@ -7,6 +7,7 @@
 #include "Templates/SharedPointer.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FChaosVDPlaybackViewportClient;
 class SChaosVDSolverPlaybackControls;
 class FChaosVDPlaybackController;
 class SChaosVDTimelineWidget;
@@ -26,22 +27,24 @@ public:
 
 	virtual ~SChaosVDPlaybackViewport() override;
 
-	void Construct(const FArguments& InArgs, const UWorld* DefaultWorld, TWeakPtr<FChaosVDPlaybackController> InPlaybackController);
+	void Construct(const FArguments& InArgs, TWeakPtr<FChaosVDScene> InScene, TWeakPtr<FChaosVDPlaybackController> InPlaybackController);
 
 protected:
 
-	TSharedPtr<FLevelEditorViewportClient> CreateViewportClient() const;
+	TSharedPtr<FChaosVDPlaybackViewportClient> CreateViewportClient() const;
 
 	virtual void RegisterNewController(TWeakPtr<FChaosVDPlaybackController> NewController )override;
 	virtual void HandlePlaybackControllerDataUpdated(TWeakPtr<FChaosVDPlaybackController> InController) override;
 	virtual void HandleControllerTrackFrameUpdated(TWeakPtr<FChaosVDPlaybackController> InController, const FChaosVDTrackInfo* UpdatedTrackInfo, FGuid InstigatorGuid) override;
+	virtual void HandlePostSelectionChange(const UTypedElementSelectionSet* ChangesSelectionSet) override;
+
 	void OnPlaybackSceneUpdated();
 
 	void OnFrameSelectionUpdated(int32 NewFrameIndex) const;
-	
+
 	TSharedPtr<SChaosVDTimelineWidget> GameFramesTimelineWidget;
 
-	TSharedPtr<FLevelEditorViewportClient> LevelViewportClient;
+	TSharedPtr<FChaosVDPlaybackViewportClient> PlaybackViewportClient;
 	TSharedPtr<SViewport> ViewportWidget;
 	TSharedPtr<FSceneViewport> SceneViewport;
 };

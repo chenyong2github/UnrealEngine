@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ChaosVDSceneSelectionObserver.h"
 #include "ChaosVDTabSpawnerBase.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Delegates/Delegate.h"
@@ -26,16 +27,13 @@ class FChaosVDWorldOutlinerTab : public FChaosVDTabSpawnerBase, public TSharedFr
 {
 public:
 	FChaosVDWorldOutlinerTab(const FName& InTabID, TSharedPtr<FTabManager> InTabManager, SChaosVDMainTab* InOwningTabWidget) : FChaosVDTabSpawnerBase(InTabID, InTabManager, InOwningTabWidget)
-	{	
+	{
 	}
 
 	virtual TSharedRef<SDockTab> HandleTabSpawned(const FSpawnTabArgs& Args) override;
 
-	FChaosVDSelectionChanged& OnSelectionChanged() { return ChaosVDSelectionChangedDelegate; }
-
 private:
+	void CreateWorldOutlinerWidget();
 
 	TSharedPtr<ISceneOutliner> SceneOutlinerWidget;
-
-	FChaosVDSelectionChanged ChaosVDSelectionChangedDelegate;
 };

@@ -7,8 +7,8 @@
 #include "ChaosVDParticleActor.h"
 #include "Chaos/ImplicitObject.h"
 #include "ChaosVDRecording.h"
-#include "EditorActorFolders.h"
-#include "WorldPersistentFolders.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Engine/Engine.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "Engine/World.h"
@@ -26,6 +26,11 @@ void FChaosVDScene::Initialize()
 		return;
 	}
 
+	SelectionSet = NewObject<UTypedElementSelectionSet>();
+
+	SelectionSet->OnPreChange().AddRaw(this, &FChaosVDScene::HandlePreSelectionChange);
+	SelectionSet->OnChanged().AddRaw(this, &FChaosVDScene::HandlePostSelectionChange);
+	
 	PhysicsVDWorld = CreatePhysicsVDWorld();
 
 	GeometryGenerator = MakeShared<FChaosVDGeometryBuilder>();
@@ -39,6 +44,9 @@ void FChaosVDScene::DeInitialize()
 	{
 		return;
 	}
+
+	SelectionSet->OnPreChange().RemoveAll(this);
+	SelectionSet->OnChanged().RemoveAll(this);
 
 	GeometryGenerator.Reset();
 
@@ -61,6 +69,7 @@ void FChaosVDScene::DeInitialize()
 void FChaosVDScene::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(PhysicsVDWorld);
+	Collector.AddReferencedObject(SelectionSet);
 }
 
 void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData, const FChaosVDSolverFrameData& InFrameData)
@@ -214,6 +223,7 @@ AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaos
 	FActorSpawnParameters Params;
 	Params.Name = *InParticleData.DebugName;
 	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+
 	if (AChaosVDParticleActor* NewActor = PhysicsVDWorld->SpawnActor<AChaosVDParticleActor>(Params))
 	{
 		NewActor->UpdateFromRecordedData(InParticleData, InFrameData.SimulationTransform);
@@ -249,7 +259,7 @@ UWorld* FChaosVDScene::CreatePhysicsVDWorld() const
 	const FName UniqueWorldName = FName(FGuid::NewGuid().ToString());
 	UWorld* NewWorld = NewWorld = NewObject<UWorld>( GetTransientPackage(), UniqueWorldName );
 	
-	NewWorld->WorldType = EWorldType::EditorPreview;
+	NewWorld->WorldType = EWorldType::Editor;
 
 	FWorldContext& WorldContext = GEngine->CreateNewWorldContext( NewWorld->WorldType );
 	WorldContext.SetCurrentWorld(NewWorld);
@@ -257,7 +267,7 @@ UWorld* FChaosVDScene::CreatePhysicsVDWorld() const
 	NewWorld->InitializeNewWorld( UWorld::InitializationValues()
 										  .AllowAudioPlayback( false )
 										  .CreatePhysicsScene( false )
-										  .RequiresHitProxies( false )
+										  .RequiresHitProxies( true )
 										  .CreateNavigation( false )
 										  .CreateAISystem( false )
 										  .ShouldSimulatePhysics( false )
@@ -285,4 +295,70 @@ UWorld* FChaosVDScene::CreatePhysicsVDWorld() const
 	NewWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
 
 	return NewWorld;
+}
+
+FTypedElementHandle FChaosVDScene::GetSelectionHandleForObject(const UObject* Object) const
+{
+	FTypedElementHandle Handle;
+	if (const AActor* Actor = Cast<AActor>(Object))
+	{
+		Handle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor);
+	}
+	else if (const UActorComponent* Component = Cast<UActorComponent>(Object))
+	{
+		Handle = UEngineElementsLibrary::AcquireEditorComponentElementHandle(Component);
+	}
+	else
+	{
+		Handle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(Object);
+	}
+
+	return Handle;
+}
+
+void FChaosVDScene::UpdateSelectionProxiesForActors(const TArray<AActor*>& SelectedActors)
+{
+	for (AActor* SelectedActor : SelectedActors)
+	{
+		if (SelectedActor)
+		{
+			SelectedActor->PushSelectionToProxies();
+		}
+	}
+}
+
+void FChaosVDScene::HandlePreSelectionChange(const UTypedElementSelectionSet* PreChangeSelectionSet)
+{
+	PendingActorsToUpdateSelectionProxy.Append(PreChangeSelectionSet->GetSelectedObjects<AActor>());
+}
+
+void FChaosVDScene::HandlePostSelectionChange(const UTypedElementSelectionSet* PreChangeSelectionSet)
+{
+	TArray<AActor*> SelectedActors = PreChangeSelectionSet->GetSelectedObjects<AActor>();
+
+	SelectedActors.Append(PendingActorsToUpdateSelectionProxy);
+	UpdateSelectionProxiesForActors(SelectedActors);
+
+	PendingActorsToUpdateSelectionProxy.Reset();
+}
+
+void FChaosVDScene::SetSelectedObject(UObject* SelectedObject)
+{
+	if (IsObjectSelected(SelectedObject))
+	{
+		// Already selected, nothing to do here
+		return;
+	}
+
+	SelectionSet->ClearSelection(FTypedElementSelectionOptions());
+
+	TArray<FTypedElementHandle> NewEditorSelection = { GetSelectionHandleForObject(SelectedObject) };
+
+	SelectionSet->SetSelection(NewEditorSelection, FTypedElementSelectionOptions());
+	SelectionSet->NotifyPendingChanges();
+}
+
+bool FChaosVDScene::IsObjectSelected(const UObject* Object)
+{
+	return SelectionSet->IsElementSelected(GetSelectionHandleForObject(Object), FTypedElementIsSelectedOptions());;
 }

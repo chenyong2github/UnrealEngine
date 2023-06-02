@@ -22,7 +22,7 @@ TSharedRef<SDockTab> FChaosVDPlaybackViewportTab::HandleTabSpawned(const FSpawnT
 	ViewportTab->SetContent
 	(
 		//TODO: Handle Null cases to not crash the Editor
-		SAssignNew(PlaybackViewportWidget, SChaosVDPlaybackViewport, GetChaosVDWorld(), OwningTabWidget->GetChaosVDEngineInstance()->GetPlaybackController())
+		SAssignNew(PlaybackViewportWidget, SChaosVDPlaybackViewport, GetChaosVDScene(), OwningTabWidget->GetChaosVDEngineInstance()->GetPlaybackController())
 	);
 
 	ViewportTab->SetTabIcon(FChaosVDStyle::Get().GetBrush("TabIconPlaybackViewport"));

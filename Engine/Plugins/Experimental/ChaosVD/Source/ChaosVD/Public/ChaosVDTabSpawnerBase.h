@@ -5,6 +5,7 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 
+class FChaosVDScene;
 class SChaosVDMainTab;
 class FName;
 class FTabManager;
@@ -27,4 +28,6 @@ protected:
 	SChaosVDMainTab* OwningTabWidget;
 
 	UWorld* GetChaosVDWorld() const;
+
+	TWeakPtr<FChaosVDScene> GetChaosVDScene() const;
 };

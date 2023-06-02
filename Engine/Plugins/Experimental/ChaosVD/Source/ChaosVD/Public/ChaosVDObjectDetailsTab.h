@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ChaosVDSceneSelectionObserver.h"
 #include "Templates/SharedPointer.h"
 #include "ChaosVDTabSpawnerBase.h"
 #include "Delegates/IDelegateInstance.h"
@@ -17,7 +18,7 @@ class SDockTab;
 
 
 /** Spawns and handles and instance for the visual debugger details panel */
-class FChaosVDObjectDetailsTab : public FChaosVDTabSpawnerBase, public TSharedFromThis<FChaosVDObjectDetailsTab>
+class FChaosVDObjectDetailsTab : public FChaosVDTabSpawnerBase, public FChaosVDSceneSelectionObserver, public TSharedFromThis<FChaosVDObjectDetailsTab>
 {
 public:
 
@@ -25,13 +26,11 @@ public:
 	{
 	}
 
-	virtual ~FChaosVDObjectDetailsTab() override;
-
 protected:
-	
+
 	virtual TSharedRef<SDockTab> HandleTabSpawned(const FSpawnTabArgs& Args) override;
-	
-	void UpdateSelectedObject(AActor* NewObject) const;
+
+	virtual void HandlePostSelectionChange(const UTypedElementSelectionSet* ChangedSelectionSet) override;
 
 	FDelegateHandle SelectionDelegateHandle;
 	TSharedPtr<IDetailsView> DetailsPanel;

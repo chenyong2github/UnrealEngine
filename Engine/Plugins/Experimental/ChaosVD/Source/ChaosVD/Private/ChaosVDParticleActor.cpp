@@ -133,3 +133,18 @@ void AChaosVDParticleActor::BeginDestroy()
 
 	Super::BeginDestroy();
 }
+
+#if WITH_EDITOR
+bool AChaosVDParticleActor::IsSelectedInEditor() const
+{
+	// The implementation of this method in UObject, used a global edit callback,
+	// but as we don't use the global editor selection system, we need to re-route it.
+	if (TSharedPtr<FChaosVDScene> ScenePtr = OwningScene.Pin())
+	{
+		return ScenePtr->IsObjectSelected(this);
+	}
+
+	return false;
+}
+#endif
+

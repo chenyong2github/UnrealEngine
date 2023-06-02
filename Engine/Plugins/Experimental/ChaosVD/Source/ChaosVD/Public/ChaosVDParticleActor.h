@@ -39,6 +39,10 @@ public:
 	void SetScene(const TSharedPtr<FChaosVDScene>& InScene);
 
 	virtual void BeginDestroy() override;
+	
+#if WITH_EDITOR
+	virtual bool IsSelectedInEditor() const override;
+#endif
 
 protected:
 

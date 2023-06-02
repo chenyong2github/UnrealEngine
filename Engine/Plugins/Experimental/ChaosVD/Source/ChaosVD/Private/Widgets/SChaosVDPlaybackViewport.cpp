@@ -3,9 +3,11 @@
 #include "Widgets/SChaosVDPlaybackViewport.h"
 
 #include "ChaosVDPlaybackController.h"
+#include "ChaosVDPlaybackViewportClient.h"
 #include "ChaosVDScene.h"
 #include "Framework/Application/SlateApplication.h"
 #include "LevelEditorViewport.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Slate/SceneViewport.h"
 #include "Widgets/SChaosVDTimelineWidget.h"
 #include "Widgets/SViewport.h"
@@ -15,13 +17,13 @@
 
 SChaosVDPlaybackViewport::~SChaosVDPlaybackViewport()
 {
-	LevelViewportClient->Viewport = nullptr;
-	LevelViewportClient.Reset();
+	PlaybackViewportClient->Viewport = nullptr;
+	PlaybackViewportClient.Reset();
 }
 
-TSharedPtr<FLevelEditorViewportClient> SChaosVDPlaybackViewport::CreateViewportClient() const
+TSharedPtr<FChaosVDPlaybackViewportClient> SChaosVDPlaybackViewport::CreateViewportClient() const
 {
-	TSharedPtr<FLevelEditorViewportClient> NewViewport = MakeShareable(new FLevelEditorViewportClient(TSharedPtr<class SLevelViewport>()));
+	TSharedPtr<FChaosVDPlaybackViewportClient> NewViewport = MakeShared<FChaosVDPlaybackViewportClient>();
 
 	NewViewport->SetAllowCinematicControl(false);
 	
@@ -32,16 +34,18 @@ TSharedPtr<FLevelEditorViewportClient> SChaosVDPlaybackViewport::CreateViewportC
 	NewViewport->bDrawAxes = true;
 	NewViewport->bDisableInput = false;
 	NewViewport->VisibilityDelegate.BindLambda([] {return true; });
+	NewViewport->EngineShowFlags.SetSelectionOutline(true);
 
 	return NewViewport;
 }
 
-void SChaosVDPlaybackViewport::Construct(const FArguments& InArgs, const UWorld* DefaultWorld, TWeakPtr<FChaosVDPlaybackController> InPlaybackController)
+void SChaosVDPlaybackViewport::Construct(const FArguments& InArgs, TWeakPtr<FChaosVDScene> InScene, TWeakPtr<FChaosVDPlaybackController> InPlaybackController)
 {
-	ensure(DefaultWorld);
+	TSharedPtr<FChaosVDScene> ScenePtr = InScene.Pin();
+	ensure(ScenePtr.IsValid());
 	ensure(InPlaybackController.IsValid());
 
-	LevelViewportClient = CreateViewportClient();
+	PlaybackViewportClient = CreateViewportClient();
 
 	ViewportWidget = SNew(SViewport)
 		.RenderDirectlyToWindow(false)
@@ -49,14 +53,14 @@ void SChaosVDPlaybackViewport::Construct(const FArguments& InArgs, const UWorld*
 		.EnableGammaCorrection(false)
 		.EnableBlending(false);
 
-	SceneViewport = MakeShareable(new FSceneViewport(LevelViewportClient.Get(), ViewportWidget));
+	SceneViewport = MakeShareable(new FSceneViewport(PlaybackViewportClient.Get(), ViewportWidget));
 
-	LevelViewportClient->Viewport = SceneViewport.Get();
+	PlaybackViewportClient->Viewport = SceneViewport.Get();
 
 	ViewportWidget->SetViewportInterface(SceneViewport.ToSharedRef());
 	
 	// Default to the base map
-	LevelViewportClient->SetReferenceToWorldContext(*GEngine->GetWorldContextFromWorld(DefaultWorld));
+	PlaybackViewportClient->SetScene(InScene);
 
 	ChildSlot
 	[
@@ -118,7 +122,7 @@ void SChaosVDPlaybackViewport::HandlePlaybackControllerDataUpdated(TWeakPtr<FCha
 		GameFramesTimelineWidget->ResetTimeline();
 	}
 
-	LevelViewportClient->bNeedsRedraw = true;
+	PlaybackViewportClient->bNeedsRedraw = true;
 }
 
 void SChaosVDPlaybackViewport::HandleControllerTrackFrameUpdated(TWeakPtr<FChaosVDPlaybackController> InController, const FChaosVDTrackInfo* UpdatedTrackInfo, FGuid InstigatorGuid)
@@ -137,9 +141,14 @@ void SChaosVDPlaybackViewport::HandleControllerTrackFrameUpdated(TWeakPtr<FChaos
 	}
 }
 
+void SChaosVDPlaybackViewport::HandlePostSelectionChange(const UTypedElementSelectionSet* ChangesSelectionSet)
+{
+	PlaybackViewportClient->bNeedsRedraw = true;
+}
+
 void SChaosVDPlaybackViewport::OnPlaybackSceneUpdated()
 {
-	LevelViewportClient->bNeedsRedraw = true;
+	PlaybackViewportClient->bNeedsRedraw = true;
 }
 
 void SChaosVDPlaybackViewport::RegisterNewController(TWeakPtr<FChaosVDPlaybackController> NewController)
@@ -173,7 +182,7 @@ void SChaosVDPlaybackViewport::OnFrameSelectionUpdated(int32 NewFrameIndex) cons
 		constexpr int32 StepNumber = 0;
 		PlaybackControllerPtr->GoToTrackFrame(GetInstigatorID(), EChaosVDTrackType::Game, FChaosVDPlaybackController::GameTrackID, NewFrameIndex, StepNumber);
 
-		LevelViewportClient->bNeedsRedraw = true;
+		PlaybackViewportClient->bNeedsRedraw = true;
 	}
 }
 

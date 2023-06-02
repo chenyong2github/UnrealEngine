@@ -11,11 +11,16 @@
 class FChaosVDGeometryBuilder;
 class AChaosVDParticleActor;
 class FReferenceCollector;
+class UObject;
+class UTypedElementSelectionSet;
 class UWorld;
+
+struct FTypedElementHandle;
 
 typedef TMap<int32, AChaosVDParticleActor*> FChaosVDParticlesByIDMap;
 
 DECLARE_MULTICAST_DELEGATE(FChaosVDSceneUpdatedDelegate)
+DECLARE_MULTICAST_DELEGATE_OneParam(FChaosVDOnObjectSelectedDelegate, UObject*)
 
 /** Recreates a UWorld from a recorded Chaos VD Frame */
 class FChaosVDScene : public FGCObject , public TSharedFromThis<FChaosVDScene>
@@ -57,6 +62,18 @@ public:
 
 	const TSharedPtr<const Chaos::FImplicitObject>* GetUpdatedGeometry(int32 GeometryID) const;
 
+	/** Adds an object to the selection set if it was not selected already, making it selected in practice */
+	void SetSelectedObject(UObject* SelectedObject);
+
+	/** Evaluates an object and returns true if it is selected */
+	bool IsObjectSelected(const UObject* Object);
+
+	/** Returns a ptr to the current selection set object */
+	UTypedElementSelectionSet* GetElementSelectionSet() const { return SelectionSet; }
+	
+	/** Event triggered when an object is focused in the scene (double click in the scene outliner)*/
+	FChaosVDOnObjectSelectedDelegate& OnObjectFocused() { return ObjectFocusedDelegate; }
+
 	TSharedPtr<FChaosVDRecording> LoadedRecording;
 
 private:
@@ -73,6 +90,15 @@ private:
 	/** Map of ID-ChaosVDParticle Actor. Used to keep track of actor instances and be able to modify them as needed*/
 	TMap<int32, FChaosVDParticlesByIDMap> ParticlesBySolverID;
 
+	/** Returns the correct TypedElementHandle based on an object type so it can be used with the selection set object */
+	FTypedElementHandle GetSelectionHandleForObject(const UObject* Object) const;
+
+	/** Updates the render state of the hit proxies of an array of actors. This used to update the selection outline state */
+	void UpdateSelectionProxiesForActors(const TArray<AActor*>& SelectedActors);
+
+	void HandlePreSelectionChange(const UTypedElementSelectionSet* PreChangeSelectionSet);
+	void HandlePostSelectionChange(const UTypedElementSelectionSet* PreChangeSelectionSet);
+
 	/** UWorld instance used to represent the recorded debug data */
 	UWorld* PhysicsVDWorld = nullptr;
 
@@ -81,6 +107,14 @@ private:
 	TSharedPtr<FChaosVDGeometryBuilder> GeometryGenerator;
 
 	FChaosVDGeometryDataLoaded NewGeometryAvailableDelegate;
+
+	FChaosVDOnObjectSelectedDelegate ObjectFocusedDelegate;
+
+	/** Selection set object holding the current selection state */
+	UTypedElementSelectionSet* SelectionSet;
+
+	/** Array of actors with hit proxies that need to be updated */
+	TArray<AActor*> PendingActorsToUpdateSelectionProxy;
 
 	bool bIsInitialized = false;
 };

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ChaosVDSceneSelectionObserver.h"
 #include "Misc/Guid.h"
 #include "Templates/SharedPointer.h"
 
@@ -10,17 +11,21 @@ class FChaosVDPlaybackController;
 
 
 /**
- * Class to be used as base to any object that needs to Process Player Controller changes
+ * Class to be used as base to any object that needs to Process Player Controller changes,
+ * and scene Selection Changes
  */
-class FChaosVDPlaybackControllerObserver
+class FChaosVDPlaybackControllerObserver : public FChaosVDSceneSelectionObserver
 {
 public:
-	virtual ~FChaosVDPlaybackControllerObserver();
+
+	virtual ~FChaosVDPlaybackControllerObserver() override;
 
 protected:
 	virtual void RegisterNewController(TWeakPtr<FChaosVDPlaybackController> NewController);
 	virtual void HandlePlaybackControllerDataUpdated(TWeakPtr<FChaosVDPlaybackController> InController) {};
 	virtual void HandleControllerTrackFrameUpdated(TWeakPtr<FChaosVDPlaybackController> InController, const FChaosVDTrackInfo* UpdatedTrackInfo, FGuid InstigatorGuid){};
+	
+	virtual void HandlePostSelectionChange(const UTypedElementSelectionSet* ChangesSelectionSet) override{};
 	
 	TWeakPtr<FChaosVDPlaybackController> PlaybackController;
 };
