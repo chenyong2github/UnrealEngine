@@ -923,7 +923,7 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 
 	if (UpdateDescriptorHash.IsSubset(Instance.GetDescriptorRuntimeHash()))
 	{
-		Instance.SkeletalMeshStatus = ESkeletalMeshState::Correct; // TODO GMT MTBL-1033 should not be here. Move to UCustomizableObjectInstance::Updated
+		Instance.SkeletalMeshStatus = ESkeletalMeshState::Correct; // TODO FutureGMT MTBL-1033 should not be here. Move to UCustomizableObjectInstance::Updated
 		UpdateSkeletalMesh(Instance, Instance.GetDescriptorRuntimeHash(), EUpdateResult::Success, UpdateCallback);
 	}
 	else

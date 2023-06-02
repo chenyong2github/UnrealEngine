@@ -868,7 +868,7 @@ bool FCustomizableObjectEditor::GroupNodeIsLinkedToParentByName(UCustomizableObj
 }
 
 
-// TODO GMT Future, use graph traversal abstraction instead of a hardcoded implementation.
+// TODO FutureGMT, use graph traversal abstraction instead of a hardcoded implementation.
 void FCustomizableObjectEditor::ReconstructAllChildNodes(UCustomizableObjectNode& StartNode, const UClass& NodeType)
 {
 	UCustomizableObject* Object = CastChecked<UCustomizableObject>(StartNode.GetCustomizableObjectGraph()->GetOuter());
