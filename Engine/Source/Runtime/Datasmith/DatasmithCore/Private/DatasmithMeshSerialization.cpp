@@ -214,7 +214,7 @@ FMD5Hash FDatasmithPackedMeshes::Serialize(FArchive& Ar, bool bCompressed)
 	}
 	else
 	{
-		if (ensure(SerialVersion >= 1))
+		if (SerialVersion >= 1)
 		{
 			FPackageFileVersion SavingUEVer = Ar.UEVer();
 			Ar << SavingUEVer;

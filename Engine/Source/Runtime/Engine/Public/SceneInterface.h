@@ -48,6 +48,7 @@ class FViewInfo;
 class FVolumetricCloudRenderSceneInfo;
 class FVolumetricCloudSceneProxy;
 class UDecalComponent;
+struct FDeferredDecalUpdateParams;
 class UInstancedStaticMeshComponent;
 class ULightComponent;
 class UPlanarReflectionComponent;
@@ -60,7 +61,6 @@ enum class EPrimitiveDirtyState : uint8;
 enum class EShadingPath;
 enum EShaderPlatform : uint16;
 namespace ERHIFeatureLevel { enum Type : int; }
-struct FDeferredDecalUpdateParams;
 struct FHairStrandsInstance;
 struct FLightRenderParameters;
 struct FPersistentPrimitiveIndex;

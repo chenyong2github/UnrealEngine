@@ -97,4 +97,3 @@ UNiagaraSimCache* UNiagaraSimCacheFunctionLibrary::CreateNiagaraSimCache(UObject
 
 	return nullptr;
 }
-

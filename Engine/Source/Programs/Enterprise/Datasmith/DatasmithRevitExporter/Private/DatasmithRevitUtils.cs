@@ -179,7 +179,7 @@ namespace DatasmithRevitExporter
 
 			FinalDistance *= CENTIMETERS_PER_FOOT * 1.3;	// leniency multiplier of 15% in each direction
 															// seems to be needed in order to circumvent UE's decal projection imprecisions
-															// (issue would be visible via blending on big curvatured surfaces without the lenciency multiplier)
+															// (issue would be visible via blending on big curvatured surfaces without the leniency multiplier)
 
 			double DimensionZ = 2.0;
 			if (DimensionZ < FinalDistance)

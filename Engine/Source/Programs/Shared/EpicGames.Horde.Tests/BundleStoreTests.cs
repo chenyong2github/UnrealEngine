@@ -111,7 +111,7 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(5, blobStore.Blobs.Count);
 			Assert.AreEqual(1, blobStore.Refs.Count);
 		}
-		
+
 		[NodeType("{F63606D4-5DBB-4061-A655-6F444F65229F}")]
 		class SimpleNode : Node
 		{
