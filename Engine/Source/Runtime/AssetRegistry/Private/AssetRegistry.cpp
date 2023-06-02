@@ -1480,6 +1480,10 @@ void UAssetRegistryImpl::FinishDestroy()
 		AssetRenamedEvent.Clear();
 		AssetUpdatedEvent.Clear();
 		AssetUpdatedOnDiskEvent.Clear();
+		for (FAssetsEvent& Event : BatchedAssetEvents)
+		{
+			Event.Clear();
+		}
 		InMemoryAssetCreatedEvent.Clear();
 		InMemoryAssetDeletedEvent.Clear();
 		FileLoadedEvent.Clear();
@@ -3589,7 +3593,9 @@ void UAssetRegistryImpl::AssetCreated(UObject* NewAsset)
 		{
 			checkf(IsInGameThread(), TEXT("AssetCreated is not yet implemented as callable from other threads"));
 			// Let subscribers know that the new asset was added to the registry
-			AssetAddedEvent.Broadcast(FAssetData(NewAsset, true /* bAllowBlueprintClass */));
+			FAssetData AssetData = FAssetData(NewAsset, true /* bAllowBlueprintClass */); 
+			AssetAddedEvent.Broadcast(AssetData);
+			OnAssetsAdded().Broadcast({ AssetData });
 
 			// Notify listeners that an asset was just created
 			InMemoryAssetCreatedEvent.Broadcast(NewAsset);
@@ -3645,6 +3651,7 @@ void UAssetRegistryImpl::AssetDeleted(UObject* DeletedAsset)
 			checkf(IsInGameThread(), TEXT("AssetDeleted is not yet implemented as callable from other threads"));
 			// Let subscribers know that the asset was removed from the registry
 			AssetRemovedEvent.Broadcast(AssetDataDeleted);
+			OnAssetsRemoved().Broadcast({AssetDataDeleted});
 
 			// Notify listeners that an in-memory asset was just deleted
 			InMemoryAssetDeletedEvent.Broadcast(DeletedAsset);
@@ -4303,12 +4310,15 @@ void UAssetRegistryImpl::AppendState(const FAssetRegistryState& InState)
 
 	Broadcast(EventContext);
 	checkf(IsInGameThread(), TEXT("AppendState is not yet implemented as callable from other threads"));
-	InState.EnumerateAllAssets(TSet<FName>(), [this](const FAssetData& AssetData)
+
+	TArray<FAssetData> TempAssets;
+	InState.GetAllAssets(TSet<FName>(), TempAssets, true /* bARFiltering */);
+	for (const FAssetData& AssetData : TempAssets)
 	{
 		// Let subscribers know that the new asset was added to the registry
 		AssetAddedEvent.Broadcast(AssetData);
-		return true;
-	}, true /*bARFiltering*/);
+	}
+	OnAssetsAdded().Broadcast(TempAssets);
 }
 
 namespace UE::AssetRegistry
@@ -7090,6 +7100,40 @@ void UAssetRegistryImpl::Broadcast(UE::AssetRegistry::Impl::FEventContext& Event
 
 	if (EventContext.AssetEvents.Num())
 	{
+		// Batch events so that if adds/updates are interspersed with removes, relative ordering of the add/remove is maintained 
+		constexpr uint32 EventTypeCount = static_cast<uint32>(FEventContext::EEvent::MAX);
+		static_assert(EventTypeCount == 4, "Loop needs to be rewritten to correctly order new event types");
+		TArray<FAssetData> EventBatches[EventTypeCount];
+		FEventContext::EEvent LastEvent = EventContext.AssetEvents[0].Get<1>();
+		auto FlushBatchedEvents = [&EventBatches, &Events=BatchedAssetEvents]() 
+		{
+			for (int32 i=0; i < EventTypeCount; ++i)
+			{
+				if (EventBatches[i].Num())
+				{
+					Events[i].Broadcast(EventBatches[i]);
+					EventBatches[i].Reset();
+				}
+			}
+		};
+
+		for (const TPair<FAssetData, FEventContext::EEvent>& AssetEvent : EventContext.AssetEvents)
+		{
+			const FAssetData& AssetData = AssetEvent.Get<0>();
+			FEventContext::EEvent Event = AssetEvent.Get<1>();
+
+			// Flush events when switching between removed and non-removed events 
+			if ((Event == FEventContext::EEvent::Removed) != (LastEvent == FEventContext::EEvent::Removed))
+			{
+				FlushBatchedEvents();
+			}
+			EventBatches[static_cast<int32>(Event)].Add(AssetData);
+			LastEvent = Event;
+		}
+		// Flush last batch of events 
+		FlushBatchedEvents();
+		
+		// Single events
 		for (const TPair<FAssetData, FEventContext::EEvent>& AssetEvent : EventContext.AssetEvents)
 		{
 			const FAssetData& AssetData = AssetEvent.Get<0>();
@@ -7193,6 +7237,26 @@ UAssetRegistryImpl::FAssetUpdatedEvent& UAssetRegistryImpl::OnAssetUpdated()
 UAssetRegistryImpl::FAssetUpdatedEvent& UAssetRegistryImpl::OnAssetUpdatedOnDisk()
 {
 	return AssetUpdatedOnDiskEvent;
+}
+
+UAssetRegistryImpl::FAssetsEvent& UAssetRegistryImpl::OnAssetsAdded()
+{
+	return BatchedAssetEvents[static_cast<SIZE_T>(UE::AssetRegistry::Impl::FEventContext::EEvent::Added)];
+}
+
+UAssetRegistryImpl::FAssetsEvent& UAssetRegistryImpl::OnAssetsUpdated()
+{
+	return BatchedAssetEvents[static_cast<SIZE_T>(UE::AssetRegistry::Impl::FEventContext::EEvent::Updated)];
+}
+
+UAssetRegistryImpl::FAssetsEvent& UAssetRegistryImpl::OnAssetsUpdatedOnDisk()
+{
+	return BatchedAssetEvents[static_cast<SIZE_T>(UE::AssetRegistry::Impl::FEventContext::EEvent::UpdatedOnDisk)];
+}
+
+UAssetRegistryImpl::FAssetsEvent& UAssetRegistryImpl::OnAssetsRemoved()
+{
+	return BatchedAssetEvents[static_cast<SIZE_T>(UE::AssetRegistry::Impl::FEventContext::EEvent::Removed)];
 }
 
 UAssetRegistryImpl::FInMemoryAssetCreatedEvent& UAssetRegistryImpl::OnInMemoryAssetCreated()

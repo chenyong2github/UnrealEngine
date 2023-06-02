@@ -640,13 +640,21 @@ public:
 	/** Informs the asset registry that an Asset has finalized its tags after loading. Ignored if the Asset's package has been modified. */
 	virtual void AssetTagsFinalized(const UObject& FinalizedAsset) = 0;
 
+	DECLARE_TS_MULTICAST_DELEGATE_OneParam( FAssetsEvent, TConstArrayView<FAssetData> );
+
 	/** Event for when assets are added to the registry */
 	DECLARE_TS_MULTICAST_DELEGATE_OneParam( FAssetAddedEvent, const FAssetData& );
 	virtual FAssetAddedEvent& OnAssetAdded() = 0;
 
+	/** Event for when assets are added to the registry to handle batches more efficiently */
+	virtual FAssetsEvent& OnAssetsAdded() = 0;
+
 	/** Event for when assets are removed from the registry */
 	DECLARE_TS_MULTICAST_DELEGATE_OneParam( FAssetRemovedEvent, const FAssetData& );
 	virtual FAssetRemovedEvent& OnAssetRemoved() = 0;
+
+	/** Event for when assets are removed from the registry */
+	virtual FAssetsEvent& OnAssetsRemoved() = 0;
 
 	/** Event for when assets are renamed in the registry */
 	DECLARE_TS_MULTICAST_DELEGATE_TwoParams( FAssetRenamedEvent, const FAssetData&, const FString& );
@@ -656,8 +664,14 @@ public:
 	DECLARE_TS_MULTICAST_DELEGATE_OneParam( FAssetUpdatedEvent, const FAssetData&);
 	virtual FAssetUpdatedEvent& OnAssetUpdated() = 0;
 
+	/** Event for when assets are updated in the registry */
+	virtual FAssetsEvent& OnAssetsUpdated() = 0;
+
 	/** Event for when assets are updated on disk and have been refreshed in the assetregistry */
 	virtual FAssetUpdatedEvent& OnAssetUpdatedOnDisk() = 0;
+
+	/** Event for when assets are updated on disk and have been refreshed in the assetregistry */
+	virtual FAssetsEvent& OnAssetsUpdatedOnDisk() = 0;
 
 	/** Event for when in-memory assets are created */
 	DECLARE_TS_MULTICAST_DELEGATE_OneParam( FInMemoryAssetCreatedEvent, UObject* );

@@ -475,12 +475,14 @@ namespace Impl
  */
 struct FEventContext
 {
-	enum class EEvent
+	enum class EEvent : uint32
 	{
 		Added,
 		Removed,
 		Updated,
 		UpdatedOnDisk,
+		
+		MAX
 	};
 	TOptional<IAssetRegistry::FFileLoadProgressUpdateData> ProgressUpdateData;
 	TArray<TPair<FString, EEvent>> PathEvents;
@@ -497,6 +499,7 @@ struct FEventContext
 	/** Add all events from other onto this context's collection of events */
 	void Append(FEventContext&& Other);
 };
+
 
 /*
  * An accessor for the inheritance map and related data for functions that need them; the source

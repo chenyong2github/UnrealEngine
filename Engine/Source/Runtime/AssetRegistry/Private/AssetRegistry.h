@@ -148,7 +148,7 @@ public:
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FAssetRemovedEvent, FAssetRemovedEvent);
 	virtual FAssetRemovedEvent& OnAssetRemoved() override;
-
+	
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FAssetRenamedEvent, FAssetRenamedEvent);
 	virtual FAssetRenamedEvent& OnAssetRenamed() override;
 
@@ -156,6 +156,13 @@ public:
 	virtual FAssetUpdatedEvent& OnAssetUpdated() override;
 	virtual FAssetUpdatedEvent& OnAssetUpdatedOnDisk() override;
 
+	// Batch events
+	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FAssetsEvent, FAssetsEvent);
+	virtual FAssetsEvent& OnAssetsAdded() override;
+	virtual FAssetsEvent& OnAssetsRemoved() override;
+	virtual FAssetsEvent& OnAssetsUpdated() override;
+	virtual FAssetsEvent& OnAssetsUpdatedOnDisk() override;
+	
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FInMemoryAssetCreatedEvent, FInMemoryAssetCreatedEvent );
 	virtual FInMemoryAssetCreatedEvent& OnInMemoryAssetCreated() override;
 
@@ -297,7 +304,7 @@ private:
 
 	/** The delegate to execute when an asset is added to the registry */
 	FAssetAddedEvent AssetAddedEvent;
-
+	
 	/** The delegate to execute when an asset is removed from the registry */
 	FAssetRemovedEvent AssetRemovedEvent;
 
@@ -309,6 +316,10 @@ private:
 
 	/** The delegate to execute when an asset is updated on disk and has been reloaded in assetregistry */
 	FAssetUpdatedEvent AssetUpdatedOnDiskEvent;
+
+	/** The delegates to execute when assets are added/removed/updated in the registry, indexed by FEventContext::EEvent or returned with public accessors */
+	static constexpr SIZE_T NumBatchedEvents = static_cast<SIZE_T>(UE::AssetRegistry::Impl::FEventContext::EEvent::MAX);
+	FAssetsEvent BatchedAssetEvents[NumBatchedEvents];
 
 	/** The delegate to execute when an in-memory asset was just created */
 	FInMemoryAssetCreatedEvent InMemoryAssetCreatedEvent;
