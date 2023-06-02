@@ -177,6 +177,8 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 
 			if(bHasCollision)
 			{
+				// destroy collision constraints so that mid-phase is recreated with newly added shapes if any
+				Evolution.DestroyTransientConstraints(Handle);
 				//make sure it's in acceleration structure
 				Evolution.DirtyParticle(*Handle);
 			}
