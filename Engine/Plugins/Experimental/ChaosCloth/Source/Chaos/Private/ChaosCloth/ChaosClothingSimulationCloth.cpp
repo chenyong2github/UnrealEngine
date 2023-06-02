@@ -958,6 +958,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			// Reset to start pose
 			LODData[LODIndex]->ResetStartPose(Solver);
+			for (FClothingSimulationCollider* Collider : Colliders)
+			{
+				Collider->ResetStartPose(Solver, this);
+			}
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Cloth in group Id %d Needs reset."), GroupId);
 		}
 		else if (bNeedsTeleport)
