@@ -1292,7 +1292,7 @@ void FAssetTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 }
 
-/*static*/TSet<int32> FAssetTableRow::GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToPlugins)
+/*static*/TSet<int32> FAssetTableRow::GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>& RestrictToPlugins, TMap<int32, TArray<int32>>* OutRouteMap /*= nullptr*/)
 {
 	// "visit" ThisIndex to seed the exploration
 	TSet<int32> VisitedIndices;
@@ -1300,9 +1300,18 @@ void FAssetTable::AddDefaultColumns()
 	for (int32 StartingNodeIndex : StartingNodes)
 	{
 		VisitedIndices.Add(StartingNodeIndex);
+		if (OutRouteMap != nullptr)
+		{
+			OutRouteMap->Add(StartingNodeIndex, TArray<int32>{StartingNodeIndex});
+		}
 		for (int32 ChildIndex : OwningTable.GetAssetChecked(StartingNodeIndex).GetDependencies())
 		{
 			IndicesToVisit.Add(ChildIndex);
+			if (OutRouteMap != nullptr)
+			{
+				TArray<int32> Route{StartingNodeIndex, ChildIndex};
+				OutRouteMap->Add(ChildIndex, Route);
+			}
 		}
 	}
 
@@ -1315,16 +1324,33 @@ void FAssetTable::AddDefaultColumns()
 		const FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
 		if (ShouldSkipDueToPlugin(RestrictToPlugins, Row.GetPluginName()) || AdditionalNodesToStopAt.Contains(CurrentIndex))
 		{
+			if (OutRouteMap != nullptr)
+			{
+				OutRouteMap->Remove(CurrentIndex);
+			}
 			// Don't traverse outside this plugin
 			continue;
 		}
 
 		VisitedIndices.Add(CurrentIndex);
 
+		TArray<int32>* ParentRoute = nullptr;
+		if (OutRouteMap != nullptr)
+		{
+			ParentRoute = OutRouteMap->Find(CurrentIndex);
+		}
+
 		for (int32 ChildIndex : OwningTable.GetAssetChecked(CurrentIndex).GetDependencies())
 		{
 			if (!VisitedIndices.Contains(ChildIndex))
 			{
+				if (OutRouteMap != nullptr && ensure(ParentRoute != nullptr))
+				{
+					TArray<int32> ChildRoute(*ParentRoute, 1);
+					ChildRoute.Add(ChildIndex);
+
+					OutRouteMap->Add(ChildIndex, ChildRoute);
+				}
 				IndicesToVisit.Add(ChildIndex);
 			}
 		}
@@ -1341,7 +1367,11 @@ void FAssetTable::AddDefaultColumns()
 	TSet<int32> IndicesToVisit;
 	for (int32 RootIndex : RootIndices)
 	{
-		IndicesToVisit = IndicesToVisit.Union(TSet<int32>{OwningTable.GetAssetChecked(RootIndex).GetDependencies()});
+		const TArray<int32>& Dependencies = OwningTable.GetAssetChecked(RootIndex).GetDependencies();
+		for (int32 DependencyIndex : Dependencies)
+		{
+			IndicesToVisit.Add(DependencyIndex);
+		}
 	}
 	TSet<int32> NewlyExcludedDependencies;
 
@@ -1480,12 +1510,12 @@ void FAssetTable::AddDefaultColumns()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/*static*/ int64 FAssetTableRow::ComputeTotalSizeExternalDependencies(const FAssetTable& OwningTable, const TSet<int32>& StartingNodes, TSet<int32>* OutExternalDependencies/* = nullptr*/)
+/*static*/ int64 FAssetTableRow::ComputeTotalSizeExternalDependencies(const FAssetTable& OwningTable, const TSet<int32>& StartingNodes, TSet<int32>* OutExternalDependencies/* = nullptr*/, TMap<int32, TArray<int32>>* OutRouteMap/* = nullptr*/)
 {
 	UE::Insights::FStopwatch Stopwatch;
 	Stopwatch.Start();
 
-	TSet<int32> AllReachableNodes = GatherAllReachableNodes(StartingNodes.Array(), OwningTable, TSet<int32>{}, TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>{});
+	TSet<int32> AllReachableNodes = GatherAllReachableNodes(StartingNodes.Array(), OwningTable, TSet<int32>{}, TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>>{}, OutRouteMap);
 	TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>> SourcePlugins;
 	for (int32 RootIndex : StartingNodes)
 	{

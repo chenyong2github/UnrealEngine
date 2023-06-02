@@ -28,6 +28,7 @@ public:
 	{
 	}
 	SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
+
 	SLATE_END_ARGS()
 
 	/**
@@ -89,6 +90,8 @@ private:
 	void ExportDependencyData() const;
 
 	TArray<FAssetData> GetAssetDataForSelection() const;
+
+	void CalculateBaseAndMarginalCostForSelection(TSet<int32>& SelectionSetIndices, int64* OutTotalSizeMultiplyUsed, int64* OutTotalSizeSingleUse) const;
 
 private:
 	bool bNeedsToRebuild = false;
