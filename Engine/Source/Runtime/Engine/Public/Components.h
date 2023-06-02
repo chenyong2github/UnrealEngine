@@ -48,6 +48,9 @@ struct FStaticMeshDataType
 	/** The streams to read the texture coordinates from. */
 	TArray<FVertexStreamComponent, TFixedAllocator<MAX_STATIC_TEXCOORDS / 2> > TextureCoordinates;
 
+	/** The stream to read the shadow map texture coordinates from. */
+	FVertexStreamComponent LightMapCoordinateComponent;
+
 	/** The stream to read the vertex color from. */
 	FVertexStreamComponent ColorComponent;
 
@@ -61,10 +64,10 @@ struct FStaticMeshDataType
 	/** A SRV to manually bind and load Colors in the vertex shader. */
 	FRHIShaderResourceView* ColorComponentsSRV = nullptr;
 
+	int LightMapCoordinateIndex = -1;
+	int NumTexCoords = -1;
 	uint32 ColorIndexMask = ~0u;
-	int8 LightMapCoordinateIndex = -1;
-	uint8 NumTexCoords = 0;
-	uint8 LODLightmapDataIndex = 0;
+	uint32 LODLightmapDataIndex = 0;
 };
 
 /** The information used to build a mesh. */

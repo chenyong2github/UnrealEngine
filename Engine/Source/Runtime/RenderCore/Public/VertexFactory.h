@@ -748,6 +748,9 @@ protected:
 		
 	/** The vertex streams used to render the factory. */
 	FVertexStreamList Streams;
+
+	/* VF can explicitly set this to false to avoid errors without decls; this is for VFs that fetch from buffers directly (e.g. Niagara) */
+	bool bNeedsDeclaration = true;
 	
 	static constexpr int32 PrimitiveIdStreamStride = 0;
 
@@ -771,11 +774,6 @@ private:
 	int8 PrimitiveIdStreamIndex[(int32)EVertexInputStreamType::Count];
 #endif
 
-protected:
-	/* VF can explicitly set this to false to avoid errors without decls; this is for VFs that fetch from buffers directly (e.g. Niagara) */
-	bool bNeedsDeclaration = true;
-
-private:
 	static int32 TranslatePrimitiveIdStreamIndex(const FStaticFeatureLevel InFeatureLevel, EVertexInputStreamType InputStreamType)
 	{
 	#if WITH_EDITOR

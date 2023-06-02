@@ -204,9 +204,9 @@ void FGeometryCollectionVertexFactory::InitRHI()
 		}
 	}
 
-	if (Data.LightMapCoordinateIndex >= 0)
+	if (Data.LightMapCoordinateComponent.VertexBuffer)
 	{
-		Elements.Add(AccessStreamComponent(Data.TextureCoordinates[Data.LightMapCoordinateIndex], 15));
+		Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent, 15));
 	}
 	else if (Data.TextureCoordinates.Num())
 	{

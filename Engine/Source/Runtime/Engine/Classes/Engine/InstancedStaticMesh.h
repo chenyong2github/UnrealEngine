@@ -278,6 +278,10 @@ public:
 	{
 	}
 
+	struct FDataType : public FInstancedStaticMeshDataType, public FLocalVertexFactory::FDataType
+	{
+	};
+
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
@@ -293,18 +297,15 @@ public:
 	 * Get vertex elements used when during PSO precaching materials using this vertex factory type
 	 */
 	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
-	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, bool bSupportsManualVertexFetch, FDataType& Data, FInstancedStaticMeshDataType& InstanceData, FVertexDeclarationElementList& Elements);
+	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, bool bSupportsManualVertexFetch, FDataType& Data, FVertexDeclarationElementList& Elements);
 
 	/**
 	 * An implementation of the interface used by TSynchronizedResource to update the resource with new data from the game thread.
 	 */
-	void SetData(const FDataType& InData, const FInstancedStaticMeshDataType* InInstanceData)
+	void SetData(const FDataType& InData)
 	{
+		FLocalVertexFactory::Data = InData;
 		Data = InData;
-		if (InInstanceData)
-		{
-			InstanceData = *InInstanceData;
-		}
 		UpdateRHI();
 	}
 
@@ -325,22 +326,22 @@ public:
 
 	inline FRHIShaderResourceView* GetInstanceOriginSRV() const
 	{
-		return InstanceData.InstanceOriginSRV;
+		return Data.InstanceOriginSRV;
 	}
 
 	inline FRHIShaderResourceView* GetInstanceTransformSRV() const
 	{
-		return InstanceData.InstanceTransformSRV;
+		return Data.InstanceTransformSRV;
 	}
 
 	inline FRHIShaderResourceView* GetInstanceLightmapSRV() const
 	{
-		return InstanceData.InstanceLightmapSRV;
+		return Data.InstanceLightmapSRV;
 	}
 
 	inline FRHIShaderResourceView* GetInstanceCustomDataSRV() const
 	{
-		return InstanceData.InstanceCustomDataSRV;
+		return Data.InstanceCustomDataSRV;
 	}
 
 	FRHIUniformBuffer* GetUniformBuffer() const
@@ -348,10 +349,10 @@ public:
 		return UniformBuffer.GetReference();
 	}
 protected:
-	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, bool bSupportsManualVertexFetch, FDataType& Data, FInstancedStaticMeshDataType& InstanceData, FVertexDeclarationElementList& Elements, FVertexStreamList& Streams);
+	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, bool bSupportsManualVertexFetch, FDataType& Data, FVertexDeclarationElementList& Elements, FVertexStreamList& Streams);
 
 private:
-	FInstancedStaticMeshDataType InstanceData;
+	FDataType Data;
 
 	TUniformBufferRef<FInstancedStaticMeshVertexFactoryUniformShaderParameters> UniformBuffer;
 };
