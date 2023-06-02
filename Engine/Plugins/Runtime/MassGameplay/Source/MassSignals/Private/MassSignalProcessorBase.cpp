@@ -37,15 +37,17 @@ void UMassSignalProcessorBase::Execute(FMassEntityManager& EntityManager, FMassE
 {
 	QUICK_SCOPE_CYCLE_COUNTER(SignalEntities);
 
-	UE_MT_ACQUIRE_WRITE_ACCESS(ReceivedSignalAccessDetector);
-	// Frame buffer handling
 	const int32 ProcessingFrameBufferIndex = CurrentFrameBufferIndex;
-	CurrentFrameBufferIndex = (CurrentFrameBufferIndex + 1) % 2;
+	{
+		// we only need to lock the part where we change the current buffer index. Once that's done the incoming signals will end up 
+		// in the other buffer
+		UE::TScopeLock<UE::FSpinLock> ScopeLock(ReceivedSignalLock);
+		CurrentFrameBufferIndex = (CurrentFrameBufferIndex + 1) % BuffersCount;
+	}
+	
 	FFrameReceivedSignals& ProcessingFrameBuffer = FrameReceivedSignals[ProcessingFrameBufferIndex];
 	TArray<FEntitySignalRange>& ReceivedSignalRanges = ProcessingFrameBuffer.ReceivedSignalRanges;
 	TArray<FMassEntityHandle>& SignaledEntities = ProcessingFrameBuffer.SignaledEntities;
-
-	UE_MT_RELEASE_WRITE_ACCESS(ReceivedSignalAccessDetector);
 
 	if (ReceivedSignalRanges.IsEmpty())
 	{
@@ -138,8 +140,6 @@ void UMassSignalProcessorBase::Execute(FMassEntityManager& EntityManager, FMassE
 void UMassSignalProcessorBase::OnSignalReceived(FName SignalName, TConstArrayView<FMassEntityHandle> Entities)
 {
 	UE::TScopeLock<UE::FSpinLock> ScopeLock(ReceivedSignalLock);
-
-	UE_MT_SCOPED_WRITE_ACCESS(ReceivedSignalAccessDetector);
 
 	FFrameReceivedSignals& CurrentFrameBuffer = FrameReceivedSignals[CurrentFrameBufferIndex];
 

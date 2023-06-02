@@ -123,6 +123,6 @@ struct TMassExternalSubsystemTraits<UMassSignalSubsystem> final
 {
 	enum
 	{
-		GameThreadOnly = true
+		GameThreadOnly = false
 	};
 };

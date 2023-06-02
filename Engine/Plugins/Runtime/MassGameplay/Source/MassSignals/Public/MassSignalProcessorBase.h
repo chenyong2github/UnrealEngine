@@ -79,8 +79,10 @@ private:
 		TArray<FMassEntityHandle> SignaledEntities;
 	};
 
+	static constexpr int BuffersCount = 2;
+
 	/** Double buffer frame received signal as we can receive new signals as we are processing them */
-	TStaticArray<FFrameReceivedSignals, 2> FrameReceivedSignals;
+	TStaticArray<FFrameReceivedSignals, BuffersCount> FrameReceivedSignals;
 	
 	/** Current frame buffer index of FrameReceivedSignals */
 	int32 CurrentFrameBufferIndex = 0;
@@ -91,7 +93,6 @@ private:
 	/** List of all the registered signal names*/
 	TArray<FName> RegisteredSignals;
 
-	UE_MT_DECLARE_RW_ACCESS_DETECTOR(ReceivedSignalAccessDetector);
 	UE::FSpinLock ReceivedSignalLock;
 };
 
