@@ -156,6 +156,23 @@ namespace Private
 			ExpandAll(TreeView, Child);
 		}
 	}
+
+	TSharedPtr<FBindingEntry> FindBinding(FGuid BindingId, TConstArrayView<TSharedPtr<FBindingEntry>> Entries)
+	{
+		for (const TSharedPtr<FBindingEntry>& Entry : Entries)
+		{
+			if (Entry->GetRowType() == FBindingEntry::ERowType::Binding && Entry->GetBindingId() == BindingId)
+			{
+				return Entry;
+			}
+			TSharedPtr<FBindingEntry> Result = FindBinding(BindingId, Entry->GetChildren());
+			if (Result)
+			{
+				return Result;
+			}
+		}
+		return TSharedPtr<FBindingEntry>();
+	}
 }
 
 class SWidgetRow : public STableRow<TSharedPtr<FBindingEntry>>
@@ -1364,6 +1381,15 @@ TSharedPtr<SWidget> SBindingsList::OnSourceConstructContextMenu()
 	}
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SBindingsList::RequestNavigateToBinding(FGuid BindingId)
+{
+	TSharedPtr<FBindingEntry> Entry = Private::FindBinding(BindingId, RootGroups);
+	if (Entry && TreeView)
+	{
+		TreeView->RequestNavigateToItem(Entry);
+	}
 }
 
 FReply SBindingsList::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)

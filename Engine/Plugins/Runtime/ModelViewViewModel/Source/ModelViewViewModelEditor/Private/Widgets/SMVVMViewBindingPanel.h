@@ -44,13 +44,25 @@ public:
 	static void RegisterSettingsMenu();
 
 private:
+	enum class EAddBindingMode
+	{
+		Selected = 0,
+		Empty = 1,
+	};
+
+	void LoadSettings();
+	void SaveSettings();
+
 	void HandleBlueprintViewChangedDelegate();
 
 	TSharedRef<SWidget> GenerateEditViewWidget();
 
-	FReply AddDefaultBinding();
+	void AddDefaultBinding();
 	bool CanAddBinding() const;
+	FText GetAddBindingText() const;
 	FText GetAddBindingToolTip() const;
+	TSharedRef<SWidget> HandleAddDefaultBindingContextMenu();
+	void HandleAddDefaultBindingButtonClick(EAddBindingMode NewMode);
 
 	TSharedRef<SWidget> GenerateSettingsMenu();
 
@@ -75,6 +87,7 @@ private:
 	TWeakObjectPtr<UMVVMWidgetBlueprintExtension_View> MVVMExtension;
 	TPimplPtr<Private::FStructDetailNotifyHook> NotifyHook;
 	FDelegateHandle BlueprintViewChangedDelegateHandle;
+	EAddBindingMode AddBindingMode = EAddBindingMode::Selected;
 	bool bIsDrawerTab;
 };
 

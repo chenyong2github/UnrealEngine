@@ -3,12 +3,15 @@
 #include "Widgets/SMVVMViewBindingPanel.h"
 
 #include "DetailsViewArgs.h"
-#include "WidgetBlueprintEditor.h"
+#include "Engine/Engine.h"
 #include "IDetailsView.h"
-#include "WidgetBlueprintToolMenuContext.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMDeveloperProjectSettings.h"
+#include "MVVMEditorSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
+#include "WidgetBlueprintEditor.h"
+#include "WidgetBlueprintToolMenuContext.h"
+#include "WidgetReference.h"
 
 #include "IStructureDetailsView.h"
 #include "PropertyEditorModule.h"
@@ -18,6 +21,7 @@
 #include "Tabs/MVVMBindingSummoner.h"
 #include "Tabs/MVVMViewModelSummoner.h"
 #include "Styling/MVVMEditorStyle.h"
+#include "Styling/ToolBarStyle.h"
 #include "Toolkits/IToolkitHost.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
@@ -27,7 +31,6 @@
 #include "Widgets/SMVVMViewModelPanel.h"
 #include "Widgets/SMVVMViewBindingListView.h"
 #include "SPositiveActionButton.h"
-
 
 #define LOCTEXT_NAMESPACE "BindingPanel"
 
@@ -64,6 +67,8 @@ void SBindingsPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluep
 {
 	WeakBlueprintEditor = WidgetBlueprintEditor;
 	bIsDrawerTab = bInIsDrawerTab;
+
+	LoadSettings();
 
 	UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintEditor->GetWidgetBlueprintObj();
 	check(WidgetBlueprint);
@@ -114,6 +119,25 @@ SBindingsPanel::~SBindingsPanel()
 		if (WidgetBlueprint)
 		{
 			WidgetBlueprint->OnExtensionAdded.RemoveAll(this);
+		}
+	}
+}
+
+void SBindingsPanel::SaveSettings()
+{
+	GConfig->SetInt(TEXT("MVVMViewBindingPanel"), TEXT("LastAddBindingMode"), static_cast<int32>(AddBindingMode), *GEditorPerProjectIni);
+}
+
+void SBindingsPanel::LoadSettings()
+{
+	GConfig->SetInt(TEXT("MVVMViewBindingPanel"), TEXT("LastAddBindingMode"), static_cast<int32>(AddBindingMode), *GEditorPerProjectIni);
+	if (GConfig->DoesSectionExist(TEXT("MVVMViewBindingPanel"), *GEditorPerProjectIni))
+	{
+		int32 AddBindingModeAsInt = static_cast<int32>(EAddBindingMode::Selected);
+		GConfig->GetInt(TEXT("MVVMViewBindingPanel"), TEXT("LastAddBindingMode"), AddBindingModeAsInt, *GEditorPerProjectIni);
+		if (AddBindingModeAsInt >= 0 && AddBindingModeAsInt <= 1)
+		{
+			AddBindingMode = static_cast<EAddBindingMode>(AddBindingModeAsInt);
 		}
 	}
 }
@@ -177,18 +201,49 @@ void SBindingsPanel::Tick(const FGeometry& AllottedGeometry, const double InCurr
 	Super::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 }
 
-FReply SBindingsPanel::AddDefaultBinding()
+void SBindingsPanel::AddDefaultBinding()
 {
+	if (!CanAddBinding())
+	{
+		return;
+	}
 	if (UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get())
 	{
-		if (UMVVMBlueprintView* EditorData = MVVMExtensionPtr->GetBlueprintView())
+		FGuid AddedBindingId;
+		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		if (TSharedPtr<FWidgetBlueprintEditor> BlueprintEditor = WeakBlueprintEditor.Pin())
 		{
-			check(BindingsList);
-			EditorData->AddDefaultBinding();
-			BindingsList->Refresh();
+			bool bBindingAdded = false;
+
+			if (AddBindingMode == EAddBindingMode::Selected)
+			{
+				for (const FWidgetReference& WidgetReference : BlueprintEditor->GetSelectedWidgets())
+				{
+					if (WidgetReference.IsValid() && WidgetReference.GetTemplate())
+					{
+						FMVVMBlueprintViewBinding& Binding = EditorSubsystem->AddBinding(MVVMExtensionPtr->GetWidgetBlueprint());
+						FMVVMBlueprintPropertyPath Path;
+						Path.SetWidgetName(WidgetReference.GetTemplate()->GetFName());
+						EditorSubsystem->SetWidgetPropertyForBinding(MVVMExtensionPtr->GetWidgetBlueprint(), Binding, Path);
+						AddedBindingId = Binding.BindingId;
+
+						bBindingAdded = true;
+					}
+				}
+			}
+
+			if (!bBindingAdded)
+			{
+				FMVVMBlueprintViewBinding& Binding = EditorSubsystem->AddBinding(MVVMExtensionPtr->GetWidgetBlueprint());
+				AddedBindingId = Binding.BindingId;
+			}
+
+			if (AddedBindingId.IsValid() && BindingsList)
+			{
+				BindingsList->RequestNavigateToBinding(AddedBindingId);
+			}
 		}
 	}
-	return FReply::Handled();
 }
 
 bool SBindingsPanel::CanAddBinding() const
@@ -204,16 +259,90 @@ bool SBindingsPanel::CanAddBinding() const
 	return false;
 }
 
+FText SBindingsPanel::GetAddBindingText() const
+{
+	if (TSharedPtr<FWidgetBlueprintEditor> WidgetEditor = WeakBlueprintEditor.Pin())
+	{
+		if (AddBindingMode == EAddBindingMode::Selected)
+			{
+			const TSet<FWidgetReference>& SelectedWidgets = WidgetEditor->GetSelectedWidgets();
+			int32 NumberOfWidgetSelected = SelectedWidgets.Num();
+			if (NumberOfWidgetSelected > 1)
+			{
+				return LOCTEXT("AddWidgets", "Add Widgets");
+			}
+			else if (NumberOfWidgetSelected == 1)
+			{
+				for (const FWidgetReference& Item : SelectedWidgets)
+				{
+					UWidget* WidgetTemplate = Item.GetTemplate();
+					if (WidgetTemplate)
+					{
+						FText LabelText = WidgetTemplate->GetLabelText();
+						if (!LabelText.IsEmpty())
+						{ 
+							return FText::Format(LOCTEXT("AddForWidget", "Add Widget {0}"), LabelText);
+						}
+					}
+					break;
+				}
+			}
+		}
+	}
+	return LOCTEXT("AddWidget", "Add Widget");
+}
+
 FText SBindingsPanel::GetAddBindingToolTip() const
 {
 	if (CanAddBinding())
 	{
-		return LOCTEXT("AddBindingTooltip", "Add an empty binding.");
+		if (AddBindingMode == EAddBindingMode::Selected)
+		{
+			return LOCTEXT("AddBindingSelectedTooltip", "Add a binding for each selected widget.");
+		}
+		else
+		{
+			return LOCTEXT("AddBindingTooltip", "Add an empty binding.");
+		}
 	}
 	else
 	{
 		return LOCTEXT("CannotAddBindingToolTip", "A viewmodel is required before adding bindings.");
 	}
+}
+
+TSharedRef<SWidget> SBindingsPanel::HandleAddDefaultBindingContextMenu()
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("AddSelectedWidget", "Add Selected Widget(s)"),
+		FText::GetEmpty(),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SBindingsPanel::HandleAddDefaultBindingButtonClick, EAddBindingMode::Selected)
+		));
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("AddEmptyWidget", "Add Empty binding"),
+		FText::GetEmpty(),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SBindingsPanel::HandleAddDefaultBindingButtonClick, EAddBindingMode::Empty)
+		));
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SBindingsPanel::HandleAddDefaultBindingButtonClick(EAddBindingMode NewMode)
+{
+	if (AddBindingMode != NewMode)
+	{
+		AddBindingMode = NewMode;
+		SaveSettings();
+	}
+	AddDefaultBinding();
 }
 
 TSharedRef<SWidget> SBindingsPanel::CreateDrawerDockButton()
@@ -315,18 +444,69 @@ void SBindingsPanel::RegisterSettingsMenu()
 
 TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 {
+	FSlateIcon EmptyIcon(FAppStyle::GetAppStyleSetName(), "Icon.Empty");
+
 	FSlimHorizontalToolBarBuilder ToolbarBuilderGlobal(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
+	//ToolbarBuilderGlobal.SetStyle(&FAppStyle::Get(), "SlimToolBar");
+	//{
+	//	ToolbarBuilderGlobal.BeginSection("Binding");
+	//	ToolbarBuilderGlobal.AddWidget(
+	//		SNew(SPositiveActionButton)
+	//		.OnClicked(this, &SBindingsPanel::AddDefaultBinding)
+	//		.Text(this, &SBindingsPanel::GetAddBindingText)
+	//		.ToolTipText(this, &SBindingsPanel::GetAddBindingToolTip)
+	//		.IsEnabled(this, &SBindingsPanel::CanAddBinding)
+	//	);
+
+	//	const FToolBarStyle& ToolBarStyle = ToolbarBuilderGlobal.GetStyleSet()->GetWidgetStyle<FToolBarStyle>(ToolbarBuilderGlobal.GetStyleName());
+	//	ToolbarBuilderGlobal.AddWidget(
+	//		SNew(SComboButton)
+	//		.IsEnabled(this, &SBindingsPanel::CanAddBinding)
+	//		.ContentPadding(0.f)
+	//		.ComboButtonStyle(&ToolBarStyle.SettingsComboButton)
+	//		.ButtonStyle(&ToolBarStyle.ButtonStyle)
+	//		.ToolTipText(this, &SBindingsPanel::GetAddBindingToolTip)
+	//		.ForegroundColor(FSlateColor::UseStyle())
+	//		.OnGetMenuContent(this, &SBindingsPanel::HandleAddDefaultBindingContextMenu)
+	//		.ButtonContent()
+	//		[
+	//			SNullWidget::NullWidget
+	//		]
+	//	);
+	//	ToolbarBuilderGlobal.EndSection();
+	//}
+
+	ToolbarBuilderGlobal.BeginSection("Picking");
 	{
-		ToolbarBuilderGlobal.BeginSection("Binding");
-		ToolbarBuilderGlobal.AddWidget(
-			SNew(SPositiveActionButton)
-			.OnClicked(this, &SBindingsPanel::AddDefaultBinding)
-			.Text(LOCTEXT("AddWidget", "Add Widget"))
-			.ToolTipText(this, &SBindingsPanel::GetAddBindingToolTip)
-			.IsEnabled(this, &SBindingsPanel::CanAddBinding)
+		ToolbarBuilderGlobal.AddToolBarButton(
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SBindingsPanel::AddDefaultBinding),
+				FCanExecuteAction::CreateSP(this, &SBindingsPanel::CanAddBinding),
+				FGetActionCheckState()
+			),
+			NAME_None,
+			MakeAttributeSP(this, &SBindingsPanel::GetAddBindingText),
+			MakeAttributeSP(this, &SBindingsPanel::GetAddBindingToolTip),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), FName("Icons.Plus")),
+			EUserInterfaceActionType::Button
 		);
-		ToolbarBuilderGlobal.EndSection();
+
+		ToolbarBuilderGlobal.AddComboButton(
+			FUIAction(
+				FExecuteAction(),
+				FCanExecuteAction::CreateSP(this, &SBindingsPanel::CanAddBinding),
+				FGetActionCheckState()
+			),
+			FOnGetContent::CreateSP(this, &SBindingsPanel::HandleAddDefaultBindingContextMenu),
+			FText::GetEmpty(),
+			MakeAttributeSP(this, &SBindingsPanel::GetAddBindingToolTip),
+			EmptyIcon,
+			true
+		);
+
+
 	}
+	ToolbarBuilderGlobal.EndSection();
 
 	{
 		ToolbarBuilderGlobal.AddWidget(SNew(SSpacer), NAME_None, true, HAlign_Right);
