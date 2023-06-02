@@ -2075,7 +2075,8 @@ namespace EpicGames.Perforce.Managed
 				FileReference.Move(fileToMove._trackedFile.GetLocation(), targetFile);
 				try
 				{ 
-					FileReference.SetLastWriteTimeUtc(targetFile, DateTime.UtcNow); 
+					FileReference.SetLastWriteTimeUtc(targetFile, DateTime.UtcNow);
+					fileToMove._workspaceFile.UpdateMetadata();
 				} 
 				catch 
 				{
