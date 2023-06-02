@@ -297,6 +297,11 @@ bool FAppleHttpNSUrlConnectionRequest::SetContentFromStream(TSharedRef<FArchive,
 	return false;
 }
 
+bool FAppleHttpNSUrlConnectionRequest::SetResponseBodyReceiveStream(TSharedRef<FArchive> Stream)
+{
+	UE_LOG(LogHttp, Warning, TEXT("FAppleHttpNSUrlConnectionRequest::SetResponseBodyReceiveStream is not implemented"));
+	return false;
+}
 
 FString FAppleHttpNSUrlConnectionRequest::GetVerb() const
 {

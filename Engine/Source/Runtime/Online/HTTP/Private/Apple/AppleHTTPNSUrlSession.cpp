@@ -432,6 +432,12 @@ bool FAppleHttpNSUrlSessionRequest::SetContentFromStream(TSharedRef<FArchive, ES
 	return false;
 }
 
+bool FAppleHttpNSUrlSessionRequest::SetResponseBodyReceiveStream(TSharedRef<FArchive> Stream)
+{
+	UE_LOG(LogHttp, Warning, TEXT("FAppleHttpNSUrlSessionRequest::SetResponseBodyReceiveStream is not implemented"));
+	return false;
+}
+
 FString FAppleHttpNSUrlSessionRequest::GetVerb() const
 {
 	FString ConvertedVerb(Request.HTTPMethod);

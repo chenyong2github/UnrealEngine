@@ -97,6 +97,12 @@ bool FNullHttpRequest::SetContentFromStream(TSharedRef<FArchive, ESPMode::Thread
 	return false;
 }
 
+bool FNullHttpRequest::SetResponseBodyReceiveStream(TSharedRef<FArchive> Stream)
+{
+	UE_LOG(LogHttp, Warning, TEXT("FNullHttpRequest::SetResponseBodyReceiveStream is not implemented"));
+	return false;
+}
+
 void FNullHttpRequest::SetHeader(const FString& HeaderName, const FString& HeaderValue)
 {
 	Headers.Add(HeaderName, HeaderValue);

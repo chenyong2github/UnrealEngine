@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CoreMinimal.h"
+#include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Online/HTTP/Public/HttpManager.h"
@@ -196,7 +197,9 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http request - connect timeout.
 	HttpRequest->OnProcessRequestComplete().BindLambda([StartTime](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
 		CHECK(!bSucceeded);
 		CHECK(HttpResponse == nullptr);
-		CHECK(HttpRequest->GetStatus() == EHttpRequestStatus::Failed_ConnectionError);
+		// TODO: For now curl impl is using customized timeout instead of relying on native http timeout, 
+		// which doesn't get CURLE_COULDNT_CONNECT. Enable this after switching to native http timeout
+		//CHECK(HttpRequest->GetStatus() == EHttpRequestStatus::Failed_ConnectionError);
 		FTimespan Timespan = FDateTime::Now() - StartTime;
 		float DurationInSeconds = Timespan.GetTotalSeconds();
 		CHECK(FMath::IsNearlyEqual(DurationInSeconds, 7, HTTP_TIME_DIFF_TOLERANCE));
@@ -204,7 +207,7 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http request - connect timeout.
 	HttpRequest->ProcessRequest();
 }
 
-TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http download - gold path.", HTTP_TAG)
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http download", HTTP_TAG)
 {
 	uint32 Chunks = 10;
 	uint32 ChunkSize = 1024*1024;
@@ -212,11 +215,130 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http download - gold 
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
 	HttpRequest->SetURL(FString::Format(TEXT("{0}/streaming_download/{1}/{2}/"), { *UrlHttpTests(), Chunks, ChunkSize }));
 	HttpRequest->SetVerb(TEXT("GET"));
-	HttpRequest->OnProcessRequestComplete().BindLambda([Chunks, ChunkSize](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
-		CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
-		CHECK(bSucceeded);
-		CHECK(HttpResponse->GetResponseCode() == 200);
-	});
+
+	TSharedRef<int64> TotalBytesReceived = MakeShared<int64>(0);
+
+	SECTION("Success without stream provided")
+	{
+		HttpRequest->OnProcessRequestComplete().BindLambda([Chunks, ChunkSize](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
+			CHECK(bSucceeded);
+			CHECK(HttpResponse->GetResponseCode() == 200);
+		});
+	}
+	SECTION("Success with customized stream")
+	{
+		class FTestHttpReceiveStream final : public FArchive
+		{
+		public:
+			FTestHttpReceiveStream(TSharedRef<int64> InTotalBytesReceived)
+				: TotalBytesReceived(InTotalBytesReceived)
+			{
+			}
+
+			virtual void Serialize(void* V, int64 Length) override
+			{
+				*TotalBytesReceived += Length;
+			}
+
+			TSharedRef<int64> TotalBytesReceived;
+		};
+
+		TSharedRef<FTestHttpReceiveStream> Stream = MakeShared<FTestHttpReceiveStream>(TotalBytesReceived);
+		CHECK(HttpRequest->SetResponseBodyReceiveStream(Stream));
+
+		HttpRequest->OnProcessRequestComplete().BindLambda([Chunks, ChunkSize, TotalBytesReceived](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
+			CHECK(HttpResponse->GetContent().IsEmpty());
+			CHECK(*TotalBytesReceived == Chunks * ChunkSize);
+			CHECK(bSucceeded);
+			CHECK(HttpResponse->GetResponseCode() == 200);
+		});
+	}
+	SECTION("Success with customized stream delegate")
+	{
+		FHttpRequestStreamDelegate Delegate;
+		Delegate.BindLambda([TotalBytesReceived](void* Ptr, int64 Length) {
+			*TotalBytesReceived += Length;
+			return true;
+		});
+		CHECK(HttpRequest->SetResponseBodyReceiveStreamDelegate(Delegate));
+
+		HttpRequest->OnProcessRequestComplete().BindLambda([Chunks, ChunkSize, TotalBytesReceived](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
+			CHECK(HttpResponse->GetContent().IsEmpty());
+			CHECK(*TotalBytesReceived == Chunks * ChunkSize);
+			CHECK(bSucceeded);
+			CHECK(HttpResponse->GetResponseCode() == 200);
+		});
+	}
+	SECTION("Use customized stream to receive response body but failed when serialize")
+	{
+		class FTestHttpReceiveStream final : public FArchive
+		{
+		public:
+			FTestHttpReceiveStream(TSharedRef<int64> InTotalBytesReceived)
+				: TotalBytesReceived(InTotalBytesReceived)
+			{
+			}
+
+			virtual void Serialize(void* V, int64 Length) override
+			{
+				*TotalBytesReceived += Length;
+				SetError();
+			}
+
+			TSharedRef<int64> TotalBytesReceived;
+		};
+
+		TSharedRef<FTestHttpReceiveStream> Stream = MakeShared<FTestHttpReceiveStream>(TotalBytesReceived);
+		CHECK(HttpRequest->SetResponseBodyReceiveStream(Stream));
+
+		HttpRequest->OnProcessRequestComplete().BindLambda([ChunkSize, TotalBytesReceived](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(!bSucceeded);
+			CHECK(HttpResponse != nullptr);
+			CHECK(*TotalBytesReceived <= ChunkSize);
+		});
+	}
+	SECTION("Use customized stream delegate to receive response body but failed when call")
+	{
+		FHttpRequestStreamDelegate Delegate;
+		Delegate.BindLambda([TotalBytesReceived](void* Ptr, int64 Length) {
+			*TotalBytesReceived += Length;
+			return false;
+		});
+		CHECK(HttpRequest->SetResponseBodyReceiveStreamDelegate(Delegate));
+
+		HttpRequest->OnProcessRequestComplete().BindLambda([ChunkSize, TotalBytesReceived](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(!bSucceeded);
+			CHECK(HttpResponse != nullptr);
+			CHECK(*TotalBytesReceived <= ChunkSize);
+		});
+	}
+	SECTION("Success with file stream to receive response body")
+	{
+		FString Filename = FString(FPlatformProcess::UserSettingsDir()) / TEXT("TestStreamDownload.dat");
+		FArchive* RawFile = IFileManager::Get().CreateFileWriter(*Filename);
+		CHECK(RawFile != nullptr);
+		TSharedRef<FArchive> FileToWrite = MakeShareable(RawFile);
+		CHECK(HttpRequest->SetResponseBodyReceiveStream(FileToWrite));
+
+		HttpRequest->OnProcessRequestComplete().BindLambda([Chunks, ChunkSize, Filename, FileToWrite](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
+			CHECK(HttpResponse->GetContent().IsEmpty());
+			CHECK(bSucceeded);
+			CHECK(HttpResponse->GetResponseCode() == 200);
+
+			FileToWrite->FlushCache();
+			FileToWrite->Close();
+
+			TSharedRef<FArchive, ESPMode::ThreadSafe> FileToRead = MakeShareable(IFileManager::Get().CreateFileReader(*Filename));
+			CHECK(FileToRead->TotalSize() == Chunks * ChunkSize);
+
+			IFileManager::Get().Delete(*Filename);
+		});
+	}
+
 	HttpRequest->ProcessRequest();
 }
 
@@ -229,7 +351,7 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http upload - gold pa
 	const char* BoundaryLabel = "test_http_boundary";
 	HttpRequest->SetHeader(TEXT("Content-Type"), FString::Format(TEXT("multipart/form-data; boundary={0}"), { BoundaryLabel }));
 
-	// Not really reading file here in order to simplify the test flow. It will be sent by chunks in http request, 
+	// Not really reading file here in order to simplify the test flow. It will be sent by chunks in http request
 	const uint32 FileSize = 10*1024*1024;
 	char* FileData = (char*)FMemory::Malloc(FileSize + 1);
 	FMemory::Memset(FileData, 'd', FileSize);

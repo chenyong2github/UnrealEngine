@@ -28,7 +28,9 @@ def streaming_download(request, chunks, chunk_size):
         for x in range(chunks):
             data_chunk = 'd' * chunk_size
             yield data_chunk
-    return StreamingHttpResponse(data_chunk_generator())
+    response = StreamingHttpResponse(data_chunk_generator())
+    response['Content-Length'] = chunks * chunk_size
+    return response
 
 @api_view(['POST'])
 def streaming_upload(request):

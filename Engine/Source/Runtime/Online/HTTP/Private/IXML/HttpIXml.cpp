@@ -183,6 +183,11 @@ bool FHttpRequestIXML::SetContentFromStream(TSharedRef<FArchive, ESPMode::Thread
 	return true;
 }
 
+bool FHttpRequestIXML::SetResponseBodyReceiveStream(TSharedRef<FArchive> Stream)
+{
+	// TODO: Impl
+	return false;
+}
 
 //-----------------------------------------------------------------------------
 //	

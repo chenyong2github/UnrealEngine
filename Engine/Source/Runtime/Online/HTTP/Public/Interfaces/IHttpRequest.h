@@ -108,6 +108,39 @@ DECLARE_DELEGATE_ThreeParams(FHttpRequestProgressDelegate, FHttpRequestPtr /*Req
 DECLARE_DELEGATE_ThreeParams(FHttpRequestWillRetryDelegate, FHttpRequestPtr /*Request*/, FHttpResponsePtr /*Response*/, float /*SecondsToRetry*/);
 
 /**
+ * Delegate called when an Http request will send/recv data through stream
+ *
+ * @param Ptr - The buffer ptr to read/write
+ * @param Length - The length of buffer to read/write
+ * @return true if succeed, false if failed to read/write data
+ */
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FHttpRequestStreamDelegate, void*/*Ptr*/, int64/*Length*/);
+
+
+/**
+ * Delegate version of FArchive, for streaming interface
+ */
+class FArchiveWithDelegate final : public FArchive
+{
+public:
+	FArchiveWithDelegate(FHttpRequestStreamDelegate InStreamDelegate)
+		: StreamDelegate(InStreamDelegate)
+	{
+	}
+
+	virtual void Serialize(void* V, int64 Length) override
+	{
+		if (!StreamDelegate.Execute(V, Length))
+		{
+			SetError();
+		}
+	}
+
+private:
+	FHttpRequestStreamDelegate StreamDelegate;
+};
+
+/**
  * Interface for Http requests (created using FHttpFactory)
  */
 class IHttpRequest : 
@@ -181,6 +214,41 @@ public:
 	 * @return True if the archive can be used to stream the request. False otherwise.
 	 */
 	virtual bool SetContentFromStream(TSharedRef<FArchive, ESPMode::ThreadSafe> Stream) = 0;
+
+	/**
+	 * Sets the content of the request to stream directly from an delegate.
+	 *
+	 * @param StreamDelegate - delegate from which the payload should be streamed.
+	 * @return True if the delegate can be used to stream the request. False otherwise.
+	 */
+	bool SetContentFromStreamDelegate(FHttpRequestStreamDelegate StreamDelegate) { return SetContentFromStream(MakeShared<FArchiveWithDelegate>(StreamDelegate)); }
+
+	/**
+	 * Sets the stream to receive the response body. Make sure to handle the cleanup of stream when 
+	 * Serialize generated error(Stream->GetError returns true after Stream->Serialize call), this 
+	 * http request will fail and quit.
+	 *
+	 * NOTE: Once set, the data will no longer be cached in response, IHttpResponse::GetContent() and 
+	 * IHttpResponse::GetContentAsString() will return empty result. The Stream->Serialize will be called 
+	 * from another thread other than the game thread
+	 *
+	 * @param Stream - will be used to receive the response body
+	 * @return True if the stream can be used. False otherwise.
+	 */
+	virtual bool SetResponseBodyReceiveStream(TSharedRef<FArchive> Stream) = 0;
+
+	/**
+	 * Sets the delegate to receive the response body. Make sure to handle the cleanup of received data when 
+	 * failed to process the data(StreamDelegate return false), this http request will fail and quit.
+	 *
+	 * NOTE: Once set, the data will no longer be cached in response, IHttpResponse::GetContent() and 
+	 * IHttpResponse::GetContentAsString() will return empty result. The delegate will be called from
+	 * another thread other than the game thread
+	 *
+	 * @param StreamDelegate - will be used to receive the response body
+	 * @return True if the delegate can be used. False otherwise.
+	 */
+	bool SetResponseBodyReceiveStreamDelegate(FHttpRequestStreamDelegate StreamDelegate) { return SetResponseBodyReceiveStream(MakeShared<FArchiveWithDelegate>(StreamDelegate)); }
 
 	/**
 	 * Sets optional header info.

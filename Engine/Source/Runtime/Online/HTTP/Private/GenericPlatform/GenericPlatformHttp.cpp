@@ -98,6 +98,7 @@ public:
 	virtual void SetContentAsString(const FString& ContentString) override {}
 	virtual bool SetContentAsStreamedFile(const FString& Filename) override { return false; }
 	virtual bool SetContentFromStream(TSharedRef<FArchive, ESPMode::ThreadSafe> Stream) override { return false; }
+	virtual bool SetResponseBodyReceiveStream(TSharedRef<FArchive> Stream) override { return false; }
 	virtual void SetHeader(const FString& HeaderName, const FString& HeaderValue) override {}
 	virtual void AppendToHeader(const FString& HeaderName, const FString& AdditionalHeaderValue) override {}
 	virtual bool ProcessRequest() override { return false; }

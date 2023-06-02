@@ -108,6 +108,12 @@ namespace BuildPatchServices
 			return false;
 		}
 
+		virtual bool SetResponseBodyReceiveStream(TSharedRef<FArchive> Stream) override
+		{
+			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::SetResponseBodyReceiveStream");
+			return false;
+		}
+
 		virtual void SetHeader(const FString& HeaderName, const FString& HeaderValue) override
 		{
 			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::SetHeader");

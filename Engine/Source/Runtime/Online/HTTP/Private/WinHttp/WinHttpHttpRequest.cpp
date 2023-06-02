@@ -168,6 +168,12 @@ bool FWinHttpHttpRequest::SetContentFromStream(TSharedRef<FArchive, ESPMode::Thr
 	return true;
 }
 
+bool FWinHttpHttpRequest::SetResponseBodyReceiveStream(TSharedRef<FArchive> Stream)
+{
+	UE_LOG(LogHttp, Warning, TEXT("FWinHttpHttpRequest::SetResponseBodyReceiveStream is not implemented"));
+	return false;
+}
+
 void FWinHttpHttpRequest::SetHeader(const FString& HeaderName, const FString& HeaderValue)
 {
 	if (State == EHttpRequestStatus::Processing)
