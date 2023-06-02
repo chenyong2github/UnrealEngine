@@ -159,3 +159,17 @@ private:
 	/** Delegate for callbacks to Tick */
 	FTSTicker::FDelegateHandle TickHandle;
 };
+
+// Schedules execution of the given functor on the game thread at a particular moment of a frame when interference with other systems 
+// is minimal.
+template<typename FunctorType>
+void ExecuteOnGameThread(const TCHAR* DebugName, FunctorType&& Functor)
+{
+	FTSTicker::GetCoreTicker().AddTicker(DebugName, 0.0f,
+		[Functor = MoveTemp(Functor)](float)
+		{
+			Functor();
+			return false;
+		}
+	);
+}
