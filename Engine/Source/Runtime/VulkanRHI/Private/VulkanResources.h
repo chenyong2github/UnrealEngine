@@ -313,8 +313,10 @@ public:
 		return nullptr;
 	}
 
+#if VULKAN_RHI_RAYTRACING
 	template <EShaderFrequency ShaderFrequency>
 	FVulkanRayTracingShader* CreateRayTracingShader(TArrayView<const uint8> Code, FVulkanDevice* Device);
+#endif
 
 	void LookupShaders(const uint64 InShaderKeys[ShaderStage::NumStages], FVulkanShader* OutShaders[ShaderStage::NumStages]) const;
 
@@ -1178,6 +1180,8 @@ public:
 		NewAlloc.Swap(Allocation);
 	}
 	
+	VkDeviceAddress GetDeviceAddress() const;
+
 public:
 	FVulkanDevice* Device;
 	VulkanRHI::FVulkanAllocation Allocation;

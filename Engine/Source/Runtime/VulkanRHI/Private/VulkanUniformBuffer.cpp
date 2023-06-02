@@ -212,6 +212,17 @@ void FVulkanUniformBuffer::UpdateResourceTable(FRHIResource** Resources, int32 R
 	}
 }
 
+VkDeviceAddress FVulkanUniformBuffer::GetDeviceAddress() const
+{
+	// :todo-jn: there will be more and more churn on this, cache the value
+	VkBufferDeviceAddressInfo BufferInfo;
+	ZeroVulkanStruct(BufferInfo, VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO);
+	BufferInfo.buffer = GetBufferHandle();
+	VkDeviceAddress BufferAddress = VulkanRHI::vkGetBufferDeviceAddressKHR(Device->GetInstanceHandle(), &BufferInfo);
+	BufferAddress += GetOffset();
+	return BufferAddress;
+}
+
 
 FUniformBufferRHIRef FVulkanDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {

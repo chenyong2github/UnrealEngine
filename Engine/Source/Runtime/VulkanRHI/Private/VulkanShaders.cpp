@@ -95,6 +95,7 @@ ShaderType* FVulkanShaderFactory::CreateShader(TArrayView<const uint8> Code, FVu
 	return RetShader;
 }
 
+#if VULKAN_RHI_RAYTRACING
 template <EShaderFrequency ShaderFrequency>
 FVulkanRayTracingShader* FVulkanShaderFactory::CreateRayTracingShader(TArrayView<const uint8> Code, FVulkanDevice* Device)
 {
@@ -158,6 +159,7 @@ FVulkanRayTracingShader* FVulkanShaderFactory::CreateRayTracingShader(TArrayView
 
 	return RetShader;
 }
+#endif // VULKAN_RHI_RAYTRACING
 
 void FVulkanShaderFactory::LookupShaders(const uint64 InShaderKeys[ShaderStage::NumStages], FVulkanShader* OutShaders[ShaderStage::NumStages]) const
 {
