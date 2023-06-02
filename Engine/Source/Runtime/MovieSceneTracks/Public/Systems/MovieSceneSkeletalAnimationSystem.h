@@ -19,15 +19,19 @@ namespace UE::MovieScene
 /** Information for a single skeletal animation playing on a bound object */
 struct FActiveSkeletalAnimation
 {
-	IMovieScenePlayer* Player;
 	const UMovieSceneSkeletalAnimationSection* AnimSection;
 	FMovieSceneContext Context;
 	FMovieSceneEntityID EntityID;
 	FRootInstanceHandle RootInstanceHandle;
+	double BlendWeight;
 	float FromEvalTime;
 	float ToEvalTime;
-	double BlendWeight;
-	bool bWantsRestoreState;
+	EMovieScenePlayerStatus::Type PlayerStatus;
+	uint8 bFireNotifies : 1;
+	uint8 bPlaying : 1;
+	uint8 bResetDynamics : 1;
+	uint8 bWantsRestoreState : 1;
+	uint8 bPreviewPlayback : 1;
 };
 
 /** DelegateHandle and Skeletal Mesh for bone transform finalized */
@@ -72,7 +76,7 @@ struct FSkeletalAnimationSystemData
 	void ResetSkeletalAnimations();
 
 	/** Map of active skeletal animations for each bound object */
-	TMap<UObject*, FBoundObjectActiveSkeletalAnimations> SkeletalAnimations;
+	TMap<USkeletalMeshComponent*, FBoundObjectActiveSkeletalAnimations> SkeletalAnimations;
 
 	/** Map of persistent montage data */
 	TMap<FObjectKey, FMontagePlayerPerSectionData> MontageData;
