@@ -3,6 +3,32 @@
 #include "GoogleARCoreServicesTypes.h"
 #include "GoogleARCoreUtils.h"
 
+#if ARCORE_USE_OLD_CLOUD_ANCHOR_ASYNC
+UCloudARPin::UCloudARPin()
+	: UARPin()
+{
+	CloudState = ECloudARPinCloudState::NotHosted;
+	CloudID = FString("");
+}
+
+FString UCloudARPin::GetCloudID()
+{
+	return CloudID;
+}
+
+ECloudARPinCloudState UCloudARPin::GetARPinCloudState()
+{
+	return CloudState;
+}
+
+void UCloudARPin::UpdateCloudState(ECloudARPinCloudState NewCloudState, FString NewCloudID)
+{
+	CloudState = NewCloudState;
+	CloudID = NewCloudID;
+}
+
+#else //ARCORE_USE_OLD_CLOUD_ANCHOR_ASYNC
+
 GoogleARFutureHolderPtr FGoogleARFutureHolder::MakeHostFuture()
 {
 	return MakeShared<FGoogleARFutureHolder>(ECloudAnchorFutureType::Host);
@@ -104,4 +130,4 @@ void UCloudARPin::ReleaseFuture()
 {
 	Future = nullptr;
 }
-
+#endif

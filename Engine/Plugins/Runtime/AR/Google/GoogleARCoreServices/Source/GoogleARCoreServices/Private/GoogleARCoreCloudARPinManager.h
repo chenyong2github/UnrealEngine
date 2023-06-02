@@ -74,11 +74,13 @@ protected:
 	// protected properties:
 	TSharedRef<FARSupportInterface, ESPMode::ThreadSafe> ARSystem;
 	TArray<TObjectPtr<UCloudARPin>> AllCloudARPins;
+#if !ARCORE_USE_OLD_CLOUD_ANCHOR_ASYNC
 	TArray<TObjectPtr<UCloudARPin>> PendingCloudARPins; // CloudARPins that have an async action pending.
-
+#endif
 #if	ARCORE_SERVICE_SUPPORTED_PLATFORM
+#if !ARCORE_USE_OLD_CLOUD_ANCHOR_ASYNC
 	virtual void UpdateCloudARPin(UCloudARPin* CloudARPin, ArSession* SessionHandle);
-
+#endif
 	virtual ArSession* GetSessionHandle() = 0;
 
 	virtual ArFrame* GetARFrameHandle() = 0;

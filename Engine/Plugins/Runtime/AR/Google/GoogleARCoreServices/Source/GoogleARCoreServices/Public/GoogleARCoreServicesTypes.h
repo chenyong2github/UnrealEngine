@@ -8,9 +8,18 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGoogleARCoreServices, Log, All);
 
+
+#if PLATFORM_IOS
+#define ARCORE_USE_OLD_CLOUD_ANCHOR_ASYNC 1
+#else
+#define ARCORE_USE_OLD_CLOUD_ANCHOR_ASYNC 0
+#endif
+
+#if !ARCORE_USE_OLD_CLOUD_ANCHOR_ASYNC
 typedef struct ArFuture_ ArFuture;
 typedef struct ArHostCloudAnchorFuture_ ArHostCloudAnchorFuture;
 typedef struct ArResolveCloudAnchorFuture_ ArResolveCloudAnchorFuture;
+#endif
 
 /// @defgroup GoogleARCoreServices Google ARCore Services
 /// The module for GoogleARCoreServices plugin
@@ -144,6 +153,8 @@ enum class ECloudARPinCloudState : uint8
 	ErrorSDKVersionTooNew
 };
 
+#if ARCORE_USE_OLD_CLOUD_ANCHOR_ASYNC
+#else
 enum class ECloudAnchorFutureType : uint8
 {
 	Unknown,
@@ -177,6 +188,7 @@ private:
 		ArResolveCloudAnchorFuture* ResolveFuture;
 	};
 };
+#endif // !ARCORE_USE_OLD_CLOUD_ANCHOR_ASYNC
 
 /**
  * A CloudARPin will be created when you host an existing ARPin, or resolved a
@@ -207,6 +219,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "GoogleARCoreServices|CloudARPin")
 	ECloudARPinCloudState GetARPinCloudState();
 
+#if ARCORE_USE_OLD_CLOUD_ANCHOR_ASYNC
+	void UpdateCloudState(ECloudARPinCloudState NewCloudState, FString NewCloudID);
+#else
 	void SetFuture(GoogleARFutureHolderPtr FutureHolder);
 	GoogleARFutureHolderPtr GetFuture() const;
 	bool IsPending() const;
@@ -215,9 +230,13 @@ public:
 	void UpdateCloudState(ECloudARPinCloudState NewCloudState);
 
 	void SetCloudID(FString NewCloudID);
+	#endif
 
 private:
 	ECloudARPinCloudState CloudState;
 	FString CloudID;
+#if ARCORE_USE_OLD_CLOUD_ANCHOR_ASYNC
+#else
 	GoogleARFutureHolderPtr Future;
+#endif
 };
