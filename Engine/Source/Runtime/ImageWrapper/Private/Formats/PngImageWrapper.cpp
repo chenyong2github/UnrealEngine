@@ -499,7 +499,7 @@ void FPngImageWrapper::UncompressPNGData(const ERGBFormat InFormat, const int32 
 		 *	an unhandled exception upon a CRC error. This code 
 		 *	catches our custom exception thrown in user_error_fn.
 		 */
-		UE_LOG(LogImageWrapper, Error, TEXT("%s"), *e.ErrorText);
+		UE_LOG(LogImageWrapper, Error, TEXT("FPNGImageCRCError: %s"), *e.ErrorText);
 	}
 #endif
 
@@ -560,6 +560,10 @@ bool FPngImageWrapper::LoadPNGHeader()
 
 		// ---------------------------------------------------------------------------------------------------------
 		// Anything allocated on the stack after this point will not be destructed correctly in the case of an error
+		
+#if !PLATFORM_EXCEPTIONS_DISABLED
+		try
+#endif
 		{
 			png_set_read_fn(png_ptr, this, FPngImageWrapper::user_read_compressed);
 
@@ -584,6 +588,18 @@ bool FPngImageWrapper::LoadPNGHeader()
 				Format = ERGBFormat::BGRA;
 			}
 		}
+#if !PLATFORM_EXCEPTIONS_DISABLED
+		catch (const FPNGImageCRCError& e)
+		{
+			/** 
+			 *	libPNG has a known issue in version 1.5.2 causing
+			 *	an unhandled exception upon a CRC error. This code 
+			 *	catches our custom exception thrown in user_error_fn.
+			 */
+			UE_LOG(LogImageWrapper, Error, TEXT("FPNGImageCRCError: %s"), *e.ErrorText);
+			return false;
+		}
+#endif
 
 		return true;
 	}
