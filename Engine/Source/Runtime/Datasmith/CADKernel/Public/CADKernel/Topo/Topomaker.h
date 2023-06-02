@@ -57,6 +57,17 @@ static ESewOption GetFromOptions(bool bGStitchingForceSew, bool bGStitchingRemov
 
 }
 
+namespace TopomakerTools
+{
+
+/**
+ * Merge Border Vertices with other vertices.
+ * @param Vertices: the initial array of active vertices to process, this array is updated at the end of the process
+ */
+void MergeCoincidentVertices(TArray<FTopologicalVertex*>& VerticesToMerge, double Tolerance);
+
+}
+
 struct FTopomakerOptions
 {
 	ESewOption SewOptions;
@@ -113,6 +124,7 @@ public:
 		ThinFaceWidth = Tolerance * ForceJoinFactor;
 	}
 
+
 	void Sew();
 
 	/**
@@ -130,7 +142,7 @@ public:
 	/**
 	 * Mandatory: UnlinkNonManifoldVertex has to be call before
 	 */
-	void UnlinkEdgesOfSeparateShells();
+	void UnlinkFromOther();
 
 	void RemoveThinFaces();
 

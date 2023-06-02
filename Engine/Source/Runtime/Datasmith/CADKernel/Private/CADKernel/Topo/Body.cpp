@@ -4,10 +4,6 @@
 #include "CADKernel/Topo/Model.h"
 #include "CADKernel/Topo/Shell.h"
 
-#ifdef CADKERNEL_DEV
-#include "CADKernel/Topo/TopologyReport.h"
-#endif
-
 namespace UE::CADKernel
 {
 
@@ -53,21 +49,5 @@ void FBody::Remove(const FTopologicalShapeEntity* ShellToRemove)
 	int32 Index = Shells.IndexOfByPredicate([&](const TSharedPtr<FShell>& Shell) { return (Shell.Get() == ShellToRemove); });
 	Shells.RemoveAt(Index);
 }
-
-#ifdef CADKERNEL_DEV
-FInfoEntity& FBody::GetInfo(FInfoEntity& Info) const
-{
-	return FTopologicalShapeEntity::GetInfo(Info).Add(TEXT("Shells"), Shells);
-}
-
-void FBody::FillTopologyReport(FTopologyReport& Report) const
-{
-	Report.Add(this);
-	for (TSharedPtr<FShell> Shell : Shells)
-	{
-		Shell->FillTopologyReport(Report);
-	}
-}
-#endif
 
 }

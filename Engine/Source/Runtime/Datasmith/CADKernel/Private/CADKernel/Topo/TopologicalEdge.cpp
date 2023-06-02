@@ -261,7 +261,7 @@ bool FTopologicalEdge::IsLinkableTo(const FTopologicalEdge& Edge, double EdgeLen
 
 void FTopologicalEdge::LinkIfCoincident(FTopologicalEdge& Twin, double EdgeLengthTolerance, double SquareJoiningTolerance)
 {
-	if(IsDeleted() || Twin.IsDeleted())
+	if (IsDeleted() || Twin.IsDeleted())
 	{
 		return;
 	}
@@ -269,7 +269,7 @@ void FTopologicalEdge::LinkIfCoincident(FTopologicalEdge& Twin, double EdgeLengt
 	// Degenerated twin edges are not linked
 	if (IsDegenerated() || Twin.IsDegenerated())
 	{
-		if(HasSameLengthAs(Twin, EdgeLengthTolerance))
+		if (HasSameLengthAs(Twin, EdgeLengthTolerance))
 		{
 			SetAsDegenerated();
 			Twin.SetAsDegenerated();
@@ -359,6 +359,13 @@ void FTopologicalEdge::Link(FTopologicalEdge& Twin)
 	MakeLink(Twin);
 }
 
+void FTopologicalEdge::Disjoin()
+{
+	RemoveFromLink();
+	GetStartVertex()->RemoveFromLink();
+	GetEndVertex()->RemoveFromLink();
+}
+
 void FTopologicalEdge::Empty()
 {
 	if (StartVertex.IsValid())
@@ -388,7 +395,7 @@ void FTopologicalEdge::Empty()
 
 FTopologicalFace* FTopologicalEdge::GetFace() const
 {
-	if(Loop != nullptr)
+	if (Loop != nullptr)
 	{
 		return Loop->GetFace();
 	}
@@ -435,19 +442,19 @@ void FTopologicalEdge::ComputeCrossingPointCoordinates()
 			double NewDelatU = DeltaU / (Index - IndexMin);
 			for (int32 Andex = IndexMin + 1; Andex < Index; ++Andex)
 			{
-				CrossingPointUs[Andex] = CrossingPointUs[Andex-1] + NewDelatU;
-			}		
+				CrossingPointUs[Andex] = CrossingPointUs[Andex - 1] + NewDelatU;
+			}
 		}
 		IndexMin = Index;
 		LocalUMin = DeltaUMin;
 	}
 
-	if(IndexMin != CrossingPointUs.Num() - 1)
+	if (IndexMin != CrossingPointUs.Num() - 1)
 	{
 		IndexMin--;
 		double DeltaU = CrossingPointUs[CrossingPointUs.Num() - 1] - CrossingPointUs[IndexMin];
 		double NewDelatU = DeltaU / (CrossingPointUs.Num() - 1 - IndexMin);
-		for (int32 Index = IndexMin + 1; Index < CrossingPointUs.Num()-1; ++Index)
+		for (int32 Index = IndexMin + 1; Index < CrossingPointUs.Num() - 1; ++Index)
 		{
 			CrossingPointUs[Index] = CrossingPointUs[Index - 1] + NewDelatU;
 		}
@@ -550,7 +557,7 @@ double FTopologicalEdge::TransformTwinEdgeCoordinateToLocalCoordinate(const FTop
 	{
 		// linear transform
 		const bool bSameDirection = IsSameDirection(TwinEdge);
-		const double Start = bSameDirection ? Boundary.GetMin(): Boundary.GetMax();
+		const double Start = bSameDirection ? Boundary.GetMin() : Boundary.GetMax();
 		const double End = bSameDirection ? Boundary.GetMax() : Boundary.GetMin();
 
 		const double Distance = End - Start;
@@ -630,7 +637,7 @@ void FTopologicalEdge::TransformTwinEdgeCoordinatesToLocalCoordinates(const FTop
 
 		OutLocalCoordinates.Empty(InTwinCoordinates.Num());
 		const double Factor = Distance / TwinDistance;
-		for(double TwinCoordinate : InTwinCoordinates)
+		for (double TwinCoordinate : InTwinCoordinates)
 		{
 			OutLocalCoordinates.Add(Start + (TwinCoordinate - TwinStart) * Factor);
 		}
@@ -826,22 +833,6 @@ bool FTopologicalEdge::IsSameDirection(const FTopologicalEdge& Edge) const
 	return Vertex1Edge == Edge.GetStartVertex()->GetLink();
 }
 
-#ifdef CADKERNEL_DEV
-FInfoEntity& FTopologicalEdge::GetInfo(FInfoEntity& Info) const
-{
-	return FTopologicalEntity::GetInfo(Info)
-		.Add(TEXT("IsDegenerated"), IsDegenerated())
-		.Add(TEXT("Link"), TopologicalLink)
-		.Add(TEXT("Curve"), Curve)
-		.Add(TEXT("Vertex1"), StartVertex)
-		.Add(TEXT("Vertex2"), EndVertex)
-		.Add(TEXT("Boundary"), Boundary)
-		.Add(TEXT("Loop"), Loop)
-		.Add(TEXT("Length"), Length())
-		.Add(TEXT("Mesh"), Mesh);
-}
-#endif
-
 FEdgeMesh& FTopologicalEdge::GetOrCreateMesh(FModelMesh& ShellMesh)
 {
 	if (!IsActiveEntity())
@@ -967,27 +958,13 @@ TArray<double> FTopologicalEdge::GetPreElementLengths() const
 	return PolylineTools::ComputePolylineSegmentLengths(StartNode, InnerNodes, EndNode);
 }
 
-TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<FOrientedEdge>& Edges, const TSharedRef<FTopologicalVertex> StartVertex, const TSharedRef<FTopologicalVertex> EndVertex)
+TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(const double SmallEdgeTolerance, TArray<FOrientedEdge>& Edges, const TSharedRef<FTopologicalVertex>& StartVertex, const TSharedRef<FTopologicalVertex>& EndVertex)
 {
-	// Make merged 2d Nurbs ===================================================
-
-	const double Tolerance3D = Edges[0].Entity->GetTolerance3D();
-	//const double Tolerance2D = Edges[0].Entity->GetCurve()->Get2DCurve()->GetDomainTolerance();
 	TSharedRef<FSurface> CarrierSurface = Edges[0].Entity->GetCurve()->GetCarrierSurface();
 
 	// check if all curves are 2D NURBS
 	bool bAreNurbs = true;
 	int32 NurbsMaxDegree = 0;
-
-	// TODO, Check if some edges are small edges and could be replace by extending next or previous one
-	double NewEdgeLength = 0;
-	for (const FOrientedEdge& Edge : Edges)
-	{
-		NewEdgeLength += Edge.Entity->Length();
-	}
-
-	// MinLength = smaller than this size, the adgacent edge is extend to replace it  
-	const double MinLength = FMath::Min(NewEdgeLength / (Edges.Num() + 3.), FMath::Max(NewEdgeLength / 20., Tolerance3D * 5.)); // Tolerance3D = 0.01mm => MinLength = 0.25mm, 1/20 of the length is small enougth to be a detail.
 
 	TArray<TSharedPtr<FNURBSCurve>> NurbsCurves;
 	NurbsCurves.Reserve(Edges.Num());
@@ -1001,7 +978,7 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<F
 		}
 
 		double EdgeLength = Edge.Entity->Length();
-		if (bCanRemove && EdgeLength < MinLength)
+		if (bCanRemove && EdgeLength < SmallEdgeTolerance)
 		{
 			NurbsCurves.Emplace(TSharedPtr<FNURBSCurve>());
 			bCanRemove = false;
@@ -1010,7 +987,7 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<F
 		bCanRemove = true;
 
 
-		// Find the max degree of the nurbs
+		// Find the max degree of the NURBS
 		TSharedPtr<FNURBSCurve> NURBS = NurbsCurves.Emplace_GetRef(StaticCastSharedRef<FNURBSCurve>(Edge.Entity->GetCurve()->Get2DCurve()));
 		int32 NurbsDegree = NURBS->GetDegree();
 		if (NurbsDegree > NurbsMaxDegree)
@@ -1050,7 +1027,7 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<F
 		if (NURBS->GetDegree() < NurbsMaxDegree)
 		{
 			NURBS = BSpline::DuplicateNurbsCurveWithHigherDegree(NurbsMaxDegree, *NURBS);
-			if(!NURBS.IsValid())
+			if (!NURBS.IsValid())
 			{
 				// cancel
 				return TSharedPtr<FTopologicalEdge>();
@@ -1123,7 +1100,7 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<F
 		}
 	}
 
-	if(bIsRational)
+	if (bIsRational)
 	{
 		NewWeights.Reserve(PoleCount + NurbsMaxDegree);
 		for (const TSharedPtr<FNURBSCurve>& NurbsCurve : NurbsCurves)
@@ -1140,7 +1117,7 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<F
 			}
 
 			NewPoles.Append(NurbsCurve->GetPoles());
-			if(NurbsCurve->IsRational())
+			if (NurbsCurve->IsRational())
 			{
 				NewWeights.Append(NurbsCurve->GetWeights());
 			}
@@ -1474,14 +1451,5 @@ TArray<FTopologicalFace*> FTopologicalEdge::GetLinkedFaces() const
 
 	return MoveTemp(NeighborFaces);
 }
-
-#ifdef CADKERNEL_DEV
-FInfoEntity& FEdgeLink::GetInfo(FInfoEntity& Info) const
-{
-	return FEntity::GetInfo(Info)
-		.Add(TEXT("Active Entity"), ActiveEntity)
-		.Add(TEXT("Twin Entities"), TwinEntities);
-}
-#endif
 
 }

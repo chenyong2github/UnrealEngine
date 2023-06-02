@@ -248,6 +248,14 @@ public:
 	 */
 	void Link(FTopologicalEdge& OtherEdge);
 
+	void Disjoin();
+
+	void Unlink()
+	{
+		Disjoin();
+	}
+
+
 	TSharedRef<const FTopologicalEdge> GetLinkActiveEdge() const
 	{
 		return StaticCastSharedRef<const FTopologicalEdge>(GetLinkActiveEntity());
@@ -864,7 +872,7 @@ public:
 	 * The merged edges are deleted
 	 * @return TSharedPtr<FTopologicalEdge>() if failed
 	 */
-	static TSharedPtr<FTopologicalEdge> CreateEdgeByMergingEdges(TArray<FOrientedEdge>& Edges, const TSharedRef<FTopologicalVertex> StartVertex, const TSharedRef<FTopologicalVertex> EndVertex);
+	static TSharedPtr<FTopologicalEdge> CreateEdgeByMergingEdges(const double SmallEdgeTolerance, TArray<FOrientedEdge>& Edges, const TSharedRef<FTopologicalVertex>& StartVertex, const TSharedRef<FTopologicalVertex>& EndVertex);
 };
 
 struct CADKERNEL_API FEdge2DProperties

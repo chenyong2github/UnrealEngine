@@ -1015,16 +1015,6 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 	}
 }
 
-#ifdef CADKERNEL_DEV
-FInfoEntity& FTopologicalLoop::GetInfo(FInfoEntity& Info) const
-{
-	return FEntity::GetInfo(Info)
-		.Add(TEXT("Edges"), (TArray<TOrientedEntity<FEntity>>&) Edges)
-		.Add(TEXT("IsExternal"), bIsExternal)
-		.Add(TEXT("Hosted by"), Face);
-}
-#endif
-
 void FTopologicalLoop::FindBreaks(TArray<TSharedPtr<FTopologicalVertex>>& OutBreaks, TArray<int32>& OutStartSideIndex, TArray<double>& OutBreakValues) const
 {
 	const double MinCosAngleOfBreak = -0.7;  // 135 deg

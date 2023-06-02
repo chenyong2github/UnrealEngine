@@ -330,14 +330,11 @@ bool FAliasModelToCADKernelConverter::AddBRep(AlDagNode& DagNode, const FColor& 
 		break;
 	}
 
-	if (CADKernelShell->FaceCount() == 0)
-	{
-		return false;
-	}
 
 	// Create body from faces
 	CADKernelSession.GetModel().Add(CADKernelBody);
-	return true;
+
+	return CADKernelShell->FaceCount() > 0;
 }
 
 }

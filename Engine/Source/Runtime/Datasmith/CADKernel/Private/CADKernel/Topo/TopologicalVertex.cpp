@@ -9,17 +9,6 @@
 namespace UE::CADKernel
 {
 
-#ifdef CADKERNEL_DEV
-FInfoEntity& FTopologicalVertex::GetInfo(FInfoEntity& Info) const
-{
-	return FTopologicalEntity::GetInfo(Info)
-		.Add(TEXT("Link"), TopologicalLink)
-		.Add(TEXT("Position"), Coordinates)
-		.Add(TEXT("ConnectedEdges"), ConnectedEdges)
-		.Add(TEXT("mesh"), Mesh);
-}
-#endif
-
 void FTopologicalVertex::AddConnectedEdge(FTopologicalEdge& Edge)
 {
 	ConnectedEdges.Add(&Edge);
@@ -211,20 +200,5 @@ void FTopologicalVertex::SpawnIdent(FDatabase& Database)
 	}
 }
 
-
-#ifdef CADKERNEL_DEV
-FInfoEntity& TTopologicalLink<FTopologicalVertex>::GetInfo(FInfoEntity& Info) const
-{
-	return FEntity::GetInfo(Info)
-		.Add(TEXT("active Entity"), ActiveEntity)
-		.Add(TEXT("twin Entities"), TwinEntities);
-}
-
-FInfoEntity& FVertexLink::GetInfo(FInfoEntity& Info) const
-{
-	return TTopologicalLink<FTopologicalVertex>::GetInfo(Info)
-		.Add(TEXT("barycenter"), Barycenter);
-}
-#endif
 
 } // namespace UE::CADKernel

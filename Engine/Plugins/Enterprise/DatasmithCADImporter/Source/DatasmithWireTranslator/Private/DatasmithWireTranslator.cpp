@@ -2037,6 +2037,9 @@ void FWireTranslatorImpl::DagForLeavesNoMerge(const TSharedPtr<AlDagNode>& DagNo
 
 TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(AlDagNode& DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
+	static uint32 HelloWorld = 0;
+	HelloWorld++;
+
 	// Wire unit is cm
 	CADModelConverter->InitializeProcess();
 
@@ -2059,7 +2062,10 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 		ColorPtr = &DefaultColor;
 	}
 
-	AliasBRepConverter->AddBRep(DagNode, *ColorPtr, ObjectReference);
+	if (!AliasBRepConverter->AddBRep(DagNode, *ColorPtr, ObjectReference))
+	{
+		return TOptional<FMeshDescription>();
+	}
 
 	CADModelConverter->RepairTopology();
 

@@ -306,7 +306,7 @@ void FDatabase::Serialize(FCADKernelArchive& Ar)
 
 	ensure(Ar.IsSaving());
 
-	SpawnEntityIdent(*Model, true);
+	SpawnEntityIdent(GetModel(), true);
 
 	Ar.Session.Serialize(Ar);
 
@@ -374,6 +374,9 @@ void FDatabase::Deserialize(FCADKernelArchive& Ar)
 
 void FDatabase::CleanArchiveEntities()
 {
+	// Initialize the model if not
+	GetModel();
+
 	int32 FaceCount = 0;
 	int32 ShellCount = 0;
 	for (TSharedPtr<FEntity> Entity : ArchiveEntities)

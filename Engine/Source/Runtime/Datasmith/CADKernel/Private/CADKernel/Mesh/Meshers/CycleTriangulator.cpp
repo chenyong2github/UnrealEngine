@@ -116,7 +116,7 @@ bool FCycleTriangulator::FindTheCycleToMesh(FIsoSegment* Segment, bool bOrientat
 
 #ifdef DEBUG_FIND_THE_CYCLE_TO_MESH
 	static int32 CycleToMeshIndex = 1;
-	static int32 CycleToMeshIndexToTest = 1403;
+	static int32 CycleToMeshIndexToTest = 0;
 	F3DDebugSession A(Grid.bDisplay, FString::Printf(TEXT("Find The Cycle To Mesh %d"), ++CycleToMeshIndex));
 
 	if (Grid.bDisplay)
@@ -453,11 +453,11 @@ bool FCycleTriangulator::FindCandidateNodes(int32 StartIndex)
 	const double StartMaxSlope = FMath::Min(CandidateNodes.Last().SlopeAtStartNode + Slope::OneDegree, MaxSlope);
 	const double EndMaxSlope = FMath::Min(CandidateNodes[0].SlopeAtEndNode + Slope::OneDegree, MaxSlope);
 
-	if (CandidateNodes.Last().SlopeAtStartNode < MaxSlope)
+	if (CandidateNodes.Last().SlopeAtEndNode < EndMaxSlope)
 	{
 		CandidateNodes.Last().bIsValid = true;
 	}
-	if (CandidateNodes[0].SlopeAtEndNode < MaxSlope)
+	if (CandidateNodes[0].SlopeAtStartNode < StartMaxSlope)
 	{
 		CandidateNodes[0].bIsValid = true;
 	}
@@ -521,9 +521,9 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 
 #ifdef DEBUG_FIND_THE_BEST_CANDIDATE_NODE
 	static int32 BestCandidateNode = 0;
-	static int32 BestCandidateNodeTarget = 129;
+	static int32 BestCandidateNodeTarget = 100000;
 	++BestCandidateNode;
-	if (Grid.bDisplay /*&& BestCandidateNode >= BestCandidateNodeTarget*/)
+	if (Grid.bDisplay && BestCandidateNode >= BestCandidateNodeTarget)
 	{
 		F3DDebugSession _(FString::Printf(TEXT("Start Segment %d"), BestCandidateNode));
 		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *FirstSideStartNode, *FirstSideEndNode, 1, EVisuProperty::RedCurve);
@@ -539,7 +539,7 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 			{
 				break;
 			}
-			IntersectionCountAllowed++;
+			IntersectionCountAllowed = NodeIntersection.Value;
 		}
 
 		FCandidateNode* CNode = NodeIntersection.Key;
@@ -550,7 +550,7 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 		double PointCriteria = IsoTriangulatorImpl::IsoscelesCriteriaMax(StartPoint2D, EndPoint2D, NodePoint2D);
 
 #ifdef DEBUG_FIND_THE_BEST_CANDIDATE_NODE
-		if (Grid.bDisplay /*&& BestCandidateNode == BestCandidateNodeTarget*/)
+		if (Grid.bDisplay && BestCandidateNode >= BestCandidateNodeTarget)
 		{
 			F3DDebugSession _(TEXT("Candidate triangle"));
 			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *FirstSideStartNode, *Node, 1, EVisuProperty::RedCurve);

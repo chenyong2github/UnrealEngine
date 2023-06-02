@@ -529,4 +529,69 @@ int32 FShell::Orient()
 	return ShellSwappedFaceCount;
 }
 
+namespace ShellTools
+{
+
+void UnlinkFromOther(TArray<FTopologicalFace*>& Faces, TArray<FTopologicalVertex*>& VerticesToLink)
+{
+	for (FTopologicalFace* Face : Faces)
+	{
+		Face->SetToProcessMarker();
+	}
+
+	VerticesToLink.Reserve(100);
+
+	for (FTopologicalFace* Face : Faces)
+	{
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+		{
+			for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
+			{
+				FTopologicalEdge* Edge = OrientedEdge.Entity.Get();
+				if (!Edge)
+				{
+					continue;
+				}
+
+				for (FTopologicalEdge* TwinEdge : Edge->GetTwinEntities())
+				{
+					if (!TwinEdge || TwinEdge == Edge)
+					{
+						continue;
+					}
+
+					FTopologicalFace* NeighborFace = TwinEdge->GetFace();
+					if (!NeighborFace)
+					{
+						continue;
+					}
+					if (!NeighborFace->IsToProcess())
+					{
+						Edge->Unlink();
+
+						FTopologicalVertex& Vertex = *Edge->GetStartVertex();
+						if(!Vertex.IsProcessed())
+						{
+							VerticesToLink.Add(&Vertex);
+						}
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	for (FTopologicalFace* Face : Faces)
+	{
+		Face->ResetToProcessMarker();
+	}
+
+	for (FTopologicalVertex* Vertex : VerticesToLink)
+	{
+		Vertex->ResetProcessedMarker();
+	}
+}
+}
+
+
 }

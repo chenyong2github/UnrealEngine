@@ -12,14 +12,4 @@ void FTopologicalShapeEntity::CompleteMetadata()
 	}
 }
 
-
-#ifdef CADKERNEL_DEV
-FInfoEntity& FTopologicalShapeEntity::GetInfo(FInfoEntity& Info) const
-{
-	return FTopologicalEntity::GetInfo(Info)
-		.Add(TEXT("Hosted by"), (FEntity*) HostedBy)
-		.Add(Dictionary);
-}
-#endif
-
 }

@@ -282,10 +282,8 @@ void FTopologicalFace::Disjoin(TArray<FTopologicalEdge*>* NewBorderEdges)
 					NewBorderEdges->Add(TwinEdge);
 				}
 			}
-			Edge->RemoveFromLink();
+			Edge->Disjoin();
 			Edge->SetMarker1();
-			Edge->GetStartVertex()->RemoveFromLink();
-			Edge->GetEndVertex()->RemoveFromLink();
 		}
 	}
 }
@@ -456,19 +454,6 @@ void FTopologicalFace::SpawnIdent(FDatabase& Database)
 		Mesh->SpawnIdent(Database);
 	}
 }
-
-#ifdef CADKERNEL_DEV
-FInfoEntity& FTopologicalFace::GetInfo(FInfoEntity& Info) const
-{
-	return FTopologicalShapeEntity::GetInfo(Info)
-		.Add(TEXT("Orientation"), IsBackOriented() ? "Back" : "Front")
-		.Add(TEXT("Carrier Surface"), CarrierSurface)
-		.Add(TEXT("Boundary"), (FSurfacicBoundary&) Boundary)
-		.Add(TEXT("Loops"), Loops)
-		.Add(TEXT("QuadCriteria"), QuadCriteria)
-		.Add(TEXT("Mesh"), Mesh);
-}
-#endif
 
 FFaceMesh& FTopologicalFace::GetOrCreateMesh(FModelMesh& MeshModel)
 {

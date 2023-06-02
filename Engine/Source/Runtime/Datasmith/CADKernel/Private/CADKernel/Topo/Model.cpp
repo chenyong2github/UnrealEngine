@@ -90,14 +90,6 @@ void FModel::SpreadBodyOrientation()
 	}
 }
 
-#ifdef CADKERNEL_DEV
-FInfoEntity& FModel::GetInfo(FInfoEntity& Info) const
-{
-	return FTopologicalShapeEntity::GetInfo(Info)
-		.Add(TEXT("Bodies"), Bodies);
-}
-#endif
-
 struct FBodyShell
 {
 	TSharedPtr<FBody> Body;

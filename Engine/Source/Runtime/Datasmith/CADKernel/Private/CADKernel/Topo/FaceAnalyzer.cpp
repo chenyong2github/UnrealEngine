@@ -11,10 +11,6 @@
 namespace UE::CADKernel
 {
 
-#ifdef CADKERNEL_DEV
-FIdent Topo::FEdgeSegment::LastId = 0;
-#endif
-
 void FFaceAnalyzer::FindClosedSegments(Topo::FThinFaceContext& Context)
 {
 #ifdef DEBUG_FIND_THIN_FACE
@@ -227,61 +223,5 @@ bool FFaceAnalyzer::IsThinFace(double& OutGapSize)
 	return false;
 }
 
-#ifdef CADKERNEL_DEV
-void FFaceAnalyzer::DisplayLoopSegments(Topo::FThinFaceContext& Context)
-{
-#ifdef DEBUG_THIN_FACE
-	const FTopologicalEdge* Edge = nullptr;
-	Edge = Context.LoopSegments[0]->GetEdge();
-
-	F3DDebugSession _(TEXT("BoundarySegment"));
-
-#ifdef DEBUG_THIN_FACE_EDGE
-	Open3DDebugSession(FString::Printf(TEXT("Edge %d\n"), Edge->GetId()));
-#endif
-
-	for (Topo::FEdgeSegment* EdgeSegment : Context.LoopSegments)
-	{
-		if (Edge != EdgeSegment->GetEdge())
-		{
-			Edge = EdgeSegment->GetEdge();
-#ifdef DEBUG_THIN_FACE_EDGE
-			Close3DDebugSession();
-			Open3DDebugSession(FString::Printf(TEXT("Edge %d\n"), Edge->GetId()));
-#endif
-		}
-		DisplaySegment(EdgeSegment->GetExtemity(ELimit::Start), EdgeSegment->GetExtemity(ELimit::End), EdgeSegment->GetId(), EVisuProperty::GreenCurve, true);
-		DisplayPoint(EdgeSegment->GetExtemity(ELimit::Start), EVisuProperty::BluePoint);
-	}
-#ifdef DEBUG_THIN_FACE_EDGE
-	Close3DDebugSession();
-#endif
-	//Wait();
-#endif
-}
-sadf
-#ifdef CADKERNEL_DEV
-void FFaceAnalyzer::DisplayClosedSegments(Topo::FThinFaceContext& Context)
-{
-	F3DDebugSession _(TEXT("Closed Segment"));
-	for (const Topo::FEdgeSegment* Segment : Context.LoopSegments)
-	{
-		F3DDebugSession _(TEXT("Closed"));
-		if (Segment->GetClosedSegment())
-		{
-			DisplaySegment(Segment->GetExtemity(ELimit::Start), Segment->GetExtemity(ELimit::End), Segment->GetId(), EVisuProperty::BlueCurve);
-			Topo::FEdgeSegment* Parallel = Segment->GetClosedSegment();
-			DisplaySegment(Parallel->GetExtemity(ELimit::Start), Parallel->GetExtemity(ELimit::End), Parallel->GetId(), EVisuProperty::BlueCurve);
-
-			double Coordinate;
-			FPoint Projection = ProjectPointOnSegment(Segment->GetMiddle(), Parallel->GetExtemity(ELimit::Start), Parallel->GetExtemity(ELimit::End), Coordinate, true);
-
-			DisplaySegment(Projection, Segment->GetMiddle(), Segment->GetId(), EVisuProperty::RedCurve);
-		}
-	}
-	//Wait();
-}
-#endif
-#endif
 }
 

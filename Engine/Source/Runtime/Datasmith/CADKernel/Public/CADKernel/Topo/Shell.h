@@ -21,6 +21,11 @@ class FTopologicalFace;
 class FTopologyReport;
 struct FFaceSubset;
 
+namespace ShellTools
+{
+void UnlinkFromOther(TArray<FTopologicalFace*>& Faces, TArray<FTopologicalVertex*>& VerticesToLink);
+}
+
 class CADKERNEL_API FOrientedFace : public TOrientedEntity<FTopologicalFace>
 {
 public:
@@ -137,6 +142,13 @@ public:
 	virtual void UpdateShellOrientation();
 
 	void CheckTopology(TArray<FFaceSubset>& Subshells);
+
+	void UnlinkFromOther(TArray<FTopologicalVertex*>& OutVerticesToLink)
+	{
+		TArray<FTopologicalFace*> Faces;
+		GetFaces(Faces);
+		ShellTools::UnlinkFromOther(Faces, OutVerticesToLink);
+	}
 
 #ifdef CADKERNEL_DEV
 	virtual void FillTopologyReport(FTopologyReport& Report) const override;
