@@ -595,7 +595,7 @@ void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects)
 	}
 }
 	
-bool IsStrippedEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bCheckMarks)
+bool IsStrippedEditorOnlyObject(const UObject* InObject, EEditorOnlyObjectFlags Flags)
 {
 #if WITH_EDITOR
 	// Configurable via ini setting
@@ -614,7 +614,7 @@ bool IsStrippedEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, b
 		return false;
 	}
 	
-	return IsEditorOnlyObject(InObject, bCheckRecursive, bCheckMarks);
+	return IsEditorOnlyObjectInternal(InObject, Flags);
 #else
 	return true;
 #endif
@@ -760,8 +760,37 @@ void FObjectSaveContextData::Set(UPackage* Package, const ITargetPlatform* InTar
 	bUpdatingLoadedPath = UE::SavePackageUtilities::IsUpdatingLoadedPath(InTargetPlatform != nullptr, TargetPath, InSaveFlags);
 }
 
+bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive)
+{
+	using namespace UE::SavePackageUtilities;
+	EEditorOnlyObjectFlags Flags = EEditorOnlyObjectFlags::None;
+	Flags |= bCheckRecursive ? EEditorOnlyObjectFlags::CheckRecursive : EEditorOnlyObjectFlags::None;
+	return IsEditorOnlyObjectInternal(InObject, Flags);
+}
+
 bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bCheckMarks)
 {
+	using namespace UE::SavePackageUtilities;
+	EEditorOnlyObjectFlags Flags = EEditorOnlyObjectFlags::None;
+	Flags |= bCheckRecursive ? EEditorOnlyObjectFlags::CheckRecursive : EEditorOnlyObjectFlags::None;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	Flags |= bCheckMarks ? EEditorOnlyObjectFlags::CheckMarks : EEditorOnlyObjectFlags::None;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	return IsEditorOnlyObjectInternal(InObject, Flags);
+}
+
+namespace UE::SavePackageUtilities
+{
+
+bool IsEditorOnlyObjectInternal(const UObject* InObject, EEditorOnlyObjectFlags Flags)
+{
+	bool bCheckRecursive = EnumHasAnyFlags(Flags, EEditorOnlyObjectFlags::CheckRecursive);
+	bool bIgnoreEditorOnlyClass = EnumHasAnyFlags(Flags, EEditorOnlyObjectFlags::ApplyHasNonEditorOnlyReferences) &&
+		InObject->HasNonEditorOnlyReferences();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	bool bCheckMarks = EnumHasAnyFlags(Flags, EEditorOnlyObjectFlags::CheckMarks);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("IsEditorOnlyObject"), STAT_IsEditorOnlyObject, STATGROUP_LoadTime);
 	check(InObject);
 
@@ -769,7 +798,8 @@ bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bChe
 	// Ignore their value of IsEditorOnly
 	if (!InObject->HasAnyFlags(RF_ClassDefaultObject))
 	{
-		if ((bCheckMarks && InObject->HasAnyMarks(OBJECTMARK_EditorOnly)) || InObject->IsEditorOnly())
+		if (!bIgnoreEditorOnlyClass &&
+			((bCheckMarks && InObject->HasAnyMarks(OBJECTMARK_EditorOnly)) || InObject->IsEditorOnly()))
 		{
 			return true;
 		}
@@ -808,36 +838,41 @@ bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bChe
 		UObject* Outer = InObject->GetOuter();
 		if (Outer && Outer != Package)
 		{
-			if (IsEditorOnlyObject(Outer, true, bCheckMarks))
+			if (IsEditorOnlyObjectInternal(Outer, Flags))
 			{
 				return true;
 			}
 		}
-		const UStruct* InStruct = Cast<UStruct>(InObject);
-		if (InStruct)
+		if (!bIgnoreEditorOnlyClass)
 		{
-			const UStruct* SuperStruct = InStruct->GetSuperStruct();
-			if (SuperStruct && IsEditorOnlyObject(SuperStruct, true, bCheckMarks))
+			const UStruct* InStruct = Cast<UStruct>(InObject);
+			if (InStruct)
 			{
-				return true;
+				const UStruct* SuperStruct = InStruct->GetSuperStruct();
+				if (SuperStruct && IsEditorOnlyObjectInternal(SuperStruct, Flags))
+				{
+					return true;
+				}
 			}
-		}
-		else
-		{
-			if (IsEditorOnlyObject(InObject->GetClass(), true, bCheckMarks))
+			else
 			{
-				return true;
-			}
+				if (IsEditorOnlyObjectInternal(InObject->GetClass(), Flags))
+				{
+					return true;
+				}
 
-			UObject* Archetype = InObject->GetArchetype();
-			if (Archetype && IsEditorOnlyObject(Archetype, true, bCheckMarks))
-			{
-				return true;
+				UObject* Archetype = InObject->GetArchetype();
+				if (Archetype && IsEditorOnlyObjectInternal(Archetype, Flags))
+				{
+					return true;
+				}
 			}
 		}
 	}
 	return false;
 }
+
+} // namespace UE::SavePackageUtilities
 
 void FObjectImportSortHelper::SortImports(FLinkerSave* Linker)
 {

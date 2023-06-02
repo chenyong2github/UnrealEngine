@@ -359,7 +359,7 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 	{
 		ForEachObjectWithPackage(SaveContext.GetPackage(), [&TryHarvestRootObject, TopLevelFlags](UObject* InObject)
 			{
-				if (InObject->HasAnyFlags(TopLevelFlags | RF_ClassDefaultObject))
+				if (InObject->HasAnyFlags(TopLevelFlags))
 				{
 					TryHarvestRootObject(InObject);
 				}

@@ -11,6 +11,8 @@
 
 EObjectMark GenerateMarksForObject(const UObject* InObject, const ITargetPlatform* TargetPlatform)
 {
+	using namespace UE::SavePackageUtilities;
+
 	EObjectMark Marks = OBJECTMARK_NOMARKS;
 
 	// CDOs must be included if their class are, so do not generate any marks for it here, defer exclusion to their outer and class
@@ -46,15 +48,18 @@ EObjectMark GenerateMarksForObject(const UObject* InObject, const ITargetPlatfor
 	}
 #endif
 	
-	if (UE::SavePackageUtilities::IsStrippedEditorOnlyObject(InObject, true, false))
+	// If doing an editor save, HasNonEditorOnlyReferences=true overrides NotForClient, NotForServer, and virtual IsEditorOnly and marks it as UsedInGame
+	bool bApplyHasNonEditorOnlyReferences = TargetPlatform == nullptr;
+	if (IsStrippedEditorOnlyObject(InObject,
+		EEditorOnlyObjectFlags::CheckRecursive |
+		(bApplyHasNonEditorOnlyReferences ? EEditorOnlyObjectFlags::ApplyHasNonEditorOnlyReferences : EEditorOnlyObjectFlags::None)))
 	{
 		Marks = (EObjectMark)(Marks | OBJECTMARK_EditorOnly);
 	}
 	else
 	// If NotForClient and NotForServer, it is implicitly editor only
-	// If doing an editor save, HasNonEditorOnlyReferences can override it to still not be marked as editoronly
 	if ((Marks & OBJECTMARK_NotForClient) && (Marks & OBJECTMARK_NotForServer) &&
-		(TargetPlatform != nullptr || !InObject->HasNonEditorOnlyReferences()))
+		(!bApplyHasNonEditorOnlyReferences || !InObject->HasNonEditorOnlyReferences()))
 	{
 		Marks = (EObjectMark)(Marks | OBJECTMARK_EditorOnly);
 	}
@@ -89,7 +94,9 @@ bool ConditionallyExcludeObjectForRealm(FSaveContext& SaveContext, UObject* Obj,
 	}
 
 	// If the object class is excluded, the object must be excluded too
-	if (ConditionallyExcludeObjectForRealm(SaveContext, Obj->GetClass(), HarvestingContext))
+	bool bApplyHasNonEditorOnlyReferences = TargetPlatform == nullptr;
+	bool bIgnoreEditorOnlyClass = bApplyHasNonEditorOnlyReferences && Obj->HasNonEditorOnlyReferences();
+	if (!bIgnoreEditorOnlyClass && ConditionallyExcludeObjectForRealm(SaveContext, Obj->GetClass(), HarvestingContext))
 	{
 		RealmBeingChecked.AddExcluded(Obj);
 		return true;
@@ -102,24 +109,27 @@ bool ConditionallyExcludeObjectForRealm(FSaveContext& SaveContext, UObject* Obj,
 		return true;
 	}
 
-	// Check parent struct if we have one
-	UStruct* ThisStruct = Cast<UStruct>(Obj);
-	if (ThisStruct)
+	if (!bIgnoreEditorOnlyClass)
 	{
-		UObject* SuperStruct = ThisStruct->GetSuperStruct();
-		if (SuperStruct && ConditionallyExcludeObjectForRealm(SaveContext, SuperStruct, HarvestingContext))
+		// Check parent struct if we have one
+		UStruct* ThisStruct = Cast<UStruct>(Obj);
+		if (ThisStruct)
+		{
+			UObject* SuperStruct = ThisStruct->GetSuperStruct();
+			if (SuperStruct && ConditionallyExcludeObjectForRealm(SaveContext, SuperStruct, HarvestingContext))
+			{
+				RealmBeingChecked.AddExcluded(Obj);
+				return true;
+			}
+		}
+
+		// Check archetype, this may not have been covered in the case of components
+		UObject* Archetype = Obj->GetArchetype();
+		if (Archetype && ConditionallyExcludeObjectForRealm(SaveContext, Archetype, HarvestingContext))
 		{
 			RealmBeingChecked.AddExcluded(Obj);
 			return true;
 		}
-	}
-
-	// Check archetype, this may not have been covered in the case of components
-	UObject* Archetype = Obj->GetArchetype();
-	if (Archetype && ConditionallyExcludeObjectForRealm(SaveContext, Archetype, HarvestingContext))
-	{
-		RealmBeingChecked.AddExcluded(Obj);
-		return true;
 	}
 
 	return false;
@@ -392,6 +402,14 @@ void FPackageHarvester::ProcessExport(const FExportWithContext& InProcessContext
 	*this << Class;
 	ForEachExportHarvestingRealm([this, Class, Export](ESaveRealm HarvestingRealm)
 		{
+			if (HarvestingRealm == ESaveRealm::Game && !SaveContext.IsCooking())
+			{
+				// During an EditorSave we mark objects as UsedInGame (!EditorOnly) by adding them to the Game realm.
+				// But objects can be marked as UsedInGame even if their class is EditorOnly if they
+				// return true from HasNonEditorOnlyReferences. So suppress this error that the class is
+				// missing from the realm if the realm is Game and we are doing an editor save.
+				return;
+			}
 			FHarvestedRealm& RealmData = SaveContext.GetHarvestedRealm(HarvestingRealm);
 			if (!RealmData.IsIncluded(Class))
 			{
@@ -548,9 +566,9 @@ void FPackageHarvester::TryHarvestExportInternal(UObject* InObject)
 	FHarvestScope OptionalObjectScope = EnterConditionalOptionalObjectScope(InObject);
 
 #if WITH_EDITORONLY_DATA
-	// Remove the Game realm if the object is editoronly
+	// Remove the Game realm if the object is editoronly and does not override it with HasNonEditorOnlyReferences
 	bool bIsEditorOnlyObject = UE::SavePackageUtilities::IsStrippedEditorOnlyObject(InObject,
-		true /* bCheckRecursive */, false /* bCheckMarks */)
+		UE::SavePackageUtilities::EEditorOnlyObjectFlags::CheckRecursive)
 		&& !InObject->HasNonEditorOnlyReferences();
 	FHarvestScope EditorOnlyScope = EnterConditionalEditorOnlyScope(bIsEditorOnlyObject);
 #endif

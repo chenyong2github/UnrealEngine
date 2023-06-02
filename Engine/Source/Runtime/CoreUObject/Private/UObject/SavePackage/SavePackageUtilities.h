@@ -361,8 +361,20 @@ void AsyncWriteFile(EAsyncWriteOptions Options, FSavePackageOutputFile& File);
 
 void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects);
 
-/** Returns result of IsEditorOnlyObject if Engine:[Core.System]:CanStripEditorOnlyExportsAndImports (ini) is set to true */
-bool IsStrippedEditorOnlyObject(const UObject* InObject, bool bCheckRecursive = true, bool bCheckMarks = true);
+enum class EEditorOnlyObjectFlags
+{
+	None = 0,
+	CheckRecursive = 1 << 1,
+	ApplyHasNonEditorOnlyReferences = 1 << 2,
+	CheckMarks UE_DEPRECATED(5.3, "CheckMarks is no longer supported") = 1 << 3,
+
+};
+ENUM_CLASS_FLAGS(EEditorOnlyObjectFlags);
+
+/** Returns result of IsEditorOnlyObjectInternal if Engine:[Core.System]:CanStripEditorOnlyExportsAndImports (ini) is set to true */
+bool IsStrippedEditorOnlyObject(const UObject* InObject, EEditorOnlyObjectFlags Flags);
+
+bool IsEditorOnlyObjectInternal(const UObject* InObject, EEditorOnlyObjectFlags Flags);
 
 }
 
