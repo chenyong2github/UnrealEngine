@@ -22,6 +22,7 @@ using EpicGames.BuildGraph.Expressions;
 using AutomationTool.Tasks;
 
 using static AutomationTool.CommandUtils;
+using System.Runtime.InteropServices;
 
 namespace AutomationTool
 {
@@ -962,6 +963,49 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Helper class to execute a cleanup script on termination
+		/// </summary>
+		class CleanupScriptRunner : IDisposable
+		{
+			readonly ILogger _logger;
+			readonly FileReference _scriptFile;
+
+			public CleanupScriptRunner(ILogger logger)
+			{
+				_logger = logger;
+
+				string CleanupScriptEnvVar = Environment.GetEnvironmentVariable(CustomTask.CleanupScriptEnvVarName);
+				if (String.IsNullOrEmpty(CleanupScriptEnvVar))
+				{
+					string extension = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "bat" : "sh";
+					_scriptFile = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", $"OnExit.{extension}");
+					FileReference.Delete(_scriptFile);
+					Environment.SetEnvironmentVariable(CustomTask.CleanupScriptEnvVarName, _scriptFile.FullName);
+				}
+			}
+
+			public void Dispose()
+			{
+				if (_scriptFile != null)
+				{
+					if (FileReference.Exists(_scriptFile))
+					{
+						_logger.LogInformation("Executing cleanup commands from {ScriptFile}", _scriptFile);
+						if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+						{
+							CommandUtils.Run(BuildHostPlatform.Current.Shell.FullName, $"/C {CommandLineArguments.Quote(_scriptFile.FullName)}");
+						}
+						else
+						{
+							CommandUtils.Run(BuildHostPlatform.Current.Shell.FullName, CommandLineArguments.Quote(_scriptFile.FullName));
+						}
+					}
+					Environment.SetEnvironmentVariable(CustomTask.CleanupScriptEnvVarName, null);
+				}
+			}
+		}
+
+		/// <summary>
 		/// Build a node
 		/// </summary>
 		/// <param name="Job">Information about the current job</param>
@@ -974,6 +1018,9 @@ namespace AutomationTool
 		async Task<bool> BuildNodeAsync(JobContext Job, BgGraphDef Graph, BgNodeDef Node, Dictionary<BgNodeDef, BgNodeExecutor> NodeToExecutor, TempStorage Storage, bool bWithBanner)
 		{
 			DirectoryReference RootDir = new DirectoryReference(CommandUtils.CmdEnv.LocalRoot);
+
+			// Register something to execute cleanup commands
+			using CleanupScriptRunner CleanupRunner = new CleanupScriptRunner(Logger);
 
 			// Create the mapping of tag names to file sets
 			Dictionary<string, HashSet<FileReference>> TagNameToFileSet = new Dictionary<string,HashSet<FileReference>>();
