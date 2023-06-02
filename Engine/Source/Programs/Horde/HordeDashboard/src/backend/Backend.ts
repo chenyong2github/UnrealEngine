@@ -692,6 +692,19 @@ export class Backend {
 
     }
 
+    testException(): Promise<void> {
+
+        return new Promise<void>((resolve, reject) => {
+
+            this.backend.get("/api/v1/debug/exception").then(() => {
+                resolve();
+            }).catch(reason => {
+                reject(reason);
+            });
+        });
+    }
+
+
     createJob(request: CreateJobRequest): Promise<CreateJobResponse> {
 
         return new Promise<CreateJobResponse>((resolve, reject) => {

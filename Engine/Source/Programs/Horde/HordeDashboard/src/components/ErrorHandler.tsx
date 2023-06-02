@@ -30,7 +30,7 @@ export type ErrorInfo = {
    url?: string;
 
    // REST mode
-   mode?: "GET" | "PUT" | "DELETE" | "POST";
+   mode?: "GET" | "PUT" | "DELETE" | "POST" | string;
 
    // custom title override
    title?: string;
@@ -231,7 +231,7 @@ export const ErrorDialog: React.FC = observer(() => {
          dialogContentProps={dialogContentProps}>
 
          <Stack tokens={{ childrenGap: 12 }}>
-            <Text styles={{ root: { whiteSpace: "pre-wrap", fontSize: 16, color: "#EC4C47" } }}>{message}</Text>
+            <Text styles={{ root: { whiteSpace: "pre-wrap", fontSize: 13, color: "#EC4C47" } }}>{message}</Text>
             {!!error.url && <Text variant="medium">{`URL: ${error.url}`}</Text>}
             <Stack>
                <Stack tokens={{ childrenGap: 18 }} style={{ paddingTop: 12 }}>

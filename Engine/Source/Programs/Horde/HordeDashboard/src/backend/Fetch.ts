@@ -39,9 +39,28 @@ export class Fetch {
         return new Promise<FetchResponse>(async (resolve, reject) => {
 
             try {
+                
+                const response = await fetch(url, this.buildRequest("GET")).then(response => {
+                    if (!response.ok && response.status === 500) {
+                        response.text().then(text => {
+                            handleError({
+                                response: response,
+                                reason: "Internal Server Error",
+                                mode: "GET",
+                                url: url,
+                                message: text
+                            }, true);            
+                        });
+                        return null;
+                    }
+                    return response;
+                });
 
-                const response = await fetch(url, this.buildRequest("GET"));
-
+                if (!response) {
+                    reject('');
+                    return;
+                }
+		
                 if (response.ok) {
                     this.handleResponse(response, url, "GET", resolve, reject, config);
                     return;
@@ -172,6 +191,19 @@ export class Fetch {
 
     private async handleResponse(response: Response, url: string, mode: string, resolve: (value: FetchResponse | PromiseLike<FetchResponse>) => void, reject: (reason?: any) => void, config?: FetchRequestConfig) {
 
+        if (!response.ok && response.status === 500) {
+
+            response.text().then(text => {
+                handleError({
+                    mode: mode,
+                    response: response,
+                    url: url,
+                    title: "Internal Server Error",
+                    message: text                
+                }, true);
+            });
+            return reject("Internal Server Error");
+        }
 
         if (response.status === 401) {
 
@@ -185,6 +217,7 @@ export class Fetch {
             if (response.url?.indexOf("AccessDenied") !== -1) {
 
                 handleError({
+                    mode: mode,
                     response: response,
                     url: url,
                     title: "Access Denied"
@@ -195,6 +228,7 @@ export class Fetch {
                 if (response.status !== 404 || !config?.suppress404) {
 
                     let errorInfo: ErrorInfo = {
+                        mode: mode,
                         response: response,
                         url: url
                     }
@@ -234,6 +268,7 @@ export class Fetch {
             }).catch(reason => {
 
                 handleError({
+                    mode: mode,
                     response: response,
                     url: url,
                     reason: reason
@@ -257,6 +292,7 @@ export class Fetch {
                 }).catch(reason => {
 
                     handleError({
+                        mode: mode,
                         response: response,
                         url: url,
                         reason: reason
