@@ -3,7 +3,7 @@
 #include "PoseSearch/PoseSearchNormalizationSet.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 
-void UPoseSearchNormalizationSet::AddUniqueDatabases(TArray<TWeakObjectPtr<const UPoseSearchDatabase>>& UniqueDatabases) const
+void UPoseSearchNormalizationSet::AddUniqueDatabases(TArray<TObjectPtr<const UPoseSearchDatabase>>& UniqueDatabases) const
 {
 	for (const TObjectPtr<const UPoseSearchDatabase>& Database : Databases)
 	{

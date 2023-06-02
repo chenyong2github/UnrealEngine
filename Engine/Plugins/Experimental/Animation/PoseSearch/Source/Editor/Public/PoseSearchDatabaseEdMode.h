@@ -45,9 +45,6 @@ namespace UE::PoseSearch
 		virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) override;
 
 	private:
-
 		FDatabaseViewModel* ViewModel = nullptr;
-
-		TWeakObjectPtr<AActor> SelectedActor = nullptr;
 	};
 }

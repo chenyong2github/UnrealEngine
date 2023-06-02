@@ -625,6 +625,7 @@ struct FPoseSearchDatabaseAsyncCacheTask
 	void Wait(FCriticalSection& OuterMutex);
 	void Cancel(FCriticalSection& OuterMutex);
 	bool Poll(FCriticalSection& OuterMutex) const;
+	void AddReferencedObjects(FReferenceCollector& Collector, FCriticalSection& OuterMutex);
 	bool ContainsDatabase(const UPoseSearchDatabase* OtherDatabase, FCriticalSection& OuterMutex) const;
 	bool IsValid(FCriticalSection& OuterMutex) const;
 	const FIoHash& GetDerivedDataKey() const { return DerivedDataKey; }
@@ -883,8 +884,8 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 				COOK_STAT(auto Timer = UsageStats.TimeSyncWork());
 
 				// collecting all the databases that need to be built to gather their FPoseSearchIndexBase
-				TArray<TWeakObjectPtr<const UPoseSearchDatabase>> IndexBaseDatabases;
-				IndexBaseDatabases.Add(Database); // the first one is always this Database
+				TArray<TObjectPtr<const UPoseSearchDatabase>> IndexBaseDatabases;
+				IndexBaseDatabases.Add(Database.Get()); // the first one is always this Database
 				if (Database->NormalizationSet)
 				{
 					Database->NormalizationSet->AddUniqueDatabases(IndexBaseDatabases);
@@ -897,7 +898,8 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 				Schemas.AddDefaulted(IndexBaseDatabases.Num());
 				for (int32 IndexBaseIdx = 0; IndexBaseIdx < IndexBaseDatabases.Num(); ++IndexBaseIdx)
 				{
-					TWeakObjectPtr<const UPoseSearchDatabase> IndexBaseDatabase = IndexBaseDatabases[IndexBaseIdx];
+					const UPoseSearchDatabase* IndexBaseDatabase = IndexBaseDatabases[IndexBaseIdx].Get();
+					check(IndexBaseDatabase);
 					FPoseSearchIndexBase& SearchIndexBase = SearchIndexBases[IndexBaseIdx];
 					Schemas[IndexBaseIdx] = IndexBaseDatabase->Schema;
 
@@ -942,7 +944,7 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 					}
 
 					// Building all the related FPoseSearchBaseIndex first
-					InitSearchIndexAssets(SearchIndexBase, IndexBaseDatabase.Get());
+					InitSearchIndexAssets(SearchIndexBase, IndexBaseDatabase);
 
 					if (Owner.IsCanceled())
 					{
@@ -1028,6 +1030,23 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 
 				COOK_STAT(Timer.AddMiss(BytesProcessed));
 			});
+	}
+}
+
+void FPoseSearchDatabaseAsyncCacheTask::AddReferencedObjects(FReferenceCollector& Collector, FCriticalSection& OuterMutex)
+{
+	FScopeLock Lock(&OuterMutex);
+
+	const EState State = GetState();
+	if (State != EState::Ended && State != EState::Failed)
+	{
+		// keeping around the assets for starting or in progress tasks
+		Collector.AddReferencedObject(Database);
+
+		for (TWeakObjectPtr<const UObject>& Dependency : DatabaseDependencies )
+		{
+			Collector.AddReferencedObject(Dependency);
+		}
 	}
 }
 
@@ -1139,8 +1158,6 @@ void FAsyncPoseSearchDatabasesManagement::Tick(float DeltaTime)
 
 void FAsyncPoseSearchDatabasesManagement::TickCook(float DeltaTime, bool bCookCompete)
 {
-	FScopeLock Lock(&Mutex);
-
 	Tick(DeltaTime);
 }
 
@@ -1151,6 +1168,12 @@ TStatId FAsyncPoseSearchDatabasesManagement::GetStatId() const
 
 void FAsyncPoseSearchDatabasesManagement::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	FScopeLock Lock(&Mutex);
+
+	for (TUniquePtr<FPoseSearchDatabaseAsyncCacheTask>& TaskPtr : Tasks)
+	{
+		TaskPtr->AddReferencedObjects(Collector, Mutex);
+	}
 }
 
 // returns true if the index has been built and the Database updated correctly  

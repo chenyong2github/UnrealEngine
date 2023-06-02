@@ -62,13 +62,13 @@ private:
 	struct FSkeleton
 	{
 		/** Actor object for the skeleton */
-		TWeakObjectPtr<AActor> Actor = nullptr;
+		TObjectPtr<AActor> Actor;
 
 		/** Derived skeletal mesh for setting the skeleton in the scene */
-		TWeakObjectPtr<UPoseSearchMeshComponent> Component = nullptr;
+		TWeakObjectPtr<UPoseSearchMeshComponent> Component;
 
 		/** Source database for this skeleton  */
-		TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase = nullptr;
+		TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase;
 
 		/** Source asset for this skeleton */
 		int32 AssetIdx = 0;

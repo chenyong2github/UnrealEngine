@@ -12,7 +12,7 @@ namespace UE::PoseSearch
 class FDebuggerDatabaseSharedData : public TSharedFromThis<FDebuggerDatabaseSharedData>
 {
 public:
-	TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase = nullptr;
+	TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase;
 	FString DatabaseName = "";
 	FString DatabasePath = "";
 	TArray<float> QueryVector;

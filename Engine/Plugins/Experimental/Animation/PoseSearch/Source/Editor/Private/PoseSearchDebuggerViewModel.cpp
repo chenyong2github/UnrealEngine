@@ -27,7 +27,7 @@ FDebuggerViewModel::~FDebuggerViewModel()
 {
 	for (FSkeleton& Skeleton : Skeletons)
 	{
-		if (Skeleton.Actor.IsValid())
+		if (Skeleton.Actor != nullptr)
 		{
 			Skeleton.Actor->Destroy();
 		}

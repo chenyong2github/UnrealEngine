@@ -390,7 +390,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 
 #if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
 	const FSearchResult& CurResult = InOutMotionMatchingState.CurrentSearchResult;
-	if ((bDebugDrawQuery || bDebugDrawCurResult) && CurResult.Database.IsValid())
+	if ((bDebugDrawQuery || bDebugDrawCurResult) && CurResult.Database != nullptr)
 	{
 		const UPoseSearchDatabase* CurResultDatabase = CurResult.Database.Get();
 

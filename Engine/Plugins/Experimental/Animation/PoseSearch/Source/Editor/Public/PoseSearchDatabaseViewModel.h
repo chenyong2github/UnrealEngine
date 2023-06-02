@@ -43,7 +43,7 @@ namespace UE::PoseSearch
 	struct FDatabasePreviewActor
 	{
 	public:
-		TWeakObjectPtr<AActor> Actor = nullptr;
+		TObjectPtr<AActor> Actor;
 		int32 IndexAssetIndex = INDEX_NONE;
 		int32 CurrentPoseIndex = INDEX_NONE;
 		float PlayTimeOffset = 0.f;

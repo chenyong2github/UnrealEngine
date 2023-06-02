@@ -285,7 +285,6 @@ namespace UE::PoseSearch
 
 		for (FDatabasePreviewActor& PreviewActor : PreviewActors)
 		{
-			// @todo: PreviewActor.Actor is a TWeakObjectPtr so it can be null.
 			PreviewActor.Actor->Destroy();
 		}
 		PreviewActors.Reset();

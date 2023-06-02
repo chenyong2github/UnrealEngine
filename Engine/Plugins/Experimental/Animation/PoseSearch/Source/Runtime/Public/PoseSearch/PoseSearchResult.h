@@ -27,7 +27,7 @@ public:
 	TConstArrayView<float> GetValues() const { return Values; }
 
 private:
-	TWeakObjectPtr<const UPoseSearchSchema> Schema = nullptr;
+	TObjectPtr<const UPoseSearchSchema> Schema;
 	TArray<float> Values;
 };
 	
@@ -43,7 +43,7 @@ struct FSearchResult
 	// lerp value to find AssetTime from PrevPoseIdx -> AssetTime -> NextPoseIdx, within range [-0.5, 0.5]
 	float LerpValue = 0.f;
 
-	TWeakObjectPtr<const UPoseSearchDatabase> Database;
+	TObjectPtr<const UPoseSearchDatabase> Database;
 
 	float AssetTime = 0.0f;
 
