@@ -19,4 +19,10 @@ namespace UE::StructUtils::Metadata
 
 	/// [PropertyMetadata] AllowArrays: By default it is always allowed to create arrays for properties. Use AllowArrays=false to disable Array support.
 	extern STRUCTUTILS_API const FName AllowArraysName;
+
+	/// [PropertyMetadata] IsPinTypeAccepted: Name of a UFunction with signature bool(FEdGraphPinType). Returns false if the type should be discarded.
+	extern STRUCTUTILS_API const FName IsPinTypeAcceptedName;
+
+	/// [PropertyMetadata] CanRemoveProperty: Name of a UFunction with signature bool(FGuid, FName). ID and name of the property that will be removed. Returns false if the property should not be removed.
+	extern STRUCTUTILS_API const FName CanRemovePropertyName;
 }
