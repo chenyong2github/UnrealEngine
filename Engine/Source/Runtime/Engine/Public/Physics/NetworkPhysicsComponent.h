@@ -15,6 +15,7 @@
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPreProcessInputsInternal, const int32);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostProcessInputsInternal, const int32);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInjectInputsExternal, const int32 /* PhysicsStep */, const int32 /* NumSteps */);
 
 /** Templated datas history holding a datas buffer */
 template<typename DatasType>
@@ -169,8 +170,11 @@ struct FNetworkPhysicsCallback : public Chaos::IRewindCallback
 	// Delegate on the internal inputs process 
 	FOnPreProcessInputsInternal PreProcessInputsInternal;
 	FOnPostProcessInputsInternal PostProcessInputsInternal;
+	// Bind to this for additional processing on the GT during InjectInputs_External()
+	FOnInjectInputsExternal InjectInputsExternal;
 
 	// Rewind API
+	virtual void InjectInputs_External(int32 PhysicsStep, int32 NumSteps) override;
 	virtual void ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs);
 	virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs) override;
 	virtual void ApplyCallbacks_Internal(int32 PhysicsStep, const TArray<Chaos::ISimCallbackObject*>& SimCallbackObjects) override;

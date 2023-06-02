@@ -260,6 +260,11 @@ void FNetworkPhysicsCallback::UpdateServerPlayer_External(int32 PhysicsStep)
 	}
 }
 
+void FNetworkPhysicsCallback::InjectInputs_External(int32 PhysicsStep, int32 NumSteps)
+{
+	InjectInputsExternal.Broadcast(PhysicsStep, NumSteps);
+}
+
 void FNetworkPhysicsCallback::ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs)
 {
 	for(const Chaos::FSimCallbackInputAndObject& SimCallbackObject : SimCallbackInputs)
