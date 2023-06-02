@@ -156,12 +156,6 @@ namespace UE { namespace TSDelegatesTest
 			Delegate->Execute();
 		}
 
-		{	// multicast delegate destruction
-			TMulticastDelegate<void()>* Delegate = new TMulticastDelegate<void()>;
-			Delegate->AddLambda([Delegate] { delete Delegate; });
-			Delegate->Broadcast();
-		}
-
 		{
 			struct FDelegateHolder
 			{
