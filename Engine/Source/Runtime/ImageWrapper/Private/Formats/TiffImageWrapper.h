@@ -64,6 +64,20 @@ namespace UE::ImageWrapper::Private
 		uint16 SampleFormat = 0;
 
 		friend struct FTIFFReadMemoryFile;
+		
+		virtual void Reset() override
+		{
+			FImageWrapperBase::Reset();
+
+			ReleaseTiffImage();
+			
+			CurrentPosition = 0;
+			Photometric = 0;
+			Compression = 0;
+			BitsPerSample = 0;
+			SamplesPerPixel = 0;
+			SampleFormat = 0;
+		}
 	};
 
 
