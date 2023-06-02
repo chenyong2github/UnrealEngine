@@ -2,32 +2,24 @@
 
 #include "MVVMFunctionGraphHelper.h"
 
-#include "EdGraph/EdGraph.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_DynamicCast.h"
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_VariableGet.h"
-#include "K2Node_VariableSet.h"
 #include "KismetCompiler.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #include "View/MVVMView.h"
 #include "MVVMViewModelBase.h"
 
-#if WITH_EDITOR
-#include "EdGraphSchema_K2.h"
-#endif
 
 namespace UE::MVVM::FunctionGraphHelper
 {
 
-UEdGraph* CreateFunctionGraph(UBlueprint* InBlueprint, FStringView InFunctionName, EFunctionFlags ExtraFunctionFlag, const FStringView Category, bool bIsEditable)
+UEdGraph* CreateFunctionGraph(FKismetCompilerContext& InContext, FStringView InFunctionName, EFunctionFlags ExtraFunctionFlag, const FStringView Category, bool bIsEditable)
 {
-	FName UniqueFunctionName = FBlueprintEditorUtils::FindUniqueKismetName(InBlueprint, InFunctionName.GetData());
-	UEdGraph* FunctionGraph = FBlueprintEditorUtils::CreateNewGraph(InBlueprint, UniqueFunctionName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
-
-	// This is sometime needed. Needs more investigation.
-	//InBlueprint->FunctionGraphs.Add(FunctionGraph);
+	FName UniqueFunctionName = FBlueprintEditorUtils::FindUniqueKismetName(InContext.Blueprint, InFunctionName.GetData());
+	UEdGraph* FunctionGraph = FBlueprintEditorUtils::CreateNewGraph(InContext.Blueprint, UniqueFunctionName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
 
 	const UEdGraphSchema_K2* Schema = CastChecked<UEdGraphSchema_K2>(FunctionGraph->GetSchema());
 	Schema->MarkFunctionEntryAsEditable(FunctionGraph, bIsEditable);
@@ -67,19 +59,6 @@ UEdGraph* CreateIntermediateFunctionGraph(FKismetCompilerContext& InContext, FSt
 }
 
 
-void SetVariableNodeMember(UK2Node_Variable* InVariableNode, const FProperty* InProperty, UBlueprint* InTargetBlueprint)
-{
-	if (InProperty->GetOwnerStruct() && InTargetBlueprint->GeneratedClass && InTargetBlueprint->GeneratedClass->IsChildOf(InProperty->GetOwnerStruct()))
-	{
-		FGuid Guid = FBlueprintEditorUtils::FindMemberVariableGuidByName(InTargetBlueprint, InProperty->GetFName());
-		InVariableNode->VariableReference.SetSelfMember(InProperty->GetFName(), Guid);
-	}
-	else
-	{
-		UEdGraphSchema_K2::ConfigureVarNode(InVariableNode, InProperty->GetFName(), InProperty->GetOwnerStruct(), InTargetBlueprint);
-	}
-}
-
 bool AddFunctionArgument(UEdGraph* InFunctionGraph, TSubclassOf<UObject> InArgument, FName InArgumentName)
 {
 	for (UEdGraphNode* Node : InFunctionGraph->Nodes)
@@ -101,7 +80,7 @@ bool AddFunctionArgument(UEdGraph* InFunctionGraph, TSubclassOf<UObject> InArgum
 }
 
 
-bool AddFunctionArgument(UEdGraph* InFunctionGraph, const FProperty* InArgument, FName InArgumentName)
+bool AddFunctionArgument(UEdGraph* InFunctionGraph, FProperty* InArgument, FName InArgumentName)
 {
 	for (UEdGraphNode* Node : InFunctionGraph->Nodes)
 	{
@@ -341,204 +320,6 @@ bool GenerateViewModelFielNotifyBroadcast(FKismetCompilerContext& InContext, UEd
 	}
 
 	return bResult;
-}
-
-namespace Private
-{
-
-UK2Node_CallFunction* CreateFunctionNode(UEdGraph* InFunctionGraph, const UFunction* InFunction, UBlueprint* InBlueprint, FKismetCompilerContext* InContext, UK2Node_FunctionEntry* InFunctionEntry)
-{
-	if (InContext)
-	{
-		check(InFunctionEntry);
-		UK2Node_CallFunction* FunctionNode = InContext->SpawnIntermediateNode<UK2Node_CallFunction>(InFunctionEntry, InFunctionGraph);
-		FunctionNode->SetFromFunction(InFunction);
-		FunctionNode->AllocateDefaultPins();
-		return FunctionNode;
-	}
-	else
-	{
-		FGraphNodeCreator<UK2Node_CallFunction> RootCreator(*InFunctionGraph);
-		UK2Node_CallFunction* FunctionNode = RootCreator.CreateNode();
-		FunctionNode->NodePosX = 0;
-		FunctionNode->NodePosY = 0;
-		FunctionNode->SetFromFunction(InFunction);
-		RootCreator.Finalize();
-		return FunctionNode;
-	}
-}
-
-template<typename NodeType>
-NodeType* CreateVariableNode(UEdGraph* InFunctionGraph, const FProperty* InProperty, UBlueprint* InBlueprint, FKismetCompilerContext* InContext, UK2Node_FunctionEntry* InFunctionEntry)
-{
-	if (InContext)
-	{
-		check(InFunctionEntry);
-		NodeType* VariableNode = InContext->SpawnIntermediateNode<NodeType>(InFunctionEntry, InFunctionGraph);
-		SetVariableNodeMember(VariableNode, InProperty, InBlueprint);
-		VariableNode->AllocateDefaultPins();
-		return VariableNode;
-	}
-	else
-	{
-		FGraphNodeCreator<NodeType> RootCreator(*InFunctionGraph);
-		NodeType* VariableNode = RootCreator.CreateNode();
-		VariableNode->NodePosX = 0;
-		VariableNode->NodePosY = 0;
-		SetVariableNodeMember(VariableNode, InProperty, InBlueprint);
-		RootCreator.Finalize();
-		return VariableNode;
-	}
-}
-
-bool GenerateSetter(UEdGraph* InFunctionGraph, TArrayView<UE::MVVM::FMVVMConstFieldVariant> InSetterPath, UBlueprint* InBlueprint, FKismetCompilerContext* InContext)
-{
-	check(InFunctionGraph);
-
-	UK2Node_FunctionEntry* FunctionEntry = nullptr;
-	for (UEdGraphNode* Node : InFunctionGraph->Nodes)
-	{
-		FunctionEntry = Cast<UK2Node_FunctionEntry>(Node);
-		if (FunctionEntry)
-		{
-			break;
-		}
-	}
-
-	if (FunctionEntry == nullptr)
-	{
-		return false;
-	}
-
-	UEdGraphPin* FunctionInputPin = FunctionEntry->FindPinByPredicate([](UEdGraphPin* OtherPin)
-		{
-			return OtherPin->Direction == EGPD_Output
-				&& OtherPin->PinName != UEdGraphSchema_K2::PN_Then;
-		});
-
-	const UEdGraphSchema* Schema = InFunctionGraph->GetSchema();
-	if (Schema == nullptr)
-	{
-		return false;
-	}
-
-	UEdGraphPin* ThenPin = FunctionEntry->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
-	UEdGraphPin* OutContextPin = nullptr;
-
-	bool bResult = true;
-	for (int32 Index = 0; Index < InSetterPath.Num(); ++Index)
-	{
-		UE::MVVM::FMVVMConstFieldVariant& Field = InSetterPath[Index];
-		const bool bLastPath = Index == InSetterPath.Num() - 1;
-
-		UEdGraphPin* NextThenPin = nullptr;
-		UEdGraphPin* NextOutContextPin = nullptr;
-
-		UEdGraphPin* SetterPin = nullptr;
-		UEdGraphPin* CurrentExecPin = nullptr;
-		UEdGraphPin* CurrentInContextPin = nullptr;
-		if (Field.IsProperty())
-		{
-			check(Field.GetProperty());
-
-			if (Field.GetProperty()->GetOwnerClass() == nullptr)
-			{
-				ensureMsgf(false, TEXT("Property point to a structure member and that is not supported right now."));
-				return false;
-			}
-
-			if (bLastPath)
-			{
-				UK2Node_VariableSet* VariableSetNode = CreateVariableNode<UK2Node_VariableSet>(InFunctionGraph, Field.GetProperty(), InBlueprint, InContext, FunctionEntry);
-
-				NextThenPin = VariableSetNode->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
-				CurrentExecPin = VariableSetNode->FindPin(UEdGraphSchema_K2::PN_Execute, EGPD_Input);
-				CurrentInContextPin = VariableSetNode->FindPin(UEdGraphSchema_K2::PN_Self, EGPD_Input);
-				SetterPin = VariableSetNode->FindPin(Field.GetProperty()->GetFName(), EGPD_Input);
-			}
-			else
-			{
-				UK2Node_VariableGet* VariableGetNode = CreateVariableNode<UK2Node_VariableGet>(InFunctionGraph, Field.GetProperty(), InBlueprint, InContext, FunctionEntry);
-
-				CurrentInContextPin = VariableGetNode->FindPin(UEdGraphSchema_K2::PN_Self, EGPD_Input);
-				NextOutContextPin = VariableGetNode->FindPin(Field.GetProperty()->GetFName(), EGPD_Output);
-			}
-		}
-		else
-		{
-			ensure(Field.IsFunction());
-			check(Field.GetFunction());
-
-			UK2Node_CallFunction* CallFunctionNode = CreateFunctionNode(InFunctionGraph, Field.GetFunction(), InBlueprint, InContext, FunctionEntry);
-
-			NextThenPin = CallFunctionNode->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
-			CurrentExecPin = CallFunctionNode->FindPin(UEdGraphSchema_K2::PN_Execute, EGPD_Input);
-			CurrentInContextPin = CallFunctionNode->FindPin(UEdGraphSchema_K2::PN_Self, EGPD_Input);
-
-			if (bLastPath)
-			{
-				// find the input of the setter function
-				SetterPin = CallFunctionNode->FindPinByPredicate([](UEdGraphPin* OtherPin)
-					{
-						return OtherPin->Direction == EGPD_Input
-							&& OtherPin->PinName != UEdGraphSchema_K2::PN_Execute
-							&& OtherPin->PinName != UEdGraphSchema_K2::PN_Self;
-					});
-			}
-			else
-			{
-				// find the output of the getter function
-				NextOutContextPin = CallFunctionNode->FindPinByPredicate([](UEdGraphPin* OtherPin)
-					{
-						return OtherPin->Direction == EGPD_Output
-							&& OtherPin->PinName != UEdGraphSchema_K2::PN_Then;
-					});
-			}
-		}
-
-		if (ThenPin && CurrentExecPin)
-		{
-			ensure(Schema->TryCreateConnection(ThenPin, CurrentExecPin));
-		}
-
-		if (OutContextPin)
-		{
-			if (ensure(CurrentInContextPin))
-			{
-				ensure(Schema->TryCreateConnection(OutContextPin, CurrentInContextPin));
-			}
-		}
-
-		if (bLastPath)
-		{
-			if (ensure(SetterPin && FunctionInputPin))
-			{
-				ensure(Schema->TryCreateConnection(FunctionInputPin, SetterPin));
-			}
-		}
-
-		if (NextThenPin)
-		{
-			ThenPin = NextThenPin;
-		}
-		if (NextOutContextPin)
-		{
-			OutContextPin = NextOutContextPin;
-		}
-	}
-
-	return true;
-}
-} //Private
-
-bool GenerateIntermediateSetter(FKismetCompilerContext& InContext, UEdGraph* InFunctionGraph, TArrayView<UE::MVVM::FMVVMConstFieldVariant> InSetterPath)
-{
-	return Private::GenerateSetter(InFunctionGraph, InSetterPath, InContext.Blueprint, &InContext);
-}
-
-bool GenerateSetter(UBlueprint* InBlueprint, UEdGraph* InFunctionGraph, TArrayView<UE::MVVM::FMVVMConstFieldVariant> InSetterPath)
-{
-	return Private::GenerateSetter(InFunctionGraph, InSetterPath, InBlueprint, nullptr);
 }
 
 } //namespace

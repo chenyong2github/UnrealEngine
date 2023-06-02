@@ -28,23 +28,6 @@ FAutoConsoleVariable CVarLogViewCompliedResult(
 	TEXT("After the view is compiled log the compiled bindings and sources.")
 );
 
-#if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
-FAutoConsoleCommand CVarTestGenerateSetter(
-	TEXT("MVVM.TestGenerateSetter"),
-	TEXT("Generate a setter function base on the input string."),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
-	{
-		if (Args.Num() < 3)
-		{
-			return;
-		}
-		FMVVMViewBlueprintCompiler::TestGenerateSetter(Args[0], Args[1], Args[2]);
-	})
-);
-#endif
-
-static const FText CouldNotCreateSourceFieldPathFormat = LOCTEXT("CouldNotCreateSourceFieldPath", "Couldn't create the source field path '{0}'. {1}");
-
 FString PropertyPathToString(const UMVVMBlueprintView* BlueprintView, const FMVVMBlueprintPropertyPath& PropertyPath)
 {
 	if (PropertyPath.IsEmpty())
@@ -200,9 +183,6 @@ void FMVVMViewBlueprintCompiler::CreateFunctions(UMVVMBlueprintView* BlueprintVi
 	{
 		return;
 	}
-	
-	// Build the list of BP destinations
-	CreateBindingDestinationContexts(BlueprintView);
 
 	if (!GetDefault<UMVVMDeveloperProjectSettings>()->bAllowGeneratedViewModelSetter)
 	{
@@ -630,134 +610,6 @@ void FMVVMViewBlueprintCompiler::CreateFunctionsDeclaration(const FWidgetBluepri
 			}
 
 			UE::MVVM::FunctionGraphHelper::AddFunctionArgument(SourceCreator.SetterGraph, SourceCreator.ViewModelContext.GetViewModelClass(), "Viewmodel");
-		}
-	}
-}
-
-
-void FMVVMViewBlueprintCompiler::CreateBindingDestinationContexts(UMVVMBlueprintView* BlueprintView)
-{
-	if (!bAreSourcesCreatorValid || !bAreSourceContextsValid || !bIsBindingsValid)
-	{
-		return;
-	}
-
-	BindingDestinationContexts.Empty();
-
-	// Use the Skeleton class. The class bind and not all functions are generated yet
-	UWidgetBlueprintGeneratedClass* NewSkeletonClass = Cast<UWidgetBlueprintGeneratedClass>(WidgetBlueprintCompilerContext.Blueprint->SkeletonGeneratedClass);
-	if (NewSkeletonClass == nullptr)
-	{
-		WidgetBlueprintCompilerContext.MessageLog.Error(*LOCTEXT("InvalidNewClass", "Internal error. The skeleton class is not valid.").ToString());
-		return;
-	}
-
-	const int32 NumBindings = BlueprintView->GetNumBindings();
-	for (int32 Index = 0; Index < NumBindings; ++Index)
-	{
-		FMVVMBlueprintViewBinding* BindingPtr = BlueprintView->GetBindingAt(Index);
-		if (BindingPtr == nullptr)
-		{
-			WidgetBlueprintCompilerContext.MessageLog.Error(*FText::Format(LOCTEXT("InvalidBindingIndex", "Internal error. Invalid binding index given."), Index).ToString());
-			bIsBindingsValid = false;
-			continue;
-		}
-
-		FMVVMBlueprintViewBinding& Binding = *BindingPtr;
-		if (!Binding.bCompile)
-		{
-			continue;
-		}
-
-		auto AddDestination = [Index, BindingPtr, BlueprintView, NewSkeletonClass, this](bool bIsForwardBinding)
-		{
-			FBindingDestinationContext& NewDestinationContext = BindingDestinationContexts.AddDefaulted_GetRef();
-			NewDestinationContext.BindingIndex = Index;
-			NewDestinationContext.bIsForwardBinding = bIsForwardBinding;
-
-			const FMVVMBlueprintPropertyPath& DestinationPath = bIsForwardBinding ? BindingPtr->DestinationPath : BindingPtr->SourcePath;
-			TArray<UE::MVVM::FMVVMConstFieldVariant> SkeletalSetterPath = CreateBindingDestinationPath(BlueprintView, NewSkeletonClass, DestinationPath);
-			if (!IsPropertyPathValid(SkeletalSetterPath))
-			{
-				AddMessageForBinding(*BindingPtr, BlueprintView, FText::Format(LOCTEXT("PropertyPathIsInvalid", "The property path '{0}' is invalid."),
-					PropertyPathToText(BlueprintView, DestinationPath)),
-					EBindingMessageType::Error
-				);
-				bIsBindingsValid = false;
-				return;
-			}
-			
-			// Generate the path with property converted to BP function
-			TValueOrError<TArray<FMVVMConstFieldVariant>, FText> SkeletalGeneratedField = FieldPathHelper::GenerateFieldPathList(SkeletalSetterPath, false);
-			if (SkeletalGeneratedField.HasError())
-			{
-				AddMessageForBinding(*BindingPtr, BlueprintView, FText::Format(Private::CouldNotCreateSourceFieldPathFormat
-					, ::UE::MVVM::FieldPathHelper::ToText(SkeletalSetterPath)
-					, SkeletalGeneratedField.GetError())
-					, EBindingMessageType::Error
-				);
-				bIsBindingsValid = false;
-				return;
-			}
-
-			NewDestinationContext.bCanBeSetInNative = CanBeSetInNative(SkeletalGeneratedField.GetValue());
-
-			// If the destination can't be done cpp, we need to generate a BP function to set the value.
-			if (!NewDestinationContext.bCanBeSetInNative)
-			{
-				const FProperty* SetterProperty = nullptr;
-				if (SkeletalGeneratedField.GetValue().Num() > 0 && ensure(SkeletalGeneratedField.GetValue().Last().IsProperty()))
-				{
-					SetterProperty = SkeletalGeneratedField.GetValue().Last().GetProperty();
-				}
-
-				if (SetterProperty == nullptr)
-				{
-					AddMessageForBinding(*BindingPtr, BlueprintView, FText::Format(LOCTEXT("CantGetSetter", "Internal Error. The setter function was not created. {0}"),
-						PropertyPathToText(BlueprintView, DestinationPath)),
-						EBindingMessageType::Error
-					);
-					bIsBindingsValid = false;
-					return;
-				}
-
-				// create a setter function to be called from native. For now we follow the convention of Setter(Conversion(Getter))
-				UEdGraph* GeneratedSetterGraph = UE::MVVM::FunctionGraphHelper::CreateIntermediateFunctionGraph(WidgetBlueprintCompilerContext, FString::Printf(TEXT("__Setter_%s"), *SetterProperty->GetName()), EFunctionFlags::FUNC_None, TEXT("AutogeneratedSetter"), false);
-				if (GeneratedSetterGraph == nullptr)
-				{
-					AddMessageForBinding(*BindingPtr, BlueprintView, FText::Format(LOCTEXT("CantCreateSetter", "Internal Error. The setter function was not created. {0}"),
-						PropertyPathToText(BlueprintView, DestinationPath)),
-						EBindingMessageType::Error
-					);
-					bIsBindingsValid = false;
-					return;
-				}
-
-				UE::MVVM::FunctionGraphHelper::AddFunctionArgument(GeneratedSetterGraph, SetterProperty, "NewValue");
-
-				// set GeneratedSetterFunction. Use the SkeletalSetterPath here to use the setter will be generated when the function is generated.
-				if (!UE::MVVM::FunctionGraphHelper::GenerateIntermediateSetter(WidgetBlueprintCompilerContext, GeneratedSetterGraph, SkeletalSetterPath))
-				{
-					AddMessageForBinding(*BindingPtr, BlueprintView, FText::Format(LOCTEXT("CantGeneratedSetter", "Internal Error. The setter function was not generated. {0}"),
-						PropertyPathToText(BlueprintView, DestinationPath)),
-						EBindingMessageType::Error
-					);
-					bIsBindingsValid = false;
-					return;
-				}
-
-				// the new path can only be set later, once the function is compiled.
-				NewDestinationContext.GeneratedFunctionName = GeneratedSetterGraph->GetFName();
-			}
-		};
-
-		if (IsForwardBinding(Binding.BindingType))
-		{
-			AddDestination(true);
-		}
-		if (IsBackwardBinding(Binding.BindingType))
-		{
-			AddDestination(false);
 		}
 	}
 }
@@ -1299,42 +1151,10 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 
 		TArray<UE::MVVM::FMVVMConstFieldVariant> SetterPath;
 		{
-			const FBindingDestinationContext* DestinationContext = BindingDestinationContexts.FindByPredicate([BindingIndex = BindingSourceContext.BindingIndex, bIsForwardBinding = BindingSourceContext.bIsForwardBinding](const FBindingDestinationContext& Other)
-				{
-					return Other.BindingIndex == BindingIndex && Other.bIsForwardBinding == bIsForwardBinding;
-				});
-
-			if (DestinationContext == nullptr)
-			{
-				AddMessageForBinding(Binding, BlueprintView, LOCTEXT("CouldNotFindDestination", "Could not find the pre compiled destination."), EBindingMessageType::Error);
-				bIsBindingsValid = false;
-				continue;
-			}
-
-			if (!DestinationContext->bCanBeSetInNative)
-			{
-				check(!DestinationContext->GeneratedFunctionName.IsNone());
-				UFunction* FoundFunction = Class->FindFunctionByName(DestinationContext->GeneratedFunctionName);
-				if (FoundFunction == nullptr)
-				{
-					AddMessageForBinding(Binding, BlueprintView, LOCTEXT("CouldNotFindDestinationBPFunction", "Could not find the generated destination function."), EBindingMessageType::Error);
-					bIsBindingsValid = false;
-					continue;
-				}
-				FMVVMBlueprintPropertyPath DestinationPPropertyPath;
-				DestinationPPropertyPath.SetWidgetName(Class->ClassGeneratedBy->GetFName());
-				DestinationPPropertyPath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(FoundFunction));
-				SetterPath = CreateBindingDestinationPath(BlueprintView, Class, DestinationPPropertyPath);
-			}
-			else
-			{
-				const FMVVMBlueprintPropertyPath& DestinationPath = BindingSourceContext.bIsForwardBinding ? Binding.DestinationPath : Binding.SourcePath;
-				SetterPath = CreateBindingDestinationPath(BlueprintView, Class, DestinationPath);
-			}
-
+			const FMVVMBlueprintPropertyPath& DestinationPath = BindingSourceContext.bIsForwardBinding ? Binding.DestinationPath : Binding.SourcePath;
+			SetterPath = CreateBindingDestinationPath(BlueprintView, Class, DestinationPath);
 			if (!IsPropertyPathValid(SetterPath))
 			{
-				const FMVVMBlueprintPropertyPath& DestinationPath = BindingSourceContext.bIsForwardBinding ? Binding.DestinationPath : Binding.SourcePath;
 				AddMessageForBinding(Binding, BlueprintView, FText::Format(LOCTEXT("PropertyPathIsInvalid", "The property path '{0}' is invalid."),
 					PropertyPathToText(BlueprintView, DestinationPath)),
 					EBindingMessageType::Error
@@ -1574,17 +1394,19 @@ TValueOrError<FMVVMViewBlueprintCompiler::FCompiledBinding, FText> FMVVMViewBlue
 		// Sanity check
 		if (bIsComplexBinding && !BindingHelper::IsValidForComplexRuntimeConversion(ConversionFunction))
 		{
-			return MakeError(LOCTEXT("ConversionFunctionIsNotComplex", "Internal Error. The complex conversion function does not respect the prerequisite."));
+			return MakeError(LOCTEXT("ConversionFunctionIsNotComplex", "Internal Error. The complex conversion function does not respect the prerequist."));
 		}
 	}
 
 	if (!Result.bIsConversionFunctionComplex)
 	{
+		static const FText CouldNotCreateSourceFieldPathFormat = LOCTEXT("CouldNotCreateSourceFieldPath", "Couldn't create the source field path '{0}'. {1}");
+
 		// Generate a path to read the value at runtime
 		TValueOrError<TArray<FMVVMConstFieldVariant>, FText> GeneratedField = FieldPathHelper::GenerateFieldPathList(GetterFields, true);
 		if (GeneratedField.HasError())
 		{
-			return MakeError(FText::Format(Private::CouldNotCreateSourceFieldPathFormat
+			return MakeError(FText::Format(CouldNotCreateSourceFieldPathFormat
 				, ::UE::MVVM::FieldPathHelper::ToText(GetterFields)
 				, GeneratedField.GetError()));
 		}
@@ -1592,7 +1414,7 @@ TValueOrError<FMVVMViewBlueprintCompiler::FCompiledBinding, FText> FMVVMViewBlue
 		TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FieldPathResult = BindingLibraryCompiler.AddFieldPath(GeneratedField.GetValue(), true);
 		if (FieldPathResult.HasError())
 		{
-			return MakeError(FText::Format(Private::CouldNotCreateSourceFieldPathFormat
+			return MakeError(FText::Format(CouldNotCreateSourceFieldPathFormat
 				, ::UE::MVVM::FieldPathHelper::ToText(GetterFields)
 				, FieldPathResult.GetError()));
 		}
@@ -1880,7 +1702,7 @@ TArray<FMVVMConstFieldVariant> FMVVMViewBlueprintCompiler::CreateBindingDestinat
 	return TArray<FMVVMConstFieldVariant>();
 }
 
-TArray<FMVVMConstFieldVariant> FMVVMViewBlueprintCompiler::CreatePropertyPath(const UClass* Class, FName PropertyName, TArray<FMVVMConstFieldVariant> Properties)
+TArray<FMVVMConstFieldVariant> FMVVMViewBlueprintCompiler::CreatePropertyPath(const UClass* Class, FName PropertyName, TArray<FMVVMConstFieldVariant> Properties) const
 {
 	if (PropertyName.IsNone())
 	{
@@ -1894,7 +1716,7 @@ TArray<FMVVMConstFieldVariant> FMVVMViewBlueprintCompiler::CreatePropertyPath(co
 }
 
 
-bool FMVVMViewBlueprintCompiler::IsPropertyPathValid(TArrayView<const FMVVMConstFieldVariant> PropertyPath)
+bool FMVVMViewBlueprintCompiler::IsPropertyPathValid(TArrayView<const FMVVMConstFieldVariant> PropertyPath) const
 {
 	for (const FMVVMConstFieldVariant& Field : PropertyPath)
 	{
@@ -1912,89 +1734,6 @@ bool FMVVMViewBlueprintCompiler::IsPropertyPathValid(TArrayView<const FMVVMConst
 		}
 	}
 	return true;
-}
-
-bool FMVVMViewBlueprintCompiler::CanBeSetInNative(TArrayView<const FMVVMConstFieldVariant> PropertyPath)
-{
-	check(IsPropertyPathValid(PropertyPath));
-	
-	for (int32 Index = PropertyPath.Num() - 1; Index >= 0; --Index)
-	{
-		const FMVVMConstFieldVariant& Variant = PropertyPath[Index];
-		// Stop the algo if the path is already a function.
-		if (Variant.IsFunction())
-		{
-			return true;
-		}
-		// If the BP is defined in BP and has Net flags or FieldNotify flag, then the VaraibleSet K2Node need to be used to generate the proper byte-code.
-		if (Variant.IsProperty())
-		{
-			// If it's an object then the path before the object doesn't matter.
-			if (const FObjectPropertyBase* PropertyBase = CastField<const FObjectPropertyBase>(Variant.GetProperty()))
-			{
-				bool bLastPath = Index >= PropertyPath.Num() - 1;
-				if (!bLastPath)
-				{
-					return true;
-				}
-			}
-
-			if (Cast<UBlueprintGeneratedClass>(Variant.GetProperty()->GetOwnerStruct()))
-			{
-				if (Variant.GetProperty()->HasMetaData(FName("FieldNotify")) || Variant.GetProperty()->HasAnyPropertyFlags(CPF_Net))
-				{
-					return false;
-				}
-			}
-		}
-	}
-	return true;
-}
-
-void FMVVMViewBlueprintCompiler::TestGenerateSetter(FStringView ObjectName, FStringView FieldPath, FStringView FunctionName)
-{
-#if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
-	UWidgetBlueprint* WidgetBlueprint = nullptr;
-	{
-		UObject* FoundObject = FindObject<UObject>(nullptr, ObjectName.GetData(), false);
-		WidgetBlueprint = Cast<UWidgetBlueprint>(FoundObject);
-	}
-
-	if (WidgetBlueprint == nullptr)
-	{
-		return;
-	}
-
-	UWidgetBlueprintGeneratedClass* NewSkeletonClass = Cast<UWidgetBlueprintGeneratedClass>(WidgetBlueprint->SkeletonGeneratedClass);
-	TValueOrError<TArray<FMVVMConstFieldVariant>, FText> SkeletalSetterPathResult = FieldPathHelper::GenerateFieldPathList(NewSkeletonClass, FieldPath, false);
-	if (SkeletalSetterPathResult.HasError())
-	{
-		return;
-	}
-	if (!IsPropertyPathValid(SkeletalSetterPathResult.GetValue()))
-	{
-		return;
-	}
-
-	UEdGraph* GeneratedSetterGraph = UE::MVVM::FunctionGraphHelper::CreateFunctionGraph(WidgetBlueprint, FunctionName, EFunctionFlags::FUNC_None, TEXT(""), false);
-	if (GeneratedSetterGraph == nullptr)
-	{
-		return;
-	}
-
-	const FProperty* SetterProperty = nullptr;
-	if (SkeletalSetterPathResult.GetValue().Num() > 0 && ensure(SkeletalSetterPathResult.GetValue().Last().IsProperty()))
-	{
-		SetterProperty = SkeletalSetterPathResult.GetValue().Last().GetProperty();
-	}
-	if (SetterProperty == nullptr)
-	{
-		return;
-	}
-
-	UE::MVVM::FunctionGraphHelper::AddFunctionArgument(GeneratedSetterGraph, SetterProperty, "NewValue");
-	UE::MVVM::FunctionGraphHelper::GenerateSetter(WidgetBlueprint, GeneratedSetterGraph, SkeletalSetterPathResult.GetValue());
-#endif
 }
 
 } //namespace

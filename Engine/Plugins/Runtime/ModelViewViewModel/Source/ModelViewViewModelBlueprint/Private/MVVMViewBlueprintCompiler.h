@@ -32,7 +32,6 @@ private:
 	struct FCompiledBinding;
 	struct FCompilerBinding;
 	struct FBindingSourceContext;
-	struct FBindingDestinationContext;
 
 public:
 	FMVVMViewBlueprintCompiler(FWidgetBlueprintCompilerContext& InCreationContext)
@@ -59,14 +58,10 @@ public:
 	/** Compile the library and fill the view and viewclass */
 	bool Compile(UWidgetBlueprintGeneratedClass* Class, UMVVMBlueprintView* BlueprintView, UMVVMViewClass* ViewExtension);
 
-
-	static void TestGenerateSetter(FStringView ObjectName, FStringView FieldPath, FStringView FunctionName);
-
 private:
 	void CreateWidgetMap(const FWidgetBlueprintCompilerContext::FCreateVariableContext& Context, UMVVMBlueprintView* BlueprintView);
 	void CreateSourceLists(const FWidgetBlueprintCompilerContext::FCreateVariableContext& Context, UMVVMBlueprintView* BlueprintView);
 	void CreateFunctionsDeclaration(const FWidgetBlueprintCompilerContext::FCreateVariableContext& Context, UMVVMBlueprintView* BlueprintView);
-	void CreateBindingDestinationContexts(UMVVMBlueprintView* BlueprintView);
 
 	bool PreCompileBindingSources(UWidgetBlueprintGeneratedClass* Class, UMVVMBlueprintView* BlueprintView);
 	bool CompileBindingSources(const FCompiledBindingLibraryCompiler::FCompileResult& CompileResult, UWidgetBlueprintGeneratedClass* Class, UMVVMBlueprintView* BlueprintView, UMVVMViewClass* ViewExtension);
@@ -86,9 +81,9 @@ private:
 	TArray<FMVVMConstFieldVariant> CreateBindingDestinationPath(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMBlueprintPropertyPath& PropertyPath) const;
 	TValueOrError<FCompiledBinding, FText> CreateCompiledBinding(const UWidgetBlueprintGeneratedClass* Class, TArrayView<const UE::MVVM::FMVVMConstFieldVariant> GetterFields, TArrayView<const UE::MVVM::FMVVMConstFieldVariant> SetterFields, const UFunction* ConversionFunction, bool bIsComplexBinding);
 
-	static TArray<FMVVMConstFieldVariant> CreatePropertyPath(const UClass* Class, FName PropertyName, TArray<FMVVMConstFieldVariant> Properties);
-	static bool IsPropertyPathValid(TArrayView<const FMVVMConstFieldVariant> PropertyPath);
-	static bool CanBeSetInNative(TArrayView<const FMVVMConstFieldVariant> PropertyPath);
+
+	TArray<FMVVMConstFieldVariant> CreatePropertyPath(const UClass* Class, FName PropertyName, TArray<FMVVMConstFieldVariant> Properties) const;
+	bool IsPropertyPathValid(TArrayView<const FMVVMConstFieldVariant> PropertyPath) const;
 
 private:
 	/**
@@ -148,7 +143,6 @@ private:
 		FCompiledBindingLibraryCompiler::FFieldPathHandle SourceRead;
 		FCompiledBindingLibraryCompiler::FFieldPathHandle DestinationWrite;
 		FCompiledBindingLibraryCompiler::FFieldPathHandle ConversionFunction;
-		FCompiledBindingLibraryCompiler::FFieldPathHandle ExecutionFunction;
 
 		bool bIsConversionFunctionComplex = false;
 	};
@@ -205,21 +199,6 @@ private:
 		bool bIsRootWidget = false;
 	};
 	TArray<FBindingSourceContext> BindingSourceContexts;
-
-	/**
-	 * Destination path of a binding.
-	 * The info needs to be validate before we generate the functions list.
-	 */
-	struct FBindingDestinationContext
-	{
-		int32 BindingIndex = INDEX_NONE;
-		bool bIsForwardBinding = false;
-
-		bool bCanBeSetInNative = true;
-		FName GeneratedFunctionName;
-
-	};
-	TArray<FBindingDestinationContext> BindingDestinationContexts;
 
 	TMap<FName, UWidget*> WidgetNameToWidgetPointerMap;
 	FWidgetBlueprintCompilerContext& WidgetBlueprintCompilerContext;
