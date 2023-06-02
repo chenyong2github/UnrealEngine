@@ -195,6 +195,17 @@ namespace UnrealBuildTool
 			ValidateTarget(Target);
 		}
 
+		public bool IsLTOEnabled(ReadOnlyTargetRules Target)
+		{
+			// Force LTO on if using PGO, or if specified in the target rules.
+			if (Target.bAllowLTCG || Target.bPGOOptimize || Target.bPGOProfile)
+			{
+				return true;
+			}
+
+			return false;
+		}
+
 		public override void ValidateTarget(TargetRules Target)
 		{
 			if (!String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE")))
@@ -603,9 +614,20 @@ namespace UnrealBuildTool
 					throw new BuildException("LibFuzzer is unsupported for non-monolithic builds.");
 				}
 			}
-			if (Target.bAllowLTCG && Target.bPreferThinLTO)
+
+			if (IsLTOEnabled(Target))
 			{
-				Options |= ClangToolChainOptions.EnableThinLTO;
+				Options |= ClangToolChainOptions.EnableLinkTimeOptimization;
+
+				if (Target.bPreferThinLTO)
+				{
+					Options |= ClangToolChainOptions.EnableThinLTO;
+				}
+			}
+			else if (Target.bPreferThinLTO)
+			{
+				// warn about ThinLTO not being useful on its own
+				Logger.LogWarning("Warning: bPreferThinLTO is set, but LTO is disabled. Flag will have no effect");
 			}
 
 			if (Target.bUseAutoRTFMCompiler)

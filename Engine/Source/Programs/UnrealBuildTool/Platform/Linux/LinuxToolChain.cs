@@ -302,23 +302,44 @@ namespace UnrealBuildTool
 			Arguments.Add("-Wno-undefined-bool-conversion"); // hides checking if 'this' pointer is null
 		}
 
-		/// <inheritdoc/>
-		protected override void GetCompileArguments_Optimizations(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		private void AddLTOFlags(List<string> Arguments, bool bForLinker)
 		{
-			base.GetCompileArguments_Optimizations(CompileEnvironment, Arguments);
-
-			// Unlike on other platforms, allow LTO be specified independently of PGO
-			if (CompileEnvironment.bAllowLTCG)
+			if (Options.HasFlag(ClangToolChainOptions.EnableLinkTimeOptimization))
 			{
-				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
+				if (Options.HasFlag(ClangToolChainOptions.EnableThinLTO))
 				{
-					Arguments.Add("-flto=thin");
+					if (bForLinker)
+					{
+						Arguments.Add(String.Format("-flto=thin -Wl,--thinlto-jobs={0}", Utils.GetPhysicalProcessorCount()));
+					}
+					else
+					{
+						Arguments.Add("-flto=thin");
+					}
 				}
 				else
 				{
 					Arguments.Add("-flto");
 				}
 			}
+		}
+
+		private void AddCompilerLTOFlags(List<string> Arguments)
+		{
+			 AddLTOFlags(Arguments, false);
+		}
+
+		private void AddLinkerLTOFlags(List<string> Arguments)
+		{
+			AddLTOFlags(Arguments, true);
+		}
+
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_Optimizations(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Optimizations(CompileEnvironment, Arguments);
+
+			AddCompilerLTOFlags(Arguments);
 
 			// optimization level
 			if (!CompileEnvironment.bOptimizeCode)
@@ -718,17 +739,7 @@ namespace UnrealBuildTool
 			}
 
 			// whether we actually can do that is checked in CanUseAdvancedLinkerFeatures() earlier
-			if (LinkEnvironment.bAllowLTCG)
-			{
-				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
-				{
-					Arguments.Add(String.Format(" -flto=thin -Wl,--thinlto-jobs={0}", Utils.GetPhysicalProcessorCount()));
-				}
-				else
-				{
-					Arguments.Add("-flto");
-				}
-			}
+			AddLinkerLTOFlags(Arguments);
 
 			if (CrossCompiling())
 			{
