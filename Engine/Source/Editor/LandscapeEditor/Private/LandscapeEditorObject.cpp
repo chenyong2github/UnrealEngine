@@ -710,7 +710,7 @@ void ULandscapeEditorObject::RefreshLayerImport(FLandscapeImportLayer& ImportLay
 			ImportLayer.ErrorMessage = FileInfo.ErrorMessage;
 			if (FileInfo.ResultCode == ELandscapeImportResult::Success)
 			{
-				if (FileInfo.PossibleResolutions[0] != FLandscapeFileResolution(ImportLandscape_Height, ImportLandscape_Width))
+				if (FileInfo.PossibleResolutions[0] != FLandscapeFileResolution(ImportLandscape_Width, ImportLandscape_Height) && bHeightmapSelected)
 				{
 					ImportLayer.ImportResult = ELandscapeImportResult::Error;
 					ImportLayer.ErrorMessage = NSLOCTEXT("LandscapeEditor.ImportLandscape", "Import_WeightHeightResolutionMismatch", "Weightmap import resolution isn't same as Heightmap resolution.");

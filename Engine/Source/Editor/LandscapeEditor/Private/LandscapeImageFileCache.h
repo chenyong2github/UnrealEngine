@@ -49,6 +49,12 @@ public:
 		ILandscapeEditorModule& LandscapeEditorModule = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor");
 		const ILandscapeFileFormat<T>* FileFormat = LandscapeEditorModule.GetFormatByExtension<T>(*FPaths::GetExtension(InImageFilename, true));
 
+		if (!FileFormat)
+		{
+			Result.ResultCode = ELandscapeImportResult::Error;
+			return Result;
+		}
+
 		const FLandscapeFileInfo FileInfo = FileFormat->Validate(InImageFilename);
 
 		if (FileInfo.ResultCode == ELandscapeImportResult::Success && FileInfo.PossibleResolutions.Num() > 0)
