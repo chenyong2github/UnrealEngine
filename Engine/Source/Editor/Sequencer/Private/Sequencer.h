@@ -1098,7 +1098,7 @@ private:
 	void UpdateSubSequenceData();
 
 	/** Adjust sequencer customizations based on the currently focused sequence */
-	void UpdateSequencerCustomizations();
+	void UpdateSequencerCustomizations(const UMovieSceneSequence* PreviousFocusedSequence);
 
 	/** Rerun construction scripts on bound actors */
 	void RerunConstructionScripts();
@@ -1181,9 +1181,6 @@ private:
 	/** A copy of the supported features/capabilities we were initialized with. */
 	FSequencerHostCapabilities HostCapabilities;
 	
-	/** Active customizations. */
-	TArray<TUniquePtr<ISequencerCustomization>> ActiveCustomizations;
-
 	/** Active customization callbacks */
 	TArray<FOnSequencerPaste> OnPaste;
 

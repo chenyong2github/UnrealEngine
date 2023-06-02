@@ -4079,7 +4079,7 @@ void SSequencer::SetPlayTime(double Frame)
 	}
 }
 
-void SSequencer::ApplySequencerCustomizations(const TArray<FSequencerCustomizationInfo>& Customizations)
+void SSequencer::ApplySequencerCustomizations(const TArrayView<const FSequencerCustomizationInfo> Customizations)
 {
 	AddMenuExtenders.Reset();
 	ToolbarExtenders.Reset();

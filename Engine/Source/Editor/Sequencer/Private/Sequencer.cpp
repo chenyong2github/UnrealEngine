@@ -152,7 +152,6 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EntitySystem/MovieSceneInitialValueCache.h"
-#include "SequencerCustomizationManager.h"
 #include "SSequencerGroupManager.h"
 #include "ActorTreeItem.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -594,7 +593,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		TrackEditor->OnInitialize();
 	}
 
-	UpdateSequencerCustomizations();
+	UpdateSequencerCustomizations(nullptr);
 
 	AddNodeGroupsCollectionChangedDelegate();
 
@@ -1004,6 +1003,7 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 {
 	RemoveNodeGroupsCollectionChangedDelegate();
 
+	const UMovieSceneSequence* PreviousRootSequence = RootSequence.Get();
 	RootSequence = &NewSequence;
 	RestorePreAnimatedState();
 
@@ -1043,7 +1043,7 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 	PlayPosition.Reset(ConvertFrameTime(GetPlaybackRange().GetLowerBoundValue(), GetRootTickResolution(), PlayPosition.GetInputRate()));
 	TimeController->Reset(FQualifiedFrameTime(PlayPosition.GetCurrentPosition(), GetRootTickResolution()));
 
-	UpdateSequencerCustomizations();
+	UpdateSequencerCustomizations(PreviousRootSequence);
 
 	AddNodeGroupsCollectionChangedDelegate();
 
@@ -1054,6 +1054,8 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 {
 	RemoveNodeGroupsCollectionChangedDelegate();
+
+	const UMovieSceneSequence* PreviousFocusedSequence = GetFocusedMovieSceneSequence();
 
 	TemplateIDBackwardStack.Push(ActiveTemplateIDs.Top());
 	TemplateIDForwardStack.Reset();
@@ -1140,7 +1142,7 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 
 	UpdateSubSequenceData();
 
-	UpdateSequencerCustomizations();
+	UpdateSequencerCustomizations(PreviousFocusedSequence);
 
 	ScrubPositionParent.Reset();
 
@@ -1275,6 +1277,8 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 
 		RemoveNodeGroupsCollectionChangedDelegate();
 
+		const UMovieSceneSequence* PreviousFocusedSequence = GetFocusedMovieSceneSequence();
+
 		// Pop until we find the movie scene to focus
 		while( SequenceID != ActiveTemplateIDs.Last() )
 		{
@@ -1302,7 +1306,7 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 			RootTemplateInstance.FindInstance(MovieSceneSequenceID::Root)->OverrideRootSequence(Linker, ActiveTemplateIDs.Top());
 		}
 
-		UpdateSequencerCustomizations();
+		UpdateSequencerCustomizations(PreviousFocusedSequence);
 
 		AddNodeGroupsCollectionChangedDelegate();
 
@@ -1399,37 +1403,20 @@ void FSequencer::UpdateSubSequenceData()
 	}
 }
 
-void FSequencer::UpdateSequencerCustomizations()
+void FSequencer::UpdateSequencerCustomizations(const UMovieSceneSequence* PreviousFocusedSequence)
 {
-	ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
-	TSharedPtr<FSequencerCustomizationManager> Manager = SequencerModule.GetSequencerCustomizationManager();
-
-	// Get rid of previously active customizations.
-	for (const TUniquePtr<ISequencerCustomization>& Customization : ActiveCustomizations)
-	{
-		Customization->UnregisterSequencerCustomization();
-	}
-	ActiveCustomizations.Reset();
-
-	// Get the customizations for the current sequence.
 	UMovieSceneSequence* FocusedSequence = GetFocusedMovieSceneSequence();
 	check(FocusedSequence != nullptr);
-	Manager->GetSequencerCustomizations(*FocusedSequence, ActiveCustomizations);
-
-	// Get the customization info.
-	FSequencerCustomizationBuilder Builder(*this, *FocusedSequence);
-	for (const TUniquePtr<ISequencerCustomization>& Customization : ActiveCustomizations)
-	{
-		Customization->RegisterSequencerCustomization(Builder);
-	}
+	ViewModel->UpdateSequencerCustomizations(PreviousFocusedSequence);
+	TArrayView<const FSequencerCustomizationInfo> CustomizationInfos = ViewModel->GetActiveCustomizationInfos();
 
 	// Apply customizations to our editor.
-	SequencerWidget->ApplySequencerCustomizations(Builder.GetCustomizations());
+	SequencerWidget->ApplySequencerCustomizations(CustomizationInfos);
 
 	// Apply customizations to ourselves.
 	OnPaste.Reset();
 
-	for (const FSequencerCustomizationInfo& CustomizationInfo : Builder.GetCustomizations())
+	for (const FSequencerCustomizationInfo& CustomizationInfo : CustomizationInfos)
 	{
 		if (CustomizationInfo.OnPaste.IsBound())
 		{

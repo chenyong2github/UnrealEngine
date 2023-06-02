@@ -47,9 +47,14 @@ void FSequencerCustomizationManager::UnregisterInstancedSequencerCustomization(c
     ensureMsgf(false, TEXT("No customization found for sequence class: %s"), *SequenceClass->GetName());
 }
 
-void FSequencerCustomizationManager::GetSequencerCustomizations(UMovieSceneSequence& FocusedSequence, TArray<TUniquePtr<ISequencerCustomization>>& OutCustomizations)
+void FSequencerCustomizationManager::GetSequencerCustomizations(UMovieSceneSequence* FocusedSequence, TArray<TUniquePtr<ISequencerCustomization>>& OutCustomizations)
 {
-    const UClass* SequenceClass = FocusedSequence.GetClass();
+	if (UNLIKELY(!FocusedSequence))
+	{
+		return;
+	}
+
+    const UClass* SequenceClass = FocusedSequence->GetClass();
 
     const FCustomizationRegistryEntry* FoundEntry = CustomizationRegistryEntries.FindByPredicate(
             [=](const FCustomizationRegistryEntry& Entry)
@@ -62,3 +67,18 @@ void FSequencerCustomizationManager::GetSequencerCustomizations(UMovieSceneSeque
         OutCustomizations.Add(MoveTemp(Instance));
     }
 }
+
+bool FSequencerCustomizationManager::NeedsCustomizationChange(const UMovieSceneSequence* OldFocusedSequence, const UMovieSceneSequence* NewFocusedSequence) const
+{
+	if (OldFocusedSequence == nullptr || NewFocusedSequence == nullptr)
+	{
+		return true;
+	}
+
+	// For now, we only map customizations to the sequence's class, so we only need to rebuild customizations
+	// if the class has changed between the old and new sequence.
+    const UClass* OldSequenceClass = OldFocusedSequence->GetClass();
+    const UClass* NewSequenceClass = NewFocusedSequence->GetClass();
+	return OldSequenceClass != NewSequenceClass;
+}
+

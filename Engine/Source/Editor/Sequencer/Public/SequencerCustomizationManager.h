@@ -133,7 +133,12 @@ public:
 	/**
 	 * Gets the sequencer customizations for the given sequence.
 	 */
-	void GetSequencerCustomizations(UMovieSceneSequence& FocusedSequence, TArray<TUniquePtr<ISequencerCustomization>>& OutCustomizations);
+	void GetSequencerCustomizations(UMovieSceneSequence* FocusedSequence, TArray<TUniquePtr<ISequencerCustomization>>& OutCustomizations);
+
+	/**
+	 * Determines whether the new edited sequence requires changing the customizations.
+	 */
+	bool NeedsCustomizationChange(const UMovieSceneSequence* OldFocusedSequence, const UMovieSceneSequence* NewFocusedSequence) const;
 
 private:
 	FSequencerCustomizationManager(const FSequencerCustomizationManager&) = delete;

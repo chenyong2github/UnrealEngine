@@ -160,6 +160,47 @@ void FSequencerEditorViewModel::OnTrackAreaHotspotChanged(TSharedPtr<ITrackAreaH
 	CurrentHotspot = NewHotspot;
 }
 
+bool FSequencerEditorViewModel::UpdateSequencerCustomizations(const UMovieSceneSequence* PreviousFocusedSequence)
+{
+	ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+	TSharedPtr<FSequencerCustomizationManager> Manager = SequencerModule.GetSequencerCustomizationManager();
+
+	TSharedPtr<ISequencer> Sequencer = GetSequencer();
+	UMovieSceneSequence* FocusedSequence = Sequencer->GetFocusedMovieSceneSequence();
+	check(FocusedSequence != nullptr);
+
+	// See if we need to change any of our customizations.
+	if (PreviousFocusedSequence && !Manager->NeedsCustomizationChange(PreviousFocusedSequence, FocusedSequence))
+	{
+		return false;
+	}
+
+	// Get rid of previously active customizations.
+	for (const TUniquePtr<ISequencerCustomization>& Customization : ActiveCustomizations)
+	{
+		Customization->UnregisterSequencerCustomization();
+	}
+	ActiveCustomizations.Reset();
+
+	// Get the customizations for the current sequence.
+	Manager->GetSequencerCustomizations(FocusedSequence, ActiveCustomizations);
+
+	// Get the customization info.
+	FSequencerCustomizationBuilder Builder(*Sequencer, *FocusedSequence);
+	for (const TUniquePtr<ISequencerCustomization>& Customization : ActiveCustomizations)
+	{
+		Customization->RegisterSequencerCustomization(Builder);
+	}
+	ActiveCustomizationInfos = Builder.GetCustomizations();
+
+	return true;
+}
+
+TArrayView<const FSequencerCustomizationInfo> FSequencerEditorViewModel::GetActiveCustomizationInfos() const
+{
+	return ActiveCustomizationInfos;
+}
+
 } // namespace Sequencer
 } // namespace UE
 

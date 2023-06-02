@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "Framework/Commands/UICommandList.h"
 #include "MVVM/ViewModels/EditorViewModel.h"
+#include "SequencerCustomizationManager.h"
+#include "Toolkits/AssetEditorToolkit.h"
 
 struct FMovieSceneSequenceID;
 
@@ -24,7 +27,7 @@ struct ITrackAreaHotspot;
 /**
  * Main view-model for the Sequencer editor.
  */
-class FSequencerEditorViewModel : public FEditorViewModel
+class SEQUENCER_API FSequencerEditorViewModel : public FEditorViewModel
 {
 public:
 
@@ -33,15 +36,23 @@ public:
 	FSequencerEditorViewModel(TSharedRef<ISequencer> InSequencer, const FSequencerHostCapabilities& InHostCapabilities);
 
 	/** Retrieve this editor's selection class */
-	SEQUENCER_API TSharedPtr<FSequencerSelection> GetSelection() const;
+	TSharedPtr<FSequencerSelection> GetSelection() const;
 
 	// @todo_sequencer_mvvm remove this later
-	SEQUENCER_API TSharedPtr<ISequencer> GetSequencer() const;
+	TSharedPtr<ISequencer> GetSequencer() const;
 	// @todo_sequencer_mvvm remove this ASAP
 	TSharedPtr<FSequencer> GetSequencerImpl() const;
 
 	// @todo_sequencer_mvvm move this to the root view-model
 	void SetSequence(UMovieSceneSequence* InRootSequence);
+
+public:
+
+	/** Adjust sequencer customizations based on the currently focused sequence */
+	bool UpdateSequencerCustomizations(const UMovieSceneSequence* PreviousFocusedSequence);
+
+	/** Get the active customization infos */
+	TArrayView<const FSequencerCustomizationInfo> GetActiveCustomizationInfos() const;
 
 	/** Gets the pinned track area view-model. */
 	TSharedPtr<FTrackAreaViewModel> GetPinnedTrackArea() const;
@@ -65,15 +76,24 @@ protected:
 
 protected:
 
+	/** Owning sequencer */
 	TWeakPtr<ISequencer> WeakSequencer;
+	
+	/** Pinned track area (the main track area is owned by the base class) */
 	TSharedPtr<FTrackAreaViewModel> PinnedTrackArea;
-	bool bSupportsCurveEditor;
 
+	/** Whether we have a curve editor extension */
+	bool bSupportsCurveEditor;
+	
 	/** The current hotspot, from any of our track areas */
 	TSharedPtr<ITrackAreaHotspot> CurrentHotspot;
 
-	// Cached node paths to be used to compare when the hierarchy changes
+	/** Cached node paths to be used to compare when the hierarchy changes */
 	TMap<TWeakPtr<FViewModel>, FString> NodePaths;
+
+	/** Active customizations. */
+	TArray<TUniquePtr<ISequencerCustomization>> ActiveCustomizations;
+	TArray<FSequencerCustomizationInfo> ActiveCustomizationInfos;
 };
 
 } // namespace Sequencer

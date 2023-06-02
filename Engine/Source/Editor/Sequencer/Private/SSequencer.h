@@ -650,7 +650,7 @@ public:
 	void RequestRenameNode(const FString& Path) { NodePathToRename = Path; }
 
 	/** Applies dynamic sequencer customizations to this editor. */
-	void ApplySequencerCustomizations(const TArray<FSequencerCustomizationInfo>& Customizations);
+	void ApplySequencerCustomizations(const TArrayView<const FSequencerCustomizationInfo> Customizations);
 
 private:
 	/** Applies a single customization. */
