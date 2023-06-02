@@ -122,6 +122,11 @@ namespace Horde.Server.Tools
 		public RefName RefName => _deployment.RefName;
 
 		/// <summary>
+		/// Hash of the root node
+		/// </summary>
+		public IoHash Hash { get; }
+
+		/// <summary>
 		/// Node for downloading this deployment
 		/// </summary>
 		public NodeLocator Locator { get; }
@@ -132,6 +137,7 @@ namespace Horde.Server.Tools
 		public GetToolDeploymentResponse(IToolDeployment deployment, NodeHandle handle)
 		{
 			_deployment = deployment;
+			Hash = handle.Hash;
 			Locator = handle.Locator;
 		}
 	}
@@ -298,7 +304,7 @@ namespace Horde.Server.Tools
 
 			ToolDeploymentConfig options = new ToolDeploymentConfig { Version = request.Version, Duration = TimeSpan.FromMinutes(request.Duration ?? 0.0), CreatePaused = request.CreatePaused ?? false };
 
-			tool = await _toolCollection.CreateDeploymentAsync(tool, options, NodeLocator.Parse(request.Node), _globalConfig.Value, cancellationToken);
+			tool = await _toolCollection.CreateDeploymentAsync(tool, options, HashedNodeLocator.Parse(request.Node), _globalConfig.Value, cancellationToken);
 			if (tool == null)
 			{
 				return NotFound(id);

@@ -152,20 +152,19 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Deserialize a node from the given reader
 		/// </summary>
-		/// <param name="nodeData">Data to deserialize from</param>
+		/// <param name="reader">Data to deserialize from</param>
 		/// <returns>New node instance</returns>
-		public static Node Deserialize(NodeData nodeData)
+		public static Node Deserialize(NodeReader reader)
 		{
-			NodeReader reader = new NodeReader(nodeData);
 			return s_guidToDeserializer[reader.Type.Guid](reader);
 		}
 
 		/// <summary>
 		/// Deserialize a node from the given reader
 		/// </summary>
-		/// <param name="nodeData">Data to deserialize from</param>
+		/// <param name="reader">Data to deserialize from</param>
 		/// <returns>New node instance</returns>
-		public static TNode Deserialize<TNode>(NodeData nodeData) where TNode : Node => (TNode)Deserialize(nodeData);
+		public static TNode Deserialize<TNode>(NodeReader reader) where TNode : Node => (TNode)Deserialize(reader);
 
 		/// <summary>
 		/// Static constructor. Registers all the types in the current assembly.
@@ -261,7 +260,7 @@ namespace EpicGames.Horde.Storage
 		/// Writes a reference to another node
 		/// </summary>
 		/// <param name="handle">Handle to the target node</param>
-		void WriteNodeHandle(HashedNodeHandle handle);
+		void WriteNodeHandle(NodeHandle handle);
 	}
 
 	/// <summary>
@@ -278,7 +277,7 @@ namespace EpicGames.Horde.Storage
 		/// <returns></returns>
 		public static async ValueTask<TNode> ReadAsync<TNode>(this NodeHandle handle, CancellationToken cancellationToken = default) where TNode : Node
 		{
-			NodeData nodeData = await handle.ReadAsync(cancellationToken);
+			NodeReader nodeData = await handle.ReadAsync(cancellationToken);
 			return Node.Deserialize<TNode>(nodeData);
 		}
 
@@ -375,7 +374,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refOptions">Options for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Location of node targetted by the ref</returns>
-		public static async Task<HashedNodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, Node node, TreeOptions? options = null, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
+		public static async Task<NodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, Node node, TreeOptions? options = null, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
 		{
 			using IStorageWriter writer = store.CreateWriter(name, options);
 			return await writer.WriteAsync(name, node, refOptions, cancellationToken);
@@ -397,7 +396,7 @@ namespace EpicGames.Horde.Storage
 				return null;
 			}
 
-			NodeData nodeData = await refTarget.ReadAsync(cancellationToken);
+			NodeReader nodeData = await refTarget.ReadAsync(cancellationToken);
 			return Node.Deserialize<TNode>(nodeData);
 		}
 

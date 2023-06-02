@@ -76,27 +76,27 @@ namespace EpicGames.Horde.Tests
 
 			ChunkedDataWriter fileNodeWriter = new ChunkedDataWriter(writer, options);
 
-			HashedNodeHandle handle;
+			NodeHandle handle;
 			ChunkedDataNode node;
 			byte[] data = CreateBuffer(1024);
 
 			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 7), CancellationToken.None);
-			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Handle.Locator);
+			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Locator);
 			Assert.IsTrue(node is LeafChunkedDataNode);
 			Assert.AreEqual(7, ((LeafChunkedDataNode)node).Data.Length);
-			await TestBufferlessReadsAsync(handle.Handle, data.AsMemory(0, 7));
+			await TestBufferlessReadsAsync(handle, data.AsMemory(0, 7));
 
 			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 8), CancellationToken.None);
-			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Handle.Locator);
+			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Locator);
 			Assert.IsTrue(node is LeafChunkedDataNode);
 			Assert.AreEqual(8, ((LeafChunkedDataNode)node).Data.Length);
-			await TestBufferlessReadsAsync(handle.Handle, data.AsMemory(0, 8));
+			await TestBufferlessReadsAsync(handle, data.AsMemory(0, 8));
 
 			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 9), CancellationToken.None);
-			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Handle.Locator);
+			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Locator);
 			Assert.IsTrue(node is InteriorChunkedDataNode);
 			Assert.AreEqual(2, ((InteriorChunkedDataNode)node).Children.Count);
-			await TestBufferlessReadsAsync(handle.Handle, data.AsMemory(0, 9));
+			await TestBufferlessReadsAsync(handle, data.AsMemory(0, 9));
 
 			ChunkedDataNode? childNode1 = await ((InteriorChunkedDataNode)node).Children[0].ExpandAsync();
 			Assert.IsNotNull(childNode1);
@@ -109,9 +109,9 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(1, ((LeafChunkedDataNode)childNode2!).Data.Length);
 
 			handle = await fileNodeWriter.CreateAsync(data, CancellationToken.None);
-			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Handle.Locator);
+			node = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Locator);
 			Assert.IsTrue(node is InteriorChunkedDataNode);
-			await TestBufferlessReadsAsync(handle.Handle, data);
+			await TestBufferlessReadsAsync(handle, data);
 		}
 
 		private static byte[] CreateBuffer(int length)

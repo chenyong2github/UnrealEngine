@@ -21,7 +21,7 @@ public interface IStorageClientJupiter : IStorageClient
     Task<(BlobLocator Locator, Uri UploadUrl)?> GetWriteRedirectAsync(string prefix, CancellationToken cancellationToken);
     bool SupportsRedirects { get; set; }
     Task<Uri?> GetReadRedirectAsync(BlobLocator locator, CancellationToken cancellationToken);
-    Task WriteRefTargetAsync(RefName refName, NodeLocator target, RefOptions? requestOptions, CancellationToken cancellationToken);
+    Task WriteRefTargetAsync(RefName refName, HashedNodeLocator target, RefOptions? requestOptions, CancellationToken cancellationToken);
 }
 
 public interface IStorageService
@@ -172,10 +172,11 @@ public class StorageClient : IStorageClientJupiter
             }
 
             RefInlinePayload inlinePayload = CbSerializer.Deserialize<RefInlinePayload>(record.InlinePayload);
+            IoHash nodeHash = inlinePayload.BlobHash;
             BlobLocator blobLocator = new BlobLocator(inlinePayload.BlobLocator);
             int exportId = inlinePayload.ExportId;
 
-            return new NodeHandle(_treeReader, new NodeLocator(blobLocator, exportId));
+            return new NodeHandle(_treeReader, nodeHash, new NodeLocator(blobLocator, exportId));
         }
         catch (ObjectNotFoundException )
         {
@@ -186,7 +187,7 @@ public class StorageClient : IStorageClientJupiter
     public async Task<NodeHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default)
     {
         BlobLocator locator = await this.WriteBundleAsync(bundle, prefix, cancellationToken);
-        NodeHandle target = new NodeHandle(_treeReader, new NodeLocator(locator, exportIdx));
+        NodeHandle target = new NodeHandle(_treeReader, bundle.Header.Exports[exportIdx].Hash, new NodeLocator(locator, exportIdx));
         await WriteRefTargetAsync(name, target, options, cancellationToken);
 
         return target;
@@ -194,16 +195,16 @@ public class StorageClient : IStorageClientJupiter
 
     public Task WriteRefTargetAsync(RefName refName, NodeHandle target, RefOptions? requestOptions, CancellationToken cancellationToken)
     {
-        return WriteRefTargetAsync(refName, target.Locator, requestOptions, cancellationToken);
+        return WriteRefTargetAsync(refName, target.HashedLocator, requestOptions, cancellationToken);
     }
 
-    public async Task WriteRefTargetAsync(RefName refName, NodeLocator target, RefOptions? requestOptions, CancellationToken cancellationToken)
+    public async Task WriteRefTargetAsync(RefName refName, HashedNodeLocator target, RefOptions? requestOptions, CancellationToken cancellationToken)
     {
         BlobIdentifier bundleBlob = BlobIdentifier.FromBlobLocator(target.Blob);
         IoHashKey refKey = IoHashKey.FromName(refName.ToString());
         RefInlinePayload inlinePayload = new RefInlinePayload()
         {
-            BlobLocator = target.Blob.ToString(), ExportId = target.ExportIdx
+            BlobHash = target.Hash, BlobLocator = target.Blob.ToString(), ExportId = target.ExportIdx
         };
         byte[] payload = CbSerializer.SerializeToByteArray(inlinePayload);
         BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(payload);
@@ -226,6 +227,9 @@ public class StorageClient : IStorageClientJupiter
 
 public class RefInlinePayload
 {
+    [CbField("hash")]
+    public IoHash BlobHash { get; set; }
+
     [CbField("loc")]
     public string BlobLocator { get; set; } = null!;
 

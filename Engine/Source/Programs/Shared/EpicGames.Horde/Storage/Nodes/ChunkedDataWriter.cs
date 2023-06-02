@@ -105,9 +105,9 @@ namespace EpicGames.Horde.Storage.Nodes
 				_children.Clear();
 			}
 
-			public void Write(HashedNodeHandle handle)
+			public void Write(NodeHandle handle)
 			{
-				_children.Add(handle.Handle);
+				_children.Add(handle);
 				_data.WriteIoHash(handle.Hash);
 			}
 		}
@@ -195,7 +195,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="fileInfo">File to append</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<HashedNodeHandle> CreateAsync(FileInfo fileInfo, CancellationToken cancellationToken)
+		public async Task<NodeHandle> CreateAsync(FileInfo fileInfo, CancellationToken cancellationToken)
 		{
 			return await CreateAsync(fileInfo, DefaultBufferLength, cancellationToken);
 		}
@@ -206,7 +206,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="fileInfo">File to append</param>
 		/// <param name="bufferLength">Size of the read buffer</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<HashedNodeHandle> CreateAsync(FileInfo fileInfo, int bufferLength, CancellationToken cancellationToken)
+		public async Task<NodeHandle> CreateAsync(FileInfo fileInfo, int bufferLength, CancellationToken cancellationToken)
 		{
 			using (FileStream stream = fileInfo.OpenRead())
 			{
@@ -219,7 +219,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="stream">Stream to append</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<HashedNodeHandle> CreateAsync(Stream stream, CancellationToken cancellationToken)
+		public async Task<NodeHandle> CreateAsync(Stream stream, CancellationToken cancellationToken)
 		{
 			return await CreateAsync(stream, DefaultBufferLength, cancellationToken);
 		}
@@ -230,7 +230,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="stream">Stream to append</param>
 		/// <param name="bufferLength">Size of the read buffer</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<HashedNodeHandle> CreateAsync(Stream stream, int bufferLength, CancellationToken cancellationToken)
+		public async Task<NodeHandle> CreateAsync(Stream stream, int bufferLength, CancellationToken cancellationToken)
 		{
 			Reset();
 			await AppendAsync(stream, bufferLength, cancellationToken);
@@ -242,7 +242,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="data">Stream to append</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<HashedNodeHandle> CreateAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
+		public async Task<NodeHandle> CreateAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
 		{
 			Reset();
 			await AppendAsync(data, cancellationToken);
@@ -297,7 +297,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				}
 
 				// Flush the leaf node and any interior nodes that are full
-				HashedNodeHandle handle = await WriteLeafNodeAsync(cancellationToken);
+				NodeHandle handle = await WriteLeafNodeAsync(cancellationToken);
 				ResetLeafState();
 				await AddToInteriorNodeAsync(handle, cancellationToken);
 			}
@@ -380,18 +380,18 @@ namespace EpicGames.Horde.Storage.Nodes
 			return appendLength;
 		}
 
-		async Task AddToInteriorNodeAsync(HashedNodeHandle handle, CancellationToken cancellationToken)
+		async Task AddToInteriorNodeAsync(NodeHandle handle, CancellationToken cancellationToken)
 		{
 			_topInteriorNode ??= CreateInteriorNode();
 			await AddToInteriorNodeAsync(_topInteriorNode, handle, cancellationToken);
 		}
 
-		async Task AddToInteriorNodeAsync(InteriorNodeState interiorNode, HashedNodeHandle handle, CancellationToken cancellationToken)
+		async Task AddToInteriorNodeAsync(InteriorNodeState interiorNode, NodeHandle handle, CancellationToken cancellationToken)
 		{
 			// If the node is already full, flush it
 			if (IsInteriorNodeComplete(interiorNode._data.WrittenSpan, interiorNode._rollingHash, _options.InteriorOptions))
 			{
-				HashedNodeHandle interiorNodeHandle = await WriteInteriorNodeAndResetAsync(interiorNode, cancellationToken);
+				NodeHandle interiorNodeHandle = await WriteInteriorNodeAndResetAsync(interiorNode, cancellationToken);
 				interiorNode._parent ??= CreateInteriorNode();
 				await AddToInteriorNodeAsync(interiorNode._parent, interiorNodeHandle, cancellationToken);
 			}
@@ -456,9 +456,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Handle to the root node</returns>
-		public async Task<HashedNodeHandle> CompleteAsync(CancellationToken cancellationToken)
+		public async Task<NodeHandle> CompleteAsync(CancellationToken cancellationToken)
 		{
-			HashedNodeHandle handle = await WriteLeafNodeAsync(cancellationToken);
+			NodeHandle handle = await WriteLeafNodeAsync(cancellationToken);
 			ResetLeafState();
 
 			for (InteriorNodeState? state = _topInteriorNode; state != null; state = state._parent)
@@ -476,9 +476,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Handle to the root FileNode</returns>
-		public async Task<HashedNodeHandle> FlushAsync(CancellationToken cancellationToken)
+		public async Task<NodeHandle> FlushAsync(CancellationToken cancellationToken)
 		{
-			HashedNodeHandle handle = await CompleteAsync(cancellationToken);
+			NodeHandle handle = await CompleteAsync(cancellationToken);
 			await _writer.FlushAsync(cancellationToken);
 			return handle;
 		}
@@ -489,12 +489,12 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="state"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		async ValueTask<HashedNodeHandle> WriteInteriorNodeAndResetAsync(InteriorNodeState state, CancellationToken cancellationToken)
+		async ValueTask<NodeHandle> WriteInteriorNodeAndResetAsync(InteriorNodeState state, CancellationToken cancellationToken)
 		{
 			Memory<byte> buffer = _writer.GetOutputBuffer(0, state._data.Length);
 			state._data.WrittenMemory.CopyTo(buffer);
 
-			HashedNodeHandle handle = await _writer.WriteNodeAsync(state._data.Length, state._children, s_interiorNodeType, cancellationToken);
+			NodeHandle handle = await _writer.WriteNodeAsync(state._data.Length, state._children, s_interiorNodeType, cancellationToken);
 			state.Reset();
 
 			return handle;
@@ -505,7 +505,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Handle to the written leaf node</returns>
-		async ValueTask<HashedNodeHandle> WriteLeafNodeAsync(CancellationToken cancellationToken)
+		async ValueTask<NodeHandle> WriteLeafNodeAsync(CancellationToken cancellationToken)
 		{
 			return await _writer.WriteNodeAsync(_leafLength, Array.Empty<NodeHandle>(), s_leafNodeType, cancellationToken);
 		}

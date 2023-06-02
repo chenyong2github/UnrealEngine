@@ -35,7 +35,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static async Task CopyToStreamAsync(NodeHandle handle, Stream outputStream, CancellationToken cancellationToken)
 		{
-			NodeData nodeData = await handle.ReadAsync(cancellationToken);
+			NodeReader nodeData = await handle.ReadAsync(cancellationToken);
 			if (nodeData.Type.Guid == s_leafNodeGuid)
 			{
 				await LeafChunkedDataNode.CopyToStreamAsync(nodeData, outputStream, cancellationToken);
@@ -131,7 +131,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="nodeData">The raw node data</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CopyToStreamAsync(NodeData nodeData, Stream outputStream, CancellationToken cancellationToken)
+		public static async Task CopyToStreamAsync(NodeReader nodeData, Stream outputStream, CancellationToken cancellationToken)
 		{
 			// Keep this code in sync with the constructor
 			await outputStream.WriteAsync(nodeData.Data, cancellationToken);
@@ -197,16 +197,15 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Copy the contents of the node to the output stream without creating the intermediate FileNodes
 		/// </summary>
-		/// <param name="nodeData">Source data</param>
+		/// <param name="nodeReader">Source data</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CopyToStreamAsync(NodeData nodeData, Stream outputStream, CancellationToken cancellationToken)
+		public static async Task CopyToStreamAsync(NodeReader nodeReader, Stream outputStream, CancellationToken cancellationToken)
 		{
-			NodeReader nodeReader = new NodeReader(nodeData);
 			while (nodeReader.GetMemory(0).Length > 0)
 			{
 				NodeRef nodeRef = nodeReader.ReadRef();
-				await ChunkedDataNode.CopyToStreamAsync(nodeRef.Handle!.Handle, outputStream, cancellationToken);
+				await ChunkedDataNode.CopyToStreamAsync(nodeRef.Handle!, outputStream, cancellationToken);
 			}
 		}
 	}

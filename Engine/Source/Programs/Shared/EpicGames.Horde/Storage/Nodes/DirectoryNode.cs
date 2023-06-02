@@ -215,7 +215,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="length">Length of the file</param>
 		/// <param name="handle">Handle to the file data</param>
 		/// <returns>The new directory object</returns>
-		public FileEntry AddFile(Utf8String name, FileEntryFlags flags, long length, HashedNodeHandle handle)
+		public FileEntry AddFile(Utf8String name, FileEntryFlags flags, long length, NodeHandle handle)
 		{
 			FileEntry entry = new FileEntry(name, flags, length, handle);
 			AddFile(entry);
@@ -231,7 +231,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="length">Length of the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new directory object</returns>
-		public async ValueTask<FileEntry> AddFileByPathAsync(Utf8String path, FileEntryFlags flags, long length, HashedNodeHandle handle, CancellationToken cancellationToken = default)
+		public async ValueTask<FileEntry> AddFileByPathAsync(Utf8String path, FileEntryFlags flags, long length, NodeHandle handle, CancellationToken cancellationToken = default)
 		{
 			DirectoryNode directory = this;
 
@@ -613,7 +613,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				{
 					if (entry.Name.Length > 0)
 					{
-						HashedNodeHandle node;
+						NodeHandle node;
 						using (Stream entryStream = entry.Open())
 						{
 							node = await fileWriter.CreateAsync(entryStream, cancellationToken);
@@ -748,7 +748,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				for (int idx = minIdx; idx < maxIdx; idx++)
 				{
 					FileInfo fileInfo = files[idx].FileInfo;
-					HashedNodeHandle handle = await fileNodeWriter.CreateAsync(fileInfo, cancellationToken);
+					NodeHandle handle = await fileNodeWriter.CreateAsync(fileInfo, cancellationToken);
 					entries[idx] = new FileEntry(fileInfo.Name, FileEntryFlags.None, fileNodeWriter.Length, handle);
 					copyStats?.Update(1, fileNodeWriter.Length);
 				}

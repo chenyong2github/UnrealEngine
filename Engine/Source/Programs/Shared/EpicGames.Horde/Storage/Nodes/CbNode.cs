@@ -17,21 +17,21 @@ namespace EpicGames.Horde.Storage.Nodes
 	{
 		class HandleMapper
 		{
-			public IReadOnlyList<NodeHandle> Handles { get; }
-			public List<HashedNodeHandle> HashedHandles { get; }
+			readonly NodeReader _reader;
+			readonly List<NodeRef> _refs;
 
-			public HandleMapper(IReadOnlyList<NodeHandle> handles)
+			public HandleMapper(NodeReader reader, List<NodeRef> refs)
 			{
-				Handles = handles;
-				HashedHandles = new List<HashedNodeHandle>(handles.Count);
+				_reader = reader;
+				_refs = refs;
 			}
 
 			public void IterateField(CbField field)
 			{
 				if (field.IsAttachment())
 				{
-					NodeHandle handle = Handles[HashedHandles.Count];
-					HashedHandles.Add(new HashedNodeHandle(field.AsAttachment(), handle));
+					NodeHandle handle = _reader.GetNodeHandle(_refs.Count, field.AsAttachment());
+					_refs.Add(new NodeRef(handle));
 				}
 				else if (field.IsArray())
 				{
@@ -75,10 +75,10 @@ namespace EpicGames.Horde.Storage.Nodes
 		{
 			Object = new CbObject(reader.ReadFixedLengthBytes(reader.Length));
 
-			HandleMapper mapper = new HandleMapper(reader.References);
-			Object.IterateAttachments(mapper.IterateField);
+			List<NodeRef> references = new List<NodeRef>();
+			Object.IterateAttachments(new HandleMapper(reader, references).IterateField);
 
-			References = mapper.HashedHandles.ConvertAll(x => new NodeRef(x));
+			References = references;
 		}
 
 		/// <inheritdoc/>

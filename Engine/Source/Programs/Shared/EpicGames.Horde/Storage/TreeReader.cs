@@ -17,7 +17,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Data for an individual node
 	/// </summary>
-	public record struct NodeData(NodeType Type, IoHash Hash, ReadOnlyMemory<byte> Data, IReadOnlyList<NodeHandle> Refs);
+	public record struct NodeData(NodeType Type, IoHash Hash, ReadOnlyMemory<byte> Data, IReadOnlyList<NodeLocator> Refs);
 
 	/// <summary>
 	/// Reader for tree nodes
@@ -45,29 +45,47 @@ namespace EpicGames.Horde.Storage
 		public IoHash Hash => _nodeData.Hash;
 
 		/// <summary>
+		/// 
+		/// </summary>
+		public ReadOnlyMemory<byte> Data => _nodeData.Data;
+
+		/// <summary>
 		/// Locations of all referenced nodes.
 		/// </summary>
-		public IReadOnlyList<NodeHandle> References => _nodeData.Refs;
+		public IReadOnlyList<NodeLocator> References => _nodeData.Refs;
 
+		readonly TreeReader _treeReader;
 		readonly NodeData _nodeData;
 		int _refIdx;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NodeReader(NodeData nodeData)
+		public NodeReader(TreeReader treeReader, NodeData nodeData)
 			: base(nodeData.Data)
 		{
+			_treeReader = treeReader;
 			_nodeData = nodeData;
 		}
 
 		/// <summary>
 		/// Reads the next reference to another node
 		/// </summary>
-		public HashedNodeHandle ReadNodeHandle()
+		public NodeHandle ReadNodeHandle()
 		{
 			IoHash hash = this.ReadIoHash();
-			return new HashedNodeHandle(hash, _nodeData.Refs[_refIdx++]);
+			return GetNodeHandle(_refIdx++, hash);
+		}
+
+		/// <summary>
+		/// Gets a node handle with the given index and hash
+		/// </summary>
+		/// <param name="index"></param>
+		/// <param name="hash"></param>
+		/// <returns></returns>
+		public NodeHandle GetNodeHandle(int index, IoHash hash)
+		{
+			return new NodeHandle(_treeReader, hash, _nodeData.Refs[index]);
 		}
 	}
 
@@ -601,7 +619,7 @@ namespace EpicGames.Horde.Storage
 			BundleInfo bundleInfo = await GetBundleInfoAsync(locator.Blob, cancellationToken);
 			BundleExport export = bundleInfo.Header.Exports[locator.ExportIdx];
 
-			List<NodeHandle> refs = new List<NodeHandle>(export.References.Count);
+			List<NodeLocator> refs = new List<NodeLocator>(export.References.Count);
 			foreach (BundleExportRef reference in export.References)
 			{
 				BlobLocator importBlob;
@@ -614,7 +632,7 @@ namespace EpicGames.Horde.Storage
 					importBlob = bundleInfo.Header.Imports[reference.ImportIdx];
 				}
 				Debug.Assert(importBlob.IsValid());
-				refs.Add(new NodeHandle(this, new NodeLocator(importBlob, reference.NodeIdx)));
+				refs.Add(new NodeLocator(importBlob, reference.NodeIdx));
 			}
 
 			ReadOnlyMemory<byte> nodeData = ReadOnlyMemory<byte>.Empty;
@@ -637,7 +655,7 @@ namespace EpicGames.Horde.Storage
 		public async ValueTask<Node> ReadNodeAsync(NodeLocator locator, CancellationToken cancellationToken = default)
 		{
 			NodeData nodeData = await ReadNodeDataAsync(locator, cancellationToken);
-			return Node.Deserialize(nodeData);
+			return Node.Deserialize(new NodeReader(this, nodeData));
 		}
 
 		/// <summary>

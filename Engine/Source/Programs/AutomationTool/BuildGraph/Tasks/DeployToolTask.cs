@@ -148,7 +148,7 @@ namespace AutomationTool.Tasks
 				return httpClient;
 			}
 
-			HashedNodeHandle handle;
+			NodeHandle handle;
 
 			HttpStorageClient storageClient = new HttpStorageClient(CreateHttpClient, () => new HttpClient(), null, Logger);
 			using (IStorageWriter treeWriter = storageClient.CreateWriter())
@@ -181,7 +181,7 @@ namespace AutomationTool.Tasks
 			{
 				request.CreatePaused = true;
 			}
-			request.Node = handle.Handle.ToString();
+			request.Node = handle.HashedLocator.ToString();
 
 			using (HttpClient httpClient = CreateHttpClient())
 			{

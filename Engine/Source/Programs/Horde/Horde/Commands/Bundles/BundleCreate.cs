@@ -73,7 +73,7 @@ namespace Horde.Commands.Bundles
 				ChunkingOptions options = new ChunkingOptions();
 				await node.CopyFilesAsync(baseDir, files, options, writer, null, CancellationToken.None);
 
-				HashedNodeHandle handle = await writer.FlushAsync(node);
+				NodeHandle handle = await writer.FlushAsync(node);
 				if (File != null)
 				{
 					logger.LogInformation("Writing {File}", File);
@@ -82,7 +82,7 @@ namespace Horde.Commands.Bundles
 				else
 				{
 					logger.LogInformation("Writing ref {Ref}", Ref);
-					await store.WriteRefTargetAsync(new RefName(Ref!), handle.Handle);
+					await store.WriteRefTargetAsync(new RefName(Ref!), handle);
 				}
 			}
 

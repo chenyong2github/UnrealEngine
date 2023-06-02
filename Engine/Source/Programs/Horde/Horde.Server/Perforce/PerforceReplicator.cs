@@ -107,7 +107,7 @@ namespace Horde.Server.Perforce
 			}
 		}
 
-		record class FileInfo(Utf8String Path, FileEntryFlags Flags, long Length, byte[] Md5, HashedNodeHandle Node);
+		record class FileInfo(Utf8String Path, FileEntryFlags Flags, long Length, byte[] Md5, NodeHandle Node);
 
 		class FileWriter : IDisposable
 		{
@@ -183,7 +183,7 @@ namespace Horde.Server.Perforce
 					throw new ReplicationException($"Invalid size for replicated file '{handle._path}'. Expected {handle._size}, got {handle._sizeWritten}.");
 				}
 
-				HashedNodeHandle node = await handle._fileWriter.FlushAsync(cancellationToken);
+				NodeHandle node = await handle._fileWriter.FlushAsync(cancellationToken);
 				byte[] hash = handle._hash.GetHashAndReset();
 				FileInfo info = new FileInfo(handle._path, handle._flags, handle._size, hash, node);
 

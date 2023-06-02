@@ -48,6 +48,7 @@ namespace EpicGames.Horde.Storage.Backends
 
 		class ReadRefResponse
 		{
+			public IoHash Hash { get; set; }
 			public BlobLocator Blob { get; set; }
 			public int ExportIdx { get; set; }
 		}
@@ -219,7 +220,7 @@ namespace EpicGames.Horde.Storage.Backends
 						FindNodesResponse? message = await response.Content.ReadFromJsonAsync<FindNodesResponse>(cancellationToken: cancellationToken);
 						foreach (FindNodeResponse node in message!.Nodes)
 						{
-							yield return new NodeHandle(TreeReader, new NodeLocator(node.Blob, node.ExportIdx));
+							yield return new NodeHandle(TreeReader, node.Hash, new NodeLocator(node.Blob, node.ExportIdx));
 						}
 					}
 				}
@@ -270,7 +271,7 @@ namespace EpicGames.Horde.Storage.Backends
 							response.EnsureSuccessStatusCode();
 							ReadRefResponse? data = await response.Content.ReadFromJsonAsync<ReadRefResponse>(cancellationToken: cancellationToken);
 							_logger.LogDebug("Read ref {RefName} -> {Blob}#{ExportIdx}", name, data!.Blob, data!.ExportIdx);
-							return new NodeHandle(TreeReader, new NodeLocator(data!.Blob, data!.ExportIdx));
+							return new NodeHandle(TreeReader, data.Hash, new NodeLocator(data!.Blob, data!.ExportIdx));
 						}
 					}
 				}

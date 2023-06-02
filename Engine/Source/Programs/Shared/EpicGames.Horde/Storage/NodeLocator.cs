@@ -81,6 +81,63 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
+	/// Combination of a NodeLocator with Hash
+	/// </summary>
+	/// <param name="Hash">Hash of the target node</param>
+	/// <param name="Locator">Locator for the node</param>
+	public readonly record struct HashedNodeLocator(IoHash Hash, NodeLocator Locator)
+	{
+		/// <inheritdoc cref="NodeLocator.Blob"/>
+		public BlobLocator Blob => Locator.Blob;
+
+		/// <inheritdoc cref="NodeLocator.ExportIdx"/>
+		public int ExportIdx => Locator.ExportIdx;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public HashedNodeLocator(IoHash hash, BlobLocator blobLocator, int exportIdx) 
+			: this(hash, new NodeLocator(blobLocator, exportIdx))
+		{
+		}
+
+		/// <summary>
+		/// Parse a node handle value from a string
+		/// </summary>
+		/// <param name="text">Text to parse</param>
+		/// <returns>Parsed node handle</returns>
+		public static HashedNodeLocator Parse(string text)
+		{
+			int hashLength = IoHash.NumBytes * 2;
+			if (text.Length == hashLength)
+			{
+				return new HashedNodeLocator(IoHash.Parse(text), default);
+			}
+			else if (text[hashLength] == '@')
+			{
+				return new HashedNodeLocator(IoHash.Parse(text.Substring(0, hashLength)), NodeLocator.Parse(text.Substring(hashLength + 1)));
+			}
+			else
+			{
+				throw new FormatException("Invalid NodeHandle value");
+			}
+		}
+
+		/// <inheritdoc/>
+		public override string ToString()
+		{
+			if (Locator.IsValid())
+			{
+				return $"{Hash}@{Locator}";
+			}
+			else
+			{
+				return $"{Hash}";
+			}
+		}
+	}
+
+	/// <summary>
 	/// Type converter for <see cref="NodeLocator"/> to and from JSON
 	/// </summary>
 	sealed class NodeLocatorJsonConverter : JsonConverter<NodeLocator>

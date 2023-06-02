@@ -44,9 +44,9 @@ namespace Horde.Server.Tests
 			Bundle bundle = new Bundle(header, Array.Empty<ReadOnlyMemory<byte>>());
 			BlobLocator locator = await client.WriteBundleAsync(bundle);
 
-			await client.AddAliasAsync("foo", new NodeLocator(locator, 0));
-			await client.AddAliasAsync("foo", new NodeLocator(locator, 1));
-			await client.AddAliasAsync("bar", new NodeLocator(locator, 2));
+			await client.AddAliasAsync("foo", new HashedNodeLocator(hash1, locator, 0));
+			await client.AddAliasAsync("foo", new HashedNodeLocator(hash1, locator, 1));
+			await client.AddAliasAsync("bar", new HashedNodeLocator(hash2, locator, 2));
 
 			List<NodeHandle> handles;
 			

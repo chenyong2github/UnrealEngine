@@ -346,7 +346,7 @@ namespace UnrealBuildTool.Artifacts
 							{
 								string outputName = hordeArtifactMapping.ArtifactMapping.Outputs[refIndex++].GetFullPath(mapping.DirectoryMapping);
 								using FileStream stream = new(outputName, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-								await ChunkedDataNode.CopyToStreamAsync(artifactRef.Handle.Handle, stream, cancellationToken);
+								await ChunkedDataNode.CopyToStreamAsync(artifactRef.Handle, stream, cancellationToken);
 							}
 							catch (Exception)
 							{
@@ -507,7 +507,7 @@ namespace UnrealBuildTool.Artifacts
 					await hordeArtifactMapping.WriteFilesAsync(writer, cancellationToken);
 
 					// Save the collection
-					HashedNodeHandle _ = await writer.WriteAsync(refName, node, null, cancellationToken);
+					NodeHandle _ = await writer.WriteAsync(refName, node, null, cancellationToken);
 				}, cancellationToken));
 			}
 			return tasks;

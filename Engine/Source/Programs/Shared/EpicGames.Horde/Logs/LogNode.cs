@@ -269,7 +269,7 @@ namespace EpicGames.Horde.Logs
 		/// <param name="writer">Writer for the output nodes</param>
 		/// <param name="complete">Whether the log is complete</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<HashedNodeHandle> FlushAsync(IStorageWriter writer, bool complete, CancellationToken cancellationToken)
+		public async Task<NodeHandle> FlushAsync(IStorageWriter writer, bool complete, CancellationToken cancellationToken)
 		{
 			// Capture the new data that needs to be written
 			IReadOnlyList<LogChunkNode> writeTextChunks;
@@ -299,7 +299,7 @@ namespace EpicGames.Horde.Logs
 
 			LogNode newRoot = new LogNode(_format, lineCount, length, newJsonChunkRefs, new NodeRef<LogIndexNode>(newIndex), complete);
 
-			HashedNodeHandle newRootHandle = await writer.FlushAsync(newRoot, cancellationToken);
+			NodeHandle newRootHandle = await writer.FlushAsync(newRoot, cancellationToken);
 
 			// Update the new state
 			lock (_lockObject)

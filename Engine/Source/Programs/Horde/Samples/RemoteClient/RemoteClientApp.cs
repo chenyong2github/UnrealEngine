@@ -99,8 +99,8 @@ namespace RemoteClient
 				{
 					DirectoryNode sandbox = new DirectoryNode();
 					await sandbox.CopyFromDirectoryAsync(uploadDir.ToDirectoryInfo(), new ChunkingOptions(), treeWriter, null);
-					HashedNodeHandle handle = await treeWriter.FlushAsync(sandbox);
-					await channel.UploadFilesAsync("", handle.Handle.Locator, storage);
+					NodeHandle handle = await treeWriter.FlushAsync(sandbox);
+					await channel.UploadFilesAsync("", handle.Locator, storage);
 				}
 
 				// Run the task remotely in the background and echo the output to the console

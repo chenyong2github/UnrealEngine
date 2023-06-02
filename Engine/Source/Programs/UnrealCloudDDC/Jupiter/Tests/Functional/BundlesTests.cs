@@ -272,6 +272,7 @@ public abstract class BundlesTests
         ReadRefResponse? getResponse = await getResult.Content.ReadFromJsonAsync<ReadRefResponse>();
         Assert.IsNotNull(getResponse);
 
+        Assert.AreEqual(targetHash, getResponse.Hash);
         Assert.AreEqual(SmallFileLocator, getResponse.Blob);
         Assert.AreEqual(exportIdx, getResponse.ExportIdx);
         Assert.AreEqual($"/api/v1/storage/test-namespace-bundle/nodes/{SmallFileLocator}?export={exportIdx}", getResponse.Link);

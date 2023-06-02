@@ -9,8 +9,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Microsoft.CodeAnalysis;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using static EpicGames.Horde.Storage.TreeWriter;
 
@@ -62,9 +60,19 @@ namespace EpicGames.Horde.Storage
 		readonly TreeReader _reader;
 
 		/// <summary>
+		/// Hash of the target node
+		/// </summary>
+		public IoHash Hash { get; }
+
+		/// <summary>
 		/// Location of the node in storage
 		/// </summary>
 		public NodeLocator Locator { get; protected set; }
+
+		/// <summary>
+		/// 
+		/// </summary>
+		public HashedNodeLocator HashedLocator => new HashedNodeLocator(Hash, Locator);
 
 		/// <summary>
 		/// Used to track the bundle that is being written to
@@ -75,11 +83,23 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="reader">Reader for new node data</param>
+		/// <param name="hash">Hash of the target node</param>
 		/// <param name="locator">Location of the node in storage</param>
-		public NodeHandle(TreeReader reader, NodeLocator locator)
+		public NodeHandle(TreeReader reader, IoHash hash, NodeLocator locator)
 		{
 			_reader = reader;
+			Hash = hash;
 			Locator = locator;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="reader">Reader for new node data</param>
+		/// <param name="hashedLocator">Location of the node in storage</param>
+		public NodeHandle(TreeReader reader, HashedNodeLocator hashedLocator)
+			: this(reader, hashedLocator.Hash, hashedLocator.Locator)
+		{
 		}
 
 		/// <summary>
@@ -97,53 +117,14 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask<NodeData> ReadAsync(CancellationToken cancellationToken = default)
+		public async ValueTask<NodeReader> ReadAsync(CancellationToken cancellationToken = default)
 		{
-			return await _reader.ReadNodeDataAsync(Locator, cancellationToken);
+			NodeData nodeData = await _reader.ReadNodeDataAsync(Locator, cancellationToken);
+			return new NodeReader(_reader, nodeData);
 		}
 
 		/// <inheritdoc/>
-		public override string ToString() => Locator.ToString();
-	}
-
-	/// <summary>
-	/// Handle to a node with the hash of its content.
-	/// </summary>
-	public class HashedNodeHandle
-	{
-		/// <summary>
-		/// Hash of the target node
-		/// </summary>
-		public IoHash Hash { get; }
-
-		/// <summary>
-		/// Location of the node in storage
-		/// </summary>
-		public NodeHandle Handle { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="hash">Hash of the target node</param>
-		/// <param name="handle">Location of the node in storage</param>
-		public HashedNodeHandle(IoHash hash, NodeHandle handle)
-		{
-			Hash = hash;
-			Handle = handle;
-		}
-
-		/// <inheritdoc/>
-		public override string ToString()
-		{
-			if (Handle.Locator.IsValid())
-			{
-				return $"{Hash}@{Handle.Locator}";
-			}
-			else
-			{
-				return $"{Hash}";
-			}
-		}
+		public override string ToString() => HashedLocator.ToString();
 	}
 
 	/// <summary>
@@ -231,7 +212,7 @@ namespace EpicGames.Horde.Storage
 			public readonly NodeHandle[] Refs;
 
 			public PendingNode(TreeReader reader, NodeKey key, int packet, int offset, int length, IReadOnlyList<NodeHandle> refs, PendingBundle pendingBundle)
-				: base(reader, default)
+				: base(reader, key.Hash, default)
 			{
 				Key = key;
 				Packet = packet;
@@ -714,7 +695,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="type">Type of the node that was written</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Handle to the written node</returns>
-		public async ValueTask<HashedNodeHandle> WriteNodeAsync(int size, IReadOnlyList<NodeHandle> references, NodeType type, CancellationToken cancellationToken = default)
+		public async ValueTask<NodeHandle> WriteNodeAsync(int size, IReadOnlyList<NodeHandle> references, NodeType type, CancellationToken cancellationToken = default)
 		{
 			PendingBundle currentBundle = GetCurrentBundle();
 
@@ -729,7 +710,7 @@ namespace EpicGames.Horde.Storage
 			if (_nodeCache.TryGetNode(nodeKey, out NodeHandle? handle))
 			{
 				_traceLogger?.LogInformation("Returning cached handle for {NodeKey} -> {Handle}", nodeKey, handle);
-				return new HashedNodeHandle(hash, handle);
+				return handle;
 			}
 
 			// Append this node data
@@ -759,7 +740,7 @@ namespace EpicGames.Horde.Storage
 				await WaitForWriteAsync(cancellationToken);
 			}
 
-			return new HashedNodeHandle(hash, pendingNode);
+			return pendingNode;
 		}
 
 		PendingBundle GetCurrentBundle()

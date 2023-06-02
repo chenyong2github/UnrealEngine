@@ -49,6 +49,11 @@ namespace Jupiter.Controllers
     public class FindNodeResponse
     {
         /// <summary>
+        /// Hash of the target node
+        /// </summary>
+        public IoHash Hash { get; set; }
+
+        /// <summary>
         /// Locator for the target blob
         /// </summary>
         public BlobLocator Blob { get; set; }
@@ -63,6 +68,7 @@ namespace Jupiter.Controllers
         /// </summary>
         public FindNodeResponse(NodeHandle target)
         {
+            Hash = target.Hash;
             Blob = target.Locator.Blob;
             ExportIdx = target.Locator.ExportIdx;
         }
@@ -112,6 +118,11 @@ namespace Jupiter.Controllers
     public class ReadRefResponse
     {
         /// <summary>
+        /// Hash of the target node
+        /// </summary>
+        public IoHash Hash { get; set; }
+
+        /// <summary>
         /// Locator for the target blob
         /// </summary>
         public BlobLocator Blob { get; set; }
@@ -131,14 +142,16 @@ namespace Jupiter.Controllers
         /// </summary>
         public ReadRefResponse(NodeHandle target, string link)
         {
+            Hash = target.Hash;
             Blob = target.Locator.Blob;
             ExportIdx = target.Locator.ExportIdx;
             Link = link;
         }
 
         [JsonConstructor]
-        public ReadRefResponse(BlobLocator blob, int exportIdx, string link)
+        public ReadRefResponse(IoHash hash, BlobLocator blob, int exportIdx, string link)
         {
+            Hash = hash;
             Blob = blob;
             ExportIdx = exportIdx;
             Link = link;
@@ -315,7 +328,7 @@ namespace Jupiter.Controllers
                 return result;
             }
             IStorageClientJupiter client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-            NodeLocator target = new NodeLocator(request.Blob, request.ExportIdx);
+            HashedNodeLocator target = new HashedNodeLocator(request.Hash, request.Blob, request.ExportIdx);
             await client.WriteRefTargetAsync(refName, target, request.Options, cancellationToken);
 
             return Ok();
@@ -461,20 +474,20 @@ namespace Jupiter.Controllers
                         List<object> directories = new List<object>();
                         foreach ((Utf8String name, DirectoryEntry entry) in directoryNode.NameToDirectory)
                         {
-                            directories.Add(new { name = name.ToString(), length = entry.Length, hash = entry.Hash, link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = entry.Handle!.Handle.Locator.Blob, export = entry.Handle!.Handle.Locator.ExportIdx})! });
+                            directories.Add(new { name = name.ToString(), length = entry.Length, hash = entry.Hash, link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = entry.Handle!.Locator.Blob, export = entry.Handle!.Locator.ExportIdx})! });
                         }
 
                         List<object> files = new List<object>();
                         foreach ((Utf8String name, FileEntry entry) in directoryNode.NameToFile)
                         {
-                            files.Add(new { name = name.ToString(), length = entry.Length, flags = entry.Flags, hash = entry.Hash, link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = entry.Handle!.Handle.Locator.Blob, export = entry.Handle!.Handle.Locator.ExportIdx})!});
+                            files.Add(new { name = name.ToString(), length = entry.Length, flags = entry.Flags, hash = entry.Hash, link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = entry.Handle!.Locator.Blob, export = entry.Handle!.Locator.ExportIdx})!});
                         }
 
                         content = new { directoryNode.Length, directories, files };
                     }
                     break;
                 default:
-                    content = new { references = node.EnumerateRefs().Select(x => Url.Action("GetNode", new { namespaceId = namespaceId, locator = x.Handle!.Handle.Locator.Blob, export = x.Handle!.Handle.Locator.ExportIdx})!) };
+                    content = new { references = node.EnumerateRefs().Select(x => Url.Action("GetNode", new { namespaceId = namespaceId, locator = x.Handle!.Locator.Blob, export = x.Handle!.Locator.ExportIdx})!) };
                     break;
             }
 
