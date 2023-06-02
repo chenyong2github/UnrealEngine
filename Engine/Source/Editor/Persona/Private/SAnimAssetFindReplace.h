@@ -89,7 +89,7 @@ private:
 
 	EAnimAssetFindReplaceMode Mode = EAnimAssetFindReplaceMode::Find;
 
-	TMap<TSubclassOf<UAnimAssetFindReplaceProcessor>, UAnimAssetFindReplaceProcessor*> Processors;
+	TMap<TSubclassOf<UAnimAssetFindReplaceProcessor>, TObjectPtr<UAnimAssetFindReplaceProcessor>> Processors;
 
 	UAnimAssetFindReplaceProcessor* CurrentProcessor = nullptr;
 
