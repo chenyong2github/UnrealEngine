@@ -2,6 +2,7 @@
 
 #include "BehaviorTreeGraphNode_Root.h"
 
+#include "AISystem.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTreeEditorTypes.h"
@@ -22,6 +23,17 @@ UBehaviorTreeGraphNode_Root::UBehaviorTreeGraphNode_Root(const FObjectInitialize
 void UBehaviorTreeGraphNode_Root::PostPlacedNewNode()
 {
 	Super::PostPlacedNewNode();
+
+	const TSoftObjectPtr<UBlackboardData>& DefaultBlackboard = GET_AI_CONFIG_VAR(DefaultBlackboard);
+	if (DefaultBlackboard.IsValid())
+	{
+		if (UBlackboardData* Blackboard = DefaultBlackboard.LoadSynchronous())
+		{
+			BlackboardAsset = Blackboard;
+			UpdateBlackboard();
+			return;
+		}
+	}
 
 	// pick first available blackboard asset, hopefully something will be loaded...
 	for (FThreadSafeObjectIterator It(UBlackboardData::StaticClass()); It; ++It)

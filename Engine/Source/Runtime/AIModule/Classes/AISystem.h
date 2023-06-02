@@ -95,6 +95,10 @@ public:
 	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "Behavior Tree")
 	bool bBlackboardKeyDecoratorAllowsNoneAsValue = false;
 
+	/** If set, new BTs will use this BB as default. */
+	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "Behavior Tree")
+	TSoftObjectPtr<UBlackboardData> DefaultBlackboard;
+
 	/** Which collision channel to use for sight checks by default */
 	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "PerceptionSystem")
 	TEnumAsByte<ECollisionChannel> DefaultSightCollisionChannel;
