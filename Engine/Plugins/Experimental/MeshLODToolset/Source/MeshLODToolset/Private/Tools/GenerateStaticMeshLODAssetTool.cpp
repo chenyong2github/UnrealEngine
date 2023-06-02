@@ -528,6 +528,14 @@ bool UGenerateStaticMeshLODAssetTool::ValidateSettings() const
 
 void UGenerateStaticMeshLODAssetTool::OnSettingsModified()
 {
+	if (BasicProperties)
+	{
+		// Set the transient property which controls the edit condition for ThickenAmount
+		// Note: The tool will display an error if ThickenWeightMapName exists but isn't valid
+		BasicProperties->Preprocessing.bIsThickenAmountEnabled = (
+			BasicProperties->Preprocessing.ThickenWeightMapName.IsNone() == false);
+	}
+
 	bool bOK = ValidateSettings();
 	if (bOK)
 	{

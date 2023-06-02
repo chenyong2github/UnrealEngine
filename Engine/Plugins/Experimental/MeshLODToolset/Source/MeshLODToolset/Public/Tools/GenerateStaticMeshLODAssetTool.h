@@ -72,7 +72,7 @@ public:
 
 	/** Suffix to append to newly-generated Asset (Meshes, Textures, Materials, etc) */
 	UPROPERTY(EditAnywhere, Category = "Output Options", meta = (TransientToolProperty))
-	FString GeneratedSuffix;
+	FString GeneratedSuffix = TEXT("_AutoLOD");
 
 	/** If false, then OutputMode will not be shown in DetailsView panels (otherwise no effect) */
 	UPROPERTY(meta = (TransientToolProperty))
@@ -105,14 +105,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = Preset, meta = (DisplayName = "Settings Preset"))
 	TWeakObjectPtr<UStaticMeshLODGenerationSettings> Preset;
 
-	/** Save the current Tool settings to the Preset Asset */
+	/** Read the current Tool settings from the Preset Asset */
 	UFUNCTION(CallInEditor, Category = Preset, meta = (DisplayPriority = 0))
 	void ReadFromPreset()
 	{
 		PostAction(EGenerateLODAssetToolPresetAction::ReadFromPreset);
 	}
 
-	/** Read the current Tool settings from the Preset Asset */
+	/** Save the current Tool settings to the Preset Asset */
 	UFUNCTION(CallInEditor, Category = Preset, meta = (DisplayPriority = 1))
 	void WriteToPreset()
 	{
@@ -223,10 +223,10 @@ struct MESHLODTOOLSET_API FGenerateStaticMeshLOD_MaterialConfig
 {
 	GENERATED_BODY()
 
-	UPROPERTY(VisibleAnywhere, Category = Material)
+	UPROPERTY(VisibleAnywhere, Category = Material, meta = (TransientToolProperty, NoResetToDefault))
 	TObjectPtr<UMaterialInterface> Material = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = Texture)
+	UPROPERTY(EditAnywhere, Category = Texture, meta = (TransientToolProperty, NoResetToDefault))
 	EGenerateStaticMeshLOD_BakeConstraint Constraint = EGenerateStaticMeshLOD_BakeConstraint::NoConstraint;
 
 	bool operator==(const FGenerateStaticMeshLOD_MaterialConfig& Other) const
@@ -242,13 +242,13 @@ class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolTextureProperties : publ
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditAnywhere, Category = "Source Materials Configuration", meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = "Source Materials Configuration", meta = (TransientToolProperty, NoResetToDefault))
 	TArray<FGenerateStaticMeshLOD_MaterialConfig> Materials;
 
-	UPROPERTY(EditAnywhere, Category = "Source Textures Configuration", meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = "Source Textures Configuration", meta = (TransientToolProperty, NoResetToDefault))
 	TArray<FGenerateStaticMeshLOD_TextureConfig> Textures;
 
-	UPROPERTY(VisibleAnywhere, Category = "Baked Texture Previews")
+	UPROPERTY(VisibleAnywhere, Category = "Baked Texture Previews", meta = (TransientToolProperty, NoResetToDefault))
 	TArray<TObjectPtr<UTexture2D>> PreviewTextures;
 };
 
