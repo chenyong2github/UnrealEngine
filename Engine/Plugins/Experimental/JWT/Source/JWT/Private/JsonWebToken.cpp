@@ -228,6 +228,10 @@ TOptional<FJsonWebToken> FJsonWebToken::FromString(const FStringView InEncodedJs
 		return {};
 	}
 
+	// Store the encoded header and payload for signature validation
+	FString EncodedHeaderPayload = FString::Printf(TEXT("%s.%s"),
+		*FString(EncodedHeader), *FString(EncodedPayload));
+
 	// Decode and parse the header.
 	UE_LOG(LogJwt, VeryVerbose, TEXT("[FJsonWebToken::FromString] Parsing JWT header."));
 	const TSharedPtr<FJsonObject> HeaderPtr = ParseEncodedJson(EncodedHeader);
@@ -261,7 +265,8 @@ TOptional<FJsonWebToken> FJsonWebToken::FromString(const FStringView InEncodedJs
 		Signature = MoveTemp(SignatureBytes);
 	}
 
-	const FJsonWebToken JsonWebToken(InEncodedJsonWebToken, HeaderPtr.ToSharedRef(), PayloadPtr.ToSharedRef(), Signature);
+	const FJsonWebToken JsonWebToken(EncodedHeaderPayload,
+		HeaderPtr.ToSharedRef(), PayloadPtr.ToSharedRef(), Signature);
 
 	// Validate the type.  If it exists but is not a JWT, then fail.
 	FString Type;
@@ -274,13 +279,14 @@ TOptional<FJsonWebToken> FJsonWebToken::FromString(const FStringView InEncodedJs
 	return JsonWebToken;
 }
 
+
 FJsonWebToken::FJsonWebToken(
-	const FStringView InEncodedJsonWebToken,
+	const FStringView InEncodedHeaderPayload,
 	const TSharedRef<FJsonObject>& InHeaderPtr,
 	const TSharedRef<FJsonObject>& InPayloadPtr,
 	const TOptional<TArray<uint8>>& InSignature
 )
-	: EncodedJsonWebToken(InEncodedJsonWebToken)
+	: EncodedHeaderPayload(InEncodedHeaderPayload)
 	, Header(InHeaderPtr)
 	, Payload(InPayloadPtr)
 	, Signature(InSignature)

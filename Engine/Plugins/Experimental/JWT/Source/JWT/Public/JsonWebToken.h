@@ -131,7 +131,8 @@ public:
 	bool Verify() const;
 
 private:
-	FJsonWebToken(const FStringView InEncodedJsonWebToken, const TSharedRef<FJsonObject>& InHeaderPtr,
+	FJsonWebToken(
+		const FStringView InEncodedHeaderPayload, const TSharedRef<FJsonObject>& InHeaderPtr,
 		const TSharedRef<FJsonObject>& InPayloadPtr, const TOptional<TArray<uint8>>& InSignature);
 
 	static void DumpJsonObject(const FJsonObject& InJsonObject);
@@ -158,8 +159,9 @@ public:
 	static const TCHAR* const TYPE_VALUE_JWT;
 
 private:
-	/** The full encoded JWT. */
-	FString EncodedJsonWebToken;
+
+	/** The encoded header and payload parts. */
+	FString EncodedHeaderPayload;
 
 	/** The decoded and parsed header. */
 	TSharedRef<FJsonObject> Header;
