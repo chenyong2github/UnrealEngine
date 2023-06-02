@@ -97,5 +97,5 @@ protected:
 	}
 
 private:
-	TMap<FString, EInterchangeMaterialXShaders> PathToEnumMapping;
+	static TMap<FString, EInterchangeMaterialXShaders> PathToEnumMapping;
 };

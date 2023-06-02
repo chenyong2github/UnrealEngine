@@ -12,6 +12,14 @@
 #include "Materials/MaterialFunction.h"
 #include "Misc/PackageName.h"
 
+TMap<FString, EInterchangeMaterialXShaders> UInterchangeMaterialXPipeline::PathToEnumMapping
+{
+	{TEXT("/Interchange/Functions/MX_StandardSurface.MX_StandardSurface"),EInterchangeMaterialXShaders::StandardSurface},
+	{TEXT("/Interchange/Functions/MX_TransmissionSurface.MX_TransmissionSurface"),EInterchangeMaterialXShaders::StandardSurfaceTransmission},
+	{TEXT("/Interchange/Functions/MX_SurfaceUnlit.MX_SurfaceUnlit"),EInterchangeMaterialXShaders::SurfaceUnlit},
+	{TEXT("/Interchange/Functions/MX_UsdPreviewSurface.MX_UsdPreviewSurface"),EInterchangeMaterialXShaders::UsdPreviewSurface},
+};
+
 UInterchangeMaterialXPipeline::UInterchangeMaterialXPipeline()
 	: MaterialXSettings(UMaterialXPipelineSettings::StaticClass()->GetDefaultObject< UMaterialXPipelineSettings>())
 {
