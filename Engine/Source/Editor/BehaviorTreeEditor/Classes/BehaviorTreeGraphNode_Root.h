@@ -17,7 +17,7 @@ class UObject;
 
 /** Root node of this behavior tree, holds Blackboard data */
 UCLASS()
-class UBehaviorTreeGraphNode_Root : public UBehaviorTreeGraphNode
+class BEHAVIORTREEEDITOR_API UBehaviorTreeGraphNode_Root : public UBehaviorTreeGraphNode
 {
 	GENERATED_UCLASS_BODY()
 

@@ -279,16 +279,16 @@ public:
 	}
 
 	/** Create an empty placeable graph node */
-	NodeType* CreateNode(bool bSelectNewNode = true)
+	NodeType* CreateNode(bool bSelectNewNode = true, TSubclassOf<NodeType> NodeClass = NodeType::StaticClass())
 	{
-		Node = (NodeType*)Graph.CreateNode(NodeType::StaticClass(), bSelectNewNode);
+		Node = (NodeType*)Graph.CreateNode(NodeClass, bSelectNewNode);
 		return Node;
 	} 
 
 	/** Create an empty placeable graph node */
-	NodeType* CreateUserInvokedNode(bool bSelectNewNode = true)
+	NodeType* CreateUserInvokedNode(bool bSelectNewNode = true, TSubclassOf<NodeType> NodeClass = NodeType::StaticClass())
 	{
-		Node = (NodeType*)Graph.CreateUserInvokedNode(NodeType::StaticClass(), bSelectNewNode);
+		Node = (NodeType*)Graph.CreateUserInvokedNode(NodeClass, bSelectNewNode);
 		return Node;
 	}
 

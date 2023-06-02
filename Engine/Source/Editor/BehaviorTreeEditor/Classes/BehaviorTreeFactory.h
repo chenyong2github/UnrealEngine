@@ -15,7 +15,7 @@ class UClass;
 class UObject;
 
 UCLASS()
-class UBehaviorTreeFactory : public UFactory
+class BEHAVIORTREEEDITOR_API UBehaviorTreeFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 

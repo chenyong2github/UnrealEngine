@@ -42,6 +42,7 @@ namespace BTGraphVersion
 UBehaviorTreeGraph::UBehaviorTreeGraph(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	Schema = UEdGraphSchema_BehaviorTree::StaticClass();
+	RootNodeClass = UBehaviorTreeGraphNode_Root::StaticClass();
 }
 
 void UBehaviorTreeGraph::UpdateBlackboardChange()

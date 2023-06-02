@@ -13,6 +13,7 @@
 #include "BTNode.generated.h"
 
 class AActor;
+class ISlateStyle;
 class UBehaviorTree;
 class UBlackboardData;
 class UBTCompositeNode;

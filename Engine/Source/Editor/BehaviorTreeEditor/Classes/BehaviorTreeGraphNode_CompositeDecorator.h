@@ -16,11 +16,12 @@
 
 #include "BehaviorTreeGraphNode_CompositeDecorator.generated.h"
 
+class UBehaviorTreeDecoratorGraph;
 class UEdGraph;
 class UObject;
 
 UCLASS()
-class UBehaviorTreeGraphNode_CompositeDecorator : public UBehaviorTreeGraphNode
+class BEHAVIORTREEEDITOR_API UBehaviorTreeGraphNode_CompositeDecorator : public UBehaviorTreeGraphNode
 {
 	GENERATED_UCLASS_BODY()
 
@@ -40,6 +41,8 @@ class UBehaviorTreeGraphNode_CompositeDecorator : public UBehaviorTreeGraphNode
 	uint32 bCanAbortFlow : 1;
 
 	uint32 bHasBrokenInstances : 1;
+
+	TSubclassOf<UBehaviorTreeDecoratorGraph> GraphClass;
 
 	FString GetNodeTypeDescription() const;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;

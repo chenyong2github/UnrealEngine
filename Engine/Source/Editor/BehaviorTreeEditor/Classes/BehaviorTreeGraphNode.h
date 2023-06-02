@@ -14,6 +14,7 @@
 
 #include "BehaviorTreeGraphNode.generated.h"
 
+class ISlateStyle;
 class UEdGraph;
 class UEdGraphSchema;
 class UObject;

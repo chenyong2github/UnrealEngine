@@ -33,6 +33,8 @@ UBehaviorTreeGraphNode_CompositeDecorator::UBehaviorTreeGraphNode_CompositeDecor
 
 	FirstExecutionIndex = INDEX_NONE;
 	LastExecutionIndex = INDEX_NONE;
+
+	GraphClass = UBehaviorTreeDecoratorGraph::StaticClass();
 }
 
 void UBehaviorTreeGraphNode_CompositeDecorator::ResetExecutionRange()
@@ -199,8 +201,11 @@ void UBehaviorTreeGraphNode_CompositeDecorator::CreateBoundGraph()
 	// Create a new animation graph
 	check(BoundGraph == NULL);
 
+	const TSubclassOf<UEdGraphSchema> SchemaClass = GetDefault<UBehaviorTreeDecoratorGraph>(GraphClass)->Schema;
+	check(SchemaClass);
+
 	// don't use white space in name here, it prevents links from being copied correctly
-	BoundGraph = FBlueprintEditorUtils::CreateNewGraph(this, TEXT("CompositeDecorator"), UBehaviorTreeDecoratorGraph::StaticClass(), UEdGraphSchema_BehaviorTreeDecorator::StaticClass());
+	BoundGraph = FBlueprintEditorUtils::CreateNewGraph(this, TEXT("CompositeDecorator"), GraphClass, SchemaClass);
 	check(BoundGraph);
 
 	// Initialize the anim graph

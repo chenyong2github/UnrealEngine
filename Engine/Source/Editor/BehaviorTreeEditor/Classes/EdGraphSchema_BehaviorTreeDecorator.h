@@ -25,6 +25,7 @@ class UEdGraphNode;
 class UEdGraphPin;
 class UObject;
 struct FEdGraphPinType;
+struct FGraphNodeClassHelper;
 
 /** Action to add a node to the graph */
 USTRUCT()
@@ -62,8 +63,8 @@ struct FDecoratorSchemaAction_NewNode : public FEdGraphSchemaAction
 	}
 };
 
-UCLASS(MinimalAPI)
-class UEdGraphSchema_BehaviorTreeDecorator : public UEdGraphSchema
+UCLASS()
+class BEHAVIORTREEEDITOR_API UEdGraphSchema_BehaviorTreeDecorator : public UEdGraphSchema
 {
 	GENERATED_UCLASS_BODY()
 
@@ -87,6 +88,9 @@ class UEdGraphSchema_BehaviorTreeDecorator : public UEdGraphSchema
 	//~ End EdGraphSchema Interface
 
 	static TSharedPtr<FDecoratorSchemaAction_NewNode> AddNewDecoratorAction(FGraphContextMenuBuilder& ContextMenuBuilder, const FText& Category, const FText& MenuDesc, const FText& Tooltip);
+
+protected:
+	virtual FGraphNodeClassHelper& GetClassCache() const;
 
 private:
 	inline static int32 CurrentCacheRefreshID = 0;

@@ -128,6 +128,11 @@ void FBehaviorTreeEditorToolbar::AddBehaviorTreeToolbar(TSharedPtr<FExtender> Ex
 	BehaviorTreeEditorPtr->AddToolbarExtender(ToolbarExtender);
 }
 
+void FBehaviorTreeEditorToolbar::SetCreateActionsEnabled(const bool bActionsEnabled)
+{
+	bCreateActionsEnabled = bActionsEnabled;
+}
+
 void FBehaviorTreeEditorToolbar::FillModesToolbar(FToolBarBuilder& ToolbarBuilder)
 {
 	check(BehaviorTreeEditor.IsValid());
@@ -165,6 +170,11 @@ void FBehaviorTreeEditorToolbar::FillModesToolbar(FToolBarBuilder& ToolbarBuilde
 
 void FBehaviorTreeEditorToolbar::FillBehaviorTreeToolbar(FToolBarBuilder& ToolbarBuilder)
 {
+	if (!bCreateActionsEnabled)
+	{
+		return;
+	}
+
 	check(BehaviorTreeEditor.IsValid());
 	TSharedPtr<FBehaviorTreeEditor> BehaviorTreeEditorPtr = BehaviorTreeEditor.Pin();
 

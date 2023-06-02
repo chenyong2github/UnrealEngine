@@ -4,6 +4,7 @@
 
 #include "AIGraphSchema.h"
 #include "AIGraphTypes.h"
+#include "BehaviorTreeGraphNode_CompositeDecorator.h"
 #include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphSchema.h"
@@ -18,6 +19,7 @@
 #include "EdGraphSchema_BehaviorTree.generated.h"
 
 class FSlateRect;
+class UBehaviorTreeGraphNode_CompositeDecorator;
 class UClass;
 class UEdGraph;
 class UEdGraphNode;
@@ -44,8 +46,8 @@ struct FBehaviorTreeSchemaAction_AutoArrange : public FEdGraphSchemaAction
 	//~ End FEdGraphSchemaAction Interface
 };
 
-UCLASS(MinimalAPI)
-class UEdGraphSchema_BehaviorTree : public UAIGraphSchema
+UCLASS()
+class BEHAVIORTREEEDITOR_API UEdGraphSchema_BehaviorTree : public UAIGraphSchema
 {
 	GENERATED_UCLASS_BODY()
 
@@ -64,6 +66,12 @@ class UEdGraphSchema_BehaviorTree : public UAIGraphSchema
 
 	virtual void GetGraphNodeContextActions(FGraphContextMenuBuilder& ContextMenuBuilder, int32 SubNodeFlags) const override;
 	virtual void GetSubNodeClasses(int32 SubNodeFlags, TArray<FGraphNodeClassData>& ClassData, UClass*& GraphNodeClass) const override;
+
+	TSubclassOf<UBehaviorTreeGraphNode_CompositeDecorator> CompositeDecoratorClass;
+
+protected:
+	virtual FGraphNodeClassHelper& GetClassCache() const;
+	virtual bool IsNodeSubtreeTask(const FGraphNodeClassData& NodeClass) const;
 
 private:
 	// ID for checking dirty status of node titles against, increases whenever 

@@ -20,6 +20,7 @@ struct AIGRAPH_API FGraphNodeClassData
 	FString GetClassName() const;
 	FText GetCategory() const;
 	FString GetDisplayName() const;
+	FText GetTooltip() const;
 	UClass* GetClass(bool bSilent = false);
 	bool IsAbstract() const;
 
@@ -92,12 +93,22 @@ struct AIGRAPH_API FGraphNodeClassHelper
 	static void AddObservedBlueprintClasses(UClass* BaseNativeClass);
 	void UpdateAvailableBlueprintClasses();
 
+	/** Adds a single class to the list of hidden classes */
+	void AddForcedHiddenClass(UClass* Class);
+
+	/** Overrides all previously set hidden classes */
+	void SetForcedHiddenClasses(const TSet<UClass*>& Classes);
+
+	void SetGatherBlueprints(bool bGather);
+
 private:
 
 	UClass* RootNodeClass;
 	TSharedPtr<FGraphNodeClassNode> RootNode;
 	static TArray<FName> UnknownPackages;
 	static TMap<UClass*, int32> BlueprintClassCount;
+	TSet<UClass*> ForcedHiddenClasses;
+	bool bGatherBlueprints = true;
 
 	TSharedPtr<FGraphNodeClassNode> CreateClassDataNode(const struct FAssetData& AssetData);
 	TSharedPtr<FGraphNodeClassNode> FindBaseClassNode(TSharedPtr<FGraphNodeClassNode> Node, const FString& ClassName);

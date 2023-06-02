@@ -11,11 +11,12 @@
 
 #include "BehaviorTreeGraph.generated.h"
 
+class UBehaviorTreeGraphNode_Root;
 class UEdGraphNode;
 class UObject;
 
 UCLASS()
-class UBehaviorTreeGraph : public UAIGraph
+class BEHAVIORTREEEDITOR_API UBehaviorTreeGraph : public UAIGraph
 {
 	GENERATED_UCLASS_BODY()
 
@@ -32,6 +33,9 @@ class UBehaviorTreeGraph : public UAIGraph
 
 	UPROPERTY()
 	bool bIsUsingModCounter;
+
+	UPROPERTY()
+	TSubclassOf<UBehaviorTreeGraphNode_Root> RootNodeClass;
 
 	virtual void OnCreated() override;
 	virtual void OnLoaded() override;

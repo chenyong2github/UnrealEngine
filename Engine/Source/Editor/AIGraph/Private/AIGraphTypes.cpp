@@ -84,6 +84,11 @@ FString FGraphNodeClassData::GetDisplayName() const
 	return Class.IsValid() ? Class->GetMetaData(TEXT("DisplayName")) : FString();
 }
 
+FText FGraphNodeClassData::GetTooltip() const
+{
+	return Class.IsValid() ? Class->GetToolTipText() : FText::GetEmpty();
+}
+
 FText FGraphNodeClassData::GetCategory() const
 {
 	return Class.IsValid() ? FObjectEditorUtils::GetCategoryText(Class.Get()) : Category;
@@ -249,7 +254,11 @@ bool FGraphNodeClassHelper::IsHidingParentClass(UClass* Class)
 bool FGraphNodeClassHelper::IsHidingClass(UClass* Class)
 {
 	static FName MetaHideInEditor = TEXT("HiddenNode");
-	return Class && Class->HasAnyClassFlags(CLASS_Native) && Class->HasMetaData(MetaHideInEditor);
+
+	return 
+		Class && 
+		((Class->HasAnyClassFlags(CLASS_Native) && Class->HasMetaData(MetaHideInEditor))
+		|| ForcedHiddenClasses.Contains(Class));
 }
 
 bool FGraphNodeClassHelper::IsPackageSaved(FName PackageName)
@@ -461,17 +470,20 @@ void FGraphNodeClassHelper::BuildClassGraph()
 	}
 
 	// gather all blueprints
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	TArray<FAssetData> BlueprintList;
-
-	FARFilter Filter;
-	Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
-	AssetRegistryModule.Get().GetAssets(Filter, BlueprintList);
-
-	for (int32 i = 0; i < BlueprintList.Num(); i++)
+	if (bGatherBlueprints)
 	{
-		TSharedPtr<FGraphNodeClassNode> NewNode = CreateClassDataNode(BlueprintList[i]);
-		NodeList.Add(NewNode);
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		TArray<FAssetData> BlueprintList;
+
+		FARFilter Filter;
+		Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
+		AssetRegistryModule.Get().GetAssets(Filter, BlueprintList);
+
+		for (int32 i = 0; i < BlueprintList.Num(); i++)
+		{
+			TSharedPtr<FGraphNodeClassNode> NewNode = CreateClassDataNode(BlueprintList[i]);
+			NodeList.Add(NewNode);
+		}
 	}
 
 	// build class tree
@@ -533,6 +545,24 @@ void FGraphNodeClassHelper::UpdateAvailableBlueprintClasses()
 			Count = DerivedClassNames.Num();
 		}
 	}
+}
+
+void FGraphNodeClassHelper::AddForcedHiddenClass(UClass* Class)
+{
+	if (Class)
+	{
+		ForcedHiddenClasses.Add(Class);
+	}
+}
+
+void FGraphNodeClassHelper::SetForcedHiddenClasses(const TSet<UClass*>& Classes)
+{
+	ForcedHiddenClasses = Classes;
+}
+
+void FGraphNodeClassHelper::SetGatherBlueprints(const bool bGather)
+{
+	bGatherBlueprints = bGather;
 }
 
 #undef LOCTEXT_NAMESPACE

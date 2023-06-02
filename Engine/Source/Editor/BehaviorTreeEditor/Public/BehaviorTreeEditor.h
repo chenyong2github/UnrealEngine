@@ -27,6 +27,7 @@ class IDetailsView;
 class SWidget;
 class UBehaviorTree;
 class UBehaviorTreeComponent;
+class UBehaviorTreeGraph;
 class UBlackboardData;
 class UClass;
 class UEdGraph;
@@ -36,7 +37,7 @@ class UPackage;
 struct FBlackboardEntry;
 struct FPropertyChangedEvent;
 
-class FBehaviorTreeEditor : public IBehaviorTreeEditor, public FAIGraphEditor, public FNotifyHook
+class BEHAVIORTREEEDITOR_API FBehaviorTreeEditor : public IBehaviorTreeEditor, public FAIGraphEditor, public FNotifyHook
 {
 public:
 	FBehaviorTreeEditor();
@@ -45,7 +46,7 @@ public:
 
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 
-	void InitBehaviorTreeEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UObject* InObject );
+	virtual void InitBehaviorTreeEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UObject* InObject);
 
 	//~ Begin IToolkit Interface
 	virtual FName GetToolkitFName() const override;
@@ -260,6 +261,13 @@ public:
 protected:
 	/** Called when "Save" is clicked for this asset */
 	virtual void SaveAsset_Execute() override;
+
+	void SetToolbarCreateActionsEnabled(bool bActionsEnabled);
+
+	TSubclassOf<UBehaviorTreeGraph> GraphClass;
+	FName GraphName;
+	FText CornerText;
+	FText TitleText;
 
 private:
 	/** Create widget for graph editing */

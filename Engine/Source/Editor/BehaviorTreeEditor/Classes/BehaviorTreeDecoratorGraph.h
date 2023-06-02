@@ -17,7 +17,7 @@ class UEdGraphPin;
 class UObject;
 
 UCLASS()
-class UBehaviorTreeDecoratorGraph : public UEdGraph
+class BEHAVIORTREEEDITOR_API UBehaviorTreeDecoratorGraph : public UEdGraph
 {
 	GENERATED_UCLASS_BODY()
 

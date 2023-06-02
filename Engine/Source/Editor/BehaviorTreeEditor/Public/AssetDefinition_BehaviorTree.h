@@ -8,7 +8,7 @@
 class UBehaviorTree;
 
 UCLASS()
-class UAssetDefinition_BehaviorTree : public UAssetDefinitionDefault
+class BEHAVIORTREEEDITOR_API UAssetDefinition_BehaviorTree : public UAssetDefinitionDefault
 {
 	GENERATED_BODY()
 
