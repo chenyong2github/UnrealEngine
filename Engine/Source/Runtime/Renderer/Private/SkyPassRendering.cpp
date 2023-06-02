@@ -115,7 +115,7 @@ bool FSkyPassMeshProcessor::Process(
 
 		if (!MobileBasePass::GetShaders(
 			LMP_NO_LIGHTMAP,
-			0,
+			EMobileLocalLightSetting::LOCAL_LIGHTS_DISABLED,
 			MaterialResource,
 			VertexFactory->GetType(),
 			false,

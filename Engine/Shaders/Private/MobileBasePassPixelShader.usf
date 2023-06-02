@@ -811,9 +811,32 @@ void Main(
 #endif
 
 	// Local lights
-#if  !MATERIAL_SHADINGMODEL_SINGLELAYERWATER && ENABLE_CLUSTERED_LIGHTS
+#if  PREPASS_LOCAL_LIGHTS_MOBILE
 	{
+		FDeferredLightData MergedLightData = (FDeferredLightData)0;
+		half3 LocalLightA = Texture2DSample(MobileSceneTextures.LocalLightTextureA, MobileSceneTextures.LocalLightTextureASampler,SvPositionToBufferUV(SvPosition)); 
+		half4 LocalLightB = Texture2DSample(MobileSceneTextures.LocalLightTextureB, MobileSceneTextures.LocalLightTextureBSampler,SvPositionToBufferUV(SvPosition));
+	
+		MergedLightData.SourceRadius	= 0;
+		MergedLightData.SourceLength	= 0;
+		MergedLightData.Tangent			= 0;
+		MergedLightData.SoftSourceRadius= 0;
+		MergedLightData.SpecularScale	= 1.0f;
+		MergedLightData.bSpotLight		= false;
+		MergedLightData.bRectLight		= false;
+		MergedLightData.Color = LocalLightA.rgb;
+		MergedLightData.bRadialLight = false;
 
+		half4 LightAttenuation = half4(1, 1, 1, 1); 
+		float SurfaceShadow = 0;
+
+		MergedLightData.Direction = LocalLightB.rgb * 2 - 1;
+
+		FLightAccumulator NewLighting = AccumulateDynamicLighting(MaterialParameters.WorldPosition_CamRelative, CameraVector, GBuffer, 1, GBuffer.ShadingModelID, MergedLightData, LightAttenuation, 0, uint2(0, 0), SurfaceShadow);
+		DirectLighting = LightAccumulator_Add(DirectLighting, NewLighting);
+	}
+#elif  (!MATERIAL_SHADINGMODEL_SINGLELAYERWATER && ENABLE_CLUSTERED_LIGHTS)
+	{
 #if MOBILE_MULTI_VIEW
 		const uint EyeIndex = BasePassInterpolants.MultiViewId;
 #else

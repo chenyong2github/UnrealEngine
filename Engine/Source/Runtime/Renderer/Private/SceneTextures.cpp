@@ -615,6 +615,16 @@ void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamily
 	}
 #endif
 
+	{
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Config.Extent, PF_FloatR11G11B10, FClearValueBinding::Transparent, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+		SceneTextures.MobileLocalLightTextureA = GraphBuilder.CreateTexture(Desc, TEXT("MobileLocalLightTextureA"));
+	}
+
+	{
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Config.Extent, PF_A2B10G10R10, FClearValueBinding::Transparent, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+		SceneTextures.MobileLocalLightTextureB = GraphBuilder.CreateTexture(Desc, TEXT("MobileLocalLightTextureB"));
+	}
+
 #if WITH_DEBUG_VIEW_MODES
 	if (AllowDebugViewShaderMode(DVSM_QuadComplexity, Config.ShaderPlatform, Config.FeatureLevel))
 	{
@@ -948,11 +958,15 @@ void SetupMobileSceneTextureUniformParameters(
 	SceneTextureParameters.GBufferDTexture = SystemTextures.Black;
 	// SceneDepthAuxTexture is a color texture on mobile, with DeviceZ values
 	SceneTextureParameters.SceneDepthAuxTexture = SystemTextures.Black;
+	SceneTextureParameters.LocalLightTextureA = SystemTextures.Black;
+	SceneTextureParameters.LocalLightTextureB = SystemTextures.Black;
 	SceneTextureParameters.GBufferATextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.GBufferBTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.GBufferCTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.GBufferDTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.SceneDepthAuxTextureSampler = TStaticSamplerState<>::GetRHI();
+	SceneTextureParameters.LocalLightTextureASampler = TStaticSamplerState<>::GetRHI();
+	SceneTextureParameters.LocalLightTextureBSampler = TStaticSamplerState<>::GetRHI();
 
 	if (SceneTextures)
 	{
@@ -1004,6 +1018,16 @@ void SetupMobileSceneTextureUniformParameters(
 			{
 				SceneTextureParameters.SceneDepthAuxTexture = SceneTextures->DepthAux.Resolve;
 			}
+		}
+
+		if (HasBeenProduced(SceneTextures->MobileLocalLightTextureA))
+		{
+			SceneTextureParameters.LocalLightTextureA = SceneTextures->MobileLocalLightTextureA;
+		}
+
+		if (HasBeenProduced(SceneTextures->MobileLocalLightTextureB))
+		{
+			SceneTextureParameters.LocalLightTextureB = SceneTextures->MobileLocalLightTextureB;
 		}
 
 		if (EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::CustomDepth))

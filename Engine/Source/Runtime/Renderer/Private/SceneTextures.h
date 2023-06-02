@@ -81,6 +81,10 @@ struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
 
 	// Texture containing dynamic motion vectors. Can be bound by the base pass or its own velocity pass.
 	FRDGTextureRef Velocity{};
+	
+	// (Mobile Local Light Prepass) Textures containing LocalLight Direction and Color
+	FRDGTextureRef MobileLocalLightTextureA {};
+	FRDGTextureRef MobileLocalLightTextureB {};
 
 	// Texture containing the screen space ambient occlusion result.
 	FRDGTextureRef ScreenSpaceAO{};

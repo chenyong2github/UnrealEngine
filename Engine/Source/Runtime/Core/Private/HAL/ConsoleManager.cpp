@@ -2846,7 +2846,9 @@ static TAutoConsoleVariable<int32> CVarMobileEnabledShadingModelsMask(
 static TAutoConsoleVariable<int32> CVarMobileForwardEnableLocalLights(
 	TEXT("r.Mobile.Forward.EnableLocalLights"),
 	1,
-	TEXT("Enable local lights support on mobile forward. 0 is disabled, 1 is enabled (default)"),
+	TEXT("0: Local Lights Disabled (default)\n"
+		"1: Local Lights Enabled\n"
+		"2: Local Lights Prepass Enabled\n"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarMobileForwardEnableClusteredReflections(
