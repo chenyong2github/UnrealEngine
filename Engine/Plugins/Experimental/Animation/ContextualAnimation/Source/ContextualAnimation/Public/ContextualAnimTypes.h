@@ -329,6 +329,9 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindingContext
 	FContextualAnimSceneBindingContext(const FTransform& InExternalTransform, const TOptional<FVector>& InExternalVelocity = TOptional<FVector>())
 		: ExternalTransform(InExternalTransform), ExternalVelocity(InExternalVelocity) {}
 
+	FContextualAnimSceneBindingContext(AActor* InActor, const FGameplayTagContainer& InExternalTags)
+		: Actor(InActor), ExternalGameplayTags(InExternalTags) {}
+
 	AActor* GetActor() const { return Actor.Get(); }
 
 	UAnimInstance* GetAnimInstance() const;
@@ -343,7 +346,15 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindingContext
 
 	FVector GetVelocity() const;
 
-	//@TODO: Add accessors for GameplayTags
+	void AddGameplayTag(const FGameplayTag& Tag);
+	
+	const FGameplayTagContainer& GetGameplayTags() const { return ExternalGameplayTags; }
+
+	bool HasMatchingGameplayTag(const FGameplayTag& TagToCheck) const;
+
+	bool HasAllMatchingGameplayTags(const FGameplayTagContainer& TagContainer) const;
+
+	bool HasAnyMatchingGameplayTags(const FGameplayTagContainer& TagContainer) const;
 
 private:
 

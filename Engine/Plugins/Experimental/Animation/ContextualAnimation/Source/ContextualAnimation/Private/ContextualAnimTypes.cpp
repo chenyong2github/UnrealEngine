@@ -196,6 +196,26 @@ void FContextualAnimSceneBindingContext::SetExternalTransform(const FTransform& 
 	ExternalTransform = InTransform;
 }
 
+void FContextualAnimSceneBindingContext::AddGameplayTag(const FGameplayTag& Tag)
+{
+	ExternalGameplayTags.AddTag(Tag);
+}
+
+bool FContextualAnimSceneBindingContext::HasMatchingGameplayTag(const FGameplayTag& TagToCheck) const
+{
+	return ExternalGameplayTags.HasTag(TagToCheck);
+}
+
+bool FContextualAnimSceneBindingContext::HasAllMatchingGameplayTags(const FGameplayTagContainer& TagContainer) const
+{
+	return ExternalGameplayTags.HasAll(TagContainer);
+}
+
+bool FContextualAnimSceneBindingContext::HasAnyMatchingGameplayTags(const FGameplayTagContainer& TagContainer) const
+{
+	return ExternalGameplayTags.HasAny(TagContainer);
+}
+
 FTransform FContextualAnimSceneBindingContext::GetTransform() const
 {
 	// If created with an external transform, used that one to represent the location/rotation of the actor
