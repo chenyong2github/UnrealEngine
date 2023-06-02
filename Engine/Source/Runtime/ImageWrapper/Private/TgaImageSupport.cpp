@@ -9,7 +9,7 @@ namespace TgaImageSupportImpl
 	{
 		const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader); 
 		const uint8* const  ColorMap = IdData + TGA->IdFieldLength;
-		const uint8* ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+		const uint8* ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * (int64)TGA->ColorMapLength);
 
 		const uint8* TGAEnd = (uint8*)TGA + TGABufferLenght;
 
@@ -17,9 +17,9 @@ namespace TgaImageSupportImpl
 		int32 RLERun = 0;
 		int32 RAWRun = 0;
 
-		for(int32 Y = TGA->Height-1; Y >=0; Y--) // Y-flipped.
+		for(int64 Y = TGA->Height-1; Y >=0; Y--) // Y-flipped.
 		{
-			for(int32 X = 0;X < TGA->Width;X++)
+			for(int64 X = 0;X < TGA->Width;X++)
 			{
 				if( RLERun > 0 )
 				{
@@ -27,7 +27,7 @@ namespace TgaImageSupportImpl
 				}
 				else if( RAWRun == 0 ) // new raw pixel or RLE-run.
 				{
-					if ( TGAEnd < ImageData )
+					if ( TGAEnd <= ImageData )
 					{
 						return false;
 					}
@@ -67,7 +67,7 @@ namespace TgaImageSupportImpl
 	{
 		const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader); 
 		const uint8* const ColorMap = IdData + TGA->IdFieldLength;
-		const uint8* ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+		const uint8* ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * (int64)TGA->ColorMapLength);
 
 		const uint8* TGAEnd = (uint8*)TGA + TGABufferLenght;
 
@@ -75,9 +75,9 @@ namespace TgaImageSupportImpl
 		int32 RLERun = 0;
 		int32 RAWRun = 0;
 
-		for(int32 Y = TGA->Height-1; Y >=0; Y--) // Y-flipped.
+		for(int64 Y = TGA->Height-1; Y >=0; Y--) // Y-flipped.
 		{
-			for(int32 X = 0;X < TGA->Width;X++)
+			for(int64 X = 0;X < TGA->Width;X++)
 			{
 				if( RLERun > 0 )
 				{
@@ -85,7 +85,7 @@ namespace TgaImageSupportImpl
 				}
 				else if( RAWRun == 0 ) // new raw pixel or RLE-run.
 				{
-					if ( TGAEnd < ImageData )
+					if ( TGAEnd <= ImageData )
 					{
 						return false;
 					}
@@ -126,7 +126,7 @@ namespace TgaImageSupportImpl
 	{
 		const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
 		const uint8* const ColorMap = IdData + TGA->IdFieldLength;				
-		const uint16* ImageData = (uint16*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+		const uint16* ImageData = (uint16*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * (int64)TGA->ColorMapLength);
 
 		const uint16* TGAEnd = (uint16*)TGA + TGABufferLenght / 2;
 
@@ -134,9 +134,9 @@ namespace TgaImageSupportImpl
 		int32 RLERun = 0;
 		int32 RAWRun = 0;
 
-		for(int32 Y = TGA->Height-1; Y >=0; Y--) // Y-flipped.
+		for(int64 Y = TGA->Height-1; Y >=0; Y--) // Y-flipped.
 		{					
-			for( int32 X=0;X<TGA->Width;X++ )
+			for( int64 X=0;X<TGA->Width;X++ )
 			{						
 				if( RLERun > 0 )
 				{
@@ -144,7 +144,7 @@ namespace TgaImageSupportImpl
 				}
 				else if( RAWRun == 0 ) // new raw pixel or RLE-run.
 				{
-					if ( TGAEnd < ImageData )
+					if ( TGAEnd <= ImageData )
 					{
 						return false;
 					}
@@ -190,14 +190,14 @@ namespace TgaImageSupportImpl
 	{
 		const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
 		const uint8* const ColorMap = IdData + TGA->IdFieldLength;
-		const uint32* const ImageData = (uint32*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+		const uint32* const ImageData = (uint32*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * (int64)TGA->ColorMapLength);
 
-		if ( (uint8*)TGA + TGABufferLenght < (uint8*)(ImageData + TGA->Width * TGA->Height) )
+		if ( (uint8*)TGA + TGABufferLenght < (uint8*)(ImageData + (int64)TGA->Width * TGA->Height) )
 		{
 			return false;
 		}
 
-		for(int32 Y = 0;Y < TGA->Height;Y++)
+		for(int64 Y = 0;Y < TGA->Height;Y++)
 		{
 			FMemory::Memcpy(TextureData + Y * TGA->Width,ImageData + (TGA->Height - Y - 1) * TGA->Width,TGA->Width * 4);
 		}
@@ -209,17 +209,17 @@ namespace TgaImageSupportImpl
 	{
 		const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
 		const uint8* const ColorMap = IdData + TGA->IdFieldLength;
-		const uint8* const ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+		const uint8* const ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * (int64)TGA->ColorMapLength);
 		uint8 Pixel[4];
 
-		if ( (uint8*)TGA + TGABufferLenght < ImageData + TGA->Width * TGA->Height * 3 )
+		if ( (uint8*)TGA + TGABufferLenght < ImageData + (int64)TGA->Width * TGA->Height * 3 )
 		{
 			return false;
 		}
 
-		for(int32 Y = 0; Y < TGA->Height; Y++)
+		for(int64 Y = 0; Y < TGA->Height; Y++)
 		{
-			for(int32 X = 0; X < TGA->Width; X++)
+			for(int64 X = 0; X < TGA->Width; X++)
 			{
 				Pixel[0] = *(( ImageData+( TGA->Height-Y-1 )*TGA->Width*3 )+X*3+0);
 				Pixel[1] = *(( ImageData+( TGA->Height-Y-1 )*TGA->Width*3 )+X*3+1);
@@ -234,20 +234,21 @@ namespace TgaImageSupportImpl
 
 	bool DecompressTGA_16bpp( const FTGAFileHeader* TGA, const int64 TGABufferLenght, uint32* TextureData )
 	{
+		//todo: fix : this kind of code is prone to overflow bugs :
 		const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
 		const uint8* const ColorMap = IdData + TGA->IdFieldLength;
-		const uint16* ImageData = (uint16*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+		const uint16* ImageData = (uint16*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * (int64)TGA->ColorMapLength);
 		uint16 FilePixel = 0;
 		uint32 TexturePixel = 0;
 
-		if ( (uint16*)((uint8*)TGA + TGABufferLenght) < ImageData + TGA->Height * TGA->Width )
+		if ( (uint16*)((uint8*)TGA + TGABufferLenght) < ImageData + (int64)TGA->Height * TGA->Width )
 		{
 			return false;
 		}
 
-		for (int32 Y = TGA->Height - 1; Y >= 0; Y--)
+		for (int64 Y = TGA->Height - 1; Y >= 0; Y--)
 		{					
-			for (int32 X = 0; X < TGA->Width; X++)
+			for (int64 X = 0; X < TGA->Width; X++)
 			{
 				FilePixel = *ImageData++;
 				// Convert file format A1R5G5B5 into pixel format B8G8R8A8
@@ -267,15 +268,15 @@ namespace TgaImageSupportImpl
 	{
 		const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
 		const uint8* const  ColorMap = IdData + TGA->IdFieldLength;
-		const uint8* const  ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+		const uint8* const  ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * (int64)TGA->ColorMapLength);
 
-		if ( (uint8*)TGA + TGABufferLenght < ImageData + TGA->Width * TGA->Height )
+		if ( (uint8*)TGA + TGABufferLenght < ImageData + (int64)TGA->Width * TGA->Height )
 		{
 			return false;
 		}
 
-		int32 RevY = 0;
-		for (int32 Y = TGA->Height-1; Y >= 0; --Y)
+		int64 RevY = 0;
+		for (int64 Y = TGA->Height-1; Y >= 0; --Y)
 		{
 			const uint8* ImageCol = ImageData + (Y * TGA->Width); 
 			uint8* TextureCol = TextureData + (RevY++ * TGA->Width);
@@ -286,7 +287,7 @@ namespace TgaImageSupportImpl
 	}
 }
 
-bool DecompressTGA_helper( const FTGAFileHeader* TgaHeader, const int64 TGABufferLenght, uint32*& TextureData, const int32 TextureDataSize )
+bool DecompressTGA_helper( const FTGAFileHeader* TgaHeader, const int64 TGABufferLenght, uint32*& TextureData, const int64 TextureDataSize )
 {
 	bool bSuccess = false;
 	if ( TgaHeader->ImageTypeCode == 10 ) // 10 = RLE compressed 
@@ -315,7 +316,7 @@ bool DecompressTGA_helper( const FTGAFileHeader* TgaHeader, const int64 TGABuffe
 	}
 	else if(TgaHeader->ImageTypeCode == 2) // 2 = Uncompressed RGB
 	{
-		check( TextureDataSize == TgaHeader->Width * TgaHeader->Height * 4 );
+		check( TextureDataSize == (int64)TgaHeader->Width * TgaHeader->Height * 4 );
 
 		if(TgaHeader->BitsPerPixel == 32)
 		{
@@ -369,20 +370,20 @@ bool DecompressTGA_helper( const FTGAFileHeader* TgaHeader, const int64 TGABuffe
 		TArray<uint8> FlippedData;
 		FlippedData.AddUninitialized(TextureDataSize);
 
-		int32 NumBlocksX = TgaHeader->Width;
-		int32 NumBlocksY = TgaHeader->Height;
-		int32 BlockBytes = TgaHeader->BitsPerPixel == 8 ? 1 : 4;
+		int64 NumBlocksX = TgaHeader->Width;
+		int64 NumBlocksY = TgaHeader->Height;
+		int64 BlockBytes = TgaHeader->BitsPerPixel == 8 ? 1 : 4;
 		
 		check( TextureDataSize == NumBlocksX * NumBlocksY * BlockBytes );
 
 		uint8* MipData = (uint8*)TextureData;
 
-		for( int32 Y = 0; Y < NumBlocksY;Y++ )
+		for( int64 Y = 0; Y < NumBlocksY;Y++ )
 		{
-			for( int32 X  = 0; X < NumBlocksX; X++ )
+			for( int64 X  = 0; X < NumBlocksX; X++ )
 			{
-				int32 DestX = bFlipX ? (NumBlocksX - X - 1) : X;
-				int32 DestY = bFlipY ? (NumBlocksY - Y - 1) : Y;
+				int64 DestX = bFlipX ? (NumBlocksX - X - 1) : X;
+				int64 DestY = bFlipY ? (NumBlocksY - Y - 1) : Y;
 				FMemory::Memcpy(
 					&FlippedData[(DestX + DestY * NumBlocksX) * BlockBytes],
 					&MipData[(X + Y * NumBlocksX) * BlockBytes],

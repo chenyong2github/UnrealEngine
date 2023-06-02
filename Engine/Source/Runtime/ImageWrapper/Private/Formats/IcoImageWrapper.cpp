@@ -90,7 +90,7 @@ void FIcoImageWrapper::Uncompress( const ERGBFormat InFormat, const int32 InBitD
 {
 	const uint8* Buffer = CompressedData.GetData();
 
-	if (ImageOffset != 0 && ImageSize != 0)
+	if (ImageOffset != 0 && ImageSize != 0 && SubImageWrapper != nullptr)
 	{
 		SubImageWrapper->Uncompress(InFormat, InBitDepth);
 		// Uncompress has no return value
@@ -113,7 +113,7 @@ bool FIcoImageWrapper::GetRaw( const ERGBFormat InFormat, int32 InBitDepth, TArr
 	LastError.Empty();
 	Uncompress(InFormat, InBitDepth);
 
-	if (LastError.IsEmpty())
+	if (LastError.IsEmpty() && SubImageWrapper != nullptr)
 	{
 		SubImageWrapper->MoveRawData(OutRawData);
 		if ( OutRawData.IsEmpty() )
@@ -132,6 +132,7 @@ bool FIcoImageWrapper::GetRaw( const ERGBFormat InFormat, int32 InBitDepth, TArr
 bool FIcoImageWrapper::LoadICOHeader()
 {
 	const uint8* Buffer = CompressedData.GetData();
+	uint64 BufferSize = CompressedData.Num();
 
 #if WITH_UNREALPNG
 	TSharedPtr<FPngImageWrapper> PngWrapper = MakeShareable(new FPngImageWrapper);
@@ -139,6 +140,13 @@ bool FIcoImageWrapper::LoadICOHeader()
 	TSharedPtr<FBmpImageWrapper> BmpWrapper = MakeShareable(new FBmpImageWrapper(false, true));
 
 	bool bFoundImage = false;
+	SubImageWrapper = nullptr;
+
+	if ( BufferSize < sizeof(FIconDir) )
+	{
+		SetError(TEXT("LoadICOHeader corrupt; insufficient data"));
+		return false;
+	}
 	const FIconDir* IconHeader = (FIconDir*)(Buffer);
 	
 	if (IconHeader->idReserved == 0 && IconHeader->idType == 1)
@@ -147,13 +155,31 @@ bool FIcoImageWrapper::LoadICOHeader()
 		uint32 LargestWidth = 0;
 		const FIconDirEntry* IconDirEntry = IconHeader->idEntries;
 		
+		if ( IconHeader->idCount == 0 )
+		{
+			SetError(TEXT("LoadICOHeader corrupt; no entries"));
+			return false;
+		}
+		// FIconDir has 1 entry in it
+		if ( BufferSize < sizeof(FIconDir) + (IconHeader->idCount-1)*sizeof(FIconDirEntry) )
+		{
+			SetError(TEXT("LoadICOHeader corrupt; insufficient data"));
+			return false;
+		}
+
 		for (int32 Entry = 0; Entry < (int32)IconHeader->idCount; Entry++, IconDirEntry++)
 		{
 			const uint32 RealWidth = IconDirEntry->bWidth == 0 ? 256 : IconDirEntry->bWidth;
 			if ( IconDirEntry->wBitCount == 32 && RealWidth > LargestWidth )
 			{
+				if ( (uint64)IconDirEntry->dwImageOffset + IconDirEntry->dwBytesInRes > BufferSize )
+				{
+					SetError(TEXT("LoadICOHeader corrupt; insufficient data"));
+					return false;
+				}
+
 #if WITH_UNREALPNG
-				if (PngWrapper->SetCompressed(Buffer + IconDirEntry->dwImageOffset, (int32)IconDirEntry->dwBytesInRes))
+				if (PngWrapper->SetCompressed(Buffer + IconDirEntry->dwImageOffset, (int64)IconDirEntry->dwBytesInRes))
 				{
 					Width = PngWrapper->GetWidth();
 					Height = PngWrapper->GetHeight();
@@ -167,7 +193,7 @@ bool FIcoImageWrapper::LoadICOHeader()
 				}
 				else 
 #endif
-				if (BmpWrapper->SetCompressed(Buffer + IconDirEntry->dwImageOffset, (int32)IconDirEntry->dwBytesInRes))
+				if (BmpWrapper->SetCompressed(Buffer + IconDirEntry->dwImageOffset, (int64)IconDirEntry->dwBytesInRes))
 				{
 					// otherwise this should be a BMP icon
 					Width = BmpWrapper->GetWidth();
