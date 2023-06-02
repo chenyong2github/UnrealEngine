@@ -89,6 +89,13 @@ public:
 	};
 
 
+	enum class ECoarseApproximationStrategy
+	{
+		Automatic = 0,
+		VoxelBasedSolidApproximation = 1,
+		SweptPlanarProjection = 2
+	};
+
 	enum class EVertexColorMappingMode
 	{
 		None = 0,
@@ -124,12 +131,25 @@ public:
 		double MaxAllowableApproximationDeviation = 5.0;
 
 		//
-		// settings for Voxel LODs
+		// Settings for Coarse LODs. Coarse LODs are the lowest (furthest) LODs and generally assumed to have 
+		// very low triangle counts. Two strategies are supported:
+		//   1) VoxelBasedSolidApproximation - does a solid approximation with topological closure (outset + inset), which will fill in any small holes/gaps
+		//      or small features. CoarseApproximationDetailSize is used as the closure radius/distance. 
+		//   2) SweptPlanarProjection - The mesh is effectively projected to 2D along each X/Y/Z axis, with 2D polygon boolean & topological closure using CoarseApproximationDetailSize,
+		//      as well as various other cleanup, and then that 2D polygon is triangulated and swept along the part bounding-box extent. The max distance
+		//      is measured from the approximation to the original mesh, and the axis-swept-mesh with the smallest max-distance is used.
+		// 
+		// In either case, the resulting mesh is simplified to CoarseLODMaxTriCountBase, and then further simplified for each additional coarse LOD,
+		// by halving the target triangle count. 
+		// 
+		// The 'Automatic' strategy uses the SweptPlanarProjection if it's max approximation deviation is within K*CoarseApproximationDetailSize (currently K=2),
+		// and otherwise falls back to using VoxelBasedSolidApproximation
 		//
-
-		int32 NumVoxWrapLODs = 1;
-		double VoxWrapBaseTolerance = 1.0;
-		int32 VoxWrapMaxTriCountBase = 500;
+		ECoarseApproximationStrategy CoarseLODStrategy = ECoarseApproximationStrategy::Automatic;
+		int32 NumCoarseLODs = 1;
+		double CoarseLODBaseTolerance = 1.0;
+		int32 CoarseLODMaxTriCountBase = 500;
+		double CoarseApproximationDetailSize = 10.0;
 
 		//
 		// Hidden Faces removal options
