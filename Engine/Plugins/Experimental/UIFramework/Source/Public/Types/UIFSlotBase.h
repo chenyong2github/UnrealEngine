@@ -76,10 +76,10 @@ struct FUIFrameworkSimpleSlot : public FUIFrameworkSlotBase
 	FMargin Padding;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI Framework")
-	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
+	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment = EHorizontalAlignment::HAlign_Fill;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI Framework")
-	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
+	TEnumAsByte<EVerticalAlignment> VerticalAlignment = EVerticalAlignment::VAlign_Fill;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

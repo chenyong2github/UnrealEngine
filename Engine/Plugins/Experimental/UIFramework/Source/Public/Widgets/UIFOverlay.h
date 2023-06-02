@@ -38,7 +38,7 @@ struct FUIFrameworkOverlaySlot : public FUIFrameworkSlotBase
 private:
 	/** Index in the array the Slot is. The position in the array can change when replicated. */
 	UPROPERTY()
-	int32 Index;
+	int32 Index = INDEX_NONE;
 };
 
 
