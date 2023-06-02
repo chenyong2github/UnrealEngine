@@ -476,6 +476,11 @@ void FFieldMulticastDelegate::ExecuteLockOperations()
 				if (Element.Delegate.IsCompactable())
 				{
 					Delegates.RemoveAt(Index);
+					if (AddedEmplaceAt != std::numeric_limits<uint16>::max() && Index < AddedEmplaceAt)
+					{
+						check(AddedEmplaceAt > 0);
+						--AddedEmplaceAt;
+					}
 				}
 			}
 			CompactionCount = 0;
