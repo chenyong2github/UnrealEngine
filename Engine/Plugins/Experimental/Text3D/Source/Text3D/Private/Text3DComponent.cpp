@@ -51,9 +51,7 @@ UText3DComponent::UText3DComponent()
 	, ShapedText(new FText3DShapedText())
 {
 	TextRoot = CreateDefaultSubobject<USceneComponent>(TEXT("TextRoot"));
-#if WITH_EDITOR
-	TextRoot->SetIsVisualizationComponent(true);
-#endif
+	TextRoot->SetupAttachment(this);
 
 	if (!IsRunningDedicatedServer())
 	{
