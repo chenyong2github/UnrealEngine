@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Engine.h"
+#include "Analysis/Engine.h"
 #include "HAL/Runnable.h"
 #include "Logging/MessageLog.h"
 #include "Trace/Analysis.h"
