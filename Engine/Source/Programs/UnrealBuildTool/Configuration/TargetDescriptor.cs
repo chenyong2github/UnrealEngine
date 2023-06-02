@@ -356,7 +356,7 @@ namespace UnrealBuildTool
 			}
 
 			// Expand all the platforms, architectures and configurations
-			foreach (UnrealTargetPlatform Platform in Platforms)
+			foreach (UnrealTargetPlatform Platform in Platforms.Distinct())
 			{
 				// Make sure the platform is valid
 				if (!InstalledPlatformInfo.IsValid(null, Platform, null, EProjectType.Code, InstalledPlatformState.Downloaded))
@@ -371,13 +371,16 @@ namespace UnrealBuildTool
 					}
 				}
 
-				UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
+				// there are times that this can be run before we have setup build platforms (ie Per-Project AutoSDK version), in which case we
+				// cannot get Architecture info, but it's not needed yet
+				UEBuildPlatform? BuildPlatform;
+				UEBuildPlatform.TryGetBuildPlatform(Platform, out BuildPlatform);
 
 				// Parse the architecture parameter, or use null to look up platform defaults later
 				string ParamArchitectureList = Arguments.GetStringOrDefault("-Architecture=", "") + Arguments.GetStringOrDefault("-Architectures=", "");
 				UnrealArchitectures? ParamArchitectures = UnrealArchitectures.FromString(ParamArchitectureList, Platform);
 
-				foreach (UnrealTargetConfiguration Configuration in Configurations)
+				foreach (UnrealTargetConfiguration Configuration in Configurations.Distinct())
 				{
 					// Create all the target descriptors for targets specified by type
 					foreach (string TargetTypeString in Arguments.GetValues("-TargetType="))
@@ -430,18 +433,23 @@ namespace UnrealBuildTool
 							NativeProjects.ConditionalMakeTempTargetForHybridProject(TargetProjectFile, Logger);
 						}
 
-						if (ParamArchitectures == null)
+						if (ParamArchitectures != null)
+						{
+							Architectures = ParamArchitectures;
+						}
+						else if (BuildPlatform == null)
+						{
+							// if we can't use BuildPlatform yet, we just use any random architecture, since we need _something_
+							Architectures = new UnrealArchitectures(UnrealArch.X64);
+						}
+						else
 						{
 							// ask the platform what achitectures it wants for this project
 							Architectures = BuildPlatform.ArchitectureConfig.ActiveArchitectures(TargetProjectFile, TargetName);
 						}
-						else
-						{
-							Architectures = ParamArchitectures;
-						}
 
 						// If the platform wants a target for each architecture, make a target descriptor for each architecture, otherwise one target for all architectures
-						if (BuildPlatform.ArchitectureConfig.Mode == UnrealArchitectureMode.OneTargetPerArchitecture)
+						if (BuildPlatform != null && BuildPlatform.ArchitectureConfig.Mode == UnrealArchitectureMode.OneTargetPerArchitecture)
 						{
 							foreach (UnrealArch Architecture in Architectures.Architectures)
 							{

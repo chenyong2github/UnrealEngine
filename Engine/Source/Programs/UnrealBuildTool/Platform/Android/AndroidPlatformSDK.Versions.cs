@@ -6,7 +6,7 @@ namespace UnrealBuildTool
 {
 	partial class AndroidPlatformSDK : UEBuildPlatformSDK
 	{
-		public override string GetMainVersion()
+		protected override string GetMainVersionInternal()
 		{
 			return "r25b";
 		}

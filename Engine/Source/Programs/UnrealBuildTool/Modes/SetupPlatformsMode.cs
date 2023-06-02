@@ -20,8 +20,6 @@ namespace UnrealBuildTool
 		/// <param name="Logger"></param>
 		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
-			// Output a warning if there are any arguments that are still unused
-			Arguments.CheckAllArgumentsUsed();
 			return Task.FromResult(0);
 		}
 	}

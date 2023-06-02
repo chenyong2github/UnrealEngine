@@ -6,7 +6,7 @@ namespace UnrealBuildTool
 {
 	partial class LinuxPlatformSDK : UEBuildPlatformSDK
 	{
-		public override string GetMainVersion()
+		protected override string GetMainVersionInternal()
 		{
 			return "v21_clang-15.0.1-centos7";
 		}

@@ -311,6 +311,20 @@ namespace EpicGames.Core
 				throw new Exception(string.Format("Re-registering SDK for {0}. All Platforms must have a unique SDK object", PlatformName));
 			}
 
+			// check that none of our override versions conflict with default version, by using MainVersion unless overridden and we aren't _also_
+			// requiring default version
+			if (!PlatformSDKMainVersions.ContainsKey(PlatformName))
+			{
+				PlatformSDKMainVersions.Add(PlatformName, SDK.GetMainVersionInternal());
+			}
+			else if (PlatformsThatNeedDefaultSDK != null && PlatformsThatNeedDefaultSDK.Contains(PlatformName))
+			{
+				if (!PlatformSDKMainVersions[PlatformName].Equals(SDK.GetMainVersionInternal(), StringComparison.OrdinalIgnoreCase))
+				{
+					throw new Exception($"A target overrode SDK for {PlatformName} to version {PlatformSDKMainVersions[PlatformName]}, but another target uses the default SDK version {SDK.GetMainVersionInternal()}");
+				}
+			}
+
 			SDKRegistry.Add(PlatformName, SDK);
 
 			SDK.Init(PlatformName, bIsSdkAllowedOnHost);
@@ -381,6 +395,13 @@ namespace EpicGames.Core
 
 		// True if this Sdk is allowed to be used by this host - if not, we can skip a lot 
 		public bool bIsSdkAllowedOnHost;
+
+		// Retrieves the version of the default SDK that is preferred choice, as well as the single AutoSDK version that will be used
+		public string GetMainVersion()
+		{
+			// at this point, the PlatformSDKMainVersions map is fully set up with default version, or with overrides that have been verified to not conflict
+			return PlatformSDKMainVersions[PlatformName!];
+		}
 
 		public SDKCollection GetAllSDKInfo()
 		{
@@ -521,7 +542,7 @@ namespace EpicGames.Core
 		/// Return the SDK version that the platform wants to use (AutoSDK dir must match this, full SDKs can be in a valid range)
 		/// </summary>
 		/// <returns></returns>
-		public abstract string GetMainVersion();
+		protected abstract string GetMainVersionInternal();
 
 		/// <summary>
 		/// Gets the valid string range of Sdk versions. TryConvertVersionToInt() will need to succeed to make this usable for range checks
@@ -800,6 +821,26 @@ namespace EpicGames.Core
 		public virtual string? GetAutoSDKPlatformName()
 		{
 			return PlatformName;
+		}
+
+		#endregion
+
+		#region Per-project SDK support
+
+		private static Dictionary<string, string> PlatformSDKMainVersions = new();
+		private static HashSet<string>? PlatformsThatNeedDefaultSDK = new();
+		public static void InitializePerProjectSDKVersions(Dictionary<string, string> PerPlatformSDKOverrides, HashSet<string> InPlatformsThatNeedDefaultSDK)
+		{
+			if (PlatformSDKMainVersions.Count > 0)
+			{
+				throw new Exception("InitializePerProjectSDKVersions() was called multiple times, which is not allowed");
+			}
+
+			// cache off the overrides - Register will fill in the rest
+			PlatformSDKMainVersions = PerPlatformSDKOverrides;
+
+			// remember the platforms that need the default version, which we will use later to detect conflicting versions in Register			
+			PlatformsThatNeedDefaultSDK = InPlatformsThatNeedDefaultSDK;
 		}
 
 		#endregion

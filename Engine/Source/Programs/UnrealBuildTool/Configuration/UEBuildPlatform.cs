@@ -249,18 +249,119 @@ namespace UnrealBuildTool
 			}
 		}
 
+		private static string[] UATProjectParams = { "-project=", "-scriptsforproject=" };
+		// Before we setup AutoSDK, we check to see if any projects need to override the Main version so that AutoSDK
+		// will set up an alternate SDK
+		private static void InitializePerPlatformSDKs(string[] Args, bool bArgumentsAreForUBT, ILogger Logger)
+		{
+			Dictionary<string, string> PlatformToVersionMap = new();
+			HashSet<string> PlatformsThatNeedDefaultSDK = new();
+
+			IEnumerable<FileReference?> ProjectFiles;
+
+			if (bArgumentsAreForUBT == false)
+			{
+				ProjectFiles = Args
+						// find arguments that start with one of the hard-coded parameters
+						.Where(x => UATProjectParams.Any(y => x.StartsWith(y, StringComparison.OrdinalIgnoreCase)))
+						// treat the part after the = as a path to a uproject, and ask the NativeProjects class to find a .uproject
+						.Select(x => NativeProjects.FindProjectFile(x.Substring(x.IndexOf('=') + 1), Logger))
+						// only use existant projects
+						.Where(x => x != null && FileReference.Exists(x));
+			}
+			else
+			{
+				CommandLineArguments CommandLine = new(Args);
+				BuildConfiguration BuildConfiguration = new();
+				XmlConfig.ApplyTo(BuildConfiguration);
+				CommandLine.ApplyTo(BuildConfiguration);
+
+				// get the project files for all targets - we allow null uproject files which means to use the defaults
+				// (same as a uproject that has no override SDK versions set)
+				List<TargetDescriptor> AllTargets = TargetDescriptor.ParseCommandLine(CommandLine, BuildConfiguration.bUsePrecompiled, bSkipRulesCompile: true, bForceRulesCompile: false, Logger);
+				ProjectFiles = AllTargets.Select(x => x.ProjectFile);
+			}
+
+			foreach (FileReference? ProjectFile in ProjectFiles)
+			{
+				// because we can't safely tell, at this point, if any platform SDKs will be used for a given target, we have to check all of them
+				foreach (UnrealTargetPlatform Platform in UnrealTargetPlatform.GetValidPlatforms())
+				{
+					string PlatformName = Platform.ToString();
+					string? OverrideSDKVersion = null;
+
+					if (ProjectFile != null)
+					{
+						ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile.Directory, Platform);
+						if (Ini.TryGetValue("OverrideSDK", "SDKVersion", out OverrideSDKVersion))
+						{
+							Logger.LogWarning("Project {Project} is overriding the active main SDK for {Platform} to {Override}", ProjectFile.GetFileNameWithoutAnyExtensions(), Platform, OverrideSDKVersion);
+
+							if (PlatformToVersionMap.ContainsKey(PlatformName) && PlatformToVersionMap[PlatformName] != OverrideSDKVersion)
+							{
+								throw new BuildException("Attempting to build with mismatching SDK versions! [MORE INFO HERE, BUT ALSO CHECK THAT ALL PROJECTS USE SAME VERSION]");
+							}
+						}
+					}
+					
+					// if we have a null version here, that means to use the default, later when the PlatformSDK is created
+					if (OverrideSDKVersion == null)
+					{
+						// mark _something_ in the map so we can detect mismatches
+						PlatformsThatNeedDefaultSDK.Add(PlatformName);
+					}
+					else
+					{
+						PlatformToVersionMap[PlatformName] = OverrideSDKVersion;
+					}
+				}
+			}
+
+			UEBuildPlatformSDK.InitializePerProjectSDKVersions(PlatformToVersionMap, PlatformsThatNeedDefaultSDK);
+		}
+
 		/// <summary>
-		/// Finds all the UEBuildPlatformFactory types in this assembly and uses them to register all the available platforms
+		/// Finds all the UEBuildPlatformFactory types in this assembly and uses them to register all the available platforms, and uses a UBT commandline to check for per-project SDKs
 		/// </summary>
 		/// <param name="bIncludeNonInstalledPlatforms">Whether to register platforms that are not installed</param>
 		/// <param name="bHostPlatformOnly">Only register the host platform</param>
+		/// <param name="ArgumentsForPerPlatform">Commandline args to look through for finding uprojects, to look up per-project SDK versions</param>
+		/// <param name="UBTModeType">The UBT mode (usually Build, but </param>
 		/// <param name="Logger">Logger for output</param>
-		public static void RegisterPlatforms(bool bIncludeNonInstalledPlatforms, bool bHostPlatformOnly, ILogger Logger)
+		internal static void RegisterPlatforms(bool bIncludeNonInstalledPlatforms, bool bHostPlatformOnly, Type UBTModeType, string[] ArgumentsForPerPlatform, ILogger Logger)
+		{
+			bool bUseTargetTripleParams = false;
+			// @todo : add a ToolModeOptions.UseTargetTripleCommandLine or something
+			if (UBTModeType.Name == "BuildMode")
+			{
+				bUseTargetTripleParams = true;
+			}
+			RegisterPlatforms(bIncludeNonInstalledPlatforms, bHostPlatformOnly, ArgumentsForPerPlatform, bArgumentsAreForUBT: bUseTargetTripleParams, Logger);
+		}
+
+		/// <summary>
+		/// Finds all the UEBuildPlatformFactory types in this assembly and uses them to register all the available platforms, and uses a UAT commandline to check for per-project SDKs
+		/// </summary>
+		/// <param name="bIncludeNonInstalledPlatforms">Whether to register platforms that are not installed</param>
+		/// <param name="bHostPlatformOnly">Only register the host platform</param>
+		/// <param name="ArgumentsForPerPlatform">Commandline args to look through for finding uprojects, to look up per-project SDK versions</param>
+		/// <param name="Logger">Logger for output</param>
+		internal static void RegisterPlatforms(bool bIncludeNonInstalledPlatforms, bool bHostPlatformOnly, string[] ArgumentsForPerPlatform, ILogger Logger)
+		{
+			RegisterPlatforms(bIncludeNonInstalledPlatforms, bHostPlatformOnly, ArgumentsForPerPlatform, bArgumentsAreForUBT:false, Logger);
+		}
+
+		private static void RegisterPlatforms(bool bIncludeNonInstalledPlatforms, bool bHostPlatformOnly, string[] ArgumentsForPerPlatform, bool bArgumentsAreForUBT, ILogger Logger)
 		{
 			// Initialize the installed platform info
 			using (GlobalTracer.Instance.BuildSpan("Initializing InstalledPlatformInfo").StartActive())
 			{
 				InstalledPlatformInfo.Initialize();
+			}
+
+			using (GlobalTracer.Instance.BuildSpan("Initializing PerPlatformSDKs").StartActive())
+			{
+				InitializePerPlatformSDKs(ArgumentsForPerPlatform, bArgumentsAreForUBT, Logger);
 			}
 
 			// Find and register all tool chains and build platforms that are present

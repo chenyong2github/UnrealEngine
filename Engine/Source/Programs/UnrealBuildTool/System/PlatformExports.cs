@@ -146,15 +146,16 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Initialize UBT in the context of another host process (presumably UAT)
 		/// </summary>
+		/// <param name="CommandLineArgs">Command Line arguments that UBT may need access to for initializing platforms</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if initialization was successful</returns>
-		public static bool Initialize(ILogger Logger)
+		public static bool Initialize(string[] CommandLineArgs, ILogger Logger)
 		{
 			// Read the XML configuration files
 			XmlConfig.ReadConfigFiles(null, null, Logger);
 
 			// Register all the platform classes
-			UEBuildPlatform.RegisterPlatforms(false, false, Logger);
+			UEBuildPlatform.RegisterPlatforms(false, false, CommandLineArgs, Logger);
 			return true;
 		}
 	}

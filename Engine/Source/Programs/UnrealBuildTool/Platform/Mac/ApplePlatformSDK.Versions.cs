@@ -7,7 +7,7 @@ namespace UnrealBuildTool
 {
 	internal partial class ApplePlatformSDK : UEBuildPlatformSDK
 	{
-		public override string GetMainVersion()
+		protected override string GetMainVersionInternal()
 		{
 			// Xcode prefered version?
 			return "14.1";

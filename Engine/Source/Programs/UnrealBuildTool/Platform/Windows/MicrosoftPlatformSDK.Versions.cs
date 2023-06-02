@@ -71,7 +71,7 @@ namespace UnrealBuildTool
 		static readonly VersionNumber MinimumIntelOneApiVersion = new VersionNumber(2023, 0, 0);
 
 		/// <inheritdoc/>
-		public override string GetMainVersion()
+		protected override string GetMainVersionInternal()
 		{
 			// preferred/main version is the top of the Preferred list - 
 			return PreferredWindowsSdkVersions.First().ToString();

@@ -635,21 +635,21 @@ namespace UnrealBuildTool
 				{
 					using (GlobalTracer.Instance.BuildSpan("UEBuildPlatform.RegisterPlatforms()").StartActive())
 					{
-						UEBuildPlatform.RegisterPlatforms(false, false, Logger);
+						UEBuildPlatform.RegisterPlatforms(false, false, ModeType, ArgumentsArray, Logger);
 					}
 				}
 				if ((ModeOptions & ToolModeOptions.BuildPlatformsHostOnly) != 0)
 				{
 					using (GlobalTracer.Instance.BuildSpan("UEBuildPlatform.RegisterPlatforms()").StartActive())
 					{
-						UEBuildPlatform.RegisterPlatforms(false, true, Logger);
+						UEBuildPlatform.RegisterPlatforms(false, true, ModeType, ArgumentsArray, Logger);
 					}
 				}
 				if ((ModeOptions & ToolModeOptions.BuildPlatformsForValidation) != 0)
 				{
 					using (GlobalTracer.Instance.BuildSpan("UEBuildPlatform.RegisterPlatforms()").StartActive())
 					{
-						UEBuildPlatform.RegisterPlatforms(true, false, Logger);
+						UEBuildPlatform.RegisterPlatforms(true, false, ModeType, ArgumentsArray, Logger);
 					}
 				}
 

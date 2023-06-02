@@ -50,6 +50,23 @@ static bool IsAutoSDKsEnabled()
 	return false;
 }
 
+static FString GetProjectPathForUBT()
+{
+	if (FPaths::IsProjectFilePathSet())
+	{
+		return FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath());
+	}
+	if (FApp::HasProjectName())
+	{
+		FString ProjectPath = FPaths::ProjectDir() / FApp::GetProjectName() + TEXT(".uproject");
+		if (FPaths::FileExists(ProjectPath))
+		{
+			return ProjectPath;
+		}
+	}
+	return FString();
+}
+
 // kick off a call to UBT nice and early so that it's results are hopefully ready when needed
 static FProcHandle AutoSDKSetupUBTProc;
 FDelayedAutoRegisterHelper GAutoSDKInit(EDelayedRegisterRunPhase::FileSystemReady, []
@@ -58,6 +75,12 @@ FDelayedAutoRegisterHelper GAutoSDKInit(EDelayedRegisterRunPhase::FileSystemRead
 		if (IsAutoSDKsEnabled() && FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")) == false)
 		{
 			FString UBTParams(TEXT("-Mode=SetupPlatforms"));
+			FString Project = GetProjectPathForUBT();
+			if (Project.Len() > 0)
+			{
+				UBTParams += FString::Printf(TEXT(" -project=%s"), *Project);
+			}
+				
 			int32 UBTReturnCode = -1;
 			FString UBTOutput;
 
