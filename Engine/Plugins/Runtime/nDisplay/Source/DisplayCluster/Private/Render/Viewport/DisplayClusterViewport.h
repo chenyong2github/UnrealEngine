@@ -245,6 +245,8 @@ private:
 	// Support view states for preview
 private:
 	FSceneViewStateInterface* GetViewState(uint32 ViewIndex);
+
+public:
 	void CleanupViewState();
 
 private:

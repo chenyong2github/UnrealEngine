@@ -59,6 +59,8 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 
 	// Always reset RTT when root actor re-created
 	ResetSceneRenderTargetSize();
+
+	RegisterCallbacks();
 }
 
 void FDisplayClusterViewportManager::Initialize()
@@ -77,6 +79,8 @@ void FDisplayClusterViewportManager::Initialize()
 
 FDisplayClusterViewportManager::~FDisplayClusterViewportManager()
 {
+	UnregisterCallbacks();
+	
 	// Remove viewports
 	Viewports.Reset();
 	ClusterNodeViewports.Reset();
@@ -431,6 +435,20 @@ void FDisplayClusterViewportManager::ImplUpdateClusterNodeViewports(const EDispl
 		ClusterNodeViewports.Append(Viewports);
 		break;
 	}
+}
+
+void FDisplayClusterViewportManager::RegisterCallbacks()
+{
+#if WITH_EDITOR
+	PreGarbageCollectHandle = FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FDisplayClusterViewportManager::OnPreGarbageCollect);
+#endif
+}
+
+void FDisplayClusterViewportManager::UnregisterCallbacks()
+{
+#if WITH_EDITOR
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().Remove(PreGarbageCollectHandle);
+#endif
 }
 
 int32 FDisplayClusterViewportManager::GetViewPerViewportAmount() const

@@ -86,7 +86,13 @@ public:
 	virtual bool RenderInEditor(FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmount, int32& OutViewportsAmount, bool& bOutFrameRendered) override;
 	
 	void ImplUpdatePreviewRTTResources();
+
+private:
+	/** Called before garbage collection is run */
+	void OnPreGarbageCollect();
+
 #endif
+public:
 
 	virtual IDisplayClusterViewport* FindViewport(const FString& InViewportId) const override;
 	virtual IDisplayClusterViewport* FindViewport(const int32 ViewIndex, uint32* OutContextNum = nullptr) const override;
@@ -167,6 +173,12 @@ private:
 	void HandleViewportRTTChanges(const TArray<FDisplayClusterViewport_Context>& PrevContexts, const TArray<FDisplayClusterViewport_Context>& Contexts);
 	void ImplUpdateClusterNodeViewports(const EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId);
 
+	/** Register any callbacks */
+	void RegisterCallbacks();
+	
+	/** Unregister any callbacks used */
+	void UnregisterCallbacks();
+	
 protected:
 	friend FDisplayClusterViewportManagerProxy;
 	friend FDisplayClusterViewportConfiguration;
@@ -207,4 +219,9 @@ private:
 
 	// This VE is used for LocalPlayer::GetViewPoint(). It calls the ISceneViewExtension::SetupViewPoint() function of this VE.
 	TSharedPtr<class FDisplayClusterViewportManagerViewPointExtension, ESPMode::ThreadSafe> ViewportManagerViewPointExtension;
+
+#if WITH_EDITOR
+	/** The handle for FCoreUObjectDelegates::GetPreGarbageCollectDelegate */
+	FDelegateHandle PreGarbageCollectHandle;
+#endif
 };
