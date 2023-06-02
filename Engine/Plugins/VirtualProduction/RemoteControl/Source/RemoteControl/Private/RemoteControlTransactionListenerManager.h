@@ -247,7 +247,11 @@ private:
 	 */
 	void OnTransactionChanged(const FTransactionContext& InTransactionContext, ETransactionStateEventType InTransactionState)
 	{
-		if (InTransactionState == ETransactionStateEventType::TransactionFinalized
+		if (InTransactionState == ETransactionStateEventType::TransactionStarted)
+		{
+			PendingListeners.Reset();
+		}
+		else if (InTransactionState == ETransactionStateEventType::TransactionFinalized
 			&& !Listeners.Contains(InTransactionContext.TransactionId))
 		{
 			if (!PendingListeners.IsEmpty())
