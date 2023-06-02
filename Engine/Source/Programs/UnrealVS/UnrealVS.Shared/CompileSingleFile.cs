@@ -293,6 +293,7 @@ namespace UnrealVS
 			string BuildCommandLine = ActiveNMakeTool.BuildCommandLine;
 			BuildCommandLine = BuildCommandLine.Replace("$(SolutionDir)", SolutionDir);
 			BuildCommandLine = BuildCommandLine.Replace("$(ProjectName)", VCStartupProject.Name);
+			BuildCommandLine = BuildCommandLine.Replace("$(BuildBatchScript)", "..\\..\\Build\\BatchFiles\\Build.bat");
 
 			FileToCompileOriginalExt = FileToCompileExt;
 
