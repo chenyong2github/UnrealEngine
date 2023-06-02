@@ -485,6 +485,7 @@ void FTessellationTable::ConstrainToCacheWindow()
 		const uint32 i1 = ( Indexes[ FirstTri + i ] >> 10 ) & 1023;
 		const uint32 i2 = ( Indexes[ FirstTri + i ] >> 20 ) & 1023;
 		check( i0 != i1 && i1 != i2 && i2 != i0 ); // Degenerate input triangle!
+		check( i0 < NumOldVertices && i1 < NumOldVertices && i2 < NumOldVertices );
 
 		VertexToTriangleMasks[ i0 ][ i >> 5 ] |= 1 << ( i & 31 );
 		VertexToTriangleMasks[ i1 ][ i >> 5 ] |= 1 << ( i & 31 );
