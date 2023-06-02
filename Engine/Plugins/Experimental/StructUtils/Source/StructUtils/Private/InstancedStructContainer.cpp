@@ -418,7 +418,10 @@ void FInstancedStructContainer::AddStructReferencedObjects(FReferenceCollector& 
 				
 				if (UObject* Outer = UE::StructUtils::Private::GetCurrentReinstanceOuterObject())
 				{
-					Outer->MarkPackageDirty();
+					if (!Outer->IsA<UClass>() && !Outer->HasAnyFlags(RF_ClassDefaultObject))
+					{
+						Outer->MarkPackageDirty();
+					}
 				}
 				
 				TArray<uint8> Data;

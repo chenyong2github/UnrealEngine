@@ -45,27 +45,6 @@ void FStructUtilsEditorModule::ShutdownModule()
 namespace UE::StructUtils::Private
 {
 
-static bool ContainsInstancedStructProperty(const UClass* Class)
-{
-	for (TFieldIterator<FStructProperty> It(Class); It; ++It)
-	{
-		const UScriptStruct* Struct = It->Struct;
-		if (Struct == TBaseStructure<FInstancedStruct>::Get())
-		{
-			return true;
-		}
-		if (Struct == TBaseStructure<FInstancedStructContainer>::Get())
-		{
-			return true;
-		}
-		if (Struct == TBaseStructure<FInstancedPropertyBag>::Get())
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
 static void VisitReferencedObjects(const UUserDefinedStruct* StructToReinstance)
 {
 	// Helper preference collector, does not collect anything, but makes sure AddStructReferencedObjects() gets called e.g. on instanced struct. 
@@ -81,46 +60,39 @@ static void VisitReferencedObjects(const UUserDefinedStruct* StructToReinstance)
 		}
 	};
 
-	// Find classes that contain any of the instanced struct types.
-	TArray<const UClass*> InstancedStructClasses;
-	for (TObjectIterator<UClass> It; It; ++It)
-	{
-		if (ContainsInstancedStructProperty(*It))
-		{
-			InstancedStructClasses.Add(*It);
-		}
-	}	
-
-	// Find objects that contain any of the instanced struct types.
-	TArray<UObject*> SourceObjects;
-	for (const UClass* Class : InstancedStructClasses)
-	{
-		TArray<UObject*> Objects;
-		GetObjectsOfClass(Class, Objects);
-		SourceObjects.Append(Objects);
-	}
-
 	FVisitorReferenceCollector Collector;
 
 	// This sets global variable which read in the AddStructReferencedObjects().
 	UE::StructUtils::Private::FStructureToReinstanceScope StructureToReinstanceScope(StructToReinstance);
 
-	for (UObject* Object : SourceObjects)
+	for (TObjectIterator<UObject> ObjectIt; ObjectIt; ++ObjectIt)
 	{
+		UObject* Object = *ObjectIt;
+		
 		// This sets global variable which read in the AddStructReferencedObjects().
 		UE::StructUtils::Private::FCurrentReinstanceOuterObjectScope CurrentReinstanceOuterObjectScope(Object);
 		
-		Collector.AddPropertyReferences(Object->GetClass(), Object);
+		Collector.AddPropertyReferencesWithStructARO(Object->GetClass(), Object);
+	}
 
-		// AddPropertyReferences() for objects does not handle ARO, do it manually.
-		for (TPropertyValueIterator<FStructProperty> It(Object->GetClass(), Object); It; ++It)
+	// Handle CDOs and sparse class data 
+	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+	{
+		UClass* Class = *ClassIt;
+	
+		// Handle Sparse class data
+		if (void* SparseData = const_cast<void*>(Class->GetSparseClassData(EGetSparseClassDataMethod::ReturnIfNull)))
 		{
-			const UScriptStruct* Struct = It.Key()->Struct;
-			void* Instance = const_cast<void*>(It.Value());
-			if (Struct && Struct->StructFlags & STRUCT_AddStructReferencedObjects)
-			{
-				Struct->GetCppStructOps()->AddStructReferencedObjects()(Instance, Collector);
-			}
+			UE::StructUtils::Private::FCurrentReinstanceOuterObjectScope CurrentReinstanceOuterObjectScope(Class);
+			const UScriptStruct* SparseDataStruct = Class->GetSparseClassDataStruct();
+			Collector.AddPropertyReferencesWithStructARO(SparseDataStruct, SparseData);
+		}
+
+		// Handle CDO
+		if (UObject* CDO = Class->GetDefaultObject())
+		{
+			UE::StructUtils::Private::FCurrentReinstanceOuterObjectScope CurrentReinstanceOuterObjectScope(CDO);
+			Collector.AddPropertyReferencesWithStructARO(Class, CDO);
 		}
 	}
 };

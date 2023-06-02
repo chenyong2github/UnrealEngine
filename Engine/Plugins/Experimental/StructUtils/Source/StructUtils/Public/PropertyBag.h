@@ -857,6 +857,9 @@ public:
 	
 protected:
 
+	void DecrementRefCount() const;
+	void IncrementRefCount() const;
+	
 	virtual void InitializeStruct(void* Dest, int32 ArrayDim = 1) const override;
 	virtual void DestroyStruct(void* Dest, int32 ArrayDim = 1) const override;
 	virtual void FinishDestroy();

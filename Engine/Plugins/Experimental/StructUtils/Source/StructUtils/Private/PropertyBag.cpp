@@ -1883,6 +1883,10 @@ void FInstancedPropertyBag::AddStructReferencedObjects(FReferenceCollector& Coll
 
 				const UPropertyBag* NewBag = UPropertyBag::GetOrCreateFromDescs(PropertyDescs);
 				Value.ReplaceScriptStructInternal(NewBag);
+
+				// Adjust recount manually, since we replaced the struct above.
+				Bag->DecrementRefCount();
+				NewBag->IncrementRefCount();
 			}
 			else
 			{
@@ -1892,7 +1896,10 @@ void FInstancedPropertyBag::AddStructReferencedObjects(FReferenceCollector& Coll
 
 				if (UObject* Outer = UE::StructUtils::Private::GetCurrentReinstanceOuterObject())
 				{
-					Outer->MarkPackageDirty();
+					if (!Outer->IsA<UClass>() && !Outer->HasAnyFlags(RF_ClassDefaultObject))
+					{
+						Outer->MarkPackageDirty();
+					}
 				}
 				
 				TArray<uint8> Data;
@@ -2295,25 +2302,8 @@ bool UPropertyBag::ContainsUserDefinedStruct(const UUserDefinedStruct* UserDefin
 }
 #endif
 
-void UPropertyBag::InitializeStruct(void* Dest, int32 ArrayDim) const
+void UPropertyBag::DecrementRefCount() const
 {
-	Super::InitializeStruct(Dest, ArrayDim);
-
-	// Do ref counting based on struct usage.
-	// This ensures that if the UPropertyBag is still valid in the C++ destructor of
-	// the last instance of the bag.
-	UPropertyBag* NonConstThis = const_cast<UPropertyBag*>(this);
-	const int32 OldCount = NonConstThis->RefCount.fetch_add(1, std::memory_order_acq_rel);
-	if (OldCount == 0)
-	{
-		NonConstThis->AddToRoot();
-	}
-}
-
-void UPropertyBag::DestroyStruct(void* Dest, int32 ArrayDim) const
-{
-	Super::DestroyStruct(Dest, ArrayDim);
-
 	// Do ref counting based on struct usage.
 	// This ensures that if the UPropertyBag is still valid in the C++ destructor of
 	// the last instance of the bag.
@@ -2328,6 +2318,33 @@ void UPropertyBag::DestroyStruct(void* Dest, int32 ArrayDim) const
 	{
 		UE_LOG(LogCore, Error, TEXT("PropertyBag: DestroyStruct is called when RefCount is %d."), OldCount);
 	}
+}
+
+void UPropertyBag::IncrementRefCount() const
+{
+	// Do ref counting based on struct usage.
+	// This ensures that if the UPropertyBag is still valid in the C++ destructor of
+	// the last instance of the bag.
+	UPropertyBag* NonConstThis = const_cast<UPropertyBag*>(this);
+	const int32 OldCount = NonConstThis->RefCount.fetch_add(1, std::memory_order_acq_rel);
+	if (OldCount == 0)
+	{
+		NonConstThis->AddToRoot();
+	}
+}
+
+void UPropertyBag::InitializeStruct(void* Dest, int32 ArrayDim) const
+{
+	Super::InitializeStruct(Dest, ArrayDim);
+
+	IncrementRefCount();
+}
+
+void UPropertyBag::DestroyStruct(void* Dest, int32 ArrayDim) const
+{
+	Super::DestroyStruct(Dest, ArrayDim);
+
+	DecrementRefCount();
 }
 
 void UPropertyBag::FinishDestroy()
