@@ -2189,7 +2189,7 @@ public:
 	template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
 	FORCEINLINE_DEBUGGABLE void AddStableReferenceMap(TMapBase<KeyType, ValueType, Allocator, KeyFuncs>& Map)
 	{
-#if UE_DEPRECATE_RAW_UOBJECTPTR_ARO
+#if UE_REFERENCE_COLLECTOR_REQUIRE_OBJECTPTR
 		static constexpr bool bKeyReference = TIsTObjectPtr<KeyType>::Value;
 		static constexpr bool bValueReference = TIsTObjectPtr<ValueType>::Value;
 		static_assert(bKeyReference || bValueReference);
@@ -2214,7 +2214,7 @@ public:
 		}
 	}
 
-#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
+#if !UE_REFERENCE_COLLECTOR_REQUIRE_OBJECTPTR
 	/** Preferred way to add a reference that allows batching. Object must outlive GC tracing, can't be used for temporary/stack references. */
 	virtual void AddStableReference(UObject** Object);
 	
@@ -2267,7 +2267,7 @@ public:
 		AddStableReferenceSetFwd(reinterpret_cast<TSet<FObjectPtr>*>(Objects));
 	}
 
-#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO	
+#if !UE_REFERENCE_COLLECTOR_REQUIRE_OBJECTPTR	
 	/**
 	 * Adds object reference.
 	 *
@@ -2460,7 +2460,7 @@ public:
 	{
 		static_assert(sizeof(KeyType) > 0, "AddReferencedObjects: Keys must be pointers to a fully-defined type");
 		static_assert(TPointerIsConvertibleFromTo<KeyType, const UObjectBase>::Value, "AddReferencedObjects: Keys must be pointers to a type derived from UObject");
-		static_assert(!UE_DEPRECATE_RAW_UOBJECTPTR_ARO ||
+		static_assert(!UE_REFERENCE_COLLECTOR_REQUIRE_OBJECTPTR ||
 									!(std::is_pointer_v<ValueType> && std::is_convertible_v<ValueType, const UObjectBase*>));
 		for (auto& It : Map)
 		{
@@ -2475,7 +2475,7 @@ public:
 	{
 		static_assert(sizeof(ValueType) > 0, "AddReferencedObjects: Values must be pointers to a fully-defined type");
 		static_assert(TPointerIsConvertibleFromTo<ValueType, const UObjectBase>::Value, "AddReferencedObjects: Values must be pointers to a type derived from UObject");
-		static_assert(!UE_DEPRECATE_RAW_UOBJECTPTR_ARO ||
+		static_assert(!UE_REFERENCE_COLLECTOR_REQUIRE_OBJECTPTR ||
 									!(std::is_pointer_v<KeyType> && std::is_convertible_v<KeyType, const UObjectBase*>));
 		for (auto& It : Map)
 		{
@@ -2530,7 +2530,7 @@ public:
 	 * They're kept separate initially to maintain exact semantics while replacing the much slower
 	 * SerializeBin/TPropertyValueIterator/GetVerySlowReferenceCollectorArchive paths.
 	 */
-#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
+#if !UE_REFERENCE_COLLECTOR_REQUIRE_OBJECTPTR
 	void AddReferencedObjects(const UScriptStruct*& ScriptStruct, void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
 #endif
 

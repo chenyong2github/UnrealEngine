@@ -1362,15 +1362,9 @@ FORCEINLINE To* StaticCastPtr(const TObjectPtr<From>& P)
 }
 
 template <typename T>
-FORCEINLINE TObjectPtr<T>& ConstCast(const TObjectPtr<T>& P)
+FORCEINLINE decltype(auto) ConstCast(const TObjectPtr<T>& P)
 {
-	return reinterpret_cast<TObjectPtr<T>&>(const_cast<TObjectPtr<T>&>(P));
-}
-
-template <typename T>
-FORCEINLINE TObjectPtr<T>& ConstCast(const TObjectPtr<const T>& P)
-{
-	return reinterpret_cast<TObjectPtr<T>&>(const_cast<TObjectPtr<const T>&>(P));
+	return reinterpret_cast<TObjectPtr<std::remove_cv_t<T>>&>(const_cast<TObjectPtr<T>&>(P));
 }
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3

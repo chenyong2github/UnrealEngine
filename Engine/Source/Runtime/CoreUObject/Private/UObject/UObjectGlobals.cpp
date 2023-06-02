@@ -4570,7 +4570,7 @@ public:
 
 };
 
-#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
+#if !UE_REFERENCE_COLLECTOR_REQUIRE_OBJECTPTR
 void FReferenceCollector::AddStableReference(UObject** Object)
 {
 	AROPrivate::AddReferencedObject(*this, *Object);
@@ -4602,7 +4602,7 @@ void FReferenceCollector::AddStableReferenceSet(TSet<TObjectPtr<UObject>>* Objec
 	AddReferencedObjects(*Objects);
 }
 
-#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
+#if !UE_REFERENCE_COLLECTOR_REQUIRE_OBJECTPTR
 void FReferenceCollector::AddReferencedObjects(const UScriptStruct*& ScriptStruct, void* StructMemory, const UObject* ReferencingObject /*= nullptr*/, const FProperty* ReferencingProperty /*= nullptr*/)
 {
 	AROPrivate::AddReferencedObjects(*this, ScriptStruct, StructMemory, ReferencingObject, ReferencingProperty);

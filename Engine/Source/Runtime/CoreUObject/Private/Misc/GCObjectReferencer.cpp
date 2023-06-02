@@ -163,7 +163,7 @@ class FInitialReferenceCollector final : public FReferenceCollector
 {
 	TArray<UObject**>& Result;
 
-#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
+#if !UE_REFERENCE_COLLECTOR_REQUIRE_OBJECTPTR
 	virtual void AddStableReference(UObject** Object) override
 	{
 		Result.Add(Object);
