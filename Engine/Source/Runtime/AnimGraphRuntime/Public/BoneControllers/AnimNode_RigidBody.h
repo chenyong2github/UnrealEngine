@@ -525,3 +525,52 @@ struct TStructOpsTypeTraits<FAnimNode_RigidBody> : public TStructOpsTypeTraitsBa
 };
 #endif
 
+FORCEINLINE_DEBUGGABLE FTransform SpaceToWorldTransform(
+	ESimulationSpace Space, const FTransform& ComponentToWorld, const FTransform& BaseBoneTM)
+{
+	switch (Space)
+	{
+	case ESimulationSpace::ComponentSpace: return ComponentToWorld;
+	case ESimulationSpace::WorldSpace: return FTransform::Identity;
+	case ESimulationSpace::BaseBoneSpace: return BaseBoneTM * ComponentToWorld;
+	default: return FTransform::Identity;
+	}
+}
+
+FORCEINLINE_DEBUGGABLE FVector WorldVectorToSpaceNoScale(
+	ESimulationSpace Space, const FVector& WorldDir, const FTransform& ComponentToWorld, const FTransform& BaseBoneTM)
+{
+	switch (Space)
+	{
+	case ESimulationSpace::ComponentSpace: return ComponentToWorld.InverseTransformVectorNoScale(WorldDir);
+	case ESimulationSpace::WorldSpace: return WorldDir;
+	case ESimulationSpace::BaseBoneSpace:
+		return BaseBoneTM.InverseTransformVectorNoScale(ComponentToWorld.InverseTransformVectorNoScale(WorldDir));
+	default: return FVector::ZeroVector;
+	}
+}
+
+FORCEINLINE_DEBUGGABLE FVector WorldPositionToSpace(
+	ESimulationSpace Space, const FVector& WorldPoint, const FTransform& ComponentToWorld, const FTransform& BaseBoneTM)
+{
+	switch (Space)
+	{
+	case ESimulationSpace::ComponentSpace: return ComponentToWorld.InverseTransformPosition(WorldPoint);
+	case ESimulationSpace::WorldSpace: return WorldPoint;
+	case ESimulationSpace::BaseBoneSpace:
+		return BaseBoneTM.InverseTransformPosition(ComponentToWorld.InverseTransformPosition(WorldPoint));
+	default: return FVector::ZeroVector;
+	}
+}
+
+FORCEINLINE_DEBUGGABLE FTransform ConvertCSTransformToSimSpace(
+	ESimulationSpace Space, const FTransform& InCSTransform, const FTransform& ComponentToWorld, const FTransform& BaseBoneTM)
+{
+	switch (Space)
+	{
+	case ESimulationSpace::ComponentSpace: return InCSTransform;
+	case ESimulationSpace::WorldSpace:  return InCSTransform * ComponentToWorld;
+	case ESimulationSpace::BaseBoneSpace: return InCSTransform.GetRelativeTransform(BaseBoneTM); break;
+	default: ensureMsgf(false, TEXT("Unsupported Simulation Space")); return InCSTransform;
+	}
+}
