@@ -132,7 +132,7 @@ void FAnimNode_Inertialization::Initialize_AnyThread(const FAnimationInitializeC
 	Source.Initialize(Context);
 
 
-	const int32 NumSkeletonBones = UE::Anim::GetNumSkeletonBones(Context.AnimInstanceProxy->GetRequiredBones());
+	const int32 NumSkeletonBones = Context.AnimInstanceProxy->GetSkeleton()->GetReferenceSkeleton().GetNum();
 
 	PoseSnapshots.Empty(INERTIALIZATION_MAX_POSE_SNAPSHOTS);
 	RequestQueue.Reserve(8);

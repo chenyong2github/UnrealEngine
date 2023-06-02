@@ -520,9 +520,6 @@ void FAnimNode_DeadBlending::Initialize_AnyThread(const FAnimationInitializeCont
 	FAnimNode_Base::Initialize_AnyThread(Context);
 	Source.Initialize(Context);
 
-	const USkeleton* Skeleton = Context.AnimInstanceProxy->GetSkeleton();
-	check(Skeleton);
-
 	CurveFilter.Empty();
 	CurveFilter.SetFilterMode(UE::Anim::ECurveFilterMode::DisallowFiltered);
 	CurveFilter.AppendNames(FilteredCurves);
@@ -531,7 +528,7 @@ void FAnimNode_DeadBlending::Initialize_AnyThread(const FAnimationInitializeCont
 
 	RequestQueue.Reserve(8);
 
-	const int32 NumSkeletonBones = UE::Anim::DeadBlending::Private::GetNumSkeletonBones(Context.AnimInstanceProxy->GetRequiredBones());
+	const int32 NumSkeletonBones = Context.AnimInstanceProxy->GetSkeleton()->GetReferenceSkeleton().GetNum();
 
 	BoneValid.Empty(NumSkeletonBones);
 	BoneTranslations.Empty(NumSkeletonBones);
