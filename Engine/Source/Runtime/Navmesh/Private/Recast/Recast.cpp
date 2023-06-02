@@ -279,8 +279,9 @@ bool rcCreateHeightfield(rcContext* /*ctx*/, rcHeightfield& hf, int width, int h
 	{
 		for (int j = 0; j < hf.width + 2; j++)
 		{
-			hf.tempspans[i * (hf.width + 2) + j].sminmax[0] = 32000;
-			hf.tempspans[i * (hf.width + 2) + j].sminmax[1] = -32000;
+			constexpr int RANGE = INT_MAX;
+			hf.tempspans[i * (hf.width + 2) + j].sminmax[0] = RANGE;
+			hf.tempspans[i * (hf.width + 2) + j].sminmax[1] = -RANGE;
 		}
 	}
 
@@ -486,8 +487,6 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 	}
 	memset(chf.areas, RC_NULL_AREA, sizeof(unsigned char)*spanCount);
 	
-	const int MAX_HEIGHT = 0xffff;
-	
 	// Fill in cells and spans.
 	int idx = 0;
 	for (int y = 0; y < h; ++y)
@@ -504,9 +503,9 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 			{
 				if (s->data.area != RC_NULL_AREA)
 				{
-					const int bot = (int)s->data.smax;
-					const int top = s->next ? (int)s->next->data.smin : MAX_HEIGHT;
-					chf.spans[idx].y = (unsigned short)rcClamp(bot, 0, 0xffff);
+					const rcSpanUInt bot = (int)s->data.smax;
+					const rcSpanUInt top = s->next ? (int)s->next->data.smin : RC_SPAN_MAX_HEIGHT;
+					chf.spans[idx].y = rcClamp(bot, 0, RC_SPAN_MAX_HEIGHT);
 					chf.spans[idx].h = (unsigned char)rcClamp(top - bot, 0, 0xff);
 					chf.areas[idx] = s->data.area;
 					idx++;
@@ -544,12 +543,12 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 					for (int k = (int)nc.index, nk = (int)(nc.index+nc.count); k < nk; ++k)
 					{
 						const rcCompactSpan& ns = chf.spans[k];
-						const int bot = rcMax(s.y, ns.y);
-						const int top = rcMin(s.y+s.h, ns.y+ns.h);
+						const rcSpanUInt bot = rcMax(s.y, ns.y);
+						const rcSpanUInt top = rcMin(s.y+s.h, ns.y+ns.h);
 
 						// Check that the gap between the spans is walkable,
 						// and that the climb height between the gaps is not too high.
-						if ((top - bot) >= walkableHeight && rcAbs((int)ns.y - (int)s.y) <= walkableClimb)
+						if (((int)top - (int)bot) >= walkableHeight && rcAbs((int)ns.y - (int)s.y) <= walkableClimb)
 						{
 							// Mark direction as walkable.
 							const int lidx = k - (int)nc.index;

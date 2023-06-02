@@ -26,12 +26,6 @@
 #include "Logging/LogMacros.h"
 #include "RecastLargeWorldCoordinates.h"
 
-// @UE BEGIN
-#ifndef RC_INCREASED_SPAN_HEIGHT_LIMIT
-#define RC_INCREASED_SPAN_HEIGHT_LIMIT	1
-#endif
-// @UE END
-
 //@UE BEGIN Adding support for LWCoords.
 /// The value of PI used by Recast.
 static const rcReal RC_PI = 3.14159265358979323846;
@@ -326,29 +320,28 @@ struct rcConfig
 	rcReal detailSampleMaxError;
 };
 
-/// Defines the number of bits allocated to rcSpan::smin and rcSpan::smax.
-/// Using 15 bits increases the size of rcSpanData to 8 bytes but it does not impact the size of rcSpan since padding was already present.
+/// Defines the number of bits allocated to rcSpanData::smin and rcSpanData::smax.
+/// Using 29 bits increases the size of rcSpanData to 8 bytes but it does not impact the size of rcSpan since padding was already present.
 /// It also increases the size of rcSpanCache to 12 bytes.
-#if RC_INCREASED_SPAN_HEIGHT_LIMIT
-static constexpr int RC_SPAN_HEIGHT_BITS = 15;	// UE
-#else
-static constexpr int RC_SPAN_HEIGHT_BITS = 13;
-#endif // RC_INCREASED_SPAN_HEIGHT_LIMIT
+/// Size of rcTempSpan also increases to 8 bytes.
+static constexpr int RC_SPAN_HEIGHT_BITS = 29;	// UE
 
-/// Defines the maximum value for rcSpan::smin and rcSpan::smax.
+/// Defines the maximum value for rcSpanData::smin and rcSpanData::smax.
 static const int RC_SPAN_MAX_HEIGHT = (1<<RC_SPAN_HEIGHT_BITS)-1;
 
 /// The number of spans allocated per span spool.
 /// @see rcSpanPool
 static const int RC_SPANS_PER_POOL = 2048;
 
+typedef unsigned int rcSpanUInt;
+
 /// Represents data of span in a heightfield.
 /// @see rcHeightfield
 struct rcSpanData
 {
-	unsigned int smin : RC_SPAN_HEIGHT_BITS;	///< The lower limit of the span. [Limit: < #smax]
-	unsigned int smax : RC_SPAN_HEIGHT_BITS;	///< The upper limit of the span. [Limit: <= #RC_SPAN_MAX_HEIGHT]
-	unsigned int area : 6;			///< The area id assigned to the span.
+	rcSpanUInt smin : RC_SPAN_HEIGHT_BITS;	///< The lower limit of the span. [Limit: < #smax]
+	rcSpanUInt smax : RC_SPAN_HEIGHT_BITS;	///< The upper limit of the span. [Limit: <= #RC_SPAN_MAX_HEIGHT]
+	unsigned int area : 6;					///< The area id assigned to the span.
 };
 
 struct rcSpanCache
@@ -389,7 +382,7 @@ struct rcEdgeHit
 };
 struct rcTempSpan
 {
-	short int sminmax[2];			///< The lower and upper limit of the span. [Limit: < #smax]
+	int sminmax[2];			///< The lower and upper limit of the span. [Limit: < #smax]
 };
 #endif
 
@@ -424,9 +417,9 @@ struct rcCompactCell
 /// Represents a span of unobstructed space within a compact heightfield.
 struct rcCompactSpan
 {
-	unsigned short y;			///< The lower extent of the span. (Measured from the heightfield's base.)
-	unsigned short reg;			///< The id of the region the span belongs to. (Or zero if not in a region.)
+	rcSpanUInt y;				///< The lower extent of the span. (Measured from the heightfield's base.)
 	unsigned int con;			///< Packed neighbor connection data.
+	unsigned short reg;			///< The id of the region the span belongs to. (Or zero if not in a region.)
 	unsigned char h;			///< The height of the span.  (Measured from #y.)
 };
 
@@ -466,7 +459,7 @@ struct rcHeightfieldLayer
 	int maxx;					///< The maximum x-bounds of usable data.
 	int miny;					///< The minimum y-bounds of usable data. (Along the z-axis.)
 	int maxy;					///< The maximum y-bounds of usable data. (Along the z-axis.)
-	int hmin;					///< The minimum height bounds of usable data. (Along the y-axis.)
+	int hmin;					///< The minimum height bounds of usable data. (Along the y-axis.)	// @todo: remove
 	int hmax;					///< The maximum height bounds of usable data. (Along the y-axis.)
 	unsigned short* heights;	///< The heightfield. [Size: (width - borderSize*2) * (h - borderSize*2)]
 	unsigned char* areas;		///< Area ids. [Size: Same as #heights]

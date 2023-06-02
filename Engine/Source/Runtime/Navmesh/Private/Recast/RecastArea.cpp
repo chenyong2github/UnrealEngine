@@ -274,7 +274,7 @@ void SeedWalkableAreasErodeFiltered(int w, int h, int lowSpanHeight, int lowSpan
 			const rcCompactCell& c = chf.cells[x + y*w];
 
 			// initialize to max height in case it needs to start with a low span
-			int32 NextAllowedLowBase = 0xffff;
+			rcSpanUInt NextAllowedLowBase = RC_SPAN_MAX_HEIGHT;
 
 			for (int ni = (int)c.index, i = (int)(c.index + c.count) - 1; i >= ni; i--)
 			{
@@ -293,7 +293,7 @@ void SeedWalkableAreasErodeFiltered(int w, int h, int lowSpanHeight, int lowSpan
 						seed[i] = (unsigned char)lowSpanSeed;
 
 						// next low span is allowed after full agent height (or valid area from condition below)
-						NextAllowedLowBase = rcMax(0, s.y - lowSpanHeight);
+						NextAllowedLowBase = rcMax(0, (int)s.y - lowSpanHeight);
 					}
 					else
 					{
@@ -338,7 +338,7 @@ void FilterLowHeightSpans(int w, int h, int lowSpanHeight, unsigned char areaId,
 			const rcCompactCell& c = chf.cells[x + y*w];
 
 			// initialize to max height in case it needs to start with a low span
-			int32 NextAllowedLowBase = 0xffff;
+			rcSpanUInt NextAllowedLowBase = RC_SPAN_MAX_HEIGHT;
 
 			for (int ni = (int)c.index, i = (int)(c.index + c.count) - 1; i >= ni; i--)
 			{
@@ -351,7 +351,7 @@ void FilterLowHeightSpans(int w, int h, int lowSpanHeight, unsigned char areaId,
 					}
 					else
 					{
-						NextAllowedLowBase = rcMax(0, s.y - lowSpanHeight);
+						NextAllowedLowBase = rcMax(0, (int)s.y - lowSpanHeight);
 					}
 				}
 				else if (chf.areas[i] != RC_NULL_AREA)

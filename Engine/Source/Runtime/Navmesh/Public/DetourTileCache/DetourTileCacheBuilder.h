@@ -39,7 +39,7 @@ struct dtTileCacheLayerHeader
 {
 	short version;							///< Data version
 	int tx,ty,tlayer;
-	unsigned short hmin, hmax;				///< Height min/max range
+	unsigned short hmin, hmax;				///< Height min/max range (@todo: remove)
 	unsigned short width, height;			///< Dimension of the layer.
 	unsigned short minx, maxx, miny, maxy;	///< Usable sub-region.
 	// These should be at the bottom, as they are less often used than the rest of the data.

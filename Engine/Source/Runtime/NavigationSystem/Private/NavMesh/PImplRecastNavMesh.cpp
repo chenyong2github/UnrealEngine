@@ -1049,7 +1049,7 @@ void FPImplRecastNavMesh::SerializeCompressedTileCacheData(FArchive& Ar, int32 N
 		Ar << Header->bmin[i];
 		Ar << Header->bmax[i];
 	}
-	Ar << Header->hmin;
+	Ar << Header->hmin;	// @todo: remove
 	Ar << Header->hmax;
 	Ar << Header->width;
 	Ar << Header->height;
