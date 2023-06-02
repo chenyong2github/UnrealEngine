@@ -27,6 +27,7 @@ public:
 	//~ End IStreamedCompressedInfo Interface
 
 protected:
+	using Super = IStreamedCompressedInfo;
 
 	// copied from header during ParseHeader
 	uint32 MaxCompSpaceNeeded;

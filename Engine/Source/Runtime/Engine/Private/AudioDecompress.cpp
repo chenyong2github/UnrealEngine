@@ -119,6 +119,32 @@ bool IStreamedCompressedInfo::ReadCompressedData(uint8* Destination, bool bLoopi
 	return bFinished;
 }
 
+void IStreamedCompressedInfo::SeekToTime(const float InSeekTimeSeconds)
+{
+	if (StreamingSoundWave.IsValid())
+	{
+		const FSoundWavePtr WaveData = StreamingSoundWave->GetSoundWaveData();
+		if (WaveData.IsValid())
+		{
+			// Negative time will seek to start.
+			uint32 SeekTimeAudioFrames = 0;
+			if (InSeekTimeSeconds > 0)
+			{
+				SeekTimeAudioFrames = IntCastChecked<uint32>((uint64)(WaveData->GetSampleRate() * InSeekTimeSeconds));
+			}
+
+			// If we have a chunk setup to contain a seek-table it will return a value other than INDEX_NONE here.
+			const int32 ChunkIndexToSeekTo = WaveData->FindChunkIndexForSeeking(SeekTimeAudioFrames);
+			if (ChunkIndexToSeekTo >= 0)
+			{
+				StreamSeekBlockIndex = ChunkIndexToSeekTo;
+				StreamSeekBlockOffset = 0;								// We don't know this until the seek-table is loaded, so we leave it 0 for now.
+				StreamSeekToAudioFrames = SeekTimeAudioFrames;			// Store the time in samples so when we load the chunks table loads we can find the offset.
+			}
+		}
+	}
+}
+
 void IStreamedCompressedInfo::ExpandFile(uint8* DstBuffer, struct FSoundQualityInfo* QualityInfo)
 {
 	check(DstBuffer);
@@ -239,17 +265,17 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 			if (ensureMsgf(FStreamedAudioChunkSeekTable::Parse(SrcBufferData, ChunkSize, TableOffset, GetCurrentSeekTable()), 
 				TEXT("Failed to parse seektable in '%s', chunk=%d"), *StreamingSoundWave->GetFName().ToString(), CurrentChunkIndex))
 			{
-				if (StreamSeekToSamples != INDEX_NONE)
+				if (StreamSeekToAudioFrames != INDEX_NONE)
 				{
 					const FStreamedAudioChunk& Chunk = StreamingSoundWave->GetSoundWaveData()->GetChunk(CurrentChunkIndex);
-					int32 SeekOffsetInChunkSpace = StreamSeekToSamples - Chunk.SeekOffsetInAudioFrames;
-					uint32 Offset = GetCurrentSeekTable().FindOffset(StreamSeekToSamples);
+					int32 SeekOffsetInChunkSpace = StreamSeekToAudioFrames - Chunk.SeekOffsetInAudioFrames;
+					uint32 Offset = GetCurrentSeekTable().FindOffset(StreamSeekToAudioFrames);
 					if (Offset != INDEX_NONE)
 					{
 						SrcBufferOffset = Offset + TableOffset;
 						SrcBufferOffset += CurrentChunkIndex == 0 ? AudioDataOffset : 0;
 					}
-					StreamSeekToSamples = INDEX_NONE;
+					StreamSeekToAudioFrames = INDEX_NONE;
 				}
 			}
 		}

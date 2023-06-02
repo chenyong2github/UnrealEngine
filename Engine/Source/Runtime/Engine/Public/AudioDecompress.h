@@ -197,7 +197,7 @@ public:
 	//~ Begin ICompressedInfo Interface
 	ENGINE_API virtual bool ReadCompressedInfo(const uint8* InSrcBufferData, uint32 InSrcBufferDataSize, FSoundQualityInfo* QualityInfo) override;
 	ENGINE_API virtual bool ReadCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize) override;
-	ENGINE_API virtual void SeekToTime(const float SeekTime) override {};
+	ENGINE_API virtual void SeekToTime(const float SeekTime) override;;
 	ENGINE_API virtual void ExpandFile(uint8* DstBuffer, struct FSoundQualityInfo* QualityInfo) override;
 	ENGINE_API virtual void EnableHalfRate(bool HalfRate) override {};
 	virtual uint32 GetSourceBufferSize() const override { return SrcBufferDataSize; }
@@ -339,7 +339,7 @@ protected:
 	int32 StreamSeekBlockOffset;
 
 	/** If using the Chunked seek-tables, we request the seek in samples so we can resolve after the chunk table loads. */
-	uint32 StreamSeekToSamples = INDEX_NONE;	
+	uint32 StreamSeekToAudioFrames = INDEX_NONE;	
 };
 
 struct IAudioInfoFactory 
