@@ -15,7 +15,7 @@ This is a collection of tests for web features like http, websocket, ssl etc.
 
 ## Run the tests from VS:
 	Set `WebTests` as the startup project and set Solution Configuration to a `Development`.
-	If running tests on other devices, pass in the ip as command line args, after extra args AT THE END, like: "-- --web_server_ip=your.pc.ip.address"
+	If running tests on other devices, pass in the ip as command line args, after extra args AT THE END, like: "--extra-args --web_server_ip=your.pc.ip.address"
 	Compile and debug
 
 # Adding new test case in WebServer:

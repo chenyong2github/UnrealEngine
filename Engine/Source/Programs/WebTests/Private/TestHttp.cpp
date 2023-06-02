@@ -3,8 +3,8 @@
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformProcess.h"
-#include "Online/HTTP/Public/HttpManager.h"
-#include "Online/HTTP/Public/Http.h"
+#include "HttpManager.h"
+#include "Http.h"
 #include "Misc/CommandLine.h"
 #include "TestHarness.h"
 
@@ -127,11 +127,28 @@ public:
 	float TickFrequency = 1.0f / 60; /*60 FPS*/;
 };
 
-TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - GET", HTTP_TAG)
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods", HTTP_TAG)
 {
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
 	HttpRequest->SetURL(UrlToTestMethods());
-	HttpRequest->SetVerb(TEXT("GET"));
+
+	SECTION("GET")
+	{
+		HttpRequest->SetVerb(TEXT("GET"));
+	}
+	SECTION("POST")
+	{
+		HttpRequest->SetVerb(TEXT("POST"));
+	}
+	SECTION("PUT")
+	{
+		HttpRequest->SetVerb(TEXT("PUT"));
+	}
+	SECTION("DELETE")
+	{
+		HttpRequest->SetVerb(TEXT("DELETE"));
+	}
+
 	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
 		CHECK(bSucceeded);
 		CHECK(HttpResponse->GetResponseCode() == 200);
@@ -139,43 +156,7 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - GET", HTTP_TAG)
 	HttpRequest->ProcessRequest();
 }
 
-TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - POST", HTTP_TAG)
-{
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
-	HttpRequest->SetURL(UrlToTestMethods());
-	HttpRequest->SetVerb(TEXT("POST"));
-	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
-		CHECK(bSucceeded);
-		CHECK(HttpResponse->GetResponseCode() == 200);
-	});
-	HttpRequest->ProcessRequest();
-}
-
-TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - PUT", HTTP_TAG)
-{
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
-	HttpRequest->SetURL(UrlToTestMethods());
-	HttpRequest->SetVerb(TEXT("PUT"));
-	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
-		CHECK(bSucceeded);
-		CHECK(HttpResponse->GetResponseCode() == 200);
-	});
-	HttpRequest->ProcessRequest();
-}
-
-TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - DELETE", HTTP_TAG)
-{
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
-	HttpRequest->SetURL(UrlToTestMethods());
-	HttpRequest->SetVerb(TEXT("DELETE"));
-	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
-		CHECK(bSucceeded);
-		CHECK(HttpResponse->GetResponseCode() == 200);
-	});
-	HttpRequest->ProcessRequest();
-}
-
-TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - GET Large Response Content Without Chunks", HTTP_TAG)
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Get large response content without chunks", HTTP_TAG)
 {
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
 	HttpRequest->SetURL(FString::Format(TEXT("{0}/get_large_response_without_chunks/{1}/"), { *UrlHttpTests(), 1024 * 1024/*bytes_number*/}));
@@ -187,7 +168,7 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods - GET Large Respon
 	HttpRequest->ProcessRequest();
 }
 
-TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http request - connect timeout.", HTTP_TAG)
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http request connect timeout", HTTP_TAG)
 {
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
 	HttpRequest->SetURL(UrlWithInvalidPortToTestConnectTimeout());
