@@ -216,6 +216,10 @@ public:
 	void FlushStreaming();
 	URuntimeHashExternalStreamingObjectBase* FlushStreamingToExternalStreamingObject(const FString& ExternalStreamingObjectName);
 
+	// Event when world partition was enabled/disabled in the world
+	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionChangedEvent, UWorld*);
+	static FWorldPartitionChangedEvent WorldPartitionChangedEvent;
+
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionGenerateStreamingDelegate, TArray<FString>*);
 	FWorldPartitionGenerateStreamingDelegate OnPreGenerateStreaming;
 

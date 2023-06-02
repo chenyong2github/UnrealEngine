@@ -257,6 +257,7 @@ public:
 		bIncludeNonSpatiallyLoadedActors = true;
 	}
 };
+UWorldPartition::FWorldPartitionChangedEvent UWorldPartition::WorldPartitionChangedEvent;
 #endif
 
 UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)

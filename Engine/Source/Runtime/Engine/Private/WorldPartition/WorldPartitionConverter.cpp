@@ -176,6 +176,7 @@ bool FWorldPartitionConverter::Convert()
 	if (bCreatedWorldPartition)
 	{
 		WorldPartition->Initialize(World, FTransform::Identity);
+		UWorldPartition::WorldPartitionChangedEvent.Broadcast(World);
 	}
 
 	return true;
