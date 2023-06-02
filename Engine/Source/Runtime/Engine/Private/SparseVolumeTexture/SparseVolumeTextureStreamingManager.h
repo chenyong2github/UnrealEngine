@@ -64,8 +64,9 @@ struct FMipLevelKey
 
 struct FStreamingRequest
 {
+	static constexpr uint32 BlockingPriority = 0xFFFFFFFFu;
 	FMipLevelKey Key;
-	uint32 Priority; // A higher value means a higher priority
+	uint32 Priority; // A higher value means a higher priority, 0xFFFFFF means blocking
 
 	FORCEINLINE bool operator<(const FStreamingRequest& Other) const
 	{
@@ -86,12 +87,11 @@ public:
 	//~ Begin IStreamingManager Interface.
 	virtual void Add_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture) override;
 	virtual void Remove_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture) override;
-	// Request a frame to be streamed in. FrameIndex is of float type so that the fractional part can be used to better track the playback speed/direction.
-	// This function automatically also requests all higher mip levels and adds prefetch requests for upcoming frames.
-	virtual void Request_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel) override;
+	virtual void Request_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel, bool bBlocking) override;
+	virtual void Update_GameThread() override;
 	
-	virtual void Request(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel) override;
-	virtual void BeginAsyncUpdate(FRDGBuilder& GraphBuilder) override;
+	virtual void Request(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel, bool bBlocking) override;
+	virtual void BeginAsyncUpdate(FRDGBuilder& GraphBuilder, bool bForceNonAsync) override;
 	virtual void EndAsyncUpdate(FRDGBuilder& GraphBuilder) override;
 	//~ End IStreamingManager Interface.
 
@@ -234,6 +234,7 @@ private:
 		FIoBuffer RequestBuffer;
 		FBulkDataBatchReadRequest Request;
 		uint32 IssuedInFrame = 0;
+		bool bBlocking = false;
 
 		void Reset()
 		{
@@ -249,6 +250,7 @@ private:
 			RequestBuffer = {};
 			Request.Reset();
 			IssuedInFrame = 0;
+			bBlocking = false;
 		}
 	};
 
@@ -301,6 +303,7 @@ private:
 	{
 		int32 NumReadyMipLevels = 0;
 		bool bUpdateActive = false;
+		bool bUpdateIsAsync = false;
 	};
 
 	// Stores info extracted from the UStreamableSparseVolumeTexture and its USparseVolumeTextureFrames so that we don't need to access these uobjects on the rendering thread
@@ -320,6 +323,7 @@ private:
 	TArray<FPendingMipLevel> PendingMipLevels;
 #if WITH_EDITORONLY_DATA
 	UE::DerivedData::FRequestOwner* RequestOwner = nullptr;
+	UE::DerivedData::FRequestOwner* RequestOwnerBlocking = nullptr;
 #endif
 
 	class FPageTableUpdater* PageTableUpdater = nullptr;
@@ -336,7 +340,7 @@ private:
 	TSet<FTileDataTexture*> TileDataTexturesToUpdate;
 	TSet<FStreamingInfo*> InvalidatedStreamingInfos;
 	TArray<FStreamingRequest> PrioritizedRequestsHeap;
-	TArray<FMipLevelKey> SelectedMipLevels;
+	TArray<FStreamingRequest> SelectedRequests;
 	TArray<FPageTableClear> PageTableClears;
 	TArray<FUploadTask> UploadTasks; // accessed on the async thread
 	TArray<FPendingMipLevel*> UploadCleanupTasks; // accessed on the async thread
@@ -346,15 +350,15 @@ private:
 	bool AddRequest(const FStreamingRequest& Request); // Returns true when the request is new or it has been updated with a higher priority
 	void AsyncUpdate();
 	void AddParentRequests(); // Add requests for all parent mip levels
-	void SelectHighestPriorityRequestsAndUpdateLRU(int32 MaxSelectedMipLevels);
-	void IssueRequests(int32 MaxSelectedMipLevels);
+	void SelectHighestPriorityRequestsAndUpdateLRU(int32 MaxSelectedRequests);
+	void IssueRequests(int32 MaxSelectedRequests);
 	void StreamOutMipLevel(FStreamingInfo& SVTInfo, FLRUNode* LRUNode);
 	int32 DetermineReadyMipLevels();
 	void InstallReadyMipLevels();
 
 #if WITH_EDITORONLY_DATA
 	UE::DerivedData::FCacheGetChunkRequest BuildDDCRequest(const FResources& Resources, const FMipLevelStreamingInfo& MipLevelStreamingInfo, const uint32 PendingMipLevelIndex);
-	void RequestDDCData(TConstArrayView<UE::DerivedData::FCacheGetChunkRequest> DDCRequests);
+	void RequestDDCData(TConstArrayView<UE::DerivedData::FCacheGetChunkRequest> DDCRequests, bool bBlocking);
 #endif
 };
 

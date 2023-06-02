@@ -238,7 +238,9 @@ public:
 	// Retrieves a frame from the given SparseVolumeTexture and also issues a streaming request for it. 
 	// FrameIndex is of float type so that the streaming system can use the fractional part to more easily keep track of playback speed and direction (forward/reverse playback).
 	// MipLevel is the lowest mip level that the caller intends to use but does not guarantee that the mip is actually resident.
-	static USparseVolumeTextureFrame* GetFrameAndIssueStreamingRequest(USparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel);
+	// If bBlocking is true, DDC streaming requests will block on completion, guaranteeing that the requested frame will have been streamed in after the next streaming system update.
+	// If streaming cooked data from disk, the highest priority will be used, but no guarantee is given.
+	static USparseVolumeTextureFrame* GetFrameAndIssueStreamingRequest(USparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel, bool bBlocking = false);
 
 	bool Initialize(USparseVolumeTexture* InOwner, int32 InFrameIndex, UE::SVT::FTextureData& UncookedFrame);
 	int32 GetFrameIndex() const { return FrameIndex; }

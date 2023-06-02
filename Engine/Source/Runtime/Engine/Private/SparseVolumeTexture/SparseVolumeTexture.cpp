@@ -182,7 +182,21 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner, bool bCooked)
 
 bool FResources::HasStreamingData() const
 {
-	return MipLevelStreamingInfo.Num() > 1;
+	if (MipLevelStreamingInfo.Num() == 1)
+	{
+		// Root mip level does not stream
+		return false;
+	}
+	else
+	{
+		// It is possible for multiple mip levels to exist but all these levels are empty, so we can't just check the number of mip levels
+		bool bHasStreamingData = false;
+		for (int32 MipLevelIndex = 0; MipLevelIndex < MipLevelStreamingInfo.Num() - 1; ++MipLevelIndex)
+		{
+			bHasStreamingData = bHasStreamingData || (MipLevelStreamingInfo[MipLevelIndex].BulkSize > 0);
+		}
+		return bHasStreamingData;
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -643,11 +657,11 @@ USparseVolumeTextureFrame::USparseVolumeTextureFrame(const FObjectInitializer& O
 {
 }
 
-USparseVolumeTextureFrame* USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest(USparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel)
+USparseVolumeTextureFrame* USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest(USparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel, bool bBlocking)
 {
 	if (UStreamableSparseVolumeTexture* StreamableSVT = Cast<UStreamableSparseVolumeTexture>(SparseVolumeTexture))
 	{
-		UE::SVT::GetStreamingManager().Request_GameThread(StreamableSVT, FrameIndex, MipLevel);
+		UE::SVT::GetStreamingManager().Request_GameThread(StreamableSVT, FrameIndex, MipLevel, bBlocking);
 		return StreamableSVT->GetFrame(static_cast<int32>(FrameIndex));
 	}
 	return nullptr;

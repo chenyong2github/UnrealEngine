@@ -30,6 +30,7 @@
 
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
 #include "SparseVolumeTexture/SparseVolumeTextureData.h"
+#include "SparseVolumeTexture/ISparseVolumeTextureStreamingManager.h"
 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRenderTargetVolume)
@@ -827,7 +828,13 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* Storage
 		UAnimatedSparseVolumeTexture* SVT = Cast<UAnimatedSparseVolumeTexture>(StorageObject);
 		
 		const int32 MipLevel = 0;
-		USparseVolumeTextureFrame *SVTFrame = USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest(SVT, FrameA + Interp, MipLevel);
+		const bool bBlocking = true;
+		USparseVolumeTextureFrame *SVTFrame = USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest(SVT, FrameA + Interp, MipLevel, bBlocking);
+		
+		// The streaming manager normally ticks in FDeferredShadingSceneRenderer::Render(), but the SVT->DenseTexture conversion compute shader happens in a render command before that.
+		// At execution time of that command, the streamer hasn't had the chance to do any streaming yet, so we force another tick here.
+		// Assuming blocking requests are used, this guarantees that the requested frame is fully streamed in (if there is memory available).
+		UE::SVT::GetStreamingManager().Update_GameThread();
 
 		FIntVector VolumeResolution = SVT->GetVolumeResolution();						
 
