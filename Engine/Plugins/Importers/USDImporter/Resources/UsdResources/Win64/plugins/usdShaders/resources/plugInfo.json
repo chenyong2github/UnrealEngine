@@ -8,8 +8,6 @@
                         "displayName": "USD-based shader definition discovery plugin."
                     }
                 },
-                # Allow usdShaders/shaders to be accessible by hio/glslfx.cpp's 
-                #   ShaderResourceRegistry
                 "ShaderResources": "shaders"
             },
             "LibraryPath": "../../../../../../../../Binaries/Win64/usdShaders.dll",
