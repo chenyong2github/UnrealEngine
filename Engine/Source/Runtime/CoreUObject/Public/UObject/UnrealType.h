@@ -2465,6 +2465,18 @@ public:
 		return FieldMask == 0xff;
 	}
 
+	/** Return the the mask that defines the relevant bit for this boolean, or 0xFF if IsNativeBool() is true */
+	FORCEINLINE uint8 GetFieldMask() const
+	{
+		return FieldMask;
+	}
+
+	/** Return the byte offset from this property's storage type to the byte that FieldMask applies to. Only valid if IsNativeBool() is true. */
+	FORCEINLINE uint8 GetByteOffset() const
+	{
+		return ByteOffset;
+	}
+
 	uint32 GetValueTypeHashInternal(const void* Src) const override;
 };
 

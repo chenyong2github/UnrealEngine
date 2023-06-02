@@ -172,6 +172,8 @@ struct FFadeComponentData
 
 struct FFloatPropertyTraits
 {
+	static constexpr bool bIsComposite = false;
+
 	using StorageType  = double;
 	using CustomAccessorStorageType = float;
 	using MetaDataType = TPropertyMetaData<>;
@@ -219,11 +221,6 @@ struct FFloatPropertyTraits
 	{
 		const float SetterValue = (float)InValue;
 		FloatTraitsImpl::SetObjectPropertyValue(InObject, PropertyBindings, SetterValue);
-	}
-
-	static float CombineComposites(double InValue)
-	{
-		return (float)InValue;
 	}
 };
 
@@ -439,17 +436,91 @@ struct FFloatVectorPropertyTraits
 	}
 };
 
-using FBoolPropertyTraits               = TDirectPropertyTraits<bool>;
-using FBytePropertyTraits               = TDirectPropertyTraits<uint8>;
-using FEnumPropertyTraits               = TDirectPropertyTraits<uint8>;
-using FIntPropertyTraits                = TDirectPropertyTraits<int32>;
-using FDoublePropertyTraits             = TDirectPropertyTraits<double>;
+struct FBoolPropertyTraits
+{
+	static constexpr bool bIsComposite = false;
+
+	struct FBoolMetaData
+	{
+		/** Size of the bitfield/bool property in bytes. Must be one of 1(uint8), 2(uint16), 4(uint32), 8(uint64), or 0 signifying that this is not a bitfield, but a regular bool.. */
+		uint8 BitFieldSize = 0;
+		uint8 BitIndex = 0;
+	};
+	using StorageType  = bool;
+	using MetaDataType = TPropertyMetaData<FBoolMetaData>;
+	using TraitsType   = TDirectPropertyTraits<bool>;
+	using ParamType    = bool;
+
+	/** Property Value Getters  */
+	static void GetObjectPropertyValue(const UObject* InObject, FBoolMetaData MetaData, const FCustomPropertyAccessor& BaseCustomAccessor, bool& OutValue)
+	{
+		const TCustomPropertyAccessor<TraitsType>& CustomAccessor = static_cast<const TCustomPropertyAccessor<TraitsType>&>(BaseCustomAccessor);
+		OutValue = (*CustomAccessor.Functions.Getter)(InObject);
+	}
+	static void GetObjectPropertyValue(const UObject* InObject, FBoolMetaData MetaData, uint16 PropertyOffset, bool& OutValue)
+	{
+		const void* PropertyAddress = reinterpret_cast<const uint8*>(InObject) + PropertyOffset;
+		switch(MetaData.BitFieldSize)
+		{
+		case 0: OutValue = (*reinterpret_cast<const bool  *>(PropertyAddress)); return; // 0 means no bitfield
+		case 1: OutValue = (*reinterpret_cast<const uint8 *>(PropertyAddress) & (uint8 (1u) << MetaData.BitIndex)); return;
+		case 2: OutValue = (*reinterpret_cast<const uint16*>(PropertyAddress) & (uint16(1u) << MetaData.BitIndex)); return;
+		case 4: OutValue = (*reinterpret_cast<const uint32*>(PropertyAddress) & (uint32(1u) << MetaData.BitIndex)); return;
+		case 8: OutValue = (*reinterpret_cast<const uint64*>(PropertyAddress) & (uint64(1u) << MetaData.BitIndex)); return;
+		}
+	}
+	static void GetObjectPropertyValue(const UObject* InObject, FBoolMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, bool& OutValue)
+	{
+		OutValue = PropertyBindings->GetCurrentValue<bool>(*InObject);
+	}
+	static void GetObjectPropertyValue(const UObject* InObject, FBoolMetaData MetaData, const FName& PropertyPath, bool& OutValue)
+	{
+		TOptional<bool> Property = FTrackInstancePropertyBindings::StaticValue<bool>(InObject, *PropertyPath.ToString());
+		if (Property)
+		{
+			OutValue = MoveTemp(Property.GetValue());
+		}
+	}
+
+	/** Property Value Setters  */
+	static void SetObjectPropertyValue(UObject* InObject, FBoolMetaData MetaData, const FCustomPropertyAccessor& BaseCustomAccessor, bool InValue)
+	{
+		const TCustomPropertyAccessor<TraitsType>& CustomAccessor = static_cast<const TCustomPropertyAccessor<TraitsType>&>(BaseCustomAccessor);
+		(*CustomAccessor.Functions.Setter)(InObject, InValue);
+	}
+	static void SetObjectPropertyValue(UObject* InObject, FBoolMetaData MetaData, uint16 PropertyOffset, bool InValue)
+	{
+		void* PropertyAddress = reinterpret_cast<uint8*>(InObject) + PropertyOffset;
+
+		// Perform a branchless set by getting the current value, removing the bit, then a bitwise or with InValue in the bit's position.
+		// For example, bit index 4 of a uint8 field:
+		//			f(true)  = (Value & 0b11101111) | 0b00010000
+		//			f(false) = (Value & 0b11101111) | 0b00000000
+		switch(MetaData.BitFieldSize)
+		{
+		case 0: *reinterpret_cast<bool  *>(PropertyAddress) = InValue; return; // 0 means no bitfield
+		case 1: *reinterpret_cast<uint8 *>(PropertyAddress) = (*reinterpret_cast<uint8 *>(PropertyAddress) & ~(uint8 (1u)  << MetaData.BitIndex)) | (uint8 (InValue) << MetaData.BitIndex); return;
+		case 2: *reinterpret_cast<uint16*>(PropertyAddress) = (*reinterpret_cast<uint16*>(PropertyAddress) & ~(uint16(1u)  << MetaData.BitIndex)) | (uint16(InValue) << MetaData.BitIndex); return;
+		case 4: *reinterpret_cast<uint32*>(PropertyAddress) = (*reinterpret_cast<uint32*>(PropertyAddress) & ~(uint32(1u)  << MetaData.BitIndex)) | (uint32(InValue) << MetaData.BitIndex); return;
+		case 8: *reinterpret_cast<uint64*>(PropertyAddress) = (*reinterpret_cast<uint64*>(PropertyAddress) & ~(uint64(1u)  << MetaData.BitIndex)) | (uint64(InValue) << MetaData.BitIndex); return;
+		}
+	}
+	static void SetObjectPropertyValue(UObject* InObject, FBoolMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, bool InValue)
+	{
+		PropertyBindings->CallFunction<bool>(*InObject, InValue);
+	}
+};
+
+using FBytePropertyTraits               = TDirectPropertyTraits<uint8, false>;
+using FEnumPropertyTraits               = TDirectPropertyTraits<uint8, false>;
+using FIntPropertyTraits                = TDirectPropertyTraits<int32, false>;
+using FDoublePropertyTraits             = TDirectPropertyTraits<double, false>;
 using FTransformPropertyTraits          = TIndirectPropertyTraits<FTransform, FIntermediate3DTransform>;
 using FEulerTransformPropertyTraits     = TIndirectPropertyTraits<FEulerTransform, FIntermediate3DTransform>;
 using FComponentTransformPropertyTraits = TDirectPropertyTraits<FIntermediate3DTransform>;
 using FStringPropertyTraits			    = TDirectPropertyTraits<FString>;
 
-using FFloatParameterTraits             = TIndirectPropertyTraits<float, double>;
+using FFloatParameterTraits             = TIndirectPropertyTraits<float, double, false>;
 using FColorParameterTraits             = TIndirectPropertyTraits<FLinearColor, FIntermediateColor>;
 
 struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes

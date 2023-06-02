@@ -25,9 +25,11 @@ struct TPropertyMetaData
 /**
  * Property accessor traits that talk directly to the reflected UObject property type
  */
-template<typename UObjectPropertyType>
+template<typename UObjectPropertyType, bool bInIsComposite = true>
 struct TDirectPropertyTraits
 {
+	static constexpr bool bIsComposite = bInIsComposite;
+
 	using StorageType  = UObjectPropertyType;
 	using MetaDataType = TPropertyMetaData<>;
 	using TraitsType   = TDirectPropertyTraits<UObjectPropertyType>;
@@ -85,9 +87,11 @@ struct TDirectPropertyTraits
 /**
  * Property accessor traits that talk directly to the reflected UObject property type
  */
-template<typename UObjectPropertyType, typename InMemoryType>
+template<typename UObjectPropertyType, typename InMemoryType, bool bInIsComposite = true>
 struct TIndirectPropertyTraits
 {
+	static constexpr bool bIsComposite = bInIsComposite;
+
 	using StorageType  = InMemoryType;
 	using MetaDataType = TPropertyMetaData<>;
 	using TraitsType   = TIndirectPropertyTraits<UObjectPropertyType, InMemoryType>;

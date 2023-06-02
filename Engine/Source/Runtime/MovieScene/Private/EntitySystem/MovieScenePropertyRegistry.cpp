@@ -13,33 +13,131 @@ namespace UE
 namespace MovieScene
 {
 
+struct FPropertyAndAddress
+{
+	FProperty* Property = nullptr;
+	uint8* PropertyAddress = nullptr;
+};
+
+/**
+ * Find a nested property and address from the specified path of the form StructProp.Struct.Inner.
+ * Any symbols other than identifiers and dots are not supported (or even checked for).
+ */
+template<typename CharType>
+FPropertyAndAddress FindPropertyFromNestedPath(UStruct* Struct, void* Container, TStringView<CharType> InPath)
+{
+	// Find the next dot in the path
+	int32 DotIndex = InPath.Len();
+	const bool bHasTail = InPath.FindChar('.', DotIndex);
+
+	// Look up our property name using FNAME_Find. If no name exists with this name, a property cannot exist for it.
+	TStringView<CharType> Head = bHasTail ? InPath.Left(DotIndex) : InPath;
+	FName PropertyName(Head.Len(), Head.GetData(), FNAME_Find);
+	if (PropertyName.IsNone())
+	{
+		return FPropertyAndAddress{};
+	}
+
+	// Find a property for the head
+	FProperty* Property = Struct->FindPropertyByName(PropertyName);
+	if (!Property)
+	{
+		return FPropertyAndAddress{};
+	}
+
+	uint8* PropertyAddress = Property->ContainerPtrToValuePtr<uint8>(Container);
+
+	// If we have more properties to look up, start again from the tail path and the current property address
+	if (bHasTail)
+	{
+		FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+		if (!StructProperty || !StructProperty->Struct)
+		{
+			return FPropertyAndAddress{};
+		}
+
+		TStringView<CharType> Tail = InPath.RightChop(DotIndex+1);
+		return FindPropertyFromNestedPath(StructProperty->Struct, PropertyAddress, Tail);
+	}
+
+	return FPropertyAndAddress{ Property, PropertyAddress };
+}
+
+FPropertyAndAddress FindPropertyFromPath(UClass* ObjectClass, const FMovieScenePropertyBinding& PropertyBinding)
+{
+	if (PropertyBinding.PropertyName == PropertyBinding.PropertyPath)
+	{
+		// Simple case - just a property name
+		FProperty* Property = ObjectClass->FindPropertyByName(PropertyBinding.PropertyName);
+		if (Property)
+		{
+			UObject* DefaultObject   = ObjectClass->GetDefaultObject();
+			uint8*   PropertyAddress = Property->ContainerPtrToValuePtr<uint8>(DefaultObject);
+			return FPropertyAndAddress{ Property, PropertyAddress };
+		}
+	}
+	else
+	{
+		// Lookup the property name using a string view to avoid allocation.
+		// Most properties will be ansi strings
+		const FNameEntry* NameEntry = PropertyBinding.PropertyPath.GetComparisonNameEntry();
+		if (NameEntry)
+		{
+			if (NameEntry->IsWide())
+			{
+				TWideStringBuilder<128> Path;
+				NameEntry->AppendNameToString(Path);
+				return FindPropertyFromNestedPath(ObjectClass, ObjectClass->GetDefaultObject(), Path.ToView());
+			}
+			else
+			{
+				TAnsiStringBuilder<128> Path;
+				NameEntry->AppendAnsiNameToString(Path);
+				return FindPropertyFromNestedPath(ObjectClass, ObjectClass->GetDefaultObject(), Path.ToView());
+			}
+		}
+	}
+
+	return FPropertyAndAddress{};
+}
+
+
+
 TOptional<uint16> ComputeFastPropertyPtrOffset(UClass* ObjectClass, const FMovieScenePropertyBinding& PropertyBinding)
 {
 	using namespace UE::MovieScene;
 
-	FProperty* Property = ObjectClass->FindPropertyByName(PropertyBinding.PropertyName);
-	
-	const bool bFoundSetter = (!Property || Property->HasSetter());
+	FPropertyAndAddress PropertyAndAddress = FindPropertyFromPath(ObjectClass, PropertyBinding);
+
+	const bool bFoundSetter = (!PropertyAndAddress.Property || PropertyAndAddress.Property->HasSetter());
 	if (bFoundSetter)
 	{
 		return TOptional<uint16>();
 	}
 
-	// @todo: Constructing FNames from strings is _very_ costly and we really shouldn't be doing this at runtime.
-	UFunction* Setter   = ObjectClass->FindFunctionByName(*(FString("Set") + PropertyBinding.PropertyName.ToString()));
-	if (Property && !Setter)
+	if (!PropertyAndAddress.Property)
 	{
-		// @todo: We disable fast offsets for all bools atm becasue there is no way of knowing whether the property
-		// represents a raw bool, or a bool : 1 or uint8 : 1;
-		FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property);
-		if (BoolProperty)
+		return TOptional<uint16>();
+	}
+
+	// @todo: Constructing FNames from strings is _very_ costly and we really shouldn't be doing this at runtime.
+	//        This is a little better now we use a string builder and an FNAME_Find, but it's still not ideal
+	TStringBuilder<128> SetterName;
+	SetterName.Append(TEXT("Set"));
+	PropertyBinding.PropertyName.ToString(SetterName);
+
+	FName SetterFunctionName(SetterName.ToString(), FNAME_Find);
+	if (SetterFunctionName.IsNone() || ObjectClass->FindFunctionByName(SetterFunctionName) == nullptr)
+	{
+		if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(PropertyAndAddress.Property))
 		{
-			return TOptional<uint16>();
+			// bitfield booleans potentially have an additional byte offset.
+			// In practice this is always 0 because the property internal offset itself is incremented, but this is here for completeness
+			PropertyAndAddress.PropertyAddress += BoolProperty->GetByteOffset();
 		}
 
 		UObject* DefaultObject   = ObjectClass->GetDefaultObject();
-		uint8*   PropertyAddress = Property->ContainerPtrToValuePtr<uint8>(DefaultObject);
-		int32    PropertyOffset  = PropertyAddress - reinterpret_cast<uint8*>(DefaultObject);
+		int32    PropertyOffset  = PropertyAndAddress.PropertyAddress - reinterpret_cast<uint8*>(DefaultObject);
 
 		if (PropertyOffset >= 0 && PropertyOffset < int32(uint16(0xFFFF)))
 		{

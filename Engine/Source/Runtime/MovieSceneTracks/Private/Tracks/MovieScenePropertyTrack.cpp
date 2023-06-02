@@ -408,7 +408,10 @@ void FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(UMovieS
 					const FString EditConditionPropertyName = LeafProperty->GetMetaData("EditCondition");
 					if (!EditConditionPropertyName.IsEmpty())
 					{
-						EditConditionPropertyPath.Append(".");
+						if (!EditConditionPropertyPath.IsEmpty())
+						{
+							EditConditionPropertyPath.Append(".");
+						}
 						EditConditionPropertyPath.Append(EditConditionPropertyName);
 						bHasEditCondition = true;
 					}
@@ -426,7 +429,11 @@ void FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(UMovieS
 			FString EditConditionPropertyName = PropertyPathSegments[PropertyPathSegments.Num() - 1];
 			EditConditionPropertyName.InsertAt(0, TEXT("bOverride_"));
 
-			EditConditionPropertyPath.Append(".");
+
+			if (!EditConditionPropertyPath.IsEmpty())
+			{
+				EditConditionPropertyPath.Append(".");
+			}
 			EditConditionPropertyPath.Append(EditConditionPropertyName);
 			bHasEditCondition = true;
 		}

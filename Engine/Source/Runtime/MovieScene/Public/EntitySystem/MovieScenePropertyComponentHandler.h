@@ -303,21 +303,30 @@ template<typename PropertyTraits>
 struct TInitialValueProcessor : TInitialValueProcessorImpl<PropertyTraits, typename PropertyTraits::MetaDataType, TMakeIntegerSequence<int, PropertyTraits::MetaDataType::Num>>
 {};
 
+template<typename T, typename U = decltype(T::bIsComposite)>
+constexpr bool IsCompositePropertyTraits(T*)
+{
+	return T::bIsComposite;
+}
+constexpr bool IsCompositePropertyTraits(...)
+{
+	return true;
+}
 
 template<typename PropertyTraits, typename ...MetaDataTypes, int ...MetaDataIndices, typename ...CompositeTypes, int ...CompositeIndices>
 struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, TIntegerSequence<int, MetaDataIndices...>, TIntegerSequence<int, CompositeIndices...>, CompositeTypes...> : IPropertyComponentHandler
 {
+	static constexpr bool bIsComposite = IsCompositePropertyTraits((PropertyTraits*)nullptr);
+
 	using StorageType        = typename PropertyTraits::StorageType;
-	using CompleteSetterTask = TSetCompositePropertyValues<PropertyTraits, CompositeTypes...>;
-	using PartialSetterTask  = TSetPartialPropertyValues<PropertyTraits, CompositeTypes...>;
+	using CompleteSetterTask = std::conditional_t<bIsComposite, TSetCompositePropertyValues<PropertyTraits, CompositeTypes...>, TSetPropertyValues<PropertyTraits>>;
 
 	using PreAnimatedStorageType = TPreAnimatedPropertyStorage<PropertyTraits>;
 
-	TPreAnimatedStorageID<PreAnimatedStorageType> StorageID;
+	TAutoRegisterPreAnimatedStorageID<PreAnimatedStorageType> StorageID;
 
 	TPropertyComponentHandlerImpl()
 	{
-		StorageID = FPreAnimatedStateExtension::RegisterStorage<PreAnimatedStorageType>();
 	}
 
 	virtual TSharedPtr<IPreAnimatedStorage> GetPreAnimatedStateStorage(const FPropertyDefinition& Definition, FPreAnimatedStateExtension* Container) override
@@ -347,25 +356,30 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 		.SetDesiredThread(Linker->EntityManager.GetGatherThread())
 		.template Fork_PerAllocation<CompleteSetterTask>(&Linker->EntityManager, TaskScheduler, Definition.CustomPropertyRegistration);
 
-		if (Stats.NumPartialProperties > 0)
+		if constexpr (bIsComposite)
 		{
-			FComponentMask CompletePropertyMask;
-			for (const FPropertyCompositeDefinition& Composite : Composites)
+			if (Stats.NumPartialProperties > 0)
 			{
-				CompletePropertyMask.Set(Composite.ComponentTypeID);
-			}
+				using PartialSetterTask  = TSetPartialPropertyValues<PropertyTraits, CompositeTypes...>;
 
-			FEntityTaskBuilder()
-			.Read(BuiltInComponents->BoundObject)
-			.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-			.ReadAllOf(Definition.GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
-			.ReadAnyOf(Composites[CompositeIndices].ComponentTypeID.ReinterpretCast<CompositeTypes>()...)
-			.FilterAny({ CompletePropertyMask })
-			.FilterAll({ Definition.PropertyType })
-			.FilterOut(CompletePropertyMask)
-			.SetStat(Definition.StatID)
-			.SetDesiredThread(Linker->EntityManager.GetGatherThread())
-			.template Fork_PerAllocation<PartialSetterTask>(&Linker->EntityManager, TaskScheduler, Definition.CustomPropertyRegistration, Composites);
+				FComponentMask CompletePropertyMask;
+				for (const FPropertyCompositeDefinition& Composite : Composites)
+				{
+					CompletePropertyMask.Set(Composite.ComponentTypeID);
+				}
+
+				FEntityTaskBuilder()
+				.Read(BuiltInComponents->BoundObject)
+				.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
+				.ReadAllOf(Definition.GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
+				.ReadAnyOf(Composites[CompositeIndices].ComponentTypeID.ReinterpretCast<CompositeTypes>()...)
+				.FilterAny({ CompletePropertyMask })
+				.FilterAll({ Definition.PropertyType })
+				.FilterOut(CompletePropertyMask)
+				.SetStat(Definition.StatID)
+				.SetDesiredThread(Linker->EntityManager.GetGatherThread())
+				.template Fork_PerAllocation<PartialSetterTask>(&Linker->EntityManager, TaskScheduler, Definition.CustomPropertyRegistration, Composites);
+			}
 		}
 	}
 
@@ -383,25 +397,30 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 		.SetDesiredThread(Linker->EntityManager.GetGatherThread())
 		.template Dispatch_PerAllocation<CompleteSetterTask>(&Linker->EntityManager, InPrerequisites, &Subsequents, Definition.CustomPropertyRegistration);
 
-		if (Stats.NumPartialProperties > 0)
+		if constexpr (bIsComposite)
 		{
-			FComponentMask CompletePropertyMask;
-			for (const FPropertyCompositeDefinition& Composite : Composites)
+			if (Stats.NumPartialProperties > 0)
 			{
-				CompletePropertyMask.Set(Composite.ComponentTypeID);
-			}
+				using PartialSetterTask  = TSetPartialPropertyValues<PropertyTraits, CompositeTypes...>;
 
-			FEntityTaskBuilder()
-			.Read(BuiltInComponents->BoundObject)
-			.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-			.ReadAllOf(Definition.GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
-			.ReadAnyOf(Composites[CompositeIndices].ComponentTypeID.ReinterpretCast<CompositeTypes>()...)
-			.FilterAny({ CompletePropertyMask })
-			.FilterAll({ Definition.PropertyType })
-			.FilterOut(CompletePropertyMask)
-			.SetStat(Definition.StatID)
-			.SetDesiredThread(Linker->EntityManager.GetGatherThread())
-			.template Dispatch_PerAllocation<PartialSetterTask>(&Linker->EntityManager, InPrerequisites, &Subsequents, Definition.CustomPropertyRegistration, Composites);
+				FComponentMask CompletePropertyMask;
+				for (const FPropertyCompositeDefinition& Composite : Composites)
+				{
+					CompletePropertyMask.Set(Composite.ComponentTypeID);
+				}
+
+				FEntityTaskBuilder()
+				.Read(BuiltInComponents->BoundObject)
+				.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
+				.ReadAllOf(Definition.GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
+				.ReadAnyOf(Composites[CompositeIndices].ComponentTypeID.ReinterpretCast<CompositeTypes>()...)
+				.FilterAny({ CompletePropertyMask })
+				.FilterAll({ Definition.PropertyType })
+				.FilterOut(CompletePropertyMask)
+				.SetStat(Definition.StatID)
+				.SetDesiredThread(Linker->EntityManager.GetGatherThread())
+				.template Dispatch_PerAllocation<PartialSetterTask>(&Linker->EntityManager, InPrerequisites, &Subsequents, Definition.CustomPropertyRegistration, Composites);
+			}
 		}
 	}
 

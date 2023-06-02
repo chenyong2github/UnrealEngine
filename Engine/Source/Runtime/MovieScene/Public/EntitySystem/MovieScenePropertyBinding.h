@@ -21,27 +21,9 @@ struct FMovieScenePropertyBinding
 		: bCanUseClassLookup(false)
 	{}
 
-	FMovieScenePropertyBinding(FName InPropertyName, const FString& InPropertyPath)
-		: PropertyName(InPropertyName), PropertyPath(*InPropertyPath)
-	{
-		bCanUseClassLookup = !(InPropertyPath.Contains(TEXT(".")) || InPropertyPath.Contains(TEXT("/")) || InPropertyPath.Contains(TEXT("\\")) || InPropertyPath.Contains(TEXT("[")));
-	}
+	MOVIESCENE_API FMovieScenePropertyBinding(FName InPropertyName, const FString& InPropertyPath);
 
-	static FMovieScenePropertyBinding FromPath(const FString& InPropertyPath)
-	{
-		FName PropertyName;
-
-		int32 NamePos = INDEX_NONE;
-		if (InPropertyPath.FindLastChar('.', NamePos) || InPropertyPath.FindLastChar('/', NamePos) || InPropertyPath.FindLastChar('\\', NamePos))
-		{
-			PropertyName = FName(FStringView(*InPropertyPath + NamePos, InPropertyPath.Len() - NamePos));
-		}
-		else
-		{
-			PropertyName = *InPropertyPath;
-		}
-		return FMovieScenePropertyBinding(PropertyName, InPropertyPath);
-	}
+	MOVIESCENE_API static FMovieScenePropertyBinding FromPath(const FString& InPropertyPath);
 
 	friend bool operator==(FMovieScenePropertyBinding A, FMovieScenePropertyBinding B)
 	{
@@ -52,6 +34,10 @@ struct FMovieScenePropertyBinding
 	{
 		return bCanUseClassLookup;
 	}
+
+#if WITH_EDITORONLY_DATA
+	void PostSerialize(const FArchive& Ar);
+#endif
 
 	/** Leaf name of the property to animate */
 	UPROPERTY()
@@ -66,6 +52,13 @@ struct FMovieScenePropertyBinding
 	bool bCanUseClassLookup;
 };
 
+#if WITH_EDITORONLY_DATA
+template<>
+struct TStructOpsTypeTraits<FMovieScenePropertyBinding> : public TStructOpsTypeTraitsBase2<FMovieScenePropertyBinding>
+{
+	enum { WithPostSerialize = true };
+};
+#endif // WITH_EDITORONLY_DATA
 
 
 #if UE_MOVIESCENE_ENTITY_DEBUG
