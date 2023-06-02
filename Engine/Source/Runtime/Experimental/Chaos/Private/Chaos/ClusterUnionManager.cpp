@@ -466,7 +466,7 @@ namespace Chaos
 			}
 		}
 
-		if (bIsNewCluster && bIsAnchored)
+		if (bIsNewCluster && bIsAnchored && !Cluster->bAnchorLock)
 		{
 			// The anchored flag is taken care of in UpdateKinematicProperties so it must be set before that is called.
 			Cluster->InternalCluster->SetIsAnchored(true);
@@ -643,7 +643,23 @@ namespace Chaos
 			ClusterUnion.bNeedsXRInitialization = false;
 		}
 
-		UpdateKinematicProperties(ClusterUnion.InternalCluster, MClustering.GetChildrenMap(), MEvolution);
+		if (ClusterUnion.bAnchorLock)
+		{
+			// Skip UpdateKinematicPropertiesso as we won't need to look at our children for this.
+			if (ClusterUnion.InternalCluster->IsAnchored())
+			{
+				MEvolution.SetParticleObjectState(ClusterUnion.InternalCluster, EObjectStateType::Kinematic);
+			}
+			else
+			{
+				MEvolution.SetParticleObjectState(ClusterUnion.InternalCluster, EObjectStateType::Dynamic);
+				MEvolution.SetParticleKinematicTarget(ClusterUnion.InternalCluster, FKinematicTarget());
+			}
+		}
+		else
+		{
+			UpdateKinematicProperties(ClusterUnion.InternalCluster, MClustering.GetChildrenMap(), MEvolution);
+		}
 
 		// We must reset collisions etc on this particle since geometry will be changed
 		MEvolution.InvalidateParticle(ClusterUnion.InternalCluster);

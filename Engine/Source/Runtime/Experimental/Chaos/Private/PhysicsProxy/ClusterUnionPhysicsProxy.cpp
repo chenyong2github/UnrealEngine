@@ -192,19 +192,19 @@ namespace Chaos
 			{
 				if (Particle_Internal)
 				{
-					if (Particle_Internal->IsAnchored() != bIsAnchored)
+					if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
 					{
-						if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
+						Particle_Internal->SetIsAnchored(bIsAnchored);
+
+						// We also need to make sure the cluster union won't try to override this value that we set.
+						Chaos::FClusterUnionManager& Manager = Evolution->GetRigidClustering().GetClusterUnionManager();
+						if (Chaos::FClusterUnion* ClusterUnion = Manager.FindClusterUnion(ClusterUnionIndex))
 						{
-							Particle_Internal->SetIsAnchored(bIsAnchored);
-							if (!bIsAnchored && !Particle_Internal->IsDynamic())
-							{
-								FKinematicTarget NoKinematicTarget;
-								Evolution->SetParticleObjectState(Particle_Internal, EObjectStateType::Dynamic);
-								Evolution->SetParticleKinematicTarget(Particle_Internal, NoKinematicTarget);
-							}
-							Evolution->GetParticles().MarkTransientDirtyParticle(Particle_Internal);
+							ClusterUnion->bAnchorLock = true;
 						}
+
+						// Let the cluster union manager apply the proper properties on the particle.
+						Manager.RequestDeferredClusterPropertiesUpdate(ClusterUnionIndex, Chaos::EUpdateClusterUnionPropertiesFlags::None);
 					}
 				}
 			}

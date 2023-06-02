@@ -83,6 +83,9 @@ namespace Chaos
 		// Whether or not the position/rotation needs to be computed the first time a particle is added.
 		bool bNeedsXRInitialization = true;
 
+		// Whether or not the anchor got set by the GT and we shouldn't try to recompute its value.
+		bool bAnchorLock = false;
+
 		// Pending particles that need to be added into the connectivity graph.
 		TArray<TPair<FPBDRigidParticleHandle*, EClusterUnionConnectivityOperation>> PendingConnectivityOperations;
 	};
@@ -164,6 +167,9 @@ namespace Chaos
 
 		// Returns all cluster unions. Really meant only to be used for debugging.
 		const TMap<FClusterUnionIndex, FClusterUnion>& GetAllClusterUnions() const { return ClusterUnions; }
+
+		// Put in a deferred request to update the properties of the specified cluster union. Flags can limit the scope of the update.
+		void RequestDeferredClusterPropertiesUpdate(FClusterUnionIndex ClusterIndex, EUpdateClusterUnionPropertiesFlags Flags);
 	private:
 		FRigidClustering& MClustering;
 		FPBDRigidsEvolutionGBF& MEvolution;
@@ -190,7 +196,6 @@ namespace Chaos
 		TMap<FClusterUnionIndex, FClusterUnion> ClusterUnions;
 
 		// The set of cluster unions that we want to defer updating their cluster union properties for.
-		void RequestDeferredClusterPropertiesUpdate(FClusterUnionIndex ClusterIndex, EUpdateClusterUnionPropertiesFlags Flags);
 		TMap<FClusterUnionIndex, EUpdateClusterUnionPropertiesFlags> DeferredClusterUnionsForUpdateProperties;
 		
 		//
