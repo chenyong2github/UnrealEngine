@@ -556,9 +556,9 @@ void FLocalVertexFactory::GetVertexElements(
 		FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float4);
 		Elements.Add(AccessStreamComponent(Data.PreSkinPositionComponent.VertexBuffer ? Data.PreSkinPositionComponent : NullComponent, 14, InOutStreams));
 
-		if (Data.LightMapCoordinateComponent.VertexBuffer)
+		if (Data.LightMapCoordinateIndex >= 0)
 		{
-			Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent, 15, InOutStreams));
+			Elements.Add(AccessStreamComponent(Data.TextureCoordinates[Data.LightMapCoordinateIndex], 15, InOutStreams));
 		}
 		else if (Data.TextureCoordinates.Num())
 		{

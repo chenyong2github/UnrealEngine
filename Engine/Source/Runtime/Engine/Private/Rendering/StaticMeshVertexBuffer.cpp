@@ -642,11 +642,22 @@ void FStaticMeshVertexBuffer::BindLightMapVertexBuffer(const FVertexFactory* Ver
 
 		if (LightMapCoordinateIndex >= 0 && (uint32)LightMapCoordinateIndex < GetNumTexCoords())
 		{
-			Data.LightMapCoordinateComponent = FVertexStreamComponent(
+			FVertexStreamComponent* Stream = nullptr;
+			if (LightMapCoordinateIndex < Data.TextureCoordinates.Num())
+			{
+				Stream = &Data.TextureCoordinates[LightMapCoordinateIndex];
+			}
+			else
+			{
+				check(Data.TextureCoordinates.Num() == LightMapCoordinateIndex);
+				Stream = &Data.TextureCoordinates.AddDefaulted_GetRef();
+			}
+
+			*Stream = FVertexStreamComponent(
 				&TexCoordVertexBuffer,
 				UVSizeInBytes * LightMapCoordinateIndex,
 				UvStride,
-				UVVertexElementType, 
+				UVVertexElementType,
 				EVertexStreamUsage::ManualFetch
 			);
 		}
