@@ -1085,6 +1085,21 @@ void UEdGraphSchema_K2::GetAutoEmitTermParameters(const UFunction* Function, TAr
 			}
 		}
 	}
+
+	// Allow any params that are blueprint defined to be autocreated:
+	if (!FBlueprintEditorUtils::IsNativeSignature(Function))
+	{
+		for (	TFieldIterator<FProperty> ParamIter(Function, EFieldIterationFlags::Default); 
+				ParamIter && (ParamIter->PropertyFlags & CPF_Parm); 
+				++ParamIter)
+		{
+			FProperty* Param = *ParamIter;
+			if(Param->HasAnyPropertyFlags(CPF_ReferenceParm))
+			{
+				AutoEmitParameterNames.Add(Param->GetName());
+			}
+		}
+	}
 }
 
 bool UEdGraphSchema_K2::FunctionHasParamOfType(const UFunction* InFunction, UEdGraph const* InGraph, const FEdGraphPinType& DesiredPinType, bool bWantOutput) const

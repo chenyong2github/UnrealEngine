@@ -2860,11 +2860,8 @@ void UK2Node_CallFunction::ExpandNode(class FKismetCompilerContext& CompilerCont
 		if ( Function )
 		{
 			TArray<FString> AutoCreateRefTermPinNames;
-			const bool bHasAutoCreateRefTerms = Function->HasMetaData(FBlueprintMetadata::MD_AutoCreateRefTerm);
-			if ( bHasAutoCreateRefTerms )
-			{
-				CompilerContext.GetSchema()->GetAutoEmitTermParameters(Function, AutoCreateRefTermPinNames);
-			}
+			CompilerContext.GetSchema()->GetAutoEmitTermParameters(Function, AutoCreateRefTermPinNames);
+			const bool bHasAutoCreateRefTerms = AutoCreateRefTermPinNames.Num() != 0;
 
 			for (UEdGraphPin* Pin : Pins)
 			{
