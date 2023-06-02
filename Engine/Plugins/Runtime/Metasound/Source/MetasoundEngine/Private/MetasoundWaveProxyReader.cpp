@@ -30,6 +30,8 @@ FAutoConsoleVariableRef CVarMetaSoundWaveProxyReaderSimulateSeekOnNonSeekable(
 
 namespace Metasound
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	namespace MetasoundWaveProxyReaderPrivate
 	{
 		/** Construct a FDecoderOutput
@@ -546,4 +548,6 @@ namespace Metasound
 			LoopEndFrameIndex = NumFramesInWave;
 		}
 	}
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

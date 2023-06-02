@@ -20,5 +20,5 @@ namespace Audio
 	// Just loose for now.
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AUDIOCODECENGINE_API TUniquePtr<IDecoderInput> CreateBackCompatDecoderInput(FName InOldFormatName, const FSoundWaveProxyPtr& InSoundWave);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
