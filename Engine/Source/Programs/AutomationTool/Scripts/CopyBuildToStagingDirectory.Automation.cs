@@ -1126,7 +1126,7 @@ namespace AutomationScripts
 						}
 					}
 				}
-				
+
 				ThisPlatform.GetFilesToStageForDLC(Params, SC);
 
 				bCreatePluginManifest = true;
@@ -1425,6 +1425,8 @@ namespace AutomationScripts
 							}
 						}
 					}
+
+					SC.StageVulkanValidationLayerFiles(StagedFileType.NonUFS, DirectoryReference.Combine(SC.EngineRoot, "Binaries", "ThirdParty", "Vulkan", SC.PlatformDir), StageFilesSearch.AllDirectories);
 
 					// CrashReportClient is a standalone slate app that does not look in the generated pak file, so it needs the Content/Slate and Shaders/StandaloneRenderer folders Non-UFS
 					// @todo Make CrashReportClient more portable so we don't have to do this
@@ -4622,7 +4624,7 @@ namespace AutomationScripts
 				}
 			}
 
-			string BaseManifestFileName = CombinePaths(CmdEnv.LogFolder, "FinalCopy" + (SC.DedicatedServer ? "_Server" : "") + SC.StageTargetPlatform.PlatformType.ToString());
+		string BaseManifestFileName = CombinePaths(CmdEnv.LogFolder, "FinalCopy" + (SC.DedicatedServer ? "_Server" : "") + SC.StageTargetPlatform.PlatformType.ToString());
 			DumpManifest(SC.FilesToStage.UFSFiles, BaseManifestFileName + "_UFSFiles.txt");
 
 			DumpManifest(SC.FilesToStage.NonUFSFiles, BaseManifestFileName + "_NonUFSFiles.txt");

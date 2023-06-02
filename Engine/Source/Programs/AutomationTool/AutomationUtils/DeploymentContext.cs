@@ -369,10 +369,10 @@ public class DeploymentContext //: ProjectParams
 	/// </summary>
 	public bool bIsCombiningMultiplePlatforms = false;
 
-	/// <summary>
-	/// If true if this platform is using streaming install chunk manifests
-	/// </summary>
-	public bool PlatformUsesChunkManifests = false;
+    /// <summary>
+    /// If true if this platform is using streaming install chunk manifests
+    /// </summary>
+    public bool PlatformUsesChunkManifests = false;
 
 	/// <summary>
 	/// Temporary setting to exclude non cooked packages from I/O store container file(s)
@@ -393,7 +393,7 @@ public class DeploymentContext //: ProjectParams
 		DirectoryReference BaseArchiveDirectory,
 		string CookerSupportFilesSubdirectory,
 		Platform InSourcePlatform,
-		Platform InTargetPlatform,
+        Platform InTargetPlatform,
 		List<UnrealTargetConfiguration> InTargetConfigurations,
 		IEnumerable<StageTarget> InStageTargets,
 		List<String> InStageExecutables,
@@ -405,7 +405,7 @@ public class DeploymentContext //: ProjectParams
 		bool InArchive,
 		bool InProgram,
 		bool IsClientInsteadOfNoEditor,
-		bool InForceChunkManifests,
+        bool InForceChunkManifests,
 		bool InSeparateDebugStageDirectory,
 		DirectoryReference InDLCRoot
 		)
@@ -414,29 +414,29 @@ public class DeploymentContext //: ProjectParams
 		RawProjectPath = RawProjectPathOrName;
 		DedicatedServer = InServer;
 		LocalRoot = InLocalRoot;
-		CookSourcePlatform = InSourcePlatform;
+        CookSourcePlatform = InSourcePlatform;
 		StageTargetPlatform = InTargetPlatform;
 		StageTargetConfigurations = new List<UnrealTargetConfiguration>(InTargetConfigurations);
 		StageTargets = new List<StageTarget>(InStageTargets);
 		StageExecutables = InStageExecutables;
-		IsCodeBasedProject = ProjectUtils.IsCodeBasedUProjectFile(RawProjectPath, StageTargetPlatform.PlatformType, StageTargetConfigurations);
+        IsCodeBasedProject = ProjectUtils.IsCodeBasedUProjectFile(RawProjectPath, StageTargetPlatform.PlatformType, StageTargetConfigurations);
 		ShortProjectName = ProjectUtils.GetShortProjectName(RawProjectPath);
 		Stage = InStage;
 		Archive = InArchive;
 		DLCRoot = InDLCRoot;
 
-		if (CookSourcePlatform != null && InCooked)
-		{
+        if (CookSourcePlatform != null && InCooked)
+        {
 			CookPlatform = CookSourcePlatform.GetCookPlatform(DedicatedServer, IsClientInsteadOfNoEditor);
-		}
-		else if (CookSourcePlatform != null && InProgram)
-		{
-			CookPlatform = CookSourcePlatform.GetCookPlatform(false, false);
-		}
-		else
-		{
-			CookPlatform = "";
-		}
+        }
+        else if (CookSourcePlatform != null && InProgram)
+        {
+            CookPlatform = CookSourcePlatform.GetCookPlatform(false, false);
+        }
+        else
+        {
+            CookPlatform = "";
+        }
 
 		if (StageTargetPlatform != null && InCooked)
 		{
@@ -444,11 +444,11 @@ public class DeploymentContext //: ProjectParams
 		}
 		else if (StageTargetPlatform != null && InProgram)
 		{
-			FinalCookPlatform = StageTargetPlatform.GetCookPlatform(false, false);
+            FinalCookPlatform = StageTargetPlatform.GetCookPlatform(false, false);
 		}
 		else
 		{
-			FinalCookPlatform = "";
+            FinalCookPlatform = "";
 		}
 
 		PlatformDir = StageTargetPlatform.PlatformType.ToString();
@@ -456,7 +456,7 @@ public class DeploymentContext //: ProjectParams
 		if (BaseStageDirectory != null)
 		{
 			StageDirectory = DirectoryReference.Combine(BaseStageDirectory, FinalCookPlatform);
-			DebugStageDirectory = InSeparateDebugStageDirectory ? DirectoryReference.Combine(BaseStageDirectory, FinalCookPlatform + "Debug") : StageDirectory;
+			DebugStageDirectory = InSeparateDebugStageDirectory? DirectoryReference.Combine(BaseStageDirectory, FinalCookPlatform + "Debug") : StageDirectory;
 		}
 		this.OptionalFileStageDirectory = OptionalFileStageDirectory;
 		this.OptionalFileInputDirectory = OptionalFileInputDirectory;
@@ -561,7 +561,7 @@ public class DeploymentContext //: ProjectParams
 				}
 
 				string ToDir;
-				if (!Properties.TryGetValue("To", out ToDir))
+				if(!Properties.TryGetValue("To", out ToDir))
 				{
 					throw new AutomationException("Missing 'To' property in '{0}'", RemapDirectory);
 				}
@@ -574,7 +574,7 @@ public class DeploymentContext //: ProjectParams
 		List<string> DirectoriesAllowListStrings;
 		if (GameConfig.GetArray("Staging", "AllowedDirectories", out DirectoriesAllowListStrings))
 		{
-			foreach (string AllowedDir in DirectoriesAllowListStrings)
+			foreach(string AllowedDir in DirectoriesAllowListStrings)
 			{
 				DirectoriesAllowList.Add(new StagedDirectoryReference(AllowedDir));
 			}
@@ -663,9 +663,9 @@ public class DeploymentContext //: ProjectParams
 	private static void ReadAllowDenyFileList(ConfigHierarchy Config, string SectionName, string KeyName, HashSet<StagedFileReference> FilesRef)
 	{
 		List<string> FileNames;
-		if (Config.GetArray(SectionName, KeyName, out FileNames))
+		if(Config.GetArray(SectionName, KeyName, out FileNames))
 		{
-			foreach (string FileName in FileNames)
+			foreach(string FileName in FileNames)
 			{
 				FilesRef.Add(new StagedFileReference(FileName));
 			}
@@ -711,18 +711,18 @@ public class DeploymentContext //: ProjectParams
 		if (!DirectoryReference.Exists(BaseDir))
 		{
 			return;
-		}
+		}	
 
 		// Enumerate all the files in this directory
 		Files.AddRange(DirectoryReference.EnumerateFiles(BaseDir, Pattern));
 
 		// Recurse through subdirectories if necessary
-		if (Option == StageFilesSearch.AllDirectories)
+		if(Option == StageFilesSearch.AllDirectories)
 		{
-			foreach (DirectoryReference SubDir in DirectoryReference.EnumerateDirectories(BaseDir))
+			foreach(DirectoryReference SubDir in DirectoryReference.EnumerateDirectories(BaseDir))
 			{
 				string Name = SubDir.GetDirectoryName();
-				if (!RestrictedFolderNames.Contains(Name))
+				if(!RestrictedFolderNames.Contains(Name))
 				{
 					FindFilesToStageInternal(SubDir, Pattern, Option, Files);
 				}
@@ -738,34 +738,34 @@ public class DeploymentContext //: ProjectParams
 	public StagedFileReference GetStagedFileLocation(FileReference InputFile)
 	{
 		StagedFileReference OutputFile;
-		if (InputFile.IsUnderDirectory(ProjectRoot))
+		if(InputFile.IsUnderDirectory(ProjectRoot))
 		{
 			OutputFile = StagedFileReference.Combine(RelativeProjectRootForStage, InputFile.MakeRelativeTo(ProjectRoot));
 		}
-		else if (InputFile.HasExtension(".uplugin"))
-		{
+        else if (InputFile.HasExtension(".uplugin"))
+        {
 			DirectoryReference EnterpriseRoot = DirectoryReference.Combine(EngineRoot, "..", "Enterprise"); // Enterprise plugins aren't under the project additional plugin directories, so they shouldn't be remapped
-			if (InputFile.IsUnderDirectory(EngineRoot) || InputFile.IsUnderDirectory(EnterpriseRoot))
+            if (InputFile.IsUnderDirectory(EngineRoot) || InputFile.IsUnderDirectory(EnterpriseRoot))
 			{
 				OutputFile = new StagedFileReference(InputFile.MakeRelativeTo(LocalRoot));
 			}
-			else
+            else
 			{
 				// This is a plugin that lives outside of the Engine/Plugins or Game/Plugins directory so needs to be remapped for staging/packaging
 				// We need to remap C:\SomePath\PluginName\PluginName.uplugin to RemappedPlugins\PluginName\PluginName.uplugin
 				OutputFile = new StagedFileReference(String.Format("RemappedPlugins/{0}/{1}", InputFile.GetFileNameWithoutExtension(), InputFile.GetFileName()));
 			}
-		}
-		else if (InputFile.IsUnderDirectory(LocalRoot))
-		{
+        }
+        else if (InputFile.IsUnderDirectory(LocalRoot))
+        {
 			OutputFile = new StagedFileReference(InputFile.MakeRelativeTo(LocalRoot));
-		}
-		else if (DLCRoot != null && InputFile.IsUnderDirectory(DLCRoot))
+        }
+        else if (DLCRoot != null && InputFile.IsUnderDirectory(DLCRoot))
 		{
 			OutputFile = new StagedFileReference(InputFile.MakeRelativeTo(DLCRoot));
 		}
 		else
-		{
+        {
 			throw new AutomationException("Can't deploy {0} because it doesn't start with {1} or {2}", InputFile, ProjectRoot, LocalRoot);
 		}
 		return OutputFile;
@@ -883,7 +883,7 @@ public class DeploymentContext //: ProjectParams
 	/// <param name="StagedFile">Location of the file in the staging directory</param>
 	public void StageCrashReporterFile(StagedFileType FileType, FileReference InputFile, StagedFileReference StagedFile)
 	{
-		if (FileType == StagedFileType.UFS)
+		if(FileType == StagedFileType.UFS)
 		{
 			CrashReporterUFSFiles[StagedFile] = InputFile;
 		}
@@ -914,17 +914,37 @@ public class DeploymentContext //: ProjectParams
 	public void StageCrashReporterFiles(StagedFileType FileType, DirectoryReference InputDir, StageFilesSearch Option, StagedDirectoryReference OutputDir)
 	{
 		List<FileReference> InputFiles = FindFilesToStage(InputDir, Option);
-		foreach (FileReference InputFile in InputFiles)
+		foreach(FileReference InputFile in InputFiles)
 		{
 			StagedFileReference StagedFile = StagedFileReference.Combine(OutputDir, InputFile.MakeRelativeTo(InputDir));
 			StageCrashReporterFile(FileType, InputFile, StagedFile);
 		}
 	}
 
+	public void StageVulkanValidationLayerFiles(StagedFileType FileType, DirectoryReference InputDir, StageFilesSearch Option)
+	{
+			StageVulkanValidationLayerFiles(FileType, InputDir, Option, new StagedDirectoryReference(InputDir.MakeRelativeTo(LocalRoot)));
+		}
+
+	public void StageVulkanValidationLayerFiles(StagedFileType FileType, DirectoryReference InputDir, StageFilesSearch Option, StagedDirectoryReference OutputDir)
+	{
+		// This needs to match the c++ define VULKAN_HAS_DEBUGGING_ENABLED to avoid mismatched functionality/files
+		bool bShouldStageVulkanLayers = StageTargetConfigurations.Contains(UnrealTargetConfiguration.Debug) || StageTargetConfigurations.Contains(UnrealTargetConfiguration.Development);
+		if (bShouldStageVulkanLayers)
+		{
+			List<FileReference> InputFiles = FindFilesToStage(InputDir, Option);
+			foreach(FileReference InputFile in InputFiles)
+			{
+				StagedFileReference StagedFile = StagedFileReference.Combine(OutputDir, InputFile.MakeRelativeTo(InputDir));
+				StageFile(FileType, InputFile, StagedFile);
+			}
+		}
+	}
+
 	public void StageBuildProductsFromReceipt(TargetReceipt Receipt, bool RequireDependenciesToExist, bool TreatNonShippingBinariesAsDebugFiles)
 	{
 		// Stage all the build products needed at runtime
-		foreach (BuildProduct BuildProduct in Receipt.BuildProducts)
+		foreach(BuildProduct BuildProduct in Receipt.BuildProducts)
 		{
 			// allow missing files if needed
 			if (RequireDependenciesToExist == false && FileReference.Exists(BuildProduct.Path) == false)
@@ -932,7 +952,7 @@ public class DeploymentContext //: ProjectParams
 				continue;
 			}
 
-			if (BuildProduct.Type == BuildProductType.Executable || BuildProduct.Type == BuildProductType.DynamicLibrary || BuildProduct.Type == BuildProductType.RequiredResource)
+			if(BuildProduct.Type == BuildProductType.Executable || BuildProduct.Type == BuildProductType.DynamicLibrary || BuildProduct.Type == BuildProductType.RequiredResource)
 			{
 				StagedFileType FileTypeToUse = StagedFileType.NonUFS;
 				if (TreatNonShippingBinariesAsDebugFiles && Receipt.Configuration != UnrealTargetConfiguration.Shipping)
@@ -942,7 +962,7 @@ public class DeploymentContext //: ProjectParams
 
 				StageFile(FileTypeToUse, BuildProduct.Path);
 			}
-			else if (BuildProduct.Type == BuildProductType.SymbolFile || BuildProduct.Type == BuildProductType.MapFile)
+			else if(BuildProduct.Type == BuildProductType.SymbolFile || BuildProduct.Type == BuildProductType.MapFile)
 			{
 				// Symbol files aren't true dependencies so we can skip if they don't exist
 				if (FileReference.Exists(BuildProduct.Path))
@@ -961,7 +981,7 @@ public class DeploymentContext //: ProjectParams
 		ExcludePatterns.Add(".../*.uasset");
 
 		// Also stage any additional runtime dependencies, like ThirdParty DLLs
-		foreach (RuntimeDependency RuntimeDependency in Receipt.RuntimeDependencies)
+		foreach(RuntimeDependency RuntimeDependency in Receipt.RuntimeDependencies)
 		{
 			// allow missing files if needed
 			if ((RequireDependenciesToExist && RuntimeDependency.Type != StagedFileType.DebugNonUFS) || FileReference.Exists(RuntimeDependency.Path))

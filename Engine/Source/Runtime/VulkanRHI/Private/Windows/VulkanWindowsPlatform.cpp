@@ -61,28 +61,33 @@ bool FVulkanWindowsPlatform::LoadVulkanLibrary()
 #endif
 
 #if VULKAN_HAS_DEBUGGING_ENABLED
-	if (GValidationCvar->GetInt() > 0)
-	{
-		const FString VulkanSDK = FPlatformMisc::GetEnvironmentVariable(TEXT("VULKAN_SDK"));
-		const bool bHasVulkanSDK = !VulkanSDK.IsEmpty();
-		// Only editor builds can use the redist libs currently
-		//#todo-rco: Package the DLLs next to the exe; if so then change this check
-		if (!bHasVulkanSDK && GIsEditor)
-		{
-			const FString PreviousEnvVar = FPlatformMisc::GetEnvironmentVariable(TEXT("VK_LAYER_PATH"));
-			if (PreviousEnvVar.IsEmpty())
-			{
-				// Change behavior of loading Vulkan layers by setting environment variable "VK_LAYER_PATH" to UE specific directory
-				FString VulkanLayerPath = FPaths::EngineDir();
+	const FString VulkanSDK = FPlatformMisc::GetEnvironmentVariable(TEXT("VULKAN_SDK"));
+	UE_LOG(LogVulkanRHI, Warning, TEXT("Found VULKAN_SDK=%s"), *VulkanSDK);
+	const bool bHasVulkanSDK = !VulkanSDK.IsEmpty();
+	UE_LOG(LogVulkanRHI, Display, TEXT("Registering provided Vulkan validation layers"));
+
+	// if vulkan SDK is installed, we'll append our built-in validation layers to VK_ADD_LAYER_PATH,
+	// otherwise we append to VK_LAYER_PATH (which is probably empty)
+
+	// Change behavior of loading Vulkan layers by setting environment variable "VarToUse" to UE specific directory
+	FString VarToUse = (bHasVulkanSDK) ? TEXT("VK_ADD_LAYER_PATH") : TEXT("VK_LAYER_PATH");
+	FString PreviousEnvVar = FPlatformMisc::GetEnvironmentVariable(*VarToUse);
+	FString UELayerPath = FPaths::EngineDir();
+	UELayerPath.Append(TEXT("Binaries/ThirdParty/Vulkan/"));
 #if PLATFORM_64BITS
-				VulkanLayerPath.Append(TEXT("Binaries/ThirdParty/Windows/Vulkan/Win64"));
+		UELayerPath.Append(TEXT("Win64"));
 #else
-				VulkanLayerPath.Append(TEXT("Binaries/ThirdParty/Windows/Vulkan/Win32"));
+		UELayerPath.Append(TEXT("Win32"));
 #endif
-				FPlatformMisc::SetEnvironmentVar(TEXT("VK_LAYER_PATH"), *VulkanLayerPath);
-			}
-		}
+	
+	if(!PreviousEnvVar.IsEmpty())
+	{
+		PreviousEnvVar.Append(TEXT(";"));
 	}
+
+	PreviousEnvVar.Append(*UELayerPath);
+	FPlatformMisc::SetEnvironmentVar(*VarToUse, *PreviousEnvVar);
+	UE_LOG(LogVulkanRHI, Display, TEXT("Updated %s=%s"), *VarToUse, *PreviousEnvVar);
 #endif // VULKAN_HAS_DEBUGGING_ENABLED
 
 	// The vulkan dll must exist, otherwise the driver doesn't support Vulkan

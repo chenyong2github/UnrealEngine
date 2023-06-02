@@ -51,6 +51,42 @@ bool FVulkanLinuxPlatform::LoadVulkanLibrary()
 	}
 	bAttemptedLoad = true;
 
+#if VULKAN_HAS_DEBUGGING_ENABLED
+	const FString VulkanSDK = FPlatformMisc::GetEnvironmentVariable(TEXT("VULKAN_SDK"));
+	UE_LOG(LogVulkanRHI, Display, TEXT("Found VULKAN_SDK=%s"), *VulkanSDK);
+	const bool bHasVulkanSDK = !VulkanSDK.IsEmpty();
+
+	UE_LOG(LogVulkanRHI, Display, TEXT("Registering provided Vulkan validation layers"));
+
+	// if vulkan SDK is installed, we'll append our built-in validation layers to VK_ADD_LAYER_PATH,
+	// otherwise we append to VK_LAYER_PATH (which is probably empty)
+
+	// Change behavior of loading Vulkan layers by setting environment variable "VarToUse" to UE specific directory
+	FString VarToUse = (bHasVulkanSDK)?TEXT("VK_ADD_LAYER_PATH"):TEXT("VK_LAYER_PATH");
+	FString PreviousEnvVar = FPlatformMisc::GetEnvironmentVariable(*VarToUse);
+	FString UELayerPath = FPaths::EngineDir();
+	UELayerPath.Append(TEXT("Binaries/ThirdParty/Vulkan/Linux"));
+	
+	if(!PreviousEnvVar.IsEmpty())
+	{
+		PreviousEnvVar.Append(TEXT(":"));
+	}
+
+	PreviousEnvVar.Append(*UELayerPath);
+	FPlatformMisc::SetEnvironmentVar(*VarToUse, *PreviousEnvVar);
+	UE_LOG(LogVulkanRHI, Display, TEXT("Updated %s=%s"), *VarToUse, *PreviousEnvVar);
+
+	FString PreviousLibPath = FPlatformMisc::GetEnvironmentVariable(TEXT("LD_LIBRARY_PATH"));
+	if (!PreviousLibPath.IsEmpty())
+	{
+		PreviousLibPath.Append(TEXT(":"));
+	}
+
+	PreviousLibPath.Append(*UELayerPath);
+	FPlatformMisc::SetEnvironmentVar(TEXT("LD_LIBRARY_PATH"), *PreviousLibPath);
+	UE_LOG(LogVulkanRHI, Display, TEXT("Updated LD_LIBRARY_PATH=%s"), *PreviousLibPath);
+#endif // VULKAN_HAS_DEBUGGING_ENABLED
+
 	// try to load libvulkan.so
 	VulkanLib = dlopen("libvulkan.so.1", RTLD_NOW | RTLD_LOCAL);
 
