@@ -82,7 +82,16 @@ static FAutoConsoleCommand CmdDumpLiveTable(
 			}
 		}
 
-		FTextLocalizationManager::Get().DumpLiveTable(NamespaceFilter.GetPtrOrNull(), KeyFilter.GetPtrOrNull(), DisplayStringFilter.GetPtrOrNull());
+		auto GetConsoleResponseLogCategoryPtr = []() -> const FLogCategoryBase*
+		{
+#if NO_LOGGING
+			return nullptr;
+#else
+			return &LogConsoleResponse;
+#endif
+		};
+
+		FTextLocalizationManager::Get().DumpLiveTable(NamespaceFilter.GetPtrOrNull(), KeyFilter.GetPtrOrNull(), DisplayStringFilter.GetPtrOrNull(), GetConsoleResponseLogCategoryPtr());
 	}));
 #endif
 }
@@ -567,14 +576,17 @@ void FTextLocalizationManager::CompactDataStructures()
 }
 
 #if ENABLE_LOC_TESTING
-void FTextLocalizationManager::DumpLiveTable(const FString* NamespaceFilter, const FString* KeyFilter, const FString* DisplayStringFilter) const
+void FTextLocalizationManager::DumpLiveTable(const FString* NamespaceFilter, const FString* KeyFilter, const FString* DisplayStringFilter, const FLogCategoryBase* CategoryOverride) const
 {
+#if !NO_LOGGING
+	const FLogCategoryBase& Category = CategoryOverride ? *CategoryOverride : LogLocalization;
+
 	auto PassesFilter = [](const FString& Str, const FString* Filter)
 	{
 		return !Filter || Str.MatchesWildcard(*Filter, ESearchCase::IgnoreCase); // Note: This is case insensitive since its used from a debug command
 	};
 
-	UE_LOG(LogLocalization, Display, TEXT("----------------------------------------------------------------------"));
+	UE_LOG_REF(Category, Display, TEXT("----------------------------------------------------------------------"));
 
 	FScopeLock ScopeLock(&DisplayStringLookupTableCS);
 	for (const auto& DisplayStringPair : DisplayStringLookupTable)
@@ -583,11 +595,12 @@ void FTextLocalizationManager::DumpLiveTable(const FString* NamespaceFilter, con
 			PassesFilter(DisplayStringPair.Key.GetKey().GetChars(), KeyFilter) &&
 			PassesFilter(**DisplayStringPair.Value.DisplayString, DisplayStringFilter))
 		{
-			UE_LOG(LogLocalization, Display, TEXT("LiveTableEntry: Namespace: '%s', Key: '%s', DisplayString: '%s'"), DisplayStringPair.Key.GetNamespace().GetChars(), DisplayStringPair.Key.GetKey().GetChars(), **DisplayStringPair.Value.DisplayString);
+			UE_LOG_REF(Category, Display, TEXT("LiveTableEntry: Namespace: '%s', Key: '%s', DisplayString: '%s'"), DisplayStringPair.Key.GetNamespace().GetChars(), DisplayStringPair.Key.GetKey().GetChars(), **DisplayStringPair.Value.DisplayString);
 		}
 	}
 
-	UE_LOG(LogLocalization, Display, TEXT("----------------------------------------------------------------------"));
+	UE_LOG_REF(Category, Display, TEXT("----------------------------------------------------------------------"));
+#endif // !NO_LOGGING
 }
 #endif
 

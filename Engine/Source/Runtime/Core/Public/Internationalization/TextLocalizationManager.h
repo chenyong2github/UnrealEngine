@@ -26,6 +26,7 @@
 class FTextLocalizationResource;
 class ILocalizedTextSource;
 class IPakFile;
+struct FLogCategoryBase;
 struct FPolyglotTextData;
 
 enum class ETextLocalizationManagerInitializedFlags : uint8
@@ -120,7 +121,7 @@ public:
 	 * Dumps the current live table state to the log, optionally filtering it based on the given wildcard arguments.
 	 * @note Calling this function with no filters specified will dump the entire live table.
 	 */
-	void DumpLiveTable(const FString* NamespaceFilter = nullptr, const FString* KeyFilter = nullptr, const FString* DisplayStringFilter = nullptr) const;
+	void DumpLiveTable(const FString* NamespaceFilter = nullptr, const FString* KeyFilter = nullptr, const FString* DisplayStringFilter = nullptr, const FLogCategoryBase* CategoryOverride = nullptr) const;
 #endif
 
 	/**
