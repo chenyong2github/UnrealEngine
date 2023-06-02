@@ -13,6 +13,7 @@
 #include "Chaos/XPBDCorotatedConstraints.h"
 #include "Chaos/Deformable/GaussSeidelCorotatedConstraints.h"
 #include "Chaos/Deformable/GaussSeidelNeohookeanConstraints.h"
+#include "Chaos/Deformable/GaussSeidelWeakConstraints.h"
 #include "Chaos/XPBDWeakConstraints.h"
 #include "Chaos/BlendedXPBDCorotatedConstraints.h"
 #include "Chaos/XPBDGridBasedCorotatedConstraints.h"
@@ -178,6 +179,7 @@ namespace Chaos::Softs
 		TArray<TUniquePtr<Softs::FXPBDCorotatedConstraints<Softs::FSolverReal, Softs::FSolverParticles>>> CorotatedConstraints;
 		TUniquePtr<Softs::FGaussSeidelCorotatedConstraints<Softs::FSolverReal, Softs::FSolverParticles>> GSCorotatedConstraints;
 		TUniquePtr<Softs::FGaussSeidelNeohookeanConstraints<Softs::FSolverReal, Softs::FSolverParticles>> GSNeohookeanConstraints;
+		TUniquePtr<Softs::FGaussSeidelWeakConstraints<Softs::FSolverReal, Softs::FSolverParticles>> GSWeakConstraints;
 		TArray<TUniquePtr<Softs::FXPBDWeakConstraints<Softs::FSolverReal, Softs::FSolverParticles>>> WeakConstraints;
 		TArray<TUniquePtr<Softs::FBlendedXPBDCorotatedConstraints<Softs::FSolverReal, Softs::FSolverParticles>>> BlendedCorotatedConstraints;
 		TUniquePtr<Softs::FXPBDGridBasedCorotatedConstraints<Softs::FSolverReal, Softs::FSolverParticles>> GridBasedCorotatedConstraint;
@@ -192,6 +194,10 @@ namespace Chaos::Softs
 		TUniquePtr <TArray<FSolverReal>> AllTetEMeshArray;
 		TUniquePtr <TArray<FSolverReal>> AllTetNuMeshArray;
 		TUniquePtr <TArray<FSolverReal>> AllTetAlphaJArray;
+		TUniquePtr <TArray<TArray<int32>>> AllIndices;
+		TUniquePtr <TArray<TArray<int32>>> AllSecondIndices;
+		TUniquePtr <TArray<FSolverReal>> AllWeights;
+		TUniquePtr <TArray<FSolverReal>> AllSecondWeights;
 
 		//typedef TMap<int32, TTuple<float, Chaos::Softs::FPAndInvM, FVector3f>> TransientConstraintBufferMap;
 		typedef TMap<int32, TTuple<float, float, FVector3f>> TransientConstraintBufferMap;

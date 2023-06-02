@@ -8,7 +8,7 @@
 #include "Chaos/GraphColoring.h"
 #include "Chaos/NewtonCorotatedCache.h"
 #include "Chaos/Framework/Parallel.h"
-//#include "Chaos/Deformable/GaussSeidelWeakConstraints.h"
+#include "Chaos/Deformable/GaussSeidelWeakConstraints.h"
 
 
 namespace Chaos::Softs
@@ -44,7 +44,7 @@ namespace Chaos::Softs
 			const T& NuMesh = (T).3,
 			const bool bRecordMetricIn = false
 		)
-			: Base(InParticles, InMesh, EMeshArray, NuMeshArray, MoveTemp(AlphaJMeshArray), InParams, NuMesh, bRecordMetricIn, false), IncidentElements(MoveTemp(IncidentElementsIn)), IncidentElementsLocal(IncidentElementsLocalIn),
+			: Base(InParticles, InMesh, EMeshArray, NuMeshArray, MoveTemp(AlphaJMeshArray), InParams, NuMesh, bRecordMetricIn, false), IncidentElements(IncidentElementsIn), IncidentElementsLocal(IncidentElementsLocalIn),
 			ParticleStartIndex(ParticleStartIndexIn), ParticleEndIndex(ParticleEndIndexIn), bDoQuasistatics(bDoQuasistaticsIn), bDoSOR(bDoSORIn), OmegaSOR(InOmegaSOR)
 		{
 			Base::LambdaArray.SetNum(0);
@@ -123,6 +123,11 @@ namespace Chaos::Softs
 		}
 
 		void Init() const override {}
+
+		TArray<TArray<int32>> GetIncidentElements() const { return IncidentElements; }
+		TArray<TArray<int32>> GetIncidentElementsLocal() const { return IncidentElementsLocal; }
+		TArray<TVector<int32, 4>> GetMeshConstraints() const { return MeshConstraints; }
+		void SetParticlesPerColor(TArray<TArray<int32>>&& InParticlesPerColor) {ParticlesPerColor = MoveTemp(InParticlesPerColor); }
 
 
 		void ApplySOR(ParticleType& Particles, const T Dt) const
@@ -292,6 +297,9 @@ namespace Chaos::Softs
 					 }
 				 }
 			 };
+
+			 AddAdditionalRes = [](const ParticleType& InParticles, const int32 p, const T Dt, TVec3<T>& res) {};
+			 AddAdditionalHessian = [](const ParticleType& InParticles, const int32 p, const T Dt, Chaos::PMatrix<T, 3, 3>& hessian) {};
 		 }
 
 	private:
@@ -301,9 +309,13 @@ namespace Chaos::Softs
 		{
 			Chaos::TVector<T, 3> ParticleResidual = ComputePerParticleResidual(p, Particle2Incident[p], Particles, Dt, !bDoQuasistatics);
 
+			AddAdditionalRes(Particles, p, Dt, ParticleResidual);
+
 			if (ParticleResidual.Size() > LocalNewtonTol)
 			{
 				Chaos::PMatrix<T, 3, 3> SimplifiedHessian = ComputePerParticleCorotatedHessianSimple(p, Particle2Incident[p], Particles, Dt, !bDoQuasistatics);
+				AddAdditionalHessian(Particles, p, Dt, SimplifiedHessian);
+				
 				T HessianDet = SimplifiedHessian.Determinant();
 				if (HessianDet > UE_SMALL_NUMBER)
 				{
@@ -335,6 +347,11 @@ namespace Chaos::Softs
 		mutable int32 CurrentIt = 0;
 		TFunction<void(const Chaos::PMatrix<T, 3, 3>&, const T, const T, Chaos::PMatrix<T, 3, 3>& )> ComputeStress;
 		TFunction<void(const Chaos::PMatrix<T, 3, 3>&, const Chaos::PMatrix<T, 3, 3>&, const T, const T, const int32, const T, Chaos::PMatrix<T, 3, 3>&)> ComputeHessianHelper;
+		
+	public:
+		TFunction<void(const ParticleType&, const int32, const T, TVec3<T>&)> AddAdditionalRes;
+		TFunction<void(const ParticleType&, const int32, const T, Chaos::PMatrix<T, 3, 3>&)> AddAdditionalHessian;
+		TUniquePtr<TArray<int32>> ParticleColors;
 	};
 
 

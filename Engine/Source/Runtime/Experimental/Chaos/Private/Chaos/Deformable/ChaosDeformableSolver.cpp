@@ -152,6 +152,7 @@ namespace Chaos::Softs
 			AllTetEMeshArray.Reset(new TArray<FSolverReal>());
 			AllTetNuMeshArray.Reset(new TArray<FSolverReal>());
 			AllTetAlphaJArray.Reset(new TArray<FSolverReal>());
+			GSWeakConstraints.Reset(new FGaussSeidelWeakConstraints<FSolverReal, FSolverParticles>({}, {}, {}, {}, {}, GDeformableXPBDWeakConstraintParams));
 		}
 
 		InitializeKinematicConstraint();
@@ -569,26 +570,44 @@ namespace Chaos::Softs
 				PositionTargetStiffness[i] = DataPackage.Stiffness;
 			}
 
-			int32 InitIndex = Evolution->AddConstraintInitRange(1, true);
-			int32 ConstraintIndex = Evolution->AddConstraintRuleRange(1, true);
-
-			FXPBDWeakConstraints<FSolverReal, FSolverParticles>* WeakConstraint =
-				new FXPBDWeakConstraints<FSolverReal, FSolverParticles>(Evolution->Particles(),
-					PositionTargetIndices, PositionTargetWeights, PositionTargetStiffness, PositionTargetSecondIndices, PositionTargetSecondWeights, GDeformableXPBDWeakConstraintParams);
-
-			Evolution->ConstraintInits()[InitIndex] =
-				[WeakConstraint, this](FSolverParticles& InParticles, const FSolverReal Dt)
+			if (Property.bUseGaussSeidelConstraints)
 			{
-				WeakConstraint->Init(InParticles, Dt);
-			};
-
-			Evolution->ConstraintRules()[ConstraintIndex] =
-				[WeakConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+				for (int i = PositionTargets.NumPositionTargets() - 1; i >= 0; i--)
+				{
+					for (int32 j = 0; j < PositionTargetIndices[i].Num(); j++)
+					{
+						PositionTargetIndices[i][j] += Range[0];
+					}
+					for (int32 j = 0; j < PositionTargetSecondIndices[i].Num(); j++)
+					{
+						PositionTargetSecondIndices[i][j] += Range[0];
+					}
+				}
+				GSWeakConstraints->AddExtraConstraints(PositionTargetIndices, PositionTargetWeights, PositionTargetStiffness, PositionTargetSecondIndices, PositionTargetSecondWeights);
+			} 
+			else
 			{
-				WeakConstraint->ApplyInParallel(InParticles, Dt);
-			};
+				int32 InitIndex = Evolution->AddConstraintInitRange(1, true);
+				int32 ConstraintIndex = Evolution->AddConstraintRuleRange(1, true);
 
-			WeakConstraints.Add(TUniquePtr<FXPBDWeakConstraints<FSolverReal, FSolverParticles>>(WeakConstraint));
+				FXPBDWeakConstraints<FSolverReal, FSolverParticles>* WeakConstraint =
+					new FXPBDWeakConstraints<FSolverReal, FSolverParticles>(Evolution->Particles(),
+						PositionTargetIndices, PositionTargetWeights, PositionTargetStiffness, PositionTargetSecondIndices, PositionTargetSecondWeights, GDeformableXPBDWeakConstraintParams);
+
+				Evolution->ConstraintInits()[InitIndex] =
+					[WeakConstraint, this](FSolverParticles& InParticles, const FSolverReal Dt)
+				{
+					WeakConstraint->Init(InParticles, Dt);
+				};
+
+				Evolution->ConstraintRules()[ConstraintIndex] =
+					[WeakConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+				{
+					WeakConstraint->ApplyInParallel(InParticles, Dt);
+				};
+
+				WeakConstraints.Add(TUniquePtr<FXPBDWeakConstraints<FSolverReal, FSolverParticles>>(WeakConstraint));
+			}
 		}
 	}
 
@@ -1168,6 +1187,22 @@ namespace Chaos::Softs
 			{
 				this->GSNeohookeanConstraints->Apply(InParticles, Dt);
 			};
+
+			if (Property.bEnablePositionTargets)
+			{
+				TArray<TArray<int32>> ParticlesPerColor;
+				GSWeakConstraints->ComputeInitialWCData(Evolution->Particles(), GSNeohookeanConstraints->GetMeshConstraints(), GSNeohookeanConstraints->GetIncidentElements(), GSNeohookeanConstraints->GetIncidentElementsLocal(), ParticlesPerColor);
+				GSNeohookeanConstraints->SetParticlesPerColor(MoveTemp(ParticlesPerColor));
+
+				GSNeohookeanConstraints->AddAdditionalRes = [this](const FSolverParticles& InParticles, const int32 p, const FSolverReal Dt, TVec3<FSolverReal>& res)
+				{
+					this->GSWeakConstraints->AddWCResidual(InParticles, p, Dt, res);
+				};
+				GSNeohookeanConstraints->AddAdditionalHessian = [this](const FSolverParticles& InParticles, const int32 p, const FSolverReal Dt, Chaos::PMatrix<FSolverReal, 3, 3>& hessian)
+				{
+					this->GSWeakConstraints->AddWCHessian(p, Dt, hessian);
+				};
+			}
 		} 
 		else
 		{
@@ -1186,6 +1221,63 @@ namespace Chaos::Softs
 			{
 				this->GSCorotatedConstraints->Apply(InParticles, Dt);
 			};
+
+			if (Property.bEnablePositionTargets)
+			{
+				TArray<TArray<int32>> ParticlesPerColor;
+				GSWeakConstraints->ComputeInitialWCData(Evolution->Particles(), GSCorotatedConstraints->GetMeshConstraints(), GSCorotatedConstraints->GetIncidentElements(), GSCorotatedConstraints->GetIncidentElementsLocal(), ParticlesPerColor);
+				GSCorotatedConstraints->SetParticlesPerColor(MoveTemp(ParticlesPerColor));
+
+				GSCorotatedConstraints->AddAdditionalRes = [this](const FSolverParticles& InParticles, const int32 p, const FSolverReal Dt, TVec3<FSolverReal>& res)
+				{
+					this->GSWeakConstraints->AddWCResidual(InParticles, p, Dt, res);
+				};
+				GSCorotatedConstraints->AddAdditionalHessian = [this](const FSolverParticles& InParticles, const int32 p, const FSolverReal Dt, Chaos::PMatrix<FSolverReal, 3, 3>& hessian)
+				{
+					this->GSWeakConstraints->AddWCHessian(p, Dt, hessian);
+				};
+			}
+		}
+		if (Property.bEnablePositionTargets)
+		{
+			int32 InitIndex1 = Evolution->AddConstraintInitRange(1, true);
+			Evolution->ConstraintInits()[InitIndex1] =
+				[this](FSolverParticles& InParticles, const FSolverReal Dt)
+			{
+				this->GSWeakConstraints->Init(InParticles, Dt);
+			};
+		}
+
+		if (Property.bDoSelfCollision)
+		{
+			int32 InitIndex = Evolution->AddConstraintInitRange(1, true);
+			Evolution->ConstraintInits()[InitIndex] =
+				[this](FSolverParticles& InParticles, const FSolverReal Dt)
+			{
+				//TODO(Yushan & Joey): Add the collision detection code in here:
+			};
+
+			int32 InitIndex1 = Evolution->AddConstraintInitRange(1, true);
+			if (Property.bUseGSNeohookean)
+			{
+				Evolution->ConstraintInits()[InitIndex1] =
+					[this](FSolverParticles& InParticles, const FSolverReal Dt)
+				{
+					TArray<TArray<int32>> ParticlesPerColor;
+					this->GSWeakConstraints->ComputeCollisionWCData(this->Evolution->Particles(), this->GSNeohookeanConstraints->GetMeshConstraints(), this->GSNeohookeanConstraints->GetIncidentElements(), this->GSNeohookeanConstraints->GetIncidentElementsLocal(), ParticlesPerColor);
+					this->GSNeohookeanConstraints->SetParticlesPerColor(MoveTemp(ParticlesPerColor));
+				};
+			}
+			else
+			{
+				Evolution->ConstraintInits()[InitIndex1] =
+					[this](FSolverParticles& InParticles, const FSolverReal Dt)
+				{
+					TArray<TArray<int32>> ParticlesPerColor;
+					this->GSWeakConstraints->ComputeCollisionWCData(this->Evolution->Particles(), this->GSCorotatedConstraints->GetMeshConstraints(), this->GSCorotatedConstraints->GetIncidentElements(), this->GSCorotatedConstraints->GetIncidentElementsLocal(), ParticlesPerColor);
+					this->GSCorotatedConstraints->SetParticlesPerColor(MoveTemp(ParticlesPerColor));
+				};
+			}
 		}
 	}
 
