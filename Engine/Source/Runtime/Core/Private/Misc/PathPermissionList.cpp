@@ -477,3 +477,67 @@ void FPathPermissionList::VerifyItemMatchesListType(const FStringView Item) cons
 		ensureAlwaysMsgf(IsClassPathNameOrNone(Item), TEXT("Short class name \"%.*s\" provided for PathPermissionList representing class paths"), Item.Len(), Item.GetData());
 	}
 }
+
+FString FPathPermissionList::ToString() const
+{
+	TStringBuilder<4096> StringBuilder;
+
+	auto SortAndAppendOwners = [&StringBuilder](FPermissionListOwners& Owners)
+	{
+		Owners.Sort(FNameLexicalLess());
+
+		StringBuilder.AppendChar(TCHAR('('));
+		bool bFirst = true;
+		for (FName Owner : Owners)
+		{
+			if (bFirst)
+			{
+				bFirst = false;
+			}
+			else
+			{
+				StringBuilder.Append(TEXT(", "));
+			}
+			StringBuilder.Append(Owner.ToString());
+		}
+		StringBuilder.AppendChar(TCHAR(')'));
+	};
+
+	if (!DenyListAll.IsEmpty())
+	{
+		StringBuilder.Append(TEXT("Deny All "));
+		FPermissionListOwners SortedDenyListAll = DenyListAll;
+		SortAndAppendOwners(SortedDenyListAll);
+		StringBuilder.Append(TEXT("\n"));;
+	}
+
+	auto AppendList = [&StringBuilder, &SortAndAppendOwners](const TMap<FString, FPermissionListOwners>& List)
+	{
+		TMap<FString, FPermissionListOwners> SortedList = List;
+		SortedList.KeySort(TLess<FString>());
+		for (TPair<FString, FPermissionListOwners>& ListEntry : SortedList)
+		{
+			StringBuilder.AppendChar(TCHAR('\t'));
+			StringBuilder.AppendChar(TCHAR('"'));
+			StringBuilder.Append(ListEntry.Key);
+			StringBuilder.AppendChar(TCHAR('"'));
+			StringBuilder.AppendChar(TCHAR(' '));
+			SortAndAppendOwners(ListEntry.Value);
+			StringBuilder.AppendChar(TCHAR('\n'));
+		}
+	};
+
+	if (!DenyList.IsEmpty())
+	{
+		StringBuilder.Append(TEXT("Deny List\n"));
+		AppendList(DenyList);
+	}
+
+	if (!AllowList.IsEmpty())
+	{
+		StringBuilder.Append(TEXT("Allow List\n"));
+		AppendList(AllowList);
+	}
+
+	return StringBuilder.ToString();
+}

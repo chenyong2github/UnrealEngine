@@ -277,6 +277,9 @@ public:
 	/** Triggered when filter changes */
 	FSimpleMulticastDelegate& OnFilterChanged() { return OnFilterChangedDelegate; }
 
+	/** Dumps the path permission list details into a multi-line string */
+	FString ToString() const;
+
 protected:
 
 	/**

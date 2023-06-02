@@ -432,6 +432,16 @@ namespace UE::AssetTools::Private
 		TEXT("When set, if you import an asset at a location with a redirector, you'll instead import to the redirector's destination location")
 	);
 
+	FAutoConsoleCommand LogFolderPermissionsCommand = FAutoConsoleCommand(
+		TEXT("AssetTools.LogFolderPermissions"),
+		TEXT("Logs the read and write permissions for folders"),
+		FConsoleCommandWithArgsDelegate::CreateLambda(
+			[](const TArray<FString>& Args)
+			{
+				UE_LOG(LogAssetTools, Log, TEXT("Folder Read Permissions:\n%s"), *IAssetTools::Get().GetFolderPermissionList()->ToString());
+				UE_LOG(LogAssetTools, Log, TEXT("Folder Write Permissions:\n%s"), *IAssetTools::Get().GetWritableFolderPermissionList()->ToString());
+			}));
+
 	// use a struct as a namespace to allow easier friend declarations
 	struct FPackageMigrationImpl
 	{
