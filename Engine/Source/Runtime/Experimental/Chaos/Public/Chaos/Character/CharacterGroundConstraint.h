@@ -47,6 +47,10 @@ namespace Chaos
 				{
 					Data.ParticleProxy = InGroundProxy;
 				});
+			if (InGroundProxy)
+			{
+				WakeGroundBody();
+			}
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -93,6 +97,7 @@ namespace Chaos
 			ConstraintData.Modify(true, DirtyFlags, Proxy, [&Value](FCharacterGroundConstraintDynamicData& Data) {
 				Data.GroundDistance = Value > FReal(0.0) ? Value : FReal(0.0);
 				});
+			WakeCharacterBody();
 		}
 		FReal GetGroundDistance() const { return ConstraintData.Read().GroundDistance; }
 
@@ -147,6 +152,14 @@ namespace Chaos
 				});
 		}
 		FReal GetMaxWalkableSlopeAngle() const { return FMath::Acos(ConstraintSettings.Read().CosMaxWalkableSlopeAngle); }
+
+		void SetCosMaxWalkableSlopeAngle(const FReal& Value)
+		{
+			ConstraintSettings.Modify(true, DirtyFlags, Proxy, [&Value](FCharacterGroundConstraintSettings& Data) {
+				FReal CosAngle = FMath::Clamp(Value, -1.0, 1.0);
+				Data.CosMaxWalkableSlopeAngle = CosAngle;
+				});
+		}
 		FReal GetCosMaxWalkableSlopeAngle() const { return ConstraintSettings.Read().CosMaxWalkableSlopeAngle; }
 
 		/// Set the target change in position for the character. This is used to move the character
@@ -163,6 +176,7 @@ namespace Chaos
 			ConstraintData.Modify(true, DirtyFlags, Proxy, [&Value](FCharacterGroundConstraintDynamicData& Data) {
 				Data.TargetDeltaPosition = Value;
 				});
+			WakeCharacterBody();
 		}
 		FVec3 GetTargetDeltaPosition() const { return ConstraintData.Read().TargetDeltaPosition; }
 
@@ -179,8 +193,20 @@ namespace Chaos
 			ConstraintData.Modify(true, DirtyFlags, Proxy, [&Value](FCharacterGroundConstraintDynamicData& Data) {
 				Data.TargetDeltaFacing = Value;
 				});
+			WakeCharacterBody();
 		}
 		FReal GetTargetDeltaFacing() const { return ConstraintData.Read().TargetDeltaFacing; }
+
+		///  Set both the target delta position and facing angle. This is more efficient than setting
+		/// them both individually
+		void SetMotionTarget(const FVector& TargetDeltaPosition, const FReal& TargetDeltaFacing)
+		{
+			ConstraintData.Modify(true, DirtyFlags, Proxy, [&TargetDeltaPosition, &TargetDeltaFacing](FCharacterGroundConstraintDynamicData& Data) {
+				Data.TargetDeltaPosition = TargetDeltaPosition;
+				Data.TargetDeltaFacing = TargetDeltaFacing;
+				});
+			WakeCharacterBody();
+		}
 
 		/// The maximum force that the character can apply in the plane defined by the ground normal
 		/// to move the character to its target position (or hold the character in place if no target
@@ -193,16 +219,46 @@ namespace Chaos
 		}
 		FReal GetRadialForceLimit() const { return ConstraintSettings.Read().RadialForceLimit; }
 
+
 		/// The maximum torque that the character can apply about the vertical axis to rotate the
 		/// character to its target facing direction (or hold the character in place if no target
 		/// delta facing is set).
+		UE_DEPRECATED(5.3, "Split into swing/twist torque limits. Use SetTwistTorqueLimit instead for torque limit about vertical axis.")
 		void SetTorqueLimit(const FReal& Value)
 		{
+			SetTwistTorqueLimit(Value);
+		}
+		UE_DEPRECATED(5.3, "Split into swing/twist torque limits. Use GetTwistTorqueLimit instead for torque limit about vertical axis.")
+		FReal GetTorqueLimit() const { return GetTwistTorqueLimit(); }
+
+		/// The maximum torque that the character can apply about the vertical axis to rotate the
+		/// character to its target facing direction (or hold the character in place if no target
+		/// delta facing is set).
+		void SetTwistTorqueLimit(const FReal& Value)
+		{
 			ConstraintSettings.Modify(true, DirtyFlags, Proxy, [&Value](FCharacterGroundConstraintSettings& Data) {
-				Data.TorqueLimit = Value > FReal(0.0) ? Value : FReal(0.0);
+				Data.TwistTorqueLimit = Value > FReal(0.0) ? Value : FReal(0.0);
 				});
 		}
-		FReal GetTorqueLimit() const { return ConstraintSettings.Read().TorqueLimit; }
+		FReal GetTwistTorqueLimit() const { return ConstraintSettings.Read().TwistTorqueLimit; }
+
+		/// The maximum torque that the character can apply about the non vertical axes to keep
+		/// the character upright
+		void SetSwingTorqueLimit(const FReal& Value)
+		{
+			ConstraintSettings.Modify(true, DirtyFlags, Proxy, [&Value](FCharacterGroundConstraintSettings& Data) {
+				Data.SwingTorqueLimit = Value > FReal(0.0) ? Value : FReal(0.0);
+				});
+		}
+		FReal GetSwingTorqueLimit() const { return ConstraintSettings.Read().SwingTorqueLimit; }
+
+		void SetUserData(void* Value)
+		{
+			ConstraintSettings.Modify(true, DirtyFlags, Proxy, [&Value](FCharacterGroundConstraintSettings& Data) {
+				Data.UserData = Value;
+				});
+		}
+		void* GetUserData() const { return ConstraintSettings.Read().UserData; }
 
 		//////////////////////////////////////////////////////////////////////////
 		// Output
@@ -214,6 +270,30 @@ namespace Chaos
 		FVector GetSolverAppliedTorque() const { return SolverAppliedTorque; }
 
 	private:
+		void WakeCharacterBody()
+		{
+			if (FSingleParticlePhysicsProxy* Character = CharacterProxy.Read().ParticleProxy)
+			{
+				FRigidBodyHandle_External& Body = Character->GetGameThreadAPI();
+				if (Body.ObjectState() == EObjectStateType::Sleeping)
+				{
+					Body.SetObjectState(EObjectStateType::Dynamic);
+				}
+			}
+		}
+
+		void WakeGroundBody()
+		{
+			if (FSingleParticlePhysicsProxy* Ground = GroundProxy.Read().ParticleProxy)
+			{
+				FRigidBodyHandle_External& Body = Ground->GetGameThreadAPI();
+				if (Body.ObjectState() == EObjectStateType::Sleeping)
+				{
+					Body.SetObjectState(EObjectStateType::Dynamic);
+				}
+			}
+		}
+
 		//////////////////////////////////////////////////////////////////////////
 		// FConstraintBase implementation
 		virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData) override;

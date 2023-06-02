@@ -52,15 +52,29 @@ namespace Chaos
 		virtual void SetEnabled(bool InEnabled) override { bDisabled = !InEnabled; }
 		virtual bool IsEnabled() const { return !bDisabled; }
 
-		/// Currently settings and data are only modifiable on the game thread
-		/// via FCharacterGroundConstraint
+		/// Settings is only modifiable on the game thread via FCharacterGroundConstraint
+		/// but Data can be modified on the physics thread and is synced with the game thread
 		const FCharacterGroundConstraintSettings& GetSettings() const { return Settings; }
 		const FCharacterGroundConstraintDynamicData& GetData() const { return Data; }
+
+		void SetData(const FCharacterGroundConstraintDynamicData& InData)
+		{
+			Data = InData;
+		}
 
 		// Declared final so that TPBDConstraintGraphRuleImpl::AddToGraph() does not need to hit vtable
 		virtual FParticlePair GetConstrainedParticles() const override final { return { CharacterParticle, GroundParticle }; }
 		FGeometryParticleHandle* GetCharacterParticle() const { return CharacterParticle; }
 		FGeometryParticleHandle* GetGroundParticle() const { return GroundParticle; }
+
+		void SetGroundParticle(FGeometryParticleHandle* InGroundParticle)
+		{
+			if (InGroundParticle != GroundParticle)
+			{
+				GroundParticle = InGroundParticle;
+				bGroundParticleChanged = true;
+			}
+		}
 
 		// Get the force applied by the solver due to this constraint. Units are ML/T^2
 		FVec3 GetSolverAppliedForce() const { return SolverAppliedForce; }
@@ -82,6 +96,7 @@ namespace Chaos
 		FGeometryParticleHandle* GroundParticle;
 		bool bDisabled = false;
 		bool bEnabledDuringResim;
+		bool bGroundParticleChanged = false;
 		EResimType ResimType = EResimType::FullResim;
 		ESyncState SyncState = ESyncState::InSync;
 	};

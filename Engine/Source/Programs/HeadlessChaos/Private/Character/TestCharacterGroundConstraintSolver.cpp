@@ -74,7 +74,8 @@ namespace ChaosTest
 		Data.GroundDistance = 10.0f;
 		Settings.TargetHeight = 15.0f;
 		Settings.RadialForceLimit = 0.0f;
-		Settings.TorqueLimit = 0.0f;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = 0.0f;
 
 		UpdateSingleBody(1, 0);
 
@@ -96,7 +97,8 @@ namespace ChaosTest
 		Data.GroundDistance = 10.0f;
 		Settings.TargetHeight = 15.0f;
 		Settings.RadialForceLimit = 0.0f;
-		Settings.TorqueLimit = 0.0f;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = 0.0f;
 
 		UpdateSingleBody(1, 0);
 
@@ -117,7 +119,8 @@ namespace ChaosTest
 		Data.GroundDistance = 16.0f;
 		Settings.TargetHeight = 15.0f;
 		Settings.RadialForceLimit = 0.0f;
-		Settings.TorqueLimit = 0.0f;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = 0.0f;
 
 		Solver.SetBodies(&CharacterBody);
 		Solver.GatherInput(Dt, Settings, Data);
@@ -142,7 +145,8 @@ namespace ChaosTest
 		Data.GroundDistance = 16.0f;
 		Settings.TargetHeight = 15.0f;
 		Settings.RadialForceLimit = 0.0f;
-		Settings.TorqueLimit = 0.0f;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = 0.0f;
 
 		Solver.SetBodies(&CharacterBody);
 		Solver.GatherInput(Dt, Settings, Data);
@@ -185,7 +189,8 @@ namespace ChaosTest
 		Data.GroundDistance = 10.0f;
 		Settings.TargetHeight = 15.0f;
 		Settings.RadialForceLimit = 0.0f;
-		Settings.TorqueLimit = 0.0f;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = 0.0f;
 		Data.GroundNormal = FVec3(1.0, 0.0, 1.0);
 		Data.GroundNormal.SafeNormalize();
 
@@ -214,7 +219,8 @@ namespace ChaosTest
 		Settings.RadialForceLimit = (1.0 / (CharacterBody.InvM() * Dt * Dt)) * 10.1;
 		Data.TargetDeltaPosition = FVec3(-5.0, 0.0, 0.0);
 		Data.TargetDeltaFacing = -0.4;
-		Settings.TorqueLimit = (1.0 / (CharacterBody.InvILocal().Z * Dt * Dt)) * 0.5;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = (1.0 / (CharacterBody.InvILocal().Z * Dt * Dt)) * 0.5;
 
 		UpdateSingleBody(1, 0);
 
@@ -247,7 +253,8 @@ namespace ChaosTest
 		Settings.RadialForceLimit = (1.0 / (CharacterBody.InvM() * Dt * Dt)) * 10.0;
 		Data.TargetDeltaPosition = FVec3(-11.0, 0.0, 0.0);
 		Data.TargetDeltaFacing = 0.6;
-		Settings.TorqueLimit = (1.0 / (CharacterBody.InvILocal().Z * Dt * Dt)) * 0.5;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = (1.0 / (CharacterBody.InvILocal().Z * Dt * Dt)) * 0.5;
 
 		UpdateSingleBody(5, 0);
 
@@ -265,7 +272,7 @@ namespace ChaosTest
 		FVec3 ExpectedImpulse = (1.0 / (CharacterBody.InvM() * Dt)) * FVec3(-10.0, 0.0, 5.0);
 		EXPECT_VECTOR_FLOAT_EQ(Solver.GetLinearImpulse(Dt), ExpectedImpulse);
 		EXPECT_FLOAT_EQ(FMath::Abs(Solver.GetLinearImpulse(Dt).X), Settings.RadialForceLimit * Dt);
-		EXPECT_FLOAT_EQ(FMath::Abs(Solver.GetAngularImpulse(Dt).Z), Settings.TorqueLimit * Dt);
+		EXPECT_FLOAT_EQ(FMath::Abs(Solver.GetAngularImpulse(Dt).Z), Settings.TwistTorqueLimit * Dt);
 	}
 
 	// No overlap with motion target
@@ -278,7 +285,8 @@ namespace ChaosTest
 		Settings.TargetHeight = 18.0f;
 		Settings.RadialForceLimit = (1.0 / (CharacterBody.InvM() * Dt * Dt)) * 10.1;
 		Data.TargetDeltaPosition = FVec3(-5.0, 0.0, 0.0);
-		Settings.TorqueLimit = 0.0f;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = 0.0f;
 		Settings.AssumedOnGroundHeight = 1.0f;
 
 		UpdateSingleBody(1, 0);
@@ -299,7 +307,8 @@ namespace ChaosTest
 		Settings.TargetHeight = 18.0f;
 		Settings.RadialForceLimit = (1.0 / (CharacterBody.InvM() * Dt * Dt)) * 10.1;
 		Data.TargetDeltaPosition = FVec3(-5.0, 0.0, 0.0);
-		Settings.TorqueLimit = 0.0f;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = 0.0f;
 		Settings.AssumedOnGroundHeight = 2.1f;
 
 		UpdateSingleBody(1, 0);
@@ -321,7 +330,8 @@ namespace ChaosTest
 		Settings.TargetHeight = 10.0f;
 		Settings.RadialForceLimit = (1.0 / (CharacterBody.InvM() * Dt * Dt)) * 100.0;
 		Data.TargetDeltaPosition = FVec3(10.0, 0.0, 0.0);
-		Settings.TorqueLimit = 0.0f;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = 0.0f;
 		Settings.AssumedOnGroundHeight = 1.0f;
 		Data.GroundNormal = FVec3(-1.0, 0.0, 1.0);
 		Data.GroundNormal.SafeNormalize();
@@ -350,7 +360,8 @@ namespace ChaosTest
 		Settings.TargetHeight = 10.0f;
 		Settings.RadialForceLimit = (1.0 / (CharacterBody.InvM() * Dt * Dt)) * 100.0;
 		Data.TargetDeltaPosition = FVec3(10.0, -5.0, 0.0);
-		Settings.TorqueLimit = 0.0f;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = 0.0f;
 		Settings.AssumedOnGroundHeight = 1.0f;
 
 		UpdateTwoBody(1, 0);
@@ -382,7 +393,8 @@ namespace ChaosTest
 		Settings.RadialForceLimit = (1.0 / (CharacterBody.InvM() * Dt * Dt)) * 100.0;
 		Data.TargetDeltaPosition = FVec3(0.0, 0.0, 0.0);
 		Data.TargetDeltaFacing = 0.0f;
-		Settings.TorqueLimit = (1.0 / (CharacterBody.InvILocal().Z * Dt * Dt)) * 100.0;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = (1.0 / (CharacterBody.InvILocal().Z * Dt * Dt)) * 100.0;
 		Settings.AssumedOnGroundHeight = 1.0f;
 
 		UpdateTwoBody(1, 0);
@@ -421,7 +433,8 @@ namespace ChaosTest
 		Data.GroundDistance = 10.0f;
 		Settings.TargetHeight = 15.0f;
 		Settings.RadialForceLimit = 0.0f;
-		Settings.TorqueLimit = 0.0f;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = 0.0f;
 
 		UpdateTwoBody(1, 0);
 
@@ -450,7 +463,8 @@ namespace ChaosTest
 		Data.GroundDistance = 20.0f;
 		Settings.TargetHeight = 10.0f;
 		Settings.RadialForceLimit = 0.0f;
-		Settings.TorqueLimit = 0.0f;
+		Settings.SwingTorqueLimit = 0.0f;
+		Settings.TwistTorqueLimit = 0.0f;
 
 		UpdateTwoBody(1, 0);
 

@@ -1,64 +1,42 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "Chaos/Core.h"
-#include "Chaos/Transform.h"
-#include "Chaos/Vector.h"
 
 namespace Chaos
 {
 	class CHAOS_API FCharacterGroundConstraintSettings
 	{
 	public:
-		FCharacterGroundConstraintSettings()
-			: VerticalAxis(FVec3(0, 0, 1))
-			, TargetHeight(0)
-			, RadialForceLimit(1000)
-			, TorqueLimit(1000)
-			, CosMaxWalkableSlopeAngle(0.633)
-			, DampingFactor(0.0)
-			, AssumedOnGroundHeight(5.0)
-			, UserData(nullptr)
-		{
-		}
-
 		bool operator==(const FCharacterGroundConstraintSettings& Other) const
 		{
 			return !FMemory::Memcmp(this, &Other, sizeof(*this));
 		}
 
-		FVec3 VerticalAxis;				/// World space up direction (default z axis)
-		FReal TargetHeight;				/// Desired distance from the character body to the ground
-		FReal RadialForceLimit;			/// How much force the character can apply parallel to the ground plane to reach the target position
-		FReal TorqueLimit;				///	How much torque the character can apply about the vertical axis to reach the target facing direction
-		FReal CosMaxWalkableSlopeAngle;	/// Cosine of the maximum angle in degrees that the character is allowed to walk on
-		FReal DampingFactor;			/// Applies a damping to the vertical ground constraint making it softer. Units: /T
-		FReal AssumedOnGroundHeight;	/// Below this height the character is assumed to be on the ground and can apply force/torque to reach the target position and facing 
-		void* UserData;					/// Reserved for user data
+		FVec3 VerticalAxis = FVec3(0.0, 0.0, 1.0);	/// World space up direction (default z axis)
+		FReal TargetHeight = 0.0;					/// Desired distance from the character body to the ground
+		FReal RadialForceLimit = 1500.0;			/// How much force the character can apply parallel to the ground plane to reach the target position
+		FReal TwistTorqueLimit = 1000.0;			///	How much torque the character can apply about the vertical axis to reach the target facing direction
+		FReal SwingTorqueLimit = 5000.0;			///	How much torque the character can apply about the other axes to remain upright
+		FReal CosMaxWalkableSlopeAngle = 0.633;		/// Cosine of the maximum angle in degrees that the character is allowed to walk on
+		FReal DampingFactor = 0.0;					/// Applies a damping to the vertical ground constraint making it softer. Units: /T
+		FReal AssumedOnGroundHeight = 2.0;			/// Below this height the character is assumed to be on the ground and can apply force/torque to reach the target position and facing
+		void* UserData = nullptr;
 	};
 
 	class CHAOS_API FCharacterGroundConstraintDynamicData
 	{
 	public:
-		FCharacterGroundConstraintDynamicData()
-			: GroundNormal(FVec3(0, 0, 1))
-			, TargetDeltaPosition(FVec3(0, 0, 0))
-			, TargetDeltaFacing(0)
-			, GroundDistance(0)
-		{
-		}
-
 		bool operator==(const FCharacterGroundConstraintDynamicData& Other) const
 		{
 			return !FMemory::Memcmp(this, &Other, sizeof(*this));
 		}
 
-		FVec3 GroundNormal;				/// World space ground normal
-		FVec3 TargetDeltaPosition;		///	Target linear movement vector. Will be projected onto ground plane
-		FReal TargetDeltaFacing;		/// Target rotation in radians about the vertical axis
-		FReal GroundDistance;			/// Distance from the character body to the ground
+		FVec3 GroundNormal = FVec3::ZAxisVector;		/// World space ground normal
+		FVec3 TargetDeltaPosition = FVec3::ZeroVector;	///	Target linear movement vector. Will be projected onto ground plane
+		FReal TargetDeltaFacing = 0.0;					/// Target rotation in radians about the vertical axis
+		FReal GroundDistance = 1.0e10f;					/// Distance from the character body to the ground
+		FReal CosMaxWalkableSlopeAngle = 0.633;			/// Override for max walkable slope angle
 	};
 
 } // namespace Chaos

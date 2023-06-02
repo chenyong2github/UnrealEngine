@@ -64,6 +64,7 @@ namespace Chaos
 				void Reset();
 
 				FSolverVec3 LinearPositionImpulse;
+				FSolverVec3 AngularSwingImpulse;
 				FSolverReal AngularImpulse;
 				FSolverReal LinearCorrectionImpulse;
 			} ImpulseData;
@@ -74,23 +75,65 @@ namespace Chaos
 				FConstraintData();
 				bool IsValid();
 
-				FSolverMatrix33 GroundInvI;				/// World space ground body inverse inertia
-				FSolverVec3 GroundOffset;				/// Offset vector from ground body CoM to the constraint position
-				FSolverVec3 InitialError;				/// Constraint error pre-integration
-				FSolverVec3 InitialProjectedError;		/// Projected constraint error post-integration
-				FSolverVec3 Normal;						///	Ground plane normal direction
-				FSolverVec3 VerticalAxis;				/// World space vertical axis
-				FSolverVec3 MotionTargetError;			/// Projected constraint error for motion target constraint
-				FSolverReal MotionTargetAngularError;	/// Projected angular facing error for motion target constraint
-				FSolverReal CharacterInvM;				/// Character inverse mass
-				FSolverReal CharacterInvI;				/// Character inverse inertia about the vertical axis
-				FSolverReal GroundInvM;					/// Ground body inverse mass
-				FSolverReal TwoBodyEffectiveMass;		/// Effective mass for the two body system
-				FSolverReal SingleBodyEffectiveMass;	/// Effective mass for a single body constraint (the character mass)
-				FSolverReal EffectiveInertia;			/// Effective angular mass to rotate about the vertical axis
-				FSolverReal AngularImpulseLimit;		/// Angular impulse from the solver is clamped to this limit
-				FSolverReal RadialImpulseLimit;			/// Linear impulse from the solver is clamped to this limit
-				FSolverReal AssumedOnGroundHeight;		/// Height below which the character is assumed to be grounded
+				/// World space ground body inverse inertia
+				FSolverMatrix33 CharacterInvI;
+
+				/// World space ground body inverse inertia
+				FSolverMatrix33 GroundInvI;
+
+				/// Offset vector from ground body CoM to the constraint position
+				FSolverVec3 GroundOffset;
+
+				/// Constraint error pre-integration
+				FSolverVec3 InitialError;
+
+				/// Projected constraint error post-integration
+				FSolverVec3 InitialProjectedError;
+
+				///	Ground plane normal direction
+				FSolverVec3 Normal;
+
+				/// World space vertical axis
+				FSolverVec3 VerticalAxis;
+
+				/// Vertical axis rotated by the character initial rotation
+				FSolverVec3 CharacterVerticalAxis;
+
+				/// Projected constraint error for motion target constraint
+				FSolverVec3 MotionTargetError;
+
+				/// Projected angular facing error for motion target constraint
+				FSolverReal MotionTargetAngularError;
+
+				/// Character inverse mass
+				FSolverReal CharacterInvM;
+
+				/// Character inverse inertia about the vertical axis
+				FSolverReal CharacterInvIZ;
+
+				/// Ground body inverse mass
+				FSolverReal GroundInvM;
+
+				/// Effective mass for the two body system
+				FSolverReal TwoBodyEffectiveMass;
+
+				/// Effective mass for a single body constraint (the character mass)
+				FSolverReal SingleBodyEffectiveMass;
+
+				/// Effective angular mass to rotate about the vertical axis
+				FSolverReal EffectiveInertia;
+
+				/// Angular impulse from the solver is clamped to this limit
+				FSolverReal AngularImpulseLimit;
+
+				/// Angular swing impulse from the solver is clamped to this limit
+				FSolverReal AngularSwingImpulseLimit;
+
+				/// Radial linear impulse from the solver is clamped to this limit
+				FSolverReal RadialImpulseLimit;
+
+				/// Height below which the character is assumed to be grounded
+				FSolverReal AssumedOnGroundHeight;
 			} ConstraintData;
 
 			using FSolveFunctionType = void (*)(const FConstraintData& ConstraintData, FBodyData& BodyData, FImpulseData& ImpulseData);
@@ -175,79 +218,110 @@ namespace Chaos
 
 		FORCEINLINE void FCharacterGroundConstraintSolver::SolveCorrectionSingleBody(const FConstraintData& ConstraintData, FBodyData& BodyData, FImpulseData& ImpulseData)
 		{
-			FSolverReal Error = FSolverVec3::DotProduct(BodyData.CharacterBody.CP() + ConstraintData.InitialError, ConstraintData.Normal);
+			const FSolverReal Error = ConstraintData.Normal.Dot(BodyData.CharacterBody.CP() + ConstraintData.InitialError);
 			if (Error < FSolverReal(0.0f))
 			{
-				FSolverReal Delta = -ConstraintData.SingleBodyEffectiveMass * Error;
+				const FSolverReal Delta = -ConstraintData.SingleBodyEffectiveMass * Error;
 				ImpulseData.LinearCorrectionImpulse += Delta;
-				BodyData.CharacterBody.ApplyPositionCorrectionDelta(ConstraintData.CharacterInvM * Delta * ConstraintData.Normal);
+				BodyData.CharacterBody.ApplyPositionCorrectionDelta(FSolverVec3(ConstraintData.CharacterInvM * Delta * ConstraintData.Normal));
 			}
 		}
 
 		FORCEINLINE void FCharacterGroundConstraintSolver::SolvePositionSingleBody(const FConstraintData& ConstraintData, FBodyData& BodyData, FImpulseData& ImpulseData)
 		{
 			// Normal
-			FSolverReal Error = FSolverVec3::DotProduct(BodyData.CharacterBody.DP() + ConstraintData.InitialProjectedError, ConstraintData.Normal);
+			const FSolverReal Error = ConstraintData.Normal.Dot(BodyData.CharacterBody.DP() + ConstraintData.InitialProjectedError);
 			if (Error < FSolverReal(0.0f))
 			{
-				FSolverVec3 Delta = -ConstraintData.SingleBodyEffectiveMass * Error * ConstraintData.Normal;
+				const FSolverVec3 Delta = -ConstraintData.SingleBodyEffectiveMass * Error * ConstraintData.Normal;
 				ImpulseData.LinearPositionImpulse += Delta;
-				BodyData.CharacterBody.ApplyPositionDelta(ConstraintData.CharacterInvM * Delta);
+				BodyData.CharacterBody.ApplyPositionDelta(FSolverVec3(ConstraintData.CharacterInvM * Delta));
+			}
+
+			// Angular constraint
+			FSolverVec3 NewCharacterVerticalAxis = ConstraintData.CharacterVerticalAxis + BodyData.CharacterBody.DQ().Cross(ConstraintData.CharacterVerticalAxis);
+			NewCharacterVerticalAxis.Normalize();
+			const FSolverVec3 CrossProd = NewCharacterVerticalAxis.Cross(ConstraintData.VerticalAxis);
+			const FSolverReal SizeSq = CrossProd.SizeSquared();
+			if (SizeSq > UE_SMALL_NUMBER)
+			{
+				const FSolverVec3 AngAxis = CrossProd * FMath::InvSqrt(SizeSq);
+				const FSolverReal AngResistance = FSolverReal(1.0f) / (ConstraintData.CharacterInvI * AngAxis).Dot(AngAxis);
+				const FSolverVec3 NewSwingImpulse = ClampMagnitude(ImpulseData.AngularSwingImpulse + AngResistance * FMath::Asin(FMath::Sqrt(SizeSq)) * AngAxis, ConstraintData.AngularSwingImpulseLimit);
+				const FSolverVec3 Delta = NewSwingImpulse - ImpulseData.AngularSwingImpulse;
+				ImpulseData.AngularSwingImpulse = NewSwingImpulse;
+				BodyData.CharacterBody.ApplyRotationDelta(FSolverVec3(ConstraintData.CharacterInvI * Delta));
 			}
 
 			const FSolverReal NormalImpulse = FSolverVec3::DotProduct(ImpulseData.LinearPositionImpulse, ConstraintData.Normal);
-			if (((NormalImpulse + ImpulseData.LinearCorrectionImpulse) > FSolverReal(0.0f)) || Error < ConstraintData.AssumedOnGroundHeight)
+			const FSolverReal MinNormalImpulse(0.0f);
+			if (((NormalImpulse + ImpulseData.LinearCorrectionImpulse) > MinNormalImpulse) || Error < ConstraintData.AssumedOnGroundHeight)
 			{
 				// Target Position
-				FSolverVec3 MotionTargetError = ProjectOntoPlane(ConstraintData.MotionTargetError + BodyData.CharacterBody.DP(), ConstraintData.Normal);
-				FSolverVec3 InitialMotionTargetImpulse = ProjectOntoPlane(ImpulseData.LinearPositionImpulse, ConstraintData.Normal);
+				const FSolverVec3 MotionTargetError = ProjectOntoPlane(ConstraintData.MotionTargetError + BodyData.CharacterBody.DP(), ConstraintData.Normal);
+				const FSolverVec3 InitialMotionTargetImpulse = ProjectOntoPlane(ImpulseData.LinearPositionImpulse, ConstraintData.Normal);
 				FSolverVec3 NewMotionTargetImpulse = ClampMagnitude(InitialMotionTargetImpulse - ConstraintData.SingleBodyEffectiveMass * MotionTargetError, ConstraintData.RadialImpulseLimit);
-				FSolverVec3 Delta = NewMotionTargetImpulse - InitialMotionTargetImpulse;
+				const FSolverVec3 Delta = NewMotionTargetImpulse - InitialMotionTargetImpulse;
 				ImpulseData.LinearPositionImpulse += Delta;
-				BodyData.CharacterBody.ApplyPositionDelta(ConstraintData.CharacterInvM * Delta);
+				BodyData.CharacterBody.ApplyPositionDelta(FSolverVec3(ConstraintData.CharacterInvM * Delta));
 
 				// Target Rotation
-				FSolverReal MotionTargetAngularError = ConstraintData.MotionTargetAngularError + FSolverVec3::DotProduct(BodyData.CharacterBody.DQ(), ConstraintData.VerticalAxis);
-				FSolverReal NewAngularImpulse = ClampAbs(ImpulseData.AngularImpulse - ConstraintData.EffectiveInertia * MotionTargetAngularError, ConstraintData.AngularImpulseLimit);
-				FSolverReal AngularDelta = NewAngularImpulse - ImpulseData.AngularImpulse;
+				const FSolverReal MotionTargetAngularError = ConstraintData.MotionTargetAngularError + ConstraintData.VerticalAxis.Dot(BodyData.CharacterBody.DQ());
+				const FSolverReal NewAngularImpulse = ClampAbs(ImpulseData.AngularImpulse - ConstraintData.EffectiveInertia * MotionTargetAngularError, ConstraintData.AngularImpulseLimit);
+				const FSolverReal AngularDelta = NewAngularImpulse - ImpulseData.AngularImpulse;
 				ImpulseData.AngularImpulse += AngularDelta;
-				BodyData.CharacterBody.ApplyRotationDelta(ConstraintData.CharacterInvI * AngularDelta * ConstraintData.VerticalAxis);
+				BodyData.CharacterBody.ApplyRotationDelta(FSolverVec3(ConstraintData.CharacterInvI * AngularDelta * ConstraintData.VerticalAxis));
 			}
 		}
 
 		FORCEINLINE void FCharacterGroundConstraintSolver::SolvePositionTwoBody(const FConstraintData& ConstraintData, FBodyData& BodyData, FImpulseData& ImpulseData)
 		{
-			FSolverReal Error = FSolverVec3::DotProduct(ConstraintData.InitialProjectedError + BodyData.CharacterBody.DP() - BodyData.GroundBody.DP()
-				- FSolverVec3::CrossProduct(BodyData.GroundBody.DQ(), ConstraintData.GroundOffset), ConstraintData.Normal);
+			const FSolverReal Error = ConstraintData.Normal.Dot(ConstraintData.InitialProjectedError + BodyData.CharacterBody.DP()
+				- BodyData.GroundBody.DP() - BodyData.GroundBody.DQ().Cross(ConstraintData.GroundOffset));
 			if (Error < FSolverReal(0.0f))
 			{
-				FSolverVec3 Delta = -ConstraintData.TwoBodyEffectiveMass * Error * ConstraintData.Normal;
+				const FSolverVec3 Delta = -ConstraintData.TwoBodyEffectiveMass * Error * ConstraintData.Normal;
 				ImpulseData.LinearPositionImpulse += Delta;
-				BodyData.CharacterBody.ApplyPositionDelta(ConstraintData.CharacterInvM * Delta);
-				BodyData.GroundBody.ApplyPositionDelta(-ConstraintData.GroundInvM * Delta);
-				BodyData.GroundBody.ApplyRotationDelta(-ConstraintData.GroundInvI * FSolverVec3::CrossProduct(ConstraintData.GroundOffset, Delta));
+				BodyData.CharacterBody.ApplyPositionDelta(FSolverVec3(ConstraintData.CharacterInvM * Delta));
+				BodyData.GroundBody.ApplyPositionDelta(FSolverVec3(-ConstraintData.GroundInvM * Delta));
+				BodyData.GroundBody.ApplyRotationDelta(FSolverVec3(-ConstraintData.GroundInvI * ConstraintData.GroundOffset.Cross(Delta)));
+			}
+
+			// Angular constraint
+			FSolverVec3 NewCharacterVerticalAxis = ConstraintData.CharacterVerticalAxis + BodyData.CharacterBody.DQ().Cross(ConstraintData.CharacterVerticalAxis);
+			NewCharacterVerticalAxis.Normalize();
+			const FSolverVec3 CrossProd = NewCharacterVerticalAxis.Cross(ConstraintData.VerticalAxis);
+			const FSolverReal SizeSq = CrossProd.SizeSquared();
+			if (SizeSq > UE_SMALL_NUMBER)
+			{
+				const FSolverVec3 AngAxis = CrossProd * FMath::InvSqrt(SizeSq);
+				const FSolverReal AngResistance = FSolverReal(1.0f) / (ConstraintData.CharacterInvI * AngAxis).Dot(AngAxis);
+				const FSolverVec3 NewSwingImpulse = ClampMagnitude(ImpulseData.AngularSwingImpulse + AngResistance * FMath::Asin(FMath::Sqrt(SizeSq)) * AngAxis, ConstraintData.AngularSwingImpulseLimit);
+				const FSolverVec3 Delta = NewSwingImpulse - ImpulseData.AngularSwingImpulse;
+				ImpulseData.AngularSwingImpulse = NewSwingImpulse;
+				BodyData.CharacterBody.ApplyRotationDelta(FSolverVec3(ConstraintData.CharacterInvI * Delta));
 			}
 
 			const FSolverReal NormalImpulse = FSolverVec3::DotProduct(ImpulseData.LinearPositionImpulse, ConstraintData.Normal);
 			const FSolverReal MinNormalImpulse(0.0f);
-			if (((NormalImpulse + ImpulseData.LinearCorrectionImpulse) > MinNormalImpulse) || Error < FSolverReal(5.0f))
+			if (((NormalImpulse + ImpulseData.LinearCorrectionImpulse) > MinNormalImpulse) || Error < ConstraintData.AssumedOnGroundHeight)
 			{
 				// Target Position
 				FSolverVec3 MotionTargetError = ConstraintData.MotionTargetError + BodyData.CharacterBody.DP() - BodyData.GroundBody.DP();
-				MotionTargetError -= FSolverVec3::CrossProduct(BodyData.GroundBody.DQ(), MotionTargetError);
+				MotionTargetError -= BodyData.GroundBody.DQ().Cross(MotionTargetError);
 				MotionTargetError = ProjectOntoPlane(MotionTargetError, ConstraintData.Normal);
-				FSolverVec3 InitialMotionTargetImpulse = ProjectOntoPlane(ImpulseData.LinearPositionImpulse, ConstraintData.Normal);
-				FSolverVec3 NewMotionTargetImpulse = ClampMagnitude(InitialMotionTargetImpulse - ConstraintData.SingleBodyEffectiveMass* MotionTargetError, ConstraintData.RadialImpulseLimit);
-				FSolverVec3 Delta = NewMotionTargetImpulse - InitialMotionTargetImpulse;
+				const FSolverVec3 InitialMotionTargetImpulse = ProjectOntoPlane(ImpulseData.LinearPositionImpulse, ConstraintData.Normal);
+				FSolverVec3 NewMotionTargetImpulse = ClampMagnitude(InitialMotionTargetImpulse - ConstraintData.SingleBodyEffectiveMass * MotionTargetError, ConstraintData.RadialImpulseLimit);
+				const FSolverVec3 Delta = NewMotionTargetImpulse - InitialMotionTargetImpulse;
 				ImpulseData.LinearPositionImpulse += Delta;
-				BodyData.CharacterBody.ApplyPositionDelta(ConstraintData.CharacterInvM * Delta);
+				BodyData.CharacterBody.ApplyPositionDelta(FSolverVec3(ConstraintData.CharacterInvM * Delta));
 
 				// Target Rotation
-				FSolverReal MotionTargetAngularError = ConstraintData.MotionTargetAngularError + FSolverVec3::DotProduct(BodyData.CharacterBody.DQ() - BodyData.GroundBody.DQ(), ConstraintData.VerticalAxis);
-				FSolverReal NewAngularImpulse = ClampAbs(ImpulseData.AngularImpulse - ConstraintData.EffectiveInertia * MotionTargetAngularError, ConstraintData.AngularImpulseLimit);
-				FSolverReal AngularDelta = NewAngularImpulse - ImpulseData.AngularImpulse;
+				const FSolverReal MotionTargetAngularError = ConstraintData.MotionTargetAngularError + ConstraintData.VerticalAxis.Dot(BodyData.CharacterBody.DQ() - BodyData.GroundBody.DQ());
+				const FSolverReal NewAngularImpulse = ClampAbs(ImpulseData.AngularImpulse - ConstraintData.EffectiveInertia * MotionTargetAngularError, ConstraintData.AngularImpulseLimit);
+				const FSolverReal AngularDelta = NewAngularImpulse - ImpulseData.AngularImpulse;
 				ImpulseData.AngularImpulse += AngularDelta;
-				BodyData.CharacterBody.ApplyRotationDelta(ConstraintData.CharacterInvI * AngularDelta * ConstraintData.VerticalAxis);
+				BodyData.CharacterBody.ApplyRotationDelta(FSolverVec3(ConstraintData.CharacterInvI * AngularDelta * ConstraintData.VerticalAxis));
 			}
 		}
 

@@ -132,8 +132,13 @@ struct FDirtyJointConstraintData : public TBasePullData<FJointConstraintPhysicsP
 
 struct FDirtyCharacterGroundConstraintData : public TBasePullData<FCharacterGroundConstraintProxy, FProxyTimestampBase>
 {
-	FVector Force = FVector(0);
-	FVector Torque = FVector(0);
+	FVector Force = FVector(0.0);
+	FVector Torque = FVector(0.0);
+	FVector GroundNormal = FVector(0.0, 0.0, 1.0);
+	FVector TargetDeltaPos = FVector(0.0);
+	FReal TargetDeltaFacing = 0.0;
+	FReal GroundDistance = 0.0;
+	FGeometryParticleHandle* GroundParticle = nullptr;
 };
 
 //A simulation frame's result of dirty particles. These are all the particles that were dirtied in this particular sim step

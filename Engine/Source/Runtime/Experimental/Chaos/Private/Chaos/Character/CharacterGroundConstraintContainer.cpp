@@ -98,7 +98,8 @@ namespace Chaos
 		{
 			const bool bIsInGraph = Constraint->IsInConstraintGraph();
 			const bool bShouldBeInGraph = Constraint->IsEnabled() && CanEvaluate(Constraint);
-
+			const bool bShouldUpdateGraph = Constraint->GetGroundParticle() && Constraint->bGroundParticleChanged;
+			
 			if (bShouldBeInGraph && !bIsInGraph)
 			{
 				IslandManager.AddConstraint(ContainerId, Constraint, Constraint->GetConstrainedParticles());
@@ -106,6 +107,12 @@ namespace Chaos
 			else if (bIsInGraph && !bShouldBeInGraph)
 			{
 				IslandManager.RemoveConstraint(Constraint);
+			}
+			else if (bIsInGraph && bShouldUpdateGraph)
+			{
+				IslandManager.RemoveConstraint(Constraint);
+				IslandManager.AddConstraint(ContainerId, Constraint, Constraint->GetConstrainedParticles());
+				Constraint->bGroundParticleChanged = false;
 			}
 		}
 	}
