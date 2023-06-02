@@ -367,12 +367,12 @@ void FIoStoreOnDemandModule::StartupModule()
 				Endpoint.TocPath.RightChopInline(1);
 			}
 
-			FString EncryptionKey;
-			if (Config.GetString(TEXT("Endpoint"), TEXT("EncryptionKey"), EncryptionKey))
+			FString ContentKey;
+			if (Config.GetString(TEXT("Endpoint"), TEXT("ContentKey"), ContentKey))
 			{
 				FGuid KeyGuid;
 				FAES::FAESKey Key;
-				if (ParseEncryptionKeyParam(EncryptionKey, KeyGuid, Key))
+				if (ParseEncryptionKeyParam(ContentKey, KeyGuid, Key))
 				{
 					UE::FEncryptionKeyManager::Get().AddKey(KeyGuid, Key);
 				}
