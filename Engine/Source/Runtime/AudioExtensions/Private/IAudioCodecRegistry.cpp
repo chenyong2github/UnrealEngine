@@ -16,6 +16,8 @@ DEFINE_LOG_CATEGORY(LogAudioCodec);
 
 namespace Audio
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	class FCodecRegistry : public ICodecRegistry
 	{		
 		// Ownership.
@@ -27,13 +29,6 @@ namespace Audio
 
 		// RW lock on above containers.
 		mutable FRWLock ContainersLock;
-
-		//TMap<FName, TArray<FCodecPtr>> FamilyLookup;	// FamilyName -> [ICodecs]
-
-		// On Editor all other platform codecs with be discovered here
-		// Version|FamilyName|ImplName|		Flags| Features
-		// [0]    [Opus]     [OpusHwXbox]	[D]   [HwDecoder][HwResampler]
-		// [0]    [Opus]     [Opus]			[D+E]
 
 		// Anything matching the same version and family will be compatible.
 		// This should mean that we could test hardware/software implementations against each other.				
@@ -250,24 +245,8 @@ namespace Audio
 		{}
 
 		FCodecRegistry()
-		{
-			/*IModularFeatures::Get().OnModularFeatureRegistered().AddLambda([this](const FName& Type, IModularFeature* ModularFeature) 
-			{
-				if (Type == ICodec::GetModularFeatureName() && ModularFeature)
-				{
-					RegisterCodec(FCodecPtr(ModularFeature));
-				}
-			});
-
-			IModularFeatures::Get().OnModularFeatureUnregistered().AddLambda([this](const FName& Type, IModularFeature* ModularFeature) 
-			{
-				if (Type == ICodec::GetModularFeatureName() && ModularFeature)
-				{
-					UnregisterCodec(FCodecPtr(ModularFeature));
-				}
-			});			*/
+		{			
 		}
-
 	};
 
 	// Static instance.
@@ -282,5 +261,7 @@ namespace Audio
 		}
 		return *Instance;
 	}
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 } //namespace Audio

@@ -10,6 +10,8 @@ class ICompressedAudioInfo; 	// Forward declares.
 
 namespace Audio
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	struct FBackCompatInput : public IDecoderInput
 	{
 		FName OldFormatName;
@@ -42,4 +44,6 @@ namespace Audio
 		TArrayView<const uint8> PopNextPacket(
 			int32 InPacketSize) override;
 	};
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

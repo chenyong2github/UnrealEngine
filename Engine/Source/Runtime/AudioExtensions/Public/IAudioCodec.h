@@ -31,7 +31,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
+#include "UObject/UObjectGlobals.h" 
 #include "UObject/UnrealNames.h"
 
 #include <initializer_list>
@@ -61,7 +61,7 @@ namespace Audio
 	struct FMixerSourceVoiceBuffer;
 
 	// Four character code class.
-	class FFcc
+	class UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FFcc
 	{
 	public:
 		FFcc() = default;
@@ -113,24 +113,27 @@ namespace Audio
 			static_assert(sizeof(From) == 0, "Unsupported conversion");
 		}
 	}
-		
-	enum EBitRepresentation
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	
+	enum UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") EBitRepresentation
 	{
 		Int16_Interleaved,
 		Float32_Interleaved
 	};
 
-	struct AUDIOEXTENSIONS_API FDecodedFormatInfo 
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FDecodedFormatInfo
 	{		
 		uint32 NumChannels = 0;
 		uint32 NumFramesPerSec = 0;
+
 		EBitRepresentation BitRep = Int16_Interleaved;
 
 		int32 LoopStartOffset = INDEX_NONE;	// Where the loop start point is in the entire stream
 		int32 LoopEndOffset = INDEX_NONE;	// Where the loop end point is in the entire stream
 	};
-	
-	struct AUDIOEXTENSIONS_API IDecoderInput
+			
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") IDecoderInput
 	{
 		// Factory.
 		static TUniquePtr<IDecoderInput> Create(
@@ -154,8 +157,8 @@ namespace Audio
 		virtual TArrayView<const uint8> PopNextPacket(
 			int32 InPacketSize ) = 0;
 	};
-	
-	struct AUDIOEXTENSIONS_API IDecoderOutput
+		
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") IDecoderOutput
 	{	
 		struct FRequirements
 		{
@@ -234,12 +237,10 @@ namespace Audio
 		{
 			return PopAudio(MakeArrayView(InExternalBuffer.GetData(), InExternalBuffer.Num()), OutDetails);
 		}
-	};
-		
+	};		
 
-	// Decode input wrappers.
-
-	struct AUDIOEXTENSIONS_API FCodecFeatures
+	// Decode input wrappers.	
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FCodecFeatures
 	{	
 		enum EFeatureBitField
 		{
@@ -266,8 +267,8 @@ namespace Audio
 			}
 		}
 	};
-
-	struct AUDIOEXTENSIONS_API IDecoder
+	
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") IDecoder
 	{		
 		enum EDecodeResult
 		{
@@ -288,8 +289,8 @@ namespace Audio
 		// Do the decode.
 		virtual FDecodeReturn Decode(bool bIsLooping = false) = 0;	
 	};
-
-	struct AUDIOEXTENSIONS_API FEncodedSectionBase
+	
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FEncodedSectionBase
 	{
 		// Serialized members.
 		FFcc SectionName;
@@ -310,8 +311,8 @@ namespace Audio
 		virtual bool EndSection(FArchive& Ar);
 		virtual void Serialize(FArchive& Ar) = 0;
 	};		
-
-	struct AUDIOEXTENSIONS_API FFormatDescriptorSection : public FEncodedSectionBase
+		
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FFormatDescriptorSection : public FEncodedSectionBase
 	{
 		static constexpr FFcc kSectionName = { 'D','e','s','c' };
 		static const uint32 kSectionVer = 2;
@@ -353,27 +354,28 @@ namespace Audio
 		
 		void Serialize(FArchive& Ar) override;
 	};
-
-	struct AUDIOEXTENSIONS_API FNestedSection : public FEncodedSectionBase
+	
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FNestedSection : public FEncodedSectionBase
 	{
 		FNestedSection(FFcc InName = FFcc())  : FEncodedSectionBase(InName, 0) {}
 		void Serialize(FArchive& Ar) override {}
 	};
-
-	struct AUDIOEXTENSIONS_API FHeaderSection : public FNestedSection
+	
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FHeaderSection : public FNestedSection
 	{
 		static constexpr FFcc kName = {'H','d','r','!' };
 		FHeaderSection() : FNestedSection(kName) {}
 		void Serialize(FArchive& Ar) override {}
 	};
-	struct AUDIOEXTENSIONS_API FSampleSection : public FNestedSection
+	
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FSampleSection : public FNestedSection
 	{
 		static constexpr FFcc kName = {'S','m','p','l'};
 		FSampleSection() : FNestedSection(kName) {}
 		void Serialize(FArchive& Ar) override {}
 	};
 	
-	struct AUDIOEXTENSIONS_API FRawSection : public FEncodedSectionBase
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FRawSection : public FEncodedSectionBase
 	{
 		TArrayView<const uint8> Buffer;
 		FRawSection(FFcc InName, TArrayView<const uint8> InBuffer = TArrayView<const uint8>() )
@@ -383,8 +385,8 @@ namespace Audio
 
 		void Serialize(FArchive& Ar) override {}
 	};
-
-	class AUDIOEXTENSIONS_API FDecoderInputBase : public Audio::IDecoderInput
+	
+	class AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FDecoderInputBase : public Audio::IDecoderInput
 	{
 	protected:
 		FArchive* Archive = nullptr;
@@ -426,8 +428,8 @@ namespace Audio
 		// We need this for back compatibility.
 		int64 Tell() const override;
 	};
-
-	struct AUDIOEXTENSIONS_API FDecoderInputArrayView : public FDecoderInputBase
+	
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FDecoderInputArrayView : public FDecoderInputBase
 	{
 		TUniquePtr<FArchive> Reader;
 
@@ -456,9 +458,9 @@ namespace Audio
 			SetArchive(Reader.Get(), InOffsetInStream);
 		}
 	};
-		
+			
 	template<typename TSampleType>
-	struct TDecoderOutputArrayView : public IDecoderOutput
+	struct UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") TDecoderOutputArrayView : public IDecoderOutput
 	{
 		FRequirements Reqs;
 		TArrayView<TSampleType> Buffer;
@@ -557,9 +559,9 @@ namespace Audio
 			return PopAudioInternal(InExternalInt16Buffer);
 		}	
 	};
-
+	
 	template<typename T>
-	struct TDecoderOutputOwnBuffer : public TDecoderOutputArrayView<T>
+	struct UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") TDecoderOutputOwnBuffer : public TDecoderOutputArrayView<T>
 	{
 		TArray<T, TAlignedHeapAllocator<SIMD_ALIGNMENT>> AlignedMemory;
 		TDecoderOutputOwnBuffer(
@@ -570,9 +572,9 @@ namespace Audio
 			TDecoderOutputArrayView<T>::SetArrayView(MakeArrayView(AlignedMemory));
 		}
 	};
-
+	
 	template<typename TSampleType>
-	class TCircularOutputBuffer : public Audio::IDecoderOutput
+	class UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") TCircularOutputBuffer : public Audio::IDecoderOutput
 	{
 		Audio::TCircularAudioBuffer<TSampleType> Buffer;
 		FRequirements Reqs;
@@ -649,7 +651,7 @@ namespace Audio
 #pragma region Encoder
 
 UCLASS(Abstract)
-class AUDIOEXTENSIONS_API UAudioCodecEncoderSettings : public UObject
+class UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") AUDIOEXTENSIONS_API  UAudioCodecEncoderSettings : public UObject
 {
 public:
 	GENERATED_BODY()
@@ -663,8 +665,8 @@ public:
 };	
 
 namespace Audio
-{	
-	class AUDIOEXTENSIONS_API IEncoderOutput
+{		
+	class AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") IEncoderOutput
 	{
 	public:
 		using FPtr = TUniquePtr<IEncoderOutput>;
@@ -687,8 +689,8 @@ namespace Audio
 		virtual bool BeginSampleData() = 0;
 		virtual bool EndSampleData() = 0;
 	};
-
-	class AUDIOEXTENSIONS_API IEncoderInput
+	
+	class AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") IEncoderInput
 	{
 	public:
 		using FFormat = FDecodedFormatInfo;
@@ -711,8 +713,8 @@ namespace Audio
 		virtual const TSampleBuffer<int16>& 
 			GetSamples() const = 0;
 	};
-
-	struct AUDIOEXTENSIONS_API IEncoder
+	
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") IEncoder
 	{
 		virtual ~IEncoder() {}
 
@@ -744,8 +746,8 @@ namespace Audio
 #pragma region Codec
 
 namespace Audio
-{
-	struct AUDIOEXTENSIONS_API FCodecDetails
+{	
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FCodecDetails
 	{
 		FName Name;								// Unique name for this implementation. e.g. "OpusXbox"
 		FName FamilyName;						// Family name e.g. "Opus". Same as old Format name.	
@@ -765,8 +767,8 @@ namespace Audio
 			: Name(InName), FamilyName(InFamilyName), Version(InVersion), Features(InFeatures) 
 		{}
 	};
-
-	struct AUDIOEXTENSIONS_API ICodec 
+	
+	struct AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") ICodec
 	{
 		virtual ~ICodec() {}
 
@@ -792,6 +794,9 @@ namespace Audio
 			return nullptr; 
 		}			
 	};
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 } // namespace Audio
 
 #pragma endregion Codec

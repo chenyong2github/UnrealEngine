@@ -6,7 +6,9 @@
 
 namespace Audio
 {
-	struct FBackCompatCodec : public ICodec
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+	struct UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FBackCompatCodec : public ICodec
 	{
 		// Static version.
 		static const FCodecDetails& GetDetailsStatic();
@@ -18,11 +20,10 @@ namespace Audio
 		// Factory for decoders
 		FDecoderPtr CreateDecoder(
 			IDecoder::FDecoderInputPtr InSrc,
-			IDecoder::FDecoderOutputPtr InDst) override;
-	
+			IDecoder::FDecoderOutputPtr InDst) override;	
 	};
 
-	struct FBackCompat : public IDecoder
+	struct UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FBackCompat : public IDecoder
 	{
 		IDecoder::FDecoderInputPtr Src = nullptr;
 		IDecoder::FDecoderOutputPtr Dst = nullptr;
@@ -46,4 +47,6 @@ namespace Audio
 		bool bPreviousIsStreaming = false;
 		bool bIsFirstDecode = true;
 	};
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

@@ -7,6 +7,8 @@
 
 namespace Audio
 {		
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	TUniquePtr<Audio::IDecoderInput> CreateBackCompatDecoderInput(
 		FName InOldFormatName,
 		const FSoundWaveProxyPtr& InSoundWave)
@@ -18,4 +20,7 @@ namespace Audio
 
 		return nullptr;
 	}
+	
+	
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

@@ -11,7 +11,6 @@
 class USoundWave;
 class FSoundWaveProxy;
 
-
 namespace Audio
 {
 	// Forward declares.
@@ -19,5 +18,7 @@ namespace Audio
 	using FSoundWaveProxyPtr = TSharedPtr<FSoundWaveProxy, ESPMode::ThreadSafe>;
 
 	// Just loose for now.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AUDIOCODECENGINE_API TUniquePtr<IDecoderInput> CreateBackCompatDecoderInput(FName InOldFormatName, const FSoundWaveProxyPtr& InSoundWave);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 }

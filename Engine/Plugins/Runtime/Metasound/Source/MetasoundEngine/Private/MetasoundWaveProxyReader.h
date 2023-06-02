@@ -15,10 +15,12 @@ namespace Metasound
 {
 	namespace MetasoundWaveProxyReaderPrivate
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 		/** FDecoderOutput maintains a circular buffer of audio which is produced
 		 * from the decoder. 
 		 */
-		class FDecoderOutput : public Audio::IDecoderOutput
+		class UE_DEPRECATED(5.3, "Please use IAudioFormat/IStreamedCompressedInfo instead") FDecoderOutput : public Audio::IDecoderOutput
 		{
 			static constexpr uint32 MinNumFramesPerDecode = 1;
 			static constexpr uint32 DefaultNumChannels = 1;
@@ -102,7 +104,7 @@ namespace Metasound
 			Audio::FAlignedFloatBuffer SampleConversionBuffer;
 		};
 	}
-	
+		
 	/** FWaveProxyReader reads a FWaveProxy and outputs 32 bit interleaved audio.
 	 *
 	 * FWaveProxyReader provides controls for looping and relevant frame index
@@ -260,4 +262,6 @@ namespace Metasound
 		bool bIsDecoderValid = false;
 		bool bFallbackSeekMethodWarningLogged = false;
 	};
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

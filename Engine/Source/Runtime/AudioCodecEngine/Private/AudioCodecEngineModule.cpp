@@ -5,6 +5,8 @@
 #include "IAudioCodecRegistry.h"
 #include "DecoderBackCompat.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class FAudioCodecEngineModule : public IModuleInterface
 {
 public:
@@ -25,5 +27,7 @@ public:
 		}
 	}
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 IMPLEMENT_MODULE(FAudioCodecEngineModule, AudioCodecEngine);

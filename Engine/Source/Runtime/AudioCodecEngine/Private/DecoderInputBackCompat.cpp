@@ -10,6 +10,8 @@
 
 namespace Audio
 {	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	ICompressedAudioInfo* FBackCompatInput::GetInfo(
 		FFormatDescriptorSection* OutDescriptor /*= nullptr*/) const
 	{
@@ -120,4 +122,7 @@ namespace Audio
 		audio_ensure(false);
 		return MakeArrayView<const uint8>(nullptr,0);
 	}
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
+

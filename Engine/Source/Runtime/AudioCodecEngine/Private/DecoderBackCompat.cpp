@@ -6,6 +6,8 @@
 
 namespace Audio
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	static const FCodecDetails Details =
 	{
 		TEXT("BackCompat"),
@@ -122,4 +124,5 @@ namespace Audio
 		}
 	}
 
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

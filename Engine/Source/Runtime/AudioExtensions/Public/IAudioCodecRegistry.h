@@ -15,7 +15,9 @@ namespace Audio
 	struct ICodec;
 	struct IDecoderInput;
 
-	class AUDIOEXTENSIONS_API ICodecRegistry
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	
+	class AUDIOEXTENSIONS_API UE_DEPRECATED(5.3, "ICodecRegistry is deprecated, please use IAudioInfoFactoryRegistry for decoders and IAudioFormat for encoders") ICodecRegistry
 	{
 		static TUniquePtr<ICodecRegistry> Instance;
 	public:
@@ -42,4 +44,6 @@ namespace Audio
 		// Find default codec for a platform. (none uses host platform).
 		virtual FCodecPtr FindDefaultCodec(FName InPlatformName = NAME_None) const = 0;
 	};
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
