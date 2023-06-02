@@ -286,7 +286,7 @@ public:
 
 		// Note: Setting the graph preset will transition the job to use a graph-based configuration
 		UMovieGraphConfig* NewGraph = NewObject<UMovieGraphConfig>(Job);
-		Job->SetGraphPreset(NewGraph);
+		Job->SetGraphConfig(NewGraph);
 	}
 
 	EVisibility GetPrimaryConfigModifiedVisibility() const
@@ -926,7 +926,7 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 
 		// Note: Setting the graph preset will transition the job to use a graph-based configuration
 		UMovieGraphConfig* NewGraph = NewObject<UMovieGraphConfig>(Shot);
-		Shot->SetGraphPreset(NewGraph);
+		Shot->SetGraphConfig(NewGraph);
 	}
 
 	EVisibility GetShotConfigModifiedVisibility() const
