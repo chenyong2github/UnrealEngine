@@ -24,4 +24,7 @@ namespace LandscapeRegionUtils
 
 	// Load, Process (call RegionFn) and Unload the Region
 	void ForEachRegion_LoadProcessUnload(ULandscapeInfo* LandscapeInfo, const FIntRect& Domain, UWorld* World, TFunctionRef<bool(const FBox&, const TArray<ALandscapeProxy*>)> RegionFn);
+
+	// Number of landscape regions in this landscape.
+	int32 NumLandscapeRegions(ULandscapeInfo* InLandscapeInfo);
 }

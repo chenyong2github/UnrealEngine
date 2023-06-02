@@ -551,6 +551,9 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 	{
 		FIntRect LandscapeExtent;
 		LandscapeInfo->GetLandscapeExtent(LandscapeExtent);
+
+		LandscapeExtent.Max.X += 1;
+		LandscapeExtent.Max.Y += 1;
 	
 		if (IsImporting())
 		{
@@ -580,7 +583,7 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 			check(LandscapeEdMode->UISettings->ImportLandscape_HeightmapImportResult != ELandscapeImportResult::Error);
 			const bool bIsWorldPartition = LandscapeEdMode->GetWorld()->GetSubsystem<ULandscapeSubsystem>()->IsGridBased();
 
-			if (bIsWorldPartition && LandscapeEdMode->UISettings->ImportExportMode != ELandscapeImportExportMode::LoadedOnly) // If in world partition import region by region
+			if (bIsWorldPartition && LandscapeEdMode->UISettings->ImportExportMode != ELandscapeImportExportMode::LoadedOnly && LandscapeRegionUtils::NumLandscapeRegions(LandscapeInfo) > 0) // If in world partition import region by region
 			{
 				TArray<ALocationVolume*> LandscapeRegions;
 				TArray<AActor*> Children;

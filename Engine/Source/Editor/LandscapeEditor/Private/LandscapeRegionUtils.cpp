@@ -146,4 +146,18 @@ void ForEachRegion_LoadProcessUnload(ULandscapeInfo* InLandscapeInfo, const FInt
 	}
 }
 
+int32 NumLandscapeRegions(ULandscapeInfo* InLandscapeInfo)
+{
+	int32 NumRegions = 0;
+	TArray<AActor*> Children;
+	InLandscapeInfo->LandscapeActor->GetAttachedActors(Children);
+	TArray<ALocationVolume*> LandscapeRegions;
+
+	for (AActor* Child : Children)
+	{
+		NumRegions += Child->IsA<ALocationVolume>() ? 1 : 0;
+	}
+
+	return NumRegions;
+}
 } // LandscapeEditor
