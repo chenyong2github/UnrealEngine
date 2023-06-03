@@ -841,7 +841,7 @@ namespace UnrealBuildTool
 				PrecompiledHeaderDir = IntermediateDirectory;
 			}
 
-			return new PrecompiledHeaderTemplate(this, CompileEnvironment, HeaderFile, PrecompiledHeaderDir, GetAllDependencyModulesForPCH());
+			return new PrecompiledHeaderTemplate(this, CompileEnvironment, HeaderFile, PrecompiledHeaderDir, GetAllDependencyModulesForPCH(false));
 		}
 
 		static HashSet<string> GetImmutableDefinitions(List<string> Definitions)
@@ -1433,7 +1433,7 @@ namespace UnrealBuildTool
 					PrecompiledHeaderTemplate? OldTemplateValue = CompileEnvironment.SharedPCHs.FirstOrDefault(x => OnlyDirectDependencies.Contains(x.Module) && x.IsValidFor(CompileEnvironment));
 
 					// Find the first shared PCH module we can use that doesn't reference this module
-					HashSet<UEBuildModule> AllDependencies = GetAllDependencyModulesForPCH();
+					HashSet<UEBuildModule> AllDependencies = GetAllDependencyModulesForPCH(true);
 					PrecompiledHeaderTemplate? Template = CompileEnvironment.SharedPCHs.FirstOrDefault(x => !x.ModuleDependencies.Contains(this) && AllDependencies.Contains(x.Module) && x.IsValidFor(CompileEnvironment));
 
 					if (Template != OldTemplateValue)

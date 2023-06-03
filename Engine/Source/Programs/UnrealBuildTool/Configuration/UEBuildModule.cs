@@ -1016,10 +1016,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gathers all the module dependencies a PCH would have
 		/// </summary>
-		public HashSet<UEBuildModule> GetAllDependencyModulesForPCH()
+		/// <param name="bIncludePrivateModules">Whether to include private modules.</param>
+		public HashSet<UEBuildModule> GetAllDependencyModulesForPCH(bool bIncludePrivateModules)
 		{
 			HashSet<UEBuildModule> ReferencedModules = new HashSet<UEBuildModule>();
-			InternalGetAllDependencyModulesForPCH(ReferencedModules, new HashSet<UEBuildModule>(), true);
+			InternalGetAllDependencyModulesForPCH(ReferencedModules, new HashSet<UEBuildModule>(), bIncludePrivateModules);
 			return ReferencedModules;
 		}
 
@@ -1028,15 +1029,15 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ReferencedModules">Hash of all referenced modules with their addition index.</param>
 		/// <param name="IgnoreReferencedModules">Hashset used to ignore modules which are already added to the list</param>
-		/// <param name="bIncludePrivateDependencyModules">Whether to include private dependencies.</param>
-		private void InternalGetAllDependencyModulesForPCH(HashSet<UEBuildModule> ReferencedModules, HashSet<UEBuildModule> IgnoreReferencedModules, bool bIncludePrivateDependencyModules)
+		/// <param name="bIncludePrivateModules">Whether to include private modules.</param>
+		private void InternalGetAllDependencyModulesForPCH(HashSet<UEBuildModule> ReferencedModules, HashSet<UEBuildModule> IgnoreReferencedModules, bool bIncludePrivateModules)
 		{
 			List<UEBuildModule> AllDependencyModules = new List<UEBuildModule>(
-				((bIncludePrivateDependencyModules && PrivateDependencyModules != null) ? PrivateDependencyModules.Count : 0) +
+				((bIncludePrivateModules && PrivateDependencyModules != null) ? PrivateDependencyModules.Count : 0) +
 				(PublicDependencyModules != null ? PublicDependencyModules.Count : 0) +
 				(PublicIncludePathModules != null ? PublicIncludePathModules!.Count : 0)
 				);
-			if (bIncludePrivateDependencyModules && PrivateDependencyModules != null)
+			if (bIncludePrivateModules && PrivateDependencyModules != null)
 			{
 				AllDependencyModules.AddRange(PrivateDependencyModules);
 			}
