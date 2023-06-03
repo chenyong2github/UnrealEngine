@@ -11,8 +11,6 @@
 
 #if WITH_UNREALEXR
 
-#include <stdexcept>
-
 FExrImageWrapper::FExrImageWrapper()
 	: FImageWrapperBase()
 {
@@ -93,11 +91,9 @@ public:
 		, Size(InSize)
 		, Pos(0)
 	{
-		// InSize is signed but "Size" member is unsigned
 		if (InSize < 0)
 		{
-			Size = 0;
-			throw std::runtime_error("FMemFileIn: Negative size passed to EXR parser");
+			UE_LOG(LogImageWrapper, Fatal, TEXT("Negative size passed to EXR parser, can not continue."));
 		}
 	}
 
@@ -112,30 +108,28 @@ public:
 	//------------------------------------------------------
 
 	// InN must be 32bit to match the abstract interface.
-	virtual bool read (char Out[/*n*/], int32 Count)
+	virtual bool read (char c[/*n*/], int32 InN)
 	{
-		// return false if EOF is hit
-		// OpenEXR mostly ignores this return value, you must throw to get error handling
+		int64 SrcN = InN;
 
-		FGuardedInt64 NextPosition = FGuardedInt64(Pos) + Count;
-		if (Count < 0 ||
+		FGuardedInt64 NextPosition = FGuardedInt64(Pos) + SrcN;
+		if (SrcN < 0 ||
 			NextPosition.InvalidOrGreaterThan(Size))
 		{
-			throw std::runtime_error("FMemFileIn: Exr read out of bounds");
+			// This is supposed to throw an exception per the spec, however we can't use
+			// an actual exception type right now due to linker issues during LTCG.
+			UE_LOG(LogImageWrapper, Error, TEXT("Invalid read requested in EXR"));
+			throw std::exception();
 			return false;
 		}
 
-		memcpy(Out,Data+Pos,Count);
-		Pos += Count; // == NextPosition
+		for (int64 i = 0; i < SrcN; ++i)
+		{
+			c[i] = Data[Pos];
+			++Pos;
+		}
 
-		if ( Pos == Size )
-		{
-			return false;
-		}
-		else
-		{
-			return true;
-		}
+		return Pos >= Size;
 	}
 
 	//--------------------------------------------------------
