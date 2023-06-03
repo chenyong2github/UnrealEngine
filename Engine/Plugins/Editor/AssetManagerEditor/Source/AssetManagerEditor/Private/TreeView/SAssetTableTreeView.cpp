@@ -559,8 +559,9 @@ void SAssetTableTreeView::InternalCreateGroupings()
 static void WriteDependencyLine(const FAssetTable& AssetTable, const TMap<int32, TArray<int32>>& RouteMap, int32 RowIndex, FAnsiStringBuilderBase* ReusableLineBuffer, FArchive* OutDependencyFile, FString DependencyType)
 {
 	const FAssetTableRow& Row = AssetTable.GetAssetChecked(RowIndex);
-	ReusableLineBuffer->Appendf("%s%s,%s,%s", *WriteToAnsiString<512>(Row.GetPath()),
+	ReusableLineBuffer->Appendf("%s%s,%s,%s,%s", *WriteToAnsiString<512>(Row.GetPath()),
 												*WriteToAnsiString<64>(Row.GetName()), 
+												*WriteToAnsiString<64>(Row.GetType()),
 												*WriteToAnsiString<32>(LexToString(Row.GetStagedCompressedSize())),
 												*WriteToAnsiString<16>(*DependencyType));
 
@@ -633,7 +634,7 @@ void SAssetTableTreeView::ExportDependencyData() const
 		TAnsiStringBuilder<4096> StringBuilder;
 		TUniquePtr<FArchive> DependencyFile(IFileManager::Get().CreateFileWriter(*OutputFileName));
 
-		StringBuilder.Appendf("Asset,Self Size,Dependency Type,DependencyChain\n");
+		StringBuilder.Appendf("Asset,Asset Type,Self Size,Dependency Type,Dependency Chain\n");
 		{
 			for (int32 RootIndex : SelectedIndices)
 			{
@@ -863,11 +864,11 @@ void SAssetTableTreeView::CalculateBaseAndMarginalCostForSelection(TSet<int32>& 
 	{
 		if (ReferenceCountPair.Value > 1)
 		{
-			OutTotalSizeMultiplyUsed += GetAssetTable()->GetAssetChecked(ReferenceCountPair.Key).GetStagedCompressedSize();
+			*OutTotalSizeMultiplyUsed += GetAssetTable()->GetAssetChecked(ReferenceCountPair.Key).GetStagedCompressedSize();
 		}
 		else if (ReferenceCountPair.Value == 1)
 		{
-			OutTotalSizeSingleUse += GetAssetTable()->GetAssetChecked(ReferenceCountPair.Key).GetStagedCompressedSize();
+			*OutTotalSizeSingleUse += GetAssetTable()->GetAssetChecked(ReferenceCountPair.Key).GetStagedCompressedSize();
 		}
 	}
 }
@@ -934,18 +935,20 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 	{
 		bool AllSelectedNodesAreSameType = true;
 		{
-			const TCHAR* FirstNativeClass = nullptr;
+			// We use the Type() attribute and not NativeClass to be a bit more generous when considering, e.g., 
+			// whether a FortWeaponRangedItemDefinition is comparable to a FortWeaponMeleeDualWieldItemDefinition
+			const TCHAR* FirstType = nullptr;
 			bool FirstIndex = true;
 			for (int32 SelectedNodeIndex : SelectionSetIndices)
 			{
 				const FAssetTableRow& AssetTableRow = GetAssetTable()->GetAssetChecked(SelectedNodeIndex);
-				const TCHAR* NativeClass = AssetTableRow.GetNativeClass();
+				const TCHAR* Type = AssetTableRow.GetType();
 				if (FirstIndex)
 				{
-					FirstNativeClass = NativeClass;
+					FirstType = Type;
 					FirstIndex = false;
 				}
-				else if (NativeClass != FirstNativeClass)
+				else if (Type != FirstType)
 				{
 					AllSelectedNodesAreSameType = false;
 					break;
