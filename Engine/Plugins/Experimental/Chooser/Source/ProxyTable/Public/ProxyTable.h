@@ -75,7 +75,7 @@ public:
 	TArray<FGuid> Keys;
 
 	UPROPERTY()
-	TArray<FRuntimeProxyValue> Values;
+	TArray<FRuntimeProxyValue> RuntimeValues;
 	
 	UObject* FindProxyObject(const FGuid& Key, FChooserEvaluationContext& Context) const;
 
