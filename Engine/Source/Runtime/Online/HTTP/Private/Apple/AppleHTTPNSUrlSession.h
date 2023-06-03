@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GenericPlatform/HttpRequestImpl.h"
+#include "GenericPlatform/HttpRequestCommon.h"
 #include "Interfaces/IHttpResponse.h"
 #include "PlatformHttp.h"
 
 /**
  * Apple implementation of an Http request
  */
-class FAppleHttpNSUrlSessionRequest : public FHttpRequestImpl
+class FAppleHttpNSUrlSessionRequest : public FHttpRequestCommon
 {
 public:
 	// implementation friends
@@ -44,7 +44,6 @@ public:
 	virtual TOptional<float> GetTimeout() const override;
 	virtual bool ProcessRequest() override;
 	virtual void CancelRequest() override;
-	virtual EHttpRequestStatus::Type GetStatus() const override;
 	virtual const FHttpResponsePtr GetResponse() const override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual float GetElapsedTime() const override;
@@ -105,9 +104,6 @@ private:
 
 	/** Array used to retrieve back content set on the ObjC request when calling GetContent*/
 	mutable TArray<uint8> StorageForGetContent;
-
-	/** Current status of request being processed */
-	EHttpRequestStatus::Type CompletionStatus;
 
 	/** Start of the request */
 	double StartRequestTime;

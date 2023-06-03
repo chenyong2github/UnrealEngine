@@ -337,11 +337,6 @@ void FWinHttpHttpRequest::CancelRequest()
 	}
 }
 
-EHttpRequestStatus::Type FWinHttpHttpRequest::GetStatus() const
-{
-	return CompletionStatus;
-}
-
 const FHttpResponsePtr FWinHttpHttpRequest::GetResponse() const
 {
 	return Response;

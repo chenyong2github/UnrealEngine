@@ -46,7 +46,6 @@ public:
 	virtual void AppendToHeader(const FString& HeaderName, const FString& AdditionalHeaderValue) override;
 	virtual bool ProcessRequest() override;
 	virtual void CancelRequest() override;
-	virtual EHttpRequestStatus::Type GetStatus() const override;
 	virtual const FHttpResponsePtr GetResponse() const override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual float GetElapsedTime() const override;
@@ -101,9 +100,6 @@ private:
 
 	/** Current status of request being processed */
 	EHttpRequestStatus::Type State = EHttpRequestStatus::NotStarted;
-
-	/** Status of request available via GetStatus */
-	EHttpRequestStatus::Type CompletionStatus = EHttpRequestStatus::NotStarted;
 
 	/** */
 	TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> Connection;

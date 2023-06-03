@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/UnrealString.h"
-#include "GenericPlatform/HttpRequestImpl.h"
+#include "GenericPlatform/FHttpRequestCommon.h"
 #include "Interfaces/IHttpResponse.h"
 #include "HttpManager.h"
 #include "PlatformHttp.h"
@@ -16,7 +16,7 @@ class IHttpRequest;
 /**
  * Apple implementation of an Http request
  */
-class FAppleHttpNSUrlConnectionRequest : public FHttpRequestImpl
+class FAppleHttpNSUrlConnectionRequest : public FHttpRequestCommon
 {
 public:
 	// implementation friends
@@ -50,7 +50,6 @@ public:
 	virtual TOptional<float> GetTimeout() const override;
 	virtual bool ProcessRequest() override;
 	virtual void CancelRequest() override;
-	virtual EHttpRequestStatus::Type GetStatus() const override;
 	virtual const FHttpResponsePtr GetResponse() const override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual float GetElapsedTime() const override;
@@ -109,9 +108,6 @@ private:
 
 	/** BYTE array for content which we now own */
 	TArray<uint8> ContentData;
-
-	/** Current status of request being processed */
-	EHttpRequestStatus::Type CompletionStatus;
 
 	/** Number of bytes sent to progress update */
 	int32 ProgressBytesSent;

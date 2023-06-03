@@ -471,34 +471,8 @@ bool FAppleHttpNSUrlSessionRequest::ProcessRequest()
 {
 	SCOPED_AUTORELEASE_POOL;
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlSessionRequest::ProcessRequest()"));
-	bool bStarted = false;
 
-	FString Scheme(Request.URL.scheme);
-	Scheme = Scheme.ToLower();
-
-	// Prevent overlapped requests using the same instance
-	if (CompletionStatus == EHttpRequestStatus::Processing)
-	{
-		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. Still processing last request."));
-	}
-	else if(GetURL().Len() == 0)
-	{
-		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. No URL was specified."));
-	}
-	else if( Scheme != TEXT("http") && Scheme != TEXT("https"))
-	{
-		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. URL '%s' is not a valid HTTP request. %p"), *GetURL(), this);
-	}
-	else if (!FHttpModule::Get().GetHttpManager().IsDomainAllowed(GetURL()))
-	{
-		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. URL '%s' is not using an allowed domain. %p"), *GetURL(), this);
-	}
-	else
-	{
-		bStarted = StartRequest();
-	}
-
-	if( !bStarted )
+	if (!PreCheck() || !StartRequest())
 	{
 		// Ensure we run on game thread
 		if (!IsInGameThread())
@@ -512,9 +486,11 @@ bool FAppleHttpNSUrlSessionRequest::ProcessRequest()
 		{
 			FinishedRequest();
 		}
+
+		return false;
 	}
 
-	return bStarted;
+	return true;
 }
 
 bool FAppleHttpNSUrlSessionRequest::StartRequest()
@@ -641,12 +617,6 @@ void FAppleHttpNSUrlSessionRequest::CancelRequest()
 	{
 		FinishedRequest();
 	}
-}
-
-EHttpRequestStatus::Type FAppleHttpNSUrlSessionRequest::GetStatus() const
-{
-	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlSessionRequest::GetStatus()"));
-	return CompletionStatus;
 }
 
 const FHttpResponsePtr FAppleHttpNSUrlSessionRequest::GetResponse() const

@@ -69,7 +69,6 @@ FCurlHttpRequest::FCurlHttpRequest()
 	,	bRedirected(false)
 	,	CurlAddToMultiResult(CURLM_OK)
 	,	CurlCompletionResult(CURLE_OK)
-	,	CompletionStatus(EHttpRequestStatus::NotStarted)
 	,	ElapsedTime(0.0f)
 	,	TimeSinceLastResponse(0.0f)
 	,	bAnyHttpActivity(false)
@@ -781,18 +780,6 @@ bool FCurlHttpRequest::SetupRequest()
 		UE_LOG(LogHttp, Verbose, TEXT("Http disabled. Skipping request. url=%s"), *GetURL());
 		return false;
 	}
-	// Prevent overlapped requests using the same instance
-	else if (CompletionStatus == EHttpRequestStatus::Processing)
-	{
-		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. Still processing last request."));
-		return false;
-	}
-	// Nothing to do without a valid URL
-	else if (URL.IsEmpty())
-	{
-		UE_LOG(LogHttp, Log, TEXT("Cannot process HTTP request: URL is empty"));
-		return false;
-	}
 	if ((GetVerb().IsEmpty() || GetVerb().Equals(TEXT("GET"), ESearchCase::IgnoreCase))
 		&& (RequestPayload.IsValid() && RequestPayload->GetContentLength() > 0))
 	{
@@ -1017,28 +1004,7 @@ bool FCurlHttpRequest::ProcessRequest()
 	Response = nullptr;
 	LastReportedBytesRead = 0;
 
-	bool bStarted = false;
-	if (!FHttpModule::Get().GetHttpManager().IsDomainAllowed(URL))
-	{
-		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. URL '%s' is not using an allowed domain. %p"), *URL, this);
-	}
-	else if (!SetupRequest())
-	{
-		UE_LOG(LogHttp, Warning, TEXT("Could not perform game thread setup, processing HTTP request failed. Increase verbosity for additional information."));
-	}
-	else
-	{
-		// Clear the info cache log so we don't output messages from previous requests when reusing/retrying a request
-		const FScopeLock CacheLock(&InfoMessageCacheCriticalSection);
-		for (FString& Line : InfoMessageCache)
-		{
-			Line.Reset();
-		}
-
-		bStarted = true;
-	}
-
-	if (!bStarted)
+	if (!PreCheck() || !SetupRequest())
 	{
 		if (!IsInGameThread())
 		{
@@ -1054,19 +1020,27 @@ bool FCurlHttpRequest::ProcessRequest()
 			// Cleanup and call delegate
 			FinishedRequest();
 		}
+
+		return false;
 	}
-	else
+
+	// Clear the info cache log so we don't output messages from previous requests when reusing/retrying a request
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_CurlHttpAddThreadedRequest);
-		// Mark as in-flight to prevent overlapped requests using the same object
-		CompletionStatus = EHttpRequestStatus::Processing;
-		// Add to global list while being processed so that the ref counted request does not get deleted
-		FHttpModule::Get().GetHttpManager().AddThreadedRequest(SharedThis(this));
-
-		UE_LOG(LogHttp, Verbose, TEXT("%p: request (easy handle:%p) has been added to threaded queue for processing"), this, EasyHandle);
+		const FScopeLock CacheLock(&InfoMessageCacheCriticalSection);
+		for (FString& Line : InfoMessageCache)
+		{
+			Line.Reset();
+		}
 	}
 
-	return bStarted;
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_CurlHttpAddThreadedRequest);
+	// Mark as in-flight to prevent overlapped requests using the same object
+	CompletionStatus = EHttpRequestStatus::Processing;
+	// Add to global list while being processed so that the ref counted request does not get deleted
+	FHttpModule::Get().GetHttpManager().AddThreadedRequest(SharedThis(this));
+
+	UE_LOG(LogHttp, Verbose, TEXT("%p: request (easy handle:%p) has been added to threaded queue for processing"), this, EasyHandle);
+	return true;
 }
 
 bool FCurlHttpRequest::StartThreadedRequest()
@@ -1154,11 +1128,6 @@ void FCurlHttpRequest::CancelRequest()
 		// Finish immediately
 		FinishedRequest();
 	}
-}
-
-EHttpRequestStatus::Type FCurlHttpRequest::GetStatus() const
-{
-	return CompletionStatus;
 }
 
 const FHttpResponsePtr FCurlHttpRequest::GetResponse() const

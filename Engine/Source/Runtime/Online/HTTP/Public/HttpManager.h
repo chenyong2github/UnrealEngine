@@ -218,6 +218,13 @@ public:
 	 */
 	void AddGameThreadTask(TFunction<void()>&& Task);
 
+	/**
+	 * Set url request filter through code, instead of setting it through config.
+	 *
+	 * @param InURLRequestFilter The request filter to set
+	 */
+	void SetURLRequestFilter(const UE::Core::FURLRequestFilter& InURLRequestFilter) { URLRequestFilter = InURLRequestFilter; }
+
 protected:
 	/** 
 	 * Create HTTP thread object

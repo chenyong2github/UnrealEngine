@@ -364,3 +364,22 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http upload - gold pa
 	});
 	HttpRequest->ProcessRequest();
 }
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Pre check http request", HTTP_TAG)
+{
+	// Pre check will fail when domain is not allowed
+	UE::Core::FURLRequestFilter::FRequestMap SchemeMap;
+	SchemeMap.Add(TEXT("http"), TArray<FString>{TEXT("epicgames.com")});
+	UE::Core::FURLRequestFilter Filter{SchemeMap};
+	HttpModule->GetHttpManager().SetURLRequestFilter(Filter);
+
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetVerb(TEXT("GET"));
+	HttpRequest->SetURL(UrlToTestMethods()); // Not in allowed domains: epicgames.com
+	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(!bSucceeded);
+	});
+
+	HttpRequest->ProcessRequest();
+}
+
