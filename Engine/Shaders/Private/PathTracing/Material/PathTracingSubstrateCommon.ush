@@ -17,3 +17,16 @@ float3 SubstrateLobeWeight(FPathTracingPayload Payload, float SatNoL)
 	const float3 TransmittanceAboveAlongL = select(Payload.TransmittanceN < 1.f, pow(max(Payload.TransmittanceN, 0.0001f), DistanceL), Payload.TransmittanceN);
 	return Payload.BSDFOpacity * Payload.WeightV * lerp(1.0f, TransmittanceAboveAlongL, Payload.CoverageAboveAlongN);
 }
+
+float3 SubstrateSpecularTint(FPathTracingPayload Payload, float NoV, float NoL, float VoH, float NoH)
+{
+	float3 Out = 1.f;
+	if (Payload.SpecularProfileId != 0)
+	{
+		const uint ProfileID = GetSpecularProfileId(Payload.SpecularProfileId);
+		const bool bUseHalfVector = GetSpecularProfileParameterization(Payload.SpecularProfileId) == 1;
+		const float3 ProfileCoord = bUseHalfVector ? float3(VoH, NoH, ProfileID) : float3(NoV, NoL, ProfileID);
+		Out = View.SpecularProfileTexture.SampleLevel(View.SpecularProfileSampler, ProfileCoord, 0).xyz;
+	}
+	return Out;
+}

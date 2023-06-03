@@ -322,6 +322,7 @@ struct FPathTracingPayload : FMinimalPayload
 	float3 WeightV;
 	float3 TransmittanceN;
 	float CoverageAboveAlongN;
+	float SpecularProfileId;
 
 	// not transported through packed payload, but used in raygen
 	float3 SubsurfaceColor;
@@ -609,15 +610,16 @@ FPackedPathTracingPayload PackPathTracingPayload(FPathTracingPayload Input)
 	Output.PackedData[9] = PayloadEncodeUnitVector(Input.WorldTangent);
 	Output.PackedData[10] = PayloadEncodeLDRColor(Input.TransparencyColor);
 	Output.PackedData[11] = f32tof16(Input.MeanFreePath.x);
-	Output.PackedData[11] |= f32tof16(Input.MeanFreePath.y) << 16;
+	Output.PackedData[11]|= f32tof16(Input.MeanFreePath.y) << 16;
 	Output.PackedData[12] = f32tof16(Input.MeanFreePath.z);
-	Output.PackedData[12] |= f32tof16(Input.PhaseG) << 16;
+	Output.PackedData[12]|= f32tof16(Input.PhaseG) << 16;
 	Output.PackedData[13] = PayloadEncodeLDRColor(Input.FuzzColor);
     Output.PackedData[14] = PayloadEncodeLDRColor(float3(0.5 * Input.Anisotropy + 0.5, Input.FuzzAmount, Input.FuzzRoughness)); // NOTE: Aniso is [-1,1]
 	Output.PackedData[15] = PayloadEncodeLDRColor(Input.WeightV);
 	Output.PackedData[16] = PayloadEncodeLDRColor(Input.TransmittanceN);
-	Output.PackedData[17] = f32tof16(Input.Ior);
-	Output.PackedData[17] |= f32tof16(Input.CoverageAboveAlongN) << 16;
+	Output.PackedData[17] = Pack10F(Input.Ior);
+	Output.PackedData[17]|= Pack10F(Input.CoverageAboveAlongN) << 10;
+	Output.PackedData[17]|= Pack10F(Input.SpecularProfileId) << 20;
 #else // PATHTRACING_STRATA_PAYLOAD
 
 
@@ -690,8 +692,9 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, FR
 	Output.FuzzRoughness       = Data14.z;
 	Output.WeightV             = PayloadDecodeLDRColor(Input.PackedData[15]);
 	Output.TransmittanceN      = PayloadDecodeLDRColor(Input.PackedData[16]);
-	Output.Ior                 = f16tof32(Input.PackedData[17]);
-	Output.CoverageAboveAlongN = f16tof32(Input.PackedData[17] >> 16);
+	Output.Ior                 = Unpack10F(Input.PackedData[17]);
+	Output.CoverageAboveAlongN = Unpack10F(Input.PackedData[17] >> 10);
+	Output.SpecularProfileId   = Unpack10F(Input.PackedData[17] >> 20);
 #else // PATHTRACING_STRATA_PAYLOAD
 	Output.BaseColor = PayloadDecodeLDRColor(Input.PackedData[5]);
 	Output.TransparencyColor = PayloadDecodeLDRColor(Input.PackedData[6]);

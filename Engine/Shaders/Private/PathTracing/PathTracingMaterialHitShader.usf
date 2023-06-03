@@ -21,6 +21,9 @@
 // Ensure that SSS albedo comes through in the material
 #define STRATA_SSS_MATERIAL_OVERRIDE 0
 
+// Ensure specular profile and glints are supported
+#define STRATA_COMPLEXSPECIALPATH 1
+
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 #include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
@@ -795,6 +798,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 						// STRATA_TODO: Do something meaningful for the other SSS types ...
 						Payload.MeanFreePath = 0;
 						Payload.PhaseG       = 0;
+					}
+					Payload.SpecularProfileId = 0;
+					if (BSDF_GETHASSPECPROFILE(BSDF))
+					{
+						Payload.SpecularProfileId = SLAB_SPECPROFILEID(BSDF);
 					}
 					Payload.WeightV             = BSDF.LuminanceWeightV;
 					Payload.TransmittanceN      = BSDF.TransmittanceAboveAlongN;

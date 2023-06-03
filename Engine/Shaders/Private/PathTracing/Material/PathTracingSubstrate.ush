@@ -155,11 +155,12 @@ FMaterialSample Substrate_SampleMaterial(
 	}
 	else if (bSampledSpecular)
 	{
+		const float3 FTint = SubstrateSpecularTint(Payload, NoV, NoL, VoH, NoH);
 #if STRATA_FRESNEL_F82
 		// STRATA_TODO: Need to tune the logic for specular micro-occlusion ...
-		const float3 F = Data.FuzzAttenuation * F_AdobeF82(Data.F0, Data.F90, VoH);
+		const float3 F = Data.FuzzAttenuation * F_AdobeF82(Data.F0, Data.F90, VoH) * FTint;
 #else
-		const float3 F = Data.FuzzAttenuation * F_Schlick(Data.F0, Data.F90, VoH);
+		const float3 F = Data.FuzzAttenuation * F_Schlick(Data.F0, Data.F90, VoH) * FTint;
 #endif
 
 		Result.AddLobeWithMIS((1.0 - Payload.RoughnessData.z) * F * GGXResult0.x * Data.Spec0.W, Spec0Pdf, Data.LobePdf.y);
@@ -219,10 +220,11 @@ FMaterialEval Substrate_EvalMaterial(
 	{
 		const float2 GGXResult0 = GGXEvalReflection(L, V, H, Data.Alpha0);
 		const float2 GGXResult1 = GGXEvalReflection(L, V, H, Data.Alpha1);
+		const float3 FTint = SubstrateSpecularTint(Payload, NoV, NoL, VoH, NoH);
 #if STRATA_FRESNEL_F82
-		const float3 F = Data.FuzzAttenuation * F_AdobeF82(Data.F0, Data.F90, VoH);
+		const float3 F = Data.FuzzAttenuation * F_AdobeF82(Data.F0, Data.F90, VoH) * FTint;
 #else
-		const float3 F = Data.FuzzAttenuation * F_Schlick(Data.F0, Data.F90, VoH);
+		const float3 F = Data.FuzzAttenuation * F_Schlick(Data.F0, Data.F90, VoH) * FTint;
 #endif
 		Result.AddLobeWithMIS(DiffuseSpecularScale.y * (1.0 - Payload.RoughnessData.z) * F * GGXResult0.x * Data.Spec0.W, GGXResult0.y, Data.LobePdf.y);
 		Result.AddLobeWithMIS(DiffuseSpecularScale.y * (      Payload.RoughnessData.z) * F * GGXResult1.x * Data.Spec1.W, GGXResult1.y, Data.LobePdf.z);
@@ -388,13 +390,14 @@ FMaterialSample SubstrateClearCoat_SampleMaterial(
 	}
 	else if (bSampledSpecular)
 	{
+		const float3 FTint = SubstrateSpecularTint(Payload, NoV, NoL, VoH, NoH);
 #if STRATA_FRESNEL_F82
 		// STRATA_TODO: Need to tune the logic for specular micro-occlusion ...
-		const float3 F = Data.FuzzAttenuation * F_AdobeF82(Data.F0, Data.F90, VoH);
+		const float3 F = Data.FuzzAttenuation * F_AdobeF82(Data.F0, Data.F90, VoH) * FTint;
 #else
-		const float3 FBase = Data.FuzzAttenuation * F_Schlick(Data.F0, Data.F90, VoH);
+		const float3 FBase = Data.FuzzAttenuation * F_Schlick(Data.F0, Data.F90, VoH) * FTint;
 #endif
-		const float FCoat = Payload.RoughnessData.z * ClearCoatFresnel(VoH);
+		const float3 FCoat = Payload.RoughnessData.z * ClearCoatFresnel(VoH) * FTint;
 
 		Result.AddLobeWithMIS(Data.CoatAttenuation * FBase * BaseGGXResult.x * Data.BaseSpec.W * Transmission, BaseSpecPdf, Data.LobePdf.y);
 		Result.AddLobeWithMIS(Data.FuzzAttenuation * FCoat * CoatGGXResult.x * Data.CoatSpec.W               , CoatSpecPdf, Data.LobePdf.z);
@@ -461,13 +464,14 @@ FMaterialEval SubstrateClearCoat_EvalMaterial(
 		const float BaseSpecPdf = BaseGGXResult.y;
 		const float CoatSpecPdf = CoatGGXResult.y;
 
+		const float3 FTint = SubstrateSpecularTint(Payload, NoV, NoL, VoH, NoH);
 #if STRATA_FRESNEL_F82
 		// STRATA_TODO: Need to tune the logic for specular micro-occlusion ...
-		const float3 F = Data.FuzzAttenuation * F_AdobeF82(Data.F0, Data.F90, VoH);
+		const float3 F = Data.FuzzAttenuation * F_AdobeF82(Data.F0, Data.F90, VoH) * FTint;
 #else
-		const float3 FBase = Data.FuzzAttenuation * F_Schlick(Data.F0, Data.F90, VoH);
+		const float3 FBase = Data.FuzzAttenuation * F_Schlick(Data.F0, Data.F90, VoH) * FTint;
 #endif
-		const float FCoat = Payload.RoughnessData.z * ClearCoatFresnel(VoH);
+		const float3 FCoat = Payload.RoughnessData.z * ClearCoatFresnel(VoH) * FTint;
 
 		Result.AddLobeWithMIS(Data.CoatAttenuation * FBase * BaseGGXResult.x * Data.BaseSpec.W * Transmission, BaseSpecPdf, Data.LobePdf.y);
 		Result.AddLobeWithMIS(Data.FuzzAttenuation * FCoat * CoatGGXResult.x * Data.CoatSpec.W               , CoatSpecPdf, Data.LobePdf.z);

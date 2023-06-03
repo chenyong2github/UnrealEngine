@@ -155,7 +155,8 @@ FMaterialSample SubstrateThinGlass_SampleMaterial(
 	const float ClothPdf = 1.0 / (2 * PI);
 	if (bSampleGlass)
 	{
-		const FThinSlabWeights SlabResult = ComputeThinSlabWeights(Data.TransmissionColor, VoH, Payload.Ior, Data.F0);
+		FThinSlabWeights SlabResult = ComputeThinSlabWeights(Data.TransmissionColor, VoH, Payload.Ior, Data.F0);
+		SlabResult.Reflected *= SubstrateSpecularTint(Payload, NoV, NoL, VoH, NoH);
 
 		const float3 SlabTint = bIsReflection ? SlabResult.Reflected : SlabResult.Transmitted;
 		const float SlabW0 = (bIsReflection ? Data.SpecR0.W : Data.SpecT0.W) * Data.NudgeE.x;
@@ -225,7 +226,8 @@ FMaterialEval SubstrateThinGlass_EvalMaterial(
 	// Specular Lobes (either reflected or transmitted)
 	const float2 GGXResult0 = GGXEvalReflection(L, V, H, bIsReflection ? Data.AlphaR0 : Data.AlphaT0);
 	const float2 GGXResult1 = GGXEvalReflection(L, V, H, bIsReflection ? Data.AlphaR1 : Data.AlphaT1);
-	const FThinSlabWeights SlabResult = ComputeThinSlabWeights(Data.TransmissionColor, VoH, Payload.Ior, Data.F0);
+	FThinSlabWeights SlabResult = ComputeThinSlabWeights(Data.TransmissionColor, VoH, Payload.Ior, Data.F0);
+	SlabResult.Reflected *= SubstrateSpecularTint(Payload, NoV, NoL, VoH, NoH);
 
 	const float3 SlabTint = bIsReflection ? SlabResult.Reflected : SlabResult.Transmitted;
 	const float SlabW0 = (bIsReflection ? Data.SpecR0.W : Data.SpecT0.W) * Data.NudgeE.x;

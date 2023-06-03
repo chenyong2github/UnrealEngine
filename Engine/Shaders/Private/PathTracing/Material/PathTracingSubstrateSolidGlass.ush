@@ -124,11 +124,18 @@ FMaterialSample SubstrateSolidGlass_SampleMaterial(
 		}
 		else
 		{
+			// Specular profile tinting
+			const float NoL = saturate(L.z);
+			const float NoV = saturate(V.z);
+			const float VoH = saturate(dot(V, H));
+			const float NoH = saturate(H.z);
+			const float3 FTint = SubstrateSpecularTint(Payload, NoV, NoL, VoH, NoH);
+
 			// reflection side, apply full lobe weight and attenuation along L
 			// and account for probability of picking the fuzz layer
 			const float ClothPdf = 1 / (2 * PI);
 			Result.Pdf += Data.LobePdf.z * ClothPdf;
-			Result.Weight *= Data.FuzzAttenuation * SubstrateLobeWeight(Payload, saturate(L.z));
+			Result.Weight *= Data.FuzzAttenuation * SubstrateLobeWeight(Payload, saturate(L.z)) * FTint;
 		}
 
 		return Result;
@@ -208,9 +215,10 @@ FMaterialEval SubstrateSolidGlass_EvalMaterial(
 			const float2 GGXResult1 = GGXEvalReflection(L, V, H, Data.Alpha1);
 
 			const float Fg = FresnelReflectance(VoH, Data.Eta, Data.F0);
+			const float3 FTint = SubstrateSpecularTint(Payload, NoV, NoL, VoH, NoH);
 
-			Result.AddLobeWithMIS(DiffuseSpecularScale.y * Data.FuzzAttenuation * (1.0 - Payload.RoughnessData.z) * GGXResult0.x / Data.EGlass0, Fg * GGXResult0.y, Data.LobePdf.x);
-			Result.AddLobeWithMIS(DiffuseSpecularScale.y * Data.FuzzAttenuation * (      Payload.RoughnessData.z) * GGXResult1.x / Data.EGlass1, Fg * GGXResult1.y, Data.LobePdf.y);
+			Result.AddLobeWithMIS(FTint * DiffuseSpecularScale.y * Data.FuzzAttenuation * (1.0 - Payload.RoughnessData.z) * GGXResult0.x / Data.EGlass0, Fg * GGXResult0.y, Data.LobePdf.x);
+			Result.AddLobeWithMIS(FTint * DiffuseSpecularScale.y * Data.FuzzAttenuation * (      Payload.RoughnessData.z) * GGXResult1.x / Data.EGlass1, Fg * GGXResult1.y, Data.LobePdf.y);
 		}
 		{
 			// Cloth Lobe
