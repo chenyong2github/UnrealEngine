@@ -243,3 +243,4 @@
 
 // Chaos
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/Framework/PhysicsProxy.h"
