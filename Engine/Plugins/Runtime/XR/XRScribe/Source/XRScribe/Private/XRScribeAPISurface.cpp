@@ -697,10 +697,9 @@ public:
 		return ActiveLayer.Get();
 	}
 
-	void SetChainedGetProcAddr(PFN_xrGetInstanceProcAddr InChainedGetProcAddr) override
+	bool SetChainedGetProcAddr(PFN_xrGetInstanceProcAddr InChainedGetProcAddr) override
 	{
 		ChainedGetProcAddr = InChainedGetProcAddr;
-		CaptureLayer->SetChainedGetProcAddr(ChainedGetProcAddr);
 
 		EXRScribeRunMode RunModeFromConfig = EXRScribeRunMode::Capture;
 		GConfig->GetInt(TEXT("SystemSettings"), TEXT("XRScribe.RunMode"), (int32&)RunModeFromConfig, GEngineIni);
@@ -708,18 +707,42 @@ public:
 		if (RunModeFromConfig == EXRScribeRunMode::Capture)
 		{
 			UE_LOG(LogXRScribeAPI, Log, TEXT("Capture layer selected"));
-			ActiveLayer = CaptureLayer;
+
+			if (InChainedGetProcAddr != nullptr)
+			{
+				UE_LOG(LogXRScribeAPI, Log, TEXT("Valid PFN_xrGetInstanceProcAddr handed off to Capture Layer"));
+				ActiveLayer = CaptureLayer;
+				CaptureLayer->SetChainedGetProcAddr(ChainedGetProcAddr);
+				return true;
+			}
+			else
+			{
+				UE_LOG(LogXRScribeAPI, Warning, TEXT("Invalid PFN_xrGetInstanceProcAddr, Capture Layer disabled"));
+				return false;
+			}
 		}
 		else if (RunModeFromConfig == EXRScribeRunMode::Emulate)
 		{
 			UE_LOG(LogXRScribeAPI, Log, TEXT("Emulation layer selected"));
 			ActiveLayer = EmulationLayer;
-			reinterpret_cast<FOpenXREmulationLayer*>(EmulationLayer.Get())->LoadCaptureFromFile();
+			const bool bEmulationLoadedCapture = reinterpret_cast<FOpenXREmulationLayer*>(EmulationLayer.Get())->LoadCaptureFromFile();
+
+			if (bEmulationLoadedCapture)
+			{
+				UE_LOG(LogXRScribeAPI, Log, TEXT("Emulation Layer enabled"));
+			}
+			else
+			{
+				UE_LOG(LogXRScribeAPI, Warning, TEXT("Emulation Layer disabled"));
+			}
+
+			return bEmulationLoadedCapture;
 		}
 		else
 		{
 			check(0);
 		}
+		return false;
 	}
 
 private:

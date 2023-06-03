@@ -22,7 +22,7 @@ class IOpenXRAPILayerManager
 public:
 	virtual IOpenXRAPILayer* GetActiveLayer() const = 0;
 
-	virtual void SetChainedGetProcAddr(PFN_xrGetInstanceProcAddr InChainedGetProcAddr) = 0;
+	virtual bool SetChainedGetProcAddr(PFN_xrGetInstanceProcAddr InChainedGetProcAddr) = 0;
 	
 	static IOpenXRAPILayerManager& Get();
 };
