@@ -181,7 +181,6 @@ FAppleHttpNSUrlSessionRequest::FAppleHttpNSUrlSessionRequest(NSURLSession* InSes
 ,   Task(nil)
 ,	bIsPayloadFile(false)
 ,	ContentBytesLength(0)
-,	CompletionStatus(EHttpRequestStatus::NotStarted)
 ,	StartRequestTime(0.0)
 ,	ElapsedTime(0.0f)
 {
