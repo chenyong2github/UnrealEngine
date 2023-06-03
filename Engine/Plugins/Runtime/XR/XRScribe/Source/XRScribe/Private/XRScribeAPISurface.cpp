@@ -32,7 +32,7 @@ enum class EXRScribeRunMode : int32
 	Emulate,
 };
 
-static EXRScribeRunMode XRScribeRunMode = EXRScribeRunMode::Capture;
+static EXRScribeRunMode XRScribeRunMode = EXRScribeRunMode::Emulate;
 static FAutoConsoleVariableRef CVarXRScribeRunMode(TEXT("XRScribe.RunMode"),
 	reinterpret_cast<int32&>(XRScribeRunMode),
 	TEXT("Toggle the mode XRScribe operates in (capture or emulate)"),
@@ -701,7 +701,7 @@ public:
 	{
 		ChainedGetProcAddr = InChainedGetProcAddr;
 
-		EXRScribeRunMode RunModeFromConfig = EXRScribeRunMode::Capture;
+		EXRScribeRunMode RunModeFromConfig = EXRScribeRunMode::Emulate;
 		GConfig->GetInt(TEXT("SystemSettings"), TEXT("XRScribe.RunMode"), (int32&)RunModeFromConfig, GEngineIni);
 
 		if (RunModeFromConfig == EXRScribeRunMode::Capture)
