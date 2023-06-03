@@ -38,7 +38,8 @@ namespace UnrealBuildTool.Rules
 
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
-					"ViewportInteraction"
+					"ViewportInteraction",
+					"HeadMountedDisplay"
 				}
 			);
 

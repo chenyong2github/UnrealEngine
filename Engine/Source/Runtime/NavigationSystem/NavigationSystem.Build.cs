@@ -10,17 +10,12 @@ namespace UnrealBuildTool.Rules
         {
             PublicDependencyModuleNames.AddRange(
                 new string[] {
-                    "Core",
+					"Chaos",
+					"Core",
                     "CoreUObject",
                     "Engine",
-                }
-                );
-
-            PrivateDependencyModuleNames.AddRange(
-                new string[] {
-                    "RHI",
-                    "RenderCore",
-                }
+					"GeometryCollectionEngine",
+				}
                 );
 
 			PrivateIncludePathModuleNames.AddRange(
@@ -31,14 +26,14 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-            SetupModulePhysicsSupport(Target);
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"RHI",
+					"RenderCore",
+				}
+				);
 
-            PublicDependencyModuleNames.AddRange(
-                new string[] {
-					"Chaos",
-                    "GeometryCollectionEngine",
-                }
-			);
+			SetupModulePhysicsSupport(Target);
 
             if (Target.bCompileRecast)
             {

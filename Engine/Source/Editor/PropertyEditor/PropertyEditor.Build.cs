@@ -15,12 +15,6 @@ public class PropertyEditor : ModuleRules
                 	"SceneDepthPickerMode",
 			}
 		);
-		
-        PublicIncludePathModuleNames.AddRange(
-            new string[] {
-				"EditorFramework",
-			}
-        );
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
@@ -46,7 +40,6 @@ public class PropertyEditor : ModuleRules
 				"SlateCore",
 				"EditorWidgets",
 				"Documentation",
-                	"RHI",
 				"ConfigEditor",
                 	"SceneOutliner",
 				"DesktopPlatform",
