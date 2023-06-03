@@ -3,6 +3,8 @@
 #include "ProxyTableEditorModule.h"
 #include "ProxyTableEditor.h"
 #include "ProxyTableEditorCommands.h"
+#include "StructOutputDataCustomization.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "ProxyTableEditorModule"
 
@@ -14,10 +16,15 @@ void FModule::StartupModule()
 	FProxyTableEditor::RegisterWidgets();
 
 	FProxyTableEditorCommands::Register();
+	
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.RegisterCustomPropertyTypeLayout(FProxyStructOutput::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<FStructOutputDataCustomization>(); }));
 }
 
 void FModule::ShutdownModule()
 {
+	FProxyTableEditorCommands::Unregister();
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 }
 
 }

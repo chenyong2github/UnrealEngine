@@ -125,16 +125,11 @@ void UProxyTable::BuildRuntimeData()
 	Keys.Empty(EntryCount);
 	Values.Empty();
 	
-	TArray<FConstStructView> Views;
-	Views.Reserve(EntryCount);
-	
 	for(const FProxyEntry& Entry : RuntimeEntries) 
 	{
 		Keys.Add(Entry.GetGuid());
-   		Views.Add(Entry.ValueStruct);
+   		Values.Add({Entry.ValueStruct, Entry.OutputStructData});
 	}
-
-	Values = Views;
 	
 	// register callbacks on updated dependencies
 	for (TWeakObjectPtr<UProxyTable> Dependency : TableDependencies)
@@ -173,8 +168,46 @@ UObject* UProxyTable::FindProxyObject(const FGuid& Key, FChooserEvaluationContex
 	const int FoundIndex = Algo::BinarySearch(Keys, Key);
 	if (FoundIndex != INDEX_NONE)
 	{
-		const FObjectChooserBase &EntryValue = Values[FoundIndex].Get<const FObjectChooserBase>();
-		return EntryValue.ChooseObject(Context);
+		const FRuntimeProxyValue& EntryValueData = Values[FoundIndex];
+		const FObjectChooserBase &EntryValue = EntryValueData.Value.Get<const FObjectChooserBase>();
+
+		UObject* Result = EntryValue.ChooseObject(Context);
+
+		for (const FProxyStructOutput& StructOutput : EntryValueData.OutputStructData)
+		{
+			const void* Container = nullptr;
+			const UStruct* StructType;
+
+			// copy each struct output value
+
+			if (StructOutput.Binding.PropertyBindingChain.IsEmpty())
+			{
+				if(Context.Params.IsValidIndex((StructOutput.Binding.ContextIndex)))
+				{
+					// directly bound to context struct
+					if (Context.Params[StructOutput.Binding.ContextIndex].GetScriptStruct() == StructOutput.Value.GetScriptStruct())
+					{
+						void* TargetData = Context.Params[StructOutput.Binding.ContextIndex].GetMutableMemory();
+						StructOutput.Value.GetScriptStruct()->CopyScriptStruct(TargetData, StructOutput.Value.GetMemory());
+					}
+				}
+			}
+			else if (UE::Chooser::ResolvePropertyChain(Context, StructOutput.Binding, Container, StructType))
+			{
+				if (FStructProperty* Property = FindFProperty<FStructProperty>(StructType, StructOutput.Binding.PropertyBindingChain.Last()))
+				{
+					// const cast is here just because ResolvePropertyChain expects a const void*&
+					void* TargetData = Property->ContainerPtrToValuePtr<void>(const_cast<void*>(Container));
+					
+					if (Property->Struct == StructOutput.Value.GetScriptStruct())
+					{
+						Property->Struct->CopyScriptStruct(TargetData, StructOutput.Value.GetMemory());
+					}
+				}
+			}
+		}
+
+		return Result;
 	}
 	
 	return nullptr;

@@ -19,11 +19,13 @@
 #include "SourceCodeNavigation.h"
 #include "ProxyTable.h"
 #include "ClassViewerFilter.h"
+#include "DetailLayoutBuilder.h"
 #include "IPropertyAccessEditor.h"
 #include "LandscapeRender.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "GraphEditorSettings.h"
+#include "IDetailCustomization.h"
 #include "ObjectChooserClassFilter.h"
 #include "ScopedTransaction.h"
 #include "ObjectChooserWidgetFactories.h"
@@ -42,7 +44,48 @@ namespace UE::ProxyTableEditor
 const FName FProxyTableEditor::ToolkitFName( TEXT( "GenericAssetEditor" ) );
 const FName FProxyTableEditor::PropertiesTabId( TEXT( "ProxyEditor_Properties" ) );
 const FName FProxyTableEditor::TableTabId( TEXT( "ProxyEditor_Table" ) );
+	
 
+class FProxyRowDetails : public IDetailCustomization
+{
+public:
+	FProxyRowDetails() {};
+	virtual ~FProxyRowDetails() override {};
+
+	static TSharedRef<IDetailCustomization> MakeInstance()
+	{
+		return MakeShareable( new FProxyRowDetails() );
+	}
+
+	// IDetailCustomization interface
+	virtual void CustomizeDetails(class IDetailLayoutBuilder& DetailBuilder) override;
+};
+
+// Make the details panel show the values for the selected row, showing each column value
+void FProxyRowDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TArray<TWeakObjectPtr<UObject>> Objects;
+	DetailBuilder.GetObjectsBeingCustomized(Objects);
+
+	UProxyRowDetails* Row = Cast<UProxyRowDetails>(Objects[0]);
+	UProxyTable* ProxyTable = Row->ProxyTable;
+	
+	if (ProxyTable->Entries.Num() > Row->Row)
+	{
+		IDetailCategoryBuilder& PropertiesCategory = DetailBuilder.EditCategory("Row Properties");
+
+		TSharedPtr<IPropertyHandle> ProxyTableProperty = DetailBuilder.GetProperty("ProxyTable", Row->StaticClass());
+		DetailBuilder.HideProperty(ProxyTableProperty);
+	
+		TSharedPtr<IPropertyHandle> EntriesArrayProperty = ProxyTableProperty->GetChildHandle("Entries");
+		TSharedPtr<IPropertyHandle> CurrentEntryProperty = EntriesArrayProperty->AsArray()->GetElement(Row->Row);
+		IDetailPropertyRow& NewEntryProperty = PropertiesCategory.AddProperty(CurrentEntryProperty);
+		NewEntryProperty.DisplayName(LOCTEXT("Entry","Selected Entry"));
+		NewEntryProperty.ShowPropertyButtons(false); // hide array add button
+		NewEntryProperty.ShouldAutoExpand(true);
+	}
+}
+	
 void FProxyTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_GenericAssetEditor", "Asset Editor"));
@@ -730,28 +773,24 @@ void FProxyTableEditor::UpdateTableColumns()
 					.DefaultLabel(LOCTEXT("KeyColumnName", "Proxy"))
 					.ManualWidth(500));
 
-
-		if (UProxyTable* Table = GetProxyTable())
-    	{
-    		if (Table->Entries.Num() > 0)
-    		{
-    			// if the first entry has a non-none key, assume this is an old table and make an extra column with the old FName Key property
-    			if (Table->Entries[0].Key != NAME_None)
-    			{
-    					HeaderRow->AddColumn(SHeaderRow::Column("OldKey")
-                    					.DefaultLabel(LOCTEXT("OldKeyColumnName", "Key (Deprecated)"))
-                    					.ManualWidth(500));
-    			}
-    		}
-    	}
+  // Code for allowing editing of deprecated Key data
+  //   if (UProxyTable* Table = GetProxyTable())
+  //   	{
+  //   		if (Table->Entries.Num() > 0)
+  //   		{
+  //   			// if the first entry has a non-none key, assume this is an old table and make an extra column with the old FName Key property
+  //   			if (Table->Entries[0].Key != NAME_None)
+  //   			{
+  //   					HeaderRow->AddColumn(SHeaderRow::Column("OldKey")
+  //                   					.DefaultLabel(LOCTEXT("OldKeyColumnName", "Key (Deprecated)"))
+  //                   					.ManualWidth(500));
+  //   			}
+  //   		}
+  //   	}
 
 	HeaderRow->AddColumn(SHeaderRow::Column("Value")
 					.DefaultLabel(LOCTEXT("ValueColumnName", "Value"))
 					.ManualWidth(500));
-
-	
-
-
 }
 
 TSharedRef<SDockTab> FProxyTableEditor::SpawnTableTab( const FSpawnTabArgs& Args )
@@ -810,20 +849,30 @@ TSharedRef<SDockTab> FProxyTableEditor::SpawnTableTab( const FSpawnTabArgs& Args
 				{
 					if (SelectedItem)
 					{
+						for (UObject* SelectedRow : SelectedRows)
+                     	{
+                     		SelectedRow->ClearFlags(RF_Standalone);
+                     	}
 						SelectedRows.SetNum(0);
 						UProxyTable* ProxyTable = Cast<UProxyTable>(EditingObjects[0]);
 						// Get the list of objects to edit the details of
 						TObjectPtr<UProxyRowDetails> Selection = NewObject<UProxyRowDetails>();
 						Selection->ProxyTable = ProxyTable;
 						Selection->Row = SelectedItem->RowIndex;
-						Selection->SetFlags(RF_Transactional); 
+						Selection->SetFlags(RF_Standalone);
 						SelectedRows.Add(Selection);
-											
+						
+						TArray<UObject*> DetailsObjects;
+						for(auto& Item : SelectedRows)
+						{
+							DetailsObjects.Add(Item.Get());
+						}
+
 						if( DetailsView.IsValid() )
 						{
 							// Make sure details window is pointing to our object
-							//DetailsView->SetObjects( ... )
-						}
+							DetailsView->SetObjects( DetailsObjects );
+						}		
 					}
 				})
     			.OnGenerateRow_Raw(this, &FProxyTableEditor::GenerateTableRow)
@@ -1009,6 +1058,9 @@ TSharedRef<SWidget> CreateLookupProxyWidget(bool bReadOnly, UObject* Transaction
 void FProxyTableEditor::RegisterWidgets()
 {
 	UE::ChooserEditor::FObjectChooserWidgetFactories::RegisterWidgetCreator(FLookupProxy::StaticStruct(), CreateLookupProxyWidget);
+	
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.RegisterCustomClassLayout("ProxyRowDetails", FOnGetDetailCustomizationInstance::CreateStatic(&FProxyRowDetails::MakeInstance));	
 }
 	
 }

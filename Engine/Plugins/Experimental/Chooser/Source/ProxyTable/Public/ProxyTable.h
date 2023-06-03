@@ -3,13 +3,24 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "ChooserPropertyAccess.h"
 #include "IChooserParameterProxyTable.h"
 #include "InstancedStruct.h"
 #include "InstancedStructContainer.h"
 #include "Misc/Guid.h"
 #include "ProxyAsset.h"
 #include "ProxyTable.generated.h"
+
+USTRUCT()
+struct PROXYTABLE_API FProxyStructOutput
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, Category = "Data")
+	FChooserStructPropertyBinding Binding;
+	
+	UPROPERTY(EditAnywhere, Category = "Data")
+	FInstancedStruct Value;
+};
 
 USTRUCT()
 struct PROXYTABLE_API FProxyEntry
@@ -29,6 +40,9 @@ struct PROXYTABLE_API FProxyEntry
 	UPROPERTY(DisplayName="Value", EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ObjectChooserBase"), Category = "Data")
 	FInstancedStruct ValueStruct;
 
+	UPROPERTY(EditAnywhere, Category = "Data")
+	TArray<FProxyStructOutput> OutputStructData;
+
 	const FGuid GetGuid() const;
 };
 
@@ -37,6 +51,18 @@ inline uint32 GetTypeHash(const FProxyEntry& Entry) { return GetTypeHash(Entry.G
 #endif
 
 DECLARE_MULTICAST_DELEGATE(FProxyTableChanged);
+
+USTRUCT()
+struct PROXYTABLE_API FRuntimeProxyValue
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FInstancedStruct Value;
+
+	UPROPERTY()
+	TArray<FProxyStructOutput> OutputStructData;
+};
 
 UCLASS(MinimalAPI,BlueprintType)
 class UProxyTable : public UObject
@@ -49,7 +75,7 @@ public:
 	TArray<FGuid> Keys;
 
 	UPROPERTY()
-	FInstancedStructContainer Values;
+	TArray<FRuntimeProxyValue> Values;
 	
 	UObject* FindProxyObject(const FGuid& Key, FChooserEvaluationContext& Context) const;
 

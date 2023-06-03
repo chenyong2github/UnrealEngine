@@ -77,8 +77,11 @@ void FStructContextProperty::SetBinding(const UObject* OuterObject, const TArray
 			if (InBindingChain.Num() > 2)
 			{
 				// add the parent struct name to the display name if there is one
-				const FField* NextToLastField = InBindingChain[InBindingChain.Num()-2].Field.ToField();
-				Binding.DisplayName = NextToLastField->GetAuthoredName() + "." + Binding.DisplayName;
+				
+				if (const FField* NextToLastField = InBindingChain[InBindingChain.Num()-2].Field.ToField())
+				{
+					Binding.DisplayName = NextToLastField->GetAuthoredName() + "." + Binding.DisplayName;
+				}
 			}
 		}
 	}

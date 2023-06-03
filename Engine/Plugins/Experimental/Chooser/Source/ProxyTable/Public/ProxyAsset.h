@@ -43,7 +43,7 @@ public:
 	FGuid Guid;
 
 	virtual TConstArrayView<FInstancedStruct> GetContextData() const override { return ContextData; }
-	UObject* FindProxyObject(FChooserEvaluationContext Context) const;
+	UObject* FindProxyObject(FChooserEvaluationContext& Context) const;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

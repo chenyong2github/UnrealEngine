@@ -13,7 +13,7 @@ namespace UE::ChooserEditor
 {
 		
 // Wrapper widget for Property access widget, which can update when the target Class changes
-class SPropertyAccessChainWidget : public SCompoundWidget
+class CHOOSEREDITOR_API SPropertyAccessChainWidget : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SPropertyAccessChainWidget)

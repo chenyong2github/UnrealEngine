@@ -93,7 +93,7 @@ UProxyAsset::UProxyAsset(const FObjectInitializer& Initializer)
 	ProxyTable.InitializeAs(FProxyTableContextProperty::StaticStruct());
 }
 
-UObject* UProxyAsset::FindProxyObject(FChooserEvaluationContext Context) const
+UObject* UProxyAsset::FindProxyObject(FChooserEvaluationContext& Context) const
 {
 	if (ProxyTable.IsValid())
 	{
