@@ -3,7 +3,7 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "ChaosFlesh/FleshComponent.h"
+#include "ChaosFlesh/ChaosDeformableTetrahedralComponent.h"
 
 #include "DIFleshDeformer.generated.h"
 
@@ -31,6 +31,8 @@ class /*OPTIMUSCORE_API*/ UDIFleshDeformer : public UOptimusComputeDataInterface
 	GENERATED_BODY()
 
 public:
+	virtual ~UDIFleshDeformer();
+
 	//~ Begin UOptimusComputeDataInterface Interface
 	FString GetDisplayName() const override;
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
@@ -49,6 +51,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Deformer, meta = (ShowOnlyInnerProperties))
 	FFleshDeformerParameters FleshDeformerParameters;
+
+private:
+	mutable TWeakObjectPtr<UDeformableTetrahedralComponent> ProducerComponent;
 };
 
 /** Compute Framework Data Provider for reading skeletal mesh. */
@@ -65,7 +70,7 @@ public:
 	TObjectPtr<UStaticMeshComponent> StaticMesh = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<UFleshComponent> FleshMesh = nullptr;
+	TObjectPtr<UDeformableTetrahedralComponent> FleshMesh = nullptr;
 
 	UPROPERTY()
 	FFleshDeformerParameters FleshDeformerParameters;
@@ -79,7 +84,7 @@ public:
 class FDIFleshDeformerProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FDIFleshDeformerProviderProxy(USkinnedMeshComponent* SkinnedMeshComponentIn, UFleshComponent* FleshComponentIn, const FFleshDeformerParameters& FleshDeformerParametersIn);
+	FDIFleshDeformerProviderProxy(USkinnedMeshComponent* SkinnedMeshComponentIn, UDeformableTetrahedralComponent* FleshComponentIn, const FFleshDeformerParameters& FleshDeformerParametersIn);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	bool IsValid(FValidationData const& InValidationData) const override;
@@ -93,7 +98,7 @@ private:
 
 	USkinnedMeshComponent* SkinnedMeshComponent = nullptr;
 	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
-	UFleshComponent* FleshComponent = nullptr;
+	UDeformableTetrahedralComponent* FleshComponent = nullptr;
 
 	FFleshDeformerParameters FleshDeformerParameters;
 

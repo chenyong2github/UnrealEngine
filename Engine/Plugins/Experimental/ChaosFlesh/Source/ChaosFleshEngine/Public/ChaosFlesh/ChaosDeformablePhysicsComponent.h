@@ -40,7 +40,7 @@ public:
 	virtual void RemoveProxy(Chaos::Softs::FDeformableSolver::FGameThreadAccess& GameThreadSolver);
 	virtual void PreSolverUpdate() {};
 	virtual FDataMapValue NewDeformableData() { return FDataMapValue(nullptr); }
-	virtual void UpdateFromSimualtion(const FDataMapValue* SimualtionBuffer) {}
+	virtual void UpdateFromSimulation(const FDataMapValue* SimulationBuffer) {}
 
 
 	virtual void OnCreatePhysicsState() override;

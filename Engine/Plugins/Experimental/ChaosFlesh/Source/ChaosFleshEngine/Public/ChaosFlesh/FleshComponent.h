@@ -31,6 +31,4 @@ class CHAOSFLESHENGINE_API UFleshComponent : public UDeformableGameplayComponent
 	GENERATED_UCLASS_BODY()
 public:
 
-	TArray<int32> HideTetrahedra;
-
 };

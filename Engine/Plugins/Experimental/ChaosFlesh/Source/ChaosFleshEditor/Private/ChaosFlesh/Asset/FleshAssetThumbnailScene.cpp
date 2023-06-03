@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosFlesh/Asset/FleshAssetThumbnailScene.h"
+#include "ChaosFlesh/ChaosDeformableTetrahedralComponent.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "ChaosFlesh/FleshActor.h"
 

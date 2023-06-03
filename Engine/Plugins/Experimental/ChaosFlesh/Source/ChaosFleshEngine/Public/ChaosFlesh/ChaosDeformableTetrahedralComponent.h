@@ -3,10 +3,11 @@
 
 #include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
 #include "Chaos/Deformable/ChaosDeformableSolver.h"
-#include "ChaosFlesh/ChaosDeformableSolverThreading.h"
 #include "ChaosFlesh/ChaosDeformablePhysicsComponent.h"
+#include "ChaosFlesh/ChaosDeformableSolverThreading.h"
 #include "ChaosFlesh/FleshAsset.h"
 #include "ChaosFlesh/FleshDynamicAsset.h"
+#include "ChaosFlesh/ChaosFleshDeformerBufferManager.h"
 #include "ChaosFlesh/SimulationAsset.h"
 #include "Components/MeshComponent.h"
 #include "UObject/ObjectMacros.h"
@@ -16,6 +17,7 @@
 class FFleshCollection;
 class ADeformableSolverActor;
 class UDeformableSolverComponent;
+class FChaosDeformableTetrahedralSceneProxy;
 
 /**
 *  Options for binding positions query.
@@ -37,22 +39,20 @@ struct FFleshSimulationSpaceGroup
 {
 	GENERATED_USTRUCT_BODY()
 
-		/**
-		* Bone from the associated skeletal mesh (indicated by RestCollection.TargetSkeletalMesh) to use as
-		* the space the sim runs in.
-		*/
+	/**
+	* Bone from the associated skeletal mesh (indicated by RestCollection.TargetSkeletalMesh) to use as
+	* the space the sim runs in.
+	*/
 	UPROPERTY(EditAnywhere, Category = "Physics", meta = (GetOptions = "GetSimSpaceBoneNameOptions", EditCondition = "SimSpace == ChaosDeformableSimSpace::Bone"))
 	FName SimSpaceBoneName;
 
-
 	/** Space the simulation will run in. */
 	UPROPERTY(EditAnywhere, Category = "Physics")
-		TEnumAsByte<ChaosDeformableSimSpace> SimSpace = ChaosDeformableSimSpace::World;
+	TEnumAsByte<ChaosDeformableSimSpace> SimSpace = ChaosDeformableSimSpace::World;
 
 	/** The skeletal mesh to use pull the \c SimSpaceBoneName from. */
 	UPROPERTY()
 	TObjectPtr<USkeletalMesh> SimSpaceSkeletalMesh;
-
 
 	int32 SimSpaceTransformIndex = INDEX_NONE;
 	int32 SimSpaceTransformGlobalIndex = INDEX_NONE;
@@ -68,16 +68,16 @@ struct FBodyForcesGroup
 	bool bApplyGravity = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-		float DampingMultiplier = 1.f;
+	float DampingMultiplier = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-		float StiffnessMultiplier = 1.f;
+	float StiffnessMultiplier = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-		float IncompressibilityMultiplier = 1.f;
+	float IncompressibilityMultiplier = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-		float InflationMultiplier = 1.f;
+	float InflationMultiplier = 1.f;
 };
 
 /**
@@ -102,10 +102,16 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
 	void Invalidate();
 
-	/** Simulation Interface*/
+	/** UPrimitiveComponent Interface */
+	//virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+
+	/** GPU Interface */
+	Chaos::Softs::FChaosFleshDeformableGPUManager& GetGPUBufferManager() { return GPUBufferManager; }
+
+	/** Simulation Interface */
 	virtual FThreadingProxy* NewProxy() override;
 	virtual FDataMapValue NewDeformableData() override;
-	virtual void UpdateFromSimualtion(const FDataMapValue* SimualtionBuffer) override;
+	virtual void UpdateFromSimulation(const FDataMapValue* SimualtionBuffer) override;
 
 	/** RestCollection */
 	void SetRestCollection(const UFleshAsset * InRestCollection);
@@ -147,6 +153,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Rendering")
 	TObjectPtr<UProceduralMeshComponent> Mesh;
 
+	UPROPERTY(EditAnywhere, Category = "Rendering")
+	TArray<int32> HideTetrahedra;
+
 private:
 	/** FleshAsset that describes the simulation rest state. */
 	UPROPERTY(EditAnywhere, Category = "Physics", meta = (DisplayPriority = 1))
@@ -159,7 +168,6 @@ private:
 	/** Simulator input */
 	UPROPERTY()
 	TObjectPtr<USimulationAsset> SimulationCollection;
-
 
 	/* Returns a list of bone names from the currently selected skeletal mesh. */
 	UFUNCTION(CallInEditor)
@@ -200,5 +208,7 @@ private:
 	TArray<FVector> GetSkeletalMeshBindingPositionsInternal(const USkeletalMesh* InSkeletalMesh, TArray<bool>* OutInfluence = nullptr) const;
 	void DebugDrawSkeletalMeshBindingPositions() const;
 
+	//FChaosDeformableTetrahedralSceneProxy* RenderProxy = nullptr;
+	Chaos::Softs::FChaosFleshDeformableGPUManager GPUBufferManager;
 };
 

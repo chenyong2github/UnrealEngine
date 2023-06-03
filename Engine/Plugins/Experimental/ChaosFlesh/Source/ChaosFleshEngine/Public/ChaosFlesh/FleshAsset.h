@@ -117,7 +117,7 @@ public:
 	TObjectPtr<USkeleton> Skeleton;
 
 	/**
-	* Skeleton to use with \c GetSkeletalMeshEmbeddedPositions() on the flesh component. 
+	* Skeleton to use with the flesh deformer or \c GetSkeletalMeshEmbeddedPositions() on the flesh component. 
 	* Bindings for this skeletal mesh must be stored in the rest collection.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
@@ -128,12 +128,6 @@ public:
 	//
 	UPROPERTY(EditAnywhere, Category = "Geometry")
 	TObjectPtr<UStaticMesh> StaticMesh;
-
-	//
-	// Deformer Target Mesh
-	//
-	UPROPERTY(EditAnywhere, Category = "Deformer")
-	FString TargetSkeletalMesh;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = "Render")

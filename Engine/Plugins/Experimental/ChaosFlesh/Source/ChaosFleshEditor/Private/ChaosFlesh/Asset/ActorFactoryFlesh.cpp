@@ -2,6 +2,7 @@
 
 #include "ChaosFlesh/Asset/ActorFactoryFlesh.h"
 
+#include "ChaosFlesh/ChaosDeformableTetrahedralComponent.h"
 #include "ChaosFlesh/FleshActor.h"
 #include "AssetRegistry/AssetData.h"
 

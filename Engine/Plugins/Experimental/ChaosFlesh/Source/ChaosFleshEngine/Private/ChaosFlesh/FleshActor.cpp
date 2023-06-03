@@ -4,6 +4,7 @@
 
 #include "ChaosFlesh/ChaosDeformableSolverComponent.h"
 #include "ChaosFlesh/ChaosDeformableSolverActor.h"
+#include "ChaosFlesh/ChaosDeformableTetrahedralComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FleshActor)
 

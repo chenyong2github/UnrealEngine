@@ -28,7 +28,7 @@ FChaosEngineDeformableCVarParams CVarParams;
 FAutoConsoleVariableRef CVarDeforambleDoDrawSimulationMesh(TEXT("p.Chaos.DebugDraw.Deformable.SimulationMesh"), CVarParams.bDoDrawSimulationMesh, TEXT("Debug draw the deformable simulation resutls on the game thread. [def: true]"));
 FAutoConsoleVariableRef CVarDeforambleDoDrawSkeletalMeshBindingPositions(TEXT("p.Chaos.DebugDraw.Deformable.SkeletalMeshBindingPositions"), CVarParams.bDoDrawSkeletalMeshBindingPositions, TEXT("Debug draw the deformable simulation's SkeletalMeshBindingPositions on the game thread. [def: false]"));
 FAutoConsoleVariableRef CVarDeforambleDoDrawSkeletalMeshBindingPositionsSimulationBlendWeight(TEXT("p.Chaos.DebugDraw.Deformable.SkeletalMeshBindingPositions.SimulationBlendWeight"), CVarParams.DrawSkeletalMeshBindingPositionsSimulationBlendWeight, TEXT("Set the simulation blend weight of the skeletal mesh debug draw.[def: 1.]"));
-
+FAutoConsoleVariableRef CVarDeformableFleshDeformerUpdateGPUBuffersOnTick(TEXT("p.Chaos.Deformable.FleshDeformer.UpdateGPUBuffersOnTick"), CVarParams.bUpdateGPUBuffersOnTick, TEXT("Enable/disable time varying updates of GPU buffer data."));
 
 #define PERF_SCOPE(X) SCOPE_CYCLE_COUNTER(X); TRACE_CPUPROFILER_EVENT_SCOPE(X);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableTetrahedralComponent.TickComponent"), STAT_ChaosDeformable_UDeformableTetrahedralComponent_TickComponent, STATGROUP_Chaos);
@@ -39,8 +39,10 @@ DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.UDeformableTetrahedralComponent.Render
 
 DEFINE_LOG_CATEGORY_STATIC(LogDeformableTetrahedralComponentInternal, Log, All);
 
+
 UDeformableTetrahedralComponent::UDeformableTetrahedralComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, GPUBufferManager(this)
 {
 	Mesh = ObjectInitializer.CreateDefaultSubobject<UProceduralMeshComponent>(this, TEXT("Flesh Visualization Component"));
 	PrimaryComponentTick.TickGroup = TG_LastDemotable;
@@ -60,7 +62,6 @@ void UDeformableTetrahedralComponent::Invalidate()
 {
 	bBoundsNeedsUpdate = true;
 }
-
 
 void UDeformableTetrahedralComponent::OnRegister()
 {
@@ -207,7 +208,7 @@ UDeformablePhysicsComponent::FDataMapValue UDeformableTetrahedralComponent::NewD
 								*GetSimulationCollection()->GetCollection(),
 								this->GetComponentTransform(),
 								BoneSpaceXf, 
-							SimulationSpace.SimSpaceTransformGlobalIndex,
+								SimulationSpace.SimSpaceTransformGlobalIndex,
 								AnimationTransforms, 
 								ComponentPose, 
 								BodyForces.bApplyGravity,
@@ -227,7 +228,7 @@ UDeformablePhysicsComponent::FDataMapValue UDeformableTetrahedralComponent::NewD
 			*GetSimulationCollection()->GetCollection(),
 			this->GetComponentTransform(),
 			GetSimSpaceRestTransform(),
-		SimulationSpace.SimSpaceTransformGlobalIndex,
+			SimulationSpace.SimSpaceTransformGlobalIndex,
 			BodyForces.bApplyGravity,
 			BodyForces.StiffnessMultiplier,
 			BodyForces.DampingMultiplier,
@@ -304,7 +305,7 @@ FTransform UDeformableTetrahedralComponent::GetSimSpaceRestTransform() const
 	return ComponentToBone;
 }
 
-void UDeformableTetrahedralComponent::UpdateFromSimualtion(const FDataMapValue* SimualtionBuffer)
+void UDeformableTetrahedralComponent::UpdateFromSimulation(const FDataMapValue* SimualtionBuffer)
 {
 	PERF_SCOPE(STAT_ChaosDeformable_UDeformableTetrahedralComponent_UpdateFromSimualtion);
 
@@ -325,8 +326,15 @@ void UDeformableTetrahedralComponent::UpdateFromSimualtion(const FDataMapValue* 
 				DynamicVertex[i] = SimulationVertex[i];
 			}
 			
-			//p.Chaos.DebugDraw.Enabled 1
-			//p.Chaos.DebugDraw.Deformable.SkeletalMeshBindingPositions 1
+			// p.Chaos.Deformable.FleshDeformer.UpdateGPUBuffersOnTick 1 (default) or 0
+			if (CVarParams.bUpdateGPUBuffersOnTick)
+			{
+				// Update time varying GPU buffers (but only if a consumer has been registered).
+				GPUBufferManager.UpdateGPUBuffers();
+			}
+
+			// p.Chaos.DebugDraw.Enabled 1
+			// p.Chaos.DebugDraw.Deformable.SkeletalMeshBindingPositions 1
 			if (CVarParams.bDoDrawSkeletalMeshBindingPositions)
 			{
 				DebugDrawSkeletalMeshBindingPositions();
@@ -939,5 +947,3 @@ TArray<FVector> UDeformableTetrahedralComponent::GetSkeletalMeshBindingPositions
 	}
 	return TransformPositions;
 }
-
-

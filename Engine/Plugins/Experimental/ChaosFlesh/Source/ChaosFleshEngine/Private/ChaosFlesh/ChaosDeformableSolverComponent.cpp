@@ -313,7 +313,7 @@ void UDeformableSolverComponent::UpdateFromSimulation(float DeltaTime)
 					{
 						if (const FDataMapValue* Buffer = Output->ObjectMap.Find(DeformableComponent))
 						{
-							DeformableComponent->UpdateFromSimualtion(Buffer);
+							DeformableComponent->UpdateFromSimulation(Buffer);
 						}
 					}
 				}
