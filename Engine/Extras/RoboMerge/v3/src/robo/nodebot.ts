@@ -1251,6 +1251,20 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 	onAlreadyIntegrated(event: AlreadyIntegrated) {
 		this.conflicts.onAlreadyIntegrated(event)
+
+		if (event.change.userRequest && this.slackMessages) {
+			if (this.slackMessages) {
+				const message = `Change ${event.change.cl} was not necessary in ${event.action.branch.name}`
+				let dm: SlackMessage = {
+					text: message,
+					style: SlackMessageStyles.WARNING,
+					channel: '',
+					mrkdwn: true
+				}
+				
+				this.slackMessages.postDM(this.findEmail(event.change.owner!), event.change.cl, this.branch, dm)			
+			}
+		}
 	}
 
 	onEndIntegratingToGate(event: EndIntegratingToGateEvent) {

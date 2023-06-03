@@ -287,9 +287,12 @@ export class SlackMessages {
 		}
 	}
 
-	async postDM(emailAddress: string|null, cl: number, branchArg: BranchArg, dm: SlackMessage, persistMessage = true) {
+	async postDM(emailAddress: string|Promise<string|null>|null, cl: number, branchArg: BranchArg, dm: SlackMessage, persistMessage = true) {
 		// The Slack API requires a user ID to open a direct message with users.
 		// The most consistent way to do this is getting their email address out of P4.
+		if (emailAddress && typeof(emailAddress) !== 'string') {
+			emailAddress = await emailAddress
+		}
 		if (!emailAddress) {
 			console.error("Failed to get email address during notifications for CL " + cl)
 			return
