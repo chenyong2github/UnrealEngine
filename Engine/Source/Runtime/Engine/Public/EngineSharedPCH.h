@@ -240,3 +240,6 @@
 #include "VisualLogger/VisualLogger.h"
 #include "VisualLogger/VisualLoggerTypes.h"
 #include "WorldCollision.h"
+
+// Chaos
+#include "Chaos/ParticleHandle.h"
