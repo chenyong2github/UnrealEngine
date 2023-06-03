@@ -290,16 +290,19 @@ void UChaosClothAssetEditorMode::Exit()
 {
 	UActorComponent::MarkRenderStateDirtyEvent.RemoveAll(this);
 
-	for (TObjectPtr<UDynamicMeshComponent> DynamicMeshComp : DynamicMeshComponents)
+	if (DynamicMeshComponent)
 	{
-		DynamicMeshComp->UnregisterComponent();
-		DynamicMeshComp->SelectionOverrideDelegate.Unbind();
+		DynamicMeshComponent->UnregisterComponent();
+		DynamicMeshComponent->SelectionOverrideDelegate.Unbind();
 	}
+	DynamicMeshComponent = nullptr;
+	DynamicMeshComponentParentActor = nullptr;
 
-	for (TObjectPtr<UMeshElementsVisualizer> WireframeDisplay : WireframesToTick)
+	if (WireframeToTick)
 	{
-		WireframeDisplay->Disconnect();
+		WireframeToTick->Disconnect();
 	}
+	WireframeToTick = nullptr;
 
 	if (DataflowComponent)
 	{
@@ -307,8 +310,6 @@ void UChaosClothAssetEditorMode::Exit()
 		DataflowComponent->DestroyComponent();
 	}
 
-	WireframesToTick.Reset();
-	DynamicMeshComponents.Reset();
 	PropertyObjectsToTick.Empty();
 	PreviewScene = nullptr;
 
@@ -392,7 +393,7 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 {
 	using namespace UE::Chaos::ClothAsset;
 
-	auto SetUpDynamicMeshComponentMaterial = [this](const UE::Chaos::ClothAsset::FCollectionClothLodConstFacade& ClothLodFacade, UDynamicMeshComponent& MeshComponent)
+	auto SetUpDynamicMeshComponentMaterial = [this](const UE::Chaos::ClothAsset::FCollectionClothConstFacade& ClothFacade, UDynamicMeshComponent& MeshComponent)
 	{
 		switch (ConstructionViewMode)
 		{
@@ -410,7 +411,7 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 			break;
 			case EClothPatternVertexType::Render:
 			{
-				const TArrayView<const FString> MaterialPaths = ClothLodFacade.GetRenderMaterialPathName();
+				const TArrayView<const FString> MaterialPaths = ClothFacade.GetRenderMaterialPathName();
 				for (int32 MaterialIndex = 0; MaterialIndex < MaterialPaths.Num(); ++MaterialIndex)
 				{
 					const FString& Path = MaterialPaths[MaterialIndex];
@@ -422,36 +423,33 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 		}
 	};
 	
-	// Clean up any existing DynamicMeshComponents
+	// Clean up existing DynamicMeshComponent
 	// Save indices of selected mesh components
-	const int32 TotalNumberExistingDynamicMeshComponents = DynamicMeshComponents.Num();
 
 	USelection* SelectedComponents = GetModeManager()->GetSelectedComponents();
-	for (int32 DynamicMeshComponentIndex = 0; DynamicMeshComponentIndex < DynamicMeshComponents.Num(); ++DynamicMeshComponentIndex)
+
+	if (DynamicMeshComponent)
 	{
 		// TODO: Check for any outstanding changes on the dynamic mesh component?
+		DynamicMeshComponent->UnregisterComponent();
+		DynamicMeshComponent->SelectionOverrideDelegate.Unbind();
 
-		TObjectPtr<UDynamicMeshComponent> DynamicMeshComp = DynamicMeshComponents[DynamicMeshComponentIndex];
-		DynamicMeshComp->UnregisterComponent();
-		DynamicMeshComp->SelectionOverrideDelegate.Unbind();
-
-		if (SelectedComponents->IsSelected(DynamicMeshComp))
+		if (SelectedComponents->IsSelected(DynamicMeshComponent))
 		{
-			SelectedComponents->Deselect(DynamicMeshComp);
-			DynamicMeshComp->PushSelectionToProxy();
+			SelectedComponents->Deselect(DynamicMeshComponent);
+			DynamicMeshComponent->PushSelectionToProxy();
 		}
 	}
 
-	for (const TObjectPtr<UMeshElementsVisualizer> Wireframe : WireframesToTick)
+	if (WireframeToTick)
 	{
-		Wireframe->Disconnect();
+		WireframeToTick->Disconnect();
 	}
 
-	DynamicMeshComponents.Empty();
-	DynamicMeshComponentParentActors.Empty();
 	PropertyObjectsToTick.Empty();	// TODO: We only want to empty the wireframe display properties. Is anything else using this array?
-	WireframesToTick.Empty();
-	DynamicMeshSourceInfos.Empty();
+	DynamicMeshComponent = nullptr;
+	DynamicMeshComponentParentActor = nullptr;
+	WireframeToTick = nullptr;
 
 	TSharedPtr<FManagedArrayCollection> Collection = GetClothCollection();
 	if (!Collection)
@@ -461,164 +459,89 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 
 	const UE::Chaos::ClothAsset::FCollectionClothConstFacade ClothFacade(Collection);
 
-	for (int32 LodIndex = 0; LodIndex < ClothFacade.GetNumLods(); ++LodIndex)
+	UE::Geometry::FDynamicMesh3 LodMesh;
+	LodMesh.EnableAttributes();
+	FClothPatternToDynamicMesh Converter;
+	Converter.Convert(Collection, INDEX_NONE, ConstructionViewMode, LodMesh);
+
+	if (ConstructionViewMode == EClothPatternVertexType::Sim2D)
 	{
-		const UE::Chaos::ClothAsset::FCollectionClothLodConstFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
-
-		if (bCombineAllPatterns)
-		{
-			DynamicMeshComponents.SetNum(1);
-			DynamicMeshComponentParentActors.SetNum(1);
-
-			UE::Geometry::FDynamicMesh3 LodMesh;
-			LodMesh.EnableAttributes();
-			UE::Geometry::FDynamicMeshEditor MeshEditor(&LodMesh);
-
-			for (int32 PatternIndex = 0; PatternIndex < ClothLodFacade.GetNumPatterns(); ++PatternIndex)
-			{
-				UE::Geometry::FDynamicMesh3 PatternMesh;
-				FClothPatternToDynamicMesh Converter;
-				Converter.Convert(Collection, LodIndex, PatternIndex, ConstructionViewMode, PatternMesh);
-
-				if (ConstructionViewMode == EClothPatternVertexType::Sim2D)
-				{
-					// Use per-triangle normals for the 2D view
-					UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&PatternMesh);
-				}
-
-				UE::Geometry::FMeshIndexMappings IndexMapping;
-				MeshEditor.AppendMesh(&PatternMesh, IndexMapping);
-			}
-
-			// We only need an actor to allow use of HHitProxy for selection
-			const FRotator Rotation(0.0f, 0.0f, 0.0f);
-			const FActorSpawnParameters SpawnInfo;
-			const TObjectPtr<AActor> ParentActor = this->GetWorld()->SpawnActor<AActor>(FVector::ZeroVector, Rotation, SpawnInfo);
-			DynamicMeshComponentParentActors[0] = ParentActor;
-
-			DynamicMeshComponents[0] = NewObject<UDynamicMeshComponent>(ParentActor);
-			DynamicMeshComponents[0]->SetMesh(MoveTemp(LodMesh));		
-
-			SetUpDynamicMeshComponentMaterial(ClothLodFacade, *DynamicMeshComponents[0]);
-
-			DynamicMeshComponents[0]->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateUObject(this, &UChaosClothAssetEditorMode::IsComponentSelected);
-			DynamicMeshComponents[0]->RegisterComponentWithWorld(this->GetWorld());
-
-			DynamicMeshSourceInfos.Add(FDynamicMeshSourceInfo{ LodIndex, -1 });
-		}
-		else
-		{
-			const int32 NumComponents = ClothLodFacade.GetNumPatterns();
-			DynamicMeshComponents.SetNum(NumComponents);
-			DynamicMeshComponentParentActors.SetNum(NumComponents);
-
-			for (int32 PatternIndex = 0; PatternIndex < ClothLodFacade.GetNumPatterns(); ++PatternIndex)
-			{
-				UE::Geometry::FDynamicMesh3 PatternMesh;
-				FClothPatternToDynamicMesh Converter;
-				Converter.Convert(Collection, LodIndex, PatternIndex, ConstructionViewMode, PatternMesh);
-
-				if (ConstructionViewMode == EClothPatternVertexType::Sim2D)
-				{
-					// Use per-triangle normals for the 2D view
-					UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&PatternMesh);
-				}
-
-				// We only need an actor to allow use of HHitProxy for selection
-				const FRotator Rotation(0.0f, 0.0f, 0.0f);
-				const FActorSpawnParameters SpawnInfo;
-				const TObjectPtr<AActor> ParentActor = this->GetWorld()->SpawnActor<AActor>(FVector::ZeroVector, Rotation, SpawnInfo);
-				DynamicMeshComponentParentActors[PatternIndex] = ParentActor;
-
-				TObjectPtr<UDynamicMeshComponent> PatternMeshComponent = NewObject<UDynamicMeshComponent>(ParentActor);
-				PatternMeshComponent->SetMesh(MoveTemp(PatternMesh));
-
-				SetUpDynamicMeshComponentMaterial(ClothLodFacade, *PatternMeshComponent);
-
-				DynamicMeshComponents[PatternIndex]->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateUObject(this, &UChaosClothAssetEditorMode::IsComponentSelected);
-				DynamicMeshComponents[PatternIndex]->RegisterComponentWithWorld(this->GetWorld());
-
-				DynamicMeshComponents[PatternIndex] = PatternMeshComponent;
-				DynamicMeshSourceInfos.Add(FDynamicMeshSourceInfo{ LodIndex, PatternIndex });
-			}
-		}
-
-		// If we found any patterns, use this LOD
-		// TODO: Give the user the ability to specify which LOD to display
-		if (ClothLodFacade.GetNumPatterns() > 0)
-		{
-			break;
-		}
+		// Use per-triangle normals for the 2D view
+		UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&LodMesh);
 	}
 
-	for (TObjectPtr<UDynamicMeshComponent> RestSpaceMeshComponent : DynamicMeshComponents)
+	// We only need an actor to allow use of HHitProxy for selection
+	const FRotator Rotation(0.0f, 0.0f, 0.0f);
+	const FActorSpawnParameters SpawnInfo;
+	DynamicMeshComponentParentActor = this->GetWorld()->SpawnActor<AActor>(FVector::ZeroVector, Rotation, SpawnInfo);
+
+	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(DynamicMeshComponentParentActor);
+	DynamicMeshComponent->SetMesh(MoveTemp(LodMesh));
+
+	SetUpDynamicMeshComponentMaterial(ClothFacade, *DynamicMeshComponent);
+
+	DynamicMeshComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateUObject(this, &UChaosClothAssetEditorMode::IsComponentSelected);
+	DynamicMeshComponent->RegisterComponentWithWorld(this->GetWorld());
+
+	// Set up the wireframe display of the rest space mesh.
+	WireframeToTick = NewObject<UMeshElementsVisualizer>(this);
+	WireframeToTick->CreateInWorld(GetWorld(), FTransform::Identity);
+
+	WireframeToTick->Settings->DepthBias = 2.0;
+	WireframeToTick->Settings->bAdjustDepthBiasUsingMeshSize = false;
+	WireframeToTick->Settings->bShowWireframe = true;
+	WireframeToTick->Settings->bShowBorders = true;
+	WireframeToTick->Settings->bShowUVSeams = false;
+	WireframeToTick->Settings->bShowNormalSeams = false;
+
+	// These are not exposed at the visualizer level yet
+	// TODO: Should they be?
+	WireframeToTick->WireframeComponent->BoundaryEdgeThickness = 2;
+
+	WireframeToTick->SetMeshAccessFunction([this](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc)
 	{
-		// Set up the wireframe display of the rest space mesh.
-		TObjectPtr<UMeshElementsVisualizer> WireframeDisplay = NewObject<UMeshElementsVisualizer>(this);
-		WireframeDisplay->CreateInWorld(GetWorld(), FTransform::Identity);
+		ProcessFunc(*DynamicMeshComponent->GetMesh());
+	});
 
-		WireframeDisplay->Settings->DepthBias = 2.0;
-		WireframeDisplay->Settings->bAdjustDepthBiasUsingMeshSize = false;
-		WireframeDisplay->Settings->bShowWireframe = true;
-		WireframeDisplay->Settings->bShowBorders = true;
-		WireframeDisplay->Settings->bShowUVSeams = false;
-		WireframeDisplay->Settings->bShowNormalSeams = false;
-
-		// These are not exposed at the visualizer level yet
-		// TODO: Should they be?
-		WireframeDisplay->WireframeComponent->BoundaryEdgeThickness = 2;
-
-		WireframeDisplay->SetMeshAccessFunction([RestSpaceMeshComponent](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc)
+	DynamicMeshComponent->OnMeshChanged.Add(
+		FSimpleMulticastDelegate::FDelegate::CreateLambda([this]()
 		{
-			ProcessFunc(*RestSpaceMeshComponent->GetMesh());
-		});
-
-		RestSpaceMeshComponent->OnMeshChanged.Add(
-			FSimpleMulticastDelegate::FDelegate::CreateLambda([WireframeDisplay]()
-		{
-			WireframeDisplay->NotifyMeshChanged();
+			WireframeToTick->NotifyMeshChanged();
 		}));
 
-		// The settings object and wireframe are not part of a tool, so they won't get ticked like they
-		// are supposed to (to enable property watching), unless we add this here.
-		PropertyObjectsToTick.Add(WireframeDisplay->Settings);
-		int32 WireframeIndex = WireframesToTick.Add(WireframeDisplay);
+	// The settings object and wireframe are not part of a tool, so they won't get ticked like they
+	// are supposed to (to enable property watching), unless we add this here.
+	PropertyObjectsToTick.Add(WireframeToTick->Settings);
 
-		// Some interactive tools will hide the input DynamicMeshComponent and create their own temporary PreviewMesh for visualization. If this
-		// occurs, we should also hide the corresponding WireframeDisplay (and un-hide it when the tool finishes).
-		UActorComponent::MarkRenderStateDirtyEvent.AddWeakLambda(this, [WireframeIndex, this](UActorComponent& ActorComponent)
+	// Some interactive tools will hide the input DynamicMeshComponent and create their own temporary PreviewMesh for visualization. If this
+	// occurs, we should also hide the corresponding WireframeDisplay (and un-hide it when the tool finishes).
+	UActorComponent::MarkRenderStateDirtyEvent.AddWeakLambda(this, [this](UActorComponent& ActorComponent)
+	{
+		if (!WireframeToTick || !DynamicMeshComponent)
 		{
-			if (WireframeIndex >= WireframesToTick.Num() || WireframeIndex >= DynamicMeshComponents.Num())
-			{
-				return;
-			}
+			return;
+		}
+		const bool bRestSpaceMeshVisible = DynamicMeshComponent->GetVisibleFlag();
+		WireframeToTick->Settings->bVisible = bRestSpaceMeshVisible && bConstructionViewWireframe;
+	});
 
-			TObjectPtr<UMeshElementsVisualizer> WireframeDisplay = WireframesToTick[WireframeIndex];
-			const TObjectPtr<UDynamicMeshComponent> RestSpaceMesh = DynamicMeshComponents[WireframeIndex];
-
-			if (!WireframeDisplay || !RestSpaceMesh)
-			{
-				return;
-			}
-
-			const bool bRestSpaceMeshVisible = RestSpaceMesh->GetVisibleFlag();
-			WireframeDisplay->Settings->bVisible = bRestSpaceMeshVisible && bConstructionViewWireframe;
-		});
-
-		const bool bRestSpaceMeshVisible = RestSpaceMeshComponent->GetVisibleFlag();
-		WireframeDisplay->Settings->bVisible = bRestSpaceMeshVisible && bConstructionViewWireframe;
-	}
+	const bool bRestSpaceMeshVisible = DynamicMeshComponent->GetVisibleFlag();
+	WireframeToTick->Settings->bVisible = bRestSpaceMeshVisible && bConstructionViewWireframe;
 
 	SelectedComponents->DeselectAll();
 	if (ConstructionViewMode != EClothPatternVertexType::Render)
 	{
-		SelectedComponents->BeginBatchSelectOperation();
-		for (TObjectPtr<UDynamicMeshComponent> RestSpaceMeshComponent : DynamicMeshComponents)
-		{
-			SelectedComponents->Select(RestSpaceMeshComponent);
-			RestSpaceMeshComponent->PushSelectionToProxy();
-		}
-		SelectedComponents->EndBatchSelectOperation();
+		SelectedComponents->Select(DynamicMeshComponent);
+		DynamicMeshComponent->PushSelectionToProxy();
+	}
+
+	// Update the context object with the ConstructionViewMode and Collection used to build the DynamicMeshComponents, so 
+	// tools know how to use the components.
+	UEditorInteractiveToolsContext* const RestSpaceToolsContext = GetInteractiveToolsContext();
+	UClothEditorContextObject* EditorContextObject = RestSpaceToolsContext->ContextObjectStore->FindContext<UClothEditorContextObject>();
+	if (ensure(EditorContextObject))
+	{
+		EditorContextObject->SetClothCollection(ConstructionViewMode, Collection);
 	}
 }
 
@@ -755,12 +678,9 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 		}
 	}
 
-	for (TWeakObjectPtr<UMeshElementsVisualizer> WireframeDisplay : WireframesToTick)
+	if (WireframeToTick)
 	{
-		if (WireframeDisplay.IsValid())
-		{
-			WireframeDisplay->OnTick(DeltaTime);
-		}
+		WireframeToTick->OnTick(DeltaTime);
 	}
 
 
@@ -806,20 +726,9 @@ FBox UChaosClothAssetEditorMode::SceneBoundingBox() const
 {
 	FBoxSphereBounds TotalBounds(ForceInitToZero);
 	
-	bool bFoundMeshBounds = false;
-	for (const TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent : DynamicMeshComponents)
+	if (DynamicMeshComponent)
 	{
-		const FBoxSphereBounds& CurrentBounds = DynamicMeshComponent->Bounds;
-
-		if (!bFoundMeshBounds)
-		{
-			TotalBounds = CurrentBounds;
-			bFoundMeshBounds = true;
-		}
-		else
-		{
-			TotalBounds = TotalBounds + CurrentBounds;
-		}
+		TotalBounds = DynamicMeshComponent->Bounds;
 	}
 
 	return TotalBounds.GetBox();
@@ -827,40 +736,15 @@ FBox UChaosClothAssetEditorMode::SceneBoundingBox() const
 
 FBox UChaosClothAssetEditorMode::SelectionBoundingBox() const
 {
-	FBoxSphereBounds TotalBounds;
-
 	const USelection* const SelectedComponents = GetModeManager()->GetSelectedComponents();
 
-	bool bFoundSelected = false;
-	for (const TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent : DynamicMeshComponents)
+	if (DynamicMeshComponent && SelectedComponents->IsSelected(DynamicMeshComponent))
 	{
-		if (SelectedComponents->IsSelected(DynamicMeshComponent))
-		{
-			const FBoxSphereBounds& CurrentBounds = DynamicMeshComponent->Bounds;
-
-			if (!bFoundSelected)
-			{
-				TotalBounds = CurrentBounds;
-				bFoundSelected = true;
-			}
-			else
-			{
-				TotalBounds = TotalBounds + CurrentBounds;
-			}
-			
-		}
+		return DynamicMeshComponent->Bounds.GetBox();
 	}
-
-	if (bFoundSelected)
-	{
-		return TotalBounds.GetBox();
-	}
-	else
-	{
-		// Nothing selected, return the whole scene
-		return SceneBoundingBox();
-	}
-
+	
+	// Nothing selected, return the whole scene
+	return SceneBoundingBox();
 }
 
 
@@ -939,7 +823,7 @@ void UChaosClothAssetEditorMode::InitializeContextObject()
 		RestSpaceToolsContext->ContextObjectStore->AddContextObject(EditorContextObject);
 	}
 
-	EditorContextObject->Init(DataflowGraphEditor, DataflowGraph);
+	EditorContextObject->Init(DataflowGraphEditor, DataflowGraph, ConstructionViewMode, SelectedClothCollection);
 
 	check(EditorContextObject);
 

@@ -35,6 +35,13 @@ struct FClothTetherData
 		const TConstArrayView<float>& MaxDistances,  // Mask for sorting the kinematic from the dynamic points
 		bool bUseGeodesicDistance);  // Whether to use geodesic (walking along the sruface) or euclidean (beeline) distances to find the tethers.
 
+	/**
+	 * Generate the tether batches from existing tether data.
+	 * PerDynamicNodeTethers is an array where Index = DynamicIndex, and Value is an array of TPair<float, int32>  = {Distance, KinematicIndex}
+	 */
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void GenerateTethers(
+		TArray<TArray<TPair<float, int32>>>&& PerDynamicNodeTethers);
+
 	/** Custom serializer, since neiher an array of array nor a tuple can be set as a UPROPERTY. */ 
 	bool Serialize(FArchive& Ar);
 };

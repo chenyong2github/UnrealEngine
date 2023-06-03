@@ -36,7 +36,7 @@ void FChaosClothAssetCopySimulationToRenderMeshNode::Evaluate(Dataflow::FContext
 			FString(TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"));
 
 		// Copy the mesh data
-		FClothGeometryTools::CopySimMeshToRenderMesh(ClothCollection, MaterialPathName);
+		FClothGeometryTools::CopySimMeshToRenderMesh(ClothCollection, MaterialPathName, bGenerateSingleRenderPattern);
 
 		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
 	}

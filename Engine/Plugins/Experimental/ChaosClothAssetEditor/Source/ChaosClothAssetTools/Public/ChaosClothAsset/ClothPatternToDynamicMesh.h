@@ -14,13 +14,16 @@ namespace UE::Chaos::ClothAsset
 {
 
 /**
-* Convert a single pattern from a ClothAsset to a FDynamicMesh3
+* Convert a single pattern from a ClothAsset to a FDynamicMesh3. 
+* When PatternIndex = INDEX_NONE, convert the entire cloth asset to an FDynamicMesh3.
+* When VertexDataType = EClothPatternVertexType::Sim3D, this generates a welded mesh (with native welded indexing) when PatternIndex = INDEX_NONE,
+*	and an unwelded (with native 2D unwelded indexing) when PatternIndex is a valid SimPattern Index.
 */
 class CHAOSCLOTHASSETTOOLS_API FClothPatternToDynamicMesh
 {
 public:
 
-	void Convert(const TSharedPtr<const FManagedArrayCollection> ClothCollection, int32 LODIndex, int32 PatternIndex, EClothPatternVertexType VertexDataType, UE::Geometry::FDynamicMesh3& MeshOut);
+	void Convert(const TSharedPtr<const FManagedArrayCollection> ClothCollection, int32 PatternIndex, EClothPatternVertexType VertexDataType, UE::Geometry::FDynamicMesh3& MeshOut);
 
 	void Convert(const UChaosClothAsset* ClothAssetMeshIn, int32 LODIndex, int32 PatternIndex, EClothPatternVertexType VertexDataType, UE::Geometry::FDynamicMesh3& MeshOut);
 };

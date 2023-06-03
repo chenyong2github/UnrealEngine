@@ -28,6 +28,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Render Mesh")
 	TObjectPtr<const UMaterialInterface> Material;
 
+	/** Generate a single render pattern rather than a render pattern per sim pattern */
+	UPROPERTY(EditAnywhere, Category = "Render Mesh")
+	bool bGenerateSingleRenderPattern = false;
+
 	FChaosClothAssetCopySimulationToRenderMeshNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;

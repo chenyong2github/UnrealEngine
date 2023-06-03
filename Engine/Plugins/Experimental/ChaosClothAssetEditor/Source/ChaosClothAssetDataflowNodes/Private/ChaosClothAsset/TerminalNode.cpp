@@ -25,105 +25,85 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 	if (UChaosClothAsset* ClothAsset = Cast<UChaosClothAsset>(Asset.Get()))
 	{
 		using namespace UE::Chaos::ClothAsset;
+		const TArray<const FManagedArrayCollection*> CollectionLods = GetCollectionLods();
 
 		// Reset the asset's collection
-		const TSharedPtr<FManagedArrayCollection> ClothCollection = ClothAsset->GetClothCollection();
-		ClothCollection->Reset();
+		TArray<TSharedPtr<FManagedArrayCollection>>& ClothCollections = ClothAsset->GetClothCollections();
+		ClothCollections.Reset(CollectionLods.Num());
 
 		// Reset the asset's material list
 		ClothAsset->GetMaterials().Reset();
 
-		// Define the final container's collection schema
-		FCollectionClothFacade ClothFacade(ClothCollection);
-		ClothFacade.DefineSchema();
-
 		// Iterate through the LODs
 		FString PhysicsAssetPathName;
 
-		const TArray<const FManagedArrayCollection*> CollectionLods = GetCollectionLods();
 		int32 LastValidLodIndex = INDEX_NONE;
 		for (int32 LodIndex = 0; LodIndex < CollectionLods.Num(); ++LodIndex)
 		{
 			// New LOD
-			const int32 NewLodIndex = ClothFacade.AddLod();
-			check(NewLodIndex == LodIndex);
-			FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
+			TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
+			UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ClothCollection);
+			ClothFacade.DefineSchema();
 
 			// Retrieve input LOD
 			const FManagedArrayCollection& InCollectionLod = GetValue<FManagedArrayCollection>(Context, CollectionLods[LodIndex]);
 			const TSharedRef<const FManagedArrayCollection> InClothCollection = MakeShared<const FManagedArrayCollection>(InCollectionLod);
 
-			// Only use LOD 0 from input
 			const FCollectionClothConstFacade InClothFacade(InClothCollection);
-			if (InClothFacade.GetNumLods() >= 1)
-			{
-				const FCollectionClothLodConstFacade InClothLodFacade = InClothFacade.GetLod(0);
-
 				// Check LOD validity
-				if (InClothLodFacade.GetNumPatterns() &&
-					InClothLodFacade.GetNumSimVertices() &&
-					InClothLodFacade.GetNumSimFaces() &&
-					InClothLodFacade.GetNumRenderVertices() &&
-					InClothLodFacade.GetNumRenderFaces())
+			if (InClothFacade.GetNumSimPatterns() &&
+				InClothFacade.GetNumRenderPatterns() &&
+				InClothFacade.GetNumSimVertices2D() &&
+				InClothFacade.GetNumSimVertices3D() &&
+				InClothFacade.GetNumSimFaces() &&
+				InClothFacade.GetNumRenderVertices() &&
+				InClothFacade.GetNumRenderFaces())
+			{
+				LastValidLodIndex = LodIndex;
+
+				// Copy input LOD to current output LOD
+				ClothFacade.Initialize(InClothFacade);
+
+				// Add this LOD's materials to the asset
+				const int32 NumLodMaterials = ClothFacade.GetNumRenderPatterns();
+
+				TArray<FSkeletalMaterial>& Materials = ClothAsset->GetMaterials();
+				Materials.Reserve(Materials.Num() + NumLodMaterials);
+
+				const TConstArrayView<FString> LodRenderMaterialPathName = ClothFacade.GetRenderMaterialPathName();
+				for (int32 LodMaterialIndex = 0; LodMaterialIndex < NumLodMaterials; ++LodMaterialIndex)
 				{
-					LastValidLodIndex = LodIndex;
+					const FString& RenderMaterialPathName = LodRenderMaterialPathName[LodMaterialIndex];
 
-					// Copy input LOD 0 to current output LOD
-					ClothLodFacade.Initialize(InClothLodFacade);
-
-					// Add this LOD's materials to the asset
-					const int32 NumLodMaterials = InClothLodFacade.GetNumMaterials();
-
-					TArray<FSkeletalMaterial>& Materials = ClothAsset->GetMaterials();
-					Materials.Reserve(Materials.Num() + NumLodMaterials);
-
-					const TConstArrayView<FString> LodRenderMaterialPathName = ClothLodFacade.GetRenderMaterialPathName();
-					for (int32 LodMaterialIndex = 0; LodMaterialIndex < NumLodMaterials; ++LodMaterialIndex)
+					auto Predicate = [&RenderMaterialPathName](const FSkeletalMaterial& SkeletalMaterial)
 					{
-						const FString& RenderMaterialPathName = LodRenderMaterialPathName[LodMaterialIndex];
+						return SkeletalMaterial.MaterialInterface && SkeletalMaterial.MaterialInterface->GetPathName() == RenderMaterialPathName;
+					};
 
-						auto Predicate = [&RenderMaterialPathName](const FSkeletalMaterial& SkeletalMaterial)
+					if (!Materials.FindByPredicate(Predicate))
+					{
+						if (UMaterialInterface* const Material = LoadObject<UMaterialInterface>(ClothAsset, *RenderMaterialPathName, nullptr, LOAD_None, nullptr))
 						{
-							return SkeletalMaterial.MaterialInterface && SkeletalMaterial.MaterialInterface->GetPathName() == RenderMaterialPathName;
-						};
-
-						if (!Materials.FindByPredicate(Predicate))
-						{
-							if (UMaterialInterface* const Material = LoadObject<UMaterialInterface>(ClothAsset, *RenderMaterialPathName, nullptr, LOAD_None, nullptr))
-							{
-								Materials.Emplace(Material, true, false, Material->GetFName());
-							}
+							Materials.Emplace(Material, true, false, Material->GetFName());
 						}
 					}
+				}
 
-					const TArray<FName> MapNames = InClothFacade.GetWeightMapNames();
-					for (const FName& MapName : MapNames)
-					{
-						ClothFacade.AddWeightMap(MapName);
-						TArrayView<float> WeightMap = ClothLodFacade.GetWeightMap(MapName);
-						TConstArrayView<float> InWeightMap = InClothLodFacade.GetWeightMap(MapName);
-						for (int32 i = 0; i < WeightMap.Num(); ++i)
-						{
-							WeightMap[i] = InWeightMap[i];
-						}
-					}
+				// Set properties
+				Chaos::Softs::FCollectionPropertyMutableFacade(ClothCollection).Append(*InClothCollection);
 
-					// Set properties and physics asset only with LOD 0 at the moment
-					if (LodIndex == 0)
-					{
-						using namespace ::Chaos::Softs;
-
-						PhysicsAssetPathName = InClothLodFacade.GetPhysicsAssetPathName();
-
-						FCollectionPropertyMutableFacade(ClothCollection).Append(*InClothCollection);
-					}
+				// Set physics asset only with LOD 0 at the moment
+				if (LodIndex == 0)
+				{
+					using namespace ::Chaos::Softs;
+					PhysicsAssetPathName = InClothFacade.GetPhysicsAssetPathName();
 				}
 			}
 			if (LodIndex != LastValidLodIndex)
 			{
 				if (LastValidLodIndex >= 0)
 				{
-					ClothLodFacade.Initialize(ClothFacade.GetLod(LastValidLodIndex));
+					ClothFacade.Initialize(FCollectionClothConstFacade(ClothCollections[LastValidLodIndex]));
 
 					DataflowNodes::LogAndToastWarning(
 						FText::Format(
@@ -136,8 +116,6 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 				}
 				else
 				{
-					ClothFacade.SetNumLods(0);
-
 					DataflowNodes::LogAndToastWarning(
 						LOCTEXT(
 							"InvalidLod0",
@@ -149,9 +127,11 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 		}
 
 		// Make sure that whatever happens there is always at least one empty LOD to avoid crashing the render data
-		if (ClothFacade.GetNumLods() < 1)
+		if (ClothCollections.Num() < 1)
 		{
-			ClothFacade.AddLod();
+			TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
+			UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ClothCollection);
+			ClothFacade.DefineSchema();
 		}
 
 		// Set reference skeleton

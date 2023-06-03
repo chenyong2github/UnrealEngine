@@ -12,7 +12,8 @@ FChaosClothAssetReverseNormalsNode::FChaosClothAssetReverseNormalsNode(const Dat
 	: FDataflowNode(InParam, InGuid)
 {
 	RegisterInputConnection(&Collection);
-	RegisterInputConnection(&Patterns);
+	RegisterInputConnection(&SimPatterns);
+	RegisterInputConnection(&RenderPatterns);
 	RegisterOutputConnection(&Collection, &Collection);
 }
 
@@ -32,7 +33,8 @@ void FChaosClothAssetReverseNormalsNode::Evaluate(Dataflow::FContext& Context, c
 			bReverseSimMeshWindingOrder,
 			bReverseRenderMeshNormals,
 			bReverseRenderMeshWindingOrder,
-			Patterns);
+			GetValue<TArray<int32>>(Context, &SimPatterns),
+			GetValue<TArray<int32>>(Context, &RenderPatterns));
 
 		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
 	}

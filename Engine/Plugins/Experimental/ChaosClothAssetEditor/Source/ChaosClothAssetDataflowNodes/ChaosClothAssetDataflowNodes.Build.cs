@@ -35,6 +35,8 @@ public class ChaosClothAssetDataflowNodes : ModuleRules
 				"InputCore",
 				"MeshConversion",
 				"MeshDescription",
+				"MeshUtilitiesCommon",
+				"RenderCore",
 				"SkeletalMeshDescription",
 				"Slate",
 				"SlateCore",

@@ -9,45 +9,38 @@
 namespace UE::Chaos::ClothAsset
 {
 
-void FClothEngineTools::GenerateTethers(const TSharedPtr<FManagedArrayCollection>& ClothCollection, const FName& WeightMap, const bool bGenerateGeodesicTethers)
+void FClothEngineTools::GenerateTethers(const TSharedPtr<FManagedArrayCollection>& ClothCollection, const FName& WeightMapName, const bool bGenerateGeodesicTethers)
 {
 	FCollectionClothFacade ClothFacade(ClothCollection);
-	if (ClothFacade.HasWeightMap(WeightMap))
+	FClothGeometryTools::DeleteTethers(ClothCollection);
+	if (ClothFacade.HasWeightMap(WeightMapName))
 	{
-		for (int32 LodIndex = 0; LodIndex < ClothFacade.GetNumLods(); ++LodIndex)
+		FClothTetherData TetherData;
+		TArray<uint32> SimIndices;
+		SimIndices.Reserve(ClothFacade.GetNumSimFaces() * 3);
+		for (const FIntVector3& Face : ClothFacade.GetSimIndices3D())
 		{
-			FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
+			SimIndices.Add(Face[0]);
+			SimIndices.Add(Face[1]);
+			SimIndices.Add(Face[2]);
+		}
+		TetherData.GenerateTethers(ClothFacade.GetSimPosition3D(), TConstArrayView<uint32>(SimIndices), ClothFacade.GetWeightMap(WeightMapName), bGenerateGeodesicTethers);
 
-			// We want to create the tethers based on the welded mesh, so create that now
-			TArray<FVector3f> Positions;
-			TArray<FVector3f> Normals;
-			TArray<uint32> Indices;
-			TArray<FVector2f> PatternsPositions;
-			TArray<uint32> PatternsIndices;
-			TArray<uint32> PatternToWeldedIndices;
-			TArray<TArray<int32>> WeldedToPatternIndices;
-			ClothLodFacade.BuildSimulationMesh(Positions, Normals, Indices, PatternsPositions, PatternsIndices, PatternToWeldedIndices, &WeldedToPatternIndices);
-
-			const TArray<float> WeldedWeightMap = FClothGeometryTools::BuildWeldedWeightMapForLod(ClothCollection, LodIndex, WeightMap, WeldedToPatternIndices);
-
-			FClothTetherData TetherData;
-			TetherData.GenerateTethers(TConstArrayView<FVector3f>(Positions), TConstArrayView<uint32>(Indices), TConstArrayView<float>(WeldedWeightMap), bGenerateGeodesicTethers);
-
-			// Set new tethers
-			const int32 NumTetherBatches = TetherData.Tethers.Num();
-			ClothLodFacade.SetNumTetherBatches(NumTetherBatches);
-			for (int32 TetherBatchIndex = 0; TetherBatchIndex < NumTetherBatches; ++TetherBatchIndex)
+		// Append new tethers
+		TArrayView<TArray<int32>> TetherKinematicIndex = ClothFacade.GetTetherKinematicIndex();
+		TArrayView<TArray<float>> TetherReferenceLength = ClothFacade.GetTetherReferenceLength();
+		for(const TArray<TTuple<int32, int32, float>>& TetherBatch : TetherData.Tethers)
+		{
+			for (const TTuple<int32, int32, float>& Tether : TetherBatch)
 			{
-				TArray<TTuple<int32, int32, float>>& TetherBatch = TetherData.Tethers[TetherBatchIndex];
-				// Remap tether data indices back to unwelded indices. Just set them to the first of the unwelded index if that welded index is formed from multiple unwelded indices.
-				for (TTuple<int32, int32, float>& Tether : TetherBatch)
-				{
-					Tether.Get<0>() = WeldedToPatternIndices[Tether.Get<0>()][0];
-					Tether.Get<1>() = WeldedToPatternIndices[Tether.Get<1>()][0];
-				}
-
-				FCollectionClothTetherBatchFacade TetherBatchFacade = ClothLodFacade.GetTetherBatch(TetherBatchIndex);
-				TetherBatchFacade.Initialize(TetherBatch);
+				// Tuple is Kinematic, Dynamic, RefLength
+				const int32 DynamicIndex = Tether.Get<1>();
+				TArray<int32>& KinematicIndex = TetherKinematicIndex[DynamicIndex];
+				TArray<float>& ReferenceLength = TetherReferenceLength[DynamicIndex];
+				check(KinematicIndex.Num() == ReferenceLength.Num());
+				checkSlow(KinematicIndex.Find(Tether.Get<0>()) == INDEX_NONE);
+				KinematicIndex.Add(Tether.Get<0>());
+				ReferenceLength.Add(Tether.Get<2>());
 			}
 		}
 	}

@@ -28,11 +28,7 @@ void FChaosClothAssetSetPhysicsAssetNode::Evaluate(Dataflow::FContext& Context, 
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 
 		FCollectionClothFacade CollectionClothFacade(ClothCollection);
-		if (CollectionClothFacade.GetNumLods() > 0)
-		{
-			FCollectionClothLodFacade CollectionClothLodFacade = CollectionClothFacade.GetLod(0);
-			CollectionClothLodFacade.SetPhysicsAssetPathName(PhysicsAsset.GetPathName());
-		}
+		CollectionClothFacade.SetPhysicsAssetPathName(PhysicsAsset.GetPathName());
 
 		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
 	}

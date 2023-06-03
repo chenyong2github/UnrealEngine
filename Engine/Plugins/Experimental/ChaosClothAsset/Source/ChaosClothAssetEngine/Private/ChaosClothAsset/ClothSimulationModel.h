@@ -96,7 +96,7 @@ struct FChaosClothSimulationModel
 	int32 ReferenceBoneIndex = INDEX_NONE;
 
 	FChaosClothSimulationModel() = default;
-	FChaosClothSimulationModel(const TSharedPtr<const FManagedArrayCollection>& ClothCollection, const FReferenceSkeleton& ReferenceSkeleton);
+	FChaosClothSimulationModel(const TArray<TSharedPtr<const FManagedArrayCollection>>& ClothCollections, const FReferenceSkeleton& ReferenceSkeleton);
 
 	int32 GetNumLods() const { return ClothSimulationLodModels.Num(); }
 

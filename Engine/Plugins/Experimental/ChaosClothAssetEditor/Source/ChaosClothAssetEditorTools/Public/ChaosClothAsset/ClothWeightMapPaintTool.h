@@ -461,6 +461,11 @@ protected:
 	TArray<int32> NormalSeamEdges;
 	void PrecomputeFilterData();
 
+	// DynamicMesh might be unwelded mesh, but weights are on the welded mesh.
+	bool bHaveDynamicMeshToWeightConversion = false;
+	TArray<int32> DynamicMeshToWeight; 
+	TArray<TArray<int32>> WeightToDynamicMesh;
+
 protected:
 	virtual bool ShowWorkPlane() const override { return false; }
 

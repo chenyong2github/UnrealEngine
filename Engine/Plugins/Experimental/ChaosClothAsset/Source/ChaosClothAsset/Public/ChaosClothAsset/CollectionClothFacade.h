@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "ChaosClothAsset/CollectionClothLodFacade.h"
+#include "ChaosClothAsset/CollectionClothSimPatternFacade.h"
+#include "ChaosClothAsset/CollectionClothRenderPatternFacade.h"
+#include "ChaosClothAsset/CollectionClothSeamFacade.h"
 
 class FClothCollection;
 namespace Chaos
@@ -34,11 +36,80 @@ namespace UE::Chaos::ClothAsset
 		/** Return whether the facade is defined on the collection. */
 		bool IsValid() const;
 
-		/** Return the specified LOD. */
-		FCollectionClothLodConstFacade GetLod(int32 LodIndex) const;
+		//~ LOD (single per collection) Group
+		/** Return the physics asset path names used for this collection. */
+		const FString& GetPhysicsAssetPathName() const;
+		/** Return the skeleton asset path names used for this collection. */
+		const FString& GetSkeletonAssetPathName() const;
 
-		/** Return the number of LODs contained in this Cloth. */
-		int32 GetNumLods() const;
+		//~ Sim Vertices 2D Group
+		/** Return the total number of 2D simulation vertices for this collection. */
+		int32 GetNumSimVertices2D() const;
+		TConstArrayView<FVector2f> GetSimPosition2D() const;
+		TConstArrayView<int32> GetSimVertex3DLookup() const;
+
+		//~ Sim Vertices 3D Group
+		/** Return the total number of 3D simulation vertices for this collection. */
+		int32 GetNumSimVertices3D() const;
+		TConstArrayView<FVector3f> GetSimPosition3D() const;
+		TConstArrayView<FVector3f> GetSimNormal() const;
+		TConstArrayView<TArray<int32>> GetSimBoneIndices() const;
+		TConstArrayView<TArray<float>> GetSimBoneWeights() const;
+		TConstArrayView<TArray<int32>> GetTetherKinematicIndex() const;
+		TConstArrayView<TArray<float>> GetTetherReferenceLength() const;
+		TConstArrayView<TArray<int32>> GetSimVertex2DLookup() const;
+		TConstArrayView<TArray<int32>> GetSeamStitchLookup() const;
+
+		//~ Sim Faces Group
+		/** Return the total number of simulation faces for this collection across all patterns. */
+		int32 GetNumSimFaces() const;
+		TConstArrayView<FIntVector3> GetSimIndices2D() const;
+		TConstArrayView<FIntVector3> GetSimIndices3D() const;
+
+		//~ Sim Patterns Group
+		/** Return the number of patterns in this collection. */
+		int32 GetNumSimPatterns() const;
+		/** Return a pattern facade for the specified pattern index. */
+		FCollectionClothSimPatternConstFacade GetSimPattern(int32 PatternIndex) const;
+		/** Convenience to find which sim pattern a 2D vertex belongs to */
+		int32 FindSimPatternByVertex2D(int32 Vertex2DIndex) const;
+		/** Convenience to find which sim pattern a sim face belongs to */
+		int32 FindSimPatternByFaceIndex(int32 FaceIndex) const;
+
+
+		//~ Render Patterns Group
+		/** Return the number of patterns in this collection. */
+		int32 GetNumRenderPatterns() const;
+		/** Return a pattern facade for the specified pattern index. */
+		FCollectionClothRenderPatternConstFacade GetRenderPattern(int32 PatternIndex) const;
+		/** Return a view of all the render materials used on this collection across all patterns. */
+		TConstArrayView<FString> GetRenderMaterialPathName() const;
+		/** Convenience to find which render pattern a render vertex belongs to */
+		int32 FindRenderPatternByVertex(int32 VertexIndex) const;
+		/** Convenience to find which render pattern a render face belongs to */
+		int32 FindRenderPatternByFaceIndex(int32 FaceIndex) const;
+
+		//~ Seam Group
+		/** Return the number of seams in this collection. */
+		int32 GetNumSeams() const;
+		/** Return a seam facade for the specified pattern index. */
+		FCollectionClothSeamConstFacade GetSeam(int32 SeamIndex) const;
+
+		//~ Render Vertices Group
+		/** Return the total number of render vertices for this collection. */
+		int32 GetNumRenderVertices() const;
+		TConstArrayView<FVector3f> GetRenderPosition() const;
+		TConstArrayView<FVector3f> GetRenderNormal() const;
+		TConstArrayView<FVector3f> GetRenderTangentU() const;
+		TConstArrayView<FVector3f> GetRenderTangentV() const;
+		TConstArrayView<TArray<FVector2f>> GetRenderUVs() const;
+		TConstArrayView<FLinearColor> GetRenderColor() const;
+		TConstArrayView<TArray<int32>> GetRenderBoneIndices() const;
+		TConstArrayView<TArray<float>> GetRenderBoneWeights() const;
+
+		//~ Render Faces Group
+		int32 GetNumRenderFaces() const;
+		TConstArrayView<FIntVector3> GetRenderIndices() const;
 
 		/** Return whether this cloth collection has the specified weight map. */
 		bool HasWeightMap(const FName& Name) const;
@@ -46,8 +117,17 @@ namespace UE::Chaos::ClothAsset
 		/** Return the name of all user weight maps on this cloth collection. */
 		TArray<FName> GetWeightMapNames() const;
 
+		TConstArrayView<float> GetWeightMap(const FName& Name) const;
+
+		void BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices, TArray<FVector2f>& PatternsPositions, TArray<uint32>& PatternsIndices, 
+			TArray<uint32>& PatternToWeldedIndices, TArray<TArray<int32>>* OptionalWeldedToPatternIndices = nullptr) const;
+
 	protected:
 		TSharedPtr<const FClothCollection> ClothCollection;
+
+		friend class FCollectionClothSeamFacade;
+		friend class FCollectionClothSeamConstFacade;
+		explicit FCollectionClothConstFacade(const TSharedPtr<const FClothCollection>& ClothCollection);
 	};
 
 	/**
@@ -74,20 +154,88 @@ namespace UE::Chaos::ClothAsset
 		/** Remove all LODs from this cloth. */
 		void Reset();
 
-		/** Post serialize function. Use to upgrade between versions.*/
-		void PostSerialize(const ::Chaos::FChaosArchive& Ar);
+		/** Initialize the cloth using another cloth collection. */
+		void Initialize(const FCollectionClothConstFacade& Other);
 
-		/** Add a new LOD to this cloth. */
-		int32 AddLod();
+		/** Append data from another cloth collection. */
+		void Append(const FCollectionClothConstFacade& Other);
 
-		/** Return the specified LOD. */
-		FCollectionClothLodFacade GetLod(int32 LodIndex);
+		/** Append to this cloth another cloth. */
+		//void Append(const FCollectionClothConstFacade& Other);
 
-		/** Add a new LOD to this cloth, and return the cloth LOD facade set to its index. */
-		FCollectionClothLodFacade AddGetLod() { return GetLod(AddLod()); }
+		//~ LOD (single per collection) Group
+		/** Set the physics asset path name. */
+		void SetPhysicsAssetPathName(const FString& PathName);
+		/** Set the skeleton asset path name. */
+		void SetSkeletonAssetPathName(const FString& PathName);
 
-		/** Set a new number of LODs for this cloth. */
-		void SetNumLods(int32 NumLods);
+		//~ Pattern Sim Vertices 2D Group
+		/** SetNumSimVertices2D per pattern within pattern facade. */
+		TArrayView<FVector2f> GetSimPosition2D();
+
+		//~ Pattern Sim Vertices 3D Group
+		TArrayView<FVector3f> GetSimPosition3D();
+		TArrayView<FVector3f> GetSimNormal();
+		TArrayView<TArray<int32>> GetSimBoneIndices();
+		TArrayView<TArray<float>> GetSimBoneWeights();
+		TArrayView<TArray<int32>> GetTetherKinematicIndex();
+		TArrayView<TArray<float>> GetTetherReferenceLength();
+
+		/** This will remove the 3D vertices, but the associated seams and 2D vertices will still exist, and point to INDEX_NONE */
+		void RemoveSimVertices3D(int32 NumSimVertices);
+		void RemoveAllSimVertices3D() { RemoveSimVertices3D(GetNumSimVertices3D()); }
+
+		//~ Pattern Sim Faces Group
+		/** SetNumSimFaces per pattern within pattern facade. */
+		TArrayView<FIntVector3> GetSimIndices2D();
+		TArrayView<FIntVector3> GetSimIndices3D();
+
+		//~ Sim Patterns Group
+		/** Set the new number of patterns to this cloth LOD. */
+		void SetNumSimPatterns(int32 NumPatterns);
+		/** Add a new pattern to this cloth LOD and return its index in the LOD pattern list. */
+		int32 AddSimPattern();
+		/** Return a pattern facade for the specified pattern index. */
+		FCollectionClothSimPatternFacade GetSimPattern(int32 PatternIndex);
+		/** Add a new pattern to this cloth LOD, and return the cloth pattern facade set to its index. */
+		FCollectionClothSimPatternFacade AddGetSimPattern() { return GetSimPattern(AddSimPattern()); }
+
+		//~ Render Patterns Group
+		/** Set the new number of patterns to this cloth LOD. */
+		void SetNumRenderPatterns(int32 NumPatterns);
+		/** Add a new pattern to this cloth LOD and return its index in the LOD pattern list. */
+		int32 AddRenderPattern();
+		/** Return a pattern facade for the specified pattern index. */
+		FCollectionClothRenderPatternFacade GetRenderPattern(int32 PatternIndex);
+		/** Add a new pattern to this cloth LOD, and return the cloth pattern facade set to its index. */
+		FCollectionClothRenderPatternFacade AddGetRenderPattern() { return GetRenderPattern(AddRenderPattern()); }
+		/** Return a view of all the render materials used on this collection across all patterns. */
+		TArrayView<FString> GetRenderMaterialPathName();
+
+		//~ Seam Group
+		/** Set the new number of seams to this cloth. */
+		void SetNumSeams(int32 NumSeams);
+		/** Add a new seam to this cloth and return its index in the seam list. */
+		int32 AddSeam();
+		/** Return a seam facade for the specified seam index. */
+		FCollectionClothSeamFacade GetSeam(int32 SeamIndex);
+		/** Add a new seam to this cloth and return the seam facade set to its index. */
+		FCollectionClothSeamFacade AddGetSeam() { return GetSeam(AddSeam()); }
+
+		//~ Render Vertices Group
+		/** SetNumRenderVertices per pattern within pattern facade. */
+		TArrayView<FVector3f> GetRenderPosition();
+		TArrayView<FVector3f> GetRenderNormal();
+		TArrayView<FVector3f> GetRenderTangentU();
+		TArrayView<FVector3f> GetRenderTangentV();
+		TArrayView<TArray<FVector2f>> GetRenderUVs();
+		TArrayView<FLinearColor> GetRenderColor();
+		TArrayView<TArray<int32>> GetRenderBoneIndices();
+		TArrayView<TArray<float>> GetRenderBoneWeights();
+
+		//~ Render Faces Group
+		/** SetNumRenderFaces per pattern within pattern facade. */
+		TArrayView<FIntVector3> GetRenderIndices();
 
 		/** Add a new weight map to this cloth. Access is then done per pattern. */
 		void AddWeightMap(const FName& Name);
@@ -95,7 +243,24 @@ namespace UE::Chaos::ClothAsset
 		/** Remove a weight map from this cloth. */
 		void RemoveWeightMap(const FName& Name);
 
+		TArrayView<float> GetWeightMap(const FName& Name);
 	private:
+
+		void SetDefaults();
+
 		TSharedPtr<FClothCollection> GetClothCollection() { return ConstCastSharedPtr<FClothCollection>(ClothCollection); }
+
+		friend class FCollectionClothSeamFacade;
+		friend class FCollectionClothSimPatternFacade;
+
+		explicit FCollectionClothFacade(const TSharedPtr<FClothCollection>& InClothCollection);
+
+		// These methods are private because they're managed by the FCollectionClothSeamFacade.
+		//~ Sim Vertices 2D Group
+		TArrayView<int32> GetSimVertex3DLookupPrivate();
+
+		//~ Sim Vertices 3D Group
+		TArrayView<TArray<int32>> GetSeamStitchLookupPrivate();
+		TArrayView<TArray<int32>> GetSimVertex2DLookupPrivate();
 	};
 }  // End namespace UE::Chaos::ClothAsset

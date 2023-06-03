@@ -34,31 +34,23 @@ namespace UE::ChaosClothAsset::Private
 		Converter.Convert(&SourceMesh, ToDynamicMesh);
 	}
 
-	// Convert the cloth LOD into DynamicMesh by welding the sim mesh patterns
+	// Convert the cloth into DynamicMesh
 	// @todo: This should instead be handled by a cloth lod to dynamic mesh converter similar to functions in the ClothPatternToDynamicMesh.h
-	bool SimClothLodToDynamicMesh(const FCollectionClothLodFacade& ClothLodFacade, 
-								  const FReferenceSkeleton& TargetRefSkeleton, // the reference skeleton to add to the dynamic mesh
-								  FDynamicMesh3& WeldedSimMesh,
-								  TArray<TArray<int32>>& WeldedToPatternIndices)
+	bool SimClothToDynamicMesh(const FCollectionClothConstFacade& ClothFacade,
+								const FReferenceSkeleton& TargetRefSkeleton, // the reference skeleton to add to the dynamic mesh
+								FDynamicMesh3& WeldedSimMesh)
 	{
-		// Compute the welded simulation mesh for this LOD.
-		TArray<FVector3f> Positions;
-		TArray<FVector3f> Normals;
-		TArray<uint32> Indices, PatternsIndices, PatternToWeldedIndices;
-		TArray<FVector2f> PatternsPositions;
-		ClothLodFacade.BuildSimulationMesh(Positions, Normals, Indices, PatternsPositions, PatternsIndices, PatternToWeldedIndices, &WeldedToPatternIndices);
-
 		// Convert the sim mesh to DynamicMesh. 
 		// @todo: FTransferBoneWeights should accept raw data arrays (vertices/triangles) to avoid this conversion
 		WeldedSimMesh.Clear();
-		for (const FVector3f& Pos : Positions)
+		for (const FVector3f& Pos : ClothFacade.GetSimPosition3D())
 		{
 			WeldedSimMesh.AppendVertex(FVector3d(Pos));
 		}
 
-		for (int Idx = 0; Idx < Indices.Num(); Idx+=3)
+		for (const FIntVector& Indices : ClothFacade.GetSimIndices3D())
 		{
-			const int TID = WeldedSimMesh.AppendTriangle(Indices[Idx], Indices[Idx+1], Indices[Idx+2]);
+			const int TID = WeldedSimMesh.AppendTriangle(Indices[0], Indices[1], Indices[2]);
 			if (TID < 0) // Failed to add the triangle (non-manifold/duplicate)
 			{
 				return false;
@@ -79,6 +71,112 @@ namespace UE::ChaosClothAsset::Private
 		}
 
 		return true;
+	}
+
+	void TransferInpaintWeights(const FReferenceSkeleton& TargetRefSkeleton, const double NormalThreshold, const double RadiusPercentage, bool bUseParallel, FCollectionClothFacade& ClothFacade, FTransferBoneWeights& TransferBoneWeights)
+	{
+
+		//
+		// Convert cloth sim mesh LOD to the welded dynamic sim mesh.
+		//
+		FDynamicMesh3 WeldedSimMesh;
+		if (!ensure(SimClothToDynamicMesh(ClothFacade, TargetRefSkeleton, WeldedSimMesh)))
+		{
+			UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsFailedLodToDynamicMesh", "TransferSkinWeightsNode: Failed to weld the simulation mesh for LOD."));
+			return;
+		}
+
+
+		//
+		// Transfer the weights from the body to the welded sim mesh.
+		//
+		TransferBoneWeights.NormalThreshold = FMathd::DegToRad * NormalThreshold;
+		TransferBoneWeights.SearchRadius = RadiusPercentage * WeldedSimMesh.GetBounds().DiagonalLength();
+		if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)
+		{
+			UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsInpaintWeightsInvalidParameters", "TransferSkinWeightsNode: Transfer method parameters are invalid."));
+			return;
+		}
+		if (!TransferBoneWeights.TransferWeightsToMesh(WeldedSimMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName))
+		{
+			UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsFailed", "TransferSkinWeightsNode: Transferring skin weights failed"));
+			return;
+		}
+
+
+		//
+		// Copy the new bone weight data from the welded sim mesh back to the cloth patterns.
+		//
+		ParallelFor(WeldedSimMesh.MaxVertexID(), [&ClothFacade, &WeldedSimMesh](int32 WeldedID)
+		{
+			const FDynamicMeshVertexSkinWeightsAttribute* OutAttribute = WeldedSimMesh.Attributes()->GetSkinWeightsAttribute(FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
+
+			checkSlow(OutAttribute);
+			checkSlow(WeldedSimMesh.IsVertex(WeldedID));
+			checkSlow(WeldedID < ClothFacade.GetNumSimVertices3D());
+			OutAttribute->GetValue(WeldedID, ClothFacade.GetSimBoneIndices()[WeldedID],
+				ClothFacade.GetSimBoneWeights()[WeldedID]);
+		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
+
+
+		//
+		// Compute the bone weights for the render mesh by transferring weights from the sim mesh
+		// @todo If render mesh eventually supports welding, we should be transferring weights from the 
+		// body instead, same as we do for the sim mesh.
+		//
+		FTransferBoneWeights SimToRenderMeshTransfer(&WeldedSimMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
+		SimToRenderMeshTransfer.bUseParallel = bUseParallel;
+		SimToRenderMeshTransfer.TransferMethod = FTransferBoneWeights::ETransferBoneWeightsMethod::ClosestPointOnSurface;
+		ParallelFor(ClothFacade.GetNumRenderVertices(), [&SimToRenderMeshTransfer, &ClothFacade](int32 VertexID)
+		{
+			SimToRenderMeshTransfer.TransferWeightsToPoint(ClothFacade.GetRenderBoneIndices()[VertexID],
+				ClothFacade.GetRenderBoneWeights()[VertexID],
+				ClothFacade.GetRenderPosition()[VertexID]);
+
+		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
+	}
+
+	void TransferClosestPointOnSurface(const FReferenceSkeleton& TargetRefSkeleton, const bool bUseParallel, FCollectionClothFacade& ClothFacade, FTransferBoneWeights& TransferBoneWeights)
+	{
+		//
+		// Compute the bone index mappings. This allows the transfer operator to retarget weights to the correct skeleton.
+		//
+		TMap<FName, FBoneIndexType> TargetBoneToIndex;
+		TargetBoneToIndex.Reserve(TargetRefSkeleton.GetRawBoneNum());
+		for (int32 BoneIdx = 0; BoneIdx < TargetRefSkeleton.GetRawBoneNum(); ++BoneIdx)
+		{
+			TargetBoneToIndex.Add(TargetRefSkeleton.GetRawRefBoneInfo()[BoneIdx].Name, BoneIdx);
+		}
+
+		if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)
+		{
+			UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsClosestPointOnSurfaceInvalidParameters", "TransferSkinWeightsNode: Transfer method parameters are invalid."));
+			return;
+		}
+
+		//
+		// Transfer weights to the sim mesh.
+		//
+		ParallelFor(ClothFacade.GetNumSimVertices3D(), [&TransferBoneWeights, &TargetBoneToIndex, &ClothFacade](int32 VertexID)
+		{
+			TransferBoneWeights.TransferWeightsToPoint(ClothFacade.GetSimBoneIndices()[VertexID],
+				ClothFacade.GetSimBoneWeights()[VertexID],
+				ClothFacade.GetSimPosition3D()[VertexID],
+				&TargetBoneToIndex);
+
+		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
+
+		//
+		// Transfer weights to the render mesh.
+		//
+		ParallelFor(ClothFacade.GetNumRenderVertices(), [&TransferBoneWeights, &TargetBoneToIndex, &ClothFacade](int32 VertexID)
+		{
+			TransferBoneWeights.TransferWeightsToPoint(ClothFacade.GetRenderBoneIndices()[VertexID],
+				ClothFacade.GetRenderBoneWeights()[VertexID],
+				ClothFacade.GetRenderPosition()[VertexID],
+				&TargetBoneToIndex);
+
+		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
 	}
 }
 
@@ -131,131 +229,22 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 
 
 			//
-			// Iterate over the LODs and transfer the bone weights from the source Skeletal mesh to the Cloth asset.
+			// Transfer the bone weights from the source Skeletal mesh to the Cloth asset.
 			//
 			FCollectionClothFacade ClothFacade(ClothCollection);
-			for (int32 TargetLODIdx = 0; TargetLODIdx < ClothFacade.GetNumLods(); ++TargetLODIdx)
+			ClothFacade.SetSkeletonAssetPathName(InputSkeletalMesh->GetSkeleton()->GetPathName());
+
+			if (TransferMethod == EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights)
 			{
-				FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(TargetLODIdx);
-				ClothLodFacade.SetSkeletonAssetPathName(InputSkeletalMesh->GetSkeleton()->GetPathName());
-
-				if (TransferMethod == EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights)
-				{	
-					//
-					// Convert cloth sim mesh LOD to the welded dynamic sim mesh.
-					//
-					FDynamicMesh3 WeldedSimMesh;
-					TArray<TArray<int32>> WeldedToPatternIndices;
-					if (!ensure(SimClothLodToDynamicMesh(ClothLodFacade, TargetRefSkeleton, WeldedSimMesh, WeldedToPatternIndices)))
-					{
-						UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsFailedLodToDynamicMesh", "TransferSkinWeightsNode: Failed to weld the simulation mesh for LOD."));
-						break;
-					}
-
-
-					//
-					// Transfer the weights from the body to the welded sim mesh.
-					//
-					TransferBoneWeights.NormalThreshold = FMathd::DegToRad * NormalThreshold;
-					TransferBoneWeights.SearchRadius = RadiusPercentage * WeldedSimMesh.GetBounds().DiagonalLength();
-					if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)
-					{
-						UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsInpaintWeightsInvalidParameters", "TransferSkinWeightsNode: Transfer method parameters are invalid."));
-						break;
-					}
-					if (!TransferBoneWeights.TransferWeightsToMesh(WeldedSimMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName))
-					{
-						UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsFailed", "TransferSkinWeightsNode: Transferring skin weights failed"));
-						break;
-					}
-
-
-					//
-					// Copy the new bone weight data from the welded sim mesh back to the cloth patterns.
-					//
-					ParallelFor(WeldedSimMesh.MaxVertexID(), [&ClothLodFacade, &WeldedToPatternIndices, &WeldedSimMesh](int32 WeldedID)
-					{
-						const FDynamicMeshVertexSkinWeightsAttribute* OutAttribute = WeldedSimMesh.Attributes()->GetSkinWeightsAttribute(FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
-						
-						checkSlow(OutAttribute);
-						checkSlow(WeldedSimMesh.IsVertex(WeldedID));
-
-						for (const int32 VertexID : WeldedToPatternIndices[WeldedID])
-						{	
-							checkSlow(VertexID < ClothLodFacade.GetNumSimVertices());
-							
-							OutAttribute->GetValue(WeldedID, ClothLodFacade.GetSimBoneIndices()[VertexID], 
-															 ClothLodFacade.GetSimBoneWeights()[VertexID]);
-							ClothLodFacade.GetSimNumBoneInfluences()[VertexID] = ClothLodFacade.GetSimBoneIndices()[VertexID].Num();
-						}
-					}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
-
-
-					//
-					// Compute the bone weights for the render mesh by transferring weights from the sim mesh
-					// @todo If render mesh eventually supports welding, we should be transferring weights from the 
-					// body instead, same as we do for the sim mesh.
-					//
-					FTransferBoneWeights SimToRenderMeshTransfer(&WeldedSimMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
-					SimToRenderMeshTransfer.bUseParallel = bUseParallel;
-					SimToRenderMeshTransfer.TransferMethod = FTransferBoneWeights::ETransferBoneWeightsMethod::ClosestPointOnSurface;
-					ParallelFor(ClothLodFacade.GetNumRenderVertices(), [&SimToRenderMeshTransfer, &ClothLodFacade](int32 VertexID)
-					{
-						SimToRenderMeshTransfer.TransferWeightsToPoint(ClothLodFacade.GetRenderBoneIndices()[VertexID],
-																	   ClothLodFacade.GetRenderBoneWeights()[VertexID], 
-																	   ClothLodFacade.GetRenderPosition()[VertexID]);
-						ClothLodFacade.GetRenderNumBoneInfluences()[VertexID] = ClothLodFacade.GetRenderBoneIndices()[VertexID].Num();
-
-					}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
-				}
-				else if (TransferMethod == EChaosClothAssetTransferSkinWeightsMethod::ClosestPointOnSurface)
-				{	
-					//
-					// Compute the bone index mappings. This allows the transfer operator to retarget weights to the correct skeleton.
-					//
-					TMap<FName, FBoneIndexType> TargetBoneToIndex;
-					TargetBoneToIndex.Reserve(TargetRefSkeleton.GetRawBoneNum());
-					for (int32 BoneIdx = 0; BoneIdx < TargetRefSkeleton.GetRawBoneNum(); ++BoneIdx)
-					{
-						TargetBoneToIndex.Add(TargetRefSkeleton.GetRawRefBoneInfo()[BoneIdx].Name, BoneIdx);
-					}
-
-					if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)
-					{
-						UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsClosestPointOnSurfaceInvalidParameters", "TransferSkinWeightsNode: Transfer method parameters are invalid."));
-						break;
-					}
-					
-					//
-					// Transfer weights to the sim mesh.
-					//
-					ParallelFor(ClothLodFacade.GetNumSimVertices(), [&TransferBoneWeights, &TargetBoneToIndex, &ClothLodFacade](int32 VertexID)
-					{
-						TransferBoneWeights.TransferWeightsToPoint(ClothLodFacade.GetSimBoneIndices()[VertexID],
-																   ClothLodFacade.GetSimBoneWeights()[VertexID],
-																   ClothLodFacade.GetSimRestPosition()[VertexID],
-																   &TargetBoneToIndex);
-					    ClothLodFacade.GetSimNumBoneInfluences()[VertexID] = ClothLodFacade.GetSimBoneIndices()[VertexID].Num();
-
-					}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
-
-					//
-					// Transfer weights to the render mesh.
-					//
-					ParallelFor(ClothLodFacade.GetNumRenderVertices(), [&TransferBoneWeights, &TargetBoneToIndex, &ClothLodFacade](int32 VertexID)
-					{
-						TransferBoneWeights.TransferWeightsToPoint(ClothLodFacade.GetRenderBoneIndices()[VertexID],
-																   ClothLodFacade.GetRenderBoneWeights()[VertexID],
-																   ClothLodFacade.GetRenderPosition()[VertexID],
-																   &TargetBoneToIndex);
-						ClothLodFacade.GetRenderNumBoneInfluences()[VertexID] = ClothLodFacade.GetRenderBoneIndices()[VertexID].Num();
-
-					}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
-				}
-				else
-				{
-					checkNoEntry();
-				}
+				TransferInpaintWeights(TargetRefSkeleton, NormalThreshold, RadiusPercentage, bUseParallel, ClothFacade, TransferBoneWeights);
+			}
+			else if (TransferMethod == EChaosClothAssetTransferSkinWeightsMethod::ClosestPointOnSurface)
+			{
+				TransferClosestPointOnSurface(TargetRefSkeleton, bUseParallel, ClothFacade, TransferBoneWeights);
+			}
+			else
+			{
+				checkNoEntry();
 			}
 		}
 

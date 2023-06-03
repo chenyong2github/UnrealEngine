@@ -18,9 +18,10 @@ public:
 		const TConstArrayView<float>& MaxDistances,
 		bool bUseGeodesicDistance);
 
-	const TArray<TArray<FTether>>& GetTetherSlots() const { return TetherSlots; }
+	FClothTetherDataPrivate(
+		TArray<TArray<TPair<float, int32>>>&& PerDynamicNodeTethers);
 
-	const TArray<int32>& GetTetherNums() const { return TetherNums; }
+	void GetBatchedTetherData(TArray<TArray<TTuple<int32, int32, float>>>& Tethers) const;
 
 private:
 
@@ -34,6 +35,9 @@ private:
 	// Generate a map of tethers by following the triangle mesh network
 	// The choice of the tether is determined by the shortest geodesic (curvature) distance.
 	void GenerateGeodesicTethers(const TConstArrayView<FVector3f>& Points, const TConstArrayView<float>& MaxDistances);
+
+	// Update TetherNums after computing tethers.
+	void UpdateCounts();
 
 private:
 	TMap<int32, TSet<int32>> NodeToNeighbors;
@@ -59,28 +63,14 @@ void FClothTetherData::GenerateTethers(
 
 	// Calculate the tethers
 	const FClothTetherDataPrivate ClothTetherData(Points, Indices, MaxDistances, bUseGeodesicDistance);
+	ClothTetherData.GetBatchedTetherData(Tethers);
+}
 
-	const TArray<TArray<FClothTetherDataPrivate::FTether>>& TetherSlots = ClothTetherData.GetTetherSlots();
-	const TArray<int32> TetherNums = ClothTetherData.GetTetherNums();
-
-	// Reorganize the multiple tethers per node array into a single sequential batches of tethers more suitable for parallel processing
-	const int32 NumDynamicNodes = TetherSlots.Num();
-	const int32 MaxNumUsedSlots = TetherNums.Num();
-	Tethers.Reset(MaxNumUsedSlots);
-	Tethers.SetNum(MaxNumUsedSlots);
-
-	for (int32 Slot = 0; Slot < MaxNumUsedSlots; ++Slot)
-	{
-		Tethers[Slot].Reserve(TetherNums[Slot]);
-
-		for (int32 Index = 0; Index < NumDynamicNodes; ++Index)
-		{
-			if (TetherSlots[Index].IsValidIndex(Slot))
-			{
-				Tethers[Slot].Emplace(TetherSlots[Index][Slot]);
-			}
-		}
-	}
+void FClothTetherData::GenerateTethers(
+	TArray<TArray<TPair<float, int32>>>&& PerDynamicNodeTethers)
+{
+	const FClothTetherDataPrivate ClothTetherData(MoveTemp(PerDynamicNodeTethers));
+	ClothTetherData.GetBatchedTetherData(Tethers);
 }
 
 bool FClothTetherData::Serialize(FArchive& Ar)
@@ -160,18 +150,61 @@ FClothTetherDataPrivate::FClothTetherDataPrivate(
 			GenerateGeodesicTethers(Points, MaxDistances);
 		}
 
-		// Update counts
-		TetherNums.Reserve(MaxNumAttachments);
-		for (const TArray<FTether>& TetherSlot : TetherSlots)
-		{
-			// Resize the count array whenever needed
-			const int32 NumUsedSlots = TetherSlot.Num();
-			TetherNums.SetNum(FMath::Max(TetherNums.Num(), NumUsedSlots));
+		UpdateCounts();
+	}
+}
 
-			// Increment each used slot count
-			for (int32 UsedSlot = 0; UsedSlot < NumUsedSlots; ++UsedSlot)
+FClothTetherDataPrivate::FClothTetherDataPrivate(TArray<TArray<TPair<float, int32>>>&& PerDynamicNodeTethers)
+{
+	TetherSlots.SetNum(PerDynamicNodeTethers.Num());
+
+	// For each dynamic node
+	ParallelFor(PerDynamicNodeTethers.Num(), [this, &PerDynamicNodeTethers](int32 Index)
+	{
+		const int32 DynamicNode = Index;
+		TArray<TPair<float, int32>>& ClosestKinematicNodes = PerDynamicNodeTethers[Index];
+		// Only keep the first MaxNumAttachments closest kinematic nodes
+		if (ClosestKinematicNodes.Num() > MaxNumAttachments)
+		{
+			// Order all by distance, smallest first
+			ClosestKinematicNodes.Sort();
+
+			// Shrink the list...
+			constexpr bool bAllowShrinking = false;  // ... but not the array
+			ClosestKinematicNodes.SetNum(MaxNumAttachments, bAllowShrinking);
+		}
+		// Finally create the tethers between this dynamic node and the N closests kinematic ones
+		TetherSlots[Index].Reserve(ClosestKinematicNodes.Num());
+
+		for (const TPair<float, int32> ClosestKinematicNode : ClosestKinematicNodes)
+		{
+			const float Length = ClosestKinematicNode.Key;
+			const int32 KinematicNode = ClosestKinematicNode.Value;
+
+			TetherSlots[Index].Emplace(KinematicNode, DynamicNode, Length);
+		}
+	});
+
+	UpdateCounts();
+}
+
+void FClothTetherDataPrivate::GetBatchedTetherData(TArray<TArray<TTuple<int32, int32, float>>>& Tethers) const
+{
+	// Reorganize the multiple tethers per node array into a single sequential batches of tethers more suitable for parallel processing
+	const int32 NumDynamicNodes = TetherSlots.Num();
+	const int32 MaxNumUsedSlots = TetherNums.Num();
+	Tethers.Reset(MaxNumUsedSlots);
+	Tethers.SetNum(MaxNumUsedSlots);
+
+	for (int32 Slot = 0; Slot < MaxNumUsedSlots; ++Slot)
+	{
+		Tethers[Slot].Reserve(TetherNums[Slot]);
+
+		for (int32 Index = 0; Index < NumDynamicNodes; ++Index)
+		{
+			if (TetherSlots[Index].IsValidIndex(Slot))
 			{
-				++TetherNums[UsedSlot];
+				Tethers[Slot].Emplace(TetherSlots[Index][Slot]);
 			}
 		}
 	}
@@ -508,3 +541,20 @@ void FClothTetherDataPrivate::GenerateGeodesicTethers(const TConstArrayView<FVec
 	});
 }
 
+void FClothTetherDataPrivate::UpdateCounts()
+{
+	// Update counts
+	TetherNums.Reserve(MaxNumAttachments);
+	for (const TArray<FTether>& TetherSlot : TetherSlots)
+	{
+		// Resize the count array whenever needed
+		const int32 NumUsedSlots = TetherSlot.Num();
+		TetherNums.SetNum(FMath::Max(TetherNums.Num(), NumUsedSlots));
+
+		// Increment each used slot count
+		for (int32 UsedSlot = 0; UsedSlot < NumUsedSlots; ++UsedSlot)
+		{
+			++TetherNums[UsedSlot];
+		}
+	}
+}

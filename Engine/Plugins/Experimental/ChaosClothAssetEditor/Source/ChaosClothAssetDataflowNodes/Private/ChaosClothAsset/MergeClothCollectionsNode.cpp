@@ -28,14 +28,6 @@ void FChaosClothAssetMergeClothCollectionsNode::Evaluate(Dataflow::FContext& Con
 		// Make it a valid cloth collection if needed
 		FCollectionClothFacade ClothFacade(ClothCollection);
 		ClothFacade.DefineSchema();
-
-		if (ClothFacade.GetNumLods() < 1)
-		{
-			// Make sure that whatever happens there is always at least one empty LOD to avoid crashing the render data
-			ClothFacade.AddLod();
-		}
-		FCollectionClothLodFacade ClothLodFacade = ClothFacade.GetLod(0);
-
 		// Iterate through the inputs and append them to LOD 0
 		const TArray<const FManagedArrayCollection*> Collections = GetCollections();
 		for (int32 InputIndex = 1; InputIndex < Collections.Num(); ++InputIndex)
@@ -43,11 +35,7 @@ void FChaosClothAssetMergeClothCollectionsNode::Evaluate(Dataflow::FContext& Con
 			const FManagedArrayCollection& OtherCollection = GetValue<FManagedArrayCollection>(Context, Collections[InputIndex]);
 			const TSharedRef<const FManagedArrayCollection> OtherClothCollection = MakeShared<const FManagedArrayCollection>(OtherCollection);
 			const FCollectionClothConstFacade OtherClothFacade(OtherClothCollection);  // TODO: Remove Shared pointer from facade and skip duplication
-
-			if (OtherClothFacade.GetNumLods() > 0)
-			{
-				ClothLodFacade.Append(OtherClothFacade.GetLod(0));
-			}
+			ClothFacade.Append(OtherClothFacade);
 		}
 
 		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);

@@ -58,23 +58,17 @@ void FChaosClothAssetImportNode::Evaluate(Dataflow::FContext& Context, const FDa
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>();
 		FCollectionClothFacade ClothFacade(ClothCollection);
 		ClothFacade.DefineSchema();
-		FCollectionClothLodFacade ClothLodFacade = ClothFacade.AddGetLod();  // Always output a single LOD at LOD 0, even if empty
 
 		// Copy the cloth asset to this node's output collection
 		if (bSetValue)
 		{
 			const TObjectPtr<const UChaosClothAsset>& InClothAsset = GetValue<TObjectPtr<const UChaosClothAsset>>(Context, &ClothAsset);
-			if (InClothAsset->GetClothCollection())
+			const int32& InImportLod = GetValue<int32>(Context, &ImportLod);
+			const TArray<TSharedPtr<const FManagedArrayCollection>>& InClothCollections = InClothAsset->GetClothCollections();
+			if (InImportLod >= 0 && InClothCollections.Num() > InImportLod && InClothCollections[InImportLod].IsValid())
 			{
-				const int32& InImportLod = GetValue<int32>(Context, &ImportLod);
-				const FCollectionClothConstFacade InClothFacade(InClothAsset->GetClothCollection());
-
-				if (InImportLod >= 0 && InImportLod < InClothFacade.GetNumLods())
-				{
-					// Copy specified LOD from the input asset to the LOD 0 of the output collection
-					const FCollectionClothLodConstFacade InClothLodFacade = InClothFacade.GetLod(InImportLod);
-					ClothLodFacade.Initialize(InClothLodFacade);
-				}
+				const FCollectionClothConstFacade InClothFacade(InClothCollections[InImportLod]);
+				ClothFacade.Initialize(InClothFacade);
 			}
 		}
 		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);

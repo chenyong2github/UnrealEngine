@@ -78,8 +78,11 @@ bool FChaosClothAssetDatasmithImportNode::EvaluateImpl(Dataflow::FContext& Conte
 		UChaosClothAsset* const DatasmithClothAsset = Cast<UChaosClothAsset>(ClothObject);
 		if (ensure(DatasmithClothAsset))
 		{
-			DatasmithClothAsset->GetClothCollection()->CopyTo(&OutCollection);
-			return true;
+			if (DatasmithClothAsset->GetClothCollections().Num() > 0 && DatasmithClothAsset->GetClothCollections()[0].IsValid())
+			{
+				DatasmithClothAsset->GetClothCollections()[0]->CopyTo(&OutCollection);
+				return true;
+			}
 		}
 		DatasmithClothAsset->ClearFlags(RF_Standalone);
 	}
@@ -104,7 +107,6 @@ void FChaosClothAssetDatasmithImportNode::Evaluate(Dataflow::FContext& Context, 
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>();
 		FCollectionClothFacade CollectionClothFacade(ClothCollection);
 		CollectionClothFacade.DefineSchema();
-		CollectionClothFacade.AddLod();
 
 		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
 	}

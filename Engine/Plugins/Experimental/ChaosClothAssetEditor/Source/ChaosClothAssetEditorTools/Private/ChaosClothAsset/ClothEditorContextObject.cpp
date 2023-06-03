@@ -8,10 +8,12 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothEditorContextObject)
 
-void UClothEditorContextObject::Init(TWeakPtr<SDataflowGraphEditor> InDataflowGraphEditor, TObjectPtr<UDataflow> InDataflowGraph)
+void UClothEditorContextObject::Init(TWeakPtr<SDataflowGraphEditor> InDataflowGraphEditor, TObjectPtr<UDataflow> InDataflowGraph, UE::Chaos::ClothAsset::EClothPatternVertexType InConstructionViewMode, TWeakPtr<FManagedArrayCollection> InSelectedClothCollection)
 {
 	DataflowGraphEditor = InDataflowGraphEditor;
 	DataflowGraph = InDataflowGraph;
+	ConstructionViewMode = InConstructionViewMode;
+	SelectedClothCollection = InSelectedClothCollection;
 }
 
 TWeakPtr<SDataflowGraphEditor> UClothEditorContextObject::GetDataflowGraphEditor()
@@ -158,3 +160,8 @@ UEdGraphNode* UClothEditorContextObject::CreateAndConnectNewNode(
 	return NewEdNode;
 }
 
+void UClothEditorContextObject::SetClothCollection(UE::Chaos::ClothAsset::EClothPatternVertexType ViewMode, TWeakPtr<FManagedArrayCollection> ClothCollection)
+{
+	ConstructionViewMode = ViewMode;
+	SelectedClothCollection = ClothCollection;
+}

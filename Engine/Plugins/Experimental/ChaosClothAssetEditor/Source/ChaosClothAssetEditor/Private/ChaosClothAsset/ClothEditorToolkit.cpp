@@ -754,7 +754,11 @@ void FChaosClothAssetEditorToolkit::PopulateOutliner()
 	{
 		if (UChaosClothAsset* const ClothAsset = ClothComponent->GetClothAsset())
 		{
-			ClothCollection = ClothAsset->GetClothCollection();
+			// TODO: handle multiple LODs
+			if (ClothAsset->GetClothCollections().Num())
+			{
+				ClothCollection = ClothAsset->GetClothCollections()[0];
+			}
 		}
 	}
 	

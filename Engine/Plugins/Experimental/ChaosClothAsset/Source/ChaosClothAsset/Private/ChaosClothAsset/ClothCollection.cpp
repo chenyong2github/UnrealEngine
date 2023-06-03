@@ -6,132 +6,117 @@
 namespace UE::Chaos::ClothAsset::Private
 {
 	// Groups
-	static const FName LodsGroup(TEXT("Lods"));
-	static const FName MaterialsGroup(TEXT("Materials"));
-	static const FName TetherBatchesGroup(TEXT("TetherBatches"));
-	static const FName TethersGroup(TEXT("Tethers"));
+	static const FName LodsGroup(TEXT("Lods")); // One lod per collection, but keeping the name for now to represent whatever is a single scalar for the whole collection
 	static const FName SeamsGroup(TEXT("Seams"));
-	static const FName PatternsGroup(TEXT("Patterns"));
+	static const FName SeamStitchesGroup(TEXT("SeamStitches"));
+	static const FName SimPatternsGroup(TEXT("SimPatterns"));
+	static const FName RenderPatternsGroup(TEXT("RenderPatterns"));
 	static const FName SimFacesGroup(TEXT("SimFaces"));
-	static const FName SimVerticesGroup(TEXT("SimVertices"));
+	static const FName SimVertices2DGroup(TEXT("SimVertices2D"));
+	static const FName SimVertices3DGroup(TEXT("SimVertices3D"));
 	static const FName RenderFacesGroup(TEXT("RenderFaces"));
 	static const FName RenderVerticesGroup(TEXT("RenderVertices"));
 
-	// LODs Group
-	static const FName MaterialStartAttribute(TEXT("MaterialStart"));
-	static const FName MaterialEndAttribute(TEXT("MaterialEnd"));
-	static const FName TetherBatchStartAttribute(TEXT("TetherBatchStart"));
-	static const FName TetherBatchEndAttribute(TEXT("TetherBatchEnd"));
-	static const FName SeamStartAttribute(TEXT("SeamStart"));
-	static const FName SeamEndAttribute(TEXT("SeamEnd"));
-	static const FName PatternStartAttribute(TEXT("PatternStart"));
-	static const FName PatternEndAttribute(TEXT("PatternEnd"));
+	// Lods Group
 	static const FName PhysicsAssetPathNameAttribute(TEXT("PhysicsAssetPathName"));
 	static const FName SkeletonAssetPathNameAttribute(TEXT("SkeletonAssetPathName"));
 	static const TArray<FName> LodsGroupAttributes =
 	{
-		MaterialStartAttribute,
-		MaterialEndAttribute,
-		TetherBatchStartAttribute,
-		TetherBatchEndAttribute,
-		SeamStartAttribute,
-		SeamEndAttribute,
-		PatternStartAttribute,
-		PatternEndAttribute,
 		PhysicsAssetPathNameAttribute,
 		SkeletonAssetPathNameAttribute
 	};
 
-	// Materials Group
-	static const FName RenderMaterialPathNameAttribute(TEXT("RenderMaterialPathName"));
-	static const TArray<FName> MaterialsGroupAttributes =
-	{
-		RenderMaterialPathNameAttribute
-	};
-
-	// Tether Batches Group
-	static const FName TetherStartAttribute(TEXT("TetherStart"));
-	static const FName TetherEndAttribute(TEXT("TetherEnd"));
-	static const TArray<FName> TetherBatchesGroupAttributes =
-	{
-		TetherStartAttribute,
-		TetherEndAttribute
-	};
-
-	// Tethers Group
-	static const FName TetherKinematicIndexAttribute(TEXT("TetherKinematicIndex"));
-	static const FName TetherDynamicIndexAttribute(TEXT("TetherDynamicIndex"));
-	static const FName TetherReferenceLengthAttribute(TEXT("TetherReferenceLength"));
-	static const TArray<FName> TethersGroupAttributes =
-	{
-		TetherKinematicIndexAttribute,
-		TetherDynamicIndexAttribute,
-		TetherReferenceLengthAttribute
-	};
-
 	// Seam Group
-	static const FName SeamPatternsAttribute(TEXT("SeamPatterns"));
-	static const FName SeamStitchesAttribute(TEXT("SeamStitches"));
+	static const FName SeamStitchStartAttribute(TEXT("SeamStitchStart"));
+	static const FName SeamStitchEndAttribute(TEXT("SeamStitchEnd"));
 	static const TArray<FName> SeamsGroupAttributes =
 	{
-		SeamPatternsAttribute,
-		SeamStitchesAttribute
+		SeamStitchStartAttribute,
+		SeamStitchEndAttribute
 	};
 
-	// Patterns Group
-	static const FName SimVerticesStartAttribute(TEXT("SimVerticesStart"));
-	static const FName SimVerticesEndAttribute(TEXT("SimVerticesEnd"));
+	// Seam Stitches Group
+	static const FName SeamStitch2DEndIndicesAttribute(TEXT("SeamStitch2DEndIndices"));
+	static const FName SeamStitch3DIndexAttribute(TEXT("SeamStitch3DIndex"));
+	static const TArray<FName> SeamStitchesGroupAttributes =
+	{
+		SeamStitch2DEndIndicesAttribute,
+		SeamStitch3DIndexAttribute
+	};
+
+	// Sim Patterns Group
+	static const FName SimVertices2DStartAttribute(TEXT("SimVertices2DStart"));
+	static const FName SimVertices2DEndAttribute(TEXT("SimVertices2DEnd"));
 	static const FName SimFacesStartAttribute(TEXT("SimFacesStart"));
 	static const FName SimFacesEndAttribute(TEXT("SimFacesEnd"));
-	static const FName RenderVerticesStartAttribute(TEXT("RenderVerticesStar"));
+	static const TArray<FName> SimPatternsGroupAttributes =
+	{ 
+		SimVertices2DStartAttribute,
+		SimVertices2DEndAttribute,
+		SimFacesStartAttribute,
+		SimFacesEndAttribute,
+	};
+
+	// RenderPatterns Group
+	static const FName RenderVerticesStartAttribute(TEXT("RenderVerticesStart"));
 	static const FName RenderVerticesEndAttribute(TEXT("RenderVerticesEnd"));
 	static const FName RenderFacesStartAttribute(TEXT("RenderFacesStart"));
 	static const FName RenderFacesEndAttribute(TEXT("RenderFacesEnd"));
-	static const FName StatusFlagsAttribute(TEXT("StatusFlags"));
-	static const TArray<FName> PatternsGroupAttributes =
+	static const FName RenderMaterialPathNameAttribute(TEXT("RenderMaterialPathName"));
+	static const TArray<FName> RenderPatternsGroupAttributes =
 	{
-		SimVerticesStartAttribute,
-		SimVerticesEndAttribute,
-		SimFacesStartAttribute,
-		SimFacesEndAttribute,
 		RenderVerticesStartAttribute,
 		RenderVerticesEndAttribute,
 		RenderFacesStartAttribute,
 		RenderFacesEndAttribute,
-		StatusFlagsAttribute
+		RenderMaterialPathNameAttribute
 	};
 
 	// Sim Faces Group
-	static const FName SimIndicesAttribute(TEXT("SimIndices"));
+	static const FName SimIndices2DAttribute(TEXT("SimIndices2D"));
+	static const FName SimIndices3DAttribute(TEXT("SimIndices3D"));
 	static const TArray<FName> SimFacesGroupAttributes =
 	{
-		SimIndicesAttribute
+		SimIndices2DAttribute,
+		SimIndices3DAttribute
 	};
 
-	// Sim Vertices Group
-	static const FName SimPositionAttribute(TEXT("SimPosition"));
-	static const FName SimRestPositionAttribute(TEXT("SimRestPosition"));
-	static const FName SimRestNormalAttribute(TEXT("SimRestNormal"));
-	static const FName SimNumBoneInfluencesAttribute(TEXT("SimNumBoneInfluences"));
+	// Sim Vertices 2D Group
+	static const FName SimPosition2DAttribute(TEXT("SimPosition2D"));
+	static const FName SimVertex3DLookupAttribute(TEXT("SimVertex3DLookup"));
+	static const TArray<FName> SimVertices2DGroupAttributes =
+	{
+		SimPosition2DAttribute,
+		SimVertex3DLookupAttribute,
+	};
+
+	// Sim Vertices 3D Group
+	// NOTE: if you add anything here, you need to implement how to merge it 
+	// in CollectionClothSeamsFacade. Otherwise, the data in the lowest vertex index 
+	// will survive and the other data will be lost whenever seams are added.
+	static const FName SimPosition3DAttribute(TEXT("SimPosition3D"));
+	static const FName SimNormalAttribute(TEXT("SimNormal"));
 	static const FName SimBoneIndicesAttribute(TEXT("SimBoneIndices"));
 	static const FName SimBoneWeightsAttribute(TEXT("SimBoneWeights"));
-	static const TArray<FName> SimVerticesGroupAttributes =
+	static const FName TetherKinematicIndexAttribute(TEXT("TetherKinematicIndex"));
+	static const FName TetherReferenceLengthAttribute(TEXT("TetherReferenceLength"));
+	static const FName SimVertex2DLookupAttribute(TEXT("SimVertex2DLookup"));
+	static const FName SeamStitchLookupAttribute(TEXT("SeamStitchLookup"));
+	static const TArray<FName> SimVertices3DGroupAttributes =
 	{
-		SimPositionAttribute,
-		SimRestPositionAttribute,
-		SimRestNormalAttribute,
-		SimNumBoneInfluencesAttribute,
+		SimPosition3DAttribute,
+		SimNormalAttribute,
 		SimBoneIndicesAttribute,
-		SimBoneWeightsAttribute
+		SimBoneWeightsAttribute,
+		SimVertex2DLookupAttribute,
+		SeamStitchLookupAttribute
 	};
 
 	// Render Faces Group
 	static const FName RenderIndicesAttribute(TEXT("RenderIndices"));
-	static const FName RenderMaterialIndexAttribute(TEXT("RenderMaterialIndex"));
 	static const TArray<FName> RenderFacesGroupAttributes =
 	{
 		RenderIndicesAttribute,
-		RenderMaterialIndexAttribute
 	};
 
 	// Render Vertices Group
@@ -141,7 +126,6 @@ namespace UE::Chaos::ClothAsset::Private
 	static const FName RenderTangentVAttribute(TEXT("RenderTangentV"));
 	static const FName RenderUVsAttribute(TEXT("RenderUVs"));
 	static const FName RenderColorAttribute(TEXT("RenderColor"));
-	static const FName RenderNumBoneInfluencesAttribute(TEXT("RenderNumBoneInfluences"));
 	static const FName RenderBoneIndicesAttribute(TEXT("RenderBoneIndices"));
 	static const FName RenderBoneWeightsAttribute(TEXT("RenderBoneWeights"));
 	static const TArray<FName> RenderVerticesGroupAttributes =
@@ -152,7 +136,6 @@ namespace UE::Chaos::ClothAsset::Private
 		RenderTangentVAttribute,
 		RenderUVsAttribute,
 		RenderColorAttribute,
-		RenderNumBoneInfluencesAttribute,
 		RenderBoneIndicesAttribute,
 		RenderBoneWeightsAttribute
 	};
@@ -160,13 +143,13 @@ namespace UE::Chaos::ClothAsset::Private
 	static const TMap<FName, TArray<FName>> FixedAttributeNamesMap =
 	{
 		{ LodsGroup, LodsGroupAttributes },
-		{ MaterialsGroup, MaterialsGroupAttributes },
-		{ TetherBatchesGroup, TetherBatchesGroupAttributes },
-		{ TethersGroup, TethersGroupAttributes },
 		{ SeamsGroup, SeamsGroupAttributes },
-		{ PatternsGroup, PatternsGroupAttributes },
+		{ SeamStitchesGroup, SeamStitchesGroupAttributes },
+		{ SimPatternsGroup, SimPatternsGroupAttributes },
+		{ RenderPatternsGroup, RenderPatternsGroupAttributes },
 		{ SimFacesGroup, SimFacesGroupAttributes },
-		{ SimVerticesGroup, SimVerticesGroupAttributes },
+		{ SimVertices2DGroup, SimVertices2DGroupAttributes },
+		{ SimVertices3DGroup, SimVertices3DGroupAttributes },
 		{ RenderFacesGroup, RenderFacesGroupAttributes },
 		{ RenderVerticesGroup, RenderVerticesGroupAttributes }
 	};
@@ -176,13 +159,13 @@ namespace UE::Chaos::ClothAsset
 {
 	// Groups
 	const FName FClothCollection::LodsGroup = Private::LodsGroup;
-	const FName FClothCollection::MaterialsGroup = Private::MaterialsGroup;
-	const FName FClothCollection::TetherBatchesGroup = Private::TetherBatchesGroup;
-	const FName FClothCollection::TethersGroup = Private::TethersGroup;
 	const FName FClothCollection::SeamsGroup = Private::SeamsGroup;
-	const FName FClothCollection::PatternsGroup = Private::PatternsGroup;
+	const FName FClothCollection::SeamStitchesGroup = Private::SeamStitchesGroup;
+	const FName FClothCollection::SimPatternsGroup = Private::SimPatternsGroup;
+	const FName FClothCollection::RenderPatternsGroup = Private::RenderPatternsGroup;
 	const FName FClothCollection::SimFacesGroup = Private::SimFacesGroup;
-	const FName FClothCollection::SimVerticesGroup = Private::SimVerticesGroup;
+	const FName FClothCollection::SimVertices2DGroup = Private::SimVertices2DGroup;
+	const FName FClothCollection::SimVertices3DGroup = Private::SimVertices3DGroup;
 	const FName FClothCollection::RenderFacesGroup = Private::RenderFacesGroup;
 	const FName FClothCollection::RenderVerticesGroup = Private::RenderVerticesGroup;
 
@@ -194,58 +177,50 @@ namespace UE::Chaos::ClothAsset
 		check(ManagedArrayCollection.IsValid());
 
 		// LODs Group
-		MaterialStart = ManagedArrayCollection->FindAttribute<int32>(MaterialStartAttribute, LodsGroup);
-		MaterialEnd = ManagedArrayCollection->FindAttribute<int32>(MaterialEndAttribute, LodsGroup);
-		TetherBatchStart = ManagedArrayCollection->FindAttribute<int32>(TetherBatchStartAttribute, LodsGroup);
-		TetherBatchEnd = ManagedArrayCollection->FindAttribute<int32>(TetherBatchEndAttribute, LodsGroup);
-		SeamStart = ManagedArrayCollection->FindAttribute<int32>(SeamStartAttribute, LodsGroup);
-		SeamEnd = ManagedArrayCollection->FindAttribute<int32>(SeamEndAttribute, LodsGroup);
-		PatternStart = ManagedArrayCollection->FindAttribute<int32>(PatternStartAttribute, LodsGroup);
-		PatternEnd = ManagedArrayCollection->FindAttribute<int32>(PatternEndAttribute, LodsGroup);
 		PhysicsAssetPathName = ManagedArrayCollection->FindAttribute<FString>(PhysicsAssetPathNameAttribute, LodsGroup);
 		SkeletonAssetPathName = ManagedArrayCollection->FindAttribute<FString>(SkeletonAssetPathNameAttribute, LodsGroup);
 
-		// Materials Group
-		RenderMaterialPathName = ManagedArrayCollection->FindAttribute<FString>(RenderMaterialPathNameAttribute, MaterialsGroup);
-
-		// Tether Batches Group
-		TetherStart = ManagedArrayCollection->FindAttribute<int32>(TetherStartAttribute, TetherBatchesGroup);
-		TetherEnd = ManagedArrayCollection->FindAttribute<int32>(TetherEndAttribute, TetherBatchesGroup);
-
-		// Tethers Group
-		TetherKinematicIndex = ManagedArrayCollection->FindAttribute<int32>(TetherKinematicIndexAttribute, TethersGroup);
-		TetherDynamicIndex = ManagedArrayCollection->FindAttribute<int32>(TetherDynamicIndexAttribute, TethersGroup);
-		TetherReferenceLength = ManagedArrayCollection->FindAttribute<float>(TetherReferenceLengthAttribute, TethersGroup);
-
 		// Seam Group
-		SeamPatterns = ManagedArrayCollection->FindAttribute<FIntVector2>(SeamPatternsAttribute, SeamsGroup);
-		SeamStitches = ManagedArrayCollection->FindAttribute<TArray<FIntVector2>>(SeamStitchesAttribute, SeamsGroup);
+		SeamStitchStart = ManagedArrayCollection->FindAttribute<int32>(SeamStitchStartAttribute, SeamsGroup);
+		SeamStitchEnd = ManagedArrayCollection->FindAttribute<int32>(SeamStitchEndAttribute, SeamsGroup);
 
-		// Patterns Group
-		SimVerticesStart = ManagedArrayCollection->FindAttribute<int32>(SimVerticesStartAttribute, PatternsGroup);
-		SimVerticesEnd = ManagedArrayCollection->FindAttribute<int32>(SimVerticesEndAttribute, PatternsGroup);
-		SimFacesStart = ManagedArrayCollection->FindAttribute<int32>(SimFacesStartAttribute, PatternsGroup);
-		SimFacesEnd = ManagedArrayCollection->FindAttribute<int32>(SimFacesEndAttribute, PatternsGroup);
-		RenderVerticesStart = ManagedArrayCollection->FindAttribute<int32>(RenderVerticesStartAttribute, PatternsGroup);
-		RenderVerticesEnd = ManagedArrayCollection->FindAttribute<int32>(RenderVerticesEndAttribute, PatternsGroup);
-		RenderFacesStart = ManagedArrayCollection->FindAttribute<int32>(RenderFacesStartAttribute, PatternsGroup);
-		RenderFacesEnd = ManagedArrayCollection->FindAttribute<int32>(RenderFacesEndAttribute, PatternsGroup);
-		StatusFlags = ManagedArrayCollection->FindAttribute<int32>(StatusFlagsAttribute, PatternsGroup);
+		// Seam Stitches Group
+		SeamStitch2DEndIndices = ManagedArrayCollection->FindAttribute<FIntVector2>(SeamStitch2DEndIndicesAttribute, SeamStitchesGroup);
+		SeamStitch3DIndex = ManagedArrayCollection->FindAttribute<int32>(SeamStitch3DIndexAttribute, SeamStitchesGroup);
+
+		// Sim Patterns Group
+		SimVertices2DStart = ManagedArrayCollection->FindAttribute<int32>(SimVertices2DStartAttribute, SimPatternsGroup);
+		SimVertices2DEnd = ManagedArrayCollection->FindAttribute<int32>(SimVertices2DEndAttribute, SimPatternsGroup);
+		SimFacesStart = ManagedArrayCollection->FindAttribute<int32>(SimFacesStartAttribute, SimPatternsGroup);
+		SimFacesEnd = ManagedArrayCollection->FindAttribute<int32>(SimFacesEndAttribute, SimPatternsGroup);
+
+		// Render Patterns Group
+		RenderVerticesStart = ManagedArrayCollection->FindAttribute<int32>(RenderVerticesStartAttribute, RenderPatternsGroup);
+		RenderVerticesEnd = ManagedArrayCollection->FindAttribute<int32>(RenderVerticesEndAttribute, RenderPatternsGroup);
+		RenderFacesStart = ManagedArrayCollection->FindAttribute<int32>(RenderFacesStartAttribute, RenderPatternsGroup);
+		RenderFacesEnd = ManagedArrayCollection->FindAttribute<int32>(RenderFacesEndAttribute, RenderPatternsGroup);
+		RenderMaterialPathName = ManagedArrayCollection->FindAttribute<FString>(RenderMaterialPathNameAttribute, RenderPatternsGroup);
 
 		// Sim Faces Group
-		SimIndices = ManagedArrayCollection->FindAttribute<FIntVector3>(SimIndicesAttribute, SimFacesGroup);
+		SimIndices2D = ManagedArrayCollection->FindAttribute<FIntVector3>(SimIndices2DAttribute, SimFacesGroup);
+		SimIndices3D = ManagedArrayCollection->FindAttribute<FIntVector3>(SimIndices3DAttribute, SimFacesGroup);
 
-		// Sim Vertices Group
-		SimPosition = ManagedArrayCollection->FindAttribute<FVector2f>(SimPositionAttribute, SimVerticesGroup);
-		SimRestPosition = ManagedArrayCollection->FindAttribute<FVector3f>(SimRestPositionAttribute, SimVerticesGroup);
-		SimRestNormal = ManagedArrayCollection->FindAttribute<FVector3f>(SimRestNormalAttribute, SimVerticesGroup);
-		SimNumBoneInfluences = ManagedArrayCollection->FindAttribute<int32>(SimNumBoneInfluencesAttribute, SimVerticesGroup);
-		SimBoneIndices = ManagedArrayCollection->FindAttribute<TArray<int32>>(SimBoneIndicesAttribute, SimVerticesGroup);
-		SimBoneWeights = ManagedArrayCollection->FindAttribute<TArray<float>>(SimBoneWeightsAttribute, SimVerticesGroup);
+		// Sim Vertices 2D Group
+		SimPosition2D = ManagedArrayCollection->FindAttribute<FVector2f>(SimPosition2DAttribute, SimVertices2DGroup);
+		SimVertex3DLookup = ManagedArrayCollection->FindAttribute<int32>(SimVertex3DLookupAttribute, SimVertices2DGroup);
+
+		// Sim Vertices 3D Group
+		SimPosition3D = ManagedArrayCollection->FindAttribute<FVector3f>(SimPosition3DAttribute, SimVertices3DGroup);
+		SimNormal = ManagedArrayCollection->FindAttribute<FVector3f>(SimNormalAttribute, SimVertices3DGroup);
+		SimBoneIndices = ManagedArrayCollection->FindAttribute<TArray<int32>>(SimBoneIndicesAttribute, SimVertices3DGroup);
+		SimBoneWeights = ManagedArrayCollection->FindAttribute<TArray<float>>(SimBoneWeightsAttribute, SimVertices3DGroup);
+		TetherKinematicIndex = ManagedArrayCollection->FindAttribute<TArray<int32>>(TetherKinematicIndexAttribute, SimVertices3DGroup);
+		TetherReferenceLength = ManagedArrayCollection->FindAttribute<TArray<float>>(TetherReferenceLengthAttribute, SimVertices3DGroup);
+		SimVertex2DLookup = ManagedArrayCollection->FindAttribute<TArray<int32>>(SimVertex2DLookupAttribute, SimVertices3DGroup);
+		SeamStitchLookup = ManagedArrayCollection->FindAttribute<TArray<int32>>(SeamStitchLookupAttribute, SimVertices3DGroup);
 
 		// Render Faces Group
 		RenderIndices = ManagedArrayCollection->FindAttribute<FIntVector3>(RenderIndicesAttribute, RenderFacesGroup);
-		RenderMaterialIndex = ManagedArrayCollection->FindAttribute<int32>(RenderMaterialIndexAttribute, RenderFacesGroup);
 
 		// Render Vertices Group
 		RenderPosition = ManagedArrayCollection->FindAttribute<FVector3f>(RenderPositionAttribute, RenderVerticesGroup);
@@ -254,7 +229,6 @@ namespace UE::Chaos::ClothAsset
 		RenderTangentV = ManagedArrayCollection->FindAttribute<FVector3f>(RenderTangentVAttribute, RenderVerticesGroup);
 		RenderUVs = ManagedArrayCollection->FindAttribute<TArray<FVector2f>>(RenderUVsAttribute, RenderVerticesGroup);
 		RenderColor = ManagedArrayCollection->FindAttribute<FLinearColor>(RenderColorAttribute, RenderVerticesGroup);
-		RenderNumBoneInfluences = ManagedArrayCollection->FindAttribute<int32>(RenderNumBoneInfluencesAttribute, RenderVerticesGroup);
 		RenderBoneIndices = ManagedArrayCollection->FindAttribute<TArray<int32>>(RenderBoneIndicesAttribute, RenderVerticesGroup);
 		RenderBoneWeights = ManagedArrayCollection->FindAttribute<TArray<float>>(RenderBoneWeightsAttribute, RenderVerticesGroup);
 	}
@@ -263,58 +237,50 @@ namespace UE::Chaos::ClothAsset
 	{
 		return 
 			// LODs Group
-			MaterialStart &&
-			MaterialEnd &&
-			TetherBatchStart &&
-			TetherBatchEnd &&
-			SeamStart &&
-			SeamEnd &&
-			PatternStart &&
-			PatternEnd &&
 			PhysicsAssetPathName &&
 			SkeletonAssetPathName &&
 
-			// Materials Group
-			RenderMaterialPathName &&
-
-			// Tether Batches Group
-			TetherStart &&
-			TetherEnd &&
-
-			// Tethers Group
-			TetherKinematicIndex &&
-			TetherDynamicIndex &&
-			TetherReferenceLength &&
-
 			// Seam Group
-			SeamPatterns &&
-			SeamStitches &&
+			SeamStitchStart &&
+			SeamStitchEnd &&
 
-			// Patterns Group
-			SimVerticesStart &&
-			SimVerticesEnd &&
+			// Seam Stitches Group
+			SeamStitch2DEndIndices &&
+			SeamStitch3DIndex &&
+
+			// Sim Patterns Group
+			SimVertices2DStart &&
+			SimVertices2DEnd &&
 			SimFacesStart &&
 			SimFacesEnd &&
+
+			// Render Patterns Group
 			RenderVerticesStart &&
 			RenderVerticesEnd &&
 			RenderFacesStart &&
 			RenderFacesEnd &&
-			StatusFlags &&
+			RenderMaterialPathName &&
 
 			// Sim Faces Group
-			SimIndices &&
+			SimIndices2D &&
+			SimIndices3D &&
 
-			// Sim Vertices Group
-			SimPosition &&
-			SimRestPosition &&
-			SimRestNormal &&
-			SimNumBoneInfluences &&
+			// Sim Vertices 2D Group
+			SimPosition2D  &&
+			SimVertex3DLookup &&
+
+			// Sim Vertices 3D Group
+			SimPosition3D &&
+			SimNormal &&
 			SimBoneIndices &&
 			SimBoneWeights &&
+			TetherKinematicIndex &&
+			TetherReferenceLength &&
+			SimVertex2DLookup &&
+			SeamStitchLookup &&
 
 			// Render Faces Group
 			RenderIndices &&
-			RenderMaterialIndex &&
 
 			// Render Vertices Group
 			RenderPosition &&
@@ -323,7 +289,6 @@ namespace UE::Chaos::ClothAsset
 			RenderTangentV &&
 			RenderUVs &&
 			RenderColor &&
-			RenderNumBoneInfluences &&
 			RenderBoneIndices &&
 			RenderBoneWeights;
 	}
@@ -333,69 +298,60 @@ namespace UE::Chaos::ClothAsset
 		using namespace UE::Chaos::ClothAsset::Private;
 
 		// Dependencies
-		FManagedArrayCollection::FConstructionParameters MaterialsDependency(MaterialsGroup);
-		FManagedArrayCollection::FConstructionParameters TetherBatchesDependency(TetherBatchesGroup);
-		FManagedArrayCollection::FConstructionParameters TethersDependency(TethersGroup);
-		FManagedArrayCollection::FConstructionParameters SeamsDependency(SeamsGroup);
-		FManagedArrayCollection::FConstructionParameters PatternsDependency(PatternsGroup);
-		FManagedArrayCollection::FConstructionParameters RenderFacesDependency(RenderFacesGroup);
-		FManagedArrayCollection::FConstructionParameters RenderVerticesDependency(RenderVerticesGroup);
-		FManagedArrayCollection::FConstructionParameters SimFacesDependency(SimFacesGroup);
-		FManagedArrayCollection::FConstructionParameters SimVerticesDependency(SimVerticesGroup);
+		constexpr bool bSaved = true;
+		constexpr bool bAllowCircularDependency = true;
+		FManagedArrayCollection::FConstructionParameters SeamStitchesDependency(SeamStitchesGroup, bSaved, bAllowCircularDependency);
+		FManagedArrayCollection::FConstructionParameters RenderFacesDependency(RenderFacesGroup, bSaved, bAllowCircularDependency);
+		FManagedArrayCollection::FConstructionParameters RenderVerticesDependency(RenderVerticesGroup, bSaved, bAllowCircularDependency);
+		FManagedArrayCollection::FConstructionParameters SimFacesDependency(SimFacesGroup, bSaved, bAllowCircularDependency);
+		FManagedArrayCollection::FConstructionParameters SimVertices2DDependency(SimVertices2DGroup, bSaved, bAllowCircularDependency);
+		FManagedArrayCollection::FConstructionParameters SimVertices3DDependency(SimVertices3DGroup, bSaved, bAllowCircularDependency);  // Any attribute with this dependency must handle welding and splitting in FCollectionClothSeamFacade
 
 		// LODs Group
-		PatternStart = &ManagedArrayCollection->AddAttribute<int32>(PatternStartAttribute, LodsGroup, PatternsDependency);
-		PatternEnd = &ManagedArrayCollection->AddAttribute<int32>(PatternEndAttribute, LodsGroup, PatternsDependency);
-		SeamStart = &ManagedArrayCollection->AddAttribute<int32>(SeamStartAttribute, LodsGroup, SeamsDependency);
-		SeamEnd = &ManagedArrayCollection->AddAttribute<int32>(SeamEndAttribute, LodsGroup, SeamsDependency);
-		TetherBatchStart = &ManagedArrayCollection->AddAttribute<int32>(TetherBatchStartAttribute, LodsGroup, TetherBatchesDependency);
-		TetherBatchEnd = &ManagedArrayCollection->AddAttribute<int32>(TetherBatchEndAttribute, LodsGroup, TetherBatchesDependency);
-		MaterialStart = &ManagedArrayCollection->AddAttribute<int32>(MaterialStartAttribute, LodsGroup, MaterialsDependency);
-		MaterialEnd = &ManagedArrayCollection->AddAttribute<int32>(MaterialEndAttribute, LodsGroup, MaterialsDependency);
 		PhysicsAssetPathName = &ManagedArrayCollection->AddAttribute<FString>(PhysicsAssetPathNameAttribute, LodsGroup);
 		SkeletonAssetPathName = &ManagedArrayCollection->AddAttribute<FString>(SkeletonAssetPathNameAttribute, LodsGroup);
 
-		// Materials Group
-		RenderMaterialPathName = &ManagedArrayCollection->AddAttribute<FString>(RenderMaterialPathNameAttribute, MaterialsGroup);
-
-		// Tether Batches Group
-		TetherStart = &ManagedArrayCollection->AddAttribute<int32>(TetherStartAttribute, TetherBatchesGroup, TethersDependency);
-		TetherEnd = &ManagedArrayCollection->AddAttribute<int32>(TetherEndAttribute, TetherBatchesGroup, TethersDependency);
-
-		// Tethers Group
-		TetherKinematicIndex = &ManagedArrayCollection->AddAttribute<int32>(TetherKinematicIndexAttribute, TethersGroup, SimVerticesDependency);
-		TetherDynamicIndex = &ManagedArrayCollection->AddAttribute<int32>(TetherDynamicIndexAttribute, TethersGroup, SimVerticesDependency);
-		TetherReferenceLength = &ManagedArrayCollection->AddAttribute<float>(TetherReferenceLengthAttribute, TethersGroup);
-
 		// Seams Group
-		SeamPatterns = &ManagedArrayCollection->AddAttribute<FIntVector2>(SeamPatternsAttribute, SeamsGroup, SimVerticesDependency);
-		SeamStitches = &ManagedArrayCollection->AddAttribute<TArray<FIntVector2>>(SeamStitchesAttribute, SeamsGroup, SimVerticesDependency);
+		SeamStitchStart = &ManagedArrayCollection->AddAttribute<int32>(SeamStitchStartAttribute, SeamsGroup, SeamStitchesDependency);
+		SeamStitchEnd = &ManagedArrayCollection->AddAttribute<int32>(SeamStitchEndAttribute, SeamsGroup, SeamStitchesDependency);
 
-		// Patterns Group
-		SimVerticesStart = &ManagedArrayCollection->AddAttribute<int32>(SimVerticesStartAttribute, PatternsGroup, SimVerticesDependency);
-		SimVerticesEnd = &ManagedArrayCollection->AddAttribute<int32>(SimVerticesEndAttribute, PatternsGroup, SimVerticesDependency);
-		SimFacesStart = &ManagedArrayCollection->AddAttribute<int32>(SimFacesStartAttribute, PatternsGroup, SimFacesDependency);
-		SimFacesEnd = &ManagedArrayCollection->AddAttribute<int32>(SimFacesEndAttribute, PatternsGroup, SimFacesDependency);
-		RenderVerticesStart = &ManagedArrayCollection->AddAttribute<int32>(RenderVerticesStartAttribute, PatternsGroup, RenderVerticesDependency);
-		RenderVerticesEnd = &ManagedArrayCollection->AddAttribute<int32>(RenderVerticesEndAttribute, PatternsGroup, RenderVerticesDependency);
-		RenderFacesStart = &ManagedArrayCollection->AddAttribute<int32>(RenderFacesStartAttribute, PatternsGroup, RenderFacesDependency);
-		RenderFacesEnd = &ManagedArrayCollection->AddAttribute<int32>(RenderFacesEndAttribute, PatternsGroup, RenderFacesDependency);
-		StatusFlags = &ManagedArrayCollection->AddAttribute<int32>(StatusFlagsAttribute, PatternsGroup);
+		// Seam Stitches Group
+		SeamStitch2DEndIndices = &ManagedArrayCollection->AddAttribute<FIntVector2>(SeamStitch2DEndIndicesAttribute, SeamStitchesGroup, SimVertices2DDependency);
+		SeamStitch3DIndex = &ManagedArrayCollection->AddAttribute<int32>(SeamStitch3DIndexAttribute, SeamStitchesGroup, SimVertices3DDependency);
+
+		// Sim Patterns Group
+		SimVertices2DStart = &ManagedArrayCollection->AddAttribute<int32>(SimVertices2DStartAttribute, SimPatternsGroup, SimVertices2DDependency);
+		SimVertices2DEnd = &ManagedArrayCollection->AddAttribute<int32>(SimVertices2DEndAttribute, SimPatternsGroup, SimVertices2DDependency);
+		SimFacesStart = &ManagedArrayCollection->AddAttribute<int32>(SimFacesStartAttribute, SimPatternsGroup, SimFacesDependency);
+		SimFacesEnd = &ManagedArrayCollection->AddAttribute<int32>(SimFacesEndAttribute, SimPatternsGroup, SimFacesDependency);
+
+		// Render Patterns Group
+		RenderVerticesStart = &ManagedArrayCollection->AddAttribute<int32>(RenderVerticesStartAttribute, RenderPatternsGroup, RenderVerticesDependency);
+		RenderVerticesEnd = &ManagedArrayCollection->AddAttribute<int32>(RenderVerticesEndAttribute, RenderPatternsGroup, RenderVerticesDependency);
+		RenderFacesStart = &ManagedArrayCollection->AddAttribute<int32>(RenderFacesStartAttribute, RenderPatternsGroup, RenderFacesDependency);
+		RenderFacesEnd = &ManagedArrayCollection->AddAttribute<int32>(RenderFacesEndAttribute, RenderPatternsGroup, RenderFacesDependency);
+		RenderMaterialPathName = &ManagedArrayCollection->AddAttribute<FString>(RenderMaterialPathNameAttribute, RenderPatternsGroup);
 
 		// Sim Faces Group
-		SimIndices = &ManagedArrayCollection->AddAttribute<FIntVector3>(SimIndicesAttribute, SimFacesGroup, SimVerticesDependency);
+		SimIndices2D = &ManagedArrayCollection->AddAttribute<FIntVector3>(SimIndices2DAttribute, SimFacesGroup, SimVertices2DDependency);
+		SimIndices3D = &ManagedArrayCollection->AddAttribute<FIntVector3>(SimIndices3DAttribute, SimFacesGroup, SimVertices3DDependency);
 
-		// Sim Vertices Group
-		SimPosition = &ManagedArrayCollection->AddAttribute<FVector2f>(SimPositionAttribute, SimVerticesGroup);
-		SimRestPosition = &ManagedArrayCollection->AddAttribute<FVector3f>(SimRestPositionAttribute, SimVerticesGroup);
-		SimRestNormal = &ManagedArrayCollection->AddAttribute<FVector3f>(SimRestNormalAttribute, SimVerticesGroup);
-		SimNumBoneInfluences = &ManagedArrayCollection->AddAttribute<int32>(SimNumBoneInfluencesAttribute, SimVerticesGroup);
-		SimBoneIndices = &ManagedArrayCollection->AddAttribute<TArray<int32>>(SimBoneIndicesAttribute, SimVerticesGroup);
-		SimBoneWeights = &ManagedArrayCollection->AddAttribute<TArray<float>>(SimBoneWeightsAttribute, SimVerticesGroup);
+		// Sim Vertices 2D Group
+		SimPosition2D = &ManagedArrayCollection->AddAttribute<FVector2f>(SimPosition2DAttribute, SimVertices2DGroup);
+		SimVertex3DLookup = &ManagedArrayCollection->AddAttribute<int32>(SimVertex3DLookupAttribute, SimVertices2DGroup, SimVertices3DDependency);
+
+		// Sim Vertices 3D Group
+		SimPosition3D = &ManagedArrayCollection->AddAttribute<FVector3f>(SimPosition3DAttribute, SimVertices3DGroup);
+		SimNormal = &ManagedArrayCollection->AddAttribute<FVector3f>(SimNormalAttribute, SimVertices3DGroup);
+		SimBoneIndices = &ManagedArrayCollection->AddAttribute<TArray<int32>>(SimBoneIndicesAttribute, SimVertices3DGroup);
+		SimBoneWeights = &ManagedArrayCollection->AddAttribute<TArray<float>>(SimBoneWeightsAttribute, SimVertices3DGroup);
+		TetherKinematicIndex = &ManagedArrayCollection->AddAttribute<TArray<int32>>(TetherKinematicIndexAttribute, SimVertices3DGroup, SimVertices3DDependency);
+		TetherReferenceLength = &ManagedArrayCollection->AddAttribute<TArray<float>>(TetherReferenceLengthAttribute, SimVertices3DGroup);
+		SimVertex2DLookup = &ManagedArrayCollection->AddAttribute<TArray<int32>>(SimVertex2DLookupAttribute, SimVertices3DGroup, SimVertices2DDependency);
+		SeamStitchLookup = &ManagedArrayCollection->AddAttribute<TArray<int32>>(SeamStitchLookupAttribute, SimVertices3DGroup, SeamStitchesDependency);
 
 		// Render Faces Group
 		RenderIndices = &ManagedArrayCollection->AddAttribute<FIntVector3>(RenderIndicesAttribute, RenderFacesGroup, RenderVerticesDependency);
-		RenderMaterialIndex = &ManagedArrayCollection->AddAttribute<int32>(RenderMaterialIndexAttribute, RenderFacesGroup);
 
 		// Render Vertices Group
 		RenderPosition = &ManagedArrayCollection->AddAttribute<FVector3f>(RenderPositionAttribute, RenderVerticesGroup);
@@ -404,7 +360,6 @@ namespace UE::Chaos::ClothAsset
 		RenderTangentV = &ManagedArrayCollection->AddAttribute<FVector3f>(RenderTangentVAttribute, RenderVerticesGroup);
 		RenderUVs = &ManagedArrayCollection->AddAttribute<TArray<FVector2f>>(RenderUVsAttribute, RenderVerticesGroup);
 		RenderColor = &ManagedArrayCollection->AddAttribute<FLinearColor>(RenderColorAttribute, RenderVerticesGroup);
-		RenderNumBoneInfluences = &ManagedArrayCollection->AddAttribute<int32>(RenderNumBoneInfluencesAttribute, RenderVerticesGroup);
 		RenderBoneIndices = &ManagedArrayCollection->AddAttribute<TArray<int32>>(RenderBoneIndicesAttribute, RenderVerticesGroup);
 		RenderBoneWeights = &ManagedArrayCollection->AddAttribute<TArray<float>>(RenderBoneWeightsAttribute, RenderVerticesGroup);
 	}
@@ -512,7 +467,12 @@ namespace UE::Chaos::ClothAsset
 		return Start;
 	}
 
-	int32 FClothCollection::GetElementsOffset(const TManagedArray<int32>* StartArray, int32 BaseElementIndex, int32 ElementIndex) const
+	void FClothCollection::RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList)
+	{
+		ManagedArrayCollection->RemoveElements(Group, SortedDeletionList);
+	}
+
+	int32 FClothCollection::GetElementsOffset(const TManagedArray<int32>* StartArray, int32 BaseElementIndex, int32 ElementIndex)
 	{
 		while ((*StartArray)[BaseElementIndex] == INDEX_NONE && BaseElementIndex < ElementIndex)
 		{
@@ -521,12 +481,27 @@ namespace UE::Chaos::ClothAsset
 		return (*StartArray)[ElementIndex] - (*StartArray)[BaseElementIndex];
 	}
 
+	int32 FClothCollection::GetArrayIndexForContainedElement(
+		const TManagedArray<int32>* StartArray,
+		const TManagedArray<int32>* EndArray,
+		int32 ElementIndex)
+	{
+		for (int32 ArrayIndex = 0; ArrayIndex < StartArray->Num(); ++ArrayIndex)
+		{
+			if (ElementIndex >= (*StartArray)[ArrayIndex] && ElementIndex <= (*EndArray)[ArrayIndex])
+			{
+				return ArrayIndex;
+			}
+		}
+		return INDEX_NONE;
+	}
+
 	int32 FClothCollection::GetNumSubElements(
 		const TManagedArray<int32>* StartArray,
 		const TManagedArray<int32>* EndArray,
 		const TManagedArray<int32>* StartSubArray,
 		const TManagedArray<int32>* EndSubArray,
-		int32 ArrayIndex) const
+		int32 ArrayIndex)
 	{
 		const TTuple<int32, int32> StartEnd = GetSubElementsStartEnd(StartArray, EndArray, StartSubArray, EndSubArray, ArrayIndex);
 		const int32 Start = StartEnd.Get<0>();
@@ -545,7 +520,7 @@ namespace UE::Chaos::ClothAsset
 		const TManagedArray<int32>* EndArray,
 		const TManagedArray<int32>* StartSubArray,
 		const TManagedArray<int32>* EndSubArray,
-		int32 ArrayIndex) const
+		int32 ArrayIndex)
 	{
 		int32 Start = INDEX_NONE;  // Find Start and End indices for the entire LOD minding empty patterns on the way
 		int32 End = INDEX_NONE;
@@ -577,9 +552,9 @@ namespace UE::Chaos::ClothAsset
 		}
 		return TTuple<int32, int32>(Start, End);
 	}
-	template CHAOSCLOTHASSET_API TTuple<int32, int32> FClothCollection::GetSubElementsStartEnd<true, false>(const TManagedArray<int32>* StartArray, const TManagedArray<int32>* EndArray, const TManagedArray<int32>* StartSubArray, const TManagedArray<int32>* EndSubArray, int32 ArrayIndex) const;
-	template CHAOSCLOTHASSET_API TTuple<int32, int32> FClothCollection::GetSubElementsStartEnd<false, true>(const TManagedArray<int32>* StartArray, const TManagedArray<int32>* EndArray, const TManagedArray<int32>* StartSubArray, const TManagedArray<int32>* EndSubArray, int32 ArrayIndex) const;
-	template CHAOSCLOTHASSET_API TTuple<int32, int32> FClothCollection::GetSubElementsStartEnd<true, true>(const TManagedArray<int32>* StartArray, const TManagedArray<int32>* EndArray, const TManagedArray<int32>* StartSubArray, const TManagedArray<int32>* EndSubArray, int32 ArrayIndex) const;
+	template CHAOSCLOTHASSET_API TTuple<int32, int32> FClothCollection::GetSubElementsStartEnd<true, false>(const TManagedArray<int32>* StartArray, const TManagedArray<int32>* EndArray, const TManagedArray<int32>* StartSubArray, const TManagedArray<int32>* EndSubArray, int32 ArrayIndex);
+	template CHAOSCLOTHASSET_API TTuple<int32, int32> FClothCollection::GetSubElementsStartEnd<false, true>(const TManagedArray<int32>* StartArray, const TManagedArray<int32>* EndArray, const TManagedArray<int32>* StartSubArray, const TManagedArray<int32>* EndSubArray, int32 ArrayIndex);
+	template CHAOSCLOTHASSET_API TTuple<int32, int32> FClothCollection::GetSubElementsStartEnd<true, true>(const TManagedArray<int32>* StartArray, const TManagedArray<int32>* EndArray, const TManagedArray<int32>* StartSubArray, const TManagedArray<int32>* EndSubArray, int32 ArrayIndex);
 
 	template<typename T, typename TEnableIf<TIsUserAttributeType<T>::Value, int>::type>
 	TArray<FName> FClothCollection::GetUserDefinedAttributeNames(const FName& GroupName) const
@@ -655,4 +630,17 @@ namespace UE::Chaos::ClothAsset
 	template CHAOSCLOTHASSET_API TManagedArray<int32>* FClothCollection::GetUserDefinedAttribute<int32>(const FName& Name, const FName& GroupName);
 	template CHAOSCLOTHASSET_API TManagedArray<float>* FClothCollection::GetUserDefinedAttribute<float>(const FName& Name, const FName& GroupName);
 	template CHAOSCLOTHASSET_API TManagedArray<FVector3f>* FClothCollection::GetUserDefinedAttribute<FVector3f>(const FName& Name, const FName& GroupName);
+
+	void FClothCollection::CopyArrayViewDataAndApplyOffset(const TArrayView<TArray<int32>>& To, const TConstArrayView<TArray<int32>>& From, const int32 Offset)
+	{
+		check(To.Num() == From.Num());
+		for (int32 Index = 0; Index < To.Num(); ++Index)
+		{
+			To[Index] = From[Index];
+			for (int32& Value : To[Index])
+			{
+				Value += Offset;
+			}
+		}
+	}
 } // End namespace UE::Chaos::ClothAsset

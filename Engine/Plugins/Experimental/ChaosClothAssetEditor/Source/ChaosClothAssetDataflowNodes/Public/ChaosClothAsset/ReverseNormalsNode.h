@@ -18,9 +18,13 @@ public:
 	UPROPERTY(Meta = (Dataflowinput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
 	FManagedArrayCollection Collection;
 
-	/** List of patterns to apply the operation on. All patterns will be used if left empty. */
+	/** List of sim patterns to apply the operation on. All patterns will be used if left empty. */
 	UPROPERTY(EditAnywhere, Category = "Reverse Normals", Meta = (EditCondition = "false"))
-	TArray<int32> Patterns;
+	TArray<int32> SimPatterns;
+
+	/** List of render patterns to apply the operation on. All patterns will be used if left empty. */
+	UPROPERTY(EditAnywhere, Category = "Reverse Normals", Meta = (EditCondition = "false"))
+	TArray<int32> RenderPatterns;
 
 	/** Whether to reverse the simulation mesh normals. */
 	UPROPERTY(EditAnywhere, Category = "Reverse Normals")

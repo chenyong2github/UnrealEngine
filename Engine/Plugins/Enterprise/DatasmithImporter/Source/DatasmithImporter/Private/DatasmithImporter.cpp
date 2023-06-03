@@ -495,52 +495,46 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 
 		using namespace UE::Chaos::ClothAsset;
 
-		TSharedPtr<FManagedArrayCollection> Collection = ClothAsset->GetClothCollection();
-		FCollectionClothFacade Cloth(Collection);
+		TArray<TSharedPtr<FManagedArrayCollection>>& Collections = ClothAsset->GetClothCollections();
+		Collections.SetNum(1);
+		FCollectionClothFacade Cloth(Collections[0]);
 		Cloth.Reset(); // on reimport, asset is non-empty
-		FCollectionClothLodFacade ClothLod = Cloth.GetNumLods() ? Cloth.GetLod(0) : Cloth.AddGetLod();
 
 		for (FDatasmithClothPattern& Pattern : DsCloth.Patterns)
 		{
 			if (Pattern.IsValid())
 			{
-				FCollectionClothPatternFacade ClothPattern = ClothLod.AddGetPattern();
+				FCollectionClothSimPatternFacade ClothPattern = Cloth.AddGetSimPattern();
 				ClothPattern.Initialize(Pattern.SimPosition, Pattern.SimRestPosition, Pattern.SimTriangleIndices);
 			}
 		}
 
-		ClothLod.SetNumSeams(DsCloth.Sewing.Num());
-		TArrayView<FIntVector2> SeamPatterns = ClothLod.GetSeamPatterns();
-		TArrayView<TArray<FIntVector2>> SeamStitches = ClothLod.GetSeamStitches();
-
-		int32 SeamIndex = 0;
 		for (const FDatasmithClothSewingInfo& SeamInfo : DsCloth.Sewing)
 		{
 			const int32 SeamPattern0 = (int32)SeamInfo.Seam0PanelIndex;
 			const int32 SeamPattern1 = (int32)SeamInfo.Seam1PanelIndex;
 
-			if (SeamPattern0 >= 0 && SeamPattern0 < ClothLod.GetNumPatterns() &&
-				SeamPattern1 >= 0 && SeamPattern1 < ClothLod.GetNumPatterns())
+			if (SeamPattern0 >= 0 && SeamPattern0 < Cloth.GetNumSimPatterns() &&
+				SeamPattern1 >= 0 && SeamPattern1 < Cloth.GetNumSimPatterns())
 			{
-				SeamPatterns[SeamIndex] = FIntVector2(SeamPattern0, SeamPattern1);
+				const FCollectionClothSimPatternConstFacade ClothPattern0 = Cloth.GetSimPattern(SeamPattern0);
+				const FCollectionClothSimPatternConstFacade ClothPattern1 = Cloth.GetSimPattern(SeamPattern1);
 
-				const FCollectionClothPatternConstFacade ClothPattern0 = ClothLod.GetPattern(SeamPattern0);
-				const FCollectionClothPatternConstFacade ClothPattern1 = ClothLod.GetPattern(SeamPattern1);
+				const int32 ClothPattern0VerticesOffset = ClothPattern0.GetSimVertices2DOffset();
+				const int32 ClothPattern1VerticesOffset = ClothPattern1.GetSimVertices2DOffset();
 
-				const int32 ClothPattern0VerticesOffset = ClothPattern0.GetSimVerticesOffset();
-				const int32 ClothPattern1VerticesOffset = ClothPattern1.GetSimVerticesOffset();
-
-				TArray<FIntVector2>& Stitches = SeamStitches[SeamIndex];
-				const int32 StitchesCount = FMath::Min(SeamInfo.Seam0MeshIndices.Num(), SeamInfo.Seam1MeshIndices.Num());
+				TArray<FIntVector2> Stitches;
+				const uint32 StitchesCount = FMath::Min(SeamInfo.Seam0MeshIndices.Num(), SeamInfo.Seam1MeshIndices.Num());
 				Stitches.Reserve(StitchesCount);
-				for (int32 StitchIndex = 0; StitchIndex < StitchesCount; ++StitchIndex)
+				for (uint32 StitchIndex = 0; StitchIndex < StitchesCount; ++StitchIndex)
 				{
 					Stitches.Emplace(
-						(int32)SeamInfo.Seam0MeshIndices[StitchIndex] + ClothPattern0VerticesOffset,
+						(int32)SeamInfo.Seam0MeshIndices[StitchIndex] + ClothPattern0VerticesOffset, 
 						(int32)SeamInfo.Seam1MeshIndices[StitchIndex] + ClothPattern1VerticesOffset);
 				}
 
-				++SeamIndex;
+				FCollectionClothSeamFacade SeamFacade = Cloth.AddGetSeam();
+				SeamFacade.Initialize(Stitches);
 			}
 		}
 

@@ -366,6 +366,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// OpenColorIO transforms now serialize their generated texture(s) and shader code normally into the uasset.
 		OpenColorIOAssetCacheSerialization,
+
+		// Cloth collection single lod schema
+		ClothCollectionSingleLodSchema,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

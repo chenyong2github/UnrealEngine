@@ -9,6 +9,13 @@ class SDataflowGraphEditor;
 class UDataflow;
 class UEdGraphNode;
 
+namespace UE::Chaos::ClothAsset
+{
+enum class EClothPatternVertexType : uint8;
+}
+struct FManagedArrayCollection;
+
+
 UCLASS()
 class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorContextObject : public UObject
 {
@@ -16,7 +23,7 @@ class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorContextObject : public UObject
 
 public:
 
-	void Init(TWeakPtr<SDataflowGraphEditor> DataflowGraphEditor, TObjectPtr<UDataflow> DataflowGraph);
+	void Init(TWeakPtr<SDataflowGraphEditor> DataflowGraphEditor, TObjectPtr<UDataflow> DataflowGraph, UE::Chaos::ClothAsset::EClothPatternVertexType InConstructionViewMode, TWeakPtr<FManagedArrayCollection> SelectedClothCollection);
 
 	TWeakPtr<SDataflowGraphEditor> GetDataflowGraphEditor();
 	const TWeakPtr<const SDataflowGraphEditor> GetDataflowGraphEditor() const;
@@ -63,6 +70,10 @@ public:
 		UEdGraphNode& UpstreamNode,
 		const FName& ConnectionTypeName);
 
+	void SetClothCollection(UE::Chaos::ClothAsset::EClothPatternVertexType ViewMode, TWeakPtr<FManagedArrayCollection> ClothCollection);
+
+	const TWeakPtr<const FManagedArrayCollection> GetSelectedClothCollection() const { return SelectedClothCollection; }
+	UE::Chaos::ClothAsset::EClothPatternVertexType GetConstructionViewMode() const { return ConstructionViewMode; }
 private:
 
 	TWeakPtr<SDataflowGraphEditor> DataflowGraphEditor;
@@ -70,6 +81,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<UDataflow> DataflowGraph = nullptr;
 
+	UE::Chaos::ClothAsset::EClothPatternVertexType ConstructionViewMode;
+	TWeakPtr<const FManagedArrayCollection> SelectedClothCollection;
 };
 
 

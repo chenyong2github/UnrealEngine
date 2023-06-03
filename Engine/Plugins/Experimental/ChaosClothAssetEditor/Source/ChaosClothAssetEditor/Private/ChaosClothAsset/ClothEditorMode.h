@@ -146,9 +146,9 @@ private:
 
 	bool IsComponentSelected(const UPrimitiveComponent* InComponent);
 
-	// Rest space wireframes. They have to get ticked to be able to respond to setting changes. 
+	// Rest space wireframe. They have to get ticked to be able to respond to setting changes. 
 	UPROPERTY()
-	TArray<TObjectPtr<UMeshElementsVisualizer>> WireframesToTick;
+	TObjectPtr<UMeshElementsVisualizer> WireframeToTick = nullptr;
 
 	// Preview Scene, here largely for convenience to avoid having to pass it around functions. Owned by the ClothEditorToolkit.
 	UE::Chaos::ClothAsset::FChaosClothPreviewScene* PreviewScene = nullptr;
@@ -157,21 +157,13 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UInteractiveToolPropertySet>> PropertyObjectsToTick;
 
-	// Rest space editable meshes
+	// Rest space editable mesh
 	UPROPERTY()
-	TArray<TObjectPtr<UDynamicMeshComponent>> DynamicMeshComponents;
+	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent = nullptr;
 
-	// Actors required for hit testing DynamicMeshComponents
+	// Actor required for hit testing DynamicMeshComponent
 	UPROPERTY()
-	TArray<TObjectPtr<AActor>> DynamicMeshComponentParentActors;
-
-	// Map back to original asset location for each DynamicMeshComponent
-	struct FDynamicMeshSourceInfo
-	{
-		int32 LodIndex;
-		int32 PatternIndex;
-	};
-	TArray<FDynamicMeshSourceInfo> DynamicMeshSourceInfos;
+	TObjectPtr<AActor> DynamicMeshComponentParentActor = nullptr;
 
 	TWeakPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> RestSpaceViewportClient;
 
@@ -182,10 +174,6 @@ private:
 	bool bShouldFocusRestSpaceView = true;
 
 	void RestSpaceViewportResized(FViewport* RestspaceViewport, uint32 Unused);
-
-	// Whether to combine all patterns into a single DynamicMeshComponent, or have separate components for each pattern
-	// TODO: Expose this to the user
-	bool bCombineAllPatterns = true;
 
 	UE::Chaos::ClothAsset::EClothPatternVertexType ConstructionViewMode;
 	bool bCanChangeConstructionViewMode = true;

@@ -3,6 +3,7 @@
 #include "ClothAssetFactory.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "GeometryCollection/ManagedArrayCollection.h"
 #include "Animation/Skeleton.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothAssetFactory)
@@ -23,11 +24,11 @@ UObject* UChaosClothAssetFactory::FactoryCreateNew(UClass* Class, UObject* Paren
 	ClothAsset->MarkPackageDirty();
 
 	// Add an empty default LOD, to avoid LOD mismatch with render data
-	TSharedPtr<FManagedArrayCollection> ClothCollection = ClothAsset->GetClothCollection();
+	TArray<TSharedPtr<FManagedArrayCollection>>& ClothCollections = ClothAsset->GetClothCollections();
+	TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
 
 	FCollectionClothFacade ClothFacade(ClothCollection);
 	ClothFacade.DefineSchema();
-	ClothFacade.AddLod();
 
 	// Set the default skeleton on this new LOD and rebuild the static data models (which is done by default with this override)
 	ClothAsset->SetSkeleton(nullptr);

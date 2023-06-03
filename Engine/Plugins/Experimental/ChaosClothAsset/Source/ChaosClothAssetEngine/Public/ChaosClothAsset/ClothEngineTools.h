@@ -6,6 +6,7 @@
 
 struct FManagedArrayCollection;
 class FName;
+class FSkeletalMeshLODModel;
 
 namespace UE::Chaos::ClothAsset
 {

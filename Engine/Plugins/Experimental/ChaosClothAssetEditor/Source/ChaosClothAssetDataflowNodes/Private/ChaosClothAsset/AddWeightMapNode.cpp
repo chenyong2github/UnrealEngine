@@ -3,6 +3,7 @@
 #include "ChaosClothAsset/AddWeightMapNode.h"
 #include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "ChaosClothAsset/ClothGeometryTools.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AddWeightMapNode)
 
@@ -29,31 +30,22 @@ void FChaosClothAssetAddWeightMapNode::Evaluate(Dataflow::FContext& Context, con
 		FCollectionClothFacade ClothFacade(ClothCollection);
 
 		const FString InNameString = GetValue<FString>(Context, &Name);
+		const FName InName(InNameString);
+		ClothFacade.AddWeightMap(InName);		// Does nothing if weight map already exists
 
-		// Note: If the input collection has no valid LODs, just pass it to the output as is (this can happen if the node is asked to Evaluate before the inputs are connected)
-
-		if (ClothFacade.GetNumLods() > 0)
+		TArrayView<float> ClothWeights = ClothFacade.GetWeightMap(InName);
+		const int32 MaxWeightIndex = FMath::Min(VertexWeights.Num(), ClothWeights.Num());
+		if (VertexWeights.Num() != ClothWeights.Num())
 		{
-			const FName InName(InNameString);
-			ClothFacade.AddWeightMap(InName);		// Does nothing if weight map already exists
+			DataflowNodes::LogAndToastWarning(
+				FText::Format(LOCTEXT("WeightMapSize", "FChaosClothAssetAddWeightMapNode: Vertex count mismatch: vertex weights in the node: {0}; 3D vertices in cloth: {1}"),
+					VertexWeights.Num(),
+					ClothWeights.Num()));
+		}
 
-			FCollectionClothLodFacade ClothLod = ClothFacade.GetLod(0);
-			TArrayView<float> LodWeights = ClothLod.GetWeightMap(InName);
-
-			const int32 MaxWeightIndex = FMath::Min(VertexWeights.Num(), LodWeights.Num());
-
-			if (VertexWeights.Num() != LodWeights.Num())
-			{
-				DataflowNodes::LogAndToastWarning(
-					FText::Format(LOCTEXT("WeightMapSize", "FChaosClothAssetAddWeightMapNode: Vertex count mismatch: vertex weights in the node: {0}; vertices in the specified LOD: {1}"),
-						VertexWeights.Num(),
-						LodWeights.Num()));
-			}
-				
-			for (int32 VertexID = 0; VertexID < MaxWeightIndex; ++VertexID)
-			{
-				LodWeights[VertexID] = VertexWeights[VertexID];
-			}
+		for (int32 VertexID = 0; VertexID < MaxWeightIndex; ++VertexID)
+		{
+			ClothWeights[VertexID] = VertexWeights[VertexID];
 		}
 
 		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);

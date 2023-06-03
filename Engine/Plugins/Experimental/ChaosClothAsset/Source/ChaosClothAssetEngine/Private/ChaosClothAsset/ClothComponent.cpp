@@ -72,9 +72,10 @@ void UChaosClothComponent::ResetConfigProperties()
 		// Create a mutable facade for our component's property collection, and use it to copy the properties from the cloth collection
 		::Chaos::Softs::FCollectionPropertyMutableFacade CollectionPropertyMutableFacade(PropertyCollection);
 
-		if (GetClothAsset() && GetClothAsset()->GetClothCollection())
+		// TODO: Make PropertyCollection also one per LOD.
+		if (GetClothAsset() && GetClothAsset()->GetClothCollections().Num() > 0 && GetClothAsset()->GetClothCollections()[0].IsValid())
 		{
-			CollectionPropertyMutableFacade.Copy(*GetClothAsset()->GetClothCollection());
+			CollectionPropertyMutableFacade.Copy(*GetClothAsset()->GetClothCollections()[0]);
 		}
 		else
 		{
