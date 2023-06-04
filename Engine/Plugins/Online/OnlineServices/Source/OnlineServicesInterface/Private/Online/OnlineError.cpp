@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Online/OnlineError.h"
 #include "Online/OnlineErrorCode.h"
+#include "Serialization/CompactBinaryWriter.h"
 
 namespace UE::Online{
 	namespace Errors {
@@ -59,6 +60,72 @@ namespace UE::Online{
 		}
 
 		return false;
+	}
+
+
+
+	void SerializeForLog(FCbWriter& Writer, const FOnlineError& OnlineError)
+	{
+		
+		Writer.BeginObject();
+		Writer.AddString(ANSITEXTVIEW("$type"), ANSITEXTVIEW("OnlineError"));
+
+
+		FText ErrorMessage;
+		FFormatNamedArguments ErrorMessageArgs;
+
+		bool bHasDetails = false;
+		bool bHasInner = false;
+
+		if (OnlineError == UE::Online::Errors::ErrorCode::Success)
+		{
+			FText SuccessText = NSLOCTEXT("OnlineError", "Success", "Success");
+			ErrorMessageArgs.Add(TEXT("ErrorCode"), SuccessText);
+			Writer.AddString(ANSITEXTVIEW("ErrorCode"), SuccessText.ToString());
+		}
+		else
+		{
+			FString ErrorCodeString = OnlineError.GetErrorId();
+			ErrorMessageArgs.Add(TEXT("ErrorCode"), FText::FromString(ErrorCodeString));
+			Writer.AddString(ANSITEXTVIEW("ErrorCode"), ErrorCodeString);
+		}
+
+		if (OnlineError.Details)
+		{
+			FText ErrorDetails = OnlineError.Details->GetText(OnlineError);
+			ErrorMessageArgs.Add(TEXT("ErrorDetails"), ErrorDetails);
+			Writer.AddString(ANSITEXTVIEW("ErrorDetails"), ErrorDetails.ToString());
+			bHasDetails = true;
+		}
+		
+		if (OnlineError.GetInner() != nullptr)
+		{
+			FText InnerText = OnlineError.GetInner()->GetText();
+			ErrorMessageArgs.Add(TEXT("InnerError"), InnerText);
+			Writer.AddString(ANSITEXTVIEW("InnerError"), InnerText.ToString());
+			bHasInner = true;
+		}
+
+		if (bHasInner && bHasDetails)
+		{
+			Writer.AddString("$text", FText::Format(NSLOCTEXT("OnlineError", "ErrorDetailsErrorInner", "{ErrorCode}, {ErrorDetails}, InnerError:{InnerError}"), ErrorMessageArgs).ToString());
+		}
+		else if (bHasDetails)
+		{
+			Writer.AddString("$text", FText::Format(NSLOCTEXT("OnlineError", "ErrorDetails", "{ErrorCode}, {ErrorDetails}"), ErrorMessageArgs).ToString());
+		}
+		else if (bHasInner)
+		{
+			Writer.AddString("$text", FText::Format(NSLOCTEXT("OnlineError", "ErrorInner", "{ErrorCode}, InnerError:{InnerError}"), ErrorMessageArgs).ToString());
+		}
+		else
+		{
+			Writer.AddString("$text", FText::Format(NSLOCTEXT("OnlineError", "ErrorCode", "{ErrorCode}"), ErrorMessageArgs).ToString());
+		}
+		
+
+		// Writer.AddString(ANSITEXTVIEW("errorNamespace"), OnlineError.ErrorNamespace);
+		Writer.EndObject();
 	}
 
 } /* namespace UE::Online */

@@ -166,7 +166,11 @@ private:
 	TSharedPtr<const IOnlineErrorDetails, ESPMode::ThreadSafe> Details;
 	TSharedPtr<const FOnlineError, ESPMode::ThreadSafe> Inner;
 	ErrorCodeType ErrorCode;
+
+	ONLINESERVICESINTERFACE_API friend void SerializeForLog(FCbWriter& Writer, const FOnlineError& OnlineError);
 };
+
+
 
 
 

@@ -57,7 +57,7 @@ inline FOnlineError Internal_OssWrapInner(FOnlineError Error, const FOnlineError
 	return Internal_OssGetCommonError(Error, Result.GetErrorResult());
 }
 
-inline FOnlineError FromOssError(const FOnlineErrorOss& Result)
+ONLINESERVICESOSSADAPTER_API inline FOnlineError FromOssError(const FOnlineErrorOss& Result)
 {
 	FString ErrorCode;
 	FText ErrorMessage = Result.GetErrorMessage();
