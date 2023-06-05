@@ -455,6 +455,25 @@ namespace ImmediatePhysics_Chaos
 		return ParticleHandle->CastToRigidParticle() != nullptr && ParticleHandle->ObjectState() == Chaos::EObjectStateType::Dynamic;
 	}
 
+	bool FActorHandle::IsGravityEnabled() const
+	{
+		using namespace Chaos;
+		if (FPBDRigidParticleHandle* Rigid = Handle()->CastToRigidParticle())
+		{
+			return IsSimulated() && Rigid->GravityEnabled();
+		}
+		return false;
+	}
+
+	void FActorHandle::SetGravityEnabled(bool bEnable)
+	{
+		using namespace Chaos;
+		if (FPBDRigidParticleHandle* Rigid = Handle()->CastToRigidParticle())
+		{
+			Rigid->SetGravityEnabled(bEnable);
+		}
+	}
+
 	FTransform FActorHandle::GetWorldTransform() const
 	{
 		using namespace Chaos;

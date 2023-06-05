@@ -48,8 +48,14 @@ namespace ImmediatePhysics_Chaos
 		/** Does this actor have a kinematic target (next kinematic transform to be applied) */
 		bool HasKinematicTarget() const;
 
+		/** Returns true if the world gravity applies to this actor */
+		bool IsGravityEnabled() const;
+
 		/** Whether the body is static */
 		bool IsStatic() const;
+
+		/** Sets whether world gravity should apply to this actor, assuming it is dynamic */
+		void SetGravityEnabled(bool bEnable);
 
 		/** Whether the body is simulating */
 		bool IsSimulated() const;
