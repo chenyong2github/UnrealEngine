@@ -49,7 +49,7 @@ public:
 	{
 		FTSTicker::GetCoreTicker().RemoveTicker(GameThreadTickDelegate);
 
-		for (const TPair<uint32, UStaticMesh*>& StaticMeshByKey : StaticMeshCacheMap)
+		for (const TPair<uint32, TObjectPtr<UStaticMesh>>& StaticMeshByKey : StaticMeshCacheMap)
 		{
 			if (StaticMeshByKey.Value)
 			{
@@ -58,7 +58,7 @@ public:
 			}
 		}
 
-		for (const TPair<uint32, UDynamicMesh*>& DynamicMeshByKey : DynamicMeshCacheMap)
+		for (const TPair<uint32, TObjectPtr<UDynamicMesh>>& DynamicMeshByKey : DynamicMeshCacheMap)
 		{
 			if (DynamicMeshByKey.Value)
 			{

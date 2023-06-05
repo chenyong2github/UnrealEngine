@@ -11,6 +11,7 @@
 #include "Iris/ReplicationState/ReplicationStateDescriptor.h"
 #include "Iris/ReplicationSystem/NetRefHandle.h"
 #include "Iris/ReplicationSystem/NetDependencyData.h"
+#include "UObject/ObjectPtr.h"
 
 class FReferenceCollector;
 namespace UE::Net
