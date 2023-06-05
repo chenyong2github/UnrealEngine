@@ -946,6 +946,7 @@ bool GeomOverlapMultiImp(const UWorld* World, const FPhysicsGeometry& Geom, cons
 							}
 
 							OutOverlaps.Append(AllNewOverlaps);
+							bHaveBlockingHit &= !OutOverlaps.IsEmpty();
 						}
 					}
 				}
