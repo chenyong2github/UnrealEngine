@@ -493,7 +493,7 @@ TSet<FName> GetRHIForAutomation()
 	FString RHI = FApp::GetGraphicsRHI();
 	if (RHI.IsEmpty())
 	{
-		RHI = FAutomationTestExcludeOptions::GetRHIOptionName(ETEST_RHI_Options::Null);
+		RHI = LexToString(ETEST_RHI_Options::Null);
 		return TSet<FName> {FName(RHI), FName(RHI)};
 	}
 
@@ -566,7 +566,6 @@ void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunT
 	FString SkipReason;
 	bool bWarn(false);
 	FAutomationTestFramework& AutomationTestFramework = FAutomationTestFramework::Get();
-	UAutomationTestExcludelist* Excludelist = UAutomationTestExcludelist::Get();
 	if (!AutomationTestFramework.CanRunTestInEnvironment(Message.TestName, &SkipReason, &bWarn)
 		|| IsTestExcluded(Message.FullTestPath, &SkipReason, &bWarn))
 	{

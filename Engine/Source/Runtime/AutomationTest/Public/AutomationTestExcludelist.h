@@ -8,19 +8,42 @@
 UENUM()
 enum class ETEST_RHI_Options
 {
-	DirectX11	UMETA(DisplayName = "DirectX 11"),
-	DirectX12	UMETA(DisplayName = "DirectX 12"),
-	Vulkan		UMETA(DisplayName = "Vulkan"),
-	Metal		UMETA(DisplayName = "Metal"),
-	Null		UMETA(DisplayName = "Null")
+	DirectX11,
+	DirectX12,
+	Vulkan,
+	Metal,
+	Null
 };
+
+inline FString LexToString(ETEST_RHI_Options Option)
+{
+	switch (Option)
+	{
+	case ETEST_RHI_Options::DirectX11:    return TEXT("DirectX 11");
+	case ETEST_RHI_Options::DirectX12:    return TEXT("DirectX 12");
+	case ETEST_RHI_Options::Vulkan:       return TEXT("Vulkan");
+	case ETEST_RHI_Options::Metal:        return TEXT("Metal");
+	case ETEST_RHI_Options::Null:         return TEXT("Null");
+	default:                              return TEXT("Unknown");
+	}
+}
 
 UENUM()
 enum class ETEST_RHI_FeatureLevel_Options
 {
-	SM5 UMETA(DisplayName = "SM5"),
-	SM6 UMETA(DisplayName = "SM6")
+	SM5,
+	SM6
 };
+
+inline FString LexToString(ETEST_RHI_FeatureLevel_Options Option)
+{
+	switch (Option)
+	{
+	case ETEST_RHI_FeatureLevel_Options::SM5:   return TEXT("SM5");
+	case ETEST_RHI_FeatureLevel_Options::SM6:   return TEXT("SM6");
+	default:                                    return TEXT("Unknown");
+	}
+}
 
 USTRUCT()
 struct FAutomationTestExcludeOptions
@@ -39,18 +62,12 @@ struct FAutomationTestExcludeOptions
 				int32 Num_Flags = Enum->NumEnums() - 1;
 				for (int32 i = 0; i < Num_Flags; i++)
 				{
-					NameSet.Add(*Enum->GetDisplayNameTextByIndex(i).ToString());
+					NameSet.Add(*LexToString((EnumType)Enum->GetValueByIndex(i)));
 				}
 			}
 		}
 
 		return NameSet;
-	}
-
-	template<typename EnumType>
-	static FString GetRHIOptionName(EnumType Value)
-	{
-		return StaticEnum<EnumType>()->GetDisplayNameTextByValue((int)Value).ToString();
 	}
 
 	/* Name of the target test */
