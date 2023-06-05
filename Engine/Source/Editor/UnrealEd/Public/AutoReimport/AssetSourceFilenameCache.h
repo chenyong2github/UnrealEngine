@@ -11,6 +11,7 @@
 #include "Delegates/Delegate.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Misc/Optional.h"
+#include "Tasks/Pipe.h"
 #include "UObject/Object.h"
 
 class FName;
@@ -44,14 +45,16 @@ public:
 
 private:
 	/** Delegate bindings that keep the cache up-to-date */
-	void HandleOnAssetAdded(const FAssetData& AssetData);
-	void HandleOnAssetsAdded(const TArray<FAssetData>& Assets);
-	void HandleOnAssetRemoved(const FAssetData& AssetData);
+	void HandleOnAssetsAdded(TConstArrayView<FAssetData> Assets);
+	void HandleOnAssetsRemoved(TConstArrayView<FAssetData> AssetData);
 	void HandleOnAssetRenamed(const FAssetData& AssetData, const FString& OldPath);
 	void HandleOnAssetUpdated(const FAssetImportInfo& OldData, const UAssetImportData* ImportData);
 	
 	/** Event that is triggered when an asset has been renamed, and we've updated our cache */
 	FAssetRenamedEvent AssetRenamedEvent;
+
+	// Pipe to serialize access to cache 
+	mutable UE::Tasks::FPipe CachePipe;	
 
 	/** Map of clean filenames (no leading path information) to object paths that were imported with that file */
 	TMap<FString, TSet<FSoftObjectPath>> SourceFileToObjectPathCache;
