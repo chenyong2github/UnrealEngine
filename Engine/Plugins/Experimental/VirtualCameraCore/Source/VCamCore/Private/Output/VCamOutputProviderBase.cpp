@@ -197,7 +197,7 @@ void UVCamOutputProviderBase::CreateUMG()
 		return;
 	}
 
-	UMGWidget = NewObject<UVPFullScreenUserWidget>(this, UVPFullScreenUserWidget::StaticClass());
+	UMGWidget = NewObject<UVPFullScreenUserWidget>(this, UVPFullScreenUserWidget::StaticClass(), NAME_None, RF_Transactional);
 	UMGWidget->SetDisplayTypes(DisplayType, DisplayType, DisplayType);
 	if (UMGWidget->DoesDisplayTypeUsePostProcessSettings(DisplayType))
 	{
@@ -211,9 +211,11 @@ void UVCamOutputProviderBase::CreateUMG()
 		FSceneViewExtensionIsActiveFunctor IsActiveFunctor;
 		IsActiveFunctor.IsActiveFunction = [WeakThis = TWeakObjectPtr<UVCamOutputProviderBase>(this)](const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context) 
 		{
-			return ensure(WeakThis.IsValid())
-				? WeakThis->GetRenderWidgetStateInContext(SceneViewExtension, Context)
-				: TOptional<bool>{};
+			if (WeakThis.IsValid())
+			{
+				return WeakThis->GetRenderWidgetStateInContext(SceneViewExtension, Context);
+			}
+			return TOptional<bool>{};
 		};
 		UMGWidget->GetPostProcessDisplayTypeWithSceneViewExtensionsSettings().RegisterIsActiveFunctor(MoveTemp(IsActiveFunctor));
 	}
