@@ -9,6 +9,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "GameFramework/WorldSettings.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "UObject/Package.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 
 #if WITH_EDITOR
