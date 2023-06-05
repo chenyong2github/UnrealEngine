@@ -387,6 +387,11 @@ namespace UnrealBuildTool
 		public bool bOptimizeCode = false;
 
 		/// <summary>
+		/// True if the compilation should produce tracing output for code coverage.
+		/// </summary>
+		public bool bCodeCoverage = false;
+
+		/// <summary>
 		/// Allows to fine tune optimizations level for speed and\or code size
 		/// </summary>
 		public OptimizationMode OptimizationLevel = OptimizationMode.Speed;
@@ -709,6 +714,7 @@ namespace UnrealBuildTool
 			StaticAnalyzerAdditionalCheckers = new HashSet<string>(Other.StaticAnalyzerAdditionalCheckers);
 			bOptimizeCode = Other.bOptimizeCode;
 			bAllowAutoRTFMInstrumentation = Other.bAllowAutoRTFMInstrumentation;
+			bCodeCoverage = Other.bCodeCoverage;
 			OptimizationLevel = Other.OptimizationLevel;
 			bCreateDebugInfo = Other.bCreateDebugInfo;
 			bIsBuildingLibrary = Other.bIsBuildingLibrary;

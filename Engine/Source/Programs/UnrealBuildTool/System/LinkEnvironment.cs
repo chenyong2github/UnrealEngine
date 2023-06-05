@@ -210,6 +210,11 @@ namespace UnrealBuildTool
 		public int DefaultStackSizeCommit = 0;
 
 		/// <summary>
+		/// Wether to link code coverage / tracing libs
+		/// </summary>
+		public bool bCodeCoverage = false;
+
+		/// <summary>
 		/// Whether to omit frame pointers or not. Disabling is useful for e.g. memory profiling on the PC
 		/// </summary>
 		public bool bOmitFramePointers = true;
@@ -400,6 +405,7 @@ namespace UnrealBuildTool
 			bIsBuildingDotNetAssembly = Other.bIsBuildingDotNetAssembly;
 			DefaultStackSize = Other.DefaultStackSize;
 			DefaultStackSizeCommit = Other.DefaultStackSizeCommit;
+			bCodeCoverage = Other.bCodeCoverage;
 			bOmitFramePointers = Other.bOmitFramePointers;
 			bSupportEditAndContinue = Other.bSupportEditAndContinue;
 			bUseIncrementalLinking = Other.bUseIncrementalLinking;

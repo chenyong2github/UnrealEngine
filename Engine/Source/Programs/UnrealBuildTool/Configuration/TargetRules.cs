@@ -1813,6 +1813,13 @@ namespace UnrealBuildTool
 		public bool bPGOOptimize = false;
 
 		/// <summary>
+		/// Whether the target requires code coverage compilation and linking.
+		/// </summary>
+		[CommandLine("-CodeCoverage", Value = "true")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bCodeCoverage;
+
+		/// <summary>
 		/// Whether to support edit and continue.
 		/// </summary>
 		[CommandLine("-SupportEditAndContinue")]
@@ -3100,6 +3107,8 @@ namespace UnrealBuildTool
 		public bool bPGOOptimize => Inner.bPGOOptimize;
 
 		public bool bSupportEditAndContinue => Inner.bSupportEditAndContinue;
+
+		public bool bCodeCoverage => Inner.bCodeCoverage;
 
 		public bool bOmitFramePointers => Inner.bOmitFramePointers;
 

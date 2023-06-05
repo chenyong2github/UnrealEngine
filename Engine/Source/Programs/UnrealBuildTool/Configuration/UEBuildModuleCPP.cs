@@ -882,6 +882,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.PrecompiledHeaderAction = PrecompiledHeaderAction.Create;
 			CompileEnvironment.PrecompiledHeaderIncludeFilename = WrapperFile.Location;
 			CompileEnvironment.bOptimizeCode = ModuleCompileEnvironment.bOptimizeCode;
+			CompileEnvironment.bCodeCoverage = ModuleCompileEnvironment.bCodeCoverage;
 
 			// Create the action to compile the PCH file.
 			CPPOutput Output;
@@ -1202,6 +1203,7 @@ namespace UnrealBuildTool
 		private static void CopySettingsForSharedPCH(CppCompileEnvironment ModuleCompileEnvironment, CppCompileEnvironment CompileEnvironment)
 		{
 			CompileEnvironment.bOptimizeCode = ModuleCompileEnvironment.bOptimizeCode;
+			CompileEnvironment.bCodeCoverage = ModuleCompileEnvironment.bCodeCoverage;
 			CompileEnvironment.bUseRTTI = ModuleCompileEnvironment.bUseRTTI;
 			CompileEnvironment.bEnableExceptions = ModuleCompileEnvironment.bEnableExceptions;
 			CompileEnvironment.ShadowVariableWarningLevel = ModuleCompileEnvironment.ShadowVariableWarningLevel;
@@ -1700,9 +1702,13 @@ namespace UnrealBuildTool
 		/// <param name="Setting">The optimization setting from the rules file</param>
 		/// <param name="Configuration">The active target configuration</param>
 		/// <param name="bIsEngineModule">Whether the current module is an engine module</param>
+		/// <param name="bCodeCoverage">Whether the current module should be compiled with code coverage support</param>
 		/// <returns>True if optimization should be enabled</returns>
-		public static bool ShouldEnableOptimization(ModuleRules.CodeOptimization Setting, UnrealTargetConfiguration Configuration, bool bIsEngineModule)
+		public static bool ShouldEnableOptimization(ModuleRules.CodeOptimization Setting, UnrealTargetConfiguration Configuration, bool bIsEngineModule, bool bCodeCoverage)
 		{
+			if (bCodeCoverage) {
+				return false;
+			}
 			switch (Setting)
 			{
 				case ModuleRules.CodeOptimization.Never:
@@ -1738,7 +1744,8 @@ namespace UnrealBuildTool
 
 			// Override compile environment
 			Result.bUseUnity = Rules.bUseUnity;
-			Result.bOptimizeCode = ShouldEnableOptimization(Rules.OptimizeCode, Target.Configuration, Rules.bTreatAsEngineModule);
+			Result.bCodeCoverage = Target.bCodeCoverage;
+			Result.bOptimizeCode = ShouldEnableOptimization(Rules.OptimizeCode, Target.Configuration, Rules.bTreatAsEngineModule, Result.bCodeCoverage);
 			Result.bUseRTTI |= Rules.bUseRTTI;
 			Result.bEnableBufferSecurityChecks = Rules.bEnableBufferSecurityChecks;
 			Result.MinSourceFilesForUnityBuildOverride = Rules.MinSourceFilesForUnityBuildOverride;
@@ -1867,8 +1874,9 @@ namespace UnrealBuildTool
 		{
 			CppCompileEnvironment CompileEnvironment = new CppCompileEnvironment(BaseCompileEnvironment);
 
-			// Use the default optimization setting for 
-			CompileEnvironment.bOptimizeCode = ShouldEnableOptimization(ModuleRules.CodeOptimization.Default, Target.Configuration, Rules.bTreatAsEngineModule);
+			// Use the default optimization setting for
+			CompileEnvironment.bOptimizeCode = ShouldEnableOptimization(ModuleRules.CodeOptimization.Default, Target.Configuration, Rules.bTreatAsEngineModule, Rules.bCodeCoverage);
+			CompileEnvironment.bCodeCoverage = Rules.bCodeCoverage;
 
 			// Override compile environment
 			CompileEnvironment.bIsBuildingDLL = !Target.ShouldCompileMonolithic();

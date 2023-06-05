@@ -341,8 +341,19 @@ namespace UnrealBuildTool
 
 			AddCompilerLTOFlags(Arguments);
 
-			// optimization level
-			if (!CompileEnvironment.bOptimizeCode)
+			if (CompileEnvironment.bCodeCoverage)
+			{
+				Arguments.Add("-O0");
+				if (ShouldUseLibcxx())
+				{
+					Arguments.Add("--coverage"); // gcov
+				}
+				else
+				{
+					Arguments.Add("-fprofile-instr-generate -fcoverage-mapping"); // llvm-cov
+				}
+			}
+			else if (!CompileEnvironment.bOptimizeCode) // optimization level
 			{
 				Arguments.Add("-O0");
 			}
@@ -671,6 +682,21 @@ namespace UnrealBuildTool
 				Arguments.Add("-Wl,--gdb-index");
 			}
 
+			if (LinkEnvironment.bCodeCoverage)
+			{
+				// Unreal Separates the linking phase and the compilation phase.
+				// We pass to clang the flag `--coverage` during the compile time
+				// And we link the correct compiler-rt library (shipped by UE, and part of the LLVM toolchain)
+				// to every binary produced.
+				if (ShouldUseLibcxx())
+				{
+					Arguments.Add("--coverage"); // gcov
+				}
+				else
+				{
+					Arguments.Add("-fprofile-instr-generate"); // llvm-cov
+				}
+			}
 			// RPATH for third party libs
 			Arguments.Add("-Wl,-rpath=${ORIGIN}");
 			Arguments.Add("-Wl,-rpath-link=${ORIGIN}");
@@ -830,6 +856,11 @@ namespace UnrealBuildTool
 				Logger.LogInformation("Using PGO (profile guided optimization).");
 				Logger.LogInformation("  Directory for PGO data files='{CompileEnvironmentPGODirectory}'", CompileEnvironment.PGODirectory);
 				Logger.LogInformation("  Prefix for PGO data files='{CompileEnvironmentPGOFilenamePrefix}'", CompileEnvironment.PGOFilenamePrefix);
+			}
+
+			if (CompileEnvironment.bCodeCoverage)
+			{
+				Logger.LogInformation("Using --coverage build flag");
 			}
 
 			if (CompileEnvironment.bPGOProfile)

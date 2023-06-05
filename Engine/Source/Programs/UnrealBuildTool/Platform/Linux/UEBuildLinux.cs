@@ -503,6 +503,8 @@ namespace UnrealBuildTool
 				LinkEnvironment.PGOFilenamePrefix = CompileEnvironment.PGOFilenamePrefix;
 			}
 
+			LinkEnvironment.bCodeCoverage = CompileEnvironment.bCodeCoverage;
+
 			// For consistency with other platforms, also enable LTO whenever doing profile-guided optimizations.
 			// Obviously both PGI (instrumented) and PGO (optimized) binaries need to have that
 			if (CompileEnvironment.bPGOProfile || CompileEnvironment.bPGOOptimize)

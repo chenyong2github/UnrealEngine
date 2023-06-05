@@ -228,6 +228,7 @@ namespace UnrealBuildTool
 				// Produce additional binary but link it as a console app
 				LinkEnvironment ConsoleAppLinkEvironment = new LinkEnvironment(BinaryLinkEnvironment);
 				ConsoleAppLinkEvironment.bIsBuildingConsoleApplication = true;
+				ConsoleAppLinkEvironment.bCodeCoverage = CompileEnvironment.bCodeCoverage;
 				ConsoleAppLinkEvironment.WindowsEntryPointOverride = "WinMainCRTStartup";       // For WinMain() instead of "main()" for Launch module
 				ConsoleAppLinkEvironment.OutputFilePaths = ConsoleAppLinkEvironment.OutputFilePaths.Select(Path => GetAdditionalConsoleAppPath(Path)).ToList();
 
@@ -777,6 +778,9 @@ namespace UnrealBuildTool
 			// Setup link output type
 			BinaryLinkEnvironment.bIsBuildingDLL = IsBuildingDll(Type);
 			BinaryLinkEnvironment.bIsBuildingLibrary = IsBuildingLibrary(Type);
+
+			// Code coverage inherited from compile environment
+			BinaryLinkEnvironment.bCodeCoverage = CompileEnvironment.bCodeCoverage;
 
 			// If we don't have any resource file, use the default or compile a custom one for this module
 			if (BinaryLinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Windows))

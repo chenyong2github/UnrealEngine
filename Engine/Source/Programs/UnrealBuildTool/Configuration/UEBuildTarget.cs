@@ -4574,6 +4574,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.AdditionalArguments = Rules.AdditionalCompilerArguments ?? String.Empty;
 			GlobalCompileEnvironment.bDeterministic = Rules.bDeterministic;
 			GlobalCompileEnvironment.CrashDiagnosticDirectory = Rules.CrashDiagnosticDirectory;
+			GlobalCompileEnvironment.bCodeCoverage = Rules.bCodeCoverage;
 
 			GlobalLinkEnvironment.bUseDebugCRT = bUseDebugCRT;
 			GlobalLinkEnvironment.bUseStaticCRT = Rules.bUseStaticCRT;
@@ -4598,6 +4599,7 @@ namespace UnrealBuildTool
 			GlobalLinkEnvironment.bPrintTimingInfo = Rules.bPrintToolChainTimingInfo;
 			GlobalLinkEnvironment.bUsePIE = Rules.bEnablePIE;
 			GlobalLinkEnvironment.AdditionalArguments = Rules.AdditionalLinkerArguments ?? String.Empty;
+			GlobalLinkEnvironment.bCodeCoverage = Rules.bCodeCoverage;
 
 			if (Rules.bPGOOptimize && Rules.bPGOProfile)
 			{

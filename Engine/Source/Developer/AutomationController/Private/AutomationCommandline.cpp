@@ -36,7 +36,8 @@ enum class EAutomationCommand : uint8
 	RunCommandLineTests,	//Run only tests that are listed on the commandline
 	RunAll,					//Run all the tests that are supported
 	RunFilter,              //Run only tests that are tagged with this filter
-	Quit					//quit the app when tests are done
+	Quit,					//quit the app when tests are done, uses forced exit
+	SoftQuit				//quit the app when tests are done without forced exit
 };
 
 
@@ -420,12 +421,12 @@ public:
 				{
 					AutomationCommand = AutomationCommandQueue[0];
 					AutomationCommandQueue.RemoveAt(0);
-					if (AutomationCommand == EAutomationCommand::Quit)
+					if (AutomationCommand == EAutomationCommand::Quit || AutomationCommand == EAutomationCommand::SoftQuit)
 					{
 						if (AutomationCommandQueue.IsValidIndex(0))
 						{
-							// Add Quit back to the end of the array.
-							AutomationCommandQueue.Add(EAutomationCommand::Quit);
+							// Add Quit and SoftQuit commands back to the end of the array.
+							AutomationCommandQueue.Add(AutomationCommand);
 							break;
 						}
 					}
@@ -433,7 +434,7 @@ public:
 				}
 
 				// Only quit if Quit is the actual last element in the array.
-				if (AutomationCommand == EAutomationCommand::Quit)
+				if (AutomationCommand == EAutomationCommand::Quit || AutomationCommand == EAutomationCommand::SoftQuit)
 				{
 					if (!GIsCriticalError)
 					{
@@ -446,7 +447,7 @@ public:
 					UE_LOG(LogAutomationCommandLine, Log, TEXT("Shutting down. GIsCriticalError=%d"), GIsCriticalError);
 					// some tools parse this.
 					UE_LOG(LogAutomationCommandLine, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), GIsCriticalError ? -1 : 0);
-					FPlatformMisc::RequestExitWithStatus(true, GIsCriticalError ? -1 : 0);
+					FPlatformMisc::RequestExitWithStatus(AutomationCommand == EAutomationCommand::SoftQuit ? false : true, GIsCriticalError ? -1 : 0);
 					// We have finished the testing, and results are available
 					AutomationTestState = EAutomationTestState::Complete;
 				}
@@ -639,6 +640,11 @@ protected:
 					AutomationCommandQueue.Add(EAutomationCommand::Quit);
 					Ar.Logf(TEXT("Automation: Quit Command Queued."));
 				}
+				else if (FParse::Command(&TempCmd, TEXT("SoftQuit")))
+				{
+					AutomationCommandQueue.Add(EAutomationCommand::SoftQuit);
+					Ar.Logf(TEXT("Automation: SoftQuit Command Queued."));
+				}
 				else if (FParse::Command(&TempCmd, TEXT("IgnoreLogEvents")))
 				{
 					if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("Automation.CaptureLogEvents")))
@@ -659,6 +665,7 @@ protected:
 					Ar.Logf(TEXT("\tAutomation SetMinimumPriority <minimum priority>"));
 					Ar.Logf(TEXT("\tAutomation SetPriority <priority>"));
 					Ar.Logf(TEXT("\tAutomation Quit"));
+					Ar.Logf(TEXT("\tAutomation SoftQuit"));
 					bHandled = false;
 				}
 			}

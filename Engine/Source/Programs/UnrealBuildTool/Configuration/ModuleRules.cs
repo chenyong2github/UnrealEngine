@@ -642,6 +642,10 @@ namespace UnrealBuildTool
 		{
 			get
 			{
+				if (bCodeCoverage) {
+					return CodeOptimization.Never;
+				}
+
 				if (OptimizeCodeOverride.HasValue)
 				{
 					return OptimizeCodeOverride.Value;
@@ -790,6 +794,11 @@ namespace UnrealBuildTool
 		/// Use run time type information
 		/// </summary>
 		public bool bUseRTTI = false;
+
+		/// <summary>
+		/// Enable code coverage compilation/linking support.
+		/// </summary>
+		public bool bCodeCoverage = false;
 
 		/// <summary>
 		/// Obsolete: Direct the compiler to generate AVX instructions wherever SSE or AVX intrinsics are used, on the platforms that support it.
