@@ -234,17 +234,19 @@ namespace Metasound::Test
 		return true;
 	}
 
-	FNodeHandle FNodeTestGraphBuilder::AddAndConnectDataReferenceInput(const FNodeHandle& NodeToConnect, const FName& InputName, const FName& TypeName) const
+	FNodeHandle FNodeTestGraphBuilder::AddAndConnectDataReferenceInput(const FNodeHandle& NodeToConnect, const FName& InputName, const FName& TypeName, const FName& NodeName) const
 	{
-		FNodeHandle InputNode = AddInput(InputName, TypeName);
-		check(ConnectNodes(InputNode, NodeToConnect, InputName));
+		FName NameToUse = NodeName.IsNone() ? InputName : NodeName;
+		FNodeHandle InputNode = AddInput(NameToUse, TypeName);
+		ConnectNodes(InputNode, NameToUse, NodeToConnect, InputName);
 		return InputNode;
 	}
 
-	FNodeHandle FNodeTestGraphBuilder::AddAndConnectDataReferenceOutput(const FNodeHandle& NodeToConnect, const FName& OutputName, const FName& TypeName)
+	FNodeHandle FNodeTestGraphBuilder::AddAndConnectDataReferenceOutput(const FNodeHandle& NodeToConnect, const FName& OutputName, const FName& TypeName, const FName& NodeName)
 	{
-		FNodeHandle OutputNode = AddOutput(OutputName, TypeName);
-		check(ConnectNodes(NodeToConnect, OutputNode, OutputName));
+		FName NameToUse = NodeName.IsNone() ? OutputName : NodeName;
+		FNodeHandle OutputNode = AddOutput(NameToUse, TypeName);
+		ConnectNodes(NodeToConnect, OutputName, OutputNode, NameToUse);
 		return OutputNode;
 	}
 
