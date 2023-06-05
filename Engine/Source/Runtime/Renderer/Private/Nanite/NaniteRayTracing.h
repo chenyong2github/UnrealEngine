@@ -13,6 +13,10 @@
 
 #include "Experimental/Containers/SherwoodHashTable.h"
 
+// Workaround for UE-185539
+// The update to Agility SDK 1.608.3 introduced a crash when MeshDataBuffer is transient
+#define USE_NON_TRANSIENT_MESH_DATA_BUFFER 1
+
 #if RHI_RAYTRACING
 
 class FScene;
@@ -135,6 +139,10 @@ namespace Nanite
 		TArray<FPendingBuild> PendingBuilds;
 
 		TRefCountPtr<FRDGPooledBuffer> NodesAndClusterBatchesBuffer;
+
+#if USE_NON_TRANSIENT_MESH_DATA_BUFFER
+		TRefCountPtr<FRDGPooledBuffer> MeshDataBufferPooled;
+#endif
 
 		TUniformBufferRef<FNaniteRayTracingUniformParameters> UniformBuffer;
 

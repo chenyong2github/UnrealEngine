@@ -487,7 +487,22 @@ namespace Nanite
 
 		FRDGBufferDesc MeshDataBufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), FMath::Max(NumMeshDataEntries, 32U));
 		MeshDataBufferDesc.Usage |= BUF_SourceCopy;
+
+#if USE_NON_TRANSIENT_MESH_DATA_BUFFER
+		FRDGBufferRef MeshDataBuffer;
+		if (!MeshDataBufferPooled || MeshDataBufferDesc.GetSize() > MeshDataBufferPooled->GetSize())
+		{
+			MeshDataBuffer = GraphBuilder.CreateBuffer(MeshDataBufferDesc, TEXT("NaniteRayTracing.MeshDataBuffer"));
+
+			MeshDataBufferPooled = GraphBuilder.ConvertToExternalBuffer(MeshDataBuffer);
+		}
+		else
+		{
+			MeshDataBuffer = GraphBuilder.RegisterExternalBuffer(MeshDataBufferPooled);
+		}
+#else
 		FRDGBufferRef MeshDataBuffer = GraphBuilder.CreateBuffer(MeshDataBufferDesc, TEXT("NaniteRayTracing.MeshDataBuffer"));
+#endif
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(MeshDataBuffer), 0);
 
 		FRDGBufferRef StagingAuxiliaryDataBufferRDG;
