@@ -136,6 +136,13 @@ void UAnimSequenceBase::PostLoad()
 		    }
 
 		    ValidateModel();
+			if (UObject* DataModelObject = DataModelInterface.GetObject())
+			{
+				if (DataModelObject->HasAnyFlags(RF_NeedPostLoad | RF_NeedPostLoadSubobjects))
+				{
+					DataModelObject->ConditionalPostLoad();
+				}
+			}
 		    GetController();
 		    BindToModelModificationEvent();
 
