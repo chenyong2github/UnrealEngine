@@ -18,10 +18,10 @@
 #include "UObject/ObjectSaveContext.h"
 
 DECLARE_STATS_GROUP(TEXT("PoseSearch"), STATGROUP_PoseSearch, STATCAT_Advanced);
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Search Brute Force"), STAT_PoseSearchBruteForce, STATGROUP_PoseSearch, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Search PCA/KNN"), STAT_PoseSearchPCAKNN, STATGROUP_PoseSearch, );
-DEFINE_STAT(STAT_PoseSearchBruteForce);
-DEFINE_STAT(STAT_PoseSearchPCAKNN);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Search Brute Force"), STAT_PoseSearch_BruteForce, STATGROUP_PoseSearch, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Search PCA/KNN"), STAT_PoseSearch_PCAKNN, STATGROUP_PoseSearch, );
+DEFINE_STAT(STAT_PoseSearch_BruteForce);
+DEFINE_STAT(STAT_PoseSearch_PCAKNN);
 
 namespace UE::PoseSearch
 {
@@ -775,8 +775,7 @@ FPoseSearchCost UPoseSearchDatabase::SearchContinuingPose(UE::PoseSearch::FSearc
 
 UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_PCA_KNN);
-	SCOPE_CYCLE_COUNTER(STAT_PoseSearchPCAKNN);
+	SCOPE_CYCLE_COUNTER(STAT_PoseSearch_PCAKNN);
 
 	using namespace UE::PoseSearch;
 
@@ -908,8 +907,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 
 UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSearch::FSearchContext& SearchContext) const
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_Brute_Force);
-	SCOPE_CYCLE_COUNTER(STAT_PoseSearchBruteForce);
+	SCOPE_CYCLE_COUNTER(STAT_PoseSearch_BruteForce);
 	
 	using namespace UE::PoseSearch;
 	

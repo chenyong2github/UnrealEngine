@@ -288,9 +288,10 @@ bool FPoseSearchAnimPlayer::GetBlendInWeights(TArray<float>& Weights) const
 // FAnimNode_BlendStack_Standalone
 void FAnimNode_BlendStack_Standalone::Evaluate_AnyThread(FPoseContext& Output)
 {
-	Super::Evaluate_AnyThread(Output);
-
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_BlendStack_Evaluate_AnyThread);
+
+	Super::Evaluate_AnyThread(Output);
 
 	const int32 BlendStackSize = AnimPlayers.Num();
 	if (BlendStackSize <= 0)

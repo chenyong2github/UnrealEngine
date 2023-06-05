@@ -425,6 +425,8 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 // transforms Trajectory from world space to root bone space, and scale it by TrajectorySpeedMultiplier
 FPoseSearchQueryTrajectory UPoseSearchLibrary::ProcessTrajectory(const FPoseSearchQueryTrajectory& Trajectory, const FTransform& ComponentWorldTransform, float RootBoneDeltaYaw, float RootBoneDeltaYawBlendTime, float TrajectorySpeedMultiplier)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_ProcessTrajectory);
+
 	const float TrajectorySpeedMultiplierInv = FMath::IsNearlyZero(TrajectorySpeedMultiplier) ? 1.f : 1.f / TrajectorySpeedMultiplier;
 
 	FPoseSearchQueryTrajectory TrajectoryRootSpace = Trajectory;

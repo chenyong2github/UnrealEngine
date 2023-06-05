@@ -475,6 +475,8 @@ const FFeatureVectorBuilder* FSearchContext::GetCachedQuery(const UPoseSearchSch
 
 const FFeatureVectorBuilder& FSearchContext::GetOrBuildQuery(const UPoseSearchSchema* Schema)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_GetOrBuildQuery);
+
 	check(Schema && Schema->IsValid());
 	const FFeatureVectorBuilder* CachedFeatureVectorBuilder = GetCachedQuery(Schema);
 	if (CachedFeatureVectorBuilder)
