@@ -76,6 +76,7 @@ private:
 
 	bool ShowClearButton() const;
 	FText GetText() const;
+	bool IsValueEnabled() const;
 	FText GetToolTipText() const;
 	bool IsSelected() const;
 	FReply OnClearPressed();

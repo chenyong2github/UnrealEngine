@@ -71,7 +71,7 @@ void SGameplayTagCombo::Construct(const FArguments& InArgs)
 			.ComboButtonStyle(FGameplayTagStyle::Get(), "GameplayTags.ComboButton")
 			.HasDownArrow(true)
 			.ContentPadding(1)
-			.IsEnabled(!bIsReadOnly)
+			.IsEnabled(this, &SGameplayTagCombo::IsValueEnabled)
 			.Clipping(EWidgetClipping::OnDemand)
 			.OnMenuOpenChanged(this, &SGameplayTagCombo::OnMenuOpenChanged)
 			.OnGetMenuContent(this, &SGameplayTagCombo::OnGetMenuContent)
@@ -91,6 +91,16 @@ void SGameplayTagCombo::Construct(const FArguments& InArgs)
 			]
 		]
 	];
+}
+
+bool SGameplayTagCombo::IsValueEnabled() const
+{
+	if (PropertyHandle.IsValid())
+	{
+		return !PropertyHandle->IsEditConst();
+	}
+
+	return bIsReadOnly;
 }
 
 void SGameplayTagCombo::PostUndo(bool bSuccess)
@@ -214,7 +224,7 @@ TSharedRef<SWidget> SGameplayTagCombo::OnGetMenuContent()
 	TagPicker = SNew(SGameplayTagPicker)
 		.Filter(Filter)
 		.SettingsName(SettingsName)
-		.ReadOnly(bIsReadOnly)
+		.ReadOnly(IsValueEnabled())
 		.ShowMenuItems(true)
 		.MaxHeight(350.0f)
 		.MultiSelect(false)
