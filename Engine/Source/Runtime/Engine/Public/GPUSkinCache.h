@@ -122,6 +122,12 @@ public:
 		uint32 Section = 0;	
 	};
 
+	struct FSortedDispatchEntry
+	{
+		int32 ShaderIndex;
+		int32 BatchIndex;
+	};
+
 	FGPUSkinCache() = delete;
 	ENGINE_API FGPUSkinCache(ERHIFeatureLevel::Type InFeatureLevel, bool bInRequiresMemoryLimit, UWorld* InWorld);
 	ENGINE_API ~FGPUSkinCache();
@@ -174,6 +180,8 @@ public:
 	{
 		FRWBuffer	Buffer;
 		ERHIAccess	AccessState = ERHIAccess::Unknown;	// Keep track of current access state
+		// See note in FGPUSkinCache::GetBufferUAVs()
+		mutable uint32	UniqueOpToken = 0;
 
 		void Release()
 		{
@@ -362,8 +370,9 @@ public:
 			return Allocation ? Allocation->GetIntermediateAccumulatedTangentBuffer() : nullptr;
 		}
 
-		void Advance(const FVertexBufferAndSRV& BoneBuffer1, uint32 Revision1, const FVertexBufferAndSRV& BoneBuffer2, uint32 Revision2)
+		FSkinCacheRWBuffer* Advance(const FVertexBufferAndSRV& BoneBuffer1, uint32 Revision1, const FVertexBufferAndSRV& BoneBuffer2, uint32 Revision2)
 		{
+			FSkinCacheRWBuffer* Result = nullptr;
 			const FVertexBufferAndSRV* InBoneBuffers[2] = { &BoneBuffer1 , &BoneBuffer2 };
 			uint32 InRevisions[2] = { Revision1 , Revision2 };
 
@@ -374,6 +383,10 @@ public:
 				{
 					if (Revisions[Index] == InRevisions[i] && BoneBuffers[Index] == InBoneBuffers[i])
 					{
+						if (i == 0)
+						{
+							Result = &Allocation->PositionBuffers[Index];
+						}
 						Needed = true;
 					}
 				}
@@ -382,9 +395,11 @@ public:
 				{
 					Revisions[Index] = Revision1;
 					BoneBuffers[Index] = &BoneBuffer1;
+					Result = &Allocation->PositionBuffers[Index];
 					break;
 				}
 			}
+			return Result;
 		}
 
 	private:
@@ -436,11 +451,11 @@ protected:
 		FGPUSkinCacheEntry* Entry, 
 		int32 Section, 
 		uint32 RevisionNumber,
-		TSet<FSkinCacheRWBuffer*>& BuffersToTransitionToRead
+		TArray<FSkinCacheRWBuffer*>& BuffersToTransitionToRead
 		);
 
 	void Cleanup();
-	static void TransitionAllToReadable(FRHICommandList& RHICmdList, const TSet<FSkinCacheRWBuffer*>& BuffersToTransitionToRead);
+	static void TransitionAllToReadable(FRHICommandList& RHICmdList, const TArray<FSkinCacheRWBuffer*>& BuffersToTransitionToRead);
 	static void ReleaseSkinCacheEntry(FGPUSkinCacheEntry* SkinCacheEntry);
 	void InvalidateAllEntries();
 	uint64 UsedMemoryInBytes;
