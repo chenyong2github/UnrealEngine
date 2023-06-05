@@ -22,6 +22,8 @@ class IOpenXRAPILayerManager
 public:
 	virtual IOpenXRAPILayer* GetActiveLayer() const = 0;
 
+	virtual void SetFallbackRunMode(int32_t Fallback) = 0;
+
 	virtual bool SetChainedGetProcAddr(PFN_xrGetInstanceProcAddr InChainedGetProcAddr) = 0;
 	
 	static IOpenXRAPILayerManager& Get();

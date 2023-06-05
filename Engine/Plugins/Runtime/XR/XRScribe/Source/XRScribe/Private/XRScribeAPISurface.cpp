@@ -697,12 +697,29 @@ public:
 		return ActiveLayer.Get();
 	}
 
+	void SetFallbackRunMode(int32 Fallback) override
+	{
+		if ((Fallback >= (int32)EXRScribeRunMode::Capture) &&
+			(Fallback <= (int32)EXRScribeRunMode::Emulate))
+		{
+			FallbackRunMode = (EXRScribeRunMode)Fallback;
+		}
+		else
+		{
+			UE_LOG(LogXRScribeAPI, Warning, TEXT("Invalid run mode override specified (%d), ignoring"), Fallback);
+		}
+	}
+
 	bool SetChainedGetProcAddr(PFN_xrGetInstanceProcAddr InChainedGetProcAddr) override
 	{
 		ChainedGetProcAddr = InChainedGetProcAddr;
 
 		EXRScribeRunMode RunModeFromConfig = EXRScribeRunMode::Emulate;
-		GConfig->GetInt(TEXT("SystemSettings"), TEXT("XRScribe.RunMode"), (int32&)RunModeFromConfig, GEngineIni);
+		const bool bModeReadFromConfig = GConfig->GetInt(TEXT("SystemSettings"), TEXT("XRScribe.RunMode"), (int32&)RunModeFromConfig, GEngineIni);
+		if (!bModeReadFromConfig)
+		{
+			RunModeFromConfig = FallbackRunMode;
+		}
 
 		if (RunModeFromConfig == EXRScribeRunMode::Capture)
 		{
@@ -751,6 +768,8 @@ private:
 	TSharedPtr<IOpenXRAPILayer, ESPMode::ThreadSafe> EmulationLayer;
 
 	PFN_xrGetInstanceProcAddr ChainedGetProcAddr = nullptr;
+
+	EXRScribeRunMode FallbackRunMode = EXRScribeRunMode::Emulate;
 };
 
 static FOpenXRAPILayerManager OpenXRAPISurface;
