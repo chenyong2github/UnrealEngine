@@ -55,7 +55,7 @@ void FChaosClothAssetSkeletalMeshImportNode::Evaluate(Dataflow::FContext& Contex
 
 			if (bImportSimMesh)
 			{
-				ensureMsgf(false, TEXT("TODO: Import as sim mesh not implemented"));
+				FClothDataflowTools::AddSimPatternsFromSkeletalMeshSection(ClothCollection, LODModel, SectionIndex, UVChannel);
 			}
 
 			if (bImportRenderMesh)

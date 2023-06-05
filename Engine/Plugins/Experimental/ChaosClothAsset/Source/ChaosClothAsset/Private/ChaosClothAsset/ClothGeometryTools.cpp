@@ -5,6 +5,7 @@
 #include "Containers/Queue.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
 #include "DynamicMesh/NonManifoldMappingSupport.h"
 #include "Math/Vector.h"
 #include "Util/IndexUtil.h"
@@ -718,14 +719,18 @@ namespace UE::Chaos::ClothAsset
 
 	void FClothGeometryTools::BuildSimMeshFromDynamicMesh(
 		const TSharedPtr<FManagedArrayCollection>& ClothCollection,
-		const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale)
+		const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale, bool bAppend)
 	{
 		using namespace Private::SimMeshBuilder;
 
-		DeleteSimMesh(ClothCollection);
+		if (!bAppend)
+		{
+			DeleteSimMesh(ClothCollection);
+		}
 
 		const UE::Geometry::FDynamicMeshAttributeSet* const AttributeSet = DynamicMesh.Attributes();
 		const UE::Geometry::FDynamicMeshUVOverlay* const UVOverlay = AttributeSet ? AttributeSet->GetUVLayer(UVChannelIndex) : nullptr;
+		const UE::Geometry::FDynamicMeshVertexSkinWeightsAttribute* SkinWeights = AttributeSet ? AttributeSet->GetSkinWeightsAttribute(FName("Default")) : nullptr;
 
 		TArray<FIsland> Islands;
 		if (UVOverlay)
@@ -743,7 +748,18 @@ namespace UE::Chaos::ClothAsset
 			if (Island.Indices.Num() && Island.Positions2D.Num() && Island.Positions3D.Num())
 			{
 				FCollectionClothSimPatternFacade Pattern = Cloth.AddGetSimPattern();
+				const int32 VertexOffset = Cloth.GetNumSimVertices3D();
 				Pattern.Initialize(Island.Positions2D, Island.Positions3D, Island.Indices);
+				if (SkinWeights)
+				{
+					TArrayView<TArray<int32>> BoneIndices = Cloth.GetSimBoneIndices();
+					TArrayView<TArray<float>> BoneWeights = Cloth.GetSimBoneWeights();
+					const int32 VertexCount = Island.Positions3D.Num();
+					for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+					{						
+						SkinWeights->GetValue(Island.PositionToSourceIndex[VertexIndex], BoneIndices[VertexIndex + VertexOffset], BoneWeights[VertexIndex + VertexOffset]);
+					}
+				}
 			}
 		}
 

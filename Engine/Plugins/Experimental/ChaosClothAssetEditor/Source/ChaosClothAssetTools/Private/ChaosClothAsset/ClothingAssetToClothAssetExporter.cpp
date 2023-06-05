@@ -125,7 +125,8 @@ void UClothingAssetToChaosClothAssetExporter::Export(const UClothingAssetBase* C
 		UE::Geometry::FNonManifoldMappingSupport::AttachNonManifoldVertexMappingData(ToDynamicMesh.ToSrcVertIDMap, DynamicMesh);
 
 		constexpr int32 UVChannelIndexNone = INDEX_NONE;
-		FClothGeometryTools::BuildSimMeshFromDynamicMesh(ClothCollection, DynamicMesh, UVChannelIndexNone, FVector2f(1.f));
+		constexpr bool bAppend = false;
+		FClothGeometryTools::BuildSimMeshFromDynamicMesh(ClothCollection, DynamicMesh, UVChannelIndexNone, FVector2f(1.f), bAppend);
 	}
 
 	if (NumLods)

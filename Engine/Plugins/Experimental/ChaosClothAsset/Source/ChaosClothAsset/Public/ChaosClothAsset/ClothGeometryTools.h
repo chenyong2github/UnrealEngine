@@ -58,6 +58,6 @@ namespace UE::Chaos::ClothAsset
 		*/
 		static void BuildSimMeshFromDynamicMesh(
 			const TSharedPtr<FManagedArrayCollection>& ClothCollection,
-			const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale);
+			const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale, bool bAppend);
 	};
 }  // End namespace UE::Chaos::ClothAsset

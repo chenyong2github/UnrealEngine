@@ -147,7 +147,8 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 					UE::Geometry::FDynamicMesh3 DynamicMesh;
 
 					Converter.Convert(MeshDescription, DynamicMesh);
-					UE::Chaos::ClothAsset::FClothGeometryTools::BuildSimMeshFromDynamicMesh(ClothCollection, DynamicMesh, UVChannel, UVScale);
+					constexpr bool bAppend = false;
+					UE::Chaos::ClothAsset::FClothGeometryTools::BuildSimMeshFromDynamicMesh(ClothCollection, DynamicMesh, UVChannel, UVScale, bAppend);
 				}
 				if (bImportAsRenderMesh)
 				{

@@ -16,5 +16,7 @@ namespace UE::Chaos::ClothAsset
 	struct FClothDataflowTools
 	{
 		static void AddRenderPatternFromSkeletalMeshSection(const TSharedPtr<FManagedArrayCollection>& ClothCollection, const FSkeletalMeshLODModel& SkeletalMeshModel, const int32 SectionIndex, const FString& RenderMaterialPathName);
+
+		static void AddSimPatternsFromSkeletalMeshSection(const TSharedPtr<FManagedArrayCollection>& ClothCollection, const FSkeletalMeshLODModel& SkeletalMeshModel, const int32 SectionIndex, const int32 UVChannelIndex);
 	};
 }  // End namespace UE::Chaos::ClothAsset
