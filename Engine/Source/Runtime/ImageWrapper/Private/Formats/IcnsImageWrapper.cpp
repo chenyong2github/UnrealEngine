@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Formats/IcnsImageWrapper.h"
+#include "ImageWrapperPrivate.h"
+#include "ImageCoreUtils.h"
+
 
 
 /* FIcnsImageWrapper structors
