@@ -968,6 +968,14 @@ namespace UnrealBuildTool
 				return null;
 			}
 
+			// if this validation platform was passed in, but was too early for the build platform to be registered, we can return
+			// null here. we don't want to catch all exceptions and return null, because if ValidationPlatform is good, but the 
+			// architecture is invalid, we want to keep the exception 
+			if (ValidationPlatform != null && !UEBuildPlatform.TryGetBuildPlatform(ValidationPlatform.Value, out _))
+			{
+				return null;
+			}
+
 			return new UnrealArchitectures(ArchString, ValidationPlatform);
 		}
 
