@@ -39,7 +39,8 @@ namespace Chaos
 		RecomputeMassOrientation = 1 << 0,
 		ForceGenerateConnectionGraph = 1 << 1,
 		IncrementalGenerateConnectionGraph = 1 << 2,
-		All = RecomputeMassOrientation | ForceGenerateConnectionGraph
+		UpdateKinematicProperties = 1 << 3,
+		All = RecomputeMassOrientation | ForceGenerateConnectionGraph | UpdateKinematicProperties
 	};
 	ENUM_CLASS_FLAGS(EUpdateClusterUnionPropertiesFlags);
 

@@ -204,7 +204,7 @@ namespace Chaos
 						}
 
 						// Let the cluster union manager apply the proper properties on the particle.
-						Manager.RequestDeferredClusterPropertiesUpdate(ClusterUnionIndex, Chaos::EUpdateClusterUnionPropertiesFlags::None);
+						Manager.RequestDeferredClusterPropertiesUpdate(ClusterUnionIndex, Chaos::EUpdateClusterUnionPropertiesFlags::UpdateKinematicProperties);
 					}
 				}
 			}

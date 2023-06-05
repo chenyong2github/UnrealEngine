@@ -644,22 +644,25 @@ namespace Chaos
 			ClusterUnion.bNeedsXRInitialization = false;
 		}
 
-		if (ClusterUnion.bAnchorLock)
+		if (EnumHasAnyFlags(Flags, EUpdateClusterUnionPropertiesFlags::UpdateKinematicProperties))
 		{
-			// Skip UpdateKinematicPropertiesso as we won't need to look at our children for this.
-			if (ClusterUnion.InternalCluster->IsAnchored())
+			if (ClusterUnion.bAnchorLock)
 			{
-				MEvolution.SetParticleObjectState(ClusterUnion.InternalCluster, EObjectStateType::Kinematic);
+				// Skip UpdateKinematicPropertiesso as we won't need to look at our children for this.
+				if (ClusterUnion.InternalCluster->IsAnchored())
+				{
+					MEvolution.SetParticleObjectState(ClusterUnion.InternalCluster, EObjectStateType::Kinematic);
+				}
+				else
+				{
+					MEvolution.SetParticleObjectState(ClusterUnion.InternalCluster, EObjectStateType::Dynamic);
+					MEvolution.SetParticleKinematicTarget(ClusterUnion.InternalCluster, FKinematicTarget());
+				}
 			}
 			else
 			{
-				MEvolution.SetParticleObjectState(ClusterUnion.InternalCluster, EObjectStateType::Dynamic);
-				MEvolution.SetParticleKinematicTarget(ClusterUnion.InternalCluster, FKinematicTarget());
+				UpdateKinematicProperties(ClusterUnion.InternalCluster, MClustering.GetChildrenMap(), MEvolution);
 			}
-		}
-		else
-		{
-			UpdateKinematicProperties(ClusterUnion.InternalCluster, MClustering.GetChildrenMap(), MEvolution);
 		}
 
 		// We must reset collisions etc on this particle since geometry will be changed
