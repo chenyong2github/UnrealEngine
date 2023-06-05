@@ -98,7 +98,7 @@ namespace NDIRenderTargetVolumeLocal
 		SVT = 2
 	};
 
-	int32 GSimCacheDataStorageMode = SimCacheStorageMode::OpenVDB;
+	int32 GSimCacheDataStorageMode = SimCacheStorageMode::SVT;
 	static FAutoConsoleVariableRef CVarSimCacheDataStorageMode(
 		TEXT("fx.Niagara.RenderTargetVolume.SimCacheDataStorageMode"),
 		GSimCacheDataStorageMode,
