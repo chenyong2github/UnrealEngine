@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "PCGInstancePackerBase.h"
+#include "PCGInstanceDataPackerBase.h"
 
-#include "PCGInstancePackerByRegex.generated.h"
+#include "PCGInstanceDataPackerByAttribute.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class PCG_API UPCGInstancePackerByRegex : public UPCGInstancePackerBase 
+class PCG_API UPCGInstanceDataPackerByAttribute : public UPCGInstanceDataPackerBase 
 {
 	GENERATED_BODY()
 
@@ -16,5 +16,5 @@ public:
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TArray<FString> RegexPatterns; 
+	TArray<FName> AttributeNames;
 };

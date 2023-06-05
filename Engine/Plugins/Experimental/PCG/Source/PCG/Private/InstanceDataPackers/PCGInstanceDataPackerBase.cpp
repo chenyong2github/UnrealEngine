@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "InstancePackers/PCGInstancePackerBase.h"
+#include "InstanceDataPackers/PCGInstanceDataPackerBase.h"
 
 #include "MeshSelectors/PCGMeshSelectorBase.h"
 #include "Metadata/PCGMetadata.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstancePackerBase)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstanceDataPackerBase)
 
-bool UPCGInstancePackerBase::AddTypeToPacking(int TypeId, FPCGPackedCustomData& OutPackedCustomData) const
+bool UPCGInstanceDataPackerBase::AddTypeToPacking(int TypeId, FPCGPackedCustomData& OutPackedCustomData) const
 {
 	if (TypeId == PCG::Private::MetadataTypes<float>::Id)
 	{
@@ -45,7 +45,7 @@ bool UPCGInstancePackerBase::AddTypeToPacking(int TypeId, FPCGPackedCustomData& 
 	return true;
 }
 
-void UPCGInstancePackerBase::PackCustomDataFromAttributes(const FPCGMeshInstanceList& InstanceList, const UPCGMetadata* Metadata, const TArray<FName>& AttributeNames, FPCGPackedCustomData& OutPackedCustomData) const
+void UPCGInstanceDataPackerBase::PackCustomDataFromAttributes(const FPCGMeshInstanceList& InstanceList, const UPCGMetadata* Metadata, const TArray<FName>& AttributeNames, FPCGPackedCustomData& OutPackedCustomData) const
 {
 	if (!Metadata)
 	{
@@ -62,7 +62,7 @@ void UPCGInstancePackerBase::PackCustomDataFromAttributes(const FPCGMeshInstance
 	PackCustomDataFromAttributes(InstanceList, Attributes, OutPackedCustomData);
 }
 
-void UPCGInstancePackerBase::PackCustomDataFromAttributes(const FPCGMeshInstanceList& InstanceList, const TArray<const FPCGMetadataAttributeBase*>& Attributes, FPCGPackedCustomData& OutPackedCustomData) const
+void UPCGInstanceDataPackerBase::PackCustomDataFromAttributes(const FPCGMeshInstanceList& InstanceList, const TArray<const FPCGMetadataAttributeBase*>& Attributes, FPCGPackedCustomData& OutPackedCustomData) const
 {
 	for(uint64 PointMetadataEntry : InstanceList.InstancesMetadataEntry)
 	{

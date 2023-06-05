@@ -9,7 +9,7 @@
 #include "PCGPin.h"
 #include "PCGStaticMeshSpawner.generated.h"
 
-class UPCGInstancePackerBase;
+class UPCGInstanceDataPackerBase;
 class UPCGMeshSelectorBase;
 class UPCGSpatialData;
 struct FPCGContext;
@@ -69,7 +69,7 @@ public:
 	void SetMeshSelectorType(TSubclassOf<UPCGMeshSelectorBase> InMeshSelectorType);
 
 	UFUNCTION(BlueprintCallable, Category = Settings)
-	void SetInstancePackerType(TSubclassOf<UPCGInstancePackerBase> InInstancePackerType);
+	void SetInstancePackerType(TSubclassOf<UPCGInstanceDataPackerBase> InInstancePackerType);
 
 public:
 	/** Defines the method of mesh selection per input data */
@@ -77,20 +77,20 @@ public:
 	TSubclassOf<UPCGMeshSelectorBase> MeshSelectorType;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Instanced, Category = Settings)
-	TObjectPtr<UPCGMeshSelectorBase> MeshSelectorInstance;
+	TObjectPtr<UPCGMeshSelectorBase> MeshSelectorParameters;
 
 	/** Defines the method of custom data packing for spawned (H)ISMCs */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Settings)
-	TSubclassOf<UPCGInstancePackerBase> InstancePackerType;
+	TSubclassOf<UPCGInstanceDataPackerBase> InstanceDataPackerType;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Instanced, Category = Settings)
-	TObjectPtr<UPCGInstancePackerBase> InstancePackerInstance = nullptr;
+	TObjectPtr<UPCGInstanceDataPackerBase> InstanceDataPackerParameters = nullptr;
 
 	/** Attribute name to store mesh SoftObjectPaths inside if the output pin is connected. Note: Will overwrite existing data if the attribute name already exists. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FName OutAttributeName = NAME_None;
 
-	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Use MeshSelectorType and MeshSelectorInstance instead."))
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Use MeshSelectorType and MeshSelectorParameters instead."))
 	TArray<FPCGStaticMeshSpawnerEntry> Meshes_DEPRECATED;
 
 protected:
@@ -114,6 +114,6 @@ protected:
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
-#include "InstancePackers/PCGInstancePackerBase.h"
+#include "InstanceDataPackers/PCGInstanceDataPackerBase.h"
 #include "MeshSelectors/PCGMeshSelectorBase.h"
 #endif

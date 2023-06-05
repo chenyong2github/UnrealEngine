@@ -4,7 +4,7 @@
 
 #include "PCGContext.h"
 #include "MeshSelectors/PCGMeshSelectorBase.h"
-#include "InstancePackers/PCGInstancePackerBase.h"
+#include "InstanceDataPackers/PCGInstanceDataPackerBase.h"
 
 #include "PCGStaticMeshSpawnerContext.generated.h"
 

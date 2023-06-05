@@ -1,17 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "InstancePackers/PCGInstancePackerByRegex.h"
-#include "Data/PCGSpatialData.h"
-#include "Internationalization/Regex.h"
-#include "InstancePackers/PCGInstancePackerBase.h"
+#include "InstanceDataPackers/PCGInstanceDataPackerByRegex.h"
+
 #include "PCGContext.h"
 #include "PCGElement.h"
+#include "Data/PCGSpatialData.h"
+#include "InstanceDataPackers/PCGInstanceDataPackerBase.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstancePackerByRegex)
+#include "Internationalization/Regex.h"
 
-#define LOCTEXT_NAMESPACE "PCGInstancePackerByRegex"
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstanceDataPackerByRegex)
 
-void UPCGInstancePackerByRegex::PackInstances_Implementation(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const
+#define LOCTEXT_NAMESPACE "PCGInstanceDataPackerByRegex"
+
+void UPCGInstanceDataPackerByRegex::PackInstances_Implementation(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const
 {
 	if (!InSpatialData || !InSpatialData->Metadata)
 	{

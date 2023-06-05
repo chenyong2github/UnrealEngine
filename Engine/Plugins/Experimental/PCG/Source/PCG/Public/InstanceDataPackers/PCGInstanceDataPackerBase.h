@@ -2,8 +2,7 @@
 
 #pragma once
 
-
-#include "PCGInstancePackerBase.generated.h"
+#include "PCGInstanceDataPackerBase.generated.h"
 
 class UPCGMetadata;
 struct FPCGContext;
@@ -25,7 +24,7 @@ struct FPCGPackedCustomData
 };
 
 UCLASS(Abstract, BlueprintType, Blueprintable, ClassGroup = (Procedural))
-class PCG_API UPCGInstancePackerBase : public UObject 
+class PCG_API UPCGInstanceDataPackerBase : public UObject 
 {
 	GENERATED_BODY()
 
@@ -34,7 +33,7 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = InstancePacking)
 	void PackInstances(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const;
 
-	virtual void PackInstances_Implementation(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const PURE_VIRTUAL(UPCGInstancePackerBase::PackInstances_Implementation);
+	virtual void PackInstances_Implementation(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const PURE_VIRTUAL(UPCGInstanceDataPackerBase::PackInstances_Implementation);
 
 	/** Interprets Metadata TypeId and increments OutPackedCustomData.NumCustomDataFloats appropriately. Returns false if the type could not be interpreted. */
 	UFUNCTION(BlueprintCallable, Category = InstancePacking)

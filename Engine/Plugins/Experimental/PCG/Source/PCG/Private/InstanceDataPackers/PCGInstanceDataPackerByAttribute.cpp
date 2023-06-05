@@ -1,16 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "InstancePackers/PCGInstancePackerByAttribute.h"
-#include "Data/PCGSpatialData.h"
-#include "InstancePackers/PCGInstancePackerBase.h"
+#include "InstanceDataPackers/PCGInstanceDataPackerByAttribute.h"
+
 #include "PCGContext.h"
 #include "PCGElement.h"
+#include "Data/PCGSpatialData.h"
+#include "InstanceDataPackers/PCGInstanceDataPackerBase.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstancePackerByAttribute)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstanceDataPackerByAttribute)
 
-#define LOCTEXT_NAMESPACE "PCGInstancePackerByAttribute"
+#define LOCTEXT_NAMESPACE "PCGInstanceDataPackerByAttribute"
 
-void UPCGInstancePackerByAttribute::PackInstances_Implementation(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const
+void UPCGInstanceDataPackerByAttribute::PackInstances_Implementation(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const
 {
 	if (!InSpatialData || !InSpatialData->Metadata)
 	{

@@ -134,7 +134,7 @@ void TestMeshSelectorByAttribute(
 	// set the MeshSelector
 	UPCGStaticMeshSpawnerSettings* Settings = CastChecked<UPCGStaticMeshSpawnerSettings>(TestData.Settings);
 	Settings->SetMeshSelectorType(UPCGMeshSelectorByAttribute::StaticClass());
-	UPCGMeshSelectorByAttribute* MeshSelector = CastChecked<UPCGMeshSelectorByAttribute>(Settings->MeshSelectorInstance);
+	UPCGMeshSelectorByAttribute* MeshSelector = CastChecked<UPCGMeshSelectorByAttribute>(Settings->MeshSelectorParameters);
 	MeshSelector->AttributeName = AttributeName;
 
 	// initialize and execute the StaticMeshSpawner
@@ -257,7 +257,7 @@ void TestMeshSelectorWeighted(
 	// set the MeshSelector
 	UPCGStaticMeshSpawnerSettings* Settings = CastChecked<UPCGStaticMeshSpawnerSettings>(TestData.Settings);
 	Settings->SetMeshSelectorType(UPCGMeshSelectorWeighted::StaticClass());
-	UPCGMeshSelectorWeighted* MeshSelector = CastChecked<UPCGMeshSelectorWeighted>(Settings->MeshSelectorInstance);
+	UPCGMeshSelectorWeighted* MeshSelector = CastChecked<UPCGMeshSelectorWeighted>(Settings->MeshSelectorParameters);
 	MeshSelector->MeshEntries = Entries;
 
 	// initialize and execute the StaticMeshSpawner
@@ -343,7 +343,7 @@ void TestMeshSelectorWeightedByCategory(
 	// set the MeshSelector
 	UPCGStaticMeshSpawnerSettings* Settings = CastChecked<UPCGStaticMeshSpawnerSettings>(TestData.Settings);
 	Settings->SetMeshSelectorType(UPCGMeshSelectorWeightedByCategory::StaticClass());
-	UPCGMeshSelectorWeightedByCategory* MeshSelector = CastChecked<UPCGMeshSelectorWeightedByCategory>(Settings->MeshSelectorInstance);
+	UPCGMeshSelectorWeightedByCategory* MeshSelector = CastChecked<UPCGMeshSelectorWeightedByCategory>(Settings->MeshSelectorParameters);
 	MeshSelector->CategoryAttribute = AttributeName;
 	MeshSelector->Entries = Entries;
 

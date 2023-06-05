@@ -9,9 +9,9 @@
 #include "Data/PCGPointData.h"
 #include "Elements/PCGStaticMeshSpawner.h"
 #include "Elements/PCGStaticMeshSpawnerContext.h"
-#include "InstancePackers/PCGInstancePackerBase.h"
-#include "InstancePackers/PCGInstancePackerByAttribute.h"
-#include "InstancePackers/PCGInstancePackerByRegex.h"
+#include "InstanceDataPackers/PCGInstanceDataPackerBase.h"
+#include "InstanceDataPackers/PCGInstanceDataPackerByAttribute.h"
+#include "InstanceDataPackers/PCGInstanceDataPackerByRegex.h"
 #include "MeshSelectors/PCGMeshSelectorWeighted.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
@@ -169,9 +169,9 @@ bool FPCGStaticMeshSpawnerInstancePackerByAttributeTest::RunTest(const FString& 
 		UPCGMetadataAccessorHelpers::SetRotatorAttribute(SourcePoints[I], SourceData->Metadata, RotatorName, RotatorValue);
 	}
 
-	Settings->SetInstancePackerType(UPCGInstancePackerByAttribute::StaticClass());
-	UPCGInstancePackerByAttribute* InstancePacker = CastChecked<UPCGInstancePackerByAttribute>(Settings->InstancePackerInstance);
-	UPCGMeshSelectorWeighted* MeshSelector = CastChecked<UPCGMeshSelectorWeighted>(Settings->MeshSelectorInstance);
+	Settings->SetInstancePackerType(UPCGInstanceDataPackerByAttribute::StaticClass());
+	UPCGInstanceDataPackerByAttribute* InstancePacker = CastChecked<UPCGInstanceDataPackerByAttribute>(Settings->InstanceDataPackerParameters);
+	UPCGMeshSelectorWeighted* MeshSelector = CastChecked<UPCGMeshSelectorWeighted>(Settings->MeshSelectorParameters);
 
 	const FString CubePath = TEXT("StaticMesh'/Engine/BasicShapes/Cube.Cube'");
 	const UStaticMesh* CubeMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), NULL, *CubePath));
@@ -318,9 +318,9 @@ bool FPCGStaticMeshSpawnerInstancePackerByRegexTest::RunTest(const FString& Para
 		UPCGMetadataAccessorHelpers::SetVector4Attribute(SourcePoints[I], SourceData->Metadata, NameB2, Vec4Value);
 	}
 
-	Settings->SetInstancePackerType(UPCGInstancePackerByRegex::StaticClass());
-	UPCGInstancePackerByRegex* InstancePacker = CastChecked<UPCGInstancePackerByRegex>(Settings->InstancePackerInstance);
-	UPCGMeshSelectorWeighted* MeshSelector = CastChecked<UPCGMeshSelectorWeighted>(Settings->MeshSelectorInstance);
+	Settings->SetInstancePackerType(UPCGInstanceDataPackerByRegex::StaticClass());
+	UPCGInstanceDataPackerByRegex* InstancePacker = CastChecked<UPCGInstanceDataPackerByRegex>(Settings->InstanceDataPackerParameters);
+	UPCGMeshSelectorWeighted* MeshSelector = CastChecked<UPCGMeshSelectorWeighted>(Settings->MeshSelectorParameters);
 
 	const FString CubePath = TEXT("StaticMesh'/Engine/BasicShapes/Cube.Cube'");
 	const UStaticMesh* CubeMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), NULL, *CubePath));

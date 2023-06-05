@@ -8,7 +8,7 @@
 #include "Data/PCGSpatialData.h"
 #include "Elements/PCGStaticMeshSpawnerContext.h"
 #include "Helpers/PCGActorHelpers.h"
-#include "InstancePackers/PCGInstancePackerBase.h"
+#include "InstanceDataPackers/PCGInstanceDataPackerBase.h"
 #include "MeshSelectors/PCGMeshSelectorBase.h"
 #include "MeshSelectors/PCGMeshSelectorWeighted.h"
 
@@ -36,7 +36,7 @@ UPCGStaticMeshSpawnerSettings::UPCGStaticMeshSpawnerSettings(const FObjectInitia
 	// However, removing it makes it that any object actually using the instance created by default would be lost.
 	if (!this->HasAnyFlags(RF_ClassDefaultObject))
 	{
-		MeshSelectorInstance = ObjectInitializer.CreateDefaultSubobject<UPCGMeshSelectorWeighted>(this, TEXT("DefaultSelectorInstance"));
+		MeshSelectorParameters = ObjectInitializer.CreateDefaultSubobject<UPCGMeshSelectorWeighted>(this, TEXT("DefaultSelectorInstance"));
 	}
 }
 
@@ -53,9 +53,9 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 	const UPCGStaticMeshSpawnerSettings* Settings = Context->GetInputSettings<UPCGStaticMeshSpawnerSettings>();
 	check(Settings);
 
-	if (!Settings->MeshSelectorInstance)
+	if (!Settings->MeshSelectorParameters)
 	{
-		PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidMeshSelectorInstance", "Invalid MatchAndSet instance, try recreating this node from the node palette"));
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidMeshSelectorInstance", "Invalid MeshSelector instance, try reselecting the MeshSelector type"));
 		return true;
 	}
 
@@ -188,7 +188,7 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 			TArray<FPCGMeshInstanceList>& MeshInstances = (bSkippedDueToReuse ? DummyMeshInstances : Context->MeshInstancesData.Last().MeshInstances);
 
 			check(Context->CurrentPointData);
-			Context->bSelectionDone = Settings->MeshSelectorInstance->SelectInstances(*Context, Settings, Context->CurrentPointData, MeshInstances, Context->CurrentOutputPointData);
+			Context->bSelectionDone = Settings->MeshSelectorParameters->SelectInstances(*Context, Settings, Context->CurrentPointData, MeshInstances, Context->CurrentOutputPointData);
 		}
 
 		if (!Context->bSelectionDone)
@@ -207,11 +207,11 @@ bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) c
 				PackedCustomData.SetNum(MeshInstances.Num());
 			}
 
-			if (Settings->InstancePackerInstance)
+			if (Settings->InstanceDataPackerParameters)
 			{
 				for (int32 InstanceListIndex = 0; InstanceListIndex < MeshInstances.Num(); ++InstanceListIndex)
 				{
-					Settings->InstancePackerInstance->PackInstances(*Context, Context->CurrentPointData, MeshInstances[InstanceListIndex], PackedCustomData[InstanceListIndex]);
+					Settings->InstanceDataPackerParameters->PackInstances(*Context, Context->CurrentPointData, MeshInstances[InstanceListIndex], PackedCustomData[InstanceListIndex]);
 				}
 			}
 		}
@@ -382,7 +382,7 @@ void UPCGStaticMeshSpawnerSettings::PostLoad()
 	{
 		SetMeshSelectorType(UPCGMeshSelectorWeighted::StaticClass());
 
-		UPCGMeshSelectorWeighted* MeshSelector = CastChecked<UPCGMeshSelectorWeighted>(MeshSelectorInstance);
+		UPCGMeshSelectorWeighted* MeshSelector = CastChecked<UPCGMeshSelectorWeighted>(MeshSelectorParameters);
 
 		for (const FPCGStaticMeshSpawnerEntry& Entry : Meshes_DEPRECATED)
 		{
@@ -399,22 +399,22 @@ void UPCGStaticMeshSpawnerSettings::PostLoad()
 
 	const EObjectFlags Flags = GetMaskedFlags(RF_PropagateToSubObjects) | RF_Transactional;
 	
-	if (!MeshSelectorInstance)
+	if (!MeshSelectorParameters)
 	{
 		RefreshMeshSelector();
 	}
 	else
 	{
-		MeshSelectorInstance->SetFlags(Flags);
+		MeshSelectorParameters->SetFlags(Flags);
 	}
 
-	if (!InstancePackerInstance)
+	if (!InstanceDataPackerParameters)
 	{
 		RefreshInstancePacker();
 	}
 	else
 	{
-		InstancePackerInstance->SetFlags(Flags);
+		InstanceDataPackerParameters->SetFlags(Flags);
 	}
 }
 
@@ -429,7 +429,7 @@ void UPCGStaticMeshSpawnerSettings::PostEditChangeProperty(FPropertyChangedEvent
 		{
 			RefreshMeshSelector();
 		} 
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UPCGStaticMeshSpawnerSettings, InstancePackerType))
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UPCGStaticMeshSpawnerSettings, InstanceDataPackerType))
 		{
 			RefreshInstancePacker();
 		}
@@ -441,7 +441,7 @@ void UPCGStaticMeshSpawnerSettings::PostEditChangeProperty(FPropertyChangedEvent
 
 void UPCGStaticMeshSpawnerSettings::SetMeshSelectorType(TSubclassOf<UPCGMeshSelectorBase> InMeshSelectorType) 
 {
-	if (!MeshSelectorInstance || InMeshSelectorType != MeshSelectorType)
+	if (!MeshSelectorParameters || InMeshSelectorType != MeshSelectorType)
 	{
 		if (InMeshSelectorType != MeshSelectorType)
 		{
@@ -452,13 +452,13 @@ void UPCGStaticMeshSpawnerSettings::SetMeshSelectorType(TSubclassOf<UPCGMeshSele
 	}
 }
 
-void UPCGStaticMeshSpawnerSettings::SetInstancePackerType(TSubclassOf<UPCGInstancePackerBase> InInstancePackerType) 
+void UPCGStaticMeshSpawnerSettings::SetInstancePackerType(TSubclassOf<UPCGInstanceDataPackerBase> InInstancePackerType) 
 {
-	if (!InstancePackerInstance || InInstancePackerType != InstancePackerType)
+	if (!InstanceDataPackerParameters || InInstancePackerType != InstanceDataPackerType)
 	{
-		if (InInstancePackerType != InstancePackerType)
+		if (InInstancePackerType != InstanceDataPackerType)
 		{
-			InstancePackerType = InInstancePackerType;
+			InstanceDataPackerType = InInstancePackerType;
 		}
 		
 		RefreshInstancePacker();
@@ -469,39 +469,39 @@ void UPCGStaticMeshSpawnerSettings::RefreshMeshSelector()
 {
 	if (MeshSelectorType)
 	{
-		if (MeshSelectorInstance)
+		if (MeshSelectorParameters)
 		{
-			MeshSelectorInstance->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-			MeshSelectorInstance->MarkAsGarbage();
-			MeshSelectorInstance = nullptr;
+			MeshSelectorParameters->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+			MeshSelectorParameters->MarkAsGarbage();
+			MeshSelectorParameters = nullptr;
 		}
 
 		const EObjectFlags Flags = GetMaskedFlags(RF_PropagateToSubObjects);
-		MeshSelectorInstance = NewObject<UPCGMeshSelectorBase>(this, MeshSelectorType, NAME_None, Flags);
+		MeshSelectorParameters = NewObject<UPCGMeshSelectorBase>(this, MeshSelectorType, NAME_None, Flags);
 	}
 	else
 	{
-		MeshSelectorInstance = nullptr;
+		MeshSelectorParameters = nullptr;
 	}
 }
 
 void UPCGStaticMeshSpawnerSettings::RefreshInstancePacker()
 {
-	if (InstancePackerType)
+	if (InstanceDataPackerType)
 	{
-		if (InstancePackerInstance)
+		if (InstanceDataPackerParameters)
 		{
-			InstancePackerInstance->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-			InstancePackerInstance->MarkAsGarbage();
-			InstancePackerInstance = nullptr;
+			InstanceDataPackerParameters->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+			InstanceDataPackerParameters->MarkAsGarbage();
+			InstanceDataPackerParameters = nullptr;
 		}
 
 		const EObjectFlags Flags = GetMaskedFlags(RF_PropagateToSubObjects);
-		InstancePackerInstance = NewObject<UPCGInstancePackerBase>(this, InstancePackerType, NAME_None, Flags);
+		InstanceDataPackerParameters = NewObject<UPCGInstanceDataPackerBase>(this, InstanceDataPackerType, NAME_None, Flags);
 	}
 	else
 	{
-		InstancePackerInstance = nullptr;
+		InstanceDataPackerParameters = nullptr;
 	}
 }
 
