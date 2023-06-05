@@ -8,6 +8,7 @@
 #include "MassCommonFragments.h"
 #include "MassEntitySubsystem.h"
 #include "MassEntityView.h"
+#include "MassEntityQuery.h"
 #include "MassRepresentationSubsystem.h"
 #include "MassSpawnerSubsystem.h"
 #include "MassSpawnerTypes.h"
@@ -18,7 +19,7 @@
 
 namespace UE::Mass::Tweakables
 {
-	bool bDestroyEntitiesOnEndPlay = false;
+	bool bDestroyEntitiesOnEndPlay = true;
 
 	FAutoConsoleVariableRef CLWIVars[] = {
 		{TEXT("mass.LWI.DestroyEntitiesOnEndPlay"), bDestroyEntitiesOnEndPlay, TEXT("Whether we should destroy LWI-sources entities when the original LWI manager ends play")},
@@ -62,14 +63,33 @@ void AMassLWIStaticMeshManager::EndPlay(const EEndPlayReason::Type EndPlayReason
 	{
 		if (UE::Mass::Tweakables::bDestroyEntitiesOnEndPlay && Entities.Num())
 		{
+			check(InstanceTransforms.Num() == 0);
+			InstanceTransforms.Reset(Entities.Num());
+
 			if (UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
 			{
 				FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
 
 				TArray<FMassArchetypeEntityCollection> EntityCollectionsToDestroy;
 				UE::Mass::Utils::CreateEntityCollections(EntityManager, Entities, FMassArchetypeEntityCollection::FoldDuplicates, EntityCollectionsToDestroy);
+
+				// we create a query to "recreate" contents of InstanceTransforms just in case BeginPlay will be get
+				// called again for this LWIManager, which can happen with actor streaming
+				FMassEntityQuery LocationQuery;
+				LocationQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+
+				FMassExecutionContext ExecutionContext(EntityManager);
 				for (FMassArchetypeEntityCollection& Collection : EntityCollectionsToDestroy)
 				{
+					LocationQuery.ForEachEntityChunk(Collection, EntityManager, ExecutionContext, [this](FMassExecutionContext& Context)
+					{
+						TConstArrayView<FTransformFragment> TransformsList = Context.GetFragmentView<FTransformFragment>();
+						for (const FTransformFragment& Fragment : TransformsList)
+						{
+							InstanceTransforms.Add(Fragment.GetTransform());
+						}
+					});
+
 					EntityManager.BatchDestroyEntityChunks(Collection);
 				}
 
@@ -254,12 +274,13 @@ void AMassLWIStaticMeshManager::CreateMassTemplate(FMassEntityManager& EntityMan
 
 	FMassLWIManagerSharedFragment LWIManagerSharedFragment;
 	LWIManagerSharedFragment.LWIManager = this;
-	uint32 LWIManagerHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(LWIManagerSharedFragment));
+	const uint32 LWIManagerHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(LWIManagerSharedFragment));
 	FSharedStruct LWIManagerFragment = EntityManager.GetOrCreateSharedFragmentByHash<FMassLWIManagerSharedFragment>(LWIManagerHash, LWIManagerSharedFragment);
 	NewTemplate.AddSharedFragment(LWIManagerFragment);
 
 	FMassEntityTemplateRegistry& TemplateRegistry = SpawnerSystem->GetMutableTemplateRegistryInstance();
-	const uint32 FlavorHash = GetTypeHash(GetNameSafe(RepresentedClass));
+	const FString ObjectPath = GetPathName();
+	const uint32 FlavorHash = HashCombine(GetTypeHash(GetNameSafe(RepresentedClass)), GetTypeHash(ObjectPath));
 	MassTemplateID = FMassEntityTemplateIDFactory::MakeFlavor(SourceTemplate.GetTemplateID(), FlavorHash);
 
 	const TSharedRef<FMassEntityTemplate>& NewFinalizedTemplate = TemplateRegistry.FindOrAddTemplate(MassTemplateID, MoveTemp(NewTemplate));
