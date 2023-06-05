@@ -302,10 +302,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Performance")
 	bool bSkipSearchIfPossible = true;
 
+#if WITH_EDITORONLY_DATA
 	// This optional asset defines a list of databases you want to normalize together. Without it, it would be difficult to compare costs from separately normalized databases containing different types of animation,
 	// like only idles versus only runs animations, given that the range of movement would be dramatically different.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Database")
 	TObjectPtr<const UPoseSearchNormalizationSet> NormalizationSet;
+#endif // WITH_EDITORONLY_DATA
 
 private:
 	// Do not use it directly. Use GetSearchIndex / SetSearchIndex interact with it and validate that is ok to do so.

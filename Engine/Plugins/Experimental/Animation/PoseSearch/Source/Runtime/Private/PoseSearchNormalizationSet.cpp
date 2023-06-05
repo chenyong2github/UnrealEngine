@@ -3,6 +3,8 @@
 #include "PoseSearch/PoseSearchNormalizationSet.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 
+#if WITH_EDITORONLY_DATA
+
 void UPoseSearchNormalizationSet::AddUniqueDatabases(TArray<TObjectPtr<const UPoseSearchDatabase>>& UniqueDatabases) const
 {
 	for (const TObjectPtr<const UPoseSearchDatabase>& Database : Databases)
@@ -13,3 +15,5 @@ void UPoseSearchNormalizationSet::AddUniqueDatabases(TArray<TObjectPtr<const UPo
 		}
 	}
 }
+
+#endif // WITH_EDITORONLY_DATA

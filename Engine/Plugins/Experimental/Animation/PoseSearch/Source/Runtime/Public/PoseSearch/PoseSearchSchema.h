@@ -82,11 +82,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bias")
 	float BaseCostBias = 0.f;
 
-	// If there’s a mirroring mismatch between the currently playing asset and a search candidate, this cost will be added or removed to the candidate,
-	// making it more or less likely to be selected. Negative values make it more likely to be picked, or stayed in, Positive values make it less likely to be picked or stay in.
-	UPROPERTY(EditAnywhere, Category = "Bias")
-	float MirrorMismatchCostBias = 0.f;
-
 	// Cost added to all looping animation assets in a database that uses this config. This allows users to make it more or less likely to pick the looping animation segments.
 	// Negative values make it more likely to be picked, or stayed in, Positive values make it less likely to be picked or stay in.
 	UPROPERTY(EditAnywhere, Category = "Bias")

@@ -139,7 +139,7 @@ FString UPoseSearchFeatureChannel_Heading::GetLabel() const
 		Label.Append(Schema->BoneReferences[SchemaBoneIdx].BoneName.ToString());
 	}
 
-	Label.Appendf(TEXT(" %.1f"), SampleTimeOffset);
+	Label.Appendf(TEXT(" %.2f"), SampleTimeOffset);
 	return Label.ToString();
 }
 #endif

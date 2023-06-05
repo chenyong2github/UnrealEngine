@@ -6,7 +6,7 @@
 namespace UE::PoseSearch
 {
 
-float CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt)
+static FORCEINLINE float CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt)
 {
 	check(A.Num() == B.Num() && A.Num() == WeightsSqrt.Num());
 
@@ -191,28 +191,14 @@ TArray<float> FPoseSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
 	return PoseValues;
 }
 
-FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, float ContinuingPoseCostBias, float MirrorMismatchCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const
+FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, float ContinuingPoseCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const
 {
 	// base dissimilarity cost representing how the associated PoseIdx differ, in a weighted way, from the query pose (QueryValues)
 	const float DissimilarityCost = UE::PoseSearch::CompareFeatureVectors(PoseValues, QueryValues, WeightsSqrt);
 
-	// cost addend associated to a mismatch in mirror state between query and analyzed PoseIdx
-	float MirrorMismatchAddend = 0.f;
-	if (QueryMirrorRequest != EPoseSearchBooleanRequest::Indifferent)
-	{
-		const FPoseSearchIndexAsset& IndexAsset = GetAssetForPose(PoseIdx);
-		const bool bMirroringMismatch =
-			(IndexAsset.bMirrored && QueryMirrorRequest == EPoseSearchBooleanRequest::FalseValue) ||
-			(!IndexAsset.bMirrored && QueryMirrorRequest == EPoseSearchBooleanRequest::TrueValue);
-		if (bMirroringMismatch)
-		{
-			MirrorMismatchAddend = MirrorMismatchCostBias;
-		}
-	}
-
 	// cost addend associated to Schema->BaseCostBias or overriden by UAnimNotifyState_PoseSearchModifyCost
 	const float NotifyAddend = PoseMetadata[PoseIdx].GetCostAddend();
-	return FPoseSearchCost(DissimilarityCost, NotifyAddend, MirrorMismatchAddend, ContinuingPoseCostBias);
+	return FPoseSearchCost(DissimilarityCost, NotifyAddend, ContinuingPoseCostBias);
 }
 
 FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)

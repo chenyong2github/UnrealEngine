@@ -139,8 +139,7 @@ private:
 
 struct POSESEARCH_API FSearchContext
 {
-	FSearchContext(const FPoseSearchQueryTrajectory* InTrajectory, const IPoseHistory* InHistory, float InDesiredPermutationTimeOffset,
-		const FPoseIndicesHistory* InPoseIndicesHistory = nullptr, EPoseSearchBooleanRequest InQueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent,
+	FSearchContext(const FPoseSearchQueryTrajectory* InTrajectory, const IPoseHistory* InHistory, float InDesiredPermutationTimeOffset, const FPoseIndicesHistory* InPoseIndicesHistory = nullptr,
 		const FSearchResult& InCurrentResult = FSearchResult(), float InPoseJumpThresholdTime = 0.f, bool bInForceInterrupt = false);
 
 	FQuat GetSampleRotation(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime);
@@ -164,7 +163,6 @@ struct POSESEARCH_API FSearchContext
 
 	const FSearchResult& GetCurrentResult() const { return CurrentResult; }
 	float GetPoseJumpThresholdTime() const { return PoseJumpThresholdTime; }
-	EPoseSearchBooleanRequest GetQueryMirrorRequest() const { return QueryMirrorRequest; }
 	const FPoseIndicesHistory* GetPoseIndicesHistory() const { return PoseIndicesHistory; }
 	bool IsHistoryValid() const { return History != nullptr; }
 	float GetDesiredPermutationTimeOffset() const { return DesiredPermutationTimeOffset; }
@@ -182,7 +180,6 @@ private:
 	const IPoseHistory* History = nullptr;
 	float DesiredPermutationTimeOffset = 0.f;
 	const FPoseIndicesHistory* PoseIndicesHistory = nullptr;
-	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
 	FSearchResult CurrentResult;
 	float PoseJumpThresholdTime = 0.f;
 	bool bForceInterrupt = false;
@@ -195,7 +192,8 @@ private:
 
 	// transforms cached in component space
 	FCachedTransforms<FTransform> CachedTransforms;
-	TArray<FFeatureVectorBuilder, TInlineAllocator<8>> CachedQueries;
+	// @todo: consider using FMemMark
+	TArray<FFeatureVectorBuilder, TInlineAllocator<PreallocatedCachedQueriesNum>> CachedQueries;
 
 	float CurrentBestTotalCost = MAX_flt;
 	

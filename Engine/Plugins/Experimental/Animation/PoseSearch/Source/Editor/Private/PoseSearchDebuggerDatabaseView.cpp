@@ -186,8 +186,7 @@ static void AddUnfilteredDatabaseRow(const UPoseSearchDatabase* Database,
 		else
 		{
 			// @todo: perhaps reuse CompareFeatureVectors cost calculation
-			// @todo: initialize EPoseSearchBooleanRequest::Indifferent properly
-			Row->PoseCost = SearchIndex.ComparePoses(DbPoseIdx, EPoseSearchBooleanRequest::Indifferent, 0.f, Database->Schema->MirrorMismatchCostBias, PoseValues, QueryVector);
+			Row->PoseCost = SearchIndex.ComparePoses(DbPoseIdx, 0.f, PoseValues, QueryVector);
 		}
 
 		const FInstancedStruct& DatabaseAssetStruct = Database->GetAnimationAssetStruct(*SearchIndexAsset);

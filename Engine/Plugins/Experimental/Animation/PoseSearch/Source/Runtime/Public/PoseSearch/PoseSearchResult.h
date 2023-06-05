@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PoseSearch/PoseSearchCost.h"
+#include "PoseSearch/PoseSearchDefines.h"
 
 struct FPoseSearchIndexAsset;
 class UPoseSearchDatabase;
@@ -23,12 +24,13 @@ public:
 
 	const UPoseSearchSchema* GetSchema() const { return Schema.Get(); }
 
-	TArray<float>& EditValues() { return Values; }
+	TArrayView<float> EditValues() { return Values; }
 	TConstArrayView<float> GetValues() const { return Values; }
 
 private:
 	TObjectPtr<const UPoseSearchSchema> Schema;
-	TArray<float> Values;
+	// @todo: consider using FMemMark
+	TArray<float, TInlineAllocator<PreallocatedCachedQuerySize>> Values;
 };
 	
 struct FSearchResult

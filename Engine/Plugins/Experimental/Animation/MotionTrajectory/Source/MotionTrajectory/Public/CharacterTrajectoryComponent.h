@@ -39,8 +39,8 @@ protected:
 
 	FRotator CalculateControllerRotationRate(float DeltaSeconds, bool bShouldRemainVertical);
 
-	// Trajectory stored in component space so it can be directly passed to Motion Matching.
-	UPROPERTY(BlueprintReadOnly, Category = "Trajectory")
+	// Trajectory stored in world space so it can be directly passed to Motion Matching.
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Trajectory")
 	FPoseSearchQueryTrajectory Trajectory;
 
 	// This should generally match the longest history required by a Motion Matching Database in the project.

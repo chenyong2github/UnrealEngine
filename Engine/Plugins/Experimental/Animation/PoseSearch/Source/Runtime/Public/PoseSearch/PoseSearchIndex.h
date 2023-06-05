@@ -9,21 +9,9 @@
 namespace UE::PoseSearch
 {
 
-float CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt);
 POSESEARCH_API void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt, TArrayView<float> Result);
 
 } // namespace UE::PoseSearch
-
-UENUM()
-enum class EPoseSearchBooleanRequest : uint8
-{
-	FalseValue,
-	TrueValue,
-	Indifferent, // if this is used, there will be no cost difference between true and false results
-
-	Num UMETA(Hidden),
-	Invalid = Num UMETA(Hidden)
-};
 
 /**
  * This is kept for each pose in the search index along side the feature vector values and is used to influence the search.
@@ -282,7 +270,7 @@ struct POSESEARCH_API FPoseSearchIndex : public FPoseSearchIndexBase
 	TConstArrayView<float> GetPoseValues(int32 PoseIdx) const;
 	TConstArrayView<float> GetReconstructedPoseValues(int32 PoseIdx, TArrayView<float> BufferUsedForReconstruction) const;
 	TArray<float> GetPoseValuesSafe(int32 PoseIdx) const;
-	FPoseSearchCost ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, float ContinuingPoseCostBias, float MirrorMismatchCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const;
+	FPoseSearchCost ComparePoses(int32 PoseIdx, float ContinuingPoseCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const;
 
 	friend FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index);
 };

@@ -24,4 +24,9 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPoseSearch, Log, All);
 static constexpr int8 RootSchemaBoneIdx = 0;
 static constexpr FBoneIndexType RootBoneIndexType = 0;
 
+static constexpr int32 PreallocatedCachedQuerySize = 64;
+static constexpr int32 PreallocatedCachedQueriesNum = 8;
+
+
+
 
