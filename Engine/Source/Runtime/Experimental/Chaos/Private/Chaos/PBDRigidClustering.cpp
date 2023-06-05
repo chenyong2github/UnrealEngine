@@ -262,15 +262,12 @@ namespace Chaos
 			{
 				if (FPBDRigidClusteredParticleHandle* ExistingParent = ClusteredChild->Parent())
 				{
-					if (ExistingParent == Cluster)
+					if (ExistingParent != Cluster)
 					{
-						// This shouldn't really ever be the case probably?
-						continue;
+						// This is needed in the case where we use intercluster edges with geometry collections that need to then get stuck into a cluster union.
+						// It's possible due to replication ordering that we create an internal cluster surrounding the piece that we want to add to the cluster union first.
+						RemoveChildFromParentAndChildrenArray(ClusteredChild, ExistingParent);
 					}
-
-					// This is needed in the case where we use intercluster edges with geometry collections that need to then get stuck into a cluster union.
-					// It's possible due to replication ordering that we create an internal cluster surrounding the piece that we want to add to the cluster union first.
-					RemoveChildFromParentAndChildrenArray(ClusteredChild, ExistingParent);
 				}
 
 				TopLevelClusterParents.Remove(ClusteredChild);
@@ -935,7 +932,6 @@ namespace Chaos
 				const FClusterUnionIndex ClusterUnionIndex = ClusterUnionManager.FindClusterUnionIndexFromParticle(Child);
 				const bool bIsInClusterUnion = ClusterUnionIndex != INDEX_NONE;
 
-				//UE_LOG(LogTemp, Warning, TEXT("Releasing child %d from parent %p due to strain %.5f Exceeding internal strain %.5f (Source: %s)"), ChildIdx, ClusteredParticle, ChildStrain, Child->Strain(), bForceRelease ? TEXT("Forced by caller") : ExternalStrainMap ? TEXT("External") : TEXT("Collision"));
 				if (bIsInClusterUnion)
 				{
 					DeferredRemoveFromClusterUnion.Add(Child);
@@ -1037,6 +1033,16 @@ namespace Chaos
 
 			for (FPBDRigidParticleHandle* Child : ActivatedChildren)
 			{
+				// If an activated child has a parent, we don't want to update their kinematic properties since they should be disabled
+				// and thus, shouldn't need to have properties updated.
+				if (FPBDRigidClusteredParticleHandle* ClusteredChild = Child->CastToClustered())
+				{
+					if (ClusteredChild->Parent())
+					{
+						check(ClusteredChild->Disabled());
+						continue;
+					}
+				}
 				UpdateKinematicProperties(Child, MChildren, MEvolution);
 			}
 
@@ -1129,10 +1135,6 @@ namespace Chaos
 
 				if (AttachedClusterUnion)
 				{
-					for (FPBDRigidParticleHandle* Child : Island)
-					{
-						RemoveChildFromParentAndChildrenArray(Child, ClusteredParticle);
-					}
 					ClusterUnionManager.AddPendingClusterIndexOperation(AttachedClusterUnion->InternalIndex, EClusterUnionOperation::Add, Island);
 					IslandIndicesToRemove.Add(IslandIndex);
 				}

@@ -196,7 +196,6 @@ namespace Chaos
 		MEvolution.DisableParticle(NewUnion.InternalCluster);
 
 		ClusterUnions.Add(NewIndex, NewUnion);
-		ParticleToClusterUnionIndex.Add(NewUnion.InternalCluster, NewIndex);
 		return NewIndex;
 	}
 
@@ -373,7 +372,7 @@ namespace Chaos
 
 		// If we're adding particles to a cluster we need to first make sure they're not part of any other cluster.
 		// Book-keeping might get a bit odd if we try to add a particle to a new cluster and then only later remove the particle from its old cluster.
-		HandleRemoveOperationWithClusterLookup(Particles, EClusterUnionOperationTiming::Immediate);
+		HandleRemoveOperationWithClusterLookup(Particles, EClusterUnionOperationTiming::Defer);
 
 		TGuardValue_Bitfield_Cleanup<TFunction<void()>> Cleanup(
 			[this, OldGenerateClusterBreaking=MClustering.GetDoGenerateBreakingData()]() {
@@ -394,14 +393,18 @@ namespace Chaos
 		bool bIsSleeping = true;
 		bool bIsAnchored = false;
 
+		// Use a set to guarantee that there's no duplicates. This is necessary since further removal operations assume that the particle is only in here once.
+		const TSet<FPBDRigidParticleHandle*> ParticleSet{ Particles };
+
 		TArray<FPBDRigidParticleHandle*> FinalParticlesToAdd;
-		FinalParticlesToAdd.Reserve(Particles.Num());
+		FinalParticlesToAdd.Reserve(ParticleSet.Num());
 
 		// This is only relevant when bReleaseClustersFirst=true. This is used to be able to
 		// properly notify the parent cluster about its child proxies.
 		TMap<FPBDRigidParticleHandle*, FPBDRigidParticleHandle*> ChildToParentMap;
 
-		for (FPBDRigidParticleHandle* Handle : Particles)
+		
+		for (FPBDRigidParticleHandle* Handle : ParticleSet)
 		{
 			if (!Handle)
 			{
@@ -443,7 +446,6 @@ namespace Chaos
 		Cluster->ChildParticles.Append(FinalParticlesToAdd);
 		for (FPBDRigidParticleHandle* Particle : FinalParticlesToAdd)
 		{
-			ParticleToClusterUnionIndex.Add(Particle, ClusterIndex);
 			if (!bIsNewCluster)
 			{
 				Cluster->PendingConnectivityOperations.Add({Particle, EClusterUnionConnectivityOperation ::Add});
@@ -582,8 +584,7 @@ namespace Chaos
 		for (int32 Index = ParticleIndicesToRemove.Num() - 1; Index >= 0; --Index)
 		{
 			const int32 ParticleIndex = ParticleIndicesToRemove[Index];
-			ParticleToClusterUnionIndex.Remove(Cluster->ChildParticles[ParticleIndex]);
-			Cluster->ChildParticles.RemoveAt(ParticleIndex);
+			Cluster->ChildParticles.RemoveAtSwap(ParticleIndex);
 		}
 
 		MClustering.RemoveParticlesFromCluster(Cluster->InternalCluster, Particles);
@@ -776,10 +777,27 @@ namespace Chaos
 			return INDEX_NONE;
 		}
 
-		if (FClusterUnionIndex* Index = ParticleToClusterUnionIndex.Find(ChildParticle))
+		if (FPBDRigidClusteredParticleHandle* ChildClustered = ChildParticle->CastToClustered())
 		{
-			return *Index;
+			if (FPBDRigidClusteredParticleHandle* Parent = ChildClustered->Parent())
+			{
+				// Recursion should be fine here since the hierarchy should be fairly shallow.
+				return FindClusterUnionIndexFromParticle(Parent);
+			}
+
+			// The only other check to do here is to see if this is the cluster union particle itself.
+			const int32 ClusterGroupIndex = ChildClustered->ClusterGroupIndex();
+			if (FClusterUnion* ClusterUnion = FindClusterUnion(FMath::Abs(ClusterGroupIndex)))
+			{
+				// This is a sanity check which may or may not be necessary.
+				// TODO: Can probably be safely removed once we deprecate cluster group indices on GCs.
+				if (ClusterUnion->InternalCluster == ChildClustered)
+				{
+					return ClusterUnion->InternalIndex;
+				}
+			}
 		}
+		
 		return INDEX_NONE;
 	}
 

@@ -214,9 +214,6 @@ namespace Chaos
 		TMap<FClusterUnionExplicitIndex, FClusterUnionIndex> ExplicitIndexMap;
 		FClusterCreationParameters DefaultClusterCreationParameters() const;
 
-		// A particle lookup table. Lets us go from a given particle pointer to the cluster it's in.
-		TMap<FPBDRigidParticleHandle*, FClusterUnionIndex> ParticleToClusterUnionIndex;
-
 		// If no cluster index is set but an explicit index is set, map the explicit index to a regular index.
 		FClusterUnionIndex GetOrCreateClusterUnionIndexFromExplicitIndex(FClusterUnionExplicitIndex InIndex);
 
