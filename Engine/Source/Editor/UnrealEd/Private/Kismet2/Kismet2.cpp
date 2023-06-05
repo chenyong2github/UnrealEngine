@@ -414,6 +414,17 @@ void FKismetEditorUtilities::CreateDefaultEventGraphs(UBlueprint* Blueprint)
 
 extern UNREALED_API FSecondsCounterData BlueprintCompileAndLoadTimerData;
 
+/** Create a new Blueprint and initialize it to a valid state but uses the associated blueprint types. */
+UBlueprint* FKismetEditorUtilities::CreateBlueprint(UClass* ParentClass, UObject* Outer, const FName NewBPName,	EBlueprintType BlueprintType, FName CallingContext)
+{
+	UClass* BlueprintClassType = UBlueprint::StaticClass();
+	UClass* BlueprintGeneratedClassType = UBlueprintGeneratedClass::StaticClass();
+	const IKismetCompilerInterface& KismetCompilerModule = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>("KismetCompiler");
+	KismetCompilerModule.GetBlueprintTypesForClass(ParentClass, BlueprintClassType, BlueprintGeneratedClassType);
+
+	return CreateBlueprint(ParentClass, Outer, NewBPName, BlueprintType, BlueprintClassType, BlueprintGeneratedClassType, CallingContext);
+}
+
 /** Create a new Blueprint and initialize it to a valid state. */
 UBlueprint* FKismetEditorUtilities::CreateBlueprint(UClass* ParentClass, UObject* Outer, const FName NewBPName, EBlueprintType BlueprintType, TSubclassOf<UBlueprint> BlueprintClassType, TSubclassOf<UBlueprintGeneratedClass> BlueprintGeneratedClassType, FName CallingContext)
 {

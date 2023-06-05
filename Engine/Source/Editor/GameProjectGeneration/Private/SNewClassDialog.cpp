@@ -1128,7 +1128,7 @@ void SNewClassDialog::FinishClicked()
 			if (Package)
 			{
 				// Create and init a new Blueprint
-				UBlueprint* NewBP = FKismetEditorUtilities::CreateBlueprint(const_cast<UClass*>(ParentClassInfo.BaseClass), Package, FName(*NewClassName), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
+				UBlueprint* NewBP = FKismetEditorUtilities::CreateBlueprint(const_cast<UClass*>(ParentClassInfo.BaseClass), Package, FName(*NewClassName), BPTYPE_Normal);
 				if (NewBP)
 				{
 					// Notify the asset registry
