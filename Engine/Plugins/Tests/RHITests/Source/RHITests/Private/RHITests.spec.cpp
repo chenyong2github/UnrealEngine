@@ -6,7 +6,7 @@
 #include "RenderingThread.h"
 #include "RHIBufferTests.h"
 #include "RHITextureTests.h"
-
+#include "RHIDrawTests.h"
 
 BEGIN_DEFINE_SPEC(FAutomationRHITest, "Rendering.RHI", EAutomationTestFlags::EngineFilter | EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::NonNullRHI)
 END_DEFINE_SPEC(FAutomationRHITest)
@@ -90,6 +90,15 @@ void FAutomationRHITest::Define()
 		{
 			bool bResult = RunOnRenderThreadSynchronous(FRHIBufferTests::Test_RHICreateBuffer_Parallel);
 			TestEqual("RHICreateBuffer_Parallel", bResult, 1);
+		});
+	});
+
+	Describe("Test RHI Draw", [this]()
+	{
+		It("RHI MultiDrawIndirect", [this]()
+		{
+			bool bResult = RunOnRenderThreadSynchronous(FRHIDrawTests::Test_MultiDrawIndirect);
+			TestEqual("RHI MultiDrawIndirect", bResult, 1);
 		});
 	});
 }
