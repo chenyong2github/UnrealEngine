@@ -98,7 +98,7 @@ public:
 	uint8 bEnableUserSettings : 1;
 
 	/** If true, then the DefaultMappingContexts will be applied to all Enhanced Input Subsystems. */
-	UPROPERTY(EditAnywhere, Category = "Enhanced Input", meta = (ConsoleVariable = "EnhancedInput.EnableDefaultMappingContexts"))
+	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input", meta = (ConsoleVariable = "EnhancedInput.EnableDefaultMappingContexts"))
 	uint8 bEnableDefaultMappingContexts : 1;
 
 	/**
@@ -107,7 +107,7 @@ public:
 	 * 
 	 * Default value is true.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Enhanced Input", meta=(ConsoleVariable="EnhancedInput.OnlyTriggerLastActionInChord"))
+	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input", meta=(ConsoleVariable="EnhancedInput.OnlyTriggerLastActionInChord"))
 	uint8 bShouldOnlyTriggerLastActionInChord : 1;
 
 	/**
