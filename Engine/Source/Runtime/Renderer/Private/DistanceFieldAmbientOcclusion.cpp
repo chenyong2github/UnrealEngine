@@ -828,6 +828,8 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 		DistanceFieldNormal = GraphBuilder.CreateTexture(Desc, TEXT("DistanceFieldNormal"));
 	}
 
+	ComputeDistanceFieldNormal(GraphBuilder, Views, SceneTextures.UniformBuffer, DistanceFieldNormal, Parameters);
+
 	const FIntPoint TileListGroupSize = GetTileListGroupSizeForView(View);
 	const int32 MaxSceneObjects = FMath::DivideAndRoundUp(Scene->DistanceFieldSceneData.NumObjectsInBuffer, 256) * 256;
 	const bool bAllow16BitIndices = !IsMetalPlatform(GShaderPlatformForFeatureLevel[View.FeatureLevel]);
@@ -849,15 +851,8 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 			CulledObjectBufferParameters);
 
 		CullObjectsToView(GraphBuilder, Scene, View, Parameters, CulledObjectBufferParameters);
-	}
 
-	ComputeDistanceFieldNormal(GraphBuilder, Views, SceneTextures.UniformBuffer, DistanceFieldNormal, Parameters);
-
-	// Intersect objects with screen tiles, build lists
-	if (UseAOObjectDistanceField())
-	{
-		//@todo - support multiple views - should pass one TileIntersectionParameters per view
-		BuildTileObjectLists(GraphBuilder, Scene, Views, ObjectIndirectArguments, CulledObjectBufferParameters, TileIntersectionParameters, DistanceFieldNormal, Parameters);
+		BuildTileObjectLists(GraphBuilder, Scene, View, SceneTextures.UniformBuffer, ObjectIndirectArguments, CulledObjectBufferParameters, TileIntersectionParameters, DistanceFieldNormal, Parameters);
 	}
 
 	FRDGTextureRef BentNormalOutput = nullptr;

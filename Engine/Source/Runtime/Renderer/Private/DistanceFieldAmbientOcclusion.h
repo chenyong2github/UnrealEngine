@@ -107,7 +107,8 @@ extern bool ShouldDoReflectionEnvironment(const FScene* Scene, const FSceneViewF
 extern void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FDistanceFieldAOParameters& Parameters, FDistanceFieldCulledObjectBufferParameters& CulledObjectBuffers);
 extern void BuildTileObjectLists(FRDGBuilder& GraphBuilder,
 	FScene* Scene,
-	TArray<FViewInfo>& Views,
+	const FViewInfo& View,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	FRDGBufferRef ObjectIndirectArguments,
 	const FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
 	FTileIntersectionParameters TileIntersectionParameters,
