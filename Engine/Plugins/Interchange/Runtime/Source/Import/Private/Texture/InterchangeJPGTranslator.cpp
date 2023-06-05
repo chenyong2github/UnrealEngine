@@ -7,6 +7,7 @@
 #include "Engine/Texture2D.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
+#include "ImageCoreUtils.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeTextureNode.h"
 #include "Memory/SharedBuffer.h"
@@ -103,37 +104,11 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 	}
 
 	// Select the texture's source format
-	ETextureSourceFormat TextureFormat = TSF_Invalid;
-	int32 BitDepth = JpegImageWrapper->GetBitDepth();
-	ERGBFormat Format = JpegImageWrapper->GetFormat();
-
-	if (Format == ERGBFormat::Gray)
-	{
-		if (BitDepth <= 8)
-		{
-			TextureFormat = TSF_G8;
-			Format = ERGBFormat::Gray;
-			BitDepth = 8;
-		}
-	}
-	else if (Format == ERGBFormat::RGBA)
-	{
-		if (BitDepth <= 8)
-		{
-			TextureFormat = TSF_BGRA8;
-			Format = ERGBFormat::BGRA;
-			BitDepth = 8;
-		}
-	}
-
-	if (TextureFormat == TSF_Invalid)
-	{
-		FTextureTranslatorUtilities::LogError(*this, NSLOCTEXT("InterchangeJPEGTranslator", "UnsupportedFormat", "JPEG file contains data in an unsupported format."));
-		return TOptional<UE::Interchange::FImportImage>();
-	}
+	ERawImageFormat::Type RawFormat = JpegImageWrapper->GetClosestRawImageFormat();
+	check( RawFormat != ERawImageFormat::Invalid );
+	ETextureSourceFormat TextureFormat = FImageCoreUtils::ConvertToTextureSourceFormat(RawFormat);
 
 	UE::Interchange::FImportImage PayloadData;
-
 
 	const bool bShouldAllocateRawDataBuffer = false;
 
@@ -141,7 +116,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 		JpegImageWrapper->GetWidth(),
 		JpegImageWrapper->GetHeight(),
 		TextureFormat,
-		BitDepth < 16,
+		JpegImageWrapper->GetSRGB(),
 		bShouldAllocateRawDataBuffer
 	);
 
@@ -151,7 +126,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 		PayloadData.RawData = MakeUniqueBufferFromArray(MoveTemp(SourceDataBuffer));
 		PayloadData.RawDataCompressionFormat = ETextureSourceCompressionFormat::TSCF_JPEG;
 	}
-	else if (JpegImageWrapper->GetRaw(Format, BitDepth, RawData))
+	else if (JpegImageWrapper->GetRaw(RawData))
 	{
 		PayloadData.RawData = MakeUniqueBufferFromArray(MoveTemp(RawData));
 	}

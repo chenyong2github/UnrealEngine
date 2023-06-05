@@ -22,11 +22,11 @@ class FJpegImageWrapper
 public:
 
 	/** Default constructor. */
+	// NumComponents == 1 for GrayscaleJPEG , but not supported by TJPEG path so currently broken
 	FJpegImageWrapper(int32 InNumComponents = 4);
 
-#if WITH_LIBJPEGTURBO
 	virtual ~FJpegImageWrapper();
-#endif	// WITH_LIBJPEGTURBO
+	virtual void Reset() override;
 
 public:
 
@@ -50,7 +50,6 @@ private:
 #endif	// WITH_LIBJPEGTURBO
 
 #if WITH_LIBJPEGTURBO
-	tjhandle Compressor;
 	tjhandle Decompressor;
 #endif	// WITH_LIBJPEGTURBO
 };
