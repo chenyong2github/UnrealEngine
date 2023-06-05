@@ -293,15 +293,15 @@ void UNiagaraDataInterfaceSparseVolumeTexture::SetShaderParameters(const FNiagar
 	
 	if (RTInstanceData && RTInstanceData->RenderResources)
 	{
-		FTextureRHIRef PageTableTexture = RTInstanceData->RenderResources->GetPageTableTextureRHI();
-		FTextureRHIRef PhysicalTileDataATexture = RTInstanceData->RenderResources->GetPhysicalTileDataATextureRHI();
-		FTextureRHIRef PhysicalTileDataBTexture = RTInstanceData->RenderResources->GetPhysicalTileDataBTextureRHI();
-		FShaderResourceViewRHIRef StreamingInfoBufferSRV = RTInstanceData->RenderResources->GetStreamingInfoBufferSRVRHI();
+		FRHITexture* PageTableTexture = RTInstanceData->RenderResources->GetPageTableTexture();
+		FRHITexture* PhysicalTileDataATexture = RTInstanceData->RenderResources->GetPhysicalTileDataATexture();
+		FRHITexture* PhysicalTileDataBTexture = RTInstanceData->RenderResources->GetPhysicalTileDataBTexture();
+		FRHIShaderResourceView* StreamingInfoBufferSRV = RTInstanceData->RenderResources->GetStreamingInfoBufferSRV();
 
-		Parameters->PageTableTexture = PageTableTexture ? PageTableTexture.GetReference() : Parameters->PageTableTexture;
-		Parameters->PhysicalTileDataATexture = PhysicalTileDataATexture ? PhysicalTileDataATexture.GetReference() : Parameters->PhysicalTileDataATexture;
-		Parameters->PhysicalTileDataBTexture = PhysicalTileDataBTexture ? PhysicalTileDataBTexture.GetReference() : Parameters->PhysicalTileDataBTexture;
-		Parameters->StreamingInfoBuffer = StreamingInfoBufferSRV ? StreamingInfoBufferSRV.GetReference() : Parameters->StreamingInfoBuffer;
+		Parameters->PageTableTexture = PageTableTexture ? PageTableTexture : Parameters->PageTableTexture;
+		Parameters->PhysicalTileDataATexture = PhysicalTileDataATexture ? PhysicalTileDataATexture : Parameters->PhysicalTileDataATexture;
+		Parameters->PhysicalTileDataBTexture = PhysicalTileDataBTexture ? PhysicalTileDataBTexture : Parameters->PhysicalTileDataBTexture;
+		Parameters->StreamingInfoBuffer = StreamingInfoBufferSRV ? StreamingInfoBufferSRV : Parameters->StreamingInfoBuffer;
 		RTInstanceData->RenderResources->GetPackedUniforms(Parameters->PackedUniforms0, Parameters->PackedUniforms1);
 		Parameters->TextureSize = RTInstanceData->TextureSize;
 		Parameters->MipLevels = RTInstanceData->MipLevels;

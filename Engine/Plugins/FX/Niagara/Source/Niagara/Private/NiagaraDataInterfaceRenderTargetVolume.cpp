@@ -903,9 +903,9 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* Storage
 							);
 						}						
 
-						FRHITexture* PageTableTexture = RT_SVTRenderResources->GetPageTableTextureRHI();
-						FRHITexture* TextureA = RT_SVTRenderResources->GetPhysicalTileDataATextureRHI();
-						FRHIShaderResourceView* StreamingInfoBufferSRV = RT_SVTRenderResources->GetStreamingInfoBufferSRVRHI();
+						FRHITexture* PageTableTexture = RT_SVTRenderResources->GetPageTableTexture();
+						FRHITexture* TextureA = RT_SVTRenderResources->GetPhysicalTileDataATexture();
+						FRHIShaderResourceView* StreamingInfoBufferSRV = RT_SVTRenderResources->GetStreamingInfoBufferSRV();
 
 						PassParameters->TileDataTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 						PassParameters->SparseVolumeTexturePageTable = PageTableTexture ? PageTableTexture : GBlackUintVolumeTexture->TextureRHI.GetReference();

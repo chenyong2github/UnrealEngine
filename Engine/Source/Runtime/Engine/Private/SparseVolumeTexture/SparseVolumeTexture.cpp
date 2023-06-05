@@ -13,6 +13,7 @@
 #include "EngineUtils.h"
 #include "Shader/ShaderTypes.h"
 #include "RenderingThread.h"
+#include "GlobalRenderResources.h"
 #include "UObject/Package.h"
 #include "SparseVolumeTexture/SparseVolumeTextureData.h"
 #include "SparseVolumeTexture/SparseVolumeTextureUtility.h"
@@ -579,6 +580,21 @@ void FTextureRenderResources::SetGlobalVolumeResolution_GameThread(const FIntVec
 		{
 			GlobalVolumeResolution = InGlobalVolumeResolution;
 		});
+}
+
+void FTextureRenderResources::InitRHI()
+{
+	PageTableTextureReferenceRHI = RHICreateTextureReference(GBlackUintVolumeTexture->TextureRHI);
+	PhysicalTileDataATextureReferenceRHI = RHICreateTextureReference(GBlackVolumeTexture->TextureRHI);
+	PhysicalTileDataBTextureReferenceRHI = RHICreateTextureReference(GBlackVolumeTexture->TextureRHI);
+}
+
+void FTextureRenderResources::ReleaseRHI()
+{
+	PageTableTextureReferenceRHI.SafeRelease();
+	PhysicalTileDataATextureReferenceRHI.SafeRelease();
+	PhysicalTileDataBTextureReferenceRHI.SafeRelease();
+	StreamingInfoBufferSRVRHI.SafeRelease();
 }
 
 }

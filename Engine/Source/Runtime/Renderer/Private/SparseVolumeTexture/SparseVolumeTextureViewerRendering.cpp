@@ -152,28 +152,17 @@ void AddSparseVolumeTextureViewerRenderPass(FRDGBuilder& GraphBuilder, FSceneRen
 			const UE::SVT::FTextureRenderResources* RenderResources = SVTSceneProxy->TextureRenderResources;
 			if (RenderResources)
 			{
-				SVTSceneProxy->TextureRenderResources->GetPackedUniforms(PsPassParameters->PackedSVTUniforms0, PsPassParameters->PackedSVTUniforms1);
+				FRHITexture* PageTableTexture = RenderResources->GetPageTableTexture();
+				FRHITexture* TextureA = RenderResources->GetPhysicalTileDataATexture();
+				FRHITexture* TextureB = RenderResources->GetPhysicalTileDataBTexture();
+				FRHIShaderResourceView* StreamingInfoBufferSRV = RenderResources->GetStreamingInfoBufferSRV();
 
-				FRHITexture* PageTableTexture = RenderResources->GetPageTableTextureRHI();
-				if (PageTableTexture)
-				{
-					PsPassParameters->SparseVolumeTexturePageTable = PageTableTexture;
-				}
-				FRHITexture* TextureA = RenderResources->GetPhysicalTileDataATextureRHI();
-				if (TextureA)
-				{
-					PsPassParameters->SparseVolumeTextureA = TextureA;
-				}
-				FRHITexture* TextureB = RenderResources->GetPhysicalTileDataBTextureRHI();
-				if (TextureB)
-				{
-					PsPassParameters->SparseVolumeTextureB = TextureB;
-				}
-				FRHIShaderResourceView* StreamingInfoBufferSRV = RenderResources->GetStreamingInfoBufferSRVRHI();
-				if (StreamingInfoBufferSRV)
-				{
-					PsPassParameters->StreamingInfoBuffer = StreamingInfoBufferSRV;
-				}
+				PsPassParameters->SparseVolumeTexturePageTable = PageTableTexture ? PageTableTexture : PsPassParameters->SparseVolumeTexturePageTable;
+				PsPassParameters->SparseVolumeTextureA = TextureA ? TextureA : PsPassParameters->SparseVolumeTextureA;
+				PsPassParameters->SparseVolumeTextureB = TextureB ? TextureB : PsPassParameters->SparseVolumeTextureB;
+				PsPassParameters->StreamingInfoBuffer = StreamingInfoBufferSRV ? StreamingInfoBufferSRV : PsPassParameters->StreamingInfoBuffer;
+
+				SVTSceneProxy->TextureRenderResources->GetPackedUniforms(PsPassParameters->PackedSVTUniforms0, PsPassParameters->PackedSVTUniforms1);
 			}
 
 			ClearUnusedGraphResources(PixelShader, PsPassParameters);

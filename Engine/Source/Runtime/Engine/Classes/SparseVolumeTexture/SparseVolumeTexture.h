@@ -129,21 +129,21 @@ class ENGINE_API FTextureRenderResources : public ::FRenderResource
 {
 	friend class FStreamingManager;
 public:
-	const FHeader& GetHeader() const								{ check(IsInParallelRenderingThread()); return Header; }
-	FIntVector3 GetTileDataTextureResolution() const				{ check(IsInParallelRenderingThread()); return TileDataTextureResolution; }
-	int32 GetFrameIndex() const										{ check(IsInParallelRenderingThread()); return FrameIndex; }
-	int32 GetNumLogicalMipLevels() const							{ check(IsInParallelRenderingThread()); return NumLogicalMipLevels; }
-	FTextureRHIRef GetPageTableTextureRHI() const					{ check(IsInParallelRenderingThread()); return PageTableTextureRHI; }
-	FTextureRHIRef GetPhysicalTileDataATextureRHI() const			{ check(IsInParallelRenderingThread()); return PhysicalTileDataATextureRHI; }
-	FTextureRHIRef GetPhysicalTileDataBTextureRHI() const			{ check(IsInParallelRenderingThread()); return PhysicalTileDataBTextureRHI; }
-	FShaderResourceViewRHIRef GetStreamingInfoBufferSRVRHI() const	{ check(IsInParallelRenderingThread()); return StreamingInfoBufferSRVRHI; }
+	const FHeader& GetHeader() const							{ check(IsInParallelRenderingThread()); return Header; }
+	FIntVector3 GetTileDataTextureResolution() const			{ check(IsInParallelRenderingThread()); return TileDataTextureResolution; }
+	int32 GetFrameIndex() const									{ check(IsInParallelRenderingThread()); return FrameIndex; }
+	int32 GetNumLogicalMipLevels() const						{ check(IsInParallelRenderingThread()); return NumLogicalMipLevels; }
+	FRHITextureReference* GetPageTableTexture() const			{ check(IsInParallelRenderingThread()); return PageTableTextureReferenceRHI.GetReference(); }
+	FRHITextureReference* GetPhysicalTileDataATexture() const	{ check(IsInParallelRenderingThread()); return PhysicalTileDataATextureReferenceRHI.GetReference(); }
+	FRHITextureReference* GetPhysicalTileDataBTexture() const	{ check(IsInParallelRenderingThread()); return PhysicalTileDataBTextureReferenceRHI.GetReference(); }
+	FRHIShaderResourceView* GetStreamingInfoBufferSRV() const	{ check(IsInParallelRenderingThread()); return StreamingInfoBufferSRVRHI.GetReference(); }
 	void GetPackedUniforms(FUintVector4& OutPacked0, FUintVector4& OutPacked1) const;
 	// Updates the GlobalVolumeResolution member in a thread-safe way.
 	void SetGlobalVolumeResolution_GameThread(const FIntVector3& GlobalVolumeResolution);
 
 	//~ Begin FRenderResource Interface.
-	virtual void InitRHI() override { /* Managed by FStreamingManager */ }
-	virtual void ReleaseRHI() override { /* Managed by FStreamingManager */ }
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
 	//~ End FRenderResource Interface.
 
 private:
@@ -152,9 +152,9 @@ private:
 	FIntVector3 TileDataTextureResolution = FIntVector3::ZeroValue;
 	int32 FrameIndex = INDEX_NONE;
 	int32 NumLogicalMipLevels = 0; // Might not all be resident in GPU memory
-	FTextureRHIRef PageTableTextureRHI;
-	FTextureRHIRef PhysicalTileDataATextureRHI;
-	FTextureRHIRef PhysicalTileDataBTextureRHI;
+	FTextureReferenceRHIRef PageTableTextureReferenceRHI;
+	FTextureReferenceRHIRef PhysicalTileDataATextureReferenceRHI;
+	FTextureReferenceRHIRef PhysicalTileDataBTextureReferenceRHI;
 	FShaderResourceViewRHIRef StreamingInfoBufferSRVRHI;
 };
 

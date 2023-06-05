@@ -1277,9 +1277,10 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			check(BufferCursor <= TempBuffer + TempBufferSize);
 
 			check(GBlackVolumeTexture->TextureRHI);
-			*ResourceTableTexturePageTablePtr = GBlackVolumeTexture->TextureRHI;
+			*ResourceTableTexturePageTablePtr = GBlackUintVolumeTexture->TextureRHI;
 			*ResourceTableTexturePhysicalAPtr = GBlackVolumeTexture->TextureRHI;
 			*ResourceTableTexturePhysicalBPtr = GBlackVolumeTexture->TextureRHI;
+			*ResourceTableStreamingInfoBufferPtr = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
 			check(GBlackVolumeTexture->SamplerStateRHI);
 			*ResourceTablePhysicalSamplerPtr = GBlackVolumeTexture->SamplerStateRHI;
 			
@@ -1290,19 +1291,16 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				const UE::SVT::FTextureRenderResources* RenderResources = SVTexture->GetTextureRenderResources();
 				if (RenderResources)
 				{
-					// It's possible for RenderResources to be valid, but PageTableTexture still null, so we need to have a fallback
-					FTextureRHIRef PageTableTexture = RenderResources->GetPageTableTextureRHI();
-					*ResourceTableTexturePageTablePtr = PageTableTexture ? PageTableTexture : GBlackUintVolumeTexture->TextureRHI;
+					FRHITexture* PageTableTexture = RenderResources->GetPageTableTexture();
+					FRHITexture* TileDataATexture = RenderResources->GetPhysicalTileDataATexture();
+					FRHITexture* TileDataBTexture = RenderResources->GetPhysicalTileDataBTexture();
+					FRHIShaderResourceView* StreamingInfoBufferSRV = RenderResources->GetStreamingInfoBufferSRV();
 
-					FTextureRHIRef TileDataATexture = RenderResources->GetPhysicalTileDataATextureRHI();
-					*ResourceTableTexturePhysicalAPtr = TileDataATexture ? TileDataATexture : GBlackVolumeTexture->TextureRHI;
-
-					FTextureRHIRef TileDataBTexture = RenderResources->GetPhysicalTileDataBTextureRHI();
-					*ResourceTableTexturePhysicalBPtr = TileDataBTexture ? TileDataBTexture : GBlackVolumeTexture->TextureRHI;
-
-					FShaderResourceViewRHIRef StreamingInfoBufferSRV = RenderResources->GetStreamingInfoBufferSRVRHI();
-					*ResourceTableStreamingInfoBufferPtr = StreamingInfoBufferSRV ? StreamingInfoBufferSRV : GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
-
+					// It's possible for RenderResources to be valid, but PageTableTexture still null, so we need to have a fallback (a black uint volume texture)
+					*ResourceTableTexturePageTablePtr = PageTableTexture ? PageTableTexture : *ResourceTableTexturePageTablePtr;
+					*ResourceTableTexturePhysicalAPtr = TileDataATexture ? TileDataATexture : *ResourceTableTexturePhysicalAPtr;
+					*ResourceTableTexturePhysicalBPtr = TileDataBTexture ? TileDataBTexture : *ResourceTableTexturePhysicalBPtr;
+					*ResourceTableStreamingInfoBufferPtr = StreamingInfoBufferSRV ? StreamingInfoBufferSRV : *ResourceTableStreamingInfoBufferPtr;
 					*ResourceTablePhysicalSamplerPtr = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 				}
 			}

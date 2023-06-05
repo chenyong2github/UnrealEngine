@@ -679,12 +679,12 @@ void FStreamingManager::InitRHI()
 
 	MaxPendingMipLevels = GSVTStreamingMaxPendingMipLevels;
 	PendingMipLevels.SetNum(MaxPendingMipLevels);
-	PageTableUpdater = new FPageTableUpdater();
-	StreamingInfoBufferUpdater = new FStreamingInfoBufferUpdater();
+	PageTableUpdater = MakeUnique<FPageTableUpdater>();
+	StreamingInfoBufferUpdater = MakeUnique<FStreamingInfoBufferUpdater>();
 
 #if WITH_EDITORONLY_DATA
-	RequestOwner = new FRequestOwner(EPriority::Normal);
-	RequestOwnerBlocking = new FRequestOwner(EPriority::Blocking);
+	RequestOwner = MakeUnique<FRequestOwner>(EPriority::Normal);
+	RequestOwnerBlocking = MakeUnique<FRequestOwner>(EPriority::Blocking);
 #endif
 }
 
@@ -694,18 +694,6 @@ void FStreamingManager::ReleaseRHI()
 	{
 		return;
 	}
-
-#if WITH_EDITORONLY_DATA
-	delete RequestOwner;
-	RequestOwner = nullptr;
-	delete RequestOwnerBlocking;
-	RequestOwnerBlocking = nullptr;
-#endif
-
-	delete PageTableUpdater;
-	PageTableUpdater = nullptr;
-	delete StreamingInfoBufferUpdater;
-	StreamingInfoBufferUpdater = nullptr;
 }
 
 void FStreamingManager::Add_GameThread(UStreamableSparseVolumeTexture* SparseVolumeTexture)
@@ -877,7 +865,7 @@ void FStreamingManager::Request(UStreamableSparseVolumeTexture* SparseVolumeText
 	}
 }
 
-void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder, bool bForceNonAsync)
+void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder, bool bBlocking)
 {
 	check(IsInRenderingThread());
 	check(!AsyncState.bUpdateActive);
@@ -946,7 +934,7 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder, bool bForceN
 
 			const FResources* Resources = SVTInfo->PerFrameInfo[PendingMipLevel.FrameIndex].Resources;
 			SVTInfo->TileDataTexture->NumTilesToUpload += Resources->MipLevelStreamingInfo[PendingMipLevel.MipLevelIndex].NumPhysicalTiles;
-			TileDataTexturesToUpdate.Add(SVTInfo->TileDataTexture);
+			TileDataTexturesToUpdate.Add(SVTInfo->TileDataTexture.Get());
 			NumPageTableUpdatesTotal += Resources->MipLevelStreamingInfo[PendingMipLevel.MipLevelIndex].PageTableSize / (2 * sizeof(uint32));
 		}
 
@@ -963,7 +951,7 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder, bool bForceN
 	Parameters.StreamingManager = this;
 	
 	check(AsyncTaskEvents.IsEmpty());
-	if (GSVTStreamingAsyncThread && !bForceNonAsync)
+	if (GSVTStreamingAsyncThread && !bBlocking)
 	{
 		AsyncState.bUpdateIsAsync = true;
 		AsyncTaskEvents.Add(TGraphTask<FStreamingUpdateTask>::CreateTask().ConstructAndDispatchWhenReady(Parameters));
@@ -1144,7 +1132,7 @@ void FStreamingManager::AddInternal(FRDGBuilder& GraphBuilder, FNewSparseVolumeT
 		const FIntVector3 TileDataVolumeResolution = ComputeTileDataVolumeResolution(NumPhysicalTilesCapacity);
 		const FIntVector3 TileDataVolumeResolutionInTiles = TileDataVolumeResolution / SPARSE_VOLUME_TILE_RES_PADDED;
 
-		SVTInfo.TileDataTexture = new FTileDataTexture(TileDataVolumeResolutionInTiles, SVTInfo.FormatA, SVTInfo.FormatB);
+		SVTInfo.TileDataTexture = MakeUnique<FTileDataTexture>(TileDataVolumeResolutionInTiles, SVTInfo.FormatA, SVTInfo.FormatB);
 		SVTInfo.TileDataTexture->InitResource();
 
 		// Create streaming info buffer
@@ -1190,15 +1178,6 @@ void FStreamingManager::AddInternal(FRDGBuilder& GraphBuilder, FNewSparseVolumeT
 			FrameInfo.LowestRequestedMipLevel = NumMipLevels - 1;
 			FrameInfo.LowestResidentMipLevel = NumMipLevels - 1;
 
-			// Initialize TextureRenderResources
-			FrameInfo.TextureRenderResources->PhysicalTileDataATextureRHI = SVTInfo.TileDataTexture->TileDataTextureARHIRef;
-			FrameInfo.TextureRenderResources->PhysicalTileDataBTextureRHI = SVTInfo.TileDataTexture->TileDataTextureBRHIRef;
-			FrameInfo.TextureRenderResources->StreamingInfoBufferSRVRHI = SVTInfo.StreamingInfoBufferSRVRHIRef;
-			FrameInfo.TextureRenderResources->Header = Resources->Header;
-			FrameInfo.TextureRenderResources->TileDataTextureResolution = SVTInfo.TileDataTexture->ResolutionInTiles * SPARSE_VOLUME_TILE_RES_PADDED;
-			FrameInfo.TextureRenderResources->FrameIndex = FrameIdx;
-			FrameInfo.TextureRenderResources->NumLogicalMipLevels = NumMipLevels;
-
 			// Create page table
 			{
 				// SVT_TODO: Currently we keep all mips of the page table resident. It would be better to stream in/out page table mips.
@@ -1212,8 +1191,18 @@ void FStreamingManager::AddInternal(FRDGBuilder& GraphBuilder, FNewSparseVolumeT
 					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV)
 					.SetNumMips((uint8)NumResidentMipLevels);
 
-				FrameInfo.TextureRenderResources->PageTableTextureRHI = RHICreateTexture(Desc);
+				FrameInfo.PageTableTextureRHIRef = RHICreateTexture(Desc);
 			}
+
+			// Initialize TextureRenderResources
+			RHIUpdateTextureReference(FrameInfo.TextureRenderResources->PageTableTextureReferenceRHI, FrameInfo.PageTableTextureRHIRef);
+			RHIUpdateTextureReference(FrameInfo.TextureRenderResources->PhysicalTileDataATextureReferenceRHI, SVTInfo.TileDataTexture->TileDataTextureARHIRef);
+			RHIUpdateTextureReference(FrameInfo.TextureRenderResources->PhysicalTileDataBTextureReferenceRHI, SVTInfo.TileDataTexture->TileDataTextureBRHIRef);
+			FrameInfo.TextureRenderResources->StreamingInfoBufferSRVRHI = SVTInfo.StreamingInfoBufferSRVRHIRef;
+			FrameInfo.TextureRenderResources->Header = Resources->Header;
+			FrameInfo.TextureRenderResources->TileDataTextureResolution = SVTInfo.TileDataTexture->ResolutionInTiles * SPARSE_VOLUME_TILE_RES_PADDED;
+			FrameInfo.TextureRenderResources->FrameIndex = FrameIdx;
+			FrameInfo.TextureRenderResources->NumLogicalMipLevels = NumMipLevels;
 
 			// Upload root mip data and update page tables
 			const FMipLevelStreamingInfo* RootStreamingInfo = !Resources->MipLevelStreamingInfo.IsEmpty() ? &Resources->MipLevelStreamingInfo.Last() : nullptr;
@@ -1245,7 +1234,7 @@ void FStreamingManager::AddInternal(FRDGBuilder& GraphBuilder, FNewSparseVolumeT
 
 				// Update highest mip (1x1x1) in page table
 				const FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, 1, 1, 1);
-				RHIUpdateTexture3D(FrameInfo.TextureRenderResources->PageTableTextureRHI, FrameInfo.TextureRenderResources->PageTableTextureRHI->GetDesc().NumMips - 1, UpdateRegion, sizeof(uint32), sizeof(uint32), (uint8*)&TileCoord);
+				RHIUpdateTexture3D(FrameInfo.PageTableTextureRHIRef, FrameInfo.PageTableTextureRHIRef->GetDesc().NumMips - 1, UpdateRegion, sizeof(uint32), sizeof(uint32), (uint8*)&TileCoord);
 			}
 		}
 
@@ -1275,17 +1264,14 @@ void FStreamingManager::RemoveInternal(UStreamableSparseVolumeTexture* SparseVol
 	FStreamingInfo* SVTInfo = StreamingInfo.Find(SparseVolumeTexture);
 	if (SVTInfo)
 	{
-		// The RHI resources in FTextureRenderResources are managed by FStreamingManager, so release them now.
 		for (FFrameInfo& FrameInfo : SVTInfo->PerFrameInfo)
 		{
-			FrameInfo.TextureRenderResources->PageTableTextureRHI.SafeRelease();
-			FrameInfo.TextureRenderResources->PhysicalTileDataATextureRHI.SafeRelease();
-			FrameInfo.TextureRenderResources->PhysicalTileDataBTextureRHI.SafeRelease();
+			FrameInfo.PageTableTextureRHIRef.SafeRelease();
 		}
 		if (SVTInfo->TileDataTexture)
 		{
 			SVTInfo->TileDataTexture->ReleaseResource();
-			delete SVTInfo->TileDataTexture;
+			SVTInfo->TileDataTexture.Reset();
 		}
 
 		StreamingInfo.Remove(SparseVolumeTexture);
@@ -1466,7 +1452,7 @@ void FStreamingManager::IssueRequests(int32 MaxSelectedRequests)
 		check((SelectedKey.MipLevelIndex + 1) < Resources->MipLevelStreamingInfo.Num()); // The lowest/last mip level is always resident and does not stream.
 		const FMipLevelStreamingInfo& MipLevelStreamingInfo = Resources->MipLevelStreamingInfo[SelectedKey.MipLevelIndex];
 
-		FTileDataTexture* TileDataTexture = SVTInfo->TileDataTexture;
+		TUniquePtr<FTileDataTexture>& TileDataTexture = SVTInfo->TileDataTexture;
 		check(TileDataTexture);
 
 		// Ensure that enough tiles are available in the tile texture
@@ -1694,7 +1680,7 @@ void FStreamingManager::StreamOutMipLevel(FStreamingInfo& SVTInfo, FLRUNode* LRU
 
 	if (bNeedsPageTableClear)
 	{
-		PageTableClears.Push({ FrameInfo.TextureRenderResources->PageTableTextureRHI, MipLevelIndex });
+		PageTableClears.Push({ FrameInfo.PageTableTextureRHIRef, MipLevelIndex });
 	}
 
 	// Free allocated tiles
@@ -1905,7 +1891,7 @@ void FStreamingManager::InstallReadyMipLevels()
 
 		uint8* DstPageCoords = nullptr;
 		uint8* DstPageEntries = nullptr;
-		PageTableUpdater->Add_GetRef(FrameInfo.TextureRenderResources->PageTableTextureRHI, PendingMipLevel.MipLevelIndex, NumPageTableUpdates, DstPageCoords, DstPageEntries);
+		PageTableUpdater->Add_GetRef(FrameInfo.PageTableTextureRHIRef, PendingMipLevel.MipLevelIndex, NumPageTableUpdates, DstPageCoords, DstPageEntries);
 
 		// Tile data
 		{
@@ -2065,7 +2051,7 @@ void FStreamingManager::RequestDDCData(TConstArrayView<UE::DerivedData::FCacheGe
 	using namespace UE::DerivedData;
 
 	{
-		FRequestOwner* RequestOwnerPtr = bBlocking ? RequestOwnerBlocking : RequestOwner;
+		FRequestOwner* RequestOwnerPtr = bBlocking ? RequestOwnerBlocking.Get() : RequestOwner.Get();
 		FRequestBarrier Barrier(*RequestOwnerPtr);	// This is a critical section on the owner. It does not constrain ordering
 		GetCache().GetChunks(DDCRequests, *RequestOwnerPtr,
 			[this](FCacheGetChunkResponse&& Response)

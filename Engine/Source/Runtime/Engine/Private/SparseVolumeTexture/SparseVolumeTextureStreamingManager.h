@@ -91,7 +91,7 @@ public:
 	virtual void Update_GameThread() override;
 	
 	virtual void Request(UStreamableSparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel, bool bBlocking) override;
-	virtual void BeginAsyncUpdate(FRDGBuilder& GraphBuilder, bool bForceNonAsync) override;
+	virtual void BeginAsyncUpdate(FRDGBuilder& GraphBuilder, bool bBlocking) override;
 	virtual void EndAsyncUpdate(FRDGBuilder& GraphBuilder) override;
 	//~ End IStreamingManager Interface.
 
@@ -178,6 +178,7 @@ private:
 		int32 LowestRequestedMipLevel; // Lowest mip level that should be resident. Can be lower than LowestResidentMipLevel when streaming in new mips. Stream-out is instant, so it should never be higher.
 		int32 LowestResidentMipLevel; // Actually resident on the GPU
 		TArray<TArray<uint32>> TileAllocations; // TileAllocations[MipLevel][PhysicalTileIndex]
+		FTextureRHIRef PageTableTextureRHIRef;
 	};
 
 	// Used to keep track of the least-recently-used order of mip levels. This is done per mip level and not per frame, so that lower resolution mip levels are kept in memory for longer.
@@ -205,7 +206,7 @@ private:
 		TArray<TIntrusiveDoubleLinkedList<FLRUNode>> PerMipLRULists; // PerMipLRULists[MipLevel]
 		TArray<FStreamingWindow> StreamingWindows;
 
-		FTileDataTexture* TileDataTexture;
+		TUniquePtr<FTileDataTexture> TileDataTexture;
 		TRefCountPtr<FRDGPooledBuffer> StreamingInfoBuffer; // One uint32 per frame storing the LowestResidentMipLevel
 		FShaderResourceViewRHIRef StreamingInfoBufferSRVRHIRef;
 		TBitArray<> DirtyStreamingInfoData; // One bit per frame, potentially marking the streaming info data as dirty/in need of an update
@@ -322,12 +323,12 @@ private:
 	TMap<FMipLevelKey, uint32> RequestsHashTable;
 	TArray<FPendingMipLevel> PendingMipLevels;
 #if WITH_EDITORONLY_DATA
-	UE::DerivedData::FRequestOwner* RequestOwner = nullptr;
-	UE::DerivedData::FRequestOwner* RequestOwnerBlocking = nullptr;
+	TUniquePtr<UE::DerivedData::FRequestOwner> RequestOwner = nullptr;
+	TUniquePtr<UE::DerivedData::FRequestOwner> RequestOwnerBlocking = nullptr;
 #endif
 
-	class FPageTableUpdater* PageTableUpdater = nullptr;
-	class FStreamingInfoBufferUpdater* StreamingInfoBufferUpdater = nullptr;
+	TUniquePtr<class FPageTableUpdater> PageTableUpdater = nullptr;
+	TUniquePtr<class FStreamingInfoBufferUpdater> StreamingInfoBufferUpdater = nullptr;
 	FGraphEventArray AsyncTaskEvents;
 	FAsyncState AsyncState;
 	int32 MaxPendingMipLevels = 0;
