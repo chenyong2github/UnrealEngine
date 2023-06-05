@@ -390,6 +390,28 @@ FInputDevicePropertyHandle UInputDeviceSubsystem::ActivateDeviceProperty(UInputD
 
 		// Keep track of this new active property. Placing it in this set will have it updated on this subsystem's Tick
 		ActiveProperties.Add(ActiveProp);
+
+#if WITH_EDITORONLY_DATA
+		// If we are currently PIE'ing, then track this property if it's class isn't already known. This will
+		// ensure that we reset device properties of unique types
+		if (bIsPIEPlaying)
+		{
+			const bool bAlreadyHasResetData = 
+				 PropertyClassesRequiringReset.ContainsByPredicate([&ActiveProp](const FResetPIEData& Data)
+				 {
+				 	return Data.DeviceId == ActiveProp.DeviceId && Data.UserId == ActiveProp.PlatformUser && Data.ClassToReset == ActiveProp.Property->GetClass();
+				 });
+			
+			if (!bAlreadyHasResetData)
+			{
+			 	FResetPIEData ResetData = {};
+             	ResetData.ClassToReset = ActiveProp.Property->GetClass();
+             	ResetData.DeviceId = ActiveProp.DeviceId;
+             	ResetData.UserId = ActiveProp.PlatformUser;
+			 	PropertyClassesRequiringReset.Emplace(ResetData);	
+			}
+		}
+#endif	// WITH_EDITOR
 	}
 
 	return OutHandle;
@@ -509,6 +531,9 @@ void UInputDeviceSubsystem::OnPrePIEStarted(bool bSimulating)
 {
 	// Remove all active properties, just in case someone was previewing something in the editor that are still going
 	RemoveAllDeviceProperties();
+#if WITH_EDITORONLY_DATA
+	PropertyClassesRequiringReset.Reset();
+#endif	// WITH_EDITORONLY_DATA
 	bIsPIEPlaying = true;
 }
 
@@ -526,6 +551,18 @@ void UInputDeviceSubsystem::OnPIEStopped(bool bSimulating)
 {
 	// Remove all active properties when PIE stops
 	RemoveAllDeviceProperties();
+
+#if WITH_EDITORONLY_DATA
+	// Reset any Device Properties that have been added so that their input devices are in a clean state when PIE ends
+	for (const FResetPIEData& ResetData : PropertyClassesRequiringReset)
+	{
+		UInputDeviceProperty* ToReset = NewObject<UInputDeviceProperty>(/* Outer = */ GetTransientPackage(), /* Class */ ResetData.ClassToReset);
+		ToReset->ResetDeviceProperty(ResetData.UserId, ResetData.DeviceId, /* bForceReset= */ true);
+	}
+	
+	PropertyClassesRequiringReset.Reset();
+#endif	// WITH_EDITORONLY_DATA
+	
 	bIsPIEPlaying = false;
 }
-#endif
+#endif	// WITH_EDITOR

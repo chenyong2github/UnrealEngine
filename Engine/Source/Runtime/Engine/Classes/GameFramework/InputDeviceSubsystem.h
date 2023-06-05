@@ -216,7 +216,25 @@ protected:
 	void OnPIEStopped(bool bSimulating);
 
 	bool bIsPIEPlaying = false;
-#endif
+
+#endif	// WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+
+	struct FResetPIEData
+	{
+	 	TObjectPtr<UClass> ClassToReset;
+	 	FInputDeviceId DeviceId;
+	 	FPlatformUserId UserId;
+	};
+	
+	/** 
+	 * A set of device properties that should be reset when PIE ends.
+	 * This ensures that each device is reset for the editor
+	 **/
+	TArray<FResetPIEData> PropertyClassesRequiringReset;
+
+#endif	// WITH_EDITORONLY_DATA
 	
 	/**
 	* Set of currently active input device properties that will be evaluated on tick

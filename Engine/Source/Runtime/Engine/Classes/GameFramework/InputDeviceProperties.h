@@ -67,7 +67,7 @@ protected:
 	* @param PlatformUser		The platform user that should receive this device property change
 	*/
 	UFUNCTION(BlueprintNativeEvent, Category = "InputDevice")
-	void ResetDeviceProperty(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId);
+	void ResetDeviceProperty(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset = false);
 
 	/**
 	* Native C++ implementation of ResetDeviceProperty
@@ -75,7 +75,7 @@ protected:
 	* 
 	* @see ResetDeviceProperty
 	*/
-	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId);
+	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset = false);
 
 	/**
 	* Apply the device property from GetInternalDeviceProperty to the given platform user. 
@@ -88,7 +88,7 @@ protected:
 	
 	/** Gets a pointer to the current input device property that the IInputInterface can use. */
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() { return nullptr; };
-
+	
 public:
 
 	/**
@@ -192,7 +192,7 @@ class UColorInputDeviceProperty : public UInputDeviceProperty
 public:
 
 	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration) override;
-	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId) override;
+	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset = false) override;
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
 
 	/** Default color data that will be used by default. Device Specific overrides will be used when the current input device matches */
@@ -246,7 +246,7 @@ class UColorInputDeviceCurveProperty : public UInputDeviceProperty
 public:
 
 	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration) override;
-	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId) override;
+	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset = false) override;
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
 	virtual float RecalculateDuration() override;
 
@@ -292,7 +292,7 @@ class ENGINE_API UInputDeviceTriggerEffect : public UInputDeviceProperty
 public:	
 
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
-	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId) override;
+	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset = false) override;
 	virtual void ApplyDeviceProperty(const FPlatformUserId UserId, const FInputDeviceId DeviceId) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Triggers")

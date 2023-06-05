@@ -62,7 +62,7 @@ void UInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPlatform
 
 }
 
-void UInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId)
+void UInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset /*= false*/)
 {
 
 }
@@ -86,13 +86,15 @@ void UColorInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPla
 	}
 }
 
-void UColorInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId)
+void UColorInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset /*= false*/)
 {
 	bool bReset = ColorData.bResetAfterCompletion;
 	if (const FDeviceColorData* Data = GetDeviceSpecificData<FDeviceColorData>(PlatformUser, DeviceId, DeviceOverrideData))
 	{
 		bReset = Data->bResetAfterCompletion;
 	}
+
+	bReset |= bForceReset;
 
 	if (bReset)
 	{
@@ -136,7 +138,7 @@ void UColorInputDeviceCurveProperty::EvaluateDeviceProperty_Implementation(const
 	}
 }
 
-void UColorInputDeviceCurveProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId)
+void UColorInputDeviceCurveProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset /*= false*/)
 {
 	bool bReset = ColorData.bResetAfterCompletion;
 	if (const FDeviceColorCurveData* Data = GetDeviceSpecificData<FDeviceColorCurveData>(PlatformUser, DeviceId, DeviceOverrideData))
@@ -144,6 +146,8 @@ void UColorInputDeviceCurveProperty::ResetDeviceProperty_Implementation(const FP
 		bReset = Data->bResetAfterCompletion;
 	}
 
+	bReset |= bForceReset;
+	
 	if (bReset)
 	{
 		// Disabling the light will reset the color
@@ -195,9 +199,9 @@ FInputDeviceProperty* UInputDeviceTriggerEffect::GetInternalDeviceProperty()
 	return &ResetProperty;
 }
 
-void UInputDeviceTriggerEffect::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId)
+void UInputDeviceTriggerEffect::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset /*= false*/)
 {
-	if (BaseTriggerData.bResetUponCompletion && BaseTriggerData.AffectedTriggers != EInputDeviceTriggerMask::None)
+	if (bForceReset || (BaseTriggerData.bResetUponCompletion && BaseTriggerData.AffectedTriggers != EInputDeviceTriggerMask::None))
 	{
 		// Pass in our reset property
 		ResetProperty.AffectedTriggers = BaseTriggerData.AffectedTriggers;
