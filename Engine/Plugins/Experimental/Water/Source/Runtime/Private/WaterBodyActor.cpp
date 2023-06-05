@@ -720,7 +720,7 @@ void AWaterBody::OnDetachExternalPackage()
 	{
 		if (IsValid(MeshComponent) && IsValid(MeshComponent->GetStaticMesh()))
 		{
-			MeshComponent->GetStaticMesh()->Rename(nullptr, GetPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+			MeshComponent->GetStaticMesh()->Rename(nullptr, GetLevel()->GetPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 		}
 	}
 }
