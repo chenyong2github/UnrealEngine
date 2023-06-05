@@ -39,7 +39,7 @@ public:
 				{
 					if (Define.IsRelevant(ShaderFormat, Parameters.PermutationId))
 					{
-						OutEnvironment.SetDefine(*Define.Name, Define.Value);
+						OutEnvironment.SetDefineAndCompileArgument(*Define.Name, Define.Value);
 					}
 				}
 			}
