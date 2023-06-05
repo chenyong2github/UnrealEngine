@@ -1,45 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.IO;
+using EpicGames.Core;
 using UnrealBuildTool;
 
 [SupportedPlatformGroups("Windows")]
 public class D3D11RHI : ModuleRules
 {
-	protected virtual bool bIncludeExtensions { get => true; }
-
 	public D3D11RHI(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePaths.Add("../Shaders/Shared");
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"Core",
-				"CoreUObject",
-				"Engine",
-				"RHI",
-				"RHICore",
-				"RenderCore"
-			});
+		PrivateDependencyModuleNames.AddAll(
+			"CoreUObject",
+			"Engine",
+			"RHICore",
+			"RenderCore"
+		);
 
-		PublicIncludePathModuleNames.AddRange(
-			new string[] {
-				"HeadMountedDisplay"
-			});
-
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-		if (bIncludeExtensions)
-		{ 
-        	AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
-        	AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-		}
+		PublicDependencyModuleNames.AddAll(
+			"Core",
+			"RHI"
+		);
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
-			PrivateIncludePaths.Add(Path.Combine(this.ModuleDirectory, "Private", "Windows"));
+			PrivateDependencyModuleNames.Add("HeadMountedDisplay");
 		}
+
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 	}
 }

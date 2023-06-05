@@ -1,4 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
+using System.IO;
+using System.Linq;
 using UnrealBuildTool;
 
 public class DX11 : ModuleRules
@@ -11,19 +14,20 @@ public class DX11 : ModuleRules
 		{
 			PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
 
-			string LibDir = DirectX.GetLibDir(Target);
-			PublicAdditionalLibraries.AddRange(
-				new string[] {
-					LibDir + "dxgi.lib",
-					LibDir + "d3d9.lib",
-					LibDir + "d3d11.lib",
-					LibDir + "dxguid.lib",
-					LibDir + "dinput8.lib",
-					LibDir + "xapobase.lib"
-					// do not add d3dcompiler to the list - the engine must explicitly load 
-					// the bundled compiler library to make shader compilation repeatable
-					}
-				);
+			string[] AllD3DLibs = new string[]
+			{
+				"dxgi.lib",
+				"d3d9.lib",
+				"d3d11.lib",
+				"dxguid.lib",
+				"dinput8.lib",
+				"xapobase.lib",
+				// do not add d3dcompiler to the list - the engine must explicitly load 
+				// the bundled compiler library to make shader compilation repeatable
+			};
+
+			string DirectXSDKDir = DirectX.GetLibDir(Target);
+			PublicAdditionalLibraries.AddRange(AllD3DLibs.Select(LibName => Path.Combine(DirectXSDKDir, LibName)));
 
 			PublicDelayLoadDLLs.Add("d3d9.dll");
 			PublicDelayLoadDLLs.Add("d3d11.dll");
