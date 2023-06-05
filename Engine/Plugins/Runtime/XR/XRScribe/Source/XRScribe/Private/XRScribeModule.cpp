@@ -32,7 +32,7 @@ FString FXRScribeModule::GetDisplayName()
 bool FXRScribeModule::InsertOpenXRAPILayer(PFN_xrGetInstanceProcAddr& InOutGetProcAddr)
 {
 	// Ok to pass nullptr for GetProcAddr because that would only disable capture. Replay still valid!
-	const bool bResult = UE::XRScribe::IOpenXRAPILayerManager::Get().SetChainedGetProcAddr(ChainedGetProcAddr);
+	const bool bResult = UE::XRScribe::IOpenXRAPILayerManager::Get().SetChainedGetProcAddr(InOutGetProcAddr);
 
 	if (bResult)
 	{
