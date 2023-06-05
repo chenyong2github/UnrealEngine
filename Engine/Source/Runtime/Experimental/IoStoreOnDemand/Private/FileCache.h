@@ -35,8 +35,16 @@ public:
 
 struct FFileIoCacheConfig
 {
+	struct FRate
+	{
+		uint32 Allowance = ~0u;
+		uint32 Ops = 1;
+		uint32 Seconds = 1;
+	};
+
 	uint64 DiskStorageSize;
 	uint64 MemoryStorageSize;
+	FRate WriteRate;
 };
 
 TUniquePtr<IIoCache> MakeFileIoCache(const FFileIoCacheConfig& Config);
