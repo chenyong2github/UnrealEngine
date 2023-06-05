@@ -4,6 +4,7 @@
 #include "RHIBufferTests.h" // for VerifyBufferContents
 #include "CommonRenderResources.h"
 #include "RenderCaptureInterface.h"
+#include "RHIStaticStates.h"
 
 class FTestDrawInstancedVS : public FGlobalShader
 {
