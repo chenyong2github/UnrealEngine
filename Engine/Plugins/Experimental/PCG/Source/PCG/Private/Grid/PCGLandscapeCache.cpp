@@ -110,7 +110,7 @@ FPCGLandscapeCacheEntry* FPCGLandscapeCacheEntry::CreateCacheEntry(ULandscapeInf
 				continue;
 			}
 
-			if (CDI.GetWeightmapTextureData(LayerInfo, LayerCache, /*bUseEditingLayer=*/false))
+			if (CDI.GetWeightmapTextureData(LayerInfo, LayerCache, /*bUseEditingLayer=*/false, /*bRemoveSubsectionDuplicates=*/true))
 			{
 				Result->LayerDataNames.Add(Layer.LayerName);
 				Result->LayerData.Emplace(std::move(LayerCache));

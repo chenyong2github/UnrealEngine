@@ -79,15 +79,15 @@ LANDSCAPE_API void FLandscapeComponentDataInterface::GetHeightmapTextureData(TAr
 	}
 }
 
-LANDSCAPE_API bool FLandscapeComponentDataInterface::GetWeightmapTextureData(ULandscapeLayerInfoObject* LayerInfo, TArray<uint8>& OutData, bool InUseEditingWeightmap)
+LANDSCAPE_API bool FLandscapeComponentDataInterface::GetWeightmapTextureData(ULandscapeLayerInfoObject* InLayerInfo, TArray<uint8>& OutData, bool bInUseEditingWeightmap, bool bInRemoveSubsectionDuplicates)
 {
 	int32 LayerIdx = INDEX_NONE;
-	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(InUseEditingWeightmap);
-	const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(InUseEditingWeightmap);
+	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(bInUseEditingWeightmap);
+	const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(bInUseEditingWeightmap);
 
 	for (int32 Idx = 0; Idx < ComponentWeightmapLayerAllocations.Num(); Idx++)
 	{
-		if (ComponentWeightmapLayerAllocations[Idx].LayerInfo == LayerInfo)
+		if (ComponentWeightmapLayerAllocations[Idx].LayerInfo == InLayerInfo)
 		{
 			LayerIdx = Idx;
 			break;
@@ -106,7 +106,11 @@ LANDSCAPE_API bool FLandscapeComponentDataInterface::GetWeightmapTextureData(ULa
 		return false;
 	}
 
-	int32 WeightmapSize = ((Component->SubsectionSizeQuads + 1) * Component->NumSubsections) >> MipLevel;
+	// If requested to skip the duplicate row/col of texture data
+	int32 WeightmapSize = bInRemoveSubsectionDuplicates ?
+		((Component->SubsectionSizeQuads * Component->NumSubsections) + 1) >> MipLevel :
+		((Component->SubsectionSizeQuads + 1) * Component->NumSubsections) >> MipLevel;
+	
 	OutData.Empty(FMath::Square(WeightmapSize));
 	OutData.AddUninitialized(FMath::Square(WeightmapSize));
 
@@ -119,7 +123,8 @@ LANDSCAPE_API bool FLandscapeComponentDataInterface::GetWeightmapTextureData(ULa
 
 	for (int32 i = 0; i < FMath::Square(WeightmapSize); i++)
 	{
-		OutData[i] = SrcTextureData[i * 4];
+		// If removing subsection duplicates, convert vertex to texel index
+		OutData[i] = bInRemoveSubsectionDuplicates ? SrcTextureData[VertexIndexToTexel(i) * sizeof(FColor)] : SrcTextureData[i * sizeof(FColor)];
 	}
 
 	DataInterface.UnlockMip(ComponentWeightmapTextures[ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex], MipLevel);
