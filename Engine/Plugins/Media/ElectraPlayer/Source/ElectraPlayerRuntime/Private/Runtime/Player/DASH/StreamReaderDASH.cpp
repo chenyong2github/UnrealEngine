@@ -472,6 +472,9 @@ FErrorDetail FStreamReaderDASH::FStreamHandler::LoadInitSegment(TSharedPtrTS<FMP
 	// Create the download request.
 	OutLoadRequest = MakeSharedTS<FMPDLoadRequestDASH>();
 	OutLoadRequest->LoadType = FMPDLoadRequestDASH::ELoadType::Segment;
+	OutLoadRequest->SegmentStreamType = Request->StreamType;
+	OutLoadRequest->SegmentQualityIndex = Request->QualityIndex;
+	OutLoadRequest->SegmentQualityIndexMax = Request->MaxQualityIndex;
 	OutLoadRequest->URL = Request->Segment.InitializationURL.URL;
 	OutLoadRequest->Range = Request->Segment.InitializationURL.Range;
 	if (Request->Segment.InitializationURL.CustomHeader.Len())
@@ -1053,8 +1056,11 @@ void FStreamReaderDASH::FStreamHandler::HandleRequestMP4()
 			ProgressListener->ProgressDelegate   = IElectraHttpManager::FProgressListener::FProgressDelegate::CreateRaw(this, &FStreamHandler::HTTPProgressCallback);
 			ProgressListener->CompletionDelegate = IElectraHttpManager::FProgressListener::FCompletionDelegate::CreateRaw(this, &FStreamHandler::HTTPCompletionCallback);
 			TSharedPtrTS<IElectraHttpManager::FRequest> HTTP(new IElectraHttpManager::FRequest);
-			HTTP->Parameters.URL   = RequestURL;
-			HTTP->ReceiveBuffer    = ReadBuffer.ReceiveBuffer;
+			HTTP->Parameters.URL = RequestURL;
+			HTTP->Parameters.StreamType = Request->StreamType;
+			HTTP->Parameters.QualityIndex = Request->QualityIndex;
+			HTTP->Parameters.MaxQualityIndex = Request->MaxQualityIndex;
+			HTTP->ReceiveBuffer = ReadBuffer.ReceiveBuffer;
 			HTTP->ProgressListener = ProgressListener;
 			HTTP->ResponseCache = PlayerSessionService->GetHTTPResponseCache();
 			HTTP->ExternalDataReader = PlayerSessionService->GetExternalDataReader();
@@ -1883,6 +1889,9 @@ void FStreamReaderDASH::FStreamHandler::HandleRequestMKV()
 			ProgressListener->CompletionDelegate = IElectraHttpManager::FProgressListener::FCompletionDelegate::CreateRaw(this, &FStreamHandler::HTTPCompletionCallback);
 			TSharedPtrTS<IElectraHttpManager::FRequest> HTTP(new IElectraHttpManager::FRequest);
 			HTTP->Parameters.URL = RequestURL;
+			HTTP->Parameters.StreamType = Request->StreamType;
+			HTTP->Parameters.QualityIndex = Request->QualityIndex;
+			HTTP->Parameters.MaxQualityIndex = Request->MaxQualityIndex;
 			HTTP->ReceiveBuffer = ReadBuffer.ReceiveBuffer;
 			HTTP->ProgressListener = ProgressListener;
 			HTTP->ResponseCache = PlayerSessionService->GetHTTPResponseCache();

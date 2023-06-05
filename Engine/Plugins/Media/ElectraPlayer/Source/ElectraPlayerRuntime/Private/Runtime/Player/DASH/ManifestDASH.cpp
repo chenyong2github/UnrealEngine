@@ -200,7 +200,7 @@ public:
 	FString GetSelectedAdaptationSetID(EStreamType StreamType) override;
 	ETrackChangeResult ChangeTrackStreamPreference(EStreamType ForStreamType, const FStreamSelectionAttributes& StreamAttributes) override;
 	TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
-	void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
+	void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID, int32 QualityIndex, int32 MaxQualityIndex) override;
 	void TriggerInitSegmentPreload(const TArray<FInitSegmentPreload>& InitSegmentsToPreload) override;
 	IManifest::FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
 	IManifest::FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
@@ -283,6 +283,20 @@ private:
 	FString ActiveVideoRepresentationID;
 	FString ActiveAudioRepresentationID;
 	FString ActiveSubtitleRepresentationID;
+
+	struct FSelectedQualityIndex
+	{
+		int32 Index = 0;
+		int32 MaxIndex = 0;
+		void Reset()
+		{
+			Index = 0;
+			MaxIndex = 0;
+		}
+	};
+	FSelectedQualityIndex ActiveVideoQualityIndex;
+	FSelectedQualityIndex ActiveAudioQualityIndex;
+	FSelectedQualityIndex ActiveSubtitleQualityIndex;
 
 	TSharedPtrTS<FBufferSourceInfo> SourceBufferInfoVideo;
 	TSharedPtrTS<FBufferSourceInfo> SourceBufferInfoAudio;
@@ -1137,20 +1151,26 @@ TSharedPtrTS<ITimelineMediaAsset> FDASHPlayPeriod::GetMediaAsset() const
 	return nullptr;
 }
 
-void FDASHPlayPeriod::SelectStream(const FString& AdaptationSetID, const FString& RepresentationID)
+void FDASHPlayPeriod::SelectStream(const FString& AdaptationSetID, const FString& RepresentationID, int32 QualityIndex, int32 MaxQualityIndex)
 {
 	// The ABR must not try to switch adaptation sets at the moment. As such the adaptation set passed in must be one of the already active ones.
 	if (AdaptationSetID == ActiveVideoAdaptationSetID)
 	{
 		ActiveVideoRepresentationID = RepresentationID;
+		ActiveVideoQualityIndex.Index = QualityIndex;
+		ActiveVideoQualityIndex.MaxIndex = MaxQualityIndex;
 	}
 	else if (AdaptationSetID == ActiveAudioAdaptationSetID)
 	{
 		ActiveAudioRepresentationID = RepresentationID;
+		ActiveAudioQualityIndex.Index = QualityIndex;
+		ActiveAudioQualityIndex.MaxIndex = MaxQualityIndex;
 	}
 	else if (AdaptationSetID == ActiveSubtitleAdaptationSetID)
 	{
 		ActiveSubtitleRepresentationID = RepresentationID;
+		ActiveSubtitleQualityIndex.Index = QualityIndex;
+		ActiveSubtitleQualityIndex.MaxIndex = MaxQualityIndex;
 	}
 	else
 	{
@@ -1239,19 +1259,20 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 		EStreamType	StreamType;
 		FString		RepresentationID;
 		FString		AdaptationSetID;
+		FSelectedQualityIndex QualityIndex;
 	};
 	TArray<FSelectedStream> ActiveSelection;
 	if (!ActiveVideoRepresentationID.IsEmpty())
 	{
-		ActiveSelection.Emplace(FSelectedStream({EStreamType::Video, ActiveVideoRepresentationID, ActiveVideoAdaptationSetID}));
+		ActiveSelection.Emplace(FSelectedStream({EStreamType::Video, ActiveVideoRepresentationID, ActiveVideoAdaptationSetID, ActiveVideoQualityIndex}));
 	}
 	if (!ActiveAudioRepresentationID.IsEmpty())
 	{
-		ActiveSelection.Emplace(FSelectedStream({EStreamType::Audio, ActiveAudioRepresentationID, ActiveAudioAdaptationSetID}));
+		ActiveSelection.Emplace(FSelectedStream({EStreamType::Audio, ActiveAudioRepresentationID, ActiveAudioAdaptationSetID, ActiveAudioQualityIndex}));
 	}
 	if (!ActiveSubtitleRepresentationID.IsEmpty())
 	{
-		ActiveSelection.Emplace(FSelectedStream({EStreamType::Subtitle, ActiveSubtitleRepresentationID, ActiveSubtitleAdaptationSetID}));
+		ActiveSelection.Emplace(FSelectedStream({EStreamType::Subtitle, ActiveSubtitleRepresentationID, ActiveSubtitleAdaptationSetID, ActiveSubtitleQualityIndex}));
 	}
 
 	bool bDidAdjustStartTime = false;
@@ -1284,6 +1305,9 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 			SearchOpt.bHasFollowingPeriod = Period->GetHasFollowingPeriod();
 			SearchOpt.SearchType = SearchType;
 			SearchOpt.bFrameAccurateSearch = bFrameAccurateSearch;
+			SearchOpt.QualityIndex = ActiveSelection[i].QualityIndex.Index;
+			SearchOpt.MaxQualityIndex = ActiveSelection[i].QualityIndex.MaxIndex;
+			SearchOpt.StreamType = ActiveSelection[i].StreamType;
 			FManifestDASHInternal::FRepresentation::ESearchResult SearchResult = Repr->FindSegment(PlayerSessionServices, SegmentInfo, RemoteElementLoadRequests, SearchOpt);
 			if (SearchResult == FManifestDASHInternal::FRepresentation::ESearchResult::NeedElement)
 			{
@@ -1355,6 +1379,8 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 
 				TSharedPtrTS<FStreamSegmentRequestDASH> SegmentRequest = MakeSharedTS<FStreamSegmentRequestDASH>();
 				SegmentRequest->StreamType = ActiveSelection[i].StreamType;
+				SegmentRequest->QualityIndex = ActiveSelection[i].QualityIndex.Index;
+				SegmentRequest->MaxQualityIndex = ActiveSelection[i].QualityIndex.MaxIndex;
 				SegmentRequest->CodecInfo = Repr->GetCodecInformation();
 				SegmentRequest->Representation = Repr;
 				SegmentRequest->AdaptationSet = Adapt;
@@ -1458,19 +1484,23 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 
 	FString ActiveRepresentationIDByType;
 	FString ActiveAdaptationSetIDByType;
+	FSelectedQualityIndex ActiveQualityIndex;
 	switch(Current->GetType())
 	{
 		case EStreamType::Video:
 			ActiveAdaptationSetIDByType = ActiveVideoAdaptationSetID;
 			ActiveRepresentationIDByType = ActiveVideoRepresentationID;
+			ActiveQualityIndex = ActiveVideoQualityIndex;
 			break;
 		case EStreamType::Audio:
 			ActiveAdaptationSetIDByType = ActiveAudioAdaptationSetID;
 			ActiveRepresentationIDByType = ActiveAudioRepresentationID;
+			ActiveQualityIndex = ActiveAudioQualityIndex;
 			break;
 		case EStreamType::Subtitle:
 			ActiveAdaptationSetIDByType = ActiveSubtitleAdaptationSetID;
 			ActiveRepresentationIDByType = ActiveSubtitleRepresentationID;
+			ActiveQualityIndex = ActiveSubtitleQualityIndex;
 			break;
 		default:
 			break;
@@ -1546,6 +1576,9 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 	{
 		SearchOpt.PeriodDuration = Manifest->GetLastPeriodEndTime() - AST;
 	}
+	SearchOpt.QualityIndex = ActiveQualityIndex.Index;
+	SearchOpt.MaxQualityIndex = ActiveQualityIndex.MaxIndex;
+	SearchOpt.StreamType = Current->GetType();
 
 	FManifestDASHInternal::FRepresentation::ESearchResult SearchResult;
 	if (Repr.IsValid())
@@ -1604,6 +1637,8 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 		TSharedPtrTS<FStreamSegmentRequestDASH> SegmentRequest = MakeSharedTS<FStreamSegmentRequestDASH>();
 		SegmentRequest->TimestampSequenceIndex = Current->TimestampSequenceIndex;
 		SegmentRequest->StreamType = Current->GetType();
+		SegmentRequest->QualityIndex = ActiveQualityIndex.Index;
+		SegmentRequest->MaxQualityIndex = ActiveQualityIndex.MaxIndex;
 		SegmentRequest->CodecInfo = Repr->GetCodecInformation();
 		SegmentRequest->Representation = Repr;
 		SegmentRequest->AdaptationSet = Adapt;
@@ -2094,7 +2129,7 @@ TMediaOptionalValue<bool> GetSegmentAvailabilityTimeComplete(const TArray<TShare
 
 
 
-FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRepresentation::PrepareSegmentIndex(IPlayerSessionServices* InPlayerSessionServices, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests)
+FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRepresentation::PrepareSegmentIndex(IPlayerSessionServices* InPlayerSessionServices, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions)
 {
 	// If the segment index has been requested and is still pending, return right away.
 	if (PendingSegmentIndexLoadRequest.IsValid())
@@ -2195,6 +2230,9 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 					}
 					LoadReq->PlayerSessionServices = InPlayerSessionServices;
 					LoadReq->XLinkElement = MPDRepresentation;
+					LoadReq->SegmentStreamType = InSearchOptions.StreamType;
+					LoadReq->SegmentQualityIndex = InSearchOptions.QualityIndex;
+					LoadReq->SegmentQualityIndexMax = InSearchOptions.MaxQualityIndex;
 					LoadReq->CompleteCallback.BindThreadSafeSP(AsShared(), &FManifestDASHInternal::FRepresentation::SegmentIndexDownloadComplete);
 					OutRemoteElementLoadRequests.Emplace(LoadReq);
 					PendingSegmentIndexLoadRequest = MoveTemp(LoadReq);
@@ -2218,6 +2256,9 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 					}
 					LoadReq->PlayerSessionServices = InPlayerSessionServices;
 					LoadReq->XLinkElement = MPDRepresentation;
+					LoadReq->SegmentStreamType = InSearchOptions.StreamType;
+					LoadReq->SegmentQualityIndex = InSearchOptions.QualityIndex;
+					LoadReq->SegmentQualityIndexMax = InSearchOptions.MaxQualityIndex;
 					LoadReq->CompleteCallback.BindThreadSafeSP(AsShared(), &FManifestDASHInternal::FRepresentation::SegmentIndexDownloadComplete);
 					OutRemoteElementLoadRequests.Emplace(LoadReq);
 					PendingSegmentIndexLoadRequest = MoveTemp(LoadReq);
@@ -2680,7 +2721,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 
 FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRepresentation::FindSegment_Base_MP4(IPlayerSessionServices* InPlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase)
 {
-	ESearchResult SegIndexResult = PrepareSegmentIndex(InPlayerSessionServices, SegmentBase, OutRemoteElementLoadRequests);
+	ESearchResult SegIndexResult = PrepareSegmentIndex(InPlayerSessionServices, SegmentBase, OutRemoteElementLoadRequests, InSearchOptions);
 	if (SegIndexResult != ESearchResult::Found)
 	{
 		return SegIndexResult;
@@ -2905,7 +2946,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 
 FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRepresentation::FindSegment_Base_MKV(IPlayerSessionServices* InPlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase)
 {
-	ESearchResult SegIndexResult = PrepareSegmentIndex(InPlayerSessionServices, SegmentBase, OutRemoteElementLoadRequests);
+	ESearchResult SegIndexResult = PrepareSegmentIndex(InPlayerSessionServices, SegmentBase, OutRemoteElementLoadRequests, InSearchOptions);
 	if (SegIndexResult != ESearchResult::Found)
 	{
 		return SegIndexResult;
@@ -3738,6 +3779,9 @@ void FManifestDASHInternal::FRepresentation::SegmentIndexDownloadComplete(TShare
 				NextChainedReq->Headers = LoadRequest->Headers;
 				NextChainedReq->PlayerSessionServices = LoadRequest->PlayerSessionServices;
 				NextChainedReq->XLinkElement = LoadRequest->XLinkElement;
+				NextChainedReq->SegmentStreamType = LoadRequest->SegmentStreamType;
+				NextChainedReq->SegmentQualityIndex = LoadRequest->SegmentQualityIndex;
+				NextChainedReq->SegmentQualityIndexMax = LoadRequest->SegmentQualityIndexMax;
 				NextChainedReq->CompleteCallback.BindThreadSafeSP(AsShared(), &FManifestDASHInternal::FRepresentation::SegmentIndexDownloadComplete);
 				NextChainedReq->CompletedRequestChain.Emplace(MoveTemp(LoadRequest));
 				TSharedPtrTS<IPlaylistReader> ManifestReader = NextChainedReq->PlayerSessionServices->GetManifestReader();

@@ -45,6 +45,8 @@ public:
 	ElectraHTTPStream::FHttpRange												Range;
 
 	EStreamType																	StreamType;							//!< Type of stream (video, audio, etc.)
+	int32																		QualityIndex;
+	int32																		MaxQualityIndex;
 	uint32																		StreamUniqueID;						//!< The unique stream ID identifying the stream for which this is a request.
 	int32																		Bitrate;
 	int32																		QualityLevel;

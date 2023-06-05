@@ -935,7 +935,7 @@ IAdaptiveStreamSelector::ESegmentAction FABROnDemandPlus::PerformSelection(const
 				WorkVars->BitrateDownloading = Candidate->Bitrate;
 			}
 
-			CurrentPlayPeriod->SelectStream(Candidate->AdaptationSetUniqueID, Candidate->RepresentationUniqueID);
+			CurrentPlayPeriod->SelectStream(Candidate->AdaptationSetUniqueID, Candidate->RepresentationUniqueID, NewQualityIndex, Info->GetStreamInformations(StreamType).Num()-1);
 			if (bRetryIfPossible)
 			{
 				return IAdaptiveStreamSelector::ESegmentAction::Retry;

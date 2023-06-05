@@ -88,6 +88,8 @@ namespace Electra
 		int32 GetBandwidthCeiling() override
 		{ return BandwidthCeiling; }
 
+		ESegmentAction SelectSuitableStreamByType(FTimeValue& OutDelay, TSharedPtrTS<const IStreamSegment> CurrentSegment, TSharedPtrTS<IManifest::IPlayPeriod> CurrentPlayPeriod, EStreamType StreamType);
+
 		FTimeValue ABRGetPlayPosition() const override
 		{ return PlayerLiveControl->ABRGetPlayPosition(); }
 		FTimeRange ABRGetTimeline() const override
@@ -597,6 +599,36 @@ namespace Electra
 		{
 			return ESegmentAction::FetchNext;
 		}
+
+		// Specific request?
+		if (CurrentSegment.IsValid())
+		{
+			return SelectSuitableStreamByType(OutDelay, CurrentSegment, CurrentPlayPeriod, StreamType);
+		}
+		else
+		{
+			// Initial request. The play period is the same for all streams at this point.
+			ESegmentAction ActionV = ESegmentAction::FetchNext;
+			ESegmentAction ActionA = ESegmentAction::FetchNext;
+			if (StreamInformationVideo.Num())
+			{
+				ActionV = SelectSuitableStreamByType(OutDelay, CurrentSegment, CurrentPlayPeriod, EStreamType::Video);
+			}
+			if (StreamInformationAudio.Num())
+			{
+				ActionA = SelectSuitableStreamByType(OutDelay, CurrentSegment, CurrentPlayPeriod, EStreamType::Audio);
+			}
+			if (ActionV == IAdaptiveStreamSelector::ESegmentAction::Fail || ActionA == IAdaptiveStreamSelector::ESegmentAction::Fail)
+			{
+				return IAdaptiveStreamSelector::ESegmentAction::Fail;
+			}
+			return StreamInformationVideo.Num() ? ActionV : ActionA;
+		}
+	}
+
+	IAdaptiveStreamSelector::ESegmentAction FAdaptiveStreamSelector::SelectSuitableStreamByType(FTimeValue& OutDelay, TSharedPtrTS<const IStreamSegment> CurrentSegment, TSharedPtrTS<IManifest::IPlayPeriod> CurrentPlayPeriod, EStreamType StreamType)
+	{
+		FTimeValue TimeNow = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 
 		// Get the initial list of representations that are currently possible to choose from.
 		TArray<TSharedPtrTS<FABRStreamInformation>> CandidateRepresentations;

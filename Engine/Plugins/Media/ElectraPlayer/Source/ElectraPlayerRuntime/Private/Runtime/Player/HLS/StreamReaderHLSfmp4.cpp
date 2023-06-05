@@ -23,22 +23,24 @@ namespace Electra
 
 FStreamSegmentRequestHLSfmp4::FStreamSegmentRequestHLSfmp4()
 {
-	StreamType  			  = EStreamType::Video;
-	StreamUniqueID  		  = 0;
-	Bitrate 				  = 0;
-	QualityLevel			  = 0;
-	MediaSequence   		  = -1;
-	DiscontinuitySequence     = -1;
-	LocalIndex  			  = -1;
-	TimestampSequenceIndex	  = 0;
-	bIsPrefetch 			  = false;
-	bIsEOSSegment   		  = false;
-	bHasEncryptedSegments     = false;
-	NumOverallRetries   	  = 0;
-	bInsertFillerData   	  = false;
-	bIsInitialStartRequest    = false;
+	StreamType = EStreamType::Video;
+	QualityIndex = 0;
+	MaxQualityIndex = 0;
+	StreamUniqueID = 0;
+	Bitrate = 0;
+	QualityLevel = 0;
+	MediaSequence = -1;
+	DiscontinuitySequence = -1;
+	LocalIndex = -1;
+	TimestampSequenceIndex = 0;
+	bIsPrefetch = false;
+	bIsEOSSegment = false;
+	bHasEncryptedSegments = false;
+	NumOverallRetries = 0;
+	bInsertFillerData = false;
+	bIsInitialStartRequest = false;
 	CurrentPlaybackSequenceID = ~0U;
-	bFrameAccuracyRequired	  = false;
+	bFrameAccuracyRequired = false;
 }
 
 FStreamSegmentRequestHLSfmp4::~FStreamSegmentRequestHLSfmp4()
@@ -524,9 +526,9 @@ FStreamReaderHLSfmp4::FStreamHandler::EInitSegmentResult FStreamReaderHLSfmp4::F
 				}
 			}
 
-			TSharedPtrTS<IElectraHttpManager::FRequest> 			HTTP(new IElectraHttpManager::FRequest);
-			TSharedPtrTS<IElectraHttpManager::FProgressListener>	ProgressListener(new IElectraHttpManager::FProgressListener);
-			ProgressListener->ProgressDelegate   = IElectraHttpManager::FProgressListener::FProgressDelegate::CreateRaw(this, &FStreamHandler::HTTPProgressCallback);
+			TSharedPtrTS<IElectraHttpManager::FRequest> HTTP(new IElectraHttpManager::FRequest);
+			TSharedPtrTS<IElectraHttpManager::FProgressListener> ProgressListener(new IElectraHttpManager::FProgressListener);
+			ProgressListener->ProgressDelegate    = IElectraHttpManager::FProgressListener::FProgressDelegate::CreateRaw(this, &FStreamHandler::HTTPProgressCallback);
 			ProgressListener->CompletionDelegate = IElectraHttpManager::FProgressListener::FCompletionDelegate::CreateRaw(this, &FStreamHandler::HTTPCompletionCallback);
 			ReadBuffer.Reset();
 			ReadBuffer.ReceiveBuffer = MakeSharedTS<IElectraHttpManager::FReceiveBuffer>();
@@ -534,20 +536,24 @@ FStreamReaderHLSfmp4::FStreamHandler::EInitSegmentResult FStreamReaderHLSfmp4::F
 			FString RequestURL = Request->InitSegmentInfo->URI;
 
 			Metrics::FSegmentDownloadStats& ds = Request->DownloadStats;
-			ds.URL  	   = RequestURL;
+			ds.URL = RequestURL;
 			ds.SegmentType = Metrics::ESegmentType::Init;
 
-			HTTP->Parameters.URL   = RequestURL;
-			HTTP->ReceiveBuffer    = ReadBuffer.ReceiveBuffer;
+			HTTP->Parameters.URL = RequestURL;
+			HTTP->Parameters.StreamType = Request->StreamType;
+			HTTP->Parameters.QualityIndex = Request->QualityIndex;
+			HTTP->Parameters.MaxQualityIndex = Request->MaxQualityIndex;
+			HTTP->ReceiveBuffer = ReadBuffer.ReceiveBuffer;
 			HTTP->ProgressListener = ProgressListener;
 			if (Request->InitSegmentInfo->ByteRange.IsSet())
 			{
-				HTTP->Parameters.Range.Start		= Request->InitSegmentInfo->ByteRange.GetStart();
+				HTTP->Parameters.Range.Start = Request->InitSegmentInfo->ByteRange.GetStart();
 				HTTP->Parameters.Range.EndIncluding = Request->InitSegmentInfo->ByteRange.GetEnd();
 			}
 			// Set timeouts for init segment retrieval
 			HTTP->Parameters.ConnectTimeout = FTimeValue().SetFromMilliseconds(1000 * 4);
 			HTTP->Parameters.NoDataTimeout = FTimeValue().SetFromMilliseconds(1000 * 2);
+			HTTP->ResponseCache = PlayerSessionService->GetHTTPResponseCache();
 			HTTP->ExternalDataReader = PlayerSessionService->GetExternalDataReader();
 
 			ProgressReportCount = 0;
@@ -821,12 +827,15 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				// Clear out the current connection info which may now be populated with the init segment fetch results.
 				CurrentRequest->ConnectionInfo = {};
 
-				TSharedPtrTS<IElectraHttpManager::FProgressListener>	ProgressListener(new IElectraHttpManager::FProgressListener);
-				ProgressListener->ProgressDelegate   = IElectraHttpManager::FProgressListener::FProgressDelegate::CreateRaw(this, &FStreamHandler::HTTPProgressCallback);
+				TSharedPtrTS<IElectraHttpManager::FProgressListener> ProgressListener(new IElectraHttpManager::FProgressListener);
+				ProgressListener->ProgressDelegate = IElectraHttpManager::FProgressListener::FProgressDelegate::CreateRaw(this, &FStreamHandler::HTTPProgressCallback);
 				ProgressListener->CompletionDelegate = IElectraHttpManager::FProgressListener::FCompletionDelegate::CreateRaw(this, &FStreamHandler::HTTPCompletionCallback);
 				TSharedPtrTS<IElectraHttpManager::FRequest> HTTP(new IElectraHttpManager::FRequest);
-				HTTP->Parameters.URL   = RequestURL;
-				HTTP->ReceiveBuffer    = ReadBuffer.ReceiveBuffer;
+				HTTP->Parameters.URL = RequestURL;
+				HTTP->Parameters.StreamType = Request->StreamType;
+				HTTP->Parameters.QualityIndex = Request->QualityIndex;
+				HTTP->Parameters.MaxQualityIndex = Request->MaxQualityIndex;
+				HTTP->ReceiveBuffer = ReadBuffer.ReceiveBuffer;
 				HTTP->ProgressListener = ProgressListener;
 				if (Request->Range.IsSet())
 				{

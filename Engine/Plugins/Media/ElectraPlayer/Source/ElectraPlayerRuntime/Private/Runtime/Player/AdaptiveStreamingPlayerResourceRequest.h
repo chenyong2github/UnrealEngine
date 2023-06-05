@@ -114,6 +114,9 @@ public:
 	virtual FHTTPResourceRequest& Object(TSharedPtrTS<IHTTPResourceRequestObject> InUserObject)
 	{ UserObject = InUserObject; return *this; }
 
+	virtual FHTTPResourceRequest& StreamTypeAndQuality(EStreamType InStreamType, int32 InQualityIndex, int32 InMaxQualityIndex)
+	{ Request->Parameters.StreamType = InStreamType; Request->Parameters.QualityIndex = InQualityIndex; Request->Parameters.MaxQualityIndex = InMaxQualityIndex; return *this; }
+
 	virtual FOnRequestCompletedCallback& Callback()
 	{ return CompletedCallback; }
 
@@ -152,6 +155,9 @@ public:
 
 	virtual const HTTP::FConnectionInfo* GetConnectionInfo() const
 	{ return Request.IsValid() ? &Request->ConnectionInfo : nullptr; }
+
+	virtual TSharedPtrTS<IElectraHttpManager::FRequest> GetRequest() const
+	{ return Request; }
 
 private:
 

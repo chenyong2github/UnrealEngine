@@ -6,7 +6,7 @@
 #include "PlayerCore.h"
 
 #include "MPDElementsDASH.h"
-
+#include "Player/Manifest.h"
 #include "Player/AdaptiveStreamingPlayerResourceRequest.h"
 #include "Utilities/URLParser.h"
 
@@ -79,6 +79,10 @@ struct FMPDLoadRequestDASH : public IHTTPResourceRequestObject
 	// The manifest for which this request is made. Not set for an initial MPD fetch but set for everything else.
 	// This allows checking if - after a dynamic MPD update - the requesting MPD is still valid and in use.
 	TWeakPtrTS<FManifestDASHInternal> OwningManifest;
+
+	EStreamType SegmentStreamType = EStreamType::Unsupported;
+	int32 SegmentQualityIndex = 0;
+	int32 SegmentQualityIndexMax = 0;
 
 	IPlayerSessionServices* PlayerSessionServices = nullptr;
 	TSharedPtrTS<FHTTPResourceRequest> Request;
@@ -248,6 +252,9 @@ public:
 		bool bHasFollowingPeriod = false;			//!< true if we know for sure there is another period following.
 		bool bFrameAccurateSearch = false;			//!< true to prepare segments for frame-accurate decoding and rendering
 		bool bInitSegmentSetupOnly = false;			//!< true to get the initialization segment information only.
+		EStreamType StreamType = EStreamType::Unsupported;
+		int32 QualityIndex = 0;
+		int32 MaxQualityIndex = 0;
 	};
 
 	class FRepresentation : public IPlaybackAssetRepresentation, public TSharedFromThis<FRepresentation, ESPMode::ThreadSafe>
@@ -309,7 +316,7 @@ public:
 		}
 
 	private:
-		ESearchResult PrepareSegmentIndex(IPlayerSessionServices* PlayerSessionServices, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests);
+		ESearchResult PrepareSegmentIndex(IPlayerSessionServices* PlayerSessionServices, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions);
 
 		ESearchResult FindSegment_Base_MP4(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase);
 		ESearchResult FindSegment_Base_MKV(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase);

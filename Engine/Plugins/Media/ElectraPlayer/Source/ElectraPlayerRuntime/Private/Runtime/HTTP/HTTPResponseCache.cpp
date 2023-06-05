@@ -14,12 +14,13 @@ namespace Electra
 class FHTTPResponseCache : public IHTTPResponseCache
 {
 public:
-	FHTTPResponseCache(IPlayerSessionServices* SessionServices, const FParamDict& Options);
+	FHTTPResponseCache(IPlayerSessionServices* SessionServices, const FParamDict& Options, TSharedPtr<IElectraPlayerDataCache, ESPMode::ThreadSafe> ExternalCache);
 	virtual ~FHTTPResponseCache();
 
-	virtual void HandleEntityExpiration() override;
-	virtual void CacheEntity(TSharedPtrTS<FCacheItem> EntityToAdd) override;
-	virtual EScatterResult GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const ElectraHTTPStream::FHttpRange& Range) override;
+	void Disable() override;
+	void HandleEntityExpiration() override;
+	void CacheEntity(TSharedPtrTS<FCacheItem> EntityToAdd) override;
+	EScatterResult GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const ElectraHTTPStream::FHttpRange& Range, const FQualityInfo& ForQuality) override;
 
 private:
 	/**
@@ -343,6 +344,7 @@ private:
 
 	void EvictToAddSize(int64 ResponseSize);
 
+	TSharedPtr<IElectraPlayerDataCache, ESPMode::ThreadSafe> ExternalCache;
 	IPlayerSessionServices* SessionServices = nullptr;
 	int64 MaxElementSize = 0;
 	int32 MaxNumElements = 0;
@@ -357,30 +359,34 @@ private:
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 
-TSharedPtrTS<IHTTPResponseCache> IHTTPResponseCache::Create(IPlayerSessionServices* SessionServices, const FParamDict& Options)
+TSharedPtrTS<IHTTPResponseCache> IHTTPResponseCache::Create(IPlayerSessionServices* SessionServices, const FParamDict& Options, TSharedPtr<IElectraPlayerDataCache, ESPMode::ThreadSafe> ExternalCache)
 {
-	return MakeSharedTS<FHTTPResponseCache>(SessionServices, Options);
+	return MakeSharedTS<FHTTPResponseCache>(SessionServices, Options, ExternalCache);
 }
 
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 
-FHTTPResponseCache::FHTTPResponseCache(IPlayerSessionServices* InSessionServices, const FParamDict& InOptions)
-	: SessionServices(InSessionServices)
+FHTTPResponseCache::FHTTPResponseCache(IPlayerSessionServices* InSessionServices, const FParamDict& InOptions, TSharedPtr<IElectraPlayerDataCache, ESPMode::ThreadSafe> InExternalCache)
+	: ExternalCache(InExternalCache), SessionServices(InSessionServices)
 {
-	int64 v;
-	v = InOptions.GetValue(OptionKeyResponseCacheMaxByteSize).SafeGetInt64(0);
-	if (v >= 0)
+	// Only configure our cache when there is no external one!
+	if (!ExternalCache.IsValid())
 	{
-		MaxElementSize = (int64)v;
-	}
-	// Max number of elements is probably not used a lot, if at all.
-	// If not specified we allow for some reasonable number.
-	v = InOptions.GetValue(OptionKeyResponseCacheMaxEntries).SafeGetInt64(8192);
-	if (v >= 0)
-	{
-		MaxNumElements = (int32) v;
+		int64 v;
+		v = InOptions.GetValue(OptionKeyResponseCacheMaxByteSize).SafeGetInt64(0);
+		if (v >= 0)
+		{
+			MaxElementSize = (int64)v;
+		}
+		// Max number of elements is probably not used a lot, if at all.
+		// If not specified we allow for some reasonable number.
+		v = InOptions.GetValue(OptionKeyResponseCacheMaxEntries).SafeGetInt64(8192);
+		if (v >= 0)
+		{
+			MaxNumElements = (int32) v;
+		}
 	}
 }
 
@@ -402,6 +408,17 @@ void FHTTPResponseCache::EvictToAddSize(int64 ResponseSize)
 }
 
 
+void FHTTPResponseCache::Disable()
+{
+	FScopeLock ScopeLock(&Lock);
+	Cache.Empty();
+	ExternalCache.Reset();
+	MaxElementSize = 0;
+	MaxNumElements = 0;
+	SizeInUse = 0;
+}
+
+
 void FHTTPResponseCache::HandleEntityExpiration()
 {
 }
@@ -413,183 +430,315 @@ void FHTTPResponseCache::CacheEntity(TSharedPtrTS<FCacheItem> EntityToAdd)
 	{
 		if (EntityToAdd->EffectiveURL.Len())
 		{
-			int64 SizeRequired = EntityToAdd->Response->GetResponseData().GetNumTotalBytesAdded();
-			EvictToAddSize(SizeRequired);
-			FScopeLock ScopeLock(&Lock);
-			if (SizeInUse + SizeRequired <= MaxElementSize && Cache.Num() < MaxNumElements)
+			if (!ExternalCache.IsValid())
 			{
-				Cache.Insert(MoveTemp(EntityToAdd), 0);
-				SizeInUse += SizeRequired;
+				int64 SizeRequired = EntityToAdd->Response->GetResponseData().GetNumTotalBytesAdded();
+				EvictToAddSize(SizeRequired);
+				FScopeLock ScopeLock(&Lock);
+				if (SizeInUse + SizeRequired <= MaxElementSize && Cache.Num() < MaxNumElements)
+				{
+					Cache.Insert(MoveTemp(EntityToAdd), 0);
+					SizeInUse += SizeRequired;
+				}
+			}
+			else
+			{
+				IElectraPlayerDataCache::FItemInfo Info;
+				Info.URI = EntityToAdd->RequestedURL;
+				switch(EntityToAdd->Quality.StreamType)
+				{
+					case EStreamType::Video:
+						Info.StreamType = IElectraPlayerDataCache::FItemInfo::EStreamType::Video;
+						break;
+					case EStreamType::Audio:
+						Info.StreamType = IElectraPlayerDataCache::FItemInfo::EStreamType::Audio;
+						break;
+					default:
+						Info.StreamType = IElectraPlayerDataCache::FItemInfo::EStreamType::Other;
+						break;
+				}
+				Info.QualityIndex = EntityToAdd->Quality.QualityIndex;
+				Info.MaxQualityIndex = EntityToAdd->Quality.MaxQualityIndex;
+
+				if (EntityToAdd->Range.GetStart() == 0 && EntityToAdd->Range.GetEndIncluding() + 1 == EntityToAdd->Range.GetDocumentSize())
+				{
+					Info.Range.TotalSize = EntityToAdd->Range.GetDocumentSize();
+				}
+				else
+				{
+					Info.Range.Start = EntityToAdd->Range.GetStart();
+					Info.Range.EndIncluding = EntityToAdd->Range.GetEndIncluding();
+					Info.Range.TotalSize = EntityToAdd->Range.GetDocumentSize();
+				}
+				const uint8* Data = nullptr;
+				int64 DataSize = 0;
+				EntityToAdd->Response->GetResponseData().GetBaseBuffer(Data, DataSize);
+				TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> Buf = MakeShared<TArray<uint8>, ESPMode::ThreadSafe>();
+				Buf->AddUninitialized(DataSize);
+				FMemory::Memcpy(Buf->GetData(), Data, DataSize);
+				ExternalCache->AddElementToCache(Info, Buf);
 			}
 		}
 	}
 }
 
-FHTTPResponseCache::EScatterResult FHTTPResponseCache::GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const ElectraHTTPStream::FHttpRange& InRange)
+FHTTPResponseCache::EScatterResult FHTTPResponseCache::GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const ElectraHTTPStream::FHttpRange& InRange, const FQualityInfo& InForQuality)
 {
-	FScopeLock lock(&Lock);
-	// Get a list of all cached blocks for this URL.
-	TArray<TSharedPtrTS<FCacheItem>> CachedBlocks;
-	for(auto &Entry : Cache)
+	if (!ExternalCache.IsValid())
 	{
-		if (Entry->RequestedURL.Equals(URL) || Entry->EffectiveURL.Equals(URL))
+		FScopeLock lock(&Lock);
+		// Get a list of all cached blocks for this URL.
+		TArray<TSharedPtrTS<FCacheItem>> CachedBlocks;
+		for(auto &Entry : Cache)
 		{
-			CachedBlocks.Add(Entry);
-		}
-	}
-
-	ElectraHTTPStream::FHttpRange Range(InRange);
-
-	// Set up the default output that encompasses the request.
-	// This is what needs to be fetched for cache misses.
-	OutScatteredCachedEntity = MakeSharedTS<IHTTPResponseCache::FCacheItem>();
-	OutScatteredCachedEntity->RequestedURL = URL;
-	OutScatteredCachedEntity->EffectiveURL = URL;
-	OutScatteredCachedEntity->Range = Range;
-
-	// Quick out if there are no cached blocks at all.
-	if (CachedBlocks.Num() == 0)
-	{
-		return EScatterResult::Miss;
-	}
-
-	// Adjust the input range to valid values.
-	Range.DocumentSize = CachedBlocks[0]->Range.GetDocumentSize();
-	if (Range.GetStart() < 0)
-	{
-		Range.SetStart(0);
-	}
-	if (Range.GetEndIncluding() < 0)
-	{
-		Range.SetEndIncluding(Range.GetDocumentSize() - 1);
-	}
-
-	// Sort the blocks by ascending range.
-	CachedBlocks.Sort([](const TSharedPtrTS<FCacheItem>& e1, const TSharedPtrTS<FCacheItem>& e2)
-	{
-		return e1->Range.GetStart() < e2->Range.GetStart();
-	});
-
-	// Find a cached block that overlaps the requested range.
-	int64 rs = Range.GetStart();
-	int64 re = Range.GetEndIncluding();
-	int32 firstIndex;
-	for(firstIndex=0; firstIndex<CachedBlocks.Num(); ++firstIndex)
-	{
-		// Any overlap?
-		const int64 cbstart = CachedBlocks[firstIndex]->Range.GetStart();
-		const int64 cbend = CachedBlocks[firstIndex]->Range.GetEndIncluding();
-		if (re >= cbstart && rs <= cbend)
-		{
-			// Is the request start before the cached block, ie we need to get additional data at the beginning?
-			if (rs < cbstart)
+			if (Entry->RequestedURL.Equals(URL) || Entry->EffectiveURL.Equals(URL))
 			{
-				// The end of the requested range may also not be covered by the cache, but that is not relevant
-				// here as we move forward sequentially, one overlap at a time.
-				// Data up to the beginning of this cached block must be fetched first.
-				OutScatteredCachedEntity->Range = Range;
-				OutScatteredCachedEntity->Range.SetEndIncluding(cbstart - 1);
-				OutScatteredCachedEntity->EffectiveURL = CachedBlocks[firstIndex]->EffectiveURL;
-				return EScatterResult::PartialHit;
+				CachedBlocks.Add(Entry);
 			}
-			else
+		}
+
+		ElectraHTTPStream::FHttpRange Range(InRange);
+
+		// Set up the default output that encompasses the request.
+		// This is what needs to be fetched for cache misses.
+		OutScatteredCachedEntity = MakeSharedTS<IHTTPResponseCache::FCacheItem>();
+		OutScatteredCachedEntity->RequestedURL = URL;
+		OutScatteredCachedEntity->EffectiveURL = URL;
+		OutScatteredCachedEntity->Range = Range;
+
+		// Quick out if there are no cached blocks at all.
+		if (CachedBlocks.Num() == 0)
+		{
+			return EScatterResult::Miss;
+		}
+
+		// Adjust the input range to valid values.
+		Range.DocumentSize = CachedBlocks[0]->Range.GetDocumentSize();
+		if (Range.GetStart() < 0)
+		{
+			Range.SetStart(0);
+		}
+		if (Range.GetEndIncluding() < 0)
+		{
+			Range.SetEndIncluding(Range.GetDocumentSize() - 1);
+		}
+
+		// Sort the blocks by ascending range.
+		CachedBlocks.Sort([](const TSharedPtrTS<FCacheItem>& e1, const TSharedPtrTS<FCacheItem>& e2)
+		{
+			return e1->Range.GetStart() < e2->Range.GetStart();
+		});
+
+		// Find a cached block that overlaps the requested range.
+		int64 rs = Range.GetStart();
+		int64 re = Range.GetEndIncluding();
+		int32 firstIndex;
+		for(firstIndex=0; firstIndex<CachedBlocks.Num(); ++firstIndex)
+		{
+			// Any overlap?
+			const int64 cbstart = CachedBlocks[firstIndex]->Range.GetStart();
+			const int64 cbend = CachedBlocks[firstIndex]->Range.GetEndIncluding();
+			if (re >= cbstart && rs <= cbend)
+			{
+				// Is the request start before the cached block, ie we need to get additional data at the beginning?
+				if (rs < cbstart)
+				{
+					// The end of the requested range may also not be covered by the cache, but that is not relevant
+					// here as we move forward sequentially, one overlap at a time.
+					// Data up to the beginning of this cached block must be fetched first.
+					OutScatteredCachedEntity->Range = Range;
+					OutScatteredCachedEntity->Range.SetEndIncluding(cbstart - 1);
+					OutScatteredCachedEntity->EffectiveURL = CachedBlocks[firstIndex]->EffectiveURL;
+					return EScatterResult::PartialHit;
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+		// No overlap anywhere?
+		if (firstIndex == CachedBlocks.Num())
+		{
+			return EScatterResult::Miss;
+		}
+
+		// Exact match?
+		if (rs == CachedBlocks[firstIndex]->Range.GetStart() && re == CachedBlocks[firstIndex]->Range.GetEndIncluding())
+		{
+			OutScatteredCachedEntity->Response = MakeShared<FWrappedCacheResponse, ESPMode::ThreadSafe>(CachedBlocks[firstIndex]->Response);
+			OutScatteredCachedEntity->EffectiveURL = CachedBlocks[firstIndex]->EffectiveURL;
+			Cache.Remove(CachedBlocks[firstIndex]);
+			Cache.Insert(CachedBlocks[firstIndex], 0);
+			return EScatterResult::FullHit;
+		}
+
+		// Set up the partial cache response.
+		TSharedPtr<FSynthesizedCacheResponse, ESPMode::ThreadSafe> Response = MakeShared<FSynthesizedCacheResponse, ESPMode::ThreadSafe>();
+		Response->SetURL(CachedBlocks[firstIndex]->EffectiveURL);
+		OutScatteredCachedEntity->EffectiveURL = CachedBlocks[firstIndex]->EffectiveURL;
+		Response->CopyHeadersExceptContentSizesAndDateFrom(CachedBlocks[firstIndex]->Response);
+		Response->SetHTTPStatusLine(CachedBlocks[firstIndex]->Response->GetHTTPStatusLine());
+
+		// There is some overlap. Find how many consecutive bytes we can get from the cached blocks.
+		TArray<TSharedPtrTS<FCacheItem>> TouchedBlocks;
+		while(1)
+		{
+			int64 cbstart = CachedBlocks[firstIndex]->Range.GetStart();
+			int64 cbend = CachedBlocks[firstIndex]->Range.GetEndIncluding();
+			int64 last = re < cbend ? re : cbend;
+			int64 offset = rs - cbstart;
+			int64 numAvail = last + 1 - cbstart - offset;
+
+			// Add the bytes from the cache to the new response.
+			Response->GetResponseData().AddData(CachedBlocks[firstIndex]->Response->GetResponseData(), offset, numAvail);
+
+			// Remember which blocks we just touched.
+			TouchedBlocks.Add(CachedBlocks[firstIndex]);
+
+			// Move up the start to the end of this cached block.
+			rs = last + 1;
+
+			// End fully included?
+			if (re <= cbend)
+			{
+				break;
+			}
+			// Is there another cached block?
+			if (++firstIndex >= CachedBlocks.Num())
+			{
+				break;
+			}
+			// Does its start coincide with what we need next?
+			if (CachedBlocks[firstIndex]->Range.GetStart() != rs)
 			{
 				break;
 			}
 		}
-	}
-	// No overlap anywhere?
-	if (firstIndex == CachedBlocks.Num())
-	{
-		return EScatterResult::Miss;
-	}
 
-	// Exact match?
-	if (rs == CachedBlocks[firstIndex]->Range.GetStart() && re == CachedBlocks[firstIndex]->Range.GetEndIncluding())
-	{
-		OutScatteredCachedEntity->Response = MakeShared<FWrappedCacheResponse, ESPMode::ThreadSafe>(CachedBlocks[firstIndex]->Response);
-		OutScatteredCachedEntity->EffectiveURL = CachedBlocks[firstIndex]->EffectiveURL;
-		Cache.Remove(CachedBlocks[firstIndex]);
-		Cache.Insert(CachedBlocks[firstIndex], 0);
-		return EScatterResult::FullHit;
-	}
-
-	// Set up the partial cache response.
-	TSharedPtr<FSynthesizedCacheResponse, ESPMode::ThreadSafe> Response = MakeShared<FSynthesizedCacheResponse, ESPMode::ThreadSafe>();
-	Response->SetURL(CachedBlocks[firstIndex]->EffectiveURL);
-	OutScatteredCachedEntity->EffectiveURL = CachedBlocks[firstIndex]->EffectiveURL;
-	Response->CopyHeadersExceptContentSizesAndDateFrom(CachedBlocks[firstIndex]->Response);
-	Response->SetHTTPStatusLine(CachedBlocks[firstIndex]->Response->GetHTTPStatusLine());
-
-	// There is some overlap. Find how many consecutive bytes we can get from the cached blocks.
-	TArray<TSharedPtrTS<FCacheItem>> TouchedBlocks;
-	while(1)
-	{
-		int64 cbstart = CachedBlocks[firstIndex]->Range.GetStart();
-		int64 cbend = CachedBlocks[firstIndex]->Range.GetEndIncluding();
-		int64 last = re < cbend ? re : cbend;
-		int64 offset = rs - cbstart;
-		int64 numAvail = last + 1 - cbstart - offset;
-
-		// Add the bytes from the cache to the new response.
-		Response->GetResponseData().AddData(CachedBlocks[firstIndex]->Response->GetResponseData(), offset, numAvail);
-
-		// Remember which blocks we just touched.
-		TouchedBlocks.Add(CachedBlocks[firstIndex]);
-
-		// Move up the start to the end of this cached block.
-		rs = last + 1;
-
-		// End fully included?
-		if (re <= cbend)
+		// Move the blocks we touched to the front of the cached blocks (LRU).
+		for(auto &Touched : TouchedBlocks)
 		{
-			break;
+			Cache.Remove(Touched);
+			Cache.Insert(Touched, 0);
 		}
-		// Is there another cached block?
-		if (++firstIndex >= CachedBlocks.Num())
+
+		Range.SetEndIncluding(rs - 1);
+		if (InRange.IsSet())
 		{
-			break;
+			Response->AddHeader(TEXT("Content-Range"), FString::Printf(TEXT("bytes %lld-%lld/%lld"), (long long int)Range.GetStart(), (long long int)Range.GetEndIncluding(), (long long int)Range.GetDocumentSize()));
+			Response->SetHTTPResponseCode(206);
+			FString StatusLine = Response->GetHTTPStatusLine();
+			StatusLine.ReplaceInline(TEXT("200"), TEXT("206"));
+			Response->SetHTTPStatusLine(StatusLine);
 		}
-		// Does its start coincide with what we need next?
-		if (CachedBlocks[firstIndex]->Range.GetStart() != rs)
+		Response->AddHeader(TEXT("Content-Length"), FString::Printf(TEXT("%lld"), (long long int)Response->GetResponseData().GetNumTotalBytesAdded()));
+		Response->GetResponseData().SetLengthFromResponseHeader(Response->GetResponseData().GetNumTotalBytesAdded());
+		Response->GetResponseData().SetEOS();
+
+		/*
+		Response->SetTimeUntilNameResolved(double InTimeUntilNameResolved);
+		Response->SetTimeUntilConnected(double InTimeUntilConnected);
+		Response->SetTimeUntilRequestSent(double InTimeUntilRequestSent);
+		Response->SetTimeUntilHeadersAvailable(double InTimeUntilHeadersAvailable);
+		Response->SetTimeUntilFirstByte(double InTimeUntilFirstByte);
+		Response->SetTimeUntilFinished(double InTimeUntilFinished);
+		*/
+
+		OutScatteredCachedEntity->Response = Response;
+		OutScatteredCachedEntity->Range = Range;
+
+		return EScatterResult::PartialHit;
+	}
+	else
+	{
+		IElectraPlayerDataCache::FItemInfo Info;
+		Info.URI = URL;
+		switch(InForQuality.StreamType)
 		{
-			break;
+			case EStreamType::Video:
+				Info.StreamType = IElectraPlayerDataCache::FItemInfo::EStreamType::Video;
+				break;
+			case EStreamType::Audio:
+				Info.StreamType = IElectraPlayerDataCache::FItemInfo::EStreamType::Audio;
+				break;
+			default:
+				Info.StreamType = IElectraPlayerDataCache::FItemInfo::EStreamType::Other;
+				break;
+		}
+		Info.QualityIndex = InForQuality.QualityIndex;
+		Info.MaxQualityIndex = InForQuality.MaxQualityIndex;
+		Info.Range.Start = InRange.GetStart();
+		Info.Range.EndIncluding = InRange.GetEndIncluding();
+		Info.Range.TotalSize = -1;
+
+		struct FResult
+		{
+			IElectraPlayerDataCache::ECacheResult Result;
+			IElectraPlayerDataCache::FItemInfo ItemInfoFromCache;
+			IElectraPlayerDataCache::FCacheDataPtr DataFromCache;
+			FMediaEvent Event;
+		};
+		TSharedPtrTS<FResult> CacheResult = MakeSharedTS<FResult>();
+
+		IElectraPlayerDataCache::FCachedDataReadCompleted FinishedDelegate;
+		FinishedDelegate.BindLambda([CacheResult](IElectraPlayerDataCache::ECacheResult InResult, IElectraPlayerDataCache::FItemInfo InItemInfoFromCache, IElectraPlayerDataCache::FCacheDataPtr InDataFromCache)
+		{
+			CacheResult->Result = InResult;
+			CacheResult->ItemInfoFromCache = InItemInfoFromCache;
+			CacheResult->DataFromCache = InDataFromCache;
+			CacheResult->Event.Signal();
+		});
+		ExternalCache->GetElementFromCache(Info, FinishedDelegate);
+		CacheResult->Event.Wait();
+
+		OutScatteredCachedEntity = MakeSharedTS<IHTTPResponseCache::FCacheItem>();
+		OutScatteredCachedEntity->RequestedURL = URL;
+		OutScatteredCachedEntity->EffectiveURL = URL;
+		OutScatteredCachedEntity->Range = InRange;
+
+		if (CacheResult->Result == IElectraPlayerDataCache::ECacheResult::Miss)
+		{
+			// Set up the default output that encompasses the request.
+			// This is what needs to be fetched for cache misses.
+			return EScatterResult::Miss;
+		}
+		else
+		{
+			TSharedPtr<FSynthesizedCacheResponse, ESPMode::ThreadSafe> Response = MakeShared<FSynthesizedCacheResponse, ESPMode::ThreadSafe>();
+			Response->SetURL(URL);
+
+			// Add the bytes from the cache to the new response.
+			if (CacheResult->DataFromCache.IsValid())
+			{
+				Response->GetResponseData().AddData(*CacheResult->DataFromCache.Get());
+			}
+
+			ElectraHTTPStream::FHttpRange Range(InRange);
+			Range.SetStart(CacheResult->ItemInfoFromCache.Range.Start);
+			Range.SetEndIncluding(CacheResult->ItemInfoFromCache.Range.EndIncluding);
+			Range.DocumentSize = CacheResult->ItemInfoFromCache.Range.TotalSize;
+			if (Range.IsSet())
+			{
+				Response->AddHeader(TEXT("Content-Range"), FString::Printf(TEXT("bytes %lld-%lld/%lld"), (long long int)Range.GetStart(), (long long int)Range.GetEndIncluding(), (long long int)Range.GetDocumentSize()));
+				Response->SetHTTPResponseCode(206);
+				Response->SetHTTPStatusLine(TEXT("HTTP/1.1 206 Partial Content"));
+			}
+			else
+			{
+				Response->SetHTTPResponseCode(200);
+				Response->SetHTTPStatusLine(TEXT("HTTP/1.1 200 OK"));
+			}
+			Response->AddHeader(TEXT("Content-Length"), FString::Printf(TEXT("%lld"), (long long int)Response->GetResponseData().GetNumTotalBytesAdded()));
+			Response->GetResponseData().SetLengthFromResponseHeader(Response->GetResponseData().GetNumTotalBytesAdded());
+			Response->GetResponseData().SetEOS();
+
+			OutScatteredCachedEntity->Response = Response;
+			OutScatteredCachedEntity->Range = Range;
+
+			return EScatterResult::FullHit;
 		}
 	}
-
-	// Move the blocks we touched to the front of the cached blocks (LRU).
-	for(auto &Touched : TouchedBlocks)
-	{
-		Cache.Remove(Touched);
-		Cache.Insert(Touched, 0);
-	}
-
-	Range.SetEndIncluding(rs - 1);
-	if (InRange.IsSet())
-	{
-		Response->AddHeader(TEXT("Content-Range"), FString::Printf(TEXT("bytes %lld-%lld/%lld"), (long long int)Range.GetStart(), (long long int)Range.GetEndIncluding(), (long long int)Range.GetDocumentSize()));
-		Response->SetHTTPResponseCode(206);
-		FString StatusLine = Response->GetHTTPStatusLine();
-		StatusLine.ReplaceInline(TEXT("200"), TEXT("206"));
-		Response->SetHTTPStatusLine(StatusLine);
-	}
-	Response->AddHeader(TEXT("Content-Length"), FString::Printf(TEXT("%lld"), (long long int)Response->GetResponseData().GetNumTotalBytesAdded()));
-	Response->GetResponseData().SetLengthFromResponseHeader(Response->GetResponseData().GetNumTotalBytesAdded());
-	Response->GetResponseData().SetEOS();
-
-/*
-	Response->SetTimeUntilNameResolved(double InTimeUntilNameResolved);
-	Response->SetTimeUntilConnected(double InTimeUntilConnected);
-	Response->SetTimeUntilRequestSent(double InTimeUntilRequestSent);
-	Response->SetTimeUntilHeadersAvailable(double InTimeUntilHeadersAvailable);
-	Response->SetTimeUntilFirstByte(double InTimeUntilFirstByte);
-	Response->SetTimeUntilFinished(double InTimeUntilFinished);
-*/
-
-	OutScatteredCachedEntity->Response = Response;
-	OutScatteredCachedEntity->Range = Range;
-
-	return EScatterResult::PartialHit;
 }
 
 

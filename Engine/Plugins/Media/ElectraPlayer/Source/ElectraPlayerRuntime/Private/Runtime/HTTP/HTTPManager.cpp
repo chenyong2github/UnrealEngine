@@ -195,7 +195,7 @@ namespace Electra
 				{
 					TSharedPtrTS<IHTTPResponseCache::FCacheItem> CacheItem;
 					IHTTPResponseCache::EScatterResult Result;
-					Result = HttpResponseCache->GetScatteredCacheEntity(CacheItem, ActiveResponse.URL, ActiveResponse.Range);
+					Result = HttpResponseCache->GetScatteredCacheEntity(CacheItem, ActiveResponse.URL, ActiveResponse.Range, ActiveResponse.Quality);
 					if (Result == IHTTPResponseCache::EScatterResult::FullHit)
 					{
 						check(CacheItem.IsValid());
@@ -250,6 +250,8 @@ namespace Electra
 				// Original range requested for easier access and comparison.
 				ElectraHTTPStream::FHttpRange OriginalRange;
 				ElectraHTTPStream::FHttpRange ReceivedContentRange;
+				//
+				IHTTPResponseCache::FQualityInfo Quality;
 				//
 				bool bIsSubRangeRequest = false;
 				int32 NumSubRangeRequest = 0;
@@ -610,6 +612,9 @@ namespace Electra
 		Handle->bHttpRequestFirstEvent = true;
 		Handle->ActiveResponse.NumSubRangeRequest = 0;
 		Handle->ActiveResponse.OriginalRange = Request->Parameters.Range;
+		Handle->ActiveResponse.Quality.StreamType = Request->Parameters.StreamType;
+		Handle->ActiveResponse.Quality.QualityIndex = Request->Parameters.QualityIndex;
+		Handle->ActiveResponse.Quality.MaxQualityIndex = Request->Parameters.MaxQualityIndex;
 
 		if (PrepareHTTPHandle(Now, Handle.Get(), Request, true))
 		{
@@ -1493,6 +1498,9 @@ namespace Electra
 									CacheItem->Range.SetEndIncluding(CacheItem->Range.DocumentSize - 1);
 								}
 								CacheItem->Response = Response;
+								CacheItem->Quality.QualityIndex = Request->Parameters.QualityIndex;
+								CacheItem->Quality.MaxQualityIndex = Request->Parameters.MaxQualityIndex;
+								CacheItem->Quality.StreamType = Request->Parameters.StreamType;
 								Request->ResponseCache->CacheEntity(CacheItem);
 							}
  

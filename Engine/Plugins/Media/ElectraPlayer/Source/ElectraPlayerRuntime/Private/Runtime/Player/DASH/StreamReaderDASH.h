@@ -42,6 +42,8 @@ public:
 	bool GetStartupDelay(FTimeValue& OutStartTime, FTimeValue& OutTimeIntoSegment, FTimeValue& OutSegmentDuration) const override;
 
 	EStreamType												StreamType = EStreamType::Unsupported;				//!< Type of stream (video, audio, etc.)
+	int32													QualityIndex = 0;
+	int32													MaxQualityIndex = 0;
 	FStreamCodecInformation									CodecInfo;											//!< Partial codec info as can be collected from the MPD.
 	TSharedPtrTS<IPlaybackAssetRepresentation>				Representation;										//!< The representation this request belongs to.
 	TSharedPtrTS<IPlaybackAssetAdaptationSet>				AdaptationSet;										//!< The adaptation set the representation belongs to.

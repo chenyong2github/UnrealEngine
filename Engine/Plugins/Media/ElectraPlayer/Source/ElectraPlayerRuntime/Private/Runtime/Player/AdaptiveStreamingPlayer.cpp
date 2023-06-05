@@ -304,6 +304,11 @@ void FAdaptiveStreamingPlayer::SetVideoDecoderResourceDelegate(const TSharedPtr<
 	VideoDecoderResourceDelegate = InResourceDelegate;
 }
 
+void FAdaptiveStreamingPlayer::SetPlayerDataCache(const TSharedPtr<IElectraPlayerDataCache, ESPMode::ThreadSafe>& InPlayerDataCache)
+{
+	ExternalCache = InPlayerDataCache;
+}
+
 
 void FAdaptiveStreamingPlayer::AddMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver)
 {
@@ -4409,8 +4414,8 @@ void FAdaptiveStreamingPlayer::InternalInitialize()
 	// Create an entity cache.
 	EntityCache = IPlayerEntityCache::Create(this, PlayerOptions);
 
-	// Create an HTTP response cache.
-	HttpResponseCache = IHTTPResponseCache::Create(this, PlayerOptions);
+	// Create an HTTP response cache. Hand over any externally set cache. We do not need it in here any further.
+	HttpResponseCache = IHTTPResponseCache::Create(this, PlayerOptions, MoveTemp(ExternalCache));
 
 	// If all read requests for this player are to be routed to an external reader we need to create a wrapper for it.
 	if (PlayerOptions.GetValue(OptionKeyUseExternalDataReader).SafeGetBool(false))

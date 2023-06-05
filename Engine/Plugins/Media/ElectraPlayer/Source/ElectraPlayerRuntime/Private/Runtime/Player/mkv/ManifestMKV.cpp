@@ -488,7 +488,7 @@ TSharedPtrTS<ITimelineMediaAsset> FManifestMKVInternal::FPlayPeriodMKV::GetMedia
  * @param AdaptationSetID
  * @param RepresentationID
  */
-void FManifestMKVInternal::FPlayPeriodMKV::SelectStream(const FString& AdaptationSetID, const FString& RepresentationID)
+void FManifestMKVInternal::FPlayPeriodMKV::SelectStream(const FString& AdaptationSetID, const FString& RepresentationID, int32 QualityIndex, int32 MaxQualityIndex)
 {
 	// Presently this method is only called by the ABR to switch between quality levels.
 	// Since a single mkv doesn't have different quality levels we ignore this for now.

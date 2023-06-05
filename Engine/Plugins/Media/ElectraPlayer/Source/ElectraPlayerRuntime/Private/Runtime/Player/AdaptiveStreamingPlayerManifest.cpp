@@ -343,6 +343,12 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 			// Let the ABR know the format as well.
 			StreamSelector->SetFormatType(ManifestType);
 
+			// Live streams must not use any cache!
+			if (NewPresentation->GetPresentationType() == IManifest::EType::Live && HttpResponseCache.IsValid())
+			{
+				HttpResponseCache->Disable();
+			}
+
 			return true;
 		}
 		else

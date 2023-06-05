@@ -5,6 +5,7 @@
 #include "Containers/ChunkedArray.h"
 #include "OptionalValue.h"
 #include "Runtime/ErrorDetail.h"
+#include "PlayerTime.h"
 
 namespace Electra
 {

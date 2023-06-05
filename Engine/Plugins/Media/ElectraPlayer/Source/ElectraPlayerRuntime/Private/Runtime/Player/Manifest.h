@@ -413,7 +413,7 @@ namespace Electra
 			 * @param AdaptationSetID
 			 * @param RepresentationID
 			 */
-			virtual void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) = 0;
+			virtual void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID, int32 QualityIndex, int32 MaxQualityIndex) = 0;
 
 			struct FInitSegmentPreload
 			{

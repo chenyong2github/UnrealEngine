@@ -1417,7 +1417,7 @@ IAdaptiveStreamSelector::ESegmentAction FABRLiveStream::PerformSelection(const T
 				}
 			}
 
-			CurrentPlayPeriod->SelectStream(Candidate->AdaptationSetUniqueID, Candidate->RepresentationUniqueID);
+			CurrentPlayPeriod->SelectStream(Candidate->AdaptationSetUniqueID, Candidate->RepresentationUniqueID, Candidate->QualityIndex, Info->GetStreamInformations(StreamType).Num()-1);
 			if (bRetryIfPossible)
 			{
 				return IAdaptiveStreamSelector::ESegmentAction::Retry;

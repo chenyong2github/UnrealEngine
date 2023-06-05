@@ -7,6 +7,8 @@
 #include "ParameterDictionary.h"
 #include "ElectraHTTPStream.h"
 #include "Utilities/HttpRangeHeader.h"
+#include "IElectraPlayerDataCache.h"
+#include "StreamTypes.h"
 
 namespace Electra
 {
@@ -15,6 +17,12 @@ class IPlayerSessionServices;
 class IHTTPResponseCache
 {
 public:
+	struct FQualityInfo
+	{
+		EStreamType StreamType = EStreamType::Unsupported;
+		int32 QualityIndex = 0;
+		int32 MaxQualityIndex = 0;
+	};
 	struct FCacheItem
 	{
 		FString RequestedURL;
@@ -22,11 +30,17 @@ public:
 		ElectraHTTPStream::FHttpRange Range;
 		FTimeValue ExpiresAtUTC;
 		IElectraHTTPStreamResponsePtr Response;
+		FQualityInfo Quality;
 	};
 
-	static TSharedPtrTS<IHTTPResponseCache> Create(IPlayerSessionServices* SessionServices, const FParamDict& Options);
+	static TSharedPtrTS<IHTTPResponseCache> Create(IPlayerSessionServices* SessionServices, const FParamDict& Options, TSharedPtr<IElectraPlayerDataCache, ESPMode::ThreadSafe> ExternalCache);
 
 	virtual ~IHTTPResponseCache() = default;
+
+	/**
+	 * Call this to disable the cache. Caching makes no sense for Live video streams.
+	 */
+	virtual void Disable() = 0;
 
 	/**
 	 * Call this periodically to handle expiration times of cached entities.
@@ -54,7 +68,7 @@ public:
 	 * Returns false to indicate that the range specified in the (otherwise empty) cached response must be requested from the origin.
 	 * Returns true if a - possibly partial - cached response exists. The range that is cached is given in the cache item.
 	 */
-	virtual EScatterResult GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const ElectraHTTPStream::FHttpRange& Range) = 0;
+	virtual EScatterResult GetScatteredCacheEntity(TSharedPtrTS<FCacheItem>& OutScatteredCachedEntity, const FString& URL, const ElectraHTTPStream::FHttpRange& Range, const FQualityInfo& ForQuality) = 0;
 
 protected:
 	IHTTPResponseCache() = default;

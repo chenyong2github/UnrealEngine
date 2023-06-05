@@ -923,7 +923,8 @@ void FPlaylistReaderDASH::SetupRequestTimeouts(FResourceLoadRequestPtr InRequest
 			InRequest->Request->ConnectionTimeout(FTimeValue(FTimeValue::MillisecondsToHNS(1000 * 5)));
 			InRequest->Request->NoDataTimeout(FTimeValue(FTimeValue::MillisecondsToHNS(1000 * 2)));
 			InRequest->Request->AcceptEncoding(TEXT("identity"));
-			break;
+			InRequest->Request->StreamTypeAndQuality(InRequest->SegmentStreamType, InRequest->SegmentQualityIndex, InRequest->SegmentQualityIndexMax);
+			InRequest->Request->GetRequest()->ResponseCache = PlayerSessionServices->GetHTTPResponseCache();
 		}
 		case FMPDLoadRequestDASH::ELoadType::XLink_Period:
 		case FMPDLoadRequestDASH::ELoadType::XLink_AdaptationSet:

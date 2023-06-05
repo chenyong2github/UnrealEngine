@@ -290,6 +290,10 @@ bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict& InPlayer
 		NewPlayer->AdaptivePlayer->AddMetricsReceiver(this);
 		NewPlayer->AdaptivePlayer->SetStaticResourceProviderCallback(StaticResourceProvider);
 		NewPlayer->AdaptivePlayer->SetVideoDecoderResourceDelegate(VideoDecoderResourceDelegate);
+		if (PlaystartOptions.ExternalDataCache.IsValid())
+		{
+			NewPlayer->AdaptivePlayer->SetPlayerDataCache(PlaystartOptions.ExternalDataCache);
+		}
 
 		// Create the subtitle receiver and register it with the player.
 		MediaPlayerSubtitleReceiver = MakeSharedTS<FSubtitleEventReceiver>();

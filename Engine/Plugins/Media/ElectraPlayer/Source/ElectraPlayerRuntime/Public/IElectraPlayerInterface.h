@@ -9,6 +9,7 @@
 
 #include "ElectraPlayerMisc.h"
 #include "ElectraPlayerResourceDelegate.h"
+#include "IElectraPlayerDataCache.h"
 #include "MediaStreamMetadata.h"
 
 class FVideoDecoderOutput;
@@ -182,6 +183,7 @@ public:
 		bool						bDoNotPreload = false;
 		
 		TSharedPtr<IElectraPlayerExternalDataReader, ESPMode::ThreadSafe> ExternalDataReader;
+		TSharedPtr<IElectraPlayerDataCache, ESPMode::ThreadSafe> ExternalDataCache;
 	};
 
 	enum class EOpenType

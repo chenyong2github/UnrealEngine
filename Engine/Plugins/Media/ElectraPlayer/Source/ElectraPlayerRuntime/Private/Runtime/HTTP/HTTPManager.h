@@ -6,6 +6,7 @@
 #include "Delegates/Delegate.h"
 
 #include "StreamDataBuffer.h"
+#include "StreamTypes.h"
 #include "OptionalValue.h"
 
 #include "ParameterDictionary.h"
@@ -246,6 +247,10 @@ namespace Electra
 			FTimeValue							NoDataTimeout;					//!< Optional timeout when no data is being received
 			TArray<uint8>						PostData;						//!< Data for POST
 			bool								bCollectTimingTraces = false;	//!< Whether or not to collect download timing traces.
+
+			EStreamType							StreamType = EStreamType::Unsupported;
+			int32								QualityIndex = 0;
+			int32								MaxQualityIndex = 0;
 		};
 
 

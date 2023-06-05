@@ -13,6 +13,7 @@
 #include "AdaptiveStreamingPlayerEvents.h"
 #include "AdaptiveStreamingPlayerSubtitles.h"
 #include "AdaptiveStreamingPlayerResourceRequest.h"
+#include "IElectraPlayerDataCache.h"
 
 class IOptionPointerValueContainer;
 
@@ -38,9 +39,12 @@ public:
 
 	//-------------------------------------------------------------------------
 	// Various resource providers/delegates
+	// These must be set prior to calling `Initialize()` and MUST NOT be changed
+	// until player destruction.
 	//
 	virtual void SetStaticResourceProviderCallback(const TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe>& InStaticResourceProvider) = 0;
 	virtual void SetVideoDecoderResourceDelegate(const TSharedPtr<IVideoDecoderResourceDelegate, ESPMode::ThreadSafe>& ResourceDelegate) = 0;
+	virtual void SetPlayerDataCache(const TSharedPtr<IElectraPlayerDataCache, ESPMode::ThreadSafe>& InPlayerDataCache) = 0;
 
 
 	//-------------------------------------------------------------------------
