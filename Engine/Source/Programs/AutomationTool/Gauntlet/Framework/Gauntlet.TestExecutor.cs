@@ -271,18 +271,8 @@ namespace Gauntlet
 									double TimeWaiting = (DateTime.Now - NodeInfo.FirstReadyCheckTime).TotalSeconds;
 									if (TimeWaiting >= Options.Wait)
 									{
-										string PoolId = string.IsNullOrEmpty(Globals.DevicePoolId) ? "Local" : Globals.DevicePoolId;
 										Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Test {TestName} has been waiting to run resource-free for {Time:00} seconds. Removing from wait list", Node, TimeWaiting);
-										string[] DeviceReservationStatus = DevicePool.Instance.GetReservationStatuses();
-										if (DeviceReservationStatus != null && DeviceReservationStatus.Length > 0)
-										{
-											Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Device Reservation status from {Pool} pool: {Status}", PoolId, string.Join(", ", DeviceReservationStatus));
-										}
-										string[] DeviceProblemStatus = DevicePool.Instance.GetDeviceProblems();
-										if (DeviceProblemStatus != null && DeviceProblemStatus.Length > 0)
-										{
-											Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Reserved Devices marked with problems from {Pool} pool: {Status}", PoolId, string.Join(", ", DeviceProblemStatus));
-										}
+										DevicePool.Instance.ReportDeviceReservationState();
 										Node.AddTestEvent(new UnrealTestEvent(EventSeverity.Warning, "Insufficient devices found", new List<string> {string.Format("Test {0} was unable to find enough devices after trying for {1:00} seconds.", Node, TimeWaiting), "This is not a test-related failure."}));
 										PendingTests[i] = null;
 										NodeInfo.TimeSetupBegan = NodeInfo.TimeSetupEnded = NodeInfo.TimeTestEnded = DateTime.Now;

@@ -749,6 +749,7 @@ namespace Gauntlet
 					{
 						if (ReservationRetries == 0)
 						{
+							DevicePool.Instance.ReportDeviceReservationState();
 							throw new AutomationException("Unable to acquire all devices for test.");
 						}
 						Log.Info("\nUnable to find enough device(s). Waiting {0} secs (retries left={1})\n", ReservationRetryWait, --ReservationRetries);

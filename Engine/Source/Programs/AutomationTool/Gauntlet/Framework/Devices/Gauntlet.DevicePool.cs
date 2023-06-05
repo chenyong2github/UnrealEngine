@@ -693,6 +693,24 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Report on Device reservation state
+		/// </summary>
+		public void ReportDeviceReservationState()
+		{
+			string PoolId = string.IsNullOrEmpty(Globals.DevicePoolId) ? "Local" : Globals.DevicePoolId;
+			string[] DeviceReservationStatus = GetReservationStatuses();
+			if (DeviceReservationStatus != null && DeviceReservationStatus.Length > 0)
+			{
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Device Reservation status from {Pool} pool: {Status}", PoolId, string.Join(", ", DeviceReservationStatus));
+			}
+			string[] DeviceProblemStatus = GetDeviceProblems();
+			if (DeviceProblemStatus != null && DeviceProblemStatus.Length > 0)
+			{
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Reserved Devices marked with problems from {Pool} pool: {Status}", PoolId, string.Join(", ", DeviceProblemStatus));
+			}
+		}
+
+		/// <summary>
 		/// Force clean the cache path by setting all of the files in the cache path
 		/// to have "normal" attributes (i.e. not read-only) before attempting to delete.
 		/// </summary>
