@@ -80,6 +80,12 @@ namespace Horde.Server.Issues.Handlers
 		/// <inheritdoc/>
 		public override void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
 		{
+			RankSuspects(fingerprint, suspects, preferCodeChanges: true);
+		}
+
+		/// <inheritdoc cref="RankSuspects(IIssueFingerprint, List{SuspectChange})"/>
+		protected static void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects, bool preferCodeChanges)
+		{
 			List<string> fileNames = new List<string>();
 			foreach (string key in fingerprint.Keys)
 			{
@@ -95,16 +101,13 @@ namespace Horde.Server.Issues.Handlers
 
 			foreach (SuspectChange change in suspects)
 			{
-				if (change.ContainsCode)
+				if (fileNames.Any(x => change.ModifiesFile(x)))
 				{
-					if (fileNames.Any(x => change.ModifiesFile(x)))
-					{
-						change.Rank += 20;
-					}
-					else
-					{
-						change.Rank += 10;
-					}
+					change.Rank += 20;
+				}
+				else if(preferCodeChanges && change.ContainsCode)
+				{
+					change.Rank += 10;
 				}
 			}
 		}

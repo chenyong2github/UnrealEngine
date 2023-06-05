@@ -7,7 +7,6 @@ using EpicGames.Core;
 using Horde.Server.Jobs;
 using Horde.Server.Jobs.Graphs;
 using Microsoft.Extensions.Logging;
-using MongoDB.Driver;
 
 namespace Horde.Server.Issues.Handlers
 {
@@ -56,6 +55,12 @@ namespace Horde.Server.Issues.Handlers
 					}
 				}
 			}
+		}
+
+		/// <inheritdoc/>
+		public override void RankSuspects(IIssueFingerprint fingerprint, List<SuspectChange> suspects)
+		{
+			RankSuspects(fingerprint, suspects, preferCodeChanges: false);
 		}
 
 		/// <inheritdoc/>

@@ -100,16 +100,13 @@ namespace Horde.Server.Issues.Handlers
 		{
 			foreach (SuspectChange suspect in suspects)
 			{
-				if (suspect.ContainsContent)
+				if (suspect.Files.Any(x => fingerprint.Keys.Any(y => x.Contains(y, StringComparison.OrdinalIgnoreCase))))
 				{
-					if (suspect.Files.Any(x => fingerprint.Keys.Any(y => x.Contains(y, StringComparison.OrdinalIgnoreCase))))
-					{
-						suspect.Rank += 20;
-					}
-					else
-					{
-						suspect.Rank += 10;
-					}
+					suspect.Rank += 20;
+				}
+				else if (suspect.ContainsContent)
+				{
+					suspect.Rank += 10;
 				}
 			}
 		}
