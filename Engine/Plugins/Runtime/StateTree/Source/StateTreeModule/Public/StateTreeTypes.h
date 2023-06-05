@@ -227,6 +227,23 @@ struct STATETREEMODULE_API FStateTreeStateHandle
 		return EStateTreeRunStatus::Unset;
 	}
 
+	static FStateTreeStateHandle FromCompletionStatus(const EStateTreeRunStatus Status)
+	{
+		if (Status == EStateTreeRunStatus::Succeeded)
+		{
+			return FStateTreeStateHandle::Succeeded;
+		}
+		else if (Status == EStateTreeRunStatus::Failed)
+		{
+			return FStateTreeStateHandle::Failed;
+		}
+		else if (Status == EStateTreeRunStatus::Stopped)
+		{
+			return FStateTreeStateHandle::Stopped;
+		}
+		return {};
+	}
+	
 	bool operator==(const FStateTreeStateHandle& RHS) const { return Index == RHS.Index; }
 	bool operator!=(const FStateTreeStateHandle& RHS) const { return Index != RHS.Index; }
 

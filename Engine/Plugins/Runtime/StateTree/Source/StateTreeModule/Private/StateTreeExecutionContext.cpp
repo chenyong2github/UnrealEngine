@@ -224,12 +224,13 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 	
 	// Start evaluators and global tasks. Fail the execution if any global task fails.
 	FStateTreeIndex16 LastInitializedTaskIndex;
-	if (!StartEvaluatorsAndGlobalTasks(LastInitializedTaskIndex))
+	const EStateTreeRunStatus GlobalTasksRunStatus = StartEvaluatorsAndGlobalTasks(LastInitializedTaskIndex);
+	if (GlobalTasksRunStatus != EStateTreeRunStatus::Running)
 	{
-		StopEvaluatorsAndGlobalTasks(LastInitializedTaskIndex);
-		STATETREE_LOG(Warning, TEXT("%hs: Failed to start evaluators and global tasks '%s' using StateTree '%s'. Try to recompile the StateTree asset."),
-			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
-		return EStateTreeRunStatus::Failed;
+		StopEvaluatorsAndGlobalTasks(GlobalTasksRunStatus, LastInitializedTaskIndex);
+		STATETREE_LOG(VeryVerbose, TEXT("%hs: Global tasks completed the StateTree %s on start in status '%s'. "),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree), *UEnum::GetDisplayValueAsText(GlobalTasksRunStatus).ToString());
+		return GlobalTasksRunStatus;
 	}
 
 	// First tick.
@@ -288,7 +289,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 	return Exec->TreeRunStatus;
 }
 
-EStateTreeRunStatus FStateTreeExecutionContext::Stop()
+EStateTreeRunStatus FStateTreeExecutionContext::Stop(const EStateTreeRunStatus CompletionStatus)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Stop);
 
@@ -317,22 +318,25 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop()
 	EventQueue.Reset();
 
 	// Exit states if still in some valid state.
-	if (Exec.TreeRunStatus == EStateTreeRunStatus::Running && !Exec.ActiveStates.IsEmpty())
+	if (Exec.TreeRunStatus == EStateTreeRunStatus::Running)
 	{
 		// Transition to Succeeded state.
 		FStateTreeTransitionResult Transition;
-		Transition.TargetState = FStateTreeStateHandle::Stopped;
+		Transition.TargetState = FStateTreeStateHandle::FromCompletionStatus(CompletionStatus);
 		Transition.CurrentActiveStates = Exec.ActiveStates;
-		Transition.CurrentRunStatus = Exec.LastTickStatus;
-		Transition.NextActiveStates = FStateTreeActiveStates(FStateTreeStateHandle::Stopped);
+		Transition.CurrentRunStatus = CompletionStatus;
+		Transition.NextActiveStates = FStateTreeActiveStates(Transition.TargetState);
 
-		ExitState(Transition);
+		if (!Exec.ActiveStates.IsEmpty())
+		{
+			ExitState(Transition);
+		}
 
-		Result = EStateTreeRunStatus::Stopped;
+		// Stop evaluators and global tasks.
+		StopEvaluatorsAndGlobalTasks(CompletionStatus);
+
+		Result = CompletionStatus;
 	}
-
-	// Stop evaluators and global tasks.
-	StopEvaluatorsAndGlobalTasks();
 
 	// Trace before resetting the instance data since it is required to provide all the event information
 	STATETREE_TRACE_ACTIVE_STATES_EVENT(FStateTreeActiveStates());
@@ -386,7 +390,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 	const EStateTreeRunStatus EvalAndGlobalTaskStatus = TickEvaluatorsAndGlobalTasks(DeltaTime);
 	if (EvalAndGlobalTaskStatus != EStateTreeRunStatus::Running)
 	{
-		return Stop();
+		return Stop(EvalAndGlobalTaskStatus);
 	}
 
 	if (Exec->LastTickStatus == EStateTreeRunStatus::Running)
@@ -427,6 +431,10 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 				// Transition to a terminal state (succeeded/failed), or default transition failed.
 				Exec->TreeRunStatus = NextTransition.TargetState.ToCompletionStatus();
 				Exec->ActiveStates.Reset();
+
+				// Stop evaluators and global tasks.
+				StopEvaluatorsAndGlobalTasks(Exec->TreeRunStatus);
+
 				return Exec->TreeRunStatus;
 			}
 
@@ -465,7 +473,12 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 		// Should not happen. This may happen if a state completion transition could not be selected. 
 		STATETREE_LOG(Error, TEXT("%hs: Failed to select state on '%s' using StateTree '%s'. This should not happen, state completion transition is likely missing."),
 			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+
 		Exec->TreeRunStatus = EStateTreeRunStatus::Failed;
+
+		// Stop evaluators and global tasks.
+		StopEvaluatorsAndGlobalTasks(Exec->TreeRunStatus);
+
 		return Exec->TreeRunStatus;
 	}
 
@@ -1061,7 +1074,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickEvaluatorsAndGlobalTasks(con
 	return Result;
 }
 
-bool FStateTreeExecutionContext::StartEvaluatorsAndGlobalTasks(FStateTreeIndex16& OutLastInitializedTaskIndex)
+EStateTreeRunStatus FStateTreeExecutionContext::StartEvaluatorsAndGlobalTasks(FStateTreeIndex16& OutLastInitializedTaskIndex)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_StartEvaluators);
 	STATETREE_TRACE_SCOPED_PHASE(EStateTreeUpdatePhase::StartGlobalTasks);
@@ -1069,7 +1082,7 @@ bool FStateTreeExecutionContext::StartEvaluatorsAndGlobalTasks(FStateTreeIndex16
 	STATETREE_CLOG(StateTree.EvaluatorsNum > 0 || StateTree.GlobalTasksNum > 0, Verbose, TEXT("Start Evaluators & Global tasks"));
 
 	OutLastInitializedTaskIndex = FStateTreeIndex16();
-	bool bResult = true;
+	EStateTreeRunStatus Result = EStateTreeRunStatus::Running;
 	
 	// Start evaluators
 	int32 InstanceStructIndex = 1; // Exec is at index 0
@@ -1109,19 +1122,20 @@ bool FStateTreeExecutionContext::StartEvaluatorsAndGlobalTasks(FStateTreeIndex16
 		STATETREE_LOG(Verbose, TEXT("  Start: '%s'"), *Task.Name.ToString());
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_TreeStart);
-			if (Task.EnterState(*this, Transition) != EStateTreeRunStatus::Running)
+			EStateTreeRunStatus TaskStatus = Task.EnterState(*this, Transition); 
+			if (TaskStatus != EStateTreeRunStatus::Running)
 			{
 				OutLastInitializedTaskIndex = FStateTreeIndex16(TaskIndex);
-				bResult = false;
+				Result = TaskStatus;
 				break;
 			}
 		}
 	}
 
-	return bResult;
+	return Result;
 }
 
-void FStateTreeExecutionContext::StopEvaluatorsAndGlobalTasks(const FStateTreeIndex16 LastInitializedTaskIndex)
+void FStateTreeExecutionContext::StopEvaluatorsAndGlobalTasks(const EStateTreeRunStatus CompletionStatus, const FStateTreeIndex16 LastInitializedTaskIndex)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_StopEvaluators);
 	STATETREE_TRACE_SCOPED_PHASE(EStateTreeUpdatePhase::StopGlobalTasks);
@@ -1158,14 +1172,16 @@ void FStateTreeExecutionContext::StopEvaluatorsAndGlobalTasks(const FStateTreeIn
 	}
 
 
-	// Call in reverse order.	
-	const FStateTreeTransitionResult Transition = {}; // Empty transition
+	// Call in reverse order.
+	FStateTreeTransitionResult Transition;
+	Transition.TargetState = FStateTreeStateHandle::FromCompletionStatus(CompletionStatus);
+	Transition.CurrentActiveStates = {};
+	Transition.CurrentRunStatus = CompletionStatus;
+	Transition.NextActiveStates = FStateTreeActiveStates(Transition.TargetState);
 
 	for (int32 TaskIndex = (StateTree.GlobalTasksBegin + StateTree.GlobalTasksNum) - 1;  TaskIndex >= StateTree.GlobalTasksBegin ; TaskIndex--)
 	{
 		const FStateTreeTaskBase& Task =  StateTree.Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
-
-		UE_LOG(LogTemp, Error, TEXT("**** %s: Exit Global Task %s exec=%s"), *GetNameSafe(&Owner), *Task.Name.ToString(), *LexToString(TaskIndex <= LastInitializedTaskIndex.Get()));
 
 		// Relying here that invalid value of LastInitializedTaskIndex == MAX_uint16.
 		if (TaskIndex <= LastInitializedTaskIndex.Get())
@@ -1412,7 +1428,7 @@ bool FStateTreeExecutionContext::RequestTransition(const FStateTreeStateHandle N
 	if (NextState.IsCompletionState())
 	{
 		NextTransition.CurrentActiveStates = Exec.ActiveStates;
-		NextTransition.CurrentRunStatus = Exec.TreeRunStatus;
+		NextTransition.CurrentRunStatus = Exec.LastTickStatus;
 		NextTransition.SourceState = CurrentlyProcessedState;
 		NextTransition.TargetState = NextState;
 		NextTransition.NextActiveStates = FStateTreeActiveStates(NextState);
@@ -1427,7 +1443,7 @@ bool FStateTreeExecutionContext::RequestTransition(const FStateTreeStateHandle N
 	{
 		// NotSet is no-operation, but can be used to mask a transition at parent state. Returning unset keeps updating current state.
 		NextTransition.CurrentActiveStates = Exec.ActiveStates;
-		NextTransition.CurrentRunStatus = Exec.TreeRunStatus;
+		NextTransition.CurrentRunStatus = Exec.LastTickStatus;
 		NextTransition.SourceState = CurrentlyProcessedState;
 		NextTransition.TargetState = FStateTreeStateHandle::Invalid;
 		NextTransition.NextActiveStates.Reset();
@@ -1440,7 +1456,7 @@ bool FStateTreeExecutionContext::RequestTransition(const FStateTreeStateHandle N
 	if (SelectState(NextState, NewActiveState, VisitedStates))
 	{
 		NextTransition.CurrentActiveStates = Exec.ActiveStates;
-		NextTransition.CurrentRunStatus = Exec.TreeRunStatus;
+		NextTransition.CurrentRunStatus = Exec.LastTickStatus;
 		NextTransition.SourceState = CurrentlyProcessedState;
 		NextTransition.TargetState = NextState;
 		NextTransition.NextActiveStates = NewActiveState;

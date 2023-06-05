@@ -238,6 +238,20 @@ struct FTestTask_Stand : public FStateTreeTaskBase
 	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override
 	{
 		FTestStateTreeExecutionContext& TestContext = static_cast<FTestStateTreeExecutionContext&>(Context);
+
+		if (Transition.CurrentRunStatus == EStateTreeRunStatus::Succeeded)
+		{
+			TestContext.Log(Name, TEXT("ExitSucceeded"));
+		}
+		else if (Transition.CurrentRunStatus == EStateTreeRunStatus::Failed)
+		{
+			TestContext.Log(Name, TEXT("ExitFailed"));
+		}
+		else if (Transition.CurrentRunStatus == EStateTreeRunStatus::Stopped)
+		{
+			TestContext.Log(Name, TEXT("ExitStopped"));
+		}
+		
 		TestContext.Log(Name, TEXT("ExitState"));
 	}
 
@@ -256,14 +270,14 @@ struct FTestTask_Stand : public FStateTreeTaskBase
 		
 		InstanceData.CurrentTick++;
 		
-		return (InstanceData.CurrentTick >= TicksToCompletion) ? TickResult : EStateTreeRunStatus::Running;
+		return (InstanceData.CurrentTick >= TicksToCompletion) ? TickCompletionResult : EStateTreeRunStatus::Running;
 	};
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	int32 TicksToCompletion = 1;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
-	EStateTreeRunStatus TickResult = EStateTreeRunStatus::Succeeded;
+	EStateTreeRunStatus TickCompletionResult = EStateTreeRunStatus::Succeeded;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	EStateTreeRunStatus EnterStateResult = EStateTreeRunStatus::Running;

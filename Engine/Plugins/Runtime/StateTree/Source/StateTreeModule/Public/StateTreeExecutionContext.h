@@ -83,8 +83,12 @@ public:
 	/** Start executing. */
 	EStateTreeRunStatus Start();
 	
-	/** Stop executing. */
-	EStateTreeRunStatus Stop();
+	/**
+	 * Stop executing if the tree is running.
+	 * @param CompletionStatus Status (and terminal state) reported in the transition when the tree is stopped.
+	 * @return Tree execution status at stop, can be CompletionStatus, or earlier status if the tree is not running. 
+	 */
+	EStateTreeRunStatus Stop(const EStateTreeRunStatus CompletionStatus = EStateTreeRunStatus::Stopped);
 
 	/**
 	 * Tick the state tree logic.
@@ -310,14 +314,14 @@ protected:
 
 	/**
 	 * Starts evaluators and global tasks.
-	 * @return true if all evaluators and tasks were started, or false if any failed.
+	 * @return run status returned by the global tasks.
 	 */
-	bool StartEvaluatorsAndGlobalTasks(FStateTreeIndex16& OutLastInitializedTaskIndex);
+	EStateTreeRunStatus StartEvaluatorsAndGlobalTasks(FStateTreeIndex16& OutLastInitializedTaskIndex);
 
 	/**
 	 * Stops evaluators and global tasks.
 	 */
-	void StopEvaluatorsAndGlobalTasks(const FStateTreeIndex16 LastInitializedTaskIndex = FStateTreeIndex16());
+	void StopEvaluatorsAndGlobalTasks(const EStateTreeRunStatus CompletionStatus, const FStateTreeIndex16 LastInitializedTaskIndex = FStateTreeIndex16());
 
 	/**
 	 * Ticks tasks of all active states starting from current state by delta time.

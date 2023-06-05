@@ -1485,6 +1485,449 @@ struct FStateTreeTest_InfiniteLoop : FAITestBase
 IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_InfiniteLoop, "System.StateTree.InfiniteLoop");
 
 
+//
+// The stop tests test how the combinations of execution path to stop the tree are reported on ExitState() transition.  
+//
+struct FStateTreeTest_Stop : FAITestBase
+{
+	UStateTree& SetupTree()
+	{
+		UStateTree& StateTree = UE::StateTree::Tests::NewStateTree(&GetWorld());
+		UStateTreeEditorData& EditorData = *Cast<UStateTreeEditorData>(StateTree.EditorData);
+
+		UStateTreeState& Root = EditorData.AddSubTree(FName(TEXT("Root")));
+		UStateTreeState& StateA = Root.AddChildState(FName(TEXT("A")));
+		TStateTreeEditorNode<FTestTask_Stand>& TaskA = StateA.AddTask<FTestTask_Stand>(TaskAName);
+		TStateTreeEditorNode<FTestTask_Stand>& GlobalTask = EditorData.AddGlobalTask<FTestTask_Stand>(GlobalTaskName);
+
+		// Transition success 
+		StateA.AddTransition(EStateTreeTransitionTrigger::OnStateSucceeded, EStateTreeTransitionType::Succeeded);
+		StateA.AddTransition(EStateTreeTransitionTrigger::OnStateFailed, EStateTreeTransitionType::Failed);
+
+		GlobalTask.GetNode().TicksToCompletion = GlobalTaskTicks;
+		GlobalTask.GetNode().TickCompletionResult = GlobalTaskStatus;
+		GlobalTask.GetNode().EnterStateResult = GlobalTaskEnterStatus;
+
+		TaskA.GetNode().TicksToCompletion = NormalTaskTicks;
+		TaskA.GetNode().TickCompletionResult = NormalTaskStatus;
+		TaskA.GetNode().EnterStateResult = NormalTaskEnterStatus;
+
+		return StateTree;
+	}
+	
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = SetupTree();
+		
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+
+		AITEST_TRUE("StateTree should get compiled", bResult);
+
+		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
+		AITEST_TRUE("StateTree should init", bInitSucceeded);
+
+		const FString TickStr(TEXT("Tick"));
+		const FString EnterStateStr(TEXT("EnterState"));
+		const FString ExitStateStr(TEXT("ExitState"));
+
+		Status = Exec.Start();
+		AITEST_EQUAL("Start should be running", Status, EStateTreeRunStatus::Running);
+		AITEST_TRUE("StateTree GlobalTask should enter state", Exec.Expect(GlobalTaskName, EnterStateStr));
+		AITEST_TRUE("StateTree TaskA should enter state", Exec.Expect(TaskAName, EnterStateStr));
+		Exec.LogClear();
+
+		Status = Exec.Tick(0.1f);
+		AITEST_EQUAL("Tree should end expectedly", Status, ExpectedStatusAfterTick);
+		AITEST_TRUE("StateTree GlobalTask should get exit state expectedly", Exec.Expect(GlobalTaskName, ExpectedExitStatusStr));
+		AITEST_TRUE("StateTree TaskA should get exit state expectedly", Exec.Expect(TaskAName, ExpectedExitStatusStr));
+		Exec.LogClear();
+		
+		return true;
+	}
+
+protected:
+
+	const FName GlobalTaskName = FName(TEXT("GlobalTask"));
+	const FName TaskAName = FName(TEXT("TaskA"));
+	
+	EStateTreeRunStatus NormalTaskStatus = EStateTreeRunStatus::Succeeded;
+	EStateTreeRunStatus NormalTaskEnterStatus = EStateTreeRunStatus::Running;
+	int32 NormalTaskTicks = 1;
+
+	EStateTreeRunStatus GlobalTaskStatus = EStateTreeRunStatus::Succeeded;
+	EStateTreeRunStatus GlobalTaskEnterStatus = EStateTreeRunStatus::Running;
+	int32 GlobalTaskTicks = 1;
+
+	EStateTreeRunStatus ExpectedStatusAfterTick = EStateTreeRunStatus::Succeeded;
+
+	FString ExpectedExitStatusStr = TEXT("ExitSucceeded");
+};
+
+struct FStateTreeTest_Stop_NormalSucceeded : FStateTreeTest_Stop
+{
+	virtual bool SetUp() override
+	{
+		// Normal task completes as succeeded.
+		NormalTaskStatus = EStateTreeRunStatus::Succeeded;
+		NormalTaskTicks = 1;
+
+		// Global task completes later
+		GlobalTaskTicks = 2;
+
+		// Tree should complete as succeeded.
+		ExpectedStatusAfterTick = EStateTreeRunStatus::Succeeded;
+		
+		// Tasks should have Transition.CurrentRunStatus as succeeded 
+		ExpectedExitStatusStr = TEXT("ExitSucceeded");
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_Stop_NormalSucceeded, "System.StateTree.Stop.NormalSucceeded");
+
+struct FStateTreeTest_Stop_NormalFailed : FStateTreeTest_Stop
+{
+	virtual bool SetUp() override
+	{
+		// Normal task completes as failed.
+		NormalTaskStatus = EStateTreeRunStatus::Failed;
+		NormalTaskTicks = 1;
+
+		// Global task completes later.
+		GlobalTaskTicks = 2;
+
+		// Tree should complete as failed.
+		ExpectedStatusAfterTick = EStateTreeRunStatus::Failed;
+		
+		// Tasks should have Transition.CurrentRunStatus as failed.
+		ExpectedExitStatusStr = TEXT("ExitFailed");
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_Stop_NormalFailed, "System.StateTree.Stop.NormalFailed");
+
+
+struct FStateTreeTest_Stop_GlobalSucceeded : FStateTreeTest_Stop
+{
+	virtual bool SetUp() override
+	{
+		// Normal task completes later.
+		NormalTaskTicks = 2;
+
+		// Global task completes as succeeded.
+		GlobalTaskStatus = EStateTreeRunStatus::Succeeded;
+		GlobalTaskTicks = 1;
+
+		// Tree should complete as succeeded.
+		ExpectedStatusAfterTick = EStateTreeRunStatus::Succeeded;
+		
+		// Tasks should have Transition.CurrentRunStatus as succeeded.
+		ExpectedExitStatusStr = TEXT("ExitSucceeded");
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_Stop_GlobalSucceeded, "System.StateTree.Stop.GlobalSucceeded");
+
+struct FStateTreeTest_Stop_GlobalFailed : FStateTreeTest_Stop
+{
+	virtual bool SetUp() override
+	{
+		// Normal task completes later
+		NormalTaskTicks = 2;
+
+		// Global task completes as failed.
+		GlobalTaskStatus = EStateTreeRunStatus::Failed;
+		GlobalTaskTicks = 1;
+
+		// Tree should complete as failed.
+		ExpectedStatusAfterTick = EStateTreeRunStatus::Failed;
+		
+		// Tasks should have Transition.CurrentRunStatus as failed.
+		ExpectedExitStatusStr = TEXT("ExitFailed");
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_Stop_GlobalFailed, "System.StateTree.Stop.GlobalFailed");
+
+
+//
+// Tests combinations of completing the tree on EnterState.
+//
+struct FStateTreeTest_StopEnterNormal : FStateTreeTest_Stop
+{
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = SetupTree();
+		
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+
+		AITEST_TRUE("StateTree should get compiled", bResult);
+
+		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
+		AITEST_TRUE("StateTree should init", bInitSucceeded);
+
+		const FString TickStr(TEXT("Tick"));
+		const FString EnterStateStr(TEXT("EnterState"));
+		const FString ExitStateStr(TEXT("ExitState"));
+
+		// If a normal task fails at start, the last tick status will be failed, but transition handling (and final execution status) will take place next tick. 
+		Status = Exec.Start();
+		AITEST_EQUAL("Tree should be running after start", Status, EStateTreeRunStatus::Running);
+		AITEST_EQUAL("Last execution status should be expected value", Exec.GetLastTickStatus(), ExpectedStatusAfterStart);
+
+		// Handles any transitions from failed transition
+		Status = Exec.Tick(0.1f);
+		AITEST_EQUAL("Start should be expected value", Status, ExpectedStatusAfterStart);
+		AITEST_TRUE("StateTree GlobalTask should get exit state expectedly", Exec.Expect(GlobalTaskName, ExpectedExitStatusStr));
+
+		AITEST_TRUE("StateTree TaskA should enter state", Exec.Expect(TaskAName, EnterStateStr));
+		AITEST_TRUE("StateTree TaskA should report exit status", Exec.Expect(TaskAName, ExpectedExitStatusStr));
+
+		Exec.LogClear();
+		
+		return true;
+	}
+
+	EStateTreeRunStatus ExpectedStatusAfterStart = EStateTreeRunStatus::Succeeded;
+	FString ExpectedExitStatusStr = TEXT("ExitSucceeded");
+	bool bExpectNormalTaskToRun = true; 
+};
+
+struct FStateTreeTest_Stop_NormalEnterSucceeded : FStateTreeTest_StopEnterNormal
+{
+	virtual bool SetUp() override
+	{
+		// Tasks should complete later.
+		NormalTaskTicks = 2;
+		GlobalTaskTicks = 2;
+
+		// Normal task EnterState as succeeded, completion is handled using completion transitions.
+		NormalTaskEnterStatus = EStateTreeRunStatus::Succeeded;
+
+		// Tree should complete as succeeded.
+		ExpectedStatusAfterStart = EStateTreeRunStatus::Succeeded;
+		
+		// Tasks should have Transition.CurrentRunStatus as succeeded.
+		ExpectedExitStatusStr = TEXT("ExitSucceeded");
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_Stop_NormalEnterSucceeded, "System.StateTree.Stop.NormalEnterSucceeded");
+
+struct FStateTreeTest_Stop_NormalEnterFailed : FStateTreeTest_StopEnterNormal
+{
+	virtual bool SetUp() override
+	{
+		// Tasks should complete later.
+		NormalTaskTicks = 2;
+		GlobalTaskTicks = 2;
+
+		// Normal task EnterState as failed, completion is handled using completion transitions.
+		NormalTaskEnterStatus = EStateTreeRunStatus::Failed;
+
+		// Tree should complete as failed.
+		ExpectedStatusAfterStart = EStateTreeRunStatus::Failed;
+		
+		// Tasks should have Transition.CurrentRunStatus as failed.
+		ExpectedExitStatusStr = TEXT("ExitFailed");
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_Stop_NormalEnterFailed, "System.StateTree.Stop.NormalEnterFailed");
+
+
+
+
+struct FStateTreeTest_StopEnterGlobal : FStateTreeTest_Stop
+{
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = SetupTree();
+		
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+
+		AITEST_TRUE("StateTree should get compiled", bResult);
+
+		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
+		AITEST_TRUE("StateTree should init", bInitSucceeded);
+
+		const FString TickStr(TEXT("Tick"));
+		const FString EnterStateStr(TEXT("EnterState"));
+		const FString ExitStateStr(TEXT("ExitState"));
+
+		Status = Exec.Start();
+		AITEST_EQUAL("Start should be expected value", Status, ExpectedStatusAfterStart);
+		AITEST_TRUE("StateTree GlobalTask should get exit state expectedly", Exec.Expect(GlobalTaskName, ExpectedExitStatusStr));
+
+		// Normal tasks should not run
+		AITEST_FALSE("StateTree TaskA should not enter state", Exec.Expect(TaskAName, EnterStateStr));
+		AITEST_FALSE("StateTree TaskA should not report exit status", Exec.Expect(TaskAName, ExpectedExitStatusStr));
+
+		Exec.LogClear();
+		
+		return true;
+	}
+
+	EStateTreeRunStatus ExpectedStatusAfterStart = EStateTreeRunStatus::Succeeded;
+	FString ExpectedExitStatusStr = TEXT("ExitSucceeded");
+};
+
+struct FStateTreeTest_Stop_GlobalEnterSucceeded : FStateTreeTest_StopEnterGlobal
+{
+	virtual bool SetUp() override
+	{
+		// Tasks should complete later.
+		NormalTaskTicks = 2;
+		GlobalTaskTicks = 2;
+
+		// Global task EnterState as succeeded, completion is handled directly based on the global task status.
+		GlobalTaskEnterStatus = EStateTreeRunStatus::Succeeded;
+
+		// Tree should complete as succeeded.
+		ExpectedStatusAfterStart = EStateTreeRunStatus::Succeeded;
+		
+		// Tasks should have Transition.CurrentRunStatus as Succeeded.
+		ExpectedExitStatusStr = TEXT("ExitSucceeded");
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_Stop_GlobalEnterSucceeded, "System.StateTree.Stop.GlobalEnterSucceeded");
+
+struct FStateTreeTest_Stop_GlobalEnterFailed : FStateTreeTest_StopEnterGlobal
+{
+	virtual bool SetUp() override
+	{
+		// Tasks should complete later.
+		NormalTaskTicks = 2;
+		GlobalTaskTicks = 2;
+
+		// Global task EnterState as failed, completion is handled directly based on the global task status.
+		GlobalTaskEnterStatus = EStateTreeRunStatus::Failed;
+
+		// Tree should complete as failed.
+		ExpectedStatusAfterStart = EStateTreeRunStatus::Failed;
+		
+		// Tasks should have Transition.CurrentRunStatus as failed.
+		ExpectedExitStatusStr = TEXT("ExitFailed");
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_Stop_GlobalEnterFailed, "System.StateTree.Stop.GlobalEnterFailed");
+
+struct FStateTreeTest_Stop_ExternalStop : FStateTreeTest_Stop
+{
+	virtual bool SetUp() override
+	{
+		// Tasks should complete later.
+		NormalTaskTicks = 2;
+		GlobalTaskTicks = 2;
+
+		// Tree should tick and keep on running.
+		ExpectedStatusAfterTick = EStateTreeRunStatus::Running;
+
+		// Tree should stop as stopped.
+		ExpectedStatusAfterStop = EStateTreeRunStatus::Stopped;
+		
+		// Tasks should have Transition.CurrentRunStatus as stopped. 
+		ExpectedExitStatusStr = TEXT("ExitStopped");
+
+		return true;
+	}
+	
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = SetupTree();
+		
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+
+		AITEST_TRUE("StateTree should get compiled", bResult);
+
+		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
+		AITEST_TRUE("StateTree should init", bInitSucceeded);
+
+		const FString TickStr(TEXT("Tick"));
+		const FString EnterStateStr(TEXT("EnterState"));
+		const FString ExitStateStr(TEXT("ExitState"));
+
+		Status = Exec.Start();
+		AITEST_EQUAL("Start should be running", Status, EStateTreeRunStatus::Running);
+		AITEST_TRUE("StateTree GlobalTask should enter state", Exec.Expect(GlobalTaskName, EnterStateStr));
+		AITEST_TRUE("StateTree TaskA should enter state", Exec.Expect(TaskAName, EnterStateStr));
+		Exec.LogClear();
+
+		Status = Exec.Tick(0.1f);
+		AITEST_EQUAL("Tree should end expectedly", Status, ExpectedStatusAfterTick);
+		Exec.LogClear();
+
+		Status = Exec.Stop(EStateTreeRunStatus::Stopped);
+		AITEST_EQUAL("Start should be running", Status, ExpectedStatusAfterStop);
+		if (!ExpectedExitStatusStr.IsEmpty())
+		{
+			AITEST_TRUE("StateTree GlobalTask should get exit state expectedly", Exec.Expect(GlobalTaskName, ExpectedExitStatusStr));
+			AITEST_TRUE("StateTree TaskA should get exit state expectedly", Exec.Expect(TaskAName, ExpectedExitStatusStr));
+		}
+		
+		return true;
+	}
+
+	EStateTreeRunStatus ExpectedStatusAfterStop = EStateTreeRunStatus::Stopped;
+	
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_Stop_ExternalStop, "System.StateTree.Stop.ExternalStop");
+
+struct FStateTreeTest_Stop_AlreadyStopped : FStateTreeTest_Stop_ExternalStop
+{
+	virtual bool SetUp() override
+	{
+		// Normal task completes before stop.
+		NormalTaskTicks = 1;
+		NormalTaskStatus = EStateTreeRunStatus::Succeeded;
+
+		// Global task completes later
+		GlobalTaskTicks = 2;
+
+		// Tree should tick stop as succeeded.
+		ExpectedStatusAfterTick = EStateTreeRunStatus::Succeeded;
+
+		// Tree is already stopped, should keep the status (not Stopped).
+		ExpectedStatusAfterStop = EStateTreeRunStatus::Succeeded;
+		
+		// Skip exit status check.
+		ExpectedExitStatusStr = TEXT("");
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_Stop_AlreadyStopped, "System.StateTree.Stop.AlreadyStopped");
+
+
 UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE
