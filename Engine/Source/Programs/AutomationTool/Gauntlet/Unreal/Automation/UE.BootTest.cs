@@ -12,30 +12,9 @@ using System.Text.RegularExpressions;
 namespace UE
 {
 	/// <summary>
-	/// Define a Config class for UE.BootTest
-	/// </summary>
-	public class BootTestConfig : UnrealTestConfiguration
-	{
-		/// <summary>
-		/// Implement how the settings above are applied to different roles in the session. This is the main avenue for converting options
-		/// into command line parameters for the different roles
-		/// </summary>
-		/// <param name="AppConfig"></param>
-		/// <param name="ConfigRole"></param>
-		/// <param name="OtherRoles"></param>
-		public override void ApplyToConfig(UnrealAppConfig AppConfig, UnrealSessionRole ConfigRole, IEnumerable<UnrealSessionRole> OtherRoles)
-		{
-			base.ApplyToConfig(AppConfig, ConfigRole, OtherRoles);
-			if (ConfigRole.RoleType.IsClient())
-			{
-				VerifyLogin = Globals.Params.ParseParam("VerifyLogin");
-			}
-		}
-	}
-	/// <summary>
 	/// Test that waits for the client and server to get to the front-end then quits
 	/// </summary>
-	public class BootTest : UnrealTestNode<BootTestConfig>
+	public class BootTest : UnrealTestNode<UnrealTestConfiguration>
 	{
 		/// <summary>
 		/// Used to track progress via logging
@@ -65,9 +44,9 @@ namespace UE
 		/// Returns the configuration description for this test
 		/// </summary>
 		/// <returns></returns>
-		public override BootTestConfig GetConfiguration()
+		public override UnrealTestConfiguration GetConfiguration()
 		{
-			BootTestConfig Config = base.GetConfiguration();
+			UnrealTestConfiguration Config = base.GetConfiguration();
 
 			UnrealTestRole Client = Config.RequireRole(UnrealTargetRole.Client);
 
@@ -212,9 +191,9 @@ namespace UE
 		/// Returns the configuration description for this test
 		/// </summary>
 		/// <returns></returns>
-		public override BootTestConfig GetConfiguration()
+		public override UnrealTestConfiguration GetConfiguration()
 		{
-			BootTestConfig Config = base.GetConfiguration();
+			UnrealTestConfiguration Config = base.GetConfiguration();
 			// currently needed as BootTest isn't an abstract class. Can be changed for 4.27
 			Config.ClearRoles();
 			UnrealTestRole EditorRole = Config.RequireRole(Config.CookedEditor ? UnrealTargetRole.CookedEditor : UnrealTargetRole.Editor);
@@ -242,9 +221,9 @@ namespace UE
 		/// Returns the configuration description for this test
 		/// </summary>
 		/// <returns></returns>
-		public override BootTestConfig GetConfiguration()
+		public override UnrealTestConfiguration GetConfiguration()
 		{
-			BootTestConfig Config = base.GetConfiguration();
+			UnrealTestConfiguration Config = base.GetConfiguration();
 			Config.RequireRole(UnrealTargetRole.Client);
 			return Config;
 		}

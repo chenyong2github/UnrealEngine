@@ -297,11 +297,6 @@ namespace UE
 				AppConfig.CommandLine += " -rhivalidation";
 			}
 
-			if (ConfigRole.RoleType.IsClient())
-			{
-				VerifyLogin = Globals.Params.ParseParam("VerifyLogin");
-			}
-
 			// Options specific to roles running under the editor
 			if (ConfigRole.RoleType.UsesEditor())
 			{
