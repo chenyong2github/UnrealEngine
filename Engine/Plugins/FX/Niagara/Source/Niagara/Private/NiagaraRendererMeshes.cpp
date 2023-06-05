@@ -1087,9 +1087,6 @@ void FNiagaraRendererMeshes::CreateMeshBatchForSection(
 	MeshBatch.DepthPriorityGroup = (ESceneDepthPriorityGroup)SceneProxy.GetDepthPriorityGroup(&View);
 
 	FBox LocalBounds = MeshData.RenderableMesh->GetLocalBounds();
-	LocalBounds.Min *= FVector(MeshData.Scale);
-	LocalBounds.Max *= FVector(MeshData.Scale);
-
 	FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
 	if (ParticleMeshRenderData.bUseGPUScene)
 	{
