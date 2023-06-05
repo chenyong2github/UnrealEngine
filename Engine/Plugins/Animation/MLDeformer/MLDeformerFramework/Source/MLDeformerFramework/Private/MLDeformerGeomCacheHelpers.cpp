@@ -237,6 +237,14 @@ namespace UE::MLDeformer
 		} // For all tracks.
 	}
 
+	float SnapToNearestFrame(const UGeometryCache& Cache, float InTime)
+	{
+		const int32 NumFrames = Cache.GetEndFrame() - Cache.GetStartFrame() + 1;
+		const float FrameTime = NumFrames > 1 ? Cache.CalculateDuration() / (float)(NumFrames - 1) : 0.0f;
+		const int32 NormalizedFrame = FMath::Clamp(FMath::RoundToInt(InTime / FrameTime), 0, NumFrames - 1);
+		return NormalizedFrame * FrameTime;
+	}
+
 	void SampleGeomCachePositions(
 		int32 InLODIndex,
 		float InSampleTime,
@@ -277,7 +285,7 @@ namespace UE::MLDeformer
 			UGeometryCacheTrack* Track = InGeometryCache->Tracks[MeshMapping.TrackIndex];
 
 			FGeometryCacheMeshData GeomCacheMeshData;
-			if (!Track->GetMeshDataAtTime(InSampleTime, GeomCacheMeshData))
+			if (!Track->GetMeshDataAtTime(SnapToNearestFrame(*InGeometryCache, InSampleTime), GeomCacheMeshData))
 			{
 				continue;
 			}

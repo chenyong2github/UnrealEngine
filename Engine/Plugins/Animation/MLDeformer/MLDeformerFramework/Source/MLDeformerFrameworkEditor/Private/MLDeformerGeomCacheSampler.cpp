@@ -77,7 +77,7 @@ namespace UE::MLDeformer
 
 				// Sample the mesh data of the geom cache.
 				FGeometryCacheMeshData& GeomCacheMeshData = GeomCacheMeshDatas[MeshMappingIndex];
-				if (!Track->GetMeshDataAtTime(SampleTime, GeomCacheMeshData))
+				if (!Track->GetMeshDataAtTime(GeometryCacheComponent->GetTimeAtFrame(InAnimFrameIndex), GeomCacheMeshData))
 				{
 					continue;
 				}
