@@ -83,25 +83,7 @@ void UK2Node_DynamicCast::Serialize(FArchive& Ar)
 
 void UK2Node_DynamicCast::CreateExecPins()
 {
-	// Ensure the node is either pure or impure, based on current settings.
-	const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(GetSchema());
-	check(K2Schema != nullptr);
-	if (!K2Schema->DoesGraphSupportImpureFunctions(GetGraph()))
-	{
-		PureState = EPureState::Pure;
-	}
-	else if (PureState == EPureState::UseDefault)
-	{
-		const UBlueprintEditorSettings* BlueprintSettings = GetDefault<UBlueprintEditorSettings>();
-		if (BlueprintSettings->bFavorPureCastNodes)
-		{
-			PureState = EPureState::Pure;
-		}
-		else
-		{
-			PureState = EPureState::Impure;
-		}
-	}
+	InitPureState();
 
 	const bool bIsNodePure = IsNodePure();
 	if (!bIsNodePure)
@@ -324,6 +306,8 @@ UEdGraphPin* UK2Node_DynamicCast::GetBoolSuccessPin() const
 
 void UK2Node_DynamicCast::SetPurity(bool bNewPurity)
 {
+	InitPureState();
+
 	if (bNewPurity != IsNodePure())
 	{
 		if (bNewPurity)
@@ -619,6 +603,31 @@ bool UK2Node_DynamicCast::IsActionFilteredOut(const FBlueprintActionFilter& Filt
 	}
 
 	return bIsFilteredOut;
+}
+
+void UK2Node_DynamicCast::InitPureState()
+{	
+	const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(GetSchema());
+	
+	// The schema may be null if this node is created during UEdGraphSchema_K2::FindSpecializedConversionNode
+	// because the parent graph would not be set, causing GetSchema to always return null. 
+	if (K2Schema && !K2Schema->DoesGraphSupportImpureFunctions(GetGraph()))
+	{
+		PureState = EPureState::Pure;
+	}
+	else if (PureState == EPureState::UseDefault)
+	{
+		// Ensure the node is either pure or impure, based on current settings.
+		const UBlueprintEditorSettings* BlueprintSettings = GetDefault<UBlueprintEditorSettings>();
+		if (BlueprintSettings->bFavorPureCastNodes)
+		{
+			PureState = EPureState::Pure;
+		}
+		else
+		{
+			PureState = EPureState::Impure;
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
