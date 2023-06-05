@@ -474,6 +474,9 @@ private:
 	 * Helper function to find or create asset data for the input object. If the asset is not in the registry it will be added.
 	 */
 	const FAssetData* CreateOrFindAssetData(UObject& Object);
+
+	/** If InState records PackageName is generated, return the name of the Generator, otherwise return NAME_None. */
+	static FName GetGeneratorPackage(FName PackageName, const FAssetRegistryState& InState);
 };
 
 namespace UE::Cook
