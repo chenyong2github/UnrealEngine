@@ -98,9 +98,6 @@ protected:
 
 	/** Update exec pins when converting from impure to pure. */
 	bool ReconnectPureExecPins(TArray<UEdGraphPin*>& OldPins);
-
-	/** Sets the pure state to Pure or Impure if it's using the default one */
-	void InitPureState();
 	
 	/** Constructing FText strings can be costly, so we cache the node's title */
 	FNodeTextCache CachedNodeTitle;

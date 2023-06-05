@@ -83,7 +83,25 @@ void UK2Node_DynamicCast::Serialize(FArchive& Ar)
 
 void UK2Node_DynamicCast::CreateExecPins()
 {
-	InitPureState();
+	// Ensure the node is either pure or impure, based on current settings.
+	const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(GetSchema());
+	check(K2Schema != nullptr);
+	if (!K2Schema->DoesGraphSupportImpureFunctions(GetGraph()))
+	{
+		PureState = EPureState::Pure;
+	}
+	else if (PureState == EPureState::UseDefault)
+	{
+		const UBlueprintEditorSettings* BlueprintSettings = GetDefault<UBlueprintEditorSettings>();
+		if (BlueprintSettings->bFavorPureCastNodes)
+		{
+			PureState = EPureState::Pure;
+		}
+		else
+		{
+			PureState = EPureState::Impure;
+		}
+	}
 
 	const bool bIsNodePure = IsNodePure();
 	if (!bIsNodePure)
@@ -306,8 +324,6 @@ UEdGraphPin* UK2Node_DynamicCast::GetBoolSuccessPin() const
 
 void UK2Node_DynamicCast::SetPurity(bool bNewPurity)
 {
-	InitPureState();
-
 	if (bNewPurity != IsNodePure())
 	{
 		if (bNewPurity)
@@ -603,34 +619,6 @@ bool UK2Node_DynamicCast::IsActionFilteredOut(const FBlueprintActionFilter& Filt
 	}
 
 	return bIsFilteredOut;
-}
-
-void UK2Node_DynamicCast::InitPureState()
-{
-	if (PureState == EPureState::Pure)
-	{
-		return;
-	}
-
-	// Ensure the node is either pure or impure, based on current settings.
-	const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(GetSchema());
-	check(K2Schema != nullptr);
-	if (!K2Schema->DoesGraphSupportImpureFunctions(GetGraph()))
-	{
-		PureState = EPureState::Pure;
-	}
-	else if (PureState == EPureState::UseDefault)
-	{
-		const UBlueprintEditorSettings* BlueprintSettings = GetDefault<UBlueprintEditorSettings>();
-		if (BlueprintSettings->bFavorPureCastNodes)
-		{
-			PureState = EPureState::Pure;
-		}
-		else
-		{
-			PureState = EPureState::Impure;
-		}
-	}
 }
 
 #undef LOCTEXT_NAMESPACE
