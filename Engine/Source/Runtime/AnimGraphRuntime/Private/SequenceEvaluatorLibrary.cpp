@@ -5,6 +5,7 @@
 #include "Animation/AnimNode_Inertialization.h"
 #include "AnimNodes/AnimNode_SequenceEvaluator.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimTrace.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SequenceEvaluatorLibrary)
 
@@ -90,7 +91,13 @@ FSequenceEvaluatorReference USequenceEvaluatorLibrary::SetSequenceWithInertialBl
 				{
 					if (UE::Anim::IInertializationRequester* InertializationRequester = AnimationUpdateContext->GetMessage<UE::Anim::IInertializationRequester>())
 					{
-						InertializationRequester->RequestInertialization(BlendTime);
+						FInertializationRequest Request;
+						Request.Duration = BlendTime;
+#if ANIM_TRACE_ENABLED
+						Request.Description = NSLOCTEXT("SequenceEvaluatorLibrary", "InertializationRequestDescription", "Sequence Evaluator");
+#endif
+
+						InertializationRequester->RequestInertialization(Request);
 					}
 				}
 				else

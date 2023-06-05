@@ -103,15 +103,10 @@ public: // FAnimNode_DeadBlending
 	FAnimNode_DeadBlending();
 
 	/**
-	 * Request to activate inertialization. If multiple requests are made on the same inertialization node, the minimum 
-	 * requested time will be used. If multiple blend modes are given, the blend mode of the final request will be used.
+	 * Request to activate inertialization. If multiple requests are made on the same inertialization node, the request 
+	 * with the minimum blend time will be used.
 	 */
-	virtual void RequestInertialization(
-		float Duration,
-		const UBlendProfile* BlendProfile,
-		const bool bInUseBlendMode,
-		const EAlphaBlendOption InBlendMode,
-		UCurveFloat* InCustomBlendCurve);
+	virtual void RequestInertialization(const FInertializationRequest& Request);
 
 public: // FAnimNode_Base
 
@@ -202,6 +197,9 @@ private:
 
 	// Current inertialization duration (used for curves).
 	float InertializationDuration = 0.0f;
+
+	// Description for the current inertialization request - used for debugging
+	FText InertializationRequestDescription;
 
 	// Current inertialization durations for each bone, indexed by skeleton bone index (used for per-bone blending).
 	TCustomBoneIndexArray<float, FSkeletonPoseBoneIndex> InertializationDurationPerBone;

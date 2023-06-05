@@ -48,7 +48,14 @@ void FAnimNode_Slot::Update_AnyThread(const FAnimationUpdateContext& Context)
 		UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
 		if (InertializationRequester)
 		{
-			InertializationRequester->RequestInertialization(InertializationRequest.Get<0>(), InertializationRequest.Get<1>());
+			FInertializationRequest Request;
+			Request.Duration = InertializationRequest.Get<0>();
+			Request.BlendProfile = InertializationRequest.Get<1>();
+#if ANIM_TRACE_ENABLED
+			Request.Description = NSLOCTEXT("AnimNode_Slot", "InertializationRequestDescription", "Slot");
+#endif
+
+			InertializationRequester->RequestInertialization(Request);
 		}
 		else
 		{

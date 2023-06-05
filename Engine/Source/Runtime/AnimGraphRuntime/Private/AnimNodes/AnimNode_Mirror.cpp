@@ -143,7 +143,13 @@ void FAnimNode_MirrorBase::Update_AnyThread(const FAnimationUpdateContext& Conte
 			UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
 			if (InertializationRequester)
 			{
-				InertializationRequester->RequestInertialization(GetBlendTimeOnMirrorStateChange());
+				FInertializationRequest Request;
+				Request.Duration = GetBlendTimeOnMirrorStateChange();
+#if ANIM_TRACE_ENABLED
+				Request.Description = LOCTEXT("InertializationRequestDescription", "Mirror");
+#endif
+
+				InertializationRequester->RequestInertialization(Request);
 				InertializationRequester->AddDebugRecord(*Context.AnimInstanceProxy, Context.GetCurrentNodeId());
 			}
 			else

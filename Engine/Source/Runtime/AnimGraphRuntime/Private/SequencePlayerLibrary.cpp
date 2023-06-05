@@ -4,6 +4,7 @@
 
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNode_SequencePlayer.h"
+#include "Animation/AnimTrace.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SequencePlayerLibrary)
 
@@ -91,7 +92,13 @@ FSequencePlayerReference USequencePlayerLibrary::SetSequenceWithInertialBlending
 				{
 					if (UE::Anim::IInertializationRequester* InertializationRequester = AnimationUpdateContext->GetMessage<UE::Anim::IInertializationRequester>())
 					{
-						InertializationRequester->RequestInertialization(BlendTime);
+						FInertializationRequest Request;
+						Request.Duration = BlendTime;
+#if ANIM_TRACE_ENABLED
+						Request.Description = NSLOCTEXT("SequencePlayerLibrary", "InertializationRequestDescription", "Sequence Player");
+#endif
+
+						InertializationRequester->RequestInertialization(Request);
 					}
 				}
 				else

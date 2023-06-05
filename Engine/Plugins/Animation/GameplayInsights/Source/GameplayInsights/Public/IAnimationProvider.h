@@ -107,6 +107,7 @@ struct FAnimNodeMessage
 	float RootMotionWeight = 0.0f;
 	uint16 FrameCounter = 0;
 	EAnimGraphPhase Phase = EAnimGraphPhase::Initialize;
+	const TCHAR* NodeTypeName = nullptr;
 };
 
 enum class EAnimNodeValueType : uint8
@@ -191,6 +192,7 @@ struct FAnimNodeValueMessage
 	FVariantValue Value;
 	int32 NodeId = -1;
 	uint16 FrameCounter = 0;
+	double RecordingTime = 0.0f;
 };
 
 struct FAnimSequencePlayerMessage

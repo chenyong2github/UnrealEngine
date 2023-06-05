@@ -1236,7 +1236,21 @@ void FAnimNode_StateMachine::TransitionToState(const FAnimationUpdateContext& Co
 				UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
 				if (InertializationRequester)
 				{
-					InertializationRequester->RequestInertializationWithBlendMode(TransitionInfo.CrossfadeDuration, TransitionInfo.BlendProfile, true, TransitionInfo.BlendMode, TransitionInfo.CustomCurve);
+					FInertializationRequest Request;
+					Request.Duration = TransitionInfo.CrossfadeDuration;
+					Request.BlendProfile = TransitionInfo.BlendProfile;
+					Request.bUseBlendMode = true;
+					Request.BlendMode = TransitionInfo.BlendMode;
+					Request.CustomBlendCurve = TransitionInfo.CustomCurve;
+#if ANIM_TRACE_ENABLED
+					Request.Description = FText::Format(LOCTEXT("InertializationRequestDescription", 
+						"State Machine \"{0}\" Transition \"{1}\" to \"{2}\""), 
+						FText::FromName(GetMachineDescription()->MachineName),
+						FText::FromName(GetStateInfo(TransitionInfo.PreviousState).StateName),
+						FText::FromName(GetStateInfo(TransitionInfo.NextState).StateName));
+#endif
+
+					InertializationRequester->RequestInertialization(Request);
 					InertializationRequester->AddDebugRecord(*Context.AnimInstanceProxy, Context.GetCurrentNodeId());
 				}
 				else

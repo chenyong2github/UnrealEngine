@@ -18,6 +18,7 @@
 #include "ObjectPropertyTrace.h"
 #include "SMontageView.h"
 #include "AnimCurvesTrack.h"
+#include "InertializationsTrack.h"
 #include "BlendWeightsTrack.h"
 #include "MontagesTrack.h"
 #include "NotifiesTrack.h"
@@ -79,6 +80,8 @@ void FGameplayInsightsModule::StartupModule()
 	
 	static RewindDebugger::FAnimationCurvesTrackCreator AnimationCurvesTrackCreator;
 	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &AnimationCurvesTrackCreator);
+	static RewindDebugger::FInertializationsTrackCreator InertializationsTrackCreator;
+	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &InertializationsTrackCreator);
 	static RewindDebugger::FBlendWeightsTrackCreator BlendWeightsTrackCreator;
 	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &BlendWeightsTrackCreator);
 	static RewindDebugger::FMontagesTrackCreator MontagesTrackCreator;

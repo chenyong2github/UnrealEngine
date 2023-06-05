@@ -11,6 +11,7 @@
 #include "Animation/AnimSubsystem_Tag.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/BuiltInAttributeTypes.h"
+#include "Animation/AnimTrace.h"
 #include "InstancedStruct.h"
 #include "PoseSearch/AnimNode_MotionMatching.h"
 #include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
@@ -62,7 +63,13 @@ static void RequestInertialBlend(const FAnimationUpdateContext& Context, float B
 		UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
 		if (InertializationRequester)
 		{
-			InertializationRequester->RequestInertialization(BlendTime);
+			FInertializationRequest Request;
+			Request.Duration = BlendTime;
+#if ANIM_TRACE_ENABLED
+			Request.Description = LOCTEXT("InertializationRequestDescription", "Motion Matching");
+#endif
+
+			InertializationRequester->RequestInertialization(Request);
 		}
 	}
 }

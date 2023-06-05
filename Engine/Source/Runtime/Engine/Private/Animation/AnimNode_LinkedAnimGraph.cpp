@@ -119,12 +119,28 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 			// Issue the pending inertialization requests (which will get merged together by the inertialization node itself)
 			if (PendingBlendOutDuration >= 0.0f)
 			{
-				InertializationRequester->RequestInertialization(PendingBlendOutDuration, PendingBlendOutProfile);
+				FInertializationRequest Request;
+				Request.Duration = PendingBlendOutDuration;
+				Request.BlendProfile = PendingBlendOutProfile;
+#if ANIM_TRACE_ENABLED
+				Request.Description = NSLOCTEXT("AnimNode_LinkedAnimGraph", "InertializationRequestDescription", "Linked Anim Graph Out");
+#endif
+
+				InertializationRequester->RequestInertialization(Request);
 			}
+
 			if (PendingBlendInDuration >= 0.0f)
 			{
-				InertializationRequester->RequestInertialization(PendingBlendInDuration, PendingBlendInProfile);
+				FInertializationRequest Request;
+				Request.Duration = PendingBlendInDuration;
+				Request.BlendProfile = PendingBlendInProfile;
+#if ANIM_TRACE_ENABLED
+				Request.Description = NSLOCTEXT("AnimNode_LinkedAnimGraph", "InertializationRequestDescription", "Linked Anim Graph In");
+#endif
+
+				InertializationRequester->RequestInertialization(Request);
 			}
+
 			InertializationRequester->AddDebugRecord(*InContext.AnimInstanceProxy, InContext.GetCurrentNodeId());
 		}
 		else if ((PendingBlendOutDuration != 0.0f) && (PendingBlendInDuration != 0.0f) && (InputPoses.Num() > 0))

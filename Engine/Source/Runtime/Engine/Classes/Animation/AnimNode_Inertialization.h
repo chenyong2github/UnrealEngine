@@ -34,21 +34,9 @@ public:
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
 	virtual void RequestInertialization(float InRequestedDuration, const UBlendProfile* InBlendProfile = nullptr) = 0;
 
-	// Request to activate inertialization for a duration with the given blend mode.
+	// Request to activate inertialization.
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
-	// 
-	// InRequestedDuration				Duration of the blend
-	// InBlendProfile					Blend profile to use
-	// bUseBlendMode					If to use the provided Blend Mode
-	// InBlendMode						Blend mode to use
-	// InCustomBlendCurve				Custom Blend Curve to use for the Blend Mode
-	//
-	virtual void RequestInertializationWithBlendMode(
-		float InRequestedDuration,
-		const UBlendProfile* InBlendProfile,
-		const bool bUseBlendMode,
-		const EAlphaBlendOption InBlendMode,
-		UCurveFloat* InCustomBlendCurve) = 0;
+	virtual void RequestInertialization(const FInertializationRequest& InInertializationRequest);
 
 	// Add a record of this request
 	virtual void AddDebugRecord(const FAnimInstanceProxy& InSourceProxy, int32 InSourceNodeId) = 0;
@@ -133,21 +121,6 @@ struct FInertializationRequest
 	{
 	}
 
-	FInertializationRequest(
-		float InDuration,
-		const UBlendProfile* InBlendProfile,
-		const bool bInUseBlendMode,
-		const EAlphaBlendOption InBlendMode,
-		UCurveFloat* InCustomBlendCurve)
-		: Duration(InDuration)
-		, BlendProfile(InBlendProfile)
-		, bUseBlendMode(bInUseBlendMode)
-		, BlendMode(InBlendMode)
-		, CustomBlendCurve(InCustomBlendCurve)
-	{
-	}
-
-
 	void Clear()
 	{
 		Duration = -1.0f;
@@ -155,6 +128,7 @@ struct FInertializationRequest
 		bUseBlendMode = false;
 		BlendMode = EAlphaBlendOption::Linear;
 		CustomBlendCurve = nullptr;
+		Description = FText::GetEmpty();
 	}
 
 	friend bool operator==(const FInertializationRequest& A, const FInertializationRequest& B)
@@ -164,7 +138,8 @@ struct FInertializationRequest
 			(A.BlendProfile == B.BlendProfile) &&
 			(A.bUseBlendMode == B.bUseBlendMode) &&
 			(A.BlendMode == B.BlendMode) &&
-			(A.CustomBlendCurve == B.CustomBlendCurve);
+			(A.CustomBlendCurve == B.CustomBlendCurve) &&
+			(A.Description.EqualTo(B.Description));
 	}
 
 	friend bool operator!=(const FInertializationRequest& A, const FInertializationRequest& B)
@@ -172,20 +147,29 @@ struct FInertializationRequest
 		return !(A == B);
 	}
 
+	// Blend duration of the inertialization request.
 	UPROPERTY(Transient)
 	float Duration = -1.0f;
 
+	// Blend profile to control per-joint blend times.
 	UPROPERTY(Transient)
 	TObjectPtr<const UBlendProfile> BlendProfile = nullptr;
 
+	// If to use the provided blend mode.
 	UPROPERTY(Transient)
 	bool bUseBlendMode = false;
 
+	// Blend mode to use.
 	UPROPERTY(Transient)
 	EAlphaBlendOption BlendMode = EAlphaBlendOption::Linear;
 
+	// Custom blend curve to use when use of the blend mode is active.
 	UPROPERTY(Transient)
 	TObjectPtr<UCurveFloat> CustomBlendCurve = nullptr;
+
+	// Description of the request - used for debugging.
+	UPROPERTY(Transient)
+	FText Description;
 };
 
 
@@ -385,6 +369,11 @@ public: // FAnimNode_Inertialization
 	//
 	virtual void RequestInertialization(float Duration, const UBlendProfile* BlendProfile);
 
+	// Request to activate inertialization.
+	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
+	//
+	virtual void RequestInertialization(const FInertializationRequest& InertializationRequest);
+
 	// Log an error when a node wants to inertialize but no inertialization ancestor node exists
 	//
 	static void LogRequestError(const FAnimationUpdateContext& Context, const FPoseLinkBase& RequesterPoseLink);
@@ -439,6 +428,9 @@ private:
 
 	// Inertialization duration for the main inertialization request (used for curve blending and deficit tracking)
 	float InertializationDuration;
+
+	// Description for the current inertialization request - used for debugging
+	FText InertializationRequestDescription;
 
 	// Inertialization durations indexed by skeleton bone index (used for per-bone blending)
 	TCustomBoneIndexArray<float, FSkeletonPoseBoneIndex> InertializationDurationPerBone;

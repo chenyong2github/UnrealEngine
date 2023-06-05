@@ -34,17 +34,12 @@ namespace UE::Anim {
 			float InRequestedDuration,
 			const UBlendProfile* InBlendProfile) override
 		{
-			Node.RequestInertialization(InRequestedDuration, InBlendProfile, false, EAlphaBlendOption::Linear, nullptr);
+			Node.RequestInertialization(FInertializationRequest(InRequestedDuration, InBlendProfile));
 		}
 
-		virtual void RequestInertializationWithBlendMode(
-			float InRequestedDuration,
-			const UBlendProfile* InBlendProfile,
-			const bool bUseBlendMode,
-			const EAlphaBlendOption InBlendMode,
-			UCurveFloat* InCustomBlendCurve)
+		virtual void RequestInertialization(const FInertializationRequest& Request)
 		{
-			Node.RequestInertialization(InRequestedDuration, InBlendProfile, bUseBlendMode, InBlendMode, InCustomBlendCurve);
+			Node.RequestInertialization(Request);
 		}
 
 		virtual void AddDebugRecord(const FAnimInstanceProxy& InSourceProxy, int32 InSourceNodeId)
@@ -499,16 +494,11 @@ void FAnimNode_DeadBlending::ApplyTo(FCompactPose& InOutPose, FBlendedCurve& InO
 
 FAnimNode_DeadBlending::FAnimNode_DeadBlending() {}
 
-void FAnimNode_DeadBlending::RequestInertialization(
-	float Duration,
-	const UBlendProfile* BlendProfile,
-	const bool bInUseBlendMode,
-	const EAlphaBlendOption InBlendMode,
-	UCurveFloat* InCustomBlendCurve)
+void FAnimNode_DeadBlending::RequestInertialization(const FInertializationRequest& Request)
 {
-	if (Duration >= 0.0f)
+	if (Request.Duration >= 0.0f)
 	{
-		RequestQueue.AddUnique(FInertializationRequest(Duration, BlendProfile, bInUseBlendMode, InBlendMode, InCustomBlendCurve));
+		RequestQueue.AddUnique(Request);
 	}
 }
 
@@ -598,7 +588,7 @@ void FAnimNode_DeadBlending::Update_AnyThread(const FAnimationUpdateContext& Con
 				{
 					for (const FInertializationRequest& Request : RequestQueue)
 					{
-						InMessage.RequestInertializationWithBlendMode(Request.Duration, Request.BlendProfile, Request.bUseBlendMode, Request.BlendMode, Request.CustomBlendCurve);
+						InMessage.RequestInertialization(Request);
 					}
 					InMessage.AddDebugRecord(Proxy, NodeId);
 
@@ -666,7 +656,59 @@ void FAnimNode_DeadBlending::Evaluate_AnyThread(FPoseContext& Output)
 	{
 		const int32 NumSkeletonBones = UE::Anim::DeadBlending::Private::GetNumSkeletonBones(Output.AnimInstanceProxy->GetRequiredBones());
 
+		// Find shortest request
+
+		int32 ShortestRequestIdx = INDEX_NONE;
+		float ShortestRequestDuration = UE_MAX_FLT;
+		for (int32 RequestIdx = 0; RequestIdx < RequestQueue.Num(); RequestIdx++)
+		{
+			if (RequestQueue[RequestIdx].Duration < ShortestRequestDuration)
+			{
+				ShortestRequestIdx = RequestIdx;
+				ShortestRequestDuration = RequestQueue[RequestIdx].Duration;
+			}
+		}
+
+		// Record Request
+
 		InertializationTime = 0.0f;
+		InertializationDuration = BlendTimeMultiplier * RequestQueue[ShortestRequestIdx].Duration;
+
+		UE::Anim::TTypedIndexArray<FSkeletonPoseBoneIndex, float, FAnimStackAllocator> RequestDurationPerBone;
+
+		if (RequestQueue[ShortestRequestIdx].BlendProfile)
+		{
+			RequestQueue[ShortestRequestIdx].BlendProfile->FillSkeletonBoneDurationsArray(RequestDurationPerBone, InertializationDuration);
+		}
+		else if (DefaultBlendProfile)
+		{
+			DefaultBlendProfile->FillSkeletonBoneDurationsArray(RequestDurationPerBone, InertializationDuration);
+		}
+		else
+		{
+			RequestDurationPerBone.Init(InertializationDuration, NumSkeletonBones);
+		}
+
+		InertializationDurationPerBone.SetNumUninitialized(NumSkeletonBones);
+		for (int32 BoneIndex = 0; BoneIndex < NumSkeletonBones; BoneIndex++)
+		{
+			InertializationDurationPerBone[BoneIndex] = RequestDurationPerBone[BoneIndex];
+		}
+
+		if (RequestQueue[ShortestRequestIdx].bUseBlendMode)
+		{
+			InertializationBlendMode = RequestQueue[ShortestRequestIdx].BlendMode;
+			InertializationCustomBlendCurve = RequestQueue[ShortestRequestIdx].CustomBlendCurve;
+		}
+
+		// Cache the maximum duration across all bones (so we know when to deactivate the inertialization request)
+		InertializationMaxDuration = FMath::Max(InertializationDuration, *Algo::MaxElement(InertializationDurationPerBone));
+
+#if ANIM_TRACE_ENABLED
+		InertializationRequestDescription = RequestQueue[ShortestRequestIdx].Description;
+#endif
+
+		// Override with defaults
 
 		if (bAlwaysUseDefaultBlendSettings)
 		{
@@ -676,59 +718,6 @@ void FAnimNode_DeadBlending::Evaluate_AnyThread(FPoseContext& Output)
 			InertializationBlendMode = DefaultBlendMode;
 			InertializationCustomBlendCurve = DefaultCustomBlendCurve;
 		}
-		else
-		{
-			// Process Request Durations by taking min of all requests
-			// For Blend Mode and Custom Curve we will just take whichever
-			// request is last in the stack (if they are provided).
-
-			InertializationDuration = UE_MAX_FLT;
-			InertializationDurationPerBone.Init(UE_MAX_FLT, NumSkeletonBones);
-			InertializationMaxDuration = UE_MAX_FLT;
-			InertializationBlendMode = DefaultBlendMode;
-			InertializationCustomBlendCurve = DefaultCustomBlendCurve;
-
-			UE::Anim::TTypedIndexArray<FSkeletonPoseBoneIndex, float, FAnimStackAllocator> RequestDurationPerBone;
-
-			for (const FInertializationRequest Request : RequestQueue)
-			{
-				// Duration is min of requests
-
-				InertializationDuration = BlendTimeMultiplier * FMath::Min(InertializationDuration, Request.Duration);
-
-				// Per-bone durations as min of requests accounting for blend profile
-
-				if (Request.BlendProfile)
-				{
-					Request.BlendProfile->FillSkeletonBoneDurationsArray(RequestDurationPerBone, Request.Duration);
-				}
-				else if (DefaultBlendProfile)
-				{
-					DefaultBlendProfile->FillSkeletonBoneDurationsArray(RequestDurationPerBone, Request.Duration);
-				}
-				else
-				{
-					RequestDurationPerBone.Init(Request.Duration, NumSkeletonBones);
-				}
-
-				check(RequestDurationPerBone.Num() == InertializationDurationPerBone.Num());
-
-				for (int32 BoneIndex = 0; BoneIndex < NumSkeletonBones; BoneIndex++)
-				{
-					InertializationDurationPerBone[BoneIndex] = BlendTimeMultiplier * FMath::Min(InertializationDurationPerBone[BoneIndex], RequestDurationPerBone[BoneIndex]);
-				}
-
-				// Process blend mode - will take the last one given
-
-				if (Request.bUseBlendMode)
-				{
-					InertializationBlendMode = Request.BlendMode;
-					InertializationCustomBlendCurve = Request.CustomBlendCurve;
-				}
-			}
-		}
-
-		InertializationMaxDuration = FMath::Max(InertializationDuration, *Algo::MaxElement(InertializationDurationPerBone));
 
 		check(InertializationDuration != UE_MAX_FLT);
 		check(InertializationMaxDuration != UE_MAX_FLT);
@@ -824,6 +813,19 @@ void FAnimNode_DeadBlending::Evaluate_AnyThread(FPoseContext& Output)
 	// Reset Delta Time
 
 	DeltaTime = 0.0f;
+
+	const float InertializationWeight = InertializationState == EInertializationState::Active ?
+		1.0f - FAlphaBlend::AlphaToBlendOption(
+			InertializationTime / FMath::Max(InertializationDuration, UE_SMALL_NUMBER),
+			InertializationBlendMode, InertializationCustomBlendCurve) : 0.0f;
+
+	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("State"), *UEnum::GetValueAsString(InertializationState));
+	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("Elapsed Time"), InertializationTime);
+	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("Duration"), InertializationDuration);
+	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("Max Duration"), InertializationMaxDuration);
+	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("Normalized Time"), InertializationDuration > UE_KINDA_SMALL_NUMBER ? (InertializationTime / InertializationDuration) : 0.0f);
+	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("Inertialization Weight"), InertializationWeight);
+	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("Request"), *InertializationRequestDescription.ToString());
 }
 
 bool FAnimNode_DeadBlending::NeedsDynamicReset() const
