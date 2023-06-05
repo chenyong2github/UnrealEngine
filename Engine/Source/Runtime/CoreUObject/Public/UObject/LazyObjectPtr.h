@@ -102,14 +102,14 @@ struct COREUOBJECT_API FUniqueObjectGuid
 		Slot << ObjectGuid.Guid;
 	}
 
-	/** Code needed by FLazyPtr internals */
+	/** These will be deprecated in a followup change as they are no longer in use */
 	static int32 GetCurrentTag()
 	{
-		return CurrentAnnotationTag.GetValue();
+		return 0;
 	}
 	static int32 InvalidateTag()
 	{
-		return CurrentAnnotationTag.Increment();
+		return 0;
 	}
 
 	static FUniqueObjectGuid GetOrCreateIDForObject(const class UObject *Object);
@@ -117,9 +117,6 @@ struct COREUOBJECT_API FUniqueObjectGuid
 private:
 	/** Guid representing the object, should be unique */
 	FGuid Guid;
-
-	/** Global counter that determines when we need to re-search for GUIDs because more objects have been loaded **/
-	static FThreadSafeCounter CurrentAnnotationTag;
 };
 
 template<> struct TIsPODType<FUniqueObjectGuid> { enum { Value = true }; };

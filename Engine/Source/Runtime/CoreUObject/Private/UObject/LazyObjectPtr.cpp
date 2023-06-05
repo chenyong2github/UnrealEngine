@@ -93,8 +93,6 @@ FUniqueObjectGuid FUniqueObjectGuid::GetOrCreateIDForObject(const class UObject 
 	return ObjectGuid;
 }
 
-FThreadSafeCounter FUniqueObjectGuid::CurrentAnnotationTag(1);
-
 /*-----------------------------------------------------------------------------------------------------------
 	FLazyObjectPtr
 -------------------------------------------------------------------------------------------------------------*/

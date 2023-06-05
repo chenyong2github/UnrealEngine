@@ -318,14 +318,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 		return Hash;
 	}
 
-	/** Code needed by FSoftObjectPtr internals */
+	/** These will be deprecated in a followup change as they are no longer used by FSoftObjectPtr */
 	static int32 GetCurrentTag()
 	{
-		return CurrentTag.GetValue();
+		return 0;
 	}
 	static int32 InvalidateTag()
 	{
-		return CurrentTag.Increment();
+		return 0;
 	}
 	static FSoftObjectPath GetOrCreateIDForObject(const UObject* Object);
 	
@@ -341,9 +341,6 @@ private:
 
 	/** Optional FString for subobject within an asset. This is the sub path after the : */
 	FString SubPathString;
-
-	/** Global counter that determines when we need to re-search based on path because more objects have been loaded **/
-	static FThreadSafeCounter CurrentTag;
 
 	/** Package names currently being duplicated, needed by FixupForPIE */
 	static TSet<FName> PIEPackageNames;

@@ -836,7 +836,6 @@ bool FSoftObjectPathThreadContext::GetSerializationOptions(FName& OutPackageName
 	return bFoundAnything;
 }
 
-FThreadSafeCounter FSoftObjectPath::CurrentTag(1);
 TSet<FName> FSoftObjectPath::PIEPackageNames;
 
 #if WITH_LOW_LEVEL_TESTS

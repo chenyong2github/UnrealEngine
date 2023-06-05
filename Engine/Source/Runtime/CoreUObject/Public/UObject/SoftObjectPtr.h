@@ -52,7 +52,7 @@ public:
 	UObject* LoadSynchronous() const
 	{
 		UObject* Asset = Get();
-		if (Asset == nullptr && IsPending())
+		if (Asset == nullptr && !IsNull())
 		{
 			ToSoftObjectPath().TryLoad();
 			
