@@ -1079,10 +1079,6 @@ public class IOSPlatform : ApplePlatform
 		bWasGenerated = false;
 		DirectoryReference RawProjectDir = RawProjectPath.Directory;
 		DirectoryReference XcodeProj = DirectoryReference.Combine(RawProjectDir, "Intermediate/ProjectFiles", $"{RawProjectPath.GetFileNameWithoutAnyExtensions()}_{PlatformName}.xcworkspace");
-		if (!DirectoryReference.Exists(DirectoryReference.Combine(RawProjectDir, "Source")) && !DirectoryReference.Exists(DirectoryReference.Combine(RawProjectDir, "/Intermediate/Source")))
-		{
-			XcodeProj = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate/ProjectFiles/", XcodeProj.GetDirectoryName());
-		}
 		Console.WriteLine("Project: " + XcodeProj.FullName);
 		{
 			// project.xcodeproj doesn't exist, so generate temp project
