@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnimAssetFindReplace.h"
 
@@ -414,7 +414,7 @@ void SAnimAssetFindReplace::Construct(const FArguments& InArgs)
 
 void SAnimAssetFindReplace::SetCurrentProcessor(TSubclassOf<UAnimAssetFindReplaceProcessor> InProcessorClass)
 {
-	UAnimAssetFindReplaceProcessor** FoundProcessor = Processors.Find(InProcessorClass);
+	TObjectPtr<UAnimAssetFindReplaceProcessor>* FoundProcessor = Processors.Find(InProcessorClass);
 	if(FoundProcessor)
 	{
 		CurrentProcessor = *FoundProcessor;
@@ -425,7 +425,7 @@ void SAnimAssetFindReplace::SetCurrentProcessor(TSubclassOf<UAnimAssetFindReplac
 
 UAnimAssetFindReplaceProcessor* SAnimAssetFindReplace::GetProcessor(TSubclassOf<UAnimAssetFindReplaceProcessor> InProcessorClass) const
 {
-	UAnimAssetFindReplaceProcessor* const* FoundProcessor = Processors.Find(InProcessorClass);
+	const TObjectPtr<UAnimAssetFindReplaceProcessor>* FoundProcessor = Processors.Find(InProcessorClass);
 	return FoundProcessor ? *FoundProcessor : nullptr;
 }
 

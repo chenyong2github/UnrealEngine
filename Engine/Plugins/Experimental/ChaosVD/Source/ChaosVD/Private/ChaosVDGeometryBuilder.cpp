@@ -185,14 +185,14 @@ void FChaosVDGeometryBuilder::ApplyMeshToComponentFromKey(TWeakObjectPtr<UMeshCo
 
 	if (UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(MeshComponent))
 	{
-		if (UDynamicMesh** DynamicMesh = DynamicMeshCacheMap.Find(GeometryKey))
+		if (TObjectPtr<UDynamicMesh>* DynamicMesh = DynamicMeshCacheMap.Find(GeometryKey))
 		{
 			DynamicMeshComponent->SetDynamicMesh(*DynamicMesh);
 		}
 	}
 	else if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
 	{
-		if (UStaticMesh** StaticMesh = StaticMeshCacheMap.Find(GeometryKey))
+		if (TObjectPtr<UStaticMesh>* StaticMesh = StaticMeshCacheMap.Find(GeometryKey))
 		{
 			StaticMeshComponent->SetStaticMesh(*StaticMesh);
 		}

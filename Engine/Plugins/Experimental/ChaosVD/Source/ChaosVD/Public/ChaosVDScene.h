@@ -100,7 +100,7 @@ private:
 	void HandlePostSelectionChange(const UTypedElementSelectionSet* PreChangeSelectionSet);
 
 	/** UWorld instance used to represent the recorded debug data */
-	UWorld* PhysicsVDWorld = nullptr;
+	TObjectPtr<UWorld> PhysicsVDWorld = nullptr;
 
 	FChaosVDSceneUpdatedDelegate SceneUpdatedDelegate;
 
@@ -111,7 +111,7 @@ private:
 	FChaosVDOnObjectSelectedDelegate ObjectFocusedDelegate;
 
 	/** Selection set object holding the current selection state */
-	UTypedElementSelectionSet* SelectionSet;
+	TObjectPtr<UTypedElementSelectionSet> SelectionSet;
 
 	/** Array of actors with hit proxies that need to be updated */
 	TArray<AActor*> PendingActorsToUpdateSelectionProxy;

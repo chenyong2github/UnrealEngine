@@ -360,10 +360,10 @@ private:
 	TArray<FOpenSequencerData> OpenSequencers;
 
 	/** Map of opened sequence players, if not in editor mode. */
-	TMap<FName, ALevelSequenceActor*> SequencePlayers;
+	TMap<FName, TObjectPtr<ALevelSequenceActor>> SequencePlayers;
 
 	/** Map of precached sequence assets. */
-	TMap<FName, ULevelSequence*> PrecachedSequences;
+	TMap<FName, TObjectPtr<ULevelSequence>> PrecachedSequences;
 
 	/** Boolean that is set when we are handling any transport event to prevent re-entrancy */
 	bool bRespondingToTransportEvent;

@@ -314,7 +314,7 @@ public:
 
 	bool IsEnablingStreamingJustified() const { return bEnablingStreamingJustified; }
 
-	const TMap<FWorldPartitionReference, AActor*>& GetDirtyActors() const { return DirtyActors; }
+	const TMap<FWorldPartitionReference, AActor*>& GetDirtyActors() const { return ObjectPtrDecay(DirtyActors); }
 #endif
 
 public:
@@ -433,7 +433,7 @@ private:
 
 	TArray<FWorldPartitionReference> LoadedSubobjects;
 
-	TMap<FWorldPartitionReference, AActor*> DirtyActors;
+	TMap<FWorldPartitionReference, TObjectPtr<AActor>> DirtyActors;
 
 	TSet<FString> GeneratedStreamingPackageNames;
 

@@ -535,7 +535,7 @@ void FConcertClientSequencerManager::HandleAssetReload(const EPackageReloadPhase
 		return;
 	}
 
-	for (TTuple<FName, ALevelSequenceActor*>& Item : SequencePlayers)
+	for (TTuple<FName, TObjectPtr<ALevelSequenceActor>>& Item : SequencePlayers)
 	{
 		ALevelSequenceActor* LevelSequenceActor = Item.Value;
 		// If we have a null LevelSequenceActor it means that it has already been destroyed by a close event.  We will not
@@ -559,7 +559,7 @@ void FConcertClientSequencerManager::ApplyCloseEventToPlayers(const FConcertSequ
 {
 	UE_LOG(LogConcertSequencerSync, Verbose, TEXT("    Closing sequence players: %s, is from controller: %d"), *CloseEvent.SequenceObjectPath, CloseEvent.bControllerClose);
 
-	ALevelSequenceActor** Player = SequencePlayers.Find(*CloseEvent.SequenceObjectPath);
+	TObjectPtr<ALevelSequenceActor>* Player = SequencePlayers.Find(*CloseEvent.SequenceObjectPath);
 	if (!Player)
 	{
 		UE_LOG(LogConcertSequencerSync, Verbose, TEXT("        No open players to close for sequence %s"), *CloseEvent.SequenceObjectPath);
@@ -796,7 +796,7 @@ void FConcertClientSequencerManager::ApplyTimeAdjustmentToPlayers(const FConcert
 {
 	UE_LOG(LogConcertSequencerSync, Verbose, TEXT("    TimeAdjustment: Updating sequence players for sequence %s"), *TimeAdjustmentEvent.SequenceObjectPath);
 
-	ALevelSequenceActor** SeqPlayer = SequencePlayers.Find(*TimeAdjustmentEvent.SequenceObjectPath);
+	TObjectPtr<ALevelSequenceActor>* SeqPlayer = SequencePlayers.Find(*TimeAdjustmentEvent.SequenceObjectPath);
 	if (!SeqPlayer)
 	{
 		UE_LOG(LogConcertSequencerSync, Verbose, TEXT("        No sequence player for sequence %s"), *TimeAdjustmentEvent.SequenceObjectPath);
@@ -824,7 +824,7 @@ void FConcertClientSequencerManager::OnPrecacheEvent(const FConcertSessionContex
 			*SequenceObjectPathStr, bShouldPrecache ? TEXT("added to") : TEXT("removed from"));
 		if (bShouldPrecache)
 		{
-			if (ULevelSequence** ExistingSequence = PrecachedSequences.Find(SequenceObjectPath);
+			if (TObjectPtr<ULevelSequence>* ExistingSequence = PrecachedSequences.Find(SequenceObjectPath);
 				ExistingSequence && *ExistingSequence)
 			{
 				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: %s already in precache set"), *SequenceObjectPath.ToString());
@@ -974,7 +974,7 @@ void FConcertClientSequencerManager::ApplyEventToPlayers(const FConcertSequencer
 {
 	UE_LOG(LogConcertSequencerSync, Verbose, TEXT("    Transport: Update sequence player for sequence %s, at frame: %d"), *EventState.SequenceObjectPath, EventState.Time.Time.FrameNumber.Value);
 
-	ALevelSequenceActor** SeqPlayer = SequencePlayers.Find(*EventState.SequenceObjectPath);
+	TObjectPtr<ALevelSequenceActor>* SeqPlayer = SequencePlayers.Find(*EventState.SequenceObjectPath);
 	if (!SeqPlayer)
 	{
 		UE_LOG(LogConcertSequencerSync, Verbose, TEXT("        No sequence player for sequence %s"), *EventState.SequenceObjectPath);
@@ -1092,7 +1092,7 @@ void FConcertClientSequencerManager::OnWorkspaceEndFrameCompleted()
 	{
 		for (const TTuple<FName, FString>& Player : PendingDestroy)
 		{
-			if (ALevelSequenceActor** SequencePlayer = SequencePlayers.Find(Player.Get<0>()))
+			if (TObjectPtr<ALevelSequenceActor>* SequencePlayer = SequencePlayers.Find(Player.Get<0>()))
 			{
 				DestroyPlayer(*SequencePlayer);
 				SequencePlayers.Remove(Player.Get<0>());

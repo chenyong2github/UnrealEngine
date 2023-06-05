@@ -78,7 +78,7 @@ private:
 	FTimerHandle RefreshTimerHandle;
 
 	/** The view model of the focused DMX Library */
-	TArray<UDMXPixelMappingDMXLibraryViewModel*> ViewModels;
+	TArray<TObjectPtr<UDMXPixelMappingDMXLibraryViewModel>> ViewModels;
 
 	/** The toolkit of this editor */
 	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;

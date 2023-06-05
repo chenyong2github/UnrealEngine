@@ -181,7 +181,7 @@ protected:
 	bool bRefreshOnTick;
 
 	/** Holds the property objects that need to be displayed by the inspector starting on the next tick */
-	TArray<UObject*> RefreshPropertyObjects;
+	TArray<TObjectPtr<UObject>> RefreshPropertyObjects;
 
 	/** Details options that are used by the inspector on the next refresh. */
 	FShowDetailsOptions RefreshOptions;

@@ -272,8 +272,8 @@ public:
 	}
 
 private:
-	TArray<WidgetType*>	ActiveWidgets;
-	TArray<WidgetType*>	InactiveWidgets;
+	TArray<TObjectPtr<WidgetType>>	ActiveWidgets;
+	TArray<TObjectPtr<WidgetType>>	InactiveWidgets;
 	TMap<WidgetType*, TSharedPtr<SWidget>>	CachedSlateWidgets;
 	TWeakObjectPtr<UWidget> OwningWidget;
 	TSubclassOf<WidgetType>	WidgetClass;

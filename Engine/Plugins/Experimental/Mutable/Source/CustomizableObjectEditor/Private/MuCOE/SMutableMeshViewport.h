@@ -78,7 +78,7 @@ private:
 	 */
 
 	/** Mutable mesh converted into a Unreal mesh object */
-	USkeletalMeshComponent* SkeletalMeshComponent = nullptr;
+	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = nullptr;
 	
 	/** Generates a new USkeletalMesh from the MutableMesh set on this object
 	 * @return - If the operation was able to be processed or not

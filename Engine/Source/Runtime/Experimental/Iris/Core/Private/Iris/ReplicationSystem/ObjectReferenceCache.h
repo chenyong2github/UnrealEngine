@@ -156,7 +156,7 @@ private:
 
 	struct FQueuedBatchObjectReference
 	{
-		const UObject* Object = nullptr;
+		TObjectPtr<const UObject> Object = nullptr;
 		uint32 RefCount = 0U;
 	};
 

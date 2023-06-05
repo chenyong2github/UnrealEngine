@@ -358,7 +358,7 @@ private:
 	TArray<uint16> ReplicatedObjectRefCount;
 
 	// Raw pointers to all bound instances
-	TArray<UObject*> ReplicatedInstances;
+	TArray<TObjectPtr<UObject>> ReplicatedInstances;
 
 	// Assign handles
 	uint64 NextStaticHandleIndex;

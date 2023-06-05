@@ -163,10 +163,10 @@ private:
 	void RegisterMeshComponentWaitingForGeometry(uint32 GeometryKey, TWeakObjectPtr<UMeshComponent> MesComponent, const int32 LODsToGenerateNum);
 
 	/** Map containing already generated dynamic mesh for any given implicit object */
-	TMap<uint32, UDynamicMesh*> DynamicMeshCacheMap;
+	TMap<uint32, TObjectPtr<UDynamicMesh>> DynamicMeshCacheMap;
 
 	/** Map containing already generated static mesh for any given implicit object */
-	TMap<uint32, UStaticMesh*> StaticMeshCacheMap;
+	TMap<uint32, TObjectPtr<UStaticMesh>> StaticMeshCacheMap;
 
 	/** Map containing all the meshes component waiting for geometry, by geometry key*/
 	TMap<uint32, TArray<TWeakObjectPtr<UMeshComponent>>> MeshComponentsWaitingForGeometryByKey;
@@ -457,14 +457,14 @@ MeshType* FChaosVDGeometryBuilder::GetCachedMeshForImplicit(const uint32 Geometr
 {
 	if constexpr (std::is_same_v<MeshType, UDynamicMesh>)
 	{
-		if (MeshType** MeshPtrPtr = DynamicMeshCacheMap.Find(GeometryCacheKey))
+		if (TObjectPtr<MeshType>* MeshPtrPtr = DynamicMeshCacheMap.Find(GeometryCacheKey))
 		{
 			return *MeshPtrPtr;
 		}
 	}
 	else if constexpr (std::is_same_v<MeshType, UStaticMesh>)
 	{
-		if (MeshType** MeshPtrPtr = StaticMeshCacheMap.Find(GeometryCacheKey))
+		if (TObjectPtr<MeshType>* MeshPtrPtr = StaticMeshCacheMap.Find(GeometryCacheKey))
 		{
 			return *MeshPtrPtr;
 		}

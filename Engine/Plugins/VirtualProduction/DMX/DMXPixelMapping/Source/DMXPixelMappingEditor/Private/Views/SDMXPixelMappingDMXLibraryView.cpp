@@ -213,7 +213,7 @@ void SDMXPixelMappingDMXLibraryView::OnComponentSelected()
 		UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
 		do
 		{
-			UDMXPixelMappingDMXLibraryViewModel* const* CorrespondingViewModelPtr = Algo::FindByPredicate(ViewModels, [Component](const UDMXPixelMappingDMXLibraryViewModel* ViewModel)
+			TObjectPtr<UDMXPixelMappingDMXLibraryViewModel>* CorrespondingViewModelPtr = Algo::FindByPredicate(ViewModels, [Component](const UDMXPixelMappingDMXLibraryViewModel* ViewModel)
 				{
 					return ViewModel->GetFixtureGroupComponent() == Component;
 				});

@@ -69,7 +69,7 @@ private:
 		/** If the above Image has not been loaded in the game thread, the TextureToLoad bulk data will be loaded
 		* from the Mutable thread when it's needed
 		*/
-		UTexture2D* TextureToLoad = nullptr;
+		TObjectPtr<UTexture2D> TextureToLoad = nullptr;
 
 		/** true of the reference maintained by the user. */
 		bool ReferencesUser = false;

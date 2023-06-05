@@ -118,10 +118,10 @@ private:
 	void BuildComponentInfos(const FName Name, const UScriptStruct* Struct, TArray<FComponentInfo>& ComponentInfos);
 	
 	// The sim cache being viewed
-	UNiagaraSimCache* SimCache = nullptr;
+	TObjectPtr<UNiagaraSimCache> SimCache = nullptr;
 
 	// Component for preview scene
-	UNiagaraComponent* PreviewComponent = nullptr;
+	TObjectPtr<UNiagaraComponent> PreviewComponent = nullptr;
 
 	// Which frame of the cached sim is being viewed
 	int32 FrameIndex = 0;
