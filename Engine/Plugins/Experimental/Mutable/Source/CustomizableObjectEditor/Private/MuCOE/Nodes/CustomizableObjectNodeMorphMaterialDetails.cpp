@@ -51,14 +51,17 @@ void FCustomizableObjectNodeMorphMaterialDetails::CustomizeDetails( IDetailLayou
 			{
 				if ( const UCustomizableObjectNodeSkeletalMesh* TypedSourceNode = Cast<UCustomizableObjectNodeSkeletalMesh>(BaseSourcePin->GetOwningNode()) )
 				{
-					for (int m = 0; m < TypedSourceNode->SkeletalMesh->GetMorphTargets().Num(); ++m )
+					if (TypedSourceNode->SkeletalMesh)
 					{
-						FString MorphName = *TypedSourceNode->SkeletalMesh->GetMorphTargets()[m]->GetName();
-						MorphTargetComboOptions.Add( MakeShareable( new FString( MorphName ) ) );
-
-						if (Node->MorphTargetName == MorphName)
+						for (int m = 0; m < TypedSourceNode->SkeletalMesh->GetMorphTargets().Num(); ++m )
 						{
-							ItemToSelect = MorphTargetComboOptions.Last();
+							FString MorphName = *TypedSourceNode->SkeletalMesh->GetMorphTargets()[m]->GetName();
+							MorphTargetComboOptions.Add( MakeShareable( new FString( MorphName ) ) );
+
+							if (Node->MorphTargetName == MorphName)
+							{
+								ItemToSelect = MorphTargetComboOptions.Last();
+							}
 						}
 					}
 				}

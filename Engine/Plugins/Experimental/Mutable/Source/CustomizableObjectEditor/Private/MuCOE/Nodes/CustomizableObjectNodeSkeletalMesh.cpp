@@ -52,7 +52,10 @@ void UCustomizableObjectNodeSkeletalMesh::AllocateDefaultPins(UCustomizableObjec
 
 	if (!SkeletalMesh)
 	{
-		DefaultPin = CustomCreatePin(EGPD_Output, Schema->PC_Mesh, FName(SKELETAL_MESH_PIN_NAME));
+		UCustomizableObjectNodeSkeletalMeshPinDataMesh* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataMesh>(this);
+		PinData->Init(-1, -1);
+		
+		DefaultPin = CustomCreatePin(EGPD_Output, Schema->PC_Mesh, FName(SKELETAL_MESH_PIN_NAME), PinData);
 		return;
 	}
 	else
@@ -618,6 +621,17 @@ void UCustomizableObjectNodeSkeletalMesh::BackwardsCompatibleFixup()
 	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::IgnoreDisabledSections)
 	{
 		ReconstructNode(); // Pins representing disabled sections could be present. 
+	}
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::SkeletalMeshNodeDefaultPinWithoutPinData)
+	{
+		if (const UEdGraphPin* Pin = DefaultPin.Get())
+		{
+			UCustomizableObjectNodeSkeletalMeshPinDataMesh* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataMesh>(this);
+			PinData->Init(-1, -1);
+
+			AddPinData(*Pin, *PinData);
+		}
 	}
 }
 
