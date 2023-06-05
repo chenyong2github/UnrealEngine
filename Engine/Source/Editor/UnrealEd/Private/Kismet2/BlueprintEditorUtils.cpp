@@ -134,6 +134,7 @@
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Misc/MessageDialog.h"
 #include "UObject/FastReferenceCollector.h"
+#include "INotifyFieldValueChanged.h"
 
 #define LOCTEXT_NAMESPACE "Blueprint"
 
@@ -2730,6 +2731,28 @@ void FBlueprintEditorUtils::RemoveGraphs( UBlueprint* Blueprint, const TArray<cl
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 }
 
+namespace UE::Private
+{
+	// Given a function graph, check if it's field notify and remove its name from the meta data of all field notify variables.
+	static void RemoveFieldNotifyFunctionFromAllMetaData(UBlueprint* Blueprint, class UEdGraph* FunctionGraphToRemove)
+	{
+		if (Blueprint->FunctionGraphs.Contains(FunctionGraphToRemove) && FBlueprintEditorUtils::ImplementsInterface(Blueprint, true, UNotifyFieldValueChanged::StaticClass()))
+		{
+			for (UEdGraphNode* Node : FunctionGraphToRemove->Nodes)
+			{
+				if (UK2Node_FunctionEntry* NodeFunctionEntry = Cast<UK2Node_FunctionEntry>(Node))
+				{
+					if (NodeFunctionEntry->MetaData.HasMetaData(FBlueprintMetadata::MD_FieldNotify))
+					{
+						FBlueprintEditorUtils::RemoveFieldNotifyFromAllMetadata(Blueprint, FunctionGraphToRemove->GetFName());
+					}
+					break;
+				}
+			}
+		}
+	}
+}
+
 // Removes the supplied graph from the Blueprint.
 void FBlueprintEditorUtils::RemoveGraph(UBlueprint* Blueprint, class UEdGraph* GraphToRemove, EGraphRemoveFlags::Type Flags /*= Transient | Recompile */)
 {
@@ -2739,6 +2762,8 @@ void FBlueprintEditorUtils::RemoveGraph(UBlueprint* Blueprint, class UEdGraph* G
 	{
 		if (TestOuter == Blueprint)
 		{
+			UE::Private::RemoveFieldNotifyFunctionFromAllMetaData(Blueprint, GraphToRemove);
+
 			Blueprint->DelegateSignatureGraphs.Remove( GraphToRemove );
 			Blueprint->FunctionGraphs.Remove( GraphToRemove );
 			Blueprint->UbergraphPages.Remove( GraphToRemove );
@@ -4939,9 +4964,43 @@ void FBlueprintEditorUtils::RemoveMemberVariable(UBlueprint* Blueprint, const FN
 	const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, VarName);
 	if (VarIndex != INDEX_NONE)
 	{
+		if ( Blueprint->NewVariables[VarIndex].HasMetaData(FBlueprintMetadata::MD_FieldNotify) && FBlueprintEditorUtils::ImplementsInterface(Blueprint, true, UNotifyFieldValueChanged::StaticClass()) )
+		{
+			RemoveFieldNotifyFromAllMetadata(Blueprint, VarName);
+		}
 		Blueprint->NewVariables.RemoveAt(VarIndex);
 		FBlueprintEditorUtils::RemoveVariableNodes(Blueprint, VarName);
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+	}
+}
+
+// Removes the field name from the field notify metadata of all functions and variables
+void FBlueprintEditorUtils::RemoveFieldNotifyFromAllMetadata(UBlueprint* Blueprint, const FName FieldName)
+{
+	// Go through all field notify variables and remove FieldName from their metadata.
+	for (int32 i = 0; i < Blueprint->NewVariables.Num(); ++i)
+	{
+		FBPVariableDescription& Variable = Blueprint->NewVariables[i];
+		if (Variable.HasMetaData(FBlueprintMetadata::MD_FieldNotify))
+		{
+			FString FieldNotifyValues = Variable.GetMetaData(FBlueprintMetadata::MD_FieldNotify);
+			TArray<FString> ListOfFieldNotifies;
+			const TCHAR* Delimiter = TEXT("|");
+
+			FieldNotifyValues.ParseIntoArray(ListOfFieldNotifies, Delimiter);
+			if (ListOfFieldNotifies.Contains(FieldName.ToString()))
+			{
+				ListOfFieldNotifies.Remove(FieldName.ToString());
+				if (ListOfFieldNotifies.Num() > 0)
+				{
+					FBlueprintEditorUtils::SetBlueprintVariableMetaData(Blueprint, Variable.VarName, NULL, FBlueprintMetadata::MD_FieldNotify, FString::Join(ListOfFieldNotifies, Delimiter));
+				}
+				else
+				{
+					FBlueprintEditorUtils::SetBlueprintVariableMetaData(Blueprint, Variable.VarName, NULL, FBlueprintMetadata::MD_FieldNotify, TEXT(""));
+				}
+			}
+		}
 	}
 }
 
@@ -6068,6 +6127,7 @@ namespace UE::Blueprint::Private
 
 		return false;
 	}
+
 }
 
 bool FBlueprintEditorUtils::IsVariableUsed(const UBlueprint* Blueprint, const FName& VariableName, const UEdGraph* LocalGraphScope /* = nullptr */)

@@ -65,6 +65,7 @@ public class UnrealEd : ModuleRules
 				"BlueprintGraph",
 				"HTTP",
 				"FunctionalTesting",
+				"AutomationController",
 				"Localization",
 				"AudioEditor",
 				"NetworkFileSystem",
@@ -84,6 +85,7 @@ public class UnrealEd : ModuleRules
 				"InterchangeEngine",
 				"DeveloperToolSettings",
 				"SubobjectDataInterface",
+				"SubobjectEditor",
 				"PhysicsUtilities",
 				"ToolWidgets",
 				"AssetTools", 
@@ -174,6 +176,7 @@ public class UnrealEd : ModuleRules
 				"BuildSettings",
 				"SubobjectEditor",
 				"HeadMountedDisplay",
+				"FieldNotification",
 			}
 		);
 

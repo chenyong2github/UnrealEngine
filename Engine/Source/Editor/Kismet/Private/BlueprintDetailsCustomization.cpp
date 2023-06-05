@@ -99,6 +99,7 @@
 #include "PropertyHandle.h"
 #include "PropertyRestriction.h"
 #include "SBlueprintNamespaceEntry.h"
+#include "SFieldNotificationCheckList.h"
 #include "SGraphPin.h"
 #include "SKismetInspector.h"
 #include "SPinTypeSelector.h"
@@ -522,7 +523,7 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		.ToolTip(ReadOnlyTooltip)
 	];
 	
-	if (BlueprintPtr && FBlueprintEditorUtils::ImplementsInterface(BlueprintPtr, true, UNotifyFieldValueChanged::StaticClass()))
+	if (BlueprintPtr && FBlueprintEditorUtils::ImplementsInterface(BlueprintPtr, true, UNotifyFieldValueChanged::StaticClass()) && !MyBlueprint.Pin()->SelectionAsDelegate())
 	{
 		// Show the flag if the class implement the interface but only allow the flag to be changed if the variable is defined in BP
 		const FText ToolTip = LOCTEXT("FieldNotifyToolTip", "Generate a field entry for the Field Notification system.");
@@ -538,11 +539,25 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 			]
 			.ValueContent()
 			[
-				SNew(SCheckBox)
-				.IsChecked(this, &FBlueprintVarActionDetails::OnFieldNotifyCheckboxState)
-				.OnCheckStateChanged(this, &FBlueprintVarActionDetails::OnFieldNotifyChanged)
-				.IsEnabled(GetPropertyOwnerBlueprint() && IsABlueprintVariable(VariableProperty) && IsAUserVariable(VariableProperty))
-				.ToolTip(FieldNotificationTooltip)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SCheckBox)
+					.IsChecked(this, &FBlueprintVarActionDetails::OnFieldNotifyCheckboxState)
+					.OnCheckStateChanged(this, &FBlueprintVarActionDetails::OnFieldNotifyChanged)
+					.IsEnabled(GetPropertyOwnerBlueprint() && IsABlueprintVariable(VariableProperty) && IsAUserVariable(VariableProperty))
+					.ToolTip(FieldNotificationTooltip)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(UE::FieldNotification::SFieldNotificationCheckList)
+					.FieldName(CachedVariableName)
+					.BlueprintPtr(BlueprintPtr)
+					.Visibility(this, &FBlueprintVarActionDetails::GetFieldNotifyCheckboxListVisiblity)
+				]
+
 			];
 	}
 
@@ -1942,8 +1957,26 @@ void FBlueprintVarActionDetails::OnFieldNotifyChanged(ECheckBoxState InNewState)
 	}
 	else
 	{
+		FBlueprintEditorUtils::RemoveFieldNotifyFromAllMetadata(BlueprintObj, VarName);
 		FBlueprintEditorUtils::RemoveBlueprintVariableMetaData(GetBlueprintObj(), VarName, GetLocalVariableScope(CachedVariableProperty.Get()), FBlueprintMetadata::MD_FieldNotify);
 	}
+}
+
+EVisibility FBlueprintVarActionDetails::GetFieldNotifyCheckboxListVisiblity() const
+{
+	UBlueprint* const BlueprintObj = GetBlueprintObj();
+	const FName VarName = CachedVariableName;
+
+	if (BlueprintObj && !VarName.IsNone())
+	{
+		// Only show the list of checkboxes in the details panel when this variable is field notify.
+		const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(BlueprintObj, VarName);
+		if (VarIndex != INDEX_NONE)
+		{
+			return BlueprintObj->NewVariables[VarIndex].HasMetaData(FBlueprintMetadata::MD_FieldNotify) ? EVisibility::Visible : EVisibility::Collapsed;
+		}
+	}
+	return EVisibility::Collapsed;
 }
 
 ECheckBoxState FBlueprintVarActionDetails::OnCreateWidgetCheckboxState() const
@@ -4045,6 +4078,32 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 						.Font( IDetailLayoutBuilder::GetDetailFont() )
 					];
 			}
+			 
+			UBlueprint* BlueprintPtr = GetBlueprintObj();
+			
+			if (BlueprintPtr && IsFieldNotifyCheckVisible())
+			{
+				const FText ToolTip = LOCTEXT("FieldNotifyToolTip", "Generate a field entry for the Field Notification system.");
+				const FString DocLink = TEXT("Shared/Editors/BlueprintEditor/GraphDetails");
+				TSharedPtr<SToolTip> FieldNotificationTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("FieldNotifyToolTip", "Generate a field entry for the Field Notification system."), NULL, DocLink, TEXT("FieldNotify"));
+
+				Category.AddCustomRow(LOCTEXT("IsFunctionFieldNotifyLabel", "Field Notify"))
+					.NameContent()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("IsFunctionFieldNotifyLabel", "Field Notify"))
+						.ToolTip(FieldNotificationTooltip)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+					.ValueContent()
+					[
+						SNew(SCheckBox)
+						.IsChecked(this, &FBlueprintGraphActionDetails::OnFieldNotifyCheckboxState)
+						.OnCheckStateChanged(this, &FBlueprintGraphActionDetails::OnFieldNotifyChanged)
+						.IsEnabled(this, &FBlueprintGraphActionDetails::GetIsFieldNotfyEnabled)
+						.ToolTip(FieldNotificationTooltip)
+					];
+			}
 
 			if (GetInstanceColorVisibility())
 			{
@@ -4555,6 +4614,81 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 	}
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+bool FBlueprintGraphActionDetails::IsFieldNotifyCheckVisible() const
+{
+	bool bSupportedType = false;
+	bool bIsEditable = false;
+	bool bImplementsFieldNotify = false;
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
+	UFunction* Function = FindFunction();
+
+	if (FunctionEntryNode && Function)
+	{
+		UBlueprint* Blueprint = FunctionEntryNode->GetBlueprint();
+		const bool bIsInterface = FBlueprintEditorUtils::IsInterfaceBlueprint(Blueprint);
+		bImplementsFieldNotify = FBlueprintEditorUtils::ImplementsInterface(Blueprint, true, UNotifyFieldValueChanged::StaticClass());
+
+		bSupportedType = !bIsInterface && FunctionEntryNode->IsA<UK2Node_FunctionEntry>();
+		bIsEditable = FunctionEntryNode->IsEditable();
+	}
+	return bSupportedType && bIsEditable && bImplementsFieldNotify;
+}
+
+bool FBlueprintGraphActionDetails::GetIsFieldNotfyEnabled() const
+{
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
+	UK2Node_EditablePinBase* FunctionResultNode = FunctionResultNodePtr.Get();
+
+	if (FunctionEntryNode && FunctionResultNode)
+	{
+		return GetIsConstFunction() == ECheckBoxState::Checked && GetIsPureFunction() == ECheckBoxState::Checked && FunctionEntryNode->GetAllPins().Num() == 1 && FunctionResultNode->GetAllPins().Num() == 2;
+	}
+	return false;
+}
+
+ECheckBoxState FBlueprintGraphActionDetails::OnFieldNotifyCheckboxState() const
+{
+	UBlueprint* const BlueprintObj = GetBlueprintObj();
+	const FName FuncName = FindFunction()->GetFName();
+
+	if (BlueprintObj && GetIsFieldNotfyEnabled())
+	{
+		if (!FuncName.IsNone())
+		{
+			return GetMetadataBlock()->HasMetaData(FBlueprintMetadata::MD_FieldNotify) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		}
+		else if (BlueprintObj->GeneratedClass && BlueprintObj->GeneratedClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()) && BlueprintObj->GeneratedClass->GetDefaultObject())
+		{
+			TScriptInterface<INotifyFieldValueChanged> DefaultObject = BlueprintObj->GeneratedClass->GetDefaultObject();
+			return DefaultObject->GetFieldNotificationDescriptor().GetField(BlueprintObj->GeneratedClass, FuncName).IsValid() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		}
+	}
+
+	FBlueprintEditorUtils::RemoveFieldNotifyFromAllMetadata(BlueprintObj, FuncName);
+	GetMetadataBlock()->RemoveMetaData(FBlueprintMetadata::MD_FieldNotify);
+	return ECheckBoxState::Unchecked;
+}
+
+void FBlueprintGraphActionDetails::OnFieldNotifyChanged(ECheckBoxState InNewState)
+{
+	UBlueprint* const BlueprintObj = GetBlueprintObj();
+	FName FuncName = FindFunction()->GetFName();
+	const bool bFuncIsFieldNotify = InNewState == ECheckBoxState::Checked;
+
+	if (BlueprintObj)
+	{
+		if (bFuncIsFieldNotify)
+		{
+			GetMetadataBlock()->SetMetaData(FBlueprintMetadata::MD_FieldNotify, FString());
+		}
+		else
+		{
+			FBlueprintEditorUtils::RemoveFieldNotifyFromAllMetadata(BlueprintObj, FuncName);
+			GetMetadataBlock()->RemoveMetaData(FBlueprintMetadata::MD_FieldNotify);
+		}
+	}
+}
 
 TSharedRef<ITableRow> FBlueprintGraphActionDetails::OnGenerateReplicationComboWidget( TSharedPtr<FReplicationSpecifierLabel> InNetFlag, const TSharedRef<STableViewBase>& OwnerTable )
 {

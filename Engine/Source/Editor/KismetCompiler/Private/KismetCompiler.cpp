@@ -2547,6 +2547,14 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 			}
 		}
 
+		if (Context.EntryPoint && Context.Function)
+		{
+			if (Context.EntryPoint->MetaData.HasMetaData(FBlueprintMetadata::MD_FieldNotify) && NewClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
+			{
+				ensure(!NewClass->FieldNotifies.Contains(FFieldNotificationId(Context.Function->GetFName())));
+				NewClass->FieldNotifies.Add(FFieldNotificationId(Context.Function->GetFName()));
+			}
+		}
 	}
 	else
 	{

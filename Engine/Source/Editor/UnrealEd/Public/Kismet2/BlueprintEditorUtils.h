@@ -895,6 +895,13 @@ public:
 	static void BulkRemoveMemberVariables(UBlueprint* Blueprint, const TArray<FName>& VarNames);
 
 	/**
+	 * Removes a field notify variable from the metadata of all other field notify variables and functions.
+	 *
+	 * @param	VarName	Name of the variable to be removed.
+	 */
+	static void RemoveFieldNotifyFromAllMetadata(UBlueprint* Blueprint, const FName VarName);
+
+	/**
 	 * Removes all unused member variables.
 	 *
 	 * @param	OutUsedProperties	The list of used variables in the blueprint
