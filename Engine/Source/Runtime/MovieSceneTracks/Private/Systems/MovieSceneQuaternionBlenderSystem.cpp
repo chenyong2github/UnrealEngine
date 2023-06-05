@@ -243,7 +243,7 @@ void UMovieSceneQuaternionBlenderSystem::OnSchedulePersistentTasks(UE::MovieScen
 	.FilterNone({ BuiltInComponents->Tags.Ignored })
 	.Schedule_PerEntity<FAccumulateAbsoluteWeights>(&Linker->EntityManager, TaskScheduler, &Buffers);
 
-	TaskScheduler->AddPrerequisite(ResetBufferTask, AdditivesTask);
+	TaskScheduler->AddPrerequisite(ResetBufferTask, CollectWeightsTask);
 
 	// Next we accumulate normalized transforms
 	FTaskID AbsolutesTask = FEntityTaskBuilder()
