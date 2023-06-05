@@ -59,15 +59,9 @@ struct FAsyncPhysicsInputRewindCallback : public Chaos::IRewindCallback
 	virtual int32 TriggerRewindIfNeeded_Internal(int32 LatestStepCompleted) override
 	{
 		int32 CachedClientFrame = INDEX_NONE;
-		if (World->GetNetMode() == NM_Client && World->GetPhysicsScene())
+		if (World->GetNetMode() == NM_Client && RewindData != nullptr)
 		{
-			if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(World->GetPhysicsScene()))
-			{
-				if (const IPhysicsReplication* PhysicsReplication  = Scene->GetPhysicsReplication())
-				{
-					CachedClientFrame = Scene->GetPhysicsReplication()->GetResimFrame();
-				}
-			}
+			CachedClientFrame = RewindData->GetResimFrame();
 		}
 
 		return CachedClientFrame;

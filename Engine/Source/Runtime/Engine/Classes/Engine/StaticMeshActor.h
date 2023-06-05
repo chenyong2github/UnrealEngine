@@ -33,6 +33,10 @@ public:
 	UPROPERTY(Category=Actor, EditAnywhere, AdvancedDisplay)
 	bool bStaticMeshReplicateMovement;
 
+	/** Set which replication mode to use for this static mesh instance if it both replicates and simulates physics. */
+	UPROPERTY(Category = Actor, EditAnywhere, AdvancedDisplay)
+	EPhysicsReplicationMode StaticMeshPhysicsReplicationMode;
+
 	UE_DEPRECATED(5.0, "Unused property. The actor will use the DefaultGeometryGatheringMode set in FNavigationOctree (see virtual ENavDataGatheringMode GetGeometryGatheringMode()).")
 	UPROPERTY(EditAnywhere, Category = Navigation, AdvancedDisplay)
 	ENavDataGatheringMode NavigationGeometryGatheringMode;

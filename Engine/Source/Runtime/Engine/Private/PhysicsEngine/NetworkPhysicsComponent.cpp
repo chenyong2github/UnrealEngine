@@ -115,36 +115,26 @@ int32 FNetworkPhysicsCallback::TriggerRewindIfNeeded_Internal(int32 LatestStepCo
 	UE_LOG(LogTemp, Log, TEXT("CLIENT | PT | TriggerRewindIfNeeded_Internal | Callbacks Frame = %d"), ResimFrame);
 #endif
 
-	if (World->GetNetMode() == NM_Client && World->GetPhysicsScene())
+	if (RewindData)
 	{
-		if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(World->GetPhysicsScene()))
+		if (World->GetNetMode() == NM_Client)
 		{
-			if (const IPhysicsReplication* PhysicsReplication = Scene->GetPhysicsReplication())
-			{
-				const int32 ReplicationFrame = PhysicsReplication->GetResimFrame();
+			const int32 ReplicationFrame = RewindData->GetResimFrame();
 
 #if DEBUG_NETWORK_PHYSICS
-				UE_LOG(LogTemp, Log, TEXT("CLIENT | PT | TriggerRewindIfNeeded_Internal | Replication Frame = %d"), ReplicationFrame);
+			UE_LOG(LogTemp, Log, TEXT("CLIENT | PT | TriggerRewindIfNeeded_Internal | Replication Frame = %d"), ReplicationFrame);
 #endif
-				ResimFrame = (ResimFrame == INDEX_NONE) ? ReplicationFrame : (ReplicationFrame == INDEX_NONE) ? ResimFrame : FMath::Min(ReplicationFrame, ResimFrame);
-				Scene->GetPhysicsReplication()->SetResimFrame(INDEX_NONE);
-			}
+			ResimFrame = (ResimFrame == INDEX_NONE) ? ReplicationFrame : (ReplicationFrame == INDEX_NONE) ? ResimFrame : FMath::Min(ReplicationFrame, ResimFrame);
+			RewindData->SetResimFrame(INDEX_NONE);
 		}
-	}
 
-	if(ResimFrame != INDEX_NONE)
-	{ 
-		FPhysScene* PhysScene = World->GetPhysicsScene();
-		if (ensureAlways(PhysScene))
+		if (ResimFrame != INDEX_NONE)
 		{
-			if (Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver())
-			{
-				const int32 ValidFrame = Solver->GetRewindData()->FindValidResimFrame(ResimFrame);
+			const int32 ValidFrame = RewindData->FindValidResimFrame(ResimFrame);
 #if DEBUG_NETWORK_PHYSICS
-				UE_LOG(LogTemp, Log, TEXT("CLIENT | PT | TriggerRewindIfNeeded_Internal | Resim Frame = %d | Valid Frame = %d"), ResimFrame, ValidFrame);
+			UE_LOG(LogTemp, Log, TEXT("CLIENT | PT | TriggerRewindIfNeeded_Internal | Resim Frame = %d | Valid Frame = %d"), ResimFrame, ValidFrame);
 #endif
-				ResimFrame = ValidFrame;
-			}
+			ResimFrame = ValidFrame;
 		}
 	}
 	

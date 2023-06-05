@@ -827,17 +827,17 @@ void FRewindData::ExtendHistoryWithFrame(const int32 Frame)
 	FramesSaved = FMath::Max(CurFrame - Frame+1, FramesSaved);
 }
 
-int32 FRewindData::FindValidResimFrame(const int32 ResimFrame)
+int32 FRewindData::FindValidResimFrame(const int32 RequestedFrame)
 {
 	int32 ValidFrame = INDEX_NONE;
-	if(ResimFrame > 0)
+	if(RequestedFrame > 0)
 	{
 		EnsureIsInPhysicsThreadContext();
 
 		// First frame of the history datas
 		const int32 EarliestFrame = FMath::Max(GetEarliestFrame_Internal(), 0);
 	
-		for(ValidFrame = ResimFrame; ValidFrame >= EarliestFrame; --ValidFrame)
+		for(ValidFrame = RequestedFrame; ValidFrame >= EarliestFrame; --ValidFrame)
 		{
 			bool bHasTargetHistory = true;
 			for (FDirtyParticleInfo& DirtyParticleInfo : DirtyParticles)

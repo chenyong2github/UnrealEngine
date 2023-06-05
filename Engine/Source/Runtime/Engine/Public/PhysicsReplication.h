@@ -13,11 +13,9 @@
 #include "Physics/PhysicsInterfaceDeclares.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "Chaos/Particles.h"
-
-namespace Chaos
-{
-	struct FSimCallbackInput;
-}
+#include "Chaos/PhysicsObject.h"
+#include "Chaos/SimCallbackObject.h"
+#include "Physics/PhysicsInterfaceUtils.h"
 
 namespace CharacterMovementCVars
 {
@@ -49,12 +47,120 @@ namespace PhysicsReplicationCVars
 
 class FPhysScene_PhysX;
 
+
+// -------- Async Flow ------->
+
+struct FPhysicsRepErrorCorrectionData
+{
+	float LinearVelocityCoefficient;
+	float AngularVelocityCoefficient;
+	float PositionLerp;
+	float AngleLerp;
+};
+
+/** Final computed desired state passed into the physics sim */
+struct FPhysicsRepAsyncInputData
+{
+	FRigidBodyState TargetState;
+	Chaos::FSingleParticlePhysicsProxy* Proxy; // Used for legacy (BodyInstance) flow
+	Chaos::FPhysicsObject* PhysicsObject;
+	TOptional<FPhysicsRepErrorCorrectionData> ErrorCorrection;
+	EPhysicsReplicationMode RepMode;
+	int32 ServerFrame;
+	int32 FrameOffset;
+	float LatencyOneWay;
+
+	FPhysicsRepAsyncInputData()
+		: Proxy(nullptr)
+		, PhysicsObject(nullptr)
+		, RepMode(EPhysicsReplicationMode::Default)
+	{};
+};
+
+struct FPhysicsReplicationAsyncInput : public Chaos::FSimCallbackInput
+{
+	FPhysicsRepErrorCorrectionData ErrorCorrection;
+	TArray<FPhysicsRepAsyncInputData> InputData;
+	void Reset()
+	{
+		InputData.Reset();
+	}
+};
+
+
+struct FReplicatedPhysicsTargetAsync
+{
+	FReplicatedPhysicsTargetAsync()
+		: AccumulatedErrorSeconds(0.0f)
+		, ServerFrame(0)
+		, PhysicsObject(nullptr)
+	{ }
+
+	/** The target state replicated by server */
+	FRigidBodyState TargetState;
+
+	/** Physics sync error accumulation */
+	float AccumulatedErrorSeconds;
+
+	/** Correction values from previous update */
+	FVector PrevPosTarget;
+	FVector PrevPos;
+
+	/** ServerFrame this target was replicated on (must be converted to local frame prior to client-side use) */
+	int32 ServerFrame;
+
+	/** Index of physics object on component */
+	Chaos::FPhysicsObject* PhysicsObject;
+
+	/** The frame offset between local client and server */
+	int32 FrameOffset;
+
+	/** The replication mode this PhysicsObject should use */
+	EPhysicsReplicationMode RepMode;
+};
+
+class FPhysicsReplicationAsync : public Chaos::TSimCallbackObject<
+	FPhysicsReplicationAsyncInput,
+	Chaos::FSimCallbackNoOutput,
+	Chaos::ESimCallbackOptions::Presimulate>
+{
+	virtual FName GetFNameForStatId() const override;
+	virtual void OnPreSimulate_Internal() override;
+	virtual void ApplyTargetStatesAsync(const float DeltaSeconds, const FPhysicsRepErrorCorrectionData& ErrorCorrection, const TArray<FPhysicsRepAsyncInputData>& TargetStates);
+
+	// Replication functions
+	virtual void DefaultReplication_DEPRECATED(Chaos::FRigidBodyHandle_Internal* Handle, const FPhysicsRepAsyncInputData& State, const float DeltaSeconds, const FPhysicsRepErrorCorrectionData& ErrorCorrection);
+	virtual bool DefaultReplication(Chaos::FPBDRigidParticleHandle* Handle, FReplicatedPhysicsTargetAsync& Target, const float DeltaSeconds);
+	virtual bool PredictiveInterpolation(Chaos::FPBDRigidParticleHandle* Handle, FReplicatedPhysicsTargetAsync& Target, const float DeltaSeconds);
+	virtual bool ResimulationReplication(Chaos::FPBDRigidParticleHandle* Handle, FReplicatedPhysicsTargetAsync& Target, const float DeltaSeconds);
+
+private:
+	float LatencyOneWay;
+	FRigidBodyErrorCorrection ErrorCorrectionDefault;
+	TMap<Chaos::FPhysicsObject*, FReplicatedPhysicsTargetAsync> ObjectToTarget;
+
+private:
+	void UpdateAsyncTarget(const FPhysicsRepAsyncInputData& Input);
+	void UpdateRewindDataTarget(const FPhysicsRepAsyncInputData& Input);
+
+public:
+	void Setup(FRigidBodyErrorCorrection ErrorCorrection)
+	{
+		ErrorCorrectionDefault = ErrorCorrection;
+	}
+};
+
+// <-------- Async Flow --------
+
+
+
 struct FReplicatedPhysicsTarget
 {
-	FReplicatedPhysicsTarget() :
-		ArrivedTimeSeconds(0.0f),
-		AccumulatedErrorSeconds(0.0f),
-		ServerFrame(0)
+	FReplicatedPhysicsTarget()
+		: ArrivedTimeSeconds(0.0f)
+		, AccumulatedErrorSeconds(0.0f)
+		, ServerFrame(0)
+		, PhysicsObject(nullptr)
 	{ }
 
 	/** The target state replicated by server */
@@ -76,36 +182,16 @@ struct FReplicatedPhysicsTarget
 	/** ServerFrame this target was replicated on (must be converted to local frame prior to client-side use) */
 	int32 ServerFrame;
 
+	/** Index of physics object on component */
+	Chaos::FPhysicsObject* PhysicsObject;
+
+	/** The replication mode the target should be used with */
+	EPhysicsReplicationMode ReplicationMode;
+
 #if !UE_BUILD_SHIPPING
 	FDebugFloatHistory ErrorHistory;
 #endif
 };
-
-struct ErrorCorrectionData
-{
-	float LinearVelocityCoefficient;
-	float AngularVelocityCoefficient;
-	float PositionLerp;
-	float AngleLerp;
-};
-
-/** Final computed desired state passed into the physics sim */
-struct FAsyncPhysicsDesiredState
-{
-	FTransform WorldTM;
-	FVector LinearVelocity;
-	FVector AngularVelocity;
-	Chaos::FSingleParticlePhysicsProxy* Proxy;
-	TOptional<ErrorCorrectionData> ErrorCorrection;
-	bool bShouldSleep;
-};
-
-struct FBodyInstance;
-struct FRigidBodyErrorCorrection;
-class UWorld;
-class UPrimitiveComponent;
-class FPhysicsReplicationAsyncCallback;
-struct FAsyncPhysicsRepCallbackData;
 
 class ENGINE_API FPhysicsReplication : public IPhysicsReplication
 {
@@ -123,15 +209,12 @@ public:
 	UE_DEPRECATED(5.1, "SetReplicatedTarget now takes the ServerFrame.  Please update calls and overloads.")
 	virtual void SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget) { SetReplicatedTarget(Component, BoneName, ReplicatedTarget, 0); }
 	virtual void SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame) override;
+private:
+	void SetReplicatedTarget(Chaos::FPhysicsObject* PhysicsObject, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame, EPhysicsReplicationMode ReplicationMode = EPhysicsReplicationMode::Default);
 
+public:
 	/** Remove the replicated target*/
 	virtual void RemoveReplicatedTarget(UPrimitiveComponent* Component) override;
-
-	/** Get the resim frame (min server frame from the targets) */
-	virtual int32 GetResimFrame() const override;
-
-	/** Set the resim frame for replication */
-	virtual void SetResimFrame(const int32 InResimFrame) override;
 
 protected:
 
@@ -155,18 +238,13 @@ private:
 	/** Get the ping from  */
 	float GetOwnerPing(const AActor* const Owner, const FReplicatedPhysicsTarget& Target) const;
 
-	static void ApplyAsyncDesiredState(float DeltaSeconds, const FAsyncPhysicsRepCallbackData* Input);
-
 private:
-	TMap<TWeakObjectPtr<UPrimitiveComponent>, FReplicatedPhysicsTarget> ComponentToTargets;
+	TMap<TWeakObjectPtr<UPrimitiveComponent>, FReplicatedPhysicsTarget> ComponentToTargets_DEPRECATED; // This collection is keeping the legacy flow working until fully deprecated in a future release
+	TArray<FReplicatedPhysicsTarget> ReplicatedTargetsQueue;
 	FPhysScene* PhysScene;
 
-	FPhysicsReplicationAsyncCallback* AsyncCallback;
-	
+	FPhysicsReplicationAsync* PhysicsReplicationAsync;
+	FPhysicsReplicationAsyncInput* AsyncInput;	//async data being written into before we push into callback
+
 	void PrepareAsyncData_External(const FRigidBodyErrorCorrection& ErrorCorrection);	//prepare async data for writing. Call on external thread (i.e. game thread)
-	FAsyncPhysicsRepCallbackData* CurAsyncData;	//async data being written into before we push into callback
-	friend FPhysicsReplicationAsyncCallback;
-
-	int32 ResimFrame = INDEX_NONE;
-
 };

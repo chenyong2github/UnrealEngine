@@ -769,11 +769,11 @@ private:
 	
 public:
 	/** Set the physics replication mode of this body, via EPhysicsReplicationMode */
-	UFUNCTION(BlueprintCallable, Category = Physics)
+	UFUNCTION(BlueprintCallable, Category = Replication)
 	void SetPhysicsReplicationMode(const EPhysicsReplicationMode ReplicationMode);
 
 	/** Get the physics replication mode of this body, via EPhysicsReplicationMode */
-	UFUNCTION(BlueprintCallable, Category = Physics)
+	UFUNCTION(BlueprintCallable, Category = Replication)
 	EPhysicsReplicationMode GetPhysicsReplicationMode();
 
 	/** Can this body trigger a resimulation when Physics Prediction is enabled */

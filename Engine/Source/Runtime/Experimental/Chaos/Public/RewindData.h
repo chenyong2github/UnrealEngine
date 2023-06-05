@@ -1427,7 +1427,11 @@ public:
 	const FPBDRigidsSolver* GetSolver() const { return Solver; }
 
 	/** Find the first previous valid frame having received physics target from the server */
-	int32 CHAOS_API FindValidResimFrame(const int32 ResimFrame);
+	int32 CHAOS_API FindValidResimFrame(const int32 RequestedFrame);
+
+	/** Get and set the frame we resimulate from */
+	int32 GetResimFrame() { return ResimFrame; }
+	void SetResimFrame(int32 Frame) { ResimFrame = Frame; }
 
 private:
 
@@ -1605,6 +1609,7 @@ private:
 	int32 DataIdxOffset;
 	bool bNeedsSave;	//Indicates that some data is pointing at head and requires saving before a rewind
 	bool bResimOptimization;
+	int32 ResimFrame = INDEX_NONE;
 
 	template <typename TObj>
 	bool IsResimAndInSync(const TObj& Handle) const { return IsResim() && Handle.SyncState() == ESyncState::InSync; }

@@ -47,13 +47,17 @@ void AStaticMeshActor::BeginPlay()
 	// we need to do this here. 
 	//
 	// This is a short term fix until we find a better play for SetReplicates to be called in AActor.
-
 	if (GetLocalRole() == ROLE_Authority && bStaticMeshReplicateMovement)
 	{
 		bReplicates = false;
 		SetRemoteRoleForBackwardsCompat(ROLE_SimulatedProxy);
 		SetReplicates(true);
 	}	
+
+	if (StaticMeshComponent && StaticMeshComponent->BodyInstance.bSimulatePhysics)
+	{
+		SetPhysicsReplicationMode(StaticMeshPhysicsReplicationMode);
+	}
 
 	Super::BeginPlay();
 }

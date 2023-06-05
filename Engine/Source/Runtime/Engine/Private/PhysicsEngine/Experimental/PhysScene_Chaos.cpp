@@ -86,12 +86,9 @@ public:
 		{
 			if (!PendingCommands[0].OwningObject.IsStale())
 			{
-				if(UWorld* World = PendingCommands[0].OwningObject->GetWorld())
+				if (Chaos::FRewindData* RewindData = GetSolver()->GetRewindData())
 				{
-					if (FPhysScene* PhysScene = World->GetPhysicsScene())
-					{
-						PhysScene->GetPhysicsReplication()->SetResimFrame(INDEX_NONE);
-					}
+					RewindData->SetResimFrame(INDEX_NONE);
 				}
 			}
 		}
@@ -111,16 +108,13 @@ public:
 			{
 				if (PendingCommands[Idx].PhysicsStep < CurrentFrame && PendingCommands[Idx].OwningObject.IsValid())
 				{
-					if(UWorld* World = PendingCommands[Idx].OwningObject->GetWorld())
+					if (Chaos::FRewindData* RewindData = GetSolver()->GetRewindData())
 					{
-						if (FPhysScene* PhysScene = World->GetPhysicsScene())
-						{
-							int32 ResimFrame = PhysScene->GetPhysicsReplication()->GetResimFrame();
-							ResimFrame = (ResimFrame == INDEX_NONE) ? PendingCommands[Idx].PhysicsStep :
-								FMath::Min(ResimFrame, PendingCommands[Idx].PhysicsStep);
+						int32 ResimFrame = RewindData->GetResimFrame();
+						ResimFrame = (ResimFrame == INDEX_NONE) ? PendingCommands[Idx].PhysicsStep :
+							FMath::Min(ResimFrame, PendingCommands[Idx].PhysicsStep);
 
-							PhysScene->GetPhysicsReplication()->SetResimFrame(ResimFrame);
-						}
+						RewindData->SetResimFrame(ResimFrame);
 					}
 				}
 				else if (!bRemove && PendingCommands[Idx].PhysicsStep == CurrentFrame)
