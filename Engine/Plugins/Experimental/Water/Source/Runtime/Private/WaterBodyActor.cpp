@@ -25,6 +25,7 @@
 #include "Editor/EditorEngine.h"
 #include "Landscape.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Level.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Water"
