@@ -171,7 +171,7 @@ namespace FNiagaraComponentSettings
 		ECVF_Scalability | ECVF_Default
 	);
 
-	void OnPostEngineInit()
+	void UpdateSettings()
 	{
 		if (GDynamicRHI == nullptr)
 		{
@@ -204,8 +204,6 @@ namespace FNiagaraComponentSettings
 
 		if (bShouldAllowGpuEmitters && GpuDenyListString.Len() > 0)
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("GpuDenyListString = %s"), *GpuDenyListString);
-
 			TArray<FString> BanList;
 			GpuDenyListString.ParseIntoArray(BanList, TEXT("+"));
 
@@ -224,11 +222,6 @@ namespace FNiagaraComponentSettings
 					for (int32 i=0; i < UE_ARRAY_COUNT(CategoryData); ++i)
 					{
 						bMatches = BanCategoryStrings[i].IsEmpty() || CategoryData[i].MatchesWildcard(BanCategoryStrings[i]);
-						if (!BanCategoryStrings[i].IsEmpty())
-						{
-							UE_LOG(LogNiagara, Warning, TEXT("Matching %s=%s == %d"), *CategoryData[i], *BanCategoryStrings[i], bMatches);
-						}
-
 						if (bMatches == false)
 						{
 							break;
@@ -243,16 +236,20 @@ namespace FNiagaraComponentSettings
 			}
 		}
 
-		if (bShouldAllowGpuEmitters != bAllowGpuEmitters)
+		if (bAllowGpuEmitters != bShouldAllowGpuEmitters)
 		{
 			bAllowGpuEmitters = bShouldAllowGpuEmitters;
 			if (bAllowGpuEmitters == false)
 			{
 				UE_LOG(LogNiagara, Log,
-					TEXT("GPU emitters will not run for RHI(%s) Adapter(%s) as they match deny list RHIDeny(%s) AdapterDeny(%s)."),
+					TEXT("GPU emitters are disabled for RHI(%s) Adapter(%s).  RHIDeny(%s) AdapterDeny(%s) GpuDenyList(%s)."),
 					GDynamicRHI->GetName(), *GRHIAdapterName,
-					*GpuRHIDenyListString, *GpuRHIAdapterDenyListString
+					*GpuRHIDenyListString, *GpuRHIAdapterDenyListString, *GpuDenyListString
 				);
+			}
+			else
+			{
+				UE_LOG(LogNiagara, Log, TEXT("GPU emitters are enabled for RHI(%s) Adapter(%s)."), GDynamicRHI->GetName(), *GRHIAdapterName);
 			}
 		}
 	}

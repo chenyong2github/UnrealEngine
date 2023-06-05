@@ -4,6 +4,7 @@
 #include "Engine/Level.h"
 #include "GameFramework/Pawn.h"
 #include "NiagaraModule.h"
+#include "NiagaraComponentSettings.h"
 #include "NiagaraSystemSimulation.h"
 #include "NiagaraTypes.h"
 #include "NiagaraParameterCollection.h"
@@ -339,6 +340,9 @@ void FNiagaraWorldManager::Init(UWorld* InWorld)
 #if WITH_NIAGARA_DEBUGGER
 	NiagaraDebugHud.Reset(new FNiagaraDebugHud(World));
 #endif
+
+	// Make sure we update our component settings, this includes ban lists, etc
+	FNiagaraComponentSettings::UpdateSettings();
 }
 
 FNiagaraWorldManager::~FNiagaraWorldManager()

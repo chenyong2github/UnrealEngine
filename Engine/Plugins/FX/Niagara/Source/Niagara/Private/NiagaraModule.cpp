@@ -479,7 +479,7 @@ void INiagaraModule::OnPostEngineInit()
 		}
 	);
 
-	FNiagaraComponentSettings::OnPostEngineInit();
+	FNiagaraComponentSettings::UpdateSettings();
 }
 
 void INiagaraModule::OnPreExit()
