@@ -109,20 +109,10 @@ private:
 	TArray<UDataLayerInstance*> ConvertArgsToDataLayers(const TArray<FString>& InArgs);
 	//~ End Debugging
 
-	//~ Begin Verse support
-	void AddReferencedObject(UObject* InObject);
-	void RemoveReferencedObject(UObject* InObject);
-	const TSet<TObjectPtr<UObject>>& GetReferencedObjects() const { return ReferencedObjects; }
-	//~ End Verse support
-
 	AWorldDataLayers* GetWorldDataLayers() const;
 	const UDataLayerInstance* GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const;
 
 	void BroadcastOnDataLayerInstanceRuntimeStateChanged(const UDataLayerInstance* InDataLayer, EDataLayerRuntimeState InState);
-
-	/** Referenced objects (used by verse) */
-	UPROPERTY(Transient)
-	TSet<TObjectPtr<UObject>> ReferencedObjects;
 
 	/** Console command used to toggle activation of a Data Layer */
 	static class FAutoConsoleCommand ToggleDataLayerActivation;
@@ -144,7 +134,6 @@ private:
 	friend class UWorldPartitionRuntimeCell;
 	friend class UWorldPartitionSubsystem;
 	friend class FWorldPartitionDebugHelper;
-	friend class UVerseDataLayerManagerBase;
 
 #if WITH_EDITOR
 private:

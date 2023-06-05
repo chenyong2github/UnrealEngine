@@ -234,16 +234,6 @@ void UDataLayerManager::DeInitialize()
 #endif
 }
 
-void UDataLayerManager::AddReferencedObject(UObject* InObject)
-{
-	ReferencedObjects.Add(InObject);
-}
-
-void UDataLayerManager::RemoveReferencedObject(UObject* InObject)
-{
-	ReferencedObjects.Remove(InObject);
-}
-
 AWorldDataLayers* UDataLayerManager::GetWorldDataLayers() const
 {
 	return GetTypedOuter<UWorld>()->GetWorldDataLayers();
