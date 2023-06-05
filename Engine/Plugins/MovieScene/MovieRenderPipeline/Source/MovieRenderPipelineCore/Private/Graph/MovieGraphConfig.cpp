@@ -479,10 +479,6 @@ void UMovieGraphConfig::AddNode(UMovieGraphNode* InNode)
 	InNode->Rename(nullptr, this);
 
 	AllNodes.Add(InNode);
-
-#if WITH_EDITOR
-	OnGraphChangedDelegate.Broadcast();
-#endif
 }
 
 bool UMovieGraphConfig::RemoveNodes(TArray<UMovieGraphNode*> InNodes)
