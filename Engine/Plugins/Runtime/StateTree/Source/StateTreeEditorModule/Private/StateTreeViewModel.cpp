@@ -381,10 +381,10 @@ bool FStateTreeViewModel::IsChildOfSelection(const UStateTreeState* State) const
 	return false;
 }
 
-void FStateTreeViewModel::GetSelectedStates(TArray<UStateTreeState*>& OutSelectedStates)
+void FStateTreeViewModel::GetSelectedStates(TArray<UStateTreeState*>& OutSelectedStates) const
 {
 	OutSelectedStates.Reset();
-	for (TWeakObjectPtr<UStateTreeState>& WeakState : SelectedStates)
+	for (const TWeakObjectPtr<UStateTreeState>& WeakState : SelectedStates)
 	{
 		if (UStateTreeState* State = WeakState.Get())
 		{
@@ -393,10 +393,10 @@ void FStateTreeViewModel::GetSelectedStates(TArray<UStateTreeState*>& OutSelecte
 	}
 }
 
-void FStateTreeViewModel::GetSelectedStates(TArray<TWeakObjectPtr<UStateTreeState>>& OutSelectedStates)
+void FStateTreeViewModel::GetSelectedStates(TArray<TWeakObjectPtr<UStateTreeState>>& OutSelectedStates) const
 {
 	OutSelectedStates.Reset();
-	for (TWeakObjectPtr<UStateTreeState>& WeakState : SelectedStates)
+	for (const TWeakObjectPtr<UStateTreeState>& WeakState : SelectedStates)
 	{
 		if (WeakState.Get())
 		{
@@ -744,6 +744,57 @@ void FStateTreeViewModel::MoveSelectedStatesAfter(UStateTreeState* TargetState)
 void FStateTreeViewModel::MoveSelectedStatesInto(UStateTreeState* TargetState)
 {
 	MoveSelectedStates(TargetState, FStateTreeViewModelInsert::Into);
+}
+
+bool FStateTreeViewModel::CanEnableStates() const
+{
+	TArray<UStateTreeState*> States;
+	GetSelectedStates(States);
+
+	for (const UStateTreeState* State : States)
+	{
+		// Stop if at least one state can be enabled
+		if (State->bEnabled == false)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FStateTreeViewModel::CanDisableStates() const
+{
+	TArray<UStateTreeState*> States;
+	GetSelectedStates(States);
+
+	for (const UStateTreeState* State : States)
+	{
+		// Stop if at least one state can be disabled
+		if (State->bEnabled)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FStateTreeViewModel::SetSelectedStatesEnabled(const bool bEnable)
+{
+	TArray<UStateTreeState*> States;
+	GetSelectedStates(States);
+
+	if (States.Num() > 0)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("SetStatesEnabledTransaction", "Set State Enabled"));
+
+		for (UStateTreeState* State : States)
+		{
+			State->Modify();
+			State->bEnabled = bEnable;
+		}
+	}
 }
 
 void FStateTreeViewModel::MoveSelectedStates(UStateTreeState* TargetState, const FStateTreeViewModelInsert RelativeLocation)

@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeEditorCommands.h"
-#include "StateTreeEditorStyle.h"
 #include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
 FStateTreeEditorCommands::FStateTreeEditorCommands() 
-	: TCommands<FStateTreeEditorCommands>(
+	: TCommands(
 		TEXT("StateTreeEditor"), // Context name for fast lookup
 		LOCTEXT("StateTreeEditor", "StateTree Editor"), // Localized context name for displaying
 		NAME_None,
@@ -32,6 +31,7 @@ void FStateTreeEditorCommands::RegisterCommands()
 	UI_COMMAND(DuplicateStates, "Duplicate", "Duplicate Selected States", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::D));
 	UI_COMMAND(DeleteStates, "Delete", "Delete Selected States", EUserInterfaceActionType::Button, FInputChord(EKeys::Delete));
 	UI_COMMAND(RenameState, "Rename", "Rename Selected State", EUserInterfaceActionType::Button, FInputChord(EKeys::F2));
+	UI_COMMAND(EnableStates, "Enable", "Enables Selected States", EUserInterfaceActionType::Check, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

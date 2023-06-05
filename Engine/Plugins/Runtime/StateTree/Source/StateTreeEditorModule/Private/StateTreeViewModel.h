@@ -51,8 +51,8 @@ public:
 	void SetSelection(const TArray<TWeakObjectPtr<UStateTreeState>>& InSelection);
 	bool IsSelected(const UStateTreeState* State) const;
 	bool IsChildOfSelection(const UStateTreeState* State) const;
-	void GetSelectedStates(TArray<UStateTreeState*>& OutSelectedStates);
-	void GetSelectedStates(TArray<TWeakObjectPtr<UStateTreeState>>& OutSelectedStates);
+	void GetSelectedStates(TArray<UStateTreeState*>& OutSelectedStates) const;
+	void GetSelectedStates(TArray<TWeakObjectPtr<UStateTreeState>>& OutSelectedStates) const;
 	bool HasSelection() const;
 
 	// Returns associated state tree asset.
@@ -79,6 +79,9 @@ public:
 	void MoveSelectedStatesBefore(UStateTreeState* TargetState);
 	void MoveSelectedStatesAfter(UStateTreeState* TargetState);
 	void MoveSelectedStatesInto(UStateTreeState* TargetState);
+	bool CanEnableStates() const;
+	bool CanDisableStates() const;
+	void SetSelectedStatesEnabled(bool bEnable);
 
 	// Force to update the view externally.
 	void NotifyAssetChangedExternally() const;

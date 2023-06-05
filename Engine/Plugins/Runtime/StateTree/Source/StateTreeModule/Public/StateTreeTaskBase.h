@@ -23,6 +23,7 @@ struct STATETREEMODULE_API FStateTreeTaskBase : public FStateTreeNodeBase
 		, bShouldCopyBoundPropertiesOnTick(true)
 		, bShouldCopyBoundPropertiesOnExitState(true)
 		, bShouldAffectTransitions(false)
+		, bTaskEnabled(true)
 	{
 	}
 	
@@ -99,6 +100,10 @@ struct STATETREEMODULE_API FStateTreeTaskBase : public FStateTreeNodeBase
 
 	/** If set to true, TriggerTransitions() is called during transition handling. Default false. */
 	uint8 bShouldAffectTransitions : 1;
+
+	/** True if the node is Enabled (i.e. not explicitly disabled in the asset). */
+	UPROPERTY()
+	uint8 bTaskEnabled : 1;
 };
 
 /**

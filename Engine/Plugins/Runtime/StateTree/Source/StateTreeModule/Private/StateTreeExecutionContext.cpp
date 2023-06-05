@@ -750,6 +750,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 		const FStateTreeStateHandle PreviousHandle = Transition.CurrentActiveStates.GetStateSafe(Index);
 		const FCompactStateTreeState& State = StateTree.States[CurrentHandle.Index];
 
+		ensureMsgf(State.bEnabled, TEXT("Should never enter disabled state. This indicates an unhandled case."));
+		
 		if (!Exec.ActiveStates.Push(CurrentHandle))
 		{
 			STATETREE_LOG(Error, TEXT("%hs: Reached max execution depth when trying to enter state '%s'.  '%s' using StateTree '%s'."),
@@ -788,6 +790,13 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 			if (Task.BindingsBatch.IsValid())
 			{
 				StateTree.PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, DataViews[Task.DataViewIndex.Get()]);
+			}
+
+			// Ignore disabled task
+			if (Task.bTaskEnabled == false)
+			{
+				STATETREE_LOG(VeryVerbose, TEXT("%*sSkipped 'EnterState' for disabled Task: '%s'"), UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+				continue;
 			}
 
 			const bool bShouldCallStateChange = CurrentTransition.ChangeType == EStateTreeStateChangeType::Changed
@@ -934,6 +943,13 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 			{
 				const FStateTreeTaskBase& Task = StateTree.Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
 
+				// Ignore disabled task
+				if (Task.bTaskEnabled == false)
+				{
+					STATETREE_LOG(VeryVerbose, TEXT("%*sSkipped 'ExitState' for disabled Task: '%s'"), UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+					continue;
+				}
+
 				const bool bShouldCallStateChange = CurrentTransition.ChangeType == EStateTreeStateChangeType::Changed
 							|| (CurrentTransition.ChangeType == EStateTreeStateChangeType::Sustained && Task.bShouldStateChangeOnReselect);
 
@@ -986,6 +1002,13 @@ void FStateTreeExecutionContext::StateCompleted()
 			{
 				const FStateTreeTaskBase& Task = StateTree.Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
 
+				// Ignore disabled task
+				if (Task.bTaskEnabled == false)
+				{
+					STATETREE_LOG(VeryVerbose, TEXT("%*sSkipped 'StateCompleted' for disabled Task: '%s'"), UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+					continue;
+				}
+				
 				STATETREE_LOG(Verbose, TEXT("%*s  Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
 				Task.StateCompleted(*this, Exec.LastTickStatus, Exec.ActiveStates);
 			}
@@ -1033,6 +1056,14 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickEvaluatorsAndGlobalTasks(con
 		for (int32 TaskIndex = StateTree.GlobalTasksBegin; TaskIndex < (StateTree.GlobalTasksBegin + StateTree.GlobalTasksNum); TaskIndex++)
 		{
 			const FStateTreeTaskBase& Task =  StateTree.Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
+
+			// Ignore disabled task
+			if (Task.bTaskEnabled == false)
+			{
+				STATETREE_LOG(VeryVerbose, TEXT("%*sSkipped 'Tick' for disabled Task: '%s'"), UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+				continue;
+			}
+
 			SetNodeDataView(Task, InstanceStructIndex, InstanceObjectIndex);
 
 			const bool bNeedsTick = bShouldTickTasks && (Task.bShouldCallTick || (bHasEvents && Task.bShouldCallTickOnlyOnEvents));
@@ -1119,6 +1150,14 @@ EStateTreeRunStatus FStateTreeExecutionContext::StartEvaluatorsAndGlobalTasks(FS
 		{
 			StateTree.PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, DataViews[Task.DataViewIndex.Get()]);
 		}
+
+		// Ignore disabled task
+		if (Task.bTaskEnabled == false)
+		{
+			STATETREE_LOG(VeryVerbose, TEXT("%*sSkipped 'EnterState' for disabled Task: '%s'"), UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+			continue;
+		}
+
 		STATETREE_LOG(Verbose, TEXT("  Start: '%s'"), *Task.Name.ToString());
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_TreeStart);
@@ -1182,6 +1221,13 @@ void FStateTreeExecutionContext::StopEvaluatorsAndGlobalTasks(const EStateTreeRu
 	for (int32 TaskIndex = (StateTree.GlobalTasksBegin + StateTree.GlobalTasksNum) - 1;  TaskIndex >= StateTree.GlobalTasksBegin ; TaskIndex--)
 	{
 		const FStateTreeTaskBase& Task =  StateTree.Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
+
+		// Ignore disabled task
+		if (Task.bTaskEnabled == false)
+		{
+			STATETREE_LOG(VeryVerbose, TEXT("%*sSkipped 'ExitState' for disabled Task: '%s'"), UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+			continue;
+		}
 
 		// Relying here that invalid value of LastInitializedTaskIndex == MAX_uint16.
 		if (TaskIndex <= LastInitializedTaskIndex.Get())
@@ -1256,6 +1302,14 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 		for (int32 TaskIndex = State.TasksBegin; TaskIndex < (State.TasksBegin + State.TasksNum); TaskIndex++)
 		{
 			const FStateTreeTaskBase& Task = StateTree.Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
+
+			// Ignore disabled task
+			if (Task.bTaskEnabled == false)
+			{
+				STATETREE_LOG(VeryVerbose, TEXT("%*sSkipped 'Tick' for disabled Task: '%s'"), UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+				continue;
+			}
+
 			SetNodeDataView(Task, InstanceStructIndex, InstanceObjectIndex);
 
 			const bool bNeedsTick = bShouldTickTasks && (Task.bShouldCallTick || (bHasEvents && Task.bShouldCallTickOnlyOnEvents));
@@ -1342,25 +1396,34 @@ bool FStateTreeExecutionContext::TestAllConditions(const int32 ConditionsOffset,
 			DataView = SharedInstanceData->GetMutableStruct(Cond.InstanceIndex.Get());
 		}
 
-		// Copy bound properties.
-		if (Cond.BindingsBatch.IsValid())
+		bool bValue = false;
+		if (Cond.EvaluationMode == EStateTreeConditionEvaluationMode::Evaluated)
 		{
-			if (!StateTree.PropertyBindings.CopyTo(DataViews, Cond.BindingsBatch, DataView))
+			// Copy bound properties.
+			if (Cond.BindingsBatch.IsValid())
 			{
-				// If the source data cannot be accessed, the whole expression evaluates to false.
-				Values[0] = false;
-				break;
+				if (!StateTree.PropertyBindings.CopyTo(DataViews, Cond.BindingsBatch, DataView))
+				{
+					// If the source data cannot be accessed, the whole expression evaluates to false.
+					Values[0] = false;
+					break;
+				}
+			}
+			
+			bValue = Cond.TestCondition(*this);
+			
+			// Reset copied properties that might contain object references.
+			if (Cond.BindingsBatch.IsValid())
+			{
+				StateTree.PropertyBindings.ResetObjects(Cond.BindingsBatch, DataView);
 			}
 		}
-
-		const bool bValue = Cond.TestCondition(*this);
-		STATETREE_TRACE_CONDITION_EVENT(ConditionsOffset + Index, DataView, bValue ? EStateTreeTraceEventType::Passed : EStateTreeTraceEventType::Failed);
-
-		// Reset copied properties that might contain object references.
-		if (Cond.BindingsBatch.IsValid())
+		else
 		{
-			StateTree.PropertyBindings.ResetObjects(Cond.BindingsBatch, DataView);
+			bValue = Cond.EvaluationMode == EStateTreeConditionEvaluationMode::ForcedTrue ? true : /* EStateTreeConditionEvaluationMode::AlwaysFalse */ false;
 		}
+
+		STATETREE_TRACE_CONDITION_EVENT(ConditionsOffset + Index, DataView, bValue ? EStateTreeTraceEventType::Passed : EStateTreeTraceEventType::Failed);
 
 		const int32 DeltaIndent = Cond.DeltaIndent;
 		const int32 OpenParens = FMath::Max(0, DeltaIndent) + 1;	// +1 for the current value that is stored at the empty slot at the top of the value stack.
@@ -1504,6 +1567,8 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 		const FStateTreeStateHandle StateHandle = Exec.ActiveStates[StateIndex];
 		const FCompactStateTreeState& State = StateTree.States[StateHandle.Index];
 
+		ensureMsgf(State.bEnabled, TEXT("Should never try to transition to a disabled state. This indicates an unhandled case."));
+
 		FCurrentlyProcessedStateScope StateScope(*this, StateHandle);
 
 		if (State.bHasTransitionTasks)
@@ -1513,6 +1578,14 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 			for (int32 TaskIndex = (State.TasksBegin + State.TasksNum) - 1; TaskIndex >= State.TasksBegin; TaskIndex--)
 			{
 				const FStateTreeTaskBase& Task = StateTree.Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
+
+				// Ignore disabled task
+				if (Task.bTaskEnabled == false)
+				{
+					STATETREE_LOG(VeryVerbose, TEXT("%*sSkipped 'TriggerTransitions' for disabled Task: '%s'"), UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+					continue;
+				}
+
 				if (Task.bShouldAffectTransitions)
 				{
 					STATETREE_LOG(VeryVerbose, TEXT("%*sTriggerTransitions: '%s'"), UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
@@ -1614,6 +1687,14 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 		for (int32 TaskIndex = (StateTree.GlobalTasksBegin + StateTree.GlobalTasksNum) - 1; TaskIndex >= StateTree.GlobalTasksBegin; TaskIndex--)
 		{
 			const FStateTreeTaskBase& Task =  StateTree.Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
+
+			// Ignore disabled task
+			if (Task.bTaskEnabled == false)
+			{
+				STATETREE_LOG(VeryVerbose, TEXT("%*sSkipped 'TriggerTransitions' for disabled Task: '%s'"), UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+				continue;
+			}
+
 			if (Task.bShouldAffectTransitions)
 			{
 				STATETREE_LOG(VeryVerbose, TEXT("%*sTriggerTransitions: '%s'"), UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
@@ -1821,6 +1902,14 @@ bool FStateTreeExecutionContext::SelectStateInternal(const FStateTreeStateHandle
 	}
 
 	const FCompactStateTreeState& State = StateTree.States[NextState.Index];
+
+	if (State.bEnabled == false)
+	{
+		// Do not select disabled state
+		STATETREE_LOG(VeryVerbose, TEXT("%hs: Ignoring disabled state '%s'.  '%s' using StateTree '%s'."),
+			__FUNCTION__, *GetSafeStateName(NextState), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		return false;
+	}
 
 	// Push State before the scoped phase so the debugger can create the hierarchy parent using the state description.
 	STATETREE_TRACE_SCOPED_STATE_SELECTION(NextState, State.SelectionBehavior);
@@ -2071,7 +2160,10 @@ FString FStateTreeExecutionContext::GetDebugInfoString() const
 				for (int32 TaskIndex = State.TasksBegin; TaskIndex < (State.TasksBegin + State.TasksNum); TaskIndex++)
 				{
 					const FStateTreeTaskBase& Task = StateTree.Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
-					Task.AppendDebugInfoString(DebugString, *this);
+					if (Task.bTaskEnabled)
+					{
+						Task.AppendDebugInfoString(DebugString, *this);
+					}
 				}
 			}
 		}

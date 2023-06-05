@@ -29,6 +29,9 @@ struct STATETREEMODULE_API FStateTreeConditionBase : public FStateTreeNodeBase
 
 	UPROPERTY()
 	int8 DeltaIndent = 0;
+
+	UPROPERTY()
+	EStateTreeConditionEvaluationMode EvaluationMode = EStateTreeConditionEvaluationMode::Evaluated;
 };
 
 /**

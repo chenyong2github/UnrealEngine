@@ -84,14 +84,28 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 		Set("StateTree.State.TitleInlineEditableText", FInlineEditableTextBlockStyle()
 			.SetTextStyle(StateTitle)
 			.SetEditableTextBoxStyle(StateTitleEditableText));
+
+		Set("StateTree.State.Border", new FSlateBorderBrush(NAME_None, FMargin(2.0f)));
 	}
 
 	// Details
 	{
-		FTextBlockStyle StateTitle = FTextBlockStyle(NormalText)
+		const FTextBlockStyle Details = FTextBlockStyle(NormalText)
 			.SetFont(CORE_FONT("Fonts/Roboto-Regular", 10))
 			.SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f, 0.75f));
-		Set("StateTree.Details", StateTitle);
+		Set("StateTree.Details", Details);
+
+		Set("StateTree.Node.Label", new FSlateRoundedBoxBrush(FStyleColors::AccentGray, 6.f));
+	}
+
+	// Task
+	{
+		const FTextBlockStyle TaskTitle = FTextBlockStyle(NormalText)
+			.SetFont(CORE_FONT("Fonts/Roboto-Regular", 10))
+			.SetColorAndOpacity(FLinearColor(230.0f / 255.0f, 230.0f / 255.0f, 230.0f / 255.0f, 0.85f));
+		Set("StateTree.Task.Title", TaskTitle);
+
+		Set("StateTree.Task.Rect", new FSlateRoundedBoxBrush(FLinearColor(FColor(21, 104, 116)), 0.0f, FLinearColor(FColor(27, 138, 154)), 1.0f));
 	}
 
 	// Details rich text
@@ -173,7 +187,7 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 		Set("StateTreeEditor.DuplicateStates", new IMAGE_BRUSH_SVG("Starship/Common/Duplicate", CoreStyleConstants::Icon16x16));
 		Set("StateTreeEditor.DeleteStates", new IMAGE_BRUSH_SVG("Starship/Common/Delete", CoreStyleConstants::Icon16x16));
 		Set("StateTreeEditor.RenameState", new IMAGE_BRUSH_SVG("Starship/Common/Rename", CoreStyleConstants::Icon16x16));
-		Set("StateTreeEditor.Debugger.ToggleBreakpoint", new IMAGE_BRUSH_SVG("Starship/Common/filled-circle", CoreStyleConstants::Icon16x16));
+		Set("StateTreeEditor.EnableStates", new IMAGE_BRUSH_SVG("Starship/Common/check-circle-large", CoreStyleConstants::Icon16x16));
 	}
 
 	{
@@ -187,6 +201,9 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 		Set("StateTreeEditor.Debugger.PreviousFrameWithEvents", new IMAGE_BRUSH("Sequencer/Transport_Bar/Step_Backwards_24x", CoreStyleConstants::Icon16x16));
 		Set("StateTreeEditor.Debugger.NextFrameWithEvents", new IMAGE_BRUSH("Sequencer/Transport_Bar/Step_Forward_24x", CoreStyleConstants::Icon16x16));
 		Set("StateTreeEditor.Debugger.NextFrameWithStateChange", new IMAGE_BRUSH("Sequencer/Transport_Bar/Go_To_End_24x", CoreStyleConstants::Icon16x16));
+
+		Set("StateTreeEditor.Debugger.ToggleBreakpoint", new IMAGE_BRUSH_SVG("Starship/Blueprints/Breakpoint_Valid", CoreStyleConstants::Icon16x16));
+		Set("StateTreeEditor.DebugOptions", new IMAGE_BRUSH_SVG("Starship/Common/Bug", CoreStyleConstants::Icon16x16));
 	}
 
 	{

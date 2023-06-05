@@ -85,9 +85,13 @@ private:
 	void HandleDuplicateSelectedStates();
 	void HandleRenameState();
 	void HandleDeleteStates();
+	void HandleEnableSelectedStates();
+	void HandleDisableSelectedStates();
 
 	bool HasSelection() const;
 	bool CanPaste() const;
+	bool CanEnableStates() const;
+	bool CanDisableStates() const;
 
 	void BindCommands();
 

@@ -224,6 +224,9 @@ public:
 	UPROPERTY(meta = (ExcludeFromHash))
 	bool bExpanded = true;
 
+	UPROPERTY(EditDefaultsOnly, Category = "State")
+	bool bEnabled = true;
+
 	UPROPERTY(meta = (ExcludeFromHash))
 	TObjectPtr<UStateTreeState> Parent = nullptr;
 };

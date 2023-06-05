@@ -8,13 +8,18 @@
 struct FObjectKey;
 struct FOptionalSize;
 
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
 class IPropertyHandle;
+class IPropertyUtilities;
+class SComboButton;
 class SWidget;
 class SSearchBox;
 class UStateTree;
 class UStateTreeState;
 class UStateTreeEditorData;
 struct EVisibility;
+struct FStateTreeEditorNode;
 struct FStateTreePropertyPath;
 enum class EStateTreeConditionOperand : uint8;
 
@@ -30,8 +35,8 @@ public:
 	virtual ~FStateTreeEditorNodeDetails();
 	
 	/** IPropertyTypeCustomization interface */
-	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 
 private:
 
@@ -64,13 +69,13 @@ private:
 	FText GetCloseParens() const;
 
 	EVisibility IsConditionVisible() const;
+	EVisibility IsTaskVisible() const;
 
 	FText GetName() const;
 	EVisibility IsNameVisible() const;
 	void OnNameCommitted(const FText& NewText, ETextCommit::Type InTextCommit) const;
 	bool IsNameEnabled() const;
 
-	const struct FStateTreeEditorNode* GetCommonNode() const;
 	FText GetDisplayValueString() const;
 	const FSlateBrush* GetDisplayValueIcon() const;
 
@@ -122,7 +127,7 @@ private:
 	
 	UScriptStruct* BaseScriptStruct = nullptr;
 	UClass* BaseClass = nullptr;
-	TSharedPtr<class SComboButton> ComboButton;
+	TSharedPtr<SComboButton> ComboButton;
 	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<STreeView<TSharedPtr<FStateTreeNodeTypeItem>>> NodeTypeTree;
 	bool bIsRestoringExpansion = false;
@@ -133,7 +138,7 @@ private:
 	// Save expansion state for each base node type. The expansion state does not persist between editor sessions. 
 	static TMap<FObjectKey, FCategoryExpansionState> CategoryExpansionStates;
 	
-	class IPropertyUtilities* PropUtils = nullptr;
+	TSharedPtr<IPropertyUtilities> PropUtils;
 	TSharedPtr<IPropertyHandle> StructProperty;
 	TSharedPtr<IPropertyHandle> NodeProperty;
 	TSharedPtr<IPropertyHandle> InstanceProperty;

@@ -28,6 +28,7 @@ public:
 	void RequestRename() const;
 
 private:
+	TSharedRef<SHorizontalBox> CreateTasksWidget();
 
 	FSlateColor GetTitleColor() const;
 	FSlateColor GetActiveStateColor() const;

@@ -28,8 +28,10 @@
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "EditorFontGlyphs.h"
+#include "StateTreeEditorNodeUtils.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Debugger/StateTreeDebuggerUIExtensions.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
@@ -288,7 +290,7 @@ FStateTreeEditorNodeDetails::~FStateTreeEditorNodeDetails()
 void FStateTreeEditorNodeDetails::CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	StructProperty = StructPropertyHandle;
-	PropUtils = StructCustomizationUtils.GetPropertyUtilities().Get();
+	PropUtils = StructCustomizationUtils.GetPropertyUtilities();
 
 	NodeProperty = StructProperty->GetChildHandle(TEXT("Node"));
 	InstanceProperty = StructProperty->GetChildHandle(TEXT("Instance"));
@@ -414,16 +416,7 @@ void FStateTreeEditorNodeDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 							SNew(STextBlock)
 							.Text(FEditorFontGlyphs::Paper_Plane)
 							.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.DetailsIcon")
-							.Visibility_Lambda([this]()
-							{
-								// Only show on tasks
-								const UScriptStruct* ScriptStruct = nullptr;
-								if (const FStateTreeEditorNode* Node = GetCommonNode())
-								{
-									ScriptStruct = Node->Node.GetScriptStruct();
-								}
-								return ScriptStruct != nullptr && ScriptStruct->IsChildOf(FStateTreeTaskBase::StaticStruct()) ? EVisibility::Visible : EVisibility::Collapsed;
-							})
+							.Visibility(this, &FStateTreeEditorNodeDetails::IsTaskVisible)
 						]
 						+ SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
@@ -455,6 +448,13 @@ void FStateTreeEditorNodeDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 				.AutoWidth()
 				[
 					StructPropertyHandle->CreateDefaultPropertyButtonWidgets()
+				]
+
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.FillWidth(1.0f)
+				[
+					UE::StateTreeEditor::DebuggerExtensions::CreateEditorNodeWidget(StructPropertyHandle)
 				]
 			]
 		]
@@ -620,26 +620,20 @@ bool FStateTreeEditorNodeDetails::ShouldResetToDefault(TSharedPtr<IPropertyHandl
 
 void FStateTreeEditorNodeDetails::ResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle)
 {
-	check(StructProperty);
-	
-	GEditor->BeginTransaction(LOCTEXT("OnResetToDefault", "Reset to default"));
-
-	StructProperty->NotifyPreChange();
-	
-	TArray<void*> RawNodeData;
-	StructProperty->AccessRawData(RawNodeData);
-	for (void* Data : RawNodeData)
-	{
-		if (FStateTreeEditorNode* Node = static_cast<FStateTreeEditorNode*>(Data))
+	UE::StateTreeEditor::EditorNodeUtils::ModifyNodeInTransaction(LOCTEXT("OnTaskEnableToggled", "Toggled Task Enabled"),
+		StructProperty,
+		[](IPropertyHandle& StructPropertyHandle)
 		{
-			Node->Reset();
-		}
-	}
-
-	StructProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
-	StructProperty->NotifyFinishedChangingProperties();
-
-	GEditor->EndTransaction();
+			TArray<void*> RawNodeData;
+			StructPropertyHandle.AccessRawData(RawNodeData);
+			for (void* Data : RawNodeData)
+			{
+				if (FStateTreeEditorNode* Node = static_cast<FStateTreeEditorNode*>(Data))
+				{
+					Node->Reset();
+				}
+			}
+		});
 
 	if (PropUtils)
 	{
@@ -1039,16 +1033,14 @@ void FStateTreeEditorNodeDetails::SetOperand(const EStateTreeConditionOperand Op
 	OperandProperty->SetValue((uint8)Operand);
 }
 
-
 EVisibility FStateTreeEditorNodeDetails::IsConditionVisible() const
 {
-	const UScriptStruct* ScriptStruct = nullptr;
-	if (const FStateTreeEditorNode* Node = GetCommonNode())
-	{
-		ScriptStruct = Node->Node.GetScriptStruct();
-	}
+	return UE::StateTreeEditor::EditorNodeUtils::IsConditionVisible(StructProperty);
+}
 
-	return ScriptStruct != nullptr && ScriptStruct->IsChildOf(FStateTreeConditionBase::StaticStruct()) ? EVisibility::Visible : EVisibility::Collapsed;
+EVisibility FStateTreeEditorNodeDetails::IsTaskVisible() const
+{
+	return UE::StateTreeEditor::EditorNodeUtils::IsTaskVisible(StructProperty);
 }
 
 FText FStateTreeEditorNodeDetails::GetName() const
@@ -1090,7 +1082,7 @@ FText FStateTreeEditorNodeDetails::GetName() const
 EVisibility FStateTreeEditorNodeDetails::IsNameVisible() const
 {
 	const UScriptStruct* ScriptStruct = nullptr;
-	if (const FStateTreeEditorNode* Node = GetCommonNode())
+	if (const FStateTreeEditorNode* Node = UE::StateTreeEditor::EditorNodeUtils::GetCommonNode(StructProperty))
 	{
 		ScriptStruct = Node->Node.GetScriptStruct();
 	}
@@ -1165,43 +1157,13 @@ void FStateTreeEditorNodeDetails::OnNameCommitted(const FText& NewText, ETextCom
 bool FStateTreeEditorNodeDetails::IsNameEnabled() const
 {
 	// Can only edit if we have valid instantiated type.
-	const FStateTreeEditorNode* Node = GetCommonNode();
+	const FStateTreeEditorNode* Node = UE::StateTreeEditor::EditorNodeUtils::GetCommonNode(StructProperty);
 	return Node && Node->Node.IsValid();
-}
-
-const FStateTreeEditorNode* FStateTreeEditorNodeDetails::GetCommonNode() const
-{
-	check(StructProperty);
-
-	const UScriptStruct* CommonScriptStruct = nullptr;
-	bool bMultipleValues = false;
-	TArray<void*> RawNodeData;
-	StructProperty->AccessRawData(RawNodeData);
-
-	const FStateTreeEditorNode* CommonNode = nullptr;
-	
-	for (void* Data : RawNodeData)
-	{
-		if (const FStateTreeEditorNode* Node = static_cast<FStateTreeEditorNode*>(Data))
-		{
-			if (!bMultipleValues && !CommonNode)
-			{
-				CommonNode = Node;
-			}
-			else if (CommonNode != Node)
-			{
-				CommonNode = nullptr;
-				bMultipleValues = true;
-			}
-		}
-	}
-
-	return CommonNode;
 }
 
 FText FStateTreeEditorNodeDetails::GetDisplayValueString() const
 {
-	if (const FStateTreeEditorNode* Node = GetCommonNode())
+	if (const FStateTreeEditorNode* Node = UE::StateTreeEditor::EditorNodeUtils::GetCommonNode(StructProperty))
 	{
 		if (const UScriptStruct* ScriptStruct = Node->Node.GetScriptStruct())
 		{
@@ -1226,7 +1188,7 @@ FText FStateTreeEditorNodeDetails::GetDisplayValueString() const
 
 const FSlateBrush* FStateTreeEditorNodeDetails::GetDisplayValueIcon() const
 {
-	if (const FStateTreeEditorNode* Node = GetCommonNode())
+	if (const FStateTreeEditorNode* Node = UE::StateTreeEditor::EditorNodeUtils::GetCommonNode(StructProperty))
 	{
 		if (const UScriptStruct* ScriptStruct = Node->Node.GetScriptStruct())
 		{
@@ -1777,7 +1739,7 @@ TSharedRef<SWidget> FStateTreeEditorNodeDetails::GeneratePicker()
 	
 	// Expand and select currently selected item.
 	const UStruct* CommonStruct  = nullptr;
-	if (const FStateTreeEditorNode* Node = GetCommonNode())
+	if (const FStateTreeEditorNode* Node = UE::StateTreeEditor::EditorNodeUtils::GetCommonNode(StructProperty))
 	{
 		if (const UScriptStruct* ScriptStruct = Node->Node.GetScriptStruct())
 		{

@@ -182,6 +182,34 @@ void SStateTreeView::BindCommands()
 		Commands.RenameState,
 		FExecuteAction::CreateSP(this, &SStateTreeView::HandleRenameState),
 		FCanExecuteAction::CreateSP(this, &SStateTreeView::HasSelection));
+
+	CommandList->MapAction(
+		Commands.EnableStates,
+		FExecuteAction::CreateSP(this, &SStateTreeView::HandleEnableSelectedStates),
+		FCanExecuteAction(),
+		FGetActionCheckState::CreateLambda([this]
+			{
+				const bool bCanEnable = CanEnableStates();
+				const bool bCanDisable = CanDisableStates();
+				if (bCanEnable && bCanDisable)
+				{
+					return ECheckBoxState::Undetermined;
+				}
+				
+				if (bCanDisable)
+				{
+					return ECheckBoxState::Checked;
+				}
+
+				if (bCanEnable)
+				{
+					return ECheckBoxState::Unchecked;
+				}
+
+				// Should not happen since action is not visible in this case
+				return ECheckBoxState::Undetermined;
+			} )),
+		FIsActionButtonVisible::CreateLambda([this] { return CanEnableStates() || CanDisableStates(); });
 }
 
 bool SStateTreeView::HasSelection() const
@@ -194,6 +222,20 @@ bool SStateTreeView::CanPaste() const
 	return StateTreeViewModel
 			&& StateTreeViewModel->HasSelection()
 			&& StateTreeViewModel->CanPasteStatesFromClipboard();
+}
+
+bool SStateTreeView::CanEnableStates() const
+{
+	return StateTreeViewModel
+			&& StateTreeViewModel->HasSelection()
+			&& StateTreeViewModel->CanEnableStates();
+}
+
+bool SStateTreeView::CanDisableStates() const
+{
+	return StateTreeViewModel
+			&& StateTreeViewModel->HasSelection()
+			&& StateTreeViewModel->CanDisableStates();
 }
 
 FReply SStateTreeView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -317,7 +359,10 @@ void SStateTreeView::HandleModelStatesChanged(const TSet<UStateTreeState*>& Affe
 	// This method is called when anything in a state changes, make sure to only rebuild when needed.
 	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Tasks))
 	{
-		bArraysChanged = true;
+		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::ValueSet)
+		{
+			bArraysChanged = true;
+		}
 	}
 		
 	if (bArraysChanged)
@@ -426,6 +471,8 @@ TSharedPtr<SWidget> SStateTreeView::HandleContextMenuOpening()
 	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().DuplicateStates);
 	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().DeleteStates);
 	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().RenameState);
+	MenuBuilder.AddSeparator();
+	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().EnableStates);
 
 #if WITH_STATETREE_DEBUGGER
 	if (UStateTreeSettings::Get().bUseDebugger)
@@ -555,6 +602,30 @@ void SStateTreeView::HandleDeleteStates()
 void SStateTreeView::HandleRenameState()
 {
 	RequestedRenameState = GetFirstSelectedState();
+}
+
+void SStateTreeView::HandleEnableSelectedStates()
+{
+	if (StateTreeViewModel)
+	{
+		// Process CanEnable first so in case of undetermined state (mixed selection) we Enable by default. 
+		if (CanEnableStates())
+		{
+			StateTreeViewModel->SetSelectedStatesEnabled(true);	
+		}
+		else if (CanDisableStates())
+		{
+			StateTreeViewModel->SetSelectedStatesEnabled(false);
+		}
+	}
+}
+
+void SStateTreeView::HandleDisableSelectedStates()
+{
+	if (StateTreeViewModel)
+	{
+		StateTreeViewModel->SetSelectedStatesEnabled(false);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

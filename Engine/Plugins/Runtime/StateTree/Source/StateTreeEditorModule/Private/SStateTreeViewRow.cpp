@@ -22,7 +22,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 	StateTreeViewModel = InStateTreeViewModel;
 	WeakState = InState;
 
-	STableRow<TWeakObjectPtr<UStateTreeState>>::ConstructInternal(STableRow::FArguments()
+	ConstructInternal(STableRow::FArguments()
 		.Padding(5.0f)
 		.OnDragDetected(this, &SStateTreeViewRow::HandleDragDetected)
 		.OnCanAcceptDrop(this, &SStateTreeViewRow::HandleCanAcceptDrop)
@@ -30,9 +30,8 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 		.Style(&FStateTreeEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("StateTree.Selection"))
 		, InOwnerTableView);
 
-	static const FLinearColor TasksBackground = FLinearColor(FColor(17, 117, 131));
 	static const FLinearColor LinkBackground = FLinearColor(FColor(84, 84, 84));
-	static const FLinearColor IconTint = FLinearColor(1, 1, 1, 0.5f);
+	static constexpr FLinearColor IconTint = FLinearColor(1, 1, 1, 0.5f);
 
 	this->ChildSlot
 	.HAlign(HAlign_Fill)
@@ -73,7 +72,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 				.VAlign(VAlign_Fill)
 				[
 					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
+					.BorderImage(FStateTreeEditorStyle::Get().GetBrush("StateTree.State.Border"))
 					.BorderBackgroundColor(this, &SStateTreeViewRow::GetActiveStateColor)
 					[
 						SNew(SHorizontalBox)
@@ -106,6 +105,11 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 								.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
 								.BorderBackgroundColor(this, &SStateTreeViewRow::GetTitleColor)
 								.Padding(FMargin(4.0f, 0.0f, 12.0f, 0.0f))
+								.IsEnabled_Lambda([InState]
+									{
+										const UStateTreeState* State = InState.Get();
+										return State != nullptr && State->bEnabled;
+									})
 								[
 									SNew(SHorizontalBox)
 
@@ -176,46 +180,6 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 								]
 							]
 						]
-
-						// Tasks Box
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							SNew(SBox)
-							.HeightOverride(28.0f)
-							.VAlign(VAlign_Fill)
-							.Visibility(this, &SStateTreeViewRow::GetTasksVisibility)
-							[
-								SNew(SBorder)
-								.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
-								.BorderBackgroundColor(TasksBackground)
-								.Padding(FMargin(6.0f, 0.0f, 12.0f, 0.0f))
-								[
-									// Task icon
-									SNew(SHorizontalBox)
-									+ SHorizontalBox::Slot()
-									.VAlign(VAlign_Center)
-									.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
-									.AutoWidth()
-									[
-										SNew(STextBlock)
-										.Text(FEditorFontGlyphs::Paper_Plane)
-										.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.DetailsIcon")
-									]
-
-									// Tasks list
-									+ SHorizontalBox::Slot()
-									.VAlign(VAlign_Center)
-									.AutoWidth()
-									[
-										SNew(STextBlock)
-										.Text(this, &SStateTreeViewRow::GetTasksDesc)
-										.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Details")
-									]
-								]
-							]
-						]
 						
 						// Linked State box
 						+ SHorizontalBox::Slot()
@@ -254,6 +218,18 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 										.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Details")
 									]
 								]
+							]
+						]
+						// Tasks
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Fill)
+						.AutoWidth()
+						[
+							SNew(SBox)
+							.VAlign(VAlign_Fill)
+							.Visibility(this, &SStateTreeViewRow::GetTasksVisibility)
+							[
+								CreateTasksWidget()
 							]
 						]
 					]
@@ -404,6 +380,56 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 			]
 		]
 	];
+}
+
+TSharedRef<SHorizontalBox> SStateTreeViewRow::CreateTasksWidget()
+{
+	const TSharedRef<SHorizontalBox> TasksBox = SNew(SHorizontalBox);
+	
+	const UStateTreeState* State = WeakState.Get();
+	if (State == nullptr || State->Tasks.IsEmpty())
+	{
+		return TasksBox;
+	}
+
+	for (int32 TaskIndex = 0; TaskIndex < State->Tasks.Num(); TaskIndex++)
+	{
+		if (const FStateTreeTaskBase* Task = State->Tasks[TaskIndex].Node.GetPtr<FStateTreeTaskBase>())
+		{
+			auto IsTaskEnabledFunc = [WeakState=WeakState, TaskIndex]
+				{
+					const UStateTreeState* State = WeakState.Get();
+					if (State != nullptr && State->Tasks.IsValidIndex(TaskIndex))
+					{
+						if (const FStateTreeTaskBase* Task = State->Tasks[TaskIndex].Node.GetPtr<FStateTreeTaskBase>())
+						{
+							return (State->bEnabled && Task->bTaskEnabled);
+						}
+					}					
+					return true;
+				};
+			
+			TasksBox->AddSlot()
+				.AutoWidth()
+				.VAlign(VAlign_Fill)
+				[
+					SNew(SBorder)
+					.VAlign(VAlign_Center)
+					.BorderImage(FStateTreeEditorStyle::Get().GetBrush("StateTree.Task.Rect"))
+					.IsEnabled_Lambda(IsTaskEnabledFunc)					
+					[
+						SNew(STextBlock)
+						.Margin(FMargin(4.f, 0.f))
+						.Text(FText::FromName(Task->Name))
+						.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Task.Title")
+						.IsEnabled_Lambda(IsTaskEnabledFunc)						
+						.ToolTipText(FText::FromName(Task->Name))
+					]
+				];
+		}
+	}
+
+	return TasksBox;
 }
 
 void SStateTreeViewRow::RequestRename() const

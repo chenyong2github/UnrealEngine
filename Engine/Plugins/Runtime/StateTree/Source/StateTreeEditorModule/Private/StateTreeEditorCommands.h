@@ -30,4 +30,5 @@ public:
 	TSharedPtr<FUICommandInfo> PasteStatesAsChildren;
 	TSharedPtr<FUICommandInfo> DuplicateStates;
 	TSharedPtr<FUICommandInfo> DeleteStates;
+	TSharedPtr<FUICommandInfo> EnableStates;
 };

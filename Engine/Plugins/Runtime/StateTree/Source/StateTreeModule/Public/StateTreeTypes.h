@@ -91,6 +91,20 @@ enum class EStateTreeConditionOperand : uint8
 	Or,
 };
 
+/** Defines how to assign the result of a condition to evaluate.  */
+UENUM()
+enum class EStateTreeConditionEvaluationMode : uint8
+{
+	/** Condition is evaluated to set the result. This is the normal behavior. */
+	Evaluated,
+	
+	/** Do not evaluate the condition and force result to 'true'. */
+	ForcedTrue,
+	
+	/** Do not evaluate the condition and force result to 'false'. */
+	ForcedFalse,
+};
+
 UENUM()
 enum class EStateTreeStateType : uint8
 {
@@ -688,6 +702,10 @@ struct STATETREEMODULE_API FCompactStateTreeState
 	/** True if the state contains tasks that should be called during transition handling. */
 	UPROPERTY()
 	uint8 bHasTransitionTasks : 1;
+
+	/** True if the state is Enabled (i.e. not explicitly marked as disabled). */
+	UPROPERTY()
+	uint8 bEnabled : 1;
 };
 
 USTRUCT()
