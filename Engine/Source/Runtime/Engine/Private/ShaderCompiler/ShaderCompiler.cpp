@@ -3560,8 +3560,12 @@ void FShaderCompilerStats::WriteStatSummary()
 	}
 }
 
-void FShaderCompilerStats::GatherAnalytics(const FString& BaseName, TArray<FAnalyticsEventAttribute>& Attributes) const
+void FShaderCompilerStats::GatherAnalytics(const FString& BaseName, TArray<FAnalyticsEventAttribute>& Attributes)
 {
+	const double TotalTimeAtLeastOneJobWasInFlight = GetTimeShaderCompilationWasActive();
+
+	FScopeLock Lock(&CompileStatsLock);
+
 	{
 		FString AttrName = BaseName + TEXT("ShadersCompiled");
 		Attributes.Emplace(MoveTemp(AttrName), JobsCompleted);
@@ -3585,6 +3589,12 @@ void FShaderCompilerStats::GatherAnalytics(const FString& BaseName, TArray<FAnal
 		{
 			FString AttrName = BaseName + TEXT("TotalThreadPreprocessTime");
 			Attributes.Emplace(MoveTemp(AttrName), TotalThreadPreprocessTimeForAllShaders);
+		}
+
+		{
+            const double EffectiveParallelization = TotalTimeAtLeastOneJobWasInFlight > 0.0 ? TotalThreadTimeForAllShaders / TotalTimeAtLeastOneJobWasInFlight : 0.0;
+			FString AttrName = BaseName + TEXT("EffectiveParallelization");
+			Attributes.Emplace(MoveTemp(AttrName), EffectiveParallelization);
 		}
 	}
 }
