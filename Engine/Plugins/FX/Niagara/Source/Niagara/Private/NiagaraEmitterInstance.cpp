@@ -27,14 +27,6 @@ DECLARE_CYCLE_STAT(TEXT("Emitter Event CopyBuffer [CNC]"), STAT_NiagaraEvent_Cop
 DECLARE_CYCLE_STAT(TEXT("Emitter Error Check [CNC]"), STAT_NiagaraEmitterErrorCheck, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Init Emitters [GT]"), STAT_NiagaraEmitterInit, STATGROUP_Niagara);
 
-static int32 GbNiagaraAllowEventSpawnCombine = 1;
-static FAutoConsoleVariableRef CVarNiagaraAllowEventSpawnCombine(
-	TEXT("fx.Niagara.AllowEventSpawnCombine"),
-	GbNiagaraAllowEventSpawnCombine,
-	TEXT("Allows events spawning to be combined, 0=Disabled, 1=Allowed Based On Emitter, 2=Force On."),
-	ECVF_Default
-);
-
 static int32 GbDumpParticleData = 0;
 static FAutoConsoleVariableRef CVarNiagaraDumpParticleData(
 	TEXT("fx.DumpParticleData"),
@@ -127,7 +119,6 @@ FNiagaraEmitterInstance::FNiagaraEmitterInstance(FNiagaraSystemInstance* InParen
 	, CachedSystemFixedBounds(ForceInit)
 	, ParentSystemInstance(InParentSystemInstance)
 	, bResetPending(false)
-	, bCombineEventSpawn(false)
 {
 	ParticleDataSet = new FNiagaraDataSet();
 
@@ -497,8 +488,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	MaxInstanceCount = EmitterData->GetMaxInstanceCount();
 	ParticleDataSet->SetMaxInstanceCount(MaxInstanceCount);
 	ParticleDataSet->SetMaxAllocationCount(EmitterData->GetMaxAllocationCount());
-
-	bCombineEventSpawn = GbNiagaraAllowEventSpawnCombine && (EmitterData->bCombineEventSpawn || (GbNiagaraAllowEventSpawnCombine == 2));
 }
 
 void FNiagaraEmitterInstance::InitDITickLists()
@@ -1825,60 +1814,32 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		EventSpawnStart = Data.GetDestinationDataChecked().GetNumInstances();
 		if (EventInstanceData.IsValid())
 		{
-			if (bCombineEventSpawn)
+			for (int32 EventScriptIdx = 0; EventScriptIdx < EmitterData->GetEventHandlers().Num(); EventScriptIdx++)
 			{
-				int32 EventParticlesToSpawn = 0;
+				FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[EventScriptIdx];
 
-				for (int32 EventScriptIdx = 0; EventScriptIdx < EmitterData->GetEventHandlers().Num(); EventScriptIdx++)
+				for (int32 i = 0; i < Info.SpawnCounts.Num(); i++)
 				{
-					FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[EventScriptIdx];
-					for (int32 i = 0; i < Info.SpawnCounts.Num(); i++)
+					const int32 EventNumToSpawn = FMath::Min(Info.SpawnCounts[i], SpawnCountRemaining);
+					if (EventNumToSpawn > 0)
 					{
-						const int32 EventNumToSpawn = FMath::Min(Info.SpawnCounts[i], SpawnCountRemaining);
-						EventParticlesToSpawn += EventNumToSpawn;
-						SpawnCountRemaining -= EventNumToSpawn;
-						TotalActualEventSpawns += EventNumToSpawn;
-						Info.SpawnCounts[i] = EventNumToSpawn;
+						const int32 CurrNumParticles = Data.GetDestinationDataChecked().GetNumInstances();
+
+						//Event spawns are instantaneous at the middle of the frame?
+						SpawnIntervalBinding.SetValue(0.0f);
+						InterpSpawnStartBinding.SetValue(DeltaSeconds * 0.5f);
+						SpawnGroupBinding.SetValue(0);
+						SpawnParticles(EventNumToSpawn, TEXT("Event Spawn"));
+
+						//Update EventSpawnCounts to the number actually spawned.
+						const int32 NumActuallySpawned = Data.GetDestinationDataChecked().GetNumInstances() - CurrNumParticles;
+						TotalActualEventSpawns += NumActuallySpawned;
+						Info.SpawnCounts[i] = NumActuallySpawned;
+						SpawnCountRemaining -= NumActuallySpawned;
 					}
-				}
-
-				if (EventParticlesToSpawn > 0)
-				{
-					SpawnIntervalBinding.SetValue(0.0f);
-					InterpSpawnStartBinding.SetValue(DeltaSeconds * 0.5f);
-					SpawnGroupBinding.SetValue(0);
-					SpawnParticles(EventParticlesToSpawn, TEXT("Event Spawn"));
-				}
-			}
-			else
-			{
-				for (int32 EventScriptIdx = 0; EventScriptIdx < EmitterData->GetEventHandlers().Num(); EventScriptIdx++)
-				{
-					FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[EventScriptIdx];
-
-					for (int32 i = 0; i < Info.SpawnCounts.Num(); i++)
+					else
 					{
-						const int32 EventNumToSpawn = FMath::Min(Info.SpawnCounts[i], SpawnCountRemaining);
-						if (EventNumToSpawn > 0)
-						{
-							const int32 CurrNumParticles = Data.GetDestinationDataChecked().GetNumInstances();
-
-							//Event spawns are instantaneous at the middle of the frame?
-							SpawnIntervalBinding.SetValue(0.0f);
-							InterpSpawnStartBinding.SetValue(DeltaSeconds * 0.5f);
-							SpawnGroupBinding.SetValue(0);
-							SpawnParticles(EventNumToSpawn, TEXT("Event Spawn"));
-
-							//Update EventSpawnCounts to the number actually spawned.
-							const int32 NumActuallySpawned = Data.GetDestinationDataChecked().GetNumInstances() - CurrNumParticles;
-							TotalActualEventSpawns += NumActuallySpawned;
-							Info.SpawnCounts[i] = NumActuallySpawned;
-							SpawnCountRemaining -= NumActuallySpawned;
-						}
-						else
-						{
-							Info.SpawnCounts[i] = 0;
-						}
+						Info.SpawnCounts[i] = 0;
 					}
 				}
 			}

@@ -20,6 +20,7 @@
 #include "Styling/AppStyle.h"
 #include "IDetailTreeNode.h"
 #include "NiagaraNodeFunctionCall.h"
+#include "NiagaraSettings.h"
 #include "Toolkits/SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
 #include "Widgets/SNiagaraHierarchy.h"
 
@@ -202,12 +203,13 @@ void UNiagaraStackEmitterPropertiesItem::RefreshIssues(TArray<FStackIssue>& NewI
 		TWeakPtr<FNiagaraSystemViewModel> WeakSysViewModel = GetSystemViewModel();
 		if (System.NeedsWarmup())
 		{
+			const UNiagaraSettings* NiagaraSettings = GetDefault<UNiagaraSettings>();
 			float WarmupDelta = System.GetWarmupTickDelta();
-			if (ActualEmitterData->bLimitDeltaTime && ActualEmitterData->MaxDeltaTimePerTick < WarmupDelta)
+			if (NiagaraSettings->bLimitDeltaTime && NiagaraSettings->MaxDeltaTimePerTick < WarmupDelta)
 			{
 				TArray<FStackIssueFix> Fixes;
 
-				float MaxEmitterDt = ActualEmitterData->MaxDeltaTimePerTick;
+				float MaxEmitterDt = NiagaraSettings->MaxDeltaTimePerTick;
 				//This emitter does not allow ticks with a delta time so large.
 				FText FixDescriptionReduceWarmupDt = LOCTEXT("FixWarmupDeltaTime", "Reduce System Warmup Delta Time");
 				Fixes.Emplace(
@@ -223,28 +225,10 @@ void UNiagaraStackEmitterPropertiesItem::RefreshIssues(TArray<FStackIssue>& NewI
 							}
 						}));
 
-				FVersionedNiagaraEmitterWeakPtr WeakEmitter = GetEmitterViewModel()->GetEmitter().ToWeakPtr();
-				FText FixDescriptionReduceIncreaseEmitterDt = LOCTEXT("FixEmitterDeltaTime", "Increase Max Emitter Delta Time");
-				Fixes.Emplace(
-					FixDescriptionReduceIncreaseEmitterDt,
-					FStackIssueFixDelegate::CreateLambda([=]()
-						{
-							auto PinnedSysViewModel = WeakSysViewModel.Pin();
-							FVersionedNiagaraEmitter PinnedEmitter = WeakEmitter.ResolveWeakPtr();
-							if (PinnedEmitter.Emitter && PinnedSysViewModel)
-							{
-								FScopedTransaction ScopedTransaction(FixDescriptionReduceIncreaseEmitterDt);
-
-								PinnedEmitter.Emitter->Modify();
-								PinnedEmitter.GetEmitterData()->MaxDeltaTimePerTick = WarmupDelta;
-								PinnedSysViewModel->RefreshAll();
-							}
-						}));
-
 				FStackIssue WarmupDeltaTimeExceedsEmitterDeltaTimeWarning(
 					EStackIssueSeverity::Warning,
 					LOCTEXT("WarmupDeltaTimeExceedsEmitterDeltaTimeWarningSummary", "System Warmup Delta Time Exceeds Emitter Max Delta Time."),
-					LOCTEXT("WarmupDeltaTimeExceedsEmitterDeltaTimeWarningText", "Max Tick Delta Time is smaller than the System's Warmup Delta Time. This could cause unintended results during warmup for this emitter."),
+					LOCTEXT("WarmupDeltaTimeExceedsEmitterDeltaTimeWarningText", "Max Tick Delta Time is smaller than the System's Warmup Delta Time. This could cause unintended results during warmup for this emitter.\nThe max tick delta time can be changed in the Niagara settings."),
 					GetStackEditorDataKey(),
 					false,
 					Fixes);

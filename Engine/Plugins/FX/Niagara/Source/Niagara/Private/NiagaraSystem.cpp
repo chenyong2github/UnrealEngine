@@ -1849,6 +1849,7 @@ void UNiagaraSystem::CacheFromCompiledData()
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 	const FNiagaraDataSetCompiledData& SystemDataSet = SystemCompiledData.DataSetCompiledData;
+	const UNiagaraSettings* NiagaraSettings = GetDefault<UNiagaraSettings>();
 
 	bNeedsAsyncOptimize = true;
 
@@ -1896,9 +1897,9 @@ void UNiagaraSystem::CacheFromCompiledData()
 
 				DataSetCompiledData = &EmitterCompiledData[i]->DataSetCompiledData;
 
-				if (EmitterData->bLimitDeltaTime)
+				if (NiagaraSettings->bLimitDeltaTime)
 				{
-					MaxDeltaTime = MaxDeltaTime.IsSet() ? FMath::Min(MaxDeltaTime.GetValue(), EmitterData->MaxDeltaTimePerTick) : EmitterData->MaxDeltaTimePerTick;
+					MaxDeltaTime = MaxDeltaTime.IsSet() ? FMath::Min(MaxDeltaTime.GetValue(), NiagaraSettings->MaxDeltaTimePerTick) : NiagaraSettings->MaxDeltaTimePerTick;
 				}
 			}
 			Handle.GetInstance().Emitter->ConditionalPostLoad();

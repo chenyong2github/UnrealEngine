@@ -316,10 +316,6 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Emitter")
 	uint32 bRequiresPersistentIDs : 1;
 
-	/** Performance option to allow event based spawning to be combined into a single spawn.  This will result in a single exec from 0 to number of particles rather than several, when using ExecIndex() it is recommended not to do this. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Emitter")
-	uint32 bCombineEventSpawn : 1;
-
 	UPROPERTY(meta=(NiagaraNoMerge))
 	TArray<FNiagaraEventScriptProperties> EventHandlerScriptProps;
 	
@@ -329,17 +325,9 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(DisplayInScalabilityContext))
 	FNiagaraEmitterScalabilityOverrides ScalabilityOverrides;
 
-	/** Whether to limit the max tick delta time or not. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Emitter", meta = (InlineEditConditionToggle))
-	uint32 bLimitDeltaTime : 1;
-
 	/** An override on the max number of GPU particles we expect to spawn in a single frame. A value of 0 means it'll use fx.MaxNiagaraGPUParticlesSpawnPerFrame.*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "SimTarget == ENiagaraSimTarget::GPUComputeSim", DisplayName = "Max GPU Particles Spawn per Frame"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "SimTarget == ENiagaraSimTarget::GPUComputeSim", DisplayName = "Max GPU Particles Spawn per Frame", EditConditionHides))
 	int32 MaxGPUParticlesSpawnPerFrame;
-
-	/** Limits the delta time per tick to prevent simulation spikes due to frame lags. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "bLimitDeltaTime", ForceUnits=s))
-	float MaxDeltaTimePerTick = 0.125;
 
 	/**
 	The emitter needs to allocate memory for the particles each tick.
@@ -353,7 +341,7 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	The emitter will allocate at least this many particles on it's first tick.
 	This can aid performance by avoiding many allocations as an emitter ramps up to it's max size.
 	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "AllocationMode != EParticleAllocationMode::AutomaticEstimate"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "AllocationMode != EParticleAllocationMode::AutomaticEstimate", EditConditionHides))
 	int32 PreAllocationCount = 0;
 
 	UPROPERTY()
@@ -824,18 +812,6 @@ public:
 	/** Use property in struct returned from GetEmitterData() instead */ 
 	UPROPERTY(meta = (DeprecatedProperty))
 	uint32 bRequiresPersistentIDs_DEPRECATED : 1;
-
-	/** Use property in struct returned from GetEmitterData() instead */ 
-	UPROPERTY(meta = (DeprecatedProperty))
-	uint32 bCombineEventSpawn_DEPRECATED : 1;
-
-	/** Use property in struct returned from GetEmitterData() instead */ 
-	UPROPERTY(meta = (DeprecatedProperty))
-	float MaxDeltaTimePerTick_DEPRECATED;
-
-	/** Use property in struct returned from GetEmitterData() instead */ 
-	UPROPERTY(meta = (DeprecatedProperty))
-	uint32 bLimitDeltaTime_DEPRECATED : 1;
 
 	/** Use property in struct returned from GetEmitterData() instead */ 
 	UPROPERTY(meta = (DeprecatedProperty))

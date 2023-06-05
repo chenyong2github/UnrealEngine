@@ -58,6 +58,16 @@ void CustomizeEmitterData(IDetailLayoutBuilder& InDetailLayout, UNiagaraEmitter*
 			PropertyRow->GetPropertyHandle()->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda(PostEditChangeLambda));
 		}
 	}
+
+	// only show some categories for standalone emitter assets 
+	if (NiagaraSystem && NiagaraSystem->GetOuter() != GetTransientPackage())
+	{
+		IDetailCategoryBuilder& ScriptCategory = InDetailLayout.EditCategory(FName("Script"));
+		ScriptCategory.SetCategoryVisibility(false);
+		IDetailCategoryBuilder& AssetCategory = InDetailLayout.EditCategory(FName("Asset Options"));
+		AssetCategory.SetCategoryVisibility(false);
+		
+	}
 }
 
 void FNiagaraEmitterDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)

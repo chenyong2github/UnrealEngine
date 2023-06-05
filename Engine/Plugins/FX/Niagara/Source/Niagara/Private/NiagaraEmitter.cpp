@@ -177,9 +177,6 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 , bUseMinDetailLevel_DEPRECATED(false)
 , bUseMaxDetailLevel_DEPRECATED(false)
 , bRequiresPersistentIDs_DEPRECATED(false)
-, bCombineEventSpawn_DEPRECATED(false)
-, MaxDeltaTimePerTick_DEPRECATED(0.125)
-, bLimitDeltaTime_DEPRECATED(true)
 , MaxGPUParticlesSpawnPerFrame_DEPRECATED(0)
 #endif
 {
@@ -1285,14 +1282,6 @@ void UNiagaraEmitter::PostEditChangeVersionedProperty(FPropertyChangedEvent& Pro
 		if (EmitterData->GraphSource != nullptr)
 		{
 			EmitterData->GraphSource->MarkNotSynchronized(TEXT("AttributesToPreserve changed."));
-		}
-		bNeedsRecompile = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FVersionedNiagaraEmitterData, MaxDeltaTimePerTick))
-	{
-		if (EmitterData->GraphSource != nullptr)
-		{
-			EmitterData->GraphSource->MarkNotSynchronized(TEXT("MaxDeltaTimePerTick changed."));
 		}
 		bNeedsRecompile = true;
 	}
@@ -2757,16 +2746,13 @@ void UNiagaraEmitter::CheckVersionDataAvailable()
 	Data.GraphSource = GraphSource_DEPRECATED;
 	Data.bDeterminism = bDeterminism_DEPRECATED;
 	Data.AllocationMode = AllocationMode_DEPRECATED;
-	Data.bLimitDeltaTime = bLimitDeltaTime_DEPRECATED;
 	Data.SpawnScriptProps = SpawnScriptProps_DEPRECATED;
 	Data.SimulationStages = SimulationStages_DEPRECATED;
 	Data.EditorParameters = EditorParameters_DEPRECATED;
 	Data.GPUComputeScript = GPUComputeScript_DEPRECATED;
 	Data.UpdateScriptProps = UpdateScriptProps_DEPRECATED;
 	Data.PreAllocationCount = PreAllocationCount_DEPRECATED;
-	Data.bCombineEventSpawn = bCombineEventSpawn_DEPRECATED;
 	Data.RendererProperties = RendererProperties_DEPRECATED;
-	Data.MaxDeltaTimePerTick = MaxDeltaTimePerTick_DEPRECATED;
 	Data.ScalabilityOverrides = ScalabilityOverrides_DEPRECATED;
 	Data.AttributesToPreserve = AttributesToPreserve_DEPRECATED;
 	Data.bInterpolatedSpawning = bInterpolatedSpawning_DEPRECATED;
@@ -2822,8 +2808,6 @@ FVersionedNiagaraEmitterData::FVersionedNiagaraEmitterData()
 	, bGpuAlwaysRunParticleUpdateScript(false)
 #endif
 	, bRequiresPersistentIDs(false)
-	, bCombineEventSpawn(false)
-	, bLimitDeltaTime(true)
 	, MaxGPUParticlesSpawnPerFrame(0)
 	, bRequiresViewUniformBuffer(false)
 #if WITH_EDITORONLY_DATA
