@@ -280,7 +280,8 @@ public:
 			&& ArraySize == rhs.ArraySize
 			&& NumMips == rhs.NumMips
 			&& NumSamples == rhs.NumSamples
-			&& PackedBits == rhs.PackedBits;
+			&& PackedBits == rhs.PackedBits
+			&& FastVRAMPercentage == rhs.FastVRAMPercentage;
 	}
 
 	bool IsCubemap() const
@@ -419,7 +420,8 @@ public:
 	uint8 NumMips = 0;
 	/** Number of MSAA samples, default: 1  */
 	uint8 NumSamples = 1;
-
+	/** Resource memory percentage which should be allocated onto fast VRAM (hint-only). (encoding into 8bits, 0..255 -> 0%..100%) */
+	uint8 FastVRAMPercentage = 0xFF;
 	union
 	{
 		struct

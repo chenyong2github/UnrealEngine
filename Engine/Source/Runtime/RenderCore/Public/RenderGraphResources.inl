@@ -70,6 +70,7 @@ inline FPooledRenderTargetDesc Translate(const FRHITextureDesc& InDesc)
 	OutDesc.NumSamples = InDesc.NumSamples;
 	OutDesc.bIsArray = InDesc.IsTextureArray();
 	OutDesc.bIsCubemap = InDesc.IsTextureCube();
+	OutDesc.FastVRAMPercentage = InDesc.FastVRAMPercentage;
 
 	check(OutDesc.IsValid());
 	return OutDesc;
@@ -126,6 +127,7 @@ inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc)
 	}
 
 	OutDesc.Flags = InDesc.Flags;
+	OutDesc.FastVRAMPercentage = InDesc.FastVRAMPercentage;
 	check(OutDesc.IsValid());
 
 	return OutDesc;
