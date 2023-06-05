@@ -25,7 +25,7 @@
 		{
 			"Name": "DMXDisplayClusterLightCard",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
+			"LoadingPhase": "PostConfigInit",
 			"PlatformAllowList": [
 				"Win64",
 				"Linux"
