@@ -553,6 +553,12 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDisallowedExecCommandCalled, const TCHAR* /*Cmd*/);
 	static FOnDisallowedExecCommandCalled OnDisallowedExecCommandCalled;
 
+	// Extension point for projects to report the URL for a continuous integration job which produced these binaries.
+	static TDelegate<const TCHAR*()> OnGetBuildURL;
+	
+	// Extension point for projects to report the URL for a continuous integration job which is currently executing this process. 
+	static TDelegate<const TCHAR*()> OnGetExecutingJobURL;
+	
 private:
 
 	// Callbacks for hotfixes

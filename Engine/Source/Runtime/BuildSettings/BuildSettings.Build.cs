@@ -37,7 +37,11 @@ public class BuildSettings : ModuleRules
 		PrivateDefinitions.Add(string.Format("BRANCH_NAME=\"{0}\"", Target.Version.BranchName));
 
 		PrivateDefinitions.Add(string.Format("BUILD_VERSION=\"{0}\"", Target.BuildVersion));
-
+		if (!String.IsNullOrEmpty(Target.Version.BuildURL))
+		{
+			PrivateDefinitions.Add(string.Format("BUILD_SOURCE_URL=\"{0}\"", Target.Version.BuildURL));
+		}
+				
 		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }

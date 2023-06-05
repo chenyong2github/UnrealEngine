@@ -66,6 +66,22 @@ public:
 	* @return The build version
 	*/
 	static const TCHAR* GetBuildVersion();
+	
+	/* 
+	 * Gets the URL for a job which created these binaries. 
+	 * This may not be accessible if you are not part of the organization that created this build. 
+	 * May be overridden with FCoreDelegates::OnGetBuildURL
+	 */
+	static const TCHAR* GetBuildURL();
+
+	/* 
+	 * Gets the URL for the currently running Horde job/step if any. 
+	 * May be overridden with FCoreDelegates::OnGetExecutingJobURL
+	 */ 
+	static const TCHAR* GetExecutingJobURL();
+
+	/* Returns whether the binaries were built with debug info */
+	static bool GetIsWithDebugInfo();
 
 	/**
 	 * Gets the date at which this application was built.

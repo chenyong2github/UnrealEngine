@@ -290,7 +290,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Updates the engine version files
 		/// </summary>
-		public List<FileReference> UpdateVersionFiles(bool ActuallyUpdateVersionFiles = true, int? ChangelistNumberOverride = null, int? CompatibleChangelistNumberOverride = null, string Build = null, bool? IsPromotedOverride = null)
+		public List<FileReference> UpdateVersionFiles(bool ActuallyUpdateVersionFiles = true, int? ChangelistNumberOverride = null, int? CompatibleChangelistNumberOverride = null, string Build = null, string BuildURL = null, bool? IsPromotedOverride = null)
 		{
 			bool bIsLicenseeVersion = ParseParam("Licensee") || !FileReference.Exists(FileReference.Combine(Unreal.EngineDirectory, "Restricted", "NotForLicensees", "Build", "EpicInternal.txt"));
 			bool bIsPromotedBuild = IsPromotedOverride.HasValue? IsPromotedOverride.Value : (ParseParamInt("Promoted", 1) != 0);
@@ -312,10 +312,10 @@ namespace AutomationTool
 				Branch = CommandUtils.P4Enabled ? CommandUtils.EscapePath(CommandUtils.P4Env.Branch) : "";
 			}
 
-			return StaticUpdateVersionFiles(ChangelistNumber, CompatibleChangelistNumber, Branch, Build, bIsLicenseeVersion, bIsPromotedBuild, bDoUpdateVersionFiles);
+			return StaticUpdateVersionFiles(ChangelistNumber, CompatibleChangelistNumber, Branch, Build, BuildURL, bIsLicenseeVersion, bIsPromotedBuild, bDoUpdateVersionFiles);
 		}
 
-		public static List<FileReference> StaticUpdateVersionFiles(int ChangelistNumber, int CompatibleChangelistNumber, string Branch, string Build, bool bIsLicenseeVersion, bool bIsPromotedBuild, bool bDoUpdateVersionFiles)
+		public static List<FileReference> StaticUpdateVersionFiles(int ChangelistNumber, int CompatibleChangelistNumber, string Branch, string Build, string BuildURL, bool bIsLicenseeVersion, bool bIsPromotedBuild, bool bDoUpdateVersionFiles)
 		{
 			FileReference BuildVersionFile = BuildVersion.GetDefaultFileName();
 
@@ -342,6 +342,7 @@ namespace AutomationTool
 					Logger.LogDebug("  IsPromotedBuild={Arg0}", bIsPromotedBuild? 1 : 0);
 					Logger.LogDebug("  BranchName={Branch}", Branch);
 					Logger.LogDebug("  BuildVersion={Build}", Build);
+					Logger.LogDebug("  BuildURL={BuildURL}", BuildURL);
 
 					Version.Changelist = ChangelistNumber;
 					if(CompatibleChangelistNumber > 0)
@@ -356,6 +357,7 @@ namespace AutomationTool
 					Version.IsPromotedBuild = bIsPromotedBuild;
 					Version.BranchName = Branch;
 					Version.BuildVersionString = Build;
+					Version.BuildURL = BuildURL;
 
 					if (File.Exists(BuildVersionFile.FullName))
 					{

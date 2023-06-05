@@ -43,6 +43,12 @@ namespace AutomationTool.Tasks
 		public string Build;
 
 		/// <summary>
+		/// The URL for a running continuous integration job.
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string BuildURL;
+
+		/// <summary>
 		/// Whether to set the IS_LICENSEE_VERSION flag to true.
 		/// </summary>
 		[TaskParameter(Optional = true)]
@@ -96,7 +102,7 @@ namespace AutomationTool.Tasks
 		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Update the version files
-			List<FileReference> VersionFiles = UnrealBuild.StaticUpdateVersionFiles(Parameters.Change, Parameters.CompatibleChange, Parameters.Branch, Parameters.Build, Parameters.Licensee, Parameters.Promoted, !Parameters.SkipWrite);
+			List<FileReference> VersionFiles = UnrealBuild.StaticUpdateVersionFiles(Parameters.Change, Parameters.CompatibleChange, Parameters.Branch, Parameters.Build, Parameters.BuildURL, Parameters.Licensee, Parameters.Promoted, !Parameters.SkipWrite);
 
 			// Apply the optional tag to them
 			foreach(string TagName in FindTagNamesFromList(Parameters.Tag))
@@ -156,13 +162,14 @@ namespace AutomationTool.Tasks
 		/// <summary>
 		/// Updates the current engine version
 		/// </summary>
-		public static async Task<FileSet> SetVersionAsync(int Change, string Branch, int? CompatibleChange = null, string Build = null, bool? Licensee = null, bool? Promoted = null, bool? SkipWrite = null)
+		public static async Task<FileSet> SetVersionAsync(int Change, string Branch, int? CompatibleChange = null, string Build = null, string BuildURL = null, bool? Licensee = null, bool? Promoted = null, bool? SkipWrite = null)
 		{
 			SetVersionTaskParameters Parameters = new SetVersionTaskParameters();
 			Parameters.Change = Change;
 			Parameters.CompatibleChange = CompatibleChange ?? Parameters.CompatibleChange;
 			Parameters.Branch = Branch ?? Parameters.Branch;
-			Parameters.Branch = Build ?? Parameters.Build;
+			Parameters.Build = Build ?? Parameters.Build;
+			Parameters.BuildURL = BuildURL ?? Parameters.BuildURL;
 			Parameters.Licensee = Licensee ?? Parameters.Licensee;
 			Parameters.Promoted = Promoted ?? Parameters.Promoted;
 			Parameters.SkipWrite = SkipWrite ?? Parameters.SkipWrite;

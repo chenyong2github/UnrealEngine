@@ -334,6 +334,9 @@ CORE_API void RegisterEncryptionKeyCallback(TEncryptionKeyFunc InCallback)
 	});
 }
 
+TDelegate<const TCHAR*(void)> FCoreDelegates::OnGetBuildURL;
+TDelegate<const TCHAR*(void)> FCoreDelegates::OnGetExecutingJobURL;
+
 FSimpleMulticastDelegate FCoreDelegates::OnParentBeginFork;
 FSimpleMulticastDelegate FCoreDelegates::OnParentPreFork;
 TMulticastDelegate<void(EForkProcessRole /* ProcessRole */)> FCoreDelegates::OnPostFork;

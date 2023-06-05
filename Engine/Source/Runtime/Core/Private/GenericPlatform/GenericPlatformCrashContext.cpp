@@ -159,9 +159,13 @@ void FGenericCrashContext::Initialize()
 #if !NOINITCRASHREPORTER
 	NCached::Session.bIsInternalBuild = FEngineBuildSettings::IsInternalBuild();
 	NCached::Session.bIsPerforceBuild = FEngineBuildSettings::IsPerforceBuild();
+	NCached::Session.bWithDebugInfo = FApp::GetIsWithDebugInfo();
 	NCached::Session.bIsSourceDistribution = FEngineBuildSettings::IsSourceDistribution();
 	NCached::Session.ProcessId = FPlatformProcess::GetCurrentProcessId();
 
+	NCached::Set(NCached::Session.EngineVersion, *FEngineVersion::Current().ToString());
+	NCached::Set(NCached::Session.EngineCompatibleVersion, *FEngineVersion::Current().ToString());
+	NCached::Set(NCached::Session.BuildVersion, FApp::GetBuildVersion());
 	NCached::Set(NCached::Session.GameName, *FString::Printf(TEXT("UE-%s"), FApp::GetProjectName()));
 	NCached::Set(NCached::Session.GameSessionID, TEXT("")); // Updated by callback
 	NCached::Set(NCached::Session.GameStateName, TEXT("")); // Updated by callback
@@ -334,6 +338,16 @@ void FGenericCrashContext::Initialize()
 		}
 	});
 
+	// Store some additional info in the generic maps if it is available
+	if (const TCHAR* BuildURL = FApp::GetBuildURL())
+	{
+		SetEngineData(TEXT("BuildURL"), BuildURL);
+	}
+	if (const TCHAR* ExecutingJobURL = FApp::GetExecutingJobURL())
+	{
+		SetEngineData(TEXT("ExecutingJobURL"), ExecutingJobURL);
+	}
+
 	SerializeTempCrashContextToFile();
 
 	CleanupPlatformSpecificFiles();
@@ -413,7 +427,8 @@ void FGenericCrashContext::CopySharedCrashContext(FSharedCrashContext& Dst)
 	TCHAR* DynamicDataStart = &Dst.DynamicData[0];
 	TCHAR* DynamicDataPtr = DynamicDataStart;
 
-	#define CR_DYNAMIC_BUFFER_REMAIN uint32((CR_MAX_DYNAMIC_BUFFER_CHARS) - (DynamicDataPtr-DynamicDataStart))
+	// -1 to allow space for null terminator
+	#define CR_DYNAMIC_BUFFER_REMAIN uint32((CR_MAX_DYNAMIC_BUFFER_CHARS) - (DynamicDataPtr-DynamicDataStart) - 1)
 
 	Dst.EnabledPluginsOffset = (uint32)(DynamicDataPtr - DynamicDataStart);
 	Dst.EnabledPluginsNum = NCached::EnabledPluginsList.Num();
@@ -627,6 +642,8 @@ void FGenericCrashContext::SerializeTempCrashContextToFile()
 	FFileHelper::SaveStringToFile(SessionBuffer, *SessionFilePath);
 }
 
+// This function may be called in the crashing executable or in an external crash reporter program. Take care with accessing global variables vs member variables or 
+// fields in NCached!
 void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 {
 	AddCrashPropertyInternal(Buffer, TEXT("ProcessId"), NCached::Session.ProcessId);
@@ -634,6 +651,7 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 
 	AddCrashPropertyInternal(Buffer, TEXT("IsInternalBuild"), NCached::Session.bIsInternalBuild);
 	AddCrashPropertyInternal(Buffer, TEXT("IsPerforceBuild"), NCached::Session.bIsPerforceBuild);
+	AddCrashPropertyInternal(Buffer, TEXT("IsWithDebugInfo"), NCached::Session.bWithDebugInfo);
 	AddCrashPropertyInternal(Buffer, TEXT("IsSourceDistribution"), NCached::Session.bIsSourceDistribution);
 
 	if (FCString::Strlen(NCached::Session.GameName) > 0)
@@ -664,11 +682,12 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 
 	AddCrashPropertyInternal(Buffer, TEXT("DeploymentName"), NCached::Session.DeploymentName);
 
-	AddCrashPropertyInternal(Buffer, TEXT("EngineVersion"), *FEngineVersion::Current().ToString());
+	AddCrashPropertyInternal(Buffer, TEXT("EngineVersion"), NCached::Session.EngineVersion); 
+	AddCrashPropertyInternal(Buffer, TEXT("EngineCompatibleVersion"), NCached::Session.EngineCompatibleVersion); 
 	AddCrashPropertyInternal(Buffer, TEXT("CommandLine"), NCached::Session.CommandLine);
 	AddCrashPropertyInternal(Buffer, TEXT("LanguageLCID"), NCached::Session.LanguageLCID);
 	AddCrashPropertyInternal(Buffer, TEXT("AppDefaultLocale"), NCached::Session.DefaultLocale);
-	AddCrashPropertyInternal(Buffer, TEXT("BuildVersion"), FApp::GetBuildVersion());
+	AddCrashPropertyInternal(Buffer, TEXT("BuildVersion"), NCached::Session.BuildVersion);
 	AddCrashPropertyInternal(Buffer, TEXT("Symbols"), NCached::Session.SymbolsLabel);
 	AddCrashPropertyInternal(Buffer, TEXT("IsUERelease"), NCached::Session.bIsUERelease);
 
@@ -734,6 +753,8 @@ void FGenericCrashContext::SerializeUserSettings(FString& Buffer)
 	AddCrashPropertyInternal(Buffer, TEXT("LogFilePath"), FPlatformOutputDevices::GetAbsoluteLogFilename()); // Don't use the value cached, it may be out of date.
 }
 
+// This function may be called in the crashing executable or in an external crash reporter program. Take care with accessing global variables vs member variables or 
+// fields in NCached!
 void FGenericCrashContext::SerializeContentToBuffer() const
 {
 	// Clear the buffer in case the content is serialized more than once, keeping the most up to date values and preventing to store several XML documents in the same buffer.

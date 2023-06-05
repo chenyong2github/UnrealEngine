@@ -66,6 +66,11 @@ namespace UnrealBuildTool
 		public string? BuildVersionString;
 
 		/// <summary>
+		/// Optional URL for a continuous integration job associated with this build version. (e.g. the job that build a set of binaries)
+		/// </summary>
+		public string? BuildURL;
+
+		/// <summary>
 		/// Returns the value which can be used as the compatible changelist. Requires that the regular changelist is also set, and defaults to the 
 		/// regular changelist if a specific compatible changelist is not set.
 		/// </summary>
@@ -155,6 +160,7 @@ namespace UnrealBuildTool
 			Object.TryGetStringField("BranchName", out NewVersion.BranchName);
 			Object.TryGetStringField("BuildId", out NewVersion.BuildId);
 			Object.TryGetStringField("BuildVersion", out NewVersion.BuildVersionString);
+			Object.TryGetStringField("BuildURL", out NewVersion.BuildURL);
 
 			Version = NewVersion;
 			return true;
@@ -220,6 +226,10 @@ namespace UnrealBuildTool
 			if (!String.IsNullOrEmpty(BuildVersionString))
 			{
 				Writer.WriteValue("BuildVersion", BuildVersionString);
+			}
+			if (!String.IsNullOrEmpty(BuildURL))
+			{
+				Writer.WriteValue("BuildURL", BuildURL);
 			}
 		}
 	}
@@ -300,6 +310,7 @@ namespace UnrealBuildTool
 		public string? BranchName => Inner.BranchName;
 
 		public string? BuildVersionString => Inner.BuildVersionString;
+		public string? BuildURL => Inner.BuildURL;
 
 #pragma warning restore C1591
 		#endregion

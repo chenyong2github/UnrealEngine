@@ -43,6 +43,20 @@ namespace BuildSettings
 	{
 		return ENGINE_IS_PROMOTED_BUILD;
 	}
+	
+	bool IsWithDebugInfo()
+	{
+		return UE_WITH_DEBUG_INFO;
+	}
+	
+	const TCHAR* GetBuildURL()
+	{
+#ifdef BUILD_SOURCE_URL
+		return TEXT(BUILD_SOURCE_URL);
+#else
+		return TEXT("");
+#endif	
+	}
 }
 
 

@@ -69,4 +69,14 @@ namespace BuildSettings
 	 * @return True if this is a promoted build of the engine.
 	 */
 	BUILDSETTINGS_API bool IsPromotedBuild();
+
+	/**
+	 * Identifies whether this build was compiled with or without debug info. (e.g. pdb files on Microsoft platforms)
+	 */
+	BUILDSETTINGS_API bool IsWithDebugInfo();
+
+	/**
+	 * Returns a URL where the job which created these binaries on an automation system (e.g. Horde) can be found, or an empty string.
+	 */
+	BUILDSETTINGS_API const TCHAR* GetBuildURL();
 }

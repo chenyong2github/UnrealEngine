@@ -156,6 +156,7 @@ struct FSessionContext
 {
 	bool 					bIsInternalBuild;
 	bool 					bIsPerforceBuild;
+	bool 					bWithDebugInfo;
 	bool 					bIsSourceDistribution;
 	bool 					bIsUERelease;
 	bool					bIsOOM;
@@ -169,6 +170,9 @@ struct FSessionContext
 	int32					CrashTrigger;
 	int32					OOMAllocationAlignment;
 	uint64					OOMAllocationSize;
+	TCHAR 					EngineVersion[CR_MAX_GENERIC_FIELD_CHARS];
+	TCHAR 					EngineCompatibleVersion[CR_MAX_GENERIC_FIELD_CHARS];
+	TCHAR 					BuildVersion[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					GameName[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR					EngineMode[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR					EngineModeEx[CR_MAX_GENERIC_FIELD_CHARS];

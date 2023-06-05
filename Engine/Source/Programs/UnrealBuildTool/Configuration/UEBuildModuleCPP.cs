@@ -1851,6 +1851,11 @@ namespace UnrealBuildTool
 			AddDefinitions(Result.Definitions, PublicDefinitions);
 
 			Result.Definitions.AddRange(Rules.PrivateDefinitions);
+			
+			if (Rules.Name == "BuildSettings")
+			{
+				Result.Definitions.Add(String.Format("UE_WITH_DEBUG_INFO={0}", BaseCompileEnvironment.bCreateDebugInfo ? "1" : "0"));
+			}
 
 			// Add the project definitions
 			if (!Rules.bTreatAsEngineModule)
