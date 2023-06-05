@@ -457,7 +457,6 @@ int32 UNiagaraParameterCollection::AddParameter(const FNiagaraVariable& Paramete
 	if (Idx == INDEX_NONE)
 	{
 		Modify();
-		CompileId = FGuid::NewGuid(); // Any scripts could now be referencing this new parameter and so would need to be changed.
 
 		Idx = Parameters.Add(Parameter);
 		DefaultInstance->AddParameter(Parameter);
