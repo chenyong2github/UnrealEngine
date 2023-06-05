@@ -2050,8 +2050,12 @@ void FSlateEditableTextLayout::InsertTextAtCursorImpl(const FString& InString)
 		const bool bIsMultiLine = OwnerWidget->IsMultiLineTextEdit();
 		SanitizedString.GetCharArray().RemoveAll([&](const TCHAR InChar) -> bool
 		{
-			const bool bIsCharAllowed = IsCharAllowed(InChar) || (bIsMultiLine || !FChar::IsLinebreak(InChar));
-			return !bIsCharAllowed;
+			if (InChar != 0)
+			{
+				const bool bIsCharAllowed = IsCharAllowed(InChar) || (bIsMultiLine && FChar::IsLinebreak(InChar));
+				return !bIsCharAllowed;
+			}
+			return false;
 		});
 	}
 

@@ -66,8 +66,12 @@ void SOptimusShaderTextSearchWidget::TriggerSearch(const FText& InNewSearchText)
 	{
 		SingleLineString.GetCharArray().RemoveAll([&](const TCHAR InChar) -> bool
 		{
-			const bool bIsCharAllowed = !FChar::IsLinebreak(InChar);
-			return !bIsCharAllowed;
+			if (InChar != 0)
+			{
+				const bool bIsCharAllowed = !FChar::IsLinebreak(InChar);
+				return !bIsCharAllowed;
+			}
+			return false;
 		});
 	}
 	
