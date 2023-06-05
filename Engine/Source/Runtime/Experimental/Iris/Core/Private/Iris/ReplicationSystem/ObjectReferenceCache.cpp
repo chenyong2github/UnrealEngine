@@ -16,6 +16,7 @@
 #include "Iris/Serialization/NetSerializationContext.h"
 #include "Iris/Serialization/ObjectNetSerializer.h"
 #include "Misc/CoreMiscDefines.h"
+#include "Misc/PackageName.h"
 #include "Misc/StringBuilder.h"
 #include "Net/Core/Trace/NetDebugName.h"
 #include "Net/Core/Trace/NetTrace.h"
@@ -924,8 +925,6 @@ ENetObjectReferenceResolveResult FObjectReferenceCache::ResolveObjectReference(c
 	if (Reference.PathToken.IsValid())
 	{
 		// This path is only used by Client to Server references
-		//$TODO: $IRIS: Should we try to load or not? Currently we do not!
-
 		const TCHAR* ResolvedToken = StringTokenStore->ResolveRemoteToken(Reference.PathToken, *ResolveContext.RemoteNetTokenStoreState);
 		if (ResolvedToken)
 		{
@@ -938,13 +937,31 @@ ENetObjectReferenceResolveResult FObjectReferenceCache::ResolveObjectReference(c
 			{
 				UObject* ReplicatedOuter = GetObjectFromReferenceHandle(Reference.GetRefHandle());
 				ResolvedObject = ReplicatedOuter ? StaticFindObject(UObject::StaticClass(), ReplicatedOuter, ToCStr(ObjectPath), false) : nullptr;
+
+				if (ResolvedObject == nullptr)
+				{
+					UE_LOG_REFERENCECACHE_WARNING(TEXT("ResolveObjectReference Failed to resolve clientassigned ref: %s due to not finding object with relative path %s."), *Reference.ToString(), *ObjectPath);	
+				}
 			}
 			else
 			{
 				ResolvedObject = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectPath, false);
-			}
 
-			UE_LOG_REFERENCECACHE_WARNING(TEXT("ResolveObjectReference Failed to resolve clientassigned ref: %s due to not finding object with path %s."), *Reference.ToString(), *ObjectPath);	
+				// Try to load package if it wasn't found. Note load package fails if the package is already loaded.
+				if (ResolvedObject == nullptr)
+				{
+					FPackagePath Path = FPackagePath::FromPackageNameChecked(FPackageName::ObjectPathToPackageName(ObjectPath));
+					if (UPackage* LoadedPackage = LoadPackage(nullptr, Path, LOAD_None))
+					{
+						ResolvedObject = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectPath, false);	
+					}
+				}
+
+				if (ResolvedObject == nullptr)
+				{
+					UE_LOG_REFERENCECACHE_WARNING(TEXT("ResolveObjectReference Failed to resolve clientassigned ref: due to not finding object with path %s."), *ObjectPath);	
+				}
+			}
 		}
 		else
 		{
