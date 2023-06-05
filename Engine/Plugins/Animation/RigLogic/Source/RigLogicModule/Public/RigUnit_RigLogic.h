@@ -61,10 +61,6 @@ struct FRigUnit_RigLogic_Data
 	UPROPERTY(transient)
 	TArray<int32> InputCurveIndices;
 
-	/** RL neural network mask index to ControlRig's input curve index **/
-	UPROPERTY(transient)
-	TArray<int32> NeuralNetMaskCurveIndices;
-
 	/** RL joint index to ControlRig's hierarchy bone index **/
 	UPROPERTY(transient)
 	TArray<int32> HierarchyBoneIndices;
@@ -96,8 +92,6 @@ struct FRigUnit_RigLogic_Data
 
 	/** Makes a map of input curve indices from DNA file to the control rig curves **/
 	void MapInputCurveIndices(const URigHierarchy* InHierarchy);
-	/** Makes a map of neural net mask indices from DNA file to the control rig curves **/
-	void MapNeuralNetMaskCurveIndices(const URigHierarchy* InHierarchy);
 	/** Uses names to map joint indices from DNA file to the indices of bones in control rig hierarchy **/
 	void MapJoints(const URigHierarchy* Hierarchy);
 	/** Uses names of blend shapes and meshes in DNA file, for all LODs, to map their indices to the indices of

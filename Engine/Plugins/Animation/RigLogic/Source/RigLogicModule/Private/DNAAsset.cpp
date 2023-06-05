@@ -198,7 +198,6 @@ TSharedPtr<FDNAIndexMapping> UDNAAsset::GetDNAIndexMapping(const USkeleton* Skel
 		DNAIndexMapping = MakeShared<FDNAIndexMapping>();
 		DNAIndexMapping->SkeletonGuid = SkeletonGuid;
 		DNAIndexMapping->MapControlCurves(BehaviorReader.Get(), Skeleton);
-		DNAIndexMapping->MapNeuralNetworkMaskCurves(BehaviorReader.Get(), Skeleton);
 		DNAIndexMapping->MapJoints(BehaviorReader.Get(), SkeletalMeshComponent);
 		DNAIndexMapping->MapMorphTargets(BehaviorReader.Get(), Skeleton, SkeletalMesh);
 		DNAIndexMapping->MapMaskMultipliers(BehaviorReader.Get(), Skeleton);
