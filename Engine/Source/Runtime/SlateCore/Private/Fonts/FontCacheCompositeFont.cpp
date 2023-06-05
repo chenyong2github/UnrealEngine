@@ -448,12 +448,19 @@ TSharedPtr<FFreeTypeFace> FCompositeFontCache::GetFontFace(const FFontData& InFo
 		// Got a valid font?
 		if (FaceAndMemory.IsValid())
 		{
+			FaceAndMemory->OverrideAscend(InFontData.IsAscendOverridden(), InFontData.GetAscendOverriddenValue());
+			FaceAndMemory->OverrideDescend(InFontData.IsDescendOverridden(), InFontData.GetDescendOverriddenValue());
+
 			FontFaceMap.Add(InFontData, FaceAndMemory);
 
 			if (!LoadLogMessage.IsEmpty())
 			{
 				UE_LOG(LogSlate, Log, TEXT("%s"), *LoadLogMessage);
 			}
+
+#if WITH_EDITOR //Triggers texts layout regeneration only in editor, don't want to slow down things in engine.
+			GSlateLayoutGeneration++;
+#endif
 		}
 		else
 		{

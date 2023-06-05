@@ -83,6 +83,8 @@ public:
 	const FColor& GetBackgroundColor() const;
 	void SetForegroundColor(const FColor& InForgroundColor);
 	const FColor& GetForegroundColor() const;
+	void SetPreviewFontScale(float InScale);
+	float GetPreviewFontScale() const;
 	void SetDrawFontMetrics(const bool InDrawFontMetrics);
 	bool GetDrawFontMetrics() const;
 	
@@ -125,6 +127,8 @@ private:
 	/** Should we draw the font metrics in the preview? */
 	bool bDrawFontMetrics;
 
+	float DrawFontScale;
+
 	/** The size of the gap between pages */
 	const int32 PageGap;
 };
@@ -132,6 +136,7 @@ private:
 FFontEditorViewportClient::FFontEditorViewportClient(TWeakPtr<SFontEditorViewport> InFontEditorViewport)
 	: FontEditorViewportPtr(InFontEditorViewport)
 	, CurrentSelectedPage(INDEX_NONE)
+	, DrawFontScale(1.0f)
 	, PageGap(4)
 {
 	PreviewText = LOCTEXT("DefaultPreviewText", "The quick brown fox jumps over the lazy dog");
@@ -250,7 +255,8 @@ void FFontEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		// And draw the text with the foreground color
 		if (Font->FontCacheType == EFontCacheType::Runtime)
 		{
-			const float FontScale = GetDPIScale();
+			const float FontScale = GetDPIScale() * DrawFontScale;
+			const float DebugDrawScale = GetDPIScale();
 
 			TSharedRef<FSlateFontCache> FontCache = FSlateApplication::Get().GetRenderer()->GetFontCache();
 
@@ -390,7 +396,7 @@ void FFontEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 			if (bDrawFontMetrics)
 			{
 				const FSlateFontInfo FontInfo = FAppStyle::GetFontStyle("NormalFont");
-				const float KeyBoxSize = 14.0f * FontScale;
+				const float KeyBoxSize = 14.0f * DebugDrawScale;
 
 				struct FKeyDataType
 				{
@@ -412,13 +418,13 @@ void FFontEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 					KeyBox.LineThickness = KeyBoxSize * 0.5f;
 					Canvas->DrawItem(KeyBox);
 
-					CurPos.X += KeyBoxSize + (4.0f * FontScale);
+					CurPos.X += KeyBoxSize + (4.0f * DebugDrawScale);
 
-					FShapedGlyphSequenceRef KeyLabelShapedText = FontCache->ShapeBidirectionalText(*KeyData.KeyText.ToString(), FontInfo, FontScale, TextBiDi::ETextDirection::LeftToRight, GetDefaultTextShapingMethod());
+					FShapedGlyphSequenceRef KeyLabelShapedText = FontCache->ShapeBidirectionalText(*KeyData.KeyText.ToString(), FontInfo, DebugDrawScale, TextBiDi::ETextDirection::LeftToRight, GetDefaultTextShapingMethod());
 					FCanvasShapedTextItem ShapedTextItem(CurPos, KeyLabelShapedText, FLinearColor(ForegroundColor));
 					Canvas->DrawItem(ShapedTextItem);
 
-					CurPos.X += KeyLabelShapedText->GetMeasuredWidth() + (8.0f * FontScale);
+					CurPos.X += KeyLabelShapedText->GetMeasuredWidth() + (8.0f * DebugDrawScale);
 				}
 			}
 		}
@@ -553,6 +559,16 @@ void FFontEditorViewportClient::SetForegroundColor(const FColor& InForegroundCol
 const FColor& FFontEditorViewportClient::GetForegroundColor() const
 {
 	return ForegroundColor;
+}
+
+void FFontEditorViewportClient::SetPreviewFontScale(float InScale)
+{
+	DrawFontScale = InScale;
+}
+
+float FFontEditorViewportClient::GetPreviewFontScale() const
+{
+	return DrawFontScale;
 }
 
 void FFontEditorViewportClient::SetDrawFontMetrics(const bool InDrawFontMetrics)
@@ -879,6 +895,26 @@ const FColor& SFontEditorViewport::GetPreviewForegroundColor() const
 	}
 
 	return FColor::White;
+}
+
+void SFontEditorViewport::SetPreviewFontScale(float InScale)
+{
+	if (ViewportClient.IsValid())
+	{
+		ViewportClient->SetPreviewFontScale(InScale);
+
+		RefreshViewport();
+	}
+}
+
+float SFontEditorViewport::GetPreviewFontScale() const
+{
+	if (ViewportClient.IsValid())
+	{
+		return ViewportClient->GetPreviewFontScale();
+	}
+
+	return 1.0f;
 }
 
 void SFontEditorViewport::SetPreviewFontMetrics(const bool InDrawFontMetrics)

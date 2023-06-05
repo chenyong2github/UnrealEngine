@@ -127,6 +127,46 @@ EFontLayoutMethod FFontData::GetLayoutMethod() const
 	return EFontLayoutMethod::Metrics;
 }
 
+bool FFontData::IsAscendOverridden() const
+{
+	if (FontFaceAsset)
+	{
+		const IFontFaceInterface* FontFace = CastChecked<const IFontFaceInterface>(FontFaceAsset);
+		return FontFace->IsAscendOverridden();
+	}
+	return false;
+}
+
+int32 FFontData::GetAscendOverriddenValue() const
+{
+	if (FontFaceAsset)
+	{
+		const IFontFaceInterface* FontFace = CastChecked<const IFontFaceInterface>(FontFaceAsset);
+		return FontFace->GetAscendOverriddenValue();
+	}
+	return 0;
+}
+
+bool FFontData::IsDescendOverridden() const
+{
+	if (FontFaceAsset)
+	{
+		const IFontFaceInterface* FontFace = CastChecked<const IFontFaceInterface>(FontFaceAsset);
+		return FontFace->IsDescendOverridden();
+	}
+	return false;
+}
+
+int32 FFontData::GetDescendOverriddenValue() const
+{
+	if (FontFaceAsset)
+	{
+		const IFontFaceInterface* FontFace = CastChecked<const IFontFaceInterface>(FontFaceAsset);
+		return FontFace->GetDescendOverriddenValue();
+	}
+	return 0;
+}
+
 FFontFaceDataConstPtr FFontData::GetFontFaceData() const
 {
 	if (FontFaceAsset)

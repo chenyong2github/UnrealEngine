@@ -47,6 +47,8 @@ public:
 	const FColor& GetPreviewBackgroundColor() const;
 	void SetPreviewForegroundColor(const FColor& ForgroundColor);
 	const FColor& GetPreviewForegroundColor() const;
+	void SetPreviewFontScale(float InScale);
+	float GetPreviewFontScale() const;
 	void SetPreviewFontMetrics(const bool InDrawFontMetrics);
 	bool GetPreviewFontMetrics() const;
 	TWeakPtr<IFontEditor> GetFontEditor() const;

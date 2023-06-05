@@ -222,16 +222,28 @@ public:
 
 	FORCEINLINE FT_Pos GetScaledHeight() const
 	{
+		if (IsAscendOverridden || IsDescendOverridden)
+			return GetAscender() - GetDescender();
 		return FreeTypeUtils::GetScaledHeight(FTFace, LayoutMethod);
 	}
 
 	FORCEINLINE FT_Pos GetAscender() const
 	{
+		if (IsAscendOverridden)
+		{
+			FT_F26Dot6 ScaledAscender = FT_MulFix(AscendOverrideValue, FTFace->size->metrics.y_scale);
+			return (ScaledAscender + 0b111111) & ~0b111111; //(26.6 fixed point ceil). Using ceiling of scaled ascend, as recommended by Freetype, to avoid grid fitting/hinting issues.
+		}
 		return FreeTypeUtils::GetAscender(FTFace, LayoutMethod);
 	}
 
 	FORCEINLINE FT_Pos GetDescender() const
 	{
+		if (IsDescendOverridden)
+		{
+			FT_F26Dot6 ScaledDescender =  FT_MulFix(DescendOverrideValue, FTFace->size->metrics.y_scale);
+			return ScaledDescender & ~0b111111; //(26.6 fixed point floor). Using floor of scaled descend, as recommended by Freetype, to avoid grid fitting/hinting issues.
+		}
 		return FreeTypeUtils::GetDescender(FTFace, LayoutMethod);
 	}
 
@@ -266,6 +278,22 @@ public:
 #else
 		return 0;
 #endif
+	}
+
+	void OverrideAscend(bool InOverride, int32 Value = 0)
+	{
+#if WITH_FREETYPE
+		IsAscendOverridden = InOverride;
+		AscendOverrideValue = FreeTypeUtils::ConvertPixelTo26Dot6<FT_F26Dot6>(Value);
+#endif //WITH_FREETYPE
+	}
+
+	void OverrideDescend(bool InOverride, int32 Value = 0)
+	{
+#if WITH_FREETYPE
+		IsDescendOverridden = InOverride;
+		DescendOverrideValue = FreeTypeUtils::ConvertPixelTo26Dot6<FT_F26Dot6>(Value);
+#endif //WITH_FREETYPE
 	}
 
 	void FailAsyncLoad();
@@ -311,6 +339,11 @@ private:
 	FFTStreamHandler FTStreamHandler;
 	FT_StreamRec FTStream;
 	FT_Open_Args FTFaceOpenArgs;
+
+	bool IsAscendOverridden = false;
+	bool IsDescendOverridden = false;
+	FT_F26Dot6 AscendOverrideValue = 0;
+	FT_F26Dot6 DescendOverrideValue = 0;
 #endif // WITH_FREETYPE
 
 	TSet<FName> Attributes;

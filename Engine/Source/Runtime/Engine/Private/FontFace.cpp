@@ -17,7 +17,12 @@
 DEFINE_LOG_CATEGORY_STATIC(LogFontFace, Log, All);
 
 UFontFace::UFontFace()
-	: FontFaceData(FFontFaceData::MakeFontFaceData())
+	: AscendOverriddenValue(0)
+	, bIsAscendOverridden(false)
+	, DescendOverriddenValue(0)
+	, bIsDescendOverridden(false)
+	, FontFaceData(FFontFaceData::MakeFontFaceData())
+
 {
 }
 
@@ -201,6 +206,26 @@ EFontLoadingPolicy UFontFace::GetLoadingPolicy() const
 EFontLayoutMethod UFontFace::GetLayoutMethod() const
 {
 	return LayoutMethod;
+}
+
+bool UFontFace::IsAscendOverridden() const
+{
+	return bIsAscendOverridden;
+}
+
+int32 UFontFace::GetAscendOverriddenValue() const
+{
+	return AscendOverriddenValue;
+}
+
+bool UFontFace::IsDescendOverridden() const
+{
+	return bIsDescendOverridden;
+}
+
+int32 UFontFace::GetDescendOverriddenValue() const
+{
+	return DescendOverriddenValue;
 }
 
 FFontFaceDataConstRef UFontFace::GetFontFaceData() const

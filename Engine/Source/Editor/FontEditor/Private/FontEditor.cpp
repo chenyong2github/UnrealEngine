@@ -71,6 +71,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -433,6 +434,16 @@ void FFontEditor::OnPreviewTextChanged(const FText& Text)
 	FontPreviewWidget->SetPreviewText(Text);
 }
 
+TOptional<float> FFontEditor::GetDrawFontScale() const
+{
+	return FontPreviewWidget->GetPreviewFontScale();
+}
+
+void FFontEditor::OnDrawFontScaleChanged(float InNewValue, ETextCommit::Type CommitType)
+{
+	FontPreviewWidget->SetPreviewFontScale(InNewValue);
+}
+
 ECheckBoxState FFontEditor::GetDrawFontMetricsState() const
 {
 	return (FontPreviewWidget->GetPreviewFontMetrics()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
@@ -640,6 +651,17 @@ void FFontEditor::CreateInternalWidgets()
 			.SelectAllTextWhenFocused(true)
 			.OnTextChanged(this, &FFontEditor::OnPreviewTextChanged)
 		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SNumericEntryBox<float>)
+			.Value(this, &FFontEditor::GetDrawFontScale)
+			.MinValue(1.f)
+			.MaxValue(10.f)
+			.OnValueCommitted(this, &FFontEditor::OnDrawFontScaleChanged)
+		]
+
 
 		+SHorizontalBox::Slot()
 		.AutoWidth()

@@ -79,6 +79,10 @@ protected:
 	ECheckBoxState GetDrawFontMetricsState() const;
 	void OnDrawFontMetricsStateChanged(ECheckBoxState NewState);
 
+	/** Called to handle the "Draw Font Scale" numeric entry box */
+	TOptional<float> GetDrawFontScale() const;
+	void OnDrawFontScaleChanged(float InNewValue, ETextCommit::Type CommitType);
+
 	//~ Begin FEditorUndoClient Interface
 	/** Handles any post undo cleanup of the GUI so that we don't have stale data being displayed. */
 	virtual void PostUndo(bool bSuccess) override;

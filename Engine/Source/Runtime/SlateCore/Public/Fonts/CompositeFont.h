@@ -167,6 +167,18 @@ struct SLATECORE_API FFontData
 	/** Get the method to use when laying out the font? */
 	EFontLayoutMethod GetLayoutMethod() const;
 
+	/** Returns true if the ascend is overridden. */
+	bool IsAscendOverridden() const;
+
+	/** Returns the overridden value of the ascend. This value will be used only if IsAscendOverridden returns true. */
+	int32 GetAscendOverriddenValue() const;
+
+	/** Returns true if the descend is overridden. */
+	bool IsDescendOverridden() const;
+
+	/** Returns the overridden value of the descend. This value will be used only if IsDescendOverridden returns true. */
+	int32 GetDescendOverriddenValue() const;
+
 	/** Get the data buffer containing the data for the current font face. */
 	FFontFaceDataConstPtr GetFontFaceData() const;
 

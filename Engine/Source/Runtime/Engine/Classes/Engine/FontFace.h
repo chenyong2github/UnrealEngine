@@ -46,6 +46,10 @@ public:
 	virtual EFontHinting GetHinting() const override;
 	virtual EFontLoadingPolicy GetLoadingPolicy() const override;
 	virtual EFontLayoutMethod GetLayoutMethod() const override;
+	virtual bool IsAscendOverridden() const override;
+	virtual int32 GetAscendOverriddenValue() const override;
+	virtual bool IsDescendOverridden() const override;
+	virtual int32 GetDescendOverriddenValue() const override;
 	virtual FFontFaceDataConstRef GetFontFaceData() const override;
 	//~ End IFontFaceInterface interface
 
@@ -74,6 +78,22 @@ public:
 	/** Which method should we use when laying out the font? Try changing this if you notice clipping or height issues with your font. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=FontFace, AdvancedDisplay)
 	EFontLayoutMethod LayoutMethod;
+
+	/** The typographic ascender of the face, expressed in font units. */
+	UPROPERTY(EditAnywhere, Category=FontFace, AdvancedDisplay, meta = (EditCondition = bIsAscendOverridden, EditConditionHides, ClampMin = "-100", ClampMax = "100"))
+	int32 AscendOverriddenValue;
+
+	/** Activate this option to use the specified ascend value instead of the value from the font. */
+	UPROPERTY(EditAnywhere, Category=FontFace, AdvancedDisplay)
+	bool bIsAscendOverridden;
+
+	/** The typographic ascender of the face, expressed in font units. */
+	UPROPERTY(EditAnywhere, Category=FontFace, AdvancedDisplay, meta = (EditCondition = bIsDescendOverridden, EditConditionHides, ClampMin = "-100", ClampMax = "100"))
+	int32 DescendOverriddenValue;
+
+	/** Activate this option to use the specified descend value instead of the value from the font. */
+	UPROPERTY(EditAnywhere, Category=FontFace, AdvancedDisplay)
+	bool bIsDescendOverridden;
 
 	/** The data associated with the font face. This should always be filled in providing the source filename is valid. CacheSubFaces should be called after manually changing this property. */
 	FFontFaceDataRef FontFaceData;
