@@ -96,4 +96,8 @@ public:
 	*/
 	UFUNCTION(BlueprintPure, Category = "Animation", meta = (BlueprintThreadSafe, BlueprintInternalUseOnly="true", NativeMakeFunc))
 	static FInstancedStruct MakeEvaluateChooser(UChooserTable* Chooser);
+	
+	
+	UFUNCTION(BlueprintCallable, Category = "Animation", meta = (BlueprintThreadSafe, BlueprintInternalUseOnly="true"))
+	static FChooserEvaluationContext MakeChooserEvaluationContext();
 };

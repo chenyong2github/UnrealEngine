@@ -598,14 +598,15 @@ void UK2Node_EvaluateChooser2::ExpandNode(class FKismetCompilerContext& Compiler
 		}
 		CallFunction->AllocateDefaultPins();
 		
-		UK2Node_MakeStruct* ContextStructNode = CompilerContext.SpawnIntermediateNode<UK2Node_MakeStruct>(this, SourceGraph);
-		ContextStructNode->PostPlacedNewNode();
+		UK2Node_CallFunction* ContextStructNode = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
+		ContextStructNode->SetFromFunction(UChooserFunctionLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UChooserFunctionLibrary, MakeChooserEvaluationContext)));
         CompilerContext.MessageLog.NotifyIntermediateObjectCreation(ContextStructNode, this);
-		ContextStructNode->StructType = FChooserEvaluationContext::StaticStruct();
         ContextStructNode->AllocateDefaultPins();
-		UEdGraphPin* ContextStructPin = ContextStructNode->FindPin(FChooserEvaluationContext::StaticStruct()->GetFName(), EGPD_Output);
-
+		CompilerContext.MovePinLinksToIntermediate(*ExecInput, *ContextStructNode->GetExecPin());
+		UEdGraphPin* ContextStructPin = ContextStructNode->GetReturnValuePin();
+		
 		ContextStructPin->MakeLinkTo(CallFunction->FindPin(FName("Context")));
+		PreviousNodeExecOutput = ContextStructNode->GetThenPin();
 
 		UK2Node_Self* SelfNode = CompilerContext.SpawnIntermediateNode<UK2Node_Self>(this, SourceGraph);
 		CompilerContext.MessageLog.NotifyIntermediateObjectCreation(SelfNode, this);
@@ -632,14 +633,7 @@ void UK2Node_EvaluateChooser2::ExpandNode(class FKismetCompilerContext& Compiler
 							AddObjectFunction->AllocateDefaultPins();
 							ContextStructPin->MakeLinkTo(AddObjectFunction->FindPin(FName("Context")));
 
-							if (PreviousNodeExecOutput == nullptr)
-							{
-								CompilerContext.MovePinLinksToIntermediate(*ExecInput, *AddObjectFunction->GetExecPin());
-							}
-							else
-							{
-								PreviousNodeExecOutput->MakeLinkTo(AddObjectFunction->GetExecPin());
-							}
+							PreviousNodeExecOutput->MakeLinkTo(AddObjectFunction->GetExecPin());
 							PreviousNodeExecOutput = AddObjectFunction->GetThenPin();
 							
 							UEdGraphPin* AddObjectPin = AddObjectFunction->FindPin(FName("Object"));
@@ -665,14 +659,7 @@ void UK2Node_EvaluateChooser2::ExpandNode(class FKismetCompilerContext& Compiler
 						AddStructFunction->AllocateDefaultPins();
 						ContextStructPin->MakeLinkTo(AddStructFunction->FindPin(FName("Context")));
 
-						if (PreviousNodeExecOutput == nullptr)
-						{
-							CompilerContext.MovePinLinksToIntermediate(*ExecInput, *AddStructFunction->GetExecPin());
-						}
-						else
-						{
-							PreviousNodeExecOutput->MakeLinkTo(AddStructFunction->GetExecPin());
-						}
+						PreviousNodeExecOutput->MakeLinkTo(AddStructFunction->GetExecPin());
 						PreviousNodeExecOutput = AddStructFunction->GetThenPin();
 							
 						UEdGraphPin* AddStructPin = AddStructFunction->FindPin(FName("Value"));

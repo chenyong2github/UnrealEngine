@@ -44,7 +44,7 @@ struct CHOOSER_API FChooserEvaluationContext
     #endif
 	
 	GENERATED_BODY()
-	TArray<FInstancedStruct, TFixedAllocator<4>> Params;
+	TArray<FInstancedStruct, TInlineAllocator<4>> Params;
 };
 
 USTRUCT()

@@ -167,6 +167,12 @@ FInstancedStruct UChooserFunctionLibrary::MakeEvaluateChooser(UChooserTable* Cho
 	return Struct;
 }
 
+FChooserEvaluationContext UChooserFunctionLibrary::MakeChooserEvaluationContext()
+{
+	FChooserEvaluationContext Context;
+	return Context;
+}
+
 TArray<UObject*> UChooserFunctionLibrary::EvaluateChooserMulti(const UObject* ContextObject, const UChooserTable* Chooser, TSubclassOf<UObject> ObjectClass)
 {
 	TArray<UObject*> Result;
