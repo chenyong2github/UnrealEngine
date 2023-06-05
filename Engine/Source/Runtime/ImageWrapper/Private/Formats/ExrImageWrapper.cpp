@@ -8,6 +8,7 @@
 #include "Containers/StringConv.h"
 #include "HAL/PlatformTime.h"
 #include "Math/Float16.h"
+#include "ImageCoreUtils.h"
 
 #if WITH_UNREALEXR
 
@@ -91,9 +92,14 @@ public:
 		, Size(InSize)
 		, Pos(0)
 	{
+		// InSize is signed but "Size" member is unsigned
 		if (InSize < 0)
 		{
-			UE_LOG(LogImageWrapper, Fatal, TEXT("Negative size passed to EXR parser, can not continue."));
+			Size = 0;
+			// MSVC runtime_error vtable size changes based on module bEnableExceptions setting
+			//throw std::runtime_error("FMemFileIn: Negative size passed to EXR parser");
+			// MSVC std::exception has a char * constructor, but that is not portable, do not use
+			throw std::exception();
 		}
 	}
 
@@ -108,28 +114,30 @@ public:
 	//------------------------------------------------------
 
 	// InN must be 32bit to match the abstract interface.
-	virtual bool read (char c[/*n*/], int32 InN)
+	virtual bool read (char Out[/*n*/], int32 Count)
 	{
-		int64 SrcN = InN;
+		// return false if EOF is hit
+		// OpenEXR mostly ignores this return value, you must throw to get error handling
 
-		FGuardedInt64 NextPosition = FGuardedInt64(Pos) + SrcN;
-		if (SrcN < 0 ||
+		FGuardedInt64 NextPosition = FGuardedInt64(Pos) + Count;
+		if (Count < 0 ||
 			NextPosition.InvalidOrGreaterThan(Size))
 		{
-			// This is supposed to throw an exception per the spec, however we can't use
-			// an actual exception type right now due to linker issues during LTCG.
-			UE_LOG(LogImageWrapper, Error, TEXT("Invalid read requested in EXR"));
+			//throw std::runtime_error("FMemFileIn: Exr read out of bounds");
 			throw std::exception();
+		}
+
+		memcpy(Out,Data+Pos,Count);
+		Pos += Count; // == NextPosition
+
+		if ( Pos == Size )
+		{
 			return false;
 		}
-
-		for (int64 i = 0; i < SrcN; ++i)
+		else
 		{
-			c[i] = Data[Pos];
-			++Pos;
+			return true;
 		}
-
-		return Pos >= Size;
 	}
 
 	//--------------------------------------------------------
@@ -296,6 +304,12 @@ bool FExrImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 		TStringConversion<TStringConvert<char, TCHAR>> Convertor(Exception.what());
 		UE_LOG(LogImageWrapper, Error, TEXT("Cannot parse EXR image header: %s"), Convertor.Get());
 		SetError(Convertor.Get());
+		return false;
+	}
+
+	if ( ! FImageCoreUtils::IsImageImportPossible(Width,Height) )
+	{
+		SetError(TEXT("Image dimensions are not possible to import"));
 		return false;
 	}
 
@@ -553,9 +567,12 @@ void FExrImageWrapper::Uncompress(const ERGBFormat InFormat, const int32 InBitDe
 			}
 			double DefaultValue = bIsAlphaChannel ? 1.0 : 0.0;
 
-			// @todo Oodle: doing a subtract on this pointer for the data window looks dangerous
-			char* ChannelBase = (char*)(ChannelData[c].GetData() -
-				(ImfDataWindow.min.x + ImfDataWindow.min.y * Width) * ((int64)BytesPerChannelPixel));
+			int64 DataWindowOffset = (ImfDataWindow.min.x + ImfDataWindow.min.y * Width) * ((int64)BytesPerChannelPixel);
+			check( (ImfDataWindow.max.x - ImfDataWindow.min.x + 1) == Width );
+			check( (ImfDataWindow.max.y - ImfDataWindow.min.y + 1) == Height );
+
+			// OpenExr does this offset with the pointers cast to intptr_t ; see ImfFrameBuffer.cpp
+			char* ChannelBase = (char*)((intptr_t)ChannelData[c].GetData() - DataWindowOffset);
 
 			ImfFrameBuffer.insert(ChannelNames[c], Imf::Slice(ImfPixelType, ChannelBase, BytesPerChannelPixel, (size_t)BytesPerChannelPixel * Width, 1, 1, DefaultValue));
 		}

@@ -16,6 +16,7 @@
 #include "Misc/CoreStats.h"
 #include "Templates/IsSigned.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "ImageCoreUtils.h"
 
 #include <type_traits>
 
@@ -536,9 +537,11 @@ namespace UE::ImageWrapper::Private
 
 	bool FTiffImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompressedSize)
 	{
-		bool bResult = FImageWrapperBase::SetCompressed( InCompressedData, InCompressedSize );
+		if ( !  FImageWrapperBase::SetCompressed( InCompressedData, InCompressedSize ) )
+		{
+			return false;
+		}
 
-		if (bResult)
 		{
 			Tiff = TIFFClientOpen(""
 				, "r"
@@ -709,7 +712,13 @@ namespace UE::ImageWrapper::Private
 			}
 		}
 
-		return bResult;
+		if ( ! FImageCoreUtils::IsImageImportPossible(Width,Height) )
+		{
+			SetError(TEXT("Image dimensions are not possible to import"));
+			return false;
+		}
+
+		return true;
 
 	}
 

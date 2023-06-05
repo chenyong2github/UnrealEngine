@@ -44,8 +44,19 @@ bool FIcnsImageWrapper::SetCompressed(const void* InCompressedData, int64 InComp
 			[Image release];
 		}
 	}
+	
+	if ( Width == 0 )
+	{
+		return false;
+	}
 
-	return ( Width > 0 );
+	if ( ! FImageCoreUtils::IsImageImportPossible(Width,Height) )
+	{
+		SetError(TEXT("Image dimensions are not possible to import"));
+		return false;
+	}
+
+	return true;
 #else
 	return false;
 #endif

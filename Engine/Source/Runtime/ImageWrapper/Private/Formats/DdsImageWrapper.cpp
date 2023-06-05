@@ -2,6 +2,7 @@
 
 #include "Formats/DdsImageWrapper.h"
 #include "ImageWrapperPrivate.h"
+#include "ImageCoreUtils.h"
 
 void FDdsImageWrapper::Reset()
 {
@@ -157,6 +158,12 @@ bool FDdsImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 
 	Width = DDS->Width;
 	Height = DDS->Height;
+
+	if ( ! FImageCoreUtils::IsImageImportPossible(Width,Height) )
+	{
+		SetError(TEXT("Image dimensions are not possible to import"));
+		return false;
+	}
 
 	return true;
 }

@@ -4,6 +4,7 @@
 #include "ImageWrapperPrivate.h"
 
 #include "TgaImageSupport.h"
+#include "ImageCoreUtils.h"
 
 
 
@@ -111,7 +112,20 @@ bool FTgaImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 {
 	bool bResult = FImageWrapperBase::SetCompressed(InCompressedData, InCompressedSize);
 
-	return bResult && LoadTGAHeader();
+	if ( bResult && LoadTGAHeader() )
+	{
+		if ( ! FImageCoreUtils::IsImageImportPossible(Width,Height) )
+		{
+			SetError(TEXT("Image dimensions are not possible to import"));
+			return false;
+		}
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 void FTgaImageWrapper::Uncompress(const ERGBFormat InFormat, const int32 InBitDepth)

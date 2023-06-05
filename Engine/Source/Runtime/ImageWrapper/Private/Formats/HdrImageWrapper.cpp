@@ -2,6 +2,7 @@
 
 #include "Formats/HdrImageWrapper.h"
 #include "ImageWrapperPrivate.h"
+#include "ImageCoreUtils.h"
 
 #define LOCTEXT_NAMESPACE "HdrImageWrapper"
 
@@ -116,6 +117,13 @@ bool FHdrImageWrapper::SetCompressedFromView(TArrayView64<const uint8> Data)
 	Width = ImageWidth;
 	Height = ImageHeight;
 	RGBDataStart = FileDataPtr;
+	
+	if ( ! FImageCoreUtils::IsImageImportPossible(Width,Height) )
+	{
+		SetAndLogError(LOCTEXT("ImpossibleImport","Image dimensions are not possible to import"));
+		return false;
+	}
+
 	return true;
 }
 

@@ -20,6 +20,13 @@ ImageCoreUtils.h: Image utility functions.
 
 namespace FImageCoreUtils
 {
+	// IsImageImportPossible returns false if the image dimensions are not supported to import
+	//	if this function returns true, image import might still fail due to further constraints
+	//	(this constraint is weaker than the one actually required)
+	//  (see IsImportResolutionValid, which is also still weaker than the final constraint)
+	// IsImageImportPossible does not check current Engine config or platform limits, only hard-coded absolute limits
+	IMAGECORE_API bool IsImageImportPossible(int64 Width,int64 Height);
+
 	// Returns the number of mips that constitute a full mip chain for the given top level mip size.
 	// InVolumeZ is ignored unless bInIsVolume is true
 	IMAGECORE_API int32 GetMipCountFromDimensions(int32 InSizeX, int32 InSizeY, int32 InVolumeZ, bool bInIsVolume);

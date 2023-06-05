@@ -4513,7 +4513,7 @@ bool UTextureFactory::IsImportResolutionValid(int64 Width, int64 Height, bool bA
 
 	// Dimensions must fit in signed int32
 	//  could be negative here if it was over 2G and int32 was used earlier
-	if (Width < 0 || Height < 0 || Width > MAX_int32 || Height > MAX_int32)
+	if ( ! FImageCoreUtils::IsImageImportPossible(Width,Height) )
 	{
 		Warn->Log(ELogVerbosity::Error, NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLargeOrInvalid", "Texture is has an invalid resolution.").ToString());
 

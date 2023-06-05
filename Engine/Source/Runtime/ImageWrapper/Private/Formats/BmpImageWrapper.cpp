@@ -4,6 +4,7 @@
 #include "ImageWrapperPrivate.h"
 
 #include "BmpImageSupport.h"
+#include "ImageCoreUtils.h"
 
 static inline bool BmpDimensionIsValid(int32 Dim)
 {
@@ -466,6 +467,13 @@ bool FBmpImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 	if ( ! bResult )
 	{
 		CompressedData.Reset();
+		return false;
+	}
+	
+	if ( ! FImageCoreUtils::IsImageImportPossible(Width,Height) )
+	{
+		SetError(TEXT("Image dimensions are not possible to import"));
+		return false;
 	}
 
 	return bResult;

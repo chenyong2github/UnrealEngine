@@ -5,7 +5,7 @@
 
 #include "Math/GuardedInt.h"
 #include "Misc/ScopeLock.h"
-
+#include "ImageCoreUtils.h"
 
 #if WITH_UNREALPNG
 
@@ -15,9 +15,10 @@
 	#pragma warning(disable:4611)
 #endif
 
+#if PLATFORM_ANDROID
 /** Only allow one thread to use libpng at a time (it's not thread safe) */
-FCriticalSection GPNGSection;
-
+static FCriticalSection GPNGSection;
+#endif
 
 /* Local helper classes
  *****************************************************************************/
@@ -301,6 +302,8 @@ bool FPngImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 			{
 				check(CompressedData.Num());
 				UncompressPNGData(Format, 8);
+
+				// after UncompressPNGData , BitDepth is now changed to 8
 			}
 		}
 		else if (ColorType == PNG_COLOR_TYPE_RGB)
@@ -312,6 +315,13 @@ bool FPngImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 	if ( (Format == ERGBFormat::BGRA || Format == ERGBFormat::RGBA || Format == ERGBFormat::Gray) &&
 		(BitDepth == 8 || BitDepth == 16) )
 	{
+	
+		if ( ! FImageCoreUtils::IsImageImportPossible(Width,Height) )
+		{
+			SetError(TEXT("Image dimensions are not possible to import"));
+			return false;
+		}
+
 		return true;
 	}
 	else
@@ -534,8 +544,10 @@ bool FPngImageWrapper::LoadPNGHeader()
 	// Test whether the data this PNGLoader is pointing at is a PNG or not.
 	if (IsPNG())
 	{
+#if PLATFORM_ANDROID
 		// thread safety
 		FScopeLock PNGLock(&GPNGSection);
+#endif
 
 		png_structp png_ptr = png_create_read_struct_2(PNG_LIBPNG_VER_STRING, this, FPngImageWrapper::user_error_fn, FPngImageWrapper::user_warning_fn, NULL, FPngImageWrapper::user_malloc, FPngImageWrapper::user_free);
 		check(png_ptr);

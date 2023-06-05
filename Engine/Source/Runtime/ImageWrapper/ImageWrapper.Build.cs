@@ -13,6 +13,13 @@ public class ImageWrapper : ModuleRules
 			}
 		);
 
+		// include only, no link :
+		// for TextureDefines.h :
+		PrivateIncludePathModuleNames.AddRange(new string[]
+		{
+			"Engine",
+		});
+
 		PublicDefinitions.Add("WITH_UNREALPNG=1");
 		PublicDefinitions.Add("WITH_UNREALJPEG=1");
 

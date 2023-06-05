@@ -7,6 +7,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/MessageDialog.h"
 #include "RHI.h"
+#include "ImageCoreUtils.h"
 
 bool UE::Interchange::FImportImageHelper::IsImportResolutionValid(int64 Width, int64 Height, bool bAllowNonPowerOfTwo, FText* OutErrorMessage)
 {
@@ -35,16 +36,9 @@ bool UE::Interchange::FImportImageHelper::IsImportResolutionValid(int64 Width, i
 		return false;
 	}
 
-	bool bTextureTooLargeOrInvalidResolution = false;
-
 	// Dimensions must fit in signed int32
 	//  could be negative here if it was over 2G and int32 was used earlier
-	if (Width < 0 || Height < 0 || Width > MAX_int32 || Height > MAX_int32)
-	{
-		bTextureTooLargeOrInvalidResolution = true;
-	}
-
-	if (bTextureTooLargeOrInvalidResolution)
+	if ( ! FImageCoreUtils::IsImageImportPossible(Width,Height) )
 	{
 		if (OutErrorMessage)
 		{

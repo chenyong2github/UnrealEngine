@@ -8,6 +8,7 @@ public class ImageCore : ModuleRules
 	{
 		// include only, no link :
 		// for TextureDefines.h :
+		// PublicIncludePathModuleNames
 		PrivateIncludePathModuleNames.AddRange(new string[]
 		{
 			"Engine",

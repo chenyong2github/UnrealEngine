@@ -4,6 +4,34 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogImageCoreUtils, Log, All);
 
+IMAGECORE_API bool FImageCoreUtils::IsImageImportPossible(int64 Width,int64 Height)
+{
+	if ( Width <= 0 || Height <= 0 )
+	{
+		return false;
+	}
+
+	// each dimension must fit in int32
+	if ( Width > INT32_MAX || Height > INT32_MAX )
+	{
+		return false;
+	}
+
+	int64 PixelCount = Width * Height; // mutliply is safe because of INT32_MAX check
+
+	// for non-VT limitation is 16384 for W/H , and 2 GB for output surface bytes
+	// for VT the limitation is that the built VT must fit in 4 GB
+
+	if ( PixelCount > UINT32_MAX )
+	{
+		return false;
+	}
+
+	// still may fail to import due to stricter constraints later
+
+	return true;
+}
+
 IMAGECORE_API int32 FImageCoreUtils::GetMipCountFromDimensions(int32 InSizeX, int32 InSizeY, int32 InVolumeZ, bool bInIsVolume)
 {
 	uint32 MaxMipDimension = FMath::Max3(InSizeX, InSizeY, bInIsVolume ? InVolumeZ : 1);
