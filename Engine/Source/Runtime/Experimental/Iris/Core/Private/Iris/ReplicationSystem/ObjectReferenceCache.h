@@ -8,6 +8,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Containers/Map.h"
 #include "ObjectReferenceCacheFwd.h"
+#include "UObject/ObjectPtr.h"
 
 namespace UE::Net
 {
