@@ -25,6 +25,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Serialization", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.UHT", "..\..\Shared\EpicGames.UHT\EpicGames.UHT.csproj", "{C6980109-F795-456D-98D5-4AC4C6816DE8}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Box", "..\..\Shared\EpicGames.Box\EpicGames.Box.csproj", "{2A0D6868-4653-4C8C-8BD5-216522F846DD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Analyze|Any CPU = Analyze|Any CPU
@@ -113,6 +115,14 @@ Global
 		{C6980109-F795-456D-98D5-4AC4C6816DE8}.Development|Any CPU.Build.0 = Development|Any CPU
 		{C6980109-F795-456D-98D5-4AC4C6816DE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C6980109-F795-456D-98D5-4AC4C6816DE8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A0D6868-4653-4C8C-8BD5-216522F846DD}.Analyze|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A0D6868-4653-4C8C-8BD5-216522F846DD}.Analyze|Any CPU.Build.0 = Debug|Any CPU
+		{2A0D6868-4653-4C8C-8BD5-216522F846DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A0D6868-4653-4C8C-8BD5-216522F846DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A0D6868-4653-4C8C-8BD5-216522F846DD}.Development|Any CPU.ActiveCfg = Development|Any CPU
+		{2A0D6868-4653-4C8C-8BD5-216522F846DD}.Development|Any CPU.Build.0 = Development|Any CPU
+		{2A0D6868-4653-4C8C-8BD5-216522F846DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2A0D6868-4653-4C8C-8BD5-216522F846DD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -127,6 +137,7 @@ Global
 		{976BF882-7FD7-444A-BAFC-2D3936782165} = {35AA02CD-09BA-4699-BD15-392576D28F82}
 		{CE947D24-BCE1-45BD-BD9E-B65EFC0A1802} = {35AA02CD-09BA-4699-BD15-392576D28F82}
 		{C6980109-F795-456D-98D5-4AC4C6816DE8} = {35AA02CD-09BA-4699-BD15-392576D28F82}
+		{2A0D6868-4653-4C8C-8BD5-216522F846DD} = {35AA02CD-09BA-4699-BD15-392576D28F82}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8C425CBD-93C5-43AA-BC03-AD2F9CBA5DE9}
