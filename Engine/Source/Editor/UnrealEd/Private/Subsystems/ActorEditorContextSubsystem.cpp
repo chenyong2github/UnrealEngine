@@ -149,6 +149,11 @@ UWorld* UActorEditorContextSubsystem::GetWorld() const
 
 void UActorEditorContextSubsystem::OnActorEditorContextClientChanged(IActorEditorContextClient* Client)
 {
+	if (IsRunningGame() || (GIsEditor && GEditor->GetPIEWorldContext()))
+	{
+		return;
+	}
+
 	ActorEditorContextSubsystemChanged.Broadcast();
 }
 

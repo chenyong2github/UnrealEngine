@@ -925,12 +925,18 @@ bool ULevelEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld, FA
 
 void ULevelEditorSubsystem::OnLevelAddedOrRemoved(ULevel* InLevel, UWorld* InWorld)
 {
-	ActorEditorContextClientChanged.Broadcast(this);
+	if (!InWorld->IsGameWorld())
+	{
+		ActorEditorContextClientChanged.Broadcast(this);
+	}
 }
 
 void ULevelEditorSubsystem::OnCurrentLevelChanged(ULevel* InNewLevel, ULevel* InOldLevel, UWorld* InWorld)
 {
-	ActorEditorContextClientChanged.Broadcast(this);
+	if (!InWorld->IsGameWorld())
+	{
+		ActorEditorContextClientChanged.Broadcast(this);
+	}
 }
 
 void ULevelEditorSubsystem::HandleOnPreSaveWorldWithContext(class UWorld* World, FObjectPreSaveContext ObjectSaveContext)

@@ -107,7 +107,7 @@ void FActorFolders::BroadcastOnActorFolderCreated(UWorld& InWorld, const FFolder
 		OnFolderCreate.Broadcast(InWorld, InFolder.GetPath());
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	BroadcastOnActorEditorContextClientChanged();
+	BroadcastOnActorEditorContextClientChanged(InWorld);
 }
 
 void FActorFolders::BroadcastOnActorFolderDeleted(UWorld& InWorld, const FFolder& InFolder)
@@ -119,7 +119,7 @@ void FActorFolders::BroadcastOnActorFolderDeleted(UWorld& InWorld, const FFolder
 		OnFolderDelete.Broadcast(InWorld, InFolder.GetPath());
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	BroadcastOnActorEditorContextClientChanged();
+	BroadcastOnActorEditorContextClientChanged(InWorld);
 }
 
 void FActorFolders::BroadcastOnActorFolderMoved(UWorld& InWorld, const FFolder& InSrcFolder, const FFolder& InDstFolder)
@@ -131,7 +131,7 @@ void FActorFolders::BroadcastOnActorFolderMoved(UWorld& InWorld, const FFolder& 
 		OnFolderMove.Broadcast(InWorld, InSrcFolder.GetPath(), InDstFolder.GetPath());
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	BroadcastOnActorEditorContextClientChanged();
+	BroadcastOnActorEditorContextClientChanged(InWorld);
 }
 
 void FActorFolders::OnLevelActorListChanged()
@@ -568,9 +568,12 @@ FFolder FActorFolders::GetActorEditorContextFolder(UWorld& InWorld, bool bMustMa
 
 void FActorFolders::SetActorEditorContextFolder(UWorld& InWorld, const FFolder& InFolder)
 {
-	if (GetOrCreateWorldFolders(InWorld).SetActorEditorContextFolder(InFolder))
+	if (!InWorld.IsGameWorld())
 	{
-		BroadcastOnActorEditorContextClientChanged();
+		if (GetOrCreateWorldFolders(InWorld).SetActorEditorContextFolder(InFolder))
+		{
+			BroadcastOnActorEditorContextClientChanged(InWorld);
+		}
 	}
 }
 
@@ -630,9 +633,12 @@ TSharedRef<SWidget> FActorFolders::GetActorEditorContextWidget(UWorld* InWorld) 
 	return SNew(STextBlock).Text(Text);
 }
 
-void FActorFolders::BroadcastOnActorEditorContextClientChanged()
+void FActorFolders::BroadcastOnActorEditorContextClientChanged(UWorld& InWorld)
 {
-	ActorEditorContextClientChanged.Broadcast(this);
+	if (!InWorld.IsGameWorld())
+	{
+		ActorEditorContextClientChanged.Broadcast(this);
+	}
 }
 
 void FActorFolders::ForEachFolder(UWorld& InWorld, TFunctionRef<bool(const FFolder&)> Operation)

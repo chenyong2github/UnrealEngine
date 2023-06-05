@@ -145,7 +145,7 @@ bool UWorldFolders::RenameFolder(const FFolder& InOldFolder, const FFolder& InNe
 		}
 		if (bChanged)
 		{
-			FActorFolders::Get().BroadcastOnActorEditorContextClientChanged();
+			FActorFolders::Get().BroadcastOnActorEditorContextClientChanged(*World.Get());
 		}
 	}
 	return bSuccess;

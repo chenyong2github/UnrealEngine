@@ -221,7 +221,7 @@ private:
 	TMap<TWeakObjectPtr<UWorld>, TObjectPtr<UWorldFolders>> WorldFolders;
 
 	/** Called when ActorEditorContextClient changed. */
-	void BroadcastOnActorEditorContextClientChanged();
+	void BroadcastOnActorEditorContextClientChanged(UWorld& InWorld);
 
 	/** Delegate used to notify changes to ActorEditorContextSubsystem */
 	FOnActorEditorContextClientChanged ActorEditorContextClientChanged;
