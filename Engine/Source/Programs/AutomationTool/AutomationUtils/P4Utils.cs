@@ -78,6 +78,8 @@ namespace AutomationTool
         Locked = 512,
         ModTime = 1024,
         RmDir = 2048,
+        NoAltSync = 4096,
+        AltSync = 8192,
     }
 
 	public class P4ClientInfo
