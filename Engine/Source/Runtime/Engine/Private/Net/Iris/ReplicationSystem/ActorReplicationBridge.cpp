@@ -893,10 +893,17 @@ void UActorReplicationBridge::SetNetDriver(UNetDriver* const InNetDriver)
 {
 	Super::SetNetDriver(InNetDriver);
 
+	if (NetDriver)
+	{
+		NetDriver->OnNetServerMaxTickRateChanged.RemoveAll(this);
+	}
+
 	NetDriver = InNetDriver;
 	if (InNetDriver != nullptr)
 	{
-		MaxPollFrequency = static_cast<float>(FPlatformMath::Max(InNetDriver->NetServerMaxTickRate, 0));
+		MaxPollFrequency = static_cast<float>(FPlatformMath::Max(InNetDriver->GetNetServerMaxTickRate(), 0));
+
+		InNetDriver->OnNetServerMaxTickRateChanged.AddUObject(this, &UActorReplicationBridge::OnMaxTickRateChanged);
 
 		const FName RequiredChannelName = UObjectReplicationBridgeConfig::GetConfig()->GetRequiredNetDriverChannelClassName();
 		
@@ -910,6 +917,13 @@ void UActorReplicationBridge::SetNetDriver(UNetDriver* const InNetDriver)
 			checkf(bRequiredChannelIsConfigured, TEXT("ObjectReplication needs the netdriver channel %s to work. Add this channel to the netdriver channel definitions config"), *RequiredChannelName.ToString());
 		}
 	}
+}
+
+void UActorReplicationBridge::OnMaxTickRateChanged(UNetDriver* InNetDriver, int32 NewMaxTickRate, int32 OldMaxTickRate)
+{
+	MaxPollFrequency = static_cast<float>(FPlatformMath::Max(InNetDriver->GetNetServerMaxTickRate(), 0));
+
+	//TODO: Reset poll frequencies for all objects
 }
 
 void UActorReplicationBridge::GetActorCreationHeader(const AActor* Actor, UE::Net::Private::FActorCreationHeader& Header) const

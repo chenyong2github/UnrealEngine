@@ -100,6 +100,10 @@ private:
 	uint32 GetPollFramePeriod(float PollFrequency) const;
 	float GetMinSupportedNetUpdateFrequency() const;
 
+	void OnMaxTickRateChanged(UNetDriver* InNetDriver, int32 NewMaxTickRate, int32 OldMaxTickRate);
+
+private:
+
 	UNetDriver* NetDriver;
 	float MaxPollFrequency;
 

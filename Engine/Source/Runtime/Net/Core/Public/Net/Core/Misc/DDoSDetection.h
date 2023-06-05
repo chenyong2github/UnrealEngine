@@ -191,6 +191,11 @@ public:
 	void InitConfig();
 
 	/**
+	* Initialize the expected tick rate.
+	*/
+	void SetMaxTickRate(int32 MaxTickRate);
+
+	/**
 	 * Updates the current DDoS detection severity state
 	 *
 	 * @param bEscalate		Whether or not we are escalating or de-escalating the severity state

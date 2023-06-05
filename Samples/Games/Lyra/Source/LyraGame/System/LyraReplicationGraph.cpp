@@ -452,7 +452,7 @@ void ULyraReplicationGraph::InitGlobalActorClassSettings()
 
 	CharacterClassRepInfo.FastSharedReplicationFuncName = FName(TEXT("FastSharedReplication"));
 
-	FastSharedPathConstants.MaxBitsPerFrame = (int32)((float)(Lyra::RepGraph::TargetKBytesSecFastSharedPath * 1024 * 8) / NetDriver->NetServerMaxTickRate);
+	FastSharedPathConstants.MaxBitsPerFrame = (int32)((float)(Lyra::RepGraph::TargetKBytesSecFastSharedPath * 1024 * 8) / NetDriver->GetNetServerMaxTickRate());
 	FastSharedPathConstants.DistanceRequirementPct = Lyra::RepGraph::FastSharedPathCullDistPct;
 
 	SetClassInfo(ALyraCharacter::StaticClass(), CharacterClassRepInfo);

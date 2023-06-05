@@ -1455,7 +1455,7 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 			SetReplicationDriver(UReplicationDriver::CreateReplicationDriver(this, URL, GetWorld()));
 		}
 
-		DDoS.Init(FMath::Clamp(NetServerMaxTickRate, 1, 1000));
+		DDoS.Init(FMath::Clamp(GetNetServerMaxTickRate(), 1, 1000));
 
 		DDoS.NotifySeverityEscalation.BindLambda(
 			[this](FString SeverityCategory)
@@ -6950,6 +6950,21 @@ bool UNetDriver::IsDormInitialStartupActor(AActor* Actor)
 {
 	return Actor && Actor->IsNetStartupActor() && (Actor->NetDormancy == DORM_Initial);
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void UNetDriver::SetNetServerMaxTickRate(int32 InServerMaxTickRate)
+{
+	if (NetServerMaxTickRate != InServerMaxTickRate)
+	{
+		const int32 OldTickRate = NetServerMaxTickRate;
+		NetServerMaxTickRate = InServerMaxTickRate;
+
+		DDoS.SetMaxTickRate(NetServerMaxTickRate);
+
+		OnNetServerMaxTickRateChanged.Broadcast(this, NetServerMaxTickRate, OldTickRate);
+	}
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 ECreateReplicationChangelistMgrFlags UNetDriver::GetCreateReplicationChangelistMgrFlags() const
 {

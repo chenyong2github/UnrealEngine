@@ -1600,7 +1600,7 @@ float UGameEngine::GetMaxTickRate(float DeltaTime, bool bAllowFrameRateSmoothing
 			if( NetDriver && (NetDriver->GetNetMode() == NM_DedicatedServer || (NetDriver->GetNetMode() == NM_ListenServer && NetDriver->bClampListenServerTickRate)))
 			{
 				// We're a dedicated server, use the LAN or Net tick rate.
-				MaxTickRate = FMath::Clamp( NetDriver->NetServerMaxTickRate, 1, 1000 );
+				MaxTickRate = FMath::Clamp( NetDriver->GetNetServerMaxTickRate(), 1, 1000 );
 			}
 			/*else if( NetDriver && NetDriver->ServerConnection )
 			{

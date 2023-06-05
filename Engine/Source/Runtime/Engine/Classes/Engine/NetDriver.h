@@ -782,9 +782,33 @@ public:
 	UPROPERTY(Config)
 	uint32 bClampListenServerTickRate:1;
 
-	/** @todo document */
+	/** 
+	* Limit the tick rate of the engine when running in dedicated server mode. 
+	* @see UGameEngine::GetMaxTickRate 
+	*/
+	UE_DEPRECATED(5.3, "Variable will be made private. Use GetNetServerMaxTickRate and SetNetServerMaxTickRate instead.")
 	UPROPERTY(Config)
 	int32 NetServerMaxTickRate;
+
+	/** The current max tick rate of the engine when running in dedicated server mode. */
+	int32 GetNetServerMaxTickRate() const 
+	{ 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return NetServerMaxTickRate;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	/** Override the configured server tick rate. Value is in ticks per second. */
+	void SetNetServerMaxTickRate(int32 InServerMaxTickRate);
+
+	/** 
+	* Delegate triggered when SetNetServerMaxTickRate is called and causes a change to the current max tick rate.
+	* @param UNetDriver The netdriver that changed max tick rate.
+	* @param int32 The new value of NetServerMaxTickRate
+	* @param int32 The old value of NetServerMaxTickRate 
+	*/
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnNetServerMaxTickRateChanged, UNetDriver*, int32, int32);
+	FOnNetServerMaxTickRateChanged OnNetServerMaxTickRateChanged;
 
 	/** Limit tick rate of replication to allow very high frame rates to still replicate data. A value less or equal to zero means use the engine tick rate. A value greater than zero will clamp the net tick rate to this value.  */
 	UPROPERTY(Config)

@@ -946,7 +946,7 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 		if (GIsEditor && GIsPlayInEditorWorld)
 		{
 			// When PIE, use target server tick rate. This is not perfect but will be closer than letting rep graph tick every frame.
-			TargetUpdatesPerSecond = NetDriver->NetServerMaxTickRate;
+			TargetUpdatesPerSecond = NetDriver->GetNetServerMaxTickRate();
 		}
 	}
 #endif
@@ -2466,7 +2466,7 @@ void UReplicationGraph::SetActorDiscoveryBudget(int32 ActorDiscoveryBudgetInKByt
 		return;
 	}
 
-	int32 MaxNetworkFPS = NetDriver->NetServerMaxTickRate;
+	int32 MaxNetworkFPS = NetDriver->GetNetServerMaxTickRate();
 
 	ActorDiscoveryMaxBitsPerFrame = (ActorDiscoveryBudgetInKBytesPerSec * 1000 * 8) / MaxNetworkFPS;
 	UE_LOG(LogReplicationGraph, Display, TEXT("SetActorDiscoveryBudget set to %d kBps (%d bits per network tick)."), ActorDiscoveryBudgetInKBytesPerSec, ActorDiscoveryMaxBitsPerFrame);
@@ -3992,8 +3992,7 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActorListsForConnectio
 
 		if (CVar_RepGraph_DynamicSpatialFrequency_UncapBandwidth > 0)
 		{
-			UE_LOG(LogReplicationGraph, Display, TEXT("Uncapped bandwidth usage of UReplicationGraphNode_DynamicSpatialFrequency = %d bits -> %d bytes -> %.2f KBytes/sec"),
-				BitsWritten, (BitsWritten + 7) >> 3, (static_cast<double>((BitsWritten + 7) >> 3) / 1024.0) * GraphGlobals->ReplicationGraph->NetDriver->NetServerMaxTickRate);
+			UE_LOG(LogReplicationGraph, Display, TEXT("Uncapped bandwidth usage of UReplicationGraphNode_DynamicSpatialFrequency = %d bits -> %d bytes -> %.2f KBytes/sec"), BitsWritten, (BitsWritten+7) >> 3,  ((float)((BitsWritten+7)>>3)/1024.f) * GraphGlobals->ReplicationGraph->NetDriver->GetNetServerMaxTickRate());
 		}
 	}
 #endif // WITH_SERVER_CODE

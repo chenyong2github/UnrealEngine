@@ -92,7 +92,7 @@ FDDoSDetection::FDDoSDetection()
 
 void FDDoSDetection::Init(int32 MaxTickRate)
 {
-	ExpectedFrameTime = 1.0 / (MaxTickRate > 0.0 ? MaxTickRate : 30.0);
+	SetMaxTickRate(MaxTickRate);
 
 	InitConfig();
 }
@@ -168,6 +168,11 @@ void FDDoSDetection::InitConfig()
 			bDDoSDetection = false;
 		}
 	}
+}
+
+void FDDoSDetection::SetMaxTickRate(int32 MaxTickRate)
+{
+	ExpectedFrameTime = 1.0 / (MaxTickRate > 0.0 ? MaxTickRate : 30.0);
 }
 
 void FDDoSDetection::UpdateSeverity(bool bEscalate)
