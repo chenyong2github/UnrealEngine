@@ -490,6 +490,7 @@ Updates the local version files (Engine/Source/Runtime/Launch/Resources/Version.
 | CompatibleChange | Integer   | Optional | The engine compatible changelist to set in the version files.                                                      |
 | Branch           | String    | Required | The branch string.                                                                                                 |
 | Build            | String    | Optional | The build version string.                                                                                          |
+| BuildURL         | String    | Optional | The URL for a running continuous integration job.                                                                  |
 | Licensee         | Boolean   | Optional | Whether to set the IS_LICENSEE_VERSION flag to true.                                                               |
 | Promoted         | Boolean   | Optional | Whether to set the ENGINE_IS_PROMOTED_BUILD flag to true.                                                          |
 | SkipWrite        | Boolean   | Optional | If set, do not write to the files -- just return the version files that would be updated. Useful for local builds. |

@@ -308,6 +308,8 @@ $ bPGOProfile (Boolean): Whether to enable Profile Guided Optimization (PGO) ins
 
 $ bPGOOptimize (Boolean): Whether to optimize this build with Profile Guided Optimization (PGO).
 
+$ bCodeCoverage (Boolean): Whether the target requires code coverage compilation and linking.
+
 $ bSupportEditAndContinue (Boolean): Whether to support edit and continue.
 
 $ bOmitFramePointers (Boolean): Whether to omit frame pointers or not. Disabling is useful for e.g. memory profiling on the PC.
