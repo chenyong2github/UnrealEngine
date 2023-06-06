@@ -51,8 +51,8 @@ namespace EpicGames.Horde.Tests
 		public async Task FixedSizeChunkingTests()
 		{
 			ChunkingOptions options = new ChunkingOptions();
-			options.LeafOptions = new ChunkingOptionsForNodeType(64, 64, 64);
-			options.InteriorOptions = new ChunkingOptionsForNodeType(IoHash.NumBytes * 4, IoHash.NumBytes * 4, IoHash.NumBytes * 4);
+			options.LeafOptions = new LeafChunkedDataNodeOptions(64, 64, 64);
+			options.InteriorOptions = new InteriorChunkedDataNodeOptions(4, 4, 4);
 
 			await TestChunkingAsync(options);
 		}
@@ -61,8 +61,8 @@ namespace EpicGames.Horde.Tests
 		public async Task VariableSizeChunkingTests()
 		{
 			ChunkingOptions options = new ChunkingOptions();
-			options.LeafOptions = new ChunkingOptionsForNodeType(32, 64, 96);
-			options.InteriorOptions = new ChunkingOptionsForNodeType(IoHash.NumBytes * 1, IoHash.NumBytes * 4, IoHash.NumBytes * 12);
+			options.LeafOptions = new LeafChunkedDataNodeOptions(32, 64, 96);
+			options.InteriorOptions = new InteriorChunkedDataNodeOptions(1, 4, 12);
 
 			await TestChunkingAsync(options);
 		}
@@ -128,8 +128,8 @@ namespace EpicGames.Horde.Tests
 			{
 				InteriorChunkedDataNode interiorNode = (InteriorChunkedDataNode)node;
 
-				Assert.IsTrue(rightmost || interiorNode.Children.Count * IoHash.NumBytes >= options.InteriorOptions.MinSize);
-				Assert.IsTrue(interiorNode.Children.Count <= options.InteriorOptions.MaxSize);
+				Assert.IsTrue(rightmost || interiorNode.Children.Count >= options.InteriorOptions.MinChildCount);
+				Assert.IsTrue(interiorNode.Children.Count <= options.InteriorOptions.MaxChildCount);
 
 				int childCount = interiorNode.Children.Count;
 				for (int idx = 0; idx < childCount; idx++)

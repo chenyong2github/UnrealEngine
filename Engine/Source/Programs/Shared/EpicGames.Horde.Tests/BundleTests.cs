@@ -72,7 +72,7 @@ namespace EpicGames.Horde.Tests
 			using IStorageWriter writer = _storage.CreateWriter(refName);
 
 			ChunkingOptions options = new ChunkingOptions();
-			options.LeafOptions = new ChunkingOptionsForNodeType(8, 8, 8);
+			options.LeafOptions = new LeafChunkedDataNodeOptions(8, 8, 8);
 
 			ChunkedDataWriter fileNodeWriter = new ChunkedDataWriter(writer, options);
 

@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.CodeAnalysis.Options;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -340,7 +342,7 @@ namespace EpicGames.Horde.Storage.Nodes
 
 		static async ValueTask<DirectoryNode?> GetDirectoryByPathAsync(DirectoryNode directoryNode, Utf8String path, CancellationToken cancellationToken)
 		{
-			while(path.Length > 0)
+			while (path.Length > 0)
 			{
 				Utf8String directoryName;
 
@@ -549,6 +551,203 @@ namespace EpicGames.Horde.Storage.Nodes
 					_timer.Restart();
 				}
 			}
+		}
+
+		class InputFile
+		{
+			public FileInfo FileInfo { get; }
+			public List<NodeHandle> Handles { get; } = new List<NodeHandle>();
+
+			public InputFile(FileInfo fileInfo) => FileInfo = fileInfo;
+		}
+
+		class InputTree
+		{
+			public Dictionary<string, InputTree> Directories { get; } = new Dictionary<string, InputTree>();
+			public Dictionary<string, InputFile> Files { get; } = new Dictionary<string, InputFile>();
+
+			public void AddFiles(DirectoryReference baseDir, IEnumerable<FileInfo> files)
+			{
+				IEnumerator<FileInfo> enumerator = files.GetEnumerator();
+				if (enumerator.MoveNext())
+				{
+					if (AddFiles(baseDir.FullName, enumerator))
+					{
+						throw new ArgumentException($"File {enumerator.Current} is not under {baseDir}", nameof(baseDir));
+					}
+				}
+			}
+
+			bool AddFiles(ReadOnlySpan<char> baseDir, IEnumerator<FileInfo> files)
+			{
+				for (; ; )
+				{
+					FileInfo fileInfo = files.Current;
+
+					int dirNameLength = baseDir.Length;
+					if (fileInfo.FullName.Length < dirNameLength || !fileInfo.FullName.AsSpan().StartsWith(baseDir, FileReference.Comparison) || fileInfo.FullName[dirNameLength] != Path.DirectorySeparatorChar)
+					{
+						return true;
+					}
+
+					int nextDirLength = fileInfo.FullName.AsSpan(baseDir.Length + 1).IndexOf(Path.DirectorySeparatorChar);
+					if (nextDirLength == -1)
+					{
+						string fileName = fileInfo.FullName.Substring(dirNameLength + 1);
+						Files[fileName] = new InputFile(fileInfo);
+
+						if (!files.MoveNext())
+						{
+							return false;
+						}
+					}
+					else
+					{
+						string dirName = fileInfo.FullName.Substring(dirNameLength + 1, nextDirLength);
+
+						InputTree? nextTree;
+						if (!Directories.TryGetValue(dirName, out nextTree))
+						{
+							nextTree = new InputTree();
+							Directories.Add(dirName, nextTree);
+						}
+
+						ReadOnlySpan<char> nextBaseDir = fileInfo.FullName.AsSpan(0, dirNameLength + 1 + nextDirLength);
+						if (!nextTree.AddFiles(nextBaseDir, files))
+						{
+							return false;
+						}
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Create a directory tree from a set of files
+		/// </summary>
+		/// <param name="baseDir">Base directory to root files from</param>
+		/// <param name="files">Files to include in the data</param>
+		/// <param name="options">Options for splitting files</param>
+		/// <param name="writer">Writer for output data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Root directory node containing the files</returns>
+		public static async Task<DirectoryNode> CreateAsync(DirectoryReference baseDir, IEnumerable<FileInfo> files, ChunkingOptions options, IStorageWriter writer, CancellationToken cancellationToken)
+		{
+			// Create a tree out of all the files
+			InputTree tree = new InputTree();
+			tree.AddFiles(baseDir, files);
+
+			// Create leaf nodes
+			List<List<InputFile>> filePartitions = PartitionInputFiles(tree);
+			await Parallel.ForEachAsync(filePartitions, cancellationToken, (filePartition, ctx) => CreateLeafChunkNodesAsync(writer, filePartition, options, ctx));
+
+			await CreateInteriorChunkNodesAsync(tree, options.InteriorOptions, writer, cancellationToken);
+			return await CreateDirectoryNodesAsync(tree, writer, options, cancellationToken);
+		}
+
+		static List<List<InputFile>> PartitionInputFiles(InputTree tree)
+		{
+			// Create the partitions
+			List<InputFile> sortedFiles = new List<InputFile>();
+			long totalSize = GetInputFiles(tree, sortedFiles);
+
+			// Maximum number of streams to write in parallel
+			const int MaxWriters = 8;
+
+			// Minimum size of output payload for each writer
+			const long MinSizePerWriter = 1024 * 1024;
+
+			// Calculate the number of writers
+			int numWriters = 1 + (int)Math.Min(totalSize / MinSizePerWriter, MaxWriters);
+
+			// Create the partitions
+			List<List<InputFile>> partitions = new List<List<InputFile>>();
+
+			long writtenSize = 0;
+			long remainingSizeForPartition = 0;
+			foreach (InputFile sortedFile in sortedFiles)
+			{
+				if (sortedFile.FileInfo.Length >= remainingSizeForPartition && partitions.Count < numWriters)
+				{
+					partitions.Add(new List<InputFile>());
+					remainingSizeForPartition = (totalSize - writtenSize) / (numWriters - partitions.Count);
+				}
+
+				partitions[^1].Add(sortedFile);
+				writtenSize += sortedFile.FileInfo.Length;
+
+				remainingSizeForPartition -= sortedFile.FileInfo.Length;
+			}
+
+			return partitions;
+		}
+
+		static long GetInputFiles(InputTree tree, List<InputFile> files)
+		{
+			long totalSize = 0;
+			foreach (InputTree directory in tree.Directories.Values)
+			{
+				totalSize += GetInputFiles(directory, files);
+			}
+
+			foreach (InputFile inputFile in tree.Files.Values)
+			{
+				totalSize += inputFile.FileInfo.Length;
+				files.Add(inputFile);
+			}
+			return totalSize;
+		}
+
+		static async ValueTask CreateLeafChunkNodesAsync(IStorageWriter writer, List<InputFile> files, ChunkingOptions options, CancellationToken cancellationToken)
+		{
+			using IStorageWriter writerFork = writer.Fork();
+			foreach (InputFile file in files)
+			{
+				file.Handles.AddRange(await LeafChunkedDataNode.CreateFromFileAsync(writer, file.FileInfo, options.LeafOptions, cancellationToken));
+			}
+		}
+
+		static async Task CreateLeafChunkNodesRecursiveAsync(InputTree tree, IStorageWriter writer, ChunkingOptions options, CancellationToken cancellationToken)
+		{
+			foreach (InputTree directory in tree.Directories.Values)
+			{
+				await CreateLeafChunkNodesRecursiveAsync(directory, writer, options, cancellationToken);
+			}
+			foreach (InputFile file in tree.Files.Values)
+			{
+				file.Handles.AddRange(await LeafChunkedDataNode.CreateFromFileAsync(writer, file.FileInfo, options.LeafOptions, cancellationToken));
+			}
+		}
+
+		static async Task CreateInteriorChunkNodesAsync(InputTree tree, InteriorChunkedDataNodeOptions options, IStorageWriter writer, CancellationToken cancellationToken)
+		{
+			foreach (InputTree directory in tree.Directories.Values)
+			{
+				await CreateInteriorChunkNodesAsync(directory, options, writer, cancellationToken);
+			}
+
+			foreach (InputFile file in tree.Files.Values)
+			{
+				NodeHandle handle = await InteriorChunkedDataNode.CreateTreeAsync(file.Handles, options, writer, cancellationToken);
+				file.Handles.Clear();
+				file.Handles.Add(handle);
+			}
+		}
+
+		static async Task<DirectoryNode> CreateDirectoryNodesAsync(InputTree tree, IStorageWriter writer, ChunkingOptions options, CancellationToken cancellationToken)
+		{
+			DirectoryNode directoryNode = new DirectoryNode();
+			foreach ((string name, InputTree directory) in tree.Directories)
+			{
+				DirectoryNode childNode = await CreateDirectoryNodesAsync(directory, writer, options, cancellationToken);
+				directoryNode.AddDirectory(new DirectoryEntry(name, childNode));
+			}
+			foreach ((string name, InputFile file) in tree.Files)
+			{
+				FileEntry fileEntry = new FileEntry(name, FileEntryFlags.None, file.FileInfo.Length, file.Handles[0]);
+				directoryNode.AddFile(fileEntry);
+			}
+			return directoryNode;
 		}
 
 		/// <summary>

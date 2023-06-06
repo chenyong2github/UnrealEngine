@@ -308,9 +308,7 @@ namespace EpicGames.Horde.Tests
 				using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { MaxBlobSize = 1024 });
 
 				ChunkingOptions options = new ChunkingOptions();
-				options.LeafOptions.MinSize = 128;
-				options.LeafOptions.TargetSize = 256;
-				options.LeafOptions.MaxSize = 64 * 1024;
+				options.LeafOptions = new LeafChunkedDataNodeOptions(128, 256, 64 * 1024);
 
 				ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, options);
 				for (int idx = 0; idx < chunk.Length / 16; idx++)
@@ -360,9 +358,7 @@ namespace EpicGames.Horde.Tests
 				root = new DirectoryNode(DirectoryFlags.None);
 
 				ChunkingOptions options = new ChunkingOptions();
-				options.LeafOptions.MinSize = 128;
-				options.LeafOptions.TargetSize = 256;
-				options.LeafOptions.MaxSize = 64 * 1024;
+				options.LeafOptions = new LeafChunkedDataNodeOptions(128, 256, 64 * 1024);
 
 				ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, options);
 				NodeHandle handle = await fileWriter.CreateAsync(data, CancellationToken.None);

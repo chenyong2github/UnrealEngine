@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
+using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -136,6 +139,145 @@ namespace EpicGames.Horde.Storage.Nodes
 			// Keep this code in sync with the constructor
 			await outputStream.WriteAsync(nodeData.Data, cancellationToken);
 		}
+
+		/// <summary>
+		/// Creates nodes from the given file
+		/// </summary>
+		/// <param name="writer"></param>
+		/// <param name="file"></param>
+		/// <param name="options"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public static async Task<List<NodeHandle>> CreateFromFileAsync(IStorageWriter writer, FileReference file, LeafChunkedDataNodeOptions options, CancellationToken cancellationToken)
+		{
+			using (FileStream stream = FileReference.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read))
+			{
+				return await CreateFromStreamAsync(writer, stream, options, cancellationToken);
+			}
+		}
+
+		/// <summary>
+		/// Creates nodes from the given file
+		/// </summary>
+		/// <param name="writer"></param>
+		/// <param name="file"></param>
+		/// <param name="options"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public static async Task<List<NodeHandle>> CreateFromFileAsync(IStorageWriter writer, FileInfo file, LeafChunkedDataNodeOptions options, CancellationToken cancellationToken)
+		{
+			using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.Read))
+			{
+				return await CreateFromStreamAsync(writer, stream, options, cancellationToken);
+			}
+		}
+
+		/// <summary>
+		/// Creates nodes from the given file
+		/// </summary>
+		/// <param name="writer"></param>
+		/// <param name="stream"></param>
+		/// <param name="options"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public static async Task<List<NodeHandle>> CreateFromStreamAsync(IStorageWriter writer, Stream stream, LeafChunkedDataNodeOptions options, CancellationToken cancellationToken)
+		{
+			List<NodeHandle> handles = new List<NodeHandle>();
+
+			using IMemoryOwner<byte> readBuffer = MemoryPool<byte>.Shared.Rent(options.MaxSize);
+
+			int size = 0;
+			for (; ; )
+			{
+				size += await stream.ReadGreedyAsync(readBuffer.Memory.Slice(size), cancellationToken);
+				if (size == 0)
+				{
+					break;
+				}
+
+				int nextLength = GetChunkLength(readBuffer.Memory.Span.Slice(0, size), options);
+
+				Memory<byte> outputBuffer = writer.GetOutputBuffer(0, nextLength);
+				readBuffer.Memory.Slice(0, nextLength).CopyTo(outputBuffer);
+
+				NodeHandle handle = await writer.WriteNodeAsync(nextLength, Array.Empty<NodeHandle>(), GetNodeType<LeafChunkedDataNode>(), cancellationToken);
+				handles.Add(handle);
+
+				readBuffer.Memory.Slice(nextLength, size - nextLength).CopyTo(readBuffer.Memory);
+				size -= nextLength;
+			}
+
+			return handles;
+		}
+
+		/// <summary>
+		/// Determines how much data to append to an existing leaf node
+		/// </summary>
+		/// <param name="inputData">Data to be appended</param>
+		/// <param name="options">Options for chunking the data</param>
+		/// <returns>The number of bytes to append</returns>
+		public static int GetChunkLength(ReadOnlySpan<byte> inputData, LeafChunkedDataNodeOptions options)
+		{
+			// If the target option sizes are fixed, just chunk the data along fixed boundaries
+			if (options.MinSize == options.TargetSize && options.MaxSize == options.TargetSize)
+			{
+				return Math.Min(inputData.Length, options.MaxSize);
+			}
+
+			// Cap the append data span to the maximum amount we can add
+			int maxLength = options.MaxSize;
+			if (maxLength < inputData.Length)
+			{
+				inputData = inputData.Slice(0, maxLength);
+			}
+
+			int windowSize = options.MinSize;
+
+			// Fast path for appending data to the buffer up to the chunk window size
+			int length = Math.Min(windowSize, inputData.Length);
+			uint rollingHash = BuzHash.Add(0, inputData.Slice(0, length));
+
+			// Get the threshold for the rolling hash to split the output
+			uint rollingHashThreshold = (uint)((1L << 32) / options.TargetSize);
+
+			// Step through the rest of the data which is completely contained in appendData.
+			if (length < inputData.Length)
+			{
+				Debug.Assert(length >= windowSize);
+
+				ReadOnlySpan<byte> tailSpan = inputData.Slice(length - windowSize, inputData.Length - windowSize);
+				ReadOnlySpan<byte> headSpan = inputData.Slice(length);
+
+				int count = BuzHash.Update(tailSpan, headSpan, rollingHashThreshold, ref rollingHash);
+				if (count != -1)
+				{
+					length += count;
+					return length;
+				}
+
+				length += headSpan.Length;
+			}
+
+			return length;
+		}
+	}
+
+	/// <summary>
+	/// Options for creating interior nodes
+	/// </summary>
+	/// <param name="MinChildCount">Minimum number of children in each node</param>
+	/// <param name="TargetChildCount">Target number of children in each node</param>
+	/// <param name="MaxChildCount">Maximum number of children in each node</param>
+	/// <param name="SliceThreshold">Threshold hash value for splitting interior nodes</param>
+	public record class InteriorChunkedDataNodeOptions(int MinChildCount, int TargetChildCount, int MaxChildCount, uint SliceThreshold)
+	{
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public InteriorChunkedDataNodeOptions(int minChildCount, int targetChildCount, int maxChildCount)
+			: this(minChildCount, targetChildCount, maxChildCount, (uint)((1UL << 32) / (uint)targetChildCount))
+		{
+		}
 	}
 
 	/// <summary>
@@ -183,6 +325,71 @@ namespace EpicGames.Horde.Storage.Nodes
 
 		/// <inheritdoc/>
 		public override IEnumerable<NodeRef> EnumerateRefs() => Children;
+
+		/// <summary>
+		/// Create a tree of nodes from the given list of handles, splitting nodes in each layer based on the hash of the last node.
+		/// </summary>
+		/// <param name="handles">List of leaf handles</param>
+		/// <param name="options">Options for splitting the tree</param>
+		/// <param name="writer">Output writer for new interior nodes</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Handle to the root node of the tree</returns>
+		public static async Task<NodeHandle> CreateTreeAsync(List<NodeHandle> handles, InteriorChunkedDataNodeOptions options, IStorageWriter writer, CancellationToken cancellationToken)
+		{
+			List<NodeHandle> handleBuffer = new List<NodeHandle>();
+
+			List<InteriorChunkedDataNode> interiorNodes = new List<InteriorChunkedDataNode>();
+			while (handles.Count > 1)
+			{
+				interiorNodes.Clear();
+				CreateTreeLayer(handles, options, interiorNodes);
+
+				handleBuffer.Clear();
+				foreach (InteriorChunkedDataNode interiorNode in interiorNodes)
+				{
+					NodeHandle handle = await writer.WriteNodeAsync(interiorNode, cancellationToken);
+					handleBuffer.Add(handle);
+				}
+
+				handles = handleBuffer;
+			}
+
+			return handles[0];
+		}
+		
+		/// <summary>
+		/// Split a list of handles into a layer of interior nodes
+		/// </summary>
+		static void CreateTreeLayer(List<NodeHandle> handles, InteriorChunkedDataNodeOptions options, List<InteriorChunkedDataNode> interiorNodes)
+		{
+			Span<byte> buffer = stackalloc byte[IoHash.NumBytes];
+
+			for (int index = 0; index < handles.Count; )
+			{
+				int minIndex = index;
+				int maxIndex = Math.Min(minIndex + options.MaxChildCount, handles.Count);
+
+				index = Math.Min(index + options.MinChildCount, handles.Count);
+				for (; index < maxIndex; index++)
+				{
+					handles[index].Hash.CopyTo(buffer);
+
+					uint value = BinaryPrimitives.ReadUInt32LittleEndian(buffer);
+					if (value < options.SliceThreshold)
+					{
+						break;
+					}
+				}
+
+				NodeRef<ChunkedDataNode>[] children = new NodeRef<ChunkedDataNode>[index - minIndex];
+				for (int childIndex = minIndex; childIndex < index; childIndex++)
+				{
+					children[childIndex - minIndex] = new NodeRef<ChunkedDataNode>(handles[childIndex]);
+				}
+
+				interiorNodes.Add(new InteriorChunkedDataNode(children));
+			}
+		}
 
 		/// <inheritdoc/>
 		public override async Task CopyToStreamAsync(Stream outputStream, CancellationToken cancellationToken)

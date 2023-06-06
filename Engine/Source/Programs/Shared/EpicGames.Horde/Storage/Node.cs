@@ -365,6 +365,19 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Serializes a single node
+		/// </summary>
+		/// <param name="writer">Writer for the node data</param>
+		/// <param name="node">The node to write</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Handle to the written node</returns>
+		public static async Task<NodeHandle> WriteNodeAsync(this IStorageWriter writer, Node node, CancellationToken cancellationToken = default)
+		{
+			NodeRef nodeRef = new NodeRef(node);
+			return await writer.WriteAsync(nodeRef, cancellationToken);
+		}
+
+		/// <summary>
 		/// Writes a node to storage
 		/// </summary>
 		/// <param name="store">Store instance to write to</param>

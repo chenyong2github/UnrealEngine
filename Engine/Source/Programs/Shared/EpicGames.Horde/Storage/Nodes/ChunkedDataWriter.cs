@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -18,60 +19,38 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Options for creating leaf nodes
 		/// </summary>
-		public ChunkingOptionsForNodeType LeafOptions { get; set; }
+		public LeafChunkedDataNodeOptions LeafOptions { get; set; }
 
 		/// <summary>
 		/// Options for creating interior nodes
 		/// </summary>
-		public ChunkingOptionsForNodeType InteriorOptions { get; set; }
+		public InteriorChunkedDataNodeOptions InteriorOptions { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		public ChunkingOptions()
 		{
-			LeafOptions = new ChunkingOptionsForNodeType(32 * 1024, 256 * 1024, 64 * 1024);
-			InteriorOptions = new ChunkingOptionsForNodeType(32 * 1024, 256 * 1024, 64 * 1024);
+			LeafOptions = new LeafChunkedDataNodeOptions(32 * 1024, 256 * 1024, 64 * 1024);
+			InteriorOptions = new InteriorChunkedDataNodeOptions(1, 5, 10);
 		}
 	}
 
 	/// <summary>
 	/// Options for creating a specific type of file nodes
 	/// </summary>
-	public class ChunkingOptionsForNodeType
+	/// <param name="MinSize">Minimum chunk size</param>
+	/// <param name="MaxSize">Maximum chunk size. Chunks will be split on this boundary if another match is not found.</param>
+	/// <param name="TargetSize">Target chunk size for content-slicing</param>
+	public record class LeafChunkedDataNodeOptions(int MinSize, int MaxSize, int TargetSize)
 	{
-		/// <summary>
-		/// Minimum chunk size
-		/// </summary>
-		public int MinSize { get; set; }
-
-		/// <summary>
-		/// Maximum chunk size. Chunks will be split on this boundary if another match is not found.
-		/// </summary>
-		public int MaxSize { get; set; }
-
-		/// <summary>
-		/// Target chunk size for content-slicing
-		/// </summary>
-		public int TargetSize { get; set; }
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="size">Fixed size chunks to use</param>
-		public ChunkingOptionsForNodeType(int size)
+		public LeafChunkedDataNodeOptions(int size)
 			: this(size, size, size)
 		{
-		}
-
-		/// <summary>
-		/// Default constructor
-		/// </summary>
-		public ChunkingOptionsForNodeType(int minSize, int maxSize, int targetSize)
-		{
-			MinSize = minSize;
-			MaxSize = maxSize;
-			TargetSize = targetSize;
 		}
 	}
 
@@ -85,43 +64,14 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		public const int DefaultBufferLength = 32 * 1024;
 
-		class InteriorNodeState
-		{
-			public InteriorNodeState? _parent;
-			public readonly ArrayMemoryWriter _data;
-			public readonly List<NodeHandle> _children = new List<NodeHandle>();
-
-			public uint _rollingHash;
-
-			public InteriorNodeState(int maxSize)
-			{
-				_data = new ArrayMemoryWriter(maxSize);
-			}
-
-			public void Reset()
-			{
-				_rollingHash = 0;
-				_data.Clear();
-				_children.Clear();
-			}
-
-			public void Write(NodeHandle handle)
-			{
-				_children.Add(handle);
-				_data.WriteIoHash(handle.Hash);
-			}
-		}
-
 		static readonly NodeType s_leafNodeType = Node.GetNodeType<LeafChunkedDataNode>();
-		static readonly NodeType s_interiorNodeType = Node.GetNodeType<InteriorChunkedDataNode>();
 
 		readonly IStorageWriter _writer;
 		readonly ChunkingOptions _options;
 
 		// Tree state
-		InteriorNodeState? _topInteriorNode = null;
 		long _totalLength;
-		readonly Stack<InteriorNodeState> _freeInteriorNodes = new Stack<InteriorNodeState>();
+		readonly List<NodeHandle> _leafHandles = new List<NodeHandle>();
 
 		// Leaf node state
 		uint _leafHash;
@@ -148,7 +98,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		public void Reset()
 		{
-			FreeInteriorNodes();
+			_leafHandles.Clear();
 			ResetLeafState();
 			_totalLength = 0;
 		}
@@ -160,34 +110,6 @@ namespace EpicGames.Horde.Storage.Nodes
 		{
 			_leafHash = 0;
 			_leafLength = 0;
-		}
-
-		/// <summary>
-		/// Creates a new interior node state
-		/// </summary>
-		/// <returns>State object</returns>
-		InteriorNodeState CreateInteriorNode()
-		{
-			InteriorNodeState? result;
-			if (!_freeInteriorNodes.TryPop(out result))
-			{
-				result = new InteriorNodeState(_options.InteriorOptions.MaxSize);
-			}
-			return result;
-		}
-
-		/// <summary>
-		/// Free all the current interior nodes
-		/// </summary>
-		void FreeInteriorNodes()
-		{
-			while (_topInteriorNode != null)
-			{
-				InteriorNodeState current = _topInteriorNode;
-				_topInteriorNode = _topInteriorNode._parent;
-				current.Reset();
-				_freeInteriorNodes.Push(current);
-			}
 		}
 
 		/// <summary>
@@ -280,7 +202,6 @@ namespace EpicGames.Horde.Storage.Nodes
 			Memory<byte> buffer = _writer.GetOutputBuffer(_leafLength, _leafLength);
 			for (; ; )
 			{
-				// Append data to the current leaf node
 				int appendLength = AppendToLeafNode(buffer.Span.Slice(0, _leafLength), data.Span, ref _leafHash, _options.LeafOptions);
 
 				buffer = _writer.GetOutputBuffer(_leafLength, _leafLength + appendLength);
@@ -296,10 +217,7 @@ namespace EpicGames.Horde.Storage.Nodes
 					break;
 				}
 
-				// Flush the leaf node and any interior nodes that are full
-				NodeHandle handle = await WriteLeafNodeAsync(cancellationToken);
-				ResetLeafState();
-				await AddToInteriorNodeAsync(handle, cancellationToken);
+				await FlushLeafNodeAsync(cancellationToken);
 			}
 		}
 
@@ -311,7 +229,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="rollingHash">Current BuzHash of the data</param>
 		/// <param name="options">Options for chunking the data</param>
 		/// <returns>The number of bytes to append</returns>
-		static int AppendToLeafNode(ReadOnlySpan<byte> currentData, ReadOnlySpan<byte> appendData, ref uint rollingHash, ChunkingOptionsForNodeType options)
+		static int AppendToLeafNode(ReadOnlySpan<byte> currentData, ReadOnlySpan<byte> appendData, ref uint rollingHash, LeafChunkedDataNodeOptions options)
 		{
 			// If the target option sizes are fixed, just chunk the data along fixed boundaries
 			if (options.MinSize == options.TargetSize && options.MaxSize == options.TargetSize)
@@ -380,77 +298,6 @@ namespace EpicGames.Horde.Storage.Nodes
 			return appendLength;
 		}
 
-		async Task AddToInteriorNodeAsync(NodeHandle handle, CancellationToken cancellationToken)
-		{
-			_topInteriorNode ??= CreateInteriorNode();
-			await AddToInteriorNodeAsync(_topInteriorNode, handle, cancellationToken);
-		}
-
-		async Task AddToInteriorNodeAsync(InteriorNodeState interiorNode, NodeHandle handle, CancellationToken cancellationToken)
-		{
-			// If the node is already full, flush it
-			if (IsInteriorNodeComplete(interiorNode._data.WrittenSpan, interiorNode._rollingHash, _options.InteriorOptions))
-			{
-				NodeHandle interiorNodeHandle = await WriteInteriorNodeAndResetAsync(interiorNode, cancellationToken);
-				interiorNode._parent ??= CreateInteriorNode();
-				await AddToInteriorNodeAsync(interiorNode._parent, interiorNodeHandle, cancellationToken);
-			}
-
-			// Add this handle
-			AppendToInteriorNode(interiorNode._data.WrittenSpan, handle.Hash, ref interiorNode._rollingHash, _options.InteriorOptions);
-			interiorNode.Write(handle);
-		}
-
-
-		/// <summary>
-		/// Test whether the current node is complete
-		/// </summary>
-		/// <param name="currentData"></param>
-		/// <param name="rollingHash"></param>
-		/// <param name="options"></param>
-		/// <returns></returns>
-		static bool IsInteriorNodeComplete(ReadOnlySpan<byte> currentData, uint rollingHash, ChunkingOptionsForNodeType options)
-		{
-			if (currentData.Length + IoHash.NumBytes > options.MaxSize)
-			{
-				return true;
-			}
-
-			if (currentData.Length >= options.MinSize)
-			{
-				uint rollingHashThreshold = BuzHash.GetThreshold(options.TargetSize);
-				if (rollingHash < rollingHashThreshold)
-				{
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		/// <summary>
-		/// Append a new hash to this interior node
-		/// </summary>
-		/// <param name="currentData">Current data for the node</param>
-		/// <param name="hash">Hash of the child node</param>
-		/// <param name="rollingHash">Current rolling hash for the node</param>
-		/// <param name="options">Options for chunking the node</param>
-		/// <returns>True if the hash could be appended, false otherwise</returns>
-		static void AppendToInteriorNode(ReadOnlySpan<byte> currentData, IoHash hash, ref uint rollingHash, ChunkingOptionsForNodeType options)
-		{
-			Span<byte> hashData = stackalloc byte[IoHash.NumBytes];
-			hash.CopyTo(hashData);
-
-			rollingHash = BuzHash.Add(rollingHash, hashData);
-
-			int windowSize = options.MinSize - (options.MinSize % IoHash.NumBytes);
-			if (currentData.Length > windowSize)
-			{
-				ReadOnlySpan<byte> removeData = currentData.Slice(currentData.Length - windowSize, IoHash.NumBytes);
-				rollingHash = BuzHash.Sub(rollingHash, removeData, windowSize + IoHash.NumBytes);
-			}
-		}
-
 		/// <summary>
 		/// Complete the current file, and write all open nodes to the underlying writer
 		/// </summary>
@@ -458,17 +305,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <returns>Handle to the root node</returns>
 		public async Task<NodeHandle> CompleteAsync(CancellationToken cancellationToken)
 		{
-			NodeHandle handle = await WriteLeafNodeAsync(cancellationToken);
-			ResetLeafState();
-
-			for (InteriorNodeState? state = _topInteriorNode; state != null; state = state._parent)
-			{
-				await AddToInteriorNodeAsync(state, handle, cancellationToken);
-				handle = await WriteInteriorNodeAndResetAsync(state, cancellationToken);
-			}
-
-			FreeInteriorNodes();
-			return handle;
+			await FlushLeafNodeAsync(cancellationToken);
+			NodeHandle rootHandle = await InteriorChunkedDataNode.CreateTreeAsync(_leafHandles, _options.InteriorOptions, _writer, cancellationToken);
+			return rootHandle;
 		}
 
 		/// <summary>
@@ -484,30 +323,15 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <summary>
-		/// Writes the state of the given interior node to storage
-		/// </summary>
-		/// <param name="state"></param>
-		/// <param name="cancellationToken"></param>
-		/// <returns></returns>
-		async ValueTask<NodeHandle> WriteInteriorNodeAndResetAsync(InteriorNodeState state, CancellationToken cancellationToken)
-		{
-			Memory<byte> buffer = _writer.GetOutputBuffer(0, state._data.Length);
-			state._data.WrittenMemory.CopyTo(buffer);
-
-			NodeHandle handle = await _writer.WriteNodeAsync(state._data.Length, state._children, s_interiorNodeType, cancellationToken);
-			state.Reset();
-
-			return handle;
-		}
-
-		/// <summary>
 		/// Writes the contents of the current leaf node to storage
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Handle to the written leaf node</returns>
-		async ValueTask<NodeHandle> WriteLeafNodeAsync(CancellationToken cancellationToken)
+		async ValueTask FlushLeafNodeAsync(CancellationToken cancellationToken)
 		{
-			return await _writer.WriteNodeAsync(_leafLength, Array.Empty<NodeHandle>(), s_leafNodeType, cancellationToken);
+			NodeHandle handle = await _writer.WriteNodeAsync(_leafLength, Array.Empty<NodeHandle>(), s_leafNodeType, cancellationToken);
+			_leafHandles.Add(handle);
+			ResetLeafState();
 		}
 	}
 }
