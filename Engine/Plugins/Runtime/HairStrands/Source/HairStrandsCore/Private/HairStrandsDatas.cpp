@@ -708,18 +708,12 @@ bool ValidateHairBulkData();
 
 void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQuery & Out)
 {
-	if (Header.CurveCount)
+	const bool bHasClusterData = Header.ClusterCount > 0;
+	if (bHasClusterData)
 	{
-		Out.Add(Data.CurveToClusterIds, TEXT("_CurveToClusterIds"), 0, 0); // Load all data
-	}
-
-	if (Header.ClusterCount)
-	{
-		Out.Add(Data.PackedClusterInfos, TEXT("_PackedClusterInfos"), 0, 0); // Load all data
-	}
-
-	{
-		Out.Add(Data.PointLODs, TEXT("_PointLODs"), 0, 0); // Load all data. TODO load data based on active curve/point count
+		Out.Add(Data.CurveToClusterIds, TEXT("_CurveToClusterIds"), 0, 0); 	// Load all data. TODO load data based on active curve/point count
+		Out.Add(Data.PackedClusterInfos, TEXT("_PackedClusterInfos"), 0, 0);// Load all data
+		Out.Add(Data.PointLODs, TEXT("_PointLODs"), 0, 0); 					// Load all data. TODO load data based on active curve/point count
 	}
 }
 

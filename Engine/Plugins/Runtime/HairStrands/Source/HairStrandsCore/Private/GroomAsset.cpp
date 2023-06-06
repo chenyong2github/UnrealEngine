@@ -129,6 +129,7 @@ uint32 FHairGroupPlatformData::FStrands::GetDataSize() const
 	CTotal += ClusterCullingBulkData.Header.CPULODScreenSize.GetAllocatedSize();
 	BTotal += ClusterCullingBulkData.Data.CurveToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.CurveToClusterIds.GetBulkDataSize() : 0;
 	CTotal += ClusterCullingBulkData.Data.PackedClusterInfos.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.PackedClusterInfos.GetBulkDataSize() : 0;
+	CTotal += ClusterCullingBulkData.Data.PointLODs.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.PointLODs.GetBulkDataSize() : 0;
 
 	return BTotal + Total + CTotal;
 }
