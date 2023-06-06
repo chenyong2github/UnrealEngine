@@ -1119,6 +1119,8 @@ void FReplicationFiltering::PreUpdateDynamicFiltering(ENetFilterType FilterType)
 	// Give filters a chance to prepare for filtering. It's only called if any object has the filter set.
 	{
 		FNetObjectPreFilteringParams PreFilteringParams;
+		PreFilteringParams.ValidConnections = MakeNetBitArrayView(ValidConnections);
+
 		for (FFilterInfo& Info : DynamicFilterInfos)
 		{
 			if (Info.ObjectCount == 0U)
@@ -2034,23 +2036,23 @@ void FReplicationFiltering::InitFilters()
 			}
 		}
 
-		TStrongObjectPtr<UNetObjectFilter> Filter(NewObject<UNetObjectFilter>((UObject*)GetTransientPackage(), NetObjectFilterClass, MakeUniqueObjectName(nullptr, NetObjectFilterClass, FilterDefinition.FilterName)));
-		check(Filter.IsValid());
+		
+		FFilterInfo& Info = DynamicFilterInfos.Emplace_GetRef();
+		Info.Filter = TStrongObjectPtr<UNetObjectFilter>(NewObject<UNetObjectFilter>((UObject*)GetTransientPackage(), NetObjectFilterClass, MakeUniqueObjectName(nullptr, NetObjectFilterClass, FilterDefinition.FilterName)));
+		check(Info.Filter.IsValid());
+		Info.Name = FilterDefinition.FilterName;
+		Info.ObjectCount = 0;
+		Info.FilteredObjects.Init(MaxObjectCount);
 
-		FNetObjectFilterInitParams InitParams;
+		FNetObjectFilterInitParams InitParams(MakeNetBitArrayView(Info.FilteredObjects));
 		InitParams.ReplicationSystem = ReplicationSystem;
 		InitParams.Config = (NetObjectFilterConfigClass ? NewObject<UNetObjectFilterConfig>((UObject*)GetTransientPackage(), NetObjectFilterConfigClass) : nullptr);
 		InitParams.MaxObjectCount = MaxObjectCount;
 		InitParams.MaxConnectionCount = Connections->GetMaxConnectionCount();
 
-		Filter->Init(InitParams);
-
-		FFilterInfo& Info = DynamicFilterInfos.Emplace_GetRef();
-		Info.Type = Filter->GetFilterType();
-		Info.Filter = MoveTemp(Filter);
-		Info.Name = FilterDefinition.FilterName;
-		Info.ObjectCount = 0;
-		Info.FilteredObjects.Init(MaxObjectCount);
+		Info.Filter->Init(InitParams);
+		// Filter type can be changed in Init.
+		Info.Type = Info.Filter->GetFilterType();
 
 		bHasDynamicFilters = true;
 		bHasDynamicRawFilters |= (Info.Type == ENetFilterType::PrePoll_Raw);
@@ -2106,6 +2108,24 @@ void FReplicationFiltering::InvalidateBaselinesForObject(uint32 ObjectIndex, uin
 			}
 		}
 	}
+}
+
+TArrayView<FNetObjectFilteringInfo> FReplicationFiltering::GetNetObjectFilteringInfos()
+{
+	return MakeArrayView(NetObjectFilteringInfos);
+}
+
+//*************************************************************************************************
+// FNetObjectFilteringInfoAccessor
+//*************************************************************************************************
+TArrayView<FNetObjectFilteringInfo> FNetObjectFilteringInfoAccessor::GetNetObjectFilteringInfos(UReplicationSystem* ReplicationSystem) const
+{
+	if (ReplicationSystem)
+	{
+		return ReplicationSystem->GetReplicationSystemInternal()->GetFiltering().GetNetObjectFilteringInfos();
+	}
+
+	return TArrayView<FNetObjectFilteringInfo>();
 }
 
 //*************************************************************************************************

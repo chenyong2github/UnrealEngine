@@ -90,6 +90,8 @@ struct FNetObjectFilteringParams
  */
 struct FNetObjectPreFilteringParams
 {
+	// The IDs of all valid connections.
+	UE::Net::FNetBitArrayView ValidConnections;
 };
 
 /**
@@ -146,13 +148,21 @@ public:
 /** Parameters passed to the filter's Init() call. */
 struct FNetObjectFilterInitParams
 {
-	TObjectPtr<const UReplicationSystem> ReplicationSystem;
+public:
+	FNetObjectFilterInitParams(const UE::Net::FNetBitArrayView InFilteredObjects)
+	: FilteredObjects(InFilteredObjects)
+	{
+	}
+
+	TObjectPtr<UReplicationSystem> ReplicationSystem;
 	/** Optional config as set in the FNetObjectFilterDefinition. */
 	UNetObjectFilterConfig* Config = nullptr;
 	/** The maximum number of objects in the system. */
 	uint32 MaxObjectCount = 0;
 	/** The maximum number of connections in the system. */
 	uint32 MaxConnectionCount = 0;
+	/** The objects that are handled by the filter. */
+	const UE::Net::FNetBitArrayView FilteredObjects;
 };
 
 struct FNetObjectFilterAddObjectParams
@@ -244,10 +254,49 @@ protected:
 	/** Called right after constructor for enabled filters. Must be overriden. */
 	IRISCORE_API virtual void OnInit(FNetObjectFilterInitParams&) PURE_VIRTUAL(OnInit, );
 
+	/* Returns true if the object is added to this filter, false otherwise. */
+	bool IsAddedToFilter(uint32 ObjectIndex) const;
+
+	/* Returns the filtering info for this object if it's handled by this filter, nullptr otherwise. */
+	FNetObjectFilteringInfo* GetFilteringInfo(uint32 ObjectIndex);
+
 	/** Directly set when you want your dynamic filter to be executed. */
 	void SetupFilterType(ENetFilterType NewFilterType) { FilterType = NewFilterType; }
 
 private:
+	class FFilterInfo
+	{
+	public:
+		FFilterInfo() = default;
+		FFilterInfo(const UE::Net::FNetBitArrayView FilteredObjects, const TArrayView<FNetObjectFilteringInfo> FileringInfos);
+
+		FFilterInfo& operator=(const FFilterInfo&);
+
+		bool IsAddedToFilter(uint32 ObjectIndex) const;
+
+		FNetObjectFilteringInfo* GetFilteringInfo(uint32 ObjectIndex);
+
+	private:
+		const UE::Net::FNetBitArrayView FilteredObjects;
+		TArrayView<FNetObjectFilteringInfo> FilteringInfos;
+	};
 
 	ENetFilterType FilterType = ENetFilterType::PrePoll_Raw;
+	FFilterInfo FilterInfo;
 };
+
+inline bool UNetObjectFilter::IsAddedToFilter(uint32 ObjectIndex) const
+{
+	return FilterInfo.IsAddedToFilter(ObjectIndex);
+}
+
+inline FNetObjectFilteringInfo* UNetObjectFilter::GetFilteringInfo(uint32 ObjectIndex)
+{
+	return FilterInfo.GetFilteringInfo(ObjectIndex);
+}
+
+inline bool UNetObjectFilter::FFilterInfo::IsAddedToFilter(uint32 ObjectIndex) const
+{
+	return ObjectIndex < FilteredObjects.GetNumBits() && FilteredObjects.IsBitSet(ObjectIndex);
+}
+

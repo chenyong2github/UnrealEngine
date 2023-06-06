@@ -26,6 +26,18 @@ namespace UE::Net
 namespace UE::Net::Private
 {
 
+class FNetObjectFilteringInfoAccessor
+{
+private:
+	/** Returns all the NetObjectFilteringInfos for the filtering system. */
+	TArrayView<FNetObjectFilteringInfo> GetNetObjectFilteringInfos(UReplicationSystem* ReplicationSystem) const;
+
+private:
+	// Friends
+	friend UNetObjectFilter;
+};
+
+
 struct FReplicationFilteringInitParams
 {
 	TObjectPtr<UReplicationSystem> ReplicationSystem;
@@ -163,6 +175,7 @@ private:
 
 private:
 	class FUpdateDirtyObjectsBatchHelper;
+	friend FNetObjectFilteringInfoAccessor;
 	
 	static void StaticChecks();
 
@@ -216,6 +229,9 @@ private:
 	void BatchNotifyFiltersOfDirtyObjects(FUpdateDirtyObjectsBatchHelper& BatchHelper, const uint32* ObjectIndices, uint32 ObjectCount);
 
 	void InvalidateBaselinesForObject(uint32 ObjectIndex, uint32 NewOwningConnectionId, uint32 PrevOwningConnectionId);
+
+	/** Returns all the filtering infos. */
+	TArrayView<FNetObjectFilteringInfo> GetNetObjectFilteringInfos();
 
 private:
 	// Used for ObjectIndexToDynamicFilterIndex lookup
