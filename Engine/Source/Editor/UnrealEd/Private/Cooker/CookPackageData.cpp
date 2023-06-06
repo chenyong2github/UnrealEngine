@@ -3039,7 +3039,7 @@ void FPackageDatas::GetCookedPackagesForPlatform(const ITargetPlatform* Platform
 void FPackageDatas::Clear()
 {
 	FWriteScopeLock ExistenceWriteLock(ExistenceLock);
-	PendingCookedPlatformDataLists.Empty(); // These destructors will dereference PackageDatas
+	PendingCookedPlatformDataLists.Empty(); // These destructors will read/write PackageDatas
 	RequestQueue.Empty();
 	SaveQueue.Empty();
 	PackageNameToPackageData.Empty();

@@ -1271,8 +1271,10 @@ private:
 		return (CookFlags & InCookFlags) != ECookInitializationFlags::None;
 	}
 
-	void RouteBeginCacheForCookedPlatformData(FName PackageName, UObject* Obj, const ITargetPlatform* TargetPlatform);
-	bool RouteIsCachedCookedPlatformDataLoaded(FName PackageName, UObject* Obj, const ITargetPlatform* TargetPlatform);
+	void RouteBeginCacheForCookedPlatformData(FName PackageName, UObject* Obj,
+		const ITargetPlatform* TargetPlatform);
+	bool RouteIsCachedCookedPlatformDataLoaded(FName PackageName, UObject* Obj,
+		const ITargetPlatform* TargetPlatform);
 
 	/** Cook (save) a package and process the results */
 	void SaveCookedPackage(UE::Cook::FSaveCookedPackageContext& Context);
