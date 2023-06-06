@@ -44,10 +44,19 @@ FLandscapeFileInfo FLandscapeHeightmapFileFormat_Png::Validate(const TCHAR* Heig
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper");
 		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
 
-		if (!ImageWrapper->SetCompressed(ImportData.GetData(), ImportData.Num()) || ImageWrapper->GetWidth() <= 0 || ImageWrapper->GetHeight() <= 0)
+		if (!ImageWrapper->SetCompressed(ImportData.GetData(), ImportData.Num()) 
+			|| ImageWrapper->GetWidth() <= 0 
+			|| ImageWrapper->GetHeight() <= 0)
 		{
 			Result.ResultCode = ELandscapeImportResult::Error;
 			Result.ErrorMessage = LOCTEXT("Import_HeightmapFileCorruptPng", "The heightmap file cannot be read (corrupt png?)");
+		}
+		else if ((ImageWrapper->GetWidth() > MAX_int32)
+			|| (ImageWrapper->GetHeight() > MAX_int32)
+			|| (ImageWrapper->GetWidth() > MAX_int64 / ImageWrapper->GetHeight()))	// the total pixel count should fit in an int64 to avoid overflow issues
+		{
+			Result.ResultCode = ELandscapeImportResult::Error;
+			Result.ErrorMessage = LOCTEXT("Import_HeightmapFileTooLargePng", "The heightmap file is too large to load");
 		}
 		else
 		{
@@ -62,8 +71,8 @@ FLandscapeFileInfo FLandscapeHeightmapFileFormat_Png::Validate(const TCHAR* Heig
 				Result.ErrorMessage = LOCTEXT("Import_HeightmapFileLowBitDepth", "The heightmap file appears to be an 8-bit png, 16-bit is preferred. The import *can* continue, but the result may be lower quality than desired.");
 			}
 			FLandscapeFileResolution ImportResolution;
-			ImportResolution.Width = ImageWrapper->GetWidth();
-			ImportResolution.Height = ImageWrapper->GetHeight();
+			ImportResolution.Width = static_cast<uint32>(ImageWrapper->GetWidth());
+			ImportResolution.Height = static_cast<uint32>(ImageWrapper->GetHeight());
 			Result.PossibleResolutions.Add(ImportResolution);
 		}
 	}
@@ -90,15 +99,23 @@ FLandscapeImportData<uint16> FLandscapeHeightmapFileFormat_Png::Import(const TCH
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper");
 		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
 
+		const int64 Width = ExpectedResolution.Width;
+		const int64 Height = ExpectedResolution.Height;
+
 		if (!ImageWrapper->SetCompressed(TempData.GetData(), TempData.Num()))
 		{
 			Result.ResultCode = ELandscapeImportResult::Error;
 			Result.ErrorMessage = LOCTEXT("Import_HeightmapFileCorruptPng", "The heightmap file cannot be read (corrupt png?)");
 		}
-		else if (ImageWrapper->GetWidth() != ExpectedResolution.Width || ImageWrapper->GetHeight() != ExpectedResolution.Height)
+		else if (ImageWrapper->GetWidth() != Width || ImageWrapper->GetHeight() != Height)
 		{
 			Result.ResultCode = ELandscapeImportResult::Error;
 			Result.ErrorMessage = LOCTEXT("Import_HeightmapResolutionMismatch", "The heightmap file's resolution does not match the requested resolution");
+		}
+		else if (Width > MAX_int64 / Height) // total pixel count must fit in an int64
+		{
+			Result.ResultCode = ELandscapeImportResult::Error;
+			Result.ErrorMessage = LOCTEXT("Import_HeightmapFileTooLargePng", "The heightmap file is too large to load");
 		}
 		else
 		{
@@ -113,32 +130,37 @@ FLandscapeImportData<uint16> FLandscapeHeightmapFileFormat_Png::Import(const TCH
 				Result.ErrorMessage = LOCTEXT("Import_HeightmapFileLowBitDepth", "The heightmap file appears to be an 8-bit png, 16-bit is preferred. The import *can* continue, but the result may be lower quality than desired.");
 			}
 
+			const int64 TotalPixels = Width * Height;
+
 			TArray64<uint8> RawData;
 			if (ImageWrapper->GetBitDepth() <= 8)
 			{
-				if (!ImageWrapper->GetRaw(ERGBFormat::Gray, 8, RawData))
+				if (!ImageWrapper->GetRaw(ERGBFormat::Gray, 8, RawData)
+					|| (RawData.Num() != TotalPixels))
 				{
 					Result.ResultCode = ELandscapeImportResult::Error;
 					Result.ErrorMessage = LOCTEXT("Import_HeightmapFileCorruptPng", "The heightmap file cannot be read (corrupt png?)");
 				}
 				else
 				{
-					Result.Data.Empty(ExpectedResolution.Width * ExpectedResolution.Height);
+					Result.Data.Empty(TotalPixels);
 					Algo::Transform(RawData, Result.Data, [](uint8 Value) { return static_cast<uint16>(Value * 0x101); }); // Expand to 16-bit
 				}
 			}
 			else
 			{
-				if (!ImageWrapper->GetRaw(ERGBFormat::Gray, 16, RawData))
+				if (!ImageWrapper->GetRaw(ERGBFormat::Gray, 16, RawData)
+					|| (RawData.Num()/2 != TotalPixels))
 				{
 					Result.ResultCode = ELandscapeImportResult::Error;
 					Result.ErrorMessage = LOCTEXT("Import_HeightmapFileCorruptPng", "The heightmap file cannot be read (corrupt png?)");
 				}
 				else
 				{
-					Result.Data.Empty(ExpectedResolution.Width * ExpectedResolution.Height);
-					Result.Data.AddUninitialized(ExpectedResolution.Width * ExpectedResolution.Height);
-					FMemory::Memcpy(Result.Data.GetData(), RawData.GetData(), ExpectedResolution.Width * ExpectedResolution.Height * 2);
+					Result.Data.Empty(TotalPixels);
+					Result.Data.AddUninitialized(TotalPixels);
+					const uint64 TotalBytes = static_cast<uint64>(TotalPixels) * 2;
+					FMemory::Memcpy(Result.Data.GetData(), RawData.GetData(), TotalBytes);
 				}
 			}
 		}

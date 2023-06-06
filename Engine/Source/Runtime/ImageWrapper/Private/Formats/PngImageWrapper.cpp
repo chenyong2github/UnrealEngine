@@ -426,9 +426,14 @@ void FPngImageWrapper::UncompressPNGData(const ERGBFormat InFormat, const int32 
 			// Calculate Pixel Depth
 			const uint64 PixelChannels = (InFormat == ERGBFormat::Gray) ? 1 : 4;
 			const uint64 BytesPerPixel = (InBitDepth * PixelChannels) / 8;
-			const uint64 BytesPerRow = BytesPerPixel * Width;
-			RawData.Empty(Height * BytesPerRow);
-			RawData.AddUninitialized(Height * BytesPerRow);
+			check(BytesPerPixel > 0);
+
+			const int64 BytesPerRow = BytesPerPixel * Width;
+			check(Height <= MAX_int64 / BytesPerRow);	// check for overflow on multiplication
+			const int64 TotalBytes = Height * BytesPerRow;
+
+			RawData.Empty(TotalBytes);
+			RawData.AddUninitialized(TotalBytes);
 
 			png_set_read_fn(png_ptr, this, FPngImageWrapper::user_read_compressed);
 
