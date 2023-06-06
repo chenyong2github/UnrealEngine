@@ -8,6 +8,7 @@
 #include "Misc/Attribute.h"
 #include "Features/IModularFeature.h"
 #include "UObject/UnrealType.h"
+#include "Input/Reply.h"
 
 class UBlueprint;
 class IPropertyHandle;
