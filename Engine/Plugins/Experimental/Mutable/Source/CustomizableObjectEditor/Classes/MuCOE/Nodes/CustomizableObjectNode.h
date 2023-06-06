@@ -120,8 +120,8 @@ public:
 	 * 
 	 * Some nodes are added manually in the graph editor code and don't need to do this.
 	 */
-	virtual bool ShouldAddToContextMenu(FText& OutCategory) const { return false; }
-	
+	virtual bool ShouldAddToContextMenu(FText& OutCategory) const;
+
 	void GetInputPins(TArray<class UEdGraphPin*>& OutInputPins) const;
 	void GetOutputPins(TArray<class UEdGraphPin*>& OutOutputPins) const;
 	UEdGraphPin* GetOutputPin(int32 OutputIndex) const;

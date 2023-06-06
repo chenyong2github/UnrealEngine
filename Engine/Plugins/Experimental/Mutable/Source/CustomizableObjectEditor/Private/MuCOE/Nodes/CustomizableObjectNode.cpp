@@ -111,6 +111,12 @@ bool UCustomizableObjectNode::CustomRemovePin(UEdGraphPin& Pin)
 }
 
 
+bool UCustomizableObjectNode::ShouldAddToContextMenu(FText& OutCategory) const
+{
+	return false;
+}
+
+
 void UCustomizableObjectNode::GetInputPins(TArray<class UEdGraphPin*>& OutInputPins) const
 {
 	OutInputPins.Empty();

@@ -20,8 +20,6 @@ class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeMeshClipMorph : public
 public:
 	GENERATED_BODY()
 
-	UCustomizableObjectNodeMeshClipMorph();
-
 	UPROPERTY(EditAnywhere, Category = MeshToClipAndMorph)
 	FName BoneName;
 
@@ -30,19 +28,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = MeshToClipAndMorph)
 	uint32 ReferenceSkeletonIndex = 0;
-
-	// UObject interface.
-	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void Serialize(FArchive& Ar) override;
-
-	// Begin EdGraphNode interface
-	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
-	FLinearColor GetNodeTitleColor() const override;
-	FText GetTooltipText() const override;
-
-	// UCustomizableObjectNode interface
-	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
-	void PinConnectionListChanged(UEdGraphPin* Pin) override;
 
 	UPROPERTY(EditAnywhere, Category = MeshClipParameters, meta = (DisplayName="Morph Start Offset", ToolTip="Offset from the origin of the selected bone to the actual start of the morph."))
 	FVector StartOffset;
@@ -79,16 +64,29 @@ public:
 
 	bool bUpdateViewportWidget;
 
-	FVector GetOriginWithOffset() const;
+	UCustomizableObjectNodeMeshClipMorph();
 
+	// UObject interface.
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void Serialize(FArchive& Ar) override;
+
+	// EdGraphNode interface
+	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FText GetTooltipText() const override;
+
+	// UCustomizableObjectNode interface
+	virtual void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
+	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
+	
+	// UCustomizableObjectNodeMaterialBase interface
+	virtual UEdGraphPin* OutputPin() const override;
+
+	// Own interface
+	FVector GetOriginWithOffset() const;
 	void FindLocalAxes(FVector& Right, FVector& Up, FVector& Forward) const;
 
-	// Change StartOffset from World to Local of the other way arround
+	// Change StartOffset from World to Local of the other way around
 	void ChangeStartOffsetTransform();
-
-	virtual UEdGraphPin* OutputPin() const override
-	{
-		return FindPin(TEXT("Material"));
-	}
 };
 

@@ -9,11 +9,6 @@ class UCustomizableObjectNodeRemapPins;
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
 
-UCustomizableObjectNodeMeshClipDeform::UCustomizableObjectNodeMeshClipDeform()
-	: Super()
-{
-}
-
 void UCustomizableObjectNodeMeshClipDeform::AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins)
 {
 	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
@@ -24,6 +19,19 @@ void UCustomizableObjectNodeMeshClipDeform::AllocateDefaultPins(UCustomizableObj
 	UEdGraphPin* OutputPin = CustomCreatePin(EGPD_Output, Schema->PC_Material, FName("Material"));
 	ClipMeshPin->bDefaultValueIsIgnored = true;
 }
+
+
+UEdGraphPin* UCustomizableObjectNodeMeshClipDeform::ClipShapePin() const
+{
+	return FindPin(TEXT("Clip Shape"), EGPD_Input);
+}
+
+
+UEdGraphPin* UCustomizableObjectNodeMeshClipDeform::OutputPin() const
+{
+	return FindPin(TEXT("Material"));
+}
+
 
 FText UCustomizableObjectNodeMeshClipDeform::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {

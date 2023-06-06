@@ -38,35 +38,28 @@ public:
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	FTransform Transform;
 
-	// Begin EdGraphNode interface
-	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
-	FLinearColor GetNodeTitleColor() const override;
-	FText GetTooltipText() const override;
-
-	// UCustomizableObjectNode interface
-	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
-	void PinConnectionListChanged(UEdGraphPin* Pin) override;
-	
-	virtual UEdGraphPin* OutputPin() const override
-	{
-		return FindPin(TEXT("Material"));
-	}
-
-	UEdGraphPin* ClipMeshPin() const
-	{
-		return FindPin(TEXT("Clip Mesh"));
-	}
-
-	void BeginPostDuplicate(bool bDuplicateForPIE) override;
-
-	// UCustomizableObjectNode interface
-	void UpdateReferencedNodeId(const FGuid& NewGuid) override;
-
 	// Details view variables
 	// The clipping node uses tags
 	bool bUseTags;
 
 	// The clipping node uses a material name
 	bool bUseMaterials;
+
+	// EdGraphNode interface
+	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FText GetTooltipText() const override;
+
+	// UCustomizableObjectNode interface
+	virtual void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
+	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
+	virtual void UpdateReferencedNodeId(const FGuid& NewGuid) override;
+	virtual void BeginPostDuplicate(bool bDuplicateForPIE) override;
+
+	// UCustomizableObjectNodeMaterialBase interface
+	virtual UEdGraphPin* OutputPin() const override;
+
+	// Own interface
+	UEdGraphPin* ClipMeshPin() const;
 };
 

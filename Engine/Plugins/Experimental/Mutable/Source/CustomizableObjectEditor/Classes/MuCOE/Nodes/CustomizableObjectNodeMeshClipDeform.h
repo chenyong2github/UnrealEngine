@@ -24,30 +24,22 @@ class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeMeshClipDeform : publi
 public:
 	GENERATED_BODY()
 
-	UCustomizableObjectNodeMeshClipDeform();
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshClipDeform)
 	TArray<FString> Tags;
 	
 	UPROPERTY(EditAnywhere, Category = MeshClipDeform)
 	EShapeBindingMethod BindingMethod;
 	
-	// Begin EdGraphNode interface
-	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
-	FLinearColor GetNodeTitleColor() const override;
-	FText GetTooltipText() const override;
+	// EdGraphNode interface
+	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FText GetTooltipText() const override;
 
 	// UCustomizableObjectNode interface
-	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
-	
-	inline UEdGraphPin* ClipShapePin() const
-	{
-		return FindPin(TEXT("Clip Shape"), EGPD_Input);
-	}
+	virtual void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
+	virtual UEdGraphPin* OutputPin() const override;
 
-	UEdGraphPin* OutputPin() const override
-	{
-		return FindPin(TEXT("Material"));
-	}
+	// Own interface
+	UEdGraphPin* ClipShapePin() const;
 };
 

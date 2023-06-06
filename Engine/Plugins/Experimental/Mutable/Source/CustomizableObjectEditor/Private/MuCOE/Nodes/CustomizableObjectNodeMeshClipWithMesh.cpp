@@ -11,9 +11,8 @@ class UCustomizableObjectNodeRemapPins;
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
 
-UCustomizableObjectNodeMeshClipWithMesh::UCustomizableObjectNodeMeshClipWithMesh()
-	: Super()
-	, CustomizableObjectToClipWith(nullptr)
+UCustomizableObjectNodeMeshClipWithMesh::UCustomizableObjectNodeMeshClipWithMesh() :
+	CustomizableObjectToClipWith(nullptr)
 {
 	// We allow this node to be shared
 	Transform = FTransform::Identity;
@@ -81,6 +80,19 @@ void UCustomizableObjectNodeMeshClipWithMesh::PinConnectionListChanged(UEdGraphP
 		Editor->UpdateGraphNodeProperties();
 	}
 }
+
+
+UEdGraphPin* UCustomizableObjectNodeMeshClipWithMesh::OutputPin() const
+{
+	return FindPin(TEXT("Material"));
+}
+
+
+UEdGraphPin* UCustomizableObjectNodeMeshClipWithMesh::ClipMeshPin() const
+{
+	return FindPin(TEXT("Clip Mesh"));
+}
+
 
 void UCustomizableObjectNodeMeshClipWithMesh::UpdateReferencedNodeId(const FGuid& NewGuid)
 {

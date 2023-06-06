@@ -87,6 +87,12 @@ void UCustomizableObjectNodeMeshClipMorph::ChangeStartOffsetTransform()
 }
 
 
+UEdGraphPin* UCustomizableObjectNodeMeshClipMorph::OutputPin() const
+{
+	return FindPin(TEXT("Material"));
+}
+
+
 void UCustomizableObjectNodeMeshClipMorph::PostEditChangeProperty(FPropertyChangedEvent & PropertyChangedEvent)
 {
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
