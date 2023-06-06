@@ -99,6 +99,8 @@ private:
 	void HandlePreSelectionChange(const UTypedElementSelectionSet* PreChangeSelectionSet);
 	void HandlePostSelectionChange(const UTypedElementSelectionSet* PreChangeSelectionSet);
 
+	void ClearSelectionAndNotify();
+
 	/** UWorld instance used to represent the recorded debug data */
 	TObjectPtr<UWorld> PhysicsVDWorld = nullptr;
 
