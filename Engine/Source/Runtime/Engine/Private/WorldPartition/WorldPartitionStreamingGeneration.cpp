@@ -1321,6 +1321,8 @@ void UWorldPartition::FlushStreaming()
 URuntimeHashExternalStreamingObjectBase* UWorldPartition::FlushStreamingToExternalStreamingObject(const FString& ExternalStreamingObjectName)
 {
 	URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject = RuntimeHash->StoreToExternalStreamingObject(this, *ExternalStreamingObjectName);
+	check(ExternalStreamingObject);
+
 	StreamingPolicy->StoreToExternalStreamingObject(*ExternalStreamingObject);
 
 	FlushStreaming();

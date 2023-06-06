@@ -87,7 +87,7 @@ void UWorldPartitionRuntimeCell::SetDataLayers(const TArray<const UDataLayerInst
 	DataLayers.Sort([](const FName& A, const FName& B) { return A.ToString() < B.ToString(); });
 }
 
-void UWorldPartitionRuntimeCell::DumpStateLog(FHierarchicalLogArchive& Ar)
+void UWorldPartitionRuntimeCell::DumpStateLog(FHierarchicalLogArchive& Ar) const
 {
 	Ar.Printf(TEXT("Actor Count: %d"), GetActorCount());
 }

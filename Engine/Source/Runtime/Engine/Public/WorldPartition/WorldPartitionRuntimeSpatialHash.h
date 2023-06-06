@@ -316,7 +316,7 @@ protected:
 
 #if WITH_EDITOR
 	virtual bool GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const IStreamingGenerationContext* StreamingGenerationContext, TArray<FString>* OutPackagesToGenerate = nullptr) override;
-	virtual void DumpStateLog(FHierarchicalLogArchive& Ar) override;
+	virtual void DumpStateLog(FHierarchicalLogArchive& Ar) const override;
 #endif
 
 private:

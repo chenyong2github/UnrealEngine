@@ -1216,11 +1216,11 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(UWorldPartitionStreami
 	return true;
 }
 
-void UWorldPartitionRuntimeSpatialHash::DumpStateLog(FHierarchicalLogArchive& Ar)
+void UWorldPartitionRuntimeSpatialHash::DumpStateLog(FHierarchicalLogArchive& Ar) const
 {
 	Super::DumpStateLog(Ar);
 
-	ForEachStreamingGrid([&Ar, this](FSpatialHashStreamingGrid& StreamingGrid)
+	ForEachStreamingGrid([&Ar, this](const FSpatialHashStreamingGrid& StreamingGrid)
 	{
 		Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
 		Ar.Printf(TEXT("%s - Runtime Spatial Hash - Streaming Grid - %s"), *GetWorld()->GetName(), *StreamingGrid.GridName.ToString());
@@ -1250,14 +1250,14 @@ void UWorldPartitionRuntimeSpatialHash::DumpStateLog(FHierarchicalLogArchive& Ar
 			
 		{
 			int32 Level = 0;
-			for (FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
+			for (const FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
 			{
 				int32 LevelCellCount = 0;
 				int32 LevelActorCount = 0;
-				for (FSpatialHashStreamingGridLayerCell& LayerCell : GridLevel.LayerCells)
+				for (const FSpatialHashStreamingGridLayerCell& LayerCell : GridLevel.LayerCells)
 				{
 					LevelCellCount += LayerCell.GridCells.Num();
-					for (TObjectPtr<UWorldPartitionRuntimeCell>& Cell : LayerCell.GridCells)
+					for (const TObjectPtr<UWorldPartitionRuntimeCell>& Cell : LayerCell.GridCells)
 					{
 						LevelActorCount += Cell->GetActorCount();
 					}
@@ -1284,7 +1284,7 @@ void UWorldPartitionRuntimeSpatialHash::DumpStateLog(FHierarchicalLogArchive& Ar
 			{
 				FHierarchicalLogArchive::FIndentScope LevelIndentScope = Ar.PrintfIndent(TEXT("Content of Grid Level %d"), Level++);
 
-				TArray<UWorldPartitionRuntimeCell*> Cells;
+				TArray<TObjectPtr<UWorldPartitionRuntimeCell>> Cells;
 				for (const FSpatialHashStreamingGridLayerCell& LayerCell : GridLevel.LayerCells)
 				{
 					for (const TObjectPtr<UWorldPartitionRuntimeCell>& Cell : LayerCell.GridCells)
@@ -1295,7 +1295,7 @@ void UWorldPartitionRuntimeSpatialHash::DumpStateLog(FHierarchicalLogArchive& Ar
 
 				Cells.Sort([this](const UWorldPartitionRuntimeCell& A, const UWorldPartitionRuntimeCell& B) { return A.GetFName().LexicalLess(B.GetFName()); });
 
-				for (UWorldPartitionRuntimeCell* Cell : Cells)
+				for (const UWorldPartitionRuntimeCell* Cell : Cells)
 				{
 					FHierarchicalLogArchive::FIndentScope CellIndentScope = Ar.PrintfIndent(TEXT("Content of Cell %s (%s)"), *Cell->GetDebugName(), *Cell->GetName());
 					Cell->DumpStateLog(Ar);
