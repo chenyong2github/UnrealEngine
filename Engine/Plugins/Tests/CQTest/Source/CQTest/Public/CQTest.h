@@ -43,6 +43,13 @@ namespace TestDirectoryGenerator
 	CQTEST_API FString Generate(const FString& Filename);
 }
 
+enum class ECQTestSuppressLogBehavior
+{
+	Default,
+	True,
+	False
+};
+
 static const FString GenerateTestDirectory = TEXT("");
 static constexpr uint32 DefaultFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter;
 
@@ -87,9 +94,14 @@ struct TTestRunner : public FAutomationTestBase
 	FString GetTestSourceFileName() const override;
 	int32 GetTestSourceFileLine() const override;
 	int32 GetTestSourceFileLine(const FString& Name) const override;
+	bool SuppressLogWarnings() override;
+	bool SuppressLogErrors() override;
 	void GetTests(TArray<FString>& OutBeautifiedNames, TArray<FString>& OutTestCommands) const override;
 
 	bool RunTest(const FString& RequestedTest) override;
+
+	virtual void SetSuppressLogWarnings(ECQTestSuppressLogBehavior Behavior = ECQTestSuppressLogBehavior::True);
+	virtual void SetSuppressLogErrors(ECQTestSuppressLogBehavior Behavior = ECQTestSuppressLogBehavior::True);
 
 	int32 LineNumber = 0;
 	FString FileName;
@@ -105,6 +117,10 @@ struct TTestRunner : public FAutomationTestBase
 protected:
 	FString GetBeautifiedTestName() const override;
 	uint32 GetRequiredDeviceNum() const override;
+
+	ECQTestSuppressLogBehavior SuppressLogWarningsBehavior{ ECQTestSuppressLogBehavior::Default };
+	ECQTestSuppressLogBehavior SuppressLogErrorsBehavior{ ECQTestSuppressLogBehavior::Default };
+
 };
 
 template <typename Derived, typename AsserterType>

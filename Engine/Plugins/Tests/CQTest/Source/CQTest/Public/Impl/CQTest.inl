@@ -110,8 +110,10 @@ namespace
 		{
 			UE_LOG(LogCqTest, Log, TEXT("Tearing Down Test"));
 
-			TestRunner.CurrentTestPtr = nullptr;
+			TestRunner.SetSuppressLogWarnings(ECQTestSuppressLogBehavior::Default);
+			TestRunner.SetSuppressLogErrors(ECQTestSuppressLogBehavior::Default);
 
+			TestRunner.CurrentTestPtr = nullptr;
 			if (GEngine != nullptr)
 			{
 				//Force GC at the end of every test.
@@ -229,6 +231,38 @@ inline int32 TTestRunner<AsserterType>::GetTestSourceFileLine(const FString& Nam
 		return TestLineNumbers[TestParam];
 	}
 	return GetTestSourceFileLine();
+}
+
+template <typename AsserterType>
+inline bool TTestRunner<AsserterType>::SuppressLogWarnings()
+{
+	if (SuppressLogWarningsBehavior == ECQTestSuppressLogBehavior::Default)
+	{
+		return bSuppressLogWarnings;
+	}
+	return SuppressLogWarningsBehavior == ECQTestSuppressLogBehavior::True;
+}
+
+template <typename AsserterType>
+inline bool TTestRunner<AsserterType>::SuppressLogErrors()
+{
+	if (SuppressLogErrorsBehavior == ECQTestSuppressLogBehavior::Default)
+	{
+		return bSuppressLogErrors;
+	}
+	return SuppressLogErrorsBehavior == ECQTestSuppressLogBehavior::True;
+}
+
+template <typename AsserterType>
+inline void TTestRunner<AsserterType>::SetSuppressLogWarnings(ECQTestSuppressLogBehavior Behavior)
+{
+	SuppressLogWarningsBehavior = Behavior;
+}
+
+template <typename AsserterType>
+inline void TTestRunner<AsserterType>::SetSuppressLogErrors(ECQTestSuppressLogBehavior Behavior)
+{
+	SuppressLogErrorsBehavior = Behavior;
 }
 
 template <typename AsserterType>

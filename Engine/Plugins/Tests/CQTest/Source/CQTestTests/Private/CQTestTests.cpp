@@ -427,4 +427,61 @@ namespace CQTestTests
 			ASSERT_THAT(IsTrue(Tickable.TickCount > 2));
 		}
 	};
+
+	DEFINE_LOG_CATEGORY_STATIC(TestSuppressLog, Log, All);
+
+	TEST_CLASS(SuppressWarningsAndErrors, "TestFramework.CQTest.Core")
+	{
+		bool bExpectError{ false };
+		bool bExpectWarning{ false };
+		FString ExpectedError = TEXT("ExpectedError");
+
+		AFTER_EACH()
+		{
+			static FString FormattedMessage = FString::Printf(TEXT("TestSuppressLog: %s"), *ExpectedError);
+			if (bExpectError)
+			{
+				ClearExpectedErrors(*this->TestRunner, { TEXT("will be marked as failing due to errors"), FormattedMessage });
+			}
+			if (bExpectWarning)
+			{
+				ClearExpectedWarning(*this->TestRunner, FormattedMessage);
+			}
+		}
+
+		TEST_METHOD(SuppressWarnings_WithWarnings_SuppressesWarning)
+		{
+			TestRunner->SetSuppressLogWarnings();
+			UE_LOG(TestSuppressLog, Warning, TEXT("This log should be suppressed"));
+		}
+
+		TEST_METHOD(SuppressWarnings_WithError_DoesNotSuppressError)
+		{
+			TestRunner->SetSuppressLogWarnings();
+			bExpectError = true;
+			UE_LOG(TestSuppressLog, Error, TEXT("%s"), *ExpectedError);
+		}
+
+		TEST_METHOD(SuppressErrors_WithWarnings_DoesNotSuppressWarning)
+		{
+			TestRunner->SetSuppressLogErrors();
+			bExpectWarning = true;
+			UE_LOG(TestSuppressLog, Warning, TEXT("%s"), *ExpectedError);
+		}
+
+		TEST_METHOD(SuppressErrors_WithError_SuppressesError)
+		{
+			TestRunner->SetSuppressLogErrors();
+			UE_LOG(TestSuppressLog, Error, TEXT("This log should be suppressed"));
+		}
+
+		TEST_METHOD(SuppressErrors_ChangedMidTest_RespectsChanges)
+		{
+			TestRunner->SetSuppressLogErrors();
+			UE_LOG(TestSuppressLog, Error, TEXT("This log should be suppressed"));
+			TestRunner->SetSuppressLogErrors(ECQTestSuppressLogBehavior::False);
+			bExpectError = true;
+			UE_LOG(TestSuppressLog, Error, TEXT("%s"), *ExpectedError);
+		}
+	};
 } // namespace CQTestTests
