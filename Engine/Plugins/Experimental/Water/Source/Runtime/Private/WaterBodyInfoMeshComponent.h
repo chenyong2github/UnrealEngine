@@ -36,6 +36,6 @@ public:
 		return reinterpret_cast<size_t>(&UniquePointer);
 	}
 
-	void SetEnabled(bool bInEnabled) { SetForceHidden(!bInEnabled); }
+	void SetEnabled(bool bInEnabled);
 };
 
