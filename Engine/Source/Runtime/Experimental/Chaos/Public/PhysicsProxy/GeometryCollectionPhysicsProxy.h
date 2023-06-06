@@ -475,7 +475,7 @@ protected:
 	float ComputeUserDefinedDamageThreshold_Internal(int32 TransformIndex) const;
 
 	/** adjust scalar mass to account for per component scale properties ( from material override and world transform scale ) */ 
-	Chaos::FReal AdjustMassForScale(Chaos::FReal Mass) const;
+	float AdjustMassForScale(float Mass) const;
 
 	/** adjust inertia to account for per component scale properties ( from material override and world transform scale ) */
 	Chaos::FVec3f AdjustInertiaForScale(const Chaos::FVec3f& Inertia) const;

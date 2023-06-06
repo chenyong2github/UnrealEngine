@@ -367,6 +367,7 @@ public:
 	{
 		check(HasAttribute(Name, Group))
 		const FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+		checkSlow(Map[Key].ArrayType == ManagedArrayType<T>());
 		return *(static_cast<TManagedArray<T>*>(Map[Key].Value));
 	};
 
