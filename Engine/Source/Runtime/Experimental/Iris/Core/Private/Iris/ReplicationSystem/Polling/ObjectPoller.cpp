@@ -55,6 +55,8 @@ void FObjectPoller::PollObjects(const FNetBitArrayView& ObjectsConsideredForPoll
 
 	// Clear ref to locked dirty bit array
 	DirtyObjectsThisFrame = FNetBitArrayView();
+
+	ReplicationSystemInternal->GetDirtyNetObjectTracker().SetCurrentPolledObject(FNetRefHandleManager::InvalidInternalIndex);
 }
 
 void FObjectPoller::PollSingleObject(FNetRefHandle Handle)
@@ -123,13 +125,14 @@ void FObjectPoller::PushModelPollObject(FInternalNetRefIndex ObjectIndex)
 
 	IRIS_PROFILER_PROTOCOL_NAME(ObjectData.Protocol->DebugName->Name);
 
+	ReplicationSystemInternal->GetDirtyNetObjectTracker().SetCurrentPolledObject(ObjectIndex);
+
 	const FReplicationInstanceProtocol* InstanceProtocol = ObjectData.InstanceProtocol;
 
 	const EReplicationInstanceProtocolTraits InstanceTraits = InstanceProtocol->InstanceTraits;
 	const bool bNeedsPoll = EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll);
 
-	//$IRIS TODO: should use the Accumulated array in case we were dirty while culled.  Also move this test to just after PreUpdate in case it gets dirty inside the call.
-	bool bIsDirtyObject = DirtyObjectsThisFrame.GetBit(ObjectIndex);
+	bool bIsDirtyObject = AccumulatedDirtyObjects.GetBit(ObjectIndex);
 
 	// Call per-instance PreUpdate function
 	if (ObjectReplicationBridge->PreUpdateInstanceFunction && EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
@@ -139,8 +142,9 @@ void FObjectPoller::PushModelPollObject(FInternalNetRefIndex ObjectIndex)
 		ObjectReplicationBridge->PreUpdateInstanceFunction(ObjectData.RefHandle, ReplicatedInstances[ObjectIndex], ObjectReplicationBridge);
 		++PollStats.PreUpdatedObjectCount;
 
-		// Pre update may dirty push based properties. Detect it.
-		if ((bNeedsPoll & !bIsDirtyObject))
+		// Pre update may have called MarkDirty. Detect it.
+		bIsDirtyObject = bIsDirtyObject || DirtyObjectsThisFrame.GetBit(ObjectIndex);
+		if (bNeedsPoll && !bIsDirtyObject)
 		{
 			bIsDirtyObject = FGlobalDirtyNetObjectTracker::IsNetObjectStateDirty(ObjectData.NetHandle);
 			if (bIsDirtyObject)
@@ -150,7 +154,6 @@ void FObjectPoller::PushModelPollObject(FInternalNetRefIndex ObjectIndex)
 		}
 	}
 
-	const bool bIsNewInScope = !PrevFrameGlobalScopeObjects.GetBit(ObjectIndex);
 	const bool bIsGCAffectedObject = GarbageCollectionAffectedObjects.GetBit(ObjectIndex);
 	GarbageCollectionAffectedObjects.ClearBit(ObjectIndex);
 
@@ -162,11 +165,15 @@ void FObjectPoller::PushModelPollObject(FInternalNetRefIndex ObjectIndex)
 
 	IRIS_PROFILER_SCOPE_VERBOSE(PollPushBased);
 
+	const bool bIsNewInScope = !PrevFrameGlobalScopeObjects.GetBit(ObjectIndex);
+
+	
+
 	// If the object is fully push model we only need to poll it if it's dirty, unless it's a new object or was garbage collected.
 	bool bWasMarkedDirty = false;
 	if (EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasFullPushBasedDirtiness))
 	{
-		if (bIsDirtyObject | bIsNewInScope)
+		if (bIsDirtyObject || bIsNewInScope)
 		{
 			// We need to do a poll if object is marked as dirty
 			EReplicationFragmentPollFlags PollOptions = EReplicationFragmentPollFlags::PollAllState;
@@ -210,7 +217,6 @@ void FObjectPoller::PushModelPollObject(FInternalNetRefIndex ObjectIndex)
 	{
 		DirtyObjectsThisFrame.SetBit(ObjectIndex);
 	}
-
 }
 
 } // end namespace UE::Net::Private

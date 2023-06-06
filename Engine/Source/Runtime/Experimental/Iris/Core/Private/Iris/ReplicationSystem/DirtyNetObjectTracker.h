@@ -11,12 +11,20 @@ namespace UE::Net::Private
 {
 	class FNetRefHandleManager;
 	class FDirtyObjectsAccessor;
+	
+	typedef uint32 FInternalNetRefIndex;
 }
+
+// When enabled will detect if a polled object is dirtying another object. This is an unsupported behavior
+#ifndef UE_NET_IRIS_VALIDATE_POLLED_OBJECT
+#define UE_NET_IRIS_VALIDATE_POLLED_OBJECT !UE_BUILD_SHIPPING
+#endif
 
 namespace UE::Net::Private
 {
 
-IRISCORE_API void MarkNetObjectStateDirty(uint32 ReplicationSystemId, uint32 NetObjectIndex);
+IRISCORE_API void MarkNetObjectStateDirty(uint32 ReplicationSystemId, FInternalNetRefIndex NetObjectIndex);
+IRISCORE_API void ForceNetUpdate(uint32 ReplicationSystemId, FInternalNetRefIndex NetObjectIndex);
 
 struct FDirtyNetObjectTrackerInitParams
 {
@@ -50,11 +58,19 @@ public:
 	/** Reset the global and local dirty objects lists for those objects that are now clean */
 	void ClearDirtyNetObjects(const FNetBitArrayView& CleanNetObjects);
 
+	/** Track which object is currently being polled */
+	inline void SetCurrentPolledObject(FInternalNetRefIndex PolledObject);
+
 	/** Returns the list of objects that are dirty this frame or were dirty in previous frames but not cleaned up at that time. */
 	const FNetBitArrayView GetAccumulatedDirtyNetObjects() const { return MakeNetBitArrayView(AccumulatedDirtyNetObjects); }
 
+	/** Returns the list of objects who asked to force a replication this frame */
+	FNetBitArrayView GetForceNetUpdateObjects() { return MakeNetBitArrayView(ForceNetUpdateObjects); }
+	const FNetBitArrayView GetForceNetUpdateObjects() const { return MakeNetBitArrayView(ForceNetUpdateObjects); }
+
 private:
-	friend IRISCORE_API void MarkNetObjectStateDirty(uint32 ReplicationSystemId, uint32 NetObjectIndex);
+	friend IRISCORE_API void MarkNetObjectStateDirty(uint32 ReplicationSystemId, FInternalNetRefIndex NetObjectIndex);
+	friend IRISCORE_API void ForceNetUpdate(uint32 ReplicationSystemId, FInternalNetRefIndex NetObjectIndex);
 
 	friend FDirtyObjectsAccessor;
 
@@ -62,7 +78,8 @@ private:
 	static constexpr uint32 StorageTypeBitCount = FNetBitArrayView::WordBitCount;
 
 	void Deinit();
-	void MarkNetObjectDirty(uint32 NetObjectIndex);
+	void MarkNetObjectDirty(FInternalNetRefIndex NetObjectIndex);
+	void ForceNetUpdate(FInternalNetRefIndex NetObjectIndex);
 
 	/** Can only be accessed via FDirtyObjectsAccessor */
 	FNetBitArrayView GetDirtyNetObjectsThisFrame();
@@ -72,12 +89,19 @@ private:
 	// Dirty objects that persist across frames.
 	FNetBitArray AccumulatedDirtyNetObjects;
 
+    // Objects that want to force a replication this frame
+	FNetBitArray ForceNetUpdateObjects;
+
 	// List of objects set to be dirty this frame. Is always reset at the end of the net tick flush
 	StorageType* DirtyNetObjectContainer = nullptr;
 
 	const FNetRefHandleManager* NetRefHandleManager = nullptr;
 	
 	FGlobalDirtyNetObjectTracker::FPollHandle GlobalDirtyTrackerPollHandle;
+
+#if UE_NET_IRIS_VALIDATE_POLLED_OBJECT
+	FInternalNetRefIndex CurrentPolledObject;
+#endif
 
 	uint32 ReplicationSystemId;
 
@@ -92,6 +116,14 @@ private:
 	std::atomic_bool bIsExternalAccessAllowed = false;
 #endif
 };
+
+
+void FDirtyNetObjectTracker::SetCurrentPolledObject(FInternalNetRefIndex PolledObject)
+{ 
+#if UE_NET_IRIS_VALIDATE_POLLED_OBJECT
+	CurrentPolledObject = PolledObject; 
+#endif
+}
 
 /**
  * Gives access to the list of dirty objects while detecting non-thread safe access to it.

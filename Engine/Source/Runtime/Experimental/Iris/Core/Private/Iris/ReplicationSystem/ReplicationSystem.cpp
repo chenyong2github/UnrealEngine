@@ -1222,6 +1222,14 @@ void UReplicationSystem::TearOffNextUpdate(FNetRefHandle Handle)
 	Impl->ReplicationSystemInternal.GetReplicationBridge()->TearOff(Handle, DestroyFlags, false);
 }
 
+void UReplicationSystem::ForceNetUpdate(FNetRefHandle Handle)
+{
+	if (const uint32 InternalObjectIndex = Impl->ReplicationSystemInternal.GetNetRefHandleManager().GetInternalIndex(Handle))
+	{
+		UE::Net::Private::ForceNetUpdate(GetId(), InternalObjectIndex);
+	}
+}
+
 void UReplicationSystem::MarkDirty(FNetRefHandle Handle)
 {
 	if (const uint32 InternalObjectIndex = Impl->ReplicationSystemInternal.GetNetRefHandleManager().GetInternalIndex(Handle))

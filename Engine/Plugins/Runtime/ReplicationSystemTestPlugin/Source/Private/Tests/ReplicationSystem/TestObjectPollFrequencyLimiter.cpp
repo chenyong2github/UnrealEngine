@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NetworkAutomationTest.h"
-#include "NetworkAutomationTestMacros.h"
+#include "ReplicationSystemServerClientTestFixture.h"
+
 #include "Net/Core/NetBitArray.h"
+
+#include "Iris/ReplicationSystem/ReplicationSystem.h"
+#include "Iris/ReplicationSystem/ReplicationSystemInternal.h"
 #include "Iris/ReplicationSystem/ObjectPollFrequencyLimiter.h"
+
 #include "Math/UnrealMathUtility.h"
 
 namespace UE::Net::Private
@@ -104,5 +108,122 @@ UE_NET_TEST(ObjectPollFrequencyLimiter, ObjectsToPollAreSpreadOutRegardlessOfUpd
 		UE_NET_ASSERT_EQ(PollCount, ExpectedPollCount);
 	}
 }
+
+
+UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestSubObjectsPollingAndForceNetUpdate)
+{
+	UReplicationSystem* ReplicationSystem = Server->ReplicationSystem;
+	UReplicatedTestObjectBridge* Bridge = Server->GetReplicationBridge();
+
+	// Add a client
+	FReplicationSystemTestClient* Client = CreateClient();
+
+	// Spawn object on server polled every 3 frames
+	const uint32 PollPeriod = 2;
+	UObjectReplicationBridge::FCreateNetRefHandleParams Params;
+	Params.PollFramePeriod = PollPeriod;
+	Params.bCanReceive = true;
+	Params.bAllowDynamicFilter = true;
+	Params.bNeedsPreUpdate = true;
+	UTestReplicatedIrisObject* ServerRootObject = Server->CreateObject(Params);
+
+	// Spawn subobject
+	UTestReplicatedIrisObject* ServerSubObject = Server->CreateSubObject(ServerRootObject->NetRefHandle, 0, 0);
+
+	// Send and deliver packet
+	Server->UpdateAndSend({ Client });
+
+	// Root Object should be created on the client
+	UTestReplicatedIrisObject* ClientRootObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerRootObject->NetRefHandle));
+	UE_NET_ASSERT_NE(ClientRootObject, nullptr);
+
+	// Subobject should be created on the client
+	UTestReplicatedIrisObject* ClientSubObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerSubObject->NetRefHandle));
+	UE_NET_ASSERT_NE(ClientSubObject, nullptr);
+
+	// Dirty a root object property
+	ServerRootObject->IntA = 0x0A;
+
+	// Update for maximum poll period or when property is received
+	auto UpdateUntilPolled = [&](UTestReplicatedIrisObject* InServerObject, UTestReplicatedIrisObject* InClientObject) -> uint32
+	{
+		uint32 FramesPolled = 0;
+		for (; FramesPolled <= PollPeriod; ++FramesPolled)
+		{
+			// Send and deliver packet
+			Server->UpdateAndSend({ Client });
+
+			if (InServerObject->IntA == InClientObject->IntA)
+			{
+				return FramesPolled+1;
+			}
+		}
+		return FramesPolled;
+	};
+
+	// Test polling on root object
+	{
+		// Update until property is received
+		uint32 FramesPolled = UpdateUntilPolled(ServerRootObject, ClientRootObject);
+
+		// Root object should have received property
+		UE_NET_ASSERT_EQ(ServerRootObject->IntA, ClientRootObject->IntA);
+
+		// We should have needed the max poll period
+		UE_NET_ASSERT_EQ(FramesPolled, PollPeriod + 1);
+	}
+
+	// Test polling on sub object
+	{
+		// Dirty a sub object property
+		ServerSubObject->IntA = 0x0B;
+
+		// Update until property is received
+		uint32 FramesPolled = UpdateUntilPolled(ServerSubObject, ClientSubObject);
+
+		// Subobject should have received property change
+		UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObject->IntA);
+
+		// We should have needed the max poll period
+		UE_NET_ASSERT_EQ(FramesPolled, PollPeriod + 1);
+	}	
+
+	// Test force update on sub object
+	{
+		// Dirty a sub object property
+		ServerSubObject->IntA = 0x0C;
+
+		// Force update it
+		ReplicationSystem->ForceNetUpdate(ServerSubObject->NetRefHandle);
+
+		// Update until property is received
+		uint32 FramesPolled = UpdateUntilPolled(ServerSubObject, ClientSubObject);
+
+		// Subobject should have received property change
+		UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObject->IntA);
+
+		// We should have needed only 1 update 
+		UE_NET_ASSERT_EQ(FramesPolled, 1U);
+	}
+
+	// Test force update on root object
+	{
+		// Dirty a sub object property
+		ServerSubObject->IntA = 0x0D;
+
+		// Force update it
+		ReplicationSystem->ForceNetUpdate(ServerRootObject->NetRefHandle);
+
+		// Update until property is received
+		uint32 FramesPolled = UpdateUntilPolled(ServerSubObject, ClientSubObject);
+
+		// Subobject should have received property change
+		UE_NET_ASSERT_EQ(ServerSubObject->IntA, ClientSubObject->IntA);
+
+		// We should have needed only 1 update 
+		UE_NET_ASSERT_EQ(FramesPolled, 1U);
+	}
+}
+
 
 }

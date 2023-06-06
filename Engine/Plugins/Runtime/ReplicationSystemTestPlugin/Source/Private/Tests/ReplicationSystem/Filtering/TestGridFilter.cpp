@@ -100,12 +100,16 @@ private:
 // Test world loc filter
 UE_NET_TEST_FIXTURE(FTestGridFilterFixture, TestWorldLocGridFilter)
 {
-	// Spawn object on server
-	UReplicatedTestObject* ServerObjectZero = Server->CreateObjectWithWorldLocation();
-	UReplicatedTestObject* ServerObjectLimit = Server->CreateObjectWithWorldLocation();
-	UReplicatedTestObject* ServerObjectCulled = Server->CreateObjectWithWorldLocation();
-	UReplicatedTestObject* ServerObjectVeryFar = Server->CreateObjectWithWorldLocation();
+	// Spawn object with WorldLocation's on server
+	UObjectReplicationBridge::FCreateNetRefHandleParams Params;
+	Params.bCanReceive = true;
+	Params.bNeedsWorldLocationUpdate = true;
+	Params.bAllowDynamicFilter = true;
 
+	UReplicatedTestObject* ServerObjectZero = Server->CreateObject(Params);
+	UReplicatedTestObject* ServerObjectLimit = Server->CreateObject(Params);
+	UReplicatedTestObject* ServerObjectCulled = Server->CreateObject(Params);
+	UReplicatedTestObject* ServerObjectVeryFar = Server->CreateObject(Params);
 
 	const UNetObjectGridFilterConfig* DefaultGridConfig = Cast<UNetObjectGridFilterConfig>(UNetObjectGridFilterConfig::StaticClass()->GetDefaultObject());
 

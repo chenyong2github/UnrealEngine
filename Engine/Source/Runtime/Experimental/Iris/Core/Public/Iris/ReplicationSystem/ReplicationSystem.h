@@ -459,9 +459,16 @@ public:
 	IRISCORE_API void TearOffNextUpdate(FNetRefHandle Handle);
 
 	/**
-	 * Explicitly mark object as dirty. This will make it considered for replication this frame
-	 * if the object has any modified properties/data.
-	 * Normally an object is checked for dirtiness based on poll frequency.
+	 * Force the passed object to be considered for replication this frame.
+	 * This will also force it's sub objects, root object and any of it's dependents to also be considered for replication.
+	 * Normally an object is checked for replication only when it's poll frequency is hit.
+	 * @param Handle A valid handle to an object.
+	 * @see FObjectReplicationBridgePollConfig
+	 */
+	IRISCORE_API void ForceNetUpdate(FNetRefHandle Handle);
+
+	/**
+	 * Explicitly mark object as having dirty properties.
 	 * @param Handle A valid handle to an object.
 	 * @see FObjectReplicationBridgePollConfig
 	 */

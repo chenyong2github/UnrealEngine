@@ -369,7 +369,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDependentObje
 	UE_NET_ASSERT_LT(It, MaxIterationCount);
 
 	// Mark dependent dirty
-	ReplicationSystem->MarkDirty(ServerDependentObject->NetRefHandle);
+	ReplicationSystem->ForceNetUpdate(ServerDependentObject->NetRefHandle);
 
 	// Send and deliver packet, we expect dependent object to have replicated 
 	Server->PreSendUpdate();
@@ -385,7 +385,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDependentObje
 	ServerDependentObject->IntA += 2;
 
 	// Mark parent dirty
-	ReplicationSystem->MarkDirty(ServerObject->NetRefHandle);
+	ReplicationSystem->ForceNetUpdate(ServerObject->NetRefHandle);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();

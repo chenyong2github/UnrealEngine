@@ -227,7 +227,11 @@ protected:
 
 private:
 
-	void PreUpdateAndPollImpl(FNetRefHandle RefHandle);
+	/** Forcibly poll a single replicated object */
+	void ForcePollObject(FNetRefHandle RefHandle);
+
+	/** Pre update and poll all relevant objects who hit their polling period or are force net update. */
+	void PreUpdateAndPoll();
 
 	/** Remove mapping between handle and object instance. */
 	void UnregisterInstance(FNetRefHandle RefHandle);

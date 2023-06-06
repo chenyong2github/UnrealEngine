@@ -202,7 +202,8 @@ public:
 	const FNetBitArray& GetAssignedInternalIndices() const { return AssignedInternalIndices; }
 
 	// SubObjects
-	const FNetBitArray& GetSubObjectInternalIndices() const { return SubObjectInternalIndices; }	
+	const FNetBitArray& GetSubObjectInternalIndices() const { return SubObjectInternalIndices; }
+	const FNetBitArrayView GetSubObjectInternalIndicesView() const { return MakeNetBitArrayView(SubObjectInternalIndices); }
 
 	bool AddSubObject(FNetRefHandle OwnerHandle, FNetRefHandle SubObjectHandle, FNetRefHandle RelativeOtherSubObjectHandle, EAddSubObjectFlags Flags = EAddSubObjectFlags::Default);
 	bool AddSubObject(FNetRefHandle OwnerHandle, FNetRefHandle SubObjectHandle, EAddSubObjectFlags Flags = EAddSubObjectFlags::Default);

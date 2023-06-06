@@ -3653,7 +3653,7 @@ void UNetDriver::ForceNetUpdate(AActor* Actor)
 		if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
 		{
 			const UE::Net::FNetRefHandle ActorRefHandle = Bridge->GetReplicatedRefHandle(Actor);
-			ReplicationSystem->MarkDirty(ActorRefHandle);
+			ReplicationSystem->ForceNetUpdate(ActorRefHandle);
 		}
 		return;
 	}

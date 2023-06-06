@@ -30,6 +30,9 @@ namespace UE::Net::Private
 FDirtyNetObjectTracker::FDirtyNetObjectTracker()
 : ReplicationSystemId(InvalidReplicationSystemId)
 {
+#if UE_NET_IRIS_VALIDATE_POLLED_OBJECT
+	CurrentPolledObject = FNetRefHandleManager::InvalidInternalIndex;
+#endif
 }
 
 FDirtyNetObjectTracker::~FDirtyNetObjectTracker()
@@ -60,6 +63,7 @@ void FDirtyNetObjectTracker::Init(const FDirtyNetObjectTrackerInitParams& Params
 	FMemory::Memzero(DirtyNetObjectContainer, DirtyNetObjectWordCount * sizeof(StorageType));
 
 	AccumulatedDirtyNetObjects.Init(NetObjectIdCount);
+	ForceNetUpdateObjects.Init(NetObjectIdCount);
 
 	AllowExternalAccess();
 
@@ -126,7 +130,7 @@ void FDirtyNetObjectTracker::UpdateAccumulatedDirtyList()
 	MakeNetBitArrayView(AccumulatedDirtyNetObjects).Combine(DirtyObjectsThisFrame, FNetBitArrayView::OrOp);
 }
 
-void FDirtyNetObjectTracker::MarkNetObjectDirty(uint32 NetObjectIndex)
+void FDirtyNetObjectTracker::MarkNetObjectDirty(FInternalNetRefIndex NetObjectIndex)
 {
 #if UE_NET_THREAD_SAFETY_CHECK
 	checkf(bIsExternalAccessAllowed, TEXT("Cannot mark objects dirty while the bitarray is locked for modifications."));
@@ -134,6 +138,12 @@ void FDirtyNetObjectTracker::MarkNetObjectDirty(uint32 NetObjectIndex)
 
 	if ((NetObjectIndex >= NetObjectIdRangeStart) & (NetObjectIndex <= NetObjectIdRangeEnd))
 	{
+#if UE_NET_IRIS_VALIDATE_POLLED_OBJECT
+		ensureMsgf(FNetRefHandleManager::InvalidInternalIndex == CurrentPolledObject || CurrentPolledObject == NetObjectIndex, 
+			TEXT("While calling NetUpdate on %s, a different replicated object %s was dirtied. Only the updated object can be dirtied for now."),
+			*GetNameSafe(NetRefHandleManager->GetReplicatedObjectInstance(CurrentPolledObject)), *GetNameSafe(NetRefHandleManager->GetReplicatedObjectInstance(NetObjectIndex)));
+#endif
+
 		const uint32 BitOffset = NetObjectIndex;
 		const StorageType BitMask = StorageType(1) << (BitOffset & (StorageTypeBitCount - 1));
 
@@ -142,6 +152,16 @@ void FDirtyNetObjectTracker::MarkNetObjectDirty(uint32 NetObjectIndex)
 
 		UE_LOG_DIRTYOBJECTTRACKER(TEXT("FDirtyNetObjectTracker::MarkNetObjectDirty %u ( InternalIndex: %u )"), ReplicationSystemId, NetObjectIndex);
 	}
+}
+
+void FDirtyNetObjectTracker::ForceNetUpdate(FInternalNetRefIndex NetObjectIndex)
+{
+	ForceNetUpdateObjects.SetBit(NetObjectIndex);
+
+	// Flag the object dirty so we update his filters too
+	MarkNetObjectDirty(NetObjectIndex);
+
+	UE_LOG_DIRTYOBJECTTRACKER(TEXT("FDirtyNetObjectTracker::ForceNetUpdateObjects %u ( InternalIndex: %u )"), ReplicationSystemId, NetObjectIndex);
 }
 
 void FDirtyNetObjectTracker::LockExternalAccess()
@@ -182,17 +202,32 @@ void FDirtyNetObjectTracker::ClearDirtyNetObjects(const FNetBitArrayView& CleanN
 	// Clear the current frame dirty objects
 	FMemory::Memzero(DirtyNetObjectContainer, DirtyNetObjectWordCount*sizeof(StorageType));
 
+	ForceNetUpdateObjects.Reset();
+
+#if UE_NET_IRIS_VALIDATE_POLLED_OBJECT
+	CurrentPolledObject = 0;
+#endif
+
 	AllowExternalAccess();
 
 	std::atomic_thread_fence(std::memory_order_seq_cst);
 }
 
-void MarkNetObjectStateDirty(uint32 ReplicationSystemId, uint32 NetObjectIndex)
+void MarkNetObjectStateDirty(uint32 ReplicationSystemId, FInternalNetRefIndex NetObjectIndex)
 {
 	if (UReplicationSystem* ReplicationSystem = GetReplicationSystem(ReplicationSystemId))
 	{
 		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystem->GetReplicationSystemInternal()->GetDirtyNetObjectTracker();
 		DirtyNetObjectTracker.MarkNetObjectDirty(NetObjectIndex);
+	}
+}
+
+void ForceNetUpdate(uint32 ReplicationSystemId, FInternalNetRefIndex NetObjectIndex)
+{
+	if (UReplicationSystem* ReplicationSystem = GetReplicationSystem(ReplicationSystemId))
+	{
+		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystem->GetReplicationSystemInternal()->GetDirtyNetObjectTracker();
+		DirtyNetObjectTracker.ForceNetUpdate(NetObjectIndex);
 	}
 }
 

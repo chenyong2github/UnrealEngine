@@ -100,6 +100,17 @@ uint32 FReplicationSystemTestNode::GetNetTraceId() const
 	return ReplicationSystem ? ReplicationSystem->GetId() : ~0U;
 }
 
+UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateObject(const UObjectReplicationBridge::FCreateNetRefHandleParams& Params)
+{
+	UTestReplicatedIrisObject* CreatedObject = NewObject<UTestReplicatedIrisObject>();
+	CreatedObjects.Add(TStrongObjectPtr<UObject>(CreatedObject));
+
+	// Add it to the bridge for replication
+	ReplicationBridge->BeginReplication(CreatedObject, Params);
+
+	return CreatedObject;
+}
+
 UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateObject(uint32 NumComponents, uint32 NumIrisComponents)
 {
 	UTestReplicatedIrisObject* CreatedObject = NewObject<UTestReplicatedIrisObject>();
@@ -157,22 +168,6 @@ UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateObjectWithDynamicSt
 	CreatedObject->AddComponents(NumComponents, NumIrisComponents);
 	CreatedObject->AddDynamicStateComponents(NumDynamicStateComponents);
 	
-	return CreatedObject;
-}
-
-UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateObjectWithWorldLocation()
-{
-	UTestReplicatedIrisObject* CreatedObject = NewObject<UTestReplicatedIrisObject>();
-	CreatedObjects.Add(TStrongObjectPtr<UObject>(CreatedObject));
-
-	UObjectReplicationBridge::FCreateNetRefHandleParams Params;
-	Params.bCanReceive = true;
-	Params.bNeedsWorldLocationUpdate = true;
-	Params.bAllowDynamicFilter = true;
-
-	// Add it to the bridge for replication
-	ReplicationBridge->BeginReplication(CreatedObject, Params);
-
 	return CreatedObject;
 }
 

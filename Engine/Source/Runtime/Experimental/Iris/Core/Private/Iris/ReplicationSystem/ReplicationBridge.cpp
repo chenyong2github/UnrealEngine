@@ -347,7 +347,7 @@ void UReplicationBridge::InternalAttachInstanceToNetRefHandle(FNetRefHandle RefH
 	if (bBindInstanceProtocol)
 	{
 		FReplicationInstanceOperationsInternal::BindInstanceProtocol(NetHandle, InstanceProtocol, NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalReplicationIndex).Protocol);
-		MarkNetObjectStateDirty(ReplicationSystemId, InternalReplicationIndex);
+		ForceNetUpdate(ReplicationSystemId, InternalReplicationIndex);
 	}
 }
 
@@ -464,8 +464,8 @@ void UReplicationBridge::InternalAddSubObject(FNetRefHandle OwnerHandle, FNetRef
 
 	if (NetRefHandleManager->AddSubObject(OwnerHandle, SubObjectHandle, InsertRelativeToSubObjectHandle, AddSubObjectFlags))
 	{
-		// If the subobject is new we need to mark it dirty to pick it up for replication with its new parent
-		MarkNetObjectStateDirty(ReplicationSystem->GetId(), NetRefHandleManager->GetInternalIndex(SubObjectHandle));
+		// If the subobject is new we need to update it immediately to pick it up for replication with its new parent
+		ForceNetUpdate(ReplicationSystem->GetId(), NetRefHandleManager->GetInternalIndex(SubObjectHandle));
 
 		// We set the priority of subobjects to be static as they will be prioritized with owner
 		ReplicationSystem->SetStaticPriority(SubObjectHandle, 1.0f);

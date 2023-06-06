@@ -5,6 +5,7 @@
 #include "Iris/ReplicationSystem/DirtyNetObjectTracker.h"
 #include "Iris/ReplicationSystem/ReplicationSystemInternal.h"
 #include "Tests/ReplicationSystem/ReplicationSystemTestFixture.h"
+#include "Tests/ReplicationSystem/ReplicationSystemServerClientTestFixture.h"
 
 namespace UE::Net::Private
 {
@@ -134,5 +135,125 @@ UE_NET_TEST(DirtyNetObjectTracker, MarkingObjectAsDirtyInNonExistingSystemDoesNo
 	constexpr uint32 ArbitraryNetObjectIndex = 1174;
 	MarkNetObjectStateDirty(NonExistingReplicationSystemId, ArbitraryNetObjectIndex);
 }
+
+UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, GlobalDirtyTrackerTest)
+{
+	// Add client
+	FReplicationSystemTestClient* Client = CreateClient();
+
+	// Spawn object on server that is polled only every 3 frames
+	UObjectReplicationBridge::FCreateNetRefHandleParams Params;
+	Params.PollFramePeriod = 2;
+	Params.bCanReceive = true;
+	Params.bAllowDynamicFilter = true;
+	Params.bNeedsPreUpdate = true;
+
+	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(Params);
+
+	// Send and deliver packet
+	Server->UpdateAndSend({Client});
+
+	// Object should have been created on the client
+	UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
+	UE_NET_ASSERT_NE(ClientObject, nullptr);
+
+	// Set a replicated variable, but don't mark it dirty
+	ServerObject->IntA = 0xFF;
+
+	// Send and deliver packet
+	Server->UpdateAndSend({ Client });
+
+	// Client replicated property should not have changed
+	UE_NET_ASSERT_NE(ClientObject->IntA, ServerObject->IntA);
+
+	// Now mark the object dirty
+	Server->ReplicationSystem->ForceNetUpdate(ServerObject->NetRefHandle);
+
+	// Send and deliver packet
+	Server->UpdateAndSend({ Client });
+
+	// Client replicated propertyshould have changed now
+	UE_NET_ASSERT_EQ(ClientObject->IntA, ServerObject->IntA);
+
+	Server->DestroyObject(ServerObject);
+}
+
+/* This test exposes a problem when an object's PreUpdate calls dirty on a different object.
+UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, DirtyInsidePreUpdateTest)
+{
+	// Add client
+	FReplicationSystemTestClient* Client = CreateClient();
+
+	// Spawn object on server that is polled late in order to test ForceNetUpdate
+	UObjectReplicationBridge::FCreateNetRefHandleParams Params;
+	Params.PollFramePeriod = 10;
+	Params.bCanReceive = true;
+	Params.bAllowDynamicFilter = true;	
+	Params.bNeedsPreUpdate = true;
+	UTestReplicatedIrisObject* ServerObjectA = Server->CreateObject(Params);
+	UTestReplicatedIrisObject* ServerObjectB = Server->CreateObject(Params);
+
+	// Send and deliver packet
+	Server->UpdateAndSend({ Client });
+
+	// Object should have been created on the client
+	UTestReplicatedIrisObject* ClientObjectA = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectA->NetRefHandle));
+	UE_NET_ASSERT_NE(ClientObjectA, nullptr);
+	UTestReplicatedIrisObject* ClientObjectB = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectB->NetRefHandle));
+	UE_NET_ASSERT_NE(ClientObjectB, nullptr);
+	
+
+	// Send and deliver packet twice
+	Server->UpdateAndSend({ Client });
+	Server->UpdateAndSend({ Client });
+
+	// Set a replicated variable, but don't mark it dirty
+	ServerObjectA->IntA = 0xFF;
+
+	// Send and deliver packet
+	Server->UpdateAndSend({ Client });
+
+	// Client replicated property should not have changed
+	UE_NET_ASSERT_NE(ClientObjectA->IntA, ServerObjectA->IntA);
+
+	// Set a replicated variable, but don't mark it dirty
+	ServerObjectB->IntA = 0xFF;
+
+	// Send and deliver packet
+	Server->UpdateAndSend({ Client });
+
+	// Client replicated property should not have changed
+	UE_NET_ASSERT_NE(ClientObjectA->IntA, ServerObjectA->IntA);
+	UE_NET_ASSERT_NE(ClientObjectB->IntA, ServerObjectB->IntA);
+	
+	// Make the first object dirty
+	Server->ReplicationSystem->ForceNetUpdate(ServerObjectA->NetRefHandle);
+
+	auto PreUpdate = [&](FNetRefHandle NetHandle, UObject* ReplicatedObject, const UReplicationBridge* ReplicationBridge)
+	{
+		// When ObjectA is updated, make ObjectB dirty
+		if (ServerObjectA == ReplicatedObject)
+		{
+			// This will cause an ensure now
+			Server->ReplicationSystem->MarkDirty(ServerObjectB->NetRefHandle);
+		}
+	};
+
+	// Now add a dependency where the poll of the first object makes the second one dirty
+	Server->GetReplicationBridge()->SetExternalPreUpdateFunctor(PreUpdate);
+
+	// Send and deliver packet
+	Server->UpdateAndSend({ Client });
+
+	// Client property should have changed now
+	UE_NET_ASSERT_EQ(ClientObjectA->IntA, ServerObjectA->IntA);
+
+	// This fails because MarkDirty of a different object in PreUpdate is ignored and flushed.
+	UE_NET_ASSERT_EQ(ClientObjectB->IntA, ServerObjectB->IntA);
+
+	Server->DestroyObject(ServerObjectA);
+	Server->DestroyObject(ServerObjectB);
+}*/
+
 
 }
