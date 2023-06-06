@@ -133,7 +133,7 @@ private:
 	friend uint32 GetTypeHash(const FPermissionListUpdate& PermisisonList);
 	TSet< FPermissionListUpdate > PendingUpdates;
 	/** Lazily-constructed combined cache of both the flattened class PermissionList and struct PermissionList */
-	mutable TMap<TWeakObjectPtr<const UStruct>, FNamePermissionList> CachedPropertyPermissionList;
+	mutable TMap<TWeakObjectPtr<const UStruct>, FPropertyPermissionListEntry> CachedPropertyPermissionList;
 
 	/** Get or create the cached PermissionList for a specific UStruct */
 	const FNamePermissionList& GetCachedPermissionListForStruct(const UStruct* Struct) const;
