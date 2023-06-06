@@ -12,6 +12,7 @@
 
 namespace ETextCommit { enum Type : int; }
 namespace UE::MVVM { class FFieldIterator_Bindable; }
+namespace UE::MVVM { class SMVVMViewModelPanel; }
 namespace UE::PropertyViewer { class FFieldExpander_Default; }
 
 class INotifyFieldValueChanged;
@@ -22,6 +23,7 @@ class UBlueprintExtension;
 class UMVVMBlueprintView;
 class FUICommandList;
 class IDetailsView;
+struct FToolMenuSection;
 
 UCLASS()
 class UMVVMBlueprintViewModelContextWrapper : public UObject
@@ -37,6 +39,16 @@ public:
 	TWeakObjectPtr<UMVVMBlueprintView> BlueprintView;
 	FGuid ViewModelId;
 };
+
+UCLASS()
+class UMVVMViewModelPanelToolMenuContext : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	TWeakPtr<UE::MVVM::SMVVMViewModelPanel> ViewModelPanel;
+};
+
 
 namespace UE::MVVM
 {
@@ -56,9 +68,14 @@ public:
 
 	void OpenAddViewModelMenu();
 
+	static void RegisterMenu();
+
 private:
+	void BuildContextMenu(FToolMenuSection& InSection);
+
 	void HandleViewUpdated(UBlueprintExtension* Extension);
 	void HandleViewModelsUpdated();
+
 	TSharedRef<SWidget> MakeAddMenu();
 	void HandleCancelAddMenu();
 	void HandleAddMenuViewModel(const UClass* SelectedClass);
@@ -99,6 +116,7 @@ private:
 	TWeakPtr<FWidgetBlueprintEditor> WeakBlueprintEditor;
 	TWeakObjectPtr<UMVVMBlueprintView> WeakBlueprintView;
 	FDelegateHandle ViewModelsUpdatedHandle;
+	FDelegateHandle ExtensionAddeddHandle;
 
 	TStrongObjectPtr<UMVVMBlueprintViewModelContextWrapper> ModelContextWrapper;
 

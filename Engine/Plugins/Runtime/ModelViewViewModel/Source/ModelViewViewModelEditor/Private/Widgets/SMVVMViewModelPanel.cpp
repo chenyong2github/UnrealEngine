@@ -8,9 +8,11 @@
 #include "MVVMBlueprintView.h"
 #include "MVVMEditorSubsystem.h"
 #include "PropertyEditorModule.h"
+#include "ToolMenus.h"
 #include "View/MVVMViewModelContextResolver.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintEditor.h"
+#include "WidgetBlueprintToolMenuContext.h"
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -46,6 +48,38 @@ void UMVVMBlueprintViewModelContextWrapper::PostEditChangeProperty(struct FPrope
 namespace UE::MVVM
 {
 
+void SMVVMViewModelPanel::RegisterMenu()
+{
+	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MVVM.Viewmodels.Toolbar");
+	Menu->MenuType = EMultiBoxType::SlimHorizontalToolBar;
+	FToolMenuSection& Section = Menu->FindOrAddSection("Left");
+	Section.AddDynamicEntry("AddViewmodel", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			if (const UMVVMViewModelPanelToolMenuContext* Context = InSection.FindContext<UMVVMViewModelPanelToolMenuContext>())
+			{
+				if (TSharedPtr<SMVVMViewModelPanel> ViewModelPanel = Context->ViewModelPanel.Pin())
+				{
+					ViewModelPanel->BuildContextMenu(InSection);
+				}
+			}
+		}));
+}
+
+
+void SMVVMViewModelPanel::BuildContextMenu(FToolMenuSection& InSection)
+{
+	if (!AddMenuButton.IsValid())
+	{
+		SAssignNew(AddMenuButton, SPositiveActionButton)
+			.OnGetMenuContent(this, &SMVVMViewModelPanel::MakeAddMenu)
+			.Text(LOCTEXT("Viewmodel", "Viewmodel"))
+			.IsEnabled(this, &SMVVMViewModelPanel::HandleCanEditViewmodelList);
+	}
+	
+	InSection.AddEntry(FToolMenuEntry::InitWidget("AddViewmodel", AddMenuButton.ToSharedRef(), FText()));
+}
+
+
 void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor)
 {
 	UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintEditor->GetWidgetBlueprintObj();
@@ -64,8 +98,23 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 		// Listen to when the viewmodel are modified
 		ViewModelsUpdatedHandle = CurrentBlueprintView->OnViewModelsUpdated.AddSP(this, &SMVVMViewModelPanel::HandleViewModelsUpdated);
 	}
+	else
+	{
+		ExtensionAddeddHandle = WidgetBlueprint->OnExtensionAdded.AddSP(this, &SMVVMViewModelPanel::HandleViewUpdated);
+	}
 
 	CreateCommandList();
+
+	FToolMenuContext GenerateWidgetContext;
+	{
+		UWidgetBlueprintToolMenuContext* WidgetBlueprintMenuContext = NewObject<UWidgetBlueprintToolMenuContext>();
+		WidgetBlueprintMenuContext->WidgetBlueprintEditor = WeakBlueprintEditor;
+		GenerateWidgetContext.AddObject(WidgetBlueprintMenuContext);
+
+		UMVVMViewModelPanelToolMenuContext* ViewModelPanelToolMenuContext = NewObject<UMVVMViewModelPanelToolMenuContext>();
+		ViewModelPanelToolMenuContext->ViewModelPanel = SharedThis(this);
+		GenerateWidgetContext.AddObject(ViewModelPanelToolMenuContext);
+	}
 
 	ViewModelTreeView = SNew(UE::PropertyViewer::SPropertyViewer)
 		.PropertyVisibility(UE::PropertyViewer::SPropertyViewer::EPropertyVisibility::Visible)
@@ -80,10 +129,7 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 		.OnGenerateContainer(this, &SMVVMViewModelPanel::HandleGenerateContainer)
 		.SearchBoxPreSlot()
 		[
-			SAssignNew(AddMenuButton, SPositiveActionButton)
-			.OnGetMenuContent(this, &SMVVMViewModelPanel::MakeAddMenu)
-			.Text(LOCTEXT("Viewmodel", "Viewmodel"))
-			.IsEnabled(this, &SMVVMViewModelPanel::HandleCanEditViewmodelList)
+			UToolMenus::Get()->GenerateWidget("MVVM.Viewmodels.Toolbar", GenerateWidgetContext)
 		];
 
 	FillViewModel();
@@ -111,19 +157,24 @@ SMVVMViewModelPanel::SMVVMViewModelPanel() = default;
 
 SMVVMViewModelPanel::~SMVVMViewModelPanel()
 {
-	if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin())
+	if (ExtensionAddeddHandle.IsValid())
 	{
-		if (UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintEditor->GetWidgetBlueprintObj())
+		if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin())
 		{
-			WidgetBlueprint->OnExtensionAdded.RemoveAll(this);
-			WidgetBlueprint->OnExtensionRemoved.RemoveAll(this);
+			if (UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintEditor->GetWidgetBlueprintObj())
+			{
+				WidgetBlueprint->OnExtensionAdded.Remove(ExtensionAddeddHandle);
+			}
 		}
 	}
 
-	if (UMVVMBlueprintView* CurrentBlueprintView = WeakBlueprintView.Get())
+	if (ViewModelsUpdatedHandle.IsValid())
 	{
-		// bind to check if the view is enabled
-		CurrentBlueprintView->OnViewModelsUpdated.Remove(ViewModelsUpdatedHandle);
+		if (UMVVMBlueprintView* CurrentBlueprintView = WeakBlueprintView.Get())
+		{
+			// bind to check if the view is enabled
+			CurrentBlueprintView->OnViewModelsUpdated.Remove(ViewModelsUpdatedHandle);
+		}
 	}
 }
 
@@ -178,6 +229,9 @@ void SMVVMViewModelPanel::HandleViewUpdated(UBlueprintExtension*)
 				{
 					ViewModelsUpdatedHandle = CurrentBlueprintView->OnViewModelsUpdated.AddSP(this, &SMVVMViewModelPanel::HandleViewModelsUpdated);
 					bViewUpdated = true;
+
+					WidgetBlueprint->OnExtensionAdded.Remove(ExtensionAddeddHandle);
+					ExtensionAddeddHandle.Reset();
 				}
 			}
 		}
@@ -243,15 +297,7 @@ void SMVVMViewModelPanel::HandleAddMenuViewModel(const UClass* SelectedClass)
 				{
 					UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
 					check(EditorSubsystem);
-
-					UMVVMBlueprintView* CurrentBlueprintView = WeakBlueprintView.Get();
-					if (!CurrentBlueprintView)
-					{
-						CurrentBlueprintView = EditorSubsystem->RequestView(WidgetBlueprint);
-						WeakBlueprintView = CurrentBlueprintView;
-						ViewModelsUpdatedHandle = CurrentBlueprintView->OnViewModelsUpdated.AddSP(this, &SMVVMViewModelPanel::HandleViewModelsUpdated);
-					}
-
+					EditorSubsystem->RequestView(WidgetBlueprint);
 					EditorSubsystem->AddViewModel(WidgetBlueprint, SelectedClass);
 				}
 			}

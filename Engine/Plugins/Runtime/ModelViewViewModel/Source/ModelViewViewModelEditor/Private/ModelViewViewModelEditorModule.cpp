@@ -20,9 +20,12 @@
 #include "Styling/MVVMEditorStyle.h"
 #include "Tabs/MVVMBindingSummoner.h"
 #include "Tabs/MVVMViewModelSummoner.h"
+#include "ToolMenus.h"
 #include "UMGEditorModule.h"
 #include "WidgetBlueprintEditor.h"
 #include "WidgetDrawerConfig.h"
+#include "Widgets/SMVVMViewBindingPanel.h"
+#include "Widgets/SMVVMViewModelPanel.h"
 
 #define LOCTEXT_NAMESPACE "ModelViewViewModelModule"
 
@@ -58,11 +61,15 @@ void FModelViewViewModelEditorModule::StartupModule()
 	FMVVMEditorCommands::Register();
 	FWidgetBlueprintDelegates::GetAssetTags.AddRaw(this, &FModelViewViewModelEditorModule::HandleWidgetBlueprintAssetTags);
 	FWidgetBlueprintGeneratedClassDelegates::GetAssetTags.AddRaw(this, &FModelViewViewModelEditorModule::HandleClassBlueprintAssetTags);
+
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FModelViewViewModelEditorModule::HandleRegisterMenus));
 }
 
 
 void FModelViewViewModelEditorModule::ShutdownModule()
 {
+	UnregisterMenus();
+
 	FWidgetBlueprintGeneratedClassDelegates::GetAssetTags.RemoveAll(this);
 	FWidgetBlueprintDelegates::GetAssetTags.RemoveAll(this);
 	if (FMessageLogModule* MessageLogModule = FModuleManager::GetModulePtr<FMessageLogModule>("MessageLog"))
@@ -218,6 +225,23 @@ void FModelViewViewModelEditorModule::HandleClassBlueprintAssetTags(const UWidge
 			HandleWidgetBlueprintAssetTags(WidgetBlueprint, OutTags);
 		}
 	}
+}
+
+
+void FModelViewViewModelEditorModule::HandleRegisterMenus()
+{
+	// Allow cleanup when module unloads
+	FToolMenuOwnerScoped OwnerScoped(this);
+
+	UE::MVVM::SMVVMViewModelPanel::RegisterMenu();
+	UE::MVVM::SBindingsPanel::RegisterSettingsMenu();
+}
+
+
+void FModelViewViewModelEditorModule::UnregisterMenus()
+{
+	UToolMenus::UnRegisterStartupCallback(this);
+	UToolMenus::UnregisterOwner(this);
 }
 
 IMPLEMENT_MODULE(FModelViewViewModelEditorModule, ModelViewViewModelEditor);

@@ -432,13 +432,13 @@ TSharedRef<SWidget> SBindingsPanel::GenerateSettingsMenu()
 	WidgetBlueprintMenuContext->WidgetBlueprintEditor = WeakBlueprintEditor;
 
 	FToolMenuContext MenuContext(WidgetBlueprintMenuContext);
-	return UToolMenus::Get()->GenerateWidget("MVVMEditor.Panel.Toolbar.Settings", MenuContext);
+	return UToolMenus::Get()->GenerateWidget("MVVM.ViewBindings.Toolbar", MenuContext);
 }
 
 
 void SBindingsPanel::RegisterSettingsMenu()
 {
-	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MVVMEditor.Panel.Toolbar.Settings");
+	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MVVM.ViewBindings.Toolbar");
 }
 
 
@@ -447,35 +447,6 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 	FSlateIcon EmptyIcon(FAppStyle::GetAppStyleSetName(), "Icon.Empty");
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilderGlobal(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
-	//ToolbarBuilderGlobal.SetStyle(&FAppStyle::Get(), "SlimToolBar");
-	//{
-	//	ToolbarBuilderGlobal.BeginSection("Binding");
-	//	ToolbarBuilderGlobal.AddWidget(
-	//		SNew(SPositiveActionButton)
-	//		.OnClicked(this, &SBindingsPanel::AddDefaultBinding)
-	//		.Text(this, &SBindingsPanel::GetAddBindingText)
-	//		.ToolTipText(this, &SBindingsPanel::GetAddBindingToolTip)
-	//		.IsEnabled(this, &SBindingsPanel::CanAddBinding)
-	//	);
-
-	//	const FToolBarStyle& ToolBarStyle = ToolbarBuilderGlobal.GetStyleSet()->GetWidgetStyle<FToolBarStyle>(ToolbarBuilderGlobal.GetStyleName());
-	//	ToolbarBuilderGlobal.AddWidget(
-	//		SNew(SComboButton)
-	//		.IsEnabled(this, &SBindingsPanel::CanAddBinding)
-	//		.ContentPadding(0.f)
-	//		.ComboButtonStyle(&ToolBarStyle.SettingsComboButton)
-	//		.ButtonStyle(&ToolBarStyle.ButtonStyle)
-	//		.ToolTipText(this, &SBindingsPanel::GetAddBindingToolTip)
-	//		.ForegroundColor(FSlateColor::UseStyle())
-	//		.OnGetMenuContent(this, &SBindingsPanel::HandleAddDefaultBindingContextMenu)
-	//		.ButtonContent()
-	//		[
-	//			SNullWidget::NullWidget
-	//		]
-	//	);
-	//	ToolbarBuilderGlobal.EndSection();
-	//}
-
 	ToolbarBuilderGlobal.BeginSection("Picking");
 	{
 		ToolbarBuilderGlobal.AddToolBarButton(

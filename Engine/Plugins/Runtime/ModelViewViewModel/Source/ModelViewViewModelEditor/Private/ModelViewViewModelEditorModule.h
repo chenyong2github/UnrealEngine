@@ -38,6 +38,8 @@ private:
 	void HandleActivateMode(FWidgetBlueprintApplicationMode& InDesignerMode);
 	void HandleWidgetBlueprintAssetTags(const UWidgetBlueprint* Widget, TArray<UObject::FAssetRegistryTag>& OutTags);
 	void HandleClassBlueprintAssetTags(const UWidgetBlueprintGeneratedClass* GeneratedClass, TArray<UObject::FAssetRegistryTag>& OutTags);
+	void HandleRegisterMenus();
+	void UnregisterMenus();
 
 private:
 	TSharedPtr<FMVVMPropertyBindingExtension> PropertyBindingExtension;

@@ -17,13 +17,13 @@ FMVVMBindingSummoner::FMVVMBindingSummoner(TSharedPtr<FWidgetBlueprintEditor> Bl
 	, WeakWidgetBlueprintEditor(BlueprintEditor)
 	, bIsDrawerTab(bInIsDrawerTab)
 {
-	TabLabel = LOCTEXT("ViewBinding_ViewMenu_Label", "View Binding");
+	TabLabel = LOCTEXT("ViewBinding_ViewMenu_Label", "View Bindings");
 	TabIcon = FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BlueprintView.TabIcon");
 
 	bIsSingleton = true;
 
-	ViewMenuDescription = LOCTEXT("ViewBinding_ViewMenu_Desc", "View Binding");
-	ViewMenuTooltip = LOCTEXT("ViewBinding_ViewMenu_ToolTip", "Show the View Binding tab");
+	ViewMenuDescription = LOCTEXT("ViewBinding_ViewMenu_Desc", "View Bindings");
+	ViewMenuTooltip = LOCTEXT("ViewBinding_ViewMenu_ToolTip", "Show the View Bindings tab");
 }
 
 TSharedRef<SWidget> FMVVMBindingSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
