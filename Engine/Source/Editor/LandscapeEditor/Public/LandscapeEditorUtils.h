@@ -16,7 +16,7 @@ namespace LandscapeEditorUtils
 	bool LANDSCAPEEDITOR_API SetWeightmapData(ALandscapeProxy* Landscape, ULandscapeLayerInfoObject* LayerObject, const TArray<uint8>& Data);
 
 	int32 GetMaxSizeInComponents();
-	TOptional<FString> GetImportExportFilename(const FString& InDialogTitle, const FString& InStartPath, const FString& InDialogTypeString);
+	TOptional<FString> GetImportExportFilename(const FString& InDialogTitle, const FString& InStartPath, const FString& InDialogTypeString, bool bInImporting);
 
 	template<typename T>
 	void SaveObjects(TArrayView<T*> InObjects)

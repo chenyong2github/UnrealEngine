@@ -27,7 +27,7 @@ namespace LandscapeEditorUtils
 	}
 
 
-	TOptional<FString> GetImportExportFilename(const FString& InDialogTitle, const FString& InStartPath, const FString& InDialogTypeString)
+	TOptional<FString> GetImportExportFilename(const FString& InDialogTitle, const FString& InStartPath, const FString& InDialogTypeString, bool bInImporting)
 	{
 		FString Filename;
 		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
@@ -41,20 +41,36 @@ namespace LandscapeEditorUtils
 		ILandscapeEditorModule& LandscapeEditorModule = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor");
 		FEdModeLandscape* LandscapeEdMode = static_cast<FEdModeLandscape*>(GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Landscape));
 
-		const bool bSuccess = DesktopPlatform->OpenFileDialog(
-			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-			InDialogTitle,
-			InStartPath,
-			TEXT(""),
-			InDialogTypeString,
-			EFileDialogFlags::None,
-			Filenames);
+		bool bSuccess;
+		
+		if (bInImporting)
+		{
+			bSuccess = DesktopPlatform->OpenFileDialog(
+				FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+				InDialogTitle,
+				InStartPath,
+				TEXT(""),
+				InDialogTypeString,
+				EFileDialogFlags::None,
+				Filenames);
+		}
+		else
+		{
+			bSuccess = DesktopPlatform->SaveFileDialog(
+				FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+				InDialogTitle,
+				InStartPath,
+				TEXT(""),
+				InDialogTypeString,
+				EFileDialogFlags::None,
+				Filenames);
+		}
 
 		if (bSuccess)
 		{
 			FString TiledFileNamePattern;
 
-			if (FLandscapeTiledImage::CheckTiledNamePath(Filenames[0], TiledFileNamePattern) && FMessageDialog::Open(EAppMsgType::YesNo, FText::FromString(FString::Format(TEXT("Use '{0}' Tiled Image?"), { TiledFileNamePattern }))) == EAppReturnType::Yes)
+			if (bInImporting && FLandscapeTiledImage::CheckTiledNamePath(Filenames[0], TiledFileNamePattern) && FMessageDialog::Open(EAppMsgType::YesNo, FText::FromString(FString::Format(TEXT("Use '{0}' Tiled Image?"), { TiledFileNamePattern }))) == EAppReturnType::Yes)
 			{
 				Filename = TiledFileNamePattern;
 			}
