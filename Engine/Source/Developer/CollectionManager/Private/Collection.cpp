@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Collection.h"
-#include "CollectionConfig.h"
+#include "CollectionSettings.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
@@ -257,7 +257,7 @@ bool FCollection::Save(const TArray<FText>& AdditionalChangelistText, FText& Out
 
 	if ( bSaveSuccessful )
 	{
-		if ( bUseSCC && GetDefault<UCollectionConfig>()->bAutoCommitOnSave)
+		if ( bUseSCC && GetDefault<UCollectionSettings>()->bAutoCommitOnSave)
 		{
 			// Check in the file if the save was successful
 			if ( bSaveSuccessful )

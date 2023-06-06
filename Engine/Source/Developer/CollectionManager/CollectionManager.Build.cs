@@ -14,7 +14,8 @@ public class CollectionManager : ModuleRules
 				"CoreUObject",
 				"DirectoryWatcher",
 				"Analytics",
-				"SourceControl"
+				"SourceControl",
+				"DeveloperSettings"
 			}
 			);
 	}
