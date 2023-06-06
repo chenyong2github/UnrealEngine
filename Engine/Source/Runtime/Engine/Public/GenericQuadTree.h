@@ -97,7 +97,7 @@ private:
 	TArray<FNode> Nodes;
 
 	/** The sub-trees of this tree */
-	TreeType* SubTrees[4];
+	TreeType* SubTrees[4] = {nullptr}
 
 	/** AABB of the tree */
 	FBox2D TreeBox;
