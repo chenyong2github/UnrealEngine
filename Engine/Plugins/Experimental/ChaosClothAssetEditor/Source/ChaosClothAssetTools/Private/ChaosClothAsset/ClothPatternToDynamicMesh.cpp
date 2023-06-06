@@ -546,12 +546,12 @@ void FClothPatternToDynamicMesh::Convert(const TSharedPtr<const FManagedArrayCol
 					return PatternIndex;
 				}
 				const int32 FoundPattern = ClothFacade.FindRenderPatternByFaceIndex(TriID);
-				if (ensure(FoundPattern != INDEX_NONE))
-				{
-					return FoundPattern;
-				}
+				check(FoundPattern != INDEX_NONE);
+				return FoundPattern;
 			}
-			return INDEX_NONE;
+			
+			// Sim meshes will have a default material with MaterialID zero applied
+			return 0;
 		};
 
 		constexpr bool bCopyTangents = false;

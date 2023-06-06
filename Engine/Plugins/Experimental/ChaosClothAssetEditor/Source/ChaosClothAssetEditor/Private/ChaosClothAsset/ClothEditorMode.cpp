@@ -57,6 +57,7 @@
 #include "ContextObjectStore.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothEditorMode)
 
@@ -418,6 +419,23 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 					UMaterialInterface* const Material = LoadObject<UMaterialInterface>(nullptr, *Path);
 					MeshComponent.SetMaterial(MaterialIndex, Material);
 				}
+
+				// Fix up any triangles without valid material IDs
+				int32 DefaultMaterialID = INDEX_NONE;
+				for (const int32 TriID : MeshComponent.GetMesh()->TriangleIndicesItr())
+				{
+					const int32 MaterialID = MeshComponent.GetMesh()->Attributes()->GetMaterialID()->GetValue(TriID);
+					if (!MeshComponent.GetMaterial(MaterialID))
+					{
+						if (DefaultMaterialID == INDEX_NONE)
+						{
+							DefaultMaterialID = MeshComponent.GetNumMaterials();
+							MeshComponent.SetMaterial(DefaultMaterialID, UMaterial::GetDefaultMaterial(MD_Surface));
+						}
+						MeshComponent.GetMesh()->Attributes()->GetMaterialID()->SetValue(TriID, DefaultMaterialID);
+					}
+				}
+
 			}
 			break;
 		}
