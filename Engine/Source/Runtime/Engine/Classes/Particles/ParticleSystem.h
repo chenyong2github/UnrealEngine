@@ -125,7 +125,7 @@ public:
 	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
 
 	/** Max number of components of this system to keep resident in the world component pool. */
-	UPROPERTY(EditAnywhere, Category = Performance)
+	UPROPERTY(EditAnywhere, Category = Performance, AdvancedDisplay)
 	uint32 MaxPoolSize;
 	//TODO: Allow pool size overriding per world and possibly implement some preallocation too.
 
@@ -134,7 +134,7 @@ public:
 	* This can amortize runtime activation cost by moving it to load time.
 	* Use with care as this could cause large hitches for systems loaded/unloaded during play rather than at level load.
 	*/
-	UPROPERTY(EditAnywhere, Category = Performance)
+	UPROPERTY(EditAnywhere, Category = Performance, AdvancedDisplay)
 	uint32 PoolPrimeSize = 0;
 
 #if WITH_PER_SYSTEM_PARTICLE_PERF_STATS

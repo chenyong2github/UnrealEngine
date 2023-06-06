@@ -680,10 +680,10 @@ public:
 		return Found ? *Found : nullptr;
 	}
 	
-	UPROPERTY(EditAnywhere, Category = "Debug", Transient)
+	UPROPERTY(EditAnywhere, Category = "Debug", Transient, AdvancedDisplay)
 	bool bDumpDebugSystemInfo = false;
 
-	UPROPERTY(EditAnywhere, Category = "Debug", Transient)
+	UPROPERTY(EditAnywhere, Category = "Debug", Transient, AdvancedDisplay)
 	bool bDumpDebugEmitterInfo = false;
 
 	bool bFullyLoaded = false;
@@ -802,6 +802,9 @@ private:
 	void UpdateHasGPUEmitters();
 
 protected:
+	/** An effect types defines settings shared between systems, for example scalability and validation rules.
+	 * Things like environment fx usually have a different effect type than gameplay relevant fx such as weapon impacts.
+	 * This way whole classes of effects can be adjusted at once. */
 	UPROPERTY(EditAnywhere, Category = "System")
 	TObjectPtr<UNiagaraEffectType> EffectType;
 
@@ -823,7 +826,7 @@ protected:
 	UPROPERTY()
 	TArray<FNiagaraEmitterHandle> EmitterHandles;
 
-	UPROPERTY(EditAnywhere, Category="System")
+	UPROPERTY(EditAnywhere, Category="System", AdvancedDisplay)
 	TArray<TObjectPtr<UNiagaraParameterCollectionInstance>> ParameterCollectionOverrides;
 
 #if WITH_EDITORONLY_DATA
@@ -879,7 +882,7 @@ protected:
 	FOnScalabilityChanged OnScalabilityChangedDelegate;
 #endif
 
-	/** The fixed bounding box value. bFixedBounds is the condition whether the fixed bounds can be edited. */
+	/** The fixed bounding box value for the whole system. When placed in the level and the bounding box is not visible to the camera, the effect is culled from rendering. */
 	UPROPERTY(EditAnywhere, Category = "System", meta = (SkipSystemResetOnChange = "true", EditCondition = "bFixedBounds"))
 	FBox FixedBounds;
 
