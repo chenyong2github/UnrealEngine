@@ -4,6 +4,7 @@
 
 #include "WidgetBlueprint.h"
 
+#include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Styling/MVVMEditorStyle.h"
 
 #include "Widgets/Input/SComboButton.h"
@@ -36,6 +37,8 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 	OnGetConversionFunction = InArgs._OnGetConversionFunction;
 	OnGetSelectionContext = InArgs._OnGetSelectionContext;
 	OnFieldSelectionChanged = InArgs._OnFieldSelectionChanged;
+	OnDragEnterEvent = InArgs._OnDragEnter;
+	OnDropEvent = InArgs._OnDrop;
 
 	ChildSlot
 	[
@@ -158,6 +161,31 @@ void SFieldSelector::HandleFieldSelectionChanged(FMVVMBlueprintPropertyPath Prop
 	{
 		OnFieldSelectionChanged.Execute(PropertyPath, Function);
 	}
+}
+
+void SFieldSelector::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	if (OnDragEnterEvent.IsBound())
+	{
+		OnDragEnterEvent.Execute(MyGeometry, DragDropEvent);
+	}
+}
+
+void SFieldSelector::OnDragLeave(const FDragDropEvent& DragDropEvent)
+{
+	if (TSharedPtr<FDecoratedDragDropOp> DecoratedDragDropOp = DragDropEvent.GetOperationAs<FDecoratedDragDropOp>())
+	{
+		DecoratedDragDropOp->ResetToDefaultToolTip();
+	}
+}
+
+FReply SFieldSelector::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	if (OnDropEvent.IsBound())
+	{
+		return OnDropEvent.Execute(MyGeometry, DragDropEvent);
+	}
+	return FReply::Unhandled();
 }
 
 void SFieldSelector::HandleMenuClosed()

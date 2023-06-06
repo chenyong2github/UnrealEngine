@@ -3,6 +3,7 @@
 #include "Details/DetailWidgetExtensionHandler.h"
 #include "Binding/WidgetBinding.h"
 #include "Customizations/UMGDetailCustomizations.h"
+#include "Details/WidgetPropertyDragDropHandler.h"
 #include "Engine/Blueprint.h"
 #include "UMGEditorModule.h"
 #include "WidgetBlueprint.h"
@@ -137,7 +138,7 @@ void FDetailWidgetExtensionHandler::ExtendWidgetRow(
 			return !FBlueprintWidgetCustomization::HasPropertyBindings(BlueprintEditorPtr, PropertyHandleRef);
 		}));
 
-	const UWidgetBlueprint* WidgetBlueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
+	UWidgetBlueprint* WidgetBlueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
 
 	bool bShouldShowOldBindingWidget = Private::ShouldShowOldBindingWidget(WidgetBlueprint, PropertyHandleRef.Get());
 
@@ -177,4 +178,12 @@ void FDetailWidgetExtensionHandler::ExtendWidgetRow(
 	[
 		FBlueprintWidgetCustomization::MakePropertyBindingWidget(BlueprintEditor, SignatureFunction, InPropertyHandle.ToSharedRef(), true, bShouldShowOldBindingWidget)
 	];
+
+	if (Objects.Num() > 0)
+	{
+		if (UWidget* Widget = Cast<UWidget>(Objects[0]))
+		{
+			InWidgetRow.DragDropHandler(MakeShared<FWidgetPropertyDragDropHandler>(Widget, InPropertyHandle, WidgetBlueprint));
+		}
+	}
 }

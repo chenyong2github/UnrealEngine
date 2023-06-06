@@ -412,6 +412,7 @@ FPropertyViewerImpl::FPropertyViewerImpl(const SPropertyViewer::FArguments& InAr
 	OnContextMenuOpening = InArgs._OnContextMenuOpening;
 	OnSelectionChanged = InArgs._OnSelectionChanged;
 	OnDoubleClicked = InArgs._OnDoubleClicked;
+	OnDragDetected = InArgs._OnDragDetected;
 	OnGenerateContainer = InArgs._OnGenerateContainer;
 	PropertyVisibility = InArgs._PropertyVisibility;
 	bSanitizeName = InArgs._bSanitizeName;
@@ -1087,6 +1088,7 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 	if (bUseRows)
 	{
 		return SNew(SMultiRowType, AsShared(), OwnerTable, Item.ToSharedRef(), FieldWidget)
+			.OnDragDetected(this, &FPropertyViewerImpl::HandleDragDetected, Item)
 			.Padding(0.0f);
 	}
 
@@ -1182,6 +1184,23 @@ void FPropertyViewerImpl::HandleDoubleClick(TSharedPtr<FTreeNode> Item)
 	}
 }
 
+
+FReply FPropertyViewerImpl::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, const TSharedPtr<FTreeNode> Item)
+{
+	if (OnDragDetected.IsBound())
+	{
+		if (Item.IsValid())
+		{
+			TSharedPtr<FContainer> OwnerContainer = Item->GetOwnerContainer();
+			return OnDragDetected.Execute(MyGeometry, MouseEvent, OwnerContainer.IsValid() ? OwnerContainer->GetIdentifier() : SPropertyViewer::FHandle(), Item->GetFieldPath());
+		}
+		else
+		{
+			return OnDragDetected.Execute(MyGeometry, MouseEvent, SPropertyViewer::FHandle(), TArray<FFieldVariant>());
+		}
+	}
+	return FReply::Unhandled();
+}
 
 void FPropertyViewerImpl::HandleSearchChanged(const FText& InFilterText)
 {

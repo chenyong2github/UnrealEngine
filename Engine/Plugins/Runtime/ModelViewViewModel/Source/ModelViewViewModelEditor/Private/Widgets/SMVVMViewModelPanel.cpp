@@ -10,6 +10,7 @@
 #include "PropertyEditorModule.h"
 #include "ToolMenus.h"
 #include "View/MVVMViewModelContextResolver.h"
+#include "ViewModelFieldDragDropOp.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintEditor.h"
 #include "WidgetBlueprintToolMenuContext.h"
@@ -127,6 +128,7 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 		.OnContextMenuOpening(this, &SMVVMViewModelPanel::HandleContextMenuOpening)
 		.OnSelectionChanged(this, &SMVVMViewModelPanel::HandleSelectionChanged)
 		.OnGenerateContainer(this, &SMVVMViewModelPanel::HandleGenerateContainer)
+		.OnDragDetected(this, &SMVVMViewModelPanel::HandleDragDetected)
 		.SearchBoxPreSlot()
 		[
 			UToolMenus::Get()->GenerateWidget("MVVM.Viewmodels.Toolbar", GenerateWidgetContext)
@@ -406,6 +408,38 @@ void SMVVMViewModelPanel::HandleNameTextCommited(const FText& InText, ETextCommi
 	}
 }
 
+FReply SMVVMViewModelPanel::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, UE::PropertyViewer::SPropertyViewer::FHandle ContainerHandle, TArrayView<const FFieldVariant> Fields) const
+{
+	TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin();
+	if (WidgetBlueprintEditor == nullptr)
+	{
+		return FReply::Unhandled();
+	}
+
+	UWidgetBlueprint* WidgetBP = WidgetBlueprintEditor->GetWidgetBlueprintObj();
+	if (WidgetBP == nullptr)
+	{
+		return FReply::Unhandled();
+	}
+
+	if (ViewModelTreeView.IsValid() && MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+	{
+		if (Fields.Num() > 0)
+		{
+			if (const FGuid* Id = PropertyViewerHandles.Find(ContainerHandle))
+			{
+				TArray<FFieldVariant> FieldsArray;
+				for (const FFieldVariant Field : Fields)
+				{
+					FieldsArray.Add(Field);
+				}
+				
+				return FReply::Handled().BeginDragDrop(FViewModelFieldDragDropOp::New(FieldsArray, *Id, WidgetBP));
+			}
+		}
+	}
+	return FReply::Unhandled();
+}
 
 void SMVVMViewModelPanel::CreateCommandList()
 {

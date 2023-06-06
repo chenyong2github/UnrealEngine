@@ -4,7 +4,9 @@
 
 #include "Bindings/MVVMBindingHelper.h"
 #include "BlueprintEditor.h"
+#include "Details/WidgetPropertyDragDropOp.h"
 #include "Dialog/SCustomDialog.h"
+#include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Views/TableViewMetadata.h"
 #include "Misc/MessageDialog.h"
@@ -17,6 +19,7 @@
 #include "SSimpleButton.h" 
 #include "Styling/MVVMEditorStyle.h"
 #include "Styling/StyleColors.h"
+#include "ViewModelFieldDragDropOp.h"
 #include "Widgets/SMVVMFieldEntry.h"
 #include "Widgets/SMVVMFieldSelector.h"
 #include "Widgets/SMVVMFunctionParameter.h"
@@ -264,7 +267,7 @@ private:
 					FMVVMBlueprintPropertyPath CurrentPath = Binding->DestinationPath;
 					CurrentPath.SetWidgetName(Source.Name);
 
-					EditorSubsystem->SetWidgetPropertyForBinding(WidgetBlueprint, *Binding, CurrentPath);
+					EditorSubsystem->SetDestinationPathForBinding(WidgetBlueprint, *Binding, CurrentPath);
 				}
 			}
 		}
@@ -278,7 +281,7 @@ private:
 			FMVVMBlueprintViewBinding& Binding = EditorSubsystem->AddBinding(WidgetBlueprint);
 			FMVVMBlueprintPropertyPath Path;
 			Path.SetWidgetName(Entry->GetName());
-			EditorSubsystem->SetWidgetPropertyForBinding(WidgetBlueprint, Binding, Path);
+			EditorSubsystem->SetDestinationPathForBinding(WidgetBlueprint, Binding, Path);
 		}
 
 		return FReply::Handled();
@@ -357,6 +360,8 @@ public:
 								.OnGetConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, false)
 								.OnFieldSelectionChanged(this, &SBindingRow::HandleFieldSelectionChanged, false)
 								.OnGetSelectionContext(this, &SBindingRow::GetSelectedSelectionContext, false)
+								.OnDrop(this, &SBindingRow::HandleFieldSelectorDrop, false)
+								.OnDragEnter(this, &SBindingRow::HandleFieldSelectorDragEnter, false)
 								.ShowContext(false)
 							]
 						]
@@ -401,6 +406,8 @@ public:
 								.OnGetConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, true)
 								.OnFieldSelectionChanged(this, &SBindingRow::HandleFieldSelectionChanged, true)
 								.OnGetSelectionContext(this, &SBindingRow::GetSelectedSelectionContext, true)
+								.OnDrop(this, &SBindingRow::HandleFieldSelectorDrop, true)
+								.OnDragEnter(this, &SBindingRow::HandleFieldSelectorDragEnter, true)
 							]
 						]
 
@@ -642,7 +649,7 @@ private:
 				Subsystem->SetSourceToDestinationConversionFunction(WidgetBlueprintPtr, *ViewBinding, Function);
 				if (ViewBinding->SourcePath != SelectedField)
 				{
-					Subsystem->SetViewModelPropertyForBinding(WidgetBlueprintPtr, *ViewBinding, SelectedField);
+					Subsystem->SetSourcePathForBinding(WidgetBlueprintPtr, *ViewBinding, SelectedField);
 				}
 			}
 			else
@@ -650,7 +657,7 @@ private:
 				Subsystem->SetDestinationToSourceConversionFunction(WidgetBlueprintPtr, *ViewBinding, Function);
 				if (ViewBinding->DestinationPath != SelectedField)
 				{
-					Subsystem->SetWidgetPropertyForBinding(WidgetBlueprintPtr, *ViewBinding, SelectedField);
+					Subsystem->SetDestinationPathForBinding(WidgetBlueprintPtr, *ViewBinding, SelectedField);
 				}
 			}
 		}
@@ -709,6 +716,118 @@ private:
 				|| (IsBackwardBinding(ViewBinding->BindingType) && bSource);
 		}
 		return Result;
+	}
+
+	FReply HandleFieldSelectorDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, bool bSource)
+	{
+		TSharedPtr<FDecoratedDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FDecoratedDragDropOp>();
+		if (!DragDropOp.IsValid())
+		{
+			return FReply::Unhandled();
+		}
+
+		// Accept all drag-drop operations that are widget properties, but only accept view model fields when we are dropping into the Source box.
+		if (!DragDropOp->IsOfType<FWidgetPropertyDragDropOp>() && (!DragDropOp->IsOfType<FViewModelFieldDragDropOp>() || !bSource))
+		{
+			return FReply::Unhandled();
+		}
+
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			if (UWidgetBlueprint* WidgetBlueprintPtr = WidgetBlueprintWeak.Get())
+			{
+				TSharedPtr<FViewModelFieldDragDropOp> ViewModelFieldDragDropOp = DragDropEvent.GetOperationAs<FViewModelFieldDragDropOp>();
+				TSharedPtr<FWidgetPropertyDragDropOp> WidgetPropertyDragDropOp = DragDropEvent.GetOperationAs<FWidgetPropertyDragDropOp>();
+				bool bIsViewModelProperty = false;
+
+				if (ViewModelFieldDragDropOp)
+				{
+					bIsViewModelProperty = true;
+				}
+
+				UWidgetBlueprint* DragDropWidgetBP = bIsViewModelProperty ? ViewModelFieldDragDropOp->WidgetBP.Get() : WidgetPropertyDragDropOp->WidgetBP.Get();
+
+				if (WidgetBlueprintPtr == DragDropWidgetBP)
+				{
+					TArray<FFieldVariant> FieldPath = bIsViewModelProperty ? ViewModelFieldDragDropOp->DraggedField : WidgetPropertyDragDropOp->DraggedPropertyPath;
+					FMVVMBlueprintPropertyPath PropertyPath;
+
+					PropertyPath.ResetBasePropertyPath();
+					for (const FFieldVariant& Field : FieldPath)
+					{
+						PropertyPath.AppendBasePropertyPath(FMVVMConstFieldVariant(Field));
+					}
+
+					UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+					if (bIsViewModelProperty)
+					{
+						if (ViewModelFieldDragDropOp->ViewModelId.IsValid())
+						{
+							PropertyPath.SetViewModelId(ViewModelFieldDragDropOp->ViewModelId);
+						}
+						else
+						{
+							return FReply::Unhandled();
+						}
+					}
+					else
+					{
+						if (UWidget* OwnerWidgetPtr = WidgetPropertyDragDropOp->OwnerWidget.Get())
+						{
+							PropertyPath.SetWidgetName(OwnerWidgetPtr->GetFName());
+						}
+					}
+
+					if (bSource)
+					{
+						Subsystem->SetSourceToDestinationConversionFunction(WidgetBlueprintPtr, *ViewBinding, nullptr);
+						Subsystem->SetSourcePathForBinding(WidgetBlueprintPtr, *ViewBinding, PropertyPath);
+					}
+					else
+					{
+						Subsystem->SetDestinationToSourceConversionFunction(WidgetBlueprintPtr, *ViewBinding, nullptr);
+						Subsystem->SetDestinationPathForBinding(WidgetBlueprintPtr, *ViewBinding, PropertyPath);
+					}
+					return FReply::Handled();
+				}
+			}
+		}		
+		return FReply::Unhandled();
+	}
+
+	void HandleFieldSelectorDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, bool bSource)
+	{
+		TSharedPtr<FDecoratedDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FDecoratedDragDropOp>();
+		if (DragDropOp.IsValid())
+		{
+			// Accept all drag-drop operations that are widget properties, but only accept view model fields when we are dropping into the Source box.
+			if (DragDropOp->IsOfType<FWidgetPropertyDragDropOp>() || (DragDropOp->IsOfType<FViewModelFieldDragDropOp>() && bSource))
+			{
+				if (UWidgetBlueprint* WidgetBlueprintPtr = WidgetBlueprintWeak.Get())
+				{
+					TSharedPtr<FViewModelFieldDragDropOp> ViewModelFieldDragDropOp = DragDropEvent.GetOperationAs<FViewModelFieldDragDropOp>();
+					TSharedPtr<FWidgetPropertyDragDropOp> WidgetPropertyDragDropOp = DragDropEvent.GetOperationAs<FWidgetPropertyDragDropOp>();
+					bool IsViewModelProperty = false;
+
+					if (ViewModelFieldDragDropOp)
+					{
+						IsViewModelProperty = true;
+					}
+
+					UWidgetBlueprint* DragDropWidgetBP = IsViewModelProperty ? ViewModelFieldDragDropOp->WidgetBP.Get() : WidgetPropertyDragDropOp->WidgetBP.Get();
+
+					if (DragDropWidgetBP && DragDropWidgetBP == WidgetBlueprintPtr)
+					{
+						DragDropOp->CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+						return;
+					}
+				}
+			}	
+			else
+			{
+				DragDropOp->CurrentIconBrush = FAppStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			}
+		}
 	}
 
 	ECheckBoxState IsExecutionModeOverrideChecked() const

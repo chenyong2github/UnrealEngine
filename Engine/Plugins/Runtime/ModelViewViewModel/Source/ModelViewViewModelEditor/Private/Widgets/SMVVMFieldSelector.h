@@ -22,6 +22,8 @@ class SFieldSelector : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_RetVal(FFieldSelectionContext, FOnGetSelectionContext);
+	DECLARE_DELEGATE_RetVal_TwoParams(FReply, FOnDrop, const FGeometry&, const FDragDropEvent&);
+	DECLARE_DELEGATE_TwoParams(FOnDragEnter, const FGeometry&, const FDragDropEvent&);
 
 	SLATE_BEGIN_ARGS(SFieldSelector)
 		: _TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
@@ -33,9 +35,15 @@ public:
 		SLATE_EVENT(FOnGetConversionFunction, OnGetConversionFunction)
 		SLATE_EVENT(FOnFieldSelectionChanged, OnFieldSelectionChanged)
 		SLATE_EVENT(FOnGetSelectionContext, OnGetSelectionContext)
+		SLATE_EVENT(FOnDrop, OnDrop)
+		SLATE_EVENT(FOnDragEnter, OnDragEnter)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint);
+	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
+
 
 private:
 	int32 GetCurrentDisplayIndex() const;
@@ -56,6 +64,8 @@ private:
 	FOnGetConversionFunction OnGetConversionFunction;
 	FOnGetSelectionContext OnGetSelectionContext;
 	FOnFieldSelectionChanged OnFieldSelectionChanged;
+	FOnDrop OnDropEvent;
+	FOnDragEnter OnDragEnterEvent;
 }; 
 
 } // namespace UE::MVVM

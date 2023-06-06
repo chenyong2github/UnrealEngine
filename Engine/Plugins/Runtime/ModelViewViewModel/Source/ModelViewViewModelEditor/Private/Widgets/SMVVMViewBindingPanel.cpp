@@ -224,7 +224,7 @@ void SBindingsPanel::AddDefaultBinding()
 						FMVVMBlueprintViewBinding& Binding = EditorSubsystem->AddBinding(MVVMExtensionPtr->GetWidgetBlueprint());
 						FMVVMBlueprintPropertyPath Path;
 						Path.SetWidgetName(WidgetReference.GetTemplate()->GetFName());
-						EditorSubsystem->SetWidgetPropertyForBinding(MVVMExtensionPtr->GetWidgetBlueprint(), Binding, Path);
+						EditorSubsystem->SetDestinationPathForBinding(MVVMExtensionPtr->GetWidgetBlueprint(), Binding, Path);
 						AddedBindingId = Binding.BindingId;
 
 						bBindingAdded = true;

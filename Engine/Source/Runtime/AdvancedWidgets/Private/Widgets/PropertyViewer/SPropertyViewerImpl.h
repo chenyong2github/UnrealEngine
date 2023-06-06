@@ -221,6 +221,7 @@ private:
 	SPropertyViewer::FOnContextMenuOpening OnContextMenuOpening;
 	SPropertyViewer::FOnSelectionChanged OnSelectionChanged;
 	SPropertyViewer::FOnDoubleClicked OnDoubleClicked;
+	SPropertyViewer::FOnDragDetected OnDragDetected;
 	SPropertyViewer::FOnGenerateContainer OnGenerateContainer;
 	SPropertyViewer::EPropertyVisibility PropertyVisibility;
 	bool bSanitizeName = false;
@@ -264,6 +265,7 @@ private:
 	TSharedPtr<SWidget> HandleContextMenuOpening();
 	void HandleSelectionChanged(TSharedPtr<FTreeNode> Item, ESelectInfo::Type SelectionType);
 	void HandleDoubleClick(TSharedPtr<FTreeNode> Item);
+	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, const TSharedPtr<FTreeNode> Item);
 
 	TSharedPtr<FTreeNode> FindExistingChild(const TSharedPtr<FTreeNode>& ContainerNode, TArrayView<const FFieldVariant> FieldPath) const;
 

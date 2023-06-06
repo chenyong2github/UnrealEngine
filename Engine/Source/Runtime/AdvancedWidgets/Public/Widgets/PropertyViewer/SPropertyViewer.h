@@ -71,6 +71,7 @@ public:
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<SWidget>, FOnContextMenuOpening, FHandle, TArrayView<const FFieldVariant>);
 	DECLARE_DELEGATE_ThreeParams(FOnSelectionChanged, FHandle, TArrayView<const FFieldVariant>, ESelectInfo::Type);
 	DECLARE_DELEGATE_TwoParams(FOnDoubleClicked, FHandle, TArrayView<const FFieldVariant>);
+	DECLARE_DELEGATE_RetVal_FourParams(FReply, FOnDragDetected, const FGeometry&, const FPointerEvent&, FHandle, TArrayView<const FFieldVariant>);
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedRef<SWidget>, FOnGenerateContainer, FHandle, TOptional<FText> DisplayName);
 
 	SLATE_BEGIN_ARGS(SPropertyViewer)
@@ -109,6 +110,8 @@ public:
 		SLATE_EVENT(FOnDoubleClicked, OnDoubleClicked);
 		/** Delegate to invoke when we generate the entry for an added container. */
 		SLATE_EVENT(FOnGenerateContainer, OnGenerateContainer)
+		/** Delegate to invoke when an item is dragged. */
+		SLATE_EVENT(FOnDragDetected, OnDragDetected);
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
