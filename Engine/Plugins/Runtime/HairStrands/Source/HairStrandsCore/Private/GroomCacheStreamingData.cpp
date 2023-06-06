@@ -124,7 +124,8 @@ void FGroomCacheStreamingData::PrefetchData(UGroomComponent *Component)
 		// Already requested an async load but not complete yet 
 		if (ChunksRequested.Contains(ChunkId))
 		{
-			ChunksRequested.Remove(ChunkId);
+			// Chunk will be removed from ChunksRequested once the read request is completed in ProcessCompletedChunks
+			// This prevents potentially requesting another read for this Chunk
 
 			// Let the in-flight read request complete with the initial AnimDataPtr to avoid threading issues
 			// The initial buffer will be orphaned but will be deleted once the completed read request is processed
@@ -144,6 +145,14 @@ void FGroomCacheStreamingData::PrefetchData(UGroomComponent *Component)
 void FGroomCacheStreamingData::UpdateStreamingStatus(bool bAsyncDeletionAllowed)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomCacheStreamingData::UpdateStreamingStatus);
+
+	// Allow updating the StreamingData only one per frame since PrefetchData can happen
+	// many times, like when the time jumps around with thumbnail generation in Sequencer.
+	// This will prevent adding and removing chunks unnecessarily.
+	if (LastUpdate == GFrameCounter)
+	{
+		return;
+	}
 
 	// Find any chunks that aren't available yet
 	for (int32 NeededIndex : ChunksNeeded)
@@ -296,6 +305,8 @@ void FGroomCacheStreamingData::UpdateStreamingStatus(bool bAsyncDeletionAllowed)
 			}
 		}
 	}
+
+	LastUpdate = GFrameCounter;
 }
 
 bool FGroomCacheStreamingData::BlockTillAllRequestsFinished(float TimeLimit)
@@ -353,16 +364,28 @@ void FGroomCacheStreamingData::ProcessCompletedChunks()
 		// in which case, we don't care about this chunk anymore 
 		if (Chunk->IORequest != nullptr)
 		{
-			if (CompletedChunk.bReadSuccessful)
+			// There could be more than one read requests in-flight for the same Chunk so make sure that the completed
+			// read request is still the one we're waiting for
+			if (Chunk->IORequest == CompletedChunk.ReadRequest)
 			{
-				ChunksAvailable.Add(CompletedChunk.LoadedChunkIndex);
+				if (CompletedChunk.bReadSuccessful)
+				{
+					ChunksAvailable.Add(CompletedChunk.LoadedChunkIndex);
+				}
+				else
+				{
+					UE_LOG(LogGroomCacheStreaming, Log, TEXT("Async loading request failed!"));
+				}
+
+				Chunk->IORequest = nullptr;
+				ChunksRequested.Remove(CompletedChunk.LoadedChunkIndex);
 			}
-			else
-			{
-				UE_LOG(LogGroomCacheStreaming, Log, TEXT("Async loading request failed!"));
-			}
+			// If the read request doesn't match, it means we're still waiting for IORequest to complete so it must remain in ChunksRequested
 		}
-		ChunksRequested.Remove(CompletedChunk.LoadedChunkIndex);
+		else
+		{
+			ChunksRequested.Remove(CompletedChunk.LoadedChunkIndex);
+		}
 
 		// The AnimData buffer can change while the read request was in-flight because the associated chunk was prefetched synchronously instead
 		// or it's been removed from resident chunks, so just delete the orphaned buffer
@@ -370,8 +393,6 @@ void FGroomCacheStreamingData::ProcessCompletedChunks()
 		{
 			delete CompletedChunk.AnimDataPtr;
 		}
-
-		Chunk->IORequest = nullptr;
 
 		// Process the read request deletion later as in can be quite time-consuming
 		DelayedDeleteReadRequests.Add(CompletedChunk.ReadRequest);

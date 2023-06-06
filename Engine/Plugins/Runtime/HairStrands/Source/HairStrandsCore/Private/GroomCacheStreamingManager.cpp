@@ -195,7 +195,28 @@ void FGroomCacheStreamingManager::RegisterGroomCache(UGroomCache* GroomCache, UG
 
 	if (!StreamingGroomCaches.Contains(GroomCache))
 	{
-		StreamingGroomCaches.Add(GroomCache, new FGroomCacheStreamingData(GroomCache));
+		// Try to recover a StreamingData previously marked for deletion.
+		// This helps performance by re-using data that is already loaded
+		// and helps maintain accurate ref counts of the Chunks since a
+		// delayed unmap could happen after an Unregister+RegisterGroomCache.
+		FGroomCacheStreamingData* StreamingData = nullptr;
+		for (FGroomCacheStreamingData* StreamingDataForDeletion : StreamingGroomCachesToDelete)
+		{
+			if (StreamingDataForDeletion->GetGroomCache() == GroomCache)
+			{
+				StreamingData = StreamingDataForDeletion;
+				StreamingGroomCachesToDelete.Remove(StreamingDataForDeletion);
+				break;
+			}
+		}
+
+		if (!StreamingData)
+		{
+			StreamingData = new FGroomCacheStreamingData(GroomCache);
+		}
+
+		StreamingGroomCaches.Add(GroomCache, StreamingData);
+
 		GroomCacheUsers.Add(GroomCache, {});
 	}
 

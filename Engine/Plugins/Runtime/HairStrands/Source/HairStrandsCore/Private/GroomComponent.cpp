@@ -1113,6 +1113,8 @@ public:
 private:
 	void ResetInternal()
 	{
+		FScopeLock Lock(GetCriticalSection());
+
 		// Unmap the frames that are currently mapped
 		if (CurrentFrameIndex != -1)
 		{

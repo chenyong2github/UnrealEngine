@@ -65,6 +65,8 @@ public:
 	/** Adds ChunkIndex to the list of chunks needed to be loaded */
 	void AddNeededChunk(uint32 ChunkIndex);
 
+	UGroomCache* GetGroomCache() const { return GroomCache; }
+
 private:
 
 	FResidentGroomCacheChunk& AddResidentChunk(int32 ChunkId, const struct FGroomCacheChunk& ChunkInfo);
@@ -94,6 +96,9 @@ private:
 
 	/** List of read requests to be deleted after completion */
 	TSet<IBulkDataIORequest*> DelayedDeleteReadRequests;
+
+	/** Timestamp of the last update */
+	uint64 LastUpdate = 0;
 
 	FCriticalSection CriticalSection;
 };
