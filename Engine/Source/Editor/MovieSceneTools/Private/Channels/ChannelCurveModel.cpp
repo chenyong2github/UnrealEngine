@@ -332,40 +332,6 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetNeighboringKeys(
 }
 
 template <class ChannelType, class ChannelValue, class KeyType>
-ERichCurveInterpMode FChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetInterpolationMode(const double& InTime, ERichCurveInterpMode DefaultInterpolationMode) const
-{
-	ChannelType* Channel = ChannelHandle.Get();
-	UMovieSceneSection* Section = WeakSection.Get();
-	if (Channel && Section)
-	{
-		FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
-
-		TMovieSceneChannelData<ChannelValue> ChannelData = Channel->GetData();
-		TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
-		TArrayView<const ChannelValue> Values = ChannelData.GetValues();
-
-		const FFrameNumber InFrame = (InTime * TickResolution).RoundToFrame();
-
-		if (Times.Num() > 0)
-		{
- 			int32 InterpolationIndex = Algo::LowerBound(Times, InFrame) - 1;
- 			if (InterpolationIndex < 0)
- 			{
- 				InterpolationIndex = 0;
- 			}
-			const FKeyHandle KeyHandle = ChannelData.GetHandle(InterpolationIndex);
-			TArrayView<const FKeyHandle> InKey(&KeyHandle, 1);
-			TArray<FKeyAttributes> KeyAttributes;
-			KeyAttributes.SetNum(1);
-			GetKeyAttributes(InKey, KeyAttributes);
-			return KeyAttributes[0].GetInterpMode();
-		}
-	}
-
-	return DefaultInterpolationMode;
-}
-
-template <class ChannelType, class ChannelValue, class KeyType>
 bool FChannelCurveModel<ChannelType, ChannelValue, KeyType>::Evaluate(double Time, double& OutValue) const
 {
 	ChannelType* Channel = ChannelHandle.Get();

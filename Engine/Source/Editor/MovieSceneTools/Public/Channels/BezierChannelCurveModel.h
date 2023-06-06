@@ -63,6 +63,7 @@ public:
 	virtual void GetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<FKeyAttributes> OutAttributes) const override;
 	virtual void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified) override;
 
+	virtual ERichCurveInterpMode GetInterpolationMode(const double& InTime, ERichCurveInterpMode DefaultInterpolationMode) const override;
 	virtual void GetCurveAttributes(FCurveAttributes& OutCurveAttributes) const override;
 	virtual void SetCurveAttributes(const FCurveAttributes& InCurveAttributes) override;
 	virtual void GetValueRange(double& MinValue, double& MaxValue) const override;
