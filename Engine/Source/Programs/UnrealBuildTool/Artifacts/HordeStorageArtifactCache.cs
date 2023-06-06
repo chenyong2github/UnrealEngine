@@ -16,50 +16,50 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace UnrealBuildTool.Artifacts
 {
 	/// <summary>
-	/// Horde specific artifact mapping structure that also contains the file nodes for the outputs
+	/// Horde specific artifact action structure that also contains the file nodes for the outputs
 	/// </summary>
-	readonly struct HordeArtifactMapping
+	readonly struct HordeArtifactAction
 	{
 
 		/// <summary>
-		/// Artifact mapping
+		/// Artifact action
 		/// </summary>
-		public readonly ArtifactMapping ArtifactMapping;
+		public readonly ArtifactAction ArtifactAction;
 
 		/// <summary>
 		/// Collection of output file references.  There should be exactly the same number
-		/// of file references as outputs in the mapping
+		/// of file references as outputs in the action
 		/// </summary>
 		public readonly NodeRef<ChunkedDataNode>[] OutputRefs;
 
 		/// <summary>
 		/// Construct a new horde artifact number
 		/// </summary>
-		/// <param name="artifactMapping">Artifact mapping</param>
+		/// <param name="artifactAction">Artifact action</param>
 		/// <exception cref="ArgumentException"></exception>
-		public HordeArtifactMapping(ArtifactMapping artifactMapping)
+		public HordeArtifactAction(ArtifactAction artifactAction)
 		{
-			ArtifactMapping = artifactMapping;
-			OutputRefs = new NodeRef<ChunkedDataNode>[ArtifactMapping.Outputs.Length];
+			ArtifactAction = artifactAction;
+			OutputRefs = new NodeRef<ChunkedDataNode>[ArtifactAction.Outputs.Length];
 		}
 
 		/// <summary>
-		/// Construct a new artifact mapping from the reader
+		/// Construct a new artifact action from the reader
 		/// </summary>
 		/// <param name="reader">Source reader</param>
-		public HordeArtifactMapping(NodeReader reader)
+		public HordeArtifactAction(NodeReader reader)
 		{
-			ArtifactMapping = reader.ReadArtifactMapping();
+			ArtifactAction = reader.ReadArtifactAction();
 			OutputRefs = reader.ReadVariableLengthArray(() => new NodeRef<ChunkedDataNode>(reader));
 		}
 
 		/// <summary>
-		/// Serialize the artifact mapping 
+		/// Serialize the artifact action 
 		/// </summary>
 		/// <param name="writer">Destination writer</param>
 		public void Serialize(ITreeNodeWriter writer)
 		{
-			writer.WriteArtifactMapping(ArtifactMapping);
+			writer.WriteArtifactAction(ArtifactAction);
 			writer.WriteVariableLengthArray(OutputRefs, x => x.Serialize(writer));
 		}
 
@@ -82,9 +82,9 @@ namespace UnrealBuildTool.Artifacts
 
 			ChunkedDataWriter fileWriter = new(writer, options);
 			int index = 0;
-			foreach (Artifact artifact in ArtifactMapping.Outputs)
+			foreach (ArtifactFile artifact in ArtifactAction.Outputs)
 			{
-				string outputName = artifact.GetFullPath();
+				string outputName = artifact.GetFullPath(ArtifactAction.DirectoryMapping);
 				using FileStream stream = new(outputName, FileMode.Open, FileAccess.Read, FileShare.Read);
 				OutputRefs[index++] = new NodeRef<ChunkedDataNode>(await fileWriter.CreateAsync(stream, nodeTypeOptions.TargetSize, cancellationToken));
 			}
@@ -98,66 +98,66 @@ namespace UnrealBuildTool.Artifacts
 	{
 
 		/// <summary>
-		/// Read a horde artifact mapping
+		/// Read a horde artifact action
 		/// </summary>
 		/// <param name="reader">Source reader</param>
-		/// <returns>Created artifact mapping</returns>
-		public static HordeArtifactMapping ReadHordeArtifactMapping(this NodeReader reader)
+		/// <returns>Created artifact action</returns>
+		public static HordeArtifactAction ReadHordeArtifactAction(this NodeReader reader)
 		{
-			return new HordeArtifactMapping(reader);
+			return new HordeArtifactAction(reader);
 		}
 
 		/// <summary>
-		/// Write a horde artifact mapping
+		/// Write a horde artifact action
 		/// </summary>
 		/// <param name="writer">Destination writer</param>
-		/// <param name="artifactMapping">Artifact mapping to write</param>
-		public static void WriteHordeArtifactMapping(this ITreeNodeWriter writer, HordeArtifactMapping artifactMapping)
+		/// <param name="artifactAction">Artifact action to write</param>
+		public static void WriteHordeArtifactAction(this ITreeNodeWriter writer, HordeArtifactAction artifactAction)
 		{
-			artifactMapping.Serialize(writer);
+			artifactAction.Serialize(writer);
 		}
 	}
 
 	/// <summary>
-	/// Horde node that represents a collection of mapping nodes 
+	/// Horde node that represents a collection of action nodes 
 	/// </summary>
 	[NodeType("{E8DBCD77-861D-4CAE-B77F-5807D26E2533}")]
-	class ArtifactMappingCollectionNode : Node
+	class ArtifactActionCollectionNode : Node
 	{
 
 		/// <summary>
-		/// Collection of mappings
+		/// Collection of actions
 		/// </summary>
-		public Dictionary<IoHash, HordeArtifactMapping> Mappings = new();
+		public Dictionary<IoHash, HordeArtifactAction> ArtifactActions = new();
 
 		/// <summary>
 		/// Construct a new collection
 		/// </summary>
-		public ArtifactMappingCollectionNode()
+		public ArtifactActionCollectionNode()
 		{
 		}
 
 		/// <summary>
-		/// Construct a new mapping collection from the source reader
+		/// Construct a new artifact action collection from the source reader
 		/// </summary>
 		/// <param name="reader">Source reader</param>
-		public ArtifactMappingCollectionNode(NodeReader reader)
+		public ArtifactActionCollectionNode(NodeReader reader)
 		{
-			Mappings = reader.ReadDictionary<IoHash, HordeArtifactMapping>(() => reader.ReadIoHash(), () => reader.ReadHordeArtifactMapping());
+			ArtifactActions = reader.ReadDictionary<IoHash, HordeArtifactAction>(() => reader.ReadIoHash(), () => reader.ReadHordeArtifactAction());
 		}
 
 		/// <inheritdoc/>
 		public override void Serialize(ITreeNodeWriter writer)
 		{
-			writer.WriteDictionary<IoHash, HordeArtifactMapping>(Mappings, (x) => writer.WriteIoHash(x), (x) => writer.WriteHordeArtifactMapping(x));
+			writer.WriteDictionary<IoHash, HordeArtifactAction>(ArtifactActions, (x) => writer.WriteIoHash(x), (x) => writer.WriteHordeArtifactAction(x));
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<NodeRef> EnumerateRefs()
 		{
-			foreach (HordeArtifactMapping artifactMapping in Mappings.Values)
+			foreach (HordeArtifactAction artifactAction in ArtifactActions.Values)
 			{
-				foreach (NodeRef outputRef in artifactMapping.OutputRefs)
+				foreach (NodeRef outputRef in artifactAction.OutputRefs)
 				{
 					yield return outputRef;
 				}
@@ -179,7 +179,7 @@ namespace UnrealBuildTool.Artifacts
 	public class HordeStorageArtifactCache : IArtifactCache
 	{
 		/// <summary>
-		/// Defines the theoretical max number of pending mappings to write
+		/// Defines the theoretical max number of pending actions to write
 		/// </summary>
 		const int MaxPendingSize = 128;
 
@@ -204,14 +204,14 @@ namespace UnrealBuildTool.Artifacts
 		private int _state = (int)ArtifactCacheState.Pending;
 
 		/// <summary>
-		/// Collection of mappings waiting to be written
+		/// Collection of actions waiting to be written
 		/// </summary>
-		private readonly List<ArtifactMapping> _pendingMappings;
+		private readonly List<ArtifactAction> _pendingWrites;
 
 		/// <summary>
 		/// Task for any pending flush
 		/// </summary>
-		private Task? _pendingFlushTask = null;
+		private Task? _pendingWritesFlushTask = null;
 
 		/// <summary>
 		/// Controls access to shared data structures
@@ -256,7 +256,7 @@ namespace UnrealBuildTool.Artifacts
 
 		static HordeStorageArtifactCache()
 		{
-			Node.RegisterType<ArtifactMappingCollectionNode>();
+			Node.RegisterType<ArtifactActionCollectionNode>();
 		}
 
 		/// <summary>
@@ -268,7 +268,7 @@ namespace UnrealBuildTool.Artifacts
 		{
 			_store = storage;
 			_logger = logger;
-			_pendingMappings = new(MaxPendingSize);
+			_pendingWrites = new(MaxPendingSize);
 		}
 
 		/// <inheritdoc/>
@@ -278,29 +278,29 @@ namespace UnrealBuildTool.Artifacts
 		}
 
 		/// <inheritdoc/>
-		public async Task<ArtifactMapping[]> QueryArtifactMappingsAsync(IoHash[] partialKeys, CancellationToken cancellationToken)
+		public async Task<ArtifactAction[]> QueryArtifactActionsAsync(IoHash[] partialKeys, CancellationToken cancellationToken)
 		{
 			if (State != ArtifactCacheState.Available || _store == null)
 			{
-				return Array.Empty<ArtifactMapping>();
+				return Array.Empty<ArtifactAction>();
 			}
 
-			List<ArtifactMapping> mappings = new();
+			List<ArtifactAction> artifactActions = new();
 			await _semaphore.WaitAsync(cancellationToken);
 			try
 			{
 				foreach (IoHash key in partialKeys)
 				{
-					lock (_pendingMappings)
+					lock (_pendingWrites)
 					{
-						mappings.AddRange(_pendingMappings.Where(x => x.Key == key));
+						artifactActions.AddRange(_pendingWrites.Where(x => x.Key == key));
 					}
-					ArtifactMappingCollectionNode? node = await _store.TryReadNodeAsync<ArtifactMappingCollectionNode>(GetRefName(key), default, cancellationToken);
+					ArtifactActionCollectionNode? node = await _store.TryReadNodeAsync<ArtifactActionCollectionNode>(GetRefName(key), default, cancellationToken);
 					if (node != null)
 					{
-						foreach (HordeArtifactMapping mapping in node.Mappings.Values)
+						foreach (HordeArtifactAction artifactAction in node.ArtifactActions.Values)
 						{
-							mappings.Add(mapping.ArtifactMapping);
+							artifactActions.Add(artifactAction.ArtifactAction);
 						}
 					}
 				}
@@ -309,33 +309,33 @@ namespace UnrealBuildTool.Artifacts
 			{
 				_semaphore.Release();
 			}
-			return mappings.ToArray();
+			return artifactActions.ToArray();
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool[]?> QueryArtifactOutputsAsync(ArtifactMapping[] mappings, CancellationToken cancellationToken)
+		public async Task<bool[]?> QueryArtifactOutputsAsync(ArtifactAction[] artifactActions, CancellationToken cancellationToken)
 		{
 			if (State != ArtifactCacheState.Available || _store == null)
 			{
 				return null;
 			}
 
-			bool[] output = new bool[mappings.Length];
+			bool[] output = new bool[artifactActions.Length];
 			Array.Fill(output, false);
 
-			for (int index = 0; index < mappings.Length; index++)
+			for (int index = 0; index < artifactActions.Length; index++)
 			{
 				output[index] = false;
-				ArtifactMapping mapping = mappings[index];
-				ArtifactMappingCollectionNode? node = await _store.TryReadNodeAsync<ArtifactMappingCollectionNode>(GetRefName(mapping.Key), default, cancellationToken);
+				ArtifactAction artifactAction = artifactActions[index];
+				ArtifactActionCollectionNode? node = await _store.TryReadNodeAsync<ArtifactActionCollectionNode>(GetRefName(artifactAction.Key), default, cancellationToken);
 				if (node != null)
 				{
-					if (node.Mappings.TryGetValue(mapping.MappingKey, out HordeArtifactMapping hordeArtifactMapping))
+					if (node.ArtifactActions.TryGetValue(artifactAction.ActionKey, out HordeArtifactAction hordeArtifactAction))
 					{
 						output[index] = true;
 
 						int refIndex = 0;
-						foreach (NodeRef<ChunkedDataNode> artifactRef in hordeArtifactMapping.OutputRefs)
+						foreach (NodeRef<ChunkedDataNode> artifactRef in hordeArtifactAction.OutputRefs)
 						{
 							if (artifactRef.Handle == null)
 							{
@@ -344,7 +344,7 @@ namespace UnrealBuildTool.Artifacts
 							}
 							try
 							{
-								string outputName = hordeArtifactMapping.ArtifactMapping.Outputs[refIndex++].GetFullPath(mapping.DirectoryMapping);
+								string outputName = hordeArtifactAction.ArtifactAction.Outputs[refIndex++].GetFullPath(artifactAction.DirectoryMapping);
 								using FileStream stream = new(outputName, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
 								await ChunkedDataNode.CopyToStreamAsync(artifactRef.Handle, stream, cancellationToken);
 							}
@@ -357,9 +357,9 @@ namespace UnrealBuildTool.Artifacts
 
 						if (!output[index])
 						{
-							foreach (Artifact artifact in hordeArtifactMapping.ArtifactMapping.Outputs)
+							foreach (ArtifactFile artifact in hordeArtifactAction.ArtifactAction.Outputs)
 							{
-								string outputName = artifact.GetFullPath(mapping.DirectoryMapping);
+								string outputName = artifact.GetFullPath(artifactAction.DirectoryMapping);
 								if (File.Exists(outputName))
 								{
 									try
@@ -379,16 +379,16 @@ namespace UnrealBuildTool.Artifacts
 		}
 
 		/// <inheritdoc/>
-		public async Task SaveArtifactMappingsAsync(ArtifactMapping[] artifactMappings, CancellationToken cancellationToken)
+		public async Task SaveArtifactActionsAsync(ArtifactAction[] artifactActions, CancellationToken cancellationToken)
 		{
 			if (State != ArtifactCacheState.Available || _store == null)
 			{
 				return;
 			}
 
-			lock (_pendingMappings)
+			lock (_pendingWrites)
 			{
-				_pendingMappings.AddRange(artifactMappings);
+				_pendingWrites.AddRange(artifactActions);
 			}
 
 			Task? task = FlushChangesInternalAsync(false, cancellationToken);
@@ -414,32 +414,32 @@ namespace UnrealBuildTool.Artifacts
 		}
 
 		/// <summary>
-		/// Optionally flush all pending mappings
+		/// Optionally flush all pending writes
 		/// </summary>
 		/// <param name="force">If true, force a flush</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		private Task? FlushChangesInternalAsync(bool force, CancellationToken cancellationToken)
 		{
 			Task? pendingFlushTask = null;
-			lock (_pendingMappings)
+			lock (_pendingWrites)
 			{
 
 				// If any prior flush task has completed, then forget it
-				if (_pendingFlushTask != null && _pendingFlushTask.IsCompleted)
+				if (_pendingWritesFlushTask != null && _pendingWritesFlushTask.IsCompleted)
 				{
-					_pendingFlushTask = null;
+					_pendingWritesFlushTask = null;
 				}
 
 				// We start a new flush under the following condition
 				//
-				// 1) Mappings must be pending
+				// 1) Actions must be pending
 				// 2) Create a new task if force is specified
 				// 3) -OR- Create a new task if there is no current task and we have reached the limit 
-				if (_pendingMappings.Count > 0 && (force || (_pendingMappings.Count >= MaxPendingSize && _pendingFlushTask == null)))
+				if (_pendingWrites.Count > 0 && (force || (_pendingWrites.Count >= MaxPendingSize && _pendingWritesFlushTask == null)))
 				{
-					ArtifactMapping[] mappingsToFlush = _pendingMappings.ToArray();
-					Task? priorTask = _pendingFlushTask;
-					_pendingMappings.Clear();
+					ArtifactAction[] artifactActionsToFlush = _pendingWrites.ToArray();
+					Task? priorTask = _pendingWritesFlushTask;
+					_pendingWrites.Clear();
 					async Task action()
 					{
 
@@ -449,11 +449,11 @@ namespace UnrealBuildTool.Artifacts
 							await priorTask;
 						}
 
-						// Block reading while we update the mappings
+						// Block reading while we update the actions
 						await _semaphore.WaitAsync(cancellationToken);
 						try
 						{
-							List<Task> tasks = CommitMappings(mappingsToFlush, cancellationToken);
+							List<Task> tasks = CommitArtifactActions(artifactActionsToFlush, cancellationToken);
 							await Task.WhenAll(tasks);
 						}
 						finally
@@ -461,7 +461,7 @@ namespace UnrealBuildTool.Artifacts
 							_semaphore.Release();
 						}
 					}
-					pendingFlushTask = _pendingFlushTask = new(() => action().Wait(), cancellationToken);
+					pendingFlushTask = _pendingWritesFlushTask = new(() => action().Wait(), cancellationToken);
 				}
 			}
 
@@ -471,40 +471,40 @@ namespace UnrealBuildTool.Artifacts
 		}
 
 		/// <summary>
-		/// Add a group of mappings to a new or existing source
+		/// Add a group of artifact actions to a new or existing source
 		/// </summary>
-		/// <param name="mappings">New mappings to add</param>
+		/// <param name="artifactActions">New artifact actions to add</param>
 		/// <param name="cancellationToken">Token to be used to cancel operations</param>
 		/// <returns>List of tasks</returns>
-		private List<Task> CommitMappings(ArtifactMapping[] mappings, CancellationToken cancellationToken)
+		private List<Task> CommitArtifactActions(ArtifactAction[] artifactActions, CancellationToken cancellationToken)
 		{
 			List<Task> tasks = new();
-			if (mappings.Length == 0)
+			if (artifactActions.Length == 0)
 			{
 				return tasks;
 			}
 
-			// Loop through the mappings
-			foreach (ArtifactMapping mapping in mappings)
+			// Loop through the artifact actions
+			foreach (ArtifactAction artifactAction in artifactActions)
 			{
 
 				// Create the task to write the files
 				tasks.Add(Task.Run(async () =>
 				{
-					RefName refName = GetRefName(mapping.Key);
+					RefName refName = GetRefName(artifactAction.Key);
 
 					// Locate the destination collection for this key
-					ArtifactMappingCollectionNode? node = _store!.TryReadNodeAsync<ArtifactMappingCollectionNode>(refName, default, cancellationToken).Result;
-					node ??= new ArtifactMappingCollectionNode();
+					ArtifactActionCollectionNode? node = _store!.TryReadNodeAsync<ArtifactActionCollectionNode>(refName, default, cancellationToken).Result;
+					node ??= new ArtifactActionCollectionNode();
 
-					// Update the mapping collection
-					HordeArtifactMapping hordeArtifactMapping = new(mapping);
-					node.Mappings[mapping.MappingKey] = hordeArtifactMapping;
+					// Update the artifact action collection
+					HordeArtifactAction hordeArtifactAction = new(artifactAction);
+					node.ArtifactActions[artifactAction.ActionKey] = hordeArtifactAction;
 					node.MarkAsDirty();
 
-					// Save the mapping file
+					// Save the artifact action file
 					using IStorageWriter writer = _store!.CreateWriter();
-					await hordeArtifactMapping.WriteFilesAsync(writer, cancellationToken);
+					await hordeArtifactAction.WriteFilesAsync(writer, cancellationToken);
 
 					// Save the collection
 					NodeHandle _ = await writer.WriteAsync(refName, node, null, cancellationToken);
@@ -549,9 +549,9 @@ namespace UnrealBuildTool.Artifacts
 		}
 
 		/// <summary>
-		/// Return the ref name for horde storage given a mapping collection key
+		/// Return the ref name for horde storage given a artitfact action collection key
 		/// </summary>
-		/// <param name="key">Mapping collection key</param>
+		/// <param name="key">Artifact action collection key</param>
 		/// <returns>The reference name</returns>
 		private static RefName GetRefName(IoHash key)
 		{

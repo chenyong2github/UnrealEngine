@@ -18,38 +18,38 @@ namespace UnrealBuildToolTests
 		static readonly Utf8String s_input2Data = new Utf8String("This is some more sample input");
 		static readonly Utf8String s_output1Data = new Utf8String("This is the sample output");
 
-		private static Artifact MakeInput1()
+		private static ArtifactFile MakeInput1()
 		{
-			return new Artifact(ArtifactDirectoryTree.Absolute, "Input1", IoHash.Compute(s_input1Data.Span));
+			return new ArtifactFile(ArtifactDirectoryTree.Absolute, "Input1", IoHash.Compute(s_input1Data.Span));
 		}
 
-		private static Artifact MakeInput2()
+		private static ArtifactFile MakeInput2()
 		{
-			return new Artifact(ArtifactDirectoryTree.Absolute, "Input2", IoHash.Compute(s_input2Data.Span));
+			return new ArtifactFile(ArtifactDirectoryTree.Absolute, "Input2", IoHash.Compute(s_input2Data.Span));
 		}
 
-		private static Artifact MakeOutput1()
+		private static ArtifactFile MakeOutput1()
 		{
-			return new Artifact(ArtifactDirectoryTree.Absolute, "Output1", IoHash.Compute(s_output1Data.Span));
+			return new ArtifactFile(ArtifactDirectoryTree.Absolute, "Output1", IoHash.Compute(s_output1Data.Span));
 		}
 
-		public static ArtifactMapping MakeBundle1()
+		public static ArtifactAction MakeBundle1()
 		{
-			return new ArtifactMapping(
+			return new ArtifactAction(
 				IoHash.Compute(new Utf8String("SampleKey")),
 				IoHash.Compute(new Utf8String("SampleBundleKey")),
-				new Artifact[] { MakeInput1(), MakeInput2() },
-				new Artifact[] { MakeOutput1() }
+				new ArtifactFile[] { MakeInput1(), MakeInput2() },
+				new ArtifactFile[] { MakeOutput1() }
 			);
 		}
 
-		public static ArtifactMapping MakeBundle2()
+		public static ArtifactAction MakeBundle2()
 		{
-			return new ArtifactMapping(
+			return new ArtifactAction(
 				IoHash.Compute(new Utf8String("SampleKey")),
 				IoHash.Compute(new Utf8String("SampleBundleKeyV2")),
-				new Artifact[] { MakeInput1(), MakeInput2() },
-				new Artifact[] { MakeOutput1() }
+				new ArtifactFile[] { MakeInput1(), MakeInput2() },
+				new ArtifactFile[] { MakeOutput1() }
 			);
 		}
 
@@ -63,16 +63,16 @@ namespace UnrealBuildToolTests
 			_ = cache.WaitForReadyAsync().Result;
 			Assert.AreEqual(ArtifactCacheState.Available, cache.State);
 
-			ArtifactMapping bundle1 = MakeBundle1();
-			cache.SaveArtifactMappingsAsync(new ArtifactMapping[] { bundle1 }, cancellationToken).Wait();
+			ArtifactAction bundle1 = MakeBundle1();
+			cache.SaveArtifactActionsAsync(new ArtifactAction[] { bundle1 }, cancellationToken).Wait();
 
-			ArtifactMapping[] readBack1 = cache.QueryArtifactMappingsAsync(new IoHash[] { bundle1.Key }, cancellationToken).Result;
+			ArtifactAction[] readBack1 = cache.QueryArtifactActionsAsync(new IoHash[] { bundle1.Key }, cancellationToken).Result;
 			Assert.AreEqual(1, readBack1.Length);
 
-			ArtifactMapping bundle2 = MakeBundle2();
-			cache.SaveArtifactMappingsAsync(new ArtifactMapping[] { bundle2 }, cancellationToken).Wait();
+			ArtifactAction bundle2 = MakeBundle2();
+			cache.SaveArtifactActionsAsync(new ArtifactAction[] { bundle2 }, cancellationToken).Wait();
 
-			ArtifactMapping[] readBack2 = cache.QueryArtifactMappingsAsync(new IoHash[] { bundle1.Key }, cancellationToken).Result;
+			ArtifactAction[] readBack2 = cache.QueryArtifactActionsAsync(new IoHash[] { bundle1.Key }, cancellationToken).Result;
 			Assert.AreEqual(2, readBack2.Length);
 
 			cache.FlushChangesAsync(cancellationToken).Wait();

@@ -33,24 +33,13 @@ namespace UnrealBuildTool.Artifacts
 	}
 
 	/// <summary>
-	/// Represents a single artifact
+	/// Represents a single artifact file
 	/// </summary>
 	/// <param name="Tree">Directory tree containing the artifact</param>
 	/// <param name="Name">Name of the artifact</param>
 	/// <param name="ContentHash">Hash of the artifact contents</param>
-	public record struct Artifact(ArtifactDirectoryTree Tree, Utf8String Name, IoHash ContentHash)
+	public record struct ArtifactFile(ArtifactDirectoryTree Tree, Utf8String Name, IoHash ContentHash)
 	{
-		/// <summary>
-		/// Directory mapping object
-		/// </summary>
-		public IArtifactDirectoryMapping? DirectoryMapping { get; set; } = null;
-
-		/// <summary>
-		/// The full path of the artifact
-		/// </summary>
-		/// <returns>Full path of the artifact</returns>
-		public string GetFullPath() => GetFullPath(DirectoryMapping);
-
 		/// <summary>
 		/// The full path of the artifact
 		/// </summary>
@@ -72,13 +61,13 @@ namespace UnrealBuildTool.Artifacts
 	}
 
 	/// <summary>
-	/// Given a set of inputs, provide a list of outputs
+	/// Collection of inputs and outputs for an action
 	/// </summary>
 	/// <param name="Key">The hash of the primary input and the environment</param>
-	/// <param name="MappingKey">The unique hash for all inputs and the environment</param>
+	/// <param name="ActionKey">The unique hash for all inputs and the environment</param>
 	/// <param name="Inputs">Information about all inputs</param>
 	/// <param name="Outputs">Information about all outputs</param>
-	public record struct ArtifactMapping(IoHash Key, IoHash MappingKey, Artifact[] Inputs, Artifact[] Outputs)
+	public record struct ArtifactAction(IoHash Key, IoHash ActionKey, ArtifactFile[] Inputs, ArtifactFile[] Outputs)
 	{
 		/// <summary>
 		/// Directory mapping object
@@ -88,7 +77,7 @@ namespace UnrealBuildTool.Artifacts
 		/// <inheritdoc/>
 		public override int GetHashCode()
 		{
-			return HashCode.Combine(Key.GetHashCode(), MappingKey.GetHashCode(), Inputs.GetHashCode(), Outputs.GetHashCode());
+			return HashCode.Combine(Key.GetHashCode(), ActionKey.GetHashCode(), Inputs.GetHashCode(), Outputs.GetHashCode());
 		}
 	}
 
@@ -103,12 +92,12 @@ namespace UnrealBuildTool.Artifacts
 		/// </summary>
 		/// <param name="reader">Source reader</param>
 		/// <returns>Read artifact structure</returns>
-		public static Artifact ReadArtifact(this IMemoryReader reader)
+		public static ArtifactFile ReadArtifact(this IMemoryReader reader)
 		{
 			ArtifactDirectoryTree tree = (ArtifactDirectoryTree)reader.ReadUInt8();
 			Utf8String name = reader.ReadUtf8String();
 			IoHash contentHash = reader.ReadIoHash();
-			return new Artifact(tree, name, contentHash);
+			return new ArtifactFile(tree, name, contentHash);
 		}
 
 		/// <summary>
@@ -116,7 +105,7 @@ namespace UnrealBuildTool.Artifacts
 		/// </summary>
 		/// <param name="writer">Destination writer</param>
 		/// <param name="artifact">Artifact to be written</param>
-		public static void WriteArtifact(this IMemoryWriter writer, Artifact artifact)
+		public static void WriteArtifact(this IMemoryWriter writer, ArtifactFile artifact)
 		{
 			writer.WriteUInt8((byte)artifact.Tree);
 			writer.WriteUtf8String(artifact.Name);
@@ -124,30 +113,30 @@ namespace UnrealBuildTool.Artifacts
 		}
 
 		/// <summary>
-		/// Read an artifact mapping structure
+		/// Read an artifact action structure
 		/// </summary>
 		/// <param name="reader">Source reader</param>
-		/// <returns>Read artifact mapping structure</returns>
-		public static ArtifactMapping ReadArtifactMapping(this IMemoryReader reader)
+		/// <returns>Read artifact action structure</returns>
+		public static ArtifactAction ReadArtifactAction(this IMemoryReader reader)
 		{
 			IoHash key = reader.ReadIoHash();
-			IoHash mappingKey = reader.ReadIoHash();
-			Artifact[] inputs = reader.ReadVariableLengthArray(() => reader.ReadArtifact());
-			Artifact[] outputs = reader.ReadVariableLengthArray(() => reader.ReadArtifact());
-			return new ArtifactMapping(key, mappingKey, inputs, outputs);
+			IoHash actionKey = reader.ReadIoHash();
+			ArtifactFile[] inputs = reader.ReadVariableLengthArray(() => reader.ReadArtifact());
+			ArtifactFile[] outputs = reader.ReadVariableLengthArray(() => reader.ReadArtifact());
+			return new ArtifactAction(key, actionKey, inputs, outputs);
 		}
 
 		/// <summary>
-		/// Write an artifact mapping structure
+		/// Write an artifact action structure
 		/// </summary>
 		/// <param name="writer">Destination writer</param>
-		/// <param name="artifactMapping">Artifact mapping to be written</param>
-		public static void WriteArtifactMapping(this IMemoryWriter writer, ArtifactMapping artifactMapping)
+		/// <param name="artifactAction">Artifact action to be written</param>
+		public static void WriteArtifactAction(this IMemoryWriter writer, ArtifactAction artifactAction)
 		{
-			writer.WriteIoHash(artifactMapping.Key);
-			writer.WriteIoHash(artifactMapping.MappingKey);
-			writer.WriteVariableLengthArray(artifactMapping.Inputs, x => writer.WriteArtifact(x));
-			writer.WriteVariableLengthArray(artifactMapping.Outputs, x => writer.WriteArtifact(x));
+			writer.WriteIoHash(artifactAction.Key);
+			writer.WriteIoHash(artifactAction.ActionKey);
+			writer.WriteVariableLengthArray(artifactAction.Inputs, x => writer.WriteArtifact(x));
+			writer.WriteVariableLengthArray(artifactAction.Outputs, x => writer.WriteArtifact(x));
 		}
 	}
 
@@ -208,28 +197,28 @@ namespace UnrealBuildTool.Artifacts
 		public Task<ArtifactCacheState> WaitForReadyAsync();
 
 		/// <summary>
-		/// Given a collection of partial keys return all matching mappings
+		/// Given a collection of partial keys return all matching artifacts
 		/// </summary>
 		/// <param name="partialKeys">Source file key</param>
 		/// <param name="cancellationToken">Token to be used to cancel operations</param>
 		/// <returns>Collection of all known artifacts</returns>
-		public Task<ArtifactMapping[]> QueryArtifactMappingsAsync(IoHash[] partialKeys, CancellationToken cancellationToken);
+		public Task<ArtifactAction[]> QueryArtifactActionsAsync(IoHash[] partialKeys, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Query the actual contents of a group of artifacts
 		/// </summary>
-		/// <param name="artifactMappings">Mappings to be read</param>
+		/// <param name="artifactActions">Actions to be read</param>
 		/// <param name="cancellationToken">Token to be used to cancel operations</param>
 		/// <returns>Dictionary of the artifacts</returns>
-		public Task<bool[]?> QueryArtifactOutputsAsync(ArtifactMapping[] artifactMappings, CancellationToken cancellationToken);
+		public Task<bool[]?> QueryArtifactOutputsAsync(ArtifactAction[] artifactActions, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Save new artifact to the cache
 		/// </summary>
-		/// <param name="artifactMappings">Collection of artifacts to be saved</param>
+		/// <param name="artifactActions">Collection of artifacts to be saved</param>
 		/// <param name="cancellationToken">Token to be used to cancel operations</param>
 		/// <returns>Asynchronous task objects</returns>
-		public Task SaveArtifactMappingsAsync(ArtifactMapping[] artifactMappings, CancellationToken cancellationToken);
+		public Task SaveArtifactActionsAsync(ArtifactAction[] artifactActions, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Flush all updates in the cache asynchronously.
