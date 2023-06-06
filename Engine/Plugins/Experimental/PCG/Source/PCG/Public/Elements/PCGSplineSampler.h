@@ -85,6 +85,13 @@ struct PCG_API FPCGSplineSamplerParams
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "bComputeCurvature"))
 	FName CurvatureAttribute = "Curvature";
 
+	/** If no Bounding Shape input is provided, the actor bounds are used to limit the sample generation domain.
+	* This option allows ignoring the actor bounds and generating over the entire spline. Use with caution as this
+	* may generate a lot of points.
+	*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	bool bUnbounded = false; 
+	
 	/** The space between each sample point */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ClampMin = "0.1", EditCondition = "Dimension==EPCGSplineSamplingDimension::OnInterior"))
 	float InteriorSampleSpacing = 100.0f;
@@ -156,6 +163,7 @@ public:
 #endif
 
 #if WITH_EDITOR
+	virtual void ApplyDeprecation(UPCGNode* InOutNode) override;
 	virtual void ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins) override;
 #endif
 

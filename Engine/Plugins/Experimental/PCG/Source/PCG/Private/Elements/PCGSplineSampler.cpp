@@ -2,6 +2,7 @@
 
 #include "Elements/PCGSplineSampler.h"
 
+#include "PCGComponent.h"
 #include "PCGContext.h"
 #include "PCGCustomVersion.h"
 #include "Data/PCGIntersectionData.h"
@@ -545,8 +546,9 @@ namespace PCGSplineSampler
 				OutPoint.Transform = Transform;
 			}
 
+			// Only add valid points within bounds
 			FPCGPoint BoundsTestPoint;
-			if (bValid && (!BoundingShapeData || BoundingShapeData->SamplePoint(Transform, InResult.Box, BoundsTestPoint, nullptr)))
+			if (bValid && (BoundingShapeData || BoundingShapeData->SamplePoint(Transform, InResult.Box, BoundsTestPoint, nullptr)))
 			{
 				SetSeed(OutPoint, InResult.LocalTransform.GetLocation(), Params);
 				SetMetadata(InResult, OutPoint, OutPointData->Metadata);
@@ -645,7 +647,7 @@ namespace PCGSplineSampler
 						OutPoint.Transform = ProjPoint.Transform;
 					}
 
-					// Test point against bounds.
+					// Prune points outside of bounds
 					FPCGPoint BoundsTestPoint;
 					if (BoundingShapeData && !BoundingShapeData->SamplePoint(OutPoint.Transform, OutPoint.GetLocalBounds(), BoundsTestPoint, nullptr))
 					{
@@ -1076,6 +1078,13 @@ namespace PCGSplineSampler
 							TransformWS.SetLocation(ProjectedPoint.Transform.GetLocation());
 						}
 
+						// Prune points outside of bounds
+						FPCGPoint BoundsTestPoint;
+						if (InBoundingShape && !InBoundingShape->SamplePoint(TransformWS, SplineLocalBounds.GetBox(), BoundsTestPoint, nullptr))
+						{
+							continue;
+						}
+						
 						InteriorSplinePointData[DispatchIndex].Emplace(TransformWS, PointLocationLS, Density);
 					}
 				}
@@ -1176,16 +1185,28 @@ bool FPCGSplineSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	TArray<FPCGTaggedData> SplineInputs = Context->InputData.GetInputsByPin(PCGSplineSamplerConstants::SplineLabel);
 	TArray<FPCGTaggedData> BoundingShapeInputs = Context->InputData.GetInputsByPin(PCGSplineSamplerConstants::BoundingShapeLabel);
 
-	// Grab the Bounding Shape input if there is one.
-	// TODO: Once we support time-slicing, put this in the context and root (see FPCGSurfaceSamplerContext)
-	bool bUnionCreated = false;
-	const UPCGSpatialData* BoundingShape = Context->InputData.GetSpatialUnionOfInputsByPin(PCGSplineSamplerConstants::BoundingShapeLabel, bUnionCreated);
-	if (!BoundingShape && BoundingShapeInputs.Num() > 0)
-	{
-		PCGE_LOG(Warning, GraphAndLog, LOCTEXT("BoundingShapeMissing", "Bounding Shape input is missing or of unsupported type and will not be used"));
-	}
-
 	const FPCGSplineSamplerParams& SamplerParams = Settings->SamplerParams;
+
+	const UPCGSpatialData* BoundingShape = nullptr;
+
+	// If unbounded, specific samplers will not be constrained by a nullptr BoundingShape
+	if(!SamplerParams.bUnbounded)
+	{
+		// TODO: Once we support time-slicing, put this in the context and root (see FPCGSurfaceSamplerContext)
+		bool bUnionCreated = false;
+		// Grab the Bounding Shape input if there is one.
+		BoundingShape = Context->InputData.GetSpatialUnionOfInputsByPin(PCGSplineSamplerConstants::BoundingShapeLabel, bUnionCreated);
+
+		// Fallback to getting bounds from actor
+		if (!BoundingShape && Context->SourceComponent.IsValid())
+		{
+			BoundingShape = Cast<UPCGSpatialData>(Context->SourceComponent->GetActorPCGData());
+		}
+	}
+	else if (BoundingShapeInputs.Num() > 0)
+	{
+		PCGE_LOG(Verbose, LogOnly, LOCTEXT("BoundsIgnored", "The bounds of the Bounding Shape input pin will be ignored because the Unbounded option is enabled."));
+	}
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
@@ -1233,6 +1254,19 @@ bool FPCGSplineSamplerElement::ExecuteInternal(FPCGContext* Context) const
 }
 
 #if WITH_EDITOR
+void UPCGSplineSamplerSettings::ApplyDeprecation(UPCGNode* InOutNode)
+{
+	check(InOutNode);
+	
+	if (DataVersion < FPCGCustomVersion::SplineSamplerBoundedByDefault)
+	{
+		UE_LOG(LogPCG, Log, TEXT("Spline Sampler node migrated from an older version. Defaulting to 'Unbounded' to match previous behavior."));
+		SamplerParams.bUnbounded = true;
+	}
+	
+	Super::ApplyDeprecation(InOutNode);
+}
+
 void UPCGSplineSamplerSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
 {
 	if (DataVersion < FPCGCustomVersion::SplineSamplerUpdatedNodeInputs && ensure(InOutNode))

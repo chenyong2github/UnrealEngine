@@ -57,7 +57,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0", PCG_Overridable))
 	float Looseness = 1.0f;
 
-	/** If no Bounding Shape input is provided the actor bounds are used to limit the sample generation area.
+	/** If no Bounding Shape input is provided, the actor bounds are used to limit the sample generation domain.
 	* This option allows ignoring the actor bounds and generating over the entire surface. Use with caution as this
 	* may generate a lot of points.
 	*/

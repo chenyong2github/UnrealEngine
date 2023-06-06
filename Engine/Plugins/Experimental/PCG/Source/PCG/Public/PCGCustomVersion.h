@@ -38,6 +38,9 @@ struct PCG_API FPCGCustomVersion
 		// Renamed params to override.
 		RenameDefaultParamsToOverride = 9,
 
+		// Behavior change for SplineSampler which now defaults to being bounded
+		SplineSamplerBoundedByDefault = 10,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
