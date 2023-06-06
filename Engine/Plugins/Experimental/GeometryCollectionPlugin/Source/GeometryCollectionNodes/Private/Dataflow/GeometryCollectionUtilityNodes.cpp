@@ -202,13 +202,15 @@ FGenerateClusterConvexHullsFromLeafHullsDataflowNode::FGenerateClusterConvexHull
 	RegisterInputConnection(&MinRadius);
 
 	RegisterOutputConnection(&Collection);
+	RegisterOutputConnection(&SphereCovering);
 }
 
 void FGenerateClusterConvexHullsFromLeafHullsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FManagedArrayCollection>(&Collection) && IsConnected(&Collection))
+	if (Out->IsA(&Collection) || Out->IsA(&SphereCovering))
 	{
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		FDataflowSphereCovering Spheres;
 
 		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
@@ -254,8 +256,17 @@ void FGenerateClusterConvexHullsFromLeafHullsDataflowNode::Evaluate(Dataflow::FC
 				);
 			}
 
-			SetValue<FManagedArrayCollection>(Context, static_cast<const FManagedArrayCollection>(*GeomCollection), &Collection);
+			SetValue(Context, static_cast<const FManagedArrayCollection>(*GeomCollection), &Collection);
+			// Move the negative space to the output container at the end to be sure it is no longer needed
+			Spheres.Spheres = MoveTemp(NegativeSpace);
 		}
+		else
+		{
+			UE_LOG(LogChaos, Error, TEXT("Error: Input collection could not be converted to a valid Geometry Collection"));
+			SetValue(Context, InCollection, &Collection);
+		}
+
+		SetValue(Context, MoveTemp(Spheres), &SphereCovering);
 	}
 }
 
@@ -273,13 +284,15 @@ FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::FGenerateClusterConvex
 	RegisterInputConnection(&MinRadius);
 
 	RegisterOutputConnection(&Collection);
+	RegisterOutputConnection(&SphereCovering);
 }
 
 void FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<FManagedArrayCollection>(&Collection) && IsConnected(&Collection))
+	if (Out->IsA(&Collection) || Out->IsA(&SphereCovering))
 	{
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		FDataflowSphereCovering Spheres;
 
 		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
@@ -326,7 +339,16 @@ void FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::Evaluate(Dataflow
 			}
 
 			SetValue<FManagedArrayCollection>(Context, static_cast<const FManagedArrayCollection>(*GeomCollection), &Collection);
+			// Move the negative space to the output container at the end to be sure it is no longer needed
+			Spheres.Spheres = MoveTemp(NegativeSpace);
 		}
+		else
+		{
+			UE_LOG(LogChaos, Error, TEXT("Error: Input collection could not be converted to a valid Geometry Collection"));
+			SetValue(Context, InCollection, &Collection);
+		}
+		
+		SetValue(Context, MoveTemp(Spheres), &SphereCovering);
 	}
 }
 

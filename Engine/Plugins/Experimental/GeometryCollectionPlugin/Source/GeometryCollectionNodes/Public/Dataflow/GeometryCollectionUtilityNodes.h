@@ -7,6 +7,7 @@
 #include "Dataflow/DataflowSelection.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
+#include "CompGeom/ConvexDecomposition3.h"
 
 #include "GeometryCollectionUtilityNodes.generated.h"
 
@@ -210,6 +211,17 @@ public:
 
 };
 
+//~ Simple wrapper class to make the sphere covering data possible to pass via dataflow
+// A set of spheres generated to represent empty space when creating a minimal set of convex hulls, e.g. in one of the Generate Cluster Convex Hulls nodes
+USTRUCT()
+struct FDataflowSphereCovering
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	UE::Geometry::FSphereCovering Spheres;
+};
+
 /**
  *
  * Generates cluster convex hulls for leafs hulls
@@ -224,6 +236,10 @@ struct FGenerateClusterConvexHullsFromLeafHullsDataflowNode : public FDataflowNo
 public:
 	UPROPERTY(meta = (DataflowInput, DataflowOutput))
 	FManagedArrayCollection Collection;
+
+	// A representation of the negative space protected by the 'protect negative space' option. If negative space is not protected, this will contain zero spheres.
+	UPROPERTY(meta = (DataflowOutput))
+	FDataflowSphereCovering SphereCovering;
 
 	/** Maximum number of convex to generate for a specific cluster. Will be ignored if error tolerance is used instead */
 	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, EditCondition = "ErrorTolerance == 0"))
@@ -289,6 +305,10 @@ struct FGenerateClusterConvexHullsFromChildrenHullsDataflowNode : public FDatafl
 public:
 	UPROPERTY(meta = (DataflowInput, DataflowOutput))
 	FManagedArrayCollection Collection;
+	
+	// A representation of the negative space protected by the 'protect negative space' option. If negative space is not protected, this will contain zero spheres.
+	UPROPERTY(meta = (DataflowOutput))
+	FDataflowSphereCovering SphereCovering;
 
 	/** Maximum number of convex to generate for a specific cluster. Will be ignored if error tolerance is used instead */
 	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, EditCondition = "ErrorTolerance == 0"))

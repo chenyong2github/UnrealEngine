@@ -4,6 +4,7 @@
 
 #include "Containers/ArrayView.h"
 #include "CompGeom/ConvexDecomposition3.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 namespace Chaos { class FConvex; }
 struct FManagedArrayCollection;
@@ -21,6 +22,12 @@ namespace UE::FractureEngine::Convex
 
 		bool bUseExistingVertexPositions = true;
 	};
+
+	/**
+	 * Get the convex hulls on the given Collection as a Dynamic Mesh. Optionally only include the hulls on the transforms in TransformSelection.
+	 * @return true if the collection has convex hulls, the bone selection (if present) was valid, and all requested convex hulls were included in the mesh
+	 */
+	bool FRACTUREENGINE_API GetConvexHullsAsDynamicMesh(const FManagedArrayCollection& Collection, UE::Geometry::FDynamicMesh3& UpdateMesh, bool bRestrictToSelection = false, const TArrayView<const int32> TransformSelection = TArrayView<const int32>());
 
 	/**
 	 * Simplify the convex hulls on the given Collection. Optionally only simplify the hulls on the transforms in TransformSelection.

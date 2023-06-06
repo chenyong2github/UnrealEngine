@@ -16,7 +16,7 @@ namespace
 {
 	// Local helpers for converting convex hulls to dynamic meshes, used to run geometry processing tasks on convex hulls (e.g., simplification, computing negative space)
 
-	static void AppendConvexHullToCompactDynamicMesh(const ::Chaos::FConvex* InConvexHull, UE::Geometry::FDynamicMesh3& Mesh, FTransform* OptionalTransform = nullptr)
+	static void AppendConvexHullToCompactDynamicMesh(const ::Chaos::FConvex* InConvexHull, UE::Geometry::FDynamicMesh3& Mesh, FTransform* OptionalTransform = nullptr, bool bFixNonmanifoldWithDuplicates = false, bool bInvertFaces = false)
 	{
 		check(Mesh.IsCompact());
 
@@ -40,9 +40,24 @@ namespace
 			const int32 V0 = StartV + ConvexStructure.GetPlaneVertex(PIdx, 0);
 			for (int32 SubIdx = 1; SubIdx + 1 < NumFaceV; ++SubIdx)
 			{
-				const int32 V1 = StartV + ConvexStructure.GetPlaneVertex(PIdx, SubIdx);
-				const int32 V2 = StartV + ConvexStructure.GetPlaneVertex(PIdx, SubIdx + 1);
-				Mesh.AppendTriangle(UE::Geometry::FIndex3i(V0, V1, V2));
+				int32 V1 = StartV + ConvexStructure.GetPlaneVertex(PIdx, SubIdx);
+				int32 V2 = StartV + ConvexStructure.GetPlaneVertex(PIdx, SubIdx + 1);
+				if (bInvertFaces)
+				{
+					Swap(V1, V2);
+				}
+				int32 ResultTID = Mesh.AppendTriangle(UE::Geometry::FIndex3i(V0, V1, V2));
+				if (bFixNonmanifoldWithDuplicates && ResultTID == UE::Geometry::FDynamicMesh3::NonManifoldID)
+				{
+					// failed to append due to a non-manifold triangle; try adding all the vertices independently so we at least capture the shape
+					// note: this should not happen for normal convex hulls, but the current convex hull algorithm does some aggressive face merging that sometimes creates weird geometry
+					UE::Geometry::FIndex3i DuplicateVerts(
+						Mesh.AppendVertex(Mesh.GetVertex(V0)),
+						Mesh.AppendVertex(Mesh.GetVertex(V1)),
+						Mesh.AppendVertex(Mesh.GetVertex(V2))
+					);
+					Mesh.AppendTriangle(DuplicateVerts);
+				}
 			}
 		}
 	}
@@ -57,6 +72,60 @@ namespace
 
 namespace UE::FractureEngine::Convex
 {
+	bool GetConvexHullsAsDynamicMesh(const FManagedArrayCollection& Collection, UE::Geometry::FDynamicMesh3& OutMesh, bool bRestrictToSelection, const TArrayView<const int32> TransformSelection)
+	{
+		OutMesh.Clear();
+
+		if (!FGeometryCollectionConvexUtility::HasConvexHullData(&Collection))
+		{
+			// nothing to append
+			return false;
+		}
+
+		const TManagedArray<TSet<int32>>& TransformToConvexInds = Collection.GetAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
+		const TManagedArray<TUniquePtr<::Chaos::FConvex>>& ConvexHulls = Collection.GetAttribute<TUniquePtr<::Chaos::FConvex>>("ConvexHull", "Convex");
+
+		GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(Collection);
+		TArray<FTransform> GlobalTransformArray = TransformFacade.ComputeCollectionSpaceTransforms();
+
+		auto AppendBone = [&TransformToConvexInds, &ConvexHulls, &GlobalTransformArray, &OutMesh](int32 BoneIdx) -> bool
+		{
+			if (BoneIdx < 0 || BoneIdx >= TransformToConvexInds.Num())
+			{
+				// invalid bone index
+				return false;
+			}
+			for (int32 ConvexIdx : TransformToConvexInds[BoneIdx])
+			{
+				constexpr bool bConvertNonManifold = true; // Add non-manifold faces so they are still included in the debug visualization
+				constexpr bool bInvertFaces = true; // FConvex mesh data appears to have opposite default winding from what we expect for triangle meshes
+				AppendConvexHullToCompactDynamicMesh(ConvexHulls[ConvexIdx].Get(), OutMesh, &GlobalTransformArray[BoneIdx], bConvertNonManifold, bInvertFaces);
+			}
+			return true;
+		};
+
+		bool bNoFailures = true;
+
+		if (bRestrictToSelection)
+		{
+			for (int32 BoneIdx : TransformSelection)
+			{
+				bool bSuccess = AppendBone(BoneIdx);
+				bNoFailures = bNoFailures && bSuccess;
+			}
+		}
+		else
+		{
+			for (int32 BoneIdx = 0; BoneIdx < Collection.NumElements(FGeometryCollection::TransformGroup); ++BoneIdx)
+			{
+				bool bSuccess = AppendBone(BoneIdx);
+				bNoFailures = bNoFailures && bSuccess;
+			}
+		}
+
+		return bNoFailures;
+	}
+
 	bool SimplifyConvexHulls(FManagedArrayCollection& Collection, const FSimplifyHullSettings& Settings, bool bRestrictToSelection, const TArrayView<const int32> TransformSelection)
 	{
 		if (!FGeometryCollectionConvexUtility::HasConvexHullData(&Collection))
@@ -215,7 +284,8 @@ namespace UE::FractureEngine::Convex
 			bool bNoFailures = true;
 			for (int32 ConvexIdx : TransformToConvexInds[BoneIdx])
 			{
-				AppendConvexHullToCompactDynamicMesh(ConvexHulls[ConvexIdx].Get(), CombinedMesh, &GlobalTransformArray[BoneIdx]);
+				constexpr bool bConvertNonManifold = true; // Add non-manifold faces so we don't have holes messing up the sphere covering
+				AppendConvexHullToCompactDynamicMesh(ConvexHulls[ConvexIdx].Get(), CombinedMesh, &GlobalTransformArray[BoneIdx], bConvertNonManifold);
 			}
 			return bNoFailures;
 		};
