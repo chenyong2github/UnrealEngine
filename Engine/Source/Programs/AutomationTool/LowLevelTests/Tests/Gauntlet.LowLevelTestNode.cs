@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using AutomationTool;
+using EpicGames.Core;
 using Gauntlet;
 using System;
 using System.IO;
 using System.Linq;
 using UnrealBuildBase;
 using UnrealBuildTool;
+
+using Log = Gauntlet.Log;
 
 namespace LowLevelTests
 {
@@ -66,6 +69,14 @@ namespace LowLevelTests
 		public override void SetTestResult(TestResult testResult)
 		{
 			LowLevelTestResult = testResult;
+		}
+
+		public override void AddTestEvent(UnrealTestEvent InEvent)
+		{
+			if (InEvent.Summary.Equals("Insufficient devices found"))
+			{
+				Log.Error(KnownLogEvents.Gauntlet_TestEvent, "Test didn't run due to insufficient devices.");
+			}
 		}
 
 		public override bool StartTest(int Pass, int NumPasses)
