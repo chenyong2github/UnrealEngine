@@ -589,8 +589,8 @@ namespace EpicGames.Horde.Storage.Nodes
 			{
 				if (sortedFile.Length >= remainingSizeForPartition && partitions.Count < numWriters)
 				{
-					partitions.Add(new List<FileContent>());
 					remainingSizeForPartition = (totalSize - writtenSize) / (numWriters - partitions.Count);
+					partitions.Add(new List<FileContent>());
 				}
 
 				partitions[^1].Add(sortedFile);
