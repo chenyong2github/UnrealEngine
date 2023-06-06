@@ -629,8 +629,8 @@ namespace UnrealBuildTool
 				AddIncludePaths(IncludePaths, LegacyPublicIncludePaths);
 			}
 
-			// Add this module's internal include paths, only if the scope contains the same as the SourceModule's scope
-			if (SourceModule != null && Rules.Context.Scope.Contains(SourceModule.Rules.Context.Scope))
+			// Add this module's internal include paths, only if the scope contains the same as the SourceModule's scope or if this module is an engine module
+			if (SourceModule != null && (Rules.Context.Scope.Contains(SourceModule.Rules.Context.Scope) || Rules.bTreatAsEngineModule))
 			{
 				AddIncludePaths(IncludePaths, InternalIncludePaths);
 			}
