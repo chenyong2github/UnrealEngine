@@ -1259,11 +1259,20 @@ EMovieSceneKeyInterpolation TMovieSceneCurveChannelImpl<ChannelType>::GetInterpo
 			case RCTM_Auto:
 				return EMovieSceneKeyInterpolation::Auto;
 				break;
-			case RCTM_Break:
-				return EMovieSceneKeyInterpolation::Break;
+			case RCTM_SmartAuto:
+				return EMovieSceneKeyInterpolation::SmartAuto;
 				break;
+			case RCTM_Break:
 			case RCTM_User:
-				return EMovieSceneKeyInterpolation::User;
+				if (DefaultInterpolationMode == EMovieSceneKeyInterpolation::Auto ||
+					DefaultInterpolationMode == EMovieSceneKeyInterpolation::SmartAuto)
+				{
+					return DefaultInterpolationMode;
+				}
+				else
+				{
+					return EMovieSceneKeyInterpolation::SmartAuto;
+				}
 				break;
 			}
 			break;
