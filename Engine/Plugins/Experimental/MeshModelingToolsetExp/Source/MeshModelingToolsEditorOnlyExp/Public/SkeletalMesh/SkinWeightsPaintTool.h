@@ -223,7 +223,7 @@ namespace SkinPaintTool
 }
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkinWeightsPaintToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkinWeightsPaintToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -233,7 +233,7 @@ public:
 
 // Container for properties displayed in Details panel while using USkinWeightsPaintTool
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkinWeightsPaintToolProperties : public UBrushBaseProperties
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkinWeightsPaintToolProperties : public UBrushBaseProperties
 {
 	GENERATED_BODY()
 
@@ -279,7 +279,7 @@ public:
 
 // An interactive tool for painting and editing skin weights.
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkinWeightsPaintTool : public UDynamicMeshBrushTool, public ISkeletalMeshEditionInterface
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkinWeightsPaintTool : public UDynamicMeshBrushTool, public ISkeletalMeshEditionInterface
 {
 	GENERATED_BODY()
 

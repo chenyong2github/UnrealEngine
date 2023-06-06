@@ -4,6 +4,8 @@
 
 #define LOCTEXT_NAMESPACE "FMeshModelingToolsEditorOnlyExpModule"
 
+DEFINE_LOG_CATEGORY(LogMeshModelingToolsEditor);
+
 void FMeshModelingToolsEditorOnlyExpModule::StartupModule()
 {
 }

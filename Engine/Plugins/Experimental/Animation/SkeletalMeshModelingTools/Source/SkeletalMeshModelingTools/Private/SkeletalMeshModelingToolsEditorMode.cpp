@@ -42,17 +42,17 @@
 #include "RemeshMeshTool.h"
 #include "RemoveOccludedTrianglesTool.h"
 #include "SimplifyMeshTool.h"
-#include "SkinWeightsBindingTool.h"
-#include "SkinWeightsPaintTool.h"
 #include "SmoothMeshTool.h"
 #include "ToolTargetManager.h"
 #include "WeldMeshEdgesTool.h"
 
 #include "SkeletalMeshNotifier.h"
 #include "Animation/DebugSkelMeshComponent.h"
-#include "SkeletalMesh/SkeletalMeshEditionInterface.h"
 
+#include "SkeletalMesh/SkeletalMeshEditionInterface.h"
 #include "SkeletalMesh/SkeletonEditingTool.h"
+#include "SkeletalMesh/SkinWeightsBindingTool.h"
+#include "SkeletalMesh/SkinWeightsPaintTool.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshModelingToolsEditorMode"
 

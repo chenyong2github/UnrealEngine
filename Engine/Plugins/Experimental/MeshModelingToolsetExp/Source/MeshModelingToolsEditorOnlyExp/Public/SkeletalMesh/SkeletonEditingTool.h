@@ -28,7 +28,7 @@ namespace SkeletonEditingTool
 /**
  * A wrapper change class that stores a reference skeleton and the bones' indexes trackers to be used for undo/redo.
  */
-class MESHMODELINGTOOLSEXP_API FRefSkeletonChange : public FToolCommandChange
+class MESHMODELINGTOOLSEDITORONLYEXP_API FRefSkeletonChange : public FToolCommandChange
 {
 public:
 	FRefSkeletonChange(const USkeletonEditingTool* InTool);
@@ -57,7 +57,7 @@ private:
  */
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkeletonEditingToolBuilder : public UInteractiveToolWithToolTargetsBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletonEditingToolBuilder : public UInteractiveToolWithToolTargetsBuilder
 {
 	GENERATED_BODY()
 
@@ -93,7 +93,7 @@ enum class EEditingOperation : uint8
  */
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkeletonEditingTool :
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletonEditingTool :
 	public USingleSelectionTool,
 	public IClickDragBehaviorTarget,
 	public ISkeletalMeshEditionInterface
@@ -244,7 +244,7 @@ ENUM_CLASS_FLAGS(USkeletonEditingTool::EBoneSelectionMode);
  */
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkeletonEditingProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletonEditingProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -289,7 +289,7 @@ enum class EProjectionType : uint8
  */
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UProjectionProperties: public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UProjectionProperties: public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -317,7 +317,7 @@ private:
  */
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UMirroringProperties: public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UMirroringProperties: public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -339,7 +339,7 @@ private:
  */
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UOrientingProperties: public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UOrientingProperties: public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 

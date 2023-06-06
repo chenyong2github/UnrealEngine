@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SkinWeightsPaintTool.h"
+#include "SkeletalMesh/SkinWeightsPaintTool.h"
 #include "Engine/SkeletalMesh.h"
 #include "InteractiveToolManager.h"
 #include "SkeletalMeshAttributes.h"
@@ -11,7 +11,7 @@
 #include "ModelingToolTargetUtil.h"
 
 #include "MeshDescription.h"
-#include "MeshModelingToolsExp.h"
+#include "MeshModelingToolsEditorOnlyExp.h"
 #include "PointSetAdapter.h"
 #include "Animation/MirrorDataTable.h"
 #include "DynamicMesh/NonManifoldMappingSupport.h"
@@ -1581,7 +1581,7 @@ void USkinWeightsPaintTool::MirrorWeights(EAxis::Type Axis, EMirrorDirection Dir
 	// warn if some vertices were not mirrored
 	if (!MirrorData.GetAllVerticesMirrored())
 	{
-		UE_LOG(LogMeshModelingTools, Log, TEXT("Mirror Skin Weights: some vertex weights were not mirrored because a vertex was not found close enough to the mirrored location."));
+		UE_LOG(LogMeshModelingToolsEditor, Log, TEXT("Mirror Skin Weights: some vertex weights were not mirrored because a vertex was not found close enough to the mirrored location."));
 	}
 }
 

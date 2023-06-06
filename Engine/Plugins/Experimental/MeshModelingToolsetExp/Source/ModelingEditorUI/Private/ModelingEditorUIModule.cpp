@@ -3,7 +3,7 @@
 #include "ModelingEditorUIModule.h"
 
 #include "SkinWeightDetailCustomization.h"
-#include "SkinWeightsPaintTool.h"
+#include "SkeletalMesh/SkinWeightsPaintTool.h"
 #include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "FModelingEditorUIModule"

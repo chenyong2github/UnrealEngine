@@ -23,7 +23,7 @@ struct FInputDeviceRay;
  */
 
 UINTERFACE()
-class MESHMODELINGTOOLSEXP_API USkeletalMeshEditionInterface : public UInterface
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletalMeshEditionInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -32,7 +32,7 @@ class MESHMODELINGTOOLSEXP_API USkeletalMeshEditionInterface : public UInterface
  * ISkeletalMeshEditionInterface
  */
 
-class MESHMODELINGTOOLSEXP_API ISkeletalMeshEditionInterface
+class MESHMODELINGTOOLSEDITORONLYEXP_API ISkeletalMeshEditionInterface
 {
 	GENERATED_BODY()
 
@@ -96,7 +96,7 @@ struct HBoneHitProxy : public HHitProxy
  */
 
 UCLASS(Abstract)
-class MESHMODELINGTOOLSEXP_API USkeletalMeshGizmoContextObjectBase : public UObject
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletalMeshGizmoContextObjectBase : public UObject
 {
 	GENERATED_BODY()
 	
@@ -110,7 +110,7 @@ public:
  */
 
 UCLASS(Abstract)
-class MESHMODELINGTOOLSEXP_API USkeletalMeshGizmoWrapperBase : public UObject
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletalMeshGizmoWrapperBase : public UObject
 {
 	GENERATED_BODY()
 

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SkinWeightsBindingTool.h"
+#include "SkeletalMesh/SkinWeightsBindingTool.h"
 
 #include "BoneWeights.h"
 #include "DynamicMeshToMeshDescription.h"

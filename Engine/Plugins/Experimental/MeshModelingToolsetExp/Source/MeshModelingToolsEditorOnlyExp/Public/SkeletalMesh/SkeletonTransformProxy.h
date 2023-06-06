@@ -13,7 +13,7 @@ class UObject;
  */
 
 UCLASS(Transient)
-class MESHMODELINGTOOLSEXP_API USkeletonTransformProxy : public UTransformProxy
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletonTransformProxy : public UTransformProxy
 {
 	GENERATED_BODY()
 

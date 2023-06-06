@@ -27,7 +27,7 @@ namespace UE::Geometry
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkinWeightsBindingToolBuilder : public UMultiSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkinWeightsBindingToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -44,7 +44,7 @@ enum class ESkinWeightsBindType : uint8
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkinWeightsBindingToolProperties : 
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkinWeightsBindingToolProperties : 
 	public UInteractiveToolPropertySet,
 	public IBoneReferenceSkeletonProvider
 {
@@ -82,7 +82,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkinWeightsBindingTool :
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkinWeightsBindingTool :
 	public UMultiSelectionMeshEditingTool,
 	public UE::Geometry::IDynamicMeshOperatorFactory
 {

@@ -40,6 +40,8 @@ public class MeshModelingToolsEditorOnlyExp : ModuleRules
 				"ModelingComponentsEditorOnly",
 				"ModelingOperators",
 				"ModelingOperatorsEditorOnly",
+				"SkeletalMeshUtilitiesCommon",
+				"SkeletalMeshModifiers"
 				// ... add other public dependencies that you statically link with here ...
 			}
 		);
