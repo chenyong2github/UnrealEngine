@@ -52,6 +52,9 @@ struct FNiagaraScalabilityState
 	uint8 bNewlyRegistered : 1;
 
 	UPROPERTY(VisibleAnywhere, Category = "Scalability")
+	uint8 bNewlyRegisteredDirty : 1;
+
+	UPROPERTY(VisibleAnywhere, Category = "Scalability")
 	uint8 bCulled : 1;
 
 	UPROPERTY(VisibleAnywhere, Category="Scalability")

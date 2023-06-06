@@ -224,6 +224,7 @@ bool FNiagaraScalabilityManager::EvaluateCullState(FNiagaraWorldManager* WorldMa
 			Unregister(Component);
 			return false;
 		}
+		CompState.bNewlyRegisteredDirty = CompState.bNewlyRegistered;
 		CompState.bNewlyRegistered = false;
 
 		const FNiagaraSystemScalabilitySettings& Scalability = System->GetScalabilitySettings();
@@ -336,11 +337,17 @@ void FNiagaraScalabilityManager::ProcessSignificance(FNiagaraWorldManager* World
 	}
 }
 
-bool FNiagaraScalabilityManager::ApplyScalabilityState(int32 ComponentIndex, ENiagaraCullReaction CullReaction)
+bool FNiagaraScalabilityManager::ApplyScalabilityState(int32 ComponentIndex, ENiagaraCullReaction CullReaction, bool bNewOnly)
 {
 	FNiagaraScalabilityState& CompState = State[ComponentIndex];
 
 	if (!CompState.IsDirty())
+	{
+		return true;
+	}
+
+	// If we are only processing new only do not update the state for existing component as it will cause a stall on the game thread
+	if (bNewOnly && !CompState.bNewlyRegisteredDirty)
 	{
 		return true;
 	}
@@ -447,7 +454,7 @@ void FNiagaraScalabilityManager::UpdateInternal(FNiagaraWorldManager* WorldMan, 
 			//As we'll be activating and deactivating here, this must be done on the game thread.
 			while (CompIdx < ManagedComponents.Num())
 			{
-				if (ApplyScalabilityState(CompIdx, CullReaction))
+				if (ApplyScalabilityState(CompIdx, CullReaction, Context.bNewOnly))
 				{
 					++CompIdx;
 				}

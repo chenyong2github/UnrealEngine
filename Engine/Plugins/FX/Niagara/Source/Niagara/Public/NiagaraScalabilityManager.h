@@ -98,7 +98,7 @@ private:
 	void UpdateInternal(FNiagaraWorldManager* WorldMan, FComponentIterationContext& Context);
 	bool EvaluateCullState(FNiagaraWorldManager* WorldMan, FComponentIterationContext& Context, int32 ComponentIndex, int32& UpdateCounter);
 	void ProcessSignificance(FNiagaraWorldManager* WorldMan, UNiagaraSignificanceHandler* SignificanceHandler, FComponentIterationContext& Context);
-	bool ApplyScalabilityState(int32 ComponentIndex, ENiagaraCullReaction CullReaction);
+	bool ApplyScalabilityState(int32 ComponentIndex, ENiagaraCullReaction CullReaction, bool bNewOnly);
 
 	FNiagaraScalabilitySystemData& GetSystemData(int32 ComponentIndex, bool bForceRefresh=false);
 
