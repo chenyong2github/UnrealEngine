@@ -99,8 +99,6 @@ public:
 	virtual void WaitForFrameEventCompletion() override;
 	virtual void IssueFrameEvent() override;
 
-	virtual bool NeedFlushBeforeEndDrawing() override;
-
 #if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 	virtual void* GetNativeSwapChain() const override { return SwapChain1; }
 #endif // #if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN

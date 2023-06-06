@@ -2242,8 +2242,6 @@ public:
 	virtual void WaitForFrameEventCompletion() { }
 
 	virtual void IssueFrameEvent() { }
-
-	virtual bool NeedFlushBeforeEndDrawing() { return true; }
 };
 
 /** Used to specify a texture metadata plane when creating a view. */

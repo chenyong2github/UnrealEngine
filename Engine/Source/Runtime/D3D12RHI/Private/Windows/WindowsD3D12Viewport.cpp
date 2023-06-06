@@ -537,15 +537,6 @@ bool FD3D12Viewport::IsPresentAllowed()
 	return !FD3D12DynamicRHI::GetD3DRHI()->RHIIsRenderingSuspended();
 }
 
-/**
-  * RHIEndDrawingViewport flushes commands internally, so we don't need to flush before calling it.
-  * Avoids wasteful issuing of another entire command list with just a few commands.
-  */
-bool FD3D12Viewport::NeedFlushBeforeEndDrawing()
-{
-	return false;
-}
-
 void FD3D12DynamicRHI::RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)
 {
 	OutDisplayInformation.Append(DisplayList);
