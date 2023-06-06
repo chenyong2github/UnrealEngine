@@ -88,6 +88,7 @@ private:
 	FReply OnGenerateCardDataUsingPlugin(int32 GroupIndex);
 	FReply OnSelectBinding(int32 BindingIndex, FProperty* Property);
 
+	void AddPropertySeparator(FName PropertyName, IDetailChildrenBuilder& ChildrenBuilder);
 	void ExpandStructForLOD(TSharedRef<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& ChildrenBuilder, int32 GroupIndex, int32 LODIndex, bool bOverrideReset);
 	void ExpandStruct(TSharedPtr<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& ChildrenBuilder, int32 GroupIndex, int32 LODIndex, bool bOverrideReset);
 	void ExpandStruct(TSharedRef<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& ChildrenBuilder, int32 GroupIndex, int32 LODIndex, bool bOverrideReset);
