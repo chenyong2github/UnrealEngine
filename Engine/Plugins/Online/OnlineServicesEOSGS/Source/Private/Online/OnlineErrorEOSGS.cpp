@@ -12,6 +12,8 @@ class FOnlineErrorDetailsEOS : public IOnlineErrorDetails
 public:
 	static const TSharedRef<const IOnlineErrorDetails, ESPMode::ThreadSafe>& Get();
 
+	virtual FString GetFriendlyErrorCode(const FOnlineError& OnlineError) const override;
+
 	virtual FText GetText(const FOnlineError& OnlineError) const override;
 	virtual FString GetLogString(const FOnlineError& OnlineError) const override;
 };
@@ -20,6 +22,12 @@ const TSharedRef<const IOnlineErrorDetails, ESPMode::ThreadSafe>& FOnlineErrorDe
 {
 	static TSharedRef<const IOnlineErrorDetails, ESPMode::ThreadSafe> Instance = MakeShared<FOnlineErrorDetailsEOS>();
 	return Instance;
+}
+
+FString FOnlineErrorDetailsEOS::GetFriendlyErrorCode(const FOnlineError& OnlineError) const
+{
+	const EOS_EResult EosResult = EOS_EResult(OnlineError.GetValue());
+	return LexToString(EosResult);
 }
 
 FText FOnlineErrorDetailsEOS::GetText(const FOnlineError& OnlineError) const

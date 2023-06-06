@@ -14,6 +14,7 @@ class FOnlineError;
 class IOnlineErrorDetails
 {
 public:
+	virtual FString GetFriendlyErrorCode(const FOnlineError&) const = 0;
 	virtual FText GetText(const FOnlineError&) const = 0;
 	virtual FString GetLogString(const FOnlineError&) const = 0;
 };
@@ -21,13 +22,20 @@ public:
 class FOnlineErrorDetails : public IOnlineErrorDetails
 {
 public:
-	FOnlineErrorDetails(FString&& InLogString, FText&& InText)
-		: LogString(MoveTemp(InLogString))
+	FOnlineErrorDetails(FString&& InFriendlyErrorCode, FString&& InLogString, FText&& InText) 
+		: FriendlyErrorCode(MoveTemp(InFriendlyErrorCode))
+		, LogString(MoveTemp(InLogString))
 		, Text(MoveTemp(InText))
 	{
 	}
 
+
 	virtual ~FOnlineErrorDetails() {}
+
+	virtual FString GetFriendlyErrorCode(const FOnlineError&) const override
+	{
+		return FriendlyErrorCode;
+	}
 
 	virtual FString GetLogString(const FOnlineError&) const override
 	{
@@ -40,6 +48,7 @@ public:
 	}
 
 protected:
+	FString FriendlyErrorCode;
 	FString LogString;
 	FText Text;
 };

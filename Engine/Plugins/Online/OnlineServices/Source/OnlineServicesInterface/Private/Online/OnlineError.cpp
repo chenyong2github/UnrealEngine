@@ -88,6 +88,7 @@ namespace UE::Online{
 			FString ErrorCodeString = OnlineError.GetErrorId();
 			ErrorMessageArgs.Add(TEXT("ErrorCode"), FText::FromString(ErrorCodeString));
 			Writer.AddString(ANSITEXTVIEW("ErrorCode"), ErrorCodeString);
+			
 		}
 
 		if (OnlineError.Details)
@@ -96,6 +97,8 @@ namespace UE::Online{
 			ErrorMessageArgs.Add(TEXT("ErrorDetails"), ErrorDetails);
 			Writer.AddString(ANSITEXTVIEW("ErrorDetails"), ErrorDetails.ToString());
 			bHasDetails = true;
+			ErrorMessageArgs.Add(TEXT("FriendlyErrorCode"), FText::FromString(OnlineError.Details->GetFriendlyErrorCode(OnlineError)));
+			Writer.AddString(ANSITEXTVIEW("FriendlyErrorCode"), OnlineError.Details->GetFriendlyErrorCode(OnlineError));
 		}
 		
 		if (OnlineError.GetInner() != nullptr)
@@ -108,11 +111,11 @@ namespace UE::Online{
 
 		if (bHasInner && bHasDetails)
 		{
-			Writer.AddString("$text", FText::Format(NSLOCTEXT("OnlineError", "ErrorDetailsErrorInner", "{ErrorCode}, {ErrorDetails}, InnerError:{InnerError}"), ErrorMessageArgs).ToString());
+			Writer.AddString("$text", FText::Format(NSLOCTEXT("OnlineError", "ErrorDetailsErrorInner", "{ErrorCode} ({FriendlyErrorCode}), {ErrorDetails}, InnerError:{InnerError}"), ErrorMessageArgs).ToString());
 		}
 		else if (bHasDetails)
 		{
-			Writer.AddString("$text", FText::Format(NSLOCTEXT("OnlineError", "ErrorDetails", "{ErrorCode}, {ErrorDetails}"), ErrorMessageArgs).ToString());
+			Writer.AddString("$text", FText::Format(NSLOCTEXT("OnlineError", "ErrorDetails", "{ErrorCode} ({FriendlyErrorCode}), {ErrorDetails}"), ErrorMessageArgs).ToString());
 		}
 		else if (bHasInner)
 		{
