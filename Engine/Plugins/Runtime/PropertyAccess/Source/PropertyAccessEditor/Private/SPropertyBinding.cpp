@@ -1037,4 +1037,14 @@ FReply SPropertyBinding::HandleGotoBindingClicked()
 	return FReply::Unhandled();
 }
 
+FReply SPropertyBinding::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	if (Args.OnDrop.IsBound())
+	{
+		return Args.OnDrop.Execute(MyGeometry, DragDropEvent);
+	}
+
+	return FReply::Unhandled();
+}
+
 #undef LOCTEXT_NAMESPACE

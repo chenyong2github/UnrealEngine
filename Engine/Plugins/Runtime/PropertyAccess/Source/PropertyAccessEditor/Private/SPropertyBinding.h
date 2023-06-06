@@ -66,6 +66,8 @@ protected:
 
 	FReply HandleGotoBindingClicked();
 
+	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+
 private:
 	bool IsClassDenied(UClass* OwnerClass) const;
 	bool IsFieldFromDeniedClass(FFieldVariant Field) const;

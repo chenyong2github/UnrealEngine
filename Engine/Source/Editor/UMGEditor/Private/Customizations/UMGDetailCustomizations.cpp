@@ -140,7 +140,7 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 	{
 		if (Extension->CanExtend(WidgetBlueprint, Widget, InPropertyHandle->GetProperty()))
 		{
-			MenuExtenders.Add(Extension->CreateMenuExtender(WidgetBlueprint, Widget, InPropertyHandle->GetProperty()));
+			MenuExtenders.Add(Extension->CreateMenuExtender(WidgetBlueprint, Widget, InPropertyHandle));
 			ActiveExtensions.Add(Extension);
 		}
 	}
@@ -448,6 +448,30 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 		}
 
 		return false;
+	});
+
+	Args.OnDrop = FOnDrop::CreateLambda([ActiveExtensions, InEditor, Objects, InPropertyHandle](const FGeometry& Geometry, const FDragDropEvent& DragDropEvent)
+	{
+		bool bDropHandled = false;
+		UWidgetBlueprint* WidgetBlueprint = InEditor.Pin()->GetWidgetBlueprintObj();
+		UWidget* Widget = Objects.Num() ? Cast<UWidget>(Objects[0]) : nullptr;
+
+		if (Widget && WidgetBlueprint)
+		{
+			for (const TSharedPtr<IPropertyBindingExtension>& Extension : ActiveExtensions)
+			{
+				IPropertyBindingExtension::EDropResult Result = Extension->OnDrop(Geometry, DragDropEvent, WidgetBlueprint, Widget, InPropertyHandle);
+				if (Result != IPropertyBindingExtension::EDropResult::Unhandled)
+				{
+					bDropHandled = true;
+				}
+				if (Result == IPropertyBindingExtension::EDropResult::HandledBreak)
+				{
+					break;
+				}
+			}
+		}
+		return bDropHandled ? FReply::Handled() : FReply::Unhandled();
 	});
 
 	Args.CurrentBindingText = MakeAttributeLambda([InEditor, Objects, InPropertyHandle, ActiveExtensions]()

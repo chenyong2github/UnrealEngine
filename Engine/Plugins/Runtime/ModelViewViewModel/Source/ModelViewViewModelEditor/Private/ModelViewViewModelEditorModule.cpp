@@ -39,7 +39,7 @@ void FModelViewViewModelEditorModule::StartupModule()
 	IUMGEditorModule& UMGEditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
 	UMGEditorModule.OnRegisterTabsForEditor().AddRaw(this, &FModelViewViewModelEditorModule::HandleRegisterBlueprintEditorTab);
 
-	PropertyBindingExtension = MakeShared<FMVVMPropertyBindingExtension>();
+	PropertyBindingExtension = MakeShared<UE::MVVM::FMVVMPropertyBindingExtension>();
 	UMGEditorModule.GetPropertyBindingExtensibilityManager()->AddExtension(PropertyBindingExtension.ToSharedRef());
 
 	UMGEditorModule.RegisterInstancedCustomPropertyTypeLayout(

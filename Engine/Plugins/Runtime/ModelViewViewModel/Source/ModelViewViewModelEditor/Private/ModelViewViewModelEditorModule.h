@@ -8,10 +8,10 @@
 namespace UE::MVVM
 {
 	class FAssetTypeActions_ViewModelBlueprint;
+	class FMVVMPropertyBindingExtension;
 }
 
 class FMVVMBindPropertiesDetailView;
-class FMVVMPropertyBindingExtension;
 class FWidgetBlueprintApplicationMode;
 class FWorkflowAllowedTabSet;
 class UBlueprint;
@@ -42,6 +42,6 @@ private:
 	void UnregisterMenus();
 
 private:
-	TSharedPtr<FMVVMPropertyBindingExtension> PropertyBindingExtension;
+	TSharedPtr<UE::MVVM::FMVVMPropertyBindingExtension> PropertyBindingExtension;
 	TSharedPtr<UE::MVVM::FAssetTypeActions_ViewModelBlueprint> ViewModelBlueprintActions;
 };
