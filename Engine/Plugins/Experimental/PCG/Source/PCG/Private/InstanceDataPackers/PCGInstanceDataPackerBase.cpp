@@ -2,10 +2,15 @@
 
 #include "InstanceDataPackers/PCGInstanceDataPackerBase.h"
 
-#include "MeshSelectors/PCGMeshSelectorBase.h"
+#include "PCGElement.h"
 #include "Metadata/PCGMetadata.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGInstanceDataPackerBase)
+
+void UPCGInstanceDataPackerBase::PackInstances_Implementation(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const
+{
+	PCGE_LOG_C(Error, GraphAndLog, &Context, NSLOCTEXT("PCGInstanceDataPackerBase", "InstanceDataPackerBaseFailed", "Unable to execute InstanceDataPacker pure virtual base function, override the PackInstances function or use a default implementation."));
+}
 
 bool UPCGInstanceDataPackerBase::AddTypeToPacking(int TypeId, FPCGPackedCustomData& OutPackedCustomData) const
 {

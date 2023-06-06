@@ -17,6 +17,15 @@ void UPCGMatchAndSetBase::SetType(EPCGMetadataTypes InType, EPCGMetadataTypesCon
 	StringMode = InStringMode;
 }
 
+void UPCGMatchAndSetBase::MatchAndSet_Implementation(
+	FPCGContext& Context,
+	const UPCGPointMatchAndSetSettings* InSettings,
+	const UPCGPointData* InPointData,
+	UPCGPointData* OutPointData) const
+{
+	PCGE_LOG_C(Error, GraphAndLog, &Context, LOCTEXT("MatchAndSetBaseFailed", "Unable to execute MatchAndSet pure virtual base function, override the MatchAndSet function or use a default implementation."));
+}
+
 bool UPCGMatchAndSetBase::CreateAttributeIfNeeded(FPCGContext& Context, const FPCGAttributePropertySelector& Selector, const FPCGMetadataTypesConstantStruct& ConstantValue, UPCGPointData* OutPointData, const UPCGPointMatchAndSetSettings* InSettings) const
 {
 	check(OutPointData && OutPointData->Metadata);

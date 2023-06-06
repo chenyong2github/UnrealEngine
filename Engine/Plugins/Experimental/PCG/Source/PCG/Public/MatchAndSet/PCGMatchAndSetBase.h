@@ -53,7 +53,7 @@ public:
 		FPCGContext& Context,
 		const UPCGPointMatchAndSetSettings* InSettings,
 		const UPCGPointData* InPointData,
-		UPCGPointData* OutPointData) const PURE_VIRTUAL(UPCGMatchAndSetBase::MatchAndSet_Implementation);
+		UPCGPointData* OutPointData) const;
 
 protected:
 	bool CreateAttributeIfNeeded(
