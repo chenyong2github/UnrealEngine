@@ -1796,7 +1796,7 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 			WorkData.VM->GetByteCode().AddZeroOp(BlockToRunOperand);
 		}
 
-		if (Operands.Num() > 64)
+		if (Operands.Num() > 65535)
 		{
 			return INDEX_NONE;
 		}
