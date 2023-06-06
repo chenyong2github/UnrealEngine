@@ -6,21 +6,21 @@
 #include "XRScribeAPILayer.h"
 #include "XRScribeAPIPassthrough.h"
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+
 namespace UE::XRScribe
 {
 
 class FOpenXRCaptureLayer : public IOpenXRAPILayer
 {
 public:
+	FOpenXRCaptureLayer();
 	virtual ~FOpenXRCaptureLayer() override;
 
 	virtual void SetChainedGetProcAddr(PFN_xrGetInstanceProcAddr InChainedGetProcAddr) override;
 
-	virtual bool SupportsInstanceExtension(const ANSICHAR* ExtensionName) override
-	{
-		// TODO: we need to stash off the extensions from CreateInstance to validate these requests
-		return true;
-	}
+	virtual bool SupportsInstanceExtension(const ANSICHAR* ExtensionName) override;
 
 	// Global
 	virtual XrResult XrLayerEnumerateApiLayerProperties(uint32_t propertyCapacityInput, uint32_t* propertyCountOutput, XrApiLayerProperties* properties) override;
@@ -115,6 +115,10 @@ protected:
 
 	FOpenXRAPIPassthrough FunctionPassthroughs;
 	FOpenXRCaptureEncoder CaptureEncoder;
+
+	TArray<FString> NativeSupportedExtensionNames;
+	TArray<XrExtensionProperties> PassthruInstanceSupportedExtensions;
+	TArray<FString> CaptureActiveExtensionNames;
 };
 
 } // namespace UE::XRScribe
