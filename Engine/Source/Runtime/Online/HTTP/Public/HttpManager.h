@@ -18,7 +18,7 @@
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 
-class FHttpThread;
+class FHttpThreadBase;
 class FOutputDevice;
 class IHttpThreadedRequest;
 
@@ -231,7 +231,7 @@ protected:
 	 *
 	 * @return the HTTP thread object
 	 */
-	virtual FHttpThread* CreateHttpThread();
+	virtual FHttpThreadBase* CreateHttpThread();
 
 	void ReloadFlushTimeLimits();
 
@@ -241,7 +241,7 @@ protected:
 	/** List of Http requests that are actively being processed */
 	TArray<FHttpRequestRef> Requests;
 
-	FHttpThread* Thread;
+	FHttpThreadBase* Thread;
 
 	/** This method will be called to generate a CorrelationId on all requests being sent if one is not already set */
 	TFunction<FString()> CorrelationIdMethod;

@@ -25,25 +25,19 @@ DECLARE_CYCLE_STAT(TEXT("IdleSleep"), STAT_HTTPThread_IdleSleep, STATGROUP_HTTPT
 
 // FHttpThread
 
-FHttpThread::FHttpThread()
+FHttpThreadBase::FHttpThreadBase()
 	:	Thread(nullptr)
 	,	bIsSingleThread(false)
 	,	bIsStopped(true)
 {
-	HttpThreadActiveFrameTimeInSeconds = FHttpModule::Get().GetHttpThreadActiveFrameTimeInSeconds();
-	HttpThreadActiveMinimumSleepTimeInSeconds = FHttpModule::Get().GetHttpThreadActiveMinimumSleepTimeInSeconds();
-	HttpThreadIdleFrameTimeInSeconds = FHttpModule::Get().GetHttpThreadIdleFrameTimeInSeconds();
-	HttpThreadIdleMinimumSleepTimeInSeconds = FHttpModule::Get().GetHttpThreadIdleMinimumSleepTimeInSeconds();
-
-	UE_LOG(LogHttp, Log, TEXT("HTTP thread active frame time %.1f ms. Minimum active sleep time is %.1f ms. HTTP thread idle frame time %.1f ms. Minimum idle sleep time is %.1f ms."), HttpThreadActiveFrameTimeInSeconds * 1000.0, HttpThreadActiveMinimumSleepTimeInSeconds * 1000.0, HttpThreadIdleFrameTimeInSeconds * 1000.0, HttpThreadIdleMinimumSleepTimeInSeconds * 1000.0);
 }
 
-FHttpThread::~FHttpThread()
+FHttpThreadBase::~FHttpThreadBase()
 {
 	StopThread();
 }
 
-void FHttpThread::StartThread()
+void FHttpThreadBase::StartThread()
 {
 	bIsSingleThread = false;
 
@@ -68,7 +62,7 @@ void FHttpThread::StartThread()
 	bIsStopped = false;
 }
 
-void FHttpThread::StopThread()
+void FHttpThreadBase::StopThread()
 {
 	if (Thread != nullptr)
 	{
@@ -81,17 +75,17 @@ void FHttpThread::StopThread()
 	bIsSingleThread = true;
 }
 
-void FHttpThread::AddRequest(IHttpThreadedRequest* Request)
+void FHttpThreadBase::AddRequest(IHttpThreadedRequest* Request)
 {
 	NewThreadedRequests.Enqueue(Request);
 }
 
-void FHttpThread::CancelRequest(IHttpThreadedRequest* Request)
+void FHttpThreadBase::CancelRequest(IHttpThreadedRequest* Request)
 {
 	CancelledThreadedRequests.Enqueue(Request);
 }
 
-void FHttpThread::GetCompletedRequests(TArray<IHttpThreadedRequest*>& OutCompletedRequests)
+void FHttpThreadBase::GetCompletedRequests(TArray<IHttpThreadedRequest*>& OutCompletedRequests)
 {
 	check(IsInGameThread());
 	IHttpThreadedRequest* Request = nullptr;
@@ -101,82 +95,28 @@ void FHttpThread::GetCompletedRequests(TArray<IHttpThreadedRequest*>& OutComplet
 	}
 }
 
-bool FHttpThread::Init()
+bool FHttpThreadBase::Init()
 {
 	LastTime = FPlatformTime::Seconds();
-	ExitRequest.Set(false);
-
 	UpdateConfigs();
-
 	return true;
 }
 
-uint32 FHttpThread::Run()
+uint32 FHttpThreadBase::Run()
 {
-	// Arrays declared outside of loop to re-use memory
-	TArray<IHttpThreadedRequest*> RequestsToCancel;
-	TArray<IHttpThreadedRequest*> RequestsToComplete;
-	while (!ExitRequest.GetValue())
-	{
-		if (ensureMsgf(!bIsSingleThread, TEXT("HTTP Thread was set to singlethread mode while it was running autonomously!")))
-		{
-			const double OuterLoopBegin = FPlatformTime::Seconds();
-			double OuterLoopEnd = 0.0;
-			bool bKeepProcessing = true;
-			while (bKeepProcessing)
-			{
-				const double InnerLoopBegin = FPlatformTime::Seconds();
-			
-				Process(RequestsToCancel, RequestsToComplete);
-			
-				if (RunningThreadedRequests.Num() == 0)
-				{
-					bKeepProcessing = false;
-				}
-
-				const double InnerLoopEnd = FPlatformTime::Seconds();
-				if (bKeepProcessing)
-				{
-					SCOPE_CYCLE_COUNTER(STAT_HTTPThread_ActiveSleep);
-					double InnerLoopTime = InnerLoopEnd - InnerLoopBegin;
-					double InnerSleep = FMath::Max(HttpThreadActiveFrameTimeInSeconds - InnerLoopTime, HttpThreadActiveMinimumSleepTimeInSeconds);
-					FPlatformProcess::SleepNoStats(InnerSleep);
-				}
-				else
-				{
-					OuterLoopEnd = InnerLoopEnd;
-				}
-			}
-			SCOPE_CYCLE_COUNTER(STAT_HTTPThread_IdleSleep)
-			double OuterLoopTime = OuterLoopEnd - OuterLoopBegin;
-			double OuterSleep = FMath::Max(HttpThreadIdleFrameTimeInSeconds - OuterLoopTime, HttpThreadIdleMinimumSleepTimeInSeconds);
-			FPlatformProcess::SleepNoStats(OuterSleep);
-		}
-		else
-		{
-			break;
-		}
-	}
 	return 0;
 }
 
-
-void FHttpThread::Tick()
+void FHttpThreadBase::Tick()
 {
-	if (ensure(bIsSingleThread))
-	{
-		TArray<IHttpThreadedRequest*> RequestsToCancel;
-		TArray<IHttpThreadedRequest*> RequestsToComplete;
-		Process(RequestsToCancel, RequestsToComplete);
-	}
 }
 
-bool FHttpThread::NeedsSingleThreadTick() const
+bool FHttpThreadBase::NeedsSingleThreadTick() const
 {
 	return bIsSingleThread;
 }
 
-void FHttpThread::UpdateConfigs()
+void FHttpThreadBase::UpdateConfigs()
 {
 	int32 LocalRunningThreadedRequestLimit = -1;
 	if (GConfig->GetInt(TEXT("HTTP.HttpThread"), TEXT("RunningThreadedRequestLimit"), LocalRunningThreadedRequestLimit, GEngineIni))
@@ -192,22 +132,37 @@ void FHttpThread::UpdateConfigs()
 	}
 }
 
-void FHttpThread::HttpThreadTick(float DeltaSeconds)
+void FHttpThreadBase::HttpThreadTick(float DeltaSeconds)
 {
 	// empty
 }
 
-bool FHttpThread::StartThreadedRequest(IHttpThreadedRequest* Request)
+bool FHttpThreadBase::StartThreadedRequest(IHttpThreadedRequest* Request)
 {
 	return Request->StartThreadedRequest();
 }
 
-void FHttpThread::CompleteThreadedRequest(IHttpThreadedRequest* Request)
+void FHttpThreadBase::CompleteThreadedRequest(IHttpThreadedRequest* Request)
 {
 	// empty
 }
 
-void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArray<IHttpThreadedRequest*>& RequestsToComplete)
+int32 FHttpThreadBase::GetRunningThreadedRequestLimit() const
+{
+	return RunningThreadedRequestLimit.load();
+}
+
+void FHttpThreadBase::Stop()
+{
+	// empty
+}
+
+void FHttpThreadBase::Exit()
+{
+	// empty
+}
+
+void FHttpThreadBase::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArray<IHttpThreadedRequest*>& RequestsToComplete)
 {
 	SCOPE_CYCLE_COUNTER(STAT_HTTPThread_Process);
 
@@ -261,9 +216,10 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 	// Tick new requests separately from existing RunningThreadedRequests so they get a chance 
 	// to send unaffected by possibly large ElapsedTime above
 	int32 RunningThreadedRequestsCounter = RunningThreadedRequests.Num();
-	if (RunningThreadedRequestsCounter < RunningThreadedRequestLimit)
+	const int32 LocalRunningThreadedRequestLimit = GetRunningThreadedRequestLimit();
+	if (RunningThreadedRequestsCounter < LocalRunningThreadedRequestLimit)
 	{
-		while(RunningThreadedRequestsCounter < RunningThreadedRequestLimit && RateLimitedThreadedRequests.Num())
+		while(RunningThreadedRequestsCounter < LocalRunningThreadedRequestLimit && RateLimitedThreadedRequests.Num())
 		{
 			SCOPE_CYCLE_COUNTER(STAT_HTTPThread_StartThreadedRequest);
 
@@ -277,7 +233,7 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 				ReadyThreadedRequest->TickThreadedRequest(0.0f);
 				UE_LOG(LogHttp, Verbose, TEXT("Started running threaded request (%p). Running threaded requests (%d) Rate limited threaded requests (%d)"), ReadyThreadedRequest, RunningThreadedRequests.Num(), RateLimitedThreadedRequests.Num());
 #if WITH_SERVER_CODE
-				if (RunningThreadedRequestsCounter == RunningThreadedRequestLimit)
+				if (RunningThreadedRequestsCounter == LocalRunningThreadedRequestLimit)
 				{
 					UE_LOG(LogHttp, Warning, TEXT("Reached threaded request limit (%d)"), RunningThreadedRequestsCounter);
 				}
@@ -327,12 +283,114 @@ void FHttpThread::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArra
 	}
 }
 
-void FHttpThread::Stop()
+FLegacyHttpThread::FLegacyHttpThread()
 {
-	ExitRequest.Set(true);
+	HttpThreadActiveFrameTimeInSeconds = FHttpModule::Get().GetHttpThreadActiveFrameTimeInSeconds();
+	HttpThreadActiveMinimumSleepTimeInSeconds = FHttpModule::Get().GetHttpThreadActiveMinimumSleepTimeInSeconds();
+	HttpThreadIdleFrameTimeInSeconds = FHttpModule::Get().GetHttpThreadIdleFrameTimeInSeconds();
+	HttpThreadIdleMinimumSleepTimeInSeconds = FHttpModule::Get().GetHttpThreadIdleMinimumSleepTimeInSeconds();
+
+	UE_LOG(LogHttp, Log, TEXT("HTTP thread active frame time %.1f ms. Minimum active sleep time is %.1f ms. HTTP thread idle frame time %.1f ms. Minimum idle sleep time is %.1f ms."), HttpThreadActiveFrameTimeInSeconds * 1000.0, HttpThreadActiveMinimumSleepTimeInSeconds * 1000.0, HttpThreadIdleFrameTimeInSeconds * 1000.0, HttpThreadIdleMinimumSleepTimeInSeconds * 1000.0);
 }
-	
-void FHttpThread::Exit()
+
+FLegacyHttpThread::~FLegacyHttpThread()
 {
-	// empty
+}
+
+void FLegacyHttpThread::StartThread()
+{
+	FHttpThreadBase::StartThread();
+}
+
+void FLegacyHttpThread::StopThread()
+{
+	FHttpThreadBase::StopThread();
+}
+
+void FLegacyHttpThread::AddRequest(IHttpThreadedRequest* Request)
+{
+	FHttpThreadBase::AddRequest(Request);
+}
+
+void FLegacyHttpThread::CancelRequest(IHttpThreadedRequest* Request)
+{
+	FHttpThreadBase::CancelRequest(Request);
+}
+
+void FLegacyHttpThread::GetCompletedRequests(TArray<IHttpThreadedRequest*>& OutCompletedRequests)
+{
+	FHttpThreadBase::GetCompletedRequests(OutCompletedRequests);
+}
+
+void FLegacyHttpThread::Tick()
+{
+	FHttpThreadBase::Tick();
+
+	if (ensure(NeedsSingleThreadTick()))
+	{
+		TArray<IHttpThreadedRequest*> RequestsToCancel;
+		TArray<IHttpThreadedRequest*> RequestsToComplete;
+		Process(RequestsToCancel, RequestsToComplete);
+	}
+}
+
+bool FLegacyHttpThread::Init()
+{
+	ExitRequest.Set(false);
+	return FHttpThreadBase::Init();
+}
+
+uint32 FLegacyHttpThread::Run()
+{
+	// Arrays declared outside of loop to re-use memory
+	TArray<IHttpThreadedRequest*> RequestsToCancel;
+	TArray<IHttpThreadedRequest*> RequestsToComplete;
+	while (!ExitRequest.GetValue())
+	{
+		if (ensureMsgf(!NeedsSingleThreadTick(), TEXT("HTTP Thread was set to singlethread mode while it was running autonomously!")))
+		{
+			const double OuterLoopBegin = FPlatformTime::Seconds();
+			double OuterLoopEnd = 0.0;
+			bool bKeepProcessing = true;
+			while (bKeepProcessing)
+			{
+				const double InnerLoopBegin = FPlatformTime::Seconds();
+			
+				Process(RequestsToCancel, RequestsToComplete);
+			
+				if (RunningThreadedRequests.Num() == 0)
+				{
+					bKeepProcessing = false;
+				}
+
+				const double InnerLoopEnd = FPlatformTime::Seconds();
+				if (bKeepProcessing)
+				{
+					SCOPE_CYCLE_COUNTER(STAT_HTTPThread_ActiveSleep);
+					double InnerLoopTime = InnerLoopEnd - InnerLoopBegin;
+					double InnerSleep = FMath::Max(HttpThreadActiveFrameTimeInSeconds - InnerLoopTime, HttpThreadActiveMinimumSleepTimeInSeconds);
+					FPlatformProcess::SleepNoStats(InnerSleep);
+				}
+				else
+				{
+					OuterLoopEnd = InnerLoopEnd;
+				}
+			}
+			SCOPE_CYCLE_COUNTER(STAT_HTTPThread_IdleSleep)
+			double OuterLoopTime = OuterLoopEnd - OuterLoopBegin;
+			double OuterSleep = FMath::Max(HttpThreadIdleFrameTimeInSeconds - OuterLoopTime, HttpThreadIdleMinimumSleepTimeInSeconds);
+			FPlatformProcess::SleepNoStats(OuterSleep);
+		}
+		else
+		{
+			break;
+		}
+	}
+	return 0;
+}
+
+void FLegacyHttpThread::Stop()
+{
+	FHttpThreadBase::Stop();
+	ExitRequest.Set(true);
 }

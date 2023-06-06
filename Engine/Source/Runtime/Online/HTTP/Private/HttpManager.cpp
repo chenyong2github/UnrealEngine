@@ -281,9 +281,9 @@ void FHttpManager::AddGameThreadTask(TFunction<void()>&& Task)
 	}
 }
 
-FHttpThread* FHttpManager::CreateHttpThread()
+FHttpThreadBase* FHttpManager::CreateHttpThread()
 {
-	return new FHttpThread();
+	return new FLegacyHttpThread();
 }
 
 void FHttpManager::Flush(EHttpFlushReason FlushReason)

@@ -7,6 +7,7 @@
 #include "HAL/Runnable.h"
 #include "HttpPackage.h"
 #include "Misc/SingleThreadRunnable.h"
+#include "Misc/Timespan.h"
 #include "Containers/Queue.h"
 #include "Containers/SpscQueue.h"
 
@@ -18,52 +19,52 @@ class IHttpThreadedRequest;
  * Manages Http thread
  * Assumes any requests entering the system will remain valid (not deleted) until they exit the system
  */
-class FHttpThread
+class FHttpThreadBase
 	: FRunnable, FSingleThreadRunnable
 {
 public:
 
-	FHttpThread();
-	virtual ~FHttpThread();
+	FHttpThreadBase();
+	virtual ~FHttpThreadBase();
 
-	/** 
+	/**
 	 * Start the HTTP thread.
 	 */
-	void StartThread();
+	virtual void StartThread();
 
-	/** 
+	/**
 	 * Stop the HTTP thread.  Blocks until thread has stopped.
 	 */
-	void StopThread();
+	virtual void StopThread();
 
 	/**
 	 * Is the HTTP thread started or stopped.
 	 */
 	bool IsStopped() const { return bIsStopped; }
-	/** 
+
+	/**
 	 * Add a request to begin processing on HTTP thread.
 	 *
 	 * @param Request the request to be processed on the HTTP thread
 	 */
-	void AddRequest(IHttpThreadedRequest* Request);
+	virtual void AddRequest(IHttpThreadedRequest* Request);
 
-	/** 
+	/**
 	 * Mark a request as cancelled.    Called on non-HTTP thread.
 	 *
 	 * @param Request the request to be processed on the HTTP thread
 	 */
-	void CancelRequest(IHttpThreadedRequest* Request);
+	virtual void CancelRequest(IHttpThreadedRequest* Request);
 
-	/** 
+	/**
 	 * Get completed requests.  Clears internal arrays.  Called on non-HTTP thread.
 	 *
 	 * @param OutCompletedRequests array of requests that have been completed
 	 */
-	void GetCompletedRequests(TArray<IHttpThreadedRequest*>& OutCompletedRequests);
+	virtual void GetCompletedRequests(TArray<IHttpThreadedRequest*>& OutCompletedRequests);
 
 	//~ Begin FSingleThreadRunnable Interface
-	// Cannot be overriden to ensure identical behavior with the threaded tick
-	virtual void Tick() override final;
+	virtual void Tick() override;
 	//~ End FSingleThreadRunnable Interface
 
 	/**
@@ -96,14 +97,18 @@ protected:
 
 
 protected:
+	int32 GetRunningThreadedRequestLimit() const;
+
 	// Threading functions
 
 	//~ Begin FRunnable Interface
 	virtual bool Init() override;
-	virtual uint32 Run() override final;
+	virtual uint32 Run() override;
 	virtual void Stop() override;
 	virtual void Exit() override;
 	//~ End FRunnable Interface
+
+	void Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArray<IHttpThreadedRequest*>& RequestsToComplete);
 
 	/**
 	*  FSingleThreadRunnable accessor for ticking this FRunnable when multi-threading is disabled.
@@ -111,19 +116,20 @@ protected:
 	*/
 	virtual class FSingleThreadRunnable* GetSingleThreadInterface() override { return this; }
 
-	void Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, TArray<IHttpThreadedRequest*>& RequestsToComplete);
+protected:
+	/** Pointer to Runnable Thread */
+	FRunnableThread* Thread;
 
-	/** signal request to stop and exit thread */
-	FThreadSafeCounter ExitRequest;
+private:
+	/** Are we holding a fake thread and we need to be ticked manually when Flushing */
+	bool bIsSingleThread;
 
-	/** Time in seconds to use as frame time when actively processing requests. 0 means no frame time. */
-	double HttpThreadActiveFrameTimeInSeconds;
-	/** Time in seconds to sleep minimally when actively processing requests. */
-	double HttpThreadActiveMinimumSleepTimeInSeconds;
-	/** Time in seconds to use as frame time when idle, waiting for requests. 0 means no frame time. */
-	double HttpThreadIdleFrameTimeInSeconds;
-	/** Time in seconds to sleep minimally when idle, waiting for requests. */
-	double HttpThreadIdleMinimumSleepTimeInSeconds;
+	/** Tells if the runnable thread is running or stopped */
+	bool bIsStopped;
+
+	/** Limit for threaded http requests running at the same time. If not specified through configuration values, there will be no limit */
+	std::atomic<int32> RunningThreadedRequestLimit = INT_MAX;
+
 	/** Last time the thread has been processed. Used in the non-game thread. */
 	double LastTime;
 
@@ -157,18 +163,43 @@ protected:
 	 * Added to on HTTP thread, processed then cleared on game thread (Single producer, single consumer)
 	 */
 	TSpscQueue<IHttpThreadedRequest*> CompletedThreadedRequests;
+};
 
-	/** Pointer to Runnable Thread */
-	FRunnableThread* Thread;
+class FLegacyHttpThread	: public FHttpThreadBase
+{
+public:
 
-private:
+	FLegacyHttpThread();
+	virtual ~FLegacyHttpThread();
 
-	/** Are we holding a fake thread and we need to be ticked manually when Flushing */
-	bool bIsSingleThread;
+	virtual void StartThread() override final;
+	virtual void StopThread() override final;
+	virtual void AddRequest(IHttpThreadedRequest* Request) override final;
+	virtual void CancelRequest(IHttpThreadedRequest* Request) override final;
+	virtual void GetCompletedRequests(TArray<IHttpThreadedRequest*>& OutCompletedRequests) override final;
 
-	/** Tells if the runnable thread is running or stopped */
-	bool bIsStopped;
+	//~ Begin FSingleThreadRunnable Interface
+	// Cannot be overridden to ensure identical behavior with the threaded tick
+	virtual void Tick() override final;
+	//~ End FSingleThreadRunnable Interface
 
-	/** Limit for threaded http requests running at the same time. If not specified through configuration values, there will be no limit */
-	std::atomic<int32> RunningThreadedRequestLimit = INT_MAX;
+protected:
+	//~ Begin FRunnable Interface
+	virtual bool Init() override;
+	// Cannot be overridden to ensure identical behavior with the single threaded tick
+	virtual uint32 Run() override final;
+	virtual void Stop() override;
+	//~ End FRunnable Interface
+
+	/** signal request to stop and exit thread */
+	FThreadSafeCounter ExitRequest;
+
+	/** Time in seconds to use as frame time when actively processing requests. 0 means no frame time. */
+	double HttpThreadActiveFrameTimeInSeconds;
+	/** Time in seconds to sleep minimally when actively processing requests. */
+	double HttpThreadActiveMinimumSleepTimeInSeconds;
+	/** Time in seconds to use as frame time when idle, waiting for requests. 0 means no frame time. */
+	double HttpThreadIdleFrameTimeInSeconds;
+	/** Time in seconds to sleep minimally when idle, waiting for requests. */
+	double HttpThreadIdleMinimumSleepTimeInSeconds;
 };

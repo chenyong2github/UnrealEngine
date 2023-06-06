@@ -14,8 +14,11 @@
 #include "Misc/Fork.h"
 
 #include "Curl/CurlHttpThread.h"
+#include "Curl/CurlMultiPollEventLoopHttpThread.h"
+#include "Curl/CurlSocketEventLoopHttpThread.h"
 #include "Curl/CurlHttp.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "HAL/IConsoleManager.h"
 #include "HttpModule.h"
 
 #if WITH_SSL
@@ -32,6 +35,13 @@
 #ifndef DISABLE_UNVERIFIED_CERTIFICATE_LOADING
 #define DISABLE_UNVERIFIED_CERTIFICATE_LOADING 0
 #endif
+
+TAutoConsoleVariable<int32> CVarCurlEventLoopEnableChance(
+	TEXT("http.CurlEventLoopEnableChance"),
+	0,
+	TEXT("Enable chance of curl event loop, from 0 to 100"),
+	ECVF_SaveForNextBoot
+);
 
 CURLM* FCurlHttpManager::GMultiHandle = nullptr;
 #if !WITH_CURL_XCURL
@@ -439,8 +449,23 @@ void FCurlHttpManager::UpdateConfigs()
 	}
 }
 
-FHttpThread* FCurlHttpManager::CreateHttpThread()
+FHttpThreadBase* FCurlHttpManager::CreateHttpThread()
 {
+	bool bUseEventLoop = (FMath::RandRange(0, 99) < CVarCurlEventLoopEnableChance.GetValueOnGameThread());
+	if (bUseEventLoop)
+	{
+#if WITH_CURL_MULTIPOLL
+		UE_LOG(LogHttp, Log, TEXT("CreateHttpThread using FCurlMultiPollEventLoopHttpThread"));
+		return new FCurlMultiPollEventLoopHttpThread();
+#elif WITH_CURL_MULTISOCKET
+#if 0 // Disabled for now, requires further testing. FORT-616601
+		UE_LOG(LogHttp, Log, TEXT("CreateHttpThread using FCurlSocketEventLoopHttpThread"));
+		return new FCurlSocketEventLoopHttpThread();
+#endif
+#endif // WITH_CURL_MULTIPOLL
+	}
+
+	UE_LOG(LogHttp, Log, TEXT("CreateHttpThread using FCurlHttpThread"));
 	return new FCurlHttpThread();
 }
 

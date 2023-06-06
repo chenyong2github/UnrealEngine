@@ -36,7 +36,7 @@ class IHttpThreadedRequest;
 #if WITH_CURL
 
 class FCurlHttpThread
-	: public FHttpThread
+	: public FLegacyHttpThread
 {
 public:
 	

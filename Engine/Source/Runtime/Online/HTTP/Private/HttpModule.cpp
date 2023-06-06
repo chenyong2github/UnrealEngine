@@ -44,6 +44,7 @@ void FHttpModule::UpdateConfigs()
 	GConfig->GetFloat(TEXT("HTTP"), TEXT("HttpThreadActiveMinimumSleepTimeInSeconds"), HttpThreadActiveMinimumSleepTimeInSeconds, GEngineIni);
 	GConfig->GetFloat(TEXT("HTTP"), TEXT("HttpThreadIdleFrameTimeInSeconds"), HttpThreadIdleFrameTimeInSeconds, GEngineIni);
 	GConfig->GetFloat(TEXT("HTTP"), TEXT("HttpThreadIdleMinimumSleepTimeInSeconds"), HttpThreadIdleMinimumSleepTimeInSeconds, GEngineIni);
+	GConfig->GetFloat(TEXT("HTTP"), TEXT("HttpEventLoopThreadTickIntervalInSeconds"), HttpEventLoopThreadTickIntervalInSeconds, GEngineIni);
 
 	if (!FParse::Value(FCommandLine::Get(), TEXT("HttpNoProxy="), HttpNoProxy))
 	{
@@ -76,6 +77,7 @@ void FHttpModule::StartupModule()
 	HttpThreadActiveMinimumSleepTimeInSeconds = 0.0f;
 	HttpThreadIdleFrameTimeInSeconds = 1.0f / 30.0f; // 30Hz
 	HttpThreadIdleMinimumSleepTimeInSeconds = 0.0f;	
+	HttpEventLoopThreadTickIntervalInSeconds = 1.f / 10.f; // 10Hz
 
 	// override the above defaults from configs
 	FCoreDelegates::TSOnConfigSectionsChanged().AddRaw(this, &FHttpModule::OnConfigSectionsChanged);

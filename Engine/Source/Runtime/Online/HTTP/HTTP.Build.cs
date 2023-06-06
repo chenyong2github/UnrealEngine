@@ -29,6 +29,10 @@ public class HTTP : ModuleRules
 		} 
 	}
 
+	protected virtual bool bPlatformSupportsCurlMultiPoll { get { return true; } }
+
+	protected virtual bool bPlatformSupportsCurlMultiSocket { get { return true; } }
+
 	private bool bPlatformSupportsCurl { get { return bPlatformSupportsLibCurl || bPlatformSupportsXCurl; } }
 
 	protected virtual bool bPlatformRequiresOpenSSL
@@ -48,6 +52,12 @@ public class HTTP : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+			}
+			);
+
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"EventLoop",
 			}
 			);
 
@@ -77,6 +87,8 @@ public class HTTP : ModuleRules
 
 		PrivateDefinitions.Add("WITH_CURL_LIBCURL =" + (bPlatformSupportsLibCurl ? "1" : "0"));
 		PrivateDefinitions.Add("WITH_CURL_XCURL=" + (bPlatformSupportsXCurl ? "1" : "0"));
+		PrivateDefinitions.Add("WITH_CURL_MULTIPOLL=" + (bPlatformSupportsCurlMultiPoll ? "1" : "0"));
+		PrivateDefinitions.Add("WITH_CURL_MULTISOCKET=" + (bPlatformSupportsCurlMultiSocket ? "1" : "0"));
 		PrivateDefinitions.Add("WITH_CURL= " + ((bPlatformSupportsLibCurl || bPlatformSupportsXCurl) ? "1" : "0"));
 
 		// Use Curl over WinHttp on platforms that support it (until WinHttp client security is in a good place at the least)

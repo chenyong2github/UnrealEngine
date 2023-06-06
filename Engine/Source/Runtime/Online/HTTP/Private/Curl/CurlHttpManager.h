@@ -75,7 +75,7 @@ public:
 public:
 	virtual bool SupportsDynamicProxy() const override;
 protected:
-	virtual FHttpThread* CreateHttpThread() override;
+	virtual FHttpThreadBase* CreateHttpThread() override;
 	//~ End HttpManager Interface
 };
 
