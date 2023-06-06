@@ -92,7 +92,6 @@ namespace Metasound::Engine
 		const FMetasoundFrontendVersion& GetVersion();
 		FMetasoundFrontendInterface GetInterface();
 
-		// Update from MetasoundOutputFormatStereoV1_0 to MetasoundOutputFormatStereoV1_1
 		class FUpdateInterface : public Frontend::IDocumentTransform
 		{
 		public:
