@@ -804,7 +804,7 @@ public:
 	};
 
 	/** Declare delegate for notifications*/
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNotification, ENotification, const FIoHash&);
+	using FOnNotification = TTSMulticastDelegate<void(ENotification, const FIoHash&)>;
 
 	virtual FOnNotification& GetNotificationEvent() = 0;
 };
