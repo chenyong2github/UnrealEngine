@@ -20,6 +20,7 @@
 #include "IMessageLogListing.h"
 #include "MessageLogModule.h"
 #include "Misc/UObjectToken.h"
+#include "SPluginReferenceViewer.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
@@ -58,7 +59,8 @@ void SPluginAuditBrowser::Construct(const FArguments& InArgs)
 	PluginListView =
 		SNew(SListView< TSharedRef<FCookedPlugin> >)
 		.ListItemsSource(&FilteredCookedPlugins)
-		.OnGenerateRow(this, &SPluginAuditBrowser::MakeCookedPluginRow);
+		.OnGenerateRow(this, &SPluginAuditBrowser::MakeCookedPluginRow)
+		.OnContextMenuOpening(this, &SPluginAuditBrowser::OnContextMenuOpening);
 
 	ChildSlot
 	[
@@ -112,12 +114,41 @@ void SPluginAuditBrowser::Construct(const FArguments& InArgs)
 					[
 						PluginListView.ToSharedRef()
 					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+
+							// Asset count
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.f)
+						.VAlign(VAlign_Center)
+						.Padding(8, 5)
+						[
+							SNew(STextBlock)
+							.Text(this, &SPluginAuditBrowser::GetPluginCountText)
+						]
+					]
 				]
 			]
 			+ SSplitter::Slot()
-			.Value(0.70f)
+			.Value(0.90f)
 			[
-				MessageLogModule.CreateLogListingWidget(LogListing.ToSharedRef())
+				SNew(SVerticalBox)
+
+				// Path and history
+				+SVerticalBox::Slot()
+				.FillHeight(0.90f)
+				[
+					SAssignNew(PluginReferenceViewer, SPluginReferenceViewer)
+				]
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					MessageLogModule.CreateLogListingWidget(LogListing.ToSharedRef())
+				]
 			]
 		]
 	];
@@ -232,6 +263,24 @@ ECheckBoxState SPluginAuditBrowser::GetGlobalDisabledState() const
 		bGlobalDisabledState ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
 }
 
+FText SPluginAuditBrowser::GetPluginCountText() const
+{
+	const int32 NumPlugins = CookedPlugins.Num();
+	const int32 NumPluginsDisabled = CookedPlugins.FilterByPredicate([](const auto& Item) { return Item->bSimulateDisabled; }).Num();
+
+	FText PluginCount = FText::GetEmpty();
+	if (NumPlugins == 1)
+	{
+		PluginCount = FText::Format(LOCTEXT("PluginCountLabelSingularPlusDisabled", "1 plugin ({0} disabled)"), FText::AsNumber(NumPluginsDisabled));
+	}
+	else
+	{
+		PluginCount = FText::Format(LOCTEXT("PluginCountLabelPluralPlusDisabled", "{0} plugins ({1} disabled)"), FText::AsNumber(CookedPlugins.Num()), FText::AsNumber(NumPluginsDisabled));
+	}
+
+	return PluginCount;
+}
+
 TSharedRef<ITableRow> SPluginAuditBrowser::MakeCookedPluginRow(TSharedRef<SPluginAuditBrowser::FCookedPlugin> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(STableRow< TSharedRef<FCookedPlugin> >, OwnerTable)
@@ -260,6 +309,65 @@ TSharedRef<ITableRow> SPluginAuditBrowser::MakeCookedPluginRow(TSharedRef<SPlugi
 			.Text(FText::FromString(InItem->Plugin->GetFriendlyName()))
 		]
 	];
+}
+
+TSharedPtr<SWidget> SPluginAuditBrowser::OnContextMenuOpening()
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OpenPluginPropertiesLabel", "Open Plugin Properties"),
+		LOCTEXT("OpenPluginPropertiesTooltip", "Open Plugin Properties Window"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SPluginAuditBrowser::OnOpenPluginProperties),
+			FCanExecuteAction()
+		));
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OpenPluginDependencyViewerLabel", "Open Plugin Dependency Viewer"),
+		LOCTEXT("OpenPluginDependencyViewerTooltip", "Open Plugin Dependency Viewer"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SPluginAuditBrowser::OnOpenPluginDependencyViewer),
+			FCanExecuteAction()
+		));
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SPluginAuditBrowser::OnOpenPluginProperties()
+{
+	TArray<TSharedRef<FCookedPlugin>> SelectedItems = PluginListView->GetSelectedItems();
+	if (SelectedItems.Num() == 1)
+	{
+		OpenPluginProperties(SelectedItems[0]->Plugin->GetName());
+	}
+}
+
+void SPluginAuditBrowser::OnOpenPluginDependencyViewer()
+{
+	TArray<TSharedRef<FCookedPlugin>> SelectedItems = PluginListView->GetSelectedItems();
+	if (SelectedItems.Num() == 1)
+	{
+		TSharedRef<IPlugin> SelectedPlugin = SelectedItems[0]->Plugin;
+
+		TArray<FPluginIdentifier> NewGraphRootNames;
+		NewGraphRootNames.Add(FName(SelectedPlugin->GetName()));
+
+		PluginReferenceViewer->SetGraphRoot(NewGraphRootNames);
+	}
+}
+
+void SPluginAuditBrowser::OpenPluginProperties(const FString& PluginName)
+{
+	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName);
+	if (Plugin != nullptr)
+	{
+		IPluginsEditorFeature& PluginEditor = IModularFeatures::Get().GetModularFeature<IPluginsEditorFeature>(EditorFeatures::PluginsEditor);
+		PluginEditor.OpenPluginEditor(Plugin.ToSharedRef(), nullptr, FSimpleDelegate());
+	}
 }
 
 void SPluginAuditBrowser::CreateLogListing()
