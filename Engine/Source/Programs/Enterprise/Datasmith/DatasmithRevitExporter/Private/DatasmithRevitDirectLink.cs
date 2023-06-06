@@ -314,8 +314,7 @@ namespace DatasmithRevitExporter
 						if (ElementInView.Category != null && (BuiltInCategory)ElementInView.Category.Id.IntegerValue != BuiltInCategory.OST_Levels)
 #endif
 						{
-							IList<ElementId> DependentElements = ElementInView.GetDependentElements(null);
-							foreach (ElementId DependentElementId in DependentElements)
+							foreach (ElementId DependentElementId in FUtils.GetAllDependentElements(ElementInView))
 							{
 								if (DependentElementId == ElemId)
 								{

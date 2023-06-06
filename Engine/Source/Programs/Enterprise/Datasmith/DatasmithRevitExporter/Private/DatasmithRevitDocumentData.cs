@@ -1387,8 +1387,7 @@ namespace DatasmithRevitExporter
 			{
 				//Check if any of its children is Decal:
 				//If so track them, so that we can use the owner object elementId to update the Decals (when modified, for ep: changing its location)
-				IList<ElementId> DependentElements = InElement.GetDependentElements(null);
-				foreach (ElementId DependentElementId in DependentElements)
+				foreach (ElementId DependentElementId in FUtils.GetAllDependentElements(InElement))
 				{
 					if (FUtils.IsElementIdDecal(InElement.Document, DependentElementId))
 					{
@@ -1462,14 +1461,6 @@ namespace DatasmithRevitExporter
 						ElementData.BaseElementType = InElement.Document.GetElement(InElement.GetTypeId()) as ElementType;
 						ElementData.CurrentElement = InElement;
 						ElementData.MeshMaterialsMap.Clear();
-
-						if (ElementData.bIsDecalElement)
-						{
-							if (!DecalElementsMap.ContainsKey(InElement.Id))
-							{
-								DecalElementsMap.Add(InElement.Id, ElementData);
-							}
-						}
 					}
 					else
 					{
@@ -1480,11 +1471,6 @@ namespace DatasmithRevitExporter
 				else
 				{
 					ElementData = new FElementData(InElement, InWorldTransform, this);
-
-					if (ElementData.bIsDecalElement)
-					{
-						DecalElementsMap.Add(InElement.Id, ElementData);
-					}
 				}
 
 				ElementDataStack.Push(ElementData);
@@ -1493,6 +1479,15 @@ namespace DatasmithRevitExporter
 				// GetActorName depends on this 
 				ElementData.InitializePivotPlacement(ref InWorldTransform);
 				ElementData.InitializeElement(InWorldTransform, ElementData);
+
+				if (ElementData.bIsDecalElement)
+				{
+					if (!DecalElementsMap.ContainsKey(InElement.Id))
+					{
+						DecalElementsMap.Add(InElement.Id, ElementData);
+					}
+				}
+
 			}
 			else
 			{

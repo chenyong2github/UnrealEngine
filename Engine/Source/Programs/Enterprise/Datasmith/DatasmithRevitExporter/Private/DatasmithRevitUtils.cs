@@ -212,5 +212,11 @@ namespace DatasmithRevitExporter
 
 			return false;
 		}
+
+		public static IList<ElementId> GetAllDependentElements(Element ElementInView)
+		{
+			// Revit 2018 doesn't support passing 'null' to GetDependentElements so just make a simple filter
+			return ElementInView.GetDependentElements(new ExclusionFilter(new List<ElementId>(){ElementInView.Id}));
+		}
 	}
 }
