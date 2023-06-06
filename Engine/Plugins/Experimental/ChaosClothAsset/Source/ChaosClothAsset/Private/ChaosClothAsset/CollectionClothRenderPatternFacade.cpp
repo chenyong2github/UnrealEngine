@@ -6,7 +6,6 @@
 
 namespace UE::Chaos::ClothAsset
 {
-
 	const FString& FCollectionClothRenderPatternConstFacade::GetRenderMaterialPathName() const
 	{
 		static const FString EmptyString;
@@ -93,7 +92,6 @@ namespace UE::Chaos::ClothAsset
 			GetElementIndex());
 	}
 
-
 	TConstArrayView<TArray<float>> FCollectionClothRenderPatternConstFacade::GetRenderBoneWeights() const
 	{
 		return ClothCollection->GetElements(
@@ -102,7 +100,6 @@ namespace UE::Chaos::ClothAsset
 			ClothCollection->GetRenderVerticesEnd(),
 			GetElementIndex());
 	}
-
 
 	int32 FCollectionClothRenderPatternConstFacade::GetNumRenderFaces() const
 	{

@@ -6,7 +6,6 @@
 #include "ChaosClothAsset/CollectionClothRenderPatternFacade.h"
 #include "ChaosClothAsset/CollectionClothSeamFacade.h"
 
-class FClothCollection;
 namespace Chaos
 {
 class FChaosArchive;
@@ -14,6 +13,8 @@ class FChaosArchive;
 
 namespace UE::Chaos::ClothAsset
 {
+	class FClothCollection;
+
 	/**
 	 * Cloth Asset collection facade class focused on draping and pattern information.
 	 * Const access (read only) version.

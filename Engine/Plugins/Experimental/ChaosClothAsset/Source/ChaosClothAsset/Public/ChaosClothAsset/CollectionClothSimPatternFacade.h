@@ -103,7 +103,7 @@ namespace UE::Chaos::ClothAsset
 		TArrayView<FIntVector3> GetSimIndices2D();
 		TArrayView<FIntVector3> GetSimIndices3D();
 
-	protected:
+	private:
 		friend class FCollectionClothFacade;
 		FCollectionClothSimPatternFacade(const TSharedPtr<FClothCollection>& InClothCollection, int32 InPatternIndex);
 

@@ -103,7 +103,6 @@ namespace UE::Chaos::ClothAsset
 		const FIntVector2 StartVertexIndex = AppendSimVertices(Positions2D.Num());
 		check(StartVertexIndex[0] == 0); // We should have an empty pattern
 
-
 		const TArrayView<FVector2f> SimPosition2D = GetSimPosition2D();
 		const TArrayView<FVector3f> SimPosition3D = Cloth.GetSimPosition3D();
 		const TArrayView<FVector3f> SimNormal = Cloth.GetSimNormal();

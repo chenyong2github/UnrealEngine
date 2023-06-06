@@ -5,7 +5,6 @@
 #include "GeometryCollection/ManagedArray.h"
 
 struct FManagedArrayCollection;
-template<class InElementType> class TManagedArray;
 
 namespace UE::Chaos::ClothAsset
 {
