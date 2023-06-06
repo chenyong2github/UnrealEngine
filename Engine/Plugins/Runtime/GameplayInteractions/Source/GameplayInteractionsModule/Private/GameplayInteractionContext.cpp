@@ -218,7 +218,7 @@ bool FGameplayInteractionContext::SetContextRequirements(FStateTreeExecutionCont
         }
 		else if (ItemDesc.Name == UE::GameplayInteraction::Names::SlotEntranceHandle)
 		{
-			StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(FSmartObjectClaimHandle::StaticStruct(), (uint8*)&SlotEntranceHandle));
+			StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(FSmartObjectSlotEntranceHandle::StaticStruct(), (uint8*)&SlotEntranceHandle));
 		}
 		else if (ItemDesc.Name == UE::GameplayInteraction::Names::AbortContext)
 		{
