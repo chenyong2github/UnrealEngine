@@ -311,11 +311,11 @@ void Main(
 			#if USE_TRANSMISSION
 			if (bHasSubsurfaceTransmission)
 			{
+				// This branch is only taken by SSS profiles and SSS per pixel diffusion methods.
 			#if STRATA_ENABLED
 				const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
 				const float3 WorldNormal = TopLayerData.WorldNormal;
 
-				// For non-profile version, use default transmission parameters (only NormalScale & ExtinctionScale are used)
 				FTransmissionProfileParams TransmissionParams = InitTransmissionProfileParams();
 				if (SSSType == SSS_TYPE_DIFFUSION_PROFILE)
 				{
@@ -323,9 +323,12 @@ void Main(
 				}
 				else if (SSSType == SSS_TYPE_DIFFUSION)
 				{
-					TransmissionParams = InitTransmissionProfileParams(); // IOR and phase are incorrect. but not used
-					TransmissionParams.ExtinctionScale = StrataSubSurfaceHeaderGetMFP(SSSHeader);
+					//For per pixel diffusion, use default transmission parameters (only NormalScale & ExtinctionScale are used)
+					const float MFP = dot(StrataSubSurfaceHeaderGetMFP(SSSHeader), (1.0/3.0).xxx);
+					const float Extinction = 1.0f / max(0.00001, MFP);
+					TransmissionParams.ExtinctionScale = Extinction;
 				}
+
 			#else // STRATA_ENABLED
 				float3 WorldNormal = GBufferData.WorldNormal;
 				FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(ExtractSubsurfaceProfileInt(GBufferData));
@@ -335,6 +338,7 @@ void Main(
 			else
 			#endif
 			{
+				// This branch is taken by Subsurface shading model (Wrap for Substrate)
 				// ideally we use a larger filter kernel for SSSbut as Gather4 makes that harder
 				SSSTransmission = ManualPCF(ShadowPosition.xy, Settings);
 			}
@@ -482,10 +486,23 @@ void MainOnePassPointLightPS(
 	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
 
 	const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, SVPos.xy);
+	const uint SSSType = StrataSubSurfaceHeaderGetSSSType(SSSHeader);
 
 	const bool IsSubsurfaceProfile = StrataSubSurfaceHeaderGetUseDiffusion(SSSHeader);
 	const float3 WorldNormal = TopLayerData.WorldNormal;
-	const FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(StrataSubSurfaceHeaderGetProfileId(SSSHeader));
+
+	FTransmissionProfileParams TransmissionParams = InitTransmissionProfileParams();
+	if (SSSType == SSS_TYPE_DIFFUSION_PROFILE)
+	{
+		TransmissionParams = GetTransmissionProfileParams(StrataSubSurfaceHeaderGetProfileId(SSSHeader));
+	}
+	else if (SSSType == SSS_TYPE_DIFFUSION)
+	{
+		//For per pixel diffusion, use default transmission parameters (only NormalScale & ExtinctionScale are used)
+		const float MFP = dot(StrataSubSurfaceHeaderGetMFP(SSSHeader), (1.0 / 3.0).xxx);
+		const float Extinction = 1.0f / max(0.00001, MFP);
+		TransmissionParams.ExtinctionScale = Extinction;
+	}
 
 #else // STRATA_ENABLED
 

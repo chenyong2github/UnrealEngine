@@ -11,12 +11,53 @@ VirtualShadowMaps/VirtualShadowMapTransmissionCommon.ush:
 #include "../TransmissionCommon.ush"
 #include "VirtualShadowMapProjectionCommon.ush"
 
-float GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
+FSubsurfaceOpacityMFP GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 {
-	float Opacity = 1.0;
+	FSubsurfaceOpacityMFP SubsurfaceOpacityMFP = GetInitialisedSubsurfaceOpacityMFP();
 
 #if STRATA_ENABLED
-	Opacity = StrataGetOpacityFromSubSurface(StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, PixelPos));
+
+	FStrataSubsurfaceData LoadStrat = StrataLoadSubsurfaceData(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, PixelPos);
+
+	const uint SSSType = SSSHEADER_TYPE(LoadStrat.Header);
+	
+	if (SSSType == SSS_TYPE_DIFFUSION)
+	{
+		SubsurfaceOpacityMFP.bDataIsOpacity = false;
+		const float3 MFP = StrataSubSurfaceHeaderGetMFP(LoadStrat.Header);
+		SubsurfaceOpacityMFP.Data = dot(MFP, (1.0f / 3.0f).xxx);
+		SubsurfaceOpacityMFP.Density = 0.0f;
+	}
+	else if (SSSType == SSS_TYPE_DIFFUSION_PROFILE)
+	{
+		SubsurfaceOpacityMFP.bDataIsOpacity = true;
+ 	   
+		const float ProfileRadiusScale = StrataSubSurfaceHeaderGetProfileRadiusScale(LoadStrat.Header);
+		// This clamp aligns with SubsurfaceDensityFromOpacity
+		// Various engine paths treat these subsurface materials differently
+		// even when they have Opacity = 1 in the material shader, so this is
+		// important to avoid things like backface transmission being shadowed by
+		// contact shadows and so on.
+		const float Opacity = min(ProfileRadiusScale, 0.99);
+		SubsurfaceOpacityMFP.Data = Opacity;
+
+		FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(StrataSubSurfaceHeaderGetProfileId(LoadStrat.Header));
+		SubsurfaceOpacityMFP.Density = SubsurfaceDensityFromOpacity(SubsurfaceOpacityMFP.Data) * TransmissionParams.ExtinctionScale * 3.1f;	// This matches the weird computations done in CalcTransmissionThickness
+	}
+	else if (SSSType == SSS_TYPE_WRAP)
+	{
+		SubsurfaceOpacityMFP.bDataIsOpacity = true;
+ 	   
+		// This clamp aligns with SubsurfaceDensityFromOpacity
+		// Various engine paths treat these subsurface materials differently
+		// even when they have Opacity = 1 in the material shader, so this is
+		// important to avoid things like backface transmission being shadowed by
+		// contact shadows and so on.
+		const float Opacity = min(StrataSubSurfaceHeaderGetWrapOpacity(LoadStrat.Header), 0.99);
+		SubsurfaceOpacityMFP.Data = Opacity;
+		SubsurfaceOpacityMFP.Density = SubsurfaceDensityFromOpacity(SubsurfaceOpacityMFP.Data);
+	}
+
 #else // STRATA_ENABLED
 	FGBufferData GBufferData = GetGBufferDataUint(PixelPos);
 
@@ -30,19 +71,36 @@ float GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 		// even when they have Opacity = 1 in the material shader, so this is
 		// important to avoid things like backface transmission being shadowed by
 		// contact shadows and so on.
-		Opacity = min(GBufferData.CustomData.a, 0.99f);
+		SubsurfaceOpacityMFP.Data = min(GBufferData.CustomData.a, 0.99f);
+		SubsurfaceOpacityMFP.Density = SubsurfaceDensityFromOpacity(SubsurfaceOpacityMFP.Data);
 	}
 #endif // STRATA_ENABLED
 
-	return Opacity;
+	return SubsurfaceOpacityMFP;
 }
 
 /* Compute Subsurface transmission */
-float GetShadowFactorSubsurface(float ShadowFactor, float OccluderDistance, float SubsurfaceOpacity)
+float GetShadowFactorSubsurface(float ShadowFactor, float OccluderDistance, FSubsurfaceOpacityMFP SubsurfaceOpacityMFP)
 {
 	if (ShadowFactor < 1.0f)
 	{
-		float SSSTransmission = GetSubSurfaceTransmission(OccluderDistance, SubsurfaceDensityFromOpacity(SubsurfaceOpacity));
+#if STRATA_ENABLED
+		float SSSTransmission = 1.0f;
+		if (SubsurfaceOpacityMFP.bDataIsOpacity)
+		{
+			// Opacity from subsurface profile and subsurface legacy shading model
+			SSSTransmission = GetSubSurfaceTransmission(OccluderDistance, SubsurfaceOpacityMFP.Density);
+		}
+		else
+		{
+			const float MFP = SubsurfaceOpacityMFP.Data;
+			const float Extinction = 1.0f / max(0.00001, MFP);
+			SSSTransmission = saturate(FastExp(-OccluderDistance * Extinction));
+		}
+#else
+		// Only opacity in this path
+		float SSSTransmission = GetSubSurfaceTransmission(OccluderDistance, SubsurfaceOpacityMFP.Density);
+#endif
 
 		// NOTE: This 'square' is to compensate the ShadowMask encoding (i.e., sqrt) applied when compositing VSM to shadow mask. 
 		//       This allows to be consistent with the PCF path

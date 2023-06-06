@@ -677,7 +677,8 @@ RAY_TRACING_ENTRY_RAYGEN_OR_INLINE(Occlusion)
 
 			WorldNormal = TopLayerData.WorldNormal;
 
-			if (ENABLE_TRANSMISSION && ShadingParameters.bHasSubsurfaceProfile)
+
+			if (ENABLE_TRANSMISSION)
 			{
 				if (SSSType == SSS_TYPE_DIFFUSION_PROFILE)
 				{
@@ -685,15 +686,31 @@ RAY_TRACING_ENTRY_RAYGEN_OR_INLINE(Occlusion)
 				}
 				else if (SSSType == SSS_TYPE_DIFFUSION)
 				{
+					FSubsurfaceOpacityMFP SubsurfaceOpacityMFP = StrataGetOpacityFromSubSurface(SSSHeader);
+
+					// We know that or SSS_TYPE_DIFFUSION we have access to the mean free path. 
+					const float MFP = SubsurfaceOpacityMFP.Data;
+					const float Extinction = 1.0f / max(0.00001, MFP);
+
 					TransmissionParameters = InitTransmissionProfileParams();
-					TransmissionParameters.ExtinctionScale = StrataSubSurfaceHeaderGetMFP(SSSHeader);
+					TransmissionParameters.ExtinctionScale = Extinction;
+					
+					SubsurfaceSamplingMeanFreePath = 1.0;
+					BRANCH
+					if (TransmissionMeanFreePathType == TransmissionMeanFreePathType_MaxMeanFreePath)
+					{
+						SubsurfaceSamplingMeanFreePath = MFP;
+					}
 				}
-				SubsurfaceSamplingMeanFreePath = TransmissionParameters.ExtinctionScale;
 			}
 
-			if (ShadingParameters.bIsSubsurface)
+			if (ShadingParameters.bIsSubsurface) // Legacy Subsurface shading model == Substrate Wrap SSS.
 			{
-				TransmissionParameters.ExtinctionScale = StrataGetOpacityFromSubSurface(SSSHeader);
+				FSubsurfaceOpacityMFP SubsurfaceOpacityMFP = StrataGetOpacityFromSubSurface(SSSHeader);
+				if (SubsurfaceOpacityMFP.bDataIsOpacity)
+				{
+					TransmissionParameters.ExtinctionScale = SubsurfaceOpacityMFP.Data;
+				}
 			}
 		}	
 		#else

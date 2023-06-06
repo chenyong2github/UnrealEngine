@@ -8,6 +8,25 @@
 	#error STRATA_ENABLED needs to be defined
 #endif
 
+
+// A structure that can be used to transfert Legacy/substrate data for light transmission.
+struct FSubsurfaceOpacityMFP
+{
+	bool  bDataIsOpacity;	// If false, Data is a mean free path
+	float Data;				// MFP or Opacity
+	float Density;			// Must be stored separately from Opacity, because Opacity is used for some tests
+};
+
+FSubsurfaceOpacityMFP GetInitialisedSubsurfaceOpacityMFP()
+{
+	FSubsurfaceOpacityMFP SubsurfaceOpacityMFP;
+	SubsurfaceOpacityMFP.bDataIsOpacity = true;
+	SubsurfaceOpacityMFP.Data = 1.0;
+	SubsurfaceOpacityMFP.Density = 0.0f;
+	return SubsurfaceOpacityMFP;
+}
+
+
 #if STRATA_ENABLED
 
 #include "../ShadingEnergyConservation.ush"
@@ -929,6 +948,11 @@ bool StrataSubSurfaceHeaderGetIsProfile(in FStrataSubsurfaceHeader SSSHeader)
 	return SSSHEADER_TYPE(SSSHeader) == SSS_TYPE_DIFFUSION_PROFILE;
 }
 
+bool StrataSubSurfaceHeaderGetIsWrap(in FStrataSubsurfaceHeader SSSHeader)
+{
+	return SSSHEADER_TYPE(SSSHeader) == SSS_TYPE_WRAP;
+}
+
 uint StrataSubSurfaceHeaderGetSSSType(in FStrataSubsurfaceHeader SSSHeader)
 {
 	return SSSHEADER_TYPE(SSSHeader);
@@ -975,20 +999,34 @@ float StrataSubSurfaceHeaderGetOpacity(in FStrataSubsurfaceHeader SSSHeader)
 }
 
 // Legacy conversion function, which translated Strata sub-surface data into 'opacity' for shadow transmission purpose. 
-// Note: When SSS data uses DFMP data, the conversion to opacity is ad-hoc/hacky
-// STRATA_TODO: merge this function with StrataSubSurfaceHeaderGetOpacity()
-float StrataGetOpacityFromSubSurface(FStrataSubsurfaceHeader SSSHeader)
+// STRATA_TODO: merge this function with StrataSubSurfaceHeaderGetOpacity() and GetSubsurfaceOpacityFromGbuffer() in a common Strata header.
+FSubsurfaceOpacityMFP StrataGetOpacityFromSubSurface(FStrataSubsurfaceHeader SSSHeader)
 {
-	const uint SSSType = SSSHEADER_TYPE(SSSHeader);
-	const float ProfileRadiusScale = StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader);
-	const float3 MFP = StrataSubSurfaceHeaderGetMFP(SSSHeader);
-	const float WrapOpacity = StrataSubSurfaceHeaderGetWrapOpacity(SSSHeader);
+	FSubsurfaceOpacityMFP SubsurfaceOpacityMFP = GetInitialisedSubsurfaceOpacityMFP();
 
-	float Opacity = 1.0f;
-	Opacity = SSSType == SSS_TYPE_DIFFUSION ? saturate(1.0f - max3(MFP.x, MFP.y, MFP.z)) : Opacity;
-	Opacity = SSSType == SSS_TYPE_DIFFUSION_PROFILE ? ProfileRadiusScale : Opacity;
-	Opacity = SSSType == SSS_TYPE_WRAP ? WrapOpacity : Opacity;
-	return Opacity;
+	const uint SSSType = SSSHEADER_TYPE(SSSHeader);
+
+	if (SSSType == SSS_TYPE_DIFFUSION)
+	{
+		SubsurfaceOpacityMFP.bDataIsOpacity = false;
+		const float3 MFP = StrataSubSurfaceHeaderGetMFP(SSSHeader);
+		SubsurfaceOpacityMFP.Data = dot(MFP, (1.0f/3.0f).xxx);
+		SubsurfaceOpacityMFP.Density = 0; // Not fed
+	}
+	else if (SSSType == SSS_TYPE_DIFFUSION_PROFILE)
+	{
+		SubsurfaceOpacityMFP.bDataIsOpacity = true;
+		SubsurfaceOpacityMFP.Data = min(StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader), 0.99);
+		SubsurfaceOpacityMFP.Density = 0; // Not fed
+	}
+	else if (SSSType == SSS_TYPE_WRAP)
+	{
+		SubsurfaceOpacityMFP.bDataIsOpacity = true;
+		SubsurfaceOpacityMFP.Data = min(StrataSubSurfaceHeaderGetWrapOpacity(SSSHeader), 0.99);
+		SubsurfaceOpacityMFP.Density = 0; // Not fed
+	}
+
+	return SubsurfaceOpacityMFP;
 }
 
 // Stored in second slice as UINT

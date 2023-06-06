@@ -56,11 +56,16 @@ FProjectionShadingInfo GetProjectionShadingInfo(uint2 PixelPos)
 	const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, PixelPos);
 	const bool bIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
 	const bool bIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSHeader);
-	Out.bIsSubsurface = bIsValid && !bIsProfile;
+
+	const uint SSSType = SSSHEADER_TYPE(SSSHeader);
+	const bool bHasSSS = StrataPixelHeader.HasSubsurface();
+	const uint BSDFType = StrataPixelHeader.StrataGetBSDFType();
 
 	Out.bIsValid = StrataPixelHeader.IsStrataMaterial();
-	Out.bIsHair = StrataPixelHeader.StrataGetBSDFType() == STRATA_BSDF_TYPE_HAIR;
+	Out.bIsHair = BSDFType == STRATA_BSDF_TYPE_HAIR;
 	Out.WorldNormal = TopLayerData.WorldNormal;
+	Out.bIsSubsurface = SSSType != SSS_TYPE_INVALID; // legacy IsSubsurfaceModel is true for subsurface profile, eyes, etc.
+
 #else
 	const FGBufferData GBufferData = GetGBufferDataUint(PixelPos, true);
 	Out.bIsValid = GBufferData.ShadingModelID != SHADINGMODELID_UNLIT;
@@ -205,7 +210,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 	float ScreenRayLengthWorld,
 	float3 TranslatedWorldPosition,
 	const float Noise,
-	float SubsurfaceOpacity)
+	const FSubsurfaceOpacityMFP SubsurfaceOpacityMFP)
 {
 	const bool bIsHairInput = InputType == INPUT_TYPE_HAIRSTRANDS;
 
@@ -304,15 +309,18 @@ FVirtualShadowMapSampleResult ProjectLight(
 				SMRTRayOffset,
 				WorldNormal);
 		}
-
-		if (SubsurfaceOpacity < 1.0f)
+		
+		// Explanation:
+		//	- If bDataIsOpacity = 1: Data stores the surface's SSS opacity. We compute a transmitted color when the surface is not fully opaque (opacity == 1).
+		//	- If bDataIsOpacity = 0: Data stores the surface's MFP.         We compute a transmitted color when the surface is not fully opaque (MFP == 0)
+		if ((SubsurfaceOpacityMFP.bDataIsOpacity && SubsurfaceOpacityMFP.Data < 1.0f) || (!SubsurfaceOpacityMFP.bDataIsOpacity && SubsurfaceOpacityMFP.Data > 0.0f))
 		{
 			// We use a single term for both the shadow and "transmission shadow" in the VSM path to provide a
 			// higher quality filtered result on back faces and avoid artifacts at the point where normals flip.
 			// This is especially important for foliage as normals are often "warped" to provide softer shading
 			// and do not represent the underlying geometry accurately, so having a continuous shadow function
 			// is important.
-			Result.ShadowFactor = GetShadowFactorSubsurface(Result.ShadowFactor, Result.OccluderDistance, SubsurfaceOpacity);
+			Result.ShadowFactor = GetShadowFactorSubsurface(Result.ShadowFactor, Result.OccluderDistance, SubsurfaceOpacityMFP);
 		}
 
 		//Result.GeneralDebug = GreenToRedTurbo(1.0f - (SMRTRayOffset / ScreenRayLengthWorld));
@@ -593,7 +601,12 @@ void VirtualShadowMapProjection(
 	const float Noise = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 );
 
 	const FProjectionShadingInfo ShadingInfo = GetProjectionShadingInfo(PixelPos);
-	const float SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer(PixelPos);
+
+	FSubsurfaceOpacityMFP SubsurfaceOpacityMFP = GetInitialisedSubsurfaceOpacityMFP();
+	if (!bIsHairInput)
+	{
+		SubsurfaceOpacityMFP = GetSubsurfaceOpacityFromGbuffer(PixelPos);
+	}
 
 	FVirtualShadowMapSampleResult VisualizeResult = InitVirtualShadowMapSampleResult();
 
@@ -626,7 +639,7 @@ void VirtualShadowMapProjection(
 				ScreenRayLengthWorld,
 				TranslatedWorldPosition,
 				Noise,
-				SubsurfaceOpacity);
+				SubsurfaceOpacityMFP);
 
 			PackShadowMask(ShadowMask, Result.ShadowFactor, Index);
 
@@ -644,13 +657,13 @@ void VirtualShadowMapProjection(
 		int VirtualShadowMapId = LightUniformVirtualShadowMapId;
 		FLightShaderParameters Light = GetRootLightShaderParameters();
 
-		// Subsurface approximation
-		const float SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer(PixelPos);
 #if DIRECTIONAL_LIGHT
 		// Increases light source radius for subsurface material as the opacity reduces to emulates light diffusion.
 		// TODO: Does something similar make sense for local lights?
-		if (SubsurfaceOpacity < 1.0f)
+		// Substrate: this approximation has no concrete fundation so it is currently skipped for Substrate using PerPixel SSS, e.g. when bDataIsOpacity==false and data is MFP.
+		if (SubsurfaceOpacityMFP.bDataIsOpacity && SubsurfaceOpacityMFP.Data < 1.0f)
 		{
+			const float SubsurfaceOpacity = SubsurfaceOpacityMFP.Data;
 			Light.SourceRadius = max(Light.SourceRadius, (1.0f - SubsurfaceOpacity) * SubsurfaceMinSourceRadius);
 		}
 #endif
@@ -664,7 +677,7 @@ void VirtualShadowMapProjection(
 			ScreenRayLengthWorld,
 			TranslatedWorldPosition,
 			Noise,
-			SubsurfaceOpacity);
+			SubsurfaceOpacityMFP);
 
 		OutShadowFactor[ PixelPos ] = Result.ShadowFactor.xx;
 
