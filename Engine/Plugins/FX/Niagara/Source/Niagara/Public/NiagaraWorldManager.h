@@ -296,7 +296,7 @@ private:
 	static FDelegateHandle PreGCBeginDestroyHandle;
 	static FDelegateHandle ViewTargetChangedHandle;
 
-	static bool bInvalidateCachedSystemScalabilityData;
+	static std::atomic<bool> bInvalidateCachedSystemScalabilityData;
 
 	static NIAGARA_API TMap<class UWorld*, class FNiagaraWorldManager*> WorldManagers;
 

@@ -243,7 +243,7 @@ FDelegateHandle FNiagaraWorldManager::PostGCHandle;
 FDelegateHandle FNiagaraWorldManager::PreGCBeginDestroyHandle;
 FDelegateHandle FNiagaraWorldManager::ViewTargetChangedHandle;
 
-bool FNiagaraWorldManager::bInvalidateCachedSystemScalabilityData = false;
+std::atomic<bool> FNiagaraWorldManager::bInvalidateCachedSystemScalabilityData(false);
 TMap<class UWorld*, class FNiagaraWorldManager*> FNiagaraWorldManager::WorldManagers;
 
 namespace FNiagaraUtilities
@@ -1168,9 +1168,8 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 			WorldLoopTime -= DeltaSeconds;
 		}
 
-		if (bInvalidateCachedSystemScalabilityData)
+		if (bInvalidateCachedSystemScalabilityData.exchange(false))
 		{
-			bInvalidateCachedSystemScalabilityData = false;
 			InvalidateCachedSystemScalabilityDataForAllWorlds();
 		}
 
