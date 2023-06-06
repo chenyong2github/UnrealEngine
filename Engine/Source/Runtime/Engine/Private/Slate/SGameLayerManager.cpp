@@ -280,8 +280,6 @@ void SGameLayerManager::AddWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWid
 {
 	TSharedPtr<FPlayerLayer> PlayerLayer = FindOrCreatePlayerLayer(Player);
 
-	ensure(!PlayerLayer->Widget->HasSlotWithZOrder(ZOrder));
-
 	PlayerLayer->Widget->AddSlot(ZOrder)
 	[
 		ViewportContent
