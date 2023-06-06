@@ -28,7 +28,6 @@ class UAnimBlueprint;
 class UAnimBoneCompressionSettings;
 class UAnimCompress;
 class UAnimCurveCompressionSettings;
-class UVariableFrameStrippingSettings;
 class UAnimGraphNode_Base;
 class UAnimMetaData;
 class UAnimMontage;
@@ -130,14 +129,6 @@ public:
 	/** Sets the Curve Compression Settings for the given Animation Sequence */
 	UFUNCTION(BlueprintCallable, Category = "AnimationBlueprintLibrary|Compression")
 	static void SetCurveCompressionSettings(UAnimSequence* AnimationSequence, UAnimCurveCompressionSettings* CompressionSettings);
-
-	/** Retrieves the Variable Frame Stripping Settings for the given Animation Sequence */
-	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Compression")
-	static void GetVariableFrameStrippingSettings(const UAnimSequence* AnimationSequence, UVariableFrameStrippingSettings*& VariableFrameStrippingSettings);
-
-	/** Sets the Variable Frame Stripping Settings for the given Animation Sequence */
-	UFUNCTION(BlueprintCallable, Category = "AnimationBlueprintLibrary|Compression")
-	static void SetVariableFrameStrippingSettings(UAnimSequence* AnimationSequence, UVariableFrameStrippingSettings* VariableFrameStrippingSettings);
 
 	// Additive 
 	/** Retrieves the Additive Animation type for the given Animation Sequence */

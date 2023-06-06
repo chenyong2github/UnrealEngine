@@ -9,7 +9,6 @@
 #include "Animation/AnimBoneCompressionSettings.h"
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "Animation/AnimCurveCompressionSettings.h"
-#include "Animation/VariableFrameStrippingSettings.h"
 #include "AnimationCompression.h"
 #include "AnimationRuntime.h"
 #include "BonePose.h"
@@ -103,42 +102,6 @@ void StripFramesOdd(TArray<ArrayValue>& Keys, const int32 NumFrames)
 		const int32 StartRemoval = HalfSize + 1;
 
 		Keys = MoveTemp(NewKeys);
-	}
-}
-
-template<typename ArrayValue> //if rate !> 1 this code will be skipped as no frames will be stripped
-void StripFramesMultipler(TArray<ArrayValue>& Keys, const int32 NumFrames, int32 Rate)
-{
-	if (Keys.Num() > Rate && Rate > 1)//make sure the animation has more frames than the amount to strip per kept frame. 
-	{
-		const int32 NewNumFrames = NumFrames / Rate;
-
-		TArray<ArrayValue> NewKeys;
-		NewKeys.Reserve(NewNumFrames);
-
-		check(Keys.Num() == NumFrames);
-
-		NewKeys.Add(Keys[0]); //Always keep first 
-
-		//Always keep first and last
-		const int32 NumFramesToCalculate = NewNumFrames - 2;
-
-		// Frame increment is ratio of old frame spaces vs new frame spaces 
-		const double FrameIncrement = (double)(NumFrames - 1) / (double)(NewNumFrames - 1);
-
-		for (int32 Frame = 0; Frame < NumFramesToCalculate; ++Frame)
-		{
-			const double NextFramePosition = FrameIncrement * (Frame + 1);
-			const int32 Frame1 = (int32)NextFramePosition;
-			const float Alpha = (NextFramePosition - (double)Frame1);
-
-			NewKeys.Add(AnimationCompressionUtils::Interpolate(Keys[Frame1], Keys[Frame1 + 1], Alpha));
-
-		}
-		NewKeys.Add(Keys.Last()); // Always Keep Last
-
-		Keys = MoveTemp(NewKeys);
-
 	}
 }
 
@@ -766,6 +729,7 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 	, TargetPlatform(InTargetPlatform)
 {
 }
+
 void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 {
 #if WITH_EDITOR
@@ -920,58 +884,35 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 
 	if (bShouldPerformStripping)
 	{
-
-		const FName TargetPlatformName = InPlatform->GetPlatformInfo().IniPlatformName;
-		const TObjectPtr<class UVariableFrameStrippingSettings> VarFrameStrippingSettings = AnimSequence->VariableFrameStrippingSettings;
-		const FPerPlatformBool PlatformBool = VarFrameStrippingSettings->UseVariableFrameStripping;
-		const bool bUseMultiplier = PlatformBool.GetValueForPlatform(TargetPlatformName);
-
 		const int32 NumTracks = RawAnimationData.Num();
+		
+		// End frame does not count towards "Even framed" calculation
+		const bool bIsEvenFramed = ((NumberOfKeys - 1) % 2) == 0;
 
-		if (bUseMultiplier) 
+		//Strip every other frame from tracks
+		if (bIsEvenFramed)
 		{
-			int32 Rate = AnimSequence->VariableFrameStrippingSettings->FrameStrippingRate.GetValueForPlatform(TargetPlatformName);
 			for (FRawAnimSequenceTrack& Track : RawAnimationData)
 			{
-				StripFramesMultipler(Track.PosKeys, NumberOfKeys, Rate);
-				StripFramesMultipler(Track.RotKeys, NumberOfKeys, Rate);
-				StripFramesMultipler(Track.ScaleKeys, NumberOfKeys, Rate);
+				StripFramesEven(Track.PosKeys, NumberOfKeys);
+				StripFramesEven(Track.RotKeys, NumberOfKeys);
+				StripFramesEven(Track.ScaleKeys, NumberOfKeys);
 			}
 
 			const int32 ActualKeys = NumberOfKeys - 1; // strip bookmark end frame
-
-			NumberOfKeys = (ActualKeys * Rate) + 1;
+			NumberOfKeys = (ActualKeys / 2) + 1;
 		}
-		else 
+		else
 		{
-			// End frame does not count towards "Even framed" calculation
-			const bool bIsEvenFramed = ((NumberOfKeys - 1) % 2) == 0;
-
-			//Strip every other frame from tracks
-			if (bIsEvenFramed)
+			for (FRawAnimSequenceTrack& Track : RawAnimationData)
 			{
-				for (FRawAnimSequenceTrack& Track : RawAnimationData)
-				{
-					StripFramesEven(Track.PosKeys, NumberOfKeys);
-					StripFramesEven(Track.RotKeys, NumberOfKeys);
-					StripFramesEven(Track.ScaleKeys, NumberOfKeys);
-				}
-
-				const int32 ActualKeys = NumberOfKeys - 1; // strip bookmark end frame
-				NumberOfKeys = (ActualKeys / 2) + 1;
+				StripFramesOdd(Track.PosKeys, NumberOfKeys);
+				StripFramesOdd(Track.RotKeys, NumberOfKeys);
+				StripFramesOdd(Track.ScaleKeys, NumberOfKeys);
 			}
-			else
-			{
-				for (FRawAnimSequenceTrack& Track : RawAnimationData)
-				{
-					StripFramesOdd(Track.PosKeys, NumberOfKeys);
-					StripFramesOdd(Track.RotKeys, NumberOfKeys);
-					StripFramesOdd(Track.ScaleKeys, NumberOfKeys);
-				}
 
-				const int32 ActualKeys = NumberOfKeys;
-				NumberOfKeys = (ActualKeys / 2);
-			}
+			const int32 ActualKeys = NumberOfKeys;
+			NumberOfKeys = (ActualKeys / 2);
 		}
 	}
 
@@ -985,6 +926,7 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 	}
 #endif
 }
+
 FCompressibleAnimData::FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumberOfKeys, const ITargetPlatform* InTargetPlatform)
 	: CurveCompressionSettings(InCurveCompressionSettings)
 	, BoneCompressionSettings(InBoneCompressionSettings)
