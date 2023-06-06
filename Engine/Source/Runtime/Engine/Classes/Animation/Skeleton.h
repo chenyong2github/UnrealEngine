@@ -774,7 +774,12 @@ public:
 public:
 	UFUNCTION(BlueprintCallable, Category=Skeleton)
 	ENGINE_API void AddCompatibleSkeleton(const USkeleton* SourceSkeleton);
+
+	UFUNCTION(BlueprintCallable, Category = Skeleton, DisplayName = "AddCompatibleSkeleton")
+	ENGINE_API void AddCompatibleSkeletonSoft(const TSoftObjectPtr<USkeleton>& SourceSkeleton);
+
 	ENGINE_API void RemoveCompatibleSkeleton(const USkeleton* SourceSkeleton);
+	ENGINE_API void RemoveCompatibleSkeleton(const TSoftObjectPtr<USkeleton>& SourceSkeleton);
 
 	/** 
 	 * Indexing naming convention

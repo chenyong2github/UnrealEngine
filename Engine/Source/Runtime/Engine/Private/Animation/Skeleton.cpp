@@ -295,7 +295,17 @@ void USkeleton::AddCompatibleSkeleton(const USkeleton* SourceSkeleton)
 	CompatibleSkeletons.AddUnique(SourceSkeleton);
 }
 
+void USkeleton::AddCompatibleSkeletonSoft(const TSoftObjectPtr<USkeleton>& SourceSkeleton)
+{
+	CompatibleSkeletons.AddUnique(SourceSkeleton);
+}
+
 void USkeleton::RemoveCompatibleSkeleton(const USkeleton* SourceSkeleton)
+{
+	CompatibleSkeletons.Remove(SourceSkeleton);
+}
+
+void USkeleton::RemoveCompatibleSkeleton(const TSoftObjectPtr<USkeleton>& SourceSkeleton)
 {
 	CompatibleSkeletons.Remove(SourceSkeleton);
 }
