@@ -80,6 +80,7 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	const TraceServices::IAnalysisSession* GetAnalysisSession() const;
 
 	bool IsActiveInstance(double Time, FStateTreeInstanceDebugId InstanceId) const;
+	FText GetInstanceName(FStateTreeInstanceDebugId InstanceId) const;
 	FText GetInstanceDescription(FStateTreeInstanceDebugId InstanceId) const;
 	void SelectInstance(const FStateTreeInstanceDebugId InstanceId);
 	FStateTreeInstanceDebugId GetSelectedInstance() const { return SelectedInstanceId; }
@@ -102,7 +103,7 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	double GetAnalysisDuration() const { return AnalysisDuration; }
 
 	/** Returns the time (based on the recording duration) associated to the selected frame. */
-	double GetScrubTime() const	{ return ScrubState.ScrubTime; }
+	double GetScrubTime() const	{ return ScrubState.GetScrubTime(); }
 	void SetScrubTime(double ScrubTime);
 
 	void GetLiveTraces(TArray<FTraceDescriptor>& OutTraceDescriptors) const;

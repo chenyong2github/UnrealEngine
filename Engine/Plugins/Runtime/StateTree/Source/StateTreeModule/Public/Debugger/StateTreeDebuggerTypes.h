@@ -138,33 +138,26 @@ struct STATETREEMODULE_API FInstanceEventCollection
 
 struct STATETREEMODULE_API FScrubState
 {
-	enum class EScrubTimeBoundState : uint8
-	{
-		Unset,
-		/** There are events but current time is before the first frame. */
-		BeforeLowerBound,
-		/** There are events and current time is within the frames received. */
-		InBounds,
-		/** There are events but current time is after the last frame. */
-		AfterHigherBound
-	};
-
 	explicit FScrubState(const TArray<FInstanceEventCollection>& EventCollections)
 		: EventCollections(EventCollections)
 	{
 	}
 
-private:
-	const TArray<FInstanceEventCollection>& EventCollections;
-	
-public:
-	double ScrubTime = 0;
-	int32 EventCollectionIndex = INDEX_NONE;
-	uint64 TraceFrameIndex = INDEX_NONE;
-	int32 FrameSpanIndex = INDEX_NONE;
-	int32 ActiveStatesIndex = INDEX_NONE;
-	EScrubTimeBoundState ScrubTimeBoundState = EScrubTimeBoundState::Unset;
-	
+	/** @return Index of the currently selected event collection; INDEX_NONE if nothing is selected. */
+	int32 GetEventCollectionIndex() const { return EventCollectionIndex; }
+
+	/** Assigns a new collection index and updates internal indices for current scrub time. */
+	void SetEventCollectionIndex(const int32 InEventCollectionIndex);
+
+	/** @return Index of the span for the currently selected frame; INDEX_NONE if there is no span for the current scrub time. */
+	int32 GetFrameSpanIndex() const { return FrameSpanIndex; }
+
+	/** @return Index of the list of active states for the currently selected frame; INDEX_NONE if there is no active states for the current scrub time. */
+	int32 GetActiveStatesIndex() const { return ActiveStatesIndex; }
+
+	/** @return Current scrub time. */
+	double GetScrubTime() const { return ScrubTime; }
+
 	/**
 	 * Updates internal indices based on the new time.
 	 * @return true if values were updated; false otherwise (i.e. no changes)
@@ -231,9 +224,28 @@ public:
 	const FInstanceEventCollection& GetEventCollection() const;
 
 private:
+	enum class EScrubTimeBoundState : uint8
+	{
+		Unset,
+		/** There are events but current time is before the first frame. */
+		BeforeLowerBound,
+		/** There are events and current time is within the frames received. */
+		InBounds,
+		/** There are events but current time is after the last frame. */
+		AfterHigherBound
+	};
+
 	void SetFrameSpanIndex(int32 NewFrameSpanIndex);
 	void SetActiveStatesIndex(int32 NewActiveStatesIndex);
 	void UpdateActiveStatesIndex(int32 SpanIndex);
+
+	const TArray<FInstanceEventCollection>& EventCollections;
+	double ScrubTime = 0;
+	int32 EventCollectionIndex = INDEX_NONE;
+	uint64 TraceFrameIndex = INDEX_NONE;
+	int32 FrameSpanIndex = INDEX_NONE;
+	int32 ActiveStatesIndex = INDEX_NONE;
+	EScrubTimeBoundState ScrubTimeBoundState = EScrubTimeBoundState::Unset;
 };
 
 } // UE::StateTreeDebugger

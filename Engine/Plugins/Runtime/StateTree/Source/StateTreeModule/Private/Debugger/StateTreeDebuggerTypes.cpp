@@ -83,6 +83,16 @@ bool FScrubState::SetScrubTime(const double NewScrubTime)
 	return true;
 }
 
+void FScrubState::SetEventCollectionIndex(const int32 InEventCollectionIndex)
+{
+	EventCollectionIndex = InEventCollectionIndex;
+
+	// Force refresh of internal indices with current time applied on the new event collection. 
+	const double PrevScrubTime = ScrubTime;
+	ScrubTime = 0;
+	SetScrubTime(PrevScrubTime);
+}
+
 void FScrubState::SetFrameSpanIndex(const int32 NewFrameSpanIndex)
 {
 	FrameSpanIndex = NewFrameSpanIndex;

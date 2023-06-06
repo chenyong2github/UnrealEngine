@@ -319,8 +319,11 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 			})
 		];
 
+	TSharedPtr<SScrollBar> ScrollBar = SNew(SScrollBar); 
+	
 	// Instances TreeView
 	InstancesTreeView =	SNew(SStateTreeDebuggerInstanceTree)
+		.ExternalScrollBar(ScrollBar)
 		.OnExpansionChanged_Lambda([this]() { InstanceTimelinesTreeView->RestoreExpansion(); })
 		.OnScrolled_Lambda([this](double ScrollOffset)
 		{
@@ -337,6 +340,7 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 	
 	// Timelines TreeView
 	InstanceTimelinesTreeView = SNew(SStateTreeDebuggerTimelines)
+		.ExternalScrollbar(ScrollBar)
 		.OnExpansionChanged_Lambda([this]() { InstancesTreeView->RestoreExpansion(); })
 		.OnScrolled_Lambda([this](double ScrollOffset) { InstancesTreeView->ScrollTo(ScrollOffset); })
 		.InstanceTracks(&InstanceTracks)
@@ -527,11 +531,14 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 							HeaderSplitter->SlotAt(1).SetSizeValue(Size);
 						})
 					[
-						SNew(SScrollBox)
-						.Orientation(Orient_Vertical)
-						+ SScrollBox::Slot()
+						SNew(SOverlay)
+						+ SOverlay::Slot()
 						[
 							InstanceTimelinesTreeView.ToSharedRef()
+						]
+						+ SOverlay::Slot().HAlign(EHorizontalAlignment::HAlign_Right)
+						[
+							ScrollBar.ToSharedRef()
 						]
 					]
 				]
@@ -744,7 +751,7 @@ void SStateTreeDebuggerView::OnDebuggerScrubStateChanged(const UE::StateTreeDebu
 	TArray<FParentInfo, TInlineAllocator<8>> PhaseStack;
 	TArray<FStateTreeStateHandle, TInlineAllocator<8>> StateStack;
 
-	const int32 SpanIdx = ScrubState.FrameSpanIndex;
+	const int32 SpanIdx = ScrubState.GetFrameSpanIndex();
 	const int32 FirstEventIdx = Spans[SpanIdx].EventIdx;
 	const TraceServices::FFrame Frame = Spans[SpanIdx].Frame;
 	const int32 MaxEventIdx = Spans.IsValidIndex(SpanIdx+1) ? Spans[SpanIdx+1].EventIdx : Events.Num();
@@ -834,7 +841,7 @@ void SStateTreeDebuggerView::OnNewInstance(FStateTreeInstanceDebugId InstanceId)
 
 	if (ExistingTrack == nullptr)
 	{
-		InstanceTracks.Add(MakeShared<FStateTreeDebuggerTrack>(Debugger, InstanceId, Debugger->GetInstanceDescription(InstanceId), ViewRange));
+		InstanceTracks.Add(MakeShared<FStateTreeDebuggerTrack>(Debugger, InstanceId, Debugger->GetInstanceName(InstanceId), ViewRange));
 	}
 
 	InstancesTreeView->Refresh();

@@ -137,6 +137,17 @@ void FStateTreeDebugger::SyncToCurrentSessionDuration()
 	}
 }
 
+FText FStateTreeDebugger::GetInstanceName(FStateTreeInstanceDebugId InstanceId) const
+{
+	using namespace UE::StateTreeDebugger;
+	const FInstanceDescriptor* FoundInstance = InstanceDescs.FindByPredicate([InstanceId](const FInstanceDescriptor& InstanceDesc)
+		{
+			return InstanceDesc.Id == InstanceId;
+		});
+
+	return (FoundInstance != nullptr) ? FText::FromString(FoundInstance->Name) : LOCTEXT("InstanceNotFound","Instance not found");
+}
+
 FText FStateTreeDebugger::GetInstanceDescription(FStateTreeInstanceDebugId InstanceId) const
 {
 	using namespace UE::StateTreeDebugger;
@@ -158,15 +169,15 @@ void FStateTreeDebugger::SelectInstance(const FStateTreeInstanceDebugId Instance
 		OnSelectedInstanceCleared.ExecuteIfBound();
 
 		// Update event collection index for newly debugged instance
-		ScrubState.EventCollectionIndex = InstanceId.IsValid() ? EventCollections.IndexOfByPredicate([InstanceId = InstanceId](const UE::StateTreeDebugger::FInstanceEventCollection& Entry)
+		ScrubState.SetEventCollectionIndex(InstanceId.IsValid() ? EventCollections.IndexOfByPredicate([InstanceId = InstanceId](const UE::StateTreeDebugger::FInstanceEventCollection& Entry)
 			{
 				return Entry.InstanceId == InstanceId;
 			})
-			: INDEX_NONE;
+			: INDEX_NONE);
 
-		// Set scrub time to refresh internal tracking for the new instance
-		// This will notify scrub position changed and active states
-		SetScrubTime(ScrubState.ScrubTime);
+		OnScrubStateChanged.Execute(ScrubState);
+
+		RefreshActiveStates();
 	}
 }
 
@@ -427,8 +438,8 @@ void FStateTreeDebugger::RefreshActiveStates()
 
 	if (ScrubState.IsPointingToValidActiveStates())
 	{
-		const UE::StateTreeDebugger::FInstanceEventCollection& EventCollection = EventCollections[ScrubState.EventCollectionIndex];
-		const int32 EventIndex = EventCollection.ActiveStatesChanges[ScrubState.ActiveStatesIndex].EventIndex;
+		const UE::StateTreeDebugger::FInstanceEventCollection& EventCollection = EventCollections[ScrubState.GetEventCollectionIndex()];
+		const int32 EventIndex = EventCollection.ActiveStatesChanges[ScrubState.GetActiveStatesIndex()].EventIndex;
 		NewActiveStates = EventCollection.Events[EventIndex].Get<FStateTreeTraceActiveStatesEvent>().ActiveStates;
 	}
 
@@ -678,9 +689,9 @@ bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId
 
 		// Update the active event collection index when it's newly created for the currently debugged instance.
 		// Otherwise (i.e. EventCollection already exists) it is updated when switching instance (i.e. SelectInstance)
-		if (SelectedInstanceId == InstanceId && ScrubState.EventCollectionIndex == INDEX_NONE)
+		if (SelectedInstanceId == InstanceId && ScrubState.GetEventCollectionIndex() == INDEX_NONE)
 		{
-			ScrubState.EventCollectionIndex = EventCollections.Num();
+			ScrubState.SetEventCollectionIndex(EventCollections.Num());
 		}
 
 		ExistingCollection = &EventCollections.Emplace_GetRef(InstanceId);
