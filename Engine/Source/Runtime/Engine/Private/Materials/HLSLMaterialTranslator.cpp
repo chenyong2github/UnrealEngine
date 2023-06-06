@@ -835,6 +835,20 @@ bool FHLSLMaterialTranslator::Translate()
 		bEnableExecutionFlow = Material->IsUsingControlFlow();
 		bCompileForComputeShader = Material->IsLightFunction();
 		
+		// Verify for the absence of loops.
+		if (UMaterial* UMaterial = Material->GetMaterialInterface()->GetMaterial())
+		{
+			TSet<UMaterialExpression*> VisitedExpressions;
+			for (UMaterialExpression* Expression : UMaterial->GetExpressions())
+			{
+				if (Expression->ContainsInputLoop(VisitedExpressions))
+				{
+					AppendExpressionError(Expression, TEXT("Expression is part of a cycle. Please make sure the material graph is acyclic."));
+					return false;
+				}
+			}
+		}
+
 		//
 		// Process the strata tree representing the material topology.
 		//
@@ -4179,7 +4193,7 @@ int32 FHLSLMaterialTranslator::CallExpression(FMaterialExpressionKey ExpressionK
 {
 	// For any translated result not relying on material attributes, we can discard the attribute ID from the key
 	// to allow result sharing. In cases where we detect an expression loop we must err on the side of caution
-	if (ExpressionKey.Expression && !ExpressionKey.Expression->ContainsInputLoop() && !ExpressionKey.Expression->IsResultMaterialAttributes(ExpressionKey.OutputIndex))
+	if (ExpressionKey.Expression && !ExpressionKey.Expression->IsResultMaterialAttributes(ExpressionKey.OutputIndex))
 	{
 		ExpressionKey.MaterialAttributeID = FGuid(0, 0, 0, 0);
 	}

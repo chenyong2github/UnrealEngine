@@ -134,11 +134,6 @@ uint32 UMaterialExpressionLandscapeLayerBlend::GetInputType(int32 InputIndex)
 
 bool UMaterialExpressionLandscapeLayerBlend::IsResultMaterialAttributes(int32 OutputIndex)
 {
-	if (ContainsInputLoop())
-	{
-		// If there is a loop anywhere in this expression's inputs then we can't risk checking them
-		return false;
-	}
 	for (int32 LayerIdx = 0; LayerIdx < Layers.Num(); LayerIdx++)
 	{
 		if (Layers[LayerIdx].LayerInput.Expression && Layers[LayerIdx].LayerInput.Expression->IsResultMaterialAttributes(Layers[LayerIdx].LayerInput.OutputIndex))

@@ -51,11 +51,6 @@ void UMaterialExpressionLandscapeLayerWeight::PostLoad()
 #if WITH_EDITOR
 bool UMaterialExpressionLandscapeLayerWeight::IsResultMaterialAttributes(int32 OutputIndex)
 {
-	if (ContainsInputLoop())
-	{
-		// If there is a loop anywhere in this expression's inputs then we can't risk checking them
-		return false;
-	}
 	bool bLayerIsMaterialAttributes = Layer.Expression != nullptr && Layer.Expression->IsResultMaterialAttributes(Layer.OutputIndex);
 	bool bBaseIsMaterialAttributes = Base.Expression != nullptr && Base.Expression->IsResultMaterialAttributes(Base.OutputIndex);
 	return bLayerIsMaterialAttributes || bBaseIsMaterialAttributes;

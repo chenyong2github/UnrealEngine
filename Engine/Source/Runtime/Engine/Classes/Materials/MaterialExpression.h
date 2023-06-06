@@ -574,6 +574,9 @@ class ENGINE_API UMaterialExpression : public UObject
 	/** Checks whether any inputs to this expression create a loop */
 	bool ContainsInputLoop(const bool bStopOnFunctionCall = true);
 
+	/** This overload accepts the set of visited expressions to avoid visiting them again when checking at once whether multiple expressions contain a loop. */
+	bool ContainsInputLoop(TSet<UMaterialExpression*>& VisitedExpressions, const bool bStopOnFunctionCall = true);
+
 protected:
 	/** Caches the list of expression inputs this expression has. */
 	TArray<FExpressionInput*> CachedInputs;
@@ -589,10 +592,10 @@ private:
 	 * Checks whether any inputs to this expression create a loop by recursively
 	 * calling itself and keeping a list of inputs as expression keys.
 	 *
-	 * @param ExpressionStack    List of expression keys that have been checked already in the current stack
+	 * @param ExpressionStack    Stack of expressions that have been checked already
 	 * @param VisitedExpressions List of all expression keys that have been visited
 	 */
-	bool ContainsInputLoopInternal(const FContainsInputLoopInternalExpressionStack& ExpressionStack, TSet<class FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall);
+	bool ContainsInputLoopInternal(const FContainsInputLoopInternalExpressionStack& ExpressionStack, TSet<UMaterialExpression*>& VisitedExpressions, const bool bStopOnFunctionCall);
 
 #endif // WITH_EDITOR
 };
