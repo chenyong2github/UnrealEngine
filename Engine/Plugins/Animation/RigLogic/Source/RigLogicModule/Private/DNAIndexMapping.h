@@ -9,7 +9,7 @@
 
 #include "DNAIndexMapping.generated.h"
 
-class IBehaviorReader;
+class IDNAReader;
 class USkeleton;
 class USkeletalMesh;
 class USkeletalMeshComponent;
@@ -28,14 +28,16 @@ struct FDNAIndexMapping
 
 	// all the control attributes that we will need to extract, alongside their control index
 	FCachedIndexedCurve ControlAttributeCurves;
+	FCachedIndexedCurve NeuralNetworkMaskCurves;
 	TArray<FMeshPoseBoneIndex> JointsMapDNAIndicesToMeshPoseBoneIndices;
 	TArray<FCachedIndexedCurve> MorphTargetCurvesPerLOD;
 	TArray<FCachedIndexedCurve> MaskMultiplierCurvesPerLOD;
 
-	void MapControlCurves(const IBehaviorReader* DNABehavior, const USkeleton* Skeleton);
-	void MapJoints(const IBehaviorReader* DNABehavior, const USkeletalMeshComponent* SkeletalMeshComponent);
-	void MapMorphTargets(const IBehaviorReader* DNABehavior, const USkeleton* Skeleton, const USkeletalMesh* SkeletalMesh);
-	void MapMaskMultipliers(const IBehaviorReader* DNABehavior, const USkeleton* Skeleton);
+	void MapControlCurves(const IDNAReader* DNAReader, const USkeleton* Skeleton);
+	void MapNeuralNetworkMaskCurves(const IDNAReader* DNAReader, const USkeleton* Skeleton);
+	void MapJoints(const IDNAReader* DNAReader, const USkeletalMeshComponent* SkeletalMeshComponent);
+	void MapMorphTargets(const IDNAReader* DNAReader, const USkeleton* Skeleton, const USkeletalMesh* SkeletalMesh);
+	void MapMaskMultipliers(const IDNAReader* DNAReader, const USkeleton* Skeleton);
 
 };
 

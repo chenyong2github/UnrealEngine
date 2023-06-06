@@ -160,11 +160,22 @@ void FAnimNode_RigLogic::UpdateControlCurves(const FPoseContext& InputContext, c
 	UE::Anim::FNamedValueArrayUtils::Union(InputContext.Curve, DNAIndexMapping->ControlAttributeCurves,
 		[this](const UE::Anim::FCurveElement& InCurveElement, const UE::Anim::FCurveElementIndexed& InControlAttributeCurveElement, UE::Anim::ENamedValueUnionFlags InFlags)
 		{
-			if(InControlAttributeCurveElement.Index != INDEX_NONE)
+			if (InControlAttributeCurveElement.Index != INDEX_NONE)
  			{
- 				RigInstance->SetRawControl(InControlAttributeCurveElement.Index, InCurveElement.Value);
- 			}
+				RigInstance->SetRawControl(InControlAttributeCurveElement.Index, InCurveElement.Value);
+			}
 		});
+
+	if (RigInstance->GetNeuralNetworkCount() != 0) {
+		UE::Anim::FNamedValueArrayUtils::Union(InputContext.Curve, DNAIndexMapping->NeuralNetworkMaskCurves,
+			[this](const UE::Anim::FCurveElement& InCurveElement, const UE::Anim::FCurveElementIndexed& InControlAttributeCurveElement, UE::Anim::ENamedValueUnionFlags InFlags)
+			{
+				if (InControlAttributeCurveElement.Index != INDEX_NONE)
+ 				{
+					RigInstance->SetNeuralNetworkMask(InControlAttributeCurveElement.Index, InCurveElement.Value);
+ 				}
+			});
+	}
 }
 
 void FAnimNode_RigLogic::CalculateRigLogic(FRigLogic* RigLogic)

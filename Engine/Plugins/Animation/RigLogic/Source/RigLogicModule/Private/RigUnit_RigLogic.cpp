@@ -67,6 +67,7 @@ FRigUnit_RigLogic_Data& FRigUnit_RigLogic_Data::operator=(const FRigUnit_RigLogi
 	LocalRigRuntimeContext = nullptr;
 	RigInstance = nullptr;
 	InputCurveIndices = Other.InputCurveIndices;
+	NeuralNetMaskCurveIndices = Other.NeuralNetMaskCurveIndices;
 	HierarchyBoneIndices = Other.HierarchyBoneIndices;
 	MorphTargetCurveIndices = Other.MorphTargetCurveIndices;
 	BlendShapeIndices = Other.BlendShapeIndices;
@@ -106,6 +107,7 @@ void FRigUnit_RigLogic_Data::InitializeRigLogic(const URigHierarchy* InHierarchy
 
 		MapJoints(InHierarchy);
 		MapInputCurveIndices(InHierarchy);
+		MapNeuralNetMaskCurveIndices(InHierarchy);
 		MapMorphTargets(InHierarchy);
 		MapMaskMultipliers(InHierarchy);
 	}
@@ -131,6 +133,34 @@ void FRigUnit_RigLogic_Data::MapInputCurveIndices(const URigHierarchy* InHierarc
 		const FName ControlFName(*AnimatedControlName);
 		const int32 CurveIndex = InHierarchy ? InHierarchy->GetIndex(FRigElementKey(ControlFName, ERigElementType::Curve)) : INDEX_NONE;
 		InputCurveIndices.Add(CurveIndex); //can be INDEX_NONE
+	}
+}
+
+void FRigUnit_RigLogic_Data::MapNeuralNetMaskCurveIndices(const URigHierarchy* InHierarchy)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_MapInputCurveIndices);
+
+	const IDNAReader* DNABehavior = LocalRigRuntimeContext->BehaviorReader.Get();
+	const uint16 NeuralNetworkCount = DNABehavior->GetNeuralNetworkCount();
+	NeuralNetMaskCurveIndices.SetNum(NeuralNetworkCount);
+
+	const uint16 MeshCount = DNABehavior->GetMeshCount();
+	for (uint16 MeshIndex = 0; MeshIndex < MeshCount; ++MeshIndex)
+	{
+		const uint16 MeshRegionCount = DNABehavior->GetMeshRegionCount(MeshIndex);
+		for (uint16 RegionIndex = 0; RegionIndex < MeshRegionCount; ++RegionIndex)
+		{
+			const FString& MeshRegionName = DNABehavior->GetMeshRegionName(MeshIndex, RegionIndex);
+			TArrayView<const uint16> NeuralNetworkIndices = DNABehavior->GetNeuralNetworkIndicesForMeshRegion(MeshIndex, RegionIndex);
+			const FString MaskCurveName = TEXT("CTRL_ML_") + MeshRegionName;
+			const FName CurveFName(*MaskCurveName);
+			const int32 CurveIndex = InHierarchy ? InHierarchy->GetIndex(FRigElementKey(CurveFName, ERigElementType::Curve)) : INDEX_NONE;
+			for (const auto NeuralNetworkIndex : NeuralNetworkIndices)
+			{
+				NeuralNetMaskCurveIndices[NeuralNetworkIndex] = CurveIndex;  // Can be INDEX_NONE
+			}
+		}
 	}
 }
 
@@ -234,6 +264,17 @@ void FRigUnit_RigLogic_Data::CalculateRigLogic(const URigHierarchy* InHierarchy)
 		const uint32 CurveIndex = InputCurveIndices[ControlIndex];
 		const float Value = InHierarchy->GetCurveValue(CurveIndex);
 		RigInstance->SetRawControl(ControlIndex, Value);
+	}
+
+	const int32 NeuralNetworkCount = RigInstance->GetNeuralNetworkCount();
+	for (int32 NeuralNetworkIndex = 0; NeuralNetworkIndex < NeuralNetworkCount; ++NeuralNetworkIndex)
+	{
+		const uint32 CurveIndex = NeuralNetMaskCurveIndices[NeuralNetworkIndex];
+		if (InHierarchy->IsCurveValueSetByIndex(CurveIndex))
+		{
+			const float Value = InHierarchy->GetCurveValue(CurveIndex);
+			RigInstance->SetNeuralNetworkMask(NeuralNetworkIndex, Value);
+		}
 	}
 
 	LocalRigRuntimeContext->RigLogic->Calculate(RigInstance.Get());
