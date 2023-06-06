@@ -7,6 +7,7 @@
 #include "Misc/Guid.h"
 #include "LandscapeInfo.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SplineComponent.h"
 #include "LandscapeSplinesComponent.generated.h"
 
 class ALandscapeProxy;
@@ -214,6 +215,13 @@ public:
 
 	// Iterates throug a copy of the ControlPoints list.
 	LANDSCAPE_API void ForEachControlPoint(TFunctionRef<void(ULandscapeSplineControlPoint*)> Func);
+
+	/**
+	 * Converts points along the landscape spline into points on a spline component
+	 * Works best with landscape splines that contain no intersections or splits
+	 * @param SplineComponent Spline component to be populated
+	**/
+	LANDSCAPE_API void CopyToSplineComponent(USplineComponent* SplineComponent);
 #endif
 
 	//~ Begin UObject Interface
