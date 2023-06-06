@@ -168,6 +168,7 @@ namespace UE::Cook
 	class ICookOnTheFlyRequestManager;
 	class ICookOnTheFlyNetworkServer;
 	class IWorkerRequests;
+	enum class ECachedCookedPlatformDataEvent : uint8;
 	enum class EPollStatus : uint8;
 	enum class EReleaseSaveReason : uint8;
 	enum class ESuppressCookReason : uint8;
@@ -1271,10 +1272,10 @@ private:
 		return (CookFlags & InCookFlags) != ECookInitializationFlags::None;
 	}
 
-	void RouteBeginCacheForCookedPlatformData(FName PackageName, UObject* Obj,
-		const ITargetPlatform* TargetPlatform);
-	bool RouteIsCachedCookedPlatformDataLoaded(FName PackageName, UObject* Obj,
-		const ITargetPlatform* TargetPlatform);
+	void RouteBeginCacheForCookedPlatformData(UE::Cook::FPackageData& PackageData, UObject* Obj,
+		const ITargetPlatform* TargetPlatform, UE::Cook::ECachedCookedPlatformDataEvent* ExistingEvent);
+	bool RouteIsCachedCookedPlatformDataLoaded(UE::Cook::FPackageData& PackageData, UObject* Obj,
+		const ITargetPlatform* TargetPlatform, UE::Cook::ECachedCookedPlatformDataEvent* ExistingEvent);
 
 	/** Cook (save) a package and process the results */
 	void SaveCookedPackage(UE::Cook::FSaveCookedPackageContext& Context);

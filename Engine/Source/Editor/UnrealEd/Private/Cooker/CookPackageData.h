@@ -50,10 +50,35 @@ namespace UE::Cook
 class FPackageDataQueue;
 class FRequestCluster;
 struct FGeneratorPackage;
+struct FPackageData;
 struct FPackageDataMonitor;
 struct FPendingCookedPlatformDataCancelManager;
 
 extern const TCHAR* GeneratedPackageSubPath;
+
+/**
+ * Events in the lifetime of an object related to BeginCacheForCookedPlatformData. Used by the cooker
+ * to track which calls have been made and still need to be made.
+ */
+enum class ECachedCookedPlatformDataEvent : uint8
+{
+	None,
+	BeginCacheForCookedPlatformDataCalled,
+	IsCachedCookedPlatformDataLoadedCalled,
+	IsCachedCookedPlatformDataLoadedReturnedTrue,
+	ClearCachedCookedPlatformDataCalled,
+	ClearAllCachedCookedPlatformDataCalled,
+};
+const TCHAR* LexToString(ECachedCookedPlatformDataEvent);
+/**
+ * BeginCachedForCookedPlatformData state about an object - which package owned it (not always the same
+ * one when PackageGenerators are involved) and the per-platform state for ECachedCookedPlatformDataEvent.
+ */
+struct FCachedCookedPlatformDataState
+{
+	FPackageData* PackageData = nullptr;
+	TMap<const ITargetPlatform*, ECachedCookedPlatformDataEvent> PlatformStates;
+};
 
 /** Flags specifying the behavior of FPackageData::SendToState */
 enum class ESendFlags : uint8
@@ -189,13 +214,9 @@ private:
  *   The lifetime of this counter extends for the lifetime of the PackageData; it is shared across
  *   CookOnTheFlyServer sessions.
  *
- * CookedPlatformDataNextIndex - Index for the next (Object, ReachablePlatform) pair that needs to have
- *   BeginCacheForCookedPlatformData called on it for the current PackageSave. This field is only non-zero during
- *   the save state; it is cleared when successfully or unsucessfully leaving the save state. The field is an
- *   object-major index into the two-dimensional array given by
- *       {Each Object in GetCachedObjectsInOuter} x {each Platform that is reachable}
- *   e.g. the index into GetCachedObjectsInOuter is GetCookedPlatformDataNextIndex() / GetCachedObjectsInOuterNumPlatforms()
- *   and the index into GetCachedObjectsInOuterPlatforms() is GetCookedPlatformDataNextIndex() % GetCachedObjectsInOuterNumPlatforms()
+ * CookedPlatformDataNextIndex - Index for the next Object in CachedObjectsInOuter that needs to have
+ *   BeginCacheForCookedPlatformData called on it for the current PackageSave. This field is only >= 0 during
+ *   the save state; it is cleared to -1 when successfully or unsucessfully leaving the save state. 
  *
  * Other fields with explanation inline
 */
@@ -414,8 +435,6 @@ public:
 	template <typename ArrayType>
 	/** The list of platforms that were recorded as needscooking when CachedObjeObjectsInOuter was recorded. */
 	void GetCachedObjectsInOuterPlatforms(ArrayType& OutPlatforms) const;
-	/** The number of platforms that would be returned by GetCachedObjectsInOuterPlatforms. */
-	int32 GetCachedObjectsInOuterNumPlatforms() const;
 
 	/** Validate that the CachedObjectsInOuter-dependent variables are empty, when entering save. */
 	void CheckObjectCacheEmpty() const;
@@ -667,7 +686,7 @@ private:
 	};
 	FTrackedPreloadableFilePtr PreloadableFile;
 	int32 NumPendingCookedPlatformData = 0;
-	int32 CookedPlatformDataNextIndex = 0;
+	int32 CookedPlatformDataNextIndex = -1;
 	int32 NumRetriesBeginCacheOnObject = 0;
 	FOpenPackageResult PreloadableFileOpenResult;
 	FInstigator Instigator;
@@ -691,30 +710,6 @@ private:
 	uint32 bGenerated : 1;
 	uint32 bKeepReferencedDuringGC : 1;
 	uint32 bWasCookedThisSession : 1;
-};
-
-/** A single object in athe save of a package that might have had BeginCacheForCookedPlatformData called already */
-struct FBeginCacheObject
-{
-	FWeakObjectPtr Object;
-	bool bHasFinishedRound = false;
-	bool bIsRootMovedObject = false;
-};
-
-/**
- * Collection of the known objects in the save of a package that might have had BeginCacheForCookedPlatformData called already
- * and will have it called on them in the next round of calls if not.
- */
-struct FBeginCacheObjects
-{
-	TArray<FBeginCacheObject> Objects;
-	TArray<FWeakObjectPtr> ObjectsInRound;
-	int32 NextIndexInRound = 0;
-
-	void Reset();
-
-	void StartRound();
-	void EndRound(int32 NumPlatforms);
 };
 
 /**
@@ -800,7 +795,6 @@ public:
 	TConstArrayView<FAssetDependency> GetDependencies() const { return PackageDependencies; }
 
 public:
-	FBeginCacheObjects BeginCacheObjects;
 	FGuid Guid;
 	FString RelativePath;
 	FString GeneratedRootPath;
@@ -808,6 +802,7 @@ public:
 	TArray<FAssetDependency> PackageDependencies;
 	FPackageData* PackageData = nullptr;
 	TArray<UPackage*> KeepReferencedPackages;
+	TSet<UObject*> RootMovedObjects;
 private:
 	ESaveState GeneratorSaveState = ESaveState::StartGenerate;
 	bool bCreateAsMap : 1;
@@ -923,6 +918,9 @@ struct FPendingCookedPlatformData
 	~FPendingCookedPlatformData();
 	FPendingCookedPlatformData& operator=(const FPendingCookedPlatformData& Other) = delete;
 	FPendingCookedPlatformData& operator=(const FPendingCookedPlatformData&& Other) = delete;
+
+	/** Helper for both pending and synchronous; call ClearCachedCookedPlatformData and related teardowns. */
+	static void ClearCachedCookedPlatformData(UObject* Object, FPackageData& PackageData, bool bCompletedSuccesfully);
 
 	/**
 	 * Call IsCachedCookedPlatformDataLoaded on the object if it has not already returned true.
@@ -1350,6 +1348,12 @@ public:
 	template <typename CallbackType>
 	void LockAndEnumeratePackageDatas(CallbackType&& Callback);
 
+	TMap<UObject*, FCachedCookedPlatformDataState>& GetCachedCookedPlatformDataObjects()
+	{
+		return CachedCookedPlatformDataObjects;
+	}
+	void CachedCookedPlatformDataObjectsPostGarbageCollect(const TSet<UObject*>& SaveQueueObjectsThatStillExist);
+
 private:
 	/**
 	 * Construct a new FPackageData with the given PackageName and FileName and store references to it in the maps.
@@ -1374,6 +1378,7 @@ private:
 	/* Guarded by ExistenceLock. Duplicates information on FPackageData, but can be read/write from any thread. */
 	TMap<FName, FThreadsafePackageData> ThreadsafePackageDatas;
 	TRingBuffer<FPendingCookedPlatformDataContainer> PendingCookedPlatformDataLists;
+	TMap<UObject*, FCachedCookedPlatformDataState> CachedCookedPlatformDataObjects;
 	int32 PendingCookedPlatformDataNum = 0;
 	FRequestQueue RequestQueue;
 	TFastPointerSet<FPackageData*> AssignedToWorkerSet;

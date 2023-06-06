@@ -3326,13 +3326,12 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCacheObjectsToMove(UE::Cook::FGe
 		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::CallObjectsToMove);
 	}
 
-	EPollStatus Result = CallBeginCacheOnObjects(PackageData, Package, Info.BeginCacheObjects.ObjectsInRound,
-		Info.BeginCacheObjects.NextIndexInRound, Timer);
+	EPollStatus Result = CallBeginCacheOnObjects(PackageData, Package, PackageData.GetCachedObjectsInOuter(),
+		PackageData.GetCookedPlatformDataNextIndex(), Timer);
 	if (Result != EPollStatus::Success)
 	{
 		return Result;
 	}
-	Info.BeginCacheObjects.EndRound(PackageData.GetCachedObjectsInOuterNumPlatforms());
 	return EPollStatus::Success;
 }
 
@@ -3434,8 +3433,8 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCachePostMove(UE::Cook::FGenerat
 		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::CallGetPostMoveObjects);
 	}
 
-	EPollStatus Result = CallBeginCacheOnObjects(PackageData, Package, Info.BeginCacheObjects.ObjectsInRound,
-		Info.BeginCacheObjects.NextIndexInRound, Timer);
+	EPollStatus Result = CallBeginCacheOnObjects(PackageData, Package, PackageData.GetCachedObjectsInOuter(),
+		PackageData.GetCookedPlatformDataNextIndex(), Timer);
 	if (PackageData.GetNumPendingCookedPlatformData() > 0 &&
 		!Generator.GetCookPackageSplitterInstance()->UseInternalReferenceToAvoidGarbageCollect() &&
 		!Info.HasIssuedUndeclaredMovedObjectsWarning())
@@ -3471,7 +3470,6 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCachePostMove(UE::Cook::FGenerat
 	{
 		return Result;
 	}
-	Info.BeginCacheObjects.EndRound(PackageData.GetCachedObjectsInOuterNumPlatforms());
 
 	return EPollStatus::Success;
 }
@@ -3622,13 +3620,14 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveInternal(UE::Cook::FPackag
 		// Currently this does not cause significant cost since saving new platforms with some platforms already saved is a rare operation.
 
 		int32& CookedPlatformDataNextIndex = PackageData.GetCookedPlatformDataNextIndex();
-		if (CookedPlatformDataNextIndex == 0)
+		if (CookedPlatformDataNextIndex < 0)
 		{
 			if (!BuildDefinitions->TryRemovePendingBuilds(PackageData.GetPackageName()))
 			{
 				// Builds are in progress; wait for them to complete
 				return EPollStatus::Incomplete;
 			}
+			CookedPlatformDataNextIndex = 0;
 		}
 
 		TArray<FWeakObjectPtr>& CachedObjectsInOuter = PackageData.GetCachedObjectsInOuter();
@@ -3726,13 +3725,10 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::CallBeginCacheOnObjects(UE::Cook::FPa
 	PackageData.GetCachedObjectsInOuterPlatforms(TargetPlatforms);
 
 	FWeakObjectPtr* ObjectsData = Objects.GetData();
-	int NumPlatforms = TargetPlatforms.Num();
-	int NumIndexes = Objects.Num() * NumPlatforms;
-	while (NextIndex < NumIndexes)
+	int NumObjects = Objects.Num();
+	for (; NextIndex < NumObjects; ++NextIndex)
 	{
-		int ObjectIndex = NextIndex / NumPlatforms;
-		int PlatformIndex = NextIndex - ObjectIndex * NumPlatforms;
-		UObject* Obj = ObjectsData[ObjectIndex].Get();
+		UObject* Obj = ObjectsData[NextIndex].Get();
 		if (!Obj)
 		{
 			// Objects can be marked as pending kill even without a garbage collect, and our weakptr.get will return
@@ -3741,56 +3737,77 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::CallBeginCacheOnObjects(UE::Cook::FPa
 			// BeginCacheForCookedPlatformData and ClearAllCachedCookedPlatformData
 			// In case the weakptr is merely pendingkill, set it to null explicitly so we don't think that we've called
 			// BeginCacheForCookedPlatformData on it if it gets unmarked pendingkill later
-			ObjectsData[ObjectIndex] = nullptr; 
-			++NextIndex;
+			ObjectsData[NextIndex] = nullptr;
 			continue;
 		}
-		const ITargetPlatform* TargetPlatform = TargetPlatforms[PlatformIndex];
-
-		if (Obj->IsA(UMaterialInterface::StaticClass()))
+		FCachedCookedPlatformDataState& CCPDState = PackageDatas->GetCachedCookedPlatformDataObjects().FindOrAdd(Obj);
+		if (CCPDState.PackageData != &PackageData)
 		{
-			if (GShaderCompilingManager->GetNumRemainingJobs() + 1 > MaxConcurrentShaderJobs)
+			if (CCPDState.PackageData != nullptr)
+			{
+				UE_LOG(LogCook, Error, TEXT("CachedCookedPlatformDatas: %s is unexpectedly in two packages at once.")
+					TEXT("\n\tPreviousPackage: %s")
+					TEXT("\n\tCurrentPackage: %s"),
+					*Obj->GetFullName(), *CCPDState.PackageData->GetPackageName().ToString(),
+					*PackageData.GetPackageName().ToString());
+				continue;
+			}
+			CCPDState.PackageData = &PackageData;
+		}
+
+		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+		{
+			ECachedCookedPlatformDataEvent& ExistingEvent =
+				CCPDState.PlatformStates.FindOrAdd(TargetPlatform, ECachedCookedPlatformDataEvent::None);
+			if (ExistingEvent != ECachedCookedPlatformDataEvent::None)
+			{
+				continue;
+			}
+
+			if (Obj->IsA(UMaterialInterface::StaticClass()))
+			{
+				if (GShaderCompilingManager->GetNumRemainingJobs() + 1 > MaxConcurrentShaderJobs)
+				{
+#if DEBUG_COOKONTHEFLY
+					UE_LOG(LogCook, Display, TEXT("Delaying shader compilation of material %s"), *Obj->GetFullName());
+#endif
+					return EPollStatus::Incomplete;
+				}
+			}
+
+			const FName ClassFName = Obj->GetClass()->GetFName();
+			int32* CurrentAsyncCache = CurrentAsyncCacheForType.Find(ClassFName);
+			if (CurrentAsyncCache != nullptr)
+			{
+				if (*CurrentAsyncCache < 1)
+				{
+					return EPollStatus::Incomplete;
+				}
+				*CurrentAsyncCache -= 1;
+			}
+
+			RouteBeginCacheForCookedPlatformData(PackageData, Obj, TargetPlatform, &ExistingEvent);
+			if (RouteIsCachedCookedPlatformDataLoaded(PackageData, Obj, TargetPlatform, &ExistingEvent))
+			{
+				if (CurrentAsyncCache)
+				{
+					*CurrentAsyncCache += 1;
+				}
+			}
+			else
+			{
+				bool bNeedsResourceRelease = CurrentAsyncCache != nullptr;
+				PackageDatas->AddPendingCookedPlatformData(FPendingCookedPlatformData(Obj, TargetPlatform,
+					PackageData, bNeedsResourceRelease, *this));
+			}
+
+			if (Timer.IsActionTimeUp())
 			{
 #if DEBUG_COOKONTHEFLY
-				UE_LOG(LogCook, Display, TEXT("Delaying shader compilation of material %s"), *Obj->GetFullName());
+				UE_LOG(LogCook, Display, TEXT("Object %s took too long to cache"), *Obj->GetFullName());
 #endif
 				return EPollStatus::Incomplete;
 			}
-		}
-
-		const FName ClassFName = Obj->GetClass()->GetFName();
-		int32* CurrentAsyncCache = CurrentAsyncCacheForType.Find(ClassFName);
-		if (CurrentAsyncCache != nullptr)
-		{
-			if (*CurrentAsyncCache < 1)
-			{
-				return EPollStatus::Incomplete;
-			}
-			*CurrentAsyncCache -= 1;
-		}
-
-		RouteBeginCacheForCookedPlatformData(PackageData.GetPackageName(), Obj, TargetPlatform);
-		++NextIndex;
-		if (RouteIsCachedCookedPlatformDataLoaded(PackageData.GetPackageName(), Obj, TargetPlatform))
-		{
-			if (CurrentAsyncCache)
-			{
-				*CurrentAsyncCache += 1;
-			}
-		}
-		else
-		{
-			bool bNeedsResourceRelease = CurrentAsyncCache != nullptr;
-			PackageDatas->AddPendingCookedPlatformData(FPendingCookedPlatformData(Obj, TargetPlatform,
-				PackageData, bNeedsResourceRelease, *this));
-		}
-
-		if (Timer.IsActionTimeUp())
-		{
-#if DEBUG_COOKONTHEFLY
-			UE_LOG(LogCook, Display, TEXT("Object %s took too long to cache"), *Obj->GetFullName());
-#endif
-			return EPollStatus::Incomplete;
 		}
 	}
 
@@ -3814,49 +3831,19 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 	}
 	FCookGenerationInfo* GenerationInfo = Generator ? Generator->FindInfo(PackageData) : nullptr;
 
-	// For every Object on which we called BeginCacheForCookedPlatformData, we need to call ClearAllCachedCookedPlatformData
+	// For every BeginCacheForCookedPlatformData call we made we need to call ClearAllCachedCookedPlatformData
 	if (ReleaseSaveReason == EReleaseSaveReason::Completed)
 	{
-		// Since we have completed CookedPlatformData, we know we called BeginCacheForCookedPlatformData on all objects in the package, and none are pending
+		// Since we have completed CookedPlatformData, we know we called BeginCacheForCookedPlatformData on all
+		// objects in the package, and none are pending
 		UE_SCOPED_HIERARCHICAL_COOKTIMER(ClearAllCachedCookedPlatformData);
-		if (GenerationInfo)
+		for (FWeakObjectPtr& WeakPtr : PackageData.GetCachedObjectsInOuter())
 		{
-			check(GenerationInfo->HasTakenOverCachedCookedPlatformData());
-			check(PackageData.GetCachedObjectsInOuter().Num() == 0);
-
-			for (FBeginCacheObject& BeginCacheObject : GenerationInfo->BeginCacheObjects.Objects)
+			UObject* Object = WeakPtr.Get();
+			if (Object)
 			{
-				UObject* Object = BeginCacheObject.Object.Get();
-				if (Object)
-				{
-					check(BeginCacheObject.bHasFinishedRound);
-					if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData and WillNeverCacheCookedPlatformDataAgain calls are only used when not in editor
-					{
-						Object->ClearAllCachedCookedPlatformData();
-						if (IsDirectorCookByTheBook())
-						{
-							Object->WillNeverCacheCookedPlatformDataAgain();
-						}
-					}
-				}
-			}
-		}
-		else
-		{
-			for (FWeakObjectPtr& WeakPtr : PackageData.GetCachedObjectsInOuter())
-			{
-				UObject* Object = WeakPtr.Get();
-				if (Object)
-				{
-					if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData and WillNeverCacheCookedPlatformDataAgain calls are only used when not in editor
-					{
-						Object->ClearAllCachedCookedPlatformData();
-						if (IsDirectorCookByTheBook())
-						{
-							Object->WillNeverCacheCookedPlatformDataAgain();
-						}
-					}
-				}
+				FPendingCookedPlatformData::ClearCachedCookedPlatformData(Object, PackageData,
+					true /* bCompletedSuccesfully */);
 			}
 		}
 	}
@@ -3866,92 +3853,56 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 		// Note that even after we return from this function, some objects with pending IsCachedCookedPlatformDataLoaded
 		// calls may still exist for this Package in PendingCookedPlatformDatas
 		// and this PackageData may therefore still have GetNumPendingCookedPlatformData > 0
-		int32 NumPlatforms = PackageData.GetCachedObjectsInOuterNumPlatforms();
-		if (NumPlatforms > 0) // Shouldn't happen because PumpSaves checks for this, but avoid a divide by 0 if it does.
+		// We have only called BeginCacheForCookedPlatformData on Object,Platform pairs up to GetCookedPlatformDataNextIndex.
+		// Further, some of those calls might still be pending.
+
+		// Find all pending BeginCacheForCookedPlatformData for this FPackageData
+		TMap<UObject*, TArray<FPendingCookedPlatformData*>> PendingObjects;
+		PackageDatas->ForEachPendingCookedPlatformData(
+		[&PendingObjects, &PackageData](FPendingCookedPlatformData& PendingCookedPlatformData)
 		{
-			// We have only called BeginCacheForCookedPlatformData on Object,Platform pairs up to GetCookedPlatformDataNextIndex.
-			// Further, some of those calls might still be pending.
-
-			// Find all pending BeginCacheForCookedPlatformData for this FPackageData
-			TMap<UObject*, TArray<FPendingCookedPlatformData*>> PendingObjects;
-			PackageDatas->ForEachPendingCookedPlatformData(
-			[&PendingObjects, &PackageData](FPendingCookedPlatformData& PendingCookedPlatformData)
+			if (&PendingCookedPlatformData.PackageData == &PackageData && !PendingCookedPlatformData.PollIsComplete())
 			{
-				if (&PendingCookedPlatformData.PackageData == &PackageData && !PendingCookedPlatformData.PollIsComplete())
-				{
-					UObject* Object = PendingCookedPlatformData.Object.Get();
-					check(Object); // Otherwise PollIsComplete would have returned true
-					check(!PendingCookedPlatformData.bHasReleased); // bHasReleased should be false since PollIsComplete returned false
-					PendingObjects.FindOrAdd(Object).Add(&PendingCookedPlatformData);
-				}
-			});
-
-			TArray<UObject*> ObjectsToClear;
-			TArray<FWeakObjectPtr>* CachedObjects = &PackageData.GetCachedObjectsInOuter();
-			int32 NumIndexes = PackageData.GetCookedPlatformDataNextIndex();
-			if (GenerationInfo)
-			{
-				if (GenerationInfo->HasTakenOverCachedCookedPlatformData())
-				{
-					check(PackageData.GetCachedObjectsInOuter().Num() == 0);
-
-					// Add all objects that were cached in previous rounds
-					for (FBeginCacheObject& BeginCacheObject : GenerationInfo->BeginCacheObjects.Objects)
-					{
-						UObject* Object = BeginCacheObject.Object.Get();
-						if (Object && BeginCacheObject.bHasFinishedRound)
-						{
-							ObjectsToClear.Add(Object);
-						}
-					}
-					// Add all objects cached in the latest round
-					CachedObjects = &GenerationInfo->BeginCacheObjects.ObjectsInRound;
-					NumIndexes = GenerationInfo->BeginCacheObjects.NextIndexInRound;
-				}
-				else
-				{
-					check(GenerationInfo->BeginCacheObjects.Objects.Num() == 0);
-				}
+				UObject* Object = PendingCookedPlatformData.Object.Get();
+				check(Object); // Otherwise PollIsComplete would have returned true
+				check(!PendingCookedPlatformData.bHasReleased); // bHasReleased should be false since PollIsComplete returned false
+				PendingObjects.FindOrAdd(Object).Add(&PendingCookedPlatformData);
 			}
-			check(NumIndexes <= NumPlatforms * CachedObjects->Num());
+		});
 
-			// Iterate over all objects in the FPackageData up to GetCookedPlatformDataNextIndex
-			// GetCookedPlatformDataNextIndex is a value in an inline iteration over the two-dimensional array of Objects x Platforms, in Object-major order.
-			// We take the ceiling of NextIndex/NumPlatforms to get the number of objects.
-			int32 NumObjects = (NumIndexes + NumPlatforms - 1) / NumPlatforms;
-			for (int32 ObjectIndex = 0; ObjectIndex < NumObjects; ++ObjectIndex)
+
+		// Iterate over all objects in the FPackageData up to GetCookedPlatformDataNextIndex
+		TArray<FWeakObjectPtr>& CachedObjects = PackageData.GetCachedObjectsInOuter();
+		for (int32 ObjectIndex = 0; ObjectIndex < PackageData.GetCookedPlatformDataNextIndex(); ++ObjectIndex)
+		{
+			UObject* Object = CachedObjects[ObjectIndex].Get();
+			if (!Object)
 			{
-				UObject* Object = (*CachedObjects)[ObjectIndex].Get();
-				if (!Object)
-				{
-					continue;
-				}
-				ObjectsToClear.Add(Object);
+				continue;
 			}
-			for (UObject* Object : ObjectsToClear)
+			TArray<FPendingCookedPlatformData*>* PendingDatas = PendingObjects.Find(Object);
+			if (!PendingDatas || PendingDatas->Num() == 0)
 			{
-				TArray<FPendingCookedPlatformData*>* PendingDatas = PendingObjects.Find(Object);
-				if (!PendingDatas || PendingDatas->Num() == 0)
+				// No pending BeginCacheForCookedPlatformData calls for this object; clear it now.
+				FPendingCookedPlatformData::ClearCachedCookedPlatformData(Object, PackageData,
+					false /* bCompletedSuccesfully */);
+			}
+			else
+			{
+				// For any pending Objects, we add a CancelManager to the FPendingCookedPlatformData to call
+				// ClearAllCachedCookedPlatformData when the pending Object,Platform pairs for that object completes.
+				FPendingCookedPlatformDataCancelManager* CancelManager = new FPendingCookedPlatformDataCancelManager();
+				CancelManager->NumPendingPlatforms = PendingDatas->Num();
+				for (FPendingCookedPlatformData* PendingCookedPlatformData : *PendingDatas)
 				{
-					// No pending BeginCacheForCookedPlatformData calls for this object; clear it now.
-					if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData calls are only used when not in editor.
-					{
-						Object->ClearAllCachedCookedPlatformData();
-					}
-				}
-				else
-				{
-					// For any pending Objects, we add a CancelManager to the FPendingCookedPlatformData to call ClearAllCachedCookedPlatformData when the pending Object,Platform pairs for that object complete.
-					FPendingCookedPlatformDataCancelManager* CancelManager = new FPendingCookedPlatformDataCancelManager();
-					CancelManager->NumPendingPlatforms = PendingDatas->Num();
-					for (FPendingCookedPlatformData* PendingCookedPlatformData : *PendingDatas)
-					{
-						// We never start a new package until after the previous cancel finished, so all of the FPendingCookedPlatformData for the PlatformData we are cancelling can not have been cancelled before.  We would leak the CancelManager if we overwrote it here.
-						check(PendingCookedPlatformData->CancelManager == nullptr);
-						// If bHasReleaased on the PendingCookedPlatformData were already true, we would leak the CancelManager because the PendingCookedPlatformData would never call Release on it.
-						check(!PendingCookedPlatformData->bHasReleased);
-						PendingCookedPlatformData->CancelManager = CancelManager;
-					}
+					// We never start a new package until after the previous cancel finished, so all of the
+					// FPendingCookedPlatformData for the PlatformData we are cancelling can not have been cancelled before.
+					// We would leak the CancelManager if we overwrote it here.
+					check(PendingCookedPlatformData->CancelManager == nullptr);
+					// If bHasReleaased on the PendingCookedPlatformData were already true, we would leak the CancelManager
+					// because the PendingCookedPlatformData would never call Release on it.
+					check(!PendingCookedPlatformData->bHasReleased);
+					PendingCookedPlatformData->CancelManager = CancelManager;
 				}
 			}
 		}
@@ -4599,9 +4550,9 @@ void UCookOnTheFlyServer::TickPrecacheObjectsForPlatforms(const float TimeSlice,
 			{
 				continue;
 			}
-			if (!RouteIsCachedCookedPlatformDataLoaded(PackageName, Material, TargetPlatform))
+			if (!Material->IsCachedCookedPlatformDataLoaded(TargetPlatform))
 			{
-				RouteBeginCacheForCookedPlatformData(PackageName, Material, TargetPlatform);
+				Material->BeginCacheForCookedPlatformData(TargetPlatform);
 				AllMaterialsCompiled = false;
 			}
 		}
@@ -4640,9 +4591,9 @@ void UCookOnTheFlyServer::TickPrecacheObjectsForPlatforms(const float TimeSlice,
 			{
 				continue;
 			}
-			if (!RouteIsCachedCookedPlatformDataLoaded(PackageName, Texture, TargetPlatform))
+			if (!Texture->IsCachedCookedPlatformDataLoaded(TargetPlatform))
 			{
-				RouteBeginCacheForCookedPlatformData(PackageName, Texture, TargetPlatform);
+				Texture->BeginCacheForCookedPlatformData(TargetPlatform);
 			}
 		}
 		if (Timer.IsActionTimeUp())
@@ -5190,6 +5141,8 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 	NumObjectsHistory.AddInstance(GUObjectArray.GetObjectArrayNumMinusAvailable());
 	VirtualMemoryHistory.AddInstance(FPlatformMemory::GetStats().UsedVirtual);
 
+	TSet<UObject*> SaveQueueObjectsThatStillExist;
+
 	// If any PackageDatas with ObjectPointers had any of their object pointers deleted out from under them, demote them back to request
 	TArray<FPackageData*> Demotes;
 	for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
@@ -5200,12 +5153,26 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 		{
 			Demotes.Add(PackageData);
 		}
+		else
+		{
+			for (FWeakObjectPtr& WeakObjectPtr : PackageData->GetCachedObjectsInOuter())
+			{
+				UObject* Object = WeakObjectPtr.Get();
+				if (Object)
+				{
+					SaveQueueObjectsThatStillExist.Add(Object);
+				}
+			}
+		}
 	}
 	for (FPackageData* PackageData : Demotes)
 	{
 		PackageData->SendToState(EPackageState::Request, ESendFlags::QueueRemove);
 		PackageDatas->GetRequestQueue().AddRequest(PackageData, /* bForceUrgent */ true);
 	}
+
+	// Remove objects that were deleted by garbage collection from our containers that track raw object pointers
+	PackageDatas->CachedCookedPlatformDataObjectsPostGarbageCollect(SaveQueueObjectsThatStillExist);
 
 	// If there was a GarbageCollect while we are saving a package, some of the WeakObjectPtr in SavingPackageData->CachedObjectPointers may have been deleted and set to null
 	// We need to handle nulls in that array at any point after calling SavePackage. We do not want to declare them as references and prevent their GC, in case there is 
@@ -11604,24 +11571,80 @@ void UCookOnTheFlyServer::RegisterLocalizationChunkDataGenerator()
 	}
 }
 
-void UCookOnTheFlyServer::RouteBeginCacheForCookedPlatformData(FName PackageName, UObject* Obj,
-	const ITargetPlatform* TargetPlatform)
+void UCookOnTheFlyServer::RouteBeginCacheForCookedPlatformData(UE::Cook::FPackageData& PackageData, UObject* Obj,
+	const ITargetPlatform* TargetPlatform, UE::Cook::ECachedCookedPlatformDataEvent* ExistingEvent)
 {
+	using namespace UE::Cook;
+
 	LLM_SCOPE_BYTAG(Cooker_CachedPlatformData);
 	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(GetClassTraceScope(Obj), TEXT("_BeginCacheForCookedPlatformData")));
+	FName PackageName = PackageData.GetPackageName();
 	UE_SCOPED_COOK_STAT(PackageName, EPackageEventStatType::BeginCacheForCookedPlatformData);
+	
+	if (!ExistingEvent)
+	{
+		FCachedCookedPlatformDataState& CCPDState = PackageDatas->GetCachedCookedPlatformDataObjects().FindOrAdd(Obj);
+		if (CCPDState.PackageData != &PackageData)
+		{
+			if (CCPDState.PackageData != nullptr)
+			{
+				ExistingEvent = CCPDState.PlatformStates.Find(TargetPlatform);
+				UE_LOG(LogCook, Error, TEXT("BeginCacheForCookedPlatformData called unexpectedly on %s. Skipping it.")
+					TEXT("\n\tPreviousEvent: %s for package %s.")
+					TEXT("\n\tCurrentEvent: %s for package %s."),
+					*Obj->GetFullName(), LexToString(ExistingEvent ? *ExistingEvent : ECachedCookedPlatformDataEvent::None),
+					*CCPDState.PackageData->GetPackageName().ToString(),
+					LexToString(ECachedCookedPlatformDataEvent::BeginCacheForCookedPlatformDataCalled),
+					*PackageName.ToString());
+				return;
+			}
+			CCPDState.PackageData = &PackageData;
+		}
+		ExistingEvent = &CCPDState.PlatformStates.FindOrAdd(TargetPlatform, ECachedCookedPlatformDataEvent::None);
+	}
 	FScopedActivePackage ScopedActivePackage(*this, PackageName, PackageAccessTrackingOps::NAME_CookerBuildObject);
 	Obj->BeginCacheForCookedPlatformData(TargetPlatform);
+	*ExistingEvent = ECachedCookedPlatformDataEvent::BeginCacheForCookedPlatformDataCalled;
 }
 
-bool UCookOnTheFlyServer::RouteIsCachedCookedPlatformDataLoaded(FName PackageName, UObject* Obj,
-	const ITargetPlatform* TargetPlatform)
+bool UCookOnTheFlyServer::RouteIsCachedCookedPlatformDataLoaded(UE::Cook::FPackageData& PackageData, UObject* Obj,
+	const ITargetPlatform* TargetPlatform, UE::Cook::ECachedCookedPlatformDataEvent* ExistingEvent)
 {
+	using namespace UE::Cook;
+
 	LLM_SCOPE_BYTAG(Cooker_CachedPlatformData);
 	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(GetClassTraceScope(Obj), TEXT("_IsCachedCookedPlatformDataLoaded")));
+	FName PackageName = PackageData.GetPackageName();
 	UE_SCOPED_COOK_STAT(Obj->GetPackage()->GetFName(), EPackageEventStatType::IsCachedCookedPlatformDataLoaded);
+
+	if (!ExistingEvent)
+	{
+		FCachedCookedPlatformDataState& CCPDState = PackageDatas->GetCachedCookedPlatformDataObjects().FindOrAdd(Obj);
+		if (CCPDState.PackageData != &PackageData)
+		{
+			if (CCPDState.PackageData != nullptr)
+			{
+				UE_LOG(LogCook, Error, TEXT("IsCachedCookedPlatformDataLoaded called unexpectedly on %s. Skipping it and returning true.")
+					TEXT("\n\tPreviousEvent: %s for package %s.")
+					TEXT("\n\tCurrentEvent: %s for package %s."),
+					*Obj->GetFullName(), LexToString(ExistingEvent ? *ExistingEvent : ECachedCookedPlatformDataEvent::None),
+					*CCPDState.PackageData->GetPackageName().ToString(),
+					LexToString(ECachedCookedPlatformDataEvent::IsCachedCookedPlatformDataLoadedCalled),
+					*PackageName.ToString());
+				return true;
+			}
+			CCPDState.PackageData = &PackageData;
+		}
+		ExistingEvent = &CCPDState.PlatformStates.FindOrAdd(TargetPlatform, ECachedCookedPlatformDataEvent::None);
+	}
+
 	FScopedActivePackage ScopedActivePackage(*this, PackageName, PackageAccessTrackingOps::NAME_CookerBuildObject);
-	return Obj->IsCachedCookedPlatformDataLoaded(TargetPlatform);
+	bool bResult = Obj->IsCachedCookedPlatformDataLoaded(TargetPlatform);
+	if (bResult)
+	{
+		*ExistingEvent = ECachedCookedPlatformDataEvent::IsCachedCookedPlatformDataLoadedReturnedTrue;
+	}
+	return bResult;
 }
 
 namespace UE::Cook

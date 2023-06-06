@@ -21,6 +21,7 @@
 #include "Engine/Console.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformTime.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "Misc/CommandLine.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Misc/PackageAccessTrackingOps.h"
@@ -1122,19 +1123,6 @@ TArray<FWeakObjectPtr>& FPackageData::GetCachedObjectsInOuter()
 	return CachedObjectsInOuter;
 }
 
-int32 FPackageData::GetCachedObjectsInOuterNumPlatforms() const
-{
-	int32 Result = 0;
-	for (const TPair<const ITargetPlatform*, FPackagePlatformData>& Pair : PlatformDatas)
-	{
-		if (Pair.Value.IsRegisteredForCachedObjectsInOuter())
-		{
-			++Result;
-		}
-	}
-	return Result;
-}
-
 void FPackageData::CheckObjectCacheEmpty() const
 {
 	check(CachedObjectsInOuter.Num() == 0);
@@ -1224,10 +1212,6 @@ static TArray<UObject*> SetDifference(TArray<UObject*>& A, TArray<UObject*>& B)
 
 EPollStatus FPackageData::RefreshObjectCache(bool& bOutFoundNewObjects)
 {
-	// Caller will only call this function after CallBeginCacheOnObjects finished successfully
-	int32 NumPlatforms = GetCachedObjectsInOuterNumPlatforms();
-	check(NumPlatforms > 0);
-	check(GetCookedPlatformDataNextIndex()/NumPlatforms == GetCachedObjectsInOuter().Num());
 	check(Package.Get() != nullptr);
 
 	TArray<UObject*> OldObjects;
@@ -1272,6 +1256,29 @@ EPollStatus FPackageData::RefreshObjectCache(bool& bOutFoundNewObjects)
 
 void FPackageData::ClearObjectCache()
 {
+	TMap<UObject*, FCachedCookedPlatformDataState>& CCPDs = PackageDatas.GetCachedCookedPlatformDataObjects();
+	for (FWeakObjectPtr& WeakObjectPtr: CachedObjectsInOuter)
+	{
+		UObject* Object = WeakObjectPtr.Get();
+		if (!Object)
+		{
+			continue;
+		}
+		FCachedCookedPlatformDataState CCPDState;
+		CCPDs.RemoveAndCopyValue(Object, CCPDState);
+		if (CCPDState.PackageData != this)
+		{
+			// This is an error condition that is logged elsewhere; one of the objects in this package is also
+			// present in another package, which owns it. We should silently handle this case (silently because
+			// the error about it is logged elsewhere), which means we should not modify the object on account
+			// of this package.
+			// We removed it because we thought would own it if it existed, but since we were wrong, put it back.
+			if (CCPDState.PackageData != nullptr)
+			{
+				CCPDs.Add(Object, MoveTemp(CCPDState));
+			}
+		}
+	}
 	CachedObjectsInOuter.Empty();
 	for (TPair<const ITargetPlatform*, FPackagePlatformData>& Pair : PlatformDatas)
 	{
@@ -1312,7 +1319,7 @@ int32 FPackageData::GetMaxNumRetriesBeginCacheOnObjects()
 
 void FPackageData::CheckCookedPlatformDataEmpty() const
 {
-	check(GetCookedPlatformDataNextIndex() == 0);
+	check(GetCookedPlatformDataNextIndex() <= 0);
 	check(!GetCookedPlatformDataStarted());
 	check(!GetCookedPlatformDataCalled());
 	check(!GetCookedPlatformDataComplete());
@@ -1327,7 +1334,7 @@ void FPackageData::CheckCookedPlatformDataEmpty() const
 
 void FPackageData::ClearCookedPlatformData()
 {
-	CookedPlatformDataNextIndex = 0;
+	CookedPlatformDataNextIndex = -1;
 	NumRetriesBeginCacheOnObject = 0;
 	// Note that GetNumPendingCookedPlatformData is not cleared; it persists across Saves and CookSessions
 	SetCookedPlatformDataStarted(false);
@@ -1356,9 +1363,8 @@ void FPackageData::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlat
 		NewPlatformDatas.FindOrAdd(NewKey) = MoveTemp(ExistingPair.Value);
 	}
 
-	// The save state (and maybe more in the future) depend on the order of the request platforms remaining
-	// unchanged, due to CookedPlatformDataNextIndex. If we change that order due to the remap, we need to
-	// demote back to request.
+	// The save state (and maybe more in the future) by contract can depend on the order of the request platforms remaining
+	// unchanged. If we change that order due to the remap, we need to demote back to request.
 	if (IsInProgress() && GetState() != EPackageState::Request)
 	{
 		bool bDemote = true;
@@ -1822,9 +1828,9 @@ void FGeneratorPackage::PreGarbageCollect(FCookGenerationInfo& Info, TArray<TObj
 				GCKeepPackageDatas.Add(Info.PackageData);
 			}
 			GCKeepPackages.Append(Info.KeepReferencedPackages);
-			for (FBeginCacheObject& BeginCacheObject : Info.BeginCacheObjects.Objects)
+			for (FWeakObjectPtr& WeakObjectPtr : Info.PackageData->GetCachedObjectsInOuter())
 			{
-				UObject* Object = BeginCacheObject.Object.Get();
+				UObject* Object = WeakObjectPtr.Get();
 				if (Object)
 				{
 					GCKeepObjects.Add(Object);
@@ -2007,19 +2013,21 @@ void FGeneratorPackage::ResetSaveState(FCookGenerationInfo& Info, UPackage* Pack
 	{
 		Info.SetSaveState(FCookGenerationInfo::ESaveState::StartPopulate);
 	}
-	if (Info.BeginCacheObjects.Objects.Num() != 0 &&
-		GetCookPackageSplitterInstance()->UseInternalReferenceToAvoidGarbageCollect() &&
-		(ReleaseSaveReason == EReleaseSaveReason::Demoted || ReleaseSaveReason == EReleaseSaveReason::RecreateObjectCache))
+	if (Info.HasTakenOverCachedCookedPlatformData())
 	{
-		UE_LOG(LogCook, Error, TEXT("CookPackageSplitter failure: We are demoting a %s package from save and removing our references that keep its objects loaded.\n")
-			TEXT("This will allow the objects to be garbage collected and cause failures in the splitter which expects them to remain loaded.\n")
-			TEXT("Package=%s, Splitter=%s, ReleaseSaveReason=%s"),
-			Info.IsGenerator() ? TEXT("generator") : TEXT("generated"),
-			Info.PackageData ? *Info.PackageData->GetPackageName().ToString() : *Info.RelativePath,
-			*GetSplitDataObjectName().ToString(), LexToString(ReleaseSaveReason));
+		if (Info.PackageData && Info.PackageData->GetCachedObjectsInOuter().Num() != 0 &&
+			GetCookPackageSplitterInstance()->UseInternalReferenceToAvoidGarbageCollect() &&
+			(ReleaseSaveReason == EReleaseSaveReason::Demoted || ReleaseSaveReason == EReleaseSaveReason::RecreateObjectCache))
+		{
+			UE_LOG(LogCook, Error, TEXT("CookPackageSplitter failure: We are demoting a %s package from save and removing our references that keep its objects loaded.\n")
+				TEXT("This will allow the objects to be garbage collected and cause failures in the splitter which expects them to remain loaded.\n")
+				TEXT("Package=%s, Splitter=%s, ReleaseSaveReason=%s"),
+				Info.IsGenerator() ? TEXT("generator") : TEXT("generated"),
+				Info.PackageData ? *Info.PackageData->GetPackageName().ToString() : *Info.RelativePath,
+				*GetSplitDataObjectName().ToString(), LexToString(ReleaseSaveReason));
+		}
+		Info.SetHasTakenOverCachedCookedPlatformData(false);
 	}
-	Info.BeginCacheObjects.Reset();
-	Info.SetHasTakenOverCachedCookedPlatformData(false);
 	Info.SetHasIssuedUndeclaredMovedObjectsWarning(false);
 	Info.KeepReferencedPackages.Reset();
 }
@@ -2047,10 +2055,14 @@ void FGeneratorPackage::UpdateSaveAfterGarbageCollect(const FPackageData& Packag
 		}
 	}
 
-	for (TArray<FBeginCacheObject>::TIterator Iter(Info->BeginCacheObjects.Objects); Iter; ++Iter)
+	TSet<UObject*> CachedObjectsInOuterSet;
+	TArray<FWeakObjectPtr>& CachedObjectsInOuter = Info->PackageData->GetCachedObjectsInOuter();
+	int32& NextIndexToBeginCache = Info->PackageData->GetCookedPlatformDataNextIndex();
+	for (int32 Index = 0; Index < CachedObjectsInOuter.Num(); ++Index)
 	{
-		const FBeginCacheObject& Object = *Iter;
-		if (!Object.Object.IsValid())
+		FWeakObjectPtr& WeakObjectPtr = CachedObjectsInOuter[Index];
+		UObject* Object = WeakObjectPtr.Get();
+		if (!Object)
 		{
 			if (GetCookPackageSplitterInstance()->UseInternalReferenceToAvoidGarbageCollect())
 			{
@@ -2062,12 +2074,29 @@ void FGeneratorPackage::UpdateSaveAfterGarbageCollect(const FPackageData& Packag
 					Info->IsGenerator() ? TEXT("PopulateGeneratorPackage") : TEXT("PopulateGeneratedPackage"),
 					*GetSplitDataObjectName().ToString(),
 					Info->IsGenerator() ? TEXT("") : *FString::Printf(TEXT(", Generated=%s."), *Info->PackageData->GetPackageName().ToString()));
-				Iter.RemoveCurrent();
+
+				CachedObjectsInOuter.RemoveAt(Index);
+				if (NextIndexToBeginCache > Index)
+				{
+					--NextIndexToBeginCache;
+				}
+				--Index;
 			}
 			else
 			{
 				bInOutDemote = true;
 			}
+		}
+		else
+		{
+			CachedObjectsInOuterSet.Add(Object);
+		}
+	}
+	for (TSet<UObject*>::TIterator Iter(Info->RootMovedObjects); Iter; ++Iter)
+	{
+		if (!CachedObjectsInOuterSet.Contains(*Iter))
+		{
+			Iter.RemoveCurrent();
 		}
 	}
 }
@@ -2092,20 +2121,15 @@ void FCookGenerationInfo::SetSaveStateComplete(ESaveState CompletedState)
 void FCookGenerationInfo::TakeOverCachedObjectsAndAddMoved(FGeneratorPackage& Generator,
 	TArray<FWeakObjectPtr>& CachedObjectsInOuter, TArray<UObject*>& MovedObjects)
 {
-	BeginCacheObjects.Objects.Reset();
+	RootMovedObjects.Reset();
+
 	TSet<UObject*> ObjectSet;
 	for (FWeakObjectPtr& ObjectInOuter : CachedObjectsInOuter)
 	{
 		UObject* Object = ObjectInOuter.Get();
 		if (Object)
 		{
-			bool bAlreadyExists;
-			ObjectSet.Add(Object, &bAlreadyExists);
-			if (!bAlreadyExists)
-			{
-				FBeginCacheObject& Added = BeginCacheObjects.Objects.Add_GetRef(FBeginCacheObject{ Object });
-				Added.bHasFinishedRound = true;
-			}
+			ObjectSet.Add(Object);
 		}
 	}
 
@@ -2121,14 +2145,12 @@ void FCookGenerationInfo::TakeOverCachedObjectsAndAddMoved(FGeneratorPackage& Ge
 				IsGenerator() ? TEXT("") : *FString::Printf(TEXT(", Package %s"), *PackageData->GetPackageName().ToString()));
 			continue;
 		}
-
 		bool bAlreadyExists;
 		ObjectSet.Add(Object, &bAlreadyExists);
 		if (!bAlreadyExists)
 		{
-			FBeginCacheObject& Added = BeginCacheObjects.Objects.Add_GetRef(FBeginCacheObject{ Object });
-			Added.bHasFinishedRound = false;
-			Added.bIsRootMovedObject = true;
+			RootMovedObjects.Add(Object);
+			CachedObjectsInOuter.Add(Object);
 			GetObjectsWithOuter(Object, ChildrenOfMovedObjects, true /* bIncludeNestedObjects */, RF_NoFlags, EInternalObjectFlags::Garbage);
 		}
 	}
@@ -2140,14 +2162,10 @@ void FCookGenerationInfo::TakeOverCachedObjectsAndAddMoved(FGeneratorPackage& Ge
 		ObjectSet.Add(Object, &bAlreadyExists);
 		if (!bAlreadyExists)
 		{
-			FBeginCacheObject& Added = BeginCacheObjects.Objects.Add_GetRef(FBeginCacheObject{ Object });
-			Added.bHasFinishedRound = false;
+			CachedObjectsInOuter.Add(Object);
 		}
 	}
 
-	BeginCacheObjects.StartRound();
-
-	CachedObjectsInOuter.Reset();
 	SetHasTakenOverCachedCookedPlatformData(true);
 }
 
@@ -2159,16 +2177,18 @@ EPollStatus FCookGenerationInfo::RefreshPackageObjects(FGeneratorPackage& Genera
 	GetObjectsWithOuter(Package, CurrentObjectsInOuter, true /* bIncludeNestedObjects */, RF_NoFlags, EInternalObjectFlags::Garbage);
 
 	TSet<UObject*> ObjectSet;
-	ObjectSet.Reserve(BeginCacheObjects.Objects.Num());
-	for (FBeginCacheObject& ExistingObject : BeginCacheObjects.Objects)
+	check(PackageData); // RefreshPackageObjects is only called when there is a PackageData
+	TArray<FWeakObjectPtr>& CachedObjectsInOuter = PackageData->GetCachedObjectsInOuter();
+	ObjectSet.Reserve(CachedObjectsInOuter.Num());
+	for (FWeakObjectPtr& ExistingObject : CachedObjectsInOuter)
 	{
-		UObject* Object = ExistingObject.Object.Get();
+		UObject* Object = ExistingObject.Get();
 		if (Object)
 		{
 			bool bAlreadyExists;
 			ObjectSet.Add(Object, &bAlreadyExists);
-			check(!bAlreadyExists); // Objects in BeginCacheObjects.Objects are guaranteed unique and we haven't added any others yet
-			if (ExistingObject.bIsRootMovedObject)
+			check(!bAlreadyExists); // Objects in GetCachedObjectsInOuter are guaranteed unique and we haven't added any others yet
+			if (RootMovedObjects.Contains(Object))
 			{
 				GetObjectsWithOuter(Object, CurrentObjectsInOuter, true /* bIncludeNestedObjects */, RF_NoFlags, EInternalObjectFlags::Garbage);
 			}
@@ -2181,8 +2201,7 @@ EPollStatus FCookGenerationInfo::RefreshPackageObjects(FGeneratorPackage& Genera
 		ObjectSet.Add(Object, &bAlreadyExists);
 		if (!bAlreadyExists)
 		{
-			FBeginCacheObject& Added = BeginCacheObjects.Objects.Add_GetRef(FBeginCacheObject{ Object });
-			Added.bHasFinishedRound = false;
+			CachedObjectsInOuter.Add(Object);
 			if (!FirstNewObject )
 			{
 				FirstNewObject  = Object;
@@ -2190,8 +2209,6 @@ EPollStatus FCookGenerationInfo::RefreshPackageObjects(FGeneratorPackage& Genera
 		}
 	}
 	bOutFoundNewObjects = FirstNewObject != nullptr;
-
-	BeginCacheObjects.StartRound();
 
 	if (FirstNewObject != nullptr && DemotionState != ESaveState::Last)
 	{
@@ -2208,37 +2225,6 @@ EPollStatus FCookGenerationInfo::RefreshPackageObjects(FGeneratorPackage& Genera
 		}
 	}
 	return EPollStatus::Success;
-}
-
-void FBeginCacheObjects::Reset()
-{
-	Objects.Reset();
-	ObjectsInRound.Reset();
-	NextIndexInRound = 0;
-}
-
-void FBeginCacheObjects::StartRound()
-{
-	ObjectsInRound.Reset(Objects.Num());
-	for (FBeginCacheObject& Object : Objects)
-	{
-		if (!Object.bHasFinishedRound)
-		{
-			ObjectsInRound.Add(Object.Object);
-		}
-	}
-	NextIndexInRound = 0;
-}
-
-void FBeginCacheObjects::EndRound(int32 NumPlatforms)
-{
-	check(NextIndexInRound == ObjectsInRound.Num()*NumPlatforms);
-	ObjectsInRound.Reset();
-	NextIndexInRound = 0;
-	for (FBeginCacheObject& Object : Objects)
-	{
-		Object.bHasFinishedRound = true;
-	}
 }
 
 void FCookGenerationInfo::CreateGuid()
@@ -2354,7 +2340,7 @@ bool FPendingCookedPlatformData::PollIsComplete()
 		return true;
 	}
 	UCookOnTheFlyServer& COTFS = PackageData.GetPackageDatas().GetCookOnTheFlyServer();
-	if (COTFS.RouteIsCachedCookedPlatformDataLoaded(PackageData.GetPackageName(), LocalObject, TargetPlatform))
+	if (COTFS.RouteIsCachedCookedPlatformDataLoaded(PackageData, LocalObject, TargetPlatform, nullptr /* ExistingEvent */))
 	{
 		Release();
 		return true;
@@ -2408,6 +2394,59 @@ void FPendingCookedPlatformData::RemapTargetPlatforms(const TMap<ITargetPlatform
 	TargetPlatform = Remap[TargetPlatform];
 }
 
+void FPendingCookedPlatformData::ClearCachedCookedPlatformData(UObject* Object, FPackageData& PackageData,
+	bool bCompletedSuccesfully)
+{
+	FPackageDatas& PackageDatas = PackageData.GetPackageDatas();
+	UCookOnTheFlyServer& COTFS = PackageDatas.GetCookOnTheFlyServer();
+	FCachedCookedPlatformDataState CCPDState;
+	PackageDatas.GetCachedCookedPlatformDataObjects().RemoveAndCopyValue(Object, CCPDState);
+	if (CCPDState.PackageData != &PackageData)
+	{
+		if (CCPDState.PackageData)
+		{
+			ECachedCookedPlatformDataEvent ExistingEvent = ECachedCookedPlatformDataEvent::None;
+			for (TPair<const ITargetPlatform*, ECachedCookedPlatformDataEvent>& PlatformPair : CCPDState.PlatformStates)
+			{
+				if (PlatformPair.Value != ECachedCookedPlatformDataEvent::None)
+				{
+					ExistingEvent = PlatformPair.Value;
+					break;
+				}
+			}
+			UE_LOG(LogCook, Error, TEXT("ClearCachedCookedPlatformData called unexpectedly on %s. It will be skipped.")
+				TEXT("\n\tPreviousEvent: %s for package %s.")
+				TEXT("\n\tCurrentEvent: %s for package %s."),
+				*Object->GetFullName(), LexToString(ExistingEvent), *CCPDState.PackageData->GetPackageName().ToString(),
+				LexToString(ECachedCookedPlatformDataEvent::ClearCachedCookedPlatformDataCalled),
+				*PackageData.GetPackageName().ToString());
+			PackageDatas.GetCachedCookedPlatformDataObjects().Add(Object, MoveTemp(CCPDState));
+		}
+	}
+	else
+	{
+		// TODO: Add this call to ClearCachedCookedPlatformData once we take it over from SavePackage
+		constexpr bool bCallClearCachedCookedPlatformData = false;
+		if (bCallClearCachedCookedPlatformData)
+		{
+			for (const TPair<const ITargetPlatform*, ECachedCookedPlatformDataEvent>& PlatformPair : CCPDState.PlatformStates)
+			{
+				Object->ClearCachedCookedPlatformData(PlatformPair.Key);
+			}
+		}
+
+		// ClearAllCachedCookedPlatformData and WillNeverCacheCookedPlatformDataAgain calls are only used when not in editor
+		if (!COTFS.IsCookingInEditor())
+		{
+			Object->ClearAllCachedCookedPlatformData();
+			if (bCompletedSuccesfully && COTFS.IsDirectorCookByTheBook())
+			{
+				Object->WillNeverCacheCookedPlatformDataAgain();
+			}
+		}
+	}
+};
+
 
 //////////////////////////////////////////////////////////////////////////
 // FPendingCookedPlatformDataCancelManager
@@ -2422,7 +2461,8 @@ void FPendingCookedPlatformDataCancelManager::Release(FPendingCookedPlatformData
 		UObject* LocalObject = Data.Object.Get();
 		if (LocalObject)
 		{
-			LocalObject->ClearAllCachedCookedPlatformData();
+			FPendingCookedPlatformData::ClearCachedCookedPlatformData(LocalObject, Data.PackageData,
+				false /* bCompletedSuccesfully */);
 		}
 		delete this;
 	}
@@ -3044,6 +3084,7 @@ void FPackageDatas::Clear()
 	SaveQueue.Empty();
 	PackageNameToPackageData.Empty();
 	FileNameToPackageData.Empty();
+	CachedCookedPlatformDataObjects.Empty();
 	{
 		// All references must be cleared before any PackageDatas are destroyed
 		EnumeratePackageDatasWithinLock([](FPackageData* PackageData)
@@ -3416,5 +3457,31 @@ FPoppedPackageDataScope::~FPoppedPackageDataScope()
 	PackageData.CheckInContainer();
 }
 #endif
+
+const TCHAR* LexToString(ECachedCookedPlatformDataEvent Value)
+{
+	switch (Value)
+	{
+	case ECachedCookedPlatformDataEvent::None: return TEXT("None");
+	case ECachedCookedPlatformDataEvent::BeginCacheForCookedPlatformDataCalled: return TEXT("BeginCacheForCookedPlatformDataCalled");
+	case ECachedCookedPlatformDataEvent::IsCachedCookedPlatformDataLoadedCalled: return TEXT("IsCachedCookedPlatformDataLoadedCalled");
+	case ECachedCookedPlatformDataEvent::IsCachedCookedPlatformDataLoadedReturnedTrue: return TEXT("IsCachedCookedPlatformDataLoadedReturnedTrue");
+	case ECachedCookedPlatformDataEvent::ClearCachedCookedPlatformDataCalled: return TEXT("ClearCachedCookedPlatformDataCalled");
+	case ECachedCookedPlatformDataEvent::ClearAllCachedCookedPlatformDataCalled: return TEXT("ClearAllCachedCookedPlatformDataCalled");
+	default: return TEXT("Invalid");
+	}
+}
+
+void FPackageDatas::CachedCookedPlatformDataObjectsPostGarbageCollect(const TSet<UObject*>& SaveQueueObjectsThatStillExist)
+{
+	for (TMap<UObject*, FCachedCookedPlatformDataState>::TIterator Iter(this->CachedCookedPlatformDataObjects);
+		Iter; ++Iter)
+	{
+		if (!SaveQueueObjectsThatStillExist.Contains(Iter->Key))
+		{
+			Iter.RemoveCurrent();
+		}
+	}
+}
 
 } // namespace UE::Cook
