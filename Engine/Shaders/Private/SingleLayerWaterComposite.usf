@@ -534,6 +534,8 @@ void SingleLayerWaterCompositePS(
 	in float4 SvPosition : SV_Position,
 	out float4 OutColor : SV_Target0)
 {
+	ResolvedView = ResolveView();
+
 	float2 BufferUV = SvPositionToBufferUV(SvPosition);
 	float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
 

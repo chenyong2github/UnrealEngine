@@ -275,6 +275,8 @@ void ReflectionEnvironmentSkyLighting(
 #endif
 	)
 {
+	ResolvedView = ResolveView();
+
 	uint2 PixelPos = SvPosition.xy;
 	float2 BufferUV = SvPositionToBufferUV(SvPosition);
 	float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
