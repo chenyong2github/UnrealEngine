@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/IConsoleManager.h"
+
 #include "PCGCommon.generated.h"
 
 using FPCGTaskId = uint64;
@@ -111,4 +113,9 @@ namespace PCGObjectMetadata
 		/// [PropertyMetadata] Indicates that the property is not-overridable by params. Used in structs to hide some parameters
 		PCG_NotOverridable
 	};
+}
+
+namespace PCGFeatureSwitches
+{
+	extern PCG_API TAutoConsoleVariable<bool> CVarCheckSamplerMemory;
 }

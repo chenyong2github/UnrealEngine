@@ -2,6 +2,7 @@
 
 #include "Elements/PCGSurfaceSampler.h"
 
+#include "PCGCommon.h"
 #include "PCGComponent.h"
 #include "PCGCustomVersion.h"
 #include "PCGEdge.h"
@@ -13,6 +14,7 @@
 #include "Helpers/PCGHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include "HAL/UnrealMemory.h"
 #include "Math/RandomStream.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSurfaceSampler)
@@ -77,7 +79,9 @@ namespace PCGSurfaceSampler
 			}
 
 			const int64 CellCount64 = CellCountX * CellCountY;
-			if (CellCount64 <= 0 || CellCount64 >= MAX_int32)
+			if (CellCount64 <= 0 || 
+				CellCount64 >= MAX_int32 ||
+				(PCGFeatureSwitches::CVarCheckSamplerMemory.GetValueOnAnyThread() && FPlatformMemory::GetStats().AvailablePhysical < sizeof(FPCGPoint) * CellCount64))
 			{
 				if (Context)
 				{
@@ -354,35 +358,6 @@ bool FPCGSurfaceSamplerElement::AddGeneratingShapesToContext(FPCGSurfaceSamplerC
 		return false;
 	}
 
-	// Grab the Bounding Shape input if there is one.
-	TArray<FPCGTaggedData> BoundingShapeInputs = InContext->InputData.GetInputsByPin(PCGSurfaceSamplerConstants::BoundingShapeLabel);
-
-	if (!Settings->bUnbounded)
-	{
-		InContext->BoundingShapeSpatialInput = InContext->InputData.GetSpatialUnionOfInputsByPin(PCGSurfaceSamplerConstants::BoundingShapeLabel, InContext->bUnionDataCreated);
-
-		// Root dynamically created data to keep it safe from GC
-		if (InContext->bUnionDataCreated && InContext->BoundingShapeSpatialInput)
-		{
-			const_cast<UPCGSpatialData*>(InContext->BoundingShapeSpatialInput)->AddToRoot();
-		}
-
-		if (!InContext->BoundingShapeSpatialInput && InContext->SourceComponent.IsValid())
-		{
-			// Fallback to getting bounds from actor
-			InContext->BoundingShapeSpatialInput = Cast<UPCGSpatialData>(InContext->SourceComponent->GetActorPCGData());
-		}
-	}
-	else if (BoundingShapeInputs.Num() > 0)
-	{
-		PCGE_LOG_C(Verbose, LogOnly, InContext, LOCTEXT("BoundsIgnored", "The bounds of the Bounding Shape input pin will be ignored because the Unbounded option is enabled."));
-	}
-
-	if (InContext->BoundingShapeSpatialInput)
-	{
-		InContext->BoundingShapeBounds = InContext->BoundingShapeSpatialInput->GetBounds();
-	}
-
 	TArray<FPCGTaggedData> SurfaceInputs = InContext->InputData.GetInputsByPin(PCGSurfaceSamplerConstants::SurfaceLabel);
 
 	// Construct a list of shapes to generate samples from. Prefer to get these directly from the first input pin.
@@ -405,6 +380,35 @@ bool FPCGSurfaceSamplerElement::AddGeneratingShapesToContext(FPCGSurfaceSamplerC
 				Outputs.Add(TaggedData);
 			}
 		}
+	}
+
+	// Grab the Bounding Shape input if there is one.
+	TArray<FPCGTaggedData> BoundingShapeInputs = InContext->InputData.GetInputsByPin(PCGSurfaceSamplerConstants::BoundingShapeLabel);
+
+	if (!Settings->bUnbounded)
+	{
+		InContext->BoundingShapeSpatialInput = InContext->InputData.GetSpatialUnionOfInputsByPin(PCGSurfaceSamplerConstants::BoundingShapeLabel, InContext->bUnionDataCreated);
+
+		// Root dynamically created data to keep it safe from GC
+		if (InContext->bUnionDataCreated && InContext->BoundingShapeSpatialInput)
+		{
+			const_cast<UPCGSpatialData*>(InContext->BoundingShapeSpatialInput)->AddToRoot();
+		}
+
+		// Fallback to getting bounds from actor but only if we actually have some inputs
+		if (!InContext->BoundingShapeSpatialInput && InContext->SourceComponent.IsValid() && !InContext->GeneratingShapes.IsEmpty())
+		{
+			InContext->BoundingShapeSpatialInput = Cast<UPCGSpatialData>(InContext->SourceComponent->GetActorPCGData());
+		}
+	}
+	else if (BoundingShapeInputs.Num() > 0)
+	{
+		PCGE_LOG_C(Verbose, LogOnly, InContext, LOCTEXT("BoundsIgnored", "The bounds of the Bounding Shape input pin will be ignored because the Unbounded option is enabled."));
+	}
+
+	if (InContext->BoundingShapeSpatialInput)
+	{
+		InContext->BoundingShapeBounds = InContext->BoundingShapeSpatialInput->GetBounds();
 	}
 
 	// If no shapes were obtained from the first input pin, try to find a shape to sample from nodes connected to the second pin.
