@@ -1148,7 +1148,7 @@ void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCom
 		// cache is disabled
 		if (Compiler->SupportsIndependentPreprocessing() && !Job.Input.bCachePreprocessed)
 		{
-			Compiler->OutputDebugData(FString(), Job.Input, Job.PreprocessOutput, Job.Output);
+			Compiler->OutputDebugData(Job.Input, Job.PreprocessOutput, Job.Output);
 		}
 		else
 		{
@@ -2748,6 +2748,7 @@ FArchive& operator<<(FArchive& Ar, FShaderCompilerInput& Input)
 	Ar << Input.DebugExtension;
 	Ar << Input.DebugGroupName;
 	Ar << Input.DebugDescription;
+	Ar << Input.Hash;
 	if (Input.bCachePreprocessed)
 	{
 		Input.Environment.SerializeCompilationDependencies(Ar);
@@ -2958,6 +2959,7 @@ FShaderCommonCompileJob::FInputHash FShaderCompileJob::GetInputHash()
 	}
 
 	bInputHashSet = true;
+	Input.Hash = InputHash;
 	return InputHash;
 }
 
@@ -3005,10 +3007,11 @@ void FShaderCompileJob::OnComplete()
 			Output.PreprocessTime = PreprocessOutput.ElapsedTime;
 		}
 		// dump debug info for the job at this point if the preprocessed cache is enabled
-		// this is executed in the cooker process and we know the input hash is computed at this point
+		// this ensures we get debug output for all jobs, including those that were found in the job cache,
+		// or matched another in-flight job's hash and so could share its results
 		if (Input.bCachePreprocessed && Input.DumpDebugInfoEnabled())
 		{
-			ShaderFormat->OutputDebugData(LexToString(GetInputHash()), Input, PreprocessOutput, Output);
+			ShaderFormat->OutputDebugData(Input, PreprocessOutput, Output);
 		}
 	}
 }

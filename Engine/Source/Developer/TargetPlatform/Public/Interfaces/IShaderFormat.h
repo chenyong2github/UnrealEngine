@@ -147,7 +147,7 @@ public:
 	 * with the hash of the shader code in an OutputHash.txt file; if no additional custom debug output is required the shader 
 	 * format can inherit from BaseShaderFormat instead of IShaderFormat.
 	 */
-	virtual void OutputDebugData(const FString& InputHash, const struct FShaderCompilerInput& Input, const class FShaderPreprocessOutput& PreprocessOutput, const struct FShaderCompilerOutput& Output) const {};
+	virtual void OutputDebugData(const struct FShaderCompilerInput& Input, const class FShaderPreprocessOutput& PreprocessOutput, const struct FShaderCompilerOutput& Output) const {};
 
 	/**
 	 * Return true if preprocessing for this format can be executed independent of compilation (i.e. the format has an

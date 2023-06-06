@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
+#include "Hash/Blake3.h"
 #include "Stats/Stats.h"
 #include "Templates/RefCounting.h"
 #include "Misc/EnumClassFlags.h"
@@ -25,7 +26,7 @@ class FShaderCompileJob;
 class FShaderPipelineCompileJob;
 
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
-inline const int32 ShaderCompileWorkerInputVersion = 19;
+inline const int32 ShaderCompileWorkerInputVersion = 20;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
 inline const int32 ShaderCompileWorkerOutputVersion = 14;
 // this is for the protocol, not the data.
@@ -247,6 +248,9 @@ struct FShaderCompilerInput
 
 	// Description of the configuration used when compiling. 
 	FString DebugDescription;
+
+	// Hash of this input (used as the key for the shader job cache)
+	FBlake3Hash Hash;
 
 	// Compilation Environment
 	FShaderCompilerEnvironment Environment;

@@ -1401,7 +1401,7 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 
 namespace UE::ShaderCompilerCommon
 {
-	void FBaseShaderFormat::OutputDebugData(const FString& InputHash, const FShaderCompilerInput& Input, const FShaderPreprocessOutput& PreprocessOutput, const FShaderCompilerOutput& Output) const
+	void FBaseShaderFormat::OutputDebugData(const FShaderCompilerInput& Input, const FShaderPreprocessOutput& PreprocessOutput, const FShaderCompilerOutput& Output) const
 	{
 		const FString& SourceToDump = Output.ModifiedShaderSource.IsEmpty() ? PreprocessOutput.GetUnstrippedSource() : Output.ModifiedShaderSource;
 		DumpDebugShaderData(Input, SourceToDump);
@@ -1422,10 +1422,10 @@ namespace UE::ShaderCompilerCommon
 			}
 		}
 
-		if (EnumHasAnyFlags(Input.DebugInfoFlags, EShaderDebugInfoFlags::InputHash) && !InputHash.IsEmpty())
+		if (EnumHasAnyFlags(Input.DebugInfoFlags, EShaderDebugInfoFlags::InputHash))
 		{
 			FString InputHashFileName = FPaths::Combine(Input.DumpDebugInfoPath, TEXT("InputHash.txt"));
-			FFileHelper::SaveStringToFile(InputHash, *InputHashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
+			FFileHelper::SaveStringToFile(LexToString(Input.Hash), *InputHashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
 		}
 	}
 

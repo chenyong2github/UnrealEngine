@@ -75,7 +75,7 @@ namespace UE::ShaderCompilerCommon
 	class FBaseShaderFormat : public IShaderFormat
 	{
 	public:
-		virtual SHADERCOMPILERCOMMON_API void OutputDebugData(const FString& InputHash, const FShaderCompilerInput& Input, const FShaderPreprocessOutput& PreprocessOutput, const FShaderCompilerOutput& Output) const override;
+		virtual SHADERCOMPILERCOMMON_API void OutputDebugData(const FShaderCompilerInput& Input, const FShaderPreprocessOutput& PreprocessOutput, const FShaderCompilerOutput& Output) const override;
 	};
 
 	UE_DEPRECATED(5.3, "Deprecated; use FShaderCompilerInput::ShouldUseStableContantBuffer directly")
