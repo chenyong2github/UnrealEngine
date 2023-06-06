@@ -418,15 +418,18 @@ namespace UnrealBuildTool
 				}
 
 				// Verify the link outputs were created (seems to happen with Win64 compiles)
-				foreach (LinkedAction BuildAction in ActionsToExecute)
+				if (Executor.VerifyOutputs)
 				{
-					if (BuildAction.ActionType == ActionType.Link)
+					foreach (LinkedAction BuildAction in ActionsToExecute)
 					{
-						foreach (FileItem Item in BuildAction.ProducedItems)
+						if (BuildAction.ActionType == ActionType.Link)
 						{
-							if (!Item.Exists)
+							foreach (FileItem Item in BuildAction.ProducedItems)
 							{
-								throw new BuildException($"Failed to produce item: {Item.AbsolutePath}");
+								if (!Item.Exists)
+								{
+									throw new BuildException($"Failed to produce item: {Item.AbsolutePath}");
+								}
 							}
 						}
 					}

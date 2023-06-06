@@ -64,6 +64,11 @@ namespace UnrealBuildTool
 		/// <returns>True if the build succeeded, false otherwise</returns>
 		public abstract Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger, IActionArtifactCache? actionArtifactCache = null);
 
+		/// <summary>
+		/// Will verify that produced items exists on disk
+		/// </summary>
+		public virtual bool VerifyOutputs => true;
+
 		protected void WriteToolOutput(string Line)
 		{
 			lock (Parser)
