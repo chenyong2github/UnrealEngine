@@ -15,8 +15,12 @@
 #include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
+#include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/TimerNode.h"
 #include "Insights/ViewModels/TimerNodeHelper.h"
+#include "Insights/ViewModels/TimersViewColumnFactory.h"
+#include "Insights/Widgets/STimersView.h"
+#include "Insights/Widgets/STimingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -59,6 +63,41 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetTableTooltip(const Insights::FTable&
 
 TSharedPtr<SToolTip> STimersViewTooltip::GetColumnTooltip(const Insights::FTableColumn& Column)
 {
+	const FTimersTableColumn& TimersColumn = static_cast<const FTimersTableColumn&>(Column);
+	FText InstanceDescription = TimersColumn.GetDescription(ETraceFrameType::TraceFrameType_Count);
+	FText GameFrameDescription = TimersColumn.GetDescription(ETraceFrameType::TraceFrameType_Game);
+	FText RenderingDescription = TimersColumn.GetDescription(ETraceFrameType::TraceFrameType_Rendering);
+
+	auto GetDescriptionLamda = [InstanceDescription, GameFrameDescription, RenderingDescription]()
+	{
+		ETraceFrameType FrameType = ETraceFrameType::TraceFrameType_Count;
+		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (Window.IsValid())
+		{
+			TSharedPtr<STimersView> TimersView = Window->GetTimersView();
+			if (TimersView.IsValid())
+			{
+				FrameType = TimersView->GetFrameTypeMode();
+			}
+		}
+
+		switch (FrameType)
+		{
+		case TraceFrameType_Count:
+			return InstanceDescription;
+		case TraceFrameType_Game:
+			return GameFrameDescription;
+			break;
+		case TraceFrameType_Rendering:
+			return RenderingDescription;
+			break;
+		default:
+			ensure(0);
+		}
+
+		return InstanceDescription;
+	};
+
 	TSharedPtr<SToolTip> ColumnTooltip =
 		SNew(SToolTip)
 		[
@@ -78,7 +117,7 @@ TSharedPtr<SToolTip> STimersViewTooltip::GetColumnTooltip(const Insights::FTable
 			.Padding(2.0f)
 			[
 				SNew(STextBlock)
-				.Text(Column.GetDescription())
+				.Text(TAttribute<FText>::CreateLambda(GetDescriptionLamda))
 				.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
 			]
 		];
