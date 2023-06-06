@@ -9,6 +9,7 @@
 #include "Misc/PackageName.h"
 #include "Misc/WorldCompositionUtility.h"
 #include "Serialization/ArchiveUObject.h"
+#include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "Serialization/BulkData.h"
 #include "Serialization/SerializedPropertyScope.h"
 #include "Templates/Casts.h"
