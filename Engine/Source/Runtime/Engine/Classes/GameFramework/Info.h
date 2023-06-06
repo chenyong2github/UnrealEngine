@@ -19,9 +19,11 @@
 UCLASS(abstract, hidecategories=(Input, Movement, Collision, Rendering, HLOD, WorldPartition, DataLayers, Transformation), showcategories=("Input|MouseInput", "Input|TouchInput"), MinimalAPI, NotBlueprintable)
 class AInfo : public AActor
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 public:
+	ENGINE_API AInfo(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 #if WITH_EDITOR
 	ENGINE_API virtual void PostLoad() override;
 #endif
