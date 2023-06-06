@@ -307,7 +307,7 @@ FReply FKismetVariableDragDropAction::DroppedOnPin(FVector2D ScreenPosition, FVe
 			{
 				const bool bIsExecPin = Schema->IsExecPin(*TargetPin);
 
-				if (CanVariableBeDropped(VariableProperty, *TargetPin->GetOwningNode()->GetGraph()) && !NodeHasSplitPins(TargetPin->GetOwningNode()))
+				if (CanVariableBeDropped(VariableProperty, *TargetPin->GetOwningNode()->GetGraph()))
 				{
 					const bool bIsRead = (TargetPin->Direction == EGPD_Input) && !bIsExecPin;
 					const UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(TargetPin->GetOwningNode());
@@ -371,7 +371,7 @@ FReply FKismetVariableDragDropAction::DroppedOnNode(FVector2D ScreenPosition, FV
 	{
 		FProperty* VariableProperty = GetVariableProperty();
 
-		if(CanVariableBeDropped(VariableProperty, *TargetNode->GetGraph()) && !NodeHasSplitPins(TargetNode))
+		if (CanVariableBeDropped(VariableProperty, *TargetNode->GetGraph()) && !NodeHasSplitPins(TargetNode))
 		{
 			const FScopedTransaction Transaction(LOCTEXT("ReplacePinVariable", "Replace Pin Variable"));
 
@@ -406,8 +406,8 @@ FReply FKismetVariableDragDropAction::DroppedOnNode(FVector2D ScreenPosition, FV
 				Pin->PinName = VariableName;
 				Pin->PinType = NewPinType;
 
-				//break bad links
-				for(TArray<class UEdGraphPin*>::TIterator OtherPinIt(BadLinks);OtherPinIt;++OtherPinIt)
+				// break bad links
+				for (TArray<class UEdGraphPin*>::TIterator OtherPinIt(BadLinks);OtherPinIt;++OtherPinIt)
 				{
 					Pin->BreakLinkTo(*OtherPinIt);
 				}
