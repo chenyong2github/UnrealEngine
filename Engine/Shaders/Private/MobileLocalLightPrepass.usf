@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define SUPPORT_CONTACT_SHADOWS 0
+
 #include "Common.ush"
 #include "SceneTextureParameters.ush"
 #include "LightGridCommon.ush"
