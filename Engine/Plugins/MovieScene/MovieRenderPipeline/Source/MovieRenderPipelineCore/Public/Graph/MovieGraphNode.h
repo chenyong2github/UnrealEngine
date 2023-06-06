@@ -72,6 +72,14 @@ struct FMovieGraphPropertyInfo
 	}
 };
 
+/** Describes a restriction on what kind of branch a node can be created in within the graph. */
+enum class EMovieGraphBranchRestriction : uint8
+{
+	Any,			///< The node can be created in any type of branch
+	Globals,		///< The node must be created in the Globals branch
+	RenderLayer		///< The node must be created in a branch representing a render layer
+};
+
 /**
 * This is a base class for all nodes that can exist in the UMovieGraphConfig network.
 * In the editor, each node in the network will have an editor-only representation too 
@@ -88,6 +96,8 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphNode : public UObject
 	
 public:
 	static FName GlobalsPinName;
+	static FString GlobalsPinNameString;
+	
 	UMovieGraphNode();
 
 	const TArray<TObjectPtr<UMovieGraphPin>>& GetInputPins() const { return InputPins; }
@@ -194,6 +204,9 @@ public:
 
 	/** Gets the GUID which uniquely identifies this node. */
 	const FGuid& GetGuid() const { return Guid; }
+	
+	/** Determines which types of branches the node can be created in. */
+	virtual EMovieGraphBranchRestriction GetBranchRestriction() const { return EMovieGraphBranchRestriction::Any; }
 
 #if WITH_EDITOR
 	int32 GetNodePosX() const { return NodePosX; }

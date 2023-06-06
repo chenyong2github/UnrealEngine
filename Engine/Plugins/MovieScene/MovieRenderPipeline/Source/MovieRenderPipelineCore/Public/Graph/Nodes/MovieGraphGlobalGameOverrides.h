@@ -15,6 +15,8 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphGlobalGameOverridesNode : public UM
 public:
 	UMovieGraphGlobalGameOverridesNode() = default;
 
+	virtual EMovieGraphBranchRestriction GetBranchRestriction() const override { return EMovieGraphBranchRestriction::Globals; }
+
 #if WITH_EDITOR
 	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
 	virtual FText GetMenuCategory() const override;

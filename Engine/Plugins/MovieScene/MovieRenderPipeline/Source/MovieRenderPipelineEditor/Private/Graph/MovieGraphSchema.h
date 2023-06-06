@@ -36,6 +36,13 @@ public:
 	//~ End EdGraphSchema Interface
 	static void InitMoviePipelineNodeClasses();
 
+private:
+	/**
+	 * Determines if the connection between InputPin and OutputPin follows branch restriction rules. OutError is populated
+	 * with an error if the connection should be rejected.
+	 */
+	bool IsConnectionToBranchAllowed(const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin, FText& OutError) const;
+
 public:
 	// Allowed "PinCategory" values for use on EdGraphPin
 	static const FName PC_Branch;

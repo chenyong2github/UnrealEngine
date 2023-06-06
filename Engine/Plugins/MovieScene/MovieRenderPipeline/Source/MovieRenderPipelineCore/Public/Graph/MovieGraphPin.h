@@ -76,6 +76,9 @@ public:
 	/** Gets the first pin connected to this pin. Returns nullptr if no valid connection exists. */
 	UMovieGraphPin* GetFirstConnectedPin() const;
 
+	/** Gets all connected pins. */
+	TArray<UMovieGraphPin*> GetAllConnectedPins() const;
+
 public:
 	// The node that this pin belongs to.
 	UPROPERTY(BlueprintReadOnly, Category = "Properties")

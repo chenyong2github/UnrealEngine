@@ -4,6 +4,7 @@
 #include "Graph/MovieGraphConfig.h"
 #include "Graph/Nodes/MovieGraphInputNode.h"
 #include "Graph/Nodes/MovieGraphOutputNode.h"
+#include "Graph/Nodes/MovieGraphSubgraphNode.h"
 #include "Graph/Nodes/MovieGraphVariableNode.h"
 #include "Graph/MovieGraphNode.h"
 #include "Graph/MovieEdGraph.h"
@@ -35,6 +36,38 @@ const FName UMovieGraphSchema::PC_Object(TEXT("object"));
 const FName UMovieGraphSchema::PC_SoftObject(TEXT("softobject"));
 const FName UMovieGraphSchema::PC_Class(TEXT("class"));
 const FName UMovieGraphSchema::PC_SoftClass(TEXT("softclass"));
+
+namespace UE::MovieGraph::Private
+{
+	UMovieGraphNode* GetGraphNodeFromEdPin(const UEdGraphPin* InPin)
+	{
+		const UMoviePipelineEdGraphNodeBase* EdGraphNode = CastChecked<UMoviePipelineEdGraphNodeBase>(InPin->GetOwningNode());
+
+		UMovieGraphNode* RuntimeNode = EdGraphNode->GetRuntimeNode();
+		check(RuntimeNode);
+
+		return RuntimeNode;
+	}
+
+	UMovieGraphPin* GetGraphPinFromEdPin(const UEdGraphPin* InPin)
+	{
+		const UMovieGraphNode* GraphNode = GetGraphNodeFromEdPin(InPin);
+		UMovieGraphPin* GraphPin = (InPin->Direction == EGPD_Input) ? GraphNode->GetInputPin(InPin->PinName) : GraphNode->GetOutputPin(InPin->PinName);
+		check(GraphPin);
+
+		return GraphPin;
+	}
+	
+	UMovieGraphConfig* GetGraphFromEdPin(const UEdGraphPin* InPin)
+	{
+		const UMovieGraphNode* RuntimeNode = GetGraphNodeFromEdPin(InPin);
+
+		UMovieGraphConfig* RuntimeGraph = RuntimeNode->GetGraph();
+		check(RuntimeGraph);
+
+		return RuntimeGraph;
+	}
+}
 
 void UMovieGraphSchema::CreateDefaultNodesForGraph(UEdGraph& Graph) const
 {
@@ -83,6 +116,78 @@ void UMovieGraphSchema::InitMoviePipelineNodeClasses()
 	}
 
 	MoviePipelineNodeClasses.Sort();
+}
+
+bool UMovieGraphSchema::IsConnectionToBranchAllowed(const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin, FText& OutError) const
+{
+	UMovieGraphNode* ToNode = UE::MovieGraph::Private::GetGraphNodeFromEdPin(InputPin);
+	UMovieGraphNode* FromNode = UE::MovieGraph::Private::GetGraphNodeFromEdPin(OutputPin);
+	const UMovieGraphPin* ToPin = UE::MovieGraph::Private::GetGraphPinFromEdPin(InputPin);
+	const UMovieGraphPin* FromPin = UE::MovieGraph::Private::GetGraphPinFromEdPin(OutputPin);
+	const UMovieGraphConfig* GraphConfig = UE::MovieGraph::Private::GetGraphFromEdPin(InputPin);
+
+	// Early exit if a Globals output is not being connected to a Globals input.
+	if ((FromPin->Properties.Label == UMovieGraphNode::GlobalsPinName) && (ToPin->Properties.Label != UMovieGraphNode::GlobalsPinName))
+	{
+		OutError = NSLOCTEXT("MoviePipeline", "GlobalsBranchMismatchError", "Globals branches can only be connected to other Globals branches.");
+		return false;
+	}
+
+	// Early exit if a non-Globals output is being connected to a Globals input.
+	if ((FromPin->Properties.Label != UMovieGraphNode::GlobalsPinName) && (ToPin->Properties.Label == UMovieGraphNode::GlobalsPinName))
+	{
+		OutError = FText::Format(
+			NSLOCTEXT("MoviePipeline", "NonGlobalsBranchMismatchError", "The branch '{0}' cannot be connected to the Globals branch."),
+				FText::FromName(FromPin->Properties.Label));
+		return false;
+	}
+
+	// Get all upstream nodes for FromNode -- these are the nodes that need to be checked for branch restrictions.
+	// FromNode itself also needs to be part of the validation checks.
+	TArray<UMovieGraphNode*> UpstreamNodes = {FromNode};
+	GraphConfig->VisitUpstreamNodes(FromNode, UMovieGraphConfig::FVisitNodesCallback::CreateLambda(
+		[&UpstreamNodes](UMovieGraphNode* VisitedNode, const UMovieGraphPin* VisitedPin)
+		{
+			UpstreamNodes.Add(VisitedNode);
+		}));
+
+	// Determine which branch(es) are connected to this node downstream.
+	const TArray<FString> UpstreamBranchNames = GraphConfig->GetDownstreamBranchNames(ToNode, ToPin);
+	const bool bGlobalsIsOnlyDownstreamBranch = (UpstreamBranchNames.Num() == 1) && (UpstreamBranchNames[0] == UMovieGraphNode::GlobalsPinNameString);
+	const bool bGlobalsIsDownstream = UpstreamBranchNames.Contains(UMovieGraphNode::GlobalsPinNameString);
+
+	// Error out if any of the upstream nodes cannot be connected to the downstream branch(es).
+	for (const UMovieGraphNode* UpstreamNode : UpstreamNodes)
+	{
+		if (UpstreamNode->GetBranchRestriction() == EMovieGraphBranchRestriction::Globals)
+		{
+			// Globals-specific nodes have to be connected such that the only upstream branch is Globals, OR the group
+			// of nodes is not yet connected to a branch (and this restriction will be enforced when they are).
+			if (bGlobalsIsOnlyDownstreamBranch || UpstreamBranchNames.IsEmpty())
+			{
+				continue;
+			}
+
+			OutError = FText::Format(
+				NSLOCTEXT("MoviePipeline", "GlobalsBranchRestrictionError", "The node '{0}' can only be connected to the Globals branch."),
+					UpstreamNode->GetNodeTitle());
+			return false;
+		}
+
+		// Check that render-layer-only nodes aren't connected to Globals.
+		if (UpstreamNode->GetBranchRestriction() == EMovieGraphBranchRestriction::RenderLayer)
+		{
+			if (bGlobalsIsDownstream)
+			{
+				OutError = FText::Format(
+					NSLOCTEXT("MoviePipeline", "RenderLayerBranchRestrictionError", "The node '{0}' can only be connected to a render layer branch."),
+						UpstreamNode->GetNodeTitle());
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 void UMovieGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
@@ -169,6 +274,13 @@ const FPinConnectionResponse UMovieGraphSchema::CanCreateConnection(const UEdGra
 	if (!CategorizePinsByDirection(PinA, PinB, /*out*/ InputPin, /*out*/ OutputPin))
 	{
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, NSLOCTEXT("MoviePipeline", "PinDirectionMismatchError", "Directions are not compatible!"));
+	}
+
+	// Determine if the connection would violate branch restrictions enforced by the nodes involved in the connection.
+	FText BranchRestrictionError;
+	if (!IsConnectionToBranchAllowed(InputPin, OutputPin, BranchRestrictionError))
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, BranchRestrictionError);
 	}
 
 	// We don't allow multiple things to be connected to an Input Pin

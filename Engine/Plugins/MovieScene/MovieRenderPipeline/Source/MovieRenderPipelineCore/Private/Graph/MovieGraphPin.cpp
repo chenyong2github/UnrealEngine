@@ -140,3 +140,18 @@ UMovieGraphPin* UMovieGraphPin::GetFirstConnectedPin() const
 
 	return nullptr;
 }
+
+TArray<UMovieGraphPin*> UMovieGraphPin::GetAllConnectedPins() const
+{
+	TArray<UMovieGraphPin*> ConnectedPins;
+
+	for (UMovieGraphEdge* Edge : Edges)
+	{
+		if (ensureMsgf(Edge, TEXT("Null edge found when trying to get connected pin!")))
+		{
+			ConnectedPins.Add(Edge->GetOtherPin(this));
+		}
+	}
+
+	return ConnectedPins;
+}

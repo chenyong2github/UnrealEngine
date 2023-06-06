@@ -6,6 +6,7 @@
 #include "UObject/TextProperty.h"
 
 FName UMovieGraphNode::GlobalsPinName = FName("Globals");
+FString UMovieGraphNode::GlobalsPinNameString = FString("Globals");
 
 namespace UE::MovieGraph::Private
 {

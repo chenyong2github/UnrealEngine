@@ -12,8 +12,6 @@
 
 #define LOCTEXT_NAMESPACE "MovieGraphConfig"
 
-static const FName MovieGraphGlobalsMemberName("Globals");
-
 UMovieGraphConfig* UMovieGraphMember::GetOwningGraph() const
 {
 	return GetTypedOuter<UMovieGraphConfig>();
@@ -38,6 +36,12 @@ bool UMovieGraphMember::CanRename(const FText& InNewName, FText& OutError) const
 	if (InNewName.IsEmptyOrWhitespace())
 	{
 		OutError = LOCTEXT("InvalidMemberRename_Empty", "The name cannot be empty.");
+		return false;
+	}
+
+	if (InNewName.ToString() == UMovieGraphNode::GlobalsPinNameString)
+	{
+		OutError = LOCTEXT("InvalidMemberRename_Globals", "The name cannot be 'Globals'.");
 		return false;
 	}
 
@@ -91,7 +95,7 @@ void UMovieGraphVariable::PostEditChangeProperty(FPropertyChangedEvent& Property
 bool UMovieGraphInput::IsDeletable() const
 {
 	// The input is deletable as long as it's not the Globals input
-	return Name != MovieGraphGlobalsMemberName;
+	return Name != UMovieGraphNode::GlobalsPinNameString;
 }
 
 bool UMovieGraphInput::CanRename(const FText& InNewName, FText& OutError) const
@@ -134,7 +138,7 @@ void UMovieGraphInput::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 bool UMovieGraphOutput::IsDeletable() const
 {
 	// The output is deletable as long as it's not the Globals output
-	return Name != MovieGraphGlobalsMemberName;
+	return Name != UMovieGraphNode::GlobalsPinNameString;
 }
 
 bool UMovieGraphOutput::CanRename(const FText& InNewName, FText& OutError) const
@@ -254,19 +258,21 @@ void UMovieGraphConfig::AddDefaultMembers()
 {
 	const bool InputGlobalsExists = Inputs.ContainsByPredicate([](const UMovieGraphMember* Member)
 	{
-		return Member && (Member->GetMemberName() == MovieGraphGlobalsMemberName);
+		return Member && (Member->GetMemberName() == UMovieGraphNode::GlobalsPinNameString);
 	});
 
 	const bool OutputGlobalsExists = Outputs.ContainsByPredicate([](const UMovieGraphMember* Member)
 	{
-		return Member && (Member->GetMemberName() == MovieGraphGlobalsMemberName);
+		return Member && (Member->GetMemberName() == UMovieGraphNode::GlobalsPinNameString);
 	});
 
 	// Ensure there is a Globals input member
 	if (!InputGlobalsExists)
 	{
 		UMovieGraphInput* NewInput = AddInput();
-		NewInput->SetMemberName(MovieGraphGlobalsMemberName.ToString());
+
+		// Don't call SetMemberName() here, because that will reject setting the name to Globals
+		NewInput->Name = UMovieGraphNode::GlobalsPinNameString;
 
 		InputNode->UpdatePins();
 	}
@@ -275,7 +281,9 @@ void UMovieGraphConfig::AddDefaultMembers()
 	if (!OutputGlobalsExists)
 	{
 		UMovieGraphOutput* NewOutput = AddOutput();
-		NewOutput->SetMemberName(MovieGraphGlobalsMemberName.ToString());
+
+		// Don't call SetMemberName() here, because that will reject setting the name to Globals
+		NewOutput->Name = UMovieGraphNode::GlobalsPinNameString;
 
 		OutputNode->UpdatePins();
 	}
@@ -777,6 +785,40 @@ FBoolProperty* UMovieGraphConfig::FindOverridePropertyForRealProperty(UClass* In
 	return nullptr;
 }
 
+void UMovieGraphConfig::VisitUpstreamNodes(UMovieGraphNode* FromNode, const FVisitNodesCallback& VisitCallback) const
+{
+	TSet<UMovieGraphNode*> VisitedNodes;
+	VisitUpstreamNodes_Recursive(FromNode, VisitCallback, VisitedNodes);
+}
+
+void UMovieGraphConfig::VisitDownstreamNodes(UMovieGraphNode* FromNode, const FVisitNodesCallback& VisitCallback) const
+{
+	TSet<UMovieGraphNode*> VisitedNodes;
+	VisitDownstreamNodes_Recursive(FromNode, VisitCallback, VisitedNodes);
+}
+
+TArray<FString> UMovieGraphConfig::GetDownstreamBranchNames(UMovieGraphNode* FromNode, const UMovieGraphPin* FromPin) const
+{
+	TArray<FString> BranchNames;
+
+	// FromNode itself might be the Outputs node, so check before visiting the downstream nodes
+	if (FromNode->IsA<UMovieGraphOutputNode>() && FromPin)
+	{
+		BranchNames.Add(FromPin->Properties.Label.ToString());
+	}
+
+	VisitDownstreamNodes(FromNode, FVisitNodesCallback::CreateLambda(
+		[&BranchNames](UMovieGraphNode* VisitedNode, const UMovieGraphPin* VisitedPin)
+		{
+			if (VisitedNode->IsA<UMovieGraphOutputNode>() && VisitedPin)
+			{
+				BranchNames.Add(VisitedPin->Properties.Label.ToString());
+			}
+		}));
+
+	return BranchNames;
+}
+
 void UMovieGraphConfig::InitializeFlattenedNode(UMovieGraphNode* InNode)
 {
 	// We go through each of the bOverride_ properties on this new instance and set
@@ -994,6 +1036,62 @@ void UMovieGraphConfig::CreateFlattenedGraph_Recursive(UMovieGraphEvaluatedConfi
 				}
 
 				CreateFlattenedGraph_Recursive(InOwningConfig, OutBranchConfig, InEvaluationContext, OtherPin);
+			}
+		}
+	}
+}
+
+void UMovieGraphConfig::VisitUpstreamNodes_Recursive(UMovieGraphNode* FromNode,	const FVisitNodesCallback& VisitCallback, TSet<UMovieGraphNode*>& VisitedNodes) const
+{
+	if (VisitedNodes.Contains(FromNode))
+	{
+		// Cycle detected, stop recursing down this path. This is not necessarily an error, so don't log. For example:
+		//  |----| ---> N2 
+		//  | N1 | ---> N3 
+		//  |----| ---> N4
+		// Where nodes N2, N3, and N4 are nodes feeding out of node N1. N2 may have visited N1 already, so when N3 visits
+		// N1, just stop.
+		return;
+	}
+	
+	VisitedNodes.Add(FromNode);
+	
+	for (const UMovieGraphPin* Pin : FromNode->GetInputPins())
+	{
+		for (const UMovieGraphPin* ConnectedPin : Pin->GetAllConnectedPins())
+		{
+			if (ConnectedPin->Properties.bIsBranch)
+			{
+				VisitCallback.ExecuteIfBound(ConnectedPin->Node, ConnectedPin);
+				VisitUpstreamNodes_Recursive(ConnectedPin->Node, VisitCallback, VisitedNodes);
+			}
+		}
+	}
+}
+
+void UMovieGraphConfig::VisitDownstreamNodes_Recursive(UMovieGraphNode* FromNode, const FVisitNodesCallback& VisitCallback, TSet<UMovieGraphNode*>& VisitedNodes) const
+{
+	if (VisitedNodes.Contains(FromNode))
+	{
+		// Cycle detected, stop recursing down this path. This is not necessarily an error, so don't log. For example:
+		// N1 ---> |----|
+		// N2 ---> | N4 |
+		// N3 ---> |----|
+		// Where nodes N1, N2, and N3 are nodes feeding into node N4. N1 may have visited N4 already, so when N2 visits
+		// N4, just stop.
+		return;
+	}
+
+	VisitedNodes.Add(FromNode);
+
+	for (const UMovieGraphPin* Pin : FromNode->GetOutputPins())
+	{
+		for (const UMovieGraphPin* ConnectedPin : Pin->GetAllConnectedPins())
+		{
+			if (ConnectedPin->Properties.bIsBranch)
+			{
+				VisitCallback.ExecuteIfBound(ConnectedPin->Node, ConnectedPin);
+				VisitDownstreamNodes_Recursive(ConnectedPin->Node, VisitCallback, VisitedNodes);
 			}
 		}
 	}

@@ -407,6 +407,13 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphConfig : public UObject
 public:
 	UMovieGraphConfig();
 
+	/**
+	 * Callback for when a node is visited. The node is the node being visited, and the pin is the pin which the node
+	 * was accessed by (eg, if visiting downstream nodes, the pin will be the input pin that connects to the node that
+	 * the traversal started from, or the node that was previously visited).
+	 */
+	DECLARE_DELEGATE_TwoParams(FVisitNodesCallback, UMovieGraphNode*, const UMovieGraphPin*);
+
 	//~ UObject interface
 	virtual void PostLoad() override;
 	//~ End UObject interface
@@ -481,6 +488,21 @@ public:
 	/** Given a class and FProperty that belongs to that class, search for a FBoolProperty that matches the name "bOverride_<name of InRealProperty>. */
 	static FBoolProperty* FindOverridePropertyForRealProperty(UClass* InClass, const FProperty* InRealProperty);
 
+	/**
+	 * Visits all nodes upstream from FromNode, running VisitCallback on each one. Note this only follows branch connections,
+	 * and does not recurse into subgraphs.
+	 */
+	void VisitUpstreamNodes(UMovieGraphNode* FromNode, const FVisitNodesCallback& VisitCallback) const;
+
+	/**
+	 * Visits all nodes downstream from FromNode, running VisitCallback on each one. Note this only follows branch connections,
+	 * and does not recurse into subgraphs.
+	 */
+	void VisitDownstreamNodes(UMovieGraphNode* FromNode, const FVisitNodesCallback& VisitCallback) const;
+
+	/** Determines the name(s) of the branches downstream from FromNode, starting at FromPin. */
+	TArray<FString> GetDownstreamBranchNames(UMovieGraphNode* FromNode, const UMovieGraphPin* FromPin) const;
+
 protected:
 	/** Copies properties in FromNode that are marked for override into ToNode, but only if ToNode doesn't already override that value. */
 	void CopyOverriddenProperties(UMovieGraphNode* FromNode, UMovieGraphNode* ToNode, const FMovieGraphTraversalContext* InContext);
@@ -490,6 +512,12 @@ protected:
 
 	/** Traverse the graph, generating a combined "flatten" graph as it goes. */
 	void CreateFlattenedGraph_Recursive(UMovieGraphEvaluatedConfig* InOwningConfig, FMovieGraphEvaluatedBranchConfig& OutBranchConfig, FMovieGraphEvaluationContext& InEvaluationContext, UMovieGraphPin* InPinToFollow);
+
+	/** Recursive helper for VisitUpstreamNodes(). */
+	void VisitUpstreamNodes_Recursive(UMovieGraphNode* FromNode, const FVisitNodesCallback& VisitCallback, TSet<UMovieGraphNode*>& VisitedNodes) const;
+
+	/** Recursive helper for VisitDownstreamNodes(). */
+	void VisitDownstreamNodes_Recursive(UMovieGraphNode* FromNode, const FVisitNodesCallback& VisitCallback, TSet<UMovieGraphNode*>& VisitedNodes) const;
 
 public:
 	// Names of global variables that are provided by the graph
