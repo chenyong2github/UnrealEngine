@@ -10,7 +10,7 @@ class FChaosVDParticleActorCustomization : public IDetailCustomization
 {
 public:
 	
-	inline static FName ChaosVDCategoryName = FName("Chaos Visual Debugger Data");
+	inline static FName ChaosVDCategoryName = FName("Particle Data");
 
 	static TSharedRef<IDetailCustomization> MakeInstance();
 

@@ -36,7 +36,6 @@ private:
 
 	enum : uint16
 	{
-		RouteId_ChaosVDParticle,
 		RouteId_ChaosVDSolverStepStart,
 		RouteId_ChaosVDSolverStepEnd,
 		RouteId_ChaosVDSolverFrameStart,
@@ -49,8 +48,6 @@ private:
 		RouteId_EndFrame,
 		RouteId_ChaosVDParticleDestroyed,
 	};
-
-	void ReadParticleDataFromEvent(const FEventData& InEventData, FChaosVDParticleDebugData& OutParticleData);
 
 	TraceServices::IAnalysisSession& Session;
 

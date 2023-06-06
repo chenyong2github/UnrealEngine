@@ -10,7 +10,6 @@
 void FChaosVDTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
 	FInterfaceBuilder& Builder = Context.InterfaceBuilder;
-	Builder.RouteEvent(RouteId_ChaosVDParticle, "ChaosVDLogger", "ChaosVDParticle");
 	Builder.RouteEvent(RouteId_ChaosVDParticleDestroyed, "ChaosVDLogger", "ChaosVDParticleDestroyed");
 	
 	Builder.RouteEvent(RouteId_ChaosVDSolverFrameStart, "ChaosVDLogger", "ChaosVDSolverFrameStart");
@@ -112,24 +111,6 @@ bool FChaosVDTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEvent
 		{
 			break;
 		}
-	case RouteId_ChaosVDParticle:
-		{
-			const int32 SolverID = EventData.GetValue<int32>("SolverID");
-
-			FChaosVDParticleDebugData ParticleData;
-			ReadParticleDataFromEvent(EventData, ParticleData);
-
-			// This can be null if the recording started Mid-Frame. In this case we just discard the data for now
-			if (FChaosVDSolverFrameData* FrameData = ChaosVDTraceProvider->GetLastSolverFrame(SolverID))
-			{
-				if (ensureMsgf(FrameData->SolverSteps.Num() > 0, TEXT("A particle was traced without a valid sstep scope")))
-				{
-					FrameData->SolverSteps.Last().RecordedParticles.Add(MoveTemp(ParticleData));
-				}
-			}
-
-			break;
-		}
 	case RouteId_ChaosVDParticleDestroyed:
 		{
 			const int32 SolverID = EventData.GetValue<int32>("SolverID");
@@ -206,35 +187,4 @@ bool FChaosVDTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEvent
 	}
 
 	return true;
-}
-
-void FChaosVDTraceAnalyzer::ReadParticleDataFromEvent(const FEventData& InEventData, FChaosVDParticleDebugData& OutParticleData)
-{
-	OutParticleData.ParticleType = static_cast<EChaosVDParticleType>(InEventData.GetValue<uint8>("ParticleType"));
-	OutParticleData.ParticleState = static_cast<EChaosVDParticleState>(InEventData.GetValue<int8>("ObjectState"));
-	OutParticleData.ParticleIndex = InEventData.GetValue<int32>("ParticleID");
-	OutParticleData.ImplicitObjectID = InEventData.GetValue<int32>("ImplicitObjectID");
-	OutParticleData.ImplicitObjectHash = InEventData.GetValue<uint32>("ImplicitObjectHash");
-
-	FWideStringView DebugNameView;
-	InEventData.GetString("DebugName", DebugNameView);
-
-	OutParticleData.DebugName = DebugNameView;
-
-	OutParticleData.Position.X = InEventData.GetValue<float>("PositionX");
-	OutParticleData.Position.Y = InEventData.GetValue<float>("PositionY");
-	OutParticleData.Position.Z = InEventData.GetValue<float>("PositionZ");
-
-	OutParticleData.Rotation.X = InEventData.GetValue<float>("RotationX");
-	OutParticleData.Rotation.Y = InEventData.GetValue<float>("RotationY");
-	OutParticleData.Rotation.Z = InEventData.GetValue<float>("RotationZ");
-	OutParticleData.Rotation.W = InEventData.GetValue<float>("RotationW");
-			
-	OutParticleData.Velocity.X = InEventData.GetValue<float>("VelocityX");
-	OutParticleData.Velocity.Y = InEventData.GetValue<float>("VelocityY");
-	OutParticleData.Velocity.Z = InEventData.GetValue<float>("VelocityZ");
-			
-	OutParticleData.AngularVelocity.X = InEventData.GetValue<float>("AngularVelocityX");
-	OutParticleData.AngularVelocity.Y = InEventData.GetValue<float>("AngularVelocityY");
-	OutParticleData.AngularVelocity.Z = InEventData.GetValue<float>("AngularVelocityZ");
 }

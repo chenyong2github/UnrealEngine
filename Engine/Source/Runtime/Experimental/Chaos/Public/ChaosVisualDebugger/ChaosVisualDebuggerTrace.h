@@ -67,6 +67,7 @@
 #else
 
 #include "ChaosVDRuntimeModule.h"
+#include "DataWrappers/ChaosVDImplicitObjectDataWrapper.h"
 #include "Trace/Trace.h"
 #include "Trace/Trace.inl"
 
@@ -114,21 +115,6 @@ UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDSolverFrameEnd)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDParticle)
-	UE_TRACE_EVENT_FIELD(int32, SolverID)
-	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(int32, ParticleID)
-	UE_TRACE_EVENT_FIELD(uint8, ParticleType)
-	CVD_DEFINE_TRACE_VECTOR(Chaos::FReal, Position)
-	CVD_DEFINE_TRACE_ROTATOR(Chaos::FReal, Rotation)
-	CVD_DEFINE_TRACE_VECTOR(Chaos::FReal, Velocity)
-	CVD_DEFINE_TRACE_VECTOR(Chaos::FReal, AngularVelocity)
-	UE_TRACE_EVENT_FIELD(int8, ObjectState)
-	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DebugName)
-	UE_TRACE_EVENT_FIELD(int32, ImplicitObjectID)
-	UE_TRACE_EVENT_FIELD(uint32, ImplicitObjectHash)
-UE_TRACE_EVENT_END()
-
 UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDParticleCreated)
 	UE_TRACE_EVENT_FIELD(int32, SolverID)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
@@ -153,7 +139,7 @@ UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDSolverStepEnd)
 	UE_TRACE_EVENT_FIELD(uint32, StepNumber)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDBinaryDataStart, NoSync)
+UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDBinaryDataStart)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, TypeName)
 	UE_TRACE_EVENT_FIELD(int32, DataID)
@@ -162,13 +148,13 @@ UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDBinaryDataStart, NoSync)
 	UE_TRACE_EVENT_FIELD(bool, IsCompressed)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDBinaryDataContent, NoSync)
+UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDBinaryDataContent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(int32, DataID)
 	UE_TRACE_EVENT_FIELD(uint8[], RawData)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDBinaryDataEnd, NoSync)
+UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDBinaryDataEnd)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(int32, DataID)
 UE_TRACE_EVENT_END()
@@ -260,14 +246,7 @@ namespace Chaos
 	class TGeometryParticleHandles;
 }
 
-/** Data Wrapper for used to Trace Implicit objects */
-struct CHAOS_API FChaosVDImplicitObjectDataWrapper
-{
-	uint32 Hash;
-	Chaos::TSerializablePtr<Chaos::FImplicitObject> ImplicitObject;
-
-	void Serialize(Chaos::FChaosArchive& Ar);
-};
+using FChaosVDImplicitObjectWrapper = FChaosVDImplicitObjectDataWrapper<Chaos::TSerializablePtr<Chaos::FImplicitObject>, Chaos::FChaosArchive>;
 
 /** Class containing  all the Tracing logic to record data for the Chaos Visual Debugger tool */
 class FChaosVisualDebuggerTrace
@@ -339,7 +318,7 @@ public:
 	 * The trace event is not tied to a particular Solver Frame/Step
 	 *  @param WrappedGeometryData Wrapper containing a ptr to the implicit and its ID
 	 */
-	static CHAOS_API void TraceImplicitObject(FChaosVDImplicitObjectDataWrapper WrappedGeometryData);
+	static CHAOS_API void TraceImplicitObject(FChaosVDImplicitObjectWrapper WrappedGeometryData);
 
 	/** Returns true if the provided solver ID needs a Full Capture */
 	static bool ShouldPerformFullCapture(int32 SolverID);

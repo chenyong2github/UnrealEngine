@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "ChaosVDRecording.h"
 #include "Chaos/Core.h"
+#include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "GameFramework/Actor.h"
 
 #include "ChaosVDParticleActor.generated.h"
@@ -13,6 +13,11 @@ class UMeshComponent;
 class USceneComponent;
 class UStaticMeshComponent;
 class UStaticMesh;
+
+namespace Chaos
+{
+	class FImplicitObject;
+}
 
 /** Options flags to control how geometry is updated in a ChaosVDActor */
 enum class EChaosVDActorGeometryUpdateFlags : int32
@@ -30,24 +35,26 @@ class AChaosVDParticleActor : public AActor
 public:
 	AChaosVDParticleActor(const FObjectInitializer& ObjectInitializer);
 
-	void UpdateFromRecordedData(const FChaosVDParticleDebugData& InRecordedData, const Chaos::FRigidTransform3& SimulationTransform);
-	
-	const FChaosVDParticleDebugData& GetDebugData() const { return RecordedDebugData; }
+	void UpdateFromRecordedParticleData(const FChaosVDParticleDataWrapper& InRecordedData, const Chaos::FRigidTransform3& SimulationTransform);
 
-	void UpdateGeometryData(const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject, EChaosVDActorGeometryUpdateFlags OptionFlags = EChaosVDActorGeometryUpdateFlags::None);
+	void UpdateGeometry(const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject, EChaosVDActorGeometryUpdateFlags OptionsFlags = EChaosVDActorGeometryUpdateFlags::None);
+	void UpdateGeometry(uint32 NewGeometryHash, EChaosVDActorGeometryUpdateFlags OptionsFlags = EChaosVDActorGeometryUpdateFlags::None);
 
 	void SetScene(const TSharedPtr<FChaosVDScene>& InScene);
 
 	virtual void BeginDestroy() override;
+
+	const FChaosVDParticleDataWrapper& GetParticleData() { return ParticleDataViewer; }
 	
 #if WITH_EDITOR
 	virtual bool IsSelectedInEditor() const override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 protected:
 
-	UPROPERTY(VisibleAnywhere, Category="Chaos Visual Debugger Data")
-	FChaosVDParticleDebugData RecordedDebugData;
+	UPROPERTY(EditAnywhere, Category="Particle Data")
+	FChaosVDParticleDataWrapper ParticleDataViewer;
 
 	bool bIsGeometryDataGenerationStarted = false;
 

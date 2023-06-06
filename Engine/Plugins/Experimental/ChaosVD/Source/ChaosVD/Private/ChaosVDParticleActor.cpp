@@ -4,7 +4,7 @@
 
 #include "ChaosVDGeometryBuilder.h"
 #include "ChaosVDScene.h"
-#include "ChaosVDRecording.h"
+#include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "Components/MeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -21,29 +21,26 @@ AChaosVDParticleActor::AChaosVDParticleActor(const FObjectInitializer& ObjectIni
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent0"));
 }
 
-void AChaosVDParticleActor::UpdateFromRecordedData(const FChaosVDParticleDebugData& InRecordedData, const Chaos::FRigidTransform3& SimulationTransform)
+void AChaosVDParticleActor::UpdateFromRecordedParticleData(const FChaosVDParticleDataWrapper& InRecordedData, const Chaos::FRigidTransform3& SimulationTransform)
 {
-	SetActorLocationAndRotation(SimulationTransform.TransformPosition(InRecordedData.Position), SimulationTransform.GetRotation() * InRecordedData.Rotation, false);
-
-	if (RecordedDebugData.ImplicitObjectHash != InRecordedData.ImplicitObjectHash)
+	if (InRecordedData.ParticlePositionRotation.HasValidData())
 	{
-		if (const TSharedPtr<FChaosVDScene>& ScenePtr = OwningScene.Pin())
-		{
-			if (const TSharedPtr<const Chaos::FImplicitObject>* Geometry = ScenePtr->GetUpdatedGeometry(InRecordedData.ImplicitObjectHash))
-			{
-				UpdateGeometryData(*Geometry, EChaosVDActorGeometryUpdateFlags::ForceUpdate);
-			}
-		}
+		// TODO: Only update if the transform (either the simulation or the particle) has changed;
+		SetActorLocationAndRotation(SimulationTransform.TransformPosition(InRecordedData.ParticlePositionRotation.MX), SimulationTransform.GetRotation() * InRecordedData.ParticlePositionRotation.MR, false);
 	}
 
-	// TODO: We should store a ptr to the data and in our custom details panel draw it, but the current data format is just a test
-	// So we should do this once it is final
-	RecordedDebugData = InRecordedData;
+	if (ParticleDataViewer.GeometryHash != InRecordedData.GeometryHash)
+	{
+		UpdateGeometry(InRecordedData.GeometryHash, EChaosVDActorGeometryUpdateFlags::ForceUpdate);
+	}
+
+	// TODO: We should store a ptr to the data and in our custom details panel draw it
+	ParticleDataViewer = InRecordedData;
 }
 
-void AChaosVDParticleActor::UpdateGeometryData(const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject, EChaosVDActorGeometryUpdateFlags OptionFlag)
+void AChaosVDParticleActor::UpdateGeometry(const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject, EChaosVDActorGeometryUpdateFlags OptionsFlags)
 {
-	if (EnumHasAnyFlags(OptionFlag, EChaosVDActorGeometryUpdateFlags::ForceUpdate))
+	if (EnumHasAnyFlags(OptionsFlags, EChaosVDActorGeometryUpdateFlags::ForceUpdate))
 	{
 		bIsGeometryDataGenerationStarted = false;
 
@@ -51,7 +48,7 @@ void AChaosVDParticleActor::UpdateGeometryData(const TSharedPtr<const Chaos::FIm
 		{
 			if (MeshComponent.IsValid())
 			{
-				MeshComponent->DestroyComponent();	
+				MeshComponent->DestroyComponent();
 			}
 		}
 
@@ -90,7 +87,7 @@ void AChaosVDParticleActor::UpdateGeometryData(const TSharedPtr<const Chaos::FIm
 				{
 					// This is a temp hack (and is not performant) we need until we have a proper way to filer out trigger volumes/brushes at will
 					// Without this most maps will be covered in boxes
-					if (RecordedDebugData.DebugName.Contains(TEXT("Brush")) || RecordedDebugData.DebugName.Contains(TEXT("Volume")))
+					if (ParticleDataViewer.DebugName.Contains(TEXT("Brush")) || ParticleDataViewer.DebugName.Contains(TEXT("Volume")))
 					{
 						for (TWeakObjectPtr<UMeshComponent> MeshComponent : OutGeneratedMeshComponents)
 						{
@@ -108,6 +105,17 @@ void AChaosVDParticleActor::UpdateGeometryData(const TSharedPtr<const Chaos::FIm
 	}
 }
 
+void AChaosVDParticleActor::UpdateGeometry(uint32 NewGeometryHash, EChaosVDActorGeometryUpdateFlags OptionsFlags)
+{
+	if (const TSharedPtr<FChaosVDScene>& ScenePtr = OwningScene.Pin())
+	{
+		if (const TSharedPtr<const Chaos::FImplicitObject>* Geometry = ScenePtr->GetUpdatedGeometry(NewGeometryHash))
+		{
+			UpdateGeometry(*Geometry, OptionsFlags);
+		}
+	}
+}
+
 void AChaosVDParticleActor::SetScene(const TSharedPtr<FChaosVDScene>& InScene)
 {
 	OwningScene = InScene;
@@ -116,9 +124,9 @@ void AChaosVDParticleActor::SetScene(const TSharedPtr<FChaosVDScene>& InScene)
 	{
 		GeometryUpdatedDelegate = ScenePtr->OnNewGeometryAvailable().AddWeakLambda(this, [this](const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject, const uint32 ID)
 		{
-			if (RecordedDebugData.ImplicitObjectHash == ID)
+			if (ParticleDataViewer.GeometryHash == ID)
 			{
-				UpdateGeometryData(ImplicitObject);
+				UpdateGeometry(ImplicitObject);
 			}
 		});
 	}
@@ -146,5 +154,19 @@ bool AChaosVDParticleActor::IsSelectedInEditor() const
 
 	return false;
 }
-#endif
 
+void AChaosVDParticleActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_STRING_CHECKED(AChaosVDParticleActor, ParticleDataViewer))
+	{
+		// Not particularly useful for now. This is a test code verifying we can react to changes in the data.
+		// In the future this could be part of the Re-simulation feature. When data is changed here, it can be propagated to the evolution instance that will be re-simulated
+		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_STRING_CHECKED(FChaosVDParticleDataWrapper, GeometryHash))
+		{
+			UpdateGeometry(ParticleDataViewer.GeometryHash, EChaosVDActorGeometryUpdateFlags::ForceUpdate);
+		}
+	}
+}
+#endif //WITH_EDITOR

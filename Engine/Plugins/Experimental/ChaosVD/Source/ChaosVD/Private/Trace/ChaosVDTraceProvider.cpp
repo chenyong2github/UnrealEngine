@@ -2,11 +2,20 @@
 
 #include "Trace/ChaosVDTraceProvider.h"
 
-#include "Chaos/ImplicitObject.h"
 #include "ChaosVDRecording.h"
-#include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
+
+#include "Chaos/ChaosArchive.h"
+#include "Chaos/ImplicitObject.h"
+
 #include "Compression/OodleDataCompressionUtil.h"
 #include "Serialization/MemoryReader.h"
+
+#if WITH_CHAOS_VISUAL_DEBUGGER
+#include "DataWrappers/ChaosVDImplicitObjectDataWrapper.h"
+#include "DataWrappers/ChaosVDParticleDataWrapper.h"
+
+using FChaosVDImplicitObjectWrapper = FChaosVDImplicitObjectDataWrapper<Chaos::TSerializablePtr<Chaos::FImplicitObject>, Chaos::FChaosArchive>;
+#endif
 
 FName FChaosVDTraceProvider::ProviderName("ChaosVDProvider");
 
@@ -133,16 +142,32 @@ void FChaosVDTraceProvider::SetBinaryDataReadyToUse(const int32 DataID)
 			// TODO: Create a system to register external "Data handlers" with the logic on how serialize each type
 			// This should not be done here but as this is the only type we have is ok for now
 			if (UnprocessedData->TypeName == TEXT("FChaosVDImplicitObjectDataWrapper"))
-			{	
-				Chaos::TSerializablePtr<Chaos::FImplicitObject> Geometry;
-
+			{
 				FMemoryReader MemeReader(*RawData);
 				Chaos::FChaosArchive Ar(MemeReader);
 
-				FChaosVDImplicitObjectDataWrapper WrappedGeometryData;
+				FChaosVDImplicitObjectWrapper WrappedGeometryData;
 				WrappedGeometryData.Serialize(Ar);
 
 				InternalRecording->AddImplicitObject(WrappedGeometryData.Hash, WrappedGeometryData.ImplicitObject.Get());
+			}
+
+			if (UnprocessedData->TypeName == TEXT("FChaosVDParticleDataWrapper"))
+			{	
+				FMemoryReader MemeReader(*RawData);
+				MemeReader.SetUseUnversionedPropertySerialization(true);
+
+				FChaosVDParticleDataWrapper ParticleData;
+				MemeReader << ParticleData;
+
+				// This can be null if the recording started Mid-Frame. In this case we just discard the data for now
+				if (FChaosVDSolverFrameData* FrameData = GetLastSolverFrame(ParticleData.SolverID))
+				{
+					if (ensureMsgf(FrameData->SolverSteps.Num() > 0, TEXT("A particle was traced without a valid step scope")))
+					{
+						FrameData->SolverSteps.Last().RecordedParticlesData.Add(MoveTemp(ParticleData));
+					}
+				}
 			}
 #endif
 		}

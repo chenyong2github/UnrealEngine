@@ -79,10 +79,10 @@ public:
 private:
 
 	/** Creates an ChaosVDParticle actor for the Provided recorded Particle Data */
-	AChaosVDParticleActor* SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData, const FChaosVDSolverFrameData& InFrameData);
+	AChaosVDParticleActor* SpawnParticleFromRecordedData(const FChaosVDParticleDataWrapper& InParticleData, const FChaosVDSolverFrameData& InFrameData);
 
 	/** Returns the ID used to track this recorded particle data */
-	int32 GetIDForRecordedParticleData(const FChaosVDParticleDebugData& InParticleData) const;
+	int32 GetIDForRecordedParticleData(const FChaosVDParticleDataWrapper& InParticleData) const;
 
 	/** Creates the instance of the World which will be used the recorded data*/
 	UWorld* CreatePhysicsVDWorld() const;

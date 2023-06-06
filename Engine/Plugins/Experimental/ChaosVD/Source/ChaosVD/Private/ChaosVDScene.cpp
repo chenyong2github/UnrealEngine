@@ -7,8 +7,13 @@
 #include "ChaosVDParticleActor.h"
 #include "Chaos/ImplicitObject.h"
 #include "ChaosVDRecording.h"
+#include "EditorActorFolders.h"
+#include "WorldPersistentFolders.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
+#include "EditorActorFolders.h"
+#include "WorldPersistentFolders.h"
+#include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "Engine/Engine.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "Engine/World.h"
@@ -77,7 +82,7 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 	FChaosVDParticlesByIDMap& SolverParticlesByID = ParticlesBySolverID.FindChecked(SolverID);
 
 	// Go over existing Particle VD Instances and update them or create them if needed 
-	for (const FChaosVDParticleDebugData& Particle : InRecordedStepData.RecordedParticles)
+	for (const FChaosVDParticleDataWrapper& Particle : InRecordedStepData.RecordedParticlesData)
 	{
 		const int32 ParticleVDInstanceID = GetIDForRecordedParticleData(Particle);
 
@@ -91,7 +96,7 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 		{
 			if (AChaosVDParticleActor* ExistingParticleVDInstancePtr = *ExistingParticleVDInstancePtrPtr)
 			{
-				ExistingParticleVDInstancePtr->UpdateFromRecordedData(Particle, InFrameData.SimulationTransform);
+				ExistingParticleVDInstancePtr->UpdateFromRecordedParticleData(Particle, InFrameData.SimulationTransform);
 			}
 			else
 			{
@@ -104,7 +109,7 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 			if (AChaosVDParticleActor* NewParticleVDInstance = SpawnParticleFromRecordedData(Particle, InFrameData))
 			{
 				FStringFormatOrderedArguments Args {SolverName, FString::FromInt(SolverID)};
-				const FName FolderPath = *FPaths::Combine(FString::Format(TEXT("Solver {0} | ID {1}"), Args), UEnum::GetDisplayValueAsText(Particle.ParticleType).ToString());
+				const FName FolderPath = *FPaths::Combine(FString::Format(TEXT("Solver {0} | ID {1}"), Args), UEnum::GetDisplayValueAsText(NewParticleVDInstance->GetParticleData().Type).ToString());
 
 				NewParticleVDInstance->SetFolderPath(FolderPath);
 
@@ -216,7 +221,7 @@ const TSharedPtr<const Chaos::FImplicitObject>* FChaosVDScene::GetUpdatedGeometr
 	return nullptr;
 }
 
-AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData, const FChaosVDSolverFrameData& InFrameData)
+AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaosVDParticleDataWrapper& InParticleData, const FChaosVDSolverFrameData& InFrameData)
 {
 	using namespace Chaos;
 
@@ -226,7 +231,7 @@ AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaos
 
 	if (AChaosVDParticleActor* NewActor = PhysicsVDWorld->SpawnActor<AChaosVDParticleActor>(Params))
 	{
-		NewActor->UpdateFromRecordedData(InParticleData, InFrameData.SimulationTransform);
+		NewActor->UpdateFromRecordedParticleData(InParticleData, InFrameData.SimulationTransform);
 
 		if (!InParticleData.DebugName.IsEmpty())
 		{
@@ -237,9 +242,9 @@ AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaos
 		
 		if (ensure(LoadedRecording.IsValid()))
 		{
-			if (const TSharedPtr<const Chaos::FImplicitObject>* Geometry = LoadedRecording->GetGeometryDataMap().Find(InParticleData.ImplicitObjectHash))
+			if (const TSharedPtr<const Chaos::FImplicitObject>* Geometry = LoadedRecording->GetGeometryDataMap().Find(InParticleData.GeometryHash))
 			{
-				NewActor->UpdateGeometryData(*Geometry);
+				NewActor->UpdateGeometry(*Geometry);
 			}
 		}
 
@@ -249,7 +254,7 @@ AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaos
 	return nullptr;
 }
 
-int32 FChaosVDScene::GetIDForRecordedParticleData(const FChaosVDParticleDebugData& InParticleData) const
+int32 FChaosVDScene::GetIDForRecordedParticleData(const FChaosVDParticleDataWrapper& InParticleData) const
 {
 	return InParticleData.ParticleIndex;
 }
@@ -344,6 +349,7 @@ void FChaosVDScene::HandlePostSelectionChange(const UTypedElementSelectionSet* P
 
 void FChaosVDScene::SetSelectedObject(UObject* SelectedObject)
 {
+
 	if (IsObjectSelected(SelectedObject))
 	{
 		// Already selected, nothing to do here

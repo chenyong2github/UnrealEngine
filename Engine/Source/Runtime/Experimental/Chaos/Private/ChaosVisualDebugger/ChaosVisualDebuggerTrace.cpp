@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
 
+#include "ChaosVisualDebugger/ChaosVDDataWrapperUtils.h"
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Tasks/Task.h"
 
@@ -9,6 +10,8 @@
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/ImplicitObject.h"
 #include "Compression/OodleDataCompressionUtil.h"
+#include "DataWrappers/ChaosVDImplicitObjectDataWrapper.h"
+#include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeRWLock.h"
 #include "Serialization/MemoryWriter.h"
@@ -97,12 +100,6 @@ TSet<int32> FChaosVisualDebuggerTrace::SolverIDsForDeltaRecording = TSet<int32>(
 TSet<int32> FChaosVisualDebuggerTrace::RequestedFullCaptureSolverIDs = TSet<int32>();
 FThreadSafeBool FChaosVisualDebuggerTrace::bIsTracing = false;
 
-void FChaosVDImplicitObjectDataWrapper::Serialize(Chaos::FChaosArchive& Ar)
-{
-	Ar << Hash;
-	Ar << ImplicitObject;
-}
-
 void FChaosVisualDebuggerTrace::TraceParticle(const Chaos::FGeometryParticleHandle* ParticleHandle)
 {
 	if (!IsTracing())
@@ -132,35 +129,25 @@ void FChaosVisualDebuggerTrace::TraceParticle(Chaos::FGeometryParticleHandle* Pa
 		return;
 	}
 
-	static FString DefaultName = TEXT("NONAME");
-	FStringView ParticleNameView(DefaultName);
-
-#if CHAOS_DEBUG_NAME
-	if (const TSharedPtr<FString, ESPMode::ThreadSafe>& DebugNamePtr = ParticleHandle->DebugName())
-	{
-		ParticleNameView = FStringView(*DebugNamePtr.Get());
-	}
-#endif
-
 	const uint32 GeometryHash = GeometryTracerObject.GetGeometryHashForImplicit(ParticleHandle->Geometry().Get());
 	
 	TraceImplicitObject({ GeometryHash, ParticleHandle->Geometry() });
 
-	UE_TRACE_LOG(ChaosVDLogger, ChaosVDParticle, ChaosVDChannel)
-		<< ChaosVDParticle.SolverID(ContextData.Id)
-		<< ChaosVDParticle.Cycle(FPlatformTime::Cycles64())
+	{
+		FChaosVDParticleDataWrapper ParticleDataWrapper = FChaosVDDataWrapperUtils::BuildParticleDataWrapperFromParticle(ParticleHandle);
+		ParticleDataWrapper.GeometryHash = GeometryHash;
+		ParticleDataWrapper.SolverID = ContextData.Id;
+		
+		FChaosVDScopedTLSBufferAccessor TLSDataBuffer;
 
-		<< ChaosVDParticle.ParticleID(ParticleHandle->UniqueIdx().Idx)
-		<< ChaosVDParticle.ParticleType(static_cast<uint8>(ParticleHandle->Type))
-		<< ChaosVDParticle.DebugName(ParticleNameView.GetData(), ParticleNameView.Len())
+		FMemoryWriter MemWriterAr(TLSDataBuffer.BufferRef);
+		MemWriterAr.SetShouldSkipUpdateCustomVersion(true);
+		MemWriterAr.SetUseUnversionedPropertySerialization(true);
 
-		<< CVD_TRACE_VECTOR_ON_EVENT(ChaosVDParticle, Position, ParticleHandle->X())
-		<< CVD_TRACE_ROTATOR_ON_EVENT(ChaosVDParticle, Rotation, ParticleHandle->R())
-		<< CVD_TRACE_VECTOR_ON_EVENT(ChaosVDParticle, Velocity, Chaos::FConstGenericParticleHandle(ParticleHandle)->V())
-		<< CVD_TRACE_VECTOR_ON_EVENT(ChaosVDParticle, AngularVelocity, Chaos::FConstGenericParticleHandle(ParticleHandle)->W())
+		ParticleDataWrapper.Serialize(MemWriterAr);
 
-		<< ChaosVDParticle.ObjectState(static_cast<int8>(ParticleHandle->ObjectState()))
-		<< ChaosVDParticle.ImplicitObjectHash(GeometryHash);
+		TraceBinaryData(TLSDataBuffer.BufferRef, TEXT("FChaosVDParticleDataWrapper"));
+	}
 }
 
 void FChaosVisualDebuggerTrace::TraceParticles(const Chaos::TGeometryParticleHandles<Chaos::FReal, 3>& ParticleHandles)
@@ -426,7 +413,7 @@ void FChaosVisualDebuggerTrace::TraceBinaryData(const TArray<uint8>& InData, con
 	ensure(RemainingSize == 0);
 }
 
-void FChaosVisualDebuggerTrace::TraceImplicitObject(FChaosVDImplicitObjectDataWrapper WrappedGeometryData)
+void FChaosVisualDebuggerTrace::TraceImplicitObject(FChaosVDImplicitObjectWrapper WrappedGeometryData)
 {
 	if (!IsTracing())
 	{

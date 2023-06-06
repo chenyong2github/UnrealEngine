@@ -3,10 +3,9 @@
 #pragma once
 
 #include "Chaos/Core.h"
-#include "Chaos/ShapeInstanceFwd.h"
+#include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "UObject/ObjectMacros.h"
 #include "Containers/UnrealString.h"
-#include "ChaosVDRecording.generated.h"
 
 namespace Chaos
 {
@@ -16,69 +15,10 @@ namespace Chaos
 DECLARE_MULTICAST_DELEGATE(FChaosVDRecordingUpdated)
 DECLARE_MULTICAST_DELEGATE_TwoParams(FChaosVDGeometryDataLoaded, const TSharedPtr<const Chaos::FImplicitObject>&, const uint32 GeometryID)
 
-UENUM()
-enum class EChaosVDParticleType : uint8
-{
-	Static,
-	Kinematic,
-	Rigid,
-	Clustered,
-	StaticMesh,
-	SkeletalMesh,
-	GeometryCollection,
-	Unknown
-};
-
-UENUM()
-enum class EChaosVDParticleState : int8
-{
-	Uninitialized = 0,
-	Sleeping = 1,
-	Kinematic = 2,
-	Static = 3,
-	Dynamic = 4,
-
-	Count
-};
-
-UENUM()
-enum class EChaosVDSolverType : uint32
-{
-	Rigid
-};
-
-USTRUCT()
-struct FChaosVDParticleDebugData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
-	EChaosVDParticleType ParticleType;
-	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
-	FString DebugName;
-	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
-	int32 ParticleIndex;
-	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
-	FVector Position;
-	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
-	FQuat Rotation;
-	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
-	FVector Velocity;
-	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
-	FVector AngularVelocity;
-	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
-	EChaosVDParticleState ParticleState;
-
-	int32 ImplicitObjectID = INDEX_NONE;
-
-	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
-	uint32 ImplicitObjectHash = 0;
-};
-
 struct FChaosVDStepData
 {
 	FString StepName;
-	TArray<FChaosVDParticleDebugData> RecordedParticles;
+	TArray<FChaosVDParticleDataWrapper> RecordedParticlesData;
 	TSet<int32> ParticlesDestroyedIDs;
 };
 

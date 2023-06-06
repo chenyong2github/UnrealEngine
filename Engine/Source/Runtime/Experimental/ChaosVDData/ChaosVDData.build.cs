@@ -13,7 +13,8 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Core",
 					"CoreUObject",
-					"Chaos"
+					"Chaos",
+					"ChaosVDRuntime"
 				}
 			);
 		}
