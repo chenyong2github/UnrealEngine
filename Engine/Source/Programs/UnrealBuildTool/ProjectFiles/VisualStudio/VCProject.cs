@@ -2111,6 +2111,12 @@ namespace UnrealBuildTool
 					{
 						VCProjectFileContent.Append(ProjGenerator.GetVisualStudioLayoutDirSection(Platform, Configuration, ConditionString, Combination.ProjectTarget.TargetRules!.Type, Combination.ProjectTarget.TargetFilePath, ProjectFilePath, NMakePath, ProjectFileFormat));
 					}
+
+					VCProjectFileContent.AppendLine("  <ItemDefinitionGroup {0}>", ConditionString);
+					VCProjectFileContent.AppendLine("    <NMakeCompile>");
+					VCProjectFileContent.AppendLine("      <NMakeCompileFileCommandLine>$(BuildBatchScript) {0} -WorkingDir=$(MSBuildProjectDirectory) -Files=$(SelectedFiles)</NMakeCompileFileCommandLine>", BuildArguments);
+					VCProjectFileContent.AppendLine("    </NMakeCompile>");
+					VCProjectFileContent.AppendLine("  </ItemDefinitionGroup>");
 				}
 
 				if (VCUserFileContent != null && Combination.ProjectTarget != null)

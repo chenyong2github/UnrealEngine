@@ -67,6 +67,18 @@ namespace UnrealBuildTool
 		public List<FileReference> SpecificFilesToCompile = new List<FileReference>();
 
 		/// <summary>
+		/// Relative path to file(s) to compile
+		/// </summary>
+		[CommandLine("-Files=", ListSeparator = ';')]
+		public List<string> RelativePathsToSpecificFilesToCompile = new List<string>();
+
+		/// <summary>
+		/// Working directory when compiling with RelativePathsToSpecificFilesToCompile
+		/// </summary>
+		[CommandLine("-WorkingDir=")]
+		public string? WorkingDir = null;
+
+		/// <summary>
 		/// Will build all files that directly include any of the files provided in -SingleFile
 		/// </summary>
 		[CommandLine("-SingleFileBuildDependents")]
@@ -154,6 +166,18 @@ namespace UnrealBuildTool
 					{
 						SpecificFilesToCompile.Add(FileReference.Combine(Unreal.RootDirectory, File));
 					}
+				}
+
+				// Create the full path for the files specified in RelativePathsToSpecificFilesToCompile
+				DirectoryReference CurrentWorkingDir = Unreal.RootDirectory;
+				if (WorkingDir != null)
+				{
+					CurrentWorkingDir = new DirectoryReference(WorkingDir);
+				}
+
+				foreach (string RelativeFilePath in RelativePathsToSpecificFilesToCompile)
+				{
+					SpecificFilesToCompile.Add(FileReference.Combine(CurrentWorkingDir, RelativeFilePath));
 				}
 
 				// Parse all the hot-reload module names
