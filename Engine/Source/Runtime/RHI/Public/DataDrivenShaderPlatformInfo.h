@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "Internationalization/Text.h"
 #include "RHIDefinitions.h"
 #include "RHIShaderPlatform.h"
 #include "RHIFeatureLevel.h"
+
+class FText;
 
 extern RHI_API const FName LANGUAGE_D3D;
 extern RHI_API const FName LANGUAGE_Metal;
@@ -20,7 +21,6 @@ class FGenericDataDrivenShaderPlatformInfo
 	FName Language;
 	ERHIFeatureLevel::Type MaxFeatureLevel;
 	FName ShaderFormat;
-	EShaderPlatform PreviewShaderPlatformParent;
 	uint32 ShaderPropertiesHash;
 	uint32 bIsMobile : 1;
 	uint32 bIsMetalMRT : 1;
@@ -112,10 +112,6 @@ class FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsClipDistance : 1;
 	uint32 bSupportsNNEShaders: 1;
 
-#if WITH_EDITOR
-	FText FriendlyName;
-#endif
-
 	// NOTE: When adding fields, you must also add to ParseDataDrivenShaderInfo!
 	uint32 bContainsValidPlatformInfo : 1;
 
@@ -131,7 +127,6 @@ class FGenericDataDrivenShaderPlatformInfo
 public:
 	RHI_API static void Initialize();
 	RHI_API static void UpdatePreviewPlatforms();
-	RHI_API static void ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info);
 	RHI_API static const EShaderPlatform GetShaderPlatformFromName(const FName ShaderPlatformName);
 
 	static FORCEINLINE_DEBUGGABLE const FName GetName(const FStaticShaderPlatform Platform)
@@ -144,12 +139,6 @@ public:
 	{
 		check(IsValid(Platform));
 		return Infos[Platform].ShaderFormat;
-	}
-
-	static FORCEINLINE_DEBUGGABLE const EShaderPlatform GetPreviewShaderPlatformParent(const FStaticShaderPlatform Platform)
-	{
-		check(IsValid(Platform));
-		return Infos[Platform].PreviewShaderPlatformParent;
 	}
 
 	static FORCEINLINE_DEBUGGABLE uint32 GetShaderPlatformPropertiesHash(const FStaticShaderPlatform Platform)
@@ -735,23 +724,22 @@ public:
 		return Infos[Platform].bSupportsNNEShaders;
 	}
 
-#if WITH_EDITOR
-	RHI_API static FText GetFriendlyName(const FStaticShaderPlatform Platform);
-#endif
-
-private:
-	RHI_API static FGenericDataDrivenShaderPlatformInfo Infos[SP_NumPlatforms];
-
-public:
-
-#if WITH_EDITOR
-	RHI_API static TMap < FString, TFunction<bool(const FStaticShaderPlatform Platform)>> PropertyToShaderPlatformFunctionMap;
-#endif
-
-	static bool IsValid(const FStaticShaderPlatform Platform)
+	static FORCEINLINE_DEBUGGABLE const bool IsValid(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bContainsValidPlatformInfo;
 	}
+
+#if WITH_EDITOR
+	RHI_API static FText GetFriendlyName(const FStaticShaderPlatform Platform);
+	RHI_API static const EShaderPlatform GetPreviewShaderPlatformParent(const FStaticShaderPlatform Platform);
+
+	RHI_API static TMap<FString, TFunction<bool(const FStaticShaderPlatform Platform)>> PropertyToShaderPlatformFunctionMap;
+#endif
+
+private:
+	RHI_API static void ParseDataDrivenShaderInfo(const FConfigSection& Section, uint32 Index);
+
+	RHI_API static FGenericDataDrivenShaderPlatformInfo Infos[SP_NumPlatforms];
 };
 
 #if USE_STATIC_SHADER_PLATFORM_ENUMS || USE_STATIC_FEATURE_LEVEL_ENUMS || USE_STATIC_SHADER_PLATFORM_INFO
@@ -883,6 +871,7 @@ inline bool IsSimulatedPlatform(const FStaticShaderPlatform Platform)
 	return FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(Platform);
 }
 
+#if WITH_EDITOR
 inline EShaderPlatform GetSimulatedPlatform(FStaticShaderPlatform Platform)
 {
 	if (IsSimulatedPlatform(Platform))
@@ -892,7 +881,7 @@ inline EShaderPlatform GetSimulatedPlatform(FStaticShaderPlatform Platform)
 
 	return Platform;
 }
-
+#endif // WITH_EDITOR
 
 /** Returns true if the feature level is supported by the shader platform. */
 inline bool IsFeatureLevelSupported(const FStaticShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel)
@@ -1113,3 +1102,6 @@ inline bool RHISupportsVolumeTextureAtomics(EShaderPlatform Platform)
 	return FDataDrivenShaderPlatformInfo::GetSupportsVolumeTextureAtomics(Platform);
 }
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "Internationalization/Text.h"
+#endif

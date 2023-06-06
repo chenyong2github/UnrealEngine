@@ -688,6 +688,7 @@ EShaderPlatform GetEditorShaderPlatform(EShaderPlatform ShaderPlatform)
 {
 	EShaderPlatform ActualShaderPlatform = ShaderPlatform;
 
+#if WITH_EDITOR
 	if (GIsEditor)
 	{
 		if (FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(ActualShaderPlatform))
@@ -695,6 +696,7 @@ EShaderPlatform GetEditorShaderPlatform(EShaderPlatform ShaderPlatform)
 			ActualShaderPlatform = FDataDrivenShaderPlatformInfo::GetPreviewShaderPlatformParent(ActualShaderPlatform);
 		}
 	}
+#endif // WITH_EDITOR
 
 	return ActualShaderPlatform;
 }
@@ -743,6 +745,7 @@ RENDERCORE_API ShaderPlatformMaskType GRayTracingPlatformMask;
 // Value may be queried using IsRayTracingEnabled().
 RENDERCORE_API ERayTracingMode GRayTracingMode = ERayTracingMode::Disabled;
 
+#if WITH_EDITOR
 void GetAllPossiblePreviewPlatformsForMainShaderPlatform(TArray<EShaderPlatform>& OutPreviewPlatforms, EShaderPlatform ParentShaderPlatform)
 {
 	for (int i = 0; i < EShaderPlatform::SP_NumPlatforms; ++i)
@@ -758,6 +761,7 @@ void GetAllPossiblePreviewPlatformsForMainShaderPlatform(TArray<EShaderPlatform>
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 RENDERCORE_API void RenderUtilsInit()
 {
