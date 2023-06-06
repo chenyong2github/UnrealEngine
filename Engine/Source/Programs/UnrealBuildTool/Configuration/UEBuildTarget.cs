@@ -4568,6 +4568,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bUseInlining = Rules.bUseInlining;
 			GlobalCompileEnvironment.bCompileISPC = Rules.bCompileISPC;
 			GlobalCompileEnvironment.bHideSymbolsByDefault = !Rules.bPublicSymbolsByDefault;
+			GlobalCompileEnvironment.CppStandardEngine = Rules.CppStandardEngine;
 			GlobalCompileEnvironment.CppStandard = Rules.CppStandard;
 			GlobalCompileEnvironment.CStandard = Rules.CStandard;
 			GlobalCompileEnvironment.MinCpuArchX64 = Rules.MinCpuArchX64;

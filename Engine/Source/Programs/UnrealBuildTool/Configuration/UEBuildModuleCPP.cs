@@ -1209,6 +1209,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.ShadowVariableWarningLevel = ModuleCompileEnvironment.ShadowVariableWarningLevel;
 			CompileEnvironment.UnsafeTypeCastWarningLevel = ModuleCompileEnvironment.UnsafeTypeCastWarningLevel;
 			CompileEnvironment.bEnableUndefinedIdentifierWarnings = ModuleCompileEnvironment.bEnableUndefinedIdentifierWarnings;
+			CompileEnvironment.CppStandardEngine = ModuleCompileEnvironment.CppStandardEngine;
 			CompileEnvironment.CppStandard = ModuleCompileEnvironment.CppStandard;
 			CompileEnvironment.CStandard = ModuleCompileEnvironment.CStandard;
 			CompileEnvironment.IncludeOrderVersion = ModuleCompileEnvironment.IncludeOrderVersion;
@@ -1797,10 +1798,10 @@ namespace UnrealBuildTool
 			{
 				Result.CppStandard = (CppStandardVersion)Rules.CppStandard;
 			}
-			// Otherwise, for engine modules use the EngineDefault standard.
+			// Otherwise, for engine modules use the engine standard (typically CppStandardVersion.EngineDefault).
 			else if (Rules.bTreatAsEngineModule)
 			{
-				Result.CppStandard = CppStandardVersion.EngineDefault;
+				Result.CppStandard = Result.CppStandardEngine;
 			}
 			// CppModules require at least Cpp20.
 			if (Target.bEnableCppModules && Result.CppStandard < CppStandardVersion.Cpp20)

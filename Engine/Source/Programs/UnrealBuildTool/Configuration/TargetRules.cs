@@ -129,9 +129,14 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// New defaults for 5.2:
 		/// * ModuleRules.bLegacyParentIncludePaths = false
-		/// Work in progress, not ready to be enabled as Latest.
 		/// </summary>
 		V3,
+
+		/// <summary>
+		/// New defaults for 5.3:
+		/// * TargetRules.CppStandard = CppStandard.Default has changed from Cpp17 to Cpp20
+		/// </summary>
+		V4,
 
 		// *** When adding new entries here, be sure to update GameProjectUtils::GetDefaultBuildSettingsVersion() to ensure that new projects are created correctly. ***
 
@@ -2070,12 +2075,29 @@ namespace UnrealBuildTool
 		private bool? bLegacyParentIncludePathsPrivate;
 
 		/// <summary>
-		/// Which C++ standard to use for compiling this target
+		/// Which C++ standard to use for compiling this target (for engine modules)
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-CppStdEngine")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public CppStandardVersion CppStandardEngine
+		{
+			get => CppStandardEnginePrivate ?? CppStandardVersion.EngineDefault;
+			set => CppStandardEnginePrivate = value;
+		}
+		private CppStandardVersion? CppStandardEnginePrivate;
+
+		/// <summary>
+		/// Which C++ standard to use for compiling this target (for non-engine modules)
+		/// </summary>
 		[CommandLine("-CppStd")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		public CppStandardVersion CppStandard = CppStandardVersion.Default;
+		public CppStandardVersion CppStandard
+		{
+			get => CppStandardPrivate ?? (DefaultBuildSettings < BuildSettingsVersion.V4 ? CppStandardVersion.Cpp17 : CppStandardVersion.Default);
+			set => CppStandardPrivate = value;
+		}
+		private CppStandardVersion? CppStandardPrivate;
 
 		/// <summary>
 		/// Which C standard to use for compiling this target
@@ -2705,6 +2727,11 @@ namespace UnrealBuildTool
 					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = false", nameof(bLegacyParentIncludePaths)), "Omits module parent folders from include paths to reduce compiler command line length. (Previously: true)."));
 				}
 
+				if (BuildSettingsVersion.V4 <= LatestVersion && DefaultBuildSettings < BuildSettingsVersion.V4)
+				{
+					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = CppStandardVersion.Default", nameof(CppStandard)), "Updates C++ Standard to C++20 (Previously: CppStandardVersion.Cpp17)."));
+				}
+
 				if (ModifiedSettings.Count > 0)
 				{
 					string FormatString = String.Format("[Upgrade]     {{0,-{0}}}   => {{1}}", ModifiedSettings.Max(x => x.Item1.Length));
@@ -3180,6 +3207,8 @@ namespace UnrealBuildTool
 		public bool bLegacyPublicIncludePaths => Inner.bLegacyPublicIncludePaths;
 
 		public bool bLegacyParentIncludePaths => Inner.bLegacyParentIncludePaths;
+
+		public CppStandardVersion CppStandardEngine => Inner.CppStandardEngine;
 
 		public CppStandardVersion CppStandard => Inner.CppStandard;
 

@@ -44,9 +44,9 @@ namespace UnrealBuildTool
 		Latest,
 
 		/// <summary>
-		/// Use the default standard version
+		/// Use the default standard version (BuildSettingsVersion.V1-V3: Cpp17, V4: Cpp20)
 		/// </summary>
-		Default = Cpp17,
+		Default = Cpp20,
 
 		/// <summary>
 		/// Use the default standard version for engine modules
@@ -610,6 +610,11 @@ namespace UnrealBuildTool
 		public bool bHideSymbolsByDefault = true;
 
 		/// <summary>
+		/// Which C++ standard to support for engine modules. CppStandard will be set to this for engine modules and CppStandardEngine should not be checked in any toolchain. May not be compatible with all platforms.
+		/// </summary>
+		public CppStandardVersion CppStandardEngine = CppStandardVersion.EngineDefault;
+
+		/// <summary>
 		/// Which C++ standard to support. May not be compatible with all platforms.
 		/// </summary>
 		public CppStandardVersion CppStandard = CppStandardVersion.Default;
@@ -753,6 +758,7 @@ namespace UnrealBuildTool
 			ParentPCHInstance = Other.ParentPCHInstance;
 			bHackHeaderGenerator = Other.bHackHeaderGenerator;
 			bHideSymbolsByDefault = Other.bHideSymbolsByDefault;
+			CppStandardEngine = Other.CppStandardEngine;
 			CppStandard = Other.CppStandard;
 			CStandard = Other.CStandard;
 			MinCpuArchX64 = Other.MinCpuArchX64;
