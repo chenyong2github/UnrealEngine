@@ -245,6 +245,10 @@ namespace EpicGame
 						UserAccount.ApplyToConfig(AppConfig);
 					}
 				}
+				else
+				{
+					VerifyLogin = false;
+				}
 			}
 
 			if (ConfigRole.RoleType.IsClient())

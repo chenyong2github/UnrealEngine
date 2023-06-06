@@ -943,7 +943,12 @@ namespace Gauntlet
 				}
 			}
 
-			if(CommandUtils.IsBuildMachine)
+			if (ConfigRole.RoleType.IsClient())
+			{
+				VerifyLogin = Globals.Params.ParseParam("VerifyLogin");
+			}
+
+			if (CommandUtils.IsBuildMachine)
 			{
 				AppConfig.CommandLineParams.AddUnique("BUILDMACHINE");
 			}
