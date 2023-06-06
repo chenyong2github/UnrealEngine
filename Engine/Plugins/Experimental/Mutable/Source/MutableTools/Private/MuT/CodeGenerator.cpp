@@ -205,6 +205,7 @@ namespace mu
 			FMeshGenerationOptions MeshOptions;
 			MeshOptions.bUniqueVertexIDs = true;
 			MeshOptions.bLayouts = true;
+			MeshOptions.bNormalizeUVs = true;
 			MeshOptions.State = m_currentStateIndex;
 
 			FMeshGenerationResult MeshResult;
@@ -850,6 +851,10 @@ namespace mu
 			const bool bClampUVIslands = node.SharedSurfaceId != INDEX_NONE && m_currentParents.Last().m_lod > 0;
 			MeshOptions.bClampUVIslands = bClampUVIslands;
 
+			// Normalize UVs if we're going to work with images and layouts.
+			const bool bNormalizeUVs = node.m_images.Num() && edits.Num();
+			MeshOptions.bNormalizeUVs = bNormalizeUVs;
+
             GenerateMesh(MeshOptions, meshResults, pMesh );
             lastMeshOp = meshResults.meshOp;
             meshResults.extraMeshLayouts.SetNum( edits.Num() );
@@ -877,6 +882,7 @@ namespace mu
 						MergedMeshOptions.bUniqueVertexIDs = true;
 						MergedMeshOptions.bLayouts = true;
 						MergedMeshOptions.bClampUVIslands = bClampUVIslands;
+						MergedMeshOptions.bNormalizeUVs = bNormalizeUVs;
 						MergedMeshOptions.State = m_currentStateIndex;
 						MergedMeshOptions.ActiveTags = m_activeTags.Last();
 						FMeshGenerationResult addResults;

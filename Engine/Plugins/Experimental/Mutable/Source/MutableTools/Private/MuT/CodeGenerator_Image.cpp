@@ -1382,6 +1382,7 @@ namespace mu
 				MeshOptions.ActiveTags = m_activeTags.Last();
 			}
 			MeshOptions.bLayouts = true;			// We need the layout that we will use to render
+			MeshOptions.bNormalizeUVs = true;		// We need normalized UVs for the projection
 			MeshOptions.bUniqueVertexIDs = false;	// We don't need the IDs at this point.
             GenerateMesh( MeshOptions, MeshResult, node.m_pMesh );
 

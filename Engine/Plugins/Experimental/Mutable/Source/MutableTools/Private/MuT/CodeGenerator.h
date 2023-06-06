@@ -329,13 +329,6 @@ namespace mu
         //void GetSurfacesWithTag(const string& tag, vector<FirstPassGenerator::SURFACE>& surfaces);
 
         //-----------------------------------------------------------------------------------------
-        void PrepareForLayout( LayoutPtrConst GeneratedLayout,
-                                  MeshPtr currentLayoutMesh,
-                                  size_t currentLayoutChannel,
-                                  const void* errorContext,
-								  const bool bClampUVIslands);
-
-        //-----------------------------------------------------------------------------------------
         //!
         Ptr<ASTOp> GenerateTableVariable( TablePtr pTable, const string& strName );
 
@@ -461,6 +454,9 @@ namespace mu
 			* Mainly used to keep consistent layouts when reusing textures between LODs. */
 			bool bClampUVIslands = false;
 
+			/** If true, UVs will be normalized. Normalize UVs should be done in cases where we operate with Images and Layouts */
+			bool bNormalizeUVs = false;
+
 			/** If this has something the layouts in constant meshes will be ignored, because
 			* they are supposed to match some other set of layouts. If the vector is empty, layouts
 			* are generated normally.
@@ -556,6 +552,13 @@ namespace mu
 		void GenerateMesh_GeometryOperation(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshGeometryOperation*);
 		void GenerateMesh_Reshape(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshReshape*);
 		void GenerateMesh_ClipDeform(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshClipDeform*);
+
+		//-----------------------------------------------------------------------------------------
+		void PrepareForLayout(LayoutPtrConst GeneratedLayout,
+			MeshPtr currentLayoutMesh,
+			size_t currentLayoutChannel,
+			const void* errorContext,
+			const FMeshGenerationOptions& MeshOptions);
 
 		//!
 		Ptr<const Layout> AddLayout(Ptr<const Layout> SourceLayout);
