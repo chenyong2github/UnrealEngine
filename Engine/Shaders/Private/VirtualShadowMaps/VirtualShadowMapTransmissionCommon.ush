@@ -10,6 +10,7 @@ VirtualShadowMaps/VirtualShadowMapTransmissionCommon.ush:
 #include "../DeferredShadingCommon.ush"
 #include "../TransmissionCommon.ush"
 #include "VirtualShadowMapProjectionCommon.ush"
+#include "../Strata/StrataSubsurface.ush"
 
 FSubsurfaceOpacityMFP GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 {
@@ -19,44 +20,7 @@ FSubsurfaceOpacityMFP GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 
 	FStrataSubsurfaceData LoadStrat = StrataLoadSubsurfaceData(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, PixelPos);
 
-	const uint SSSType = SSSHEADER_TYPE(LoadStrat.Header);
-	
-	if (SSSType == SSS_TYPE_DIFFUSION)
-	{
-		SubsurfaceOpacityMFP.bDataIsOpacity = false;
-		const float3 MFP = StrataSubSurfaceHeaderGetMFP(LoadStrat.Header);
-		SubsurfaceOpacityMFP.Data = dot(MFP, (1.0f / 3.0f).xxx);
-		SubsurfaceOpacityMFP.Density = 0.0f;
-	}
-	else if (SSSType == SSS_TYPE_DIFFUSION_PROFILE)
-	{
-		SubsurfaceOpacityMFP.bDataIsOpacity = true;
- 	   
-		const float ProfileRadiusScale = StrataSubSurfaceHeaderGetProfileRadiusScale(LoadStrat.Header);
-		// This clamp aligns with SubsurfaceDensityFromOpacity
-		// Various engine paths treat these subsurface materials differently
-		// even when they have Opacity = 1 in the material shader, so this is
-		// important to avoid things like backface transmission being shadowed by
-		// contact shadows and so on.
-		const float Opacity = min(ProfileRadiusScale, 0.99);
-		SubsurfaceOpacityMFP.Data = Opacity;
-
-		FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(StrataSubSurfaceHeaderGetProfileId(LoadStrat.Header));
-		SubsurfaceOpacityMFP.Density = SubsurfaceDensityFromOpacity(SubsurfaceOpacityMFP.Data) * TransmissionParams.ExtinctionScale * 3.1f;	// This matches the weird computations done in CalcTransmissionThickness
-	}
-	else if (SSSType == SSS_TYPE_WRAP)
-	{
-		SubsurfaceOpacityMFP.bDataIsOpacity = true;
- 	   
-		// This clamp aligns with SubsurfaceDensityFromOpacity
-		// Various engine paths treat these subsurface materials differently
-		// even when they have Opacity = 1 in the material shader, so this is
-		// important to avoid things like backface transmission being shadowed by
-		// contact shadows and so on.
-		const float Opacity = min(StrataSubSurfaceHeaderGetWrapOpacity(LoadStrat.Header), 0.99);
-		SubsurfaceOpacityMFP.Data = Opacity;
-		SubsurfaceOpacityMFP.Density = SubsurfaceDensityFromOpacity(SubsurfaceOpacityMFP.Data);
-	}
+	SubsurfaceOpacityMFP = StrataGetSubsurfaceOpacityMFP(LoadStrat.Header);
 
 #else // STRATA_ENABLED
 	FGBufferData GBufferData = GetGBufferDataUint(PixelPos);
@@ -71,6 +35,7 @@ FSubsurfaceOpacityMFP GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 		// even when they have Opacity = 1 in the material shader, so this is
 		// important to avoid things like backface transmission being shadowed by
 		// contact shadows and so on.
+		SubsurfaceOpacityMFP.bDataIsOpacity = true;
 		SubsurfaceOpacityMFP.Data = min(GBufferData.CustomData.a, 0.99f);
 		SubsurfaceOpacityMFP.Density = SubsurfaceDensityFromOpacity(SubsurfaceOpacityMFP.Data);
 	}
@@ -94,8 +59,9 @@ float GetShadowFactorSubsurface(float ShadowFactor, float OccluderDistance, FSub
 		else
 		{
 			const float MFP = SubsurfaceOpacityMFP.Data;
-			const float Extinction = 1.0f / max(0.00001, MFP);
-			SSSTransmission = saturate(FastExp(-OccluderDistance * Extinction));
+			const float Extinction = StrataShadowMFPToExtinction(MFP);
+			const float OpticalDepth = OccluderDistance * Extinction;
+			SSSTransmission = saturate(FastExp(-OpticalDepth));
 		}
 #else
 		// Only opacity in this path

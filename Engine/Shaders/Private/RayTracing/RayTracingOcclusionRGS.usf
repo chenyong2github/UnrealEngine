@@ -15,6 +15,7 @@
 #include "../TransmissionCommon.ush"
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
 #include "../Strata/Strata.ush"
+#include "../Strata/StrataSubsurface.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingDeferredShadingCommon.ush"
 #include "RayTracingDirectionalLight.ush"
@@ -686,11 +687,11 @@ RAY_TRACING_ENTRY_RAYGEN_OR_INLINE(Occlusion)
 				}
 				else if (SSSType == SSS_TYPE_DIFFUSION)
 				{
-					FSubsurfaceOpacityMFP SubsurfaceOpacityMFP = StrataGetOpacityFromSubSurface(SSSHeader);
+					FSubsurfaceOpacityMFP SubsurfaceOpacityMFP = StrataGetSubsurfaceOpacityMFP(SSSHeader);
 
 					// We know that or SSS_TYPE_DIFFUSION we have access to the mean free path. 
 					const float MFP = SubsurfaceOpacityMFP.Data;
-					const float Extinction = 1.0f / max(0.00001, MFP);
+					const float Extinction = StrataShadowMFPToExtinction(MFP);
 
 					TransmissionParameters = InitTransmissionProfileParams();
 					TransmissionParameters.ExtinctionScale = Extinction;
@@ -706,7 +707,7 @@ RAY_TRACING_ENTRY_RAYGEN_OR_INLINE(Occlusion)
 
 			if (ShadingParameters.bIsSubsurface) // Legacy Subsurface shading model == Substrate Wrap SSS.
 			{
-				FSubsurfaceOpacityMFP SubsurfaceOpacityMFP = StrataGetOpacityFromSubSurface(SSSHeader);
+				FSubsurfaceOpacityMFP SubsurfaceOpacityMFP = StrataGetSubsurfaceOpacityMFP(SSSHeader);
 				if (SubsurfaceOpacityMFP.bDataIsOpacity)
 				{
 					TransmissionParameters.ExtinctionScale = SubsurfaceOpacityMFP.Data;
