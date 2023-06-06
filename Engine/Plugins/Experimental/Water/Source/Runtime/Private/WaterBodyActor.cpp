@@ -89,13 +89,13 @@ void AWaterBody::PreRegisterAllComponents()
 	if (IsValid(WaterInfoMeshComponent))
 	{
 		WaterInfoMeshComponent->SetMobility(WaterBodyComponent->Mobility);
-		WaterInfoMeshComponent->AttachToComponent(WaterBodyComponent, FAttachmentTransformRules::KeepRelativeTransform);
+		WaterInfoMeshComponent->AttachToComponent(WaterBodyComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	}
 
 	if (IsValid(DilatedWaterInfoMeshComponent))
 	{
 		DilatedWaterInfoMeshComponent->SetMobility(WaterBodyComponent->Mobility);
-		DilatedWaterInfoMeshComponent->AttachToComponent(WaterBodyComponent, FAttachmentTransformRules::KeepRelativeTransform);
+		DilatedWaterInfoMeshComponent->AttachToComponent(WaterBodyComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	}
 }
 
