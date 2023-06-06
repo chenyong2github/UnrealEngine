@@ -100,7 +100,7 @@ bool SGameplayTagCombo::IsValueEnabled() const
 		return !PropertyHandle->IsEditConst();
 	}
 
-	return bIsReadOnly;
+	return !bIsReadOnly;
 }
 
 void SGameplayTagCombo::PostUndo(bool bSuccess)
