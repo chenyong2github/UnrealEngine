@@ -307,7 +307,7 @@ namespace mu
 				case DT_SCALAR:		StoreScalar(item, 0.0f); break;
 				case DT_STRING:		StoreString(item, nullptr); break;
 				case DT_COLOUR:		StoreColor(item, FVector4f()); break;
-				case DT_PROJECTOR:  StoreProjector(item, nullptr); break;
+				case DT_PROJECTOR:  StoreProjector(item, FProjector()); break;
 				case DT_MESH:       StoreMesh(item, nullptr); break;
 				case DT_IMAGE:      StoreImage(item, nullptr); break;
 				case DT_LAYOUT:     StoreLayout(item, nullptr); break;
@@ -2499,7 +2499,7 @@ namespace mu
 				MUTABLE_CPUPROFILER_SCOPE(ME_PROJECT_1)
 
                 Ptr<const Mesh> pMesh = LoadMesh( FCacheAddress(args.mesh,item) );
-                Ptr<const Projector> pProjector = LoadProjector( FCacheAddress(args.projector,item) );
+                FProjector Projector = LoadProjector( FCacheAddress(args.projector,item) );
 
                 // Only if both are valid.
                 MeshPtr pResult;
@@ -2507,18 +2507,7 @@ namespace mu
                     && pMesh.get()
                     && pMesh.get()->GetVertexBuffers().GetBufferCount() > 0 )
                 {
-                    if (pProjector)
-                    {
-                        pResult = MeshProject(pMesh.get(), pProjector->m_value);
-//                        if (pResult)
-//                        {
-//                            pResult->GetPrivate()->CheckIntegrity();
-//                        }
-                    }
-                    else if (pMesh)
-                    {
-                        pResult = pMesh->Clone();
-                    }
+                    pResult = MeshProject(pMesh.get(), Projector);
                 }
                 StoreMesh( item, pResult );
                 break;
@@ -4019,37 +4008,35 @@ namespace mu
 				FScheduledOpData Data;
 				Data.RasterMesh.Mip = ProjectionMip;
 				Data.RasterMesh.MipValue = static_cast<float>(ProjectionMip);
-				Ptr<const Projector> pProjector = LoadProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
-				if (pProjector)
+				FProjector Projector = LoadProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
+
+				EMinFilterMethod MinFilterMethod = Invoke([&]() -> EMinFilterMethod
 				{
-					EMinFilterMethod MinFilterMethod = Invoke([&]() -> EMinFilterMethod
+					if (ForcedProjectionMode == 0)
 					{
-						if (ForcedProjectionMode == 0)
-						{
-							return EMinFilterMethod::None;
-						}
-						else if (ForcedProjectionMode == 1)
-						{
-							return EMinFilterMethod::TotalAreaHeuristic;
-						}
-						
-						return static_cast<EMinFilterMethod>(args.MinFilterMethod);
-					});
-
-					if (MinFilterMethod == EMinFilterMethod::TotalAreaHeuristic)
+						return EMinFilterMethod::None;
+					}
+					else if (ForcedProjectionMode == 1)
 					{
-						FVector2f TargetImageSizeF = FVector2f(
-							FMath::Max(args.sizeX >> MipsToSkip, 1),
-							FMath::Max(args.sizeY >> MipsToSkip, 1));
-						FVector2f SourceImageSizeF = FVector2f(args.SourceSizeX, args.SourceSizeY);
+						return EMinFilterMethod::TotalAreaHeuristic;
+					}
 						
-						if (pMesh)
-						{ 
-							const float ComputedMip = ComputeProjectedFootprintBestMip(pMesh.get(), pProjector->m_value, TargetImageSizeF, SourceImageSizeF);
+					return static_cast<EMinFilterMethod>(args.MinFilterMethod);
+				});
 
-							Data.RasterMesh.MipValue = FMath::Max(0.0f, ComputedMip + GlobalProjectionLodBias);
-							Data.RasterMesh.Mip = static_cast<uint8>(FMath::FloorToInt32(Data.RasterMesh.MipValue));
-						}
+				if (MinFilterMethod == EMinFilterMethod::TotalAreaHeuristic)
+				{
+					FVector2f TargetImageSizeF = FVector2f(
+						FMath::Max(args.sizeX >> MipsToSkip, 1),
+						FMath::Max(args.sizeY >> MipsToSkip, 1));
+					FVector2f SourceImageSizeF = FVector2f(args.SourceSizeX, args.SourceSizeY);
+						
+					if (pMesh)
+					{ 
+						const float ComputedMip = ComputeProjectedFootprintBestMip(pMesh.get(), Projector, TargetImageSizeF, SourceImageSizeF);
+
+						Data.RasterMesh.MipValue = FMath::Max(0.0f, ComputedMip + GlobalProjectionLodBias);
+						Data.RasterMesh.Mip = static_cast<uint8>(FMath::FloorToInt32(Data.RasterMesh.MipValue));
 					}
 				}
 	
@@ -4057,7 +4044,7 @@ namespace mu
 				// this needs to be done before the operation is re-scheduled otherwise the execution may deadlock.	
 				// TODO: Review if this is a good way of reusing data between stages.
 				StoreMesh(FScheduledOp::FromOpAndOptions(args.mesh, item, 0), pMesh);
-				StoreProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0), pProjector);
+				StoreProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0), Projector);
 				
 
 				int32 DataHeapAddress = m_heapData.Add(Data);
@@ -4208,48 +4195,46 @@ namespace mu
 
 				if (args.projector && Source && Source->GetSizeX() > 0 && Source->GetSizeY() > 0)
 				{
-					Ptr<const Projector> pProjector = LoadProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
-					if (pProjector)
+					FProjector Projector = LoadProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
+
+					switch (Projector.type)
 					{
-						switch (pProjector->m_value.type)
-						{
-						case PROJECTOR_TYPE::PLANAR:
-							ImageRasterProjectedPlanar(pMesh.get(), pNew.get(),
-								Source.get(), Mask.get(),
-								args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
-								SamplingMethod,
-								FadeStartRad, FadeEndRad, FMath::Frac(Data.RasterMesh.MipValue),
-								layout, args.blockIndex,
-								CropMin, UncroppedSize,
-								&scratch, bUseProjectionVectorImpl);
-							break;
+					case PROJECTOR_TYPE::PLANAR:
+						ImageRasterProjectedPlanar(pMesh.get(), pNew.get(),
+							Source.get(), Mask.get(),
+							args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
+							SamplingMethod,
+							FadeStartRad, FadeEndRad, FMath::Frac(Data.RasterMesh.MipValue),
+							layout, args.blockIndex,
+							CropMin, UncroppedSize,
+							&scratch, bUseProjectionVectorImpl);
+						break;
 
-						case PROJECTOR_TYPE::WRAPPING:
-							ImageRasterProjectedWrapping(pMesh.get(), pNew.get(),
-								Source.get(), Mask.get(),
-								args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
-								SamplingMethod,
-								FadeStartRad, FadeEndRad, FMath::Frac(Data.RasterMesh.MipValue),
-								layout, args.blockIndex,
-								CropMin, UncroppedSize,
-								&scratch);
-							break;
+					case PROJECTOR_TYPE::WRAPPING:
+						ImageRasterProjectedWrapping(pMesh.get(), pNew.get(),
+							Source.get(), Mask.get(),
+							args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
+							SamplingMethod,
+							FadeStartRad, FadeEndRad, FMath::Frac(Data.RasterMesh.MipValue),
+							layout, args.blockIndex,
+							CropMin, UncroppedSize,
+							&scratch);
+						break;
 
-						case PROJECTOR_TYPE::CYLINDRICAL:
-							ImageRasterProjectedCylindrical(pMesh.get(), pNew.get(),
-								Source.get(), Mask.get(),
-								args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
-								FadeStartRad, FadeEndRad,
-								layout,
-								pProjector->m_value.projectionAngle,
-								CropMin, UncroppedSize,
-								&scratch);
-							break;
+					case PROJECTOR_TYPE::CYLINDRICAL:
+						ImageRasterProjectedCylindrical(pMesh.get(), pNew.get(),
+							Source.get(), Mask.get(),
+							args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
+							FadeStartRad, FadeEndRad,
+							layout,
+							Projector.projectionAngle,
+							CropMin, UncroppedSize,
+							&scratch);
+						break;
 
-						default:
-							check(false);
-							break;
-						}
+					default:
+						check(false);
+						break;
 					}
 				}
 
@@ -5247,9 +5232,8 @@ namespace mu
         case OP_TYPE::PR_CONSTANT:
         {
 			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.At);
-            ProjectorPtr pResult = new Projector();
-            pResult->m_value = program.m_constantProjectors[args.value];
-            StoreProjector( item, pResult );
+            FProjector Result = program.m_constantProjectors[args.value];
+            StoreProjector( item, Result );
             break;
         }
 
@@ -5257,14 +5241,13 @@ namespace mu
         {
 			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
-            ProjectorPtr pResult = new Projector();
-            pResult->m_value = pParams->GetPrivate()->GetProjectorValue(args.variable,index);
+            FProjector Result = pParams->GetPrivate()->GetProjectorValue(args.variable,index);
 
             // The type cannot be changed, take it from the default value
             const FProjector& def = program.m_parameters[args.variable].m_defaultValue.Get<ParamProjectorType>();
-            pResult->m_value.type = def.type;
+            Result.type = def.type;
 
-            StoreProjector( item, pResult );
+            StoreProjector( item, Result );
             break;
         }
 

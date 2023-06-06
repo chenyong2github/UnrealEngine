@@ -412,14 +412,14 @@ namespace  mu
 			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetString(From);
 		}
 
-		Ptr<const Projector> LoadProjector(const FCacheAddress& From)
+		FProjector LoadProjector(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetProjector(From);
 		}
 
 		Ptr<const Mesh> LoadMesh(const FCacheAddress& From)
 		{
-			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetMesh(From);
+			return m_pSystem->WorkingMemoryManager.LoadMesh(From);
 		}
 
 		Ptr<const Image> LoadImage(const FCacheAddress& From)
@@ -472,7 +472,7 @@ namespace  mu
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetColour(To, Value);
 		}
 
-		void StoreProjector(const FCacheAddress& To, Ptr<const Projector> Value)
+		void StoreProjector(const FCacheAddress& To, const FProjector& Value)
 		{
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetProjector(To, Value);
 		}

@@ -35,8 +35,6 @@
 #endif
 
 
-#include "MuR/Model.h"
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObject)
 
 #define LOCTEXT_NAMESPACE "CustomizableObject"

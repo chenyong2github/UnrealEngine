@@ -2482,9 +2482,8 @@ void SMutableCodeViewer::Tick(const FGeometry& AllottedGeometry, const double In
 	case mu::DT_PROJECTOR:
 	{
 		check (PreviewProjectorViewer);
-		const mu::Ptr<const mu::Projector> ProjectorPtr = System->GetPrivate()->BuildProjector(
-				MutableModel, PreviewParameters.get(), SelectedOperationAddress);
-		PreviewProjectorViewer->SetProjector(ProjectorPtr->m_value);
+		mu::FProjector Projector = System->GetPrivate()->BuildProjector(MutableModel, PreviewParameters.get(), SelectedOperationAddress);
+		PreviewProjectorViewer->SetProjector(Projector);
 	}
 	
 	default:
