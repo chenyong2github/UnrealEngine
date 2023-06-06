@@ -31,6 +31,9 @@
 
 void FLibraryViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates, TArray<FString>& FavoritesList)
 {
+	//This function do not handle Favorites. So we empty the Favorite Array. See FLibraryViewModel::BuildWidgetTemplateCategory to implement favorite cleaning.
+	FavoritesList.Empty();
+
 	TSharedPtr<FWidgetHeaderViewModel> Header = MakeShareable(new FWidgetHeaderViewModel());
 	Header->GroupName = FText::FromString(Category);
 
@@ -39,49 +42,9 @@ void FLibraryViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TS
 	Header->Children.Add(TemplateViewModel);
 	WidgetTemplateListViewModels.Add(TemplateViewModel);
 
-	// @TODO: DarenC - Reference for when implementing favorites system 
-	//for ( auto& Template : Entry.Value )
-	//{
-	//	TSharedPtr<FWidgetTemplateViewModel> TemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
-	//	TemplateViewModel->Template = Template;
-	//	TemplateViewModel->FavortiesViewModel = this;
-	//	Header->Children.Add(TemplateViewModel);
-
-	//	// If it's a favorite, we also add it to the Favorite section
-	//	int32 index = FavoritesList.Find(Template->Name.ToString());
-	//	if (index != INDEX_NONE)
-	//	{
-	//		TemplateViewModel->SetFavorite();
-
-	//		// We have to create a second copy of the ViewModel for the treeview has it doesn't support to have the same element twice.
-	//		TSharedPtr<FWidgetTemplateViewModel> FavoriteTemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
-	//		FavoriteTemplateViewModel->Template = Template;
-	//		FavoriteTemplateViewModel->FavortiesViewModel = this;
-	//		FavoriteTemplateViewModel->SetFavorite();
-
-	//		FavoriteHeader->Children.Add(FavoriteTemplateViewModel);
-
-	//		// Remove the favorite from the temporary list
-	//		FavoritesList.RemoveAt(index);
-	//	}
-
-	//}
-
 	Header->Children.Sort([](const TSharedPtr<FWidgetViewModel>& L, const TSharedPtr<FWidgetViewModel>& R) { return R->GetName().CompareTo(L->GetName()) > 0; });
 
-	WidgetViewModels.Add(Header);
-}
-
-void FLibraryViewModel::AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel)
-{
-	UWidgetPaletteFavorites* Favorites = GetDefault<UWidgetDesignerSettings>()->Favorites;
-	Favorites->Add(WidgetTemplateViewModel->GetName().ToString());
-}
-
-void FLibraryViewModel::RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel)
-{
-	UWidgetPaletteFavorites* Favorites = GetDefault<UWidgetDesignerSettings>()->Favorites;
-	Favorites->Remove(WidgetTemplateViewModel->GetName().ToString());
+	AddHeader(Header);
 }
 
 void FLibraryViewModel::SetSearchText(const FText& InSearchText)
@@ -111,7 +74,6 @@ void FWidgetTemplateListViewModel::ConstructListView(TArray<TSharedPtr<FWidgetTe
 
 	if (!TemplatesFilter)
 	{
-		UContentBrowserDataSubsystem* ContentBrowserDataSubsystem = IContentBrowserDataModule::Get().GetSubsystem();
 		NumAssets = 0;
 		NumClasses = 0;
 

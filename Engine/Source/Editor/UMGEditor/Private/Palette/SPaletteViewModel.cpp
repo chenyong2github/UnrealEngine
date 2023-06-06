@@ -173,20 +173,23 @@ void FWidgetCatalogViewModel::BuildWidgetList()
 	bool bHasFavorites = FavoriteHeader->Children.Num() != 0;
 	FavoriteHeader->Children.Reset();
 	
-	// Copy of the list of favorites to be able to do some cleanup in the real list
-	UWidgetPaletteFavorites* FavoritesPalette = GetDefault<UWidgetDesignerSettings>()->Favorites;
-	TArray<FString> FavoritesList = FavoritesPalette->GetFavorites();
-
-	// For each entry in the category create a view model for the widget template
-	for ( auto& Entry : WidgetTemplateCategories )
+	// Build ViewModel and clean the Favorite list if needed
 	{
-		BuildWidgetTemplateCategory(Entry.Key, Entry.Value, FavoritesList);
-	}
+		// Copy of the list of favorites to be able to do some cleanup in the real list
+		UWidgetPaletteFavorites* FavoritesPalette = GetDefault<UWidgetDesignerSettings>()->Favorites;
+		TArray<FString> FavoritesList = FavoritesPalette->GetFavorites();
 
-	// Remove all Favorites that may be left in the list.Typically happening when the list of favorite contains widget that were deleted since the last opening.
-	for (const FString& favoriteName : FavoritesList)
-	{
-		FavoritesPalette->Remove(favoriteName);
+		// For each entry in the category create a view model for the widget template
+		for (auto& Entry : WidgetTemplateCategories)
+		{
+			BuildWidgetTemplateCategory(Entry.Key, Entry.Value, FavoritesList);
+		}
+
+		// Remove all Favorites that may be left in the list.Typically happening when the list of favorite contains widget that were deleted since the last opening.
+		for (const FString& FavoriteName : FavoritesList)
+		{
+			FavoritesPalette->Remove(FavoriteName);
+		}
 	}
 
 	// Sort the view models by name
@@ -333,6 +336,19 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 	}
 }
 
+void FWidgetCatalogViewModel::AddHeader(TSharedPtr<FWidgetHeaderViewModel>& Header)
+{
+	WidgetViewModels.Add(Header);
+}
+
+void FWidgetCatalogViewModel::AddToFavoriteHeader(TSharedPtr<FWidgetTemplateViewModel>& Favorite)
+{
+	if (FavoriteHeader)
+	{
+		FavoriteHeader->Children.Add(Favorite);
+	}
+}
+
 void FWidgetCatalogViewModel::AddWidgetTemplate(TSharedPtr<FWidgetTemplate> Template)
 {
 	FString Category = *Template->GetCategory().ToString();
@@ -385,10 +401,6 @@ void FPaletteViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TS
 {
 	TSharedPtr<FWidgetHeaderViewModel> Header = MakeShareable(new FWidgetHeaderViewModel());
 	Header->GroupName = FText::FromString(Category);
-
-	// Copy of the list of favorites to be able to do some cleanup in the real list
-	UWidgetPaletteFavorites* FavoritesPalette = GetDefault<UWidgetDesignerSettings>()->Favorites;
-
 	for (auto& Template : Templates)
 	{
 		TSharedPtr<FWidgetTemplateViewModel> TemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
@@ -408,7 +420,7 @@ void FPaletteViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TS
 			FavoriteTemplateViewModel->FavortiesViewModel = this;
 			FavoriteTemplateViewModel->SetFavorite();
 
-			FavoriteHeader->Children.Add(FavoriteTemplateViewModel);
+			AddToFavoriteHeader(FavoriteTemplateViewModel);
 
 			// Remove the favorite from the temporary list
 			FavoritesList.RemoveAt(index);
@@ -418,16 +430,16 @@ void FPaletteViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TS
 	
 	Header->Children.Sort([](const TSharedPtr<FWidgetViewModel>& L, const TSharedPtr<FWidgetViewModel>& R) { return R->GetName().CompareTo(L->GetName()) > 0; });
 
-	WidgetViewModels.Add(Header);
+	AddHeader(Header);
 }
 
-void FPaletteViewModel::AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel)
+void FWidgetCatalogViewModel::AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel)
 {
 	UWidgetPaletteFavorites* Favorites = GetDefault<UWidgetDesignerSettings>()->Favorites;
 	Favorites->Add(WidgetTemplateViewModel->GetName().ToString());
 }
 
-void FPaletteViewModel::RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel)
+void FWidgetCatalogViewModel::RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel)
 {
 	UWidgetPaletteFavorites* Favorites = GetDefault<UWidgetDesignerSettings>()->Favorites;
 	Favorites->Remove(WidgetTemplateViewModel->GetName().ToString());

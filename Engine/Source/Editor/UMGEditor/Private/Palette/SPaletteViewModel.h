@@ -166,10 +166,10 @@ public:
 	bool NeedUpdate() const { return bRebuildRequested; }
 
 	/** Add the widget template to the list of favorites */
-	virtual void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) = 0;
+	static void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel);
 
 	/** Remove the widget template to the list of favorites */
-	virtual void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) = 0;
+	static void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel);
 
 	typedef TArray< TSharedPtr<FWidgetViewModel> > ViewModelsArray;
 	ViewModelsArray& GetWidgetViewModels() { return WidgetViewModels; }
@@ -184,11 +184,15 @@ public:
 	FText GetSearchText() const { return SearchText; }
 
 protected:
+	virtual void BuildWidgetList();
+
+	void AddHeader(TSharedPtr<FWidgetHeaderViewModel>& Header);
+	void AddToFavoriteHeader(TSharedPtr<FWidgetTemplateViewModel>& Favorite);
+
+private:
 	FWidgetCatalogViewModel() {};
 
 	UWidgetBlueprint* GetBlueprint() const;
-
-	virtual void BuildWidgetList();
 	virtual void BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates, TArray<FString>& FavoritesList) = 0;
 	void BuildClassWidgetList();
 
@@ -232,8 +236,6 @@ public:
 
 	//~ Begin FWidgetCatalogViewModel Interface
 	virtual void BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates, TArray<FString>& FavoritesList) override;
-	virtual void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) override;
-	virtual void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) override;
 	//~ End FWidgetCatalogViewModel Interface
 };
 

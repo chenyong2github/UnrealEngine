@@ -20,7 +20,7 @@ void UWidgetPaletteFavorites::Add(const FString& InWidgetTemplateName)
 
 void UWidgetPaletteFavorites::Remove(const FString& InWidgetTemplateName)
 {
-	Favorites.Remove(InWidgetTemplateName);
+	Favorites.RemoveSingle(InWidgetTemplateName);
 
 	SaveConfig();
 

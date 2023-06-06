@@ -75,12 +75,9 @@ public:
 
 	//~ Begin FWidgetCatalogViewModel Interface
 	virtual void BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates, TArray<FString>& FavoritesList) override;
-	virtual void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) override;
-	virtual void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) override;
 	virtual void SetSearchText(const FText& InSearchText) override;
 	//~ End FWidgetCatalogViewModel Interface
 
-	ViewModelsArray& GetWidgetViewModels() { return WidgetViewModels; }
 	ViewModelsArray& GetWidgetTemplateListViewModels() { return WidgetTemplateListViewModels; }
 
 protected:
