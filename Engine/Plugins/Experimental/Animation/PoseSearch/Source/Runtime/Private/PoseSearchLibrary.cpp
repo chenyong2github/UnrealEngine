@@ -34,7 +34,7 @@ TAutoConsoleVariable<int32> CVarAnimMotionMatchDrawHistoryEnable(TEXT("a.MotionM
 //////////////////////////////////////////////////////////////////////////
 // FMotionMatchingState
 
-void FMotionMatchingState::Reset()
+void FMotionMatchingState::Reset(const FTransform& ComponentTransform)
 {
 	CurrentSearchResult.Reset();
 	// Set the elapsed time to INFINITY to trigger a search right away
@@ -42,7 +42,8 @@ void FMotionMatchingState::Reset()
 	WantedPlayRate = 1.f;
 	bJumpedToPose = false;
 	RootBoneDeltaYaw = 0.f;
-	RootBoneWorldYaw = 0.f;
+	RootBoneWorldYaw = FRotator(ComponentTransform.GetRotation()).Yaw;
+
 #if UE_POSE_SEARCH_TRACE_ENABLED
 	RootMotionTransformDelta = FTransform::Identity;
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
@@ -119,16 +120,17 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 	}
 }
 
-void FMotionMatchingState::UpdateRootBoneControl(const FAnimInstanceProxy* AnimInstanceProxy, float RootBoneYawFromAnimation)
+void FMotionMatchingState::UpdateRootBoneControl(const FAnimationUpdateContext& Context, float YawFromAnimationBlendRate)
 {
+	const FAnimInstanceProxy* AnimInstanceProxy = Context.AnimInstanceProxy;
 	static const FName RootMotionAttributeName = "RootMotionDelta";
 	static const UE::Anim::FAttributeId RootMotionAttributeId = { RootMotionAttributeName , FCompactPoseBoneIndex(0) };
 
 	const FRotator ComponentWorldRotator(AnimInstanceProxy->GetComponentTransform().GetRotation());
-	if (FMath::IsNearlyZero(RootBoneYawFromAnimation))
+	if (YawFromAnimationBlendRate < 0.f)
 	{
 		RootBoneWorldYaw = ComponentWorldRotator.Yaw;
-		RootBoneWorldYaw = 0.f;
+		RootBoneDeltaYaw = 0.f;
 	}
 	else
 	{
@@ -142,22 +144,21 @@ void FMotionMatchingState::UpdateRootBoneControl(const FAnimInstanceProxy* AnimI
 			const float RootBoneAnimationDelta = RootMotionRotatorDelta.Yaw;
 			const float RootBoneToComponentDelta = FRotator::NormalizeAxis(ComponentWorldRotator.Yaw - RootBoneWorldYaw);
 
-			// @todo: RootBoneYawFromAnimation should be a speed (influenced by dt)
 			// lerping the animation delta with the capsule delta
-			const float RootBoneDelta = FMath::Lerp(RootBoneToComponentDelta, RootBoneAnimationDelta, RootBoneYawFromAnimation);
+			const float RootBoneDelta = FMath::Lerp(RootBoneAnimationDelta, RootBoneToComponentDelta, YawFromAnimationBlendRate * Context.GetDeltaTime());
 
 			RootBoneWorldYaw = FRotator::NormalizeAxis(RootBoneWorldYaw + RootBoneDelta);
+
+			// @todo: handle the case when the character is on top of a rotating platform
+			RootBoneDeltaYaw = FRotator::NormalizeAxis(RootBoneWorldYaw - ComponentWorldRotator.Yaw);
 		}
 		else
 		{
 			UE_LOG(LogPoseSearch, Warning, TEXT("FMotionMatchingState::UpdateRootBoneControl - Couldn't find FTransformAnimationAttribute. Root bone yaw control will not be performed"));
 
 			RootBoneWorldYaw = ComponentWorldRotator.Yaw;
-			RootBoneWorldYaw = 0.f;
+			RootBoneDeltaYaw = 0.f;
 		}
-
-		// @todo: handle the case when the character is on top of a rotating platform
-		RootBoneDeltaYaw = FRotator::NormalizeAxis(RootBoneWorldYaw - ComponentWorldRotator.Yaw);
 	}
 }
 
@@ -271,8 +272,8 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 	float SearchThrottleTime,
 	const FFloatInterval& PlayRate,
 	FMotionMatchingState& InOutMotionMatchingState,
-	float RootBoneYawFromAnimation,
-	float RootBoneDeltaYawBlendTime,
+	float YawFromAnimationBlendRate,
+	float YawFromAnimationTrajectoryBlendTime,
 	bool bForceInterrupt,
 	bool bShouldSearch,
 	bool bDebugDrawQuery,
@@ -290,7 +291,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		return;
 	}
 
-	InOutMotionMatchingState.UpdateRootBoneControl(Context.AnimInstanceProxy, RootBoneYawFromAnimation);
+	InOutMotionMatchingState.UpdateRootBoneControl(Context, YawFromAnimationBlendRate);
 
 	const float DeltaTime = Context.GetDeltaTime();
 
@@ -307,7 +308,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		History = &PoseHistoryProvider->GetPoseHistory();
 	}
 	
-	const FPoseSearchQueryTrajectory TrajectoryRootSpace = ProcessTrajectory(Trajectory, Context.AnimInstanceProxy->GetComponentTransform(), InOutMotionMatchingState.GetRootBoneDeltaYaw(), RootBoneDeltaYawBlendTime, TrajectorySpeedMultiplier);
+	const FPoseSearchQueryTrajectory TrajectoryRootSpace = ProcessTrajectory(Trajectory, Context.AnimInstanceProxy->GetComponentTransform(), InOutMotionMatchingState.GetRootBoneDeltaYaw(), YawFromAnimationTrajectoryBlendTime, TrajectorySpeedMultiplier);
 	FSearchContext SearchContext(&TrajectoryRootSpace, History, 0.f, &InOutMotionMatchingState.PoseIndicesHistory, InOutMotionMatchingState.CurrentSearchResult, PoseJumpThresholdTime, bForceInterrupt);
 
 	const bool bMustSearch = !InOutMotionMatchingState.CurrentSearchResult.IsValid();
@@ -423,7 +424,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 }
 
 // transforms Trajectory from world space to root bone space, and scale it by TrajectorySpeedMultiplier
-FPoseSearchQueryTrajectory UPoseSearchLibrary::ProcessTrajectory(const FPoseSearchQueryTrajectory& Trajectory, const FTransform& ComponentWorldTransform, float RootBoneDeltaYaw, float RootBoneDeltaYawBlendTime, float TrajectorySpeedMultiplier)
+FPoseSearchQueryTrajectory UPoseSearchLibrary::ProcessTrajectory(const FPoseSearchQueryTrajectory& Trajectory, const FTransform& ComponentWorldTransform, float RootBoneDeltaYaw, float YawFromAnimationTrajectoryBlendTime, float TrajectorySpeedMultiplier)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_ProcessTrajectory);
 
@@ -437,7 +438,7 @@ FPoseSearchQueryTrajectory UPoseSearchLibrary::ProcessTrajectory(const FPoseSear
 
 		Sample.Position = ToRootSpace.TransformPosition(Sample.Position);
 
-		const float BlendParam = RootBoneDeltaYawBlendTime < UE_KINDA_SMALL_NUMBER ? 1 : FMath::Clamp(1.f - (Sample.AccumulatedSeconds - RootBoneDeltaYawBlendTime) / RootBoneDeltaYawBlendTime, 0.f, 1.f);
+		const float BlendParam = YawFromAnimationTrajectoryBlendTime < UE_KINDA_SMALL_NUMBER ? 1 : FMath::Clamp(1.f - (Sample.AccumulatedSeconds - YawFromAnimationTrajectoryBlendTime) / YawFromAnimationTrajectoryBlendTime, 0.f, 1.f);
 		const FQuat RootBoneDelta(FRotator(0.f, RootBoneDeltaYaw * BlendParam, 0.f));
 		const FQuat ToRootSpaceRotation = ToRootSpace.GetRotation() * RootBoneDelta;
 		Sample.Facing = ToRootSpaceRotation * Sample.Facing;

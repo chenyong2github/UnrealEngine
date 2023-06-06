@@ -98,7 +98,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	// If we just became relevant and haven't been initialized yet, then reset motion matching state, otherwise update the asset time using the player node.
 	if (bNeedsReset)
 	{
-		MotionMatchingState.Reset();
+		MotionMatchingState.Reset(Context.AnimInstanceProxy->GetComponentTransform());
 	}
 	else
 	{
@@ -112,13 +112,13 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 			{
 				// MotionMatchingState is out of sync with CurrentResultDatabase: we need to reset the MM state. This could happen if PIE is paused, and we edit the database,
 				// so FAnimNode_MotionMatching::UpdateAssetPlayer is never called and FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex never returns false here
-				MotionMatchingState.Reset();
+				MotionMatchingState.Reset(Context.AnimInstanceProxy->GetComponentTransform());
 			}
 		}
 		else
 		{
 			// we're still indexing MotionMatchingState.CurrentSearchResult.Database, so we Reset the MotionMatchingState
-			MotionMatchingState.Reset();
+			MotionMatchingState.Reset(Context.AnimInstanceProxy->GetComponentTransform());
 		}
 #endif // WITH_EDITOR
 
@@ -163,7 +163,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		SearchThrottleTime,
 		PlayRate,
 		MotionMatchingState,
-		YawFromAnimation,
+		YawFromAnimationBlendRate,
 		YawFromAnimationTrajectoryBlendTime,
 		bForceInterruptNextUpdate,
 		bShouldSearch
@@ -183,7 +183,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = CurrentResultDatabase->GetAnimationAssetBase(*SearchIndexAsset))
 			{
 				// root bone blending needs to be immediate if MM node controls the offset between mesh component and root bone
-				const float RootBoneBlendTime = FMath::IsNearlyZero(YawFromAnimation) ? BlendTime : 0.f;
+				const float RootBoneBlendTime = YawFromAnimationBlendRate < 0.f ? BlendTime : 0.f;
 				BlendStackNode.BlendTo(DatabaseAsset->GetAnimationAsset(), MotionMatchingState.CurrentSearchResult.AssetTime,
 					DatabaseAsset->IsLooping(), SearchIndexAsset->bMirrored, CurrentResultDatabase->Schema->MirrorDataTable.Get(),
 					MaxActiveBlends, BlendTime, RootBoneBlendTime, BlendProfile, BlendOption, SearchIndexAsset->BlendParameters, MotionMatchingState.WantedPlayRate);

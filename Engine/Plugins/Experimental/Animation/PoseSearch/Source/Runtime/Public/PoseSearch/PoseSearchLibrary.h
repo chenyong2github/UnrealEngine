@@ -29,7 +29,7 @@ struct POSESEARCH_API FMotionMatchingState
 	GENERATED_BODY()
 
 	// Reset the state to a default state using the current Database
-	void Reset();
+	void Reset(const FTransform& ComponentTransform);
 
 	// Attempts to set the internal state to match the provided asset time including updating the internal DbPoseIdx. 
 	// If the provided asset time is out of bounds for the currently playing asset then this function will reset the 
@@ -41,7 +41,7 @@ struct POSESEARCH_API FMotionMatchingState
 
 	void UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FFloatInterval& PlayRate, float TrajectorySpeedMultiplier);
 
-	void UpdateRootBoneControl(const FAnimInstanceProxy* AnimInstanceProxy, float RootBoneYawFromAnimation);
+	void UpdateRootBoneControl(const FAnimationUpdateContext& Context, float YawFromAnimationBlendRate);
 
 	float GetRootBoneDeltaYaw() const { return RootBoneDeltaYaw; }
 
@@ -97,7 +97,7 @@ class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 		const FPoseSearchQueryTrajectory& Trajectory,
 		const FTransform& ComponentWorldTransform,
 		float RootBoneDeltaYaw,
-		float RootBoneDeltaYawBlendTime,
+		float YawFromAnimationTrajectoryBlendTime,
 		float TrajectorySpeedMultiplier);
 
 public:
@@ -131,8 +131,8 @@ public:
 		float SearchThrottleTime,
 		const FFloatInterval& PlayRate,
 		FMotionMatchingState& InOutMotionMatchingState,
-		float RootBoneYawFromAnimation,
-		float RootBoneDeltaYawBlendTime,
+		float YawFromAnimationBlendRate,
+		float YawFromAnimationTrajectoryBlendTime,
 		bool bForceInterrupt = false,
 		bool bShouldSearch = true,
 		bool bDebugDrawQuery = false,
