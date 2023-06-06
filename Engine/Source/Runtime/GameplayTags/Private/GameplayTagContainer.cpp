@@ -1660,7 +1660,7 @@ void FQueryEvaluator::ReadEditableQueryExprList(UEditableGameplayTagQueryExpress
 	}
 }
 
-UEditableGameplayTagQuery* FGameplayTagQuery::CreateEditableQuery()
+UEditableGameplayTagQuery* FGameplayTagQuery::CreateEditableQuery() const
 {
 	FQueryEvaluator QE(*this);
 	return QE.CreateEditableQuery();

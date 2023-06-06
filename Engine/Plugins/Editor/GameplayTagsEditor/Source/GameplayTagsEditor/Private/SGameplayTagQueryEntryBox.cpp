@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGameplayTagQueryEntryBox.h"
 #include "DetailLayoutBuilder.h"
@@ -287,7 +287,20 @@ void SGameplayTagQueryEntryBox::CacheQueryList()
 	}
 	else if (CachedQueries.Num() == 1)
 	{
-		const FString Desc = CachedQueries[0].GetDescription();
+		const FGameplayTagQuery& TheQuery = CachedQueries[0];
+		FString Desc = TheQuery.GetDescription();
+
+		// We can get into a case where we've manually generated an FGameplayTagQuery but do not have a proper description
+		// in this case, regenerate a description for the query and use that until next time it's edited.
+		if (Desc.IsEmpty() && !TheQuery.IsEmpty())
+		{
+			UEditableGameplayTagQuery* EditableQuery = TheQuery.CreateEditableQuery();
+
+			FGameplayTagQuery TempQueryForDescription;
+			TempQueryForDescription.BuildFromEditableQuery(*EditableQuery);
+			Desc = TempQueryForDescription.GetDescription();
+		}
+
 		if (Desc.Len() > 0)
 		{
 			QueryDescription = FText::FromString(Desc);

@@ -893,7 +893,7 @@ public:
 	void BuildFromEditableQuery(class UEditableGameplayTagQuery& EditableQuery); 
 
 	/** Creates editable query object tree based on this query */
-	UEditableGameplayTagQuery* CreateEditableQuery();
+	UEditableGameplayTagQuery* CreateEditableQuery() const;
 #endif // WITH_EDITOR
 
 	static const FGameplayTagQuery EmptyQuery;
