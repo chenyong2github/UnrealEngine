@@ -179,6 +179,7 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 void FAnimNode_ControlRig::Evaluate_AnyThread(FPoseContext & Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(ControlRig, !IsInGameThread());
 
 	// evaluate 
 	FAnimNode_ControlRigBase::Evaluate_AnyThread(Output);

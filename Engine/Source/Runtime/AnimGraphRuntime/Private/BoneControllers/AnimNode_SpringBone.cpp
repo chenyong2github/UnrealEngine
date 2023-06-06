@@ -91,6 +91,8 @@ FORCEINLINE void CopyToVectorByFlags(FVector& DestVec, const FVector& SrcVec, bo
 void FAnimNode_SpringBone::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(SpringBone, !IsInGameThread());
+
 	check(OutBoneTransforms.Num() == 0);
 
 	const bool bNoOffset = !bTranslateX && !bTranslateY && !bTranslateZ;

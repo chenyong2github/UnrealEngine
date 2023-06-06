@@ -45,6 +45,8 @@ void FAnimNode_WheelController::EvaluateSkeletalControl_AnyThread(FComponentSpac
 {
 	check(OutBoneTransforms.Num() == 0);
 
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(WheelController, !IsInGameThread());
+
 	const TArray<FWheelAnimationData>& WheelAnimData = AnimInstanceProxy->GetWheelAnimData();
 
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();

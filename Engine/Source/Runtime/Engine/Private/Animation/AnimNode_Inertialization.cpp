@@ -213,6 +213,7 @@ void FAnimNode_Inertialization::Evaluate_AnyThread(FPoseContext& Output)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/Inertialization"));
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread);
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(Inertialization, !IsInGameThread());
 
 	Source.Evaluate(Output);
 

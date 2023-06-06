@@ -25,6 +25,9 @@ FAnimNode_CustomProperty::~FAnimNode_CustomProperty()
 void FAnimNode_CustomProperty::SetTargetInstance(UObject* InInstance)
 {
 	TargetInstance = InInstance;
+#if ANIMNODE_STATS_VERBOSE
+	InitializeStatID();
+#endif
 }
 
 void FAnimNode_CustomProperty::PropagateInputProperties(const UObject* InSourceInstance)

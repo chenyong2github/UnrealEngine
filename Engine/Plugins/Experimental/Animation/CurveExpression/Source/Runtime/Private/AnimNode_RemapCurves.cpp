@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNode_RemapCurves.h"
 
@@ -7,7 +7,8 @@
 void FAnimNode_RemapCurves::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
-	
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(RemapCurves, !IsInGameThread());
+
 	using namespace CurveExpression::Evaluator;
 
 	FPoseContext SourceData(Output);

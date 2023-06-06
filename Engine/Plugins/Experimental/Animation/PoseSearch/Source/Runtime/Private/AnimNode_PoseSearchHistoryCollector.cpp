@@ -92,6 +92,8 @@ void FAnimNode_PoseSearchHistoryCollector::CacheBones_AnyThread(const FAnimation
 void FAnimNode_PoseSearchHistoryCollector::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread);
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(PoseSearchHistoryCollector, !IsInGameThread());
+
 	check(Output.AnimInstanceProxy);
 
 	Super::Evaluate_AnyThread(Output);
@@ -144,6 +146,8 @@ void FAnimNode_PoseSearchComponentSpaceHistoryCollector::CacheBones_AnyThread(co
 void FAnimNode_PoseSearchComponentSpaceHistoryCollector::EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateComponentSpace_AnyThread);
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(PoseSearchComponentSpaceHistoryCollector, !IsInGameThread());
+
 	check(Output.AnimInstanceProxy);
 
 	Super::EvaluateComponentSpace_AnyThread(Output);

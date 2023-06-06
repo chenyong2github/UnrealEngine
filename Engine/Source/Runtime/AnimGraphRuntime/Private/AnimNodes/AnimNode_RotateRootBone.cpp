@@ -42,6 +42,8 @@ void FAnimNode_RotateRootBone::Update_AnyThread(const FAnimationUpdateContext& C
 void FAnimNode_RotateRootBone::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(RotateRootBone, !IsInGameThread());
+
 	// Evaluate the input
 	BasePose.Evaluate(Output);
 

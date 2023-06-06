@@ -74,6 +74,11 @@ protected:
 	// Event fired when the instance we are running has changed
 	FSimpleMulticastDelegate OnInstanceChangedEvent;
 #endif
+
+    // stats
+#if ANIMNODE_STATS_VERBOSE
+	virtual void InitializeStatID() override;
+#endif
 };
 
 UE_DEPRECATED(4.24, "FAnimNode_Layer has been renamed to FAnimNode_LinkedAnimLayer")

@@ -75,6 +75,7 @@ void FAnimNode_ApplyMeshSpaceAdditive::Update_AnyThread(const FAnimationUpdateCo
 void FAnimNode_ApplyMeshSpaceAdditive::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(ApplyMeshSpaceAdditive, !IsInGameThread());
 
 	//@TODO: Could evaluate Base into Output and save a copy
 	if (FAnimWeight::IsRelevant(ActualAlpha))

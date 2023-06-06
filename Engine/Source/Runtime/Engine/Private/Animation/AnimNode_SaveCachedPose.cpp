@@ -131,6 +131,8 @@ void FAnimNode_SaveCachedPose::Evaluate_AnyThread(FPoseContext& Output)
 	FCachedPoseThreadContext& CachedPoseThreadContext = FCachedPoseThreadContext::Get();
 	const FCachedPoseThreadContext::FCachedPose* CachedPose = nullptr;
 
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(SaveCachedPose, !IsInGameThread());
+
 	// Note that we check here for IsSynchronized_All to deal with cases like Sequencer:
 	// In these cases the counter can stay zeroed between unbound/bound updates and this can cause issues
 	// with using out-of-date cached data (stack-allocated from a previous frame).

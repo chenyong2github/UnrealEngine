@@ -111,6 +111,7 @@ void FAnimNode_MultiWayBlend::Update_AnyThread(const FAnimationUpdateContext& Co
 void FAnimNode_MultiWayBlend::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(MultiWayBlend, !IsInGameThread());
 
 	// this function may be reentrant when multiple MultiWayBlend nodes are chained together
 	// these scratch arrays are treated as stacks below

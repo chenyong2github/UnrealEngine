@@ -32,6 +32,8 @@ void FAnimNode_ObserveBone::GatherDebugData(FNodeDebugData& DebugData)
 void FAnimNode_ObserveBone::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(ObserveBone, !IsInGameThread());
+
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 
 	const FCompactPoseBoneIndex BoneIndex = BoneToObserve.GetCompactPoseIndex(BoneContainer);

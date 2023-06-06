@@ -77,6 +77,8 @@ public:
 void FAnimNode_CurveSource::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(CurveSource, !IsInGameThread());
+
 	SourcePose.Evaluate(Output);
 
 	if (CurveSource.GetInterface() != nullptr)

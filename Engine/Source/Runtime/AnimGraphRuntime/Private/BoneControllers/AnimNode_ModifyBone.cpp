@@ -37,6 +37,8 @@ void FAnimNode_ModifyBone::GatherDebugData(FNodeDebugData& DebugData)
 void FAnimNode_ModifyBone::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(ModifyBone, !IsInGameThread());
+
 	check(OutBoneTransforms.Num() == 0);
 
 	// the way we apply transform is same as FMatrix or FTransform

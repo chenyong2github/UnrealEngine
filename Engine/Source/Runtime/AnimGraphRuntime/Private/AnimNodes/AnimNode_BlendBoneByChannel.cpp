@@ -62,6 +62,8 @@ void FAnimNode_BlendBoneByChannel::Update_AnyThread(const FAnimationUpdateContex
 void FAnimNode_BlendBoneByChannel::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(BlendBoneByChannel, !IsInGameThread());
+
 	A.Evaluate(Output);
 
 	if (bBIsRelevant)

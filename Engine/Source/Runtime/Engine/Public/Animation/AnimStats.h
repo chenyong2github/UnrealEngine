@@ -45,6 +45,9 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("UpdateCurvesPostEvaluation"), STAT_UpdateCurvesP
 DECLARE_CYCLE_STAT_EXTERN(TEXT("TickAssetPlayerInstances"), STAT_TickAssetPlayerInstances, STATGROUP_Anim, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("TickAssetPlayerInstance"), STAT_TickAssetPlayerInstance, STATGROUP_Anim, );
 
+// Uncomment for verbose anim node state
+#define ANIMNODE_STATS_VERBOSE 0
+
 #define DO_ANIMSTAT_PROCESSING(StatName) DECLARE_CYCLE_STAT_EXTERN(TEXT(#StatName), STAT_ ## StatName, STATGROUP_Anim, ENGINE_API)
 #include "Animation/AnimMTStats.h"
 #undef DO_ANIMSTAT_PROCESSING
@@ -57,6 +60,12 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("TickAssetPlayerInstance"), STAT_TickAssetPlayerI
 #define ANIM_MT_SCOPE_CYCLE_COUNTER(StatName, bIsMultithreaded) \
 	TStatId CycleCountID_##StatName = (bIsMultithreaded ? GET_STATID(STAT_ ## StatName ## _WorkerThread) : GET_STATID(STAT_ ## StatName)); \
 	FScopeCycleCounter CycleCount_##StatName(CycleCountID_##StatName);
+	#if ANIMNODE_STATS_VERBOSE
+		#define ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(StateName, bIsMultithreaded) ANIM_MT_SCOPE_CYCLE_COUNTER(StateName, bIsMultithreaded)
+	#else
+		#define ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(StateName, bIsMultithreaded)
+	#endif
 #else
 	#define ANIM_MT_SCOPE_CYCLE_COUNTER(StatName, bIsMultithreaded)
+	#define ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(StateName, bIsMultithreaded)
 #endif

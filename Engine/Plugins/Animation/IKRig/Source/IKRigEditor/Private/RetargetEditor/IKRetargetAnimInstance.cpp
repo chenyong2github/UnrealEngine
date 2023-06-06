@@ -52,6 +52,7 @@ void FAnimNode_PreviewRetargetPose::CacheBones_AnyThread(const FAnimationCacheBo
 void FAnimNode_PreviewRetargetPose::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(PreviewRetargetPose, !IsInGameThread());
 
 	Output.Pose.ResetToRefPose();
 	

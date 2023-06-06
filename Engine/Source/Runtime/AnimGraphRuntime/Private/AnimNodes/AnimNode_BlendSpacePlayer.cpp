@@ -123,6 +123,7 @@ void FAnimNode_BlendSpacePlayerBase::UpdateInternal(const FAnimationUpdateContex
 void FAnimNode_BlendSpacePlayerBase::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread) 
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(BlendSpacePlayer, !IsInGameThread());
 
 	UBlendSpace* CurrentBlendSpace = GetBlendSpace();
 	if (CurrentBlendSpace != nullptr && CurrentBlendSpace->GetSkeleton() != nullptr)

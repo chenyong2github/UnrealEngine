@@ -52,6 +52,8 @@ FTransform FAnimNode_Fabrik::GetTargetTransform(const FTransform& InComponentTra
 void FAnimNode_Fabrik::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(Fabrik, !IsInGameThread());
+
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 
 	// Update EffectorLocation if it is based off a bone position

@@ -36,6 +36,8 @@ void FAnimNode_ModifyCurve::CacheBones_AnyThread(const FAnimationCacheBonesConte
 void FAnimNode_ModifyCurve::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(ModifyCurve, !IsInGameThread());
+
 	FPoseContext SourceData(Output);
 	SourcePose.Evaluate(SourceData);
 

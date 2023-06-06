@@ -87,6 +87,8 @@ void FAnimNode_AimOffsetLookAt::CacheBones_AnyThread(const FAnimationCacheBonesC
 
 void FAnimNode_AimOffsetLookAt::Evaluate_AnyThread(FPoseContext& Context)
 {
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(AimOffsetLookAt, !IsInGameThread());
+
 	// Evaluate base pose
 	BasePose.Evaluate(Context);
 

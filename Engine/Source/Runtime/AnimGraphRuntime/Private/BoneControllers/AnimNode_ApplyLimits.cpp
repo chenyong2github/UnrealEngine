@@ -32,6 +32,8 @@ void FAnimNode_ApplyLimits::GatherDebugData(FNodeDebugData& DebugData)
 void FAnimNode_ApplyLimits::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(ApplyLimits, !IsInGameThread());
+
 	checkSlow(OutBoneTransforms.Num() == 0);
 
 	FPoseContext LocalPose0(Output.AnimInstanceProxy);

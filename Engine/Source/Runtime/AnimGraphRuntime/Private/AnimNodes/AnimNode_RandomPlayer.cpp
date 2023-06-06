@@ -265,6 +265,8 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 void FAnimNode_RandomPlayer::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(RandomPlayer, !IsInGameThread());
+
 	if (ValidEntries.Num() == 0)
 	{
 		Output.ResetToRefPose();

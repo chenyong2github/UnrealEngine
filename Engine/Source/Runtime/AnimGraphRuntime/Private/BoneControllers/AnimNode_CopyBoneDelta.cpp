@@ -37,6 +37,8 @@ void FAnimNode_CopyBoneDelta::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		return;
 	}
 
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(CopyBoneDelta, !IsInGameThread());
+
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	FCompactPoseBoneIndex SourceBoneIndex = SourceBone.GetCompactPoseIndex(BoneContainer);
 	FCompactPoseBoneIndex TargetBoneIndex = TargetBone.GetCompactPoseIndex(BoneContainer);

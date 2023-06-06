@@ -139,6 +139,12 @@ protected:
 	void RequestBlend(const IAnimClassInterface* PriorAnimBPClass, const IAnimClassInterface* NewAnimBPClass);
 
 	friend class UAnimInstance;
+
+	// Stats
+#if ANIMNODE_STATS_VERBOSE
+	virtual void InitializeStatID() override;
+#endif
+
 };
 
 UE_DEPRECATED(4.24, "FAnimNode_SubInstance has been renamed to FAnimNode_LinkedAnimGraph")

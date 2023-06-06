@@ -242,3 +242,19 @@ void FAnimNode_LinkedAnimLayer::HandleObjectsReinstanced_Impl(UObject* InSourceO
 }
 
 #endif
+
+
+#if ANIMNODE_STATS_VERBOSE
+void FAnimNode_LinkedAnimLayer::InitializeStatID()
+{
+	if (GetTargetInstance<UAnimInstance>())
+	{
+		FString StatName = GetTargetInstance<UAnimInstance>()->GetClass()->GetName() + " " + GetDynamicLinkFunctionName().ToString();
+		StatID = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_Anim>(StatName);
+	}
+	else
+	{
+		Super::InitializeStatID();
+	}
+}
+#endif // ANIMNODE_STATS_VERBOSE

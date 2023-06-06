@@ -159,6 +159,11 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 
 void FAnimNode_LinkedAnimGraph::Evaluate_AnyThread(FPoseContext& Output)
 {
+#if	ANIMNODE_STATS_VERBOSE
+	// Record name of linked graph we are updating
+	FScopeCycleCounter LinkedAnimGraphNameCycleCounter(StatID);
+#endif // ANIMNODE_STATS_VERBOSE
+
 	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
 	if(InstanceToRun && LinkedRoot)
 	{
@@ -514,3 +519,17 @@ void FAnimNode_LinkedAnimGraph::HandleObjectsReinstanced_Impl(UObject* InSourceO
 	}
 }
 #endif
+
+#if ANIMNODE_STATS_VERBOSE
+void FAnimNode_LinkedAnimGraph::InitializeStatID()
+{
+	if (GetTargetInstance<UAnimInstance>())
+	{
+		StatID = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_Anim>(GetTargetInstance<UAnimInstance>()->GetClass()->GetName());
+	}
+	else
+	{
+		Super::InitializeStatID();
+	}
+}
+#endif // ANIMNODE_STATS_VERBOSE

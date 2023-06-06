@@ -65,7 +65,8 @@ void FAnimNode_RemapCurvesFromMesh::Evaluate_AnyThread(
 	)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
-	
+	ANIM_MT_SCOPE_CYCLE_COUNTER_VERBOSE(RemapCurvesFromMesh, !IsInGameThread());
+
 	using namespace CurveExpression::Evaluator;
 	
 	FPoseContext SourceData(Output);
