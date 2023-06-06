@@ -769,13 +769,6 @@ FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromHandle(FGamepl
 
 FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromGEHandle(FActiveGameplayEffectHandle Handle) const
 {
-	for (const FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
-	{
-		if (Spec.GameplayEffectHandle == Handle)
-		{
-			return const_cast<FGameplayAbilitySpec*>(&Spec);
-		}
-	}
 	return nullptr;
 }
 

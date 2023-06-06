@@ -1125,12 +1125,16 @@ FString UAbilitySystemComponent::GetActiveGEDebugString(FActiveGameplayEffectHan
 /** Gets the GE Handle of the GE that granted the passed in Ability */
 FActiveGameplayEffectHandle UAbilitySystemComponent::FindActiveGameplayEffectHandle(FGameplayAbilitySpecHandle Handle) const
 {
-	const FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(Handle);
-	if (Spec)
+	for (const FActiveGameplayEffect& ActiveGE : &ActiveGameplayEffects)
 	{
-		return Spec->GameplayEffectHandle;
+		for (const FGameplayAbilitySpecDef& AbilitySpecDef : ActiveGE.Spec.GrantedAbilitySpecs)
+		{
+			if (AbilitySpecDef.AssignedHandle == Handle)
+			{
+				return ActiveGE.Handle;
+			}
+		}
 	}
-
 	return FActiveGameplayEffectHandle();
 }
 

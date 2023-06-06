@@ -166,6 +166,14 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpec : public FFastArraySerializerI
 {
 	GENERATED_USTRUCT_BODY()
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FGameplayAbilitySpec(const FGameplayAbilitySpec&) = default;
+	FGameplayAbilitySpec(FGameplayAbilitySpec&&) = default;
+	FGameplayAbilitySpec& operator=(const FGameplayAbilitySpec&) = default;
+	FGameplayAbilitySpec& operator=(FGameplayAbilitySpec&&) = default;
+	~FGameplayAbilitySpec() = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	FGameplayAbilitySpec()
 		: Ability(nullptr), Level(1), InputID(INDEX_NONE), SourceObject(nullptr), ActiveCount(0), InputPressed(false), RemoveAfterActivation(false), PendingRemove(false), bActivateOnce(false)
 	{ }
@@ -238,7 +246,8 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpec : public FFastArraySerializerI
 	UPROPERTY()
 	TArray<TObjectPtr<UGameplayAbility>> ReplicatedInstances;
 
-	/** Handle to GE that granted us (usually invalid) */
+	/** Handle to GE that granted us (usually invalid). FActiveGameplayEffectHandles are not synced across the network. */
+	UE_DEPRECATED(5.3, "GameplayEffectHandle was never replicated across the network. If you need FGameplayAbilitySpec -> FActiveGameplayEffect then use AbilitySystemComponent::FindActiveGameplayEffectHandle")
 	UPROPERTY(NotReplicated)
 	FActiveGameplayEffectHandle	GameplayEffectHandle;
 

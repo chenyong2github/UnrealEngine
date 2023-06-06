@@ -296,7 +296,9 @@ FGameplayAbilitySpec::FGameplayAbilitySpec(FGameplayAbilitySpecDef& InDef, int32
 {
 	Handle.GenerateNewHandle();
 	InDef.AssignedHandle = Handle;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	GameplayEffectHandle = InGameplayEffectHandle;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SetByCallerTagMagnitudes = InDef.SetByCallerTagMagnitudes;
 
