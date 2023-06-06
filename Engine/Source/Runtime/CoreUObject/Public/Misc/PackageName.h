@@ -648,6 +648,17 @@ public:
 	static FString			ExportTextPathToObjectPath(const FString& InExportTextPath);
 	static FString			ExportTextPathToObjectPath(const TCHAR* InExportTextPath);
 
+	/**
+	 * Returns the top level 'directory' in a package name. If the package is part of a
+	 * plugin, the root will be the name of the associated plugin, otherwise it will be
+	 * 'Engine' or 'Game'.
+	 * 
+	 * Note the slashes are removed!
+	 * 
+	 * "/PackageRoot/Path/Leaf" -> (return "PackageRoot"; OutRelativePath = "Path/Leaf")
+	 */
+	static FStringView SplitPackageNameRoot(FStringView InPackageName, FStringView* OutRelativePath);
+	
 	/** 
 	 * Returns the name of the package referred to by the specified object path
 	 * 

@@ -2464,6 +2464,39 @@ FString FPackageName::ExportTextPathToObjectPath(const TCHAR* InExportTextPath)
 	return ExportTextPathToObjectPath(FString(InExportTextPath));
 }
 
+FStringView FPackageName::SplitPackageNameRoot(FStringView InPackageName, FStringView* OutRelativePath)
+{
+	if (!InPackageName.StartsWith(TEXT("/")))
+	{
+		if (OutRelativePath)
+		{
+			*OutRelativePath = InPackageName;
+		}
+		return FStringView();
+	}
+
+	// Strip the first slash.
+	InPackageName.RightChopInline(1);
+
+	int32 SecondSlashIndex;
+	InPackageName.FindChar('/', SecondSlashIndex);
+	if (SecondSlashIndex == INDEX_NONE)
+	{
+		if (OutRelativePath)
+		{
+			*OutRelativePath = FStringView();
+		}
+		return InPackageName;
+	}
+
+	if (OutRelativePath)
+	{
+		*OutRelativePath = InPackageName.RightChop(SecondSlashIndex + 1);
+	}
+	return InPackageName.Left(SecondSlashIndex);
+};
+
+
 template<class T>
 T ObjectPathToPackageNameImpl(const T& InObjectPath)
 {
