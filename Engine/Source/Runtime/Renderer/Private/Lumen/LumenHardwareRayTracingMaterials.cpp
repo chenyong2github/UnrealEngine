@@ -106,27 +106,6 @@ class FLumenHardwareRayTracingMaterialMS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FLumenHardwareRayTracingMaterialMS, "/Engine/Private/Lumen/LumenHardwareRayTracingMaterials.usf", "LumenHardwareRayTracingMaterialMS", SF_RayMiss);
 
-// TODO: This should be moved into FRayTracingScene and used as a base for other effects. There is not need for it to be Lumen specific.
-void BuildHardwareRayTracingHitGroupData(FRHICommandList& RHICmdList, FRayTracingScene& RayTracingScene, TArrayView<FRayTracingLocalShaderBindings> Bindings, FRDGBufferRef DstBuffer)
-{
-	Lumen::FHitGroupRootConstants* DstBasePtr = (Lumen::FHitGroupRootConstants*)RHILockBuffer(DstBuffer->GetRHI(), 0, DstBuffer->GetSize(), RLM_WriteOnly);
-
-	const FRayTracingSceneInitializer2& SceneInitializer = RayTracingScene.GetRHIRayTracingSceneChecked()->GetInitializer();
-
-	for (const FRayTracingLocalShaderBindings& Binding : Bindings)
-	{
-		const uint32 InstanceIndex = Binding.InstanceIndex;
-		const uint32 SegmentIndex = Binding.SegmentIndex;
-
-		const uint32 HitGroupIndex = SceneInitializer.SegmentPrefixSum[InstanceIndex] + SegmentIndex;
-
-		DstBasePtr[HitGroupIndex].BaseInstanceIndex = SceneInitializer.BaseInstancePrefixSum[InstanceIndex];
-		DstBasePtr[HitGroupIndex].UserData = Binding.UserData;
-	}
-
-	RHIUnlockBuffer(DstBuffer->GetRHI());
-}
-
 void FDeferredShadingSceneRenderer::SetupLumenHardwareRayTracingHitGroupBuffer(FRDGBuilder& GraphBuilder, FViewInfo& View)
 {
 	const FRayTracingSceneInitializer2& SceneInitializer = Scene->RayTracingScene.GetRHIRayTracingSceneChecked()->GetInitializer();
@@ -146,14 +125,44 @@ void FDeferredShadingSceneRenderer::SetupLumenHardwareRayTracingUniformBuffer(FR
 	View.LumenHardwareRayTracingUniformBuffer = GraphBuilder.CreateUniformBuffer(LumenHardwareRayTracingUniformBufferParameters);
 }
 
-FRayTracingLocalShaderBindings* FDeferredShadingSceneRenderer::BuildLumenHardwareRayTracingMaterialBindings(FRHICommandList& RHICmdList, const FViewInfo& View, FRHIUniformBuffer* SceneUniformBuffer, FRDGBufferRef OutHitGroupDataBuffer, bool bInlineOnly)
+uint32 CalculateLumenHardwareRayTracingUserData(const FRayTracingMeshCommand& MeshCommand)
+{
+	return (MeshCommand.MaterialShaderIndex & 0x3FFFFFFF)
+		| (((MeshCommand.bTwoSided != 0) & 0x01) << 30)
+		| (((MeshCommand.bIsTranslucent != 0) & 0x01) << 31);
+}
+
+// TODO: This should be moved into FRayTracingScene and used as a base for other effects. There is not need for it to be Lumen specific.
+void FDeferredShadingSceneRenderer::BuildLumenHardwareRayTracingHitGroupData(FRayTracingScene& RayTracingScene, const FViewInfo& ReferenceView, FRDGBufferRef DstBuffer)
+{
+	Lumen::FHitGroupRootConstants* DstBasePtr = (Lumen::FHitGroupRootConstants*)RHILockBuffer(DstBuffer->GetRHI(), 0, DstBuffer->GetSize(), RLM_WriteOnly);
+
+	const FRayTracingSceneInitializer2& SceneInitializer = RayTracingScene.GetRHIRayTracingSceneChecked()->GetInitializer();
+
+	for (const FVisibleRayTracingMeshCommand VisibleMeshCommand : ReferenceView.VisibleRayTracingMeshCommands)
+	{
+		const FRayTracingMeshCommand& MeshCommand = *VisibleMeshCommand.RayTracingMeshCommand;
+
+		const uint32 InstanceIndex = VisibleMeshCommand.InstanceIndex;
+		const uint32 SegmentIndex = MeshCommand.GeometrySegmentIndex;
+
+		const uint32 HitGroupIndex = SceneInitializer.SegmentPrefixSum[InstanceIndex] + SegmentIndex;
+
+		DstBasePtr[HitGroupIndex].BaseInstanceIndex = SceneInitializer.BaseInstancePrefixSum[InstanceIndex];
+		DstBasePtr[HitGroupIndex].UserData = CalculateLumenHardwareRayTracingUserData(MeshCommand);
+	}
+
+	RHIUnlockBuffer(DstBuffer->GetRHI());
+}
+
+FRayTracingLocalShaderBindings* FDeferredShadingSceneRenderer::BuildLumenHardwareRayTracingMaterialBindings(FRHICommandList& RHICmdList, const FViewInfo& View, FRHIUniformBuffer* SceneUniformBuffer)
 {
 	const FViewInfo& ReferenceView = Views[0];
 	const int32 NumTotalBindings = LumenHardwareRayTracing::NumHitGroups * ReferenceView.VisibleRayTracingMeshCommands.Num();
 
 	auto Alloc = [&](uint32 Size, uint32 Align)
 	{
-		return RHICmdList.Bypass() || bInlineOnly
+		return RHICmdList.Bypass()
 			? Allocator.Malloc(Size, Align)
 			: RHICmdList.Alloc(Size, Align);
 	};
@@ -168,13 +177,13 @@ FRayTracingLocalShaderBindings* FDeferredShadingSceneRenderer::BuildLumenHardwar
 		FRHIUniformBuffer** UniformBufferArray;
 	};
 
-	auto SetupBinding = [&](FLumenHardwareRayTracingMaterialHitGroup::FPermutationDomain PermutationVector, uint32 ShaderIndexInPipelineFallback)
+	auto SetupBinding = [&](FLumenHardwareRayTracingMaterialHitGroup::FPermutationDomain PermutationVector)
 	{
 		auto Shader = View.ShaderMap->GetShader<FLumenHardwareRayTracingMaterialHitGroup>(PermutationVector);
 		auto HitGroupShader = Shader.GetRayTracingShader();
 
 		FBinding Binding;
-		Binding.ShaderIndexInPipeline = GRHISupportsRayTracingShaders ? FindRayTracingHitGroupIndex(View.LumenHardwareRayTracingMaterialPipeline, HitGroupShader, true) : ShaderIndexInPipelineFallback;
+		Binding.ShaderIndexInPipeline = FindRayTracingHitGroupIndex(View.LumenHardwareRayTracingMaterialPipeline, HitGroupShader, true);
 		Binding.NumUniformBuffers = Shader->ParameterMapInfo.UniformBuffers.Num();
 		Binding.UniformBufferArray = (FRHIUniformBuffer**)Alloc(sizeof(FRHIUniformBuffer*) * Binding.NumUniformBuffers, alignof(FRHIUniformBuffer*));
 
@@ -219,21 +228,21 @@ FRayTracingLocalShaderBindings* FDeferredShadingSceneRenderer::BuildLumenHardwar
 		{
 			PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FAvoidSelfIntersections>(false);
 			PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FNaniteRayTracing>(false);
-			ShaderBindings[0] = SetupBinding(PermutationVector, 0);
+			ShaderBindings[0] = SetupBinding(PermutationVector);
 
 			PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FAvoidSelfIntersections>(true);
 			PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FNaniteRayTracing>(false);
-			ShaderBindings[1] = SetupBinding(PermutationVector, 1);
+			ShaderBindings[1] = SetupBinding(PermutationVector);
 		}
 
 		{
 			PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FAvoidSelfIntersections>(false);
 			PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FNaniteRayTracing>(true);
-			ShaderBindingsNaniteRT[0] = SetupBinding(PermutationVector, 0);
+			ShaderBindingsNaniteRT[0] = SetupBinding(PermutationVector);
 
 			PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FAvoidSelfIntersections>(true);
 			PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FNaniteRayTracing>(true);
-			ShaderBindingsNaniteRT[1] = SetupBinding(PermutationVector, 1);
+			ShaderBindingsNaniteRT[1] = SetupBinding(PermutationVector);
 		}
 	}
 
@@ -251,21 +260,13 @@ FRayTracingLocalShaderBindings* FDeferredShadingSceneRenderer::BuildLumenHardwar
 			Binding.ShaderIndexInPipeline = LumenBinding.ShaderIndexInPipeline;
 			Binding.InstanceIndex = VisibleMeshCommand.InstanceIndex;
 			Binding.SegmentIndex = MeshCommand.GeometrySegmentIndex;
-			uint32 PackedUserData = (MeshCommand.MaterialShaderIndex & 0x3FFFFFFF)
-				| (((MeshCommand.bTwoSided != 0) & 0x01) << 30)
-				| (((MeshCommand.bIsTranslucent != 0) & 0x01) << 31);
-			Binding.UserData = PackedUserData;
+			Binding.UserData = CalculateLumenHardwareRayTracingUserData(MeshCommand);
 			Binding.UniformBuffers = LumenBinding.UniformBufferArray;
 			Binding.NumUniformBuffers = LumenBinding.NumUniformBuffers;
 
 			Bindings[BindingIndex] = Binding;
 			BindingIndex++;
 		}
-	}
-
-	if (OutHitGroupDataBuffer)
-	{
-		BuildHardwareRayTracingHitGroupData(RHICmdList, Scene->RayTracingScene, MakeArrayView(Bindings, NumTotalBindings), OutHitGroupDataBuffer);
 	}
 
 	return Bindings;
@@ -318,13 +319,9 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateLumenHardwareRayT
 	return PipelineState;
 }
 
-void FDeferredShadingSceneRenderer::BindLumenHardwareRayTracingMaterialPipeline(FRHICommandListImmediate& RHICmdList, FRayTracingLocalShaderBindings* Bindings, const FViewInfo& View, FRHIUniformBuffer* SceneUniformBuffer, FRayTracingPipelineState* PipelineState, FRDGBufferRef OutHitGroupDataBuffer)
+void FDeferredShadingSceneRenderer::BindLumenHardwareRayTracingMaterialPipeline(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRHIUniformBuffer* SceneUniformBuffer, FRayTracingPipelineState* PipelineState)
 {
-	// If we haven't build bindings before we need to build them here
-	if (Bindings == nullptr)
-	{
-		Bindings = BuildLumenHardwareRayTracingMaterialBindings(RHICmdList, View, SceneUniformBuffer, OutHitGroupDataBuffer, false);
-	}
+	FRayTracingLocalShaderBindings* Bindings = BuildLumenHardwareRayTracingMaterialBindings(RHICmdList, View, SceneUniformBuffer);
 
 	const int32 NumTotalBindings = LumenHardwareRayTracing::NumHitGroups * View.VisibleRayTracingMeshCommands.Num();	
 

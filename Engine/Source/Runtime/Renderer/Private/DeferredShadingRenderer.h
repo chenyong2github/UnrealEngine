@@ -1154,9 +1154,10 @@ private:
 	/** Functions to bind parameters to the ray tracing scene (fill the shader binding tables, etc.) */
 	void BindRayTracingMaterialPipeline(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FRayTracingPipelineState* PipelineState);
 	void BindRayTracingDeferredMaterialGatherPipeline(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRayTracingPipelineState* PipelineState);
-	void BindLumenHardwareRayTracingMaterialPipeline(FRHICommandListImmediate& RHICmdList, FRayTracingLocalShaderBindings* Bindings, const FViewInfo& View, FRHIUniformBuffer* SceneUniformBuffer, FRayTracingPipelineState* PipelineState, FRDGBufferRef OutHitGroupDataBuffer);
+	void BindLumenHardwareRayTracingMaterialPipeline(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRHIUniformBuffer* SceneUniformBuffer, FRayTracingPipelineState* PipelineState);
 
-	FRayTracingLocalShaderBindings* BuildLumenHardwareRayTracingMaterialBindings(FRHICommandList& RHICmdList, const FViewInfo& View, FRHIUniformBuffer* SceneUniformBuffer, FRDGBufferRef OutHitGroupDataBuffer, bool bInlineOnly);
+	void BuildLumenHardwareRayTracingHitGroupData(FRayTracingScene& RayTracingScene, const FViewInfo& View, FRDGBufferRef OutHitGroupDataBuffer);
+	FRayTracingLocalShaderBindings* BuildLumenHardwareRayTracingMaterialBindings(FRHICommandList& RHICmdList, const FViewInfo& View, FRHIUniformBuffer* SceneUniformBuffer);
 	void SetupLumenHardwareRayTracingHitGroupBuffer(FRDGBuilder& GraphBuilder, FViewInfo& View);
 	void SetupLumenHardwareRayTracingUniformBuffer(FRDGBuilder& GraphBuilder, FViewInfo& View);
 	// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. Register each effect at startup and just loop over them automatically
