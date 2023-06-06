@@ -131,6 +131,9 @@ public:
 	/** Calls AddAlias or RemoveAlias for every alias that doesn't match the stored data for the given asset. */
 	void ReconcileAliasesForAsset(const FAssetData& Asset, const TArray<FName>& NewAliases);
 
+	/** Logs all the content browser aliases */
+	void LogAliases() const;
+
 protected:
 	virtual void BuildRootPathVirtualTree() override;
 
