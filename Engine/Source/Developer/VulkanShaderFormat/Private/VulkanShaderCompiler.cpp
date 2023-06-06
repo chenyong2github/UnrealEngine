@@ -416,7 +416,7 @@ static void AddUBResources(FOLDVulkanCodeHeader& OLDHeader,
 				UBResourceInfo.GlobalIndex = HeaderGlobalIndex;
 				UBResourceInfo.UBBaseType = (EUniformBufferBaseType)ResourceTableEntry.Type;
 #if VULKAN_ENABLE_BINDING_DEBUG_NAMES
-				UBResourceInfo.DebugName = MemberName;
+				UBResourceInfo.DebugName = ResourceTableEntry.UniformBufferMemberName;
 #endif
 				// Iterate to next info
 				ResourceInfo = *ResourceInfos++;
@@ -438,15 +438,27 @@ static void AddUniformBuffer(FOLDVulkanCodeHeader& OLDHeader,
 	TArray<FPatchType>& OutTypePatch,
 	TArray<FString>& GlobalNames)
 {
-	int32 HeaderUBIndex = -1;
-	HeaderUBIndex = OutHeader.UniformBuffers.AddZeroed();
-
+	const int32 HeaderUBIndex = OutHeader.UniformBuffers.AddZeroed();
 	FVulkanShaderHeader::FUniformBufferInfo& UBInfo = OutHeader.UniformBuffers[HeaderUBIndex];
+
 	const FUniformBufferEntry* UniformBufferEntry = ShaderInput.Environment.UniformBufferMap.Find(UBName);
-	UBInfo.LayoutHash = UniformBufferEntry ? UniformBufferEntry->LayoutHash : 0;
+	if (UniformBufferEntry)
+	{
+		UBInfo.LayoutHash = UniformBufferEntry->LayoutHash;
+	}
+	else if ((UBName == FShaderParametersMetadata::kRootUniformBufferBindingName) && ShaderInput.RootParametersStructure)
+	{
+		UBInfo.LayoutHash = ShaderInput.RootParametersStructure->GetLayoutHash();
+	}
+	else
+	{
+		UBInfo.LayoutHash = 0;
+	}
+
 #if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 	UBInfo.DebugName = UBName;
 #endif
+
 	const FVulkanSpirv::FEntry* Entry = Spirv.GetEntry(UBName);
 	if (Entry)
 	{
@@ -1479,7 +1491,7 @@ static void GatherSpirvReflectionBindings(
 			for (int32 Index = BindingArray.Num() - 1; Index >= 0; --Index)
 			{
 				const SpvReflectDescriptorBinding* pBinding = BindingArray[Index];
-				FString BindingName(ANSI_TO_TCHAR(pBinding->name));
+				const FString BindingName(ANSI_TO_TCHAR(pBinding->name));
 				if (BindingName.StartsWith(HeapPrefix))
 				{
 					const uint32 Binding = 0;  // single bindless heap per descriptor set
@@ -1503,11 +1515,10 @@ static void GatherSpirvReflectionBindings(
 		// Move uniform buffers to the correct set
 		{
 			const uint32 BindingOffset = (StageIndex * VulkanBindless::MaxUniformBuffersPerStage);
-			const uint32 BinldessDescSetNo = VulkanBindless::BindlessUniformBufferSet;
 			for (int32 Index = OutBindings.UniformBuffers.Num() - 1; Index >= 0; --Index)
 			{
 				const SpvReflectDescriptorBinding* pBinding = OutBindings.UniformBuffers[Index];
-				Reflection.ChangeDescriptorBindingNumbers(pBinding, BindingOffset + pBinding->binding, BinldessDescSetNo);
+				Reflection.ChangeDescriptorBindingNumbers(pBinding, BindingOffset + pBinding->binding, VulkanBindless::BindlessSingleUseUniformBufferSet);
 			}
 		}
 	}
@@ -1618,9 +1629,10 @@ static bool BuildShaderOutputFromSpirv(
 	}
 
 	const bool bSupportsBindless = Input.Environment.CompilerFlags.Contains(CFLAG_BindlessResources) || Input.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers);
+	const EShaderFrequency Frequency = static_cast<EShaderFrequency>(Input.Target.Frequency);
 
 	FSpirvReflectBindings Bindings;
-	GatherSpirvReflectionBindings(Reflection, Bindings, static_cast<EShaderFrequency>(Input.Target.Frequency), bSupportsBindless);
+	GatherSpirvReflectionBindings(Reflection, Bindings, Frequency, bSupportsBindless);
 
 	// Register how often a sampler-state is used
 	for (const SpvReflectDescriptorBinding* Binding : Bindings.TextureSRVs)
@@ -1752,9 +1764,9 @@ static bool BuildShaderOutputFromSpirv(
 		if (ResourceName == UBOGlobalsNameSpv)
 		{
 			// Register binding for uniform buffer
-			const int32 StageOffset = bSupportsBindless ? (ShaderStage::GetStageForFrequency(static_cast<EShaderFrequency>(Input.Target.Frequency)) * VulkanBindless::MaxUniformBuffersPerStage) : 0;
+			const int32 StageOffset = bSupportsBindless ? (ShaderStage::GetStageForFrequency(Frequency) * VulkanBindless::MaxUniformBuffersPerStage) : 0;
 			const int32 BindingIndex = MapDescriptorBindingToIndex(Binding) + StageOffset;
-			const uint32_t DescSetNumber = bSupportsBindless ? (uint32_t)VulkanBindless::BindlessUniformBufferSet : (uint32_t)SPV_REFLECT_SET_NUMBER_DONT_CHANGE;
+			const uint32_t DescSetNumber = bSupportsBindless ? (uint32_t)VulkanBindless::BindlessSingleUseUniformBufferSet : (uint32_t)SPV_REFLECT_SET_NUMBER_DONT_CHANGE;
 
 			SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex, DescSetNumber);
 			check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
@@ -1784,9 +1796,9 @@ static bool BuildShaderOutputFromSpirv(
 		if (ResourceName != UBOGlobalsNameSpv)
 		{
 			// Register uniform buffer
-			const int32 StageOffset = bSupportsBindless ? (ShaderStage::GetStageForFrequency(static_cast<EShaderFrequency>(Input.Target.Frequency)) * VulkanBindless::MaxUniformBuffersPerStage) : 0;
+			const int32 StageOffset = bSupportsBindless ? (ShaderStage::GetStageForFrequency(Frequency) * VulkanBindless::MaxUniformBuffersPerStage) : 0;
 			const int32 BindingIndex = MapDescriptorBindingToIndex(Binding) + StageOffset;
-			const uint32_t DescSetNumber = bSupportsBindless ? (uint32_t)VulkanBindless::BindlessUniformBufferSet : (uint32_t)SPV_REFLECT_SET_NUMBER_DONT_CHANGE;
+			const uint32_t DescSetNumber = bSupportsBindless ? (uint32_t)VulkanBindless::BindlessSingleUseUniformBufferSet : (uint32_t)SPV_REFLECT_SET_NUMBER_DONT_CHANGE;
 			SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex, DescSetNumber);
 			check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
 
@@ -2484,8 +2496,8 @@ static bool CompileWithShaderConductor(
 class FVulkanShaderParameterParser : public FShaderParameterParser
 {
 public:
-	FVulkanShaderParameterParser(FShaderCompilerFlags CompilerFlags)
-		: FShaderParameterParser(CompilerFlags)
+	FVulkanShaderParameterParser(FShaderCompilerFlags CompilerFlags, const TCHAR* InConstantBufferType)
+		: FShaderParameterParser(CompilerFlags, InConstantBufferType)
 	{}
 
 protected:
@@ -2494,7 +2506,7 @@ protected:
 		if (bBindlessResources || bBindlessSamplers)
 		{
 			const bool IsSampler = (ParsedParameter.BindlessConversionType == EBindlessConversionType::Sampler);
-			const TCHAR* IndexPrefix = IsSampler ? TEXT("BindlessSampler_") : TEXT("BindlessResource_");
+			const TCHAR* IndexPrefix = IsSampler ? FShaderParameterParser::kBindlessSamplerPrefix : FShaderParameterParser::kBindlessResourcePrefix;
 			const TCHAR* HeapPrefix = IsSampler ? VulkanBindless::kBindlessSamplerArrayPrefix : VulkanBindless::kBindlessResourceArrayPrefix;
 
 			const TCHAR* StorageClass = ParsedParameter.bGloballyCoherent ? TEXT("globallycoherent ") : TEXT("");
@@ -2654,14 +2666,14 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		}
 	}
 
-	FVulkanShaderParameterParser ShaderParameterParser(Input.Environment.CompilerFlags);
+	FVulkanShaderParameterParser ShaderParameterParser(Input.Environment.CompilerFlags, nullptr);
 	if (!ShaderParameterParser.ParseAndModify(Input, Output.Errors, PreprocessedShaderSource))
 	{
 		// The FShaderParameterParser will add any relevant errors.
 		return;
 	}
 
-	FString EntryPointName = Input.EntryPointName;
+	const FString EntryPointName = Input.EntryPointName;
 
 	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShaderSource);
 

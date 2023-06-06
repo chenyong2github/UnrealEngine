@@ -57,7 +57,7 @@ static FAutoConsoleVariableRef CVarVulkanBindlessMaxStorageTexelBufferCount(
 	ECVF_ReadOnly
 );
 
-int32 GVulkanBindlessMaxUniformBufferDescriptorCount = 2 * 1024 * 1024;
+int32 GVulkanBindlessMaxUniformBufferDescriptorCount = 768 * 1024;
 static FAutoConsoleVariableRef CVarVulkanBindlessMaxUniformBufferCount(
 	TEXT("r.Vulkan.Bindless.MaxResourceUniformBufferCount"),
 	GVulkanBindlessMaxUniformBufferDescriptorCount,
@@ -105,6 +105,7 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Peak Descriptor Count"), STAT_Vu
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Samplers"), STAT_VulkanBindlessPeakSampler, STATGROUP_VulkanBindless, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Sampled Images"), STAT_VulkanBindlessPeakSampledImage, STATGROUP_VulkanBindless, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Storage Images"), STAT_VulkanBindlessPeakStorageImage, STATGROUP_VulkanBindless, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Uniform Buffers"), STAT_VulkanBindlessPeakUniformBuffer, STATGROUP_VulkanBindless, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Storage Buffers"), STAT_VulkanBindlessPeakStorageBuffer, STATGROUP_VulkanBindless, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Uniform Texel Buffers"), STAT_VulkanBindlessPeakUniformTexelBuffer, STATGROUP_VulkanBindless, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Storage Texel Buffers"), STAT_VulkanBindlessPeakStorageTexelBuffer, STATGROUP_VulkanBindless, );
@@ -115,6 +116,7 @@ DEFINE_STAT(STAT_VulkanBindlessPeakDescriptorCount);
 DEFINE_STAT(STAT_VulkanBindlessPeakSampler);
 DEFINE_STAT(STAT_VulkanBindlessPeakSampledImage);
 DEFINE_STAT(STAT_VulkanBindlessPeakStorageImage);
+DEFINE_STAT(STAT_VulkanBindlessPeakUniformBuffer);
 DEFINE_STAT(STAT_VulkanBindlessPeakStorageBuffer);
 DEFINE_STAT(STAT_VulkanBindlessPeakUniformTexelBuffer);
 DEFINE_STAT(STAT_VulkanBindlessPeakStorageTexelBuffer);
@@ -152,6 +154,7 @@ static inline VkDescriptorType GetDescriptorTypeForSetIndex(uint8 SetIndex)
 	case VulkanBindless::BindlessStorageTexelBufferSet:     return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
 	case VulkanBindless::BindlessStorageBufferSet:          return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	case VulkanBindless::BindlessUniformBufferSet:          return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	case VulkanBindless::BindlessSingleUseUniformBufferSet: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	case VulkanBindless::BindlessAccelerationStructureSet:  return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
 	default: checkNoEntry();
 	}
@@ -447,7 +450,7 @@ void FVulkanBindlessDescriptorManager::Init()
 		};
 
 		// Create the descriptor buffer for a BindlessSetState
-		auto CreateDescriptorBuffer = [&](BindlessSetState& InOutState, VkDescriptorBufferBindingInfoEXT& OutBufferBindingInfo) {
+		auto CreateDescriptorBuffer = [&](BindlessSetState& InOutState, VkDescriptorBufferBindingInfoEXT& OutBufferBindingInfo, bool IsSingleUseUniformBufferSet) {
 
 			// Skip unsupported descriptors
 			if (InOutState.DescriptorType == VK_DESCRIPTOR_TYPE_MAX_ENUM)
@@ -455,7 +458,6 @@ void FVulkanBindlessDescriptorManager::Init()
 				return 0u;
 			}
 
-			const bool IsUniformBufferSet = (InOutState.DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 			const bool IsSamplerSet = (InOutState.DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLER);
 			const VkBufferUsageFlags BufferUsageFlags =
 				VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
@@ -468,7 +470,7 @@ void FVulkanBindlessDescriptorManager::Init()
 
 			VkDeviceSize LayoutSizeInBytes = 0;
 			VulkanRHI::vkGetDescriptorSetLayoutSizeEXT(DeviceHandle, InOutState.DescriptorSetLayout, &LayoutSizeInBytes);
-			if (IsUniformBufferSet)
+			if (IsSingleUseUniformBufferSet)
 			{
 				// todo-jn: We're picky about uniform buffers values for now to allow for shortcuts...
 				check(LayoutSizeInBytes == (ShaderStage::MaxNumSets * VulkanBindless::MaxUniformBuffersPerStage * InOutState.DescriptorSize));
@@ -558,8 +560,9 @@ void FVulkanBindlessDescriptorManager::Init()
 
 			BindlessSetState& State = BindlessSetStates[SetIndex];
 			InitBindlessSetState(GetDescriptorTypeForSetIndex(SetIndex), State);
-			State.DescriptorSetLayout = (SetIndex == VulkanBindless::BindlessUniformBufferSet) ? CreateShaderStageUniformBufferLayout() : CreateDescriptorSetLayout(State);
-			TotalResourceDescriptorBufferSize += CreateDescriptorBuffer(State, BufferBindingInfo[SetIndex]);
+			const bool IsSingleUseUniformBufferSet = (SetIndex == VulkanBindless::BindlessSingleUseUniformBufferSet);
+			State.DescriptorSetLayout = IsSingleUseUniformBufferSet ? CreateShaderStageUniformBufferLayout() : CreateDescriptorSetLayout(State);
+			TotalResourceDescriptorBufferSize += CreateDescriptorBuffer(State, BufferBindingInfo[SetIndex], IsSingleUseUniformBufferSet);
 		}
 
 		checkf(TotalResourceDescriptorBufferSize < DescriptorBufferProperties.resourceDescriptorBufferAddressSpaceSize,
@@ -616,8 +619,7 @@ void FVulkanBindlessDescriptorManager::RegisterUniformBuffers(VkCommandBuffer Co
 
 	SCOPED_NAMED_EVENT(FVulkanBindlessDescriptorManager_RegisterUniformBuffers, FColor::Purple);
 
-	const uint8 SetIndex = GetIndexForDescriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	BindlessSetState& BindlessUniformBufferSetState = BindlessSetStates[SetIndex];
+	BindlessSetState& BindlessUniformBufferSetState = BindlessSetStates[VulkanBindless::BindlessSingleUseUniformBufferSet];
 
 	// :todo-jn: Current uniform buffer layout is a bit wasteful with all the skipped bindings...
 	const uint32 BlockDescriptorCount = VulkanBindless::MaxUniformBuffersPerStage * ShaderStage::MaxNumSets;
@@ -628,7 +630,7 @@ void FVulkanBindlessDescriptorManager::RegisterUniformBuffers(VkCommandBuffer Co
 
 	VkDeviceSize BufferOffsets[VulkanBindless::NumBindlessSets];
 	FMemory::Memzero(BufferOffsets);
-	BufferOffsets[VulkanBindless::BindlessUniformBufferSet] = FirstDescriptorByteOffset;
+	BufferOffsets[VulkanBindless::BindlessSingleUseUniformBufferSet] = FirstDescriptorByteOffset;
 	checkSlow(FirstDescriptorByteOffset % Device->GetOptionalExtensionProperties().DescriptorBufferProps.descriptorBufferOffsetAlignment == 0);
 
 	// :todo-jn: Clear them for easier debugging for now
@@ -685,6 +687,7 @@ void FVulkanBindlessDescriptorManager::RegisterUniformBuffers(VkCommandBuffer Co
 		}
 		else
 		{
+			const uint8 SetIndex = VulkanBindless::BindlessSingleUseUniformBufferSet;
 			VulkanRHI::vkCmdSetDescriptorBufferOffsetsEXT(CommandBuffer, BindPoint, BindlessPipelineLayout, SetIndex, 1u, &BufferIndices[SetIndex], &BufferOffsets[SetIndex]);
 		}
 	}
@@ -702,10 +705,11 @@ void FVulkanBindlessDescriptorManager::UpdateStatsForHandle(FRHIDescriptorHandle
 	case VulkanBindless::BindlessStorageImageSet:           SET_DWORD_STAT(STAT_VulkanBindlessPeakStorageImage, State.PeakDescriptorCount); break;
 	case VulkanBindless::BindlessUniformTexelBufferSet:     SET_DWORD_STAT(STAT_VulkanBindlessPeakUniformTexelBuffer, State.PeakDescriptorCount); break;
 	case VulkanBindless::BindlessStorageTexelBufferSet:     SET_DWORD_STAT(STAT_VulkanBindlessPeakStorageTexelBuffer, State.PeakDescriptorCount); break;
+	case VulkanBindless::BindlessUniformBufferSet:          SET_DWORD_STAT(STAT_VulkanBindlessPeakUniformBuffer, State.PeakDescriptorCount); break;
 	case VulkanBindless::BindlessStorageBufferSet:          SET_DWORD_STAT(STAT_VulkanBindlessPeakStorageBuffer, State.PeakDescriptorCount); break;
 	case VulkanBindless::BindlessAccelerationStructureSet:  SET_DWORD_STAT(STAT_VulkanBindlessPeakAccelerationStructure, State.PeakDescriptorCount); break;
 
-	case VulkanBindless::BindlessUniformBufferSet:
+	case VulkanBindless::BindlessSingleUseUniformBufferSet:
 	default: checkNoEntry();
 	}
 }
@@ -821,7 +825,7 @@ void FVulkanBindlessDescriptorManager::UpdateBuffer(FRHIDescriptorHandle Descrip
 	if (bIsSupported)
 	{
 		const VkDescriptorType DescriptorType = GetDescriptorTypeForSetIndex(DescriptorHandle.GetRawType());
-		check(/*(DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) ||*/ (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER));
+		check((DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) || (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER));
 
 		// :todo-jn: start caching buffer addresses in resources to avoid the extra call
 		VkBufferDeviceAddressInfo BufferInfo;

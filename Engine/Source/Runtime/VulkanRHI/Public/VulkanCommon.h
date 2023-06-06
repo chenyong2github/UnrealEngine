@@ -121,6 +121,7 @@ namespace VulkanBindless
 		BindlessSamplerSet = 0,
 
 		BindlessStorageBufferSet,
+		BindlessUniformBufferSet,
 
 		BindlessStorageImageSet,
 		BindlessSampledImageSet,
@@ -130,7 +131,7 @@ namespace VulkanBindless
 
 		BindlessAccelerationStructureSet,
 
-		BindlessUniformBufferSet,  // Keep last
+		BindlessSingleUseUniformBufferSet,  // Keep last
 		NumBindlessSets,
 		MaxNumSets = NumBindlessSets
 	};
