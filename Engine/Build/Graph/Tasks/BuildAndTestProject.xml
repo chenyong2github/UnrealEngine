@@ -2,6 +2,9 @@
 <BuildGraph xmlns="http://www.epicgames.com/BuildGraph" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.epicgames.com/BuildGraph ../Schema.xsd" >
 	<EnvVar Name="UE_HORDE_JOBID"/>
 	
+	<EnvVar Name="UE-CloudPublishHost"/>
+	<EnvVar Name="UE-CloudPublishNamespace"/>
+	
 	<!-- Project Options -->
 	<Option Name="ProjectName" DefaultValue="None" Restrict=".+" Description="Name of Project"/>
 	<Option Name="ProjectPath" DefaultValue="None" Restrict=".+" Description="Path to the folder that contains your project"/>
@@ -53,6 +56,8 @@
 	<Option Name="NetworkPublishRootOverride" DefaultValue="" Description="Network publish root override"/>
 	<Option Name="NetworkReportRootOverride" DefaultValue="" Description="Network report root override"/>
 	<Option Name="SymbolServerPath" DefaultValue="" Description="Symbol server path"/>
+
+	<Option Name="PublishCloudSnapshot" DefaultValue="false" Restrict="true|false" Description="Publish build to cloud host" />
 
 	<Option Name="EnableSymbolStore" DefaultValue="$(IsBuildMachine)" Restrict="true|false" Description="Enables the upload of debugging symbols" />
 	<Property Name="SymbolServerPath" Value="" If="$(EnableSymbolStore) == 'false'"/>
@@ -517,9 +522,19 @@
 					<Spawn Exe="$(RootDir)/Engine/Restricted/NotForLicensees/Binaries/Win64/unsync.exe" Arguments="hash &quot;$(ProjectOutputDirectory)/$(StagedPlatformFolder)&quot; -v --buffered-files"/>
 				</Do>
 			</Node>
+
+			<!-- (Optional) Publish to Cloud -->
+			<Property Name="PlatformPublishStageDependencyName" Value="$(PlatformHashNodeName)" />
+			<Do If="$(PublishBuilds) and $(PublishCloudSnapshot) and '$(UE-CloudPublishHost)' != '' and '$(UE-CloudPublishNamespace)' != ''">
+				<Property Name="PlatformCloudPublishNodeName" Value="$(PreNodeName)Cloud Publish $(TargetPlatform)" />
+				<Node Name="$(PlatformCloudPublishNodeName)" Requires="$(PlatformHashNodeName)">
+					<ZenExportSnapshot Project="$(TargetProject)" Platform="$(CookPlatform)" DestinationStorageType="Cloud" DestinationCloudHost="$(UE-CloudPublishHost)" DestinationCloudNamespace="$(UE-CloudPublishNamespace)" DestinationCloudIdentifier="$(EscapedBranch)/$(BuildNamePath)" SnapshotDescriptorFile="$(NetworkOutputDirectory)/$(StagedPlatformFolder)/SnapshotDescriptor.json"/>
+				</Node>
+				<Property Name="PlatformPublishStageDependencyName" Value="$(PlatformCloudPublishNodeName)" />
+			</Do>
 			
 			<!-- Publish (Staged) -->
-			<Node Name="$(PlatformPublishStagedNodeName)" Requires="$(PlatformHashNodeName)">
+			<Node Name="$(PlatformPublishStagedNodeName)" Requires="$(PlatformPublishStageDependencyName)">
 				<Copy Files="..." From="$(ProjectOutputDirectory)/$(StagedPlatformFolder)" To="$(NetworkOutputDirectory)/$(StagedPlatformFolder)/Staged"/>
 				<Copy Files="..." From="$(ShaderSymbolsDirectory)/*$(TargetPlatform)*" To="$(NetworkOutputDirectory)/$(StagedPlatformFolder)/ShaderSymbols"/>
 			</Node>
