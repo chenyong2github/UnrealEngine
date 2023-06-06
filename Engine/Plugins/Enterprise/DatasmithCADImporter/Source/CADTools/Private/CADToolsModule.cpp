@@ -18,7 +18,7 @@ bool FCADToolsModule::IsAvailable()
 
 uint32 FCADToolsModule::GetCacheVersion()
 {
-	return 503;
+	return 504;
 }
 
 IMPLEMENT_MODULE(FCADToolsModule, CADTools);
