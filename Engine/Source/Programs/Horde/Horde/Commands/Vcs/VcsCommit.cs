@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Commands.Vcs
@@ -27,8 +26,10 @@ namespace Horde.Commands.Vcs
 		{
 		}
 
-		public override async Task<int> ExecuteAsync(ILogger logger)
+		public override Task<int> ExecuteAsync(ILogger logger)
 		{
+			throw new NotImplementedException();
+			/*
 			DirectoryReference rootDir = FindRootDir();
 
 			WorkspaceState workspaceState = await ReadStateAsync(rootDir);
@@ -101,7 +102,7 @@ namespace Horde.Commands.Vcs
 			await WriteStateAsync(rootDir, workspaceState);
 
 			logger.LogInformation("Commited in change {Number}", newTip.Number);
-			return 0;
+			return 0;*/
 		}
 
 		private async Task UpdateTreeAsync(DirectoryNodeRef rootRef, DirectoryReference rootDir, DirectoryState? oldState, DirectoryState newState, List<(DirectoryNode, FileInfo, FileState)> files, List<(DirectoryNodeRef, DirectoryState)> directories)

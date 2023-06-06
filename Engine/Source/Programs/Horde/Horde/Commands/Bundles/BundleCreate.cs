@@ -68,10 +68,8 @@ namespace Horde.Commands.Bundles
 
 			using (IStorageWriter writer = store.CreateWriter())
 			{
-				DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
-
 				ChunkingOptions options = new ChunkingOptions();
-				await node.CopyFilesAsync(baseDir, files, options, writer, null, CancellationToken.None);
+				DirectoryNode node = await DirectoryNode.CreateAsync(baseDir, files, options, writer, null, CancellationToken.None);
 
 				NodeHandle handle = await writer.FlushAsync(node);
 				if (File != null)
