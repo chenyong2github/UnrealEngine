@@ -1042,23 +1042,14 @@ bool USkeletonModifier::ParentBones(const TArray<FName>& InBoneNames, const TArr
 			if (BoneIndex != INDEX_NONE)
 			{
 				const FName NewParentName = GetParentName(Index);
-
-				// store global transforms
-				const FTransform GlobalTransform = TransformComposer->GetGlobalTransform(BoneIndex);
-
-				const int32 ParentIndex = ReferenceSkeleton->FindRawBoneIndex(NewParentName);
-				const FTransform ParentTransform = TransformComposer->GetGlobalTransform(ParentIndex);
 				
 				// change parent
 				const int32 NewIndex = Modifier.SetParent(InBoneNames[Index], NewParentName, bAllowMultipleRoots);
 				if (NewIndex > INDEX_NONE)
 				{
-					// update local transform
-					Modifier.UpdateRefPoseTransform(NewIndex, GlobalTransform.GetRelativeTransform(ParentTransform));
+					// invalidate composer
+					TransformComposer->Invalidate(INDEX_NONE);
 				}
-
-				// invalidate composer
-				TransformComposer->Invalidate(INDEX_NONE);
 			}
 		}
 	}
