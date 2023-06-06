@@ -198,9 +198,12 @@ public:
 	void PrimePoolForAllSystems();
 	void PrimePool(UNiagaraSystem* System);
 
+	static void RequestInvalidateCachedSystemScalabilityDataForAllWorlds();
+private:
 	static void InvalidateCachedSystemScalabilityDataForAllWorlds();
 	void InvalidateCachedSystemScalabilityData();
 
+public:
 	void SetDebugPlaybackMode(ENiagaraDebugPlaybackMode Mode) { RequestedDebugPlaybackMode = Mode; }
 	ENiagaraDebugPlaybackMode GetDebugPlaybackMode() const { return DebugPlaybackMode; }
 
@@ -292,6 +295,8 @@ private:
 	static FDelegateHandle PostGCHandle;
 	static FDelegateHandle PreGCBeginDestroyHandle;
 	static FDelegateHandle ViewTargetChangedHandle;
+
+	static bool bInvalidateCachedSystemScalabilityData;
 
 	static NIAGARA_API TMap<class UWorld*, class FNiagaraWorldManager*> WorldManagers;
 

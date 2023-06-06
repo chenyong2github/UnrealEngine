@@ -242,6 +242,8 @@ FDelegateHandle FNiagaraWorldManager::PostReachabilityAnalysisHandle;
 FDelegateHandle FNiagaraWorldManager::PostGCHandle;
 FDelegateHandle FNiagaraWorldManager::PreGCBeginDestroyHandle;
 FDelegateHandle FNiagaraWorldManager::ViewTargetChangedHandle;
+
+bool FNiagaraWorldManager::bInvalidateCachedSystemScalabilityData = false;
 TMap<class UWorld*, class FNiagaraWorldManager*> FNiagaraWorldManager::WorldManagers;
 
 namespace FNiagaraUtilities
@@ -1166,6 +1168,12 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 			WorldLoopTime -= DeltaSeconds;
 		}
 
+		if (bInvalidateCachedSystemScalabilityData)
+		{
+			bInvalidateCachedSystemScalabilityData = false;
+			InvalidateCachedSystemScalabilityDataForAllWorlds();
+		}
+
 		//Ensure the pools have been primed.
 		//WorldInit is too early.
 		if(!bPoolIsPrimed)
@@ -1844,6 +1852,11 @@ bool FNiagaraWorldManager::GetScalabilityState(UNiagaraComponent* Component, FNi
 		}
 	}
 	return false;
+}
+
+void FNiagaraWorldManager::RequestInvalidateCachedSystemScalabilityDataForAllWorlds()
+{
+	bInvalidateCachedSystemScalabilityData = true;
 }
 
 void FNiagaraWorldManager::InvalidateCachedSystemScalabilityDataForAllWorlds()
