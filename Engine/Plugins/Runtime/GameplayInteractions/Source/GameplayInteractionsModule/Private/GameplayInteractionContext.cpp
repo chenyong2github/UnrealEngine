@@ -107,7 +107,7 @@ void FGameplayInteractionContext::Deactivate()
 	{
 		return;
 	}
-	
+
 	const FStateTreeReference& StateTreeReference = Definition->StateTreeReference;
 	const UStateTree* StateTree = StateTreeReference.GetStateTree();
 	FStateTreeExecutionContext StateTreeContext(*ContextActor, *StateTree, StateTreeInstanceData);
@@ -118,7 +118,7 @@ void FGameplayInteractionContext::Deactivate()
 	}
 
 	// Remove user
-	USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(ContextActor->GetWorld());
+	const USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(ContextActor->GetWorld());
 	check(SmartObjectSubsystem);
 	FSmartObjectSlotView SlotView = SmartObjectSubsystem->GetSlotView(ClaimedHandle.SlotHandle);
 	if (SlotView.IsValid())
@@ -216,13 +216,17 @@ bool FGameplayInteractionContext::SetContextRequirements(FStateTreeExecutionCont
         {
             StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(FSmartObjectClaimHandle::StaticStruct(), (uint8*)&ClaimedHandle));
         }
+		else if (ItemDesc.Name == UE::GameplayInteraction::Names::SlotEntranceHandle)
+		{
+			StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(FSmartObjectClaimHandle::StaticStruct(), (uint8*)&SlotEntranceHandle));
+		}
 		else if (ItemDesc.Name == UE::GameplayInteraction::Names::AbortContext)
 		{
 			StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(FGameplayInteractionAbortContext::StaticStruct(), (uint8*)&AbortContext));
 		}
 	}
 
-	checkf(ContextActor != nullptr, TEXT("Should never reach this point with an invalid InteractorActor since it is required to get a valid StateTreeContext."));
+	checkf(ContextActor != nullptr, TEXT("Should never reach this point with an invalid ContextActor since it is required to get a valid StateTreeContext."));
 	const UWorld* World = ContextActor->GetWorld();
 	for (const FStateTreeExternalDataDesc& ItemDesc : StateTreeContext.GetExternalDataDescs())
 	{

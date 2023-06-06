@@ -23,10 +23,10 @@ struct FStateTreeTask_FindSlotEntranceLocation_InstanceData
 	FSmartObjectSlotHandle ReferenceSlot;
 
 	UPROPERTY(EditAnywhere, Category = "Output")
-	FTransform EntryTransform;
+	FTransform EntryTransform;	// @todo: rename EntranceTransform
 
 	UPROPERTY(EditAnywhere, Category = "Output")
-	FGameplayTag EntryTag;
+	FGameplayTagContainer EntranceTags;
 };
 
 /**

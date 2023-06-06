@@ -3,6 +3,7 @@
 #include "GameplayInteractionStateTreeSchema.h"
 #include "GameplayInteractionsTypes.h"
 #include "SmartObjectRuntime.h"
+#include "SmartObjectSubsystem.h"
 #include "StateTreeEvaluatorBase.h"
 #include "Subsystems/WorldSubsystem.h"
 
@@ -15,7 +16,8 @@ UGameplayInteractionStateTreeSchema::UGameplayInteractionStateTreeSchema()
 		{UE::GameplayInteraction::Names::ContextActor, AActor::StaticClass(), FGuid(0xDFB93B9E, 0xEDBE4906, 0x851C66B2, 0x7585FA21)},
 		{UE::GameplayInteraction::Names::SmartObjectActor, AActor::StaticClass(), FGuid(0x870E433F, 0x99314B95, 0x982B78B0, 0x1B63BBD1)},
 		{UE::GameplayInteraction::Names::SmartObjectClaimedHandle, FSmartObjectClaimHandle::StaticStruct(), FGuid(0x13BAB427, 0x26DB4A4A, 0xBD5F937E, 0xDB39F841)},
-		{UE::GameplayInteraction::Names::AbortContext, FGameplayInteractionAbortContext::StaticStruct(), FGuid(0xEED35411, 0x85E844A0, 0x95BE6DB5, 0xB63F51BC)}
+		{UE::GameplayInteraction::Names::SlotEntranceHandle, FSmartObjectSlotEntranceHandle::StaticStruct(), FGuid(0x283CBA09, 0x95CD42CF, 0xA11F510E, 0x17CB3530)},
+		{UE::GameplayInteraction::Names::AbortContext, FGameplayInteractionAbortContext::StaticStruct(), FGuid(0xEED35411, 0x85E844A0, 0x95BE6DB5, 0xB63F51BC)},
 	})
 {
 }

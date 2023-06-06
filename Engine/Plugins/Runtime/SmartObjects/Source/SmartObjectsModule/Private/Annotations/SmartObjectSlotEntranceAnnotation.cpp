@@ -408,9 +408,9 @@ void FSmartObjectSlotEntranceAnnotation::DrawVisualizationHUD(FSmartObjectVisual
 				{
 					Text += UEnum::GetDisplayValueAsText(SelectionPriority).ToString();
 				}
-				if (Tag.IsValid())
+				if (Tags.IsValid())
 				{
-					Text += Tag.ToString();
+					Text += Tags.ToString();
 				}
 				
 				FLinearColor Color = FLinearColor::White;
@@ -475,6 +475,20 @@ FRotator FSmartObjectSlotEntranceAnnotation::GetWorldRotation(const FTransform& 
 {
 	return SlotTransform.TransformRotation(FQuat(Rotation.Quaternion())).Rotator();
 }
+
+
+#if WITH_EDITORONLY_DATA
+void FSmartObjectSlotEntranceAnnotation::PostSerialize(const FArchive& Ar)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (Tag_DEPRECATED.IsValid())
+	{
+		Tags.AddTag(Tag_DEPRECATED);
+		Tag_DEPRECATED = FGameplayTag();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+#endif
 
 #if WITH_GAMEPLAY_DEBUGGER
 void FSmartObjectSlotEntranceAnnotation::CollectDataForGameplayDebugger(FSmartObjectAnnotationGameplayDebugContext& DebugContext) const

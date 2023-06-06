@@ -1838,7 +1838,10 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 		Result.NodeRef = INVALID_NAVNODEREF;
 		if (Candidate.EntranceAnnotation)
 		{
-			Result.Tag = Candidate.EntranceAnnotation->Tag;
+			Result.Tags = Candidate.EntranceAnnotation->Tags;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			Result.Tag = Result.Tags.First();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		if (Request.LocationType == ESmartObjectSlotNavigationLocationType::Exit)

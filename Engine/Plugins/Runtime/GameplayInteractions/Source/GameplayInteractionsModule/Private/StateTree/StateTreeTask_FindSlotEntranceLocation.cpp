@@ -55,7 +55,7 @@ bool FStateTreeTask_FindSlotEntranceLocation::UpdateResult(const FStateTreeExecu
 	if (SmartObjectSubsystem.FindEntranceLocationForSlot(InstanceData.ReferenceSlot, Request, EntryLocation))
 	{
 		InstanceData.EntryTransform = FTransform(EntryLocation.Rotation, EntryLocation.Location);
-		InstanceData.EntryTag = EntryLocation.Tag;
+		InstanceData.EntranceTags = EntryLocation.Tags;
 		return true;
 	}
 

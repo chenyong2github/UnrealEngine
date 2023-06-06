@@ -435,9 +435,6 @@ public:
 	/** @return trace parameters for testing if there are collision transitioning from navigation location to slot location. */
 	const FSmartObjectTraceParams& GetTransitionTraceParameters() const { return TransitionTraceParameters; }
 
-	/** @return true if should do overlap test with user capsule when finding entrances. */
-	bool ShouldTestUserOverlapOnEntrance() const { return bTestUserOverlapOnEntrance; }
-
 	/**
 	 * Selects between specified NavigationCapsule size and capsule size defined in the params based on bUseNavigationCapsuleSize.
 	 * @param NavigationCapsule Size of the navigation capsule.
@@ -477,12 +474,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Default")
 	FSmartObjectTraceParams TransitionTraceParameters;
 
-	/** If true, use physics overlap test to check that the space on entrance is free. */
-	UPROPERTY(EditAnywhere, Category = "Default")
-	bool bTestUserOverlapOnEntrance = false;
-
 	/** If true, the capsule size is queried from the user actor via INavAgentInterface. */
-	UPROPERTY(EditAnywhere, Category = "Default", meta = (EditCondition = "bTestUserOverlapOnEntrance == true", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = "Default")
 	bool bUseNavigationCapsuleSize = false;
 
 	/** Dimensions of the capsule used for testing if user can fit into a specific location. */

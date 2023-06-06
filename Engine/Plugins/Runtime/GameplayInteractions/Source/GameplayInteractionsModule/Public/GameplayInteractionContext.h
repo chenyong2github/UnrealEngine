@@ -4,6 +4,7 @@
 
 #include "GameplayInteractionsTypes.h"
 #include "SmartObjectRuntime.h"
+#include "SmartObjectSubsystem.h"
 #include "StateTreeInstanceData.h"
 #include "GameplayInteractionContext.generated.h"
 
@@ -23,6 +24,8 @@ struct FGameplayInteractionContext
 
 public:
 	void SetClaimedHandle(const FSmartObjectClaimHandle& InClaimedHandle) { ClaimedHandle = InClaimedHandle; }
+
+	void SetSlotEntranceHandle(const FSmartObjectSlotEntranceHandle InSlotEntranceHandle) { SlotEntranceHandle = InSlotEntranceHandle; }
 	
 	UE_DEPRECATED(5.1, "Please use SetContextActor")
 	void SetInteractorActor(AActor* InInteractorActor) { ContextActor = InInteractorActor; }
@@ -75,6 +78,9 @@ protected:
     
     UPROPERTY()
     FSmartObjectClaimHandle ClaimedHandle;
+
+	UPROPERTY()
+	FSmartObjectSlotEntranceHandle SlotEntranceHandle;
 
 	UPROPERTY()
 	FGameplayInteractionAbortContext AbortContext;

@@ -273,6 +273,15 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationResult
 {
 	GENERATED_BODY()
 
+	// Macro needed to avoid deprecation errors with "Tag" being copied or created in the default methods
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FSmartObjectSlotEntranceLocationResult() = default;
+	FSmartObjectSlotEntranceLocationResult(const FSmartObjectSlotEntranceLocationResult&) = default;
+	FSmartObjectSlotEntranceLocationResult(FSmartObjectSlotEntranceLocationResult&&) = default;
+	FSmartObjectSlotEntranceLocationResult& operator=(const FSmartObjectSlotEntranceLocationResult&) = default;
+	FSmartObjectSlotEntranceLocationResult& operator=(FSmartObjectSlotEntranceLocationResult&&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** @returns entry as nav location. */
 	FNavLocation GetNavLocation() const { return FNavLocation(Location, NodeRef); }
 
@@ -290,9 +299,14 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationResult
 	/** Node reference in navigation data (if requested with bMustBeNavigable). */
 	NavNodeRef NodeRef = INVALID_NAVNODEREF;
 
-	/** Gameplay tag associated with the entry. */
+	/** Gameplay tag associated with the entrance. */
+	UE_DEPRECATED(5.3, "Use Tags instead.")
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SmartObject")
 	FGameplayTag Tag;
+
+	/** Gameplay tags associated with the entrance. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SmartObject")
+	FGameplayTagContainer Tags;
 
 	/** Handle identifying the entrance that was found. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SmartObject")
