@@ -1686,12 +1686,12 @@ bool UCustomizableObject::IsParameterMultidimensional(const FString& InParameter
 bool UCustomizableObject::IsParameterMultidimensional(const int32& InParamIndex) const
 {
 	check(InParamIndex != INDEX_NONE);
-	
-	const mu::ParametersPtr MutableParameters = mu::Model::NewParameters(this->GetPrivate()->GetModel());
-	check(InParamIndex < MutableParameters->GetCount());
-	const mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(InParamIndex);
+	if (PrivateData->GetModel())
+	{
+		return PrivateData->GetModel()->IsParameterMultidimensional(InParamIndex);
+	}
 
-	return RangeIdxPtr.get() != nullptr;
+	return false;
 }
 
 

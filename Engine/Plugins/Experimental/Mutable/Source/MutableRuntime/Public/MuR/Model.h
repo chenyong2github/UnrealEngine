@@ -81,6 +81,9 @@ namespace mu
 		//! default values.
         static ParametersPtr NewParameters( TSharedPtr<const Model> Model, const Parameters* pOld = nullptr );
 
+		/** Return true if the parameter is multi-dimensional */
+		bool IsParameterMultidimensional(int32 ParameterIndex) const;
+
 		//! Get the number of states in the model.
 		int GetStateCount() const;
 

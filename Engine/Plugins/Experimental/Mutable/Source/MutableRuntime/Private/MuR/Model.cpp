@@ -546,6 +546,18 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
+    bool Model::IsParameterMultidimensional(const int32 ParamIndex) const
+    {
+		if (m_pD->m_program.m_parameters.IsValidIndex(ParamIndex))
+		{
+			return m_pD->m_program.m_parameters[ParamIndex].m_ranges.Num() > 0;
+		}
+
+		return false;
+    }
+	
+
+    //---------------------------------------------------------------------------------------------
     int Model::GetStateCount() const
     {
         return (int)m_pD->m_program.m_states.Num();
