@@ -137,7 +137,11 @@ public:
 		{
 			return GetLinkActiveEntity()->GetMesh();
 		}
-		return Mesh.Get();
+		if (Mesh.IsValid())
+		{
+			return Mesh.Get();
+		}
+		return nullptr;
 	}
 
 	void Link(FTopologicalVertex& InEntity);
@@ -178,7 +182,7 @@ public:
 		TLinkable<FTopologicalVertex, FVertexLink>::Empty();
 	}
 
-	bool IsBorderVertex();
+	bool IsBorderVertex() const;
 
 	void AddConnectedEdge(FTopologicalEdge& Edge);
 	void RemoveConnectedEdge(FTopologicalEdge& Edge);
@@ -197,6 +201,8 @@ public:
 	{
 		return ConnectedEdges;
 	}
+
+	const FTopologicalFace* GetFace() const;
 
 	void GetConnectedEdges(TArray<FTopologicalEdge*>& OutConnectedEdges) const
 	{

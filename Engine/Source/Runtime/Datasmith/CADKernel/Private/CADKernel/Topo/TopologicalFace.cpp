@@ -277,7 +277,7 @@ void FTopologicalFace::Disjoin(TArray<FTopologicalEdge*>* NewBorderEdges)
 			const TArray<FTopologicalEdge*> Twins = Edge->GetTwinEntities();
 			for (FTopologicalEdge* TwinEdge : Twins)
 			{
-				if (NewBorderEdges && TwinEdge != Edge)
+				if (NewBorderEdges && TwinEdge != Edge && TwinEdge->GetFace() != this)
 				{
 					NewBorderEdges->Add(TwinEdge);
 				}

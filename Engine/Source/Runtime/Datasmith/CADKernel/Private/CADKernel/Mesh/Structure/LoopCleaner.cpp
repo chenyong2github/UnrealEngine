@@ -1749,8 +1749,14 @@ void FLoopCleaner::FindLoopIntersections()
 
 	LoopSegmentsIntersectionTool.Empty(NodesOfLoopCount);
 
+	const int32 LimitOfNodesOfLoopCount = NodesOfLoopCount + 5;
 	Node = GetNext(StartNode);
-	for (; Node != StartNode; Node = GetNext(Node), ++SegmentCount);
+	for (; Node != StartNode && SegmentCount < LimitOfNodesOfLoopCount; Node = GetNext(Node), ++SegmentCount);
+
+	if (SegmentCount == LimitOfNodesOfLoopCount)
+	{
+		return;
+	}
 
 	Node = StartNode;
 	NextNode = GetNext(Node);

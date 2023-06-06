@@ -482,8 +482,11 @@ public:
 		{
 			return GetLinkActiveEdge()->GetMesh();
 		}
-		ensureCADKernel(Mesh.IsValid());
-		return Mesh.Get();
+		if (Mesh.IsValid())
+		{
+			return Mesh.Get();
+		}
+		return nullptr;
 	}
 
 	FEdgeMesh& GetOrCreateMesh(FModelMesh& MeshModel);

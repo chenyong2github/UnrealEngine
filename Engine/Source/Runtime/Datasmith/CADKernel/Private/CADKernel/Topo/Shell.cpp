@@ -543,6 +543,18 @@ void UnlinkFromOther(TArray<FTopologicalFace*>& Faces, TArray<FTopologicalVertex
 
 	for (FTopologicalFace* Face : Faces)
 	{
+		TFunction<void(FTopologicalVertex&)> AddTwinVertex = [&Face, &VerticesToLink](FTopologicalVertex& Vertex)
+		{
+			for (FTopologicalVertex* TwinVertex : Vertex.GetTwinEntities())
+			{
+				if (!TwinVertex->IsProcessed() && TwinVertex->GetFace() == Face)
+				{
+					VerticesToLink.Add(TwinVertex);
+					TwinVertex->SetProcessedMarker();
+				}
+			}
+		};
+
 		for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
 		{
 			for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
@@ -565,15 +577,17 @@ void UnlinkFromOther(TArray<FTopologicalFace*>& Faces, TArray<FTopologicalVertex
 					{
 						continue;
 					}
+
 					if (!NeighborFace->IsToProcess())
 					{
+						FTopologicalVertex& StartVertex = Edge->GetStartVertex().Get();
+						AddTwinVertex(StartVertex);
+
+						FTopologicalVertex& EndVertex = Edge->GetEndVertex().Get();
+						AddTwinVertex(EndVertex);
+
 						Edge->Unlink();
 
-						FTopologicalVertex& Vertex = *Edge->GetStartVertex();
-						if(!Vertex.IsProcessed())
-						{
-							VerticesToLink.Add(&Vertex);
-						}
 						break;
 					}
 				}

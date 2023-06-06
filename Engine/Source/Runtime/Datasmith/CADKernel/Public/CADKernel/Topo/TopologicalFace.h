@@ -308,6 +308,11 @@ public:
 		CarrierSurface.Reset();
 		for (TSharedPtr<FTopologicalLoop>& Loop : Loops)
 		{
+			for (FOrientedEdge& Edge : Loop->GetEdges())
+			{
+				Edge.Entity->Delete();
+			}
+
 			Loop->Empty();
 		}
 		Loops.Empty();
@@ -363,10 +368,13 @@ public:
 		return Mesh.IsValid();
 	}
 
-	const TSharedRef<FFaceMesh> GetMesh() const
+	FFaceMesh* GetMesh() const
 	{
-		ensureCADKernel(Mesh.IsValid());
-		return Mesh.ToSharedRef();
+		if (Mesh.IsValid())
+		{
+			return Mesh.Get();
+		}
+		return nullptr;
 	}
 
 	void InitDeltaUs();

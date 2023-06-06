@@ -226,7 +226,7 @@ CADKERNEL_API void Display(const FShell& Shell);
 CADKERNEL_API void Display(const FTopologicalEdge& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
 CADKERNEL_API void Display(const FTopologicalFace& Face);
 CADKERNEL_API void Display(const FTopologicalLoop& Loop);
-CADKERNEL_API void Display(const FTopologicalVertex& Vertex);
+CADKERNEL_API void Display(const FTopologicalVertex& Vertex, EVisuProperty Property = EVisuProperty::BluePoint);
 
 CADKERNEL_API void Display2D(const FTopologicalEdge& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
 CADKERNEL_API void Display2D(const FTopologicalFace& Face);

@@ -492,11 +492,11 @@ void DisplayAABB2D(const FAABB2D& aabb, FIdent Ident)
 #endif
 }
 
-void Display(const FTopologicalVertex& Vertex)
+void Display(const FTopologicalVertex& Vertex, EVisuProperty Property)
 {
 #ifdef CADKERNEL_DEBUG
 	F3DDebugSegment G(Vertex.GetId());
-	DrawPoint(Vertex.GetCoordinates());
+	DrawPoint(Vertex.GetCoordinates(), Property);
 #endif
 }
 
@@ -1106,8 +1106,11 @@ void DisplayMesh(const FShell& Shell)
 			FTopologicalFace& Face = *OrientedFace.Entity;
 			if (!Face.IsDeletedOrDegenerated() && Face.IsMeshed())
 			{
-				FFaceMesh& Mesh = *Face.GetMesh();
-				DisplayMesh(Mesh);
+				const FFaceMesh* Mesh = Face.GetMesh();
+				if(Mesh)
+				{
+					DisplayMesh(*Mesh);
+				}
 			}
 		}
 	}

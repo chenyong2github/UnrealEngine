@@ -31,7 +31,7 @@ void FTopologicalVertex::RemoveConnectedEdge(FTopologicalEdge& Edge)
 	}
 }
 
-bool FTopologicalVertex::IsBorderVertex()
+bool FTopologicalVertex::IsBorderVertex() const
 {
 	for (FTopologicalVertex* Vertex : GetTwinEntities())
 	{
@@ -51,6 +51,16 @@ bool FTopologicalVertex::IsBorderVertex()
 	}
 	return false;
 }
+
+const FTopologicalFace* FTopologicalVertex::GetFace() const
+{
+	if (ConnectedEdges.IsEmpty())
+	{
+		return nullptr;
+	}
+	return ConnectedEdges[0]->GetFace();
+}
+
 
 void FTopologicalVertex::GetConnectedEdges(const FTopologicalVertex& OtherVertex, TArray<FTopologicalEdge*>& OutEdges) const
 {

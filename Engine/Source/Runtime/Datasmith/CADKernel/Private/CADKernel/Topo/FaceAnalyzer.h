@@ -45,6 +45,8 @@ private:
 
 	double Length;
 
+	bool bIsThinZone = false;
+
 #ifdef CADKERNEL_DEV
 	FIdent Id;
 	static FIdent LastId;
@@ -142,6 +144,16 @@ public:
 	{
 		return ProjectPointOnSegment(PointToProject, Points[ELimit::Start], Points[ELimit::End], SegmentU, true);
 	}
+
+	bool IsThinZone()
+	{
+		return bIsThinZone;
+	}
+
+	void SetAsThinZone()
+	{
+		bIsThinZone = true;
+	}
 };
 
 struct FThinFaceContext
@@ -174,8 +186,9 @@ public:
 	Topo::FFaceAnalyzerChronos Chronos;
 
 protected:
-	double Tolerance;
-	double SquareTolerance;
+	const double Tolerance;
+	const double SquareTolerance;
+	const double MaxOppositSideLength;
 
 	FTopologicalFace& Face;
 
@@ -184,6 +197,7 @@ public:
 	FFaceAnalyzer(FTopologicalFace& InFace, double InTol)
 		: Tolerance(InTol)
 		, SquareTolerance(FMath::Square(InTol))
+		, MaxOppositSideLength(4. * InTol)
 		, Face(InFace)
 	{
  	}
@@ -197,7 +211,7 @@ private:
 	void Analyze(Topo::FThinFaceContext& Context);
 
 #ifdef CADKERNEL_DEV
-	void DisplayClosedSegments(Topo::FThinFaceContext& Context);
+	void DisplayCloseSegments(Topo::FThinFaceContext& Context);
 	void DisplayLoopSegments(Topo::FThinFaceContext& Context);
 #endif
 };

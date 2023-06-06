@@ -1073,6 +1073,10 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(const do
 				FPoint2D Target = Edges[Index].Entity->Approximate2DPoint(TargetCoordinate);
 
 				int32 NeigborIndex = PreviousLength > NextLength ? Index - 1 : Index + 1;
+				if (NeigborIndex < 0 || NeigborIndex >= NurbsCurves.Num())
+				{
+					return TSharedPtr<FTopologicalEdge>();
+				}
 				NurbsCurves[NeigborIndex]->ExtendTo(Target);
 			}
 		}

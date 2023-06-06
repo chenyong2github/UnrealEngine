@@ -952,7 +952,7 @@ void FIsoTriangulator::ConnectCellLoops()
 #ifdef DEBUG_CONNECT_CELL_LOOPS
 		F3DDebugSession _(bDisplay, FString::Printf(TEXT("Cell %d"), Cell.Id));
 		DisplayCell(Cell);
-		Wait();
+		Wait(bDisplay);
 #endif
 
 		if (Cell.LoopCells.Num())
@@ -2422,13 +2422,13 @@ void FIsoTriangulator::ConnectCellCornerToLoops(FCell& Cell)
 		}
 		if (ICell == 4)
 		{
-			// All Cell corners are not null
+			// All Cell corners are null
 			return;
 		}
 	}
 
 #ifdef DEBUG_CONNECTCELLCORNERTOINNERLOOP
-	F3DDebugSession _(TEXT("With cell corners"));
+	F3DDebugSession _(bDisplay, TEXT("With cell corners"));
 #endif
 
 	TFunction<void(FLoopCell&, FIsoInnerNode*)> FindAndTryCreateCandidateSegmentToLinkLoopToCorner = [&](FLoopCell& LoopCell, FIsoInnerNode* InnerNode)
@@ -2476,20 +2476,31 @@ void FIsoTriangulator::ConnectCellCornerToLoops(FCell& Cell)
 	{
 		if (CellNodes[ICell])
 		{
+#ifdef DEBUG_CONNECTCELLCORNERTOINNERLOOP
+			if (bDisplay)
+			{
+				F3DDebugSession _(bDisplay, TEXT("Cell corner"));
+				DisplayPoint(CellNodes[ICell]->Get2DPoint(EGridSpace::UniformScaled, Grid), EVisuProperty::GreenPoint);
+			}
+#endif
 			for (FLoopCell& LoopCell : Cell.LoopCells)
 			{
-#ifdef DEBUG_CONNECTCELLCORNERTOINNERLOOP
-				DisplayPoint(CellNodes[ICell]->Get2DPoint(EGridSpace::UniformScaled, Grid), EVisuProperty::GreenPoint);
-#endif
 				FindAndTryCreateCandidateSegmentToLinkLoopToCorner(LoopCell, CellNodes[ICell]);
 			}
 
+#ifdef DEBUG_CONNECTCELLCORNERTOINNERLOOP
+			if (bDisplay)
+			{
+				Grid.DisplayIsoSegments(TEXT("Cell CandidateSegments"), EGridSpace::UniformScaled, Cell.CandidateSegments, false, false, false, EVisuProperty::YellowCurve);
+				Wait();
+			}
+#endif
 		}
 	}
 
 	if(Cell.CandidateSegments.Num())
 	{
-		const bool bSelectWithCellSizeCriteria = false;
+		const bool bSelectWithCellSizeCriteria = true;
 		Cell.SelectSegmentInCandidateSegments(IsoSegmentFactory, bSelectWithCellSizeCriteria);
 	}
 }

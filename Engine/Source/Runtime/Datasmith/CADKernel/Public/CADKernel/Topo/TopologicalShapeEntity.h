@@ -66,6 +66,11 @@ public:
 		return HostedBy;
 	}
 
+	const FTopologicalShapeEntity* GetHost() const
+	{
+		return HostedBy;
+	}
+
 	void SetHost(FTopologicalShapeEntity* Body)
 	{
 		HostedBy = Body;

@@ -306,7 +306,7 @@ struct FCell
 
 		Algo::Sort(LengthOfCandidateSegments, [&](const TPair<double, FIsoSegment*>& P1, const TPair < double, FIsoSegment*>& P2) { return P1.Key < P2.Key; });
 
-		// Validate all candidate segments
+		// Validate the first candidate segments
 		for (const TPair<double, FIsoSegment*>& Candidate : LengthOfCandidateSegments)
 		{
 			if (Candidate.Key > CellSquareLength)

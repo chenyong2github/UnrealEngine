@@ -13,18 +13,49 @@ namespace UE::CADKernel
 
 void FFaceAnalyzer::FindClosedSegments(Topo::FThinFaceContext& Context)
 {
-#ifdef DEBUG_FIND_THIN_FACE
-	F3DDebugSession _(TEXT("Closed Segment"));
+#ifdef DEBUG_THIN_FACE
+	F3DDebugSession _(TEXT("Find Closed Segment"));
 #endif
+	{
+		bool bEdgeIsConnectedToAnotherEdgeOfTheFace = false;
+		const FTopologicalEdge* Edge = nullptr;
+		for (Topo::FEdgeSegment* Segment : Context.LoopSegments)
+		{
+			if (Segment->GetEdge() != Edge)
+			{
+				Edge = Segment->GetEdge();
+				bEdgeIsConnectedToAnotherEdgeOfTheFace = false;
+				for (FTopologicalEdge* Twin : Edge->GetTwinEntities())
+				{
+					if (Twin == Edge)
+					{
+						continue;
+					}
+					if (Twin->GetFace() == &Face)
+					{
+						bEdgeIsConnectedToAnotherEdgeOfTheFace = true;
+						break;
+					}
+				}
+			}
+			if (bEdgeIsConnectedToAnotherEdgeOfTheFace)
+			{
+				Segment->SetAsThinZone();
+			}
+		}
+	}
 
 	// For each segment, the nearest segment is search
 	// If segment is from an inner loop, the nearest could not be from the same loop
 	for (Topo::FEdgeSegment* Segment : Context.LoopSegments)
 	{
-		const FPoint& Point = Segment->GetMiddle();
-		const FTopologicalEdge* Edge = Segment->GetEdge();
+		if (Segment->IsThinZone())
+		{
+			continue;
+		}
 
-		//FPoint ClosedPoint;
+		const FPoint& Point = Segment->GetMiddle();
+
 		Topo::FEdgeSegment* ClosedSegment = nullptr;
 
 		double MinSquareDistance = HUGE_VALUE;
@@ -32,7 +63,7 @@ void FFaceAnalyzer::FindClosedSegments(Topo::FThinFaceContext& Context)
 		for (Topo::FEdgeSegment* Candidate : Context.LoopSegments)
 		{
 			// to avoid to define cylinder or cone as a thin surface
-			if (Candidate->GetEdge()->IsLinkedTo(*Edge))
+			if (Candidate->IsThinZone())
 			{
 				continue;
 			}
@@ -73,7 +104,7 @@ void FFaceAnalyzer::FindClosedSegments(Topo::FThinFaceContext& Context)
 		{
 			Segment->SetClosedSegment(ClosedSegment, MinSquareDistance);
 
-#ifdef DEBUG_FIND_THIN_FACE
+#ifdef DEBUG_THIN_FACE
 			//F3DDebugSession _(TEXT("Segment"));
 			DisplaySegment(Segment->GetExtemity(ELimit::Start), Segment->GetExtemity(ELimit::End), 0, EVisuProperty::BlueCurve);
 			DisplaySegment(ClosedSegment->GetExtemity(ELimit::Start), ClosedSegment->GetExtemity(ELimit::End), 0, EVisuProperty::RedCurve);
@@ -90,6 +121,7 @@ void FFaceAnalyzer::Analyze(Topo::FThinFaceContext& Context)
 	double MaxSquareDistance = 0;
 	double MedSquareDistance = 0;
 	double EdgeLength = 0;
+	bool bIsThinZone = false;
 
 	TFunction<void()> SetEdgeMaxGap = [&]()
 	{
@@ -97,17 +129,23 @@ void FFaceAnalyzer::Analyze(Topo::FThinFaceContext& Context)
 		{
 			MedSquareDistance /= EdgeLength;
 		}
-		else
+		else if(!bIsThinZone)
 		{
 			MedSquareDistance = DOUBLE_BIG_NUMBER;
 			MaxSquareDistance = DOUBLE_BIG_NUMBER;
 		}
 
+		if (bIsThinZone)
+		{
+			Context.EdgeSquareDistance.Add(0.);
+			Context.EdgeMaxSquareDistance.Add(0.);
+			return;
+		}
+		
 		if (MaxSquareDistance < 2 * SquareTolerance)
 		{
 			Context.EdgeSquareDistance.Add(MedSquareDistance);
 			Context.EdgeMaxSquareDistance.Add(MaxSquareDistance);
-
 			Context.MaxSquareDistance = FMath::Max(Context.MaxSquareDistance, MaxSquareDistance);
 			Context.ThinSideEdgeLength += Edge->Length();
 		}
@@ -130,12 +168,17 @@ void FFaceAnalyzer::Analyze(Topo::FThinFaceContext& Context)
 			SetEdgeMaxGap();
 
 			Edge = Segment->GetEdge();
-			MaxSquareDistance = 0;
-			MedSquareDistance = 0;
-			EdgeLength = 0;
+			MaxSquareDistance = 0.;
+			MedSquareDistance = 0.;
+			EdgeLength = 0.;
+			bIsThinZone = false;
 		}
 
-		if (Segment->GetClosedSquareDistance() > 0)
+		if (Segment->IsThinZone())
+		{
+			bIsThinZone = true;
+		}
+		else if (Segment->GetClosedSquareDistance() > 0)
 		{
 			MedSquareDistance += Segment->GetLength() * Segment->GetClosedSquareDistance();
 			EdgeLength += Segment->GetLength();
@@ -161,6 +204,11 @@ void FFaceAnalyzer::BuildLoopSegments(Topo::FThinFaceContext& Context)
 	for (const FOrientedEdge& OrientedEdge : Edges)
 	{
 		const FTopologicalEdge* Edge = OrientedEdge.Entity.Get();
+		if (Edge->IsDeletedOrDegenerated())
+		{
+			continue;
+		}
+
 		TArray<double> Coordinates;
 		TArray<FPoint> Points;
 		Edge->GetCurve()->GetDiscretizationPoints(Edge->GetBoundary(), Coordinates, Points);
@@ -206,14 +254,14 @@ bool FFaceAnalyzer::IsThinFace(double& OutGapSize)
 	FindClosedSegments(Context);
 	Chronos.FindClosedSegmentTime = FChrono::Elapse(StartTime);
 #ifdef CADKERNEL_DEV
-	DisplayClosedSegments(Context);
+	DisplayCloseSegments(Context);
 #endif
 
 	StartTime = FChrono::Now();
 	Analyze(Context);
 	Chronos.AnalyzeClosedSegmentTime = FChrono::Elapse(StartTime);
 
-	if (Context.ThinSideEdgeLength > Context.OppositSideEdgeLength && Context.MaxSquareDistance < SquareTolerance )
+	if (Context.OppositSideEdgeLength < MaxOppositSideLength || (Context.ThinSideEdgeLength > Context.OppositSideEdgeLength && Context.MaxSquareDistance < SquareTolerance ) )
 	{
 		OutGapSize = sqrt(Context.MaxSquareDistance);
 		return true;

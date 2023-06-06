@@ -95,6 +95,18 @@ struct FAdditionalIso
 		EquilateralCriteria[1] = Slope::TwoPiSlope;
 		bForceNodes = false;
 	}
+
+	void RemoveCandidateIfPresent(FIsoNode* ForbiddenNode)
+	{
+		for (int32 Index = 0; Index < 2; Index++)
+		{
+			if (Nodes[Index] == ForbiddenNode)
+			{
+ 				RemoveCandidate(Index);
+				bForceNodes = false;
+			}
+		}
+	}
 };
 
 using FNodeIntersectionCount = TPair<FCandidateNode*, int32>;
@@ -142,6 +154,7 @@ private:
 
 	// Candidates nodes for FindCandidateNodes
 	TArray<FCandidateNode> CandidateNodes;
+	FCandidateNode* ExtremityCandidateNodes[2] = { nullptr, nullptr };
 	TArray<FNodeIntersectionCount> NodeToIntersection;
 
 	// Final polygon nodes

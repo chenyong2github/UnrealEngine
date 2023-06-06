@@ -1116,9 +1116,19 @@ void FParametricFaceMesher::Mesh(FTopologicalEdge& InEdge, bool bFinalMeshing)
 		F3DDebugSession A(bDisplay, FString::Printf(TEXT("Edge %d"), InEdge.GetId()));
 #endif
 		Display2DWithScale(InEdge);
-		TArray<FPoint> MeshVertices = InEdge.GetMesh()->GetNodeCoordinates();
-		MeshVertices.Append(InEdge.GetStartVertex()->GetMesh()->GetNodeCoordinates());
-		MeshVertices.Append(InEdge.GetEndVertex()->GetMesh()->GetNodeCoordinates());
+		TArray<FPoint> MeshVertices;
+		if (InEdge.GetMesh())
+		{
+			MeshVertices = InEdge.GetMesh()->GetNodeCoordinates();
+		}
+		if(InEdge.GetStartVertex()->GetMesh())
+		{
+			MeshVertices.Append(InEdge.GetStartVertex()->GetMesh()->GetNodeCoordinates());
+		}
+		if(InEdge.GetEndVertex()->GetMesh())
+		{
+			MeshVertices.Append(InEdge.GetEndVertex()->GetMesh()->GetNodeCoordinates());
+		}
 		if (MeshVertices.Num())
 		{
 			TArray<double> CoordinatesOfMesh;
