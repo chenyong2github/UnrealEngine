@@ -13,6 +13,7 @@
 #include "Math/Color.h"
 #include "Misc/AssertionMacros.h"
 #include "RigVMFunction.h"
+#include "RigVMModule.h"
 #include "RigVMTraits.h"
 #include "RigVMTypeIndex.h"
 #include "RigVMTypeUtils.h"
@@ -73,8 +74,11 @@ struct RIGVM_API FRigVMTemplateArgumentType
 		// so here we override the CppType name with the actual name used in the registry
 		const FString InCPPTypeString = CPPType.ToString();
 		CPPType = *RigVMTypeUtils::PostProcessCPPType(InCPPTypeString, CPPTypeObject);
-		
-		checkf(!CPPType.IsNone(), TEXT("FRigVMTemplateArgumentType(): Input CPPType '%s' could not be resolved."), *InCPPTypeString);
+
+		if (CPPType.IsNone())
+		{
+			UE_LOG(LogRigVM, Warning, TEXT("FRigVMTemplateArgumentType(): Input CPPType '%s' could not be resolved."), *InCPPTypeString);
+		}
 	}
 
 	FRigVMTemplateArgumentType(UClass* InClass)
