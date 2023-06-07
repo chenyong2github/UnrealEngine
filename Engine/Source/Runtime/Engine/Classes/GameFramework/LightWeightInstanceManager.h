@@ -253,6 +253,8 @@ protected:
 	UPROPERTY(Transient)
 	TMap<int32, TObjectPtr<AActor>> Actors;
 
+	TArray<int32> DestroyedActorIndices;
+
 	// list of indices that we are no longer using
 	UPROPERTY(Replicated)
 	TArray<int32> FreeIndices;

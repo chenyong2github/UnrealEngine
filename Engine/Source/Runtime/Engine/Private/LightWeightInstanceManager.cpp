@@ -114,6 +114,17 @@ AActor* ALightWeightInstanceManager::ConvertInstanceToActor(const FActorInstance
 		return nullptr;
 	}
 
+	//if we have previously spawned an actor for this index, don't spawn again even though we have no current actor entry.
+	//this may occur if an FActorInstanceHandle was cached before a spawned actor was destroyed and fetched after.
+	if (DestroyedActorIndices.Contains(Handle.GetInstanceIndex()))
+	{
+		UE_LOG(LogLightWeightInstance, Verbose,
+			TEXT("ALightWeightInstanceManager::ConvertInstanceToActor - manager [ %s ] had already spawned an actor for index [ %d ] that was destroyed"),
+			*GetActorNameOrLabel(),
+			Handle.GetInstanceIndex());
+		return nullptr;
+	}
+
 	AActor* NewActor = nullptr;
 	// Only spawn actors on the server so they are replicated to the clients. Otherwise we'll end up with multiples.
 	if (HasAuthority())
@@ -158,6 +169,18 @@ void ALightWeightInstanceManager::OnSpawnedActorDestroyed(AActor* DestroyedActor
 
 	Actors.Remove(DestroyedActorInstanceIndex);
 	DestroyedActor->OnDestroyed.RemoveAll(this);
+
+	if (ensure(!DestroyedActorIndices.Contains(DestroyedActorInstanceIndex)))
+	{
+		DestroyedActorIndices.Add(DestroyedActorInstanceIndex);
+	}
+	else
+	{
+		UE_LOG(LogLightWeightInstance, Error,
+			TEXT("ALightWeightInstanceManager::OnSpawnedActorDestroyed - manager [ %s ] DestroyedActorIndices already has an entry for index [ %d ]"),
+			*GetActorNameOrLabel(),
+			DestroyedActorInstanceIndex);
+	}
 }
 
 int32 ALightWeightInstanceManager::FindIndexForActor(const AActor* InActor) const
