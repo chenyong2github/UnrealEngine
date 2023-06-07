@@ -153,8 +153,8 @@ public class UnrealEd : ModuleRules
 				"ViewportInteraction",
 				"VREditor",
 				"ClothingSystemEditor",
-                "ClothingSystemRuntimeInterface",
-                "ClothingSystemRuntimeCommon",
+				"ClothingSystemRuntimeInterface",
+				"ClothingSystemRuntimeCommon",
 				"PIEPreviewDeviceProfileSelector",
 				"PakFileUtilities",
 				"TimeManagement",
@@ -177,6 +177,7 @@ public class UnrealEd : ModuleRules
 				"SubobjectEditor",
 				"HeadMountedDisplay",
 				"FieldNotification",
+				"VirtualizationEditor",
 			}
 		);
 
@@ -348,5 +349,5 @@ public class UnrealEd : ModuleRules
 		{
 			PrivateIncludePathModuleNames.Add("LiveCoding");
 		}
-    }
+	}
 }
