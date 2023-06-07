@@ -44,7 +44,7 @@ enum class EInterchangeMaterialXShaders : uint8
 	MaxShaderCount
 };
 
-UCLASS(config = Interchange, meta = (DisplayName = "Interchange MaterialX"))
+UCLASS(config = Engine, meta = (DisplayName = "Interchange MaterialX"))
 class INTERCHANGEPIPELINES_API UMaterialXPipelineSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
