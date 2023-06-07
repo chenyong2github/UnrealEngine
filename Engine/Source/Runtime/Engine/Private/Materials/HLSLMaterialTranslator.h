@@ -888,7 +888,7 @@ protected:
 	virtual int32 ParticleSubUV(int32 TextureIndex, EMaterialSamplerType SamplerType, int32 MipValue0Index, int32 MipValue1Index, ETextureMipValueMode MipValueMode, bool bBlend) override;
 	virtual int32 ParticleSubUVProperty(int32 PropertyIndex) override;
 	virtual int32 ParticleColor() override;
-	virtual int32 ParticlePosition() override;
+	virtual int32 ParticlePosition(EPositionOrigin OriginType) override;
 	virtual int32 ParticleRadius() override;
 
 	virtual int32 SphericalParticleOpacity(int32 Density) override;
@@ -903,7 +903,7 @@ protected:
 
 	virtual int32 WorldPosition(EWorldPositionIncludedOffsets WorldPositionIncludedOffsets) override;
 
-	virtual int32 ObjectWorldPosition() override;
+	virtual int32 ObjectWorldPosition(EPositionOrigin OriginType) override;
 	virtual int32 ObjectRadius() override;
 	virtual int32 ObjectBounds() override;
 
@@ -912,7 +912,7 @@ protected:
 
 	virtual int32 DistanceCullFade() override;
 
-	virtual int32 ActorWorldPosition() override;
+	virtual int32 ActorWorldPosition(EPositionOrigin OriginType) override;
 
 	virtual int32 DynamicBranch(int32 Condition, int32 A, int32 B) override;
 	virtual int32 If(int32 A, int32 B, int32 AGreaterThanB, int32 AEqualsB, int32 ALessThanB, int32 ThresholdArg) override;

@@ -120,7 +120,7 @@ struct FLightmassMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Constant3(0.0f,0.0f,0.0f);
 	}
 
-	virtual int32 ObjectWorldPosition() override
+	virtual int32 ObjectWorldPosition(EPositionOrigin OriginType) override
 	{
 		//UE_LOG(LogLightmassRender, Log, TEXT("Lightmass material compiler has encountered ObjectWorldPosition... Forcing constant (0.0f,0.0f,0.0f)."));
 		return Compiler->Constant3(0.0f,0.0f,0.0f);
@@ -148,7 +148,7 @@ struct FLightmassMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Constant(1.0f);
 	}
 
-	virtual int32 ActorWorldPosition() override
+	virtual int32 ActorWorldPosition(EPositionOrigin OriginType) override
 	{
 		return Compiler->Constant3(0.0f,0.0f,0.0f);
 	}

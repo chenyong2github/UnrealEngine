@@ -13,6 +13,8 @@ class UMaterialExpressionObjectPositionWS : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
+	UPROPERTY(EditAnywhere, Category=UMaterialExpressionObjectPositionWS, meta=(DisplayName = "Origin", ShowAsInputPin = "Advanced"))
+	EPositionOrigin OriginType;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR

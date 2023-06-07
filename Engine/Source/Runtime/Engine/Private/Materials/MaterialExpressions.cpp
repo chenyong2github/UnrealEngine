@@ -10145,12 +10145,31 @@ UMaterialExpressionParticlePositionWS::UMaterialExpressionParticlePositionWS(con
 #if WITH_EDITOR
 int32 UMaterialExpressionParticlePositionWS::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->ParticlePosition();
+	return Compiler->ParticlePosition(OriginType);
 }
 
 void UMaterialExpressionParticlePositionWS::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Particle Position"));
+	switch (OriginType)
+	{
+		case EPositionOrigin::Absolute:
+		{
+			OutCaptions.Add(TEXT("Particle Position (Absolute)"));
+			break;
+		}
+
+		case EPositionOrigin::CameraRelative:
+		{
+			OutCaptions.Add(TEXT("Particle Position (Camera Relative)"));
+			break;
+		}
+
+		default:
+		{
+			UE_LOG(LogMaterial, Fatal, TEXT("Unknown position origin type"));
+			break;
+		}
+	}
 }
 #endif // WITH_EDITOR
 
@@ -12625,12 +12644,31 @@ UMaterialExpressionObjectPositionWS::UMaterialExpressionObjectPositionWS(const F
 #if WITH_EDITOR
 int32 UMaterialExpressionObjectPositionWS::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->ObjectWorldPosition();
+	return Compiler->ObjectWorldPosition(OriginType);
 }
 
 void UMaterialExpressionObjectPositionWS::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Object Position"));
+	switch (OriginType)
+	{
+		case EPositionOrigin::Absolute:
+		{
+			OutCaptions.Add(TEXT("Object Position (Absolute)"));
+			break;
+		}
+
+		case EPositionOrigin::CameraRelative:
+		{
+			OutCaptions.Add(TEXT("Object Position (Camera Relative)"));
+			break;
+		}
+
+		default:
+		{
+			UE_LOG(LogMaterial, Fatal, TEXT("Unknown position origin type"));
+			break;
+		}
+	}
 }
 #endif // WITH_EDITOR
 
@@ -12995,12 +13033,31 @@ int32 UMaterialExpressionActorPositionWS::Compile(class FMaterialCompiler* Compi
 		return CompilerError(Compiler, TEXT("Expression only available in the Surface and Deferred Decal material domains."));
 	}
 
-	return Compiler->ActorWorldPosition();
+	return Compiler->ActorWorldPosition(OriginType);
 }
 
 void UMaterialExpressionActorPositionWS::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Actor Position"));
+	switch (OriginType)
+	{
+		case EPositionOrigin::Absolute:
+		{
+			OutCaptions.Add(TEXT("Actor Position (Absolute)"));
+			break;
+		}
+
+		case EPositionOrigin::CameraRelative:
+		{
+			OutCaptions.Add(TEXT("Actor Position (Camera Relative)"));
+			break;
+		}
+
+		default:
+		{
+			UE_LOG(LogMaterial, Fatal, TEXT("Unknown position origin type"));
+			break;
+		}
+	}
 }
 #endif // WITH_EDITOR
 

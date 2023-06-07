@@ -38,16 +38,16 @@ public:
 
 	using FProxyMaterialCompiler::FProxyMaterialCompiler;
 
-	virtual int32 ActorWorldPosition() override
+	virtual int32 ActorWorldPosition(EPositionOrigin OriginType) override
 	{
 		bUsesActorPosition = true;
-		return Compiler->ActorWorldPosition();
+		return Compiler->ActorWorldPosition(OriginType);
 	}
 
-	virtual int32 ObjectWorldPosition() override
+	virtual int32 ObjectWorldPosition(EPositionOrigin OriginType) override
 	{
 		bUsesObjectPosition = true;
-		return Compiler->ObjectWorldPosition();
+		return Compiler->ObjectWorldPosition(OriginType);
 	}
 
 	virtual int32 ObjectOrientation() override

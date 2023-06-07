@@ -600,4 +600,13 @@ private:
 #endif // WITH_EDITOR
 };
 
+/** Specifies what reference point should be used */
+UENUM()
+enum class EPositionOrigin : uint8
+{
+	/** Absolute world position, i.e. relative to (0,0,0) */
+	Absolute UMETA(DisplayName="Absolute World Position"),
 
+	/** Camera relative world position */
+	CameraRelative UMETA(DisplayName="Camera Relative World Position")
+};

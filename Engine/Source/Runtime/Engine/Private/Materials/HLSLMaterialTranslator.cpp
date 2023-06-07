@@ -5665,16 +5665,23 @@ int32 FHLSLMaterialTranslator::ParticleColor()
 	return AddInlinedCodeChunkZeroDeriv(MCT_Float4,TEXT("Parameters.Particle.Color"));
 }
 
-int32 FHLSLMaterialTranslator::ParticlePosition()
+int32 FHLSLMaterialTranslator::ParticlePosition(EPositionOrigin OriginType)
 {
 	if (ShaderFrequency != SF_Vertex && ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
 	{
 		return NonVertexOrPixelShaderExpressionError();
 	}
 	bNeedsParticlePosition = true;
-	AddLWCFuncUsage(ELWCFunctionKind::Subtract);
-	const int32 Result = AddInlinedCodeChunkZeroDeriv(MCT_LWCVector3,TEXT("LWCSubtract(Parameters.Particle.TranslatedWorldPositionAndSize.xyz, ResolvedView.PreViewTranslation)"));
-	return CastToNonLWCIfDisabled(Result);
+	if (OriginType == EPositionOrigin::CameraRelative)
+	{
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float3, TEXT("Parameters.Particle.TranslatedWorldPositionAndSize.xyz"));
+	}
+	else
+	{
+		AddLWCFuncUsage(ELWCFunctionKind::Subtract);
+		const int32 Result = AddInlinedCodeChunkZeroDeriv(MCT_LWCVector3,TEXT("LWCSubtract(Parameters.Particle.TranslatedWorldPositionAndSize.xyz, ResolvedView.PreViewTranslation)"));
+		return CastToNonLWCIfDisabled(Result);
+	}
 }
 
 int32 FHLSLMaterialTranslator::ParticleRadius()
@@ -5855,10 +5862,17 @@ int32 FHLSLMaterialTranslator::WorldPosition(EWorldPositionIncludedOffsets World
 	return CastToNonLWCIfDisabled(Result);
 }
 
-int32 FHLSLMaterialTranslator::ObjectWorldPosition()
+int32 FHLSLMaterialTranslator::ObjectWorldPosition(EPositionOrigin OriginType)
 {
-	const int32 Result = AddInlinedCodeChunkZeroDeriv(MCT_LWCVector3,TEXT("GetObjectWorldPosition(Parameters)"));
-	return CastToNonLWCIfDisabled(Result);
+	if (OriginType == EPositionOrigin::CameraRelative)
+	{
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float3,TEXT("GetObjectTranslatedWorldPosition(Parameters)"));
+	}
+	else
+	{
+		const int32 Result = AddInlinedCodeChunkZeroDeriv(MCT_LWCVector3,TEXT("GetObjectWorldPosition(Parameters)"));
+		return CastToNonLWCIfDisabled(Result);
+	}
 }
 
 int32 FHLSLMaterialTranslator::ObjectRadius()
@@ -5916,25 +5930,45 @@ int32 FHLSLMaterialTranslator::DistanceCullFade()
 	return AddInlinedCodeChunk(MCT_Float,TEXT("GetDistanceCullFade()"));		
 }
 
-int32 FHLSLMaterialTranslator::ActorWorldPosition()
+int32 FHLSLMaterialTranslator::ActorWorldPosition(EPositionOrigin OriginType)
 {
-	int32 Result = INDEX_NONE;
-	if (bCompilingPreviousFrame && ShaderFrequency == SF_Vertex)
+	if (OriginType == EPositionOrigin::CameraRelative)
 	{
-		// Decal VS doesn't have material code so FMaterialVertexParameters
-		// and primitve uniform buffer are guaranteed to exist if ActorPosition
-		// material node is used in VS
-		AddLWCFuncUsage(ELWCFunctionKind::MultiplyVectorMatrix, 2);
-		Result = AddInlinedCodeChunkZeroDeriv(
-			MCT_LWCVector3,
-			TEXT("LWCMultiply(LWCMultiply(GetActorWorldPosition(Parameters), GetWorldToInstance(Parameters)), Parameters.PrevFrameLocalToWorld)"));
+		if (bCompilingPreviousFrame && ShaderFrequency == SF_Vertex)
+		{
+			// Decal VS doesn't have material code so FMaterialVertexParameters
+			// and primitve uniform buffer are guaranteed to exist if ActorPosition
+			// material node is used in VS
+			AddLWCFuncUsage(ELWCFunctionKind::MultiplyVectorMatrix, 2);
+			return AddInlinedCodeChunkZeroDeriv(
+				MCT_Float3,
+				TEXT("LWCToFloat(LWCSubtract(LWCMultiply(LWCMultiply(GetActorWorldPosition(Parameters), GetWorldToInstance(Parameters)), Parameters.PrevFrameLocalToWorld), ResolvedView.PreViewTranslation))"));
+		}
+		else
+		{
+			return AddInlinedCodeChunkZeroDeriv(MCT_Float3, TEXT("GetActorTranslatedWorldPosition(Parameters)"));
+		}
 	}
 	else
 	{
-		Result = AddInlinedCodeChunkZeroDeriv(MCT_LWCVector3, TEXT("GetActorWorldPosition(Parameters)"));
-	}
+		int32 Result = INDEX_NONE;
+		if (bCompilingPreviousFrame && ShaderFrequency == SF_Vertex)
+		{
+			// Decal VS doesn't have material code so FMaterialVertexParameters
+			// and primitive uniform buffer are guaranteed to exist if ActorPosition
+			// material node is used in VS
+			AddLWCFuncUsage(ELWCFunctionKind::MultiplyVectorMatrix, 2);
+			Result = AddInlinedCodeChunkZeroDeriv(
+				MCT_LWCVector3,
+				TEXT("LWCMultiply(LWCMultiply(GetActorWorldPosition(Parameters), GetWorldToInstance(Parameters)), Parameters.PrevFrameLocalToWorld)"));
+		}
+		else
+		{
+			Result = AddInlinedCodeChunkZeroDeriv(MCT_LWCVector3, TEXT("GetActorWorldPosition(Parameters)"));
+		}
 
-	return CastToNonLWCIfDisabled(Result);
+		return CastToNonLWCIfDisabled(Result);
+	}
 }
 
 int32 FHLSLMaterialTranslator::DynamicBranch(int32 Condition, int32 A, int32 B)

@@ -259,9 +259,9 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 #endif
 	}
 
-	virtual int32 ObjectWorldPosition() override
+	virtual int32 ObjectWorldPosition(EPositionOrigin OriginType) override
 	{
-		return Compiler->ObjectWorldPosition();
+		return Compiler->ObjectWorldPosition(OriginType);
 	}
 
 	virtual int32 DistanceCullFade() override
@@ -269,9 +269,9 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Constant(1.0f);
 	}
 
-	virtual int32 ActorWorldPosition() override
+	virtual int32 ActorWorldPosition(EPositionOrigin OriginType) override
 	{
-		return Compiler->ActorWorldPosition();
+		return Compiler->ActorWorldPosition(OriginType);
 	}
 
 	virtual int32 ParticleRelativeTime() override

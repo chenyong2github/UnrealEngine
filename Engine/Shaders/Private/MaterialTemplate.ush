@@ -1137,6 +1137,16 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 		return GetPrimitiveData(Parameters).ActorWorldPosition;
 	#endif
 	}
+
+	float3 GetActorTranslatedWorldPosition(FMaterialVertexParameters Parameters)
+	{
+		return LWCToFloat(LWCAdd(GetActorWorldPosition(Parameters), ResolvedView.PreViewTranslation));
+	}
+
+	float3 GetActorTranslatedWorldPosition(FMaterialPixelParameters Parameters)
+	{
+		return LWCToFloat(LWCAdd(GetActorWorldPosition(Parameters), ResolvedView.PreViewTranslation));
+	}
 	
 	float3 GetObjectOrientation(FMaterialVertexParameters Parameters)
 	{
@@ -1375,6 +1385,16 @@ FLWCVector3 GetObjectWorldPosition(FMaterialVertexParameters Parameters)
 #else
 	return GetPrimitiveData(Parameters).ObjectWorldPosition;
 #endif
+}
+
+float3 GetObjectTranslatedWorldPosition(FMaterialPixelParameters Parameters)
+{
+	return LWCToFloat(LWCAdd(GetObjectWorldPosition(Parameters), ResolvedView.PreViewTranslation));
+}
+
+float3 GetObjectTranslatedWorldPosition(FMaterialVertexParameters Parameters)
+{
+	return LWCToFloat(LWCAdd(GetObjectWorldPosition(Parameters), ResolvedView.PreViewTranslation));
 }
 
 /** Get the per-instance random value when instancing */
