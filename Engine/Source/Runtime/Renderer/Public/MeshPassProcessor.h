@@ -316,7 +316,7 @@ public:
 		, DrawShadingRate(InMinimalState.DrawShadingRate)
 		, PrimitiveType(InMinimalState.PrimitiveType)
 		, PrecachePSOHash(InMinimalState.PrecachePSOHash)
-		, bPSOPrecached(InMinimalState.bPSOPrecached)
+		, PSOPrecacheState(InMinimalState.PSOPrecacheState)
 	{
 	}
 
@@ -492,8 +492,8 @@ public:
 		
 	// Data hash of the minimal PSO which is used to optimize the computation of the full PSO
 	uint64							PrecachePSOHash = 0;
-	// Is the PSO is precached - updated at draw time and can be used to skip draw when still precaching
-	mutable bool					bPSOPrecached = false;
+	// The PSO precache state - updated at draw time and can be used to skip draw when still precaching
+	mutable EPSOPrecacheResult		PSOPrecacheState = EPSOPrecacheResult::Unknown;
 };
 
 static_assert(sizeof(FMeshPassMask::Data) * 8 >= EMeshPass::Num, "FMeshPassMask::Data is too small to fit all mesh passes.");

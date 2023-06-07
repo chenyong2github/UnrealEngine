@@ -108,10 +108,13 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	VertexFactory->GetStreams(FeatureLevel, InputStreamType, SharedMeshDrawCommand.VertexStreams);
 
 #if PSO_PRECACHING_VALIDATE
-	FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(PipelineState);
-	PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().CheckStateInCacheByHash(ShadersOnlyInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactory->GetType());
-	FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(PipelineState);
-	PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().CheckStateInCacheByHash(PatchedMinimalInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactory->GetType());
+	if (PSOCollectorStats::IsMinimalPSOValidationEnabled())
+	{
+		FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(PipelineState);
+		PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().CheckStateInCacheByHash(ShadersOnlyInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactory->GetType());
+		FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(PipelineState);
+		PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().CheckStateInCacheByHash(PatchedMinimalInitializer.PrecachePSOHash, (uint32)MeshPassType, VertexFactory->GetType());
+	}
 #endif // PSO_PRECACHING_VALIDATE
 
 	SharedMeshDrawCommand.PrimitiveIdStreamIndex = static_cast<int8>(VertexFactory->GetPrimitiveIdStreamIndex(FeatureLevel, InputStreamType));
@@ -233,7 +236,7 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
 	EPrimitiveType PrimitiveType,
-	EMeshPassFeatures MeshPassFeatures, 
+	EMeshPassFeatures MeshPassFeatures,
 	ESubpassHint SubpassHint,
 	uint8 SubpassIndex,
 	bool bRequired,
@@ -243,10 +246,10 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 
 	FGraphicsMinimalPipelineStateInitializer MinimalPipelineStateInitializer;
 	MinimalPipelineStateInitializer.PrimitiveType = PrimitiveType;
-	
+
 	// Ignore immutable samplers for now - should be passed in?
 	//PipelineState.ImmutableSamplerState = MaterialRenderProxy.ImmutableSamplerState;
-	
+
 	EVertexInputStreamType InputStreamType = EVertexInputStreamType::Default;
 	if ((MeshPassFeatures & EMeshPassFeatures::PositionOnly) != EMeshPassFeatures::Default)				InputStreamType = EVertexInputStreamType::PositionOnly;
 	if ((MeshPassFeatures & EMeshPassFeatures::PositionAndNormalOnly) != EMeshPassFeatures::Default)	InputStreamType = EVertexInputStreamType::PositionAndNormalOnly;
@@ -263,7 +266,7 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 		VertexDeclaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 	check(VertexDeclaration);
-	
+
 	FMeshProcessorShaders MeshProcessorShaders = PassShaders.GetUntypedShaders();
 	MinimalPipelineStateInitializer.SetupBoundShaderState(VertexDeclaration, MeshProcessorShaders);
 
@@ -278,10 +281,13 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 
 	MinimalPipelineStateInitializer.ComputePrecachePSOHash();
 #if PSO_PRECACHING_VALIDATE
-	FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(MinimalPipelineStateInitializer);
-	PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().AddStateToCache(ShadersOnlyInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
-	FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(MinimalPipelineStateInitializer);
-	PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().AddStateToCache(PatchedMinimalInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
+	if (PSOCollectorStats::IsMinimalPSOValidationEnabled())
+	{
+		FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(MinimalPipelineStateInitializer);
+		PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().AddStateToCache(ShadersOnlyInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
+		FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(MinimalPipelineStateInitializer);
+		PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().AddStateToCache(PatchedMinimalInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)MeshPassType, VertexFactoryData.VertexFactoryType);
+	}
 #endif // PSO_PRECACHING_VALIDATE
 
 	// NOTE: AsGraphicsPipelineStateInitializer will create the RHIShaders internally if they are not cached yet

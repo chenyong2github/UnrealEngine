@@ -19,7 +19,7 @@ class FVertexFactoryType;
 class FGraphicsPipelineStateInitializer;
 enum class EVertexInputStreamType : uint8;
 
-#define PSO_PRECACHING_VALIDATE (!UE_BUILD_SHIPPING && !WITH_EDITOR)
+#define PSO_PRECACHING_VALIDATE !WITH_EDITOR
 
 /**
  * Parameters which are needed to collect all possible PSOs used by the PSO collectors
@@ -360,6 +360,7 @@ namespace PSOCollectorStats
 
 	extern ENGINE_API int32 IsPrecachingValidationEnabled();
 	extern ENGINE_API EPSOPrecacheValidationMode GetPrecachingValidationMode();
+	extern ENGINE_API bool IsMinimalPSOValidationEnabled();
 
 	/**
 	 * Compute the hash of a graphics PSO initializer to be used by PSO precaching validation.
@@ -396,49 +397,9 @@ namespace PSOCollectorStats
 			return FPlatformAtomics::AtomicRead(&Count);
 		}
 
-		void Empty()
-		{
-			if (!StatFName.IsNone())
-			{
-				SET_DWORD_STAT_FName(StatFName, 0)
-			}
+		void Empty();
 
-			FPlatformAtomics::InterlockedExchange(&Count, 0);
-
-			if (GetPrecachingValidationMode() == EPSOPrecacheValidationMode::Full)
-			{
-				FScopeLock Lock(&StatsLock);
-
-				FMemory::Memzero(PerMeshPassCount, FPSOCollectorCreateManager::MaxPSOCollectorCount * sizeof(uint32));
-				PerVertexFactoryCount.Empty();
-			}
-		}
-
-		void UpdateStats(uint32 MeshPassType, const FVertexFactoryType* VFType)
-		{
-			if (!StatFName.IsNone())
-			{
-				INC_DWORD_STAT_FName(StatFName);
-			}
-
-			FPlatformAtomics::InterlockedIncrement(&Count);
-
-			if (ShouldRecordFullStats(MeshPassType, VFType))
-			{
-				FScopeLock Lock(&StatsLock);
-
-				if (MeshPassType < FPSOCollectorCreateManager::MaxPSOCollectorCount)
-				{
-					PerMeshPassCount[MeshPassType]++;
-				}
-
-				if (VFType != nullptr)
-				{
-					uint32* Value = PerVertexFactoryCount.FindOrAdd(VFType, 0);
-					Value++;
-				}
-			}
-		}
+		void UpdateStats(uint32 MeshPassType, const FVertexFactoryType* VFType);
 
 	private:
 		bool ShouldRecordFullStats(uint32 MeshPassType, const FVertexFactoryType* VFType) const 
@@ -536,27 +497,17 @@ namespace PSOCollectorStats
 		}
 
 		template <typename TPrecacheState>
-		EPSOPrecacheResult CheckStateInPipelineCache(const TPrecacheState& PrecacheState, uint64 HashFn(const TPrecacheState&), uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
+		void CheckStateInCache(const TPrecacheState& PrecacheState, uint64 HashFn(const TPrecacheState&), EPSOPrecacheResult PrecacheResult, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)
 		{
 			if (!IsPrecachingValidationEnabled())
 			{
-				return EPSOPrecacheResult::Unknown;
-			}
-
-			bool bTracked = IsStateTracked(MeshPassType, VertexFactoryType);		
-
-			// Only search the cache if it's tracked.
-			EPSOPrecacheResult PrecacheResult = EPSOPrecacheResult::NotSupported;
-			if (bTracked)
-			{
-				PrecacheResult = PipelineStateCache::CheckPipelineStateInCache(PrecacheState);
+				return;
 			}
 
 			uint64 PrecacheStateHash = HashFn(PrecacheState);
 			
+			bool bTracked = IsStateTracked(MeshPassType, VertexFactoryType);
 			UpdatePrecacheStats(PrecacheStateHash, MeshPassType, VertexFactoryType, bTracked, PrecacheResult);
-			
-			return PrecacheResult;
 		}
 
 		void CheckStateInCacheByHash(const uint64 PrecacheStateHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType)

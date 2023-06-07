@@ -1338,6 +1338,48 @@ uint32 FMeshDrawShaderBindings::GetDynamicInstancingHash() const
 	return uint32(CityHash64((char*)&HashKey, sizeof(FHashKey)));
 }
 
+static EPSOPrecacheResult RetrieveAndCachePSOPrecacheResult(
+	const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState,
+	const FGraphicsPipelineStateInitializer& GraphicsPSOInit,
+	bool bAllowSkipDrawCommand)
+{
+	if (!PipelineStateCache::IsPSOPrecachingEnabled())
+	{
+		return EPSOPrecacheResult::Unknown;
+	}
+
+	EPSOPrecacheResult PSOPrecacheResult = MeshPipelineState.PSOPrecacheState;
+	bool bShouldCheckPrecacheResult = false;
+
+	// If PSO precache validation is on, we need to check the state for stats tracking purposes.
+#if PSO_PRECACHING_VALIDATE
+	if (PSOCollectorStats::IsPrecachingValidationEnabled() && PSOPrecacheResult == EPSOPrecacheResult::Unknown)
+	{
+		bShouldCheckPrecacheResult = true;
+	}
+#endif
+
+	// If we are skipping draws when the PSO is being precached but is not ready, we
+	// need to keep checking the state until it's not marked active anymore.
+	if (bAllowSkipDrawCommand && GSkipDrawOnPSOPrecaching)
+	{
+		if (PSOPrecacheResult == EPSOPrecacheResult::Unknown ||
+			PSOPrecacheResult == EPSOPrecacheResult::Active)
+		{
+			bShouldCheckPrecacheResult = true;
+		}
+	}
+
+	if (bShouldCheckPrecacheResult)
+	{
+		// Cache the state so that it's only checked again if necessary.
+		PSOPrecacheResult = PipelineStateCache::CheckPipelineStateInCache(GraphicsPSOInit);
+		MeshPipelineState.PSOPrecacheState = PSOPrecacheResult;
+	}
+
+	return PSOPrecacheResult;
+}
+
 bool FMeshDrawCommand::SubmitDrawBegin(
 	const FMeshDrawCommand& RESTRICT MeshDrawCommand, 
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
@@ -1360,28 +1402,22 @@ bool FMeshDrawCommand::SubmitDrawBegin(
 		FGraphicsPipelineStateInitializer GraphicsPSOInit = MeshPipelineState.AsGraphicsPipelineStateInitializer();
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-		EPSOPrecacheResult PSOPrecacheResult = EPSOPrecacheResult::Unknown;
+		EPSOPrecacheResult PSOPrecacheResult = RetrieveAndCachePSOPrecacheResult(MeshPipelineState, GraphicsPSOInit, bAllowSkipDrawCommand);
+
 #if PSO_PRECACHING_VALIDATE
 #if MESH_DRAW_COMMAND_DEBUG_DATA
-		// Retrieve state from cache - can be be cached on the MeshPipelineState to not retrieve it anymore after the final state is known
-		PSOPrecacheResult = PSOCollectorStats::GetFullPSOPrecacheStatsCollector().CheckStateInPipelineCache(GraphicsPSOInit, PSOCollectorStats::GetPSOPrecacheHash,
+		PSOCollectorStats::GetFullPSOPrecacheStatsCollector().CheckStateInCache(GraphicsPSOInit, PSOCollectorStats::GetPSOPrecacheHash, PSOPrecacheResult,
 			MeshDrawCommand.DebugData.MeshPassType, MeshDrawCommand.DebugData.VertexFactoryType);
 #else
-		PSOPrecacheResult = PSOCollectorStats::GetFullPSOPrecacheStatsCollector().CheckStateInPipelineCache(GraphicsPSOInit, PSOCollectorStats::GetPSOPrecacheHash,
+		PSOCollectorStats::GetFullPSOPrecacheStatsCollector().CheckStateInCache(GraphicsPSOInit, PSOCollectorStats::GetPSOPrecacheHash, PSOPrecacheResult,
 			EMeshPass::Num, nullptr);
 #endif // MESH_DRAW_COMMAND_DEBUG_DATA
 #endif // PSO_PRECACHING_VALIDATE
 
-		// Check if skip draw is needed when the PSO is still precaching
-		if (bAllowSkipDrawCommand && GSkipDrawOnPSOPrecaching && !MeshPipelineState.bPSOPrecached)
+		// Try and skip draw if the PSO is not precached yet.
+		if (bAllowSkipDrawCommand && GSkipDrawOnPSOPrecaching && PSOPrecacheResult == EPSOPrecacheResult::Active)
 		{
-			MeshPipelineState.bPSOPrecached = !PipelineStateCache::IsPrecaching(GraphicsPSOInit);
-
-			// Try and skip draw if not precached yet
-			if (!MeshPipelineState.bPSOPrecached)
-			{
-				return false;
-			}
+			return false;
 		}
 
 		// We can set the new StencilRef here to avoid the set below

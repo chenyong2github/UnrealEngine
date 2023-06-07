@@ -510,6 +510,14 @@ static FAutoConsoleVariableRef CVarValidatePSOPrecaching(
 	ECVF_ReadOnly
 );
 
+int32 GPrecachingValidationTrackMinimalPSOs = 0;
+static FAutoConsoleVariableRef CVarPSOPrecachingTrackMinimalPSOs(
+	TEXT("r.PSOPrecache.Validation.TrackMinimalPSOs"),
+	GPrecachingValidationTrackMinimalPSOs,
+	TEXT("1 enables tracking minimal PSOs precaching stats (shaders-only and minimal PSO states), 0 (default) disables it. Only valid when r.PSOPrecache.Validation != 0."),
+	ECVF_ReadOnly
+);
+
 int32 PSOCollectorStats::IsPrecachingValidationEnabled()
 {
 	return PipelineStateCache::IsPSOPrecachingEnabled() && GetPrecachingValidationMode() != EPSOPrecacheValidationMode::Disabled;
@@ -527,6 +535,55 @@ ENGINE_API PSOCollectorStats::EPSOPrecacheValidationMode PSOCollectorStats::GetP
 		// Passthrough.
 	default:
 		return EPSOPrecacheValidationMode::Disabled;
+	}
+}
+
+bool PSOCollectorStats::IsMinimalPSOValidationEnabled()
+{
+	return IsPrecachingValidationEnabled() && GPrecachingValidationTrackMinimalPSOs != 0;
+}
+
+void PSOCollectorStats::FPrecacheUsageData::Empty()
+{
+	if (!StatFName.IsNone())
+	{
+		SET_DWORD_STAT_FName(StatFName, 0)
+	}
+
+	FPlatformAtomics::InterlockedExchange(&Count, 0);
+
+	if (GetPrecachingValidationMode() == EPSOPrecacheValidationMode::Full)
+	{
+		FScopeLock Lock(&StatsLock);
+
+		FMemory::Memzero(PerMeshPassCount, FPSOCollectorCreateManager::MaxPSOCollectorCount * sizeof(uint32));
+		PerVertexFactoryCount.Empty();
+	}
+}
+
+void PSOCollectorStats::FPrecacheUsageData::UpdateStats(uint32 MeshPassType, const FVertexFactoryType* VFType)
+{
+	if (!StatFName.IsNone())
+	{
+		INC_DWORD_STAT_FName(StatFName);
+	}
+
+	FPlatformAtomics::InterlockedIncrement(&Count);
+
+	if (ShouldRecordFullStats(MeshPassType, VFType))
+	{
+		FScopeLock Lock(&StatsLock);
+
+		if (MeshPassType < FPSOCollectorCreateManager::MaxPSOCollectorCount)
+		{
+			PerMeshPassCount[MeshPassType]++;
+		}
+
+		if (VFType != nullptr)
+		{
+			uint32* Value = PerVertexFactoryCount.FindOrAdd(VFType, 0);
+			Value++;
+		}
 	}
 }
 
@@ -554,7 +611,7 @@ void PSOCollectorStats::FPrecacheStatsCollector::UpdatePrecacheStats(uint64 Prec
 			bUpdateStats = true;
 			bWasPrecached = Value->bPrecached;
 		}
-	}
+	}	
 
 	if (bUpdateStats)
 	{

@@ -1665,7 +1665,7 @@ void CollectRasterPSOInitializersForPermutation(
 	if (Material.TryGetShaders(ProgrammableShaderTypes, nullptr, ProgrammableShaders) && FixedMaterialResource->TryGetShaders(NonProgrammableShaderTypes, nullptr, NonProgrammableShaders))
 	{		
 		// Graphics PSO setup
-		{			
+		{
 			FGraphicsMinimalPipelineStateInitializer MinimalPipelineStateInitializer;
 			MinimalPipelineStateInitializer.BlendState = TStaticBlendState<>::GetRHI();
 			MinimalPipelineStateInitializer.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI(); // TODO: PROG_RASTER - Support depth clip as a rasterizer bin and remove shader permutations
@@ -1675,7 +1675,7 @@ void CollectRasterPSOInitializersForPermutation(
 
 #if PLATFORM_SUPPORTS_MESH_SHADERS
 			if (bUseMeshShader)
-			{		
+			{
 				FMaterialShaders* MeshMaterialShaders = ProgrammableShaders.Shaders[SF_Mesh] ? &ProgrammableShaders : &NonProgrammableShaders;
 				MinimalPipelineStateInitializer.BoundShaderState.MeshShaderResource = MeshMaterialShaders->ShaderMap->GetResource();
 				MinimalPipelineStateInitializer.BoundShaderState.MeshShaderIndex = MeshMaterialShaders->Shaders[SF_Mesh]->GetResourceIndex();
@@ -1696,10 +1696,13 @@ void CollectRasterPSOInitializersForPermutation(
 
 			MinimalPipelineStateInitializer.ComputePrecachePSOHash();
 		#if PSO_PRECACHING_VALIDATE
-			FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(MinimalPipelineStateInitializer);
-			PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().AddStateToCache(ShadersOnlyInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)EMeshPass::NaniteMeshPass, nullptr);
-			FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(MinimalPipelineStateInitializer);
-			PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().AddStateToCache(PatchedMinimalInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)EMeshPass::NaniteMeshPass, nullptr);
+			if (PSOCollectorStats::IsMinimalPSOValidationEnabled())
+			{
+				FGraphicsMinimalPipelineStateInitializer ShadersOnlyInitializer = PSOCollectorStats::GetShadersOnlyInitializer(MinimalPipelineStateInitializer);
+				PSOCollectorStats::GetShadersOnlyPSOPrecacheStatsCollector().AddStateToCache(ShadersOnlyInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)EMeshPass::NaniteMeshPass, nullptr);
+				FGraphicsMinimalPipelineStateInitializer PatchedMinimalInitializer = PSOCollectorStats::PatchMinimalPipelineStateToCheck(MinimalPipelineStateInitializer);
+				PSOCollectorStats::GetMinimalPSOPrecacheStatsCollector().AddStateToCache(PatchedMinimalInitializer, PSOCollectorStats::GetPSOPrecacheHash, (uint32)EMeshPass::NaniteMeshPass, nullptr);
+			}
 		#endif
 
 			// NOTE: AsGraphicsPipelineStateInitializer will create the RHIShaders internally if they are not cached yet
