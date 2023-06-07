@@ -953,7 +953,7 @@ void FCollectionSelectionConvertDataflowNode::Evaluate(Dataflow::FContext& Conte
 		{
 			// Passthrough
 			const FDataflowFaceSelection& InFaceSelection = GetValue<FDataflowFaceSelection>(Context, &FaceSelection);
-			SetValue<FDataflowFaceSelection>(Context, InFaceSelection, &InFaceSelection);
+			SetValue<FDataflowFaceSelection>(Context, InFaceSelection, &FaceSelection);
 		}
 		else if (IsConnected<FDataflowTransformSelection>(&TransformSelection))
 		{

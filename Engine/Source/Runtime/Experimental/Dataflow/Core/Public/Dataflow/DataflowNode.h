@@ -80,6 +80,8 @@ struct DATAFLOWCORE_API FDataflowNode
 	FText GetPinDisplayName(const FName& PropertyName);
 	TArray<FString> GetPinMetaData(const FName& PropertyName);
 	virtual TArray<Dataflow::FRenderingParameter> GetRenderParameters() const { return GetRenderParametersImpl(); }
+	// Copy node property values from another node
+	void CopyNodeProperties(const TSharedPtr<FDataflowNode> CopyFromDataflowNode);
 
 	//
 	// Connections

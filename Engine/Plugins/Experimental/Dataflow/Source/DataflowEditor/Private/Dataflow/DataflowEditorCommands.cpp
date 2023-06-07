@@ -10,6 +10,9 @@
 #include "IStructureDetailsView.h"
 #include "EdGraphNode_Comment.h"
 #include "Editor.h"
+#include "Dataflow/DataflowGraphEditor.h"
+#include "Dataflow/DataflowSCommentNode.h"
+#include "Dataflow/DataflowSNode.h"
 
 #define LOCTEXT_NAMESPACE "DataflowEditorCommands"
 
@@ -359,6 +362,183 @@ void FDataflowEditorCommands::OnSelectedNodesChanged(TSharedPtr<IStructureDetail
 
 void FDataflowEditorCommands::ToggleEnabledState(UDataflow* Graph)
 {
+}
+
+static UEdGraphPin* GetPin(const UDataflowEdNode* Node, const EEdGraphPinDirection Direction, const FName Name)
+{
+	for (UEdGraphPin* Pin : Node->GetAllPins())
+	{
+		if (Pin->PinName == Name && Pin->Direction == Direction)
+		{
+			return Pin;
+		}
+	}
+
+	return nullptr;
+}
+
+void FDataflowEditorCommands::DuplicateNodes(UDataflow* Graph, const TSharedPtr<SDataflowGraphEditor>& DataflowGraphEditor, const FGraphPanelSelectionSet& SelectedNodes)
+{
+	if (ensureMsgf(Graph != nullptr, TEXT("Warning : Failed to find valid graph.")))
+	{
+		// Separate selected nodes into an array of UDataflowEdNodes and
+		// an array of UEdGraphNode_Comments
+		TSet<UDataflowEdNode*> SelectedEdNodes;
+		TSet<UEdGraphNode_Comment*> SelectedEdCommentNodes;
+
+		for (UObject* Node : SelectedNodes)
+		{
+			if (UDataflowEdNode* EdNode = dynamic_cast<UDataflowEdNode*>(Node))
+			{
+				SelectedEdNodes.Add(EdNode);
+			}
+			else if (UEdGraphNode_Comment* EdCommentNode = dynamic_cast<UEdGraphNode_Comment*>(Node))
+			{
+				SelectedEdCommentNodes.Add(EdCommentNode);
+			}
+		}
+
+		FDataflowAssetEdit Edit = Graph->EditDataflow();
+		if (Dataflow::FGraph* DataflowGraph = Edit.GetGraph())
+		{
+			// Process Dataflow nodes
+			TSet<UDataflowEdNode*> DuplicatedEdNodes;
+			FVector2D RefLocation;
+
+			if (SelectedEdNodes.Num() > 0)
+			{
+				// Store the location of the first selected node for recreating spatial relationships
+				RefLocation.X = SelectedEdNodes.Array()[0]->NodePosX; RefLocation.Y = SelectedEdNodes.Array()[0]->NodePosY;
+
+				//
+				// Create a map to record OriginalNode.Guid -> DuplicatedNode.Guid
+				//
+				TMap<FGuid, FGuid> NodeGuidMap;				// [OriginalDataflowNodeGuid -> DuplicatedDataflowNodeGuid]
+				TMap<FGuid, UDataflowEdNode*> EdNodeMap;	// [OriginalDataflowNodeGuid -> DuplicatedEdNode]
+
+				// Duplicate selected nodes
+				for (UDataflowEdNode* SelectedEdNode : SelectedEdNodes)
+				{
+					if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(SelectedEdNode->DataflowNodeGuid))
+					{
+						if (TSharedPtr<FAssetSchemaAction_Dataflow_DuplicateNode_DataflowEdNode> DuplicateNodeAction = FAssetSchemaAction_Dataflow_DuplicateNode_DataflowEdNode::CreateAction(Graph, DataflowNode->GetType()))
+						{
+							DuplicateNodeAction->DataflowNodeToDuplicate = DataflowNode;
+
+							FVector2D SelectedEdNodeLocation(SelectedEdNode->NodePosX, SelectedEdNode->NodePosY);
+							FVector2D DeltaLocation = SelectedEdNodeLocation - RefLocation;
+
+							if (UDataflowEdNode* NewEdNode = (UDataflowEdNode*)DuplicateNodeAction->PerformAction(Graph, nullptr, DataflowGraphEditor->GetPasteLocation() + DeltaLocation, false))
+							{
+								DuplicatedEdNodes.Add(NewEdNode);
+
+								// Record Guids
+								NodeGuidMap.Add(SelectedEdNode->DataflowNodeGuid, NewEdNode->DataflowNodeGuid);
+								EdNodeMap.Add(SelectedEdNode->DataflowNodeGuid, NewEdNode);
+							}
+						}
+					}
+				}
+
+				// Recreate connections between duplicated nodes
+				for (UDataflowEdNode* SelectedEdNode : SelectedEdNodes)
+				{
+					if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(SelectedEdNode->DataflowNodeGuid))
+					{
+						FGuid DataflowNodeAGuid = DataflowNode->GetGuid();
+
+						for (FDataflowOutput* Output : DataflowNode->GetOutputs())
+						{
+							for (FDataflowInput* Connection : Output->Connections)
+							{
+								const FName OutputputName = Connection->GetConnection()->GetName();
+
+								// Check if the node on the end of the conmnection was duplicated
+								FGuid DataflowNodeBGuid = Connection->GetOwningNode()->GetGuid();
+
+								if (NodeGuidMap.Contains(DataflowNodeBGuid))
+								{
+									const FName InputputName = Connection->GetName();
+
+									if (TSharedPtr<FDataflowNode> DuplicatedDataflowNodeA = DataflowGraph->FindBaseNode(NodeGuidMap[DataflowNodeAGuid]))
+									{
+										FDataflowOutput* OutputConnection = DuplicatedDataflowNodeA->FindOutput(OutputputName);
+
+										if (TSharedPtr<FDataflowNode> DuplicatedDataflowNodeB = DataflowGraph->FindBaseNode(NodeGuidMap[DataflowNodeBGuid]))
+										{
+											FDataflowInput* InputConnection = DuplicatedDataflowNodeB->FindInput(InputputName);
+
+											DataflowGraph->Connect(OutputConnection, InputConnection);
+
+											// Connect the UDataflowEdNode FPins as well
+											if (UEdGraphPin* OutputPin = GetPin(EdNodeMap[DataflowNodeAGuid], EEdGraphPinDirection::EGPD_Output, OutputputName))
+											{
+												if (UEdGraphPin* InputPin = GetPin(EdNodeMap[DataflowNodeBGuid], EEdGraphPinDirection::EGPD_Input, InputputName))
+												{
+													OutputPin->MakeLinkTo(InputPin);
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// Process Comment nodes
+			TSet<UEdGraphNode*> DuplicatedEdCommentNodes;
+
+			if (SelectedEdCommentNodes.Num() > 0)
+			{
+				if (SelectedEdNodes.Num() == 0)
+				{
+					RefLocation.X = SelectedEdCommentNodes.Array()[0]->NodePosX; RefLocation.Y = SelectedEdCommentNodes.Array()[0]->NodePosY;
+				}
+
+				const TSharedPtr<SGraphEditor>& InGraphEditor = (TSharedPtr<SGraphEditor>)DataflowGraphEditor;
+
+				for (UEdGraphNode_Comment* SelectedCommentNode : SelectedEdCommentNodes)
+				{
+					if (TSharedPtr<FAssetSchemaAction_Dataflow_DuplicateCommentNode_DataflowEdNode> DuplicateCommentNodeAction = FAssetSchemaAction_Dataflow_DuplicateCommentNode_DataflowEdNode::CreateAction(Graph, InGraphEditor))
+					{
+						DuplicateCommentNodeAction->CommentNodeToDuplicate = SelectedCommentNode;
+
+						FVector2D SelectedCommentNodeLocation(SelectedCommentNode->NodePosX, SelectedCommentNode->NodePosY);
+						FVector2D DeltaLocation = SelectedCommentNodeLocation - RefLocation;
+
+						if (UEdGraphNode* NewCommentNode = DuplicateCommentNodeAction->PerformAction(Graph, nullptr, DataflowGraphEditor->GetPasteLocation() + DeltaLocation, false))
+						{
+							DuplicatedEdCommentNodes.Add(NewCommentNode);
+						}
+					}
+				}
+			}
+
+			// Update the selection in the Editor
+			if (SelectedEdNodes.Num() > 0 || SelectedEdCommentNodes.Num() > 0)
+			{
+				DataflowGraphEditor->ClearSelectionSet();
+
+				if (SelectedEdNodes.Num() > 0)
+				{
+					for (UDataflowEdNode* Node : DuplicatedEdNodes)
+					{
+						DataflowGraphEditor->SetNodeSelection(Node, true);
+					}
+				}
+
+				if (SelectedEdCommentNodes.Num() > 0)
+				{
+					for (UEdGraphNode* Node : DuplicatedEdCommentNodes)
+					{
+						DataflowGraphEditor->SetNodeSelection(Node, true);
+					}
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

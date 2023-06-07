@@ -5,6 +5,8 @@
 #include "ChaosLog.h"
 #include "Dataflow/DataflowInputOutput.h"
 #include "Dataflow/DataflowArchive.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/MemoryReader.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowNode)
 
@@ -572,6 +574,18 @@ TArray<FString> FDataflowNode::GetPinMetaData(const FName& PropertyName)
 
 	return TArray<FString>();
 }
+
+void FDataflowNode::CopyNodeProperties(const TSharedPtr<FDataflowNode> CopyFromDataflowNode)
+{
+	TArray<uint8> NodeData;
+
+	FMemoryWriter ArWriter(NodeData);
+	CopyFromDataflowNode->SerializeInternal(ArWriter);
+
+	FMemoryReader ArReader(NodeData);
+	this->SerializeInternal(ArReader);
+}
+
 
 
 

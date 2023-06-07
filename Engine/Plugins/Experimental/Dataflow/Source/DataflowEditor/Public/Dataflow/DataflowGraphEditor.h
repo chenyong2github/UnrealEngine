@@ -114,6 +114,9 @@ public:
 	/** */
 	void ToggleEnabledState();
 
+	/** */
+	void DuplicateSelectedNodes();
+
 	SGraphEditor* GetGraphEditor() { return (SGraphEditor*)this; }
 
 private:

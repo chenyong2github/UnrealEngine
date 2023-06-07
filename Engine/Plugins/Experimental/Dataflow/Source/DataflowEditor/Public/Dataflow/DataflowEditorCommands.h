@@ -15,6 +15,7 @@ class UDataflow;
 class UDataflowEdNode;
 struct FDataflowNode;
 class UEdGraphNode;
+class SDataflowGraphEditor;
 
 typedef TSet<class UObject*> FGraphPanelSelectionSet;
 
@@ -106,6 +107,11 @@ public:
 	*  ToggleEnabledState
 	*/
 	static void ToggleEnabledState(UDataflow* Graph);
+
+	/*
+	*  DuplicateNodes
+	*/
+	static void DuplicateNodes(UDataflow* Graph, const TSharedPtr<SDataflowGraphEditor>& DataflowGraphEditor, const FGraphPanelSelectionSet& SelectedNodes);
 
 
 

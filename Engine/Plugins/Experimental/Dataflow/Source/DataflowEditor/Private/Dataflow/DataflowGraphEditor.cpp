@@ -98,6 +98,10 @@ void SDataflowGraphEditor::Construct(const FArguments& InArgs, UObject* InAssetO
 				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::OnRemoveOptionPin),
 				FCanExecuteAction::CreateSP(this, &SDataflowGraphEditor::CanRemoveOptionPin)
 			);
+			GraphEditorCommands->MapAction(
+				FGenericCommands::Get().Duplicate,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::DuplicateSelectedNodes)
+			);
 		}
 	}
 
@@ -471,6 +475,20 @@ bool SDataflowGraphEditor::CanRemoveOptionPin() const
 	}
 
 	return bCanRemoveOptionPin;
+}
+
+void SDataflowGraphEditor::DuplicateSelectedNodes()
+{
+	if (UDataflow* Graph = DataflowAsset.Get())
+	{
+		const TSharedPtr<SDataflowGraphEditor>& DataflowGraphEditor = SharedThis(this);
+		const FGraphPanelSelectionSet& SelectedNodes = GetSelectedNodes();
+
+		if (SelectedNodes.Num() > 0)
+		{
+			FDataflowEditorCommands::DuplicateNodes(Graph, DataflowGraphEditor, SelectedNodes);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
