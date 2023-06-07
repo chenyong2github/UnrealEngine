@@ -45,7 +45,7 @@ namespace EpicGames.Horde.Tests
 				Text = reader.ReadString();
 			}
 
-			public override void Serialize(ITreeNodeWriter writer)
+			public override void Serialize(NodeWriter writer)
 			{
 				writer.WriteString(Text);
 			}
@@ -130,7 +130,7 @@ namespace EpicGames.Horde.Tests
 				Refs = reader.ReadVariableLengthArray(() => reader.ReadRef<SimpleNode>());
 			}
 
-			public override void Serialize(ITreeNodeWriter writer)
+			public override void Serialize(NodeWriter writer)
 			{
 				writer.WriteVariableLengthBytes(Data);
 				writer.WriteVariableLengthArray(Refs, x => writer.WriteRef(x));

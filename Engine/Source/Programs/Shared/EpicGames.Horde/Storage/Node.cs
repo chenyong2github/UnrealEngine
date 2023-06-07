@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -88,7 +89,7 @@ namespace EpicGames.Horde.Storage
 		/// Serialize the contents of this node
 		/// </summary>
 		/// <returns>Data for the node</returns>
-		public abstract void Serialize(ITreeNodeWriter writer);
+		public abstract void Serialize(NodeWriter writer);
 
 		/// <summary>
 		/// Enumerate all outward references from this node
@@ -101,7 +102,7 @@ namespace EpicGames.Horde.Storage
 		static readonly object s_writeLock = new object();
 		static readonly ConcurrentDictionary<Type, NodeType> s_typeToNodeType = new ConcurrentDictionary<Type, NodeType>();
 		static readonly ConcurrentDictionary<Guid, Type> s_guidToType = new ConcurrentDictionary<Guid, Type>();
-		static readonly ConcurrentDictionary<Guid, Func<NodeReader, Node>> s_guidToDeserializer = new ConcurrentDictionary<Guid, Func<NodeReader, Node>>();
+		static readonly ConcurrentDictionary<Guid, Func<NodeData, Node>> s_guidToDeserializer = new ConcurrentDictionary<Guid, Func<NodeData, Node>>();
 
 		static NodeType CreateNodeType(NodeTypeAttribute attribute)
 		{
@@ -152,19 +153,19 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Deserialize a node from the given reader
 		/// </summary>
-		/// <param name="reader">Data to deserialize from</param>
+		/// <param name="nodeData">Data to deserialize from</param>
 		/// <returns>New node instance</returns>
-		public static Node Deserialize(NodeReader reader)
+		public static Node Deserialize(NodeData nodeData)
 		{
-			return s_guidToDeserializer[reader.Type.Guid](reader);
+			return s_guidToDeserializer[nodeData.Type.Guid](nodeData);
 		}
 
 		/// <summary>
 		/// Deserialize a node from the given reader
 		/// </summary>
-		/// <param name="reader">Data to deserialize from</param>
+		/// <param name="nodeData">Data to deserialize from</param>
 		/// <returns>New node instance</returns>
-		public static TNode Deserialize<TNode>(NodeReader reader) where TNode : Node => (TNode)Deserialize(reader);
+		public static TNode Deserialize<TNode>(NodeData nodeData) where TNode : Node => (TNode)Deserialize(nodeData);
 
 		/// <summary>
 		/// Static constructor. Registers all the types in the current assembly.
@@ -223,44 +224,179 @@ namespace EpicGames.Horde.Storage
 			NodeType nodeType = CreateNodeType(attribute);
 			s_typeToNodeType.TryAdd(type, nodeType);
 
-			Func<NodeReader, Node> deserializer = CreateDeserializer(type);
+			Func<NodeData, Node> deserializer = CreateDeserializer(type);
 			s_guidToType.TryAdd(nodeType.Guid, type);
 			s_guidToDeserializer.TryAdd(nodeType.Guid, deserializer);
 		}
 
-		static Func<NodeReader, Node> CreateDeserializer(Type type)
-		{
-			Type[] signature = new[] { typeof(NodeReader) };
+		static readonly ConstructorInfo? s_nodeReaderTypeCtor = typeof(NodeReader).GetConstructor(new[] { typeof(NodeData) });
 
-			ConstructorInfo? constructorInfo = type.GetConstructor(signature);
-			if (constructorInfo == null)
+		static Func<NodeData, Node> CreateDeserializer(Type type)
+		{
+			Type[] signature = new[] { typeof(NodeData) };
+
+			ConstructorInfo? nodeDataCtor = type.GetConstructor(signature);
+			if (nodeDataCtor != null)
 			{
-				throw new InvalidOperationException($"Type {type.Name} does not have a constructor taking an {typeof(NodeReader).Name} as parameter.");
+				DynamicMethod method = new DynamicMethod($"Create_{type.Name}", type, signature, true);
+
+				ILGenerator generator = method.GetILGenerator();
+				generator.Emit(OpCodes.Ldarg_0);
+				generator.Emit(OpCodes.Newobj, nodeDataCtor);
+				generator.Emit(OpCodes.Ret);
+
+				return (Func<NodeData, Node>)method.CreateDelegate(typeof(Func<NodeData, Node>));
 			}
 
-			DynamicMethod method = new DynamicMethod($"Create_{type.Name}", type, signature, true);
+			ConstructorInfo? nodeReaderCtor = type.GetConstructor(new[] { typeof(NodeReader) });
+			if (nodeReaderCtor != null)
+			{
+				DynamicMethod method = new DynamicMethod($"Create_{type.Name}", type, signature, true);
 
-			ILGenerator generator = method.GetILGenerator();
-			generator.Emit(OpCodes.Ldarg_0);
-			generator.Emit(OpCodes.Newobj, constructorInfo);
-			generator.Emit(OpCodes.Ret);
+				ILGenerator generator = method.GetILGenerator();
+				generator.Emit(OpCodes.Ldarg_0);
+				generator.Emit(OpCodes.Newobj, s_nodeReaderTypeCtor!);
+				generator.Emit(OpCodes.Newobj, nodeReaderCtor);
+				generator.Emit(OpCodes.Ret);
 
-			return (Func<NodeReader, Node>)method.CreateDelegate(typeof(Func<NodeReader, Node>));
+				return (Func<NodeData, Node>)method.CreateDelegate(typeof(Func<NodeData, Node>));
+			}
+
+			throw new InvalidOperationException($"Type {type.Name} does not have a constructor taking a {typeof(NodeData).Name} or {typeof(NodeReader).Name} instance as parameter.");
 		}
 
 		#endregion
 	}
 
 	/// <summary>
-	/// Writer for tree nodes
+	/// Data for an individual node
 	/// </summary>
-	public interface ITreeNodeWriter : IMemoryWriter
+	public record struct NodeData(NodeType Type, IoHash Hash, ReadOnlyMemory<byte> Data, IReadOnlyList<NodeHandle> Refs);
+
+	/// <summary>
+	/// Reader for tree nodes
+	/// </summary>
+	public sealed class NodeReader : MemoryReader
 	{
 		/// <summary>
-		/// Writes a reference to another node
+		/// Type to deserialize
 		/// </summary>
-		/// <param name="handle">Handle to the target node</param>
-		void WriteNodeHandle(NodeHandle handle);
+		public NodeType Type => _nodeData.Type;
+
+		/// <summary>
+		/// Version of the current node, as specified via <see cref="NodeTypeAttribute"/>
+		/// </summary>
+		public int Version => Type.Version;
+
+		/// <summary>
+		/// Total length of the data in this node
+		/// </summary>
+		public int Length => _nodeData.Data.Length;
+
+		/// <summary>
+		/// Hash of the node being deserialized
+		/// </summary>
+		public IoHash Hash => _nodeData.Hash;
+
+		/// <summary>
+		/// 
+		/// </summary>
+		public ReadOnlyMemory<byte> Data => _nodeData.Data;
+
+		/// <summary>
+		/// Locations of all referenced nodes.
+		/// </summary>
+		public IReadOnlyList<NodeHandle> References => _nodeData.Refs;
+
+		readonly NodeData _nodeData;
+		int _refIdx;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public NodeReader(NodeData nodeData)
+			: base(nodeData.Data)
+		{
+			_nodeData = nodeData;
+		}
+
+		/// <summary>
+		/// Reads the next reference to another node
+		/// </summary>
+		public NodeHandle ReadNodeHandle()
+		{
+			IoHash hash = this.ReadIoHash();
+			return GetNodeHandle(_refIdx++, hash);
+		}
+
+		/// <summary>
+		/// Gets a node handle with the given index and hash
+		/// </summary>
+		/// <param name="index"></param>
+		/// <param name="hash"></param>
+		/// <returns></returns>
+		public NodeHandle GetNodeHandle(int index, IoHash hash)
+		{
+			Debug.Assert(_nodeData.Refs[index].Hash == hash);
+			return _nodeData.Refs[index];
+		}
+	}
+
+	/// <summary>
+	/// Writer for node objects, which tracks references to other nodes
+	/// </summary>
+	public sealed class NodeWriter : IMemoryWriter
+	{
+		readonly IStorageWriter _treeWriter;
+
+		Memory<byte> _memory;
+		readonly List<NodeHandle> _refs = new List<NodeHandle>();
+		int _length;
+
+		/// <summary>
+		/// List of serialized references
+		/// </summary>
+		public IReadOnlyList<NodeHandle> References => _refs;
+
+		/// <inheritdoc/>
+		public int Length => _length;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="treeWriter"></param>
+		public NodeWriter(IStorageWriter treeWriter)
+		{
+			_treeWriter = treeWriter;
+			_memory = treeWriter.GetOutputBuffer(0, 256 * 1024);
+		}
+
+		/// <summary>
+		/// Writes a handle to another node
+		/// </summary>
+		public void WriteNodeHandle(NodeHandle target)
+		{
+			this.WriteIoHash(target.Hash);
+			_refs.Add(target);
+		}
+
+		/// <inheritdoc/>
+		public Span<byte> GetSpan(int sizeHint = 0) => GetMemory(sizeHint).Span;
+
+		/// <inheritdoc/>
+		public Memory<byte> GetMemory(int sizeHint = 0)
+		{
+			int newLength = _length + Math.Max(sizeHint, 1);
+			if (newLength > _memory.Length)
+			{
+				newLength = _length + Math.Max(sizeHint, 1024);
+				_memory = _treeWriter.GetOutputBuffer(_length, Math.Max(_memory.Length * 2, newLength));
+			}
+			return _memory.Slice(_length);
+		}
+
+		/// <inheritdoc/>
+		public void Advance(int length) => _length += length;
 	}
 
 	/// <summary>
@@ -277,7 +413,7 @@ namespace EpicGames.Horde.Storage
 		/// <returns></returns>
 		public static async ValueTask<TNode> ReadAsync<TNode>(this NodeHandle handle, CancellationToken cancellationToken = default) where TNode : Node
 		{
-			NodeReader nodeData = await handle.ReadAsync(cancellationToken);
+			NodeData nodeData = await handle.ReadAsync(cancellationToken);
 			return Node.Deserialize<TNode>(nodeData);
 		}
 
@@ -341,7 +477,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public static void WriteRef(this ITreeNodeWriter writer, NodeRef value)
+		public static void WriteRef(this NodeWriter writer, NodeRef value)
 		{
 			value.Serialize(writer);
 		}
@@ -351,7 +487,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public static void WriteOptionalRef(this ITreeNodeWriter writer, NodeRef? value)
+		public static void WriteOptionalRef(this NodeWriter writer, NodeRef? value)
 		{
 			if (value == null)
 			{
@@ -409,7 +545,7 @@ namespace EpicGames.Horde.Storage
 				return null;
 			}
 
-			NodeReader nodeData = await refTarget.ReadAsync(cancellationToken);
+			NodeData nodeData = await refTarget.ReadAsync(cancellationToken);
 			return Node.Deserialize<TNode>(nodeData);
 		}
 

@@ -62,7 +62,7 @@ namespace Horde.Server.Perforce
 			}
 
 			/// <inheritdoc/>
-			public override void Serialize(ITreeNodeWriter writer)
+			public override void Serialize(NodeWriter writer)
 			{
 				writer.WriteUnsignedVarInt(Change);
 				writer.WriteUnsignedVarInt(ParentChange);

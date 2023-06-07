@@ -100,7 +100,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <inheritdoc/>
-		public override void Serialize(ITreeNodeWriter writer)
+		public override void Serialize(NodeWriter writer)
 		{
 			writer.WriteUnsignedVarInt(Number);
 			writer.WriteOptionalRef(Parent);

@@ -118,7 +118,7 @@ namespace EpicGames.Horde.Storage
 		/// Serialize the node to the given writer
 		/// </summary>
 		/// <param name="writer"></param>
-		public virtual void Serialize(ITreeNodeWriter writer)
+		public virtual void Serialize(NodeWriter writer)
 		{
 			Debug.Assert(Handle != null);
 			writer.WriteNodeHandle(Handle);
@@ -133,8 +133,8 @@ namespace EpicGames.Horde.Storage
 		{
 			if (Target == null)
 			{
-				NodeReader nodeReader = await Handle!.ReadAsync(cancellationToken);
-				Target = Node.Deserialize(nodeReader);
+				NodeData nodeData = await Handle!.ReadAsync(cancellationToken);
+				Target = Node.Deserialize(nodeData);
 				OnExpand();
 			}
 			return Target;
@@ -224,7 +224,7 @@ namespace EpicGames.Horde.Storage
 				throw new InvalidOperationException("TreeNodeRef has not been serialized to storage");
 			}
 
-			NodeReader nodeData = await Handle!.ReadAsync(cancellationToken);
+			NodeData nodeData = await Handle!.ReadAsync(cancellationToken);
 			return Node.Deserialize<T>(nodeData);
 		}
 	}
@@ -234,52 +234,6 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	public static class NodeRefExtensions
 	{
-		// Implementation of INodeWriter that tracks refs
-		class NodeWriter : ITreeNodeWriter
-		{
-			readonly IStorageWriter _treeWriter;
-
-			Memory<byte> _memory;
-			int _length;
-			readonly IReadOnlyList<NodeHandle> _refs;
-			int _refIdx;
-
-			public int Length => _length;
-
-			public NodeWriter(IStorageWriter treeWriter, IReadOnlyList<NodeHandle> refs)
-			{
-				_treeWriter = treeWriter;
-				_memory = treeWriter.GetOutputBuffer(0, 256 * 1024);
-				_refs = refs;
-			}
-
-			public void WriteNodeHandle(NodeHandle target)
-			{
-				if (_refs[_refIdx] != target)
-				{
-					throw new InvalidOperationException("Referenced node does not match the handle returned by owner's EnumerateRefs method.");
-				}
-
-				this.WriteIoHash(target.Hash);
-				_refIdx++;
-			}
-
-			public Span<byte> GetSpan(int sizeHint = 0) => GetMemory(sizeHint).Span;
-
-			public Memory<byte> GetMemory(int sizeHint = 0)
-			{
-				int newLength = _length + Math.Max(sizeHint, 1);
-				if (newLength > _memory.Length)
-				{
-					newLength = _length + Math.Max(sizeHint, 1024);
-					_memory = _treeWriter.GetOutputBuffer(_length, Math.Max(_memory.Length * 2, newLength));
-				}
-				return _memory.Slice(_length);
-			}
-
-			public void Advance(int length) => _length += length;
-		}
-
 		/// <summary>
 		/// Class used to track nodes which are pending write (and the state of the object when the write was started)
 		/// </summary>
@@ -346,7 +300,7 @@ namespace EpicGames.Horde.Storage
 			}
 
 			// Serialize the node
-			NodeWriter nodeWriter = new NodeWriter(writer, nextRefHandles);
+			NodeWriter nodeWriter = new NodeWriter(writer);
 			target.Serialize(nodeWriter);
 
 			// Write the final data

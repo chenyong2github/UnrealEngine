@@ -15,81 +15,6 @@ using System.Diagnostics;
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
-	/// Data for an individual node
-	/// </summary>
-	public record struct NodeData(NodeType Type, IoHash Hash, ReadOnlyMemory<byte> Data, IReadOnlyList<NodeLocator> Refs);
-
-	/// <summary>
-	/// Reader for tree nodes
-	/// </summary>
-	public class NodeReader : MemoryReader
-	{
-		/// <summary>
-		/// Type to deserialize
-		/// </summary>
-		public NodeType Type => _nodeData.Type;
-
-		/// <summary>
-		/// Version of the current node, as specified via <see cref="NodeTypeAttribute"/>
-		/// </summary>
-		public int Version => Type.Version;
-
-		/// <summary>
-		/// Total length of the data in this node
-		/// </summary>
-		public int Length => _nodeData.Data.Length;
-
-		/// <summary>
-		/// Hash of the node being deserialized
-		/// </summary>
-		public IoHash Hash => _nodeData.Hash;
-
-		/// <summary>
-		/// 
-		/// </summary>
-		public ReadOnlyMemory<byte> Data => _nodeData.Data;
-
-		/// <summary>
-		/// Locations of all referenced nodes.
-		/// </summary>
-		public IReadOnlyList<NodeLocator> References => _nodeData.Refs;
-
-		readonly TreeReader _treeReader;
-		readonly NodeData _nodeData;
-		int _refIdx;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public NodeReader(TreeReader treeReader, NodeData nodeData)
-			: base(nodeData.Data)
-		{
-			_treeReader = treeReader;
-			_nodeData = nodeData;
-		}
-
-		/// <summary>
-		/// Reads the next reference to another node
-		/// </summary>
-		public NodeHandle ReadNodeHandle()
-		{
-			IoHash hash = this.ReadIoHash();
-			return GetNodeHandle(_refIdx++, hash);
-		}
-
-		/// <summary>
-		/// Gets a node handle with the given index and hash
-		/// </summary>
-		/// <param name="index"></param>
-		/// <param name="hash"></param>
-		/// <returns></returns>
-		public NodeHandle GetNodeHandle(int index, IoHash hash)
-		{
-			return new NodeHandle(_treeReader, hash, _nodeData.Refs[index]);
-		}
-	}
-
-	/// <summary>
 	/// Writes nodes from bundles in an <see cref="IStorageClient"/> instance.
 	/// </summary>
 	public class TreeReader
@@ -619,7 +544,7 @@ namespace EpicGames.Horde.Storage
 			BundleInfo bundleInfo = await GetBundleInfoAsync(locator.Blob, cancellationToken);
 			BundleExport export = bundleInfo.Header.Exports[locator.ExportIdx];
 
-			List<NodeLocator> refs = new List<NodeLocator>(export.References.Count);
+			List<NodeHandle> refs = new List<NodeHandle>(export.References.Count);
 			foreach (BundleExportRef reference in export.References)
 			{
 				BlobLocator importBlob;
@@ -632,7 +557,7 @@ namespace EpicGames.Horde.Storage
 					importBlob = bundleInfo.Header.Imports[reference.ImportIdx];
 				}
 				Debug.Assert(importBlob.IsValid());
-				refs.Add(new NodeLocator(importBlob, reference.NodeIdx));
+				refs.Add(new NodeHandle(this, reference.Hash, new NodeLocator(importBlob, reference.NodeIdx)));
 			}
 
 			ReadOnlyMemory<byte> nodeData = ReadOnlyMemory<byte>.Empty;
@@ -655,7 +580,7 @@ namespace EpicGames.Horde.Storage
 		public async ValueTask<Node> ReadNodeAsync(NodeLocator locator, CancellationToken cancellationToken = default)
 		{
 			NodeData nodeData = await ReadNodeDataAsync(locator, cancellationToken);
-			return Node.Deserialize(new NodeReader(this, nodeData));
+			return Node.Deserialize(nodeData);
 		}
 
 		/// <summary>

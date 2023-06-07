@@ -117,10 +117,9 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask<NodeReader> ReadAsync(CancellationToken cancellationToken = default)
+		public async ValueTask<NodeData> ReadAsync(CancellationToken cancellationToken = default)
 		{
-			NodeData nodeData = await _reader.ReadNodeDataAsync(Locator, cancellationToken);
-			return new NodeReader(_reader, nodeData);
+			return await _reader.ReadNodeDataAsync(Locator, cancellationToken);
 		}
 
 		/// <inheritdoc/>
