@@ -58,6 +58,12 @@ namespace Chaos
 		uint32 ComponentId = 0;
 	};
 
+	struct CHAOS_API FClusterUnionParticleProperties
+	{
+		// An auxiliary particle will be removed from the cluster union if FRigidClustering::HandleConnectivityOnReleaseClusterParticle detects an island made up of only auxiliary particles.
+		bool bIsAuxiliaryParticle = false;
+	};
+
 	struct CHAOS_API FClusterUnion
 	{
 		// The root cluster particle that we created internally to represent the cluster.
@@ -68,6 +74,9 @@ namespace Chaos
 
 		// All the particles that belong to this cluster.
 		TArray<FPBDRigidParticleHandle*> ChildParticles;
+
+		// Additional properties that are only relevant for particles that have been added into a cluster union.
+		TMap<FPBDRigidParticleHandle*, FClusterUnionParticleProperties> ChildProperties;
 
 		// The internal index used to reference the cluster union.
 		FClusterUnionIndex InternalIndex;

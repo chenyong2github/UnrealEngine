@@ -584,6 +584,7 @@ namespace Chaos
 		for (int32 Index = ParticleIndicesToRemove.Num() - 1; Index >= 0; --Index)
 		{
 			const int32 ParticleIndex = ParticleIndicesToRemove[Index];
+			Cluster->ChildProperties.Remove(Cluster->ChildParticles[ParticleIndex]);
 			Cluster->ChildParticles.RemoveAtSwap(ParticleIndex);
 		}
 
