@@ -59,6 +59,10 @@
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
 
+#if UE_BUILD_SHIPPING && !WITH_EDITORONLY_DATA
+static_assert(sizeof(FInstancedStaticMeshVertexFactory) <= 672, "FInstancedStaticMeshVertexFactory was optimized to fit within 672 bytes bin of MallocBinned3");
+#endif
+
 IMPLEMENT_TYPE_LAYOUT(FInstancedStaticMeshVertexFactoryShaderParameters);
 
 CSV_DEFINE_CATEGORY_MODULE(ENGINE_API, InstancedStaticMeshComponent, true);
@@ -944,11 +948,13 @@ void FInstancedStaticMeshVertexFactory::GetPSOPrecacheVertexFetchElements(EVerte
 void FInstancedStaticMeshVertexFactory::Copy(const FInstancedStaticMeshVertexFactory& Other)
 {
 	FInstancedStaticMeshVertexFactory* VertexFactory = this;
-	const FDataType* DataCopy = &Other.Data;
+	const FLocalVertexFactory::FDataType* DataCopy = &Other.Data;
+	const FInstancedStaticMeshDataType* InstanceDataCopy = &Other.InstanceData;
 	ENQUEUE_RENDER_COMMAND(FInstancedStaticMeshVertexFactoryCopyData)(
-	[VertexFactory, DataCopy](FRHICommandListImmediate& RHICmdList)
+	[VertexFactory, DataCopy, InstanceDataCopy](FRHICommandListImmediate& RHICmdList)
 	{
 		VertexFactory->Data = *DataCopy;
+		VertexFactory->InstanceData = *InstanceDataCopy;
 	});
 	BeginUpdateResourceRHI(this);
 }
@@ -966,7 +972,7 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 	const bool bUseManualVertexFetch = GetType()->SupportsManualVertexFetch(ThisFeatureLevel);
 
 	FVertexDeclarationElementList Elements;
-	GetVertexElements(ThisFeatureLevel, EVertexInputStreamType::Default, bUseManualVertexFetch, Data, Elements, Streams);
+	GetVertexElements(ThisFeatureLevel, EVertexInputStreamType::Default, bUseManualVertexFetch, Data, InstanceData, Elements, Streams);
 
 	// on mobile with GPUScene enabled instanced attributes[8-12] are used for a general auto-instancing
 	// so we add them only for desktop or if mobile has GPUScene disabled
@@ -992,7 +998,7 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 		UniformParameters.VertexFetch_InstanceTransformBuffer = GetInstanceTransformSRV();
 		UniformParameters.VertexFetch_InstanceLightmapBuffer = GetInstanceLightmapSRV();
 		UniformParameters.InstanceCustomDataBuffer = GetInstanceCustomDataSRV();
-		UniformParameters.NumCustomDataFloats = Data.NumCustomDataFloats;
+		UniformParameters.NumCustomDataFloats = InstanceData.NumCustomDataFloats;
 		UniformBuffer = TUniformBufferRef<FInstancedStaticMeshVertexFactoryUniformShaderParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 	}
 }
@@ -1002,10 +1008,11 @@ void FInstancedStaticMeshVertexFactory::GetVertexElements(
 	EVertexInputStreamType InputStreamType,
 	bool bSupportsManualVertexFetch,
 	FDataType& Data,
+	FInstancedStaticMeshDataType& InstanceData,
 	FVertexDeclarationElementList& Elements)
 {
 	FVertexStreamList VertexStreams;
-	GetVertexElements(FeatureLevel, InputStreamType, bSupportsManualVertexFetch, Data, Elements, VertexStreams);
+	GetVertexElements(FeatureLevel, InputStreamType, bSupportsManualVertexFetch, Data, InstanceData, Elements, VertexStreams);
 }
 
 void FInstancedStaticMeshVertexFactory::GetVertexElements(
@@ -1013,6 +1020,7 @@ void FInstancedStaticMeshVertexFactory::GetVertexElements(
 	EVertexInputStreamType InputStreamType, 
 	bool bSupportsManualVertexFetch, 
 	FDataType& Data, 
+	FInstancedStaticMeshDataType& InstanceData,
 	FVertexDeclarationElementList& Elements, 
 	FVertexStreamList& Streams)
 {
@@ -1097,23 +1105,23 @@ void FInstancedStaticMeshVertexFactory::GetVertexElements(
 	if (FeatureLevel > ERHIFeatureLevel::ES3_1 || !bMobileUsesGPUScene)
 	{
 		// toss in the instanced location stream
-		check(bCanUseGPUScene || Data.InstanceOriginComponent.VertexBuffer);
-		if (Data.InstanceOriginComponent.VertexBuffer)
+		check(bCanUseGPUScene || InstanceData.InstanceOriginComponent.VertexBuffer);
+		if (InstanceData.InstanceOriginComponent.VertexBuffer)
 		{
-			Elements.Add(AccessStreamComponent(Data.InstanceOriginComponent, 8, Streams));
+			Elements.Add(AccessStreamComponent(InstanceData.InstanceOriginComponent, 8, Streams));
 		}
 
-		check(bCanUseGPUScene || Data.InstanceTransformComponent[0].VertexBuffer);
-		if (Data.InstanceTransformComponent[0].VertexBuffer)
+		check(bCanUseGPUScene || InstanceData.InstanceTransformComponent[0].VertexBuffer);
+		if (InstanceData.InstanceTransformComponent[0].VertexBuffer)
 		{
-			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[0], 9, Streams));
-			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[1], 10, Streams));
-			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[2], 11, Streams));
+			Elements.Add(AccessStreamComponent(InstanceData.InstanceTransformComponent[0], 9, Streams));
+			Elements.Add(AccessStreamComponent(InstanceData.InstanceTransformComponent[1], 10, Streams));
+			Elements.Add(AccessStreamComponent(InstanceData.InstanceTransformComponent[2], 11, Streams));
 		}
 
-		if (Data.InstanceLightmapAndShadowMapUVBiasComponent.VertexBuffer)
+		if (InstanceData.InstanceLightmapAndShadowMapUVBiasComponent.VertexBuffer)
 		{
-			Elements.Add(AccessStreamComponent(Data.InstanceLightmapAndShadowMapUVBiasComponent, 12, Streams));
+			Elements.Add(AccessStreamComponent(InstanceData.InstanceLightmapAndShadowMapUVBiasComponent, 12, Streams));
 		}
 	}
 }
@@ -1179,7 +1187,8 @@ void InitInstancedStaticMeshVertexFactoryComponents(
 	const FInstancedStaticMeshVertexFactory* VertexFactory,
 	int32 LightMapCoordinateIndex,
 	bool bRHISupportsManualVertexFetch,
-	FInstancedStaticMeshVertexFactory::FDataType& OutData)
+	FInstancedStaticMeshVertexFactory::FDataType& OutData,
+	FInstancedStaticMeshDataType& OutInstanceData)
 {
 	VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(VertexFactory, OutData);
 	VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(VertexFactory, OutData);
@@ -1202,7 +1211,7 @@ void InitInstancedStaticMeshVertexFactoryComponents(
 
 	if (InstanceBuffer)
 	{
-		InstanceBuffer->BindInstanceVertexBuffer(VertexFactory, OutData);
+		InstanceBuffer->BindInstanceVertexBuffer(VertexFactory, OutInstanceData);
 	}
 }
 
@@ -1225,6 +1234,7 @@ void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
 	{
 		const FStaticMeshLODResources* RenderData = &LODModels[LODIndex];
 
+		FInstancedStaticMeshDataType InstanceData;
 		FInstancedStaticMeshVertexFactory::FDataType Data;
 		// Assign to the vertex factory for this LOD.
 		FInstancedStaticMeshVertexFactory& VertexFactory = VertexFactories[LODIndex];
@@ -1233,8 +1243,8 @@ void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
 		{
 			ColorVertexBuffer = Component->LODData[LODIndex].OverrideVertexColors;
 		}
-		InitInstancedStaticMeshVertexFactoryComponents(RenderData->VertexBuffers, ColorVertexBuffer, InstanceBuffer, &VertexFactory, LightMapCoordinateIndex, bRHISupportsManualVertexFetch, Data);
-		VertexFactory.SetData(Data);
+		InitInstancedStaticMeshVertexFactoryComponents(RenderData->VertexBuffers, ColorVertexBuffer, InstanceBuffer, &VertexFactory, LightMapCoordinateIndex, bRHISupportsManualVertexFetch, Data, InstanceData);
+		VertexFactory.SetData(Data, InstanceBuffer ? &InstanceData : nullptr);
 		VertexFactory.InitResource();
 	}
 }
@@ -5003,14 +5013,15 @@ void UInstancedStaticMeshComponent::CollectPSOPrecacheData(const FPSOPrecachePar
 	
 	auto ISMC_GetElements = [LightMapCoordinateIndex, InstanceBuffer, this](const FStaticMeshLODResources& LODRenderData, int32 LODIndex, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)
 	{
+		FInstancedStaticMeshDataType InstanceData;
 		FInstancedStaticMeshVertexFactory::FDataType Data;
 		const FColorVertexBuffer* ColorVertexBuffer = LODRenderData.bHasColorVertexData ? &(LODRenderData.VertexBuffers.ColorVertexBuffer) : nullptr;
 		if (LODData.IsValidIndex(LODIndex) && LODData[LODIndex].OverrideVertexColors)
 		{
 			ColorVertexBuffer = LODData[LODIndex].OverrideVertexColors;
 		}
-		InitInstancedStaticMeshVertexFactoryComponents(LODRenderData.VertexBuffers, ColorVertexBuffer, InstanceBuffer, nullptr /*VertexFactory*/, LightMapCoordinateIndex, bSupportsManualVertexFetch, Data);
-		FInstancedStaticMeshVertexFactory::GetVertexElements(GMaxRHIFeatureLevel, EVertexInputStreamType::Default, bSupportsManualVertexFetch, Data, Elements);
+		InitInstancedStaticMeshVertexFactoryComponents(LODRenderData.VertexBuffers, ColorVertexBuffer, InstanceBuffer, nullptr /*VertexFactory*/, LightMapCoordinateIndex, bSupportsManualVertexFetch, Data, InstanceData);
+		FInstancedStaticMeshVertexFactory::GetVertexElements(GMaxRHIFeatureLevel, EVertexInputStreamType::Default, bSupportsManualVertexFetch, Data, InstanceData, Elements);
 	};
 
 	CollectPSOPrecacheDataImpl(VFType, BasePrecachePSOParams, ISMC_GetElements, OutParams);
