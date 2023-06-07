@@ -3,6 +3,8 @@
 #pragma once
 
 #include "MediaOutput.h"
+
+#include "BlackmagicMediaDefinitions.h"
 #include "MediaIOCoreDefinitions.h"
 
 #include "BlackmagicMediaOutput.generated.h"
@@ -36,47 +38,6 @@ enum class EBlackmagicMediaOutputAudioBitDepth : uint8
 {
 	Signed_16Bits = 16 UMETA(DisplayName = "16 bits signed"),
 	Signed_32Bits = 32 UMETA(DisplayName = "32 bits signed")
-};
-
-/**
- * HDR Transfer function.
- * Must match BlackmagicDesign::EHDRMetaDataEOTF
- */
-UENUM()
-enum class EBlackmagicHDRMetadataEOTF : uint8
-{
-	SDR,
-	HDR,
-	PQ,
-	HLG
-};
-	
-/**
- * HDR Color Gamut.
- */
-UENUM()
-enum class EBlackmagicHDRMetadataGamut : uint8
-{
-	Rec709,
-	Rec2020
-};
-
-
-/**
- * Set of metadata describing a HDR video signal.
- */
-USTRUCT()
-struct BLACKMAGICMEDIAOUTPUT_API FBlackmagicMediaHDROptions
-{
-	GENERATED_BODY()
-
-	/** Transfer function to use for converting the video signal to an optical signal. */
-	UPROPERTY(EditAnywhere, Category = "HDR")
-	EBlackmagicHDRMetadataEOTF EOTF = EBlackmagicHDRMetadataEOTF::SDR;
-
-	/** The color gamut of the video signal. */
-	UPROPERTY(EditAnywhere, Category = "HDR")
-	EBlackmagicHDRMetadataGamut Gamut = EBlackmagicHDRMetadataGamut::Rec709;
 };
 
 /**

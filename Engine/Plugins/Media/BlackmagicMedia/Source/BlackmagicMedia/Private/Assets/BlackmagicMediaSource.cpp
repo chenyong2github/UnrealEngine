@@ -14,7 +14,6 @@ UBlackmagicMediaSource::UBlackmagicMediaSource()
 	, MaxNumAudioFrameBuffer(8)
 	, bCaptureVideo(true)
 	, ColorFormat(EBlackmagicMediaSourceColorFormat::YUV8)
-	, bIsSRGBInput(false)
 	, MaxNumVideoFrameBuffer(8)
 	, bLogDropFrame(false)
 	, bEncodeTimecodeInTexel(false)
@@ -41,7 +40,6 @@ bool UBlackmagicMediaSource::GetMediaOption(const FName& Key, bool DefaultValue)
 	if (Key == BlackmagicMediaOption::CaptureVideo) { return bCaptureVideo; }
 	if (Key == BlackmagicMediaOption::LogDropFrame) { return bLogDropFrame; }
 	if (Key == BlackmagicMediaOption::EncodeTimecodeInTexel) { return bEncodeTimecodeInTexel; }
-	if (Key == BlackmagicMediaOption::SRGBInput) { return bIsSRGBInput; }
 
 	return Super::GetMediaOption(Key, DefaultValue);
 }
@@ -78,8 +76,7 @@ bool UBlackmagicMediaSource::HasMediaOption(const FName& Key) const
 	if (   Key == BlackmagicMediaOption::CaptureAudio
 		|| Key == BlackmagicMediaOption::CaptureVideo
 		|| Key == BlackmagicMediaOption::LogDropFrame
-		|| Key == BlackmagicMediaOption::EncodeTimecodeInTexel
-		|| Key == BlackmagicMediaOption::SRGBInput)
+		|| Key == BlackmagicMediaOption::EncodeTimecodeInTexel)
 	{
 		return true;
 	}

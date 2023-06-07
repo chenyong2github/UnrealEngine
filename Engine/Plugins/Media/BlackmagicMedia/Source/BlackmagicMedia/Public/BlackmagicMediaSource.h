@@ -81,13 +81,15 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="Video", meta=(EditCondition="bCaptureVideo"))
 	EBlackmagicMediaSourceColorFormat ColorFormat;
 
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Whether the video input is in sRGB color space.
 	 * A sRGB to Linear conversion will be applied resulting in a texture in linear space.
 	 * @Note If the texture is not in linear space, it won't look correct in the editor. Another pass will be required either through Composure or other means.
 	 */
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Video")
-	bool bIsSRGBInput;
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage = "Use ColorEncoding instead."))
+	bool bIsSRGBInput_DEPRECATED = false;
+#endif
 
 	/** Maximum number of video frames to buffer. */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, AdvancedDisplay, Category="Video", meta=(EditCondition="bCaptureVideo", ClampMin="1", ClampMax="32"))

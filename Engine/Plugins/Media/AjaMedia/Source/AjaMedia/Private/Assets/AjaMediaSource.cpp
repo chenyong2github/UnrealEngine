@@ -16,7 +16,6 @@ UAjaMediaSource::UAjaMediaSource()
 	, MaxNumAudioFrameBuffer(8)
 	, bCaptureVideo(true)
 	, ColorFormat(EAjaMediaSourceColorFormat::YUV2_8bit)
-	, bIsSRGBInput(false)
 	, MaxNumVideoFrameBuffer(8)
 	, bLogDropFrame(true)
 	, bEncodeTimecodeInTexel(false)
@@ -60,11 +59,6 @@ bool UAjaMediaSource::GetMediaOption(const FName& Key, bool DefaultValue) const
 	{
 		return bEncodeTimecodeInTexel;
 	}
-	if (Key == AjaMediaOption::SRGBInput)
-	{
-		return bIsSRGBInput;
-	}
-
 
 	return Super::GetMediaOption(Key, DefaultValue);
 }
@@ -165,7 +159,6 @@ bool UAjaMediaSource::HasMediaOption(const FName& Key) const
 		(Key == AjaMediaOption::MaxAudioFrameBuffer) ||
 		(Key == AjaMediaOption::AjaVideoFormat) ||
 		(Key == AjaMediaOption::ColorFormat) ||
-		(Key == AjaMediaOption::SRGBInput) ||
 		(Key == AjaMediaOption::MaxVideoFrameBuffer) ||
 		(Key == AjaMediaOption::LogDropFrame) ||
 		(Key == AjaMediaOption::EncodeTimecodeInTexel)

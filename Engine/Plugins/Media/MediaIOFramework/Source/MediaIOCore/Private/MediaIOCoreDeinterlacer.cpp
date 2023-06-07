@@ -22,7 +22,7 @@ namespace UE::MediaIOCore
 			, InVideoFrame.Time
 			, InVideoFrame.FrameRate
 			, InVideoFrame.Timecode
-			, InVideoFrame.ColorSpace == Color::EColorSpace::sRGB ? true : false))
+			, InVideoFrame.ColorFormatArgs))
 		{
 			Samples.Add(TextureSample.ToSharedRef());
 		}
@@ -70,7 +70,7 @@ namespace UE::MediaIOCore
 				, InVideoFrame.Time
 				, InVideoFrame.FrameRate
 				, InVideoFrame.Timecode
-				, InVideoFrame.ColorSpace == Color::EColorSpace::sRGB ? true : false))
+				, InVideoFrame.ColorFormatArgs))
 			{
 				Samples.Add(TextureSampleEven.ToSharedRef());
 			}
@@ -86,7 +86,7 @@ namespace UE::MediaIOCore
 				, InVideoFrame.Time
 				, InVideoFrame.FrameRate
 				, InVideoFrame.Timecode
-				, InVideoFrame.ColorSpace == Color::EColorSpace::sRGB ? true : false))
+				, InVideoFrame.ColorFormatArgs))
 			{
 				Samples.Add(TextureSampleOdd.ToSharedRef());
 			}
@@ -127,7 +127,7 @@ namespace UE::MediaIOCore
 				, InVideoFrame.Time
 				, InVideoFrame.FrameRate
 				, InVideoFrame.Timecode
-				, InVideoFrame.ColorSpace == Color::EColorSpace::sRGB ? true : false))
+				, InVideoFrame.ColorFormatArgs))
 			{
 				Samples.Add(TextureSample.ToSharedRef());
 			}
@@ -159,7 +159,7 @@ namespace UE::MediaIOCore
 				, InVideoFrame.Time
 				, InVideoFrame.FrameRate
 				, InVideoFrame.Timecode
-				, InVideoFrame.ColorSpace == Color::EColorSpace::sRGB ? true : false))
+				, InVideoFrame.ColorFormatArgs))
 			{
 				Samples.Add(TextureSample.ToSharedRef());
 			}

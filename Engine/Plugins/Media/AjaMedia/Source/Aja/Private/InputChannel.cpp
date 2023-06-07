@@ -188,7 +188,7 @@ namespace AJA
 			NTV2DeviceID DeviceId = GetDevice().GetDeviceID();
 			if (!::NTV2DeviceCanDoCapture(DeviceId))
 			{
-				UE_LOG(LogTemp, Error, TEXT("AutoCirculate: The device '%S' couldn't not capture."), GetDevice().GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("AutoCirculate: The device '%S' couldn't not capture."), GetDevice().GetDisplayName().c_str());
 				return false;
 			}
 
@@ -218,7 +218,7 @@ namespace AJA
 				bRunning = GetDevice().AutoCirculateGetStatus(Channel, ChannelStatus);
 				if (!bRunning)
 				{
-					UE_LOG(LogTemp, Error, TEXT("AutoCirculate: Can't get the status for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("AutoCirculate: Can't get the status for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 					bRunning = false;
 				}
 
@@ -231,7 +231,7 @@ namespace AJA
 				const DWORD TimeoutMilli = 2000;
 				if (Counter * SleepMilli > TimeoutMilli)
 				{
-					UE_LOG(LogTemp, Error, TEXT("AutoCirculate: Can't get the Channel running for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("AutoCirculate: Can't get the Channel running for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 					bRunning = false;
 				}
 
@@ -262,7 +262,7 @@ namespace AJA
 				bRunning = GetDevice().AutoCirculateGetStatus(Channel, ChannelStatus);
 				if (!bRunning)
 				{
-					UE_LOG(LogTemp, Error, TEXT("AutoCirculate: Can't get the status for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("AutoCirculate: Can't get the status for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 					break;
 				}
 
@@ -325,6 +325,8 @@ namespace AJA
 
 
 					AJAVideoFrameData VideoData;
+					VideoData.HDROptions = GetOptions().HDROptions;
+					
 					if (VideoBuffer)
 					{
 #if AJA_TEST_MEMORY_BUFFER
@@ -343,7 +345,7 @@ namespace AJA
 					bRunning = GetDevice().AutoCirculateTransfer(Channel, Transfer);
 					if (!bRunning)
 					{
-						UE_LOG(LogTemp, Error, TEXT("AutoCirculate: Can't transfer the buffer for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+						UE_LOG(LogAjaCore, Error, TEXT("AutoCirculate: Can't transfer the buffer for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 						break;
 					}
 
@@ -452,7 +454,7 @@ namespace AJA
 						}
 						else
 						{
-							UE_LOG(LogTemp, Warning,  TEXT("AutoCirculate: The device '%S' missed an interrupt signal."), GetDevice().GetDisplayName().c_str());
+							UE_LOG(LogAjaCore, Warning,  TEXT("AutoCirculate: The device '%S' missed an interrupt signal."), GetDevice().GetDisplayName().c_str());
 						}
 					}
 				}
@@ -495,7 +497,7 @@ namespace AJA
 			NTV2DeviceID DeviceId = GetDevice().GetDeviceID();
 			if (!::NTV2DeviceCanDoCapture(DeviceId))
 			{
-				UE_LOG(LogTemp, Error, TEXT("PingPong: The device '%S' couldn't not capture."), GetDevice().GetDisplayName().c_str());
+				UE_LOG(LogAjaCore, Error, TEXT("PingPong: The device '%S' couldn't not capture."), GetDevice().GetDisplayName().c_str());
 				return false;
 			}
 
@@ -558,7 +560,7 @@ namespace AJA
 					}
 					else
 					{
-						UE_LOG(LogTemp, Warning,  TEXT("PingPong: The device '%S' missed an interrupt signal."), GetDevice().GetDisplayName().c_str());
+						UE_LOG(LogAjaCore, Warning,  TEXT("PingPong: The device '%S' missed an interrupt signal."), GetDevice().GetDisplayName().c_str());
 						::Sleep(0);
 						continue;
 					}
@@ -566,7 +568,7 @@ namespace AJA
 
 				if (!bRunning)
 				{
-					UE_LOG(LogTemp, Error, TEXT("PingPong: Can't wait for the input field for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("PingPong: Can't wait for the input field for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 					break;
 				}
 
@@ -688,6 +690,8 @@ namespace AJA
 
 
 				AJAVideoFrameData VideoData;
+				VideoData.HDROptions = GetOptions().HDROptions;
+				
 				if (VideoBuffer)
 				{
 #if AJA_TEST_MEMORY_BUFFER
@@ -706,7 +710,7 @@ namespace AJA
 
 				if (!bRunning)
 				{
-					UE_LOG(LogTemp, Error, TEXT("PingPong: Can't do the DMA frame transfer for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+					UE_LOG(LogAjaCore, Error, TEXT("PingPong: Can't do the DMA frame transfer for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 					break;
 				}
 
@@ -851,7 +855,7 @@ namespace AJA
 					FoundFormat = Helpers::GetInputVideoFormat(GetDevicePtr(), GetOptions().TransportType, Channel, InputSource, VideoFormat, false, FailureReason);
 					if (Counter * SleepMilli > TimeoutMilli)
 					{
-						UE_LOG(LogTemp, Error, TEXT("%S: Can't get the Channel running for channel %d on device %S.\n"), ModeName->c_str(), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+						UE_LOG(LogAjaCore, Error, TEXT("%S: Can't get the Channel running for channel %d on device %S.\n"), ModeName->c_str(), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 						break;
 					}
 
@@ -877,7 +881,7 @@ namespace AJA
 					// Todo: Warn once, display signal lost symbol 
 					if (!bAutoDetectFormat)
 					{
-						UE_LOG(LogTemp, Error, TEXT("%S: Could not detect format for channel %d on device %S. %S\n")
+						UE_LOG(LogAjaCore, Error, TEXT("%S: Could not detect format for channel %d on device %S. %S\n")
 							, ModeName->c_str()
 							, uint32_t(Channel) + 1
 							, GetDevice().GetDisplayName().c_str()
@@ -928,7 +932,7 @@ namespace AJA
 				}
 				else
 				{
-					UE_LOG(LogTemp, Error, TEXT("%S: The VideoFormat changed for channel %d on device %S. %S\n")
+					UE_LOG(LogAjaCore, Error, TEXT("%S: The VideoFormat changed for channel %d on device %S. %S\n")
 						, ModeName->c_str()
 						, uint32_t(Channel) + 1
 						, GetDevice().GetDisplayName().c_str()

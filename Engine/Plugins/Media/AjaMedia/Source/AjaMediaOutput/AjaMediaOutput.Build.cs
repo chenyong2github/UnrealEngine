@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"AjaCore",
+					"ColorManagement",
 					"Core",
 					"CoreUObject",
 					"Engine",

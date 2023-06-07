@@ -3,6 +3,7 @@
 #include "Player/BlackmagicMediaPlayer.h"
 
 #include "BlackmagicMediaPrivate.h"
+#include "BlackmagicMediaDefinitions.h"
 #include "BlackmagicMediaSource.h"
 
 #include "Engine/GameEngine.h"
@@ -15,6 +16,8 @@
 #include "MediaIOCoreEncodeTime.h"
 #include "MediaIOCoreFileWriter.h"
 #include "MediaIOCoreSamples.h"
+#include "MediaIOCoreTextureSampleBase.h"
+#include "MediaIOCoreUtilities.h"
 #include "Misc/App.h"
 #include "Misc/ScopeLock.h"
 #include "RenderCommandFence.h"
@@ -64,11 +67,10 @@ namespace BlackmagicMediaPlayerHelpers
 			, bReceivedValidFrame(false)
 			, bIsTimecodeExpected(false)
 			, bHasWarnedMissingTimecode(false)
-			, bIsSRGBInput(false)
 		{
 		}
 
-		bool Initialize(const BlackmagicDesign::FInputChannelOptions& InChannelInfo, bool bInEncodeTimecodeInTexel, int32 InMaxNumAudioFrameBuffer, int32 InMaxNumVideoFrameBuffer, bool bInIsSRGBInput)
+		bool Initialize(const BlackmagicDesign::FInputChannelOptions& InChannelInfo, bool bInEncodeTimecodeInTexel, int32 InMaxNumAudioFrameBuffer, int32 InMaxNumVideoFrameBuffer)
 		{
 			AddRef();
 
@@ -76,7 +78,6 @@ namespace BlackmagicMediaPlayerHelpers
 			MaxNumAudioFrameBuffer = InMaxNumAudioFrameBuffer;
 			MaxNumVideoFrameBuffer = InMaxNumVideoFrameBuffer;
 			bIsTimecodeExpected = InChannelInfo.TimecodeFormat != BlackmagicDesign::ETimecodeFormat::TCF_None;
-			bIsSRGBInput = bInIsSRGBInput;
 
 			BlackmagicDesign::ReferencePtr<BlackmagicDesign::IInputEventCallback> SelfRef(this);
 			BlackmagicIdendifier = BlackmagicDesign::RegisterCallbackForChannel(ChannelInfo, InChannelInfo, SelfRef);
@@ -292,6 +293,56 @@ namespace BlackmagicMediaPlayerHelpers
 						MediaIOCoreFileWriter::WriteRawFile(OutputFilename, reinterpret_cast<uint8*>(InFrameInfo.VideoBuffer), InFrameInfo.VideoPitch * InFrameInfo.VideoHeight);
 						bBlackmagicWriteOutputRawDataCmdEnable = false;
 					}
+					
+					UE::MediaIOCore::FColorFormatArgs ColorFormat;
+					FBlackmagicMediaHDROptions HDROptions = UE::BlackmagicMedia::MakeBlackmagicMediaHDROptions(InFrameInfo.HDRMetaData);
+		
+					if (MediaPlayer->bOverrideSourceEncoding)
+					{
+						ColorFormat.Encoding = (UE::Color::EEncoding) MediaPlayer->OverrideSourceEncoding;
+					}
+					else
+					{
+						const FTimespan TimeBetweenLogs = FTimespan::FromSeconds(5);
+
+						switch (HDROptions.EOTF)
+						{
+						case EBlackmagicHDRMetadataEOTF::SDR:
+							ColorFormat.Encoding = UE::Color::EEncoding::sRGB; // Missing support for BT.1886 so we default to sRGB instead.
+							break;
+						case EBlackmagicHDRMetadataEOTF::PQ:
+							ColorFormat.Encoding = UE::Color::EEncoding::ST2084;
+							break;
+						case EBlackmagicHDRMetadataEOTF::HLG:
+							UE_MEDIA_IO_LOG_THROTTLE(LogBlackmagicMedia, Warning, TimeBetweenLogs, TEXT("HLG EOTF is not supported at the moment. Defaulting to sRGB."));
+							ColorFormat.Encoding = UE::Color::EEncoding::sRGB;
+							break;
+						default:
+							checkNoEntry();
+							ColorFormat.Encoding = UE::Color::EEncoding::None;			
+						}
+					}
+		
+					if (MediaPlayer->bOverrideSourceColorSpace)
+					{
+						ColorFormat.ColorSpace = (UE::Color::EColorSpace) MediaPlayer->OverrideSourceColorSpace;
+					}
+					else
+					{
+						switch (HDROptions.Gamut)
+						{
+						case EBlackmagicHDRMetadataGamut::Rec709:
+							ColorFormat.ColorSpace = UE::Color::EColorSpace::sRGB;
+							break;
+						case EBlackmagicHDRMetadataGamut::Rec2020:
+							ColorFormat.ColorSpace = UE::Color::EColorSpace::Rec2020;
+							break;
+						default:
+							checkNoEntry();
+							ColorFormat.ColorSpace = UE::Color::EColorSpace::sRGB;
+							break;
+						}
+					}
 
 					if (bIsProgressivePicture)
 					{
@@ -320,7 +371,7 @@ namespace BlackmagicMediaPlayerHelpers
 						bool bInitializeResult = false;
 						if (bGPUDirectTexturesAvailable)
 						{
-							bInitializeResult = TextureSample->SetProperties(InFrameInfo.VideoPitch, InFrameInfo.VideoWidth, InFrameInfo.VideoHeight, SampleFormat, DecodedTime, MediaPlayer->VideoFrameRate, DecodedTimecode, bIsSRGBInput);
+							bInitializeResult = TextureSample->SetProperties(InFrameInfo.VideoPitch, InFrameInfo.VideoWidth, InFrameInfo.VideoHeight, SampleFormat, DecodedTime, MediaPlayer->VideoFrameRate, DecodedTimecode, ColorFormat);
 							if (bInitializeResult)
 							{
 								TextureSample->SetBuffer(InFrameInfo.VideoBuffer);
@@ -337,7 +388,7 @@ namespace BlackmagicMediaPlayerHelpers
 								, DecodedTime
 								, MediaPlayer->VideoFrameRate
 								, DecodedTimecode
-								, bIsSRGBInput);
+								, ColorFormat);
 						}
 
 						if (bInitializeResult)
@@ -366,7 +417,7 @@ namespace BlackmagicMediaPlayerHelpers
 							DecodedTime,
 							MediaPlayer->VideoFrameRate,
 							DecodedTimecode,
-							bIsSRGBInput ? UE::Color::EColorSpace::sRGB : UE::Color::EColorSpace::None
+							ColorFormat
 						};
 
 						const TArray<TSharedRef<FMediaIOCoreTextureSampleBase>> DeinterlacedSamples = MediaPlayer->Deinterlace(FrameInfo);
@@ -431,9 +482,6 @@ namespace BlackmagicMediaPlayerHelpers
 
 		bool bIsTimecodeExpected;
 		bool bHasWarnedMissingTimecode;
-
-		/** Whether this input is in sRGB space and needs a to linear conversion */
-		bool bIsSRGBInput;
 	};
 }
 
@@ -505,6 +553,11 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 	
 	const EMediaIOAutoDetectableTimecodeFormat TimecodeFormat = (EMediaIOAutoDetectableTimecodeFormat)(Options->GetMediaOption(BlackmagicMediaOption::TimecodeFormat, (int64)EMediaIOAutoDetectableTimecodeFormat::None));
 	const bool bAutoDetectTimecode = TimecodeFormat == EMediaIOAutoDetectableTimecodeFormat::Auto;
+
+	bOverrideSourceEncoding = Options->GetMediaOption(UE::CaptureCardMediaSource::OverrideSourceEncoding, true);
+	OverrideSourceEncoding = (ETextureSourceEncoding) Options->GetMediaOption(UE::CaptureCardMediaSource::SourceEncoding, (int64) ETextureSourceEncoding::TSE_Linear);
+	bOverrideSourceColorSpace = Options->GetMediaOption(UE::CaptureCardMediaSource::OverrideSourceColorSpace, true);
+	OverrideSourceColorSpace =  (ETextureColorSpace) Options->GetMediaOption(UE::CaptureCardMediaSource::SourceColorSpace, (int64) ETextureColorSpace::TCS_None);
 	
 	BlackmagicDesign::FChannelInfo ChannelInfo;
 	ChannelInfo.DeviceIndex = Options->GetMediaOption(BlackmagicMediaOption::DeviceIndex, (int64)0);
@@ -520,8 +573,7 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 	BlackmagicColorFormat = (EBlackmagicMediaSourceColorFormat)(Options->GetMediaOption(BlackmagicMediaOption::ColorFormat, (int64)EBlackmagicMediaSourceColorFormat::YUV8));
 
 	ChannelOptions.PixelFormat = BlackmagicColorFormat == EBlackmagicMediaSourceColorFormat::YUV8 ? BlackmagicDesign::EPixelFormat::pf_8Bits : BlackmagicDesign::EPixelFormat::pf_10Bits;
-	const bool bIsSRGBInput = Options->GetMediaOption(BlackmagicMediaOption::SRGBInput, true);
-
+	
 	switch (TimecodeFormat)
 	{
 	case EMediaIOAutoDetectableTimecodeFormat::Auto:
@@ -559,7 +611,7 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 	// Setup our different supported channels based on source settings
 	SetupSampleChannels();
 
-	bool bSuccess = EventCallback->Initialize(ChannelOptions, bEncodeTimecodeInTexel, MaxNumAudioFrameBuffer, MaxNumVideoFrameBuffer, bIsSRGBInput);
+	bool bSuccess = EventCallback->Initialize(ChannelOptions, bEncodeTimecodeInTexel, MaxNumAudioFrameBuffer, MaxNumVideoFrameBuffer);
 
 	if (!bSuccess)
 	{

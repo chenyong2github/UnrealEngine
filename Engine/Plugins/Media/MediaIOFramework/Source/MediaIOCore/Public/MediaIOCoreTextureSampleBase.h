@@ -3,12 +3,51 @@
 #pragma once
 
 #include "IMediaTextureSample.h"
-#include "MediaIOCoreDefinitions.h"
 #include "MediaObjectPool.h"
+
+
+#include "ColorSpace.h"
 #include "Misc/FrameRate.h"
 #include "Templates/RefCounting.h"
 
 class FRHITexture;
+
+namespace UE::MediaIOCore
+{
+	struct FColorFormatArgs
+	{
+		FColorFormatArgs() = default;
+		
+		/** Bool constructor to allow backwards compatibility with previous method definitions of FMediaIOCoreTextureSampleBase::Initialize. */
+		FColorFormatArgs(bool bIsSRGBInput)
+		{
+			if (bIsSRGBInput)
+			{
+				Encoding = UE::Color::EEncoding::sRGB;
+				ColorSpace = UE::Color::EColorSpace::sRGB;
+			}
+			else
+			{
+				Encoding = UE::Color::EEncoding::Linear;
+				ColorSpace = UE::Color::EColorSpace::sRGB;
+			}
+		}
+
+		FColorFormatArgs(UE::Color::EEncoding InEncoding, UE::Color::EColorSpace InColorSpace)
+			: Encoding(InEncoding)
+			, ColorSpace(InColorSpace)
+		{
+		}
+		
+
+		/** Encoding of the texture. */
+		UE::Color::EEncoding Encoding = UE::Color::EEncoding::Linear;
+
+		/** Color space of the texture. */
+		UE::Color::EColorSpace ColorSpace = UE::Color::EColorSpace::sRGB;
+	};
+}
+
 
 /**
  * Implements the IMediaTextureSample/IMediaPoolable interface.
@@ -33,9 +72,9 @@ public:
 	 * @param InTime The sample time (in the player's own clock).
 	 * @param InFrameRate The framerate of the media that produce the sample.
 	 * @param InTimecode The sample timecode if available.
-	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
+	 * @param InColorFormatArgs Information about the texture color encoding and color space.
 	 */
-	bool Initialize(const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
+	bool Initialize(const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs);
 
 	/**
 	 * Initialize the sample.
@@ -48,9 +87,9 @@ public:
 	 * @param InTime The sample time (in the player's own clock).
 	 * @param InFrameRate The framerate of the media that produce the sample.
 	 * @param InTimecode The sample timecode if available.
-	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
+	 * @param InColorFormatArgs Information about the texture color encoding and color space.
 	 */
-	bool Initialize(const TArray<uint8>& InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
+	bool Initialize(const TArray<uint8>& InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs);
 
 	/**
 	 * Initialize the sample.
@@ -63,9 +102,9 @@ public:
 	 * @param InTime The sample time (in the player's own clock).
 	 * @param InFrameRate The framerate of the media that produce the sample.
 	 * @param InTimecode The sample timecode if available.
-	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
+	 * @param InColorFormatArgs Information about the texture color encoding and color space.
 	 */
-	bool Initialize(TArray<uint8>&& InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
+	bool Initialize(TArray<uint8>&& InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs);
 
 	/**
 	 * Initialize the sample.
@@ -99,9 +138,9 @@ public:
 	 * @param InTime The sample time (in the player's own clock).
 	 * @param InFrameRate The framerate of the media that produce the sample.
 	 * @param InTimecode The sample timecode if available.
-	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
+	 * @param InColorFormatArgs Information about the texture color encoding and color space.
 	 */
-	bool SetProperties(uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
+	bool SetProperties(uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs);
 
 	/**
 	 * Initialize the sample with half it's original height and take only the odd or even line.
@@ -114,9 +153,9 @@ public:
 	 * @param InSampleFormat The sample format of the video buffer.
 	 * @param InTime The sample time (in the player's own clock).
 	 * @param InTimecode The sample timecode if available.
-	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
+	 * @param InColorFormatArgs Information about the texture color encoding and color space.
 	 */
-	bool InitializeWithEvenOddLine(bool bUseEvenLine, const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
+	bool InitializeWithEvenOddLine(bool bUseEvenLine, const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs);
 
 	/**
 	 * Set the sample buffer with half it's original height and take only the odd or even line.
@@ -198,10 +237,15 @@ public:
 		return true;
 	}
 
-	virtual bool IsOutputSrgb() const override
-	{
-		return bIsSRGBInput;
-	}
+	virtual bool IsOutputSrgb() const override;
+	
+	virtual FMatrix44f GetGamutToXYZMatrix() const override;
+	virtual FVector2f GetWhitePoint() const override;
+	virtual FVector2f GetDisplayPrimaryRed() const override;
+	virtual FVector2f GetDisplayPrimaryGreen() const override;
+	virtual FVector2f GetDisplayPrimaryBlue() const override;
+	virtual UE::Color::EEncoding GetEncodingType() const override;
+	virtual float GetHDRNitsNormalizationFactor() const override;
 
 	virtual const void* GetBuffer() override
 	{
@@ -260,6 +304,13 @@ protected:
 		Buffer.Reset();
 	}
 
+	/**
+	 * Get YUV to RGB conversion matrix
+	 *
+	 * @return MediaIOCore Yuv To Rgb matrix
+	 */
+	virtual const FMatrix& GetYUVToRGBMatrix() const override;
+
 protected:
 	/** Duration for which the sample is valid. */
 	FTimespan Duration;
@@ -282,6 +333,18 @@ protected:
 	TArray<uint8, TAlignedHeapAllocator<4096>> Buffer;
 	void* ExternalBuffer = nullptr;
 
-	/** Wheter the sample is in sRGB space and requires an explicit conversion to linear */
-	bool bIsSRGBInput;
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.3, "Please use Encoding instead.")
+	/** Whether the sample is in sRGB space and requires an explicit conversion to linear */
+	bool bIsSRGBInput = false;
+#endif
+
+	/** Color encoding of the incoming texture. */
+	UE::Color::EEncoding Encoding = UE::Color::EEncoding::Linear;
+
+	/** Color space enum of the incoming texture. */
+	UE::Color::EColorSpace ColorSpace = UE::Color::EColorSpace::sRGB;
+
+	/** Color space structure of the incoming texture. Used for retrieving chromaticities. */
+	UE::Color::FColorSpace ColorSpaceStruct = UE::Color::FColorSpace(UE::Color::EColorSpace::sRGB);
 };

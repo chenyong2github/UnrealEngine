@@ -23,7 +23,7 @@ namespace UE::MediaIOCore
 		, FTimespan InTime
 		, const FFrameRate& InFrameRate
 		, const TOptional<FTimecode>& InTimecode
-		, Color::EColorSpace InColorSpace)
+		, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs)
 			: VideoBuffer(InVideoBuffer)
 			, BufferSize(InBufferSize)
 			, Stride(InStride)
@@ -33,7 +33,7 @@ namespace UE::MediaIOCore
 			, Time(InTime)
 			, FrameRate(InFrameRate)
 			, Timecode(InTimecode)
-			, ColorSpace(InColorSpace)
+			, ColorFormatArgs(InColorFormatArgs)
 		{
 		}
 
@@ -46,7 +46,7 @@ namespace UE::MediaIOCore
 		FTimespan Time;
 		const FFrameRate& FrameRate;
 		const TOptional<FTimecode>& Timecode;
-		Color::EColorSpace ColorSpace;
+		const UE::MediaIOCore::FColorFormatArgs& ColorFormatArgs;
 	};
 
 	/**

@@ -24,7 +24,7 @@ public:
 	 * @param InTimecode The sample timecode if available.
 	 * @param bInIsSRGB Whether the sample is in sRGB space.
 	 */
-	bool InitializeProgressive(const AJA::AJAVideoFrameData& InVideoData, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGB)
+	bool InitializeProgressive(const AJA::AJAVideoFrameData& InVideoData, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs)
 	{
 		return Super::Initialize(InVideoData.VideoBuffer
 			, InVideoData.VideoBufferSize
@@ -35,7 +35,7 @@ public:
 			, InTime
 			, InFrameRate
 			, InTimecode
-			, bInIsSRGB);
+			, InColorFormatArgs);
 	}
 
 	/**
@@ -49,7 +49,7 @@ public:
 	 * @param bEven Only take the even frame from the image.
 	 * @param bInIsSRGB Whether the sample is in sRGB space.
 	 */
-	bool InitializeInterlaced_Halfed(const AJA::AJAVideoFrameData& InVideoData, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInEven, bool bInIsSRGB)
+	bool InitializeInterlaced_Halfed(const AJA::AJAVideoFrameData& InVideoData, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInEven, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs)
 	{
 		return Super::InitializeWithEvenOddLine(bInEven
 			, InVideoData.VideoBuffer
@@ -61,17 +61,7 @@ public:
 			, InTime
 			, InFrameRate
 			, InTimecode
-			, bInIsSRGB);
-	}
-
-	/**
-	 * Get YUV to RGB conversion matrix
-	 *
-	 * @return MediaIOCore Yuv To Rgb matrix
-	 */
-	virtual const FMatrix& GetYUVToRGBMatrix() const override
-	{
-		return MediaShaders::YuvToRgbRec709Scaled;
+			, InColorFormatArgs);
 	}
 };
 

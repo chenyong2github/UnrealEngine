@@ -6,6 +6,7 @@
 #include "Aja/Aja.h"
 #include "AjaMediaAudioSample.h"
 #include "AjaMediaBinarySample.h"
+#include "AjaMediaDefinitions.h"
 #include "AjaMediaPrivate.h"
 #include "AjaMediaSettings.h"
 #include "AjaMediaTextureSample.h"
@@ -17,6 +18,7 @@
 #include "MediaIOCoreEncodeTime.h"
 #include "MediaIOCoreFileWriter.h"
 #include "MediaIOCoreSamples.h"
+#include "MediaIOCoreUtilities.h"
 #include "HAL/PlatformAtomics.h"
 #include "HAL/PlatformProcess.h"
 #include "IAjaMediaModule.h"
@@ -118,6 +120,11 @@ bool FAjaMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 	const EMediaIOAutoDetectableTimecodeFormat Timecode = (EMediaIOAutoDetectableTimecodeFormat)(Options->GetMediaOption(AjaMediaOption::TimecodeFormat, (int64)EMediaIOAutoDetectableTimecodeFormat::None));
 	const bool bAutoDetectTimecode = Timecode == EMediaIOAutoDetectableTimecodeFormat::Auto;
 	const bool bAutoDetectVideoFormat = bAutoDetect;
+
+	bOverrideSourceEncoding = Options->GetMediaOption(UE::CaptureCardMediaSource::OverrideSourceEncoding, true);
+	OverrideSourceEncoding = (ETextureSourceEncoding) Options->GetMediaOption(UE::CaptureCardMediaSource::SourceEncoding, (int64) ETextureSourceEncoding::TSE_Linear);
+	bOverrideSourceColorSpace = Options->GetMediaOption(UE::CaptureCardMediaSource::OverrideSourceColorSpace, true);
+	OverrideSourceColorSpace =  (ETextureColorSpace) Options->GetMediaOption(UE::CaptureCardMediaSource::SourceColorSpace, (int64) ETextureColorSpace::TCS_None);
 
 	if (!bAutoDetectTimecode)
 	{
@@ -463,7 +470,6 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 {
 	SCOPE_CYCLE_COUNTER(STAT_AJA_MediaPlayer_ProcessFrame);
 
-
 	if ((AjaThreadNewState != EMediaState::Playing) && (AjaThreadNewState != EMediaState::Paused))
 	{
 		return false;
@@ -625,9 +631,59 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 			bAjaWriteOutputRawDataCmdEnable = false;
 		}
 
+		UE::MediaIOCore::FColorFormatArgs ColorFormat;
+		FAjaMediaHDROptions HDROptions = UE::AjaMedia::MakeAjaMediaHDROptions(InVideoFrame.HDROptions);
+		
+		if (bOverrideSourceEncoding)
+		{
+			ColorFormat.Encoding = (UE::Color::EEncoding) OverrideSourceEncoding;
+		}
+		else
+		{
+			const FTimespan TimeBetweenLogs = FTimespan::FromSeconds(5);
+
+			switch (HDROptions.EOTF)
+			{
+			case EAjaHDRMetadataEOTF::SDR:
+				ColorFormat.Encoding = UE::Color::EEncoding::sRGB; // Missing support for BT.1886 so we default to sRGB instead.
+				break;
+			case EAjaHDRMetadataEOTF::PQ:
+				ColorFormat.Encoding = UE::Color::EEncoding::ST2084;
+				break;
+			case EAjaHDRMetadataEOTF::HLG:
+				UE_MEDIA_IO_LOG_THROTTLE(LogAjaMedia, Warning, TimeBetweenLogs, TEXT("HLG EOTF is not supported at the moment. Defaulting to sRGB."));
+				ColorFormat.Encoding = UE::Color::EEncoding::sRGB;
+				break;
+			default:
+				checkNoEntry();
+				ColorFormat.Encoding = UE::Color::EEncoding::None;			
+			}
+		}
+		
+		if (bOverrideSourceColorSpace)
+		{
+			ColorFormat.ColorSpace = (UE::Color::EColorSpace) OverrideSourceColorSpace;
+		}
+		else
+		{
+			switch (HDROptions.Gamut)
+			{
+			case EAjaHDRMetadataGamut::Rec709:
+				ColorFormat.ColorSpace = UE::Color::EColorSpace::sRGB;
+				break;
+			case EAjaHDRMetadataGamut::Rec2020:
+				ColorFormat.ColorSpace = UE::Color::EColorSpace::Rec2020;
+				break;
+			default:
+				checkNoEntry();
+				ColorFormat.ColorSpace = UE::Color::EColorSpace::sRGB;
+				break;
+			}
+		}
+
 		if (AjaThreadCurrentTextureSample.IsValid())
 		{
-			if (AjaThreadCurrentTextureSample->SetProperties(InVideoFrame.Stride, InVideoFrame.Width, InVideoFrame.Height, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bIsSRGBInput))
+			if (AjaThreadCurrentTextureSample->SetProperties(InVideoFrame.Stride, InVideoFrame.Width, InVideoFrame.Height, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, ColorFormat))
 			{
 				if (CanUseGPUTextureTransfer())
 				{
@@ -662,7 +718,7 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 				if (InVideoFrame.bIsProgressivePicture)
 				{
 					auto TextureSample = TextureSamplePool->AcquireShared();
-					if (TextureSample->InitializeProgressive(InVideoFrame, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bIsSRGBInput))
+					if (TextureSample->InitializeProgressive(InVideoFrame, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, ColorFormat))
 					{
 						Samples->AddVideo(TextureSample);
 					}
@@ -685,7 +741,7 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 						DecodedTime,
 						VideoFrameRate,
 						DecodedTimecode,
-						bIsSRGBInput ? UE::Color::EColorSpace::sRGB : UE::Color::EColorSpace::None
+						ColorFormat
 					};
 
 					const TArray<TSharedRef<FMediaIOCoreTextureSampleBase>> DeinterlacedSamples = Deinterlace(FrameInfo);

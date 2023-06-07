@@ -57,7 +57,7 @@ namespace UE::MediaIOTests
 			FTimespan::FromSeconds(0),
 			FFrameRate(),
 			FTimecode(),
-			UE::Color::EColorSpace::None
+			UE::MediaIOCore::FColorFormatArgs{UE::Color::EEncoding::Linear, UE::Color::EColorSpace::sRGB}
 		};
 
 		// Execute test
@@ -98,7 +98,7 @@ namespace UE::MediaIOTests
 			FTimespan::FromSeconds(0),
 			FFrameRate(),
 			FTimecode(),
-			UE::Color::EColorSpace::None
+			UE::MediaIOCore::FColorFormatArgs{UE::Color::EEncoding::Linear, UE::Color::EColorSpace::sRGB}
 		};
 
 		// Execute test
@@ -134,7 +134,7 @@ namespace UE::MediaIOTests
 			FTimespan::FromSeconds(0),
 			FFrameRate(),
 			FTimecode(),
-			UE::Color::EColorSpace::None
+			UE::MediaIOCore::FColorFormatArgs{UE::Color::EEncoding::Linear, UE::Color::EColorSpace::sRGB}
 		};
 
 		// Execute test
@@ -171,7 +171,7 @@ namespace UE::MediaIOTests
 			FTimespan::FromSeconds(0),
 			FFrameRate(),
 			FTimecode(),
-			UE::Color::EColorSpace::None
+			UE::MediaIOCore::FColorFormatArgs{UE::Color::EEncoding::Linear, UE::Color::EColorSpace::sRGB}
 		};
 
 		// Execute test

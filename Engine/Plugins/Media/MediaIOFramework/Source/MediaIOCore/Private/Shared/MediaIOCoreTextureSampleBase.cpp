@@ -12,16 +12,15 @@ FMediaIOCoreTextureSampleBase::FMediaIOCoreTextureSampleBase()
 	, Stride(0)
 	, Width(0)
 	, Height(0)
-	, bIsSRGBInput(false)
 {
 }
 
 
-bool FMediaIOCoreTextureSampleBase::Initialize(const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput)
+bool FMediaIOCoreTextureSampleBase::Initialize(const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs)
 {
 	FreeSample();
 
-	if (!SetProperties(InStride, InWidth, InHeight, InSampleFormat, InTime, InFrameRate, InTimecode, bInIsSRGBInput))
+	if (!SetProperties(InStride, InWidth, InHeight, InSampleFormat, InTime, InFrameRate, InTimecode, InColorFormatArgs))
 	{
 		return false;
 	}
@@ -30,11 +29,11 @@ bool FMediaIOCoreTextureSampleBase::Initialize(const void* InVideoBuffer, uint32
 }
 
 
-bool FMediaIOCoreTextureSampleBase::Initialize(const TArray<uint8>& InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput)
+bool FMediaIOCoreTextureSampleBase::Initialize(const TArray<uint8>& InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs)
 {
 	FreeSample();
 
-	if (!SetProperties(InStride, InWidth, InHeight, InSampleFormat, InTime, InFrameRate, InTimecode, bInIsSRGBInput))
+	if (!SetProperties(InStride, InWidth, InHeight, InSampleFormat, InTime, InFrameRate, InTimecode, InColorFormatArgs))
 	{
 		return false;
 	}
@@ -43,11 +42,11 @@ bool FMediaIOCoreTextureSampleBase::Initialize(const TArray<uint8>& InVideoBuffe
 }
 
 
-bool FMediaIOCoreTextureSampleBase::Initialize(TArray<uint8>&& InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput)
+bool FMediaIOCoreTextureSampleBase::Initialize(TArray<uint8>&& InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs)
 {
 	FreeSample();
 
-	if (!SetProperties(InStride, InWidth, InHeight, InSampleFormat, InTime, InFrameRate, InTimecode, bInIsSRGBInput))
+	if (!SetProperties(InStride, InWidth, InHeight, InSampleFormat, InTime, InFrameRate, InTimecode, InColorFormatArgs))
 	{
 		return false;
 	}
@@ -94,7 +93,7 @@ bool FMediaIOCoreTextureSampleBase::SetBuffer(TArray<uint8>&& InVideoBuffer)
 	return true;
 }
 
-bool FMediaIOCoreTextureSampleBase::SetProperties(uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput)
+bool FMediaIOCoreTextureSampleBase::SetProperties(uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs)
 {
 	if (InSampleFormat == EMediaTextureSampleFormat::Undefined)
 	{
@@ -108,16 +107,18 @@ bool FMediaIOCoreTextureSampleBase::SetProperties(uint32 InStride, uint32 InWidt
 	Time = InTime;
 	Duration = FTimespan(ETimespan::TicksPerSecond * InFrameRate.AsInterval());
 	Timecode = InTimecode;
-	bIsSRGBInput = bInIsSRGBInput;
+	Encoding = InColorFormatArgs.Encoding;
+	ColorSpace = InColorFormatArgs.ColorSpace;
+	ColorSpaceStruct = UE::Color::FColorSpace(ColorSpace);
 
 	return true;
 }
 
-bool FMediaIOCoreTextureSampleBase::InitializeWithEvenOddLine(bool bUseEvenLine, const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput)
+bool FMediaIOCoreTextureSampleBase::InitializeWithEvenOddLine(bool bUseEvenLine, const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, const UE::MediaIOCore::FColorFormatArgs& InColorFormatArgs)
 {
 	FreeSample();
 
-	if (!SetProperties(InStride, InWidth, InHeight/2, InSampleFormat, InTime, InFrameRate, InTimecode, bInIsSRGBInput))
+	if (!SetProperties(InStride, InWidth, InHeight/2, InSampleFormat, InTime, InFrameRate, InTimecode, InColorFormatArgs))
 	{
 		return false;
 	}
@@ -170,4 +171,57 @@ void FMediaIOCoreTextureSampleBase::ShutdownPoolable()
 	}
 
 	FreeSample();
+}
+
+const FMatrix& FMediaIOCoreTextureSampleBase::GetYUVToRGBMatrix() const
+{
+	switch (ColorSpace)
+	{
+	case UE::Color::EColorSpace::sRGB:
+		return MediaShaders::YuvToRgbRec709Scaled;
+	case UE::Color::EColorSpace::Rec2020:
+		return MediaShaders::YuvToRgbRec2020Scaled;
+	default:
+		return MediaShaders::YuvToRgbRec709Scaled;
+	}
+}
+
+bool FMediaIOCoreTextureSampleBase::IsOutputSrgb() const
+{
+	return Encoding == UE::Color::EEncoding::sRGB;
+}
+
+FMatrix44f FMediaIOCoreTextureSampleBase::GetGamutToXYZMatrix() const
+{
+	return FMatrix44f(ColorSpaceStruct.GetRgbToXYZ().GetTransposed());
+}
+
+FVector2f FMediaIOCoreTextureSampleBase::GetWhitePoint() const
+{
+	return FVector2f(ColorSpaceStruct.GetWhiteChromaticity());
+}
+
+FVector2f FMediaIOCoreTextureSampleBase::GetDisplayPrimaryRed() const
+{
+	return FVector2f(ColorSpaceStruct.GetRedChromaticity());
+}
+
+FVector2f FMediaIOCoreTextureSampleBase::GetDisplayPrimaryGreen() const
+{
+	return FVector2f(ColorSpaceStruct.GetGreenChromaticity());
+}
+
+FVector2f FMediaIOCoreTextureSampleBase::GetDisplayPrimaryBlue() const
+{
+	return FVector2f(ColorSpaceStruct.GetBlueChromaticity());
+}
+
+UE::Color::EEncoding FMediaIOCoreTextureSampleBase::GetEncodingType() const
+{
+	return Encoding;
+}
+
+float FMediaIOCoreTextureSampleBase::GetHDRNitsNormalizationFactor() const
+{
+	return (GetEncodingType() == UE::Color::EEncoding::sRGB || GetEncodingType() == UE::Color::EEncoding::Linear) ? 1.0f : kMediaSample_HDR_NitsNormalizationFactor;
 }
