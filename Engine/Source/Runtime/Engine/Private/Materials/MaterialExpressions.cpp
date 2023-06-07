@@ -19320,7 +19320,7 @@ int32 UMaterialExpressionDistanceFieldApproxAO::Compile(class FMaterialCompiler*
 
 	if (Normal.GetTracedInput().Expression)
 	{
-		NormalArg = Position.Compile(Compiler);
+		NormalArg = Normal.Compile(Compiler);
 	}
 	else
 	{
