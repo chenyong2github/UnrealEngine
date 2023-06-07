@@ -104,8 +104,10 @@ public:
 	bool RebuildBulkDataFromCacheAsync(const UObject* Owner, bool& bFailed);
 	// Builds all the data from SourceData. Is called by Cache().
 	bool Build(USparseVolumeTextureFrame* Owner);
-	// Cache the built data to/from DDC.
-	void Cache(USparseVolumeTextureFrame* Owner);
+	// Cache the built data to/from DDC. If bLocalCachingOnly is true, the read/write queries will only use the local DDC; otherwise the remote DDC will also be used.
+	void Cache(USparseVolumeTextureFrame* Owner, bool bLocalCachingOnly);
+	// Sets empty default data. This is used when caching/building is canceled but some form of valid data is needed.
+	void SetDefault(EPixelFormat FormatA, EPixelFormat FormatB, const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
 #endif
 
 private:
@@ -250,7 +252,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	// Caches the derived data (FResources) of this frame to/from DDC and ensures that FTextureRenderResources exists.
-	void Cache();
+	void Cache(bool bSkipDDCAndSetResourcesToDefault);
 #endif
 
 	//~ Begin UObject Interface.
@@ -321,17 +323,21 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Texture")
 	FVector4f FallbackValueB;
 
-	/** The addressing mode to use for the X axis.								*/
+	// The addressing mode to use for the X axis.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (DisplayName = "X-axis Tiling Method"), AssetRegistrySearchable, AdvancedDisplay)
 	TEnumAsByte<enum TextureAddress> AddressX;
 
-	/** The addressing mode to use for the Y axis.								*/
+	// The addressing mode to use for the Y axis.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (DisplayName = "Y-axis Tiling Method"), AssetRegistrySearchable, AdvancedDisplay)
 	TEnumAsByte<enum TextureAddress> AddressY;
 
-	/** The addressing mode to use for the Z axis.								*/
+	// The addressing mode to use for the Z axis.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (DisplayName = "Z-axis Tiling Method"), AssetRegistrySearchable, AdvancedDisplay)
 	TEnumAsByte<enum TextureAddress> AddressZ;
+
+	// If enabled, the SparseVolumeTexture is only going to use the local DDC. For certain assets it might be reasonable to also use the remote DDC, but for larger assets this will mean long up- and download times.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (DisplayName = "Local DDC Only"), AssetRegistrySearchable, AdvancedDisplay)
+	bool bLocalDDCOnly = true;
 
 	UStreamableSparseVolumeTexture();
 	virtual ~UStreamableSparseVolumeTexture() = default;

@@ -1264,6 +1264,30 @@ void FStreamingManager::RemoveInternal(UStreamableSparseVolumeTexture* SparseVol
 	FStreamingInfo* SVTInfo = StreamingInfo.Find(SparseVolumeTexture);
 	if (SVTInfo)
 	{
+		// Remove any requests for this SVT
+		TArray<FMipLevelKey> RequestsToRemove;
+		for (auto& Pair : RequestsHashTable)
+		{
+			if (Pair.Key.SVT == SparseVolumeTexture)
+			{
+				RequestsToRemove.Add(Pair.Key);
+			}
+		}
+		for (const FMipLevelKey& Key : RequestsToRemove)
+		{
+			RequestsHashTable.Remove(Key);
+		}
+
+		// Cancel any pending mip levels
+		for (FPendingMipLevel& PendingMipLevel : PendingMipLevels)
+		{
+			if (PendingMipLevel.SparseVolumeTexture == SparseVolumeTexture)
+			{
+				PendingMipLevel.Reset();
+			}
+		}
+
+		// Release resources
 		for (FFrameInfo& FrameInfo : SVTInfo->PerFrameInfo)
 		{
 			FrameInfo.PageTableTextureRHIRef.SafeRelease();
