@@ -17,7 +17,17 @@ TArray<FNeuralMorphBoneGroup>& UNeuralMorphInputInfo::GetBoneGroups()
 	return BoneGroups;
 }
 
+const TArray<FNeuralMorphBoneGroup>& UNeuralMorphInputInfo::GetBoneGroups() const
+{
+	return BoneGroups;
+}
+
 TArray<FNeuralMorphCurveGroup>& UNeuralMorphInputInfo::GetCurveGroups()
+{
+	return CurveGroups;
+}
+
+const TArray<FNeuralMorphCurveGroup>& UNeuralMorphInputInfo::GetCurveGroups() const
 {
 	return CurveGroups;
 }

@@ -134,10 +134,9 @@ FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InS
 	if (SkelMesh && !InputInfo->IsCompatible(SkelMesh) && Model->GetDeformerAsset())
 	{
 		ErrorText += InputInfo->GenerateCompatibilityErrorString(SkelMesh);
-		ErrorText += "\n";
 		if (bLogIssues)
 		{
-			UE_LOG(LogMLDeformer, Error, TEXT("ML Deformer '%s' isn't compatible with Skeletal Mesh '%s'.\nReason(s):\n%s"), 
+			UE_LOG(LogMLDeformer, Error, TEXT("ML Deformer '%s' isn't compatible with Skeletal Mesh '%s'.\nReason(s):\n%s\n"), 
 				*Model->GetDeformerAsset()->GetName(), 
 				*SkelMesh->GetName(), 
 				*ErrorText);

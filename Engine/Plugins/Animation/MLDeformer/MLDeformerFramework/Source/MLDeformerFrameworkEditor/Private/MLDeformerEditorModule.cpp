@@ -7,6 +7,7 @@
 #include "MLDeformerModel.h"
 #include "MLDeformerCurveReferenceCustomization.h"
 #include "MLDeformerMorphModelQualityLevelCustomization.h"
+#include "SMLDeformerInputWidget.h"
 #include "Modules/ModuleManager.h"
 #include "EditorModeRegistry.h"
 #include "PropertyEditorDelegates.h"
@@ -26,6 +27,8 @@ namespace UE::MLDeformer
 		PropertyModule.RegisterCustomPropertyTypeLayout("MLDeformerCurveReference", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMLDeformerCurveReferenceCustomization::MakeInstance) );
 		PropertyModule.RegisterCustomPropertyTypeLayout("MLDeformerMorphModelQualityLevel", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMLDeformerMorphModelQualityLevelCustomization::MakeInstance) );
 		PropertyModule.NotifyCustomizationModuleChanged();
+
+		SMLDeformerInputWidget::RegisterCommands();
 	}
 
 	void FMLDeformerEditorModule::ShutdownModule()

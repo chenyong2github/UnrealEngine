@@ -4,6 +4,9 @@
 #include "NeuralMorphModelDetails.h"
 #include "NeuralMorphEditorModel.h"
 #include "NeuralMorphModel.h"
+#include "SNeuralMorphInputWidget.h"
+#include "SNeuralMorphBoneGroupsWidget.h"
+#include "SNeuralMorphCurveGroupsWidget.h"
 #include "MLDeformerEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "EditorModeRegistry.h"
@@ -41,6 +44,10 @@ namespace UE::NeuralMorphModel
 		FMLDeformerEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
 		FMLDeformerEditorModelRegistry& ModelRegistry = EditorModule.GetModelRegistry();
 		ModelRegistry.RegisterEditorModel(UNeuralMorphModel::StaticClass(), FOnGetEditorModelInstance::CreateStatic(&FNeuralMorphEditorModel::MakeInstance), /*ModelPriority*/100);
+
+		FNeuralMorphInputWidgetCommands::Register();
+		FNeuralMorphBoneGroupsCommands::Register();
+		FNeuralMorphCurveGroupsCommands::Register();
 	}
 
 	void FNeuralMorphModelEditorModule::ShutdownModule()

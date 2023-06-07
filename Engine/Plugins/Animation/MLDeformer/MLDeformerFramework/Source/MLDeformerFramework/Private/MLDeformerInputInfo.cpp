@@ -88,7 +88,17 @@ TArray<FName>& UMLDeformerInputInfo::GetBoneNames()
 	return BoneNames;
 }
 
+const TArray<FName>& UMLDeformerInputInfo::GetBoneNames() const
+{ 
+	return BoneNames;
+}
+
 TArray<FName>& UMLDeformerInputInfo::GetCurveNames()
+{ 
+	return CurveNames;
+}
+
+const TArray<FName>& UMLDeformerInputInfo::GetCurveNames() const
 { 
 	return CurveNames;
 }
@@ -125,7 +135,7 @@ bool UMLDeformerInputInfo::IsCompatible(USkeletalMesh* InSkeletalMesh) const
 		return false;
 	}
 
-	if (FSoftObjectPath(InSkeletalMesh) != SkeletalMesh)
+	if ((SkeletalMesh.IsValid() && !SkeletalMesh.IsNull()) && FSoftObjectPath(InSkeletalMesh) != SkeletalMesh)
 	{
 		return false;
 	}

@@ -27,6 +27,7 @@
 #include "DetailLayoutBuilder.h"
 #include "SWarningOrErrorBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "SMLDeformerInputWidget.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerModelDetails"
 
@@ -55,7 +56,7 @@ namespace UE::MLDeformer
 	{
 		BaseMeshCategoryBuilder = &DetailLayoutBuilder->EditCategory("Base Mesh", FText::GetEmpty(), ECategoryPriority::Important);
 		TargetMeshCategoryBuilder = &DetailLayoutBuilder->EditCategory("Target Mesh", FText::GetEmpty(), ECategoryPriority::Important);
-		InputOutputCategoryBuilder = &DetailLayoutBuilder->EditCategory("Inputs and Output", FText::GetEmpty(), ECategoryPriority::Important);
+		InputOutputCategoryBuilder = &DetailLayoutBuilder->EditCategory("Inputs", FText::GetEmpty(), ECategoryPriority::Important);
 		TrainingSettingsCategoryBuilder = &DetailLayoutBuilder->EditCategory("Training Settings", FText::GetEmpty(), ECategoryPriority::Important);
 	}
 
@@ -92,6 +93,7 @@ namespace UE::MLDeformer
 					.Message(ChangedErrorText)
 				]
 			];
+
 
 		// Check if our skeletal mesh's imported model contains a list of mesh infos. If not, we need to reimport it as it is an older asset.
 		const FText NeedsReimportErrorText = EditorModel->GetSkeletalMeshNeedsReimportErrorText();
@@ -164,18 +166,15 @@ namespace UE::MLDeformer
 
 		TargetMeshCategoryBuilder->AddProperty(UMLDeformerModel::GetAlignmentTransformPropertyName(), UMLDeformerModel::StaticClass());
 
-		InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetShouldIncludeBonesPropertyName(), UMLDeformerModel::StaticClass())
-			.Visibility(IsBonesFlagVisible() ? EVisibility::Visible : EVisibility::Collapsed);
-
-		InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetShouldIncludeCurvesPropertyName(), UMLDeformerModel::StaticClass())
-			.Visibility(IsCurvesFlagVisible() ? EVisibility::Visible : EVisibility::Collapsed);
-
 		AddTrainingInputFlags();
 		AddTrainingInputErrors();
 
-		const FText ErrorText = EditorModel->GetInputsErrorText();
 		FDetailWidgetRow& ErrorRow = InputOutputCategoryBuilder->AddCustomRow(FText::FromString("InputsError"))
-			.Visibility(!ErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
+			.Visibility(TAttribute<EVisibility>::CreateLambda(
+				[this]()
+				{
+					return !EditorModel->GetInputsErrorText().IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed;
+				}))
 			.WholeRowContent()
 			[
 				SNew(SBox)
@@ -183,153 +182,20 @@ namespace UE::MLDeformer
 				[
 					SNew(SWarningOrErrorBox)
 					.MessageStyle(EMessageStyle::Error)
-					.Message(ErrorText)
+					.Message_Lambda([this] { return EditorModel->GetInputsErrorText(); })
 				]
 			];
+
+		// Create the inputs widget.
+		TSharedPtr<SMLDeformerInputWidget> InputWidget = EditorModel->CreateInputWidget();
+		EditorModel->SetInputWidget(InputWidget);
+		InputOutputCategoryBuilder->AddCustomRow(FText::FromString("Inputs")).WholeRowContent().Widget = InputWidget.ToSharedRef();
+
+		AddBoneInputErrors();
+		AddCurveInputErrors();
 
 		InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetMaxTrainingFramesPropertyName(), UMLDeformerModel::StaticClass());
 		InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetDeltaCutoffLengthPropertyName(), UMLDeformerModel::StaticClass());
-
-		// Bone include list group.
-		if (Model->DoesSupportBones())
-		{
-			IDetailGroup& BoneIncludeGroup = InputOutputCategoryBuilder->AddGroup("BoneIncludeGroup", FText(), false, false);
-			BoneIncludeGroup.HeaderRow()
-			.NameContent()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Right)
-				[
-					SNew(STextBlock)
-					.Text_Lambda
-					(
-						[this]()
-						{
-							const int NumBonesIncluded = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumBones() : 0;
-							return FText::Format(FTextFormat(LOCTEXT("BonesGroupName", "Bones ({0})")), NumBonesIncluded);
-						}
-					)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-			]
-			.ValueContent()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				[
-					SNew(STextBlock)
-					.Text_Lambda
-					(
-						[this]()
-						{
-							const int NumBonesIncluded = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumBones() : 0;
-							FText AllBonesText;
-							if (Model->GetSkeletalMesh() && (Model->GetSkeletalMesh()->GetRefSkeleton().GetNum() == NumBonesIncluded || NumBonesIncluded == 0))
-							{
-								AllBonesText = LOCTEXT("BoneGroupValue", "All Bones Included");
-							}
-							return AllBonesText;
-						}
-					)
-					.Font(IDetailLayoutBuilder::GetDetailFontItalic())
-				]
-			];
-			BoneIncludeGroup.AddWidgetRow()
-				.ValueContent()
-				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.Text(LOCTEXT("AnimatedBonesButton", "Animated Bones Only"))
-					.ToolTipText(LOCTEXT("AnimatedBonesButtonTooltip", "Initialize the bone include list to bones that are animated."))
-					.OnClicked(FOnClicked::CreateSP(this, &FMLDeformerModelDetails::OnFilterAnimatedBonesOnly))
-					.IsEnabled_Lambda([this](){ return Model->ShouldIncludeBonesInTraining(); })
-				];
-			BoneIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(UMLDeformerModel::GetBoneIncludeListPropertyName(), UMLDeformerModel::StaticClass()));
-
-			AddBoneInputErrors();
-		}
-		else
-		{
-			InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetBoneIncludeListPropertyName(), UMLDeformerModel::StaticClass())
-				.Visibility(EVisibility::Collapsed);
-		}
-
-		// Curve include list group.
-		if (Model->DoesSupportCurves())
-		{
-			IDetailGroup& CurvesIncludeGroup = InputOutputCategoryBuilder->AddGroup("CurveIncludeGroup", LOCTEXT("CurveIncludeGroup", "Curves"), false, false);
-			CurvesIncludeGroup.HeaderRow()
-			.NameContent()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Right)
-				[
-					SNew(STextBlock)
-					.Text_Lambda
-					(
-						[this]()
-						{
-							const int NumCurves = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumCurves() : 0;
-							return FText::Format(FTextFormat(LOCTEXT("CurvesGroupName", "Curves ({0})")), NumCurves);
-						}
-					)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-			]
-			.ValueContent()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				[
-					SNew(STextBlock)
-					.Text_Lambda
-					(
-						[this]()
-						{
-							const int NumCurves = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumCurves() : 0;
-							const int32 NumCurvesOnSkelMesh = EditorModel->GetNumCurvesOnSkeletalMesh(Model->GetSkeletalMesh());
-							if (NumCurvesOnSkelMesh == 0)
-							{
-								return LOCTEXT("CurvesGroupValueNoCurves", "No Curves Found");
-							}
-							else if (NumCurves == NumCurvesOnSkelMesh)
-							{
-								return LOCTEXT("CurvesGroupValue", "All Curves Included");
-							}
-							return FText();
-						}
-					)
-					.Font(IDetailLayoutBuilder::GetDetailFontItalic())
-				]
-			];
-
-			CurvesIncludeGroup.AddWidgetRow()
-				.ValueContent()
-				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.Text(LOCTEXT("AnimatedCurvesButton", "Animated Curves Only"))
-					.ToolTipText(LOCTEXT("AnimatedCurvesButtonTooltip", "Initialize the curve include list to curves that are animated."))
-					.OnClicked(FOnClicked::CreateSP(this, &FMLDeformerModelDetails::OnFilterAnimatedCurvesOnly))
-					.IsEnabled_Lambda([this](){ return Model->ShouldIncludeCurvesInTraining() && EditorModel->GetNumCurvesOnSkeletalMesh(Model->GetSkeletalMesh()) > 0; })
-				];
-			CurvesIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(UMLDeformerModel::GetCurveIncludeListPropertyName(), UMLDeformerModel::StaticClass()));
-
-			AddCurveInputErrors();
-		}
-		else
-		{
-			InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetCurveIncludeListPropertyName(), UMLDeformerModel::StaticClass())
-				.Visibility(EVisibility::Collapsed);
-		}
-
-		AddTrainingInputFilters();
 
 		// Show a warning when no neural network has been set.
 		{		

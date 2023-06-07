@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"InputCore",
 					"UnrealEd",
 					"CoreUObject",
 					"Engine",
@@ -27,7 +28,7 @@ namespace UnrealBuildTool.Rules
 					"MLDeformerFrameworkEditor",
 					"NeuralMorphModel",
 					"PropertyEditor",
-					"ToolWidgets",
+					"ToolWidgets"
 				}
 			);
 

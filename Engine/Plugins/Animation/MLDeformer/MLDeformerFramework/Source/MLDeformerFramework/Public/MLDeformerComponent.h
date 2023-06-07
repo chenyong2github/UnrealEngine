@@ -30,6 +30,7 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerComponent
 
 public:
 	// UObject overrides.
+	void BeginDestroy() override;
 #if WITH_EDITOR
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
@@ -177,13 +178,16 @@ protected:
 	UE_DEPRECATED(5.3, "This method will be removed.")
 	void RemoveReleaseModelInstancesDelegate();
 
+	void BindDelegates();
+	void UnbindDelegates();
+
 	void ReleaseModelInstance();
 
 	/** Set the ML Deformer weight. */
-	virtual void SetWeightInternal(const float NormalizedWeightValue) { Weight = FMath::Clamp<float>(NormalizedWeightValue, 0.0f, 1.0f); }
+	virtual void SetWeightInternal(const float NormalizedWeightValue);
 
 	/** Set the ML Deformer asset. */
-	virtual void SetDeformerAssetInternal(UMLDeformerAsset* const InDeformerAsset) { DeformerAsset = InDeformerAsset; UpdateSkeletalMeshComponent(); }
+	virtual void SetDeformerAssetInternal(UMLDeformerAsset* const InDeformerAsset);
 
 #if WITH_EDITOR
 	/** Reset the tick cycle counters. */
@@ -209,6 +213,9 @@ protected:
 	/** DelegateHandle for NeuralNetwork modification. This has been deprecated. */
 	UE_DEPRECATED(5.3, "This member has been deprecated.")
 	FDelegateHandle NeuralNetworkModifyDelegateHandle_DEPRECATED;
+
+	/** The delegate handle used to bind to the reinit model instance delegate handle. */
+	FDelegateHandle ReinitModelInstanceDelegateHandle;
 
 	/** Suppress mesh deformer logging warnings? This is used by the ML Deformer editor, as we don't want to show some warnings when using that. */
 	bool bSuppressMeshDeformerLogWarnings = false;

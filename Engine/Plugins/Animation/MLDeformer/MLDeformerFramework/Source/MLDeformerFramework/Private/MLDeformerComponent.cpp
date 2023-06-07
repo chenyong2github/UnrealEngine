@@ -49,6 +49,7 @@ void UMLDeformerComponent::Init()
 		ModelInstance->SetModel(Model);
 		ModelInstance->Init(SkelMeshComponent);
 		ModelInstance->PostMLDeformerComponentInit();
+		BindDelegates();
 	}
 	else
 	{
@@ -80,7 +81,9 @@ void UMLDeformerComponent::SetupComponent(UMLDeformerAsset* InDeformerAsset, USk
 	SkelMeshComponent = InSkelMeshComponent;
 
 	// Initialize and make sure we have a model instance.
+	UnbindDelegates();
 	Init();
+	BindDelegates();
 
 	// Verify that a mesh deformer has been setup when the used ML model requires one.
 	if (!bSuppressMeshDeformerLogWarnings && DeformerAsset && ModelInstance && ModelInstance->GetModel() && SkelMeshComponent)
@@ -104,6 +107,36 @@ void UMLDeformerComponent::SetupComponent(UMLDeformerAsset* InDeformerAsset, USk
 	#if WITH_EDITOR
 		TickPerfCounter.Reset();
 	#endif
+}
+
+void UMLDeformerComponent::BindDelegates()
+{
+	UMLDeformerModel* Model = DeformerAsset ? DeformerAsset->GetModel() : nullptr;
+	if (Model)
+	{
+		ReinitModelInstanceDelegateHandle = Model->GetReinitModelInstanceDelegate().AddLambda(
+			[this]()
+			{
+				Init();
+			});
+	}
+}
+
+void UMLDeformerComponent::UnbindDelegates()
+{
+	UMLDeformerModel* Model = DeformerAsset ? DeformerAsset->GetModel() : nullptr;
+	if (Model && ReinitModelInstanceDelegateHandle.IsValid())
+	{
+		Model->GetReinitModelInstanceDelegate().Remove(ReinitModelInstanceDelegateHandle);	
+	}
+
+	ReinitModelInstanceDelegateHandle = FDelegateHandle();
+}
+
+void UMLDeformerComponent::BeginDestroy()
+{
+	UnbindDelegates();
+	Super::BeginDestroy();
 }
 
 void UMLDeformerComponent::ReleaseModelInstance()
@@ -168,6 +201,7 @@ void UMLDeformerComponent::Deactivate()
 		TickPerfCounter.Reset();
 	#endif
 
+	UnbindDelegates();
 	if (ModelInstance)
 	{
 		ModelInstance->ConditionalBeginDestroy();
@@ -212,6 +246,17 @@ void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 	#if WITH_EDITOR
 		TickPerfCounter.EndSample();
 	#endif
+}
+
+void UMLDeformerComponent::SetWeightInternal(const float NormalizedWeightValue)
+{ 
+	Weight = FMath::Clamp<float>(NormalizedWeightValue, 0.0f, 1.0f);
+}
+
+void UMLDeformerComponent::SetDeformerAssetInternal(UMLDeformerAsset* const InDeformerAsset)
+{ 
+	DeformerAsset = InDeformerAsset;
+	UpdateSkeletalMeshComponent();
 }
 
 #if WITH_EDITOR

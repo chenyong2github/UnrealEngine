@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MLDeformerInputInfo.h"
+#include "MLDeformerMorphModelInputInfo.h"
 #include "NearestNeighborModelInputInfo.generated.h"
 
 class UNearestNeighborModelInstance;
@@ -14,7 +14,7 @@ namespace UE::NearestNeighborModel
 
 UCLASS()
 class NEARESTNEIGHBORMODEL_API UNearestNeighborModelInputInfo
-    : public UMLDeformerInputInfo
+    : public UMLDeformerMorphModelInputInfo
 {
     GENERATED_BODY()
 

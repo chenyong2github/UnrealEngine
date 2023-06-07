@@ -750,7 +750,7 @@ namespace UE::NearestNeighborModel
 
 		const int32 LOD = 0;
 		TArray<UMorphTarget*> MorphTargets;
-		CreateEngineMorphTargets(
+		CreateMorphTargets(
 			MorphTargets, 
 			Deltas, 
 			FString("NNMorphTarget_"),
@@ -762,7 +762,7 @@ namespace UE::NearestNeighborModel
 
 		check(NearestNeighborModel->GetMorphTargetSet().IsValid());
 		FMorphTargetVertexInfoBuffers& MorphBuffers = NearestNeighborModel->GetMorphTargetSet()->MorphBuffers;
-		CompressEngineMorphTargets(MorphBuffers, MorphTargets, LOD, NearestNeighborModel->GetMorphCompressionLevel());
+		CompressMorphTargets(MorphBuffers, MorphTargets, LOD, NearestNeighborModel->GetMorphCompressionLevel());
 
 		if (MorphBuffers.GetNumBatches() <= 0)
 		{

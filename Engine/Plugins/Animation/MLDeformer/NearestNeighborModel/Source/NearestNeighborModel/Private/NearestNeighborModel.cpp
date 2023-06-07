@@ -458,6 +458,7 @@ bool UNearestNeighborModel::CheckPCAData(int32 PartId) const
 void UNearestNeighborModel::SetOptimizedNetwork(UNearestNeighborOptimizedNetwork* InOptimizedNetwork)
 {
 	OptimizedNetwork = InOptimizedNetwork;
+	GetReinitModelInstanceDelegate().Broadcast();
 }
 
 bool UNearestNeighborModel::DoesUseOptimizedNetwork() const

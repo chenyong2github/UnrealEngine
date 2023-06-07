@@ -37,6 +37,7 @@
 #include "BoneContainer.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Animation/AnimData/IAnimationDataModel.h"
+#include "SMLDeformerInputWidget.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerEditorModel"
 
@@ -579,10 +580,10 @@ namespace UE::MLDeformer
 		RefreshMLDeformerComponents();
 		UpdateIsReadyForTrainingState();
 
-		const int32 TrainingFrame = GetTrainingFrameAtTime(CalcTrainingTimelinePosition());
+		const int32 TrainingFrame = Model->GetVizSettings()->GetTrainingFrameNumber();
 		SetTrainingFrame(TrainingFrame);
 
-		const int32 TestFrame = GetTestFrameAtTime(CalcTestTimelinePosition());
+		const int32 TestFrame = Model->GetVizSettings()->GetTestingFrameNumber();
 		SetTestFrame(TestFrame);
 
 		UpdateEditorInputInfo();
@@ -731,22 +732,12 @@ namespace UE::MLDeformer
 			SetResamplingInputOutputsNeeded(true);
 		}
 		else
-		if (Property->GetFName() == UMLDeformerModel::GetShouldIncludeBonesPropertyName() ||
-			Property->GetFName() == UMLDeformerModel::GetShouldIncludeCurvesPropertyName())
-		{
-			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
-			{
-				SetResamplingInputOutputsNeeded(true);
-				UpdateIsReadyForTrainingState();
-				GetEditor()->GetModelDetailsView()->ForceRefresh();
-			}
-		}
-		else
 		if (Property->GetFName() == UMLDeformerModel::GetBoneIncludeListPropertyName() ||
 			Property->GetFName() == UMLDeformerModel::GetCurveIncludeListPropertyName())
 		{
 			SetResamplingInputOutputsNeeded(true);
-			UpdateEditorInputInfo();
+			UpdateIsReadyForTrainingState();
+			RefreshInputWidget();
 		}
 		else if (Property->GetFName() == UMLDeformerVizSettings::GetAnimPlaySpeedPropertyName())
 		{
@@ -1013,19 +1004,7 @@ namespace UE::MLDeformer
 		if (Model->GetSkeletalMesh() && GetEditorInputInfo()->IsEmpty())
 		{
 			FString ErrorString;
-			if (Model->DoesSupportBones() && Model->ShouldIncludeBonesInTraining())
-			{
-				ErrorString += FText(LOCTEXT("InputsEmptyBonesErrorText", "Your base mesh has no bones to train on.\n")).ToString();
-			}
-			else
-			if (Model->DoesSupportCurves() && Model->ShouldIncludeCurvesInTraining())
-			{
-				ErrorString += FText(LOCTEXT("InputsNoCurvesToTrainText", "Your base mesh has no curves to train on.\n")).ToString();
-			}
-			else
-			{
-				ErrorString += FText(LOCTEXT("InputsNeededErrorText", "The training process needs inputs.\n")).ToString();
-			}
+			ErrorString += FText(LOCTEXT("InputsNeededErrorText", "The training process needs inputs.\n")).ToString();
 
 			ErrorString.RemoveFromEnd("\n");
 			return FText::FromString(ErrorString);
@@ -1067,95 +1046,12 @@ namespace UE::MLDeformer
 		return Result;
 	}
 
-	void FMLDeformerEditorModel::InitInputInfo(UMLDeformerInputInfo* InputInfo)
-	{
-		InputInfo->Reset();
-
-		TArray<FName>& BoneNames = InputInfo->GetBoneNames();
-		TArray<FName>& CurveNames = InputInfo->GetCurveNames();
-
-		USkeletalMesh* SkeletalMesh = Model->GetSkeletalMesh();
-		InputInfo->SetSkeletalMesh(SkeletalMesh);
-
-		BoneNames.Reset();
-		CurveNames.Reset();
-
-		InputInfo->SetNumBaseVertices(Model->GetNumBaseMeshVerts());
-		InputInfo->SetNumTargetVertices(Model->GetNumTargetMeshVerts());
-
-		const bool bIncludeBones = Model->DoesSupportBones() && Model->ShouldIncludeBonesInTraining();
-		const bool bIncludeCurves = Model->DoesSupportCurves() && Model->ShouldIncludeCurvesInTraining();
-		const USkeleton* Skeleton = Model->GetSkeletalMesh() ? Model->GetSkeletalMesh()->GetSkeleton() : nullptr;
-
-		// Handle bones.
-		if (bIncludeBones && SkeletalMesh)
-		{
-			// Include all the bones when no list was provided.
-			const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
-			if (Model->GetBoneIncludeList().IsEmpty())
-			{
-				// Grab all bone names.
-				const int32 NumBones = RefSkeleton.GetNum();
-				BoneNames.Reserve(NumBones);
-				for (int32 Index = 0; Index < NumBones; ++Index)
-				{
-					const FName BoneName = RefSkeleton.GetBoneName(Index);
-					BoneNames.Add(BoneName);
-				}
-			}
-			else // A list of bones to include was provided.
-			{
-				for (const FBoneReference& BoneReference : Model->GetBoneIncludeList())
-				{
-					if (BoneReference.BoneName.IsValid())
-					{
-						const FName BoneName = BoneReference.BoneName;
-						if (RefSkeleton.FindBoneIndex(BoneName) == INDEX_NONE)
-						{
-							UE_LOG(LogMLDeformer, Warning, TEXT("Bone '%s' in the bones include list doesn't exist, ignoring it."), *BoneName.ToString());
-							continue;
-						}
-
-						BoneNames.Add(BoneName);
-					}
-				}
-			}
-		}
-
-		// Handle curves.
-		if (bIncludeCurves && SkeletalMesh)
-		{
-			// Anim curves.
-			if(Skeleton)
-			{
-				// Include all curves when no list was provided.
-				if (Model->GetCurveIncludeList().IsEmpty())
-				{
-					Skeleton->GetCurveMetaDataNames(CurveNames);
-				}
-				else // A list of curve names was provided.
-				{
-					for (const FMLDeformerCurveReference& CurveReference : Model->GetCurveIncludeList())
-					{
-						if (CurveReference.CurveName.IsValid())
-						{
-							CurveNames.Add(CurveReference.CurveName);
-						}
-					}
-				}
-			}
-		}
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		InputInfo->UpdateNameStrings();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	void FMLDeformerEditorModel::InitBoneIncludeListToAnimatedBonesOnly()
+	void FMLDeformerEditorModel::AddAnimatedBonesToBonesIncludeList()
 	{
 		if (!Model->GetAnimSequence())
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Cannot initialize bone list as no Anim Sequence has been picked."));
+			UpdateEditorInputInfo();
 			return;
 		}
 
@@ -1163,12 +1059,14 @@ namespace UE::MLDeformer
 		if (!DataModel)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Anim sequence has no data model."));
+			UpdateEditorInputInfo();
 			return;
 		}
 
 		if (!Model->GetSkeletalMesh())
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has not been set."));
+			UpdateEditorInputInfo();
 			return;
 		}
 
@@ -1176,6 +1074,7 @@ namespace UE::MLDeformer
 		if (!Skeleton)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has no skeleton."));
+			UpdateEditorInputInfo();
 			return;
 		}
 
@@ -1224,31 +1123,21 @@ namespace UE::MLDeformer
 		}
 
 		// Init the bone include list using the animated bones.
-		if (!AnimatedBoneList.IsEmpty())
+		TArray<FBoneReference>& BoneList = Model->GetBoneIncludeList();
+		for (const FName BoneName : AnimatedBoneList)
 		{
-			TArray<FBoneReference>& BoneList = Model->GetBoneIncludeList();
-			BoneList.Empty();
-			BoneList.Reserve(AnimatedBoneList.Num());
-			for (FName BoneName : AnimatedBoneList)
-			{
-				BoneList.AddDefaulted();
-				FBoneReference& BoneRef = BoneList.Last();
-				BoneRef.BoneName = BoneName;
-			}
+			BoneList.AddUnique(FBoneReference(BoneName));
 		}
-		else
-		{
-			Model->GetBoneIncludeList().Empty();
-			UE_LOG(LogMLDeformer, Warning, TEXT("There are no animated bone rotations in Anim Sequence '%s'."), *(Model->GetAnimSequence()->GetName()));
-		}
+
 		UpdateEditorInputInfo();
 	}
 
-	void FMLDeformerEditorModel::InitCurveIncludeListToAnimatedCurvesOnly()
+	void FMLDeformerEditorModel::AddAnimatedCurvesToCurvesIncludeList()
 	{
 		if (!Model->GetAnimSequence())
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Cannot initialize curve list as no Anim Sequence has been picked."));
+			UpdateEditorInputInfo();
 			return;
 		}
 
@@ -1256,12 +1145,14 @@ namespace UE::MLDeformer
 		if (!DataModel)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Anim sequence has no data model."));
+			UpdateEditorInputInfo();
 			return;
 		}
 
 		if (!Model->GetSkeletalMesh())
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has not been set."));
+			UpdateEditorInputInfo();
 			return;
 		}
 
@@ -1269,14 +1160,14 @@ namespace UE::MLDeformer
 		if (!Skeleton)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has no skeleton."));
+			UpdateEditorInputInfo();
 			return;
 		}
 
-		// Iterate over all curves that are both in the skeleton and the animation.
 		TArray<FName> AnimatedCurveList;
 		TArray<FName> SkeletonCurveNames;
 		Skeleton->GetCurveMetaDataNames(SkeletonCurveNames);
-		for (const FName& SkeletonCurveName : SkeletonCurveNames)
+		for (const FName SkeletonCurveName : SkeletonCurveNames)
 		{
 			const TArray<FFloatCurve>& AnimCurves = DataModel->GetFloatCurves();
 			for (const FFloatCurve& AnimCurve : AnimCurves)
@@ -1303,25 +1194,82 @@ namespace UE::MLDeformer
 			}
 		}
 
-		// Init the bone include list using the animated bones.
-		if (!AnimatedCurveList.IsEmpty())
+		TArray<FMLDeformerCurveReference>& CurveList = Model->GetCurveIncludeList();
+		for (const FName CurveName : AnimatedCurveList)
 		{
-			TArray<FMLDeformerCurveReference>& CurveList = Model->GetCurveIncludeList();
-			CurveList.Empty();
-			CurveList.Reserve(AnimatedCurveList.Num());
-			for (FName CurveName : AnimatedCurveList)
-			{
-				CurveList.AddDefaulted();
-				FMLDeformerCurveReference& CurveRef = CurveList.Last();
-				CurveRef.CurveName = CurveName;
-			}
-		}
-		else
-		{
-			Model->GetCurveIncludeList().Empty();
-			UE_LOG(LogMLDeformer, Warning, TEXT("There are no animated curves in Anim Sequence '%s'."), *(Model->GetAnimSequence()->GetName()));
+			CurveList.AddUnique(FMLDeformerCurveReference(CurveName));
 		}
 		UpdateEditorInputInfo();
+	}
+
+	void FMLDeformerEditorModel::InitInputInfo(UMLDeformerInputInfo* InputInfo)
+	{
+		InputInfo->Reset();
+
+		TArray<FName>& BoneNames = InputInfo->GetBoneNames();
+		TArray<FName>& CurveNames = InputInfo->GetCurveNames();
+
+		USkeletalMesh* SkeletalMesh = Model->GetSkeletalMesh();
+		InputInfo->SetSkeletalMesh(SkeletalMesh);
+
+		BoneNames.Reset();
+		CurveNames.Reset();
+
+		InputInfo->SetNumBaseVertices(Model->GetNumBaseMeshVerts());
+		InputInfo->SetNumTargetVertices(Model->GetNumTargetMeshVerts());
+
+		const USkeleton* Skeleton = Model->GetSkeletalMesh() ? Model->GetSkeletalMesh()->GetSkeleton() : nullptr;
+
+		// Handle bones.
+		if (SkeletalMesh)
+		{
+			// Include all the bones when no list was provided.
+			const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
+			for (const FBoneReference& BoneReference : Model->GetBoneIncludeList())
+			{
+				if (BoneReference.BoneName.IsValid())
+				{
+					const FName BoneName = BoneReference.BoneName;
+					if (RefSkeleton.FindBoneIndex(BoneName) == INDEX_NONE)
+					{
+						UE_LOG(LogMLDeformer, Warning, TEXT("Bone '%s' in the bones include list doesn't exist, ignoring it."), *BoneName.ToString());
+						continue;
+					}
+
+					BoneNames.Add(BoneName);
+				}
+			}
+
+			// Anim curves.
+			if (Skeleton)
+			{
+				for (const FMLDeformerCurveReference& CurveReference : Model->GetCurveIncludeList())
+				{
+					if (CurveReference.CurveName.IsValid())
+					{
+						CurveNames.Add(CurveReference.CurveName);
+					}
+				}
+			}
+		}
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		InputInfo->UpdateNameStrings();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void FMLDeformerEditorModel::InitBoneIncludeListToAnimatedBonesOnly()
+	{
+		TArray<FBoneReference>& BoneList = Model->GetBoneIncludeList();
+		BoneList.Empty();
+		AddAnimatedBonesToBonesIncludeList();
+	}
+
+	void FMLDeformerEditorModel::InitCurveIncludeListToAnimatedCurvesOnly()
+	{
+		TArray<FMLDeformerCurveReference>& CurveList = Model->GetCurveIncludeList();
+		CurveList.Empty();
+		AddAnimatedCurvesToCurvesIncludeList();
 	}
 
 	void FMLDeformerEditorModel::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
@@ -1690,7 +1638,9 @@ namespace UE::MLDeformer
 
 		// Calculate the normals of that displaced mesh.
 		TArray<FVector3f> MorphedNormals;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		CalcMeshNormals(MorphedVertexPositions, IndexArray, VertexMap, MorphedNormals);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Calculate and output the difference between the morphed normal and base normal.
 		OutDeltaNormals.Reset();
@@ -1705,7 +1655,15 @@ namespace UE::MLDeformer
 		}
 	}
 
-	void FMLDeformerEditorModel::CreateEngineMorphTargets(TArray<UMorphTarget*>& OutMorphTargets, const TArray<FVector3f>& Deltas, const FString& NamePrefix, int32 LOD, float DeltaThreshold, bool bIncludeNormals, EMLDeformerMaskChannel MaskChannel, bool bInvertMaskChannel)
+	void FMLDeformerEditorModel::CreateEngineMorphTargets(
+		TArray<UMorphTarget*>& OutMorphTargets, 
+		const TArray<FVector3f>& Deltas, 
+		const FString& NamePrefix, 
+		int32 LOD, 
+		float DeltaThreshold, 
+		bool bIncludeNormals, 
+		EMLDeformerMaskChannel MaskChannel,
+		bool bInvertMaskChannel)
 	{
 		OutMorphTargets.Reset();
 		if (Deltas.IsEmpty())
@@ -1748,7 +1706,9 @@ namespace UE::MLDeformer
 		TArray<FVector3f> BaseNormals;
 		if (bIncludeNormals)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			CalcMeshNormals(BaseVertexPositions, IndexArray, VertexMap, BaseNormals);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		const FColorVertexBuffer& ColorBuffer = RenderData->LODRenderData[LOD].StaticVertexBuffers.ColorVertexBuffer;
@@ -1760,7 +1720,9 @@ namespace UE::MLDeformer
 		{
 			if (bIncludeNormals)
 			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				GenerateNormalsForMorphTarget(LOD, SkelMesh, MorphTargetIndex, Deltas, BaseVertexPositions, BaseNormals, DeltaNormals);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 
 			const FName MorphName = *FString::Printf(TEXT("%s%.3d"), *NamePrefix, MorphTargetIndex);
@@ -1945,6 +1907,20 @@ namespace UE::MLDeformer
 	FString FMLDeformerEditorModel::GetHeatMapDeformerGraphPath() const
 	{
 		return FString(TEXT("/MLDeformerFramework/Deformers/DG_MLDeformerModel_HeatMap.DG_MLDeformerModel_HeatMap"));
+	}
+
+	void FMLDeformerEditorModel::RefreshInputWidget()
+	{
+		if (InputWidget.IsValid())
+		{
+			InputWidget->Refresh();
+		}
+	}
+
+	TSharedPtr<SMLDeformerInputWidget> FMLDeformerEditorModel::CreateInputWidget()
+	{
+		return SNew(SMLDeformerInputWidget)
+			.EditorModel(this);
 	}
 
 	const UAnimSequence* FMLDeformerEditorModel::GetAnimSequence() const

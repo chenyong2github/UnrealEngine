@@ -34,6 +34,26 @@ enum class ENeuralMorphMode : uint8
 };
 
 /**
+ * The visualization mode for the masks.
+ * Each bone, curve, bone group or curve group has a specific mask area on the mesh.
+ * This mask defines areas where generated morph targets can be active. They can be used to filter out deformations in undesired areas.
+ * For example if you rotate the left arm, you don't want the right arm to deform. The mask for the left arm can be setup in a way that it only includes 
+ * vertices around the area of the left arm to enforce this.
+ */
+UENUM()
+enum class ENeuralMorphMaskVizMode : uint8
+{
+	/** Do not display the masks in the viewport. */
+	Off,
+
+	/** Only show the masks inside the viewport when the inputs widget on the right side of the UI is in focus. Show the mask for the selected item (bone, curve, bone group, curve group). */
+	WhenInFocus,
+
+	/** Always show the selected mask. The mask selected is defined by what is selected in the input widget on the right side of the UI. */
+	Always
+};
+
+/**
  * A group of bones, which can generate morph targets together.
  * This is useful when there are specific correlations between different bones, that all effect the same region on the body.
  */
@@ -43,6 +63,10 @@ struct NEURALMORPHMODEL_API FNeuralMorphBoneGroup
 	GENERATED_BODY()
 
 public:
+	/** The name of the group, also shown in the UI. */
+	UPROPERTY()
+	FName GroupName;
+
 	/** The list of bones that should form a group together. */
 	UPROPERTY(EditAnywhere, Category = "Bones")
 	TArray<FBoneReference> BoneNames;
@@ -58,7 +82,29 @@ struct NEURALMORPHMODEL_API FNeuralMorphCurveGroup
 	GENERATED_BODY()
 
 public:
+	/** The name of the group, also shown in the UI. */
+	UPROPERTY()
+	FName GroupName;
+
 	/** The list of curves that should form a group together. */
 	UPROPERTY(EditAnywhere, Category = "Curves")
 	TArray<FMLDeformerCurveReference> CurveNames;
+};
+
+
+/**
+ * Information needed to generate the mask for a specific bone.
+ * This includes a list of bone names. Each bone has a skinning influence mask.
+ * The final mask will be a merge of all the bone masks of bones listed inside this info struct.
+ * There will be an array of these structs, one for each bone.
+ */
+USTRUCT()
+struct NEURALMORPHMODEL_API FNeuralMorphMaskInfo
+{
+	GENERATED_BODY()
+
+public:
+	/** The list of bone names that should be included in the mask generation. */
+	UPROPERTY()
+	TArray<FName> BoneNames;
 };

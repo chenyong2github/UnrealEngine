@@ -5,6 +5,7 @@
 #include "MLDeformerMorphModel.h"
 #include "GeometryCache.h"
 #include "NeuralMorphTypes.h"
+#include "Containers/Map.h"
 #include "NeuralMorphModel.generated.h"
 
 class USkeletalMesh;
@@ -49,29 +50,34 @@ public:
 
 	// UObject overrides.
 	virtual void Serialize(FArchive& Archive) override;
+	virtual void PostLoad() override;
 	// ~END UObject overrides.
 
 	// UMLDeformerModel overrides.
-	virtual FString GetDisplayName() const override			{ return "Neural Morph Model"; }
+	virtual FString GetDisplayName() const override					{ return "Neural Morph Model"; }
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
-	virtual UMLDeformerInputInfo* CreateInputInfo();
+	virtual UMLDeformerInputInfo* CreateInputInfo() override;
 	// ~END UMLDeformerModel overrides.
-
-	void SetNeuralMorphNetwork(UNeuralMorphNetwork* Net);
 
 	const TArray<FNeuralMorphBoneGroup>& GetBoneGroups() const		{ return BoneGroups; }
 	const TArray<FNeuralMorphCurveGroup>& GetCurveGroups() const	{ return CurveGroups; }
-	UNeuralMorphNetwork* GetNeuralMorphNetwork() const		{ return NeuralMorphNetwork.Get(); }
-	ENeuralMorphMode GetModelMode() const					{ return Mode; }
-	int32 GetLocalNumHiddenLayers() const					{ return LocalNumHiddenLayers; }
-	int32 GetLocalNumNeuronsPerLayer() const				{ return LocalNumNeuronsPerLayer; }
-	int32 GetGlobalNumHiddenLayers() const					{ return GlobalNumHiddenLayers; }
-	int32 GetGlobalNumNeuronsPerLayer() const				{ return GlobalNumNeuronsPerLayer; }
-	int32 GetNumIterations() const							{ return NumIterations; }
-	int32 GetBatchSize() const								{ return BatchSize; }
-	float GetLearningRate() const							{ return LearningRate; }
-	float GetLearningRateDecay() const						{ return LearningRateDecay; }
-	float GetRegularizationFactor() const					{ return RegularizationFactor; }
+	UNeuralMorphNetwork* GetNeuralMorphNetwork() const				{ return NeuralMorphNetwork.Get(); }
+	ENeuralMorphMode GetModelMode() const							{ return Mode; }
+	int32 GetLocalNumMorphsPerBone() const							{ return LocalNumMorphTargetsPerBone; }
+	int32 GetLocalNumHiddenLayers() const							{ return LocalNumHiddenLayers; }
+	int32 GetLocalNumNeuronsPerLayer() const						{ return LocalNumNeuronsPerLayer; }
+	int32 GetGlobalNumMorphs() const								{ return GlobalNumMorphTargets; }
+	int32 GetGlobalNumHiddenLayers() const							{ return GlobalNumHiddenLayers; }
+	int32 GetGlobalNumNeuronsPerLayer() const						{ return GlobalNumNeuronsPerLayer; }
+	int32 GetNumIterations() const									{ return NumIterations; }
+	int32 GetBatchSize() const										{ return BatchSize; }
+	float GetLearningRate() const									{ return LearningRate; }
+	float GetLearningRateDecay() const								{ return LearningRateDecay; }
+	float GetRegularizationFactor() const							{ return RegularizationFactor; }
+	bool IsBoneMaskingEnabled() const								{ return bEnableBoneMasks; }
+
+	void UpdateMissingGroupNames();
+	void SetNeuralMorphNetwork(UNeuralMorphNetwork* Net);
 
 public:
 	/**
@@ -79,7 +85,7 @@ public:
 	 * This can be used in case multiple bones are correlated to each other and work together to produce given shapes.
 	 * Groups are only used when the model is in Local mode.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Inputs and Output")
+	UPROPERTY()
 	TArray<FNeuralMorphBoneGroup> BoneGroups;
 
 	/**
@@ -87,8 +93,26 @@ public:
 	 * This can be used in case multiple curves are correlated to each other and work together to produce given shapes.
 	 * Groups are only used when the model is in Local mode.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Inputs and Output")
+	UPROPERTY()
 	TArray<FNeuralMorphCurveGroup> CurveGroups;
+
+	/**
+	 * Information needed to generate a mask for each bone.
+	 * Each mask info object contains a list of bones who's skinning influence regions should be included in the final mask for the specific bone.
+	 * This information (and bone masking in general) is used inside the ENeuralMorphMode::Local mode.
+	 * The FName map key represents the bone name.
+	 */
+	UPROPERTY()
+	TMap<FName, FNeuralMorphMaskInfo> BoneMaskInfos;
+
+	/**
+	 * Information needed to generate a mask for each bone group.
+	 * So the size of the array is NumGroupsInInputInfo.
+	 * Each mask info object contains a list of bones who's skinning influence regions should be included in the final mask for the specific bone.
+	 * This information (and bone masking in general) is used inside the ENeuralMorphMode::Local mode.
+	 */
+	UPROPERTY()
+	TMap<FName, FNeuralMorphMaskInfo> BoneGroupMaskInfos;
 
 	/**
 	 * The mode that the neural network will operate in. 
@@ -168,6 +192,15 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.0", ClampMax = "10.0"))
 	float RegularizationFactor = 1.0f;
+
+	/** 
+	 * Enable the use of per bone and bone group masks.
+	 * When enabled, an influence mask is generated per bone based on skinning info. This will enforce deformations localized to the area around the joint.
+	 * The benefit of enabling this can be reduced GPU memory footprint, faster GPU performance and more localized deformations.
+	 * If deformations do not happen near the joint then this enabling this setting can lead to those deformations possibly not being captured.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (EditCondition = "Mode == ENeuralMorphMode::Local"))
+	bool bEnableBoneMasks = false;
 
 	/**
 	 * The neural morph model network.

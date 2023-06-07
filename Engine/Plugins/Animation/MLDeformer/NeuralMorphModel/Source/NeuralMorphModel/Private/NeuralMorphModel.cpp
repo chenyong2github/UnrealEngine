@@ -47,19 +47,24 @@ UMLDeformerInputInfo* UNeuralMorphModel::CreateInputInfo()
 	return NewObject<UNeuralMorphInputInfo>(this);
 }
 
-void UNeuralMorphModel::SetNeuralMorphNetwork(UNeuralMorphNetwork* Net)
-{ 
-	NeuralMorphNetwork = Net;
-}
-
 void UNeuralMorphModel::Serialize(FArchive& Archive)
 {
+	if (Archive.IsSaving())
+	{
+		UpdateMissingGroupNames();
+	}
+
 	if (Archive.IsSaving() && Archive.IsCooking())
 	{
+		// We haven't got a trained network, let's log a message about this, as it might be overlooked.
 		if (NeuralMorphNetwork == nullptr)
 		{
 			UE_LOG(LogNeuralMorphModel, Display, TEXT("Neural Morph Model in MLD asset '%s' still needs to be trained."), *GetDeformerAsset()->GetName());
 		}
+
+		// Strip the mask data in the cooked asset.
+		BoneMaskInfos.Empty();
+		BoneGroupMaskInfos.Empty();
 	}
 
 	// Convert the UMLDeformerInputInfo object into a UNeuralMorphInputInfo object for backward compatiblity.
@@ -75,6 +80,41 @@ void UNeuralMorphModel::Serialize(FArchive& Archive)
 	}
 
 	Super::Serialize(Archive);
+}
+
+void UNeuralMorphModel::UpdateMissingGroupNames()
+{
+	// Auto set names for the bone groups if they haven't been set yet.
+	for (int32 Index = 0; Index < BoneGroups.Num(); ++Index)
+	{
+		FNeuralMorphBoneGroup& BoneGroup = BoneGroups[Index];
+		if (!BoneGroup.GroupName.IsValid() || BoneGroup.GroupName.IsNone())
+		{
+			BoneGroup.GroupName = FName(FString::Format(TEXT("Bone Group #{0}"), {Index}));
+		}
+	}
+
+	// Auto set names for the curve groups if they haven't been set yet.
+	for (int32 Index = 0; Index < CurveGroups.Num(); ++Index)
+	{
+		FNeuralMorphCurveGroup& CurveGroup = CurveGroups[Index];
+		if (!CurveGroup.GroupName.IsValid() || CurveGroup.GroupName.IsNone())
+		{
+			CurveGroup.GroupName = FName(FString::Format(TEXT("Curve Group #{0}"), {Index}));
+		}
+	}
+}
+
+void UNeuralMorphModel::PostLoad()
+{
+	Super::PostLoad();
+	UpdateMissingGroupNames();
+}
+
+void UNeuralMorphModel::SetNeuralMorphNetwork(UNeuralMorphNetwork* Net)
+{ 
+	NeuralMorphNetwork = Net;
+	GetReinitModelInstanceDelegate().Broadcast();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -23,9 +23,5 @@ namespace UE::NeuralMorphModel
 		// ILayoutDetails overrides.
 		virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 		// ~END ILayoutDetails overrides.
-
-		// FMLDeformerModelDetails overrides.
-		virtual void AddTrainingInputFilters() override;
-		// ~END FMLDeformerModelDetails overrides.
 	};
 }	// namespace UE::NeuralMorphModel

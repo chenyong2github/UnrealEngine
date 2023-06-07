@@ -37,4 +37,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Training Model")
 	TArray<int32> GenerateCurveGroupIndices() const;
+
+	UFUNCTION(BlueprintPure, Category = "Training Model")
+	TArray<float> GetMorphTargetMasks() const;
 };

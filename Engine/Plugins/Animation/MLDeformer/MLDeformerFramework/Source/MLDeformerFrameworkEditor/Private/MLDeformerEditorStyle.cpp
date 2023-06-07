@@ -51,8 +51,14 @@ namespace UE::MLDeformer
 		Set("MLDeformer.Morphs.IncludedVertexColor", FLinearColor(1.0f, 0.0f, 1.0f));
 		Set("MLDeformer.Morphs.ExcludedVertexColor", FLinearColor(0.1f, 0.1f, 0.1f));
 
+		Set("MLDeformer.Morphs.MaskIncludedVertexColor", FLinearColor(0.0f, 1.0f, 1.0f));
+		Set("MLDeformer.Morphs.MaskExcludedVertexColor", FLinearColor(0.1f, 0.1f, 0.1f));
+
 		Set("MLDeformer.Statistics.Performance", FLinearColor(0.0f, 1.0f, 0.0f));
 		Set("MLDeformer.DefaultLabelScale", 0.65f);
+
+		Set("MLDeformer.InputsWidget.HighlightColor", FLinearColor(0.0f, 1.0f, 0.0f));
+		Set("MLDeformer.InputsWidget.ErrorColor", FLinearColor(1.0f, 0.5f, 0.0f));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}

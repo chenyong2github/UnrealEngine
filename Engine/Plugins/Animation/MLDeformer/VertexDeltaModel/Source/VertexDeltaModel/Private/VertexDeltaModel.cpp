@@ -43,7 +43,8 @@ UVertexDeltaModel::UVertexDeltaModel(const FObjectInitializer& ObjectInitializer
 
 void UVertexDeltaModel::SetNNEModelData(TObjectPtr<UNNEModelData> ModelData)
 {
-	NNEModel = ModelData; 
+	NNEModel = ModelData;
+	GetReinitModelInstanceDelegate().Broadcast();
 }
 
 UMLDeformerModelInstance* UVertexDeltaModel::CreateModelInstance(UMLDeformerComponent* Component)

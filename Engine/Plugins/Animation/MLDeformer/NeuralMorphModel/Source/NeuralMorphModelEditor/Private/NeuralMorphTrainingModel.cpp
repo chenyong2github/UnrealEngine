@@ -42,3 +42,21 @@ TArray<int32> UNeuralMorphTrainingModel::GenerateCurveGroupIndices() const
 	InputInfo->GenerateCurveGroupIndices(OutCurveGroupIndices);
 	return MoveTemp(OutCurveGroupIndices);
 }
+
+TArray<float> UNeuralMorphTrainingModel::GetMorphTargetMasks() const
+{
+	using namespace UE::NeuralMorphModel;
+	FNeuralMorphEditorModel* NeuralMorphEditorModel = static_cast<FNeuralMorphEditorModel*>(EditorModel);
+	UNeuralMorphModel* NeuralMorphModel = NeuralMorphEditorModel->GetNeuralMorphModel();
+	UNeuralMorphInputInfo* NeuralInputInfo = Cast<UNeuralMorphInputInfo>(NeuralMorphEditorModel->GetEditorInputInfo());
+	if (NeuralMorphModel->GetModelMode() != ENeuralMorphMode::Local || !NeuralMorphModel->IsBoneMaskingEnabled())
+	{
+		NeuralInputInfo->GetInputItemMaskBuffer().Empty();
+	}
+	else	
+	{
+		NeuralMorphEditorModel->RebuildEditorMaskInfo();
+	}
+
+	return NeuralInputInfo->GetInputItemMaskBuffer();
+}

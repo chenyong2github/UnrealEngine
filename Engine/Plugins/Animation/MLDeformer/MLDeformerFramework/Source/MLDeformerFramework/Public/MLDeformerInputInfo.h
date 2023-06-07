@@ -104,12 +104,14 @@ public:
 	 * @return An array of FName objects, one for each bone.
 	 */
 	TArray<FName>& GetBoneNames();
+	const TArray<FName>& GetBoneNames() const;
 
 	/**
 	 * Get the list of curve names that should be included as training inputs.
 	 * @return An array of FName objects, one for each curve.
 	 */
 	TArray<FName>& GetCurveNames();
+	const TArray<FName>& GetCurveNames() const;
 
 	/**
 	 * Get the curve name as an FName, for a given curve we included during training.

@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "MLDeformerInputInfo.h"
+#include "MLDeformerMorphModelInputInfo.h"
 #include "NeuralMorphTypes.h"
 #include "NeuralMorphInputInfo.generated.h"
 
@@ -11,14 +11,14 @@
  */
 UCLASS()
 class NEURALMORPHMODEL_API UNeuralMorphInputInfo
-	: public UMLDeformerInputInfo
+	: public UMLDeformerMorphModelInputInfo
 {
 	GENERATED_BODY()
 
 public:
 	// FMLDeformerInputInfo overrides.
 	virtual void Reset() override;
-	// ~END FMLDeformerInputInfooverrides.
+	// ~END FMLDeformerInputInfo overrides.
 
 	/**
 	 * Get the bone groups.
@@ -26,6 +26,7 @@ public:
 	 * @return A reference to the bone groups array.
 	 */
 	TArray<FNeuralMorphBoneGroup>& GetBoneGroups();
+	const TArray<FNeuralMorphBoneGroup>& GetBoneGroups() const;
 
 	/**
 	 * Get the curve groups.
@@ -33,6 +34,7 @@ public:
 	 * @return A reference to the curve groups array.
 	 */
 	TArray<FNeuralMorphCurveGroup>& GetCurveGroups();
+	const TArray<FNeuralMorphCurveGroup>& GetCurveGroups() const;
 
 	/**
 	 * Calculate the maximum number of group items.

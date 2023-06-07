@@ -70,6 +70,9 @@ void UMLDeformerMorphModelInstance::PostMLDeformerComponentInit()
 		const int32 LOD = 0;
 		SkelMeshComponent->AddExternalMorphSet(LOD, ExternalMorphSetID, MorphTargetSet);
 
+		// Update the weight information in the Skeletal Mesh.
+		SkelMeshComponent->RefreshExternalMorphTargetWeights();
+
 		// When we're in editor mode, keep the CPU data around, so we can re-initialize when needed.
 #if WITH_EDITOR
 		MorphTargetSet->MorphBuffers.SetEmptyMorphCPUDataOnInitRHI(false);
@@ -94,9 +97,6 @@ void UMLDeformerMorphModelInstance::PostMLDeformerComponentInit()
 			// That also means it can't re-init the resources later on again.
 			BeginInitResource(&MorphBuffers);
 		}
-
-		// Update the weight information in the Skeletal Mesh.
-		SkelMeshComponent->RefreshExternalMorphTargetWeights();
 
 		SetHasPostInitialized(true);
 	}

@@ -4,6 +4,7 @@
 #include "MLDeformerMorphModelInstance.h"
 #include "MLDeformerModelInstance.h"
 #include "MLDeformerComponent.h"
+#include "MLDeformerMorphModelInputInfo.h"
 #include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Rendering/MorphTargetVertexInfoBuffers.h"
@@ -29,8 +30,9 @@ void UMLDeformerMorphModel::Serialize(FArchive& Archive)
 	bool bHasMorphData = false;
 	if (Archive.IsSaving())
 	{
+		// Strip editor only data on cook.
 		if (Archive.IsCooking())
-		{
+		{			
 			MorphTargetDeltas.Empty();
 		}
 
@@ -49,6 +51,19 @@ void UMLDeformerMorphModel::Serialize(FArchive& Archive)
 void UMLDeformerMorphModel::PostLoad()
 {
 	Super::PostLoad();
+
+	// If we have an input info, but it isn't one inherited from the MorphInputInfo, try to create a new one.
+	// This is because we introduced a UMLDeformerMorphModelInputInfo later on, and we want to convert old assets to use this new class.
+	UMLDeformerInputInfo* CurrentInputInfo = GetInputInfo();
+	if (CurrentInputInfo && !CurrentInputInfo->IsA<UMLDeformerMorphModelInputInfo>())
+	{
+		UMLDeformerMorphModelInputInfo* MorphInputInfo = Cast<UMLDeformerMorphModelInputInfo>(CreateInputInfo());
+		MorphInputInfo->CopyMembersFrom(CurrentInputInfo);
+		CurrentInputInfo->ConditionalBeginDestroy();
+		check(MorphInputInfo); // The input info class should be inherited from the UMLDeformerMorphModelInputInfo class.
+		SetInputInfo(MorphInputInfo);
+	}
+
 	UpdateStatistics();
 
 #if WITH_EDITOR
@@ -173,10 +188,20 @@ void UMLDeformerMorphModel::UpdateMemoryUsage()
 	Super::UpdateMemoryUsage();
 
 	// We strip the deltas when cooking.
-	CookedMemUsageInBytes -= MorphTargetDeltas.Num() * sizeof(FVector3f);
+	CookedMemUsageInBytes -= MorphTargetDeltas.GetAllocatedSize();
 
-	// Add the compressed morph size.
-	GPUMemUsageInBytes += GetCompressedMorphDataSizeInBytes();
+	// Strip the input item mask buffer from the cooked size.
+	if (GetInputInfo() && GetInputInfo()->IsA<UMLDeformerMorphModelInputInfo>())
+	{
+		const UMLDeformerMorphModelInputInfo* MorphInputInfo = Cast<UMLDeformerMorphModelInputInfo>(GetInputInfo());
+		check(MorphInputInfo);	// Input Info class is expected to be inherited from the UMLDeformerMorphModelInputInfo class.
+		CookedMemUsageInBytes -= MorphInputInfo->GetInputItemMaskBuffer().GetAllocatedSize();
+	}
+
+	// Add the compressed morph target data size.
+	const uint64 GPUMorphSize = GetCompressedMorphDataSizeInBytes();
+	GPUMemUsageInBytes += GPUMorphSize;
+	CookedMemUsageInBytes += GPUMorphSize;
 }
 #endif
 

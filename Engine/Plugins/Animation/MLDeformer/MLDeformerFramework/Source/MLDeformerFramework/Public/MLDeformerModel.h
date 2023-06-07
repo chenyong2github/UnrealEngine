@@ -81,11 +81,8 @@ namespace UE::MLDeformer
 	};
 }	// namespace UE::MLDeformer
 
-// DEPRECATED: Use FMLDeformerReleaseModelInstancesDelegate instead.
+// DEPRECATED: Use FMLDeformerReinitModelInstancesDelegate instead.
 DECLARE_EVENT_OneParam(UMLDeformerModel, FMLDeformerModelOnPostEditProperty, FPropertyChangedEvent&)
-
-/** Delegate used to signal that the UMLDeformerModelInstance's of the specified model should get released. */
-DECLARE_EVENT(UMLDeformerModel, FMLDeformerReleaseModelInstancesDelegate)
 
 /**
  * The ML Deformer runtime model base class.
@@ -100,6 +97,9 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerModel
 
 public:
 	DECLARE_MULTICAST_DELEGATE(FNeuralNetworkModifyDelegate);
+
+	/** Delegate used to signal that the UMLDeformerModelInstance should be reinitialized. The ML Deformer component will connect to this to be informed about needing to reinit the instance. */
+	DECLARE_MULTICAST_DELEGATE(FMLDeformerReinitModelInstancesDelegate)
 
 	virtual ~UMLDeformerModel() = default;
 
@@ -325,7 +325,14 @@ public:
 	 * @return A reference to the delegate.
 	 */
 	UE_DEPRECATED(5.2, "This delegate will be removed.")
-	FNeuralNetworkModifyDelegate& GetNeuralNetworkModifyDelegate()		{ return NeuralNetworkModifyDelegate_DEPRECATED; }
+	FNeuralNetworkModifyDelegate& GetNeuralNetworkModifyDelegate()				{ return NeuralNetworkModifyDelegate_DEPRECATED; }
+
+	/**
+	 * Get the delegate which will be called when to inform when the model instance needs to be reinitailized.
+	 * The ML Deformer component will hook into this for example. This is broadcast when something changes in the structure, such as when
+	 * training finished and the neural network changed.
+	 */
+	FMLDeformerReinitModelInstancesDelegate& GetReinitModelInstanceDelegate()	{ return ReinitModelInstanceDelegate; }
 
 
 #if WITH_EDITORONLY_DATA
@@ -345,28 +352,32 @@ public:
 	 * Check whether we should include bone transforms as input to the model during training or not.
 	 * @return Returns true when bone transfomations should be a part of the network inputs, during the training process.
 	 */
-	bool ShouldIncludeBonesInTraining() const					{ return bIncludeBones; }
+	UE_DEPRECATED(5.3, "This method and property has been removed and shouldn't be used anymore.")
+	bool ShouldIncludeBonesInTraining() const					{ return bIncludeBones_DEPRECATED; }
 
 	/**
 	 * Set whether we want to include bones during training or not.
 	 * This will make bone transforms part of the neural network inputs.
 	 * @param bInclude Set to true if you wish bone transforms to be included during training and at inference time.
 	 */
-	void SetShouldIncludeBonesInTraining(bool bInclude)			{ bIncludeBones = bInclude; }
+	UE_DEPRECATED(5.3, "This method and property has been removed and shouldn't be used anymore.")
+	void SetShouldIncludeBonesInTraining(bool bInclude)			{ bIncludeBones_DEPRECATED = bInclude; }
 
 	/**
 	 * Check whether we should include curve values as input to the model during training or not.
 	 * Curve values are single floats.
 	 * @return Returns true when curve values should be a part of the network inputs, during the training process.
 	 */
-	bool ShouldIncludeCurvesInTraining() const					{ return bIncludeCurves; }
+	UE_DEPRECATED(5.3, "This method and property has been removed and shouldn't be used anymore.")
+	bool ShouldIncludeCurvesInTraining() const					{ return bIncludeCurves_DEPRECATED; }
 
 	/**
 	 * Set whether we want to include curves during training.
 	 * This will make curves part of the neural network inputs.
 	 * @param bInclude Set to true to include curves during training and inference time.
 	 */
-	void SetShouldIncludeCurvesInTraining(bool bInclude)		{ bIncludeCurves = bInclude; }
+	UE_DEPRECATED(5.3, "This method and property has been removed and shouldn't be used anymore.")
+	void SetShouldIncludeCurvesInTraining(bool bInclude)		{ bIncludeCurves_DEPRECATED = bInclude; }
 
 	/**
 	 * The delegate that gets fired when a property value changes.
@@ -490,14 +501,19 @@ public:
 
 	// Get property names.
 	static FName GetSkeletalMeshPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, SkeletalMesh); }
-	static FName GetShouldIncludeBonesPropertyName()	{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeBones); }
-	static FName GetShouldIncludeCurvesPropertyName()	{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeCurves); }
 	static FName GetAnimSequencePropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AnimSequence); }
 	static FName GetAlignmentTransformPropertyName()	{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AlignmentTransform); }
 	static FName GetBoneIncludeListPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, BoneIncludeList); }
 	static FName GetCurveIncludeListPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, CurveIncludeList); }
 	static FName GetMaxTrainingFramesPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, MaxTrainingFrames); }
 	static FName GetDeltaCutoffLengthPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, DeltaCutoffLength); }
+
+	UE_DEPRECATED(5.3, "This property has been removed and shouldn't be used anymore.")
+	static FName GetShouldIncludeBonesPropertyName()	{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeBones_DEPRECATED); }
+
+	UE_DEPRECATED(5.3, "This property has been removed and shouldn't be used anymore.")
+	static FName GetShouldIncludeCurvesPropertyName()	{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeCurves_DEPRECATED); }
+
 #endif	// #if WITH_EDITORONLY_DATA
 
 	/** @return The number of floats per bone in network input. */
@@ -569,6 +585,9 @@ private:
 	/** Delegate that will be called immediately before the NeuralNetwork is changed. */
 	FNeuralNetworkModifyDelegate NeuralNetworkModifyDelegate_DEPRECATED;
 
+	/** Delegate used to trigger reinitialization of the model instance. */
+	FMLDeformerReinitModelInstancesDelegate ReinitModelInstanceDelegate;
+
 	/** Cached number of skeletal mesh vertices. */
 	UPROPERTY()
 	int32 NumBaseMeshVerts = 0;
@@ -602,12 +621,12 @@ private:
 	TObjectPtr<UMLDeformerVizSettings> VizSettings = nullptr;
 
 	/** Specifies whether bone transformations should be included as inputs during the training process. */
-	UPROPERTY(EditAnywhere, Category = "Inputs and Output")
-	bool bIncludeBones = true;
+	UPROPERTY()
+	bool bIncludeBones_DEPRECATED = true;
 
 	/** Specifies whether curve values (a float per curve) should be included as inputs during the training process. */
-	UPROPERTY(EditAnywhere, Category = "Inputs and Output")
-	bool bIncludeCurves = false;
+	UPROPERTY()
+	bool bIncludeCurves_DEPRECATED = false;
 
 	/**
 	 * The animation sequence to apply to the base mesh. This has to match the animation of the target mesh's geometry cache. 
@@ -621,22 +640,22 @@ private:
 	FTransform AlignmentTransform = FTransform::Identity;
 
 	/** The bones to include during training. When none are provided, all bones of the Skeleton will be included. */
-	UPROPERTY(EditAnywhere, Category = "Inputs and Output", meta = (EditCondition = "bIncludeBones"))
+	UPROPERTY(meta = (EditCondition = "bIncludeBones"))
 	TArray<FBoneReference> BoneIncludeList;
 
 	/** The curves to include during training. When none are provided, all curves of the Skeleton will be included. */
-	UPROPERTY(EditAnywhere, Category = "Inputs and Output", meta = (EditCondition = "bIncludeCurves"))
+	UPROPERTY(meta = (EditCondition = "bIncludeCurves"))
 	TArray<FMLDeformerCurveReference> CurveIncludeList;
 
 	/** The maximum numer of training frames (samples) to train on. Use this to train on a sub-section of your full training data. */
-	UPROPERTY(EditAnywhere, Category = "Inputs and Output", meta = (ClampMin = "1"))
+	UPROPERTY(EditAnywhere, Category = "Inputs", meta = (ClampMin = "1"))
 	int32 MaxTrainingFrames = 1000000;
 
 	/**
 	 * Sometimes there can be some vertices that cause some issues that cause deltas to be very long. We can ignore these deltas by setting a cutoff value. 
 	 * Deltas that are longer than the cutoff value (in units), will be ignored and set to zero length. 
 	 */
-	UPROPERTY(EditAnywhere, Category = "Inputs and Output", meta = (ClampMin = "0.01", ForceUnits="cm"))
+	UPROPERTY(EditAnywhere, Category = "Inputs", meta = (ClampMin = "0.01", ForceUnits="cm"))
 	float DeltaCutoffLength = 30.0f;
 #endif
 };

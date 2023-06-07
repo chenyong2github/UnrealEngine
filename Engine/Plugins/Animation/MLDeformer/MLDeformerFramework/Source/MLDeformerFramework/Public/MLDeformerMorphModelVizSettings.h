@@ -19,9 +19,6 @@ public:
 	void SetMorphTargetNumber(int32 MorphIndexToPreview)	{ MorphTargetNumber = MorphIndexToPreview; }
 	void SetDrawMorphTargets(bool bDraw)					{ bDrawMorphTargets = bDraw; }
 
-	UE_DEPRECATED(5.2, "This method will be removed, please stop using it.")
-	float GetMorphTargetDeltaThreshold() const				{ return MorphTargetDeltaThreshold_DEPRECATED; }
-
 	int32 GetMorphTargetNumber() const						{ return MorphTargetNumber; }
 	bool GetDrawMorphTargets() const						{ return bDrawMorphTargets; }
 
@@ -29,7 +26,10 @@ public:
 	static FName GetMorphTargetNumberPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModelVizSettings, MorphTargetNumber); }
 	static FName GetDrawMorphTargetsPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModelVizSettings, bDrawMorphTargets); }
 
-	UE_DEPRECATED(5.2, "This method will be removed, as well as the MorphTargetDeltaThreshold member, please stop using it.")
+	UE_DEPRECATED(5.2, "This method will be removed, please do not use this method anymore.")
+	float GetMorphTargetDeltaThreshold() const				{ return MorphTargetDeltaThreshold_DEPRECATED; }
+
+	UE_DEPRECATED(5.2, "This method will be removed, as well as the MorphTargetDeltaThreshold member, please do not use this method anymore.")
 	static FName GetMorphTargetDeltaThresholdPropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModelVizSettings, MorphTargetDeltaThreshold_DEPRECATED); }
 
 protected:
@@ -51,8 +51,7 @@ protected:
 	/**
 	 * Specify whether we want to debug draw the morph targets.
 	 * Enabling this can help you see what the sparsity of the generated morph targets is.
-	 * It also takes the morph target delta threshold into account, so you can preview how that effects the sparsity of the morphs.
-	 * This only can be used after you trained, in the same editor session directly after training.
+	 * If the model supports input masking, it will also show the mask applied to the morph target.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Live Settings")
 	bool bDrawMorphTargets = false;
