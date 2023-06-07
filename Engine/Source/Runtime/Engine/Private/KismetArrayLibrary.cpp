@@ -275,6 +275,23 @@ void UKismetArrayLibrary::GenericArray_Shuffle(void* TargetArray, const FArrayPr
 	}
 }
 
+void UKismetArrayLibrary::GenericArray_ShuffleFromStream(void* TargetArray, const FArrayProperty* ArrayProp, FRandomStream* RandomStream)
+{
+	if (TargetArray && RandomStream)
+	{
+		FScriptArrayHelper ArrayHelper(ArrayProp, TargetArray);
+		int32 LastIndex = ArrayHelper.Num() - 1;
+		for (int32 i = 0; i <= LastIndex; ++i)
+		{
+			const int32 Index = RandomStream->RandRange(i, LastIndex);
+			if (i != Index)
+			{
+				ArrayHelper.SwapValues(i, Index);
+			}
+		}
+	}
+}
+
 void UKismetArrayLibrary::GenericArray_Clear(void* TargetArray, const FArrayProperty* ArrayProp)
 {
 	if( TargetArray )
