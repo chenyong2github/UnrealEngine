@@ -58,6 +58,8 @@ namespace
 {
 	const TCHAR* const Custom_EpicStaticStart = TEXT("EpicStaticStart");
 	const TCHAR* const Custom_EpicDynamicStart = TEXT("EpicDynamicStart");
+	const TCHAR* const Custom_EpicUTCUrl = TEXT("EpicUTCUrl");
+	const TCHAR* const Custom_EpicUTCNow = TEXT("EpicUTCNow");
 
 	const TCHAR* const XLinkActuateOnLoad = TEXT("onLoad");
 	const TCHAR* const XLinkActuateOnRequest = TEXT("onRequest");
@@ -926,6 +928,25 @@ FErrorDetail FManifestDASHInternal::PrepareRemoteElementLoadRequest(TArray<TWeak
 	return Error;
 }
 
+
+void FManifestDASHInternal::InjectEpicTimingSources()
+{
+	const TArray<TSharedPtrTS<FDashMPD_DescriptorType>>& UTCTimings = MPDRoot->GetUTCTimings();
+
+	for(int32 i=0,iMax=URLFragmentComponents.Num(); i<iMax; ++i)
+	{
+		if (URLFragmentComponents[i].Name.Equals(Custom_EpicUTCUrl))
+		{
+			MPDRoot->AddUTCTimingElement(FString(), DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httpxsdate2014, FString(), URLFragmentComponents[i].Value);
+			bDidInjectUTCTimingElements = true;
+		}
+		else if (URLFragmentComponents[i].Name.Equals(Custom_EpicUTCNow))
+		{
+			MPDRoot->AddUTCTimingElement(FString(), DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_direct2014, FString(), URLFragmentComponents[i].Value);
+			bDidInjectUTCTimingElements = true;
+		}
+	}
+}
 
 void FManifestDASHInternal::TransformIntoEpicEvent()
 {
@@ -2421,6 +2442,10 @@ bool FManifestDASHInternal::IsStaticType() const
 	return GetPresentationType() == FManifestDASHInternal::EPresentationType::Static;
 }
 
+bool FManifestDASHInternal::HasInjectedTimingSources() const
+{
+	return bDidInjectUTCTimingElements;
+}
 
 FTimeValue FManifestDASHInternal::GetMinimumUpdatePeriod() const
 {

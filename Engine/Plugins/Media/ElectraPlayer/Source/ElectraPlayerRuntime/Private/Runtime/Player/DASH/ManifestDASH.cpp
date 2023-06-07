@@ -521,6 +521,7 @@ IManifest::FResult FManifestDASH::FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutP
 
 	// Quick out if the time falls outside the presentation.
 	FTimeValue TotalEndTime = Manifest->GetLastPeriodEndTime();
+	TotalEndTime -= Manifest->GetAnchorTime();
 	if (PlayRangeEnd.IsValid() && TotalEndTime.IsValid() && PlayRangeEnd < TotalEndTime)
 	{
 		TotalEndTime = PlayRangeEnd;
@@ -604,6 +605,18 @@ IManifest::FResult FManifestDASH::FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutP
 		{
 			return IManifest::FResult(IManifest::FResult::EType::PastEOS);
 		}
+
+		// Check if we would start outside the permitted event range.
+		if (Manifest->IsDynamicEpicEvent())
+		{
+			FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
+			FTimeValue End = Manifest->GetLastPeriodEndTime();
+			if (Now >= End)
+			{
+				return IManifest::FResult(IManifest::FResult::EType::PastEOS);
+			}
+		}
+
 		// Is the original period still there?
 		TSharedPtrTS<FDashMPD_PeriodType> MPDPeriod = SelectedPeriod->GetMPDPeriod();
 		if (MPDPeriod.IsValid())

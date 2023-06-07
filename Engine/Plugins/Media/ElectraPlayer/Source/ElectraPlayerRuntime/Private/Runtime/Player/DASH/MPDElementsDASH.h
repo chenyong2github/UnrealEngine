@@ -372,6 +372,10 @@ public:
 	void SetCustomElementAndAttributeJSON(const FString& InCustomElementAndAttributeJSON)
 	{ CustomElementAndAttributeJSON = InCustomElementAndAttributeJSON; }
 
+	void SetSchemeIdUri(const FString& InSchemeIdUri) { SchemeIdUri = InSchemeIdUri; }
+	void SetValue(const FString& InValue) { Value = InValue; }
+	void SetID(const FString& InID) { ID = InID; }
+
 private:
 	virtual bool ProcessElement(FManifestParserDASH* Builder, const TCHAR* ElementName, const TCHAR* ElementData, int32 XmlFileLineNumber) override;
 	virtual bool ProcessAttribute(FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue) override;
@@ -1719,6 +1723,14 @@ public:
 	{
 		FScopeLock lock(&UpdateLock);
 		UTCTimings.Remove(TimingElement);
+	}
+	void AddUTCTimingElement(const FString& InData, const FString& InScheme, const FString& InID, const FString& InValue)
+	{
+		FScopeLock lock(&UpdateLock);
+		auto Element = UTCTimings.Emplace_GetRef(MakeSharedTS<FDashMPD_DescriptorType>(TEXT("UTCTiming"), *InData));
+		Element->SetSchemeIdUri(InScheme);
+		Element->SetID(InID);
+		Element->SetValue(InValue);
 	}
 
 	// Methods to manipulate the presentation type.

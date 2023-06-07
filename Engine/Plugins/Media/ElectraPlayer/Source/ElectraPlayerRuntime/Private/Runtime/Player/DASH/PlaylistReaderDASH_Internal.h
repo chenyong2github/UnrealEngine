@@ -863,6 +863,7 @@ public:
 		return URLFragmentComponents;
 	}
 
+	void InjectEpicTimingSources();
 	void TransformIntoEpicEvent();
 
 	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHManifest);
@@ -903,6 +904,8 @@ public:
 	bool AreUpdatesExpected() const;
 	bool IsStaticType() const;
 	bool UsesAST() const;
+	bool HasInjectedTimingSources() const;
+
 	FTimeValue GetAvailabilityEndTime() const;
 	FTimeValue GetTimeshiftBufferDepth() const;
 
@@ -951,6 +954,8 @@ private:
 	mutable FTimeRange SeekableTimeRange;
 	FTimeValue DefaultStartTime;
 	mutable bool bWarnedAboutTooSmallSuggestedPresentationDelay = false;
+
+	bool bDidInjectUTCTimingElements = false;
 };
 
 

@@ -665,7 +665,7 @@ void FPlaylistReaderDASH::TriggerTimeSynchronization()
 	if (Manifest.IsValid())
 	{
 		// Time sync is only necessary when there is either an MPD@availabilityStartTime or MPD@type is dynamic.
-		if (Manifest->UsesAST() || !Manifest->IsStaticType())
+		if (Manifest->UsesAST() || !Manifest->IsStaticType() || Manifest->HasInjectedTimingSources())
 		{
 			TSharedPtrTS<FDashMPD_MPDType> MPDRoot = Manifest->GetMPDRoot();
 			if (MPDRoot.IsValid())
@@ -1183,6 +1183,8 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 					TArray<FURL_RFC3986::FQueryParam> URLFragmentComponents;
 					FURL_RFC3986::GetQueryParams(URLFragmentComponents, Fragment, false);	// The fragment is already URL escaped, so no need to do it again.
 					NewManifest->SetURLFragmentComponents(MoveTemp(URLFragmentComponents));
+					// Inject fake <UTCTiming> elements that were passed in the fragments.
+					NewManifest->InjectEpicTimingSources();
 				}
 				Manifest = NewManifest;
 
@@ -1255,6 +1257,14 @@ void FPlaylistReaderDASH::FinishManifestBuildingAfterTimesync(bool bGotTheTime)
 		{
 			FTimeValue DirectTime;
 			if (ISO8601::ParseDateTime(DirectTime, InitialTimesync.Utc_direct2014))
+			{
+				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DirectTime + TimeDiffSinceStart);
+				// No need to use the Date header any more.
+				InitialTimesync.HttpDateHeader.Reset();
+			}
+			// If parsing failed then maybe the response is just a number (possibly with frational digits) giving the
+			// current Unix epoch time.
+			else if (UnixEpoch::ParseFloatString(DirectTime, InitialTimesync.Utc_direct2014))
 			{
 				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DirectTime + TimeDiffSinceStart);
 				// No need to use the Date header any more.
