@@ -4,10 +4,12 @@
 
 #include "Algo/Unique.h"
 #include "Editor.h"
+#include "Elements/Columns/TypedElementCompatibilityColumns.h"
 #include "Elements/Columns/TypedElementLabelColumns.h"
 #include "Elements/Columns/TypedElementMiscColumns.h"
 #include "Elements/Columns/TypedElementPackageColumns.h"
 #include "Elements/Columns/TypedElementTransformColumns.h"
+#include "Elements/Columns/TypedElementTypeInfoColumns.h"
 #include "MassActorEditorSubsystem.h"
 #include "MassActorSubsystem.h"
 #include "TypedElementDataStorageProfilingMacros.h"
@@ -31,15 +33,105 @@ void UTypedElementDatabaseCompatibility::Deinitialize()
 	Reset();
 }
 
-void UTypedElementDatabaseCompatibility::AddCompatibleObject(AActor* Actor)
+TypedElementRowHandle UTypedElementDatabaseCompatibility::AddCompatibleObjectExplicit(UObject* Object)
 {
-	// Registration is delayed for two reasons:
-	//	1. Allows entity creation in a single batch rather than multiple individual additions.
-	//	2. Provides an opportunity to filter out the actors that are created within MASS itself as those will already be registered.
-	ActorsPendingRegistration.Add(Actor);
+	return AddCompatibleObjectExplicit(Object, StandardUObjectTable);
 }
 
-void UTypedElementDatabaseCompatibility::RemoveCompatibleObject(AActor* Actor)
+TypedElementRowHandle UTypedElementDatabaseCompatibility::AddCompatibleObjectExplicit(UObject* Object, TypedElementTableHandle Table)
+{
+	if (Object->IsA<AActor>())
+	{
+		return AddCompatibleObjectExplicit(static_cast<AActor*>(Object));
+	}
+	else
+	{
+		if (ensureMsgf(Storage, TEXT("Trying to add a UObject to Typed Element's Data Storage before the storage is available.")))
+		{
+			TypedElementRowHandle ReservedRow = Storage->ReserveRow();
+			ReverseObjectLookup.Add(Object, ReservedRow);
+			
+			PendingRegistration<TWeakObjectPtr<UObject>>& Pending = UObjectsPendingRegistration.FindOrAdd(Table);
+			Pending.Add(ReservedRow, Object);
+			
+			return ReservedRow;
+		}
+		else
+		{
+			return TypedElementInvalidRowHandle;
+		}
+	}
+}
+
+TypedElementRowHandle UTypedElementDatabaseCompatibility::AddCompatibleObjectExplicit(AActor* Actor)
+{
+	return AddCompatibleObjectExplicit(Actor, StandardActorTable);
+}
+
+TypedElementRowHandle UTypedElementDatabaseCompatibility::AddCompatibleObjectExplicit(AActor* Actor, TypedElementTableHandle Table)
+{
+	if (ensureMsgf(Storage, TEXT("Trying to add an actor to Typed Element's Data Storage before the storage is available.")))
+	{
+		// Registration is delayed for two reasons:
+		//	1. Allows entity creation in a single batch rather than multiple individual additions.
+		//	2. Provides an opportunity to filter out the actors that are created within MASS itself as those will already be registered.
+		
+		TypedElementRowHandle ReservedRow = Storage->ReserveRow();
+		PendingRegistration<TWeakObjectPtr<AActor>>& Pending = ActorsPendingRegistration.FindOrAdd(Table);
+		Pending.Add(ReservedRow, Actor);
+		return ReservedRow;
+	}
+	return TypedElementInvalidRowHandle;
+}
+
+TypedElementRowHandle UTypedElementDatabaseCompatibility::AddCompatibleObjectExplicit(void* Object, TWeakObjectPtr<const UScriptStruct> TypeInfo)
+{
+	return AddCompatibleObjectExplicit(Object, MoveTemp(TypeInfo), StandardExternalObjectTable);
+}
+
+TypedElementRowHandle UTypedElementDatabaseCompatibility::AddCompatibleObjectExplicit(
+	void* Object, TWeakObjectPtr<const UScriptStruct> TypeInfo, TypedElementTableHandle Table)
+{
+	if (ensureMsgf(Storage, TEXT("Trying to add an object to Typed Element's Data Storage before the storage is available.")))
+	{
+		TypedElementRowHandle ReservedRow = Storage->ReserveRow();
+		ReverseObjectLookup.Add(Object, ReservedRow);
+		PendingRegistration<ExternalObjectRegistration>& Pending = ExternalObjectsPendingRegistration.FindOrAdd(Table);
+		Pending.Add(ReservedRow, ExternalObjectRegistration{ .Object = Object, .TypeInfo = TypeInfo });
+		return ReservedRow;
+	}
+	else
+	{
+		return TypedElementInvalidRowHandle;
+	}
+}
+
+void UTypedElementDatabaseCompatibility::RemoveCompatibleObjectExplicit(UObject* Object)
+{
+	if (Object->IsA<AActor>())
+	{
+		RemoveCompatibleObjectExplicit(static_cast<AActor*>(Object));
+	}
+	else
+	{
+		checkf(Storage, TEXT("Removing compatible objects is not supported before Typed Element's Database compatibility manager has been initialized."));
+		if (TypedElementRowHandle* Row = ReverseObjectLookup.Find(Object))
+		{
+			Storage->RemoveRow(*Row);
+		}
+	}
+}
+
+void UTypedElementDatabaseCompatibility::RemoveCompatibleObjectExplicit(void* Object)
+{
+	checkf(Storage, TEXT("Removing compatible objects is not supported before Typed Element's Database compatibility manager has been initialized."));
+	if (TypedElementRowHandle* Row = ReverseObjectLookup.Find(Object))
+	{
+		Storage->RemoveRow(*Row);
+	}
+}
+
+void UTypedElementDatabaseCompatibility::RemoveCompatibleObjectExplicit(AActor* Actor)
 {
 	checkf(Storage, TEXT("Removing compatible objects is not supported before Typed Element's Database compatibility manager has been initialized."));
 
@@ -64,7 +156,26 @@ void UTypedElementDatabaseCompatibility::RemoveCompatibleObject(AActor* Actor)
 	}
 }
 
-TypedElementRowHandle UTypedElementDatabaseCompatibility::FindRowWithCompatibleObject(const TObjectKey<const AActor> Actor) const
+TypedElementRowHandle UTypedElementDatabaseCompatibility::FindRowWithCompatibleObjectExplicit(const UObject* Object) const
+{
+	if (Object && Storage && Storage->IsAvailable())
+	{
+		const AActor* Actor = Cast<AActor>(Object);
+		if (Actor && ActorSubsystem)
+		{
+			FMassEntityHandle Entity = ActorSubsystem->GetEntityHandleFromActor(Actor);
+			return Entity.IsValid() ? Entity.AsNumber() : TypedElementInvalidRowHandle;
+		}
+		else
+		{
+			const TypedElementRowHandle* Row = ReverseObjectLookup.Find(Object);
+			return Row ? *Row : TypedElementInvalidRowHandle;
+		}
+	}
+	return TypedElementInvalidRowHandle;
+}
+
+TypedElementRowHandle UTypedElementDatabaseCompatibility::FindRowWithCompatibleObjectExplicit(const AActor* Actor) const
 {
 	if (Storage && ActorSubsystem && Storage->IsAvailable())
 	{
@@ -75,6 +186,16 @@ TypedElementRowHandle UTypedElementDatabaseCompatibility::FindRowWithCompatibleO
 	{
 		return TypedElementInvalidRowHandle;
 	}
+}
+
+TypedElementRowHandle UTypedElementDatabaseCompatibility::FindRowWithCompatibleObjectExplicit(const void* Object) const
+{
+	if (Object && Storage && Storage->IsAvailable())
+	{
+		const TypedElementRowHandle* Row = ReverseObjectLookup.Find(Object);
+		return Row ? *Row : TypedElementInvalidRowHandle;
+	}
+	return TypedElementInvalidRowHandle;
 }
 
 void UTypedElementDatabaseCompatibility::Prepare()
@@ -93,21 +214,26 @@ void UTypedElementDatabaseCompatibility::Reset()
 
 void UTypedElementDatabaseCompatibility::CreateStandardArchetypes()
 {
-	StandardActorTable = Storage->RegisterTable(MakeArrayView(
-		{
-			FMassActorFragment::StaticStruct(),
-			FTypedElementLabelColumn::StaticStruct(),
-			FTypedElementLabelHashColumn::StaticStruct(),
-			FTypedElementPackagePathColumn::StaticStruct(),
-			FTypedElementPackageLoadedPathColumn::StaticStruct(),
-			FTypedElementSyncFromWorldTag::StaticStruct()
-		}), FName("Editor_StandardActorTable"));
+	StandardActorTable = Storage->RegisterTable(TTypedElementColumnTypeList<
+			FMassActorFragment, FTypedElementClassTypeInfoColumn,
+			FTypedElementLabelColumn, FTypedElementLabelHashColumn,
+			FTypedElementPackagePathColumn, FTypedElementPackageLoadedPathColumn,
+			FTypedElementSyncFromWorldTag>(), 
+		FName("Editor_StandardActorTable"));
 
 	StandardActorWithTransformTable = Storage->RegisterTable(StandardActorTable,
-		MakeArrayView(
-		{
-			FTypedElementLocalTransformColumn::StaticStruct()
-		}), FName("Editor_StandardActorWithTransformTable"));
+		TTypedElementColumnTypeList<FTypedElementLocalTransformColumn>(),
+		FName("Editor_StandardActorWithTransformTable"));
+
+	StandardUObjectTable = Storage->RegisterTable(TTypedElementColumnTypeList<
+			FTypedElementUObjectColumn, FTypedElementClassTypeInfoColumn,
+			FTypedElementSyncFromWorldTag>(), 
+		FName("Editor_StandardUObjectTable"));
+
+	StandardExternalObjectTable = Storage->RegisterTable(TTypedElementColumnTypeList<
+			FTypedElementExternalObjectColumn, FTypedElementScriptStructTypeInfoColumn,
+			FTypedElementSyncFromWorldTag>(), 
+		FName("Editor_StandardExternalObjectTable"));
 }
 
 void UTypedElementDatabaseCompatibility::Tick()
@@ -115,107 +241,258 @@ void UTypedElementDatabaseCompatibility::Tick()
 	TEDS_EVENT_SCOPE(TEXT("Compatibility Tick"))
 	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
 
-	// Delay processing until the required systems are available by not clearing the pending actor list.
+	// Delay processing until the required systems are available by not clearing any lists or doing any work.
 	if (Storage && Storage->IsAvailable() && EditorWorld)
 	{
-		if (ActorsPendingRegistration.Num() > 0)
+		TickPendingActorRegistration(EditorWorld);
+		TickPendingUObjectRegistration();
+		TickPendingExternalObjectRegistration();
+		TickActorSync();
+	}
+}
+
+template<typename AddressType>
+void UTypedElementDatabaseCompatibility::PendingRegistration<AddressType>::Add(TypedElementRowHandle ReservedRowHandle, AddressType Address)
+{
+	Addresses.Add(Forward<AddressType>(Address));
+	ReservedRowHandles.Add(ReservedRowHandle);
+}
+
+template<typename AddressType>
+bool UTypedElementDatabaseCompatibility::PendingRegistration<AddressType>::IsEmpty() const
+{
+	// ReservedRowHandles can also be returned as they'll both have the same length.
+	return Addresses.IsEmpty();
+}
+
+template<typename AddressType>
+int32 UTypedElementDatabaseCompatibility::PendingRegistration<AddressType>::Num() const
+{
+	// ReservedRowHandles can also be returned as they'll both have the same length.
+	return Addresses.Num();
+}
+
+template<typename AddressType>
+TArrayView<AddressType> UTypedElementDatabaseCompatibility::PendingRegistration<AddressType>::GetAddresses()
+{
+	return Addresses;
+}
+
+template<typename AddressType>
+TArrayView<TypedElementRowHandle> UTypedElementDatabaseCompatibility::PendingRegistration<AddressType>::GetReservedRowHandles()
+{
+	return ReservedRowHandles;
+}
+
+template<typename AddressType>
+void UTypedElementDatabaseCompatibility::PendingRegistration<AddressType>::RemoveInvalidEntries(
+	ITypedElementDataStorageInterface& StorageInterface, const TFunctionRef<bool(const AddressType&)>& Validator)
+{
+	checkf(Addresses.Num() == ReservedRowHandles.Num(),
+		TEXT("The reserved row handle count (%i) didn't match the stored pointer count (%i)."),
+		ReservedRowHandles.Num(), Addresses.Num());
+
+	AddressType* AddressBegin = Addresses.GetData();
+	AddressType* AddressIt = Addresses.GetData();
+	AddressType* AddressEnd = AddressBegin + Addresses.Num();
+	TypedElementRowHandle* RowHandleBegin = ReservedRowHandles.GetData();
+	TypedElementRowHandle* RowHandleIt = ReservedRowHandles.GetData();
+	while (AddressIt != AddressEnd)
+	{
+		if (Validator(*AddressIt))
 		{
-			// Filter out the actors that are already registered or already destroyed. 
-			// The most common case for this is actors created from within MASS.
-			TWeakObjectPtr<AActor>* ActorBegin = ActorsPendingRegistration.GetData();
-			TWeakObjectPtr<AActor>* ActorIt = ActorsPendingRegistration.GetData();
-			TWeakObjectPtr<AActor>* ActorEnd = ActorBegin + ActorsPendingRegistration.Num();
-			while (ActorIt != ActorEnd)
+			++AddressIt;
+			++RowHandleIt;
+		}
+		else
+		{
+			// Don't shrink the registration array as the array will be reused with a variety of different actor counts.
+			// If memory size becomes an issue it's better to resize the array once after this loop rather than within the
+			// loop to avoid many resizes happening.
+			constexpr bool bAllowToShrink = false;
+			Addresses.RemoveAtSwap(AddressIt - AddressBegin, 1, bAllowToShrink);
+			StorageInterface.RemoveRow(*RowHandleIt);
+			ReservedRowHandles.RemoveAtSwap(RowHandleIt - RowHandleBegin, 1, bAllowToShrink);
+			--AddressEnd;
+		}
+	}
+}
+
+template<typename AddressType>
+void UTypedElementDatabaseCompatibility::PendingRegistration<AddressType>::ProcessEntries(ITypedElementDataStorageInterface& StorageInterface,
+	TypedElementTableHandle Table, const TFunctionRef<void(TypedElementRowHandle, const AddressType&)>& SetupRowCallback)
+{
+	if (!IsEmpty())
+	{
+		AddressType* TargetIt = GetAddresses().GetData();
+		AddressType* TargetEnd = TargetIt + Num();
+		StorageInterface.BatchAddRow(Table, GetReservedRowHandles(), 
+			[this, &SetupRowCallback, &TargetIt, TargetEnd](TypedElementRowHandle Row)
 			{
-				if (
-					(*ActorIt).IsValid() && // If not valid or stale then the actor has already been deleted before it could be registered.
-					!ActorSubsystem->GetEntityHandleFromActor((*ActorIt).Get()).IsValid() && // If true, this actor is already registered with the Data Storage.
-					(*ActorIt)->GetWorld() == EditorWorld // Only record actors that are added to the editor to avoid taking PIE into account.
-					) 
+				SetupRowCallback(Row, *TargetIt);
+				checkf(TargetIt < TargetEnd, TEXT("More (%i) entities were added than were requested (%i)."), TargetEnd - TargetIt, Num());
+				++TargetIt;
+			});
+	}
+}
+
+template<typename AddressType>
+void UTypedElementDatabaseCompatibility::PendingRegistration<AddressType>::Reset()
+{
+	Addresses.Reset();
+	ReservedRowHandles.Reset();
+}
+
+void UTypedElementDatabaseCompatibility::TickPendingActorRegistration(UWorld* EditorWorld)
+{
+	if (!ActorsPendingRegistration.IsEmpty())
+	{
+		// Filter out the actors that are already registered or already destroyed. 
+		// The most common case for this is actors created from within MASS.
+		for (auto It = ActorsPendingRegistration.CreateIterator(); It; ++It)
+		{
+			It->Value.RemoveInvalidEntries(*Storage,
+				[this, EditorWorld](const TWeakObjectPtr<AActor>& Actor)
 				{
-					++ActorIt;
-				}
-				else
-				{
-					// Don't shrink the registration array as the array will be reused with a variety of different actor counts.
-					// If memory size becomes an issue it's better to resize the array once after this loop rather than within the
-					// loop to avoid many resizes happening.
-					constexpr bool bAllowToShrink = false;
-					ActorsPendingRegistration.RemoveAtSwap(ActorIt - ActorBegin, 1, bAllowToShrink);
-					--ActorEnd;
-				}
-			}
-
-			if (ActorBegin != ActorEnd) // Check if the number of actors to add isn't zero.
-			{
-				// Add the remaining actors to the data storage.
-				ActorIt = ActorsPendingRegistration.GetData();
-				Storage->BatchAddRow(StandardActorTable, ActorsPendingRegistration.Num(), [this, &ActorIt, ActorEnd](TypedElementRowHandle Row)
-					{
-						auto ActorStore = Storage->GetColumn<FMassActorFragment>(Row);
-						checkf(ActorStore, TEXT("Newly created row didn't contain the expected FMassActorFragment."));
-						
-						constexpr bool bIsOwnedByMass = false;
-					
-						AActor* Actor = ActorIt->Get();
-						check(Actor);
-						ActorStore->SetNoHandleMapUpdate(FMassEntityHandle::FromNumber(Row), Actor, bIsOwnedByMass);
-						ActorSubsystem->SetHandleForActor(ActorIt->Get(), FMassEntityHandle::FromNumber(Row));
-					
-						ActorsNeedingFullSync.Emplace(Actor);
-
-						checkf(ActorIt < ActorEnd,
-							TEXT("More (%i) entities were added than were requested (%i)."), ActorEnd - ActorIt, ActorsPendingRegistration.Num());
-						++ActorIt;
-					});
-
-				// Reset the container for next set of actors.
-				ActorsPendingRegistration.Reset();
-			}
+					AActor* Instance = Actor.Get();
+					return Instance && Instance->GetWorld() == EditorWorld && !ActorSubsystem->GetEntityHandleFromActor(Instance).IsValid();
+				});
 		}
 
-		if (!ActorsNeedingFullSync.IsEmpty())
+		// Add the remaining actors to the data storage.
+		for (auto It = ActorsPendingRegistration.CreateIterator(); It; ++It)
 		{
-			TEDS_EVENT_SCOPE(TEXT("Process ActorsNeedingFullSync"));
-			// Deduplicate to avoid duplicate reverse lookups or adding tags more than once
-			{
-				TEDS_EVENT_SCOPE(TEXT("Deduplicate ActorsNeedingFullSync"));
-				ActorsNeedingFullSync.Sort();
-				ActorsNeedingFullSync.SetNum(Algo::Unique(ActorsNeedingFullSync));
-			}
-
-			TArray<TypedElementRowHandle> RowHandles;
-			{
-				TEDS_EVENT_SCOPE(TEXT("Reverse lookup Rows from Actors"));
-				
-				RowHandles.SetNumUninitialized(ActorsNeedingFullSync.Num());
+			It->Value.ProcessEntries(*Storage, It->Key,
+				[this](TypedElementRowHandle Row, const TWeakObjectPtr<AActor>& ActorPtr)
 				{
-					int32 RowHandleIndex = 0;
-					for (int32 ActorIndex = 0, End = ActorsNeedingFullSync.Num(); ActorIndex < End; ++ActorIndex)
-					{
-						const TObjectKey<const AActor> ActorKey = ActorsNeedingFullSync[ActorIndex];
-						const TypedElementRowHandle Row = FindRowWithCompatibleObject(ActorKey);
-						if (Row != TypedElementInvalidRowHandle)
-						{
-							RowHandles[RowHandleIndex++] = Row;
-						}
-					}
-					const int32 RowHandleCount = RowHandleIndex;
-					const bool bAllowShrinking = false;
-					RowHandles.SetNum(RowHandleCount, bAllowShrinking);
-				}
+					FMassActorFragment* ActorStore = Storage->AddOrGetColumn<FMassActorFragment>(Row);
+					checkf(ActorStore, TEXT("Failed to retrieve or add FMassActorFragment to newly created row."));
 
-				ActorsNeedingFullSync.Reset();
-			}
+					constexpr bool bIsOwnedByMass = false;
 
-			{
-				TEDS_EVENT_SCOPE(TEXT("Add SyncFromWorld Tag"));
-				// Tag the rows containing actor data that they need to be synced
-				// Note: Watch out for the performance of this, may end up doing a lot of row moves
-				for (TypedElementRowHandle Row : RowHandles)
-				{
+					AActor* Actor = ActorPtr.Get();
+					check(Actor);
+					ActorStore->SetNoHandleMapUpdate(FMassEntityHandle::FromNumber(Row), Actor, bIsOwnedByMass);
+					ActorSubsystem->SetHandleForActor(Actor, FMassEntityHandle::FromNumber(Row));
+
+					Storage->AddOrGetColumn<FTypedElementClassTypeInfoColumn>(Row, FTypedElementClassTypeInfoColumn{ .TypeInfo = Actor->GetClass() });
+					checkf(ActorStore, TEXT("Failed to retrieve or add FTypedElementClassTypeInfoColumn to newly created row."));
+
+					// Make sure the new row is tagged for update.
 					Storage->AddColumn<FTypedElementSyncFromWorldTag>(Row);
+				});
+		}
+			
+		ActorsPendingRegistration.Reset();
+	}
+}
+
+void UTypedElementDatabaseCompatibility::TickPendingUObjectRegistration()
+{
+	if (!UObjectsPendingRegistration.IsEmpty())
+	{
+		// Filter out the objects that are already registered or already destroyed. 
+		for (auto It = UObjectsPendingRegistration.CreateIterator(); It; ++It)
+		{
+			It->Value.RemoveInvalidEntries(*Storage,
+				[this](const TWeakObjectPtr<UObject>& Object)
+				{
+					UObject* Instance = Object.Get();
+					return Instance && FindRowWithCompatibleObjectExplicit(Instance) != TypedElementInvalidRowHandle;
+				});
+		}
+
+		// Add the remaining object to the data storage.
+		for (auto It = UObjectsPendingRegistration.CreateIterator(); It; ++It)
+		{
+			It->Value.ProcessEntries(*Storage, It->Key, 
+				[this](TypedElementRowHandle Row, const TWeakObjectPtr<UObject>& Object)
+				{
+					Storage->AddOrGetColumn<FTypedElementUObjectColumn>(Row, FTypedElementUObjectColumn{ .Object = Object });
+					Storage->AddOrGetColumn<FTypedElementClassTypeInfoColumn>(Row, FTypedElementClassTypeInfoColumn{ .TypeInfo = Object->GetClass() });
+					// Make sure the new row is tagged for update.
+					Storage->AddColumn<FTypedElementSyncFromWorldTag>(Row);
+				});
+		}
+
+		UObjectsPendingRegistration.Reset();
+	}
+}
+
+void UTypedElementDatabaseCompatibility::TickPendingExternalObjectRegistration()
+{
+	if (!ExternalObjectsPendingRegistration.IsEmpty())
+	{
+		// Filter out the objects that are already registered or already destroyed. 
+		for (auto It = ExternalObjectsPendingRegistration.CreateIterator(); It; ++It)
+		{
+			It->Value.RemoveInvalidEntries(*Storage,
+				[this](const ExternalObjectRegistration& Object)
+				{
+					return Object.Object && FindRowWithCompatibleObjectExplicit(Object.Object) != TypedElementInvalidRowHandle;
+				});
+		}
+
+		// Add the remaining object to the data storage.
+		for (auto It = ExternalObjectsPendingRegistration.CreateIterator(); It; ++It)
+		{
+			It->Value.ProcessEntries(*Storage, It->Key, 
+				[this](TypedElementRowHandle Row, const ExternalObjectRegistration& Object)
+				{
+					Storage->AddOrGetColumn<FTypedElementUObjectColumn>(Row, FTypedElementExternalObjectColumn{ .Object = Object.Object });
+					Storage->AddOrGetColumn<FTypedElementClassTypeInfoColumn>(Row, FTypedElementScriptStructTypeInfoColumn{ .TypeInfo = Object.TypeInfo });
+					// Make sure the new row is tagged for update.
+					Storage->AddColumn<FTypedElementSyncFromWorldTag>(Row);
+				});
+		}
+
+		ExternalObjectsPendingRegistration.Reset();
+	}
+}
+
+void UTypedElementDatabaseCompatibility::TickActorSync()
+{
+	if (!ActorsNeedingFullSync.IsEmpty())
+	{
+		TEDS_EVENT_SCOPE(TEXT("Process ActorsNeedingFullSync"));
+		// Deduplicate to avoid duplicate reverse lookups or adding tags more than once
+		{
+			TEDS_EVENT_SCOPE(TEXT("Deduplicate ActorsNeedingFullSync"));
+			ActorsNeedingFullSync.Sort();
+			ActorsNeedingFullSync.SetNum(Algo::Unique(ActorsNeedingFullSync), /* bAllowShrinking */ false);
+		}
+
+		TArray<TypedElementRowHandle> RowHandles;
+		{
+			TEDS_EVENT_SCOPE(TEXT("Reverse lookup Rows from Actors"));
+
+			RowHandles.SetNumUninitialized(ActorsNeedingFullSync.Num());
+			{
+				int32 RowHandleIndex = 0;
+				for (int32 ActorIndex = 0, End = ActorsNeedingFullSync.Num(); ActorIndex < End; ++ActorIndex)
+				{
+					const TObjectKey<const AActor> ActorKey = ActorsNeedingFullSync[ActorIndex];
+					const TypedElementRowHandle Row = FindRowWithCompatibleObject(ActorKey);
+					if (Row != TypedElementInvalidRowHandle)
+					{
+						RowHandles[RowHandleIndex++] = Row;
+					}
 				}
+				const int32 RowHandleCount = RowHandleIndex;
+				const bool bAllowShrinking = false;
+				RowHandles.SetNum(RowHandleCount, bAllowShrinking);
+			}
+
+			ActorsNeedingFullSync.Reset();
+		}
+
+		{
+			TEDS_EVENT_SCOPE(TEXT("Add SyncFromWorld Tag"));
+			// Tag the rows containing actor data that they need to be synced
+			// Note: Watch out for the performance of this, may end up doing a lot of row moves
+			for (TypedElementRowHandle Row : RowHandles)
+			{
+				Storage->AddColumn<FTypedElementSyncFromWorldTag>(Row);
 			}
 		}
 	}
