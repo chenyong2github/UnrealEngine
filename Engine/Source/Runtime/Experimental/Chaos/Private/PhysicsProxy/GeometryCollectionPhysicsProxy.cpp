@@ -1735,8 +1735,8 @@ FGeometryCollectionPhysicsProxy::BuildClusters_Internal(
 		nullptr, // Parent->Geometry() ? Parent->Geometry() : Implicits[CollectionClusterIndex], 
 		SimFilter,
 		QueryFilter,
-		Parent->M() > 0.0 ? Parent->M() : (Chaos::FReal)ScaledMass,
-		Parent->I() != Chaos::FVec3f(0.0) ? Parent->I() : ScaledInertia,
+		ScaledMass,
+		ScaledInertia,
 		ParticleTM, 
 		(uint8)DynamicState[CollectionClusterIndex], 
 		0, // static_cast<int16>(CollisionGroup[TransformGroupIndex])
@@ -4297,7 +4297,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
  			if (CollectionSimulatableParticles[TransformGroupIndex])
  			{
-				FTransform GeometryWorldTransform = CollectionMassToLocal[TransformGroupIndex] * CollectionSpaceTransforms[TransformGroupIndex];
+				FTransform CollectionSpaceParticleTransform = CollectionMassToLocal[TransformGroupIndex] * CollectionSpaceTransforms[TransformGroupIndex];
 
  				PopulateSimulatedParticle(
  					Handles[TransformGroupIndex].Get(),
@@ -4308,7 +4308,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
  					FCollisionFilterData(),		// QueryFilter
  					CollectionMass[TransformGroupIndex],
  					CollectionInertiaTensor[TransformGroupIndex], 
-					GeometryWorldTransform,
+					CollectionSpaceParticleTransform,
  					(uint8)EObjectStateTypeEnum::Chaos_Object_Dynamic, 
  					INDEX_NONE,  // CollisionGroup
 					1.0f // todo(chaos) CollisionParticlesPerObjectFraction is not accessible right there for now but we can pass 1.0 for the time being
@@ -4347,17 +4347,35 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				//CollectionSimulatableParticles[TransformGroupIndex] = true;
 				IsClusterSimulated[TransformGroupIndex] = true;
 
+				// NOTE: Particles are in collection space for this function
 
-				// TODO: This needs to be rotated to diagonal, used to update I()/InvI() from diagonal, and update transform with rotation.
-				FMatrix33 ClusterInertia(0);
-				UpdateClusterMassProperties(Handles[ClusterTransformIdx].Get(), ChildrenIndices, ClusterInertia);	//compute mass properties
-				const FTransform ClusterMassToCollection = 
-					FTransform(CollectionSpaceParticles->R(ClusterTransformIdx), 
-							   CollectionSpaceParticles->X(ClusterTransformIdx));
+				// Initialize XR to the collection space transform for this parent particle.
+				// We have the individual mass properties for the children, but not for the parent
+				// yet, so MassToLocal is not available.
+				FPBDRigidClusteredParticleHandle* ClusterHandle = Handles[ClusterTransformIdx].Get();
+				const FRigidTransform3 OriginalXR = CollectionSpaceTransforms[ClusterTransformIdx];
+				ClusterHandle->SetX(OriginalXR.GetTranslation());
+				ClusterHandle->SetR(OriginalXR.GetRotation());
 
-				CollectionMassToLocal[ClusterTransformIdx] = 
-					ClusterMassToCollection.GetRelativeTransform(
-						CollectionSpaceTransforms[ClusterTransformIdx]);
+				// This method will compute a mass and inertia, and center and rotation of mass and
+				// store them on ClusterHandle based on the combined mass properties of its children.
+				UpdateClusterMassProperties(ClusterHandle, ChildrenIndices);
+
+				// Store the relative transform from the particle's configuration space to its
+				// MassToLocal because GeometryCollections assume that the particle's XR is at its
+				// CoM and RoM - MassToLocal accounts for this offset.
+				const FRigidTransform3 MassToLocal = FRigidTransform3(ClusterHandle->CenterOfMass(), ClusterHandle->RotationOfMass());
+				CollectionMassToLocal[ClusterTransformIdx] = MassToLocal;
+				ClusterHandle->SetCenterOfMass(FVec3::ZeroVector);
+				ClusterHandle->SetRotationOfMass(FQuat::Identity);
+				
+				// Since we've zerod out CoM and RoM, we need to update XR accordingly so that when
+				// UpdateClusterMassProperties is called in the next level up with ClusterHandle as
+				// one of the the children it's XR will be correct.
+				const FRigidTransform3 NewXR = MassToLocal * OriginalXR;
+				ClusterHandle->SetX(NewXR.GetTranslation());
+				ClusterHandle->SetR(NewXR.GetRotation());
+
 
 				//update geometry
 				//merge children meshes and move them into cluster's mass space

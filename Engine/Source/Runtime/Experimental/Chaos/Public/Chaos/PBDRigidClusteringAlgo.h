@@ -5,11 +5,15 @@
 
 namespace Chaos
 {
-	void UpdateClusterMassProperties(
+	void CHAOS_API UpdateClusterMassProperties(
 		FPBDRigidClusteredParticleHandle* Parent,
 		TSet<FPBDRigidParticleHandle*>& Children,
 		FMatrix33& ParentInertia,
-		const FRigidTransform3* ForceMassOrientation = nullptr);
+		const FRigidTransform3* ForceMassOrientation);
+
+	void CHAOS_API UpdateClusterMassProperties(
+		FPBDRigidClusteredParticleHandle* Parent,
+		const TSet<FPBDRigidParticleHandle*>& Children);
 
 	void CHAOS_API UpdateKinematicProperties(
 		FPBDRigidParticleHandle* Parent,

@@ -142,6 +142,60 @@ namespace Chaos
 	}
 
 
+	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateClusterMassProperties()"), STAT_UpdateClusterMassProperties_NoForceMassOrientation, STATGROUP_Chaos);
+	void UpdateClusterMassProperties(
+		FPBDRigidClusteredParticleHandle* Parent,
+		const TSet<FPBDRigidParticleHandle*>& Children)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterMassProperties);
+
+		// NOTE: Default initializer will have zero mass
+		FMassProperties ParentMass;
+
+		// Combine mass properties of all children in parent's space
+		if (Children.Num() > 0)
+		{
+			const FRigidTransform3 ParentTM = Parent->GetTransformXR();
+			TArray<FMassProperties> ChildMasses;
+			ChildMasses.Reserve(Children.Num());
+			for (const FPBDRigidParticleHandle* Child : Children)
+			{
+				// Get the child's transform relative to the parent
+				const FRigidTransform3 ChildTM = Child->GetTransformXR();
+				const FRigidTransform3 ChildToParentTM = ChildTM.GetRelativeTransform(ParentTM);
+				const FRigidTransform3 ChildCoM(Child->CenterOfMass(), Child->RotationOfMass());
+				const FRigidTransform3 ChildCoMInParentSpace = ChildCoM * ChildToParentTM;
+
+				// Get the child's mass properties
+				FMassProperties ChildMass;
+				ChildMass.Mass = Child->M();
+				ChildMass.InertiaTensor = FMatrix33(Child->I());
+				ChildMass.CenterOfMass = ChildCoMInParentSpace.GetTranslation();
+				ChildMass.RotationOfMass = ChildCoMInParentSpace.GetRotation();
+				ChildMasses.Add(ChildMass);
+			}
+
+			ParentMass = Chaos::Combine(ChildMasses);
+		}
+
+		// Set properties of particle based on combined mass properties
+		// NOTE: The combine method will have diagonalized the inertia.
+		const FVec3 Inertia = ParentMass.InertiaTensor.GetDiagonal();
+		Parent->SetCenterOfMass(ParentMass.CenterOfMass);
+		Parent->SetRotationOfMass(ParentMass.RotationOfMass);
+		Parent->M() = ParentMass.Mass;
+		Parent->InvM()
+			= FMath::IsNearlyZero(ParentMass.Mass)
+			? 0.f
+			: 1.f / ParentMass.Mass;
+		Parent->I() = Inertia;
+		Parent->InvI()
+			= (FMath::IsNearlyZero(Inertia[0]) || FMath::IsNearlyZero(Inertia[1]) || FMath::IsNearlyZero(Inertia[2]))
+			? FVec3::ZeroVector
+			: FReal(1) / Inertia;
+	}
+
+
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateKinematicProperties()"), STAT_UpdateKinematicProperties, STATGROUP_Chaos);
 	void 
