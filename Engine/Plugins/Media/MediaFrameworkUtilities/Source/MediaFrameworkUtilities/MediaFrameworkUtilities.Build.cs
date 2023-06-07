@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"RenderCore",
 					"Media",
 					"MediaAssets",
 					"MediaIOCore",

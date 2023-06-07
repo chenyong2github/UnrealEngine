@@ -12,6 +12,7 @@ public class ChaosVD : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"RenderCore",
 				"ChaosVDRuntime", 
 				"TraceServices",
 				"ChaosVDData",
