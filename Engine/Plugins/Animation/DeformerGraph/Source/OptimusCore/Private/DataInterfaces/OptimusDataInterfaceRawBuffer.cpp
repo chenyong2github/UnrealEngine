@@ -467,7 +467,7 @@ bool FOptimusPersistentBufferDataProviderProxy::IsValid(FValidationData const& I
 	return true;
 }
 
-void FOptimusPersistentBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
+void FOptimusPersistentBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder, FAllocationData const& InAllocationData)
 {
 	TArray<int32> Count;
 	Count.Add(TotalElementCount);
@@ -477,7 +477,14 @@ void FOptimusPersistentBufferDataProviderProxy::AllocateResources(FRDGBuilder& G
 	ensure(Buffers.Num() == 1);
 	Buffer = Buffers[0];
 
-	BufferUAV = GraphBuilder.CreateUAV(Buffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	// We want to use SkipBarrier to allow simultaineous execution of any subinvocations, but we want to keep barriers between kernels. 
+	// RDG will do this if we use a different UAV object per kernel based on the same underlying buffer. So we create one UAV per kernel here.
+	// This may end up being overkill for large graphs, in which case we will only want to create a UAV for each kernel that uses this data provider.
+	BufferUAVs.Reserve(InAllocationData.NumGraphKernels);
+	for (int32 BufferIndex = 0; BufferIndex < InAllocationData.NumGraphKernels; ++BufferIndex)
+	{
+		BufferUAVs.Add(GraphBuilder.CreateUAV(Buffer, ERDGUnorderedAccessViewFlags::SkipBarrier));
+	}
 }
 
 void FOptimusPersistentBufferDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
@@ -488,7 +495,7 @@ void FOptimusPersistentBufferDataProviderProxy::GatherDispatchData(FDispatchData
 		FParameters& Parameters = ParameterArray[InvocationIndex];
 		Parameters.StartOffset = InDispatchData.bUnifiedDispatch ? 0 : StartOffset;
 		Parameters.BufferSize = InDispatchData.bUnifiedDispatch ? TotalElementCount : InvocationElementCounts[InvocationIndex];
-		Parameters.BufferUAV = BufferUAV;
+		Parameters.BufferUAV = BufferUAVs[InDispatchData.GraphKernelIndex];
 
 		StartOffset += InvocationElementCounts[InvocationIndex];
 	}

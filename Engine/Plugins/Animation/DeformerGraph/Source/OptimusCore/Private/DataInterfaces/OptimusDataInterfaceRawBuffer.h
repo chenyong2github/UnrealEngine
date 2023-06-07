@@ -253,7 +253,7 @@ public:
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	bool IsValid(FValidationData const& InValidationData) const override;
-	void AllocateResources(FRDGBuilder& GraphBuilder) override;
+	void AllocateResources(FRDGBuilder& GraphBuilder, FAllocationData const& InAllocationData);
 	void GatherDispatchData(FDispatchData const& InDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
@@ -269,5 +269,5 @@ private:
 	const int32 LODIndex;
 
 	FRDGBufferRef Buffer;
-	FRDGBufferUAVRef BufferUAV;
+	TArray<FRDGBufferUAVRef> BufferUAVs;
 };

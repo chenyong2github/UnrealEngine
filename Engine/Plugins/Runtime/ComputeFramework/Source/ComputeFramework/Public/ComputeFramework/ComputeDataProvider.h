@@ -74,12 +74,28 @@ public:
 	 */
 	virtual void GatherPermutations(FPermutationData& InOutPermutationData) const {}
 
-	/* Called once before any calls to GatherDispatchData() to allow any RDG resource allocation. */
+	/** Setup needed to allocate resources. */
+	struct FAllocationData
+	{
+		int32 NumGraphKernels;
+	};
+
+	// todo: Fix up derived classes to implement new AllocateResources().
+	UE_DEPRECATED(5.3, "Convert to using the new AllocateResources() that takes FAllocationData.")
 	virtual void AllocateResources(FRDGBuilder& GraphBuilder) {}
+
+	/* Called once before any calls to GatherDispatchData() to allow any RDG resource allocation. */
+	virtual void AllocateResources(FRDGBuilder& GraphBuilder, FAllocationData const& InAllocationData)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		AllocateResources(GraphBuilder);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Setup needed to gather dispatch data. */
 	struct FDispatchData
 	{
+		int32 GraphKernelIndex;
 		int32 NumInvocations;
 		bool bUnifiedDispatch;
 		int32 ParameterStructSize;

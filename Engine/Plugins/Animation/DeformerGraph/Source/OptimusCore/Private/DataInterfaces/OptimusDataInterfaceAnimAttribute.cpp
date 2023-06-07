@@ -719,8 +719,6 @@ bool FOptimusAnimAttributeDataProviderProxy::IsValid(FValidationData const& InVa
 
 void FOptimusAnimAttributeDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
-	FComputeDataProviderRenderProxy::AllocateResources(GraphBuilder);
-
 	ArrayBuffers.Reset();
 	ArrayBufferSRVs.Reset();
 

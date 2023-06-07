@@ -151,12 +151,13 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 		}
 
 		// Allocate RDG resources for all the data providers in the graph.
+		FComputeDataProviderRenderProxy::FAllocationData AllocationData { NumKernels };
 		for (int32 DataProviderIndex = 0; DataProviderIndex < GraphInvocation.DataProviderRenderProxies.Num(); ++DataProviderIndex)
 		{
 			FComputeDataProviderRenderProxy* DataProvider = GraphInvocation.DataProviderRenderProxies[DataProviderIndex];
 			if (DataProvider != nullptr)
 			{
-				DataProvider->AllocateResources(GraphBuilder);
+				DataProvider->AllocateResources(GraphBuilder, AllocationData);
 			}
 		}
 	}
@@ -195,7 +196,7 @@ void FComputeGraphTaskWorker::SubmitWork(FRDGBuilder& GraphBuilder, FName InExec
 
 		// Allocate parameters buffer and fill from data providers.
 		TStridedView<FComputeKernelShader::FParameters> ParameterArray = GraphBuilder.AllocParameters<FComputeKernelShader::FParameters>(KernelInvocation.ShaderParameterMetadata, NumSubInvocations);
-		FComputeDataProviderRenderProxy::FDispatchData DispatchData{ NumSubInvocations, bIsUnifiedDispatch, 0, 0, ParameterArray.GetStride(), reinterpret_cast<uint8*>(&ParameterArray[0]) };
+		FComputeDataProviderRenderProxy::FDispatchData DispatchData{ KernelIndex, NumSubInvocations, bIsUnifiedDispatch, 0, 0, ParameterArray.GetStride(), reinterpret_cast<uint8*>(&ParameterArray[0]) };
 
 		// Iterate shader parameter members to fill the dispatch data structures.
 		// We assume that the members were filled out with a single data interface per member, and that the
