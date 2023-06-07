@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ColorCorrectRegion.h"
+#include "Async/Async.h"
 #include "ColorCorrectRegionsModule.h"
 #include "ColorCorrectRegionsSubsystem.h"
 #include "ColorCorrectWindow.h"
@@ -8,6 +9,7 @@
 #include "Components/MeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "CoreMinimal.h"
+#include "Engine/CollisionProfile.h"
 #include "Engine/GameEngine.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
@@ -100,7 +102,6 @@ void AColorCorrectRegion::TickActor(float DeltaTime, ELevelTick TickType, FActor
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("CCR.TickActor %s"), *GetName()));
 
-	HandleAffectedActorsPropertyChange();
 	TransferState();
 
 
@@ -169,7 +170,7 @@ void AColorCorrectRegion::TransferState()
 	TempCCRStateRenderThread->bEnablePerActorCC = bEnablePerActorCC;
 	TempCCRStateRenderThread->PerActorColorCorrection = PerActorColorCorrection;
 
-	GetActorBounds(true, TempCCRStateRenderThread->BoxOrigin, TempCCRStateRenderThread->BoxExtent);
+	GetActorBounds(false, TempCCRStateRenderThread->BoxOrigin, TempCCRStateRenderThread->BoxExtent);
 	TempCCRStateRenderThread->ActorLocation = (FVector3f)GetActorLocation();
 	TempCCRStateRenderThread->ActorRotation = (FVector3f)GetActorRotation().Euler();
 	TempCCRStateRenderThread->ActorScale = (FVector3f)GetActorScale();
@@ -211,51 +212,44 @@ void AColorCorrectRegion::TransferState()
 
 }
 
-void AColorCorrectRegion::HandleAffectedActorsPropertyChange()
+void AColorCorrectRegion::HandleAffectedActorsPropertyChange(uint32 ActorListChangeType)
 {
-	if (bActorListIsDirty)
+	if (ActorListChangeType == EPropertyChangeType::ArrayAdd
+		|| ActorListChangeType == EPropertyChangeType::ValueSet)
 	{
-		bool bEventHandled = false;
-		bActorListIsDirty = false;
-		if (ActorListChangeType == EPropertyChangeType::ArrayAdd
-			|| ActorListChangeType == EPropertyChangeType::ValueSet)
+		// In case user assigns Color Correct Region or Window, we should remove it as it is invalid operation.
 		{
-			// In case user assigns Color Correct Region or Window, we should remove it as it is invalid operation.
+			TArray<TSoftObjectPtr<AActor>> ActorsToRemove;
+			for (const TSoftObjectPtr<AActor>& StencilActor : AffectedActors)
 			{
-				TArray<TSoftObjectPtr<AActor>> ActorsToRemove;
-				for (const TSoftObjectPtr<AActor>& StencilActor : AffectedActors)
+				if (AColorCorrectRegion* CCRCast = Cast<AColorCorrectRegion>(StencilActor.Get()))
 				{
-					if (AColorCorrectRegion* CCRCast = Cast<AColorCorrectRegion>(StencilActor.Get()))
-					{
-						ActorsToRemove.Add(StencilActor);
-					}
-				}
-				if (ActorsToRemove.Num() > 0)
-				{
-					UE_LOG(ColorCorrectRegions, Warning, TEXT("Color Correct Region or Window assignment to Per Actor CC is not supported."));
-				}
-				for (const TSoftObjectPtr<AActor>& StencilActor : ActorsToRemove)
-				{
-					AffectedActors.Remove(StencilActor);
-					AffectedActors.FindOrAdd(TSoftObjectPtr<AActor>());
+					ActorsToRemove.Add(StencilActor);
 				}
 			}
-			bEventHandled = true;
-			if (ColorCorrectRegionsSubsystem.IsValid())
+			if (ActorsToRemove.Num() > 0)
 			{
-				ColorCorrectRegionsSubsystem->AssignStencilIdsToPerActorCC(this);
+				UE_LOG(ColorCorrectRegions, Warning, TEXT("Color Correct Region or Window assignment to Per Actor CC is not supported."));
+			}
+			for (const TSoftObjectPtr<AActor>& StencilActor : ActorsToRemove)
+			{
+				AffectedActors.Remove(StencilActor);
+				AffectedActors.FindOrAdd(TSoftObjectPtr<AActor>());
 			}
 		}
-
-		if (ActorListChangeType == EPropertyChangeType::ArrayClear
-			|| ActorListChangeType == EPropertyChangeType::ArrayRemove
-			|| ActorListChangeType == EPropertyChangeType::ValueSet)
+		if (ColorCorrectRegionsSubsystem.IsValid())
 		{
-			bEventHandled = true;
-			if (ColorCorrectRegionsSubsystem.IsValid())
-			{
-				ColorCorrectRegionsSubsystem->ClearStencilIdsToPerActorCC(this);
-			}
+			ColorCorrectRegionsSubsystem->AssignStencilIdsToPerActorCC(this);
+		}
+	}
+
+	if (ActorListChangeType == EPropertyChangeType::ArrayClear
+		|| ActorListChangeType == EPropertyChangeType::ArrayRemove
+		|| ActorListChangeType == EPropertyChangeType::ValueSet)
+	{
+		if (ColorCorrectRegionsSubsystem.IsValid())
+		{
+			ColorCorrectRegionsSubsystem->ClearStencilIdsToPerActorCC(this);
 		}
 	}
 }
@@ -320,9 +314,11 @@ void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& P
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, AffectedActors))
 	{
-		/** Since there might be Dialogs involved we need to dirty this CCR and handle the rest on Tick. */
-		ActorListChangeType = PropertyChangedEvent.ChangeType;
-		bActorListIsDirty = true;
+		/** Since there might be Dialogs involved we need to run this on game thread. */
+		AsyncTask(ENamedThreads::GameThread, [this, ActorListChangeType = PropertyChangedEvent.ChangeType]() 
+		{
+			HandleAffectedActorsPropertyChange(ActorListChangeType);
+		});
 	}
 
 	// Reorder all CCRs after the Priority property has changed.
@@ -365,8 +361,8 @@ AColorCorrectionRegion::AColorCorrectionRegion(const FObjectInitializer& ObjectI
 		MeshComponent->SetupAttachment(RootComponent);
 		MeshComponent->SetStaticMesh(StaticMeshes[static_cast<uint8>(CCRType)]);
 		MeshComponent->SetMaterial(0, Material);
-		MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		MeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		MeshComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		MeshComponent->CastShadow = false;
 		MeshComponent->SetHiddenInGame(true);
 	}

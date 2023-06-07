@@ -4,6 +4,7 @@
 #include "Components/BillboardComponent.h"
 #include "CoreMinimal.h"
 #include "Materials/Material.h"
+#include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -44,8 +45,8 @@ AColorCorrectionWindow::AColorCorrectionWindow(const FObjectInitializer& ObjectI
 		MeshComponent->SetStaticMesh(StaticMeshes[static_cast<uint8>(CCWType)]);
 		MeshComponent->SetWorldScale3D(FVector(1., 1., 0.001));
 		MeshComponent->SetMaterial(0, Material);
-		MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		MeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		MeshComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		MeshComponent->CastShadow = false;
 		MeshComponent->SetHiddenInGame(true);
 	}

@@ -230,8 +230,9 @@ private:
 
 	/**
 	* AffectedActors property change could potentially invoke a Dialog Window, which should be displayed on Game Thread.
+	* ActorListChangeType represents EPropertyChangeType
 	*/
-	void HandleAffectedActorsPropertyChange();
+	void HandleAffectedActorsPropertyChange(uint32 ActorListChangeType);
 
 	/**
 	* Copy state required for rendering to be consumed by Scene view extension.
@@ -243,9 +244,6 @@ private:
 
 	/** A copy of all properties required by render thread to process this CCR. */
 	FColorCorrectRenderProxyPtr ColorCorrectRenderProxy;
-
-	bool bActorListIsDirty;
-	uint8 ActorListChangeType;
 
 	FCriticalSection StateCopyCriticalSecion;
 
