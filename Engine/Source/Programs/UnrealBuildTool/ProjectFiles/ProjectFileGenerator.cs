@@ -2704,6 +2704,10 @@ namespace UnrealBuildTool
 					string ProjectFileNameBase;
 					if (TargetRulesObject.Type == TargetType.Program)
 					{
+						if (!bIncludeEnginePrograms && IsEngineTarget)
+						{
+							continue;
+						}
 						IsProgramTarget = true;
 						ProjectFileNameBase = TargetName;
 					}
