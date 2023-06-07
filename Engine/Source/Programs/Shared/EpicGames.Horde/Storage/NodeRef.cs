@@ -237,12 +237,12 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Class used to track nodes which are pending write (and the state of the object when the write was started)
 		/// </summary>
-		internal class NodeWriteCallback : TreeWriter.WriteCallback
+		internal class NodeRefWriteCallback : NodeWriteCallback
 		{
 			readonly NodeRef _nodeRef;
 			readonly NodeHandle _handle;
 
-			public NodeWriteCallback(NodeRef nodeRef, NodeHandle handle)
+			public NodeRefWriteCallback(NodeRef nodeRef, NodeHandle handle)
 			{
 				_nodeRef = nodeRef;
 				_handle = handle;
@@ -307,7 +307,7 @@ namespace EpicGames.Horde.Storage
 			NodeHandle handle = await writer.WriteNodeAsync(nodeWriter.Length, nextRefHandles, target.NodeType, cancellationToken);
 			target.Hash = handle.Hash;
 
-			NodeWriteCallback writeState = new NodeWriteCallback(nodeRef, handle);
+			NodeRefWriteCallback writeState = new NodeRefWriteCallback(nodeRef, handle);
 			handle.AddWriteCallback(writeState);
 
 			nodeRef.MarkAsPendingWrite(handle);

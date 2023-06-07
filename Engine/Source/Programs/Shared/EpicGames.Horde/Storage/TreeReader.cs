@@ -557,7 +557,7 @@ namespace EpicGames.Horde.Storage
 					importBlob = bundleInfo.Header.Imports[reference.ImportIdx];
 				}
 				Debug.Assert(importBlob.IsValid());
-				refs.Add(new NodeHandle(this, reference.Hash, new NodeLocator(importBlob, reference.NodeIdx)));
+				refs.Add(new FlushedNodeHandle(this, reference.Hash, new NodeLocator(importBlob, reference.NodeIdx)));
 			}
 
 			ReadOnlyMemory<byte> nodeData = ReadOnlyMemory<byte>.Empty;

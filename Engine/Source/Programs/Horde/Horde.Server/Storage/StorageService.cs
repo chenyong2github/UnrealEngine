@@ -240,7 +240,7 @@ namespace Horde.Server.Storage
 			{
 				await foreach (HashedNodeLocator locator in _outer.FindNodesAsync(NamespaceId, alias, cancellationToken))
 				{
-					yield return new NodeHandle(TreeReader, locator);
+					yield return new FlushedNodeHandle(TreeReader, locator);
 				}
 			}
 
@@ -256,7 +256,7 @@ namespace Horde.Server.Storage
 				{
 					return null;
 				}
-				return new NodeHandle(TreeReader, locator.Value);
+				return new FlushedNodeHandle(TreeReader, locator.Value);
 			}
 
 			/// <inheritdoc/>

@@ -53,100 +53,105 @@ namespace EpicGames.Horde.Storage
 	public record NodeKey(IoHash Hash, NodeType Type);
 
 	/// <summary>
+	/// Object to receive notifications on a node being written
+	/// </summary>
+	public abstract class NodeWriteCallback
+	{
+		internal NodeWriteCallback? _next;
+
+		/// <summary>
+		/// Callback for the node being written
+		/// </summary>
+		public abstract void OnWrite();
+	}
+
+	/// <summary>
 	/// Handle to a node. Can be used to reference nodes that have not been flushed yet.
 	/// </summary>
-	public class NodeHandle
+	public abstract class NodeHandle
 	{
-		readonly TreeReader _reader;
-		NodeLocator _locator;
-
 		/// <summary>
 		/// Hash of the target node
 		/// </summary>
 		public IoHash Hash { get; }
 
 		/// <summary>
-		/// Used to track the bundle that is being written to
-		/// </summary>
-		internal PendingBundle? PendingBundle { get; set; }
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="reader">Reader for new node data</param>
 		/// <param name="hash">Hash of the target node</param>
-		/// <param name="locator">Location of the node in storage</param>
-		public NodeHandle(TreeReader reader, IoHash hash, NodeLocator locator)
-		{
-			_reader = reader;
-			Hash = hash;
-			_locator = locator;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="reader">Reader for new node data</param>
-		/// <param name="hashedLocator">Location of the node in storage</param>
-		public NodeHandle(TreeReader reader, HashedNodeLocator hashedLocator)
-			: this(reader, hashedLocator.Hash, hashedLocator.Locator)
-		{
-		}
+		protected NodeHandle(IoHash hash) => Hash = hash;
 
 		/// <summary>
 		/// Determines if the node has been written to storage
 		/// </summary>
-		/// <returns></returns>
-		public bool HasLocator() => _locator.IsValid();
+		public abstract bool HasLocator();
 
 		/// <summary>
 		/// Gets the node locator. May throw if the node has not been written to storage yet.
 		/// </summary>
 		/// <returns>Locator for the node</returns>
-		public NodeLocator GetLocator()
-		{
-			if (!_locator.IsValid())
-			{
-				throw new InvalidOperationException("Node has not been flushed to disk; cannot retrieve locator.");
-			}
-			return _locator;
-		}
-
-		/// <summary>
-		/// Sets the current locator
-		/// </summary>
-		/// <param name="locator"></param>
-		protected void SetLocator(NodeLocator locator)
-		{
-			if (_locator.IsValid())
-			{
-				throw new InvalidOperationException("Node has already been flushed.");
-			}
-			_locator = locator;
-		}
+		public abstract NodeLocator GetLocator();
 
 		/// <summary>
 		/// Adds a callback to be executed once the node has been written. Triggers immediately if the node has already been written.
 		/// </summary>
 		/// <param name="callback">Action to be executed after the write</param>
-		internal void AddWriteCallback(WriteCallback callback)
+		public abstract void AddWriteCallback(NodeWriteCallback callback);
+
+		/// <summary>
+		/// Creates a reader for this node's data
+		/// </summary>
+		public abstract ValueTask<NodeData> ReadAsync(CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Flush the node to storage and retrieve its locator
+		/// </summary>
+		public abstract ValueTask<NodeLocator> FlushAsync(CancellationToken cancellationToken = default);
+
+		/// <inheritdoc/>
+		public override string ToString() => HasLocator()? new HashedNodeLocator(Hash, GetLocator()).ToString() : Hash.ToString();
+	}
+
+	/// <summary>
+	/// Implementation of <see cref="NodeHandle"/> for nodes which can be read from storage
+	/// </summary>
+	public sealed class FlushedNodeHandle : NodeHandle
+	{
+		readonly TreeReader _reader;
+		readonly NodeLocator _locator;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public FlushedNodeHandle(TreeReader reader, HashedNodeLocator hashedLocator)
+			: this(reader, hashedLocator.Hash, hashedLocator.Locator)
 		{
-			PendingBundle? pendingBundle = PendingBundle;
-			if (pendingBundle == null || !pendingBundle.TryAddWriteCallback(callback))
-			{
-				Debug.Assert(_locator.IsValid());
-				callback.OnWrite();
-			}
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public FlushedNodeHandle(TreeReader reader, IoHash hash, NodeLocator locator)
+			: base(hash)
+		{
+			_reader = reader;
+			_locator = locator;
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask<NodeData> ReadAsync(CancellationToken cancellationToken = default)
-		{
-			return await _reader.ReadNodeDataAsync(GetLocator(), cancellationToken);
-		}
+		public override bool HasLocator() => true;
 
 		/// <inheritdoc/>
-		public override string ToString() => _locator.IsValid()? new HashedNodeLocator(Hash, _locator).ToString() : Hash.ToString();
+		public override NodeLocator GetLocator() => _locator;
+
+		/// <inheritdoc/>
+		public override void AddWriteCallback(NodeWriteCallback callback) => callback.OnWrite();
+
+		/// <inheritdoc/>
+		public override ValueTask<NodeData> ReadAsync(CancellationToken cancellationToken = default) => _reader.ReadNodeDataAsync(_locator, cancellationToken);
+
+		/// <inheritdoc/>
+		public override ValueTask<NodeLocator> FlushAsync(CancellationToken cancellationToken = default) => new ValueTask<NodeLocator>(_locator);
 	}
 
 	/// <summary>
@@ -214,47 +219,113 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	public sealed class TreeWriter : IStorageWriter
 	{
-		/// <summary>
-		/// Object to receive notifications on a node being written
-		/// </summary>
-		internal abstract class WriteCallback
-		{
-			internal WriteCallback? _next;
-
-			public abstract void OnWrite();
-		}
-
 		// Information about a unique output node. Note that multiple node refs may de-duplicate to the same output node.
 		internal class PendingNode : NodeHandle
 		{
+			readonly TreeReader _reader;
+
+			object LockObject => _reader;
+
+			NodeLocator _locator;
+			PendingBundle? _pendingBundle;
+
 			public readonly NodeKey Key;
 			public readonly int Packet;
 			public readonly int Offset;
 			public readonly int Length;
 			public readonly NodeHandle[] Refs;
 
+			public PendingBundle? PendingBundle => _pendingBundle;
+
 			public PendingNode(TreeReader reader, NodeKey key, int packet, int offset, int length, IReadOnlyList<NodeHandle> refs, PendingBundle pendingBundle)
-				: base(reader, key.Hash, default)
+				: base(key.Hash)
 			{
+				_reader = reader;
+
 				Key = key;
 				Packet = packet;
 				Offset = offset;
 				Length = length;
 				Refs = refs.ToArray();
-				PendingBundle = pendingBundle;
+
+				_pendingBundle = pendingBundle;
+			}
+
+			/// <inheritdoc/>
+			public override bool HasLocator() => _locator.IsValid();
+
+			/// <inheritdoc/>
+			public override NodeLocator GetLocator()
+			{
+				if (!_locator.IsValid())
+				{
+					throw new InvalidOperationException();
+				}
+				return _locator;
 			}
 
 			public void MarkAsWritten(NodeLocator locator)
 			{
-				SetLocator(locator);
-				PendingBundle = null;
+				lock (LockObject)
+				{
+					Debug.Assert(!_locator.IsValid());
+					_locator = locator;
+					_pendingBundle = null;
+				}
+			}
+
+			/// <inheritdoc/>
+			public override void AddWriteCallback(NodeWriteCallback callback)
+			{
+				PendingBundle? pendingBundle = PendingBundle;
+				if (pendingBundle == null || !pendingBundle.TryAddWriteCallback(callback))
+				{
+					Debug.Assert(_locator.IsValid());
+					callback.OnWrite();
+				}
+			}
+
+			/// <inheritdoc/>
+			public override async ValueTask<NodeData> ReadAsync(CancellationToken cancellationToken = default)
+			{
+				if (!_locator.IsValid())
+				{
+					lock (LockObject)
+					{
+						if (!_locator.IsValid() && _pendingBundle != null)
+						{
+							ReadOnlyMemory<byte> data = _pendingBundle.GetNodeData(Packet, Offset, Length);
+							if (data.Length == Length)
+							{
+								return new NodeData(Key.Type, Hash, data, Refs);
+							}
+						}
+					}
+				}
+
+				return await _reader.ReadNodeDataAsync(_locator, cancellationToken);
+			}
+
+			/// <inheritdoc/>
+			public override async ValueTask<NodeLocator> FlushAsync(CancellationToken cancellationToken = default)
+			{
+				Task? completeTask = _pendingBundle?.CompleteTask;
+				if (completeTask != null)
+				{
+					await completeTask;
+				}
+				if (!_locator.IsValid())
+				{
+					throw new InvalidOperationException("Locator should have been flushed already");
+				}
+				return _locator;
 			}
 		}
 
 		// Information about a bundle being built. Metadata operations are synchronous, compression/writes are asynchronous.
 		internal class PendingBundle : IDisposable
 		{
-			class WriteCallbackSentinel : WriteCallback
+			class WriteCallbackSentinel : NodeWriteCallback
 			{
 				public override void OnWrite() => throw new NotImplementedException();
 			}
@@ -267,6 +338,8 @@ namespace EpicGames.Horde.Storage
 			readonly TreeReader _treeReader;
 			readonly int _maxPacketSize;
 			readonly BundleCompressionFormat _compressionFormat;
+
+			readonly object _lockObject = new object();
 
 			// The current packet being built
 			IMemoryOwner<byte>? _currentPacket;
@@ -299,7 +372,7 @@ namespace EpicGames.Horde.Storage
 			public bool IsReadOnly { get; private set; }
 
 			// List of post-write callbacks
-			WriteCallback? _callbacks = null;
+			NodeWriteCallback? _callbacks = null;
 
 			// Task used to compress data in the background
 			Task _writeTask = Task.CompletedTask;
@@ -352,11 +425,11 @@ namespace EpicGames.Horde.Storage
 			}
 
 			// Adds a callback after writing
-			public bool TryAddWriteCallback(WriteCallback callback)
+			public bool TryAddWriteCallback(NodeWriteCallback callback)
 			{
 				for (; ; )
 				{
-					WriteCallback? tail = _callbacks;
+					NodeWriteCallback? tail = _callbacks;
 					if (tail == s_callbackSentinel)
 					{
 						return false;
@@ -422,6 +495,37 @@ namespace EpicGames.Horde.Storage
 				return pendingNode;
 			}
 
+			public ReadOnlyMemory<byte> GetNodeData(int packetIdx, int offset, int length)
+			{
+				lock (_lockObject)
+				{
+					if (packetIdx < _packets.Count)
+					{
+						BundlePacket packet = _packets[packetIdx];
+
+						ReadOnlySequence<byte> sequence = _encodedPacketWriter.AsSequence(packet.EncodedOffset, packet.EncodedLength);
+						if (!sequence.IsSingleSegment)
+						{
+							throw new InvalidOperationException();
+						}
+
+						using (IMemoryOwner<byte> decodeBuffer = MemoryPool<byte>.Shared.Rent(packet.DecodedLength))
+						{
+							BundleData.Decompress(_compressionFormat, sequence.First, decodeBuffer.Memory);
+							return decodeBuffer.Memory.Slice(offset, length).ToArray();
+						}
+					}
+					else if (packetIdx == _currentPacketIdx)
+					{
+						return _currentPacket!.Memory.Slice(offset, length).Slice(offset, length).ToArray();
+					}
+					else
+					{
+						return ReadOnlyMemory<byte>.Empty;
+					}
+				}
+			}
+
 			// Compresses the current packet and schedule it to be written to storage
 			void FlushPacket()
 			{
@@ -447,13 +551,16 @@ namespace EpicGames.Horde.Storage
 
 			void CompressPacket(IMemoryOwner<byte> packetData, int length)
 			{
-				int encodedLength = BundleData.Compress(_compressionFormat, packetData.Memory.Slice(0, length), _encodedPacketWriter);
+				lock (_lockObject)
+				{
+					int encodedLength = BundleData.Compress(_compressionFormat, packetData.Memory.Slice(0, length), _encodedPacketWriter);
 
-				int encodedOffset = (_packets.Count == 0) ? 0 : _packets[^1].EncodedOffset + _packets[^1].EncodedLength;
-				BundlePacket packet = new BundlePacket(_compressionFormat, encodedOffset, encodedLength, length);
-				_packets.Add(packet);
+					int encodedOffset = (_packets.Count == 0) ? 0 : _packets[^1].EncodedOffset + _packets[^1].EncodedLength;
+					BundlePacket packet = new BundlePacket(_compressionFormat, encodedOffset, encodedLength, length);
+					_packets.Add(packet);
 
-				packetData.Dispose();
+					packetData.Dispose();
+				}
 			}
 
 			// Mark the bundle as complete
@@ -497,7 +604,7 @@ namespace EpicGames.Horde.Storage
 						_queue[idx].MarkAsWritten(nodeLocator);
 					}
 
-					WriteCallback? callback = Interlocked.Exchange(ref _callbacks, s_callbackSentinel);
+					NodeWriteCallback? callback = Interlocked.Exchange(ref _callbacks, s_callbackSentinel);
 					while (callback != null)
 					{
 						callback.OnWrite();
@@ -521,6 +628,14 @@ namespace EpicGames.Horde.Storage
 
 			// Mark the bundle as complete and create a bundle with the current state
 			public Bundle CreateBundle()
+			{
+				lock (_lockObject)
+				{
+					return CreateBundleInternal();
+				}
+			}
+
+			Bundle CreateBundleInternal()
 			{
 				// Create a set from the nodes to be written. We use this to determine references that are imported.
 				HashSet<NodeHandle> nodeSet = new HashSet<NodeHandle>(_queue);
@@ -763,9 +878,10 @@ namespace EpicGames.Horde.Storage
 			// Add dependencies on all bundles containing a dependent node
 			foreach (NodeHandle reference in references)
 			{
-				if (reference.PendingBundle != null)
+				PendingNode? pendingReference = reference as PendingNode;
+				if (pendingReference?.PendingBundle != null)
 				{
-					currentBundle.AddDependencyOn(reference.PendingBundle, _traceLogger);
+					currentBundle.AddDependencyOn(pendingReference.PendingBundle, _traceLogger);
 				}
 			}
 
