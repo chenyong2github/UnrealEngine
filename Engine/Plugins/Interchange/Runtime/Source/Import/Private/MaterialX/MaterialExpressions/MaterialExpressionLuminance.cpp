@@ -36,9 +36,13 @@ int32 UMaterialExpressionMaterialXLuminance::Compile(FMaterialCompiler* Compiler
 	}
 
 	const int32 LuminanceFactorsIndex = Compiler->Constant3(LuminanceFactors.R, LuminanceFactors.G, LuminanceFactors.B);
-	auto Type = Compiler->GetParameterType(Input.Compile(Compiler));
+	const int32 InputIndex = Input.Compile(Compiler);
+	if (InputIndex == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
 
-	return Compiler->Dot(Compiler->ComponentMask(Input.Compile(Compiler), true, true, true, false), LuminanceFactorsIndex);
+	return Compiler->Dot(Compiler->ComponentMask(InputIndex, true, true, true, false), LuminanceFactorsIndex);
 }
 
 void UMaterialExpressionMaterialXLuminance::GetCaption(TArray<FString>& OutCaptions) const
