@@ -946,7 +946,7 @@ int32 FEditableSkeleton::DeleteSyncMarkers(const TArray<FName>& InSyncMarkerName
 			const FAssetData& PossibleAnimSequence = CompatibleAnimSequences[AssetIndex];
 			if(UObject* LoadedAsset = PossibleAnimSequence.GetAsset())
 			{
-				if(UAnimSequence* Sequence = CastChecked<UAnimSequence>(LoadedAsset))
+				if(UAnimSequence* Sequence = Cast<UAnimSequence>(LoadedAsset))
 				{
 					if (Sequence->RemoveSyncMarkers(InSyncMarkerNames))
 					{
