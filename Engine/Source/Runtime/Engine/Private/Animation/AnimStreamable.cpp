@@ -21,6 +21,7 @@
 #include "Animation/AnimBoneCompressionSettings.h"
 #include "Animation/AnimCurveCompressionSettings.h"
 #include "Animation/AnimCurveCompressionCodec.h"
+#include "Animation/VariableFrameStrippingSettings.h"
 #include "BonePose.h"
 #include "CommonFrameRates.h"
 #include "ContentStreaming.h"
@@ -480,6 +481,7 @@ void UAnimStreamable::InitFrom(const UAnimSequence* InSourceSequence)
 	CurveCompressionSettings = InSourceSequence->CurveCompressionSettings;
 	
 	DataModelInterface = StaticDuplicateObject(InSourceSequence->GetDataModelInterface().GetObject(), this);
+	VariableFrameStrippingSettings = InSourceSequence->VariableFrameStrippingSettings;
 
 	// Far from ideal (retrieving controller to ensure it matches the DataModelInterface type)
 	Controller = DataModelInterface->GetController();
@@ -561,6 +563,11 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 	if (CurveCompressionSettings == nullptr || !CurveCompressionSettings->AreSettingsValid())
 	{
 		CurveCompressionSettings = FAnimationUtils::GetDefaultAnimationCurveCompressionSettings();
+	}
+
+	if (VariableFrameStrippingSettings == nullptr)
+	{
+		VariableFrameStrippingSettings = FAnimationUtils::GetDefaultVariableFrameStrippingSettings();
 	}
 
 	checkf(Platform, TEXT("Failed to specify platform for streamable animation compression"));
@@ -783,12 +790,14 @@ FString UAnimStreamable::GetBaseDDCKey(uint32 NumChunks, const ITargetPlatform* 
 	//  * Our skeletons virtual bone guid
 	//	* Compression Settings
 	//	* Curve compression settings
+	//  * Variable frame stripping settings
 
 	FArcToHexString ArcToHexString;
 
 	ArcToHexString.Ar << NumChunks;
 	BoneCompressionSettings->PopulateDDCKey(UE::Anim::Compression::FAnimDDCKeyArgs(*this, TargetPlatform), ArcToHexString.Ar);
 	CurveCompressionSettings->PopulateDDCKey(ArcToHexString.Ar);
+	VariableFrameStrippingSettings->PopulateDDCKey(UE::Anim::Compression::FAnimDDCKeyArgs(*this, TargetPlatform), ArcToHexString.Ar);
 
 	FString Ret = FString::Printf(TEXT("%s%s%s%s_%s"),
 		StreamingAnimChunkVersion,

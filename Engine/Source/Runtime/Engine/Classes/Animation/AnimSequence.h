@@ -287,6 +287,9 @@ public:
 
 	FCompressedAnimSequence CompressedData;
 
+	UPROPERTY(Category = Compression, EditAnywhere, meta = (ForceShowEngineContent))
+	TObjectPtr<class UVariableFrameStrippingSettings> VariableFrameStrippingSettings;
+
 	/** Additive animation type. **/
 	UPROPERTY(EditAnywhere, Category=AdditiveSettings, AssetRegistrySearchable)
 	TEnumAsByte<enum EAdditiveAnimationType> AdditiveAnimType;

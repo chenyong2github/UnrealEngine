@@ -162,6 +162,9 @@ public:
 	/** Returns the default animation curve compression settings, can never by null. */
 	ENGINE_API static UAnimCurveCompressionSettings* GetDefaultAnimationCurveCompressionSettings();
 
+	/** Returns the default animation variable frame stripping settings, can never by null. */
+	ENGINE_API static UVariableFrameStrippingSettings* GetDefaultVariableFrameStrippingSettings();
+
 	/** Makes sure that the animation sequence and all its dependencies required for compression are loaded. */
 	ENGINE_API static void EnsureAnimSequenceLoaded(UAnimSequence& AnimSeq);
 
