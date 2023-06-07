@@ -343,7 +343,8 @@ void UWorldPartitionSubsystem::FActorDescContainerInstanceManager::FActorDescCon
 	Bounds.Init();
 	for (FActorDescList::TIterator<> ActorDescIt(Container); ActorDescIt; ++ActorDescIt)
 	{
-		if (ActorDescIt->GetActorNativeClass()->IsChildOf<ALevelBounds>())
+		// FActorDescContainerInstance are currently only used by FLevelInstanceActorDescs and so we don't consider actors that should exit only in the main world.
+		if (ActorDescIt->IsMainWorldOnly())
 		{
 			continue;
 		}
