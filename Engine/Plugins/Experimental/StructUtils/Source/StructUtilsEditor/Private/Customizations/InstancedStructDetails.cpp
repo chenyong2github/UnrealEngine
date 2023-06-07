@@ -87,10 +87,9 @@ public:
 			if (CommonStruct == nullptr || ScriptStruct == CommonStruct)
 			{
 				Result = MakeShared<FStructOnScope>(ScriptStruct, Memory);
+				Result->SetPackage(Package);
 				CommonStruct = ScriptStruct;
 			}
-
-			Result->SetPackage(Package);
 
 			OutInstances.Add(Result);
 
