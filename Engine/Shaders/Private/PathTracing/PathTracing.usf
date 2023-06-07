@@ -8,6 +8,11 @@ PathTracing.usf: Reference path tracing
 
 #define PATH_TRACING_SHADER_VERSION 0x51478b68 // Bump to force-compile this shader
 
+// Ensure specular profile and glints are supported
+#if STRATA_ENABLED && PATH_TRACER_USE_STRATA_SPECIAL_COMPLEX_MATERIAL
+#define STRATA_COMPLEXSPECIALPATH 1
+#endif
+
 #include "PathTracingCore.ush"
 
 // describe how we split up the image between tiles and amongst GPUs

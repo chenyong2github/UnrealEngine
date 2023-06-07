@@ -868,8 +868,8 @@ class FPathTracingRG : public FGlobalShader
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FPathTracingRG, FGlobalShader)
 
 	class FCompactionType : SHADER_PERMUTATION_INT("PATH_TRACER_USE_COMPACTION", 2);
-
-	using FPermutationDomain = TShaderPermutationDomain<FCompactionType>;
+	class FStrataComplexSpecialMaterial : SHADER_PERMUTATION_BOOL("PATH_TRACER_USE_STRATA_SPECIAL_COMPLEX_MATERIAL");
+	using FPermutationDomain = TShaderPermutationDomain<FCompactionType, FStrataComplexSpecialMaterial>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -2161,15 +2161,25 @@ class FPathTracingCompositorPS : public FGlobalShader
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingCompositorPS, TEXT("/Engine/Private/PathTracing/PathTracingCompositingPixelShader.usf"), TEXT("CompositeMain"), SF_Pixel);
 
-void FDeferredShadingSceneRenderer::PreparePathTracing(const FSceneViewFamily& ViewFamily, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+static FPathTracingRG::FPermutationDomain GetPathTracingRGPermutation(const FScene& Scene)
+{
+	const int CompactionType = CVarPathTracingCompaction.GetValueOnRenderThread();
+	const bool bHasComplexSpecialRenderPath = Strata::IsStrataEnabled() && Scene.StrataSceneData.bUsesComplexSpecialRenderPath;
+
+	FPathTracingRG::FPermutationDomain Out;
+	Out.Set<FPathTracingRG::FCompactionType>(CompactionType);
+	Out.Set<FPathTracingRG::FStrataComplexSpecialMaterial>(bHasComplexSpecialRenderPath);
+	return Out;
+}
+
+void FDeferredShadingSceneRenderer::PreparePathTracing(const FSceneViewFamily& ViewFamily, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	if (ViewFamily.EngineShowFlags.PathTracing
 		&& ShouldCompilePathTracingShadersForProject(ViewFamily.GetShaderPlatform()))
 	{
 		// Declare all RayGen shaders that require material closest hit shaders to be bound
 		const int CompactionType = CVarPathTracingCompaction.GetValueOnRenderThread();
-		FPathTracingRG::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FPathTracingRG::FCompactionType>(CompactionType);
+		FPathTracingRG::FPermutationDomain PermutationVector = GetPathTracingRGPermutation(Scene);
 		{
 			auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FPathTracingRG>(PermutationVector);
 			OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
@@ -2577,9 +2587,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 				}
 				PathStateData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPathTracingPackedPathState), NumPaths), TEXT("PathTracer.PathStateData"));
 			}
-			FPathTracingRG::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FPathTracingRG::FCompactionType>(CompactionType);
-			TShaderMapRef<FPathTracingRG> RayGenShader(View.ShaderMap, PermutationVector);
+
+			TShaderMapRef<FPathTracingRG> RayGenShader(View.ShaderMap, GetPathTracingRGPermutation(*Scene));
 			FPathTracingRG::FParameters* PreviousPassParameters = nullptr;
 			// Divide each tile among all the active GPUs (interleaving scanlines)
 			// The assumption is that the tiles are as big as possible, hopefully covering the entire screen

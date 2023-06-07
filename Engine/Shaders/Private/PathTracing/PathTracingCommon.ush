@@ -323,6 +323,10 @@ struct FPathTracingPayload : FMinimalPayload
 	float3 TransmittanceN;
 	float CoverageAboveAlongN;
 	float SpecularProfileId;
+	float GlintValue;
+	float2 GlintUV;
+	float2 GlintUVdx;
+	float2 GlintUVdy;
 
 	// not transported through packed payload, but used in raygen
 	float3 SubsurfaceColor;
@@ -606,7 +610,7 @@ FPackedPathTracingPayload PackPathTracingPayload(FPathTracingPayload Input)
 	Output.PackedData[5] = PayloadEncodeLDRColor(Input.DiffuseColor);
 	Output.PackedData[6] = PayloadEncodeLDRColor(Input.SpecularColor);
 	Output.PackedData[7] = PayloadEncodeLDRColor(Input.SpecularEdgeColor);
-	Output.PackedData[8] = PayloadEncodeLDRColor(Input.RoughnessData); // not a color, but encoding is still ok
+	Output.PackedData[8] = PackRGBA8(float4(Input.RoughnessData, 0.5 * Input.Anisotropy + 0.5)); // not a color, but encoding is still ok. NOTE: Aniso is [-1,1]
 	Output.PackedData[9] = PayloadEncodeUnitVector(Input.WorldTangent);
 	Output.PackedData[10] = PayloadEncodeLDRColor(Input.TransparencyColor);
 	Output.PackedData[11] = f32tof16(Input.MeanFreePath.x);
@@ -614,12 +618,24 @@ FPackedPathTracingPayload PackPathTracingPayload(FPathTracingPayload Input)
 	Output.PackedData[12] = f32tof16(Input.MeanFreePath.z);
 	Output.PackedData[12]|= f32tof16(Input.PhaseG) << 16;
 	Output.PackedData[13] = PayloadEncodeLDRColor(Input.FuzzColor);
-    Output.PackedData[14] = PayloadEncodeLDRColor(float3(0.5 * Input.Anisotropy + 0.5, Input.FuzzAmount, Input.FuzzRoughness)); // NOTE: Aniso is [-1,1]
+    Output.PackedData[14] = PayloadEncodeLDRColor(float3(0, Input.FuzzAmount, Input.FuzzRoughness));
 	Output.PackedData[15] = PayloadEncodeLDRColor(Input.WeightV);
 	Output.PackedData[16] = PayloadEncodeLDRColor(Input.TransmittanceN);
 	Output.PackedData[17] = Pack10F(Input.Ior);
 	Output.PackedData[17]|= Pack10F(Input.CoverageAboveAlongN) << 10;
 	Output.PackedData[17]|= Pack10F(Input.SpecularProfileId) << 20;
+	Output.PackedData[17]|= (Input.GlintValue > 0 ? 1u : 0u) << 30; // Bit flag for glint. 
+
+	// In order to not increase the data payload size, we alias SSS/Fuzz parameters when glint are enabled
+	if (Input.GlintValue > 0)
+	{
+		const uint2 PackedGlintsData = PackGlints(Input.GlintValue, Input.GlintUV);
+		Output.PackedData[11] = PackedGlintsData.x;
+		Output.PackedData[12] = PackedGlintsData.y;
+		Output.PackedData[13] = PackFloat2ToUInt(Input.GlintUVdx);
+		Output.PackedData[14] = PackFloat2ToUInt(Input.GlintUVdx);
+	}
+
 #else // PATHTRACING_STRATA_PAYLOAD
 
 
@@ -678,7 +694,8 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, FR
 	Output.DiffuseColor        = PayloadDecodeLDRColor(Input.PackedData[5]);
 	Output.SpecularColor       = PayloadDecodeLDRColor(Input.PackedData[6]);
 	Output.SpecularEdgeColor   = PayloadDecodeLDRColor(Input.PackedData[7]);
-	Output.RoughnessData       = PayloadDecodeLDRColor(Input.PackedData[8]);
+	Output.RoughnessData       = UnpackRGBA8(Input.PackedData[8]).xyz;
+	Output.Anisotropy          = 2 * UnpackRGBA8(Input.PackedData[8]).w - 1;
 	Output.WorldTangent        = PayloadDecodeUnitVector(Input.PackedData[9]);
 	Output.TransparencyColor   = PayloadDecodeLDRColor(Input.PackedData[10]);
 	Output.MeanFreePath.x      = f16tof32(Input.PackedData[11]);
@@ -687,7 +704,6 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, FR
 	Output.PhaseG              = f16tof32(Input.PackedData[12] >> 16);
 	Output.FuzzColor           = PayloadDecodeLDRColor(Input.PackedData[13]);
 	const float3 Data14        = PayloadDecodeLDRColor(Input.PackedData[14]);
-	Output.Anisotropy          = 2 * Data14.x - 1;
 	Output.FuzzAmount          = Data14.y;
 	Output.FuzzRoughness       = Data14.z;
 	Output.WeightV             = PayloadDecodeLDRColor(Input.PackedData[15]);
@@ -695,6 +711,24 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, FR
 	Output.Ior                 = Unpack10F(Input.PackedData[17]);
 	Output.CoverageAboveAlongN = Unpack10F(Input.PackedData[17] >> 10);
 	Output.SpecularProfileId   = Unpack10F(Input.PackedData[17] >> 20);
+	
+	// In order to not increase the data payload size, we alias SSS/Fuzz parameters when glint are enabled
+	const bool bHasGlints = ((Input.PackedData[17] >> 30u) & 0x1u) > 0u;
+	if (bHasGlints)
+	{
+		Output.MeanFreePath.x      = 0.f;
+		Output.MeanFreePath.y      = 0.f;
+		Output.MeanFreePath.z      = 0.f;
+		Output.PhaseG              = 0.f;
+		Output.FuzzColor           = 0.f;
+		Output.FuzzAmount          = 0.f;
+		Output.FuzzRoughness       = 0.f;
+
+		UnpackGlints(uint2(Input.PackedData[11], Input.PackedData[12]), Output.GlintValue, Output.GlintUV);
+		Output.GlintUVdx = UnpackFloat2FromUInt(Input.PackedData[13]);
+		Output.GlintUVdy = UnpackFloat2FromUInt(Input.PackedData[14]);
+	}
+
 #else // PATHTRACING_STRATA_PAYLOAD
 	Output.BaseColor = PayloadDecodeLDRColor(Input.PackedData[5]);
 	Output.TransparencyColor = PayloadDecodeLDRColor(Input.PackedData[6]);

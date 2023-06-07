@@ -804,6 +804,16 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 					{
 						Payload.SpecularProfileId = SLAB_SPECPROFILEID(BSDF);
 					}
+					Payload.GlintValue = 0;
+					if (BSDF_GETHASGLINT(BSDF))
+					{
+						Payload.GlintValue = SLAB_GLINT_VALUE(BSDF);
+						Payload.GlintUV = SLAB_GLINT_UV(BSDF);
+						
+						const float PlaceholderEpsilon = 0.001f;
+						Payload.GlintUVdx = float2(PlaceholderEpsilon, 0); // STRATA_TODO: SLAB_GLINT_UVDDX(BSDF)
+						Payload.GlintUVdy = float2(0, PlaceholderEpsilon); // STRATA_TODO: SLAB_GLINT_UVDDY(BSDF)
+					}
 					Payload.WeightV             = BSDF.LuminanceWeightV;
 					Payload.TransmittanceN      = BSDF.TransmittanceAboveAlongN;
 					Payload.CoverageAboveAlongN = BSDF.CoverageAboveAlongN;

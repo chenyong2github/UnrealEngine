@@ -136,7 +136,7 @@ FMaterialSample Substrate_SampleMaterial(
 	FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, 1.0, OutRoughness, PATHTRACER_SCATTER_DIFFUSE);
 
 	const float DiffPdf = NoL / PI;
-	const float2 GGXResult0 = GGXEvalReflection(L, V, H, Data.Alpha0);
+	float2 GGXResult0 = GGXEvalReflection(L, V, H, Data.Alpha0);
 	const float2 GGXResult1 = GGXEvalReflection(L, V, H, Data.Alpha1);
 	const float Spec0Pdf = GGXResult0.y;
 	const float Spec1Pdf = GGXResult1.y;
@@ -155,6 +155,8 @@ FMaterialSample Substrate_SampleMaterial(
 	}
 	else if (bSampledSpecular)
 	{
+		SubstrateGlint(Payload, V, L, Data.Alpha0, GGXResult0.y /*Pdf*/, GGXResult0.x /*Weight*/);
+		
 		const float3 FTint = SubstrateSpecularTint(Payload, NoV, NoL, VoH, NoH);
 #if STRATA_FRESNEL_F82
 		// STRATA_TODO: Need to tune the logic for specular micro-occlusion ...
@@ -218,7 +220,7 @@ FMaterialEval Substrate_EvalMaterial(
 		Result.AddLobeWithMIS(DiffuseSpecularScale.x * Diffuse * ShadowTerminator, NoL / PI, Data.LobePdf.x);
 	}
 	{
-		const float2 GGXResult0 = GGXEvalReflection(L, V, H, Data.Alpha0);
+		float2 GGXResult0 = GGXEvalReflection(L, V, H, Data.Alpha0);
 		const float2 GGXResult1 = GGXEvalReflection(L, V, H, Data.Alpha1);
 		const float3 FTint = SubstrateSpecularTint(Payload, NoV, NoL, VoH, NoH);
 #if STRATA_FRESNEL_F82
@@ -226,6 +228,8 @@ FMaterialEval Substrate_EvalMaterial(
 #else
 		const float3 F = Data.FuzzAttenuation * F_Schlick(Data.F0, Data.F90, VoH) * FTint;
 #endif
+		SubstrateGlint(Payload, V, L, Data.Alpha0, GGXResult0.y /*Pdf*/, GGXResult0.x /*Weight*/);
+
 		Result.AddLobeWithMIS(DiffuseSpecularScale.y * (1.0 - Payload.RoughnessData.z) * F * GGXResult0.x * Data.Spec0.W, GGXResult0.y, Data.LobePdf.y);
 		Result.AddLobeWithMIS(DiffuseSpecularScale.y * (      Payload.RoughnessData.z) * F * GGXResult1.x * Data.Spec1.W, GGXResult1.y, Data.LobePdf.z);
 	}

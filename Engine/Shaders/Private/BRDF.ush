@@ -743,3 +743,36 @@ float3 SimpleClearCoatTransmittance(float NoL, float NoV, float Metallic, float3
 
 	return Transmittance;
 }
+
+// Conversion of GGX roughness to Beckmann roughness
+// Using Microfacet Distribution Function: To Change or Not to Change, That Is the Question.
+float ConvertRoughnessGGXToBeckmann(float Roughness)
+{
+	// Use a custom remapping to better match the overall highlight shape, in particular for lower roughness (i.e., <0.5). 
+	// The original mapping was Ctr=Roughness based on the paper
+	const float Ctr = pow(Roughness, 0.7f);
+	return saturate(0.8388 * Ctr+ 0.7 * Pow4(Ctr));
+}
+float2 ConvertRoughnessGGXToBeckmann(float2 Roughness)
+{
+	return float2(ConvertRoughnessGGXToBeckmann(Roughness.x), ConvertRoughnessGGXToBeckmann(Roughness.y));
+}
+
+struct FBeckmannDesc
+{
+	float2 Roughness;	// Roughness
+	float2 Alpha;		// Roughness squared
+	float2 Sigma;		// RMS slope of the microfacets
+	float  Rho;			// Slope correlation factor to be used with LEAN mapping. See http://igg.unistra.fr/People/chermain/assets/pdf/Chermain2021RealTime.pdf.
+};
+FBeckmannDesc GGXToBeckmann(float2 GGXSafeRoughness)
+{
+	const float InvSqrt2 = 0.707106f;
+
+	FBeckmannDesc Out;
+	Out.Roughness	= ConvertRoughnessGGXToBeckmann(GGXSafeRoughness);
+	Out.Alpha		= Square(Out.Roughness);
+	Out.Sigma		= Out.Alpha * InvSqrt2;
+	Out.Rho			= 0.0f;
+	return Out;
+}

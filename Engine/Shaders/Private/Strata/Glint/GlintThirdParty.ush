@@ -28,6 +28,8 @@ struct FGlintLutParams
 	float MinLDist;
 };
 
+#define USE_GLINT_AA (!RAYCALLABLESHADER && !RAYHITGROUPSHADER && !RAYGENSHADER && !RAYMISSSHADER)
+
 // Geometric Glint Anti-Aliasing parameters
 #define KernelSize						0.5
 #define GGAAFilter						1
@@ -259,6 +261,7 @@ float P22_M(
 	//=========================== Contribution 1 ==============================
 	//================================ GGAA ===================================
 	//=========================================================================
+#if USE_GLINT_AA
 	if (GGAAFilter)
 	{
 		// As for the distribution, we transform the filtering kernel
@@ -285,6 +288,7 @@ float P22_M(
 	//========================= END Contribution 1 ============================
 	//=========================================================================
 	else // Without geometric glint anti-aliasing
+#endif
 	{
 		P_20_o = View.GlintTexture.SampleLevel(
 			View.GlintSampler,
@@ -387,7 +391,7 @@ float P22__glint_discrete_LOD(
 //=============================================================================
 //======== Evaluation of the procedural physically based glinty BRDF ==========
 //=============================================================================
-float f_P(float3 wo, float3 wi, float3 sigmas_rho, float LogMicrofacetDensity, float2 TexCoord, float2 TexCoordDDX, float2 TexCoordDDY)
+float f_P(float3 wo, float3 wi, float3 sigmas_rho, float LogMicrofacetDensity, float2 TexCoord, float2 TexCoordDDX, float2 TexCoordDDY, bool bIncludeGeometryTerm=false)
 {
 	if (wo.z <= 0.)
 		return 0;
@@ -415,8 +419,9 @@ float f_P(float3 wo, float3 wi, float3 sigmas_rho, float LogMicrofacetDensity, f
 	// Normal to slope
 	float2 slope_h = float2(-wh.x / wh.z, -wh.y / wh.z);
 
-	float2 slope_dx;
-	float2 slope_dy;
+	float2 slope_dx = 0;
+	float2 slope_dy = 0;
+#if USE_GLINT_AA
 	if (UseHemisDerivatives)
 	{
 		// Derivatives in the projected hemispherical domain
@@ -429,6 +434,7 @@ float f_P(float3 wo, float3 wi, float3 sigmas_rho, float LogMicrofacetDensity, f
 		slope_dx = ddx(slope_h);
 		slope_dy = ddy(slope_h);
 	}
+#endif
 
 	float D_P = 0;
 	float P22_P = 0.;
@@ -518,7 +524,14 @@ float f_P(float3 wo, float3 wi, float3 sigmas_rho, float LogMicrofacetDensity, f
 //	// the cosine weight in the rendering equation
 //	return (F * G * D_P) / (4. * wo.z);
 
-	return D_P / (4. * wo.z);
+	float G = 1.f;
+	if (bIncludeGeometryTerm)
+	{
+		float G1wowh = min(1., 2. * wh.z * wo.z / dot(wo, wh));
+		float G1wiwh = min(1., 2. * wh.z * wi.z / dot(wi, wh));
+		G = G1wowh * G1wiwh;																						// TODO check 
+	}
+	return G * D_P / (4. * wo.z);
 }
 
 // Glint Sampling

@@ -8,7 +8,6 @@
 	#error STRATA_ENABLED needs to be defined
 #endif
 
-
 #if STRATA_ENABLED
 
 #include "../ShadingEnergyConservation.ush"
@@ -107,9 +106,7 @@
 #endif
 #endif
 
-// Disable glint when in tracing mode for now since derivative are not available.
-#define STRATA_GLINTS_DERIVATIVE_SUPPORTED (!RAYCALLABLESHADER && !RAYHITGROUPSHADER && !RAYGENSHADER && !RAYMISSSHADER)
-#define STRATA_GLINTS_ENABLED (STRATA_COMPLEXSPECIALPATH && PLATFORM_ENABLES_STRATA_GLINTS && STRATA_GLINTS_DERIVATIVE_SUPPORTED)
+#define STRATA_GLINTS_ENABLED (STRATA_COMPLEXSPECIALPATH && PLATFORM_ENABLES_STRATA_GLINTS)
 
 #define STRATA_SPECPROFILE_ENABLED (STRATA_COMPLEXSPECIALPATH && PLATFORM_ENABLES_STRATA_SPECULAR_PROFILE)
 
@@ -873,6 +870,28 @@ uint GetSpecularProfileId(float In)
 uint GetSpecularProfileParameterization(float In)
 {
 	return In > 0.f ? 0u : 1u;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Glint
+
+uint2 PackGlints(float InValue, float2 InUV)
+{
+	const uint Packed16 = f32tof16(InValue);
+	const uint Packed8L = (Packed16 & 0xFF) << 24;
+	const uint Packed8H = (Packed16 >> 8  ) << 24;
+
+	uint2 Out;
+	Out.x = PackR24F(InUV.x) | Packed8L;
+	Out.y = PackR24F(InUV.y) | Packed8H;
+	return Out;
+}
+
+void UnpackGlints(in uint2 InPacked, inout float OutValue, inout float2 OutUV)
+{
+	OutUV.x	= UnpackR24F(InPacked.x);
+	OutUV.y	= UnpackR24F(InPacked.y);
+	OutValue= f16tof32((InPacked.x>>24) | ((InPacked.y>>16) & 0xFF00)); 
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -4167,10 +4186,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 			uint2 GlintPackedData;
 			GlintPackedData.x = StrataLoadUint1(StrataBuffer, StrataAddressing);
 			GlintPackedData.y = StrataLoadUint1(StrataBuffer, StrataAddressing);
-
-			SLAB_GLINT_UV(OutBSDF).x	= UnpackR24F(GlintPackedData.x);
-			SLAB_GLINT_UV(OutBSDF).y	= UnpackR24F(GlintPackedData.y);
-			SLAB_GLINT_VALUE(OutBSDF)	= f16tof32((GlintPackedData.x>>24) | ((GlintPackedData.y>>16) & 0xFF00)); 
+			UnpackGlints(GlintPackedData, SLAB_GLINT_VALUE(OutBSDF), SLAB_GLINT_UV(OutBSDF));
 
 			SLAB_GLINT_UVDDX(OutBSDF)	= UnpackFloat2FromUInt(StrataLoadUint1(StrataBuffer, StrataAddressing));
 			SLAB_GLINT_UVDDY(OutBSDF)	= UnpackFloat2FromUInt(StrataLoadUint1(StrataBuffer, StrataAddressing));

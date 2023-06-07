@@ -1875,7 +1875,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 		{
 			// This view only needs the path tracing raygen shaders as all other
 			// passes should be disabled.
-			PreparePathTracing(ViewFamily, RayGenShaders);
+			PreparePathTracing(ViewFamily, *Scene, RayGenShaders);
 		}
 		else
 		{
