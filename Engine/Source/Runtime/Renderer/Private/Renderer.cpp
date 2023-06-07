@@ -431,7 +431,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 								&View,
 								DrawRenderState,
 								DynamicMeshPassContext,
-								FMobileBasePassMeshProcessor::EFlags::CanReceiveCSM);
+								FMobileBasePassMeshProcessor::EFlags::CanReceiveCSM | FMobileBasePassMeshProcessor::EFlags::ForcePassDrawRenderState);
 
 							const uint64 DefaultBatchElementMask = ~0ull;
 							PassMeshProcessor.AddMeshBatch(Mesh, DefaultBatchElementMask, nullptr);
