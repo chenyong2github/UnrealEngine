@@ -546,8 +546,9 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		FeedbackResults.HierarchyOffset		= InstanceData.NaniteHierarchyOffset;
 		FeedbackResults.RuntimeResourceID	= InstanceData.NaniteRuntimeResourceID;
 
-		const float4 ClusterBoundsColor  = ColorLightGreen;
-		const float4 InstanceBoundsColor = ColorOrange;
+		const float4 ClusterBoundsColor		= ColorLightGreen;
+		const float4 InstanceBoundsColor	= ColorOrange;
+		const float4 ClusterLODBoundsColor	= ColorYellow;
 
 		FShaderPrintContext ShaderPrint = InitShaderPrintContext();
 		const float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
@@ -562,8 +563,13 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		// If WPO and/or material displacement is enabled, the cluster bounds will have been dilated to account for max displacement
 		float3 ClusterBoxBoundsCenter = Cluster.BoxBoundsCenter;
 		float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent;
+		float4 ClusterLODSphere = Cluster.LODBounds;
+
 		if ((InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS) != 0)
 		{
+			// Only show the spline mesh debug stuff when picking clusters
+			ShaderPrint.bIsActive = GetPickingDomain() == NANITE_PICKING_DOMAIN_CLUSTER;
+
 			const FSplineMeshDeformedLocalBounds NewBounds = SplineMeshDeformLocalBoundsDebug(
 				InstanceData.SplineMeshParams,
 				ShaderPrint,
@@ -573,6 +579,10 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 			);
 			ClusterBoxBoundsCenter = NewBounds.BoundsCenter;
 			ClusterBoxBoundsExtent = NewBounds.BoundsExtent;
+
+			ClusterLODSphere = SplineMeshDeformLODSphereBounds(InstanceData.SplineMeshParams, ClusterLODSphere);
+
+			ShaderPrint.bIsActive = true;
 		}
 		ClusterBoxBoundsExtent += WPOExtent + AbsMaxMaterialDisplacement.xxx;
 
@@ -596,6 +606,18 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		);
 
 		AddReferentialTWS(ShaderPrint, LocalToTranslatedWorld, 50.f);
+
+		// Only show the cluster LOD bounds with cluster picking to reduce visual noise
+		if (GetPickingDomain() == NANITE_PICKING_DOMAIN_CLUSTER)
+		{
+			AddSphereTWS(
+				ShaderPrint,
+				mul(float4(ClusterLODSphere.xyz, 1), LocalToTranslatedWorld).xyz,
+				ClusterLODSphere.w * InstanceData.NonUniformScale.w,
+				ClusterLODBoundsColor,
+				32
+			);
+		}
 	}
 	else
 	{

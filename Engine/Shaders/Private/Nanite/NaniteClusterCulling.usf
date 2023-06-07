@@ -141,13 +141,15 @@ void TransformNodeCullingBounds(
 		FSplineMeshDeformedLocalBounds NewBounds = SplineMeshDeformLocalBounds(InstanceData.SplineMeshParams, Bounds.BoxCenter, Bounds.BoxExtent);
 		Bounds.BoxCenter = NewBounds.BoundsCenter;
 		Bounds.BoxExtent = NewBounds.BoundsExtent;
-		Bounds.MeshMinDeformScale = InstanceData.SplineMeshParams.MeshDeformScaleMinMax.x;
 
-		// TODO: This isn't currently sufficient to prevent artifacts due to incorrectly selecting SW rasterization.
+		// Also modify the sphere used to select the cut of the DAG for final LOD selection.
+		// NOTE: This solution currently does nothing to maintain the inherent monotonicity of bounds between levels of
+		// the DAG and as a result, it is possible this could result in clusters from different LODs overlapping, or
+		// in clusters dropping out entirely.
+		Bounds.Sphere = SplineMeshDeformLODSphereBounds(InstanceData.SplineMeshParams, Bounds.Sphere);
+
+		Bounds.MeshMinDeformScale = InstanceData.SplineMeshParams.MeshDeformScaleMinMax.x;
 		Bounds.NodeMaxDeformScale = NewBounds.DeformScaleMinMax.y;
-		
-		// NOTE: Only scale the LOD bounds uniformly across entire instance so we don't break LOD selection logic.
-		Bounds.Sphere.w *= InstanceData.SplineMeshParams.MeshDeformScaleMinMax.y;
 	}
 #endif
 

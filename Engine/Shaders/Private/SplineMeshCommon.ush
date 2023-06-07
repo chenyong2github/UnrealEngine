@@ -344,3 +344,39 @@ FSplineMeshDeformedLocalBounds SplineMeshDeformLocalBoundsDebug(
 		)
 	);
 }
+
+/**
+ * Deforms a local-space mesh bounding sphere to *approximately* match its post-deformation equivalent along the spline.
+ *
+ * NOTE: This is currently only needed for Nanite LOD spheres, which are pretty tolerant to being very approximate
+ * without having huge repercussions to the LOD quality. This is not a good solution if you need an accurate
+ * transformation of local bounds (e.g. for use with culling). Also, this solution is not a monotonic transformation,
+ * which is known to potentially create issues with Nanite's LOD selection.
+ */
+float4 SplineMeshDeformLODSphereBounds(FSplineMeshShaderParams Params, float4 LODSphere)
+{
+	const float SplineDist = saturate(SplineMeshCalcSplineDistance(Params, LODSphere.xyz));
+	const float3 SplinePos = SplineMeshEvalPos(Params, SplineDist);
+	const float3 SplineDir = SplineMeshEvalDir(Params, SplineDist);
+
+	float2 Scale, Offset;
+	float Roll;
+	SplineMeshEvalScaleRollOffset(Params, SplineDist, Scale, Roll, Offset);
+
+	const float3 BaseXVec = normalize( cross(Params.SplineUpDir, SplineDir) );
+	const float3 BaseYVec = cross(SplineDir, BaseXVec);
+
+	float SinAng, CosAng;
+	sincos(Roll, SinAng, CosAng);
+	const float3 XVec = (CosAng * BaseXVec) - (SinAng * BaseYVec);
+	const float3 YVec = (CosAng * BaseYVec) + (SinAng * BaseXVec);
+
+	const float2 LocalCenterXY = { dot(Params.MeshX, LODSphere.xyz), dot(Params.MeshY, LODSphere.xyz) };
+	const float3 SliceCenter = SplinePos +
+		XVec * LocalCenterXY.x * Scale.x +
+		YVec * LocalCenterXY.y * Scale.y +
+		BaseXVec * Offset.x +
+		BaseYVec * Offset.y;
+
+	return float4(SliceCenter, LODSphere.w * Params.MeshDeformScaleMinMax.y);
+}

@@ -337,9 +337,10 @@ static FRDGBufferRef PerformPicking(
 
 	// Make sure there's space for all debug lines the picking CS could possibly draw
 	const uint32 NumDebugLines =
-		8 * 2	// 2 OBBs - Instance + Cluster
-		+ 3		// Instance origin axis
-		+ 5 * 4	// For selected cluster of a spline mesh, shows rect slices used to generate AABB
+		8 * 2			// 2 OBBs - Instance + Cluster
+		+ 3				// Instance origin axis
+		+ 32 * 3		// (Cluster domain) Cluster LOD bounds sphere
+		+ 5 * 4			// (Cluster domain, Spline mesh) Rect slices used to generate deformed cluster AABB
 	;
 	ShaderPrint::RequestSpaceForLines(NumDebugLines);
 
