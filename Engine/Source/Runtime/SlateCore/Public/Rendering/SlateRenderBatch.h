@@ -16,37 +16,15 @@ struct FSlateDataPayload;
 
 struct FSlateRenderBatchParams
 {
-	FSlateRenderBatchParams(
-		int32 InLayer,
-		const FShaderParams& InShaderParams,
-		const FSlateShaderResource* InResource,
-		ESlateDrawPrimitive InPrimitiveType,
-		ESlateShader InShaderType,
-		ESlateDrawEffect InDrawEffects,
-		ESlateBatchDrawFlag InDrawFlags,
-		int8 InSceneIndex,
-		const FSlateClippingState* InClippingState)
-		: Layer(InLayer)
-		, ShaderParams(InShaderParams)
-		, Resource(InResource)
-		, PrimitiveType(InPrimitiveType)
-		, ShaderType(InShaderType)
-		, DrawEffects(InDrawEffects)
-		, DrawFlags(InDrawFlags)
-		, SceneIndex(InSceneIndex)
-		, ClippingState(InClippingState)
-	{ 
-	}
-
 	int32 Layer;
-	const FShaderParams ShaderParams;
-	const FSlateShaderResource* Resource;
+	FShaderParams ShaderParams;
+	const FSlateShaderResource* Resource = nullptr;
 	ESlateDrawPrimitive PrimitiveType;
 	ESlateShader ShaderType;
 	ESlateDrawEffect DrawEffects;
 	ESlateBatchDrawFlag DrawFlags;
 	int8 SceneIndex;
-	const FSlateClippingState* ClippingState;
+	const FSlateClippingState* ClippingState = nullptr;
 
 	bool IsBatchableWith(const FSlateRenderBatchParams& Other) const
 	{
