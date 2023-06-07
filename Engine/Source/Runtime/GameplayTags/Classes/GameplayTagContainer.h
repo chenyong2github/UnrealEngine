@@ -552,6 +552,9 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 		InOutGameplayTags = GameplayTags;
 	}
 
+	/** Gets the explicit list of gameplay tags */
+	const TArray<FGameplayTag>& GetGameplayTagArray() const;
+
 	/** Creates a const iterator for the contents of this array */
 	TArray<FGameplayTag>::TConstIterator CreateConstIterator() const
 	{
@@ -882,11 +885,14 @@ public:
 	/** Returns description string. */
 	const FString& GetDescription() const { return UserDescription.IsEmpty() ? AutoDescription : UserDescription; };
 
-	//** Gets the explicit list of all unique gameplay tags referenced by the query. */
+	/** Gets the explicit list of all unique gameplay tags referenced by the query. */
 	void GetGameplayTagArray(TArray<FGameplayTag>& OutGameplayTags) const
 	{
 		OutGameplayTags = TagDictionary;
 	}
+
+	/** Gets the explicit list of all unique gameplay tags referenced by the query. */
+	const TArray<FGameplayTag>& GetGameplayTagArray() const;
 
 #if WITH_EDITOR
 	/** Creates this query based on the given EditableQuery object */

@@ -5393,20 +5393,17 @@ bool FGameplayModifierInfo::operator==(const FGameplayModifierInfo& Other) const
 		return false;
 	}
 
-	if (SourceTags.RequireTags.Num() != Other.SourceTags.RequireTags.Num() || !SourceTags.RequireTags.HasAllExact(Other.SourceTags.RequireTags))
-	{
-		return false;
-	}
-	if (SourceTags.IgnoreTags.Num() != Other.SourceTags.IgnoreTags.Num() || !SourceTags.IgnoreTags.HasAllExact(Other.SourceTags.IgnoreTags))
+	if (EvaluationChannelSettings != Other.EvaluationChannelSettings)
 	{
 		return false;
 	}
 
-	if (TargetTags.RequireTags.Num() != Other.TargetTags.RequireTags.Num() || !TargetTags.RequireTags.HasAllExact(Other.TargetTags.RequireTags))
+	if (SourceTags != Other.SourceTags)
 	{
 		return false;
 	}
-	if (TargetTags.IgnoreTags.Num() != Other.TargetTags.IgnoreTags.Num() || !TargetTags.IgnoreTags.HasAllExact(Other.TargetTags.IgnoreTags))
+
+	if (TargetTags != Other.TargetTags)
 	{
 		return false;
 	}

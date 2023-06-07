@@ -507,6 +507,10 @@ bool FQueryEvaluator::EvalExpr(FGameplayTagContainer const& Tags, bool bSkip)
 	return false;
 }
 
+const TArray<FGameplayTag>& FGameplayTagContainer::GetGameplayTagArray() const
+{
+	return GameplayTags;
+}
 
 FGameplayTagContainer& FGameplayTagContainer::operator=(FGameplayTagContainer const& Other)
 {
@@ -539,15 +543,7 @@ bool FGameplayTagContainer::operator==(FGameplayTagContainer const& Other) const
 		return false;
 	}
 
-	for (const FGameplayTag& Tag : GameplayTags)
-	{
-		if (!Tag.MatchesAnyExact(Other))
-		{
-			return false;
-		}
-	}
-
-	return true;
+	return HasAllExact(Other);
 }
 
 bool FGameplayTagContainer::operator!=(FGameplayTagContainer const& Other) const
@@ -1413,6 +1409,11 @@ void FGameplayTagQuery::GetQueryExpr(FGameplayTagQueryExpression& OutExpr) const
 	QE.Read(OutExpr);
 }
 
+const TArray<FGameplayTag>& FGameplayTagQuery::GetGameplayTagArray() const
+{
+	return TagDictionary;
+}
+	
 void FGameplayTagQuery::Serialize(FArchive& Ar)
 {
 	Ar << TokenStreamVersion;

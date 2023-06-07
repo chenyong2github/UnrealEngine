@@ -90,6 +90,16 @@ void FGameplayModEvaluationChannelSettings::SetEvaluationChannel(EGameplayModEva
 	}
 }
 
+bool FGameplayModEvaluationChannelSettings::operator==(const FGameplayModEvaluationChannelSettings& Other) const
+{
+	return GetEvaluationChannel() == Other.GetEvaluationChannel();
+}
+
+bool FGameplayModEvaluationChannelSettings::operator!=(const FGameplayModEvaluationChannelSettings& Other) const
+{
+	return !(*this == Other);
+}
+
 float GameplayEffectUtilities::GetModifierBiasByModifierOp(EGameplayModOp::Type ModOp)
 {
 	static const float ModifierOpBiases[EGameplayModOp::Max] = {0.f, 1.f, 1.f, 0.f};
@@ -841,15 +851,16 @@ EGameplayTagEventType::Type FGameplayTagBlueprintPropertyMap::GetGameplayTagEven
 
 bool FGameplayTagRequirements::RequirementsMet(const FGameplayTagContainer& Container) const
 {
-	bool HasRequired = Container.HasAll(RequireTags);
-	bool HasIgnored = Container.HasAny(IgnoreTags);
+	const bool bHasRequired = Container.HasAll(RequireTags);
+	const bool bHasIgnored = Container.HasAny(IgnoreTags);
+	const bool bMatchQuery = TagQuery.IsEmpty() || TagQuery.Matches(Container);
 
-	return HasRequired && !HasIgnored;
+	return bHasRequired && !bHasIgnored && bMatchQuery;
 }
 
 bool FGameplayTagRequirements::IsEmpty() const
 {
-	return (RequireTags.Num() == 0 && IgnoreTags.Num() == 0);
+	return (RequireTags.Num() == 0 && IgnoreTags.Num() == 0 && TagQuery.IsEmpty());
 }
 
 FString FGameplayTagRequirements::ToString() const
@@ -864,18 +875,54 @@ FString FGameplayTagRequirements::ToString() const
 	{
 		Str += FString::Printf(TEXT("ignore: %s "), *IgnoreTags.ToStringSimple());
 	}
+	if (!TagQuery.IsEmpty())
+	{
+		Str += TagQuery.GetDescription();
+	}
 
 	return Str;
 }
 
 bool FGameplayTagRequirements::operator==(const FGameplayTagRequirements& Other) const
 {
-	return RequireTags == Other.RequireTags && IgnoreTags == Other.IgnoreTags;
+	return RequireTags == Other.RequireTags && IgnoreTags == Other.IgnoreTags && TagQuery == Other.TagQuery;
 }
 
 bool FGameplayTagRequirements::operator!=(const FGameplayTagRequirements& Other) const
 {
 	return !(*this == Other);
+}
+
+FGameplayTagQuery FGameplayTagRequirements::ConvertTagFieldsToTagQuery() const
+{
+	const bool bHasRequireTags = !RequireTags.IsEmpty();
+	const bool bHasIgnoreTags = !IgnoreTags.IsEmpty();
+
+	if (!bHasIgnoreTags && !bHasRequireTags)
+	{
+		return FGameplayTagQuery{};
+	}
+
+	// FGameplayTagContainer::RequirementsMet is HasAll(RequireTags) && !HasAny(IgnoreTags);
+	FGameplayTagQueryExpression RequiredTagsQueryExpression = FGameplayTagQueryExpression().AllTagsMatch().AddTags(RequireTags);
+	FGameplayTagQueryExpression IgnoreTagsQueryExpression = FGameplayTagQueryExpression().NoTagsMatch().AddTags(IgnoreTags);
+
+	FGameplayTagQueryExpression RootQueryExpression;
+	if (bHasRequireTags && bHasIgnoreTags)
+	{
+		RootQueryExpression = FGameplayTagQueryExpression().AllExprMatch().AddExpr(RequiredTagsQueryExpression).AddExpr(IgnoreTagsQueryExpression);
+	}
+	else if (bHasRequireTags)
+	{
+		RootQueryExpression = RequiredTagsQueryExpression;
+	}
+	else // bHasIgnoreTags
+	{
+		RootQueryExpression = IgnoreTagsQueryExpression;
+	}
+
+	// Build the expression
+	return FGameplayTagQuery::BuildQuery(RootQueryExpression);
 }
 
 void FActiveGameplayEffectsContainer::PrintAllGameplayEffects() const

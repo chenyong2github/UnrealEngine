@@ -521,18 +521,23 @@ protected:
 				{
 					AutomationCommandQueue.Add(EAutomationCommand::ListAllTests);
 				}
+				else if (FParse::Command(&TempCmd, TEXT("Now")))
+				{
+					DelayTimer = 0.0f;
+				}
 				else if (FParse::Command(&TempCmd, TEXT("RunTests")) || FParse::Command(&TempCmd, TEXT("RunTest")))
 				{
+					if (FParse::Command(&TempCmd, TEXT("Now")))
+					{
+						DelayTimer = 0.0f;
+						continue;
+					}
+
 					//only one of these should be used
 					if (IsRunTestQueued())
 					{
 						Ar.Logf(TEXT("Automation: A test run is already Queued: %s. Only one run is supported at a time."), *StringCommand);
 						continue;
-					}
-
-					if ( FParse::Command(&TempCmd, TEXT("Now")) )
-					{
-						DelayTimer = 0.0f;
 					}
 
 					StringCommand = TempCmd;
@@ -664,6 +669,7 @@ protected:
 					Ar.Logf(TEXT("\tAutomation SetFilter <filter name>"));
 					Ar.Logf(TEXT("\tAutomation SetMinimumPriority <minimum priority>"));
 					Ar.Logf(TEXT("\tAutomation SetPriority <priority>"));
+					Ar.Logf(TEXT("\tAutomation Now"));
 					Ar.Logf(TEXT("\tAutomation Quit"));
 					Ar.Logf(TEXT("\tAutomation SoftQuit"));
 					bHandled = false;

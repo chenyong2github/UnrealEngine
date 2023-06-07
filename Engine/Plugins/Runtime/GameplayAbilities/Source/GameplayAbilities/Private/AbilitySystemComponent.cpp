@@ -1888,6 +1888,9 @@ float UAbilitySystemComponent::GetFilteredAttributeValue(const FGameplayAttribut
 {
 	float AttributeValue = 0.f;
 
+	UE_CLOG(!SourceTags.TagQuery.IsEmpty(), LogAbilitySystem, Error, TEXT("GetFilteredAttributeValue: SourceTags cannot contain a TagQuery (it is ignored)"));
+	UE_CLOG(!SourceTags.IgnoreTags.IsEmpty(), LogAbilitySystem, Error, TEXT("GetFilteredAttributeValue: SourceTags cannot contain IgnoreTags (they are not used)"));
+
 	if (SourceTags.RequireTags.Num() == 0 && SourceTags.IgnoreTags.Num() == 0 && HandlesToIgnore.Num() == 0)
 	{
 		// No qualifiers so we can just read this attribute normally

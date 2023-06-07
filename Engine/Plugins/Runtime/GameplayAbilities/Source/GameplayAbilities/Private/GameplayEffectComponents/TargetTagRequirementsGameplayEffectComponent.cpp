@@ -3,6 +3,7 @@
 #include "GameplayEffectComponents/TargetTagRequirementsGameplayEffectComponent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemLog.h"
+#include "Algo/Find.h"
 #include "Misc/DataValidation.h"
 
 #define LOCTEXT_NAMESPACE "TargetTagRequirementsGameplayEffectComponent"
@@ -50,24 +51,43 @@ bool UTargetTagRequirementsGameplayEffectComponent::OnActiveGameplayEffectAdded(
 	FActiveGameplayEffectHandle ActiveGEHandle = ActiveGE.Handle;
 	if (FActiveGameplayEffectEvents* EventSet = ASC->GetActiveEffectEventSet(ActiveGEHandle))
 	{
-		// Keep track of everything I'm binding so that I can unbind it OnEffectRemoved
-		TArray<TTuple<FGameplayTag,FDelegateHandle>> AllBoundEvents;
-
-		// Add our tag requirements to the ASC's Callbacks map. This helps filter down the amount of callbacks we'll get due to tag changes
-		// (rather than registering for the one callback whenever any tag changes).  We also need to keep track to remove those registered delegates.
-		auto BindAllTags = [this, ASC, ActiveGEHandle, &AllBoundEvents](const FGameplayTagContainer& TagContainer)
+		// Quick method of appending a TArray to another TArray with no duplicates.
+		auto AppendUnique = [](TArray<FGameplayTag>& Destination, const TArray<FGameplayTag>& Source)
 		{
-			for (const FGameplayTag& Tag : TagContainer)
+			// Make sure the array won't allocate during the loop
+			if (Destination.GetSlack() < Source.Num())
 			{
-				FOnGameplayEffectTagCountChanged& OnTagEvent = ASC->RegisterGameplayTagEvent(Tag, EGameplayTagEventType::NewOrRemoved);
-				FDelegateHandle Handle = OnTagEvent.AddUObject(this, &UTargetTagRequirementsGameplayEffectComponent::OnTagChanged, ActiveGEHandle);
-				AllBoundEvents.Emplace(Tag, Handle);
+				Destination.Reserve(Destination.Num() + Source.Num());
+			}
+			const TConstArrayView<FGameplayTag> PreModifiedDestinationView{ Destination.GetData(), Destination.Num() };
+
+			for (const FGameplayTag& Tag : Source)
+			{
+				if (!Algo::Find(PreModifiedDestinationView, Tag))
+				{
+					Destination.Emplace(Tag);
+				}
 			}
 		};
-		BindAllTags(OngoingTagRequirements.IgnoreTags);
-		BindAllTags(OngoingTagRequirements.RequireTags);
-		BindAllTags(RemovalTagRequirements.IgnoreTags);
-		BindAllTags(RemovalTagRequirements.RequireTags);
+
+		// We should gather a list of tags to listen on events for
+		TArray<FGameplayTag> GameplayTagsToBind;
+		AppendUnique(GameplayTagsToBind, OngoingTagRequirements.IgnoreTags.GetGameplayTagArray());
+		AppendUnique(GameplayTagsToBind, OngoingTagRequirements.RequireTags.GetGameplayTagArray());
+		AppendUnique(GameplayTagsToBind, OngoingTagRequirements.TagQuery.GetGameplayTagArray());
+		AppendUnique(GameplayTagsToBind, RemovalTagRequirements.IgnoreTags.GetGameplayTagArray());
+		AppendUnique(GameplayTagsToBind, RemovalTagRequirements.RequireTags.GetGameplayTagArray());
+		AppendUnique(GameplayTagsToBind, RemovalTagRequirements.TagQuery.GetGameplayTagArray());
+
+		// Add our tag requirements to the ASC's Callbacks map. This helps filter down the amount of callbacks we'll get due to tag changes
+		// (rather than registering for the one callback whenever any tag changes).  We also need to keep track to remove those registered delegates in OnEffectRemoved.
+		TArray<TTuple<FGameplayTag, FDelegateHandle>> AllBoundEvents;
+		for (const FGameplayTag& Tag : GameplayTagsToBind)
+		{
+			FOnGameplayEffectTagCountChanged& OnTagEvent = ASC->RegisterGameplayTagEvent(Tag, EGameplayTagEventType::NewOrRemoved);
+			FDelegateHandle Handle = OnTagEvent.AddUObject(this, &UTargetTagRequirementsGameplayEffectComponent::OnTagChanged, ActiveGEHandle);
+			AllBoundEvents.Emplace(Tag, Handle);
+		}
 
 		// Now when this Effect is removed, we should remove all of our registered callbacks.
 		EventSet->OnEffectRemoved.AddUObject(this, &UTargetTagRequirementsGameplayEffectComponent::OnGameplayEffectRemoved, ASC, MoveTemp(AllBoundEvents));

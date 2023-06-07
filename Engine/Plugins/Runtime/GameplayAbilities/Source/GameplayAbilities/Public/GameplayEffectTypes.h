@@ -90,6 +90,9 @@ struct GAMEPLAYABILITIES_API FGameplayModEvaluationChannelSettings
 
 	void SetEvaluationChannel(EGameplayModEvaluationChannel NewChannel);
 
+	bool operator==(const FGameplayModEvaluationChannelSettings& Other) const;
+	bool operator!=(const FGameplayModEvaluationChannelSettings& Other) const;
+
 protected:
 
 	/** Channel the settings would prefer to use, if possible/valid */
@@ -1369,6 +1372,10 @@ struct GAMEPLAYABILITIES_API FGameplayTagRequirements
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayModifier, meta=(DisplayName="Must Not Have Tags"))
 	FGameplayTagContainer IgnoreTags;
 
+	/** Build up a more complex query that can't be expressed with RequireTags/IgnoreTags alone */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayModifier, meta = (DisplayName = "Query Must Match"))
+	FGameplayTagQuery TagQuery;
+
 	/** True if all required tags and no ignore tags found */
 	bool	RequirementsMet(const FGameplayTagContainer& Container) const;
 
@@ -1380,6 +1387,9 @@ struct GAMEPLAYABILITIES_API FGameplayTagRequirements
 
 	bool operator==(const FGameplayTagRequirements& Other) const;
 	bool operator!=(const FGameplayTagRequirements& Other) const;
+
+	/** Converts the RequireTags and IgnoreTags fields into an equivalent FGameplayTagQuery */
+	UE_NODISCARD FGameplayTagQuery ConvertTagFieldsToTagQuery() const;
 };
 
 
