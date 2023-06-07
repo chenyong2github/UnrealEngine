@@ -2,6 +2,10 @@
 
 #include "TessellationTable.h"
 
+#ifdef _MSC_VER
+#pragma warning(disable : 6385)
+#endif
+
 namespace Nanite
 {
 
