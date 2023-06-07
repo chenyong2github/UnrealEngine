@@ -172,3 +172,40 @@ private:
 	ChainGetter Getter;
 	ChainSetter Setter;
 };
+
+/**
+* Very simple accessor that returns the index. Read only
+* Key supported: All
+*/
+class FPCGIndexAccessor : public IPCGAttributeAccessorT<FPCGIndexAccessor>
+{
+public:
+	using Type = int32;
+	using Super = IPCGAttributeAccessorT<FPCGIndexAccessor>;
+
+	FPCGIndexAccessor()
+		: Super(/*bInReadOnly=*/ true)
+	{}
+
+	bool GetRangeImpl(TArrayView<int32> OutValues, int32 Index, const IPCGAttributeAccessorKeys& InKeys) const
+	{
+		const int32 NumKeys = InKeys.GetNum();
+		int32 Counter = Index;
+
+		for (int32 i = 0; i < OutValues.Num(); ++i)
+		{
+			OutValues[i] = Counter++;
+			if (Counter >= NumKeys)
+			{
+				Counter = 0;
+			}
+		}
+
+		return true;
+	}
+
+	bool SetRangeImpl(TArrayView<const int32>, int32, IPCGAttributeAccessorKeys&, EPCGAttributeAccessorFlags)
+	{
+		return false;
+	}
+};

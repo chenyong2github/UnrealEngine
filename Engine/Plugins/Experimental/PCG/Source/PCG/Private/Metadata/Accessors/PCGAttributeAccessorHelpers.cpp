@@ -10,6 +10,7 @@
 #include "Metadata/PCGAttributePropertySelector.h"
 #include "Metadata/Accessors/IPCGAttributeAccessorTpl.h"
 #include "Metadata/Accessors/PCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGCustomAccessor.h"
 #include "Metadata/Accessors/PCGPropertyAccessor.h"
 #include "Metadata/Accessors/PCGAttributeExtractor.h"
 
@@ -43,13 +44,167 @@ namespace PCGAttributeAccessorHelpers
 		}
 	}
 
-	void ExtractMetadataAtribute(const UPCGData* InData, FName Name, UPCGMetadata const*& OutMetadata, FPCGMetadataAttributeBase const*& OutAttribute, bool bForceGetNone = false)
+	// Don't be afraid of this enormous template!
+	// We want to be able to create a TUniquePtr<const IPCGAttributeAccessor> for const accessors and TUniquePtr<IPCGAttributeAccessor> for mutable accessors.
+	// This template just says that:
+	// * AccessorType needs to be IPCGAttributeAccessor or const IPCGAttributeAccessor
+	// * DataType needs to be UPCGData or const UPCGData
+	// * And if one of them is const, they both need to be const.
+	// It allows us to factorise the same logic for const and non-const version (with a few const_cast in the process, but we still have something const at the end)
+	template <
+		typename AccessorType, 
+		typename DataType, 
+		typename = typename std::enable_if_t<
+			std::is_same_v<IPCGAttributeAccessor, std::remove_const_t<AccessorType>> &&
+			std::is_same_v<UPCGData, std::remove_const_t<DataType>> &&
+			std::is_const_v<AccessorType> == std::is_const_v<DataType>
+		>
+	>
+	TUniquePtr<AccessorType> CreateAccessorImpl(DataType* InData, const FPCGAttributePropertySelector& InSelector)
 	{
+		const FName Name = InSelector.GetName();
+		TUniquePtr<IPCGAttributeAccessor> Accessor;
+
+		if (InSelector.Selection == EPCGAttributePropertySelection::PointProperty)
+		{
+			if (!InData || InData->template IsA<UPCGPointData>())
+			{
+				if (const FProperty* Property = FPCGPoint::StaticStruct()->FindPropertyByName(Name))
+				{
+					Accessor = CreatePropertyAccessor(Property);
+				}
+				else if (FPCGPoint::HasCustomPropertyGetterSetter(Name))
+				{
+					Accessor = FPCGPoint::CreateCustomPropertyAccessor(Name);
+				}
+			}
+		}
+		else if (InSelector.Selection == EPCGAttributePropertySelection::ExtraProperty)
+		{
+			Accessor = CreateExtraAccessor(InSelector.ExtraProperty);
+
+			if (!Accessor.IsValid())
+			{
+				UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::ConstAccessor] Expected to select an extra property but the data doesn't support this property."));
+				return TUniquePtr<IPCGAttributeAccessor>();
+			}
+		}
+
+		// At this point, it is not a point data or we didn't find a property.
+		// We can't continue if it is a property wanted.
+		if (InSelector.Selection == EPCGAttributePropertySelection::PointProperty && !Accessor.IsValid())
+		{
+			UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::CreateAccessor] Expected to select a property but the data doesn't support this property."));
+			return TUniquePtr<IPCGAttributeAccessor>();
+		}
+
+		if (InSelector.Selection == EPCGAttributePropertySelection::Attribute)
+		{
+			UPCGMetadata* Metadata = nullptr;
+			FPCGMetadataAttributeBase* Attribute = nullptr;
+
+			// It is OK to const_cast here, since we will create a const accessor if the input is const.
+			ExtractMetadataAtribute(const_cast<UPCGData*>(InData), Name, Metadata, Attribute);
+
+			auto CreateTypedAccessor = [Attribute, Metadata](auto Dummy) -> TUniquePtr<IPCGAttributeAccessor>
+			{
+				using AttributeType = decltype(Dummy);
+				if constexpr (std::is_const_v<AccessorType>)
+				{
+					return MakeUnique<FPCGAttributeAccessor<AttributeType>>(static_cast<const FPCGMetadataAttribute<AttributeType>*>(Attribute), Metadata);
+				}
+				else
+				{
+					return MakeUnique<FPCGAttributeAccessor<AttributeType>>(static_cast<FPCGMetadataAttribute<AttributeType>*>(Attribute), Metadata);
+				}
+			};
+
+			if (Attribute && Metadata)
+			{
+				Accessor = PCGMetadataAttribute::CallbackWithRightType(Attribute->GetTypeId(), CreateTypedAccessor);
+			}
+			else
+			{
+				return TUniquePtr<AccessorType>();
+			}
+		}
+
+		if (!Accessor.IsValid())
+		{
+			return TUniquePtr<AccessorType>();
+		}
+
+		// At this point, check if we have chain accessors
+		for (const FString& ExtraName : InSelector.ExtraNames)
+		{
+			bool bSuccess = false;
+			Accessor = CreateChainAccessor(std::move(Accessor), FName(ExtraName), bSuccess);
+			if (!bSuccess)
+			{
+				UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::CreateAccessor] Extra selectors don't match existing properties."));
+				return TUniquePtr<AccessorType>();
+			}
+		}
+
+		// Can't create mutable accessor that are read only.
+		if constexpr (!std::is_const_v<AccessorType>)
+		{
+			if (Accessor && Accessor->IsReadOnly())
+			{
+				UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::CreateAccessor] Attribute can not be written into, since it is read-only."));
+				return TUniquePtr<AccessorType>();
+			}
+		}
+
+		return Accessor;
+	}
+
+	// Same thing for the keys. Check CreateAccessorImpl for more info about this big template.
+	template <
+		typename KeysType,
+		typename DataType,
+		typename = typename std::enable_if_t<
+			std::is_same_v<IPCGAttributeAccessorKeys, std::remove_const_t<KeysType>> &&
+			std::is_same_v<UPCGData, std::remove_const_t<DataType>> &&
+			std::is_const_v<KeysType> == std::is_const_v<DataType>
+		>
+	>
+	TUniquePtr<KeysType> CreateKeysImpl(DataType* InData, const FPCGAttributePropertySelector& InSelector)
+	{
+		if (UPCGPointData* PointData = Cast<UPCGPointData>(const_cast<UPCGData*>(InData)))
+		{
+			if constexpr (std::is_const_v<KeysType>)
+			{
+				return MakeUnique<FPCGAttributeAccessorKeysPoints>(PointData->GetPoints());
+			}
+			else
+			{
+				TArrayView<FPCGPoint> View(PointData->GetMutablePoints());
+				return MakeUnique<FPCGAttributeAccessorKeysPoints>(View);
+			}
+		}
+
 		UPCGMetadata* Metadata = nullptr;
 		FPCGMetadataAttributeBase* Attribute = nullptr;
-		ExtractMetadataAtribute(const_cast<UPCGData*>(InData), Name, Metadata, Attribute, bForceGetNone);
-		OutMetadata = Metadata;
-		OutAttribute = Attribute;
+
+		// It is OK to const_cast here, since we will create const keys if the input is const.
+		ExtractMetadataAtribute(const_cast<UPCGData*>(InData), InSelector.GetName(), Metadata, Attribute);
+
+		if (Attribute)
+		{
+			if constexpr (std::is_const_v<KeysType>)
+			{
+				return MakeUnique<FPCGAttributeAccessorKeysEntries>(static_cast<const FPCGMetadataAttributeBase*>(Attribute));
+			}
+			else
+			{
+				return MakeUnique<FPCGAttributeAccessorKeysEntries>(Attribute);
+			}
+		}
+		else
+		{
+			return TUniquePtr<KeysType>();
+		}
 	}
 
 	TUniquePtr<IPCGAttributeAccessor> CreateChainAccessor(TUniquePtr<IPCGAttributeAccessor> InAccessor, FName Name, bool& bOutSuccess)
@@ -246,6 +401,17 @@ bool PCGAttributeAccessorHelpers::IsPropertyAccessorSupported(const FName InProp
 	});
 }
 
+TUniquePtr<IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateExtraAccessor(EPCGExtraProperties InExtraProperties)
+{
+	switch (InExtraProperties)
+	{
+	case EPCGExtraProperties::Index:
+		return MakeUnique<FPCGIndexAccessor>();
+	default:
+		return TUniquePtr<IPCGAttributeAccessor>();
+	}
+}
+
 TUniquePtr<const IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateConstAccessorForOverrideParam(const FPCGDataCollection& InInputData, const FPCGSettingsOverridableParam& InParam, FName* OutAttributeName)
 {
 	bool bFromGlobalParamsPin = false;
@@ -281,194 +447,20 @@ TUniquePtr<const IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateConst
 
 TUniquePtr<const IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateConstAccessor(const UPCGData* InData, const FPCGAttributePropertySelector& InSelector)
 {
-	const FName Name = InSelector.GetName();
-	TUniquePtr<IPCGAttributeAccessor> Accessor;
-
-	if (InSelector.Selection == EPCGAttributePropertySelection::PointProperty)
-	{
-		if(!InData || Cast<const UPCGPointData>(InData))
-		{
-			if (const FProperty* Property = FPCGPoint::StaticStruct()->FindPropertyByName(Name))
-			{
-				Accessor = CreatePropertyAccessor(Property);
-			}
-			else if (FPCGPoint::HasCustomPropertyGetterSetter(Name))
-			{
-				Accessor = FPCGPoint::CreateCustomPropertyAccessor(Name);
-			}
-		}
-	}
-
-	// At this point, it is not a point data or we didn't find a property.
-	// We can't continue if it is a property wanted.
-	if (InSelector.Selection == EPCGAttributePropertySelection::PointProperty && !Accessor.IsValid())
-	{
-		UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::CreateConstAccessor] Expected to select a property but the data doesn't support this property."));
-		return TUniquePtr<const IPCGAttributeAccessor>();
-	}
-
-	if (InSelector.Selection == EPCGAttributePropertySelection::Attribute)
-	{
-		const UPCGMetadata* Metadata = nullptr;
-		const FPCGMetadataAttributeBase* Attribute = nullptr;
-
-		ExtractMetadataAtribute(InData, Name, Metadata, Attribute, InSelector.bForceGetNone);
-
-		auto CreateTypedAccessor = [Attribute, Metadata](auto Dummy) -> TUniquePtr<IPCGAttributeAccessor>
-		{
-			using AttributeType = decltype(Dummy);
-			return MakeUnique<FPCGAttributeAccessor<AttributeType>>(static_cast<const FPCGMetadataAttribute<AttributeType>*>(Attribute), Metadata);
-		};
-
-		if (Attribute && Metadata)
-		{
-			Accessor = PCGMetadataAttribute::CallbackWithRightType(Attribute->GetTypeId(), CreateTypedAccessor);
-		}
-		else
-		{
-			return TUniquePtr<const IPCGAttributeAccessor>();
-		}
-	}
-
-	if (!Accessor.IsValid())
-	{
-		return TUniquePtr<const IPCGAttributeAccessor>();
-	}
-
-	// At this point, check if we have chain accessors
-	for (const FString& ExtraName : InSelector.ExtraNames)
-	{
-		bool bSuccess = false;
-		Accessor = CreateChainAccessor(std::move(Accessor), FName(ExtraName), bSuccess);
-		if (!bSuccess)
-		{
-			UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::CreateConstAccessor] Extra selectors don't match existing properties."));
-			return TUniquePtr<const IPCGAttributeAccessor>();
-		}
-	}
-
-	return Accessor;
+	return CreateAccessorImpl<const IPCGAttributeAccessor, const UPCGData>(InData, InSelector);
 }
 
 TUniquePtr<IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateAccessor(UPCGData* InData, const FPCGAttributePropertySelector& InSelector)
 {
-	const FName Name = InSelector.GetName();
-	TUniquePtr<IPCGAttributeAccessor> Accessor;
-
-	if (InSelector.Selection == EPCGAttributePropertySelection::PointProperty)
-	{
-		if (!InData || Cast<const UPCGPointData>(InData))
-		{
-			if (const FProperty* Property = FPCGPoint::StaticStruct()->FindPropertyByName(Name))
-			{
-				Accessor = CreatePropertyAccessor(Property);
-			}
-			else if (FPCGPoint::HasCustomPropertyGetterSetter(Name))
-			{
-				Accessor = FPCGPoint::CreateCustomPropertyAccessor(Name);
-			}
-		}
-	}
-
-	// At this point, it is not a point data or we didn't find a property.
-	// We can't continue if it is a property wanted.
-	if (InSelector.Selection == EPCGAttributePropertySelection::PointProperty && !Accessor.IsValid())
-	{
-		UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::CreateAccessor] Expected to select a property but the data doesn't support this property."));
-		return TUniquePtr<IPCGAttributeAccessor>();
-	}
-
-	if (InSelector.Selection == EPCGAttributePropertySelection::Attribute)
-	{
-		UPCGMetadata* Metadata = nullptr;
-		FPCGMetadataAttributeBase* Attribute = nullptr;
-
-		ExtractMetadataAtribute(InData, Name, Metadata, Attribute);
-
-		auto CreateTypedAccessor = [Attribute, Metadata](auto Dummy) -> TUniquePtr<IPCGAttributeAccessor>
-		{
-			using AttributeType = decltype(Dummy);
-			return MakeUnique<FPCGAttributeAccessor<AttributeType>>(static_cast<FPCGMetadataAttribute<AttributeType>*>(Attribute), Metadata);
-		};
-
-		if (Attribute && Metadata)
-		{
-			Accessor = PCGMetadataAttribute::CallbackWithRightType(Attribute->GetTypeId(), CreateTypedAccessor);
-		}
-		else
-		{
-			return TUniquePtr<IPCGAttributeAccessor>();
-		}
-	}
-
-	if (!Accessor.IsValid())
-	{
-		return TUniquePtr<IPCGAttributeAccessor>();
-	}
-
-	// At this point, check if we have chain accessors
-	for (const FString& ExtraName : InSelector.ExtraNames)
-	{
-		bool bSuccess = false;
-		Accessor = CreateChainAccessor(std::move(Accessor), FName(ExtraName), bSuccess);
-		if (!bSuccess)
-		{
-			UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::CreateAccessor] Extra selectors don't match existing properties."));
-			return TUniquePtr<IPCGAttributeAccessor>();
-		}
-	}
-
-	// Can't create mutable accessor that are read only.
-	if (Accessor && Accessor->IsReadOnly())
-	{
-		UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::CreateAccessor] Accessor is read-only, therefore not mutable."));
-		return TUniquePtr<IPCGAttributeAccessor>();
-	}
-
-	return Accessor;
+	return CreateAccessorImpl<IPCGAttributeAccessor, UPCGData>(InData, InSelector);
 }
 
 TUniquePtr<const IPCGAttributeAccessorKeys> PCGAttributeAccessorHelpers::CreateConstKeys(const UPCGData* InData, const FPCGAttributePropertySelector& InSelector)
 {
-	if (const UPCGPointData* PointData = Cast<const UPCGPointData>(InData))
-	{
-		return MakeUnique<FPCGAttributeAccessorKeysPoints>(PointData->GetPoints());
-	}
-
-	const UPCGMetadata* Metadata = nullptr;
-	const FPCGMetadataAttributeBase* Attribute = nullptr;
-
-	ExtractMetadataAtribute(InData, InSelector.GetName(), Metadata, Attribute);
-
-	if (Attribute)
-	{
-		return MakeUnique<FPCGAttributeAccessorKeysEntries>(Attribute);
-	}
-	else
-	{
-		return TUniquePtr<IPCGAttributeAccessorKeys>();
-	}
+	return CreateKeysImpl<const IPCGAttributeAccessorKeys, const UPCGData>(InData, InSelector);
 }
 
 TUniquePtr<IPCGAttributeAccessorKeys> PCGAttributeAccessorHelpers::CreateKeys(UPCGData* InData, const FPCGAttributePropertySelector& InSelector)
 {
-	if (UPCGPointData* PointData = Cast<UPCGPointData>(InData))
-	{
-		TArrayView<FPCGPoint> View(PointData->GetMutablePoints());
-		return MakeUnique<FPCGAttributeAccessorKeysPoints>(View);
-	}
-
-	UPCGMetadata* Metadata = nullptr;
-	FPCGMetadataAttributeBase* Attribute = nullptr;
-
-	ExtractMetadataAtribute(InData, InSelector.GetName(), Metadata, Attribute);
-
-	if (Attribute)
-	{
-		return MakeUnique<FPCGAttributeAccessorKeysEntries>(Attribute);
-	}
-	else
-	{
-		return TUniquePtr<IPCGAttributeAccessorKeys>();
-	}
+	return CreateKeysImpl<IPCGAttributeAccessorKeys, UPCGData>(InData, InSelector);
 }

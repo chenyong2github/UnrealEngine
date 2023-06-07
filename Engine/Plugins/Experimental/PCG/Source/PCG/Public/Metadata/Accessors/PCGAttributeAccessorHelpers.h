@@ -4,6 +4,7 @@
 
 #include "Templates/UniquePtr.h"
 
+enum class EPCGExtraProperties : uint8;
 class IPCGAttributeAccessor;
 class IPCGAttributeAccessorKeyIterator;
 class IPCGAttributeAccessorKeys;
@@ -25,6 +26,8 @@ namespace PCGAttributeAccessorHelpers
 	PCG_API TUniquePtr<IPCGAttributeAccessor> CreatePropertyAccessor(const FProperty* InProperty);
 	PCG_API TUniquePtr<IPCGAttributeAccessor> CreatePropertyAccessor(const FName InPropertyName, const UClass* InClass);
 	PCG_API TUniquePtr<IPCGAttributeAccessor> CreatePropertyAccessor(const FName InPropertyName, const UStruct* InStruct);
+
+	PCG_API TUniquePtr<IPCGAttributeAccessor> CreateExtraAccessor(EPCGExtraProperties InExtraProperties);
 
 	PCG_API TUniquePtr<IPCGAttributeAccessor> CreateChainAccessor(TUniquePtr<IPCGAttributeAccessor> InAccessor, FName Name, bool& bOutSuccess);
 

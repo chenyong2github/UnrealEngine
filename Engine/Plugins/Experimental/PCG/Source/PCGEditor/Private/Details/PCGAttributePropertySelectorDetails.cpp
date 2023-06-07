@@ -16,6 +16,52 @@
 
 #define LOCTEXT_NAMESPACE "PCGAttributePropertySelectorDetails"
 
+namespace PCGAttributePropertySelectorDetails
+{
+	static const FText SetAttributePropertyNameTransaction = LOCTEXT("SetAttributePropertyName", "[PCG] Set Attribute/Property Name");
+
+	template <typename EnumType>
+	void BuildMenuSectionFromEnum(FMenuBuilder& InMenuBuilder, FPCGAttributePropertySelectorDetails* InDetailsObject, void(FPCGAttributePropertySelectorDetails::*InCallback)(EnumType))
+	{
+		if (const UEnum* EnumPtr = StaticEnum<EnumType>())
+		{
+			for (int32 i = 0; i < EnumPtr->NumEnums() - 1; ++i)
+			{
+				FString EnumName = EnumPtr->GetDisplayNameTextByIndex(i).ToString();
+				EnumType EnumValue = (EnumType)EnumPtr->GetValueByIndex(i);
+
+				InMenuBuilder.AddMenuEntry(
+					FText::FromString(EnumName),
+					FText(),
+					FSlateIcon(),
+					FExecuteAction::CreateSP(InDetailsObject, InCallback, EnumValue),
+					NAME_None,
+					EUserInterfaceActionType::Button
+				);
+			}
+		}
+	}
+
+	// Func signature: bool(FPCGAttributePropertySelector*, T)
+	template <typename T, typename Func>
+	void SetValue(FPCGAttributePropertySelector* InSelector, TSharedPtr<IPropertyHandle>& InPropertyHandle, T InValue, Func InCallback)
+	{
+		if (InSelector && InCallback)
+		{
+			FScopedTransaction Transaction(SetAttributePropertyNameTransaction);
+
+			InPropertyHandle->NotifyPreChange();
+			if (!InCallback(InSelector, std::move(InValue)))
+			{
+				Transaction.Cancel();
+				return;
+			}
+
+			InPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+		}
+	}
+}
+
 void FPCGAttributePropertySelectorDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	PropertyHandle = InPropertyHandle;
@@ -86,23 +132,13 @@ TSharedRef<SWidget> FPCGAttributePropertySelectorDetails::GenerateExtraMenu()
 
 	MenuBuilder.BeginSection("PointProperties", LOCTEXT("PointPropertiesHeader", "Point Properties"));
 	{
-		if (const UEnum* EnumPtr = StaticEnum<EPCGPointProperties>())
-		{
-			for (int32 i = 0; i < EnumPtr->NumEnums() - 1; ++i)
-			{
-				FString EnumName = EnumPtr->GetNameStringByIndex(i);
-				EPCGPointProperties EnumValue = (EPCGPointProperties)EnumPtr->GetValueByIndex(i);
+		PCGAttributePropertySelectorDetails::BuildMenuSectionFromEnum<EPCGPointProperties>(MenuBuilder, this, &FPCGAttributePropertySelectorDetails::SetPointProperty);
+	}
+	MenuBuilder.EndSection();
 
-				MenuBuilder.AddMenuEntry(
-					FText::FromString(EnumName),
-					FText(),
-					FSlateIcon(),
-					FExecuteAction::CreateSP(this, &FPCGAttributePropertySelectorDetails::SetPointProperty, EnumValue),
-					NAME_None,
-					EUserInterfaceActionType::Button
-				);
-			}
-		}
+	MenuBuilder.BeginSection("OtherProperties", LOCTEXT("OtherPropertiesHeader", "Other Properties"));
+	{
+		PCGAttributePropertySelectorDetails::BuildMenuSectionFromEnum<EPCGExtraProperties>(MenuBuilder, this, &FPCGAttributePropertySelectorDetails::SetExtraProperty);
 	}
 	MenuBuilder.EndSection();
 
@@ -139,53 +175,22 @@ void FPCGAttributePropertySelectorDetails::SetText(const FText& NewText, ETextCo
 		return;
 	}
 
-	if (FPCGAttributePropertySelector* Selector = GetStruct())
-	{
-		FScopedTransaction Transaction(LOCTEXT("SetAttributePropertyName", "[PCG] Set Attribute/Property Name"));
-
-		PropertyHandle->NotifyPreChange();
-		if (!Selector->Update(NewText.ToString()))
-		{
-			Transaction.Cancel();
-			return;
-		}
-
-		PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-	}
+	PCGAttributePropertySelectorDetails::SetValue(GetStruct(), PropertyHandle, NewText.ToString(), [](FPCGAttributePropertySelector* InStruct, FString InValue) -> bool { return InStruct && InStruct->Update(std::move(InValue)); });
 }
 
 void FPCGAttributePropertySelectorDetails::SetPointProperty(EPCGPointProperties EnumValue)
 {
-	if (FPCGAttributePropertySelector* Selector = GetStruct())
-	{
-		FScopedTransaction Transaction(LOCTEXT("SetAttributePropertyName", "[PCG] Set Attribute/Property Name"));
-
-		PropertyHandle->NotifyPreChange();
-		if (!Selector->SetPointProperty(EnumValue))
-		{
-			Transaction.Cancel();
-			return;
-		}
-
-		PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-	}
+	PCGAttributePropertySelectorDetails::SetValue(GetStruct(), PropertyHandle, EnumValue, [](FPCGAttributePropertySelector* InStruct, EPCGPointProperties InValue) -> bool { return InStruct && InStruct->SetPointProperty(InValue); });
 }
 
 void FPCGAttributePropertySelectorDetails::SetAttributeName(FName NewName)
 {
-	if (FPCGAttributePropertySelector* Selector = GetStruct())
-	{
-		FScopedTransaction Transaction(LOCTEXT("SetAttributePropertyName", "[PCG] Set Attribute/Property Name"));
+	PCGAttributePropertySelectorDetails::SetValue(GetStruct(), PropertyHandle, NewName, [](FPCGAttributePropertySelector* InStruct, FName InValue) -> bool { return InStruct && InStruct->SetAttributeName(InValue); });
+}
 
-		PropertyHandle->NotifyPreChange();
-		if (!Selector->SetAttributeName(NewName))
-		{
-			Transaction.Cancel();
-			return;
-		}
-
-		PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-	}
+void FPCGAttributePropertySelectorDetails::SetExtraProperty(EPCGExtraProperties EnumValue)
+{
+	PCGAttributePropertySelectorDetails::SetValue(GetStruct(), PropertyHandle, EnumValue, [](FPCGAttributePropertySelector* InStruct, EPCGExtraProperties InValue) -> bool { return InStruct && InStruct->SetExtraProperty(InValue); });
 }
 
 #undef LOCTEXT_NAMESPACE

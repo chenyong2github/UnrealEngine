@@ -27,6 +27,17 @@ FName FPCGAttributePropertySelector::GetName() const
 			return NAME_None;
 		}
 	}
+	case EPCGAttributePropertySelection::ExtraProperty:
+	{
+		if (const UEnum* EnumPtr = StaticEnum<EPCGExtraProperties>())
+		{
+			return FName(EnumPtr->GetNameStringByValue((int64)ExtraProperty));
+		}
+		else
+		{
+			return NAME_None;
+		}
+	}
 	default:
 		return AttributeName;
 	}
@@ -74,13 +85,34 @@ bool FPCGAttributePropertySelector::SetAttributeName(FName InAttributeName, bool
 	}
 }
 
+bool FPCGAttributePropertySelector::SetExtraProperty(EPCGExtraProperties InExtraProperty, bool bResetExtraNames)
+{
+	const bool bHasExtraNames = !ExtraNames.IsEmpty();
+	if (bResetExtraNames)
+	{
+		ExtraNames.Empty();
+	}
+
+	if (Selection == EPCGAttributePropertySelection::ExtraProperty && InExtraProperty == ExtraProperty)
+	{
+		// Nothing changed, except perhaps the extra names
+		return (bHasExtraNames && bResetExtraNames);
+	}
+	else
+	{
+		Selection = EPCGAttributePropertySelection::ExtraProperty;
+		ExtraProperty = InExtraProperty;
+		return true;
+	}
+}
+
 FText FPCGAttributePropertySelector::GetDisplayText() const
 {
 	FString Res;
 	const FName Name = GetName();
 
 	// Add a '$' if it is a property
-	if (Selection == EPCGAttributePropertySelection::PointProperty && (Name != NAME_None))
+	if (Selection != EPCGAttributePropertySelection::Attribute && (Name != NAME_None))
 	{
 		Res = FString(PCGAttributePropertySelectorConstants::PropertyPrefix) + Name.ToString();
 	}
@@ -130,12 +162,24 @@ bool FPCGAttributePropertySelector::Update(FString NewValue)
 
 	if (!NewName.IsEmpty() && NewName[0] == PCGAttributePropertySelectorConstants::PropertyPrefixChar)
 	{
+		// Remove the first character of the name, where the first character is $.
+		const FString NewNameWithoutPrefix = NewName.RightChop(1);
+
 		if (const UEnum* EnumPtr = StaticEnum<EPCGPointProperties>())
 		{
-			int32 Index = EnumPtr->GetIndexByNameString(NewName.Mid(/*Start=*/1));
+			int32 Index = EnumPtr->GetIndexByNameString(NewNameWithoutPrefix);
 			if (Index != INDEX_NONE)
 			{
 				return SetPointProperty(static_cast<EPCGPointProperties>(EnumPtr->GetValueByIndex(Index)), /*bResetExtraNames=*/ false) || bExtraChanged;
+			}
+		}
+
+		if (const UEnum* EnumPtr = StaticEnum<EPCGExtraProperties>())
+		{
+			int32 Index = EnumPtr->GetIndexByNameString(NewNameWithoutPrefix);
+			if (Index != INDEX_NONE)
+			{
+				return SetExtraProperty(static_cast<EPCGExtraProperties>(EnumPtr->GetValueByIndex(Index)), /*bResetExtraNames=*/ false) || bExtraChanged;
 			}
 		}
 	}
@@ -154,6 +198,11 @@ bool UPCGAttributePropertySelectorBlueprintHelpers::SetPointProperty(FPCGAttribu
 bool UPCGAttributePropertySelectorBlueprintHelpers::SetAttributeName(FPCGAttributePropertySelector& Selector, FName InAttributeName)
 {
 	return Selector.SetAttributeName(InAttributeName);
+}
+
+bool UPCGAttributePropertySelectorBlueprintHelpers::SetExtraProperty(FPCGAttributePropertySelector& Selector, EPCGExtraProperties InExtraProperty)
+{
+	return Selector.SetExtraProperty(InExtraProperty);
 }
 
 FName UPCGAttributePropertySelectorBlueprintHelpers::GetName(const FPCGAttributePropertySelector& Selector)

@@ -13,6 +13,13 @@ enum class EPCGAttributePropertySelection
 {
 	Attribute,
 	PointProperty,
+	ExtraProperty
+};
+
+UENUM()
+enum class EPCGExtraProperties : uint8
+{
+	Index
 };
 
 /**
@@ -35,6 +42,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Settings", meta = (EditCondition = "Selection == EPCGAttributePropertySelection::PointProperty", EditConditionHides))
 	EPCGPointProperties PointProperty = EPCGPointProperties::Position;
 
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Settings", meta = (EditCondition = "Selection == EPCGAttributePropertySelection::ExtraProperty", EditConditionHides))
+	EPCGExtraProperties ExtraProperty = EPCGExtraProperties::Index;
+
 	UPROPERTY()
 	TArray<FString> ExtraNames;
 
@@ -45,6 +55,7 @@ public:
 	// Setters, retrurn true if something changed.
 	bool SetPointProperty(EPCGPointProperties InPointProperty, bool bResetExtraNames = true);
 	bool SetAttributeName(FName InAttributeName, bool bResetExtraNames = true);
+	bool SetExtraProperty(EPCGExtraProperties InExtraProperty, bool bResetExtraNames = true);
 
 	FName GetName() const;
 
@@ -74,6 +85,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|PCGAttributePropertySelector", meta = (ScriptMethod))
 	static bool SetAttributeName(UPARAM(ref) FPCGAttributePropertySelector& Selector, FName InAttributeName);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|PCGAttributePropertySelector", meta = (ScriptMethod))
+	static bool SetExtraProperty(UPARAM(ref) FPCGAttributePropertySelector& Selector, EPCGExtraProperties InExtraProperty);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|PCGAttributePropertySelector", meta = (ScriptMethod))
 	static FName GetName(UPARAM(const, ref) const FPCGAttributePropertySelector& Selector);
