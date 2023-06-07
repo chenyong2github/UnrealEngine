@@ -147,7 +147,7 @@ private:
 	/** Create a pass capturing a texture. */
 	void CreateContentCapturePass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, uint32 CaptureId);
 
-	void ReleaseDynamicRHI() override;
+	void ReleaseRHI() override;
 
 	void Visualize(const FString& InName, TOptional<uint32> InVersion = {});
 

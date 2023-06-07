@@ -815,7 +815,7 @@ class FDefaultLightmapResourceClusterUniformBuffer : public TUniformBuffer< FLig
 {
 	typedef TUniformBuffer< FLightmapResourceClusterShaderParameters > Super;
 public:
-	virtual void InitDynamicRHI() override;
+	virtual void InitRHI() override;
 };
 
 ENGINE_API extern TGlobalResource< FDefaultLightmapResourceClusterUniformBuffer > GDefaultLightmapResourceClusterUniformBuffer;
@@ -1110,7 +1110,7 @@ class FDefaultMobileReflectionCaptureUniformBuffer : public TUniformBuffer<FMobi
 {
 	typedef TUniformBuffer<FMobileReflectionCaptureShaderParameters> Super;
 public:
-	virtual void InitDynamicRHI() override;
+	virtual void InitRHI() override;
 };
 
 ENGINE_API extern TGlobalResource<FDefaultMobileReflectionCaptureUniformBuffer> GDefaultMobileReflectionCaptureUniformBuffer;

@@ -791,16 +791,10 @@ protected:
 
 	/** Triggers the taking of a high res screen shot for this viewport. */
 	bool bTakeHighResScreenShot;
-	//~ Begin FRenderResource Interface.
-	ENGINE_API virtual void InitDynamicRHI() override;
-	ENGINE_API virtual void ReleaseDynamicRHI() override;
-	ENGINE_API virtual void InitRHI() override;
-	ENGINE_API virtual void ReleaseRHI() override;
 
-	virtual void InitResource() override { FRenderResource::InitResource(); }
-	virtual void InitResource(FRHICommandList&) override { InitResource(); }
-	virtual void InitDynamicRHI(FRHICommandList&) override { InitDynamicRHI(); }
-	virtual void InitRHI(FRHICommandList&) override { InitRHI(); }
+	//~ Begin FRenderResource Interface.
+	ENGINE_API virtual void ReleaseRHI() override;
+	ENGINE_API virtual void InitRHI() override;
 };
 
 // Shortcuts for checking the state of both left&right variations of control keys.

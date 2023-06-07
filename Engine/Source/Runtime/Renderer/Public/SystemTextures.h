@@ -94,12 +94,12 @@ public:
 	/**
 	 * Release textures when device is lost/destroyed.
 	 */
-	virtual void ReleaseDynamicRHI();
+	virtual void ReleaseRHI();
 
 	// -----------
 
 	/**
-		Any Textures added here MUST be explicitly released on ReleaseDynamicRHI()!
+		Any Textures added here MUST be explicitly released on ReleaseRHI()!
 		Some RHIs need all their references released during destruction!
 	*/
 

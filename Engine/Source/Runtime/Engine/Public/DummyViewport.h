@@ -56,10 +56,9 @@ public:
 	//~ End FViewport Interface
 
 	//~ Begin FRenderResource Interface
-	virtual void InitDynamicRHI() override;
+	virtual void InitRHI() override;
 
 	// @todo DLL: Without these functions we get unresolved linker errors with FRenderResource
-	virtual void InitRHI() override{}
 	virtual void ReleaseRHI() override{}
 	virtual void InitResource() override{ FViewport::InitResource(); }
 	virtual void ReleaseResource() override { FViewport::ReleaseResource(); }

@@ -3453,7 +3453,7 @@ void FOpenXRHMD::SetPixelDensity(const float NewDensity)
 	check(IsInGameThread());
 	PipelinedFrameStateGame.PixelDensity = FMath::Min(NewDensity, RuntimePixelDensityMax);
 
-	// We have to update the RT state because the new swapchain will be allocated (FSceneViewport::InitDynamicRHI + AllocateRenderTargetTexture)
+	// We have to update the RT state because the new swapchain will be allocated (FSceneViewport::InitRHI + AllocateRenderTargetTexture)
 	// before we call OnBeginRendering_GameThread.
 	ENQUEUE_RENDER_COMMAND(UpdatePixelDensity)(
 		[this, PixelDensity = PipelinedFrameStateGame.PixelDensity](FRHICommandListImmediate&)

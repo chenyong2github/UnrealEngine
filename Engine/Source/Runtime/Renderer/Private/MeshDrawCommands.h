@@ -38,7 +38,7 @@ public:
 	void ReturnToFreeList(FPrimitiveIdVertexBufferPoolEntry Entry);
 	RENDERER_API void DiscardAll();
 
-	virtual void ReleaseDynamicRHI() override;
+	virtual void ReleaseRHI() override;
 
 private:
 	uint32 DiscardId;

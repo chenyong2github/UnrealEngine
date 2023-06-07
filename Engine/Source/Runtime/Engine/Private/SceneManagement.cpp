@@ -1221,12 +1221,12 @@ void GetLightmapClusterResourceParameters(
 	}
 }
 
-void FDefaultLightmapResourceClusterUniformBuffer::InitDynamicRHI()
+void FDefaultLightmapResourceClusterUniformBuffer::InitRHI()
 {
 	FLightmapResourceClusterShaderParameters Parameters;
 	GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), nullptr, Parameters);
 	SetContents(Parameters);
-	Super::InitDynamicRHI();
+	Super::InitRHI();
 }
 
 /** Global uniform buffer containing the default precomputed lighting data. */
@@ -1501,14 +1501,14 @@ bool FMeshBatch::Validate(const FPrimitiveSceneProxy* PrimitiveSceneProxy, ERHIF
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters, "MobileReflectionCapture");
 
-void FDefaultMobileReflectionCaptureUniformBuffer::InitDynamicRHI()
+void FDefaultMobileReflectionCaptureUniformBuffer::InitRHI()
 {
 	FMobileReflectionCaptureShaderParameters Parameters;
 	Parameters.Params = FVector4f(1.f, 0.f, 0.f, 0.f);
 	Parameters.Texture = GBlackTextureCube->TextureRHI;
 	Parameters.TextureSampler = GBlackTextureCube->SamplerStateRHI;
 	SetContents(Parameters);
-	Super::InitDynamicRHI();
+	Super::InitRHI();
 }
 
 /** Global uniform buffer containing the default reflection data used in mobile renderer. */

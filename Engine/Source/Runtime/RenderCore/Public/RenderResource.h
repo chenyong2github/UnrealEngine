@@ -95,8 +95,8 @@ public:
 	 * Resources that need to initialize after a D3D device reset must implement this function.
 	 * This is only called by the rendering thread.
 	 */
-	virtual void InitDynamicRHI() {}
-	virtual void InitDynamicRHI(FRHICommandList& RHICmdList) { InitDynamicRHI(); }
+	UE_DEPRECATED(5.3, "InitDynamicRHI is now unified with InitRHI.")
+	virtual void InitDynamicRHI() final {}
 
 	/**
 	 * Releases the dynamic RHI resource and/or RHI render target resources used by this resource.
@@ -104,7 +104,8 @@ public:
 	 * Resources that need to release before a D3D device reset must implement this function.
 	 * This is only called by the rendering thread.
 	 */
-	virtual void ReleaseDynamicRHI() {}
+	UE_DEPRECATED(5.3, "ReleaseDynamicRHI is now unified with ReleaseRHI.")
+	virtual void ReleaseDynamicRHI() final {}
 
 	/**
 	 * Initializes the RHI resources used by this resource.

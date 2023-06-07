@@ -262,7 +262,7 @@ void FVariableRateShadingImageManager::InitRHI()
 	}
 }
 
-void FVariableRateShadingImageManager::ReleaseDynamicRHI()
+void FVariableRateShadingImageManager::ReleaseRHI()
 {
 	GRenderTargetPool.FreeUnusedResources();
 }

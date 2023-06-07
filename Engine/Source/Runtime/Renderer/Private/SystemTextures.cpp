@@ -900,7 +900,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 	FeatureLevelInitializedTo = InFeatureLevel;
 }
 
-void FSystemTextures::ReleaseDynamicRHI()
+void FSystemTextures::ReleaseRHI()
 {
 	WhiteDummySRV.SafeRelease();
 	WhiteDummy.SafeRelease();

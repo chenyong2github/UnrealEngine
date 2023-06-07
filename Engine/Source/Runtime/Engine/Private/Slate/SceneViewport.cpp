@@ -2055,7 +2055,7 @@ void FSceneViewport::OnPostResizeWindowBackbuffer(void* Backbuffer)
 	}
 }
 
-void FSceneViewport::InitDynamicRHI()
+void FSceneViewport::InitRHI()
 {
 	if(bRequiresHitProxyStorage)
 	{
@@ -2191,9 +2191,9 @@ void FSceneViewport::InitDynamicRHI()
 	}
 }
 
-void FSceneViewport::ReleaseDynamicRHI()
+void FSceneViewport::ReleaseRHI()
 {
-	FViewport::ReleaseDynamicRHI();
+	FViewport::ReleaseRHI();
 
 	ViewportRHI.SafeRelease();
 
@@ -2203,12 +2203,12 @@ void FSceneViewport::ReleaseDynamicRHI()
 	{
 		if (BufferedSlateHandles[i])
 		{
-			BufferedSlateHandles[i]->ReleaseDynamicRHI();
+			BufferedSlateHandles[i]->ReleaseRHI();
 		}
 	}
 	if (RenderThreadSlateTexture)
 	{
-		RenderThreadSlateTexture->ReleaseDynamicRHI();
+		RenderThreadSlateTexture->ReleaseRHI();
 	}
 }
 

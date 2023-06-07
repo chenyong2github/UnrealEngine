@@ -14,14 +14,14 @@ public:
 	// Destructor
 	virtual ~FRDGTimingPool() = default;
 
-	virtual void InitDynamicRHI() override
+	virtual void InitRHI() override
 	{
 		check(IsInRenderingThread());
 		bIsBudgetRecordingEnabled.SetAll(false);
 		LastTimings.SetAll(uint64(0));
 	}
 
-	virtual void ReleaseDynamicRHI() override
+	virtual void ReleaseRHI() override
 	{
 		check(IsInRenderingThread());
 

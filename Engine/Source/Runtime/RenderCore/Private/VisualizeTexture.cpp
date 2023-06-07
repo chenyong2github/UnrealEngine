@@ -624,7 +624,7 @@ static EVisualisePSType GetVisualizePSType(const FRDGTextureDesc& Desc)
 	return EVisualisePSType::Texture3D;
 }
 
-void FVisualizeTexture::ReleaseDynamicRHI()
+void FVisualizeTexture::ReleaseRHI()
 {
 	Config = {};
 	Requested = {};

@@ -313,7 +313,7 @@ TRefCountPtr<IPooledRenderTarget> FPersistentSkyAtmosphereData::GetCurrentCamera
 FSceneViewState::FSceneViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneViewState* ShareOriginTarget)
 	: OcclusionQueryPool(RHICreateRenderQueryPool(RQT_Occlusion))
 {
-	// Set FeatureLevel to a valid value, so we get Init/ReleaseDynamicRHI calls on FeatureLevel changes
+	// Set FeatureLevel to a valid value, so we get Init/ReleaseRHI calls on FeatureLevel changes
 	SetFeatureLevel(FeatureLevel);
 	
 	UniqueID = FSceneViewState_UniqueID.Increment();

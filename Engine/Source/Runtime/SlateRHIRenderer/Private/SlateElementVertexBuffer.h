@@ -55,7 +55,7 @@ public:
 	}
 
 	/** Initializes the vertex buffers RHI resource. */
-	virtual void InitDynamicRHI()
+	virtual void InitRHI()
 	{
 		if( !IsValidRef(VertexBufferRHI) )
 		{
@@ -72,7 +72,7 @@ public:
 	}
 
 	/** Releases the vertex buffers RHI resource. */
-	virtual void ReleaseDynamicRHI()
+	virtual void ReleaseRHI()
 	{
 		VertexBufferRHI.SafeRelease();
 		SetBufferSize(0);
@@ -172,7 +172,7 @@ public:
 	~FSlateStencilClipVertexBuffer() {};
 
 	/** Initializes the vertex buffers RHI resource. */
-	virtual void InitDynamicRHI()
+	virtual void InitRHI()
 	{
 		if (!IsValidRef(VertexBufferRHI))
 		{
@@ -188,7 +188,7 @@ public:
 	}
 
 	/** Releases the vertex buffers RHI resource. */
-	virtual void ReleaseDynamicRHI()
+	virtual void ReleaseRHI()
 	{
 		VertexBufferRHI.SafeRelease();
 	}

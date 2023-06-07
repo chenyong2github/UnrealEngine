@@ -2280,42 +2280,19 @@ void FViewport::SetViewportClient( FViewportClient* InViewportClient )
 	ViewportClient = InViewportClient;
 }
 
-void FViewport::InitDynamicRHI()
-{
-	UpdateRenderTargetSurfaceRHIToCurrentBackBuffer();
-
-	if(bRequiresHitProxyStorage)
-	{
-		// Initialize the hit proxy map.
-		HitProxyMap.Init(SizeX,SizeY);
-	}
-}
-
-void FViewport::ReleaseDynamicRHI()
+void FViewport::ReleaseRHI()
 {
 	HitProxyMap.Release();
 	RenderTargetTextureRHI.SafeRelease();
-}
-
-void FViewport::ReleaseRHI()
-{
-	FlushRenderingCommands();
 	ViewportRHI.SafeRelease();
 }
 
 void FViewport::InitRHI()
 {
-	FlushRenderingCommands();
-	if(!IsValidRef(ViewportRHI))
+	if(bRequiresHitProxyStorage)
 	{
-		ViewportRHI = RHICreateViewport(
-			GetWindow(),
-			SizeX,
-			SizeY,
-			IsFullscreen(),
-			EPixelFormat::PF_Unknown
-			);
-		UpdateRenderTargetSurfaceRHIToCurrentBackBuffer();
+		// Initialize the hit proxy map.
+		HitProxyMap.Init(SizeX,SizeY);
 	}
 }
 
@@ -2677,7 +2654,7 @@ FDummyViewport::~FDummyViewport()
 	}
 }
 
-void FDummyViewport::InitDynamicRHI()
+void FDummyViewport::InitRHI()
 {
 	EPixelFormat DummyViewportFormat = bSceneHDREnabled ? GRHIHDRDisplayOutputFormat : PF_A2B10G10R10;
 	const FRHITextureCreateDesc Desc =

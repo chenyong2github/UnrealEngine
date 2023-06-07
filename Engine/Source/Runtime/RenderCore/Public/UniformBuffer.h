@@ -68,7 +68,7 @@ public:
 	}
 
 	// FRenderResource interface.
-	virtual void InitDynamicRHI() override
+	virtual void InitRHI() override
 	{
 		check(IsInRenderingThread());
 		UniformBufferRHI.SafeRelease();
@@ -77,7 +77,7 @@ public:
 			UniformBufferRHI = CreateUniformBufferImmediate<TBufferStruct>(*((const TBufferStruct*)Contents), BufferUsage);
 		}
 	}
-	virtual void ReleaseDynamicRHI() override
+	virtual void ReleaseRHI() override
 	{
 		UniformBufferRHI.SafeRelease();
 	}
@@ -101,7 +101,7 @@ public:
 
 protected:
 
-	/** Sets the contents of the uniform buffer. Used within calls to InitDynamicRHI */
+	/** Sets the contents of the uniform buffer. Used within calls to InitRHI */
 	void SetContentsNoUpdate(const TBufferStruct& NewContents)
 	{
 		check(IsInRenderingThread());

@@ -49,14 +49,14 @@ FVirtualTextureTestType::~FVirtualTextureTestType()
 	delete Pool;
 }
 
-void FVirtualTextureTestType::InitDynamicRHI()
+void FVirtualTextureTestType::InitRHI()
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	FPooledRenderTargetDesc Desc( FPooledRenderTargetDesc::Create2DDesc( PhysicalTextureSize, PhysicalTextureFormat, FClearValueBinding::None, TexCreate_None, TexCreate_SRGB | TexCreate_RenderTargetable | TexCreate_ShaderResource, false ) );
 	GRenderTargetPool.FindFreeElement( RHICmdList, Desc, PhysicalTexture, TEXT("PhysicalTexture") );
 }
 
-void FVirtualTextureTestType::ReleaseDynamicRHI()
+void FVirtualTextureTestType::ReleaseRHI()
 {
 	GRenderTargetPool.FreeUnusedResource( PhysicalTexture );
 }

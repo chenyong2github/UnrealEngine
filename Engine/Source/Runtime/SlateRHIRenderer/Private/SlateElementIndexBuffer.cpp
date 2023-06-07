@@ -46,7 +46,7 @@ void FSlateElementIndexBuffer::Destroy()
 }
 
 /** Initializes the index buffers RHI resource. */
-void FSlateElementIndexBuffer::InitDynamicRHI()
+void FSlateElementIndexBuffer::InitRHI()
 {
 	checkSlow( IsInRenderingThread() );
 
@@ -99,7 +99,7 @@ void FSlateElementIndexBuffer::PreFillBuffer(int32 RequiredIndexCount, bool bShr
 }
 
 /** Releases the index buffers RHI resource. */
-void FSlateElementIndexBuffer::ReleaseDynamicRHI()
+void FSlateElementIndexBuffer::ReleaseRHI()
 {
 	IndexBufferRHI.SafeRelease();
 	SetBufferSize(0);

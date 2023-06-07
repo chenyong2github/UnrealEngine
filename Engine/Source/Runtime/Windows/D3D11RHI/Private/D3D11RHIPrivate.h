@@ -191,12 +191,12 @@ public:
 	/**
 	 * Initializes all D3D resources.
 	 */
-	virtual void InitDynamicRHI() override;
+	virtual void InitRHI() override;
 
 	/**
 	 * Releases all D3D resources.
 	 */
-	virtual void ReleaseDynamicRHI() override;
+	virtual void ReleaseRHI() override;
 
 	static void CalibrateTimers(FD3D11DynamicRHI* InD3DRHI);
 
@@ -236,12 +236,12 @@ public:
 	/**
 	 * Initializes all D3D resources.
 	 */
-	virtual void InitDynamicRHI() override;
+	virtual void InitRHI() override;
 
 	/**
 	 * Releases all D3D resources.
 	 */
-	virtual void ReleaseDynamicRHI() override;
+	virtual void ReleaseRHI() override;
 
 
 private:
@@ -260,12 +260,12 @@ public:
 		Timing(InRHI, 1)
 	{
 		// Initialize Buffered timestamp queries 
-		Timing.InitDynamicRHI(); // can't do this from the RHI thread
+		Timing.InitRHI(); // can't do this from the RHI thread
 	}
 
 	virtual ~FD3D11EventNode()
 	{
-		Timing.ReleaseDynamicRHI();  // can't do this from the RHI thread
+		Timing.ReleaseRHI();  // can't do this from the RHI thread
 	}
 
 	/** 
@@ -298,14 +298,14 @@ public:
 		RootEventTiming(InRHI, 1),
 		DisjointQuery(InRHI)
 	{
-		RootEventTiming.InitDynamicRHI();
-		DisjointQuery.InitDynamicRHI();
+		RootEventTiming.InitRHI();
+		DisjointQuery.InitRHI();
 	}
 
 	~FD3D11EventNodeFrame()
 	{
-		RootEventTiming.ReleaseDynamicRHI();
-		DisjointQuery.ReleaseDynamicRHI();
+		RootEventTiming.ReleaseRHI();
+		DisjointQuery.ReleaseRHI();
 	}
 
 	/** Start this frame of per tracking */

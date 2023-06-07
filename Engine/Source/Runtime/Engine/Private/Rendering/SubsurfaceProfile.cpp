@@ -303,7 +303,7 @@ IPooledRenderTarget* FSubsurfaceProfileTexture::GetSSProfilesPreIntegratedTextur
 	return GSSProfilesPreIntegratedTexture;
 }
 
-void FSubsurfaceProfileTexture::ReleaseDynamicRHI()
+void FSubsurfaceProfileTexture::ReleaseRHI()
 {
 	GSSProfiles.SafeRelease();
 	GSSProfilesPreIntegratedTexture.SafeRelease();

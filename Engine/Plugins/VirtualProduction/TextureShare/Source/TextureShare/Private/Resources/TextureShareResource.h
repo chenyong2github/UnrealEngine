@@ -69,7 +69,7 @@ public:
 	virtual void HandleFrameEnd_RenderThread();
 
 public:
-	virtual void InitDynamicRHI() override;
+	virtual void InitRHI() override;
 
 	// Returns the width of the texture in pixels.
 	virtual uint32 GetSizeX() const override

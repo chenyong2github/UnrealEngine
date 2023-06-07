@@ -21,7 +21,7 @@ FD3D11ConstantBuffer::~FD3D11ConstantBuffer()
 /**
 * Creates a constant buffer on the device
 */
-void FD3D11ConstantBuffer::InitDynamicRHI()
+void FD3D11ConstantBuffer::InitRHI()
 {
 // New circular buffer system for faster constant uploads.  Avoids CopyResource and speeds things up considerably
 	// aligned for best performance
@@ -29,7 +29,7 @@ void FD3D11ConstantBuffer::InitDynamicRHI()
 	FMemory::Memzero(ShadowData, GetMaxSize());
 }
 
-void FD3D11ConstantBuffer::ReleaseDynamicRHI()
+void FD3D11ConstantBuffer::ReleaseRHI()
 {
 	if(ShadowData)
 	{

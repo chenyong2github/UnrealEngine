@@ -597,7 +597,7 @@ void FD3D11DynamicRHI::RHICalibrateTimers()
 /**
  * Initializes all D3D resources and if necessary, the static variables.
  */
-void FD3D11BufferedGPUTiming::InitDynamicRHI()
+void FD3D11BufferedGPUTiming::InitRHI()
 {
 	StaticInitialize(D3DRHI, PlatformStaticInitialize);
 
@@ -631,7 +631,7 @@ void FD3D11BufferedGPUTiming::InitDynamicRHI()
 /**
  * Releases all D3D resources.
  */
-void FD3D11BufferedGPUTiming::ReleaseDynamicRHI()
+void FD3D11BufferedGPUTiming::ReleaseRHI()
 {
 	if ( StartTimestamps && EndTimestamps )
 	{
@@ -804,7 +804,7 @@ D3D11_QUERY_DATA_TIMESTAMP_DISJOINT FD3D11DisjointTimeStampQuery::GetResult()
 	return DisjointQueryData;
 }
 
-void FD3D11DisjointTimeStampQuery::InitDynamicRHI()
+void FD3D11DisjointTimeStampQuery::InitRHI()
 {
 	D3D11_QUERY_DESC QueryDesc;
 	QueryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
@@ -813,7 +813,7 @@ void FD3D11DisjointTimeStampQuery::InitDynamicRHI()
 	VERIFYD3D11RESULT_EX(D3DRHI->GetDevice()->CreateQuery(&QueryDesc, DisjointQuery.GetInitReference()), D3DRHI->GetDevice());
 }
 
-void FD3D11DisjointTimeStampQuery::ReleaseDynamicRHI()
+void FD3D11DisjointTimeStampQuery::ReleaseRHI()
 {
 
 }

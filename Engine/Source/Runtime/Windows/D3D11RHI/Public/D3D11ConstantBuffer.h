@@ -37,8 +37,8 @@ public:
 	virtual ~FD3D11ConstantBuffer();
 
 	// FRenderResource interface.
-	virtual void	InitDynamicRHI() override;
-	virtual void	ReleaseDynamicRHI() override;
+	virtual void	InitRHI() override;
+	virtual void	ReleaseRHI() override;
 
 	static inline constexpr uint32 GetMaxSize() { return (uint32)Align(MAX_GLOBAL_CONSTANT_BUFFER_BYTE_SIZE, 16); }
 

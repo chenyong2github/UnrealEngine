@@ -12,7 +12,7 @@ FSlateFontTextureRHIResource::FSlateFontTextureRHIResource(uint32 InWidth, uint3
 {
 }
 
-void FSlateFontTextureRHIResource::InitDynamicRHI()
+void FSlateFontTextureRHIResource::InitRHI()
 {
 	check( IsInRenderingThread() );
 
@@ -73,7 +73,7 @@ void FSlateFontTextureRHIResource::InitDynamicRHI()
 	}
 }
 
-void FSlateFontTextureRHIResource::ReleaseDynamicRHI()
+void FSlateFontTextureRHIResource::ReleaseRHI()
 {
 	check( IsInRenderingThread() );
 
