@@ -1539,11 +1539,10 @@ struct FGrammarBasedParser
 		// String literal
 		if (MatchChar(TCHAR('"')))
 		{
-			ZeroOrMore([this]() 
+			while (*Cursor && (TCHAR('"') != *Cursor))
 			{
 				++Cursor;
-				return !IsAt(TCHAR('"'));
-			});
+			}
 
 			if (!MatchChar(TCHAR('"')))
 			{
