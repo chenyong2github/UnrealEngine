@@ -64,6 +64,8 @@ data:
           default_type "";
           return 200; # error_code is ignored
         }
+
+        return 404;
       }
 
       # http 1.1 corp port
@@ -98,6 +100,8 @@ data:
           default_type "";
           return 200; # error_code is ignored
         }
+
+        return 404;
       }
 
       # public http2 port
@@ -132,6 +136,8 @@ data:
           default_type "";
           return 200; # error_code is ignored
         }
+
+        return 404;
       }
 
       # corp port http2
@@ -166,6 +172,8 @@ data:
           default_type "";
           return 200; # error_code is ignored
         }
+
+        return 404;
       }
 
       # nginx status
