@@ -24,6 +24,7 @@ Texture2D<float4> SecondaryTracingVolumetricTexture;
 Texture2D<float4> TracingVolumetricDepthTexture;
 uint4 TracingVolumetricTextureValidCoordRect;
 float4 TracingVolumetricTextureValidUvRect;
+float MinimumDistanceKmToEnableReprojection;
 
 struct FDepthData
 {
@@ -184,7 +185,10 @@ void ReconstructVolumetricRenderTargetPS(
 
 		float2 PrevScreenPosition = (ScreenPosition - ScreenVelocity);   // NDC in [-1,1]
 		float2 PrevScreenUVs = ScreenPosToViewportUV(PrevScreenPosition);// UV in [0,1]
-		const bool bValidPreviousUVs = all(PrevScreenUVs > 0.0) && all(PrevScreenUVs < 1.0f);
+		const bool bValidPreviousUVs = all(PrevScreenUVs > 0.0) && all(PrevScreenUVs < 1.0f) 
+			&& (TracingVolumetricSampleDepthKm >= MinimumDistanceKmToEnableReprojection);	// This helps hide reprojection issues due to imperfect approximation of cloud depth as a single front surface, 
+																							// especially visible when flying through the cloud layer. It is not perfect but will help in lots of cases. 
+																							// The problem when using this method: clouds will look noisier when closer to that distance. 
 
 		if (VolumetricRenderTargetMode == 2)
 		{
