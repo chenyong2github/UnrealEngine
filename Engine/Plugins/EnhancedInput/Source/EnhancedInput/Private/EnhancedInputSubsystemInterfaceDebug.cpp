@@ -255,7 +255,11 @@ void IEnhancedInputSubsystemInterface::ShowMappingContextDebugInfo(UCanvas* Canv
 				}
 				DisplayDebugManager.DrawString(ActionStr);
 
+				// The drawing of these debug textures only works in the editor and causes some serious perf hitches 
+				// when you try to call it in a cooked game build.
+#if WITH_EDITOR
 				ShowDebugActionModifiers(Canvas, Action);
+#endif	// WITH_EDITOR
 
 				for (const FDisplayLine& DisplayLine : MappingDisplayLine)
 				{
