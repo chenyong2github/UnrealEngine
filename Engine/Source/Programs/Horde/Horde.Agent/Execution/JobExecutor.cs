@@ -1317,6 +1317,9 @@ namespace Horde.Agent.Execution
 			FileReference cleanupScript = GetCleanupScript(workspaceDir);
 			newEnvVars["UE_HORDE_CLEANUP"] = cleanupScript.FullName;
 
+			// Set up the shared working dir
+			newEnvVars["UE_HORDE_SHARED_DIR"] = DirectoryReference.Combine(_session.WorkingDir, "Saved").FullName;
+
 			// Disable the S3DDC. This is technically a Fortnite-specific setting, but affects a large number of branches and is hard to retrofit. 
 			// Setting here for now, since it's likely to be temporary.
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
