@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Common.ush"
 
-#if SHADING_PATH_MOBILE
+#if SHADING_PATH_MOBILE 
 	#define OcclusionBuffer MobileBasePass.RWOcclusionBufferUAV
 #else
 	#define OcclusionBuffer DummyBuffer
