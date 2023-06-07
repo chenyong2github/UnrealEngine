@@ -884,7 +884,7 @@ namespace D3D12RHI
 		{
 			TerminateOnOutOfMemory(Device, D3DResult, false);
 		}
-		else
+		else if (D3DResult == DXGI_ERROR_DEVICE_REMOVED || D3DResult == DXGI_ERROR_DEVICE_HUNG || D3DResult == DXGI_ERROR_DEVICE_RESET)
 		{
 			TerminateOnGPUCrash(Device, nullptr, 0);
 		}
@@ -922,7 +922,7 @@ namespace D3D12RHI
 			*GetD3D12TextureFlagString(TextureDesc.Flags));
 
 		// Terminate with device removed but we don't have any GPU crash dump information
-		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED || D3DResult == DXGI_ERROR_DEVICE_HUNG)
+		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED || D3DResult == DXGI_ERROR_DEVICE_HUNG || D3DResult == DXGI_ERROR_DEVICE_RESET)
 		{
 			TerminateOnGPUCrash(Device, nullptr, 0);
 		}
