@@ -588,7 +588,7 @@ public:
 	void IssueBatchAndDispatchSubsequents(FIoBatch& Batch, FGraphEventRef GraphEvent)
 	{
 		FIoBatchImpl* Impl = AllocBatch();
-		Impl->GraphEvent = GraphEvent;
+		Impl->GraphEvent = MoveTemp(GraphEvent);
 		IssueBatchInternal(Batch, Impl);
 	}
 
@@ -1085,7 +1085,7 @@ FIoBatch::IssueAndTriggerEvent(FEvent* Event)
 void
 FIoBatch::IssueAndDispatchSubsequents(FGraphEventRef Event)
 {
-	Dispatcher->IssueBatchAndDispatchSubsequents(*this, Event);
+	Dispatcher->IssueBatchAndDispatchSubsequents(*this, MoveTemp(Event));
 }
 
 //////////////////////////////////////////////////////////////////////////
