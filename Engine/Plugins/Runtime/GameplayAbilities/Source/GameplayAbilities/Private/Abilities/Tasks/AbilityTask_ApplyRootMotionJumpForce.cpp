@@ -115,11 +115,6 @@ void UAbilityTask_ApplyRootMotionJumpForce::SharedInitAndApply()
 			JumpForce->FinishVelocityParams.SetVelocity = FinishSetVelocity;
 			JumpForce->FinishVelocityParams.ClampVelocity = FinishClampVelocity;
 			RootMotionSourceID = MovementComponent->ApplyRootMotionSource(JumpForce);
-
-			if (Ability)
-			{
-				Ability->SetMovementSyncPoint(ForceName);
-			}
 		}
 	}
 	else

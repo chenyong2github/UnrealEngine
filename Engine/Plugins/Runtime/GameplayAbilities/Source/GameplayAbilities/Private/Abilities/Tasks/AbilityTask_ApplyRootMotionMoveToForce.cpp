@@ -75,11 +75,6 @@ void UAbilityTask_ApplyRootMotionMoveToForce::SharedInitAndApply()
 			MoveToForce->FinishVelocityParams.SetVelocity = FinishSetVelocity;
 			MoveToForce->FinishVelocityParams.ClampVelocity = FinishClampVelocity;
 			RootMotionSourceID = MovementComponent->ApplyRootMotionSource(MoveToForce);
-
-			if (Ability)
-			{
-				Ability->SetMovementSyncPoint(ForceName);
-			}
 		}
 	}
 	else

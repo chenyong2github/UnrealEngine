@@ -77,11 +77,6 @@ void UAbilityTask_ApplyRootMotionRadialForce::SharedInitAndApply()
 			RadialForce->FinishVelocityParams.SetVelocity = FinishSetVelocity;
 			RadialForce->FinishVelocityParams.ClampVelocity = FinishClampVelocity;
 			RootMotionSourceID = MovementComponent->ApplyRootMotionSource(RadialForce);
-
-			if (Ability)
-			{
-				Ability->SetMovementSyncPoint(ForceName);
-			}
 		}
 	}
 	else

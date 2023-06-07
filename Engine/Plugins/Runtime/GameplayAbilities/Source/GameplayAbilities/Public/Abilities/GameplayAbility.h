@@ -404,6 +404,7 @@ public:
 	virtual void SetCurrentMontage(class UAnimMontage* InCurrentMontage);
 
 	/** Movement Sync */
+	UE_DEPRECATED(5.3, "This serves no purpose and will be removed in future engine versions")
 	virtual void SetMovementSyncPoint(FName SyncName);
 
 	// ----------------------------------------------------------------------------------------------------------------

@@ -144,11 +144,6 @@ void UAbilityTask_ApplyRootMotionMoveToActorForce::SharedInitAndApply()
 			MoveToActorForce->FinishVelocityParams.SetVelocity = FinishSetVelocity;
 			MoveToActorForce->FinishVelocityParams.ClampVelocity = FinishClampVelocity;
 			RootMotionSourceID = MovementComponent->ApplyRootMotionSource(MoveToActorForce);
-
-			if (Ability)
-			{
-				Ability->SetMovementSyncPoint(ForceName);
-			}
 		}
 	}
 	else
