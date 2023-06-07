@@ -2608,7 +2608,9 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 
 	if (bWasFound == false)
 	{
-		FPipelineFileCacheManager::CacheGraphicsPSO(GetTypeHash(Initializer), Initializer);
+		bool bWasPSOPrecached = PSOPrecacheResult == EPSOPrecacheResult::Active || PSOPrecacheResult == EPSOPrecacheResult::Complete;
+
+		FPipelineFileCacheManager::CacheGraphicsPSO(GetTypeHash(Initializer), Initializer, bWasPSOPrecached);
 
 		// create new graphics state
 		OutCachedState = new FGraphicsPipelineState();

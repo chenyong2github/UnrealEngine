@@ -354,7 +354,7 @@ public:
 
 	RHI_API static void CloseUserPipelineFileCache();
 
-	RHI_API static void CacheGraphicsPSO(uint32 RunTimeHash, FGraphicsPipelineStateInitializer const& Initializer);
+	RHI_API static void CacheGraphicsPSO(uint32 RunTimeHash, FGraphicsPipelineStateInitializer const& Initializer, bool bWasPSOPrecached);
 	RHI_API static void CacheComputePSO(uint32 RunTimeHash, FRHIComputeShader const* Initializer);
 	RHI_API static void CacheRayTracingPSO(const FRayTracingPipelineStateInitializer& Initializer, ERayTracingPipelineCacheFlags Flags);
 
