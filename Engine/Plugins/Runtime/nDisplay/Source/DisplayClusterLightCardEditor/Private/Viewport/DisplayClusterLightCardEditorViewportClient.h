@@ -247,6 +247,9 @@ private:
 	/** Resets the stored view configurations to default values for each projection mode */
 	void ResetProjectionViewConfigurations();
 
+	/** Attempt to set bShouldCheckHitProxy */
+	void TrySetShouldCheckHitProxy();
+	
 	/** Creates a new light card using a polygon alpha mask as defined by the given mouse positions on the viewport */
 	void CreateDrawnLightCard(const TArray<FIntPoint>& MousePositions);
 
