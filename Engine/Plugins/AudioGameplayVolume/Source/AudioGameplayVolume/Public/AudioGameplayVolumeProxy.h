@@ -53,7 +53,7 @@ protected:
  *  UAGVPrimitiveComponentProxy - Proxy based on a volume's primitive component
  */
 UCLASS(meta = (DisplayName = "AGV Primitive Proxy"))
-class UAGVPrimitiveComponentProxy : public UAudioGameplayVolumeProxy
+class AUDIOGAMEPLAYVOLUME_API UAGVPrimitiveComponentProxy : public UAudioGameplayVolumeProxy
 {
 	GENERATED_UCLASS_BODY()
 
@@ -76,7 +76,7 @@ protected:
  *  UAGVConditionProxy - Proxy for use with the UAudioGameplayCondition interface
  */
 UCLASS(meta = (DisplayName = "AGV Condition Proxy"))
-class UAGVConditionProxy : public UAudioGameplayVolumeProxy
+class AUDIOGAMEPLAYVOLUME_API UAGVConditionProxy : public UAudioGameplayVolumeProxy
 {
 	GENERATED_UCLASS_BODY()
 
