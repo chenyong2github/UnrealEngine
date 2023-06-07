@@ -2414,7 +2414,7 @@ void FPendingCookedPlatformData::ClearCachedCookedPlatformData(UObject* Object, 
 					break;
 				}
 			}
-			UE_LOG(LogCook, Error, TEXT("ClearCachedCookedPlatformData called unexpectedly on %s. It will be skipped.")
+			UE_LOG(LogCook, Display, TEXT("ClearCachedCookedPlatformData called unexpectedly on %s. It will be skipped.")
 				TEXT("\n\tPreviousEvent: %s for package %s.")
 				TEXT("\n\tCurrentEvent: %s for package %s."),
 				*Object->GetFullName(), LexToString(ExistingEvent), *CCPDState.PackageData->GetPackageName().ToString(),
