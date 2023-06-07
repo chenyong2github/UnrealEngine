@@ -80,7 +80,7 @@ class SKELETALMESHMODIFIERS_API USkeletonModifier : public UObject
 public:
 
 	UFUNCTION(BlueprintCallable, Category = "Mesh")
-	bool Init(USkeletalMesh* InSkeletalMesh);
+	bool SetSkeletalMesh(USkeletalMesh* InSkeletalMesh);
 
 	/** Creates a new bone in the skeleton hierarchy at desired transform
 	 *  @param InBoneName The new bone's name.
@@ -200,8 +200,10 @@ private:
 
 	// orient function
 	void GetBonesToOrient(const TArray<FName>& InBonesName, const FOrientOptions& InOptions, TArray<int32>& OutBonesToOrient) const;
+
+	UPROPERTY(transient)
+	TWeakObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
 	
-	TObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
 	TUniquePtr<FMeshDescription> MeshDescription;
 	TUniquePtr<FReferenceSkeleton> ReferenceSkeleton;
 	TUniquePtr<FTransformComposer> TransformComposer;

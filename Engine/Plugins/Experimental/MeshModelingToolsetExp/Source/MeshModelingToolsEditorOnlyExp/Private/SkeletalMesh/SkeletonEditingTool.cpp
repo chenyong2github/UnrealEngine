@@ -110,7 +110,7 @@ void USkeletonEditingTool::Setup()
 
 	// setup modifier
 	Modifier = NewObject<USkeletonModifier>(this);
-	Modifier->Init(SkeletalMesh);
+	Modifier->SetSkeletalMesh(SkeletalMesh);
 
 	// setup current bone
 	const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();

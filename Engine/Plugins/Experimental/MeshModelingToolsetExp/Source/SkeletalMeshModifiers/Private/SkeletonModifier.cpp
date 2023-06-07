@@ -127,7 +127,7 @@ void USkeletonModifier::ExternalUpdate(const FReferenceSkeleton& InRefSkeleton, 
 	BoneIndexTracker = InIndexTracker;
 }
 
-bool USkeletonModifier::Init(USkeletalMesh* InSkeletalMesh)
+bool USkeletonModifier::SetSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 {
 	SkeletalMesh = nullptr;
 	MeshDescription.Reset();
@@ -234,7 +234,7 @@ bool USkeletonModifier::IsReferenceSkeletonValid(const bool bLog) const
 
 bool USkeletonModifier::CommitSkeletonToSkeletalMesh()
 {
-	if (!SkeletalMesh || !ReferenceSkeleton || !MeshDescription)
+	if (!SkeletalMesh.IsValid() || !ReferenceSkeleton || !MeshDescription)
 	{
 		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier: No mesh loaded. Cannot apply skeleton edits."));
 		return false;
@@ -355,7 +355,7 @@ bool USkeletonModifier::CommitSkeletonToSkeletalMesh()
 	SkeletalMesh->CommitMeshDescription(USkeletonModifierLocals::LODIndex, *MeshDescription);
 
 	// update skeleton
-	if (Skeleton->RecreateBoneTree(SkeletalMesh))
+	if (Skeleton->RecreateBoneTree(SkeletalMesh.Get()))
 	{
 		Skeleton->MarkPackageDirty();	
 	}
