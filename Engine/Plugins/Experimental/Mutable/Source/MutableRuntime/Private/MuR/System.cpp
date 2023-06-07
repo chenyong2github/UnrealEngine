@@ -166,6 +166,10 @@ namespace mu
 		m_pD->WorkingMemoryManager.PooledImages.Empty();
 		m_pD->WorkingMemoryManager.CacheResources.Empty();
 		check(m_pD->WorkingMemoryManager.TempImages.IsEmpty());
+		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Pooled = 0;
+		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Temp = 0;
+		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Cached = 0;
+		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Rom = 0;
 	}
 
 	
@@ -445,6 +449,7 @@ namespace mu
 		if (m_pD->WorkingMemoryManager.BudgetBytes == 0)
 		{
 			m_pD->WorkingMemoryManager.PooledImages.Empty();
+			m_pD->WorkingMemoryManager.TrackedBudgetBytes_Pooled = 0;
 		}
 
 	}
@@ -466,14 +471,24 @@ namespace mu
 				{
 					if (Data)
 					{
-						m_pD->WorkingMemoryManager.CacheResources.Remove(Data);
+						int32 DataSize = Data->GetDataSize();
+						int32 Removed = m_pD->WorkingMemoryManager.CacheResources.Remove(Data);
+						if (Removed)
+						{
+							m_pD->WorkingMemoryManager.TrackedBudgetBytes_Cached -= DataSize;
+						}
 					}
 				}
 				for (Ptr<const Mesh>& Data : Instance.Cache->MeshResults)
 				{
 					if (Data)
 					{
-						m_pD->WorkingMemoryManager.CacheResources.Remove(Data);
+						int32 DataSize = Data->GetDataSize();
+						int32 Removed = m_pD->WorkingMemoryManager.CacheResources.Remove(Data);
+						if (Removed)
+						{
+							m_pD->WorkingMemoryManager.TrackedBudgetBytes_Cached -= DataSize;
+						}
 					}
 				}
 
@@ -955,66 +970,16 @@ namespace mu
 			+ StreamingBufferBytes
 			+ RomBytes;
 
-		UE_LOG(LogMutableCore, Log, TEXT("Mem KB: Internal %7d   Temp %7d   Pool %7d   Cache0+1 %7d   CacheTracked %7d   Rom %7d   Stream %7d   Total %7d / %7d"),
+		UE_LOG(LogMutableCore, Log, TEXT("Mem KB: Internal %7d   Temp %7d (%7d)   Pool %7d (%7d)   Cache0+1 %7d (%7d) (%7d)   Rom %7d (%7d)   Stream %7d   Total %7d / %7d"),
 			InternalBytes / 1024,
-			TempBytes / 1024,
-			PoolBytes / 1024,
-			CacheBytes / 1024,
-			TrackedCacheBytes / 1024,
-			RomBytes / 1024,
+			TempBytes / 1024, TrackedBudgetBytes_Temp / 1024,
+			PoolBytes / 1024, TrackedBudgetBytes_Pooled / 1024,
+			CacheBytes / 1024, TrackedCacheBytes / 1024, TrackedBudgetBytes_Cached / 1024,
+			RomBytes / 1024, TrackedBudgetBytes_Rom / 1024,
 			StreamingBufferBytes / 1024,
 			TotalBytes / 1024,
 			BudgetBytes / 1024
 			);
-
-		// Detailed log for debug.
-		//if (TotalBytes > 30 * 1024 * 1024)
-		//if (false)
-		//{
-		//	UE_LOG(LogMutableCore, Log, TEXT("Mem detailed report:"));
-
-		//	for (const FLiveInstance& Instance : LiveInstances)
-		//	{
-		//		UE_LOG(LogMutableCore, Log, TEXT("  instance:"));
-
-		//		TSet<const Resource*> InstanceCache0Unique;
-		//		TSet<const Resource*> InstanceCache1Unique;
-
-		//		CodeContainer<int>::iterator it = Instance.Cache->m_opHitCount.begin();
-		//		for (; it.IsValid(); ++it)
-		//		{
-		//			const Resource* Value = Instance.Cache->m_resources[it.get_address()].Value.get();
-		//			if (!Value)
-		//			{
-		//				continue;
-		//			}
-
-		//			int32 Count = *it;
-		//			if (Count < UE_MUTABLE_CACHE_COUNT_LIMIT)
-		//			{
-		//				InstanceCache0Unique.Add(Value);
-		//			}
-		//			else
-		//			{
-		//				InstanceCache1Unique.Add(Value);
-		//			}
-		//		}
-
-		//		UE_LOG(LogMutableCore, Log, TEXT("    cache level 0:"));
-
-		//		for (const Resource* Value : InstanceCache0Unique)
-		//		{
-		//			UE_LOG(LogMutableCore, Log, TEXT("      resource: %d"), Value->GetDataSize());
-		//		}
-
-		//		UE_LOG(LogMutableCore, Log, TEXT("    cache level 1:"));
-
-		//		for (const Resource* Value : InstanceCache1Unique)
-		//		{
-		//			UE_LOG(LogMutableCore, Log, TEXT("      resource: %d"), Value->GetDataSize());
-		//		}
-		//	}
-		//}
 
 		TRACE_COUNTER_SET(MutableRuntime_MemInternal, InternalBytes);
 		TRACE_COUNTER_SET(MutableRuntime_MemTemp, TempBytes);
@@ -1076,10 +1041,10 @@ namespace mu
 		uint32 TrackedCacheBytes = 0;
 		{
 			MUTABLE_CPUPROFILER_SCOPE(EnsureBudgetBelow_Measure);
-			RomBytes = GetRomBytes();
-			PoolBytes = GetPooledBytes();
-			TempBytes = GetTempBytes();
-			TrackedCacheBytes = GetTrackedCacheBytes();
+			RomBytes = TrackedBudgetBytes_Rom; // GetRomBytes();
+			PoolBytes = TrackedBudgetBytes_Pooled; // GetPooledBytes();
+			TempBytes = TrackedBudgetBytes_Temp; // GetTempBytes();
+			TrackedCacheBytes = TrackedBudgetBytes_Cached; // GetTrackedCacheBytes();
 		}
 
 		uint64 TotalBytes = 0;
@@ -1100,8 +1065,9 @@ namespace mu
 			{
 				// TODO: Actually advancing index if possible after swap may be better to remove the oldest in the pool first.
 				int32 PooledResourceSize = PooledImages[0]->GetDataSize();
-				TotalBytes -= PooledResourceSize;
+				TotalBytes -= PooledResourceSize;				
 				PooledImages.RemoveAtSwap(0);
+				TrackedBudgetBytes_Pooled -= PooledResourceSize;
 				bFinished = TotalBytes <= BudgetBytes;
 			}
 		}
@@ -1162,8 +1128,10 @@ namespace mu
 					MUTABLE_CPUPROFILER_SCOPE(EnsureBudgetBelow_UnloadRom);
 
 					// UE_LOG(LogMutableCore,Log, "Unloading rom because of memory budget: %d.", lowestPriorityRom);
-					LowestPriorityModel->GetPrivate()->m_program.UnloadRom(LowestPriorityRom);
-					TotalBytes -= LowestPriorityModel->GetPrivate()->m_program.m_roms[LowestPriorityRom].Size;
+					int32 UnloadedSize = LowestPriorityModel->GetPrivate()->m_program.UnloadRom(LowestPriorityRom);
+					TotalBytes -= UnloadedSize;
+					TrackedBudgetBytes_Rom -= UnloadedSize;
+
 					bFinished = TotalBytes <= BudgetBytes;
 				}
 			}
@@ -1262,11 +1230,16 @@ namespace mu
 					TotalBytes -= RemovedDataSize;
 					bFinished = TotalBytes <= BudgetBytes;
 				}
+
+				if (bFinished)
+				{
+					break;
+				}
 			}
 
 			// From the current live instances. It is more involved: we have to make sure any data we want to free is not also
 			// in any cache (0 or 1) position with hit-count > 0.
-			if (CurrentInstanceCache)
+			if (CurrentInstanceCache && !bFinished)
 			{
 				// Gather all data in the cache for this instance
 				TArray<const Resource*> CacheUnique;
@@ -1380,7 +1353,11 @@ namespace mu
 
 						if (Value == Removed)
 						{
-							CacheResources.Remove(Removed);
+							int32 RemoveCount = CacheResources.Remove(Removed);
+							if (RemoveCount > 0)
+							{
+								TrackedBudgetBytes_Cached -= RemovedDataSize;
+							}
 							// \TODO: This is not very efficient, since it will search the data again.
 							CurrentInstanceCache->SetUnused(RemIt.get_address());
 						}

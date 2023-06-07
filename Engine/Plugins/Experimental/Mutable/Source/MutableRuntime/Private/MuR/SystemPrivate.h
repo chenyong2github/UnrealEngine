@@ -1113,6 +1113,12 @@ namespace mu
 		/** Maximum excess memory reached suring the current operation. */
 		uint64 BudgetExcessBytes = 0;
 
+		/** . */
+		uint32 TrackedBudgetBytes_Rom = 0;
+		uint32 TrackedBudgetBytes_Temp = 0;
+		uint32 TrackedBudgetBytes_Pooled = 0;
+		uint32 TrackedBudgetBytes_Cached = 0;
+
 		/** This value is used to track the order of loading of roms. */
         uint64 RomTick = 0;
 
@@ -1166,6 +1172,7 @@ namespace mu
 				{
 					Ptr<Image> Result = Candidate;
 					PooledImages.RemoveAtSwap(Index);
+					TrackedBudgetBytes_Pooled -= Result->GetDataSize();
 					if (Init == EInitializationType::Black)
 					{
 						Result->InitToBlack();
@@ -1187,6 +1194,7 @@ namespace mu
 			Ptr<Image> Result = new Image(SizeX, SizeY, Lods, Format, Init);
 
 			TempImages.Add(Result);
+			TrackedBudgetBytes_Temp += Result->GetDataSize();
 			return Result;
 		}
 
@@ -1195,7 +1203,12 @@ namespace mu
 		{
 			CheckRunnerThread();
 
-			TempImages.RemoveSingle(Resource);
+			int32 Removed = TempImages.RemoveSingle(Resource);
+			if (Removed)
+			{
+				TrackedBudgetBytes_Temp -= Resource->GetDataSize();
+			}
+
 			check(!TempImages.Contains(Resource));
 			check(!PooledImages.Contains(Resource));
 
@@ -1229,23 +1242,30 @@ namespace mu
 				return;
 			}
 
-			TempImages.RemoveSingle(Resource);
+			int32 ResourceDataSize = Resource->GetDataSize();
+			int32 Removed = TempImages.RemoveSingle(Resource);
+			if (Removed)
+			{
+				TrackedBudgetBytes_Temp -= ResourceDataSize;
+			}
+
 			check(!TempImages.Contains(Resource));
 			check(!PooledImages.Contains(Resource));
 
 			if (IsBudgetTemp(Resource))
 			{
 				// Check if we are exceeding the budget
-				bool bInBudget = EnsureBudgetBelow(Resource->GetDataSize());
+				bool bInBudget = EnsureBudgetBelow(ResourceDataSize);
 				if (bInBudget)
 				{
 					PooledImages.Add(const_cast<Image*>(Resource.get()));
+					TrackedBudgetBytes_Pooled += ResourceDataSize;
 				}
 			}
 			else
 			{
 				// Check if we are exceeding the budget
-				bool bInBudget = EnsureBudgetBelow(0);
+				EnsureBudgetBelow(0);
 			}
 
 			Resource = nullptr;
@@ -1262,23 +1282,30 @@ namespace mu
 				return;
 			}
 
-			TempImages.RemoveSingle(Resource);
+			int32 ResourceDataSize = Resource->GetDataSize();
+			int32 Removed = TempImages.RemoveSingle(Resource);
+			if (Removed)
+			{
+				TrackedBudgetBytes_Temp -= ResourceDataSize;
+			}
+
 			check(!TempImages.Contains(Resource));
 			check(!PooledImages.Contains(Resource));
 
 			if (IsBudgetTemp(Resource))
 			{
 				// Check if we are exceeding the budget
-				bool bInBudget = EnsureBudgetBelow(Resource->GetDataSize());
+				bool bInBudget = EnsureBudgetBelow(ResourceDataSize);
 				if (bInBudget)
 				{
 					PooledImages.Add(Resource.get());
+					TrackedBudgetBytes_Pooled += ResourceDataSize;
 				}
 			}
 			else
 			{
 				// Check if we are exceeding the budget
-				bool bInBudget = EnsureBudgetBelow(0);
+				EnsureBudgetBelow(0);
 			}
 
 			Resource = nullptr;
@@ -1326,6 +1353,8 @@ namespace mu
 				return nullptr;
 			}
 
+			int32 ResultDataSize = Result->GetDataSize();
+
 			// If we retrieved the last reference to this resource in "From" cache position (it could still be in other cache positions as well)
 			if (bIsLastReference)
 			{
@@ -1335,6 +1364,7 @@ namespace mu
 				if (!*CountPtr)
 				{
 					CacheResources.FindAndRemoveChecked(Result);
+					TrackedBudgetBytes_Cached -= ResultDataSize;
 				}
 			}
 
@@ -1342,6 +1372,7 @@ namespace mu
 			if (!bTakeOwnership && Result->IsUnique())
 			{
 				TempImages.Add(Result);
+				TrackedBudgetBytes_Temp += ResultDataSize;
 			}
 
 			return Result;
@@ -1352,10 +1383,21 @@ namespace mu
 		{
 			if (Resource)
 			{
-				TempImages.RemoveSingle(Resource);
+				int32 ResourceDataSize = Resource->GetDataSize();
+				int32 Removed = TempImages.RemoveSingle(Resource);
+				if (Removed)
+				{
+					TrackedBudgetBytes_Temp -= ResourceDataSize;
+				}
+
 				check(!TempImages.Contains(Resource));
 
 				int32& Count = CacheResources.FindOrAdd(Resource, 0);
+				if (!Count)
+				{
+					TrackedBudgetBytes_Cached += ResourceDataSize;
+				}
+
 				++Count;
 			}
 
@@ -1383,6 +1425,8 @@ namespace mu
 				Result += Value->GetDataSize();
 			}
 
+			ensure(Result == TrackedBudgetBytes_Pooled);
+
 			return Result;
 		}
 
@@ -1394,6 +1438,8 @@ namespace mu
 			{
 				Result += Value->GetDataSize();
 			}
+
+			ensure(Result==TrackedBudgetBytes_Temp);
 
 			return Result;
 		}
@@ -1528,19 +1574,37 @@ namespace mu
 				}
 
 				const Resource* Value = nullptr;
+				int32 ValueDataSize = 0;
+				int32 RemoveCount = 0;
 
 				switch (Data.DataType)
 				{
 				case DATATYPE::DT_IMAGE:
 					Value = CurrentInstanceCache->ImageResults[Data.DataTypeIndex].get();
-					CacheResources.Remove(Value);
-					CurrentInstanceCache->ImageResults[Data.DataTypeIndex] = nullptr;
+					if (Value)
+					{
+						ValueDataSize = Value->GetDataSize();
+						RemoveCount = CacheResources.Remove(Value);
+						if (RemoveCount)
+						{
+							TrackedBudgetBytes_Cached -= ValueDataSize;
+						}
+						CurrentInstanceCache->ImageResults[Data.DataTypeIndex] = nullptr;
+					}
 					break;
 
 				case DATATYPE::DT_MESH:
 					Value = CurrentInstanceCache->MeshResults[Data.DataTypeIndex].get();
-					CacheResources.Remove(Value);
-					CurrentInstanceCache->MeshResults[Data.DataTypeIndex] = nullptr;
+					if (Value)
+					{
+						ValueDataSize = Value->GetDataSize();
+						RemoveCount = CacheResources.Remove(Value);
+						if (RemoveCount)
+						{
+							TrackedBudgetBytes_Cached -= ValueDataSize;
+						}
+						CurrentInstanceCache->MeshResults[Data.DataTypeIndex] = nullptr;
+					}
 					break;
 
 				case DATATYPE::DT_LAYOUT:

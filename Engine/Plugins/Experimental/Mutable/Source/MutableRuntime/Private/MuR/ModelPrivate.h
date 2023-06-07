@@ -346,24 +346,36 @@ namespace mu
 			return false;
 		}
 
-		//! Unload a rom resource
-		inline void UnloadRom(int32 RomIndex)
+		/** Unload a rom resource. Return the size of the unloaded rom.*/
+		inline int32 UnloadRom(int32 RomIndex)
 		{
+			int32 RomSize = 0;
+
 			if (DebugRom && (DebugRomAll||RomIndex == DebugRomIndex))
 				UE_LOG(LogMutableCore, Log, TEXT("Unloading rom %d."), RomIndex);
 
 			switch (m_roms[RomIndex].ResourceType)
 			{
 			case DT_IMAGE:
-				m_constantImageLODs[m_roms[RomIndex].ResourceIndex].Value = nullptr;
+				if (m_constantImageLODs[m_roms[RomIndex].ResourceIndex].Value)
+				{
+					RomSize = m_constantImageLODs[m_roms[RomIndex].ResourceIndex].Value->GetDataSize();
+					m_constantImageLODs[m_roms[RomIndex].ResourceIndex].Value = nullptr;
+				}
 				break;
 			case DT_MESH:
-				m_constantMeshes[m_roms[RomIndex].ResourceIndex].Value = nullptr;
+				if (m_constantMeshes[m_roms[RomIndex].ResourceIndex].Value)
+				{
+					RomSize = m_constantMeshes[m_roms[RomIndex].ResourceIndex].Value->GetDataSize();
+					m_constantMeshes[m_roms[RomIndex].ResourceIndex].Value = nullptr;
+				}
 				break;
 			default:
 				check(false);
 				break;
 			}
+
+			return RomSize;
 		}
 
         //! Adds a constant data and returns its constant index.

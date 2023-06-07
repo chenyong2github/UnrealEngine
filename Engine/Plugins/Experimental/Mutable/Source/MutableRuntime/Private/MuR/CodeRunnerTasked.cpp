@@ -80,15 +80,20 @@ namespace mu
 			case DATATYPE::DT_MESH:
 			{
 				check(!program.m_constantMeshes[ResIndex].Value);
-				program.m_constantMeshes[ResIndex].Value = Mesh::StaticUnserialise(arch);
+				Ptr<Mesh> Value = Mesh::StaticUnserialise(arch);
+				program.m_constantMeshes[ResIndex].Value = Value;
 				check(program.m_constantMeshes[ResIndex].Value);
+				m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Rom += Value->GetDataSize();
 				break;
 			}
 			case DATATYPE::DT_IMAGE:
 			{
 				check(!program.m_constantImageLODs[ResIndex].Value);
-				program.m_constantImageLODs[ResIndex].Value = Image::StaticUnserialise(arch);
+				// TODO: Try to reuse buffer from PooledImages.
+				Ptr<Image> Value = Image::StaticUnserialise(arch);
+				program.m_constantImageLODs[ResIndex].Value = Value;
 				check(program.m_constantImageLODs[ResIndex].Value);
+				m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Rom += Value->GetDataSize();
 				break;
 			}
 			default:
