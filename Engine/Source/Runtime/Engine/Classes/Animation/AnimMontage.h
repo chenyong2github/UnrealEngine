@@ -772,6 +772,7 @@ public:
 	/*
 	 * Check if this slot has valid animation data
 	 */
+	UFUNCTION(BlueprintPure, Category = "Montage")
 	bool IsValidAdditiveSlot(const FName& SlotNodeName) const;
 
 	/** Get FCompositeSection with InSectionName */
