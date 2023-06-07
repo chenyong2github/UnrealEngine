@@ -610,7 +610,7 @@ private:
 	{
 	public:
 		FPoseScope(UControlRig* InControlRig, ERigElementType InFilter = ERigElementType::All,
-			const TArray<FRigElementKey>& InElements = TArray<FRigElementKey>());
+			const TArray<FRigElementKey>& InElements = TArray<FRigElementKey>(), const ERigTransformType::Type InTransformType = ERigTransformType::CurrentLocal);
 		~FPoseScope();
 
 	private:
@@ -618,6 +618,7 @@ private:
 		UControlRig* ControlRig;
 		ERigElementType Filter;
 		FRigPose CachedPose;
+		ERigTransformType::Type TransformType;
 	};
 
 #if WITH_EDITOR

@@ -4119,24 +4119,6 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 			}
 		}
 	}
-#if WITH_EDITOR
-	if (bTransformChanged)
-	{
-		if (UControlRig* ControlRig = ShapeActor->ControlRig.Get())
-		{
-			if (UWorld* World = ControlRig->GetWorld())
-			{
-				if (World->IsPreviewWorld())
-				{
-					if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(ControlRig->GetClass()->ClassGeneratedBy))
-					{
-						Blueprint->PropagatePoseFromInstanceToBP(ControlRig);
-					}
-				}
-			}
-		}
-	}
-#endif
 }
 
 void FControlRigEditMode::ChangeControlShapeTransform(AControlRigShapeActor* ShapeActor, const bool bTranslation, FVector& InDrag,

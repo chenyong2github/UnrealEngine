@@ -655,11 +655,11 @@ bool UControlRig::Execute(const FName& InEventName)
 				// run in between forward events
 				// the saved pose is reapplied to the rig after construction event as the pose scope goes out of scope
 				TUniquePtr<FPoseScope> PoseScope;
-				if (!bConstructionModeEnabled)
+				if (!bConstructionModeEnabled && !bJustRanInit)
 				{
 					// only do this in non-construction mode because 
 					// when construction mode is enabled, the control values are cleared before reaching here (too late to save them)
-					PoseScope = MakeUnique<FPoseScope>(this, ERigElementType::ToResetAfterConstructionEvent);
+					PoseScope = MakeUnique<FPoseScope>(this, ERigElementType::ToResetAfterConstructionEvent, TArray<FRigElementKey>(), ERigTransformType::CurrentGlobal);
 				}
 				
 				{
@@ -2898,20 +2898,21 @@ void UControlRig::OnHierarchyTransformUndoRedo(URigHierarchy* InHierarchy, const
 	}
 }
 
-UControlRig::FPoseScope::FPoseScope(UControlRig* InControlRig, ERigElementType InFilter, const TArray<FRigElementKey>& InElements)
+UControlRig::FPoseScope::FPoseScope(UControlRig* InControlRig, ERigElementType InFilter, const TArray<FRigElementKey>& InElements, const ERigTransformType::Type InTransformType)
 : ControlRig(InControlRig)
 , Filter(InFilter)
+, TransformType(InTransformType)
 {
 	check(InControlRig);
 	const TArrayView<const FRigElementKey> ElementView(InElements.GetData(), InElements.Num());
-	CachedPose = InControlRig->GetHierarchy()->GetPose(false, InFilter, ElementView);
+	CachedPose = InControlRig->GetHierarchy()->GetPose(IsInitial(InTransformType), InFilter, ElementView);
 }
 
 UControlRig::FPoseScope::~FPoseScope()
 {
 	check(ControlRig);
 
-	ControlRig->GetHierarchy()->SetPose(CachedPose);
+	ControlRig->GetHierarchy()->SetPose(CachedPose, TransformType);
 }
 
 #if WITH_EDITOR
