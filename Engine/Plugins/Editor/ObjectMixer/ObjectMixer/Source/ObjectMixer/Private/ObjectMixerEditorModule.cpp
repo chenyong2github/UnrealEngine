@@ -145,13 +145,26 @@ TSharedPtr<SWidget> FObjectMixerEditorModule::MakeObjectMixerDialog(
 	return ObjectMixerDialog;
 }
 
-void FObjectMixerEditorModule::RegenerateListWidget()
+TSharedPtr<SDockTab> FObjectMixerEditorModule::FindNomadTab()
 {
-	if (DockTab)
+	if (!DockTab.IsValid())
+	{
+		DockTab = FGlobalTabmanager::Get()->FindExistingLiveTab(GetTabSpawnerId());
+	}
+	
+	return DockTab.Pin();
+}
+
+bool FObjectMixerEditorModule::RegenerateListWidget()
+{
+	if (const TSharedPtr<SDockTab> FoundTab = FindNomadTab())
 	{
 		const TSharedPtr<SWidget> ObjectMixerDialog = MakeObjectMixerDialog(DefaultFilterClass);
-		DockTab->SetContent(ObjectMixerDialog ? ObjectMixerDialog.ToSharedRef() : SNullWidget::NullWidget);
+		FoundTab->SetContent(ObjectMixerDialog ? ObjectMixerDialog.ToSharedRef() : SNullWidget::NullWidget);
+		return true;
 	}
+
+	return false;
 }
 
 void FObjectMixerEditorModule::RequestRebuildList() const
@@ -223,7 +236,8 @@ void FObjectMixerEditorModule::RegisterTabSpawner()
 		.SetIcon(MenuItemIcon)
 		.SetDisplayName(MenuItemName)
 		.SetTooltipText(MenuItemTooltip)
-		.SetMenuType(TabSpawnerType);
+		.SetMenuType(TabSpawnerType)
+	;
 
 	// Always use the base ObjectMixer function call or WorkspaceGroup may be null 
 	if (!FObjectMixerEditorModule::Get().RegisterItemInMenuGroup(BrowserSpawnerEntry))
@@ -277,14 +291,14 @@ void FObjectMixerEditorModule::UnregisterSettings() const
 
 TSharedRef<SDockTab> FObjectMixerEditorModule::SpawnTab(const FSpawnTabArgs& Args)
 {
-	SAssignNew(DockTab, SDockTab)
+	TSharedRef<SDockTab> NewDockTab = SAssignNew(DockTab, SDockTab)
 		.Label(TabLabel)
 		.TabRole(ETabRole::NomadTab)
 	;
 
 	RegenerateListWidget();
 			
-	return DockTab.ToSharedRef();
+	return NewDockTab;
 }
 
 TSharedPtr<FWorkspaceItem> FObjectMixerEditorModule::GetWorkspaceGroup()
