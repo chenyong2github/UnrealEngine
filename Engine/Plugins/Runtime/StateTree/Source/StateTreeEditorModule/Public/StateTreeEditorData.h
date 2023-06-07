@@ -32,6 +32,7 @@ public:
 	// IStateTreeEditorPropertyBindingsOwner
 	virtual void GetAccessibleStructs(const FGuid TargetStructID, TArray<FStateTreeBindableStructDesc>& OutStructDescs) const override;
 	virtual bool GetStructByID(const FGuid StructID, FStateTreeBindableStructDesc& OutStructDesc) const override;
+	virtual bool GetDataViewByID(const FGuid StructID, FStateTreeDataView& OutDataView) const override;
 	virtual FStateTreeEditorPropertyBindings* GetPropertyEditorBindings() override { return &EditorBindings; }
 	// ~IStateTreeEditorPropertyBindingsOwner
 

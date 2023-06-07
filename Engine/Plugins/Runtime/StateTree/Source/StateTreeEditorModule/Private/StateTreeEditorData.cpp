@@ -246,8 +246,6 @@ FStateTreeBindableStructDesc UStateTreeEditorData::FindContextData(const UStruct
 
 bool UStateTreeEditorData::GetStructByID(const FGuid StructID, FStateTreeBindableStructDesc& OutStructDesc) const
 {
-	bool bResult = false;
-
 	VisitAllNodes([&OutStructDesc, StructID](const UStateTreeState* State, const FStateTreeBindableStructDesc& Desc, const FStateTreeDataView Value)
 	{
 		if (Desc.ID == StructID)
@@ -259,6 +257,21 @@ bool UStateTreeEditorData::GetStructByID(const FGuid StructID, FStateTreeBindabl
 	});
 	
 	return OutStructDesc.IsValid();
+}
+
+bool UStateTreeEditorData::GetDataViewByID(const FGuid StructID, FStateTreeDataView& OutDataView) const
+{
+	VisitAllNodes([&OutDataView, StructID](const UStateTreeState* State, const FStateTreeBindableStructDesc& Desc, const FStateTreeDataView Value)
+	{
+		if (Desc.ID == StructID)
+		{
+			OutDataView = Value;
+			return EStateTreeVisitor::Break;
+		}
+		return EStateTreeVisitor::Continue;
+	});
+
+	return OutDataView.IsValid();
 }
 
 const UStateTreeState* UStateTreeEditorData::GetStateByStructID(const FGuid TargetStructID) const

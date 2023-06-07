@@ -38,7 +38,57 @@ UObject* FindEditorBindingsOwner(UObject* InObject)
 	return Result;
 }
 
-void MakeStructPropertyPathFromBindingChain(const FGuid StructID, const TArray<FBindingChainElement>& InBindingChain, FStateTreePropertyPath& OutPath)
+UStruct* ResolveLeafValueStructType(FStateTreeDataView ValueView, const TArray<FBindingChainElement>& InBindingChain)
+{
+	FStateTreePropertyPath Path;
+
+	for (const FBindingChainElement& Element : InBindingChain)
+	{
+		if (const FProperty* Property = Element.Field.Get<FProperty>())
+		{
+			Path.AddPathSegment(Property->GetFName(), Element.ArrayIndex);
+		}
+		else if (const UFunction* Function = Element.Field.Get<UFunction>())
+		{
+			// Cannot handle function calls
+			return nullptr;
+		}
+	}
+
+	TArray<FStateTreePropertyPathIndirection> Indirections;
+	if (!Path.ResolveIndirectionsWithValue(ValueView, Indirections)
+		|| Indirections.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	// Last indirection points to the value of the leaf property, check the type.
+	const FStateTreePropertyPathIndirection& LastIndirection = Indirections.Last();
+
+	UStruct* Result = nullptr;
+
+	if (const FStructProperty* StructProperty = CastField<FStructProperty>(LastIndirection.GetProperty()))
+	{
+		// Get the type of the instanced struct's value.
+		if (StructProperty->Struct == TBaseStructure<FInstancedStruct>::Get())
+		{
+			const FInstancedStruct& InstancedStruct = *reinterpret_cast<const FInstancedStruct*>(LastIndirection.GetPropertyAddress());
+			Result = const_cast<UScriptStruct*>(InstancedStruct.GetScriptStruct());
+		}
+	}
+	else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(LastIndirection.GetProperty()))
+	{
+		// Get type of the instanced object.
+		if (const UObject* Object = *reinterpret_cast<UObject* const*>(LastIndirection.GetPropertyAddress()))
+		{
+			Result = Object->GetClass();
+		}
+	}
+
+	return Result;
+}
+
+void MakeStructPropertyPathFromBindingChain(const FGuid StructID, const TArray<FBindingChainElement>& InBindingChain, FStateTreeDataView DataView, FStateTreePropertyPath& OutPath)
 {
 	OutPath.Reset();
 	OutPath.SetStructID(StructID);
@@ -54,6 +104,8 @@ void MakeStructPropertyPathFromBindingChain(const FGuid StructID, const TArray<F
 			OutPath.AddPathSegment(Function->GetFName());
 		}
 	}
+
+	OutPath.UpdateInstanceStructsFromValue(DataView);
 }
 
 EStateTreePropertyUsage MakeStructPropertyPathFromPropertyHandle(TSharedPtr<const IPropertyHandle> InPropertyHandle, FStateTreePropertyPath& OutPath)
@@ -245,6 +297,8 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 	// The struct and property where we're binding.
 	FStateTreePropertyPath TargetPath;
 
+	IStateTreeEditorPropertyBindingsOwner* BindingOwner = nullptr;
+
 	TArray<UObject*> OuterObjects;
 	InPropertyHandle->GetOuterObjects(OuterObjects);
 	if (OuterObjects.Num() == 1)
@@ -255,7 +309,8 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 		// Figure out the structs we're editing, and property path relative to current property.
 		UE::StateTree::PropertyBinding::MakeStructPropertyPathFromPropertyHandle(InPropertyHandle, TargetPath);
 
-		if (IStateTreeEditorPropertyBindingsOwner* BindingOwner = Cast<IStateTreeEditorPropertyBindingsOwner>(OwnerObject))
+		BindingOwner = Cast<IStateTreeEditorPropertyBindingsOwner>(OwnerObject);
+		if (BindingOwner)
 		{
 			EditorBindings = BindingOwner->GetPropertyEditorBindings();
 			BindingOwner->GetAccessibleStructs(TargetPath.GetStructID(), AccessibleStructs);
@@ -376,13 +431,19 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 			return bCanBind;
 		});
 
-	Args.OnCanBindToContextStruct = FOnCanBindToContextStruct::CreateLambda([InPropertyHandle](const UStruct* InStruct)
+	Args.OnCanBindToContextStruct = FOnCanBindToContextStruct::CreateLambda([InPropertyHandle, AccessibleStructs](const UStruct* InStruct)
 		{
 			// Do not allow to bind directly StateTree nodes
+			// @todo: find a way to more specifically call out the context structs, e.g. pass the property path to the callback.
 			if (InStruct != nullptr)
 			{
-				if (InStruct->IsChildOf(UStateTreeNodeBlueprintBase::StaticClass())
-					|| InStruct->IsChildOf(FStateTreeNodeBase::StaticStruct()))
+				bool bIsStateTreeNode = AccessibleStructs.ContainsByPredicate([InStruct](const FStateTreeBindableStructDesc& AccessibleStruct)
+				{
+					return (AccessibleStruct.DataSource != EStateTreeBindableStructSource::Context && AccessibleStruct.DataSource != EStateTreeBindableStructSource::Parameter)
+						&& AccessibleStruct.Struct == InStruct;
+				});
+
+				if (bIsStateTreeNode)
 				{
 					return false;
 				}
@@ -410,7 +471,7 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 			return true;
 		});
 
-	Args.OnAddBinding = FOnAddBinding::CreateLambda([EditorBindings, OwnerObject, TargetPath, AccessibleStructs](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+	Args.OnAddBinding = FOnAddBinding::CreateLambda([EditorBindings, OwnerObject, BindingOwner, TargetPath, AccessibleStructs](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
 		{
 			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 			if (EditorBindings && OwnerObject)
@@ -425,9 +486,15 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 
 					check(SourceStructIndex >= 0 && SourceStructIndex < AccessibleStructs.Num());
 
+					FStateTreeDataView DataView;
+					if (BindingOwner)
+					{
+						BindingOwner->GetDataViewByID(AccessibleStructs[SourceStructIndex].ID, DataView);
+					}
+
 					// If SourceBindingChain is empty at this stage, it means that the binding points to the source struct itself.
 					FStateTreePropertyPath SourcePath;
-					UE::StateTree::PropertyBinding::MakeStructPropertyPathFromBindingChain(AccessibleStructs[SourceStructIndex].ID, SourceBindingChain, SourcePath);
+					UE::StateTree::PropertyBinding::MakeStructPropertyPathFromBindingChain(AccessibleStructs[SourceStructIndex].ID, SourceBindingChain, DataView, SourcePath);
 						
 					OwnerObject->Modify();
 					EditorBindings->AddPropertyBinding(SourcePath, TargetPath);
@@ -563,6 +630,26 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 
 			return BindingColor;
 		});
+
+	if (BindingOwner)
+	{
+		Args.OnResolveIndirection = FOnResolveIndirection::CreateLambda([BindingOwner, AccessibleStructs](TArray<FBindingChainElement> InBindingChain)
+		{
+			const int32 SourceStructIndex = InBindingChain[0].ArrayIndex;
+			TArray<FBindingChainElement> SourceBindingChain = InBindingChain;
+			SourceBindingChain.RemoveAt(0);
+
+			check(SourceStructIndex >= 0 && SourceStructIndex < AccessibleStructs.Num());
+
+			FStateTreeDataView DataView;
+			if (BindingOwner->GetDataViewByID(AccessibleStructs[SourceStructIndex].ID, DataView))
+			{
+				return UE::StateTree::PropertyBinding::ResolveLeafValueStructType(DataView, InBindingChain);
+			}
+
+			return static_cast<UStruct*>(nullptr);
+		});
+	}
 
 	Args.BindButtonStyle = &FAppStyle::Get().GetWidgetStyle<FButtonStyle>("HoverHintOnly");
 	Args.bAllowNewBindings = false;

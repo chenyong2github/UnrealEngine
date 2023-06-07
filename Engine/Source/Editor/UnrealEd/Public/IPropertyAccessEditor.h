@@ -135,6 +135,9 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCanRemoveBinding, FName /*InPropertyNa
 /** Delegate called once a new function binding has been created */
 DECLARE_DELEGATE_TwoParams(FOnNewFunctionBindingCreated, UEdGraph* /*InFunctionGraph*/, UFunction* /*InFunction*/);
 
+/** Delegate called to resolve true type of the instance */
+DECLARE_DELEGATE_RetVal_OneParam(UStruct*, FOnResolveIndirection, const TArray<FBindingChainElement>& /*InBindingChain*/);
+
 /** Delegate called once a drag-drop event is dropped on the binding widget */
 DECLARE_DELEGATE_RetVal_TwoParams(FReply, FOnDrop, const FGeometry&, const FDragDropEvent&);
 
@@ -185,6 +188,9 @@ struct FPropertyBindingWidgetArgs
 
 	/** Delegate called once a new function binding has been created */
 	FOnNewFunctionBindingCreated OnNewFunctionBindingCreated;
+
+	/** Delegate called to resolve true type of the instance */
+	FOnResolveIndirection OnResolveIndirection;
 	
 	/** Delegate called when a property is dropped on the property binding widget */
 	FOnDrop OnDrop;

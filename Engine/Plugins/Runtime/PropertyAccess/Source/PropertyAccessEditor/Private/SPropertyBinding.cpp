@@ -245,13 +245,13 @@ void SPropertyBinding::ForEachBindableProperty(UStruct* InStruct, Predicate Pred
 	}
 }
 
-bool SPropertyBinding::HasBindableProperties(UStruct* InStruct) const
+bool SPropertyBinding::HasBindableProperties(UStruct* InStruct, TArray<TSharedPtr<FBindingChainElement>>& BindingChain) const
 {
 	TSet<UStruct*> VisitedStructs;
-	return HasBindablePropertiesRecursive(InStruct, VisitedStructs, 0);
+	return HasBindablePropertiesRecursive(InStruct, VisitedStructs, BindingChain);
 }
 
-bool SPropertyBinding::HasBindablePropertiesRecursive(UStruct* InStruct, TSet<UStruct*>& VisitedStructs, const int32 RecursionDepth) const
+bool SPropertyBinding::HasBindablePropertiesRecursive(UStruct* InStruct, TSet<UStruct*>& VisitedStructs, TArray<TSharedPtr<FBindingChainElement>>& BindingChain) const
 {
 	if (VisitedStructs.Contains(InStruct))
 	{
@@ -262,14 +262,17 @@ bool SPropertyBinding::HasBindablePropertiesRecursive(UStruct* InStruct, TSet<US
 	VisitedStructs.Add(InStruct);
 	
 	// Arbitrary cut off to avoid infinite loops.
-	if (RecursionDepth > 10)
+	if (BindingChain.Num() > 10)
 	{
 		return false;
 	}
 	
 	int32 BindableCount = 0;
-	ForEachBindableProperty(InStruct, [this, &BindableCount, &VisitedStructs, RecursionDepth] (FProperty* Property)
+	ForEachBindableProperty(InStruct, [this, &BindableCount, &VisitedStructs, &BindingChain] (FProperty* Property)
 	{
+		BindingChain.Emplace(MakeShared<FBindingChainElement>(Property));
+		ON_SCOPE_EXIT{ BindingChain.Pop(); };
+
 		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
 
 		if(Args.OnCanBindProperty.Execute(Property))
@@ -305,34 +308,45 @@ bool SPropertyBinding::HasBindablePropertiesRecursive(UStruct* InStruct, TSet<US
 			Struct = StructProperty->Struct;
 		}
 
-		// Recurse into a struct, except if it is the same type as the one we're binding.
-		if (Struct && HasBindablePropertiesRecursive(Struct, VisitedStructs, RecursionDepth + 1))
+		if (Struct)
 		{
-			if (Class)
+			if (UStruct* ResolvedStruct = ResolveIndirection(BindingChain))
 			{
-				// Ignore any subobject properties that are not bindable.
-				// Also ignore any class that is explicitly on the deny list.
-				if ( IsClassDenied(Class) || (Args.OnCanBindToSubObjectClass.IsBound() && Args.OnCanBindToSubObjectClass.Execute(Class)))
-				{
-					return;
-				}
+				Struct = ResolvedStruct;
 			}
 
-			if (Args.bAllowArrayElementBindings && ArrayProperty != nullptr)
+			// Recurse into a struct, except if it is the same type as the one we're binding.
+			if (HasBindablePropertiesRecursive(Struct, VisitedStructs, BindingChain))
 			{
-				BindableCount++;
-			}
-			else if (Args.bAllowStructMemberBindings)
-			{
-				BindableCount++;
+				if (Class)
+				{
+					// Ignore any subobject properties that are not bindable.
+					// Also ignore any class that is explicitly on the deny list.
+					if (IsClassDenied(Class) || (Args.OnCanBindToSubObjectClass.IsBound() && Args.OnCanBindToSubObjectClass.Execute(Class)))
+					{
+						return;
+					}
+				}
+
+				if (Args.bAllowArrayElementBindings && ArrayProperty != nullptr)
+				{
+					BindableCount++;
+				}
+				else if (Args.bAllowStructMemberBindings)
+				{
+					BindableCount++;
+				}
 			}
 		}
 	});
 
 	if(UClass* Class = Cast<UClass>(InStruct))
 	{
-		ForEachBindableFunction(Class, [this, &BindableCount, &VisitedStructs, RecursionDepth](const FFunctionInfo& Info)
+		ForEachBindableFunction(Class, [this, &BindableCount, &VisitedStructs, &BindingChain](const FFunctionInfo& Info)
 		{
+			BindingChain.Emplace(MakeShared<FBindingChainElement>(Info.Function));
+			ON_SCOPE_EXIT{ BindingChain.Pop(); };
+
 			FProperty* ReturnProperty = Info.Function->GetReturnProperty();
 			
 			// We can get here if we accept non-leaf UObject functions, so if so we need to check the return value for compatibility
@@ -346,11 +360,11 @@ bool SPropertyBinding::HasBindablePropertiesRecursive(UStruct* InStruct, TSet<US
 			{
 				if(FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(ReturnProperty))
 				{
-					HasBindablePropertiesRecursive(ObjectPropertyBase->PropertyClass, VisitedStructs, RecursionDepth + 1);
+					HasBindablePropertiesRecursive(ObjectPropertyBase->PropertyClass, VisitedStructs, BindingChain);
 				}
 				else if(FStructProperty* StructProperty = CastField<FStructProperty>(ReturnProperty))
 				{
-					HasBindablePropertiesRecursive(StructProperty->Struct, VisitedStructs, RecursionDepth + 1);
+					HasBindablePropertiesRecursive(StructProperty->Struct, VisitedStructs, BindingChain);
 				}
 			}
 		});
@@ -496,7 +510,7 @@ TSharedRef<SWidget> SPropertyBinding::OnGenerateDelegateMenu()
 					FUIAction(FExecuteAction::CreateSP(this, &SPropertyBinding::HandleAddBinding, BindingChain)),
 					MakeContextStructWidget(ContextStruct));
 			}
-			if (HasBindableProperties(ContextStruct.Struct))
+			if (HasBindableProperties(ContextStruct.Struct, BindingChain))
 			{
 				// Show struct properties.
 				MenuBuilder.AddSubMenu(
@@ -722,7 +736,7 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 					{
 						if(FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(ReturnProperty))
 						{
-							if (HasBindableProperties(ObjectPropertyBase->PropertyClass))
+							if (HasBindableProperties(ObjectPropertyBase->PropertyClass, NewBindingChain))
 							{
 								MenuBuilder.AddSubMenu(
 									MakeFunctionWidget(Info),
@@ -731,7 +745,7 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 						}
 						else if(FStructProperty* StructProperty = CastField<FStructProperty>(ReturnProperty))
 						{
-							if (HasBindableProperties(StructProperty->Struct))
+							if (HasBindableProperties(StructProperty->Struct, NewBindingChain))
 							{
 								MenuBuilder.AddSubMenu(
 									MakeFunctionWidget(Info),
@@ -824,6 +838,11 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 					// Recurse into a struct if it has some properties we can bind to.
 					if (Struct)
 					{
+						if (UStruct* ResolvedStruct = ResolveIndirection(NewBindingChain))
+						{
+							Struct = ResolvedStruct;
+						}
+
 						if (Class)
 						{
 							// Ignore any subobject properties that are not bindable.
@@ -834,11 +853,11 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 							}
 						}
 
-						if (HasBindableProperties(Struct))
+						if (HasBindableProperties(Struct, NewBindingChain))
 						{
 							if (Args.bAllowArrayElementBindings && ArrayProperty != nullptr)
 							{
-								TArray<TSharedPtr<FBindingChainElement>> NewArrayElementBindingChain(InBindingChain);
+								TArray<TSharedPtr<FBindingChainElement>> NewArrayElementBindingChain(NewBindingChain);
 								NewArrayElementBindingChain.Emplace(MakeShared<FBindingChainElement>(Property));
 								NewArrayElementBindingChain.Last()->ArrayIndex = 0;
 
@@ -1009,6 +1028,24 @@ void SPropertyBinding::HandleCreateAndAddBinding()
 	}
 
 	HandleGotoBindingClicked();
+}
+
+UStruct* SPropertyBinding::ResolveIndirection(const TArray<TSharedPtr<FBindingChainElement>>& BindingChain) const
+{
+	UStruct* ResolvedStruct = nullptr;
+
+	if (Args.OnResolveIndirection.IsBound())
+	{
+		TArray<FBindingChainElement> RawBindingChain;
+		Algo::Transform(BindingChain, RawBindingChain, [](TSharedPtr<FBindingChainElement> InElement)
+		{
+			return *InElement.Get();
+		});
+
+		ResolvedStruct = Args.OnResolveIndirection.Execute(RawBindingChain);
+	}
+
+	return ResolvedStruct;
 }
 
 EVisibility SPropertyBinding::GetGotoBindingVisibility() const

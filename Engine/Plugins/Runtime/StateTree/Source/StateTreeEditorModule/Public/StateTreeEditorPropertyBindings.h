@@ -113,6 +113,14 @@ class STATETREEEDITORMODULE_API IStateTreeEditorPropertyBindingsOwner
 	 */
 	virtual bool GetStructByID(const FGuid StructID, FStateTreeBindableStructDesc& OutStructDesc) const PURE_VIRTUAL(IStateTreeEditorPropertyBindingsOwner::GetStructByID, return false; );
 
+	/**
+	 * Returns data view based on struct ID.
+	 * @param StructID Target struct ID
+	 * @param OutDataView Result data view.
+	 * @return True if struct found.
+	 */
+	virtual bool GetDataViewByID(const FGuid StructID, FStateTreeDataView& OutDataView) const PURE_VIRTUAL(IStateTreeEditorPropertyBindingsOwner::GetDataViewByID, return false; );
+
 	/** @return Pointer to editor property bindings. */
 	virtual FStateTreeEditorPropertyBindings* GetPropertyEditorBindings() PURE_VIRTUAL(IStateTreeEditorPropertyBindingsOwner::GetPropertyEditorBindings, return nullptr; );
 };

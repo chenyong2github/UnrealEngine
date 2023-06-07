@@ -88,16 +88,35 @@ void FStateTreeEditorPropertyBindings::RemoveUnusedBindings(const TMap<FGuid, co
 
 			// Remove binding if path containing instanced indirections (e.g. instance struct or object) cannot be resolved.
 			// TODO: Try to use core redirect to find new name.
-			const FStateTreeDataView Value = ValidStructs.FindChecked(Binding.GetTargetPath().GetStructID());
-			FString Error;
-			TArray<FStateTreePropertyPathIndirection> Indirections;
-			if (!Binding.GetTargetPath().ResolveIndirectionsWithValue(Value, Indirections, &Error))
 			{
-				UE_LOG(LogStateTree, Verbose, TEXT("Removing binding to %s because binding target path cannot be resolved: %s"),
-					*Binding.GetSourcePath().ToString(), *Error); // Error contains the target path.
-				
-				// Remove
-				return true;
+				const FStateTreeDataView* SourceValue = ValidStructs.Find(Binding.GetSourcePath().GetStructID());
+				if (SourceValue && SourceValue->IsValid())
+				{
+					FString Error;
+					TArray<FStateTreePropertyPathIndirection> Indirections;
+					if (!Binding.GetSourcePath().ResolveIndirectionsWithValue(*SourceValue, Indirections, &Error))
+					{
+						UE_LOG(LogStateTree, Verbose, TEXT("Removing binding to %s because binding source path cannot be resolved: %s"),
+							*Binding.GetSourcePath().ToString(), *Error); // Error contains the target path.
+
+						// Remove
+						return true;
+					}
+				}
+			}
+			
+			{
+				const FStateTreeDataView TargetValue = ValidStructs.FindChecked(Binding.GetTargetPath().GetStructID());
+				FString Error;
+				TArray<FStateTreePropertyPathIndirection> Indirections;
+				if (!Binding.GetTargetPath().ResolveIndirectionsWithValue(TargetValue, Indirections, &Error))
+				{
+					UE_LOG(LogStateTree, Verbose, TEXT("Removing binding to %s because binding target path cannot be resolved: %s"),
+						*Binding.GetSourcePath().ToString(), *Error); // Error contains the target path.
+
+					// Remove
+					return true;
+				}
 			}
 
 			return false;

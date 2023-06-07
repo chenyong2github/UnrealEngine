@@ -62,6 +62,8 @@ protected:
 
 	void HandleCreateAndAddBinding();
 
+	UStruct* ResolveIndirection(const TArray<TSharedPtr<FBindingChainElement>>& BindingChain) const;
+
 	EVisibility GetGotoBindingVisibility() const;
 
 	FReply HandleGotoBindingClicked();
@@ -71,8 +73,8 @@ protected:
 private:
 	bool IsClassDenied(UClass* OwnerClass) const;
 	bool IsFieldFromDeniedClass(FFieldVariant Field) const;
-	bool HasBindableProperties(UStruct* InStruct) const;
-	bool HasBindablePropertiesRecursive(UStruct* InStruct, TSet<UStruct*>& VisitedStructs, const int32 RecursionDepth) const;
+	bool HasBindableProperties(UStruct* InStruct, TArray<TSharedPtr<FBindingChainElement>>& BindingChain) const;
+	bool HasBindablePropertiesRecursive(UStruct* InStruct, TSet<UStruct*>& VisitedStructs, TArray<TSharedPtr<FBindingChainElement>>& BindingChain) const;
 	
 	template <typename Predicate>
 	void ForEachBindableProperty(UStruct* InStruct, Predicate Pred) const;

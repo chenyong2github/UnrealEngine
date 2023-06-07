@@ -149,6 +149,8 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 		return false;
 	}
 
+	EditorData->GetAllStructValues(IDToStructValue);
+
 	// Copy schema the EditorData
 	StateTree->Schema = DuplicateObject(EditorData->Schema, StateTree);
 
@@ -1386,15 +1388,6 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 		}
 		const FStateTreeBindableStructDesc& SourceStruct = BindingsCompiler.GetSourceStructDesc(SourceStructIdx);
 
-		// Source path should not have any instanced indirections.
-		if (Binding.GetSourcePath().HasAnyInstancedIndirection())
-		{
-			Log.Reportf(EMessageSeverity::Error, TargetStruct,
-						TEXT("Malformed source property path for binding source property '%s' for target '%s:%s'."),
-						*Binding.GetSourcePath().ToString(), *TargetStruct.Name.ToString(), *Binding.GetTargetPath().ToString());
-			return false;
-		}
-
 		// Update path instance types from latest data. E.g. binding may have been created for instanced object of type FooB, and changed to FooA.
  		// @todo: not liking how this mutates the Binding.TargetPath, but currently we dont track well the instanced object changes.
 
@@ -1422,6 +1415,22 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 						*SourceStruct.Name.ToString(), *Binding.GetSourcePath().ToString(),
 						*TargetStruct.Name.ToString(), *Binding.GetTargetPath().ToString(),
 						*SourceStruct.Name.ToString(), *TargetStruct.Name.ToString());
+			return false;
+		}
+
+		if (!IDToStructValue.Contains(SourceStructID))
+		{
+			Log.Reportf(EMessageSeverity::Error, TargetStruct,
+				TEXT("Failed to find value for binding source property '%s' for target '%s:%s'."),
+				*Binding.GetSourcePath().ToString(), *TargetStruct.Name.ToString(), *Binding.GetTargetPath().ToString());
+			return false;
+		}
+
+		if (!Binding.GetMutableSourcePath().UpdateInstanceStructsFromValue(IDToStructValue[SourceStructID]))
+		{
+			Log.Reportf(EMessageSeverity::Error, TargetStruct,
+				TEXT("Malformed target property path for binding source property '%s' for source '%s:%s'."),
+				*Binding.GetSourcePath().ToString(), *TargetStruct.Name.ToString(), *Binding.GetTargetPath().ToString());
 			return false;
 		}
 
