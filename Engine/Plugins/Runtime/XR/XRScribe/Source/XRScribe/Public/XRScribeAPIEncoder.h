@@ -17,8 +17,6 @@ public:
 	FOpenXRCaptureEncoder();
 	~FOpenXRCaptureEncoder();
 
-	virtual void Serialize(void* Data, int64 Num) override;
-
 	// Core
 
 	// Global
@@ -105,9 +103,10 @@ public:
 	void EncodeGetD3D12GraphicsRequirementsKHR(const XrResult Result, const XrInstance instance, const XrSystemId systemId, const XrGraphicsRequirementsD3D12KHR* graphicsRequirements);
 #endif
 
-	FRWLock& GetDataLock() { return CaptureWriteMutex; }
-
 protected:
+
+	template <typename PacketType>
+	void WritePacketData(PacketType& Data);
 
 	FRWLock CaptureWriteMutex;
 };
