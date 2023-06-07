@@ -5,11 +5,11 @@
 #include "Modules/ModuleInterface.h"
 #include "Templates/UniquePtr.h"
 
-class FDisplayClusterPreloadDerivedDataCacheModule : public IModuleInterface
+class FDisplayClusterFillDerivedDataCacheModule : public IModuleInterface
 {
 public:
 	
-	static FDisplayClusterPreloadDerivedDataCacheModule& Get();
+	static FDisplayClusterFillDerivedDataCacheModule& Get();
 
 	//~ Begin IModuleInterface Interface
 	virtual void StartupModule() override;
@@ -19,7 +19,7 @@ public:
 protected:
 	
 	void CreateAsyncTaskWorker();
-	TUniquePtr<class FDisplayClusterPreloadDerivedDataCacheWorker> AsyncTaskWorker;
+	TUniquePtr<class FDisplayClusterFillDerivedDataCacheWorker> AsyncTaskWorker;
 
 private:
 	

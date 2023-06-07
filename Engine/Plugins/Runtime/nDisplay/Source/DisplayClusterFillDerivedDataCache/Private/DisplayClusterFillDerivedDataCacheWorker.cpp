@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisplayClusterPreloadDerivedDataCacheWorker.h"
+#include "DisplayClusterFillDerivedDataCacheWorker.h"
 
-#include "DisplayClusterPreloadDerivedDataCacheLog.h"
+#include "DisplayClusterFillDerivedDataCacheLog.h"
 
 #include "Commandlets/DerivedDataCacheCommandlet.h"
 #include "Framework/Docking/TabManager.h"
@@ -16,7 +16,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
-#define LOCTEXT_NAMESPACE "FDisplayClusterPreloadDerivedDataCacheWorker"
+#define LOCTEXT_NAMESPACE "FDisplayClusterFillDerivedDataCacheWorker"
 
 const FText EnumeratingAssetsTitle = LOCTEXT("EnumeratingAssetsTitle", "Enumerating Assets (Step 1/3)...");
 const FText EnumeratingAssetsProgressFormat = LOCTEXT("EnumeratingAssetsProgressFormat", "{0} assets discovered...");
@@ -29,7 +29,7 @@ const FRegexPattern LoadingTotalPattern(TEXT("Display:\\s([0-9]+)\\spackages to 
 const FRegexPattern LoadingProgressPattern(TEXT("Display:\\sLoading\\s\\(([0-9]+)\\)")); // ex. "Loading (2833)"
 const FRegexPattern CompileProgressPattern(TEXT("Display:\\sWaiting for\\s([0-9]+)\\s.+ to finish")); // ex. "Waiting for 14163 Shaders to finish"
 
-FDisplayClusterPreloadDerivedDataCacheWorker::FDisplayClusterPreloadDerivedDataCacheWorker()
+FDisplayClusterFillDerivedDataCacheWorker::FDisplayClusterFillDerivedDataCacheWorker()
 {	
 	FAsyncTaskNotificationConfig NotificationConfig;
 	NotificationConfig.bCanCancel = true;
@@ -47,7 +47,7 @@ FDisplayClusterPreloadDerivedDataCacheWorker::FDisplayClusterPreloadDerivedDataC
 		FPaths::Combine(FPaths::ProjectDir(), FApp::GetProjectName()),".uproject");
 	Arguments = ProjectPath + " " + GetDdcCommandletParams();
 	
-	UE_LOG(LogDisplayClusterPreloadDerivedDataCache, Display, TEXT("Running commandlet: %s %s"), *CurrentExecutableName, *Arguments);
+	UE_LOG(LogDisplayClusterFillDerivedDataCache, Display, TEXT("Running commandlet: %s %s"), *CurrentExecutableName, *Arguments);
 
 	uint32 ProcessID;
 	const bool bLaunchDetached = true;
@@ -57,10 +57,10 @@ FDisplayClusterPreloadDerivedDataCacheWorker::FDisplayClusterPreloadDerivedDataC
 		*CurrentExecutableName, *Arguments, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &ProcessID,
 		0, nullptr, WritePipe, ReadPipe);
 	
-	Thread = TUniquePtr<FRunnableThread>(FRunnableThread::Create(this, TEXT("FDisplayClusterPreloadDerivedDataCacheWorker")));
+	Thread = TUniquePtr<FRunnableThread>(FRunnableThread::Create(this, TEXT("FDisplayClusterFillDerivedDataCacheWorker")));
 }
 
-FDisplayClusterPreloadDerivedDataCacheWorker::~FDisplayClusterPreloadDerivedDataCacheWorker()
+FDisplayClusterFillDerivedDataCacheWorker::~FDisplayClusterFillDerivedDataCacheWorker()
 {
 	if (Thread)
 	{
@@ -70,18 +70,18 @@ FDisplayClusterPreloadDerivedDataCacheWorker::~FDisplayClusterPreloadDerivedData
 	}
 }
 
-void FDisplayClusterPreloadDerivedDataCacheWorker::CancelTask()
+void FDisplayClusterFillDerivedDataCacheWorker::CancelTask()
 {
 	bWasCancelled = true;
 	FPlatformProcess::TerminateProc(ProcessHandle);
 	CompleteCommandletAndShowNotification();
 }
 
-void FDisplayClusterPreloadDerivedDataCacheWorker::CompleteCommandletAndShowNotification()
+void FDisplayClusterFillDerivedDataCacheWorker::CompleteCommandletAndShowNotification()
 {
 	if (bWasCancelled)
 	{
-		UE_LOG(LogDisplayClusterPreloadDerivedDataCache, Display, TEXT("#### Commandlet Process Cancelled ####"));
+		UE_LOG(LogDisplayClusterFillDerivedDataCache, Display, TEXT("#### Commandlet Process Cancelled ####"));
 		ProgressNotification->SetComplete(
 			LOCTEXT("ToastCommandletCancelled", "Commandlet Process Cancelled"), FText(), false);
 
@@ -100,9 +100,9 @@ void FDisplayClusterPreloadDerivedDataCacheWorker::CompleteCommandletAndShowNoti
 
 	if (bFinishedWithFailures)
 	{
-		UE_LOG(LogDisplayClusterPreloadDerivedDataCache, Error, TEXT("#### Commandlet Finished With Errors ####"));
-		UE_LOG(LogDisplayClusterPreloadDerivedDataCache, Error, TEXT("%s %s"), *CurrentExecutableName, *Arguments);
-		UE_LOG(LogDisplayClusterPreloadDerivedDataCache, Error, TEXT("Return Code: %i"), ResultCode);
+		UE_LOG(LogDisplayClusterFillDerivedDataCache, Error, TEXT("#### Commandlet Finished With Errors ####"));
+		UE_LOG(LogDisplayClusterFillDerivedDataCache, Error, TEXT("%s %s"), *CurrentExecutableName, *Arguments);
+		UE_LOG(LogDisplayClusterFillDerivedDataCache, Error, TEXT("Return Code: %i"), ResultCode);
 
 		NotificationStateData.TitleText = LOCTEXT("ToastCommandletFailure", "Commandlet Finished With Error(s)");
 		NotificationStateData.ProgressText = FText::Format(LOCTEXT("ReturnCodeFormat", "Return Code: {0}"), FText::AsNumber(ResultCode));
@@ -112,13 +112,13 @@ void FDisplayClusterPreloadDerivedDataCacheWorker::CompleteCommandletAndShowNoti
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterPreloadDerivedDataCache, Display, TEXT("#### Commandlet Finished Without Error ####"));
+		UE_LOG(LogDisplayClusterFillDerivedDataCache, Display, TEXT("#### Commandlet Finished Without Error ####"));
 	}
 
 	ProgressNotification->SetNotificationState(NotificationStateData);
 }
 
-void FDisplayClusterPreloadDerivedDataCacheWorker::RegexParseForEnumerationCount(const FString& LogString)
+void FDisplayClusterFillDerivedDataCacheWorker::RegexParseForEnumerationCount(const FString& LogString)
 {
 	FRegexMatcher EnumerationCountRegex(EnumeratingAssetsPattern, *LogString);
 	while (EnumerationCountRegex.FindNext())
@@ -134,7 +134,7 @@ void FDisplayClusterPreloadDerivedDataCacheWorker::RegexParseForEnumerationCount
 	}
 }
 
-void FDisplayClusterPreloadDerivedDataCacheWorker::RegexParseForLoadingProgress(const FString& LogString)
+void FDisplayClusterFillDerivedDataCacheWorker::RegexParseForLoadingProgress(const FString& LogString)
 {
 	FRegexMatcher LoadingProgressRegex(LoadingProgressPattern, *LogString);
 	while (LoadingProgressRegex.FindNext())
@@ -157,7 +157,7 @@ void FDisplayClusterPreloadDerivedDataCacheWorker::RegexParseForLoadingProgress(
 	}
 }
 
-void FDisplayClusterPreloadDerivedDataCacheWorker::RegexParseForCompilationProgress(const FString& LogString)
+void FDisplayClusterFillDerivedDataCacheWorker::RegexParseForCompilationProgress(const FString& LogString)
 {
 	FRegexMatcher CompileProgressRegex(CompileProgressPattern, *LogString);
 	while (CompileProgressRegex.FindNext())
@@ -187,12 +187,12 @@ void FDisplayClusterPreloadDerivedDataCacheWorker::RegexParseForCompilationProgr
 	}
 }
 
-FString FDisplayClusterPreloadDerivedDataCacheWorker::GetDdcCommandletParams() const
+FString FDisplayClusterFillDerivedDataCacheWorker::GetDdcCommandletParams() const
 {
 	return FString::Printf(TEXT("-run=DerivedDataCache %s -fill -DDC=CreateInstalledEnginePak"), *GetTargetPlatformParams());
 }
 
-FString FDisplayClusterPreloadDerivedDataCacheWorker::GetTargetPlatformParams() const
+FString FDisplayClusterFillDerivedDataCacheWorker::GetTargetPlatformParams() const
 {
 	TArray<FString> SupportedPlatforms;
 	FProjectStatus ProjectStatus;
@@ -221,7 +221,7 @@ FString FDisplayClusterPreloadDerivedDataCacheWorker::GetTargetPlatformParams() 
 	return FString();
 }
 
-FString FDisplayClusterPreloadDerivedDataCacheWorker::GetLastWholeLogBlock(const FString& LogString)
+FString FDisplayClusterFillDerivedDataCacheWorker::GetLastWholeLogBlock(const FString& LogString)
 {
 	FString CumulativeString = LastPartialLogLine + LogString;
 
@@ -242,13 +242,13 @@ FString FDisplayClusterPreloadDerivedDataCacheWorker::GetLastWholeLogBlock(const
 	return FString();
 }
 
-void FDisplayClusterPreloadDerivedDataCacheWorker::ReadCommandletOutputAndUpdateEditorNotification()
+void FDisplayClusterFillDerivedDataCacheWorker::ReadCommandletOutputAndUpdateEditorNotification()
 {
 	while (FPlatformProcess::IsProcRunning(ProcessHandle))
 	{
 		if (ProgressNotification->GetPromptAction() == EAsyncTaskNotificationPromptAction::Cancel)
 		{
-			UE_LOG(LogDisplayClusterPreloadDerivedDataCache, Display, TEXT("----------CANCEL BUTTON PRESSED----------"));
+			UE_LOG(LogDisplayClusterFillDerivedDataCache, Display, TEXT("----------CANCEL BUTTON PRESSED----------"));
 			CancelTask();
 			break;
 		}
@@ -275,7 +275,7 @@ void FDisplayClusterPreloadDerivedDataCacheWorker::ReadCommandletOutputAndUpdate
 				continue;
 			}
 			
-			UE_LOG(LogDisplayClusterPreloadDerivedDataCache, Display, TEXT("Commandlet Output: %s"), *Line)
+			UE_LOG(LogDisplayClusterFillDerivedDataCache, Display, TEXT("Commandlet Output: %s"), *Line)
 
 			if (LoadingTotal == INDEX_NONE)
 			{			
@@ -301,7 +301,7 @@ void FDisplayClusterPreloadDerivedDataCacheWorker::ReadCommandletOutputAndUpdate
 		FPlatformProcess::Sleep(0.5f);
 	}
 	
-	UE_LOG(LogDisplayClusterPreloadDerivedDataCache, Display, TEXT("----------PROC NOT RUNNING----------"));
+	UE_LOG(LogDisplayClusterFillDerivedDataCache, Display, TEXT("----------PROC NOT RUNNING----------"));
 	CompleteCommandletAndShowNotification();
 }
 

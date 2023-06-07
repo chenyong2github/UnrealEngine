@@ -3,9 +3,9 @@
 using System.IO;
 using UnrealBuildTool;
 
-public class DisplayClusterPreloadDerivedDataCache : ModuleRules
+public class DisplayClusterFillDerivedDataCache : ModuleRules
 {
-	public DisplayClusterPreloadDerivedDataCache(ReadOnlyTargetRules Target) : base(Target)
+	public DisplayClusterFillDerivedDataCache(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 

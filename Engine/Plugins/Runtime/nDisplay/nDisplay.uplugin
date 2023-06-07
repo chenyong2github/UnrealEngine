@@ -29,7 +29,7 @@
 			]
 		},
 		{
-			"Name": "DisplayClusterPreloadDerivedDataCache",
+			"Name": "DisplayClusterFillDerivedDataCache",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"PlatformAllowList": [

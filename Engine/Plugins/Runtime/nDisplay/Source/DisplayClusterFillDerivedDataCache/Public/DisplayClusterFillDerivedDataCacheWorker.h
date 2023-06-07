@@ -13,13 +13,13 @@ class FAsyncTaskNotification;
 
 struct FProcHandle;
 
-class FDisplayClusterPreloadDerivedDataCacheWorker : public FRunnable, public FSingleThreadRunnable
+class FDisplayClusterFillDerivedDataCacheWorker : public FRunnable, public FSingleThreadRunnable
 {
 public:
 
-	FDisplayClusterPreloadDerivedDataCacheWorker();
+	FDisplayClusterFillDerivedDataCacheWorker();
 	
-	virtual ~FDisplayClusterPreloadDerivedDataCacheWorker() override;
+	virtual ~FDisplayClusterFillDerivedDataCacheWorker() override;
 
 	//~ Begin FRunnable implementation
 	virtual uint32 Run() override
