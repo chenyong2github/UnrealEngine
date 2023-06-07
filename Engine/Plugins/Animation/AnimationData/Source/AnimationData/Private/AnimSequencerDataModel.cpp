@@ -820,16 +820,18 @@ UMovieSceneControlRigParameterSection* UAnimationSequencerDataModel::GetFKContro
 {
 	if (MovieScene)
 	{
-		const UMovieSceneControlRigParameterTrack* Track = GetControlRigTrack();
-		for (UMovieSceneSection* TrackSection : Track->GetAllSections())
+		if(const UMovieSceneControlRigParameterTrack* Track = GetControlRigTrack())
 		{
-			if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(TrackSection))
+			for (UMovieSceneSection* TrackSection : Track->GetAllSections())
 			{
-				if (const UControlRig* ControlRig = Section->GetControlRig())
+				if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(TrackSection))
 				{
-					if (ControlRig->IsA<UFKControlRig>())
+					if (const UControlRig* ControlRig = Section->GetControlRig())
 					{
-						return Section;
+						if (ControlRig->IsA<UFKControlRig>())
+						{
+							return Section;
+						}
 					}
 				}
 			}
