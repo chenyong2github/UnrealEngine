@@ -57,6 +57,7 @@ public:
 		bReverseCulling								= false;
 		bHoldout									= false;
 		bDisableMaterialInvalidations				= false;
+		bSplineMesh									= false;
 
 		Parameters.MaxWPOExtent						= 0.0f;
 		Parameters.MinMaterialDisplacement			= 0.0f;
@@ -84,6 +85,7 @@ public:
 		Parameters.NumInstanceSceneDataEntries		= 0;
 		Parameters.InstancePayloadDataOffset		= INDEX_NONE;
 		Parameters.InstancePayloadDataStride		= 0;
+		Parameters.InstancePayloadExtensionSize		= 0;
 
 		LightingChannels = GetDefaultLightingChannelMask();
 
@@ -118,13 +120,15 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInSceneCaptureOnly);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HiddenInSceneCapture);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			ForceHidden);
-	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,         Holdout);
-	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,         DisableMaterialInvalidations);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			Holdout);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			DisableMaterialInvalidations);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			SplineMesh);
 
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstanceSceneDataOffset);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NumInstanceSceneDataEntries);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstancePayloadDataOffset);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstancePayloadDataStride);
+	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstancePayloadExtensionSize);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(int32,				SingleCaptureIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(int32,				PersistentPrimitiveIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			PrimitiveComponentId);
@@ -377,18 +381,6 @@ public:
 		Parameters.Flags |= bHasInstanceLocalBounds ? PRIMITIVE_SCENE_DATA_FLAG_HAS_INSTANCE_LOCAL_BOUNDS : 0u;
 		Parameters.Flags |= bCastShadow ? PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 		Parameters.Flags |= bCastContactShadow ? PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW : 0u;
-		Parameters.Flags |= bCastHiddenShadow ? PRIMITIVE_SCENE_DATA_FLAG_CAST_HIDDEN_SHADOW : 0u;
-		Parameters.Flags |= bVisibleInGame ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_GAME : 0u;
-	#if WITH_EDITOR
-		Parameters.Flags |= bVisibleInEditor ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_EDITOR : 0u;
-	#endif
-		Parameters.Flags |= bVisibleInReflectionCaptures ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REFLECTION_CAPTURES : 0u;
-		Parameters.Flags |= bVisibleInRealTimeSkyCaptures ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REAL_TIME_SKY_CAPTURES : 0u;
-		Parameters.Flags |= bVisibleInRayTracing ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RAY_TRACING : 0u;
-		Parameters.Flags |= bVisibleInLumenScene ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_LUMEN_SCENE : 0u;
-		Parameters.Flags |= bVisibleInSceneCaptureOnly ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_SCENE_CAPTURE_ONLY : 0u;
-		Parameters.Flags |= bHiddenInSceneCapture ? PRIMITIVE_SCENE_DATA_FLAG_HIDDEN_IN_SCENE_CAPTURE : 0u;
-		Parameters.Flags |= bForceHidden ? PRIMITIVE_SCENE_DATA_FLAG_FORCE_HIDDEN : 0u;
 		Parameters.Flags |= bHasInstanceDrawDistanceCull ? PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL : 0u;
 		Parameters.Flags |= bHasWPODisableDistance ? PRIMITIVE_SCENE_DATA_FLAG_WPO_DISABLE_DISTANCE : 0u;
 		Parameters.Flags |= bWritesCustomDepthStencil ? PRIMITIVE_SCENE_DATA_FLAG_WRITES_CUSTOM_DEPTH_STENCIL : 0u;
@@ -397,6 +389,22 @@ public:
 #endif
 		Parameters.Flags |= bHoldout ? PRIMITIVE_SCENE_DATA_FLAG_HOLDOUT : 0u;
 		Parameters.Flags |= bDisableMaterialInvalidations ? PRIMITIVE_SCENE_DATA_FLAG_DISABLE_MATERIAL_INVALIDATIONS : 0u;
+		Parameters.Flags |= bSplineMesh ? PRIMITIVE_SCENE_DATA_FLAG_SPLINE_MESH : 0u;
+		
+		Parameters.VisibilityFlags = 0;
+		Parameters.VisibilityFlags |= bCastHiddenShadow ? PRIMITIVE_VISIBILITY_FLAG_CAST_HIDDEN_SHADOW : 0u;
+		Parameters.VisibilityFlags |= bVisibleInGame ? PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_GAME : 0u;
+	#if WITH_EDITOR
+		Parameters.VisibilityFlags |= bVisibleInEditor ? PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_EDITOR : 0u;
+	#endif
+		Parameters.VisibilityFlags |= bVisibleInReflectionCaptures ? PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_REFLECTION_CAPTURES : 0u;
+		Parameters.VisibilityFlags |= bVisibleInRealTimeSkyCaptures ? PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_REAL_TIME_SKY_CAPTURES : 0u;
+		Parameters.VisibilityFlags |= bVisibleInRayTracing ? PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_RAY_TRACING : 0u;
+		Parameters.VisibilityFlags |= bVisibleInLumenScene ? PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_LUMEN_SCENE : 0u;
+		Parameters.VisibilityFlags |= bVisibleInSceneCaptureOnly ? PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_SCENE_CAPTURE_ONLY : 0u;
+		Parameters.VisibilityFlags |= bHiddenInSceneCapture ? PRIMITIVE_VISIBILITY_FLAG_HIDDEN_IN_SCENE_CAPTURE : 0u;
+		Parameters.VisibilityFlags |= bForceHidden ? PRIMITIVE_VISIBILITY_FLAG_FORCE_HIDDEN : 0u;
+
 		return Parameters;
 	}
 
@@ -442,4 +450,5 @@ private:
 	uint32 bReverseCulling: 1;
 	uint32 bHoldout : 1;
 	uint32 bDisableMaterialInvalidations : 1;
+	uint32 bSplineMesh : 1;
 };

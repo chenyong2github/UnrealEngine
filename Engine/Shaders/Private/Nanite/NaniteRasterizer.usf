@@ -326,7 +326,7 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 
 	if (GroupThreadIndex < NumUniqueVerts)
 	{
-		Vert = FetchTransformedNaniteVertex( InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, bEvaluateWPO );
+		Vert = FetchTransformedNaniteVertex( PrimitiveData, InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, bEvaluateWPO );
 		PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
 	}
 
@@ -406,7 +406,7 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 
 		if( LaneVertIndex < VertexCache.NumCached )
 		{
-			VertexCache.CachedVert.TransformedVert = FetchTransformedNaniteVertex( InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, bEvaluateWPO );
+			VertexCache.CachedVert.TransformedVert = FetchTransformedNaniteVertex( PrimitiveData, InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, bEvaluateWPO );
 			VertexCache.CachedVert.PointSubpixelClip = CalculateSubpixelCoordinates( Raster, VertexCache.CachedVert.TransformedVert.PointClip );
 		}
 
@@ -469,7 +469,7 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 			break;
 
 		// Transform vertex and store in group shared memory.
-		FNanitePostDeformVertex InputVert = FetchAndDeformLocalNaniteVertex(InstanceData, Cluster, VertIndex);
+		FNanitePostDeformVertex InputVert = FetchAndDeformLocalNaniteVertex(PrimitiveData, InstanceData, Cluster, VertIndex);
 		float3 WorldPositionOffset = 0.0f;
 	#if NANITE_VERTEX_PROGRAMMABLE
 		BRANCH
@@ -570,8 +570,9 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 
 		FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleClusterIndex, VIRTUAL_TEXTURE_TARGET );
 		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
+		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 		FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
-	
+
 	#if NANITE_VERTEX_PROGRAMMABLE || NANITE_PIXEL_PROGRAMMABLE
 		ResolvedView = ResolveView(NaniteView);
 	#endif
@@ -643,7 +644,7 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 	
 		if (GroupThreadIndex < NumUniqueVerts)
 		{
-			Vert =  = FetchTransformedNaniteVertex( InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, false );
+			Vert =  = FetchTransformedNaniteVertex( PrimitiveData, InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, false );
 			PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
 		}
 	
@@ -661,7 +662,7 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 
 		if( GroupThreadIndex < 3 )
 		{
-			Vert = FetchTransformedNaniteVertex( InstanceData, MaterialShader.VertTransforms, Cluster, VertIndexes[ GroupThreadIndex ], false );
+			Vert = FetchTransformedNaniteVertex( PrimitiveData, InstanceData, MaterialShader.VertTransforms, Cluster, VertIndexes[ GroupThreadIndex ], false );
 			PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
 		}
 
@@ -688,7 +689,7 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		float3 TessFactors = GetTessFactors( NaniteView, PatchPointView );
 #else
 		uint3 VertIndexes = DecodeTriangleIndices( Cluster, Patch.TriIndex );
-		FNaniteTransformedTri TransformedTri = FetchTransformedNaniteTriangle(InstanceData, MaterialShader.VertTransforms, Cluster, VertIndexes, false);
+		FNaniteTransformedTri TransformedTri = FetchTransformedNaniteTriangle(PrimitiveData, InstanceData, MaterialShader.VertTransforms, Cluster, VertIndexes, false);
 		MaterialShader.TransformedTri = TransformedTri;
 
 		float3 PointView[3];
@@ -831,11 +832,11 @@ struct PrimitiveAttributes
 };
 #endif
 
-VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FCluster Cluster, uint VertIndex, uint PixelValue, bool bReverseWindingOrder)
+VSOut CommonRasterizerVS(FNaniteView NaniteView, FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FCluster Cluster, uint VertIndex, uint PixelValue, bool bReverseWindingOrder)
 {
 	VSOut Out;
 
-	const FNanitePostDeformVertex InputVert = FetchAndDeformLocalNaniteVertex(InstanceData, Cluster, VertIndex);
+	const FNanitePostDeformVertex InputVert = FetchAndDeformLocalNaniteVertex(PrimitiveData, InstanceData, Cluster, VertIndex);
 
 	float3 WorldPositionOffset = 0.0f;
 #if NANITE_VERTEX_PROGRAMMABLE
@@ -1164,7 +1165,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	if (GroupThreadID < NumExportVertices)
 	{
 		const uint PixelValue = ((VisibleIndex + 1) << 7);
-		PrimOutput.Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, SrcVertexIndex, PixelValue, bReverseWindingOrder);
+		PrimOutput.Out = CommonRasterizerVS(NaniteView, PrimitiveData, InstanceData, VisibleCluster, Cluster, SrcVertexIndex, PixelValue, bReverseWindingOrder);
 	}
 
 #if VERTEX_TO_TRIANGLE_MASKS
@@ -1281,7 +1282,7 @@ void HWRasterizeMS(
 	uint VertExportIndex = GroupThreadID;
 	if (VertExportIndex < Cluster.NumVerts)
 	{
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, LaneVertIndex, 0u, bReverseWindingOrder);
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, PrimitiveData, InstanceData, VisibleCluster, Cluster, LaneVertIndex, 0u, bReverseWindingOrder);
 		MESH_SHADER_WRITE_VERTEX(VertExportIndex, VertexOutput);
 	}
 
@@ -1289,7 +1290,7 @@ void HWRasterizeMS(
 	VertExportIndex += 128;
 	if (VertExportIndex < Cluster.NumVerts)
 	{
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, LaneVertIndex + 128, 0u, bReverseWindingOrder);
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, PrimitiveData, InstanceData, VisibleCluster, Cluster, LaneVertIndex + 128, 0u, bReverseWindingOrder);
 		MESH_SHADER_WRITE_VERTEX(VertExportIndex, VertexOutput);
 	}
 #endif
@@ -1337,7 +1338,7 @@ VSOut HWRasterizeVS(
 			VertIndexes.yz = VertIndexes.zy;
 
 		const uint PixelValue = ((VisibleIndex + 1) << 7) | TriIndex;
-		Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, VertIndexes[VertexID], PixelValue, bReverseWindingOrder);
+		Out = CommonRasterizerVS(NaniteView, PrimitiveData, InstanceData, VisibleCluster, Cluster, VertIndexes[VertexID], PixelValue, bReverseWindingOrder);
 #if BARYCENTRIC_MODE_EXPORT
 		const uint VIndex = bReverseWindingOrder ? 2 : 1;
 		Out.BarycentricsUV = float2(VertexID == 0, VertexID == VIndex);

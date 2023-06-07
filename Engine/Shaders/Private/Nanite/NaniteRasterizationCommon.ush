@@ -391,8 +391,10 @@ struct FMaterialShader
 
 		float4 SvPosition = 0;
 
+		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+
 		FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
-		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters( InstanceData, InstanceDynamicData, NaniteView, TransformedTri, Cluster, Barycentrics, Interpolants, SvPosition );
+		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters( PrimitiveData, InstanceData, InstanceDynamicData, NaniteView, TransformedTri, Cluster, Barycentrics, Interpolants, SvPosition );
 
 		FPixelMaterialInputs PixelMaterialInputs;
 		CalcMaterialParameters( MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/ );
@@ -410,9 +412,11 @@ struct FMaterialShader
 	bool EvaluatePixel( FBarycentrics Barycentrics, float4 SvPosition, inout FVisBufferPixel Pixel )
 	{
 	#if NANITE_PIXEL_PROGRAMMABLE
+		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+
 		FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 	
-		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters( InstanceData, InstanceDynamicData, NaniteView, TransformedTri, Cluster, Barycentrics, Interpolants, SvPosition );
+		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters( PrimitiveData, InstanceData, InstanceDynamicData, NaniteView, TransformedTri, Cluster, Barycentrics, Interpolants, SvPosition );
 
 		FPixelMaterialInputs PixelMaterialInputs;
 		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);

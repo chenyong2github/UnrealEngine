@@ -565,13 +565,16 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent;
 		float4 ClusterLODSphere = Cluster.LODBounds;
 
-		if ((InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS) != 0)
+		BRANCH
+		if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_SPLINE_MESH) != 0 &&
+			(InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_PAYLOAD_EXTENSION) != 0)
 		{
 			// Only show the spline mesh debug stuff when picking clusters
 			ShaderPrint.bIsActive = GetPickingDomain() == NANITE_PICKING_DOMAIN_CLUSTER;
 
+			const FSplineMeshShaderParams SplineMeshParams = SplineMeshLoadParamsFromInstancePayload(InstanceData);
 			const FSplineMeshDeformedLocalBounds NewBounds = SplineMeshDeformLocalBoundsDebug(
-				InstanceData.SplineMeshParams,
+				SplineMeshParams,
 				ShaderPrint,
 				LocalToTranslatedWorld,
 				ClusterBoxBoundsCenter,
@@ -580,7 +583,7 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 			ClusterBoxBoundsCenter = NewBounds.BoundsCenter;
 			ClusterBoxBoundsExtent = NewBounds.BoundsExtent;
 
-			ClusterLODSphere = SplineMeshDeformLODSphereBounds(InstanceData.SplineMeshParams, ClusterLODSphere);
+			ClusterLODSphere = SplineMeshDeformLODSphereBounds(SplineMeshParams, ClusterLODSphere);
 
 			ShaderPrint.bIsActive = true;
 		}

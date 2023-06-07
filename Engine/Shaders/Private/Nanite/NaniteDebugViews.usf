@@ -214,9 +214,10 @@ void ExportDebugViewPS(
 					BRANCH
 					if (MaterialFlags.bSplineMesh)
 					{
-						PointLocal0 = SplineMeshDeformLocalPos(InstanceData.SplineMeshParams, float4(PointLocal0, 1));
-						PointLocal1 = SplineMeshDeformLocalPos(InstanceData.SplineMeshParams, float4(PointLocal1, 1));
-						PointLocal2 = SplineMeshDeformLocalPos(InstanceData.SplineMeshParams, float4(PointLocal2, 1));
+						FSplineMeshShaderParams SplineMeshParams = SplineMeshLoadParamsFromInstancePayload(InstanceData);
+						PointLocal0 = SplineMeshDeformLocalPos(SplineMeshParams, float4(PointLocal0, 1));
+						PointLocal1 = SplineMeshDeformLocalPos(SplineMeshParams, float4(PointLocal1, 1));
+						PointLocal2 = SplineMeshDeformLocalPos(SplineMeshParams, float4(PointLocal2, 1));
 					}
 
 					const float3 PointWorld0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;

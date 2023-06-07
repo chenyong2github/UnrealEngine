@@ -340,7 +340,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bHasPerInstanceLMSMUVBias(false)
 ,	bHasPerInstanceLocalBounds(false)
 ,	bHasPerInstanceHierarchyOffset(false)
-,	bHasPerInstanceSplineMeshParams(false)
+,	bHasPerInstancePayloadExtension(false)
 #if WITH_EDITOR
 ,	bHasPerInstanceEditorData(false)
 #endif
@@ -649,7 +649,8 @@ void FPrimitiveSceneProxy::BuildUniformShaderParameters(FPrimitiveUniformShaderP
 			.HiddenInSceneCapture(IsHiddenInSceneCapture())
 			.ForceHidden(IsForceHidden())
 			.PrimitiveComponentId(GetPrimitiveComponentId().PrimIDValue)
-			.EditorColors(GetWireframeColor(), GetLevelColor());
+			.EditorColors(GetWireframeColor(), GetLevelColor())
+			.SplineMesh(IsSplineMesh());
 
 		if (PrimitiveSceneInfo != nullptr)
 		{
@@ -737,9 +738,14 @@ uint32 FPrimitiveSceneProxy::GetPayloadDataStride() const
 
 	PayloadDataCount += HasPerInstanceLMSMUVBias() ? 1 : 0; // FVector4
 
-	if (HasPerInstanceSplineMeshParams())
+	if (HasPerInstancePayloadExtension())
 	{
-		PayloadDataCount += SPLINE_MESH_PARAMS_FLOAT4_SIZE;
+		const uint32 InstanceCount   = InstanceSceneData.Num();
+		const uint32 ExtensionCount = InstancePayloadExtension.Num();
+		if (InstanceCount > 0)
+		{
+			PayloadDataCount += ExtensionCount / InstanceCount;
+		}
 	}
 
 	if (HasPerInstanceCustomData())

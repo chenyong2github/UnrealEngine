@@ -4,6 +4,24 @@
 
 #include "/Engine/Shared/SplineMeshShaderParams.h"
 #include "ShaderPrint.ush"
+#include "SceneData.ush"
+
+FSplineMeshShaderParams SplineMeshLoadParamsFromInstancePayload(FInstanceSceneData InstanceData)
+{
+	const float4 SplineParams[SPLINE_MESH_PARAMS_FLOAT4_SIZE] =
+	{
+		LoadInstancePayloadExtensionElement(InstanceData, 0),
+		LoadInstancePayloadExtensionElement(InstanceData, 1),
+		LoadInstancePayloadExtensionElement(InstanceData, 2),
+		LoadInstancePayloadExtensionElement(InstanceData, 3),
+		LoadInstancePayloadExtensionElement(InstanceData, 4),
+		LoadInstancePayloadExtensionElement(InstanceData, 5),
+		LoadInstancePayloadExtensionElement(InstanceData, 6),
+		LoadInstancePayloadExtensionElement(InstanceData, 7),
+	};
+
+	return UnpackSplineMeshParams(SplineParams);
+}
 
 /** Calculate normalized distance along the spline based on local mesh position */
 float SplineMeshCalcSplineDistance(FSplineMeshShaderParams Params, float3 LocalPos)

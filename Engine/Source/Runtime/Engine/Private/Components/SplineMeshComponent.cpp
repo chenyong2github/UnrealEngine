@@ -53,7 +53,7 @@ static bool ShouldRenderNaniteSplineMeshes()
 	return NaniteSplineMeshesSupported() && GSplineMeshRenderNanite != 0;
 }
 
-void PackSplineMeshParams(const FSplineMeshShaderParams& Params, const TArrayView<FVector4f>& Output, uint32 OutputOffset)
+void PackSplineMeshParams(const FSplineMeshShaderParams& Params, const TArrayView<FVector4f>& Output)
 {
 	auto PackSNorm16 = [](float Value, uint32 Shift = 0) -> uint32
 	{
@@ -62,29 +62,30 @@ void PackSplineMeshParams(const FSplineMeshShaderParams& Params, const TArrayVie
 	};
 
 	static_assert(SPLINE_MESH_PARAMS_FLOAT4_SIZE == 8, "If you changed the packed size of FSplineMeshShaderParams, this function needs to be updated");
-	check(Output.Num() - OutputOffset >= SPLINE_MESH_PARAMS_FLOAT4_SIZE);
+	check(Output.Num() >= SPLINE_MESH_PARAMS_FLOAT4_SIZE);
 	
-	Output[OutputOffset + 0] = FVector4f(Params.StartPos, Params.StartScale.X);
-	Output[OutputOffset + 1] = FVector4f(Params.EndPos, Params.StartScale.Y);
-	Output[OutputOffset + 2] = FVector4f(Params.StartTangent, Params.EndScale.X);
-	Output[OutputOffset + 3] = FVector4f(Params.EndTangent, Params.EndScale.Y);
-	Output[OutputOffset + 4] = FVector4f(Params.StartOffset, Params.EndOffset);
+	Output[0]	= FVector4f(Params.StartPos, Params.StartScale.X);
+	Output[1]	= FVector4f(Params.EndPos, Params.StartScale.Y);
+	Output[2]	= FVector4f(Params.StartTangent, Params.EndScale.X);
+	Output[3]	= FVector4f(Params.EndTangent, Params.EndScale.Y);
+	Output[4]	= FVector4f(Params.StartOffset, Params.EndOffset);
 
-	Output[OutputOffset + 5].X = Params.StartRoll;
-	Output[OutputOffset + 5].Y = Params.EndRoll;
-	Output[OutputOffset + 5].Z = Params.MeshScaleZ;
-	Output[OutputOffset + 5].W = Params.MeshMinZ;
+	Output[5].X	= Params.StartRoll;
+	Output[5].Y	= Params.EndRoll;
+	Output[5].Z	= Params.MeshScaleZ;
+	Output[5].W	= Params.MeshMinZ;
 
-	Output[OutputOffset + 6].X = BitCast<float, uint32>(PackSNorm16(Params.SplineUpDir.X) | PackSNorm16(Params.SplineUpDir.Y, 16u));
-	Output[OutputOffset + 6].Y = BitCast<float, uint32>(PackSNorm16(Params.SplineUpDir.Z));
+	Output[6].X = BitCast<float, uint32>(PackSNorm16(Params.SplineUpDir.X) | PackSNorm16(Params.SplineUpDir.Y, 16u));
+	Output[6].Y = BitCast<float, uint32>(PackSNorm16(Params.SplineUpDir.Z));
 
 	const FQuat4f MeshRot = FQuat4f(FMatrix44f(Params.MeshDir, Params.MeshX, Params.MeshY, FVector3f::ZeroVector));
-	Output[OutputOffset + 6].Z = BitCast<float, uint32>(PackSNorm16(MeshRot.X) | PackSNorm16(MeshRot.Y, 16u));
-	Output[OutputOffset + 6].W = BitCast<float, uint32>(PackSNorm16(MeshRot.Z) | PackSNorm16(MeshRot.W, 16u));
+	Output[6].Z = BitCast<float, uint32>(PackSNorm16(MeshRot.X) | PackSNorm16(MeshRot.Y, 16u));
+	Output[6].W = BitCast<float, uint32>(PackSNorm16(MeshRot.Z) | PackSNorm16(MeshRot.W, 16u));
 
-	Output[OutputOffset + 7].X = Params.MeshDeformScaleMinMax.X;
-	Output[OutputOffset + 7].Y = Params.MeshDeformScaleMinMax.Y;
-	Output[OutputOffset + 7].Z = Params.bSmoothInterpRollScale ? 1.0f : 0.0f;
+	Output[7].X	= Params.MeshDeformScaleMinMax.X;
+	Output[7].Y	= Params.MeshDeformScaleMinMax.Y;
+	Output[7].Z	= Params.bSmoothInterpRollScale ? 1.0f : 0.0f;
+	Output[7].W	= 0.0f;
 }
 
 /**

@@ -19,7 +19,6 @@
 #include "DrawDebugHelpers.h"
 #include "Math/CapsuleShape.h"
 #include "SceneDefinitions.h"
-#include "SplineMeshShaderParams.h"
 
 class FLightSceneInfo;
 class FLightSceneProxy;
@@ -667,6 +666,7 @@ public:
 	inline bool ShouldUseAsOccluder() const { return bUseAsOccluder; }
 	inline bool AllowApproximateOcclusion() const { return bAllowApproximateOcclusion; }
 	inline bool Holdout() const { return bHoldout; }
+	inline bool IsSplineMesh() const { return bSplineMesh; }
 
 	inline FRHIUniformBuffer* GetUniformBuffer() const
 	{
@@ -681,7 +681,7 @@ public:
 	inline bool HasPerInstanceLMSMUVBias() const { return bHasPerInstanceLMSMUVBias; }
 	inline bool HasPerInstanceLocalBounds() const { return bHasPerInstanceLocalBounds; }
 	inline bool HasPerInstanceHierarchyOffset() const { return bHasPerInstanceHierarchyOffset; }
-	inline bool HasPerInstanceSplineMeshParams() const { return bHasPerInstanceSplineMeshParams; }
+	inline bool HasPerInstancePayloadExtension() const { return bHasPerInstancePayloadExtension; }
 #if WITH_EDITOR
 	inline bool HasPerInstanceEditorData() const { return bHasPerInstanceEditorData; }
 #else
@@ -700,7 +700,7 @@ public:
 			bHasPerInstanceEditorData	|
 #endif
 			bHasPerInstanceHierarchyOffset |
-			bHasPerInstanceSplineMeshParams;
+			bHasPerInstancePayloadExtension;
 	}
 
 	inline uint32 GetInstanceSceneDataFlags()
@@ -712,7 +712,7 @@ public:
 		Flags |= HasPerInstanceLMSMUVBias()      ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS : 0u;
 		Flags |= HasPerInstanceHierarchyOffset() ? INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET    : 0u;
 		Flags |= HasPerInstanceLocalBounds()     ? INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS        : 0u;
-		Flags |= HasPerInstanceSplineMeshParams()? INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS  : 0u;
+		Flags |= HasPerInstancePayloadExtension()? INSTANCE_SCENE_DATA_FLAG_HAS_PAYLOAD_EXTENSION   : 0u;
 #if WITH_EDITOR
 		Flags |= HasPerInstanceEditorData()      ? INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA         : 0u;
 #endif
@@ -970,9 +970,9 @@ public:
 		return InstanceHierarchyOffset;
 	}
 
-	FORCEINLINE TConstArrayView<FSplineMeshShaderParams> GetInstanceSplineMeshParams() const
+	FORCEINLINE TConstArrayView<FVector4f> GetInstancePayloadExtension() const
 	{
-		return InstanceSplineMeshParams;
+		return InstancePayloadExtension;
 	}
 
 	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, uint32& ImposterIndex) const
@@ -1385,7 +1385,7 @@ protected:
 	uint8 bHasPerInstanceLMSMUVBias : 1;
 	uint8 bHasPerInstanceLocalBounds : 1;
 	uint8 bHasPerInstanceHierarchyOffset : 1;
-	uint8 bHasPerInstanceSplineMeshParams : 1;
+	uint8 bHasPerInstancePayloadExtension : 1;
 #if WITH_EDITOR
 	uint8 bHasPerInstanceEditorData : 1;
 #endif
@@ -1398,6 +1398,8 @@ protected:
 	 * should behave as usual. This feature is currently only implemented in the Path Tracer.
 	 */
 	uint8 bHoldout : 1;
+
+	uint8 bSplineMesh : 1;
 
 private:
 
@@ -1451,7 +1453,7 @@ protected:
 	TArray<float> InstanceRandomID;
 	TArray<FVector4f> InstanceLightShadowUVBias;
 	TArray<uint32> InstanceHierarchyOffset;
-	TArray<FSplineMeshShaderParams> InstanceSplineMeshParams;
+	TArray<FVector4f> InstancePayloadExtension;
 #if WITH_EDITOR
 	TArray<uint32> InstanceEditorData;
 #endif

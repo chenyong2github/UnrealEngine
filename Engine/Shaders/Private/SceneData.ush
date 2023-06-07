@@ -6,7 +6,6 @@
 #include "OctahedralCommon.ush"
 #include "/Engine/Shared/LightSceneData.h"
 #include "/Engine/Shared/SceneDefinitions.h"
-#include "/Engine/Shared/SplineMeshShaderParams.h"
 
 #ifndef USE_GLOBAL_GPU_SCENE_DATA
 	#define USE_GLOBAL_GPU_SCENE_DATA 0
@@ -67,12 +66,18 @@ uint GetDefaultPrimitiveSceneDataFlags()
 	return
 		PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS |
 		PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW |
-		PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET |
-		PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_GAME |
-		PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_EDITOR |
-		PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REFLECTION_CAPTURES |
-		PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REAL_TIME_SKY_CAPTURES |
-		PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RAY_TRACING;
+		PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET;
+}
+
+uint GetDefaultPrimitiveVisibilityFlags()
+{
+	// Should match FPrimitiveUniformShaderParametersBuilder::Default()
+	return
+		PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_GAME |
+		PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_EDITOR |
+		PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_REFLECTION_CAPTURES |
+		PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_REAL_TIME_SKY_CAPTURES |
+		PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_RAY_TRACING;
 }
 
 #define INVALID_INSTANCE_PAYLOAD_OFFSET (0xFFFFFFFFu)
@@ -88,6 +93,7 @@ uint GetDefaultPrimitiveSceneDataFlags()
 struct FPrimitiveSceneData
 {
 	uint		Flags;
+	uint		VisibilityFlags;
 	int			InstanceSceneDataOffset; // Link to the range of instances that belong to this primitive
 	int			NumInstanceSceneDataEntries;
 	int			PersistentPrimitiveIndex;
@@ -117,7 +123,8 @@ struct FPrimitiveSceneData
 	float3		LocalObjectBoundsMax;
 	float		ObjectBoundsZ;
 	uint		InstancePayloadDataOffset;
-	uint		InstancePayloadDataStride; // TODO: Use 16 bits? 8 bits?
+	uint		InstancePayloadDataStride;
+	uint		InstancePayloadExtensionSize;
 	float3		InstanceLocalBoundsCenter;
 	float3		InstanceLocalBoundsExtent;
 	float3		WireframeColor; // TODO: Should refactor out all editor data into a separate buffer
@@ -139,6 +146,7 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 	FPrimitiveSceneData PrimitiveData;
 
 	PrimitiveData.Flags								= Primitive.Flags;
+	PrimitiveData.VisibilityFlags					= Primitive.VisibilityFlags;
 	PrimitiveData.InstanceSceneDataOffset			= Primitive.InstanceSceneDataOffset;
 	PrimitiveData.NumInstanceSceneDataEntries		= Primitive.NumInstanceSceneDataEntries;
 	PrimitiveData.SingleCaptureIndex				= Primitive.SingleCaptureIndex;
@@ -168,6 +176,7 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 	PrimitiveData.ObjectBoundsZ						= Primitive.ObjectBoundsZ;
 	PrimitiveData.InstancePayloadDataOffset			= Primitive.InstancePayloadDataOffset;
 	PrimitiveData.InstancePayloadDataStride			= Primitive.InstancePayloadDataStride;
+	PrimitiveData.InstancePayloadExtensionSize		= Primitive.InstancePayloadExtensionSize;
 	PrimitiveData.InstanceLocalBoundsCenter			= Primitive.InstanceLocalBoundsCenter;
 	PrimitiveData.InstanceLocalBoundsExtent			= Primitive.InstanceLocalBoundsExtent;
 	PrimitiveData.WireframeColor					= Primitive.WireframeColor;
@@ -270,7 +279,8 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.Flags									= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).x);
 	PrimitiveData.InstanceSceneDataOffset				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).y);
 	PrimitiveData.NumInstanceSceneDataEntries			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).z);
-	PrimitiveData.SingleCaptureIndex					= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).w);
+	PrimitiveData.SingleCaptureIndex					= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).w) & 0xFFFFu;
+	PrimitiveData.VisibilityFlags						= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).w) >> 16u;
 	PrimitiveData.TilePosition							= TilePosition; // 1.xyz
 	PrimitiveData.PrimitiveComponentId					= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 1).w);
 	PrimitiveData.LocalToWorld							= MakeLWCMatrix4x3(TilePosition, LocalToWorld);
@@ -298,7 +308,8 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.InstanceLocalBoundsCenter				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).xyz;
 	PrimitiveData.InstancePayloadDataOffset				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).w);
 	PrimitiveData.InstanceLocalBoundsExtent				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).xyz;
-	PrimitiveData.InstancePayloadDataStride				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).w);
+	PrimitiveData.InstancePayloadDataStride				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).w) & 0x00FFFFFFu;
+	PrimitiveData.InstancePayloadExtensionSize			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).w) >> 24;
 	PrimitiveData.WireframeColor						= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).xyz;
 	PrimitiveData.PackedNaniteFlags						= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).w);
 	PrimitiveData.LevelColor							= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).xyz;
@@ -416,7 +427,7 @@ struct FInstancePayloadDataOffsets
 	uint LocalBounds;
 	uint DynamicData;
 	uint LightShadowUVBias;
-	uint SplineMeshParams;
+	uint PayloadExtension;
 	uint CustomData;
 };
 
@@ -432,6 +443,8 @@ struct FInstanceSceneData
 	uint     PrimitiveId;
 	uint     RelativeId;
 	uint     PayloadDataOffset;
+	uint     PayloadExtensionOffset;
+	uint     PayloadExtensionSize;
 	float3   LocalBoundsExtent;
 	uint     LastUpdateSceneFrameNumber;
 	uint     NaniteRuntimeResourceID;
@@ -448,8 +461,6 @@ struct FInstanceSceneData
 #endif
 	bool     ValidInstance;
 	uint     Flags;
-
-	FSplineMeshShaderParams SplineMeshParams;
 
 #if USE_EDITOR_SHADERS
 	FInstanceSceneEditorData EditorData;
@@ -495,6 +506,16 @@ float4 LoadInstancePayloadDataElement(uint Index)
 #else
 	return Scene.GPUScene.GPUSceneInstancePayloadData[Index];
 #endif
+}
+
+float4 LoadInstancePayloadExtensionElement(FInstanceSceneData InstanceData, uint Index)
+{
+	if (InstanceData.PayloadExtensionOffset != INVALID_INSTANCE_PAYLOAD_OFFSET)
+	{
+		return LoadInstancePayloadDataElement(InstanceData.PayloadExtensionOffset + Index);
+	}
+
+	return (float4)0;
 }
 
 float4 LoadInstanceCustomDataElement(FInstanceSceneData SceneData, uint Float4Index)
@@ -775,7 +796,7 @@ FInstancePayloadDataOffsets GetInstancePayloadDataOffsets(uint PrimitiveId, uint
 	const bool bHasDynamicData				= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) != 0u;
 	const bool bHasLightShadowUVBias		= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
 	const bool bHasCustomData				= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) != 0u;
-	const bool bHasSplineMeshParams			= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS) != 0u;
+	const bool bHasPayloadExtension			= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_PAYLOAD_EXTENSION) != 0u;
 #if USE_EDITOR_SHADERS
 	const bool bHasEditorData				= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u;
 #else
@@ -791,7 +812,7 @@ FInstancePayloadDataOffsets GetInstancePayloadDataOffsets(uint PrimitiveId, uint
 	Offsets.LocalBounds 		= INVALID_INSTANCE_PAYLOAD_OFFSET;
 	Offsets.DynamicData 		= INVALID_INSTANCE_PAYLOAD_OFFSET;
 	Offsets.LightShadowUVBias 	= INVALID_INSTANCE_PAYLOAD_OFFSET;
-	Offsets.SplineMeshParams	= INVALID_INSTANCE_PAYLOAD_OFFSET;
+	Offsets.PayloadExtension	= INVALID_INSTANCE_PAYLOAD_OFFSET;
 	Offsets.CustomData			= INVALID_INSTANCE_PAYLOAD_OFFSET;
 	
 	// Hierarchy Offset -> float0.x
@@ -823,10 +844,10 @@ FInstancePayloadDataOffsets GetInstancePayloadDataOffsets(uint PrimitiveId, uint
 		++CurOffset;
 	}
 
-	if (bHasSplineMeshParams)
+	if (bHasPayloadExtension)
 	{
-		Offsets.SplineMeshParams = CurOffset;
-		CurOffset += SPLINE_MESH_PARAMS_FLOAT4_SIZE;
+		Offsets.PayloadExtension = CurOffset;
+		CurOffset += PrimitiveData.InstancePayloadExtensionSize;
 	}
 
 	if (bHasCustomData)
@@ -1012,22 +1033,8 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		}
 	#endif
 
-		BRANCH
-		if (Offsets.SplineMeshParams != INVALID_INSTANCE_PAYLOAD_OFFSET)
-		{
-			float4 SplineMeshParams[SPLINE_MESH_PARAMS_FLOAT4_SIZE] = {
-				LoadInstancePayloadDataElement(Offsets.SplineMeshParams + 0),
-				LoadInstancePayloadDataElement(Offsets.SplineMeshParams + 1),
-				LoadInstancePayloadDataElement(Offsets.SplineMeshParams + 2),
-				LoadInstancePayloadDataElement(Offsets.SplineMeshParams + 3),
-				LoadInstancePayloadDataElement(Offsets.SplineMeshParams + 4),
-				LoadInstancePayloadDataElement(Offsets.SplineMeshParams + 5),
-				LoadInstancePayloadDataElement(Offsets.SplineMeshParams + 6),
-				LoadInstancePayloadDataElement(Offsets.SplineMeshParams + 7),
-			};
-
-			InstanceData.SplineMeshParams = UnpackSplineMeshParams(SplineMeshParams);
-		}
+		InstanceData.PayloadExtensionOffset = Offsets.PayloadExtension;
+		InstanceData.PayloadExtensionSize = PrimitiveData.InstancePayloadExtensionSize;
 	}
 
 	return InstanceData;
@@ -1196,6 +1203,7 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	Intermediates.Primitive = Primitive;
 	// Primitive data that comes from per-instance vertex data
 	Intermediates.Primitive.Flags					= PrimitiveFlags;
+	Intermediates.Primitive.VisibilityFlags			= VisibilityFlags;
 	Intermediates.Primitive.LocalToWorld			= Intermediates.InstanceData.LocalToWorld;
 	Intermediates.Primitive.InvNonUniformScale		= Intermediates.InstanceData.InvNonUniformScale;
 	Intermediates.Primitive.WorldToLocal			= Intermediates.InstanceData.WorldToLocal;

@@ -55,6 +55,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(uint32,		InstancePayloadDataOffset)
 	SHADER_PARAMETER(FVector3f,		InstanceLocalBoundsExtent)
 	SHADER_PARAMETER(uint32,		InstancePayloadDataStride)
+	SHADER_PARAMETER(uint32,		InstancePayloadExtensionSize)
 	SHADER_PARAMETER(FVector3f,		WireframeColor)											// Only needed for editor/development
 	SHADER_PARAMETER(uint32,		PackedNaniteFlags)
 	SHADER_PARAMETER(FVector3f,		LevelColor)												// Only needed for editor/development
@@ -66,6 +67,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(float,			MinMaterialDisplacement)
 	SHADER_PARAMETER(float,			MaxMaterialDisplacement)
 	SHADER_PARAMETER(uint32,		CustomStencilValueAndMask)
+	SHADER_PARAMETER(uint32,		VisibilityFlags)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 

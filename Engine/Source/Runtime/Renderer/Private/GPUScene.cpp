@@ -25,7 +25,6 @@
 #include "SystemTextures.h"
 #include "SceneDefinitions.h"
 #include "PrimitiveSceneShaderData.h"
-#include "Components/SplineMeshComponent.h"
 #include "RendererOnScreenNotification.h"
 
 // Defaults to being disabled, enable using the command line argument: -CsvCategory GPUScene
@@ -278,6 +277,7 @@ struct FInstanceUploadInfo
 	int32 InstanceSceneDataOffset = INDEX_NONE;
 	int32 InstancePayloadDataOffset = INDEX_NONE;
 	int32 InstancePayloadDataStride = 0;
+	int32 InstancePayloadExtensionCount = 0;
 	int32 InstanceCustomDataCount = 0;
 
 	// Optional per-instance data views
@@ -287,7 +287,7 @@ struct FInstanceUploadInfo
 	TConstArrayView<float> InstanceRandomID;
 	TConstArrayView<uint32> InstanceHierarchyOffset;
 	TConstArrayView<FRenderBounds> InstanceLocalBounds;
-	TConstArrayView<FSplineMeshShaderParams> InstanceSplineMeshParams;
+	TConstArrayView<FVector4f> InstancePayloadExtension;
 #if WITH_EDITOR
 	TConstArrayView<uint32> InstanceEditorData;
 #endif
@@ -313,7 +313,7 @@ void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo, FRDGBuffe
 	const bool bHasLightShadowUVBias = (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
 	const bool bHasHierarchyOffset	= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) != 0u;
 	const bool bHasLocalBounds		= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) != 0u;
-	const bool bHasSplineMeshParams	= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS) != 0u;
+	const bool bHasPayloadExtension	= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_PAYLOAD_EXTENSION) != 0u;
 #if WITH_EDITOR
 	const bool bHasEditorData		= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u;
 #endif
@@ -323,7 +323,6 @@ void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo, FRDGBuffe
 	check(UploadInfo.InstanceDynamicData.Num()			== (bHasDynamicData		? InstanceCount : 0));
 	check(UploadInfo.InstanceLightShadowUVBias.Num()	== (bHasLightShadowUVBias ? InstanceCount : 0));
 	check(UploadInfo.InstanceHierarchyOffset.Num()		== (bHasHierarchyOffset	? InstanceCount : 0));
-	check(UploadInfo.InstanceSplineMeshParams.Num()		== (bHasSplineMeshParams? InstanceCount : 0));
 #if WITH_EDITOR
 	check(UploadInfo.InstanceEditorData.Num() == (bHasEditorData ? InstanceCount : 0));
 #endif
@@ -338,8 +337,19 @@ void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo, FRDGBuffe
 		check(UploadInfo.InstanceCustomData.Num() == 0 && UploadInfo.InstanceCustomDataCount == 0);
 	}
 
+	if (bHasPayloadExtension)
+	{
+		check(UploadInfo.InstancePayloadExtensionCount > 0);
+		check(UploadInfo.InstancePayloadExtensionCount <= PRIMITIVE_SCENE_DATA_MAX_PAYLOAD_EXTENSION_SIZE);
+		check(UploadInfo.InstancePayloadExtensionCount * InstanceCount == UploadInfo.InstancePayloadExtension.Num());
+	}
+	else
+	{
+		check(UploadInfo.InstancePayloadExtensionCount == 0 && UploadInfo.InstancePayloadExtension.Num() == 0);
+	}
+
 	// RandomID is not stored in the payload but in the instance scene data.
-	const bool bHasAnyPayloadData = bHasHierarchyOffset || bHasLocalBounds || bHasDynamicData || bHasLightShadowUVBias || bHasCustomData/*|| bHasRandomID*/;
+	const bool bHasAnyPayloadData = bHasHierarchyOffset || bHasLocalBounds || bHasDynamicData || bHasLightShadowUVBias || bHasCustomData|| bHasPayloadExtension;
 
 	if (bHasAnyPayloadData)
 	{
@@ -492,7 +502,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 			InstanceUploadInfo.InstanceCustomData = PrimitiveSceneProxy->GetInstanceCustomData();
 			InstanceUploadInfo.InstanceRandomID = PrimitiveSceneProxy->GetInstanceRandomID();
 			InstanceUploadInfo.InstanceHierarchyOffset = PrimitiveSceneProxy->GetInstanceHierarchyOffset();
-			InstanceUploadInfo.InstanceSplineMeshParams = PrimitiveSceneProxy->GetInstanceSplineMeshParams();
+			InstanceUploadInfo.InstancePayloadExtension = PrimitiveSceneProxy->GetInstancePayloadExtension();
 
 #if WITH_EDITOR
 			InstanceUploadInfo.InstanceEditorData = PrimitiveSceneProxy->GetInstanceEditorData();
@@ -514,10 +524,16 @@ struct FUploadDataSourceAdapterScenePrimitives
 			InstanceUploadInfo.InstanceCustomData = TConstArrayView<float>();
 			InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>();
 			InstanceUploadInfo.InstanceHierarchyOffset = TConstArrayView<uint32>();
-			InstanceUploadInfo.InstanceSplineMeshParams = TConstArrayView<FSplineMeshShaderParams>();
+			InstanceUploadInfo.InstancePayloadExtension = TConstArrayView<FVector4f>();
 #if WITH_EDITOR
 			InstanceUploadInfo.InstanceEditorData = TConstArrayView<uint32>();
 #endif
+		}
+
+		InstanceUploadInfo.InstancePayloadExtensionCount = 0;
+		if (InstanceUploadInfo.InstancePayloadExtension.Num() > 0)
+		{
+			InstanceUploadInfo.InstancePayloadExtensionCount = InstanceUploadInfo.InstancePayloadExtension.Num() / InstanceUploadInfo.PrimitiveInstances.Num();;
 		}
 
 		InstanceUploadInfo.InstanceCustomDataCount = 0;
@@ -1236,11 +1252,14 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExte
 								PayloadPosition += 1;
 							}
 
-							if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS)
+							if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_PAYLOAD_EXTENSION)
 							{
-								check(UploadInfo.InstanceSplineMeshParams.Num() == UploadInfo.PrimitiveInstances.Num());
-								PackSplineMeshParams(UploadInfo.InstanceSplineMeshParams[InstanceIndex], InstancePayloadData, PayloadPosition);
-								PayloadPosition += SPLINE_MESH_PARAMS_FLOAT4_SIZE;
+								check(UploadInfo.InstancePayloadExtension.Num() / UploadInfo.InstancePayloadExtensionCount == UploadInfo.PrimitiveInstances.Num());
+								const int32 SrcOffset = InstanceIndex * UploadInfo.InstancePayloadExtensionCount;
+								for (int32 Idx = 0; Idx < UploadInfo.InstancePayloadExtensionCount; ++Idx)
+								{
+									InstancePayloadData[PayloadPosition++] = UploadInfo.InstancePayloadExtension[SrcOffset + Idx];
+								}
 							}
 
 							if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA && UploadInfo.InstanceCustomDataCount > 0)

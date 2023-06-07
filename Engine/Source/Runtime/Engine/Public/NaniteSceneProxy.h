@@ -195,7 +195,6 @@ public:
 		bIsNaniteMesh  = true;
 		bHasProgrammableRaster = false;
 		bReverseCulling = false;
-		bSplineMesh = false;
 	#if WITH_EDITOR
 		bHasSelectedInstances = false;
 	#endif
@@ -241,11 +240,6 @@ public:
 	inline bool IsCullingReversedByComponent() const
 	{
 		return bReverseCulling;
-	}
-
-	inline bool IsSplineMesh() const
-	{
-		return bSplineMesh;
 	}
 
 	virtual FResourceMeshInfo GetResourceMeshInfo() const = 0;
@@ -315,7 +309,6 @@ protected:
 	EFilterFlags FilterFlags = EFilterFlags::None;
 	uint8 bHasProgrammableRaster : 1;
 	uint8 bReverseCulling : 1;
-	uint8 bSplineMesh : 1;
 #if WITH_EDITOR
 	uint8 bHasSelectedInstances : 1;
 #endif

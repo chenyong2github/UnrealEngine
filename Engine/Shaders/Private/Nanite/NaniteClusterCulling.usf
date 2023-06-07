@@ -135,10 +135,12 @@ void TransformNodeCullingBounds(
 
 #if USE_SPLINEDEFORM
 	BRANCH
-	if ((InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_SPLINE_MESH_PARAMS) != 0)
+	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_SPLINE_MESH) != 0 &&
+		(InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_PAYLOAD_EXTENSION) != 0)
 	{
-		// Calculate the approximate post-deformed cluster bounds
-		FSplineMeshDeformedLocalBounds NewBounds = SplineMeshDeformLocalBounds(InstanceData.SplineMeshParams, Bounds.BoxCenter, Bounds.BoxExtent);
+		// Calculate the approximate post-deformed cluster bounds and LOD bounds
+		FSplineMeshShaderParams SplineMeshParams = SplineMeshLoadParamsFromInstancePayload(InstanceData);
+		FSplineMeshDeformedLocalBounds NewBounds = SplineMeshDeformLocalBounds(SplineMeshParams, Bounds.BoxCenter, Bounds.BoxExtent);
 		Bounds.BoxCenter = NewBounds.BoundsCenter;
 		Bounds.BoxExtent = NewBounds.BoundsExtent;
 
@@ -146,9 +148,9 @@ void TransformNodeCullingBounds(
 		// NOTE: This solution currently does nothing to maintain the inherent monotonicity of bounds between levels of
 		// the DAG and as a result, it is possible this could result in clusters from different LODs overlapping, or
 		// in clusters dropping out entirely.
-		Bounds.Sphere = SplineMeshDeformLODSphereBounds(InstanceData.SplineMeshParams, Bounds.Sphere);
+		Bounds.Sphere = SplineMeshDeformLODSphereBounds(SplineMeshParams, Bounds.Sphere);
 
-		Bounds.MeshMinDeformScale = InstanceData.SplineMeshParams.MeshDeformScaleMinMax.x;
+		Bounds.MeshMinDeformScale = SplineMeshParams.MeshDeformScaleMinMax.x;
 		Bounds.NodeMaxDeformScale = NewBounds.DeformScaleMinMax.y;
 	}
 #endif

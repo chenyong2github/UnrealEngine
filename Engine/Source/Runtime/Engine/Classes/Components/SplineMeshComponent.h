@@ -16,12 +16,8 @@ class ULightComponent;
 struct FNavigableGeometryExport;
 class UBodySetup;
 
-// Helper for packing spline mesh shader parameters into float4's
-ENGINE_API void PackSplineMeshParams(
-	const FSplineMeshShaderParams& Params,
-	const TArrayView<FVector4f>& Output,
-	uint32 OutputOffset = 0
-);
+// Helper for packing spline mesh shader parameters into a float4 buffer
+void PackSplineMeshParams(const FSplineMeshShaderParams& Params, const TArrayView<FVector4f>& Output);
 
 UENUM(BlueprintType)
 namespace ESplineMeshAxis

@@ -82,20 +82,21 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 }
 
 // Partially implements FPrimitiveSceneProxy::IsShown() - missing view filter lists and some misc. tests
-bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags, bool bIsShadowPass)
+bool IsPrimitiveShown(FPrimitiveSceneData PrimitiveData, uint RenderFlags, bool bIsShadowPass)
 {
-	const bool bForceHidden						= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_FORCE_HIDDEN) != 0u;
-	const bool bVisibleInGame					= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_GAME) != 0u;
-	const bool bVisibleInEditor					= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_EDITOR) != 0u;
-	const bool bVisibleInReflectionCaptures		= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REFLECTION_CAPTURES) != 0u;
-	//const bool bVisibleInRealTimeSkyCaptures	= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REAL_TIME_SKY_CAPTURES) != 0u;
-	//const bool bVisibleInRayTracing			= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RAY_TRACING) != 0u;
-	const bool bVisibleInSceneCaptureOnly		= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_SCENE_CAPTURE_ONLY) != 0u;
-	const bool bHiddenInSceneCapture			= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_HIDDEN_IN_SCENE_CAPTURE) != 0u;
-	const bool bVisibleInRayTracing				= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RAY_TRACING) != 0u;
-	const bool bCastShadow						= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
-	const bool bCastHiddenShadow				= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_CAST_HIDDEN_SHADOW) != 0u;
-	const bool bVisibleInLumenScene				= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_LUMEN_SCENE) != 0u;
+	const bool bCastShadow						= (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
+	
+	const bool bForceHidden						= (PrimitiveData.VisibilityFlags & PRIMITIVE_VISIBILITY_FLAG_FORCE_HIDDEN) != 0u;
+	const bool bVisibleInGame					= (PrimitiveData.VisibilityFlags & PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_GAME) != 0u;
+	const bool bVisibleInEditor					= (PrimitiveData.VisibilityFlags & PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_EDITOR) != 0u;
+	const bool bVisibleInReflectionCaptures		= (PrimitiveData.VisibilityFlags & PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_REFLECTION_CAPTURES) != 0u;
+	//const bool bVisibleInRealTimeSkyCaptures	= (PrimitiveData.VisibilityFlags & PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_REAL_TIME_SKY_CAPTURES) != 0u;
+	//const bool bVisibleInRayTracing			= (PrimitiveData.VisibilityFlags & PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_RAY_TRACING) != 0u;
+	const bool bVisibleInSceneCaptureOnly		= (PrimitiveData.VisibilityFlags & PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_SCENE_CAPTURE_ONLY) != 0u;
+	const bool bHiddenInSceneCapture			= (PrimitiveData.VisibilityFlags & PRIMITIVE_VISIBILITY_FLAG_HIDDEN_IN_SCENE_CAPTURE) != 0u;
+	const bool bVisibleInRayTracing				= (PrimitiveData.VisibilityFlags & PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_RAY_TRACING) != 0u;
+	const bool bCastHiddenShadow				= (PrimitiveData.VisibilityFlags & PRIMITIVE_VISIBILITY_FLAG_CAST_HIDDEN_SHADOW) != 0u;
+	const bool bVisibleInLumenScene				= (PrimitiveData.VisibilityFlags & PRIMITIVE_VISIBILITY_FLAG_VISIBLE_IN_LUMEN_SCENE) != 0u;
 
 	const bool bIsSceneCapture					= (RenderFlags & NANITE_RENDER_FLAG_IS_SCENE_CAPTURE) != 0u;
 	const bool bIsReflectionCapture				= (RenderFlags & NANITE_RENDER_FLAG_IS_REFLECTION_CAPTURE) != 0u;
@@ -359,7 +360,7 @@ void InstanceCull(
 		const bool bIsShadowPass = (DEPTH_ONLY != 0);
 		
 		BRANCH
-		if (!IsPrimitiveShown(PrimitiveData.Flags, RenderFlags, bIsShadowPass))
+		if (!IsPrimitiveShown(PrimitiveData, RenderFlags, bIsShadowPass))
 		{
 			// Primitive is not visible - cull it
 			return;
@@ -757,7 +758,7 @@ void InstanceCullVSM(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(PrimitiveId);
 
 	BRANCH
-	if (!IsPrimitiveShown(PrimitiveData.Flags, RenderFlags, /* bIsShadowPass = */ true))
+	if (!IsPrimitiveShown(PrimitiveData, RenderFlags, /* bIsShadowPass = */ true))
 	{
 		// Primitive is not visible - cull it
 		return;

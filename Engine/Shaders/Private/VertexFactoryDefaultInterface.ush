@@ -2,27 +2,39 @@
 
 // Note: include at the end of vertex factories to provide default/dummy implementation of factory functions that are not supported OR that follow the standard pattern
 // E.g., if the VF implements the three flavours of VertexFactoryGetViewIndex, it should define VF_IMPLEMENTED_GET_VIEW_INDEX
+
+#ifndef VF_IMPLEMENTED_GET_SCENE_DATA_INTERMEDIATES
+#define VF_IMPLEMENTED_GET_SCENE_DATA_INTERMEDIATES
+
+FSceneDataIntermediates GetSceneDataIntermediates(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.SceneData;
+}
+
+#endif
+
+
 #ifndef VF_IMPLEMENTED_GET_VIEW_INDEX
 #define VF_IMPLEMENTED_GET_VIEW_INDEX
 
 uint VertexFactoryGetViewIndex(FVertexFactoryIntermediates Intermediates)
 {
-	return Intermediates.SceneData.ViewIndex;
+	return GetSceneDataIntermediates(Intermediates).ViewIndex;
 }
 
 uint VertexFactoryGetInstanceIdLoadIndex(FVertexFactoryIntermediates Intermediates)
 {
-	return Intermediates.SceneData.InstanceIdLoadIndex;
+	return GetSceneDataIntermediates(Intermediates).InstanceIdLoadIndex;
 }
 
 FLWCMatrix VertexFactoryGetLocalToWorld(FVertexFactoryIntermediates Intermediates)
 {
-	return Intermediates.SceneData.InstanceData.LocalToWorld;
+	return GetSceneDataIntermediates(Intermediates).InstanceData.LocalToWorld;
 }
 
 FLWCInverseMatrix VertexFactoryGetWorldToLocal(FVertexFactoryIntermediates Intermediates)
 {
-	return Intermediates.SceneData.InstanceData.WorldToLocal;
+	return GetSceneDataIntermediates(Intermediates).InstanceData.WorldToLocal;
 }
 
 #if POSITION_ONLY

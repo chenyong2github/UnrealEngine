@@ -151,7 +151,8 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[0].X	= FMath::AsFloat(PrimitiveUniformShaderParameters.Flags);
 	Data[0].Y	= FMath::AsFloat(PrimitiveUniformShaderParameters.InstanceSceneDataOffset);
 	Data[0].Z	= FMath::AsFloat(PrimitiveUniformShaderParameters.NumInstanceSceneDataEntries);
-	Data[0].W	= FMath::AsFloat((uint32)PrimitiveUniformShaderParameters.SingleCaptureIndex);
+	Data[0].W	= FMath::AsFloat((uint32)PrimitiveUniformShaderParameters.SingleCaptureIndex |
+								 ((PrimitiveUniformShaderParameters.VisibilityFlags & 0xFFFFu) << 16u));
 
 	Data[1].X	= PrimitiveUniformShaderParameters.TilePosition.X;
 	Data[1].Y	= PrimitiveUniformShaderParameters.TilePosition.Y;
@@ -213,7 +214,8 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[27].X = PrimitiveUniformShaderParameters.InstanceLocalBoundsExtent.X;
 	Data[27].Y = PrimitiveUniformShaderParameters.InstanceLocalBoundsExtent.Y;
 	Data[27].Z = PrimitiveUniformShaderParameters.InstanceLocalBoundsExtent.Z;
-	Data[27].W = FMath::AsFloat(PrimitiveUniformShaderParameters.InstancePayloadDataStride);
+	Data[27].W = FMath::AsFloat((PrimitiveUniformShaderParameters.InstancePayloadDataStride & 0x00FFFFFFu) |
+								(PrimitiveUniformShaderParameters.InstancePayloadExtensionSize << 24u));
 	
 	Data[28].X = PrimitiveUniformShaderParameters.WireframeColor.X;
 	Data[28].Y = PrimitiveUniformShaderParameters.WireframeColor.Y;

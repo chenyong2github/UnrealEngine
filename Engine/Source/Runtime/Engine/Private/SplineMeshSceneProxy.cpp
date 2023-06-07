@@ -74,6 +74,9 @@ FSplineMeshSceneProxy::FSplineMeshSceneProxy(USplineMeshComponent* InComponent) 
 {
 	bSupportsDistanceFieldRepresentation = false;
 
+	// Mark ourselves as a spline mesh
+	bSplineMesh = true;
+
 	// Dynamic draw path without Nanite isn't supported by Lumen
 	bVisibleInLumenScene = false;
 
@@ -100,8 +103,9 @@ FSplineMeshSceneProxy::FSplineMeshSceneProxy(USplineMeshComponent* InComponent) 
 	// If we're using GPU Scene, we place the spline mesh parameters in the instance data buffer
 	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
 	{
-		InstanceSplineMeshParams.Emplace(SplineParams);
-		bHasPerInstanceSplineMeshParams = true;
+		InstancePayloadExtension.SetNumUninitialized(SPLINE_MESH_PARAMS_FLOAT4_SIZE);
+		PackSplineMeshParams(SplineParams, InstancePayloadExtension);	
+		bHasPerInstancePayloadExtension = true;
 
 		// We don't actually move the InstanceSceneData, but we have to add at least one to provide the spline
 		// mesh params to the payload
@@ -299,9 +303,10 @@ FNaniteSplineMeshSceneProxy::FNaniteSplineMeshSceneProxy(const Nanite::FMaterial
 	// Copy spline params from component
 	SplineParams = InComponent->CalculateShaderParams();
 
-	// Place the spline mesh parameters in the instance data buffer
-	InstanceSplineMeshParams.Emplace(SplineParams);
-	bHasPerInstanceSplineMeshParams = true;
+	// Place the spline mesh parameters in the payload extension
+	InstancePayloadExtension.SetNumUninitialized(SPLINE_MESH_PARAMS_FLOAT4_SIZE);
+	PackSplineMeshParams(SplineParams, InstancePayloadExtension);
+	bHasPerInstancePayloadExtension = true;
 }
 
 SIZE_T FNaniteSplineMeshSceneProxy::GetTypeHash() const
