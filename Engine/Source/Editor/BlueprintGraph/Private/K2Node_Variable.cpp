@@ -282,7 +282,7 @@ FString UK2Node_Variable::GetFindReferenceSearchString() const
 	return ResultSearchString;
 }
 
-UK2Node::ERedirectType UK2Node_Variable::DoPinsMatchForReconstruction( const UEdGraphPin* NewPin, int32 NewPinIndex, const UEdGraphPin* OldPin, int32 OldPinIndex ) const 
+UK2Node::ERedirectType UK2Node_Variable::DoPinsMatchForReconstruction(const UEdGraphPin* NewPin, int32 NewPinIndex, const UEdGraphPin* OldPin, int32 OldPinIndex) const 
 {
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 	if( OldPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec )
@@ -352,10 +352,6 @@ UK2Node::ERedirectType UK2Node_Variable::DoPinsMatchForReconstruction( const UEd
 		else if (K2Schema->ArePinTypesCompatible(OutputType, InputType))
 		{
 			return ERedirectType_Name;
-		}
-		else if (K2Schema->SearchForAutocastFunction(OldPin->PinType, NewPin->PinType))
-		{
-			return ERedirectType_Type;
 		}
 		else
 		{

@@ -75,8 +75,14 @@ bool UK2Node_StructOperation::DoRenamedPinsMatch(const UEdGraphPin* NewPin, cons
 	{
 		const EEdGraphPinDirection StructDirection = bStructInVariablesOut ? EGPD_Input : EGPD_Output;
 		const EEdGraphPinDirection VariablesDirection = bStructInVariablesOut ? EGPD_Output : EGPD_Input;
+		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>(); 
+		const bool bCompatible = K2Schema && K2Schema->ArePinTypesCompatible(NewPin->PinType, OldPin->PinType);
 
-		if (StructDirection == OldPin->Direction)
+		if (!bCompatible)
+		{
+			return false;
+		}
+		else if (StructDirection == OldPin->Direction)
 		{
 			// Struct name was changed, which is fine
 			return true;

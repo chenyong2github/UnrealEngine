@@ -27,6 +27,7 @@
 class AActor;
 class FArchive;
 class FBlueprintActionDatabaseRegistrar;
+class FCompilerResultsLog;
 class FKismetCompilerContext;
 class FProperty;
 class UActorComponent;
@@ -223,7 +224,7 @@ public:
 	BLUEPRINTGRAPH_API virtual bool CanSplitPin(const UEdGraphPin* Pin) const override;
 	BLUEPRINTGRAPH_API virtual UEdGraphPin* GetPassThroughPin(const UEdGraphPin* FromPin) const override;
 	BLUEPRINTGRAPH_API virtual bool IsInDevelopmentMode() const override;
-	BLUEPRINTGRAPH_API virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
+	BLUEPRINTGRAPH_API virtual void ValidateNodeDuringCompilation(FCompilerResultsLog& MessageLog) const override;
 	BLUEPRINTGRAPH_API virtual FString GetPinMetaData(FName InPinName, FName InKey) override;
 	// End of UEdGraphNode interface
 
@@ -372,10 +373,10 @@ public:
 	BLUEPRINTGRAPH_API virtual bool IsConnectionDisallowed(const UEdGraphPin* MyPin, const UEdGraphPin* OtherPin, FString& OutReason) const { return false; }
 
 	/** This function if used for nodes that needs CDO for validation (Called before expansion)*/
-	BLUEPRINTGRAPH_API virtual void EarlyValidation(class FCompilerResultsLog& MessageLog) const;
+	BLUEPRINTGRAPH_API virtual void EarlyValidation(FCompilerResultsLog& MessageLog) const;
 
 	/** This function returns an arbitrary number of attributes that describe this node for analytics events */
-	BLUEPRINTGRAPH_API virtual void GetNodeAttributes( TArray<TKeyValuePair<FString, FString>>& OutNodeAttributes ) const;
+	BLUEPRINTGRAPH_API virtual void GetNodeAttributes(TArray<TKeyValuePair<FString, FString>>& OutNodeAttributes) const;
 
 	/** Called before compilation begins, giving a blueprint time to force the linker to load data */
 	BLUEPRINTGRAPH_API virtual void PreloadRequiredAssets() { }
@@ -447,19 +448,14 @@ public:
 
 protected:
 
-	enum ERedirectType : uint8
+	enum ERedirectType
 	{
 		/* The pins do not match */
-		ERedirectType_None	= 0,
-
+		ERedirectType_None,
 		/* The pins match by name or redirect and have the same type (or we're ok with the mismatched type) */
-		ERedirectType_Name	= (1 << 0),
-
+		ERedirectType_Name,
 		/* The pins match via a redirect and the value needs to also be redirected */
-		ERedirectType_Value	= (1 << 1),
-
-		/* The pin types don't match, but can be connected via a cast node */
-		ERedirectType_Type	= (1 << 2),
+		ERedirectType_Value
 	};
 
 	// Handles the actual reconstruction (copying data, links, name, etc...) from two pins that have already been matched together
@@ -498,7 +494,7 @@ protected:
 	 * Should use this for node actions that happen during compilation!
 	 */
 	template<typename... ArgTypes>
-	void Message_Note(const FString& Message, ArgTypes... Args)
+	void Message_Note(const FString& Message, ArgTypes... Args) const
 	{
 		UBlueprint* OwningBP = GetBlueprint();
 		if (OwningBP)
@@ -512,7 +508,7 @@ protected:
 	}
 
 	template<typename... ArgTypes>
-	void Message_Warn(const FString& Message, ArgTypes... Args)
+	void Message_Warn(const FString& Message, ArgTypes... Args) const
 	{
 		UBlueprint* OwningBP = GetBlueprint();
 		if (OwningBP)
@@ -526,7 +522,7 @@ protected:
 	}
 
 	template<typename... ArgTypes>
-	void Message_Error(const FString& Message, ArgTypes... Args)
+	void Message_Error(const FString& Message, ArgTypes... Args) const
 	{
 		UBlueprint* OwningBP = GetBlueprint();
 		if (OwningBP)
@@ -564,7 +560,15 @@ private:
 	 * Utility function to write messages about orphan nodes in to the compiler log.
 	 * bStore indicates whether to write immediately to the log, or to store as a potential message to be committed once node pruning has completed
 	 */
-	void ValidateOrphanPins(class FCompilerResultsLog& MessageLog, bool bStore) const;
+	void ValidateOrphanPins(FCompilerResultsLog& MessageLog, bool bStore) const;
+	void ValidateOrphanPin(UEdGraphPin* Pin, FCompilerResultsLog& MessageLog, bool bStore) const;
+
+	/**
+	 * Checks that pins are type compatible with their links.
+	 * If there's a type mismatch (eg: due to a underlying type change), then we'll automatically
+	 * insert a conversion node into the graph if one exists between the two types.
+	 */
+	void ValidateLinkedPinTypes(UEdGraphPin* OutputPin, FCompilerResultsLog& MessageLog) const;
 
 public:
 
