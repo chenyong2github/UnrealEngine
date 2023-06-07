@@ -39,7 +39,7 @@ struct FSlateRenderBatchParams
 	}
 
 	int32 Layer;
-	const FShaderParams& ShaderParams;
+	const FShaderParams ShaderParams;
 	const FSlateShaderResource* Resource;
 	ESlateDrawPrimitive PrimitiveType;
 	ESlateShader ShaderType;
