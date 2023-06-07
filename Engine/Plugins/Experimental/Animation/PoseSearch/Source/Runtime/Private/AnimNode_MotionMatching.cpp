@@ -49,35 +49,39 @@ void FAnimNode_MotionMatching::Evaluate_AnyThread(FPoseContext& Output)
 
 	Source.Evaluate(Output);
 
-	// applying MotionMatchingState.RootBoneDeltaYaw to the root bone and the root motion delta transform
-	if (!FMath::IsNearlyZero(MotionMatchingState.GetRootBoneDeltaYaw()))
+	const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
+	FTransform RootMotionTransformDelta;
+	if (RootMotionProvider && RootMotionProvider->HasRootMotion(Output.CustomAttributes))
 	{
-		const FQuat RootBoneDelta(FRotator(0.f, MotionMatchingState.GetRootBoneDeltaYaw(), 0.f));
+		RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, RootMotionTransformDelta);
+	}
+	else
+	{
+		RootMotionTransformDelta = FTransform::Identity;
+		RootMotionProvider = nullptr;
+	}
+
+	// applying MotionMatchingState.ComponentDeltaYaw (considered as root bone delta yaw) to the root bone and the root motion delta transform
+	if (!FMath::IsNearlyZero(MotionMatchingState.ComponentDeltaYaw))
+	{
+		const FQuat RootBoneDelta(FRotator(0.f, MotionMatchingState.ComponentDeltaYaw, 0.f));
 		FCompactPoseBoneIndex RootBoneIndex(RootBoneIndexType);
 		Output.Pose[RootBoneIndex].SetRotation(Output.Pose[RootBoneIndex].GetRotation() * RootBoneDelta);
 		Output.Pose[RootBoneIndex].NormalizeRotation();
 
-		const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
-		if (RootMotionProvider && RootMotionProvider->HasRootMotion(Output.CustomAttributes))
+		RootMotionTransformDelta.SetTranslation(RootBoneDelta.RotateVector(RootMotionTransformDelta.GetTranslation()));
+
+		if (RootMotionProvider)
 		{
-			FTransform RootMotionTransformDelta;
-			RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, RootMotionTransformDelta);
-			RootMotionTransformDelta.SetTranslation(RootBoneDelta.RotateVector(RootMotionTransformDelta.GetTranslation()));
 			RootMotionProvider->OverrideRootMotion(RootMotionTransformDelta, Output.CustomAttributes);
 		}
 	}
-	
+
+	MotionMatchingState.AnimationDeltaYaw = FRotator(RootMotionTransformDelta.GetRotation()).Yaw;
+
 #if UE_POSE_SEARCH_TRACE_ENABLED
-	const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
-	if (RootMotionProvider && RootMotionProvider->HasRootMotion(Output.CustomAttributes))
-	{
-		RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, MotionMatchingState.RootMotionTransformDelta);
-	}
-	else
-	{
-		MotionMatchingState.RootMotionTransformDelta = FTransform::Identity;
-	}
-#endif // UE_POSE_SEARCH_TRACE_ENABLED
+	MotionMatchingState.RootMotionTransformDelta = RootMotionTransformDelta;
+#endif //UE_POSE_SEARCH_TRACE_ENABLED
 }
 
 void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& Context)

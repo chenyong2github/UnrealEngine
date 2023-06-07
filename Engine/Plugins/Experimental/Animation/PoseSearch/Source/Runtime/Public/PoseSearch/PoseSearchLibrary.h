@@ -43,8 +43,6 @@ struct POSESEARCH_API FMotionMatchingState
 
 	void UpdateRootBoneControl(const FAnimationUpdateContext& Context, float YawFromAnimationBlendRate);
 
-	float GetRootBoneDeltaYaw() const { return RootBoneDeltaYaw; }
-
 	UE::PoseSearch::FSearchResult CurrentSearchResult;
 
 	// Time since the last pose jump
@@ -59,16 +57,21 @@ struct POSESEARCH_API FMotionMatchingState
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category=State)
 	bool bJumpedToPose = false;
 
+	UE::PoseSearch::FPoseIndicesHistory PoseIndicesHistory;
+
+	// Component delta yaw (also considered as root bone delta yaw)
+	float ComponentDeltaYaw = 0.f;
+
+	// Internal component yaw in world space. Initialized as FRotator(AnimInstanceProxy->GetComponentTransform().GetRotation()).Yaw, but then integrated by ComponentDeltaYaw
+	float ComponentWorldYaw = 0.f;
+	
+	// RootMotionTransformDelta yaw at the end of FAnimNode_MotionMatching::Evaluate_AnyThread (it represents the previous frame animation delta yaw)
+	float AnimationDeltaYaw = 0.f;
+
 #if UE_POSE_SEARCH_TRACE_ENABLED
 	// Root motion delta for currently playing animation (or animation tree if from the blend stack)
 	FTransform RootMotionTransformDelta = FTransform::Identity;
 #endif //UE_POSE_SEARCH_TRACE_ENABLED
-
-	UE::PoseSearch::FPoseIndicesHistory PoseIndicesHistory;
-
-private:
-	float RootBoneDeltaYaw = 0.f;
-	float RootBoneWorldYaw = 0.f;
 };
 
 UCLASS()

@@ -41,13 +41,15 @@ void FMotionMatchingState::Reset(const FTransform& ComponentTransform)
 	ElapsedPoseSearchTime = INFINITY;
 	WantedPlayRate = 1.f;
 	bJumpedToPose = false;
-	RootBoneDeltaYaw = 0.f;
-	RootBoneWorldYaw = FRotator(ComponentTransform.GetRotation()).Yaw;
+	ComponentDeltaYaw = 0.f;
+	ComponentWorldYaw = FRotator(ComponentTransform.GetRotation()).Yaw;
+	AnimationDeltaYaw = 0.f;
+
+	PoseIndicesHistory.Reset();
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 	RootMotionTransformDelta = FTransform::Identity;
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
-	PoseIndicesHistory.Reset();
 }
 
 void FMotionMatchingState::AdjustAssetTime(float AssetTime)
@@ -123,42 +125,27 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 void FMotionMatchingState::UpdateRootBoneControl(const FAnimationUpdateContext& Context, float YawFromAnimationBlendRate)
 {
 	const FAnimInstanceProxy* AnimInstanceProxy = Context.AnimInstanceProxy;
-	static const FName RootMotionAttributeName = "RootMotionDelta";
-	static const UE::Anim::FAttributeId RootMotionAttributeId = { RootMotionAttributeName , FCompactPoseBoneIndex(0) };
 
-	const FRotator ComponentWorldRotator(AnimInstanceProxy->GetComponentTransform().GetRotation());
+	const float CurrentComponentWorldYaw = FRotator(AnimInstanceProxy->GetComponentTransform().GetRotation()).Yaw;
 	if (YawFromAnimationBlendRate < 0.f)
 	{
-		RootBoneWorldYaw = ComponentWorldRotator.Yaw;
-		RootBoneDeltaYaw = 0.f;
+		ComponentWorldYaw = CurrentComponentWorldYaw;
+		ComponentDeltaYaw = 0.f;
 	}
 	else
 	{
-		// integrating MotionMatchingState.RootBoneTargetYaw with the previous frame RootMotionDelta
-		const USkeletalMeshComponent* Mesh = AnimInstanceProxy->GetSkelMeshComponent();
-		check(Mesh);
-		
-		if (const FTransformAnimationAttribute* RootMotionAttribute = Mesh->GetCustomAttributes().Find<FTransformAnimationAttribute>(RootMotionAttributeId))
-		{
-			const FRotator RootMotionRotatorDelta(RootMotionAttribute->Value.GetRotation());
-			const float RootBoneAnimationDelta = RootMotionRotatorDelta.Yaw;
-			const float RootBoneToComponentDelta = FRotator::NormalizeAxis(ComponentWorldRotator.Yaw - RootBoneWorldYaw);
+		// integrating MotionMatchingState.ComponentWorldYaw with a lerped value between 
+		// the previous frame AnimationDeltaYaw and CurrentComponentDeltaYaw (component delta yaw happened during the delta time)
+		const float CurrentComponentDeltaYaw = FRotator::NormalizeAxis(CurrentComponentWorldYaw - ComponentWorldYaw);
 
-			// lerping the animation delta with the capsule delta
-			const float RootBoneDelta = FMath::Lerp(RootBoneAnimationDelta, RootBoneToComponentDelta, YawFromAnimationBlendRate * Context.GetDeltaTime());
+		// lerping the animation delta with the capsule delta
+		const float LerpValue = FMath::Min(YawFromAnimationBlendRate * Context.GetDeltaTime(), 1.f);
+		const float LerpedDeltaYaw = FMath::Lerp(AnimationDeltaYaw, CurrentComponentDeltaYaw, LerpValue);
 
-			RootBoneWorldYaw = FRotator::NormalizeAxis(RootBoneWorldYaw + RootBoneDelta);
+		ComponentWorldYaw = FRotator::NormalizeAxis(ComponentWorldYaw + LerpedDeltaYaw);
 
-			// @todo: handle the case when the character is on top of a rotating platform
-			RootBoneDeltaYaw = FRotator::NormalizeAxis(RootBoneWorldYaw - ComponentWorldRotator.Yaw);
-		}
-		else
-		{
-			UE_LOG(LogPoseSearch, Warning, TEXT("FMotionMatchingState::UpdateRootBoneControl - Couldn't find FTransformAnimationAttribute. Root bone yaw control will not be performed"));
-
-			RootBoneWorldYaw = ComponentWorldRotator.Yaw;
-			RootBoneDeltaYaw = 0.f;
-		}
+		// @todo: handle the case when the character is on top of a rotating platform
+		ComponentDeltaYaw = FRotator::NormalizeAxis(ComponentWorldYaw - CurrentComponentWorldYaw);
 	}
 }
 
@@ -308,7 +295,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		History = &PoseHistoryProvider->GetPoseHistory();
 	}
 	
-	const FPoseSearchQueryTrajectory TrajectoryRootSpace = ProcessTrajectory(Trajectory, Context.AnimInstanceProxy->GetComponentTransform(), InOutMotionMatchingState.GetRootBoneDeltaYaw(), YawFromAnimationTrajectoryBlendTime, TrajectorySpeedMultiplier);
+	const FPoseSearchQueryTrajectory TrajectoryRootSpace = ProcessTrajectory(Trajectory, Context.AnimInstanceProxy->GetComponentTransform(), InOutMotionMatchingState.ComponentDeltaYaw, YawFromAnimationTrajectoryBlendTime, TrajectorySpeedMultiplier);
 	FSearchContext SearchContext(&TrajectoryRootSpace, History, 0.f, &InOutMotionMatchingState.PoseIndicesHistory, InOutMotionMatchingState.CurrentSearchResult, PoseJumpThresholdTime, bForceInterrupt);
 
 	const bool bMustSearch = !InOutMotionMatchingState.CurrentSearchResult.IsValid();
@@ -403,7 +390,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		else
 #endif // WITH_EDITOR
 		{
-			const FRotator DeltaRotation(0.f, InOutMotionMatchingState.GetRootBoneDeltaYaw(), 0.f);
+			const FRotator DeltaRotation(0.f, InOutMotionMatchingState.ComponentDeltaYaw, 0.f);
 			const FTransform DeltaTransform(DeltaRotation);
 			const FTransform RootBoneTransform = DeltaTransform * Context.AnimInstanceProxy->GetComponentTransform();
 
