@@ -1729,7 +1729,7 @@ void FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(FGeometryCollecti
 					int32 HullIdx = FinalHulls.Add(MakeUnique<Chaos::FConvex>());
 					UE::GeometryCollectionConvexUtility::IntersectConvexHulls(FinalHulls[HullIdx].Get(),
 						ComputedHulls.Hulls[GeoHullIdx].Get(), 0.0f, ExternalHulls[ExtHull].Convex.Get(),
-						nullptr, &ExternalHulls[ExtHull].Transform, &ExternalHulls[ExtHull].Transform);
+						nullptr, &ExternalHulls[ExtHull].Transform, &ExternalHulls[ExtHull].Transform, Settings.SimplificationDistanceThreshold);
 					TransformToConvexIndicesAttrib[SourceTransformIdx].Add(HullIdx);
 				}
 			}
@@ -3035,7 +3035,7 @@ namespace UE::GeometryCollectionConvexUtility
 		HullPolygons.EstimateSharpContact(HullA, HullB, OutSharpContact, OutMaxSharpContact);
 	}
 
-	void IntersectConvexHulls(Chaos::FConvex* ResultHull, const Chaos::FConvex* ClipHull, float ClipHullOffset, const Chaos::FConvex* UpdateHull, const FTransform* ClipHullTransform, const FTransform* UpdateHullTransform, const FTransform* ResultTransform)
+	void IntersectConvexHulls(Chaos::FConvex* ResultHull, const Chaos::FConvex* ClipHull, float ClipHullOffset, const Chaos::FConvex* UpdateHull, const FTransform* ClipHullTransform, const FTransform* UpdateHullTransform, const FTransform* ResultTransform, double SimplificationDistanceThreshold)
 	{
 		FHullPolygons HullPolygons(*ClipHull);
 		bool bNeedRecomputeBounds = false;
@@ -3071,6 +3071,7 @@ namespace UE::GeometryCollectionConvexUtility
 				V = (Chaos::FVec3f)ResultTransform->TransformPosition((FVector)V);
 			}
 		}
+		FilterHullPoints(HullPolygons.Vertices, SimplificationDistanceThreshold);
 		*ResultHull = Chaos::FConvex(HullPolygons.Vertices, UpdateHull->GetMargin());
 	}
 }

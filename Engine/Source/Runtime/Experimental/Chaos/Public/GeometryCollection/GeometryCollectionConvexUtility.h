@@ -76,7 +76,7 @@ namespace UE::GeometryCollectionConvexUtility
 	// Compute the intersection of ClipHull and UpdateHull, with ClipHull optionally offset, and place the result in ResultHull. Note ResultHull can point to the same FConvex as UpdateHull.
 	// If optional transforms are provided, ClipHull will be transformed into the local space of UpdateHull, and finally transformed by UpdateToResultTransform. Otherwise, all FConvex are assumed to be in the same coordinate space.
 	void CHAOS_API IntersectConvexHulls(::Chaos::FConvex* ResultHull, const ::Chaos::FConvex* ClipHull, float ClipHullOffset, const ::Chaos::FConvex* UpdateHull,
-		const FTransform* ClipHullTransform = nullptr, const FTransform* UpdateHullTransform = nullptr, const FTransform* UpdateToResultTransform = nullptr);
+		const FTransform* ClipHullTransform = nullptr, const FTransform* UpdateHullTransform = nullptr, const FTransform* UpdateToResultTransform = nullptr, double SimplificationDistanceThreshold = 0.0);
 
 }
 
