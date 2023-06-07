@@ -73,6 +73,20 @@ namespace Horde.Server.Server
 		}
 
 		/// <summary>
+		/// Gets connection information
+		/// </summary>
+		[HttpGet]
+		[AllowAnonymous]
+		[Route("/api/v1/server/connection")]
+		public ActionResult<GetConnectionResponse> GetConnection()
+		{
+			GetConnectionResponse response = new GetConnectionResponse();
+			response.Ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+			response.Port = HttpContext.Connection.RemotePort;
+			return response;
+		}
+
+		/// <summary>
 		/// Gets ports used by the server
 		/// </summary>
 		[HttpGet]

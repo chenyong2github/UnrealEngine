@@ -40,6 +40,22 @@ namespace Horde.Server.Server
 	}
 
 	/// <summary>
+	/// Gets connection information to the server
+	/// </summary>
+	public class GetConnectionResponse
+	{
+		/// <summary>
+		/// Public IP address of the remote machine
+		/// </summary>
+		public string? Ip { get; set; }
+
+		/// <summary>
+		/// Public port of the connecting machine
+		/// </summary>
+		public int Port { get; set; }
+	}
+
+	/// <summary>
 	/// Gets ports configured for this server
 	/// </summary>
 	public class GetPortsResponse
