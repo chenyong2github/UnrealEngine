@@ -656,6 +656,7 @@ namespace IncludeTool
 			"/Engine/Plugins/Runtime/GeometryProcessing/Source/GeometryAlgorithms/Private/ThirdParty/xatlas/xatlas.h",
 
 			"/Engine/Restricted/",
+			"/Engine/Shaders/Shared/RayTracingBuiltInResources.h",
 		};
 
 		/// <summary>
