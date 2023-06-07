@@ -44,18 +44,80 @@ namespace UE::GameFeatures
 
 	static UE::GameFeatures::FResult CanceledResult = MakeError(StateMachineErrorNamespace + TEXT("Canceled"));
 
+
+	static bool MarkPluginAsGarbageOnUnload = true;
+	static FAutoConsoleVariableRef CVarMarkPluginAsGarbageOnUnload(TEXT("GameFeaturePlugin.MarkPluginAsGarbageOnUnload"),
+		MarkPluginAsGarbageOnUnload,
+		TEXT("Mark up the plugin as garbage when the plugin is unloaded (helps track down gc issues)."));
+
+	static bool MarkPluginAsGarbageOnUnregister = false;
+	static FAutoConsoleVariableRef CVarMarkPluginAsGarbageOnUnregister(TEXT("GameFeaturePlugin.MarkPluginAsGarbageOnUnregister"),
+		MarkPluginAsGarbageOnUnregister,
+		TEXT("Mark up the plugin as garbage when the plugin is unloaded (helps track down gc issues)."));
+
 	static int32 ShouldLogMountedFiles = 0;
 	static FAutoConsoleVariableRef CVarShouldLogMountedFiles(TEXT("GameFeaturePlugin.ShouldLogMountedFiles"),
 		ShouldLogMountedFiles,
 		TEXT("Should the newly mounted files be logged."));
 
+	static bool GVerifyUnload = true;
+	static FAutoConsoleVariableRef CVarVerifyPluginUnload(TEXT("GameFeaturePlugin.VerifyUnload"),
+		GVerifyUnload,
+		TEXT("Verify plugin assets are no longer in memory when unloading."),
+		ECVF_Default);
 
 	static FString GVerifyPluginSkipList;
-	static FAutoConsoleVariableRef CVarVerifyPluginSkipList(TEXT("PluginManager.VerifyUnload.SkipList"),
+	static FAutoConsoleVariableRef CVarVerifyPluginSkipList(TEXT("GameFeaturePlugin.VerifyUnload.SkipList"),
 		GVerifyPluginSkipList,
 		TEXT("Comma-separated list of names of plugins for which to skip verification."),
 		ECVF_Default
 		);
+
+	static bool GRenameLeakedPackages = true;
+	static FAutoConsoleVariableRef CVarRenameLeakedPackages(
+		TEXT("GameFeaturePlugin.LeakedAssetTrace.RenameLeakedPackages"),
+		GRenameLeakedPackages,
+		TEXT("Should packages which are leaked after the Game Feature Plugin is unloaded or unmounted."),
+		ECVF_Default
+	);
+
+	static int32 GLeakedAssetTrace_Severity = 2;
+	static FAutoConsoleVariableRef CVarLeakedAssetTrace_Severity(
+	#if UE_BUILD_SHIPPING
+		TEXT("GameFeaturePlugin.LeakedAssetTrace.Severity.Shipping"),
+	#else
+		TEXT("GameFeaturePlugin.LeakedAssetTrace.Severity"),
+	#endif
+		GLeakedAssetTrace_Severity,
+		TEXT("Controls severity of logging when the engine detects that assets from an Game Feature Plugin were leaked during unloading or unmounting.\n")
+		TEXT("0 - all reference tracing and logging is disabled\n")
+		TEXT("1 - logs an error\n")
+		TEXT("2 - ensure\n")
+		TEXT("3 - fatal error\n"),
+		ECVF_Default
+	);
+
+	static int32 GLeakedAssetTrace_TraceMode = (UE_BUILD_SHIPPING ? 0 : 1);
+	static FAutoConsoleVariableRef CVarLeakedAssetTrace_TraceMode(
+	#if UE_BUILD_SHIPPING
+		TEXT("GameFeaturePlugin.LeakedAssetTrace.TraceMode.Shipping"),
+	#else
+		TEXT("GameFeaturePlugin.LeakedASsetTrace.TraceMode"),
+	#endif
+		GLeakedAssetTrace_TraceMode,
+		TEXT("Controls detail level of reference tracing when the engine detects that assets from a Game Feature Plugin were leaked during unloading or unmounting.\n")
+		TEXT("0 - direct references only\n")
+		TEXT("1 - full reference trace"),
+		ECVF_Default
+	);
+
+	static int32 GLeakedAssetTrace_MaxReportCount = 10;
+	static FAutoConsoleVariableRef CVarLeakedAssetTrace_MaxReportCount(
+		TEXT("GameFeaturePlugin.LeakedAssetTrace.MaxReportCount"),
+		GLeakedAssetTrace_MaxReportCount,
+		TEXT("Max number of assets to report when we find leaked assets.\n"),
+		ECVF_Default
+	);
 
 	#define GAME_FEATURE_PLUGIN_STATE_TO_STRING(inEnum, inText) case EGameFeaturePluginState::inEnum: return TEXT(#inEnum);
 	FString ToString(EGameFeaturePluginState InType)
@@ -112,6 +174,119 @@ namespace UE::GameFeatures
 			return true;
 		}, false);
 		return Priority;
+	}
+
+	// Check if any assets from the plugin mount point have leaked, and if so trace them.
+	// Then rename them to allow new copies of them to be loaded. 
+	void HandlePossibleAssetLeaks(const FString& PluginName, UPackage* IgnorePackage = nullptr)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(HandlePossibleAssetLeaks);
+
+		const bool bFindLeakedPackages = GVerifyUnload && (GLeakedAssetTrace_Severity != 0 || GRenameLeakedPackages);
+		if (!bFindLeakedPackages)
+		{
+			return;
+		}
+
+
+		if (UE::GameFeatures::ShouldSkipVerify(PluginName))
+		{
+			return;
+		}
+		
+		TMap<UPackage*, int32> LeakedPackages;
+		TStringBuilder<512> Prefix;
+		Prefix << '/' << PluginName << '/';
+
+		TStringBuilder<NAME_SIZE> NameBuffer;
+		{
+			// If the UObject hash knew about package mount roots, we could avoid this loop
+			TRACE_CPUPROFILER_EVENT_SCOPE(PackageLoop);
+			FPermanentObjectPoolExtents PermanentPool;
+			ForEachObjectOfClass(UPackage::StaticClass(), [&](UObject* Obj)
+			{
+				if (UPackage* Package = CastChecked<UPackage>(Obj, ECastCheckedType::NullAllowed))
+				{
+					if (Package == IgnorePackage)
+					{
+						return;
+					}
+					if (PermanentPool.Contains(Package))
+					{
+						return;
+					}
+					NameBuffer.Reset();
+					Package->GetFName().GetDisplayNameEntry()->AppendNameToString(NameBuffer);
+					if (NameBuffer.ToView().StartsWith(Prefix, ESearchCase::IgnoreCase))
+					{
+						LeakedPackages.Add(Package, GetPackageLeakReportingPriority(Package));
+					}
+				}
+			});
+		}
+
+		if (LeakedPackages.Num() == 0)
+		{
+			return;
+		}
+
+		if (GLeakedAssetTrace_Severity != 0)
+		{
+			EPrintStaleReferencesOptions Options = EPrintStaleReferencesOptions::None;
+			switch (GLeakedAssetTrace_Severity)
+			{
+			case 3:
+				Options = EPrintStaleReferencesOptions::Fatal;
+				break;
+			case 2: 
+				Options = EPrintStaleReferencesOptions::Ensure | EPrintStaleReferencesOptions::Error;
+				break;
+			case 1:
+			default:
+				Options = EPrintStaleReferencesOptions::Error;
+				break;
+			}	
+
+			if (GLeakedAssetTrace_TraceMode == 0)
+			{
+				Options |= EPrintStaleReferencesOptions::Minimal;
+			}
+
+			// Sort even if we don't limit the count, so that high priority leaks appear first 
+			LeakedPackages.ValueSort(TGreater<int32>{});
+			int32 OmittedCount = FMath::Max(0, LeakedPackages.Num() - GLeakedAssetTrace_MaxReportCount);
+			TArray<UPackage*> PackagesToSearchFor;
+			int32 i = 0;
+			for (const TPair<UPackage*, int32>& Pair : LeakedPackages)
+			{
+				if (i++ < GLeakedAssetTrace_MaxReportCount)
+				{
+					PackagesToSearchFor.Add(Pair.Key);
+				}
+			}
+
+			UE_LOG(LogGameFeatures, Display, TEXT("Searching for references to %d leaked packages (%d omitted for speed) from plugin %s"), LeakedPackages.Num(), OmittedCount, *PluginName);
+			FReferenceChainSearch::FindAndPrintStaleReferencesToObjects(MakeArrayView((UObject**)PackagesToSearchFor.GetData(), PackagesToSearchFor.Num()), Options);
+		}
+
+		// Rename the packages that we are streaming out so that we can possibly reload another copy of them
+		for (const TPair<UPackage*, int32>& Pair : LeakedPackages)
+		{
+			UPackage* Package = Pair.Key;
+			UE_LOG(LogGameFeatures, Warning, TEXT("Marking leaking package %s as Garbage"), *Package->GetName());
+			ForEachObjectWithPackage(Package, [](UObject* Object)
+			{
+				Object->MarkAsGarbage();
+				return true;
+			}, false);
+			
+			Package->MarkAsGarbage();
+
+			if (!GIsEditor && !UObject::IsPendingKillEnabled())
+			{
+				UE::Object::RenameLeakedPackage(Package);
+			}
+		}
 	}
 
 #define GAME_FEATURE_PLUGIN_PROTOCOL_PREFIX(inEnum, inString) case EGameFeaturePluginProtocol::inEnum: return inString;
@@ -438,6 +613,50 @@ void FGameFeaturePluginState::UpdateStateMachineDeferred(float Delay /*= 0.0f*/)
 	}), Delay);
 }
 
+void FGameFeaturePluginState::GarbageCollectAndUpdateStateMachineDeferred() const
+{
+	GEngine->ForceGarbageCollection(true); // Tick Delayed
+
+	CleanupDeferredUpdateCallbacks();
+
+	FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FGameFeaturePluginState::UpdateStateMachineDeferred, 0.0f);
+}
+
+void FGameFeaturePluginState::MarkPluginAsGarbage(bool bMarkGameFeatureDataAsGarbage)
+{
+	TArray<UPackage*> PackagesToUnload;
+	for (TObjectIterator<UPackage> It; It; ++It)
+	{
+		const FNameBuilder PackageName(It->GetFName());
+		const FStringView PackageMountPointName = FPathViews::GetMountPointNameFromPath(PackageName);
+		if (StateProperties.PluginName == PackageMountPointName)
+		{
+			PackagesToUnload.Add(*It);
+		}
+	}
+
+	for (UPackage* Package : PackagesToUnload)
+	{
+		bool bShouldKeep = false;
+		ForEachObjectWithPackage(Package, [&bShouldKeep, bMarkGameFeatureDataAsGarbage](UObject* Object)
+			{
+				if (Object->IsA(UGameFeatureData::StaticClass()) && !bMarkGameFeatureDataAsGarbage)
+				{
+					bShouldKeep = true;
+					return true;
+				}
+				Object->MarkAsGarbage();
+				return true;
+			}, false);
+		if (!bShouldKeep)
+		{
+			UE_LOG(LogGameFeatures, Log, TEXT("Marking package %s as Garbage"), *Package->GetName());
+			Package->MarkAsGarbage();
+		}
+
+	}
+}
+
 void FGameFeaturePluginState::UpdateStateMachineImmediate() const
 {
 	StateProperties.OnRequestUpdateStateMachine.ExecuteIfBound();
@@ -455,6 +674,8 @@ void FGameFeaturePluginState::CleanupDeferredUpdateCallbacks() const
 		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
+
+	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
 }
 
 bool FGameFeaturePluginState::ShouldVisitUninstallStateBeforeTerminal() const
@@ -1865,14 +2086,14 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 {
 	FGameFeaturePluginState_Unregistering(FGameFeaturePluginStateMachineProperties& InStateProperties) : FGameFeaturePluginState(InStateProperties) {}
 
-	bool bHasUnloaded = false;
+	bool bRequestedGC = false;
 #if WITH_EDITOR
 	bool bRequestedUnloadPluginAssets = false;
 #endif //if WITH_EDITOR
 
 	virtual void BeginState()
 	{
-		bHasUnloaded = false;
+		bRequestedGC = false;
 #if WITH_EDITOR
 		bRequestedUnloadPluginAssets = false;
 #endif //if WITH_EDITOR
@@ -1880,8 +2101,10 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		if (bHasUnloaded)
+		if (bRequestedGC)
 		{
+			UE::GameFeatures::HandlePossibleAssetLeaks(StateProperties.PluginName);
+
 			StateStatus.SetTransition(EGameFeaturePluginState::Unmounting);
 			return;
 		}
@@ -1889,8 +2112,8 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 #if WITH_EDITOR
 		if (bRequestedUnloadPluginAssets)
 		{
-			bHasUnloaded = true;
-			UpdateStateMachineDeferred();
+			bRequestedGC = true;
+			GarbageCollectAndUpdateStateMachineDeferred();
 			return;
 		}
 #endif //if WITH_EDITOR
@@ -1917,8 +2140,8 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 		{
 			verify(FPluginUtils::UnloadPluginAssets(StateProperties.PluginName));
 
-			bHasUnloaded = true;
-			UpdateStateMachineDeferred();
+			bRequestedGC = true;
+			GarbageCollectAndUpdateStateMachineDeferred();
 		}
 		else
 		{
@@ -1926,8 +2149,14 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 			UE::GameFeatures::ScheduleUnloadPluginAssets(StateProperties.PluginName, StateProperties.OnRequestUpdateStateMachine);
 		}
 #else
-		bHasUnloaded = true;
-		UpdateStateMachineDeferred();
+		// never mark anything as garbage in the editor, there be dwagons here. 
+		if (UE::GameFeatures::MarkPluginAsGarbageOnUnregister && !UE::GameFeatures::ShouldSkipVerify(StateProperties.PluginName))
+		{
+			MarkPluginAsGarbage(true);
+		}
+
+		bRequestedGC = true;
+		GarbageCollectAndUpdateStateMachineDeferred();
 #endif
 	}
 };
@@ -2033,29 +2262,38 @@ struct FGameFeaturePluginState_Unloading : public FGameFeaturePluginState
 {
 	FGameFeaturePluginState_Unloading(FGameFeaturePluginStateMachineProperties& InStateProperties) : FGameFeaturePluginState(InStateProperties) {}
 
-	bool bHasUnloaded = false;
+	bool bRequestedGC = false;
 
 	virtual void BeginState() 
 	{
-		bHasUnloaded = false;
+		bRequestedGC = false;
 	}
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		if (bHasUnloaded)
+		if (bRequestedGC)
 		{
+#if !WITH_EDITOR // Disabled in editor since it's likely to report unloaded assets because of standalone packages
+			UE::GameFeatures::HandlePossibleAssetLeaks(StateProperties.PluginName, StateProperties.GameFeatureData ? StateProperties.GameFeatureData->GetOutermost() : nullptr);
+#endif //if !WITH_EDITOR
+
 			StateStatus.SetTransition(EGameFeaturePluginState::Registered);
 			return;
 		}
 
 		UnloadGameFeatureBundles(StateProperties.GameFeatureData);
-
+#if !WITH_EDITOR // never mark anything as garbage in the editor, there be dwagons here. 
+		if (UE::GameFeatures::MarkPluginAsGarbageOnUnload && !UE::GameFeatures::ShouldSkipVerify(StateProperties.PluginName))
+		{
+			MarkPluginAsGarbage(false);
+		}
+#endif
 		if (StateProperties.Destination.MaxState == EGameFeaturePluginState::Registered)
 		{
 			// If we aren't going farther than Registered, GC now
 			// otherwise we will defer until closer to our destination state
-			bHasUnloaded = true;
-			UpdateStateMachineDeferred();
+			bRequestedGC = true;
+			GarbageCollectAndUpdateStateMachineDeferred();
 			return;
 		}
 
@@ -2160,14 +2398,14 @@ struct FGameFeaturePluginState_Deactivating : public FGameFeaturePluginState
 	int32 NumObservedPausers = 0;
 	int32 NumExpectedPausers = 0;
 	bool bInProcessOfDeactivating = false;
-	bool bHasUnloaded = false;
+	bool bRequestedGC = false;
 
 	virtual void BeginState() override
 	{
 		NumObservedPausers = 0;
 		NumExpectedPausers = 0;
 		bInProcessOfDeactivating = false;
-		bHasUnloaded = false;
+		bRequestedGC = false;
 	}
 
 	void OnPauserCompleted(FStringView InPauserTag)
@@ -2186,7 +2424,7 @@ struct FGameFeaturePluginState_Deactivating : public FGameFeaturePluginState
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		if (bHasUnloaded)
+		if (bRequestedGC)
 		{
 			check(NumExpectedPausers == NumObservedPausers);
 			StateStatus.SetTransition(EGameFeaturePluginState::Loaded);
@@ -2222,12 +2460,12 @@ struct FGameFeaturePluginState_Deactivating : public FGameFeaturePluginState
 				UGameFeaturesSubsystem::Get().OnGameFeaturePauseChange(StateProperties.PluginIdentifier.GetFullPluginURL(), StateProperties.PluginName, PauseContext);
 			}
 
-			if (!bHasUnloaded && StateProperties.Destination.MaxState == EGameFeaturePluginState::Loaded)
+			if (!bRequestedGC && StateProperties.Destination.MaxState == EGameFeaturePluginState::Loaded)
 			{
 				// If we aren't going farther than Loaded, GC now
 				// otherwise we will defer until closer to our destination state
-				bHasUnloaded = true;
-				UpdateStateMachineDeferred();
+				bRequestedGC = true;
+				GarbageCollectAndUpdateStateMachineDeferred();
 			}
 			else
 			{

@@ -353,9 +353,13 @@ struct FGameFeaturePluginState
 	FGameFeaturePluginStateMachineProperties& StateProperties;
 
 	void UpdateStateMachineDeferred(float Delay = 0.0f) const;
+	void GarbageCollectAndUpdateStateMachineDeferred() const;
 	void UpdateStateMachineImmediate() const;
 
 	void UpdateProgress(float Progress) const;
+
+
+	void MarkPluginAsGarbage(bool bMarkGameFeatureDataAsGarbage);
 
 protected:
 	/** Builds an end FResult with some minimal error information with overrides for common types we 
