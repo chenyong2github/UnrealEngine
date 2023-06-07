@@ -36,25 +36,27 @@ void FAnimGroupInstance::TestTickRecordForLeadership(EAnimGroupRole::Type Member
 {
 	check(ActivePlayers.Num() > 0);
 
-	// always set leader score if you have potential to be leader
-	// that way if the top leader fails, we'll continue to search next available leader
-	int32 TestIndex = ActivePlayers.Num() - 1;
+	// Always set leader score if you have potential to be leader
+	// that way if the top leader fails, we'll continue to search next available leader.
+	const int32 TestIndex = ActivePlayers.Num() - 1;
 	FAnimTickRecord& Candidate = ActivePlayers[TestIndex];
 
-	if(Candidate.SourceAsset->IsA<UAnimMontage>())
+	// Handle Montage candidate.
+	if (Candidate.SourceAsset->IsA<UAnimMontage>())
 	{
-		// if the candidate has higher weight
+		// Check if the candidate has a higher weight.
 		if (Candidate.EffectiveBlendWeight > MontageLeaderWeight)
 		{
-			// if this is going to be leader, I'll clean ActivePlayers because we don't sync multi montages
+			// If this is going to be leader, clean ActivePlayers because we don't sync multi montages.
 			const int32 LastIndex = TestIndex - 1;
 			if (LastIndex >= 0)
 			{
-				ActivePlayers.RemoveAt(TestIndex - 1, 1);
+				// Removing based on the last index works because any montage's tick records are all added during Montage Update which happens before the Anim Graph is updated.
+				ActivePlayers.RemoveAt(LastIndex, 1);
 			}
 
-			// at this time, it should only have one
-			ensure(ActivePlayers.Num() == 1);
+			// At this time, it should only have one.
+			check(ActivePlayers.Num() == 1);
 
 			// then override
 			// @note : leader weight doesn't applied WITHIN montages
@@ -66,7 +68,7 @@ void FAnimGroupInstance::TestTickRecordForLeadership(EAnimGroupRole::Type Member
 		{
 			if (TestIndex != 0)
 			{
-				// we delete the later ones because we only have one montage for leader. 
+				// We delete the later ones because we only have one montage for leader 
 				// this can happen if there was already active one with higher weight. 
 				ActivePlayers.RemoveAt(TestIndex, 1);
 			}
@@ -74,6 +76,7 @@ void FAnimGroupInstance::TestTickRecordForLeadership(EAnimGroupRole::Type Member
 
 		ensureAlways(ActivePlayers.Num() == 1);
 	}
+	// Handle Sequence or BlendSpace candidate.
 	else
 	{
 		switch (MembershipType)
@@ -97,8 +100,8 @@ void FAnimGroupInstance::TestTickRecordForLeadership(EAnimGroupRole::Type Member
 
 void FAnimGroupInstance::Finalize(const FAnimGroupInstance* PreviousGroup)
 {
-	if (!PreviousGroup || PreviousGroup->GroupLeaderIndex != GroupLeaderIndex
-		|| (PreviousGroup->MontageLeaderWeight > 0.f && MontageLeaderWeight == 0.f/*if montage disappears, we should reset as well*/))
+	// Reset follower records if the previous group is non-existent, the group leader changed, or the montage leader disappears
+	if (!PreviousGroup || PreviousGroup->GroupLeaderIndex != GroupLeaderIndex || (PreviousGroup->MontageLeaderWeight > 0.f && MontageLeaderWeight == 0.f))
 	{
 		UE_LOG(LogAnimMarkerSync, Log, TEXT("Resetting Marker Sync Groups"));
 
@@ -111,24 +114,32 @@ void FAnimGroupInstance::Finalize(const FAnimGroupInstance* PreviousGroup)
 
 void FAnimGroupInstance::Prepare(const FAnimGroupInstance* PreviousGroup)
 {
+	// Sort asset players by leader score.
 	ActivePlayers.Sort();
 
-	TArray<FName>* MarkerNames = ActivePlayers[0].SourceAsset->GetUniqueMarkerNames();
-	if (MarkerNames)
+	// Prepare group, if leader has any markers.
+	const TArray<FName>* MarkerNames = ActivePlayers[0].SourceAsset->GetUniqueMarkerNames();
+	const bool bLeaderHasMarkers = MarkerNames && !MarkerNames->IsEmpty();
+	
+	if (bLeaderHasMarkers)
 	{
-		// Group leader has markers, off to a good start
+		// Get leader's markers.
 		ValidMarkers = *MarkerNames;
+
+		// Enable marker based syncing for leader and instance group.
 		ActivePlayers[0].bCanUseMarkerSync = true;
 		bCanUseMarkerSync = true;
 
-		//filter markers based on what exists in the other animations
-		for ( int32 ActivePlayerIndex = 0; ActivePlayerIndex < ActivePlayers.Num(); ++ActivePlayerIndex )
+		// Prepare asset player candidates.
+		for (int32 ActivePlayerIndex = 0; ActivePlayerIndex < ActivePlayers.Num(); ++ActivePlayerIndex)
 		{
 			FAnimTickRecord& Candidate = ActivePlayers[ActivePlayerIndex];
 
+			// Reset candidate's marker tick record if needed.
 			if (PreviousGroup)
 			{
 				bool bCandidateFound = false;
+				
 				for (const FAnimTickRecord& PrevRecord : PreviousGroup->ActivePlayers)
 				{
 					if (PrevRecord.MarkerTickRecord == Candidate.MarkerTickRecord)
@@ -136,28 +147,37 @@ void FAnimGroupInstance::Prepare(const FAnimGroupInstance* PreviousGroup)
 						// Found previous record for "us"
 						if (PrevRecord.SourceAsset != Candidate.SourceAsset)
 						{
-							Candidate.MarkerTickRecord->Reset(); // Changed animation, clear our cached data
+							Candidate.MarkerTickRecord->Reset(); // Changed animation, clear our cached data.
 						}
 						bCandidateFound = true;
 						break;
 					}
 				}
+				
 				if (!bCandidateFound)
 				{
-					Candidate.MarkerTickRecord->Reset(); // we weren't active last frame, reset
+					Candidate.MarkerTickRecord->Reset(); // We weren't active last frame, invalidate record.
 				}
 			}
 
+			// Filter follower's markers that are not shared in common with the group's candidate leader.
 			if (ActivePlayerIndex != 0 && ValidMarkers.Num() > 0)
 			{
-				TArray<FName>* PlayerMarkerNames = Candidate.SourceAsset->GetUniqueMarkerNames();
-				if ( PlayerMarkerNames ) // Let anims with no markers set use length scaling sync
+				// Let anims with no markers use length scaling sync.
+				const TArray<FName>* PlayerMarkerNames = Candidate.SourceAsset->GetUniqueMarkerNames();
+				const bool bFollowerHasMarkers = PlayerMarkerNames && !PlayerMarkerNames->IsEmpty();
+				
+				if (bFollowerHasMarkers) 
 				{
+					// Make follower use marker based-syncing.
 					Candidate.bCanUseMarkerSync = true;
-					for ( int32 ValidMarkerIndex = ValidMarkers.Num() - 1; ValidMarkerIndex >= 0; --ValidMarkerIndex )
+
+					// Filter.
+					for (int32 ValidMarkerIndex = ValidMarkers.Num() - 1; ValidMarkerIndex >= 0; --ValidMarkerIndex)
 					{
 						FName& MarkerName = ValidMarkers[ValidMarkerIndex];
-						if ( !PlayerMarkerNames->Contains(MarkerName) )
+						
+						if (!PlayerMarkerNames->Contains(MarkerName))
 						{
 							ValidMarkers.RemoveAtSwap(ValidMarkerIndex, 1, false);
 						}
@@ -166,10 +186,13 @@ void FAnimGroupInstance::Prepare(const FAnimGroupInstance* PreviousGroup)
 			}
 		}
 
+		// Ensure group can use maker based syncing.
 		bCanUseMarkerSync = ValidMarkers.Num() > 0;
-
+		
+		// Alphabetical ordering for markers.
 		ValidMarkers.Sort(FNameLexicalLess());
 
+		// Source marker data changed.
 		if (!PreviousGroup || (ValidMarkers != PreviousGroup->ValidMarkers))
 		{
 			for (int32 InternalActivePlayerIndex = 0; InternalActivePlayerIndex < ActivePlayers.Num(); ++InternalActivePlayerIndex)
@@ -178,14 +201,21 @@ void FAnimGroupInstance::Prepare(const FAnimGroupInstance* PreviousGroup)
 			}
 		}
 	}
-	else
+	
+	// Leader has no markers or all them were filtered out, fallback to length based syncing.
+	if (!bLeaderHasMarkers || !bCanUseMarkerSync)
 	{
-		// Leader has no markers, we can't use SyncMarkers.
+		// We can't use sync markers in sync group.
 		bCanUseMarkerSync = false;
+
+		// Invalidate markers.
 		ValidMarkers.Reset();
+
+		// Ensure tick records do not use marker-based syncing.
 		for (FAnimTickRecord& AnimTickRecord : ActivePlayers)
 		{
 			AnimTickRecord.MarkerTickRecord->Reset();
+			AnimTickRecord.bCanUseMarkerSync = false;
 		}
 	}
 }

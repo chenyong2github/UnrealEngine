@@ -404,11 +404,12 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 					*GetName(), *BlendSpacePosition.ToString(), *FilteredBlendInput.ToString(), FilterMultiplier);
 			}
 
+			// We can use marker-based syncing when a valid sample with sync marker data exists.
 			bool bCanDoMarkerSync = (SampleIndexWithMarkers != INDEX_NONE) && (Context.IsSingleAnimationContext() || (Instance.bCanUseMarkerSync && Context.CanUseMarkerPosition()));
-
+			
 			if (bCanDoMarkerSync)
 			{
-				//Copy previous frame marker data to current frame
+				// Copy previous frame marker data to current frame
 				for (const FBlendSampleData& PrevBlendSampleItem : OldSampleDataList)
 				{
 					for (FBlendSampleData& CurrentBlendSampleItem : SampleDataList)
@@ -459,44 +460,59 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 				// advance current time - blend spaces hold normalized time as when dealing with changing anim length it would be possible to go backwards
 				UE_LOG(LogAnimation, Verbose, TEXT("BlendSpace(%s) - FilteredBlendInput(%s) : AnimLength(%0.5f) "), *GetName(), *FilteredBlendInput.ToString(), NewAnimLength);
 
+				// Set context's data before updating time position.
 				Context.SetPreviousAnimationPositionRatio(NormalizedCurrentTime);
 
+				// Get highest weight sample with sync markers. This will become the leader for all other samples to follow.
 				const int32 HighestMarkerSyncWeightIndex = bCanDoMarkerSync ? FBlendSpaceUtilities::GetHighestWeightMarkerSyncSample(SampleDataList, SampleData) : -1;
 
+				// Skip syncing, fallback to normal ticking.
 				if (HighestMarkerSyncWeightIndex == -1)
 				{
 					bCanDoMarkerSync = false;
 				}
 
+				// Tick as leader using marked based syncing.
 				if (bCanDoMarkerSync)
 				{
-					FBlendSampleData& SampleDataItem = SampleDataList[HighestMarkerSyncWeightIndex];
-					const FBlendSample& Sample = SampleData[SampleDataItem.SampleDataIndex];
+					FBlendSampleData& LeaderSampleData = SampleDataList[HighestMarkerSyncWeightIndex];
+					const FBlendSample& LeaderSample = SampleData[LeaderSampleData.SampleDataIndex];
 
-					if (Sample.Animation)
+					if (LeaderSample.Animation)
 					{
 						bool bResetMarkerDataOnFollowers = false;
+
+						// Invalidate sample followers' tick records if instance doesn't have any valid sync marker data. 
 						if (!Instance.MarkerTickRecord->IsValid(Instance.bLooping))
 						{
-							SampleDataItem.MarkerTickRecord.Reset();
+							LeaderSampleData.MarkerTickRecord.Reset();
+							LeaderSampleData.Time = NormalizedCurrentTime * LeaderSample.Animation->GetPlayLength();
 							bResetMarkerDataOnFollowers = true;
-							SampleDataItem.Time = NormalizedCurrentTime * Sample.Animation->GetPlayLength();
 						}
-						else if (!SampleDataItem.MarkerTickRecord.IsValid(Instance.bLooping) && Context.MarkerTickContext.GetMarkerSyncStartPosition().IsValid())
+						// Re-compute marker indices since the leader sample's tick record is invalid. Get previous and next markers.
+						else if (!LeaderSampleData.MarkerTickRecord.IsValid(Instance.bLooping) && Context.MarkerTickContext.GetMarkerSyncStartPosition().IsValid())
 						{
-							Sample.Animation->GetMarkerIndicesForPosition(Context.MarkerTickContext.GetMarkerSyncStartPosition(), true, SampleDataItem.MarkerTickRecord.PreviousMarker, SampleDataItem.MarkerTickRecord.NextMarker, SampleDataItem.Time, Instance.MirrorDataTable);
+							// TODO: Look into the reason for not passing bLooping variable and just forcing the vale to be true. 
+							LeaderSample.Animation->GetMarkerIndicesForPosition(Context.MarkerTickContext.GetMarkerSyncStartPosition(), true, LeaderSampleData.MarkerTickRecord.PreviousMarker, LeaderSampleData.MarkerTickRecord.NextMarker, LeaderSampleData.Time, Instance.MirrorDataTable);
 						}
 
-						const float NewDeltaTime = Context.GetDeltaTime() * Instance.PlayRateMultiplier * Sample.RateScale * Sample.Animation->RateScale;
+						// Only tick samples if leader sample has any delta time to consume.
+						const float NewDeltaTime = Context.GetDeltaTime() * Instance.PlayRateMultiplier * LeaderSample.RateScale * LeaderSample.Animation->RateScale;
 						if (!FMath::IsNearlyZero(NewDeltaTime))
 						{
 							Context.SetLeaderDelta(NewDeltaTime);
-							Sample.Animation->TickByMarkerAsLeader(SampleDataItem.MarkerTickRecord, Context.MarkerTickContext, SampleDataItem.Time, SampleDataItem.PreviousTime, NewDeltaTime, Instance.bLooping, Instance.MirrorDataTable);
+
+							// Tick leader sample
+							LeaderSample.Animation->TickByMarkerAsLeader(LeaderSampleData.MarkerTickRecord, Context.MarkerTickContext, LeaderSampleData.Time, LeaderSampleData.PreviousTime, NewDeltaTime, Instance.bLooping, Instance.MirrorDataTable);
+
 							check(!Instance.bLooping || Context.MarkerTickContext.IsMarkerSyncStartValid());
+							
+							// Tick all the follower samples
 							TickFollowerSamples(SampleDataList, HighestMarkerSyncWeightIndex, Context, bResetMarkerDataOnFollowers, Instance.bLooping, Instance.MirrorDataTable);
 						}
-						NormalizedCurrentTime = SampleDataItem.Time / Sample.Animation->GetPlayLength();
-						*Instance.MarkerTickRecord = SampleDataItem.MarkerTickRecord;
+						
+						NormalizedCurrentTime = LeaderSampleData.Time / LeaderSample.Animation->GetPlayLength();
+						*Instance.MarkerTickRecord = LeaderSampleData.MarkerTickRecord;
 					}
 				}
 				else
@@ -510,15 +526,18 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 						*GetName(), NormalizedPreviousTime, NormalizedCurrentTime, Instance.DeltaTimeRecord->Delta);
 				}
 
+				// Update time position after it has undergone all side effects.
 				Context.SetAnimationPositionRatio(NormalizedCurrentTime);
 			}
 			else
 			{
+				// Skip syncing if leader doesn't have a valid sync start position.
 				if (!Context.MarkerTickContext.IsMarkerSyncStartValid())
 				{
 					bCanDoMarkerSync = false;
 				}
 
+				// Tick as follower using marked-based syncing.
 				if (bCanDoMarkerSync)
 				{
 					const int32 HighestWeightIndex = FBlendSpaceUtilities::GetHighestWeightSample(SampleDataList);
@@ -527,6 +546,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 
 					if (Sample.Animation)
 					{
+						// Only tick samples if sync group leader has any delta time to consume.
 						if (Context.GetDeltaTime() != 0.f)
 						{
 							if (!Instance.MarkerTickRecord->IsValid(Instance.bLooping))
@@ -534,23 +554,27 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 								SampleDataItem.Time = NormalizedCurrentTime * Sample.Animation->GetPlayLength();
 							}
 
+							// Tick all samples as followers
 							TickFollowerSamples(SampleDataList, -1, Context, false, Instance.bLooping, Instance.MirrorDataTable);
 						}
+						
 						*Instance.MarkerTickRecord = SampleDataItem.MarkerTickRecord;
 						NormalizedCurrentTime = SampleDataItem.Time / Sample.Animation->GetPlayLength();
 					}
 				}
 				else
 				{
+					// Fallback to length-based syncing. Match sync group leader position.
 					NormalizedPreviousTime = Context.GetPreviousAnimationPositionRatio();
 					NormalizedCurrentTime = Context.GetAnimationPositionRatio();
+					
 					UE_LOG(LogAnimMarkerSync, Log, 
 						TEXT("Follower (%s) (bCanDoMarkerSync == false) - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f) "), 
 						*GetName(), NormalizedPreviousTime, NormalizedCurrentTime, Instance.DeltaTimeRecord->Delta);
 				}
 			}
 
-			// generate notifies and sets time
+			// Generate notifies and sets time.
 			{
 				FAnimNotifyContext NotifyContext(Instance);
 				float ClampedNormalizedPreviousTime = FMath::Clamp<float>(NormalizedPreviousTime, 0.f, 1.f);
@@ -1978,8 +2002,7 @@ void UBlendSpace::UpdateBlendSpacesUsingAnimSequence(UAnimSequenceBase* Sequence
 
 TArray<FName>* UBlendSpace::GetUniqueMarkerNames()
 {
-	if (SampleIndexWithMarkers != INDEX_NONE
-		&& SampleData.Num() > SampleIndexWithMarkers)
+	if (SampleIndexWithMarkers != INDEX_NONE && SampleData.Num() > SampleIndexWithMarkers)
 	{
 		FBlendSample& BlendSample = SampleData[SampleIndexWithMarkers];
 		if (BlendSample.Animation != nullptr)

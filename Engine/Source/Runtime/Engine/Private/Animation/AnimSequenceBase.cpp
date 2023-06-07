@@ -544,7 +544,9 @@ void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousP
 
 void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQueue& NotifyQueue, FAnimAssetTickContext& Context) const
 {
+	// Local copy of the asset player's time that is about to be updated.
 	float CurrentTime = *(Instance.TimeAccumulator);
+	
 	if (Context.ShouldResyncToSyncGroup() && !Instance.bIsEvaluator)
 	{
 		// Synchronize the asset player time to the other sync group members when (re)joining the group
@@ -553,16 +555,17 @@ void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimN
 
 	float PreviousTime = CurrentTime;
 	float DeltaTime = 0.f;
+	const float PlayRate = Instance.PlayRateMultiplier * RateScale;
 
-	const float PlayRate = Instance.PlayRateMultiplier * this->RateScale;
-
-	if( Context.IsLeader() )
+	if (Context.IsLeader())
 	{
 		DeltaTime = PlayRate * Context.GetDeltaTime();
 
+		// Prepare context before ticking.
 		Context.SetLeaderDelta(DeltaTime);
 		Context.SetPreviousAnimationPositionRatio(PreviousTime / GetPlayLength());
 
+		// Tick as leader using marked based syncing if possible, other fallback to normal ticking.
 		if (DeltaTime != 0.f)
 		{
 			if (Instance.bCanUseMarkerSync && Context.CanUseMarkerPosition())
@@ -577,11 +580,12 @@ void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimN
 			}
 		}
 
+		// Update context's data after ticking.
 		Context.SetAnimationPositionRatio(CurrentTime / GetPlayLength());
 	}
 	else
 	{
-		// Follow the leader
+		// Follow the leader using marker based syncing if possible, otherwise fallback to length based syncing.
 		if (Instance.bCanUseMarkerSync)
 		{
 			if (Context.CanUseMarkerPosition() && Context.MarkerTickContext.IsMarkerSyncStartValid())
@@ -591,6 +595,7 @@ void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimN
 			else
 			{
 				DeltaTime = PlayRate * Context.GetDeltaTime();
+				
 				// If leader is not valid, advance time as normal, do not jump position and pop.
 				FAnimationRuntime::AdvanceTime(Instance.bLooping, DeltaTime, CurrentTime, GetPlayLength());
 				UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (normal advance) - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f), Looping (%d) "), *GetName(), PreviousTime, CurrentTime, DeltaTime, Instance.bLooping ? 1 : 0);
@@ -598,44 +603,49 @@ void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimN
 		}
 		else
 		{
+			// Match group leader's last calculated anim position since we're not using marker based sync.
 			PreviousTime = Context.GetPreviousAnimationPositionRatio() * GetPlayLength();
 			CurrentTime = Context.GetAnimationPositionRatio() * GetPlayLength();
+			
 			UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (normalized position advance) - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f), Looping (%d) "), *GetName(), PreviousTime, CurrentTime, DeltaTime, Instance.bLooping ? 1 : 0);
 		}
-
-		//@TODO: NOTIFIES: Calculate AdvanceType based on what the new delta time is
-
-		if( CurrentTime != PreviousTime )
+		
+		if (CurrentTime != PreviousTime)
 		{
 			// Figure out delta time 
 			DeltaTime = CurrentTime - PreviousTime;
-			// if we went against play rate, then loop around.
-			if( (DeltaTime * PlayRate) < 0.f )
+			
+			// If we went against play rate, then loop around.
+			if ((DeltaTime * PlayRate) < 0.f)
 			{
 				DeltaTime += FMath::Sign<float>(PlayRate) * GetPlayLength();
 			}
 		}
 	}
 
-	// Assign the instance's TimeAccumulator after all side effects on CurrentTime have been applied
+	// Update the instance's TimeAccumulator after all side effects on the local copy of the asset player's time have been applied.
 	*(Instance.TimeAccumulator) = CurrentTime;
-
+	
 	// Capture the final adjusted delta time and previous frame time as an asset player record
 	check(Instance.DeltaTimeRecord);
 	Instance.DeltaTimeRecord->Set(PreviousTime, DeltaTime);
 
+	// Allow asset to react right after its asset player has being ticked.
 	HandleAssetPlayerTickedInternal(Context, PreviousTime, DeltaTime, Instance, NotifyQueue);
 }
 
 void UAnimSequenceBase::TickByMarkerAsFollower(FMarkerTickRecord &Instance, FMarkerTickContext &MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping, const UMirrorDataTable* MirrorTable) const
 {
+	// Re-compute marker indices since the asset's tick record is invalid. Get previous and next markers.
 	if (!Instance.IsValid(bLooping))
 	{
 		GetMarkerIndicesForPosition(MarkerContext.GetMarkerSyncStartPosition(), bLooping, Instance.PreviousMarker, Instance.NextMarker, CurrentTime, MirrorTable);
 	}
 
+	// Keep track the asset's previous time, since its current time is about to be modified.
 	OutPreviousTime = CurrentTime;
 
+	// Tick and update as follower.
 	AdvanceMarkerPhaseAsFollower(MarkerContext, MoveDelta, bLooping, CurrentTime, Instance.PreviousMarker, Instance.NextMarker, MirrorTable);
 
 	UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (TickByMarker) PreviousTime(%0.2f) CurrentTime(%0.2f) MoveDelta(%0.2f) Looping(%d) %s"), *GetName(), OutPreviousTime, CurrentTime, MoveDelta, bLooping ? 1 : 0, *MarkerContext.ToString());
@@ -643,6 +653,7 @@ void UAnimSequenceBase::TickByMarkerAsFollower(FMarkerTickRecord &Instance, FMar
 
 void UAnimSequenceBase::TickByMarkerAsLeader(FMarkerTickRecord& Instance, FMarkerTickContext& MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping, const UMirrorDataTable* MirrorTable) const
 {
+	// Re-compute marker indices since the asset's tick record is invalid. Get previous and next markers.
 	if (!Instance.IsValid(bLooping))
 	{
 		if (MarkerContext.IsMarkerSyncStartValid())
@@ -653,15 +664,18 @@ void UAnimSequenceBase::TickByMarkerAsLeader(FMarkerTickRecord& Instance, FMarke
 		{
 			GetMarkerIndicesForTime(CurrentTime, bLooping, MarkerContext.GetValidMarkerNames(), Instance.PreviousMarker, Instance.NextMarker);
 		}
-		
 	}
 
+	// Store the sync anim position BEFORE the asset has being ticked.
 	MarkerContext.SetMarkerSyncStartPosition(GetMarkerSyncPositionFromMarkerIndicies(Instance.PreviousMarker.MarkerIndex, Instance.NextMarker.MarkerIndex, CurrentTime, MirrorTable));
 
+	// Keep track the asset's previous time, since its current time is about to be modified.
 	OutPreviousTime = CurrentTime;
 
+	// Advance as leader.
 	AdvanceMarkerPhaseAsLeader(bLooping, MoveDelta, MarkerContext.GetValidMarkerNames(), CurrentTime, Instance.PreviousMarker, Instance.NextMarker, MarkerContext.MarkersPassedThisTick, MirrorTable);
 
+	// Store the sync anim position AFTER the asset has being ticked.
 	MarkerContext.SetMarkerSyncEndPosition(GetMarkerSyncPositionFromMarkerIndicies(Instance.PreviousMarker.MarkerIndex, Instance.NextMarker.MarkerIndex, CurrentTime, MirrorTable));
 
 	UE_LOG(LogAnimMarkerSync, Log, TEXT("Leader (%s) (TickByMarker) PreviousTime(%0.2f) CurrentTime(%0.2f) MoveDelta(%0.2f) Looping(%d) %s"), *GetName(), OutPreviousTime, CurrentTime, MoveDelta, bLooping ? 1 : 0, *MarkerContext.ToString());

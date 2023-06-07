@@ -3558,55 +3558,80 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 	// Hard to reproduce issue triggering this, ensure & clamp for now
 	ensureMsgf(CurrentTime >= 0.f && CurrentTime <= GetPlayLength(), TEXT("Current time inside of AdvanceMarkerPhaseAsLeader is out of range %.3f of 0.0 to %.3f\n    Sequence: %s"), CurrentTime, GetPlayLength(), *GetFullName());
 
+	// Ensure our time is within the boundaries of the anim sequence.
 	CurrentTime = FMath::Clamp(CurrentTime, 0.f, GetPlayLength());
 
 	if (bPlayingForwards)
 	{
+		// Repeat until there is no more move delta to handle.
 		while (true)
 		{
-			if (NextMarker.MarkerIndex == -1)
+			// Our next marker is the end boundary.
+			if (NextMarker.MarkerIndex == MarkerIndexSpecialValues::AnimationBoundary)
 			{
-				float PrevCurrentTime = CurrentTime;
+				const float PrevCurrentTime = CurrentTime;
+
+				// Ensure we dont overshoot when advancing our time.
 				CurrentTime = FMath::Min(CurrentTime + CurrentMoveDelta, GetPlayLength());
+
+				// Compute the distances left to reach the next and previous marker from the current time position.
 				NextMarker.TimeToMarker = GetPlayLength() - CurrentTime;
-				PrevMarker.TimeToMarker -= CurrentTime - PrevCurrentTime; //Add how far we moved to distance from previous marker
+				PrevMarker.TimeToMarker -= CurrentTime - PrevCurrentTime;
 				break;
 			}
+
+			// Good, we have a valid next marker.
 			const FAnimSyncMarker& NextSyncMarker = AuthoredSyncMarkers[NextMarker.MarkerIndex];
 			checkSlow(ValidMarkerNames.Contains(NextSyncMarker.MarkerName));
 
+			// We are going to end up past our next marker.
 			if (CurrentMoveDelta > NextMarker.TimeToMarker)
 			{
+				// Move time to match that of the next marker, and update the move delta to reflect the change.
 				CurrentTime = NextSyncMarker.Time;
 				CurrentMoveDelta -= NextMarker.TimeToMarker;
 
-				PrevMarker.MarkerIndex = NextMarker.MarkerIndex;
+				// Make our new previous marker be the marker we just passed.
+				PrevMarker.MarkerIndex = NextMarker.MarkerIndex; 
 				PrevMarker.TimeToMarker = -CurrentMoveDelta;
 
-				int32 PassedMarker = MarkersPassed.Add(FPassedMarker());
+				// Record that we just passed a marker.
+				const int32 PassedMarker = MarkersPassed.Add(FPassedMarker());
 				MarkersPassed[PassedMarker].PassedMarkerName = NextSyncMarker.MarkerName;
 				MarkersPassed[PassedMarker].DeltaTimeWhenPassed = CurrentMoveDelta;
-
-				float MarkerTimeOffset = 0.f;
-				do
+				
+				// Compute our new next marker.
 				{
-					++NextMarker.MarkerIndex;
-					if (NextMarker.MarkerIndex >= AuthoredSyncMarkers.Num())
+					float MarkerTimeOffset = 0.f;
+					
+					do
 					{
-						if (!bLooping)
+						++NextMarker.MarkerIndex;
+
+						// No more markers up ahead.
+						if (NextMarker.MarkerIndex >= AuthoredSyncMarkers.Num())
 						{
-							NextMarker.MarkerIndex = -1;
-							break;
+							// Stop at anim end boundary.
+							if (!bLooping)
+							{
+								NextMarker.MarkerIndex = MarkerIndexSpecialValues::AnimationBoundary;
+								break;
+							}
+
+							// Make our next marker be the first marker found in the sequence. 
+							NextMarker.MarkerIndex = 0;
+							MarkerTimeOffset = GetPlayLength();
 						}
-						NextMarker.MarkerIndex = 0;
-						MarkerTimeOffset = GetPlayLength();
+					} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[NextMarker.MarkerIndex].MarkerName));
+
+					// Update time left to reach the new next marker
+					if (NextMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary)
+					{
+						NextMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[NextMarker.MarkerIndex].Time - CurrentTime;
 					}
-				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[NextMarker.MarkerIndex].MarkerName));
-				if (NextMarker.MarkerIndex != -1)
-				{
-					NextMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[NextMarker.MarkerIndex].Time - CurrentTime;
 				}
 			}
+			// We will not go past our next marker, we can advance comfortably.
 			else
 			{
 				CurrentTime = FMath::Fmod(CurrentTime + CurrentMoveDelta, GetPlayLength());
@@ -3614,6 +3639,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				{
 					CurrentTime += GetPlayLength();
 				}
+
 				NextMarker.TimeToMarker -= CurrentMoveDelta;
 				PrevMarker.TimeToMarker -= CurrentMoveDelta;
 				break;
@@ -3622,51 +3648,77 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 	}
 	else
 	{
+		// Playing backwards.
+		
+		// Repeat until there is no more move delta to handle.
 		while (true)
 		{
-			if (PrevMarker.MarkerIndex == -1)
+			// Our previous marker is the start boundary.
+			if (PrevMarker.MarkerIndex == MarkerIndexSpecialValues::AnimationBoundary)
 			{
-				float PrevCurrentTime = CurrentTime;
+				const float PrevCurrentTime = CurrentTime;
+
+				// Ensure we dont undershoot when advancing our time.
 				CurrentTime = FMath::Max(CurrentTime + CurrentMoveDelta, 0.f);
+
+				// Compute the distances left to reach the next and previous marker from the current time position.
 				PrevMarker.TimeToMarker = CurrentTime;
-				NextMarker.TimeToMarker -= CurrentTime - PrevCurrentTime; //Add how far we moved to distance from previous marker
+				NextMarker.TimeToMarker -= CurrentTime - PrevCurrentTime;
 				break;
 			}
+
+			// Good, we have a valid previous marker.
 			const FAnimSyncMarker& PrevSyncMarker = AuthoredSyncMarkers[PrevMarker.MarkerIndex];
 			checkSlow(ValidMarkerNames.Contains(PrevSyncMarker.MarkerName));
-			
+
+			// We are going to end up past our previous marker.
 			if (CurrentMoveDelta < PrevMarker.TimeToMarker)
 			{
+				// Move time to match that of the previous marker, and update the move delta to reflect the change.
 				CurrentTime = PrevSyncMarker.Time;
 				CurrentMoveDelta -= PrevMarker.TimeToMarker;
 
+				// Make our new next marker be the marker we just passed.
 				NextMarker.MarkerIndex = PrevMarker.MarkerIndex;
 				NextMarker.TimeToMarker = -CurrentMoveDelta;
 
-				int32 PassedMarker = MarkersPassed.Add(FPassedMarker());
+				// Record that we just passed a marker.
+				const int32 PassedMarker = MarkersPassed.Add(FPassedMarker());
 				MarkersPassed[PassedMarker].PassedMarkerName = PrevSyncMarker.MarkerName;
 				MarkersPassed[PassedMarker].DeltaTimeWhenPassed = CurrentMoveDelta;
 
-				float MarkerTimeOffset = 0.f;
-				do
+				// Compute our new previous marker.
 				{
-					--PrevMarker.MarkerIndex;
-					if (PrevMarker.MarkerIndex < 0)
+					float MarkerTimeOffset = 0.f;
+					
+					do
 					{
-						if (!bLooping)
+						--PrevMarker.MarkerIndex;
+
+						// No more markers behind.
+						if (PrevMarker.MarkerIndex < 0)
 						{
-							PrevMarker.MarkerIndex = -1;
-							break;
+							// Stop at the anim start boundary.
+							if (!bLooping)
+							{
+								PrevMarker.MarkerIndex = MarkerIndexSpecialValues::AnimationBoundary;
+								break;
+							}
+							
+							// Make our previous marker be the last marker found in the sequence.
+							PrevMarker.MarkerIndex = AuthoredSyncMarkers.Num() - 1;
+							MarkerTimeOffset -= GetPlayLength();
 						}
-						PrevMarker.MarkerIndex = AuthoredSyncMarkers.Num() - 1;
-						MarkerTimeOffset -= GetPlayLength();
+					} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[PrevMarker.MarkerIndex].MarkerName));
+
+					// Update time left to reach marker.
+					if (PrevMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary)
+					{
+						PrevMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[PrevMarker.MarkerIndex].Time - CurrentTime;
 					}
-				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[PrevMarker.MarkerIndex].MarkerName));
-				if (PrevMarker.MarkerIndex != -1)
-				{
-					PrevMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[PrevMarker.MarkerIndex].Time - CurrentTime;
 				}
 			}
+			// We will not go past our previous marker, we can advance comfortably.
 			else
 			{
 				CurrentTime = FMath::Fmod(CurrentTime + CurrentMoveDelta, GetPlayLength());
@@ -3674,6 +3726,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				{
 					CurrentTime += GetPlayLength();
 				}
+
 				PrevMarker.TimeToMarker -= CurrentMoveDelta;
 				NextMarker.TimeToMarker -= CurrentMoveDelta;
 				break;
@@ -3701,6 +3754,7 @@ void AdvanceMarkerForwards(int32& Marker, FName MarkerToFind, bool bLooping, con
 {
 	int32 MaxIterations = AuthoredSyncMarkers.Num();
 
+	// Get next available marker.
 	while ((MarkerOrMirroredName(AuthoredSyncMarkers[Marker].MarkerName, MirrorTable) != MarkerToFind) && (--MaxIterations >= 0))
 	{
 		++Marker;
@@ -3711,6 +3765,7 @@ void AdvanceMarkerForwards(int32& Marker, FName MarkerToFind, bool bLooping, con
 		Marker %= AuthoredSyncMarkers.Num();
 	}
 
+	// In any invalid case, default to -1 aka an animation boundary.
 	if (!AuthoredSyncMarkers.IsValidIndex(Marker) || (MarkerOrMirroredName(AuthoredSyncMarkers[Marker].MarkerName, MirrorTable) != MarkerToFind))
 	{
 		Marker = MarkerIndexSpecialValues::AnimationBoundary;
@@ -3745,7 +3800,7 @@ void AdvanceMarkerBackwards(int32& Marker, FName MarkerToFind, bool bLooping, co
 
 bool MarkerMatchesPosition(const UAnimSequence* Sequence, int32 MarkerIndex, FName CorrectMarker, const UMirrorDataTable* MirrorTable)
 {
-	checkf(MarkerIndex != MarkerIndexSpecialValues::Unitialized, TEXT("Uninitialized marker supplied to MarkerMatchesPosition. Anim: %s Expecting marker %s (Added to help debug Jira OR-9675)"), *Sequence->GetName(), *CorrectMarker.ToString());
+	checkf(MarkerIndex != MarkerIndexSpecialValues::Uninitialized, TEXT("Uninitialized marker supplied to MarkerMatchesPosition. Anim: %s Expecting marker %s (Added to help debug Jira OR-9675)"), *Sequence->GetName(), *CorrectMarker.ToString());
 	return MarkerIndex == MarkerIndexSpecialValues::AnimationBoundary || CorrectMarker == MarkerOrMirroredName(Sequence->AuthoredSyncMarkers[MarkerIndex].MarkerName, MirrorTable);
 }
 
@@ -3753,16 +3808,24 @@ void UAnimSequence::ValidateCurrentPosition(const FMarkerSyncAnimPosition& Posit
 {
 	if (bPlayingForwards)
 	{
+		// Ensure previous marker matches the desired previous marker given a name.
 		if (!MarkerMatchesPosition(this, PreviousMarker.MarkerIndex, Position.PreviousMarkerName, MirrorTable))
 		{
 			AdvanceMarkerForwards(PreviousMarker.MarkerIndex, Position.PreviousMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
-			NextMarker.MarkerIndex = (PreviousMarker.MarkerIndex + 1);
-			if(NextMarker.MarkerIndex >= AuthoredSyncMarkers.Num())
+
+			// Ensure next marker comes after the recently updated previous marker.
 			{
-				NextMarker.MarkerIndex = bLooping ? NextMarker.MarkerIndex % AuthoredSyncMarkers.Num() : MarkerIndexSpecialValues::AnimationBoundary;
+				NextMarker.MarkerIndex = (PreviousMarker.MarkerIndex + 1);
+
+				// If needed, loop back or stop at end boundary.
+				if (NextMarker.MarkerIndex >= AuthoredSyncMarkers.Num())
+				{
+					NextMarker.MarkerIndex = bLooping ? NextMarker.MarkerIndex % AuthoredSyncMarkers.Num() : MarkerIndexSpecialValues::AnimationBoundary;
+				}
 			}
 		}
 
+		// Ensure next marker matches the desired next marker given a name.
 		if (!MarkerMatchesPosition(this, NextMarker.MarkerIndex, Position.NextMarkerName, MirrorTable))
 		{
 			AdvanceMarkerForwards(NextMarker.MarkerIndex, Position.NextMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
@@ -3770,11 +3833,13 @@ void UAnimSequence::ValidateCurrentPosition(const FMarkerSyncAnimPosition& Posit
 	}
 	else
 	{
-		const int32 MarkerRange = AuthoredSyncMarkers.Num();
+		// Ensure next marker matches the desired next marker given a name.
 		if (!MarkerMatchesPosition(this, NextMarker.MarkerIndex, Position.NextMarkerName, MirrorTable))
 		{
 			AdvanceMarkerBackwards(NextMarker.MarkerIndex, Position.NextMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
-			if(NextMarker.MarkerIndex == MarkerIndexSpecialValues::AnimationBoundary || (NextMarker.MarkerIndex == 0 && bLooping))
+
+			// Ensure previous marker comes before the recently updated next marker.
+			if (NextMarker.MarkerIndex == MarkerIndexSpecialValues::AnimationBoundary || (NextMarker.MarkerIndex == 0 && bLooping))
 			{
 				PreviousMarker.MarkerIndex = AuthoredSyncMarkers.Num() - 1;
 			}
@@ -3783,6 +3848,8 @@ void UAnimSequence::ValidateCurrentPosition(const FMarkerSyncAnimPosition& Posit
 				PreviousMarker.MarkerIndex = NextMarker.MarkerIndex - 1;
 			}
 		}
+		
+		// Ensure previous marker matches the desired previous marker given a name.
 		if (!MarkerMatchesPosition(this, PreviousMarker.MarkerIndex, Position.PreviousMarkerName, MirrorTable))
 		{
 			AdvanceMarkerBackwards(PreviousMarker.MarkerIndex, Position.PreviousMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
@@ -4155,105 +4222,139 @@ void UAnimSequence::AdvanceMarkerPhaseAsFollower(const FMarkerTickContext& Conte
 {
 	const bool bPlayingForwards = DeltaRemaining > 0.f;
 
+	// Ensures the sequence's markers match the sync start position.
 	ValidateCurrentPosition(Context.GetMarkerSyncStartPosition(), bPlayingForwards, bLooping, CurrentTime, PreviousMarker, NextMarker, MirrorTable);
+
 	if (bPlayingForwards)
 	{
 		int32 PassedMarkersIndex = 0;
+
+		// Advance all next markers to follow markers passed by leader and update previous markers accordingly.
 		do
 		{
-			if (NextMarker.MarkerIndex == -1)
+			// They are no more markers ahead.
+			if (NextMarker.MarkerIndex == MarkerIndexSpecialValues::AnimationBoundary)
 			{
-				check(!bLooping || Context.GetMarkerSyncEndPosition().NextMarkerName == NAME_None); // shouldnt have an end of anim marker if looping
+				check(!bLooping || Context.GetMarkerSyncEndPosition().NextMarkerName == NAME_None); // You shouldn't have an end of anim marker if looping
 				CurrentTime = FMath::Min(CurrentTime + DeltaRemaining, GetPlayLength());
 				break;
 			}
+			// Find markers passed by group leader.
 			else if (PassedMarkersIndex < Context.MarkersPassedThisTick.Num())
 			{
-				PreviousMarker.MarkerIndex = NextMarker.MarkerIndex;
-				checkSlow(NextMarker.MarkerIndex != -1);
-				const FPassedMarker& PassedMarker = Context.MarkersPassedThisTick[PassedMarkersIndex];
-				AdvanceMarkerForwards(NextMarker.MarkerIndex, PassedMarker.PassedMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
-				if (NextMarker.MarkerIndex == -1)
+				PreviousMarker.MarkerIndex = NextMarker.MarkerIndex; 
+
+				checkSlow(NextMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary);
+				
+				// Advance our next marker to match marker passed by leader.
 				{
-					DeltaRemaining = PassedMarker.DeltaTimeWhenPassed;
+					const FPassedMarker& MarkerPassedByLeader = Context.MarkersPassedThisTick[PassedMarkersIndex];
+					
+					AdvanceMarkerForwards(NextMarker.MarkerIndex, MarkerPassedByLeader.PassedMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
+
+					// Ensure that any left over delta is handled in last iteration.
+					if (NextMarker.MarkerIndex == MarkerIndexSpecialValues::AnimationBoundary)
+					{
+						DeltaRemaining = MarkerPassedByLeader.DeltaTimeWhenPassed;
+					}
 				}
+				
 				++PassedMarkersIndex;
 			}
 		} while (PassedMarkersIndex < Context.MarkersPassedThisTick.Num());
 
-		const FMarkerSyncAnimPosition& End = Context.GetMarkerSyncEndPosition();
+		// Get sync position after group leader was ticked.
+		const FMarkerSyncAnimPosition& LeaderEndPosition = Context.GetMarkerSyncEndPosition();
+
+		// Ensure next marker is a boundary, if the group leader's next marker was one.
+		if (LeaderEndPosition.NextMarkerName == NAME_None)
+		{
+			NextMarker.MarkerIndex = MarkerIndexSpecialValues::AnimationBoundary;
+		}
 		
-		if (End.NextMarkerName == NAME_None)
+		// Ensure next marker matches leader's next marker after tick.
+		if (NextMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary && Context.MarkersPassedThisTick.Num() > 0)
 		{
-			NextMarker.MarkerIndex = -1;
+			AdvanceMarkerForwards(NextMarker.MarkerIndex, LeaderEndPosition.NextMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
 		}
 
-		if (NextMarker.MarkerIndex != -1 && Context.MarkersPassedThisTick.Num() > 0)
+		// Validation
+		if (NextMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary)
 		{
-			AdvanceMarkerForwards(NextMarker.MarkerIndex, End.NextMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
-		}
-
-		//Validation
-		if (NextMarker.MarkerIndex != -1)
-		{
-			check(MarkerOrMirroredName(AuthoredSyncMarkers[NextMarker.MarkerIndex].MarkerName, MirrorTable) == End.NextMarkerName);
+			check(MarkerOrMirroredName(AuthoredSyncMarkers[NextMarker.MarkerIndex].MarkerName, MirrorTable) == LeaderEndPosition.NextMarkerName);
 		}
 
 		// End Validation
 		// Only reset position if we found valid markers. Otherwise stay where we are to not pop.
 		if ((PreviousMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary) && (NextMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary))
 		{
-			CurrentTime = GetCurrentTimeFromMarkers(PreviousMarker, NextMarker, End.PositionBetweenMarkers);
+			CurrentTime = GetCurrentTimeFromMarkers(PreviousMarker, NextMarker, LeaderEndPosition.PositionBetweenMarkers);
 		}
 	}
 	else
 	{
 		int32 PassedMarkersIndex = 0;
+
+		// Advance all previous markers to follow markers passed by leader and update next markers accordingly.
 		do
 		{
-			if (PreviousMarker.MarkerIndex == -1)
+			// They are no more markers ahead.
+			if (PreviousMarker.MarkerIndex == MarkerIndexSpecialValues::AnimationBoundary)
 			{
-				check(!bLooping || Context.GetMarkerSyncEndPosition().PreviousMarkerName == NAME_None); // shouldn't have an end of anim marker if looping
+				check(!bLooping || Context.GetMarkerSyncEndPosition().PreviousMarkerName == NAME_None); // You shouldn't have an end of anim marker if looping.
 				CurrentTime = FMath::Max(CurrentTime + DeltaRemaining, 0.f);
 				break;
 			}
+			// Find markers passed by group leader.
 			else if (PassedMarkersIndex < Context.MarkersPassedThisTick.Num())
 			{
 				NextMarker.MarkerIndex = PreviousMarker.MarkerIndex;
-				checkSlow(PreviousMarker.MarkerIndex != -1);
-				const FPassedMarker& PassedMarker = Context.MarkersPassedThisTick[PassedMarkersIndex];
-				AdvanceMarkerBackwards(PreviousMarker.MarkerIndex, PassedMarker.PassedMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
-				if (PreviousMarker.MarkerIndex == -1)
+				
+				checkSlow(PreviousMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary);
+
+				// Advance previous marker matches marker passed by leader
 				{
-					DeltaRemaining = PassedMarker.DeltaTimeWhenPassed;
+					const FPassedMarker& MarkerPassedByLeader = Context.MarkersPassedThisTick[PassedMarkersIndex];
+
+					AdvanceMarkerBackwards(PreviousMarker.MarkerIndex, MarkerPassedByLeader.PassedMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
+
+					// Ensure that any left over delta is handled in last iteration.
+					if (PreviousMarker.MarkerIndex == MarkerIndexSpecialValues::AnimationBoundary)
+					{
+						DeltaRemaining = MarkerPassedByLeader.DeltaTimeWhenPassed;
+					}
+					
+					++PassedMarkersIndex;
 				}
-				++PassedMarkersIndex;
 			}
 		} while (PassedMarkersIndex < Context.MarkersPassedThisTick.Num());
 
-		const FMarkerSyncAnimPosition& End = Context.GetMarkerSyncEndPosition();
+		// Get sync position after group leader was ticked.
+		const FMarkerSyncAnimPosition& LeaderEndPosition = Context.GetMarkerSyncEndPosition();
 
-		if (PreviousMarker.MarkerIndex != -1 && Context.MarkersPassedThisTick.Num() > 0)
+		// Ensure previous marker is a boundary, if the group leader's was one.
+		if (LeaderEndPosition.PreviousMarkerName == NAME_None)
 		{
-			AdvanceMarkerBackwards(PreviousMarker.MarkerIndex, End.PreviousMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
+			PreviousMarker.MarkerIndex = MarkerIndexSpecialValues::AnimationBoundary;
+		}
+		
+		// Ensure previous marker match leader's previous marker after tick
+		if (PreviousMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary && Context.MarkersPassedThisTick.Num() > 0)
+		{
+			AdvanceMarkerBackwards(PreviousMarker.MarkerIndex, LeaderEndPosition.PreviousMarkerName, bLooping, AuthoredSyncMarkers, MirrorTable);
 		}
 
-		if (End.PreviousMarkerName == NAME_None)
+		// Validation
+		if (PreviousMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary)
 		{
-			PreviousMarker.MarkerIndex = -1;
-		}
-
-		//Validation
-		if (PreviousMarker.MarkerIndex != -1)
-		{
-			check(AuthoredSyncMarkers[PreviousMarker.MarkerIndex].MarkerName == End.PreviousMarkerName);
+			check(AuthoredSyncMarkers[PreviousMarker.MarkerIndex].MarkerName == LeaderEndPosition.PreviousMarkerName);
 		}
 
 		// End Validation
 		// Only reset position if we found valid markers. Otherwise stay where we are to not pop.
 		if ((PreviousMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary) && (NextMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary))
 		{
-			CurrentTime = GetCurrentTimeFromMarkers(PreviousMarker, NextMarker, End.PositionBetweenMarkers);
+			CurrentTime = GetCurrentTimeFromMarkers(PreviousMarker, NextMarker, LeaderEndPosition.PositionBetweenMarkers);
 		}
 	}
 }
@@ -4263,9 +4364,9 @@ void UAnimSequence::GetMarkerIndicesForTime(float CurrentTime, bool bLooping, co
 	const int LoopModStart = bLooping ? -1 : 0;
 	const int LoopModEnd = bLooping ? 2 : 1;
 
-	OutPrevMarker.MarkerIndex = -1;
+	OutPrevMarker.MarkerIndex = MarkerIndexSpecialValues::AnimationBoundary;
 	OutPrevMarker.TimeToMarker = -CurrentTime;
-	OutNextMarker.MarkerIndex = -1;
+	OutNextMarker.MarkerIndex = MarkerIndexSpecialValues::AnimationBoundary;
 	OutNextMarker.TimeToMarker = GetPlayLength() - CurrentTime;
 
 	for (int32 LoopMod = LoopModStart; LoopMod < LoopModEnd; ++LoopMod)
@@ -4290,7 +4391,7 @@ void UAnimSequence::GetMarkerIndicesForTime(float CurrentTime, bool bLooping, co
 				}
 			}
 		}
-		if (OutNextMarker.MarkerIndex != -1)
+		if (OutNextMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary)
 		{
 			break; // Done
 		}
@@ -4301,8 +4402,9 @@ FMarkerSyncAnimPosition UAnimSequence::GetMarkerSyncPositionFromMarkerIndicies(i
 {
 	FMarkerSyncAnimPosition SyncPosition;
 	float PrevTime, NextTime;
-	
-	if (PrevMarker != -1 && ensureAlwaysMsgf(AuthoredSyncMarkers.IsValidIndex(PrevMarker),
+
+	// Get previous marker's time and name.
+	if (PrevMarker != MarkerIndexSpecialValues::AnimationBoundary && ensureAlwaysMsgf(AuthoredSyncMarkers.IsValidIndex(PrevMarker),
 		TEXT("%s - MarkerCount: %d, PrevMarker : %d, NextMarker: %d, CurrentTime : %0.2f"), *GetFullName(), AuthoredSyncMarkers.Num(), PrevMarker, NextMarker, CurrentTime))
 	{
 		PrevTime = AuthoredSyncMarkers[PrevMarker].Time;
@@ -4313,7 +4415,8 @@ FMarkerSyncAnimPosition UAnimSequence::GetMarkerSyncPositionFromMarkerIndicies(i
 		PrevTime = 0.f;
 	}
 
-	if (NextMarker != -1 && ensureAlwaysMsgf(AuthoredSyncMarkers.IsValidIndex(NextMarker),
+	// Get next marker's time and name.
+	if (NextMarker != MarkerIndexSpecialValues::AnimationBoundary && ensureAlwaysMsgf(AuthoredSyncMarkers.IsValidIndex(NextMarker),
 		TEXT("%s - MarkerCount: %d, PrevMarker : %d, NextMarker: %d, CurrentTime : %0.2f"), *GetFullName(), AuthoredSyncMarkers.Num(), PrevMarker, NextMarker, CurrentTime))
 	{
 		NextTime = AuthoredSyncMarkers[NextMarker].Time;
@@ -4342,28 +4445,36 @@ FMarkerSyncAnimPosition UAnimSequence::GetMarkerSyncPositionFromMarkerIndicies(i
 
 	check(NextTime > PrevTime);
 
+	// Store the encoded current time position as a ratio between markers
 	SyncPosition.PositionBetweenMarkers = (CurrentTime - PrevTime) / (NextTime - PrevTime);
 	return SyncPosition;
 }
 
 float UAnimSequence::GetCurrentTimeFromMarkers(FMarkerPair& PrevMarker, FMarkerPair& NextMarker, float PositionBetweenMarkers) const
 {
-	float PrevTime = (PrevMarker.MarkerIndex != -1) ? AuthoredSyncMarkers[PrevMarker.MarkerIndex].Time : 0.f;
-	float NextTime = (NextMarker.MarkerIndex != -1) ? AuthoredSyncMarkers[NextMarker.MarkerIndex].Time : GetPlayLength();
+	// Query marker times, or start and end boundary times, respectively.
+	float PrevTime = (PrevMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary) ? AuthoredSyncMarkers[PrevMarker.MarkerIndex].Time : 0.f;
+	float NextTime = (NextMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary) ? AuthoredSyncMarkers[NextMarker.MarkerIndex].Time : GetPlayLength();
 
+	// Account for looping
 	if (PrevTime >= NextTime)
 	{
-		PrevTime -= GetPlayLength(); //Account for looping
+		PrevTime -= GetPlayLength(); 
 	}
+
+	// Compute current time given start and end marker times.
 	float CurrentTime = PrevTime + PositionBetweenMarkers * (NextTime - PrevTime);
 
+	// Compute time to reach each marker.
 	PrevMarker.TimeToMarker = PrevTime - CurrentTime;
 	NextMarker.TimeToMarker = NextTime - CurrentTime;
 
+	// Account for looping while playing backwards.
 	if (CurrentTime < 0.f)
 	{
 		CurrentTime += GetPlayLength();
 	}
+	
 	CurrentTime = FMath::Clamp<float>(CurrentTime, 0, GetPlayLength());
 
 	return CurrentTime;
@@ -4377,9 +4488,9 @@ void UAnimSequence::GetMarkerIndicesForPosition(
 	{
 		return MarkerOrMirroredName(SyncMarker.MarkerName, MirrorTable);
 	};
-
+	
 	// If we're not looping, assume we're playing a transition and we need to stay where we are.
-	// Also do this if we have no usable SyncPosition
+	// Also do this if we have no usable SyncPosition.
 	if (!bLooping || (SyncPosition.PreviousMarkerName == NAME_None && SyncPosition.NextMarkerName == NAME_None))
 	{
 		OutPrevMarker.MarkerIndex = INDEX_NONE;
@@ -4390,11 +4501,13 @@ void UAnimSequence::GetMarkerIndicesForPosition(
 			const FAnimSyncMarker& SyncMarker = AuthoredSyncMarkers[Idx];
 			const float MarkerTime = SyncMarker.Time;
 
+			// Match the position's previous marker name, and store its index.
 			if (OutCurrentTime > MarkerTime && GetMarkerName(SyncMarker) == SyncPosition.PreviousMarkerName)
 			{
 				OutPrevMarker.MarkerIndex = Idx;
 				OutPrevMarker.TimeToMarker = MarkerTime - OutCurrentTime;
 			}
+			// Match the position's next marker name, and store its index. By this point we should have found the previous marker index so we can stop searching.
 			else if (OutCurrentTime < MarkerTime && GetMarkerName(SyncMarker) == SyncPosition.NextMarkerName)
 			{
 				OutNextMarker.MarkerIndex = Idx;
@@ -4407,11 +4520,16 @@ void UAnimSequence::GetMarkerIndicesForPosition(
 		return;
 	}
 
+	// Handle case where the position's previous marker is the start boundary.
 	if (SyncPosition.PreviousMarkerName == NAME_None)
 	{
-		OutPrevMarker.MarkerIndex = -1;
+		// Make output prev marker index be the start boundary.
+		OutPrevMarker.MarkerIndex = MarkerIndexSpecialValues::AnimationBoundary;
+
+		// Our position's next marker should never be the end boundary, otherwise we dont have any sync markers at all.
 		check(SyncPosition.NextMarkerName != NAME_None);
 
+		// Find next marker index.
 		for (int32 Idx = 0; Idx < AuthoredSyncMarkers.Num(); ++Idx)
 		{
 			const FAnimSyncMarker& Marker = AuthoredSyncMarkers[Idx];
@@ -4422,15 +4540,21 @@ void UAnimSequence::GetMarkerIndicesForPosition(
 				return;
 			}
 		}
+		
 		// Should have found a marker above!
 		checkf(false, TEXT("Next Marker not found in GetMarkerIndicesForPosition. Anim: %s Expecting marker %s (Added to help debug Jira OR-9675)"), *GetName(), *SyncPosition.NextMarkerName.ToString());
 	}
 
+	// Handle case where the position's next marker is the end boundary.
 	if (SyncPosition.NextMarkerName == NAME_None)
 	{
-		OutNextMarker.MarkerIndex = -1;
+		// Make output next marker index be the end boundary.
+		OutNextMarker.MarkerIndex = MarkerIndexSpecialValues::AnimationBoundary;
+
+		// Our position's previous marker should never be the start boundary, otherwise we dont have any sync markers at all.
 		check(SyncPosition.PreviousMarkerName != NAME_None);
 
+		// Find previous marker index.
 		for (int32 Idx = AuthoredSyncMarkers.Num() - 1; Idx >= 0; --Idx)
 		{
 			const FAnimSyncMarker& Marker = AuthoredSyncMarkers[Idx];
@@ -4441,6 +4565,7 @@ void UAnimSequence::GetMarkerIndicesForPosition(
 				return;
 			}
 		}
+		
 		// Should have found a marker above!
 		checkf(false, TEXT("Previous Marker not found in GetMarkerIndicesForPosition. Anim: %s Expecting marker %s (Added to help debug Jira OR-9675)"), *GetName(), *SyncPosition.PreviousMarkerName.ToString());
 	}
@@ -4448,31 +4573,43 @@ void UAnimSequence::GetMarkerIndicesForPosition(
 	float DiffToCurrentTime = FLT_MAX;
 	const float CurrentInputTime  = OutCurrentTime;
 
+	// Handle case for looping and sync position not being on either boundary.
 	for (int32 PrevMarkerIdx = 0; PrevMarkerIdx < AuthoredSyncMarkers.Num(); ++PrevMarkerIdx)
 	{
 		const FAnimSyncMarker& PrevMarker = AuthoredSyncMarkers[PrevMarkerIdx];
+
+		// We have matched the position's previous marker name.
 		if (GetMarkerName(PrevMarker) == SyncPosition.PreviousMarkerName)
 		{
 			const int32 EndMarkerSearchStart = PrevMarkerIdx + 1;
-
 			const int32 EndCount = bLooping ? AuthoredSyncMarkers.Num() + EndMarkerSearchStart : AuthoredSyncMarkers.Num();
+			
 			for (int32 NextMarkerCount = EndMarkerSearchStart; NextMarkerCount < EndCount; ++NextMarkerCount)
 			{
 				const int32 NextMarkerIdx = NextMarkerCount % AuthoredSyncMarkers.Num();
 
+				// We have matched the position's next marker name.
 				if (GetMarkerName(AuthoredSyncMarkers[NextMarkerIdx]) == SyncPosition.NextMarkerName)
 				{
 					float NextMarkerTime = AuthoredSyncMarkers[NextMarkerIdx].Time;
+
+					// Handle case where we need to loop to get to be able to get to the next marker.
 					if (NextMarkerTime < PrevMarker.Time)
 					{
 						NextMarkerTime += GetPlayLength();
 					}
+
+					// Get current time based of sync position.
 					float ThisCurrentTime = PrevMarker.Time + SyncPosition.PositionBetweenMarkers * (NextMarkerTime - PrevMarker.Time);
+
+					// Adjust for case where we need to loop to be able to get to the next marker.
 					if (ThisCurrentTime > GetPlayLength())
 					{
 						ThisCurrentTime -= GetPlayLength();
 					}
-					float ThisDiff = FMath::Abs(ThisCurrentTime - CurrentInputTime);
+
+					// Find marker indices closest to input time position.
+					const float ThisDiff = FMath::Abs(ThisCurrentTime - CurrentInputTime);
 					if (ThisDiff < DiffToCurrentTime)
 					{
 						DiffToCurrentTime = ThisDiff;
@@ -4481,14 +4618,14 @@ void UAnimSequence::GetMarkerIndicesForPosition(
 						OutCurrentTime = GetCurrentTimeFromMarkers(OutPrevMarker, OutNextMarker, SyncPosition.PositionBetweenMarkers);
 					}
 
-					// this marker test is done, move onto next one
+					// This marker test is done, move onto next one.
 					break;
 				}
 			}
 
 			// If we get here and we haven't found a match and we are not looping then there 
 			// is no point running the rest of the loop set up something as relevant as we can and carry on
-			if (OutPrevMarker.MarkerIndex == MarkerIndexSpecialValues::Unitialized)
+			if (OutPrevMarker.MarkerIndex == MarkerIndexSpecialValues::Uninitialized)
 			{
 				//Find nearest previous marker that is earlier than our current time
 				DiffToCurrentTime = OutCurrentTime - PrevMarker.Time;
@@ -4507,9 +4644,10 @@ void UAnimSequence::GetMarkerIndicesForPosition(
 			}
 		}
 	}
+	
 	// Should have found a markers above!
-	checkf(OutPrevMarker.MarkerIndex != MarkerIndexSpecialValues::Unitialized, TEXT("Prev Marker not found in GetMarkerIndicesForPosition. Anim: %s Expecting marker %s (Added to help debug Jira OR-9675)"), *GetName(), *SyncPosition.PreviousMarkerName.ToString());
-	checkf(OutNextMarker.MarkerIndex != MarkerIndexSpecialValues::Unitialized, TEXT("Next Marker not found in GetMarkerIndicesForPosition. Anim: %s Expecting marker %s (Added to help debug Jira OR-9675)"), *GetName(), *SyncPosition.NextMarkerName.ToString());
+	checkf(OutPrevMarker.MarkerIndex != MarkerIndexSpecialValues::Uninitialized, TEXT("Prev Marker not found in GetMarkerIndicesForPosition. Anim: %s Expecting marker %s (Added to help debug Jira OR-9675)"), *GetName(), *SyncPosition.PreviousMarkerName.ToString());
+	checkf(OutNextMarker.MarkerIndex != MarkerIndexSpecialValues::Uninitialized, TEXT("Next Marker not found in GetMarkerIndicesForPosition. Anim: %s Expecting marker %s (Added to help debug Jira OR-9675)"), *GetName(), *SyncPosition.NextMarkerName.ToString());
 }
 
 float UAnimSequence::GetFirstMatchingPosFromMarkerSyncPos(const FMarkerSyncAnimPosition& InMarkerSyncGroupPosition) const

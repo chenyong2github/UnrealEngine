@@ -48,10 +48,16 @@ void FAnimSync::AddTickRecord(const FAnimTickRecord& InTickRecord, const FAnimSy
 {
 	if (InSyncParams.GroupName != NAME_None)
 	{
+		// Get specified sync group for the animation instance. 
 		FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupWriteIndex()];
 		FAnimGroupInstance& SyncGroupInstance = SyncGroupMap.FindOrAdd(InSyncParams.GroupName);
+
+		// Add animation instance's tick record to the sync group. 
 		SyncGroupInstance.ActivePlayers.Add(InTickRecord);
 		SyncGroupInstance.ActivePlayers.Top().MirrorDataTable = MirrorDataTable;
+
+		// Set leader score for the tick record we just added, and ensure there is only one montage per group.
+		// CanBeLeader or TransitionLeader Score (BlendWeight) < Always Leader Score (2.0) < Montage Leader Score (3.0).
 		SyncGroupInstance.TestTickRecordForLeadership(InSyncParams.Role);
 	}
 	else
@@ -72,6 +78,7 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 
 	SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstances);
 
+	// Helper function to accumulate the root motion of a tick record.
 	auto AccumulateRootMotion = [&InProxy](FAnimTickRecord& TickRecord, FAnimAssetTickContext& TickContext)
 	{
 		if (TickRecord.MirrorDataTable)
@@ -95,190 +102,251 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 
 	const ERootMotionMode::Type RootMotionMode = InProxy.GetRootMotionMode();
 
-	// Handle all players inside sync groups
-	FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupWriteIndex()];
-	const FSyncGroupMap& PreviousSyncGroupMap = SyncGroupMaps[GetSyncGroupReadIndex()];
-	TArray<FAnimTickRecord>& UngroupedActivePlayers = UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()];
-	const TArray<FAnimTickRecord>& PreviousUngroupedActivePlayers = UngroupedActivePlayerArrays[GetSyncGroupReadIndex()];
-
-	for (auto& SyncGroupPair : SyncGroupMap)
+	// Tick grouped animation instances.
 	{
-		FAnimGroupInstance& SyncGroup = SyncGroupPair.Value;
-	
-		if (SyncGroup.ActivePlayers.Num() > 0)
+		FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupWriteIndex()];
+		const FSyncGroupMap& PreviousSyncGroupMap = SyncGroupMaps[GetSyncGroupReadIndex()];
+		
+		// Handle animation players inside group instances.
+		for (TTuple<FName, FAnimGroupInstance>& SyncGroupPair : SyncGroupMap)
 		{
-			const FAnimGroupInstance* PreviousGroup = PreviousSyncGroupMap.Find(SyncGroupPair.Key);
-			SyncGroup.Prepare(PreviousGroup);
+			FAnimGroupInstance& SyncGroup = SyncGroupPair.Value;
 
-			UE_LOG(LogAnimMarkerSync, Log, TEXT("Ticking Group [%s] GroupLeader [%d]"), *SyncGroupPair.Key.ToString(), SyncGroup.GroupLeaderIndex);
-
-			const bool bOnlyOneAnimationInGroup = SyncGroup.ActivePlayers.Num() == 1;
-
-			// Tick the group leader
-			FAnimAssetTickContext TickContext(InDeltaSeconds, RootMotionMode, bOnlyOneAnimationInGroup, SyncGroup.ValidMarkers);
-			if (PreviousGroup)
+			if (SyncGroup.ActivePlayers.Num() > 0)
 			{
-				// Initialize the anim position ratio from the previous frame's final anim position ratio in case we're not using marker based sync
-				TickContext.SetPreviousAnimationPositionRatio(PreviousGroup->AnimLengthRatio);
-				TickContext.SetAnimationPositionRatio(PreviousGroup->AnimLengthRatio);
+				const FAnimGroupInstance* PreviousGroup = PreviousSyncGroupMap.Find(SyncGroupPair.Key);
 
-				const FMarkerSyncAnimPosition& EndPosition = PreviousGroup->MarkerTickContext.GetMarkerSyncEndPosition();
-				if ( EndPosition.IsValid() &&
-						(EndPosition.PreviousMarkerName == NAME_None || SyncGroup.ValidMarkers.Contains(EndPosition.PreviousMarkerName)) &&
-						(EndPosition.NextMarkerName == NAME_None || SyncGroup.ValidMarkers.Contains(EndPosition.NextMarkerName)))
+				// Prepare sync group.
+				// This is where our asset players in the group are sorted based on a leader score, and tick record are reset if needed.
+				// Additionally, any markers that are not common to all animations in group are removed.
+				SyncGroup.Prepare(PreviousGroup);
+
+				UE_LOG(LogAnimMarkerSync, Log, TEXT("Ticking Group [%s] GroupLeader [%d]"), *SyncGroupPair.Key.ToString(), SyncGroup.GroupLeaderIndex);
+
+				// Determine if we have a single animation context.
+				const bool bOnlyOneAnimationInGroup = SyncGroup.ActivePlayers.Num() == 1;
+
+				// Animation context for group. (Modified by leader, read by followers)
+				FAnimAssetTickContext TickContext(InDeltaSeconds, RootMotionMode, bOnlyOneAnimationInGroup, SyncGroup.ValidMarkers);
+
+				// Initialize group context using previous update's group information.
+				if (PreviousGroup)
 				{
-					TickContext.MarkerTickContext.SetMarkerSyncStartPosition(EndPosition);
+					// Initialize the anim position ratio from the previous frame's final anim position ratio in case we're not using marker based sync.
+					TickContext.SetPreviousAnimationPositionRatio(PreviousGroup->AnimLengthRatio);
+					TickContext.SetAnimationPositionRatio(PreviousGroup->AnimLengthRatio);
+					
+					// Continue from where previous group marker-based sync left off, use its end sync position as our new start sync position. 
+					const FMarkerSyncAnimPosition& EndPosition = PreviousGroup->MarkerTickContext.GetMarkerSyncEndPosition();
+					if (EndPosition.IsValid() && (EndPosition.PreviousMarkerName == NAME_None || SyncGroup.ValidMarkers.Contains(EndPosition.PreviousMarkerName))
+					                          && (EndPosition.NextMarkerName == NAME_None || SyncGroup.ValidMarkers.Contains(EndPosition.NextMarkerName)))
+					{
+						TickContext.MarkerTickContext.SetMarkerSyncStartPosition(EndPosition);
+					}
 				}
-			}
 
 #if DO_CHECK
-			//For debugging UE-54705
-			FName InitialMarkerPrevious = TickContext.MarkerTickContext.GetMarkerSyncStartPosition().PreviousMarkerName;
-			FName InitialMarkerEnd = TickContext.MarkerTickContext.GetMarkerSyncStartPosition().NextMarkerName;
-			const bool bIsLeaderRecordValidPre = SyncGroup.ActivePlayers[0].MarkerTickRecord->IsValid(SyncGroup.ActivePlayers[0].bLooping);
-			FMarkerTickRecord LeaderPreMarkerTickRecord = *SyncGroup.ActivePlayers[0].MarkerTickRecord;
+				//For debugging UE-54705
+				FName InitialMarkerPrevious = TickContext.MarkerTickContext.GetMarkerSyncStartPosition().PreviousMarkerName;
+				FName InitialMarkerEnd = TickContext.MarkerTickContext.GetMarkerSyncStartPosition().NextMarkerName;
+				const bool bIsLeaderRecordValidPre = SyncGroup.ActivePlayers[0].MarkerTickRecord->IsValid(SyncGroup.ActivePlayers[0].bLooping);
+				FMarkerTickRecord LeaderPreMarkerTickRecord = *SyncGroup.ActivePlayers[0].MarkerTickRecord;
 #endif
 
-			// initialize to invalidate first
-			ensureMsgf(SyncGroup.GroupLeaderIndex == INDEX_NONE, TEXT("SyncGroup %s had a non -1 group leader index of %d in asset %s"), *SyncGroupPair.Key.ToString(), SyncGroup.GroupLeaderIndex, *GetNameSafe(InProxy.GetAnimInstanceObject()));
-			int32 GroupLeaderIndex = 0;
-			for (; GroupLeaderIndex < SyncGroup.ActivePlayers.Num(); ++GroupLeaderIndex)
-			{
-				FAnimTickRecord& GroupLeader = SyncGroup.ActivePlayers[GroupLeaderIndex];
-				// if it has leader score
-				SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
-				FScopeCycleCounterUObject Scope(GroupLeader.SourceAsset);
+				// Initialize with sync group leader being invalid first.
+				ensureMsgf(SyncGroup.GroupLeaderIndex == INDEX_NONE, TEXT("SyncGroup %s had a non -1 group leader index of %d in asset %s"), *SyncGroupPair.Key.ToString(), SyncGroup.GroupLeaderIndex, *GetNameSafe(InProxy.GetAnimInstanceObject()));
 				
-				// Inertialization was requested therefore we resync to previous leader, if needed.
-				if (GroupLeader.bRequestedInertialization)
+				// Tick group leader, and try to find a new one in case the current one has an invalid position.
+				int32 GroupLeaderIndex = 0;
+				for (; GroupLeaderIndex < SyncGroup.ActivePlayers.Num(); ++GroupLeaderIndex)
 				{
-					// Ensure we have a previous group leader to sync to otherwise we play normally. 
-					if (PreviousGroup && !PreviousGroup->ActivePlayers.IsEmpty())
-					{
-						// Only need to resync when using length based syncing since we initialized the tick context with the previous group's sync end position
-						// and that will take care of marker based syncing.
-						if (!TickContext.CanUseMarkerPosition() || !(PreviousGroup->ValidMarkers.Num() > 0))
-						{
-							const FAnimTickRecord & PreviousGroupLeader = PreviousGroup->ActivePlayers[PreviousGroup->GroupLeaderIndex];
-							const bool bShouldResyncToSyncGroup = PreviousGroupLeader.LeaderScore >= GroupLeader.LeaderScore;
+					FAnimTickRecord& GroupLeader = SyncGroup.ActivePlayers[GroupLeaderIndex];
+					// if it has leader score
+					SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
+					FScopeCycleCounterUObject Scope(GroupLeader.SourceAsset);
 
-							// Sync to previous group leader if we have a lower score than them.
-							TickContext.SetResyncToSyncGroup(bShouldResyncToSyncGroup);
+					// Inertialization was requested therefore we resync to previous leader, if needed.
+                    if (GroupLeader.bRequestedInertialization)
+                    {
+                    	// Ensure we have a previous group leader to sync to otherwise we play normally. 
+                    	if (PreviousGroup && !PreviousGroup->ActivePlayers.IsEmpty())
+                    	{
+                    		// Only need to resync when using length based syncing since we initialized the tick context with the previous group's sync end position
+                    		// and that will take care of marker based syncing.
+                    		if (!TickContext.CanUseMarkerPosition() || !(PreviousGroup->ValidMarkers.Num() > 0))
+                    		{
+                    			const FAnimTickRecord & PreviousGroupLeader = PreviousGroup->ActivePlayers[PreviousGroup->GroupLeaderIndex];
+                    			const bool bShouldResyncToSyncGroup = PreviousGroupLeader.LeaderScore >= GroupLeader.LeaderScore;
+                
+                    			// Sync to previous group leader if we have a lower score than them.
+                    			TickContext.SetResyncToSyncGroup(bShouldResyncToSyncGroup);
+                    		}
+                    	}
+                    }
+
+					// Tick group leader's asset.
+					TickContext.MarkerTickContext.MarkersPassedThisTick.Reset();
+					TickContext.RootMotionMovementParams.Clear();
+					GroupLeader.SourceAsset->TickAssetPlayer(GroupLeader, InProxy.NotifyQueue, TickContext);
+
+					// Accumulate root motion if possible.
+					if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
+					{
+						AccumulateRootMotion(GroupLeader, TickContext);
+					}
+
+					// If we're not using marker based sync, we don't care, update and get out.
+					if (TickContext.CanUseMarkerPosition() == false)
+					{
+						SyncGroup.PreviousAnimLengthRatio = TickContext.GetPreviousAnimationPositionRatio();
+						SyncGroup.AnimLengthRatio = TickContext.GetAnimationPositionRatio();
+						SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
+						break;
+					}
+					// Otherwise, the new position should contain the valid position for end, otherwise, we don't know where to sync to.
+					else if (TickContext.MarkerTickContext.IsMarkerSyncEndValid())
+					{
+						// If this leader contains correct position, break
+						SyncGroup.PreviousAnimLengthRatio = TickContext.GetPreviousAnimationPositionRatio();
+						SyncGroup.AnimLengthRatio = TickContext.GetAnimationPositionRatio();
+						SyncGroup.MarkerTickContext = TickContext.MarkerTickContext;
+						SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
+						UE_LOG(LogAnimMarkerSync, Log, TEXT("Previous Sync Group Marker Tick Context :\n%s"), *SyncGroup.MarkerTickContext.ToString());
+						UE_LOG(LogAnimMarkerSync, Log, TEXT("New Sync Group Marker Tick Context :\n%s"), *TickContext.MarkerTickContext.ToString());
+						break;
+					}
+					// We have an invalid sync end position, keep searching for a valid leader.
+					else
+					{
+						SyncGroup.PreviousAnimLengthRatio = TickContext.GetPreviousAnimationPositionRatio();
+						SyncGroup.AnimLengthRatio = TickContext.GetAnimationPositionRatio();
+						SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
+						UE_LOG(LogAnimMarkerSync, Log, TEXT("Invalid position from Leader %d. Trying next leader"), GroupLeaderIndex);
+					}
+				} 
+
+				check(SyncGroup.GroupLeaderIndex != INDEX_NONE);
+			
+				// By this point we have found a valid group leader candidate.
+
+				// Finalize sync group.
+				// This is where the followers tick records are reset if the needed. 
+				SyncGroup.Finalize(PreviousGroup);
+
+				// Ensure group leader's markers are valid, otherwise invalidate marker-based syncing for followers.
+				if (TickContext.CanUseMarkerPosition())
+				{
+					const FMarkerSyncAnimPosition& MarkerStart = TickContext.MarkerTickContext.GetMarkerSyncStartPosition();
+					FName SyncGroupName = SyncGroupPair.Key;
+					FAnimTickRecord& GroupLeader = SyncGroup.ActivePlayers[SyncGroup.GroupLeaderIndex];
+					FString LeaderAnimName = GroupLeader.SourceAsset->GetName();
+
+					//  Updated logic in search for cause of UE-54705
+					const bool bStartMarkerValid = (MarkerStart.PreviousMarkerName == NAME_None) || SyncGroup.ValidMarkers.Contains(MarkerStart.PreviousMarkerName);
+					const bool bEndMarkerValid = (MarkerStart.NextMarkerName == NAME_None) || SyncGroup.ValidMarkers.Contains(MarkerStart.NextMarkerName);
+
+					if (!bStartMarkerValid)
+					{
+#if DO_CHECK
+						FString ErrorMsg = FString(TEXT("Prev Marker name not valid for sync group.\n"));
+						ErrorMsg += FString::Format(TEXT("\tMarker {0} : SyncGroupName {1} : Leader {2}\n"), { MarkerStart.PreviousMarkerName.ToString(), SyncGroupName.ToString(), LeaderAnimName });
+						ErrorMsg += FString::Format(TEXT("\tInitalPrev {0} : InitialNext {1} : GroupLeaderIndex {2}\n"), { InitialMarkerPrevious.ToString(), InitialMarkerEnd.ToString(), GroupLeaderIndex });
+						ErrorMsg += FString::Format(TEXT("\tLeader (0 index) was originally valid: {0} | Record: {1}\n"), { bIsLeaderRecordValidPre, LeaderPreMarkerTickRecord.ToString() });
+						ErrorMsg += FString::Format(TEXT("\t Valid Markers : {0}\n"), { SyncGroup.ValidMarkers.Num() });
+						for (int32 MarkerIndex = 0; MarkerIndex < SyncGroup.ValidMarkers.Num(); ++MarkerIndex)
+						{
+							ErrorMsg += FString::Format(TEXT("\t\t{0}) '{1}'\n"), {MarkerIndex, SyncGroup.ValidMarkers[MarkerIndex].ToString()});
+						}
+						ensureMsgf(false, TEXT("%s"), *ErrorMsg);
+#endif
+						TickContext.InvalidateMarkerSync();
+					}
+					else if (!bEndMarkerValid)
+					{
+#if DO_CHECK
+						FString ErrorMsg = FString(TEXT("Next Marker name not valid for sync group.\n"));
+						ErrorMsg += FString::Format(TEXT("\tMarker {0} : SyncGroupName {1} : Leader {2}\n"), { MarkerStart.NextMarkerName.ToString(), SyncGroupName.ToString(), LeaderAnimName });
+						ErrorMsg += FString::Format(TEXT("\tInitalPrev {0} : InitialNext {1} : GroupLeaderIndex {2}\n"), { InitialMarkerPrevious.ToString(), InitialMarkerEnd.ToString(), GroupLeaderIndex });
+						ErrorMsg += FString::Format(TEXT("\tLeader (0 index) was originally valid: {0} | Record: {1}\n"), { bIsLeaderRecordValidPre, LeaderPreMarkerTickRecord.ToString() });
+						ErrorMsg += FString::Format(TEXT("\t Valid Markers : {0}\n"), { SyncGroup.ValidMarkers.Num() });
+						for (int32 MarkerIndex = 0; MarkerIndex < SyncGroup.ValidMarkers.Num(); ++MarkerIndex)
+						{
+							ErrorMsg += FString::Format(TEXT("\t\t{0}) '{1}'\n"), { MarkerIndex, SyncGroup.ValidMarkers[MarkerIndex].ToString() });
+						}
+						ensureMsgf(false, TEXT("%s"), *ErrorMsg);
+#endif
+						TickContext.InvalidateMarkerSync();
+					}
+				}
+
+				// Update everything else to follow the leader, if there is more followers
+				if (SyncGroup.ActivePlayers.Num() > GroupLeaderIndex + 1)
+				{
+					// if we don't have a good leader, no reason to convert to follower
+                    // tick as leader
+					TickContext.ConvertToFollower();
+
+					for (int32 TickIndex = GroupLeaderIndex + 1; TickIndex < SyncGroup.ActivePlayers.Num(); ++TickIndex)
+					{
+						// Tick follower's asset player.
+						FAnimTickRecord& AssetPlayer = SyncGroup.ActivePlayers[TickIndex];
+						{
+							SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
+							FScopeCycleCounterUObject Scope(AssetPlayer.SourceAsset);
+							
+							TickContext.SetResyncToSyncGroup(AssetPlayer.bRequestedInertialization);
+							TickContext.RootMotionMovementParams.Clear();
+							
+							AssetPlayer.SourceAsset->TickAssetPlayer(AssetPlayer, InProxy.NotifyQueue, TickContext);
+						}
+					
+						// Accumulate root motion if possible.
+						if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
+						{
+							AccumulateRootMotion(AssetPlayer, TickContext);
 						}
 					}
 				}
-				
-				TickContext.MarkerTickContext.MarkersPassedThisTick.Reset();
-				TickContext.RootMotionMovementParams.Clear();
-				GroupLeader.SourceAsset->TickAssetPlayer(GroupLeader, InProxy.NotifyQueue, TickContext);
 
-				if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
+#if ANIM_TRACE_ENABLED
+				for(const FPassedMarker& PassedMarker : TickContext.MarkerTickContext.MarkersPassedThisTick)
 				{
-					AccumulateRootMotion(GroupLeader, TickContext);
+					TRACE_ANIM_SYNC_MARKER(CastChecked<UAnimInstance>(InProxy.GetAnimInstanceObject()), PassedMarker);
 				}
+#endif
+			}
+		}
+	}
 
-				// if we're not using marker based sync, we don't care, get out
-				if (TickContext.CanUseMarkerPosition() == false)
-				{
-					SyncGroup.PreviousAnimLengthRatio = TickContext.GetPreviousAnimationPositionRatio();
-					SyncGroup.AnimLengthRatio = TickContext.GetAnimationPositionRatio();
-					SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
-					break;
-				}
-				// otherwise, the new position should contain the valid position for end, otherwise, we don't know where to sync to
-				else if (TickContext.MarkerTickContext.IsMarkerSyncEndValid())
-				{
-					// if this leader contains correct position, break
-					SyncGroup.PreviousAnimLengthRatio = TickContext.GetPreviousAnimationPositionRatio();
-					SyncGroup.AnimLengthRatio = TickContext.GetAnimationPositionRatio();
-					SyncGroup.MarkerTickContext = TickContext.MarkerTickContext;
-					SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
-					UE_LOG(LogAnimMarkerSync, Log, TEXT("Previous Sync Group Marker Tick Context :\n%s"), *SyncGroup.MarkerTickContext.ToString());
-					UE_LOG(LogAnimMarkerSync, Log, TEXT("New Sync Group Marker Tick Context :\n%s"), *TickContext.MarkerTickContext.ToString());
-					break;
-				}
-				else
-				{
-					SyncGroup.PreviousAnimLengthRatio = TickContext.GetPreviousAnimationPositionRatio();
-					SyncGroup.AnimLengthRatio = TickContext.GetAnimationPositionRatio();
-					SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
-					UE_LOG(LogAnimMarkerSync, Log, TEXT("Invalid position from Leader %d. Trying next leader"), GroupLeaderIndex);
-				}
-			} 
+	// Tick ungrouped animation instances.
+	{
+		TArray<FAnimTickRecord>& UngroupedActivePlayers = UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()];
+		const TArray<FAnimTickRecord>& PreviousUngroupedActivePlayers = UngroupedActivePlayerArrays[GetSyncGroupReadIndex()];
+		
+		// Handle ungrouped animation asset players.
+		for (int32 TickIndex = 0; TickIndex < UngroupedActivePlayers.Num(); ++TickIndex)
+		{
+			FAnimTickRecord& AssetPlayerToTick = UngroupedActivePlayers[TickIndex];
 
-			check(SyncGroup.GroupLeaderIndex != INDEX_NONE);
-			// we found leader
-			SyncGroup.Finalize(PreviousGroup);
+			// Get marker names.
+			const TArray<FName>* UniqueNames = AssetPlayerToTick.SourceAsset->GetUniqueMarkerNames();
+			const TArray<FName>& ValidMarkers = UniqueNames ? *UniqueNames : FMarkerTickContext::DefaultMarkerNames;
 
-			if (TickContext.CanUseMarkerPosition())
+			// Single animation context used for ticking.
+			const bool bOnlyOneAnimationInGroup = true;
+			FAnimAssetTickContext TickContext(InDeltaSeconds, RootMotionMode, bOnlyOneAnimationInGroup, ValidMarkers);
+
+			// Tick asset player.
 			{
-				const FMarkerSyncAnimPosition& MarkerStart = TickContext.MarkerTickContext.GetMarkerSyncStartPosition();
-				FName SyncGroupName = SyncGroupPair.Key;
-				FAnimTickRecord& GroupLeader = SyncGroup.ActivePlayers[SyncGroup.GroupLeaderIndex];
-				FString LeaderAnimName = GroupLeader.SourceAsset->GetName();
-
-				//  Updated logic in search for cause of UE-54705
-				const bool bStartMarkerValid = (MarkerStart.PreviousMarkerName == NAME_None) || SyncGroup.ValidMarkers.Contains(MarkerStart.PreviousMarkerName);
-				const bool bEndMarkerValid = (MarkerStart.NextMarkerName == NAME_None) || SyncGroup.ValidMarkers.Contains(MarkerStart.NextMarkerName);
-
-				if (!bStartMarkerValid)
-				{
-#if DO_CHECK
-					FString ErrorMsg = FString(TEXT("Prev Marker name not valid for sync group.\n"));
-					ErrorMsg += FString::Format(TEXT("\tMarker {0} : SyncGroupName {1} : Leader {2}\n"), { MarkerStart.PreviousMarkerName.ToString(), SyncGroupName.ToString(), LeaderAnimName });
-					ErrorMsg += FString::Format(TEXT("\tInitalPrev {0} : InitialNext {1} : GroupLeaderIndex {2}\n"), { InitialMarkerPrevious.ToString(), InitialMarkerEnd.ToString(), GroupLeaderIndex });
-					ErrorMsg += FString::Format(TEXT("\tLeader (0 index) was originally valid: {0} | Record: {1}\n"), { bIsLeaderRecordValidPre, LeaderPreMarkerTickRecord.ToString() });
-					ErrorMsg += FString::Format(TEXT("\t Valid Markers : {0}\n"), { SyncGroup.ValidMarkers.Num() });
-					for (int32 MarkerIndex = 0; MarkerIndex < SyncGroup.ValidMarkers.Num(); ++MarkerIndex)
-					{
-						ErrorMsg += FString::Format(TEXT("\t\t{0}) '{1}'\n"), {MarkerIndex, SyncGroup.ValidMarkers[MarkerIndex].ToString()});
-					}
-					ensureMsgf(false, TEXT("%s"), *ErrorMsg);
-#endif
-					TickContext.InvalidateMarkerSync();
-				}
-				else if (!bEndMarkerValid)
-				{
-#if DO_CHECK
-					FString ErrorMsg = FString(TEXT("Next Marker name not valid for sync group.\n"));
-					ErrorMsg += FString::Format(TEXT("\tMarker {0} : SyncGroupName {1} : Leader {2}\n"), { MarkerStart.NextMarkerName.ToString(), SyncGroupName.ToString(), LeaderAnimName });
-					ErrorMsg += FString::Format(TEXT("\tInitalPrev {0} : InitialNext {1} : GroupLeaderIndex {2}\n"), { InitialMarkerPrevious.ToString(), InitialMarkerEnd.ToString(), GroupLeaderIndex });
-					ErrorMsg += FString::Format(TEXT("\tLeader (0 index) was originally valid: {0} | Record: {1}\n"), { bIsLeaderRecordValidPre, LeaderPreMarkerTickRecord.ToString() });
-					ErrorMsg += FString::Format(TEXT("\t Valid Markers : {0}\n"), { SyncGroup.ValidMarkers.Num() });
-					for (int32 MarkerIndex = 0; MarkerIndex < SyncGroup.ValidMarkers.Num(); ++MarkerIndex)
-					{
-						ErrorMsg += FString::Format(TEXT("\t\t{0}) '{1}'\n"), { MarkerIndex, SyncGroup.ValidMarkers[MarkerIndex].ToString() });
-					}
-					ensureMsgf(false, TEXT("%s"), *ErrorMsg);
-#endif
-					TickContext.InvalidateMarkerSync();
-				}
+				SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
+				FScopeCycleCounterUObject Scope(AssetPlayerToTick.SourceAsset);
+				AssetPlayerToTick.SourceAsset->TickAssetPlayer(AssetPlayerToTick, InProxy.NotifyQueue, TickContext);
 			}
 
-			// Update everything else to follow the leader, if there is more followers
-			if (SyncGroup.ActivePlayers.Num() > GroupLeaderIndex + 1)
+			// Accumulate root motion if possible.
+			if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
 			{
-				// if we don't have a good leader, no reason to convert to follower
-				// tick as leader
-				TickContext.ConvertToFollower();
-
-				for (int32 TickIndex = GroupLeaderIndex + 1; TickIndex < SyncGroup.ActivePlayers.Num(); ++TickIndex)
-				{
-					FAnimTickRecord& AssetPlayer = SyncGroup.ActivePlayers[TickIndex];
-					{
-						SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
-						FScopeCycleCounterUObject Scope(AssetPlayer.SourceAsset);
-						
-						TickContext.SetResyncToSyncGroup(AssetPlayer.bRequestedInertialization);
-						TickContext.RootMotionMovementParams.Clear();
-						
-						AssetPlayer.SourceAsset->TickAssetPlayer(AssetPlayer, InProxy.NotifyQueue, TickContext);
-					}
-					if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
-					{
-						AccumulateRootMotion(AssetPlayer, TickContext);
-					}
-				}
+				AccumulateRootMotion(AssetPlayerToTick, TickContext);
 			}
 
 #if ANIM_TRACE_ENABLED
@@ -290,34 +358,7 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 		}
 	}
 	
-	// Handle the remaining ungrouped animation players
-	for (int32 TickIndex = 0; TickIndex < UngroupedActivePlayers.Num(); ++TickIndex)
-	{
-		FAnimTickRecord& AssetPlayerToTick = UngroupedActivePlayers[TickIndex];
-		const TArray<FName>* UniqueNames = AssetPlayerToTick.SourceAsset->GetUniqueMarkerNames();
-		const TArray<FName>& ValidMarkers = UniqueNames ? *UniqueNames : FMarkerTickContext::DefaultMarkerNames;
-
-		const bool bOnlyOneAnimationInGroup = true;
-		FAnimAssetTickContext TickContext(InDeltaSeconds, RootMotionMode, bOnlyOneAnimationInGroup, ValidMarkers);
-		{
-			SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
-			FScopeCycleCounterUObject Scope(AssetPlayerToTick.SourceAsset);
-			AssetPlayerToTick.SourceAsset->TickAssetPlayer(AssetPlayerToTick, InProxy.NotifyQueue, TickContext);
-		}
-		if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
-		{
-			AccumulateRootMotion(AssetPlayerToTick, TickContext);
-		}
-
-#if ANIM_TRACE_ENABLED
-		for(const FPassedMarker& PassedMarker : TickContext.MarkerTickContext.MarkersPassedThisTick)
-		{
-			TRACE_ANIM_SYNC_MARKER(CastChecked<UAnimInstance>(InProxy.GetAnimInstanceObject()), PassedMarker);
-		}
-#endif
-	}
-
-	// Flip buffers now we have ticked
+	// Flip buffers now that we have ticked.
 	TickSyncGroupWriteIndex();
 }
 

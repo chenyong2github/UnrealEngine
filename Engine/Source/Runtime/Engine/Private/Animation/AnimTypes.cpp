@@ -192,10 +192,10 @@ void FMarkerSyncData::GetMarkerIndicesForTime(float CurrentTime, bool bLooping, 
 {
 	const int LoopModStart = bLooping ? -1 : 0;
 	const int LoopModEnd = bLooping ? 2 : 1;
-
-	OutPrevMarker.MarkerIndex = -1;
+	
+	OutPrevMarker.MarkerIndex = MarkerIndexSpecialValues::AnimationBoundary;
 	OutPrevMarker.TimeToMarker = -CurrentTime;
-	OutNextMarker.MarkerIndex = -1;
+	OutNextMarker.MarkerIndex = MarkerIndexSpecialValues::AnimationBoundary;
 	OutNextMarker.TimeToMarker = SequenceLength - CurrentTime;
 
 	for (int32 LoopMod = LoopModStart; LoopMod < LoopModEnd; ++LoopMod)
@@ -220,7 +220,9 @@ void FMarkerSyncData::GetMarkerIndicesForTime(float CurrentTime, bool bLooping, 
 				}
 			}
 		}
-		if (OutNextMarker.MarkerIndex != -1)
+
+		// Continue looking for an authored next sync marker.
+		if (OutNextMarker.MarkerIndex != MarkerIndexSpecialValues::AnimationBoundary)
 		{
 			break; // Done
 		}
@@ -237,7 +239,8 @@ FMarkerSyncAnimPosition FMarkerSyncData::GetMarkerSyncPositionFromMarkerIndicies
 	FMarkerSyncAnimPosition SyncPosition;
 	float PrevTime, NextTime;
 
-	if (PrevMarker != -1)
+	// Get previous marker's time and name.
+	if (PrevMarker != MarkerIndexSpecialValues::AnimationBoundary && AuthoredSyncMarkers.IsValidIndex(PrevMarker))
 	{
 		PrevTime = AuthoredSyncMarkers[PrevMarker].Time;
 		SyncPosition.PreviousMarkerName = AuthoredSyncMarkers[PrevMarker].MarkerName;
@@ -255,7 +258,8 @@ FMarkerSyncAnimPosition FMarkerSyncData::GetMarkerSyncPositionFromMarkerIndicies
 		PrevTime = 0.f;
 	}
 
-	if (NextMarker != -1)
+	// Get next marker's time and name.
+	if (NextMarker != MarkerIndexSpecialValues::AnimationBoundary && AuthoredSyncMarkers.IsValidIndex(NextMarker))
 	{
 		NextTime = AuthoredSyncMarkers[NextMarker].Time;
 		SyncPosition.NextMarkerName = AuthoredSyncMarkers[NextMarker].MarkerName;
@@ -274,9 +278,16 @@ FMarkerSyncAnimPosition FMarkerSyncData::GetMarkerSyncPositionFromMarkerIndicies
 	}
 
 	// Account for looping
-	PrevTime = (PrevTime > CurrentTime) ? PrevTime - SequenceLength : PrevTime;
-	NextTime = (NextTime < CurrentTime) ? NextTime + SequenceLength : NextTime;
-
+	if (PrevTime > NextTime)
+	{
+		PrevTime = (PrevTime > CurrentTime) ? PrevTime - SequenceLength : PrevTime;
+		NextTime = (NextTime < CurrentTime) ? NextTime + SequenceLength : NextTime;
+	}
+	else if (PrevTime > CurrentTime)
+	{
+		CurrentTime += SequenceLength;
+	}
+	
 	if (PrevTime == NextTime)
 	{
 		PrevTime -= SequenceLength;
@@ -284,6 +295,7 @@ FMarkerSyncAnimPosition FMarkerSyncData::GetMarkerSyncPositionFromMarkerIndicies
 
 	check(NextTime > PrevTime);
 
+	// Store the encoded current time position as a ratio between markers.
 	SyncPosition.PositionBetweenMarkers = (CurrentTime - PrevTime) / (NextTime - PrevTime);
 	return SyncPosition;
 }

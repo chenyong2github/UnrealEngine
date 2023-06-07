@@ -662,7 +662,7 @@ class UAnimMontage : public UAnimCompositeBase
 	UPROPERTY(EditAnywhere, Category = SyncGroup)
 	FName SyncGroup;
 
-	/** wip: until we have UI working */
+	/** Index of the slot track used for collecting sync markers */
 	UPROPERTY(EditAnywhere, Category = SyncGroup)
 	int32 SyncSlotIndex;
 

@@ -46,7 +46,7 @@ namespace MarkerIndexSpecialValues
 {
 	enum Type
 	{
-		Unitialized = -2,
+		Uninitialized = -2,
 		AnimationBoundary = -1,
 	};
 };
@@ -56,9 +56,9 @@ struct FMarkerPair
 	int32 MarkerIndex;
 	float TimeToMarker;
 
-	FMarkerPair() : MarkerIndex(MarkerIndexSpecialValues::Unitialized) {}
+	FMarkerPair() : MarkerIndex(MarkerIndexSpecialValues::Uninitialized) {}
 
-	void Reset() { MarkerIndex = MarkerIndexSpecialValues::Unitialized; }
+	void Reset() { MarkerIndex = MarkerIndexSpecialValues::Uninitialized; }
 };
 
 struct FMarkerTickRecord
@@ -69,7 +69,7 @@ struct FMarkerTickRecord
 
 	bool IsValid(bool bLooping) const
 	{
-		int32 Threshold = bLooping ? MarkerIndexSpecialValues::AnimationBoundary : MarkerIndexSpecialValues::Unitialized;
+		int32 Threshold = bLooping ? MarkerIndexSpecialValues::AnimationBoundary : MarkerIndexSpecialValues::Uninitialized;
 		return PreviousMarker.MarkerIndex > Threshold && NextMarker.MarkerIndex > Threshold;
 	}
 
