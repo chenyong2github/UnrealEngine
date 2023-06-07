@@ -38,6 +38,21 @@ namespace GLTF
 		return DefaultValue;
 	}
 
+	inline uint64 GetUnsignedInt64(const FJsonObject& Object, const TCHAR* Name, uint64 DefaultValue)
+	{
+		if (Object.HasTypedField<EJson::Number>(Name))
+		{
+			uint64 UnsignedInt64Value;
+			
+			if (Object.TryGetNumberField(Name, UnsignedInt64Value))
+			{
+				return UnsignedInt64Value;
+			}
+		}
+
+		return DefaultValue;
+	}
+
 	inline uint32 GetUnsignedInt(const FJsonObject& Object, const TCHAR* Name, uint32 DefaultValue)
 	{
 		if (Object.HasTypedField<EJson::Number>(Name))

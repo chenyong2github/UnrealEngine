@@ -13,6 +13,10 @@ namespace GLTF
 		{
 			return (X + 3) & ~3;
 		}
+		inline uint64 Pad4(uint64 X)
+		{
+			return (X + 3) & ~3;
+		}
 
 		bool SignatureMatches(uint32 Signature, const char* ExpectedSignature)
 		{
@@ -47,7 +51,7 @@ namespace GLTF
 			return MagicOk && VersionOk && SizeOk;
 		}
 
-		bool ReadChunk(FArchive& FileReader, const char* ExpectedChunkType, bool& OutHasMoreData, TArray<uint8>& OutData)
+		bool ReadJSONChunk(FArchive& FileReader, const char* ExpectedChunkType, bool& OutHasMoreData, TArray<uint8>& OutData)
 		{
 			// Align to next 4-byte boundary before reading anything
 			uint32 Offset        = FileReader.Tell();
@@ -64,6 +68,48 @@ namespace GLTF
 
 			constexpr uint32 ChunkHeaderSize = 8;
 			const uint32     AvailableData   = FileReader.TotalSize() - (AlignedOffset + ChunkHeaderSize);
+
+			// Is there room for another chunk after this one?
+			OutHasMoreData = AvailableData - Pad4(ChunkDataSize) >= ChunkHeaderSize;
+
+			// Is there room for this chunk's data? (should always be true)
+			if (ChunkDataSize > AvailableData)
+			{
+				return false;
+			}
+
+			if (SignatureMatches(ChunkType, ExpectedChunkType))
+			{
+				// Read this chunk's data
+				OutData.SetNumUninitialized(ChunkDataSize, true);
+				FileReader.Serialize(OutData.GetData(), ChunkDataSize);
+				return true;
+			}
+			else
+			{
+				// Skip past this chunk's data
+				FileReader.Seek(AlignedOffset + ChunkHeaderSize + ChunkDataSize);
+				return false;
+			}
+		}
+
+		bool ReadBinChunk(FArchive& FileReader, const char* ExpectedChunkType, bool& OutHasMoreData, TArray64<uint8>& OutData)
+		{
+			// Align to next 4-byte boundary before reading anything
+			uint64 Offset = FileReader.Tell();
+			uint64 AlignedOffset = Pad4(Offset);
+			if (Offset != AlignedOffset)
+			{
+				FileReader.Seek(AlignedOffset);
+			}
+
+			// Each chunk has the form [Size][Type][...Data...]
+			uint32 ChunkType, ChunkDataSize;
+			FileReader << ChunkDataSize;
+			FileReader << ChunkType;
+
+			constexpr uint64 ChunkHeaderSize = 8;
+			const uint64     AvailableData = FileReader.TotalSize() - (AlignedOffset + ChunkHeaderSize);
 
 			// Is there room for another chunk after this one?
 			OutHasMoreData = AvailableData - Pad4(ChunkDataSize) >= ChunkHeaderSize;
@@ -117,12 +163,12 @@ namespace GLTF
 		BinChunk->Empty();
 
 		bool HasMoreData;
-		if (ReadChunk(FileReader, "JSON", HasMoreData, JsonChunk))
+		if (ReadJSONChunk(FileReader, "JSON", HasMoreData, JsonChunk))
 		{
 			// Get BIN chunk if present
 			while (HasMoreData)
 			{
-				if (ReadChunk(FileReader, "BIN", HasMoreData, *BinChunk))
+				if (ReadBinChunk(FileReader, "BIN", HasMoreData, *BinChunk))
 				{
 					break;
 				}

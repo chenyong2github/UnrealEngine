@@ -16,17 +16,17 @@ namespace GLTF
 
 		bool ReadFile(FArchive& FileReader);
 
-		void SetBuffer(TArray<uint8>& InBuffer);
+		void SetBuffer(TArray64<uint8>& InBuffer);
 
 		const TArray<uint8>& GetJsonBuffer() const;
 
 	private:
 		TArray<uint8> JsonChunk;
 
-		TArray<uint8>* BinChunk;
+		TArray64<uint8>* BinChunk;
 	};
 
-	inline void FBinaryFileReader::SetBuffer(TArray<uint8>& InBuffer)
+	inline void FBinaryFileReader::SetBuffer(TArray64<uint8>& InBuffer)
 	{
 		BinChunk = &InBuffer;
 	}

@@ -141,9 +141,9 @@ namespace GLTF
 	private:
 		// Binary glTF files can have embedded data after JSON.
 		// This will be empty when reading from a text glTF (common) or a binary glTF with no BIN chunk (rare).
-		TArray<uint8> BinData;
+		TArray64<uint8> BinData;
 		// Extra binary data used for images from disk, mime data and so on.
-		TArray<uint8> ExtraBinData;
+		TArray64<uint8> ExtraBinData;
 
 		friend class FFileReader;
 	};

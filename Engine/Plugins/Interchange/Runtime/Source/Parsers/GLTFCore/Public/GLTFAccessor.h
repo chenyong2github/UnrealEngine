@@ -10,10 +10,10 @@ namespace GLTF
 {
 	struct GLTFCORE_API FBuffer
 	{
-		const uint32 ByteLength;
+		const uint64 ByteLength;
 		const uint8* Data;
 
-		explicit FBuffer(uint32 InByteLength)
+		explicit FBuffer(uint64 InByteLength)
 		    : ByteLength(InByteLength)
 		    , Data(nullptr)
 		{
@@ -24,7 +24,7 @@ namespace GLTF
 			return Data != nullptr;
 		}
 
-		const uint8* DataAt(uint32 Offset) const
+		const uint8* DataAt(uint64 Offset) const
 		{
 			checkSlow(Data);
 			return Data + Offset;
@@ -34,12 +34,12 @@ namespace GLTF
 	struct GLTFCORE_API FBufferView
 	{
 		const FBuffer& Buffer;
-		const uint32 ByteOffset;
-		const uint32 ByteLength;
+		const uint64 ByteOffset;
+		const uint64 ByteLength;
 		// if zero then accessor elements are tightly packed, i.e., effective stride equals the size of the element
 		const uint32 ByteStride;  // range 4..252
 
-		explicit FBufferView(const FBuffer& InBuffer, uint32 InOffset, uint32 InLength, uint32 InStride)
+		explicit FBufferView(const FBuffer& InBuffer, uint64 InOffset, uint64 InLength, uint32 InStride)
 		    : Buffer(InBuffer)
 		    , ByteOffset(InOffset)
 		    , ByteLength(InLength)
@@ -53,7 +53,7 @@ namespace GLTF
 			return Buffer.IsValid();
 		}
 
-		const uint8* DataAt(uint32 Offset) const
+		const uint8* DataAt(uint64 Offset) const
 		{
 			return Buffer.DataAt(Offset + ByteOffset);
 		}
@@ -114,7 +114,7 @@ namespace GLTF
 				const int32          Count; //Helper for creating cache, equals to FSparse.Count
 
 				const FBufferView&   BufferView;
-				const uint32         ByteOffset;
+				const uint64         ByteOffset;
 				const EComponentType ComponentType;
 
 				FIndices()
@@ -125,14 +125,14 @@ namespace GLTF
 				{
 				}
 
-				FIndices(uint32 InCount, const FBufferView& InBufferView, uint32 InByteOffset, EComponentType InComponentType);
+				FIndices(uint32 InCount, const FBufferView& InBufferView, uint64 InByteOffset, EComponentType InComponentType);
 			} Indices;
 			
 			//Values:
 			struct FValues
 			{
 				const FBufferView&   BufferView;
-				const uint32         ByteOffset;
+				const uint64         ByteOffset;
 				
 				FValues()
 					: BufferView(FVoidBufferView::GetVoidBufferView())
@@ -140,7 +140,7 @@ namespace GLTF
 				{
 				}
 
-				FValues(const FBufferView& InBufferView, uint32 InByteOffset)
+				FValues(const FBufferView& InBufferView, uint64 InByteOffset)
 					: BufferView(InBufferView)
 					, ByteOffset(InByteOffset)
 				{
@@ -156,8 +156,8 @@ namespace GLTF
 			}
 
 			FSparse(uint32 InCount,
-				const FBufferView& InIndicesBufferView, uint32 InIndicesByteOffset, EComponentType InIndicesComponentType,
-				const FBufferView& InValuesBufferView, uint32 InValuesByteOffset)
+				const FBufferView& InIndicesBufferView, uint64 InIndicesByteOffset, EComponentType InIndicesComponentType,
+				const FBufferView& InValuesBufferView, uint64 InValuesByteOffset)
 				: bHasSparse(true)
 				, Count(InCount)
 				, Indices(InCount, InIndicesBufferView, InIndicesByteOffset, InIndicesComponentType)
@@ -225,7 +225,7 @@ namespace GLTF
 
 	struct GLTFCORE_API FValidAccessor final : FAccessor
 	{
-		FValidAccessor(FBufferView& InBufferView, uint32 InOffset, uint32 InCount, EType InType, EComponentType InCompType, bool bInNormalized, const FSparse& InSparse);
+		FValidAccessor(FBufferView& InBufferView, uint64 InOffset, uint32 InCount, EType InType, EComponentType InCompType, bool bInNormalized, const FSparse& InSparse);
 
 		bool IsValid() const override;
 
@@ -251,7 +251,7 @@ namespace GLTF
 		const uint8* DataAt(uint32 Index) const;
 
 		const FBufferView& BufferView;
-		const uint32       ByteOffset;
+		const uint64       ByteOffset;
 		const uint32       ElementSize;
 		const uint32	   ByteStride;
 

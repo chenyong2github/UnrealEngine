@@ -125,7 +125,7 @@ namespace GLTF
 
 	void FFileReader::SetupBuffer(const FJsonObject& Object, const FString& Path)
 	{
-		const uint32 ByteLength = GetUnsignedInt(Object, TEXT("byteLength"), 0);
+		const uint64 ByteLength = GetUnsignedInt64(Object, TEXT("byteLength"), 0);
 		Asset->Buffers.Emplace(ByteLength);
 		FBuffer& Buffer = Asset->Buffers.Last();
 
@@ -210,8 +210,8 @@ namespace GLTF
 		const uint32 BufferIdx = GetUnsignedInt(Object, TEXT("buffer"), BufferCount);
 		if (BufferIdx < BufferCount)  // must be true
 		{
-			const uint32 ByteOffset = GetUnsignedInt(Object, TEXT("byteOffset"), 0);
-			const uint32 ByteLength = GetUnsignedInt(Object, TEXT("byteLength"), 0);
+			const uint64 ByteOffset = GetUnsignedInt64(Object, TEXT("byteOffset"), 0);
+			const uint64 ByteLength = GetUnsignedInt64(Object, TEXT("byteLength"), 0);
 			const uint32 ByteStride = GetUnsignedInt(Object, TEXT("byteStride"), 0);
 			Asset->BufferViews.Emplace(Asset->Buffers[BufferIdx], ByteOffset, ByteLength, ByteStride);
 			ExtensionsHandler->SetupBufferViewExtensions(Object, Asset->BufferViews.Last());
@@ -223,7 +223,7 @@ namespace GLTF
 		const uint32 BufferViewIdx = GetUnsignedInt(Object, TEXT("bufferView"), BufferViewCount);
 		if (BufferViewIdx < BufferViewCount)  // must be true
 		{
-			const uint32                    ByteOffset = GetUnsignedInt(Object, TEXT("byteOffset"), 0);
+			const uint64                    ByteOffset = GetUnsignedInt64(Object, TEXT("byteOffset"), 0);
 			const FAccessor::EComponentType CompType   = ComponentTypeFromNumber(GetUnsignedInt(Object, TEXT("componentType"), 0));
 			const uint32                    Count      = GetUnsignedInt(Object, TEXT("count"), 0);
 			const FAccessor::EType          Type       = AccessorTypeFromString(Object.GetStringField("type"));
@@ -238,12 +238,12 @@ namespace GLTF
 
 				const FJsonObject& IndicesObject = *SparseObject.GetObjectField(TEXT("indices"));
 				const uint32 IndicesBufferViewIdx = GetUnsignedInt(IndicesObject, TEXT("bufferView"), BufferViewCount);
-				const int32 IndicesByteOffset = GetUnsignedInt(IndicesObject, TEXT("byteOffset"), 0);
+				const uint64 IndicesByteOffset = GetUnsignedInt64(IndicesObject, TEXT("byteOffset"), 0);
 				const FAccessor::EComponentType IndicesCompType = ComponentTypeFromNumber(GetUnsignedInt(IndicesObject, TEXT("componentType"), 0));
 
 				const FJsonObject& ValuesObject = *SparseObject.GetObjectField(TEXT("values"));
 				const uint32 ValuesBufferViewIdx = GetUnsignedInt(ValuesObject, TEXT("bufferView"), BufferViewCount);
-				const int32 ValuesByteOffset = GetUnsignedInt(ValuesObject, TEXT("byteOffset"), 0);
+				const uint64 ValuesByteOffset = GetUnsignedInt64(ValuesObject, TEXT("byteOffset"), 0);
 
 				Asset->Accessors.Emplace(Asset->BufferViews[BufferViewIdx], ByteOffset, Count, Type, CompType, Normalized, 
 					FAccessor::FSparse(SparseCount, 
@@ -853,15 +853,15 @@ namespace GLTF
 		}
 	}
 
-	void FFileReader::AllocateExtraData(const FString& InResourcesPath, bool bInLoadImageData, TArray<uint8>& OutExtraData)
+	void FFileReader::AllocateExtraData(const FString& InResourcesPath, bool bInLoadImageData, TArray64<uint8>& OutExtraData)
 	{
-		uint32 ExtraBufferSize = 0;
+		uint64 ExtraBufferSize = 0;
 		if (BufferCount > 0)
 		{
 			for (const TSharedPtr<FJsonValue>& Value : JsonRoot->GetArrayField(TEXT("buffers")))
 			{
 				const FJsonObject& Object     = *Value->AsObject();
-				const uint32       ByteLength = GetUnsignedInt(Object, TEXT("byteLength"), 0);
+				const uint64       ByteLength = GetUnsignedInt64(Object, TEXT("byteLength"), 0);
 				if (!Object.HasTypedField<EJson::String>(TEXT("uri")))
 					continue;
 

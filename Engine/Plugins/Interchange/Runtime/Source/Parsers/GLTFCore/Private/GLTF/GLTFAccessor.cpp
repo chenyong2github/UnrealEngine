@@ -258,7 +258,7 @@ namespace GLTF
 		}
 
 		template<typename ItemType, uint32 ItemElementCount>
-		void CopyWithoutConversion(const uint32 ByteStride, const FAccessor::EComponentType ComponentType, bool bNormalized, const uint32 Count, const FBufferView& BufferView, const uint32 ByteOffset, ItemType* Buffer)
+		void CopyWithoutConversion(const uint32 ByteStride, const FAccessor::EComponentType ComponentType, bool bNormalized, const uint32 Count, const FBufferView& BufferView, const uint64 ByteOffset, ItemType* Buffer)
 		{
 			// Stride equals item size => use simpler copy
 			if ((ByteStride == 0) || ByteStride == sizeof(ItemType))
@@ -297,7 +297,7 @@ namespace GLTF
 			CopyWithoutConversion<ItemType, ItemElementCount>(Accessor.ByteStride, Accessor.ComponentType, Accessor.bNormalized, Accessor.Count, Accessor.BufferView, Accessor.ByteOffset, Buffer);
 		}
 
-		bool FillFloatArray(bool bNormalized, const FBufferView& BufferView, const uint32 ByteOffset, FAccessor::EComponentType ComponentType, const uint32 ByteStride, const uint32 Count, float* Buffer)
+		bool FillFloatArray(bool bNormalized, const FBufferView& BufferView, const uint64 ByteOffset, FAccessor::EComponentType ComponentType, const uint32 ByteStride, const uint32 Count, float* Buffer)
 		{
 			if (!bNormalized)
 			{
@@ -333,7 +333,7 @@ namespace GLTF
 			return false;
 		}
 
-		bool FillUnsignedIntArray(const FBufferView& BufferView, const uint32 ByteOffset, FAccessor::EComponentType ComponentType, const uint32 Count, uint32* Buffer)
+		bool FillUnsignedIntArray(const FBufferView& BufferView, const uint64 ByteOffset, FAccessor::EComponentType ComponentType, const uint32 Count, uint32* Buffer)
 		{
 			const uint8* Src = BufferView.DataAt(ByteOffset);
 			switch (ComponentType)
@@ -352,7 +352,7 @@ namespace GLTF
 			}
 		}
 
-		TArray<uint32> AcquireUnsignedIntArray(const uint32 Count, const FBufferView& BufferView, const uint32 ByteOffset, FAccessor::EComponentType ComponentType)
+		TArray<uint32> AcquireUnsignedIntArray(const uint32 Count, const FBufferView& BufferView, const uint64 ByteOffset, FAccessor::EComponentType ComponentType)
 		{
 			TArray<uint32> ValueBuffer;
 			ValueBuffer.SetNumUninitialized(Count, false);
@@ -362,7 +362,7 @@ namespace GLTF
 			return ValueBuffer;
 		}
 
-		bool AcquireUnsignedInt(uint32 Index, const FBufferView& BufferView, const uint32 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, uint32& Buffer)
+		bool AcquireUnsignedInt(uint32 Index, const FBufferView& BufferView, const uint64 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, uint32& Buffer)
 		{
 			Buffer = 0;
 
@@ -383,7 +383,7 @@ namespace GLTF
 			}
 		}
 
-		bool AcquireUnsignedInt16x4(uint32 Index, const FBufferView& BufferView, const uint32 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, uint16 Buffer[4])
+		bool AcquireUnsignedInt16x4(uint32 Index, const FBufferView& BufferView, const uint64 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, uint16 Buffer[4])
 		{
 			Buffer[0] = Buffer[1] = Buffer[2] = Buffer[3] = 0;
 
@@ -407,7 +407,7 @@ namespace GLTF
 			}
 		}
 
-		bool AcquireFloat(uint32 Index, const FBufferView& BufferView, const uint32 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, float& Buffer)
+		bool AcquireFloat(uint32 Index, const FBufferView& BufferView, const uint64 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, float& Buffer)
 		{
 			Buffer = 0;
 
@@ -422,7 +422,7 @@ namespace GLTF
 			}
 		}
 
-		bool AcquireVec2(uint32 Index, const FBufferView& BufferView, const uint32 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, bool bNormalized, FVector2D& Buffer)
+		bool AcquireVec2(uint32 Index, const FBufferView& BufferView, const uint64 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, bool bNormalized, FVector2D& Buffer)
 		{
 			Buffer = FVector2D();
 
@@ -442,7 +442,7 @@ namespace GLTF
 			return false;
 		}
 
-		bool AcquireVec3(uint32 Index, const FBufferView& BufferView, const uint32 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, bool bNormalized, FVector& Buffer)
+		bool AcquireVec3(uint32 Index, const FBufferView& BufferView, const uint64 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, bool bNormalized, FVector& Buffer)
 		{
 			Buffer = FVector();
 
@@ -462,7 +462,7 @@ namespace GLTF
 			return false;
 		}
 
-		bool AcquireVec4(uint32 Index, const FBufferView& BufferView, const uint32 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, bool bNormalized, FVector4& Buffer)
+		bool AcquireVec4(uint32 Index, const FBufferView& BufferView, const uint64 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, bool bNormalized, FVector4& Buffer)
 		{
 			Buffer = FVector4();
 
@@ -482,7 +482,7 @@ namespace GLTF
 			return false;
 		}
 
-		bool AcquireMat4(uint32 Index, const FBufferView& BufferView, const uint32 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, FMatrix& Buffer)
+		bool AcquireMat4(uint32 Index, const FBufferView& BufferView, const uint64 ByteOffset, const uint32 ByteStride, FAccessor::EComponentType ComponentType, FMatrix& Buffer)
 		{
 			Buffer = FMatrix();
 
@@ -497,7 +497,7 @@ namespace GLTF
 		}
 	}
 	
-	FAccessor::FSparse::FIndices::FIndices(uint32 InCount, const FBufferView& InBufferView, uint32 InByteOffset, EComponentType InComponentType)
+	FAccessor::FSparse::FIndices::FIndices(uint32 InCount, const FBufferView& InBufferView, uint64 InByteOffset, EComponentType InComponentType)
 		: Count(InCount)
 		, BufferView(InBufferView)
 		, ByteOffset(InByteOffset)
@@ -916,7 +916,7 @@ namespace GLTF
 	}
 
 	//
-	FValidAccessor::FValidAccessor(FBufferView& InBufferView, uint32 InOffset, uint32 InCount, EType InType, EComponentType InCompType,
+	FValidAccessor::FValidAccessor(FBufferView& InBufferView, uint64 InOffset, uint32 InCount, EType InType, EComponentType InCompType,
 	                               bool bInNormalized, const FSparse& InSparse)
 	    : FAccessor(InCount, InType, InCompType, bInNormalized, InSparse)
 	    , BufferView(InBufferView)

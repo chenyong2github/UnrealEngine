@@ -38,7 +38,7 @@ namespace GLTF
 	private:
 		void LoadMetadata(GLTF::FAsset& Asset);
 		void ImportAsset(const FString& FilePath, bool bInLoadImageData, GLTF::FAsset& Asset);
-		void AllocateExtraData(const FString& InResourcesPath, bool bInLoadImageData, TArray<uint8>& OutExtraData);
+		void AllocateExtraData(const FString& InResourcesPath, bool bInLoadImageData, TArray64<uint8>& OutExtraData);
 
 		void SetupBuffer(const FJsonObject& Object, const FString& Path);
 		void SetupBufferView(const FJsonObject& Object) const;
