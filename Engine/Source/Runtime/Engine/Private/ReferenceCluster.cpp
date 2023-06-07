@@ -5,55 +5,48 @@
 
 TArray<TArray<FGuid>> GenerateObjectsClusters(const TArray<TPair<FGuid, TArray<FGuid>>>& InObjects)
 {
-	TMap<FGuid, FGuid> ObjectToClusters;
-	TMap<FGuid, TSet<FGuid>> Clusters;
+	TArray<TArray<FGuid>> Result;
+	Result.Reserve(InObjects.Num());
 
-	for (const auto& Object : InObjects)
+	TMap<FGuid, TSet<FGuid>> Graph;
+	Graph.Reserve(InObjects.Num());
+
+	for (const auto& [Object, References] : InObjects)
 	{
-		const FGuid& ObjectGuid = Object.Key;
-		FGuid ClusterGuid = ObjectToClusters.FindRef(ObjectGuid);
+		TSet<FGuid>& ObjectReferences = Graph.FindOrAdd(Object);
+		ObjectReferences.Reserve(References.Num());
 
-		if (!ClusterGuid.IsValid())
+		for (const FGuid& Reference : References)
 		{
-			ClusterGuid = FGuid::NewGuid();
-			TSet<FGuid>& Cluster = Clusters.Add(ClusterGuid);
-			ObjectToClusters.Add(ObjectGuid, ClusterGuid);
-			Cluster.Add(ObjectGuid);
-		}
-
-		for (const FGuid& ReferenceGuid : Object.Value)
-		{
-			FGuid ReferenceClusterGuid = ObjectToClusters.FindRef(ReferenceGuid);
-
-			if (ReferenceClusterGuid.IsValid())
-			{
-				if (ReferenceClusterGuid != ClusterGuid)
-				{
-					TSet<FGuid> ReferenceCluster = Clusters.FindAndRemoveChecked(ReferenceClusterGuid);
-					TSet<FGuid>& Cluster = Clusters.FindChecked(ClusterGuid);
-					Cluster.Append(ReferenceCluster);
-					for (const FGuid& OtherReferenceGuid : ReferenceCluster)
-					{
-						ObjectToClusters.FindChecked(OtherReferenceGuid) = ClusterGuid;
-					}
-				}
-			}
-			else
-			{
-				TSet<FGuid>& Cluster = Clusters.FindChecked(ClusterGuid);
-				Cluster.Add(ReferenceGuid);
-			}
-
-			ObjectToClusters.Add(ReferenceGuid, ClusterGuid);
+			ObjectReferences.Add(Reference);
+			Graph.FindOrAdd(Reference).FindOrAdd(Object);
 		}
 	}
-	
-	TArray<TArray<FGuid>> Result;
-	Result.Reserve(Clusters.Num());
 
-	for (const auto& Cluster : Clusters)
+	TSet<FGuid> VisitedObjects;
+	VisitedObjects.Reserve(InObjects.Num());
+
+	TArray<FGuid> ObjectStack;
+	for (const auto& ObjectNode : Graph)
 	{
-		Result.AddDefaulted_GetRef() = Cluster.Value.Array();
+		if (!VisitedObjects.Contains(ObjectNode.Key))
+		{
+			TArray<FGuid>& NewCluster = Result.Emplace_GetRef();
+
+			ObjectStack.Reset();
+			ObjectStack.Add(ObjectNode.Key);
+
+			while (!ObjectStack.IsEmpty())
+			{
+				const FGuid Object = ObjectStack.Pop(false);
+				if (!VisitedObjects.Contains(Object))
+				{
+					VisitedObjects.Add(Object);
+					NewCluster.Add(Object);
+					ObjectStack.Append(Graph[Object].Array());
+				}
+			}
+		}
 	}
 
 	return MoveTemp(Result);
