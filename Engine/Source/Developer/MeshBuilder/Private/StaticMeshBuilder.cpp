@@ -7,6 +7,7 @@
 #include "Engine/StaticMesh.h"
 #include "IMeshReductionInterfaces.h"
 #include "IMeshReductionManagerModule.h"
+#include "Logging/StructuredLog.h"
 #include "MeshBuild.h"
 #include "MeshDescriptionHelper.h"
 #include "Misc/ScopedSlowTask.h"
@@ -234,7 +235,7 @@ static bool BuildNanite(
 
 	if (!NaniteBuilderModule.BuildMaterialIndices(InputMeshData.Sections, TriangleCount, InputMeshData.MaterialIndices))
 	{
-		UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite from static mesh. See previous line(s) for details."));
+		UE_LOGFMT_NSLOC(LogStaticMesh, Error, "StaticMesh", "Error", "Failed to build Nanite from static mesh. See previous line(s) for details.");
 		return false;
 	}
 
@@ -259,7 +260,7 @@ static bool BuildNanite(
 			OnFreeInputMeshData
 	))
 	{
-		UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for HiRes static mesh. See previous line(s) for details."));
+		UE_LOGFMT_NSLOC(LogStaticMesh, Error, "StaticMesh", "Error", "Failed to build Nanite for HiRes static mesh. See previous line(s) for details.");
 		return false;
 	}
 
