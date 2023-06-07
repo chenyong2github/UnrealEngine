@@ -4,8 +4,12 @@
 
 #include "Containers/Map.h"
 #include "HAL/IConsoleManager.h"
+#include "Interfaces/IPluginManager.h"
 #include "Logging/LogMacros.h"
+#include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Parse.h"
+#include "Misc/Paths.h"
 #include "OpenXRCore.h"
 #include "Templates/SharedPointer.h"
 #include "XRScribeCaptureLayer.h"
@@ -681,6 +685,47 @@ void ClearFunctionMaps()
 	InstanceFunctionMap.Reset();
 }
 
+EXRScribeRunMode DetermineRunMode(EXRScribeRunMode FallbackRunMode, FString& EmulationLoadPath)
+{
+	// TODO: load file from plugin settings
+
+	EXRScribeRunMode RunModeFromConfig = EXRScribeRunMode::Emulate;
+	const bool bModeReadFromConfig = GConfig->GetInt(TEXT("SystemSettings"), TEXT("XRScribe.RunMode"), (int32&)RunModeFromConfig, GEngineIni);
+	if (!bModeReadFromConfig)
+	{
+		RunModeFromConfig = FallbackRunMode;
+	}
+
+	bool bEmulationCLI = false;
+	EmulationLoadPath = FPaths::ProjectSavedDir() / TEXT("Capture.xrs");
+
+	FString RequestedEmulationProfile;
+	bEmulationCLI = FParse::Value(FCommandLine::Get(), TEXT("-xremu="), RequestedEmulationProfile);
+	if (bEmulationCLI)
+	{
+		UE_LOG(LogXRScribeAPI, Log, TEXT("xremu command-line argument detected to emulate built-in capture"));
+
+		FString ExtrasDir = IPluginManager::Get().FindPlugin("XRScribe")->GetBaseDir() / TEXT("Extras");
+		if (RequestedEmulationProfile == TEXT("mq2"))
+		{
+			EmulationLoadPath = ExtrasDir / TEXT("mq2.xrs");
+			UE_LOG(LogXRScribeAPI, Log, TEXT("mq2 built-in capture requested"));
+		}
+		else if (RequestedEmulationProfile == TEXT("vi"))
+		{
+			EmulationLoadPath = ExtrasDir / TEXT("vi.xrs");
+			UE_LOG(LogXRScribeAPI, Log, TEXT("vi built-in capture requested"));
+		}
+		else
+		{
+			UE_LOG(LogXRScribeAPI, Warning, TEXT("Unknown built-in capture, deferring to config run-mode"));
+			bEmulationCLI = false;
+		}
+	}
+
+	return bEmulationCLI ? EXRScribeRunMode::Emulate : RunModeFromConfig;
+}
+
 class FOpenXRAPILayerManager : public IOpenXRAPILayerManager
 {
 public:
@@ -714,14 +759,10 @@ public:
 	{
 		ChainedGetProcAddr = InChainedGetProcAddr;
 
-		EXRScribeRunMode RunModeFromConfig = EXRScribeRunMode::Emulate;
-		const bool bModeReadFromConfig = GConfig->GetInt(TEXT("SystemSettings"), TEXT("XRScribe.RunMode"), (int32&)RunModeFromConfig, GEngineIni);
-		if (!bModeReadFromConfig)
-		{
-			RunModeFromConfig = FallbackRunMode;
-		}
+		FString EmulationLoadPath;
+		const EXRScribeRunMode SelectedRunMode = DetermineRunMode(FallbackRunMode, EmulationLoadPath);
 
-		if (RunModeFromConfig == EXRScribeRunMode::Capture)
+		if (SelectedRunMode == EXRScribeRunMode::Capture)
 		{
 			UE_LOG(LogXRScribeAPI, Log, TEXT("Capture layer selected"));
 
@@ -738,11 +779,11 @@ public:
 				return false;
 			}
 		}
-		else if (RunModeFromConfig == EXRScribeRunMode::Emulate)
+		else if (SelectedRunMode == EXRScribeRunMode::Emulate)
 		{
 			UE_LOG(LogXRScribeAPI, Log, TEXT("Emulation layer selected"));
 			ActiveLayer = EmulationLayer;
-			const bool bEmulationLoadedCapture = reinterpret_cast<FOpenXREmulationLayer*>(EmulationLayer.Get())->LoadCaptureFromFile();
+			const bool bEmulationLoadedCapture = reinterpret_cast<FOpenXREmulationLayer*>(EmulationLayer.Get())->LoadCaptureFromFile(EmulationLoadPath);
 
 			if (bEmulationLoadedCapture)
 			{

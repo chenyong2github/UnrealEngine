@@ -10,7 +10,6 @@
 #include "Logging/LogMacros.h"
 #include "Misc/DateTime.h"
 #include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
 #include "OpenXRCore.h"
 #include "RHICommandList.h"
 #include "RHIResources.h"
@@ -247,13 +246,11 @@ bool FOpenXREmulationLayer::SupportsInstanceExtension(const ANSICHAR* ExtensionN
 	});
 }
 
-bool FOpenXREmulationLayer::LoadCaptureFromFile()
+bool FOpenXREmulationLayer::LoadCaptureFromFile(const FString& EmulationLoadPath)
 {
-	// TODO: load file from plugin settings
-	const FString CaptureFilePath = FPaths::ProjectSavedDir() / TEXT("Capture.xrs");
-	if (FFileHelper::LoadFileToArray(CaptureDecoder.GetEncodedData(), *CaptureFilePath))
+	if (FFileHelper::LoadFileToArray(CaptureDecoder.GetEncodedData(), *EmulationLoadPath))
 	{
-		UE_LOG(LogXRScribeEmulate, Log, TEXT("Capture successfully loaded: %s"), *CaptureFilePath);
+		UE_LOG(LogXRScribeEmulate, Log, TEXT("Capture successfully loaded: %s"), *EmulationLoadPath);
 		CaptureDecoder.DecodeDataFromMemory();
 	}
 	else

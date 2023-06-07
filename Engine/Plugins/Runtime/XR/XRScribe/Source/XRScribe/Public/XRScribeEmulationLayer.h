@@ -30,7 +30,7 @@ public:
 
 	virtual bool SupportsInstanceExtension(const ANSICHAR* ExtensionName) override;
 
-	bool LoadCaptureFromFile();
+	bool LoadCaptureFromFile(const FString& EmulationLoadPath);
 	bool LoadCaptureFromData(const TArray<uint8>& EncodedData);
 
 	// Global

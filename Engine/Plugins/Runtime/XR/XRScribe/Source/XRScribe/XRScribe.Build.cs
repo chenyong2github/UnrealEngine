@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(new string[]
 			{
                 "DeveloperSettings",
+				"Projects",
 			});
 
 			// To get access to OpenXRPlatformRHI
