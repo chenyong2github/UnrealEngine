@@ -124,7 +124,7 @@ namespace EpicGames.Core.Tests
 		private static async Task ForEachAsyncSpanTest(JsonTracer Tracer, IScope ParentScope)
 		{
 			int[] Values = Enumerable.Range(0, 10000).ToArray();
-			await Parallel.ForEachAsync(Values, async (i, token) =>
+			await Parallel.ForEachAsync(Values, new ParallelOptions { MaxDegreeOfParallelism = 10000 }, async (i, token) =>
 			{
 				using (IScope ChildScope = Tracer.BuildSpan("Child").StartActive())
 				{
