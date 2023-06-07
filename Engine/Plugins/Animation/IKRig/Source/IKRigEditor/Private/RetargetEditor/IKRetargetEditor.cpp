@@ -446,12 +446,14 @@ TStatId FIKRetargetEditor::GetStatId() const
 
 void FIKRetargetEditor::PostUndo(bool bSuccess)
 {
+	EditorController->AssetController->CleanAsset();
 	EditorController->HandlePreviewMeshReplaced(ERetargetSourceOrTarget::Source);
 	EditorController->HandleRetargeterNeedsInitialized();
 }
 
 void FIKRetargetEditor::PostRedo(bool bSuccess)
 {
+	EditorController->AssetController->CleanAsset();
 	EditorController->HandlePreviewMeshReplaced(ERetargetSourceOrTarget::Source);
 	EditorController->HandleRetargeterNeedsInitialized();
 }
