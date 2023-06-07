@@ -42,8 +42,22 @@ struct PROXYTABLE_API FLookupProxy : public FObjectChooserBase
 	virtual UObject* ChooseObject(FChooserEvaluationContext& Context) const final override;
 	
 	public:
-	FLookupProxy();
 	
 	UPROPERTY(EditAnywhere, Category="Parameters")
 	TObjectPtr<UProxyAsset> Proxy;
+};
+
+USTRUCT(meta=(Hidden))
+struct PROXYTABLE_API FLookupProxyWithOverrideTable : public FObjectChooserBase
+{
+	GENERATED_BODY()
+	virtual UObject* ChooseObject(FChooserEvaluationContext& Context) const final override;
+	
+	public:
+	
+	UPROPERTY(EditAnywhere, Category="Parameters")
+	TObjectPtr<UProxyAsset> Proxy;
+	
+	UPROPERTY(EditAnywhere, Category="Parameters")
+	TObjectPtr<UProxyTable> OverrideProxyTable;
 };

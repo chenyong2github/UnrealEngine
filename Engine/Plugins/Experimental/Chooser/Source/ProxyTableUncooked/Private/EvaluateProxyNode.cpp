@@ -465,6 +465,12 @@ void UK2Node_EvaluateProxy2::AllocateDefaultPins()
    		ResultType = Proxy->Type;
    	}
 	
+	static const FName ProxyTablePinName = "ProxyTable";
+	if (FindPin(ProxyTablePinName, EGPD_Input) == nullptr)
+	{
+		CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UProxyTable::StaticClass(), ProxyTablePinName);
+	}
+
 	static const FName ResultPinName = "Result";
 	if (UEdGraphPin* ResultPin = FindPin(ResultPinName, EGPD_Output))
 	{
@@ -589,6 +595,7 @@ void UK2Node_EvaluateProxy2::ExpandNode(class FKismetCompilerContext& CompilerCo
 		UEdGraphPin* ContextStructPin = ContextStructNode->GetReturnValuePin();
 
 		ContextStructPin->MakeLinkTo(CallFunction->FindPin(FName("Context")));
+		PreviousNodeExecOutput = ContextStructNode->GetThenPin();
 
 		UK2Node_Self* SelfNode = CompilerContext.SpawnIntermediateNode<UK2Node_Self>(this, SourceGraph);
 		CompilerContext.MessageLog.NotifyIntermediateObjectCreation(SelfNode, this);
@@ -715,11 +722,27 @@ void UK2Node_EvaluateProxy2::ExpandNode(class FKismetCompilerContext& CompilerCo
 			
 			CompilerContext.MovePinLinksToIntermediate(*ExecOutput, *CallFunction->GetThenPin());
 		}
-	
-		UK2Node_CallFunction* MakeLookupProxyFunction = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
-		CompilerContext.MessageLog.NotifyIntermediateObjectCreation(MakeLookupProxyFunction, this);
-		MakeLookupProxyFunction->SetFromFunction(UProxyTableFunctionLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UProxyTableFunctionLibrary, MakeLookupProxy)));
-		MakeLookupProxyFunction->AllocateDefaultPins();
+		
+		UK2Node_CallFunction* MakeLookupProxyFunction = nullptr;
+
+		UEdGraphPin* OverrideTablePin = FindPinChecked(TEXT("ProxyTable"));
+		if (OverrideTablePin->HasAnyConnections() || OverrideTablePin->DefaultObject)
+		{
+			MakeLookupProxyFunction = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
+   			MakeLookupProxyFunction->SetFromFunction(UProxyTableFunctionLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UProxyTableFunctionLibrary, MakeLookupProxyWithOverrideTable)));
+       		MakeLookupProxyFunction->AllocateDefaultPins();
+
+			UEdGraphPin* TargetOverrideTablePin = MakeLookupProxyFunction->FindPinChecked(TEXT("ProxyTable"));
+			CompilerContext.MovePinLinksToIntermediate(*OverrideTablePin, *TargetOverrideTablePin);
+		}
+		else
+		{
+			MakeLookupProxyFunction = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
+			MakeLookupProxyFunction->SetFromFunction(UProxyTableFunctionLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UProxyTableFunctionLibrary, MakeLookupProxy)));
+			MakeLookupProxyFunction->AllocateDefaultPins();
+		}
+		
+   		CompilerContext.MessageLog.NotifyIntermediateObjectCreation(MakeLookupProxyFunction, this);
 		
 		UEdGraphPin* ProxyPin = MakeLookupProxyFunction->FindPin(FName("Proxy"));
 		MakeLookupProxyFunction->GetSchema()->TrySetDefaultObject(*ProxyPin, Proxy);

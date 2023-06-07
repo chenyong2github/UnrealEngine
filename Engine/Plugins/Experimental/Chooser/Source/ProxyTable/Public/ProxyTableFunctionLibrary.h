@@ -41,6 +41,9 @@ public:
 	*
 	* @param Chooser				(in) the ChooserTable asset to evaluate
 	*/
-	UFUNCTION(BlueprintPure, Category = "Animation", meta = (BlueprintThreadSafe, BlueprintInternalUseOnly="true", NativeMakeFunc))
+	UFUNCTION(BlueprintPure, Category = "Animation", meta = (BlueprintThreadSafe, BlueprintInternalUseOnly="true"))
 	static FInstancedStruct MakeLookupProxy(UProxyAsset* Proxy);
+	
+	UFUNCTION(BlueprintPure, Category = "Animation", meta = (BlueprintThreadSafe, BlueprintInternalUseOnly="true"))
+	static FInstancedStruct MakeLookupProxyWithOverrideTable(UProxyAsset* Proxy, UProxyTable* ProxyTable);
 };

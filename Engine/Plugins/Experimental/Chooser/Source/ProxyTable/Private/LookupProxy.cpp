@@ -5,15 +5,20 @@
 #include "ChooserPropertyAccess.h"
 #include "UObject/Package.h"
 
-FLookupProxy::FLookupProxy()
-{
-}
-
 UObject* FLookupProxy::ChooseObject(FChooserEvaluationContext& Context) const
 {
 	if (Proxy)
 	{
 		return Proxy->FindProxyObject(Context);
+	}
+	return nullptr;
+}
+
+UObject* FLookupProxyWithOverrideTable::ChooseObject(FChooserEvaluationContext& Context) const
+{
+	if (Proxy && OverrideProxyTable)
+	{
+		return OverrideProxyTable->FindProxyObject(Proxy->Guid, Context);
 	}
 	return nullptr;
 }

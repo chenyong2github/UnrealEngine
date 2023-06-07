@@ -49,9 +49,20 @@ UObject* UProxyTableFunctionLibrary::EvaluateProxyTable(const UObject* ContextOb
 
 
 FInstancedStruct UProxyTableFunctionLibrary::MakeLookupProxy(UProxyAsset* Proxy)
- {
+{
  	FInstancedStruct Struct;
  	Struct.InitializeAs(FLookupProxy::StaticStruct());
  	Struct.GetMutable<FLookupProxy>().Proxy = Proxy;
  	return Struct;
- }
+}
+
+FInstancedStruct UProxyTableFunctionLibrary::MakeLookupProxyWithOverrideTable(UProxyAsset* Proxy, UProxyTable* ProxyTable)
+{
+ 	FInstancedStruct Struct;
+ 	Struct.InitializeAs(FLookupProxyWithOverrideTable::StaticStruct());
+ 	FLookupProxyWithOverrideTable& Data = Struct.GetMutable<FLookupProxyWithOverrideTable>();
+	Data.Proxy = Proxy;
+	Data.OverrideProxyTable = ProxyTable;
+ 	return Struct;
+}
+
