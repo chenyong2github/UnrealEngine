@@ -165,6 +165,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	EShadowCacheInvalidationBehavior ShadowCacheInvalidationBehavior;
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
+	TEnumAsByte<enum EDetailMode> DetailMode;
 };
 
 USTRUCT()
