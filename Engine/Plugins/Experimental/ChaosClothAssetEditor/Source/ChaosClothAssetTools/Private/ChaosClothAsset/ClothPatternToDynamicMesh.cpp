@@ -154,7 +154,6 @@ public:
 			LoadObject<USkeleton>(nullptr, *SkeletonPathName, nullptr, LOAD_None, nullptr) :
 			nullptr;
 		RefSkeleton = Skeleton ? &Skeleton->GetReferenceSkeleton() : nullptr;
-		ensureMsgf(RefSkeleton, TEXT("Reference skeleton is not set"));
 	}
 
 	int32 NumTris() const
