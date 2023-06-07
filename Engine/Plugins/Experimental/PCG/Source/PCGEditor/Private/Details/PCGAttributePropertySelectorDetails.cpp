@@ -46,7 +46,7 @@ namespace PCGAttributePropertySelectorDetails
 	template <typename T, typename Func>
 	void SetValue(FPCGAttributePropertySelector* InSelector, TSharedPtr<IPropertyHandle>& InPropertyHandle, T InValue, Func InCallback)
 	{
-		if (InSelector && InCallback)
+		if (InSelector)
 		{
 			FScopedTransaction Transaction(SetAttributePropertyNameTransaction);
 
