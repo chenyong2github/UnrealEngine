@@ -19,6 +19,7 @@ class UMeshOpPreviewWithBackgroundCompute;
 class AInternalToolFrameworkActor;
 class UDynamicMeshComponent;
 class FTransformGizmoDataBinder;
+struct FChaosClothAssetTransferSkinWeightsNode;
 
 UCLASS()
 class CHAOSCLOTHASSETEDITORTOOLS_API UClothTransferSkinWeightsToolProperties : public UInteractiveToolPropertySet
@@ -94,11 +95,10 @@ private:
 	
 	void SetClothEditorContextObject(TObjectPtr<UClothEditorContextObject> InClothEditorContextObject);
 
-	void AddNewNode();
-
 	void SetPreviewMeshColorFunction();
 
 	FTransform TransformFromProperties() const;
+	void SetSRTPropertiesFromTransform(const FTransform& Transform) const;
 
 	void UpdateSourceMesh();
 
@@ -133,6 +133,8 @@ private:
 
 	// Used to lookup the index of the currently selected-by-name bone
 	TMap<FName, FBoneIndexType> TargetMeshBoneNameToIndex;
+
+	FChaosClothAssetTransferSkinWeightsNode* TransferSkinWeightsNode = nullptr;
 
 	bool bHasInvalidLODWarning = false;
 	bool bHasOpFailedWarning = false;

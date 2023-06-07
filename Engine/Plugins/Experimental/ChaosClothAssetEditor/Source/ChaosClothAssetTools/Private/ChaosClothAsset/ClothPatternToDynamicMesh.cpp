@@ -173,7 +173,7 @@ public:
 
 	int32 NumWeightMapLayers() const
 	{
-		return WeightMapNames.Num();
+		return (VertexDataType == EClothPatternVertexType::Render) ? 0 : WeightMapNames.Num(); // No weight maps for render mesh
 	}
 
 	FName GetWeightMapName(int32 LayerIndex) const

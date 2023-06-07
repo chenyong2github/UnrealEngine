@@ -32,11 +32,11 @@ struct FManagedArrayCollection;
 namespace UE::Chaos::ClothAsset
 {
 class FChaosClothPreviewScene;
-class FChaosClothAssetEditor3DViewportClient;
 class FChaosClothAssetEditorModeToolkit;
 class FChaosClothAssetEditorToolkit;
 class FChaosClothEditorRestSpaceViewportClient;
 }
+class UEdGraphNode;
 
 /**
  * The cloth editor mode is the mode used in the cloth asset editor. It holds most of the inter-tool state.
@@ -122,6 +122,8 @@ private:
 		UEditorInteractiveToolsContext* UseToolsContext, 
 		EToolsContextScope ToolScope = EToolsContextScope::Default);
 
+	void RegisterAddNodeCommand(TSharedPtr<FUICommandInfo> AddNodeCommand, const FName& NewNodeType, TSharedPtr<FUICommandInfo> StartToolCommand);
+
 	// Register the set of tools that operate on objects in the 3D preview world 
 	void RegisterPreviewTools();
 
@@ -140,6 +142,40 @@ private:
 	TSharedPtr<FManagedArrayCollection> GetClothCollection();
 
 	void SetDataflowGraphEditor(TSharedPtr<SDataflowGraphEditor> InGraphEditor);
+	
+	void OnDataflowNodeSelectionChanged(const TSet<UObject*>& NewSelection);
+	void OnDataflowNodeDeleted(const TSet<UObject*>& DeletedNodes);
+
+	/**
+	* Return the single selected node in the Dataflow Graph Editor only if it has an output of the specified type
+	* If there is not a single node selected, or if it does not have the specified output, return null
+	*/
+	UEdGraphNode* GetSingleSelectedNodeWithOutputType(const FName& SelectedNodeOutputTypeName) const;
+
+	/**
+	 * Create a node with the specified type in the graph
+	*/
+	UEdGraphNode* CreateNewNode(const FName& NewNodeTypeName);
+
+	/** Create a node with the specified type, then connect it to the output of the specified UpstreamNode.
+	* If the specified output of the upstream node is already connected to another node downstream, we first break
+	* that connecttion, then insert the new node along the previous connection.
+	* We want to turn this:
+	*
+	* [UpstreamNode] ----> [DownstreamNode(s)]
+	*
+	* to this:
+	*
+	* [UpstreamNode] ----> [NewNode] ----> [DownstreamNode(s)]
+	*
+	*
+	* @param NewNodeTypeName The type of node to create, by name
+	* @param UpstreamNode Node to connect the new node to
+	* @param ConnectionTypeName The type of output of the upstream node to connect our new node to
+	* @return The newly-created node
+	*/
+	UEdGraphNode* CreateAndConnectNewNode(const FName& NewNodeTypeName,	UEdGraphNode& UpstreamNode,	const FName& ConnectionTypeName);
+
 
 	void InitializeContextObject();
 	void DeleteContextObject();
@@ -199,7 +235,9 @@ private:
 	UPROPERTY()
 	TObjectPtr<UEditorInteractiveToolsContext> ActiveToolsContext = nullptr;
 
-
 	TSharedPtr<FManagedArrayCollection> SelectedClothCollection = nullptr;
+
+	// Correspondence between node types and commands to launch tools
+	TMap<FName, TSharedPtr<const FUICommandInfo>> NodeTypeToToolCommandMap;
 };
 

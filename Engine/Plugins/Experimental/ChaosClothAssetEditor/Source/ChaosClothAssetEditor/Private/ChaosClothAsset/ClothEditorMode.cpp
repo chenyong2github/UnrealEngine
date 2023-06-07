@@ -10,6 +10,8 @@
 #include "ChaosClothAsset/ClothPatternToDynamicMesh.h"
 #include "ChaosClothAsset/ClothEditorPreviewScene.h"
 #include "ChaosClothAsset/ClothEditorContextObject.h"
+#include "ChaosClothAsset/AddWeightMapNode.h"
+#include "ChaosClothAsset/TransferSkinWeightsNode.h"
 #include "AssetEditorModeManager.h"
 #include "Drawing/MeshElementsVisualizer.h"
 #include "EditorViewportClient.h"
@@ -58,6 +60,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "Materials/Material.h"
 #include "MaterialDomain.h"
+#include "Dataflow/DataflowSNode.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothEditorMode)
 
@@ -168,6 +171,33 @@ void UChaosClothAssetEditorMode::RegisterClothTool(TSharedPtr<FUICommandInfo> UI
 
 }
 
+void UChaosClothAssetEditorMode::RegisterAddNodeCommand(TSharedPtr<FUICommandInfo> AddNodeCommand, const FName& NewNodeType, TSharedPtr<FUICommandInfo> StartToolCommand)
+{
+	auto AddNode = [this](const FName& NewNodeType)
+	{
+		const FName ConnectionType = FManagedArrayCollection::StaticType();
+		UEdGraphNode* const CurrentlySelectedNode = GetSingleSelectedNodeWithOutputType(ConnectionType);
+		checkf(CurrentlySelectedNode, TEXT("No node with FManagedArrayCollection output is currently selected in the Dataflow graph"));
+		verifyf(CreateAndConnectNewNode(NewNodeType, *CurrentlySelectedNode, ConnectionType), TEXT("Failed to create a new node: %s"), *NewNodeType.ToString());
+	};
+
+	auto CanAddNode = [this](const FName& NewNodeType) -> bool
+	{
+		const UEdGraphNode* const CurrentlySelectedNode = GetSingleSelectedNodeWithOutputType(FManagedArrayCollection::StaticType());
+		return (CurrentlySelectedNode != nullptr);
+	};
+
+	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
+
+	CommandList->MapAction(AddNodeCommand,
+		FExecuteAction::CreateWeakLambda(this, AddNode, NewNodeType),
+		FCanExecuteAction::CreateWeakLambda(this, CanAddNode, NewNodeType)
+	);
+
+	NodeTypeToToolCommandMap.Add(NewNodeType, StartToolCommand);
+}
+
+
 void UChaosClothAssetEditorMode::RegisterPreviewTools()
 {
 	using namespace UE::Chaos::ClothAsset;
@@ -184,24 +214,21 @@ void UChaosClothAssetEditorMode::RegisterTools()
 
 	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
 
-	// Note that the identifiers below need to match the command names so that the tool icons can 
-	// be easily retrieved from the active tool name in ChaosClothAssetEditorModeToolkit::OnToolStarted. Otherwise
-	// we would need to keep some other mapping from tool identifier to tool icon.
+	UEditorInteractiveToolsContext* const ConstructionViewportToolsContext = GetInteractiveToolsContext();
 
-	// TODO: Re-add the remesh tool when we have a way to remesh both 2d and 3d rest space meshes at the same time
-	//RegisterTool(CommandInfos.BeginRemeshTool, FChaosClothAssetEditorCommands::BeginRemeshToolIdentifier, NewObject<URemeshMeshToolBuilder>());
+	RegisterClothTool(CommandInfos.BeginAttributeEditorTool, FChaosClothAssetEditorCommands::BeginAttributeEditorToolIdentifier, NewObject<UAttributeEditorToolBuilder>(), ConstructionViewportToolsContext);
 
-	UEditorInteractiveToolsContext* const RestSpaceToolsContext = GetInteractiveToolsContext();
+	RegisterClothTool(CommandInfos.BeginWeightMapPaintTool, FChaosClothAssetEditorCommands::BeginWeightMapPaintToolIdentifier, NewObject<UClothEditorWeightMapPaintToolBuilder>(), ConstructionViewportToolsContext);
+	RegisterAddNodeCommand(CommandInfos.AddWeightMapNode, FChaosClothAssetAddWeightMapNode::StaticType(), CommandInfos.BeginWeightMapPaintTool);
 
-	RegisterClothTool(CommandInfos.BeginAttributeEditorTool, FChaosClothAssetEditorCommands::BeginAttributeEditorToolIdentifier, NewObject<UAttributeEditorToolBuilder>(), RestSpaceToolsContext);
-	RegisterClothTool(CommandInfos.BeginWeightMapPaintTool, FChaosClothAssetEditorCommands::BeginWeightMapPaintToolIdentifier, NewObject<UClothEditorWeightMapPaintToolBuilder>(), RestSpaceToolsContext);
-	RegisterClothTool(CommandInfos.BeginTransferSkinWeightsTool, FChaosClothAssetEditorCommands::BeginTransferSkinWeightsToolIdentifier, NewObject<UClothTransferSkinWeightsToolBuilder>(), RestSpaceToolsContext);
+	RegisterClothTool(CommandInfos.BeginTransferSkinWeightsTool, FChaosClothAssetEditorCommands::BeginTransferSkinWeightsToolIdentifier, NewObject<UClothTransferSkinWeightsToolBuilder>(), ConstructionViewportToolsContext);
+	RegisterAddNodeCommand(CommandInfos.AddTransferSkinWeightsNode, FChaosClothAssetTransferSkinWeightsNode::StaticType(), CommandInfos.BeginTransferSkinWeightsTool);
 }
 
 bool UChaosClothAssetEditorMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) const
 {
-	// For now we've decided to disallow switch-away on any tools in the Cloth editor.
-	if (GetInteractiveToolsContext()->HasActiveTool())
+	// Allow switching away from tool if no changes have been made in the tool yet (which we infer from the CanAccept status)
+	if (GetInteractiveToolsContext()->CanAcceptActiveTool())
 	{
 		return false;
 	}
@@ -229,12 +256,6 @@ void UChaosClothAssetEditorMode::OnToolStarted(UInteractiveToolManager* Manager,
 	FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, false);
 
 	bCanChangeConstructionViewMode = false;
-
-	// Don't let the Graph change during tool execution (or even which nodes are selected)
-	if (TSharedPtr<SDataflowGraphEditor> GraphEditor = DataflowGraphEditor.Pin())
-	{
-		GraphEditor->SetEnabled(false);
-	}
 }
 
 void UChaosClothAssetEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
@@ -242,8 +263,6 @@ void UChaosClothAssetEditorMode::OnToolEnded(UInteractiveToolManager* Manager, U
 	UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, true);
 
 	bCanChangeConstructionViewMode = true;
-
-	ActiveToolsContext = nullptr;
 
 	ReinitializeDynamicMeshComponents();
 
@@ -681,6 +700,22 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 {
 	Super::ModeTick(DeltaTime);
 	
+
+	if (TSharedPtr<SDataflowGraphEditor> GraphEditor = DataflowGraphEditor.Pin())
+	{
+		// For now don't allow selection change once the tool has uncommitted changes
+		// TODO: We might want to auto-accept unsaved changes and allow switching between nodes
+		if (GetInteractiveToolsContext()->CanAcceptActiveTool())
+		{
+			GraphEditor->SetEnabled(false);
+		}
+		else
+		{
+			GraphEditor->SetEnabled(true);
+		}
+	}
+
+
 	for (TObjectPtr<UInteractiveToolPropertySet>& Propset : PropertyObjectsToTick)
 	{
 		if (Propset)
@@ -841,7 +876,7 @@ void UChaosClothAssetEditorMode::InitializeContextObject()
 		RestSpaceToolsContext->ContextObjectStore->AddContextObject(EditorContextObject);
 	}
 
-	EditorContextObject->Init(DataflowGraphEditor, DataflowGraph, ConstructionViewMode, SelectedClothCollection);
+	EditorContextObject->Init(DataflowGraphEditor, ConstructionViewMode, SelectedClothCollection);
 
 	check(EditorContextObject);
 
@@ -867,6 +902,171 @@ void UChaosClothAssetEditorMode::SetDataflowGraphEditor(TSharedPtr<SDataflowGrap
 	{
 		DeleteContextObject();
 	}
+}
+
+void UChaosClothAssetEditorMode::OnDataflowNodeSelectionChanged(const TSet<UObject*>& NewSelection)
+{
+	using namespace UE::Chaos::ClothAsset;
+
+	// Start the tool associated with the selected node, if any
+
+	const TSharedRef<FUICommandList> CommandList = Toolkit->GetToolkitCommands();
+	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
+
+	bool bNewToolStarted = false;
+	if (NewSelection.Num() == 1)
+	{
+		if (const UDataflowEdNode* const Node = Cast<UDataflowEdNode>(*NewSelection.CreateConstIterator()))
+		{
+			if (const TSharedPtr<const FDataflowNode> DataflowNode = Node->GetDataflowNode())
+			{
+				const FName DataflowNodeName = DataflowNode->GetType();
+				if (NodeTypeToToolCommandMap.Contains(DataflowNodeName))
+				{
+					CommandList->TryExecuteAction(NodeTypeToToolCommandMap[DataflowNodeName].ToSharedRef());
+					bNewToolStarted = true;
+				}
+			}
+		}
+	}
+
+	UEditorInteractiveToolsContext* const ToolsContext = GetInteractiveToolsContext();
+	checkf(ToolsContext, TEXT("No valid ToolsContext found for UChaosClothAssetEditorMode"));
+	if (!bNewToolStarted && ToolsContext->HasActiveTool())
+	{
+		// The user has clicked away from the selected node, end the tool
+		// TODO: If we wanted we could probably auto-accept the pending changes in the active tool
+		ToolsContext->EndTool(EToolShutdownType::Completed);
+	}
+
+}
+
+
+void UChaosClothAssetEditorMode::OnDataflowNodeDeleted(const TSet<UObject*>& DeletedNodes)
+{
+	UEditorInteractiveToolsContext* const ToolsContext = GetInteractiveToolsContext();
+	checkf(ToolsContext, TEXT("No valid ToolsContext found for UChaosClothAssetEditorMode"));
+	const bool bCanCancel = ToolsContext->CanCancelActiveTool();
+	ToolsContext->EndTool(bCanCancel ? EToolShutdownType::Cancel : EToolShutdownType::Completed);
+}
+
+UEdGraphNode* UChaosClothAssetEditorMode::GetSingleSelectedNodeWithOutputType(const FName& SelectedNodeOutputTypeName) const
+{
+	const TSharedPtr<const SDataflowGraphEditor> PinnedDataflowGraphEditor = DataflowGraphEditor.Pin();
+	if (!PinnedDataflowGraphEditor)
+	{
+		return nullptr;
+	}
+
+	UEdGraphNode* const SelectedNode = PinnedDataflowGraphEditor->GetSingleSelectedNode();
+	if (!SelectedNode)
+	{
+		return nullptr;
+	}
+
+	const UDataflowEdNode* const SelectedDataflowEdNode = CastChecked<UDataflowEdNode>(SelectedNode);
+	const TSharedPtr<const FDataflowNode> SelectedDataflowNode = SelectedDataflowEdNode->GetDataflowNode();
+
+	if (!SelectedDataflowNode)
+	{
+		// This can happen when the user deletes a node. Seems like the Dataflow FGraph is updated with the removed node before the graph editor can update.
+		return nullptr;
+	}
+
+	for (const FDataflowOutput* const Output : SelectedDataflowNode->GetOutputs())
+	{
+		if (Output->GetType() == SelectedNodeOutputTypeName)
+		{
+			return SelectedNode;
+		}
+	}
+
+	return nullptr;
+}
+
+UEdGraphNode* UChaosClothAssetEditorMode::CreateNewNode(const FName& NewNodeTypeName)
+{
+	const TSharedPtr<const SDataflowGraphEditor> PinnedDataflowGraphEditor = DataflowGraphEditor.Pin();
+	if (!PinnedDataflowGraphEditor)
+	{
+		return nullptr;
+	}
+
+	const TSharedPtr<FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode> NodeAction =
+		FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode::CreateAction(DataflowGraph, NewNodeTypeName);
+	constexpr UEdGraphPin* FromPin = nullptr;
+	constexpr bool bSelectNewNode = true;
+	UEdGraphNode* const NewEdNode = NodeAction->PerformAction(DataflowGraph, FromPin, PinnedDataflowGraphEditor->GetPasteLocation(), bSelectNewNode);
+
+	return NewEdNode;
+}
+
+
+UEdGraphNode* UChaosClothAssetEditorMode::CreateAndConnectNewNode(const FName& NewNodeTypeName, UEdGraphNode& UpstreamNode, const FName& ConnectionTypeName)
+{
+	// First find the specified output of the upstream node, plus any pins it's connected to
+
+	UEdGraphPin* UpstreamNodeOutputPin = nullptr;
+	TArray<UEdGraphPin*> ExistingNodeInputPins;
+
+	const UDataflowEdNode* const UpstreamDataflowEdNode = CastChecked<UDataflowEdNode>(&UpstreamNode);
+	const TSharedPtr<const FDataflowNode> UpstreamDataflowNode = UpstreamDataflowEdNode->GetDataflowNode();
+
+	for (const FDataflowOutput* const Output : UpstreamDataflowNode->GetOutputs())
+	{
+		if (Output->GetType() == ConnectionTypeName)
+		{
+			UpstreamNodeOutputPin = UpstreamDataflowEdNode->FindPin(*Output->GetName().ToString(), EGPD_Output);
+			ExistingNodeInputPins = UpstreamNodeOutputPin->LinkedTo;
+			break;
+		}
+	}
+
+	// Add the new node 
+
+	UEdGraphNode* const NewEdNode = CreateNewNode(NewNodeTypeName);
+	checkf(NewEdNode, TEXT("Failed to create a new node in the DataflowGraph"));
+
+	UDataflowEdNode* const NewDataflowEdNode = CastChecked<UDataflowEdNode>(NewEdNode);
+	const TSharedPtr<FDataflowNode> NewDataflowNode = NewDataflowEdNode->GetDataflowNode();
+
+	// Re-wire the graph
+
+	if (UpstreamNodeOutputPin)
+	{
+		UEdGraphPin* NewNodeInputPin = nullptr;
+		for (const FDataflowInput* const NewNodeInput : NewDataflowNode->GetInputs())
+		{
+			if (NewNodeInput->GetType() == ConnectionTypeName)
+			{
+				NewNodeInputPin = NewDataflowEdNode->FindPin(*NewNodeInput->GetName().ToString(), EGPD_Input);
+			}
+		}
+
+		UEdGraphPin* NewNodeOutputPin = nullptr;
+		for (const FDataflowOutput* const NewNodeOutput : NewDataflowNode->GetOutputs())
+		{
+			if (NewNodeOutput->GetType() == ConnectionTypeName)
+			{
+				NewNodeOutputPin = NewDataflowEdNode->FindPin(*NewNodeOutput->GetName().ToString(), EGPD_Output);
+				break;
+			}
+		}
+
+		check(NewNodeInputPin);
+		check(NewNodeOutputPin);
+
+		DataflowGraph->GetSchema()->TryCreateConnection(UpstreamNodeOutputPin, NewNodeInputPin);
+
+		for (UEdGraphPin* DownstreamInputPin : ExistingNodeInputPins)
+		{
+			DataflowGraph->GetSchema()->TryCreateConnection(NewNodeOutputPin, DownstreamInputPin);
+		}
+	}
+
+	DataflowGraph->NotifyGraphChanged();
+
+	return NewEdNode;
 }
 
 #undef LOCTEXT_NAMESPACE

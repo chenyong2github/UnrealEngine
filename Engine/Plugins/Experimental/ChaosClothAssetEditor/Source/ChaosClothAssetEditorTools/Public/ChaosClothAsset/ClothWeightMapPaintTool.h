@@ -31,6 +31,7 @@ class UWeightMapPaintBrushOpProps;
 class UWeightMapSmoothBrushOpProps;
 class UClothEditorContextObject;
 class UPolygonSelectionMechanic;
+struct FChaosClothAssetAddWeightMapNode;
 
 DECLARE_STATS_GROUP(TEXT("WeightMapPaintTool"), STATGROUP_WeightMapPaintTool, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("WeightMapPaintTool_UpdateROI"), WeightMapPaintTool_UpdateROI, STATGROUP_WeightMapPaintTool);
@@ -186,24 +187,17 @@ enum class EClothEditorWeightMapPaintToolActions
 
 
 UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorWeightMapPaintToolActionPropertySet : public UInteractiveToolPropertySet
+class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorMeshWeightMapPaintToolActions : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
 public:
+
 	TWeakObjectPtr<UClothEditorWeightMapPaintTool> ParentTool;
 
 	void Initialize(UClothEditorWeightMapPaintTool* ParentToolIn) { ParentTool = ParentToolIn; }
 
 	void PostAction(EClothEditorWeightMapPaintToolActions Action);
-};
-
-UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UMeshWeightMapPaintToolActions : public UClothEditorWeightMapPaintToolActionPropertySet
-{
-	GENERATED_BODY()
-
-public:
 
 	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayPriority = 10))
 	void ClearAll()
@@ -219,27 +213,14 @@ public:
 
 };
 
-
 UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorAddWeightMapProperties : public UClothEditorWeightMapPaintToolActionPropertySet
+class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorUpdateWeightMapProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
 public:
 
-	UPROPERTY(EditAnywhere, Category = AddNode, meta = (DisplayName = "Name"))
-	FString Name = "WeightMap";
-};
-
-
-UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorUpdateWeightMapProperties : public UClothEditorWeightMapPaintToolActionPropertySet
-{
-	GENERATED_BODY()
-
-public:
-
-	UPROPERTY(VisibleAnywhere, Category = UpdateNode, meta = (DisplayName = "Name"))
+	UPROPERTY(EditAnywhere, Category = UpdateNode, meta = (DisplayName = "Name"))
 	FString Name;
 };
 
@@ -337,10 +318,7 @@ public:
 	virtual void RequestAction(EClothEditorWeightMapPaintToolActions ActionType);
 	
 	UPROPERTY()
-	TObjectPtr<UMeshWeightMapPaintToolActions> ActionsProps;
-
-	UPROPERTY()
-	TObjectPtr<UClothEditorAddWeightMapProperties> AddWeightMapProperties;
+	TObjectPtr<UClothEditorMeshWeightMapPaintToolActions> ActionsProps;
 
 	UPROPERTY()
 	TObjectPtr<UClothEditorUpdateWeightMapProperties> UpdateWeightMapProperties;
@@ -471,11 +449,13 @@ protected:
 
 	friend class UClothEditorWeightMapPaintToolBuilder;
 
+	bool bAnyChangeMade = false;
+
 	// Node graph editor support
-	bool GetSelectedNodeInfo(FString& OutMapName, TArray<float>& OutWeights);
-	void AddNewNode(const FString& NewMapName);
+
+	FChaosClothAssetAddWeightMapNode* WeightMapNodeToUpdate = nullptr;
+
 	void UpdateSelectedNode();
-	bool bShouldUpdateExistingNode = true;
 };
 
 

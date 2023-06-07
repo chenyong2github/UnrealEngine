@@ -15,6 +15,10 @@
 #include "ChaosClothAsset/ClothEditorModeToolkit.h"
 #include "ChaosClothAsset/ClothCollection.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "ChaosClothAsset/ClothEditorCommands.h"
+#include "ChaosClothAsset/AddWeightMapNode.h"
+#include "ChaosClothAsset/TransferSkinWeightsNode.h"
+#include "EdModeInteractiveToolsContext.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "AssetEditorModeManager.h"
 #include "AdvancedPreviewScene.h"
@@ -1009,6 +1013,7 @@ void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>&
 	if (ClothMode)
 	{
 		ClothMode->SetSelectedClothCollection(Collection);
+		ClothMode->OnDataflowNodeSelectionChanged(NewSelection);
 	}
 
 	if (Outliner)
@@ -1033,6 +1038,7 @@ void FChaosClothAssetEditorToolkit::OnNodeDeleted(const TSet<UObject*>& DeletedN
 	if (ClothMode)
 	{
 		ClothMode->SetSelectedClothCollection(nullptr);
+		ClothMode->OnDataflowNodeDeleted(DeletedNodes);
 	}
 
 }

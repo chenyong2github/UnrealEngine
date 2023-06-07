@@ -147,9 +147,9 @@ void FChaosClothAssetEditorModeToolkit::BuildToolPalette(FName PaletteIndex, cla
 	// TODO: make separate palettes to split up the tools tab
 	if (PaletteIndex == FBaseCharacterFXEditorModeToolkit::ToolsTabName)
 	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginWeightMapPaintTool);
+		ToolbarBuilder.AddToolBarButton(Commands.AddWeightMapNode);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginClothTrainingTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginTransferSkinWeightsTool);
+		ToolbarBuilder.AddToolBarButton(Commands.AddTransferSkinWeightsNode);
 	}
 }
 

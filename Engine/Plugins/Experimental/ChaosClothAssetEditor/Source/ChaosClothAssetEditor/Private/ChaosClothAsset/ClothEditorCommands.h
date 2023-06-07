@@ -32,8 +32,11 @@ public:
 
 	const static FString BeginRemeshToolIdentifier;
 	TSharedPtr<FUICommandInfo> BeginRemeshTool;
+
 	const static FString BeginWeightMapPaintToolIdentifier;
 	TSharedPtr<FUICommandInfo> BeginWeightMapPaintTool;
+	const static FString AddWeightMapNodeIdentifier;
+	TSharedPtr<FUICommandInfo> AddWeightMapNode;
 
 	const static FString BeginAttributeEditorToolIdentifier;
 	TSharedPtr<FUICommandInfo> BeginAttributeEditorTool;
@@ -43,6 +46,8 @@ public:
 
 	const static FString BeginTransferSkinWeightsToolIdentifier;
 	TSharedPtr<FUICommandInfo> BeginTransferSkinWeightsTool;
+	const static FString AddTransferSkinWeightsNodeIdentifier;
+	TSharedPtr<FUICommandInfo> AddTransferSkinWeightsNode;
 
 	// Construction viewport commands
 	const static FString ToggleConstructionViewWireframeIdentifier;

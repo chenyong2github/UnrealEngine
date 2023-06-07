@@ -3,9 +3,10 @@
 #pragma once
 
 #include "UObject/Object.h"
+#include "Dataflow/DataflowEdNode.h"
+#include "Dataflow/DataflowGraphEditor.h"
 #include "ClothEditorContextObject.generated.h"
 
-class SDataflowGraphEditor;
 class UDataflow;
 class UEdGraphNode;
 
@@ -23,52 +24,28 @@ class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorContextObject : public UObject
 
 public:
 
-	void Init(TWeakPtr<SDataflowGraphEditor> DataflowGraphEditor, TObjectPtr<UDataflow> DataflowGraph, UE::Chaos::ClothAsset::EClothPatternVertexType InConstructionViewMode, TWeakPtr<FManagedArrayCollection> SelectedClothCollection);
+	void Init(TWeakPtr<SDataflowGraphEditor> DataflowGraphEditor, UE::Chaos::ClothAsset::EClothPatternVertexType InConstructionViewMode, TWeakPtr<FManagedArrayCollection> SelectedClothCollection);
 
-	TWeakPtr<SDataflowGraphEditor> GetDataflowGraphEditor();
-	const TWeakPtr<const SDataflowGraphEditor> GetDataflowGraphEditor() const;
-
-	TObjectPtr<UDataflow> GetDataflowGraph();
-	const TObjectPtr<const UDataflow> GetDataflowGraph() const;
-
-	/** 
-	 * Return the single selected node in the Dataflow Graph Editor, or nullptr if multiple or no nodes are selected 
-	 */
-	UEdGraphNode* GetSingleSelectedNode() const;
-
-	/** 
-	* Return the single selected node in the Dataflow Graph Editor only if it has an output of the specified type
-	* If there is not a single node selected, or if it does not have the specified output, return null 
+	/**
+	* Get a single selected node of the specified type. Return nullptr if the specified node is not selected, or if multiple nodes are selected
 	*/
-	UEdGraphNode* GetSingleSelectedNodeWithOutputType(const FName& SelectedNodeOutputTypeName) const;
+	template<typename NodeType>
+	NodeType* GetSingleSelectedNodeOfType() const
+	{
+		const TSharedPtr<SDataflowGraphEditor> GraphEditor = DataflowGraphEditor.Pin();
 
-	/** 
-	 * Create a node with the specified type in the graph 
-	 */
-	UEdGraphNode* CreateNewNode(const FName& NewNodeTypeName);
+		if (UEdGraphNode* const SingleSelectedNode = GraphEditor->GetSingleSelectedNode())
+		{
+			UDataflowEdNode* const SelectedDataflowEdNode = CastChecked<UDataflowEdNode>(SingleSelectedNode);
+			const TSharedPtr<FDataflowNode> DataflowNode = SelectedDataflowEdNode->GetDataflowNode();
+			if (NodeType* const NodeTypeNode = DataflowNode->AsType<NodeType>())
+			{
+				return NodeTypeNode;
+			}
+		}
 
-
-	/** Create a node with the specified type, then connect it to the output of the specified UpstreamNode.
-	* If the specified output of the upstream node is already connected to another node downstream, we first break
-	* that connecttion, then insert the new node along the previous connection.
-	* We want to turn this:
-	* 
-	* [UpstreamNode] ----> [DownstreamNode(s)]
-	* 
-	* to this:
-	*
-	* [UpstreamNode] ----> [NewNode] ----> [DownstreamNode(s)]
-	*
-	* 
-	* @param NewNodeTypeName The type of node to create, by name
-	* @param UpstreamNode Node to connect the new node to
-	* @param ConnectionTypeName The type of output of the upstream node to connect our new node to
-	* @return The newly-created node
-	*/
-	UEdGraphNode* CreateAndConnectNewNode(
-		const FName& NewNodeTypeName,
-		UEdGraphNode& UpstreamNode,
-		const FName& ConnectionTypeName);
+		return nullptr;
+	}
 
 	void SetClothCollection(UE::Chaos::ClothAsset::EClothPatternVertexType ViewMode, TWeakPtr<FManagedArrayCollection> ClothCollection);
 
@@ -77,9 +54,6 @@ public:
 private:
 
 	TWeakPtr<SDataflowGraphEditor> DataflowGraphEditor;
-
-	UPROPERTY()
-	TObjectPtr<UDataflow> DataflowGraph = nullptr;
 
 	UE::Chaos::ClothAsset::EClothPatternVertexType ConstructionViewMode;
 	TWeakPtr<const FManagedArrayCollection> SelectedClothCollection;

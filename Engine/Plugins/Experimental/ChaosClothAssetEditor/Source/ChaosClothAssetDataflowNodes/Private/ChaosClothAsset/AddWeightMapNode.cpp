@@ -35,7 +35,7 @@ void FChaosClothAssetAddWeightMapNode::Evaluate(Dataflow::FContext& Context, con
 
 		TArrayView<float> ClothWeights = ClothFacade.GetWeightMap(InName);
 		const int32 MaxWeightIndex = FMath::Min(VertexWeights.Num(), ClothWeights.Num());
-		if (VertexWeights.Num() != ClothWeights.Num())
+		if (VertexWeights.Num() > 0 && VertexWeights.Num() != ClothWeights.Num())
 		{
 			DataflowNodes::LogAndToastWarning(
 				FText::Format(LOCTEXT("WeightMapSize", "FChaosClothAssetAddWeightMapNode: Vertex count mismatch: vertex weights in the node: {0}; 3D vertices in cloth: {1}"),

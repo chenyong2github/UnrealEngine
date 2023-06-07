@@ -108,7 +108,16 @@ void UClothTransferSkinWeightsTool::Setup()
 {
 	USingleSelectionMeshEditingTool::Setup();
 
+	TransferSkinWeightsNode = ClothEditorContextObject->GetSingleSelectedNodeOfType<FChaosClothAssetTransferSkinWeightsNode>();
+	checkf(TransferSkinWeightsNode, TEXT("No Transfer Skin Weights Node is currently selected, or more than one node is selected"));
+
 	ToolProperties = NewObject<UClothTransferSkinWeightsToolProperties>(this);
+
+	SetSRTPropertiesFromTransform(TransferSkinWeightsNode->Transform);
+	ToolProperties->SourceMesh = TransferSkinWeightsNode->SkeletalMesh;
+	ToolProperties->SourceMeshLOD = TransferSkinWeightsNode->SkeletalMeshLOD;
+	
+
 	AddToolPropertySource(ToolProperties);
 
 
@@ -214,7 +223,7 @@ void UClothTransferSkinWeightsTool::Setup()
 	ensure(GizmoManager);
 	SourceMeshTransformProxy = NewObject<UTransformProxy>(this);
 	ensure(SourceMeshTransformProxy);
-	SourceMeshTransformProxy->SetTransform(FTransform::Identity);
+	SourceMeshTransformProxy->SetTransform(TransferSkinWeightsNode->Transform);
 
 	SourceMeshTransformProxy->OnTransformChanged.AddWeakLambda(this, [this](UTransformProxy*, FTransform NewTransform)
 	{
@@ -256,7 +265,9 @@ void UClothTransferSkinWeightsTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		AddNewNode();
+		TransferSkinWeightsNode->SkeletalMesh = ToolProperties->SourceMesh;
+		TransferSkinWeightsNode->SkeletalMeshLOD = ToolProperties->SourceMeshLOD;
+		TransferSkinWeightsNode->Transform = TransformFromProperties();
 	}
 
 	if (SourceMeshTransformProxy)
@@ -293,7 +304,14 @@ void UClothTransferSkinWeightsTool::Shutdown(EToolShutdownType ShutdownType)
 
 bool UClothTransferSkinWeightsTool::CanAccept() const
 {
-	return ToolProperties && ToolProperties->SourceMesh && ToolProperties->SourceMesh->IsValidLODIndex(ToolProperties->SourceMeshLOD);
+	const FTransform& TransformOnNode = TransferSkinWeightsNode->Transform;;
+
+	return (ToolProperties->SourceMesh != TransferSkinWeightsNode->SkeletalMesh) ||
+		(ToolProperties->SourceMeshLOD != TransferSkinWeightsNode->SkeletalMeshLOD) ||
+		(ToolProperties->SourceMeshRotation != TransformOnNode.Rotator().Euler()) ||
+		(ToolProperties->SourceMeshTranslation != TransformOnNode.GetTranslation()) ||
+		(ToolProperties->SourceMeshScale != TransformOnNode.GetScale3D());
+
 }
 
 void UClothTransferSkinWeightsTool::OnTick(float DeltaTime)
@@ -324,26 +342,6 @@ void UClothTransferSkinWeightsTool::SetClothEditorContextObject(TObjectPtr<UClot
 	ClothEditorContextObject = InClothEditorContextObject;
 }
 
-void UClothTransferSkinWeightsTool::AddNewNode()
-{
-	checkf(ClothEditorContextObject, TEXT("Expected a non-null ClothEditorContextObject. Check UClothTransferSkinWeightsToolBuilder::CreateNewTool"));
-
-	const FName ConnectionType(FManagedArrayCollection::StaticType());
-	UEdGraphNode* const CurrentlySelectedNode = ClothEditorContextObject->GetSingleSelectedNodeWithOutputType(ConnectionType);
-	checkf(CurrentlySelectedNode, TEXT("No node with FManagedArrayCollection output is currently selected in the Dataflow graph"));
-
-	const FName NewNodeType(FChaosClothAssetTransferSkinWeightsNode::StaticType());
-	UEdGraphNode* const NewNode = ClothEditorContextObject->CreateAndConnectNewNode(NewNodeType, *CurrentlySelectedNode, ConnectionType);
-	checkf(NewNode, TEXT("Unexpectedly failed to create a new FChaosClothAssetTransferSkinWeightsNode"));
-
-	UDataflowEdNode* const NewDataflowEdNode = CastChecked<UDataflowEdNode>(NewNode);
-	const TSharedPtr<FDataflowNode> NewDataflowNode = NewDataflowEdNode->GetDataflowNode();
-	FChaosClothAssetTransferSkinWeightsNode* const NewTransferNode = NewDataflowNode->AsType<FChaosClothAssetTransferSkinWeightsNode>();
-
-	NewTransferNode->SkeletalMesh = ToolProperties->SourceMesh;
-	NewTransferNode->SkeletalMeshLOD = ToolProperties->SourceMeshLOD;
-	NewTransferNode->Transform = TransformFromProperties();
-}
 
 void UClothTransferSkinWeightsTool::SetPreviewMeshColorFunction()
 {
@@ -398,6 +396,14 @@ FTransform UClothTransferSkinWeightsTool::TransformFromProperties() const
 	return FTransform(Rotation, ToolProperties->SourceMeshTranslation, ToolProperties->SourceMeshScale);
 }
 
+void UClothTransferSkinWeightsTool::SetSRTPropertiesFromTransform(const FTransform& Transform) const
+{
+	ToolProperties->SourceMeshRotation = Transform.Rotator().Euler();
+	ToolProperties->SourceMeshTranslation = Transform.GetTranslation();
+	ToolProperties->SourceMeshScale = Transform.GetScale3D();
+}
+
+
 void UClothTransferSkinWeightsTool::UpdateSourceMesh()
 {
 	checkf(ToolProperties, TEXT("ToolProperties is expected to be non-null. Be sure to run Setup() on this tool when it is created."));
@@ -415,7 +421,8 @@ void UClothTransferSkinWeightsTool::UpdateSourceMesh()
 		SourceMeshComponent->SetMaterial(0, ToolSetupUtil::GetTransparentSculptMaterial(GetToolManager(), FLinearColor::Red, 0.4, true));
 		SourceMeshComponent->SetVisibility(!ToolProperties->bHideSourceMesh);
 
-		SourceMeshTransformGizmo->SetNewGizmoTransform(SourceMeshParentActor->GetActorTransform());
+		// Use ReinitializeGizmoTransform rather than SetNewGizmoTransform to avoid having this on the undo stack
+		SourceMeshTransformGizmo->ReinitializeGizmoTransform(SourceMeshParentActor->GetActorTransform());
 		SourceMeshTransformGizmo->SetVisibility(!ToolProperties->bHideSourceMesh);
 		SourceMeshTransformGizmo->ActiveGizmoMode = EToolContextTransformGizmoMode::Combined;
 
