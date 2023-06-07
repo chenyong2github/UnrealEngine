@@ -5,6 +5,7 @@
 #include "Containers/ArrayView.h"
 #include "CompGeom/ConvexDecomposition3.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "UObject/ObjectMacros.h"
 
 namespace Chaos { class FConvex; }
 struct FManagedArrayCollection;
