@@ -1187,6 +1187,7 @@ static void LaunchUnrealTraceInternal(const TCHAR* CommandLine)
 #elif PLATFORM_MAC
 	BinPath << "Binaries/Mac/UnrealTraceServer";
 #endif
+	BinPath.ToString(); //Ensure zero termination
 
 	if (access(*BinPath, F_OK) < 0)
 	{
@@ -1196,6 +1197,7 @@ static void LaunchUnrealTraceInternal(const TCHAR* CommandLine)
 
 	TAnsiStringBuilder<64> ForkArg;
 	ForkArg << "fork";
+	ForkArg.ToString(); //Ensure zero termination
 
 	pid_t UtsPid = fork();
 	if (UtsPid < 0)
