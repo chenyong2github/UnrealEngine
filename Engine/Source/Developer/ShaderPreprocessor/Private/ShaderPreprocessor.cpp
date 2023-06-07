@@ -417,10 +417,10 @@ bool PreprocessShader(
 	{
 		return FFileHelper::LoadFileToString(Output.EditSource(), *Input.VirtualSourceFilePath);
 	}
-	else
-	{
-		check(CheckVirtualShaderFilePath(Input.VirtualSourceFilePath));
-	}
+
+	check(CheckVirtualShaderFilePath(Input.VirtualSourceFilePath));
+
+	Output.EditSource().Empty();
 
 	// List the defines used for compilation in the preprocessed shaders, especially to know which permutation vector this shader is.
 	if (DefinesPolicy == EDumpShaderDefines::AlwaysIncludeDefines || (DefinesPolicy == EDumpShaderDefines::DontCare && Input.DumpDebugInfoPath.Len() > 0))

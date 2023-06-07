@@ -1140,7 +1140,7 @@ void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCom
 #endif
 
 	Job.bSucceeded = Job.Output.bSucceeded;
-	if (Job.bSucceeded && Job.Input.DumpDebugInfoEnabled())
+	if (Job.Input.DumpDebugInfoEnabled())
 	{
 		// if the preprocessed cache is disabled, dump debug output here, since we don't serialize preprocess output 
 		// back to the cooker in this case (if enabled this will occur in the job OnComplete callback)
