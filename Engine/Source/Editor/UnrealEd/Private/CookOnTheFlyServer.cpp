@@ -3741,19 +3741,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::CallBeginCacheOnObjects(UE::Cook::FPa
 			continue;
 		}
 		FCachedCookedPlatformDataState& CCPDState = PackageDatas->GetCachedCookedPlatformDataObjects().FindOrAdd(Obj);
-		if (CCPDState.PackageData != &PackageData)
-		{
-			if (CCPDState.PackageData != nullptr)
-			{
-				UE_LOG(LogCook, Display, TEXT("CachedCookedPlatformDatas: %s is unexpectedly in two packages at once.")
-					TEXT("\n\tPreviousPackage: %s")
-					TEXT("\n\tCurrentPackage: %s"),
-					*Obj->GetFullName(), *CCPDState.PackageData->GetPackageName().ToString(),
-					*PackageData.GetPackageName().ToString());
-				continue;
-			}
-			CCPDState.PackageData = &PackageData;
-		}
+		CCPDState.AddRefFrom(&PackageData);
 
 		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 		{
@@ -11594,23 +11582,13 @@ void UCookOnTheFlyServer::RouteBeginCacheForCookedPlatformData(UE::Cook::FPackag
 	if (!ExistingEvent)
 	{
 		FCachedCookedPlatformDataState& CCPDState = PackageDatas->GetCachedCookedPlatformDataObjects().FindOrAdd(Obj);
-		if (CCPDState.PackageData != &PackageData)
-		{
-			if (CCPDState.PackageData != nullptr)
-			{
-				ExistingEvent = CCPDState.PlatformStates.Find(TargetPlatform);
-				UE_LOG(LogCook, Display, TEXT("BeginCacheForCookedPlatformData called unexpectedly on %s. Skipping it.")
-					TEXT("\n\tPreviousEvent: %s for package %s.")
-					TEXT("\n\tCurrentEvent: %s for package %s."),
-					*Obj->GetFullName(), LexToString(ExistingEvent ? *ExistingEvent : ECachedCookedPlatformDataEvent::None),
-					*CCPDState.PackageData->GetPackageName().ToString(),
-					LexToString(ECachedCookedPlatformDataEvent::BeginCacheForCookedPlatformDataCalled),
-					*PackageName.ToString());
-				return;
-			}
-			CCPDState.PackageData = &PackageData;
-		}
+		CCPDState.AddRefFrom(&PackageData);
 		ExistingEvent = &CCPDState.PlatformStates.FindOrAdd(TargetPlatform, ECachedCookedPlatformDataEvent::None);
+	}
+	if (*ExistingEvent != ECachedCookedPlatformDataEvent::None)
+	{
+		// BeginCacheForCookedPlatformData was already called; do not call it again
+		return;
 	}
 
 	// We need to set our scopes for e.g. TObjectPtr reads around the call to BeginCacheForCookedPlatformData,
@@ -11637,21 +11615,7 @@ bool UCookOnTheFlyServer::RouteIsCachedCookedPlatformDataLoaded(UE::Cook::FPacka
 	if (!ExistingEvent)
 	{
 		FCachedCookedPlatformDataState& CCPDState = PackageDatas->GetCachedCookedPlatformDataObjects().FindOrAdd(Obj);
-		if (CCPDState.PackageData != &PackageData)
-		{
-			if (CCPDState.PackageData != nullptr)
-			{
-				UE_LOG(LogCook, Display, TEXT("IsCachedCookedPlatformDataLoaded called unexpectedly on %s. Skipping it and returning true.")
-					TEXT("\n\tPreviousEvent: %s for package %s.")
-					TEXT("\n\tCurrentEvent: %s for package %s."),
-					*Obj->GetFullName(), LexToString(ExistingEvent ? *ExistingEvent : ECachedCookedPlatformDataEvent::None),
-					*CCPDState.PackageData->GetPackageName().ToString(),
-					LexToString(ECachedCookedPlatformDataEvent::IsCachedCookedPlatformDataLoadedCalled),
-					*PackageName.ToString());
-				return true;
-			}
-			CCPDState.PackageData = &PackageData;
-		}
+		CCPDState.AddRefFrom(&PackageData);
 		ExistingEvent = &CCPDState.PlatformStates.FindOrAdd(TargetPlatform, ECachedCookedPlatformDataEvent::None);
 	}
 
@@ -11685,18 +11649,9 @@ EPackageWriterResult UCookOnTheFlyServer::SavePackageBeginCacheForCookedPlatform
 	for (UObject* Object : SaveableObjects)
 	{
 		FCachedCookedPlatformDataState& CCPDState = PackageDatas->GetCachedCookedPlatformDataObjects().FindOrAdd(Object);
-		if (CCPDState.PackageData != PackageData)
+		if (!CCPDState.PackageDatas.Contains(PackageData))
 		{
-			if (CCPDState.PackageData != nullptr)
-			{
-				UE_LOG(LogCook, Display, TEXT("CachedCookedPlatformDatas: %s is unexpectedly in two packages at once.")
-					TEXT("\n\tPreviousPackage: %s")
-					TEXT("\n\tCurrentPackage: %s"),
-					*Object->GetFullName(), *CCPDState.PackageData->GetPackageName().ToString(),
-					*PackageData->GetPackageName().ToString());
-				continue;
-			}
-			CCPDState.PackageData = PackageData;
+			CCPDState.AddRefFrom(PackageData);
 
 			// NextIndex is usually at the end of CachedObjectsInOuter, but in case it is not, insert the new Object 
 			// at NextIndex so that we still record that we have not called BeginCace on objects after it. Then increment
@@ -11709,26 +11664,26 @@ EPackageWriterResult UCookOnTheFlyServer::SavePackageBeginCacheForCookedPlatform
 
 		ECachedCookedPlatformDataEvent& ExistingEvent =
 			CCPDState.PlatformStates.FindOrAdd(TargetPlatform, ECachedCookedPlatformDataEvent::None);
-		if (ExistingEvent == ECachedCookedPlatformDataEvent::IsCachedCookedPlatformDataLoadedReturnedTrue)
+		if (ExistingEvent != ECachedCookedPlatformDataEvent::IsCachedCookedPlatformDataLoadedReturnedTrue)
 		{
-			// Already called
-			continue;
-		}
-
-		RouteBeginCacheForCookedPlatformData(*PackageData, Object, TargetPlatform, &ExistingEvent);
-		if (bCallIsCachedOnSaveCreatedObjects)
-		{
-			// TODO: Enable bCallIsCachedOnSaveCreatedObjects so that we call IsCachedCookedPlatformDataLoaded on all the objects until it
-			// returns true. This is required for the BeginCacheForCookedPlatformData contract.
-			// Doing so will cause us to return Timeout and retry the save later after the pending objects have completed.
-			// We tried enabling this once, but it created knockon bugs: Textures created by landscape were not handling it correctly
-			// (which we have subsequently fixed) and MaterialInstanceConstants created by landscape were not handling it correctly (which 
-			// we have not yet diagnosed).
-			if (!RouteIsCachedCookedPlatformDataLoaded(*PackageData, Object, TargetPlatform, &ExistingEvent))
+			if (ExistingEvent == ECachedCookedPlatformDataEvent::None)
 			{
-				PackageDatas->AddPendingCookedPlatformData(FPendingCookedPlatformData(Object, TargetPlatform,
-					*PackageData, false /* bNeedsResourceRelease */, *this));
-				PendingObjects.Add(Object);
+				RouteBeginCacheForCookedPlatformData(*PackageData, Object, TargetPlatform, &ExistingEvent);
+			}
+			if (bCallIsCachedOnSaveCreatedObjects)
+			{
+				// TODO: Enable bCallIsCachedOnSaveCreatedObjects so that we call IsCachedCookedPlatformDataLoaded on all the objects until it
+				// returns true. This is required for the BeginCacheForCookedPlatformData contract.
+				// Doing so will cause us to return Timeout and retry the save later after the pending objects have completed.
+				// We tried enabling this once, but it created knockon bugs: Textures created by landscape were not handling it correctly
+				// (which we have subsequently fixed) and MaterialInstanceConstants created by landscape were not handling it correctly (which 
+				// we have not yet diagnosed).
+				if (!RouteIsCachedCookedPlatformDataLoaded(*PackageData, Object, TargetPlatform, &ExistingEvent))
+				{
+					PackageDatas->AddPendingCookedPlatformData(FPendingCookedPlatformData(Object, TargetPlatform,
+						*PackageData, false /* bNeedsResourceRelease */, *this));
+					PendingObjects.Add(Object);
+				}
 			}
 		}
 	}

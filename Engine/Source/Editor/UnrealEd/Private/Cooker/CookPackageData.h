@@ -71,12 +71,21 @@ enum class ECachedCookedPlatformDataEvent : uint8
 };
 const TCHAR* LexToString(ECachedCookedPlatformDataEvent);
 /**
- * BeginCachedForCookedPlatformData state about an object - which package owned it (not always the same
+ * BeginCachedForCookedPlatformData state about an object - which packages owned it (not always the same
  * one when PackageGenerators are involved) and the per-platform state for ECachedCookedPlatformDataEvent.
  */
 struct FCachedCookedPlatformDataState
 {
-	FPackageData* PackageData = nullptr;
+	void AddRefFrom(FPackageData* PackageData);
+	void ReleaseFrom(FPackageData* PackageData);
+	bool IsReferenced() const;
+
+	/**
+	 * The packages that have called any of the BeginCacheForCookedPlatformData family of function
+	 * on this object. Usually only a single 1, sometimes 2, see comment in AddPackageData.
+	 */
+	TArray<FPackageData*, TInlineAllocator<2>> PackageDatas;
+	/** The per-platform state of which BeginCacheForCookedPlatformData events have been passed. */
 	TMap<const ITargetPlatform*, ECachedCookedPlatformDataEvent> PlatformStates;
 };
 

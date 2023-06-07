@@ -1256,29 +1256,9 @@ EPollStatus FPackageData::RefreshObjectCache(bool& bOutFoundNewObjects)
 
 void FPackageData::ClearObjectCache()
 {
-	TMap<UObject*, FCachedCookedPlatformDataState>& CCPDs = PackageDatas.GetCachedCookedPlatformDataObjects();
-	for (FWeakObjectPtr& WeakObjectPtr: CachedObjectsInOuter)
-	{
-		UObject* Object = WeakObjectPtr.Get();
-		if (!Object)
-		{
-			continue;
-		}
-		FCachedCookedPlatformDataState CCPDState;
-		CCPDs.RemoveAndCopyValue(Object, CCPDState);
-		if (CCPDState.PackageData != this)
-		{
-			// This is an error condition that is logged elsewhere; one of the objects in this package is also
-			// present in another package, which owns it. We should silently handle this case (silently because
-			// the error about it is logged elsewhere), which means we should not modify the object on account
-			// of this package.
-			// We removed it because we thought would own it if it existed, but since we were wrong, put it back.
-			if (CCPDState.PackageData != nullptr)
-			{
-				CCPDs.Add(Object, MoveTemp(CCPDState));
-			}
-		}
-	}
+	// Note we do not need to remove objects in CachedObjectsInOuter from CachedCookedPlatformDataObjects
+	// That removal is handled by ReleaseCookedPlatformData, and the caller is responsible for calling
+	// ReleaseCookedPlatformData before calling ClearObjectCache
 	CachedObjectsInOuter.Empty();
 	for (TPair<const ITargetPlatform*, FPackagePlatformData>& Pair : PlatformDatas)
 	{
@@ -2399,38 +2379,26 @@ void FPendingCookedPlatformData::ClearCachedCookedPlatformData(UObject* Object, 
 {
 	FPackageDatas& PackageDatas = PackageData.GetPackageDatas();
 	UCookOnTheFlyServer& COTFS = PackageDatas.GetCookOnTheFlyServer();
-	FCachedCookedPlatformDataState CCPDState;
-	PackageDatas.GetCachedCookedPlatformDataObjects().RemoveAndCopyValue(Object, CCPDState);
-	if (CCPDState.PackageData != &PackageData)
+	using FCCPDMapType = TMap<UObject*, FCachedCookedPlatformDataState>;
+	FCCPDMapType& CCPDs = PackageDatas.GetCachedCookedPlatformDataObjects();
+
+	uint32 ObjectKeyHash = FCCPDMapType::KeyFuncsType::GetKeyHash(Object);
+	FCachedCookedPlatformDataState* CCPDState = CCPDs.FindByHash(ObjectKeyHash, Object);
+	if (!CCPDState)
 	{
-		if (CCPDState.PackageData)
-		{
-			ECachedCookedPlatformDataEvent ExistingEvent = ECachedCookedPlatformDataEvent::None;
-			for (TPair<const ITargetPlatform*, ECachedCookedPlatformDataEvent>& PlatformPair : CCPDState.PlatformStates)
-			{
-				if (PlatformPair.Value != ECachedCookedPlatformDataEvent::None)
-				{
-					ExistingEvent = PlatformPair.Value;
-					break;
-				}
-			}
-			UE_LOG(LogCook, Display, TEXT("ClearCachedCookedPlatformData called unexpectedly on %s. It will be skipped.")
-				TEXT("\n\tPreviousEvent: %s for package %s.")
-				TEXT("\n\tCurrentEvent: %s for package %s."),
-				*Object->GetFullName(), LexToString(ExistingEvent), *CCPDState.PackageData->GetPackageName().ToString(),
-				LexToString(ECachedCookedPlatformDataEvent::ClearCachedCookedPlatformDataCalled),
-				*PackageData.GetPackageName().ToString());
-			PackageDatas.GetCachedCookedPlatformDataObjects().Add(Object, MoveTemp(CCPDState));
-		}
+		return;
 	}
-	else
+
+	CCPDState->ReleaseFrom(&PackageData);
+	if (!CCPDState->IsReferenced())
 	{
-		for (const TPair<const ITargetPlatform*, ECachedCookedPlatformDataEvent>& PlatformPair : CCPDState.PlatformStates)
+		for (const TPair<const ITargetPlatform*, ECachedCookedPlatformDataEvent>&
+			PlatformPair : CCPDState->PlatformStates)
 		{
 			Object->ClearCachedCookedPlatformData(PlatformPair.Key);
 		}
 
-		// ClearAllCachedCookedPlatformData and WillNeverCacheCookedPlatformDataAgain calls are only used when not in editor
+		// ClearAllCachedCookedPlatformData and WillNeverCacheCookedPlatformDataAgain are not used in editor
 		if (!COTFS.IsCookingInEditor())
 		{
 			Object->ClearAllCachedCookedPlatformData();
@@ -2439,6 +2407,8 @@ void FPendingCookedPlatformData::ClearCachedCookedPlatformData(UObject* Object, 
 				Object->WillNeverCacheCookedPlatformDataAgain();
 			}
 		}
+
+		CCPDs.RemoveByHash(ObjectKeyHash, Object);
 	}
 };
 
@@ -3477,6 +3447,28 @@ void FPackageDatas::CachedCookedPlatformDataObjectsPostGarbageCollect(const TSet
 			Iter.RemoveCurrent();
 		}
 	}
+}
+
+void FCachedCookedPlatformDataState::AddRefFrom(FPackageData* PackageData)
+{
+	// Most objects will only be referenced by a single package.
+	// The exceptions:
+	//   1) Generator Packages that move the object from the generator into a generated
+	//   2) Bugs
+	// Even in case (1), the number of referencers will be 2.
+	// We therefore for now just use a flat array and AddUnique, to minimize memory and performance in the 
+	// usual case on only a single referencer.
+	PackageDatas.AddUnique(PackageData);
+}
+
+void FCachedCookedPlatformDataState::ReleaseFrom(FPackageData* PackageData)
+{
+	PackageDatas.Remove(PackageData);
+}
+
+bool FCachedCookedPlatformDataState::IsReferenced() const
+{
+	return !PackageDatas.IsEmpty();
 }
 
 } // namespace UE::Cook
