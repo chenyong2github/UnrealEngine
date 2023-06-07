@@ -9,6 +9,8 @@
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
 #include "CompGeom/ConvexDecomposition3.h"
 
+#include "FractureEngineConvex.h"
+
 #include "GeometryCollectionUtilityNodes.generated.h"
 
 
@@ -153,12 +155,19 @@ public:
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
 	FDataflowTransformSelection OptionalSelectionFilter;
 
-	/** Computed convex hulls are simplified to keep points spaced at least this far apart (except where needed to keep the hull from collapsing to zero volume) */
-	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, ClampMin = 0.f))
+	UPROPERTY(EditAnywhere, Category = "Convex")
+	EConvexHullSimplifyMethod SimplifyMethod = EConvexHullSimplifyMethod::MeshQSlim;
+
+	/** Simplified hull should preserve angles larger than this (in degrees).  Used by the AngleTolerance simplification method. */
+	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, ClampMin = 0.f, EditCondition = "SimplifyMethod == EConvexHullSimplifyMethod::AngleTolerance"))
+	float SimplificationAngleThreshold = 10.f;
+
+	/** Simplified hull should stay within this distance of the initial convex hull. Used by the MeshQSlim simplification method. */
+	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, ClampMin = 0.f, EditCondition = "SimplifyMethod == EConvexHullSimplifyMethod::MeshQSlim"))
 	float SimplificationDistanceThreshold = 10.f;
 
-	/** The minimum number of triangles to use for the convex hull. Will use more triangles than this as-needed to preserve the distance threshold. */
-	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, ClampMin = 4))
+	/** The minimum number of faces to use for the convex hull. For MeshQSlim simplification, this is a triangle count, which may be further reduced on conversion back to a convex hull. */
+	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DisplayName = "Min Target Face Count", DataflowInput, ClampMin = 4))
 	int32 MinTargetTriangleCount = 12;
 
 	/** Whether to restrict the simplified hulls to only use vertices from the original hulls. */

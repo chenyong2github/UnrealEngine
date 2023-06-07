@@ -11,11 +11,13 @@ namespace UnrealBuildTool.Rules
 				{
 					"Chaos",
 					"Core",
+					"CoreUObject",
 					"DataflowCore",
 					"PlanarCut",
 					"GeometryCore",
 					"DynamicMesh",
-					"Voronoi"
+					"Voronoi",
+					"MeshUtilitiesCommon", // for FDisjointSet
 				}
 				);
 		}

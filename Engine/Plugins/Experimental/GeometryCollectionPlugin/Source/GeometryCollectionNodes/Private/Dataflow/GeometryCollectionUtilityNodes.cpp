@@ -9,8 +9,6 @@
 #include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "GeometryCollection/Facades/CollectionTransformSelectionFacade.h"
 
-#include "FractureEngineConvex.h"
-
 #include "MeshSimplification.h"
 
 
@@ -116,6 +114,7 @@ FSimplifyConvexHullsDataflowNode::FSimplifyConvexHullsDataflowNode(const Dataflo
 {
 	RegisterInputConnection(&Collection);
 	RegisterInputConnection(&OptionalSelectionFilter);
+	RegisterInputConnection(&SimplificationAngleThreshold);
 	RegisterInputConnection(&SimplificationDistanceThreshold);
 	RegisterInputConnection(&MinTargetTriangleCount);
 	RegisterOutputConnection(&Collection);
@@ -142,7 +141,9 @@ void FSimplifyConvexHullsDataflowNode::Evaluate(Dataflow::FContext& Context, con
 		}
 
 		UE::FractureEngine::Convex::FSimplifyHullSettings Settings;
+		Settings.SimplifyMethod = SimplifyMethod;
 		Settings.ErrorTolerance = GetValue(Context, &SimplificationDistanceThreshold);
+		Settings.AngleThreshold = GetValue(Context, &SimplificationAngleThreshold);
 		Settings.bUseGeometricTolerance = true;
 		Settings.bUseTargetTriangleCount = true;
 		Settings.bUseExistingVertexPositions = bUseExistingVertices;

@@ -9,11 +9,23 @@
 namespace Chaos { class FConvex; }
 struct FManagedArrayCollection;
 
+UENUM()
+enum class EConvexHullSimplifyMethod
+{
+	MeshQSlim,
+	AngleTolerance
+};
+
 namespace UE::FractureEngine::Convex
 {
 	// Options to control the simplification of an existing convex hull
 	struct FSimplifyHullSettings
 	{
+		EConvexHullSimplifyMethod SimplifyMethod = EConvexHullSimplifyMethod::MeshQSlim;
+
+		double AngleThreshold = 0; // used for AngleTolerance simplification
+		double SmallAreaThreshold = .1; // optionally used for AngleTolerance to ignore very small faces
+
 		bool bUseGeometricTolerance = true;
 		double ErrorTolerance = 5;
 
