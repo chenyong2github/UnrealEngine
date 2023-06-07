@@ -265,9 +265,6 @@ private:
 	/** Mounts a plugin that was requested to be mounted from external code (either by MountNewlyCreatedPlugin or MountExplicitlyLoadedPlugin) */
 	void MountPluginFromExternalSource(const TSharedRef<FPlugin>& Plugin);
 
-	/** Unmounts a plugin that was requested to be unmounted from external code (by UnmountExplicitlyLoadedPlugin) */
-	bool UnmountPluginFromExternalSource(const TSharedPtr<FPlugin>& Plugin, FText* OutReason);
-
 #if WITH_EDITOR
 	void AddToModuleNameToPluginMap(const TSharedRef<FPlugin>& Plugin);
 	void RemoveFromModuleNameToPluginMap(const TSharedRef<FPlugin>& Plugin);
