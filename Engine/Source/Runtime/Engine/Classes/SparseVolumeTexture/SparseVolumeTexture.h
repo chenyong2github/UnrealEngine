@@ -33,9 +33,6 @@ class FStreamingManager;
 
 struct ENGINE_API FHeader
 {
-	static const uint32 kVersion = 0; // The current data format version for the header.
-	uint32 Version = kVersion; // This version can be used to convert existing header to new version later.
-
 	FIntVector3 VirtualVolumeResolution = FIntVector3(0, 0, 0);
 	FIntVector3 VirtualVolumeAABBMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
 	FIntVector3 VirtualVolumeAABBMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
@@ -43,11 +40,10 @@ struct ENGINE_API FHeader
 	FIntVector3 PageTableVolumeAABBMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
 	FIntVector3 PageTableVolumeAABBMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
 	TStaticArray<EPixelFormat, 2> AttributesFormats = TStaticArray<EPixelFormat, 2>(InPlace, PF_Unknown);
-	TStaticArray<FVector4f, 2> FallbackValues = TStaticArray<FVector4f, 2>(InPlace, FVector4f());
+	TStaticArray<FVector4f, 2> FallbackValues = TStaticArray<FVector4f, 2>(InPlace, FVector4f(0.0f, 0.0f, 0.0f, 0.0f));
 
 	FHeader() = default;
 	FHeader(const FIntVector3& AABBMin, const FIntVector3& AABBMax, EPixelFormat FormatA, EPixelFormat FormatB, const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
-	void Serialize(FArchive& Ar);
 };
 
 // Describes a mip level of a SVT frame in terms of the sizes and offsets of the data in the built bulk data.
@@ -81,10 +77,6 @@ public:
 	TArray<uint8> RootData;
 	// Data for all streamable mip levels
 	FByteBulkData StreamableMipLevels;
-#if WITH_EDITORONLY_DATA
-	// FTextureData from which all the other data can be built with a call to Build()
-	UE::Serialization::FEditorBulkData SourceData;
-#endif
 
 	// These are used for logging and retrieving StreamableMipLevels from DDC in FStreamingManager
 #if WITH_EDITORONLY_DATA
@@ -103,9 +95,9 @@ public:
 	// Fills StreamableMipLevels with data from DDC. Returns true when done.
 	bool RebuildBulkDataFromCacheAsync(const UObject* Owner, bool& bFailed);
 	// Builds all the data from SourceData. Is called by Cache().
-	bool Build(USparseVolumeTextureFrame* Owner);
+	bool Build(USparseVolumeTextureFrame* Owner, UE::Serialization::FEditorBulkData& SourceData);
 	// Cache the built data to/from DDC. If bLocalCachingOnly is true, the read/write queries will only use the local DDC; otherwise the remote DDC will also be used.
-	void Cache(USparseVolumeTextureFrame* Owner, bool bLocalCachingOnly);
+	void Cache(USparseVolumeTextureFrame* Owner, UE::Serialization::FEditorBulkData& SourceData, bool bLocalCachingOnly);
 	// Sets empty default data. This is used when caching/building is canceled but some form of valid data is needed.
 	void SetDefault(EPixelFormat FormatA, EPixelFormat FormatB, const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
 #endif
@@ -162,6 +154,8 @@ private:
 
 }
 }
+
+FArchive& operator<<(FArchive& Ar, UE::SVT::FHeader& Header);
 
 enum ESparseVolumeTextureShaderUniform
 {
@@ -224,6 +218,7 @@ public:
 #endif // WITH_EDITOR
 };
 
+// Represents a frame in a SparseVolumeTexture sequence and owns the actual data needed for rendering. Is owned by a UStreamableSparseVolumeTexture object.
 UCLASS(ClassGroup = Rendering, BlueprintType)
 class ENGINE_API USparseVolumeTextureFrame : public USparseVolumeTexture
 {
@@ -283,27 +278,31 @@ public:
 	//~ End USparseVolumeTexture Interface.
 
 private:
+
 	UPROPERTY()
 	TObjectPtr<USparseVolumeTexture> Owner;
+
+	UPROPERTY()
 	int32 FrameIndex;
+
+#if WITH_EDITORONLY_DATA
+	// FTextureData from which the FResources data can be built with a call to FResources::Build()
+	UE::Serialization::FEditorBulkData SourceData;
+#endif
+
+	// Derived data used at runtime
 	UE::SVT::FResources Resources;
+	// Runtime render data
 	UE::SVT::FTextureRenderResources* TextureRenderResources;
 };
 
+// Represents a streamable SparseVolumeTexture asset and serves as base class for UStaticSparseVolumeTexture and UAnimatedSparseVolumeTexture. It has an array of USparseVolumeTextureFrame.
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
 class UStreamableSparseVolumeTexture : public USparseVolumeTexture
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-
-	enum class EInitState : uint8
-	{
-		Uninitialized,
-		Pending,
-		Done,
-		Failed,
-	};
 
 	UPROPERTY(VisibleAnywhere, Category = "Texture")
 	FIntVector VolumeResolution;
@@ -379,12 +378,27 @@ public:
 
 protected:
 
-	UPROPERTY()
+	UPROPERTY(Export)
 	TArray<TObjectPtr<USparseVolumeTextureFrame>> Frames;
+
 #if WITH_EDITORONLY_DATA
+
+	enum EInitState : uint8
+	{
+		EInitState_Uninitialized,
+		EInitState_Pending,
+		EInitState_Done,
+		EInitState_Failed,
+	};
+	
+	UPROPERTY()
 	FIntVector VolumeBoundsMin;
+	
+	UPROPERTY()
 	FIntVector VolumeBoundsMax;
-	EInitState InitState = EInitState::Uninitialized;
+	
+	UPROPERTY()
+	uint8 InitState = EInitState_Uninitialized;
 
 	// Ensures all frames have derived data (based on the source data and the current settings like TextureAddress modes etc.) cached to DDC and are ready for rendering.
 	// Disconnects this SVT from the streaming manager, calls Cache() on all frames and finally connects to FStreamingManager again.
@@ -392,6 +406,7 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 };
 
+// Represents a streamable SparseVolumeTexture asset with a single frame. Although there is only a single frame, it is still recommended to use USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest().
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
 class ENGINE_API UStaticSparseVolumeTexture : public UStreamableSparseVolumeTexture
 {
@@ -402,8 +417,10 @@ public:
 	UStaticSparseVolumeTexture();
 	virtual ~UStaticSparseVolumeTexture() = default;
 
+	//~ Begin UStreamableSparseVolumeTexture Interface.
 	// Override AppendFrame() to ensure that there is never more than a single frame in a static SVT
 	virtual bool AppendFrame(UE::SVT::FTextureData& UncookedFrame) override;
+	//~ End UStreamableSparseVolumeTexture Interface.
 
 	//~ Begin USparseVolumeTexture Interface.
 	int32 GetNumFrames() const override { return 1; }
@@ -412,7 +429,7 @@ public:
 private:
 };
 
-// UAnimatedSparseVolumeTexture inherit from USparseVolumeTexture to be viewed using the first frame by default.
+// Represents a streamable SparseVolumeTexture with one or more frames. Use USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest() to bind extract a particular frame to be used for rendering.
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
 class ENGINE_API UAnimatedSparseVolumeTexture : public UStreamableSparseVolumeTexture
 {
@@ -431,6 +448,7 @@ private:
 	int32 PreviewFrameIndex;
 };
 
+// Utility (blueprint) class for controlling SparseVolumeTexture playback.
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
 class ENGINE_API UAnimatedSparseVolumeTextureController : public UObject
 {

@@ -15,7 +15,7 @@ struct ENGINE_API FTextureDataCreateInfo
 	FIntVector3 VirtualVolumeAABBMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
 	FIntVector3 VirtualVolumeAABBMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
 	TStaticArray<EPixelFormat, 2> AttributesFormats = TStaticArray<EPixelFormat, 2>(InPlace, PF_Unknown); // Currently supported: PF_R8, PF_R8G8, PF_R8G8B8A8, PF_R16F, PF_G16R16F, PF_FloatRGBA, PF_R32_FLOAT, PF_G32R32F, PF_A32B32G32R32F
-	TStaticArray<FVector4f, 2> FallbackValues = TStaticArray<FVector4f, 2>(InPlace, FVector4f());
+	TStaticArray<FVector4f, 2> FallbackValues = TStaticArray<FVector4f, 2>(InPlace, FVector4f(0.0f, 0.0f, 0.0f, 0.0f));
 };
 
 class ENGINE_API ITextureDataProvider
@@ -47,15 +47,10 @@ struct ENGINE_API FTextureData
 		int32 NumPhysicalTiles;
 	};
 
-	static const uint32 kVersion = 0; // The current data format version for the raw source data.
-	uint32 Version = kVersion; // This version can be used to convert existing source data to new version later.
-
-	UE::SVT::FHeader Header = {};
-	TStaticArray<FVector4f, 2> FallbackValuesQuantized = TStaticArray<FVector4f, 2>(InPlace, FVector4f());
+	FHeader Header = {};
+	TStaticArray<FVector4f, 2> FallbackValuesQuantized = TStaticArray<FVector4f, 2>(InPlace, FVector4f(0.0f, 0.0f, 0.0f, 0.0f));
 	TArray<FMipMap> MipMaps;
 
-	void Serialize(FArchive& Ar);
-	
 	bool Create(const ITextureDataProvider& DataProvider);
 	bool CreateFromDense(const FTextureDataCreateInfo& CreateInfo, const TArrayView64<uint8>& VoxelDataA, const TArrayView64<uint8>& VoxelDataB);
 	void CreateDefault();
@@ -75,3 +70,5 @@ private:
 
 }
 }
+
+FArchive& operator<<(FArchive& Ar, UE::SVT::FTextureData& TextureData);

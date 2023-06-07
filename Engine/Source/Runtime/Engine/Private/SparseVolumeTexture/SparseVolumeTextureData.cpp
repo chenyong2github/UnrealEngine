@@ -16,41 +16,29 @@ DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTextureData, Log, All);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
+FArchive& operator<<(FArchive& Ar, UE::SVT::FTextureData::FMipMap& MipMap)
+{
+	Ar << MipMap.PageTable;
+	Ar << MipMap.PhysicalTileDataA;
+	Ar << MipMap.PhysicalTileDataB;
+	Ar << MipMap.NumPhysicalTiles;
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, UE::SVT::FTextureData& TextureData)
+{
+	Ar << TextureData.Header;
+	Ar << TextureData.FallbackValuesQuantized;
+	Ar << TextureData.MipMaps;
+	return Ar;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
 namespace UE
 {
 namespace SVT
 {
-
-void FTextureData::Serialize(FArchive& Ar)
-{
-	Header.Serialize(Ar);
-
-	Ar << Version;
-
-	if (Version == 0)
-	{
-		int32 NumMipLevels = MipMaps.Num();
-		Ar << NumMipLevels;
-		if (Ar.IsLoading())
-		{
-			MipMaps.Reset(NumMipLevels);
-			MipMaps.SetNum(NumMipLevels);
-		}
-		for (int32 MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
-		{
-			FMipMap& MipMap = MipMaps[MipLevel];
-			Ar << MipMap.PageTable;
-			Ar << MipMap.PhysicalTileDataA;
-			Ar << MipMap.PhysicalTileDataB;
-			Ar << MipMap.NumPhysicalTiles;
-		}
-	}
-	else
-	{
-		// FTextureData needs to account for new version
-		check(false);
-	}
-}
 
 bool FTextureData::Create(const ITextureDataProvider& DataProvider)
 {

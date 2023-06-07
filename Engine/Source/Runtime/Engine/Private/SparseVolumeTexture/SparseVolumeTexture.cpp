@@ -35,8 +35,6 @@
 #include "Serialization/EditorBulkDataReader.h"
 #include "Serialization/EditorBulkDataWriter.h"
 
-#include "ContentStreaming.h"
-
 #define LOCTEXT_NAMESPACE "USparseVolumeTexture"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSparseVolumeTexture, Log, All);
@@ -62,6 +60,21 @@ FArchive& operator<<(FArchive& Ar, UE::SVT::FMipLevelStreamingInfo& MipLevelStre
 	Ar << MipLevelStreamingInfo.TileDataBOffset;
 	Ar << MipLevelStreamingInfo.TileDataBSize;
 	Ar << MipLevelStreamingInfo.NumPhysicalTiles;
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, UE::SVT::FHeader& Header)
+{
+	Ar << Header.VirtualVolumeResolution;
+	Ar << Header.VirtualVolumeAABBMin;
+	Ar << Header.VirtualVolumeAABBMax;
+	Ar << Header.PageTableVolumeResolution;
+	Ar << Header.PageTableVolumeAABBMin;
+	Ar << Header.PageTableVolumeAABBMax;
+	UE::SVT::Private::SerializeEnumAs<uint8>(Ar, Header.AttributesFormats[0]);
+	UE::SVT::Private::SerializeEnumAs<uint8>(Ar, Header.AttributesFormats[1]);
+	Ar << Header.FallbackValues[0];
+	Ar << Header.FallbackValues[1];
 	return Ar;
 }
 
@@ -113,30 +126,6 @@ FHeader::FHeader(const FIntVector3& AABBMin, const FIntVector3& AABBMax, EPixelF
 	FallbackValues[1] = FallbackValueB;
 }
 
-void FHeader::Serialize(FArchive& Ar)
-{
-	Ar << Version;
-
-	if (Version == 0)
-	{
-		Ar << VirtualVolumeResolution;
-		Ar << VirtualVolumeAABBMin;
-		Ar << VirtualVolumeAABBMax;
-		Ar << PageTableVolumeResolution;
-		Ar << PageTableVolumeAABBMin;
-		Ar << PageTableVolumeAABBMax;
-		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, AttributesFormats[0]);
-		UE::SVT::Private::SerializeEnumAs<uint8>(Ar, AttributesFormats[1]);
-		Ar << FallbackValues[0];
-		Ar << FallbackValues[1];
-	}
-	else
-	{
-		// FHeader needs to account for new version
-		check(false);
-	}
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FResources::Serialize(FArchive& Ar, UObject* Owner, bool bCooked)
@@ -145,7 +134,7 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner, bool bCooked)
 	FStripDataFlags StripFlags(Ar, 0);
 	if (!StripFlags.IsDataStrippedForServer())
 	{
-		Header.Serialize(Ar);
+		Ar << Header;
 
 		uint32 StoredResourceFlags;
 		if (Ar.IsSaving() && bCooked)
@@ -175,13 +164,6 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner, bool bCooked)
 		{
 			StreamableMipLevels.Serialize(Ar, Owner, 0);
 		}
-
-#if WITH_EDITORONLY_DATA
-		if (!bCooked)
-		{
-			SourceData.Serialize(Ar, Owner);
-		}
-#endif
 
 #if !WITH_EDITORONLY_DATA
 		check(!HasStreamingData() || StreamableMipLevels.GetBulkDataSize() > 0);
@@ -253,14 +235,14 @@ bool FResources::RebuildBulkDataFromCacheAsync(const UObject* Owner, bool& bFail
 	}
 }
 
-bool FResources::Build(USparseVolumeTextureFrame* Owner)
+bool FResources::Build(USparseVolumeTextureFrame* Owner, UE::Serialization::FEditorBulkData& SourceData)
 {
 	// Check if the virtualized bulk data payload is available
 	if (SourceData.HasPayloadData())
 	{
 		UE::Serialization::FEditorBulkDataReader SourceDataReader(SourceData);
 		FTextureData SourceTextureData;
-		SourceTextureData.Serialize(SourceDataReader);
+		SourceDataReader << SourceTextureData;
 
 		FTextureDataAddressingInfo AddressingInfo{};
 		AddressingInfo.VolumeResolution = Owner->GetVolumeResolution();
@@ -374,7 +356,7 @@ bool FResources::Build(USparseVolumeTextureFrame* Owner)
 	return false;
 }
 
-void FResources::Cache(USparseVolumeTextureFrame* Owner, bool bLocalCachingOnly)
+void FResources::Cache(USparseVolumeTextureFrame* Owner, UE::Serialization::FEditorBulkData& SourceData, bool bLocalCachingOnly)
 {
 	if (Owner->GetPackage()->bIsCookedForEditor)
 	{
@@ -446,7 +428,7 @@ void FResources::Cache(USparseVolumeTextureFrame* Owner, bool bLocalCachingOnly)
 	else
 	{
 		// DDC lookup failed! Build the data again.
-		const bool bBuiltSuccessfully = Build(Owner);
+		const bool bBuiltSuccessfully = Build(Owner, SourceData);
 		check(bBuiltSuccessfully);
 
 		FCacheRecordBuilder RecordBuilder(CacheKey);
@@ -719,8 +701,8 @@ bool USparseVolumeTextureFrame::Initialize(USparseVolumeTexture* InOwner, int32 
 	Owner = InOwner;
 	FrameIndex = InFrameIndex;
 	{
-		UE::Serialization::FEditorBulkDataWriter SourceDataArchiveWriter(Resources.SourceData);
-		UncookedFrame.Serialize(SourceDataArchiveWriter);
+		UE::Serialization::FEditorBulkDataWriter SourceDataArchiveWriter(SourceData);
+		SourceDataArchiveWriter << UncookedFrame;
 	}
 
 	return true;
@@ -780,11 +762,15 @@ void USparseVolumeTextureFrame::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	FStripDataFlags StripFlags(Ar);
-	
+#if WITH_EDITORONLY_DATA
+	if (!Ar.IsCooking())
+	{
+		SourceData.Serialize(Ar, this);
+	}
+#endif
+
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
-	Ar << FrameIndex;
 	Resources.Serialize(Ar, this, bCooked);
 }
 
@@ -811,7 +797,7 @@ bool USparseVolumeTextureFrame::IsCachedCookedPlatformDataLoaded(const ITargetPl
 	{
 		UE_LOG(LogSparseVolumeTexture, Log, TEXT("Failed to recover SparseVolumeTexture streaming from DDC for '%s' Frame %i. Rebuilding and retrying."), *Owner->GetPathName(), FrameIndex);
 
-		Resources.Cache(this, CastChecked<UStreamableSparseVolumeTexture>(Owner)->bLocalDDCOnly);
+		Resources.Cache(this, SourceData, CastChecked<UStreamableSparseVolumeTexture>(Owner)->bLocalDDCOnly);
 		return false;
 	}
 
@@ -843,7 +829,7 @@ void USparseVolumeTextureFrame::Cache(bool bSkipDDCAndSetResourcesToDefault)
 	}
 	else
 	{
-		Resources.Cache(this, CastChecked<UStreamableSparseVolumeTexture>(Owner)->bLocalDDCOnly);
+		Resources.Cache(this, SourceData, CastChecked<UStreamableSparseVolumeTexture>(Owner)->bLocalDDCOnly);
 	}
 	CreateTextureRenderResources();
 }
@@ -859,7 +845,7 @@ UStreamableSparseVolumeTexture::UStreamableSparseVolumeTexture(const FObjectInit
 bool UStreamableSparseVolumeTexture::BeginInitialize(int32 NumExpectedFrames)
 {
 #if WITH_EDITORONLY_DATA
-	if (InitState != EInitState::Uninitialized)
+	if (InitState != EInitState_Uninitialized)
 	{
 		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to call UStreamableSparseVolumeTexture::BeginInitialize() while not in the Uninitialized init state."));
 		return false;
@@ -872,7 +858,7 @@ bool UStreamableSparseVolumeTexture::BeginInitialize(int32 NumExpectedFrames)
 	check(FormatA == PF_Unknown);
 	check(FormatB == PF_Unknown);
 
-	InitState = EInitState::Pending;
+	InitState = EInitState_Pending;
 
 	return true;
 #else
@@ -883,7 +869,7 @@ bool UStreamableSparseVolumeTexture::BeginInitialize(int32 NumExpectedFrames)
 bool UStreamableSparseVolumeTexture::AppendFrame(UE::SVT::FTextureData& UncookedFrame)
 {
 #if WITH_EDITORONLY_DATA
-	if (InitState != EInitState::Pending)
+	if (InitState != EInitState_Pending)
 	{
 		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to call UStreamableSparseVolumeTexture::AppendFrame() while not in the Pending init state."));
 		return false;
@@ -947,7 +933,7 @@ bool UStreamableSparseVolumeTexture::AppendFrame(UE::SVT::FTextureData& Uncooked
 bool UStreamableSparseVolumeTexture::EndInitialize(int32 InNumMipLevels)
 {
 #if WITH_EDITORONLY_DATA
-	if (InitState != EInitState::Pending)
+	if (InitState != EInitState_Pending)
 	{
 		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to call UStreamableSparseVolumeTexture::EndInitialize() while not in the Pending init state."));
 		return false;
@@ -982,7 +968,7 @@ bool UStreamableSparseVolumeTexture::EndInitialize(int32 InNumMipLevels)
 		Frame->PostLoad();
 	}
 
-	InitState = EInitState::Done;
+	InitState = EInitState_Done;
 
 	return true;
 #else
@@ -1047,31 +1033,10 @@ void UStreamableSparseVolumeTexture::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	// To ensure that we keep the same binary format between builds with and without editor-only data, we serialize dummy data if the editor-only data is stripped.
-	// SVT_TODO: Is there a cleaner way of doing this?
-	FIntVector* VolumeBoundsMinPtr = nullptr;
-	FIntVector* VolumeBoundsMaxPtr = nullptr;
-	EInitState* InitStatePtr = nullptr;
-
 #if WITH_EDITORONLY_DATA
 	// Check that we are not trying to cook unitialized data!
-	check(!Ar.IsCooking() || InitState == EInitState::Done);
-
-	VolumeBoundsMinPtr = &VolumeBoundsMin;
-	VolumeBoundsMaxPtr = &VolumeBoundsMax;
-	InitStatePtr = &InitState;
-#else
-	FIntVector VolumeBoundsMinDummy{};
-	FIntVector VolumeBoundsMaxDummy{};
-	EInitState InitStateDummy{};
-	VolumeBoundsMinPtr = &VolumeBoundsMinDummy;
-	VolumeBoundsMaxPtr = &VolumeBoundsMaxDummy;
-	InitStatePtr = &InitStateDummy;
+	check(!Ar.IsCooking() || InitState == EInitState_Done);
 #endif
-
-	UE::SVT::Private::SerializeEnumAs<uint8>(Ar, *InitStatePtr);
-	Ar << *VolumeBoundsMinPtr;
-	Ar << *VolumeBoundsMaxPtr;
 }
 
 #if WITH_EDITOR
@@ -1112,7 +1077,7 @@ void UStreamableSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& Cumulati
 #if WITH_EDITORONLY_DATA
 void UStreamableSparseVolumeTexture::RecacheFrames()
 {
-	if (InitState != EInitState::Done)
+	if (InitState != EInitState_Done)
 	{
 		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("Tried to cache derived data of an uninitialized SVT: %s"), *GetName());
 		return;
