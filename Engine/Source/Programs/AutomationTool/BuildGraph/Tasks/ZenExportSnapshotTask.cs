@@ -215,7 +215,11 @@ namespace AutomationTool.Tasks
 						ExportKeyIds[ExportIndex] = DestinationKeyBuilder.ToString().ToLowerInvariant();
 						IoHash DestinationKeyHash = IoHash.Compute(Encoding.UTF8.GetBytes(ExportKeyIds[ExportIndex]));
 
-						if (!ExportSource.IsLocalHost)
+						if (ExportSource.IsLocalHost)
+						{
+							SingleSourceCommandline.AppendFormat(" --hosturl http://localhost:{0}", ExportSource.HostPort);
+						}
+						else
 						{
 							SingleSourceCommandline.AppendFormat(" --hosturl http://{0}:{1}", ExportSource.HostName, ExportSource.HostPort);
 						}
