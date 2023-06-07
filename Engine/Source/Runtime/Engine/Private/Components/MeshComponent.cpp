@@ -274,6 +274,12 @@ void UMeshComponent::RegisterLODStreamingCallback(FLODStreamingCallback&& Callba
 	Callback(this, nullptr, ELODStreamingCallbackResult::NotImplemented);
 }
 
+void UMeshComponent::RegisterLODStreamingCallback(FLODStreamingCallback&& CallbackStreamingStart, FLODStreamingCallback&& CallbackStreamingDone, float TimeoutSecs)
+{
+	check(IsInGameThread());
+	CallbackStreamingDone(this, nullptr, ELODStreamingCallbackResult::NotImplemented);
+}
+
 void UMeshComponent::SetTextureForceResidentFlag( bool bForceMiplevelsToBeResident )
 {
 	const int32 CinematicTextureGroups = 0;

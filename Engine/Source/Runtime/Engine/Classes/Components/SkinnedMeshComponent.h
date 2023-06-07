@@ -1058,6 +1058,7 @@ public:
 
 	//~ Begin UMeshComponent Interface
 	virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& Callback, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn) override;
+	virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& CallbackStreamingStart, FLODStreamingCallback&& CallbackStreamingDone, float TimeoutSecs) override;
 	//~ End UMeshComponent Interface
 
 	/** Get the pre-skinning local space bounds for this component. */

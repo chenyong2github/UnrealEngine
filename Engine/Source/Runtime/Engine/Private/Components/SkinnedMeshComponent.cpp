@@ -3986,6 +3986,15 @@ void USkinnedMeshComponent::RegisterLODStreamingCallback(FLODStreamingCallback&&
 	}
 }
 
+void USkinnedMeshComponent::RegisterLODStreamingCallback(FLODStreamingCallback&& CallbackStreamingStart, FLODStreamingCallback&& CallbackStreamingDone, float TimeoutSecs)
+{
+	if (GetSkinnedAsset())
+	{
+		GetSkinnedAsset()->RegisterMipLevelChangeCallback(this, TimeoutSecs, MoveTemp(CallbackStreamingStart), MoveTemp(CallbackStreamingDone));
+		bMipLevelCallbackRegistered = true;
+	}
+}
+
 void USkinnedMeshComponent::BeginDestroy()
 {
 	if (GetSkinnedAsset() && bMipLevelCallbackRegistered)

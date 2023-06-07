@@ -127,6 +127,13 @@ public:
 	 * @param bOnStreamIn	To get notified when the expected LOD is streamed in or out
 	 */
 	virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& Callback, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn);
+	/**
+	 * Register a one-time callback that will be called when streaming starts or ends.
+	 * @param CallbackStreamingStart	The callback to notify when streaming new LODs in begins. The callback will not always be called if the asset is not streamable, a timeout occurs or the asset or component is unloaded.
+	 * @param CallbackStreamingDone		The callback to notify when streaming is done
+	 * @param TimeoutSecs				Timeout in seconds
+	 */
+	virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& CallbackStreamingStart, FLODStreamingCallback&& CallbackStreamingDone, float TimeoutSecs);
 
 	/** Get the material info for texture streaming. Return whether the data is valid or not. */
 	virtual bool GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const { return false; }

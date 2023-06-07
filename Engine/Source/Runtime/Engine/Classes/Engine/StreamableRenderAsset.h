@@ -139,6 +139,16 @@ public:
 	ENGINE_API void RegisterMipLevelChangeCallback(UPrimitiveComponent* Component, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn, FLODStreamingCallback&& Callback);
 
 	/**
+	* Register a set of callbacks to get notified when new mips/LODs start streaming in and when streaming is complete.
+	* If the target mips/LODs are already streamed in, CallbackStreamingDone is called immediately and CallbackStreamingStart is not called.
+	* @param Component The context component
+	* @param TimeoutSecs Timeout in seconds
+	* @param CallbackStreamingStart The callback to call when the streamer begins changing LOD/mip target. This callback will not be called if the asset is not streamable, is already streamed in, or the timeout expires.
+	* @param CallbackStreamingDone The callback to call when the desired mip/LOD level has been streamed in or when the timeout period has elapsed.
+	*/
+	ENGINE_API void RegisterMipLevelChangeCallback(UPrimitiveComponent* Component, float TimeoutSecs, FLODStreamingCallback&& CallbackStreamingStart, FLODStreamingCallback&& CallbackStreamingDone);
+
+	/**
 	* Remove mip level change callbacks registered by a component.
 	* @param Component The context component
 	*/
@@ -233,14 +243,28 @@ protected:
 		double Deadline;
 		int32 ExpectedResidentMips;
 		bool bOnStreamIn;
-		FLODStreamingCallback Callback;
+		bool bIsExpectedResidentMipPayload;
+		FLODStreamingCallback CallbackStart;
+		FLODStreamingCallback CallbackDone;
 
-		FLODStreamingCallbackPayload(UPrimitiveComponent* InComponent, double InDeadline, int32 InExpectedResidentMips, bool bInOnStreamIn, FLODStreamingCallback&& InCallback)
+		FLODStreamingCallbackPayload(UPrimitiveComponent* InComponent, double InDeadline, int32 ExpectedResidentMips, bool bInOnStreamIn, FLODStreamingCallback&& InCallbackStreamingDone)
 			: Component(InComponent)
 			, Deadline(InDeadline)
-			, ExpectedResidentMips(InExpectedResidentMips)
+			, ExpectedResidentMips(ExpectedResidentMips)
 			, bOnStreamIn(bInOnStreamIn)
-			, Callback(MoveTemp(InCallback))
+			, bIsExpectedResidentMipPayload(true)
+			, CallbackStart()
+			, CallbackDone(MoveTemp(InCallbackStreamingDone))
+		{}
+
+		FLODStreamingCallbackPayload(UPrimitiveComponent* InComponent, double InDeadline, FLODStreamingCallback&& InCallbackStreamingStart, FLODStreamingCallback&& InCallbackStreamingDone)
+			: Component(InComponent)
+			, Deadline(InDeadline)
+			, ExpectedResidentMips()
+			, bOnStreamIn()
+			, bIsExpectedResidentMipPayload(false)
+			, CallbackStart(MoveTemp(InCallbackStreamingStart))
+			, CallbackDone(MoveTemp(InCallbackStreamingDone))
 		{}
 	};
 

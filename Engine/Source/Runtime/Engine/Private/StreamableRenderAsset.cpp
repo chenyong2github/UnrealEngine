@@ -52,12 +52,32 @@ void UStreamableRenderAsset::RegisterMipLevelChangeCallback(UPrimitiveComponent*
 			Callback(Component, this, ELODStreamingCallbackResult::Success);
 			return;
 		}
-		
+
 		new (MipChangeCallbacks) FLODStreamingCallbackPayload(Component, FApp::GetCurrentTime() + TimeoutSecs, ExpectedResidentMips, bOnStreamIn, MoveTemp(Callback));
 	}
 	else
 	{
 		Callback(Component, this, ELODStreamingCallbackResult::StreamingDisabled);
+	}
+}
+
+void UStreamableRenderAsset::RegisterMipLevelChangeCallback(UPrimitiveComponent* Component, float TimeoutSecs, FLODStreamingCallback&& CallbackStreamingStart, FLODStreamingCallback&& CallbackStreamingDone)
+{
+	check(IsInGameThread());
+
+	if (StreamingIndex != INDEX_NONE)
+	{
+		if (CachedSRRState.NumRequestedLODs > CachedSRRState.NumNonStreamingLODs && CachedSRRState.NumResidentLODs >= CachedSRRState.NumRequestedLODs)
+		{
+			CallbackStreamingDone(Component, this, ELODStreamingCallbackResult::Success);
+			return;
+		}
+
+		new (MipChangeCallbacks) FLODStreamingCallbackPayload(Component, FApp::GetCurrentTime() + TimeoutSecs, MoveTemp(CallbackStreamingStart), MoveTemp(CallbackStreamingDone));
+	}
+	else
+	{
+		CallbackStreamingDone(Component, this, ELODStreamingCallbackResult::StreamingDisabled);
 	}
 }
 
@@ -69,7 +89,7 @@ void UStreamableRenderAsset::RemoveMipLevelChangeCallback(UPrimitiveComponent* C
 	{
 		if (MipChangeCallbacks[Idx].Component == Component)
 		{
-			MipChangeCallbacks[Idx].Callback(Component, this, ELODStreamingCallbackResult::ComponentRemoved);
+			MipChangeCallbacks[Idx].CallbackDone(Component, this, ELODStreamingCallbackResult::ComponentRemoved);
 			MipChangeCallbacks.RemoveAtSwap(Idx--);
 		}
 	}
@@ -80,7 +100,7 @@ void UStreamableRenderAsset::RemoveAllMipLevelChangeCallbacks()
 	for (int32 Idx = 0; Idx < MipChangeCallbacks.Num(); ++Idx)
 	{
 		const FLODStreamingCallbackPayload& Payload = MipChangeCallbacks[Idx];
-		Payload.Callback(Payload.Component, this, ELODStreamingCallbackResult::AssetRemoved);
+		Payload.CallbackDone(Payload.Component, this, ELODStreamingCallbackResult::AssetRemoved);
 	}
 	MipChangeCallbacks.Empty();
 }
@@ -100,18 +120,36 @@ void UStreamableRenderAsset::TickMipLevelChangeCallbacks(TArray<UStreamableRende
 
 		for (int32 Idx = 0; Idx < MipChangeCallbacks.Num(); ++Idx)
 		{
-			const FLODStreamingCallbackPayload& Payload = MipChangeCallbacks[Idx];
-
-			if (Payload.bOnStreamIn == (ResidentMips >= Payload.ExpectedResidentMips))
+			FLODStreamingCallbackPayload& Payload = MipChangeCallbacks[Idx];
+			if (PendingUpdate && Payload.CallbackStart)
 			{
-				Payload.Callback(Payload.Component, this, ELODStreamingCallbackResult::Success);
+				Payload.CallbackStart(Payload.Component, this, ELODStreamingCallbackResult::Success);
+				Payload.CallbackStart.Reset();
+			}
+			if (Payload.bIsExpectedResidentMipPayload)
+			{
+				if (Payload.bOnStreamIn == (ResidentMips >= Payload.ExpectedResidentMips))
+				{
+					Payload.CallbackDone(Payload.Component, this, ELODStreamingCallbackResult::Success);
+					MipChangeCallbacks.RemoveAt(Idx--);
+					continue;
+				}
+			}
+			else if (CachedSRRState.NumRequestedLODs != CachedSRRState.NumNonStreamingLODs && ResidentMips >= CachedSRRState.NumRequestedLODs)
+			{
+				/* this can happen if the streaming was started & done in the same frame. */
+				if (Payload.CallbackStart)
+				{
+					Payload.CallbackStart(Payload.Component, this, ELODStreamingCallbackResult::Success);
+				}
+				Payload.CallbackDone(Payload.Component, this, ELODStreamingCallbackResult::Success);
 				MipChangeCallbacks.RemoveAt(Idx--);
 				continue;
 			}
 
 			if (Now > Payload.Deadline)
 			{
-				Payload.Callback(Payload.Component, this, ELODStreamingCallbackResult::TimedOut);
+				Payload.CallbackDone(Payload.Component, this, ELODStreamingCallbackResult::TimedOut);
 				MipChangeCallbacks.RemoveAt(Idx--);
 			}
 		}
