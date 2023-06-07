@@ -34,7 +34,7 @@ class ULearningAgentsPolicy;
 class ULearningAgentsCritic;
 
 /** Completion modes for episodes. */
-UENUM(BlueprintType, Category = "LearningAgents")
+UENUM(BlueprintType, Category = "LearningAgents", meta = (ScriptName = "LearningAgentsCompletionEnum"))
 enum class ELearningAgentsCompletion : uint8
 {
 	/** Episode ended early but was still in progress. Critic will be used to estimate final return. */
