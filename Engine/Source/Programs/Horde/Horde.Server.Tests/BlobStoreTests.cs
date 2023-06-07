@@ -52,7 +52,7 @@ namespace Horde.Server.Tests
 			List<BundleExportRef> exportRefs = new List<BundleExportRef>();
 			for(int idx = 0; idx < refs.Count; idx++)
 			{
-				exportRefs.Add(new BundleExportRef(idx, 0));
+				exportRefs.Add(new BundleExportRef(idx, 0, IoHash.Zero));
 			}
 
 			List<BundleExport> exports = new List<BundleExport>();

@@ -47,6 +47,11 @@ namespace EpicGames.Horde.Storage
 		InPlace = 3,
 
 		/// <summary>
+		/// Add import hashes to imported nodes
+		/// </summary>
+		ImportHashes = 4,
+
+		/// <summary>
 		/// Last item in the enum. Used for <see cref="Latest"/>
 		/// </summary>
 		LatestPlusOne,
@@ -250,7 +255,7 @@ namespace EpicGames.Horde.Storage
 			Data = data;
 
 			ReadOnlySpan<byte> span = data.Span;
-			// BundleVersion version = (BundleVersion)span[3];
+			BundleVersion version = (BundleVersion)span[3];
 			int headerLength = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(4));
 
 			ReadOnlyMemory<byte> exportData = ReadOnlyMemory<byte>.Empty;
@@ -287,7 +292,7 @@ namespace EpicGames.Horde.Storage
 				offset += length;
 			}
 
-			Exports = new BundleExportCollection(exportData, exportRefData);
+			Exports = new BundleExportCollection(exportData, exportRefData, version);
 		}
 
 		/// <summary>
@@ -474,7 +479,7 @@ namespace EpicGames.Horde.Storage
 				int[] exportIndexes = reader.ReadVariableLengthArray(() => (int)reader.ReadUnsignedVarInt());
 				for (int exportIdx = 0; exportIdx < exportIndexes.Length; exportIdx++)
 				{
-					BundleExportRef exportReference = new BundleExportRef(imports.Count - 1, exportIndexes[exportIdx]);
+					BundleExportRef exportReference = new BundleExportRef(imports.Count - 1, exportIndexes[exportIdx], IoHash.Zero);
 					allExportReferences.Add(exportReference);
 				}
 			}
@@ -485,7 +490,7 @@ namespace EpicGames.Horde.Storage
 
 			for (int exportIdx = 0; exportIdx < numExports; exportIdx++)
 			{
-				allExportReferences.Add(new BundleExportRef(-1, exportIdx));
+				allExportReferences.Add(new BundleExportRef(-1, exportIdx, IoHash.Zero));
 
 				int typeIdx = (int)reader.ReadUnsignedVarInt();
 				IoHash hash = reader.ReadIoHash();
@@ -1009,11 +1014,33 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleExportCollection(ReadOnlyMemory<byte> data, ReadOnlyMemory<byte> refs)
+		public BundleExportCollection(ReadOnlyMemory<byte> data, ReadOnlyMemory<byte> refs, BundleVersion version)
 		{
 			_count = data.Length / BundleExport.NumBytes;
 			_data = data;
 			_refs = refs;
+
+			if (version < BundleVersion.ImportHashes && _refs.Length > 0)
+			{
+				const int OldRefNumBytes = 4;
+
+				int headerLength = BinaryPrimitives.ReadInt32LittleEndian(refs.Span);
+				int count = (refs.Length - headerLength) / OldRefNumBytes;
+
+				byte[] newRefs = new byte[headerLength + (count * BundleExportRef.NumBytes)];
+				for (int headerOffset = 0; headerOffset < headerLength; headerOffset += sizeof(int))
+				{
+					int index = (BinaryPrimitives.ReadInt32LittleEndian(refs.Slice(headerOffset).Span) - headerLength) / OldRefNumBytes;
+					BinaryPrimitives.WriteInt32LittleEndian(newRefs.AsSpan(headerOffset), headerLength + (index * BundleExportRef.NumBytes));
+				}
+				for (int index = 0; index < count; index++)
+				{
+					ReadOnlyMemory<byte> source = refs.Slice(headerLength + (index * OldRefNumBytes), OldRefNumBytes);
+					source.CopyTo(newRefs.AsMemory(headerLength + (index * BundleExportRef.NumBytes)));
+				}
+
+				_refs = newRefs;
+			}
 		}
 
 		/// <inheritdoc/>
@@ -1081,19 +1108,20 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	/// <param name="ImportIdx">Index into the import table of the blob containing the referenced node. Can be -1 for references within the same bundle.</param>
 	/// <param name="NodeIdx">Node imported from the bundle</param>
-	public record struct BundleExportRef(int ImportIdx, int NodeIdx)
+	/// <param name="Hash">Hash of the referenced node</param>
+	public record struct BundleExportRef(int ImportIdx, int NodeIdx, IoHash Hash)
 	{
 		/// <summary>
 		/// Number of bytes in the serialized object
 		/// </summary>
-		public const int NumBytes = 4;
+		public const int NumBytes = 4 + IoHash.NumBytes;
 
 		/// <summary>
 		/// Deserialize this object from memory
 		/// </summary>
 		public static BundleExportRef Read(ReadOnlySpan<byte> data)
 		{
-			return new BundleExportRef(BinaryPrimitives.ReadInt16LittleEndian(data), BinaryPrimitives.ReadInt16LittleEndian(data.Slice(2)));
+			return new BundleExportRef(BinaryPrimitives.ReadInt16LittleEndian(data), BinaryPrimitives.ReadInt16LittleEndian(data.Slice(2)), new IoHash(data.Slice(4)));
 		}
 
 		/// <summary>
@@ -1103,6 +1131,7 @@ namespace EpicGames.Horde.Storage
 		{
 			BinaryPrimitives.WriteInt16LittleEndian(data, (short)ImportIdx);
 			BinaryPrimitives.WriteUInt16LittleEndian(data.Slice(2), (ushort)NodeIdx);
+			Hash.CopyTo(data.Slice(4));
 		}
 	}
 

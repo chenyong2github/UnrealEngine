@@ -538,7 +538,8 @@ namespace EpicGames.Horde.Storage
 				Dictionary<NodeHandle, BundleExportRef> nodeHandleToExportRef = new Dictionary<NodeHandle, BundleExportRef>();
 				for (int exportIdx = 0; exportIdx < _queue.Count; exportIdx++)
 				{
-					nodeHandleToExportRef[_queue[exportIdx]] = new BundleExportRef(-1, exportIdx);
+					NodeHandle handle = _queue[exportIdx];
+					nodeHandleToExportRef[handle] = new BundleExportRef(-1, exportIdx, handle.Hash);
 				}
 
 				// Create the export list
@@ -566,7 +567,7 @@ namespace EpicGames.Horde.Storage
 								imports.Add(handle.Locator.Blob);
 								importToIndex.Add(handle.Locator.Blob, importIdx);
 							}
-							exportRef = new BundleExportRef(importIdx, handle.Locator.ExportIdx);
+							exportRef = new BundleExportRef(importIdx, handle.Locator.ExportIdx, handle.Hash);
 						}
 						exportRefs.Add(exportRef);
 					}
