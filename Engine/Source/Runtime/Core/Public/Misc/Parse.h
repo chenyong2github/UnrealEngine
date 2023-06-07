@@ -36,7 +36,7 @@ struct CORE_API FParse
 	 * @param Match, the identifier for the value in the stream.
 	 * @param Value, the destination to the value to be extracted to.
 	 * @param MaxLen, the maximum size eof the string that can be extracted.
-	 * @param bShouldStopOnSeparator, (default = false) If this is true, and the value doesn't start with a '"'
+	 * @param bShouldStopOnSeparator, (default = true) If this is true, and the value doesn't start with a '"'
 				then it may be truncated to ',' or ')' in addition to whitespace.
 	 * @param OptStreamGotTo, (default = nullptr) If this is not null, then its dereference is set to the address
 				of the end of the value within Stream. This permits consuming of stream in a loop where Match may
@@ -61,7 +61,7 @@ struct CORE_API FParse
 	 * @param Stream, the string you want to extract the value from.
 	 * @param Match, the identifier for the value in the stream.
 	 * @param Value, the destination to the value to be extracted to.
-	 * @param bShouldStopOnSeparator, (default = false) If this is true, and the value doesn't start with a '"'
+	 * @param bShouldStopOnSeparator, (default = true) If this is true, and the value doesn't start with a '"'
 				then it may be truncated to ',' or ')' in addition to whitespace.
 	 * @param OptStreamGotTo, (default = nullptr) If this is not null, then its dereference is set to the address
 				of the end of the value within Stream. This permits consuming of stream in a loop where Match may
