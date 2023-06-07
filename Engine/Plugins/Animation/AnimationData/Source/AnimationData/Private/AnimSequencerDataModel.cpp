@@ -224,6 +224,26 @@ void UAnimationSequencerDataModel::WillNeverCacheCookedPlatformDataAgain()
 {
 	Super::WillNeverCacheCookedPlatformDataAgain();
 }
+
+void UAnimationSequencerDataModel::PreEditUndo()
+{
+	Super::PreEditUndo();
+
+	// Lock evaluation as underlying MovieScene will be modified by undo/redo. Async compression tasks
+	// will be kicked off post-transaction of the model, but the underlying MovieScene may be 
+	// transacted after the model and modified concurrently with a compression task.
+	// We can do this because PreEditUndo calls are called on all objects in a transaction prior to 
+	// its application
+	LockEvaluationAndModification();
+}
+
+void UAnimationSequencerDataModel::PostEditUndo()
+{
+	// Unlock evaluation to allow for compression/evaluation now modifications are complete
+	UnlockEvaluationAndModification();
+
+	Super::PostEditUndo();
+}
 #endif
 
 double UAnimationSequencerDataModel::GetPlayLength() const

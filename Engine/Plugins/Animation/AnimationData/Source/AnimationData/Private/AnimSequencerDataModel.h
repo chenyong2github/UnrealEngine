@@ -43,6 +43,8 @@ public:
 	virtual bool IsEditorOnly() const override { return true; }
 #if WITH_EDITOR
 	virtual void WillNeverCacheCookedPlatformDataAgain() override;
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override;
 #endif
 	/** End UObject overrides */
 
