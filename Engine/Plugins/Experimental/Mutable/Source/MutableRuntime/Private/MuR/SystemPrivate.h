@@ -1439,8 +1439,6 @@ namespace mu
 				Result += Value->GetDataSize();
 			}
 
-			ensure(Result==TrackedBudgetBytes_Temp);
-
 			return Result;
 		}
 
