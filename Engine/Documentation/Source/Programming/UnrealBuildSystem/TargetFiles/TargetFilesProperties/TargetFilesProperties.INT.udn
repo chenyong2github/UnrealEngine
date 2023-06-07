@@ -380,8 +380,6 @@ $ bAllowGeneratedIniWhenCooked (Boolean): Whether to load generated ini files in
 
 $ bAllowNonUFSIniWhenCooked (Boolean): Whether to load non-ufs ini files in cooked build, (GameUserSettings.ini loaded either way)
 
-$ CppStandard (CppStandardVersion): Which C++ standard to use for compiling this target
-
 $ CStandard (CStandardVersion): Which C standard to use for compiling this target
 
 $ MinCpuArchX64 (MinimumCpuArchitectureX64): Direct the compiler to generate AVX instructions wherever SSE or AVX intrinsics are used, on the x64 platforms that support it. Note that by enabling this you are changing the minspec for the PC platform, and the resultant executable will crash on machines without AVX support.
@@ -499,6 +497,10 @@ $ bRetainFramePointers (Boolean): Forces frame pointers to be retained this is u
 $ bLegacyPublicIncludePaths (Boolean): Add all the public folders as include paths for the compile environment.
 
 $ bLegacyParentIncludePaths (Boolean): Add all the parent folders as include paths for the compile environment.
+
+$ CppStandardEngine (CppStandardVersion): Which C++ standard to use for compiling this target (for engine modules)
+
+$ CppStandard (CppStandardVersion): Which C++ standard to use for compiling this target (for non-engine modules)
 
 $ LinkType (TargetLinkType): Specifies how to link modules in this target (monolithic or modular). This is currently protected for backwards compatibility. Call the GetLinkType() accessor until support for the deprecated ShouldCompileMonolithic() override has been removed.
 

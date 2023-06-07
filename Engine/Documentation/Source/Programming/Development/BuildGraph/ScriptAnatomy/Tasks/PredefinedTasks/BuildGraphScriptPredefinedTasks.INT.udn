@@ -681,6 +681,22 @@ Writes text to a file.
 | Tag    | TagList       | Optional | Tag to be applied to build products of this task.                                   |
 | If     | Condition     | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.   |
 
+### ZenExportSnapshot
+
+Exports an snapshot from Zen to a specified destination.
+
+|                            |               |          |                                                                                   |
+| -------------------------- | ------------- | -------- | --------------------------------------------------------------------------------- |
+| Project                    | FileReference | Optional | The project from which to export the snapshot                                     |
+| Platform                   | String        | Optional | The target platform(s) to export the snapshot for                                 |
+| SnapshotDescriptorFile     | FileReference | Optional | A file to create with information about the snapshot that was exported            |
+| DestinationStorageType     | String        | Required | The type of destination to export the snapshot to (cloud, ...)                    |
+| DestinationCloudHost       | String        | Optional | The host name to use when exporting to a cloud destination                        |
+| DestinationCloudNamespace  | String        | Optional | The namespace to use when exporting to a cloud destination                        |
+| DestinationCloudIdentifier | String        | Optional | The identifier to use when exporting to a cloud destination                       |
+| DestinationCloudBucket     | String        | Optional | A custom bucket name to use when exporting to a cloud destination                 |
+| If                         | Condition     | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
+
 ### Zip
 
 Compresses files into a zip archive.
