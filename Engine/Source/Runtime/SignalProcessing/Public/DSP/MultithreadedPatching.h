@@ -114,8 +114,13 @@ namespace Audio
 		void SetGain(float InGain);
 
 		/** Returns false if this output was removed, either because someone called FPatchMixer::RemoveTap with this FPatchInput, or the FPatchMixer was destroyed. */
-		bool IsOutputStillActive();
+		bool IsOutputStillActive() const;
 
+		/** Returns false if this output was not initialized properly. */
+		bool IsValid() const;
+
+		void Reset();
+		
 		friend class FPatchMixer;
 		friend class FPatchSplitter;
 

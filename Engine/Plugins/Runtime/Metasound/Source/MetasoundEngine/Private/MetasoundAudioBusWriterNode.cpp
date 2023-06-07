@@ -112,6 +112,35 @@ namespace Metasound
 			Reset(InParams);
 		}
 
+		void CreatePatchInput()
+		{
+			const FAudioBusProxyPtr& AudioBusProxy = AudioBusAsset->GetAudioBusProxy();
+			if (AudioBusProxy.IsValid())
+			{
+				if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
+				{
+					if (FAudioDevice* AudioDevice = ADM->GetAudioDeviceRaw(AudioDeviceId))
+					{
+						UAudioBusSubsystem* AudioBusSubsystem = AudioDevice->GetSubsystem<UAudioBusSubsystem>();
+						check(AudioBusSubsystem);
+						
+						AudioBusId = AudioBusProxy->AudioBusId;
+						const Audio::FAudioBusKey AudioBusKey = Audio::FAudioBusKey(AudioBusId);
+						
+						// Start the audio bus in case it's not already started					
+						AudioBusChannels = AudioBusProxy->NumChannels;
+						AudioBusSubsystem->StartAudioBus(AudioBusKey, AudioBusChannels, false);
+
+						InterleavedBuffer.Reset();
+						InterleavedBuffer.AddZeroed(BlockSizeFrames * AudioBusChannels);
+
+						// Create a bus patch input with enough room for the number of samples we expect and some buffering
+						AudioBusPatchInput = AudioBusSubsystem->AddPatchInputForAudioBus(AudioBusKey, BlockSizeFrames, AudioBusChannels);
+					}
+				}
+			}
+		}
+		
 		void Reset(const IOperator::FResetParams& InParams)
 		{
 			using namespace Frontend;
@@ -132,30 +161,9 @@ namespace Metasound
 					, *SourceInterface::Environment::DeviceID.ToString(), *SourceInterface::Environment::AudioMixerNumOutputFrames.ToString());
 			}
 			
-			const FAudioBusProxyPtr& AudioBusProxy = AudioBusAsset->GetAudioBusProxy();
-			if (AudioBusProxy.IsValid())
-			{
-				if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
-				{
-					if (FAudioDevice* AudioDevice = ADM->GetAudioDeviceRaw(AudioDeviceId))
-					{
-						UAudioBusSubsystem* AudioBusSubsystem = AudioDevice->GetSubsystem<UAudioBusSubsystem>();
-						check(AudioBusSubsystem);
-						Audio::FAudioBusKey AudioBusKey = Audio::FAudioBusKey(AudioBusProxy->AudioBusId);	
-						// Start the audio bus in case it's not already started					
-						AudioBusChannels = AudioBusProxy->NumChannels;
-						AudioBusSubsystem->StartAudioBus(AudioBusKey, AudioBusChannels, false);
+			BlockSizeFrames = InParams.OperatorSettings.GetNumFramesPerBlock();
 
-						BlockSizeFrames = InParams.OperatorSettings.GetNumFramesPerBlock();
-						InterleavedBuffer.AddZeroed(BlockSizeFrames * AudioBusChannels);
-
-						// Create a bus patch input with enough room for the number of samples we expect and some buffering
-						AudioBusPatchInput = AudioBusSubsystem->AddPatchInputForAudioBus(AudioBusKey, BlockSizeFrames, AudioBusChannels);
-
-					}
-				}
-			}
-
+			CreatePatchInput();
 			bFirstBlock = true;
 		}
 
@@ -185,6 +193,25 @@ namespace Metasound
 
 		void Execute()
 		{
+			const FAudioBusProxyPtr& BusProxy = AudioBusAsset->GetAudioBusProxy();
+			if (BusProxy.IsValid() && BusProxy->AudioBusId != AudioBusId)
+			{
+				AudioBusPatchInput.Reset();
+			}
+			
+			if (!AudioBusPatchInput.IsValid())
+			{
+				// if environment vars & a valid audio bus have been set since starting, try to create the patch now
+				if (SampleRate > 0.f && BusProxy.IsValid())
+				{
+					CreatePatchInput();
+				}
+				else
+				{
+					return;
+				}
+			}
+
 			if (!AudioBusPatchInput.IsOutputStillActive())
 			{
 				return;
@@ -248,6 +275,7 @@ namespace Metasound
 		float SampleRate = 0.0f;
 		Audio::FPatchInput AudioBusPatchInput;
 		uint32 AudioBusChannels = INDEX_NONE;
+		uint32 AudioBusId = 0;
 		int32 BlockSizeFrames = 0;
 		bool bFirstBlock = true;
 	};

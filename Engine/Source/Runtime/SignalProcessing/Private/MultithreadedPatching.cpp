@@ -308,9 +308,19 @@ namespace Audio
 		OutputHandle->TargetGain = InGain;
 	}
 
-	bool FPatchInput::IsOutputStillActive()
+	bool FPatchInput::IsOutputStillActive() const
 	{
 		return OutputHandle.IsValid() && !OutputHandle.IsUnique();
+	}
+
+	bool FPatchInput::IsValid() const
+	{
+		return OutputHandle.IsValid();
+	}
+
+	void FPatchInput::Reset()
+	{
+		OutputHandle.Reset();
 	}
 
 	FPatchInput FPatchMixer::AddNewInput(int32 InMaxLatencyInSamples, float InGain)
