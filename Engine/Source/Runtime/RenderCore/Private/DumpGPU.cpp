@@ -577,67 +577,7 @@ public:
 				return;
 			}
 
-			const TCHAR* SetByName = TEXT("Unknown");
-			switch (CVarFlags & ECVF_SetByMask)
-			{
-			case ECVF_SetByConstructor:
-			{
-				SetByName = TEXT("Constructor");
-				break;
-			}
-			case ECVF_SetByScalability:
-			{
-				SetByName = TEXT("Scalability");
-				break;
-			}
-			case ECVF_SetByGameSetting:
-			{
-				SetByName = TEXT("GameSetting");
-				break;
-			}
-			case ECVF_SetByProjectSetting:
-			{
-				SetByName = TEXT("ProjectSetting");
-				break;
-			}
-			case ECVF_SetBySystemSettingsIni:
-			{
-				SetByName = TEXT("SystemSettingsIni");
-				break;
-			}
-			case ECVF_SetByDeviceProfile:
-			{
-				SetByName = TEXT("DeviceProfile");
-				break;
-			}
-			case ECVF_SetByGameOverride:
-			{
-				SetByName = TEXT("GameOverride");
-				break;
-			}
-			case ECVF_SetByConsoleVariablesIni:
-			{
-				SetByName = TEXT("ConsoleVariablesIni");
-				break;
-			}
-			case ECVF_SetByCommandline:
-			{
-				SetByName = TEXT("Commandline");
-				break;
-			}
-			case ECVF_SetByCode:
-			{
-				SetByName = TEXT("Code");
-				break;
-			}
-			case ECVF_SetByConsole:
-			{
-				SetByName = TEXT("Console");
-				break;
-			}
-			default:
-				ensure(false);
-			}
+			const TCHAR* SetByName = GetConsoleVariableSetByName(CVarFlags);
 
 			FString Value = CVar->GetString();
 

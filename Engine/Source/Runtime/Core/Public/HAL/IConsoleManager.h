@@ -161,6 +161,10 @@ enum EConsoleVariableFlags
 	// ------------------------------------------------
 };
 
+/** Returns human readable ECVF_SetByMask bits of the console variable flags. */
+extern CORE_API const TCHAR* GetConsoleVariableSetByName(EConsoleVariableFlags ConsoleVariableFlags);
+
+
 class IConsoleVariable;
 
 #if !NO_CVARS
