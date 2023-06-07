@@ -64,6 +64,7 @@ struct UMG_API FMovieSceneUMGComponentTypes
 	TComponentTypeID<FWidgetMaterialPath> WidgetMaterialPath;
 	TComponentTypeID<FWidgetMaterialHandle> WidgetMaterialHandle;
 
+	TCustomPropertyRegistration<FMarginTraits, 1> CustomMarginAccessors;
 	TCustomPropertyRegistration<FWidgetTransformPropertyTraits, 1> CustomWidgetTransformAccessors;
 
 	static void Destroy();
