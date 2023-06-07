@@ -18,17 +18,93 @@ using HordeCommon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
+using Horde.Server.Utilities;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Horde.Server.Tests
 {
 	[TestClass]
 	public class BisectTests : TestSetup
 	{
+		[TestMethod]
+		public async Task TestStates()
+		{
+			(IJob failedJob, IGraph graph) = await SetupBisectionTest();
+
+			// Create the bisection task
+			CreateBisectTaskResponse task = Deref(await BisectTasksController!.CreateAsync(new CreateBisectTaskRequest() {JobId = failedJob.Id, NodeName = "CompileEditor" }));
+
+			GetBisectTaskResponse response = Deref(await BisectTasksController!.GetAsync(task!.BisectTaskId));
+			Assert.AreEqual(failedJob.TemplateId, response.TemplateId);
+			Assert.AreEqual(failedJob.StreamId, response.StreamId);
+			Assert.AreEqual("CompileEditor", response.NodeName);
+			Assert.AreEqual(JobStepOutcome.Failure, response.Outcome);
+			Assert.AreEqual("TestUser", response.Owner.Name);
+			Assert.AreEqual(failedJob.Change, response.InitialChange);
+			Assert.AreEqual(failedJob.Id, response.InitialJobId);
+			Assert.AreEqual(failedJob.Change, response.CurrentChange);
+			Assert.AreEqual(failedJob.Id, response.CurrentJobId);
+
+			Assert.AreEqual(task.BisectTaskId, response.Id);
+			List<IJob> jobs = await JobCollection.FindBisectTaskJobsAsync(response!.Id, null).ToListAsync();
+			Assert.AreEqual(0, jobs.Count);
+
+			// Start bisection service
+			BisectService bisectService = ServiceProvider.GetRequiredService<BisectService>();
+			await bisectService.StartAsync(CancellationToken.None);
+
+			await Clock.AdvanceAsync(TimeSpan.FromMinutes(30));
+
+			GetBisectTaskResponse bisectTask = Deref(await BisectTasksController!.GetAsync(task!.BisectTaskId));
+			Assert.AreEqual(BisectTaskState.Running, bisectTask.State);
+			jobs = await JobCollection.FindBisectTaskJobsAsync(bisectTask.Id, running: true).ToListAsync();
+			Assert.AreEqual(1, jobs.Count);
+			Assert.AreEqual(14, jobs[0].Change);
+			await SetJobOutcome(jobs[0], graph, JobStepOutcome.Failure);
+
+			await Clock.AdvanceAsync(TimeSpan.FromMinutes(30));
+
+			bisectTask = Deref(await BisectTasksController!.GetAsync(task!.BisectTaskId));
+			Assert.AreEqual(BisectTaskState.Running, bisectTask.State);
+			jobs = await JobCollection.FindBisectTaskJobsAsync(bisectTask.Id, running: true).ToListAsync();
+			Assert.AreEqual(1, jobs.Count);
+			Assert.AreEqual(12, jobs[0].Change);
+			await SetJobOutcome(jobs[0], graph, JobStepOutcome.Success);
+
+			await Clock.AdvanceAsync(TimeSpan.FromMinutes(30));
+
+			bisectTask = Deref(await BisectTasksController!.GetAsync(task!.BisectTaskId));
+			Assert.AreEqual(BisectTaskState.Running, bisectTask.State);
+			jobs = await JobCollection.FindBisectTaskJobsAsync(bisectTask.Id, running: true).ToListAsync();
+			Assert.AreEqual(1, jobs.Count);
+			Assert.AreEqual(13, jobs[0].Change);
+			await SetJobOutcome(jobs[0], graph, JobStepOutcome.Success);
+
+			await Clock.AdvanceAsync(TimeSpan.FromMinutes(30));
+
+			bisectTask = Deref(await BisectTasksController!.GetAsync(task!.BisectTaskId));
+			Assert.AreEqual(BisectTaskState.Succeeded, bisectTask.State);
+			Assert.AreEqual(20, bisectTask.InitialChange);
+			Assert.AreEqual(14, bisectTask.CurrentChange);
+			jobs = await JobCollection.FindBisectTaskJobsAsync(bisectTask.Id, running: true).ToListAsync();
+			Assert.AreEqual(0, jobs.Count);
+
+			await Clock.AdvanceAsync(TimeSpan.FromMinutes(30));
+
+			List<GetBisectTaskResponse> jobTasks = Deref(await BisectTasksController!.GetJobBisectTasksAsync(failedJob.Id));
+			Assert.AreEqual(1, jobTasks.Count);
+			Assert.AreEqual(failedJob.Id, jobTasks[0].InitialJobId);
+			Assert.AreEqual(3, jobTasks[0].Steps.Count);
+			Assert.AreEqual(BisectTaskState.Succeeded, jobTasks[0].State);
+
+		}
+
 		StreamId StreamId { get; } = new StreamId("ue4-main");
 		TemplateId TemplateId { get; } = new TemplateId("test-build");
 
-		[TestMethod]
-		public async Task TestStates()
+		async Task<(IJob failedJob, IGraph graph)> SetupBisectionTest()
 		{
 			IUser user = await UserCollection.FindOrAddUserByLoginAsync("Bob");
 
@@ -69,60 +145,7 @@ namespace Horde.Server.Tests
 			IJob succeededJob = await CreateJob(10, graph, JobStepOutcome.Success, options);
 			IJob failedJob = await CreateJob(20, graph, JobStepOutcome.Failure, options);
 
-			IBisectTaskCollection bisectTaskCollection = ServiceProvider.GetRequiredService<IBisectTaskCollection>();
-
-			IBisectTask bisectTask = await bisectTaskCollection.CreateAsync(failedJob, "CompileEditor", JobStepOutcome.Failure, UserId.Anonymous);
-			Assert.AreEqual(failedJob.TemplateId, bisectTask.TemplateId);
-			Assert.AreEqual(failedJob.StreamId, bisectTask.StreamId);
-			Assert.AreEqual("CompileEditor", bisectTask.NodeName);
-			Assert.AreEqual(JobStepOutcome.Failure, bisectTask.Outcome);
-			Assert.AreEqual(UserId.Anonymous, bisectTask.OwnerId);
-			Assert.AreEqual(failedJob.Change, bisectTask.InitialChange);
-			Assert.AreEqual(failedJob.Id, bisectTask.InitialJobId);
-			Assert.AreEqual(failedJob.Change, bisectTask.CurrentChange);
-			Assert.AreEqual(failedJob.Id, bisectTask.CurrentJobId);
-
-			List<IJob> jobs = await JobCollection.FindBisectTaskJobsAsync(bisectTask.Id, null).ToListAsync();
-			Assert.AreEqual(0, jobs.Count);
-
-			BisectService bisectService = ServiceProvider.GetRequiredService<BisectService>();
-			await bisectService.StartAsync(CancellationToken.None);
-
-			await Clock.AdvanceAsync(TimeSpan.FromMinutes(30));
-
-			bisectTask = Deref(await bisectTaskCollection.GetAsync(bisectTask.Id));
-			Assert.AreEqual(BisectTaskState.Running, bisectTask.State);
-			jobs = await JobCollection.FindBisectTaskJobsAsync(bisectTask.Id, running: true).ToListAsync();
-			Assert.AreEqual(1, jobs.Count);
-			Assert.AreEqual(14, jobs[0].Change);
-			await SetJobOutcome(jobs[0], graph, JobStepOutcome.Failure);
-
-			await Clock.AdvanceAsync(TimeSpan.FromMinutes(30));
-
-			bisectTask = Deref(await bisectTaskCollection.GetAsync(bisectTask.Id));
-			Assert.AreEqual(BisectTaskState.Running, bisectTask.State);
-			jobs = await JobCollection.FindBisectTaskJobsAsync(bisectTask.Id, running: true).ToListAsync();
-			Assert.AreEqual(1, jobs.Count);
-			Assert.AreEqual(12, jobs[0].Change);
-			await SetJobOutcome(jobs[0], graph, JobStepOutcome.Success);
-
-			await Clock.AdvanceAsync(TimeSpan.FromMinutes(30));
-
-			bisectTask = Deref(await bisectTaskCollection.GetAsync(bisectTask.Id));
-			Assert.AreEqual(BisectTaskState.Running, bisectTask.State);
-			jobs = await JobCollection.FindBisectTaskJobsAsync(bisectTask.Id, running: true).ToListAsync();
-			Assert.AreEqual(1, jobs.Count);
-			Assert.AreEqual(13, jobs[0].Change);
-			await SetJobOutcome(jobs[0], graph, JobStepOutcome.Success);
-
-			await Clock.AdvanceAsync(TimeSpan.FromMinutes(30));
-
-			bisectTask = Deref(await bisectTaskCollection.GetAsync(bisectTask.Id));
-			Assert.AreEqual(BisectTaskState.Succeeded, bisectTask.State);
-			Assert.AreEqual(20, bisectTask.InitialChange);
-			Assert.AreEqual(14, bisectTask.CurrentChange);
-			jobs = await JobCollection.FindBisectTaskJobsAsync(bisectTask.Id, running: true).ToListAsync();
-			Assert.AreEqual(0, jobs.Count);
+			return (failedJob, graph);
 		}
 
 		async Task<IJob> CreateJob(int change, IGraph graph, JobStepOutcome outcome, CreateJobOptions options)
@@ -146,9 +169,34 @@ namespace Horde.Server.Tests
 
 			INodeGroup group = graph.Groups[batch.GroupIdx];
 			INode node = group.Nodes[step.NodeIdx];
-			await JobStepRefCollection.InsertOrReplaceAsync(new JobStepRefId(job.Id, batch.Id, step.Id), job.Name, node.Name, job.StreamId, job.TemplateId, job.Change, LogId.GenerateNewId(), null, null, outcome, false, null, null, 0.0f, 0.0f, DateTime.MinValue, DateTime.MinValue, DateTime.MinValue);
+			await JobStepRefCollection.InsertOrReplaceAsync(new JobStepRefId(job.Id, batch.Id, step.Id), job.Name, node.Name, job.StreamId, job.TemplateId, job.Change, LogId.GenerateNewId(), null, null, outcome, false, null, null, 0.0f, 0.0f, DateTime.MinValue, DateTime.MinValue, DateTime.MinValue, job.StartedByBisectTaskId);
 
 			return job;
+		}
+
+		BisectTasksController? _bisectTasksController;
+
+		// setup BisectTaskController with a test user
+		private new BisectTasksController BisectTasksController
+		{
+			get
+			{
+				if (_bisectTasksController == null)
+				{
+					IUser user = UserCollection.FindOrAddUserByLoginAsync("TestUser").Result;
+					_bisectTasksController = base.BisectTasksController;
+					ControllerContext controllerContext = new ControllerContext();
+					controllerContext.HttpContext = new DefaultHttpContext();
+					controllerContext.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(
+						new List<Claim> { HordeClaims.AdminClaim.ToClaim(),
+						new Claim(ClaimTypes.Name, "TestUser"),
+						new Claim(HordeClaimTypes.UserId, user.Id.ToString()) }
+						, "TestAuthType"));
+					_bisectTasksController.ControllerContext = controllerContext;
+
+				}
+				return _bisectTasksController;
+			}
 		}
 	}
 }

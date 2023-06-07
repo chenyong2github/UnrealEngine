@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using Horde.Server.Agents;
 using Horde.Server.Agents.Pools;
+using Horde.Server.Jobs.Bisect;
 using Horde.Server.Logs;
 using Horde.Server.Streams;
 using HordeCommon;
@@ -170,6 +171,11 @@ namespace Horde.Server.Jobs
 		/// Issues ids affecting this job step
 		/// </summary>
 		public IReadOnlyList<int>? IssueIds { get; }
+
+		/// <summary>
+		/// Whether this step is part of a bisection
+		/// </summary>
+		public BisectTaskId? BisectTaskId { get; }
 
 		/// <summary>
 		/// The last change that succeeded. Note that this is only set when the ref is updated; it is not necessarily consistent with steps run later.

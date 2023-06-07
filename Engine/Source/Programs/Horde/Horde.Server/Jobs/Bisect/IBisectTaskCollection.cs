@@ -34,6 +34,14 @@ namespace Horde.Server.Jobs.Bisect
 		public IAsyncEnumerable<IBisectTask> FindActiveAsync(CancellationToken cancellationToken = default);
 
 		/// <summary>
+		/// Finds all bisect tasks for the provided criteria
+		/// </summary>
+		/// <param name="jobId">jobId of initial bisection</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>List of bisect tasks</returns>
+		public Task<IReadOnlyList<IBisectTask>> FindAsync(JobId? jobId = null, CancellationToken cancellationToken = default);
+
+		/// <summary>
 		/// Gets a bisect task by id
 		/// </summary>
 		/// <param name="bisectTaskId">Id of the bisect task</param>

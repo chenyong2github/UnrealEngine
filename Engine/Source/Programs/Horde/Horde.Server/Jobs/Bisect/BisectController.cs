@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Horde.Server.Acls;
@@ -103,10 +104,17 @@ namespace Horde.Server.Jobs.Bisect
 		/// <inheritdoc cref="IBisectTask.CurrentChange"/>
 		public int CurrentChange => _bisectTask.CurrentChange;
 
-		internal GetBisectTaskResponse(IBisectTask bisectTask, GetThinUserInfoResponse owner)
+		/// <summary>
+		/// The steps involved in the bisection
+		/// </summary>
+		public List<GetJobStepRefResponse> Steps;
+
+		internal GetBisectTaskResponse(IBisectTask bisectTask, GetThinUserInfoResponse owner, List<IJobStepRef> steps)
 		{
 			_bisectTask = bisectTask;
 			Owner = owner;
+			Steps = steps.Select(s => new GetJobStepRefResponse(s)).ToList();
+
 		}
 	}
 
@@ -152,6 +160,7 @@ namespace Horde.Server.Jobs.Bisect
 	{
 		readonly IBisectTaskCollection _bisectTaskCollection;
 		readonly IJobCollection _jobCollection;
+		readonly IJobStepRefCollection _jobStepRefs;
 		readonly IGraphCollection _graphCollection;
 		readonly IUserCollection _userCollection;
 		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
@@ -159,10 +168,11 @@ namespace Horde.Server.Jobs.Bisect
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BisectTasksController(IBisectTaskCollection bisectTaskCollection, IJobCollection jobCollection, IGraphCollection graphCollection, IUserCollection userCollection, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public BisectTasksController(IBisectTaskCollection bisectTaskCollection, IJobCollection jobCollection, IJobStepRefCollection jobStepRefs, IGraphCollection graphCollection, IUserCollection userCollection, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_bisectTaskCollection = bisectTaskCollection;
 			_jobCollection = jobCollection;
+			_jobStepRefs = jobStepRefs;
 			_graphCollection = graphCollection;
 			_userCollection = userCollection;
 			_globalConfig = globalConfig;
@@ -176,7 +186,7 @@ namespace Horde.Server.Jobs.Bisect
 		/// <returns>Id of the new bisect task</returns>
 		[HttpPost]
 		[Route("/api/v1/bisect")]
-		public async Task<ActionResult<CreateBisectTaskResponse>> CreateAsync([FromBody] CreateBisectTaskRequest create, CancellationToken cancellationToken)
+		public async Task<ActionResult<CreateBisectTaskResponse>> CreateAsync([FromBody] CreateBisectTaskRequest create, CancellationToken cancellationToken = default)
 		{
 			IJob? job = await _jobCollection.GetAsync(create.JobId);
 			if (job == null)
@@ -237,12 +247,18 @@ namespace Horde.Server.Jobs.Bisect
 		/// <returns>Id of the new bisect task</returns>
 		[HttpGet]
 		[Route("/api/v1/bisect/{bisectTaskId}")]
-		public async Task<ActionResult<GetBisectTaskResponse>> GetAsync([FromRoute] BisectTaskId bisectTaskId, CancellationToken cancellationToken)
+		public async Task<ActionResult<GetBisectTaskResponse>> GetAsync([FromRoute] BisectTaskId bisectTaskId, CancellationToken cancellationToken = default)
 		{
 			IBisectTask? bisectTask = await _bisectTaskCollection.GetAsync(bisectTaskId, cancellationToken);
 			if (bisectTask == null)
 			{
 				return NotFound(bisectTaskId);
+			}
+
+			IJob? initialJob = await _jobCollection.GetAsync(bisectTask.InitialJobId);
+			if (initialJob == null)
+			{
+				return NotFound(bisectTask.InitialJobId);
 			}
 
 			StreamConfig? streamConfig;
@@ -256,7 +272,9 @@ namespace Horde.Server.Jobs.Bisect
 			}
 
 			IUser? user = await _userCollection.GetUserAsync(bisectTask.OwnerId);
-			return new GetBisectTaskResponse(bisectTask, new GetThinUserInfoResponse(user));
+			List<IJobStepRef> steps = await _jobStepRefs.GetStepsForNodeAsync(initialJob.StreamId, initialJob.TemplateId, bisectTask.NodeName, null, true, 1024, bisectTask.Id, cancellationToken);
+
+			return new GetBisectTaskResponse(bisectTask, new GetThinUserInfoResponse(user), steps);
 		}
 
 		/// <summary>
@@ -302,5 +320,50 @@ namespace Horde.Server.Jobs.Bisect
 				}
 			}
 		}
+
+		/// <summary>
+		/// Gets the bisections run on a specific job
+		/// </summary>
+		/// <param name="jobId">Id of the job to retrieve</param>		
+		/// <param name="cancellationToken" />
+		/// <returns>Id of the new bisect task</returns>
+		[HttpGet]
+		[Route("/api/v1/bisect/job/{jobId}")]
+		public async Task<ActionResult<List<GetBisectTaskResponse>>> GetJobBisectTasksAsync([FromRoute] JobId jobId, CancellationToken cancellationToken = default)
+		{
+			IJob? job = await _jobCollection.GetAsync(jobId);
+			if (job == null)
+			{
+				return NotFound(jobId);
+			}
+
+			IReadOnlyList<IBisectTask> tasks = await _bisectTaskCollection.FindAsync(jobId, cancellationToken);
+
+			List<GetBisectTaskResponse> response = new List<GetBisectTaskResponse>();
+
+			foreach (IBisectTask bisectTask in tasks)
+			{
+				StreamConfig? streamConfig;
+				if (!_globalConfig.Value.TryGetStream(bisectTask.StreamId, out streamConfig))
+				{
+					return NotFound(bisectTask.StreamId);
+				}
+				if (!streamConfig.Authorize(BisectTaskAclAction.ViewBisectTask, User))
+				{
+					return Forbid(BisectTaskAclAction.ViewBisectTask, streamConfig.Id);
+				}
+
+
+
+				IUser? user = await _userCollection.GetUserAsync(bisectTask.OwnerId);
+				List<IJobStepRef> steps = await _jobStepRefs.GetStepsForNodeAsync(job.StreamId, job.TemplateId, bisectTask.NodeName, null, true, 1024, bisectTask.Id, cancellationToken);
+
+				response.Add(new GetBisectTaskResponse(bisectTask, new GetThinUserInfoResponse(user), steps));
+				
+			}
+
+			return response;
+		}
 	}
+
 }

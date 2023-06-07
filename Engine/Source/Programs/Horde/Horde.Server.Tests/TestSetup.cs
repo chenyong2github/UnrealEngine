@@ -95,6 +95,7 @@ namespace Horde.Server.Tests
 		public IUserCollection UserCollection => ServiceProvider.GetRequiredService<IUserCollection>();
 		public IDeviceCollection DeviceCollection => ServiceProvider.GetRequiredService<IDeviceCollection>();
 		public IDashboardPreviewCollection DashboardPreviewCollection => ServiceProvider.GetRequiredService<IDashboardPreviewCollection>();
+		public IBisectTaskCollection BisectTaskCollection => ServiceProvider.GetRequiredService<IBisectTaskCollection>();
 
 		public AclService AclService => ServiceProvider.GetRequiredService<AclService>();
 		public FleetService FleetService => ServiceProvider.GetRequiredService<FleetService>();
@@ -131,6 +132,7 @@ namespace Horde.Server.Tests
 		public DevicesController DevicesController => GetDevicesController();
 		public DashboardController DashboardController => GetDashboardController();
 		public TestDataController TestDataController => GetTestDataController();
+		public BisectTasksController BisectTasksController => GetBisectTasksController();
 
 		public OpenTelemetry.Trace.Tracer Tracer => ServiceProvider.GetRequiredService<OpenTelemetry.Trace.Tracer>();
 		public Meter Meter => ServiceProvider.GetRequiredService<Meter>();
@@ -312,6 +314,13 @@ namespace Horde.Server.Tests
 			TestDataController dataCtrl = new TestDataController(TestDataService, StreamCollection, JobService, TestDataCollection, GlobalConfigSnapshot);
 			dataCtrl.ControllerContext = GetControllerContext();
 			return dataCtrl;
+		}
+
+		private BisectTasksController GetBisectTasksController()
+		{
+			BisectTasksController bisectCtrl = new BisectTasksController(BisectTaskCollection, JobCollection, JobStepRefCollection, GraphCollection, UserCollection, GlobalConfigSnapshot);
+			bisectCtrl.ControllerContext = GetControllerContext();
+			return bisectCtrl;
 		}
 
 		private AgentsController GetAgentsController()

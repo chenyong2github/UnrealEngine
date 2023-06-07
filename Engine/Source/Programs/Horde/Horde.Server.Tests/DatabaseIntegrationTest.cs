@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Net;
 using Horde.Server.Server;
 using Horde.Server.Utilities;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -223,6 +224,12 @@ namespace Horde.Server.Tests
 		{
 			Assert.IsNotNull(item);
 			return item!;
+		}
+
+		public static T Deref<T>(ActionResult<T>? item) where T : class
+		{
+			Assert.IsNotNull(item?.Value);
+			return item!.Value!;
 		}
 	}
 }
