@@ -488,7 +488,7 @@ namespace Jupiter.FunctionalTests.Storage
             TextNode node = new TextNode(contents);
             NodeHandle handle = await writer.FlushAsync(node, CancellationToken.None);
 
-            return await store.ReadBundleAsync(handle.Locator.Blob);
+            return await store.ReadBundleAsync(handle.GetLocator().Blob);
         }
 
         [TestMethod]
@@ -893,7 +893,7 @@ namespace Jupiter.FunctionalTests.Storage
             Text = reader.ReadString();
         }
 
-        public override void Serialize(ITreeNodeWriter writer)
+        public override void Serialize(NodeWriter writer)
         {
             writer.WriteString(Text);
         }

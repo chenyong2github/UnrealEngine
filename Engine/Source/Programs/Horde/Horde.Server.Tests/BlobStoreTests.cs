@@ -122,13 +122,13 @@ namespace Horde.Server.Tests
 				RefName refName = new RefName("hello");
 				await store.WriteRefTargetAsync(refName, new HashedNodeLocator(bundle3.Header.Exports[0].Hash, locator3, 0));
 				NodeHandle refTarget = await store.ReadRefTargetAsync(refName);
-				Assert.AreEqual(locator3, refTarget.Locator.Blob);
+				Assert.AreEqual(locator3, refTarget.GetLocator().Blob);
 			}
 
 			RefName refName2 = new RefName("hello2");
 
 			NodeHandle refTargetId2 = await store.WriteRefAsync(refName2, CreateTestBundle(input3, new BlobLocator[] { locator1, locator2 }), 0);
-			Blob refTarget2 = await ReadBlobAsync(store, refTargetId2.Locator.Blob);
+			Blob refTarget2 = await ReadBlobAsync(store, refTargetId2.GetLocator().Blob);
 			Assert.IsTrue(refTarget2.Data.Span.SequenceEqual(input3));
 			Assert.IsTrue(refTarget2.References.SequenceEqual(new BlobLocator[] { locator1, locator2 }));
 		}
@@ -172,7 +172,11 @@ namespace Horde.Server.Tests
 		static async Task<HashedNodeLocator> TryReadRefTargetAsync(IStorageClient store, RefName name)
 		{
 			NodeHandle? handle = await store.TryReadRefTargetAsync(name);
-			return handle?.HashedLocator ?? default;
+			if (handle == null)
+			{
+				return default;
+			}
+			return new HashedNodeLocator(handle.Hash, handle.GetLocator());
 		}
 	}
 }

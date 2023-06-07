@@ -106,7 +106,7 @@ namespace EpicGames.Horde.Logs
 			writer.WriteUnsignedVarInt(CurrentVersion);
 			writer.WriteNgramSet(_ngramSet);
 			writer.WriteUnsignedVarInt(_numChunkBits);
-			writer.WriteVariableLengthArray(_plainTextChunkRefs, x => writer.WriteRef(x));
+			writer.WriteVariableLengthArray(_plainTextChunkRefs, x => writer.WriteNodeRef(x));
 		}
 
 		/// <inheritdoc/>

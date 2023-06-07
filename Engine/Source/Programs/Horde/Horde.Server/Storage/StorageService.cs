@@ -224,13 +224,13 @@ namespace Horde.Server.Storage
 			#region Nodes
 
 			/// <inheritdoc/>
-			public override Task AddAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default) => _outer.AddAliasAsync(NamespaceId, name, handle.HashedLocator, cancellationToken);
+			public override Task AddAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default) => _outer.AddAliasAsync(NamespaceId, name, new HashedNodeLocator(handle.Hash, handle.GetLocator()), cancellationToken);
 
 			/// <inheritdoc/>
 			public Task AddAliasAsync(Utf8String name, HashedNodeLocator locator, CancellationToken cancellationToken = default) => _outer.AddAliasAsync(NamespaceId, name, locator, cancellationToken);
 
 			/// <inheritdoc/>
-			public override Task RemoveAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default) => _outer.RemoveAliasAsync(NamespaceId, name, handle.HashedLocator, cancellationToken);
+			public override Task RemoveAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default) => _outer.RemoveAliasAsync(NamespaceId, name, new HashedNodeLocator(handle.Hash, handle.GetLocator()), cancellationToken);
 
 			/// <inheritdoc/>
 			public Task RemoveAliasAsync(Utf8String name, HashedNodeLocator locator, CancellationToken cancellationToken = default) => _outer.RemoveAliasAsync(NamespaceId, name, locator, cancellationToken);
@@ -260,7 +260,7 @@ namespace Horde.Server.Storage
 			}
 
 			/// <inheritdoc/>
-			public override Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default) => _outer.WriteRefTargetAsync(NamespaceId, name, target.HashedLocator, options, cancellationToken);
+			public override Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default) => _outer.WriteRefTargetAsync(NamespaceId, name, new HashedNodeLocator(target.Hash, target.GetLocator()), options, cancellationToken);
 
 			/// <inheritdoc/>
 			public Task WriteRefTargetAsync(RefName name, HashedNodeLocator target, RefOptions? options = null, CancellationToken cancellationToken = default) => _outer.WriteRefTargetAsync(NamespaceId, name, target, options, cancellationToken);

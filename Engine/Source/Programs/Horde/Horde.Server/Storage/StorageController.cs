@@ -75,8 +75,8 @@ namespace Horde.Server.Storage
 		public FindNodeResponse(NodeHandle target)
 		{
 			Hash = target.Hash;
-			Blob = target.Locator.Blob;
-			ExportIdx = target.Locator.ExportIdx;
+			Blob = target.GetLocator().Blob;
+			ExportIdx = target.GetLocator().ExportIdx;
 		}
 	}
 	/// <summary>
@@ -147,8 +147,8 @@ namespace Horde.Server.Storage
 		public ReadRefResponse(NodeHandle target, string link)
 		{
 			Hash = target.Hash;
-			Blob = target.Locator.Blob;
-			ExportIdx = target.Locator.ExportIdx;
+			Blob = target.GetLocator().Blob;
+			ExportIdx = target.GetLocator().ExportIdx;
 			Link = link;
 		}
 	}
@@ -405,7 +405,8 @@ namespace Horde.Server.Storage
 				return new NotFoundResult();
 			}
 
-			string link = $"/api/v1/storage/{namespaceId}/nodes/{target.Locator.Blob}?export={target.Locator.ExportIdx}";
+			NodeLocator locator = target.GetLocator();
+			string link = $"/api/v1/storage/{namespaceId}/nodes/{locator.Blob}?export={locator.ExportIdx}";
 			return new ReadRefResponse(target, link);
 		}
 
@@ -590,7 +591,7 @@ namespace Horde.Server.Storage
 			return new { bundle = $"{linkBase}/bundles/{locator}", export.Hash, export.Length, guid = header.Types[export.TypeIdx].Guid, type = node.GetType().Name, content = content };
 		}
 
-		static string GetNodeLink(string linkBase, NodeRef treeNodeRef) => GetNodeLink(linkBase, treeNodeRef.Handle!.Locator);
+		static string GetNodeLink(string linkBase, NodeRef treeNodeRef) => GetNodeLink(linkBase, treeNodeRef.Handle!.GetLocator());
 		
 		static string GetNodeLink(string linkBase, NodeLocator locator) => $"{linkBase}/nodes/{locator.Blob}?export={locator.ExportIdx}";
 

@@ -52,12 +52,12 @@ namespace Horde.Server.Tests
 			
 			handles = await client.FindNodesAsync("foo").ToListAsync();
 			Assert.AreEqual(2, handles.Count);
-			Assert.AreEqual(new NodeLocator(locator, 0), handles[0].Locator);
-			Assert.AreEqual(new NodeLocator(locator, 1), handles[1].Locator);
+			Assert.AreEqual(new NodeLocator(locator, 0), handles[0].GetLocator());
+			Assert.AreEqual(new NodeLocator(locator, 1), handles[1].GetLocator());
 
 			handles = await client.FindNodesAsync("bar").ToListAsync();
 			Assert.AreEqual(1, handles.Count);
-			Assert.AreEqual(new NodeLocator(locator, 2), handles[0].Locator);
+			Assert.AreEqual(new NodeLocator(locator, 2), handles[0].GetLocator());
 		}
 	}
 }

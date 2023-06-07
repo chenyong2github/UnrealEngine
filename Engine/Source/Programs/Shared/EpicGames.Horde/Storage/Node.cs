@@ -411,7 +411,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="handle"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async ValueTask<TNode> ReadAsync<TNode>(this NodeHandle handle, CancellationToken cancellationToken = default) where TNode : Node
+		public static async ValueTask<TNode> ReadNodeAsync<TNode>(this NodeHandle handle, CancellationToken cancellationToken = default) where TNode : Node
 		{
 			NodeData nodeData = await handle.ReadAsync(cancellationToken);
 			return Node.Deserialize<TNode>(nodeData);
@@ -422,7 +422,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New untyped ref</returns>
-		public static NodeRef ReadRef(this NodeReader reader)
+		public static NodeRef ReadNodeRef(this NodeReader reader)
 		{
 			return new NodeRef(reader);
 		}
@@ -433,7 +433,7 @@ namespace EpicGames.Horde.Storage
 		/// <typeparam name="T">Type of the referenced node</typeparam>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New strongly typed ref</returns>
-		public static NodeRef<T> ReadRef<T>(this NodeReader reader) where T : Node
+		public static NodeRef<T> ReadNodeRef<T>(this NodeReader reader) where T : Node
 		{
 			return new NodeRef<T>(reader);
 		}
@@ -443,11 +443,11 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New untyped ref</returns>
-		public static NodeRef? ReadOptionalRef(this NodeReader reader)
+		public static NodeRef? ReadOptionalNodeRef(this NodeReader reader)
 		{
 			if (reader.ReadBoolean())
 			{
-				return reader.ReadRef();
+				return reader.ReadNodeRef();
 			}
 			else
 			{
@@ -460,11 +460,11 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New strongly typed ref</returns>
-		public static NodeRef<T>? ReadOptionalRef<T>(this NodeReader reader) where T : Node
+		public static NodeRef<T>? ReadOptionalNodeRef<T>(this NodeReader reader) where T : Node
 		{
 			if (reader.ReadBoolean())
 			{
-				return reader.ReadRef<T>();
+				return reader.ReadNodeRef<T>();
 			}
 			else
 			{
@@ -477,7 +477,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public static void WriteRef(this NodeWriter writer, NodeRef value)
+		public static void WriteNodeRef(this NodeWriter writer, NodeRef value)
 		{
 			value.Serialize(writer);
 		}
@@ -487,7 +487,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public static void WriteOptionalRef(this NodeWriter writer, NodeRef? value)
+		public static void WriteOptionalNodeRef(this NodeWriter writer, NodeRef? value)
 		{
 			if (value == null)
 			{
@@ -496,7 +496,7 @@ namespace EpicGames.Horde.Storage
 			else
 			{
 				writer.WriteBoolean(true);
-				writer.WriteRef(value);
+				writer.WriteNodeRef(value);
 			}
 		}
 

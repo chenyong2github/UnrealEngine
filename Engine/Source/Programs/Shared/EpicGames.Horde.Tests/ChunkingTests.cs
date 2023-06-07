@@ -97,7 +97,7 @@ namespace EpicGames.Horde.Tests
 				handle = await fileWriter.FlushAsync(CancellationToken.None);
 			}
 
-			ChunkedDataNode root = await reader.ReadNodeAsync<ChunkedDataNode>(handle.Locator);
+			ChunkedDataNode root = await handle.ReadNodeAsync<ChunkedDataNode>();
 
 			byte[] result;
 			using (MemoryStream stream = new MemoryStream())

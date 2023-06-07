@@ -181,7 +181,7 @@ namespace AutomationTool.Tasks
 			{
 				request.CreatePaused = true;
 			}
-			request.Node = handle.HashedLocator.ToString();
+			request.Node = new HashedNodeLocator(handle.Hash, handle.GetLocator()).ToString();
 
 			using (HttpClient httpClient = CreateHttpClient())
 			{

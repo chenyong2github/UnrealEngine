@@ -195,7 +195,7 @@ public class StorageClient : IStorageClientJupiter
 
     public Task WriteRefTargetAsync(RefName refName, NodeHandle target, RefOptions? requestOptions, CancellationToken cancellationToken)
     {
-        return WriteRefTargetAsync(refName, target.HashedLocator, requestOptions, cancellationToken);
+        return WriteRefTargetAsync(refName, new HashedNodeLocator(target.Hash, target.GetLocator()), requestOptions, cancellationToken);
     }
 
     public async Task WriteRefTargetAsync(RefName refName, HashedNodeLocator target, RefOptions? requestOptions, CancellationToken cancellationToken)

@@ -66,7 +66,7 @@ namespace EpicGames.Horde.Tests
 			TextNode node = new TextNode("Hello world");
 			NodeHandle handle = await writer.FlushAsync(node, CancellationToken.None);
 
-			return await store.ReadBundleAsync(handle.Locator.Blob);
+			return await store.ReadBundleAsync(handle.GetLocator().Blob);
 		}
 
 		static Bundle CreateBundleManually()
@@ -127,13 +127,13 @@ namespace EpicGames.Horde.Tests
 			public SimpleNode(NodeReader reader)
 			{
 				Data = new ReadOnlySequence<byte>(reader.ReadVariableLengthBytes());
-				Refs = reader.ReadVariableLengthArray(() => reader.ReadRef<SimpleNode>());
+				Refs = reader.ReadVariableLengthArray(() => reader.ReadNodeRef<SimpleNode>());
 			}
 
 			public override void Serialize(NodeWriter writer)
 			{
 				writer.WriteVariableLengthBytes(Data);
-				writer.WriteVariableLengthArray(Refs, x => writer.WriteRef(x));
+				writer.WriteVariableLengthArray(Refs, x => writer.WriteNodeRef(x));
 			}
 
 			public override IEnumerable<NodeRef> EnumerateRefs() => Refs;

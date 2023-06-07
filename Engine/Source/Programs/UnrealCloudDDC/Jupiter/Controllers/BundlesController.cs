@@ -69,8 +69,8 @@ namespace Jupiter.Controllers
         public FindNodeResponse(NodeHandle target)
         {
             Hash = target.Hash;
-            Blob = target.Locator.Blob;
-            ExportIdx = target.Locator.ExportIdx;
+            Blob = target.GetLocator().Blob;
+            ExportIdx = target.GetLocator().ExportIdx;
         }
     }
     /// <summary>
@@ -143,8 +143,8 @@ namespace Jupiter.Controllers
         public ReadRefResponse(NodeHandle target, string link)
         {
             Hash = target.Hash;
-            Blob = target.Locator.Blob;
-            ExportIdx = target.Locator.ExportIdx;
+            Blob = target.GetLocator().Blob;
+            ExportIdx = target.GetLocator().ExportIdx;
             Link = link;
         }
 
@@ -358,7 +358,7 @@ namespace Jupiter.Controllers
                 return NotFound();
             }
 
-            string link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = target.Locator.Blob, export = target.Locator.ExportIdx })!;
+            string link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = target.GetLocator().Blob, export = target.GetLocator().ExportIdx })!;
             return new ReadRefResponse(target, WebUtility.UrlDecode(link));
         }
 
@@ -474,20 +474,20 @@ namespace Jupiter.Controllers
                         List<object> directories = new List<object>();
                         foreach ((Utf8String name, DirectoryEntry entry) in directoryNode.NameToDirectory)
                         {
-                            directories.Add(new { name = name.ToString(), length = entry.Length, hash = entry.Hash, link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = entry.Handle!.Locator.Blob, export = entry.Handle!.Locator.ExportIdx})! });
+                            directories.Add(new { name = name.ToString(), length = entry.Length, hash = entry.Hash, link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = entry.Handle!.GetLocator().Blob, export = entry.Handle!.GetLocator().ExportIdx})! });
                         }
 
                         List<object> files = new List<object>();
                         foreach ((Utf8String name, FileEntry entry) in directoryNode.NameToFile)
                         {
-                            files.Add(new { name = name.ToString(), length = entry.Length, flags = entry.Flags, hash = entry.Hash, link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = entry.Handle!.Locator.Blob, export = entry.Handle!.Locator.ExportIdx})!});
+                            files.Add(new { name = name.ToString(), length = entry.Length, flags = entry.Flags, hash = entry.Hash, link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = entry.Handle!.GetLocator().Blob, export = entry.Handle!.GetLocator().ExportIdx})!});
                         }
 
                         content = new { directoryNode.Length, directories, files };
                     }
                     break;
                 default:
-                    content = new { references = node.EnumerateRefs().Select(x => Url.Action("GetNode", new { namespaceId = namespaceId, locator = x.Handle!.Locator.Blob, export = x.Handle!.Locator.ExportIdx})!) };
+                    content = new { references = node.EnumerateRefs().Select(x => Url.Action("GetNode", new { namespaceId = namespaceId, locator = x.Handle!.GetLocator().Blob, export = x.Handle!.GetLocator().ExportIdx})!) };
                     break;
             }
 

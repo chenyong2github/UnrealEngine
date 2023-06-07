@@ -284,7 +284,8 @@ namespace EpicGames.Horde.Storage.Backends
 			_logger.LogDebug("Writing ref {RefName} -> {RefTarget}", name, target);
 			using (HttpClient httpClient = _createClient())
 			{
-				using (HttpResponseMessage response = await httpClient.PutAsync($"refs/{name}", new { blob = target.Locator.Blob, exportIdx = target.Locator.ExportIdx, options }, cancellationToken))
+				NodeLocator locator = target.GetLocator();
+				using (HttpResponseMessage response = await httpClient.PutAsync($"refs/{name}", new { blob = locator.Blob, exportIdx = locator.ExportIdx, options }, cancellationToken))
 				{
 					response.EnsureSuccessStatusCode();
 				}

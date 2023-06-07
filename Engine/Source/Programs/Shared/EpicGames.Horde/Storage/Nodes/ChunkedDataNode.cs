@@ -309,7 +309,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			NodeRef<ChunkedDataNode>[] children = new NodeRef<ChunkedDataNode>[reader.Length / IoHash.NumBytes];
 			for (int idx = 0; idx < children.Length; idx++)
 			{
-				children[idx] = reader.ReadRef<ChunkedDataNode>();
+				children[idx] = reader.ReadNodeRef<ChunkedDataNode>();
 			}
 			Children = children;
 		}
@@ -319,7 +319,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		{
 			foreach (NodeRef<ChunkedDataNode> child in Children)
 			{
-				writer.WriteRef(child);
+				writer.WriteNodeRef(child);
 			}
 		}
 
@@ -412,7 +412,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			NodeReader nodeReader = new NodeReader(nodeData);
 			while (nodeReader.GetMemory(0).Length > 0)
 			{
-				NodeRef nodeRef = nodeReader.ReadRef();
+				NodeRef nodeRef = nodeReader.ReadNodeRef();
 				await ChunkedDataNode.CopyToStreamAsync(nodeRef.Handle!, outputStream, cancellationToken);
 			}
 		}

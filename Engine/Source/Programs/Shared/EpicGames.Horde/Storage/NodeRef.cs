@@ -280,7 +280,7 @@ namespace EpicGames.Horde.Storage
 			foreach (NodeRef nextRef in nextRefs)
 			{
 				NodeHandle nextRefHandle = await WriteAsync(writer, nextRef, cancellationToken);
-				if (!nextRefHandle.Locator.IsValid())
+				if (!nextRefHandle.HasLocator())
 				{
 					nodeRef.MarkAsDirty();
 				}
@@ -292,7 +292,7 @@ namespace EpicGames.Horde.Storage
 			{
 				// Make sure the locator is valid. The node may be queued for writing but not flushed to disk yet.
 				Debug.Assert(nodeRef.Handle != null);
-				if (nodeRef.Handle.Locator.IsValid())
+				if (nodeRef.Handle.HasLocator())
 				{
 					nodeRef.Collapse();
 				}

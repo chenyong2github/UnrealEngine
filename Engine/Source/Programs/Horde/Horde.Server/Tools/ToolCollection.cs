@@ -260,7 +260,7 @@ namespace Horde.Server.Tools
 				handle = await writer.WriteAsync(refName, directoryNode, cancellationToken: cancellationToken);
 			}
 
-			return await CreateDeploymentAsync(tool, options, handle.HashedLocator, globalConfig, cancellationToken);
+			return await CreateDeploymentAsync(tool, options, new HashedNodeLocator(handle.Hash, handle.GetLocator()), globalConfig, cancellationToken);
 		}
 
 		/// <summary>

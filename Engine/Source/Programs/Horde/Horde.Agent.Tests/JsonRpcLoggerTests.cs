@@ -160,7 +160,7 @@ namespace Horde.Agent.Tests
 						logger.LogInformation("Testing {Number}", idx);
 					}
 				}
-				file = await reader.ReadNodeAsync<LogNode>(sink.Target!.Locator!);
+				file = await sink.Target!.ReadNodeAsync<LogNode>();
 			}
 
 			// Check the index text

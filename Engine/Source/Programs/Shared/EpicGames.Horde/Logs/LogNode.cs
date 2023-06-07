@@ -95,7 +95,7 @@ namespace EpicGames.Horde.Logs
 			Format = (LogFormat)reader.ReadUInt8();
 			LineCount = (int)reader.ReadUnsignedVarInt();
 			Length = (long)reader.ReadUnsignedVarInt();
-			IndexRef = reader.ReadRef<LogIndexNode>();
+			IndexRef = reader.ReadNodeRef<LogIndexNode>();
 			TextChunkRefs = reader.ReadList(() => new LogChunkRef(reader));
 			Complete = reader.ReadBoolean();
 		}
@@ -106,8 +106,8 @@ namespace EpicGames.Horde.Logs
 			writer.WriteUInt8((byte)Format);
 			writer.WriteUnsignedVarInt(LineCount);
 			writer.WriteUnsignedVarInt((ulong)Length);
-			writer.WriteRef(IndexRef);
-			writer.WriteList(TextChunkRefs, x => writer.WriteRef(x));
+			writer.WriteNodeRef(IndexRef);
+			writer.WriteList(TextChunkRefs, x => writer.WriteNodeRef(x));
 			writer.WriteBoolean(Complete);
 		}
 

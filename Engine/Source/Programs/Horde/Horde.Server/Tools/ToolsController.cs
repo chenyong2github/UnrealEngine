@@ -138,7 +138,7 @@ namespace Horde.Server.Tools
 		{
 			_deployment = deployment;
 			Hash = handle.Hash;
-			Locator = handle.Locator;
+			Locator = handle.GetLocator();
 		}
 	}
 

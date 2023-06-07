@@ -88,7 +88,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		public CommitNode(NodeReader reader)
 		{
 			Number = (int)reader.ReadUnsignedVarInt();
-			Parent = reader.ReadOptionalRef<CommitNode>();
+			Parent = reader.ReadOptionalNodeRef<CommitNode>();
 			Author = reader.ReadString();
 			AuthorId = reader.ReadOptionalString();
 			Committer = reader.ReadOptionalString();
@@ -96,22 +96,22 @@ namespace EpicGames.Horde.Storage.Nodes
 			Message = reader.ReadString();
 			Time = reader.ReadDateTime();
 			Contents = new DirectoryNodeRef(reader);
-			Metadata = reader.ReadDictionary(() => reader.ReadGuid(), () => reader.ReadRef());
+			Metadata = reader.ReadDictionary(() => reader.ReadGuid(), () => reader.ReadNodeRef());
 		}
 
 		/// <inheritdoc/>
 		public override void Serialize(NodeWriter writer)
 		{
 			writer.WriteUnsignedVarInt(Number);
-			writer.WriteOptionalRef(Parent);
+			writer.WriteOptionalNodeRef(Parent);
 			writer.WriteString(Author);
 			writer.WriteOptionalString(AuthorId);
 			writer.WriteOptionalString(Committer);
 			writer.WriteOptionalString(CommitterId);
 			writer.WriteString(Message);
 			writer.WriteDateTime(Time);
-			writer.WriteRef(Contents);
-			writer.WriteDictionary(Metadata, key => writer.WriteGuid(key), value => writer.WriteRef(value));
+			writer.WriteNodeRef(Contents);
+			writer.WriteDictionary(Metadata, key => writer.WriteGuid(key), value => writer.WriteNodeRef(value));
 		}
 
 		/// <inheritdoc/>

@@ -58,21 +58,12 @@ namespace EpicGames.Horde.Storage
 	public class NodeHandle
 	{
 		readonly TreeReader _reader;
+		NodeLocator _locator;
 
 		/// <summary>
 		/// Hash of the target node
 		/// </summary>
 		public IoHash Hash { get; }
-
-		/// <summary>
-		/// Location of the node in storage
-		/// </summary>
-		public NodeLocator Locator { get; protected set; }
-
-		/// <summary>
-		/// 
-		/// </summary>
-		public HashedNodeLocator HashedLocator => new HashedNodeLocator(Hash, Locator);
 
 		/// <summary>
 		/// Used to track the bundle that is being written to
@@ -89,7 +80,7 @@ namespace EpicGames.Horde.Storage
 		{
 			_reader = reader;
 			Hash = hash;
-			Locator = locator;
+			_locator = locator;
 		}
 
 		/// <summary>
@@ -103,6 +94,38 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Determines if the node has been written to storage
+		/// </summary>
+		/// <returns></returns>
+		public bool HasLocator() => _locator.IsValid();
+
+		/// <summary>
+		/// Gets the node locator. May throw if the node has not been written to storage yet.
+		/// </summary>
+		/// <returns>Locator for the node</returns>
+		public NodeLocator GetLocator()
+		{
+			if (!_locator.IsValid())
+			{
+				throw new InvalidOperationException("Node has not been flushed to disk; cannot retrieve locator.");
+			}
+			return _locator;
+		}
+
+		/// <summary>
+		/// Sets the current locator
+		/// </summary>
+		/// <param name="locator"></param>
+		protected void SetLocator(NodeLocator locator)
+		{
+			if (_locator.IsValid())
+			{
+				throw new InvalidOperationException("Node has already been flushed.");
+			}
+			_locator = locator;
+		}
+
+		/// <summary>
 		/// Adds a callback to be executed once the node has been written. Triggers immediately if the node has already been written.
 		/// </summary>
 		/// <param name="callback">Action to be executed after the write</param>
@@ -111,7 +134,7 @@ namespace EpicGames.Horde.Storage
 			PendingBundle? pendingBundle = PendingBundle;
 			if (pendingBundle == null || !pendingBundle.TryAddWriteCallback(callback))
 			{
-				Debug.Assert(Locator.IsValid());
+				Debug.Assert(_locator.IsValid());
 				callback.OnWrite();
 			}
 		}
@@ -119,11 +142,11 @@ namespace EpicGames.Horde.Storage
 		/// <inheritdoc/>
 		public async ValueTask<NodeData> ReadAsync(CancellationToken cancellationToken = default)
 		{
-			return await _reader.ReadNodeDataAsync(Locator, cancellationToken);
+			return await _reader.ReadNodeDataAsync(GetLocator(), cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public override string ToString() => HashedLocator.ToString();
+		public override string ToString() => _locator.IsValid()? new HashedNodeLocator(Hash, _locator).ToString() : Hash.ToString();
 	}
 
 	/// <summary>
@@ -223,8 +246,7 @@ namespace EpicGames.Horde.Storage
 
 			public void MarkAsWritten(NodeLocator locator)
 			{
-				Debug.Assert(!Locator.IsValid());
-				Locator = locator;
+				SetLocator(locator);
 				PendingBundle = null;
 			}
 		}
@@ -511,8 +533,7 @@ namespace EpicGames.Horde.Storage
 					{
 						if (nodeSet.Add(handle))
 						{
-							Debug.Assert(handle.Locator.IsValid());
-							NodeLocator refLocator = handle.Locator;
+							NodeLocator refLocator = handle.GetLocator();
 
 							List<(int, NodeHandle)>? importedNodes;
 							if (!bundleToImports.TryGetValue(refLocator.Blob, out importedNodes))
@@ -559,14 +580,17 @@ namespace EpicGames.Horde.Storage
 						BundleExportRef exportRef;
 						if (!nodeHandleToExportRef.TryGetValue(handle, out exportRef))
 						{
+							NodeLocator locator = handle.GetLocator();
+
 							int importIdx;
-							if (!importToIndex.TryGetValue(handle.Locator.Blob, out importIdx))
+							if (!importToIndex.TryGetValue(locator.Blob, out importIdx))
 							{
 								importIdx = imports.Count;
-								imports.Add(handle.Locator.Blob);
-								importToIndex.Add(handle.Locator.Blob, importIdx);
+								imports.Add(locator.Blob);
+								importToIndex.Add(locator.Blob, importIdx);
 							}
-							exportRef = new BundleExportRef(importIdx, handle.Locator.ExportIdx, handle.Hash);
+
+							exportRef = new BundleExportRef(importIdx, locator.ExportIdx, handle.Hash);
 						}
 						exportRefs.Add(exportRef);
 					}

@@ -83,7 +83,7 @@ namespace Horde.Agent.Commands.Compute
 			await sandbox.CopyFromDirectoryAsync(taskFile.Directory.ToDirectoryInfo(), new ChunkingOptions(), writer, null, cancellationToken);
 
 			NodeHandle handle = await writer.FlushAsync(sandbox, cancellationToken);
-			return handle.Locator;
+			return handle.GetLocator();
 		}
 	}
 }

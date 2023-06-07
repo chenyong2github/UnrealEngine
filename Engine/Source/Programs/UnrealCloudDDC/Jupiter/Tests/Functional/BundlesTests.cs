@@ -381,13 +381,13 @@ public abstract class BundlesTests
         public SimpleNode(NodeReader reader)
         {
             Data = new ReadOnlySequence<byte>(reader.ReadVariableLengthBytes());
-            Refs = reader.ReadVariableLengthArray(() => reader.ReadRef<SimpleNode>());
+            Refs = reader.ReadVariableLengthArray(() => reader.ReadNodeRef<SimpleNode>());
         }
 
-        public override void Serialize(ITreeNodeWriter writer)
+        public override void Serialize(NodeWriter writer)
         {
             writer.WriteVariableLengthBytes(Data);
-            writer.WriteVariableLengthArray(Refs, x => writer.WriteRef(x));
+            writer.WriteVariableLengthArray(Refs, x => writer.WriteNodeRef(x));
         }
 
         public override IEnumerable<NodeRef> EnumerateRefs() => Refs;

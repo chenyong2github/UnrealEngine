@@ -57,7 +57,7 @@ namespace Horde.Server.Perforce
 			{
 				Change = (int)reader.ReadUnsignedVarInt();
 				ParentChange = (int)reader.ReadUnsignedVarInt();
-				Contents = reader.ReadRef<DirectoryNode>();
+				Contents = reader.ReadNodeRef<DirectoryNode>();
 				Paths = reader.ReadList(() => reader.ReadUtf8String());
 			}
 
@@ -66,7 +66,7 @@ namespace Horde.Server.Perforce
 			{
 				writer.WriteUnsignedVarInt(Change);
 				writer.WriteUnsignedVarInt(ParentChange);
-				writer.WriteRef(Contents);
+				writer.WriteNodeRef(Contents);
 				writer.WriteList(Paths, x => writer.WriteUtf8String(x));
 			}
 
