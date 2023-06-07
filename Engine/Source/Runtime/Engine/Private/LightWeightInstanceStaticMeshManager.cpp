@@ -78,7 +78,6 @@ int32 ALightWeightInstanceStaticMeshManager::ConvertLightWeightIndexToCollisionI
 void ALightWeightInstanceStaticMeshManager::AddNewInstanceAt(FLWIData* InitData, int32 Index)
 {
 	Super::AddNewInstanceAt(InitData, Index);
-
 	AddInstanceToRendering(Index);
 }
 
@@ -92,18 +91,13 @@ void ALightWeightInstanceStaticMeshManager::RemoveInstance(const int32 Index)
 	Super::RemoveInstance(Index);
 }
 
-void ALightWeightInstanceStaticMeshManager::UpdateDataAtIndex(FLWIData* InData, int32 Index)
-{
-	Super::UpdateDataAtIndex(InData, Index);
-
-	if (!RenderingIndicesToDataIndices.Contains(Index))
-	{
-		AddInstanceToRendering(Index);
-	}
-}
-
 void ALightWeightInstanceStaticMeshManager::AddInstanceToRendering(int32 DataIndex)
 {
+	if (!ensureMsgf(RenderingIndicesToDataIndices.Contains(DataIndex) == false, TEXT("LWI rendering instance added more than once. Index: %d"), DataIndex))
+	{
+		return;
+	}
+
 	//cancel any pending deletes
 	const bool bPendingDeleteCancelled = DataIndicesToBeDeleted.RemoveSingle(DataIndex) > 0;
 

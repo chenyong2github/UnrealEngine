@@ -31,7 +31,6 @@ class ENGINE_API ALightWeightInstanceStaticMeshManager : public ALightWeightInst
 protected:
 	virtual void AddNewInstanceAt(FLWIData* InitData, int32 Index) override;
 	virtual void RemoveInstance(int32 Index) override;
-	virtual void UpdateDataAtIndex(FLWIData* InData, int32 Index) override;
 
 	void AddInstanceToRendering(int32 DataIndex);
 	void RemoveInstanceFromRendering(int32 DataIndex);
