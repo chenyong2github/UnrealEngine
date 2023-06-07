@@ -47,6 +47,7 @@ namespace DatasmithDispatcher
 	void FRunTaskCommand::SerializeImpl(FArchive& Ar)
 	{
 		Ar << JobFileDescription;
+		Ar << Mesher;
 		Ar << JobIndex;
 	}
 
