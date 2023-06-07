@@ -40,7 +40,7 @@ bool FDebugDrawParams::CanDraw() const
 	return (AnimInstanceProxy || World) && Database && Database->Schema && Database->Schema->IsValid();
 }
 
-const FPoseSearchIndex* FDebugDrawParams::GetSearchIndex() const
+const FSearchIndex* FDebugDrawParams::GetSearchIndex() const
 {
 	return Database ? &Database->GetSearchIndex() : nullptr;
 }
@@ -257,7 +257,7 @@ FSearchContext::FSearchContext(const FPoseSearchQueryTrajectory* InTrajectory, c
 {
 	if (CurrentResult.IsValid())
 	{
-		const FPoseSearchIndex& SearchIndex = CurrentResult.Database->GetSearchIndex();
+		const FSearchIndex& SearchIndex = CurrentResult.Database->GetSearchIndex();
 		if (SearchIndex.Values.IsEmpty())
 		{
 			const int32 NumDimensions = CurrentResult.Database->Schema->SchemaCardinality;

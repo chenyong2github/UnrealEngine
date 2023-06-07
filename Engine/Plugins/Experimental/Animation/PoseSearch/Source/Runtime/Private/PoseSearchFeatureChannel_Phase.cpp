@@ -346,7 +346,7 @@ void UPoseSearchFeatureChannel_Phase::DebugDraw(const UE::PoseSearch::FDebugDraw
 #endif // ENABLE_DRAW_DEBUG
 
 #if WITH_EDITOR
-void UPoseSearchFeatureChannel_Phase::FillWeights(TArray<float>& Weights) const
+void UPoseSearchFeatureChannel_Phase::FillWeights(TArrayView<float> Weights) const
 {
 	for (int32 i = 0; i < ChannelCardinality; ++i)
 	{

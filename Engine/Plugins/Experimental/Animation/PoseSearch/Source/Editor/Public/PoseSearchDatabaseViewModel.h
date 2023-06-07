@@ -12,7 +12,6 @@
 
 class UWorld;
 class UPoseSearchDatabase;
-struct FPoseSearchIndexAsset;
 class UAnimPreviewInstance;
 class UDebugSkelMeshComponent;
 class UAnimComposite;
@@ -23,6 +22,7 @@ class UMirrorDataTable;
 namespace UE::PoseSearch
 {
 	class FDatabaseAssetTreeNode;
+	struct FSearchIndexAsset;
 	class SDatabaseDataDetails;
 
 	enum class EFeaturesDrawMode : uint8
@@ -121,7 +121,7 @@ namespace UE::PoseSearch
 		void SetDrawQueryVector(bool bValue);
 		bool ShouldDrawQueryVector() const { return bDrawQueryVector && !bIsEditorSelection; }
 
-		const FPoseSearchIndexAsset* GetSelectedActorIndexAsset() const;
+		const FSearchIndexAsset* GetSelectedActorIndexAsset() const;
 
 		TRange<double> GetPreviewPlayRange() const;
 

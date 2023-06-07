@@ -219,10 +219,7 @@ public:
 							{ return *PreviewActor.Actor->GetName() == ColumnName; }))
 						{
 							const int32 PoseIdx = FoundPreviewActor->CurrentPoseIndex;
-							const int32 NumDimensions = PoseSearchDatabase->Schema->SchemaCardinality;
-							const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
-							TArrayView<float> ReconstructedPoseValuesBuffer((float*)FMemory_Alloca(NumDimensions * sizeof(float)), NumDimensions);
-							const TConstArrayView<float> PoseValues = SearchIndex.Values.IsEmpty() ? SearchIndex.GetReconstructedPoseValues(PoseIdx, ReconstructedPoseValuesBuffer) : SearchIndex.GetPoseValues(PoseIdx);
+							const TArray<float> PoseValues = PoseSearchDatabase->GetSearchIndex().GetPoseValuesSafe(PoseIdx);
 
 							const int32 DataOffset = ChannelItem->GetDataOffset();
 							const int32 Cardinality = ChannelItem->GetCardinality();

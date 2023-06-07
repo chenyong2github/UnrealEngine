@@ -23,7 +23,7 @@ public:
 	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, UE::PoseSearch::FFeatureVectorBuilder& InOutQuery) const override;
 
 #if WITH_EDITOR
-	virtual void FillWeights(TArray<float>& Weights) const override;
+	virtual void FillWeights(TArrayView<float> Weights) const override;
 	virtual void IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const override;
 	virtual FString GetLabel() const override;
 #endif

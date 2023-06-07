@@ -115,13 +115,13 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::DebugDraw(const UE::PoseSearc
 }
 #endif // ENABLE_DRAW_DEBUG
 
-// IPoseFilter interface
-bool UPoseSearchFeatureChannel_FilterCrashingLegs::IsPoseFilterActive() const
+// IPoseSearchFilter interface
+bool UPoseSearchFeatureChannel_FilterCrashingLegs::IsFilterActive() const
 {
 	return true;
 }
 
-bool UPoseSearchFeatureChannel_FilterCrashingLegs::IsPoseValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const FPoseSearchPoseMetadata& Metadata) const
+bool UPoseSearchFeatureChannel_FilterCrashingLegs::IsFilterValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const UE::PoseSearch::FPoseMetadata& Metadata) const
 {
 	using namespace UE::PoseSearch;
 
@@ -138,7 +138,7 @@ bool UPoseSearchFeatureChannel_FilterCrashingLegs::IsPoseValid(TConstArrayView<f
 }
 
 #if WITH_EDITOR
-void UPoseSearchFeatureChannel_FilterCrashingLegs::FillWeights(TArray<float>& Weights) const
+void UPoseSearchFeatureChannel_FilterCrashingLegs::FillWeights(TArrayView<float> Weights) const
 {
 	for (int32 i = 0; i < ChannelCardinality; ++i)
 	{

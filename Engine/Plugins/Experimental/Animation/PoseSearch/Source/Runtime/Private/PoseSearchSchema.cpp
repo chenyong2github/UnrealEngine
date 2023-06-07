@@ -4,6 +4,7 @@
 #include "AnimationRuntime.h"
 #include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchResult.h"
+#include "PoseSearchFeatureChannel_Padding.h"
 #include "PoseSearchFeatureChannel_PermutationTime.h"
 #include "UObject/ObjectSaveContext.h"
 
@@ -134,6 +135,17 @@ void UPoseSearchSchema::Finalize()
 		}
 	}
 	
+	// adding padding if required
+	if (bAddDataPadding)
+	{
+		// calculating how many floats of padding are required to make the data 16 bytes padded
+		const int32 PaddingSize = SchemaCardinality % (16 / sizeof(float));
+		if (PaddingSize > 0)
+		{
+			UPoseSearchFeatureChannel_Padding::AddToSchema(this, PaddingSize);
+		}
+	}
+
 	// Initialize references to obtain bone indices and fill out bone index array
 	for (FBoneReference& BoneRef : BoneReferences)
 	{

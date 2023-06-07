@@ -19,7 +19,7 @@ void UPoseSearchFeatureChannel_SamplingTime::BuildQuery(UE::PoseSearch::FSearchC
 }
 
 #if WITH_EDITOR
-void UPoseSearchFeatureChannel_SamplingTime::FillWeights(TArray<float>& Weights) const
+void UPoseSearchFeatureChannel_SamplingTime::FillWeights(TArrayView<float> Weights) const
 {
 	for (int32 i = 0; i < ChannelCardinality; ++i)
 	{

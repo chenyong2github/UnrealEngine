@@ -132,8 +132,8 @@ namespace UE::PoseSearch
 		FDatabasePreviewActor PreviewActor;
 
 		check(PoseSearchDatabase);
-		const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
-		const FPoseSearchIndexAsset& IndexAsset = SearchIndex.Assets[IndexAssetIndex];
+		const FSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+		const FSearchIndexAsset& IndexAsset = SearchIndex.Assets[IndexAssetIndex];
 
 		const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAsset = PoseSearchDatabase->GetAnimationAssetBase(IndexAsset.SourceAssetIdx);
 		UAnimationAsset* PreviewAsset = DatabaseAnimationAsset->GetAnimationAsset();
@@ -216,7 +216,7 @@ namespace UE::PoseSearch
 
 	void FDatabaseViewModel::UpdatePreviewActors(bool bInTickPlayTime)
 	{
-		const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+		const FSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
 		TSharedPtr<FDatabasePreviewScene> PreviewScene = PreviewScenePtr.Pin();
 		for (FDatabasePreviewActor& PreviewActor : GetPreviewActors())
 		{
@@ -233,7 +233,7 @@ namespace UE::PoseSearch
 			}
 
 			PreviewActor.CurrentTime = 0.f;
-			const FPoseSearchIndexAsset& IndexAsset = SearchIndex.Assets[PreviewActor.IndexAssetIndex];
+			const FSearchIndexAsset& IndexAsset = SearchIndex.Assets[PreviewActor.IndexAssetIndex];
 			float CurrentPlayTime = PlayTime + IndexAsset.GetFirstSampleTime(PoseSearchDatabase->Schema->SampleRate) + PreviewActor.PlayTimeOffset;
 			FAnimationRuntime::AdvanceTime(false, CurrentPlayTime, PreviewActor.CurrentTime, IndexAsset.GetLastSampleTime(PoseSearchDatabase->Schema->SampleRate));
 			 
@@ -401,7 +401,7 @@ namespace UE::PoseSearch
 
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+			const FSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
 			if (SearchIndex.PoseMetadata.IsValidIndex(PoseIdx))
 			{
 				const uint32 IndexAssetIndex = SearchIndex.PoseMetadata[PoseIdx].GetAssetIndex();
@@ -410,7 +410,7 @@ namespace UE::PoseSearch
 					FDatabasePreviewActor PreviewActor = SpawnPreviewActor(IndexAssetIndex, PoseIdx);
 					if (PreviewActor.IsValid())
 					{
-						const FPoseSearchIndexAsset& IndexAsset = SearchIndex.Assets[IndexAssetIndex];
+						const FSearchIndexAsset& IndexAsset = SearchIndex.Assets[IndexAssetIndex];
 						MaxPreviewPlayLength = FMath::Max(MaxPreviewPlayLength, IndexAsset.GetLastSampleTime(PoseSearchDatabase->Schema->SampleRate) - PreviewActor.PlayTimeOffset);
 						MinPreviewPlayLength = FMath::Min(MinPreviewPlayLength, IndexAsset.GetFirstSampleTime(PoseSearchDatabase->Schema->SampleRate) - PreviewActor.PlayTimeOffset);
 						PreviewActors.Add(PreviewActor);
@@ -448,10 +448,10 @@ namespace UE::PoseSearch
 				AssociatedAssetIndices.FindOrAdd(InSelectedNodes[i]->SourceAssetIdx) = i;
 			}
 
-			const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+			const FSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
 			for (int32 IndexAssetIndex = 0; IndexAssetIndex < SearchIndex.Assets.Num(); ++IndexAssetIndex)
 			{
-				const FPoseSearchIndexAsset& IndexAsset = SearchIndex.Assets[IndexAssetIndex];
+				const FSearchIndexAsset& IndexAsset = SearchIndex.Assets[IndexAssetIndex];
 				if (AnimationPreviewMode == EAnimationPreviewMode::OriginalAndMirrored || !IndexAsset.bMirrored)
 				{
 					if (const int32* SelectedNodesIndex = AssociatedAssetIndices.Find(IndexAsset.SourceAssetIdx))
@@ -496,11 +496,11 @@ namespace UE::PoseSearch
 		}
 	}
 
-	const FPoseSearchIndexAsset* FDatabaseViewModel::GetSelectedActorIndexAsset() const
+	const FSearchIndexAsset* FDatabaseViewModel::GetSelectedActorIndexAsset() const
 	{
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+			const FSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
 			if (SearchIndex.Assets.IsValidIndex(SelectedActorIndexAssetIndex))
 			{
 				return &SearchIndex.Assets[SelectedActorIndexAssetIndex];
@@ -539,12 +539,12 @@ namespace UE::PoseSearch
 	{
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+			const FSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
 			for (const FDatabasePreviewActor& PreviewActor : GetPreviewActors())
 			{
 				if (PreviewActor.IndexAssetIndex >= 0 && PreviewActor.IndexAssetIndex < SearchIndex.Assets.Num() && PreviewActor.Sampler.IsInitialized())
 				{
-					const FPoseSearchIndexAsset& IndexAsset = SearchIndex.Assets[PreviewActor.IndexAssetIndex];
+					const FSearchIndexAsset& IndexAsset = SearchIndex.Assets[PreviewActor.IndexAssetIndex];
 					if (IndexAsset.SourceAssetIdx == SourceAssetIdx)
 					{
 						CurrentPlayTime = PreviewActor.Sampler.ToNormalizedTime(PlayTime + IndexAsset.GetFirstSampleTime(PoseSearchDatabase->Schema->SampleRate) + PreviewActor.PlayTimeOffset);
@@ -554,7 +554,7 @@ namespace UE::PoseSearch
 				}
 			}
 
-			for (const FPoseSearchIndexAsset& IndexAsset : SearchIndex.Assets)
+			for (const FSearchIndexAsset& IndexAsset : SearchIndex.Assets)
 			{
 				if (IndexAsset.SourceAssetIdx == SourceAssetIdx)
 				{

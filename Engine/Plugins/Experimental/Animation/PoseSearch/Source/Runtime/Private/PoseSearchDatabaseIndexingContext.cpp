@@ -42,7 +42,7 @@ FTransform FAssetSamplingContext::MirrorTransform(const FTransform& InTransform)
 
 //////////////////////////////////////////////////////////////////////////
 // FDatabaseIndexingContext
-bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBase, const UPoseSearchDatabase& Database, UE::DerivedData::FRequestOwner& Owner)
+bool FDatabaseIndexingContext::IndexDatabase(FSearchIndexBase& SearchIndexBase, const UPoseSearchDatabase& Database, UE::DerivedData::FRequestOwner& Owner)
 {
 	const UPoseSearchSchema* Schema = Database.Schema;
 	check(Schema);
@@ -111,7 +111,7 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	int32 TotalPoses = 0;
 	for (int32 AssetIdx = 0; AssetIdx != SearchIndexBase.Assets.Num(); ++AssetIdx)
 	{
-		FPoseSearchIndexAsset& SearchIndexAsset = SearchIndexBase.Assets[AssetIdx];
+		FSearchIndexAsset& SearchIndexAsset = SearchIndexBase.Assets[AssetIdx];
 		check(SearchIndexAsset.FirstPoseIdx == TotalPoses);
 
 		const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = Database.GetAnimationAssetStruct(SearchIndexAsset).GetPtr<FPoseSearchDatabaseAnimationAssetBase>();
@@ -155,7 +155,7 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 
 	// Joining Metadata.Flags into OverallFlags
 	SearchIndexBase.bAnyBlockTransition = false;
-	for (const FPoseSearchPoseMetadata& Metadata : SearchIndexBase.PoseMetadata)
+	for (const FPoseMetadata& Metadata : SearchIndexBase.PoseMetadata)
 	{
 		if (Metadata.IsBlockTransition())
 		{
@@ -166,7 +166,7 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 
 	// Joining Stats
 	int32 NumAccumulatedSamples = 0;
-	SearchIndexBase.Stats = FPoseSearchStats();
+	SearchIndexBase.Stats = FSearchStats();
 	for (int32 AssetIdx = 0; AssetIdx != SearchIndexBase.Assets.Num(); ++AssetIdx)
 	{
 		const FAssetIndexer::FStats& Stats = Indexers[AssetIdx].GetStats();
@@ -190,7 +190,7 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	if (!SearchIndexBase.PoseMetadata.IsEmpty())
 	{
 		SearchIndexBase.MinCostAddend = MAX_FLT;
-		for (const FPoseSearchPoseMetadata& PoseMetadata : SearchIndexBase.PoseMetadata)
+		for (const FPoseMetadata& PoseMetadata : SearchIndexBase.PoseMetadata)
 		{
 			if (PoseMetadata.GetCostAddend() < SearchIndexBase.MinCostAddend)
 			{

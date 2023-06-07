@@ -35,7 +35,7 @@ void FSearchResult::Update(float NewAssetTime)
 	}
 	else
 	{
-		const FPoseSearchIndexAsset& SearchIndexAsset = Database->GetSearchIndex().GetAssetForPose(PoseIdx);
+		const FSearchIndexAsset& SearchIndexAsset = Database->GetSearchIndex().GetAssetForPose(PoseIdx);
 		const FInstancedStruct& DatabaseAsset = Database->GetAnimationAssetStruct(SearchIndexAsset);
 		if (DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>() || DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
 		{
@@ -88,7 +88,7 @@ void FSearchResult::Reset()
 	AssetTime = 0.0f;
 }
 
-const FPoseSearchIndexAsset* FSearchResult::GetSearchIndexAsset(bool bMandatory) const
+const FSearchIndexAsset* FSearchResult::GetSearchIndexAsset(bool bMandatory) const
 {
 	if (bMandatory)
 	{

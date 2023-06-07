@@ -23,13 +23,13 @@ public:
 #endif // ENABLE_DRAW_DEBUG
 
 #if WITH_EDITOR
-	virtual void FillWeights(TArray<float>& Weights) const override;
+	virtual void FillWeights(TArrayView<float> Weights) const override;
 	virtual void IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const override;
 #endif //WITH_EDITOR
 
-	// IPoseFilter interface
-	virtual bool IsPoseFilterActive() const override;
-	virtual bool IsPoseValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const FPoseSearchPoseMetadata& Metadata) const override;
+	// IPoseSearchFilter interface
+	virtual bool IsFilterActive() const override;
+	virtual bool IsFilterValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const UE::PoseSearch::FPoseMetadata& Metadata) const override;
 };
 
 UCLASS(BlueprintType, EditInlineNew, meta = (DisplayName = "Group Channel"), CollapseCategories)

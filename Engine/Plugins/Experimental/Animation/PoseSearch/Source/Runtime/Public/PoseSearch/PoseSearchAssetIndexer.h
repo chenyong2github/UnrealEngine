@@ -10,14 +10,13 @@
 #include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
-struct FPoseSearchIndexAsset;
-struct FPoseSearchPoseMetadata;
-
 namespace UE::PoseSearch
 {
 
 struct FAnimationAssetSampler;
 struct FAssetSamplingContext;
+struct FSearchIndexAsset;
+struct FPoseMetadata;
 
 class FAssetIndexer
 {
@@ -31,9 +30,9 @@ public:
 		float MaxAcceleration = 0.f;
 	};
 
-	FAssetIndexer(const FBoneContainer& InBoneContainer, const FPoseSearchIndexAsset& InSearchIndexAsset, 
+	FAssetIndexer(const FBoneContainer& InBoneContainer, const FSearchIndexAsset& InSearchIndexAsset, 
 		const FAssetSamplingContext& InSamplingContext, const UPoseSearchSchema& InSchema, const FAnimationAssetSampler& InAssetSampler);
-	void AssignWorkingData(TArrayView<float> InOutFeatureVectorTable, TArrayView<FPoseSearchPoseMetadata> InOutPoseMetadata);
+	void AssignWorkingData(TArrayView<float> InOutFeatureVectorTable, TArrayView<FPoseMetadata> InOutPoseMetadata);
 	void Process(int32 AssetIdx);
 	const FStats& GetStats() const { return Stats; }
 
@@ -80,13 +79,13 @@ private:
 
 	FBoneContainer BoneContainer;
 	TMap<float, CachedEntry> CachedEntries;
-	const FPoseSearchIndexAsset& SearchIndexAsset;
+	const FSearchIndexAsset& SearchIndexAsset;
 	const FAssetSamplingContext& SamplingContext;
 	const UPoseSearchSchema& Schema;
 	const FAnimationAssetSampler& AssetSampler;
 	
 	TArrayView<float> FeatureVectorTable;
-	TArrayView<FPoseSearchPoseMetadata> PoseMetadata;
+	TArrayView<FPoseMetadata> PoseMetadata;
 
 	FStats Stats;
 };

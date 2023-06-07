@@ -28,7 +28,7 @@ void UPoseSearchFeatureChannel_GroupBase::AddDependentChannels(UPoseSearchSchema
 }
 
 #if WITH_EDITOR
-void UPoseSearchFeatureChannel_GroupBase::FillWeights(TArray<float>& Weights) const
+void UPoseSearchFeatureChannel_GroupBase::FillWeights(TArrayView<float> Weights) const
 {
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
@@ -75,14 +75,14 @@ void UPoseSearchFeatureChannel_GroupBase::DebugDraw(const UE::PoseSearch::FDebug
 }
 #endif // ENABLE_DRAW_DEBUG
 
-// IPoseFilter interface
-bool UPoseSearchFeatureChannel_GroupBase::IsPoseFilterActive() const
+// IPoseSearchFilter interface
+bool UPoseSearchFeatureChannel_GroupBase::IsFilterActive() const
 {
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
 		{
-			if (SubChannel->IsPoseFilterActive())
+			if (SubChannel->IsFilterActive())
 			{
 				return true;
 			}
@@ -92,13 +92,13 @@ bool UPoseSearchFeatureChannel_GroupBase::IsPoseFilterActive() const
 	return false;
 }
 
-bool UPoseSearchFeatureChannel_GroupBase::IsPoseValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const FPoseSearchPoseMetadata& Metadata) const
+bool UPoseSearchFeatureChannel_GroupBase::IsFilterValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const UE::PoseSearch::FPoseMetadata& Metadata) const
 {
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : GetSubChannels())
 	{
 		if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
 		{
-			if (!SubChannel->IsPoseValid(PoseValues, QueryValues, PoseIdx, Metadata))
+			if (!SubChannel->IsFilterValid(PoseValues, QueryValues, PoseIdx, Metadata))
 			{
 				return false;
 			}

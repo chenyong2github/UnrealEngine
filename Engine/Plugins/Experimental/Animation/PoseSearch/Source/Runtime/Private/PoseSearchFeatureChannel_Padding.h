@@ -3,16 +3,16 @@
 #pragma once
 
 #include "PoseSearch/PoseSearchFeatureChannel.h"
-#include "PoseSearchFeatureChannel_PermutationTime.generated.h"
+#include "PoseSearchFeatureChannel_Padding.generated.h"
 
-UCLASS(EditInlineNew, meta = (DisplayName = "Permutation Time Channel"), CollapseCategories)
-class POSESEARCH_API UPoseSearchFeatureChannel_PermutationTime : public UPoseSearchFeatureChannel
+UCLASS(EditInlineNew, meta = (DisplayName = "Padding Channel"), CollapseCategories)
+class POSESEARCH_API UPoseSearchFeatureChannel_Padding : public UPoseSearchFeatureChannel
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	float Weight = 1.f;
+	int32 PaddingSize = 1;
 
 	// UPoseSearchFeatureChannel interface
 	virtual void Finalize(UPoseSearchSchema* Schema) override;
@@ -24,5 +24,5 @@ public:
 	virtual FString GetLabel() const override;
 #endif
 
-	static void FindOrAddToSchema(UPoseSearchSchema* Schema);
+	static void AddToSchema(UPoseSearchSchema* Schema, int32 PaddingSize);
 };

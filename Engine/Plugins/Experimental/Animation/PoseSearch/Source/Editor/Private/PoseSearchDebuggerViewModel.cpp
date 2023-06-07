@@ -59,17 +59,18 @@ void FDebuggerViewModel::ShowSelectedSkeleton(const UPoseSearchDatabase* Databas
 		return;
 	}
 
-	const FPoseSearchIndex& SearchIndex = Database->GetSearchIndex();
-	const FPoseSearchIndexAsset& IndexAsset = SearchIndex.GetAssetForPose(DbPoseIdx);
-	
-	Component->ResetToStart(); 
-	bSelecting = true;
+	const FSearchIndex& SearchIndex = Database->GetSearchIndex();
+	if (const FSearchIndexAsset* IndexAsset = SearchIndex.GetAssetForPoseSafe(DbPoseIdx))
+	{
+		Component->ResetToStart();
+		bSelecting = true;
 
-	Skeletons[SelectedPose].Time = Time;
-	Skeletons[SelectedPose].bMirrored = IndexAsset.bMirrored;
-	Skeletons[SelectedPose].SourceDatabase = Database;
-	Skeletons[SelectedPose].AssetIdx = IndexAsset.SourceAssetIdx;
-	Skeletons[SelectedPose].BlendParameters = IndexAsset.BlendParameters;
+		Skeletons[SelectedPose].Time = Time;
+		Skeletons[SelectedPose].bMirrored = IndexAsset->bMirrored;
+		Skeletons[SelectedPose].SourceDatabase = Database;
+		Skeletons[SelectedPose].AssetIdx = IndexAsset->SourceAssetIdx;
+		Skeletons[SelectedPose].BlendParameters = IndexAsset->BlendParameters;
+	}
 }
 
 void FDebuggerViewModel::ClearSelectedSkeleton()
@@ -140,9 +141,9 @@ void FDebuggerViewModel::OnUpdateNodeSelection(int32 InNodeId)
 		const UPoseSearchDatabase* CurrentDatabase = ActiveMotionMatchingState->GetCurrentDatabase();
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			const FPoseSearchIndex& CurrentSearchIndex = CurrentDatabase->GetSearchIndex();
+			const FSearchIndex& CurrentSearchIndex = CurrentDatabase->GetSearchIndex();
 			int32 CurrentPoseIdx = ActiveMotionMatchingState->GetCurrentDatabasePoseIndex();
-			if (const FPoseSearchIndexAsset* IndexAsset = CurrentSearchIndex.GetAssetForPoseSafe(CurrentPoseIdx))
+			if (const FSearchIndexAsset* IndexAsset = CurrentSearchIndex.GetAssetForPoseSafe(CurrentPoseIdx))
 			{
 				Skeletons[Asset].bMirrored = IndexAsset->bMirrored;
 				Skeletons[Asset].SourceDatabase = CurrentDatabase;

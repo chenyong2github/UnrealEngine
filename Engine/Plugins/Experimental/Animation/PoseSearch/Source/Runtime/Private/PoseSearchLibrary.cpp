@@ -575,7 +575,7 @@ void UPoseSearchLibrary::MotionMatch(
 		FSearchResult SearchResult = Database->Search(SearchContext);
 		if (SearchResult.IsValid())
 		{
-			const FPoseSearchIndexAsset* SearchIndexAsset = SearchResult.GetSearchIndexAsset();
+			const FSearchIndexAsset* SearchIndexAsset = SearchResult.GetSearchIndexAsset();
 			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = SearchResult.Database->GetAnimationAssetBase(*SearchIndexAsset))
 			{
 				SelectedAnimation = DatabaseAsset->GetAnimationAsset();

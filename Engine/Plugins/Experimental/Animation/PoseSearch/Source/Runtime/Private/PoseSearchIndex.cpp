@@ -29,11 +29,9 @@ void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, T
 	VR = ((VA - VB) * VW).square();
 }
 
-} // namespace UE::PoseSearch
-
 //////////////////////////////////////////////////////////////////////////
-// FPoseSearchPoseMetadata
-FArchive& operator<<(FArchive& Ar, FPoseSearchPoseMetadata& Metadata)
+// FPoseMetadata
+FArchive& operator<<(FArchive& Ar, FPoseMetadata& Metadata)
 {
 	Ar << Metadata.Data;
 	Ar << Metadata.CostAddend;
@@ -41,8 +39,8 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchPoseMetadata& Metadata)
 }
 
 //////////////////////////////////////////////////////////////////////////
-// FPoseSearchIndexAsset
-FArchive& operator<<(FArchive& Ar, FPoseSearchIndexAsset& IndexAsset)
+// FSearchIndexAsset
+FArchive& operator<<(FArchive& Ar, FSearchIndexAsset& IndexAsset)
 {
 	Ar << IndexAsset.SourceAssetIdx;
 	Ar << IndexAsset.bMirrored;
@@ -55,8 +53,8 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndexAsset& IndexAsset)
 }
 
 //////////////////////////////////////////////////////////////////////////
-// FPoseSearchStats
-FArchive& operator<<(FArchive& Ar, FPoseSearchStats& Stats)
+// FSearchStats
+FArchive& operator<<(FArchive& Ar, FSearchStats& Stats)
 {
 	Ar << Stats.AverageSpeed;
 	Ar << Stats.MaxSpeed;
@@ -67,13 +65,13 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchStats& Stats)
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchBaseIndex
-const FPoseSearchIndexAsset& FPoseSearchIndexBase::GetAssetForPose(int32 PoseIdx) const
+const FSearchIndexAsset& FSearchIndexBase::GetAssetForPose(int32 PoseIdx) const
 {
 	const uint32 AssetIndex = PoseMetadata[PoseIdx].GetAssetIndex();
 	return Assets[AssetIndex];
 }
 
-const FPoseSearchIndexAsset* FPoseSearchIndexBase::GetAssetForPoseSafe(int32 PoseIdx) const
+const FSearchIndexAsset* FSearchIndexBase::GetAssetForPoseSafe(int32 PoseIdx) const
 {
 	if (PoseMetadata.IsValidIndex(PoseIdx))
 	{
@@ -86,17 +84,17 @@ const FPoseSearchIndexAsset* FPoseSearchIndexBase::GetAssetForPoseSafe(int32 Pos
 	return nullptr;
 }
 
-bool FPoseSearchIndexBase::IsEmpty() const
+bool FSearchIndexBase::IsEmpty() const
 {
 	return Assets.IsEmpty() || PoseMetadata.IsEmpty();
 }
 
-void FPoseSearchIndexBase::Reset()
+void FSearchIndexBase::Reset()
 {
-	*this = FPoseSearchIndexBase();
+	*this = FSearchIndexBase();
 }
 
-FArchive& operator<<(FArchive& Ar, FPoseSearchIndexBase& Index)
+FArchive& operator<<(FArchive& Ar, FSearchIndexBase& Index)
 {
 	Ar << Index.Values;
 	Ar << Index.PoseMetadata;
@@ -108,9 +106,9 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndexBase& Index)
 }
 
 //////////////////////////////////////////////////////////////////////////
-// FPoseSearchIndex
-FPoseSearchIndex::FPoseSearchIndex(const FPoseSearchIndex& Other)
-	: FPoseSearchIndexBase(Other)
+// FSearchIndex
+FSearchIndex::FSearchIndex(const FSearchIndex& Other)
+	: FSearchIndexBase(Other)
 	, WeightsSqrt(Other.WeightsSqrt)
 	, PCAValues(Other.PCAValues)
 	, PCAProjectionMatrix(Other.PCAProjectionMatrix)
@@ -122,23 +120,23 @@ FPoseSearchIndex::FPoseSearchIndex(const FPoseSearchIndex& Other)
 	KDTree.DataSource.Data = PCAValues.IsEmpty() ? nullptr : PCAValues.GetData();
 }
 
-FPoseSearchIndex& FPoseSearchIndex::operator=(const FPoseSearchIndex& Other)
+FSearchIndex& FSearchIndex::operator=(const FSearchIndex& Other)
 {
 	if (this != &Other)
 	{
-		this->~FPoseSearchIndex();
-		new(this)FPoseSearchIndex(Other);
+		this->~FSearchIndex();
+		new(this)FSearchIndex(Other);
 	}
 	return *this;
 }
 
-void FPoseSearchIndex::Reset()
+void FSearchIndex::Reset()
 {
-	FPoseSearchIndex Default;
+	FSearchIndex Default;
 	*this = Default;
 }
 
-TConstArrayView<float> FPoseSearchIndex::GetPoseValues(int32 PoseIdx) const
+TConstArrayView<float> FSearchIndex::GetPoseValues(int32 PoseIdx) const
 {
 	const int32 SchemaCardinality = WeightsSqrt.Num();
 	check(!Values.IsEmpty() && PoseIdx >= 0 && PoseIdx < GetNumPoses() && SchemaCardinality > 0);
@@ -146,10 +144,8 @@ TConstArrayView<float> FPoseSearchIndex::GetPoseValues(int32 PoseIdx) const
 	return MakeArrayView(&Values[ValueOffset], SchemaCardinality);
 }
 
-TConstArrayView<float> FPoseSearchIndex::GetReconstructedPoseValues(int32 PoseIdx, TArrayView<float> BufferUsedForReconstruction) const
+TConstArrayView<float> FSearchIndex::GetReconstructedPoseValues(int32 PoseIdx, TArrayView<float> BufferUsedForReconstruction) const
 {
-	using namespace UE::PoseSearch;
-
 	const int32 NumDimensions = WeightsSqrt.Num();
 	const int32 NumPoses = GetNumPoses();
 	check(PoseIdx >= 0 && PoseIdx < NumPoses&& NumDimensions > 0);
@@ -172,7 +168,7 @@ TConstArrayView<float> FPoseSearchIndex::GetReconstructedPoseValues(int32 PoseId
 	return BufferUsedForReconstruction;
 }
 
-TArray<float> FPoseSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
+TArray<float> FSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
 {
 	TArray<float> PoseValues;
 	if (PoseIdx >= 0 && PoseIdx < GetNumPoses())
@@ -191,19 +187,19 @@ TArray<float> FPoseSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
 	return PoseValues;
 }
 
-FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, float ContinuingPoseCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const
+FPoseSearchCost FSearchIndex::ComparePoses(int32 PoseIdx, float ContinuingPoseCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const
 {
 	// base dissimilarity cost representing how the associated PoseIdx differ, in a weighted way, from the query pose (QueryValues)
-	const float DissimilarityCost = UE::PoseSearch::CompareFeatureVectors(PoseValues, QueryValues, WeightsSqrt);
+	const float DissimilarityCost = CompareFeatureVectors(PoseValues, QueryValues, WeightsSqrt);
 
 	// cost addend associated to Schema->BaseCostBias or overriden by UAnimNotifyState_PoseSearchModifyCost
 	const float NotifyAddend = PoseMetadata[PoseIdx].GetCostAddend();
 	return FPoseSearchCost(DissimilarityCost, NotifyAddend, ContinuingPoseCostBias);
 }
 
-FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
+FArchive& operator<<(FArchive& Ar, FSearchIndex& Index)
 {
-	Ar << static_cast<FPoseSearchIndexBase&>(Index);
+	Ar << static_cast<FSearchIndexBase&>(Index);
 
 	Ar << Index.WeightsSqrt;
 	Ar << Index.PCAValues;
@@ -214,3 +210,5 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
 	Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
 	return Ar;
 }
+
+} // namespace UE::PoseSearch

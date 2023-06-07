@@ -4,29 +4,24 @@
 
 #include "PoseSearch/KDTree.h"
 #include "PoseSearch/PoseSearchCost.h"
-#include "PoseSearchIndex.generated.h"
 
 namespace UE::PoseSearch
 {
 
-POSESEARCH_API void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt, TArrayView<float> Result);
+constexpr int32 TMax(int32 A, int32 B) { return (A > B ? A : B); }
+template<typename ElementType>
+using TAlignedArray = TArray<ElementType, TAlignedHeapAllocator<TMax(alignof(ElementType), 16)>>;
 
-} // namespace UE::PoseSearch
+POSESEARCH_API void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt, TArrayView<float> Result);
 
 /**
  * This is kept for each pose in the search index along side the feature vector values and is used to influence the search.
  */
-USTRUCT()
-struct POSESEARCH_API FPoseSearchPoseMetadata
+struct FPoseMetadata
 {
-	GENERATED_BODY()
-
 private:
 	// bits 0-30 represent the AssetIndex, bit 31 represents bBlockTransition
-	UPROPERTY(meta = (NeverInHash))
 	uint32 Data = 0;
-
-	UPROPERTY(meta = (NeverInHash))
 	float CostAddend = 0.f;
 
 public:
@@ -53,21 +48,18 @@ public:
 		return CostAddend;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FPoseSearchPoseMetadata& Metadata);
+	friend FArchive& operator<<(FArchive& Ar, FPoseMetadata& Metadata);
 };
 
 /**
 * Information about a source animation asset used by a search index.
-* Some source animation entries may generate multiple FPoseSearchIndexAsset entries.
+* Some source animation entries may generate multiple FSearchIndexAsset entries.
 **/
-USTRUCT()
-struct POSESEARCH_API FPoseSearchIndexAsset
+struct FSearchIndexAsset
 {
-	GENERATED_BODY()
+	FSearchIndexAsset() {}
 
-	FPoseSearchIndexAsset() {}
-
-	FPoseSearchIndexAsset(
+	FSearchIndexAsset(
 		int32 InSourceAssetIdx,
 		int32 InFirstPoseIdx,
 		bool bInMirrored, 
@@ -87,28 +79,17 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 	}
 
 	// Index of the source asset in search index's container (i.e. UPoseSearchDatabase)
-	UPROPERTY(meta = (NeverInHash))
 	int32 SourceAssetIdx = INDEX_NONE;
-
-	UPROPERTY(meta = (NeverInHash))
 	bool bMirrored = false;
-
-	UPROPERTY(meta = (NeverInHash))
 	int32 PermutationIdx = INDEX_NONE;
-
-	UPROPERTY(meta = (NeverInHash))
 	FVector BlendParameters = FVector::Zero();
-
-	UPROPERTY(meta = (NeverInHash))
 	int32 FirstPoseIdx = INDEX_NONE;
-
-	UPROPERTY(meta = (NeverInHash))
 	int32 FirstSampleIdx = INDEX_NONE;
-
-	UPROPERTY(meta = (NeverInHash))
 	int32 LastSampleIdx = INDEX_NONE;
 
 	bool IsPoseInRange(int32 PoseIdx) const { return (PoseIdx >= FirstPoseIdx) && (PoseIdx < FirstPoseIdx + GetNumPoses()); }
+
+#if DO_CHECK
 	bool IsInitialized() const 
 	{
 		return 
@@ -118,6 +99,7 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 			FirstSampleIdx != INDEX_NONE &&
 			LastSampleIdx != INDEX_NONE;
 	}
+#endif // DO_CHECK
 
 	int32 GetBeginSampleIdx() const { return FirstSampleIdx; }
 	int32 GetEndSampleIdx() const {	return LastSampleIdx + 1; }
@@ -164,113 +146,81 @@ struct POSESEARCH_API FPoseSearchIndexAsset
 		return Time;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FPoseSearchIndexAsset& IndexAsset);
+	friend FArchive& operator<<(FArchive& Ar, FSearchIndexAsset& IndexAsset);
 };
 
-USTRUCT()
-struct POSESEARCH_API FPoseSearchStats
+struct FSearchStats
 {
-	GENERATED_BODY()
-
-	UPROPERTY(meta = (NeverInHash))
 	float AverageSpeed = 0.f;
-
-	UPROPERTY(meta = (NeverInHash))
 	float MaxSpeed = 0.f;
-
-	UPROPERTY(meta = (NeverInHash))
 	float AverageAcceleration = 0.f;
-
-	UPROPERTY(meta = (NeverInHash))
 	float MaxAcceleration = 0.f;
-
-	friend FArchive& operator<<(FArchive& Ar, FPoseSearchStats& Stats);
+	friend FArchive& operator<<(FArchive& Ar, FSearchStats& Stats);
 };
 
 /**
-* case class for FPoseSearchIndex. building block used to gather data for data mining and calculate weights, pca, kdtree stuff
+* case class for FSearchIndex. building block used to gather data for data mining and calculate weights, pca, kdtree stuff
 */
-USTRUCT()
-struct POSESEARCH_API FPoseSearchIndexBase
+struct FSearchIndexBase
 {
-	GENERATED_BODY()
-
-	UPROPERTY(meta = (NeverInHash))
-	TArray<float> Values;
-	
-	UPROPERTY(meta = (NeverInHash))
-	TArray<FPoseSearchPoseMetadata> PoseMetadata;
-
-	UPROPERTY(meta = (NeverInHash))
+	TAlignedArray<float> Values;
+	TAlignedArray<FPoseMetadata> PoseMetadata;
 	bool bAnyBlockTransition = false;
-
-	UPROPERTY(meta = (NeverInHash))
-	TArray<FPoseSearchIndexAsset> Assets;
+	TAlignedArray<FSearchIndexAsset> Assets;
 
 	// minimum of the database metadata CostAddend: it represents the minimum cost of any search for the associated database (we'll skip the search in case the search result total cost is already less than MinCostAddend)
-	UPROPERTY(meta = (NeverInHash))
 	float MinCostAddend = -MAX_FLT;
 
 	// @todo: this property should be editor only
-	UPROPERTY(meta = (NeverInHash))
-	FPoseSearchStats Stats;
+	FSearchStats Stats;
 
 	int32 GetNumPoses() const { return PoseMetadata.Num(); }
 	bool IsValidPoseIndex(int32 PoseIdx) const { return PoseIdx < GetNumPoses(); }
 	bool IsEmpty() const;
 
-	const FPoseSearchIndexAsset& GetAssetForPose(int32 PoseIdx) const;
-	const FPoseSearchIndexAsset* GetAssetForPoseSafe(int32 PoseIdx) const;
+	const FSearchIndexAsset& GetAssetForPose(int32 PoseIdx) const;
+	POSESEARCH_API const FSearchIndexAsset* GetAssetForPoseSafe(int32 PoseIdx) const;
 
 	void Reset();
 	
-	friend FArchive& operator<<(FArchive& Ar, FPoseSearchIndexBase& Index);
+	friend FArchive& operator<<(FArchive& Ar, FSearchIndexBase& Index);
 };
 
 /**
 * A search index for animation poses. The structure of the search index is determined by its UPoseSearchSchema.
 * May represent a single animation (see UPoseSearchSequenceMetaData) or a collection (see UPoseSearchDatabase).
 */
-USTRUCT()
-struct POSESEARCH_API FPoseSearchIndex : public FPoseSearchIndexBase
+struct FSearchIndex : public FSearchIndexBase
 {
-	GENERATED_BODY()
-
 	// we store weights square roots to reduce numerical errors when CompareFeatureVectors 
 	// ((VA - VB) * VW).square().sum()
 	// instead of
 	// ((VA - VB).square() * VW).sum()
 	// since (VA - VB).square() could lead to big numbers, and VW being multiplied by the variance of the dataset
-	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
-	TArray<float> WeightsSqrt;
+	TAlignedArray<float> WeightsSqrt;
+	TAlignedArray<float> PCAValues;
+	TAlignedArray<float> PCAProjectionMatrix;
+	TAlignedArray<float> Mean;
 
-	UPROPERTY(meta = (NeverInHash))
-	TArray<float> PCAValues;
-
-	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
-	TArray<float> PCAProjectionMatrix;
-
-	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
-	TArray<float> Mean;
-
-	UE::PoseSearch::FKDTree KDTree;
+	FKDTree KDTree;
 
 	// @todo: this property should be editor only
-	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	float PCAExplainedVariance = 0.f;
 
-	FPoseSearchIndex() = default;
-	~FPoseSearchIndex() = default;
-	FPoseSearchIndex(const FPoseSearchIndex& Other); // custom copy constructor to deal with the KDTree DataSrc
-	FPoseSearchIndex(FPoseSearchIndex&& Other) = delete;
-	FPoseSearchIndex& operator=(const FPoseSearchIndex& Other); // custom equal operator to deal with the KDTree DataSrc
-	FPoseSearchIndex& operator=(FPoseSearchIndex&& Other) = delete;
+	FSearchIndex() = default;
+	~FSearchIndex() = default;
+	FSearchIndex(const FSearchIndex& Other); // custom copy constructor to deal with the KDTree DataSrc
+	FSearchIndex(FSearchIndex&& Other) = delete;
+	FSearchIndex& operator=(const FSearchIndex& Other); // custom equal operator to deal with the KDTree DataSrc
+	FSearchIndex& operator=(FSearchIndex&& Other) = delete;
 
 	void Reset();
 	TConstArrayView<float> GetPoseValues(int32 PoseIdx) const;
 	TConstArrayView<float> GetReconstructedPoseValues(int32 PoseIdx, TArrayView<float> BufferUsedForReconstruction) const;
-	TArray<float> GetPoseValuesSafe(int32 PoseIdx) const;
-	FPoseSearchCost ComparePoses(int32 PoseIdx, float ContinuingPoseCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const;
+	POSESEARCH_API TArray<float> GetPoseValuesSafe(int32 PoseIdx) const;
+	POSESEARCH_API FPoseSearchCost ComparePoses(int32 PoseIdx, float ContinuingPoseCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const;
 
-	friend FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index);
+	friend FArchive& operator<<(FArchive& Ar, FSearchIndex& Index);
 };
+
+} // namespace UE::PoseSearch

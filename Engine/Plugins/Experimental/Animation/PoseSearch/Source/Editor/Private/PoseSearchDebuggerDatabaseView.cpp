@@ -156,8 +156,8 @@ static void AddUnfilteredDatabaseRow(const UPoseSearchDatabase* Database,
 	TArray<TSharedRef<FDebuggerDatabaseRowData>>& UnfilteredDatabaseRows, TSharedRef<FDebuggerDatabaseSharedData> SharedData,
 	int32 DbPoseIdx, EPoseCandidateFlags PoseCandidateFlags, const FPoseSearchCost& Cost = FPoseSearchCost())
 {
-	const FPoseSearchIndex& SearchIndex = Database->GetSearchIndex();
-	if (const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex.GetAssetForPoseSafe(DbPoseIdx))
+	const FSearchIndex& SearchIndex = Database->GetSearchIndex();
+	if (const FSearchIndexAsset* SearchIndexAsset = SearchIndex.GetAssetForPoseSafe(DbPoseIdx))
 	{
 		TSharedRef<FDebuggerDatabaseRowData>& Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>(SharedData));
 
@@ -255,7 +255,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 					PoseEntriesIdx.Add(PoseEntry.DbPoseIdx);
 				}
 
-				const FPoseSearchIndex& SearchIndex = Database->GetSearchIndex();
+				const FSearchIndex& SearchIndex = Database->GetSearchIndex();
 				for (int32 DbPoseIdx = 0; DbPoseIdx < SearchIndex.GetNumPoses(); ++DbPoseIdx)
 				{
 					if (!PoseEntriesIdx.Find(DbPoseIdx))

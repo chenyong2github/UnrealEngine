@@ -8,7 +8,6 @@
 #include "PoseSearchFeatureChannel.generated.h"
 
 class UPoseSearchSchema;
-struct FPoseSearchPoseMetadata;
 
 UENUM()
 enum class EComponentStrippingVector : uint8
@@ -61,6 +60,7 @@ namespace UE::PoseSearch
 struct FDebugDrawParams;
 struct FFeatureVectorBuilder;
 struct FSearchContext;
+struct FPoseMetadata;
 
 #if WITH_EDITOR
 class FAssetIndexer;
@@ -86,22 +86,22 @@ public:
 
 } // namespace UE::PoseSearch
 
-class POSESEARCH_API IPoseFilter
+class POSESEARCH_API IPoseSearchFilter
 {
 public:
-	virtual ~IPoseFilter() {}
+	virtual ~IPoseSearchFilter() {}
 
 	// if true this filter will be evaluated
-	virtual bool IsPoseFilterActive() const { return false; }
+	virtual bool IsFilterActive() const { return false; }
 	
 	// if it returns false the pose candidate will be discarded
-	virtual bool IsPoseValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const FPoseSearchPoseMetadata& Metadata) const { return true; }
+	virtual bool IsFilterValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const UE::PoseSearch::FPoseMetadata& Metadata) const { return true; }
 };
 
 //////////////////////////////////////////////////////////////////////////
 // Feature channels interface
 UCLASS(Abstract, BlueprintType, EditInlineNew)
-class POSESEARCH_API UPoseSearchFeatureChannel : public UObject, public IBoneReferenceSkeletonProvider, public IPoseFilter
+class POSESEARCH_API UPoseSearchFeatureChannel : public UObject, public IBoneReferenceSkeletonProvider, public IPoseSearchFilter
 {
 	GENERATED_BODY()
 
@@ -134,7 +134,7 @@ public:
 	// Called at database build time to collect feature weights.
 	// Weights is sized to the cardinality of the schema and the feature channel should write
 	// its weights at the channel's data offset. Channels should provide a weight for each dimension.
-	virtual void FillWeights(TArray<float>& Weights) const PURE_VIRTUAL(UPoseSearchFeatureChannel::FillWeights, );
+	virtual void FillWeights(TArrayView<float> Weights) const PURE_VIRTUAL(UPoseSearchFeatureChannel::FillWeights, );
 
 	// Called at database build time to populate pose vectors with this channel's data
 	virtual void IndexAsset(UE::PoseSearch::FAssetIndexer& Indexer) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );

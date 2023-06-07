@@ -7,12 +7,12 @@
 #include "PoseSearch/PoseSearchAssetIndexer.h"
 #include "PoseSearch/PoseSearchAssetSampler.h"
 
-struct FPoseSearchIndexBase;
 class UPoseSearchDatabase;
 namespace UE::DerivedData { class FRequestOwner; }
 
 namespace UE::PoseSearch
 {
+struct FSearchIndexBase;
 
 struct FAssetSamplingContext
 {
@@ -35,7 +35,7 @@ struct FAssetSamplingContext
 
 struct FDatabaseIndexingContext
 {
-	bool IndexDatabase(FPoseSearchIndexBase& SearchIndexBase, const UPoseSearchDatabase& Database, UE::DerivedData::FRequestOwner& Owner);
+	bool IndexDatabase(FSearchIndexBase& SearchIndexBase, const UPoseSearchDatabase& Database, UE::DerivedData::FRequestOwner& Owner);
 
 private:
 	FAssetSamplingContext SamplingContext;

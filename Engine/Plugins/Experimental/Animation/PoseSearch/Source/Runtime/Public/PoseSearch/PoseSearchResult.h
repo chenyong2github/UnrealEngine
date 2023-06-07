@@ -5,12 +5,12 @@
 #include "PoseSearch/PoseSearchCost.h"
 #include "PoseSearch/PoseSearchDefines.h"
 
-struct FPoseSearchIndexAsset;
 class UPoseSearchDatabase;
 class UPoseSearchSchema;
 
 namespace UE::PoseSearch
 {
+struct FSearchIndexAsset;
 
 /**
 * float buffer of features according to a UPoseSearchSchema layout.
@@ -62,7 +62,7 @@ struct FSearchResult
 
 	void Reset();
 
-	const FPoseSearchIndexAsset* GetSearchIndexAsset(bool bMandatory = false) const;
+	const FSearchIndexAsset* GetSearchIndexAsset(bool bMandatory = false) const;
 };
 
 } // namespace UE::PoseSearch

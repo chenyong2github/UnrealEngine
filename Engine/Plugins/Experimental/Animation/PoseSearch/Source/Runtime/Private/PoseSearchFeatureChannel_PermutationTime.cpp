@@ -29,7 +29,7 @@ void UPoseSearchFeatureChannel_PermutationTime::BuildQuery(UE::PoseSearch::FSear
 }
 
 #if WITH_EDITOR
-void UPoseSearchFeatureChannel_PermutationTime::FillWeights(TArray<float>& Weights) const
+void UPoseSearchFeatureChannel_PermutationTime::FillWeights(TArrayView<float> Weights) const
 {
 	for (int32 i = 0; i < ChannelCardinality; ++i)
 	{

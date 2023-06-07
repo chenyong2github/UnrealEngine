@@ -80,7 +80,7 @@ void UPoseSearchFeatureChannel_Heading::DebugDraw(const UE::PoseSearch::FDebugDr
 #endif // ENABLE_DRAW_DEBUG
 
 #if WITH_EDITOR
-void UPoseSearchFeatureChannel_Heading::FillWeights(TArray<float>& Weights) const
+void UPoseSearchFeatureChannel_Heading::FillWeights(TArrayView<float> Weights) const
 {
 	for (int32 i = 0; i < ChannelCardinality; ++i)
 	{

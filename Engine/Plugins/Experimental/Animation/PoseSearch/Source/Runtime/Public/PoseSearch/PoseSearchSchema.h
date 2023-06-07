@@ -100,6 +100,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Permutations")
 	float PermutationsTimeOffset = 0.f;
 
+	// if true a padding channel will be added to make sure the data is 16 bytes (aligned) and padded, to facilitate performance improvements at cost of eventual additional memory
+	UPROPERTY(EditAnywhere, Category = "Performance")
+	bool bAddDataPadding = false;
+
 	// If bInjectAdditionalDebugChannels is true, channels will be asked to inject additional channels into this schema.
 	// the original intent is to add UPoseSearchFeatureChannel_Position(s) to help with the complexity of the debug drawing
 	// (the database will have all the necessary positions to draw lines at the right location and time).

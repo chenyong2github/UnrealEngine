@@ -111,7 +111,7 @@ void UPoseSearchDatabaseStatistics::Initialize(const UPoseSearchDatabase* PoseSe
 	
 	if (PoseSearchDatabase)
 	{
-		const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+		const UE::PoseSearch::FSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
 		// General Information
 	
 		AnimationSequences = PoseSearchDatabase->AnimationAssets.Num();
@@ -121,7 +121,7 @@ void UPoseSearchDatabaseStatistics::Initialize(const UPoseSearchDatabase* PoseSe
 		TotalAnimationPosesInTime = FText::Format(TimeFormat, static_cast<double>(TotalAnimationPosesInFrames) / SampleRate);
 			
 		uint32 NumOfSearchablePoses = 0;
-		for (const FPoseSearchPoseMetadata& PoseMetadata : SearchIndex.PoseMetadata)
+		for (const UE::PoseSearch::FPoseMetadata& PoseMetadata : SearchIndex.PoseMetadata)
 		{
 			if (!PoseMetadata.IsBlockTransition())
 			{
