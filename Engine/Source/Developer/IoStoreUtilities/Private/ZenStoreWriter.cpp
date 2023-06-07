@@ -1259,6 +1259,12 @@ void FZenStoreWriter::CompleteExportsArchiveForDiff(FPackageInfo& Info, FLargeMe
 	ExistingState.PreOptimizedPackage = MoveTemp(PackageStorePackage);
 }
 
+EPackageWriterResult FZenStoreWriter::BeginCacheForCookedPlatformData(
+	FBeginCacheForCookedPlatformDataInfo& Info)
+{
+	return BeginCacheCallback(Info);
+}
+
 TFuture<FCbObject> FZenStoreWriter::WriteMPCookMessageForPackage(FName PackageName)
 {
 	TArray<FString> AdditionalFiles;
@@ -1333,7 +1339,7 @@ bool FZenStoreWriter::TryReadMPCookMessageForPackage(FName PackageName, FCbObjec
 			ExistingPackageHashes = ThisPackageHashes;
 			if (bAlreadyExisted)
 			{
-				UE_LOG(LogSavePackage, Error, TEXT("FLooseCookedPackageWriter encountered the same package twice in a cook! (%s)"),
+				UE_LOG(LogSavePackage, Error, TEXT("FZenStoreWriter encountered the same package twice in a cook! (%s)"),
 					*PackageName.ToString());
 			}
 		}

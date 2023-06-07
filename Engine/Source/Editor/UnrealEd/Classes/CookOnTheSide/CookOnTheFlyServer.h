@@ -35,6 +35,7 @@ class IAssetRegistry;
 class ICookedPackageWriter;
 class IPlugin;
 class ITargetPlatform;
+enum class EPackageWriterResult : uint8;
 enum class ODSCRecompileCommand;
 struct FBeginCookContext;
 struct FCrashContextExtendedWriter;
@@ -1276,6 +1277,8 @@ private:
 		const ITargetPlatform* TargetPlatform, UE::Cook::ECachedCookedPlatformDataEvent* ExistingEvent);
 	bool RouteIsCachedCookedPlatformDataLoaded(UE::Cook::FPackageData& PackageData, UObject* Obj,
 		const ITargetPlatform* TargetPlatform, UE::Cook::ECachedCookedPlatformDataEvent* ExistingEvent);
+	EPackageWriterResult SavePackageBeginCacheForCookedPlatformData(FName PackageName,
+		const ITargetPlatform* TargetPlatform, TConstArrayView<UObject*> SaveableObjects, uint32 SaveFlags);
 
 	/** Cook (save) a package and process the results */
 	void SaveCookedPackage(UE::Cook::FSaveCookedPackageContext& Context);
@@ -1460,6 +1463,11 @@ private:
 	bool bRandomizeCookOrder = false;
 	/** True if commandline arguments specified that we suppress the cook of packages based on filter criteria. */
 	bool bCookFilter = false;
+	/**
+	 * Experimental feature to correctly invoke the BeginCacheForCookedPlatformData contracts for
+	 * objects created by PreSave
+	 */
+	bool bCallIsCachedOnSaveCreatedObjects = false;
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
 	double SaveBusyStartTimeSeconds = MAX_flt;

@@ -2521,84 +2521,36 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 ESavePackageResult BeginCachePlatformCookedData(FSaveContext& SaveContext)
 {
 #if WITH_EDITOR
-	// TODO: Call IsCachedCookedPlatformDataLoaded on all the objects until it returns true. This is required for the contract.
-	// We tried enabling this once, but it created knockon bugs: Textures created by landscape were not handling it correctly
-	// (which we have subsequently fixed) and MaterialInstanceConstants created by landscape were not handling it correctly (which 
-	// we have not yet diagnosed)
-#define SAVEPACKAGE_CALL_ISCACHEDCOOKEDPLATFORMDATALOADED 0
-
-	// TODO: Remove BeginCacheForCookedPlatformData from SavePackage; it is already called by the cooker.
-	// Cache platform cooked data
-	if (SaveContext.IsCooking() && !SaveContext.IsConcurrent())
+	if (!SaveContext.IsCooking() || SaveContext.IsConcurrent())
 	{
-		const ITargetPlatform* TargetPlatform = SaveContext.GetTargetPlatform();
-		TArray<UObject*> ObjectsInPackage;
-		GetObjectsWithPackage(SaveContext.GetPackage(), ObjectsInPackage);
-		for (TArray<UObject*>::TIterator Iter(ObjectsInPackage); Iter; ++Iter)
-		{
-			UObject* Object = *Iter;
-			if (SaveContext.IsUnsaveable(Object))
-			{
-				Iter.RemoveCurrentSwap();
-				continue;
-			}
-			Object->BeginCacheForCookedPlatformData(TargetPlatform);
-#if SAVEPACKAGE_CALL_ISCACHEDCOOKEDPLATFORMDATALOADED
-			if (Object->IsCachedCookedPlatformDataLoaded(TargetPlatform))
-			{
-				Iter.RemoveCurrentSwap();
-				continue;
-			}
-#endif
-		}
-#if SAVEPACKAGE_CALL_ISCACHEDCOOKEDPLATFORMDATALOADED
-		if (ObjectsInPackage.Num())
-		{
-			if (SaveContext.GetSaveArgs().SaveFlags & SAVE_AllowTimeout)
-			{
-				return ESavePackageResult::Timeout;
-			}
-			const float MaxWaitSeconds = 30.f;
-			const double EndTimeSeconds = FPlatformTime::Seconds() + MaxWaitSeconds;
-			while (ObjectsInPackage.Num())
-			{
-				if (FPlatformTime::Seconds() > EndTimeSeconds)
-				{
-					UE_LOG(LogSavePackage, Error, TEXT("Save of %s failed: timed out waiting for IsCachedCookedPlatformDataLoaded on %s."),
-						SaveContext.GetFilename(), *ObjectsInPackage[0]->GetFullName());
-					return ESavePackageResult::Error;
-				}
-				for (TArray<UObject*>::TIterator Iter(ObjectsInPackage); Iter; ++Iter)
-				{
-					if ((*Iter)->IsCachedCookedPlatformDataLoaded(TargetPlatform))
-					{
-						Iter.RemoveCurrentSwap();
-						continue;
-					}
-				}
-			}
-		}
-#endif
+		// BeginCacheForCookedPlatformData is not called if not cooking
+		// When saving concurrently the cooker has called it ahead of time (because it is not threadsafe)
+		return ESavePackageResult::Success;
 	}
-#endif
+	ICookedPackageWriter* CookedWriter = SaveContext.GetPackageWriter()->AsCookedPackageWriter();
+	check(CookedWriter); // Cooking requires a CookedPackageWriter
+
+	// Find the saveable objects
+	TArray<UObject*> ObjectsInPackage;
+	UPackage* Package = SaveContext.GetPackage();
+	GetObjectsWithPackage(Package, ObjectsInPackage);
+	ObjectsInPackage.RemoveAllSwap([&SaveContext](UObject* Object) { return SaveContext.IsUnsaveable(Object); });
+
+	// Call the PackageWriter to dispatch the BeginCache calls
+	ICookedPackageWriter::FBeginCacheForCookedPlatformDataInfo Info{
+		Package->GetFName(), SaveContext.GetTargetPlatform(), TConstArrayView<UObject*>(ObjectsInPackage),
+		SaveContext.GetSaveArgs().SaveFlags
+	};
+	EPackageWriterResult Result = CookedWriter->BeginCacheForCookedPlatformData(Info);
+	switch (Result)
+	{
+	case EPackageWriterResult::Success: return ESavePackageResult::Success;
+	case EPackageWriterResult::Error: return ESavePackageResult::Error;
+	case EPackageWriterResult::Timeout: return ESavePackageResult::Timeout;
+	default: return ESavePackageResult::Error;
+	}
+#else
 	return ESavePackageResult::Success;
-}
-
-void ClearCachedPlatformCookedData(FSaveContext& SaveContext)
-{
-#if WITH_EDITOR
-	if (SaveContext.IsCooking() && !SaveContext.IsConcurrent())
-	{
-		TArray<UObject*> ObjectsInPackage;
-		GetObjectsWithPackage(SaveContext.GetPackage(), ObjectsInPackage);
-		for (UObject* Object : ObjectsInPackage)
-		{
-			if (!SaveContext.IsUnsaveable(Object))
-			{
-				Object->ClearCachedCookedPlatformData(SaveContext.GetTargetPlatform());
-			}
-		}
-	}
 #endif
 }
 
@@ -3096,8 +3048,10 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 		}
 	}
 
-	// Trigger platform cooked data caching before package harvesting 
-	// because it might modify some property and hence affect harvested property name for tagged property for example
+	// Trigger platform cooked data caching after PreSave but before package harvesting 
+	// After PreSave because objects can be created during PreSave and we need to cache them
+	// Before package harvesting because it might modify some property and hence affect the harvested
+	// property name of a tagged property for example
 	SaveContext.Result = BeginCachePlatformCookedData(SaveContext);
 	if (SaveContext.Result != ESavePackageResult::Success)
 	{
@@ -3110,7 +3064,7 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 		//FScopedSavingFlag IsSavingFlag(SaveContext.IsConcurrent());
 		SaveContext.Result = InnerSave(SaveContext);
 
-		// in case of failure or cancellation, do not exit here, still run cleanup (PostSaveRoot/ClearCachedPlatformCookedData)
+		// in case of failure or cancellation, do not exit here, still run cleanup (e.g. PostSaveRoot)
 	}
 
 	// PostSave Asset
@@ -3120,8 +3074,6 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 		UE::SavePackageUtilities::CallPostSaveRoot(SaveContext.GetAsset(), SaveContext.GetObjectSaveContext(), SaveContext.GetPreSaveCleanup());
 		SaveContext.SetPostSaveRootRequired(false);
 	}
-
-	ClearCachedPlatformCookedData(SaveContext);
 
 	// PostSave Package - edit in memory package and send events if save was successful
 	SlowTask.EnterProgressFrame();
@@ -3208,8 +3160,6 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 				UE::SavePackageUtilities::CallPostSaveRoot(SaveContext.GetAsset(), SaveContext.GetObjectSaveContext(), SaveContext.GetPreSaveCleanup());
 				SaveContext.SetPreSaveCleanup(false);
 			}
-
-			ClearCachedPlatformCookedData(SaveContext);
 
 			// PostSave Package - edit in memory package and send events
 			if (SaveContext.Result == ESavePackageResult::Success)

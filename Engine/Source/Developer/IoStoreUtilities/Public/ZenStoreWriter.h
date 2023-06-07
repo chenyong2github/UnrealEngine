@@ -67,6 +67,12 @@ public:
 		return this;
 	};
 
+	// Delegates to forward PackageWriter events onto UCookOnTheFlyServer when cooking
+	void SetBeginCacheCallback(FBeginCacheCallback&& InBeginCacheCallback)
+	{
+		BeginCacheCallback = MoveTemp(InBeginCacheCallback);
+	}
+
 	struct ZenHostInfo
 	{
 		FString ProjectId;
@@ -126,6 +132,7 @@ public:
 	IOSTOREUTILITIES_API virtual void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override;
 	IOSTOREUTILITIES_API bool GetPreviousCookedBytes(const FPackageInfo& Info, FPreviousCookedBytesData& OutData) override;
 	IOSTOREUTILITIES_API void CompleteExportsArchiveForDiff(FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive) override;
+	IOSTOREUTILITIES_API virtual EPackageWriterResult BeginCacheForCookedPlatformData(FBeginCacheForCookedPlatformDataInfo& Info) override;
 	IOSTOREUTILITIES_API virtual TFuture<FCbObject> WriteMPCookMessageForPackage(FName PackageName) override;
 	IOSTOREUTILITIES_API virtual bool TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message) override;
 
@@ -227,6 +234,8 @@ private:
 
 	TUniquePtr<FZenFileSystemManifest>	ZenFileSystemManifest;
 	TMap<FName, TArray<FString>>		PackageAdditionalFiles;
+
+	FBeginCacheCallback					BeginCacheCallback;
 
 	FEntryCreatedEvent					EntryCreatedEvent;
 	FCriticalSection					CommitEventCriticalSection;

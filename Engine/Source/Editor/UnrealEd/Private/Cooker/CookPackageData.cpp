@@ -2425,14 +2425,9 @@ void FPendingCookedPlatformData::ClearCachedCookedPlatformData(UObject* Object, 
 	}
 	else
 	{
-		// TODO: Add this call to ClearCachedCookedPlatformData once we take it over from SavePackage
-		constexpr bool bCallClearCachedCookedPlatformData = false;
-		if (bCallClearCachedCookedPlatformData)
+		for (const TPair<const ITargetPlatform*, ECachedCookedPlatformDataEvent>& PlatformPair : CCPDState.PlatformStates)
 		{
-			for (const TPair<const ITargetPlatform*, ECachedCookedPlatformDataEvent>& PlatformPair : CCPDState.PlatformStates)
-			{
-				Object->ClearCachedCookedPlatformData(PlatformPair.Key);
-			}
+			Object->ClearCachedCookedPlatformData(PlatformPair.Key);
 		}
 
 		// ClearAllCachedCookedPlatformData and WillNeverCacheCookedPlatformDataAgain calls are only used when not in editor

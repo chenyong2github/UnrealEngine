@@ -25,6 +25,13 @@ struct FPackageStoreEntryResource;
 struct FSavePackageArgs;
 struct FSavePackageResultStruct;
 
+enum class EPackageWriterResult : uint8
+{
+	Success,
+	Error,
+	Timeout,
+};
+
 /** Interface for SavePackage to write packages to storage. */
 class IPackageWriter
 {
@@ -326,6 +333,23 @@ public:
 		// The subclass must override this method if it returns bDiffModeSupported=true in GetCookCapabilities
 		unimplemented();
 	}
+
+	struct FBeginCacheForCookedPlatformDataInfo
+	{
+		FName PackageName;
+		const ITargetPlatform* TargetPlatform;
+		TConstArrayView<UObject*> SaveableObjects;
+		uint32 SaveFlags;
+	};
+	// Helper callback type for Writers that need to send the message on to UCookOnTheFlyServer
+	using FBeginCacheCallback = TUniqueFunction<EPackageWriterResult(FBeginCacheForCookedPlatformDataInfo& Info)>;
+
+	virtual EPackageWriterResult BeginCacheForCookedPlatformData(FBeginCacheForCookedPlatformDataInfo& Info)
+	{
+		unimplemented();
+		return EPackageWriterResult::Error;
+	}
+
 	/** Modify the SaveArgs if required before the first Save. Used for diffing. */
 	virtual void UpdateSaveArguments(FSavePackageArgs& SaveArgs)
 	{

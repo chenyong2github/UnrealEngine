@@ -6615,6 +6615,8 @@ void UCookOnTheFlyServer::SetInitializeConfigSettings(UE::Cook::FInitializeConfi
 		(FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY")) && !FParse::Param(FCommandLine::Get(), TEXT("DIFFNORANDCOOK")));
 
 	ParseCookFilters();
+
+	bCallIsCachedOnSaveCreatedObjects = FParse::Param(FCommandLine::Get(), TEXT("CallIsCachedOnSaveCreatedObjects"));
 }
 
 void UCookOnTheFlyServer::ParseCookFilters()
@@ -10059,15 +10061,23 @@ UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::CreateSaveContext(const 
 
 	ICookedPackageWriter* PackageWriter = nullptr;
 	FString WriterDebugName;
+	ICookedPackageWriter::FBeginCacheCallback BeginCacheCallback(
+		[this](ICookedPackageWriter::FBeginCacheForCookedPlatformDataInfo& Info)
+		{
+			return this->SavePackageBeginCacheForCookedPlatformData(Info.PackageName,
+				Info.TargetPlatform, Info.SaveableObjects, Info.SaveFlags);
+		});
 	if (IsUsingZenStore())
 	{
-		PackageWriter = new FZenStoreWriter(ResolvedRootPath, ResolvedMetadataPath, TargetPlatform);
+		FZenStoreWriter* ZenWriter = new FZenStoreWriter(ResolvedRootPath, ResolvedMetadataPath, TargetPlatform);
+		ZenWriter->SetBeginCacheCallback(MoveTemp(BeginCacheCallback));
+		PackageWriter = ZenWriter;
 		WriterDebugName = TEXT("ZenStore");
 	}
 	else
 	{
 		PackageWriter = new FLooseCookedPackageWriter(ResolvedRootPath, ResolvedMetadataPath, TargetPlatform,
-			GetAsyncIODelete(), *PackageDatas, PluginsToRemap);
+			GetAsyncIODelete(), PluginsToRemap, MoveTemp(BeginCacheCallback));
 		WriterDebugName = TEXT("LooseCookedPackageWriter");
 	}
 
@@ -11602,7 +11612,14 @@ void UCookOnTheFlyServer::RouteBeginCacheForCookedPlatformData(UE::Cook::FPackag
 		}
 		ExistingEvent = &CCPDState.PlatformStates.FindOrAdd(TargetPlatform, ECachedCookedPlatformDataEvent::None);
 	}
-	FScopedActivePackage ScopedActivePackage(*this, PackageName, PackageAccessTrackingOps::NAME_CookerBuildObject);
+
+	// We need to set our scopes for e.g. TObjectPtr reads around the call to BeginCacheForCookedPlatformData,
+	// but in some cases we have already set the scope (e.g. when calling BeginCache from inside SavePackage)
+	TOptional<FScopedActivePackage> ScopedActivePackage;
+	if (!ActivePackageData.bActive)
+	{
+		ScopedActivePackage.Emplace(*this, PackageName, PackageAccessTrackingOps::NAME_CookerBuildObject);
+	}
 	Obj->BeginCacheForCookedPlatformData(TargetPlatform);
 	*ExistingEvent = ECachedCookedPlatformDataEvent::BeginCacheForCookedPlatformDataCalled;
 }
@@ -11638,13 +11655,131 @@ bool UCookOnTheFlyServer::RouteIsCachedCookedPlatformDataLoaded(UE::Cook::FPacka
 		ExistingEvent = &CCPDState.PlatformStates.FindOrAdd(TargetPlatform, ECachedCookedPlatformDataEvent::None);
 	}
 
-	FScopedActivePackage ScopedActivePackage(*this, PackageName, PackageAccessTrackingOps::NAME_CookerBuildObject);
+	// We need to set our scopes for e.g. TObjectPtr reads around the call to BeginCacheForCookedPlatformData,
+	// but in some cases we have already set the scope (e.g. when calling IsCached from inside SavePackage)
+	TOptional<FScopedActivePackage> ScopedActivePackage;
+	if (!ActivePackageData.bActive)
+	{
+		ScopedActivePackage.Emplace(*this, PackageName, PackageAccessTrackingOps::NAME_CookerBuildObject);
+	}
+
 	bool bResult = Obj->IsCachedCookedPlatformDataLoaded(TargetPlatform);
 	if (bResult)
 	{
 		*ExistingEvent = ECachedCookedPlatformDataEvent::IsCachedCookedPlatformDataLoadedReturnedTrue;
 	}
 	return bResult;
+}
+
+EPackageWriterResult UCookOnTheFlyServer::SavePackageBeginCacheForCookedPlatformData(FName PackageName,
+	const ITargetPlatform* TargetPlatform, TConstArrayView<UObject*> SaveableObjects, uint32 SaveFlags)
+{
+	using namespace UE::Cook;
+
+	FPackageData* PackageData = PackageDatas->FindPackageDataByPackageName(PackageName);
+	check(PackageData); // This callback is called from a packagesave we initiated, so it should exist
+
+	TArray<FWeakObjectPtr>& CachedObjectsInOuter = PackageData->GetCachedObjectsInOuter();
+	int32& NextIndex = PackageData->GetCookedPlatformDataNextIndex();
+	TArray<UObject*> PendingObjects;
+	for (UObject* Object : SaveableObjects)
+	{
+		FCachedCookedPlatformDataState& CCPDState = PackageDatas->GetCachedCookedPlatformDataObjects().FindOrAdd(Object);
+		if (CCPDState.PackageData != PackageData)
+		{
+			if (CCPDState.PackageData != nullptr)
+			{
+				UE_LOG(LogCook, Display, TEXT("CachedCookedPlatformDatas: %s is unexpectedly in two packages at once.")
+					TEXT("\n\tPreviousPackage: %s")
+					TEXT("\n\tCurrentPackage: %s"),
+					*Object->GetFullName(), *CCPDState.PackageData->GetPackageName().ToString(),
+					*PackageData->GetPackageName().ToString());
+				continue;
+			}
+			CCPDState.PackageData = PackageData;
+
+			// NextIndex is usually at the end of CachedObjectsInOuter, but in case it is not, insert the new Object 
+			// at NextIndex so that we still record that we have not called BeginCace on objects after it. Then increment
+			// NextIndex to indicate we have already called (down below) BeginCache on the added object, so that
+			// ReleaseCookedPlatformData knows that it needs to call Clear on it.
+			check(NextIndex >= 0);
+			CachedObjectsInOuter.Insert(Object, NextIndex);
+			++NextIndex;
+		}
+
+		ECachedCookedPlatformDataEvent& ExistingEvent =
+			CCPDState.PlatformStates.FindOrAdd(TargetPlatform, ECachedCookedPlatformDataEvent::None);
+		if (ExistingEvent == ECachedCookedPlatformDataEvent::IsCachedCookedPlatformDataLoadedReturnedTrue)
+		{
+			// Already called
+			continue;
+		}
+
+		RouteBeginCacheForCookedPlatformData(*PackageData, Object, TargetPlatform, &ExistingEvent);
+		if (bCallIsCachedOnSaveCreatedObjects)
+		{
+			// TODO: Enable bCallIsCachedOnSaveCreatedObjects so that we call IsCachedCookedPlatformDataLoaded on all the objects until it
+			// returns true. This is required for the BeginCacheForCookedPlatformData contract.
+			// Doing so will cause us to return Timeout and retry the save later after the pending objects have completed.
+			// We tried enabling this once, but it created knockon bugs: Textures created by landscape were not handling it correctly
+			// (which we have subsequently fixed) and MaterialInstanceConstants created by landscape were not handling it correctly (which 
+			// we have not yet diagnosed).
+			if (!RouteIsCachedCookedPlatformDataLoaded(*PackageData, Object, TargetPlatform, &ExistingEvent))
+			{
+				PackageDatas->AddPendingCookedPlatformData(FPendingCookedPlatformData(Object, TargetPlatform,
+					*PackageData, false /* bNeedsResourceRelease */, *this));
+				PendingObjects.Add(Object);
+			}
+		}
+	}
+
+	if (!PendingObjects.IsEmpty())
+	{
+		constexpr float MaxWaitSeconds = 30.f;
+		constexpr float SleepTimeSeconds = 0.010f;
+		const double EndTimeSeconds = FPlatformTime::Seconds() + MaxWaitSeconds;
+		for (;;)
+		{
+			UE_SCOPED_HIERARCHICAL_COOKTIMER(PollPendingCookedPlatformDatas);
+			PackageDatas->PollPendingCookedPlatformDatas(true /* bForce */, LastCookableObjectTickTime);
+			if (PackageData->GetNumPendingCookedPlatformData() == 0)
+			{
+				break;
+			}
+			if (SaveFlags & SAVE_AllowTimeout)
+			{
+				return EPackageWriterResult::Timeout;
+			}
+			if (FPlatformTime::Seconds() > EndTimeSeconds)
+			{
+				UObject* Culprit = nullptr;
+				for (UObject* Object : PendingObjects)
+				{
+					FCachedCookedPlatformDataState& CCPDState = PackageDatas->GetCachedCookedPlatformDataObjects().FindOrAdd(Object);
+					ECachedCookedPlatformDataEvent& ExistingEvent = CCPDState.PlatformStates.FindOrAdd(TargetPlatform,
+						ECachedCookedPlatformDataEvent::None);
+					if (ExistingEvent != ECachedCookedPlatformDataEvent::IsCachedCookedPlatformDataLoadedReturnedTrue)
+					{
+						Culprit = Object;
+						break;
+					}
+				}
+				if (!Culprit)
+				{
+					UE_LOG(LogCook, Warning,
+						TEXT("SavePackageBeginCacheForCookedPlatformData Error for package %s: GetNumPendingCookedPlatformData() != 0 but no Culprit found. Ignoring it and continuing."),
+						*PackageName.ToString());
+					break;
+				}
+				UE_LOG(LogSavePackage, Error, TEXT("Save of %s failed: timed out waiting for IsCachedCookedPlatformDataLoaded on %s."),
+					*PackageName.ToString(), *Culprit->GetFullName());
+				return EPackageWriterResult::Error;
+			}
+
+			FPlatformProcess::Sleep(SleepTimeSeconds);
+		}
+	}
+	return EPackageWriterResult::Success;
 }
 
 namespace UE::Cook
