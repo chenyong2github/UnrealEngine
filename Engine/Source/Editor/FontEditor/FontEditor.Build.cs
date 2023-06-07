@@ -17,6 +17,7 @@ public class FontEditor : ModuleRules
 				"DesktopWidgets",
 				"Engine",
                 "InputCore",
+				"RenderCore",
 				"Slate",
 				"SlateCore",
 				"UnrealEd",
