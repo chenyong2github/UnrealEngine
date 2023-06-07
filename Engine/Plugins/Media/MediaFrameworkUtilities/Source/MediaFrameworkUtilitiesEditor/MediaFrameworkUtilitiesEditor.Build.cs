@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"EditorStyle",
 					"EditorWidgets",
 					"Engine",
+					"RenderCore",
 					"InputCore",
 					"LevelEditor",
 					"MainFrame",
