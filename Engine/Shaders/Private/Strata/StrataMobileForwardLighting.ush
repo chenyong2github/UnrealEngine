@@ -21,7 +21,7 @@
 
 // Forward declarations
 void GetVolumeLightingNonDirectional(float4 AmbientLightingVector, float3 DiffuseColor, inout float3 InterpolatedLighting, out float4 VolumeLighting);
-void GetVolumeLightingDirectional(float4 AmbientLightingVector, float3 DirectionalLightingVector, float3 WorldNormal, float3 DiffuseColor, inout float3 InterpolatedLighting, out float4 VolumeLighting);
+void GetVolumeLightingDirectional(float4 AmbientLightingVector, float3 DirectionalLightingVector, float3 WorldNormal, float3 DiffuseColor, float DirectionalLightingIntensity, inout float3 InterpolatedLighting, out float4 VolumeLighting);
 
 float3 GetWorldBentNormalZero(in FMaterialPixelParameters MaterialParameters);
 
@@ -239,7 +239,7 @@ float3 StrataMobileForwardLighting(
 
 					FTranslucencyLightingVector LightingVector = GetTranslucencyLightingVector(DirLightData, TranslatedWorldPosition);
 				#if STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_DIRECTIONAL
-					GetVolumeLightingDirectional(LightingVector.AmbientLightingVector, LightingVector.DirectionalLightingVector, StrataBSDFContext.N, BSDFEvaluate.DiffuseColor, InterpolatedLighting, VolumeLighting);
+					GetVolumeLightingDirectional(LightingVector.AmbientLightingVector, LightingVector.DirectionalLightingVector, StrataBSDFContext.N, BSDFEvaluate.DiffuseColor, GetMaterialTranslucencyDirectionalLightingIntensity(), InterpolatedLighting, VolumeLighting);
 				#elif STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL
 					GetVolumeLightingNonDirectional(LightingVector.AmbientLightingVector, BSDFEvaluate.DiffuseColor, InterpolatedLighting, VolumeLighting);
 				#else
@@ -327,7 +327,7 @@ float3 StrataMobileForwardLighting(
 
 						FTranslucencyLightingVector LightingVector = GetTranslucencyLightingVector(LightData, TranslatedWorldPosition);
 					#if STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_DIRECTIONAL
-						GetVolumeLightingDirectional(LightingVector.AmbientLightingVector, LightingVector.DirectionalLightingVector, StrataBSDFContext.N, BSDFEvaluate.DiffuseColor, InterpolatedLighting, VolumeLighting);
+						GetVolumeLightingDirectional(LightingVector.AmbientLightingVector, LightingVector.DirectionalLightingVector, StrataBSDFContext.N, BSDFEvaluate.DiffuseColor, GetMaterialTranslucencyDirectionalLightingIntensity(), InterpolatedLighting, VolumeLighting);
 					#elif STRATA_TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL
 						GetVolumeLightingNonDirectional(LightingVector.AmbientLightingVector, BSDFEvaluate.DiffuseColor, InterpolatedLighting, VolumeLighting);
 					#else
