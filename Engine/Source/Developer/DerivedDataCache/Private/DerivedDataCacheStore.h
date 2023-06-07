@@ -2,9 +2,20 @@
 
 #pragma once
 
+#include "Async/Mutex.h"
 #include "DerivedDataCache.h"
+#include "Misc/MonotonicTime.h"
 
+class FText;
+
+namespace UE::DerivedData { class FCacheRecord; }
+namespace UE::DerivedData { class FCacheStoreRequestTimer; }
+namespace UE::DerivedData { class FValue; }
+namespace UE::DerivedData { class ICacheStoreStats; }
 namespace UE::DerivedData { class ILegacyCacheStore; }
+namespace UE::DerivedData { struct FCacheStoreRequestStats; }
+namespace UE::DerivedData { enum class ECacheStoreRequestOp : uint8; }
+namespace UE::DerivedData { enum class ECacheStoreRequestType : uint8; }
 namespace UE::DerivedData { enum class EStatus : uint8; }
 
 namespace UE::DerivedData
@@ -90,6 +101,32 @@ public:
 		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete) = 0;
+
+	using ERequestOp = ECacheStoreRequestOp;
+	using ERequestType = ECacheStoreRequestType;
+	using FRequestStats = FCacheStoreRequestStats;
+	using FRequestTimer = FCacheStoreRequestTimer;
+};
+
+/**
+ * The type of data accessed by a request.
+ */
+enum class ECacheStoreRequestType : uint8
+{
+	None = 0,
+	Record,
+	Value,
+};
+
+/**
+ * The operation performed by the request.
+ */
+enum class ECacheStoreRequestOp : uint8
+{
+	None = 0,
+	Put,
+	Get,
+	GetChunk,
 };
 
 enum class ECacheStoreFlags : uint32
@@ -122,6 +159,90 @@ public:
 	virtual void Add(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags) = 0;
 	virtual void SetFlags(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags) = 0;
 	virtual void RemoveNotSafe(ILegacyCacheStore* CacheStore) = 0;
+
+	virtual ICacheStoreStats* CreateStats(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags, FStringView Type, FStringView Name, FStringView Path = {}) = 0;
+	virtual void DestroyStats(ICacheStoreStats* Stats) = 0;
+};
+
+enum class ECacheStoreStatusCode : uint8
+{
+	None = 0,
+	Warning,
+	Error,
+};
+
+/**
+ * Stats that represent how one cache store processed one request.
+ */
+struct FCacheStoreRequestStats
+{
+	/** Bucket that contains the data being accessed by this request. */
+	FCacheBucket Bucket;
+	/** Size of the raw data and metadata that was read from the cache store. */
+	uint64 LogicalReadSize = 0;
+	/** Size of the raw data and metadata that was written to the cache store. */
+	uint64 LogicalWriteSize = 0;
+	/** Size of the compressed data and anything else that was read from the cache store to satisfy this request. */
+	uint64 PhysicalReadSize = 0;
+	/** Size of the compressed data and anything else that was written to the cache store to satisfy this request. */
+	uint64 PhysicalWriteSize = 0;
+	/** Minimum latency to the cache store of any of the individual accesses needed to satisfy this request. */
+	FMonotonicTimeSpan Latency = FMonotonicTimeSpan::Infinity();
+	/** Approximate CPU time on the main thread that was needed to satisfy this request. */
+	FMonotonicTimeSpan MainThreadTime;
+	/** Approximate CPU time off the main thread that was needed to satisfy this request. */
+	FMonotonicTimeSpan OtherThreadTime;
+	/** Wall time at which this the cache store started processing of this request. */
+	FMonotonicTimePoint StartTime = FMonotonicTimePoint::Infinity();
+	/** Wall time at which this the cache store ended processing of this request. */
+	FMonotonicTimePoint EndTime = FMonotonicTimePoint() - FMonotonicTimeSpan::Infinity();
+	/** The type of data that was accessed by this request. */
+	ECacheStoreRequestType Type = ECacheStoreRequestType::None;
+	/** The operation that was performed by this request. */
+	ECacheStoreRequestOp Op = ECacheStoreRequestOp::None;
+	/** The status with which this request completed. */
+	EStatus Status = EStatus::Ok;
+	/** Mutex that can be used by cache stores that process a request on multiple threads. */
+	mutable FMutex Mutex;
+
+	void AddLatency(FMonotonicTimeSpan Latency);
+
+	/** Record a logical read of the metadata and values in the record. */
+	void AddLogicalRead(const FCacheRecord& Record);
+	/** Record a logical read of the value. Recorded as 0 if the value has no data. */
+	void AddLogicalRead(const FValue& Value);
+	/** Record a logical write of the value. Recorded as 0 if the value has no data. */
+	void AddLogicalWrite(const FValue& Value);
+};
+
+/** Updates StartTime, EndTime, MainThreadTime, OtherThreadTime based on its lifetime. */
+class FCacheStoreRequestTimer
+{
+public:
+	explicit FCacheStoreRequestTimer(FCacheStoreRequestStats& Stats);
+	~FCacheStoreRequestTimer();
+
+	FCacheStoreRequestTimer(const FCacheStoreRequestTimer&) = delete;
+	FCacheStoreRequestTimer& operator=(const FCacheStoreRequestTimer&) = delete;
+
+private:
+	FCacheStoreRequestStats& Stats;
+	FMonotonicTimePoint StartTime;
+};
+
+/**
+ * Interface to report the status of a cache store and stats for each request that it processes.
+ */
+class ICacheStoreStats
+{
+public:
+	virtual ~ICacheStoreStats() = default;
+	virtual FStringView GetType() const = 0;
+	virtual FStringView GetName() const = 0;
+	virtual FStringView GetPath() const = 0;
+	virtual void SetFlags(ECacheStoreFlags Flags) = 0;
+	virtual void SetStatus(ECacheStoreStatusCode StatusCode, const FText& Status) = 0;
+	virtual void AddRequest(const FCacheStoreRequestStats& Stats) = 0;
 };
 
 template <typename RequestRangeType, typename OnCompleteType>

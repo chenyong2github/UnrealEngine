@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Algo/Accumulate.h"
 #include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
 #include "Algo/Compare.h"
 #include "Algo/Find.h"
 #include "Algo/MinElement.h"
+#include "Async/Mutex.h"
+#include "Async/UniqueLock.h"
 #include "Containers/Array.h"
+#include "Containers/StaticArray.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheStore.h"
 #include "DerivedDataCacheUsageStats.h"
@@ -13,9 +17,11 @@
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "HAL/CriticalSection.h"
+#include "Logging/StructuredLog.h"
 #include "MemoryCacheStore.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/ScopeRWLock.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "Serialization/CompactBinary.h"
 #include "Templates/Invoke.h"
 #include "Templates/RefCounting.h"
@@ -29,6 +35,123 @@ ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, IMemoryC
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class FCacheStoreStats final : public ICacheStoreStats
+{
+public:
+	FCacheStoreStats(ECacheStoreFlags Flags, FStringView Type, FStringView Name, FStringView Path);
+
+	FString Type;
+	FString Name;
+	FString Path;
+	FText Status;
+	ECacheStoreFlags Flags = ECacheStoreFlags::None;
+	ECacheStoreStatusCode StatusCode = ECacheStoreStatusCode::None;
+	mutable FMutex Mutex;
+
+#if ENABLE_COOK_STATS
+	FCookStats::CallStats GetStats;
+	FCookStats::CallStats PutStats;
+#endif
+
+	struct FRateStat
+	{
+		FMonotonicTimePoint StartTime;
+		FMonotonicTimePoint EndTime;
+		uint64 Amount = 0;
+	};
+
+	constexpr static int32 SpeedStatsMax = 16;
+
+	TStaticArray<FMonotonicTimeSpan, SpeedStatsMax> LatencyHistory;
+	int32 LatencyIndex = 0;
+	int32 LatencyCount = 0;
+
+	TStaticArray<FRateStat, SpeedStatsMax> PhysicalReadSizeHistory;
+	int32 PhysicalReadSizeIndex = 0;
+	int32 PhysicalReadSizeCount = 0;
+
+	TStaticArray<FRateStat, SpeedStatsMax> PhysicalWriteSizeHistory;
+	int32 PhysicalWriteSizeIndex = 0;
+	int32 PhysicalWriteSizeCount = 0;
+
+private:
+	FStringView GetType() const final { return Type; }
+	FStringView GetName() const final { return Name; }
+	FStringView GetPath() const final { return Path; }
+	void SetFlags(ECacheStoreFlags Flags) final;
+	void SetStatus(ECacheStoreStatusCode StatusCode, const FText& Status) final;
+	void AddRequest(const FCacheStoreRequestStats& Stats) final;
+};
+
+FCacheStoreStats::FCacheStoreStats(ECacheStoreFlags InFlags, FStringView InType, FStringView InName, FStringView InPath)
+	: Type(InType)
+	, Name(InName)
+	, Path(InPath)
+	, Flags(InFlags)
+{
+}
+
+void FCacheStoreStats::SetFlags(ECacheStoreFlags InFlags)
+{
+	TUniqueLock Lock(Mutex);
+	Flags = InFlags;
+}
+
+void FCacheStoreStats::SetStatus(ECacheStoreStatusCode InStatusCode, const FText& InStatus)
+{
+	TUniqueLock Lock(Mutex);
+	Status = InStatus;
+	StatusCode = InStatusCode;
+}
+
+void FCacheStoreStats::AddRequest(const FCacheStoreRequestStats& Stats)
+{
+#if ENABLE_COOK_STATS
+	using FCallStats = FCookStats::CallStats;
+	using EHitOrMiss = FCallStats::EHitOrMiss;
+	using EStatType = FCallStats::EStatType;
+	const bool bIsInGameThread = IsInGameThread();
+	const bool bIsGet = Stats.Op != ECacheStoreRequestOp::Put;
+#endif
+
+	TUniqueLock Lock(Mutex);
+
+	if (!Stats.Latency.IsInfinity())
+	{
+		LatencyHistory[LatencyIndex++] = Stats.Latency;
+		LatencyCount = FMath::Max(LatencyCount, LatencyIndex);
+		LatencyIndex %= LatencyHistory.Num();
+	}
+
+	if (Stats.PhysicalReadSize)
+	{
+		FRateStat& CurrentPhysicalReadSize = PhysicalReadSizeHistory[PhysicalReadSizeIndex++];
+		PhysicalReadSizeCount = FMath::Max(PhysicalReadSizeCount, PhysicalReadSizeIndex);
+		PhysicalReadSizeIndex %= PhysicalReadSizeHistory.Num();
+		CurrentPhysicalReadSize.StartTime = Stats.StartTime;
+		CurrentPhysicalReadSize.EndTime = Stats.EndTime;
+		CurrentPhysicalReadSize.Amount = Stats.PhysicalReadSize;
+	}
+
+	if (Stats.PhysicalWriteSize)
+	{
+		FRateStat& CurrentPhysicalWriteSize = PhysicalWriteSizeHistory[PhysicalWriteSizeIndex++];
+		PhysicalWriteSizeCount = FMath::Max(PhysicalWriteSizeCount, PhysicalWriteSizeIndex);
+		PhysicalWriteSizeIndex %= PhysicalWriteSizeHistory.Num();
+		CurrentPhysicalWriteSize.StartTime = Stats.StartTime;
+		CurrentPhysicalWriteSize.EndTime = Stats.EndTime;
+		CurrentPhysicalWriteSize.Amount = Stats.PhysicalWriteSize;
+	}
+
+#if ENABLE_COOK_STATS
+	FCookStats::CallStats& CallStats = bIsGet ? GetStats : PutStats;
+	CallStats.Accumulate(Stats.Status == EStatus::Ok ? EHitOrMiss::Hit : EHitOrMiss::Miss, EStatType::Counter, 1, bIsInGameThread);
+	CallStats.Accumulate(Stats.Status == EStatus::Ok ? EHitOrMiss::Hit : EHitOrMiss::Miss, EStatType::Cycles, int64(Stats.MainThreadTime.ToSeconds() / FPlatformTime::GetSecondsPerCycle64()), /*bIsInGameThread*/ true);
+	CallStats.Accumulate(Stats.Status == EStatus::Ok ? EHitOrMiss::Hit : EHitOrMiss::Miss, EStatType::Cycles, int64(Stats.OtherThreadTime.ToSeconds() / FPlatformTime::GetSecondsPerCycle64()), /*bIsInGameThread*/ false);
+	CallStats.Accumulate(Stats.Status == EStatus::Ok ? EHitOrMiss::Hit : EHitOrMiss::Miss, EStatType::Bytes, bIsGet ? Stats.PhysicalReadSize : Stats.PhysicalWriteSize, bIsInGameThread);
+#endif
+}
+
 class FCacheStoreHierarchy final : public ILegacyCacheStore, public ICacheStoreOwner
 {
 public:
@@ -36,10 +159,11 @@ public:
 	~FCacheStoreHierarchy() final = default;
 
 	void Add(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags) final;
-
 	void SetFlags(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags) final;
-
 	void RemoveNotSafe(ILegacyCacheStore* CacheStore) final;
+
+	ICacheStoreStats* CreateStats(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags, FStringView Type, FStringView Name, FStringView Path) final;
+	void DestroyStats(ICacheStoreStats* Stats) final;
 
 	void Put(
 		TConstArrayView<FCachePutRequest> Requests,
@@ -109,6 +233,7 @@ private:
 		ECacheStoreFlags CacheFlags{};
 		ECacheStoreNodeFlags NodeFlags{};
 		TUniquePtr<ILegacyCacheStore> AsyncCache;
+		TArray<FCacheStoreStats*> CacheStats;
 	};
 
 	mutable FRWLock NodesLock;
@@ -303,6 +428,40 @@ void FCacheStoreHierarchy::UpdateNodeFlags()
 	}
 
 	CombinedNodeFlags = StoreFlags | QueryFlags;
+}
+
+ICacheStoreStats* FCacheStoreHierarchy::CreateStats(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags, FStringView Type, FStringView Name, FStringView Path)
+{
+	FWriteScopeLock Lock(NodesLock);
+	for (FCacheStoreNode& Node : Nodes)
+	{
+		if (Node.Cache == CacheStore)
+		{
+			Node.CacheStats.Emplace(new FCacheStoreStats(Flags, Type, Name, Path));
+			return Node.CacheStats.Last();
+		}
+	}
+	for (;;)
+	{
+		UE_LOGFMT(LogDerivedDataCache, Fatal,
+			"Failed to find {Type} cache store '{Name}' with path '{Path}' when creating stats.", Type, Name, Path);
+	}
+}
+
+void FCacheStoreHierarchy::DestroyStats(ICacheStoreStats* Stats)
+{
+	FWriteScopeLock Lock(NodesLock);
+	for (FCacheStoreNode& Node : Nodes)
+	{
+		if (Node.CacheStats.RemoveSingle((FCacheStoreStats*)Stats))
+		{
+			delete Stats;
+			return;
+		}
+	}
+	UE_LOGFMT(LogDerivedDataCache, Fatal,
+		"Failed to find {Type} cache store '{Name}' with path '{Path}' when destroying stats.",
+		Stats->GetType(), Stats->GetName(), Stats->GetPath());
 }
 
 FCacheRecordPolicy FCacheStoreHierarchy::AddPolicy(const FCacheRecordPolicy& BasePolicy, ECachePolicy Policy)
@@ -1239,13 +1398,109 @@ void FCacheStoreHierarchy::GetChunks(
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+static void ConvertToLegacyStats(FDerivedDataCacheStatsNode& OutNode, const FCacheStoreStats& Stats)
+{
+	EDerivedDataCacheStatus StatusCode;
+	switch (Stats.StatusCode)
+	{
+	default:
+		checkNoEntry();
+		[[fallthrough]];
+	case ECacheStoreStatusCode::None:
+		StatusCode = EDerivedDataCacheStatus::None;
+		break;
+	case ECacheStoreStatusCode::Warning:
+		StatusCode = EDerivedDataCacheStatus::Warning;
+		break;
+	case ECacheStoreStatusCode::Error:
+		StatusCode = EDerivedDataCacheStatus::Error;
+		break;
+	}
+
+	TUniqueLock StatsLock(Stats.Mutex);
+	OutNode = FDerivedDataCacheStatsNode(Stats.Type, Stats.Path, EnumHasAnyFlags(Stats.Flags, ECacheStoreFlags::Local), StatusCode, *Stats.Status.ToString());
+
+#if ENABLE_COOK_STATS
+	FDerivedDataCacheUsageStats& UsageStats = OutNode.UsageStats.FindOrAdd({});
+	UsageStats.GetStats = Stats.GetStats;
+	UsageStats.PutStats = Stats.PutStats;
+#endif
+
+	const auto MeasureActiveWallTime = [](TConstArrayView<FCacheStoreStats::FRateStat> History) -> FMonotonicTimeSpan
+	{
+		TSortedMap<FMonotonicTimePoint, FMonotonicTimePoint, TInlineAllocator<FCacheStoreStats::SpeedStatsMax>> WallTimes;
+		for (const FCacheStoreStats::FRateStat& RateStat : History)
+		{
+			WallTimes.Add(RateStat.StartTime, RateStat.EndTime);
+		}
+
+		FMonotonicTimeSpan Duration;
+		FMonotonicTimePoint ActiveStartTime = FMonotonicTimePoint::Infinity();
+		FMonotonicTimePoint ActiveEndTime;
+		for (const TTuple<FMonotonicTimePoint, FMonotonicTimePoint>& WallTime : WallTimes)
+		{
+			if (ActiveStartTime.IsInfinity())
+			{
+				ActiveStartTime = WallTime.Key;
+				ActiveEndTime = WallTime.Value;
+			}
+			if (ActiveEndTime < WallTime.Key)
+			{
+				Duration += ActiveEndTime - ActiveStartTime;
+				ActiveStartTime = WallTime.Key;
+			}
+			if (ActiveEndTime < WallTime.Value)
+			{
+				ActiveEndTime = WallTime.Value;
+			}
+		}
+		Duration += ActiveEndTime - ActiveStartTime;
+		return Duration;
+	};
+
+	FDerivedDataCacheSpeedStats& SpeedStats = OutNode.SpeedStats;
+
+	if (TConstArrayView<FMonotonicTimeSpan> LatencyHistory(&Stats.LatencyHistory[0], Stats.LatencyCount); !LatencyHistory.IsEmpty())
+	{
+		SpeedStats.LatencyMS = Algo::Accumulate(LatencyHistory, FMonotonicTimeSpan::Zero()).ToMilliseconds() / LatencyHistory.Num();
+	}
+
+	if (TConstArrayView<FCacheStoreStats::FRateStat> PhysicalReadSizeHistory(&Stats.PhysicalReadSizeHistory[0], Stats.PhysicalReadSizeCount); !PhysicalReadSizeHistory.IsEmpty())
+	{
+		const uint64 PhysicalReadSize = Algo::TransformAccumulate(PhysicalReadSizeHistory, &FCacheStoreStats::FRateStat::Amount, uint64(0));
+		if (const FMonotonicTimeSpan WallTime = MeasureActiveWallTime(PhysicalReadSizeHistory); !WallTime.IsZero())
+		{
+			SpeedStats.ReadSpeedMBs = double(PhysicalReadSize) / WallTime.ToSeconds() / 1024.0 / 1024.0;
+		}
+	}
+
+	if (TConstArrayView<FCacheStoreStats::FRateStat> PhysicalWriteSizeHistory(&Stats.PhysicalWriteSizeHistory[0], Stats.PhysicalWriteSizeCount); !PhysicalWriteSizeHistory.IsEmpty())
+	{
+		const uint64 PhysicalWriteSize = Algo::TransformAccumulate(PhysicalWriteSizeHistory, &FCacheStoreStats::FRateStat::Amount, uint64(0));
+		if (const FMonotonicTimeSpan WallTime = MeasureActiveWallTime(PhysicalWriteSizeHistory); !WallTime.IsZero())
+		{
+			SpeedStats.WriteSpeedMBs = double(PhysicalWriteSize) / WallTime.ToSeconds() / 1024.0 / 1024.0;
+		}
+	}
+}
+
 void FCacheStoreHierarchy::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
 	FReadScopeLock Lock(NodesLock);
 	OutNode.Children.Reserve(Nodes.Num());
 	for (const FCacheStoreNode& Node : Nodes)
 	{
-		Node.Cache->LegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get());
+		if (Node.CacheStats.IsEmpty())
+		{
+			Node.Cache->LegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get());
+		}
+		else
+		{
+			for (const FCacheStoreStats* Stats : Node.CacheStats)
+			{
+				ConvertToLegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get(), *Stats);
+			}
+		}
 	}
 }
 

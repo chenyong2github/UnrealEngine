@@ -65,7 +65,7 @@ ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerBackend, IMemor
 ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, IMemoryCacheStore* MemoryCache);
 ILegacyCacheStore* CreateCacheStoreThrottle(ILegacyCacheStore* InnerCache, uint32 LatencyMS, uint32 MaxBytesPerSecond);
 ILegacyCacheStore* CreateCacheStoreVerify(ILegacyCacheStore* InnerCache, bool bPutOnError);
-ILegacyCacheStore* CreateFileSystemCacheStore(const TCHAR* NodeName, const TCHAR* Config, ECacheStoreFlags& OutFlags, FString& OutPath);
+ILegacyCacheStore* CreateFileSystemCacheStore(const TCHAR* Name, const TCHAR* Config, ICacheStoreOwner& Owner, FString& OutPath);
 TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateHttpCacheStore(const TCHAR* NodeName, const TCHAR* Config);
 IMemoryCacheStore* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
 IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Filename, bool bWriting, bool bCompressed);
@@ -547,12 +547,10 @@ public:
 	bool ParseDataCache(const TCHAR* NodeName, const TCHAR* Config)
 	{
 		FString Path;
-		ECacheStoreFlags Flags;
-		if (ILegacyCacheStore* Store = CreateFileSystemCacheStore(NodeName, Config, Flags, Path))
+		if (ILegacyCacheStore* Store = CreateFileSystemCacheStore(NodeName, Config, *this, Path))
 		{
 			bUsingSharedDDC |= NodeName == TEXTVIEW("Shared");
 			Directories.AddUnique(Path);
-			Add(Store, Flags);
 			return true;
 		}
 		return false;
@@ -978,6 +976,18 @@ private:
 		{
 			Hierarchy->RemoveNotSafe(CacheStore);
 		}
+	}
+
+	ICacheStoreStats* CreateStats(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags, FStringView Type, FStringView Name, FStringView Path) final
+	{
+		check(Hierarchy);
+		return Hierarchy->CreateStats(CacheStore, Flags, Type, Name, Path);
+	}
+
+	void DestroyStats(ICacheStoreStats* Stats) final
+	{
+		check(Hierarchy);
+		Hierarchy->DestroyStats(Stats);
 	}
 
 	/** Delete all created backends in the reversed order they were created. */
