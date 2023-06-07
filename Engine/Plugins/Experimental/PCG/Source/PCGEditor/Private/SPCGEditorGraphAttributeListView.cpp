@@ -489,7 +489,7 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 			const UPCGMetadata* PCGMetadata = PCGPointData->ConstMetadata();
 
 			AddPointDataColumns(PCGPointData);
-			GenerateColumnsFromMetadata(PCGData, PCGMetadata);
+			GenerateColumnsFromMetadata(PCGPointData, PCGMetadata);
 
 			const TArray<FPCGPoint>& PCGPoints = PCGPointData->GetPoints();
 			const int32 NumPoints = PCGPoints.Num();
