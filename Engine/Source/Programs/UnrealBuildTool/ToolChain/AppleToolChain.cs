@@ -365,7 +365,9 @@ namespace UnrealBuildTool
 		{
 			base.GetCompileArguments_WarningsAndErrors(CompileEnvironment, Arguments);
 
+			Arguments.Add("-Wno-unknown-warning-option");
 			Arguments.Add("-Wno-range-loop-analysis");
+			Arguments.Add("-Wno-single-bit-bitfield-constant-conversion");
 		}
 
 		/// <inheritdoc/>
