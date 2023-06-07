@@ -222,11 +222,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AdvancedSettings, meta = (ClampMin = "1", UIMin = "1.0", UIMax = "10.0"))
 	float OverRelaxation = 1.3f;
 	
-	/** When true, the solver is reset each tick to start from the current input pose. Default is true.
+	/** DEPRECATED: When true, the solver is reset each tick to start from the current input pose. Default is true.
 	 * If false, incoming animated poses are ignored and the solver starts from the results of the previous solve.
 	 * In very limited circumstances, it can be beneficial to use the pose from the previous frame.*/
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AdvancedSettings)
-	bool bStartSolveFromInputPose = true;
+	UPROPERTY()
+	bool bStartSolveFromInputPose_DEPRECATED = true;
 	
 	UPROPERTY()
 	TArray<TObjectPtr<UIKRig_FBIKEffector>> Effectors;

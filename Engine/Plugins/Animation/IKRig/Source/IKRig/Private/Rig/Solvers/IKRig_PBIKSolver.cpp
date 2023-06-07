@@ -124,7 +124,7 @@ void UIKRigFBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	Settings.GlobalPullChainAlpha = PullChainAlpha;
 	Settings.MaxAngle = MaxAngle;
 	Settings.OverRelaxation = OverRelaxation;
-	Settings.bStartSolveFromInputPose = bStartSolveFromInputPose;
+	Settings.bStartSolveFromInputPose_DEPRECATED = bStartSolveFromInputPose_DEPRECATED;
 
 	// solve
 	Solver.Solve(Settings);
@@ -159,7 +159,7 @@ void UIKRigFBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 		PullChainAlpha = Settings->PullChainAlpha;
 		MaxAngle = Settings->MaxAngle;
 		OverRelaxation = Settings->OverRelaxation;
-		bStartSolveFromInputPose = Settings->bStartSolveFromInputPose;
+		bStartSolveFromInputPose_DEPRECATED = Settings->bStartSolveFromInputPose_DEPRECATED;
 
 		// copy effector settings
 		for (const UIKRig_FBIKEffector* InEffector : Settings->Effectors)

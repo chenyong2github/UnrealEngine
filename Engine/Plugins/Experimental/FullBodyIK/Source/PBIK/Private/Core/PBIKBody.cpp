@@ -72,10 +72,7 @@ void FRigidBody::Initialize(const FBone* SolverRoot)
 
 void FRigidBody::UpdateFromInputs(const FPBIKSolverSettings& Settings)
 {
-	if (Settings.bStartSolveFromInputPose)
-	{
-		UpdateTransformAndMassFromBones();
-	}
+	UpdateTransformAndMassFromBones();
 
 	// update InvMass based on global mass multiplier
 	constexpr float MinMass = 0.5f; // prevent mass ever hitting zero
