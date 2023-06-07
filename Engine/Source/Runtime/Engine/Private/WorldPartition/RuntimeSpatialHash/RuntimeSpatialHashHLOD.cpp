@@ -297,7 +297,7 @@ static TMap<UHLODLayer*, int32> GatherHLODLayers(const IStreamingGenerationConte
 							int32& HLODLevel = HLODLayersLevel.FindOrAdd(HLODLayer);
 							HLODLevel = FMath::Max(HLODLevel, CurrentHLODLevel);
 		
-							HLODLayer = HLODLayer->GetParentLayer().LoadSynchronous();
+							HLODLayer = HLODLayer->GetParentLayer();
 							CurrentHLODLevel++;
 						}
 					}

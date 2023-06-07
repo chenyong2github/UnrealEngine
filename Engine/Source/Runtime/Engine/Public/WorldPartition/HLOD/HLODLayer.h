@@ -35,7 +35,7 @@ enum class EHLODLayerType : uint8
 	Custom					UMETA(DisplayName = "Custom"),
 };
 
-UCLASS(Blueprintable, Config=Engine, PerObjectConfig)
+UCLASS(Blueprintable)
 class ENGINE_API UHLODLayer : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -61,8 +61,8 @@ public:
 	FName GetRuntimeGrid(uint32 InHLODLevel) const;
 	int32 GetCellSize() const { return !bIsSpatiallyLoaded ? 0 : CellSize; }
 	double GetLoadingRange() const { return !bIsSpatiallyLoaded ? WORLD_MAX : LoadingRange; }
-	const TSoftObjectPtr<UHLODLayer>& GetParentLayer() const;
-	const void SetParentLayer(const TSoftObjectPtr<UHLODLayer>& InParentLayer);
+	UHLODLayer* GetParentLayer() const { return !bIsSpatiallyLoaded ? nullptr : ParentLayer; }
+	void SetParentLayer(UHLODLayer* InParentLayer) { ParentLayer = InParentLayer; }
 	bool IsSpatiallyLoaded() const { return bIsSpatiallyLoaded; }
 	void SetIsSpatiallyLoaded(bool bInIsSpatiallyLoaded) { bIsSpatiallyLoaded = bInIsSpatiallyLoaded; }
 
@@ -82,38 +82,38 @@ private:
 
 private:
 	/** Type of HLOD generation to use */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD)
+	UPROPERTY(EditAnywhere, Category=HLOD)
 	EHLODLayerType LayerType;
 
 	/** HLOD Builder class */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (DisplayName = "HLOD Builder Class", EditConditionHides, EditCondition = "LayerType == EHLODLayerType::Custom"))
+	UPROPERTY(EditAnywhere, Category=HLOD, meta = (DisplayName = "HLOD Builder Class", EditConditionHides, EditCondition = "LayerType == EHLODLayerType::Custom"))
 	TSubclassOf<UHLODBuilder> HLODBuilderClass;
 
 	UPROPERTY(VisibleAnywhere, Export, NoClear, Category=HLOD, meta = (EditInline, NoResetToDefault))
 	TObjectPtr<UHLODBuilderSettings> HLODBuilderSettings;
 
 	/** Whether HLOD actors generated for this layer will be spatially loaded */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD)
+	UPROPERTY(EditAnywhere, Category=HLOD)
 	uint32 bIsSpatiallyLoaded : 1;
 
 	/** Cell size of the runtime grid created to encompass HLOD actors generated for this HLOD Layer */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "bIsSpatiallyLoaded"))
+	UPROPERTY(EditAnywhere, Category=HLOD, meta = (EditConditionHides, EditCondition = "bIsSpatiallyLoaded"))
 	int32 CellSize;
 
 	/** Loading range of the runtime grid created to encompass HLOD actors generated for this HLOD Layer */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "bIsSpatiallyLoaded"))
+	UPROPERTY(EditAnywhere, Category=HLOD, meta = (EditConditionHides, EditCondition = "bIsSpatiallyLoaded"))
 	double LoadingRange;
 
 	/** HLOD Layer to assign to the generated HLOD actors */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "bIsSpatiallyLoaded"))
-	TSoftObjectPtr<UHLODLayer> ParentLayer;
+	UPROPERTY(EditAnywhere, Category=HLOD, meta = (EditConditionHides, EditCondition = "bIsSpatiallyLoaded"))
+	TObjectPtr<UHLODLayer> ParentLayer;
 
 	/** Specify a custom HLOD Actor class, the default is AWorldPartitionHLOD */
 	UPROPERTY(EditAnywhere, Category = HLOD, AdvancedDisplay, meta = (DisplayName = "HLOD Actor Class"))
 	TSubclassOf<AWorldPartitionHLOD> HLODActorClass;
 
 	/** HLOD Modifier class, to allow changes to the HLOD at runtime */
-	UPROPERTY(EditAnywhere, Config, Category = HLOD, AdvancedDisplay, meta = (DisplayName = "HLOD Modifier Class"))
+	UPROPERTY(EditAnywhere, Category = HLOD, AdvancedDisplay, meta = (DisplayName = "HLOD Modifier Class"))
 	TSubclassOf<UWorldPartitionHLODModifier> HLODModifierClass;
 
 private:

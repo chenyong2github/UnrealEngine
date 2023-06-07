@@ -19,7 +19,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Splits actors into different sublevels based on their actor containers (level instance) */
-	UPROPERTY(EditAnywhere, Category = RuntimeSettings)
+	UPROPERTY(EditAnywhere, Category = RuntimeSettings, Meta = (EditCondition = "!bIsHLODSetup", EditConditionHides, HideEditConditionToggle))
 	bool bOneLevelPerActorContainer;
 #endif
 };

@@ -29,13 +29,9 @@ UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 	, CellSize(25600)
 	, LoadingRange(51200)
 	, HLODActorClass(AWorldPartitionHLOD::StaticClass())
-{
-}
+{}
 
 #if WITH_EDITOR
-
-
-
 UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
 {
 	if (UHLODLayer* HLODLayer = InActor->GetHLODLayer())
@@ -147,7 +143,7 @@ UHLODLayer* UHLODLayer::DuplicateHLODLayersSetup(UHLODLayer* HLODLayer, const FS
 		}
 
 		LastHLODLayer = NewHLODLayer;
-		CurrentHLODLayer = Cast<UHLODLayer>(CurrentHLODLayer->GetParentLayer().LoadSynchronous());
+		CurrentHLODLayer = CurrentHLODLayer->GetParentLayer();
 	}
 
 	return Result;
@@ -199,6 +195,23 @@ void UHLODLayer::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	{
 		HLODBuilderSettings = WPHLODUtilities->CreateHLODBuilderSettings(this);
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UHLODLayer, ParentLayer))
+	{
+		TSet<const UHLODLayer*> VisitedHLODLayers;
+		const UHLODLayer* CurHLODLayer = ParentLayer;
+		while (CurHLODLayer)
+		{
+			bool bHLODLayerWasAlreadyInSet;
+			VisitedHLODLayers.Add(CurHLODLayer, &bHLODLayerWasAlreadyInSet);
+			if (bHLODLayerWasAlreadyInSet)
+			{
+				UE_LOG(LogHLODLayer, Warning, TEXT("Circular HLOD parent chain detedted: HLODLayer=%s ParentLayer=%s"), *GetName(), *ParentLayer->GetName());
+				ParentLayer = nullptr;
+				break;
+			}
+			CurHLODLayer = CurHLODLayer->GetParentLayer();
+		}
+	}
 }
 
 FName UHLODLayer::GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, double InLoadingRange)
@@ -210,16 +223,4 @@ FName UHLODLayer::GetRuntimeGrid(uint32 InHLODLevel) const
 {
 	return !IsSpatiallyLoaded() ? NAME_None : GetRuntimeGridName(InHLODLevel, CellSize, LoadingRange);
 }
-
-const TSoftObjectPtr<UHLODLayer>& UHLODLayer::GetParentLayer() const
-{
-	static const TSoftObjectPtr<UHLODLayer> NullLayer;
-	return !IsSpatiallyLoaded() ? NullLayer : ParentLayer;
-}
-
-const void UHLODLayer::SetParentLayer(const TSoftObjectPtr<UHLODLayer>& InParentLayer)
-{
-	ParentLayer = InParentLayer;
-}
-
 #endif // WITH_EDITOR

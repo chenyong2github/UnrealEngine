@@ -13,14 +13,17 @@ struct FPropertyChangedChainEvent;
 
 using FStaticSpatialIndexType = TStaticSpatialIndexRTree<UWorldPartitionRuntimeCell*>;
 
-/** Holds settings for an HLOD layer (and its parents) for a particular partition class. */
+/** Holds settings for an HLOD layer for a particular partition class. */
 USTRUCT()
 struct FRuntimePartitionHLODSetup
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(VisibleAnywhere, Category = RuntimeSettings, EditFixedSize, Instanced, meta = (NoResetToDefault, EditFixedOrder, TitleProperty="Name"))
-	TArray<TObjectPtr<URuntimePartition>> Partitions;
+	UPROPERTY(VisibleAnywhere, Category = RuntimeSettings, Meta = (DisplayThumbnail = false))
+	TObjectPtr<const UHLODLayer> HLODLayer;
+
+	UPROPERTY(EditAnywhere, Category = RuntimeSettings, Instanced)
+	TObjectPtr<URuntimePartition> PartitionLayer;
 };
 
 /** Holds settings for a runtime partition instance. */
@@ -35,16 +38,24 @@ struct FRuntimePartitionDesc
 	TSubclassOf<URuntimePartition> Class;
 
 	/** Name for this partition, used to map actors to it through the Actor.RuntimeGrid property  */
-	UPROPERTY(EditAnywhere, Category = RuntimeSettings, meta = (EditCondition = "Class != nullptr", HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = RuntimeSettings, Meta = (EditCondition = "Class != nullptr", HideEditConditionToggle))
 	FName Name;
 
-	/** Array of partition objects, first index is the main one and then one per HLOD layer */
-	UPROPERTY(VisibleAnywhere, Category = RuntimeSettings, EditFixedSize, Instanced, meta = (EditCondition = "Class != nullptr", HideEditConditionToggle, NoResetToDefault, EditFixedOrder, TitleProperty="Name"))
-	TArray<TObjectPtr<URuntimePartition>> Partitions;
+	/** Main partition object */
+	UPROPERTY(VisibleAnywhere, Category = RuntimeSettings, Instanced, Meta = (EditCondition = "Class != nullptr", HideEditConditionToggle, NoResetToDefault, TitleProperty = "Name"))
+	TObjectPtr<URuntimePartition> MainLayer;
 
-	/** HLOD setups used by this partition */
-	UPROPERTY(EditAnywhere, Category = RuntimeSettings, meta = (EditCondition = "Class != nullptr", HideEditConditionToggle, ForceInlineRow, DisplayThumbnail=false))
-	TMap<TObjectPtr<const UHLODLayer>, FRuntimePartitionHLODSetup> HLODSetups;
+	/** Associated HLOD Layer object */
+	UPROPERTY(EditAnywhere, Category = RuntimeSettings, Meta = (EditCondition = "Class != nullptr", HideEditConditionToggle, NoResetToDefault, ForceInlineRow))
+	TObjectPtr<const UHLODLayer> HLODLayer;
+
+	/** HLOD setups used by this partition, one for each layers in the hierarchy */
+	UPROPERTY(VisibleAnywhere, Category = RuntimeSettings, EditFixedSize, Meta = (EditCondition = "HLODLayer != nullptr", HideEditConditionToggle, ForceInlineRow))
+	TArray<FRuntimePartitionHLODSetup> HLODSetups;
+#endif
+
+#if WITH_EDITOR
+	void UpdateHLODPartitionLayers();
 #endif
 };
 
@@ -71,6 +82,7 @@ class ENGINE_API UWorldPartitionRuntimeHashSet : public UWorldPartitionRuntimeHa
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
@@ -107,7 +119,7 @@ public:
 private:
 #if WITH_EDITOR
 	/** Update the partition layers to reflect the curent HLOD setups. */
-	void SetupHLODPartitionLayers(int32 RuntimePartitionIndex);
+	void UpdateHLODPartitionLayers();
 #endif
 
 public:
@@ -117,7 +129,7 @@ public:
 	FRuntimePartitionDesc PersistentPartitionDesc;
 
 	/** Array of runtime partition descriptors */
-	UPROPERTY(EditAnywhere, Category = RuntimeSettings, meta = (TitleProperty="Name"))
+	UPROPERTY(EditAnywhere, Category = RuntimeSettings, Meta = (TitleProperty = "Name"))
 	TArray<FRuntimePartitionDesc> RuntimePartitions;
 #endif
 

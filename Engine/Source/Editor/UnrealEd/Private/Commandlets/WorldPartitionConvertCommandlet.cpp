@@ -260,7 +260,7 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 		while (CurrentHLODLayer)
 		{
 			PackagesToSave.Add(CurrentHLODLayer->GetPackage());
-			CurrentHLODLayer = Cast<UHLODLayer>(CurrentHLODLayer->GetParentLayer().Get());
+			CurrentHLODLayer = CurrentHLODLayer->GetParentLayer();
 		}
 	}
 	

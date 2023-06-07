@@ -244,7 +244,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 		}
 
 		// Parent HLOD layer
-		UHLODLayer* ParentHLODLayer = HLODLayer->GetParentLayer().LoadSynchronous();
+		UHLODLayer* ParentHLODLayer = HLODLayer->GetParentLayer();
 		if (HLODActor->GetHLODLayer() != ParentHLODLayer)
 		{
 			HLODActor->SetHLODLayer(ParentHLODLayer);

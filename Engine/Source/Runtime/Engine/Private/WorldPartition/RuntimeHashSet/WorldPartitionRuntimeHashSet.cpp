@@ -33,6 +33,56 @@ FAutoConsoleCommand WorldPartitionRuntimeHashSetEnable(
 	})
 );
 
+#if WITH_EDITOR
+void FRuntimePartitionDesc::UpdateHLODPartitionLayers()
+{
+	if (!Class || !MainLayer || !HLODLayer)
+	{
+		HLODSetups.Empty();
+	}
+	else
+	{
+		TSet<const UHLODLayer*> VisitedHLODLayers;
+
+		const UHLODLayer* CurHLODLayer = HLODLayer;
+		while (CurHLODLayer)
+		{
+			const int32 HLODSetupIndex = VisitedHLODLayers.Num();
+
+			bool bHLODLayerWasAlreadyInSet;
+			VisitedHLODLayers.Add(CurHLODLayer, &bHLODLayerWasAlreadyInSet);
+			if (bHLODLayerWasAlreadyInSet)
+			{
+				break;
+			}
+
+			if (!HLODSetups.IsValidIndex(HLODSetupIndex))
+			{
+				HLODSetups.AddDefaulted();
+			}
+
+			FRuntimePartitionHLODSetup& HLODSetup = HLODSetups[HLODSetupIndex];
+
+			const bool bHLODLayerMatches = HLODSetup.HLODLayer == CurHLODLayer;
+			const UClass* ExpectedHLODPartitionClass = CurHLODLayer->IsSpatiallyLoaded() ? MainLayer->GetClass() : URuntimePartitionPersistent::StaticClass();
+			const bool bHasValidPartitionLayer = HLODSetup.PartitionLayer && (HLODSetup.PartitionLayer->GetClass() == ExpectedHLODPartitionClass);
+			
+			if (!bHLODLayerMatches || !bHasValidPartitionLayer)
+			{
+				HLODSetup.HLODLayer = CurHLODLayer;
+				HLODSetup.PartitionLayer = CurHLODLayer->IsSpatiallyLoaded() ? DuplicateObject<URuntimePartition>(MainLayer, MainLayer->GetOuter()) : NewObject<URuntimePartition>(MainLayer->GetOuter(), ExpectedHLODPartitionClass);
+				HLODSetup.PartitionLayer->Name = CurHLODLayer->GetFName();
+				HLODSetup.PartitionLayer->bIsHLODSetup = true;
+			}
+
+			CurHLODLayer = CurHLODLayer->GetParentLayer();
+		}
+
+		HLODSetups.SetNum(VisitedHLODLayers.Num());
+	}
+}
+#endif
+
 UWorldPartitionRuntimeHashSet::UWorldPartitionRuntimeHashSet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {}
@@ -61,6 +111,18 @@ void UWorldPartitionRuntimeHashSet::Serialize(FArchive& Ar)
 #endif
 }
 
+void UWorldPartitionRuntimeHashSet::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (!GetTypedOuter<UWorld>()->IsGameWorld())
+	{
+		UpdateHLODPartitionLayers();
+	}
+#endif
+}
+
 void UWorldPartitionRuntimeHashSet::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 #if WITH_EDITOR
@@ -84,9 +146,9 @@ bool UWorldPartitionRuntimeHashSet::SupportsHLODs() const
 {
 	for (const FRuntimePartitionDesc& RuntimePartitionDesc : RuntimePartitions)
 	{
-		if (RuntimePartitionDesc.Partitions.Num())
+		if (RuntimePartitionDesc.MainLayer)
 		{
-			if (RuntimePartitionDesc.Partitions[0]->SupportsHLODs())
+			if (RuntimePartitionDesc.MainLayer->SupportsHLODs())
 			{
 				return true;
 			}
@@ -108,8 +170,8 @@ bool UWorldPartitionRuntimeHashSet::GenerateStreaming(UWorldPartitionStreamingPo
 	check(!PersistentPartitionDesc.Class);
 	PersistentPartitionDesc.Class = URuntimePartitionPersistent::StaticClass();
 	PersistentPartitionDesc.Name = NAME_PersistentLevel;
-	PersistentPartitionDesc.Partitions.Add(NewObject<URuntimePartition>(this, URuntimePartitionPersistent::StaticClass(), NAME_None));
-	PersistentPartitionDesc.Partitions[0]->Name = TEXT("MainPartition");
+	PersistentPartitionDesc.MainLayer = NewObject<URuntimePartition>(this, URuntimePartitionPersistent::StaticClass(), NAME_None);
+	PersistentPartitionDesc.MainLayer->Name = TEXT("MainPartition");
 
 	//
 	// Split actor sets into their corresponding runtime partition implementation
@@ -131,8 +193,7 @@ bool UWorldPartitionRuntimeHashSet::GenerateStreaming(UWorldPartitionStreamingPo
 
 		if (const FRuntimePartitionDesc** RuntimePartitionDesc = NameToRuntimePartitionDescMap.Find(ActorSetRuntimeGrid[0]))
 		{
-			const uint32 PartitionLayerIndex = 0;
-			RuntimePartitionsToActorSetMap.FindOrAdd((*RuntimePartitionDesc)->Partitions[PartitionLayerIndex]).Add(&ActorSetInstance);
+			RuntimePartitionsToActorSetMap.FindOrAdd((*RuntimePartitionDesc)->MainLayer).Add(&ActorSetInstance);
 		}
 	});
 
@@ -320,7 +381,7 @@ void UWorldPartitionRuntimeHashSet::FlushStreaming()
 	check(PersistentPartitionDesc.Class);
 	PersistentPartitionDesc.Class = nullptr;
 	PersistentPartitionDesc.Name = NAME_None;
-	PersistentPartitionDesc.Partitions.Empty();
+	PersistentPartitionDesc.MainLayer = nullptr;
 
 	NonSpatiallyLoadedRuntimeCells.Empty();	
 	SpatialIndex.Reset();
@@ -340,9 +401,9 @@ bool UWorldPartitionRuntimeHashSet::IsValidGrid(FName GridName) const
 	{
 		if (RuntimePartitionDesc.Name == GridNameList[0])
 		{
-			if (RuntimePartitionDesc.Partitions.Num())
+			if (RuntimePartitionDesc.MainLayer)
 			{
-				return RuntimePartitionDesc.Partitions[0]->IsValidGrid(GridName);
+				return RuntimePartitionDesc.MainLayer->IsValidGrid(GridName);
 			}
 		}
 	}
@@ -617,6 +678,7 @@ void UWorldPartitionRuntimeHashSet::PostEditChangeChainProperty(FPropertyChanged
 
 	static FName NAME_RuntimePartitions(TEXT("RuntimePartitions"));
 	static FName NAME_HLODSetups_Key(TEXT("HLODSetups_Key"));
+	static FName NAME_HLODLayer(TEXT("HLODLayer"));
 
 	FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
@@ -627,13 +689,15 @@ void UWorldPartitionRuntimeHashSet::PostEditChangeChainProperty(FPropertyChanged
 
 		FRuntimePartitionDesc& RuntimePartitionDesc = RuntimePartitions[RuntimePartitionIndex];
 		
-		RuntimePartitionDesc.Partitions.Empty();
+		RuntimePartitionDesc.MainLayer = nullptr;
 
 		if (RuntimePartitionDesc.Class)
 		{
 			RuntimePartitionDesc.Name = RuntimePartitionDesc.Class->GetFName();
-			RuntimePartitionDesc.Partitions.Add(NewObject<URuntimePartition>(this, RuntimePartitionDesc.Class, NAME_None));
-			RuntimePartitionDesc.Partitions[0]->Name = TEXT("MainPartition");
+			RuntimePartitionDesc.MainLayer = NewObject<URuntimePartition>(this, RuntimePartitionDesc.Class, NAME_None);
+			RuntimePartitionDesc.MainLayer->Name = TEXT("MainPartition");
+
+			RuntimePartitionDesc.UpdateHLODPartitionLayers();
 		}
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FRuntimePartitionDesc, Name))
@@ -662,56 +726,20 @@ void UWorldPartitionRuntimeHashSet::PostEditChangeChainProperty(FPropertyChanged
 			}
 		}
 	}
-	else if (PropertyName == NAME_HLODSetups_Key)
+	else if (PropertyName == NAME_HLODLayer)
 	{
 		int32 RuntimePartitionIndex = PropertyChangedEvent.GetArrayIndex(NAME_RuntimePartitions.ToString());
 		check(RuntimePartitions.IsValidIndex(RuntimePartitionIndex));
 
-		FRuntimePartitionDesc& RuntimePartitionDesc = RuntimePartitions[RuntimePartitionIndex];
-
-		int32 HLODSetupsIndex = PropertyChangedEvent.GetArrayIndex(NAME_HLODSetups_Key.ToString());
-		const FSetElementId HLODSetupElemId = FSetElementId::FromInteger(HLODSetupsIndex);
-		check(RuntimePartitionDesc.HLODSetups.IsValidId(HLODSetupElemId));
-
-		const UHLODLayer* HLODLayer = RuntimePartitionDesc.HLODSetups.Get(HLODSetupElemId).Key;
-		FRuntimePartitionHLODSetup& HLODSetup = RuntimePartitionDesc.HLODSetups.Get(HLODSetupElemId).Value;
-		
-		HLODSetup.Partitions.Empty();
-
-		while (HLODLayer)
-		{
-			URuntimePartition* HLODPartitionLayer = NewObject<URuntimePartition>(this, RuntimePartitionDesc.Class, NAME_None);
-			HLODPartitionLayer->Name = HLODLayer->GetFName();
-			HLODPartitionLayer->bIsHLODSetup = true;
-
-			HLODSetup.Partitions.Add(HLODPartitionLayer);
-
-			HLODLayer = HLODLayer->GetParentLayer().LoadSynchronous();
-		}
-
-		SetupHLODPartitionLayers(RuntimePartitionIndex);
+		RuntimePartitions[RuntimePartitionIndex].UpdateHLODPartitionLayers();
 	}
 }
 
-void UWorldPartitionRuntimeHashSet::SetupHLODPartitionLayers(int32 RuntimePartitionIndex)
+void UWorldPartitionRuntimeHashSet::UpdateHLODPartitionLayers()
 {
-	FRuntimePartitionDesc& RuntimePartitionDesc = RuntimePartitions[RuntimePartitionIndex];
-
-	if (RuntimePartitionDesc.Partitions.Num())
+	for (FRuntimePartitionDesc& RuntimePartitionDesc : RuntimePartitions)
 	{
-		RuntimePartitionDesc.Partitions.SetNum(1);
-
-		for (auto [CurHLODLayer, CurHLODSetup] : RuntimePartitionDesc.HLODSetups)
-		{
-			for (const URuntimePartition* HLODPartitionTemplate : CurHLODSetup.Partitions)
-			{
-				URuntimePartition* HLODPartitionLayer = DuplicateObject<URuntimePartition>(HLODPartitionTemplate, this);
-				HLODPartitionLayer->Name = CurHLODLayer->GetFName();
-				HLODPartitionLayer->bIsHLODSetup = false;
-
-				RuntimePartitionDesc.Partitions.Add(HLODPartitionLayer);
-			}
-		}
+		RuntimePartitionDesc.UpdateHLODPartitionLayers();
 	}
 }
 #endif

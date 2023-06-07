@@ -32,16 +32,16 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(VisibleAnywhere, Category = RuntimeSettings, meta = (EditCondition = "!bIsHLODSetup", EditConditionHides, HideEditConditionToggle))
+	UPROPERTY(VisibleAnywhere, Category = RuntimeSettings, Meta = (EditCondition = "!bIsHLODSetup", EditConditionHides, HideEditConditionToggle))
 	FName Name;
 
-	UPROPERTY(EditAnywhere, Category = RuntimeSettings, meta = (EditCondition = "!bIsHLODSetup", EditConditionHides, HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = RuntimeSettings, Meta = (EditCondition = "!bIsHLODSetup", EditConditionHides, HideEditConditionToggle))
 	bool bBlockOnSlowStreaming;
 
-	UPROPERTY(EditAnywhere, Category = RuntimeSettings, meta = (EditCondition = "!bIsHLODSetup", EditConditionHides, HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = RuntimeSettings, Meta = (EditCondition = "!bIsHLODSetup", EditConditionHides, HideEditConditionToggle))
 	bool bClientOnlyVisible;
 
-	UPROPERTY(EditAnywhere, Category = RuntimeSettings, meta = (EditCondition = "!bIsHLODSetup", EditConditionHides, HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = RuntimeSettings, Meta = (EditCondition = "!bIsHLODSetup", EditConditionHides, HideEditConditionToggle))
 	int32 Priority;
 
 	UPROPERTY()
