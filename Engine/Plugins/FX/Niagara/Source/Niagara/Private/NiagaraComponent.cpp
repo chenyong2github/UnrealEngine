@@ -354,6 +354,14 @@ TUniformBuffer<FPrimitiveUniformShaderParameters>* FNiagaraSceneProxy::GetCustom
 		KeyHash = HashCombine(KeyHash, UE::Math::GetTypeHash(InstanceBounds.Max));
 	}
 
+	const FCustomPrimitiveData* LocalCustomPrimitiveData = GetCustomPrimitiveData();
+	if (LocalCustomPrimitiveData && LocalCustomPrimitiveData->Data.Num())
+	{
+		const uint32 CustomFloatHash = FCrc::MemCrc_DEPRECATED(LocalCustomPrimitiveData->Data.GetData(), LocalCustomPrimitiveData->Data.Num() * LocalCustomPrimitiveData->Data.GetTypeSize());
+		KeyHash = HashCombine(KeyHash, CustomFloatHash);
+	}
+
+	CustomUniformBuffers.Empty();
 	TUniformBuffer<FPrimitiveUniformShaderParameters>*& CustomUBRef = CustomUniformBuffers.FindOrAdd(KeyHash);
 	if (CustomUBRef == nullptr)
 	{
@@ -364,7 +372,7 @@ TUniformBuffer<FPrimitiveUniformShaderParameters>* FNiagaraSceneProxy::GetCustom
 				.ActorWorldPosition(GetActorPosition())
 				.WorldBounds(GetBounds())
 				.LocalBounds(GetLocalBounds())
-				.CustomPrimitiveData(GetCustomPrimitiveData())
+				.CustomPrimitiveData(LocalCustomPrimitiveData)
 				.LightingChannelMask(GetLightingChannelMask())
 				.LightmapDataIndex(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetLightmapDataOffset() : 0)
 				.LightmapUVIndex(GetLightMapCoordinateIndex())

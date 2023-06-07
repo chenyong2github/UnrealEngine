@@ -6834,13 +6834,26 @@ FPrimitiveViewRelevance FParticleSystemSceneProxy::GetViewRelevance(const FScene
 void FParticleSystemSceneProxy::OnTransformChanged()
 {
 	WorldSpacePrimitiveUniformBuffer.ReleaseResource();
+	WorldSpaceUBHash = 0;
 }
 
 void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 {
 	check(IsInRenderingThread());
-	if (!WorldSpacePrimitiveUniformBuffer.IsInitialized())
+
+	// Hash custom floats because we need to invalidate this UB if they don't match otherwise updates to the buffer won't work
+	uint32 NewWorldSpaceUBHash = 0;
+	const FCustomPrimitiveData* LocalCustomPrimitiveData = GetCustomPrimitiveData();
+	if (LocalCustomPrimitiveData && LocalCustomPrimitiveData->Data.Num())
 	{
+		NewWorldSpaceUBHash = FCrc::MemCrc32(LocalCustomPrimitiveData->Data.GetData(), LocalCustomPrimitiveData->Data.Num() * LocalCustomPrimitiveData->Data.GetTypeSize());
+	}
+
+	const bool bNeedsInit = !WorldSpacePrimitiveUniformBuffer.IsInitialized();
+
+	if (bNeedsInit || (WorldSpaceUBHash != NewWorldSpaceUBHash))
+	{
+		WorldSpaceUBHash = NewWorldSpaceUBHash;
 		WorldSpacePrimitiveUniformBuffer.SetContents(
 			FPrimitiveUniformShaderParametersBuilder{}
 			.Defaults()
@@ -6853,8 +6866,13 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 				.LightingChannelMask(GetLightingChannelMask())
 				.UseSingleSampleShadowFromStationaryLights(UseSingleSampleShadowFromStationaryLights())
 				.UseVolumetricLightmap(GetScene().HasPrecomputedVolumetricLightmap_RenderThread())
+				.CustomPrimitiveData(GetCustomPrimitiveData())
 			.Build()
 		);
+	}
+
+	if ( bNeedsInit)
+	{
 		WorldSpacePrimitiveUniformBuffer.InitResource();
 	}
 }
