@@ -260,7 +260,7 @@ struct RIGVM_API FRigVMExecuteOp : public FRigVMBaseOp
 	{
 	}
 
-	FRigVMExecuteOp(uint16 InFunctionIndex, uint8 InArgumentCount)
+	FRigVMExecuteOp(uint16 InFunctionIndex, uint16 InArgumentCount)
 	: FRigVMBaseOp(ERigVMOpCode::Execute)
 	, FunctionIndex(InFunctionIndex)
 	, ArgumentCount(InArgumentCount)

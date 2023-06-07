@@ -1059,7 +1059,7 @@ uint64 FRigVMByteCode::AddJumpIfOp(ERigVMOpCode InOpCode, uint16 InInstructionIn
 
 uint64 FRigVMByteCode::AddExecuteOp(uint16 InFunctionIndex, const FRigVMOperandArray& InOperands, const int32& StartPredicateIndex, const int32 PredicateCount)
 {
-	FRigVMExecuteOp Op(InFunctionIndex, (uint8)InOperands.Num());
+	FRigVMExecuteOp Op(InFunctionIndex, IntCastChecked<uint16>(InOperands.Num()));
 	Op.FirstPredicateIndex = StartPredicateIndex;
 	Op.PredicateCount = PredicateCount;
 	uint64 OpByteIndex = AddOp(Op);
