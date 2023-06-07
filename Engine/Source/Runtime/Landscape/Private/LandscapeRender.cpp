@@ -1968,9 +1968,6 @@ bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bF
 		{
 			Culling::SetupMeshBatch(*SharedBuffers, MeshBatch);
 		}
-
-		// The default is overridden here only by mobile landscape to punch holes in the geometry
-		ApplyMeshElementModifier(BatchElement, LODIndex);
 	}
 
 	return true;
