@@ -115,14 +115,22 @@ FLandscapeFileInfo FLandscapeTiledImage::Load(const TCHAR* Filename)
 	{
 		FLandscapeImageDataRef ImageData;
 		FLandscapeImageFileCache& LandscapeImageFileCache = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor").GetImageFileCache();
-		if (FLandscapeFileInfo TileResult16 = LandscapeImageFileCache.FindImage<uint16>(*Tile.Value, ImageData); TileResult16.ResultCode != ELandscapeImportResult::Success)
+		FLandscapeFileInfo TileLoadResult;
+		if (TileLoadResult = LandscapeImageFileCache.FindImage<uint16>(*Tile.Value, ImageData); TileLoadResult.ResultCode != ELandscapeImportResult::Success)
 		{
-			if (FLandscapeFileInfo TileResult8 = LandscapeImageFileCache.FindImage<uint8>(*Tile.Value, ImageData);  TileResult8.ResultCode != ELandscapeImportResult::Success)
+			if (TileLoadResult = LandscapeImageFileCache.FindImage<uint8>(*Tile.Value, ImageData);  TileLoadResult.ResultCode != ELandscapeImportResult::Success)
 			{
-				return TileResult16;
+				if (TileLoadResult.ResultCode == ELandscapeImportResult::Warning)
+				{
+					Result.ErrorMessage = TileLoadResult.ErrorMessage;
+					Result.ResultCode = TileLoadResult.ResultCode;
+				}
+				else if (TileLoadResult.ResultCode == ELandscapeImportResult::Error)
+				{
+					return TileLoadResult;
+				}
 			}
 		}
-
 
 		SizeInTiles.X = FMath::Max(SizeInTiles.X, Tile.Key.X + 1);
 		SizeInTiles.Y = FMath::Max(SizeInTiles.Y, Tile.Key.Y + 1);

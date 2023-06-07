@@ -60,6 +60,11 @@ FLandscapeFileInfo FLandscapeHeightmapFileFormat_Png::Validate(const TCHAR* Heig
 		}
 		else
 		{
+			FLandscapeFileResolution ImportResolution;
+			ImportResolution.Width = static_cast<uint32>(ImageWrapper->GetWidth());
+			ImportResolution.Height = static_cast<uint32>(ImageWrapper->GetHeight());
+			Result.PossibleResolutions.Add(ImportResolution);
+
 			if (ImageWrapper->GetFormat() != ERGBFormat::Gray)
 			{
 				Result.ResultCode = ELandscapeImportResult::Warning;
@@ -70,10 +75,7 @@ FLandscapeFileInfo FLandscapeHeightmapFileFormat_Png::Validate(const TCHAR* Heig
 				Result.ResultCode = ELandscapeImportResult::Warning;
 				Result.ErrorMessage = LOCTEXT("Import_HeightmapFileLowBitDepth", "The heightmap file appears to be an 8-bit png, 16-bit is preferred. The import *can* continue, but the result may be lower quality than desired.");
 			}
-			FLandscapeFileResolution ImportResolution;
-			ImportResolution.Width = static_cast<uint32>(ImageWrapper->GetWidth());
-			ImportResolution.Height = static_cast<uint32>(ImageWrapper->GetHeight());
-			Result.PossibleResolutions.Add(ImportResolution);
+			
 		}
 	}
 

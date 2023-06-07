@@ -657,12 +657,20 @@ void ULandscapeEditorObject::RefreshImports()
 	{
 		FLandscapeTiledImage TiledImage;
 		
-		if (FLandscapeFileInfo FileInfo = TiledImage.Load(*ImportLandscape_HeightmapFilename); FileInfo.ResultCode == ELandscapeImportResult::Success)
+		FLandscapeFileInfo FileInfo = TiledImage.Load(*ImportLandscape_HeightmapFilename);
+
+		if (FileInfo.PossibleResolutions.Num() > 0)
 		{
 			ImportLandscape_Width = TiledImage.GetResolution().X;
 			ImportLandscape_Height = TiledImage.GetResolution().Y;
+		}
+
+		if ( FileInfo.ResultCode != ELandscapeImportResult::Error)
+		{
 			ChooseBestComponentSizeForImport();
 			ImportLandscapeData();
+			ImportLandscape_HeightmapImportResult = FileInfo.ResultCode;
+			ImportLandscape_HeightmapErrorMessage = FileInfo.ErrorMessage;
 		}
 	}
 
@@ -736,7 +744,7 @@ void ULandscapeEditorObject::ImportLandscapeData()
 	FLandscapeTiledImage TiledImage;
 	FLandscapeFileInfo FileInfo = TiledImage.Load(*ImportLandscape_HeightmapFilename);
 
-	if (FileInfo.ResultCode != ELandscapeImportResult::Success)
+	if (FileInfo.ResultCode == ELandscapeImportResult::Error)
 	{
 		ImportLandscape_Data.Empty();
 	}

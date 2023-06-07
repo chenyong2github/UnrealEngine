@@ -22,6 +22,8 @@ struct FLandscapeImageDataRef
 {
 	TSharedPtr<TArray<uint8>> Data;
 	FIntPoint Resolution;
+	ELandscapeImportResult Result;
+	FText ErrorMessage;
 };
 
 class FLandscapeImageFileCache
@@ -42,6 +44,8 @@ public:
 			CacheEntry->UsageCount++;
 			OutImageData = CacheEntry->ImageData;
 			Result.PossibleResolutions.Add(FLandscapeFileResolution(OutImageData.Resolution.X, OutImageData.Resolution.Y));
+			Result.ResultCode = CacheEntry->ImageData.Result;
+			Result.ErrorMessage = CacheEntry->ImageData.ErrorMessage;
 			return Result;
 		}
 
@@ -57,7 +61,7 @@ public:
 
 		const FLandscapeFileInfo FileInfo = FileFormat->Validate(InImageFilename);
 
-		if (FileInfo.ResultCode == ELandscapeImportResult::Success && FileInfo.PossibleResolutions.Num() > 0)
+		if (FileInfo.ResultCode != ELandscapeImportResult::Error && FileInfo.PossibleResolutions.Num() > 0)
 		{
 			FLandscapeFileResolution ExpectedResolution = FileInfo.PossibleResolutions[0];
 			FLandscapeImportData<T> ImportData = FileFormat->Import(InImageFilename, ExpectedResolution);
@@ -67,6 +71,8 @@ public:
 			NewImageData.Data->SetNumUninitialized(BufferSize);
 			FMemory::Memcpy(NewImageData.Data->GetData(), ImportData.Data.GetData(), BufferSize);
 			NewImageData.Resolution = FIntPoint(ExpectedResolution.Width, ExpectedResolution.Height);
+			NewImageData.Result = FileInfo.ResultCode;
+			NewImageData.ErrorMessage = FileInfo.ErrorMessage;
 		}
 		else
 		{
@@ -78,6 +84,9 @@ public:
 		Add(FString(InImageFilename), OutImageData);
 		
 		Result.PossibleResolutions.Add(FLandscapeFileResolution(OutImageData.Resolution.X, OutImageData.Resolution.Y));
+		Result.ResultCode = FileInfo.ResultCode;
+		Result.ErrorMessage = FileInfo.ErrorMessage;
+
 		return Result;
 	}
 

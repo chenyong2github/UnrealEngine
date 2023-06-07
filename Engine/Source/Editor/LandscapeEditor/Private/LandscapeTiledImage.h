@@ -69,7 +69,7 @@ public:
 					FLandscapeImageFileCache& LandscapeImageFileCache = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor").GetImageFileCache();
 					FLandscapeFileInfo TileResult = LandscapeImageFileCache.FindImage<T>(**TileFilename, ImageData);
 
-					if (TileResult.ResultCode != ELandscapeImportResult::Success)
+					if (TileResult.ResultCode == ELandscapeImportResult::Error)
 					{
 						return TileResult;
 					}
