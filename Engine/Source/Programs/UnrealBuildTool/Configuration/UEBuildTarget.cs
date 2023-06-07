@@ -3438,8 +3438,7 @@ namespace UnrealBuildTool
 			Dictionary<UEBuildModuleCPP, int> SharedPCHModuleToPriority = new Dictionary<UEBuildModuleCPP, int>();
 			foreach (UEBuildModuleCPP SharedPCHModule in SharedPCHModules)
 			{
-				List<UEBuildModule> Dependencies = new List<UEBuildModule>();
-				SharedPCHModule.GetAllDependencyModules(Dependencies, new HashSet<UEBuildModule>(), false, false, false);
+				HashSet<UEBuildModule> Dependencies = SharedPCHModule.GetAllDependencyModulesForPCH(false, false);
 				SharedPCHModuleToPriority.Add(SharedPCHModule, Dependencies.Count(x => SharedPCHModules.Contains(x)));
 			}
 

@@ -1017,10 +1017,12 @@ namespace UnrealBuildTool
 		/// Gathers all the module dependencies a PCH would have
 		/// </summary>
 		/// <param name="bIncludePrivateModules">Whether to include private modules.</param>
-		public HashSet<UEBuildModule> GetAllDependencyModulesForPCH(bool bIncludePrivateModules)
+		/// <param name="bForceCircular">True if circular dependencies should be processed</param>
+		public HashSet<UEBuildModule> GetAllDependencyModulesForPCH(bool bIncludePrivateModules, bool bForceCircular)
 		{
 			HashSet<UEBuildModule> ReferencedModules = new HashSet<UEBuildModule>();
-			InternalGetAllDependencyModulesForPCH(ReferencedModules, new HashSet<UEBuildModule>(), bIncludePrivateModules);
+			HashSet<UEBuildModule> IgnoreReferencedModules = new HashSet<UEBuildModule> { this };
+			InternalGetAllDependencyModulesForPCH(ReferencedModules, IgnoreReferencedModules, bIncludePrivateModules, bForceCircular);
 			return ReferencedModules;
 		}
 
@@ -1030,7 +1032,8 @@ namespace UnrealBuildTool
 		/// <param name="ReferencedModules">Hash of all referenced modules with their addition index.</param>
 		/// <param name="IgnoreReferencedModules">Hashset used to ignore modules which are already added to the list</param>
 		/// <param name="bIncludePrivateModules">Whether to include private modules.</param>
-		private void InternalGetAllDependencyModulesForPCH(HashSet<UEBuildModule> ReferencedModules, HashSet<UEBuildModule> IgnoreReferencedModules, bool bIncludePrivateModules)
+		/// <param name="bForceCircular">True if circular dependencies should be processed</param>
+		private void InternalGetAllDependencyModulesForPCH(HashSet<UEBuildModule> ReferencedModules, HashSet<UEBuildModule> IgnoreReferencedModules, bool bIncludePrivateModules, bool bForceCircular)
 		{
 			List<UEBuildModule> AllDependencyModules = new List<UEBuildModule>(
 				((bIncludePrivateModules && PrivateDependencyModules != null) ? PrivateDependencyModules.Count : 0) +
@@ -1050,15 +1053,15 @@ namespace UnrealBuildTool
 				AllDependencyModules.AddRange(PublicIncludePathModules);
 			}
 
-			foreach (UEBuildModule DependencyModule in AllDependencyModules)
+			foreach (UEBuildModule DependencyModule in AllDependencyModules.Distinct())
 			{
 				// Don't follow circular back-references!
-				if (!HasCircularDependencyOn(DependencyModule.Name))
+				if (bForceCircular || !HasCircularDependencyOn(DependencyModule.Name))
 				{
 					if (IgnoreReferencedModules.Add(DependencyModule))
 					{
 						// Recurse into dependent modules first
-						DependencyModule.InternalGetAllDependencyModulesForPCH(ReferencedModules, IgnoreReferencedModules, false);
+						DependencyModule.InternalGetAllDependencyModulesForPCH(ReferencedModules, IgnoreReferencedModules, false, bForceCircular);
 
 						ReferencedModules.Add(DependencyModule);
 					}
