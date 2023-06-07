@@ -3666,6 +3666,9 @@ void ALandscapeProxy::Destroyed()
 		NumTexturesToStreamForVisibleGrassMapRender = 0;
 	}
 
+	// Destroy the Nanite component when we get destroyed so that we don't restore a garbage Nanite component (it's non-transactional and will get regenerated anyway)
+	InvalidateNaniteRepresentation(/* bInCheckContentId = */false);
+
 	// unregister feature level changed handler for grass
 	if (FeatureLevelChangedDelegateHandle.IsValid())
 	{
