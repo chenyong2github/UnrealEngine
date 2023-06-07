@@ -111,7 +111,36 @@ public:
 	virtual void RHIBindAccelerationStructureMemory(FRHIRayTracingScene* Scene, FRHIBuffer* Buffer, uint32 BufferOffset) final override;
 	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange) final override;
 	virtual void RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams) final override;
-#endif
+
+	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRHIRayTracingShader* RayGenShader,
+		FRHIRayTracingScene* Scene,
+		const FRayTracingShaderBindings& GlobalResourceBindings,
+		uint32 Width, uint32 Height) final override;
+	virtual void RHIRayTraceDispatchIndirect(FRHIRayTracingPipelineState* RayTracingPipelineState, FRHIRayTracingShader* RayGenShader,
+		FRHIRayTracingScene* Scene,
+		const FRayTracingShaderBindings& GlobalResourceBindings,
+		FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset) final override;
+	virtual void RHISetRayTracingHitGroup(
+		FRHIRayTracingScene* Scene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
+		FRHIRayTracingPipelineState* Pipeline, uint32 HitGroupIndex,
+		uint32 NumUniformBuffers, FRHIUniformBuffer* const* UniformBuffers,
+		uint32 LooseParameterDataSize, const void* LooseParameterData,
+		uint32 UserData) final override;
+	virtual void RHISetRayTracingCallableShader(
+		FRHIRayTracingScene* Scene, uint32 ShaderSlotInScene,
+		FRHIRayTracingPipelineState* Pipeline, uint32 ShaderIndexInPipeline,
+		uint32 NumUniformBuffers, FRHIUniformBuffer* const* UniformBuffers,
+		uint32 UserData) final override;
+	virtual void RHISetRayTracingMissShader(
+		FRHIRayTracingScene* Scene, uint32 ShaderSlotInScene,
+		FRHIRayTracingPipelineState* Pipeline, uint32 ShaderIndexInPipeline,
+		uint32 NumUniformBuffers, FRHIUniformBuffer* const* UniformBuffers,
+		uint32 UserData) final override;
+	virtual void RHISetRayTracingBindings(
+		FRHIRayTracingScene* Scene, FRHIRayTracingPipelineState* Pipeline,
+		uint32 NumBindings, const FRayTracingLocalShaderBindings* Bindings,
+		ERayTracingBindingType BindingType) final override;
+#endif // VULKAN_RHI_RAYTRACING
 
 	inline FVulkanCommandBufferManager* GetCommandBufferManager()
 	{
