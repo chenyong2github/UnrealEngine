@@ -330,7 +330,7 @@ void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo, FRDGBuffe
 
 	if (bHasCustomData)
 	{
-		check(UploadInfo.InstanceCustomDataCount > 0);
+		//check(UploadInfo.InstanceCustomDataCount > 0);
 		check(UploadInfo.InstanceCustomDataCount * InstanceCount == UploadInfo.InstanceCustomData.Num());
 	}
 	else
@@ -1243,7 +1243,7 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExte
 								PayloadPosition += SPLINE_MESH_PARAMS_FLOAT4_SIZE;
 							}
 
-							if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA)
+							if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA && UploadInfo.InstanceCustomDataCount > 0)
 							{
 								check(PayloadPosition + (UploadInfo.InstanceCustomDataCount >> 2u) <= InstancePayloadData.Num());
 								const float* CustomDataGetPtr = &UploadInfo.InstanceCustomData[(InstanceIndex * UploadInfo.InstanceCustomDataCount)];
