@@ -71,7 +71,7 @@ private:
 	void LaunchUnrealInsights_OnClicked();
 	
 	void OpenLiveSession_OnClicked();
-	void OpenLiveSession();
+	void OpenLiveSession(const FString& InTraceDestination);
 
 	void OpenProfilingDirectory_OnClicked();
 	void OpenProfilingDirectory();

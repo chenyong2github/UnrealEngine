@@ -567,12 +567,12 @@ void SInsightsStatusBarWidget::LaunchUnrealInsights_OnClicked()
 
 void SInsightsStatusBarWidget::OpenLiveSession_OnClicked()
 {
-	OpenLiveSession();
+	OpenLiveSession(FTraceAuxiliary::GetTraceDestinationString());
 }
 
-void SInsightsStatusBarWidget::OpenLiveSession()
+void SInsightsStatusBarWidget::OpenLiveSession(const FString& InTraceDestination)
 {
-	FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(FTraceAuxiliary::GetTraceDestinationString());
+	FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(InTraceDestination);
 }
 
 void SInsightsStatusBarWidget::OpenProfilingDirectory_OnClicked()
@@ -813,7 +813,7 @@ void SInsightsStatusBarWidget::OnTraceStopped(FTraceAuxiliary::EConnectionType I
 {
 	if (GetBooleanSettingValue(OpenInsightsAfterTraceSettingName))
 	{
-		OpenLiveSession();
+		OpenLiveSession(InTraceDestination);
 	}
 	if (GetBooleanSettingValue(ShowInExplorerAfterTraceSettingName))
 	{
