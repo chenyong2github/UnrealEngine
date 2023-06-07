@@ -465,6 +465,12 @@ class UMaterialExpressionStrataUnlitBSDF : public UMaterialExpressionStrataBSDF
 	UPROPERTY()
 	FExpressionInput TransmittanceColor;
 
+	/**
+	 * The surface normal. Only used for refraction effects when `IOR` or `pixel normal offset` modes are selected.
+	 */
+	UPROPERTY()
+	FExpressionInput Normal;
+
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;

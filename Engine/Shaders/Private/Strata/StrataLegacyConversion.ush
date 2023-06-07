@@ -481,31 +481,31 @@ FStrataData StrataConvertLegacyMaterialStatic(
 		const float GreyTransmittance = saturate(1.0f - Opacity);
 	#if MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
 		// Opaque materials only write emissive.
-		Out = GetStrataUnlitBSDF(Emissive, 0.0f);
+		Out = GetStrataUnlitBSDF(Emissive, 0.0f, RawNormal);
 	#elif MATERIALBLENDING_ALPHACOMPOSITE
 		// Uses (Luminance, black transmittance) for premultiplied alpha blending. Opacity is controled using coverage
-		Out = GetStrataUnlitBSDF(Emissive, 0.0f);
+		Out = GetStrataUnlitBSDF(Emissive, 0.0f, RawNormal);
 		#if STRATA_INLINE_SHADING
 			Out.InlinedBSDF.Coverage = Opacity;
 		#endif
 	#elif MATERIALBLENDING_ALPHAHOLDOUT
 		// The MATERIALBLENDING_ALPHAHOLDOUT case needs to be before the MATERIALBLENDING_TRANSLUCENT case, as alphaholdout material have both cases defined
-		Out = GetStrataUnlitBSDF(0.0f, GreyTransmittance);
+		Out = GetStrataUnlitBSDF(0.0f, GreyTransmittance, RawNormal);
 	#elif MATERIALBLENDING_TRANSLUCENT
 		// Uses (Luminance, black transmittance) for translucency blending. Opacity is controled using coverage
-		Out = GetStrataUnlitBSDF(Emissive * Opacity, 0.0f);
+		Out = GetStrataUnlitBSDF(Emissive * Opacity, 0.0f, RawNormal);
 		#if STRATA_INLINE_SHADING
 			Out.InlinedBSDF.Coverage = Opacity;
 		#endif
 	#elif MATERIALBLENDING_ADDITIVE
 		// Emissive is weighted by opacity in the legacy material.
-		Out = GetStrataUnlitBSDF(Emissive * Opacity, 1.0f);
+		Out = GetStrataUnlitBSDF(Emissive * Opacity, 1.0f, RawNormal);
 	#elif MATERIALBLENDING_MODULATE
 		// Setting up emissive as the transmittance color. It is not clamped in case brightening is required.
-		Out = GetStrataUnlitBSDF(0.0f, Emissive);
+		Out = GetStrataUnlitBSDF(0.0f, Emissive, RawNormal);
 	#else
 		// Required default for some materials such as Editor UI
-		Out = GetStrataUnlitBSDF(Emissive, 0.0f);
+		Out = GetStrataUnlitBSDF(Emissive, 0.0f, RawNormal);
 	#endif
 	}
 	else if (ShadingModel == SHADINGMODELID_HAIR)

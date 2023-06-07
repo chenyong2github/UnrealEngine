@@ -559,6 +559,7 @@ struct FStrataBSDF
 ///////////////////////////////////////////////////////////////////////////////
 // Unlit BSDF members
 #define UNLIT_TRANSMITTANCE(X)			X.VGPRs[0].xyz
+#define UNLIT_NORMAL(X)					X.VGPRs[1].xyz
 
 ///////////////////////////////////////////////////////////////////////////////
 // Hair BSDF members
@@ -1509,13 +1510,14 @@ FStrataData GetStrataVolumeFogCloudBSDF(float3 Albedo, float3 Extinction, float3
 	return StrataData;
 }
 
-FStrataData GetStrataUnlitBSDF(float3 Emissive, float3 TransmittanceColor)
+FStrataData GetStrataUnlitBSDF(float3 Emissive, float3 TransmittanceColor, float3 Normal)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 
 	BSDF_SETTYPE					(StrataData.InlinedBSDF, STRATA_BSDF_TYPE_UNLIT);
 	BSDF_SETEMISSIVE				(StrataData.InlinedBSDF, Emissive);
 	UNLIT_TRANSMITTANCE				(StrataData.InlinedBSDF) = TransmittanceColor;
+	UNLIT_NORMAL					(StrataData.InlinedBSDF) = Normal;
 
 #if STRATA_INLINE_SHADING
 	StrataData.InlinedBSDF.Coverage = 1.0f;
@@ -2747,6 +2749,7 @@ void FStrataBSDF::StrataSanitizeBSDF()
 			BSDF_SETEMISSIVE(this, max(BSDF_GETEMISSIVE(this), 0.0));
 		#endif
 			UNLIT_TRANSMITTANCE(this) = saturate(UNLIT_TRANSMITTANCE(this));
+			UNLIT_NORMAL(this) = normalize(UNLIT_NORMAL(this));
 		}
 	}
 }

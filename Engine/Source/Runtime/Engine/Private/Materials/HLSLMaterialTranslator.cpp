@@ -12316,12 +12316,13 @@ int32 FHLSLMaterialTranslator::StrataVolumetricFogCloudBSDF(int32 Albedo, int32 
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataUnlitBSDF(int32 EmissiveColor, int32 TransmittanceColor)
+int32 FHLSLMaterialTranslator::StrataUnlitBSDF(int32 EmissiveColor, int32 TransmittanceColor, int32 Normal)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataUnlitBSDF(%s, %s)"),
+		MCT_Strata, TEXT("GetStrataUnlitBSDF(%s, %s, %s)"),
 		*StrataGetCastParameterCode(EmissiveColor,		MCT_Float3),
-		*StrataGetCastParameterCode(TransmittanceColor,	MCT_Float3)
+		*StrataGetCastParameterCode(TransmittanceColor, MCT_Float3),
+		*StrataGetCastParameterCode(Normal,				MCT_Float3)
 	);
 }
 

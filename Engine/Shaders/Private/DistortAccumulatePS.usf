@@ -96,6 +96,29 @@ void Main(
 	// Retrieve rough refraction variance
 	float Sigma = 0.0f;
 	float3 RefractionWorldNormal = MaterialParameters.CameraVector;
+
+#if STRATA_OPTIMIZED_UNLIT
+
+	// Unlit forces a single BSDF
+	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
+	UnlitBSDF.StrataSanitizeBSDF();
+
+	RefractionWorldNormal = UNLIT_NORMAL(UnlitBSDF);
+	const float MaterialIOR = GetMaterialRefractionIOR(RefractionData); // Unlit does not have any surface F0 so we only use the root node input.
+
+	const bool TryToClip = true; // In this case rough refractions are not supported, we can thus always clip.
+
+#if DISTORTION_ACCOUNT_FOR_COVERAGE
+	const float RefractionCoverage = UnlitBSDF.Coverage;	// Coverage of the material. STRATA_TODO allow coverage operator with unlit material to make this not 1 (allowed by legacy)
+#else
+	const float RefractionCoverage = 1.0;					// Behavior where coverage is always ignored (legacy support)
+#endif
+
+	const float RefractionLobeVariance = 0.0f;
+	OutVarianceCoverage = float2(RefractionLobeVariance, RefractionCoverage);
+
+#else
+
 	if (StrataPixelHeader.StrataTree.BSDFCount > 0)
 	{
 		const float3 V = MaterialParameters.CameraVector;
@@ -126,26 +149,31 @@ void Main(
 	}
 	TopF0 = SanitizeF0(TopF0);	// Sanitize, in case a Add node has been used
 
+	const float MaterialIOR = DielectricF0RGBToIor(TopF0);
+
 	const FStrataOperator RootOperator	= StrataPixelHeader.StrataTree.Operators[StrataData.OperatorIndex];
 #if DISTORTION_ACCOUNT_FOR_COVERAGE
 	const float RefractionCoverage		= RootOperator.Coverage;														// Coverage of the material
 #else
 	const float RefractionCoverage		= 1.0;																			// Behavior where coverage is always ignored (legacy support)
 #endif
-	const float RefractionDepthMeter	= length(MaterialParameters.WorldPosition_CamRelative) * CENTIMETER_TO_METER;	// Distance for camera in meters
 	const float RefractionLobeVariance	= Sigma;																		// The lobe variance that can be added to in the en recover a single lobe.
 
 	// Write out variance (as this is more linear to accumulate than roughness).
 	OutVarianceCoverage = float2(RefractionLobeVariance, RefractionCoverage);
-	OutClosestDepthMeter = RefractionDepthMeter;
 
 	// Only allow clipping if roughness is close to 0.
 	const bool TryToClip = false;  //OutVarianceCoverage.x < 0.01f; // STRATA_TODO || RefractionCoverage <= 0.0f;	// Have an option to account for coverage or not?, ignored by default
 
+#endif
+
+	const float RefractionDepthMeter = length(MaterialParameters.WorldPosition_CamRelative) * CENTIMETER_TO_METER;	// Distance for camera in meters
+	OutClosestDepthMeter = RefractionDepthMeter;
+
 	// Compute UV distortion
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
 		MaterialParameters, PixelMaterialInputs, ResolvedView,
-		RefractionWorldNormal, DielectricF0RGBToIor(TopF0),
+		RefractionWorldNormal, MaterialIOR,
 		DistortionParams, ScreenUV, RefractionData, TryToClip, EyeIndex);
 
 	// Sample depth at distortion offset

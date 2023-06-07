@@ -23871,7 +23871,8 @@ int32 UMaterialExpressionStrataLightFunction::Compile(class FMaterialCompiler* C
 {
 	int32 OutputCodeChunk = Compiler->StrataUnlitBSDF(
 		CompileWithDefaultFloat3(Compiler, Color, 0.0f, 0.0f, 0.0f),
-		Compiler->Constant(1.0f));	// Opacity / Transmittance is ignored by light functions.
+		Compiler->Constant(1.0f),				// Opacity / Transmittance is ignored by light functions.
+		Compiler->Constant3(0.0f, 0.0f, 1.0f));	// place holder normal
 
 	return OutputCodeChunk;
 }
@@ -23942,7 +23943,8 @@ int32 UMaterialExpressionStrataPostProcess::Compile(class FMaterialCompiler* Com
 
 	int32 OutputCodeChunk = Compiler->StrataUnlitBSDF(
 		CompileWithDefaultFloat3(Compiler, Color, 0.0f, 0.0f, 0.0f),
-		TransmittanceCodeChunk);
+		TransmittanceCodeChunk,
+		Compiler->Constant3(0.0f, 0.0f, 1.0f));	// place holder normal
 
 	return OutputCodeChunk;
 }
@@ -24016,7 +24018,8 @@ int32 UMaterialExpressionStrataUI::Compile(class FMaterialCompiler* Compiler, in
 
 	int32 OutputCodeChunk = Compiler->StrataUnlitBSDF(
 		CompileWithDefaultFloat3(Compiler, Color, 0.0f, 0.0f, 0.0f),
-		TransmittanceCodeChunk);
+		TransmittanceCodeChunk,
+		Compiler->Constant3(0.0f, 0.0f, 1.0f));	// place holder normal
 
 	return OutputCodeChunk;
 }
@@ -24211,7 +24214,8 @@ int32 UMaterialExpressionStrataUnlitBSDF::Compile(class FMaterialCompiler* Compi
 {
 	int32 OutputCodeChunk = Compiler->StrataUnlitBSDF(
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
-		CompileWithDefaultFloat3(Compiler, TransmittanceColor, 1.0f, 1.0f, 1.0f));
+		CompileWithDefaultFloat3(Compiler, TransmittanceColor, 1.0f, 1.0f, 1.0f),
+		CompileWithDefaultNormalWS(Compiler, Normal));
 
 	return OutputCodeChunk;
 }
@@ -24234,6 +24238,9 @@ uint32 UMaterialExpressionStrataUnlitBSDF::GetInputType(int32 InputIndex)
 		return MCT_Float3;
 		break;
 	case 1:
+		return MCT_Float3;
+		break;
+	case 2:
 		return MCT_Float3;
 		break;
 	}
