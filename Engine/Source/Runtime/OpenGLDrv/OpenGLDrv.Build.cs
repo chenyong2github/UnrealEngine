@@ -38,9 +38,10 @@ public class OpenGLDrv : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			PrivateDependencyModuleNames.Add("detex");
+			PrivateDependencyModuleNames.Add("ArmlibGPUInfo");
 		}
 
-        if (Target.Platform == UnrealTargetPlatform.Android)
+		if (Target.Platform == UnrealTargetPlatform.Android)
         {
             // for Swappy
             PublicDefinitions.Add("USE_ANDROID_OPENGL_SWAPPY=1");

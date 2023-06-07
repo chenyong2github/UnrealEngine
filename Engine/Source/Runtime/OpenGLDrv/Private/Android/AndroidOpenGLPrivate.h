@@ -6,6 +6,9 @@
 #pragma once
 
 #include "Android/AndroidApplication.h"
+#include "libgpuinfo.hpp"
+#include "Internationalization/Regex.h"
+#include "Misc/CString.h"
 
 bool GAndroidGPUInfoReady = false;
 
@@ -63,6 +66,33 @@ private:
 
 		GPUFamily = (const ANSICHAR*)glGetString(GL_RENDERER);
 		check(!GPUFamily.IsEmpty());
+
+		// thirdparty api requires std::unique_ptr
+		std::unique_ptr<libgpuinfo::instance> ArmGPUInfoInstance = libgpuinfo::instance::create();
+
+		if (ArmGPUInfoInstance)
+		{
+			const libgpuinfo::gpuinfo& ArmGPUInfo = ArmGPUInfoInstance->get_info();
+			// Note:
+			// if libgpuinfo is not upto date then the gpu may not appear in gpuinfo's internal list,
+			// To avoid this we ignore the name and use the lib to extract only the core count. (which does not use the list)
+			const FRegexPattern RegexPattern(TEXT("^Mali(?:.+[MC|MP]([0-9]+))?")); // find anything that starts with Mali and capture the number after the last M[CP]
+			FRegexMatcher RegexMatcher(RegexPattern, *GPUFamily);
+			if (RegexMatcher.FindNext() && ArmGPUInfo.num_shader_cores > 0)
+			{
+				FString Capture = RegexMatcher.GetCaptureGroup(1);
+				if (Capture.IsEmpty())
+				{
+					FString ARMLibName = FString::Format(TEXT("{0} MP{1}"), { *GPUFamily, ArmGPUInfo.num_shader_cores });
+					UE_LOG(LogAndroid, Log, TEXT("FAndroidGPUInfo renaming GPUFamily: %s -> %s"), *GPUFamily, *ARMLibName);
+					GPUFamily = ARMLibName;
+				}
+				else if((uint32)FCString::Atoi64(*Capture) != ArmGPUInfo.num_shader_cores)
+				{
+					UE_LOG(LogAndroid, Warning, TEXT("FAndroidGPUInfo GPUFamily core count mismatch: %s, expected MP%d"), *GPUFamily, ArmGPUInfo.num_shader_cores);
+				}
+			}
+		}
 
 		GLVersion = (const ANSICHAR*)glGetString(GL_VERSION);
 
