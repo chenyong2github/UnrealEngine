@@ -632,10 +632,11 @@ namespace EpicGames.Horde.Storage.Nodes
 				using (Stream stream = file.OpenRead())
 				{
 					file.Handles.Clear();
-					file.Handles.AddRange(await LeafChunkedDataNode.CreateFromStreamAsync(writer, stream, options.LeafOptions, cancellationToken));
+					file.Handles.AddRange(await LeafChunkedDataNode.CreateFromStreamAsync(writerFork, stream, options.LeafOptions, cancellationToken));
 				}
 				copyStats?.Update(1, file.Length);
 			}
+			await writerFork.FlushAsync(cancellationToken);
 		}
 
 		async Task CreateDirectoryNodesAsync(DirectoryUpdate tree, IStorageWriter writer, ChunkingOptions options, CancellationToken cancellationToken)
@@ -696,7 +697,6 @@ namespace EpicGames.Horde.Storage.Nodes
 			// Create all the leaf chunks
 			List<FileContent> sortedFiles = new List<FileContent>();
 			long totalSize = GetInputFiles(tree, sortedFiles);
-
 			List<List<FileContent>> filePartitions = PartitionInputFiles(sortedFiles, totalSize);
 
 			CopyStats? copyStats = null;

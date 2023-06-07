@@ -300,6 +300,10 @@ namespace EpicGames.Horde.Storage
 			/// <inheritdoc/>
 			public void Dispose()
 			{
+				if (!CompleteTask.IsCompleted)
+				{
+					_completeEvent.TrySetException(new ObjectDisposedException($"Bundle {BundleId} has been disposed. Make sure to call FlushAsync() on forked writers that may have dependencies before disposing.", $"Bundle {BundleId}"));
+				}
 				if (_currentPacket != null)
 				{
 					_currentPacket.Dispose();
@@ -315,11 +319,14 @@ namespace EpicGames.Horde.Storage
 			public bool CanComplete() => !IsReadOnly && _dependencies.Count == 0;
 
 			// Add a dependency onto another bundle
-			public void AddDependencyOn(PendingBundle bundle)
+			public void AddDependencyOn(PendingBundle bundle, ILogger? traceLogger)
 			{
 				if (bundle != this)
 				{
-					_dependencies.Add(bundle.CompleteTask);
+					if (_dependencies.Add(bundle.CompleteTask))
+					{
+						traceLogger?.LogInformation("Added dependency from bundle {BundleId} on {OtherBundleId}", BundleId, bundle.BundleId);
+					}
 				}
 			}
 
@@ -446,6 +453,16 @@ namespace EpicGames.Horde.Storage
 				try
 				{
 					await prevWriteTask;
+					if (traceLogger != null)
+					{
+						foreach (Task dependency in _dependencies)
+						{
+							if (!dependency.IsCompleted)
+							{
+								traceLogger.LogInformation("Bundle {BundleId} is stalling waiting for dependencies to flush first", BundleId);
+							}
+						}
+					}
 					await Task.WhenAll(_dependencies);
 
 					Bundle bundle = CreateBundle();
@@ -724,7 +741,7 @@ namespace EpicGames.Horde.Storage
 			{
 				if (reference.PendingBundle != null)
 				{
-					currentBundle.AddDependencyOn(reference.PendingBundle);
+					currentBundle.AddDependencyOn(reference.PendingBundle, _traceLogger);
 				}
 			}
 
