@@ -336,11 +336,11 @@ TSharedRef<UE::DMXPixelMapping::Rendering::FPixelMapRenderElement> UDMXPixelMapp
 void UDMXPixelMappingMatrixCellComponent::UpdateRenderElement()
 {
 	using namespace UE::DMXPixelMapping::Rendering;
-
+	
 	const UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
 	const UTexture* InputTexture = RendererComponent ? RendererComponent->GetRenderedInputTexture() : nullptr;
-	const double InputTextureWidth = InputTexture ? InputTexture->GetSurfaceWidth() : 0.0;
-	const double InputTextureHeight = InputTexture ? InputTexture->GetSurfaceHeight() : 0.0;
+	const double InputTextureWidth = InputTexture ? InputTexture->GetSurfaceWidth() : 1.0;
+	const double InputTextureHeight = InputTexture ? InputTexture->GetSurfaceHeight() : 1.0;
 
 	FPixelMapRenderElementParameters Parameters;
 	Parameters.UV = FVector2D(GetPosition().X / InputTextureWidth, GetPosition().Y / InputTextureHeight);

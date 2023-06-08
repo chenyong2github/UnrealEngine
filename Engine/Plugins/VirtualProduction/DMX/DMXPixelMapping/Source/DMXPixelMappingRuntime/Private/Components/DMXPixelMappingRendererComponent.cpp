@@ -180,8 +180,6 @@ void UDMXPixelMappingRendererComponent::InvalidatePreprocessRenderer()
 	default:
 		checkf(0, TEXT("Invalid Renderer Type in DMXPixelMappingRendererComponent"));
 	}
-
-	SetSize(PreprocessRenderer->GetResultingSize2D());
 }
 
 void UDMXPixelMappingRendererComponent::InvalidatePixelMapRenderer()
@@ -252,6 +250,17 @@ void UDMXPixelMappingRendererComponent::SendDMX()
 void UDMXPixelMappingRendererComponent::Render()
 {
 	SCOPE_CYCLE_COUNTER(STAT_DMXPixelMappingRender);
+
+	// Always size to texture
+	if (UTexture* Texture = PreprocessRenderer->GetRenderedTexture())
+	{
+		const FVector2D TextureSize(Texture->GetSurfaceWidth(), Texture->GetSurfaceHeight());
+		if (GetSize() != TextureSize)
+		{
+			SetSize(TextureSize);
+			bInvalidatePixelMap = true;
+		}
+	}
 
 	PreprocessRenderer->Render();
 
