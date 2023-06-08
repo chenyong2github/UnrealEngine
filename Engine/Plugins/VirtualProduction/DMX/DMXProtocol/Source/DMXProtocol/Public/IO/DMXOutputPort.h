@@ -5,14 +5,12 @@
 #include "DMXPort.h"
 
 #include "DMXProtocolCommon.h"
-
-#include "CoreMinimal.h"
-#include "Tickable.h"
 #include "Containers/Queue.h" 
 #include "HAL/Runnable.h"
 #include "Misc/ScopeLock.h" 
 #include "Misc/SingleThreadRunnable.h"
 #include "Templates/Atomic.h"
+#include "Tickable.h"
 
 struct FDMXOutputPortConfig;
 struct FDMXOutputPortDestinationAddress;

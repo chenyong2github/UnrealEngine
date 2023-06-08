@@ -20,7 +20,7 @@
 
 void SDMXPixelMappingPreviewView::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
 {
-	ToolkitWeakPtr = InToolkit;
+	WeakToolkit = InToolkit;
 
 	SDMXPixelMappingSurface::Construct(SDMXPixelMappingSurface::FArguments()
 		.AllowContinousZoomInterpolation(false)
@@ -76,7 +76,7 @@ void SDMXPixelMappingPreviewView::Construct(const FArguments& InArgs, const TSha
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 				[
-					SNew(SDMXPixelMappingZoomPan)
+					SAssignNew(ZoomPan, SDMXPixelMappingZoomPan)
 					.ZoomAmount(this, &SDMXPixelMappingPreviewView::GetZoomAmount)
 					.ViewOffset(this, &SDMXPixelMappingPreviewView::GetViewOffset)
 					.Visibility(this, &SDMXPixelMappingPreviewView::IsZoomPanVisible)
@@ -105,6 +105,11 @@ void SDMXPixelMappingPreviewView::Construct(const FArguments& InArgs, const TSha
 			]
 		]
 	, InToolkit);
+}
+
+const FGeometry& SDMXPixelMappingPreviewView::GetGraphTickSpaceGeometry() const
+{
+	return ZoomPan->GetTickSpaceGeometry();
 }
 
 FReply SDMXPixelMappingPreviewView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -218,31 +223,33 @@ int32 SDMXPixelMappingPreviewView::GetSnapGridSize() const
 
 FSlateRect SDMXPixelMappingPreviewView::ComputeAreaBounds() const
 {
-	return FSlateRect(0, 0, GetPreviewAreaWidth().Get(), GetPreviewAreaHeight().Get());
+	const FVector2D Size
+	{
+		FMath::Max(GetWidthGraphSpace().Get(), 1.0),
+		FMath::Max(GetHeightGraphSpace().Get(), 1.0),
+	};
+
+	return FSlateRect(0, 0, Size.X, Size.Y);
 }
 
-FOptionalSize SDMXPixelMappingPreviewView::GetPreviewAreaWidth() const
+FOptionalSize SDMXPixelMappingPreviewView::GetWidthGraphSpace() const
 {
-	FVector2D Area, Size;
-	GetPreviewAreaAndSize(Area, Size);
+	if (PreviewViewport.IsValid())
+	{
+		return PreviewViewport->GetWidthGraphSpace();
+	}
 
-	return Area.X;
+	return FOptionalSize();
 }
 
-FOptionalSize SDMXPixelMappingPreviewView::GetPreviewAreaHeight() const
+FOptionalSize SDMXPixelMappingPreviewView::GetHeightGraphSpace() const
 {
-	FVector2D Area, Size;
-	GetPreviewAreaAndSize(Area, Size);
+	if (PreviewViewport.IsValid())
+	{
+		return PreviewViewport->GetHeightGraphSpace();
+	}
 
-	return Area.Y;
-}
-
-void SDMXPixelMappingPreviewView::GetPreviewAreaAndSize(FVector2D& Area, FVector2D& Size) const
-{
-	check(PreviewViewport.IsValid())
-
-	Area = FVector2D(PreviewViewport->GetPreviewAreaWidth().Get(), PreviewViewport->GetPreviewAreaHeight().Get());
-	Size = Area;
+	return FOptionalSize();
 }
 
 TSharedRef<SWidget> SDMXPixelMappingPreviewView::CreateOverlayUI()
@@ -296,7 +303,7 @@ TSharedRef<SWidget> SDMXPixelMappingPreviewView::CreateOverlayUI()
 
 EVisibility SDMXPixelMappingPreviewView::IsZoomPanVisible() const
 {
-	if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin())
+	if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin())
 	{
 		if (UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent())
 		{
@@ -357,9 +364,9 @@ FReply SDMXPixelMappingPreviewView::HandleZoomToFitClicked()
 
 const TSet<FDMXPixelMappingComponentReference>& SDMXPixelMappingPreviewView::GetSelectedComponents() const
 {
-	check(ToolkitWeakPtr.Pin().IsValid());
+	check(WeakToolkit.Pin().IsValid());
 
-	return ToolkitWeakPtr.Pin()->GetSelectedComponents();
+	return WeakToolkit.Pin()->GetSelectedComponents();
 }
 
 FDMXPixelMappingComponentReference SDMXPixelMappingPreviewView::GetSelectedComponent() const

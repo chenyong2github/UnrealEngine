@@ -39,23 +39,26 @@ public:
 	/** Returns the Name of the component */
 	FText GetName() const;
 
+	/** Returns true if a widget ever should be drawn */
+	bool ShouldDraw() const;
+
 	/** Returns true if the name should drawn its name */
 	bool ShouldDrawName() const;
 
 	/** Returns true if the name should drawn its name above the widget */
 	bool ShouldDrawNameAbove() const;
 
-	/** Returns true if this component has a fixture patch and related info */
-	bool HasPatchInfo() const;
+	/** Returns true if the cell ID should be shown */
+	bool ShouldDrawCellID() const;
+
+	/** Returns true if the patch inifo should be shown */
+	bool ShouldDrawPatchInfo() const;
 
 	/** Returns the addresses of the patch as text */
 	FText GetAddressesText() const;
 
 	/** Returns the Fixture ID as text. Empty unless a Matrix and Fixture Group Item component */
 	FText GetFixtureIDText() const;
-
-	/** Returns true if this component has a Cell ID */
-	bool HasCellID() const;
 
 	/** Returns the Cell ID as text. Empty unless a Matrix Cell component. */
 	FText GetCellIDText() const;

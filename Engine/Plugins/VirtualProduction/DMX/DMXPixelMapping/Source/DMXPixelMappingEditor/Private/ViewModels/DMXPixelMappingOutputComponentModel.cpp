@@ -3,6 +3,7 @@
 #include "ViewModels/DMXPixelMappingOutputComponentModel.h"
 
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
+#include "DMXPixelMappingLayoutSettings.h"
 #include "DMXPixelMappingTypes.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
@@ -70,13 +71,25 @@ FText FDMXPixelMappingOutputComponentModel::GetName() const
 	return FText::GetEmpty();
 }
 
+bool FDMXPixelMappingOutputComponentModel::ShouldDraw() const
+{
+	if (UDMXPixelMappingMatrixCellComponent* CellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(WeakOutputComponent.Get()))
+	{
+		const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
+		return LayoutSettings->bShowMatrixCells;
+	}
+
+	return true;
+}
+
 bool FDMXPixelMappingOutputComponentModel::ShouldDrawName() const
 {
-	if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(WeakOutputComponent.Get()))
-	{
-		return OutputComponent->GetClass() != UDMXPixelMappingMatrixCellComponent::StaticClass();
-	}
-	return true;
+	const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
+	check(LayoutSettings);
+
+	return LayoutSettings->bShowComponentNames &&
+		WeakOutputComponent.IsValid() && 
+		WeakOutputComponent->GetClass() != UDMXPixelMappingMatrixCellComponent::StaticClass();
 }
 
 bool FDMXPixelMappingOutputComponentModel::ShouldDrawNameAbove() const
@@ -90,9 +103,24 @@ bool FDMXPixelMappingOutputComponentModel::ShouldDrawNameAbove() const
 	return true;
 }
 
-bool FDMXPixelMappingOutputComponentModel::HasPatchInfo() const
+bool FDMXPixelMappingOutputComponentModel::ShouldDrawCellID() const
 {
-	return GetFixturePatch() != nullptr;
+	const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
+	check(LayoutSettings);
+
+	return
+		LayoutSettings->bShowCellIDs &&
+		WeakOutputComponent->GetClass() == UDMXPixelMappingMatrixCellComponent::StaticClass();
+}
+
+bool FDMXPixelMappingOutputComponentModel::ShouldDrawPatchInfo() const
+{
+	const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
+	check(LayoutSettings);
+
+	return
+		LayoutSettings->bShowPatchInfo &&
+		GetFixturePatch() != nullptr;;
 }
 
 FText FDMXPixelMappingOutputComponentModel::GetAddressesText() const
@@ -107,7 +135,6 @@ FText FDMXPixelMappingOutputComponentModel::GetAddressesText() const
 	return FText::GetEmpty();
 }
 
-
 FText FDMXPixelMappingOutputComponentModel::GetFixtureIDText() const
 {
 	if (UDMXMVRFixtureNode* FixtureNode = WeakFixtureNode.Get())
@@ -117,15 +144,6 @@ FText FDMXPixelMappingOutputComponentModel::GetFixtureIDText() const
 	}
 
 	return FText::GetEmpty();
-}
-
-bool FDMXPixelMappingOutputComponentModel::HasCellID() const
-{
-	if (UDMXPixelMappingMatrixCellComponent* MatrixCell = Cast<UDMXPixelMappingMatrixCellComponent>(WeakOutputComponent.Get()))
-	{
-		return true;
-	}
-	return false;
 }
 
 FText FDMXPixelMappingOutputComponentModel::GetCellIDText() const

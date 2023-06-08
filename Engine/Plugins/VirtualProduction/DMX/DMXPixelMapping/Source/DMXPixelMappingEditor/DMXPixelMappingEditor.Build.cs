@@ -37,6 +37,7 @@ public class DMXPixelMappingEditor : ModuleRules
 			"SlateCore",
 			"ToolMenus",
 			"ToolWidgets",
+			"UMG",
 			"UnrealEd",
 		});
 	}

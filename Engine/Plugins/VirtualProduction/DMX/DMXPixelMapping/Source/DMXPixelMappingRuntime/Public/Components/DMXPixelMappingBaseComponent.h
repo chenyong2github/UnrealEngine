@@ -3,10 +3,7 @@
 #pragma once
 
 #include "DMXPixelMappingRuntimeCommon.h"
-
-#include "Tickable.h"
 #include "UObject/Object.h"
-#include "Stats/Stats.h"
 
 #include "DMXPixelMappingBaseComponent.generated.h"
 
@@ -23,7 +20,6 @@ class UDMXPixelMappingRendererComponent;
 UCLASS(BlueprintType, NotBlueprintable, Abstract)
 class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingBaseComponent
 	: public UObject
-	, public FTickableGameObject
 {
 	GENERATED_BODY()
 
@@ -32,9 +28,6 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingBaseComponent
 	DECLARE_EVENT_FourParams(UDMXPixelMappingBaseComponent, FDMXPixelMappingOnComponentRenamed, UDMXPixelMapping* /** PixelMapping */, UDMXPixelMappingBaseComponent* /** RenamedComponent */, UObject* /** OldOuter */, const FName /** OldName */);
 
 public:
-	/** Public constructor */
-	UDMXPixelMappingBaseComponent();
-
 	/** Gets an Event broadcast when a component was added */
 	static FDMXPixelMappingOnComponentAdded& GetOnComponentAdded();
 
@@ -65,14 +58,6 @@ public:
 	* Helper function for generating UObject name, the child should implement their own logic for Prefix name generation.
 	*/
 	virtual const FName& GetNamePrefix();
-
-	// ~Begin FTickableGameObject interface
-	virtual void Tick(float DeltaTime) override {}
-	virtual TStatId GetStatId() const override;
-	virtual bool IsTickableInEditor() const override { return true; }
-	virtual bool IsTickableWhenPaused() const override { return true; }
-	virtual bool IsTickable() const override { return false; }
-	// ~End FTickableGameObject interface
 
 	/*------------------------------------------
 		UDMXPixelMappingBaseComponent interface

@@ -143,12 +143,14 @@ void UDMXPixelMappingFixtureGroupComponent::SendDMX()
 
 void UDMXPixelMappingFixtureGroupComponent::QueueDownsample()
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ForEachChild([&](UDMXPixelMappingBaseComponent* InComponent) {
 		if (UDMXPixelMappingOutputComponent* Component = Cast<UDMXPixelMappingOutputComponent>(InComponent))
 		{
 			Component->QueueDownsample();
 		}
 	}, false);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UDMXPixelMappingFixtureGroupComponent::SetPosition(const FVector2D& NewPosition)

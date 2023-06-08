@@ -2,10 +2,10 @@
 
 #include "Widgets/SDMXPixelMappingSurface.h"
 
-#include "Toolkits/DMXPixelMappingToolkit.h"
-
 #include "Framework/Application/SlateApplication.h"
+#include "Components/DMXPixelMappingRendererComponent.h"
 #include "Settings/LevelEditorViewportSettings.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingSurface"
@@ -131,7 +131,7 @@ struct FFixedZoomLevelsContainerDesignSurface : public FZoomLevelsContainer
 
 void SDMXPixelMappingSurface::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
 {
-	ToolkitWeakPtr = InToolkit;
+	WeakToolkit = InToolkit;
 
 	if (!ZoomLevels)
 	{
@@ -143,7 +143,6 @@ void SDMXPixelMappingSurface::Construct(const FArguments& InArgs, const TSharedP
 	AllowContinousZoomInterpolation = InArgs._AllowContinousZoomInterpolation;
 	bIsPanning = false;
 	bIsZooming = false;
-	bRecenteredOnFirstTick = false;
 
 	ViewOffset = FVector2D::ZeroVector;
 	bDrawGridLines = true;
@@ -174,8 +173,6 @@ void SDMXPixelMappingSurface::Construct(const FArguments& InArgs, const TSharedP
 		[
 			InArgs._Content.Widget
 		];
-
-	InitialBounds = ComputeAreaBounds();
 }
 
 EActiveTimerReturnType SDMXPixelMappingSurface::HandleZoomToFit(double InCurrentTime, float InDeltaTime)
@@ -200,6 +197,19 @@ EActiveTimerReturnType SDMXPixelMappingSurface::HandleZoomToFit(double InCurrent
 
 void SDMXPixelMappingSurface::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	if (bInitialZoomToFit && WeakToolkit.IsValid())
+	{
+		const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
+		UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent();
+		UTexture* Texture = RendererComponent ? RendererComponent->GetRenderedInputTexture() : nullptr;
+		if (Texture)
+		{
+			constexpr bool bInstantZoom = true;
+			ZoomToFit(bInstantZoom);
+			bInitialZoomToFit = false;
+		}
+	}
+
 	if (bDeferredZoomToExtents)
 	{
 		const FSlateRect Bounds = ComputeAreaBounds();
@@ -211,12 +221,6 @@ void SDMXPixelMappingSurface::Tick(const FGeometry& AllottedGeometry, const doub
 		{
 			RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SDMXPixelMappingSurface::HandleZoomToFit));
 		}
-	}
-
-	if (!bRecenteredOnFirstTick && InitialBounds != ComputeAreaBounds())
-	{
-		ZoomToFit(true);
-		bRecenteredOnFirstTick = true;
 	}
 }
 

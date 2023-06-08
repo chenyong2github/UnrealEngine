@@ -4,13 +4,14 @@
 
 #include "Widgets/SDMXPixelMappingSurface.h"
 
-
 class FDMXPixelMappingToolkit;
 class SDMXPixelMappingPreviewViewport;
 struct FOptionalSize;
 class SBox;
+class SDMXPixelMappingZoomPan;
 class SOverlay;
 class FDMXPixelMappingComponentReference;
+
 
 class SDMXPixelMappingPreviewView
 	: public SDMXPixelMappingSurface
@@ -28,6 +29,10 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit);
 
+	/** Returns the geometry of the graph */
+	const FGeometry& GetGraphTickSpaceGeometry() const;
+
+protected:
 	// SWidget interface
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -51,11 +56,11 @@ public:
 	//~ End SDMXPixelMappingSurface interface
 
 private:
-	FOptionalSize GetPreviewAreaWidth() const;
+	/** Gets the height in graph space */
+	FOptionalSize GetHeightGraphSpace() const;
 
-	FOptionalSize GetPreviewAreaHeight() const;
-
-	void GetPreviewAreaAndSize(FVector2D& Area, FVector2D& Size) const;
+	/** Gets the width in graph space */
+	FOptionalSize GetWidthGraphSpace() const;
 
 	TSharedRef<SWidget> CreateOverlayUI();
 
@@ -76,6 +81,9 @@ private:
 	FText GetSelectedComponentNameText() const;
 	FText GetSelectedComponentParentNameText() const;
 	EVisibility GetTitleBarVisibility() const;
+
+	/** Zoom pan widget */
+	TSharedPtr<SDMXPixelMappingZoomPan> ZoomPan;
 
 	TSharedPtr<SDMXPixelMappingPreviewViewport> PreviewViewport;
 

@@ -21,6 +21,7 @@ class UUserWidget;
  * Used in shader permutation for determining number of samples to use in texture blending.
  * If adding to this you must also adjust the public facing option: 'EPixelBlendingQuality' under the runtime module's DMXPixelMappingOutputComponent.h
  */
+enum class UE_DEPRECATED(5.3, "Please use UDMXPixelMappingPixelMapRenderer instead.") EDMXPixelShaderBlendingQuality : uint8;
 enum class EDMXPixelShaderBlendingQuality : uint8
 {
 	Low,
@@ -35,6 +36,7 @@ enum class EDMXPixelShaderBlendingQuality : uint8
  * Downsample pixel preview rendering params.
  * Using for pixel rendering setting in preview
  */
+struct UE_DEPRECATED(5.3, "Deprecated in favor of FPixelMapRenderElement.") FDMXPixelMappingDownsamplePixelParam;
 struct FDMXPixelMappingDownsamplePixelPreviewParam
 {
 	/** Position in screen pixels of the top left corner of the quad */
@@ -79,6 +81,7 @@ struct FDMXPixelMappingDownsamplePixelParam
 	bool bStaticCalculateUV;
 };
 
+struct UE_DEPRECATED(5.3, "Deprecated in favor of FPixelMapRenderElement.") FDMXPixelMappingDownsamplePixelParamsV2;
 struct FDMXPixelMappingDownsamplePixelParamsV2
 {
 	/** Position in screen pixels of the top left corner of the quad */
@@ -100,22 +103,11 @@ struct FDMXPixelMappingDownsamplePixelParamsV2
 	bool bStaticCalculateUV;
 };
 
-struct FDMXPixelMappingRenderTextureParams
-{
-	int32 DownsampleTexture = 8;
-
-	int32 NumDownSamplePasses = 1;
-	float Distance = 0.2;
-	int32 DistanceSteps = 1;
-	int32 RadialSteps = 1;
-	float RadialOffset = 1;
-	int32 KernelPower = 5;
-};
-
 
 /**
  * The public interface of the Pixel Mapping renderer instance interface.
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class IDMXPixelMappingRenderer 
 	: public TSharedFromThis<IDMXPixelMappingRenderer>
 {
@@ -134,7 +126,8 @@ public:
 	 * @param InDownsamplePixelPass			Pixels rendering params
 	 * @param InCallback					Callback for reading  the pixels from GPU to CPU			
 	 */
-	 virtual void DownsampleRender(
+	UE_DEPRECATED(5.3, "Please use UDMXDMXPixelMappingPixelMapRenderer instead.")
+	virtual void DownsampleRender(
 		const FTextureResource* InputTexture,
 		const FTextureResource* DstTexture,
 		const FTextureRenderTargetResource* DstTextureTargetResource,
@@ -148,7 +141,7 @@ public:
 	 * @param InRenderTarget				2D render target texture resource
 	 * @param InMaterialInterface			Material to use
 	 */
-	 UE_DEPRECATED(5.3, "Please use FWidgetRenderer::DrawWidget or similar engine methods instead.")
+	UE_DEPRECATED(5.3, "Please use FWidgetRenderer::DrawWidget or similar engine methods instead.")
 	virtual void RenderMaterial(UTextureRenderTarget2D* InRenderTarget, UMaterialInterface* InMaterialInterface) const = 0;
 
 	/**
@@ -157,7 +150,7 @@ public:
 	 * @param InRenderTarget				2D render target texture resource
 	 * @param InUserWidget					UMG widget to use
 	 */
-	 UE_DEPRECATED(5.3, "Please use FWidgetRenderer::DrawWidget or similar engine methods instead.")
+	UE_DEPRECATED(5.3, "Please use FWidgetRenderer::DrawWidget or similar engine methods instead.")
 	virtual void RenderWidget(UTextureRenderTarget2D* InRenderTarget, UUserWidget* InUserWidget) const  = 0;
 
 	/**
@@ -168,6 +161,7 @@ public:
 	 * @param InSize						Rendering size
 	 * @param bSRGBSource					If the source texture is sRGB
 	 */
+	UE_DEPRECATED(5.3, "Removed without replacement. Please use core engine methods to draw texture to rectangle.")
 	virtual void RenderTextureToRectangle(const FTextureResource* InTextureResource, const FTexture2DRHIRef InRenderTargetTexture, FVector2D InSize, bool bSRGBSource) const = 0;
 
 #if WITH_EDITOR
@@ -178,15 +172,18 @@ public:
 	 * @param DownsampleResource			Rendering resource of RenderTarget texture
 	 * @param InPixelPreviewParamSet		Pixels rendering params
 	 */
-	virtual void RenderPreview(const FTextureResource* TextureResource, const FTextureResource* DownsampleResource, TArray<FDMXPixelMappingDownsamplePixelPreviewParam>&& InPixelPreviewParamSet) const = 0;
+	 UE_DEPRECATED(5.3, "Pixel mapping no longer has a dedicated preview renderer. Instead draw pixel map elements to a view port (see FDMXPixelMappingPreviewViewportClient.")
+	 virtual void RenderPreview(const FTextureResource* TextureResource, const FTextureResource* DownsampleResource, TArray<FDMXPixelMappingDownsamplePixelPreviewParam>&& InPixelPreviewParamSet) const = 0;
 #endif // WITH_EDITOR
 
 	/**
 	* Sets the brigthness of the renderer
 	*/
+	UE_DEPRECATED(5.3, "IDMXPixelMappingRenderer and all its members are deprecated.")
 	void SetBrightness(const float InBrightness) { Brightness = InBrightness; }
 
 protected:
 	/** Brightness multiplier for the renderer */
 	float Brightness = 1.0f;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

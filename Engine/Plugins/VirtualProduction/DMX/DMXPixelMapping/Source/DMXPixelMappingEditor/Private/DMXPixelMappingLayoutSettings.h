@@ -27,15 +27,19 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Layout Settings")
 	bool bApplyLayoutScriptWhenLoaded = true;
 
-	/** If true, shows the name of the Fixture Patch where applicable. May affect editor performance. */
+	/**  If true, shows a widget for each cell. It is recommended that this is turned off when pixel mapping large quantities of fixtures. */
+	UPROPERTY(Config, EditAnywhere, Category = "Layout Settings")
+	bool bShowMatrixCells = false;
+
+	/** If true, shows the name of the Fixture Patch where applicable. It is recommended that this is turned off when pixel mapping large quantities of fixtures. */
 	UPROPERTY(Config, EditAnywhere, Category = "Layout Settings")
 	bool bShowComponentNames = true;
 
-	/** If true, shows Fixture info bout the Fixture Patch where applicable. May affect editor performance. */
+	/** If true, shows Fixture info bout the Fixture Patch where applicable. It is recommended that this is turned off when pixel mapping large quantities of fixtures. */
 	UPROPERTY(Config, EditAnywhere, Category = "Layout Settings")
 	bool bShowPatchInfo = false;
 
-	/** If true, shows Cell IDs where applicable. May affect editor performance. */
+	/** If true, shows Cell IDs where applicable. It is recommended that this is turned off when pixel mapping large quantities of fixtures. */
 	UPROPERTY(Config, EditAnywhere, Category = "Layout Settings")
 	bool bShowCellIDs = false;
 

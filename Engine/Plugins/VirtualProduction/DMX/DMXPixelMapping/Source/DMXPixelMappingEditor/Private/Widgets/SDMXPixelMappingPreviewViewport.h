@@ -27,27 +27,29 @@ public:
 	 *
 	 * @param InArgs The construction arguments.
 	 */
-	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit);
-
-	/** Enable viewport rendering */
-	void EnableRendering();
-
-	/** Disable viewport rendering */
-	void DisableRendering();
+	void Construct(const FArguments& InArgs, TWeakPtr<FDMXPixelMappingToolkit> InToolkit);
 
 	TSharedPtr<FSceneViewport> GetViewport() const { return Viewport; }
 
 	TSharedPtr<SViewport> GetViewportWidget() const { return ViewportWidget; }
 
+	/** Returns the texture width, in graph space  */
+	FOptionalSize GetWidthGraphSpace() const;
+
+	/** Returns the texture height, in graph space  */
+	FOptionalSize GetHeightGraphSpace() const;
+
+protected:
 	//~ Begin SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	//~ End of SWidget interface
 
-	FOptionalSize GetPreviewAreaWidth() const;
-
-	FOptionalSize GetPreviewAreaHeight() const;
-
 private:
+	/** Returns the padding of content, in graph space */
+	FMargin GetPaddingGraphSpace() const;
+
+	/** Returns the input texture currently in use */
+	UTexture* GetInputTexture() const;
 
 	/** Viewport client. */
 	TSharedPtr<FDMXPixelMappingPreviewViewportClient> ViewportClient;
@@ -59,8 +61,5 @@ private:
 	TSharedPtr<SViewport> ViewportWidget;
 
 	/** Weak pointer to the editor toolkit */
-	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
-
-	/** Is rendering currently enabled? (disabled when reimporting a texture) */
-	bool bIsRenderingEnabled;
+	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;
 };

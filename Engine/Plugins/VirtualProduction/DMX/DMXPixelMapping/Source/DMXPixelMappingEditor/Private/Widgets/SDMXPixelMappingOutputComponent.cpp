@@ -3,12 +3,12 @@
 #include "Widgets/SDMXPixelMappingOutputComponent.h"
 
 #include "DMXPixelMappingLayoutSettings.h"
+#include "DMXPixelMappingEditorStyle.h"
 #include "DMXPixelMappingTypes.h"
 #include "DMXPixelMappingUtils.h"
 #include "DMXRuntimeUtils.h"
-#include "ViewModels/DMXPixelMappingOutputComponentModel.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
-
+#include "ViewModels/DMXPixelMappingOutputComponentModel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
@@ -35,10 +35,8 @@ void IDMXPixelMappingOutputComponentWidgetInterface::AddToCanvas(const TSharedRe
 		.Alignment(FVector2D::ZeroVector)
 		.Offset_Lambda([this]()
 			{
-				const FVector2D Postition = GetPosition();
-
-				// In the center of the top left pixel
-				return FMargin(Postition.X + .5f, Postition.Y + .5f);
+				const FVector2D Position = GetPosition();
+				return FMargin(Position.X, Position.Y);
 			})
 		.Expose(Slot)
 		[
@@ -81,67 +79,10 @@ void SDMXPixelMappingOutputComponent::Construct(const FArguments& InArgs, const 
 			{
 				return Model->GetSize().Y;
 			})
-		[
-			SNew(SBorder)
-			.BorderImage_Lambda([this]()
-				{
-					BorderBrush.TintColor = Model->GetColor();
-					return &BorderBrush;
-				})
-			[
-				SNew(SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Bottom)
-				.AutoHeight()
-				.Padding(FMargin(0.f, -22.f, 0.f, 0.f))
-				[
-					SNew(SBox)
-					.HeightOverride(22.f)
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Bottom)
-					[
-						SAssignNew(AboveContentBorder, SBorder)
-						.BorderImage(FAppStyle::GetBrush("NoBorder"))
-					]
-				]
-
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.FillHeight(1.f / 3.f)
-				.Padding(FMargin(-2.f, -2.f, -2.f, -2.f))
-				[
-					SAssignNew(TopContentBorder, SBorder)
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
-				]
-
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.FillHeight(1.f / 3.f)
-				.Padding(FMargin(-2.f, -2.f, -2.f, -2.f))
-				[
-					SAssignNew(MiddleContentBorder, SBorder)
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
-				]
-
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.FillHeight(1.f / 3.f)
-				.Padding(FMargin(-2.f, -2.f, -2.f, -2.f))
-				[
-					SAssignNew(BottomContentBorder, SBorder)
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
-				]
-			]
-		]
 	];
 
-	UpdateChildSlots();
-	UDMXPixelMappingLayoutSettings::GetOnLayoutSettingsChanged().AddSP(this, &SDMXPixelMappingOutputComponent::UpdateChildSlots);
+	ForceRefresh();
+	UDMXPixelMappingLayoutSettings::GetOnLayoutSettingsChanged().AddSP(this, &SDMXPixelMappingOutputComponent::RequestRefresh);
 }
 
 bool SDMXPixelMappingOutputComponent::Equals(UDMXPixelMappingBaseComponent* Component) const
@@ -158,20 +99,90 @@ FVector2D SDMXPixelMappingOutputComponent::GetPosition() const
 	return Model->GetPosition();
 }
 
-void SDMXPixelMappingOutputComponent::UpdateChildSlots()
+void SDMXPixelMappingOutputComponent::RequestRefresh()
 {
-	AboveContentBorder->ClearContent();
-	TopContentBorder->ClearContent();
-	MiddleContentBorder->ClearContent();
-	BottomContentBorder->ClearContent();
+	if (!RefreshTimerHandle.IsValid())
+	{
+		RefreshTimerHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXPixelMappingOutputComponent::ForceRefresh));
+	}
+}
+
+void SDMXPixelMappingOutputComponent::ForceRefresh()
+{
+	RefreshTimerHandle.Invalidate();
+	if (Model->ShouldDraw())
+	{
+		ComponentBox->SetContent(CreateContent());
+	}
+	else
+	{
+		ComponentBox->SetContent(SNullWidget::NullWidget);
+	}
+}
+
+TSharedRef<SWidget> SDMXPixelMappingOutputComponent::CreateContent()
+{
+	const TSharedRef<SBorder> Content =
+		SNew(SBorder)
+		.BorderImage(FDMXPixelMappingEditorStyle::Get().GetBrush("DMXPixelMappingEditor.ComponentBorder"))
+		.BorderBackgroundColor_Lambda([this]()
+			{
+				return Model->GetColor();
+			})
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Bottom)
+			.AutoHeight()
+			.Padding(FMargin(0.f, -22.f, 0.f, 0.f))
+			[
+				SNew(SBox)
+				.HeightOverride(22.f)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Bottom)
+				[
+					SAssignNew(AboveContentBorder, SBorder)
+					.BorderImage(FAppStyle::GetBrush("NoBorder"))
+				]
+			]
+
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.FillHeight(1.f / 3.f)
+			.Padding(FMargin(-2.f, -2.f, -2.f, -2.f))
+			[
+				SAssignNew(TopContentBorder, SBorder)
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
+			]
+
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.FillHeight(1.f / 3.f)
+			.Padding(FMargin(-2.f, -2.f, -2.f, -2.f))
+			[
+				SAssignNew(MiddleContentBorder, SBorder)
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
+			]
+
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.FillHeight(1.f / 3.f)
+			.Padding(FMargin(-2.f, -2.f, -2.f, -2.f))
+			[
+				SAssignNew(BottomContentBorder, SBorder)
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
+			]
+		];
 
 	const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
-	if (!LayoutSettings)
-	{
-		return;
-	}
+	check(LayoutSettings);
 
-	if (LayoutSettings->bShowComponentNames && Model->ShouldDrawName())
+	if (Model->ShouldDrawName())
 	{
 		if (Model->ShouldDrawNameAbove())
 		{
@@ -183,15 +194,17 @@ void SDMXPixelMappingOutputComponent::UpdateChildSlots()
 		}
 	}
 
-	if (LayoutSettings->bShowCellIDs && Model->HasCellID())
+	if (Model->ShouldDrawCellID())
 	{
 		CreateCellIDChildSlot();
 	}
 
-	if (LayoutSettings->bShowPatchInfo && Model->HasPatchInfo())
+	if (Model->ShouldDrawPatchInfo())
 	{
 		CreatePatchInfoChildSlot();
 	}
+
+	return Content;
 }
 
 void SDMXPixelMappingOutputComponent::CreateComponentNameChildSlotAbove()

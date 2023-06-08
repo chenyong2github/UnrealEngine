@@ -316,7 +316,7 @@ FReply SDMXPixelMappingDesignerView::OnMouseButtonUp(const FGeometry& MyGeometry
 	// Select the Renderer if no Output Component was under the mouse
 	if (!PendingSelectedComponent.IsValid())
 	{
-		if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin())
+		if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = WeakToolkit.Pin())
 		{
 			if (UDMXPixelMappingRendererComponent* RendererComponent = ToolkitPtr->GetActiveRendererComponent())
 			{
@@ -374,7 +374,7 @@ FReply SDMXPixelMappingDesignerView::OnKeyDown(const FGeometry& MyGeometry, cons
 {
 	if (InKeyEvent.GetKey() == EKeys::Delete)
 	{
-		if (const TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin())
+		if (const TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = WeakToolkit.Pin())
 		{
 			const FScopedTransaction Transaction(FText::Format(LOCTEXT("DMXPixelMapping.RemoveComponents", "Remove {0}|plural(one=Component, other=Components)"), ToolkitPtr->GetSelectedComponents().Num()));
 
@@ -391,7 +391,7 @@ void SDMXPixelMappingDesignerView::Tick(const FGeometry& AllottedGeometry, const
 {
 	SDMXPixelMappingSurface::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
-	if (const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin())
+	if (const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin())
 	{
 		// Handle drag over on tick
 		if (PendingDragDropOp.IsValid())
@@ -545,7 +545,7 @@ void SDMXPixelMappingDesignerView::OnDragLeave(const FDragDropEvent& DragDropEve
 	const TSharedPtr<FDMXPixelMappingDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FDMXPixelMappingDragDropOp>();
 	if (DragDropOp.IsValid())
 	{
-		if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin())
+		if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = WeakToolkit.Pin())
 		{
 			FScopedRestoreSelection(ToolkitPtr.ToSharedRef(), StaticCastSharedRef<SDMXPixelMappingDesignerView>(AsShared()));
 
@@ -595,27 +595,18 @@ FReply SDMXPixelMappingDesignerView::OnDrop(const FGeometry& MyGeometry, const F
 
 FSlateRect SDMXPixelMappingDesignerView::ComputeAreaBounds() const
 {
-	FSlateRect Bounds = FSlateRect(0.f, 0.f, 0.f, 0.f);
-
-	const TSet<FDMXPixelMappingComponentReference> SelectedComponentReferences = GetSelectedComponents();
-	for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponentReferences)
+	if (SourceTextureViewport.IsValid())
 	{
-		if (UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent())
+		const FVector2D Size
 		{
-			if (UDMXPixelMappingRendererComponent* RendererComponent = Component->GetRendererComponent())
-			{
-				Bounds.Left = FMath::Min(RendererComponent->GetPosition().X, Bounds.Left);
-				Bounds.Top = FMath::Min(RendererComponent->GetPosition().Y, Bounds.Top);
+			FMath::Max(SourceTextureViewport->GetWidthGraphSpace().Get(), 1.0),
+			FMath::Max(SourceTextureViewport->GetHeightGraphSpace().Get(), 1.0),
+		};
 
-				Bounds.Right = FMath::Max(RendererComponent->GetPosition().X + RendererComponent->GetSize().X, Bounds.Right);
-				Bounds.Bottom = FMath::Max(RendererComponent->GetPosition().Y + RendererComponent->GetSize().Y, Bounds.Bottom);
-
-				break;
-			}
-		}
+		return FSlateRect(0.f, 0.f, Size.X, Size.Y);
 	}
 
-	return Bounds;
+	return FSlateRect();
 }
 
 int32 SDMXPixelMappingDesignerView::GetGraphRulePeriod() const
@@ -645,7 +636,7 @@ void SDMXPixelMappingDesignerView::PostRedo(bool bSuccess)
 
 void SDMXPixelMappingDesignerView::RebuildDesigner()
 {
-	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
+	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin();
 	if (!Toolkit.IsValid())
 	{
 		return;
@@ -666,6 +657,7 @@ void SDMXPixelMappingDesignerView::RebuildDesigner()
 	{
 		const TSharedRef<SConstraintCanvas> ComponentCanvas = SNew(SConstraintCanvas);
 		DesignCanvas->AddSlot()
+			.Alignment(FVector2D::ZeroVector)
 			[
 				ComponentCanvas
 			];
@@ -709,7 +701,7 @@ void SDMXPixelMappingDesignerView::CreateExtensionWidgetsForSelection()
 		!OutputComponent->IsLockInDesigner())
 	{
 		// Add transform handles
-		constexpr float Offset = 10.f;
+		constexpr float Offset = 0.1f;
 		const TSharedPtr<SDMXPixelMappingDesignerView> Self = SharedThis(this);
 		TransformHandles.Add(SNew(SDMXPixelMappingTransformHandle, Self, EDMXPixelMappingTransformDirection::CenterRight, FVector2D(Offset, 0.f)));
 		TransformHandles.Add(SNew(SDMXPixelMappingTransformHandle, Self, EDMXPixelMappingTransformDirection::BottomCenter, FVector2D(0.f, Offset)));
@@ -883,7 +875,7 @@ void SDMXPixelMappingDesignerView::OnSelectedComponentsChanged()
 
 void SDMXPixelMappingDesignerView::ResolvePendingSelectedComponents(bool bClearPreviousSelection)
 {
-	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
+	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin();
 	const bool bHasPendingSelectedComponent = PendingSelectedComponent.IsValid();
 	if (Toolkit.IsValid() && bHasPendingSelectedComponent)
 	{
@@ -913,7 +905,7 @@ void SDMXPixelMappingDesignerView::ResolvePendingSelectedComponents(bool bClearP
 
 		if (!bClearPreviousSelection)
 		{
-			SelectedComponents.Append(ToolkitWeakPtr.Pin()->GetSelectedComponents());
+			SelectedComponents.Append(WeakToolkit.Pin()->GetSelectedComponents());
 		}
 		Toolkit->SelectComponents(SelectedComponents);
 
@@ -960,8 +952,6 @@ UDMXPixelMappingOutputComponent* SDMXPixelMappingDesignerView::GetComponentUnder
 		FVector2D GraphSpaceCursorPosition;
 		if (GetGraphSpaceCursorPosition(GraphSpaceCursorPosition))
 		{
-			// Widgets are offset by 0.5f to reside over the pixel
-			GraphSpaceCursorPosition += FVector2D(.5f, .5f);
 			RendererComponent->ForEachChild([&ComponentUnderCursor, &GraphSpaceCursorPosition](UDMXPixelMappingBaseComponent* InComponent)
 				{
 					if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(InComponent))
@@ -985,7 +975,7 @@ UDMXPixelMappingOutputComponent* SDMXPixelMappingDesignerView::GetComponentUnder
 
 TSet<FDMXPixelMappingComponentReference> SDMXPixelMappingDesignerView::GetSelectedComponents() const
 {
-	if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin())
+	if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = WeakToolkit.Pin())
 	{
 		return ToolkitPtr->GetSelectedComponents();
 	}
@@ -1076,7 +1066,7 @@ FGeometry SDMXPixelMappingDesignerView::MakeGeometryWindowLocal(const FGeometry&
 
 void SDMXPixelMappingDesignerView::HandleDragEnterFromDetailsOrPalette(const TSharedPtr<FDMXPixelMappingDragDropOp>& TemplateDragDropOp)
 {
-	if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin())
+	if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = WeakToolkit.Pin())
 	{
 		if (TemplateDragDropOp.IsValid())
 		{

@@ -6,7 +6,6 @@
 
 #include "UObject/WeakObjectPtr.h"
 
-class IDMXPixelMappingRenderer;
 class UDMXPixelMappingPreprocessRenderer;
 class UTexture;
 

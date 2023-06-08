@@ -273,20 +273,35 @@ bool UDMXPixelMappingOutputComponent::OverlapsComponent(UDMXPixelMappingOutputCo
 
 void UDMXPixelMappingOutputComponent::SetPosition(const FVector2D& Position) 
 {
-	if (Position.X != PositionX || Position.Y != PositionY)
-	{
-		PositionX = Position.X;
-		PositionY = Position.Y;
-	}
+	PositionX = Position.X;
+	PositionY = Position.Y;
+}
+
+FVector2D UDMXPixelMappingOutputComponent::GetPosition() const
+{
+	return FVector2D(PositionX, PositionY);
 }
 
 void UDMXPixelMappingOutputComponent::SetSize(const FVector2D& Size) 
 {
-	SizeX = Size.X;
-	SizeY = Size.Y;
+	SizeX = FMath::Max(Size.X, 1.f);
+	SizeY = FMath::Max(Size.Y, 1.f);
 
-	SizeX = FMath::Max(SizeX, 1.f);
-	SizeY = FMath::Max(SizeY, 1.f);
+	// Limit all components size to max texture size, logged
+	const uint32 MaxTextureDimensions = GetMax2DTextureDimension();
+	if (SizeX > MaxTextureDimensions || SizeY > MaxTextureDimensions)
+	{
+		SizeX = MaxTextureDimensions;
+		SizeY = MaxTextureDimensions;
+	}
+}
+
+void UDMXPixelMappingOutputComponent::InvalidatePixelMapRenderer()
+{
+	if (UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent())
+	{
+		RendererComponent->InvalidatePixelMapRenderer();
+	}
 }
 
 UDMXPixelMappingRendererComponent* UDMXPixelMappingOutputComponent::FindRendererComponent() const

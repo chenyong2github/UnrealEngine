@@ -2,6 +2,11 @@
 
 #include "Components/DMXPixelMappingMatrixComponent.h"
 
+#include "Algo/Sort.h"
+#include "ColorSpace/DMXPixelMappingColorSpace_RGBCMY.h"
+#include "Components/DMXPixelMappingFixtureGroupComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
+#include "DMXConversions.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingMainStreamObjectVersion.h"
 #include "DMXPixelMappingRuntimeCommon.h"
@@ -10,6 +15,7 @@
 #include "ColorSpace/DMXPixelMappingColorSpace_RGBCMY.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
+#include "Components/DMXPixelMappingRendererComponent.h"
 #include "IO/DMXOutputPort.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
@@ -22,6 +28,7 @@
 
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingMatrixComponent"
+
 
 UDMXPixelMappingMatrixComponent::UDMXPixelMappingMatrixComponent()
 {
@@ -285,23 +292,46 @@ void UDMXPixelMappingMatrixComponent::ResetDMX()
 
 void UDMXPixelMappingMatrixComponent::SendDMX()
 {
-	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
-
-	if (FixturePatch)
+	if (!ensureMsgf(ColorSpace, TEXT("Invalid color space in Pixel Mapping Matrix Component '%s'"), *GetName()))
 	{
-		// An array of attribute to value maps for each child, in order of the childs
-		TArray<FDMXNormalizedAttributeValueMap> AttributeToValueMapArray;
+		return;
+	}
+
+	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
+	const FDMXFixtureMode* ActiveModePtr = FixturePatch ? FixturePatch->GetActiveMode() : nullptr;
+	if (FixturePatch && ActiveModePtr && ActiveModePtr->bFixtureMatrixEnabled)
+	{
+		TArray<UDMXPixelMappingMatrixCellComponent*> CellComponents;
+		Algo::TransformIf(Children, CellComponents,
+			[](UDMXPixelMappingBaseComponent* BaseComponent)
+			{
+				return BaseComponent != nullptr;
+			},
+			[](UDMXPixelMappingBaseComponent* BaseComponent)
+			{
+				return Cast<UDMXPixelMappingMatrixCellComponent>(BaseComponent);
+			});
+		Algo::SortBy(CellComponents, [](UDMXPixelMappingMatrixCellComponent* Component)
+			{
+				// Sort by cell coordinates
+				return Component->GetCellCoordinate().Y * Component->GetCellCoordinate().X + Component->GetCellCoordinate().X;
+			});
 
 		// Accumulate matrix cell data
-		for (UDMXPixelMappingBaseComponent* Component : Children)
-		{
-			if (UDMXPixelMappingMatrixCellComponent* CellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(Component))
-			{
-				FDMXNormalizedAttributeValueMap NormalizedAttributeToValueMap;
-				NormalizedAttributeToValueMap.Map = CellComponent->CreateAttributeValues();
+		TArray<FDMXNormalizedAttributeValueMap> AttributeToValueMapArray;
+		AttributeToValueMapArray.Reserve(CellComponents.Num());
+		Algo::Transform(CellComponents, AttributeToValueMapArray, [this](UDMXPixelMappingMatrixCellComponent* CellComponent)
+			{	
+				// Get the color data from the rendered component
+				ColorSpace->SetRGBA(CellComponent->GetPixelMapColor());
 
-				AttributeToValueMapArray.Add(NormalizedAttributeToValueMap);
-			}
+				FDMXNormalizedAttributeValueMap MapStruct;
+				MapStruct.Map = ColorSpace->GetAttributeNameToValueMap();
+				return MapStruct;
+			});
+		if (!ensureMsgf(AttributeToValueMapArray.Num() == CellComponents.Num(), TEXT("Mismatch num cell attributes and num attribute to value maps. Cannot send DMX for Matrix Component %s"), *GetUserFriendlyName()))
+		{
+			return;
 		}
 
 		// Apply matrix modulators
@@ -310,39 +340,43 @@ void UDMXPixelMappingMatrixComponent::SendDMX()
 			Modulator->ModulateMatrix(FixturePatch, AttributeToValueMapArray, AttributeToValueMapArray);
 		}
 
-		for (int32 IndexChild = 0; IndexChild < Children.Num(); IndexChild++)
+		// Write channel values
+		const int32 MatrixStartingChannel = FixturePatch->GetStartingChannel() + ActiveModePtr->FixtureMatrixConfig.FirstCellChannel - 1;
+		const int32 MatrixCellSize = ActiveModePtr->FixtureMatrixConfig.GetNumChannels();
+
+		int32 ChannelOffset = 0;
+		TMap<int32, uint8> ChannelToValueMap;
+		for (int32 CellIndex = 0; CellIndex < CellComponents.Num(); CellIndex++)
 		{
-			if (UDMXPixelMappingMatrixCellComponent* CellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(Children[IndexChild]))
+			for (const FDMXFixtureCellAttribute& CellAttribute : ActiveModePtr->FixtureMatrixConfig.CellAttributes)
 			{
-				// Relies on the order of childs and AttributeToValueMapArray didn't change during the lifetime of this function!
-				if (!AttributeToValueMapArray.IsValidIndex(IndexChild))
+				float* ValuePtr = AttributeToValueMapArray[CellIndex].Map.Find(CellAttribute.Attribute);
+				if (ValuePtr)
 				{
-					break;
+					const TArray<uint8> Values = FDMXConversions::NormalizedDMXValueToByteArray(*ValuePtr, CellAttribute.DataType, CellAttribute.bUseLSBMode);
+					for (uint8 Value : Values)
+					{
+						const int32 Channel = MatrixStartingChannel + ChannelOffset;
+						ChannelToValueMap.Add(Channel, Value);
+					}
 				}
 
-				TMap<int32, uint8> ChannelToValueMap;
-				for (const TTuple<FDMXAttributeName, float>& AttributeValuePair : AttributeToValueMapArray[IndexChild].Map)
-				{
-					FDMXPixelMappingRuntimeUtils::ConvertNormalizedAttributeValueToChannelValue(FixturePatch, AttributeValuePair.Key, AttributeValuePair.Value, ChannelToValueMap);
-
-					FixturePatch->SendNormalizedMatrixCellValue(CellComponent->CellCoordinate, AttributeValuePair.Key, AttributeValuePair.Value);
-				}
+				ChannelOffset += CellAttribute.GetNumChannels();
 			}
 		}
 
-		// Send normal modulators. This is important to allow modulators to generate attribute values
+		// Write modulator generated non-matrix attributes. This is important to allow modulators to generate non-matrix attribute values
 		TMap<FDMXAttributeName, float> ModulatorGeneratedAttributeValueMap;
 		for (UDMXModulator* Modulator : Modulators)
 		{
 			Modulator->Modulate(FixturePatch, ModulatorGeneratedAttributeValueMap, ModulatorGeneratedAttributeValueMap);
 		}
-
-		TMap<int32, uint8> ChannelToValueMap;
 		for (const TTuple<FDMXAttributeName, float>& AttributeValuePair : ModulatorGeneratedAttributeValueMap)
 		{
 			FDMXPixelMappingRuntimeUtils::ConvertNormalizedAttributeValueToChannelValue(FixturePatch, AttributeValuePair.Key, AttributeValuePair.Value, ChannelToValueMap);
 		}
 
+		// Send DMX
 		if (UDMXLibrary* Library = FixturePatch->GetParentLibrary())
 		{
 			for (const FDMXOutputPortSharedRef& OutputPort : Library->GetOutputPorts())
@@ -351,16 +385,6 @@ void UDMXPixelMappingMatrixComponent::SendDMX()
 			}
 		}
 	}
-}
-
-void UDMXPixelMappingMatrixComponent::QueueDownsample()
-{
-	ForEachChild([&](UDMXPixelMappingBaseComponent* InComponent) {
-		if (UDMXPixelMappingOutputComponent* Component = Cast<UDMXPixelMappingOutputComponent>(InComponent))
-		{
-			Component->QueueDownsample();
-		}
-	}, false);
 }
 
 bool UDMXPixelMappingMatrixComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
@@ -435,30 +459,21 @@ void UDMXPixelMappingMatrixComponent::HandleSizeChanged()
 		CellSize = FVector2D(GetSize().X / CoordinateGrid.X, GetSize().Y / CoordinateGrid.Y);
 	}
 
-	if (Children.Num() > 0)
-	{
-		constexpr bool bUpdateSizeRecursive = false;
-		ForEachChildOfClass<UDMXPixelMappingMatrixCellComponent>([this](UDMXPixelMappingMatrixCellComponent* ChildComponent)
-			{
+	constexpr bool bUpdateSizeRecursive = false;
+	ForEachChildOfClass<UDMXPixelMappingMatrixCellComponent>([this](UDMXPixelMappingMatrixCellComponent* ChildComponent)
+		{
 #if WITH_EDITOR
-				if (ChildComponent->IsLockInDesigner())
-				{
-					ChildComponent->SetSize(CellSize);
-					ChildComponent->SetPosition(GetPosition() + FVector2D(CellSize * ChildComponent->GetCellCoordinate()));
-				}
-#else
+			if (ChildComponent->IsLockInDesigner())
+			{
 				ChildComponent->SetSize(CellSize);
 				ChildComponent->SetPosition(GetPosition() + FVector2D(CellSize * ChildComponent->GetCellCoordinate()));
+			}
+#else
+			ChildComponent->SetSize(CellSize);
+			ChildComponent->SetPosition(GetPosition() + FVector2D(CellSize * ChildComponent->GetCellCoordinate()));
 #endif // WITH_EDITOR
 
-			}, bUpdateSizeRecursive);
-	}
-	else
-	{
-		// Set the default size
-		const FVector2D DefaultSize(32.f, 32.f);
-		SetSize(DefaultSize);
-	}
+		}, bUpdateSizeRecursive);
 
 #if WITH_EDITOR
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -517,6 +532,19 @@ void UDMXPixelMappingMatrixComponent::HandleMatrixChanged()
 	HandleSizeChanged();
 
 	GetOnMatrixChanged().Broadcast(PixelMapping, this);
+}
+
+void UDMXPixelMappingMatrixComponent::QueueDownsample()
+{
+	// Deprecated 5.3
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ForEachChild([&](UDMXPixelMappingBaseComponent* InComponent) {
+		if (UDMXPixelMappingOutputComponent* Component = Cast<UDMXPixelMappingOutputComponent>(InComponent))
+		{
+			Component->QueueDownsample();
+		}
+	}, false);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UDMXPixelMappingMatrixComponent::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)

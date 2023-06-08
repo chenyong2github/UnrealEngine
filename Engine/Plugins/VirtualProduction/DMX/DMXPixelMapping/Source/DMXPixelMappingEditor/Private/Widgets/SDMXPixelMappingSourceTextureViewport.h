@@ -22,28 +22,27 @@ public:
 	SLATE_END_ARGS()
 
 public:
-	/**
-	 * Constructs the widget.
-	 *
-	 * @param InArgs The construction arguments.
-	 */
+	/** Constructs this widget */
 	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit);
 
+	/** Returns the viewport of this widget */
 	TSharedPtr<FSceneViewport> GetViewport() const { return Viewport; }
 
+	/** Returns the viewport widget of this viewport */
 	TSharedPtr<SViewport> GetViewportWidget() const { return ViewportWidget; }
 
-	// Begin SWidget interface
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-	// End of SWidget interface
-
-private:
 	/** Returns the texture width, in graph space  */
 	FOptionalSize GetWidthGraphSpace() const;
 
 	/** Returns the texture height, in graph space  */
 	FOptionalSize GetHeightGraphSpace() const;
 
+protected:
+	// Begin SWidget interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	// End of SWidget interface
+
+private:
 	/** Returns the padding of content, in graph space */
 	FMargin GetPaddingGraphSpace() const;
 

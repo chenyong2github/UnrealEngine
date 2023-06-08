@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "Engine/EngineTypes.h"
 #include "Widgets/SCompoundWidget.h"
+
 
 enum class EDMXPixelMappingTransformDirection : uint8
 {
@@ -55,7 +57,10 @@ public:
 protected:
 	EVisibility GetHandleVisibility() const;
 
-	bool CanResize(UDMXPixelMappingBaseComponent* BaseComponent, const FVector2D& Direction) const { return true; }
+	/** Resizes the component on the next tick */
+	void RequestResize(UDMXPixelMappingBaseComponent* BaseComponent, const FVector2D& Direction);
+	
+	/** Resizes the component */
 	void Resize(UDMXPixelMappingBaseComponent* BaseComponent, const FVector2D& Direction, const FVector2D& Amount);
 
 	EDMXPixelMappingTransformAction ComputeActionAtLocation(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const;
@@ -79,4 +84,7 @@ protected:
 	TWeakPtr<SDMXPixelMappingDesignerView> DesignerViewWeakPtr;
 
 	TAttribute<FVector2D> Offset;
+
+	/** Timer handle used when resize is requested */
+	FTimerHandle RequestResizeHandle;
 };

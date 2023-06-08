@@ -15,11 +15,8 @@ public:
 	/** Constructor */
 	FDMXPixelMappingSourceTextureViewportClient(const TSharedPtr<FDMXPixelMappingToolkit>& Toolkit, TWeakPtr<SDMXPixelMappingSourceTextureViewport> InViewport);
 	
-	/**
-	 * Returns true if it only the visible rectangle is drawn, instead of the whole texture.
-	 * This is favorable when zoomed in closely and the viewport size gets close to, or exceeds GMaxTextureDimensions.
-	 */
-	bool DrawOnlyVisibleRect() const;
+	/** If true, the widget draws the visible rect of the source texture */
+	bool IsDrawingVisibleRectOnly() const;
 
 	/** Returns the visible texture size in graph space */
 	FBox2D GetVisibleTextureBoxGraphSpace() const;

@@ -2,40 +2,146 @@
 
 #include "Viewports/DMXPixelMappingPreviewViewportClient.h"
 
-#include "Toolkits/DMXPixelMappingToolkit.h"
-#include "Components/DMXPixelMappingRendererComponent.h"
-#include "IDMXPixelMappingRenderer.h"
-
+#include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "Components/DMXPixelMappingRendererComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "PixelMapRenderElement.h"
+#include "Slate/SceneViewport.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
 #include "UnrealClient.h"
+#include "Views/SDMXPixelMappingPreviewView.h"
+#include "Widgets/SDMXPixelMappingPreviewViewport.h"
 
-FDMXPixelMappingPreviewViewportClient::FDMXPixelMappingPreviewViewportClient(const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit, TWeakPtr<SDMXPixelMappingPreviewViewport> InViewport)
-	: ToolkitWeakPtr(InToolkit)
-	, WeakViewport(InViewport)
+
+FDMXPixelMappingPreviewViewportClient::FDMXPixelMappingPreviewViewportClient(TWeakPtr<FDMXPixelMappingToolkit> InWeakToolkit, TWeakPtr<SDMXPixelMappingPreviewViewport> InWeakViewport)
+	: WeakToolkit(InWeakToolkit)
+	, WeakViewport(InWeakViewport)
+{}
+
+bool FDMXPixelMappingPreviewViewportClient::IsDrawingVisibleRectOnly() const
 {
-	check(InToolkit.IsValid() && WeakViewport.IsValid())
+	if (!WeakToolkit.IsValid() || !WeakViewport.IsValid())
+	{
+		return false;
+	}
+	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
+	const TSharedRef<SDMXPixelMappingPreviewView> PreviewView = Toolkit->GetOrCreatePreviewView();
+
+	UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent();
+	UTexture* InputTexture = RendererComponent ? RendererComponent->GetRenderedInputTexture() : nullptr;
+	if (!InputTexture)
+	{
+		return false;
+	}
+
+	const int32 ExcessThreshold = GMaxTextureDimensions / 4;
+
+	return
+		InputTexture->GetSurfaceWidth() * PreviewView->GetZoomAmount() > ExcessThreshold ||
+		InputTexture->GetSurfaceHeight() * PreviewView->GetZoomAmount() > ExcessThreshold;
+}
+
+FBox2D FDMXPixelMappingPreviewViewportClient::GetVisibleTextureBoxGraphSpace() const
+{
+	if (!WeakToolkit.IsValid())
+	{
+		return FBox2D();
+	}
+	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
+	const TSharedRef<SDMXPixelMappingPreviewView> PreviewView = Toolkit->GetOrCreatePreviewView();
+
+	UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent();
+	UTexture* InputTexture = RendererComponent ? RendererComponent->GetRenderedInputTexture() : nullptr;
+	if (!InputTexture || !InputTexture->GetResource())
+	{
+		return FBox2D();
+	}
+
+	// Compute texture box in graph space
+	const FVector2D TextureDimensions = FVector2D(InputTexture->GetSurfaceWidth(), InputTexture->GetSurfaceHeight());
+	const FBox2D TextureBox(FVector2D::ZeroVector, TextureDimensions);
+
+	// Compute graph box in graph space
+	const FGeometry& GraphGeometry = PreviewView->GetGraphTickSpaceGeometry();
+	const FVector2D GraphSize = GraphGeometry.GetAbsoluteSize() / PreviewView->GetZoomAmount();
+	const FVector2D ViewOffset = PreviewView->GetViewOffset();
+	const FBox2D GraphBox(ViewOffset, ViewOffset + GraphSize);
+
+	return TextureBox.Overlap(GraphBox);
 }
 
 void FDMXPixelMappingPreviewViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 {
-	Canvas->Clear(FColor::Transparent);
+	check(IsInGameThread());
 
-	TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
-	check(Toolkit.IsValid());
+	Canvas->Clear(FColor::Black);
+
+	if (!WeakToolkit.IsValid())
+	{
+		return;
+	}
+	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
 
 	UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent();
-	if (RendererComponent)
+	UTexture* InputTexture = RendererComponent ? RendererComponent->GetRenderedInputTexture() : nullptr;
+	if (!InputTexture || !InputTexture->GetResource())
 	{
-		for (UDMXPixelMappingOutputComponent* OutputComponent : Toolkit->GetActiveOutputComponents())
-		{
-			UTextureRenderTarget2D* InputTexture = RendererComponent->GetPreviewRenderTarget();
-			const TSharedPtr<IDMXPixelMappingRenderer>& Renderer = RendererComponent->GetRenderer();
+		return;
+	}
 
-			if (Renderer.IsValid() && InputTexture != nullptr)
+	const TSharedPtr<SDMXPixelMappingPreviewViewport> ViewportWidget = WeakViewport.Pin();
+	if (!ViewportWidget.IsValid())
+	{
+		return;
+	}
+
+	const TSharedPtr<FSceneViewport> SceneViewport = ViewportWidget->GetViewport();
+	if (!SceneViewport.IsValid())
+	{
+		return;
+	}
+
+	// Draw the current render elements
+	const bool bDrawVisibleRectOnly = IsDrawingVisibleRectOnly();
+
+	using namespace UE::DMXPixelMapping::Rendering;
+	const TArray<TSharedRef<FPixelMapRenderElement>> RenderElements = RendererComponent->GetPixelMapRenderElements();
+	for (const TSharedRef<FPixelMapRenderElement>& Element : RenderElements)
+	{
+		const FVector2D UV = Element->GetParameters().UV;
+		const FVector2D UVSize = Element->GetParameters().UVSize;
+
+		if (bDrawVisibleRectOnly)
+		{
+			const FVector2D PositionGraphSpace = UV * FVector2D{ InputTexture->GetSurfaceWidth(), InputTexture->GetSurfaceHeight() };
+			const FVector2D SizeGraphSpace = UVSize * FVector2D{ InputTexture->GetSurfaceWidth(), InputTexture->GetSurfaceHeight() };
+			
+			const FBox2D ComponentBox(PositionGraphSpace, PositionGraphSpace + SizeGraphSpace);
+			const FBox2D VisibleTextureBox = GetVisibleTextureBoxGraphSpace();
+			const FBox2D VisibleComponentBox = VisibleTextureBox.Overlap(ComponentBox);
+
+			if (ComponentBox.bIsValid)
 			{
-				Renderer->RenderTextureToRectangle(InputTexture->GetResource(), InViewport->GetRenderTargetTexture(), InViewport->GetSizeXY(), InputTexture->SRGB);
+				const TSharedRef<SDMXPixelMappingPreviewView> PreviewView = Toolkit->GetOrCreatePreviewView();
+				const FVector2D Position = (VisibleComponentBox.Min - VisibleTextureBox.Min) * PreviewView->GetZoomAmount();
+				const FVector2D Size = VisibleComponentBox.GetSize() * PreviewView->GetZoomAmount();
+
+				FCanvasTileItem TileItem(Position, Size, Element->GetColor());
+				TileItem.BlendMode = ESimpleElementBlendMode::SE_BLEND_MAX;
+				Canvas->DrawItem(TileItem);
 			}
 		}
+		else
+		{
+			const FVector2D Position = UV * InViewport->GetSizeXY();
+			const FVector2D Size = UVSize * InViewport->GetSizeXY();
+
+			FCanvasTileItem TileItem(Position, Size, Element->GetColor());
+			TileItem.BlendMode = ESimpleElementBlendMode::SE_BLEND_MAX;
+			Canvas->DrawItem(TileItem);
+		}
 	}
+
+	Canvas->Flush_GameThread();
 }

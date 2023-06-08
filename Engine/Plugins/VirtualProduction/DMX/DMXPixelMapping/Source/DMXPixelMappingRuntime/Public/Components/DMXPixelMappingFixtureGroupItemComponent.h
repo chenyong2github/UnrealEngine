@@ -14,13 +14,12 @@
 
 enum class EDMXColorMode : uint8;
 struct FDMXAttributeName;
-class UDMXModulator;
-class UDMXPixelMappingColorSpace;
-
 class FEditPropertyChain;
 class STextBlock;
 class UTextureRenderTarget2D;
-
+class UDMXModulator;
+class UDMXPixelMappingColorSpace;
+namespace UE::DMXPixelMapping::Rendering::PixelMapRenderer { class FPixelMapRenderElement; }
 
 /** 
  * A component that holds a single Fixture Patch in the Pixel Mapping, and actually sends DMX.
@@ -38,13 +37,13 @@ public:
 protected:
 	//~ Begin UObject interface
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 #endif // WITH_EDITOR
-
 	//~ End UObject interface
 
 public:
@@ -60,15 +59,12 @@ public:
 	virtual bool IsVisible() const override;
 #endif // WITH_EDITOR	
 	virtual bool IsOverParent() const override;
-	virtual void QueueDownsample() override;
-	virtual int32 GetDownsamplePixelIndex() const override { return DownsamplePixelIndex; }
 	virtual void SetPosition(const FVector2D& NewPosition) override;
 	virtual void SetSize(const FVector2D& NewSize) override;
 	//~ End UDMXPixelMappingOutputComponent implementation
 
-	//~ Begin UDMXPixelMappingOutputDMXComponent implementation
-	virtual void RenderWithInputAndSendDMX() override;
-	//~ End UDMXPixelMappingOutputDMXComponent implementation
+	/** Returns the pixel map render element for the matrix cell */
+	TSharedRef<UE::DMXPixelMapping::Rendering::FPixelMapRenderElement> GetOrCreatePixelMapRenderElement();
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
@@ -96,6 +92,9 @@ public:
 	int32 DownsamplePixelIndex;
 
 private:
+	/** Updates the rendered element */
+	void UpdateRenderElement();
+
 #if WITH_EDITOR
 	/** Called post edit change properties of the color space member */
 	void OnColorSpacePostEditChangeProperties(FPropertyChangedEvent& PropertyChangedEvent);
@@ -104,11 +103,29 @@ private:
 	/** Helper that returns the renderer component this component belongs to */
 	UDMXPixelMappingRendererComponent* GetRendererComponent() const;
 
+	/** Pixel map render element for the matrix cell */
+	TSharedPtr<UE::DMXPixelMapping::Rendering::FPixelMapRenderElement> PixelMapRenderElement;
+
 
 	//////////////////////
 	// Deprecated Members
 	
 public:
+	//~ Begin UDMXPixelMappingOutputComponent implementation
+	UE_DEPRECATED(5.3, "No longer in use. Please use UDMXPixelMappingPixelMapRenderer to render the pixel map")
+	virtual void QueueDownsample() override;
+	UE_DEPRECATED(5.3, "No longer in use. Please use UDMXPixelMappingPixelMapRenderer to render the pixel map")
+	virtual int32 GetDownsamplePixelIndex() const override { return DownsamplePixelIndex; }
+	//~ End UDMXPixelMappingOutputComponent implementation
+
+
+	//~ Begin UDMXPixelMappingOutputDMXComponent implementation
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.3, "Deprecated for performance reasons. Instead use 'Get DMX Pixel Mapping Renderer Component' and Render only once each tick.")
+	virtual void RenderWithInputAndSendDMX() override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	//~ End UDMXPixelMappingOutputDMXComponent implementation
+
 	/** DEPRECATED 5.2 */
 	UE_DEPRECATED(5.2, "Instead use UDMXPixelMappingColorSpace::Update and UDMXPixelMappingColorSpace::GetAttributeNameToValueMap using the ColorSpace member of this class.")
 	TMap<FDMXAttributeName, float> CreateAttributeValues() const;

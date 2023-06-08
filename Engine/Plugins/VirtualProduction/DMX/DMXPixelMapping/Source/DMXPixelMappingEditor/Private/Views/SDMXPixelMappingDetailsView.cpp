@@ -16,7 +16,6 @@
 #include "Customizations/DMXPixelMappingDetailCustomization_Screen.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Renderer.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Matrix.h"
-#include "Customizations/DMXPixelMappingDetailCustomization_MatrixCell.h"
 #include "DetailsViewArgs.h"
 #include "DMXPixelMappingComponentReference.h"
 #include "IDetailsView.h"
@@ -56,21 +55,6 @@ void SDMXPixelMappingDetailsView::Construct(const FArguments& InArgs, const TSha
 	InToolkit->GetOnSelectedComponentsChangedDelegate().AddSP(this, &SDMXPixelMappingDetailsView::OnSelectedComponentsChanged);
 
 	OnSelectedComponentsChanged();
-}
-
-SDMXPixelMappingDetailsView::~SDMXPixelMappingDetailsView()
-{
-	if (PropertyView.IsValid())
-	{
-		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingFixtureGroupComponent::StaticClass());
-		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
-		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingScreenComponent::StaticClass());
-		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingRendererComponent::StaticClass());
-		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixComponent::StaticClass());
-		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixCellComponent::StaticClass());
-		
-		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingColorSpace_RGBCMY::StaticClass());
-	}
 }
 
 void SDMXPixelMappingDetailsView::OnSelectedComponentsChanged()
@@ -129,9 +113,6 @@ void SDMXPixelMappingDetailsView::RegisterCustomizations()
 
 	FOnGetDetailCustomizationInstance MatrixCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_Matrix::MakeInstance, ToolkitWeakPtr);
 	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixComponent::StaticClass(), MatrixCustomizationInstance);
-
-	FOnGetDetailCustomizationInstance MatrixCellCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_MatrixCell::MakeInstance, ToolkitWeakPtr);
-	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixCellComponent::StaticClass(), MatrixCellCustomizationInstance);
 
 	FOnGetDetailCustomizationInstance ColorSpaceCustomizationInstance_RGBCMY = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingColorSpaceDetails_RGBCMY::MakeInstance);
 	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingColorSpace_RGBCMY::StaticClass(), ColorSpaceCustomizationInstance_RGBCMY);

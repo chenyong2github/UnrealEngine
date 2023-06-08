@@ -11,15 +11,17 @@
 #include "DMXPixelMappingOutputComponent.generated.h"
 
 struct FDMXPixelMappingLayoutToken;
+class SBox;
 class UDMXEntityFixturePatch;
 class UDMXPixelMappingRendererComponent;
+namespace UE::DMXPixelMapping::Rendering::PixelMapRenderer { class FPixelMapRenderElement; }
+
 
 #if WITH_EDITOR
 enum class EDMXPixelMappingComponentLabelAlignment : uint8;
 class FDMXPixelMappingComponentWidget;
 #endif
 
-class SBox;
 
 
 /** Enum that defines the quality of how pixels are rendered */
@@ -108,22 +110,27 @@ public:
 	virtual bool OverlapsComponent(UDMXPixelMappingOutputComponent* Other) const;
 
 	/** Get pixel index in downsample texture */
+	UE_DEPRECATED(5.3, "Please use UDMXPixelMappingPixelMapRenderer to render the pixel map")
 	virtual int32 GetDownsamplePixelIndex() const { return 0; }
 
 	/** Queue rendering to downsample rendering target */
+	UE_DEPRECATED(5.3, "Please use UDMXPixelMappingPixelMapRenderer to render the pixel map")
 	virtual void QueueDownsample() {}
 
 	/** Sets the position */
 	virtual void SetPosition(const FVector2D& NewPosition);
 
-	/** Returns the position. Note this is the position before a layout has been applied, use GetLayoutedPosition() to get the final position.. */
-	FVector2D GetPosition() const { return FVector2D(PositionX, PositionY); }
+	/** Returns the position */
+	FVector2D GetPosition() const;
 
 	/** Sets the size */
 	virtual void SetSize(const FVector2D& NewSize);
 
 	/** Get the size */
 	FVector2D GetSize() const { return FVector2D(SizeX, SizeY); }
+
+	/** Invalidates the pixel map, effectively causing the renderer component to aquire a new pixel map */
+	void InvalidatePixelMapRenderer();
 
 	/** Helper that returns render component if available */
 	UDMXPixelMappingRendererComponent* FindRendererComponent() const;

@@ -3,89 +3,84 @@
 #include "Widgets/SDMXPixelMappingPreviewViewport.h"
 
 #include "Components/DMXPixelMappingRendererComponent.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Viewports/DMXPixelMappingSceneViewport.h"
 #include "Viewports/DMXPixelMappingPreviewViewportClient.h"
-
-#include "Framework/Application/SlateApplication.h"
-#include "Engine/TextureRenderTarget2D.h"
 #include "Widgets/SViewport.h"
 #include "Widgets/Layout/SBox.h"
 
-void SDMXPixelMappingPreviewViewport::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
+
+void SDMXPixelMappingPreviewViewport::Construct(const FArguments& InArgs, TWeakPtr<FDMXPixelMappingToolkit> InWeakToolkit)
 {
-	bIsRenderingEnabled = true;
-	ToolkitWeakPtr = InToolkit;
+	WeakToolkit = InWeakToolkit;
 
 	ChildSlot
 		[
 			SNew(SBox)
 			.Visibility(EVisibility::HitTestInvisible)
-			.WidthOverride(this, &SDMXPixelMappingPreviewViewport::GetPreviewAreaWidth)
-			.HeightOverride(this, &SDMXPixelMappingPreviewViewport::GetPreviewAreaHeight)
+			.Padding(this, &SDMXPixelMappingPreviewViewport::GetPaddingGraphSpace)
+			.WidthOverride(this, &SDMXPixelMappingPreviewViewport::GetWidthGraphSpace)
+			.HeightOverride(this, &SDMXPixelMappingPreviewViewport::GetHeightGraphSpace)
 			[
 				SAssignNew(ViewportWidget, SViewport)
-					.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-					.EnableGammaCorrection(false)
-					.ShowEffectWhenDisabled(false)
+				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
+				.EnableGammaCorrection(false)
+				.ShowEffectWhenDisabled(false)
 			]
 		];
 
-	ViewportClient = MakeShared<FDMXPixelMappingPreviewViewportClient>(InToolkit, SharedThis(this));
-
+	ViewportClient = MakeShared<FDMXPixelMappingPreviewViewportClient>(InWeakToolkit, SharedThis(this));
 	Viewport = MakeShared<FDMXPixelMappingSceneViewport>(ViewportClient.Get(), ViewportWidget);
 
-	// The viewport widget needs an interface so it knows what should render
 	ViewportWidget->SetViewportInterface(Viewport.ToSharedRef());
 }
 
-void SDMXPixelMappingPreviewViewport::EnableRendering()
+FOptionalSize SDMXPixelMappingPreviewViewport::GetWidthGraphSpace() const
 {
-	bIsRenderingEnabled = true;
+	if (ViewportClient->IsDrawingVisibleRectOnly())
+	{
+		return ViewportClient->GetVisibleTextureBoxGraphSpace().Max.X;
+	}
+	else if (UTexture* InputTexture = GetInputTexture())
+	{
+		return InputTexture->GetSurfaceWidth();
+	}
+	return FOptionalSize();
 }
 
-void SDMXPixelMappingPreviewViewport::DisableRendering()
+FOptionalSize SDMXPixelMappingPreviewViewport::GetHeightGraphSpace() const
 {
-	bIsRenderingEnabled = false;
+	if (ViewportClient->IsDrawingVisibleRectOnly())
+	{
+		return ViewportClient->GetVisibleTextureBoxGraphSpace().Max.Y;
+	}
+	else if (UTexture* InputTexture = GetInputTexture())
+	{
+		return InputTexture->GetSurfaceHeight();
+	}
+	return FOptionalSize();
 }
 
 void SDMXPixelMappingPreviewViewport::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	if (bIsRenderingEnabled)
-	{
-		Viewport->Invalidate();
-	}
+	Viewport->Invalidate();
 }
 
-FOptionalSize SDMXPixelMappingPreviewViewport::GetPreviewAreaWidth() const
+FMargin SDMXPixelMappingPreviewViewport::GetPaddingGraphSpace() const
 {
-	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
-	check(Toolkit.IsValid());
-
-	if (UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent())
+	if (ViewportClient->IsDrawingVisibleRectOnly())
 	{
-		UTextureRenderTarget2D* OutputTexture = RendererComponent->GetPreviewRenderTarget();
-		check(OutputTexture) // Preview Texture should be valid in any case
-		
-		return OutputTexture->SizeX;
+		return FMargin(ViewportClient->GetVisibleTextureBoxGraphSpace().Min.X, ViewportClient->GetVisibleTextureBoxGraphSpace().Min.Y, 0.0, 0.0);
 	}
 
-	return 1.f;
+	return FMargin(0.f);
 }
 
-FOptionalSize SDMXPixelMappingPreviewViewport::GetPreviewAreaHeight() const
+UTexture* SDMXPixelMappingPreviewViewport::GetInputTexture() const
 {
-	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
-	check(Toolkit.IsValid());
-
-	if (UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent())
-	{
-		UTextureRenderTarget2D* OutputTexture = RendererComponent->GetPreviewRenderTarget();
-		check(OutputTexture) // Preview Texture should be valid in any case
-		
-		return OutputTexture->SizeY;
-	}
-
-	return 1.f;
+	UDMXPixelMappingRendererComponent* RendererComponent = WeakToolkit.IsValid() ? WeakToolkit.Pin()->GetActiveRendererComponent() : nullptr;
+	
+	return RendererComponent ? RendererComponent->GetRenderedInputTexture() : nullptr;
 }
-

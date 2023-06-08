@@ -19,12 +19,11 @@ FDMXPixelMappingSourceTextureViewportClient::FDMXPixelMappingSourceTextureViewpo
 	, WeakSourceTextureViewport(InSourceTextureViewport)
 {}
 
-
-bool FDMXPixelMappingSourceTextureViewportClient::DrawOnlyVisibleRect() const
+bool FDMXPixelMappingSourceTextureViewportClient::IsDrawingVisibleRectOnly() const
 {
 	if (!WeakToolkit.IsValid())
 	{
-		return 0.0;
+		return false;
 	}
 	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
 	const TSharedRef<SDMXPixelMappingDesignerView> DesignerView = Toolkit->GetOrCreateDesignerView();
@@ -105,7 +104,7 @@ void FDMXPixelMappingSourceTextureViewportClient::Draw(FViewport* InViewport, FC
 	const FVector2D UV0 = VisibleRectBox.Min / TextureBox.GetSize();
 	const FVector2D UV1 = VisibleRectBox.Max / TextureBox.GetSize();
 
-	if (DrawOnlyVisibleRect())
+	if (IsDrawingVisibleRectOnly())
 	{
 		const TSharedPtr<FSceneViewport> SceneViewport = ViewportWidget->GetViewport();
 		if (!SceneViewport.IsValid())

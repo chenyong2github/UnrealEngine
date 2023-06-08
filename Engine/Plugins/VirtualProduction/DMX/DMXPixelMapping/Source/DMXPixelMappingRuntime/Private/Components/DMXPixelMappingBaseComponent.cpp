@@ -13,8 +13,6 @@ UDMXPixelMappingBaseComponent::FDMXPixelMappingOnComponentAdded UDMXPixelMapping
 UDMXPixelMappingBaseComponent::FDMXPixelMappingOnComponentRemoved UDMXPixelMappingBaseComponent::OnComponentRemoved;
 UDMXPixelMappingBaseComponent::FDMXPixelMappingOnComponentRenamed UDMXPixelMappingBaseComponent::OnComponentRenamed;
 
-UDMXPixelMappingBaseComponent::UDMXPixelMappingBaseComponent()
-{}
 
 UDMXPixelMappingBaseComponent::FDMXPixelMappingOnComponentAdded& UDMXPixelMappingBaseComponent::UDMXPixelMappingBaseComponent::GetOnComponentAdded()
 {
@@ -80,11 +78,6 @@ const FName& UDMXPixelMappingBaseComponent::GetNamePrefix()
 
 	static FName NamePrefix = TEXT("");
 	return NamePrefix;
-}
-
-TStatId UDMXPixelMappingBaseComponent::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(UDMXPixelMappingBaseComponent, STATGROUP_Tickables);
 }
 
 int32 UDMXPixelMappingBaseComponent::GetChildrenCount() const

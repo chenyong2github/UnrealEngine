@@ -40,14 +40,9 @@ void SDMXPixelMappingSourceTextureViewport::Construct(const FArguments& InArgs, 
 	ViewportWidget->SetViewportInterface(Viewport.ToSharedRef());
 }
 
-void SDMXPixelMappingSourceTextureViewport::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	Viewport->Invalidate();
-}
-
 FOptionalSize SDMXPixelMappingSourceTextureViewport::GetWidthGraphSpace() const
 {
-	if (ViewportClient->DrawOnlyVisibleRect())
+	if (ViewportClient->IsDrawingVisibleRectOnly())
 	{
 		return ViewportClient->GetVisibleTextureBoxGraphSpace().Max.X;
 	}
@@ -60,7 +55,7 @@ FOptionalSize SDMXPixelMappingSourceTextureViewport::GetWidthGraphSpace() const
 
 FOptionalSize SDMXPixelMappingSourceTextureViewport::GetHeightGraphSpace() const
 {
-	if (ViewportClient->DrawOnlyVisibleRect())
+	if (ViewportClient->IsDrawingVisibleRectOnly())
 	{
 		return ViewportClient->GetVisibleTextureBoxGraphSpace().Max.Y;
 	}
@@ -71,9 +66,14 @@ FOptionalSize SDMXPixelMappingSourceTextureViewport::GetHeightGraphSpace() const
 	return FOptionalSize();
 }
 
+void SDMXPixelMappingSourceTextureViewport::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	Viewport->Invalidate();
+}
+
 FMargin SDMXPixelMappingSourceTextureViewport::GetPaddingGraphSpace() const
 {
-	if (ViewportClient->DrawOnlyVisibleRect())
+	if (ViewportClient->IsDrawingVisibleRectOnly())
 	{
 		return FMargin(ViewportClient->GetVisibleTextureBoxGraphSpace().Min.X, ViewportClient->GetVisibleTextureBoxGraphSpace().Min.Y, 0.0, 0.0);
 	}
@@ -85,12 +85,7 @@ FMargin SDMXPixelMappingSourceTextureViewport::GetPaddingGraphSpace() const
 
 UTexture* SDMXPixelMappingSourceTextureViewport::GetInputTexture() const
 {
-	if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin())
-	{
-		if (UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent())
-		{
-			return RendererComponent->GetRenderedInputTexture();
-		}
-	}
-	return nullptr;
+	UDMXPixelMappingRendererComponent* RendererComponent = WeakToolkit.IsValid() ? WeakToolkit.Pin()->GetActiveRendererComponent() : nullptr;
+
+	return RendererComponent ? RendererComponent->GetRenderedInputTexture() : nullptr;
 }

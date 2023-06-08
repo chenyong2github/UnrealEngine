@@ -2,8 +2,8 @@
 
 #include "DMXPixelMappingPreprocessRenderer.h"
 
+#include "DMXStats.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "IDMXPixelMappingRenderer.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "PreprocessApplyFilterMaterialProxy.h"
 #include "PreprocessRenderInputMaterialProxy.h"
@@ -11,6 +11,8 @@
 #include "PreprocessRenderInputUserWidgetProxy.h"
 #include "UObject/Package.h"
 
+
+DECLARE_CYCLE_STAT(TEXT("PixelMapping PreprocessInputTexture"), STAT_PreprocessInputTexture, STATGROUP_DMX);
 
 void UDMXPixelMappingPreprocessRenderer::SetInputTexture(UTexture* InTexture)
 {
@@ -47,6 +49,8 @@ void UDMXPixelMappingPreprocessRenderer::ClearInput()
 
 void UDMXPixelMappingPreprocessRenderer::Render()
 {
+	SCOPE_CYCLE_COUNTER(STAT_PreprocessInputTexture);
+
 	if (RenderInputProxy.IsValid())
 	{
 		RenderInputProxy->Render();

@@ -66,7 +66,6 @@ public:
 	virtual const FText GetPaletteCategory() override;
 #endif // WITH_EDITOR
 	virtual bool IsOverParent() const override;
-	virtual void QueueDownsample() override;
 	virtual void SetPosition(const FVector2D& NewPosition) override;
 	virtual void SetSize(const FVector2D& NewSize) override;
 	// ~End UDMXPixelMappingOutputComponent interface
@@ -79,6 +78,9 @@ public:
 
 	/** Handles changes in size or in matrix */
 	void HandleMatrixChanged();
+
+	UE_DEPRECATED(5.3, "Please use UDMXPixelMappingPixelMapRenderer to render the pixel map")
+	virtual void QueueDownsample() override;
 
 protected:
 	/** Called when the fixture type in use changed */

@@ -83,6 +83,7 @@ TSharedRef<FSlateStyleSet> FDMXPixelMappingEditorStyle::Create()
 	Style->Set("DMXPixelMappingEditor.StopPlayingDMX", new IMAGE_BRUSH("icon_DMXPixelMappingEditor_StopPlayingDMX_40x", Icon40x40));
 	Style->Set("DMXPixelMappingEditor.StopPlayingDMX.Small", new IMAGE_BRUSH("icon_DMXPixelMappingEditor_StopPlayingDMX_40x", Icon20x20));
 	
+	Style->Set("DMXPixelMappingEditor.ComponentBorder", new BORDER_BRUSH("Common/Selection", FMargin(2.f), FLinearColor::White));
 
 	return Style;
 }

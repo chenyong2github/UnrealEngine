@@ -2,13 +2,13 @@
 
 #include "Widgets/SDMXPixelMappingTransformHandle.h"
 
-#include "DMXPixelMappingLayoutSettings.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
+#include "DMXPixelMappingLayoutSettings.h"
+#include "Framework/Application/SlateApplication.h"
+#include "ScopedTransaction.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Views/SDMXPixelMappingDesignerView.h"
-
 #include "Widgets/Images/SImage.h"
-#include "ScopedTransaction.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingTransformHandle"
@@ -40,8 +40,19 @@ EVisibility SDMXPixelMappingTransformHandle::GetHandleVisibility() const
 
 FReply SDMXPixelMappingTransformHandle::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if ( MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton )
+	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
+		const FVector2D LocalSize = MyGeometry.GetLocalSize();
+		const FVector2D LocalCursorPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+
+		// Only handle dragging the edges of the widget
+		constexpr double MouseThreshold = 10.f;
+		if (LocalCursorPos.X < LocalSize.X - MouseThreshold ||
+			LocalCursorPos.Y < LocalSize.Y - MouseThreshold)
+		{
+			return FReply::Unhandled();;
+		}
+
 		Action = ComputeActionAtLocation(MyGeometry, MouseEvent);
 
 		if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = DesignerViewWeakPtr.Pin()->GetToolkit())
@@ -49,10 +60,9 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonDown(const FGeometry& MyGeo
 			const TSet<FDMXPixelMappingComponentReference> SelectedComponentReferences = Toolkit->GetSelectedComponents();
 			for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponentReferences)
 			{
-				UDMXPixelMappingBaseComponent* Preview = ComponentReference.GetComponent();
 				UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
 
-				if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Preview))
+				if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Component))
 				{
 					FMargin Offsets;
 					FVector2D Size = OutputComponent->GetSize();
@@ -107,7 +117,7 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonUp(const FGeometry& MyGeome
 
 FReply SDMXPixelMappingTransformHandle::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if ( Action != EDMXPixelMappingTransformAction::None )
+	if (Action != EDMXPixelMappingTransformAction::None && DesignerViewWeakPtr.IsValid())
 	{
 		if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = DesignerViewWeakPtr.Pin()->GetToolkit())
 		{
@@ -116,10 +126,7 @@ FReply SDMXPixelMappingTransformHandle::OnMouseMove(const FGeometry& MyGeometry,
 			{
 				if (UDMXPixelMappingOutputComponent* ResizedComponent = Cast<UDMXPixelMappingOutputComponent>(ComponentReference.GetComponent()))
 				{
-					const FVector2D Delta = MouseEvent.GetScreenSpacePosition() - MouseDownPosition;
-					const FVector2D TranslateAmount = Delta * (1.0f / (DesignerViewWeakPtr.Pin()->GetZoomAmount() * MyGeometry.Scale));
-
-					Resize(ResizedComponent, DragDirection, TranslateAmount);
+					RequestResize(ResizedComponent, DragDirection);
 				}
 			}
 		}
@@ -128,28 +135,40 @@ FReply SDMXPixelMappingTransformHandle::OnMouseMove(const FGeometry& MyGeometry,
 	return FReply::Unhandled();
 }
 
+void SDMXPixelMappingTransformHandle::RequestResize(UDMXPixelMappingBaseComponent* BaseComponent, const FVector2D& Direction)
+{
+	if (!RequestResizeHandle.IsValid() && DesignerViewWeakPtr.IsValid())
+	{
+		const FVector2D& CursorPosition = FSlateApplication::Get().GetCursorPos();
+		const FVector2D Delta = CursorPosition - MouseDownPosition;
+		const FVector2D TranslateAmount = Delta * (1.0f / (DesignerViewWeakPtr.Pin()->GetZoomAmount() * GetCachedGeometry().Scale));
+
+		RequestResizeHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this, BaseComponent, Direction, TranslateAmount]()
+			{
+				Resize(BaseComponent, Direction, TranslateAmount);
+				RequestResizeHandle.Invalidate();
+			}));
+	}
+
+}
+
 void SDMXPixelMappingTransformHandle::Resize(UDMXPixelMappingBaseComponent* BaseComponent, const FVector2D& Direction, const FVector2D& Amount)
 {
 	if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(BaseComponent))
 	{
-		FVector2D ComponentSize = OutputComponent->GetSize();
-
 		FMargin Offsets = StartingOffsets;
 
 		const FVector2D Movement = Amount * Direction;
-		const FVector2D PositionMovement = Movement * (FVector2D(1.0f, 1.0f));
-		const FVector2D SizeMovement = Movement;
-
 		if (Direction.X < 0)
 		{
-			Offsets.Left -= PositionMovement.X;
-			Offsets.Right += SizeMovement.X;
+			Offsets.Left -= Movement.X;
+			Offsets.Right += Movement.X;
 		}
 
 		if (Direction.Y < 0)
 		{
-			Offsets.Top -= PositionMovement.Y;
-			Offsets.Bottom += SizeMovement.Y;
+			Offsets.Top -= Movement.Y;
+			Offsets.Bottom += Movement.Y;
 		}
 
 		if (Direction.X > 0)

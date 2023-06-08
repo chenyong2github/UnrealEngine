@@ -4,14 +4,19 @@
 
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
 #include "DMXAttribute.h"
+#include "DMXTypes.h"
 #include "Library/DMXEntityReference.h"
+#include "PixelMapRenderElement.h"
 
 #include "DMXPixelMappingMatrixCellComponent.generated.h"
 
 
-class SUniformGridPanel;
-class UTextureRenderTarget2D;
 enum class EDMXColorMode : uint8;
+namespace UE::DMXPixelMapping::Rendering::PixelMapRenderer { class FPixelMapRenderElement; }
+class SUniformGridPanel;
+class UDMXPixelMappingColorSpace;
+class UTextureRenderTarget2D;
+
 
 /**
  * Matrix pixel component
@@ -30,6 +35,9 @@ public:
 	UDMXPixelMappingMatrixCellComponent();
 
 	//~ Begin UObject implementation
+	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -56,9 +64,10 @@ public:
 	virtual void SetSize(const FVector2D& NewSize) override;
 	//~ End UDMXPixelMappingOutputComponent implementation
 
-public:
 	//~ Begin UDMXPixelMappingOutputDMXComponent implementation
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual void RenderWithInputAndSendDMX() override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	//~ End UDMXPixelMappingOutputDMXComponent implementation
 
 	void SetCellCoordinate(FIntPoint InCellCoordinate);
@@ -67,21 +76,25 @@ public:
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
 
-private:
-	/** Helper that returns the renderer component this component belongs to */
-	UDMXPixelMappingRendererComponent* GetRendererComponent() const;
+	/** Returns the pixel map render element for the matrix cell */
+	TSharedRef<UE::DMXPixelMapping::Rendering::FPixelMapRenderElement> GetOrCreatePixelMapRenderElement();
 
-public:
+	/** Gets the color of this cell */
+	FLinearColor GetPixelMapColor() const;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cell Settings")
 	int32 CellID;
 
-	UPROPERTY()
-	FDMXEntityFixturePatchRef FixturePatchMatrixRef_DEPRECATED;
-
-	/** Creates attribute values from current data */
-	TMap<FDMXAttributeName, float> CreateAttributeValues() const;
-
 private:
+	/** Updates the rendered element. Automatically called on property changes */
+	void UpdateRenderElement();
+
+	/** Helper that returns the renderer component this component belongs to */
+	UDMXPixelMappingRendererComponent* GetRendererComponent() const;
+
+	/** Pixel map render element for the matrix cell */
+	TSharedPtr<UE::DMXPixelMapping::Rendering::FPixelMapRenderElement> PixelMapRenderElement;
+
 	UPROPERTY()
 	FIntPoint CellCoordinate;
 

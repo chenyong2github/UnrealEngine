@@ -12,10 +12,8 @@ class FWidgetRenderer;
 struct FSlateMaterialBrush;
 
 
-
-/**
- * Implementation of Pixel Mapping Renderer
- */
+/** DEPRECATED 5.2 */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FDMXPixelMappingRenderer
 	: public IDMXPixelMappingRenderer
 {
@@ -32,13 +30,8 @@ public:
 		DownsampleReadCallback InCallback
 	) const override;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.3, "Use PreprocessRenderInputMaterialProxy instead")
 	virtual void RenderMaterial(UTextureRenderTarget2D* InRenderTarget, UMaterialInterface* InMaterialInterface) const override;
-
-	UE_DEPRECATED(5.3, "Use PreprocessRenderInputUserWidgetProxy instead")
 	virtual void RenderWidget(UTextureRenderTarget2D* InRenderTarget, UUserWidget* InUserWidget) const override;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual void RenderTextureToRectangle(const FTextureResource* InTextureResource, const FTexture2DRHIRef InRenderTargetTexture, FVector2D InSize, bool bSRGBSource) const override;
 
@@ -60,3 +53,4 @@ private:
 	/** The public interface of the renderer module. */
 	IRendererModule* RendererModule;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

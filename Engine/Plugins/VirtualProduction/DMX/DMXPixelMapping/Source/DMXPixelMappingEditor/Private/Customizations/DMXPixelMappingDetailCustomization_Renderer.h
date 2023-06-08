@@ -2,72 +2,71 @@
 
 #pragma once
 
+#include "EditorUndoClient.h"
 #include "IDetailCustomization.h"
 #include "UObject/WeakObjectPtr.h"
 
-class FDMXPixelMappingToolkit;
-class IPropertyHandle;
-class IDetailCategoryBuilder;
-class UDMXPixelMappingRendererComponent;
-struct EVisibility;
 enum class EDMXPixelMappingRendererType : uint8;
+struct EVisibility;
+class FDMXPixelMappingToolkit;
+class FText;
+class IDetailCategoryBuilder;
+class IPropertyHandle;
+class IPropertyUtilities;
+class UDMXPixelMappingRendererComponent;
+
 
 class FDMXPixelMappingDetailCustomization_Renderer
 	: public IDetailCustomization
+	, public FSelfRegisteringEditorUndoClient
 {
 public:
-	static TSharedRef<IDetailCustomization> MakeInstance(const TWeakPtr<FDMXPixelMappingToolkit> InToolkitWeakPtr)
-	{
-		return MakeShared<FDMXPixelMappingDetailCustomization_Renderer>(InToolkitWeakPtr);
-	}
+	FDMXPixelMappingDetailCustomization_Renderer(const TWeakPtr<FDMXPixelMappingToolkit> InWeakToolkit);
 
-	/** Constructor */
-	FDMXPixelMappingDetailCustomization_Renderer(const TWeakPtr<FDMXPixelMappingToolkit> InToolkitWeakPtr)
-		: ToolkitWeakPtr(InToolkitWeakPtr)
-	{}
+	static TSharedRef<IDetailCustomization> MakeInstance(const TWeakPtr<FDMXPixelMappingToolkit> InWeakToolkit)
+	{
+		return MakeShared<FDMXPixelMappingDetailCustomization_Renderer>(InWeakToolkit);
+	}
 
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
+protected:
+	//~ Begin FSelfRegisteringEditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	//~ End FSelfRegisteringEditorUndoClient interface
+
 private:
-	/** Called before the renderer type property changed */
-	void OnRendererTypePropertyPreChange();
-
-	/** Called when the renderer type property changed */
-	void OnRendererTypePropertyChanged();
-
-	/** Called when the input texture property changed */
-	void OnInputTexturePropertyChanged();
-
-	bool IsSelectedRendererType(EDMXPixelMappingRendererType PropertyRendererType) const;
-
-	bool IsNotSelectedRendererType(EDMXPixelMappingRendererType PropertyRendererType) const;
-
-	EVisibility GetInputTextureWarning() const;
-
-	FText GetInputTextureWarningText() const;
-
+	/** Adds a warning if the input texture is not set */
 	void AddInputTextureWarning(IDetailCategoryBuilder& InCategory);
 
 	/** Add warning for material with domain != MD_UI */
-	void AddMaterialWarning(IDetailCategoryBuilder& InCategory);
+	void AddMaterialDomainWarning(IDetailCategoryBuilder& InCategory);
 
-	/** Visibility for non ui material warning */
-	EVisibility GetMaterialWarningVisibility() const;
+	/** Returns the text displayed if the input texture is not set */
+	FText GetInputTextureWarningText() const;
 
-	/** Resets the size of the renderer component depending on current renderer type and the resource object */
-	void ResetSize();
+	/** Returns the visiblity of the input texture warning text */
+	EVisibility GetInputTextureWarningVisibility() const;
 
-	/** Previously selected renderer type */
-	EDMXPixelMappingRendererType PreviousRendererType;
-	
-	TSharedPtr<IPropertyHandle> RendererTypePropertyHandle;
-	TSharedPtr<IPropertyHandle> InputTexturePropertyHandle;
-	TSharedPtr<IPropertyHandle> InputMaterialPropertyHandle;
-	TSharedPtr<IPropertyHandle> InputWidgetPropertyHandle;
+	/** Returns the visibility of the input material domain */
+	EVisibility GetMaterialDomainWarningVisibility() const;
 
-	TWeakObjectPtr<UDMXPixelMappingRendererComponent> RendererComponent;
+	/** Returns the current renderer type */
+	EDMXPixelMappingRendererType GetRendererType() const;
+
+	TSharedPtr<IPropertyHandle> RendererTypeHandle;
+	TSharedPtr<IPropertyHandle> InputTextureHandle;
+	TSharedPtr<IPropertyHandle> InputMaterialHandle;
+	TSharedPtr<IPropertyHandle> InputWidgetHandle;
+
+	/** Renderer components being customized. Only valid if not multi editing */
+	TWeakObjectPtr<UDMXPixelMappingRendererComponent> WeakRendererComponent;
+
+	/** Property utilities for this customization */
+	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 
 	/** Weak reference to the DMX editor */
-	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
+	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;
 };
