@@ -4667,11 +4667,6 @@ namespace AutomationScripts
 				CommandLineBuilder.AppendFormat("{0} ", Params.StageCommandline.Trim(new char[] { '\"' }));
 			}
 
-			if (!string.IsNullOrEmpty(Params.RunCommandline))
-			{
-				CommandLineBuilder.AppendFormat("{0} ", Params.RunCommandline.Trim(new char[] { '\"' }));
-			}
-
 			String FileHostCommandline = GetFileHostCommandline(Params, SC);
 			if (!string.IsNullOrEmpty(FileHostCommandline))
 			{

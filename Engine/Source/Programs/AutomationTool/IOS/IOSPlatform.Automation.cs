@@ -2028,6 +2028,7 @@ public class IOSPlatform : ApplePlatform
 			Arguments += " --detach";
 			Arguments = GetLibimobileDeviceNetworkedArgument(Arguments, Params.DeviceNames[0]);
 			Arguments += " run '" + BundleIdentifier + "'";
+			Arguments += " " + ClientCmdLine;
 
 			IProcessResult ClientProcess = Run(Program, Arguments, null, ClientRunFlags);
 			if (ClientProcess.ExitCode == -1)

@@ -2157,7 +2157,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Run: Additional command line arguments to pass to the program
 		/// </summary>
-		[Help("addcmdline", "Additional command line arguments for the program")]
+		[Help("addcmdline", "Additional command line arguments for the program, which will not be staged in UECommandLine.txt in most cases")]
 		public string RunCommandline;
 
         /// <summary>

@@ -495,7 +495,7 @@ int32 AndroidMain(struct android_app* state)
 
 	// read the command line file
 	InitCommandLine();
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Final commandline: %s\n"), FCommandLine::Get());
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Final commandline: %s (len %i)\n"), FCommandLine::Get(), FCString::Strlen(FCommandLine::Get()));
 
 #if !(UE_BUILD_SHIPPING)
 	// If "-waitforattach" or "-WaitForDebugger" was specified, halt startup and wait for a debugger to attach before continuing

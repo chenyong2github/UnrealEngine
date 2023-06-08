@@ -4021,7 +4021,11 @@ public class AndroidPlatform : Platform
 				throw new AutomationException(ExitCode.Error_FailureGettingPackageInfo, "Failed to get package name from " + ClientApp);
 			}
 
-			// push ClientCmdLine args as a file to the device to override the stage/apk command line
+			var canReadClientCmdLineViaAmStart = Params.ClientConfigsToBuild.Count > 0 &&
+			                                     Params.ClientConfigsToBuild.First() != UnrealTargetConfiguration.Shipping;
+
+			// push ClientCmdLine args as a file to the device to override the stage/apk command line if we can't push it via am start
+			if (!canReadClientCmdLineViaAmStart)
 			{
 				bool bAFSEnablePlugin;
 				string AFSToken;
@@ -4045,7 +4049,12 @@ public class AndroidPlatform : Platform
 			RunAdbCommand(DeviceName, "logcat -c");
 
 			// start the app on device!
-			string CommandLine = "shell am start -n " + PackageName + "/" + GetLaunchableActivityName();
+			var CommandLine = "shell am start -n " + PackageName + "/" + GetLaunchableActivityName();
+			if (canReadClientCmdLineViaAmStart)
+			{
+				var ClientSessionCmdLineEscaped = ClientCmdLine.Replace(" ", "\\ ").Replace("\"", "\\\\\\\"");
+				CommandLine += " --es cmdline \"" + ClientSessionCmdLineEscaped + "\"";
+			}
 			RunAdbCommand(DeviceName, CommandLine);
 
 			// wait before getting the process list with "adb shell ps" from AdbCreatedProcess
