@@ -93,6 +93,7 @@ bool FGeometryParticleStateBase::IsInSync(const FGeometryParticleHandle& Handle,
 			return false;
 		}
 	}
+	else
 	{ 
 		if(!ParticlePositionRotation.IsInSync(Handle, FrameAndPhase, Pool))
 		{
