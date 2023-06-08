@@ -82,12 +82,20 @@ void FCameraCutSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const
 	if (CameraActor)
 	{
 		MenuBuilder.AddMenuSeparator();
+		
+		// GetCameraForFrame will return the Spawnable Template (for names) but we can't select those.
+		const bool bCanSelect = CameraActor->GetWorld() != nullptr;
+		const FText CameraNameLabel = FText::FromString(CameraActor->GetActorLabel());
+		const FText Tooltip = bCanSelect ?
+			FText::Format(LOCTEXT("SelectCameraTooltipFormat", "Select {0}"), CameraNameLabel) :
+			FText::Format(LOCTEXT("SelectCameraInvalidTooltipFormat", "Cannot Select {0} (Currently Unspawned)"), CameraNameLabel);
 
 		MenuBuilder.AddMenuEntry(
-			FText::Format(LOCTEXT("SelectCameraTextFormat", "Select {0}"), FText::FromString(CameraActor->GetActorLabel())),
-			FText::Format(LOCTEXT("SelectCameraTooltipFormat", "Select {0}"), FText::FromString(CameraActor->GetActorLabel())),
+			FText::Format(LOCTEXT("SelectCameraTextFormat", "Select {0}"), CameraNameLabel),
+			Tooltip,
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FCameraCutSection::HandleSelectCameraMenuEntryExecute, CameraActor))
+			FUIAction(FExecuteAction::CreateRaw(this, &FCameraCutSection::HandleSelectCameraMenuEntryExecute, CameraActor),
+				FCanExecuteAction::CreateRaw(this, & FCameraCutSection::CanSelectCameraActor, CameraActor))
 		);
 	}
 
@@ -229,6 +237,11 @@ FText FCameraCutSection::HandleThumbnailTextBlockText() const
 
 /* FCameraCutSection callbacks
  *****************************************************************************/
+
+bool FCameraCutSection::CanSelectCameraActor(AActor* InCamera) const
+{
+	return InCamera && InCamera->GetWorld();
+}
 
 void FCameraCutSection::HandleSelectCameraMenuEntryExecute(AActor* InCamera)
 {

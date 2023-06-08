@@ -48,6 +48,10 @@ private:
 	/** Callback for executing a "Select Camera" menu entry in the context menu. */
 	void HandleSelectCameraMenuEntryExecute(AActor* InCamera);
 
+	/** Callback for determining if the specified camera can actually be selected in the World. */
+	bool CanSelectCameraActor(AActor* InCamera) const;
+
+
 	/** Callback for executing a "Set Camera" menu entry in the context menu. */
 	void HandleSetCameraMenuEntryExecute(AActor* InCamera);
 };
