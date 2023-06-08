@@ -3,6 +3,9 @@
 #pragma once
 
 template <typename T>
+struct TObjectPtr;
+
+template <typename T>
 struct TIsTObjectPtr
 {
 	enum { Value = false };

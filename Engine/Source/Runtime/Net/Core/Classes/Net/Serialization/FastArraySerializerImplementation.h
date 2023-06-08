@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad include. This header can't compile standalone
+
 #if UE_WITH_IRIS
 #include "Iris/ReplicationSystem/FastArrayReplicationFragment.h"
 

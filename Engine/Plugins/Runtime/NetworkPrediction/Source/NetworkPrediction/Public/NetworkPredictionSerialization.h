@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Net/UnrealNetwork.h" // For MakeRelative
+#include "NetworkPredictionCVars.h"
 #include "NetworkPredictionReplicationProxy.h"
 #include "NetworkPredictionTickState.h"
 #include "NetworkPredictionTrace.h"

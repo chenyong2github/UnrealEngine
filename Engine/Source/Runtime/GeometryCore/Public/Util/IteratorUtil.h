@@ -4,6 +4,7 @@
 
 #pragma once
 #include "IndexTypes.h"
+#include "Templates/Function.h"
 
 namespace UE
 {

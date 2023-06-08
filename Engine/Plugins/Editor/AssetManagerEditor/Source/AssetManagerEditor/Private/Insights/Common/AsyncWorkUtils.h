@@ -4,6 +4,8 @@
 
 #include "CoreTypes.h"
 
+class FText;
+
 namespace UE
 {
 namespace Insights

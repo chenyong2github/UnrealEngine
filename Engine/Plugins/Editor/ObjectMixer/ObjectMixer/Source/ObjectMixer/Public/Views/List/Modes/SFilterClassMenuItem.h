@@ -7,6 +7,7 @@
 #include "IContentBrowserSingleton.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/UObjectGlobals.h"
+#include "Views/List/Modes/ObjectMixerOutlinerMode.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 

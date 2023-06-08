@@ -2,6 +2,7 @@
 #pragma once
 
 
+#include "Interfaces/MetasoundFrontendInterfaceBindingRegistry.h"
 #include "Interfaces/MetasoundFrontendInterfaceRegistry.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistryTransaction.h"

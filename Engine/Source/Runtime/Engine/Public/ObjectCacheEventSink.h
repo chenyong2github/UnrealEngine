@@ -9,6 +9,7 @@ class UActorComponent;
 class UMaterialInterface;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
+class UTexture;
 
 struct ENGINE_API FObjectCacheEventSink
 {

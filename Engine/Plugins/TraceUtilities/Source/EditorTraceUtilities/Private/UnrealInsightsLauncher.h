@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Async/TaskGraphFwd.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 
 class FUnrealInsightsLauncher : public TSharedFromThis<FUnrealInsightsLauncher>

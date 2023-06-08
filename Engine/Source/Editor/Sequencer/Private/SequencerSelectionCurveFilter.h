@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ISequencerModule.h"
 #include "MVVM/Extensions/IObjectBindingExtension.h"
+#include "MVVM/Selection/Selection.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "Tree/CurveEditorTreeFilter.h"
 

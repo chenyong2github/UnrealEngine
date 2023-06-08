@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Components/ListView.h"
 #include "PoseSearchDebuggerDatabaseColumns.h"
 #include "PoseSearchDebuggerDatabaseView.h"
 #include "Widgets/Views/STableRow.h"

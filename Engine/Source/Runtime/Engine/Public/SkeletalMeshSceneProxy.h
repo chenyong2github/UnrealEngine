@@ -9,6 +9,8 @@
 FSkeletalMeshSceneProxy
 -----------------------------------------------------------------------------*/
 
+class FSkeletalMeshObject;
+
 /**
  * A skeletal mesh component scene proxy.
  */
@@ -114,7 +116,7 @@ public:
 
 protected:
 	AActor* Owner;
-	class FSkeletalMeshObject* MeshObject;
+	FSkeletalMeshObject* MeshObject;
 	FSkeletalMeshRenderData* SkeletalMeshRenderData;
 
 	/** The points to the skeletal mesh and physics assets are purely for debug purposes. Access is NOT thread safe! */

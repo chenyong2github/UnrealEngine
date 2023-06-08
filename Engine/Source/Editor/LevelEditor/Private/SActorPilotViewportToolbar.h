@@ -8,6 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Textures/SlateIcon.h"
 #include "Layout/Margin.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/SBoxPanel.h"
 #include "SLevelViewport.h"
 #include "Widgets/Text/STextBlock.h"

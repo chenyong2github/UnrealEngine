@@ -10,6 +10,8 @@
 
 #include "Delegates/Delegate.h"
 
+enum ELifetimeCondition : int;
+
 namespace UE::Net::Private
 {
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "HAL/Platform.h"
+#include "Misc/CoreMiscDefines.h"
 #include "Misc/EnumClassFlags.h"
 
 namespace UE::Virtualization

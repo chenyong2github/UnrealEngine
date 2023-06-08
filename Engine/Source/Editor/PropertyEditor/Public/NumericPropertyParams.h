@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Attribute.h"
+#include "UObject/UnrealType.h"
 
 template<typename NumericType>
 struct TNumericPropertyParams

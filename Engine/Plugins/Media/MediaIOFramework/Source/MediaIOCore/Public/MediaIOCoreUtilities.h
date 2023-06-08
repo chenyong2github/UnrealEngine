@@ -9,6 +9,8 @@
 #include "Logging/LogVerbosity.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/CriticalSection.h"
+#include "Misc/OutputDeviceRedirector.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/Timespan.h"
 
 namespace UE::MediaIO

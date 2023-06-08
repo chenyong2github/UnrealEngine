@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include <atomic>
 
 namespace UE
 {

@@ -4,6 +4,7 @@
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailCustomization.h"
 #include "IDetailGroup.h"
@@ -11,6 +12,8 @@
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyHandle.h"
 #include "Sections/MovieSceneConsoleVariableTrackInterface.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
 
 #define LOCTEXT_NAMESPACE "SMoviePipelineEditor"
 

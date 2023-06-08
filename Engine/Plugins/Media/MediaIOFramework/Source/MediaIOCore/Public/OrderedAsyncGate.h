@@ -3,7 +3,7 @@
 #pragma once
 
 #include "GenericPlatform/GenericPlatformProcess.h"
-
+#include "HAL/PlatformProcess.h"
 #include <atomic>
 
 namespace UE::MediaIO

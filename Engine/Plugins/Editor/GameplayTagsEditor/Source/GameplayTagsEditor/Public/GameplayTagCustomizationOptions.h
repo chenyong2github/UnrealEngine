@@ -3,6 +3,7 @@
 #pragma once
 
 #include "HAL/Platform.h"
+#include "Misc/CoreMiscDefines.h"
 
 struct UE_DEPRECATED(5.3, "Options are not used anymore to customize the property customization behavior.") GAMEPLAYTAGSEDITOR_API FGameplayTagCustomizationOptions
 {

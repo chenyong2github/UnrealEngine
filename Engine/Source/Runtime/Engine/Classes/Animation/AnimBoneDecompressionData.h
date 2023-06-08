@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "AnimEncoding.h"
 
 namespace UE::Anim
 {

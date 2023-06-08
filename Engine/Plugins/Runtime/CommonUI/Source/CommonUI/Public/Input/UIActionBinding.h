@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/Ticker.h"
 #include "Engine/DataTable.h"
 #include "Input/CommonUIInputSettings.h" // IWYU pragma: keep
 #include "Input/UIActionBindingHandle.h"

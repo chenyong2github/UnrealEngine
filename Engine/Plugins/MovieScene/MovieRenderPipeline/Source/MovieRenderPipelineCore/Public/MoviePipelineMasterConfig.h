@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// HEADER_UNIT_SKIP - Deprecated
 /**
  * DEPRECATED MoviePipelineMasterConfig.h Use MoviePipelinePrimaryConfig.h instead 
  */

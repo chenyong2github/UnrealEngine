@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
+#include "Math/UnrealMathUtility.h"
+#include "Templates/AlignmentTemplates.h"
 
 /** Helper to deal with manually setting up a block of memory containing multiple allocations. */
 struct FMemoryLayoutUtil

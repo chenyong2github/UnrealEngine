@@ -20,6 +20,8 @@ const bool GRHIValidationEnabled = false;
 
 #if ENABLE_RHI_VALIDATION
 
+class FRHIShader;
+class FRHIShaderResourceView;
 class FRHIUniformBuffer;
 class FRHIViewableResource;
 class FRHIUnorderedAccessView;
@@ -31,6 +33,7 @@ class FValidationRHI;
 struct FRHITextureCreateDesc;
 struct FRHITransitionInfo;
 struct FRHIViewDesc;
+
 
 namespace RHIValidation
 {
@@ -976,7 +979,7 @@ namespace RHIValidation
 	extern RHI_API void* CaptureBacktrace();
 
 	/** Validates that the SRV is conform to what the shader expects */
-	extern RHI_API void ValidateShaderResourceView(const class FRHIShader* RHIShaderBase, uint32 BindIndex, class FRHIShaderResourceView* SRV);
+	extern RHI_API void ValidateShaderResourceView(const FRHIShader* RHIShaderBase, uint32 BindIndex, FRHIShaderResourceView* SRV);
 
 }
 

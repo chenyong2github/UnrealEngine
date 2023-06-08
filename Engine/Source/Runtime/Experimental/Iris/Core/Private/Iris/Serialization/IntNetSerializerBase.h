@@ -6,6 +6,8 @@
 #include "Iris/Serialization/BitPacking.h"
 #include "Iris/Serialization/NetBitStreamReader.h"
 #include "Iris/Serialization/NetBitStreamWriter.h"
+#include "Iris/Serialization/NetSerializationContext.h"
+#include "Iris/Serialization/NetSerializer.h"
 #include "Iris/Core/BitTwiddling.h"
 #include <type_traits>
 

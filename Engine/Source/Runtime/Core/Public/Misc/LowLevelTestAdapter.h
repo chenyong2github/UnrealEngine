@@ -4,8 +4,8 @@
 
 #if !WITH_LOW_LEVEL_TESTS
 
-#include "CoreTypes.h"
-
+#include "Containers/StringConv.h"
+#include "Containers/UnrealString.h"
 #include <sstream>
 #include <vector>
 

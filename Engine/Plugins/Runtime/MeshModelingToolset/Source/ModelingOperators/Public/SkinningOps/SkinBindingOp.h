@@ -3,11 +3,11 @@
 #pragma once
 
 #include "ModelingOperators.h"
+#include "ReferenceSkeleton.h"
 #include "SkeletalMeshAttributes.h"
 
 
 struct FReferenceSkeleton;
-struct FMeshBoneInfo;
 
 namespace UE::Geometry
 {

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 class UTexture;
 
 namespace RectLightAtlas

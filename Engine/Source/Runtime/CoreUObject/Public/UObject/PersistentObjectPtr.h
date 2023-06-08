@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
 
 /**

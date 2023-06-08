@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "AutoRTFM/Utils.h"
+
 namespace AutoRTFM
 {
 

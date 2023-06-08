@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Included through other header
+
 #include "Misc/CoreMiscDefines.h"
 
 #ifndef UE_WITH_OBJECT_HANDLE_LATE_RESOLVE

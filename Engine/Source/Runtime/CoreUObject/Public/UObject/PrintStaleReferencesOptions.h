@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Misc/EnumClassFlags.h"
+
 /* Options for FReferenceChainSearch::FindAndPrintStaleReferencesToObject function */
 enum class EPrintStaleReferencesOptions
 {

@@ -5,8 +5,7 @@
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
 #include "Containers/ObservableArray.h"
-
-class STableViewBase;
+#include "Widgets/Views/STableViewBase.h"
 
  namespace UE::Slate::ItemsSource
  {

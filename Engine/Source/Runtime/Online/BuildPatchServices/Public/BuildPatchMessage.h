@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
+#include "Templates/Function.h"
 
 namespace BuildPatchServices
 {

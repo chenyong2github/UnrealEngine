@@ -1,7 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-class FStructOnScope;
+#include "Containers/Array.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/StructOnScope.h"
 
 //-----------------------------------------------------------------------------
 //	IStructureDataProvider - Used to provide struct data for a property node.

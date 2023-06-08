@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Graph/MovieGraphConfig.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableRow.h"
@@ -9,7 +10,6 @@
 
 class UMoviePipelineExecutorJob;
 class UMoviePipelineQueue;
-class UMovieGraphEvaluatedConfig;
 class UMovieGraphNode;
 
 /**

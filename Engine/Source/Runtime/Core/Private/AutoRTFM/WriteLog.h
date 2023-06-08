@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include <stdint.h>
-
+#include "AutoRTFM/HitSet.h"
 #include "Utils.h"
+#include <stdint.h>
 
 namespace AutoRTFM
 {

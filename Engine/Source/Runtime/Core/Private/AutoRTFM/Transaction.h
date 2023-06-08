@@ -7,6 +7,7 @@
 #include "Stats.h"
 #include "TaggedPtr.h"
 #include "TaskArray.h"
+#include "Templates/Function.h"
 #include "WriteLog.h"
 #include "WriteLogBumpAllocator.h"
 

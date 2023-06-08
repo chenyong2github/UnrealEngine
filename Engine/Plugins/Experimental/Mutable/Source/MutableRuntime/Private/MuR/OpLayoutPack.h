@@ -3,13 +3,15 @@
 #pragma once
 
 #include "MuR/Layout.h"
+#include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"
 #include "MuR/Platform.h"
 #include "GenericPlatform/GenericPlatformMath.h"
-
+#include <string>
 
 namespace mu
 {
+	typedef std::string string;
 
 	//---------------------------------------------------------------------------------------------
     // inline void SimpleLayoutPack( Layout* pResult, const Layout* pSource )

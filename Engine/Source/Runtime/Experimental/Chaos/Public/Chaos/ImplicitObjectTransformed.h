@@ -3,6 +3,7 @@
 
 #include "Chaos/Box.h"
 #include "Chaos/ImplicitObject.h"
+#include "Chaos/ShapeInstanceFwd.h"
 #include "Chaos/Transform.h"
 #include "ChaosArchive.h"
 #include "Templates/EnableIf.h"

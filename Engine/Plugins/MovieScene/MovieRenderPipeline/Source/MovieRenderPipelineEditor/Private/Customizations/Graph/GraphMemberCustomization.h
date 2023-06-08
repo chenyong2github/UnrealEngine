@@ -9,6 +9,7 @@
 #include "Graph/MovieGraphConfig.h"
 #include "PropertyHandle.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineEditor"
 
