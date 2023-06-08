@@ -827,11 +827,6 @@ public:
 		: ArrayPtr(InArrayPtr)
 	{}
 
-	/** Basic copy constructor */
-	TMeshAttributesRef(const TMeshAttributesRef<ElementIDType, AttributeType>& InRef)
-		: ArrayPtr(InRef.ArrayPtr)
-	{}
-
 	/** Implicitly construct a TMeshAttributesRef-to-const from a regular one */
 	template <typename SrcAttributeType,
 			  typename DestAttributeType = AttributeType,
@@ -1036,12 +1031,6 @@ public:
 	explicit TMeshAttributesRef(BaseArrayType* InArrayPtr = nullptr, uint32 InExtent = 1)
 		: ArrayPtr(InArrayPtr),
 		  Extent(InExtent)
-	{}
-
-	/** Basic copy constructor */
-	TMeshAttributesRef(const TMeshAttributesRef<ElementIDType, TArrayView<AttributeType>>& InRef)
-		: ArrayPtr(InRef.ArrayPtr),
-		  Extent(InRef.Extent)
 	{}
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a regular one */
@@ -1316,11 +1305,6 @@ public:
 	/** Constructor taking a pointer to a TMeshUnboundedAttributeArraySet */
 	explicit TMeshAttributesRef(BaseArrayType* InArrayPtr = nullptr, uint32 InExtent = 0)
 		: ArrayPtr(InArrayPtr)
-	{}
-
-	/** Basic copy constructor */
-	TMeshAttributesRef(const TMeshAttributesRef<ElementIDType, TArrayAttribute<AttributeType>>& InRef)
-		: ArrayPtr(InRef.ArrayPtr)
 	{}
 
 	/** Implicitly construct a TMeshAttributesRef-to-const from a regular one */
