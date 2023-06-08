@@ -102,21 +102,30 @@ struct FReplicatedPhysicsTargetAsync
 	/** Physics sync error accumulation */
 	float AccumulatedErrorSeconds;
 
-	/** Correction values from previous update */
-	FVector PrevPosTarget;
-	FVector PrevPos;
+	/** The amount of simulation ticks this target has been used for */
+	int32 TickCount;
 
 	/** ServerFrame this target was replicated on (must be converted to local frame prior to client-side use) */
 	int32 ServerFrame;
 
-	/** Index of physics object on component */
-	Chaos::FPhysicsObject* PhysicsObject;
-
 	/** The frame offset between local client and server */
 	int32 FrameOffset;
 
+	/** Index of physics object on component */
+	Chaos::FPhysicsObject* PhysicsObject;
+
 	/** The replication mode this PhysicsObject should use */
 	EPhysicsReplicationMode RepMode;
+
+	/** Correction values from previous update */
+	FVector PrevPosTarget;
+	FQuat PrevRotTarget;
+	FVector PrevPos;
+	FVector PrevLinVel;
+	int32 PrevServerFrame;
+
+	/** If this target is waiting for up-to-date data? */
+	bool bWaiting;
 };
 
 class FPhysicsReplicationAsync : public Chaos::TSimCallbackObject<
