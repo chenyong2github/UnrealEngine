@@ -188,11 +188,10 @@ private:
 	TConstArrayView<float> CurrentResultNextPoseVector;
 	TConstArrayView<float> CurrentResultPoseVector;
 	TConstArrayView<float> CurrentResultPrevPoseVector;
-	TArray<float> CurrentResultPoseVectorData;
+	TStackAlignedArray<float> CurrentResultPoseVectorData;
 
 	// transforms cached in component space
 	FCachedTransforms<FTransform> CachedTransforms;
-	// @todo: consider using FMemMark
 	TArray<FFeatureVectorBuilder, TInlineAllocator<PreallocatedCachedQueriesNum>> CachedQueries;
 
 	float CurrentBestTotalCost = MAX_flt;

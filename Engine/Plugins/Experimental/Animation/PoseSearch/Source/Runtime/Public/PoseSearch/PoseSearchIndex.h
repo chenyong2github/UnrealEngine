@@ -4,13 +4,10 @@
 
 #include "PoseSearch/KDTree.h"
 #include "PoseSearch/PoseSearchCost.h"
+#include "PoseSearch/PoseSearchDefines.h"
 
 namespace UE::PoseSearch
 {
-
-constexpr int32 TMax(int32 A, int32 B) { return (A > B ? A : B); }
-template<typename ElementType>
-using TAlignedArray = TArray<ElementType, TAlignedHeapAllocator<TMax(alignof(ElementType), 16)>>;
 
 POSESEARCH_API void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt, TArrayView<float> Result);
 
@@ -219,6 +216,7 @@ struct FSearchIndex : public FSearchIndexBase
 	TConstArrayView<float> GetReconstructedPoseValues(int32 PoseIdx, TArrayView<float> BufferUsedForReconstruction) const;
 	POSESEARCH_API TArray<float> GetPoseValuesSafe(int32 PoseIdx) const;
 	POSESEARCH_API FPoseSearchCost ComparePoses(int32 PoseIdx, float ContinuingPoseCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const;
+	FPoseSearchCost CompareAlignedPoses(int32 PoseIdx, float ContinuingPoseCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const;
 
 	friend FArchive& operator<<(FArchive& Ar, FSearchIndex& Index);
 };

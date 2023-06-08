@@ -28,9 +28,8 @@ public:
 	TConstArrayView<float> GetValues() const { return Values; }
 
 private:
+	TStackAlignedArray<float> Values;
 	TObjectPtr<const UPoseSearchSchema> Schema;
-	// @todo: consider using FMemMark
-	TArray<float, TInlineAllocator<PreallocatedCachedQuerySize>> Values;
 };
 	
 struct FSearchResult
