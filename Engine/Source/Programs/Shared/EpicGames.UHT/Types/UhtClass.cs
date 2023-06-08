@@ -94,6 +94,11 @@ namespace EpicGames.UHT.Types
 		/// legacy generated body.  If this flag is set, generate the legacy instead of the GENERATED_BODY macros.
 		/// </summary>
 		UsesGeneratedBodyLegacy = 1 << 12,
+		
+		/// <summary>
+		/// Class has one or more auto getters/setters
+		/// </summary>
+		HasAutoGettersSetters = 1 << 13,
 	}
 
 	/// <summary>
@@ -872,7 +877,17 @@ namespace EpicGames.UHT.Types
 							{
 								if (property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.GetterSpecified))
 								{
-									gsToResolve = AddGetterSetter(gsToResolve, property.Getter ?? $"Get{property.SourceName}", property, false);
+									// if it's Auto, it will be generated so no need to look for a user implementation
+									if (property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.GetterSpecifiedAuto))
+									{
+										ClassExportFlags |= UhtClassExportFlags.HasAutoGettersSetters;
+										property.PropertyExportFlags |= UhtPropertyExportFlags.GetterFound;
+										property.Getter = "Get" + property.SourceName;
+									}
+									else
+									{
+										gsToResolve = AddGetterSetter(gsToResolve, property.Getter ?? $"Get{property.SourceName}", property, false);	
+									}
 								}
 							}
 
@@ -880,7 +895,17 @@ namespace EpicGames.UHT.Types
 							{
 								if (property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.SetterSpecified))
 								{
-									gsToResolve = AddGetterSetter(gsToResolve, property.Setter ?? $"Set{property.SourceName}", property, true);
+									// if it's Auto, it will be generated so no need to look for a user implementation
+									if (property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.SetterSpecifiedAuto))
+									{
+										ClassExportFlags |= UhtClassExportFlags.HasAutoGettersSetters;
+										property.PropertyExportFlags |= UhtPropertyExportFlags.SetterFound;
+										property.Setter = "Set" + property.SourceName;
+									}
+									else
+									{
+										gsToResolve = AddGetterSetter(gsToResolve, property.Setter ?? $"Set{property.SourceName}", property, true);
+									}
 								}
 							}
 						}
@@ -1836,8 +1861,7 @@ namespace EpicGames.UHT.Types
 					}
 
 					// Check for getter/setter
-					if (property.PropertyExportFlags.HasExactFlags(UhtPropertyExportFlags.GetterSpecified | UhtPropertyExportFlags.GetterSpecifiedNone | 
-						UhtPropertyExportFlags.GetterFound, UhtPropertyExportFlags.GetterSpecified))
+					if (property.PropertyExportFlags.HasExactFlags(UhtPropertyExportFlags.GetterSpecified | UhtPropertyExportFlags.GetterSpecifiedNone | UhtPropertyExportFlags.GetterFound | UhtPropertyExportFlags.GetterSpecifiedAuto, UhtPropertyExportFlags.GetterSpecified))
 					{
 						using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
 						StringBuilder builder = borrower.StringBuilder;
@@ -1850,7 +1874,7 @@ namespace EpicGames.UHT.Types
 						string expectedType = builder.ToString();
 						property.LogError($"Property '{property.SourceName}' expected a getter function '[const] {expectedType} [&] {expectedName}() const', but it was not found");
 					}
-					if (property.PropertyExportFlags.HasExactFlags(UhtPropertyExportFlags.SetterSpecified | UhtPropertyExportFlags.SetterSpecifiedNone | UhtPropertyExportFlags.SetterFound, UhtPropertyExportFlags.SetterSpecified))
+					if (property.PropertyExportFlags.HasExactFlags(UhtPropertyExportFlags.SetterSpecified | UhtPropertyExportFlags.SetterSpecifiedNone | UhtPropertyExportFlags.SetterFound | UhtPropertyExportFlags.SetterSpecifiedAuto, UhtPropertyExportFlags.SetterSpecified))
 					{
 						using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
 						StringBuilder builder = borrower.StringBuilder;

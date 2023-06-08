@@ -400,6 +400,10 @@ namespace EpicGames.UHT.Parsers
 					{
 						context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.GetterSpecifiedNone;
 					}
+					else if (temp.Equals("Auto", StringComparison.OrdinalIgnoreCase))
+					{
+						context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.GetterSpecifiedAuto;
+					}
 					else
 					{
 						context.PropertySettings.Getter = value.ToString();
@@ -425,6 +429,10 @@ namespace EpicGames.UHT.Parsers
 					if (temp.Equals("None", StringComparison.OrdinalIgnoreCase))
 					{
 						context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.SetterSpecifiedNone;
+					}
+					else if (temp.Equals("Auto", StringComparison.OrdinalIgnoreCase))
+					{
+						context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.SetterSpecifiedAuto;
 					}
 					else
 					{

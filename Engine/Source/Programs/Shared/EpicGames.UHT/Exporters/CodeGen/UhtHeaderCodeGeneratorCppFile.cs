@@ -1133,6 +1133,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				AppendRpcFunctions(builder, classObj, reversedFunctions, true);
 				builder.AppendEndEditorOnlyGuard();
 			}
+			
+			// Add the auto getters/setters
+			AppendAutoGettersSetters(builder, classObj);
 
 			// Add the accessors
 			AppendPropertyAccessors(builder, classObj);
@@ -1238,6 +1241,71 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				builder.Append("#endif // WITH_EDITORONLY_DATA\r\n");
 			}
+			return builder;
+		}
+
+		private static StringBuilder AppendAutoGettersSetters(StringBuilder builder, UhtClass classObj)
+		{
+			if (!NeedAutoGetterSetterCodeGen(classObj))
+			{
+				return builder;
+			}
+			
+			// Scan the children to see what we have
+			GetAutoGetterSetterStats(classObj, out bool hasProperties, out bool hasEditorFields, out bool allEditorFields);
+			
+			// If we only have editor fields or no editor fields, then we only emit one block
+			if (hasEditorFields)
+			{
+				builder.Append("#if WITH_EDITORONLY_DATA\r\n");
+				AppendAutoGettersSetters(builder, classObj, hasProperties, hasEditorFields, allEditorFields, true);
+				builder.Append("#else //WITH_EDITORONLY_DATA\r\n");
+				AppendAutoGettersSetters(builder, classObj, hasProperties, hasEditorFields, allEditorFields, false);
+				builder.Append("#endif // WITH_EDITORONLY_DATA\r\n");
+			}
+			else
+			{
+				AppendAutoGettersSetters(builder, classObj, hasProperties, hasEditorFields, allEditorFields, false);
+			}
+			return builder;
+		}
+		
+		private static StringBuilder AppendAutoGettersSetters(StringBuilder builder, UhtClass classObj,
+			bool hasProperties, bool hasEditorFields, bool allEditorFields,
+			bool includeEditorOnlyFields)
+		{
+			AppendAutoGettersSetters(builder, classObj, UhtPropertyExportFlags.GetterSpecifiedAuto, hasProperties, hasEditorFields, allEditorFields,
+				includeEditorOnlyFields, false, (StringBuilder parentBuilder, UhtClass classObj, UhtProperty property) =>
+				{
+					using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
+					StringBuilder propertyStringBuilder = borrower.StringBuilder;
+					propertyStringBuilder.AppendPropertyText(property, UhtPropertyTextType.GetterRetVal);
+					string getterRetText = propertyStringBuilder.ToString();
+					string getterCallText = property.Getter ?? "Get" + property.SourceName;
+					parentBuilder.Append('\t').Append(getterRetText).Append(classObj.SourceName).Append("::").Append(getterCallText).Append("() const\r\n");
+					parentBuilder.Append("\t{\r\n");
+					parentBuilder.Append('\t', 2).Append("return ").Append(property.SourceName).Append(";\r\n");
+					parentBuilder.Append("\t}\r\n");
+				});
+			
+			AppendAutoGettersSetters(builder, classObj, UhtPropertyExportFlags.SetterSpecifiedAuto, hasProperties, hasEditorFields, allEditorFields,
+				includeEditorOnlyFields, false, (StringBuilder parentBuilder, UhtClass classObj, UhtProperty property) =>
+				{
+					using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
+					StringBuilder propertyStringBuilder = borrower.StringBuilder;
+					propertyStringBuilder.AppendPropertyText(property, UhtPropertyTextType.SetterParameterArgType);
+					string setterArgText = propertyStringBuilder + "InValue";
+					string setterCallText = property.Setter ?? "Set" + property.SourceName;
+					parentBuilder.Append("\tvoid ").Append(classObj.SourceName).Append("::").Append(setterCallText).Append('(').Append(setterArgText).Append(")\r\n");
+					parentBuilder.Append("\t{\r\n");
+					
+					// @todo: setter defn
+					
+					parentBuilder.Append("\t}\r\n");
+					
+					
+				});
+
 			return builder;
 		}
 

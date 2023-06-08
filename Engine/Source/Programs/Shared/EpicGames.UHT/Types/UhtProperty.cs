@@ -76,6 +76,16 @@ namespace EpicGames.UHT.Types
 		/// Property is marked as a field notify
 		/// </summary>
 		FieldNotify = 0x00000400,
+
+		/// <summary>
+		/// If true, the property should have a generated getter function
+		/// </summary>
+		GetterSpecifiedAuto = 0x00001000,
+		
+		/// <summary>
+		/// If true, the property should have a generated setter function
+		/// </summary>
+		SetterSpecifiedAuto = 0x00002000,
 	};
 
 	/// <summary>
@@ -516,6 +526,16 @@ namespace EpicGames.UHT.Types
 		/// Type expected in a getter/setter argument list
 		/// </summary>
 		GetterSetterArg,
+		
+		/// <summary>
+		/// Type expected from a getter
+		/// </summary>
+		GetterRetVal,
+		
+		/// <summary>
+		/// Type expected as a setter argument
+		/// </summary>
+		SetterParameterArgType,
 	}
 
 	/// <summary>
@@ -536,7 +556,21 @@ namespace EpicGames.UHT.Types
 				textType == UhtPropertyTextType.GenericFunctionArgOrRetValImpl ||
 				textType == UhtPropertyTextType.ClassFunctionArgOrRetVal ||
 				textType == UhtPropertyTextType.EventFunctionArgOrRetVal ||
-				textType == UhtPropertyTextType.InterfaceFunctionArgOrRetVal;
+				textType == UhtPropertyTextType.InterfaceFunctionArgOrRetVal ||
+				textType == UhtPropertyTextType.SetterParameterArgType;
+		}
+		
+		/// <summary>
+		/// Test to see if the text type is for a getter retVal or setter argType
+		/// </summary>
+		/// <param name="textType">Type of text</param>
+		/// <returns>True if the text type is a retVal or argType</returns>
+		public static bool IsGetOrSet(this UhtPropertyTextType textType)
+		{
+			return
+				textType == UhtPropertyTextType.GetterSetterArg ||
+				textType == UhtPropertyTextType.GetterRetVal ||
+				textType == UhtPropertyTextType.SetterParameterArgType;
 		}
 	}
 
@@ -1061,6 +1095,7 @@ namespace EpicGames.UHT.Types
 			UhtPropertyCaps caps = PropertyCaps;
 
 			bool isParameter = textType.IsParameter();
+			bool isGetOrSet = textType.IsGetOrSet();
 			bool isInterfaceProp = this is UhtInterfaceProperty;
 
 			// When do we need a leading const:
@@ -1079,7 +1114,7 @@ namespace EpicGames.UHT.Types
 			}
 			bool shouldHaveRef = PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm | EPropertyFlags.ReferenceParm);
 
-			bool constAtTheBeginning = isOnConstClass || isConstArgsByRef || (isConstParam && !shouldHaveRef);
+			bool constAtTheBeginning = isGetOrSet | isOnConstClass || isConstArgsByRef || (isConstParam && !shouldHaveRef);
 			if (constAtTheBeginning)
 			{
 				builder.Append("const ");
@@ -1101,7 +1136,8 @@ namespace EpicGames.UHT.Types
 				builder.Append(" const");
 			}
 
-			if (isParameter && ArrayDimensions == null && (passCppArgsByRef || PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm | EPropertyFlags.ReferenceParm)))
+			shouldHaveRef = textType == UhtPropertyTextType.SetterParameterArgType || (textType == UhtPropertyTextType.GetterRetVal && passCppArgsByRef); 
+			if (shouldHaveRef || isParameter && ArrayDimensions == null && (passCppArgsByRef || PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm | EPropertyFlags.ReferenceParm)))
 			{
 				builder.Append('&');
 			}
@@ -1981,6 +2017,11 @@ namespace EpicGames.UHT.Types
 		/// <returns>Destination builder</returns>
 		public static StringBuilder AppendPropertyText(this StringBuilder builder, UhtProperty property, UhtPropertyTextType textType, bool isTemplateArgument = false)
 		{
+			if (textType == UhtPropertyTextType.GetterRetVal || textType == UhtPropertyTextType.SetterParameterArgType)
+			{
+				return builder.AppendFullDecl(property, textType, true);
+			}
+
 			return property.AppendText(builder, textType, isTemplateArgument);
 		}
 

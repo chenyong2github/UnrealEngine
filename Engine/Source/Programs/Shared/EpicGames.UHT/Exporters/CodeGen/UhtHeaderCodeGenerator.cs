@@ -33,6 +33,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		public const string InClassIInterfaceNoPureDeclsMacroSuffix = "INCLASS_IINTERFACE_NO_PURE_DECLS";
 		public const string PrologMacroSuffix = "PROLOG";
 		public const string DelegateMacroSuffix = "DELEGATE";
+		public const string AutoGettersSettersMacroSuffix = "AUTOGETTERSETTER_DECLS";
 		#endregion
 
 		public readonly UhtHeaderFile HeaderFile;
@@ -680,6 +681,84 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							if (function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify) && function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly))
 							{
 								appendAction(builder, classObj, function.CppImplName);
+							}
+						}
+					}
+				}
+
+				if (!allEditorFields && appendDefine)
+				{
+					builder.Append("#endif // WITH_EDITORONLY_DATA\r\n");
+				}
+			}
+			return builder;
+		}
+		#endregion
+
+		#region AutoGettersSetters support
+		protected static bool NeedAutoGetterSetterCodeGen(UhtClass classObj)
+		{
+			return classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasAutoGettersSetters);
+		}
+		
+		protected static void GetAutoGetterSetterStats(UhtClass classObj, out bool hasProperties, out bool hasEditorFields, out bool allEditorFields)
+		{
+			// Scan the children to see what we have
+			hasProperties = false;
+			hasEditorFields = false;
+			allEditorFields = true;
+			foreach (UhtType type in classObj.Children)
+			{
+				if (type is UhtProperty property)
+				{
+					if (property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.GetterSpecifiedAuto | UhtPropertyExportFlags.SetterSpecifiedAuto))
+					{
+						hasProperties = true;
+						hasEditorFields |= property.IsEditorOnlyProperty;
+						allEditorFields &= property.IsEditorOnlyProperty;
+					}
+				}
+			}
+
+			// If we have no editor fields, then by definition, all fields can't be editor fields
+			allEditorFields &= hasEditorFields;
+		}
+		
+		protected static StringBuilder AppendAutoGettersSetters(StringBuilder builder, UhtClass classObj,
+			UhtPropertyExportFlags specifierFlag,
+			bool hasProperties, bool hasEditorFields, bool allEditorFields,
+			bool includeEditorOnlyFields, bool appendDefine, Action<StringBuilder, UhtClass, UhtProperty> appendAction)
+		{
+			if (hasProperties && !allEditorFields)
+			{
+				foreach (UhtType child in classObj.Children)
+				{
+					if (child is UhtProperty property)
+					{
+						if (property.PropertyExportFlags.HasAnyFlags(specifierFlag) && !property.IsEditorOnlyProperty)
+						{
+							appendAction(builder, classObj, property);
+						}
+					}
+				}
+			}
+
+			if (hasEditorFields && includeEditorOnlyFields)
+			{
+				if (!allEditorFields && appendDefine)
+				{
+					builder.Append("#if WITH_EDITORONLY_DATA\r\n");
+				}
+
+				if (hasProperties)
+				{
+					foreach (UhtType child in classObj.Children)
+					{
+						if (child is UhtProperty property)
+						{
+							if (property.PropertyExportFlags.HasAnyFlags(specifierFlag) && property.IsEditorOnlyProperty)
+							{
+								appendAction(builder, classObj, property);
 							}
 						}
 					}

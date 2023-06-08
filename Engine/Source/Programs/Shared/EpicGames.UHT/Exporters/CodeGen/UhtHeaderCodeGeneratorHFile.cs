@@ -546,6 +546,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			List<UhtFunction> callbackFunctions = new(classObj.Functions.Where(x => x.FunctionFlags.HasAnyFlags(EFunctionFlags.Event) && x.SuperFunction == null));
 			callbackFunctions.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.EngineName, y.EngineName));
 			bool hasCallbacks = callbackFunctions.Count > 0;
+			
+			// Determine if auto getters/setters have been generated
+			bool hasAutoGettersSetters = classObj.Properties.Any(x => x.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.GetterSpecifiedAuto | UhtPropertyExportFlags.SetterSpecifiedAuto));
 
 			// Generate the RPC wrappers for the callbacks
 			AppendCallbackRpcWrapperDecls(builder, classObj, callbackFunctions);
@@ -606,7 +609,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 
 				AppendProlog(builder, classObj);
-				AppendGeneratedBodyMacroBlock(builder, classObj, nativeInterface!, alternateUsesLegacy, hasEditorRpc, hasCallbacks, null);
+				AppendGeneratedBodyMacroBlock(builder, classObj, nativeInterface!, alternateUsesLegacy, hasEditorRpc, hasCallbacks, hasAutoGettersSetters, null);
 			}
 			else
 			{
@@ -628,8 +631,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 
 				AppendFieldNotify(builder, classObj);
+				AppendAutoGettersSetters(builder, classObj);
 				AppendProlog(builder, classObj);
-				AppendGeneratedBodyMacroBlock(builder, classObj, classObj, usesLegacy, hasEditorRpc, hasCallbacks, usesLegacy ? "GENERATED_UCLASS_BODY" : null);
+				AppendGeneratedBodyMacroBlock(builder, classObj, classObj, usesLegacy, hasEditorRpc, hasCallbacks, hasAutoGettersSetters, usesLegacy ? "GENERATED_UCLASS_BODY" : null);
 			}
 
 			// Forward declare the StaticClass specialization in the header
@@ -717,6 +721,69 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return builder;
 		}
 
+		private StringBuilder AppendAutoGettersSetters(StringBuilder builder, UhtClass classObj)
+		{
+			if (!NeedAutoGetterSetterCodeGen(classObj))
+			{
+				return builder;
+			}
+
+			// Scan the children to see what we have
+			GetAutoGetterSetterStats(classObj, out bool hasProperties, out bool hasEditorFields, out bool allEditorFields);
+
+			// If we only have editor fields or no editor fields, then we only emit one block
+			if (hasEditorFields)
+			{
+				builder.Append("#if WITH_EDITORONLY_DATA\r\n");
+				using (UhtMacroCreator macro = new(builder, this, classObj, AutoGettersSettersMacroSuffix))
+				{
+					AppendAutoGetterSetter(builder, classObj, hasProperties, hasEditorFields, allEditorFields, true);
+				}
+				builder.Append("#else //WITH_EDITORONLY_DATA\r\n");
+				using (UhtMacroCreator macro = new(builder, this, classObj, AutoGettersSettersMacroSuffix))
+				{
+					AppendAutoGetterSetter(builder, classObj, hasProperties, hasEditorFields, allEditorFields, false);
+				}
+				builder.Append("#endif // WITH_EDITORONLY_DATA\r\n");
+			}
+			else
+			{
+				using UhtMacroCreator macro = new(builder, this, classObj, AutoGettersSettersMacroSuffix);
+				AppendAutoGetterSetter(builder, classObj, hasProperties, hasEditorFields, allEditorFields, false);
+			}
+			return builder;
+		}
+		
+		private StringBuilder AppendAutoGetterSetter(StringBuilder builder, UhtClass classObj,
+			bool hasProperties, bool hasEditorFields, bool allEditorFields,
+			bool includeEditorOnlyFields)
+		{
+			builder.Append("public: \\\r\n");
+            AppendAutoGettersSetters(builder, classObj, UhtPropertyExportFlags.GetterSpecifiedAuto, hasProperties, hasEditorFields, allEditorFields,
+				includeEditorOnlyFields, false, (StringBuilder parentBuilder, UhtClass classObj, UhtProperty property) =>
+				{
+					using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
+					StringBuilder propertyStringBuilder = borrower.StringBuilder;
+					propertyStringBuilder.AppendPropertyText(property, UhtPropertyTextType.GetterRetVal);
+					string getterRetText = propertyStringBuilder.ToString();
+					string getterCallText = property.Getter ?? "Get" + property.SourceName;
+					parentBuilder.Append('\t').Append(getterRetText).Append(getterCallText).Append("() const; \\\r\n");
+				});
+            
+            AppendAutoGettersSetters(builder, classObj, UhtPropertyExportFlags.SetterSpecifiedAuto, hasProperties, hasEditorFields, allEditorFields,
+	            includeEditorOnlyFields, false, (StringBuilder parentBuilder, UhtClass classObj, UhtProperty property) =>
+	            {
+		            using BorrowStringBuilder borrower = new(StringBuilderCache.Small);
+		            StringBuilder propertyStringBuilder = borrower.StringBuilder;
+		            propertyStringBuilder.AppendPropertyText(property, UhtPropertyTextType.SetterParameterArgType);
+		            string setterArgText = propertyStringBuilder + "InValue";
+		            string setterCallText = property.Setter ?? "Set" + property.SourceName;
+		            parentBuilder.Append("\tvoid ").Append(setterCallText).Append('(').Append(setterArgText).Append("); \\\r\n");
+	            });
+
+            return builder;
+		}
+		
 		private StringBuilder AppendSparseDeclarations(StringBuilder builder, UhtClass classObj)
 		{
 			// Format the sparse data
@@ -1457,7 +1524,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return builder;
 		}
 
-		private StringBuilder AppendGeneratedBodyMacroBlock(StringBuilder builder, UhtClass classObj, UhtClass bodyClassObj, bool isLegacy, bool hasEditorRpc, bool hasCallbacks, string? deprecatedMacroName)
+		private StringBuilder AppendGeneratedBodyMacroBlock(StringBuilder builder, UhtClass classObj, UhtClass bodyClassObj, bool isLegacy, bool hasEditorRpc, bool hasCallbacks, bool hasAutoGettersSetters, string? deprecatedMacroName)
 		{
 			bool isInterface = classObj.ClassFlags.HasAnyFlags(EClassFlags.Interface);
 			using (UhtMacroCreator macro = new(builder, this, bodyClassObj, isLegacy ? GeneratedBodyLegacyMacroSuffix : GeneratedBodyMacroSuffix))
@@ -1489,6 +1556,10 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					}
 				}
 				builder.Append('\t').AppendMacroName(this, classObj, AccessorsMacroSuffix).Append(" \\\r\n");
+				if (hasAutoGettersSetters)
+				{
+					builder.Append('\t').AppendMacroName(this, classObj, AutoGettersSettersMacroSuffix).Append(" \\\r\n");
+				}
 				if (hasCallbacks)
 				{
 					builder.Append('\t').AppendMacroName(this, classObj, CallbackWrappersMacroSuffix).Append(" \\\r\n");
