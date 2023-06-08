@@ -40,10 +40,6 @@ public:
 	static AMassLWIStaticMeshManager* GetMassLWIManagerForEntity(const FMassEntityManager& EntityManager, const FMassEntityHandle Entity);
 
 protected:
-	// UObject API
-	virtual void PostLoad() override;
-	// End UObject API
-
 	// AActor API
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

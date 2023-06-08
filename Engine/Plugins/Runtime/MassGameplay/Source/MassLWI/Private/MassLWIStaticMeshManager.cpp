@@ -29,19 +29,6 @@ namespace UE::Mass::Tweakables
 //-----------------------------------------------------------------------------
 // AMassLWIStaticMeshManager
 //-----------------------------------------------------------------------------
-void AMassLWIStaticMeshManager::PostLoad()
-{
-	Super::PostLoad();
-
-	if (UWorld* World = GetWorld())
-	{
-		if (UMassLWISubsystem* MassLWI = World->GetSubsystem<UMassLWISubsystem>())
-		{
-			MassLWI->RegisterLWIManager(*this);
-		}
-	}
-}
-
 void AMassLWIStaticMeshManager::BeginPlay()
 {
 	Super::BeginPlay();
