@@ -84,6 +84,7 @@ private:
 	}
 
 #if ANDROID_USE_NICE_VALUE_THREADPRIORITY
+	int32 ErrorLogLimit = 5;
 	virtual void SetThreadPriority(pthread_t InThread, EThreadPriority NewPriority) override;
 #endif
 };
