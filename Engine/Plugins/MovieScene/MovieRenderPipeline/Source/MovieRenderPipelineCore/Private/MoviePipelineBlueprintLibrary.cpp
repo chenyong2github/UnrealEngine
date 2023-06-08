@@ -589,15 +589,6 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 						FGuid ParentGuid = Possessable.GetParent();
 						while (ParentGuid.IsValid())
 						{
-							// This comparison doesn't support cross-sequence references, technically we should create a 
-							// FMovieSceneObjectBindingID etc, but because we only support finding sidecar cameras in the
-							// same sequence as the main camera cut track, this is fine for now.
-							if (ParentGuid == MainBinding.GetGuid())
-							{
-								// We want to know which sidecar camera this is, not the possessable index.
-								MainCameraIndex = Entity.SidecarCameras.Num();
-							}
-
 							if (FMovieScenePossessable* ParentAsPossessable = LeafNode->MovieScene->FindPossessable(ParentGuid))
 							{
 								ParentGuid = ParentAsPossessable->GetParent();
@@ -633,6 +624,15 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 
 						if (bAddCamera)
 						{
+							// This comparison doesn't support cross-sequence references, technically we should create a 
+							// FMovieSceneObjectBindingID etc, but because we only support finding sidecar cameras in the
+							// same sequence as the main camera cut track, this is fine for now.
+							if (ParentGuid == MainBinding.GetGuid())
+							{
+								// We want to know which sidecar camera this is, not the possessable index.
+								MainCameraIndex = Entity.SidecarCameras.Num();
+							}
+
 							Entity.SidecarCameras.Add(SidecarCamera);
 						}
 					}
