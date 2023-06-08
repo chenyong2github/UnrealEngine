@@ -12110,6 +12110,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	int32 Thickness,
 	int32 GlintValue, int32 GlintUV,
 	int32 SpecularProfileId,
+	bool bIsAtTheBottomOfTopology,
 	int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
 	FStrataOperator* PromoteToOperator)
 {
@@ -12127,7 +12128,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 		}
 
 		return AddCodeChunk(
-			MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types) /* Normal = %s ; Tangent = %s ; Thickness = %s */, %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types) /* Normal = %s ; Tangent = %s ; Thickness = %s */, %u, %u, %u, %u)"),
 			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			*StrataGetCastParameterCode(DiffuseAlbedo,			MCT_Float3),
 			*StrataGetCastParameterCode(F0,						MCT_Float3),
@@ -12151,6 +12152,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 			*StrataGetCastParameterCode(SpecularProfileId,		MCT_Float),
 			*StrataGetCastParameterCode(Thickness,				MCT_Float),
 			bIsThinSurface ? TEXT("true") : TEXT("false"),
+			bIsAtTheBottomOfTopology ? TEXT("true") : TEXT("false"),
 			*SharedLocalBasisIndexMacro,
 			*GetParametersSharedLocalBasesName(CurrentStrataCompilationContext),
 			*NormalCode,
@@ -12164,7 +12166,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	}
 	
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types) /* Normal = %s ; Tangent = %s ; Thickness = %s */"),
+		MCT_Strata, TEXT("GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types) /* Normal = %s ; Tangent = %s ; Thickness = %s */"),
 		*StrataGetCastParameterCode(DiffuseAlbedo,			MCT_Float3),
 		*StrataGetCastParameterCode(F0,						MCT_Float3),
 		*StrataGetCastParameterCode(F90,					MCT_Float3),
@@ -12187,6 +12189,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 		*StrataGetCastParameterCode(SpecularProfileId,		MCT_Float),
 		*StrataGetCastParameterCode(Thickness, MCT_Float),
 		bIsThinSurface ? TEXT("true") : TEXT("false"),
+		bIsAtTheBottomOfTopology ? TEXT("true") : TEXT("false"),
 		*SharedLocalBasisIndexMacro,
 		*GetParametersSharedLocalBasesName(CurrentStrataCompilationContext),
 		*NormalCode,

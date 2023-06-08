@@ -1331,6 +1331,7 @@ FStrataData GetStrataSlabBSDF(
 	float SpecularProfileId,
 	float ThicknessCm,
 	bool bIsThinSurface,
+	bool bIsAtTheBottomOfTopology,	// Make sure we do not affect MFP when wrap mode is selected. This is also an optimisation, disabling lots of code when we know about topology.
 	uint SharedLocalBasisIndex, inout uint SharedLocalBasisTypes)
 {
 	// Curvature-based roughness for geometric AA
@@ -1344,10 +1345,10 @@ FStrataData GetStrataSlabBSDF(
 	SSSMFPScale = saturate(SSSMFPScale);
 	const bool bSSSProfilePlugged = SSSProfileID > 0.0f;
 	const bool bMFPPlugged = any(SSSMFP > 0);
-	bool bIsThin = bMFPPlugged && bIsThinSurface; // Enable thin only if MFP is plugged, as otherwise there will be no back-tramission
-	bool bHasSSSWrap = bMFPPlugged && !UseSSSDiffusion;
-	bool bHasSSSProfile = bSSSProfilePlugged && SSSMFPScale > 0.f;
-	bool bHasSSS = bMFPPlugged || bHasSSSProfile || bHasSSSWrap;
+	bool bIsThin		= bIsAtTheBottomOfTopology && (bMFPPlugged && bIsThinSurface); // Enable thin only if MFP is plugged, as otherwise there will be no back-tramission
+	bool bHasSSSWrap	= bIsAtTheBottomOfTopology && (bMFPPlugged && !UseSSSDiffusion);
+	bool bHasSSSProfile	= bIsAtTheBottomOfTopology && (bSSSProfilePlugged && SSSMFPScale > 0.f);
+	bool bHasSSS		= bIsAtTheBottomOfTopology && (bMFPPlugged || bHasSSSProfile || bHasSSSWrap);
 
 	FHaziness Haziness = InitialiseHaziness();
 
@@ -3556,6 +3557,7 @@ void FStrataPixelHeader::StrataConvertFromDBuffer(
 		0.f, 				// SpecularProfileId
 		DefaultThicknessCm,
 		false,				// bIsThinSurface,
+		false,				// bIsAtTheBottomOfTopology, this will disable many unneeded features.
 		SharedLocalBasisIndex,
 		SharedLocalBasisTypes);
 #if STRATA_INLINE_SHADING

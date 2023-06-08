@@ -124,6 +124,7 @@ FStrataData CreateLegacySlab(
 		0.0f,												// Specular profile
 		In.Thickness,
 		In.bIsThinSurface,
+		true,												// bIsAtTheBottomOfTopology, legacy always has a single BSDF being at the bottom and top at teh same time.
 		In.SharedLocalBasisIndex, SharedLocalBasisTypes);
 }
 

@@ -23300,6 +23300,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat1(Compiler, GlintValue, 0.0f),
 		CompileWithDefaultFloat2(Compiler, GlintUV, 0.0f, 0.0f),
 		SpecularProfileCodeChunk != INDEX_NONE ? SpecularProfileCodeChunk : Compiler->Constant(0.0f),
+		StrataOperator.bIsBottom > 0 ? true : false,
 		NormalCodeChunk,
 		TangentCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),
@@ -23649,6 +23650,7 @@ int32 UMaterialExpressionStrataSimpleClearCoatBSDF::Compile(class FMaterialCompi
 		Compiler->Constant(0.0f),								// GlintValue
 		Compiler->Constant2(0.0f, 0.0f),						// GlintUV
 		Compiler->Constant(0.0f),								// SpecularProfile
+		false,													// bIsAtTheBottomOfTopology, always false for SimpleClearCoat
 		NormalCodeChunk,
 		NullTangentCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),

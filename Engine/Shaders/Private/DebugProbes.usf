@@ -140,8 +140,9 @@ void WriteOutMaterial(
 		/*float GlintValue						*/0.0f,
 		/*float GlintUV							*/0.0f.xx,
 		/*float SpecularProfile					*/0.0f,
-		/*float Thickness						*/0.0f,
+		/*float Thickness						*/1.0f,
 		/*bool bIsThinSurface					*/false,
+		/*bool bIsAtTheBottomOfTopology			*/false,
 		/*uint SharedLocalBasisIndex			*/SharedLocalBasisIndex,
 		/*inout uint SharedLocalBasisTypes		*/StrataPixelHeader.SharedLocalBases.Types);
 
