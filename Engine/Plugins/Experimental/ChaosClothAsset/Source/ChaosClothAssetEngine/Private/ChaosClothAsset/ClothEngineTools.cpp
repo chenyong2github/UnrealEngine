@@ -2,7 +2,6 @@
 
 #include "ChaosClothAsset/ClothEngineTools.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
-#include "ChaosClothAsset/ClothCollection.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
 #include "ClothTetherData.h"
 

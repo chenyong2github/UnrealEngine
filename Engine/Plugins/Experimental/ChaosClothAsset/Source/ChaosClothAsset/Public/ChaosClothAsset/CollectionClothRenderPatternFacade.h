@@ -8,8 +8,6 @@ struct FManagedArrayCollection;
 
 namespace UE::Chaos::ClothAsset
 {
-	class FClothCollection;
-
 	/**
 	 * Cloth Asset collection render pattern facade class to access cloth render pattern data.
 	 * Constructed from FCollectionClothConstFacade.
@@ -59,12 +57,12 @@ namespace UE::Chaos::ClothAsset
 	protected:
 		friend class FCollectionClothRenderPatternFacade;  // For other instances access
 		friend class FCollectionClothConstFacade;
-		FCollectionClothRenderPatternConstFacade(const TSharedPtr<const FClothCollection>& InClothCollection, int32 InPatternIndex);
+		FCollectionClothRenderPatternConstFacade(const TSharedPtr<const class FClothCollection>& InClothCollection, int32 InPatternIndex);
 
 		static constexpr int32 GetBaseElementIndex() { return 0; }
 		int32 GetElementIndex() const { return GetBaseElementIndex() + PatternIndex; }
 
-		TSharedPtr<const FClothCollection> ClothCollection;
+		TSharedPtr<const class FClothCollection> ClothCollection;
 		int32 PatternIndex;
 	};
 
@@ -115,10 +113,10 @@ namespace UE::Chaos::ClothAsset
 
 	protected:
 		friend class FCollectionClothFacade;
-		FCollectionClothRenderPatternFacade(const TSharedPtr<FClothCollection>& InClothCollection, int32 InPatternIndex);
+		FCollectionClothRenderPatternFacade(const TSharedPtr<class FClothCollection>& InClothCollection, int32 InPatternIndex);
 
 		void SetDefaults();
 
-		TSharedPtr<FClothCollection> GetClothCollection() { return ConstCastSharedPtr<FClothCollection>(ClothCollection); }
+		TSharedPtr<class FClothCollection> GetClothCollection() { return ConstCastSharedPtr<class FClothCollection>(ClothCollection); }
 	};
 }  // End namespace UE::Chaos::ClothAsset

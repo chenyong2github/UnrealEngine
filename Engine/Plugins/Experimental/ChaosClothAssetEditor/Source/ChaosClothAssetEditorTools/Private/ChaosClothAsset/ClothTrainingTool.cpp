@@ -12,7 +12,6 @@
 #include "ChaosClothAsset/ClothDataGenerationComponent.h"
 #include "ChaosClothAsset/ClothComponent.h"
 #include "ChaosClothAsset/ClothComponentToolTarget.h"
-#include "ChaosClothAsset/ClothCollection.h"
 #include "ChaosClothAsset/ClothSimulationProxy.h"
 #include "ClothingSystemRuntimeTypes.h"
 #include "ClothTrainingToolProperties.h"

@@ -3,7 +3,6 @@
 #include "ChaosClothAsset/ClothDataflowTools.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
-#include "ChaosClothAsset/ClothCollection.h"
 #include "Animation/Skeleton.h"
 #include "BoneWeights.h"
 #include "DynamicMesh/NonManifoldMappingSupport.h"

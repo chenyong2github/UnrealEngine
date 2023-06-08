@@ -4,12 +4,8 @@
 
 #include "Templates/SharedPointer.h"
 
-struct FManagedArrayCollection;
-
 namespace UE::Chaos::ClothAsset
 {
-	class FClothCollection;
-
 	/**
 	 * Cloth Asset collection sim pattern facade class to access cloth sim pattern data.
 	 * Constructed from FCollectionClothConstFacade.
@@ -51,12 +47,12 @@ namespace UE::Chaos::ClothAsset
 	protected:
 		friend class FCollectionClothSimPatternFacade;  // For other instances access
 		friend class FCollectionClothConstFacade;
-		FCollectionClothSimPatternConstFacade(const TSharedPtr<const FClothCollection>& InClothCollection, int32 InPatternIndex);
+		FCollectionClothSimPatternConstFacade(const TSharedPtr<const class FClothCollection>& InClothCollection, int32 InPatternIndex);
 
 		static constexpr int32 GetBaseElementIndex() { return 0; }
 		int32 GetElementIndex() const { return GetBaseElementIndex() + PatternIndex; }
 
-		TSharedPtr<const FClothCollection> ClothCollection;
+		TSharedPtr<const class FClothCollection> ClothCollection;
 		int32 PatternIndex;
 	};
 
@@ -105,7 +101,7 @@ namespace UE::Chaos::ClothAsset
 
 	private:
 		friend class FCollectionClothFacade;
-		FCollectionClothSimPatternFacade(const TSharedPtr<FClothCollection>& InClothCollection, int32 InPatternIndex);
+		FCollectionClothSimPatternFacade(const TSharedPtr<class FClothCollection>& InClothCollection, int32 InPatternIndex);
 
 		void SetDefaults();
 
@@ -115,6 +111,6 @@ namespace UE::Chaos::ClothAsset
 		void SetNumSimVertices2D(int32 NumSimVertices);
 		TArrayView<int32> GetSimVertex3DLookup();
 
-		TSharedPtr<FClothCollection> GetClothCollection() { return ConstCastSharedPtr<FClothCollection>(ClothCollection); }
+		TSharedPtr<class FClothCollection> GetClothCollection() { return ConstCastSharedPtr<class FClothCollection>(ClothCollection); }
 	};
 }  // End namespace UE::Chaos::ClothAsset

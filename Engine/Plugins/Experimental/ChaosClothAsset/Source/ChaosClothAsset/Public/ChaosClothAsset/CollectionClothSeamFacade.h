@@ -4,12 +4,8 @@
 
 #include "Templates/SharedPointer.h"
 
-struct FManagedArrayCollection;
-
 namespace UE::Chaos::ClothAsset
 {
-	class FClothCollection;
-
 	/**
 	 * Cloth Asset collection seam facade class to access cloth seam data.
 	 * Constructed from FCollectionClothConstFacade.
@@ -45,12 +41,12 @@ namespace UE::Chaos::ClothAsset
 	protected:
 		friend class FCollectionClothSeamFacade;  // For other instances access
 		friend class FCollectionClothConstFacade;
-		FCollectionClothSeamConstFacade(const TSharedPtr<const FClothCollection>& InClothCollection, int32 SeamIndex);
+		FCollectionClothSeamConstFacade(const TSharedPtr<const class FClothCollection>& InClothCollection, int32 SeamIndex);
 
 		static constexpr int32 GetBaseElementIndex() { return 0; }
 		int32 GetElementIndex() const { return GetBaseElementIndex() + SeamIndex; }
 
-		TSharedPtr<const FClothCollection> ClothCollection;
+		TSharedPtr<const class FClothCollection> ClothCollection;
 		int32 SeamIndex;
 	};
 
@@ -83,7 +79,7 @@ namespace UE::Chaos::ClothAsset
 
 private:
 		friend class FCollectionClothFacade;
-		FCollectionClothSeamFacade(const TSharedPtr<FClothCollection>& InClothCollection, int32 SeamIndex);
+		FCollectionClothSeamFacade(const TSharedPtr<class FClothCollection>& InClothCollection, int32 SeamIndex);
 
 		void SetDefaults();
 
@@ -93,6 +89,6 @@ private:
 		TArrayView<FIntVector2> GetSeamStitch2DEndIndices();
 		TArrayView<int32> GetSeamStitch3DIndex();
 
-		TSharedPtr<FClothCollection> GetClothCollection() { return ConstCastSharedPtr<FClothCollection>(ClothCollection); }
+		TSharedPtr<class FClothCollection> GetClothCollection() { return ConstCastSharedPtr<class FClothCollection>(ClothCollection); }
 	};
 }  // End namespace UE::Chaos::ClothAsset

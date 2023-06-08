@@ -13,8 +13,6 @@ class FChaosArchive;
 
 namespace UE::Chaos::ClothAsset
 {
-	class FClothCollection;
-
 	/**
 	 * Cloth Asset collection facade class focused on draping and pattern information.
 	 * Const access (read only) version.
@@ -124,11 +122,11 @@ namespace UE::Chaos::ClothAsset
 			TArray<uint32>& PatternToWeldedIndices, TArray<TArray<int32>>* OptionalWeldedToPatternIndices = nullptr) const;
 
 	protected:
-		TSharedPtr<const FClothCollection> ClothCollection;
+		TSharedPtr<const class FClothCollection> ClothCollection;
 
 		friend class FCollectionClothSeamFacade;
 		friend class FCollectionClothSeamConstFacade;
-		explicit FCollectionClothConstFacade(const TSharedPtr<const FClothCollection>& ClothCollection);
+		explicit FCollectionClothConstFacade(const TSharedPtr<const class FClothCollection>& ClothCollection);
 	};
 
 	/**
@@ -249,12 +247,12 @@ namespace UE::Chaos::ClothAsset
 
 		void SetDefaults();
 
-		TSharedPtr<FClothCollection> GetClothCollection() { return ConstCastSharedPtr<FClothCollection>(ClothCollection); }
+		TSharedPtr<class FClothCollection> GetClothCollection() { return ConstCastSharedPtr<class FClothCollection>(ClothCollection); }
 
 		friend class FCollectionClothSeamFacade;
 		friend class FCollectionClothSimPatternFacade;
 
-		explicit FCollectionClothFacade(const TSharedPtr<FClothCollection>& InClothCollection);
+		explicit FCollectionClothFacade(const TSharedPtr<class FClothCollection>& InClothCollection);
 
 		// These methods are private because they're managed by the FCollectionClothSeamFacade.
 		//~ Sim Vertices 2D Group

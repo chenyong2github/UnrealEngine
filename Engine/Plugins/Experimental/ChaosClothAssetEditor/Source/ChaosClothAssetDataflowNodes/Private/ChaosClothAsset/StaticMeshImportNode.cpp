@@ -4,7 +4,6 @@
 #include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
 #include "ChaosClothAsset/ClothAsset.h"
-#include "ChaosClothAsset/ClothCollection.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
 #include "ChaosClothAsset/ClothDataflowTools.h"
 #include "Engine/StaticMesh.h"
