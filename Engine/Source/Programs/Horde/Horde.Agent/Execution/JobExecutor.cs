@@ -1111,11 +1111,44 @@ namespace Horde.Agent.Execution
 			}
 		}
 
+		static FileReference GetLeaseCleanupScript(DirectoryReference workspaceDir)
+		{
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				return FileReference.Combine(workspaceDir, "CleanupLease.bat");
+			}
+			else
+			{
+				return FileReference.Combine(workspaceDir, "CleanupLease.sh");
+			}
+		}
+
 		internal IReadOnlyDictionary<string, string> GetEnvVars()
 		{
 			return new Dictionary<string, string>(_envVars);
 		}
-		
+
+		protected static async Task ExecuteLeaseCleanupScriptAsync(DirectoryReference workspaceDir, ILogger logger)
+		{
+			using (LogParser parser = new LogParser(logger, new List<string>()))
+			{
+				FileReference leaseCleanupScript = GetLeaseCleanupScript(workspaceDir);
+				await ExecuteCleanupScriptAsync(leaseCleanupScript, parser, logger);
+			}
+		}
+
+		protected async Task TerminateProcessesAsync(TerminateCondition condition, ILogger logger)
+		{
+			try
+			{
+				await _session.TerminateProcessesAsync(condition, logger, CancellationToken.None);
+			}
+			catch (Exception ex)
+			{
+				logger.LogWarning(ex, "Exception while terminating processes: {Message}", ex.Message);
+			}
+		}
+
 		static async Task ExecuteCleanupScriptAsync(FileReference cleanupScript, LogParser filter, ILogger logger)
 		{
 			if (FileReference.Exists(cleanupScript))
@@ -1316,6 +1349,10 @@ namespace Horde.Agent.Execution
 			// Pass the location of the cleanup script to the job
 			FileReference cleanupScript = GetCleanupScript(workspaceDir);
 			newEnvVars["UE_HORDE_CLEANUP"] = cleanupScript.FullName;
+
+			// Pass the location of the cleanup script to the job
+			FileReference leaseCleanupScript = GetLeaseCleanupScript(workspaceDir);
+			newEnvVars["UE_HORDE_LEASE_CLEANUP"] = cleanupScript.FullName;
 
 			// Set up the shared working dir
 			newEnvVars["UE_HORDE_SHARED_DIR"] = DirectoryReference.Combine(_session.WorkingDir, "Saved").FullName;

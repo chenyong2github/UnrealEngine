@@ -15,6 +15,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Perforce;
 using EpicGames.Perforce.Managed;
+using Horde.Agent.Parser;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using Horde.Common.Rpc;
@@ -227,6 +228,9 @@ namespace Horde.Agent.Execution
 
 		public override async Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
+			await ExecuteLeaseCleanupScriptAsync(_workspace.WorkspaceDir, logger);
+			await TerminateProcessesAsync(TerminateCondition.AfterBatch, logger);
+
 			await _workspace.CleanAsync(cancellationToken);
 			await base.FinalizeAsync(logger, cancellationToken);
 		}

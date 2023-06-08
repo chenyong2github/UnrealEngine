@@ -118,6 +118,10 @@ namespace Horde.Agent.Execution
 		/// <inheritdoc/>
 		public override async Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
+			DirectoryReference workspaceDir = (await _workspace.GetSettingsAsync(cancellationToken)).DirectoryPath;
+			await ExecuteLeaseCleanupScriptAsync(workspaceDir, logger);
+			await TerminateProcessesAsync(TerminateCondition.AfterBatch, logger);
+
 			if (_autoSdkWorkspace != null)
 			{
 				await _autoSdkWorkspace.FinalizeAsync(cancellationToken);
