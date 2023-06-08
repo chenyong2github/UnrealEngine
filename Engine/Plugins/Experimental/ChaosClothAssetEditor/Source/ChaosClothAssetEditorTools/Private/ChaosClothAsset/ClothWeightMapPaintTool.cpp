@@ -1612,6 +1612,9 @@ void UClothEditorWeightMapPaintTool::UpdateSelectedNode()
 	{
 		WeightMapNodeToUpdate->VertexWeights = CurrentWeights;
 	}
+	
+	WeightMapNodeToUpdate->Name = UpdateWeightMapProperties->Name;
+
 	WeightMapNodeToUpdate->Invalidate();
 }
 
