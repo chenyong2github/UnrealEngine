@@ -9,7 +9,7 @@
 #if defined(_M_AMD64) || defined(__x86_64__)
 
 #include <wmmintrin.h>
-#if PLATFORM_COMPILER_CLANG
+#if PLATFORM_COMPILER_CLANG && !PLATFORM_WINDOWS
 #include <cpuid.h>
 #endif
 
@@ -591,7 +591,7 @@ static inline void AesDecrypt(const uint8* Key, uint8* Contents, uint64 NumBytes
 static inline bool DetectAesInstructions()
 {
 	int info[4];
-#if PLATFORM_COMPILER_CLANG
+#if PLATFORM_COMPILER_CLANG && !PLATFORM_WINDOWS
 	__cpuid(1, info[0], info[1], info[2], info[3]);
 #else
 	__cpuid(info, 1);

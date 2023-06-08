@@ -12,7 +12,7 @@
 #if (defined(_M_AMD64) || defined(__x86_64__)) && !defined(_M_ARM64EC)
 
 #include <immintrin.h>
-#if PLATFORM_COMPILER_CLANG
+#if PLATFORM_COMPILER_CLANG && !PLATFORM_WINDOWS
 #include <cpuid.h>
 #include <shaintrin.h>
 #endif
@@ -726,7 +726,7 @@ static inline bool DetectShaInstructions()
 {
 	int info1[4];
 	int info7[4];
-#if PLATFORM_COMPILER_CLANG
+#if PLATFORM_COMPILER_CLANG && !PLATFORM_WINDOWS
 	__cpuid(1, info1[0], info1[1], info1[2], info1[3]);
 	__cpuid_count(7, 0, info7[0], info7[1], info7[2], info7[3]);
 #else

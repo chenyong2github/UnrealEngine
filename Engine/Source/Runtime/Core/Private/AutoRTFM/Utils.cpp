@@ -7,7 +7,9 @@
 #include <string.h>
 
 #if PLATFORM_WINDOWS
-#include <windows.h>
+#include "Windows/PreWindowsApi.h"
+#include "Windows/MinWindows.h"
+#include "Windows/PostWindowsApi.h"
 #include <dbghelp.h>
 #else
 #include <execinfo.h>

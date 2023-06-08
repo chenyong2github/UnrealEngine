@@ -17,8 +17,9 @@
 #endif
 
 #if PLATFORM_WINDOWS
-#define NOMINMAX
-#include <windows.h>
+#include "Windows/PreWindowsApi.h"
+#include "Windows/MinWindows.h"
+#include "Windows/PostWindowsApi.h"
 #endif
 
 namespace AutoRTFM

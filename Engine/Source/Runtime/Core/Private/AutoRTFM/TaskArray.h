@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "SharedPtr.h"
 #include "Containers/Array.h"
+
+#include "Utils.h"
 
 namespace AutoRTFM
 {
@@ -29,22 +30,23 @@ public:
     void AddAll(TTaskArray<T>&& Other)
     {
         Canonicalize();
-        for (TSharedPtr<TArray<T>>& StashedVectorBox : Other.Stash)
+
+        for (TArray<T>& StashedVectorBox : Other.Stash)
         {
             Stash.Push(MoveTemp(StashedVectorBox));
         }
+
         Other.Stash.Empty();
-        if (!Other.Latest.IsEmpty())
-        {
-            Stash.Push(TSharedPtr<TArray<T>>::New(MoveTemp(Other.Latest)));
-        }
+
+		ASSERT(Latest.IsEmpty());
+		Latest = MoveTemp(Other.Latest);
     }
 
     void AddAll(const TTaskArray<T>& Other)
     {
         Canonicalize();
         Other.Canonicalize();
-        for (const TSharedPtr<TArray<T>>& StashedVectorBox : Other.Stash)
+        for (const TArray<T>& StashedVectorBox : Other.Stash)
         {
             Stash.Push(StashedVectorBox);
         }
@@ -53,9 +55,9 @@ public:
     template<typename TFunc>
     bool ForEachForward(const TFunc& Func)
     {
-        for (TSharedPtr<TArray<T>>& StashedVectorBox : Stash)
+        for (const TArray<T>& StashedVectorBox : Stash)
         {
-            for (const T& Entry : *StashedVectorBox)
+            for (const T& Entry : StashedVectorBox)
             {
                 if (!Func(Entry))
                 {
@@ -63,6 +65,7 @@ public:
                 }
             }
         }
+
         for (const T& Entry : Latest)
         {
             if (!Func(Entry))
@@ -70,6 +73,7 @@ public:
                 return false;
             }
         }
+
         return true;
     }
 
@@ -86,7 +90,7 @@ public:
 
         for (size_t IndexInStash = Stash.Num(); IndexInStash--;)
         {
-            const TArray<T>& StashedVector = *Stash[IndexInStash];
+            const TArray<T>& StashedVector = Stash[IndexInStash];
             for (size_t Index = StashedVector.Num(); Index--;)
             {
                 if (!Func(StashedVector[Index]))
@@ -110,7 +114,7 @@ public:
 
         for (size_t Index = 0; Index < Stash.Num(); Index++)
         {
-            const TArray<T>& StashedVector = *Stash[Index];
+            const TArray<T>& StashedVector = Stash[Index];
             Result += StashedVector.Num();
         }
 
@@ -125,13 +129,13 @@ private:
     {
         if (!Latest.IsEmpty())
         {
-            Stash.Push(TSharedPtr<TArray<T>>::New(MoveTemp(Latest)));
+            Stash.Push(MoveTemp(Latest));
         }
     }
     
     mutable TArray<T> Latest;
     
-    mutable TArray<TSharedPtr<TArray<T>>> Stash;
+    mutable TArray<TArray<T>> Stash;
 };
 
 } // namespace AutoRTFM
