@@ -8,6 +8,7 @@
 #include "UObject/NameTypes.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "Containers/StringView.h"
 #include "EntitySystem/MovieSceneComponentAccessors.h"
 
 class UClass;
@@ -217,6 +218,13 @@ struct ICustomPropertyRegistration
 	virtual FCustomAccessorView GetAccessors() const = 0;
 };
 
+#if WITH_EDITOR
+MOVIESCENE_API void AddGlobalCustomAccessor(const UClass* ClassType, FName PropertyPath);
+MOVIESCENE_API void RemoveGlobalCustomAccessor(const UClass* ClassType, FName PropertyPath);
+MOVIESCENE_API bool GlobalCustomAccessorExists(const UClass* ClassType, TStringView<WIDECHAR> PropertyPath);
+MOVIESCENE_API bool GlobalCustomAccessorExists(const UClass* ClassType, TStringView<ANSICHAR> PropertyPath);
+#endif // WITH_EDITOR
+
 /** Generally static collection of accessors for a given type of property */
 template<typename PropertyTraits, int InlineSize = 8>
 struct TCustomPropertyRegistration : ICustomPropertyRegistration
@@ -232,22 +240,43 @@ struct TCustomPropertyRegistration : ICustomPropertyRegistration
 	void Add(UClass* ClassType, FName PropertyName, GetterFunc Getter, SetterFunc Setter)
 	{
 		CustomAccessors.Add(TCustomPropertyAccessor<PropertyTraits>{ ClassType, PropertyName, { Getter, Setter } });
+#if WITH_EDITOR
+		AddGlobalCustomAccessor(ClassType, PropertyName);
+#endif
 	}
 
 	void Remove(UClass* ClassType, FName PropertyName)
 	{
-		CustomAccessors.RemoveAll([=](const TCustomPropertyAccessor<PropertyTraits>& Accessor)
-				{
-					return Accessor.Class == ClassType && Accessor.PropertyPath == PropertyName;
-				});
+		for (int32 Index = CustomAccessors.Num()-1; Index >= 0; --Index)
+		{
+			TCustomPropertyAccessor<PropertyTraits>& Accessor = CustomAccessors[Index];
+			if (Accessor.Class == ClassType && Accessor.PropertyPath == PropertyName)
+			{
+#if WITH_EDITOR
+				RemoveGlobalCustomAccessor(Accessor.Class, Accessor.PropertyPath);
+#endif
+				// Null out the entry rather than remove it because we don't want to invalidate any cached array indices
+				Accessor.Class = nullptr;
+				Accessor.PropertyPath = NAME_None;
+			}
+		}
 	}
 
 	void RemoveAll(UClass* ClassType)
 	{
-		CustomAccessors.RemoveAll([=](const TCustomPropertyAccessor<PropertyTraits>& Accessor)
-				{
-					return Accessor.Class == ClassType;
-				});
+		for (int32 Index = CustomAccessors.Num()-1; Index >= 0; --Index)
+		{
+			TCustomPropertyAccessor<PropertyTraits>& Accessor = CustomAccessors[Index];
+			if (Accessor.Class == ClassType)
+			{
+#if WITH_EDITOR
+				RemoveGlobalCustomAccessor(Accessor.Class, Accessor.PropertyPath);
+#endif
+				// Null out the entry rather than remove it because we don't want to invalidate any cached array indices
+				Accessor.Class = nullptr;
+				Accessor.PropertyPath = NAME_None;
+			}
+		}
 	}
 
 private:

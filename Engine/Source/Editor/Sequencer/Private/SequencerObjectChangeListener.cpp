@@ -9,6 +9,7 @@
 #include "PropertyPermissionList.h"
 #include "IPropertyChangeListener.h"
 #include "MovieSceneSequence.h"
+#include "EntitySystem/MovieScenePropertySystemTypes.h"
 #include "ScopedTransaction.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSequencerTools, Log, All);
@@ -297,6 +298,18 @@ bool FSequencerObjectChangeListener::CanKeyProperty_Internal(FCanKeyPropertyPara
 
 				{
 					FAnimatedPropertyKey PropertyKey = FAnimatedPropertyKey::FromProperty(Property);
+
+					// If there is a custom accessor for this specific property path, it is animatable (as long as there is a supported track editor registered for the property type)
+					if (UE::MovieScene::GlobalCustomAccessorExists(CanKeyPropertyParams.ObjectClass, InOutPropertyPath.ToString(TEXT("."))))
+					{
+						if (const FOnAnimatablePropertyChanged* DelegatePtr = PropertyChangedEventMap.Find(PropertyKey))
+						{
+							InOutProperty = Property;
+							InOutDelegate = *DelegatePtr;
+							return true;
+						}
+					}
+					// Otherwise we check for magic named functions using the default logic
 					const FOnAnimatablePropertyChanged* DelegatePtr = FindPropertySetter(*PropertyContainer, PropertyKey, *Property);
 					if (DelegatePtr != nullptr)
 					{
