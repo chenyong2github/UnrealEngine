@@ -70,7 +70,7 @@ protected:
 	bool K2_SetPropertyValue(UPARAM(ref) const int32& OldValue, UPARAM(ref) const int32& NewValue);
 
 	/** Set the new value and notify if the property value changed. */
-	template<typename T, typename U>
+	template<typename T, typename U = T>
 	bool SetPropertyValue(T& Value, const U& NewValue, UE::FieldNotification::FFieldId FieldId)
 	{
 		if (Value == NewValue)
