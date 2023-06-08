@@ -409,7 +409,7 @@ namespace mu
 						ScheduledStagePerOp[item] = 0;
 					}
 
-					IssuedTasks.RemoveAt(Index); // with swap? changes order of execution.
+					IssuedTasks.RemoveAt(Index,1,false); // with swap? changes order of execution.
 				}
 				else
 				{
@@ -451,14 +451,14 @@ namespace mu
 					}
 
 					item = OpenTasks[BestOp];
-					OpenTasks.RemoveAtSwap(BestOp);
+					OpenTasks.RemoveAtSwap(BestOp,1,false);
 					break;
 				}
 
 				case EExecutionStrategy::None:
 				default:
 					// Just get one.
-					item = OpenTasks.Pop();
+					item = OpenTasks.Pop(false);
 					break;
 
 				}
@@ -599,7 +599,7 @@ namespace mu
 				{
 					bSomeWasReady = true;
 					FTask Task = ClosedTasks[Index];
-					ClosedTasks.RemoveAt(Index); // with swap? would change order of execution.
+					ClosedTasks.RemoveAt(Index, 1, false); // with swap? would change order of execution.
 					OpenTasks.Push(Task.Op);
 				}
 				else
