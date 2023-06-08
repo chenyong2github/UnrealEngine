@@ -23,6 +23,7 @@
 #include "Selection/PolygonSelectionMechanic.h"
 #include "Spatial/PointSetHashTable.h"
 #include "Util/ColorConstants.h"
+#include "Operations/SmoothBoneWeights.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinWeightsPaintTool)
 
@@ -35,6 +36,44 @@ static EAsyncExecution SkinPaintToolAsyncExecTarget = EAsyncExecution::ThreadPoo
 
 // any weight below this value is ignored, since it won't be representable in unsigned 16-bit precision
 constexpr float MinimumWeightThreshold = 1.0f / 65535.0f;
+
+class FPaintToolWeightsDataSource : public UE::Geometry::TBoneWeightsDataSource<int32, float>
+{
+public:
+
+	FPaintToolWeightsDataSource(const SkinPaintTool::FSkinToolWeights* InWeights)
+	:
+	Weights(InWeights) 
+	{
+		checkSlow(Weights);
+	}
+
+	virtual ~FPaintToolWeightsDataSource() = default;
+
+	virtual int32 GetBoneNum(const int32 VertexID) override
+	{
+		return Weights->PreChangeWeights[VertexID].Num();
+	}
+
+	virtual int32 GetBoneIndex(const int32 VertexID, const int32 Index) override
+	{
+		return Weights->PreChangeWeights[VertexID][Index].BoneIndex;
+	}
+
+	virtual float GetBoneWeight(const int32 VertexID, const int32 Index) override
+	{
+		return Weights->PreChangeWeights[VertexID][Index].Weight;
+	}
+
+	virtual float GetWeightOfBoneOnVertex(const int32 VertexID, const int32 BoneIndex) override
+	{
+		return Weights->GetWeightOfBoneOnVertex(BoneIndex, VertexID, Weights->PreChangeWeights);
+	}
+
+protected:
+
+	const SkinPaintTool::FSkinToolWeights* Weights = nullptr;
+};
 
 USkinWeightsPaintToolProperties::USkinWeightsPaintToolProperties()
 {
@@ -673,6 +712,10 @@ void USkinWeightsPaintTool::Setup()
 		[this]() { return MeshSpatial.Get(); }
 	);
 	
+	SmoothWeightsDataSource = MakeUnique<FPaintToolWeightsDataSource>(&Weights);
+	SmoothWeightsOp = MakeUnique<UE::Geometry::TSmoothBoneWeights<int32, float>>(PreviewMesh->GetMesh(), SmoothWeightsDataSource.Get());
+	SmoothWeightsOp->MinimumWeightThreshold = MinimumWeightThreshold;
+	
 	// inform user of tool keys
 	// TODO talk with UX team about viewport overlay to show hotkeys
 	GetToolManager()->DisplayMessage(
@@ -1183,91 +1226,30 @@ void USkinWeightsPaintTool::RelaxWeightOnVertices(
 	const float UseStrength,
 	FMultiBoneWeightEdits& InOutWeightEdits)
 {
-	const FDynamicMesh3* CurrentMesh = PreviewMesh->GetMesh();
-	const UE::Geometry::FNonManifoldMappingSupport NonManifoldMappingSupport(*CurrentMesh);
-
-	auto NormalizeWeights = [](TMap<BoneIndex, float>& InOutWeights)
+	if (!ensure(SmoothWeightsOp))
 	{
-		float TotalWeight = 0.f;
-		for (const TTuple<BoneIndex, float>& Weight : InOutWeights)
-		{
-			TotalWeight += Weight.Value;
-		}
-		for (TTuple<BoneIndex, float>& Weight : InOutWeights)
-		{
-			Weight.Value /= TotalWeight;
-		}
-	};
+		return;
+	}
 
-	// for each vertex in the stamp...
-	constexpr int32 AvgNumNeighbors = 8;
-	using VertexNeighborWeights = TArray<float, TInlineAllocator<AvgNumNeighbors>>;
-	TArray<int32> AllNeighborVertices;
-	TMap<BoneIndex, VertexNeighborWeights> WeightsOnAllNeighbors;
-	TMap<BoneIndex, float> FinalWeights;
 	for (int32 Index = 0; Index < VerticesToEdit.Num(); ++Index)
 	{
 		const int32 VertexID = VerticesToEdit[Index];
-		const int32 SrcVertexID = NonManifoldMappingSupport.GetOriginalNonManifoldVertexID(VertexID);
-
-		// get list of all neighboring vertices, AND this vertex
-		AllNeighborVertices.Reset();
-		AllNeighborVertices.Add(VertexID);
-		for (const int32 NeighborVertexID : CurrentMesh->VtxVerticesItr(SrcVertexID))
-		{
-			AllNeighborVertices.Add(NeighborVertexID);
-		}
-
-		// get all weights above a given threshold across ALL neighbors (including self)
-		WeightsOnAllNeighbors.Reset();
-		for (const int32 NeighborVertexID : AllNeighborVertices)
-		{
-			for (const FVertexBoneWeight& BoneWeight : Weights.PreChangeWeights[NeighborVertexID])
-			{
-				if (BoneWeight.Weight > MinimumWeightThreshold)
-				{
-					VertexNeighborWeights& BoneWeights = WeightsOnAllNeighbors.FindOrAdd(BoneWeight.BoneIndex);
-					BoneWeights.Add(BoneWeight.Weight);
-				}
-			}
-		}
-
-		// calculate single average weight of each bone on all the neighbors
-		FinalWeights.Reset();
-		for (const TTuple<BoneIndex, VertexNeighborWeights>& NeighborWeights : WeightsOnAllNeighbors)
-		{
-			float TotalWeightOnThisBone = 0.f;
-			for (const float& Value : NeighborWeights.Value)
-			{
-				TotalWeightOnThisBone += Value;
-			}
-			FinalWeights.Add(NeighborWeights.Key, TotalWeightOnThisBone / NeighborWeights.Value.Num());
-		}
-
-		// normalize the weights
-		NormalizeWeights(FinalWeights);
-
-		// lerp weights from previous values, to fully relaxed values by brush strength scaled by falloff
 		const float UseFalloff = VertexFalloffs.IsValidIndex(Index) ? VertexFalloffs[Index] * UseStrength : UseStrength;
-		for (TTuple<BoneIndex, float>& FinalWeight : FinalWeights)
-		{
-			const int32 BoneIndex = FinalWeight.Key;
-			float NewWeight = FinalWeight.Value;
-			float OldWeight = Weights.GetWeightOfBoneOnVertex(BoneIndex, VertexID, Weights.PreChangeWeights);
-			FinalWeight.Value = FMath::Lerp(OldWeight, NewWeight, UseFalloff);
-		}
 
-		// normalize again
-		NormalizeWeights(FinalWeights);
+		TMap<int32, float> FinalWeights;
+		const bool bSmoothSuccess = SmoothWeightsOp->SmoothWeightsAtVertex(VertexID, UseFalloff, FinalWeights);
 
-		// apply weight edits
-		for (const TTuple<BoneIndex, float>& FinalWeight : FinalWeights)
+		if (ensure(bSmoothSuccess))
 		{
-			// record an edit for this vertex, for this bone
-			const int32 BoneIndex = FinalWeight.Key;
-			const float NewWeight = FinalWeight.Value;
-			const float OldWeight = Weights.GetWeightOfBoneOnVertex(BoneIndex, VertexID, Weights.PreChangeWeights);
-			InOutWeightEdits.MergeSingleEdit(BoneIndex, VertexID, OldWeight, NewWeight);
+			// apply weight edits
+			for (const TTuple<BoneIndex, float>& FinalWeight : FinalWeights)
+			{
+				// record an edit for this vertex, for this bone
+				const int32 BoneIndex = FinalWeight.Key;
+				const float NewWeight = FinalWeight.Value;
+				const float OldWeight = Weights.GetWeightOfBoneOnVertex(BoneIndex, VertexID, Weights.PreChangeWeights);
+				InOutWeightEdits.MergeSingleEdit(BoneIndex, VertexID, OldWeight, NewWeight);
+			}
 		}
 	}
 }

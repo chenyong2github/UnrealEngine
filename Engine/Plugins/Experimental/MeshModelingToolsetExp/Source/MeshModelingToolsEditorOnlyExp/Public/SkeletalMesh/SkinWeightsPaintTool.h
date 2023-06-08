@@ -21,6 +21,12 @@ struct FMeshDescription;
 class USkinWeightsPaintTool;
 class UPolygonSelectionMechanic;
 
+namespace UE::Geometry 
+{
+	template <typename BoneIndexType, typename BoneWeightType> class TBoneWeightsDataSource;
+	template <typename BoneIndexType, typename BoneWeightType> class TSmoothBoneWeights;
+}
+
 using BoneIndex = int32;
 using VertexIndex = int32;
 
@@ -369,6 +375,10 @@ protected:
 
 	// cached mirror data
 	SkinPaintTool::FSkinMirrorData MirrorData;
+
+	// Smooth weights data source and operator
+	TUniquePtr<UE::Geometry::TBoneWeightsDataSource<int32, float>> SmoothWeightsDataSource;
+	TUniquePtr<UE::Geometry::TSmoothBoneWeights<int32, float>> SmoothWeightsOp;
 
 	// vertex colors updated when switching current bone or editing weights
 	void UpdateCurrentBoneVertexColors();
