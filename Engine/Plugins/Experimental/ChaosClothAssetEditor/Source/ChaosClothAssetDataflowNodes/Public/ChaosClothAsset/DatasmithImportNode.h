@@ -4,6 +4,7 @@
 
 #include "Dataflow/DataflowNode.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
+#include "Misc/SecureHash.h"
 #include "DatasmithImportNode.generated.h"
 
 USTRUCT(meta = (DataflowCloth))
@@ -11,22 +12,25 @@ struct FChaosClothAssetDatasmithImportNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FChaosClothAssetDatasmithImportNode, "DatasmithImport", "Cloth", "Cloth Datasmith Import")
-	//DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
 
 public:
-	
-	/** Datasmith file to read from. */
-	UPROPERTY(EditAnywhere, Category = "Datasmith Importer")
-	FFilePath DatasmithFile;
-
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "Collection"))
 	FManagedArrayCollection Collection;
 
+	/** Path of the file to import using any available Datasmith cloth translator. */
+	UPROPERTY(EditAnywhere, Category = "Datasmith Import")
+	FFilePath ImportFile;
+
 	FChaosClothAssetDatasmithImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
 private:
+	//~ Begin FDataflowNode interface
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+	virtual void Serialize(FArchive& Archive) override;
+	//~ End FDataflowNode interface
 
 	bool EvaluateImpl(Dataflow::FContext& Context, FManagedArrayCollection& OutCollection) const;
+
+	mutable FManagedArrayCollection ImportCache;
+	mutable FMD5Hash ImportHash;
 };
