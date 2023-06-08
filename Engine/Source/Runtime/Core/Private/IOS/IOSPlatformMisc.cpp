@@ -1881,8 +1881,10 @@ bool FIOSPlatformMisc::CPUHasHwCrcSupport()
 {
 	// HW CRC instructions support is available on Apple A10+
 	static int HwCrcSupported = -1;
-	if (HwCrcSupported != -1)
+	if (HwCrcSupported == -1)
 	{
+		HwCrcSupported = 0;
+		
 		const FString DeviceIDString = GetIOSDeviceIDString();
 		if (DeviceIDString.StartsWith(TEXT("iPod")))
 		{
