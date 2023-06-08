@@ -350,6 +350,33 @@ struct FRCVirtualPropertyCastHelpers
 
 		return false;
 	}
+
+	static UObject* GetObjectValue(const URCVirtualPropertyBase* InVirtualProperty)
+	{
+		if (InVirtualProperty)
+		{
+			const FProperty* Property = InVirtualProperty->GetProperty();
+			if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+			{
+				const void* SrcAddress = Property->ContainerPtrToValuePtr<void>(InVirtualProperty->GetContainerPtr());
+				return ObjectProperty->GetObjectPropertyValue(SrcAddress);
+			}
+		}
+
+		return nullptr;
+	}
+
+	static bool SetObjectValue(URCVirtualPropertyBase* InVirtualProperty, UObject* InValue)
+	{
+		const FProperty* Property = InVirtualProperty->GetProperty();
+		if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+		{			
+			ObjectProperty->SetObjectPropertyValue(InVirtualProperty->GetContainerPtr(), InValue);
+			return true;
+		}
+
+		return false;
+	}
 };
 
 bool URCVirtualPropertyBase::GetValueBool(bool& OutBoolValue) const
@@ -460,6 +487,11 @@ bool URCVirtualPropertyBase::GetValueColor(FColor& OutColor) const
 	return FRCVirtualPropertyCastHelpers::GetStructValue<FColor>(this, TBaseStructure<FColor>::Get(), &OutColor);
 }
 
+UObject* URCVirtualPropertyBase::GetValueObject() const
+{
+	return FRCVirtualPropertyCastHelpers::GetObjectValue(this);
+}
+
 FString URCVirtualPropertyBase::GetDisplayValueAsString() const
 {
 	const FProperty* Property = GetProperty();
@@ -519,6 +551,13 @@ FString URCVirtualPropertyBase::GetDisplayValueAsString() const
 		GetValueDouble(Value);
 
 		return FString::Printf(TEXT("%lf"), Value);
+	}
+	else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+	{
+		if (const UObject* Object = GetValueObject())
+		{
+			return Object->GetPathName();
+		}
 	}
 	else if (IsVectorType())
 	{
@@ -675,9 +714,21 @@ FName URCVirtualPropertyBase::GetVirtualPropertyTypeDisplayName(const EPropertyB
 		PropertyTypeString = TEXT("Integer");
 	}
 	
-	// For Structs we should derive the prefix from the subobject type (Vector / Color / Rotator / etc) rather than the property bag type (which is always "Struct")
+	// For Structs and Objects we should derive the prefix from the subobject type (Vector / Color / Rotator / etc)
+	// or Object type (StaticMesh, MaterialInterface/etc) rather than the property bag type (which is always "Struct" or "Object")
 	if (InValueTypeObject)
+	{
 		PropertyTypeString = InValueTypeObject->GetName();
+
+		if (PropertyTypeString == TEXT("StaticMesh"))
+		{
+			PropertyTypeString = TEXT("Mesh");
+		}
+		else if (PropertyTypeString == TEXT("MaterialInterface"))
+		{
+			PropertyTypeString = TEXT("Material");
+		}
+	}
 
 	return *PropertyTypeString;
 }

@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Action/Bind/RCPropertyBindAction.h"
-
+#include "Action/Bind/RCCustomBindActionUtilities.h"
 #include "Action/RCAction.h"
 #include "Components/SceneComponent.h"
 #include "Controller/RCController.h"
+#include "Controller/RCCustomControllerUtilities.h"
 #include "IRemoteControlPropertyHandle.h"
 #include "RCVirtualProperty.h"
 #include "RemoteControlPreset.h"
@@ -68,6 +69,97 @@ static void SetStructPropertyFromController(const FProperty* RemoteControlProper
 	}
 }
 
+// Workaround method to extract the index of an Array Property element from its name
+// e.g. MaterialOverride[3] will return 3, MaterialOverride[12] will return 12, etc
+static int32 GetPropertyIndexInArray(const TSharedRef<FRemoteControlProperty>& InRemoteControlEntityAsProperty)
+{
+	FString FieldName = InRemoteControlEntityAsProperty->FieldName.ToString();
+
+	const TSharedPtr<IRemoteControlPropertyHandle>& RemoteControlHandle = InRemoteControlEntityAsProperty->GetPropertyHandle();
+	if (!ensure(RemoteControlHandle))
+	{
+		return -1;
+	}
+
+	const TSharedPtr<IRemoteControlPropertyHandleArray>& AsArray = RemoteControlHandle->AsArray();
+	const int32 ElementsNum = AsArray->GetNumElements();
+
+	FieldName.RemoveFromEnd(TEXT("]"));
+	
+	// Number of integer digits, so that we know how many characters to keep at the end of the string
+	const int32 Digits = FMath::Floor(FMath::LogX(10.0f, ElementsNum) + 1);
+	const int32 CharactersToRemove = FieldName.Len() - Digits;
+	FieldName.RemoveAt(0, CharactersToRemove, true);
+	const int32 Index = FCString::Atoi(*FieldName);
+
+	return Index;
+}
+
+static void SetObjectPropertyFromController(const TSharedRef<FRemoteControlProperty>& InRemoteControlEntityAsProperty, const URCController* Controller)
+{
+	FProperty* RemoteControlProperty = InRemoteControlEntityAsProperty->GetProperty();
+	if (RemoteControlProperty == nullptr)
+	{
+		return;
+	}
+
+	const TSharedPtr<IRemoteControlPropertyHandle>& RemoteControlHandle = InRemoteControlEntityAsProperty->GetPropertyHandle();
+	if (!ensure(RemoteControlHandle))
+	{
+		return;
+	}
+	
+	const FObjectProperty* SourceObjectProperty = CastField<FObjectProperty>(Controller->GetProperty());
+	const FObjectProperty* TargetObjectProperty = CastField<FObjectProperty>(RemoteControlProperty);
+	
+	if (!TargetObjectProperty && RemoteControlProperty->IsA(FArrayProperty::StaticClass()))
+	{
+		if (const FArrayProperty* TargetArrayProperty = CastField<FArrayProperty>(RemoteControlProperty))
+		{
+			if (FProperty* InnerProperty = TargetArrayProperty->Inner)
+			{
+				TargetObjectProperty = CastField<FObjectProperty>(InnerProperty);
+			}
+		}
+	}
+
+	if (ensure(SourceObjectProperty && TargetObjectProperty))
+	{
+		bool bApplyValue = false;
+		
+		// Pass 1 - Objects of exactly the same type
+		if (SourceObjectProperty->SameType(TargetObjectProperty))
+		{
+			bApplyValue = true;
+		}
+		// Pass 2 - Objects that support conversion to other (related) Objects
+		else
+		{
+			// Nothing for now
+		}
+
+		if (bApplyValue)
+		{
+			if (UObject* ObjectValue = Controller->GetValueObject())
+			{
+				if (RemoteControlProperty->IsA(FArrayProperty::StaticClass()))
+				{
+					// Extract index in array, based on field name
+					const int32 Index = GetPropertyIndexInArray(InRemoteControlEntityAsProperty);	
+					if (const TSharedPtr<IRemoteControlPropertyHandle>& ElementToUpdate = RemoteControlHandle->AsArray()->GetElement(Index))
+					{
+						ElementToUpdate->SetValueInArray(ObjectValue, Index);					
+					}
+				}
+				else
+				{
+					RemoteControlHandle->SetValue(ObjectValue);
+				}		
+			}
+		}
+	}
+}
+
 void URCPropertyBindAction::Execute() const
 {
 	if (!ensure(Controller))
@@ -123,6 +215,22 @@ void URCPropertyBindAction::Execute() const
 				else if (RemoteControlProperty->IsA(FBoolProperty::StaticClass()))
 				{
 					Handle->SetValue((bool)NumericValue);
+				}
+				else // This might be a Custom Controller
+				{
+					const FString& CustomControllerType = UE::RCCustomControllers::GetCustomControllerTypeName(Controller);
+					
+					if (!CustomControllerType.IsEmpty())
+					{
+						// External Texture controller (internally a String controller)
+						if (CustomControllerType == UE::RCCustomControllers::CustomTextureControllerName)
+						{
+							if (RemoteControlProperty->IsA(FObjectProperty::StaticClass()))
+							{
+								UE::RCCustomBindActionUtilities::SetTexturePropertyFromPath(RemoteControlEntityAsProperty.ToSharedRef(), StringValue);
+							}
+						}
+					}
 				}
 			}
 			// String Controller (end)
@@ -209,6 +317,10 @@ void URCPropertyBindAction::Execute() const
 		else if (ControllerAsProperty->IsA(FStructProperty::StaticClass()))
 		{
 			SetStructPropertyFromController(RemoteControlProperty, Handle.ToSharedRef(), Controller);
+		}
+		else if (ControllerAsProperty->IsA(FObjectProperty::StaticClass()))
+		{
+			SetObjectPropertyFromController(RemoteControlEntityAsProperty.ToSharedRef(), Controller);
 		}
 
 		// Editor specific updates

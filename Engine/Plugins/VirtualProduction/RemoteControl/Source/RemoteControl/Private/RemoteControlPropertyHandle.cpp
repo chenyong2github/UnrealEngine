@@ -9,9 +9,19 @@
 #include "Algo/AllOf.h"
 #include "Backends/CborStructDeserializerBackend.h"
 #include "CborWriter.h"
+#include "Components/MeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "UObject/TextProperty.h"
+
+#if WITH_EDITOR
+#include "ScopedTransaction.h"
+#endif
+
+#define LOCTEXT_NAMESPACE "RemoteControlPropertyHandle"
 
 namespace
 {
@@ -304,6 +314,10 @@ TSharedPtr<IRemoteControlPropertyHandle> FRemoteControlPropertyHandle::GetProper
 	else if (FRemoteControlPropertyHandleMap::Supports(InProperty))
 	{
 		PropertyHandle = MakeShared<FRemoteControlPropertyHandleMap>(InRCProperty, InProperty, InParentProperty, InParentFieldPath, InArrayIndex);
+	}
+	else if (FRemoteControlPropertyHandleObject::Supports(InProperty))
+	{
+		PropertyHandle = MakeShared<FRemoteControlPropertyHandleObject>(InRCProperty, InProperty, InParentProperty, InParentFieldPath, InArrayIndex);
 	}
 	else
 	{
@@ -617,6 +631,7 @@ IMPLEMENT_PROPERTY_VALUE(FRemoteControlPropertyHandleName)
 IMPLEMENT_PROPERTY_VALUE(FRemoteControlPropertyHandleArray)
 IMPLEMENT_PROPERTY_VALUE(FRemoteControlPropertyHandleSet)
 IMPLEMENT_PROPERTY_VALUE(FRemoteControlPropertyHandleMap)
+IMPLEMENT_PROPERTY_VALUE(FRemoteControlPropertyHandleObject)
 
 #undef IMPLEMENT_PROPERTY_VALUE
 
@@ -1762,3 +1777,197 @@ bool FRemoteControlPropertyHandleLinearColor::AreComponentsValid() const
 		return ColorComponentPtr.Pin().IsValid();
 	});
 }
+
+bool FRemoteControlPropertyHandleObject::SetValue(UObject* InValue)
+{
+	if (!InValue)
+	{
+		return false;
+	}
+	
+	if (InValue->IsA(UStaticMesh::StaticClass()))
+	{
+		return SetStaticMeshValue(InValue);
+	}
+	else
+	{
+		return SetObjectValue(InValue);
+	}
+}
+
+bool FRemoteControlPropertyHandleObject::GetValue(UObject* OutValue) const
+{
+	if (const TSharedPtr<FRemoteControlProperty>& RemoteControlPropertyPtr = GetRCProperty())
+	{
+		if (const TSharedPtr<IRemoteControlPropertyHandle>& PropertyHandle = RemoteControlPropertyPtr->GetPropertyHandle())
+		{
+			return PropertyHandle->GetValue(OutValue);
+		}
+	}
+
+	return false;
+}
+
+bool FRemoteControlPropertyHandleObject::SetValueInArray(UObject* InValue, int32 InIndex)
+{
+	// Override materials e.g for Static Mesh are still considered array elements, so we need to
+	// address setting their value as array elements, even if the exposed property looks like a material
+	if (InValue->IsA(UMaterialInterface::StaticClass()))
+	{
+		return SetMaterialValue(InValue, InIndex);
+	}
+
+	return false;
+}
+
+bool FRemoteControlPropertyHandleObject::GetValueInArray(UObject* OutValue, int32 InIndex) const
+{
+	if (InIndex < 0)
+	{
+		return false;
+	}
+	
+	if (const TSharedPtr<FRemoteControlProperty>& RemoteControlPropertyPtr = GetRCProperty())
+	{
+		if (const TSharedPtr<IRemoteControlPropertyHandle>& PropertyHandle = RemoteControlPropertyPtr->GetPropertyHandle())
+		{
+			if (const TSharedPtr<IRemoteControlPropertyHandleArray>& PropertyHandleArray = PropertyHandle->AsArray())
+			{
+				if (InIndex < PropertyHandleArray->GetNumElements())
+				{
+					if (const TSharedPtr<IRemoteControlPropertyHandle>& ElementPropertyHandle = PropertyHandleArray->GetElement(InIndex))
+					{
+						return ElementPropertyHandle->GetValue(OutValue);
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FRemoteControlPropertyHandleObject::SetStaticMeshValue(UObject* InValue) const
+{
+	if (!InValue)
+	{
+		return false;
+	}
+
+	if (!InValue->IsA(UStaticMesh::StaticClass()))
+	{
+		return false;
+	}
+	
+	bool bSuccess = false;
+	
+	if (const TSharedPtr<FRemoteControlProperty>& RemoteControlPropertyPtr = GetRCProperty())
+	{
+		for (UObject* Object : RemoteControlPropertyPtr->GetBoundObjects())
+		{							
+			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Object))
+			{
+				bSuccess = StaticMeshComponent->SetStaticMesh(Cast<UStaticMesh>(InValue));
+			}			
+		}
+	}
+
+	return bSuccess;
+}
+
+bool FRemoteControlPropertyHandleObject::SetMaterialValue(UObject* InValue, int32 InIndex) const
+{
+	if (!InValue || InIndex < 0)
+	{
+		return false;
+	}
+	
+	if (!InValue->IsA(UMaterialInterface::StaticClass()))
+	{
+		return false;
+	}
+	
+	bool bSuccess = false;
+	
+	if (const TSharedPtr<FRemoteControlProperty>& RemoteControlPropertyPtr = GetRCProperty())
+	{		
+		for (UObject* Object : RemoteControlPropertyPtr->GetBoundObjects())
+		{
+			if (UMeshComponent* MaterialOwnerComponent = Cast<UMeshComponent>(Object))
+			{
+				if (MaterialOwnerComponent->GetMaterials().IsValidIndex(InIndex))
+				{
+					MaterialOwnerComponent->SetMaterial(InIndex, Cast<UMaterialInterface>(InValue));
+					bSuccess = true;
+				}
+			}
+		}
+	}
+
+	return bSuccess;
+}
+
+bool FRemoteControlPropertyHandleObject::SetObjectValue(UObject* InValue) const
+{
+	if (!InValue)
+	{
+		return false;
+	}
+
+	const TSharedPtr<FRemoteControlProperty>& RemoteControlPropertyPtr = GetRCProperty();
+	
+	FRCObjectReference ObjectRef;
+	ObjectRef.Property = RemoteControlPropertyPtr->GetProperty();
+	ObjectRef.Access = RemoteControlPropertyPtr->GetPropertyHandle()->ShouldGenerateTransaction() ? ERCAccess::WRITE_TRANSACTION_ACCESS : ERCAccess::WRITE_ACCESS;
+	ObjectRef.PropertyPathInfo = RemoteControlPropertyPtr->FieldPathInfo.ToString();
+
+#if WITH_EDITOR
+	FScopedTransaction Transaction(LOCTEXT("SetObjectValue", "Set Object Value"));
+#endif
+	
+	for (UObject* Object : RemoteControlPropertyPtr->GetBoundObjects())
+	{
+		if (IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, ObjectRef.PropertyPathInfo, ObjectRef))
+		{
+#if WITH_EDITOR
+			Object->Modify();
+#endif
+			/** Setting with Pointer and using Serialization of itself afterwards as a workaround with the Asset not updating in the world. */
+			FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(RemoteControlPropertyPtr->GetProperty());
+			if (!ObjectProperty)
+			{
+				return false;
+			}
+			
+			FProperty* Property = RemoteControlPropertyPtr->GetProperty();
+			uint8* ValueAddress = Property->ContainerPtrToValuePtr<uint8>(ObjectRef.ContainerAdress);
+			ObjectProperty->SetObjectPropertyValue(ValueAddress, InValue);
+
+			TArray<uint8> Buffer;
+			FMemoryReader Reader(Buffer);
+			FCborStructDeserializerBackend DeserializerBackend(Reader);
+
+			IRemoteControlModule::Get().SetObjectProperties(ObjectRef, DeserializerBackend, ERCPayloadType::Cbor, Buffer);
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+bool FRemoteControlPropertyHandleObject::Supports(const FProperty* InProperty)
+{
+	if (!InProperty)
+	{
+		return false;
+	}
+	
+	if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+#undef LOCTEXT_NAMESPACE

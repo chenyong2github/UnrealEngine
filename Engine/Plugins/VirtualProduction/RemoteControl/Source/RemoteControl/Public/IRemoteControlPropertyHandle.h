@@ -69,6 +69,8 @@ public:
 	virtual bool GetValue(FRotator& OutValue) const = 0;
 	virtual bool GetValue(FColor& OutValue) const = 0;
 	virtual bool GetValue(FLinearColor& OutValue) const = 0;
+	virtual bool GetValue(UObject* OutValue) const = 0;
+	virtual bool GetValueInArray(UObject* OutValue, int32 InIndex) const = 0;
 	
 	/**
 	 * Sets the typed value of a property.
@@ -100,6 +102,8 @@ public:
 	virtual bool SetValue(FColor InValue) = 0;
 	virtual bool SetValue(FLinearColor InValue) = 0;
 	virtual bool SetValue(const TCHAR* InValue) = 0;
+	virtual bool SetValue(UObject* InValue) = 0;
+	virtual bool SetValueInArray(UObject* InValue, int32 InIndex) = 0;
 
 	/**
 	 * Gets a child handle of this handle.  Useful for accessing properties in structs.

@@ -2,14 +2,14 @@
 
 #include "Behaviour/Builtin/Bind/RCBehaviourBind.h"
 
-#include "Action/RCAction.h"
-#include "Action/RCFunctionAction.h"
 #include "Action/Bind/RCPropertyBindAction.h"
-#include "Behaviour/Builtin/Bind/RCBehaviourBindNode.h"
+#include "Action/RCAction.h"
 #include "Controller/RCController.h"
+#include "Controller/RCCustomControllerUtilities.h"
+#include "Engine/Texture2D.h"
 #include "IRemoteControlPropertyHandle.h"
-#include "RemoteControlField.h"
 #include "RCVirtualProperty.h"
+#include "RemoteControlField.h"
 
 URCBehaviourBind::URCBehaviourBind()
 {
@@ -110,6 +110,36 @@ static bool EvaluateBindCompatibility(const TMap<FFieldClass*, TArray<FFieldClas
 	return false;
 }
 
+
+static bool EvaluateCustomControllerBindCompatibility(const URCController* InController,  const FFieldClass* InControllerPropertyClass, const FFieldClass* InRemoteControlPropertyClass, const FProperty* InRemoteControlProperty)
+{
+	if (!InController)
+	{
+		return false;
+	}
+	
+	const FString CustomName = UE::RCCustomControllers::GetCustomControllerTypeName(InController);
+
+	if (CustomName.IsEmpty())
+	{
+		return false;
+	}
+
+	// External Texture for image files (controller string, rc exposed property is object
+	if (CustomName == UE::RCCustomControllers::CustomTextureControllerName && InControllerPropertyClass == FStrProperty::StaticClass() && InRemoteControlPropertyClass == FObjectProperty::StaticClass())
+	{
+		const FObjectProperty* TargetObjectProperty = CastField<FObjectProperty>(InRemoteControlProperty);
+
+		// Target type is texture - we're good to go
+		if (TargetObjectProperty->PropertyClass == UTexture::StaticClass())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool URCBehaviourBind::CanHaveActionForField(URCController* Controller, TSharedRef<const FRemoteControlField> InRemoteControlField, const bool bInAllowNumericInputAsStrings)
 {
 	// Bind behaviour is only relevant for Exposed Properties
@@ -162,6 +192,7 @@ bool URCBehaviourBind::CanHaveActionForField(URCController* Controller, TSharedR
 	const FFieldClass* ControllerPropertyClass = ControllerAsProperty->GetClass();
 	const FFieldClass* RemoteControlPropertyClass = RemoteControlProperty->GetClass();
 	const bool bIsStructController = ControllerAsProperty->IsA(FStructProperty::StaticClass());
+	const bool bIsObjectController = ControllerAsProperty->IsA(FObjectProperty::StaticClass());
 
 	// Direct Binding (same type)
 	if (ControllerPropertyClass == RemoteControlPropertyClass && !bIsStructController) // For Structs we need to check the inner component as well
@@ -169,7 +200,7 @@ bool URCBehaviourBind::CanHaveActionForField(URCController* Controller, TSharedR
 		return true;
 	}
 	// Indirect Binding (related types)
-	else if(EvaluateBindCompatibility(SupportedIndirectBindsMap, ControllerPropertyClass, RemoteControlPropertyClass))
+	else if (EvaluateBindCompatibility(SupportedIndirectBindsMap, ControllerPropertyClass, RemoteControlPropertyClass))
 	{
 		return true;
 	}
@@ -207,6 +238,34 @@ bool URCBehaviourBind::CanHaveActionForField(URCController* Controller, TSharedR
 		}
 	}
 
+	// Objects
+	if (bIsObjectController)
+	{
+		if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(ControllerAsProperty))
+		{
+			if (const FObjectProperty* RCFieldObjectProperty = CastField<FObjectProperty>(RemoteControlProperty))
+			{
+				if (ObjectProperty->SameType(RCFieldObjectProperty))
+				{
+					return true;
+				}
+			}
+			else if (const FArrayProperty* RCFieldArrayProperty = CastField<FArrayProperty>(RemoteControlProperty))
+			{
+				if (ObjectProperty->SameType(RCFieldArrayProperty->Inner))
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	// at the end, let's check if this is a Custom controller (a default controller with additional metadata)
+	if (EvaluateCustomControllerBindCompatibility(Controller, ControllerPropertyClass, RemoteControlPropertyClass, RemoteControlProperty))
+	{
+		return true;
+	}
+
 	return false; // Unsupported types!
 }
 
@@ -220,7 +279,8 @@ bool URCBehaviourBind::GetPropertyBagTypeFromFieldProperty(const FProperty* InPr
 														   FUInt64Property::StaticClass(),   FUInt16Property::StaticClass(),   FEnumProperty::StaticClass(),    FByteProperty::StaticClass() } },
 		{ EPropertyBagPropertyType::Float,   /* --> */    { FFloatProperty::StaticClass(),    FDoubleProperty::StaticClass() } },
 		{ EPropertyBagPropertyType::Bool,    /* --> */    { FBoolProperty::StaticClass() } },
-		{ EPropertyBagPropertyType::Struct,  /* --> */    { FStructProperty::StaticClass() } }
+		{ EPropertyBagPropertyType::Struct,  /* --> */    { FStructProperty::StaticClass() }, },
+		{ EPropertyBagPropertyType::Object,  /* --> */    { FObjectProperty::StaticClass() } /* this will probably never occur, so we manually set the out bag type later */ }
 	};
 
 	OutPropertyBagType = EPropertyBagPropertyType::None;
@@ -240,6 +300,35 @@ bool URCBehaviourBind::GetPropertyBagTypeFromFieldProperty(const FProperty* InPr
 	if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 	{
 		OutStructObject = StructProperty->Struct;
+	}
+	// Extract the Object type if this is an Object Property
+	else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
+	{
+		if (UClass* ObjectClass = ObjectProperty->PropertyClass)
+		{
+			OutStructObject = ObjectClass;
+			OutPropertyBagType = EPropertyBagPropertyType::Object;
+		}
+	}
+	// Handle an array property, and then treat the inner property in case it's an Object Property
+	else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
+	{
+		if (FProperty* InnerProperty = ArrayProperty->Inner)
+		{
+			if (const FObjectProperty* InnerObjectProperty = CastField<FObjectProperty>(InnerProperty))
+			{
+				if (UClass* InnerObjectClass = InnerObjectProperty->PropertyClass)
+				{
+					OutStructObject = InnerObjectClass;
+					OutPropertyBagType = EPropertyBagPropertyType::Object;
+				}
+			}
+		}
+	}
+
+	if (OutStructObject == UTexture::StaticClass())
+	{
+		OutPropertyBagType = EPropertyBagPropertyType::String;
 	}
 
 	return OutPropertyBagType != EPropertyBagPropertyType::None;

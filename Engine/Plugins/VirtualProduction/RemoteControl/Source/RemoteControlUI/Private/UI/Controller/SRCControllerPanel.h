@@ -20,6 +20,28 @@ enum class EPropertyBagPropertyType : uint8;
 */
 class REMOTECONTROLUI_API SRCControllerPanel : public SRCLogicPanelBase
 {
+	/** Helper struct used when generating Controllers.
+	 * Wraps the TypeObject and the Bag Type.
+	 * 
+	 * Additionally, some facultative MetaData can be added to create a Custom Controller extending the initial type
+	 * e.g. External Texture custom controller is a specialized String controller
+	 * See RCCustomControllerUtilities.h for helper functions related to custom controllers.
+	 */
+	struct FRCControllerPropertyInfo
+	{
+		FRCControllerPropertyInfo(){}
+		FRCControllerPropertyInfo(UObject* InValueTypeObject) : ValueTypeObject(InValueTypeObject){}
+
+		/** The type of the controller which will be created starting from this FRCControllerPropertyInfo */
+		EPropertyBagPropertyType Type = EPropertyBagPropertyType::Name;
+		
+		/** Object defining an Enum, Struct, or Class */
+		UObject* ValueTypeObject = nullptr;
+
+		/** MetaData Map which can be used to pass additional settings or information to be used when customizing a Custom Controller */
+		TMap<FName, FString> CustomMetaData;
+	};
+	
 public:
 	SLATE_BEGIN_ARGS(SRCControllerPanel)
 	{}
@@ -27,6 +49,8 @@ public:
 		SLATE_ATTRIBUTE(bool, LiveMode)
 
 	SLATE_END_ARGS()
+
+	static FRCControllerPropertyInfo GetPropertyInfoForCustomType(const FName& InType);
 
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs, const TSharedRef<SRemoteControlPanel>& InPanel);
@@ -71,7 +95,7 @@ private:
 	TSharedRef<SWidget> GetMultiControllerSwitchWidget();
 
 	/** Handles click event for Add Controller button*/
-	void OnAddControllerClicked(const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr) const;
+	void OnAddControllerClicked(const EPropertyBagPropertyType InValueType, const FRCControllerPropertyInfo InControllerPropertyInfo) const;
 
 	/** Handles checkbox changes event for the MultiController mode selection widget */
 	void OnToggleMultiControllersMode(ECheckBoxState CheckBoxState);

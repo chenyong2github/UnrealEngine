@@ -203,7 +203,11 @@ public:
 
 	/** Get Color value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
-	bool GetValueColor(FColor& OutColor) const;	
+	bool GetValueColor(FColor& OutColor) const;
+
+	/** Get Object value from Virtual Property */
+	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
+	UObject* GetValueObject() const;
 
 	/** Infers correct type internally, fetches value from memory and returns the value as a string 
 	* that can be immediately used for dispaly (without needing to create a generic readonly property widget)

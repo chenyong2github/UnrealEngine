@@ -23,4 +23,15 @@ public:
 	* This config represents the list of such types that may be used as Controllers*/
 	UPROPERTY(config)
 	TArray<FName> SupportedControllerStructTypes;
+
+	/** Add specific Object types Class Paths to this list in order to provide support for them */
+	UPROPERTY(config)
+	TArray<FName> SupportedControllerObjectClassPaths;
+
+	/** Custom Controllers list. The elements in this list are used to generate customized versions of available controllers
+	 * e.g. External Texture controller generates a specialized version of a String Controller.
+	 * Support is introduced by adding MetaData to each newly created controller.
+	 */
+	UPROPERTY(config)
+	TArray<FName> SupportedControllerCustomTypes;
 };

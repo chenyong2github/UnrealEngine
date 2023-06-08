@@ -94,6 +94,11 @@ public:
 
 	virtual bool SetValue(const TCHAR* InValue) override { return false; }
 
+	virtual bool SetValue(UObject* InValue) override { return false; }
+	virtual bool SetValueInArray(UObject* InValue, int32 InIndex) override { return false; }
+	virtual bool GetValue(UObject* OutValue) const override { return false; }
+	virtual bool GetValueInArray(UObject* OutValue, int32 InIndex) const override { return false; }
+
 	virtual TSharedPtr<IRemoteControlPropertyHandle> GetChildHandle(FName ChildName, bool bRecurse = true) const override;
 	virtual TSharedPtr<IRemoteControlPropertyHandle> GetChildHandle(int32 Index) const override;
 	virtual int32 GetNumChildren() const override { return Children.Num(); }
@@ -588,6 +593,40 @@ public:
 private:
 	/** Array of child struct color components */
 	TArray< TWeakPtr<IRemoteControlPropertyHandle> > ColorComponents;
+};
+
+/**
+* The object implementation of a property handle
+*/
+class FRemoteControlPropertyHandleObject : public FRemoteControlPropertyHandle
+{
+public:
+	DECLARE_PROPERTY_ACCESSOR_CONSTRUCTOR(FRemoteControlPropertyHandleObject)
+
+	/**
+	* Check if Object handle supports the given property
+	* @param InProperty Property to check
+	* @return true if this handle supports the given property
+	*/
+	static bool Supports(const FProperty* InProperty);
+
+	//~ Begin IRemoteControlPropertyHandle Interface
+	virtual bool SetValue(UObject* InValue) override;
+	virtual bool GetValue(UObject* OutValue) const override;
+
+	/** This is currently used for the specific case in which we are setting a material inside the override materials of e.g. a Static Mesh*/
+	virtual bool SetValueInArray(UObject* InValue, int32 InIndex) override;
+	virtual bool GetValueInArray(UObject* OutValue, int32 InIndex) const override;
+	//~ End IRemoteControlPropertyHandle Interface
+
+	/** Set a Static Mesh value using the handled Object */
+	bool SetStaticMeshValue(UObject* InValue) const;
+
+	/** Set a Material value using the handled Object */
+	bool SetMaterialValue(UObject* InValue, int32 InIndex) const;
+
+	/** Set Object Value */
+	bool SetObjectValue(UObject* InValue) const;
 };
 
 #undef DECLARE_PROPERTY_ACCESSOR_CONSTRUCTOR

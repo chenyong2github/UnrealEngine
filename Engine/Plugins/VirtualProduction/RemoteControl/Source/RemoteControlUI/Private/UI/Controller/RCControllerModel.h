@@ -48,6 +48,9 @@ public:
 	/** The widget showing the Value Type selection dropdown for this Controller (used for MultiControllers) */
 	TSharedRef<SWidget> GetTypeSelectionWidget();
 
+	/** Retrieve the widget for a custom controller */
+	TSharedRef<SWidget> GetCustomControllerWidget(const FString& InCustomControllerTypeName) const;
+
 	/**
 	 * Specify if this is a MultiController handling other hidden controllers.
 	 * MultiControllers will setup and show a Type Selection Widget.

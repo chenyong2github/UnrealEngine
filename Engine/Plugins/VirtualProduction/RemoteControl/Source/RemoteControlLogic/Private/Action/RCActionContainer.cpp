@@ -2,14 +2,17 @@
 
 #include "Action/RCActionContainer.h"
 
-#include "Behaviour/RCBehaviour.h"
-#include "Controller/RCController.h"
-#include "IRemoteControlModule.h"
-#include "RCVirtualProperty.h"
-#include "RemoteControlField.h"
 #include "Action/RCAction.h"
 #include "Action/RCFunctionAction.h"
 #include "Action/RCPropertyAction.h"
+#include "Behaviour/Builtin/Path/RCSetAssetByPathBehaviour.h"
+#include "Behaviour/RCBehaviour.h"
+#include "Controller/RCController.h"
+#include "Controller/RCCustomControllerUtilities.h"
+#include "IRemoteControlModule.h"
+#include "RCVirtualProperty.h"
+#include "RemoteControlField.h"
+#include "RemoteControlPreset.h"
 
 void URCActionContainer::ExecuteActions()
 {
@@ -165,6 +168,51 @@ void URCActionContainer::PostEditUndo()
 	Super::PostEditUndo();
 
 	OnActionsListModified.Broadcast();
+}
+
+void URCActionContainer::ExecuteActionsOnLoad()
+{
+	// In some cases, external resources are referenced, so we need to execute Controllers actions while loading
+	if (URCBehaviour* ParentBehaviour = GetParentBehaviour())
+	{
+		if (URCController* Controller = ParentBehaviour->ControllerWeakPtr.Get())
+		{
+			if (UE::RCCustomControllers::CustomControllerExecutesOnLoad(Controller))
+			{
+				Controller->ExecuteBehaviours();
+				return;
+			}
+		}
+
+		if (URCSetAssetByPathBehaviour* AssetPathBehaviour = Cast<URCSetAssetByPathBehaviour>(ParentBehaviour))
+		{
+			if (!AssetPathBehaviour->bInternal)
+			{
+				// Target entity might not be set up yet, we need it to be set in order for execution to work
+				AssetPathBehaviour->UpdateTargetEntity();
+				ParentBehaviour->Execute();
+			}
+		}
+	}
+}
+
+void URCActionContainer::PostLoad()
+{
+	UObject::PostLoad();
+
+	TWeakObjectPtr<URCActionContainer> ThisWeak(this);
+
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+		[ThisWeak](float InDeltaTime)->bool
+		{
+			if (URCActionContainer* const This = ThisWeak.Get())
+			{
+				This->ExecuteActionsOnLoad();
+			}
+
+			// Return false for one time execution
+			return false;
+		}));
 }
 #endif
 

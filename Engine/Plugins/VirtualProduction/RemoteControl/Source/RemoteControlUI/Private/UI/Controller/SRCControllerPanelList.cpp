@@ -7,10 +7,13 @@
 #include "Commands/RemoteControlCommands.h"
 #include "Controller/RCController.h"
 #include "Controller/RCControllerContainer.h"
+#include "Controller/RCCustomControllerUtilities.h"
+#include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
 #include "IDetailTreeNode.h"
-#include "Interfaces/IMainFrameModule.h"
 #include "IPropertyRowGenerator.h"
 #include "IRemoteControlModule.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "RCControllerModel.h"
 #include "RCMultiController.h"
 #include "RCVirtualProperty.h"
@@ -18,15 +21,15 @@
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
 #include "SDropTarget.h"
-#include "SlateOptMacros.h"
 #include "SRCControllerPanel.h"
+#include "SlateOptMacros.h"
 #include "Styling/RemoteControlStyles.h"
 #include "UI/Action/SRCActionPanelList.h"
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
 #include "UI/RCUIHelpers.h"
 #include "UI/RemoteControlPanelStyle.h"
-#include "UI/SRCPanelExposedEntity.h"
 #include "UI/SRCPanelDragHandle.h"
+#include "UI/SRCPanelExposedEntity.h"
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/Views/SHeaderRow.h"
 
@@ -250,7 +253,6 @@ namespace UE::RCControllerPanelList
 								}
 							}
 						}
-
 					}
 				}
 			}
@@ -787,9 +789,30 @@ void SRCControllerPanelList::CreateAutoBindForProperty(TSharedPtr<const FRemoteC
 		bool bSuccess = URCBehaviourBind::GetPropertyBagTypeFromFieldProperty(Property, PropertyBagType, StructObject);
 		if(bSuccess)
 		{
+			// Preparation step, in case we are dealing with a custom controller
+			FString CustomControllerName = TEXT("");
+			if (StructObject == UTexture::StaticClass() || StructObject == UTexture2D::StaticClass())
+			{
+				if (PropertyBagType == EPropertyBagPropertyType::String)
+				{
+					StructObject = nullptr;
+					CustomControllerName = UE::RCCustomControllers::CustomTextureControllerName;
+				}
+			}
+			
 			// Step 1. Create a Controller of matching type
 			URCController* NewController = Cast<URCController>(Preset->AddController(URCController::StaticClass(), PropertyBagType, StructObject, RemoteControlProperty->FieldName));
 			NewController->DisplayIndex = Preset->GetNumControllers() - 1;
+
+			// Add metadata to this controller, if this is a custom controller
+			if (!CustomControllerName.IsEmpty())
+			{
+				const TMap<FName, FString>& CustomControllerMetaData = UE::RCCustomControllers::GetCustomControllerMetaData(CustomControllerName);
+				for (const TPair<FName, FString>& Pair : CustomControllerMetaData)
+				{
+					NewController->SetMetadataValue(Pair.Key, Pair.Value);
+				}
+			}
 
 			// Transfer property value from Exposed Property to the New Controller.
 			// The goal is to keep values synced for a Controller newly created via "Auto Bind"

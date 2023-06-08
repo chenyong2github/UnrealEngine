@@ -10,11 +10,13 @@ public class RemoteControlLogic : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"StructUtils"
 			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"AssetRegistry",
 				"Cbor",
 				"Engine",
 				"HTTP",

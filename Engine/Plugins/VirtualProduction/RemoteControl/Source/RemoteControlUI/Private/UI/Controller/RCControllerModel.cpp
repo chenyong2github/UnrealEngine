@@ -1,7 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RCControllerModel.h"
-
+#include "Controller/RCCustomControllerUtilities.h"
+#include "CustomControllers/SCustomTextureControllerWidget.h"
 #include "IDetailTreeNode.h"
 #include "RCVirtualProperty.h"
 #include "RemoteControlPreset.h"
@@ -46,22 +47,36 @@ TSharedRef<SWidget> FRCControllerModel::GetWidget() const
 	const FNodeWidgets NodeWidgets = DetailTreeNodeWeakPtr.Pin()->CreateNodeWidgets();
 
 	const TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
-	if (NodeWidgets.ValueWidget)
-	{
-		FieldWidget->AddSlot()
-			.Padding(FMargin(10.0f, 2.0f))
-			.HAlign(HAlign_Left)
-			[
-				NodeWidgets.ValueWidget.ToSharedRef()
-			];
-	}
-	else if (NodeWidgets.WholeRowWidget)
-	{
-		FieldWidget->AddSlot()
-			.Padding(FMargin(10.0f, 2.0f))
-			[
-				NodeWidgets.WholeRowWidget.ToSharedRef()
-			];
+	if (VirtualPropertyWeakPtr.IsValid())
+	{		
+		const FString& CustomName = UE::RCCustomControllers::GetCustomControllerTypeName(VirtualPropertyWeakPtr.Get());
+
+		// If this is a custom controller, we will use its custom widget
+		if (!CustomName.IsEmpty())
+		{
+			FieldWidget->AddSlot()
+				.Padding(FMargin(10.0f, 2.0f))
+				[
+					GetCustomControllerWidget(CustomName)
+				];
+		}
+		else if (NodeWidgets.ValueWidget)
+		{
+			FieldWidget->AddSlot()
+				.Padding(FMargin(10.0f, 2.0f))
+				.HAlign(HAlign_Left)
+				[
+					NodeWidgets.ValueWidget.ToSharedRef()
+				];
+		}
+		else if (NodeWidgets.WholeRowWidget)
+		{
+			FieldWidget->AddSlot()
+				.Padding(FMargin(10.0f, 2.0f))
+				[
+					NodeWidgets.WholeRowWidget.ToSharedRef()
+				];
+		}
 	}
 
 	return FieldWidget;
@@ -103,6 +118,16 @@ TSharedRef<SWidget> FRCControllerModel::GetTypeSelectionWidget()
 				.InitiallySelectedItem(ControlledTypesAsStrings[CurrentControlValueTypeIndex])
 			];
 		}
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+TSharedRef<SWidget> FRCControllerModel::GetCustomControllerWidget(const FString& InCustomControllerTypeName) const
+{
+	if (InCustomControllerTypeName == UE::RCCustomControllers::CustomTextureControllerName)
+	{		
+		return SNew(SCustomTextureControllerWidget, VirtualPropertyWeakPtr.Get());		
 	}
 
 	return SNullWidget::NullWidget;
