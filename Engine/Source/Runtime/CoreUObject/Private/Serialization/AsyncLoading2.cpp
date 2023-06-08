@@ -6780,6 +6780,8 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_DeferredPostLoadExportBundle
 		FAsyncLoadingTickScope2 InAsyncLoadingTick(Package->AsyncLoadingThread);
 
 #if WITH_EDITOR
+		UE::Core::Private::FPlayInEditorLoadingScope PlayInEditorIDScope(Package->Desc.PIEInstanceID);
+
 		const FAsyncPackageHeaderData* HeaderData;
 		if (InExportBundleIndex == 1)
 		{
