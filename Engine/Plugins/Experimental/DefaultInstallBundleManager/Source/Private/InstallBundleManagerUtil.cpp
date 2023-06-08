@@ -14,8 +14,6 @@
 	#define WITH_PLATFORM_INSTALL_BUNDLE_SOURCE 0
 #endif
 
-#include "IAnalyticsProviderET.h"
-
 DEFAULTINSTALLBUNDLEMANAGER_API FString GInstallBundleManagerIni;
 
 DEFINE_LOG_CATEGORY(LogDefaultInstallBundleManager);

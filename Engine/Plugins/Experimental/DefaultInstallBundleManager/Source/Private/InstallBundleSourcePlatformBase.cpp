@@ -52,50 +52,7 @@ FInstallBundleSourceInitInfo FInstallBundleSourcePlatformBase::Init(
 		return InitInfo;
 	}
 
-	for (const TPair<FString, FConfigSection>& Pair : *InstallBundleConfig)
-	{
-		const FString& Section = Pair.Key;
-		if (!Section.StartsWith(InstallBundleUtil::GetInstallBundleSectionPrefix()))
-			continue;
-
-		if (!IsPlatformInstallBundleConfig(InstallBundleConfig, Section))
-			continue;
-
-		TArray<FString> StrSearchRegexPatterns;
-		if (!InstallBundleConfig->GetArray(*Section, TEXT("FileRegex"), StrSearchRegexPatterns))
-			continue;
-
-		TArray<FRegexPattern> SearchRegexPatterns;
-		SearchRegexPatterns.Reserve(StrSearchRegexPatterns.Num());
-		for (const FString& Str : StrSearchRegexPatterns)
-		{
-			SearchRegexPatterns.Emplace(Str, ERegexPatternFlags::CaseInsensitive);
-		}
-
-		const FString BundleName = Section.RightChop(InstallBundleUtil::GetInstallBundleSectionPrefix().Len());
-		BundleRegexList.Emplace(TPair<FString, TArray<FRegexPattern>>(BundleName, MoveTemp(SearchRegexPatterns)));
-	}
-
-	BundleRegexList.StableSort([](const TPair<FString, TArray<FRegexPattern>>& PairA, const TPair<FString, TArray<FRegexPattern>>& PairB) -> bool
-	{
-		int BundleAOrder = INT_MAX;
-		int BundleBOrder = INT_MAX;
-
-		const FString SectionA = InstallBundleUtil::GetInstallBundleSectionPrefix() + PairA.Key;
-		const FString SectionB = InstallBundleUtil::GetInstallBundleSectionPrefix() + PairB.Key;
-
-		if (!GConfig->GetInt(*SectionA, TEXT("Order"), BundleAOrder, GInstallBundleIni))
-		{
-			LOG_SOURCE_PLATFORMBASE(Warning, TEXT("Bundle Section %s doesn't have an order"), *SectionA);
-		}
-
-		if (!GConfig->GetInt(*SectionB, TEXT("Order"), BundleBOrder, GInstallBundleIni))
-		{
-			LOG_SOURCE_PLATFORMBASE(Warning, TEXT("Bundle Section %s doesn't have an order"), *SectionB);
-		}
-
-		return BundleAOrder < BundleBOrder;
-	});
+	BundleRegexList = InstallBundleUtil::LoadBundleRegexFromConfig(*InstallBundleConfig, InstallBundleUtil::IsPlatformInstallBundlePredicate);
 
 	return InitInfo;
 }

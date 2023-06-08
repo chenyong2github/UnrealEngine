@@ -22,6 +22,7 @@
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
+#include "Internationalization/Regex.h"
 
 class FQueuedThreadPool;
 
@@ -35,6 +36,24 @@ namespace InstallBundleUtil
 	INSTALLBUNDLEMANAGER_API const TCHAR* GetInstallBundlePauseReason(EInstallBundlePauseFlags Flags);
 
 	INSTALLBUNDLEMANAGER_API const FString& GetInstallBundleSectionPrefix();
+
+	// Returns true
+	INSTALLBUNDLEMANAGER_API bool AllInstallBundlePredicate(const FConfigFile& InstallBundleConfig, const FString& Section);
+
+	// Returns true if this bundle should be included in a platform package
+	INSTALLBUNDLEMANAGER_API bool IsPlatformInstallBundlePredicate(const FConfigFile& InstallBundleConfig, const FString& Section);
+
+	// Returns an ordered regex list used to map files to bundles
+	// SectionPredicate can be used to exclude non-relavent bundles from the list
+	INSTALLBUNDLEMANAGER_API TArray<TPair<FString, TArray<FRegexPattern>>> LoadBundleRegexFromConfig(
+		const FConfigFile& InstallBundleConfig,
+		TFunctionRef<bool(const FConfigFile& InstallBundleConfig, const FString& Section)> SectionPredicate = AllInstallBundlePredicate);
+
+	// Finds a matching install bundle for a given path
+	INSTALLBUNDLEMANAGER_API bool MatchBundleRegex(
+		const TArray<TPair<FString, TArray<FRegexPattern>>>& BundleRegexList,
+		const FString& Path,
+		FString& OutBundleName);
 
 	constexpr float MinimumBundleWeight = 0.05f;
 

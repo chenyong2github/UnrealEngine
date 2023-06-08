@@ -39,7 +39,6 @@ public:
 
 
 protected:
-	virtual bool IsPlatformInstallBundleConfig(const FConfigFile* InstallBundleConfig, const FString& Section) const = 0;
 	virtual bool QueryPersistentBundleInfo(FInstallBundleSourcePersistentBundleInfo& SourceBundleInfo) const = 0;
 
 	template<typename T>
