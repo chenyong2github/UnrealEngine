@@ -84,89 +84,34 @@ namespace UE::SmartObject::Annotations
 		return false;
 	}
 
-
-	// @hack: temp solution to handle cluster union components. 
-	bool OverlapBlockingTestClusters(const UWorld& World, const TConstArrayView<FOverlapResult> Overlaps, const FVector& Location, const FQuat& Rotation, const FCollisionShape& CollisionShape, const FCollisionQueryParams& CollisionQueryParams)
-	{
-		for (const FOverlapResult& Overlap : Overlaps)
-		{
-			if (const UClusterUnionComponent* ClusterUnion = Cast<UClusterUnionComponent>(Overlap.GetComponent()))
-			{
-				// Narrow down the checks on cluster unions.
-				TArray<FOverlapResult> ClusterOverlaps;
-				if (ClusterUnion->OverlapComponentWithResult(Location, Rotation, CollisionShape, ClusterOverlaps))
-				{
-					for (const FOverlapResult& ClusterOverlap : ClusterOverlaps)
-					{
-						if (const AActor* Actor = ClusterOverlap.GetActor())
-						{
-							const uint32 UniqueID  = Actor->GetUniqueID();
-							
-							// Skip if on ignore list.
-							if (CollisionQueryParams.GetIgnoredActors().Contains(UniqueID))
-							{
-								continue;
-							}
-						}
-						// The overlap is not on ignore list, it's an overlap. 
-						return true;
-					}
-				}
-			}
-			else
-			{
-				// Not a cluster union, it's an overlap.
-				return true;
-			}
-		}
-
-		return false;
-	}
-
 	bool TestCollidersOverlap(const UWorld& World, TConstArrayView<FSmartObjectAnnotationCollider> Colliders, const FSmartObjectTraceParams& TraceParameters, const FCollisionQueryParams& CollisionQueryParams)
 	{
 		bool bHasHit = false;
 
+		TArray<FOverlapResult> Overlaps;
+
 		for (const FSmartObjectAnnotationCollider& Collider : Colliders)
 		{
-			TArray<FOverlapResult> Overlaps;
-
+			Overlaps.Reset();
 			if (TraceParameters.Type == ESmartObjectTraceType::ByChannel)
 			{
-				// @todo: restore when the hack is removed.
-				//bHasHit = World.OverlapBlockingTestByChannel(Collider.Location, Collider.Rotation, UEngineTypes::ConvertToCollisionChannel(TraceParameters.TraceChannel), Collider.CollisionShape, CollisionQueryParams);
-				World.OverlapMultiByChannel(Overlaps, Collider.Location, Collider.Rotation, UEngineTypes::ConvertToCollisionChannel(TraceParameters.TraceChannel), Collider.CollisionShape, CollisionQueryParams);
+				bHasHit = World.OverlapMultiByChannel(Overlaps, Collider.Location, Collider.Rotation, UEngineTypes::ConvertToCollisionChannel(TraceParameters.TraceChannel), Collider.CollisionShape, CollisionQueryParams);
 			}
 			else if (TraceParameters.Type == ESmartObjectTraceType::ByProfile)
 			{
-				// @todo: restore when the hack is removed.
-				//bHasHit = World.OverlapBlockingTestByProfile(Collider.Location, Collider.Rotation, TraceParameters.CollisionProfile.Name, Collider.CollisionShape, CollisionQueryParams);
-				World.OverlapMultiByProfile(Overlaps, Collider.Location, Collider.Rotation, TraceParameters.CollisionProfile.Name, Collider.CollisionShape, CollisionQueryParams);
+				bHasHit = World.OverlapMultiByProfile(Overlaps, Collider.Location, Collider.Rotation, TraceParameters.CollisionProfile.Name, Collider.CollisionShape, CollisionQueryParams);
 			}
 			else if (TraceParameters.Type == ESmartObjectTraceType::ByObjectTypes)
 			{
-				// @todo: there's no blocking variant, and when tried to implement, it did not work.
+				// Overlap tests with object types will only ever return non-blocking results (due to historical reasons), so using the any variant here (blocking does not exist).
 				const FCollisionObjectQueryParams ObjectQueryParams(TraceParameters.ObjectTypes);
-				// @todo: restore when the hack is removed.
-				//bHasHit = World.OverlapAnyTestByObjectType(Collider.Location, Collider.Rotation, ObjectQueryParams, Collider.CollisionShape, CollisionQueryParams);
-				World.OverlapMultiByObjectType(Overlaps, Collider.Location, Collider.Rotation, ObjectQueryParams, Collider.CollisionShape, CollisionQueryParams);
+				bHasHit = World.OverlapMultiByObjectType(Overlaps, Collider.Location, Collider.Rotation, ObjectQueryParams, Collider.CollisionShape, CollisionQueryParams);
 			}
 
-			// @hack: temp solution to handle cluster union components. 
-			if (!Overlaps.IsEmpty())
-			{
-				if (OverlapBlockingTestClusters(World, Overlaps, Collider.Location, Collider.Rotation, Collider.CollisionShape, CollisionQueryParams))
-				{
-					bHasHit = true;
-					break;
-				}
-			}
-
-			// @todo: restore when the hack is removed.
-/*			if (bHasHit)
+			if (bHasHit)
 			{
 				break;
-			}*/
+			}
 		}
 
 		return bHasHit;
