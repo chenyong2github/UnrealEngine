@@ -199,7 +199,7 @@ struct FClaimAndReleaseSmartObject : FSmartObjectTestBase
 		Subsystem->FindSlots(FirstFindResult.SmartObjectHandle, TestFilter, ResultsBeforeClaim);
 
 		// Claim candidate
-		const FSmartObjectClaimHandle ClaimHandle = Subsystem->Claim(FirstFindResult);
+		const FSmartObjectClaimHandle ClaimHandle = Subsystem->MarkSlotAsClaimed(FirstFindResult.SlotHandle);
 		AITEST_TRUE("ClaimHandle.IsValid()", ClaimHandle.IsValid());
 
 		// Gather remaining available candidates
@@ -208,7 +208,7 @@ struct FClaimAndReleaseSmartObject : FSmartObjectTestBase
 		AITEST_NOT_EQUAL("Number of available slots before and after a claim", ResultsBeforeClaim.Num(), ResultsAfterClaim.Num());
 
 		// Release claimed candidate
-		const bool bSuccess = Subsystem->Release(ClaimHandle);
+		const bool bSuccess = Subsystem->MarkSlotAsFree(ClaimHandle);
 		AITEST_TRUE("Release() return status", bSuccess);
 
 		// Gather all available candidates after releasing
@@ -233,7 +233,7 @@ struct FFindAfterClaimSmartObject : FSmartObjectTestBase
 		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", FirstFindResult.SmartObjectHandle.IsValid());
 
 		// Claim first candidate
-		const FSmartObjectClaimHandle FirstClaimHandle = Subsystem->Claim(FirstFindResult);
+		const FSmartObjectClaimHandle FirstClaimHandle = Subsystem->MarkSlotAsClaimed(FirstFindResult.SlotHandle);
 		AITEST_TRUE("ClaimHandle.IsValid() after first find result", FirstClaimHandle.IsValid());
 
 		// Find second candidate
@@ -260,11 +260,11 @@ struct FDoubleClaimSmartObject : FSmartObjectTestBase
 		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", PreClaimResult.SmartObjectHandle.IsValid());
 
 		// Claim first candidate
-		const FSmartObjectClaimHandle FirstHdl = Subsystem->Claim(PreClaimResult);
+		const FSmartObjectClaimHandle FirstHdl = Subsystem->MarkSlotAsClaimed(PreClaimResult.SlotHandle);
 		AITEST_TRUE("ClaimHandle.IsValid() after first claim", FirstHdl.IsValid());
 
 		// Claim first candidate again
-		const FSmartObjectClaimHandle SecondHdl = Subsystem->Claim(PreClaimResult);
+		const FSmartObjectClaimHandle SecondHdl = Subsystem->MarkSlotAsClaimed(PreClaimResult.SlotHandle);
 		AITEST_FALSE("ClaimHandle.IsValid() after second claim", SecondHdl.IsValid());
 
 		return true;
@@ -284,15 +284,15 @@ struct FUseAndReleaseSmartObject : FSmartObjectTestBase
 		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", PreClaimResult.SmartObjectHandle.IsValid());
 
 		// Claim & Use candidate
-		const FSmartObjectClaimHandle Hdl = Subsystem->Claim(PreClaimResult);
+		const FSmartObjectClaimHandle Hdl = Subsystem->MarkSlotAsClaimed(PreClaimResult.SlotHandle);
 		AITEST_TRUE("ClaimHandle.IsValid()", Hdl.IsValid());
 
 		// Use specific behavior
-		const USmartObjectBehaviorDefinition* BehaviorDefinition = Subsystem->Use<USmartObjectBehaviorDefinition>(Hdl);
+		const USmartObjectBehaviorDefinition* BehaviorDefinition = Subsystem->MarkSlotAsOccupied<USmartObjectBehaviorDefinition>(Hdl);
 		AITEST_NOT_NULL("Behavior definition pointer", BehaviorDefinition);
 
 		// Release candidate
-		const bool bSuccess = Subsystem->Release(Hdl);
+		const bool bSuccess = Subsystem->MarkSlotAsFree(Hdl);
 		AITEST_TRUE("Release() return status", bSuccess);
 
 		return true;
@@ -315,9 +315,9 @@ struct FFindAfterUseSmartObject : FSmartObjectTestBase
 		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", FirstFindResult.SmartObjectHandle.IsValid());
 
 		// Claim & Use first candidate
-		const FSmartObjectClaimHandle FirstClaimHandle = Subsystem->Claim(FirstFindResult);
+		const FSmartObjectClaimHandle FirstClaimHandle = Subsystem->MarkSlotAsClaimed(FirstFindResult.SlotHandle);
 		AITEST_TRUE("ClaimHandle.IsValid() after first claim", FirstClaimHandle.IsValid());
-		const USmartObjectBehaviorDefinition* FirstDefinition = Subsystem->Use<USmartObjectBehaviorDefinition>(FirstClaimHandle);
+		const USmartObjectBehaviorDefinition* FirstDefinition = Subsystem->MarkSlotAsOccupied<USmartObjectBehaviorDefinition>(FirstClaimHandle);
 		AITEST_NOT_NULL("Behavior definition pointer", FirstDefinition);
 
 		// Find second candidate
@@ -328,9 +328,9 @@ struct FFindAfterUseSmartObject : FSmartObjectTestBase
 		AITEST_NOT_EQUAL("Result is expected to point to a different slot since first slot was claimed", FirstFindResult.SlotHandle, SecondFindResult.SlotHandle);
 
 		// Claim & use second candidate
-		const FSmartObjectClaimHandle SecondClaimHandle = Subsystem->Claim(SecondFindResult);
+		const FSmartObjectClaimHandle SecondClaimHandle = Subsystem->MarkSlotAsClaimed(SecondFindResult.SlotHandle);
 		AITEST_TRUE("ClaimHandle.IsValid() after second claim", SecondClaimHandle.IsValid());
-		const USmartObjectBehaviorDefinition* SecondDefinition = Subsystem->Use<USmartObjectBehaviorDefinition>(SecondClaimHandle);
+		const USmartObjectBehaviorDefinition* SecondDefinition = Subsystem->MarkSlotAsOccupied<USmartObjectBehaviorDefinition>(SecondClaimHandle);
 		AITEST_NOT_NULL("Behavior definition pointer", SecondDefinition);
 
 		return true;
@@ -361,7 +361,7 @@ struct FSlotCustomData : FSmartObjectTestBase
 		AITEST_NULL("Runtime data pointer", RuntimeData);
 
 		// Claim
-		const FSmartObjectClaimHandle ClaimHandle = Subsystem->Claim(FindResult);
+		const FSmartObjectClaimHandle ClaimHandle = Subsystem->MarkSlotAsClaimed(FindResult.SlotHandle);
 		AITEST_TRUE("ClaimHandle.IsValid() after first claim", ClaimHandle.IsValid());
 
 		// Add new data, note that this will invalidate the view...
@@ -824,11 +824,11 @@ struct FInstanceTagsFilter : FSmartObjectTestBase
 		AITEST_TRUE("Num slot handles", SlotHandles.Num() >= 3);
 
 		// Claim first slot
-		const FSmartObjectClaimHandle FirstClaimHandle = Subsystem->Claim(SlotHandles[0]);
+		const FSmartObjectClaimHandle FirstClaimHandle = Subsystem->MarkSlotAsClaimed(SlotHandles[0]);
 		AITEST_TRUE("FirstClaimHandle.IsValid()", FirstClaimHandle.IsValid());
 
 		// Use First slot
-		const USmartObjectBehaviorDefinition* BehaviorDefinition = Subsystem->Use<USmartObjectBehaviorDefinition>(FirstClaimHandle);
+		const USmartObjectBehaviorDefinition* BehaviorDefinition = Subsystem->MarkSlotAsOccupied<USmartObjectBehaviorDefinition>(FirstClaimHandle);
 		AITEST_NOT_NULL("Behavior definition pointer for first slot before activation", BehaviorDefinition);
 
 		// Apply tag that will cause preconditions to fail for some results
@@ -852,7 +852,7 @@ struct FInstanceTagsFilter : FSmartObjectTestBase
 		AITEST_FALSE("bThirdClaimPossible", bThirdClaimPossible);
 
 		// Release all valid claim handles
-		const bool bFirstSlotReleaseSuccess = Subsystem->Release(FirstClaimHandle);
+		const bool bFirstSlotReleaseSuccess = Subsystem->MarkSlotAsFree(FirstClaimHandle);
 		AITEST_TRUE("bFirstSlotReleaseSuccess", bFirstSlotReleaseSuccess);
 
 		// Remove tag

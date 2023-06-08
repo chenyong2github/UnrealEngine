@@ -20,22 +20,41 @@ class GAMEPLAYBEHAVIORSMARTOBJECTSMODULE_API UAITask_UseGameplayBehaviorSmartObj
 public:
 	UAITask_UseGameplayBehaviorSmartObject(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	/**
+	 * Helper function to create an AITask that interacts with the SmartObject slot using the GameplayBehavior definition
+	 * This version starts the interaction on spot so the actor needs to be at the desired position. 
+	 * @param Controller The controller for which the attached pawn will take part to the GameplayBehavior.
+	 * @param ClaimHandle The handle to an already claimed slot.
+	 * @param bLockAILogic Indicates if the task adds UAIResource_Logic to the set of Claimed resources 
+	 * @return The AITask executing the GameplayBehavior.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "AI|Tasks", meta = (DefaultToSelf = "Controller" , BlueprintInternalUseOnly = "true"))
+	static UAITask_UseGameplayBehaviorSmartObject* UseSmartObjectWithGameplayBehavior(AAIController* Controller, FSmartObjectClaimHandle ClaimHandle, bool bLockAILogic = true);
+
+	/**
+	 * Helper function to create an AITask that reaches and interacts with the SmartObject slot using the GameplayBehavior definition.
+	 * @param Controller The controller that will move to the slot location and for which the attached pawn will take part to the GameplayBehavior.
+	 * @param ClaimHandle The handle to an already claimed slot.
+	 * @param bLockAILogic Indicates if the task adds UAIResource_Logic to the set of Claimed resources 
+	 * @return The AITask performing the move to slot location and then executing the GameplayBehavior.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AI|Tasks", meta = (DefaultToSelf = "Controller" , BlueprintInternalUseOnly = "true"))
+	static UAITask_UseGameplayBehaviorSmartObject* MoveToAndUseSmartObjectWithGameplayBehavior(AAIController* Controller, FSmartObjectClaimHandle ClaimHandle, bool bLockAILogic = true);
+
+	UE_DEPRECATED(5.3, "Please use one of the UseSmartObjectWithGameplayBehavior functions using claim handle instead")
+	UFUNCTION(BlueprintCallable, Category = "AI|Tasks", meta = (DefaultToSelf = "Controller" , BlueprintInternalUseOnly = "true"), meta = (DeprecatedFunction, DeprecationMessage = "Use one of the UseSmartObjectWithGameplayBehavior functions using claim handle instead"))
 	static UAITask_UseGameplayBehaviorSmartObject* UseGameplayBehaviorSmartObject(AAIController* Controller, AActor* SmartObjectActor, USmartObjectComponent* SmartObjectComponent, bool bLockAILogic = true);
 
-	UFUNCTION(BlueprintCallable, Category = "AI|Tasks", meta = (DefaultToSelf = "Controller" , BlueprintInternalUseOnly = "true"))
-	static UAITask_UseGameplayBehaviorSmartObject* UseClaimedGameplayBehaviorSmartObject(AAIController* Controller, FSmartObjectClaimHandle ClaimHandle, bool bLockAILogic = true);
-
-	void SetClaimHandle(const FSmartObjectClaimHandle& Handle);
-
-	virtual void TickTask(float DeltaTime) override;
+	void SetShouldReachSlotLocation(const bool bUseMoveTo) { bShouldUseMoveTo = bUseMoveTo; }
+	void SetClaimHandle(const FSmartObjectClaimHandle& Handle) { ClaimedHandle = Handle; }
 
 protected:
 	virtual void Activate() override;
-
+	virtual void TickTask(float DeltaTime) override;
 	virtual void OnGameplayTaskDeactivated(UGameplayTask& Task) override;
-
 	virtual void OnDestroy(bool bInOwnerFinished) override;
+
+	bool StartInteraction();
 
 	void Abort();
 
@@ -64,5 +83,8 @@ protected:
 
 	FSmartObjectClaimHandle ClaimedHandle;
 	FDelegateHandle OnBehaviorFinishedNotifyHandle;
-	uint32 bBehaviorFinished : 1;
+
+	bool bBehaviorFinished;
+
+	bool bShouldUseMoveTo;
 };

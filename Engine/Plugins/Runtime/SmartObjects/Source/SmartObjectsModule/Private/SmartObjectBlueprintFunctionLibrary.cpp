@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectBlueprintFunctionLibrary.h"
+#include "Engine/Engine.h"
 #include "SmartObjectSubsystem.h"
 #include "BlackboardKeyType_SOClaimHandle.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -92,6 +93,47 @@ bool USmartObjectBlueprintFunctionLibrary::AddOrRemoveMultipleSmartObjects(const
 bool USmartObjectBlueprintFunctionLibrary::SetSmartObjectEnabled(AActor* SmartObjectActor, const bool bEnabled)
 {
 	return SetMultipleSmartObjectsEnabled({SmartObjectActor}, bEnabled);
+}
+
+FSmartObjectClaimHandle USmartObjectBlueprintFunctionLibrary::MarkSmartObjectSlotAsClaimed(
+	UObject* WorldContextObject,
+	const FSmartObjectSlotHandle SlotHandle,
+	const AActor* UserActor)
+{
+	const UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
+	{
+		return Subsystem->MarkSlotAsClaimed(SlotHandle, FConstStructView::Make(FSmartObjectActorUserData(UserActor)));
+	}
+
+	return FSmartObjectClaimHandle::InvalidHandle;
+}
+
+const USmartObjectBehaviorDefinition* USmartObjectBlueprintFunctionLibrary::MarkSmartObjectSlotAsOccupied(
+	UObject* WorldContextObject,
+	const FSmartObjectClaimHandle ClaimHandle,
+	const TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass)
+{
+	const UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
+	{
+		Subsystem->MarkSlotAsOccupied(ClaimHandle, DefinitionClass);
+	}
+
+	return nullptr;
+}
+
+bool USmartObjectBlueprintFunctionLibrary::MarkSmartObjectSlotAsFree(
+	UObject* WorldContextObject,
+	const FSmartObjectClaimHandle ClaimHandle)
+{
+	const UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
+	{
+		return Subsystem->MarkSlotAsFree(ClaimHandle);	
+	}
+
+	return false;
 }
 
 bool USmartObjectBlueprintFunctionLibrary::SetMultipleSmartObjectsEnabled(const TArray<AActor*>& SmartObjectActors, const bool bEnabled)

@@ -140,7 +140,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestResult
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = SmartObject)
 	FSmartObjectHandle SmartObjectHandle;
 
-	UPROPERTY(Transient, VisibleAnywhere, Category = SmartObject)
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = SmartObject)
 	FSmartObjectSlotHandle SlotHandle;
 };
 
@@ -579,17 +579,26 @@ public:
 	 * @return True if result is valid.
 	 */
 	bool UpdateEntranceLocation(const FSmartObjectSlotEntranceHandle EntranceHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotEntranceLocationResult& Result) const;
-	
+
+	/**
+	 * Checks whether given slot is free and can be claimed (i.e. slot and its parent are both enabled)
+	 * @note This methods doesn't evaluate the selection conditions. EvaluateSelectionConditions must be called separately.
+	 * @return true if the indicated slot can be claimed, false otherwise
+	 * @see EvaluateSelectionConditions
+	 */
+	[[nodiscard]] bool CanBeClaimed(const FSmartObjectSlotHandle SlotHandle) const;
+
 	/**
 	 * Claims smart object from a request result.
 	 * @param RequestResult Request result for given smart object and slot index.
 	 * @param UserActor Actor claiming the smart object
 	 * @return A handle binding the claimed smart object, its slot and a user id.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	UE_DEPRECATED(5.3, "Please use MarkSmartObjectSlotAsClaimed instead")
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (DeprecatedFunction, DeprecationMessage = "Use MarkSmartObjectSlotAsClaimed instead."))
 	FSmartObjectClaimHandle Claim(const FSmartObjectRequestResult& RequestResult, const AActor* UserActor = nullptr)
 	{
-		return Claim(RequestResult.SlotHandle, FConstStructView::Make(FSmartObjectActorUserData(UserActor)));
+		return MarkSlotAsClaimed(RequestResult.SlotHandle, FConstStructView::Make(FSmartObjectActorUserData(UserActor)));
 	}
 
 	/**
@@ -598,16 +607,20 @@ public:
 	 * @param UserData Instanced struct that represents the interacting agent.
 	 * @return A handle binding the claimed smart object, its slot and a user id.
 	 */
-	[[nodiscard]] FSmartObjectClaimHandle Claim(const FSmartObjectSlotHandle SlotHandle, const FConstStructView UserData = {});
-	
+	UE_DEPRECATED(5.3, "Please use MarkSlotAsClaimed instead")
+	[[nodiscard]] FSmartObjectClaimHandle Claim(const FSmartObjectSlotHandle SlotHandle, const FConstStructView UserData = {})
+	{
+		return MarkSlotAsClaimed(SlotHandle, UserData);
+	}
+
 	/**
 	 * Claim smart object from object and slot handles.
 	 * @param Handle Handle to the smart object.
 	 * @param SlotHandle Handle to a smart object slot.
 	 * @return A handle binding the claimed smart object, its slot and a user id.
 	 */
-	UE_DEPRECATED(5.3, "Please use the overload passing only the slot handle")
-	[[nodiscard]] FSmartObjectClaimHandle Claim(const FSmartObjectHandle Handle, FSmartObjectSlotHandle SlotHandle) { return Claim(SlotHandle, {}); }
+	UE_DEPRECATED(5.3, "Please use MarkSlotAsClaimed passing only the slot handle")
+	[[nodiscard]] FSmartObjectClaimHandle Claim(const FSmartObjectHandle Handle, FSmartObjectSlotHandle SlotHandle) { return MarkSlotAsClaimed(SlotHandle, {}); }
 
 	/**
 	 * Claim smart object from object and slot handles.
@@ -615,9 +628,17 @@ public:
 	 * @param Filter Optional filter to apply on object and slots.
 	 * @return A handle binding the claimed smart object, its slot and a user id.
 	 */
-	 UE_DEPRECATED(5.3, "Please use both FindSlots and the Claim overload using only the slot handle. This will allow proper support of selection conditions.")
+	 UE_DEPRECATED(5.3, "Please use both FindSlots and MarkSlotAsClaimed using only the slot handle. This will allow proper support of selection conditions.")
 	[[nodiscard]] FSmartObjectClaimHandle Claim(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter);
-	
+
+	/**
+	 * Marks a smart object slot as claimed.
+	 * @param SlotHandle Handle to a smart object slot.
+	 * @param UserData Instanced struct that represents the interacting agent.
+	 * @return A handle binding the claimed smart object, its slot and a user id.
+	 */
+	[[nodiscard]] FSmartObjectClaimHandle MarkSlotAsClaimed(const FSmartObjectSlotHandle SlotHandle, const FConstStructView UserData = {});
+
 	/**
 	 * Indicates if the object referred to by the given handle is still accessible in the simulation.
 	 * This should only be required when a handle is stored and used later.
@@ -650,16 +671,20 @@ public:
 	 * @param DefinitionClass The type of behavior definition the user wants to use.
 	 * @return The base class pointer of the requested behavior definition class associated to the slot
 	 */
-	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	const USmartObjectBehaviorDefinition* Use(const FSmartObjectClaimHandle& ClaimHandle, TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass);
+	UE_DEPRECATED(5.3, "Please use MarkSmartObjectSlotAsOccupied instead")
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (DeprecatedFunction, DeprecationMessage = "Use MarkSmartObjectSlotAsOccupied instead."))
+	const USmartObjectBehaviorDefinition* Use(const FSmartObjectClaimHandle& ClaimHandle, TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass)
+	{
+		return MarkSlotAsOccupied(ClaimHandle, DefinitionClass);
+	}
 
 	/**
-	 * Checks whether given slot is free and can be claimed (i.e. slot and its parent are both enabled)
-	 * @note This methods doesn't evaluate the selection conditions. EvaluateSelectionConditions must be called separately.
-	 * @return true if the indicated slot can be claimed, false otherwise
-	 * @see EvaluateSelectionConditions
+	 * Marks a previously claimed smart object slot as occupied.
+	 * @param ClaimHandle Handle to a claimed slot returned by any of the Claim methods.
+	 * @param DefinitionClass The type of behavior definition the user wants to use.
+	 * @return The base class pointer of the requested behavior definition class associated to the slot
 	 */
-	[[nodiscard]] bool CanBeClaimed(const FSmartObjectSlotHandle SlotHandle) const;
+	const USmartObjectBehaviorDefinition* MarkSlotAsOccupied(const FSmartObjectClaimHandle& ClaimHandle, TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass);
 
 	/**
 	 * Start using a claimed smart object slot.
@@ -667,10 +692,23 @@ public:
 	 * @return The requested behavior definition class pointer associated to the slot
 	 */
 	template <typename DefinitionType>
+	UE_DEPRECATED(5.3, "Please use MarkSlotAsOccupied instead")
 	const DefinitionType* Use(const FSmartObjectClaimHandle& ClaimHandle)
 	{
 		static_assert(TIsDerivedFrom<DefinitionType, USmartObjectBehaviorDefinition>::IsDerived, "DefinitionType must derive from USmartObjectBehaviorDefinition");
-		return Cast<const DefinitionType>(Use(ClaimHandle, DefinitionType::StaticClass()));
+		return Cast<const DefinitionType>(MarkSlotAsOccupied(ClaimHandle, DefinitionType::StaticClass()));
+	}
+
+	/**
+	 * Marks a previously claimed smart object slot as occupied.
+	 * @param ClaimHandle Handle to a claimed slot returned by any of the Claim methods.
+	 * @return The requested behavior definition class pointer associated to the slot
+	 */
+	template <typename DefinitionType>
+	const DefinitionType* MarkSlotAsOccupied(const FSmartObjectClaimHandle& ClaimHandle)
+	{
+		static_assert(TIsDerivedFrom<DefinitionType, USmartObjectBehaviorDefinition>::IsDerived, "DefinitionType must derive from USmartObjectBehaviorDefinition");
+		return Cast<const DefinitionType>(MarkSlotAsOccupied(ClaimHandle, DefinitionType::StaticClass()));
 	}
 
 	/**
@@ -678,8 +716,18 @@ public:
 	 * @param ClaimHandle Handle to a claimed slot returned by any of the Claim methods.
 	 * @return Whether the claim was successfully released or not
 	 */
-	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	bool Release(const FSmartObjectClaimHandle& ClaimHandle);
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (DeprecatedFunction, DeprecationMessage = "Use MarkSmartObjectSlotAsFree instead."))
+	bool Release(const FSmartObjectClaimHandle& ClaimHandle)
+	{
+		return MarkSlotAsFree(ClaimHandle);
+	}
+
+	/**
+	 * Marks a claimed or occupied smart object as free.
+	 * @param ClaimHandle Handle to a claimed slot returned by any of the Claim methods.
+	 * @return Whether the claim was successfully released or not
+	 */
+	bool MarkSlotAsFree(const FSmartObjectClaimHandle& ClaimHandle);
 
 	/**
 	 * Return the behavior definition of a given type from a claimed object.
@@ -1046,7 +1094,7 @@ protected:
 		TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 		);
 
-	const USmartObjectBehaviorDefinition* Use(
+	const USmartObjectBehaviorDefinition* MarkSlotAsOccupied(
 		const FSmartObjectRuntime& SmartObjectRuntime,
 		const FSmartObjectClaimHandle& ClaimHandle,
 		TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass

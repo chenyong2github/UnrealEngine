@@ -17,17 +17,37 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AITask_UseGameplayBehaviorSmartObject)
 
-
-UAITask_UseGameplayBehaviorSmartObject::UAITask_UseGameplayBehaviorSmartObject(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+//----------------------------------------------------------------------//
+// Static Blueprint callable and helper functions
+//----------------------------------------------------------------------//
+UAITask_UseGameplayBehaviorSmartObject* UAITask_UseGameplayBehaviorSmartObject::UseSmartObjectWithGameplayBehavior(AAIController* Controller, const FSmartObjectClaimHandle ClaimHandle, const bool bLockAILogic)
 {
-	//bIsPausable = false;
-	bBehaviorFinished = false;
+	if (Controller == nullptr)
+	{
+		UE_LOG(LogSmartObject, Error, TEXT("AI Controller required to use smart object."));
+		return nullptr;
+	}
 
-	// Uncomment for debug draw while moving toward SO location
-	// bTickingTask = true;
+	const AActor* Pawn = Controller->GetPawn();
+	if (Pawn == nullptr)
+	{
+		UE_LOG(LogSmartObject, Error, TEXT("Pawn required on controller: %s."), *Controller->GetName());
+		return nullptr;
+	}
+
+	return UseClaimedSmartObject(*Controller, ClaimHandle, bLockAILogic);
 }
 
+UAITask_UseGameplayBehaviorSmartObject* UAITask_UseGameplayBehaviorSmartObject::MoveToAndUseSmartObjectWithGameplayBehavior(AAIController* Controller, const FSmartObjectClaimHandle ClaimHandle, const bool bLockAILogic)
+{
+	UAITask_UseGameplayBehaviorSmartObject* NewTask = UseSmartObjectWithGameplayBehavior(Controller, ClaimHandle, bLockAILogic);
+	if (NewTask != nullptr)
+	{
+		NewTask->SetShouldReachSlotLocation(true);
+	}
+
+	return NewTask;
+}
 UAITask_UseGameplayBehaviorSmartObject* UAITask_UseGameplayBehaviorSmartObject::UseGameplayBehaviorSmartObject(AAIController* Controller, AActor* SmartObjectActor, USmartObjectComponent* SmartObjectComponent, const bool bLockAILogic)
 {
 	if (SmartObjectComponent == nullptr && SmartObjectActor != nullptr)
@@ -75,32 +95,14 @@ UAITask_UseGameplayBehaviorSmartObject* UAITask_UseGameplayBehaviorSmartObject::
 		return nullptr;
 	}
 
-	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(SlotHandles.Top(), ActorUserDataView);
+	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->MarkSlotAsClaimed(SlotHandles.Top(), ActorUserDataView);
 
 	return ClaimHandle.IsValid() ? UseClaimedSmartObject(Controller, ClaimHandle, bLockAILogic) : nullptr;
 }
 
-UAITask_UseGameplayBehaviorSmartObject* UAITask_UseGameplayBehaviorSmartObject::UseClaimedGameplayBehaviorSmartObject(AAIController* Controller, const FSmartObjectClaimHandle ClaimHandle, const bool bLockAILogic)
-{
-	if (Controller == nullptr)
-	{
-		UE_LOG(LogSmartObject, Error, TEXT("AI Controller required to use smart object."));
-		return nullptr;
-	}
-
-	const AActor* Pawn = Controller->GetPawn();
-	if (Pawn == nullptr)
-	{
-		UE_LOG(LogSmartObject, Error, TEXT("Pawn required on controller: %s."), *Controller->GetName());
-		return nullptr;
-	}
-
-	return UseClaimedSmartObject(*Controller, ClaimHandle, bLockAILogic);
-}
-
 UAITask_UseGameplayBehaviorSmartObject* UAITask_UseGameplayBehaviorSmartObject::UseClaimedSmartObject(AAIController& Controller, const FSmartObjectClaimHandle ClaimHandle, const bool bLockAILogic)
 {
-	UAITask_UseGameplayBehaviorSmartObject* MyTask = UAITask::NewAITask<UAITask_UseGameplayBehaviorSmartObject>(Controller, EAITaskPriority::High);
+	UAITask_UseGameplayBehaviorSmartObject* MyTask = NewAITask<UAITask_UseGameplayBehaviorSmartObject>(Controller, EAITaskPriority::High);
 	if (MyTask == nullptr)
 	{
 		return nullptr;
@@ -116,9 +118,17 @@ UAITask_UseGameplayBehaviorSmartObject* UAITask_UseGameplayBehaviorSmartObject::
 	return MyTask;
 }
 
-void UAITask_UseGameplayBehaviorSmartObject::SetClaimHandle(const FSmartObjectClaimHandle& Handle)
+//----------------------------------------------------------------------//
+// UAITask_UseGameplayBehaviorSmartObject
+//----------------------------------------------------------------------//
+UAITask_UseGameplayBehaviorSmartObject::UAITask_UseGameplayBehaviorSmartObject(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
-	ClaimedHandle = Handle;
+	//bIsPausable = false;
+	bBehaviorFinished = false;
+
+	// Uncomment for debug draw while moving toward SO location
+	// bTickingTask = true;
 }
 
 void UAITask_UseGameplayBehaviorSmartObject::TickTask(const float DeltaTime)
@@ -153,7 +163,7 @@ void UAITask_UseGameplayBehaviorSmartObject::Activate()
 
 	if (OwnerController->GetPawn() == nullptr)
 	{
-		UE_VLOG(OwnerController, LogSmartObject, Error, TEXT("Pawn required to use claim handle: %s."), *LexToString(ClaimedHandle));
+		UE_VLOG(OwnerController, LogSmartObject, Error, TEXT("Pawn required to use GameplayBehavior with claim handle: %s."), *LexToString(ClaimedHandle));
 		return;
 	}
 
@@ -170,73 +180,82 @@ void UAITask_UseGameplayBehaviorSmartObject::Activate()
 		return;
 	}
 
-	const TOptional<FVector> GoalLocation = SmartObjectSubsystem->GetSlotLocation(ClaimedHandle);
-	if (!ensureMsgf(GoalLocation.IsSet(), TEXT("Unable to extract a valid slot location.")))
-	{
-		return;
-	}
-
 	// Register a callback to be notified if the claimed slot became unavailable
 	SmartObjectSubsystem->RegisterSlotInvalidationCallback(ClaimedHandle, FOnSlotInvalidated::CreateUObject(this, &UAITask_UseGameplayBehaviorSmartObject::OnSlotInvalidated));
 
-	FAIMoveRequest MoveReq(GoalLocation.GetValue());
-	MoveReq.SetUsePathfinding(true);
-	MoveReq.SetAllowPartialPath(false);
+	if (bShouldUseMoveTo)
+	{
+		const TOptional<FVector> GoalLocation = SmartObjectSubsystem->GetSlotLocation(ClaimedHandle);
+		if (!ensureMsgf(GoalLocation.IsSet(), TEXT("Unable to extract a valid slot location.")))
+		{
+			return;
+		}
 
-	MoveToTask = UAITask::NewAITask<UAITask_MoveTo>(*OwnerController, *this, EAITaskPriority::High, TEXT("SmartObject"));
-	MoveToTask->SetUp(OwnerController, MoveReq);
-	MoveToTask->ReadyForActivation();
+		FAIMoveRequest MoveReq(GoalLocation.GetValue());
+		MoveReq.SetUsePathfinding(true);
+		MoveReq.SetAllowPartialPath(false);
 
-	bSuccess = true;
+		MoveToTask = NewAITask<UAITask_MoveTo>(*OwnerController, *this, EAITaskPriority::High, TEXT("SmartObject"));
+		MoveToTask->SetUp(OwnerController, MoveReq);
+		MoveToTask->ReadyForActivation();
+		bSuccess = true;
+	}
+	else
+	{
+		bSuccess = StartInteraction();
+	}
+}
+
+bool UAITask_UseGameplayBehaviorSmartObject::StartInteraction()
+{
+	check(OwnerController);
+	UWorld* World = OwnerController->GetWorld();
+	USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(World);
+	if (!ensure(SmartObjectSubsystem))
+	{
+		return false;
+	}
+
+	const UGameplayBehaviorSmartObjectBehaviorDefinition* SmartObjectGameplayBehaviorDefinition = SmartObjectSubsystem->MarkSlotAsOccupied<UGameplayBehaviorSmartObjectBehaviorDefinition>(ClaimedHandle);
+	const UGameplayBehaviorConfig* GameplayBehaviorConfig = SmartObjectGameplayBehaviorDefinition != nullptr ? SmartObjectGameplayBehaviorDefinition->GameplayBehaviorConfig : nullptr;
+	GameplayBehavior = GameplayBehaviorConfig != nullptr ? GameplayBehaviorConfig->GetBehavior(*World) : nullptr;
+	if (GameplayBehavior == nullptr)
+	{
+		return false;
+	}
+
+	const USmartObjectComponent* SmartObjectComponent = SmartObjectSubsystem->GetSmartObjectComponent(ClaimedHandle);
+	AActor& InteractorActor = *OwnerController->GetPawn();
+	AActor* InteracteeActor = SmartObjectComponent ? SmartObjectComponent->GetOwner() : nullptr;
+	const bool bBehaviorActive = UGameplayBehaviorSubsystem::TriggerBehavior(*GameplayBehavior, InteractorActor, GameplayBehaviorConfig, InteracteeActor);
+	// Behavior can be successfully triggered AND ended synchronously. We are only interested to register callback when still running
+	if (bBehaviorActive)
+	{
+		OnBehaviorFinishedNotifyHandle = GameplayBehavior->GetOnBehaviorFinishedDelegate().AddUObject(this, &UAITask_UseGameplayBehaviorSmartObject::OnSmartObjectBehaviorFinished);
+	}
+
+	return bBehaviorActive;
 }
 
 void UAITask_UseGameplayBehaviorSmartObject::OnGameplayTaskDeactivated(UGameplayTask& Task)
 {
-	check(OwnerController);
-	check(OwnerController->GetPawn());
-
 	if (MoveToTask == &Task)
 	{
-		bool bBehaviorActive = false;
-
 		if (MoveToTask->IsFinished())
 		{
 			if (MoveToTask->WasMoveSuccessful())
 			{
-				UWorld* World = OwnerController->GetWorld();
-				// Manually resetting MoveToTask ptr here in case the behavior coming after that is long running. 
-				// We don't need it anymore so if GC happens in the mean time it can clean it up.
 				MoveToTask = nullptr;
-				USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(World);
-				if (ensure(SmartObjectSubsystem))
+				if (StartInteraction() == false)
 				{
-					const UGameplayBehaviorSmartObjectBehaviorDefinition* SmartObjectGameplayBehaviorDefinition = SmartObjectSubsystem->Use<UGameplayBehaviorSmartObjectBehaviorDefinition>(ClaimedHandle);
-					const UGameplayBehaviorConfig* GameplayBehaviorConfig = SmartObjectGameplayBehaviorDefinition != nullptr ? SmartObjectGameplayBehaviorDefinition->GameplayBehaviorConfig : nullptr;
-					GameplayBehavior = GameplayBehaviorConfig != nullptr ? GameplayBehaviorConfig->GetBehavior(*World) : nullptr;
-					if (GameplayBehavior != nullptr)
-					{
-						const USmartObjectComponent* SmartObjectComponent = SmartObjectSubsystem->GetSmartObjectComponent(ClaimedHandle);
-						AActor& InteractorActor = *OwnerController->GetPawn();
-						AActor* InteracteeActor = SmartObjectComponent ? SmartObjectComponent->GetOwner() : nullptr;
-						bBehaviorActive = UGameplayBehaviorSubsystem::TriggerBehavior(*GameplayBehavior, InteractorActor, GameplayBehaviorConfig, InteracteeActor);
-						// Behavior can be successfully triggered AND ended synchronously. We are only interested to register callback when still running
-						if (bBehaviorActive)
-						{
-							OnBehaviorFinishedNotifyHandle = GameplayBehavior->GetOnBehaviorFinishedDelegate().AddUObject(this, &UAITask_UseGameplayBehaviorSmartObject::OnSmartObjectBehaviorFinished);
-						}
-					}
+					EndTask();	
 				}
 			}
 			else
 			{
 				OnMoveToFailed.Broadcast();
+				EndTask();
 			}
-		}
-
-		if (bBehaviorActive == false)
-		{
-			// MoveToTask is deactivated by pausing, possibly from the BP of Behavior itself
-			EndTask();
 		}
 	}
 
@@ -245,19 +264,18 @@ void UAITask_UseGameplayBehaviorSmartObject::OnGameplayTaskDeactivated(UGameplay
 
 void UAITask_UseGameplayBehaviorSmartObject::OnDestroy(const bool bInOwnerFinished)
 {
-	Abort();
-
 	if (ClaimedHandle.IsValid())
 	{
 		USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(OwnerController->GetWorld());
 		check(SmartObjectSubsystem);
-		SmartObjectSubsystem->Release(ClaimedHandle);
+		SmartObjectSubsystem->MarkSlotAsFree(ClaimedHandle);
+		SmartObjectSubsystem->UnregisterSlotInvalidationCallback(ClaimedHandle);
 		ClaimedHandle.Invalidate();
 	}
 
 	if (TaskState != EGameplayTaskState::Finished)
 	{
-		if (GameplayBehavior)
+		if (GameplayBehavior != nullptr && bBehaviorFinished)
 		{
 			OnSucceeded.Broadcast();
 		}
@@ -265,23 +283,18 @@ void UAITask_UseGameplayBehaviorSmartObject::OnDestroy(const bool bInOwnerFinish
 		{
 			OnFailed.Broadcast();
 		}
-
-		Super::OnDestroy(bInOwnerFinished);
 	}
+
+	Super::OnDestroy(bInOwnerFinished);
 }
 
 void UAITask_UseGameplayBehaviorSmartObject::OnSlotInvalidated(const FSmartObjectClaimHandle& ClaimHandle, ESmartObjectSlotState State)
 {
 	Abort();
-
-	EndTask();
 }
 
 void UAITask_UseGameplayBehaviorSmartObject::Abort()
 {
-	check(OwnerController);
-	check(OwnerController->GetPawn());
-
 	if (MoveToTask)
 	{
 		// clear before triggering 'the end' so that OnGameplayTaskDeactivated
@@ -294,10 +307,14 @@ void UAITask_UseGameplayBehaviorSmartObject::Abort()
 	{
 		if (GameplayBehavior != nullptr)
 		{
+			check(OwnerController);
+			check(OwnerController->GetPawn());
 			GameplayBehavior->GetOnBehaviorFinishedDelegate().Remove(OnBehaviorFinishedNotifyHandle);
 			GameplayBehavior->AbortBehavior(*OwnerController->GetPawn());
 		}
 	}
+
+	EndTask();
 }
 
 void UAITask_UseGameplayBehaviorSmartObject::OnSmartObjectBehaviorFinished(UGameplayBehavior& Behavior, AActor& Avatar, const bool bInterrupted)

@@ -17,7 +17,9 @@ bool UGameplayBehaviorSmartObjectsBlueprintFunctionLibrary::UseGameplayBehaviorS
 	AAIController* AIController = UAIBlueprintHelperLibrary::GetAIController(Avatar);
 	if (AIController != nullptr)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UAITask_UseGameplayBehaviorSmartObject* Task = UAITask_UseGameplayBehaviorSmartObject::UseGameplayBehaviorSmartObject(AIController, SmartObject, nullptr);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (Task != nullptr)
 		{
 			Task->ReadyForActivation();

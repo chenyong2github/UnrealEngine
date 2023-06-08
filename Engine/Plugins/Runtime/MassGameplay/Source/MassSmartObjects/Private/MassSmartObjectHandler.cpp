@@ -155,7 +155,7 @@ FSmartObjectClaimHandle FMassSmartObjectHandler::ClaimCandidate(const FMassEntit
 
 FSmartObjectClaimHandle FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectRequestResult& RequestResult) const
 {
-	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem.Claim(RequestResult.SlotHandle, FConstStructView::Make(FSmartObjectMassEntityUserData(Entity)));
+	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem.MarkSlotAsClaimed(RequestResult.SlotHandle, FConstStructView::Make(FSmartObjectMassEntityUserData(Entity)));
 
 #if WITH_MASSGAMEPLAY_DEBUG
 	UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
@@ -195,7 +195,7 @@ bool FMassSmartObjectHandler::StartUsingSmartObject(
 		*LexToString(User.InteractionHandle));
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
-	const USmartObjectMassBehaviorDefinition* BehaviorDefinition = SmartObjectSubsystem.Use<USmartObjectMassBehaviorDefinition>(ClaimHandle);
+	const USmartObjectMassBehaviorDefinition* BehaviorDefinition = SmartObjectSubsystem.MarkSlotAsOccupied<USmartObjectMassBehaviorDefinition>(ClaimHandle);
 	if (BehaviorDefinition == nullptr)
 	{
 		return false;
@@ -292,5 +292,5 @@ void FMassSmartObjectHandler::ReleaseSmartObject(const FMassEntityHandle Entity,
 
 	SmartObjectSubsystem.UnregisterSlotInvalidationCallback(ClaimHandle);
 
-	Context.SmartObjectSubsystem.Release(ClaimHandle);
+	Context.SmartObjectSubsystem.MarkSlotAsFree(ClaimHandle);
 }

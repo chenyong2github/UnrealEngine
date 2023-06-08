@@ -12,6 +12,7 @@ class GAMEPLAYBEHAVIORSMARTOBJECTSMODULE_API UGameplayBehaviorSmartObjectsBluepr
 {
 	GENERATED_BODY()
 public:
-	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (DisplayName = "UseGameplayBehaviorSmartObject"))
+	UE_DEPRECATED(5.3, "Use MoveToAndUseSmartObjectWithGameplayBehavior or UseSmartObjectWithGameplayBehavior using a claim handle from UAITask_UseGameplayBehaviorSmartObject instead.")
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (DeprecatedFunction, DeprecationMessage = "Use MoveToAndUseSmartObjectWithGameplayBehavior or UseSmartObjectWithGameplayBehavior using a claim handle from UAITask_UseGameplayBehaviorSmartObject instead."))
 	static bool UseGameplayBehaviorSmartObject(AActor* Avatar, AActor* SmartObject);
 };

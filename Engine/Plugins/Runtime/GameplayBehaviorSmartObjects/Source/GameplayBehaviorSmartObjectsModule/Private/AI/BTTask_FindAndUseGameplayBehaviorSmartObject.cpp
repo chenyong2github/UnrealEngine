@@ -73,7 +73,7 @@ EBTNodeResult::Type UBTTask_FindAndUseGameplayBehaviorSmartObject::ExecuteTask(U
 		{
 			for (const FSmartObjectRequestResult& Result : Results)
 			{
-				FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(Result.SlotHandle, ActorUserDataView);
+				FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->MarkSlotAsClaimed(Result.SlotHandle, ActorUserDataView);
 				if (ClaimHandle.IsValid())
 				{
 					UseClaimedSmartObject(OwnerComp, ClaimHandle, *MyMemory);
@@ -219,7 +219,7 @@ void UBTTask_FindAndUseGameplayBehaviorSmartObject::OnQueryFinished(TSharedPtr<F
 			for (int i = 0; i < QueryResult.Items.Num(); ++i)
 			{
 				const FSmartObjectSlotEQSItem& Item = UEnvQueryItemType_SmartObject::GetValue(QueryResult.GetItemRawMemory(i));
-				const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(Item.SlotHandle, ActorUserDataView);
+				const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->MarkSlotAsClaimed(Item.SlotHandle, ActorUserDataView);
 				if (ClaimHandle.IsValid())
 				{
 					UseClaimedSmartObject(*BTComponent, ClaimHandle, *MyMemory);

@@ -107,6 +107,35 @@ public:
 	static bool SetSmartObjectEnabled(AActor* SmartObjectActor, const bool bEnabled);
 
 	/**
+	 * Marks a smart object slot from a request result as claimed.
+	 * @param WorldContextObject Object used to fetch the SmartObjectSubsystem of its associated world.
+	 * @param SlotHandle Handle to a smart object slot.
+	 * @param UserActor Actor claiming the smart object
+	 * @return A handle binding the claimed smart object, its slot and a user id.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (WorldContext = "WorldContextObject"))
+	static FSmartObjectClaimHandle MarkSmartObjectSlotAsClaimed(UObject* WorldContextObject, const FSmartObjectSlotHandle SlotHandle, const AActor* UserActor = nullptr);
+	
+	/**
+	 * Marks a previously claimed smart object slot as occupied.
+	 * @param WorldContextObject Object used to fetch the SmartObjectSubsystem of its associated world.
+	 * @param ClaimHandle Handle to a claimed slot returned by any of the Claim methods.
+	 * @param DefinitionClass The type of behavior definition the user wants to use.
+	 * @return The base class pointer of the requested behavior definition class associated to the slot
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (WorldContext = "WorldContextObject"))
+	static const USmartObjectBehaviorDefinition* MarkSmartObjectSlotAsOccupied(UObject* WorldContextObject, const FSmartObjectClaimHandle ClaimHandle, TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass);
+
+	/**
+	 * Marks a claimed or occupied smart object as free.
+	 * @param WorldContextObject Object used to fetch the SmartObjectSubsystem of its associated world.
+	 * @param ClaimHandle Handle to a claimed slot returned by any of the Claim methods.
+	 * @return Whether the claim was successfully released or not
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (WorldContext = "WorldContextObject"))
+	static bool MarkSmartObjectSlotAsFree(UObject* WorldContextObject, const FSmartObjectClaimHandle ClaimHandle);
+
+	/**
 	 * Marks all smart objects for a list of actors as enabled or not according to 'bEnabled'. A smart object marked as Enabled is available for queries.
 	 * @param SmartObjectActors The actors containing the smart objects to enable/disable
 	 * @param bEnabled Whether the smart objects should be in the simulation (added) or not (removed) 

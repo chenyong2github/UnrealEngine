@@ -836,10 +836,10 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle Ha
 		return FSmartObjectClaimHandle::InvalidHandle;
 	}
 
-	return Claim(SlotHandles.Top(), {});
+	return MarkSlotAsClaimed(SlotHandles.Top(), {});
 }
 
-FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectSlotHandle SlotHandle, const FConstStructView UserData)
+FSmartObjectClaimHandle USmartObjectSubsystem::MarkSlotAsClaimed(const FSmartObjectSlotHandle SlotHandle, const FConstStructView UserData)
 {
 	if (!SlotHandle.IsValid())
 	{
@@ -964,19 +964,19 @@ const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefiniti
 	return Definition.GetBehaviorDefinition(SlotIndex, DefinitionClass);
 }
 
-const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(
+const USmartObjectBehaviorDefinition* USmartObjectSubsystem::MarkSlotAsOccupied(
 	const FSmartObjectClaimHandle& ClaimHandle,
 	TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 	)
 {
 	const FSmartObjectRuntime* SmartObjectRuntime = GetValidatedRuntime(ClaimHandle.SmartObjectHandle, ANSI_TO_TCHAR(__FUNCTION__));
-	return SmartObjectRuntime != nullptr ? Use(*SmartObjectRuntime, ClaimHandle, DefinitionClass) : nullptr;
+	return SmartObjectRuntime != nullptr ? MarkSlotAsOccupied(*SmartObjectRuntime, ClaimHandle, DefinitionClass) : nullptr;
 }
 
-const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(
+const USmartObjectBehaviorDefinition* USmartObjectSubsystem::MarkSlotAsOccupied(
 	const FSmartObjectRuntime& SmartObjectRuntime,
 	const FSmartObjectClaimHandle& ClaimHandle,
-	TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
+	const TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 	)
 {
 	checkf(ClaimHandle.IsValid(), TEXT("This is an internal method that should only be called with an assigned claim handle"));
@@ -1013,7 +1013,7 @@ const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(
 	return nullptr;
 }
 
-bool USmartObjectSubsystem::Release(const FSmartObjectClaimHandle& ClaimHandle)
+bool USmartObjectSubsystem::MarkSlotAsFree(const FSmartObjectClaimHandle& ClaimHandle)
 {
 	FSmartObjectRuntimeSlot* Slot = GetMutableSlotVerbose(ClaimHandle.SlotHandle, ANSI_TO_TCHAR(__FUNCTION__));
 	if (!Slot)
