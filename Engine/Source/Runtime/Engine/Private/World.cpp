@@ -375,8 +375,9 @@ FActorSpawnParameters::FActorSpawnParameters()
 , bNoFail(false)
 , bDeferConstruction(false)
 , bAllowDuringConstructionScript(false)
+#if !WITH_EDITOR
 , bForceGloballyUniqueName(false)
-#if WITH_EDITOR
+#else
 , bTemporaryEditorActor(false)
 , bHideFromSceneOutliner(false)
 , bCreateActorPackage(true)

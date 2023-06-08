@@ -502,13 +502,13 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		UE_LOG(LogSpawn, Warning, TEXT("SpawnActor failed because the given transform (%s) is invalid"), *(UserTransformPtr->ToString()));
 		return NULL;
 	}
+#if !WITH_EDITOR
 	else if (SpawnParameters.bForceGloballyUniqueName && !SpawnParameters.Name.IsNone())
 	{
 		UE_LOG(LogSpawn, Warning, TEXT("SpawnActor failed because a globally unique name was requested and an actor name was provided (%s)"), *SpawnParameters.Name.ToString());
 		return NULL;
 	}
-	
-#if WITH_EDITOR
+#else
 	if (SpawnParameters.OverridePackage && SpawnParameters.bCreateActorPackage)
 	{
 		UE_LOG(LogSpawn, Warning, TEXT("SpawnActor failed because both the OverridePackage and bCreateActorPackage are set"));
@@ -558,10 +558,10 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	{
 		bNeedGloballyUniqueName = false;
 	}
-#endif
-
+#else
 	// Override all previous logic if the spawn request a globally unique name
 	bNeedGloballyUniqueName |= SpawnParameters.bForceGloballyUniqueName;
+#endif
 
 	if (NewActorName.IsNone())
 	{

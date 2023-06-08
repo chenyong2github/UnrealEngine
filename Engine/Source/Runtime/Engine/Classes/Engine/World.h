@@ -499,10 +499,10 @@ public:
 	/* Determines whether or not the actor may be spawned when running a construction script. If true spawning will fail if a construction script is being run. */
 	uint8	bAllowDuringConstructionScript:1;
 
+#if !WITH_EDITOR
 	/* Force the spawned actor to use a globally unique name (provided name should be none). */
 	uint8	bForceGloballyUniqueName:1;
-
-#if WITH_EDITOR
+#else
 	/* Determines whether the begin play cycle will run on the spawned actor when in the editor. */
 	uint8	bTemporaryEditorActor:1;
 
