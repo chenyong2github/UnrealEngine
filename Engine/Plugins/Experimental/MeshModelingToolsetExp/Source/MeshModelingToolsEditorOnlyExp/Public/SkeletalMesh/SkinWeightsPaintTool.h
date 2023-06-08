@@ -88,6 +88,8 @@ namespace SkinPaintTool
 	{
 		void Initialize(const USkeletalMeshComponent* SkeletalMeshComponent, const FMeshDescription* Mesh);
 
+		void SetAllVerticesToBeUpdated();
+
 		void UpdateVertexDeformation(USkinWeightsPaintTool* Tool);
 
 		void SetVertexNeedsUpdated(int32 VertexIndex);
