@@ -34,7 +34,8 @@ namespace EpicGames.Perforce
 			".ush",
 			".uproject",
 			".uplugin",
-			".sln"
+			".sln",
+			".native.verse"
 		};
 
 		/// <summary>
