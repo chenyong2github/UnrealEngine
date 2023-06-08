@@ -59,6 +59,56 @@ struct FVkRtBLASBuildData
 	VkAccelerationStructureBuildSizesInfoKHR SizesInfo;
 };
 
+class FVulkanRayTracingShaderTable : VulkanRHI::FDeviceChild
+{
+public:
+	FVulkanRayTracingShaderTable(FVulkanDevice* Device);
+	~FVulkanRayTracingShaderTable();
+
+	void Init(const FVulkanRayTracingScene* Scene, const FVulkanRayTracingPipelineState* Pipeline);
+
+	const VkStridedDeviceAddressRegionKHR* GetRegion(EShaderFrequency Frequency);
+
+	void SetSlot(EShaderFrequency Frequency, uint32 DstSlot, uint32 SrcHandleIndex, TConstArrayView<uint8> SrcHandleData);
+
+	template <typename T>
+	void SetLocalShaderParameters(EShaderFrequency Frequency, uint32 RecordIndex, uint32 InOffsetWithinRootSignature, const T& Parameters)
+	{
+		SetLocalShaderParameters(Frequency, RecordIndex, InOffsetWithinRootSignature, &Parameters, sizeof(Parameters));
+	}
+
+	void SetLocalShaderParameters(EShaderFrequency Frequency, uint32 RecordIndex, uint32 OffsetWithinRecord, const void* InData, uint32 InDataSize);
+
+private:
+
+	struct FVulkanShaderTableAllocation
+	{
+		FVulkanShaderTableAllocation()
+		{
+			FMemory::Memzero(Region);
+		}
+
+		uint32 HandleCount = 0;
+		bool bUseLocalRecord = false;
+
+		VkBuffer Buffer = VK_NULL_HANDLE;
+		VulkanRHI::FVulkanAllocation Allocation;
+		VkStridedDeviceAddressRegionKHR Region;
+		uint8* MappedBufferMemory = nullptr;
+	};
+
+	FVulkanShaderTableAllocation& GetAlloc(EShaderFrequency Frequency);
+
+	FVulkanShaderTableAllocation Raygen;
+	FVulkanShaderTableAllocation Miss;
+	FVulkanShaderTableAllocation HitGroup;
+	FVulkanShaderTableAllocation Callable;
+
+	// Convenience
+	const uint32 HandleSize;
+	const uint32 HandleSizeAligned;
+};
+
 class FVulkanRayTracingGeometry : public FRHIRayTracingGeometry
 {
 public:
@@ -123,6 +173,13 @@ public:
 		return PerInstanceGeometryParameterSRV.GetReference();
 	}
 
+	FVulkanRayTracingShaderTable* FindOrCreateShaderTable(const FVulkanRayTracingPipelineState* Pipeline);
+
+	inline uint32 GetHitRecordBaseIndex(uint32 InstanceIndex, uint32 SegmentIndex) const 
+	{
+		return (Initializer.SegmentPrefixSum[InstanceIndex] + SegmentIndex) * Initializer.ShaderSlotsPerGeometrySegment;
+	}
+
 	inline bool IsBuilt() const
 	{
 		return bBuilt;
@@ -153,6 +210,9 @@ private:
 	// Buffer that contains per-instance index and vertex buffer binding data
 	TRefCountPtr<FVulkanResourceMultiBuffer> PerInstanceGeometryParameterBuffer;
 	FShaderResourceViewRHIRef PerInstanceGeometryParameterSRV;
+	
+	TMap<const FVulkanRayTracingPipelineState*, FVulkanRayTracingShaderTable*> ShaderTables;
+
 	void BuildPerInstanceGeometryParameterBuffer(FVulkanCommandListContext& CommandContext);
 
 	bool bBuilt = false;
