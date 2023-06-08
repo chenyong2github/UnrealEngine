@@ -19,7 +19,7 @@ namespace Geometry
  * By default the actual mesh connectivity is used, but an optional connectivity predicate
  * can be provided to specify when two elements should be considered connected.
  */
-class DYNAMICMESH_API FMeshConnectedComponents
+class GEOMETRYCORE_API FMeshConnectedComponents
 {
 public:
 	const FDynamicMesh3* Mesh;

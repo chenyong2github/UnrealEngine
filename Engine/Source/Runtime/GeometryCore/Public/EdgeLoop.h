@@ -15,7 +15,7 @@ namespace Geometry
 /**
  * Sequential lists of vertices/edges in a mesh that form a closed loop
  */
-class DYNAMICMESH_API FEdgeLoop
+class GEOMETRYCORE_API FEdgeLoop
 {
 public:
 	/** The Mesh that contains this EdgeLoop */
@@ -255,7 +255,7 @@ public:
  * 
  * @param SelectEdgeTriangleFunc This function is used to select which triangle to use for encoding at each edge
  */
-DYNAMICMESH_API bool ConvertLoopToTriOrderedEdgeLoop(const FDynamicMesh3& Mesh,
+GEOMETRYCORE_API bool ConvertLoopToTriOrderedEdgeLoop(const FDynamicMesh3& Mesh,
 	const TArray<int32>& VertexLoop, const TArray<int32>& EdgeLoop,
 	TFunctionRef<int(int EdgeID, int TriangleA, int TriangleB)> SelectEdgeTriangleFunc,
 	TArray<FMeshTriOrderedEdgeID>& TriOrderedEdgesLoopOut );
@@ -263,7 +263,7 @@ DYNAMICMESH_API bool ConvertLoopToTriOrderedEdgeLoop(const FDynamicMesh3& Mesh,
 /**
  * Variant of ConvertLoopToTriOrderedEdgeLoop that always encodes using EdgeTriangles.A, ie suitable for encoding open border loops
  */
-DYNAMICMESH_API bool ConvertLoopToTriOrderedEdgeLoop(const FDynamicMesh3& Mesh,
+GEOMETRYCORE_API bool ConvertLoopToTriOrderedEdgeLoop(const FDynamicMesh3& Mesh,
 	const TArray<int32>& VertexLoop, const TArray<int32>& EdgeLoop,
 	TArray<FMeshTriOrderedEdgeID>& TriOrderedEdgesLoopOut );
 
@@ -272,7 +272,7 @@ DYNAMICMESH_API bool ConvertLoopToTriOrderedEdgeLoop(const FDynamicMesh3& Mesh,
  * See FMeshTriOrderedEdgeID for details on this encoding, this function basically reverses
  * ConvertLoopToTriOrderedEdgeLoop() for the current mesh topology
  */
-DYNAMICMESH_API bool ConvertTriOrderedEdgeLoopToLoop(const FDynamicMesh3& Mesh,
+GEOMETRYCORE_API bool ConvertTriOrderedEdgeLoopToLoop(const FDynamicMesh3& Mesh,
 	const TArray<FMeshTriOrderedEdgeID>& TriOrderedEdgesLoopOut,
 	TArray<int32>& VertexLoop, TArray<int32>* EdgeLoop = nullptr);
 

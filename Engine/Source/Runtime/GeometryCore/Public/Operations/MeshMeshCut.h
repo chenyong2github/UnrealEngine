@@ -19,7 +19,7 @@ namespace UE
 namespace Geometry
 {
 
-class DYNAMICMESH_API FMeshSelfCut
+class GEOMETRYCORE_API FMeshSelfCut
 {
 public:
 	//
@@ -82,7 +82,7 @@ public:
 /**
  * Cut a mesh where it crosses a second mesh -- resolving all intersections, but not deleting geometry.  Optionally resolve intersections mutually for both meshes.
  */
-class DYNAMICMESH_API FMeshMeshCut
+class GEOMETRYCORE_API FMeshMeshCut
 {
 public:
 

@@ -18,7 +18,7 @@ namespace Geometry
  * Extract FEdgeLoops on the boundary of a set of triangles of a mesh.
  * @todo this was an early port and possibly can be optimized
  */
-class DYNAMICMESH_API FMeshRegionBoundaryLoops
+class GEOMETRYCORE_API FMeshRegionBoundaryLoops
 {
 public:
 

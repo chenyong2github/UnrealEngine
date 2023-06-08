@@ -18,7 +18,7 @@ namespace Geometry
 /**
  * Currently a thin wrapper of a TSet<int> of Edge IDs paired with a Mesh; the backing storage will likely change as we need to optimize in the future
  */
-class DYNAMICMESH_API FMeshEdgeSelection
+class GEOMETRYCORE_API FMeshEdgeSelection
 {
 private:
 	const FDynamicMesh3* Mesh;

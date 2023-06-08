@@ -22,7 +22,7 @@ class FDynamicMesh3;
 // Class to support local planar simplification, to reduce excess edges created by plane cuts, edge loop insertions, and similar operations
 // (Note a custom version of this logic also exists on the FMeshBoolean class)
 //
-class DYNAMICMESH_API FLocalPlanarSimplify
+class GEOMETRYCORE_API FLocalPlanarSimplify
 {
 public:
 	// Simplification settings

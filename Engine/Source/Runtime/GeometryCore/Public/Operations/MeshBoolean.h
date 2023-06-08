@@ -26,7 +26,7 @@ namespace Geometry
 /**
  * MeshBoolean -- perform a boolean operation on two input meshes.
  */
-class DYNAMICMESH_API FMeshBoolean
+class GEOMETRYCORE_API FMeshBoolean
 {
 public:
 

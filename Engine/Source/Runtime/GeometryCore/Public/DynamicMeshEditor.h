@@ -22,7 +22,7 @@ struct FDynamicSubmesh3;
  * FDynamicMeshEditResult is used to return information about new mesh elements
  * created by mesh changes, primarily in FDynamicMeshEditor
  */
-struct DYNAMICMESH_API FDynamicMeshEditResult
+struct GEOMETRYCORE_API FDynamicMeshEditResult
 {
 	/** New vertices created by an edit */
 	TArray<int> NewVertices;
@@ -67,7 +67,7 @@ struct DYNAMICMESH_API FDynamicMeshEditResult
  * can be used to construct higher-level operations. For example an Extrude operation
  * could be implemented via DuplicateTriangles() and StitchLoopMinimal().
  */
-class DYNAMICMESH_API FDynamicMeshEditor
+class GEOMETRYCORE_API FDynamicMeshEditor
 {
 public:
 	/** The mesh we will be editing */

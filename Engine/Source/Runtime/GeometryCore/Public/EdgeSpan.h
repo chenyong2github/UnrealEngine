@@ -17,7 +17,7 @@ namespace Geometry
  * Sequential lists of vertices/edges in a mesh that is *not* closed.
  * If the list is closed it should be an FEdgeLoop
  */
-class DYNAMICMESH_API FEdgeSpan
+class GEOMETRYCORE_API FEdgeSpan
 {
 public:
 	/** The Mesh that contains this EdgeSpan */

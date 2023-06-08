@@ -15,7 +15,7 @@ namespace UE
 namespace Geometry
 {
 
-class DYNAMICMESH_API FMeshBoundaryLoops
+class GEOMETRYCORE_API FMeshBoundaryLoops
 {
 public:
 	/** Mesh we are finding loops on */

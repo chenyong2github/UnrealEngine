@@ -529,10 +529,10 @@ void FMeshRegionBoundaryLoops::UpdateLoopOverlayMapValidity(
 
 // Right now we use our templated functions just for UV layers. If we need other overlay layers,
 // we'll need to add instantiations here.
-template DYNAMICMESH_API bool FMeshRegionBoundaryLoops::GetLoopOverlayMap<float, 2, FVector2f>(
+template GEOMETRYCORE_API bool FMeshRegionBoundaryLoops::GetLoopOverlayMap<float, 2, FVector2f>(
 	const FEdgeLoop& LoopIn, const TDynamicMeshOverlay<float, 2>& Overlay,
 	VidOverlayMap<FVector2f>& LoopVidsToOverlayElementsOut);
-template DYNAMICMESH_API void FMeshRegionBoundaryLoops::UpdateLoopOverlayMapValidity<float, 2, FVector2f>(
+template GEOMETRYCORE_API void FMeshRegionBoundaryLoops::UpdateLoopOverlayMapValidity<float, 2, FVector2f>(
 	VidOverlayMap<FVector2f>& LoopVidsToOverlayElements, const TDynamicMeshOverlay<float, 2>& Overlay);
 
 

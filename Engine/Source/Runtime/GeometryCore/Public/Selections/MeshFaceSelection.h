@@ -17,7 +17,7 @@ class FMeshVertexSelection;
 class FMeshEdgeSelection;
 
 
-class DYNAMICMESH_API FMeshFaceSelection
+class GEOMETRYCORE_API FMeshFaceSelection
 {
 private:
 	const FDynamicMesh3* Mesh;

@@ -25,7 +25,7 @@ namespace Geometry
 /**
  * MeshSelfUnion -- perform a "Mesh Boolean" style union of a mesh on itself, resolving any self intersections and welding the new boundaries as needed
  */
-class DYNAMICMESH_API FMeshSelfUnion
+class GEOMETRYCORE_API FMeshSelfUnion
 {
 public:
 
