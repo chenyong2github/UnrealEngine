@@ -10479,6 +10479,7 @@ void UCookOnTheFlyServer::CookAsCookWorkerFinished()
 	FShaderLibraryCooker::EndCookingLibrary(ActualLibraryName);
 	FShaderLibraryCooker::Shutdown();
 	ShutdownShaderCompilers(PlatformManager->GetSessionPlatforms());
+	FinalizePackageStore();
 
 	if (IsDirectorCookOnTheFly())
 	{
