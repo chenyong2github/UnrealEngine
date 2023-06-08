@@ -14,6 +14,7 @@ struct FNiagaraScalabilityState
 		, LastVisibleTime(0.0f)
 		, SystemDataIndex(INDEX_NONE)
 		, bNewlyRegistered(1)
+		, bNewlyRegisteredDirty(0)
 		, bCulled(0)
 		, bPreviousCulled(0)
 		, bCulledByDistance(0)
