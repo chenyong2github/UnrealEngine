@@ -5,6 +5,7 @@
 #include "EditorAssetLibrary.h"
 #include "MetaHumanProjectUtilities.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
 #include "Serialization/JsonSerializer.h"
 
 FImportPaths::FImportPaths(FMetaHumanAssetImportDescription ImportDescription)

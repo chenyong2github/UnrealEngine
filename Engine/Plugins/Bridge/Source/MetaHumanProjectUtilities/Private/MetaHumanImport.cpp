@@ -7,8 +7,11 @@
 #include "MetaHumanVersionService.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformFileManager.h"
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/IProjectManager.h"
 #include "Internationalization/Text.h"
@@ -24,6 +27,7 @@
 #include "UObject/Linker.h"
 #include "UObject/Object.h"
 #include "UObject/SavePackage.h"
+#include "UObject/MetaData.h"
 
 #define LOCTEXT_NAMESPACE "MetaHumanImport"
 DEFINE_LOG_CATEGORY_STATIC(LogMetaHumanImport, Log, All)
