@@ -24,6 +24,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/GameFeatures.GameFeaturesProjectPolicies", DisplayName="Game Feature Project Policy Class", ConfigRestartRequired=true))
 	FSoftClassPath GameFeaturesManagerClassName;
 
+	/** List of plugins that are forcibly enabled (e.g., via a hotfix) */
+	UPROPERTY(config, EditAnywhere, Category = GameFeatures)
+	TArray<FString> EnabledPlugins;
+
 	/** List of plugins that are forcibly disabled (e.g., via a hotfix) */
 	UPROPERTY(config, EditAnywhere, Category=GameFeatures)
 	TArray<FString> DisabledPlugins;

@@ -79,10 +79,10 @@ namespace AutomationScripts
 
 
 			Func<UnrealArchitectures, string> GetArchString = Arch => (Arch == null) ? "" : $"-architecture={Arch}";
-			string ServerArchitecture = GetArchString(Params.ServerArchitecture);
-			string EditorArchitecture = GetArchString(Params.EditorArchitecture);
-			string ClientArchitecture = GetArchString(Params.ClientArchitecture);
-			string ProgramArchitecture = GetArchString(Params.ProgramArchitecture);
+			string ServerBuildArgs = Params.AdditionalBuildOptions + GetArchString(Params.ServerArchitecture);
+			string EditorBuildArgs = Params.AdditionalBuildOptions + GetArchString(Params.EditorArchitecture);
+			string ClientBuildArgs = Params.AdditionalBuildOptions + GetArchString(Params.ClientArchitecture);
+			string ProgramBuildArgs = Params.AdditionalBuildOptions + GetArchString(Params.ProgramArchitecture);
 
 			// Setup editor targets
 			if (Params.HasEditorTargets && (!Params.SkipBuildEditor) && (TargetMask & ProjectBuildTargets.Editor) == ProjectBuildTargets.Editor)
@@ -91,18 +91,18 @@ namespace AutomationScripts
 				UnrealTargetPlatform EditorPlatform = HostPlatform.Current.HostEditorPlatform;
 				const UnrealTargetConfiguration EditorConfiguration = UnrealTargetConfiguration.Development;
 
-				Agenda.AddTargets(Params.EditorTargets.ToArray(), EditorPlatform, EditorConfiguration, Params.CodeBasedUprojectPath, InAddArgs: EditorArchitecture);
+				Agenda.AddTargets(Params.EditorTargets.ToArray(), EditorPlatform, EditorConfiguration, Params.CodeBasedUprojectPath, InAddArgs: EditorBuildArgs);
 
 				if (!Unreal.IsEngineInstalled())
 				{
 					CrashReportPlatforms.Add(EditorPlatform);
 					if (Params.EditorTargets.Contains("ShaderCompileWorker") == false)
 					{
-						Agenda.AddTargets(new string[] { "ShaderCompileWorker" }, EditorPlatform, EditorConfiguration, InAddArgs: ProgramArchitecture);
+						Agenda.AddTargets(new string[] { "ShaderCompileWorker" }, EditorPlatform, EditorConfiguration, InAddArgs: ProgramBuildArgs);
 					}
 					if (Params.FileServer && Params.EditorTargets.Contains("UnrealFileServer") == false)
 					{
-						Agenda.AddTargets(new string[] { "UnrealFileServer" }, EditorPlatform, EditorConfiguration, InAddArgs: ProgramArchitecture);
+						Agenda.AddTargets(new string[] { "UnrealFileServer" }, EditorPlatform, EditorConfiguration, InAddArgs: ProgramBuildArgs);
 					}
 				}
 			}
@@ -112,7 +112,7 @@ namespace AutomationScripts
 			{
 				if (!Params.HasEditorTargets || Params.EditorTargets.Contains("UnrealPak") == false)
 				{
-					Agenda.AddTargets(new string[] { "UnrealPak" }, HostPlatform.Current.HostEditorPlatform, UnrealTargetConfiguration.Development, Params.CodeBasedUprojectPath, InAddArgs: ProgramArchitecture);
+					Agenda.AddTargets(new string[] { "UnrealPak" }, HostPlatform.Current.HostEditorPlatform, UnrealTargetConfiguration.Development, Params.CodeBasedUprojectPath, InAddArgs: ProgramBuildArgs);
 				}
 			}
 
@@ -160,7 +160,7 @@ namespace AutomationScripts
 					{
 						UnrealTargetPlatform CrashReportPlatform = Platform.GetPlatform(ClientPlatformType).CrashReportPlatform ?? ClientPlatformType;
 						CrashReportPlatforms.Add(CrashReportPlatform);
-						string Arch = Params.IsProgramTarget ? ProgramArchitecture : ClientArchitecture;
+						string Arch = Params.IsProgramTarget ? ProgramBuildArgs : ClientBuildArgs;
 						Agenda.AddTargets(Params.ClientCookedTargets.ToArray(), ClientPlatformType, BuildConfig, Params.CodeBasedUprojectPath, 
 							InAddArgs: $" -remoteini=\"{Params.RawProjectPath.Directory}\" {AdditionalArgs} {Arch}");
 					}
@@ -177,7 +177,7 @@ namespace AutomationScripts
 						UnrealTargetPlatform CrashReportPlatform = Platform.GetPlatform(ServerPlatformType).CrashReportPlatform ?? ServerPlatformType;
 						CrashReportPlatforms.Add(CrashReportPlatform);
 						Agenda.AddTargets(Params.ServerCookedTargets.ToArray(), ServerPlatformType, BuildConfig, Params.CodeBasedUprojectPath, 
-							InAddArgs: $" -remoteini=\"{Params.RawProjectPath.Directory}\" {AdditionalArgs} {ServerArchitecture}");
+							InAddArgs: $" -remoteini=\"{Params.RawProjectPath.Directory}\" {AdditionalArgs} {ServerBuildArgs}");
 					}
 				}
 			}
@@ -188,7 +188,7 @@ namespace AutomationScripts
 				{
 					if (Params.ClientTargetPlatforms.Contains(new TargetPlatformDescriptor(BootstrapPackagedGamePlatformType)))
 					{
-						Agenda.AddTarget("BootstrapPackagedGame", BootstrapPackagedGamePlatformType, UnrealBuildTool.UnrealTargetConfiguration.Shipping, InAddArgs: ClientArchitecture);
+						Agenda.AddTarget("BootstrapPackagedGame", BootstrapPackagedGamePlatformType, UnrealBuildTool.UnrealTargetConfiguration.Shipping, InAddArgs: ClientBuildArgs);
 					}
 				}
 			}
@@ -199,7 +199,7 @@ namespace AutomationScripts
 					if (PlatformSupportsCrashReporter(CrashReportPlatform))
 					{
 						Agenda.AddTarget("CrashReportClient", CrashReportPlatform, UnrealTargetConfiguration.Shipping, 
-							InAddArgs: $" -remoteini=\"{Params.RawProjectPath.Directory}\" {ProgramArchitecture}");
+							InAddArgs: $" -remoteini=\"{Params.RawProjectPath.Directory}\" {ProgramBuildArgs}");
 					}
 				}
 			}
@@ -211,7 +211,7 @@ namespace AutomationScripts
 				{
 					foreach (var ClientPlatformType in UniquePlatformTypes)
 					{
-						Agenda.AddTargets(Params.ProgramTargets.ToArray(), ClientPlatformType, BuildConfig, Params.CodeBasedUprojectPath, ProgramArchitecture);
+						Agenda.AddTargets(Params.ProgramTargets.ToArray(), ClientPlatformType, BuildConfig, Params.CodeBasedUprojectPath, ProgramBuildArgs);
 					}
 				}
 			}

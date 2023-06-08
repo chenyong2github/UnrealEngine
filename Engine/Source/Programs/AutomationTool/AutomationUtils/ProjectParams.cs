@@ -313,6 +313,7 @@ namespace AutomationTool
 			this.DLCOverrideCookedSubDir = InParams.DLCOverrideCookedSubDir;
 			this.DLCOverrideStagedSubDir = InParams.DLCOverrideStagedSubDir;
 			this.DiffCookedContentPath = InParams.DiffCookedContentPath;
+            this.AdditionalBuildOptions = InParams.AdditionalBuildOptions;
             this.AdditionalCookerOptions = InParams.AdditionalCookerOptions;
 			this.ClientCookedTargets = InParams.ClientCookedTargets;
 			this.ServerCookedTargets = InParams.ServerCookedTargets;
@@ -1857,10 +1858,15 @@ namespace AutomationTool
 		/// </summary>
 		public string DiffCookedContentPath;
 
-        /// <summary>
-        /// Cook: Additional cooker options to include on the cooker commandline
-        /// </summary>
-        public string AdditionalCookerOptions;
+		/// <summary>
+		/// Build: Additional build options to include on the build commandline
+		/// </summary>
+		public string AdditionalBuildOptions;
+
+		/// <summary>
+		/// Cook: Additional cooker options to include on the cooker commandline
+		/// </summary>
+		public string AdditionalCookerOptions;
 
         /// <summary>
         /// Cook: List of cultures to cook.

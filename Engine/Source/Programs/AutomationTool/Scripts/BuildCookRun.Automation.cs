@@ -108,6 +108,15 @@ public class BuildCookRun : BuildCommand, IProjectParamsHelpers
 			}
 		}
 
+		List<string> PluginsToEnable = new List<string>();
+		string EnablePlugins = ParseParamValue("EnablePlugins", null);
+		if (!string.IsNullOrEmpty(EnablePlugins))
+		{
+			PluginsToEnable.AddRange(EnablePlugins.Split(new[] { ',', '+' }, StringSplitOptions.RemoveEmptyEntries));
+		}
+		Params.AdditionalCookerOptions += " -EnablePlugins=\"" + string.Join(",", PluginsToEnable) + "\"";
+		Params.AdditionalBuildOptions += " -EnablePlugins=\"" + string.Join(",", PluginsToEnable) + "\"";
+
 		Params.ValidateAndLog();
 		return Params;
 	}
