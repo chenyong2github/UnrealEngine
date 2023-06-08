@@ -1091,7 +1091,7 @@ namespace mu
             break;
         }
 
-        case OP_TYPE::ME_MORPH2:
+        case OP_TYPE::ME_MORPH:
         {
 			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
@@ -1101,15 +1101,8 @@ namespace mu
 			OP::ADDRESS BaseAt = 0;
 			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
 
-			uint8 NumTargets = 0;
-			FMemory::Memcpy(&NumTargets, data, sizeof(uint8)); data += sizeof(uint8);
-
-			TArray<MESH_BUFFER_SEMANTIC, TInlineAllocator<8>> Targets;
-			Targets.SetNum(NumTargets);
-			for (uint8 T = 0; T < NumTargets; ++T)
-			{
-				FMemory::Memcpy(&Targets[T], data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
-			}
+			OP::ADDRESS TargetAt = 0;
+			FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
 
 			switch (item.Stage)
             {
@@ -1117,7 +1110,6 @@ namespace mu
                 if (BaseAt)
                 {
                     AddOp( FScheduledOp(item.At, item, 1),
-                           FScheduledOp(BaseAt, item),
                            FScheduledOp(FactorAt, item) );
                 }
                 else
@@ -1128,72 +1120,30 @@ namespace mu
 
             case 1:
             {
-                MUTABLE_CPUPROFILER_SCOPE(ME_MORPH2_1)
+                MUTABLE_CPUPROFILER_SCOPE(ME_MORPH_1)
 
-                bool baseValid = GetMemory().IsValid( FCacheAddress(BaseAt,item) );
-                float factor = LoadScalar( FCacheAddress(FactorAt,item) );
+                float Factor = LoadScalar( FCacheAddress(FactorAt,item) );
 
                 // Factor goes from -1 to 1 across all targets. [0 - 1] represents positive morphs, while [-1, 0) represent negative morphs.
-				factor = FMath::Clamp(factor, -1.0f, 1.0f); // Is the factor not in range [-1, 1], it will index a non existing morph.
+				Factor = FMath::Clamp(Factor, -1.0f, 1.0f); // Is the factor not in range [-1, 1], it will index a non existing morph.
 
-				float absFactor = FMath::Abs(factor);
-                float delta = 1.0f/(NumTargets -1);
-				int max = (int)FMath::CeilToFloat(absFactor/delta);
-				int min = max > 0 ? max - 1 : 0;
+                FScheduledOpData HeapData;
+				HeapData.Interpolate.Bifactor = Factor;
+				uint32 dataAddress = uint32(m_heapData.Add(HeapData));
 
-                // Factor from 0 to 1 between the two targets
-				float bifactor = absFactor/delta - min;
-
-				// From [0,1] to [-1,0] for negative factors
-				if (factor < 0.0f)
-				{
-					float threshold = -1.0f + UE_SMALL_NUMBER;
-
-					if (factor <= threshold)
-					{
-						// setting bifactor to -1.0
-						bifactor = -1.0f;
-					}
-					else
-					{
-						// we calculate the bifactor using positive values but is negative here
-						bifactor *= -1.0f;
-					}
-				}
-
-                if (baseValid)
+                // No morph
+				if (Factor < UE_SMALL_NUMBER && Factor > -UE_SMALL_NUMBER )
+                {                        
+                    AddOp( FScheduledOp( item.At, item, 2, dataAddress),
+                            FScheduledOp(BaseAt, item) );
+                }
+                // The Morph, partial or full
+                else
                 {
-                    FScheduledOpData HeapData;
-					HeapData.Interpolate.Bifactor = bifactor;
-					HeapData.Interpolate.Min = FMath::Clamp(min, 0, NumTargets - 1);
-					HeapData.Interpolate.Max = FMath::Clamp(max, 0, NumTargets - 1);
-					uint32 dataAddress = uint32(m_heapData.Add(HeapData));
-
-                    // Just the first of the targets
-					if ( bifactor < UE_SMALL_NUMBER && bifactor > -UE_SMALL_NUMBER )
-                    {                        
-                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
-                                FScheduledOp(BaseAt, item),
-                                FScheduledOp(Targets[min], item) );
-                    }
-                    // Just the second of the targets
-					else if ( bifactor > 1.0f - UE_SMALL_NUMBER || bifactor <= -1.0f + UE_SMALL_NUMBER )
-                    {
-                        check( max>0 );
-
-                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
-                                FScheduledOp(BaseAt, item),
-                                FScheduledOp(Targets[max], item) );
-                    }
-                    // Mix two targets on the base
-                    else
-                    {
-                        // We will need the base again
-                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
-                                FScheduledOp(BaseAt, item),
-                                FScheduledOp(Targets[min], item),
-                                FScheduledOp(Targets[max], item) );
-                    }
+                    // We will need the base again
+                    AddOp( FScheduledOp( item.At, item, 2, dataAddress),
+                            FScheduledOp(BaseAt, item),
+                            FScheduledOp(TargetAt, item) );
                 }
 
                 break;
@@ -1201,44 +1151,29 @@ namespace mu
 
             case 2:
             {
-       		    MUTABLE_CPUPROFILER_SCOPE(ME_MORPH2_2)
+       		    MUTABLE_CPUPROFILER_SCOPE(ME_MORPH_2)
 
                 Ptr<const Mesh> pBase = LoadMesh( FCacheAddress(BaseAt,item) );
 
                 // Factor from 0 to 1 between the two targets
                 const FScheduledOpData& HeapData = m_heapData[ (size_t)item.CustomState ];
-                float bifactor = HeapData.Interpolate.Bifactor;
-                int min = HeapData.Interpolate.Min;
-                int max = HeapData.Interpolate.Max;
+                float Factor = HeapData.Interpolate.Bifactor;
 
                 MeshPtrConst pResult;
 
                 if (pBase)
                 {
-                    // Just the first of the targets
-					if ( bifactor < UE_SMALL_NUMBER && bifactor > -UE_SMALL_NUMBER )
+					// No morph
+					if (Factor < UE_SMALL_NUMBER && Factor > -UE_SMALL_NUMBER )
                     {
-						pResult = pBase->Clone();
+						pResult = pBase;
                     }
-                    // Just the second of the targets (positive or negative)
-                    else if ( bifactor >= 1.0f - UE_SMALL_NUMBER || bifactor <= -1.0f + UE_SMALL_NUMBER)
+					// The Morph, partial or full
+                    else 
                     {
-                        check( max>0 );
-                        Ptr<const Mesh> pMorph = LoadMesh( FCacheAddress(Targets[max],item) );
-						pResult = MeshMorph(pBase.get(), pMorph.get(), bifactor);
+                        Ptr<const Mesh> pMorph = LoadMesh( FCacheAddress(TargetAt,item) );
+						pResult = MeshMorph(pBase.get(), pMorph.get(), Factor);
                     }
-                    // Mix two targets on the base
-                    else
-                    {
-                        Ptr<const Mesh> pMin = LoadMesh( FCacheAddress(Targets[min],item) );
-                        Ptr<const Mesh> pMax = LoadMesh( FCacheAddress(Targets[max],item) );
-                        pResult = MeshMorph2( pBase.get(), pMin.get(), pMax.get(), bifactor );
-                    }
-					// Missing branch. With the current system we can never get apply a negative pMin morph, only a negative pMax morph.
-					// This is due to not having a bifactor value that represents a negative pMin morph.
-					// "-0" should represent a negative pMin morph, but it has the contradiction that 0 also represents positive pMax morph.
-					// In other words, we have a discontinuity arround 0.
-					// With the current implementation, the only solutions to get a negative pMin morph is to apply a really small negative value (lim x -> -0) (for example: -0.00001).
                 }
                 StoreMesh( item, pResult );
 

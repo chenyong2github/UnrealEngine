@@ -845,7 +845,7 @@ namespace mu
 			break;
         }
 
-        case OP_TYPE::ME_MORPH2:
+        case OP_TYPE::ME_MORPH:
         {
 			const uint8_t* data = program.GetOpArgsPointer(at);
 
@@ -857,15 +857,9 @@ namespace mu
 			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
 			f(BaseAt);
 
-			uint8 NumTargets = 0;
-			FMemory::Memcpy(&NumTargets, data, sizeof(uint8)); data += sizeof(uint8);
-
-			for (uint8 T = 0; T < NumTargets; ++T)
-			{
-				OP::ADDRESS TargetAt = 0;
-				FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
-				f(TargetAt);
-			}
+			OP::ADDRESS TargetAt = 0;
+			FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+			f(TargetAt);
 			break;
         }
 

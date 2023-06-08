@@ -15,7 +15,7 @@ namespace mu
 
 	//---------------------------------------------------------------------------------------------
 	ASTOpMeshMorph::ASTOpMeshMorph()
-		: Factor(this), Base(this)
+		: Factor(this), Base(this), Target(this)
 	{
 	}
 
@@ -29,18 +29,11 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void ASTOpMeshMorph::AddTarget(const Ptr<ASTOp>& InTarget)
-	{
-		Targets.Add( ASTChild(this,InTarget));
-	}
-
-
-	//---------------------------------------------------------------------------------------------
 	bool ASTOpMeshMorph::IsEqual(const ASTOp& otherUntyped) const
 	{
 		if (const ASTOpMeshMorph* other = dynamic_cast<const ASTOpMeshMorph*>(&otherUntyped))
 		{
-			return Factor == other->Factor && Base == other->Base && Targets == other->Targets;
+			return Factor == other->Factor && Base == other->Base && Target == other->Target;
 		}
 		return false;
 	}
@@ -52,10 +45,7 @@ namespace mu
 		Ptr<ASTOpMeshMorph> n = new ASTOpMeshMorph();
 		n->Factor = mapChild(Factor.child());
 		n->Base = mapChild(Base.child());
-		for (const ASTChild& r : Targets)
-		{
-			n->Targets.Add(ASTChild(n,mapChild(r.child())));
-		}
+		n->Target = mapChild(Target.child());
 		return n;
 	}
 
@@ -65,10 +55,7 @@ namespace mu
 	{
 		f(Factor);
 		f(Base);
-		for (ASTChild& T : Targets)
-		{
-			f(T);
-		}
+		f(Target);
 	}
 
 
@@ -77,10 +64,7 @@ namespace mu
 	{
 		uint64 res = std::hash<ASTOp*>()(Factor.child().get());
 		hash_combine(res, Base.child().get());
-		for (const ASTChild& T : Targets)
-		{
-			hash_combine(res, T.child().get());
-		}
+		hash_combine(res, Target.child().get());
 		return res;
 	}
 
@@ -94,7 +78,7 @@ namespace mu
 			linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
 
 			program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
-			AppendCode(program.m_byteCode, OP_TYPE::ME_MORPH2);
+			AppendCode(program.m_byteCode, OP_TYPE::ME_MORPH);
 
 			OP::ADDRESS FactorAt = Factor ? Factor->linkedAddress : 0;
 			AppendCode(program.m_byteCode, FactorAt);
@@ -102,12 +86,8 @@ namespace mu
 			OP::ADDRESS BaseAt = Base ? Base->linkedAddress : 0;
 			AppendCode(program.m_byteCode, BaseAt);
 
-			AppendCode(program.m_byteCode, (uint8)Targets.Num());
-			for (const ASTChild& b : Targets)
-			{
-				OP::ADDRESS TargetAt = b ? b->linkedAddress : 0;
-				AppendCode(program.m_byteCode, TargetAt);
-			}
+			OP::ADDRESS TargetAt = Target ? Target->linkedAddress : 0;
+			AppendCode(program.m_byteCode, TargetAt);
 		}
 	}
 

@@ -168,7 +168,7 @@ namespace mu
 				switch (at->GetOpType())
 				{
 
-				case OP_TYPE::ME_MORPH2:
+				case OP_TYPE::ME_MORPH:
 				{
 					mu::Ptr<ASTOpMeshMorph> newOp = mu::Clone<ASTOpMeshMorph>(at);
 					newOp->Base = Visit(newOp->Base.child());

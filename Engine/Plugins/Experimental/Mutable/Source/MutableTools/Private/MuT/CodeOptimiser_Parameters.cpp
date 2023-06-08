@@ -1670,7 +1670,7 @@ namespace mu
 					return false;
 				}
 
-                case OP_TYPE::ME_MORPH2:
+                case OP_TYPE::ME_MORPH:
                 {
                     // Manually choose how to recurse this op
 					const ASTOpMeshMorph* pTyped = dynamic_cast<const ASTOpMeshMorph*>( at.get() );
@@ -1688,12 +1688,9 @@ namespace mu
 							pending.Add({ pTyped->Factor.m_child, state });
                         }
 
-                        for (int32 t=0;t<pTyped->Targets.Num(); ++t)
+                        if ( pTyped->Target )
                         {
-                            if ( pTyped->Targets[t] )
-                            {
-								pending.Add({ pTyped->Targets[t].m_child, state });
-                            }
+							pending.Add({ pTyped->Target.m_child, state });
                         }
                     }
 

@@ -1004,21 +1004,6 @@ namespace mu
                     FMeshGenerationResult morphResult;
                     GenerateMesh(MorphTargetMeshOptions, morphResult, pMorph );
 
-					// BaseMorph generation through mesh diff
-					Ptr<ASTOpMeshDifference> diffBase;
-					{
-						// \TODO: Optimize by setting the identity morph constant instead.
-						Ptr<ASTOpMeshDifference> op = new ASTOpMeshDifference();
-						op->Base = meshResults.meshOp;
-						op->Target = meshResults.meshOp;
-
-						// Morphing tex coords here is not supported:
-						// Generating the homogoneous UVs is difficult since we don't have the base
-						// layout yet.                       
-						op->bIgnoreTextureCoords = true;
-						diffBase = op;
-					}
-
 					// Morph generation through mesh diff
 					Ptr<ASTOp> targetAd = morphResult.meshOp;
                     Ptr<ASTOpMeshDifference> diffAd;
@@ -1057,8 +1042,7 @@ namespace mu
 						op->Base = lastMeshOp;
 
 						// Targets
-						op->AddTarget(diffBase);
-						op->AddTarget(diffAd);
+						op->Target = diffAd;
                         morphAd = op;
                     }
 

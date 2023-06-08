@@ -21,35 +21,30 @@ namespace mu
 
 		static NODE_TYPE s_type;
 
-		NodeScalarPtr m_pFactor;
-		NodeMeshPtr m_pBase;
-		TArray<NodeMeshPtr> m_morphs;
-        bool m_vertexIndicesAreRelative_Deprecated = false;
+		Ptr<NodeScalar> Factor;
+		Ptr<NodeMesh> Base;
+		Ptr<NodeMesh> Morph;
 		
-		bool m_reshapeSkeleton = false;
-		bool m_reshapePhysicsVolumes = false;
+		bool bReshapeSkeleton = false;
+		bool bReshapePhysicsVolumes = false;
 		
-		TArray<string> m_bonesToDeform;
-		TArray<string> m_physicsToDeform;
+		TArray<string> BonesToDeform;
+		TArray<string> PhysicsToDeform;
 
         //!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 5;
+            uint32_t ver = 6;
 			arch << ver;
 
-			arch << m_pFactor;
-			arch << m_pBase;
-			arch << m_morphs;
-            arch << m_vertexIndicesAreRelative_Deprecated;
+			arch << Factor;
+			arch << Base;
+			arch << Morph;
 
-			arch << m_reshapeSkeleton;
-			arch << m_reshapePhysicsVolumes;
-			arch << m_bonesToDeform;
-
-			
-			arch << m_physicsToDeform;
-
+			arch << bReshapeSkeleton;
+			arch << bReshapePhysicsVolumes;
+			arch << BonesToDeform;
+			arch << PhysicsToDeform;
         }
 
 		//!
@@ -57,30 +52,50 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-			check(ver <= 5);
+			check(ver <= 6);
 
-			arch >> m_pFactor;
-			arch >> m_pBase;
-			arch >> m_morphs;
-            arch >> m_vertexIndicesAreRelative_Deprecated;
+			arch >> Factor;
+			arch >> Base;
+
+			if (ver < 6)
+			{
+				TArray<Ptr<NodeMesh>> Morphs;
+				arch >> Morphs;
+
+				// The result will not be the same.
+				if (!Morphs.IsEmpty())
+				{
+					Morph = Morphs.Last();
+				}
+			}
+			else
+			{
+				arch >> Morph;
+			}
+
+			if (ver < 6)
+			{
+				bool bDeprecated;
+				arch >> bDeprecated;
+			}
 	
 			if (ver >= 2)
 			{
-				arch >> m_reshapeSkeleton;
-				arch >> m_reshapePhysicsVolumes;
+				arch >> bReshapeSkeleton;
+				arch >> bReshapePhysicsVolumes;
 	
 				// This repetition is needed, there was a bug where m_reshapePhysicsVolumes was serialized twice in ver 2.
 				if (ver == 2) 
 				{
-					arch >> m_reshapePhysicsVolumes;
+					arch >> bReshapePhysicsVolumes;
 				}
-				arch >> m_bonesToDeform;			
+				arch >> BonesToDeform;			
 			}
 			else
 			{
-				m_reshapeSkeleton = false;
-				m_reshapePhysicsVolumes = false;
-				m_bonesToDeform.Empty();
+				bReshapeSkeleton = false;
+				bReshapePhysicsVolumes = false;
+				BonesToDeform.Empty();
 			}
 
 			if (ver == 3)
@@ -97,17 +112,17 @@ namespace mu
 
 			if (ver >= 3)
 			{
-				arch >> m_physicsToDeform;
+				arch >> PhysicsToDeform;
 			}
 			else
 			{
-				m_physicsToDeform.Empty();
+				PhysicsToDeform.Empty();
 			}
 
 		}
 
 		// NodeMesh::Private interface
-        NodeLayoutPtr GetLayout( int index ) const override;
+        Ptr<NodeLayout> GetLayout( int index ) const override;
 
 	};
 

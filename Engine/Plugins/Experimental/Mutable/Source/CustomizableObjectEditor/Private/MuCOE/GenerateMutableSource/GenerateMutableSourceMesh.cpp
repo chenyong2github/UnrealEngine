@@ -2111,7 +2111,7 @@ mu::MeshPtr BuildMorphedMutableMesh(const UEdGraphPin* BaseSourcePin, const FStr
 }
 
 
-void GenerateMorphFactor(const UCustomizableObjectNode* Node, const UEdGraphPin& FactorPin, FMutableGraphGenerationContext& GenerationContext, mu::NodeMeshMorphPtr MeshNode)
+void GenerateMorphFactor(const UCustomizableObjectNode* Node, const UEdGraphPin& FactorPin, FMutableGraphGenerationContext& GenerationContext, mu::Ptr<mu::NodeMeshMorph> MeshNode)
 {
 	if (const UEdGraphPin* ConnectedPin = FollowInputPin(FactorPin))
 	{
@@ -2614,8 +2614,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 	const UCustomizableObjectNode* MorphNode = TypedNodeMorphs[MorphIndex].OwningNode;
 	check(MorphNode);
 	
-	mu::NodeMeshMorphPtr Result = new mu::NodeMeshMorph();
-	Result->SetMorphCount(2);
+	mu::Ptr<mu::NodeMeshMorph> Result = new mu::NodeMeshMorph();
 	
 	// Factor
 	GenerateMorphFactor(MorphNode, *TypedNodeMorphs[MorphIndex].FactorPin, GenerationContext, Result);
@@ -2674,16 +2673,12 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 			MorphedSourceMeshNodeTable->SetParameterName(StringCast<ANSICHAR>(*TypedNodeTable->ParameterName).Get());
 			MorphedSourceMeshNodeTable->SetMessageContext(MorphNode);
 
-			// A null target will leave the base unchanged
-			mu::NodeMeshPtr IdentityMorph = nullptr;
-			Result->SetMorph(0, IdentityMorph);
-
 			mu::NodeMeshMakeMorphPtr Morph = new mu::NodeMeshMakeMorph;
 			Morph->SetBase(BaseSourceMesh.get());
 			Morph->SetTarget(MorphedSourceMeshNodeTable.get());
 			Morph->SetMessageContext(MorphNode);
 
-			Result->SetMorph(1, Morph);
+			Result->SetMorph(Morph);
 		}
 	}
 	else
@@ -2698,19 +2693,12 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 			MorphedSourceMeshNode->SetValue(MorphedSourceMesh);
 			MorphedSourceMeshNode->SetMessageContext(MorphNode);
 
-			mu::NodeMeshMakeMorphPtr IdentityMorph = new mu::NodeMeshMakeMorph;
-			IdentityMorph->SetBase(BaseSourceMesh.get());
-			IdentityMorph->SetTarget(BaseSourceMesh.get());
-			IdentityMorph->SetMessageContext(MorphNode);
-
-			Result->SetMorph(0, IdentityMorph);
-
 			mu::NodeMeshMakeMorphPtr Morph = new mu::NodeMeshMakeMorph;
 			Morph->SetBase(BaseSourceMesh.get());
 			Morph->SetTarget(MorphedSourceMeshNode.get());
 			Morph->SetMessageContext(MorphNode);
 
-			Result->SetMorph(1, Morph);
+			Result->SetMorph(Morph);
 
 			if (UCustomizableObjectNodeMeshMorph* TypedMorphNode = Cast<UCustomizableObjectNodeMeshMorph>(TypedNodeMorphs[MorphIndex].OwningNode))
 			{
@@ -2771,7 +2759,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 }
 
 
-void GenerateMorphTarget(const UCustomizableObjectNode* Node, const UEdGraphPin* BaseSourcePin, FMutableGraphGenerationContext& GenerationContext, mu::NodeMeshMorphPtr MeshNode, FString MorphName)
+void GenerateMorphTarget(const UCustomizableObjectNode* Node, const UEdGraphPin* BaseSourcePin, FMutableGraphGenerationContext& GenerationContext, mu::Ptr<mu::NodeMeshMorph> MeshNode, FString MorphName)
 {
 	SCOPED_PIN_DATA(GenerationContext, BaseSourcePin)
 
@@ -2785,16 +2773,12 @@ void GenerateMorphTarget(const UCustomizableObjectNode* Node, const UEdGraphPin*
 		MorphedSourceMeshNode->SetValue(MorphedSourceMesh);
 		MorphedSourceMeshNode->SetMessageContext(Node);
 
-		// A null target will leave the base unchanged
-		mu::NodeMeshPtr IdentityMorph = nullptr;
-		MeshNode->SetMorph(0, IdentityMorph);
-
 		mu::NodeMeshMakeMorphPtr Morph = new mu::NodeMeshMakeMorph;
 		Morph->SetBase(BaseSourceMesh.get());
 		Morph->SetTarget(MorphedSourceMeshNode.get());
 		Morph->SetMessageContext(Node);
 
-		MeshNode->SetMorph(1, Morph);
+		MeshNode->SetMorph(Morph);
 	}
 	else
 	{
@@ -3105,7 +3089,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 		}
 		else
 		{
-			mu::NodeMeshMorphPtr MeshNode = new mu::NodeMeshMorph();
+			mu::Ptr<mu::NodeMeshMorph> MeshNode = new mu::NodeMeshMorph();
 			Result = MeshNode;
 		}
 	}
@@ -3123,10 +3107,8 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 					TypedNodeMeshMorphStackDef->SetRefreshNodeWarning();
 				}
 
-				mu::NodeMeshMorphPtr MeshNode = new mu::NodeMeshMorph();
+				mu::Ptr<mu::NodeMeshMorph> MeshNode = new mu::NodeMeshMorph();
 				Result = MeshNode;
-
-				MeshNode->SetMorphCount(2);
 
 				TArray<UEdGraphPin*> MorphPins = TypedNodeMeshMorphStackDef->GetAllNonOrphanPins();
 

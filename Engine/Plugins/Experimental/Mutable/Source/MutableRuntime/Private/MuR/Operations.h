@@ -233,9 +233,8 @@ namespace mu
         //! The meshes must have the same topology, etc.
         ME_DIFFERENCE,
 
-        //! Apply a linear combination of two morphs on a base. The 2 morphs are taken from a
-        //! sequence.
-        ME_MORPH2,
+        //! Apply a one morphs on a base. 
+        ME_MORPH,
 
         //! Merge a mesh to a mesh
         ME_MERGE,

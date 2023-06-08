@@ -573,7 +573,7 @@ namespace mu
                 break;
              }
 
-            case OP_TYPE::ME_MORPH2:
+            case OP_TYPE::ME_MORPH:
             {
                 recurse = false;
 
@@ -582,13 +582,7 @@ namespace mu
                 uint64_t newState = currentSemantics;
                 newState |= (UINT64_C(1)<<MBS_VERTEXINDEX);
                 RecurseWithState( op->Base.child(), newState );
-                for ( int32 o=0; o<op->Targets.Num(); ++o)
-                {
-                    if (op->Targets[o])
-                    {
-                        RecurseWithState( op->Targets[o].child(), newState );
-                    }
-                }
+                RecurseWithState( op->Target.child(), newState );
                 break;
              }
 

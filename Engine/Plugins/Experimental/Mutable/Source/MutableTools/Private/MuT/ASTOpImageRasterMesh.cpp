@@ -265,7 +265,7 @@ namespace mu
 			break;
 		}
 
-		case OP_TYPE::ME_MORPH2:
+		case OP_TYPE::ME_MORPH:
 		{
 			const ASTOpMeshMorph* typedSource = dynamic_cast<const ASTOpMeshMorph*>(sourceAt.get());
 			Ptr<ASTOpImageRasterMesh> rasterOp = mu::Clone<ASTOpImageRasterMesh>(this);

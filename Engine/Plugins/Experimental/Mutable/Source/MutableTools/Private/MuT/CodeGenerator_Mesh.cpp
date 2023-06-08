@@ -765,9 +765,9 @@ class Node;
         Ptr<ASTOpMeshMorph> OpMorph = new ASTOpMeshMorph();
 
         // Factor
-        if ( node.m_pFactor )
+        if ( node.Factor )
         {
-            OpMorph->Factor = Generate( node.m_pFactor.get() );
+            OpMorph->Factor = Generate( node.Factor.get() );
         }
         else
         {
@@ -777,11 +777,11 @@ class Node;
 
         // Base
         FMeshGenerationResult BaseResult;
-        if ( node.m_pBase )
+        if ( node.Base )
         {
 			FMeshGenerationOptions BaseOptions = InOptions;
 			BaseOptions.bUniqueVertexIDs = true;
-            GenerateMesh(BaseOptions,BaseResult, node.m_pBase );
+            GenerateMesh(BaseOptions,BaseResult, node.Base );
             OpMorph->Base = BaseResult.meshOp;
         }
         else
@@ -791,7 +791,7 @@ class Node;
                                             ELMT_ERROR, node.m_errorContext );
         }        
 
-        for ( int32 t=0 ; t<node.m_morphs.Num(); ++t )
+		if (node.Morph)
         {
             FMeshGenerationResult TargetResult;
 			FMeshGenerationOptions TargetOptions = InOptions;
@@ -801,15 +801,15 @@ class Node;
 			// sure that we get the correct mesh when generating the target
 			TargetOptions.OverrideLayouts = BaseResult.GeneratedLayouts;
 			TargetOptions.ActiveTags.Empty();
-            GenerateMesh(TargetOptions, TargetResult, node.m_morphs[t]);
+            GenerateMesh(TargetOptions, TargetResult, node.Morph);
 
             // TODO: Make sure that the target is a mesh with the morph format
             Ptr<ASTOp> target = TargetResult.meshOp;
 
-            OpMorph->AddTarget( target );
+            OpMorph->Target = target;
         }
  
-        const bool bReshapeEnabled = node.m_reshapeSkeleton || node.m_reshapePhysicsVolumes;
+        const bool bReshapeEnabled = node.bReshapeSkeleton || node.bReshapePhysicsVolumes;
         
         Ptr<ASTOpMeshMorphReshape> OpMorphReshape;
         if ( bReshapeEnabled )
@@ -820,10 +820,10 @@ class Node;
 			// Setting bReshapeVertices to false the bind op will remove all mesh members except 
 			// PhysicsBodies and the Skeleton.
             OpBind->bReshapeVertices = false;
-		    OpBind->bReshapeSkeleton = node.m_reshapeSkeleton;
-		    OpBind->BonesToDeform = node.m_bonesToDeform;
-    	    OpBind->bReshapePhysicsVolumes = node.m_reshapePhysicsVolumes; 
-			OpBind->PhysicsToDeform = node.m_physicsToDeform;
+		    OpBind->bReshapeSkeleton = node.bReshapeSkeleton;
+		    OpBind->BonesToDeform = node.BonesToDeform;
+    	    OpBind->bReshapePhysicsVolumes = node.bReshapePhysicsVolumes; 
+			OpBind->PhysicsToDeform = node.PhysicsToDeform;
 			OpBind->BindingMethod = static_cast<uint32>(EShapeBindingMethod::ReshapeClosestProject);
             
 			OpBind->Mesh = BaseResult.meshOp;

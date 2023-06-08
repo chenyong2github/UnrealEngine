@@ -19,8 +19,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	// Static initialisation
 	//---------------------------------------------------------------------------------------------
-	NODE_TYPE NodeMeshMorph::Private::s_type =
-			NODE_TYPE( "MeshMorph", NodeMesh::GetStaticType() );
+	NODE_TYPE NodeMeshMorph::Private::s_type = NODE_TYPE( "MeshMorph", NodeMesh::GetStaticType() );
 
 
 	//---------------------------------------------------------------------------------------------
@@ -35,7 +34,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeMeshMorph::GetInputCount() const
 	{
-		return 2 + m_pD->m_morphs.Num();
+		return 3;
 	}
 
 
@@ -49,16 +48,19 @@ namespace mu
 		switch (i)
 		{
 		case 0:
-			pResult = m_pD->m_pFactor.get();
+			pResult = m_pD->Factor.get();
 			break;
 
 		case 1:
-			pResult = m_pD->m_pBase.get();
+			pResult = m_pD->Base.get();
+			break;
+
+		case 2:
+			pResult = m_pD->Morph.get();
 			break;
 
 		default:
-			pResult = m_pD->m_morphs[i-2].get();
-			break;
+			check(false);
 		}
 
 		return pResult;
@@ -66,22 +68,25 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshMorph::SetInputNode( int i, NodePtr pNode )
+	void NodeMeshMorph::SetInputNode( int i, Ptr<Node> pNode )
 	{
 		check( i>=0 && i<GetInputCount() );
 
 		switch (i)
 		{
 		case 0:
-			m_pD->m_pFactor = dynamic_cast<NodeScalar*>(pNode.get());
+			m_pD->Factor = dynamic_cast<NodeScalar*>(pNode.get());
 			break;
 
 		case 1:
-			m_pD->m_pBase = dynamic_cast<NodeMesh*>(pNode.get());
+			m_pD->Base = dynamic_cast<NodeMesh*>(pNode.get());
+			break;
+
+		case 2:
+			m_pD->Morph = dynamic_cast<NodeMesh*>(pNode.get());
 			break;
 
 		default:
-			m_pD->m_morphs[i-2] = dynamic_cast<NodeMesh*>(pNode.get());
 			break;
 		}
 	}
@@ -90,82 +95,67 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	// Own Interface
 	//---------------------------------------------------------------------------------------------
-	NodeScalarPtr NodeMeshMorph::GetFactor() const
+	Ptr<NodeScalar> NodeMeshMorph::GetFactor() const
 	{
-		return m_pD->m_pFactor.get();
+		return m_pD->Factor.get();
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshMorph::SetFactor( NodeScalarPtr pNode )
+	void NodeMeshMorph::SetFactor( Ptr<NodeScalar> pNode )
 	{
-		m_pD->m_pFactor = pNode;
+		m_pD->Factor = pNode;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	NodeMeshPtr NodeMeshMorph::GetBase() const
+	Ptr<NodeMesh> NodeMeshMorph::GetBase() const
 	{
-		return m_pD->m_pBase.get();
+		return m_pD->Base.get();
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshMorph::SetBase( NodeMeshPtr pNode )
+	void NodeMeshMorph::SetBase( Ptr<NodeMesh> pNode )
 	{
-		m_pD->m_pBase = pNode;
+		m_pD->Base = pNode;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	NodeMeshPtr NodeMeshMorph::GetMorph( int t ) const
+	NodeMeshPtr NodeMeshMorph::GetMorph() const
 	{
-		check( t>=0 && t<m_pD->m_morphs.Num() );
-
-		return m_pD->m_morphs[t].get();
+		return m_pD->Morph.get();
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshMorph::SetMorph( int t, NodeMeshPtr pNode )
+	void NodeMeshMorph::SetMorph( Ptr<NodeMesh> pNode )
 	{
-		check( t>=0 && t<m_pD->m_morphs.Num() );
-		m_pD->m_morphs[t] = pNode;
-	}
-
-	//---------------------------------------------------------------------------------------------
-	void NodeMeshMorph::SetMorphCount( int t )
-	{
-		m_pD->m_morphs.SetNum(t);
-	}
-
-	//---------------------------------------------------------------------------------------------
-	int NodeMeshMorph::GetMorphCount() const
-	{
-		return m_pD->m_morphs.Num();
+		m_pD->Morph = pNode;
 	}
 
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshMorph::SetReshapeSkeleton(bool bEnable)
 	{
-		m_pD->m_reshapeSkeleton = bEnable;
+		m_pD->bReshapeSkeleton = bEnable;
 	}	
 
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshMorph::AddBoneToDeform(const char* BoneName)
 	{
-		m_pD->m_bonesToDeform.Emplace(BoneName);
+		m_pD->BonesToDeform.Emplace(BoneName);
 	}
 
 	void NodeMeshMorph::AddPhysicsBodyToDeform(const char* BoneName)
 	{
-		m_pD->m_physicsToDeform.Emplace(BoneName);
+		m_pD->PhysicsToDeform.Emplace(BoneName);
 	}
 
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshMorph::SetReshapePhysicsVolumes(bool bEnable)
 	{
-		m_pD->m_reshapePhysicsVolumes = bEnable;
+		m_pD->bReshapePhysicsVolumes = bEnable;
 	}
 
 	//---------------------------------------------------------------------------------------------
@@ -173,10 +163,10 @@ namespace mu
 	{
 		NodeLayoutPtr pResult;
 
-		if ( m_pBase )
+		if ( Base )
 		{
 			NodeMesh::Private* pPrivate =
-					dynamic_cast<NodeMesh::Private*>( m_pBase->GetBasePrivate() );
+					dynamic_cast<NodeMesh::Private*>( Base->GetBasePrivate() );
 
 			pResult = pPrivate->GetLayout( index );
 		}
