@@ -17,6 +17,9 @@
 
 DEFINE_LOG_CATEGORY(LogIoStoreOnDemand);
 
+namespace UE::IO::Private
+{
+
 ////////////////////////////////////////////////////////////////////////////////
 static uint64 ParseSizeParam(const TCHAR* Param)
 {
@@ -34,23 +37,38 @@ static uint64 ParseSizeParam(const TCHAR* Param)
 		return 0;
 	}
 
-	if (ParamValue.EndsWith(TEXT("GB")))
-	{
-		Size *= 1024 * 1024 * 1024;
-	}
-
-	else if (ParamValue.EndsWith(TEXT("MB")))
-	{
-		Size *= 1024 * 1024;
-	}
-
-	else if (ParamValue.EndsWith(TEXT("KB")))
-	{
-		Size *= 1024;
-	}
+	if (ParamValue.EndsWith(TEXT("GB"))) return Size << 30;
+	if (ParamValue.EndsWith(TEXT("MB"))) return Size << 20;
+	if (ParamValue.EndsWith(TEXT("KB"))) return Size << 10;
 
 	return Size;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+static bool ParseEncryptionKeyParam(const FString& Param, FGuid& OutKeyGuid, FAES::FAESKey& OutKey)
+{
+	TArray<FString> Tokens;
+	Param.ParseIntoArray(Tokens, TEXT(":"), true);
+
+	if (Tokens.Num() == 2)
+	{
+		TArray<uint8> KeyBytes;
+		if (FGuid::Parse(Tokens[0], OutKeyGuid) && FBase64::Decode(Tokens[1], KeyBytes))
+		{
+			if (OutKeyGuid != FGuid() && KeyBytes.Num() == FAES::FAESKey::KeySize)
+			{
+				FMemory::Memcpy(OutKey.Key, KeyBytes.GetData(), FAES::FAESKey::KeySize);
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
+} // namespace UE::IO::Private
+
+
 
 namespace UE
 {
@@ -283,34 +301,14 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
-	static bool ParseEncryptionKeyParam(const FString& Param, FGuid& OutGuid, FAES::FAESKey& OutKey);
 };
 
 IMPLEMENT_MODULE(FIoStoreOnDemandModule, IoStoreOnDemand);
 
-bool FIoStoreOnDemandModule::ParseEncryptionKeyParam(const FString& Param, FGuid& OutKeyGuid, FAES::FAESKey& OutKey)
-{
-	TArray<FString> Tokens;
-	Param.ParseIntoArray(Tokens, TEXT(":"), true);
-
-	if (Tokens.Num() == 2)
-	{
-		TArray<uint8> KeyBytes;
-		if (FGuid::Parse(Tokens[0], OutKeyGuid) && FBase64::Decode(Tokens[1], KeyBytes))
-		{
-			if (OutKeyGuid != FGuid() && KeyBytes.Num() == FAES::FAESKey::KeySize)
-			{
-				FMemory::Memcpy(OutKey.Key, KeyBytes.GetData(), FAES::FAESKey::KeySize);
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 void FIoStoreOnDemandModule::StartupModule()
 {
+	using namespace UE::IO::Private;
+
 #if !WITH_EDITOR
 	UE::FOnDemandEndpoint Endpoint;
 	
