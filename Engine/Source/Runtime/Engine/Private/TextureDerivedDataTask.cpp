@@ -1178,6 +1178,11 @@ static int64 GetBuildRequiredMemoryEstimate(UTexture* InTexture,
 				MemoryEstimate += FMath::Max(RDOPhase1MemUse,RDOPhase2MemUse);
 			}
 		}
+		else if (IsASTCBlockCompressedTextureFormat(PixelFormat))
+		{
+			// ASTCenc does an entermediate copy to RGBA16F for HDR formats and RGBA8 for LDR
+			MemoryEstimate += (IsHDR(PixelFormat) ? 8 : 4) * TotalNumPixels;
+		}
 		else
 		{
 			// note: memory ues of non-Oodle encoders is not estimated
