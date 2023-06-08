@@ -152,6 +152,13 @@ public class Core : ModuleRules
 
 			PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "mimalloc/include"));
 			PrivateDefinitions.Add("PLATFORM_BUILDS_MIMALLOC=1");
+
+			if (Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Type != TargetType.Program)
+			{
+				PublicDefinitions.Add("UE_MEMORY_TRACE_AVAILABLE=1");
+				PublicDefinitions.Add("UE_MEMORY_TAGS_TRACE_ENABLED=1");
+				PublicDefinitions.Add("UE_CALLSTACK_TRACE_ENABLED=1");
+			}
 		}
 
 		if (Target.bCompileICU == true)
