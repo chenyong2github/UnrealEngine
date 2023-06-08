@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
@@ -389,17 +390,26 @@ namespace Horde.Server.Storage
 				return Forbid(StorageAclAction.ReadRefs, namespaceId);
 			}
 
-			return await ReadRefInternalAsync(_storageService, namespaceId, refName, cancellationToken);
+			return await ReadRefInternalAsync(_storageService, namespaceId, refName, Request.Headers, cancellationToken);
 		}
 
 		/// <summary>
 		/// Reads a ref from storage, without performing namespace access checks.
 		/// </summary>
-		internal static async Task<ActionResult<ReadRefResponse>> ReadRefInternalAsync(StorageService storageService, NamespaceId namespaceId, RefName refName, CancellationToken cancellationToken)
+		internal static async Task<ActionResult<ReadRefResponse>> ReadRefInternalAsync(StorageService storageService, NamespaceId namespaceId, RefName refName, IHeaderDictionary headers, CancellationToken cancellationToken)
 		{
 			IStorageClient client = await storageService.GetClientAsync(namespaceId, cancellationToken);
 
-			NodeHandle? target = await client.TryReadRefTargetAsync(refName, cancellationToken: cancellationToken);
+			RefCacheTime cacheTime = new RefCacheTime();
+			foreach (string entry in headers.CacheControl)
+			{
+				if (CacheControlHeaderValue.TryParse(entry, out CacheControlHeaderValue? value) && value?.MaxAge != null)
+				{
+					cacheTime = new RefCacheTime(value.MaxAge.Value);
+				}
+			}
+
+			NodeHandle? target = await client.TryReadRefTargetAsync(refName, cacheTime, cancellationToken: cancellationToken);
 			if (target == null)
 			{
 				return new NotFoundResult();

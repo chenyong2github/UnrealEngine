@@ -324,6 +324,7 @@ namespace Horde.Server.Storage.Backends
 				newGetRequest.Key = fullPath;
 				newGetRequest.Verb = verb;
 				newGetRequest.Expires = DateTime.UtcNow.AddHours(3.0);
+				newGetRequest.ResponseHeaderOverrides.CacheControl = "private, max-age=2592000, immutable"; // 30 days
 
 				string url = _client.GetPreSignedURL(newGetRequest);
 				return new Uri(url);

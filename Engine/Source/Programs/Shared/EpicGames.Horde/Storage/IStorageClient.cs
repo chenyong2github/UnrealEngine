@@ -158,7 +158,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Node pointed to by the ref</returns>
-		Task<NodeHandle?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
+		Task<NodeHandle?> TryReadRefTargetAsync(RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a new ref to the store which points to a new blob
@@ -248,6 +248,46 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
+	/// Indicates the maximum age of a entry returned from a cache in the hierarchy
+	/// </summary>
+	/// <param name="Utc">Oldest allowed timestamp for a returned result</param>
+	public record struct RefCacheTime(DateTime Utc)
+	{
+		/// <summary>
+		/// Maximum age for a cached value to be returned
+		/// </summary>
+		public TimeSpan MaxAge => DateTime.UtcNow - Utc;
+
+		/// <summary>
+		/// Sets the earliest time at which the entry must have been valid
+		/// </summary>
+		/// <param name="age">Maximum age of any returned cache value. Taken from the moment that this object was created.</param>
+		public RefCacheTime(TimeSpan age) : this(DateTime.UtcNow - age) { }
+
+		/// <summary>
+		/// Tests whether this value is set
+		/// </summary>
+		public bool IsSet() => Utc != default;
+
+		/// <summary>
+		/// Determines if this cache time deems a particular cache entry stale
+		/// </summary>
+		/// <param name="entryTime">Time at which the cache entry was valid</param>
+		/// <param name="cacheTime">Maximum cache time to test against</param>
+		public static bool IsStaleCacheEntry(DateTime entryTime, RefCacheTime cacheTime) => cacheTime.IsSet() && cacheTime.Utc < entryTime;
+
+		/// <summary>
+		/// Implicit conversion operator from datetime values.
+		/// </summary>
+		public static implicit operator RefCacheTime(DateTime time) => new RefCacheTime(time);
+
+		/// <summary>
+		/// Implicit conversion operator from timespan values.
+		/// </summary>
+		public static implicit operator RefCacheTime(TimeSpan age) => new RefCacheTime(age);
+	}
+
+	/// <summary>
 	/// Extension methods for <see cref="IStorageClient"/>
 	/// </summary>
 	public static class StorageClientExtensions
@@ -326,36 +366,10 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>True if the ref exists, false if it did not exist</returns>
-		public static async Task<bool> HasRefAsync(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public static async Task<bool> HasRefAsync(this IStorageClient store, RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			NodeHandle? target = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 			return target != null;
-		}
-
-		/// <summary>
-		/// Checks if the given ref exists
-		/// </summary>
-		/// <param name="store">The store instance to read from</param>
-		/// <param name="name">Name of the reference to look for</param>
-		/// <param name="maxAge">Maximum age of any cached ref</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>True if the ref exists, false if it did not exist</returns>
-		public static Task<bool> HasRefAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
-		{
-			return HasRefAsync(store, name, DateTime.UtcNow - maxAge, cancellationToken);
-		}
-
-		/// <summary>
-		/// Attempts to reads a ref from the store
-		/// </summary>
-		/// <param name="store">The store instance to read from</param>
-		/// <param name="name">Id for the ref</param>
-		/// <param name="maxAge">Maximum age of any cached ref</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The ref target</returns>
-		public static Task<NodeHandle?> TryReadRefTargetAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
-		{
-			return store.TryReadRefTargetAsync(name, DateTime.UtcNow - maxAge, cancellationToken);
 		}
 
 		/// <summary>
@@ -366,7 +380,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency of any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The ref target</returns>
-		public static async Task<NodeHandle> ReadRefTargetAsync(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public static async Task<NodeHandle> ReadRefTargetAsync(this IStorageClient store, RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			NodeHandle? refTarget = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 			if (refTarget == null)
@@ -374,19 +388,6 @@ namespace EpicGames.Horde.Storage
 				throw new RefNameNotFoundException(name);
 			}
 			return refTarget;
-		}
-
-		/// <summary>
-		/// Reads a ref from the store, throwing an exception if it does not exist
-		/// </summary>
-		/// <param name="store">The store instance to read from</param>
-		/// <param name="name">Id for the ref</param>
-		/// <param name="maxAge">Maximum age for any cached result</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The blob instance</returns>
-		public static Task<NodeHandle> ReadRefTargetAsync(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
-		{
-			return ReadRefTargetAsync(store, name, DateTime.UtcNow - maxAge, cancellationToken);
 		}
 
 		#endregion
