@@ -346,6 +346,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 #endif
 ,	bAllowApproximateOcclusion(InComponent->Mobility != EComponentMobility::Movable)
 ,   bHoldout(InComponent->bHoldout)
+,	bSplineMesh(false)
 ,	bUseAsOccluder(InComponent->bUseAsOccluder)
 ,	bSelectable(InComponent->bSelectable)
 ,	bHasPerInstanceHitProxies(InComponent->bHasPerInstanceHitProxies)
