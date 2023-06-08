@@ -183,6 +183,27 @@ public:
 };
 
 /**
+ * Configure per-project settings for the Level Editor
+ */
+UCLASS(config=Editor, meta=(DisplayName="Level Editor"), defaultconfig)
+class UNREALED_API ULevelEditorProjectSettings : public UDeveloperSettings
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, config, Category=Editing, meta=(
+		DisplayName="Enable viewport static mesh instance selection",
+		ConsoleVariable="TypedElements.EnableViewportSMInstanceSelection"))
+	bool bEnableViewportSMInstanceSelection;
+
+public:
+	// UObject interface
+	virtual void PostInitProperties() override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	// End of UObject interface
+};
+
+/**
  * Configure per-project performance settings for the Editor
  */
 UCLASS(config=Editor, meta=(DisplayName="Performance"), defaultconfig)

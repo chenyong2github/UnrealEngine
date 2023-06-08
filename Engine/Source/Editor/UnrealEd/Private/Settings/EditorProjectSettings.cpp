@@ -181,6 +181,34 @@ void ULevelEditor2DSettings::PostEditChangeProperty(struct FPropertyChangedEvent
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
+/* ULevelEditorProjectSettings
+*****************************************************************************/
+
+ULevelEditorProjectSettings::ULevelEditorProjectSettings( const FObjectInitializer& ObjectInitializer )
+	: Super(ObjectInitializer)
+	, bEnableViewportSMInstanceSelection(true)
+{
+}
+
+void ULevelEditorProjectSettings::PostInitProperties()
+{
+	Super::PostInitProperties();
+	if (FProperty* EnableSMInstanceSelectionProperty = GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULevelEditorProjectSettings, bEnableViewportSMInstanceSelection)))
+	{
+		ExportValuesToConsoleVariables(EnableSMInstanceSelectionProperty);
+	}
+}
+
+void ULevelEditorProjectSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	if (!PropertyChangedEvent.Property)
+	{
+		return;
+	}
+	ExportValuesToConsoleVariables(PropertyChangedEvent.Property);
+}
+
 
 /* UEditorPerformanceProjectSettings
 *****************************************************************************/
