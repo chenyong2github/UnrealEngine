@@ -8,17 +8,20 @@ namespace UE::Sequencer
 
 void FSelectionBase::Empty()
 {
-	FSelectionEventSuppressor SuppressEvents = Owner->SuppressEvents();
+	FSelectionEventSuppressor SuppressEvents(Owner);
 	EmptyImpl();
 }
 
 void FSelectionBase::ReportChanges(bool bInSelectionChanged)
 {
-	if (bInSelectionChanged && !bSelectionChanged)
+	if (Owner)
 	{
-		Owner->PreSelectionSetChangeEvent(this);
+		if (bInSelectionChanged && !bSelectionChanged)
+		{
+			Owner->PreSelectionSetChangeEvent(this);
+		}
+		bSelectionChanged |= bInSelectionChanged;
 	}
-	bSelectionChanged |= bInSelectionChanged;
 }
 
 } // namespace UE::Sequencer
