@@ -10,6 +10,7 @@
 #include "HAL/PlatformTime.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "Misc/FeedbackContext.h"
 #include "Tasks/Task.h"
 #include "Templates/Greater.h"
 
