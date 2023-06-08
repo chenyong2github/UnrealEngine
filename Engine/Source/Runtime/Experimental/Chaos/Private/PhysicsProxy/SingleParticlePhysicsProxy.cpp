@@ -153,9 +153,9 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 			}
 		}
 		
-		if (bHasMaterial)
+		// If the material, geometry, shape data, or sleep properties changed, we need to notify any systems that cache material data
+		if (bHasMaterial || bUpdateCollisionData || NewNonFrequentData || bHasDynamicData)
 		{
-			// If materials changed, collisions need to recache their material data
 			Evolution.ParticleMaterialChanged(Handle);
 		}
 
