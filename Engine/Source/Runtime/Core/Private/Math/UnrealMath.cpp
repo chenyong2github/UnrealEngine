@@ -1428,8 +1428,8 @@ namespace Math
 			const T Y = FMath::Abs(A.Y);
 			const T Z = FMath::Abs(A.Z);
 
-			// Find most orthogonal basis 
-			const TVector<T> Basis = X < Y ? (X < Z ? TVector<T>::XAxisVector : TVector<T>::ZAxisVector) : (Y < Z ? TVector<T>::YAxisVector : TVector<T>::ZAxisVector);
+			// Find orthogonal basis. 
+			const TVector<T> Basis = (X > Y && X > Z) ? TVector<T>::YAxisVector : -TVector<T>::XAxisVector;
 
 			//Result = FVector::CrossProduct(A, Basis);
 			Result = TQuat<T>(
