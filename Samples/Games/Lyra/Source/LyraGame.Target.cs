@@ -25,7 +25,7 @@ public class LyraGameTarget : TargetRules
 	{
 		ILogger Logger = Target.Logger;
 		
-		Target.DefaultBuildSettings = BuildSettingsVersion.V3;
+		Target.DefaultBuildSettings = BuildSettingsVersion.V4;
 		Target.IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		bool bIsTest = Target.Configuration == UnrealTargetConfiguration.Test;
