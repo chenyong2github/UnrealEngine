@@ -274,7 +274,6 @@ namespace EpicGames.OIDC
 							try
 							{
 								loginResult = await ProcessHttpRequest(http, loginState, oidcClient);
-								http.Stop();
 							}
 							catch when (cancellationToken.IsCancellationRequested)
 							{
@@ -283,6 +282,8 @@ namespace EpicGames.OIDC
 
 							// wait a few seconds before shutting down the http server to give the browser time to actually load everything it needs
 							await Task.Delay(2000, cancellationToken);
+
+							http.Stop();
 						}
 					}
 #pragma warning restore CA2000 // Dispose objects before losing scope
