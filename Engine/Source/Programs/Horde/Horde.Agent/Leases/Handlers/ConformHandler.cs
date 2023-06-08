@@ -50,7 +50,7 @@ namespace Horde.Agent.Leases.Handlers
 		async Task<LeaseResult> ExecuteInternalAsync(ISession session, string leaseId, ConformTask conformTask, IServerLogger conformLogger, CancellationToken cancellationToken)
 		{
 			conformLogger.LogInformation("Conforming, lease {LeaseId}", leaseId);
-			await session.TerminateProcessesAsync(conformLogger, cancellationToken);
+			await session.TerminateProcessesAsync(TerminateCondition.BeforeConform, conformLogger, cancellationToken);
 
 			bool removeUntrackedFiles = conformTask.RemoveUntrackedFiles;
 			IList<AgentWorkspace> pendingWorkspaces = conformTask.Workspaces;

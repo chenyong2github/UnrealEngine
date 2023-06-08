@@ -198,7 +198,7 @@ namespace Horde.Agent.Leases.Handlers
 			string executorName = String.IsNullOrEmpty(options.JobOptions.Executor) ? _settings.Executor : options.JobOptions.Executor;
 			
 			batchLogger.LogInformation("Executing batch {BatchId} using {Executor} executor", options.BatchId, executorName);
-			await session.TerminateProcessesAsync(batchLogger, cancellationToken);
+			await session.TerminateProcessesAsync(TerminateCondition.BeforeBatch, batchLogger, cancellationToken);
 
 			IJobExecutorFactory? executorFactory = _executorFactories.FirstOrDefault(x => x.Name.Equals(executorName, StringComparison.OrdinalIgnoreCase));
 			if (executorFactory == null)
@@ -310,7 +310,7 @@ namespace Horde.Agent.Leases.Handlers
 							}
 
 							// Kill any processes spawned by the step
-							await session.TerminateProcessesAsync(batchLogger, cancellationToken);
+							await session.TerminateProcessesAsync(TerminateCondition.AfterStep, batchLogger, cancellationToken);
 
 							// Wait for the logger to finish
 							await stepLogger.StopAsync();
@@ -343,6 +343,16 @@ namespace Horde.Agent.Leases.Handlers
 				{
 					batchLogger.LogError(ex, "Exception while executing batch: {Ex}", ex);
 				}
+			}
+
+			// Terminate any processes which are still running
+			try
+			{
+				await session.TerminateProcessesAsync(TerminateCondition.AfterBatch, batchLogger, CancellationToken.None);
+			}
+			catch(Exception ex)
+			{
+				batchLogger.LogWarning(ex, "Exception while terminating processes: {Message}", ex.Message);
 			}
 
 			// Clean the environment

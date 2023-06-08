@@ -61,11 +61,6 @@ namespace Horde.Agent.Leases
 		}
 
 		/// <summary>
-		/// List of processes that should be terminated before running a job
-		/// </summary>
-		private readonly HashSet<string> _processNamesToTerminate = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-		/// <summary>
 		/// Object used for controlling access to the access tokens and active sessions list
 		/// </summary>
 		readonly object _lockObject = new object();
@@ -136,8 +131,6 @@ namespace Horde.Agent.Leases
 			_typeUrlToLeaseHandler = leaseHandlers.ToDictionary(x => x.LeaseType, x => x);
 			_settings = settings.Value;
 			_logger = logger;
-
-			_processNamesToTerminate.UnionWith(_settings.ProcessNamesToTerminate);
 		}
 
 		public LeaseManager(ISession session, IServiceProvider serviceProvider)
@@ -234,7 +227,7 @@ namespace Horde.Agent.Leases
 			IRpcConnection rpcCon = _session.RpcConnection;
 
 			// Terminate any remaining child processes from other instances
-			await _session.TerminateProcessesAsync(_logger, stoppingToken);
+			await _session.TerminateProcessesAsync(TerminateCondition.BeforeSession, _logger, stoppingToken);
 
 			// Track how many updates we get in 10 seconds. We'll start rate limiting this if it looks like we've got a problem that's causing us to spam the server.
 			Stopwatch updateTimer = Stopwatch.StartNew();

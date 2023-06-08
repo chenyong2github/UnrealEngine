@@ -3,8 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Json;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -59,9 +57,10 @@ namespace Horde.Agent.Services
 		/// <summary>
 		/// Terminate all processes in running in the working directory
 		/// </summary>
+		/// <param name="condition">Flags indicating which processes to terminate</param>
 		/// <param name="logger">Logger for any diagnostic messages</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		Task TerminateProcessesAsync(ILogger logger, CancellationToken cancellationToken);
+		Task TerminateProcessesAsync(TerminateCondition condition, ILogger logger, CancellationToken cancellationToken);
 	}
 
 	/// <summary>
@@ -112,13 +111,13 @@ namespace Horde.Agent.Services
 		/// </summary>
 		public DirectoryReference WorkingDir { get; }
 
-		readonly HashSet<string> _processNamesToTerminate;
+		readonly IReadOnlyDictionary<string, TerminateCondition> _processNamesToTerminate;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public Session(Uri serverUrl, string agentId, string sessionId, string token, IRpcConnection rpcConnection, DirectoryReference workingDir, IEnumerable<string> processNamesToTerminate, ILogger logger)
+		public Session(Uri serverUrl, string agentId, string sessionId, string token, IRpcConnection rpcConnection, DirectoryReference workingDir, IReadOnlyDictionary<string, TerminateCondition> processNamesToTerminate, ILogger logger)
 		{
 			ServerUrl = serverUrl;
 			AgentId = agentId;
@@ -127,7 +126,7 @@ namespace Horde.Agent.Services
 			RpcConnection = rpcConnection;
 			WorkingDir = workingDir;
 
-			_processNamesToTerminate = new HashSet<string>(processNamesToTerminate, StringComparer.OrdinalIgnoreCase);
+			_processNamesToTerminate = processNamesToTerminate;
 			_logger = logger;
 		}
 
@@ -218,7 +217,7 @@ namespace Horde.Agent.Services
 			// Open a connection to the server
 #pragma warning disable CA2000 // False positive; ownership is transferred to new Session object.
 			IRpcConnection rpcConnection = new RpcConnection(createGrpcChannelAsync, logger);
-			return new Session(serverProfile.Url, createSessionResponse.AgentId, createSessionResponse.SessionId, createSessionResponse.Token, rpcConnection, workingDir, currentSettings.ProcessNamesToTerminate, logger);
+			return new Session(serverProfile.Url, createSessionResponse.AgentId, createSessionResponse.SessionId, createSessionResponse.Token, rpcConnection, workingDir, currentSettings.GetProcessesToTerminateMap(), logger);
 #pragma warning restore CA2000
 		}
 
@@ -288,17 +287,17 @@ namespace Horde.Agent.Services
 		}
 
 		/// <inheritdoc/>
-		public Task TerminateProcessesAsync(ILogger logger, CancellationToken cancellationToken)
+		public Task TerminateProcessesAsync(TerminateCondition condition, ILogger logger, CancellationToken cancellationToken)
 		{
 			// Terminate child processes from any previous runs
-			ProcessUtils.TerminateProcesses(ShouldTerminateProcess, logger, cancellationToken);
+			ProcessUtils.TerminateProcesses(x => ShouldTerminateProcess(x, condition), logger, cancellationToken);
 			return Task.CompletedTask;
 		}
 
 		/// <summary>
 		/// Callback for determining whether a process should be terminated
 		/// </summary>
-		bool ShouldTerminateProcess(FileReference imageFile)
+		bool ShouldTerminateProcess(FileReference imageFile, TerminateCondition condition)
 		{
 			if (imageFile.IsUnderDirectory(WorkingDir))
 			{
@@ -306,9 +305,12 @@ namespace Horde.Agent.Services
 			}
 
 			string fileName = imageFile.GetFileName();
-			if (_processNamesToTerminate.Contains(fileName))
+			if (_processNamesToTerminate.TryGetValue(fileName, out TerminateCondition terminateFlags))
 			{
-				return true;
+				if(terminateFlags == TerminateCondition.None || (terminateFlags & condition) != 0)
+				{
+					return true;
+				}
 			}
 
 			return false;
