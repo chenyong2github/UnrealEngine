@@ -784,7 +784,7 @@ struct FDynamicVertexBufferPool : public FRenderResource
 		if (bInitializeBuffer)
 		{
 			FoundBuffer->InitResource(RHICmdList);
-			TotalAllocatedMemory += SizeInBytes;
+			TotalAllocatedMemory += FoundBuffer->BufferSize;
 		}
 
 		FoundBuffer->Lock(RHICmdList);
