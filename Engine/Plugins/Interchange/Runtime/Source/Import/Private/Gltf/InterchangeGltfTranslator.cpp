@@ -2010,14 +2010,14 @@ void UInterchangeGLTFTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContain
 			continue;
 		}
 		
-		int32 RootJointIndex = GltfAsset.Nodes[GltfAsset.Skins[SkinnedMeshNode.Skindex].Joints[0]].RootJointIndex;
-		if (!GltfAsset.Nodes.IsValidIndex(RootJointIndex))
+		int32 RootSkinJointIndex = UE::Interchange::Gltf::Private::GetRootNodeIndex(GltfAsset, GltfAsset.Skins[SkinnedMeshNode.Skindex].Joints);
+		if (!GltfAsset.Nodes.IsValidIndex(RootSkinJointIndex))
 		{
 			continue;
 		}
 
 		//basedon that root joint group the SkinnedMeshNodes:
-		TArray<int32>& GroupedSkinnedMeshNodes = RootJointGroupedSkinnedMeshNodes.FindOrAdd(RootJointIndex);
+		TArray<int32>& GroupedSkinnedMeshNodes = RootJointGroupedSkinnedMeshNodes.FindOrAdd(RootSkinJointIndex);
 		GroupedSkinnedMeshNodes.Add(SkinnedMeshNodeIndex);
 	}
 
@@ -2032,40 +2032,43 @@ void UInterchangeGLTFTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContain
 		for (const TTuple<int32, TArray<int32>>& RootJointToSkinnedMeshNodes : RootJointGroupedSkinnedMeshNodes)
 		{
 			//Duplicate MeshNode for each group:
-			int32 RootJointIndex = RootJointToSkinnedMeshNodes.Key;
+			int32 RootSkinJointNodeIndex = RootJointToSkinnedMeshNodes.Key;
+			int32 RootJointNodeIndex = GltfAsset.Nodes[RootSkinJointNodeIndex].RootJointIndex;
 
 			//Skeletal Mesh's naming policy: (Mesh.Name)_(RootJointNode.Name) naming policy:
-			FString SkeletalName = GltfAsset.Meshes[MeshIndex].Name + TEXT("_") + GltfAsset.Nodes[RootJointIndex].Name;
-			FString SkeletalId = GltfAsset.Meshes[MeshIndex].UniqueId + TEXT("_") + GltfAsset.Nodes[RootJointIndex].UniqueId;
+			FString SkeletalName = GltfAsset.Meshes[MeshIndex].Name + TEXT("_") + GltfAsset.Nodes[RootSkinJointNodeIndex].Name;
+			FString SkeletalId = GltfAsset.Meshes[MeshIndex].UniqueId + TEXT("_") + GltfAsset.Nodes[RootSkinJointNodeIndex].UniqueId;
 
 			UInterchangeMeshNode* SkeletalMeshNode = HandleGltfMesh(NodeContainer, GltfAsset.Meshes[MeshIndex], MeshIndex, UnusedMeshIndices, SkeletalName, SkeletalId);
-
 			SkeletalMeshNode->SetSkinnedMesh(true);
 
-			//generate payload key:
-			//of template:
-			//"LexToString(SkinnedMeshNode.MeshIndex | (SkinnedMeshNode.Skindex << 16))":"LexToString(SkinnedMeshNode.MeshIndex | (SkinnedMeshNode.Skindex << 16))".....
-			FString Payload = "";
-			for (int32 SkinnedMeshIndex : RootJointToSkinnedMeshNodes.Value)
-			{
-				const GLTF::FNode& SkinnedMeshNode = GltfAsset.Nodes[SkinnedMeshIndex];
-				if (Payload.Len() > 0)
-				{
-					Payload += ":";
-				}
-				Payload += LexToString(SkinnedMeshNode.MeshIndex | (SkinnedMeshNode.Skindex << 16));
-			}
-			SkeletalMeshNode->SetPayLoadKey(Payload, EInterchangeMeshPayLoadType::SKELETAL);
-
 			//set the root joint node as the skeletonDependency:
-			int32 RootJointNodeIndex = RootJointToSkinnedMeshNodes.Key;
 			const GLTF::FNode& RootJointNode = GltfAsset.Nodes[RootJointNodeIndex];
 			const FString* SkeletonNodeUid = NodeUidMap.Find(&RootJointNode);
 			if (ensure(SkeletonNodeUid))
 			{
 				SkeletalMeshNode->SetSkeletonDependencyUid(*SkeletonNodeUid);
 			}
+
+			bool bBakeSkinJointTransform = RootSkinJointNodeIndex != RootJointNodeIndex || RootJointNode.ParentIndex == -1;
+
+			//generate payload key:
+			//of template:
+			//"LexToString(bBakeSkinJointTransform)";"LexToString(SkinnedMeshNode.MeshIndex | (SkinnedMeshNode.Skindex << 16))":"LexToString(SkinnedMeshNode.MeshIndex | (SkinnedMeshNode.Skindex << 16))".....
+			FString Payload = TEXT("");
+			bool bAddSeparator = false;
+			for (int32 SkinnedMeshIndex : RootJointToSkinnedMeshNodes.Value)
+			{
+				const GLTF::FNode& SkinnedMeshNode = GltfAsset.Nodes[SkinnedMeshIndex];
+				if (Payload.Len() > 0)
+				{
+					Payload += TEXT(":");
+				}
 				
+				Payload += LexToString(SkinnedMeshNode.MeshIndex | (SkinnedMeshNode.Skindex << 16));
+			}
+			Payload = LexToString(bBakeSkinJointTransform) + TEXT(";") + Payload;
+			SkeletalMeshNode->SetPayLoadKey(Payload, EInterchangeMeshPayLoadType::SKELETAL);
 
 			//set the mesh actor node's custom asset instance uid to the new duplicated mesh
 			//if there are more than one skins, then choose the topmost (root node of the collection, top most in a hierarchical tree term) occurance of SkinnedMeshIndex

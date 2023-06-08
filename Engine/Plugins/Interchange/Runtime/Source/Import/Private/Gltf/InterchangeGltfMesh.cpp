@@ -73,8 +73,19 @@ namespace UE::Interchange::Gltf::Private
 
 	bool GetSkeletalMeshDescriptionForPayLoadKey(const GLTF::FAsset& GltfAsset, const FString& PayLoadKey, FMeshDescription& MeshDescription, TArray<FString>* OutJointUniqueNames)
 	{
+		TArray<FString> BakingAndPayloadKey;
+		PayLoadKey.ParseIntoArray(BakingAndPayloadKey, TEXT(";"));
+
+		bool bBakeSkinJointTransform = false;
+		if (BakingAndPayloadKey.Num() == 2)
+		{
+			LexFromString(bBakeSkinJointTransform, *BakingAndPayloadKey[0]);
+		}
+
+		FString PayloadKeyToParse = BakingAndPayloadKey.Num() == 2 ? BakingAndPayloadKey[1] : PayLoadKey;
+
 		TArray<FString> PayLoadKeys;
-		PayLoadKey.ParseIntoArray(PayLoadKeys, TEXT(":"));
+		PayloadKeyToParse.ParseIntoArray(PayLoadKeys, TEXT(":"));
 		TMap<int32, TArray<int32>> MeshIndexToSkinIndicesMap;
 
 		int32 MeshIndex = 0;
@@ -131,7 +142,7 @@ namespace UE::Interchange::Gltf::Private
 			FStaticMeshAttributes StaticMeshAttributes(SkinnedMeshDescription);
 
 			//for instanced meshes we need to bake the transforms of the joints:
-			if (SkinIndices.Num() > 1 && GltfAsset.Skins[SkinIndex].Joints.Num() > 0)
+			if ((bBakeSkinJointTransform || SkinIndices.Num() > 1) && GltfAsset.Skins[SkinIndex].Joints.Num() > 0)
 			{
 				FTransform TransformLocalToWorld3d(FTransform::Identity);
 
