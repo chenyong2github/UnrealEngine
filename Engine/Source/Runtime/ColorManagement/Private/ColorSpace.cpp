@@ -236,6 +236,11 @@ float FColorSpace::GetLuminance(const FLinearColor& Color) const
 	return Color.R * RgbToXYZ.M[0][1] + Color.G * RgbToXYZ.M[1][1] + Color.B * RgbToXYZ.M[2][1];
 }
 
+FLinearColor FColorSpace::GetLuminanceFactors() const
+{
+	return FLinearColor(RgbToXYZ.GetColumn(1));
+}
+
 
 FMatrix44d FColorSpaceTransform::CalcChromaticAdaptionMatrix(FVector3d SourceXYZ, FVector3d TargetXYZ, EChromaticAdaptationMethod Method)
 {

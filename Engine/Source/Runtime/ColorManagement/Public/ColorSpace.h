@@ -297,6 +297,13 @@ public:
 	 */
 	float GetLuminance(const FLinearColor& Color) const;
 
+	/**
+	 * Get the luminance factors in the current space.
+	 *
+	 * @return FLinearColor Luminance factors.
+	 */
+	FLinearColor GetLuminanceFactors() const;
+
 private:
 
 	FMatrix44d CalcRgbToXYZ() const;
