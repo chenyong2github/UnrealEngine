@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
-using static EpicGames.Horde.Storage.TreeWriter;
 
 namespace EpicGames.Horde.Storage
 {
@@ -309,16 +308,23 @@ namespace EpicGames.Horde.Storage
 			/// <inheritdoc/>
 			public override async ValueTask<NodeLocator> FlushAsync(CancellationToken cancellationToken = default)
 			{
+				if (_locator.IsValid())
+				{
+					return _locator;
+				}
+
+				foreach (NodeHandle nodeRef in Refs)
+				{
+					await nodeRef.FlushAsync(cancellationToken);
+				}
+
 				PendingBundle? pendingBundle = _pendingBundle;
-				if (!_locator.IsValid() && pendingBundle != null)
+				if (pendingBundle != null)
 				{
 					await pendingBundle.FlushAsync(cancellationToken);
 				}
-				if (!_locator.IsValid())
-				{
-					throw new InvalidOperationException("Locator should have been flushed already");
-				}
-				return _locator;
+
+				return GetLocator();
 			}
 		}
 
@@ -750,6 +756,8 @@ namespace EpicGames.Horde.Storage
 		PendingBundle? _currentBundle;
 		int _memoryFootprint;
 
+		bool _disposed;
+
 		internal readonly ILogger? _traceLogger;
 
 		/// <summary>
@@ -814,6 +822,7 @@ namespace EpicGames.Horde.Storage
 				_currentBundle.Dispose();
 				_currentBundle = null;
 			}
+			_disposed = true;
 		}
 
 		/// <summary>
@@ -924,6 +933,11 @@ namespace EpicGames.Horde.Storage
 		/// <returns></returns>
 		public async Task FlushAsync(CancellationToken cancellationToken = default)
 		{
+			if (_disposed)
+			{
+				throw new ObjectDisposedException(GetType().Name);
+			}
+
 			Complete();
 			while (_writeQueue.Count > 0)
 			{
