@@ -39,112 +39,6 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateClusterMassProperties()"), STAT_UpdateClusterMassProperties, STATGROUP_Chaos);
 	void UpdateClusterMassProperties(
 		FPBDRigidClusteredParticleHandle* Parent,
-		TSet<FPBDRigidParticleHandle*>& Children,
-		FMatrix33& ParentInertia,
-		const FRigidTransform3* ForceMassOrientation)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterMassProperties);
-
-		// Initialize parent
-		Parent->M() = FReal(0);
-		Parent->InvM() = FReal(0);
-		Parent->I() = FVec3(0);
-		Parent->InvI() = FVec3(0);
-		Parent->SetCenterOfMass(FVec3(0));
-		Parent->SetRotationOfMass(FQuat::Identity);
-		if (ForceMassOrientation)
-		{
-			Parent->X() = ForceMassOrientation->GetLocation();
-			Parent->R() = ForceMassOrientation->GetRotation();
-		}
-		Parent->P() = Parent->X();
-		Parent->Q() = Parent->R();
-
-		if (Children.Num() == 0)
-		{
-			return;
-		}
-
-		//
-		// Step 1: Compute the world CoM and total mass of the parent
-		//
-
-		FVec3 WorldCoM = FVec3::ZeroVector;
-		for (const FPBDRigidParticleHandle* Child : Children)
-		{
-			WorldCoM += Child->M() * Child->XCom();
-			Parent->M() += Child->M();
-		}
-		if (FMath::IsNearlyZero(Parent->M()))
-		{
-			return;
-		}
-		Parent->InvM() = FReal(1) / Parent->M();
-		WorldCoM *= Parent->InvM();
-
-
-		//
-		// Step 2: Pick the parent's orientation and location.
-		//
-		// If we have a ForceMassOrientation transform, then use that, otherwise
-		// default to X = CoM. To do this, we need to compute the world CoM of
-		// the children.
-		//
-
-		if (ForceMassOrientation == nullptr)
-		{
-			Parent->X() = WorldCoM;
-			Parent->R() = FQuat::Identity;
-		}
-		Parent->P() = Parent->X();
-		Parent->Q() = Parent->R();
-		const FRigidTransform3 ParentTM = Parent->GetTransformXR();
-		const FRigidTransform3 InvParentTM = ParentTM.Inverse();
-
-
-		//
-		// Step 3: Compute mass properties of each particle & store them in a list
-		//
-
-		TArray<FMassProperties> ChildMasses;
-		ChildMasses.Reserve(Children.Num());
-		for (const FPBDRigidParticleHandle* Child : Children)
-		{
-			// Get the child's transform relative to the parent
-			const FRigidTransform3 ChildTM = Child->GetTransformXR();
-			const FRigidTransform3 LocalTM = ChildTM * InvParentTM;
-
-			// Get the child's mass properties
-			FMassProperties ChildMass;
-			ChildMass.Mass = Child->M();
-			ChildMass.InertiaTensor = FMatrix33(Child->I());
-			ChildMass.CenterOfMass = LocalTM.TransformPosition(Child->CenterOfMass());
-			ChildMass.RotationOfMass = LocalTM.GetRotation() * Child->RotationOfMass();
-			ChildMasses.Add(ChildMass);
-		}
-
-		//
-		// Step 4: Combine mass properties of sub particles & store
-		// them in the parent particle
-		//
-
-		FMassProperties ParentMass = Chaos::Combine(ChildMasses);
-		// NOTE: The combine method will have diagonalized the inertia.
-		ParentInertia = ParentMass.InertiaTensor;
-		const FVec3 Inertia = ParentInertia.GetDiagonal();
-		Parent->SetCenterOfMass(ParentMass.CenterOfMass);
-		Parent->SetRotationOfMass(ParentMass.RotationOfMass);
-		Parent->I() = Inertia;
-		Parent->InvI()
-			= (FMath::IsNearlyZero(Inertia[0]) || FMath::IsNearlyZero(Inertia[1]) || FMath::IsNearlyZero(Inertia[2]))
-			? FVec3::ZeroVector
-			: FReal(1) / Inertia;
-	}
-
-
-	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateClusterMassProperties()"), STAT_UpdateClusterMassProperties_NoForceMassOrientation, STATGROUP_Chaos);
-	void UpdateClusterMassProperties(
-		FPBDRigidClusteredParticleHandle* Parent,
 		const TSet<FPBDRigidParticleHandle*>& Children)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterMassProperties);
@@ -195,7 +89,22 @@ namespace Chaos
 			: FReal(1) / Inertia;
 	}
 
+	void MoveClusterToMassOffset(FPBDRigidClusteredParticleHandle* Cluster, const EMassOffsetType MassOffsetTypes)
+	{
+		if (MassOffsetTypes | EMassOffsetType::EPosition)
+		{
+			Cluster->SetX(Cluster->XCom());
+			Cluster->SetP(Cluster->X());
+			Cluster->SetCenterOfMass(FVec3::ZeroVector);
+		}
 
+		if (MassOffsetTypes | EMassOffsetType::ERotation)
+		{
+			Cluster->SetR(Cluster->RCom());
+			Cluster->SetQ(Cluster->R());
+			Cluster->SetRotationOfMass(FQuat::Identity);
+		}
+	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateKinematicProperties()"), STAT_UpdateKinematicProperties, STATGROUP_Chaos);
 	void 

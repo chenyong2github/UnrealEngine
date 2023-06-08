@@ -5,15 +5,20 @@
 
 namespace Chaos
 {
-	void CHAOS_API UpdateClusterMassProperties(
-		FPBDRigidClusteredParticleHandle* Parent,
-		TSet<FPBDRigidParticleHandle*>& Children,
-		FMatrix33& ParentInertia,
-		const FRigidTransform3* ForceMassOrientation);
+	enum CHAOS_API EMassOffsetType : uint8
+	{
+		EPosition = 1 << 0,
+		ERotation = 1 << 1
+	};
+	ENUM_CLASS_FLAGS(EMassOffsetType)
 
 	void CHAOS_API UpdateClusterMassProperties(
 		FPBDRigidClusteredParticleHandle* Parent,
 		const TSet<FPBDRigidParticleHandle*>& Children);
+
+	// If bPosition == true, set X/P of Cluster to its world CoM, and set its CoM to ZeroVector
+	// If bRotation == true, set R/Q of Cluster to its world RoM, and set its RoM to Identity
+	void CHAOS_API MoveClusterToMassOffset(FPBDRigidClusteredParticleHandle* Cluster, EMassOffsetType MassOffsetTypes);
 
 	void CHAOS_API UpdateKinematicProperties(
 		FPBDRigidParticleHandle* Parent,

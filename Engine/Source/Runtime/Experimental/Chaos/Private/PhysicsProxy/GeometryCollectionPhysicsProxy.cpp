@@ -4366,16 +4366,11 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				// CoM and RoM - MassToLocal accounts for this offset.
 				const FRigidTransform3 MassToLocal = FRigidTransform3(ClusterHandle->CenterOfMass(), ClusterHandle->RotationOfMass());
 				CollectionMassToLocal[ClusterTransformIdx] = MassToLocal;
-				ClusterHandle->SetCenterOfMass(FVec3::ZeroVector);
-				ClusterHandle->SetRotationOfMass(FQuat::Identity);
-				
-				// Since we've zerod out CoM and RoM, we need to update XR accordingly so that when
-				// UpdateClusterMassProperties is called in the next level up with ClusterHandle as
-				// one of the the children it's XR will be correct.
-				const FRigidTransform3 NewXR = MassToLocal * OriginalXR;
-				ClusterHandle->SetX(NewXR.GetTranslation());
-				ClusterHandle->SetR(NewXR.GetRotation());
 
+				// Zero out CoM and RoM, and update XR accordingly so that when UpdateClusterMassProperties
+				// is called in the next level up with ClusterHandle as one of the the children it's XR will
+				// be correct.
+				MoveClusterToMassOffset(ClusterHandle, EMassOffsetType::EPosition | EMassOffsetType::ERotation);
 
 				//update geometry
 				//merge children meshes and move them into cluster's mass space

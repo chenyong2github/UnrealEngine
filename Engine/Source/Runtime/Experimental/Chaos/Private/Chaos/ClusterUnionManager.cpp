@@ -633,15 +633,14 @@ namespace Chaos
 		FMatrix33 ClusterInertia(0);
 
 		const bool bRecomputeMassOrientation = EnumHasAnyFlags(Flags, EUpdateClusterUnionPropertiesFlags::RecomputeMassOrientation) && ClusterUnion.bNeedsXRInitialization;
-
-		// TODO: These functions are generally just re-building the cluster from scratch. Need to figure out a way
-		// to get these functions to update the already existing cluster instead.
 		TSet<FPBDRigidParticleHandle*> FullChildrenSet(ClusterUnion.ChildParticles);
 
-		const FRigidTransform3 ForceMassOrientation{ ClusterUnion.InternalCluster->X(), ClusterUnion.InternalCluster->R() };
-		UpdateClusterMassProperties(ClusterUnion.InternalCluster, FullChildrenSet, ClusterInertia, bRecomputeMassOrientation ? nullptr : &ForceMassOrientation);
+		UpdateClusterMassProperties(ClusterUnion.InternalCluster, FullChildrenSet);
+
+		// Position the internal cluster at the CoM of the children
 		if (bRecomputeMassOrientation)
 		{
+			MoveClusterToMassOffset(ClusterUnion.InternalCluster, EMassOffsetType::EPosition);
 			ClusterUnion.bNeedsXRInitialization = false;
 		}
 

@@ -194,6 +194,7 @@ namespace Chaos
 				{
 					if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
 					{
+						const bool bWasAnchored = Particle_Internal->IsAnchored();
 						Particle_Internal->SetIsAnchored(bIsAnchored);
 
 						// We also need to make sure the cluster union won't try to override this value that we set.
@@ -204,7 +205,10 @@ namespace Chaos
 						}
 
 						// Let the cluster union manager apply the proper properties on the particle.
-						Manager.RequestDeferredClusterPropertiesUpdate(ClusterUnionIndex, Chaos::EUpdateClusterUnionPropertiesFlags::UpdateKinematicProperties);
+						if (bWasAnchored != bIsAnchored)
+						{
+							Manager.RequestDeferredClusterPropertiesUpdate(ClusterUnionIndex, Chaos::EUpdateClusterUnionPropertiesFlags::UpdateKinematicProperties);
+						}
 					}
 				}
 			}

@@ -210,9 +210,18 @@ namespace Chaos
 			UpdateTopLevelParticle(NewParticle);
 		}
 
-		// TODO: This needs to be rotated to diagonal, used to update I()/InvI() from diagonal, and update transform with rotation.
-		FMatrix33 ClusterInertia(0);
-		UpdateClusterMassProperties(NewParticle, ChildrenSet, ClusterInertia, ForceMassOrientation);
+		if (ForceMassOrientation)
+		{
+			NewParticle->SetX(ForceMassOrientation->GetTranslation());
+			NewParticle->SetR(ForceMassOrientation->GetRotation());
+		}
+		
+		UpdateClusterMassProperties(NewParticle, ChildrenSet);
+		
+		if (ForceMassOrientation == nullptr)
+		{
+			MoveClusterToMassOffset(NewParticle, EMassOffsetType::EPosition);
+		}
 		UpdateKinematicProperties(NewParticle, MChildren, MEvolution);
 		UpdateGeometry(NewParticle, ChildrenSet, MChildren, ProxyGeometry, Parameters);
 		GenerateConnectionGraph(NewParticle, Parameters);
@@ -431,10 +440,10 @@ namespace Chaos
 		NoCleanParams.bCopyCollisionParticles = !!UnionsHaveCollisionParticles;
 
 		TSet<FPBDRigidParticleHandle*> ChildrenSet(ChildrenArray);
-		
-		// TODO: This needs to be rotated to diagonal, used to update I()/InvI() from diagonal, and update transform with rotation.
-		FMatrix33 ClusterInertia(0);
-		UpdateClusterMassProperties(NewParticle, ChildrenSet, ClusterInertia, nullptr);
+
+		UpdateClusterMassProperties(NewParticle, ChildrenSet);
+		MoveClusterToMassOffset(NewParticle, EMassOffsetType::EPosition);
+
 		UpdateKinematicProperties(NewParticle, MChildren, MEvolution);
 
 		UpdateGeometry(NewParticle, ChildrenSet, MChildren, nullptr, NoCleanParams);
