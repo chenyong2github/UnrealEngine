@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportLightCardResource
 ///////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterViewportLightCardResource::InitRHI()
+void FDisplayClusterViewportLightCardResource::InitDynamicRHI()
 {
 	ETextureCreateFlags CreateFlags = TexCreate_Dynamic;
 	CreateFlags |= TexCreate_MultiGPUGraphIgnore;

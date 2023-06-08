@@ -69,11 +69,11 @@ void FSlatePostProcessResource::CleanUp()
 	BeginCleanup(this);
 }
 
-void FSlatePostProcessResource::InitRHI()
+void FSlatePostProcessResource::InitDynamicRHI()
 {
 }
 
-void FSlatePostProcessResource::ReleaseRHI()
+void FSlatePostProcessResource::ReleaseDynamicRHI()
 {
 	SET_MEMORY_STAT(STAT_SLATEPPRenderTargetMem, 0);
 

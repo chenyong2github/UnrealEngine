@@ -842,7 +842,7 @@ public:
 	}
 
 	/** Called when the resource is initialized. This is only called by the rendering thread. */
-	virtual void InitRHI() override
+	virtual void InitDynamicRHI() override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeLayerWeightmapExtractMaterialLayersComputeShaderResource"));
 		ComponentsData = RHICreateStructuredBuffer(sizeof(FLandscapeLayerWeightmapExtractMaterialLayersComponentData), OriginalComponentsData.Num() * sizeof(FLandscapeLayerWeightmapExtractMaterialLayersComponentData), BUF_ShaderResource | BUF_Volatile, CreateInfo);
@@ -853,7 +853,7 @@ public:
 		RHIUnlockBuffer(ComponentsData);
 	}
 
-	virtual void ReleaseRHI() override
+	virtual void ReleaseDynamicRHI() override
 	{
 		ComponentsData.SafeRelease();
 		ComponentsDataSRV.SafeRelease();
@@ -1001,7 +1001,7 @@ public:
 	}
 
 	/** Called when the resource is initialized. This is only called by the rendering thread. */
-	virtual void InitRHI() override
+	virtual void InitDynamicRHI() override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("ComponentsData"));
 		uint32 ComponentsDataMemSize = OriginalComponentsData.Num() * sizeof(FLandscapeLayerWeightmapPackMaterialLayersComponentData);
@@ -1031,7 +1031,7 @@ public:
 		RHIUnlockBuffer(WeightmapTextureOutputOffset);
 	}
 
-	virtual void ReleaseRHI() override
+	virtual void ReleaseDynamicRHI() override
 	{
 		ComponentsData.SafeRelease();
 		ComponentsDataSRV.SafeRelease();

@@ -783,9 +783,16 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::InitRHI()
 }
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinVertexFactory<BoneInfluenceType>::ReleaseRHI()
+void TGPUSkinVertexFactory<BoneInfluenceType>::InitDynamicRHI()
 {
-	FVertexFactory::ReleaseRHI();
+	FVertexFactory::InitDynamicRHI();
+	//ShaderData.UpdateBoneData(GetFeatureLevel());
+}
+
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+void TGPUSkinVertexFactory<BoneInfluenceType>::ReleaseDynamicRHI()
+{
+	FVertexFactory::ReleaseDynamicRHI();
 	ShaderData.ReleaseBoneData();
 }
 
@@ -817,9 +824,9 @@ TGPUSkinAPEXClothVertexFactory
 -----------------------------------------------------------------------------*/
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ReleaseRHI()
+void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ReleaseDynamicRHI()
 {
-	Super::ReleaseRHI();
+	Super::ReleaseDynamicRHI();
 	ClothShaderData.ReleaseClothSimulData();
 
 	// Release the RHIResource reference held in FGPUSkinAPEXClothDataType

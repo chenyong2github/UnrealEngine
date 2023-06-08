@@ -75,7 +75,7 @@ bool FExternalTextureRegistry::GetExternalTexture(const FMaterialRenderProxy* Ma
 	{
 		ReferencingMaterialRenderProxies.Add(MaterialRenderProxy);
 
-		// Note: FMaterialRenderProxy::ReleaseRHI()
+		// Note: FMaterialRenderProxy::ReleaseDynamicRHI()
 		// is responsible for removing the material proxy
 	}
 

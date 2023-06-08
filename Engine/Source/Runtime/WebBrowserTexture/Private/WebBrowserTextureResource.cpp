@@ -112,7 +112,7 @@ uint32 FWebBrowserTextureResource::GetSizeY() const
 }
 
 
-void FWebBrowserTextureResource::InitRHI()
+void FWebBrowserTextureResource::InitDynamicRHI()
 {
 	// create the sampler state
 	FSamplerStateInitializerRHI SamplerStateInitializer(
@@ -126,7 +126,7 @@ void FWebBrowserTextureResource::InitRHI()
 }
 
 
-void FWebBrowserTextureResource::ReleaseRHI()
+void FWebBrowserTextureResource::ReleaseDynamicRHI()
 {
 	Cleared = false;
 

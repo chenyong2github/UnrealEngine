@@ -7,7 +7,7 @@
 #include "WindowsD3D11ConstantBuffer.h"
 #include "D3D11RHIPrivate.h"
 
-void FWinD3D11ConstantBuffer::InitRHI()
+void FWinD3D11ConstantBuffer::InitDynamicRHI()
 {
 	TRefCountPtr<ID3D11Buffer> CBuffer;
 
@@ -36,12 +36,12 @@ void FWinD3D11ConstantBuffer::InitRHI()
 		BufferDesc.ByteWidth = Align(BufferDesc.ByteWidth / 2, 16);
 	}
 
-	FD3D11ConstantBuffer::InitRHI();
+	FD3D11ConstantBuffer::InitDynamicRHI();
 }
 
-void FWinD3D11ConstantBuffer::ReleaseRHI()
+void FWinD3D11ConstantBuffer::ReleaseDynamicRHI()
 {
-	FD3D11ConstantBuffer::ReleaseRHI();
+	FD3D11ConstantBuffer::ReleaseDynamicRHI();
 
 	for (FSubBuffer& SubBuffer : SubBuffers)
 	{

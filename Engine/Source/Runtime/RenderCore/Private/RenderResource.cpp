@@ -24,6 +24,10 @@ FAutoConsoleVariableRef CVarFreeStructuresOnRHIBufferCreation(
 	GFreeStructuresOnRHIBufferCreation,
 	TEXT("Toggles experimental method for freeing helper structures that own the resource arrays after submitting to RHI instead of in the callback sink."));
 
+/** Tracks render resources in a list. The implementation is optimized to allow fast allocation / deallocation from any thread,
+ *  at the cost of period coalescing of thread-local data at a sync point each frame. Furthermore, iteration is not thread safe
+ *  and must be performed at sync points.
+ */
 class FRenderResourceList
 {
 public:
@@ -113,6 +117,7 @@ void FRenderResource::ReleaseRHIForAllResources()
 {
 	FRenderResourceList& ResourceList = FRenderResourceList::Get();
 	ResourceList.ForEachReverse([](FRenderResource* Resource) { check(Resource->IsInitialized()); Resource->ReleaseRHI(); });
+	ResourceList.ForEachReverse([](FRenderResource* Resource) { Resource->ReleaseDynamicRHI(); });
 }
 
 /** Initialize all resources initialized before the RHI was initialized */
@@ -122,6 +127,8 @@ void FRenderResource::InitPreRHIResources()
 
 	// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
 	ResourceList.ForEach([](FRenderResource* Resource) { Resource->InitRHI(); });
+	// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
+	ResourceList.ForEach([](FRenderResource* Resource) { Resource->InitDynamicRHI(); });
 
 #if !PLATFORM_NEEDS_RHIRESOURCELIST
 	ResourceList.Clear();
@@ -139,7 +146,9 @@ void FRenderResource::ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel)
 			if (Resource->HasValidFeatureLevel() && (Resource->FeatureLevel != NewFeatureLevel))
 			{
 				Resource->ReleaseRHI();
+				Resource->ReleaseDynamicRHI();
 				Resource->FeatureLevel = NewFeatureLevel;
+				Resource->InitDynamicRHI();
 				Resource->InitRHI();
 			}
 		});
@@ -168,6 +177,7 @@ void FRenderResource::InitResource()
 		{
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitRenderResource);
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+			InitDynamicRHI(RHICmdList);
 			InitRHI(RHICmdList);
 		}
 
@@ -196,6 +206,7 @@ void FRenderResource::InitResource(FRHICommandList& RHICmdList)
 		if (GIsRHIInitialized)
 		{
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitRenderResource);
+			InitDynamicRHI(RHICmdList);
 			InitRHI(RHICmdList);
 		}
 
@@ -213,6 +224,7 @@ void FRenderResource::ReleaseResource()
 			if(GIsRHIInitialized)
 			{
 				ReleaseRHI();
+				ReleaseDynamicRHI();
 			}
 
 #if PLATFORM_NEEDS_RHIRESOURCELIST
@@ -234,6 +246,8 @@ void FRenderResource::UpdateRHI(FRHICommandList& RHICmdList)
 	if (IsInitialized() && GIsRHIInitialized)
 	{
 		ReleaseRHI();
+		ReleaseDynamicRHI();
+		InitDynamicRHI(RHICmdList);
 		InitRHI(RHICmdList);
 	}
 }

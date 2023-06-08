@@ -313,7 +313,7 @@ void FAVPlayerMovieStreamer::Cleanup()
 		(
 			[SlateTextureCleanUp](FRHICommandListImmediate& RHICmdList)
 			{
-				SlateTextureCleanUp->ReleaseRHI();
+				SlateTextureCleanUp->ReleaseDynamicRHI();
 			}
 		);
 		
@@ -604,7 +604,7 @@ bool FAVPlayerMovieStreamer::CheckForNextFrameAndCopy()
 		{
 			if(SlateTexture->IsValid())
 			{
-				SlateTexture->ReleaseRHI();
+				SlateTexture->ReleaseDynamicRHI();
 			}
 			SlateTexture->SetRHIRef(MediaWrappedTexture, Width, Height);
 		}

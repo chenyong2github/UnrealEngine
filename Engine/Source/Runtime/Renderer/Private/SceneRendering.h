@@ -477,8 +477,8 @@ public:
 	~FHZBOcclusionTester() {}
 
 	// FRenderResource interface
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	virtual void InitDynamicRHI() override;
+	virtual void ReleaseDynamicRHI() override;
 	
 	uint32 GetNum() const { return Primitives.Num(); }
 
@@ -522,8 +522,8 @@ public:
 	~FOcclusionFeedback();
 
 	// FRenderResource interface
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	virtual void InitDynamicRHI() override;
+	virtual void ReleaseDynamicRHI() override;
 
 	void AddPrimitive(FRHICommandList& RHICmdList, FPrimitiveComponentId PrimitiveId, const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
 

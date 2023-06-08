@@ -76,19 +76,19 @@ public:
 		Elements.Add(FVertexElement(1, 0, VET_Float4, 5, bUsesDynamicParameter ? sizeof(FVector4f) : 0));
 	}
 
-	virtual void InitRHI()
+	virtual void InitDynamicRHI()
 	{
 		FVertexDeclarationElementList Elements;
 		int32	Offset = 0;
 		FillDeclElements(Elements, Offset);
 
 		// Create the vertex declaration for rendering the factory normally.
-		// This is done in InitRHI instead of InitRHI to allow FParticleBeamTrailVertexFactory::InitRHI
-		// to rely on it being initialized, since InitRHI is called before InitRHI.
+		// This is done in InitDynamicRHI instead of InitRHI to allow FParticleBeamTrailVertexFactory::InitRHI
+		// to rely on it being initialized, since InitDynamicRHI is called before InitRHI.
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 
-	virtual void ReleaseRHI()
+	virtual void ReleaseDynamicRHI()
 	{
 		VertexDeclarationRHI.SafeRelease();
 	}

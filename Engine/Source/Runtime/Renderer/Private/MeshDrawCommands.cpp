@@ -129,7 +129,7 @@ void FPrimitiveIdVertexBufferPool::DiscardAll()
 	}
 }
 
-void FPrimitiveIdVertexBufferPool::ReleaseRHI()
+void FPrimitiveIdVertexBufferPool::ReleaseDynamicRHI()
 {
 	Entries.Empty();
 }

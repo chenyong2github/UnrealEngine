@@ -250,7 +250,7 @@ UTextureCube* UTextureRenderTargetCube::ConstructTextureCube(
  * Called when the resource is initialized, or when reseting all RHI resources.
  * This is only called by the rendering thread.
  */
-void FTextureRenderTargetCubeResource::InitRHI()
+void FTextureRenderTargetCubeResource::InitDynamicRHI()
 {
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Owner->GetOutermost(), ELLMTagSet::Assets);
 
@@ -325,10 +325,10 @@ void FTextureRenderTargetCubeResource::InitRHI()
  * Called when the resource is released, or when reseting all RHI resources.
  * This is only called by the rendering thread.
  */
-void FTextureRenderTargetCubeResource::ReleaseRHI()
+void FTextureRenderTargetCubeResource::ReleaseDynamicRHI()
 {
 	// release the FTexture RHI resources here as well
-	FTexture::ReleaseRHI();
+	ReleaseRHI();
 
 	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
 	RenderTargetTextureRHI.SafeRelease();

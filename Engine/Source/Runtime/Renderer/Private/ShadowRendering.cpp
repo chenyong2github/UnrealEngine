@@ -2473,13 +2473,13 @@ void SetupTranslucentSelfShadowUniformParameters(const FProjectedShadowInfo* Sha
 	}
 }
 
-void FEmptyTranslucentSelfShadowUniformBuffer::InitRHI()
+void FEmptyTranslucentSelfShadowUniformBuffer::InitDynamicRHI()
 {
 	FTranslucentSelfShadowUniformParameters Parameters;
 	SetupTranslucentSelfShadowUniformParameters(nullptr, Parameters);
 	SetContentsNoUpdate(Parameters);
 
-	Super::InitRHI();
+	Super::InitDynamicRHI();
 }
 
 

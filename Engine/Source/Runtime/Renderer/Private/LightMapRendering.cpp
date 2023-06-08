@@ -729,13 +729,13 @@ void InterpolateVolumetricLightmap(
 	OutInterpolation.DirectionalLightShadowing = DirectionalLightShadowingUnpacked.R;
 }
 
-void FEmptyPrecomputedLightingUniformBuffer::InitRHI()
+void FEmptyPrecomputedLightingUniformBuffer::InitDynamicRHI()
 {
 	FPrecomputedLightingUniformParameters Parameters;
 	GetPrecomputedLightingParameters(GMaxRHIFeatureLevel, Parameters, NULL);
 	SetContentsNoUpdate(Parameters);
 
-	Super::InitRHI();
+	Super::InitDynamicRHI();
 }
 
 /** Global uniform buffer containing the default precomputed lighting data. */
@@ -845,13 +845,13 @@ void GetIndirectLightingCacheParameters(
 	}
 }
 
-void FEmptyIndirectLightingCacheUniformBuffer::InitRHI()
+void FEmptyIndirectLightingCacheUniformBuffer::InitDynamicRHI()
 {
 	FIndirectLightingCacheUniformParameters Parameters;
 	GetIndirectLightingCacheParameters(GMaxRHIFeatureLevel, Parameters, nullptr, nullptr, FVector(0, 0, 0), 0, nullptr);
 	SetContentsNoUpdate(Parameters);
 
-	Super::InitRHI();
+	Super::InitDynamicRHI();
 }
 
 /** */

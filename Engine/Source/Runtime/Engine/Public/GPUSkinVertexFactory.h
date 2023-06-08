@@ -473,7 +473,8 @@ public:
 
 	// FRenderResource interface.
 	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	virtual void InitDynamicRHI() override;
+	virtual void ReleaseDynamicRHI() override;
 
 protected:
 	/**
@@ -680,7 +681,7 @@ public:
 	 */
 	virtual ~TGPUSkinAPEXClothVertexFactory() override
 	{
-		checkf(!ClothDataPtr->ClothBuffer.IsValid(), TEXT("ClothBuffer RHI resource should have been released in ReleaseRHI"));
+		checkf(!ClothDataPtr->ClothBuffer.IsValid(), TEXT("ClothBuffer RHI resource should have been released in ReleaseDynamicRHI"));
 		delete ClothDataPtr;
 		(void)this->Data.Release();
 	}
@@ -722,7 +723,7 @@ public:
 	* initializes the device resource
 	*/
 	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	virtual void ReleaseDynamicRHI() override;
 
 protected:
 	/** Alias pointer to TUniquePtr<FGPUSkinDataType> Data of FGPUBaseSkinVertexFactory. Note memory isn't managed through this pointer. */

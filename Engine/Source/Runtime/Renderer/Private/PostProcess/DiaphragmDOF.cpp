@@ -452,7 +452,7 @@ public:
 	FSpriteIndexBuffer<16> ScatterIndexBuffer;
 
 
-	virtual void InitRHI() override
+	virtual void InitDynamicRHI() override
 	{
 		if (!GRHISupportsRectTopology)
 		{
@@ -460,7 +460,7 @@ public:
 		}
 	}
 
-	virtual void ReleaseRHI() override
+	virtual void ReleaseDynamicRHI() override
 	{
 		if (!GRHISupportsRectTopology)
 		{

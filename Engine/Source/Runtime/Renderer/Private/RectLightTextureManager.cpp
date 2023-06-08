@@ -198,7 +198,7 @@ struct FRectLightTextureManager : public FRenderResource
 	bool bHasPendingAdds = false;
 	bool bHasPendingDeletes = false;
 
-	virtual void ReleaseRHI()
+	virtual void ReleaseDynamicRHI()
 	{
 		AtlasTexture.SafeRelease();
 	}

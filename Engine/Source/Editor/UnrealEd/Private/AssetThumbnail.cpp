@@ -1236,7 +1236,7 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 								if (ThumbInfo.ThumbnailTexture->GetTypedResource() != ThumbInfo.ThumbnailRenderTarget->GetTextureRHI())
 								{
 									ThumbInfo.ThumbnailTexture->ClearTextureData();
-									ThumbInfo.ThumbnailTexture->ReleaseRHI();
+									ThumbInfo.ThumbnailTexture->ReleaseDynamicRHI();
 									ThumbInfo.ThumbnailTexture->SetRHIRef(ThumbInfo.ThumbnailRenderTarget->GetTextureRHI(), ThumbInfo.Width, ThumbInfo.Height);
 								}
 							});

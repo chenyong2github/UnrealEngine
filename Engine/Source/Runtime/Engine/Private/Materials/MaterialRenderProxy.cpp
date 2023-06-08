@@ -558,7 +558,7 @@ FMaterialRenderProxy::~FMaterialRenderProxy()
 	DeletedFlag = -1;
 }
 
-void FMaterialRenderProxy::InitRHI()
+void FMaterialRenderProxy::InitDynamicRHI()
 {
 #if WITH_EDITOR
 	// MaterialRenderProxyMap is only used by shader compiling
@@ -575,7 +575,7 @@ void FMaterialRenderProxy::CancelCacheUniformExpressions()
 	DeferredUniformExpressionCacheRequests.Remove(this);
 }
 
-void FMaterialRenderProxy::ReleaseRHI()
+void FMaterialRenderProxy::ReleaseDynamicRHI()
 {
 #if WITH_EDITOR
 	if (!FPlatformProperties::RequiresCookedData())

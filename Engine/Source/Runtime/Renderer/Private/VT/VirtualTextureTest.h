@@ -32,8 +32,8 @@ public:
 					~FVirtualTextureTestType();
 
 	// FRenderResource interface
-	virtual void	InitRHI() override;
-	virtual void	ReleaseRHI() override;
+	virtual void	InitDynamicRHI() override;
+	virtual void	ReleaseDynamicRHI() override;
 	
 	FRHITexture*	GetPhysicalTexture() const		{ return PhysicalTexture->GetRHI(); }
 	FRHITexture*	GetPageTableTexture() const;

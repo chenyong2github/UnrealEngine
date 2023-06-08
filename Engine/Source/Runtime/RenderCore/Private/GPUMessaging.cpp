@@ -233,7 +233,7 @@ private:
 		}
 	}
 
-	void ReleaseRHI() override
+	void ReleaseDynamicRHI() override
 	{
 		FScopeLock Lock(&AccessCS);
 

@@ -39,7 +39,7 @@ void FSlateTexture2DRHIRef::Cleanup()
 	BeginCleanup(this);
 }
 
-void FSlateTexture2DRHIRef::InitRHI()
+void FSlateTexture2DRHIRef::InitDynamicRHI()
 {
 	SCOPED_LOADTIMER(FSlateTexture2DRHIRef_InitDynamicRHI);
 
@@ -97,7 +97,7 @@ void FSlateTexture2DRHIRef::InitRHI()
 	}
 }
 
-void FSlateTexture2DRHIRef::ReleaseRHI()
+void FSlateTexture2DRHIRef::ReleaseDynamicRHI()
 {
 	check( IsInRenderingThread() );
 
@@ -315,7 +315,7 @@ void FSlateTextureRenderTarget2DResource::ClampSize(int32 MaxSizeX,int32 MaxSize
 	}	
 }
 
-void FSlateTextureRenderTarget2DResource::InitRHI()
+void FSlateTextureRenderTarget2DResource::InitDynamicRHI()
 {
 	SCOPED_LOADTIMER(FSlateTextureRenderTarget2DResource_InitDynamicRHI);
 
@@ -349,12 +349,12 @@ void FSlateTextureRenderTarget2DResource::InitRHI()
 	SamplerStateRHI = GetOrCreateSamplerState( SamplerStateInitializer );
 }
 
-void FSlateTextureRenderTarget2DResource::ReleaseRHI()
+void FSlateTextureRenderTarget2DResource::ReleaseDynamicRHI()
 {
 	check(IsInRenderingThread());
 
 	// Release the FTexture RHI resources here as well
-	FTexture::ReleaseRHI();
+	ReleaseRHI();
 
 	RenderTargetTextureRHI.SafeRelease();
 

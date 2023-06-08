@@ -29,16 +29,16 @@ class FSpeedTreeWindNullUniformBuffer : public TUniformBuffer<FSpeedTreeUniformP
 {
 	typedef TUniformBuffer< FSpeedTreeUniformParameters > Super;
 public:
-	virtual void InitRHI() override;
+	virtual void InitDynamicRHI() override;
 };
 
-void FSpeedTreeWindNullUniformBuffer::InitRHI()
+void FSpeedTreeWindNullUniformBuffer::InitDynamicRHI()
 {
 	FSpeedTreeUniformParameters Parameters;
 	FMemory::Memzero(Parameters);
 	SetContentsNoUpdate(Parameters);
 	
-	Super::InitRHI();
+	Super::InitDynamicRHI();
 }
 
 static TGlobalResource< FSpeedTreeWindNullUniformBuffer > GSpeedTreeWindNullUniformBuffer;

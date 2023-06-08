@@ -36,7 +36,7 @@ public:
 	 * Resources that need to initialize after a D3D device reset must implement this function.
 	 * This is only called by the rendering thread.
 	 */
-	virtual void InitRHI() override;
+	virtual void InitDynamicRHI() override;
 
 	/**
 	 * Releases the dynamic RHI resource and/or RHI render target resources used by this resource.
@@ -44,7 +44,7 @@ public:
 	 * Resources that need to release before a D3D device reset must implement this function.
 	 * This is only called by the rendering thread.
 	 */
-	virtual void ReleaseRHI() override;
+	virtual void ReleaseDynamicRHI() override;
 
 	// FRenderTarget interface.
 

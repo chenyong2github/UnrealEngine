@@ -78,8 +78,8 @@ public:
 	virtual FString GetFriendlyName() const override;
 	virtual uint32 GetSizeX() const override;
 	virtual uint32 GetSizeY() const override;
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	virtual void InitDynamicRHI() override;
+	virtual void ReleaseDynamicRHI() override;
 
 protected:
 

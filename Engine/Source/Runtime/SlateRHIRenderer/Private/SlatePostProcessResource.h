@@ -30,8 +30,8 @@ public:
 	void CleanUp();
 
 	/** FRenderResource interface */
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	virtual void InitDynamicRHI() override;
+	virtual void ReleaseDynamicRHI() override;
 
 	/** FSlateShaderResource interface */
 	virtual uint32 GetWidth() const override { return RenderTargetSize.X; }

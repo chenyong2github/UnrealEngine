@@ -20,10 +20,10 @@ public:
 	void Destroy();
 
 	/** Initializes the index buffers RHI resource. */
-	virtual void InitRHI() override;
+	virtual void InitDynamicRHI() override;
 
 	/** Releases the index buffers RHI resource. */
-	virtual void ReleaseRHI() override;
+	virtual void ReleaseDynamicRHI() override;
 
 	/** Returns a friendly name for this buffer. */
 	virtual FString GetFriendlyName() const override { return TEXT("SlateElementIndices"); }

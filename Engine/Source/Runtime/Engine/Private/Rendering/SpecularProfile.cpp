@@ -120,7 +120,7 @@ public:
 	/**
 		* Release textures when device is lost/destroyed.
 		*/
-	virtual void ReleaseRHI() override;
+	virtual void ReleaseDynamicRHI() override;
 
 	// @param InProfile must not be 0, game thread pointer, do not dereference, only for comparison
 	// @return INDEX_NONE if not found
@@ -388,7 +388,7 @@ IPooledRenderTarget* FSpecularProfileTextureManager::GetAtlasTexture(FRDGBuilder
 	return GSpecularProfileTextureAtlas;
 }
 
-void FSpecularProfileTextureManager::ReleaseRHI()
+void FSpecularProfileTextureManager::ReleaseDynamicRHI()
 {
 	GSpecularProfileTextureAtlas.SafeRelease();
 }

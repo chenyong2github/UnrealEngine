@@ -124,7 +124,7 @@ public:
 	 */
 	void TickPoolElements();
 	/** Free renderer resources */
-	void ReleaseRHI();
+	void ReleaseDynamicRHI();
 
 	/** Allows to remove a resource so it cannot be shared and gets released immediately instead a/some frame[s] later. */
 	void FreeUnusedResource(TRefCountPtr<IPooledRenderTarget>& In);

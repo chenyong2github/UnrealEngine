@@ -682,7 +682,7 @@ void FMediaTextureResource::SetupSampler()
 }
 
 
-void FMediaTextureResource::InitRHI()
+void FMediaTextureResource::InitDynamicRHI()
 {
 	SetupSampler();
 	
@@ -705,7 +705,7 @@ void FMediaTextureResource::InitRHI()
 }
 
 
-void FMediaTextureResource::ReleaseRHI()
+void FMediaTextureResource::ReleaseDynamicRHI()
 {
 	Cleared = false;
 

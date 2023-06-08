@@ -255,7 +255,7 @@ bool FWebMMovieStreamer::DisplayFrames(float InDeltaTime)
 
 		if (SlateVideoTexture->IsValid())
 		{
-			SlateVideoTexture->ReleaseRHI();
+			SlateVideoTexture->ReleaseDynamicRHI();
 		}
 
 		SlateVideoTexture->SetRHIRef(WebMSample->GetTextureRef(), WebMSample->GetDim().X, WebMSample->GetDim().Y);

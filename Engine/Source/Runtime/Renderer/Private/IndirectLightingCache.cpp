@@ -157,7 +157,7 @@ FIndirectLightingCache::FIndirectLightingCache(ERHIFeatureLevel::Type InFeatureL
 	CacheSize = GLightingCacheDimension;
 }
 
-void FIndirectLightingCache::InitRHI()
+void FIndirectLightingCache::InitDynamicRHI()
 {
 	if (CanIndirectLightingCacheUseVolumeTexture(GetFeatureLevel()))
 	{
@@ -181,7 +181,7 @@ void FIndirectLightingCache::InitRHI()
 	}
 }
 
-void FIndirectLightingCache::ReleaseRHI()
+void FIndirectLightingCache::ReleaseDynamicRHI()
 {
 	GRenderTargetPool.FreeUnusedResource(Texture0);
 	GRenderTargetPool.FreeUnusedResource(Texture1);

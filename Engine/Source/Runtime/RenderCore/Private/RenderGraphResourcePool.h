@@ -23,7 +23,7 @@ public:
 	void DumpMemoryUsage(FOutputDevice& OutputDevice);
 
 private:
-	void ReleaseRHI() override;
+	void ReleaseDynamicRHI() override;
 
 	/** Elements can be 0, we compact the buffer later. */
 	TArray<TRefCountPtr<FRDGPooledBuffer>> AllocatedBuffers;
@@ -95,8 +95,8 @@ public:
 	bool IsValid() const { return Allocator != nullptr; }
 
 private:
-	void InitRHI() override;
-	void ReleaseRHI() override;
+	void InitDynamicRHI() override;
+	void ReleaseDynamicRHI() override;
 
 	void AddPendingDeallocation(FRDGTransientRenderTarget* RenderTarget);
 

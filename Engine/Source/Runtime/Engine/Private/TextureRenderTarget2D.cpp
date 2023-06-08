@@ -622,7 +622,7 @@ ETextureCreateFlags FTextureRenderTarget2DResource::GetCreateFlags()
  * Called when the resource is initialized, or when reseting all RHI resources.
  * This is only called by the rendering thread.
  */
-void FTextureRenderTarget2DResource::InitRHI()
+void FTextureRenderTarget2DResource::InitDynamicRHI()
 {
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Owner->GetOutermost(), ELLMTagSet::Assets);
 
@@ -685,10 +685,10 @@ void FTextureRenderTarget2DResource::InitRHI()
  * Called when the resource is released, or when reseting all RHI resources.
  * This is only called by the rendering thread.
  */
-void FTextureRenderTarget2DResource::ReleaseRHI()
+void FTextureRenderTarget2DResource::ReleaseDynamicRHI()
 {
 	// release the FTexture RHI resources here as well
-	FTexture::ReleaseRHI();
+	ReleaseRHI();
 
 	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
 	RenderTargetTextureRHI.SafeRelease();

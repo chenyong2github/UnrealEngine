@@ -227,7 +227,7 @@ UVolumeTexture* UTextureRenderTargetVolume::ConstructTextureVolume(UObject* ObjO
  * Called when the resource is initialized, or when reseting all RHI resources.
  * This is only called by the rendering thread.
  */
-void FTextureRenderTargetVolumeResource::InitRHI()
+void FTextureRenderTargetVolumeResource::InitDynamicRHI()
 {
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Owner->GetOutermost(), ELLMTagSet::Assets);
 
@@ -291,10 +291,10 @@ void FTextureRenderTargetVolumeResource::InitRHI()
  * Called when the resource is released, or when reseting all RHI resources.
  * This is only called by the rendering thread.
  */
-void FTextureRenderTargetVolumeResource::ReleaseRHI()
+void FTextureRenderTargetVolumeResource::ReleaseDynamicRHI()
 {
 	// release the FTexture RHI resources here as well
-	FTexture::ReleaseRHI();
+	ReleaseRHI();
 
 	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
 	RenderTargetTextureRHI.SafeRelease();

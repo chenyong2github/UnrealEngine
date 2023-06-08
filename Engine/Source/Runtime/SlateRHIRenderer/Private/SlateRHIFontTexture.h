@@ -8,7 +8,7 @@
 #include "TextureResource.h"
 
 /**
- * Override for font textures that saves data between Init and ReleaseRHI to 
+ * Override for font textures that saves data between Init and ReleaseDynamicRHI to 
  * ensure all characters in the font texture exist if the rendering resource has to be recreated 
  * between caching new characters
  */
@@ -32,8 +32,8 @@ public:
 	virtual FString GetFriendlyName() const override { return TEXT("FSlateFontTextureRHIResource"); }
 
 	/** FRenderResource interface */
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	virtual void InitDynamicRHI() override;
+	virtual void ReleaseDynamicRHI() override;
 	
 	/** Returns whether the texture resource is 8-bit grayscale or 8-bit per-channel BGRA color */
 	bool IsGrayscale() const { return bIsGrayscale; }
@@ -47,7 +47,7 @@ private:
 	uint32 Height;
 	/** Whether this texture is 8-bit grayscale or 8-bit per-channel BGRA color */
 	bool bIsGrayscale;
-	/** Temporary data stored between Release and InitRHI */
+	/** Temporary data stored between Release and InitDynamicRHI */
 	TArray<uint8> TempData;
 };
 
