@@ -127,7 +127,7 @@ private:
 	void SelectFirstAvailableRenderer();
 
 private:
-	TWeakPtr<FDMXPixelMappingToolkit> Toolkit;
+	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;
 
 	/** Commands specific to the hierarchy. */
 	TSharedPtr<FUICommandList> CommandList;

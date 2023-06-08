@@ -4,12 +4,15 @@
 
 #include "Library/DMXEntityReference.h"
 
+#include "EditorUndoClient.h"
 #include "Engine/EngineTypes.h"
 #include "Widgets/SCompoundWidget.h"
 #include "UObject/GCObject.h"
 
 class FDMXPixelMappingToolkit;
 class SDMXReadOnlyFixturePatchList;
+class UDMXPixelMapping;
+class UDMXPixelMappingBaseComponent;
 class UDMXPixelMappingFixtureGroupComponent;
 class UDMXPixelMappingDMXLibraryViewModel;
 class UDMXPixelMappingRootComponent;
@@ -23,6 +26,7 @@ class SScrollBox;
 class SDMXPixelMappingDMXLibraryView
 	: public SCompoundWidget
 	, public FGCObject
+	, public FSelfRegisteringEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXPixelMappingDMXLibraryView) { }
@@ -43,15 +47,23 @@ protected:
 	}
 	//~ End FGCObject interface
 
+	//~ Begin FSelfRegisteringEditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	//~ End FSelfRegisteringEditorUndoClient interface
+
 private:
-	/** Refreshes the widget */
-	void ForceRefresh();
+	/** Called when a component was added to or removed from the pixel mapping */
+	void OnComponentAddedOrRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
 
 	/** Called when entities were added to or removed from a DMX Library */
 	void OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities);
 
 	/** Called when a component was selected */
 	void OnComponentSelected();
+
+	/** Refreshes the widget */
+	void ForceRefresh();
 
 	/** Called when the 'Add DMX Library' button was clicked */
 	FReply OnAddDMXLibraryButtonClicked();
@@ -76,6 +88,9 @@ private:
 
 	/** Timer handle for the Request Refresh method */
 	FTimerHandle RefreshTimerHandle;
+
+	/** True if a renderere component is contained in the current selection */
+	bool bRenderComponentContainedInSelection = false;
 
 	/** The view model of the focused DMX Library */
 	TArray<TObjectPtr<UDMXPixelMappingDMXLibraryViewModel>> ViewModels;

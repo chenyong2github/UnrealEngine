@@ -40,6 +40,12 @@ void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const T
 	}
 	const TSharedRef<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin().ToSharedRef();
 
+	const TAttribute<bool> AddDMXLibraryButtonEnabledAttribute = TAttribute<bool>::CreateLambda(
+		[this]()
+		{
+			return bRenderComponentContainedInSelection;
+		});
+
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -56,9 +62,15 @@ void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const T
 				SNew(SButton)
 				.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 				.ForegroundColor(FLinearColor::White)
-				.ToolTipText(LOCTEXT("AddFixtureGroupTooltip", "Adds a Fixture Group to the Pixel Mapping"))
+				.ToolTipText_Lambda([this]()
+					{
+						return bRenderComponentContainedInSelection ?
+							LOCTEXT("AddFixtureGroupTooltip", "Adds a DMX Library to the Pixel Mapping") :
+							LOCTEXT("CannotAddFixtureGroupTooltip", "Please select an Input Source");
+					})
 				.ContentPadding(FMargin(5.0f, 1.0f))
 				.OnClicked(this, &SDMXPixelMappingDMXLibraryView::OnAddDMXLibraryButtonClicked)
+				.IsEnabled(AddDMXLibraryButtonEnabledAttribute)
 				.Content()
 				[
 					SNew(SHorizontalBox)
@@ -96,8 +108,13 @@ void SDMXPixelMappingDMXLibraryView::Construct(const FArguments& InArgs, const T
 
 	UDMXLibrary::GetOnEntitiesAdded().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnEntitiesAddedOrRemoved);
 	UDMXLibrary::GetOnEntitiesRemoved().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnEntitiesAddedOrRemoved);
+	UDMXPixelMappingBaseComponent::GetOnComponentAdded().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnComponentAddedOrRemoved);
+	UDMXPixelMappingBaseComponent::GetOnComponentRemoved().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnComponentAddedOrRemoved);
 
 	Toolkit->GetOnSelectedComponentsChangedDelegate().AddSP(this, &SDMXPixelMappingDMXLibraryView::OnComponentSelected);
+
+	// Apply the current selection
+	OnComponentSelected();
 }
 
 void SDMXPixelMappingDMXLibraryView::RequestRefresh()
@@ -111,6 +128,26 @@ void SDMXPixelMappingDMXLibraryView::RequestRefresh()
 void SDMXPixelMappingDMXLibraryView::AddReferencedObjects(FReferenceCollector& Collector) 
 {
 	Collector.AddReferencedObjects(ViewModels);
+}
+
+void SDMXPixelMappingDMXLibraryView::PostUndo(bool bSuccess)
+{
+	RequestRefresh();
+}
+
+void SDMXPixelMappingDMXLibraryView::PostRedo(bool bSuccess)
+{
+	RequestRefresh();
+}
+
+void SDMXPixelMappingDMXLibraryView::OnComponentAddedOrRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
+{
+	RequestRefresh();
+}
+
+void SDMXPixelMappingDMXLibraryView::OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
+{
+	RequestRefresh();
 }
 
 void SDMXPixelMappingDMXLibraryView::ForceRefresh()
@@ -191,11 +228,6 @@ void SDMXPixelMappingDMXLibraryView::ForceRefresh()
 	}
 }
 
-void SDMXPixelMappingDMXLibraryView::OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
-{
-	RequestRefresh();
-}
-
 void SDMXPixelMappingDMXLibraryView::OnComponentSelected()
 {
 	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin();
@@ -204,27 +236,34 @@ void SDMXPixelMappingDMXLibraryView::OnComponentSelected()
 		return;
 	}
 
-	// Refresh the view if there is no view model for the fixture group of a selected component
-	const TSet<FDMXPixelMappingComponentReference>& SelectedComponents = Toolkit->GetSelectedComponents();
+	bRenderComponentContainedInSelection = false;
+	bool bHasValidModel = false;
 
+	const TSet<FDMXPixelMappingComponentReference>& SelectedComponents = Toolkit->GetSelectedComponents();
 	UDMXPixelMappingFixtureGroupComponent* ComponentToFocus = nullptr;
 	for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
 	{
 		UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
 		do
 		{
-			TObjectPtr<UDMXPixelMappingDMXLibraryViewModel>* CorrespondingViewModelPtr = Algo::FindByPredicate(ViewModels, [Component](const UDMXPixelMappingDMXLibraryViewModel* ViewModel)
+			bRenderComponentContainedInSelection |= Component->GetClass() == UDMXPixelMappingRendererComponent::StaticClass();
+
+			const TObjectPtr<UDMXPixelMappingDMXLibraryViewModel>* const CorrespondingViewModelPtr = Algo::FindByPredicate(ViewModels, [Component](const UDMXPixelMappingDMXLibraryViewModel* ViewModel)
 				{
 					return ViewModel->GetFixtureGroupComponent() == Component;
 				});
-			if (!CorrespondingViewModelPtr)
+			if (CorrespondingViewModelPtr)
 			{
-				RequestRefresh();
-				return;
+				bHasValidModel = true;
 			}
 
 			Component = Component->GetParent();
 		} while (Component);
+	}
+
+	if (!bHasValidModel)
+	{
+		RequestRefresh();
 	}
 }
 
