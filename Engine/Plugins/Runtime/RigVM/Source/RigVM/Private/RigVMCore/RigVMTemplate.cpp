@@ -12,6 +12,23 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
+FRigVMTemplateArgumentType::FRigVMTemplateArgumentType(const FName& InCPPType, UObject* InCPPTypeObject)
+		: CPPType(InCPPType)
+		, CPPTypeObject(InCPPTypeObject)
+{
+	// InCppType is unreliable because not all caller knows that
+	// we use generated unique names for user defined structs
+	// so here we override the CppType name with the actual name used in the registry
+	const FString InCPPTypeString = CPPType.ToString();
+	CPPType = *RigVMTypeUtils::PostProcessCPPType(InCPPTypeString, CPPTypeObject);
+#if WITH_EDITOR
+	if (CPPType.IsNone())
+	{
+		UE_LOG(LogRigVM, Warning, TEXT("FRigVMTemplateArgumentType(): Input CPPType '%s' could not be resolved."), *InCPPTypeString);
+	}
+#endif
+}
+
 FRigVMTemplateArgument::FRigVMTemplateArgument()
 	: Index(INDEX_NONE)
 	, Name(NAME_None)
