@@ -10089,7 +10089,7 @@ UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::CreateSaveContext(const 
 
 		SavePackageSettings.AddExternalImportValidation([SuppressedNativeScriptPackages = MoveTemp(DisabledNativeScriptPackages), TargetPlatform, this](const FImportsValidationContext& ValidationContext)
 			{
-				for (UObject* Object : ValidationContext.Imports)
+				for (TObjectPtr<UObject> Object : ValidationContext.Imports)
 				{
 					UClass* Class = Cast<UClass>(Object);
 					if (Class && Class->IsNative() && SuppressedNativeScriptPackages.Contains(Class->GetPackage()->GetFName()))

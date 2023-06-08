@@ -14,6 +14,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectMarks.h"
+#include "UObject/ObjectPtr.h"
 
 // This file contains private utilities shared by UPackage::Save and UPackage::Save2 
 
@@ -153,7 +154,7 @@ struct FEDLCookChecker
 
 	void Reset();
 
-	void AddImport(UObject* Import, UPackage* ImportingPackage);
+	void AddImport(TObjectPtr<UObject> Import, UPackage* ImportingPackage);
 	void AddExport(UObject* Export);
 	void AddArc(UObject* DepObject, bool bDepIsSerialize, UObject* Export, bool bExportIsSerialize);
 	void AddPackageWithUnknownExports(FName LongPackageName);
@@ -188,7 +189,7 @@ public: // FEDLNodeHash is public only so that GetTypeHash can be defined
 	{
 		FEDLNodeHash(); // creates an uninitialized node; only use this to provide as an out parameter
 		FEDLNodeHash(const TArray<FEDLNodeData>* InNodes, FEDLNodeID InNodeID, EObjectEvent InObjectEvent);
-		FEDLNodeHash(const UObject* InObject, EObjectEvent InObjectEvent);
+		FEDLNodeHash(TObjectPtr<UObject> InObject, EObjectEvent InObjectEvent);
 		bool operator==(const FEDLNodeHash& Other) const;
 		friend uint32 GetTypeHash(const FEDLNodeHash& A);
 
@@ -198,8 +199,8 @@ public: // FEDLNodeHash is public only so that GetTypeHash can be defined
 		void SetNodes(const TArray<FEDLNodeData>* InNodes);
 
 	private:
-		static FName ObjectNameFirst(const FEDLNodeHash& InNode, uint32& OutNodeID, const UObject*& OutObject);
-		static FName ObjectNameNext(const FEDLNodeHash& InNode, uint32& OutNodeID, const UObject*& OutObject);
+		static FName ObjectNameFirst(const FEDLNodeHash& InNode, uint32& OutNodeID, TObjectPtr<const UObject>& OutObject);
+		static FName ObjectNameNext(const FEDLNodeHash& InNode, uint32& OutNodeID, TObjectPtr<const UObject>& OutObject);
 			
 		union
 		{
@@ -210,7 +211,7 @@ public: // FEDLNodeHash is public only so that GetTypeHash can be defined
 			 */
 			const TArray<FEDLNodeData>* Nodes;
 			/** Pointer to the Object we are looking up, if this hash was created during lookup-by-objectpath for an object */
-			const UObject* Object;
+			TObjectPtr<const UObject> Object;
 		};
 		/** The identifier for the FEDLNodeData this hash is wrapping. Only used if bIsNode is true. */
 		FEDLNodeID NodeID;
@@ -293,7 +294,7 @@ struct FEDLCookCheckerThreadState : public TThreadSingleton<FEDLCookCheckerThrea
 {
 	FEDLCookCheckerThreadState();
 
-	void AddImport(UObject* Import, UPackage* ImportingPackage)
+	void AddImport(TObjectPtr<UObject> Import, UPackage* ImportingPackage)
 	{
 		Checker.AddImport(Import, ImportingPackage);
 	}

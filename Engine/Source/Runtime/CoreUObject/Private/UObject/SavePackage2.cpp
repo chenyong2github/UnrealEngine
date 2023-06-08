@@ -416,9 +416,9 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 	{
 		FPackageHarvester::FHarvestScope RootReferenceScope = Harvester.EnterRootReferencesScope();
 		// Trim PrestreamPackage list 
-		TSet<UPackage*>& PrestreamPackages = SaveContext.GetPrestreamPackages();
-		TSet<UPackage*> KeptPrestreamPackages;
-		for (UPackage* Pkg : PrestreamPackages)
+		TSet<TObjectPtr<UPackage>>& PrestreamPackages = SaveContext.GetPrestreamPackages();
+		TSet<TObjectPtr<UPackage>> KeptPrestreamPackages;
+		for (TObjectPtr<UPackage> Pkg : PrestreamPackages)
 		{
 			// If the prestream package hasn't been otherwise already marked as an import, keep it as such and mark it as an import
 			if (!SaveContext.IsImport(Pkg))
@@ -789,26 +789,26 @@ ESavePackageResult ValidateImports(FSaveContext& SaveContext)
 	// Warn for private objects & map object references
 	TArray<UObject*> PrivateObjects;
 	TArray<UObject*> ObjectsInOtherMaps;
-	const TSet<UObject*>& Imports = SaveContext.GetImports();
-	for (UObject* Import : Imports)
+	const TSet<TObjectPtr<UObject>>& Imports = SaveContext.GetImports();
+	for (const TObjectPtr<UObject>& Import : Imports)
 	{
-		UPackage* ImportPackage = Import->GetPackage();
+		TObjectPtr<UPackage> ImportPackage = Import.GetPackage();
 		// All names should be properly harvested at this point
-		ensureAlwaysMsgf(SaveContext.NameExists(Import->GetFName().GetComparisonIndex())
+		ensureAlwaysMsgf(SaveContext.NameExists(Import.GetFName().GetComparisonIndex())
 			, TEXT("Missing import name %s while saving package %s. Did you rename an import during serialization?"), *Import->GetName(), *PackageName);
-		ensureAlwaysMsgf(SaveContext.NameExists(ImportPackage->GetFName().GetComparisonIndex())
+		ensureAlwaysMsgf(SaveContext.NameExists(ImportPackage.GetFName().GetComparisonIndex())
 			, TEXT("Missing import package name %s while saving package %s. Did you rename an import during serialization?"), *ImportPackage->GetName(), *PackageName);
-		ensureAlwaysMsgf(SaveContext.NameExists(Import->GetClass()->GetFName().GetComparisonIndex())
+		ensureAlwaysMsgf(SaveContext.NameExists(Import.GetClass()->GetFName().GetComparisonIndex())
 			, TEXT("Missing import class name %s while saving package %s"), *Import->GetClass()->GetName(), *PackageName);
-		ensureAlwaysMsgf(SaveContext.NameExists(Import->GetClass()->GetOuter()->GetFName().GetComparisonIndex())
-			, TEXT("Missing import class package name %s while saving package %s"), *Import->GetClass()->GetOuter()->GetName(), *PackageName);
+		ensureAlwaysMsgf(SaveContext.NameExists(Import.GetClass()->GetOuter()->GetFName().GetComparisonIndex())
+			, TEXT("Missing import class package name %s while saving package %s"), *Import.GetClass()->GetOuter()->GetName(), *PackageName);
 
 		// if the import is marked as a prestream package, we dont need to validate further
 		if (SaveContext.IsPrestreamPackage(ImportPackage))
 		{
-			ensureAlwaysMsgf(Import == ImportPackage, TEXT("Found an import refrence %s in a prestream package %s while saving package %s"), *Import->GetName(), *ImportPackage->GetName(), *PackageName);
+			ensureAlwaysMsgf(Import == ImportPackage, TEXT("Found an import refrence %s in a prestream package %s while saving package %s"), *Import.GetName(), *ImportPackage.GetName(), *PackageName);
 			// These are not errors
-			UE_LOG(LogSavePackage, Display, TEXT("Prestreaming package %s "), *ImportPackage->GetPathName()); //-V595
+			UE_LOG(LogSavePackage, Display, TEXT("Prestreaming package %s "), *ImportPackage.GetPathName()); //-V595
 			continue;
 		}
 
@@ -1189,14 +1189,14 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 	{
 		SCOPED_SAVETIMER(UPackage_Save_BuildImportMap);
 
-		for (UObject* Import : SaveContext.GetImports())
+		for (TObjectPtr<UObject> Import : SaveContext.GetImports())
 		{
-			UClass* ImportClass = Import->GetClass();
+			UClass* ImportClass = Import.GetClass();
 			FName ReplacedName = NAME_None;
 			FObjectImport& ObjectImport = Linker->ImportMap.Add_GetRef(FObjectImport(Import, ImportClass));
 
 			// flag the import as optional
-			if (Import->GetClass()->HasAnyClassFlags(CLASS_Optional))
+			if (ImportClass->HasAnyClassFlags(CLASS_Optional))
 			{
 				ObjectImport.bImportOptional = true;
 			}
@@ -1276,11 +1276,11 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		{
 			UObject* Object = Linker->ExportMap[ExpIndex].Object;
 			TArray<FPackageIndex>& DependIndices = Linker->DependsMap[ExpIndex];
-			const TSet<UObject*>* SrcDepends = SaveContext.GetObjectDependencies().Find(Object);
+			const TSet<TObjectPtr<UObject>>* SrcDepends = SaveContext.GetObjectDependencies().Find(Object);
 			checkf(SrcDepends, TEXT("Couldn't find dependency map for %s"), *Object->GetFullName());
 			DependIndices.Reserve(SrcDepends->Num());
 
-			for (UObject* DependentObject : *SrcDepends)
+			for (TObjectPtr<UObject> DependentObject : *SrcDepends)
 			{
 				FPackageIndex DependencyIndex = Linker->ObjectIndicesMap.FindRef(DependentObject);
 
@@ -1298,7 +1298,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		Linker->SoftPackageReferenceList = SaveContext.GetSoftPackageReferenceList().Array();
 
 		// Convert the searchable names map from UObject to packageindex
-		for (TPair<UObject*, TArray<FName>>& SearchableNamePair : SaveContext.GetSearchableNamesObjectMap())
+		for (TPair<TObjectPtr<UObject>, TArray<FName>>& SearchableNamePair : SaveContext.GetSearchableNamesObjectMap())
 		{
 			const FPackageIndex PackageIndex = Linker->MapObject(SearchableNamePair.Key);
 			// This should always be in the imports already
@@ -1399,14 +1399,14 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
 {
 	FLinkerSave* Linker = SaveContext.GetLinker();
-	auto IncludeObjectAsDependency = [Linker, &SaveContext](int32 CallSite, TSet<FPackageIndex>& AddTo, UObject* ToTest, UObject* ForObj, bool bMandatory, bool bOnlyIfInLinkerTable)
+	auto IncludeObjectAsDependency = [Linker, &SaveContext](int32 CallSite, TSet<FPackageIndex>& AddTo, TObjectPtr<UObject> ToTest, UObject* ForObj, bool bMandatory, bool bOnlyIfInLinkerTable)
 	{
 		// Skip transient, editor only, and excluded client/server objects
 		if (ToTest)
 		{
-			UPackage* Outermost = ToTest->GetOutermost();
+			TObjectPtr<UPackage> Outermost = ToTest.GetPackage();
 			check(Outermost);
-			if (Outermost->GetFName() == GLongCoreUObjectPackageName)
+			if (Outermost.GetFName() == GLongCoreUObjectPackageName)
 			{
 				return; // We assume nothing in coreuobject ever loads assets in a constructor
 			}
@@ -1417,16 +1417,16 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 			}
 			if (!Index.IsNull() && (ToTest->HasAllFlags(RF_Transient) && !ToTest->IsNative()))
 			{
-				UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' is in the linker table, but is transient. We will keep the dependency anyway (%d)."), *ToTest->GetFullName(), *ForObj->GetFullName(), CallSite);
+				UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' is in the linker table, but is transient. We will keep the dependency anyway (%d)."), *ToTest.GetFullName(), *ForObj->GetFullName(), CallSite);
 			}
 			if (!Index.IsNull() && !IsValid(ToTest))
 			{
-				UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' is in the linker table, but is pending kill or garbage. We will keep the dependency anyway (%d)."), *ToTest->GetFullName(), *ForObj->GetFullName(), CallSite);
+				UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' is in the linker table, but is pending kill or garbage. We will keep the dependency anyway (%d)."), *ToTest.GetFullName(), *ForObj->GetFullName(), CallSite);
 			}
 			bool bIncludedInHarvest = SaveContext.IsIncluded(ToTest);
 			if (bMandatory && !bIncludedInHarvest)
 			{
-				UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' was filtered, but is mandatory. This indicates a problem with editor only stripping. We will keep the dependency anyway (%d)."), *ToTest->GetFullName(), *ForObj->GetFullName(), CallSite);
+				UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' was filtered, but is mandatory. This indicates a problem with editor only stripping. We will keep the dependency anyway (%d)."), *ToTest.GetFullName(), *ForObj->GetFullName(), CallSite);
 				bIncludedInHarvest = true;
 			}
 			if (bIncludedInHarvest)
@@ -1578,8 +1578,8 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 					}
 				}
 				{
-					const TSet<UObject*>& NativeDeps = SaveContext.GetNativeObjectDependencies()[Export.Object];
-					for (UObject* ToTest : NativeDeps)
+					const TSet<TObjectPtr<UObject>>& NativeDeps = SaveContext.GetNativeObjectDependencies()[Export.Object];
+					for (TObjectPtr<UObject> ToTest : NativeDeps)
 					{
 						if (ToTest != ClassCDO)
 						{

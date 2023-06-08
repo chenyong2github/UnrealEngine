@@ -883,7 +883,7 @@ void FObjectImportSortHelper::SortImports(FLinkerSave* Linker)
 	}
 
 	// Map of UObject => full name; optimization for sorting.
-	TMap<UObject*, FString> ObjectToFullNameMap;
+	TMap<TObjectPtr<UObject>, FString> ObjectToFullNameMap;
 	ObjectToFullNameMap.Reserve(Imports.Num());
 
 	for (const FObjectImport& Import : Imports)
@@ -980,7 +980,7 @@ FEDLCookChecker::FEDLNodeHash::FEDLNodeHash(const TArray<FEDLNodeData>* InNodes,
 {
 }
 
-FEDLCookChecker::FEDLNodeHash::FEDLNodeHash(const UObject* InObject, EObjectEvent InObjectEvent)
+FEDLCookChecker::FEDLNodeHash::FEDLNodeHash(TObjectPtr<UObject> InObject, EObjectEvent InObjectEvent)
 	: Object(InObject)
 	, bIsNode(false)
 	, ObjectEvent(InObjectEvent)
@@ -996,8 +996,8 @@ bool FEDLCookChecker::FEDLNodeHash::operator==(const FEDLNodeHash& Other) const
 
 	uint32 LocalNodeID;
 	uint32 OtherNodeID;
-	const UObject* LocalObject;
-	const UObject* OtherObject;
+	TObjectPtr<const UObject> LocalObject;
+	TObjectPtr<const UObject> OtherObject;
 	FName LocalName = ObjectNameFirst(*this, LocalNodeID, LocalObject);
 	FName OtherName = ObjectNameFirst(Other, OtherNodeID, OtherObject);
 
@@ -1018,7 +1018,7 @@ uint32 GetTypeHash(const FEDLCookChecker::FEDLNodeHash& A)
 	uint32 Hash = 0;
 
 	uint32 LocalNodeID;
-	const UObject* LocalObject;
+	TObjectPtr<const UObject> LocalObject;
 	FName LocalName = FEDLCookChecker::FEDLNodeHash::ObjectNameFirst(A, LocalNodeID, LocalObject);
 	do
 	{
@@ -1037,7 +1037,7 @@ FName FEDLCookChecker::FEDLNodeHash::GetName() const
 	}
 	else
 	{
-		return Object->GetFName();
+		return Object.GetFName();
 	}
 }
 
@@ -1055,7 +1055,7 @@ bool FEDLCookChecker::FEDLNodeHash::TryGetParent(FEDLCookChecker::FEDLNodeHash& 
 	}
 	else
 	{
-		UObject* ParentObject = Object->GetOuter();
+		TObjectPtr<UObject> ParentObject = Object.GetOuter();
 		if (ParentObject)
 		{
 			Parent = FEDLNodeHash(ParentObject, ParentObjectEvent);
@@ -1078,7 +1078,7 @@ void FEDLCookChecker::FEDLNodeHash::SetNodes(const TArray<FEDLNodeData>* InNodes
 	}
 }
 
-FName FEDLCookChecker::FEDLNodeHash::ObjectNameFirst(const FEDLNodeHash& InNode, uint32& OutNodeID, const UObject*& OutObject)
+FName FEDLCookChecker::FEDLNodeHash::ObjectNameFirst(const FEDLNodeHash& InNode, uint32& OutNodeID,  TObjectPtr<const UObject>& OutObject)
 {
 	if (InNode.bIsNode)
 	{
@@ -1088,11 +1088,11 @@ FName FEDLCookChecker::FEDLNodeHash::ObjectNameFirst(const FEDLNodeHash& InNode,
 	else
 	{
 		OutObject = InNode.Object;
-		return OutObject->GetFName();
+		return OutObject.GetFName();
 	}
 }
 
-FName FEDLCookChecker::FEDLNodeHash::ObjectNameNext(const FEDLNodeHash& InNode, uint32& OutNodeID, const UObject*& OutObject)
+FName FEDLCookChecker::FEDLNodeHash::ObjectNameNext(const FEDLNodeHash& InNode, uint32& OutNodeID, TObjectPtr<const UObject>& OutObject)
 {
 	if (InNode.bIsNode)
 	{
@@ -1101,8 +1101,8 @@ FName FEDLCookChecker::FEDLNodeHash::ObjectNameNext(const FEDLNodeHash& InNode, 
 	}
 	else
 	{
-		OutObject = OutObject->GetOuter();
-		return OutObject ? OutObject->GetFName() : NAME_None;
+		OutObject = OutObject.GetOuter();
+		return OutObject ? OutObject.GetFName() : NAME_None;
 	}
 }
 
@@ -1208,7 +1208,7 @@ void FEDLCookChecker::Reset()
 
 LLM_DEFINE_TAG(EDLCookChecker);
 
-void FEDLCookChecker::AddImport(UObject* Import, UPackage* ImportingPackage)
+void FEDLCookChecker::AddImport(TObjectPtr<UObject> Import, UPackage* ImportingPackage)
 {
 	if (bIsActive)
 	{
@@ -2073,7 +2073,7 @@ namespace UE::AssetRegistry
 
 // See the corresponding ReadPackageDataMain and ReadPackageDataDependencies defined in PackageReader.cpp in AssetRegistry module
 void WritePackageData(FStructuredArchiveRecord& ParentRecord, bool bIsCooking, const UPackage* Package,
-	FLinkerSave* Linker, const TSet<UObject*>& ImportsUsedInGame, const TSet<FName>& SoftPackagesUsedInGame,
+		FLinkerSave* Linker, const TSet<TObjectPtr<UObject>>& ImportsUsedInGame, const TSet<FName>& SoftPackagesUsedInGame,
 	const ITargetPlatform* TargetPlatform, TArray<FAssetData>* OutAssetDatas)
 {
 	// To avoid large patch sizes, we have frozen cooked package format at the format before VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS

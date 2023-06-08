@@ -43,9 +43,9 @@ void FSaveContext::MarkUnsaveable(UObject* InObject)
 #endif
 }
 
-bool FSaveContext::IsUnsaveable(UObject* InObject, bool bEmitWarning) const
+bool FSaveContext::IsUnsaveable(TObjectPtr<UObject> InObject, bool bEmitWarning) const
 {
-	UObject* Culprit;
+	TObjectPtr<UObject> Culprit;
 	ESaveableStatus CulpritStatus;
 	ESaveableStatus Status = GetSaveableStatus(InObject, &Culprit, &CulpritStatus);
 	if (Status == ESaveableStatus::Success)
@@ -57,18 +57,18 @@ bool FSaveContext::IsUnsaveable(UObject* InObject, bool bEmitWarning) const
 	{
 		check(Culprit);
 		// Only warn if the base object is fine but the outer is invalid. If an object is itself unsaveable, the old behavior is to ignore it
-		if (InObject->GetOutermost() == GetPackage())
+		if (InObject.GetPackage() == GetPackage())
 		{
 			UE_LOG(LogSavePackage, Warning, TEXT("%s has a deprecated or abstract class outer %s, so it will not be saved"),
-				*InObject->GetFullName(), *Culprit->GetFullName());
+				*InObject.GetFullName(), *Culprit.GetFullName());
 		}
 	}
 	return true;
 }
 
-ESaveableStatus FSaveContext::GetSaveableStatus(UObject* InObject, UObject** OutCulprit, ESaveableStatus* OutCulpritStatus) const
+ESaveableStatus FSaveContext::GetSaveableStatus(TObjectPtr<UObject> InObject, TObjectPtr<UObject>* OutCulprit, ESaveableStatus* OutCulpritStatus) const
 {
-	UObject* Obj = InObject;
+	TObjectPtr<UObject> Obj = InObject;
 	while (Obj)
 	{
 		ESaveableStatus Status = GetSaveableStatusNoOuter(Obj);
@@ -84,7 +84,7 @@ ESaveableStatus FSaveContext::GetSaveableStatus(UObject* InObject, UObject** Out
 			}
 			return Obj == InObject ? Status : ESaveableStatus::OuterUnsaveable;
 		}
-		Obj = Obj->GetOuter();
+		Obj = Obj.GetOuter();
 	}
 	if (OutCulprit)
 	{
@@ -97,21 +97,21 @@ ESaveableStatus FSaveContext::GetSaveableStatus(UObject* InObject, UObject** Out
 	return ESaveableStatus::Success;
 }
 
-ESaveableStatus FSaveContext::GetSaveableStatusNoOuter(UObject* Obj) const
+ESaveableStatus FSaveContext::GetSaveableStatusNoOuter(TObjectPtr<UObject> Obj) const
 {
 	// pending kill object are unsaveable
-	if (!IsValidChecked(Obj))
+	if (Obj.IsResolved() && !IsValidChecked(Obj))
 	{
 		return ESaveableStatus::PendingKill;
 	}
 
 	// transient object are considered unsaveable if non native
-	if (Obj->HasAnyFlags(RF_Transient) && !Obj->IsNative())
+	if (Obj.IsResolved() && Obj->HasAnyFlags(RF_Transient) && !Obj->IsNative())
 	{
 		return ESaveableStatus::Transient;
 	}
 
-	UClass* Class = Obj->GetClass();
+	UClass* Class = Obj.GetClass();
 	// if the object class is abstract, has been marked as deprecated, there is a newer version that exist, or the class is marked transient, then the object is unsaveable
 	// @note: Although object instances of a transient class should definitely be unsaveable, it results in discrepancies with the old save algorithm and currently load problems
 	if (Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists /*| CLASS_Transient*/)
@@ -140,11 +140,11 @@ FSavePackageResultStruct FSaveContext::GetFinalResult()
 
 	ResultData.SavedAssets = MoveTemp(SavedAssets);
 	UClass* PackageClass = UPackage::StaticClass();
-	for (UObject* Import : GetImports())
+	for (TObjectPtr<UObject> Import : GetImports())
 	{
-		if (Import->IsA(PackageClass))
+		if (Import.IsA(PackageClass))
 		{
-			ResultData.ImportPackages.Add(Import->GetFName());
+			ResultData.ImportPackages.Add(Import.GetFName());
 		}
 	}
 	TSet<FName>& SoftPackageReferenceList = GetSoftPackageReferenceList();

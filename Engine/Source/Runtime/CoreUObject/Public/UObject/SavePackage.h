@@ -137,21 +137,21 @@ public:
 	{
 	}
 
-	virtual ESavePackageResult ValidateImports(const UPackage* Package, const TSet<UObject*>& Imports) = 0;
+	virtual ESavePackageResult ValidateImports(const UPackage* Package, const TSet<TObjectPtr<UObject>>& Imports) = 0;
 };
 
 
 /** Param struct for external import validation functions */
 struct FImportsValidationContext
 {
-	FImportsValidationContext(const UPackage* InPackage, const TSet<UObject*>& InImports, FOutputDevice* InOutputDevice)
+	FImportsValidationContext(const UPackage* InPackage, const TSet<TObjectPtr<UObject>>& InImports, FOutputDevice* InOutputDevice)
 		: Package(InPackage)
 		, Imports(InImports)
 		, OutputDevice(InOutputDevice)
 	{}
 
 	const UPackage* Package;
-	const TSet<UObject*>& Imports;
+	const TSet<TObjectPtr<UObject>>& Imports;
 	FOutputDevice* OutputDevice;
 };
 

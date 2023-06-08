@@ -7,6 +7,7 @@
 #include "Containers/Queue.h"
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
 
 enum class ESaveableStatus;
 enum class ESaveRealm : uint32;
@@ -67,10 +68,10 @@ public:
 
 	void HarvestExportDataName(FName Name);
 	void HarvestPackageHeaderName(FName Name);
-	void HarvestSearchableName(UObject* TypeObject, FName Name);
-	void HarvestDependency(UObject* InObj, bool bIsNative);
+	void HarvestSearchableName(TObjectPtr<UObject> TypeObject, FName Name);
+	void HarvestDependency(TObjectPtr<UObject> InObj, bool bIsNative);
 
-	bool CurrentExportHasDependency(UObject* InObj, ESaveRealm HarvestingRealm) const;
+	bool CurrentExportHasDependency(TObjectPtr<UObject> InObj, ESaveRealm HarvestingRealm) const;
 	TMap<UObject*, TSet<FProperty*>> ReleaseTransientPropertyOverrides();
 
 	// FArchiveUObject implementation
@@ -85,17 +86,17 @@ public:
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
 
 	/** Return whether the Object and all its Outers are native. */
-	static bool IsObjNative(UObject* InObj);
+	static bool IsObjNative(TObjectPtr<UObject> InObj);
 	/** Report whether the object should be put in the optional realm even if harvesting realm is non-optional. */
-	static bool ShouldObjectBeHarvestedInOptionalRealm(UObject* InObj, FSaveContext& InSaveContext);
+	static bool ShouldObjectBeHarvestedInOptionalRealm(TObjectPtr<UObject> InObj, FSaveContext& InSaveContext);
 
 private:
 	/** Dependencies collected for the current export, and scope information about how to collect them. */
 	struct FExportDependencies
 	{
 		UObject* CurrentExport = nullptr;
-		TSet<UObject*> ObjectReferences;
-		TSet<UObject*> NativeObjectReferences;
+		TSet<TObjectPtr<UObject>> ObjectReferences;
+		TSet<TObjectPtr<UObject>> NativeObjectReferences;
 		bool bIgnoreDependencies = false;
 	};
 
@@ -136,28 +137,28 @@ private:
 
 	void TryHarvestExportInternal(UObject* InObject);
 	void HarvestExport(UObject* InObject);
-	void TryHarvestImport(UObject* InObject);
-	void HarvestImport(UObject* InObject);
+	void TryHarvestImport(TObjectPtr<UObject> InObject);
+	void HarvestImport(TObjectPtr<UObject> InObject);
 	/** Add objects/names/others that are referenced even when an object is just being imported */
-	void ProcessImport(UObject* InObject);
+	void ProcessImport(TObjectPtr<UObject> InObject);
 
 	void AppendCurrentExportDependencies();
 	FString GetUnsaveableReason(UObject* Required, ESaveRealm RealmInWhichItIsUnsaveable);
 	ESaveableStatus GetSaveableStatusForRealm(UObject* Obj, ESaveRealm RealmInWhichItIsUnsaveable,
-		UObject*& OutCulprit, FString& OutReason);
+		TObjectPtr<UObject>& OutCulprit, FString& OutReason);
 
 	/** If bIsEditorOnly is true, remove CurrentExportHarvestingRealms that do not follow editoronly references. */
 	FHarvestScope EnterConditionalEditorOnlyScope(bool bIsEditorOnly);
 	/** If the Object is optional, clear CurrentExportHarvestingRealms and populate it with the Optional Realm. */
-	FHarvestScope EnterConditionalOptionalObjectScope(UObject* Object);
+	FHarvestScope EnterConditionalOptionalObjectScope(TObjectPtr<UObject> Object);
 	/** Remove CurrentExportHarvestingRealms that already include Export. */
 	FHarvestScope EnterNewExportOnlyScope(UObject* Export);
 	/** Remove CurrentExportHarvestingRealms that return false for ConditionallyExcludeObjectForRealm(Object). */
-	FHarvestScope EnterNotExcludedScope(UObject* Object);
+	FHarvestScope EnterNotExcludedScope(TObjectPtr<UObject> Object);
 	/** Remove CurrentExportHarvestingRealms that return true for IsExcluded(Object). */
-	FHarvestScope EnterNotPreviouslyExcludedScope(UObject* Object);
+	FHarvestScope EnterNotPreviouslyExcludedScope(TObjectPtr<UObject> Object);
 	/** Remove CurrentExportHarvestingRealms that return false for IsIncluded(Object). */
-	FHarvestScope EnterIncludedScope(UObject* Object);
+	FHarvestScope EnterIncludedScope(TObjectPtr<UObject> Object);
 
 	FSaveContext& SaveContext;
 	TQueue<FExportWithContext> ExportsToProcess;

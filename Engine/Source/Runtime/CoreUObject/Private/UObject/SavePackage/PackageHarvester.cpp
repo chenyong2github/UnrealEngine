@@ -67,9 +67,9 @@ EObjectMark GenerateMarksForObject(const UObject* InObject, const ITargetPlatfor
 	return Marks;
 }
 
-bool ConditionallyExcludeObjectForRealm(FSaveContext& SaveContext, UObject* Obj, ESaveRealm HarvestingContext)
+bool ConditionallyExcludeObjectForRealm(FSaveContext& SaveContext, TObjectPtr<UObject> Obj, ESaveRealm HarvestingContext)
 {
-	if (!Obj || Obj->GetOutermost()->GetFName() == GLongCoreUObjectPackageName)
+	if (!Obj || Obj.GetPackage().GetFName() == GLongCoreUObjectPackageName)
 	{
 		// No object or in CoreUObject, don't exclude
 		return false;
@@ -103,7 +103,7 @@ bool ConditionallyExcludeObjectForRealm(FSaveContext& SaveContext, UObject* Obj,
 	}
 
 	// If the object outer is excluded, the object must be excluded too
-	if (ConditionallyExcludeObjectForRealm(SaveContext, Obj->GetOuter(), HarvestingContext))
+	if (ConditionallyExcludeObjectForRealm(SaveContext, Obj.GetOuter(), HarvestingContext))
 	{
 		RealmBeingChecked.AddExcluded(Obj);
 		return true;
@@ -255,7 +255,7 @@ FPackageHarvester::FHarvestScope FPackageHarvester::EnterConditionalEditorOnlySc
 	return Scope;
 }
 
-FPackageHarvester::FHarvestScope FPackageHarvester::EnterConditionalOptionalObjectScope(UObject* Object)
+FPackageHarvester::FHarvestScope FPackageHarvester::EnterConditionalOptionalObjectScope(TObjectPtr<UObject> Object)
 {
 	FHarvestScope Scope(*this);
 	if (!HasAnyExportHarvestingRealms())
@@ -302,7 +302,7 @@ FPackageHarvester::FHarvestScope FPackageHarvester::EnterNewExportOnlyScope(UObj
 	return Scope;
 }
 
-FPackageHarvester::FHarvestScope FPackageHarvester::EnterNotExcludedScope(UObject* Object)
+FPackageHarvester::FHarvestScope FPackageHarvester::EnterNotExcludedScope(TObjectPtr<UObject> Object)
 {
 	FHarvestScope Scope(*this);
 	CurrentExportHarvestingRealms.RemoveAllSwap([this, Object](ESaveRealm HarvestingRealm)
@@ -312,7 +312,7 @@ FPackageHarvester::FHarvestScope FPackageHarvester::EnterNotExcludedScope(UObjec
 	return Scope;
 }
 
-FPackageHarvester::FHarvestScope FPackageHarvester::EnterNotPreviouslyExcludedScope(UObject* Object)
+FPackageHarvester::FHarvestScope FPackageHarvester::EnterNotPreviouslyExcludedScope(TObjectPtr<UObject> Object)
 {
 	FHarvestScope Scope(*this);
 	CurrentExportHarvestingRealms.RemoveAllSwap([this, Object](ESaveRealm HarvestingRealm)
@@ -322,7 +322,7 @@ FPackageHarvester::FHarvestScope FPackageHarvester::EnterNotPreviouslyExcludedSc
 	return Scope;
 }
 
-FPackageHarvester::FHarvestScope FPackageHarvester::EnterIncludedScope(UObject* Object)
+FPackageHarvester::FHarvestScope FPackageHarvester::EnterIncludedScope(TObjectPtr<UObject> Object)
 {
 	FHarvestScope Scope(*this);
 	CurrentExportHarvestingRealms.RemoveAllSwap([this, Object](ESaveRealm HarvestingRealm)
@@ -332,7 +332,7 @@ FPackageHarvester::FHarvestScope FPackageHarvester::EnterIncludedScope(UObject* 
 	return Scope;
 }
 
-bool FPackageHarvester::IsObjNative(UObject* InObj)
+bool FPackageHarvester::IsObjNative(TObjectPtr<UObject> InObj)
 {
 	bool bIsNative = InObj->IsNative();
 	UObject* Outer = InObj->GetOuter();
@@ -344,13 +344,13 @@ bool FPackageHarvester::IsObjNative(UObject* InObj)
 	return bIsNative;
 };
 
-bool FPackageHarvester::ShouldObjectBeHarvestedInOptionalRealm(UObject* InObj, FSaveContext& InContext)
+bool FPackageHarvester::ShouldObjectBeHarvestedInOptionalRealm(TObjectPtr<UObject> InObj, FSaveContext& InContext)
 {
 	if (!InContext.IsCooking())
 	{
 		return false;
 	}
-	return InObj->GetClass()->HasAnyClassFlags(CLASS_Optional);
+	return InObj.GetClass()->HasAnyClassFlags(CLASS_Optional);
 }
 
 template <typename CallbackType>
@@ -597,7 +597,7 @@ void FPackageHarvester::TryHarvestExportInternal(UObject* InObject)
 	HarvestExport(InObject);
 }
 
-void FPackageHarvester::TryHarvestImport(UObject* InObject)
+void FPackageHarvester::TryHarvestImport(TObjectPtr<UObject> InObject)
 {
 	// Those should have been already validated
 	check(InObject && !InObject->IsInPackage(SaveContext.GetPackage()));
@@ -613,9 +613,9 @@ void FPackageHarvester::TryHarvestImport(UObject* InObject)
 	}
 
 	// Do not add imports in packages excluded from cooking to any realm
-	if (InObject && FCoreUObjectDelegates::ShouldCookPackageForPlatform.IsBound())
+	if (FCoreUObjectDelegates::ShouldCookPackageForPlatform.IsBound())
 	{
-		if (!FCoreUObjectDelegates::ShouldCookPackageForPlatform.Execute(InObject->GetOutermost(), CookingTarget()))
+		if (!FCoreUObjectDelegates::ShouldCookPackageForPlatform.Execute(InObject.GetPackage(), CookingTarget()))
 		{
 			return;
 		}
@@ -632,12 +632,12 @@ void FPackageHarvester::TryHarvestImport(UObject* InObject)
 	ProcessImport(InObject);
 }
 
-void FPackageHarvester::ProcessImport(UObject* InObject)
+void FPackageHarvester::ProcessImport(TObjectPtr<UObject> InObject)
 {
 	bool bIsNative = IsObjNative(InObject);
-	UObject* ObjOuter = InObject->GetOuter();
-	UClass* ObjClass = InObject->GetClass();
-	FName ObjName = InObject->GetFName();
+	TObjectPtr<UObject> ObjOuter = InObject.GetOuter();
+	UClass* ObjClass = InObject.GetClass();
+	FName ObjName = InObject.GetFName();
 	if (SaveContext.IsCooking())
 	{
 		// The ignore dependencies check is is necessary not to have infinite recursive calls
@@ -714,7 +714,7 @@ void FPackageHarvester::MarkSearchableName(const TObjectPtr<const UObject>& Type
 
 	// Serialize object to make sure it ends up in import table
 	// This is doing a const cast to avoid backward compatibility issues
-	UObject* TempObject = const_cast<UObject*>(TypeObject.Get());
+	TObjectPtr<UObject> TempObject = TObjectPtr<UObject>(FObjectPtr(TypeObject.GetHandle()));
 	FPackageHarvester* MutableArchive = const_cast<FPackageHarvester*>(this);
 	MutableArchive->HarvestSearchableName(TempObject, ValueName);
 }
@@ -899,12 +899,12 @@ TMap<UObject*, TSet<FProperty*>> FPackageHarvester::ReleaseTransientPropertyOver
 	return MoveTemp(TransientPropertyOverrides);
 }
 
-void FPackageHarvester::HarvestDependency(UObject* InObj, bool bIsNative)
+void FPackageHarvester::HarvestDependency(TObjectPtr<UObject> InObj, bool bIsNative)
 {
 	// if we aren't currently processing an export or the referenced object is a package, do not harvest the dependency
 	if (CurrentExportDependencies.bIgnoreDependencies ||
 		CurrentExportDependencies.CurrentExport == nullptr ||
-		(InObj->GetOuter() == nullptr && InObj->GetClass()->GetFName() == NAME_Package))
+		(InObj.GetOuter() == nullptr && InObj.GetClass()->GetFName() == NAME_Package))
 	{
 		return;
 	}
@@ -919,7 +919,7 @@ void FPackageHarvester::HarvestDependency(UObject* InObj, bool bIsNative)
 	}
 }
 
-bool FPackageHarvester::CurrentExportHasDependency(UObject* InObj, ESaveRealm HarvestingRealm) const
+bool FPackageHarvester::CurrentExportHasDependency(TObjectPtr<UObject> InObj, ESaveRealm HarvestingRealm) const
 {
 	FHarvestedRealm& RealmData = SaveContext.GetHarvestedRealm(HarvestingRealm);
 	return RealmData.GetObjectDependencies().Contains(InObj) || RealmData.GetNativeObjectDependencies().Contains(InObj);
@@ -941,7 +941,7 @@ void FPackageHarvester::HarvestPackageHeaderName(FName Name)
 		});
 }
 
-void FPackageHarvester::HarvestSearchableName(UObject* TypeObject, FName Name)
+void FPackageHarvester::HarvestSearchableName(TObjectPtr<UObject> TypeObject, FName Name)
 {
 	// Make sure the object is tracked as a dependency
 	bool bAlreadyTrackedInAllHarvestingRealms = true;
@@ -977,7 +977,7 @@ void FPackageHarvester::HarvestExport(UObject* InObject)
 	ExportsToProcess.Enqueue({ InObject, CurrentExportHarvestingRealms });
 }
 
-void FPackageHarvester::HarvestImport(UObject* InObject)
+void FPackageHarvester::HarvestImport(TObjectPtr<UObject> InObject)
 {
 	ForEachExportHarvestingRealm([this, InObject](ESaveRealm HarvestingRealm)
 		{
@@ -1001,7 +1001,7 @@ void FPackageHarvester::AppendCurrentExportDependencies()
 
 FString FPackageHarvester::GetUnsaveableReason(UObject* Required, ESaveRealm RealmInWhichItIsUnsaveable)
 {
-	UObject* Culprit;
+	TObjectPtr<UObject> Culprit;
 	FString Reason;
 	ESaveableStatus Status = GetSaveableStatusForRealm(Required, RealmInWhichItIsUnsaveable, Culprit, Reason);
 	if (Status != ESaveableStatus::Success)
@@ -1022,7 +1022,7 @@ FString FPackageHarvester::GetUnsaveableReason(UObject* Required, ESaveRealm Rea
 }
 
 ESaveableStatus FPackageHarvester::GetSaveableStatusForRealm(UObject* Obj, ESaveRealm RealmInWhichItIsUnsaveable,
-	UObject*& OutCulprit, FString& OutReason)
+	TObjectPtr<UObject>& OutCulprit, FString& OutReason)
 {
 	// Copy some of the code from operator<<(UObject*), TryHarvestExport, TryHarvestImport to find out why the Required object was not included
 	if (!Obj || Obj->GetOutermost()->GetFName() == GLongCoreUObjectPackageName)

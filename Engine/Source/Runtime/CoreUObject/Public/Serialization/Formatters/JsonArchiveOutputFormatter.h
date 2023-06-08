@@ -87,7 +87,7 @@ public:
 	virtual void Serialize(TArray<uint8>& Value) override;
 	virtual void Serialize(void* Data, uint64 DataSize) override;
 
-	void SetObjectIndicesMap(const TMap<UObject*, FPackageIndex>* InObjectIndicesMap)
+	void SetObjectIndicesMap(const TMap<TObjectPtr<UObject>, FPackageIndex>* InObjectIndicesMap)
 	{
 		ObjectIndicesMap = InObjectIndicesMap;
 	}
@@ -95,7 +95,7 @@ public:
 private:
 	FArchive& Inner;
 
-	const TMap<UObject*, FPackageIndex>* ObjectIndicesMap = nullptr;
+	const TMap<TObjectPtr<UObject>, FPackageIndex>* ObjectIndicesMap = nullptr;
 
 	TArray<ANSICHAR> Newline;
 	bool bNeedsComma   = false;

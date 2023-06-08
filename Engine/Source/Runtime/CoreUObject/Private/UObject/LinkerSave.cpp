@@ -238,7 +238,7 @@ int32 FLinkerSave::MapSoftObjectPath(const FSoftObjectPath& SoftObjectPath) cons
 }
 
 
-FPackageIndex FLinkerSave::MapObject( const UObject* Object ) const
+FPackageIndex FLinkerSave::MapObject(TObjectPtr<const UObject> Object) const
 {
 	if (Object)
 	{
@@ -246,7 +246,7 @@ FPackageIndex FLinkerSave::MapObject( const UObject* Object ) const
 		if (Found)
 		{
 			if (IsCooking() && CurrentlySavingExport.IsExport() &&
-				Object->GetOutermost()->GetFName() != GLongCoreUObjectPackageName && // We assume nothing in coreuobject ever loads assets in a constructor
+				Object.GetPackage().GetFName() != GLongCoreUObjectPackageName && // We assume nothing in coreuobject ever loads assets in a constructor
 				*Found != CurrentlySavingExport) // would be weird, but I can't be a dependency on myself
 			{
 				const FObjectExport& SavingExport = Exp(CurrentlySavingExport);

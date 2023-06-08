@@ -62,7 +62,7 @@ public:
 	TArray<FPackageIndex> DepListForErrorChecking;
 
 	/** Index array - location of the resource for a UObject is stored in the ObjectIndices array using the UObject's Index */
-	TMap<UObject *,FPackageIndex> ObjectIndicesMap;
+	TMap<TObjectPtr<UObject>, FPackageIndex> ObjectIndicesMap;
 
 	/** List of Searchable Names, by object containing them. This gets turned into package indices later */
 	TMap<const UObject *, TArray<FName> > SearchableNamesObjectMap;
@@ -153,7 +153,7 @@ public:
 	int32 MapSoftObjectPath(const FSoftObjectPath& SoftObjectPath) const;
 
 	/** Returns the appropriate package index for the source object, or default value if not found in ObjectIndicesMap */
-	FPackageIndex MapObject(const UObject* Object) const;
+	FPackageIndex MapObject(TObjectPtr<const UObject> Object) const;
 
 	// FArchive interface.
 	using FArchiveUObject::operator<<; // For visibility of the overloads we don't override
