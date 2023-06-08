@@ -107,7 +107,7 @@ namespace Horde.Server.Jobs.Bisect
 		/// <summary>
 		/// The steps involved in the bisection
 		/// </summary>
-		public List<GetJobStepRefResponse> Steps;
+		public List<GetJobStepRefResponse> Steps { get; }
 
 		internal GetBisectTaskResponse(IBisectTask bisectTask, GetThinUserInfoResponse owner, List<IJobStepRef> steps)
 		{
