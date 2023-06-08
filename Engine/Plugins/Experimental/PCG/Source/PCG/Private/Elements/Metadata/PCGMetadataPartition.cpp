@@ -80,14 +80,15 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 			{
 				ValueKeyMapping.Add(-1);
 			}
-			else if (bUsesValueKeys)
+			else if (!bUsesValueKeys)
 			{
 				PCGMetadataValueKey* MatchingVK = Algo::FindByPredicate(ValueKeyMapping, [ValueKey, AttributeBase](const PCGMetadataValueKey& Key)
 				{
 					return AttributeBase->AreValuesEqual(ValueKey, Key);
 				});
 
-				ValueKeyMapping.Add(MatchingVK ? *MatchingVK : ValueKey);
+				const PCGMetadataValueKey TentativeKey = MatchingVK ? *MatchingVK : ValueKey;
+				ValueKeyMapping.Add(TentativeKey);
 			}
 			else
 			{
