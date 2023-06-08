@@ -72,14 +72,14 @@ public:
 	void ForEachActorDescContainer(TFunctionRef<void(ActorDescContPtrType)> Func) const;
 
 protected:
-	void RegisterDelegates(ActorDescContPtrType Container);
-	void UnregisterDelegates(ActorDescContPtrType Container);
-
 	virtual void OnCollectionChanged() {};
 
 	TArray<ActorDescContPtrType> ActorDescContainerCollection;
 
 private:
+	void RegisterDelegates(ActorDescContPtrType Container);
+	void UnregisterDelegates(ActorDescContPtrType Container);
+
 	void OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc);
 	void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
 
@@ -281,17 +281,15 @@ void TActorDescContainerCollection<ActorDescContPtrType>::Empty()
 template<class ActorDescContPtrType>
 void TActorDescContainerCollection<ActorDescContPtrType>::RegisterDelegates(ActorDescContPtrType Container)
 {
-	using ActorDescContNonConstPtrType = typename std::remove_const<typename TRemovePointer<ActorDescContPtrType>::Type>::type*;
-	const_cast<ActorDescContNonConstPtrType>(Container)->OnActorDescAddedEvent.AddRaw(this, &TActorDescContainerCollection<ActorDescContPtrType>::OnActorDescAdded);
-	const_cast<ActorDescContNonConstPtrType>(Container)->OnActorDescRemovedEvent.AddRaw(this, &TActorDescContainerCollection::OnActorDescRemoved);
+	ConstCast(Container)->OnActorDescAddedEvent.AddRaw(this, &TActorDescContainerCollection<ActorDescContPtrType>::OnActorDescAdded);
+	ConstCast(Container)->OnActorDescRemovedEvent.AddRaw(this, &TActorDescContainerCollection::OnActorDescRemoved);
 }
 
 template<class ActorDescContPtrType>
 void TActorDescContainerCollection<ActorDescContPtrType>::UnregisterDelegates(ActorDescContPtrType Container)
 {
-	using ActorDescContNonConstPtrType = typename std::remove_const<typename TRemovePointer<ActorDescContPtrType>::Type>::type*;
-	const_cast<ActorDescContNonConstPtrType>(Container)->OnActorDescAddedEvent.RemoveAll(this);
-	const_cast<ActorDescContNonConstPtrType>(Container)->OnActorDescRemovedEvent.RemoveAll(this);
+	ConstCast(Container)->OnActorDescAddedEvent.RemoveAll(this);
+	ConstCast(Container)->OnActorDescRemovedEvent.RemoveAll(this);
 }
 
 template<class ActorDescContPtrType>
@@ -489,4 +487,4 @@ void TActorDescContainerCollection<ActorDescContPtrType>::OnActorDescRemoved(FWo
 
 #endif 
 
-using FActorDescContainerCollection = TActorDescContainerCollection<UActorDescContainer*>;
+using FActorDescContainerCollection = TActorDescContainerCollection<TObjectPtr<UActorDescContainer>>;

@@ -101,11 +101,11 @@ protected:
 	TMultiMap<FName, const FWorldPartitionActorDescView*> ActorDescViewsByClass;
 };
 
-class ENGINE_API FStreamingGenerationActorDescCollection : public TActorDescContainerCollection<const UActorDescContainer*>
+class ENGINE_API FStreamingGenerationActorDescCollection : public TActorDescContainerCollection<TObjectPtr<const UActorDescContainer>>
 {
 public:
 	FStreamingGenerationActorDescCollection() = default;
-	FStreamingGenerationActorDescCollection(std::initializer_list<const UActorDescContainer*> ActorDescContainerArray);
+	FStreamingGenerationActorDescCollection(std::initializer_list<TObjectPtr<const UActorDescContainer>> ActorDescContainerArray);
 
 	UWorld* GetWorld() const;
 

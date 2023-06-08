@@ -1390,8 +1390,8 @@ void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHand
 	
 }
 
-FStreamingGenerationActorDescCollection::FStreamingGenerationActorDescCollection(std::initializer_list<const UActorDescContainer*> ActorDescContainerArray)
-	: TActorDescContainerCollection<const UActorDescContainer*>(ActorDescContainerArray)
+FStreamingGenerationActorDescCollection::FStreamingGenerationActorDescCollection(std::initializer_list<TObjectPtr<const UActorDescContainer>> ActorDescContainerArray)
+	: TActorDescContainerCollection<TObjectPtr<const UActorDescContainer>>(ActorDescContainerArray)
 {
 	SortCollection();
 }
