@@ -583,13 +583,13 @@ bool UDataLayerEditorSubsystem::RemoveActorsFromAllDataLayers(const TArray<AActo
 {
 	GEditor->GetSelectedActors()->BeginBatchSelectOperation();
 
-	bool bChangesOccurred = false;
+	bool bRemoveAllDataLayersOnAllActor = true;
 	for (AActor* Actor : Actors)
 	{
-		TArray<const UDataLayerInstance*> ModifiedDataLayerInstances = Actor->GetDataLayerInstances();
-		if (Actor->RemoveAllDataLayers())
+		TArray<const UDataLayerInstance*> RemovedDataLayers = Actor->RemoveAllDataLayers();
+		if (!RemovedDataLayers.IsEmpty())
 		{
-			for (const UDataLayerInstance* DataLayerInstance : ModifiedDataLayerInstances)
+			for (const UDataLayerInstance* DataLayerInstance : RemovedDataLayers)
 			{
 				BroadcastDataLayerChanged(EDataLayerAction::Modify, DataLayerInstance, NAME_None);
 			}
@@ -600,13 +600,13 @@ bool UDataLayerEditorSubsystem::RemoveActorsFromAllDataLayers(const TArray<AActo
 			bool bActorSelectionChanged = false;
 			UpdateActorVisibility(Actor, bActorSelectionChanged, bActorModified, /*bActorNotifySelectionChange*/true, /*bActorRedrawViewports*/false);
 
-			bChangesOccurred = true;
+			bRemoveAllDataLayersOnAllActor &= !Actor->HasDataLayers();
 		}
 	}
 
 	GEditor->GetSelectedActors()->EndBatchSelectOperation();
 
-	return bChangesOccurred;
+	return bRemoveAllDataLayersOnAllActor;
 }
 
 bool UDataLayerEditorSubsystem::RemoveActorFromDataLayer(AActor* Actor, UDataLayerInstance* DataLayerInstance)

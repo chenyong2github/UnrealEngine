@@ -1641,16 +1641,17 @@ bool AActor::RemoveDataLayer(const UDataLayerInstance* DataLayerInstance)
 	return DataLayerInstance->RemoveActor(this);
 }
 
-bool AActor::RemoveAllDataLayers()
+TArray<const UDataLayerInstance*> AActor::RemoveAllDataLayers()
 {
-	if ((DataLayerAssets.Num() > 0) || (DataLayers.Num() > 0))
+	TArray<const UDataLayerInstance*> RemovedDataLayerInstances = GetDataLayerInstances();
+	if (!RemovedDataLayerInstances.IsEmpty())
 	{
 		Modify();
-		DataLayerAssets.Empty();
-		DataLayers.Empty();
-		return true;
+		RemovedDataLayerInstances.SetNum(Algo::RemoveIf(
+			RemovedDataLayerInstances, [this] (const UDataLayerInstance* DataLayerInstance) { return !DataLayerInstance->RemoveActor(this); }));
 	}
-	return false;
+
+	return RemovedDataLayerInstances;
 }
 
 TArray<const UDataLayerAsset*> AActor::ResolveDataLayerAssets(const TArray<TSoftObjectPtr<UDataLayerAsset>>& InDataLayerAssets) const

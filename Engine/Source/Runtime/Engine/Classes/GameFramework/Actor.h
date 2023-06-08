@@ -1298,7 +1298,7 @@ private:
 public:
 	bool AddDataLayer(const UDataLayerInstance* DataLayerInstance);
 	bool RemoveDataLayer(const UDataLayerInstance* DataLayerInstance);
-	bool RemoveAllDataLayers();
+	TArray<const UDataLayerInstance*> RemoveAllDataLayers();
 	bool SupportsDataLayer() const;
 	
 	TArray<const UDataLayerInstance*> GetDataLayerInstancesForLevel() const;
