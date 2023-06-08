@@ -94,7 +94,7 @@ public:
 	}
 
 	// Return true, if camera projection visible for this viewport geometry
-	// ICVFX Perforamance : if camera frame not visible on this node, disable render for this camera
+	// ICVFX Performance : if camera frame not visible on this node, disable render for this camera
 	virtual bool IsCameraProjectionVisible(const FRotator& InViewRotation, const FVector& InViewLocation, const FMatrix& InProjectionMatrix)
 	{
 		return true;
@@ -120,6 +120,10 @@ public:
 	{
 		return false;
 	}
+
+	/** Projection policy can override PP */
+	virtual void OverridePostProcessSettings(IDisplayClusterViewport* InViewport)
+	{ }
 
 	 /** Get the distance from the eye to the viewpoint location
 	 *

@@ -27,7 +27,7 @@ using namespace UE::DisplayClusterViewport;
 ///////////////////////////////////////////////////////////////////////////////////////
 //          FDisplayClusterViewport
 ///////////////////////////////////////////////////////////////////////////////////////
-UDisplayClusterCameraComponent* FDisplayClusterViewport::GetViewPointCamera() const
+UDisplayClusterCameraComponent* FDisplayClusterViewport::GetViewPointCameraComponent() const
 {
 	ADisplayClusterRootActor* RootActor = GetRootActor();
 	if (!RootActor)
@@ -53,7 +53,7 @@ UDisplayClusterCameraComponent* FDisplayClusterViewport::GetViewPointCamera() co
 	const FString& CameraId = GetRenderSettings().CameraId;
 	if (CameraId.Len() > 0)
 	{
-		UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Viewport '%s' has assigned camera '%s'"), *GetId(), *CameraId);
+		UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Viewport '%s' has assigned ViewPoint '%s'"), *GetId(), *CameraId);
 	}
 
 	// Get camera component assigned to the viewport (or default camera if nothing assigned)
@@ -64,14 +64,14 @@ UDisplayClusterCameraComponent* FDisplayClusterViewport::GetViewPointCamera() co
 		return ViewCamera;
 	}
 
-	UE_LOG(LogDisplayClusterViewport, Warning, TEXT("No camera found for viewport '%s'"), *GetId());
+	UE_LOG(LogDisplayClusterViewport, Warning, TEXT("ViewPoint '%s' is not found for viewport '%s'"), *CameraId, * GetId());
 
 	return nullptr;
 }
 
 bool FDisplayClusterViewport::SetupViewPoint(FMinimalViewInfo& InOutViewInfo)
 {
-	if (UDisplayClusterCameraComponent* ViewCamera = GetViewPointCamera())
+	if (UDisplayClusterCameraComponent* ViewCamera = GetViewPointCameraComponent())
 	{
 		// First try to get the viewpoint from the projection policy
 		if (!ProjectionPolicy->GetViewPoint(this, InOutViewInfo.Rotation, InOutViewInfo.Location))
@@ -91,7 +91,7 @@ float FDisplayClusterViewport::GetStereoEyeOffsetDistance(const uint32 InContext
 {
 	float StereoEyeOffsetDistance = 0.f;
 
-	if (UDisplayClusterCameraComponent* ViewCamera = GetViewPointCamera())
+	if (UDisplayClusterCameraComponent* ViewCamera = GetViewPointCameraComponent())
 	{
 		// First try to get the eye offset distance from the projection policy
 		if (!ProjectionPolicy->GetStereoEyeOffsetDistance(this, InContextNum, StereoEyeOffsetDistance))

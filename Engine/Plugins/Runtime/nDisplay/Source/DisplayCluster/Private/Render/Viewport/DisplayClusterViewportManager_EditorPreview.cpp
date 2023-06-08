@@ -54,11 +54,11 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 	TArray<FString>        PreviewViewportNames;
 	TArray<FTextureRHIRef> PreviewRenderTargetableTextures;
 
-	PreviewViewportNames.Reserve(Viewports.Num());
-	PreviewRenderTargetableTextures.Reserve(Viewports.Num());
+	PreviewViewportNames.Reserve(ImplGetEntireClusterViewports().Num());
+	PreviewRenderTargetableTextures.Reserve(ImplGetEntireClusterViewports().Num());
 
 	// Collect visible and enabled viewports for preview rendering:
-	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : Viewports)
+	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ImplGetEntireClusterViewports())
 	{
 		// update only current cluster node
 		if (ViewportIt.IsValid() && (ClusterNodeId.IsEmpty() || ViewportIt->GetClusterNodeId() == ClusterNodeId))
@@ -98,7 +98,7 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 void FDisplayClusterViewportManager::OnPreGarbageCollect()
 {
 	// The view state can reference materials from the world being cleaned up. (Example post process materials)
-	for (TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : Viewports)
+	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ImplGetEntireClusterViewports())
 	{
 		if (ViewportIt.IsValid())
 		{

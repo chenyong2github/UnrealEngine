@@ -306,7 +306,7 @@ const FDisplayClusterViewportProxy& FDisplayClusterViewportProxy::GetRenderingVi
 	case EDisplayClusterViewportOverrideMode::InernalRTT:
 		if (FDisplayClusterViewportManagerProxy* ViewportManagerProxy = GetViewportManagerProxyImpl_RenderThread())
 		{
-			if (FDisplayClusterViewportProxy const* OverrideViewportProxy = ViewportManagerProxy->ImplFindViewport_RenderThread(RenderSettings.ViewportOverrideId))
+			if (FDisplayClusterViewportProxy const* OverrideViewportProxy = ViewportManagerProxy->ImplFindViewportProxy_RenderThread(RenderSettings.ViewportOverrideId))
 			{
 				return *OverrideViewportProxy;
 			}

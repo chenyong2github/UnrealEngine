@@ -106,6 +106,7 @@ public:
 
 	virtual bool SetupViewPoint(FMinimalViewInfo& InOutViewInfo) override;
 	virtual float GetStereoEyeOffsetDistance(const uint32 InContextNum) override;
+	virtual class UDisplayClusterCameraComponent* GetViewPointCameraComponent() const override;
 
 	virtual const FDisplayClusterViewport_RenderSettingsICVFX& GetRenderSettingsICVFX() const override
 	{
@@ -132,6 +133,12 @@ public:
 	}
 
 	virtual const IDisplayClusterViewport_CustomPostProcessSettings& GetViewport_CustomPostProcessSettings() const override
+	{
+		check(IsInGameThread());
+		return CustomPostProcessSettings;
+	}
+
+	virtual IDisplayClusterViewport_CustomPostProcessSettings& GetViewport_CustomPostProcessSettings() override
 	{
 		check(IsInGameThread());
 		return CustomPostProcessSettings;
@@ -198,8 +205,6 @@ public:
 
 	bool HandleStartScene();
 	void HandleEndScene();
-
-	class UDisplayClusterCameraComponent* GetViewPointCamera() const;
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 

@@ -47,17 +47,17 @@ public:
 
 	virtual IDisplayClusterViewportProxy* FindViewport_RenderThread(const FString& InViewportId) const override
 	{
-		return ImplFindViewport_RenderThread(InViewportId);
+		return ImplFindViewportProxy_RenderThread(InViewportId);
 	}
 
 	virtual IDisplayClusterViewportProxy* FindViewport_RenderThread(const int32 StereoViewIndex, uint32* OutContextNum = nullptr) const override
 	{
-		return ImplFindViewport_RenderThread(StereoViewIndex, OutContextNum);
+		return ImplFindViewportProxy_RenderThread(StereoViewIndex, OutContextNum);
 	}
 
 	virtual const TArrayView<TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>> GetViewports_RenderThread() const override
 	{
-		return TArrayView<TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>>((TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>*)(ClusterNodeViewportProxies.GetData()), ClusterNodeViewportProxies.Num());
+		return TArrayView<TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>>((TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>*)(CurrentRenderFrameViewportProxies.GetData()), CurrentRenderFrameViewportProxies.Num());
 	}
 
 	virtual bool GetFrameTargets_RenderThread(TArray<FRHITexture2D*>& OutFrameResources, TArray<FIntPoint>& OutTargetOffsets, TArray<FRHITexture2D*>* OutAdditionalFrameResources = nullptr) const override;
@@ -89,59 +89,63 @@ public:
 	void Initialize(FDisplayClusterViewportManager& InViewportManager);
 
 	/** Get LightCardManager proxy object. */
-	TSharedPtr<FDisplayClusterViewportLightCardManagerProxy, ESPMode::ThreadSafe> GetLightCardManagerProxy_RenderThread() const
+	inline TSharedPtr<FDisplayClusterViewportLightCardManagerProxy, ESPMode::ThreadSafe> GetLightCardManagerProxy_RenderThread() const
 	{ return LightCardManagerProxy; }
 
 	/** Get RenderFrameSettings on render thread. */
-	const FDisplayClusterRenderFrameSettings& GetRenderFrameSettings_RenderThread() const
+	inline  const FDisplayClusterRenderFrameSettings& GetRenderFrameSettings_RenderThread() const
 	{ return RenderFrameSettings; }
 
-	/** Get the viewports of the cluster node on the render thread. */
-	const TArray<TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>>& ImplGetViewportProxies_RenderThread() const
-	{ return ClusterNodeViewportProxies; }
+	/** Geting the viewport proxies of the current rendering frame. (viewports from the current node or from a special named list) */
+	inline const TArray<TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>>& ImplGetCurrentRenderFrameViewportProxies_RenderThread() const
+	{ return CurrentRenderFrameViewportProxies; }
+
+	/** Get the viewport proxies  of the whole cluster on the render thread. */
+	inline const TArray<TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>>& ImplGetEntireClusterViewportProxies_RenderThread() const
+	{ return EntireClusterViewportProxies; }
 
 	/** Find viewport by name. */
-	FDisplayClusterViewportProxy* ImplFindViewport_RenderThread(const FString& InViewportId) const;
+	FDisplayClusterViewportProxy* ImplFindViewportProxy_RenderThread(const FString& InViewportId) const;
 
 	/** Find viewport and context index by StereoViewIndex. */
-	FDisplayClusterViewportProxy* ImplFindViewport_RenderThread(const int32 StereoViewIndex, uint32* OutContextNum = nullptr) const;
+	FDisplayClusterViewportProxy* ImplFindViewportProxy_RenderThread(const int32 StereoViewIndex, uint32* OutContextNum = nullptr) const;
 
 	/** Copy RenderFrameSettings from game to render thread. */
 	void ImplUpdateRenderFrameSettings(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings,
 		const TSharedPtr<FDisplayClusterViewportManagerViewExtension, ESPMode::ThreadSafe>& InViewportManagerViewExtension);
 
-	/** Copy Viewports data to Proxies from game to render thread. */
-	void ImplUpdateViewports(const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& InViewports);
+	/** Sending viewport data from the game stream to the viewport proxy that is in the rendering stream. */
+	void ImplUpdateViewportProxies_GameThread(const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& InCurrentRenderFrameViewports);
 
 	/** Rendering the final frame of nDisplay. Called after all viewports have been rendered in RTT. */
-	void ImplRenderFrame(FViewport* InViewport);
+	void ImplRenderFrame_GameThread(FViewport* InViewport);
 
 	/** Rendering black color in all frame textures. */
 	void ImplClearFrameTargets_RenderThread(FRHICommandListImmediate& RHICmdList) const;
 
 private:
 	/** Update ClusterNodeViewportProxies from ViewportProxies for the current cluster node. */
-	void ImplUpdateClusterNodeViewportProxies();
+	void ImplUpdateClusterNodeViewportProxies_RenderThread();
 
 private:
-	/** RenderTarget manager object. Used to remove related objects in order. */
+	// RenderTarget manager object. Used to remove related objects in order.
 	TSharedPtr<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>        RenderTargetManager;
 
-	/** PostProcess manager object. Used to remove related objects in order. */
+	// PostProcess manager object. Used to remove related objects in order.
 	TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> PostProcessManager;
 
-	/** LightCard manager proxy object. */
+	// LightCard manager proxy object.
 	TSharedPtr<FDisplayClusterViewportLightCardManagerProxy, ESPMode::ThreadSafe> LightCardManagerProxy;
 
-	/** Copy of RenderFrameSettings for the render thread. */
+	// Copy of RenderFrameSettings for the render thread.
 	FDisplayClusterRenderFrameSettings RenderFrameSettings;
 
-	/** Proxies of the entire cluster. */
-	TArray<TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>> ViewportProxies;
+	// Viewport proxies of the entire cluster.
+	TArray<TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>> EntireClusterViewportProxies;
 
-	/** Proxies of the current cluster node. */
-	TArray<TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>> ClusterNodeViewportProxies;
+	// Viewport proxies of the current rendering frame (viewports from the current node or from a special named list).
+	TArray<TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>> CurrentRenderFrameViewportProxies;
 
-	/** nDisplay VE object. Used to remove related objects in order. */
+	// nDisplay VE object. Used to remove related objects in order.
 	TSharedPtr<class FDisplayClusterViewportManagerViewExtension, ESPMode::ThreadSafe> ViewportManagerViewExtension;
 };

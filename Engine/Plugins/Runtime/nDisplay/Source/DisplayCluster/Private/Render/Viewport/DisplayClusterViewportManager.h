@@ -99,7 +99,7 @@ public:
 
 	virtual const TArrayView<TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe>> GetViewports() const override
 	{
-		return TArrayView<TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe>>((TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe>*)(ClusterNodeViewports.GetData()), ClusterNodeViewports.Num());
+		return TArrayView<TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe>>((TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe>*)(CurrentRenderFrameViewports.GetData()), CurrentRenderFrameViewports.Num());
 	}
 
 	virtual void MarkComponentGeometryDirty(const FName InComponentName = NAME_None) override;
@@ -109,17 +109,15 @@ public:
 
 	//~~ End IDisplayClusterViewportManager
 
-	const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& ImplGetViewports() const
+	/** Getting the viewports of the current rendering frame (viewports from the current node or from a special named list). */
+	inline const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& ImplGetCurrentRenderFrameViewports() const
 	{
-		check(IsInGameThread());
-		return ClusterNodeViewports;
+		return CurrentRenderFrameViewports;
 	}
 
-	const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& ImplGetWholeClusterViewports() const
+	inline const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& ImplGetEntireClusterViewports() const
 	{
-		check(IsInGameThread());
-
-		return Viewports;
+		return EntireClusterViewports;
 	}
 
 	// internal use only
@@ -188,15 +186,20 @@ protected:
 	TSharedPtr<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe>   LightCardManager;
 
 public:
+	// Configuration of the current cluster node
 	TUniquePtr<FDisplayClusterViewportConfiguration> Configuration;
 
 private:
+	// Manager for creating the render frame stucture
 	TUniquePtr<FDisplayClusterRenderFrameManager>  RenderFrameManager;
 
-	TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> Viewports;
-	TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> ClusterNodeViewports;
+	// Viewports of the entire cluster
+	TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> EntireClusterViewports;
 
-	/** Render thread proxy manager. Deleted on render thread */
+	// Viewports of the current render frame (viewports from the current node or from a special named list)
+	TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> CurrentRenderFrameViewports;
+
+	// Render thread proxy manager. Deleted on render thread
 	TSharedPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxy;
 
 	// Pointer to the current scene

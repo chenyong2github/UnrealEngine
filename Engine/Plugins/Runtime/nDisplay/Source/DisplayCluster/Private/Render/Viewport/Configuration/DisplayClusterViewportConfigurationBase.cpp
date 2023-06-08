@@ -60,7 +60,7 @@ void FDisplayClusterViewportConfigurationBase::Update(const FString& ClusterNode
 		ConfigurationData.Cluster->GetNodeIds(ExistClusterNodesIDs);
 
 		TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> UnusedViewports;
-		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager.ImplGetViewports())
+		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager.ImplGetCurrentRenderFrameViewports())
 		{
 			if (ViewportIt.IsValid())
 			{
@@ -120,7 +120,7 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InV
 	// Collect unused viewports and delete
 	{
 		TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> UnusedViewports;
-		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager.ImplGetViewports())
+		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager.ImplGetCurrentRenderFrameViewports())
 		{
 			if (ViewportIt.IsValid())
 			{

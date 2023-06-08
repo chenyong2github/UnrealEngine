@@ -284,4 +284,10 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(FDispla
 			}
 		}
 	}
+
+	// Override PostProcess from projection policy
+	if (DstViewport.ProjectionPolicy.IsValid())
+	{
+		DstViewport.ProjectionPolicy->OverridePostProcessSettings(&DstViewport);
+	}
 }

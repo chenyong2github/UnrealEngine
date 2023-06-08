@@ -47,6 +47,9 @@ public:
 	 */
 	virtual bool SetupViewPoint(struct FMinimalViewInfo& InOutViewInfo) = 0;
 
+	/** Return view point camera component for this viewport. */
+	virtual class UDisplayClusterCameraComponent* GetViewPointCameraComponent() const = 0;
+
 	/** Get the distance from the eye to the viewpoint location.
 	 *
 	 * @param InContextNum - eye context of this viewport
@@ -59,6 +62,7 @@ public:
 
 	// Override postprocess settings for this viewport
 	virtual const IDisplayClusterViewport_CustomPostProcessSettings& GetViewport_CustomPostProcessSettings() const = 0;
+	virtual IDisplayClusterViewport_CustomPostProcessSettings& GetViewport_CustomPostProcessSettings() = 0;
 
 	// Setup scene view for rendering specified Context
 	virtual void SetupSceneView(uint32 ContextNum, class UWorld* World, class FSceneViewFamily& InViewFamily, FSceneView& InView) const = 0;

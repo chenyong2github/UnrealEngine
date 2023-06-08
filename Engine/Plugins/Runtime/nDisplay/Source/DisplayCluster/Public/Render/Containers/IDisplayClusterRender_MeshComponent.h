@@ -16,7 +16,7 @@ class IDisplayClusterRender_MeshComponentProxy;
 struct FStaticMeshLODResources;
 struct FProcMeshSection;
 
-class IDisplayClusterRender_MeshComponent
+class DISPLAYCLUSTER_API IDisplayClusterRender_MeshComponent
 {
 public:
 	virtual ~IDisplayClusterRender_MeshComponent() = default;

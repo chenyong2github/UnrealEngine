@@ -28,7 +28,7 @@
 
 void FDisplayClusterViewportConfigurationProjectionPolicy::Update()
 {
-	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager.ImplGetViewports())
+	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager.ImplGetCurrentRenderFrameViewports())
 	{
 		// ignore ICVFX internal resources
 		if (ViewportIt.IsValid() && !EnumHasAnyFlags(ViewportIt->GetRenderSettingsICVFX().RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource))

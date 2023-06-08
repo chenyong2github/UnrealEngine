@@ -16,8 +16,9 @@ public:
 	virtual ~FDisplayClusterViewport_CustomPostProcessSettings() = default;
 
 public:
-	void AddCustomPostProcess(const ERenderPass InRenderPass, const FPostProcessSettings& InSettings, float BlendWeight, bool bSingleFrame);
-	void RemoveCustomPostProcess(const ERenderPass InRenderPass);
+	virtual void AddCustomPostProcess(const ERenderPass InRenderPass, const FPostProcessSettings& InSettings, float BlendWeight, bool bSingleFrame) override;
+	virtual void RemoveCustomPostProcess(const ERenderPass InRenderPass) override;
+
 	void FinalizeFrame();
 
 	virtual bool DoPostProcess(const ERenderPass InRenderPass, FPostProcessSettings* OutSettings, float* OutBlendWeight = nullptr) const override;

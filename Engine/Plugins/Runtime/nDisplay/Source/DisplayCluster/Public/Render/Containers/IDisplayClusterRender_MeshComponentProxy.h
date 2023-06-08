@@ -7,7 +7,7 @@
 #include "RHI.h"
 #include "RHICommandList.h"
 
-class IDisplayClusterRender_MeshComponentProxy
+class DISPLAYCLUSTER_API IDisplayClusterRender_MeshComponentProxy
 {
 public:
 	virtual ~IDisplayClusterRender_MeshComponentProxy() = default;
