@@ -33,6 +33,7 @@ public:
 	virtual void OnRegister() override;
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
 
@@ -40,12 +41,15 @@ public:
 	void OnEdit();
 	void OnCommit();
 
-	const FWorldPartitionActorFilter& GetFilter() const { return Filter; }
+	const FWorldPartitionActorFilter& GetFilter() const { return IsEditFilter() ? EditFilter : Filter; }
 	void SetFilter(const FWorldPartitionActorFilter& InFilter);
 	const TMap<FActorContainerID, TSet<FGuid>>& GetFilteredActorsPerContainer() const;
+	void UpdateEditFilter();
 private:
 	bool ShouldShowSpriteComponent() const;
 	void OnFilterChanged();
+	void SetActiveFilter(const FWorldPartitionActorFilter& InFilter);
+	bool IsEditFilter() const;
 
 	TWeakObjectPtr<AActor> CachedEditorInstanceActorPtr;
 #endif
@@ -54,9 +58,15 @@ private:
 	UPROPERTY(EditAnywhere, Category = Filter, meta=(LevelInstanceFilter))
 	FWorldPartitionActorFilter Filter;
 
+	UPROPERTY(EditAnywhere, Transient, Category = Filter, meta=(LevelInstanceEditFilter))
+	FWorldPartitionActorFilter EditFilter;
+
 	FWorldPartitionActorFilter UndoRedoCachedFilter;
 
 	mutable FWorldPartitionActorFilter CachedFilter;
 	mutable TOptional<TMap<FActorContainerID, TSet<FGuid>>> CachedFilteredActorsPerContainer;
+
+	// Used to cancel the package getting dirty when editing the EditFilter which is transient
+	bool bWasDirtyBeforeEditFilterChange;
 #endif
 };

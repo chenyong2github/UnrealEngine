@@ -19,6 +19,7 @@
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "LevelInstance/LevelInstanceEditorObject.h"
 #include "LevelInstance/LevelInstanceEditorPivotActor.h"
+#include "LevelInstance/LevelInstanceComponent.h"
 #include "WorldPartition/LevelInstance/LevelInstanceActorDesc.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
@@ -398,7 +399,7 @@ void ULevelInstanceSubsystem::RegisterLoadedLevelStreamingLevelInstanceEditor(UL
 	{
 		check(!LevelInstanceEdit.IsValid());
 		ILevelInstanceInterface* LevelInstance = LevelStreaming->GetLevelInstance();
-		LevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, LevelInstance->GetLevelInstanceID());
+		LevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, LevelInstance);
 
 		if (ILevelInstanceEditorModule* EditorModule = FModuleManager::GetModulePtr<ILevelInstanceEditorModule>("LevelInstanceEditor"))
 		{
@@ -1272,7 +1273,8 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 	};
 
 	FStackLevelInstanceEdit StackLevelInstanceEdit;
-	StackLevelInstanceEdit.LevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, NewLevelInstance->GetLevelInstanceID());
+	LevelStreaming->LevelInstanceID = NewLevelInstanceID;
+	StackLevelInstanceEdit.LevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, NewLevelInstance);
 	// Force mark it as changed
 	StackLevelInstanceEdit.LevelInstanceEdit->MarkCommittedChanges();
 
@@ -1687,10 +1689,12 @@ bool ULevelInstanceSubsystem::ShouldIgnoreDirtyPackage(UPackage* DirtyPackage, c
 	return bIgnore;
 }
 
-ULevelInstanceSubsystem::FLevelInstanceEdit::FLevelInstanceEdit(ULevelStreamingLevelInstanceEditor* InLevelStreaming, FLevelInstanceID InLevelInstanceID)
-	: LevelStreaming(InLevelStreaming)
+ULevelInstanceSubsystem::FLevelInstanceEdit::FLevelInstanceEdit(ULevelStreamingLevelInstanceEditor* InLevelStreaming, ILevelInstanceInterface* InLevelInstance)
+	: LevelStreaming(InLevelStreaming), LevelInstanceActor(CastChecked<AActor>(InLevelInstance))
 {
-	LevelStreaming->LevelInstanceID = InLevelInstanceID;
+	check(LevelStreaming->LevelInstanceID == InLevelInstance->GetLevelInstanceID());
+	// Update Edit Filter before actors are added to world
+	InLevelInstance->GetLevelInstanceComponent()->UpdateEditFilter();
 	EditorObject = NewObject<ULevelInstanceEditorObject>(GetTransientPackage(), NAME_None, RF_Transactional);
 	EditorObject->EnterEdit(GetEditWorld());
 }
@@ -1711,10 +1715,16 @@ UWorld* ULevelInstanceSubsystem::FLevelInstanceEdit::GetEditWorld() const
 	return nullptr;
 }
 
+ILevelInstanceInterface* ULevelInstanceSubsystem::FLevelInstanceEdit::GetLevelInstance() const
+{
+	return Cast<ILevelInstanceInterface>(LevelInstanceActor);
+}
+
 void ULevelInstanceSubsystem::FLevelInstanceEdit::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(EditorObject);
 	Collector.AddReferencedObject(LevelStreaming);
+	Collector.AddReferencedObject(LevelInstanceActor);
 }
 
 bool ULevelInstanceSubsystem::FLevelInstanceEdit::CanDiscard(FText* OutReason) const
@@ -1751,14 +1761,9 @@ void ULevelInstanceSubsystem::FLevelInstanceEdit::GetPackagesToSave(TArray<UPack
 	}
 }
 
-FLevelInstanceID ULevelInstanceSubsystem::FLevelInstanceEdit::GetLevelInstanceID() const
-{
-	return LevelStreaming ? LevelStreaming->GetLevelInstanceID() : FLevelInstanceID();
-}
-
 const ULevelInstanceSubsystem::FLevelInstanceEdit* ULevelInstanceSubsystem::GetLevelInstanceEdit(const ILevelInstanceInterface* LevelInstance) const
 {
-	if (LevelInstance && LevelInstanceEdit && LevelInstanceEdit->GetLevelInstanceID() == LevelInstance->GetLevelInstanceID())
+	if (LevelInstance && LevelInstanceEdit && LevelInstanceEdit->GetLevelInstance() == LevelInstance)
 	{
 		return LevelInstanceEdit.Get();
 	}
@@ -1788,7 +1793,7 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::GetEditingLevelInstance() cons
 {
 	if (LevelInstanceEdit)
 	{
-		return GetLevelInstance(LevelInstanceEdit->GetLevelInstanceID());
+		return LevelInstanceEdit->GetLevelInstance();
 	}
 
 	return nullptr;
@@ -1819,7 +1824,7 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ILevelInstanceInterface
 	
 	if (LevelInstanceEdit)
 	{
-		if (LevelInstanceEdit->GetLevelInstanceID() == LevelInstance->GetLevelInstanceID())
+		if (LevelInstanceEdit->GetLevelInstance() == LevelInstance)
 		{
 			if (OutReason)
 			{
@@ -1920,7 +1925,8 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ILevelInstanceInterface*
 		});
 	}
 
-	GEditor->SelectNone(false, true);
+	// Make sure selection is refreshed (Edit can have impact on details view)
+	GEditor->SelectNone(true, true);
 	
 	// Avoid calling OnEditChild twice  on ancestors when EditLevelInstance calls itself
 	if (!bRecursive)
@@ -1976,7 +1982,7 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ILevelInstanceInterface*
 	}
 
 	check(LevelInstanceEdit.IsValid());
-	check(LevelInstanceEdit->GetLevelInstanceID() == LevelInstance->GetLevelInstanceID());
+	check(LevelInstanceEdit->GetLevelInstance() == LevelInstance);
 	check(LevelInstanceEdit->LevelStreaming == LevelStreaming);
 		
 	// Try and select something meaningful
@@ -2075,7 +2081,7 @@ bool ULevelInstanceSubsystem::CommitLevelInstance(ILevelInstanceInterface* Level
 bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits, bool bDiscardOnFailure, TSet<FName>* DirtyPackages)
 {
 	TGuardValue<bool> CommitScope(bIsCommittingLevelInstance, true);
-	ILevelInstanceInterface* LevelInstance = GetLevelInstance(InLevelInstanceEdit->GetLevelInstanceID());
+	ILevelInstanceInterface* LevelInstance = InLevelInstanceEdit->GetLevelInstance();
 	check(InLevelInstanceEdit);
 	UWorld* EditingWorld = InLevelInstanceEdit->GetEditWorld();
 	check(EditingWorld);
@@ -2136,7 +2142,8 @@ bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInsta
 	FScopedSlowTask SlowTask(0, LOCTEXT("EndEditLevelInstance", "Unloading Level..."), !GetWorld()->IsGameWorld());
 	SlowTask.MakeDialog();
 
-	GEditor->SelectNone(false, true);
+	// Make sure selection is refreshed (Commit can have impact on details view)
+	GEditor->SelectNone(true, true);
 
 	const FString EditPackage = LevelInstance->GetWorldAssetPackage();
 

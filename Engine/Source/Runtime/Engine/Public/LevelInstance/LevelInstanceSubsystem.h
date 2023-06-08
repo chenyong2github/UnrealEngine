@@ -164,12 +164,13 @@ private:
 	public:
 		TObjectPtr<ULevelStreamingLevelInstanceEditor> LevelStreaming;
 		TObjectPtr<ULevelInstanceEditorObject> EditorObject;
+		TObjectPtr<AActor> LevelInstanceActor;
 
-		FLevelInstanceEdit(ULevelStreamingLevelInstanceEditor* InLevelStreaming, FLevelInstanceID InLevelInstanceID);
+		FLevelInstanceEdit(ULevelStreamingLevelInstanceEditor* InLevelStreaming, ILevelInstanceInterface* InLevelInstance);
 		virtual ~FLevelInstanceEdit();
 
 		UWorld* GetEditWorld() const;
-		FLevelInstanceID GetLevelInstanceID() const;
+		ILevelInstanceInterface* GetLevelInstance() const;
 
 		void AddReferencedObjects(FReferenceCollector& Collector);
 

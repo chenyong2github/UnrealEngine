@@ -33,6 +33,12 @@ TSharedPtr<FWorldPartitionActorFilterMode::FFilter> FLevelInstanceFilterProperty
 		{
 			if (ILevelInstanceInterface* LevelInstanceInterface = Cast<ILevelInstanceInterface>(OuterActor))
 			{
+				// Make sure this Customization supports current filter type
+				if (LevelInstanceInterface->IsEditing() != bIsEditFilter)
+				{
+					return nullptr;
+				}
+
 				LevelInstances.Add(LevelInstanceInterface, OuterObjectIndex);
 				ActorLabel = OuterActor->GetActorLabel();
 				

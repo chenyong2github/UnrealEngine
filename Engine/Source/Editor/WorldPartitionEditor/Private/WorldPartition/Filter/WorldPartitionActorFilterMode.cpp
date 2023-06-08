@@ -88,7 +88,10 @@ void FWorldPartitionActorFilterMode::FFilter::Override(const FWorldPartitionActo
 
 		for (auto& [ActorGuid, WorldPartitionActorFilter] : InOverride->GetChildFilters())
 		{
-			OverrideInternal(InValue->GetChildFilters().FindChecked(ActorGuid), WorldPartitionActorFilter);
+			if (FWorldPartitionActorFilter*const* ChildFilter = InValue->GetChildFilters().Find(ActorGuid))
+			{
+				OverrideInternal(*ChildFilter, WorldPartitionActorFilter);
+			}
 		}
 	};
 	OverrideInternal(LevelFilter.Get(), Other);

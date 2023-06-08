@@ -9,28 +9,42 @@
 #include "Templates/SharedPointer.h"
 #include "WorldPartition/Filter/WorldPartitionActorFilterPropertyTypeCustomization.h"
 #include "WorldPartition/Filter/WorldPartitionActorFilterMode.h"
+#include "LevelInstance/LevelInstanceComponent.h"
 
 class ILevelInstanceInterface;
 
 class FLevelInstancePropertyTypeIdentifier : public IPropertyTypeIdentifier
 {
+public:
+	FLevelInstancePropertyTypeIdentifier(bool bInIsEditFilter)
+		: bIsEditFilter(bInIsEditFilter)
+	{}
+
 	virtual bool IsPropertyTypeCustomized(const IPropertyHandle& PropertyHandle) const override
 	{
-		return PropertyHandle.HasMetaData(TEXT("LevelInstanceFilter"));
+		return bIsEditFilter ? PropertyHandle.HasMetaData(TEXT("LevelInstanceEditFilter")) : PropertyHandle.HasMetaData(TEXT("LevelInstanceFilter"));
 	}
+
+private:
+	bool bIsEditFilter;
 };
 
 // Registered (FLevelInstanceEditorModule::StartupModule) Property Customization for properties of type FWorldPartitionActorFilter for Level Instances
 struct FLevelInstanceFilterPropertyTypeCustomization : public FWorldPartitionActorFilterPropertyTypeCustomization
 {
 public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance(bool bInIsEditFilter)
 	{
-		return MakeShareable(new FLevelInstanceFilterPropertyTypeCustomization);
+		return MakeShareable(new FLevelInstanceFilterPropertyTypeCustomization(bInIsEditFilter));
 	}
 private:
+	FLevelInstanceFilterPropertyTypeCustomization(bool bInIsEditFilter)
+		: bIsEditFilter(bInIsEditFilter)
+	{}
+
 	virtual TSharedPtr<FWorldPartitionActorFilterMode::FFilter> CreateModeFilter(TArray<UObject*> OuterObjects) override;
 	virtual void ApplyFilter(TSharedRef<IPropertyHandle> PropertyHandle, const FWorldPartitionActorFilterMode& Mode) override;
 
 	TMap<ILevelInstanceInterface*, int32> LevelInstances;
+	bool bIsEditFilter;
 };

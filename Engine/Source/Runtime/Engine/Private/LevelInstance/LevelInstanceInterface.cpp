@@ -157,14 +157,13 @@ void ILevelInstanceInterface::UpdateLevelInstanceFromWorldAsset()
 
 bool ILevelInstanceInterface::IsEditing() const
 {
-	if (HasValidLevelInstanceID())
+	// No need to check LevelInstanceID here since Editing Level Instance is referenced directly:
+	// Level Instance ID can become invalid while Actor is being edited through AActor property change events causing component unregisters
+	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
 	{
-		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
-		{
-			return LevelInstanceSubsystem->IsEditingLevelInstance(this);
-		}
+		return LevelInstanceSubsystem->IsEditingLevelInstance(this);
 	}
-
+	
 	return false;
 }
 

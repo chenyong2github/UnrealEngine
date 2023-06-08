@@ -19,6 +19,9 @@ static const TCHAR* GLevelSpriteAssetName = TEXT("/Engine/EditorResources/LevelI
 
 ULevelInstanceComponent::ULevelInstanceComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+	, bWasDirtyBeforeEditFilterChange(false)
+#endif
 {
 #if WITH_EDITOR
 	bWantsOnUpdateTransform = true;
@@ -69,12 +72,24 @@ void ULevelInstanceComponent::OnRegister()
 
 void ULevelInstanceComponent::SetFilter(const FWorldPartitionActorFilter& InFilter)
 {
-	if (Filter != InFilter)
+	if (GetFilter() != InFilter)
 	{
-		Modify();
-		Filter = InFilter;
+		Modify(!IsEditFilter());
+		SetActiveFilter(InFilter);
 		OnFilterChanged();
 		FWorldPartitionActorFilter::GetOnWorldPartitionActorFilterChanged().Broadcast();
+	}
+}
+
+void ULevelInstanceComponent::SetActiveFilter(const FWorldPartitionActorFilter& InFilter)
+{
+	if (IsEditFilter())
+	{
+		EditFilter = InFilter;
+	}
+	else
+	{
+		Filter = InFilter;
 	}
 }
 
@@ -93,7 +108,7 @@ bool ULevelInstanceComponent::ShouldShowSpriteComponent() const
 
 void ULevelInstanceComponent::PreEditUndo()
 {
-	UndoRedoCachedFilter = Filter;
+	UndoRedoCachedFilter = GetFilter();
 }
 
 void ULevelInstanceComponent::PostEditUndo()
@@ -103,7 +118,7 @@ void ULevelInstanceComponent::PostEditUndo()
 	UpdateComponentToWorld();
 	UpdateEditorInstanceActor();
 
-	if (Filter != UndoRedoCachedFilter)
+	if (GetFilter() != UndoRedoCachedFilter)
 	{
 		OnFilterChanged();
 		FWorldPartitionActorFilter::RequestFilterRefresh(false);
@@ -112,15 +127,33 @@ void ULevelInstanceComponent::PostEditUndo()
 	UndoRedoCachedFilter = FWorldPartitionActorFilter();
 }
 
+void ULevelInstanceComponent::PreEditChange(FProperty* PropertyAboutToChange)
+{
+	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(ULevelInstanceComponent, EditFilter))
+	{
+		bWasDirtyBeforeEditFilterChange = GetPackage()->IsDirty();
+	}
+
+	Super::PreEditChange(PropertyAboutToChange);
+}
+
 void ULevelInstanceComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	UpdateEditorInstanceActor();
 
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULevelInstanceComponent, Filter))
+	const bool FilterProperty = PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULevelInstanceComponent, Filter);
+	const bool EditFilterProperty = PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULevelInstanceComponent, EditFilter);
+
+	if (FilterProperty || EditFilterProperty)
 	{
 		OnFilterChanged();
+	}
+
+	if (EditFilterProperty && !bWasDirtyBeforeEditFilterChange)
+	{
+		GetPackage()->SetDirtyFlag(false);
 	}
 }
 
@@ -178,9 +211,26 @@ void ULevelInstanceComponent::OnCommit()
 	}
 }
 
+void ULevelInstanceComponent::UpdateEditFilter()
+{
+	// @todo_ow: for child level instances setup the proper filter based on parent hierarchy filter
+	EditFilter = Filter;
+}
+
+bool ULevelInstanceComponent::IsEditFilter() const
+{
+	if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(GetOwner()))
+	{
+		return LevelInstance->IsEditing();
+	}
+
+	return false;
+}
+
 const TMap<FActorContainerID, TSet<FGuid>>& ULevelInstanceComponent::GetFilteredActorsPerContainer() const
 {
-	if (CachedFilter != Filter)
+	const FWorldPartitionActorFilter& CurrentFilter = GetFilter();
+	if (CachedFilter != CurrentFilter)
 	{
 		CachedFilteredActorsPerContainer.Reset();
 	}
@@ -197,11 +247,11 @@ const TMap<FActorContainerID, TSet<FGuid>>& ULevelInstanceComponent::GetFiltered
 		UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
 		check(WorldPartitionSubsystem);
 				
-		FilteredActors = WorldPartitionSubsystem->GetFilteredActorsPerContainer(LevelInstance->GetLevelInstanceID().GetContainerID(), LevelInstance->GetWorldAssetPackage(), Filter, LevelInstance->GetLoadingFilterTypes());
+		FilteredActors = WorldPartitionSubsystem->GetFilteredActorsPerContainer(LevelInstance->GetLevelInstanceID().GetContainerID(), LevelInstance->GetWorldAssetPackage(), CurrentFilter, LevelInstance->GetLoadingFilterTypes());
 	}
 	
 	CachedFilteredActorsPerContainer = MoveTemp(FilteredActors);
-	CachedFilter = Filter;
+	CachedFilter = CurrentFilter;
 	return CachedFilteredActorsPerContainer.GetValue();
 }
 

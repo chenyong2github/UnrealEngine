@@ -91,11 +91,21 @@ void APackedLevelActor::RerunConstructionScripts()
 
 EWorldPartitionActorFilterType APackedLevelActor::GetDetailsFilterTypes() const
 {
+	if (IsEditing())
+	{
+		return Super::GetDetailsFilterTypes();
+	}
+
 	return IsRootBlueprintTemplate() ? EWorldPartitionActorFilterType::All : EWorldPartitionActorFilterType::None;
 }
 
 EWorldPartitionActorFilterType APackedLevelActor::GetLoadingFilterTypes() const
 {
+	if (IsEditing())
+	{
+		return Super::GetLoadingFilterTypes();
+	}
+
 	return ShouldLoadForPacking() ? EWorldPartitionActorFilterType::All : EWorldPartitionActorFilterType::None;
 }
 
