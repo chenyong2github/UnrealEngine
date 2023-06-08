@@ -20,6 +20,12 @@ namespace AutomationTool.Tasks
 		/// </summary>
 		[TaskParameter]
 		public string Command = String.Empty;
+
+		/// <summary>
+		/// Whether to execute on lease termination
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public bool Lease = false;
 	}
 
 	/// <summary>
@@ -46,7 +52,7 @@ namespace AutomationTool.Tasks
 		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			string[] commands = Parameters.Command.Split('\n').Select(x => x.Trim()).ToArray();
-			await AddCleanupCommandsAsync(commands);
+			await AddCleanupCommandsAsync(commands, Parameters.Lease);
 		}
 
 		/// <inheritdoc/>

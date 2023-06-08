@@ -440,12 +440,18 @@ namespace AutomationTool
 		public const string CleanupScriptEnvVarName = "UE_HORDE_CLEANUP";
 
 		/// <summary>
+		/// Name of the environment variable containing lease cleanup commands
+		/// </summary>
+		public const string LeaseCleanupScriptEnvVarName = "UE_HORDE_LEASE_CLEANUP";
+
+		/// <summary>
 		/// Add cleanup commands to run after the step completes
 		/// </summary>
 		/// <param name="NewLines">Lines to add to the cleanup script</param>
-		public static async Task AddCleanupCommandsAsync(IEnumerable<string> NewLines)
+		/// <param name="Lease">Whether to add the commands to run on lease termination</param>
+		public static async Task AddCleanupCommandsAsync(IEnumerable<string> NewLines, bool Lease = false)
 		{
-			string CleanupScriptEnvVar = Environment.GetEnvironmentVariable(CleanupScriptEnvVarName);
+			string CleanupScriptEnvVar = Environment.GetEnvironmentVariable(Lease? LeaseCleanupScriptEnvVarName : CleanupScriptEnvVarName);
 			if (!String.IsNullOrEmpty(CleanupScriptEnvVar))
 			{
 				FileReference CleanupScript = new FileReference(CleanupScriptEnvVar);
