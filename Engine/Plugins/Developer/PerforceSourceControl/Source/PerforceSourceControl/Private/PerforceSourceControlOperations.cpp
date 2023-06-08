@@ -3415,24 +3415,28 @@ bool FPerforceGetFileWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceGetChangelistDetailsWorker::FPerforceGetFileWorker);
 
-	if (!InCommand.IsCanceled())
+	FScopedPerforceConnection ScopedConnection(InCommand);
+
+	if (InCommand.IsCanceled() || !ScopedConnection.IsValid())
 	{
-		TSharedRef<FGetFile, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FGetFile>(InCommand.Operation);
+		return false;
+	}
 
-		TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> Revision = MakeShareable(new FPerforceSourceControlRevision(GetSCCProvider()));
-		Revision->FileName = Operation->GetDepotFilePath();
-		Revision->ChangelistNumber = FCString::Atoi(*Operation->GetChangelistNumber());
-		Revision->RevisionNumber = FCString::Atoi(*Operation->GetRevisionNumber());
-		Revision->bIsShelve = Operation->IsShelve();
-	
-		FString OutFilename;
+	TSharedRef<FGetFile, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FGetFile>(InCommand.Operation);
 
-		InCommand.bCommandSuccessful = Revision->Get(OutFilename, InCommand.Concurrency);
+	FPerforceSourceControlRevision Revision(GetSCCProvider());
 
-		if (InCommand.bCommandSuccessful)
-		{
-			Operation->SetOutPackageFilename(OutFilename);
-		}
+	Revision.FileName = Operation->GetDepotFilePath();
+	Revision.ChangelistNumber = FCString::Atoi(*Operation->GetChangelistNumber());
+	Revision.RevisionNumber = FCString::Atoi(*Operation->GetRevisionNumber());
+	Revision.bIsShelve = Operation->IsShelve();
+
+	FString OutFilename;
+	InCommand.bCommandSuccessful = Revision.Get(OutFilename, ScopedConnection.GetConnection());
+
+	if (InCommand.bCommandSuccessful)
+	{
+		Operation->SetOutPackageFilename(OutFilename);
 	}
 
 	return InCommand.bCommandSuccessful;

@@ -20,69 +20,83 @@ FPerforceSourceControlRevision:: FPerforceSourceControlRevision(FPerforceSourceC
 {
 }
 
-bool FPerforceSourceControlRevision::Get( FString& InOutFilename, EConcurrency::Type InConcurrency) const
+bool FPerforceSourceControlRevision::Get(FString& InOutFilename, EConcurrency::Type InConcurrency) const
 {
-	bool bCommandOK = false;
-	
 	FScopedPerforceConnection ScopedConnection(InConcurrency, GetSCCProvider());
-	if(ScopedConnection.IsValid())
+	if (ScopedConnection.IsValid())
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
-		FP4RecordSet Records;
-		bool bConnectionDropped;
-		TArray<FText> ErrorMessages;
-		TArray<FString> Parameters;
 
-		// Suppress the one-line file header normally added by Perforce.
-		Parameters.Add(TEXT("-q"));
+		return Get(InOutFilename, Connection);
+	}
+	else
+	{
+		return false;
+	}
+}
 
-		// Make temp filename to 'print' to
-		FString RevString;
-		FString RevParam;
-		
-		if (bIsShelve)
-		{
-			RevString = FString::Printf(TEXT("%d"), ChangelistNumber);
-			RevParam = TEXT("@=") + RevString;
-		}
-		else
-		{
-			RevString = (RevisionNumber < 0) ? TEXT("head") : FString::Printf(TEXT("%d"), RevisionNumber);
-			RevParam = TEXT("#") + RevString;
-		}
-		
-		FString AbsoluteFileName;
-		if(InOutFilename.Len() > 0)
-		{
-			AbsoluteFileName = InOutFilename;
-		}
-		else
-		{
-			const FString File = FString::Printf(TEXT("%s-Rev-%s-"), *FPaths::GetBaseFilename(FileName), *RevString);
-			const FString Extension = TEXT(".") + FPaths::GetExtension(FileName);
-			const FString TempFileName = FPaths::CreateTempFilename(*FPaths::DiffDir(), *File, *Extension);
-			AbsoluteFileName = FPaths::ConvertRelativePathToFull(TempFileName);
-		}
-
-		// output to file
-		Parameters.Add(FString("-o") + AbsoluteFileName);
-		Parameters.Add(FileName + RevParam);
-		
-		bCommandOK = Connection.RunCommand(TEXT("print"), Parameters, Records, ErrorMessages, FOnIsCancelled(), bConnectionDropped);
-		if(bCommandOK)
-		{
-			InOutFilename = AbsoluteFileName;
-		}
-		else
-		{
-			for(auto Iter(ErrorMessages.CreateConstIterator()); Iter; Iter++)
-			{
-				FMessageLog("SourceControl").Error(FText::Format(LOCTEXT("PerforceSourceControlRevisionGetErrorFormat", "FPerforceSourceControlRevision::Get print Error: {0}"), *Iter));
-			}
-		}
+bool FPerforceSourceControlRevision::Get(FString& InOutFilename, FPerforceConnection& Connection) const
+{
+	if (!Connection.IsValidConnection())
+	{
+		return false;
 	}
 
-	return bCommandOK;
+	FP4RecordSet Records;
+	bool bConnectionDropped;
+	TArray<FText> ErrorMessages;
+	TArray<FString> Parameters;
+
+	// Suppress the one-line file header normally added by Perforce.
+	Parameters.Add(TEXT("-q"));
+
+	// Make temp filename to 'print' to
+	FString RevString;
+	FString RevParam;
+
+	if (bIsShelve)
+	{
+		RevString = FString::Printf(TEXT("%d"), ChangelistNumber);
+		RevParam = TEXT("@=") + RevString;
+	}
+	else
+	{
+		RevString = (RevisionNumber < 0) ? TEXT("head") : FString::Printf(TEXT("%d"), RevisionNumber);
+		RevParam = TEXT("#") + RevString;
+	}
+
+	FString AbsoluteFileName;
+	if (InOutFilename.Len() > 0)
+	{
+		AbsoluteFileName = InOutFilename;
+	}
+	else
+	{
+		const FString File = FString::Printf(TEXT("%s-Rev-%s-"), *FPaths::GetBaseFilename(FileName), *RevString);
+		const FString Extension = TEXT(".") + FPaths::GetExtension(FileName);
+		const FString TempFileName = FPaths::CreateTempFilename(*FPaths::DiffDir(), *File, *Extension);
+		AbsoluteFileName = FPaths::ConvertRelativePathToFull(TempFileName);
+	}
+
+	// output to file
+	Parameters.Add(FString("-o") + AbsoluteFileName);
+	Parameters.Add(FileName + RevParam);
+
+	const bool bCmdResult = Connection.RunCommand(TEXT("print"), Parameters, Records, ErrorMessages, FOnIsCancelled(), bConnectionDropped);
+	if (bCmdResult)
+	{
+		InOutFilename = AbsoluteFileName;
+		return true;
+	}
+	else
+	{
+		for (auto Iter(ErrorMessages.CreateConstIterator()); Iter; Iter++)
+		{
+			FMessageLog("SourceControl").Error(FText::Format(LOCTEXT("PerforceSourceControlRevisionGetErrorFormat", "FPerforceSourceControlRevision::Get print Error: {0}"), *Iter));
+		}
+
+		return false;
+	}
 }
 
 /** 

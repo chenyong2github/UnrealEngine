@@ -6,14 +6,17 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlRevision.h"
 
+class FPerforceConnection;
 class FPerforceSourceControlProvider;
 
-class FPerforceSourceControlRevision : public ISourceControlRevision, public TSharedFromThis<FPerforceSourceControlRevision, ESPMode::ThreadSafe>
+class FPerforceSourceControlRevision final : public ISourceControlRevision, public TSharedFromThis<FPerforceSourceControlRevision, ESPMode::ThreadSafe>
 {
 public:
 
 	FPerforceSourceControlRevision(FPerforceSourceControlProvider& InSCCProvider);
 	virtual ~FPerforceSourceControlRevision() = default;
+
+	bool Get(FString& InOutFilename, FPerforceConnection& InConnection) const;
 
 	/** ISourceControlRevision interface */
 	virtual bool Get( FString& InOutFilename, EConcurrency::Type InConcurrency = EConcurrency::Synchronous) const override;
