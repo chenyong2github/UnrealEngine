@@ -61,7 +61,7 @@ void UStreamableRenderAsset::RegisterMipLevelChangeCallback(UPrimitiveComponent*
 	}
 }
 
-void UStreamableRenderAsset::RegisterMipLevelChangeCallback(UPrimitiveComponent* Component, float TimeoutSecs, FLODStreamingCallback&& CallbackStreamingStart, FLODStreamingCallback&& CallbackStreamingDone)
+void UStreamableRenderAsset::RegisterMipLevelChangeCallback(UPrimitiveComponent* Component, float TimeoutStartSecs, FLODStreamingCallback&& CallbackStreamingStart, float TimeoutDoneSecs, FLODStreamingCallback&& CallbackStreamingDone)
 {
 	check(IsInGameThread());
 
@@ -73,7 +73,7 @@ void UStreamableRenderAsset::RegisterMipLevelChangeCallback(UPrimitiveComponent*
 			return;
 		}
 
-		new (MipChangeCallbacks) FLODStreamingCallbackPayload(Component, FApp::GetCurrentTime() + TimeoutSecs, MoveTemp(CallbackStreamingStart), MoveTemp(CallbackStreamingDone));
+		new (MipChangeCallbacks) FLODStreamingCallbackPayload(Component, FApp::GetCurrentTime() + TimeoutStartSecs, MoveTemp(CallbackStreamingStart), FApp::GetCurrentTime() + TimeoutDoneSecs, MoveTemp(CallbackStreamingDone));
 	}
 	else
 	{
@@ -147,7 +147,14 @@ void UStreamableRenderAsset::TickMipLevelChangeCallbacks(TArray<UStreamableRende
 				continue;
 			}
 
-			if (Now > Payload.Deadline)
+			if (Now > Payload.DeadlineStart && Payload.CallbackStart)
+			{
+				Payload.CallbackStart(Payload.Component, this, ELODStreamingCallbackResult::TimedOut);
+				MipChangeCallbacks.RemoveAt(Idx--);
+				continue;
+			}
+
+			if (Now > Payload.DeadlineDone)
 			{
 				Payload.CallbackDone(Payload.Component, this, ELODStreamingCallbackResult::TimedOut);
 				MipChangeCallbacks.RemoveAt(Idx--);

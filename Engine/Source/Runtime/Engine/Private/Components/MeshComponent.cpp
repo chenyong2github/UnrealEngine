@@ -274,7 +274,7 @@ void UMeshComponent::RegisterLODStreamingCallback(FLODStreamingCallback&& Callba
 	Callback(this, nullptr, ELODStreamingCallbackResult::NotImplemented);
 }
 
-void UMeshComponent::RegisterLODStreamingCallback(FLODStreamingCallback&& CallbackStreamingStart, FLODStreamingCallback&& CallbackStreamingDone, float TimeoutSecs)
+void UMeshComponent::RegisterLODStreamingCallback(FLODStreamingCallback&& CallbackStreamingStart, FLODStreamingCallback&& CallbackStreamingDone, float TimeoutStartSecs, float TimeoutDoneSecs)
 {
 	check(IsInGameThread());
 	CallbackStreamingDone(this, nullptr, ELODStreamingCallbackResult::NotImplemented);
