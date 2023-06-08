@@ -25,7 +25,7 @@ namespace UE::DerivedData
 class FCacheStoreAsync final : public ILegacyCacheStore
 {
 public:
-	FCacheStoreAsync(ILegacyCacheStore* InnerCache, IMemoryCacheStore* MemoryCache);
+	FCacheStoreAsync(ILegacyCacheStore* InnerCache, IMemoryCacheStore* MemoryCache, bool bDeleteInnerCache);
 	~FCacheStoreAsync() final;
 
 	virtual void Put(
@@ -115,18 +115,23 @@ private:
 	ILegacyCacheStore* InnerCache;
 	IMemoryCacheStore* MemoryCache;
 	FDerivedDataCacheUsageStats UsageStats;
+	bool bDeleteInnerCache;
 };
 
-FCacheStoreAsync::FCacheStoreAsync(ILegacyCacheStore* InInnerCache, IMemoryCacheStore* InMemoryCache)
+FCacheStoreAsync::FCacheStoreAsync(ILegacyCacheStore* InInnerCache, IMemoryCacheStore* InMemoryCache, bool bInDeleteInnerCache)
 	: InnerCache(InInnerCache)
 	, MemoryCache(InMemoryCache)
+	, bDeleteInnerCache(bInDeleteInnerCache)
 {
 	check(InnerCache);
 }
 
 FCacheStoreAsync::~FCacheStoreAsync()
 {
-	delete InnerCache;
+	if (bDeleteInnerCache)
+	{
+		delete InnerCache;
+	}
 }
 
 void FCacheStoreAsync::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
@@ -183,9 +188,9 @@ void FCacheStoreAsync::Execute(
 		});
 }
 
-ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, IMemoryCacheStore* MemoryCache)
+ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, IMemoryCacheStore* MemoryCache, bool bDeleteInnerCache)
 {
-	return new FCacheStoreAsync(InnerCache, MemoryCache);
+	return new FCacheStoreAsync(InnerCache, MemoryCache, bDeleteInnerCache);
 }
 
 } // UE::DerivedData

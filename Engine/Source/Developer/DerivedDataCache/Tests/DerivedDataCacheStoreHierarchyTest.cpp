@@ -13,7 +13,7 @@ namespace UE::DerivedData
 {
 
 class IMemoryCacheStore;
-ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, IMemoryCacheStore* MemoryCache);
+ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, TFunctionRef<void (IMemoryCacheStore*&)> MemoryCacheCreator);
 
 static FValue CreateHierarchyTestValue(uint32 Value)
 {
@@ -23,7 +23,7 @@ static FValue CreateHierarchyTestValue(uint32 Value)
 TEST_CASE("DerivedData::Cache::Hierarchy::PartialRecordPropagation", "[DerivedData]")
 {
 	ICacheStoreOwner* StoreOwner = nullptr;
-	TUniquePtr<ILegacyCacheStore> Hierarchy(CreateCacheStoreHierarchy(StoreOwner, nullptr));
+	TUniquePtr<ILegacyCacheStore> Hierarchy(CreateCacheStoreHierarchy(StoreOwner, [](IMemoryCacheStore*& OutCache) { OutCache = nullptr; }));
 
 	TUniquePtr<ITestCacheStore> Store0(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, ETestCacheStoreFlags::Async));
 	StoreOwner->Add(Store0.Get(), Store0->GetFlags());
@@ -139,7 +139,7 @@ TEST_CASE("DerivedData::Cache::Hierarchy::PartialRecordPropagation", "[DerivedDa
 TEST_CASE("DerivedData::Cache::Hierarchy::PartialNonDeterministicRecordPropagation", "[DerivedData]")
 {
 	ICacheStoreOwner* StoreOwner = nullptr;
-	TUniquePtr<ILegacyCacheStore> Hierarchy(CreateCacheStoreHierarchy(StoreOwner, nullptr));
+	TUniquePtr<ILegacyCacheStore> Hierarchy(CreateCacheStoreHierarchy(StoreOwner, [](IMemoryCacheStore*& OutCache) { OutCache = nullptr; }));
 
 	TUniquePtr<ITestCacheStore> Store0(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, ETestCacheStoreFlags::Async));
 	StoreOwner->Add(Store0.Get(), Store0->GetFlags());
@@ -288,7 +288,7 @@ TEST_CASE("DerivedData::Cache::Hierarchy::PartialNonDeterministicRecordPropagati
 TEST_CASE("DerivedData::Cache::Hierarchy::BlockingRequestOwner", "[DerivedData]")
 {
 	ICacheStoreOwner* StoreOwner = nullptr;
-	TUniquePtr<ILegacyCacheStore> Hierarchy(CreateCacheStoreHierarchy(StoreOwner, nullptr));
+	TUniquePtr<ILegacyCacheStore> Hierarchy(CreateCacheStoreHierarchy(StoreOwner, [](IMemoryCacheStore*& OutCache) { OutCache = nullptr; }));
 
 	TUniquePtr<ITestCacheStore> Store0(CreateTestCacheStore(ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store, ETestCacheStoreFlags::Async | ETestCacheStoreFlags::Wait));
 	StoreOwner->Add(Store0.Get(), Store0->GetFlags());
