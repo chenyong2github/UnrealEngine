@@ -10,6 +10,7 @@
 
 class ILevelInstanceInterface;
 class ALevelInstanceEditorInstanceActor;
+class UPackage;
 
 UCLASS(Transient)
 class ENGINE_API ULevelStreamingLevelInstance : public ULevelStreamingDynamic
