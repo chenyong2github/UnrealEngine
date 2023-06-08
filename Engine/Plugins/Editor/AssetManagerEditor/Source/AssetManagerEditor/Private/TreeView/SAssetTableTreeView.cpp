@@ -2,27 +2,19 @@
 
 #include "SAssetTableTreeView.h"
 
-#include "Containers/Set.h"
-#include "ContentBrowserModule.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "GenericPlatform/GenericPlatformMisc.h"
-#include "Modules/ModuleManager.h"
-#include "SlateOptMacros.h"
-#include "Styling/AppStyle.h"
-#include "Styling/StyleColors.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/SToolTip.h"
-#include "DesktopPlatformModule.h"
-#include "HAL/PlatformFileManager.h"
-#include "HAL/FileManager.h"
-#include "Logging/MessageLog.h"
-#include "Editor.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "IContentBrowserSingleton.h"
+#include "AssetDefinitionRegistry.h"
 #include "AssetManagerEditorModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-
+#include "Containers/Set.h"
+#include "ContentBrowserModule.h"
+#include "DesktopPlatformModule.h"
+#include "Editor.h"
+#include "Engine/AssetManager.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GenericPlatform/GenericPlatformMisc.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformFileManager.h"
+#include "IContentBrowserSingleton.h"
 #include "Insights/Common/InsightsStyle.h"
 #include "Insights/Common/Log.h"
 #include "Insights/Common/Stopwatch.h"
@@ -30,9 +22,19 @@
 #include "Insights/Table/ViewModels/TableCellValueFormatter.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TreeNodeGrouping.h"
+#include "Logging/MessageLog.h"
+#include "Modules/ModuleManager.h"
+#include "SlateOptMacros.h"
+#include "Styling/AppStyle.h"
+#include "Styling/StyleColors.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "TreeView/AssetTable.h"
 #include "TreeView/AssetTreeNode.h"
 #include "TreeView/AssetDependencyGrouping.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SToolTip.h"
 
 #include <limits>
 #include <memory>
@@ -59,10 +61,17 @@ void SAssetTableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FAssetT
 {
 	this->OnSelectionChanged = InArgs._OnSelectionChanged;
 
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	AssetRegistry = &AssetRegistryModule.Get();
+	AssetManager = &UAssetManager::Get();
+	EditorModule = &IAssetManagerEditorModule::Get();
+
 	STableTreeView::ConstructWidget(InTablePtr);
 
 	CreateGroupings();
 	CreateSortings();
+
+	RequestOpenRegistry();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,72 +88,24 @@ void SAssetTableTreeView::Tick(const FGeometry& AllottedGeometry, const double I
 {
 	UE::Insights::STableTreeView::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
-	if (bNeedsToRebuild && !bIsUpdateRunning)
+	if (!bIsUpdateRunning)
 	{
-		RebuildTree(true);
-		bNeedsToRebuild = false;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SAssetTableTreeView::RebuildTree(bool bResync)
-{
-	if (!bResync)
-	{
-		// There are no incremental updates.
-		return;
-	}
-
-	UE::Insights::FStopwatch Stopwatch;
-	Stopwatch.Start();
-
-	UE::Insights::FStopwatch SyncStopwatch;
-	SyncStopwatch.Start();
-
-	CancelCurrentAsyncOp();
-
-	const int32 PreviousNodeCount = TableRowNodes.Num();
-	TableRowNodes.Empty();
-
-	TSharedPtr<FAssetTable> AssetTable = GetAssetTable();
-	const int32 VisibleAssetCount = AssetTable.IsValid() ? AssetTable->GetVisibleAssetCount() : 0;
-
-	if (VisibleAssetCount > 0)
-	{
-		UE_LOG(LogInsights, Log, TEXT("[AssetTree] Creating %d asset nodes (previously: %d nodes)..."), VisibleAssetCount, PreviousNodeCount);
-
-		TableRowNodes.Reserve(VisibleAssetCount);
-
-		ensure(TableRowNodes.Num() == 0);
-		for (int32 AssetIndex = 0; AssetIndex < VisibleAssetCount; ++AssetIndex)
+		if (bNeedsToOpenRegistry)
 		{
-			const FAssetTableRow* Asset = AssetTable->GetAsset(AssetIndex);
-
-			FName NodeName(Asset->GetName());
-			FAssetTreeNodePtr NodePtr = MakeShared<FAssetTreeNode>(NodeName, AssetTable, AssetIndex);
-			TableRowNodes.Add(NodePtr);
+			bNeedsToOpenRegistry = false;
+			OpenRegistry();
 		}
-		ensure(TableRowNodes.Num() == VisibleAssetCount);
+		if (bNeedsToRefreshAssets && !AssetRegistry->IsLoadingAssets())
+		{
+			bNeedsToRefreshAssets = false;
+			RefreshAssets();
+		}
+		if (bNeedsToRebuild)
+		{
+			bNeedsToRebuild = false;
+			RebuildTree(true);
+		}
 	}
-	else
-	{
-		UE_LOG(LogInsights, Log, TEXT("[AssetTree] Resetting tree (previously: %d nodes)..."), PreviousNodeCount);
-	}
-
-	SyncStopwatch.Stop();
-
-	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Update tree..."));
-	UpdateTree();
-	TreeView->RebuildList();
-	TreeView->ClearSelection();
-	TreeView_OnSelectionChanged(nullptr, ESelectInfo::Type::Direct);
-
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	const double SyncTime = SyncStopwatch.GetAccumulatedTime();
-	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d asset nodes"),
-		TotalTime, SyncTime, TotalTime - SyncTime, TableRowNodes.Num());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -171,39 +132,90 @@ FText SAssetTableTreeView::GetCurrentOperationName() const
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-TSharedPtr<SWidget> SAssetTableTreeView::ConstructToolbar()
+void SAssetTableTreeView::ConstructHeaderArea(TSharedRef<SVerticalBox> InWidgetContent)
 {
-	TSharedPtr<SHorizontalBox> Box = SNew(SHorizontalBox);
-
-	Box->AddSlot()
-		.AutoWidth()
+	InWidgetContent->AddSlot()
 		.VAlign(VAlign_Center)
-		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+		.AutoHeight()
+		.Padding(2.0f)
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("Preset", "Preset:"))
-		];
+			SNew(SHorizontalBox)
 
-	Box->AddSlot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SBox)
-			.MinDesiredWidth(150.0f)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			.VAlign(VAlign_Center)
 			[
-				SAssignNew(PresetComboBox, SComboBox<TSharedRef<UE::Insights::ITableTreeViewPreset>>)
-				.ToolTipText(this, &SAssetTableTreeView::ViewPreset_GetSelectedToolTipText)
-				.OptionsSource(GetAvailableViewPresets())
-				.OnSelectionChanged(this, &SAssetTableTreeView::ViewPreset_OnSelectionChanged)
-				.OnGenerateWidget(this, &SAssetTableTreeView::ViewPreset_OnGenerateWidget)
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.ToolTipText(this, &SAssetTableTreeView::GetOpenRegistryToolTipText)
+				.IsEnabled(this, &SAssetTableTreeView::CanChangeRegistry)
+				.OnClicked(this, &SAssetTableTreeView::OnClickedOpenRegistry)
 				[
-					SNew(STextBlock)
-					.Text(this, &SAssetTableTreeView::ViewPreset_GetSelectedText)
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.FolderOpen"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				ConstructSearchBox()
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				ConstructFilterConfiguratorButton()
 			]
 		];
 
-	return Box;
+	InWidgetContent->AddSlot()
+		.VAlign(VAlign_Center)
+		.AutoHeight()
+		.Padding(2.0f)
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				ConstructHierarchyBreadcrumbTrail()
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("Preset", "Preset:"))
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SBox)
+				.MinDesiredWidth(150.0f)
+				[
+					SAssignNew(PresetComboBox, SComboBox<TSharedRef<UE::Insights::ITableTreeViewPreset>>)
+					.ToolTipText(this, &SAssetTableTreeView::ViewPreset_GetSelectedToolTipText)
+					.OptionsSource(GetAvailableViewPresets())
+					.OnSelectionChanged(this, &SAssetTableTreeView::ViewPreset_OnSelectionChanged)
+					.OnGenerateWidget(this, &SAssetTableTreeView::ViewPreset_OnGenerateWidget)
+					[
+						SNew(STextBlock)
+						.Text(this, &SAssetTableTreeView::ViewPreset_GetSelectedText)
+					]
+				]
+			]
+		];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -584,6 +596,8 @@ static void WriteDependencyLine(const FAssetTable& AssetTable, const TMap<int32,
 	ReusableLineBuffer->Reset();
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SAssetTableTreeView::ExportDependencyData() const
 {
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
@@ -666,18 +680,11 @@ TArray<FAssetData> SAssetTableTreeView::GetAssetDataForSelection() const
 	TArray<FAssetData> Assets;
 	for (int32 SelectionIndex : SelectedIndices)
 	{
-		const FAssetManagerEditorRegistrySource* RegistrySource = IAssetManagerEditorModule::Get().GetCurrentRegistrySource();
 		const FSoftObjectPath& SoftObjectPath = GetAssetTable()->GetAssetChecked(SelectionIndex).GetSoftObjectPath();
 		FAssetData AssetData;
-		if (RegistrySource->GetOwnedRegistryState())
+		if (IsRegistrySourceValid())
 		{
-			AssetData = *RegistrySource->GetOwnedRegistryState()->GetAssetByObjectPath(SoftObjectPath);
-		}
-		else
-		{
-			// Once we move this out of asset audit browser window and give it its own registry state, this code path can be killed
-			// it exists to handle the "Editor" case as a registry source
-			AssetData = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get().GetAssetByObjectPath(SoftObjectPath, /*IncludeOnlyOnDiskAsset*/true, /*SkipARFilteredAssets*/false);
+			AssetData = *RegistrySource.GetOwnedRegistryState()->GetAssetByObjectPath(SoftObjectPath);
 		}
 		Assets.Add(AssetData);
 	}
@@ -696,7 +703,7 @@ void SAssetTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 
 	FCanExecuteAction HasSelectionAndRegistrySourceAndCanExecute = FCanExecuteAction::CreateLambda([this]()
 		{
-			return (IAssetManagerEditorModule::Get().GetCurrentRegistrySource() != nullptr) && GetAssetTable() && (SelectedIndices.Num() > 0);
+			return IsRegistrySourceValid() && GetAssetTable() && (SelectedIndices.Num() > 0);
 		});
 
 	MenuBuilder.BeginSection("Asset", LOCTEXT("ContextMenu_Section_Asset", "Asset"));
@@ -719,7 +726,7 @@ void SAssetTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry
 			(
 				LOCTEXT("ContextMenu_EditAssetsLabel", "Edit..."),
-				LOCTEXT("ContextMenu_EditAssets", "Opens the selected aset in the relevant editor."),
+				LOCTEXT("ContextMenu_EditAssets", "Opens the selected asset in the relevant editor."),
 				FSlateIcon(),
 				EditSelectedAssets,
 				NAME_None,
@@ -739,7 +746,7 @@ void SAssetTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_FindInContentBrowserLabel", "Find in Content Browser..."),
-			LOCTEXT("ContextMenu_FindInContentBrowser", "Browses to the associated asset and selects it in the most recently used Content Browser (summoning one if necessary)"),
+			LOCTEXT("ContextMenu_FindInContentBrowser", "Browses to the associated asset and selects it in the most recently used Content Browser (summoning one if necessary)."),
 			FSlateIcon(),
 			FindInContentBrowser,
 			NAME_None,
@@ -764,7 +771,7 @@ void SAssetTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_OpenReferenceViewerLabel", "Reference Viewer..."),
-			LOCTEXT("ContextMenu_OpenReferenceViewer", "Launches the reference viewer showing the selected assets' references"),
+			LOCTEXT("ContextMenu_OpenReferenceViewer", "Launches the reference viewer showing the selected assets' references."),
 			FSlateIcon(),
 			OpenReferenceViewer,
 			NAME_None,
@@ -785,7 +792,7 @@ void SAssetTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_ExportDependenciesLabel", "Export Dependencies..."),
-			LOCTEXT("ContextMenu_ExportDependencies", "Export dependency CSVs for the selected asset"),
+			LOCTEXT("ContextMenu_ExportDependencies", "Exports dependency CSVs for the selected asset."),
 			FSlateIcon(),
 			ExportDependenciesAction,
 			NAME_None,
@@ -793,6 +800,58 @@ void SAssetTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 		);
 	}
 	MenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SAssetTableTreeView::RequestOpenRegistry()
+{
+	bNeedsToOpenRegistry = true;
+	FooterLeftText = LOCTEXT("FooterLeftTextFmt_OpenRegistry_Filtered", "Opening registry... please wait...");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SAssetTableTreeView::OpenRegistry()
+{
+	RegistrySource.SourceName = FAssetManagerEditorRegistrySource::CustomSourceName;
+	if (EditorModule->PopulateRegistrySource(&RegistrySource))
+	{
+		RequestRefreshAssets();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SAssetTableTreeView::GetOpenRegistryToolTipText() const
+{
+	return FText::Format(LOCTEXT("OpenRegistryButtonToolTip", "Opens a new development asset registry.\nCurrent: {0}\nTimestamp: {1}"),
+		FText::FromString(RegistrySource.SourceFilename),
+		FText::FromString(RegistrySource.SourceTimestamp));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SAssetTableTreeView::CanChangeRegistry() const
+{
+	return !bIsUpdateRunning && !bNeedsToOpenRegistry && !bNeedsToRefreshAssets && !bNeedsToRebuild;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SAssetTableTreeView::OnClickedOpenRegistry()
+{
+	CancelCurrentAsyncOp();
+	RequestOpenRegistry();
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SAssetTableTreeView::RequestRefreshAssets()
+{
+	bNeedsToRefreshAssets = true;
+	FooterLeftText = LOCTEXT("FooterLeftTextFmt_RefreshAssets_Filtered", "Pre-analyzing disk sizes... please wait...");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -883,7 +942,7 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 	FAssetTreeNodePtr NewSelectedAssetNode;
 	int32 NewlySelectedAssetRowIndex = -1;
 	TSet<int32> SelectionSetIndices;
-	
+
 	for (const UE::Insights::FTableTreeNodePtr& Node : SelectedNodes)
 	{
 		if (Node->Is<FAssetTreeNode>() && Node->As<FAssetTreeNode>().IsValidAsset())
@@ -1016,6 +1075,305 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 	{
 		OnSelectionChanged.Execute(SelectedNodes);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SAssetTableTreeView::QuickPopulateAssetTableRow(FAssetTableRow& OutRow, const FAssetData& AssetData, FAssetTable& AssetTable) const
+{
+	OutRow.SoftObjectPath = AssetData.GetSoftObjectPath();
+
+	// Asset Type
+	FString AssetType;
+	if (UAssetDefinitionRegistry* AssetDefinitionRegistry = UAssetDefinitionRegistry::Get())
+	{
+		const UAssetDefinition* AssetDefinition = AssetDefinitionRegistry->GetAssetDefinitionForAsset(AssetData);
+		if (AssetDefinition)
+		{
+			AssetType = AssetDefinition->GetAssetDisplayName().ToString();
+		}
+	}
+	if (AssetType.IsEmpty() && IsRegistrySourceValid())
+	{
+		if (!EditorModule->GetStringValueForCustomColumn(AssetData, FName(TEXT("Type")), AssetType, &RegistrySource))
+		{
+			AssetType = AssetData.AssetClassPath.ToString();
+		}
+	}
+	OutRow.Type = AssetTable.StoreStr(AssetType);
+
+	// Asset Name
+	OutRow.Name = AssetTable.StoreStr(AssetData.AssetName.ToString());
+
+	// Path (without package or asset name)
+	FString ObjectPathString = AssetData.GetObjectPathString();
+	int Index;
+	ObjectPathString.FindLastChar(TEXT('/'), Index);
+	if (Index != INDEX_NONE)
+	{
+		ObjectPathString = ObjectPathString.Left(Index + 1);
+	}
+	OutRow.Path = AssetTable.StoreStr(ObjectPathString);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SAssetTableTreeView::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAssetData& AssetData, FAssetTable& AssetTable) const
+{
+	ensure(IsRegistrySourceValid());
+	QuickPopulateAssetTableRow(OutRow, AssetData, AssetTable);
+
+	FString Str;
+
+	if (EditorModule->GetStringValueForCustomColumn(AssetData, FPrimaryAssetId::PrimaryAssetTypeTag, Str, &RegistrySource))
+	{
+		OutRow.PrimaryType = AssetTable.StoreStr(Str);
+	}
+	if (EditorModule->GetStringValueForCustomColumn(AssetData, FPrimaryAssetId::PrimaryAssetNameTag, Str, &RegistrySource))
+	{
+		OutRow.PrimaryName = AssetTable.StoreStr(Str);
+	}
+
+	EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::StageChunkCompressedSizeName, OutRow.StagedCompressedSize, &RegistrySource);
+	EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::TotalUsageName, OutRow.TotalUsageCount, &RegistrySource);
+
+	if (EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::ChunksName, Str, &RegistrySource))
+	{
+		OutRow.Chunks = AssetTable.StoreStr(Str);
+	}
+
+	if (EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::PluginName, Str, &RegistrySource))
+	{
+		OutRow.PluginName = AssetTable.StoreStr(Str);
+	}
+
+	OutRow.NativeClass = AssetTable.StoreStr(AssetData.AssetClassPath.GetAssetName().ToString());
+
+	// Sets the color based on asset type.
+	const uint32 AssetTypeHash = GetTypeHash(FStringView(OutRow.Type));
+	OutRow.Color = USlateThemeManager::Get().GetColor((EStyleColor)((uint32)EStyleColor::AccentBlue + AssetTypeHash % 8));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Refresh list of assets for the tree view
+void SAssetTableTreeView::RefreshAssets()
+{
+	TSharedPtr<FAssetTable> AssetTable = GetAssetTable();
+	if (!AssetTable.IsValid())
+	{
+		return;
+	}
+
+	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Build asset table..."));
+
+	UE::Insights::FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	// Clears all tree nodes (that references the previous assets).
+	AssetTable->SetVisibleAssetCount(0);
+	RebuildTree(true);
+
+	// Now is safe to clear the previous assets.
+	AssetTable->ClearAllData();
+
+	if (IsRegistrySourceValid())
+	{
+		TMap<FAssetData, int32> AssetToIndexMap;
+
+		TArray<FAssetData> SourceAssets;
+
+		RegistrySource.GetOwnedRegistryState()->GetAllAssets(TSet<FName>(), SourceAssets);
+
+		for (int32 SourceAssetIndex = 0; SourceAssetIndex < SourceAssets.Num(); SourceAssetIndex++)
+		{
+			TArray<FAssetData> AssetsInSourcePackage;
+			AssetRegistry->GetAssetsByPackageName(SourceAssets[SourceAssetIndex].PackageName, AssetsInSourcePackage, /*bIncludeOnlyOnDiskAssets*/ true); // Only use on disk assets to avoid creating FAssetData for everything in memory
+
+			for (FAssetData& SourceAsset : AssetsInSourcePackage)
+			{
+				if (AssetToIndexMap.Find(SourceAsset) == nullptr)
+				{
+					FAssetTableRow AssetRow;
+					PopulateAssetTableRow(AssetRow, SourceAsset, *AssetTable);
+					AssetTable->AddAsset(AssetRow);
+					AssetToIndexMap.Add(SourceAsset, AssetTable->GetTotalAssetCount() - 1);
+				}
+			}
+		}
+
+		int32 EntryIndex = AssetTable->GetAssets().Num();
+
+		TSet<FName> AlreadyProcessedPackages;
+		// Go over all SourceAssets. We will add more to the end as we find we need to add them.
+		for (int32 SourceAssetIndex = 0; SourceAssetIndex < SourceAssets.Num(); SourceAssetIndex++)
+		{
+			// There are potentially multiple assets in a package, each with an FAssetData
+			// We are only dealing in package dependencies, though, so don't process the same package twice
+			// But we will need to conceptually assign all the package dependencies to all assets in the package below
+			if (AlreadyProcessedPackages.Contains(SourceAssets[SourceAssetIndex].PackageName))
+			{
+				continue;
+			}
+			else
+			{
+				AlreadyProcessedPackages.Add(SourceAssets[SourceAssetIndex].PackageName);
+			}
+
+			FAssetIdentifier CurrentIdentifier(SourceAssets[SourceAssetIndex].PackageName);
+			// We'll have to add the dependencies to all these entries
+			TArray<FAssetData> AssetsInSourcePackage;
+			AssetRegistry->GetAssetsByPackageName(SourceAssets[SourceAssetIndex].PackageName, AssetsInSourcePackage, /*bIncludeOnlyOnDiskAssets*/ true); // Only use on disk assets to avoid creating FAssetData for everything in memory
+
+			// Get the dependencies
+			TArray<FAssetIdentifier> DependencyList;
+			RegistrySource.GetDependencies(CurrentIdentifier, DependencyList, UE::AssetRegistry::EDependencyCategory::Package);
+
+			TArray<int32> IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow;
+
+			for (const FAssetIdentifier& Dependency : DependencyList)
+			{
+				TArrayView<FAssetData const* const> AssetsInDependencyPackage = RegistrySource.GetOwnedRegistryState()->GetAssetsByPackageName(Dependency.PackageName);
+				for (FAssetData const* const DependencyAsset : AssetsInDependencyPackage)
+				{
+					if (int32* DependencyIndex = AssetToIndexMap.Find(*DependencyAsset))
+					{
+						// Do we already know about the asset? If so, great.
+						IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Add(*DependencyIndex);
+					}
+					else
+					{
+						// We don't know about this asset yet. Create a new row for it and add it to the source list for further dependency analysis
+						FAssetTableRow NewRow;
+						PopulateAssetTableRow(NewRow, *DependencyAsset, *AssetTable);
+						AssetTable->AddAsset(NewRow);
+						IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Add(AssetTable->GetTotalAssetCount() - 1);
+						AssetToIndexMap.Add(*DependencyAsset, AssetTable->GetTotalAssetCount() - 1);
+						SourceAssets.Add(*DependencyAsset);
+					}
+				}
+			}
+
+			if (IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Num())
+			{
+				// We found some dependencies. Let's add them.
+				for (const FAssetData& SourceAssetData : AssetsInSourcePackage)
+				{
+					int32* RowIndex = AssetToIndexMap.Find(SourceAssetData);
+					if (RowIndex == nullptr)
+					{
+						UE_LOG(LogInsights, Warning, TEXT("Failed to find asset %s in package %s, source asset index %d. Asset registry loading was %s"), *SourceAssetData.AssetName.ToString(), *SourceAssetData.PackageName.ToString(), SourceAssetIndex, AssetRegistry->IsLoadingAssets() ? TEXT("INCOMPLETE") : TEXT("complete"));
+					}
+					if (ensure(RowIndex != nullptr))
+					{
+						for (int32 Index : IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow)
+						{
+							AssetTable->GetAsset(*RowIndex)->Dependencies.AddUnique(Index);
+						}
+					}
+				}
+
+				for (int32 Index : IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow)
+				{
+					// Now for each of those dependencies, add this source asset row as a referencer
+					if (FAssetTableRow* DependentRow = AssetTable->GetAsset(Index))
+					{
+						for (const FAssetData& SourceAssetData : AssetsInSourcePackage)
+						{
+							int32* RowIndex = AssetToIndexMap.Find(SourceAssetData);
+							if (ensure(RowIndex != nullptr))
+							{
+								DependentRow->Referencers.AddUnique(*RowIndex);
+							}
+						}
+					}
+				}
+			}
+			AssetTable->SetVisibleAssetCount(AssetTable->GetAssets().Num());
+		}
+	}
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Asset table rebuilt in %.4fs (%d visible + %d hidden = %d assets)"),
+		TotalTime, AssetTable->GetVisibleAssetCount(), AssetTable->GetHiddenAssetCount(), AssetTable->GetTotalAssetCount());
+
+	const FAssetTableStringStore& StringStore = AssetTable->GetStringStore();
+	UE_LOG(LogInsights, Log, TEXT("[AssetTree] String store: %d strings (%lld bytes) --> %d strings (%lld bytes | %lld bytes) %.0f%%"),
+		StringStore.GetNumInputStrings(), StringStore.GetTotalInputStringSize(),
+		StringStore.GetNumStrings(), StringStore.GetTotalStringSize(), StringStore.GetAllocatedSize(),
+		(double)StringStore.GetAllocatedSize() * 100.0 / (double)StringStore.GetTotalInputStringSize());
+
+	RequestRebuildTree();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SAssetTableTreeView::RequestRebuildTree()
+{
+	bNeedsToRebuild = true;
+	FooterLeftText = LOCTEXT("FooterLeftTextFmt_RebuildTree_Filtered", "Rebuilding tree... please wait...");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SAssetTableTreeView::RebuildTree(bool bResync)
+{
+	if (!bResync)
+	{
+		// There are no incremental updates.
+		return;
+	}
+
+	UE::Insights::FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	UE::Insights::FStopwatch SyncStopwatch;
+	SyncStopwatch.Start();
+
+	CancelCurrentAsyncOp();
+
+	const int32 PreviousNodeCount = TableRowNodes.Num();
+	TableRowNodes.Empty();
+
+	TSharedPtr<FAssetTable> AssetTable = GetAssetTable();
+	const int32 VisibleAssetCount = AssetTable.IsValid() ? AssetTable->GetVisibleAssetCount() : 0;
+
+	if (VisibleAssetCount > 0)
+	{
+		UE_LOG(LogInsights, Log, TEXT("[AssetTree] Creating %d asset nodes (previously: %d nodes)..."), VisibleAssetCount, PreviousNodeCount);
+
+		TableRowNodes.Reserve(VisibleAssetCount);
+
+		ensure(TableRowNodes.Num() == 0);
+		for (int32 AssetIndex = 0; AssetIndex < VisibleAssetCount; ++AssetIndex)
+		{
+			const FAssetTableRow* Asset = AssetTable->GetAsset(AssetIndex);
+
+			FName NodeName(Asset->GetName());
+			FAssetTreeNodePtr NodePtr = MakeShared<FAssetTreeNode>(NodeName, AssetTable, AssetIndex);
+			TableRowNodes.Add(NodePtr);
+		}
+		ensure(TableRowNodes.Num() == VisibleAssetCount);
+	}
+	else
+	{
+		UE_LOG(LogInsights, Log, TEXT("[AssetTree] Resetting tree (previously: %d nodes)..."), PreviousNodeCount);
+	}
+
+	SyncStopwatch.Stop();
+
+	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Update tree..."));
+	UpdateTree();
+	TreeView->RebuildList();
+	TreeView->ClearSelection();
+	TreeView_OnSelectionChanged(nullptr, ESelectInfo::Type::Direct);
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	const double SyncTime = SyncStopwatch.GetAccumulatedTime();
+	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Tree view rebuilt in %.4fs (sync: %.4fs + update: %.4fs) --> %d asset nodes"),
+		TotalTime, SyncTime, TotalTime - SyncTime, TableRowNodes.Num());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

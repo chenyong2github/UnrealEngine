@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "AssetManagerEditorModule.h"
 
 #include "TreeView/AssetTable.h"
 #include "Insights/Table/Widgets/STableTreeView.h"
@@ -37,7 +38,7 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, TSharedPtr<FAssetTable> InTablePtr);
 
-	virtual TSharedPtr<SWidget> ConstructToolbar() override;
+	virtual void ConstructHeaderArea(TSharedRef<SVerticalBox> InWidgetContent);
 	virtual TSharedPtr<SWidget> ConstructFooter() override;
 
 	TSharedPtr<FAssetTable> GetAssetTable() { return StaticCastSharedPtr<FAssetTable>(GetTable()); }
@@ -59,7 +60,6 @@ public:
 	 * @param bResync - If true, it forces a resync even if the list did not changed since last sync.
 	 */
 	virtual void RebuildTree(bool bResync);
-	virtual void RebuildTreeAsync() { bNeedsToRebuild = true; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// IAsyncOperationStatusProvider implementation
@@ -72,10 +72,16 @@ public:
 
 	TSharedPtr<FAssetTreeNode> GetSingleSelectedAssetNode() const { return SelectedAssetNode; }
 
-protected:
+private:
 	virtual void InternalCreateGroupings() override;
 
 	virtual void ExtendMenu(FMenuBuilder& MenuBuilder) override;
+
+	void RequestOpenRegistry();
+	void OpenRegistry();
+	FText GetOpenRegistryToolTipText() const;
+	bool CanChangeRegistry() const;
+	FReply OnClickedOpenRegistry();
 
 	FText GetFooterLeftText() const;
 	FText GetFooterCenterText1() const;
@@ -84,7 +90,6 @@ protected:
 
 	virtual void TreeView_OnSelectionChanged(UE::Insights::FTableTreeNodePtr SelectedItem, ESelectInfo::Type SelectInfo) override;
 
-private:
 	void InitAvailableViewPresets();
 
 	void ExportDependencyData() const;
@@ -93,7 +98,22 @@ private:
 
 	void CalculateBaseAndMarginalCostForSelection(TSet<int32>& SelectionSetIndices, int64* OutTotalSizeMultiplyUsed, int64* OutTotalSizeSingleUse) const;
 
+	/** Populates an asset table row (view model for the asset tree view) with asset data (only identification data; type+path+name). */
+	void QuickPopulateAssetTableRow(class FAssetTableRow& OutRow, const FAssetData& AssetData, class FAssetTable& AssetTable) const;
+
+	/** Populates an asset table row (view model for the asset tree view) with asset data. */
+	void PopulateAssetTableRow(class FAssetTableRow& OutRow, const FAssetData& AssetData, class FAssetTable& AssetTable) const;
+
+	bool IsRegistrySourceValid() const { return RegistrySource.GetOwnedRegistryState() != nullptr; }
+
+	void RequestRefreshAssets();
+	void RefreshAssets();
+
+	void RequestRebuildTree();
+
 private:
+	bool bNeedsToOpenRegistry = false;
+	bool bNeedsToRefreshAssets = false;
 	bool bNeedsToRebuild = false;
 
 	FText FooterLeftText;
@@ -105,4 +125,20 @@ private:
 	FOnSelectionChanged OnSelectionChanged;
 	TSharedPtr<FAssetTreeNode> SelectedAssetNode;
 	TSet<int32> SelectedIndices;
+
+	/** List of valid registry sources */
+	TArray<TSharedPtr<FString>> SourceComboList;
+
+	/**
+	* Text block where we put the timestamp for the asset registry so the user knows
+	* if they are looking at super out of date data.
+	*/
+	TSharedPtr<STextBlock> RegistrySourceTimeText;
+
+	FAssetManagerEditorRegistrySource RegistrySource;
+
+	/** Cached interfaces */
+	class IAssetRegistry* AssetRegistry;
+	class UAssetManager* AssetManager;
+	class IAssetManagerEditorModule* EditorModule;
 };

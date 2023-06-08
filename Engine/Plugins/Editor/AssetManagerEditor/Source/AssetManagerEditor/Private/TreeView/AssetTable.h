@@ -3,10 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/StringView.h"
-#include "Misc/CString.h"
+
 #include "AssetRegistry/AssetData.h"
+#include "Containers/StringView.h"
 #include "Insights/Table/ViewModels/Table.h"
+#include "Misc/CString.h"
 
 namespace UE
 {
@@ -135,7 +136,7 @@ struct FAssetTableDependencySizes
 class FAssetTableRow
 {
 	friend class FAssetTable;
-	friend class SAssetAuditBrowser;
+	friend class SAssetTableTreeView;
 
 public:
 	FAssetTableRow()

@@ -12,14 +12,6 @@ class FUICommandList;
 class SMenuAnchor;
 class STextBlock;
 
-namespace UE
-{
-	namespace Insights
-	{
-		class FTableTreeNode;
-	}
-}
-
 //////////////////////////////////////////////////////////////////////////
 // SAssetAuditBrowser
 
@@ -140,16 +132,6 @@ protected:
 	/** Refresh the asset view with a new filter */
 	void RefreshAssetView();
 
-	void RefreshAssetTableTreeView(const FARFilter& Filter);
-
-	/** Populates an asset table row (view model for the asset tree view) with asset data (only identification data; type+path+name). */
-	void QuickPopulateAssetTableRow(class FAssetTableRow& OutRow, const FAssetData& AssetData, class FAssetTable& AssetTable) const;
-
-	/** Populates an asset table row (view model for the asset tree view) with asset data. */
-	void PopulateAssetTableRow(class FAssetTableRow& OutRow, const FAssetData& AssetData, class FAssetTable& AssetTable) const;
-
-	void TreeView_OnSelectionChanged(const TArray<TSharedPtr<UE::Insights::FTableTreeNode>> InSelectedNodes);
-
 	/** Commands handled by this widget */
 	TSharedPtr<FUICommandList> Commands;
 
@@ -189,7 +171,4 @@ protected:
 	class IAssetRegistry* AssetRegistry;
 	class UAssetManager* AssetManager;
 	class IAssetManagerEditorModule* EditorModule;
-
-	/** The Tree View widget */
-	TSharedPtr<class SAssetTableTreeView> AssetTableTreeView;
 };

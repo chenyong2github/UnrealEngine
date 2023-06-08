@@ -386,13 +386,13 @@ public:
 	static const FName PluginName;
 
 	/** Gets the value of a "virtual" column for an asset data, this will query the AssetManager for you and takes current platform into account. Returns true and sets out parameter if found */
-	virtual bool GetStringValueForCustomColumn(const FAssetData& AssetData, FName ColumnName, FString& OutValue) = 0;
+	virtual bool GetStringValueForCustomColumn(const FAssetData& AssetData, FName ColumnName, FString& OutValue, const FAssetManagerEditorRegistrySource* OverrideRegistrySource = nullptr) = 0;
 
 	/** Gets a display text value for a virtual column. Returns true and sets out parameter if found */
-	virtual bool GetDisplayTextForCustomColumn(const FAssetData& AssetData, FName ColumnName, FText& OutValue) = 0;
+	virtual bool GetDisplayTextForCustomColumn(const FAssetData& AssetData, FName ColumnName, FText& OutValue, const FAssetManagerEditorRegistrySource* OverrideRegistrySource = nullptr) = 0;
 
 	/** Gets the value of a "virtual" column for an asset data, this will query the AssetManager for you and takes current platform into account. Returns true and sets out parameter if found */
-	virtual bool GetIntegerValueForCustomColumn(const FAssetData& AssetData, FName ColumnName, int64& OutValue) = 0;
+	virtual bool GetIntegerValueForCustomColumn(const FAssetData& AssetData, FName ColumnName, int64& OutValue, const FAssetManagerEditorRegistrySource* OverrideRegistrySource = nullptr) = 0;
 
 	/** Returns the set of asset packages managed the given asset data, returns true if any found. This handles the fake chunk/primary asset types above */
 	virtual bool GetManagedPackageListForAssetData(const FAssetData& AssetData, TSet<FName>& ManagedPackageSet) = 0;
@@ -405,6 +405,9 @@ public:
 
 	/** Sets the current registry source, this loads the asset registry state if needed and may spawn a file load dialog for custom */
 	virtual void SetCurrentRegistrySource(const FString& SourceName) = 0;
+
+	/** Sets up a registry source. If InOutRegistrySource->SourceName is CustomSourceName, a dialog will be presented to select the asset registry to load */
+	virtual bool PopulateRegistrySource(FAssetManagerEditorRegistrySource* InOutRegistrySource) = 0;
 
 	/** Refreshes the management dictionary and all sources */
 	virtual void RefreshRegistryData() = 0;
@@ -422,9 +425,6 @@ public:
 	virtual void OpenAssetAuditUI(TArray<FAssetData> SelectedAssets) = 0;
 	virtual void OpenAssetAuditUI(TArray<FAssetIdentifier> SelectedIdentifiers) = 0;
 	virtual void OpenAssetAuditUI(TArray<FName> SelectedPackages) = 0;
-
-	/** Returns true if the tree view will be enabled in the Asset Audit UI, the next time the Asset Audit window is open. */
-	virtual bool ShouldEnableTreeViewInAssetAudit() const = 0;
 
 	/** Spawns reference viewer, showing selected packages or identifiers */
 	virtual void OpenReferenceViewerUI(const TArray<FAssetIdentifier> SelectedIdentifiers, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) = 0;

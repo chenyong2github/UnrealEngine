@@ -1157,12 +1157,13 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> STableTreeView::ConstructFilterConfiguratorButton()
 {
 	return SNew(SButton)
-		.ContentPadding(FMargin(-2.0f, 2.0f, -2.0f, 2.0f))
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 		.ToolTipText(LOCTEXT("FilterConfiguratorBtn_ToolTip", "Opens the filter configurator window."))
 		.OnClicked(this, &STableTreeView::FilterConfigurator_OnClicked)
 		[
 			SNew(SImage)
 			.Image(FInsightsStyle::GetBrush("Icons.ClassicFilterConfig"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
