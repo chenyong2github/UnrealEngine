@@ -45,13 +45,13 @@ void UConversationParticipantComponent::ServerNotifyConversationStarted(UConvers
 
 		const int32 OldConversationsActive = ConversationsActive;
 
+		ConversationsActive++;
+		MARK_PROPERTY_DIRTY_FROM_NAME(UConversationParticipantComponent, ConversationsActive, this);
+
 		if (OldConversationsActive == 0)
 		{
 			OnRep_ConversationsActive(OldConversationsActive);
 		}
-
-		ConversationsActive++;
-		MARK_PROPERTY_DIRTY_FROM_NAME(UConversationParticipantComponent, ConversationsActive, this);
 
 		OnServerConversationStarted(Conversation, AsParticipant);
 		ClientStartConversation(Conversation->GetParticipantsCopy());
