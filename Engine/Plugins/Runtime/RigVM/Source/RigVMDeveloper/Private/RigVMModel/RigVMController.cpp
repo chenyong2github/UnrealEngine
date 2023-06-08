@@ -14565,19 +14565,22 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 			for (int32 ArgIndex = 0; ArgIndex < Template->NumExecuteArguments(DispatchContext); ArgIndex++)
 			{
 				const FRigVMExecuteArgument* Arg = Template->GetExecuteArgument(ArgIndex, DispatchContext);
-				const FRigVMTemplateArgumentType Type = Registry.GetType(Arg->TypeIndex);
-				const TRigVMTypeIndex TypeIndex = Registry.GetTypeIndex(Type);
-
-				FString DefaultValue;
-				if(Registry.IsArrayType(Arg->TypeIndex))
+				if (Arg->Direction == InPinDirection)
 				{
-					if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
-					{
-						DefaultValue = Factory->GetArgumentDefaultValue(Arg->Name, Arg->TypeIndex);
-					}
-				}
+					const FRigVMTemplateArgumentType Type = Registry.GetType(Arg->TypeIndex);
+					const TRigVMTypeIndex TypeIndex = Registry.GetTypeIndex(Type);
 
-				(void)NewPinInfos.AddPin(this, INDEX_NONE, Arg->Name, Arg->Direction, TypeIndex, DefaultValue, nullptr, &PreviousPinInfos, false);
+					FString DefaultValue;
+					if(Registry.IsArrayType(Arg->TypeIndex))
+					{
+						if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
+						{
+							DefaultValue = Factory->GetArgumentDefaultValue(Arg->Name, Arg->TypeIndex);
+						}
+					}
+
+					(void)NewPinInfos.AddPin(this, INDEX_NONE, Arg->Name, Arg->Direction, TypeIndex, DefaultValue, nullptr, &PreviousPinInfos, true);
+				}
 			}
 		};
 
