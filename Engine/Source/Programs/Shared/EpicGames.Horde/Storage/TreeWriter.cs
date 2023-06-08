@@ -820,14 +820,13 @@ namespace EpicGames.Horde.Storage
 			if (!_disposed)
 			{
 				await FlushAsync();
-
-				if (_currentBundle != null)
-				{
-					_currentBundle.Dispose();
-					_currentBundle = null;
-				}
-
 				_disposed = true;
+			}
+
+			if (_currentBundle != null)
+			{
+				_currentBundle.Dispose();
+				_currentBundle = null;
 			}
 		}
 
