@@ -1475,6 +1475,7 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 				BuffersToTransitionToRead.Add(DispatchData.GetPositionRWBuffer());
 			}
 
+			BuffersToTransitionToRead.Add(DispatchData.GetTangentRWBuffer());
 			check(DispatchData.PreviousPositionBuffer != DispatchData.PositionBuffer);
 		}
 
