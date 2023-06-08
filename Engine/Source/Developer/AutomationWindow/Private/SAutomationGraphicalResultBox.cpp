@@ -112,6 +112,11 @@ void SAutomationGraphicalResultBox::PopulateData()
 						DeviceIt->TotalTestSuccesses++;
 						ClusterIt->TotalTestSuccesses++;
 					}
+					else if (TestResults.State == EAutomationState::Skipped)
+					{
+						DeviceIt->TotalTestSkips++;
+						ClusterIt->TotalTestSkips++;
+					}
 				}
 			}
 
@@ -155,7 +160,8 @@ void SAutomationGraphicalResultBox::CreateWidgets()
 		FFormatNamedArguments ClusterArgs;
 		ClusterArgs.Add(TEXT("Name"), FText::FromString(ClusterIt->ClusterName));
 		ClusterArgs.Add(TEXT("NumTests"), ClusterIt->TotalNumTests);
-		ClusterArgs.Add(TEXT("NumFails"), ClusterIt->TotalNumTests - ClusterIt->TotalTestSuccesses);
+		ClusterArgs.Add(TEXT("NumSkips"), ClusterIt->TotalTestSkips);
+		ClusterArgs.Add(TEXT("NumFails"), ClusterIt->TotalNumTests - ClusterIt->TotalTestSuccesses - ClusterIt->TotalTestSkips);
 		ClusterArgs.Add(TEXT("TotalTime"), ClusterIt->TotalTime);
 		ClusterArgs.Add(TEXT("ParallelTime"), ClusterIt->ParallelTime);
 
@@ -168,7 +174,7 @@ void SAutomationGraphicalResultBox::CreateWidgets()
 			[
 				SNew(STextBlock)
 				.TextStyle(FAutomationWindowStyle::Get(), "Automation.ReportHeader" )
-				.Text(FText::Format(LOCTEXT("AutomationGraphicalClusterHeader", "{Name}  -  {NumTests} Tests / {NumFails} Fails / {TotalTime} Seconds (Total) / {ParallelTime} Seconds (Parallel)"), ClusterArgs))
+				.Text(FText::Format(LOCTEXT("AutomationGraphicalClusterHeader", "{Name}  -  {NumTests} Tests / {NumFails} Fails / {NumSkips} Skips / {TotalTime} Seconds (Total) / {ParallelTime} Seconds (Parallel)"), ClusterArgs))
 			];
 
 		RowCounter++;
@@ -181,7 +187,8 @@ void SAutomationGraphicalResultBox::CreateWidgets()
 			//Add Device Header
 			FFormatNamedArguments DeviceArgs;
 			DeviceArgs.Add(TEXT("NumTests"), NumTests);
-			DeviceArgs.Add(TEXT("NumFails"), NumTests - DeviceIt->TotalTestSuccesses);
+			DeviceArgs.Add(TEXT("NumSkips"), DeviceIt->TotalTestSkips);
+			DeviceArgs.Add(TEXT("NumFails"), NumTests - DeviceIt->TotalTestSuccesses - DeviceIt->TotalTestSkips);
 			DeviceArgs.Add(TEXT("TotalTime"), DeviceIt->TotalTime);
 
 			GridContainer->AddSlot(0,RowCounter)
@@ -197,7 +204,7 @@ void SAutomationGraphicalResultBox::CreateWidgets()
 					+SVerticalBox::Slot()
 					[
 						SNew(STextBlock)
-						.Text(FText::Format(LOCTEXT("AutomationGraphicalDeviceHeader", "{NumTests} Tests / {NumFails} Fails / {TotalTime} Seconds"), DeviceArgs))
+						.Text(FText::Format(LOCTEXT("AutomationGraphicalDeviceHeader", "{NumTests} Tests / {NumFails} Fails / {NumSkips} Skips / {TotalTime} Seconds"), DeviceArgs))
 					]
 				];
 

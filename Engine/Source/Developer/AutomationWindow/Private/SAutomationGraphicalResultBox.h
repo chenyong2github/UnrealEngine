@@ -102,6 +102,7 @@ private:
 		{
 			InstanceName = InName;
 			TotalTime = 0.f;
+			TotalTestSkips = 0;
 			TotalTestSuccesses = 0;
 		}
 
@@ -110,6 +111,9 @@ private:
 
 		/** Total time of all the tests */
 		float TotalTime;
+
+		/** How many of the tests were skipped */
+		uint32 TotalTestSkips;
 
 		/** How many of the tests were successful */
 		uint32 TotalTestSuccesses;
@@ -129,6 +133,7 @@ private:
 			TotalTime = 0.f;
 			ParallelTime = 0.f;
 			TotalNumTests = 0;
+			TotalTestSkips = 0;
 			TotalTestSuccesses = 0;
 		}
 
@@ -137,6 +142,9 @@ private:
 
 		/** Total number of tests */
 		uint32 TotalNumTests;
+
+		/** How many of the tests were skipped */
+		uint32 TotalTestSkips;
 
 		/** How many of the tests were successful */
 		uint32 TotalTestSuccesses;
