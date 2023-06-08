@@ -1037,7 +1037,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	auto ConvertActorLayersToDataLayers = [this, MainWorldDataLayers, &AssetTools](AActor* Actor)
 	{
 		// Convert Layers into DataLayers with DynamicallyLoaded flag disabled
-		if (Actor->SupportsDataLayer())
+		if (Actor->SupportsDataLayerType(UDataLayerInstance::StaticClass()))
 		{
 			for (FName Layer : Actor->Layers)
 			{

@@ -1292,14 +1292,14 @@ public:
 	// DataLayers functions.
 #if WITH_EDITOR
 private:
-	virtual bool ActorTypeSupportsDataLayer() const { return true; }
+	virtual bool IsDataLayerTypeSupported(TSubclassOf<UDataLayerInstance> DataLayerType) const { return true; }
 	virtual bool ActorTypeIsMainWorldOnly() const { return false; }
 	TArray<const UDataLayerAsset*> ResolveDataLayerAssets(const TArray<TSoftObjectPtr<UDataLayerAsset>>& InDataLayerAssets) const;
 public:
 	bool AddDataLayer(const UDataLayerInstance* DataLayerInstance);
 	bool RemoveDataLayer(const UDataLayerInstance* DataLayerInstance);
 	TArray<const UDataLayerInstance*> RemoveAllDataLayers();
-	bool SupportsDataLayer() const;
+	bool SupportsDataLayerType(TSubclassOf<UDataLayerInstance> DataLayerType) const;
 	
 	TArray<const UDataLayerInstance*> GetDataLayerInstancesForLevel() const;
 	TArray<FName> GetDataLayerInstanceNames() const;
@@ -1321,6 +1321,12 @@ public:
 	bool RemoveDataLayer(const UDEPRECATED_DataLayer* DataLayer);
 
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UE_DEPRECATED(5.3, "Use AActor::SupportsDataLayerType(TSubclassOf<UDataLayerInstance>) instead.")
+	bool SupportsDataLayer() const;
+
+	UE_DEPRECATED(5.3, "Use AActor::IsDataLayerTypeSupported(TSubclassOf<UDataLayerInstance>) instead.")
+	virtual bool ActorTypeSupportsDataLayer() const { return true; }
 
 	UE_DEPRECATED(5.3, "Use UDataLayerInstance::AddActor(AActor*) instead.")
 	bool AddDataLayer(const UDataLayerAsset* DataLayerAsset) { return false; }

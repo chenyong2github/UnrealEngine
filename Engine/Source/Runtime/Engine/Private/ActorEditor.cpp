@@ -26,6 +26,8 @@
 #include "ActorTransactionAnnotation.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
+#include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
+#include "WorldPartition/DataLayer/DeprecatedDataLayerInstance.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "ActorFolder.h"
 #include "WorldPersistentFolders.h"
@@ -115,7 +117,7 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 		return false;
 	}
 
-	if (bIsDataLayersProperty && (!SupportsDataLayer() || !IsUserManaged()))
+	if (bIsDataLayersProperty && (!SupportsDataLayerType(UDataLayerInstance::StaticClass()) || !IsUserManaged()))
 	{
 		return false;
 	}
@@ -1695,10 +1697,18 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 		return;
 	}
 
-	if (!SupportsDataLayer())
+	if (!SupportsDataLayerType(UDeprecatedDataLayerInstance::StaticClass()))
+	{
+		DataLayers.Empty();
+	}
+
+	if (!SupportsDataLayerType(UDataLayerInstanceWithAsset::StaticClass()))
 	{
 		DataLayerAssets.Empty();
-		DataLayers.Empty();
+	}
+
+	if (DataLayers.IsEmpty() && DataLayerAssets.IsEmpty())
+	{
 		return;
 	}
 
@@ -1809,14 +1819,14 @@ bool AActor::IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& Propert
 	return false;
 }
 
-bool AActor::SupportsDataLayer() const
+bool AActor::SupportsDataLayerType(TSubclassOf<UDataLayerInstance> InDataLayerType) const
 {
 	ULevel* Level = GetLevel();
 	const bool bIsLevelNotPartitioned = Level ? !Level->bIsPartitioned : false;
 	return (!bIsLevelNotPartitioned &&
-			ActorTypeSupportsDataLayer() &&
-			!FActorEditorUtils::IsABuilderBrush(this) &&
-			!GetClass()->GetDefaultObject<AActor>()->bHiddenEd);
+		IsDataLayerTypeSupported(InDataLayerType) &&
+		!FActorEditorUtils::IsABuilderBrush(this) &&
+		!GetClass()->GetDefaultObject<AActor>()->bHiddenEd);
 }
 
 bool FAssignActorDataLayer::AddDataLayerAsset(AActor* InActor, const UDataLayerAsset* InDataLayerAsset)
@@ -1851,9 +1861,14 @@ bool FAssignActorDataLayer::RemoveDataLayerAsset(AActor* InActor, const UDataLay
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
+bool AActor::SupportsDataLayer() const
+{
+	return SupportsDataLayerType(UDataLayerInstance::StaticClass());
+}
+
 bool AActor::AddDataLayer(const FActorDataLayer& ActorDataLayer)
 {
-	if (SupportsDataLayer() && !ContainsDataLayer(ActorDataLayer))
+	if (SupportsDataLayerType(UDataLayerInstance::StaticClass()) && !ContainsDataLayer(ActorDataLayer))
 	{
 		Modify();
 		DataLayers.Add(ActorDataLayer);
@@ -1877,7 +1892,7 @@ bool AActor::RemoveDataLayer(const FActorDataLayer& ActorDataLayer)
 
 bool AActor::AddDataLayer(const UDEPRECATED_DataLayer* DataLayer)
 {
-	if (SupportsDataLayer() && DataLayer)
+	if (SupportsDataLayerType(UDataLayerInstance::StaticClass()) && DataLayer)
 	{
 		return AddDataLayer(FActorDataLayer(DataLayer->GetFName()));
 	}

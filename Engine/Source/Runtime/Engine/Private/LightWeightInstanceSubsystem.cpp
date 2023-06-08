@@ -4,6 +4,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 DEFINE_LOG_CATEGORY(LogLightWeightInstance);
 
@@ -146,7 +147,7 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 				if (ManagerGridCoord == GridCoord)
 				{
 #if WITH_EDITOR
-					if (!DataLayer || (InstanceManager->SupportsDataLayer() && InstanceManager->ContainsDataLayer(DataLayer)))
+					if (!DataLayer || (InstanceManager->SupportsDataLayerType(UDataLayerInstance::StaticClass()) && InstanceManager->ContainsDataLayer(DataLayer)))
 #endif // WITH_EDITOR
 					{
 						return InstanceManager;
@@ -198,7 +199,7 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeight
 		// Add the new manager to the DataLayer
 		if (DataLayer)
 		{
-			ensure(NewInstanceManager->SupportsDataLayer());
+			ensure(NewInstanceManager->SupportsDataLayerType(UDataLayerInstance::StaticClass()));
 			NewInstanceManager->AddDataLayer(DataLayer);
 		}
 #endif // WITH_EDITOR

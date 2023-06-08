@@ -18,7 +18,7 @@ class ENGINE_API AWorldPartitionMiniMap : public AInfo
 
 private:
 #if WITH_EDITOR
-	virtual bool ActorTypeSupportsDataLayer() const final { return false; }
+	virtual bool IsDataLayerTypeSupported(TSubclassOf<UDataLayerInstance> DataLayerType) const final { return false; }
 	virtual bool ActorTypeIsMainWorldOnly() const override  { return true; }
 #endif
 

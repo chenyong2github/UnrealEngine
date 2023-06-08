@@ -157,7 +157,7 @@ bool UDataLayerInstance::CanUserAddActors() const
 
 bool UDataLayerInstance::CanAddActor(AActor* InActor) const
 {
-	return InActor != nullptr && InActor->SupportsDataLayer() && !InActor->ContainsDataLayer(this);
+	return InActor != nullptr && InActor->SupportsDataLayerType(GetClass()) && !InActor->ContainsDataLayer(this);
 }
 
 bool UDataLayerInstance::AddActor(AActor* InActor) const

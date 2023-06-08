@@ -22,6 +22,6 @@ public:
 	virtual void PostEditUndo() override;
 	virtual bool ShouldExport() override { return false; }
 private:
-	virtual bool ActorTypeSupportsDataLayer() const { return false; }
+	virtual bool IsDataLayerTypeSupported(TSubclassOf<UDataLayerInstance> DataLayerType) const override { return false; }
 #endif
 };

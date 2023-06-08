@@ -19,7 +19,7 @@ class ALocalHeightFog : public AInfo
 
 private:
 #if WITH_EDITOR
-	virtual bool ActorTypeSupportsDataLayer() const override { return true; }
+	virtual bool IsDataLayerTypeSupported(TSubclassOf<UDataLayerInstance> DataLayerType) const override { return true; }
 #endif
 
 	/** Object used to visualize the local fog volume */
