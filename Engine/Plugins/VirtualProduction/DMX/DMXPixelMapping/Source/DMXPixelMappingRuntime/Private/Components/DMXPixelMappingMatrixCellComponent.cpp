@@ -285,9 +285,7 @@ void UDMXPixelMappingMatrixCellComponent::QueueDownsample()
 	}
 
 	// Store downsample index
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DownsamplePixelIndex = RendererComponent->GetDownsamplePixelNum();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	const uint32 TextureSizeX = InputTexture->GetResource()->GetSizeX();
 	const uint32 TextureSizeY = InputTexture->GetResource()->GetSizeY();
