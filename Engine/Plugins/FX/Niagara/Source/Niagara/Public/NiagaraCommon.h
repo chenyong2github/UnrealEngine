@@ -681,6 +681,9 @@ struct NIAGARA_API FNiagaraScriptUObjectCompileInfo
 	TObjectPtr<class UObject> Object;
 
 	UPROPERTY()
+	FSoftObjectPath ObjectPath;
+
+	UPROPERTY()
 	FName RegisteredParameterMapRead;
 
 	UPROPERTY()

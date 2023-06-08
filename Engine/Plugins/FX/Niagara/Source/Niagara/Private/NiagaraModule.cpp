@@ -630,10 +630,10 @@ int32 INiagaraModule::StartScriptCompileJob(const FNiagaraCompileRequestDataBase
 	return ScriptCompilerDelegate.Execute(InCompileData, InCompileDuplicateData, InCompileOptions);
 }
 
-TSharedPtr<FNiagaraVMExecutableData> INiagaraModule::GetCompileJobResult(int32 JobID, bool bWait)
+TSharedPtr<FNiagaraVMExecutableData> INiagaraModule::GetCompileJobResult(int32 JobID, bool bWait, FNiagaraScriptCompileMetrics& Metrics)
 {
 	checkf(ScriptCompilerDelegate.IsBound(), TEXT("Script compilation result delegate not bound."));
-	return CompilationResultDelegate.Execute(JobID, bWait);
+	return CompilationResultDelegate.Execute(JobID, bWait, Metrics);
 }
 
 FDelegateHandle INiagaraModule::RegisterScriptCompiler(FScriptCompiler ScriptCompiler)
@@ -733,7 +733,65 @@ void INiagaraModule::UnregisterGraphTraversalCacher(FDelegateHandle DelegateHand
 	GraphTraversalCacheDelegate.Unbind();
 }
 
+FNiagaraCompilationTaskHandle INiagaraModule::RequestCompileSystem(UNiagaraSystem* System, bool bForce)
+{
+	checkf(RequestCompileSystemDelegate.IsBound(), TEXT("RequestCompileSystemDelegate delegate not bound."));
+	return RequestCompileSystemDelegate.Execute(System, bForce);
+}
 
+FDelegateHandle INiagaraModule::RegisterRequestCompileSystem(FOnRequestCompileSystem RequestCompileSystemCallback)
+{
+	checkf(RequestCompileSystemDelegate.IsBound() == false, TEXT("Only one handler is allowed for the RequestCompileSystem delegate"));
+	RequestCompileSystemDelegate = RequestCompileSystemCallback;
+	return RequestCompileSystemDelegate.GetHandle();
+}
+
+void INiagaraModule::UnregisterRequestCompileSystem(FDelegateHandle DelegateHandle)
+{
+	checkf(RequestCompileSystemDelegate.IsBound(), TEXT("RequestCompileSystemDelegate is not registered"));
+	checkf(RequestCompileSystemDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the RequestCompileSystem delegate with the handle it was registered with."));
+	RequestCompileSystemDelegate.Unbind();
+}
+
+bool INiagaraModule::PollSystemCompile(FNiagaraCompilationTaskHandle TaskHandle, FNiagaraSystemAsyncCompileResults& Results, bool bWait, bool bPeek)
+{
+	checkf(PollSystemCompileDelegate.IsBound(), TEXT("PollSystemCompileDelegate delegate not bound."));
+	return PollSystemCompileDelegate.Execute(TaskHandle, Results, bWait, bPeek);
+}
+
+FDelegateHandle INiagaraModule::RegisterPollSystemCompile(FOnPollSystemCompile PollSystemCompileCallback)
+{
+	checkf(PollSystemCompileDelegate.IsBound() == false, TEXT("Only one handler is allowed for the PollSystemCompile delegate"));
+	PollSystemCompileDelegate = PollSystemCompileCallback;
+	return PollSystemCompileDelegate.GetHandle();
+}
+
+void INiagaraModule::UnregisterPollSystemCompile(FDelegateHandle DelegateHandle)
+{
+	checkf(PollSystemCompileDelegate.IsBound(), TEXT("PollSystemCompileDelegate is not registered"));
+	checkf(PollSystemCompileDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the PollSystemCompile delegate with the handle it was registered with."));
+	PollSystemCompileDelegate.Unbind();
+}
+
+void INiagaraModule::AbortSystemCompile(FNiagaraCompilationTaskHandle TaskHandle)
+{
+	checkf(AbortSystemCompileDelegate.IsBound(), TEXT("AbortSystemCompileDelegate delegate not bound."));
+	AbortSystemCompileDelegate.Execute(TaskHandle);
+}
+
+FDelegateHandle INiagaraModule::RegisterAbortSystemCompile(FOnAbortSystemCompile AbortSystemCompileCallback)
+{
+	checkf(AbortSystemCompileDelegate.IsBound() == false, TEXT("Only one handler is allowed for the AbortSystemCompile delegate"));
+	AbortSystemCompileDelegate = AbortSystemCompileCallback;
+	return AbortSystemCompileDelegate.GetHandle();
+}
+
+void INiagaraModule::UnregisterAbortSystemCompile(FDelegateHandle DelegateHandle)
+{
+	checkf(AbortSystemCompileDelegate.IsBound(), TEXT("AbortSystemCompileDelegate is not registered"));
+	checkf(AbortSystemCompileDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the AbortSystemCompile delegate with the handle it was registered with."));
+	AbortSystemCompileDelegate.Unbind();
+}
 
 void INiagaraModule::OnAssetLoaded(UObject* Asset)
 {

@@ -6,6 +6,7 @@
 #include "Modules/ModuleInterface.h"
 #include "NiagaraTypes.h"
 #include "Templates/SharedPointer.h"
+#include "NiagaraCompilationTypes.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraDebuggerCommon.h"
 #include "NiagaraScript.h"
@@ -23,6 +24,7 @@ class INiagaraEditorOnlyDataUtilities;
 struct FNiagaraParameterStore;
 class FCommonViewportClient;
 class FNiagaraDebuggerClient;
+struct FNiagaraSystemAsyncCompileResults;
 
 extern NIAGARA_API int32 GEnableVerboseNiagaraChangeIdLogging;
 
@@ -38,10 +40,15 @@ public:
 	typedef TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> GraphCachedDataPtr;
 
 	DECLARE_DELEGATE_RetVal_ThreeParams(int32, FScriptCompiler, const FNiagaraCompileRequestDataBase*, const FNiagaraCompileRequestDuplicateDataBase*, const FNiagaraCompileOptions&);
-	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FNiagaraVMExecutableData>, FCheckCompilationResult, int32, bool);
+	DECLARE_DELEGATE_RetVal_ThreeParams(TSharedPtr<FNiagaraVMExecutableData>, FCheckCompilationResult, int32, bool, FNiagaraScriptCompileMetrics&);
 	DECLARE_DELEGATE_RetVal_TwoParams(CompileRequestPtr, FOnPrecompile, UObject*, FGuid);
 	DECLARE_DELEGATE_RetVal_FiveParams(CompileRequestDuplicatePtr, FOnPrecompileDuplicate, const FNiagaraCompileRequestDataBase* /*OwningSystemRequestData*/, UNiagaraSystem* /*OwningSystem*/, UNiagaraEmitter* /*OwningEmitter*/, UNiagaraScript* /*TargetScript*/, FGuid /*Version*/);
 	DECLARE_DELEGATE_RetVal_TwoParams(GraphCachedDataPtr, FOnCacheGraphTraversal, const UObject*, FGuid);
+
+	DECLARE_DELEGATE_RetVal_TwoParams(FNiagaraCompilationTaskHandle, FOnRequestCompileSystem, UNiagaraSystem*, bool);
+	DECLARE_DELEGATE_RetVal_FourParams(bool, FOnPollSystemCompile, FNiagaraCompilationTaskHandle, FNiagaraSystemAsyncCompileResults&, bool /*bWait*/, bool /*bPeek*/);
+	DECLARE_DELEGATE_OneParam(FOnAbortSystemCompile, FNiagaraCompilationTaskHandle);
+
 #endif
 	DECLARE_DELEGATE_RetVal(void, FOnProcessQueue);
 
@@ -80,7 +87,7 @@ public:
 	void UnregisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities);
 
 	int32 StartScriptCompileJob(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileRequestDuplicateDataBase* InCompileDuplicateData, const FNiagaraCompileOptions& InCompileOptions);
-	TSharedPtr<FNiagaraVMExecutableData> GetCompileJobResult(int32 JobID, bool bWait);
+	TSharedPtr<FNiagaraVMExecutableData> GetCompileJobResult(int32 JobID, bool bWait, FNiagaraScriptCompileMetrics& Metrics);
 
 	FDelegateHandle RegisterScriptCompiler(FScriptCompiler ScriptCompiler);
 	void UnregisterScriptCompiler(FDelegateHandle DelegateHandle);
@@ -103,6 +110,18 @@ public:
 	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CacheGraphTraversal(const UObject* InObj, FGuid Version);
 	FDelegateHandle RegisterGraphTraversalCacher(FOnCacheGraphTraversal PreCompiler);
 	void UnregisterGraphTraversalCacher(FDelegateHandle DelegateHandle);
+
+	FNiagaraCompilationTaskHandle RequestCompileSystem(UNiagaraSystem* System, bool bForce);
+	FDelegateHandle RegisterRequestCompileSystem(FOnRequestCompileSystem RequestCompileSystemCallback);
+	void UnregisterRequestCompileSystem(FDelegateHandle DelegateHandle);
+
+	bool PollSystemCompile(FNiagaraCompilationTaskHandle, FNiagaraSystemAsyncCompileResults&, bool /*bWait*/, bool /*bPeek*/);
+	FDelegateHandle RegisterPollSystemCompile(FOnPollSystemCompile PollSystemCompileCallback);
+	void UnregisterPollSystemCompile(FDelegateHandle DelegateHandle);
+
+	void AbortSystemCompile(FNiagaraCompilationTaskHandle);
+	FDelegateHandle RegisterAbortSystemCompile(FOnAbortSystemCompile AbortSystemCompileCallback);
+	void UnregisterAbortSystemCompile(FDelegateHandle DelegateHandle);
 
 	void OnAssetLoaded(UObject* Asset);
 
@@ -249,6 +268,9 @@ public:
 	FOnPrecompile PrecompileDelegate;
 	FOnPrecompileDuplicate PrecompileDuplicateDelegate;
 	FOnCacheGraphTraversal GraphTraversalCacheDelegate;
+	FOnRequestCompileSystem RequestCompileSystemDelegate;
+	FOnPollSystemCompile PollSystemCompileDelegate;
+	FOnAbortSystemCompile AbortSystemCompileDelegate;
 #endif
 
 	static int32 EngineEffectsQuality;

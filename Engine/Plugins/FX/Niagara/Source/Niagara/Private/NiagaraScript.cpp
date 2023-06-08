@@ -1011,7 +1011,7 @@ FString UNiagaraScript::GetNiagaraDDCKeyString(const FGuid& ScriptVersion, const
 	return BuildNiagaraDDCKeyString(GetLastGeneratedVMId(ScriptVersion), ScriptPath);
 }
 
-void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGuid VersionGuid) const
+void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, const FGuid& VersionGuid) const
 {
 	Id = FNiagaraVMExecutableDataId();
 
@@ -1459,7 +1459,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 
 	LastGeneratedVMId = Id;
 }
-
 
 void UNiagaraScript::ComputeVMCompilationId_EmitterShared(FNiagaraVMExecutableDataId& Id, const FVersionedNiagaraEmitter& Emitter, ENiagaraRendererSourceDataMode InSourceMode) const
 {
@@ -2847,7 +2846,7 @@ FName ResolveEmitterAlias(const FName& InName, const FString& InAlias)
 	return Var.GetName();
 }
 
-void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& InCompileId, FNiagaraVMExecutableData& InScriptVM, FString EmitterUniqueName, const TMap<FName, UNiagaraDataInterface*>& ObjectNameMap, bool bApplyRapidIterationParameters)
+void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& InCompileId, FNiagaraVMExecutableData& InScriptVM, const FString& EmitterUniqueName, const TMap<FName, UNiagaraDataInterface*>& ObjectNameMap, bool bApplyRapidIterationParameters)
 {
 	CachedScriptVMId = InCompileId;
 	CachedScriptVM = InScriptVM;
@@ -2908,6 +2907,15 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 
 	CachedDefaultUObjects = CachedScriptVM.UObjectInfos;
 
+	// if the compile process generated soft object paths instead of hard references than resolve them here
+	for (FNiagaraScriptUObjectCompileInfo& DefaultUObjectInfo : CachedDefaultUObjects)
+	{
+		if (DefaultUObjectInfo.ObjectPath.IsValid() && !DefaultUObjectInfo.Object)
+		{
+			DefaultUObjectInfo.Object = DefaultUObjectInfo.ObjectPath.ResolveObject();
+		}
+	}
+
 	if (bApplyRapidIterationParameters)
 	{
 		const bool bClearBindings = false;
@@ -2947,6 +2955,60 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 	}
 	
 	OnVMScriptCompiled().Broadcast(this, InCompileId.ScriptVersionID);
+}
+
+bool UNiagaraScript::ApplyRapidIterationParameters(TConstArrayView<FNiagaraVariable> InParameters, bool bAllowRemoval)
+{
+	bool bStoreDirty = false;
+
+	{
+		FNiagaraParameterStore::FScopedSuppressOnChanged SuppressScope(RapidIterationParameters);
+
+		// go through and remove any parameters that aren't in the supplied parameter list
+		if (bAllowRemoval)
+		{
+			TConstArrayView<FNiagaraVariableWithOffset> ExistingParameters = RapidIterationParameters.ReadParameterVariables();
+			TArray<FNiagaraVariableBase> ParametersToRemove;
+	
+			for (const FNiagaraVariableWithOffset& ExistingParameter : ExistingParameters)
+			{
+				const bool bStaleParameter = !InParameters.ContainsByPredicate([&ExistingParameter](const FNiagaraVariable& Variable) -> bool
+				{
+					return Variable == ExistingParameter;
+				});
+
+				if (bStaleParameter)
+				{
+					ParametersToRemove.Add(ExistingParameter);
+					bStoreDirty = true;
+				}
+			}
+
+			for (const FNiagaraVariableBase& ParameterToRemove : ParametersToRemove)
+			{
+				RapidIterationParameters.RemoveParameter(ParameterToRemove);
+			}
+		}
+
+		// try to add 
+		for (const FNiagaraVariable& Parameter : InParameters)
+		{
+			constexpr bool bInitInterfaces = false;
+			constexpr bool bTriggerRebind = false;
+
+			if (RapidIterationParameters.AddParameter(Parameter, bInitInterfaces, bTriggerRebind, nullptr))
+			{
+				bStoreDirty = true;
+			}
+		}
+	}
+
+	if (bStoreDirty)
+	{
+		RapidIterationParameters.Rebind();
+	}
+
+	return bStoreDirty;
 }
 
 void UNiagaraScript::InvalidateExecutionReadyParameterStores()
@@ -3019,7 +3081,8 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 
 		FNiagaraCompileOptions Options(GetUsage(), GetUsageId(), ScriptData->ModuleUsageBitmask, ScriptPathName, GetFullName(), GetName());
 		int32 JobHandle = NiagaraModule.StartScriptCompileJob(RequestData.Get(), RequestDuplicateData.Get(), Options);
-		TSharedPtr<FNiagaraVMExecutableData> ExeData = NiagaraModule.GetCompileJobResult(JobHandle, true);
+		FNiagaraScriptCompileMetrics ScriptMetrics;
+		TSharedPtr<FNiagaraVMExecutableData> ExeData = NiagaraModule.GetCompileJobResult(JobHandle, true, ScriptMetrics);
 		if (ExeData)
 		{
 			SetVMCompilationResults(LastGeneratedVMId, *ExeData, FString(), RequestDuplicateData->GetObjectNameMap(), false);

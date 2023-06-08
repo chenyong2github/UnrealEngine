@@ -40,6 +40,7 @@
 #include "TypeEditorUtilities/NiagaraMatrixTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraDataInterfaceCurveTypeEditorUtilities.h"
 
+#include "NiagaraSystemCompilingManager.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorCommands.h"
 #include "PropertyEditorModule.h"
@@ -62,6 +63,7 @@
 #include "TNiagaraGraphPinEditableName.h"
 #include "UObject/Class.h"
 #include "NiagaraScriptMergeManager.h"
+#include "NiagaraDigestDatabase.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraTypes.h"
@@ -947,6 +949,9 @@ void FNiagaraEditorModule::OnPreExit()
 			Sys->KillAllActiveCompilations();
 		}
 	}
+
+	FNiagaraDigestDatabase::Shutdown();
+
 	ClearObjectPool();
 	
 	INiagaraDataInterfaceNodeActionProvider::Unregister<UNiagaraDataInterfaceDataChannelWrite>();
@@ -1311,9 +1316,9 @@ void FNiagaraEditorModule::StartupModule()
 		return CompileScript(CompileRequest, CompileRequestDuplicate, Options);
 	}));
 
-	CompileResultHandle = NiagaraModule.RegisterCompileResultDelegate(INiagaraModule::FCheckCompilationResult::CreateLambda([this](int32 JobID, bool bWait)
+	CompileResultHandle = NiagaraModule.RegisterCompileResultDelegate(INiagaraModule::FCheckCompilationResult::CreateLambda([this](int32 JobID, bool bWait, FNiagaraScriptCompileMetrics& ScriptMetrics)
 	{
-		return GetCompilationResult(JobID, bWait);
+		return GetCompilationResult(JobID, bWait, ScriptMetrics);
 	}));
 
 	PrecompilerHandle = NiagaraModule.RegisterPrecompiler(INiagaraModule::FOnPrecompile::CreateLambda([this](UObject* InObj, FGuid Version)
@@ -1327,10 +1332,24 @@ void FNiagaraEditorModule::StartupModule()
 	}));
 
 	GraphCacheTraversalHandle = NiagaraModule.RegisterGraphTraversalCacher(INiagaraModule::FOnCacheGraphTraversal::CreateLambda([this](const UObject* InObj, FGuid Version)
-		{
-			return CacheGraphTraversal(InObj, Version);
-		}));
+	{
+		return CacheGraphTraversal(InObj, Version);
+	}));
 
+	RequestCompileSystemHandle = NiagaraModule.RegisterRequestCompileSystem(INiagaraModule::FOnRequestCompileSystem::CreateLambda([this](UNiagaraSystem* System, bool bForced)
+	{
+		return RequestCompileSystem(System, bForced);
+	}));
+
+	PollSystemCompileHandle = NiagaraModule.RegisterPollSystemCompile(INiagaraModule::FOnPollSystemCompile::CreateLambda([this](FNiagaraCompilationTaskHandle TaskHandle, FNiagaraSystemAsyncCompileResults& Results, bool bWait, bool bPeek)
+	{
+		return PollSystemCompile(TaskHandle, Results, bWait, bPeek);
+	}));
+
+	AbortSystemCompileHandle = NiagaraModule.RegisterAbortSystemCompile(INiagaraModule::FOnAbortSystemCompile::CreateLambda([this](FNiagaraCompilationTaskHandle TaskHandle)
+	{
+		AbortSystemCompile(TaskHandle);
+	}));
 
 	TestCompileScriptCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("fx.TestCompileNiagaraScript"),
@@ -1395,6 +1414,8 @@ void FNiagaraEditorModule::StartupModule()
 	//Register node action providers for data interface functions.
 	INiagaraDataInterfaceNodeActionProvider::Register<UNiagaraDataInterfaceDataChannelWrite, FNiagaraDataInterfaceNodeActionProvider_DataChannelWrite>();
 	INiagaraDataInterfaceNodeActionProvider::Register<UNiagaraDataInterfaceDataChannelRead, FNiagaraDataInterfaceNodeActionProvider_DataChannelRead>();
+
+	FAssetCompilingManager::Get().RegisterManager(&FNiagaraSystemCompilingManager::Get());
 }
 
 void FNiagaraEditorModule::ShutdownModule()
@@ -1458,6 +1479,9 @@ void FNiagaraEditorModule::ShutdownModule()
 		NiagaraModule->UnregisterPrecompiler(PrecompilerHandle);
 		NiagaraModule->UnregisterPrecompileDuplicator(PrecompileDuplicatorHandle);
 		NiagaraModule->UnregisterGraphTraversalCacher(GraphCacheTraversalHandle);
+		NiagaraModule->UnregisterRequestCompileSystem(RequestCompileSystemHandle);
+		NiagaraModule->UnregisterPollSystemCompile(PollSystemCompileHandle);
+		NiagaraModule->UnregisterAbortSystemCompile(AbortSystemCompileHandle);
 	}
 
 	// Verify that we've cleaned up all the view models in the world.
@@ -1511,6 +1535,8 @@ void FNiagaraEditorModule::ShutdownModule()
 #endif
 
 	GraphDataCache.Reset();
+
+	FAssetCompilingManager::Get().UnregisterManager(&FNiagaraSystemCompilingManager::Get());
 }
 
 void FNiagaraEditorModule::OnPostEngineInit()

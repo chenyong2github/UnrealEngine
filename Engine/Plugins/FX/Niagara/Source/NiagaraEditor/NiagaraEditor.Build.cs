@@ -13,6 +13,7 @@ public class NiagaraEditor : ModuleRules
                 "Core", 
 				"CoreUObject", 
 				"CurveEditor",
+				"DerivedDataCache",
 				"ApplicationCore",
                 "InputCore",
 				"RenderCore",

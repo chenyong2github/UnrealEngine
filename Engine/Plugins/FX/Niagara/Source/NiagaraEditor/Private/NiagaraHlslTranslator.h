@@ -634,7 +634,8 @@ public:
 
 	int32 CompileInputPin(const FInputPin* Pin);
 
-	int32 RegisterUObject(FNiagaraVariable Variable, UObject* Object, bool bAddParameterMapRead);
+	int32 RegisterUObject(const FNiagaraVariable& Variable, UObject* Object, bool bAddParameterMapRead);
+	int32 RegisterUObjectPath(const FNiagaraVariable& Variable, const FSoftObjectPath& ObjectPath, bool bAddParmeterMapRead);
 	int32 RegisterDataInterface(const FNiagaraVariable& Var, const UNiagaraDataInterface* DataInterface, bool bPlaceholder, bool bAddParameterMapRead);
 
 	void Operation(const FOpNode* Operation, TArray<int32>& Inputs, TArray<int32>& Outputs);

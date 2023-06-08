@@ -7,6 +7,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraCompilationBridge.h"
 #include "NiagaraConstants.h"
+#include "NiagaraGraphDigest.h"
 #include "NiagaraModule.h"
 #include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraNodeFunctionCall.h"
@@ -782,4 +783,4 @@ void FNiagaraAttributeTrimmerHelper<GraphBridge>::TrimAttributes_Aggressive(cons
 }
 
 template class FNiagaraAttributeTrimmerHelper<FNiagaraCompilationGraphBridge>;
-
+template class FNiagaraAttributeTrimmerHelper<FNiagaraCompilationDigestBridge>;

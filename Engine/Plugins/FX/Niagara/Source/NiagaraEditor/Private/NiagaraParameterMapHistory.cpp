@@ -6,12 +6,14 @@
 #include "INiagaraEditorTypeUtilities.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraCompilationBridge.h"
+#include "NiagaraCompilationPrivate.h"
 #include "NiagaraCompiler.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraGraph.h"
+#include "NiagaraGraphDigest.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraNode.h"
 #include "NiagaraNodeEmitter.h"
@@ -91,6 +93,21 @@ void FGraphTraversalHandle::PushNode(const UEdGraphNode* Node)
 	}
 }
 
+void FGraphTraversalHandle::PushNode(const FNiagaraCompilationNode* Node)
+{
+	if (ensure(Node))
+	{
+		ensure(Node->NodeGuid.IsValid());
+		Path.Push(Node->NodeGuid);
+		FriendlyPath.Push(Node->FullTitle);
+	}
+	else
+	{
+		Path.Push(FGuid());
+		FriendlyPath.Push(FString());
+	}
+}
+
 void FGraphTraversalHandle::PushPin(const UEdGraphPin* Pin)
 {
 	if (ensure(Pin && Pin->GetOwningNode()))
@@ -109,6 +126,34 @@ void FGraphTraversalHandle::PushPin(const UEdGraphPin* Pin)
 		}
 
 		FriendlyPath.Push(Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::FullTitle).ToString() + TEXT("->") + Pin->PinName.ToString());
+	}
+	else
+	{
+		Path.Push(FGuid());
+		FriendlyPath.Push(FString());
+
+		Path.Push(FGuid());
+		FriendlyPath.Push(FString());
+	}
+}
+
+void FGraphTraversalHandle::PushPin(const FNiagaraCompilationPin* Pin)
+{
+	if (ensure(Pin && Pin->OwningNode))
+	{
+		PushNode(Pin->OwningNode);
+
+		if (Pin->PersistentGuid.IsValid())
+		{
+			Path.Push(Pin->PersistentGuid);
+		}
+		else
+		{
+			FGuid PinIndexGuid(Pin->SourcePinIndex, 0, 0, 0);
+			Path.Push(PinIndexGuid);
+		}
+
+		FriendlyPath.Push(Pin->OwningNode->FullTitle + TEXT("->") + Pin->PinName.ToString());
 	}
 	else
 	{
@@ -868,6 +913,30 @@ FNiagaraCompilationGraphBridge::FParameterCollection TNiagaraParameterMapHistory
 	return nullptr;
 }
 
+template<>
+FNiagaraCompilationDigestBridge::FParameterCollection TNiagaraParameterMapHistory<FNiagaraCompilationDigestBridge>::IsParameterCollectionParameter(FNiagaraVariable& InVar, bool& bMissingParameter)
+{
+	if (bParameterCollectionsSkipped)
+	{
+		UE_LOG(LogNiagaraEditor, Error, TEXT("NiagaraParameterCollection was skipped during history building.  History which require NPC data can not be generated during PostLoad()."));
+		return nullptr;
+	}
+
+	bMissingParameter = false;
+	FNameBuilder VarName(InVar.GetName());
+	for (const FNiagaraCompilationNPCHandle& CollectionHandle : EncounteredParameterCollections.Handles)
+	{
+		FNameBuilder CollectionName(CollectionHandle.Namespace);
+		if (VarName.ToView().StartsWith(CollectionName.ToView()))
+		{
+			bMissingParameter = CollectionHandle.Resolve()->Variables.Contains(InVar);
+			return CollectionHandle;
+		}
+	}
+
+	return FNiagaraCompilationNPCHandle();
+}
+
 template<typename GraphBridge>
 bool TNiagaraParameterMapHistory<GraphBridge>::ShouldIgnoreVariableDefault(const FNiagaraVariable& Var)const
 {
@@ -1589,6 +1658,11 @@ FNiagaraVariable TNiagaraParameterMapHistoryBuilder<GraphBridge>::ResolveAliases
 template<typename GraphBridge>
 void TNiagaraParameterMapHistoryBuilder<GraphBridge>::RegisterNodeVisitation(const FNode* Node)
 {
+	if (OnNodeVisitedDelegate.IsBound())
+	{
+		OnNodeVisitedDelegate.Broadcast(Node);
+	}
+
 	ContextuallyVisitedNodes.Last().AddUnique(Node);
 }
 
@@ -2088,6 +2162,19 @@ bool TNiagaraParameterMapHistoryBuilder<FNiagaraCompilationGraphBridge>::AddPara
 	return true;
 }
 
+
+template<>
+bool TNiagaraParameterMapHistoryBuilder<FNiagaraCompilationDigestBridge>::AddParameterCollection(FParameterCollection Collection, int32 ParamMapIndex)
+{
+	if (!Collection.IsValid())
+	{
+		return false;
+	}
+
+	Histories[ParamMapIndex].EncounteredParameterCollections.Handles.AddUnique(Collection);
+	return true;
+}
+
 template<typename GraphBridge>
 void TNiagaraParameterMapHistoryBuilder<GraphBridge>::SetConstantByStaticVariable(int32& OutValue, const FInputPin* InDefaultPin)
 {
@@ -2584,9 +2671,12 @@ void TNiagaraParameterMapHistoryWithMetaDataBuilder<GraphBridge>::AddGraphToCall
 //////////////////////////////////////////////////////////////////////////
 
 template struct TNiagaraParameterMapHistory<FNiagaraCompilationGraphBridge>;
+template struct TNiagaraParameterMapHistory<FNiagaraCompilationDigestBridge>;
 
 template class TNiagaraParameterMapHistoryBuilder<FNiagaraCompilationGraphBridge>;
+template class TNiagaraParameterMapHistoryBuilder<FNiagaraCompilationDigestBridge>;
 
 template class TNiagaraParameterMapHistoryWithMetaDataBuilder<FNiagaraCompilationGraphBridge>;
+template class TNiagaraParameterMapHistoryWithMetaDataBuilder<FNiagaraCompilationDigestBridge>;
 
 #undef LOCTEXT_NAMESPACE

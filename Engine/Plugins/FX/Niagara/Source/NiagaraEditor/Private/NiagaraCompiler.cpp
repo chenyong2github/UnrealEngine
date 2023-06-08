@@ -1429,7 +1429,8 @@ int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* 
 	UE_LOG(LogNiagaraEditor, Verbose, TEXT("Compiling System %s ..................................................................."), *InCompileOptions.FullName);
 
 	FNiagaraCompileResults Results;
-	TSharedPtr<FHlslNiagaraCompiler> Compiler = MakeShared<FHlslNiagaraCompiler>();
+	FActiveCompilation ActiveCompilation;
+	ActiveCompilation.Compiler = MakeShared<FHlslNiagaraCompiler>();
 	FNiagaraTranslateResults TranslateResults;
 	TUniquePtr<INiagaraHlslTranslator> Translator = INiagaraHlslTranslator::CreateTranslator(CompileRequest, CompileRequestDuplicate);
 
@@ -1458,6 +1459,8 @@ int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* 
 	{
 		TranslateResults = Translator->Translate(InCompileOptions, TranslateOptions);
 	}
+
+	ActiveCompilation.TranslationTime = (float) (FPlatformTime::Seconds() - TranslationStartTime);
 	UE_LOG(LogNiagaraEditor, Verbose, TEXT("Translating System %s took %f sec."), *InCompileOptions.FullName, (float)(FPlatformTime::Seconds() - TranslationStartTime));
 
 	if (GbForceNiagaraTranslatorDump != 0)
@@ -1472,8 +1475,8 @@ int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* 
 	NiagaraCompileRequestHelper::FDebugGroupNameBuilder DebugGroupName;
 	NiagaraCompileRequestHelper::BuildScriptDebugGroupName(CompileRequest, InCompileOptions, DebugGroupName);
 
-	int32 JobID = Compiler->CompileScript(DebugGroupName, InCompileOptions, TranslateResults, Translator->GetTranslateOutput(), Translator->GetTranslatedHLSL());
-	ActiveCompilations.Add(JobID, Compiler);
+	int32 JobID = ActiveCompilation.Compiler->CompileScript(DebugGroupName, InCompileOptions, TranslateResults, Translator->GetTranslateOutput(), Translator->GetTranslatedHLSL());
+	ActiveCompilations.Add(JobID, ActiveCompilation);
 	return JobID;
 }
 
@@ -1626,19 +1629,22 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 	return CachedPtr;
 }
 
-TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::GetCompilationResult(int32 JobID, bool bWait)
+TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::GetCompilationResult(int32 JobID, bool bWait, FNiagaraScriptCompileMetrics& ScriptMetrics)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FNiagaraEditorModule::GetCompilationResult);
 
-	TSharedPtr<FHlslNiagaraCompiler>* MapEntry = ActiveCompilations.Find(JobID);
-	check(MapEntry && *MapEntry);
+	FActiveCompilation* MapEntry = ActiveCompilations.Find(JobID);
+	check(MapEntry && MapEntry->Compiler.IsValid());
 
-	TSharedPtr<FHlslNiagaraCompiler> Compiler = *MapEntry;
+	TSharedPtr<FHlslNiagaraCompiler> Compiler = MapEntry->Compiler;
 	TOptional<FNiagaraCompileResults> CompileResult = Compiler->GetCompileResult(JobID, bWait);
 	if (!CompileResult)
 	{
 		return TSharedPtr<FNiagaraVMExecutableData>();
 	}
+
+	ScriptMetrics.TranslateTime = MapEntry->TranslationTime;
+
 	ActiveCompilations.Remove(JobID);
 	FNiagaraCompileResults& Results = CompileResult.GetValue();
 
@@ -1666,6 +1672,11 @@ TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::GetCompilationResult(
 		// When there are no errors the compile events get emptied, so add them back here.
 		Results.Data->LastCompileEvents.Append(Results.CompileEvents);
 	}
+
+	ScriptMetrics.CompilerWallTime = CompileResult->CompilerWallTime;
+	ScriptMetrics.CompilerPreprocessTime = CompileResult->CompilerPreprocessTime;
+	ScriptMetrics.CompilerWorkerTime = CompileResult->CompilerWorkerTime;
+
 	return CompileResult->Data;
 }
 
@@ -2138,7 +2149,10 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 			break;
 			}
 		}
-		Results.CompileTime = (float)(FPlatformTime::Seconds() - CompilationJob->StartTime);
+
+		Results.CompilerWallTime = (float)(FPlatformTime::Seconds() - CompilationJob->StartTime);
+		Results.CompilerWorkerTime = (float)CompilationJob->ShaderCompileJob->Output.CompileTime;
+		Results.CompilerPreprocessTime = (float)CompilationJob->ShaderCompileJob->Output.PreprocessTime;
 
 		Results.Data->CalledVMExternalFunctions.Empty(CompilationOutput.CalledVMFunctionTable.Num());
 		for (FCalledVMFunction& FuncInfo : CompilationOutput.CalledVMFunctionTable)

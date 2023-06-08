@@ -11,21 +11,19 @@
 #include "NiagaraShared.h"
 
 class Error;
-class UEdGraphPin;
-class UNiagaraNode;
-class UNiagaraGraph;
-class UEdGraphPin;
 class FCompilerResultsLog;
-class UNiagaraDataInterface;
-struct FNiagaraTranslateResults;
-struct FNiagaraTranslatorOutput;
-struct FNiagaraVMExecutableData;
+class FNiagaraCompilationCopyData;
 class FNiagaraCompileOptions;
 class FNiagaraCompileRequestData;
 class FNiagaraCompileRequestDuplicateData;
 class FNiagaraPrecompileData;
-class FNiagaraCompilationCopyData;
-
+class UEdGraphPin;
+class UNiagaraDataInterface;
+class UNiagaraGraph;
+class UNiagaraNode;
+struct FNiagaraTranslateResults;
+struct FNiagaraTranslatorOutput;
+struct FNiagaraVMExecutableData;
 
 /** Defines information about the results of a Niagara script compile. */
 struct FNiagaraCompileResults
@@ -37,16 +35,15 @@ struct FNiagaraCompileResults
 	
 	/** The actual final compiled data.*/
 	TSharedPtr<FNiagaraVMExecutableData> Data;
-	float CompileTime = 0.0f;
+	float CompilerWallTime = 0.0f;
+	float CompilerPreprocessTime = 0.0f;
+	float CompilerWorkerTime = 0.0f;
+
 	/** Tracking any compilation warnings or errors that occur.*/
 	TArray<FNiagaraCompileEvent> CompileEvents;
 	uint32 NumErrors = 0;
 	uint32 NumWarnings = 0;
 	FString DumpDebugInfoPath;
- 
- 
- 
- 
  
 	static ENiagaraScriptCompileStatus CompileResultsToSummary(const FNiagaraCompileResults* CompileResults);
 	void AppendCompileEvents(TArrayView<const FNiagaraCompileEvent> InCompileEvents)
@@ -134,6 +131,7 @@ public:
 	virtual const FString& GetTranslatedHLSL() const = 0;
 
 	static TUniquePtr<INiagaraHlslTranslator> CreateTranslator(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileRequestDuplicateDataBase* InDuplicateData);
+	static TUniquePtr<INiagaraHlslTranslator> CreateTranslator(const FNiagaraPrecompileData* InCompileData, const FNiagaraCompilationCopyData* InDuplicateData);
 
 	static FString BuildHLSLStructDecl(const FNiagaraTypeDefinition& Type, FText& OutErrorMessage, bool bGpuScript);
 	static bool IsBuiltInHlslType(const FNiagaraTypeDefinition& Type);

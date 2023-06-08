@@ -9,6 +9,7 @@
 #include "NiagaraTypes.h"
 #include "INiagaraCompiler.h"
 #include "AssetTypeCategories.h"
+#include "NiagaraCompilationTypes.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraDebuggerCommon.h"
 #include "NiagaraRendererProperties.h"
@@ -48,6 +49,7 @@ class UNiagaraParameterDefinitions;
 class UNiagaraReservedParametersManager;
 class FNiagaraGraphDataCache;
 class UNiagaraParameterCollection;
+struct FNiagaraSystemAsyncCompileResults;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -146,7 +148,7 @@ public:
 
 	/** Start the compilation of the specified script. */
 	virtual int32 CompileScript(const FNiagaraCompileRequestDataBase* InCompileRequest, const FNiagaraCompileRequestDuplicateDataBase* InCompileRequestDuplicate, const FNiagaraCompileOptions& InCompileOptions);
-	virtual TSharedPtr<FNiagaraVMExecutableData> GetCompilationResult(int32 JobID, bool bWait);
+	virtual TSharedPtr<FNiagaraVMExecutableData> GetCompilationResult(int32 JobID, bool bWait, FNiagaraScriptCompileMetrics& ScriptMetrics);
 
 	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> Precompile(UObject* InObj, FGuid Version);
 	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> PrecompileDuplicate(
@@ -157,6 +159,9 @@ public:
 		FGuid TargetVersion);
 	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CacheGraphTraversal(const UObject* Obj, FGuid Version);
 
+	FNiagaraCompilationTaskHandle RequestCompileSystem(UNiagaraSystem* System, bool bForce);
+	bool PollSystemCompile(FNiagaraCompilationTaskHandle, FNiagaraSystemAsyncCompileResults&, bool /*bWait*/, bool /*bPeek*/);
+	void AbortSystemCompile(FNiagaraCompilationTaskHandle);
 
 	/** Gets the extensibility managers for outside entities to extend static mesh editor's menus and toolbars */
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override {return MenuExtensibilityManager;}
@@ -369,6 +374,9 @@ private:
 	FDelegateHandle PrecompilerHandle;
 	FDelegateHandle PrecompileDuplicatorHandle;
 	FDelegateHandle GraphCacheTraversalHandle;
+	FDelegateHandle RequestCompileSystemHandle;
+	FDelegateHandle PollSystemCompileHandle;
+	FDelegateHandle AbortSystemCompileHandle;
 
 	FDelegateHandle DeviceProfileManagerUpdatedHandle;
 
@@ -413,7 +421,13 @@ private:
 
 	IConsoleCommand* ReinitializeStyleCommand;
 
-	TMap<int32, TSharedPtr<FHlslNiagaraCompiler>> ActiveCompilations;
+	struct FActiveCompilation
+	{
+		TSharedPtr<FHlslNiagaraCompiler> Compiler;
+		float TranslationTime = 0.0f;
+	};
+
+	TMap<int32, FActiveCompilation> ActiveCompilations;
 
 	TArray<TSharedRef<const FDeferredDestructionContainerBase>> EnqueuedForDeferredDestruction;
 

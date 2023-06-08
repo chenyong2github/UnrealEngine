@@ -13,6 +13,25 @@ class UNiagaraSystem;
 
 using FNiagaraCompilationTaskHandle = int32;
 
+struct FNiagaraScriptCompileMetrics
+{
+	float TaskWallTime = 0.0f;
+	float DDCFetchTime = 0.0f;
+	float CompilerWallTime = 0.0f;
+	float CompilerWorkerTime = 0.0f;
+	float CompilerPreprocessTime = 0.0f;
+	float TranslateTime = 0.0f;
+	float ByteCodeOptimizeTime = 0.0f;
+};
+
+struct FNiagaraSystemCompileMetrics
+{
+	float SystemCompileWallTime = 0.0f;
+	float SystemPrecompileTime = 0.0f;
+	float SystemCompilationCopyTime = 0.0f;
+	TMap<TObjectKey<UNiagaraScript>, FNiagaraScriptCompileMetrics> ScriptMetrics;
+};
+
 USTRUCT()
 struct FNiagaraScriptAsyncCompileData
 {
@@ -21,7 +40,12 @@ struct FNiagaraScriptAsyncCompileData
 	FNiagaraVMExecutableDataId CompileId;
 	TSharedPtr<struct FNiagaraVMExecutableData> ExeData;
 	FString UniqueEmitterName;
+	FNiagaraScriptCompileMetrics CompileMetrics;
+
 	bool bFromDerivedDataCache = false;
+
+	UPROPERTY()
+	TArray<FNiagaraVariable> RapidIterationParameters;
 
 	UPROPERTY()
 	TMap<FName, TObjectPtr<UNiagaraDataInterface>> NamedDataInterfaces;
@@ -57,9 +81,12 @@ struct FNiagaraCompilationOptions
 
 struct FNiagaraQueryCompilationOptions
 {
+	FNiagaraQueryCompilationOptions();
+
 	UNiagaraSystem* System = nullptr;
 	double MaxWaitDuration = 0.125;
 	bool bWait = false;
+	bool bGenerateTimingsFile = false;
 };
 
 class FNiagaraActiveCompilation : public FGCObject
@@ -70,9 +97,10 @@ public:
 	virtual bool Launch(const FNiagaraCompilationOptions& Options) = 0;
 	virtual void Abort() = 0;
 	virtual bool QueryCompileComplete(const FNiagaraQueryCompilationOptions& Options) = 0;
-	virtual bool Validate(const FNiagaraQueryCompilationOptions& Options) const = 0;
+	virtual bool ValidateConsistentResults(const FNiagaraQueryCompilationOptions& Options) const = 0;
 	virtual void Apply(const FNiagaraQueryCompilationOptions& Options) = 0;
 	virtual void ReportResults(const FNiagaraQueryCompilationOptions& Options) const = 0;
+	virtual bool BlocksBeginCacheForCooked() const { return false; }
 
 	void Invalidate()
 	{
@@ -90,8 +118,9 @@ public:
 	}
 
 protected:
-	bool bForced = false;
+	void WriteTimingsEntry(const TCHAR* TimingsSource, const FNiagaraQueryCompilationOptions& Options, const FNiagaraSystemCompileMetrics& SystemMetrics) const;
 
-private:
+	double TaskStartTime = 0;
+	bool bForced = false;
 	bool bShouldApply = true;
 };

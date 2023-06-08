@@ -147,7 +147,7 @@ struct NIAGARASHADER_API FNiagaraDataInterfaceGeneratedFunction
 	using FunctionSpecifier = TTuple<FName, FName>;
 	TArray<FunctionSpecifier> Specifiers;
 
-	uint16 MiscUsageBitMask;
+	uint16 MiscUsageBitMask = 0;
 
 	UPROPERTY()
 	TArray<FNiagaraVariableCommonReference> VariadicInputs;

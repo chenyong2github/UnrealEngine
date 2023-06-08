@@ -1863,24 +1863,44 @@ bool UNiagaraFunctionLibrary::GetVectorVMFastPathExternalFunction(const FVMExter
 
 void UNiagaraFunctionLibrary::InitVectorVMFastPathOps()
 {
-	if (VectorVMOps.Num() > 0)
+	static FRWLock FastPathBuildLock;
+
+	{
+		FReadScopeLock Lock(FastPathBuildLock);
+
+		if (!VectorVMOps.IsEmpty())
+		{
+			return;
+		}
+	}
+
+	FWriteScopeLock Lock(FastPathBuildLock);
+	if (!VectorVMOps.IsEmpty())
+	{
 		return;
+	}
 
-	VectorVMOps.Emplace(FVectorKernelFastDot4::GetFunctionSignature());
-	VectorVMOps.Emplace(FVectorKernelFastTransformPosition::GetFunctionSignature());
-	VectorVMOps.Emplace(FVectorKernelFastMatrixToQuaternion::GetFunctionSignature());
-	VectorVMOps.Emplace(FVectorKernel_EmitterLifeCycle::GetFunctionSignature());
-	VectorVMOps.Emplace(FVectorKernel_SpawnRate::GetFunctionSignature());
-	VectorVMOps.Emplace(FVectorKernel_SpawnBurstInstantaneous::GetFunctionSignature());
-	VectorVMOps.Emplace(FVectorKernel_SolveVelocitiesAndForces::GetFunctionSignature());
+	VectorVMOps =
+	{
+		FVectorKernelFastDot4::GetFunctionSignature(),
+		FVectorKernelFastTransformPosition::GetFunctionSignature(),
+		FVectorKernelFastMatrixToQuaternion::GetFunctionSignature(),
+		FVectorKernel_EmitterLifeCycle::GetFunctionSignature(),
+		FVectorKernel_SpawnRate::GetFunctionSignature(),
+		FVectorKernel_SpawnBurstInstantaneous::GetFunctionSignature(),
+		FVectorKernel_SolveVelocitiesAndForces::GetFunctionSignature()
+	};
 
-	VectorVMOpsHLSL.Emplace(FVectorKernelFastDot4::GetFunctionHLSL());
-	VectorVMOpsHLSL.Emplace(FVectorKernelFastTransformPosition::GetFunctionHLSL());
-	VectorVMOpsHLSL.Emplace(FVectorKernelFastMatrixToQuaternion::GetFunctionHLSL());
-	VectorVMOpsHLSL.Emplace(FVectorKernel_EmitterLifeCycle::GetFunctionHLSL());
-	VectorVMOpsHLSL.Emplace(FVectorKernel_SpawnRate::GetFunctionHLSL());
-	VectorVMOpsHLSL.Emplace(FVectorKernel_SpawnBurstInstantaneous::GetFunctionHLSL());
-	VectorVMOpsHLSL.Emplace(FVectorKernel_SolveVelocitiesAndForces::GetFunctionHLSL());
+	VectorVMOpsHLSL =
+	{
+		FVectorKernelFastDot4::GetFunctionHLSL(),
+		FVectorKernelFastTransformPosition::GetFunctionHLSL(),
+		FVectorKernelFastMatrixToQuaternion::GetFunctionHLSL(),
+		FVectorKernel_EmitterLifeCycle::GetFunctionHLSL(),
+		FVectorKernel_SpawnRate::GetFunctionHLSL(),
+		FVectorKernel_SpawnBurstInstantaneous::GetFunctionHLSL(),
+		FVectorKernel_SolveVelocitiesAndForces::GetFunctionHLSL()
+	};
 
 	check(VectorVMOps.Num() == VectorVMOpsHLSL.Num());
 }

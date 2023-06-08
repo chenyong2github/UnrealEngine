@@ -215,6 +215,7 @@ void FNiagaraAsyncCompileTask::MoveToState(ENiagaraCompilationState NewState)
 	}
 	if (NewState == ENiagaraCompilationState::Finished)
 	{
+		CompileMetrics.TaskWallTime = (float) (FPlatformTime::Seconds() - StartTaskTime);
 		check(CurrentState == ENiagaraCompilationState::CheckDDC || CurrentState == ENiagaraCompilationState::PutToDDC);
 	}
 
@@ -322,7 +323,7 @@ bool FNiagaraAsyncCompileTask::AwaitResult()
 
 	if (!ExeData.IsValid())
 	{
-		ExeData = NiagaraModule.GetCompileJobResult(ScriptPair.PendingJobID, bWaitForCompileJob);
+		ExeData = NiagaraModule.GetCompileJobResult(ScriptPair.PendingJobID, bWaitForCompileJob, CompileMetrics);
 	}
 
 	return ExeData.IsValid();
@@ -342,6 +343,8 @@ void FNiagaraAsyncCompileTask::OptimizeByteCode()
 #if VECTORVM_SUPPORTS_EXPERIMENTAL
 	if (const uint8* ByteCode = ExeData->ByteCode.GetDataPtr())
 	{
+		const double OptimizeStartTime = FPlatformTime::Seconds();
+
 		//this is just necessary because VectorVM doesn't know about FVMExternalFunctionBindingInfo
 		const int32 NumExtFns = ExeData->CalledVMExternalFunctions.Num();
 
@@ -361,6 +364,8 @@ void FNiagaraAsyncCompileTask::OptimizeByteCode()
 		FreezeVectorVMOptimizeContext(OptimizeContext, ExeData->ExperimentalContextData);
 
 		FreeVectorVMOptimizeContext(&OptimizeContext);
+
+		CompileMetrics.ByteCodeOptimizeTime = (float) (FPlatformTime::Seconds() - OptimizeStartTime);
 	}
 #endif // VECTORVM_SUPPORTS_EXPERIMENTAL
 }
@@ -427,8 +432,8 @@ void FNiagaraAsyncCompileTask::CheckDDCResult()
 			MoveToState(ENiagaraCompilationState::Precompile);
 			UE_LOG(LogNiagara, Verbose, TEXT("No compilation data for %s found in the ddc."), *AssetPath);
 		}
-		DDCFetchTime = FPlatformTime::Seconds() - StartTaskTime;
-		UE_LOG(LogNiagara, Verbose, TEXT("Compile task for %s took %f seconds to fetch data from ddc."), *AssetPath, DDCFetchTime);
+		CompileMetrics.DDCFetchTime = (float) (FPlatformTime::Seconds() - StartTaskTime);
+		UE_LOG(LogNiagara, VeryVerbose, TEXT("Compile task for %s took %f seconds to fetch data from ddc."), *AssetPath, CompileMetrics.DDCFetchTime);
 	}
 	else if ((FPlatformTime::Seconds() - StartTaskTime) > GNiagaraCompileDDCWaitTimeout)
 	{
@@ -496,7 +501,7 @@ void FNiagaraActiveCompilationDefault::Abort()
 	}
 }
 
-bool FNiagaraActiveCompilationDefault::Validate(const FNiagaraQueryCompilationOptions& Options) const
+bool FNiagaraActiveCompilationDefault::ValidateConsistentResults(const FNiagaraQueryCompilationOptions& Options) const
 {
 	// for now the only thing we're concerned about is if we've got results for SystemSpawn and SystemUpdate scripts
 	// then we need to make sure that they agree in terms of the dataset attributes
@@ -987,8 +992,31 @@ void FNiagaraActiveCompilationDefault::ReportResults(const FNiagaraQueryCompilat
 	{
 		UE_LOG(LogNiagara, Verbose, TEXT("Retrieving %s from DDC took %f sec."), *Options.System->GetFullName(), ElapsedWallTime);
 	}
+
+	if (Options.bGenerateTimingsFile)
+	{
+		FNiagaraSystemCompileMetrics SystemMetrics;
+		SystemMetrics.SystemCompileWallTime = ElapsedWallTime;
+
+		for (const FAsyncTaskPtr& AsyncTask : Tasks)
+		{
+			if (AsyncTask->ScriptPair.bResultsReady)
+			{
+				SystemMetrics.ScriptMetrics.Add(AsyncTask->ScriptPair.CompiledScript, AsyncTask->CompileMetrics);
+			}
+		}
+
+		WriteTimingsEntry(TEXT("Default Compilation"), Options, SystemMetrics);
+	}
 }
 
+bool FNiagaraActiveCompilationDefault::BlocksBeginCacheForCooked() const
+{
+	// With the current setup we will timeout DDC fill jobs while polling for the work to be complete.
+	// Not entirely sure why, but my guess is that we get too many systems in the process of being
+	// compiled and we iteratively block the gamethread advancing each of them starving progress
+	return true;
+}
 
 #endif // WITH_EDITORONLY_DATA
 

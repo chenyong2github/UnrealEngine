@@ -254,19 +254,43 @@ void UNiagaraSystem::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
 	
 	EnsureFullyLoaded();
-#if WITH_EDITORONLY_DATA
-	// todo - when we can get compilation work to be properly asynchronous we need to move this over to the intended behavior where
-	// this function kicks off the work and we poll for results in IsCachedCookedPlatformDataLoaded().  With the current setup we
-	// will timeout DDC fill jobs while polling for the work to be complete.  Not entirely sure why, but my guess is that we get too
-	// many systems in the process of being compiled and we iteratively block the gamethread advancing each of them starving progress
-	WaitForCompilationComplete();
-#endif
+
+	if (bNeedsRequestCompile)
+	{
+		RequestCompile(false);
+	}
+
+	// check if any of the active compilations requires waiting - note that none should but the original
+	// implementation does as it will stall the DDC fill jobs.  Unclear exactly why, but likely because of
+	// the need to tick some of the managers
+	bool bWaitForCompilationComplete = false;
+	for (const TUniquePtr<FNiagaraActiveCompilation>& ActiveCompilation : ActiveCompilations)
+	{
+		if (ActiveCompilation->BlocksBeginCacheForCooked())
+		{
+			bWaitForCompilationComplete = true;
+		}
+	}
+
+	if (bWaitForCompilationComplete)
+	{
+		WaitForCompilationComplete();
+	}
 }
 
 bool UNiagaraSystem::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
 {
-	// todo - see note above in BeginCacheForCookedPlatformData()
-	return Super::IsCachedCookedPlatformDataLoaded(TargetPlatform);
+	if (!Super::IsCachedCookedPlatformDataLoaded(TargetPlatform))
+	{
+		return false;
+	}
+
+	if (!ActiveCompilations.IsEmpty())
+	{
+		return PollForCompilationComplete(false);
+	}
+
+	return true;
 }
 
 void UNiagaraSystem::HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts)
@@ -1871,7 +1895,7 @@ void UNiagaraSystem::CacheFromCompiledData()
 	FGraphEventArray PSOPrecacheEvents;
 
 	TSet<FName> DataInterfaceGpuUsage;
-	TStringBuilder<128> ExecutionStateNameBuilder;
+	FNameBuilder ExecutionStateNameBuilder;
 	for (int32 i=0; i < EmitterHandles.Num(); ++i)
 	{
 		FNiagaraEmitterHandle& Handle = EmitterHandles[i];
@@ -1882,7 +1906,7 @@ void UNiagaraSystem::CacheFromCompiledData()
 			ExecutionStateNameBuilder.Reset();
 			ExecutionStateNameBuilder << Handle.GetInstance().Emitter->GetUniqueEmitterName();
 			ExecutionStateNameBuilder << TEXT(".ExecutionState");
-			const FName ExecutionStateName(ExecutionStateNameBuilder.ToString());
+			const FName ExecutionStateName(ExecutionStateNameBuilder);
 
 			EmitterExecutionStateAccessors.AddDefaulted_GetRef().Init(SystemDataSet, ExecutionStateName);
 
@@ -2739,19 +2763,19 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait)
 	TUniquePtr<FNiagaraActiveCompilation> CurrentCompilation = MoveTemp(ActiveCompilations[0]);
 	ActiveCompilations.RemoveAt(0);
 
-	// if we've gotten all the results, run a quick check to see if the data is valid, if it's not then that indicates that
-	// we've run into a compatibility issue and so we should see if we should issue a full rebuild
-	const bool ResultsValid = CurrentCompilation->Validate(Options);
-	if (!ResultsValid && !CurrentCompilation->WasForced())
-	{
-		RequestCompile(true, nullptr);
-		return false;
-	}
-
 	// In the world of do not apply, we're exiting the system completely so let's just kill any active compilations altogether.
 	if (!CurrentCompilation->ShouldApply())
 	{
 		return true;
+	}
+
+	// if we've gotten all the results, run a quick check to see if the data is valid, if it's not then that indicates that
+	// we've run into a compatibility issue and so we should see if we should issue a full rebuild
+	const bool ResultsConsistent = CurrentCompilation->ValidateConsistentResults(Options);
+	if (!ResultsConsistent && !CurrentCompilation->WasForced())
+	{
+		RequestCompile(true, nullptr);
+		return false;
 	}
 
 	CurrentCompilation->Apply(Options);

@@ -101,14 +101,16 @@ public:
 	virtual ENiagaraNumericOutputTypeSelectionMode GetNumericOutputTypeSelectionMode() const override;
 	//~ End UNiagaraNode Interface
 
+	//~ Begin UNiagaraNodeUsageSelector Interface
+	virtual int32 GetNumberOfCases() const override;
+	// ~End UNiagaraNodeUsageSelector Interface
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 protected:
 	//~ Begin UNiagaraNodeUsageSelector Interface
-	virtual int32 GetNumberOfCases() const override;
-	
 	virtual bool AreInputCaseLabelsReadOnly() const override { return SwitchTypeData.SwitchType != ENiagaraStaticSwitchType::Integer || IsSetByPin(); }
 	virtual void OnInputCaseLabelSubmitted(const FText& Text, ETextCommit::Type Arg, int32 InputCase) const override;
 	virtual bool VerifyCaseLabelCandidate(const FText& InCandidate, FText& OutErrorMessage) const override;

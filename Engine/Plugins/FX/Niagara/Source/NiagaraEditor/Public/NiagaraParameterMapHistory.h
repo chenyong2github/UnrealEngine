@@ -13,6 +13,8 @@
 
 class UEdGraphPin;
 class UEdGraphNode;
+class FNiagaraCompilationNode;
+class FNiagaraCompilationPin;
 class UNiagaraGraph;
 class FNiagaraHlslTranslator;
 class UNiagaraNodeEmitter;
@@ -88,9 +90,11 @@ public:
 	}
 
 	void PushNode(const UEdGraphNode* Node);
+	void PushNode(const FNiagaraCompilationNode* Node);
 	void PopNode();
 
 	void PushPin(const UEdGraphPin* Pin);
+	void PushPin(const FNiagaraCompilationPin* Pin);
 	void PopPin();
 
 	bool operator==(const FGraphTraversalHandle& Rhs) const
@@ -388,6 +392,8 @@ public:
 	using FConstantResolver = typename GraphBridge::FConstantResolver;
 	using FParameterCollection = typename GraphBridge::FParameterCollection;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodeVisited, const FNode* Node);
+
 	/** Collection of the build histories from the graph traversal.*/
 	TArray<FHistory> Histories;
 
@@ -592,6 +598,8 @@ public:
 	}
 
 	bool ShouldProcessDepthTraversal(const FGraph* Graph);
+
+	FOnNodeVisited OnNodeVisitedDelegate;
 
 protected:
 	/** Internal helper function to decide whether or not we should use this static variable when merging with other

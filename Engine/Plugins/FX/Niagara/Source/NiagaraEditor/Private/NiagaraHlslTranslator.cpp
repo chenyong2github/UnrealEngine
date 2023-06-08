@@ -18,6 +18,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraNodeEmitter.h"
 #include "NiagaraGraph.h"
+#include "NiagaraGraphDigest.h"
 #include "NiagaraNode.h"
 #include "NiagaraNodeConvert.h"
 #include "NiagaraNodeCustomHlsl.h"
@@ -37,11 +38,13 @@
 #include "NiagaraShared.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraTrace.h"
+#include "NiagaraTraversalStateContext.h"
 #include "ShaderCore.h"
 #include "Misc/FileHelper.h"
 #include "Misc/CoreMiscDefines.h"
 #include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraShader.h"
+#include "HAL/Platform.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
@@ -398,6 +401,42 @@ FString FNiagaraHlslTranslator::GetCodeAsSource(int32 ChunkIdx)
 }
 
 // specialization because validation may be different between graph implementations
+template<>
+bool TNiagaraHlslTranslator<FNiagaraCompilationDigestBridge>::ValidateTypePins(const FNode* NodeToValidate)
+{
+	bool bPinsAreValid = true;
+	for (const FPin* Pin : GetPins(NodeToValidate))
+	{
+		if (Pin->PinType.PinCategory.IsNone())
+		{
+			Error(LOCTEXT("InvalidPinTypeError", "Node pin has an undefined type."), NodeToValidate, Pin);
+			bPinsAreValid = false;
+		}
+		else if (Pin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType || Pin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticType)
+		{
+			FNiagaraTypeDefinition Type = Pin->Variable.GetType();
+			if (Type.IsValid() == false)
+			{
+				Error(LOCTEXT("InvalidPinTypeError", "Node pin has an undefined type."), NodeToValidate, Pin);
+				bPinsAreValid = false;
+			}
+			else if (Type == FNiagaraTypeDefinition::GetGenericNumericDef())
+			{
+				Error(LOCTEXT("NumericPinError", "A numeric pin was not resolved to a known type.  Numeric pins must be connected or must be converted to an explicitly typed pin in order to compile."), NodeToValidate, Pin);
+				bPinsAreValid = false;
+			}
+		}
+
+		// disabling this check because orphaned pins won't make it this far for the digested graphs
+		//if (Pin->bOrphanedPin)
+		//{
+		//	Warning(LOCTEXT("OrphanedPinError", "Node pin is no longer valid.  This pin must be disconnected or reset to default so it can be removed."), NodeToValidate, Pin);
+		//}
+	}
+	return bPinsAreValid;
+}
+
+
 template<>
 bool TNiagaraHlslTranslator<FNiagaraCompilationGraphBridge>::ValidateTypePins(const FNode* NodeToValidate)
 {
@@ -4587,6 +4626,11 @@ bool FNiagaraHlslTranslator::ShouldInterpolateParameter(const FNiagaraVariable& 
 
 // specialization handling the case where the translation process treats the graph as mutable
 template<>
+void TNiagaraHlslTranslator<FNiagaraCompilationDigestBridge>::UpdateStaticSwitchConstants(const FPin* Pin)
+{
+}
+
+template<>
 void TNiagaraHlslTranslator<FNiagaraCompilationGraphBridge>::UpdateStaticSwitchConstants(const FPin* ChildPin)
 {
 	if (UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(ChildPin->GetOwningNode()))
@@ -6284,6 +6328,29 @@ private:
 	typename GraphBridge::FParamMapHistoryBuilder& Builder;
 };
 
+template<>
+class FScopedBuilderEmitter<FNiagaraCompilationDigestBridge>
+{
+public:
+	FScopedBuilderEmitter(TNiagaraParameterMapHistoryBuilder<FNiagaraCompilationDigestBridge>& InBuilder, const FNiagaraCompilationNodeEmitter* InEmitterNode)
+		: EmitterNode(InEmitterNode)
+		, Builder(InBuilder)
+	{
+		Builder.TraversalStateContext->PushEmitter(EmitterNode);
+		Builder.EnterEmitter(EmitterNode->EmitterUniqueName, EmitterNode->CalledGraph.Get(), EmitterNode);
+	}
+
+	~FScopedBuilderEmitter()
+	{
+		Builder.ExitEmitter(EmitterNode->EmitterUniqueName, EmitterNode);
+		Builder.TraversalStateContext->PopEmitter(EmitterNode);
+	}
+
+private:
+	const FNiagaraCompilationNodeEmitter* EmitterNode;
+	TNiagaraParameterMapHistoryBuilder<FNiagaraCompilationDigestBridge>& Builder;
+};
+
 template<typename GraphBridge>
 void TNiagaraHlslTranslator<GraphBridge>::Emitter(const FEmitterNode* EmitterNode, TArray<int32>& Inputs, TArray<int32>& Outputs)
 {
@@ -7103,7 +7170,7 @@ void TNiagaraHlslTranslator<GraphBridge>::WriteDataSet(const FNiagaraDataSetID D
 }
 
 template<typename GraphBridge>
-int32 TNiagaraHlslTranslator<GraphBridge>::RegisterUObject(FNiagaraVariable Variable, UObject* Object, bool bAddParameterMapRead)
+int32 TNiagaraHlslTranslator<GraphBridge>::RegisterUObject(const FNiagaraVariable& Variable, UObject* Object, bool bAddParameterMapRead)
 {
 	int32 ObjectIndex = INDEX_NONE;
 	if (bAddParameterMapRead)
@@ -7125,6 +7192,52 @@ int32 TNiagaraHlslTranslator<GraphBridge>::RegisterUObject(FNiagaraVariable Vari
 		CompileInfo = &CompilationOutput.ScriptData.UObjectInfos[ObjectIndex];
 		CompileInfo->Variable = Variable;
 		CompileInfo->Object = Object;
+	}
+	else
+	{
+		CompileInfo = &CompilationOutput.ScriptData.UObjectInfos[ObjectIndex];
+	}
+
+	if (bAddParameterMapRead)
+	{
+		FName ResolvedName;
+		if (FNiagaraParameterUtilities::IsAliasedEmitterParameter(Variable.GetName().ToString()))
+		{
+			ResolvedName = ActiveHistoryForFunctionCalls.ResolveAliases(Variable).GetName();
+		}
+		else
+		{
+			ResolvedName = Variable.GetName();
+		}
+		CompileInfo->RegisteredParameterMapRead = ResolvedName;
+	}
+
+	return ObjectIndex;
+}
+
+template<typename GraphBridge>
+int32 TNiagaraHlslTranslator<GraphBridge>::RegisterUObjectPath(const FNiagaraVariable& Variable, const FSoftObjectPath& ObjectPath, bool bAddParameterMapRead)
+{
+	int32 ObjectIndex = INDEX_NONE;
+	if (bAddParameterMapRead)
+	{
+		// If we are registering a read then look for an existing one by name
+		ObjectIndex = CompilationOutput.ScriptData.UObjectInfos.IndexOfByPredicate([&](const FNiagaraScriptUObjectCompileInfo& ExistingInfo) { return ExistingInfo.Variable == Variable; });
+	}
+	// Assume all writes are unique
+	//else if ( Object != nullptr )
+	//{
+	//	// If we are registering a write then look for an existing one by value
+	//	ObjectIndex = CompilationOutput.ScriptData.UObjectInfos.IndexOfByPredicate([&](const FNiagaraScriptUObjectCompileInfo& ExistingInfo) { return ExistingInfo.Object == Object; });
+	//}
+
+	FNiagaraScriptUObjectCompileInfo* CompileInfo = nullptr;
+	if (ObjectIndex == INDEX_NONE)
+	{
+		ObjectIndex = CompilationOutput.ScriptData.UObjectInfos.AddDefaulted();
+		CompileInfo = &CompilationOutput.ScriptData.UObjectInfos[ObjectIndex];
+		CompileInfo->Variable = Variable;
+		CompileInfo->ObjectPath = ObjectPath;
 	}
 	else
 	{
@@ -7366,6 +7479,29 @@ public:
 private:
 	const FNiagaraCompilationGraphBridge::FFunctionCallNode* FunctionCallNode;
 	FNiagaraCompilationGraphBridge::FParamMapHistoryBuilder& Builder;
+};
+
+template<>
+class FScopedBuilderFunctionCall<FNiagaraCompilationDigestBridge>
+{
+public:
+	FScopedBuilderFunctionCall(TNiagaraHlslTranslator<FNiagaraCompilationDigestBridge>* InTranslator, FNiagaraCompilationDigestBridge::FParamMapHistoryBuilder& InBuilder, const FNiagaraCompilationDigestBridge::FFunctionCallNode* InFunctionCallNode)
+		: FunctionCallNode(InFunctionCallNode)
+		, Builder(InBuilder)
+	{
+		Builder.TraversalStateContext->PushFunction(FunctionCallNode, FNiagaraFixedConstantResolver(InTranslator));
+		Builder.EnterFunction(FunctionCallNode->FunctionName, FunctionCallNode->CalledGraph.Get(), FunctionCallNode);
+	}
+
+	~FScopedBuilderFunctionCall()
+	{
+		Builder.ExitFunction(FunctionCallNode);
+		Builder.TraversalStateContext->PopFunction(FunctionCallNode);
+	}
+
+private:
+	const FNiagaraCompilationDigestBridge::FFunctionCallNode* FunctionCallNode;
+	FNiagaraCompilationDigestBridge::FParamMapHistoryBuilder& Builder;
 };
 
 template<typename GraphBridge>
@@ -7800,6 +7936,44 @@ bool TNiagaraHlslTranslator<GraphBridge>::ParseDIFunctionSpecifiers(const FNode*
 }
 
 template<typename GraphBridge>
+bool PartialParticleUpdateHelper(TConstArrayView<FString> Tokens, const typename GraphBridge::FPrecompileData& PrecompileData)
+{
+	static const FString UseParticleReadTokens[] =
+	{
+		TEXT("InputDataFloat"),
+		TEXT("InputDataInt"),
+		TEXT("InputDataBool"),
+		TEXT("InputDataHalf"),
+	};
+
+	for (const FString& Token : Tokens)
+	{
+		for (const FString& BannedToken : UseParticleReadTokens)
+		{
+			if (Token == BannedToken)
+			{
+				// Clear out the ability to use partial particle writes as we can't be sure how InputData is being used
+				for (const auto& CompileStageData : PrecompileData.CompileSimStageData)
+				{
+					CompileStageData.PartialParticleUpdate = false;
+				}
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+template<>
+bool PartialParticleUpdateHelper<FNiagaraCompilationDigestBridge>(TConstArrayView<FString> Tokens, const FNiagaraPrecompileData& PrecompileData)
+{
+	// does nothing; this is taken care of in a pre-transation step
+	return false;
+}
+
+template<typename GraphBridge>
 void TNiagaraHlslTranslator<GraphBridge>::ProcessCustomHlsl(const FString& InCustomHlsl, ENiagaraScriptUsage InUsage, const FNiagaraFunctionSignature& InSignature, const TArray<int32>& Inputs, const FNode* InNodeForErrorReporting, FString& OutCustomHlsl, FNiagaraFunctionSignature& OutSignature)
 {
 	// Split up the hlsl into constituent tokens
@@ -7857,37 +8031,9 @@ void TNiagaraHlslTranslator<GraphBridge>::ProcessCustomHlsl(const FString& InCus
 	// Look for tokens that should be replaced with a data interface or not used directly
 	if (CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
 	{
-		static const FString UseParticleReadTokens[] =
+		if (PartialParticleUpdateHelper<GraphBridge>(Tokens, *CompileData))
 		{
-			TEXT("InputDataFloat"),
-			TEXT("InputDataInt"),
-			TEXT("InputDataBool"),
-			TEXT("InputDataHalf"),
-		};
-
-		for (const FString& Token : Tokens)
-		{
-			bool bUsesInputData = false;
-			for (const FString& BannedToken : UseParticleReadTokens)
-			{
-				if (Token == BannedToken)
-				{
-					Warning(LOCTEXT("UseParticleReadsNotInputData", "Please convert usage of InputData methods to particle reads to avoid compatability issues."), InNodeForErrorReporting, nullptr);
-
-					bUsesInputData = true;
-					break;
-				}
-			}
-
-			if (bUsesInputData)
-			{
-				// Clear out the ability to use partial particle writes as we can't be sure how InputData is being used
-				for (const auto& CompileStageData : CompileData->CompileSimStageData)
-				{
-					CompileStageData.PartialParticleUpdate = false;
-				}
-				break;
-			}
+			Warning(LOCTEXT("UseParticleReadsNotInputData", "Please convert usage of InputData methods to particle reads to avoid compatibility issues."), InNodeForErrorReporting, nullptr);
 		}
 	}
 
@@ -10015,6 +10161,11 @@ TUniquePtr<INiagaraHlslTranslator> INiagaraHlslTranslator::CreateTranslator(cons
 	return MakeUnique<TNiagaraHlslTranslator<FNiagaraCompilationGraphBridge>>(CompileRequest, CompileRequestDuplicate);
 }
 
+TUniquePtr<INiagaraHlslTranslator> INiagaraHlslTranslator::CreateTranslator(const FNiagaraPrecompileData* InCompileData, const FNiagaraCompilationCopyData* InDuplicateData)
+{
+	return MakeUnique<TNiagaraHlslTranslator<FNiagaraCompilationDigestBridge>>(InCompileData, InDuplicateData);
+}
+
 template<typename GraphBridge>
 const FString& TNiagaraHlslTranslator<GraphBridge>::GetEmitterUniqueName() const
 {
@@ -10386,6 +10537,8 @@ TArray<FName> FNiagaraHlslTranslator::ConditionPropertyPath(const FNiagaraTypeDe
 
 // explicit template instantiation of the translators available based on the graph interfaces
 template class TNiagaraHlslTranslator<FNiagaraCompilationGraphBridge>;
+template class TNiagaraHlslTranslator<FNiagaraCompilationDigestBridge>;
+
 
 #undef NIAGARA_SCOPE_CYCLE_COUNTER
 #undef LOCTEXT_NAMESPACE
