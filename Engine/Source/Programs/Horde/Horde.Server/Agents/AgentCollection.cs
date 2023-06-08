@@ -185,7 +185,14 @@ namespace Horde.Server.Agents
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IAgent>> FindAsync(PoolId? poolId, DateTime? modifiedAfter, AgentStatus? status, bool? enabled, int? index, int? count)
+		public async Task<List<IAgent>> GetManyAsync(List<AgentId> agentIds)
+		{
+			List<AgentDocument> agentDocuments = await _agents.Find(p => agentIds.Contains(p.Id)).ToListAsync();
+			return new List<IAgent>(agentDocuments);
+		}
+
+		/// <inheritdoc/>
+		public async Task<List<IAgent>> FindAsync(PoolId? poolId, DateTime? modifiedAfter, string? property, AgentStatus? status, bool? enabled, int? index, int? count)
 		{
 			FilterDefinitionBuilder<AgentDocument> filterBuilder = new FilterDefinitionBuilder<AgentDocument>();
 
@@ -199,6 +206,11 @@ namespace Horde.Server.Agents
 			if (modifiedAfter != null)
 			{
 				filter &= filterBuilder.Gt(x => x.UpdateTime, modifiedAfter.Value);
+			}
+			
+			if (property != null)
+			{
+				filter &= filterBuilder.AnyEq(x => x.Properties, property);
 			}
 			
 			if (status != null)

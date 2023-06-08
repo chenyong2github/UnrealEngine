@@ -45,21 +45,29 @@ namespace Horde.Server.Agents
 		/// <param name="agentId">Unique id of the agent</param>
 		/// <returns>The agent document</returns>
 		Task<IAgent?> GetAsync(AgentId agentId);
+		
+		/// <summary>
+		/// Gets multiple agents by ID
+		/// </summary>
+		/// <param name="agentIds">List of unique IDs of the agents</param>
+		/// <returns>The agent documents</returns>
+		Task<List<IAgent>> GetManyAsync(List<AgentId> agentIds);
 
 		/// <summary>
 		/// Finds all agents matching certain criteria
 		/// </summary>
 		/// <param name="poolId">The pool ID in string form containing the agent</param>
 		/// <param name="modifiedAfter">If set, only returns agents modified after this time</param>
+		/// <param name="property">Property to look for</param>
 		/// <param name="status">Status to look for</param>
 		/// <param name="enabled">Enabled/disabled status to look for</param>
 		/// <param name="index">Index of the first result</param>
 		/// <param name="count">Number of results to return</param>
 		/// <returns>List of agents matching the given criteria</returns>
-		Task<List<IAgent>> FindAsync(PoolId? poolId = null, DateTime? modifiedAfter = null, AgentStatus? status = null, bool? enabled = null, int? index = null, int? count = null);
+		Task<List<IAgent>> FindAsync(PoolId? poolId = null, DateTime? modifiedAfter = null, string? property = null, AgentStatus? status = null, bool? enabled = null, int? index = null, int? count = null);
 
 		/// <summary>
-		/// Finds all the expried agents
+		/// Finds all the expired agents
 		/// </summary>
 		/// <param name="utcNow">The current time</param>
 		/// <param name="maxAgents">Maximum number of agents to return</param>

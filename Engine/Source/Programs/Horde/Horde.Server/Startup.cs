@@ -433,6 +433,7 @@ namespace Horde.Server
 			services.AddSingleton(typeof(IAuditLogFactory<>), typeof(AuditLogFactory<>));
 			services.AddSingleton(typeof(ISingletonDocument<>), typeof(SingletonDocument<>));
 
+			services.AddSingleton<AwsAutoScalingLifecycleService>();
 			services.AddSingleton<FleetService>();
 			services.AddSingleton<IFleetManagerFactory, FleetManagerFactory>();
 			
@@ -715,6 +716,11 @@ namespace Horde.Server
 				if (settings.SlackToken != null)
 				{
 					services.AddHostedService(provider => provider.GetRequiredService<SlackNotificationSink>());
+				}
+				
+				if (settings.WithAws)
+				{
+					services.AddHostedService(provider => provider.GetRequiredService<AwsAutoScalingLifecycleService>());
 				}
 			}
 

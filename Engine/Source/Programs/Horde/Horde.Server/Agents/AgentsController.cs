@@ -58,7 +58,7 @@ namespace Horde.Server.Agents
 				return Forbid(AgentAclAction.ListAgents);
 			}
 
-			List<IAgent> agents = await _agentService.FindAgentsAsync(poolId, modifiedAfter?.UtcDateTime, index, count);
+			List<IAgent> agents = await _agentService.FindAgentsAsync(poolId, modifiedAfter?.UtcDateTime, null, index, count);
 
 			List<object> responses = new List<object>();
 			foreach (IAgent agent in agents)

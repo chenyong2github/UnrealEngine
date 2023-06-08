@@ -355,6 +355,11 @@ namespace Horde.Server.Agents
 		public const string Ram = "RAM";
 		
 		/// <summary>
+		/// AWS: Instance ID
+		/// </summary>
+		public const string AwsInstanceId = "aws-instance-id";
+		
+		/// <summary>
 		/// AWS: Instance type
 		/// </summary>
 		public const string AwsInstanceType = "aws-instance-type";

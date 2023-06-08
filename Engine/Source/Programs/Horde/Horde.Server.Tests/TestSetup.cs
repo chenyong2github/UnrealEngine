@@ -100,6 +100,7 @@ namespace Horde.Server.Tests
 		public AclService AclService => ServiceProvider.GetRequiredService<AclService>();
 		public FleetService FleetService => ServiceProvider.GetRequiredService<FleetService>();
 		public AgentService AgentService => ServiceProvider.GetRequiredService<AgentService>();
+		public AwsAutoScalingLifecycleService AwsAsgLifecycleService => ServiceProvider.GetRequiredService<AwsAutoScalingLifecycleService>();
 		public ICommitService CommitService => ServiceProvider.GetRequiredService<ICommitService>();
 		public GlobalsService GlobalsService => ServiceProvider.GetRequiredService<GlobalsService>();
 		public MongoService MongoService => ServiceProvider.GetRequiredService<MongoService>();
@@ -133,6 +134,7 @@ namespace Horde.Server.Tests
 		public DashboardController DashboardController => GetDashboardController();
 		public TestDataController TestDataController => GetTestDataController();
 		public BisectTasksController BisectTasksController => GetBisectTasksController();
+		public AwsAutoScalingLifecycleController AwsAutoScalingLifecycleController => GetAwsAutoScalingLifecycleController();
 
 		public OpenTelemetry.Trace.Tracer Tracer => ServiceProvider.GetRequiredService<OpenTelemetry.Trace.Tracer>();
 		public Meter Meter => ServiceProvider.GetRequiredService<Meter>();
@@ -241,6 +243,7 @@ namespace Horde.Server.Tests
 
 			services.AddSingleton<AclService>();
 			services.AddSingleton<AgentService>();
+			services.AddSingleton<AwsAutoScalingLifecycleService>();
 			services.AddSingleton<ArtifactExpirationService>();
 			services.AddSingleton<FleetService>();
 			services.AddSingleton<ConsistencyService>();
@@ -315,6 +318,13 @@ namespace Horde.Server.Tests
 			dataCtrl.ControllerContext = GetControllerContext();
 			return dataCtrl;
 		}
+		
+		private AwsAutoScalingLifecycleController GetAwsAutoScalingLifecycleController()
+		{
+			AwsAutoScalingLifecycleController ctrl = new (AwsAsgLifecycleService);
+			ctrl.ControllerContext = GetControllerContext();
+			return ctrl;
+		}
 
 		private BisectTasksController GetBisectTasksController()
 		{
@@ -354,7 +364,12 @@ namespace Horde.Server.Tests
 		}
 		
 		private static int s_agentIdCounter = 1;
-		public async Task<IAgent> CreateAgentAsync(IPool pool, bool enabled = true, bool requestShutdown = false, TimeSpan? adjustClockBy = null)
+		public Task<IAgent> CreateAgentAsync(IPool pool, bool enabled = true, bool requestShutdown = false, List<string>? properties = null, TimeSpan? adjustClockBy = null)
+		{
+			return CreateAgentAsync(pool.Id, enabled, requestShutdown, properties, adjustClockBy);
+		}
+		
+		public async Task<IAgent> CreateAgentAsync(PoolId poolId, bool enabled = true, bool requestShutdown = false, List<string>? properties = null, TimeSpan? adjustClockBy = null)
 		{
 			DateTime now = Clock.UtcNow;
 			if (adjustClockBy != null)
@@ -362,8 +377,8 @@ namespace Horde.Server.Tests
 				Clock.UtcNow = now + adjustClockBy.Value;
 			}
 			
-			IAgent agent = await AgentService.CreateAgentAsync("TestAgent" + s_agentIdCounter++, enabled, new List<PoolId> { pool.Id });
-			agent = await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
+			IAgent agent = await AgentService.CreateAgentAsync("TestAgent" + s_agentIdCounter++, enabled, new List<PoolId> { poolId });
+			agent = await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, properties ?? new List<string>(), new Dictionary<string, int>(), null);
 			if (requestShutdown)
 			{
 				await AgentCollection.TryUpdateSettingsAsync(agent, requestShutdown: true);

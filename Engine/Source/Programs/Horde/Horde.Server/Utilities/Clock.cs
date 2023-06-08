@@ -72,7 +72,8 @@ namespace HordeCommon
 		ITicker AddTicker(string name, TimeSpan interval, Func<CancellationToken, ValueTask<TimeSpan?>> tickAsync, ILogger logger);
 
 		/// <summary>
-		/// Create a ticker shared between all server pods
+		/// Create a ticker shared between all server processes.
+		/// Callback can be run inside any available process but will still only be called once per tick.
 		/// </summary>
 		/// <param name="name">Name of the event</param>
 		/// <param name="interval">Time after which the event will trigger</param>
