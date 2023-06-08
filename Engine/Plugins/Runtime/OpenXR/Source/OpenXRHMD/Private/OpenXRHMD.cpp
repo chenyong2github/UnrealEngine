@@ -984,12 +984,6 @@ EStereoscopicPass FOpenXRHMD::GetViewPassForIndex(bool bStereoRequested, int32 V
 	if (!bStereoRequested)
 		return EStereoscopicPass::eSSP_FULL;
 
-	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
-	if (PipelineState.PluginViewInfos.IsValidIndex(ViewIndex) && PipelineState.PluginViewInfos[ViewIndex].bIsPluginManaged)
-	{
-		return PipelineState.PluginViewInfos[ViewIndex].PassType;
-	}
-
 	if (SelectedViewConfigurationType == XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO)
 	{
 		return ViewIndex % 2 == 0 ? EStereoscopicPass::eSSP_PRIMARY : EStereoscopicPass::eSSP_SECONDARY;
@@ -1169,12 +1163,6 @@ void FOpenXRHMD::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FS
 		if (EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer))
 		{
 			EmulationImage.swapchain = PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(PipelinedLayerStateRendering.EmulatedLayerState.EmulationSwapchain.Get())->GetHandle() : XR_NULL_HANDLE;
-		}
-
-		if (IsViewManagedByPlugin(ViewIndex))
-		{
-			// Plugin owns further usage of the subimage, so we don't use the subimages in our layers
-			continue;
 		}
 
 		XrCompositionLayerProjectionView& Projection = PipelinedLayerStateRendering.ProjectionLayers[ViewIndex];
@@ -1476,7 +1464,6 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 	XR_ENSURE(xrEnumerateViewConfigurationViews(Instance, System, SelectedViewConfigurationType, 0, &ViewConfigCount, nullptr));
 	ViewFov.SetNum(ViewConfigCount);
 	PipelineState.ViewConfigs.Empty(ViewConfigCount);
-	PipelineState.PluginViewInfos.Empty(ViewConfigCount);
 	for (uint32 ViewIndex = 0; ViewIndex < ViewConfigCount; ViewIndex++)
 	{
 		XrViewConfigurationView View;
@@ -1491,51 +1478,15 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 			View.next = Module->OnEnumerateViewConfigurationViews(Instance, System, SelectedViewConfigurationType, ViewIndex, View.next);
 		}
 
-		// These are core views that don't have an associated plugin
-		PipelineState.PluginViewInfos.AddDefaulted(1);
 		PipelineState.ViewConfigs.Add(View);
 	}
 	XR_ENSURE(xrEnumerateViewConfigurationViews(Instance, System, SelectedViewConfigurationType, ViewConfigCount, &ViewConfigCount, PipelineState.ViewConfigs.GetData()));
 
-	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-	{
-		TArray<XrViewConfigurationView> ViewConfigs;
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-		Module->GetViewConfigurations(System, ViewConfigs);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-
-		const EStereoscopicPass PluginPassType = ViewConfigs.Num() > 1 ? EStereoscopicPass::eSSP_PRIMARY : EStereoscopicPass::eSSP_FULL;
-		for (int32 i = 0; i < ViewConfigs.Num(); i++)
-		{
-			PipelineState.PluginViewInfos.Add({ Module, PluginPassType, true });
-		}
-		PipelineState.ViewConfigs.Append(ViewConfigs);
-	}
-	
 	if (Session)
 	{
 		LocateViews(PipelineState, true);
 
 		check(PipelineState.bXrFrameStateUpdated);
-
-		FReadScopeLock DeviceLock(DeviceMutex);
-		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-		{
-			auto Predicate = [Module](const FPluginViewInfo& Info) -> bool
-			{
-				return Info.Plugin == Module;
-			};
-
-			if (PipelineState.PluginViewInfos.ContainsByPredicate(Predicate))
-			{
-				TArray<XrView> Views;
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-				Module->GetViewLocations(Session, PipelineState.FrameState.predictedDisplayTime, DeviceSpaces[HMDDeviceId].Space, Views);
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-				check(Views.Num() > 0);
-				PipelineState.Views.Append(Views);
-			}
-		}
 	}
 	else if (bViewConfigurationFovSupported)
 	{
@@ -1562,18 +1513,6 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 			View.pose = ToXrPose(FTransform::Identity);
 		}
 	}
-}
-
-bool FOpenXRHMD::IsViewManagedByPlugin(int32 ViewIndex) const
-{
-	check(IsInRenderingThread());
-	if (!PipelinedFrameStateRendering.PluginViewInfos.IsValidIndex(ViewIndex))
-	{
-		// Was formerly associated with plugin, but plugin is no longer providing this view
-		// Core views always have an entry in the PluginViewInfos array
-		return true;
-	}
-	return PipelinedFrameStateRendering.PluginViewInfos[ViewIndex].bIsPluginManaged;
 }
 
 #if !PLATFORM_HOLOLENS
@@ -3387,23 +3326,9 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 		EndInfo.layerCount = PipelinedFrameStateRHI.FrameState.shouldRender ? Headers.Num() : 0;
 		EndInfo.layers = PipelinedFrameStateRHI.FrameState.shouldRender ? Headers.GetData() : nullptr;
 
-		// Make callback to plugin including any extra view subimages they've requested
 		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 		{
-			TArray<XrSwapchainSubImage> ColorImages;
-			TArray<XrSwapchainSubImage> DepthImages;
-			for (int32 i = 0; i < PipelinedFrameStateRHI.PluginViewInfos.Num(); i++)
-			{
-				if (PipelinedFrameStateRHI.PluginViewInfos[i].Plugin == Module && PipelinedLayerStateRHI.ColorImages.IsValidIndex(i))
-				{
-					ColorImages.Add(PipelinedLayerStateRHI.ColorImages[i]);
-					if (EnumHasAnyFlags(PipelinedLayerStateRHI.LayerStateFlags, EOpenXRLayerStateFlags::SubmitDepthLayer))
-					{
-						DepthImages.Add(PipelinedLayerStateRHI.DepthImages[i]);
-					}
-				}
-			}
-			EndInfo.next = Module->OnEndFrame(Session, EndInfo.displayTime, ColorImages, DepthImages, EndInfo.next);
+			EndInfo.next = Module->OnEndFrame(Session, EndInfo.displayTime, EndInfo.next);
 		}
 
 		UE_LOG(LogHMD, VeryVerbose, TEXT("Presenting frame predicted to be displayed at %lld"), PipelinedFrameStateRHI.FrameState.predictedDisplayTime);

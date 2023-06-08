@@ -71,13 +71,6 @@ public:
 		XrPosef BasePose;
 	};
 
-	struct FPluginViewInfo
-	{
-		class IOpenXRExtensionPlugin* Plugin = nullptr;
-		EStereoscopicPass PassType = EStereoscopicPass::eSSP_PRIMARY;
-		bool bIsPluginManaged = false;
-	};
-
 	// The game and render threads each have a separate copy of these structures so that they don't stomp on each other or cause tearing
 	// when the game thread progresses to the next frame while the render thread is still working on the previous frame.
 	struct FPipelinedFrameState
@@ -85,14 +78,11 @@ public:
 		XrFrameState FrameState{XR_TYPE_FRAME_STATE};
 		XrViewState ViewState{XR_TYPE_VIEW_STATE};
 		TArray<XrView> Views;
+		TArray<XrViewConfigurationView> ViewConfigs;
 		TArray<XrSpaceLocation> DeviceLocations;
 		TSharedPtr<FTrackingSpace> TrackingSpace;
 		float WorldToMetersScale = 100.0f;
 		float PixelDensity = 1.0f;
-
-		TArray<XrViewConfigurationView> ViewConfigs;
-		TArray<FPluginViewInfo> PluginViewInfos;
-
 		bool bXrFrameStateUpdated = false;
 	};
 
@@ -283,7 +273,6 @@ protected:
 	void UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins);
 	void EnumerateViews(FPipelinedFrameState& PipelineState);
 	void LocateViews(FPipelinedFrameState& PipelinedState, bool ResizeViewsArray = false);
-	bool IsViewManagedByPlugin(int32 ViewIndex) const;
 
 	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, FRHITexture2D* DstTexture, FIntRect DstRect, 
 								  bool bClearBlack, ERenderTargetActions RTAction, ERHIAccess FinalDstAccess, ETextureCopyBlendModifier SrcTextureCopyModifier) const;
