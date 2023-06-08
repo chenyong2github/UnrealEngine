@@ -113,16 +113,16 @@ EDataValidationResult UAssetValidator_CustomizableObjects::IsCustomizableObjectV
 
 	// Configuration with LOD bias applied
 	// constexpr int32 MaxBias = 15;	
-	constexpr int32 MaxBias = 6;		// Reduced amount since we have this value in GenerateMutableSource for the max lod bias provided to mutable
-	for (int32 LodBias = 1; LodBias <= MaxBias; LodBias++)
-	{
-		FCompilationOptions ModifiedCompilationOptions = InCustomizableObject->CompileOptions;
-		ModifiedCompilationOptions.bForceLargeLODBias = true;	
-		ModifiedCompilationOptions.DebugBias = LodBias;	
-	
-		// Add one configuration object for each bias setting
-		CompilationOptionsToTest.Add(ModifiedCompilationOptions);
-	}
+	//constexpr int32 MaxBias = 6;		// Reduced amount since we have this value in GenerateMutableSource for the max lod bias provided to mutable
+	//for (int32 LodBias = 1; LodBias <= MaxBias; LodBias++)
+	//{
+	//	FCompilationOptions ModifiedCompilationOptions = InCustomizableObject->CompileOptions;
+	//	ModifiedCompilationOptions.bForceLargeLODBias = true;	
+	//	ModifiedCompilationOptions.DebugBias = LodBias;	
+	//
+	//	// Add one configuration object for each bias setting
+	//	CompilationOptionsToTest.Add(ModifiedCompilationOptions);
+	//}
 	
 	// Caches with all the data produced by the subsequent compilations of the root of this CO
 	TArray<FText> CachedValidationErrors;

@@ -250,11 +250,12 @@ void SMutableObjectViewer::CompileMutableCodePressed()
 		for (int32 Bias = 0; Bias < MaxBias; ++Bias)
 		{
 			CompileOptions.DebugBias = Bias;
-				
+
 			mu::NodePtr RootNode = Compiler.Export(CustomizableObject, CompileOptions, bDisableLayouts);
 			if (!RootNode)
 			{
 				// TODO: Show errors
+				ensure(false);
 				return;
 			}
 
@@ -272,6 +273,7 @@ void SMutableObjectViewer::CompileMutableCodePressed()
 	if (!RootNode)
 	{
 		// TODO: Show errors
+		ensure(false);
 		return;
 	}
 
