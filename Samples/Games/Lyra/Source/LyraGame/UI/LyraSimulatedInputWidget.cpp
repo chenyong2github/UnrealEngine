@@ -23,12 +23,25 @@ const FText ULyraSimulatedInputWidget::GetPaletteCategory()
 
 void ULyraSimulatedInputWidget::NativeConstruct()
 {
-	// TODO: We should query the key the simulate whenever the user rebinds a key and after the PlayerController has
-	// had it's input initalized. Doing it here will always result in the fallback key being used because
-	// the PC does not have any keys mapped in enhanced input.
+	// Find initial key, then listen for any changes to control mappings
 	QueryKeyToSimulate();
+
+	if (UEnhancedInputLocalPlayerSubsystem* System = GetEnhancedInputSubsystem())
+	{
+		System->ControlMappingsRebuiltDelegate.AddUniqueDynamic(this, &ULyraSimulatedInputWidget::OnControlMappingsRebuilt);
+	}
 	
 	Super::NativeConstruct();
+}
+
+void ULyraSimulatedInputWidget::NativeDestruct()
+{
+	if (UEnhancedInputLocalPlayerSubsystem* System = GetEnhancedInputSubsystem())
+	{
+		System->ControlMappingsRebuiltDelegate.RemoveAll(this);
+	}
+
+	Super::NativeDestruct();
 }
 
 FReply ULyraSimulatedInputWidget::NativeOnTouchEnded(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent)
@@ -108,6 +121,11 @@ void ULyraSimulatedInputWidget::QueryKeyToSimulate()
 			KeyToSimulate = FallbackBindingKey;
 		}
 	}
+}
+
+void ULyraSimulatedInputWidget::OnControlMappingsRebuilt()
+{
+	QueryKeyToSimulate();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -31,6 +31,7 @@ public:
 
 	//~ Begin UUserWidget
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 	virtual FReply NativeOnTouchEnded(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent) override;
 	//~ End UUserWidget interface
 	
@@ -71,7 +72,11 @@ protected:
 	/** Set the KeyToSimulate based on a query from enhanced input about what keys are mapped to the associated action */
 	void QueryKeyToSimulate();
 
-	/** The common visiblity border will allow you to specifiy UI for only specific platorms if desired */
+	/** Called whenever control mappings change, so we have a chance to adapt our own keys */
+	UFUNCTION()
+	void OnControlMappingsRebuilt();
+
+	/** The common visibility border will allow you to specify UI for only specific platforms if desired */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
 	TObjectPtr<UCommonHardwareVisibilityBorder> CommonVisibilityBorder = nullptr;
 	

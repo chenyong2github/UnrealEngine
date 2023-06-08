@@ -2,6 +2,7 @@
 
 #include "UI/LyraJoystickWidget.h"
 
+#include "CommonHardwareVisibilityBorder.h"
 #include "Components/Image.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraJoystickWidget)
@@ -56,18 +57,20 @@ void ULyraJoystickWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 void ULyraJoystickWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-	
-	// Move the inner stick icon around with the vector
-	if (JoystickForeground && JoystickBackground)
+
+	if (!CommonVisibilityBorder || CommonVisibilityBorder->IsVisible())
 	{
-		JoystickForeground->SetRenderTranslation(
-			(bNegateYAxis ? FVector2D(1.0f, -1.0f) : FVector2D(1.0f)) *
-			StickVector *
-			(JoystickBackground->GetDesiredSize() * 0.5f)
-		);
+		// Move the inner stick icon around with the vector
+		if (JoystickForeground && JoystickBackground)
+		{
+			JoystickForeground->SetRenderTranslation(
+				(bNegateYAxis ? FVector2D(1.0f, -1.0f) : FVector2D(1.0f)) *
+				StickVector *
+				(JoystickBackground->GetDesiredSize() * 0.5f)
+			);
+		}
+		InputKeyValue2D(StickVector);
 	}
-	
-	InputKeyValue2D(StickVector);
 }
 
 void ULyraJoystickWidget::HandleTouchDelta(const FGeometry& InGeometry, const FPointerEvent& InGestureEvent)
