@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AnimNode_Inertialization.h"
+#include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "AnimNode_DeadBlending.generated.h"
 
 /**
@@ -28,7 +29,7 @@
  * More specifically they specify the "half-life" - or how it takes for the velocities to be decayed by half.
  */
 USTRUCT(Experimental, BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_DeadBlending : public FAnimNode_Base
+struct ENGINE_API FAnimNode_DeadBlending : public FAnimNode_Base, public IBoneReferenceSkeletonProvider
 {
 	GENERATED_BODY()
 
@@ -65,6 +66,10 @@ private:
 	// List of curves that should not use inertial blending. These curves will change instantly when the animation switches.
 	UPROPERTY(EditAnywhere, Category = Filter)
 	TArray<FName> FilteredCurves;
+
+	// List of bones that should not use inertial blending. These bones will change instantly when the animation switches.
+	UPROPERTY(EditAnywhere, Category = Filter)
+	TArray<FBoneReference> FilteredBones;
 
 	/**
 	 * The average half-life of decay in seconds to use when extrapolating the animation. To get the final half-life of 
@@ -141,10 +146,16 @@ private:
 	 */
 	void ApplyTo(FCompactPose& InOutPose, FBlendedCurve& InOutCurves);
 
+public: // IBoneReferenceSkeletonProvider
+	class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
+
 private:
 
 	// Cached curve filter built from FilteredCurves
 	UE::Anim::FCurveFilter CurveFilter;
+
+	// Cache compact pose bone index for FilteredBones
+	TArray<FCompactPoseBoneIndex, TInlineAllocator<8>> BoneFilter;
 
 	// Snapshots of the actor pose generated as output.
 	TArray<FInertializationPose, TInlineAllocator<2>> PoseSnapshots;

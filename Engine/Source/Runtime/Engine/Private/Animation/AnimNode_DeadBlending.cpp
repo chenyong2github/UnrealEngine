@@ -382,7 +382,7 @@ void FAnimNode_DeadBlending::ApplyTo(FCompactPose& InOutPose, FBlendedCurve& InO
 	{
 		const int32 SkeletonPoseBoneIndex = BoneContainer.GetSkeletonIndex(BoneIndex);
 
-		if (SkeletonPoseBoneIndex == INDEX_NONE || !BoneValid[SkeletonPoseBoneIndex])
+		if (SkeletonPoseBoneIndex == INDEX_NONE || !BoneValid[SkeletonPoseBoneIndex] || BoneFilter.Contains(BoneIndex))
 		{
 			continue;
 		}
@@ -492,6 +492,18 @@ void FAnimNode_DeadBlending::ApplyTo(FCompactPose& InOutPose, FBlendedCurve& InO
 	}
 }
 
+class USkeleton* FAnimNode_DeadBlending::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
+{
+	bInvalidSkeletonIsError = false;
+
+	if (const IAnimClassInterface* AnimClassInterface = GetAnimClassInterface())
+	{
+		return AnimClassInterface->GetTargetSkeleton();
+	}
+
+	return nullptr;
+}
+
 FAnimNode_DeadBlending::FAnimNode_DeadBlending() {}
 
 void FAnimNode_DeadBlending::RequestInertialization(const FInertializationRequest& Request)
@@ -513,6 +525,8 @@ void FAnimNode_DeadBlending::Initialize_AnyThread(const FAnimationInitializeCont
 	CurveFilter.Empty();
 	CurveFilter.SetFilterMode(UE::Anim::ECurveFilterMode::DisallowFiltered);
 	CurveFilter.AppendNames(FilteredCurves);
+
+	BoneFilter.Init(FCompactPoseBoneIndex(INDEX_NONE), FilteredBones.Num());
 
 	PoseSnapshots.Empty(UE::Anim::DeadBlending::Private::MaxPoseSnapShotNum);
 
@@ -556,6 +570,15 @@ void FAnimNode_DeadBlending::CacheBones_AnyThread(const FAnimationCacheBonesCont
 
 	FAnimNode_Base::CacheBones_AnyThread(Context);
 	Source.CacheBones(Context);
+
+	// Compute Compact Pose Bone Index for each bone in Filter
+
+	const FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
+	for (int32 FilterBoneIdx = 0; FilterBoneIdx < FilteredBones.Num(); FilterBoneIdx++)
+	{
+		FilteredBones[FilterBoneIdx].Initialize(Context.AnimInstanceProxy->GetSkeleton());
+		BoneFilter[FilterBoneIdx] = FilteredBones[FilterBoneIdx].GetCompactPoseIndex(RequiredBones);
+	}
 }
 
 

@@ -10,7 +10,9 @@
 
 #if WITH_EDITOR
 #include "Animation/AnimInstance.h"
-#include "Editor.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
+#include "IAnimationBlueprintEditor.h"
+#include "Animation/AnimBlueprint.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif
 
@@ -210,6 +212,47 @@ TSharedPtr<SWidget> FInertializationTrack::GetDetailsViewInternal()
 
 bool FInertializationTrack::HandleDoubleClickInternal()
 {
+
+#if WITH_EDITOR
+	IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
+	if (const TraceServices::IAnalysisSession* AnalysisSession = RewindDebugger->GetAnalysisSession())
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+
+		if (const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName))
+		{
+			if (const FObjectInfo* AnimInstanceInfo = GameplayProvider->FindObjectInfo(ObjectId))
+			{
+				if (const FClassInfo* AnimInstanceClassInfo = GameplayProvider->FindClassInfo(AnimInstanceInfo->ClassId))
+				{
+					TSoftObjectPtr<UAnimBlueprintGeneratedClass> InstanceClass;
+					InstanceClass = FSoftObjectPath(AnimInstanceClassInfo->PathName);
+
+					if (InstanceClass.LoadSynchronous())
+					{
+						if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass.Get()->ClassGeneratedBy))
+						{
+							GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AnimBlueprint);
+
+							if (IAnimationBlueprintEditor* AnimBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, true)))
+							{
+								int32 AnimNodeIndex = InstanceClass.Get()->GetAnimNodeProperties().Num() - NodeId - 1;
+								TWeakObjectPtr<const UEdGraphNode>* GraphNode = InstanceClass.Get()->AnimBlueprintDebugData.NodePropertyIndexToNodeMap.Find(AnimNodeIndex);
+								if (GraphNode != nullptr && GraphNode->Get())
+								{
+									AnimBlueprintEditor->JumpToHyperlink(GraphNode->Get());
+								}
+							}
+
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+#endif
+
 	return false;
 }
 
