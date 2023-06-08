@@ -1199,6 +1199,7 @@ struct FInstanceInfo
 	bool StableRaster;
 	bool CacheRen;
 	bool CacheSim;
+	bool bHasLODSwitched;
 
 	// Binding
 	uint UniqueTriangle;
@@ -1212,46 +1213,52 @@ struct FInstanceInfo
 
 FInstanceInfo ReadInstanceInfo(uint Index)
 {
-	const uint Index16 = Index * 16;
+	const uint Index20 = Index * 20u;
 
 	uint4 Data0 = 0;
-	Data0.x = Infos[Index16 + 0];
-	Data0.y = Infos[Index16 + 1];
-	Data0.z = Infos[Index16 + 2];
-	Data0.w = Infos[Index16 + 3];
+	Data0.x = Infos[Index20 + 0];
+	Data0.y = Infos[Index20 + 1];
+	Data0.z = Infos[Index20 + 2];
+	Data0.w = Infos[Index20 + 3];
 
 	uint4 Data1 = 0;
-	Data1.x = Infos[Index16 + 4];
-	Data1.y = Infos[Index16 + 5];
-	Data1.z = Infos[Index16 + 6];
-	Data1.w = Infos[Index16 + 7];
+	Data1.x = Infos[Index20 + 4];
+	Data1.y = Infos[Index20 + 5];
+	Data1.z = Infos[Index20 + 6];
+	Data1.w = Infos[Index20 + 7];
 
 	uint4 Data2 = 0;
-	Data2.x = Infos[Index16 + 8];
-	Data2.y = Infos[Index16 + 9];
-	Data2.z = Infos[Index16 + 10];
-	Data2.w = Infos[Index16 + 11];
+	Data2.x = Infos[Index20 + 8];
+	Data2.y = Infos[Index20 + 9];
+	Data2.z = Infos[Index20 + 10];
+	Data2.w = Infos[Index20 + 11];
 
 	uint4 Data3 = 0;
-	Data3.x = Infos[Index16 + 12];
-	Data3.y = Infos[Index16 + 13];
-	Data3.z = Infos[Index16 + 14];
-	Data3.w = Infos[Index16 + 15];
+	Data3.x = Infos[Index20 + 12];
+	Data3.y = Infos[Index20 + 13];
+	Data3.z = Infos[Index20 + 14];
+	Data3.w = Infos[Index20 + 15];
+
+	uint4 Data4 = 0;
+	Data4.x = Infos[Index20 + 16];
+	Data4.y = Infos[Index20 + 17];
+	Data4.z = Infos[Index20 + 18];
+	Data4.w = Infos[Index20 + 19];
 
 	FInstanceInfo Out = (FInstanceInfo)0;
-	Out.GroupIndex = (Data0.x >> 0) & 0xFF;
-	Out.GroupCount = (Data0.x >> 8) & 0xFF;
-	Out.LODCount = (Data0.x >> 16) & 0xFF;
-	Out.GeometryType = (Data0.x >> 24) & 0x7;
-	Out.BindingType = (Data0.x >> 27) & 0x7;
-	Out.bHasSim = (Data0.x >> 30) & 0x1;
-	Out.bHasRBF = (Data0.x >> 31) & 0x1;
+	Out.GroupIndex 		= (Data0.x >> 0) & 0xFF;
+	Out.GroupCount 		= (Data0.x >> 8) & 0xFF;
+	Out.LODCount 		= (Data0.x >> 16) & 0xFF;
+	Out.GeometryType 	= (Data0.x >> 24) & 0x7;
+	Out.BindingType 	= (Data0.x >> 27) & 0x7;
+	Out.bHasSim 		= (Data0.x >> 30) & 0x1;
+	Out.bHasRBF 		= (Data0.x >> 31) & 0x1;
 
-	Out.LOD = f16tof32((Data0.y >> 0) & 0xFFFF);
-	Out.ClipValue = f16tof32((Data0.y >> 16) & 0xFFFF);
+	Out.LOD 			= f16tof32((Data0.y >> 0) & 0xFFFF);
+	Out.ClipValue 		= f16tof32((Data0.y >> 16) & 0xFFFF);
 
-	Out.StrandsCount = Data0.z;
-	Out.VertexCount = Data0.w;
+	Out.StrandsCount 	= Data0.z;
+	Out.VertexCount 	= Data0.w;
 
 	// Strands binding data
 	Out.UniqueSection		= Data1.x;
@@ -1278,6 +1285,8 @@ FInstanceInfo ReadInstanceInfo(uint Index)
 	Out.TipScale				= f16tof32(Data3.y >> 16u);
 	Out.Length					= f16tof32(Data3.z & 0xFFFF);
 	Out.LengthScale				= f16tof32(Data3.z >> 16u);
+
+	Out.bHasLODSwitched			= Data4.x > 0;
 
 	return Out;
 }
@@ -1413,7 +1422,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Newline(Context);
 
 	// Draw instance details
-	Print(Context, TEXT("   Group  LOD     Geometry Binding Cache Sim RBF Clip Screen Strands            Points             Bind.Tri/Sect Vis. Shad. Name"));
+	Print(Context, TEXT("   Group  LOD     Geometry Binding Cache Sim RBF Clip Screen Strands            Points             Bind.Tri/Sect Vis. Shad. SwLOD Name"));
 	Newline(Context);
 
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
@@ -1496,6 +1505,10 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 		// Shadow view
 		PrintBool(Context, Info.bIsVisibleInShadowView);
+		Print(Context, TEXT("  "));
+
+		// Has LOD switched
+		PrintBool(Context, Info.bHasLODSwitched);
 		Print(Context, TEXT("  "));
 
 		// Name

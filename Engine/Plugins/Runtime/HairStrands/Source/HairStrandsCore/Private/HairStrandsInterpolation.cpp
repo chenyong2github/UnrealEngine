@@ -1061,7 +1061,7 @@ static void AddHairCardsDeformationPass(
 		DispatchCount);
 
 	// If LOD has switched, copy the current buffer, so that we don't get incorrect motion vector
-	if (bHasLODSwitch)
+	//if (bHasLODSwitch)
 	{
 		AddCopyBufferPass(GraphBuilder, CardsDeformedPositionBuffer_Prev.Buffer, CardsDeformedPositionBuffer_Curr.Buffer);
 	}

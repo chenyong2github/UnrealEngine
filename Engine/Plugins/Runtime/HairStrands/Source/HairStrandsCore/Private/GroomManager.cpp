@@ -1046,16 +1046,20 @@ static void RunHairLODSelection(
 			const bool bIsLODDataReady = !ResourceStatus.HasStatus(EHairResourceStatus::EStatus::Loading) || (IsHairStrandsContinousLODEnabled() && ResourceStatus.AvailableCurveCount > 0);
 			if (bIsLODDataReady)
 			{
-				EHairBindingType BindingType = Instance->HairGroupPublicData->GetBindingType(IntLODIndex);
+				const uint32 IntPrevLODIndex = FMath::FloorToInt(PrevLODIndex); 
+				const EHairBindingType CurrBindingType = Instance->HairGroupPublicData->GetBindingType(IntLODIndex);
+				const EHairBindingType PrevBindingType = Instance->HairGroupPublicData->GetBindingType(IntPrevLODIndex);
+
 				Instance->HairGroupPublicData->SetLODVisibility(bIsVisible);
 				Instance->HairGroupPublicData->SetLODIndex(LODIndex);
 				Instance->HairGroupPublicData->SetLODBias(0);
 				Instance->HairGroupPublicData->SetMeshLODIndex(MeshLODIndex);
 				Instance->HairGroupPublicData->VFInput.GeometryType = GeometryType;
-				Instance->HairGroupPublicData->VFInput.BindingType = BindingType;
-				Instance->HairGroupPublicData->VFInput.bHasLODSwitch = (FMath::FloorToInt(PrevLODIndex) != FMath::FloorToInt(LODIndex));
+				Instance->HairGroupPublicData->VFInput.BindingType = CurrBindingType;
+				Instance->HairGroupPublicData->VFInput.bHasLODSwitch = IntPrevLODIndex != IntLODIndex;
+				Instance->HairGroupPublicData->VFInput.bHasLODSwitchBindingType = CurrBindingType != PrevBindingType;
 				Instance->GeometryType = GeometryType;
-				Instance->BindingType = BindingType;
+				Instance->BindingType = CurrBindingType;
 				Instance->Guides.bIsSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
 				Instance->Guides.bHasGlobalInterpolation = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
 				Instance->Guides.bIsDeformationEnable = Instance->HairGroupPublicData->bIsDeformationEnable;

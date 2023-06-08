@@ -356,6 +356,7 @@ public:
 		} Meshes;
 
 		bool bHasLODSwitch = false;
+		bool bHasLODSwitchBindingType = false;
 		EHairGeometryType GeometryType = EHairGeometryType::NoneGeometry;
 		EHairBindingType BindingType = EHairBindingType::NoneBinding;
 		FTransform LocalToWorldTransform;

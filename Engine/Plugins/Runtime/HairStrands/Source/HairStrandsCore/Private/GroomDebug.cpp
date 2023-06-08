@@ -886,10 +886,11 @@ static void AddHairDebugPrintInstancePass(
 
 	struct FInstanceInfos
 	{
-		FUintVector4 Data0;
-		FUintVector4 Data1;
-		FUintVector4 Data2;
-		FUintVector4 Data3;
+		FUintVector4 Data0 = { 0,0,0,0 };
+		FUintVector4 Data1 = { 0,0,0,0 };
+		FUintVector4 Data2 = { 0,0,0,0 };
+		FUintVector4 Data3 = { 0,0,0,0 };
+		FUintVector4 Data4 = { 0,0,0,0 };
 	};
 	TArray<FInstanceInfos> Infos;
 	Infos.Reserve(InstanceCount);
@@ -920,11 +921,8 @@ static void AddHairDebugPrintInstancePass(
 		const uint32 LODCount = Instance->HairGroupPublicData->GetLODScreenSizes().Num();
 		const EGroomCacheType ActiveGroomCacheType = GetHairInstanceCacheType(Instance);
 
-		FUintVector4 Data0 = { 0,0,0,0 };
-		FUintVector4 Data1 = { 0,0,0,0 };
-		FUintVector4 Data2 = { 0,0,0,0 };
-		FUintVector4 Data3 = { 0,0,0,0 };
-		Data0.X =
+		FInstanceInfos& D = Infos.AddDefaulted_GetRef();
+		D.Data0.X =
 			((Instance->Debug.GroupIndex & 0xFF)) |
 			((Instance->Debug.GroupCount & 0xFF) << 8) |
 			((LODCount & 0xFF) << 16) |
@@ -933,80 +931,81 @@ static void AddHairDebugPrintInstancePass(
 			((Instance->Guides.bIsSimulationEnable ? 0x1 : 0x0) << 30) |
 			((Instance->Guides.bHasGlobalInterpolation ? 0x1 : 0x0) << 31);
 
-		Data0.Y =
+		D.Data0.Y =
 			(FFloat16(LODIndex).Encoded) |
 			(FFloat16(Instance->Strands.Modifier.HairLengthScale_Override ? Instance->Strands.Modifier.HairLengthScale : -1.f).Encoded << 16);
 		
-		switch (Instance->GeometryType)
+		D.Data4.X = Instance->HairGroupPublicData->VFInput.bHasLODSwitch ? 1u : 0u;
+
+		switch (Instance->GeometryType) 
 		{
 		case EHairGeometryType::Strands:
 			if (Instance->Strands.IsValid())
 			{
 				check(Instance->Strands.Data);
-				Data0.Z = Instance->Strands.Data->GetNumCurves(); // Change this later on for having dynamic value
-				Data0.W = Instance->Strands.Data->GetNumPoints(); // Change this later on for having dynamic value
+				D.Data0.Z = Instance->Strands.Data->GetNumCurves(); // Change this later on for having dynamic value
+				D.Data0.W = Instance->Strands.Data->GetNumPoints(); // Change this later on for having dynamic value
 				const int32 MeshLODIndex = Instance->HairGroupPublicData->MeshLODIndex;
 				if (MeshLODIndex>=0 && Instance->Strands.RestRootResource)
 				{
-					Data1.X = Instance->Strands.RestRootResource->BulkData.Header.LODs[MeshLODIndex].UniqueSectionIndices.Num();
-					Data1.Y = Instance->Strands.RestRootResource->BulkData.Header.LODs[MeshLODIndex].UniqueTriangleCount;
-					Data1.Z = Instance->Strands.RestRootResource->BulkData.Header.RootCount;
-					Data1.W = Instance->Strands.RestRootResource->BulkData.Header.PointCount;
+					D.Data1.X = Instance->Strands.RestRootResource->BulkData.Header.LODs[MeshLODIndex].UniqueSectionIndices.Num();
+					D.Data1.Y = Instance->Strands.RestRootResource->BulkData.Header.LODs[MeshLODIndex].UniqueTriangleCount;
+					D.Data1.Z = Instance->Strands.RestRootResource->BulkData.Header.RootCount;
+					D.Data1.W = Instance->Strands.RestRootResource->BulkData.Header.PointCount;
 				}
 
 				{
-					Data2 = FUintVector4(0);
-					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsPrimaryView]  ? 0x1u  : 0u;
-					Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsShadowView]   ? 0x2u  : 0u;
-					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.Common.bScatterSceneLighting ? 0x4u  : 0u;
-					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.Common.bRaytracingGeometry   ? 0x8u  : 0u;
-					Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.Common.bStableRasterization  ? 0x10u : 0u;
-					Data2.X |= Instance->HairGroupPublicData->bSupportVoxelization                         ? 0x20u : 0u;
-					Data2.X |= ActiveGroomCacheType == EGroomCacheType::Guides                             ? 0x40u : 0u;
-					Data2.X |= ActiveGroomCacheType == EGroomCacheType::Strands                            ? 0x80u : 0u;
-					Data2.X |= uint32(FFloat16(Instance->HairGroupPublicData->ContinuousLODScreenSize).Encoded) << 16u;
+					D.Data2 = FUintVector4(0);
+					D.Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsPrimaryView]  ? 0x1u  : 0u;
+					D.Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_StrandsShadowView]   ? 0x2u  : 0u;
+					D.Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.Common.bScatterSceneLighting ? 0x4u  : 0u;
+					D.Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.Common.bRaytracingGeometry   ? 0x8u  : 0u;
+					D.Data2.X |= Instance->HairGroupPublicData->VFInput.Strands.Common.bStableRasterization  ? 0x10u : 0u;
+					D.Data2.X |= Instance->HairGroupPublicData->bSupportVoxelization                         ? 0x20u : 0u;
+					D.Data2.X |= ActiveGroomCacheType == EGroomCacheType::Guides                             ? 0x40u : 0u;
+					D.Data2.X |= ActiveGroomCacheType == EGroomCacheType::Strands                            ? 0x80u : 0u;
+					D.Data2.X |= uint32(FFloat16(Instance->HairGroupPublicData->ContinuousLODScreenSize).Encoded) << 16u;
 
-					Data2.Y = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
-					Data2.Z = Instance->HairGroupPublicData->GetActiveStrandsCurveCount();
+					D.Data2.Y = Instance->HairGroupPublicData->GetActiveStrandsPointCount();
+					D.Data2.Z = Instance->HairGroupPublicData->GetActiveStrandsCurveCount();
 
-					Data2.W = Instance->Strands.Data->Header.ImportedAttributes;
+					D.Data2.W = Instance->Strands.Data->Header.ImportedAttributes;
 				}
 				
-				Data3 = FUintVector4(0);
-				Data3.X |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.Radius).Encoded;
-				Data3.X |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.Density).Encoded << 16u;
+				D.Data3 = FUintVector4(0);
+				D.Data3.X |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.Radius).Encoded;
+				D.Data3.X |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.Density).Encoded << 16u;
 
-				Data3.Y |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.RootScale).Encoded;
-				Data3.Y |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.TipScale).Encoded << 16u;
+				D.Data3.Y |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.RootScale).Encoded;
+				D.Data3.Y |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.TipScale).Encoded << 16u;
 
-				Data3.Z |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.Length).Encoded;
-				Data3.Z |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.LengthScale).Encoded << 16u;
+				D.Data3.Z |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.Length).Encoded;
+				D.Data3.Z |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.LengthScale).Encoded << 16u;
 			}
 			break;
 		case EHairGeometryType::Cards:
 			if (Instance->Cards.IsValid(IntLODIndex))
 			{
-				Data0.Z = Instance->Cards.LODs[IntLODIndex].Guides.IsValid() ? Instance->Cards.LODs[IntLODIndex].Guides.Data->GetNumCurves() : 0;
-				Data0.W = Instance->Cards.LODs[IntLODIndex].Data->GetNumVertices();
+				D.Data0.Z = Instance->Cards.LODs[IntLODIndex].Guides.IsValid() ? Instance->Cards.LODs[IntLODIndex].Guides.Data->GetNumCurves() : 0;
+				D.Data0.W = Instance->Cards.LODs[IntLODIndex].Data->GetNumVertices();
 
-				Data2 = FUintVector4(0);
-				Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView] ? 0x1u : 0u;
-				Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesShadowView]  ? 0x2u : 0u;
+				D.Data2 = FUintVector4(0);
+				D.Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView] ? 0x1u : 0u;
+				D.Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesShadowView]  ? 0x2u : 0u;
 			}
 			break;
 		case EHairGeometryType::Meshes:
 			if (Instance->Meshes.IsValid(IntLODIndex))
 			{
-				Data0.Z = 0;
-				Data0.W = Instance->Meshes.LODs[IntLODIndex].Data->GetNumVertices();
+				D.Data0.Z = 0;
+				D.Data0.W = Instance->Meshes.LODs[IntLODIndex].Data->GetNumVertices();
 
-				Data2 = FUintVector4(0);
-				Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView] ? 0x1u : 0u;
-				Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesShadowView]  ? 0x2u : 0u;
+				D.Data2 = FUintVector4(0);
+				D.Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView] ? 0x1u : 0u;
+				D.Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesShadowView]  ? 0x2u : 0u;
 			}
 			break;
 		}
-		Infos.Add({Data0, Data1, Data2, Data3 });
 	}
 
 	if (InstanceNameInfos.IsEmpty())
@@ -1043,8 +1042,8 @@ static void AddHairDebugPrintInstancePass(
 	}
 
 	const uint32 InfoInBytes  = sizeof(FInstanceInfos);
-	const uint32 InfoIn4Bytes = sizeof(FInstanceInfos) / sizeof(uint8);
-	FRDGBufferRef InfoBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceInfos"), FRDGBufferDesc::CreateBufferDesc(4, InfoIn4Bytes * Infos.Num()), Infos.GetData(), InfoInBytes * Infos.Num());
+	const uint32 InfoInUints = sizeof(FInstanceInfos) / sizeof(uint32);
+	FRDGBufferRef InfoBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceInfos"), FRDGBufferDesc::CreateBufferDesc(4, InfoInUints * Infos.Num()), Infos.GetData(), InfoInBytes * Infos.Num());
 
 	// Resource for instance names
 	FRDGBufferRef InstanceNameBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceNames"), FRDGBufferDesc::CreateBufferDesc(1, InstanceNames.Num()), InstanceNames.GetData(), InstanceNames.Num());
