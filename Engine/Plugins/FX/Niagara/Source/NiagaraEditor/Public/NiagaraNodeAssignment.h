@@ -90,5 +90,7 @@ private:
 	int32 CalculateScriptUsageBitmask();
 
 	void RefreshTitle();
+
+	bool PostLoad_LWCFixup(int32 NiagaraVersion);
 };
 
