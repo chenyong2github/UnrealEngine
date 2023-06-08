@@ -5,6 +5,7 @@
 #include "AssetImporters/ProgressiveImport3D.h"
 #include "AssetImporters/ProgressiveImportSurfaces.h"
 #include "MetaHumanProjectUtilities.h"
+#include "Misc/Paths.h"
 
 
 #include "Dom/JsonObject.h"
