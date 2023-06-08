@@ -2,14 +2,12 @@
 #include "AssetsImportController.h"
 #include "Utilities/MiscUtils.h"
 #include "AssetImporters/UAssetNormalImport.h"
-#include "AssetImporters/DHIImport.h"
 #include "AssetImporters/ProgressiveImport3D.h"
 #include "AssetImporters/ProgressiveImportSurfaces.h"
+#include "MetaHumanProjectUtilities.h"
 
 
 #include "Dom/JsonObject.h"
-
-
 
 
 TSharedPtr<FAssetsImportController> FAssetsImportController::AssetsImportController;
@@ -20,53 +18,55 @@ TSharedPtr<FAssetsImportController> FAssetsImportController::Get()
 {
 	if (!AssetsImportController.IsValid())
 	{
-		AssetsImportController = MakeShareable(new FAssetsImportController);	
+		AssetsImportController = MakeShareable(new FAssetsImportController);
 	}
 	return AssetsImportController;
 }
 
 void FAssetsImportController::DataReceived(const FString DataFromBridge)
 {
-	
+	static const FString NormalExportMode = TEXT("normal");
+	static const FString NormalDragExportMode = TEXT("normal_drag");
+	static const FString ProgressiveExportMode = TEXT("progressive");
+
 	float LocationOffset = 0.0f;
+	TSharedPtr<FJsonObject> ImportDataObject = DeserializeJson(DataFromBridge);
+	const TArray<TSharedPtr<FJsonValue>>& AssetsImportDataArray = ImportDataObject->GetArrayField(TEXT("exportPayload"));
 
-	
-	FString StartString = TEXT("{\"QuixelAssets\":");
-	FString EndString = TEXT("}");
-	FString FinalString = StartString + DataFromBridge + EndString;
-	TSharedPtr<FJsonObject> ImportDataObject = DeserializeJson(FinalString);
-	
-
-	TArray<TSharedPtr<FJsonValue> > AssetsImportDataArray = ImportDataObject->GetArrayField(TEXT("QuixelAssets"));
-
-
-
-	
-	for (TSharedPtr<FJsonValue> AssetJson : AssetsImportDataArray)
+	// If there are multiple MetaHumans in this import, then capture that
+	TSet<FString> BatchImportCharacters;
+	for (const TSharedPtr<FJsonValue>& AssetJson : AssetsImportDataArray)
 	{
-		
 		EAssetImportType ImportType = JsonUtils::GetImportType(AssetJson->AsObject());
 		FString AssetType = AssetJson->AsObject()->GetStringField("assetType");
-		
-		
+		if (ImportType == EAssetImportType::DHI_CHARACTER)
+		{
+			BatchImportCharacters.Add(AssetJson->AsObject()->GetStringField(TEXT("folderName")));
+		}
+	}
+
+	for (const TSharedPtr<FJsonValue>& AssetJson : AssetsImportDataArray)
+	{
+		const EAssetImportType ImportType = JsonUtils::GetImportType(AssetJson->AsObject());
+		const FString AssetType = AssetJson->AsObject()->GetStringField("assetType");
+		const FString ExportMode = AssetJson->AsObject()->GetStringField(TEXT("exportMode"));
+
 		if (ImportType == EAssetImportType::MEGASCANS_UASSET)
 		{
 			CopyMSPresets();
 			//if (!SupportedAssetTypes.Contains(AssetType)) continue;
 
-			FString ExportMode = AssetJson->AsObject()->GetStringField(TEXT("exportMode"));
-			if (ExportMode == TEXT("normal"))
+			if (ExportMode == NormalExportMode)
 			{
 				FImportUAssetNormal::Get()->ImportAsset(AssetJson->AsObject());
 			}
-			else if (ExportMode == TEXT("progressive") || ExportMode == TEXT("normal_drag"))
+			else if (ExportMode == ProgressiveExportMode || ExportMode == NormalDragExportMode)
 			{
-				bool bIsNormal = (ExportMode == TEXT("normal_drag")) ? true : false;				
+				bool bIsNormal = (ExportMode == TEXT("normal_drag")) ? true : false;
 
 				if (AssetType == TEXT("3d") || AssetType == TEXT("3dplant"))
 				{
 					FImportProgressive3D::Get()->ImportAsset(AssetJson->AsObject(), LocationOffset, bIsNormal);
-					
 				}
 
 				else if (AssetType == TEXT("surface") || AssetType == TEXT("atlas"))
@@ -78,18 +78,41 @@ void FAssetsImportController::DataReceived(const FString DataFromBridge)
 				{
 					LocationOffset += 200;
 				}
-			}			
-
-			
-
-		}	
+			}
+		}
 		else if (ImportType == EAssetImportType::DHI_CHARACTER)
 		{
-			FImportDHI::Get()->ImportAsset(AssetJson->AsObject());
+			const TSharedPtr<FJsonObject>& AssetJsonObject = AssetJson->AsObject();
+			if (ExportMode == ProgressiveExportMode)
+			{
+				// This MetaHuman is just being downloaded at the moment, do not import yet.
+				return;
+			}
+
+			const FString CharacterName = AssetJsonObject->GetStringField(TEXT("folderName"));
+			FMetaHumanAssetImportDescription AssetImportDescription = {
+				FPaths::Combine(AssetJsonObject->GetStringField(TEXT("characterPath")), CharacterName),
+				AssetJsonObject->GetStringField(TEXT("commonPath")),
+				CharacterName,
+				AssetJsonObject->GetStringField(TEXT("id")),
+				AssetJsonObject->GetBoolField(TEXT("isBulkExported")) || BatchImportCharacters.Num() > 1
+			};
+
+			const TArray<TSharedPtr<FJsonValue>>* AvailableMetahumans;
+			if (ImportDataObject->TryGetArrayField(TEXT("availableMetahumans"), AvailableMetahumans))
+			{
+				for (const TSharedPtr<FJsonValue>& Entry : *AvailableMetahumans)
+				{
+					AssetImportDescription.AccountMetaHumans.Emplace(FQuixelAccountMetaHumanEntry{
+						Entry->AsObject()->GetStringField("name"),
+						Entry->AsObject()->GetStringField("id"),
+						Entry->AsObject()->GetBoolField("isLegacy"),
+						Entry->AsObject()->GetStringField("version"),
+					});
+				}
+			}
+
+			FMetaHumanProjectUtilities::ImportAsset(AssetImportDescription);
 		}
-	
-	}	
-
+	}
 }
-
-

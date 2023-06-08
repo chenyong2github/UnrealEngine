@@ -22,6 +22,8 @@
 #include "UnrealClient.h"
 #include "SWebBrowser.h"
 #include "WebJSFunction.h"
+#include "Dom/JsonObject.h"
+#include "MetaHumanProjectUtilities.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SWindow.h"
 
@@ -149,9 +151,30 @@ TSharedRef<FAssetDragDropCustomOp> FAssetDragDropCustomOp::New(TArray<FAssetData
 
 ///////////////////////////////////////////////////////////////////////////////////
 
+class FBrowserBindingBulkImportHandler: public IMetaHumanBulkImportHandler
+{
+public:
+  // MetaHumanIds is a list of the Quixel IDs of the MetaHumans to
+  // be imported. This is an asynchronous operation. This function returns
+  // immediately and the import operation that called it will immediately terminate.
+  virtual void DoBulkImport(const TArray<FString>& MetaHumanIds) override
+  {
+    FBridgeUIManager::BrowserBinding->OnBulkExportMetahumansDelegate.ExecuteIfBound(MetaHumanIds);
+  }
+
+  static FBrowserBindingBulkImportHandler *Get()
+  {
+    static FBrowserBindingBulkImportHandler TheInstance;
+    return &TheInstance;
+  }
+};
+
+///////////////////////////////////////////////////////////////////////////////////
+
 UBrowserBinding::UBrowserBinding(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+  FMetaHumanProjectUtilities::SetBulkImportHandler(FBrowserBindingBulkImportHandler::Get());
 }
 
 void UBrowserBinding::DialogSuccessCallback(FWebJSFunction DialogJSCallback)
@@ -177,6 +200,11 @@ void UBrowserBinding::OnDropDiscardedCallback(FWebJSFunction OnDropDiscardedJSCa
 void UBrowserBinding::OnExitCallback(FWebJSFunction OnExitJSCallback)
 {
 	OnExitDelegate.BindLambda(OnExitJSCallback);
+}
+
+void UBrowserBinding::OnBulkExportMetahumansCallback(FWebJSFunction OnBulkExportMetahumansJSCallback)
+{
+  OnBulkExportMetahumansDelegate.BindLambda(OnBulkExportMetahumansJSCallback);
 }
 
 void UBrowserBinding::ShowDialog(FString Type, FString Url)

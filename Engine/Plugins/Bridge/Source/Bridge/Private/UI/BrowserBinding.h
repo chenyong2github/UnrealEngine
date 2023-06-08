@@ -17,6 +17,7 @@ DECLARE_DELEGATE_TwoParams(FOnDialogFail, FString, FString);
 DECLARE_DELEGATE_OneParam(FOnDropped, FString);
 DECLARE_DELEGATE_OneParam(FOnDropDiscarded, FString);
 DECLARE_DELEGATE_OneParam(FOnExit, FString);
+DECLARE_DELEGATE_OneParam(FOnBulkExportMetahumans, TArray<FString>);
 
 UCLASS()
 class UBrowserBinding : public UObject
@@ -32,6 +33,7 @@ public:
 	FOnDropped OnDroppedDelegate;
 	FOnDropDiscarded OnDropDiscardedDelegate;
 	FOnExit OnExitDelegate;
+	FOnBulkExportMetahumans OnBulkExportMetahumansDelegate;
 
 	TSharedPtr<SWindow> DialogMainWindow;
 	TSharedPtr<SWebBrowser> DialogMainBrowser;
@@ -50,6 +52,9 @@ public:
 
 	UFUNCTION()
 	void OnExitCallback(FWebJSFunction OnExitJSCallback);
+
+	UFUNCTION()
+	void OnBulkExportMetahumansCallback(FWebJSFunction OnBulkExportMetahumansJSCallback);
 
 	UFUNCTION()
 	void SaveAuthToken(FString Value);

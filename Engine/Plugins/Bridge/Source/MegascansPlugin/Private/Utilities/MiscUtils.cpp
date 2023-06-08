@@ -30,10 +30,6 @@
 
 #include "Tools/BlendMaterials.h"
 
-#include "Utilities/VersionInfoHandler.h"
-
-#include "JsonObjectConverter.h"
-
 TSharedPtr<FJsonObject> DeserializeJson(const FString& JsonStringData)
 {
 	TSharedPtr<FJsonObject> JsonDataObject;
@@ -66,8 +62,8 @@ FString GetMSPresetsName()
 bool CopyMaterialPreset(const FString& MaterialName)
 {
 	FString MaterialSourceFolderPath = FPaths::Combine(GetSourceMSPresetsPath(), MaterialName);
-	MaterialSourceFolderPath = FPaths::ConvertRelativePathToFull(MaterialSourceFolderPath); 
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile(); 
+	MaterialSourceFolderPath = FPaths::ConvertRelativePathToFull(MaterialSourceFolderPath);
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	if (!PlatformFile.DirectoryExists(*MaterialSourceFolderPath))
 	{
 		return false;
@@ -420,43 +416,4 @@ void CopyUassetFilesPlants(TArray<FString> FilesToCopy, FString DestinationDirec
 	}
 
 	AssetRegistryModule.Get().ScanFilesSynchronous(NewFilePaths, true);
-}
-
-void UpdateMHVersionInfo(TMap<FString, TArray<FString>> AssetsStatus, TMap<FString, float> SourceAssetsVersionInfo)
-{
-	const FString ProjectAssetsVersionPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectContentDir(), TEXT("MetaHumans"), TEXT("MHAssetVersions.txt")));
-
-	FString VersionInfoString;
-	FFileHelper::LoadFileToString(VersionInfoString, *ProjectAssetsVersionPath);
-	FVersionData VersionData;
-
-	FJsonObjectConverter::JsonObjectStringToUStruct<FVersionData>(VersionInfoString, &VersionData);
-
-	for (FAssetInfo& AssetInfo : VersionData.assets)
-	{
-		if (AssetsStatus["Update"].Contains(AssetInfo.path))
-		{
-			AssetInfo.version = FString::SanitizeFloat(SourceAssetsVersionInfo[AssetInfo.path]);
-		}
-	}
-
-	for (FString AssetToAdd : AssetsStatus["Add"])
-	{
-		FAssetInfo NewAssetInfo;
-		NewAssetInfo.path = AssetToAdd;
-		if (SourceAssetsVersionInfo.Contains(AssetToAdd))
-		{
-			NewAssetInfo.version = FString::SanitizeFloat(SourceAssetsVersionInfo[AssetToAdd]);
-		}
-		else
-		{
-			NewAssetInfo.version = TEXT("0.0");
-		}
-		VersionData.assets.Add(NewAssetInfo);
-	}
-
-	FString OutputData;
-	FJsonObjectConverter::UStructToJsonObjectString(VersionData, OutputData);
-
-	FFileHelper::SaveStringToFile(OutputData, *ProjectAssetsVersionPath);
 }

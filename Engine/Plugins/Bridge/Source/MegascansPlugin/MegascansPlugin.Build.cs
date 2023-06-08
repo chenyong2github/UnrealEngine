@@ -18,25 +18,26 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"EditorStyle",
 					"Engine",
-					"LevelEditor",					
+					"LevelEditor",
 					"Settings",
 					"Slate",
 					"SlateCore",
-                    "Sockets",
-                    "Networking",                    
+					"Sockets",
+					"Networking",
 					"Json",
 					"JsonUtilities",
 					"MaterialEditor",
 					"UnrealEd",
 					"FoliageEdit",
-                    "Foliage",
-					"HTTP",					
+					"Foliage",
+					"HTTP",
 					"StaticMeshEditor",
 					"MeshBuilder",
 					"TargetPlatform",
 					"EditorScriptingUtilities",
 					"Projects",
-					"ApplicationCore"
+					"ApplicationCore", 
+					"MetaHumanProjectUtilities"
 				}
 			);
 		}

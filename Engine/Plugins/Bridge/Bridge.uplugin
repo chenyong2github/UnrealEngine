@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
-	"Version": 18,
-	"VersionName": "2023.0.2",
+	"Version": 19,
+	"VersionName": "2023.0.3",
 	"FriendlyName": "Bridge",
 	"Description": "Megascans Link for Quixel Bridge.",
 	"Category": "Editor",
@@ -30,6 +30,16 @@
 		},
 		{
 			"Name": "MegascansPlugin",
+			"Type": "Editor",
+			"LoadingPhase": "PostDefault",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Linux"
+			]
+		},
+		{
+			"Name": "MetaHumanProjectUtilities",
 			"Type": "Editor",
 			"LoadingPhase": "PostDefault",
 			"PlatformAllowList": [
