@@ -46,6 +46,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Parameter")
 	EGameplayInteractionTaskModify Modify = EGameplayInteractionTaskModify::OnEnterStateUndoOnExitState;
 
+	/** If true, handle external State Tree stop as a failure. */
+	UPROPERTY(EditAnywhere, Category = "Parameter")
+	bool bHandleExternalStopAsFailure = true;
+
 	/** Whether to enable or disable the slot. */
 	UPROPERTY(EditAnywhere, Category = "Parameter")
 	bool bEnableSlot = true;

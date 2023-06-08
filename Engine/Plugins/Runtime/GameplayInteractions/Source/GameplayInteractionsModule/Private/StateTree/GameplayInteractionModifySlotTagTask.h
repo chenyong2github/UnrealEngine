@@ -49,6 +49,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Parameter")
 	EGameplayInteractionTaskModify Modify = EGameplayInteractionTaskModify::OnEnterStateUndoOnExitState;
 
+	/** If true, handle external State Tree stop as a failure. */
+	UPROPERTY(EditAnywhere, Category = "Parameter")
+	bool bHandleExternalStopAsFailure = true;
+
 	/** How to modify the tags. */
 	UPROPERTY(EditAnywhere, Category = "Parameter")
 	EGameplayInteractionModifyGameplayTagOperation Operation = EGameplayInteractionModifyGameplayTagOperation::Add;

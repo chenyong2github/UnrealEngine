@@ -67,7 +67,8 @@ void FGameplayInteractionSetSlotEnabledTask::ExitState(FStateTreeExecutionContex
 	}
 	else
 	{
-		const bool bLastStateFailed = Transition.CurrentRunStatus == EStateTreeRunStatus::Failed;
+		const bool bLastStateFailed = Transition.CurrentRunStatus == EStateTreeRunStatus::Failed
+										|| (bHandleExternalStopAsFailure &&  Transition.CurrentRunStatus == EStateTreeRunStatus::Stopped);
 
 		if (Modify == EGameplayInteractionTaskModify::OnExitState
 			|| (bLastStateFailed && Modify == EGameplayInteractionTaskModify::OnExitStateFailed)

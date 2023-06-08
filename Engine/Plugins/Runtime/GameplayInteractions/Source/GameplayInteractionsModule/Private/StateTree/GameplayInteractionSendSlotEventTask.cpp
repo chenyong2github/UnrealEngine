@@ -64,8 +64,9 @@ EStateTreeRunStatus FGameplayInteractionSendSlotEventTask::EnterState(FStateTree
 
 void FGameplayInteractionSendSlotEventTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
-	const bool bLastStateFailed = Transition.CurrentRunStatus == EStateTreeRunStatus::Failed;
-
+	const bool bLastStateFailed = Transition.CurrentRunStatus == EStateTreeRunStatus::Failed
+								|| (bHandleExternalStopAsFailure &&  Transition.CurrentRunStatus == EStateTreeRunStatus::Stopped);
+	
 	if (Trigger == EGameplayInteractionTaskTrigger::OnExitState
 		|| (bLastStateFailed && Trigger == EGameplayInteractionTaskTrigger::OnExitStateFailed)
 		|| (!bLastStateFailed && Trigger == EGameplayInteractionTaskTrigger::OnExitStateSucceeded))
