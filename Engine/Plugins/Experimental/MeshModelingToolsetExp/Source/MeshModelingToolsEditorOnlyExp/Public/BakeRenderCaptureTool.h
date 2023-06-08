@@ -40,33 +40,40 @@ class MESHMODELINGTOOLSEDITORONLYEXP_API UBakeRenderCaptureResults  : public UIn
 
 public:
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> BaseColorMap;
+	TObjectPtr<UTexture2D> BaseColorMap = nullptr;
 
 	/** World space normal map */
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> NormalMap;
+	TObjectPtr<UTexture2D> NormalMap = nullptr;
 
 	/** Packed Metallic/Roughness/Specular Map */
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty, DisplayName = "Packed MRS Map"))
-	TObjectPtr<UTexture2D> PackedMRSMap;
+	TObjectPtr<UTexture2D> PackedMRSMap = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> MetallicMap;
+	TObjectPtr<UTexture2D> MetallicMap = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> RoughnessMap;
+	TObjectPtr<UTexture2D> RoughnessMap = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> SpecularMap;
+	TObjectPtr<UTexture2D> SpecularMap = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> EmissiveMap;
+	TObjectPtr<UTexture2D> EmissiveMap = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> OpacityMap;
+	TObjectPtr<UTexture2D> OpacityMap = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Category = Results, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> SubsurfaceColorMap;
+	TObjectPtr<UTexture2D> SubsurfaceColorMap = nullptr;
+
+	bool IsEmpty() const
+	{
+		return !BaseColorMap &&	!NormalMap && !PackedMRSMap &&
+			!MetallicMap && !RoughnessMap && !SpecularMap &&
+			!EmissiveMap && !OpacityMap && !SubsurfaceColorMap;
+	}
 };
 
 
