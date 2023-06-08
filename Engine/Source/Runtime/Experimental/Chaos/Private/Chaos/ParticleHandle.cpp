@@ -119,7 +119,7 @@ namespace Chaos
 	{
 		if (MNonFrequentData.IsDirty(MDirtyFlags))
 		{
-			if (const FImplicitObjectUnion* Union = MNonFrequentData.Read().Geometry()->GetObject<FImplicitObjectUnion>())
+			if (const FImplicitObjectUnion* Union = MNonFrequentData.Read().Geometry()->template GetObject<FImplicitObjectUnion>())
 			{
 				// This will rebuild the BVH if the geometry is new, otherwise do nothing
 				const_cast<FImplicitObjectUnion*>(Union)->SetAllowBVH(true);
