@@ -60,13 +60,23 @@ public:
 	
 	virtual const UStruct* GetBaseStructure() const override
 	{
-		const UScriptStruct* CommonStruct = nullptr;
-		EnumerateInstances([&CommonStruct](const UScriptStruct* ScriptStruct, uint8* Memory, UPackage* Package)
+		// Taken from UClass::FindCommonBase
+		auto FindCommonBaseStruct = [](const UScriptStruct* StructA, const UScriptStruct* StructB)
 		{
-			if (!CommonStruct && ScriptStruct)
+			const UScriptStruct* CommonBaseStruct = StructA;
+			while (CommonBaseStruct && StructB && !StructB->IsChildOf(CommonBaseStruct))
 			{
-				CommonStruct = ScriptStruct;
-				return false; // Stop
+				CommonBaseStruct = Cast<UScriptStruct>(CommonBaseStruct->GetSuperStruct());
+			}
+			return CommonBaseStruct;
+		};
+
+		const UScriptStruct* CommonStruct = nullptr;
+		EnumerateInstances([&CommonStruct, &FindCommonBaseStruct](const UScriptStruct* ScriptStruct, uint8* Memory, UPackage* Package)
+		{
+			if (ScriptStruct)
+			{
+				CommonStruct = FindCommonBaseStruct(ScriptStruct, CommonStruct);
 			}
 			return true; // Continue
 		});
@@ -78,17 +88,15 @@ public:
 	{
 		// The returned instances need to be compatible with base structure.
 		// This function returns empty instances in case they are not compatible, with the idea that we have as many instances as we have outer objects.
-		const UScriptStruct* CommonStruct = nullptr;
-		EnumerateInstances([&OutInstances, &CommonStruct](const UScriptStruct* ScriptStruct, uint8* Memory, UPackage* Package)
+		const UScriptStruct* CommonStruct = Cast<UScriptStruct>(GetBaseStructure());
+		EnumerateInstances([&OutInstances, CommonStruct](const UScriptStruct* ScriptStruct, uint8* Memory, UPackage* Package)
 		{
 			TSharedPtr<FStructOnScope> Result;
 			
-			// Only return structs that are same type.
-			if (CommonStruct == nullptr || ScriptStruct == CommonStruct)
+			if (CommonStruct && ScriptStruct && ScriptStruct->IsChildOf(CommonStruct))
 			{
 				Result = MakeShared<FStructOnScope>(ScriptStruct, Memory);
 				Result->SetPackage(Package);
-				CommonStruct = ScriptStruct;
 			}
 
 			OutInstances.Add(Result);
@@ -110,12 +118,12 @@ public:
 		}
 
 		FInstancedStruct& InstancedStruct = *reinterpret_cast<FInstancedStruct*>(ParentValueAddress);
-		if (InstancedStruct.GetScriptStruct() != ExpectedType)
+		if (ExpectedType && InstancedStruct.GetScriptStruct() && InstancedStruct.GetScriptStruct()->IsChildOf(ExpectedType))
 		{
-			return nullptr;
+			return InstancedStruct.GetMutableMemory();
 		}
 
-		return InstancedStruct.GetMutableMemory();
+		return nullptr;
 	}
 	
 protected:
