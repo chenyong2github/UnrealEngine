@@ -135,7 +135,13 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FPrimitiveSceneData P
 
 	// This will only write out the relative instance transform, but that's fine; the tile coordinate of the instance transform comes from the primitive data
 	float4 InstanceOriginAndId = InstanceData.LocalToWorld.M[3];
-	InstanceOriginAndId.w = asfloat(InstanceData.PrimitiveId | (CullingFlags << PRIMITIVE_ID_NUM_BITS));
+
+#if INSTANCE_CULLING_FLAGS_NUM_BITS != 4 || PRIMITIVE_ID_NUM_BITS != 20
+#error "Fix packing below as it assumes we can pack PrimitiveId and CullingFlags in 32 bits"
+#endif
+
+	// <<4 as a workaround for FXC turning asfloat(x)=0 if x is known to be denormalized
+	InstanceOriginAndId.w = asfloat((InstanceData.PrimitiveId | (CullingFlags << PRIMITIVE_ID_NUM_BITS)) << 4);
 
 	float4 InstanceTransform1 = InstanceData.LocalToWorld.M[0];
 	float4 InstanceTransform2 = InstanceData.LocalToWorld.M[1];

@@ -1161,8 +1161,11 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	const uint PackedPrimitiveFlags = asuint(InstanceTransform1.w);
 	const uint PrimitiveFlags = (PackedPrimitiveFlags & 0x00FFFFFF);
 	const uint InstanceFlags = (PackedPrimitiveFlags >> 24u);
-	const uint PrimitiveId = asuint(InstanceOrigin.w) & PRIMITIVE_ID_MASK;
-	const uint CullingFlags = asuint(InstanceOrigin.w) >> PRIMITIVE_ID_NUM_BITS;
+	
+	// See WritePackedInstanceData
+	uint PrimitiveIdAndCullingFlags = asuint(InstanceOrigin.w) >> 4;
+	const uint PrimitiveId = PrimitiveIdAndCullingFlags & PRIMITIVE_ID_MASK;
+	const uint CullingFlags = PrimitiveIdAndCullingFlags >> PRIMITIVE_ID_NUM_BITS;
 
 	// Reconstruct InstanceData from a packed data
 	FInstanceSceneData InstanceData = (FInstanceSceneData)0;
