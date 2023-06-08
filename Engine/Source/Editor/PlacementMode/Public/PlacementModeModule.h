@@ -146,7 +146,7 @@ private:
 	TArray< TSharedPtr<FExtender> > ContentPaletteFiltersExtenders;
 	TArray< TSharedPtr<FExtender> > PaletteExtenders;
 
-	TMap<FString, FString> BasicShapeThumbnails;
+	TMap<FString, TSharedPtr<FPlaceableItem>> ManuallyCreatedPlaceableItems;
 };
 
 IMPLEMENT_MODULE(FPlacementModeModule, PlacementMode);
