@@ -12,6 +12,7 @@ import { ErrorHandler } from "../components/ErrorHandler";
 import { hordeClasses, modeColors } from '../styles/Styles';
 import { useQuery } from './JobDetailCommon';
 import { JobDetailsV2 } from './jobDetailsV2/JobDetailsViewCommon';
+import dashboard from '../backend/Dashboard';
 
 let toolTipId = 0;
 
@@ -787,6 +788,12 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
             console.error(`Stream default preflight template cannot be found for stream ${stream.fullname} : stream defaultPreflightTemplate ${stream.defaultPreflight?.templateId}, will use first template in list`);
          }
       }
+      if (!t) {
+         const pref = dashboard.getJobTemplatePref(stream.id, templates.map(t => t.id));
+         if (pref) {
+            t = templates.find(t => stream.id === pref.streamId && t.id === pref.templateId)
+         }
+      }
 
       // default to sane template when all are shown
       if (!t && (showAllTemplates) && stream.tabs.length > 0) {
@@ -1375,6 +1382,8 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
             console.log("Debug Job Submit");
             console.log(JSON.stringify(data));
 
+            await dashboard.registerJobTemplatePref(data.streamId, data.templateId, template.hash, data.arguments ?? [])
+
          } else {
 
 
@@ -1385,17 +1394,22 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
 
             let redirected = false;
 
-            await backend.createJob(data).then(async (data) => {
-               console.log(`Job created: ${JSON.stringify(data)}`);
+            await backend.createJob(data).then(async (response) => {
+               console.log(`Job created: ${JSON.stringify(response)}`);
                console.log("Updating notifications")
                try {
-                  await backend.updateNotification({ slack: true }, "job", data.id);
+                  await backend.updateNotification({ slack: true }, "job", response.id);
                } catch (reason) {
                   console.log(`Error on updating notifications: ${reason}`);
                }
+               try {
+                  await dashboard.registerJobTemplatePref(data.streamId, data.templateId, template.hash, data.arguments ?? [])
+               } catch (reason) {
+                  console.log(`Error on regisyering job template pref`);
+               }               
 
                redirected = true;
-               onClose(data.id);
+               onClose(response.id);
             }).catch(reason => {
                // "Not Found" is generally a permissions error
                errorReason = reason ? reason : "Unknown";

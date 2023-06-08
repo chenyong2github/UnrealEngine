@@ -3100,16 +3100,29 @@ export enum DashboardPreference {
 	ShowPreflights = "ShowPreflights"
 }
 
+export type JobTemplatePreference = {		
+	streamId: string;
+	templateId: string;	
+	templateVersion: string;
+
+	// base64 encoded string array
+	arguments: string;
+
+	lastUsedUTC: string;
+	prefVersion: string;
+}
+
+
 export type DashboardSettings = {
 
 	preferences: Map<DashboardPreference, string>;
+	jobTemplatePrefs?: JobTemplatePreference[];
 
 }
 
 export type UpdateDashboardSettings = {
-
 	preferences?: Record<DashboardPreference, string>;
-
+	jobTemplatePrefs?: JobTemplatePreference[];
 }
 
 /** Settings for whether various features should be enabled on the dashboard */

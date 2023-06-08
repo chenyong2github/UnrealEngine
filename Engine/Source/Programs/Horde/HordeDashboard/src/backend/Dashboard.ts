@@ -3,7 +3,7 @@
 import { getTheme } from "@fluentui/react";
 import { action, makeObservable, observable } from 'mobx';
 import backend from '.';
-import { DashboardPreference, GetDashboardConfigResponse, GetUserResponse, UserClaim } from './Api';
+import { DashboardPreference, GetDashboardConfigResponse, GetUserResponse, JobTemplatePreference, UserClaim } from './Api';
 
 const theme = getTheme();
 
@@ -24,6 +24,8 @@ export enum WebBrowser {
     Safari = "Safari",
     Other = "Other"
 }
+
+export const jobTemplatePreferenceVersion = "1";
 
 export class Dashboard {
 
@@ -114,23 +116,23 @@ export class Dashboard {
     }
 
     get preview(): boolean {
-        
-        try {            
+
+        try {
             return !!(process.env.REACT_APP_HORDE_DEBUG_PREVIEW) || window?.location?.hostname?.indexOf("preview") !== -1;
         } catch (reason) {
             console.error(reason);
         }
-        return false;        
+        return false;
     }
 
     get development(): boolean {
 
-        try {            
+        try {
             return window?.location?.hostname?.indexOf("devtools-dev") !== -1;
         } catch (reason) {
             console.error(reason);
         }
-        return false;        
+        return false;
     }
 
     get browser(): WebBrowser {
@@ -210,6 +212,10 @@ export class Dashboard {
 
     }
 
+    get templatePreferences(): JobTemplatePreference[] {
+        return this.data.dashboardSettings?.jobTemplatePrefs ?? [];
+    }
+
     get darktheme(): boolean {
 
         if (!this.available) {
@@ -281,9 +287,9 @@ export class Dashboard {
             return true;
         }
         */
-        
+
         const value = this.preferences.get(DashboardPreference.LocalCache) !== 'false';
-        
+
         if (value && !this.hasLoggedLocalCache) {
             this.hasLoggedLocalCache = true;
             console.log("Local graph and template caching is enabled")
@@ -484,6 +490,113 @@ export class Dashboard {
         }
     }
 
+    getJobTemplatePref(streamId: string, templateIds: string[]): JobTemplatePreference | undefined {
+
+        let templatePrefs = this.data.dashboardSettings?.jobTemplatePrefs ?? [];
+        templatePrefs = templatePrefs.filter(p => p.streamId === streamId && templateIds.indexOf(p.templateId) !== -1);
+        const dates = new Map<string, Date>();
+
+        templatePrefs.forEach(p => {
+            dates.set(p.streamId + p.templateId, new Date(p.lastUsedUTC));
+        })
+
+        templatePrefs = templatePrefs.sort((a, b) => dates.get(b.streamId + b.templateId)!.getTime() - dates.get(a.streamId + a.templateId)!.getTime());
+
+        if (templatePrefs.length > 0) {
+            return templatePrefs[0];
+        }
+
+        return undefined;
+    }
+
+    async registerJobTemplatePref(streamId: string, templateId: string, templateVersion: string, args: string[]) {
+
+        // ignore non-preflight templates while get this working, if persisting arguments
+        /*
+        if (templateId.indexOf("presubmit") === -1) {
+            console.log("not a presubmit")
+            return;
+        }
+        */
+
+        let pref: JobTemplatePreference | undefined;
+
+        let templatePrefs = this.data.dashboardSettings?.jobTemplatePrefs ?? [];
+
+        const existing = templatePrefs.find(tp => tp.streamId === streamId && tp.templateId === templateId);
+
+        if (existing) {
+
+            pref = existing;
+
+            try {
+                existing.arguments = btoa(JSON.stringify(args));
+            } catch (msg) {
+                console.error(msg);
+                return;
+            }
+
+            existing.templateVersion = templateVersion;
+            existing.lastUsedUTC = new Date().toISOString();
+            existing.prefVersion = jobTemplatePreferenceVersion;
+
+        } else {
+
+            pref = {
+                streamId: streamId,
+                templateId: templateId,
+                templateVersion: templateVersion,
+                arguments: "",
+                lastUsedUTC: new Date().toISOString(),
+                prefVersion: jobTemplatePreferenceVersion
+            }
+
+            try {
+                pref.arguments = btoa(JSON.stringify(args));
+            } catch (msg) {
+                console.error(msg);
+                return;
+            }
+
+            templatePrefs.push(pref);
+        }
+
+        const dates = new Map<string, Date>();
+
+        templatePrefs.forEach(p => {
+            dates.set(p.streamId + p.templateId, new Date(p.lastUsedUTC));
+        })
+
+        templatePrefs = templatePrefs.sort((a, b) => dates.get(b.streamId + b.templateId)!.getTime() - dates.get(a.streamId + a.templateId)!.getTime());
+
+        const dupes = new Set<string>();
+
+        templatePrefs = templatePrefs.filter((a) => {
+            if (dupes.has(a.streamId + a.templateId)) {
+                return false;
+            }
+
+            dupes.add(a.streamId + a.templateId);
+            return true;
+        });
+
+        templatePrefs = templatePrefs.slice(0, 256);
+
+        if (!this.data.dashboardSettings?.preferences) {
+            this.data.dashboardSettings = { preferences: new Map() };
+        }
+
+        this.data.dashboardSettings.jobTemplatePrefs = templatePrefs;
+
+        try {
+            await this.postPreferences();
+        } catch (msg) {
+            console.error(msg);
+        }
+        
+
+    }
+
     private setPreference(pref: DashboardPreference, value: string | undefined): void {
 
         if (!this.available) {
@@ -540,7 +653,7 @@ export class Dashboard {
 
         let success = true;
         try {
-            await backend.updateUser({ dashboardSettings: { preferences: data } });
+            await backend.updateUser({ dashboardSettings: { preferences: data, jobTemplatePrefs: this.templatePreferences ?? [] } });
         } catch (reason) {
             success = false;
             console.error("Error posting user preferences", reason)
