@@ -110,6 +110,7 @@ struct FISMComponentDescription
 	int32 EndCullDistance = 0;
 	int32 MinLod = 0;
 	float LodScale = 1.f;
+	TArray<FName> Tags;
 
 	bool operator==(const FISMComponentDescription& Other) const
 	{
@@ -123,18 +124,26 @@ struct FISMComponentDescription
 			StartCullDistance == Other.StartCullDistance && 
 			EndCullDistance == Other.EndCullDistance &&
 			MinLod == Other.MinLod &&
-			LodScale == Other.LodScale;
+			LodScale == Other.LodScale &&
+			Tags == Other.Tags;
 	}
 };
 
 FORCEINLINE uint32 GetTypeHash(const FISMComponentDescription& Desc)
 {
-	const uint32 PackedBools = (Desc.bUseHISM ? 1 : 0) | (Desc.bReverseCulling ? 2 : 0) | (Desc.bIsStaticMobility ? 4 : 0) | (Desc.bAffectShadow ? 8 : 0) | (Desc.bAffectDistanceFieldLighting ? 16 : 0) | (Desc.bAffectDynamicIndirectLighting ? 32 : 0);
-	uint32 Hash = HashCombine(GetTypeHash(PackedBools), GetTypeHash(Desc.NumCustomDataFloats));
-	Hash = HashCombine(Hash, GetTypeHash(Desc.StartCullDistance));
-	Hash = HashCombine(Hash, GetTypeHash(Desc.EndCullDistance));
-	Hash = HashCombine(Hash, GetTypeHash(Desc.MinLod));
-	return HashCombine(Hash, GetTypeHash(Desc.LodScale));
+	const uint32 PackedBools = 
+		(Desc.bUseHISM ? 1 : 0) | 
+		(Desc.bReverseCulling ? 2 : 0) | 
+		(Desc.bIsStaticMobility ? 4 : 0) | 
+		(Desc.bAffectShadow ? 8 : 0) | 
+		(Desc.bAffectDistanceFieldLighting ? 16 : 0) |
+		(Desc.bAffectDynamicIndirectLighting ? 32 : 0);
+	uint32 Hash = HashCombineFast(GetTypeHash(PackedBools), GetTypeHash(Desc.NumCustomDataFloats));
+	Hash = HashCombineFast(Hash, GetTypeHash(Desc.StartCullDistance));
+	Hash = HashCombineFast(Hash, GetTypeHash(Desc.EndCullDistance));
+	Hash = HashCombineFast(Hash, GetTypeHash(Desc.MinLod));
+	Hash = HashCombineFast(Hash, GetTypeHash(Desc.LodScale));
+	return HashCombineFast(Hash, GetArrayHash(Desc.Tags.GetData(), Desc.Tags.Num()));
 }
 
 /**
@@ -186,16 +195,16 @@ struct FGeometryCollectionStaticMeshInstance
 FORCEINLINE uint32 GetTypeHash(const FGeometryCollectionStaticMeshInstance& MeshInstance)
 {
 	uint32 CombinedHash = GetTypeHash(MeshInstance.StaticMesh);
-	CombinedHash = HashCombine(CombinedHash, GetTypeHash(MeshInstance.MaterialsOverrides.Num()));
+	CombinedHash = HashCombineFast(CombinedHash, GetTypeHash(MeshInstance.MaterialsOverrides.Num()));
 	for (const UMaterialInterface* Material: MeshInstance.MaterialsOverrides)
 	{
-		CombinedHash = HashCombine(CombinedHash, GetTypeHash(Material));
+		CombinedHash = HashCombineFast(CombinedHash, GetTypeHash(Material));
 	}
 	for (const float CustomFloat : MeshInstance.CustomPrimitiveData)
 	{
-		CombinedHash = HashCombine(CombinedHash, GetTypeHash(CustomFloat));
+		CombinedHash = HashCombineFast(CombinedHash, GetTypeHash(CustomFloat));
 	}
-	CombinedHash = HashCombine(CombinedHash, GetTypeHash(MeshInstance.Desc));
+	CombinedHash = HashCombineFast(CombinedHash, GetTypeHash(MeshInstance.Desc));
 	return CombinedHash;
 }
 

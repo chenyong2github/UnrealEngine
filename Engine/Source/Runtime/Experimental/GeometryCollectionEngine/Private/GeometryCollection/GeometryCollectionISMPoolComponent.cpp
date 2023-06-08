@@ -90,7 +90,7 @@ FGeometryCollectionISM::FGeometryCollectionISM(AActor* InOwningActor, const FGeo
 	}
 	for (int32 DataIndex = 0; DataIndex < MeshInstance.CustomPrimitiveData.Num(); DataIndex++)
 	{
-		ISMC->SetCustomPrimitiveDataFloat(DataIndex, MeshInstance.CustomPrimitiveData[DataIndex]);
+		ISMC->SetDefaultCustomPrimitiveDataFloat(DataIndex, MeshInstance.CustomPrimitiveData[DataIndex]);
 	}
 
 	ISMC->SetRemoveSwap();
@@ -105,12 +105,13 @@ FGeometryCollectionISM::FGeometryCollectionISM(AActor* InOwningActor, const FGeo
 	ISMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	ISMC->bOverrideMinLOD = MeshInstance.Desc.MinLod > 0;	
 	ISMC->MinLOD = MeshInstance.Desc.MinLod;
-	
+	ISMC->ComponentTags.Append(MeshInstance.Desc.Tags);
+
 	if (HISMC)
 	{
 		HISMC->SetLODDistanceScale(MeshInstance.Desc.LodScale);
 	}
-	
+
 	InOwningActor->AddInstanceComponent(ISMC);
 	ISMC->RegisterComponent();
 	ISMComponent = ISMC;

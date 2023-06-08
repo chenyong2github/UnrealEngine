@@ -8,15 +8,15 @@
 class AGeometryCollectionISMPoolActor;
 
 /**
-* A subsystem managing ISMPool actors ( used by geometry collection now but repurposed for more general use )
-*/
+ * A subsystem managing ISMPool actors.
+ * Used by geometry collection now but repurposed for more general use.
+ */
 UCLASS()
 class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionISMPoolSubSystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
 public:
-
 	UGeometryCollectionISMPoolSubSystem();
 
 	// USubsystem BEGIN
@@ -24,11 +24,14 @@ public:
 	virtual void Deinitialize() override;
 	// USubsystem END
 
+	/** Finds or creates an actor. */
 	AGeometryCollectionISMPoolActor* FindISMPoolActor();
+	
+	/** Get all actors managed by the subsystem. */
+	void GetISMPoolActors(TArray<AGeometryCollectionISMPoolActor*>& OutActors) const;
 
 protected:
-
-	/** for now we only use one ISMPool actor per world, but we could extend the system to manage many more and return the right one based on  search criteria */
+	/** For now we only use one ISMPool actor per world, but we could extend the system to manage many more and return the right one based on search criteria. */
 	UPROPERTY(Transient)
 	TObjectPtr<AGeometryCollectionISMPoolActor> ISMPoolActor;
 };

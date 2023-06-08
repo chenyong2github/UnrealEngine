@@ -43,3 +43,11 @@ AGeometryCollectionISMPoolActor* UGeometryCollectionISMPoolSubSystem::FindISMPoo
 	}
 	return ISMPoolActor;
 }
+
+void UGeometryCollectionISMPoolSubSystem::GetISMPoolActors(TArray<AGeometryCollectionISMPoolActor*>& OutActors) const
+{
+	if (ISMPoolActor != nullptr)
+	{
+		OutActors.Add(ISMPoolActor);
+	}
+}
