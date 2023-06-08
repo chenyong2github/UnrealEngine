@@ -249,9 +249,6 @@ public:
 	FEditorCompileSettings EditorSettings;
 
 #endif
-
-	bool IsCompactSerializationEnabled() const;
-
 	bool IsSupport16BitBoneIndexEnabled() const;
 
 	bool IsProgressiveMipStreamingEnabled() const;

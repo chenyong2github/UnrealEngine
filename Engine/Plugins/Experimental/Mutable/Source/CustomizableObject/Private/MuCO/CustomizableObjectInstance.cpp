@@ -2456,9 +2456,9 @@ void UCustomizableObjectInstance::MultilayerProjectorUpdateVirtualLayer(const FN
 }
 
 
-void UCustomizableObjectInstance::SaveDescriptor(FArchive &Ar)
+void UCustomizableObjectInstance::SaveDescriptor(FArchive &Ar, bool bUseCompactDescriptor)
 {
-	Descriptor.SaveDescriptor(Ar);
+	Descriptor.SaveDescriptor(Ar, bUseCompactDescriptor);
 }
 
 

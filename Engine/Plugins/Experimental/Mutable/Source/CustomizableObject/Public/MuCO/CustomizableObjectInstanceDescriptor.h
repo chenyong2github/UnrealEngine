@@ -39,10 +39,20 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 	
 	explicit FCustomizableObjectInstanceDescriptor(UCustomizableObject& Object);
 
-	/** Serialize this object. Does not support Multilayer Projectors! */
-	void SaveDescriptor(FArchive &Ar);
+	/** Serialize this object. 
+	 *
+	 * Backwards compatibility is not guaranteed.
+ 	 * Multilayer Projectors not supported.
+	 *
+  	 * @param bUseCompactDescriptor If true it assumes the compiled objects are the same on both ends of the serialisation */
+	void SaveDescriptor(FArchive &Ar, bool bUseCompactDescriptor);
 
 	/** Deserialize this object. Does not support Multilayer Projectors! */
+
+	/** Deserialize this object.
+     *
+	 * Backwards compatibility is not guaranteed.
+	 * Multilayer Projectors not supported */
 	void LoadDescriptor(FArchive &Ar);
 
 	UCustomizableObject* GetCustomizableObject() const;

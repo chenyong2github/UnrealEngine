@@ -686,8 +686,6 @@ public:
 
 	int32 GetCountAllocatedSkeletalMesh() { return CountAllocatedSkeletalMesh; }
 
-	bool bCompactSerialization = true;
-
 	bool bReplaceDiscardedWithReferenceMesh = false;
 	bool bReleaseTexturesImmediately = false;
 

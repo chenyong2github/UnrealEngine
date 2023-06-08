@@ -380,11 +380,6 @@ void UCustomizableObjectSystem::InitSystem()
 	}
 #endif
 
-	if (FParse::Param(FCommandLine::Get(), TEXT("MutablePortableSerialization")))
-	{
-		Private->bCompactSerialization = false;
-	}
-
 	DefaultInstanceLODManagement = NewObject<UCustomizableInstanceLODManagement>();
 	check(DefaultInstanceLODManagement != nullptr);
 	CurrentInstanceLODManagement = DefaultInstanceLODManagement;
@@ -2851,13 +2846,6 @@ int32 UCustomizableObjectSystem::GetAverageBuildTime() const
 {
 	check(Private != nullptr);
 	return Private->TotalBuiltInstances == 0 ? 0 : Private->TotalBuildMs / Private->TotalBuiltInstances;
-}
-
-
-bool UCustomizableObjectSystem::IsCompactSerializationEnabled() const
-{
-	check(Private != nullptr);
-	return Private->bCompactSerialization;
 }
 
 

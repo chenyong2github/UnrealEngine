@@ -39,15 +39,9 @@ FCustomizableObjectInstanceDescriptor::FCustomizableObjectInstanceDescriptor(UCu
 }
 
 
-void FCustomizableObjectInstanceDescriptor::SaveDescriptor(FArchive& Ar)
+void FCustomizableObjectInstanceDescriptor::SaveDescriptor(FArchive& Ar, bool bUseCompactDescriptor)
 {
 	check(CustomizableObject);
-
-	// This is a non-portable but very compact descriptor if bUseCompactDescriptor is true. It assumes the compiled objects are the same
-	// on both ends of the serialisation. That's why we iterate the parameters in the actual compiled
-	// model, instead of the arrays in this class.
-
-	bool bUseCompactDescriptor = UCustomizableObjectSystem::GetInstance()->IsCompactSerializationEnabled();
 
 	Ar << bUseCompactDescriptor;
 
@@ -119,7 +113,7 @@ void FCustomizableObjectInstanceDescriptor::SaveDescriptor(FArchive& Ar)
 
 			int32 IntParameterIndex = FindIntParameterNameIndex(Name);
 			if (IntParameterIndex >= 0)
-				{					
+			{					
 				const FCustomizableObjectIntParameterValue & P = IntParameters[IntParameterIndex];
 					Value = CustomizableObject->FindIntParameterValue(ModelParameterIndex,P.ParameterValueName);
 
@@ -231,12 +225,7 @@ void FCustomizableObjectInstanceDescriptor::LoadDescriptor(FArchive& Ar)
 {
 	check(CustomizableObject);
 
-	// This is a non-portable but very compact descriptor if bUseCompactDescriptor is true. It assumes the compiled objects are the same
-	// on both ends of the serialisation. That's why we iterate the parameters in the actual compiled
-	// model, instead of the arrays in this class.
-
-	bool bUseCompactDescriptor = UCustomizableObjectSystem::GetInstance()->IsCompactSerializationEnabled();
-
+	bool bUseCompactDescriptor;
 	Ar << bUseCompactDescriptor;
 
 	// Not sure if this is needed, but it is small.
@@ -249,7 +238,7 @@ void FCustomizableObjectInstanceDescriptor::LoadDescriptor(FArchive& Ar)
 		Ar << ModelParameterCount;
 	}
 
-	for (int32 i = 0; i < ModelParameterCount; ++i)
+	for (int32 ParameterIndex = 0; ParameterIndex < ModelParameterCount; ++ParameterIndex)
 	{
 		FString Name;
 		EMutableParameterType Type;
@@ -257,7 +246,7 @@ void FCustomizableObjectInstanceDescriptor::LoadDescriptor(FArchive& Ar)
 
 		if (bUseCompactDescriptor)
 		{
-			ModelParameterIndex = i;
+			ModelParameterIndex = ParameterIndex;
 			Name = CustomizableObject->GetParameterName(ModelParameterIndex);
 			Type = CustomizableObject->GetParameterType(ModelParameterIndex);
 		}

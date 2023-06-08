@@ -1400,7 +1400,7 @@ FReply SCustomizableInstanceProperties::OnCopyAllParameters()
 
 	UE_LOG(LogMutable, Log, TEXT("Parameters have been copied."));
 
-	CustomInstance->SaveDescriptor(*ToBinary);
+	CustomInstance->SaveDescriptor(*ToBinary, true);
 
 	// FString StringifyedData = FString::FromHexBlob(ToBinary->GetData(), ToBinary->Num());
 	// FPlatformApplicationMisc::ClipboardCopy(StringifyedData.GetCharArray().GetData());

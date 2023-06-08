@@ -584,8 +584,10 @@ public:
 	bool AnimInstanceNeedsFixup(TSubclassOf<UAnimInstance> AnimInstance) const;
 	void AnimInstanceFixup(UAnimInstance* AnimInstance) const;
 
-	/** Serializes/Deserializes all the customization parameters to/from a descriptor, ready to be sent/read, works like a typical UE4 Two-Way Save System Function  */
-	void SaveDescriptor(FArchive &CustomizableObjectDescriptor);
+	/** See FCustomizableObjectInstanceDescriptor::SaveDescriptor. */
+	void SaveDescriptor(FArchive &CustomizableObjectDescriptor,bool bUseCompactDescriptor);
+
+	/** See FCustomizableObjectInstanceDescriptor::LoadDescriptor. */
 	void LoadDescriptor(FArchive &CustomizableObjectDescriptor);
 
 	// Enable physics asset replacement so that generated skeletal meshes have the merged physics assets of their skeletal mesh parts and reference mesh
