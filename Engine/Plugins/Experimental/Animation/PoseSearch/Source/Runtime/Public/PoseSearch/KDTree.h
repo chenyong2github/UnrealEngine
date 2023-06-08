@@ -82,7 +82,7 @@ struct POSESEARCH_API FKDTree
 			return Count == NumNeighbors;
 		}
 
-		inline bool addPoint(size_t dist, size_t index)
+		inline bool addPoint(float dist, size_t index)
 		{
 			if (Algo::BinarySearch(ExcludeFromSearchIndexes, index) != INDEX_NONE)
 			{
