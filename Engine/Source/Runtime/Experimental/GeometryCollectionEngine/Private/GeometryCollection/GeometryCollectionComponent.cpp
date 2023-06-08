@@ -3426,13 +3426,13 @@ void UGeometryCollectionComponent::LoadCollisionProfiles()
 			{
 				Data = CreateOrGetCollisionProfileData(CollisionProfilePerParticle[ParticleIndex]);
 			}
-			else if (AbandonedData && Level >= ReplicationAbandonAfterLevel + 1)
-			{
-				Data = AbandonedData;
-			}
 			else if (!CollisionProfilePerLevel.IsEmpty())
 			{
 				Data = CreateOrGetCollisionProfileData(CollisionProfilePerLevel[FMath::Min(CollisionProfilePerLevel.Num() - 1, Level)]);
+			}
+			else if (AbandonedData && Level >= ReplicationAbandonAfterLevel + 1)
+			{
+				Data = AbandonedData;
 			}
 
 			if (Data)
