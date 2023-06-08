@@ -35,6 +35,8 @@
 #include "ScopedTransaction.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "ChooserTableEditorCommands.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimInstance.h"
 #include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "ChooserEditor"

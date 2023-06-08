@@ -42,20 +42,22 @@ public:
 	*
 	* @param Context			(in) A struct reference to the chooser evaluation context
 	* @param ObjectChooser		(in) An Instanced struct containing an ObjectChooserBase implementation, such as EvaluateChooser, or EvaluateProxyAsset
-	* @param ObjectClass		(in) Expected type of result object
+	* @param ObjectClass		(in) Expected type of result object (or the type of UClass if bResultIsClass is true)
+	* @param bResultIsClass		(in) The Object being returned is a UClass, and the ObjectClass parameter indicates what it must be a subclass of
 	*/
 	UFUNCTION(BlueprintCallable, meta = (BlueprintThreadSafe, BlueprintInternalUseOnly = "true", DeterminesOutputType = "ObjectClass"))
-	static UObject* EvaluateObjectChooserBase(UPARAM(Ref) FChooserEvaluationContext& Context,UPARAM(Ref) const FInstancedStruct& ObjectChooser, TSubclassOf<UObject> ObjectClass);
+	static UObject* EvaluateObjectChooserBase(UPARAM(Ref) FChooserEvaluationContext& Context,UPARAM(Ref) const FInstancedStruct& ObjectChooser, TSubclassOf<UObject> ObjectClass, bool bResultIsClass = false);
 
 	/**
 	* Evaluate a chooser table and return all selected UObjects
 	*
 	* @param Context			(in) A struct reference to the chooser evaluation context
 	* @param ObjectChooser		(in) An Instanced struct containing an ObjectChooserBase implementation, such as EvaluateChooser, or EvaluateProxyAsset
-	* @param ObjectClass		(in) Expected type of result object
+	* @param ObjectClass		(in) Expected type of result object (or the type of UClass if bResultIsClass is true)
+	* @param bResultIsClass		(in) The Object being returned is a UClass, and the ObjectClass parameter indicates what it must be a subclass of
 	*/
 	UFUNCTION(BlueprintCallable, meta = (BlueprintThreadSafe, BlueprintInternalUseOnly = "true", DeterminesOutputType = "ObjectClass"))
-	static TArray<UObject*> EvaluateObjectChooserBaseMulti(UPARAM(Ref) FChooserEvaluationContext& Context,UPARAM(Ref) const FInstancedStruct& ObjectChooser, TSubclassOf<UObject> ObjectClass);
+	static TArray<UObject*> EvaluateObjectChooserBaseMulti(UPARAM(Ref) FChooserEvaluationContext& Context,UPARAM(Ref) const FInstancedStruct& ObjectChooser, TSubclassOf<UObject> ObjectClass, bool bResultIsClass = false);
 
 
 	/**

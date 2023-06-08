@@ -12,6 +12,7 @@
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FProxyTypeChanged, const UClass* OutputObjectType);
 
+
 UCLASS(MinimalAPI,BlueprintType)
 class UProxyAsset : public UObject, public IHasContextClass
 {
@@ -26,11 +27,14 @@ public:
 
 	// caching the type so that on Undo, we can tell if we should fire the changed delegate
 	UClass* CachedPreviousType = nullptr;
+	EObjectChooserResultType CachedPreviousResultType = EObjectChooserResultType::ObjectResult;
 #endif
 	
 
 	UPROPERTY(EditAnywhere, Category = "Proxy", Meta = (AllowAbstract=true))
 	TObjectPtr<UClass> Type;
+	UPROPERTY(EditAnywhere, Category = "Proxy")
+	EObjectChooserResultType ResultType = EObjectChooserResultType::ObjectResult;
 	
 	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ContextObjectTypeBase"), Category = "Input")
 	TArray<FInstancedStruct> ContextData;

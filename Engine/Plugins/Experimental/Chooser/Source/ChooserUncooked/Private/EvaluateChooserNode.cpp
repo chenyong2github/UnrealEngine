@@ -387,7 +387,7 @@ void UK2Node_EvaluateChooser2::AllocateDefaultPins()
 {
 	Super::AllocateDefaultPins();
 	
-	UClass* ChooserResultType = UObject::StaticClass();
+	UClass* ResultType = UObject::StaticClass();
 
 	if (!FindPin(UEdGraphSchema_K2::PN_Execute, EGPD_Input))
 	{
@@ -477,24 +477,26 @@ void UK2Node_EvaluateChooser2::AllocateDefaultPins()
 		}
 	}
 
+	bool bResultIsClass = false;
    	if (Chooser && Chooser->OutputObjectType)
    	{
-   		ChooserResultType = Chooser->OutputObjectType;
+   		ResultType = Chooser->OutputObjectType;
+   		bResultIsClass = Chooser->ResultType == EObjectChooserResultType::ClassResult;
    	}
 
-	static const FName ResultPinName = "Result";
-	if (UEdGraphPin* ResultPin = FindPin(ResultPinName, EGPD_Output))
+	if (UEdGraphPin* ResultPin = FindPin(TEXT("Result"), EGPD_Output))
 	{
-		ResultPin->PinType.PinSubCategoryObject = ChooserResultType;
+		ResultPin->PinType.PinCategory = bResultIsClass ? UEdGraphSchema_K2::PC_Class : UEdGraphSchema_K2::PC_Object;
+		ResultPin->PinType.PinSubCategoryObject = ResultType;
 		ResultPin->PinType.ContainerType = (Mode == EEvaluateChooserMode::AllResults) ? EPinContainerType::Array : EPinContainerType::None;
 	}
 	else
 	{
 		UEdGraphNode::FCreatePinParams PinParams;
 		PinParams.ContainerType = (Mode == EEvaluateChooserMode::AllResults) ? EPinContainerType::Array : EPinContainerType::None;
-		PinParams.ValueTerminalType.TerminalCategory = UEdGraphSchema_K2::PC_Object;
+		PinParams.ValueTerminalType.TerminalCategory =  bResultIsClass ? UEdGraphSchema_K2::PC_Class : UEdGraphSchema_K2::PC_Object;
 				
-		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Object, ChooserResultType, TEXT("Result"), PinParams);
+		CreatePin(EGPD_Output, PinParams.ValueTerminalType.TerminalCategory, ResultType, TEXT("Result"), PinParams);
 	}
 }
 
@@ -748,11 +750,23 @@ void UK2Node_EvaluateChooser2::ExpandNode(class FKismetCompilerContext& Compiler
 
 		UEdGraphPin* OutputPin = CallFunction->GetReturnValuePin();
 
-		if (Chooser && Chooser->OutputObjectType)
+		if (Chooser) 
 		{
-			UEdGraphPin* OutputClassPin = CallFunction->FindPin(TEXT("ObjectClass"));
-			CallFunction->GetSchema()->TrySetDefaultObject(*OutputClassPin, Chooser->OutputObjectType);
+			if (Chooser->OutputObjectType)
+			{
+				if (UEdGraphPin* OutputClassPin = CallFunction->FindPin(TEXT("ObjectClass")))
+				{
+					CallFunction->GetSchema()->TrySetDefaultObject(*OutputClassPin, Chooser->OutputObjectType);
+				}
+			}
+
+			if (UEdGraphPin* ResultIsClassPin = CallFunction->FindPin(TEXT("bResultIsClass")))
+			{
+				CallFunction->GetSchema()->TrySetDefaultValue(*ResultIsClassPin, Chooser->ResultType == EObjectChooserResultType::ClassResult ? TEXT("true") : TEXT("false"));
+			}
 		}
+
+		
 
 		CompilerContext.MovePinLinksToIntermediate(*ResultPin, *OutputPin);
 	}

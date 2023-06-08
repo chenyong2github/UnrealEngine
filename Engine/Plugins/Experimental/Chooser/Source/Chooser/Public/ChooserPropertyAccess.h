@@ -21,6 +21,14 @@ class UHasContextClass : public UInterface
 
 DECLARE_MULTICAST_DELEGATE(FContextClassChanged)
 
+
+UENUM()
+enum class EObjectChooserResultType
+{
+	ObjectResult,
+	ClassResult,
+};
+
 class IHasContextClass
 {
 	GENERATED_BODY()
@@ -38,7 +46,7 @@ struct FChooserPropertyBinding
 	TArray<FName> PropertyBindingChain;
 	
 	UPROPERTY()
-	int ContextIndex = 0;
+	int ContextIndex;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -94,7 +102,7 @@ struct FContextObjectTypeBase
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere, Category="Type")
-	EContextObjectDirection Direction = EContextObjectDirection::Read;
+	EContextObjectDirection Direction;
 };
 
 

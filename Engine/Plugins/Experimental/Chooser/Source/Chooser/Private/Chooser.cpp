@@ -16,10 +16,11 @@ void UChooserTable::PostEditUndo()
 {
 	UObject::PostEditUndo();
 
-	if (CachedPreviousOutputObjectType != OutputObjectType)
+	if (CachedPreviousOutputObjectType != OutputObjectType || CachedPreviousResultType != ResultType)
 	{
 		OnOutputObjectTypeChanged.Broadcast(OutputObjectType);
 		CachedPreviousOutputObjectType = OutputObjectType;
+		CachedPreviousResultType = ResultType;
 	}
 	OnContextClassChanged.Broadcast();
 }
@@ -29,12 +30,21 @@ void UChooserTable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	UObject::PostEditChangeProperty(PropertyChangedEvent);
 	
 	static FName OutputObjectTypeName = "OutputObjectType";
+	static FName ResultTypeName = "ResultType";
 	if (PropertyChangedEvent.Property->GetName() == OutputObjectTypeName)
 	{
 		if (CachedPreviousOutputObjectType != OutputObjectType)
 		{
 			OnOutputObjectTypeChanged.Broadcast(OutputObjectType);
 			CachedPreviousOutputObjectType = OutputObjectType;
+		}
+	}
+	else if (PropertyChangedEvent.Property->GetName() == ResultTypeName)
+	{
+		if (CachedPreviousResultType != ResultType)
+		{
+			OnOutputObjectTypeChanged.Broadcast(OutputObjectType);
+			CachedPreviousResultType = ResultType;
 		}
 	}
 	else
@@ -48,6 +58,7 @@ void UChooserTable::PostLoad()
 	Super::PostLoad();
 
 	CachedPreviousOutputObjectType = OutputObjectType;
+	CachedPreviousResultType = ResultType;
 
 	// convert old data if it exists
 

@@ -492,7 +492,7 @@ public:
 						ChooserEditor::FObjectChooserWidgetFactories::CreateWidget(false, Row->ProxyTable, FObjectChooserBase::StaticStruct(),
 								Row->ProxyTable->Entries[Row->RowIndex].ValueStruct.GetMutableMemory(),
 								Row->ProxyTable->Entries[Row->RowIndex].ValueStruct.GetScriptStruct(),
-								Row->ProxyTable->Entries[Row->RowIndex].Proxy->Type,
+								Row->ProxyTable->Entries[Row->RowIndex].Proxy ? Row->ProxyTable->Entries[Row->RowIndex].Proxy->Type.Get() : UObject::StaticClass(),
 								FOnStructPicked(), &CacheBorder);
 					}),
 					&CacheBorder

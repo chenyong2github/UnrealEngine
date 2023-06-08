@@ -118,18 +118,36 @@ DEFINE_FUNCTION(UChooserFunctionLibrary::execGetChooserStructOutput)
 	}
 }
 
-UObject* UChooserFunctionLibrary::EvaluateObjectChooserBase(FChooserEvaluationContext& Context, const FInstancedStruct& ObjectChooser, TSubclassOf<UObject> ObjectClass)
+UObject* UChooserFunctionLibrary::EvaluateObjectChooserBase(FChooserEvaluationContext& Context, const FInstancedStruct& ObjectChooser, TSubclassOf<UObject> ObjectClass, bool bResultIsClass)
  {
  	UObject* Result = nullptr;
 
 	if (const FObjectChooserBase* ObjectChooserPtr = ObjectChooser.GetPtr<FObjectChooserBase>())
 	{
-		ObjectChooserPtr->ChooseMulti(Context, FObjectChooserBase::FObjectChooserIteratorCallback::CreateLambda([&Result, ObjectClass](UObject* InResult)
+		ObjectChooserPtr->ChooseMulti(Context, FObjectChooserBase::FObjectChooserIteratorCallback::CreateLambda([&Result, bResultIsClass, ObjectClass](UObject* InResult)
 		{
-			if (InResult && (ObjectClass == nullptr || InResult->IsA(ObjectClass)))
+			if (InResult)
 			{
-				Result = InResult;
-				return FObjectChooserBase::EIteratorStatus::Stop;
+				bool bTypesMatch = true;
+
+				if (ObjectClass && InResult)
+				{
+					if (bResultIsClass)
+					{
+						UClass* ResultClass =  Cast<UClass>(InResult);
+						bTypesMatch = ResultClass && ResultClass->IsChildOf(ObjectClass);
+					}
+					else
+					{
+						bTypesMatch = InResult->IsA(ObjectClass);
+					}
+				}
+
+				if (bTypesMatch)
+				{
+					Result = InResult;
+					return FObjectChooserBase::EIteratorStatus::Stop;
+				}
 			}
 			return FObjectChooserBase::EIteratorStatus::Continue;
 		}));
@@ -139,15 +157,30 @@ UObject* UChooserFunctionLibrary::EvaluateObjectChooserBase(FChooserEvaluationCo
  }
 
 
-TArray<UObject*> UChooserFunctionLibrary::EvaluateObjectChooserBaseMulti(FChooserEvaluationContext& Context, const FInstancedStruct& ObjectChooser, TSubclassOf<UObject> ObjectClass)
+TArray<UObject*> UChooserFunctionLibrary::EvaluateObjectChooserBaseMulti(FChooserEvaluationContext& Context, const FInstancedStruct& ObjectChooser, TSubclassOf<UObject> ObjectClass, bool bResultIsClass)
 {
  	TArray<UObject*> Result;
 
 	if (const FObjectChooserBase* ObjectChooserPtr = ObjectChooser.GetPtr<FObjectChooserBase>())
 	{
-		ObjectChooserPtr->ChooseMulti(Context, FObjectChooserBase::FObjectChooserIteratorCallback::CreateLambda([&Result, ObjectClass](UObject* InResult)
+		ObjectChooserPtr->ChooseMulti(Context, FObjectChooserBase::FObjectChooserIteratorCallback::CreateLambda([&Result, bResultIsClass, ObjectClass](UObject* InResult)
 		{
-			if (InResult && (ObjectClass == nullptr || InResult->IsA(ObjectClass)))
+			bool bTypesMatch = true;
+            
+			if (ObjectClass && InResult)
+			{
+				if (bResultIsClass)
+				{
+					UClass* ResultClass =  Cast<UClass>(InResult);
+					bTypesMatch = ResultClass && ResultClass->IsChildOf(ObjectClass);
+				}
+				else
+				{
+					bTypesMatch = InResult->IsA(ObjectClass);
+				}
+			}
+            
+			if (bTypesMatch)
 			{
 				Result.Add(InResult);
 			}

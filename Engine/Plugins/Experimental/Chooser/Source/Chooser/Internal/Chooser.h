@@ -39,7 +39,8 @@ public:
 
 private: 
 	// caching the OutputObjectType and ContextObjectType so that on Undo, we can tell if we should fire the changed delegate
-	UClass* CachedPreviousOutputObjectType;
+	UClass* CachedPreviousOutputObjectType = nullptr;
+	EObjectChooserResultType CachedPreviousResultType = EObjectChooserResultType::ObjectResult;
 	
 	// objects this chooser has been recently evaluated on
 	mutable TSet<TWeakObjectPtr<const UObject>> RecentContextObjects;
@@ -78,6 +79,8 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="Output", Meta = (AllowAbstract=true))
 	TObjectPtr<UClass> OutputObjectType;
+	UPROPERTY(EditAnywhere, Category="Output")
+	EObjectChooserResultType ResultType = EObjectChooserResultType::ObjectResult;
 
 	virtual TConstArrayView<FInstancedStruct> GetContextData() const override { return ContextData; }
 	

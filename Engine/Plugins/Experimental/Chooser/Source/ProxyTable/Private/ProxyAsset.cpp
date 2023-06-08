@@ -11,10 +11,11 @@ void UProxyAsset::PostEditUndo()
 {
 	UObject::PostEditUndo();
 
-	if (CachedPreviousType != Type)
+	if (CachedPreviousType != Type || CachedPreviousResultType != ResultType)
 	{
 		OnTypeChanged.Broadcast(Type);
 		CachedPreviousType = Type;
+		CachedPreviousResultType = ResultType;
 	}
 	
 	OnContextClassChanged.Broadcast();
@@ -25,7 +26,7 @@ void UProxyAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	UObject::PostEditChangeProperty(PropertyChangedEvent);
 	
 	static FName TypeName = "Type";
-	static FName ContextClassName = "ContextData";
+	static FName ResultTypeName = "ResultType";
 	if (PropertyChangedEvent.Property->GetName() == TypeName)
 	{
 		if (CachedPreviousType != Type)
@@ -33,6 +34,14 @@ void UProxyAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 			OnTypeChanged.Broadcast(Type);
 		}
 		CachedPreviousType = Type;
+	}
+	else if (PropertyChangedEvent.Property->GetName() == ResultTypeName)
+	{
+		if (CachedPreviousResultType != ResultType)
+		{
+			OnTypeChanged.Broadcast(Type);
+			CachedPreviousResultType = ResultType;
+		}
 	}
 	else
 	{
@@ -53,6 +62,7 @@ void UProxyAsset::PostLoad()
 
 #if WITH_EDITOR
 	CachedPreviousType = Type;
+	CachedPreviousResultType = ResultType;
 #endif
 	
 	if (ContextClass_DEPRECATED)

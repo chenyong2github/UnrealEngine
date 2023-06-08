@@ -460,9 +460,11 @@ void UK2Node_EvaluateProxy2::AllocateDefaultPins()
 		}
 	}
 
+	bool bResultIsClass = false;
    	if (Proxy && Proxy->Type)
    	{
    		ResultType = Proxy->Type;
+   		bResultIsClass = Proxy->ResultType == EObjectChooserResultType::ClassResult;
    	}
 	
 	static const FName ProxyTablePinName = "ProxyTable";
@@ -471,9 +473,9 @@ void UK2Node_EvaluateProxy2::AllocateDefaultPins()
 		CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UProxyTable::StaticClass(), ProxyTablePinName);
 	}
 
-	static const FName ResultPinName = "Result";
-	if (UEdGraphPin* ResultPin = FindPin(ResultPinName, EGPD_Output))
+	if (UEdGraphPin* ResultPin = FindPin(TEXT("Result"), EGPD_Output))
 	{
+		ResultPin->PinType.PinCategory = bResultIsClass ? UEdGraphSchema_K2::PC_Class : UEdGraphSchema_K2::PC_Object;
 		ResultPin->PinType.PinSubCategoryObject = ResultType;
 		ResultPin->PinType.ContainerType = (Mode == EEvaluateProxyMode::AllResults) ? EPinContainerType::Array : EPinContainerType::None;
 	}
@@ -481,9 +483,9 @@ void UK2Node_EvaluateProxy2::AllocateDefaultPins()
 	{
 		UEdGraphNode::FCreatePinParams PinParams;
 		PinParams.ContainerType = (Mode == EEvaluateProxyMode::AllResults) ? EPinContainerType::Array : EPinContainerType::None;
-		PinParams.ValueTerminalType.TerminalCategory = UEdGraphSchema_K2::PC_Object;
+		PinParams.ValueTerminalType.TerminalCategory =  bResultIsClass ? UEdGraphSchema_K2::PC_Class : UEdGraphSchema_K2::PC_Object;
 				
-		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Object, ResultType, TEXT("Result"), PinParams);
+		CreatePin(EGPD_Output, PinParams.ValueTerminalType.TerminalCategory, ResultType, TEXT("Result"), PinParams);
 	}
 }
 
@@ -634,10 +636,10 @@ void UK2Node_EvaluateProxy2::ExpandNode(class FKismetCompilerContext& CompilerCo
 									CompilerContext.MovePinLinksToIntermediate(*Pin, *AddObjectPin);
 								}
 								else // would be nice to check that self is the same type as this Object parameter
-									{
+								{
 									// auto connect self node to any disconnected object pin
 									SelfPin->MakeLinkTo(AddObjectPin);
-									}
+								}
 							}
 						}
 					}
@@ -751,10 +753,20 @@ void UK2Node_EvaluateProxy2::ExpandNode(class FKismetCompilerContext& CompilerCo
 
 		UEdGraphPin* OutputPin = CallFunction->GetReturnValuePin();
 
-		if (Proxy && Proxy->Type)
+		if (Proxy) 
 		{
-			UEdGraphPin* OutputClassPin = CallFunction->FindPin(TEXT("ObjectClass"));
-			CallFunction->GetSchema()->TrySetDefaultObject(*OutputClassPin, Proxy->Type);
+			if (Proxy->Type)
+			{
+				if (UEdGraphPin* OutputClassPin = CallFunction->FindPin(TEXT("ObjectClass")))
+				{
+					CallFunction->GetSchema()->TrySetDefaultObject(*OutputClassPin, Proxy->Type);
+				}
+			}
+
+			if (UEdGraphPin* ResultIsClassPin = CallFunction->FindPin(TEXT("bResultIsClass")))
+			{
+				CallFunction->GetSchema()->TrySetDefaultValue(*ResultIsClassPin, Proxy->ResultType == EObjectChooserResultType::ClassResult ? TEXT("true") : TEXT("false"));
+			}
 		}
 
 		CompilerContext.MovePinLinksToIntermediate(*ResultPin, *OutputPin);
