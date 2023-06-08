@@ -143,6 +143,8 @@ namespace Horde.Server.Tests
 			options.Arguments.Add($"{IJob.TargetArgumentPrefix}CompileEditor");
 
 			IJob succeededJob = await CreateJob(10, graph, JobStepOutcome.Success, options);
+			// create an interim job at the same change as the one that will be bisected
+			await CreateJob(20, graph, JobStepOutcome.Failure, options);
 			IJob failedJob = await CreateJob(20, graph, JobStepOutcome.Failure, options);
 
 			return (failedJob, graph);

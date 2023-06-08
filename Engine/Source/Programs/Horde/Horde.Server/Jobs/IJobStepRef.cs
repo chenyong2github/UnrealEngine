@@ -17,7 +17,7 @@ namespace Horde.Server.Jobs
 	/// Unique id struct for JobStepRef objects. Includes a job id, batch id, and step id to uniquely identify the step.
 	/// </summary>
 	[BsonSerializer(typeof(JobStepRefIdSerializer))]
-	public struct JobStepRefId
+	public struct JobStepRefId : IComparable<JobStepRefId>
 	{
 		/// <summary>
 		/// The job id
@@ -71,6 +71,24 @@ namespace Horde.Server.Jobs
 		public bool Equals(JobStepRefId other)
 		{
 			return JobId.Equals(other.JobId) && BatchId.Equals(other.BatchId) && StepId.Equals(other.StepId);
+		}
+
+		/// <inheritdoc/>
+		public int CompareTo(JobStepRefId other)
+		{
+			int result = JobId.Id.CompareTo(other.JobId.Id);
+			if (result != 0)
+			{
+				return result;
+			}
+
+			result = BatchId.Value.CompareTo(other.BatchId.Value);
+			if (result != 0)
+			{
+				return result;
+			}
+
+			return StepId.Value.CompareTo(other.StepId.Value);
 		}
 	}
 
