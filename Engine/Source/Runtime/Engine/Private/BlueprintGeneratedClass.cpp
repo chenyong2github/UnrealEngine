@@ -600,7 +600,7 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 #if WITH_EDITOR
 		if (!GetPackage()->HasAnyPackageFlags(PKG_Cooked))
 		{
-			PrepareToConformSparseClassData();
+			PrepareToConformSparseClassData(GetSparseClassDataArchetypeStruct());
 			if(ClassDefaultObject)
 			{
 				// conform immediately, so that child types can correct delta serialize their
@@ -649,14 +649,12 @@ void UBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
 }
 
 #if WITH_EDITOR
-void UBlueprintGeneratedClass::PrepareToConformSparseClassData()
+void UBlueprintGeneratedClass::PrepareToConformSparseClassData(UScriptStruct* SparseClassDataArchetypeStruct)
 {
 	checkf(SparseClassDataPendingConformStruct.IsExplicitlyNull() && SparseClassDataPendingConform == nullptr, TEXT("PrepareToConformSparseClassData was called while data was already pending conform!"));
 
 	if (SparseClassDataStruct)
 	{
-		UScriptStruct* SparseClassDataArchetypeStruct = GetSparseClassDataArchetypeStruct();
-
 		if (SparseClassDataStruct != SparseClassDataArchetypeStruct)
 		{
 			if (SparseClassDataArchetypeStruct)

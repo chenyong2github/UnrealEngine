@@ -631,7 +631,7 @@ public:
 	static FName GetMutablesStructName();
 	
 #if WITH_EDITOR
-	virtual void PrepareToConformSparseClassData() override;
+	virtual void PrepareToConformSparseClassData(UScriptStruct* SparseClassDataArchetypeStruct) override;
 	virtual void ConformSparseClassData(UObject* Object) override;
 #endif
 

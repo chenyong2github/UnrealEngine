@@ -617,7 +617,7 @@ uint8* UAnimBlueprintGeneratedClass::GetPersistentUberGraphFrame(UObject* Obj, U
 }
 
 #if WITH_EDITOR
-void UAnimBlueprintGeneratedClass::PrepareToConformSparseClassData()
+void UAnimBlueprintGeneratedClass::PrepareToConformSparseClassData(UScriptStruct* SparseClassDataArchetypeStruct)
 {
 	// ABPGC sparse data is generated on compile, so there is nothing to conform
 }

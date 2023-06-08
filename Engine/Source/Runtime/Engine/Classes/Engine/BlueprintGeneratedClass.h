@@ -764,7 +764,7 @@ public:
 	 * Called during serialization to allow the class to stash any sparse class data that needs to 
 	 * be conformed against the archetype once the CDO is available.
 	 */
-	virtual void PrepareToConformSparseClassData();
+	virtual void PrepareToConformSparseClassData(UScriptStruct* SparseClassDataArchetypeStruct);
 
 	/**
 	 * Called to conform any pending sparse class data stashed by PrepareToConformSparseClassData.

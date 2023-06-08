@@ -3482,6 +3482,13 @@ void FBlueprintEditor::ReparentBlueprint_NewParentChosen(UClass* ChosenClass)
 			FBlueprintEditorUtils::RefreshAllNodes(GetBlueprintObj());
 			FBlueprintEditorUtils::MarkBlueprintAsModified(BlueprintObj);
 
+			// Changing the parent may change the sparse data used, so mark any current 
+			// sparse data as requiring a conform post-compile against the new archetype
+			if (UBlueprintGeneratedClass* Class = Cast<UBlueprintGeneratedClass>(BlueprintObj->GeneratedClass))
+			{
+				Class->PrepareToConformSparseClassData(ChosenClass->GetSparseClassDataStruct());
+			}
+
 			Compile();
 
 			// Ensure that the Blueprint is up-to-date (valid SCS etc.) after compiling (new parent class)
