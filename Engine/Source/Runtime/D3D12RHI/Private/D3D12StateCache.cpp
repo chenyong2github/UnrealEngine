@@ -1127,6 +1127,10 @@ void FD3D12StateCache::SetUAV(EShaderFrequency ShaderStage, uint32 SlotIndex, FD
 	SCOPE_CYCLE_COUNTER(STAT_D3D12SetUnorderedAccessViewTime);
 
 	FD3D12UnorderedAccessViewCache& Cache = PipelineState.Common.UAVCache;
+	if (Cache.Views[ShaderStage][SlotIndex] == UAV)
+	{
+		return;
+	}
 
 	// When setting UAV's for Graphics, it wipes out all existing bound resources.
 	const bool bIsCompute = ShaderStage == SF_Compute;
