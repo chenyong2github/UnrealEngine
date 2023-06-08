@@ -37,8 +37,8 @@ public class D3D12RHI : ModuleRules
 			PublicDefinitions.Add("D3D12RHI_PLATFORM_HAS_CUSTOM_INTERFACE=0");
 
 			if (Target.WindowsPlatform.bPixProfilingEnabled &&
-				Target.Configuration != UnrealTargetConfiguration.Shipping &&
-				Target.Configuration != UnrealTargetConfiguration.Test)
+				(Target.Configuration != UnrealTargetConfiguration.Shipping || Target.bAllowProfileGPUInShipping) &&
+				(Target.Configuration != UnrealTargetConfiguration.Test || Target.bAllowProfileGPUInTest))
 			{
 				PublicDefinitions.Add("PROFILE");
 				PublicDependencyModuleNames.Add("WinPixEventRuntime");

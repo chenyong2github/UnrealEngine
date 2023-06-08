@@ -1270,6 +1270,18 @@ namespace UnrealBuildTool
 		public bool bUseChecksInShipping = false;
 
 		/// <summary>
+		/// Whether to turn on GPU markers for Test builds.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bAllowProfileGPUInTest = false;
+
+		/// <summary>
+		/// Whether to turn on GPU markers for Shipping builds.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bAllowProfileGPUInShipping = false;
+
+		/// <summary>
 		/// Whether to turn on UTF-8 mode, mapping TCHAR to UTF8CHAR.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2994,6 +3006,10 @@ namespace UnrealBuildTool
 		public bool bUseLauncherChecks => Inner.bUseLauncherChecks;
 
 		public bool bUseChecksInShipping => Inner.bUseChecksInShipping;
+
+		public bool bAllowProfileGPUInTest => Inner.bAllowProfileGPUInTest;
+
+		public bool bAllowProfileGPUInShipping => Inner.bAllowProfileGPUInShipping;
 
 		public bool bTCHARIsUTF8 => Inner.bTCHARIsUTF8;
 

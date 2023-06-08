@@ -4781,6 +4781,24 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("USE_LOGGING_IN_SHIPPING=0");
 			}
 
+			if (Rules.bAllowProfileGPUInTest)
+			{
+				GlobalCompileEnvironment.Definitions.Add("ALLOW_PROFILEGPU_IN_TEST=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("ALLOW_PROFILEGPU_IN_TEST=0");
+			}
+
+			if (Rules.bAllowProfileGPUInShipping)
+			{
+				GlobalCompileEnvironment.Definitions.Add("ALLOW_PROFILEGPU_IN_SHIPPING=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("ALLOW_PROFILEGPU_IN_SHIPPING=0");
+			}
+
 			if (Rules.bLoggingToMemoryEnabled)
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_LOGGING_TO_MEMORY=1");
