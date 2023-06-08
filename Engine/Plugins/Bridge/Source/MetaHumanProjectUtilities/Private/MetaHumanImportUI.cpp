@@ -3,6 +3,7 @@
 #include "MetaHumanImportUI.h"
 #include "MetaHumanTypes.h"
 #include "MetaHumanVersionService.h"
+#include "Editor.h"
 #include "SPrimaryButton.h"
 #include "Widgets/Layout/SExpandableArea.h"
 
@@ -337,7 +338,7 @@ namespace UE::MetaHumanImportUI::Private
 			const FText Message = LOCTEXT("BulkImportWarningBody", "Batch updating all MetaHumans in your project will take some time, and will also overwrite any local files that you have changed.\n\n"
 				"Clicking OK will import the current MetaHuman and then select and download the remaining MetaHumans. Once the download has completed, add the selected MetaHumans to your project by clicking the \"Add\" Button. Please do not close Bridge until this process has completed.");
 
-			const EAppReturnType::Type UpdateAssetsDialog = FMessageDialog::Open(EAppMsgType::OkCancel, Message, &Title);
+			const EAppReturnType::Type UpdateAssetsDialog = FMessageDialog::Open(EAppMsgType::OkCancel, Message, Title);
 			bShouldContinue = UpdateAssetsDialog == EAppReturnType::Ok;
 			ParentWindow->RequestDestroyWindow();
 			return FReply::Handled();
@@ -604,7 +605,7 @@ namespace UE::MetaHumanImportUI::Private
 			const FText Title = LOCTEXT("ImportWarningTitle", "Proceed with import?");
 			const FText Message = LOCTEXT("ImportWarningBody", "Importing this MetaHuman will overwrite the common assets listed in the Asset overwrite details rollout. \n\n Any local changes you have made to these assets will be lost.");
 
-			const EAppReturnType::Type UpdateAssetsDialog = FMessageDialog::Open(EAppMsgType::OkCancel, Message, &Title);
+			const EAppReturnType::Type UpdateAssetsDialog = FMessageDialog::Open(EAppMsgType::OkCancel, Message, Title);
 			bShouldContinue = UpdateAssetsDialog == EAppReturnType::Ok;
 			ParentWindow->RequestDestroyWindow();
 			return FReply::Handled();
