@@ -10,6 +10,7 @@
 #include "Engine/World.h"
 #include "UObject/ICookInfo.h"
 #include "UObject/SoftObjectPath.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceComponent)
 
