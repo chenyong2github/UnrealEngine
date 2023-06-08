@@ -62,12 +62,12 @@ namespace UE::DerivedData
 {
 
 ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerBackend, IMemoryCacheStore* MemoryCache);
-ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, IMemoryCacheStore* MemoryCache);
+ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, TFunctionRef<void (IMemoryCacheStore*&)> MemoryCacheCreator);
 ILegacyCacheStore* CreateCacheStoreThrottle(ILegacyCacheStore* InnerCache, uint32 LatencyMS, uint32 MaxBytesPerSecond);
 ILegacyCacheStore* CreateCacheStoreVerify(ILegacyCacheStore* InnerCache, bool bPutOnError);
 ILegacyCacheStore* CreateFileSystemCacheStore(const TCHAR* Name, const TCHAR* Config, ICacheStoreOwner& Owner, FString& OutPath);
 TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateHttpCacheStore(const TCHAR* NodeName, const TCHAR* Config);
-IMemoryCacheStore* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
+void CreateMemoryCacheStore(IMemoryCacheStore*& OutCache, const TCHAR* Name, ICacheStoreOwner* Owner, int64 MaxCacheSize, bool bCanBeDisabled);
 IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Filename, bool bWriting, bool bCompressed);
 ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath);
 TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config);
@@ -146,14 +146,14 @@ public:
 
 			if (!GraphName.IsEmpty() && GraphName != TEXT("Default"))
 			{
-				RootNode = CreateCacheStoreHierarchy(Hierarchy, GetMemoryCache());
-				CreatedNodes.AddUnique(RootNode);
+				RootNode = CreateCacheStoreHierarchy(Hierarchy, [this](IMemoryCacheStore*& OutCache) { GetMemoryCache(OutCache); });
 
 				if (!ParseNode(RootName, GEngineIni, *GraphName, ParsedNodes))
 				{
 					// Destroy any cache stores that have been created.
+					delete RootNode;
+					RootNode = nullptr;
 					ParsedNodes.Empty();
-					DestroyCreatedBackends();
 					MemoryCache = nullptr;
 					BootCache = nullptr;
 					WritePakCache = nullptr;
@@ -174,8 +174,7 @@ public:
 			{
 				// Try to use the default graph.
 				GraphName = FApp::IsEngineInstalled() ? TEXT("InstalledDerivedDataBackendGraph") : TEXT("DerivedDataBackendGraph");
-				RootNode = CreateCacheStoreHierarchy(Hierarchy, GetMemoryCache());
-				CreatedNodes.AddUnique(RootNode);
+				RootNode = CreateCacheStoreHierarchy(Hierarchy, [this](IMemoryCacheStore*& OutCache) { GetMemoryCache(OutCache); });
 
 				if (!ParseNode(RootName, GEngineIni, *GraphName, ParsedNodes))
 				{
@@ -203,10 +202,7 @@ public:
 		}
 
 		// Async must exist in the graph.
-		{
-			RootNode = CreateCacheStoreAsync(RootNode, GetMemoryCache());
-			CreatedNodes.AddUnique(RootNode);
-		}
+		RootNode = CreateCacheStoreAsync(RootNode, MemoryCache);
 
 		// Create a Verify node when using -DDC-Verify[=Type1[@Rate2][+Type2[@Rate2]...]].
 		if (bVerifyFound)
@@ -217,7 +213,6 @@ public:
 			{
 				IFileManager::Get().DeleteDirectory(*(FPaths::ProjectSavedDir() / TEXT("VerifyDDC/")), /*bRequireExists*/ false, /*bTree*/ true);
 				RootNode = CreateCacheStoreVerify(RootNode, /*bPutOnError*/ bVerifyFix);
-				CreatedNodes.AddUnique(RootNode);
 			}
 		}
 
@@ -225,7 +220,6 @@ public:
 		if (ILegacyCacheStore* ReplayNode = TryCreateCacheStoreReplay(RootNode))
 		{
 			RootNode = ReplayNode;
-			CreatedNodes.AddUnique(ReplayNode);
 		}
 
 		if (MaxKeyLength == 0)
@@ -660,7 +654,7 @@ public:
 		MaxCacheSize = FMath::Min(MaxCacheSize, MaxSupportedCacheSize);
 
 		UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Max Cache Size: %d MB"), NodeName, MaxCacheSize);
-		BootCache = CreateMemoryCacheStore(TEXT("Boot"), MaxCacheSize * 1024 * 1024, /*bCanBeDisabled*/ true);
+		CreateMemoryCacheStore(BootCache, TEXT("Boot"), this, MaxCacheSize * 1024 * 1024, /*bCanBeDisabled*/ true);
 #endif
 
 		if (BootCache)
@@ -683,35 +677,35 @@ public:
 	{
 		FString Filename;
 		FParse::Value(Entry, TEXT("Filename="), Filename);
-		IMemoryCacheStore* Cache = CreateMemoryCacheStore(NodeName, /*MaxCacheSize*/ -1, /*bCanBeDisabled*/ false);
-		if (Cache && Filename.Len())
+		IMemoryCacheStore* Cache;
+		CreateMemoryCacheStore(Cache, NodeName, this, /*MaxCacheSize*/ -1, /*bCanBeDisabled*/ false);
+		check(Cache);
+		if (Filename.Len())
 		{
 			UE_LOG(LogDerivedDataCache, Display, TEXT("Memory nodes that load from a file are deprecated. Please remove the filename from the cache configuration."));
 		}
-		if (Cache)
-		{
-			Add(Cache, ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store);
-			return true;
-		}
-		return false;
+		return true;
 	}
 
-	IMemoryCacheStore* GetMemoryCache()
+	void GetMemoryCache(IMemoryCacheStore*& OutCache)
 	{
-		if (!MemoryCache)
+		if (MemoryCache)
 		{
-			MemoryCache = CreateMemoryCacheStore(TEXT("Memory"), 0, /*bCanBeDisabled*/ false);
-			CreatedNodes.Add(MemoryCache);
+			OutCache = MemoryCache;
 		}
-		return MemoryCache;
+		else
+		{
+			// This is unconditionally added to the hierarchy and will be deleted by the hierarchy.
+			CreateMemoryCacheStore(OutCache, TEXT("Memory"), this, 0, /*bCanBeDisabled*/ false);
+			MemoryCache = OutCache;
+		}
 	}
 
 	virtual ~FDerivedDataBackendGraph()
 	{
 		check(StaticGraph == this);
 		Replays.Empty();
-		RootCache = nullptr;
-		DestroyCreatedBackends();
+		delete RootCache;
 		StaticGraph = nullptr;
 	}
 
@@ -860,7 +854,6 @@ public:
 			ReadPak = CreatePakFileCacheStore(PakFilename, /*bWriting*/ false, /*bCompressed*/ false);
 
 			Hierarchy->Add(ReadPak, ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::StopStore);
-			CreatedNodes.AddUnique(ReadPak);
 			ReadPakCache.Add(ReadPak);
 		}
 		else
@@ -885,7 +878,6 @@ public:
 
 				Hierarchy->RemoveNotSafe(ReadPak);
 				ReadPakCache.RemoveAt(PakIndex);
-				CreatedNodes.Remove(ReadPak);
 				ReadPak->Close();
 				delete ReadPak;
 				return true;
@@ -908,8 +900,6 @@ private:
 	void Add(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags) final
 	{
 		check(Hierarchy);
-
-		CreatedNodes.AddUnique(CacheStore);
 
 		// Parse any debug options for this node. E.g. -DDC-<Name>-MissRate
 		FBackendDebugOptions DebugOptions;
@@ -940,7 +930,6 @@ private:
 			{
 				ILegacyCacheStore* ThrottleNode = CreateCacheStoreThrottle(CacheStore, LatencyMS, MaxBytesPerSecond);
 				ThrottleNodes.Add(CacheStore, ThrottleNode);
-				CreatedNodes.Add(ThrottleNode);
 				CacheStore = ThrottleNode;
 			}
 		}
@@ -964,11 +953,9 @@ private:
 	void RemoveNotSafe(ILegacyCacheStore* CacheStore) final
 	{
 		check(Hierarchy);
-		CreatedNodes.Remove(CacheStore);
 		if (ILegacyCacheStore* ThrottleNode = ThrottleNodes.FindRef(CacheStore))
 		{
 			Hierarchy->RemoveNotSafe(ThrottleNode);
-			CreatedNodes.Remove(ThrottleNode);
 			ThrottleNodes.Remove(CacheStore);
 			delete ThrottleNode;
 		}
@@ -988,16 +975,6 @@ private:
 	{
 		check(Hierarchy);
 		Hierarchy->DestroyStats(Stats);
-	}
-
-	/** Delete all created backends in the reversed order they were created. */
-	void DestroyCreatedBackends()
-	{
-		for (int32 BackendIndex = CreatedNodes.Num() - 1; BackendIndex >= 0; --BackendIndex)
-		{
-			delete CreatedNodes[BackendIndex];
-		}
-		CreatedNodes.Empty();
 	}
 
 	/** MountPak console command handler. */
@@ -1115,8 +1092,6 @@ private:
 	/** Root of the graph */
 	ILegacyCacheStore*					RootCache;
 
-	/** References to all created backends */
-	TArray< ILegacyCacheStore* > CreatedNodes;
 	TMap<ILegacyCacheStore*, ILegacyCacheStore*> ThrottleNodes;
 
 	/** Instances of backend interfaces which exist in only one copy */

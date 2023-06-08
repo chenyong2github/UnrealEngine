@@ -155,8 +155,8 @@ void FCacheStoreStats::AddRequest(const FCacheStoreRequestStats& Stats)
 class FCacheStoreHierarchy final : public ILegacyCacheStore, public ICacheStoreOwner
 {
 public:
-	explicit FCacheStoreHierarchy(IMemoryCacheStore* MemoryCache);
-	~FCacheStoreHierarchy() final = default;
+	explicit FCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, TFunctionRef<void (IMemoryCacheStore*&)> MemoryCacheCreator);
+	~FCacheStoreHierarchy() final;
 
 	void Add(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags) final;
 	void SetFlags(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags) final;
@@ -358,12 +358,19 @@ ENUM_CLASS_FLAGS(FCacheStoreHierarchy::ECacheStoreNodeFlags);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCacheStoreHierarchy::FCacheStoreHierarchy(IMemoryCacheStore* InMemoryCache)
-	: MemoryCache(InMemoryCache)
+FCacheStoreHierarchy::FCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, TFunctionRef<void (IMemoryCacheStore*&)> MemoryCacheCreator)
 {
-	if (MemoryCache)
+	// Assign OutOwner before MemoryCache in case the creator depends on the owner.
+	OutOwner = this;
+	MemoryCacheCreator(MemoryCache);
+}
+
+FCacheStoreHierarchy::~FCacheStoreHierarchy()
+{
+	// Delete nodes separately before Nodes is destroyed because destroying stats depends on it.
+	for (FCacheStoreNode& Node : ReverseIterate(Nodes))
 	{
-		Add(MemoryCache, ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::StopGetStore);
+		Node.AsyncCache.Reset();
 	}
 }
 
@@ -1511,11 +1518,9 @@ bool FCacheStoreHierarchy::LegacyDebugOptions(FBackendDebugOptions& Options)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, IMemoryCacheStore* MemoryCache)
+ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, TFunctionRef<void (IMemoryCacheStore*&)> MemoryCacheCreator)
 {
-	FCacheStoreHierarchy* Hierarchy = new FCacheStoreHierarchy(MemoryCache);
-	OutOwner = Hierarchy;
-	return Hierarchy;
+	return new FCacheStoreHierarchy(OutOwner, MemoryCacheCreator);
 }
 
 } // UE::DerivedData

@@ -28,6 +28,11 @@ public:
 		check(InnerCache);
 	}
 
+	~FCacheStoreThrottle() final
+	{
+		delete InnerCache;
+	}
+
 	void Put(
 		const TConstArrayView<FCachePutRequest> Requests,
 		IRequestOwner& Owner,

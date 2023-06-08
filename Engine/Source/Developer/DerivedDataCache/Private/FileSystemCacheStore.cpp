@@ -1703,8 +1703,8 @@ void FFileSystemCacheStore::GetChunks(
 				TRACE_COUNTER_ADD(FileSystemDDC_BytesWritten, RequestStats.PhysicalWriteSize);
 				if (!bExistsOnly)
 				{
-					RequestStats.LogicalReadSize += RawSize;
 					Buffer = ValueReader.Decompress(RawOffset, RawSize);
+					RequestStats.LogicalReadSize += Buffer.GetSize();
 				}
 				Status = bExistsOnly || Buffer.GetSize() == RawSize ? EStatus::Ok : EStatus::Error;
 			}

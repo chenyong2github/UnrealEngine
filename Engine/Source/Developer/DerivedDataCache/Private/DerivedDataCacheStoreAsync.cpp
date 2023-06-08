@@ -22,10 +22,11 @@ namespace UE::DerivedData
  *
  * Puts can be stored in a memory cache while they are in flight.
  */
-class FCacheStoreAsync : public ILegacyCacheStore
+class FCacheStoreAsync final : public ILegacyCacheStore
 {
 public:
 	FCacheStoreAsync(ILegacyCacheStore* InnerCache, IMemoryCacheStore* MemoryCache);
+	~FCacheStoreAsync() final;
 
 	virtual void Put(
 		TConstArrayView<FCachePutRequest> Requests,
@@ -123,16 +124,17 @@ FCacheStoreAsync::FCacheStoreAsync(ILegacyCacheStore* InInnerCache, IMemoryCache
 	check(InnerCache);
 }
 
+FCacheStoreAsync::~FCacheStoreAsync()
+{
+	delete InnerCache;
+}
+
 void FCacheStoreAsync::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
 	OutNode = {TEXT("Async"), TEXT(""), /*bIsLocal*/ true};
 	OutNode.UsageStats.Add(TEXT(""), UsageStats);
 
 	InnerCache->LegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get());
-	if (MemoryCache)
-	{
-		MemoryCache->LegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get());
-	}
 }
 
 template <typename RequestType, typename OnCompleteType, typename OnExecuteType>

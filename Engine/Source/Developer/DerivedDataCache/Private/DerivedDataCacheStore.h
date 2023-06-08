@@ -174,7 +174,7 @@ enum class ECacheStoreStatusCode : uint8
 /**
  * Stats that represent how one cache store processed one request.
  */
-struct FCacheStoreRequestStats
+struct FCacheStoreRequestStats final
 {
 	/** Bucket that contains the data being accessed by this request. */
 	FCacheBucket Bucket;
@@ -216,7 +216,7 @@ struct FCacheStoreRequestStats
 };
 
 /** Updates StartTime, EndTime, MainThreadTime, OtherThreadTime based on its lifetime. */
-class FCacheStoreRequestTimer
+class FCacheStoreRequestTimer final
 {
 public:
 	explicit FCacheStoreRequestTimer(FCacheStoreRequestStats& Stats);

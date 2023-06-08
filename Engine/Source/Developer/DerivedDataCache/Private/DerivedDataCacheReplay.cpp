@@ -128,6 +128,7 @@ FCacheStoreReplay::FCacheStoreReplay(
 FCacheStoreReplay::~FCacheStoreReplay()
 {
 	FlushToArchive();
+	delete InnerCache;
 }
 
 template <typename RequestType>

@@ -25,7 +25,7 @@ namespace UE::DerivedData
  *
  * This wraps a cache store and fails every get until a matching put occurs, then compares the derived data.
  */
-class FCacheStoreVerify : public ILegacyCacheStore
+class FCacheStoreVerify final : public ILegacyCacheStore
 {
 public:
 	FCacheStoreVerify(ILegacyCacheStore* InInnerCache, bool bInPutOnError)
@@ -66,6 +66,11 @@ public:
 		bPutOnError = bPutOnError || FParse::Param(CommandLine, TEXT("DDC-VerifyFix"));
 		UE_CLOG(bPutOnError, LogDerivedDataCache, Display,
 			TEXT("Verify: Any record or value that differs will be overwritten."));
+	}
+
+	~FCacheStoreVerify()
+	{
+		delete InnerCache;
 	}
 
 	void Put(
