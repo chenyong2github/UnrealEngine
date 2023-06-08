@@ -630,6 +630,7 @@ struct STATETREEMODULE_API FCompactStateTreeState
 
 	FCompactStateTreeState()
 		: bHasTransitionTasks(false)
+		, bEnabled(true)
 	{
 	}
 	
