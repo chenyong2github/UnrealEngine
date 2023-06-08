@@ -67,12 +67,12 @@ void FAnimNode_SequenceEvaluatorBase::UpdateAssetPlayer(const FAnimationUpdateCo
 			const float DeltaTime = Context.GetDeltaTime();
 			const float RateScale = CurrentSequence->RateScale;
 			const float PlayRate = FMath::IsNearlyZero(DeltaTime) || FMath::IsNearlyZero(RateScale) ? 0.f : (TimeJump / (DeltaTime * RateScale));
-			CreateTickRecordForNode(Context, CurrentSequence, GetShouldLoop(), PlayRate, true);
+			CreateTickRecordForNode(Context, CurrentSequence, IsLooping(), PlayRate, true);
 		}
 		else
 		{
 			InternalTimeAccumulator = CurrentExplicitTime;
-			CreateTickRecordForNode(Context, CurrentSequence, GetShouldLoop(), 0, true);
+			CreateTickRecordForNode(Context, CurrentSequence, IsLooping(), 0, true);
 		}
 	}
 
@@ -92,7 +92,7 @@ void FAnimNode_SequenceEvaluatorBase::Evaluate_AnyThread(FPoseContext& Output)
 	if (CurrentSequence != nullptr && CurrentSequence->GetSkeleton() != nullptr)
 	{
 		FAnimationPoseData AnimationPoseData(Output);
-		CurrentSequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(static_cast<double>(InternalTimeAccumulator), Output.AnimInstanceProxy->ShouldExtractRootMotion(), DeltaTimeRecord, GetShouldLoop()));
+		CurrentSequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(static_cast<double>(InternalTimeAccumulator), Output.AnimInstanceProxy->ShouldExtractRootMotion(), DeltaTimeRecord, IsLooping()));
 	}
 	else
 	{
@@ -113,7 +113,7 @@ float FAnimNode_SequenceEvaluatorBase::GetEffectiveDeltaTime(float ExplicitTime,
 {
 	float DeltaTime = ExplicitTime - PrevExplicitTime;
 
-	if (GetShouldLoop())
+	if (IsLooping())
 	{
 		if (FMath::Abs(DeltaTime) > (GetSequence()->GetPlayLength() * 0.5f))
 		{
@@ -187,7 +187,7 @@ bool FAnimNode_SequenceEvaluator::SetShouldLoop(bool bInShouldLoop)
 	return false;
 }
 
-bool FAnimNode_SequenceEvaluator::GetShouldLoop() const
+bool FAnimNode_SequenceEvaluator::IsLooping() const
 {
 	return GET_ANIM_NODE_DATA(bool, bShouldLoop);
 }

@@ -118,6 +118,7 @@ public:
 	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
 	virtual float GetCachedBlendWeight() const override;
 	virtual void ClearCachedBlendWeight() override;
+	virtual const FDeltaTimeRecord* GetDeltaTimeRecord() const override;
 	// End of FAnimNode_RelevantAssetPlayerBase
 
 private:

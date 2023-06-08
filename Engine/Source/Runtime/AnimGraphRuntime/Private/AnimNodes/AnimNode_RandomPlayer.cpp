@@ -382,6 +382,16 @@ void FAnimNode_RandomPlayer::ClearCachedBlendWeight()
 	BlendWeight = 0.f;
 }
 
+const FDeltaTimeRecord* FAnimNode_RandomPlayer::GetDeltaTimeRecord() const
+{
+	if (ValidEntries.Num() > 0)
+	{
+		const FRandomAnimPlayData& CurrentPlayData = GetPlayData(ERandomDataIndexType::Current);
+		return &CurrentPlayData.DeltaTimeRecord;
+	}
+	return nullptr;
+}
+
 int32 FAnimNode_RandomPlayer::GetNextValidEntryIndex()
 {
 	check(ValidEntries.Num() > 0);

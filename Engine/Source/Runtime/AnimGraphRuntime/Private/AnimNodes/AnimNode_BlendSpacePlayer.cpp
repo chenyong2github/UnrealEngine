@@ -92,7 +92,7 @@ void FAnimNode_BlendSpacePlayerBase::UpdateInternal(const FAnimationUpdateContex
 		UE::Anim::FAnimSyncGroupScope& SyncScope = Context.GetMessageChecked<UE::Anim::FAnimSyncGroupScope>();
 
 		FAnimTickRecord TickRecord(
-			CurrentBlendSpace, Position, BlendSampleDataCache, BlendFilter, GetLoop(), GetPlayRate(), ShouldTeleportToTime(), 
+			CurrentBlendSpace, Position, BlendSampleDataCache, BlendFilter, IsLooping(), GetPlayRate(), ShouldTeleportToTime(),
 			IsEvaluator(), Context.GetFinalBlendWeight(), /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
 		TickRecord.RootMotionWeightModifier = Context.GetRootMotionWeightModifier();
 		TickRecord.DeltaTimeRecord = &DeltaTimeRecord;
@@ -129,7 +129,7 @@ void FAnimNode_BlendSpacePlayerBase::Evaluate_AnyThread(FPoseContext& Output)
 	if (CurrentBlendSpace != nullptr && CurrentBlendSpace->GetSkeleton() != nullptr)
 	{
 		FAnimationPoseData AnimationPoseData(Output);
-		CurrentBlendSpace->GetAnimationPose(BlendSampleDataCache, FAnimExtractContext(static_cast<double>(InternalTimeAccumulator), Output.AnimInstanceProxy->ShouldExtractRootMotion(), DeltaTimeRecord, GetLoop()), AnimationPoseData);
+		CurrentBlendSpace->GetAnimationPose(BlendSampleDataCache, FAnimExtractContext(static_cast<double>(InternalTimeAccumulator), Output.AnimInstanceProxy->ShouldExtractRootMotion(), DeltaTimeRecord, IsLooping()), AnimationPoseData);
 	}
 	else
 	{
@@ -367,7 +367,7 @@ bool FAnimNode_BlendSpacePlayer::SetPlayRate(float InPlayRate)
 	return false;
 }
 
-bool FAnimNode_BlendSpacePlayer::GetLoop() const
+bool FAnimNode_BlendSpacePlayer::IsLooping() const
 {
 	return GET_ANIM_NODE_DATA(bool, bLoop);
 }

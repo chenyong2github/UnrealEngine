@@ -164,7 +164,7 @@ FSequenceEvaluatorReference UAnimDistanceMatchingLibrary::AdvanceTimeByDistanceM
 					{
 						const float CurrentTime = InSequenceEvaluator.GetExplicitTime();
 						const float CurrentAssetLength = InSequenceEvaluator.GetCurrentAssetLength();
-						const bool bAllowLooping = InSequenceEvaluator.GetShouldLoop();
+						const bool bAllowLooping = InSequenceEvaluator.IsLooping();
 
 						float TimeAfterDistanceTraveled = UE::Anim::DistanceMatchingUtility::GetTimeAfterDistanceTraveled(AnimSequence, CurrentTime, DistanceTraveled, DistanceCurveName, bAllowLooping);
 

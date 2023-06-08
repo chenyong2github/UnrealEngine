@@ -176,7 +176,7 @@ bool UBlendSpacePlayerLibrary::GetLoop(const FBlendSpacePlayerReference& BlendSp
 		TEXT("GetLoop"),
 		[&bLoop](FAnimNode_BlendSpacePlayer& InBlendSpacePlayer)
 		{
-			bLoop = InBlendSpacePlayer.GetLoop();
+			bLoop = InBlendSpacePlayer.IsLooping();
 		});
 	return bLoop;
 }

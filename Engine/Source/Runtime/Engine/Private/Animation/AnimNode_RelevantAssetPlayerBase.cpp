@@ -33,6 +33,11 @@ float FAnimNode_AssetPlayerRelevancyBase::GetCurrentAssetTimePlayRateAdjusted() 
 	return 0.f;
 }
 
+bool FAnimNode_AssetPlayerRelevancyBase::IsLooping() const
+{
+	return true;
+}
+
 bool FAnimNode_AssetPlayerRelevancyBase::GetIgnoreForRelevancyTest() const
 {
 	return false;
@@ -50,4 +55,9 @@ float FAnimNode_AssetPlayerRelevancyBase::GetCachedBlendWeight() const
 
 void FAnimNode_AssetPlayerRelevancyBase::ClearCachedBlendWeight()
 {
+}
+
+const FDeltaTimeRecord* FAnimNode_AssetPlayerRelevancyBase::GetDeltaTimeRecord() const
+{
+	return nullptr;
 }

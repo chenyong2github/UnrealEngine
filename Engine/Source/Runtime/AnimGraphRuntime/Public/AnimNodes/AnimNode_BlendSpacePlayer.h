@@ -70,7 +70,8 @@ public:
 	virtual float GetPlayRate() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::GetPlayRate, return 1.0f;);
 
 	// Should the animation loop back to the start when it reaches the end?
-	virtual bool GetLoop() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::GetLoop, return true;);
+	UE_DEPRECATED(5.3, "Please use IsLooping instead.")
+	virtual bool GetLoop() const final { return IsLooping(); }
 
 	// Get whether we should reset the current play time when the blend space changes
 	virtual bool ShouldResetPlayTimeWhenBlendSpaceChanges() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::ShouldResetPlayTimeWhenBlendSpaceChanges, return true;);
@@ -182,6 +183,7 @@ public:
 	virtual EAnimGroupRole::Type GetGroupRole() const override;
 	virtual EAnimSyncMethod GetGroupMethod() const override;
 	virtual bool GetIgnoreForRelevancyTest() const override;
+	virtual bool IsLooping() const override;
 	virtual bool SetGroupName(FName InGroupName) override;
 	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
 	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override;
@@ -193,7 +195,6 @@ public:
 	virtual FVector GetPosition() const override;
 	virtual float GetStartPosition() const override;
 	virtual float GetPlayRate() const override;
-	virtual bool GetLoop() const override;
 	virtual bool ShouldResetPlayTimeWhenBlendSpaceChanges() const override;
 	virtual bool SetResetPlayTimeWhenBlendSpaceChanges(bool bReset) override;
 	virtual bool SetBlendSpace(UBlendSpace* InBlendSpace) override;
@@ -262,6 +263,7 @@ public:
 	virtual EAnimGroupRole::Type GetGroupRole() const override { return GroupRole; }
 	virtual EAnimSyncMethod GetGroupMethod() const override { return Method; }
 	virtual bool GetIgnoreForRelevancyTest() const override { return bIgnoreForRelevancyTest; }
+	virtual bool IsLooping() const override { return bLoop; }
 	virtual bool SetGroupName(FName InGroupName) override { GroupName = InGroupName; return true; }
 	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override { GroupRole = InRole; return true; }
 	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override { Method = InMethod; return true; }
@@ -273,7 +275,6 @@ public:
 	virtual FVector GetPosition() const override { return FVector(X, Y, 0.0); }
 	virtual float GetStartPosition() const override { return StartPosition; }
 	virtual float GetPlayRate() const override { return PlayRate; }
-	virtual bool GetLoop() const override { return bLoop; }
 	virtual bool ShouldResetPlayTimeWhenBlendSpaceChanges() const override { return bResetPlayTimeWhenBlendSpaceChanges; }
 	virtual bool SetResetPlayTimeWhenBlendSpaceChanges(bool bReset) override { bResetPlayTimeWhenBlendSpaceChanges = bReset; return true; }
 	virtual bool SetBlendSpace(UBlendSpace* InBlendSpace) override { BlendSpace = InBlendSpace; return true; }

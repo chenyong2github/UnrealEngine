@@ -55,7 +55,8 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_AssetPlayerReleva
 	virtual void SetAccumulatedTime(float NewTime) override;
 	virtual float GetCachedBlendWeight() const override;
 	virtual void ClearCachedBlendWeight() override;
-	virtual float GetCurrentAssetTimePlayRateAdjusted() const;
+	virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
+	virtual const FDeltaTimeRecord* GetDeltaTimeRecord() const override;
 	// --- End of FAnimNode_RelevantAssetPlayerBase ---
 
 private:

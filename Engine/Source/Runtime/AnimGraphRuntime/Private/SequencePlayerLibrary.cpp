@@ -183,7 +183,7 @@ bool USequencePlayerLibrary::GetLoopAnimation(const FSequencePlayerReference& Se
 		TEXT("GetLoopAnimation"),
 		[&bLoopAnimation](FAnimNode_SequencePlayer& InSequencePlayer)
 		{
-			bLoopAnimation = InSequencePlayer.GetLoopAnimation();
+			bLoopAnimation = InSequencePlayer.IsLooping();
 		});
 
 	return bLoopAnimation;

@@ -77,7 +77,8 @@ public:
 	virtual float GetExplicitTime() const { return 0.0f; }
 
 	/** This only works if bTeleportToExplicitTime is false OR this node is set to use SyncGroup */
-	virtual bool GetShouldLoop() const { return true; }
+	UE_DEPRECATED(5.3, "Please use IsLooping instead.")
+	virtual bool GetShouldLoop() const final { return IsLooping(); }
 
 	// Set the animation to continue looping when it reaches the end
 	virtual bool SetShouldLoop(bool bInShouldLoop) { return false; }
@@ -153,7 +154,6 @@ public:
 	virtual UAnimSequenceBase* GetSequence() const override;
 	virtual float GetExplicitTime() const override;
 	virtual bool SetExplicitTime(float InTime) override;
-	virtual bool GetShouldLoop() const override;
 	virtual bool SetShouldLoop(bool bInShouldLoop) override;
 	virtual bool GetTeleportToExplicitTime() const override;
 	virtual TEnumAsByte<ESequenceEvalReinit::Type> GetReinitializationBehavior() const override;
@@ -164,6 +164,7 @@ public:
 	virtual EAnimGroupRole::Type GetGroupRole() const override;
 	virtual EAnimSyncMethod GetGroupMethod() const override;
 	virtual bool GetIgnoreForRelevancyTest() const override;
+	virtual bool IsLooping() const override;
 	virtual bool SetGroupName(FName InGroupName) override;
 	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
 	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override;
@@ -227,7 +228,6 @@ public:
 	virtual void SetReinitializationBehavior(TEnumAsByte<ESequenceEvalReinit::Type> InBehavior) override { ReinitializationBehavior = InBehavior; }
 	virtual UAnimSequenceBase* GetSequence() const override { return Sequence; }
 	virtual float GetExplicitTime() const override { return ExplicitTime; }
-	virtual bool GetShouldLoop() const override { return bShouldLoop; }
 	virtual bool GetTeleportToExplicitTime() const override { return bTeleportToExplicitTime; }
 	virtual TEnumAsByte<ESequenceEvalReinit::Type> GetReinitializationBehavior() const override { return ReinitializationBehavior; }
 	virtual float GetStartPosition() const override { return StartPosition; }
@@ -237,6 +237,7 @@ public:
 	virtual EAnimGroupRole::Type GetGroupRole() const override { return GroupRole; }
 	virtual EAnimSyncMethod GetGroupMethod() const override { return Method; }
 	virtual bool GetIgnoreForRelevancyTest() const override { return bIgnoreForRelevancyTest; }
+	virtual bool IsLooping() const override { return bShouldLoop; }
 	virtual bool SetGroupName(FName InGroupName) override { GroupName = InGroupName; return true; }
 	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override { GroupRole = InRole; return true; }
 	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override { Method = InMethod; return true; }

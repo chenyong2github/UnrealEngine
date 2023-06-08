@@ -52,9 +52,15 @@ class UAnimStateTransitionNode : public UAnimStateNodeBase
 	UPROPERTY(EditAnywhere, Category=Transition, meta=(UseAsBlendProfile=true))
 	TObjectPtr<UBlendProfile> BlendProfile;
 
-	// Try setting the rule automatically based on most relevant player node's remaining time and the CrossfadeDuration of the transition, ignoring the internal time
+	// Try setting the rule automatically based on most relevant asset player node's remaining time and the Automatic Rule Trigger Time of the transition, ignoring the internal time
 	UPROPERTY(EditAnywhere, Category=Transition)
 	bool bAutomaticRuleBasedOnSequencePlayerInState;
+
+	// When should the automatic transition rule trigger relative to the time remaining on the relevant asset player:
+	//  < 0 means trigger the transition 'Crossfade Duration' seconds before the end of the asset player, so a standard blend would finish just as the asset player ends
+	// >= 0 means trigger the transition 'Automatic Rule Trigger Time' seconds before the end of the asset player
+	UPROPERTY(EditAnywhere, Category=Transition)
+	float AutomaticRuleTriggerTime;
 
 	// If SyncGroupName is specified, Transition will only be taken if the SyncGroup has valid markers (other transition rules still apply in addition to that).
 	UPROPERTY(EditAnywhere, Category = Transition)

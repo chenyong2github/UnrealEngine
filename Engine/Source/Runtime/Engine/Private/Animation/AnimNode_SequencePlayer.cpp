@@ -97,7 +97,7 @@ void FAnimNode_SequencePlayerBase::UpdateAssetPlayer(const FAnimationUpdateConte
 
 		InternalTimeAccumulator = FMath::Clamp(InternalTimeAccumulator, 0.f, CurrentSequence->GetPlayLength());
 		const float AdjustedPlayRate = PlayRateScaleBiasClampState.ApplyTo(GetPlayRateScaleBiasClampConstants(), FMath::IsNearlyZero(CurrentPlayRateBasis) ? 0.f : (CurrentPlayRate / CurrentPlayRateBasis), Context.GetDeltaTime());
-		CreateTickRecordForNode(Context, CurrentSequence, GetLoopAnimation(), AdjustedPlayRate, false);
+		CreateTickRecordForNode(Context, CurrentSequence, IsLooping(), AdjustedPlayRate, false);
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -130,7 +130,7 @@ void FAnimNode_SequencePlayerBase::Evaluate_AnyThread(FPoseContext& Output)
 		}
 
 		FAnimationPoseData AnimationPoseData(Output);
-		CurrentSequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(static_cast<double>(InternalTimeAccumulator), Output.AnimInstanceProxy->ShouldExtractRootMotion(), DeltaTimeRecord, GetLoopAnimation()));
+		CurrentSequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(static_cast<double>(InternalTimeAccumulator), Output.AnimInstanceProxy->ShouldExtractRootMotion(), DeltaTimeRecord, IsLooping()));
 	}
 	else
 	{
@@ -204,7 +204,7 @@ float FAnimNode_SequencePlayer::GetStartPosition() const
 	return GET_ANIM_NODE_DATA(float, StartPosition);
 }
 
-bool FAnimNode_SequencePlayer::GetLoopAnimation() const
+bool FAnimNode_SequencePlayer::IsLooping() const
 {
 	return GET_ANIM_NODE_DATA(bool, bLoopAnimation);
 }

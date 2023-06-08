@@ -29,6 +29,9 @@ public:
 	virtual float GetCurrentAssetTime() const;
 	virtual float GetCurrentAssetTimePlayRateAdjusted() const;
 
+	// Does this asset player loop back to the start when it reaches the end?
+	virtual bool IsLooping() const;
+
 	// Check whether this node should be ignored when testing for relevancy in state machines
 	virtual bool GetIgnoreForRelevancyTest() const;
 
@@ -40,4 +43,7 @@ public:
 
 	/** Set the cached blendweight to zero */
 	virtual void ClearCachedBlendWeight();
+
+	/** Get the delta time record owned by this asset player (or null) */
+	virtual const FDeltaTimeRecord* GetDeltaTimeRecord() const;
 };

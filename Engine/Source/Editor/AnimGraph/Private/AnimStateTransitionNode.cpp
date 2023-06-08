@@ -7,11 +7,16 @@
 #include "AnimStateTransitionNode.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Animation/AnimInstance.h"
+#include "AnimationStateGraph.h"
 #include "AnimationTransitionGraph.h"
 #include "AnimationTransitionSchema.h"
 #include "AnimationCustomTransitionGraph.h"
 #include "AnimationCustomTransitionSchema.h"
+#include "AnimGraphNode_BlendSpacePlayer.h"
+#include "AnimGraphNode_SequencePlayer.h"
+#include "AnimGraphNode_StateResult.h"
 #include "AnimGraphNode_TransitionResult.h"
+#include "AnimStateConduitNode.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "EdGraphUtilities.h"
 #include "Kismet2/Kismet2NameValidators.h"
@@ -73,6 +78,8 @@ UAnimStateTransitionNode::UAnimStateTransitionNode(const FObjectInitializer& Obj
 
 	CrossfadeDuration = 0.2f;
 	BlendMode = EAlphaBlendOption::HermiteCubic;
+	bAutomaticRuleBasedOnSequencePlayerInState = false;
+	AutomaticRuleTriggerTime = -1.f;
 	bSharedRules = false;
 	SharedRulesGuid.Invalidate();
 	bSharedCrossfade = false;
@@ -684,7 +691,41 @@ void UAnimStateTransitionNode::ValidateNodeDuringCompilation(class FCompilerResu
 		UAnimGraphNode_TransitionResult* ResultNode = TransGraph->GetResultNode();
 		check(ResultNode);
 
-		if (ResultNode->PropertyBindings.Num() > 0 && ResultNode->PropertyBindings.CreateIterator()->Value.bIsBound)
+		if (bAutomaticRuleBasedOnSequencePlayerInState)
+		{
+			// Check for automatic transition rules that are being triggered from looping asset players, as these can often be symptomatic of logic errors
+			if (UAnimStateNodeBase* PreviousState = GetPreviousState())
+			{
+				if (UEdGraph* PreviousStateGraph = PreviousState->GetBoundGraph())
+				{
+					if (UAnimGraphNode_StateResult* PreviousStateGraphResultNode = CastChecked<UAnimationStateGraph>(PreviousStateGraph)->GetResultNode())
+					{
+						for (UEdGraphPin* TestPin : PreviousStateGraphResultNode->Pins)
+						{
+							// Warn for the trivial but common case of a looping asset player connected directly to the result node
+							if ((TestPin->Direction == EGPD_Input) && (TestPin->LinkedTo.Num() == 1))
+							{
+								if (UAnimGraphNode_SequencePlayer* SequencePlayer = Cast<UAnimGraphNode_SequencePlayer>(TestPin->LinkedTo[0]->GetOwningNode()))
+								{
+									if (SequencePlayer->Node.IsLooping())
+									{
+										MessageLog.Warning(TEXT("Transition @@ is using an automatic transition rule but the source @@ is set as looping.  Please clear the 'Loop Animation' flag"), this, SequencePlayer);
+									}
+								}
+								else if (UAnimGraphNode_BlendSpacePlayer* BlendSpacePlayer = Cast<UAnimGraphNode_BlendSpacePlayer>(TestPin->LinkedTo[0]->GetOwningNode()))
+								{
+									if (BlendSpacePlayer->Node.IsLooping())
+									{
+										MessageLog.Warning(TEXT("Transition @@ is using an automatic transition rule but the source @@ is set as looping.  Please clear the 'Loop' flag"), this, BlendSpacePlayer);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		else if (ResultNode->PropertyBindings.Num() > 0 && ResultNode->PropertyBindings.CreateIterator()->Value.bIsBound)
 		{
 			// Rule is bound so nothing more to check
 		}

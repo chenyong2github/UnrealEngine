@@ -98,5 +98,10 @@ void FAnimNode_AssetPlayerBase::ClearCachedBlendWeight()
 
 float FAnimNode_AssetPlayerBase::GetCurrentAssetTimePlayRateAdjusted() const
 {
-	return  GetCurrentAssetTime();
+	return GetCurrentAssetTime();
+}
+
+const FDeltaTimeRecord* FAnimNode_AssetPlayerBase::GetDeltaTimeRecord() const
+{
+	return &DeltaTimeRecord;
 }

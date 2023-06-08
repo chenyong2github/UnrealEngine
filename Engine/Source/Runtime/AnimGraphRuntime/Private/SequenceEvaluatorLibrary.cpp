@@ -40,7 +40,7 @@ FSequenceEvaluatorReference USequenceEvaluatorLibrary::AdvanceTime(const FAnimUp
 			if (const FAnimationUpdateContext* AnimationUpdateContext = UpdateContext.GetContext())
 			{
 				float ExplicitTime = InSequenceEvaluator.GetExplicitTime();
-				FAnimationRuntime::AdvanceTime(InSequenceEvaluator.GetShouldLoop(), AnimationUpdateContext->GetDeltaTime() * PlayRate, ExplicitTime, InSequenceEvaluator.GetCurrentAssetLength());
+				FAnimationRuntime::AdvanceTime(InSequenceEvaluator.IsLooping(), AnimationUpdateContext->GetDeltaTime() * PlayRate, ExplicitTime, InSequenceEvaluator.GetCurrentAssetLength());
 
 				if (!InSequenceEvaluator.SetExplicitTime(ExplicitTime))
 				{

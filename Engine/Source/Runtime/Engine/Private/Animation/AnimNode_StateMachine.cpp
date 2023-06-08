@@ -762,12 +762,44 @@ bool FAnimNode_StateMachine::FindValidTransition(const FAnimationUpdateContext& 
 			{
 				if (const UAnimationAsset* AnimAsset = RelevantPlayer->GetAnimAsset())
 				{
-					const float AnimTimeRemaining = AnimAsset->GetPlayLength() - RelevantPlayer->GetAccumulatedTime();
-					const FAnimationTransitionBetweenStates& TransitionInfo = GetTransitionInfo(TransitionRule.TransitionIndex);
-					CrossfadeTimeAdjustment = TransitionInfo.CrossfadeDuration - AnimTimeRemaining;
-					bCanEnterTransition = (CrossfadeTimeAdjustment >= 0.f);
+					float AnimTimeRemaining = AnimAsset->GetPlayLength() - RelevantPlayer->GetAccumulatedTime();
+
+					// If the asset player is a looping player and has looped, then we enter the transition as though the asset player is a non-looping player that has reached its end
+					if (RelevantPlayer->IsLooping() && AnimTimeRemaining > 0.f)
+					{
+						if (const FDeltaTimeRecord* DeltaTimeRecord = RelevantPlayer->GetDeltaTimeRecord())
+						{
+							if (DeltaTimeRecord->IsPreviousValid())
+							{
+								// If the player's time difference is in the opposite direction of the time delta, then the player must have looped
+								const float DeltaTimeFromPlayer = RelevantPlayer->GetAccumulatedTime() - DeltaTimeRecord->GetPrevious();
+								const float DeltaTimeFromRecord = DeltaTimeRecord->Delta;
+								if (DeltaTimeFromPlayer * DeltaTimeFromRecord < 0.f)
+								{
+									AnimTimeRemaining = 0.f;
+								}
+							}
+						}
+					}
+
+					// Determine if we can automatically begin transitioning.
+					{
+						const FAnimationTransitionBetweenStates& TransitionInfo = GetTransitionInfo(TransitionRule.TransitionIndex);
+					
+						// For transitions that go to a conduit the user is not able to edit the transition's cross fade duration,
+						// therefore we force the cross fade duration to zero to ensure the transition is always triggerred upon reaching the end of the animation.
+						const float CrossfadeDuration = GetStateInfo(TransitionInfo.NextState).bIsAConduit ? 0.0f : TransitionInfo.CrossfadeDuration;
+
+						// Allow for used to determine the automatic transition trigger time or fallback to using cross fade duration.
+						const float TransitionTriggerTime = (TransitionRule.AutomaticRuleTriggerTime >= 0.0f) ? TransitionRule.AutomaticRuleTriggerTime : CrossfadeDuration;
+						CrossfadeTimeAdjustment = TransitionTriggerTime - AnimTimeRemaining;
+
+						// Trigger transition only if we have "CrossfadeTimeAdjustment" seconds left before reaching animation end boundary.
+						bCanEnterTransition = (CrossfadeTimeAdjustment >= 0.f);
+					}
 				}
 			}
+			
 			ResultNode->bCanEnterTransition = bCanEnterTransition;
 		}			
 		else 

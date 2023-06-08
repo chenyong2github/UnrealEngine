@@ -146,7 +146,7 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromGraph(TArra
 			if (const FAnimNode_BlendSpacePlayer* const BlendSpacePlayer = Property->ContainerPtrToValuePtr<FAnimNode_BlendSpacePlayer>(PCV_Params.DefaultAnimInstance))
 			{
 				const bool bPassSyncGroupFilter = !GatherParams.bFilterBySyncGroup || (BlendSpacePlayer->GetGroupName() == GatherParams.SyncGroupName);
-				const bool bPassLoopingFilter = !GatherParams.bFilterByLoopingCondition || (BlendSpacePlayer->GetLoop() == GatherParams.bLoopingCondition);
+				const bool bPassLoopingFilter = !GatherParams.bFilterByLoopingCondition || (BlendSpacePlayer->IsLooping() == GatherParams.bLoopingCondition);
 				if (bPassSyncGroupFilter && bPassLoopingFilter)
 				{
 					PCV_GatherAnimSequences(OutAnimSequences, BlendSpacePlayer->GetBlendSpace());
@@ -158,7 +158,7 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromGraph(TArra
 			if (const FAnimNode_SequencePlayer* const SequencePlayer = Property->ContainerPtrToValuePtr<FAnimNode_SequencePlayer>(PCV_Params.DefaultAnimInstance))
 			{
 				const bool bPassSyncGroupFilter = !GatherParams.bFilterBySyncGroup || (SequencePlayer->GetGroupName() == GatherParams.SyncGroupName);
-				const bool bPassLoopingFilter = !GatherParams.bFilterByLoopingCondition || (SequencePlayer->GetLoopAnimation() == GatherParams.bLoopingCondition);
+				const bool bPassLoopingFilter = !GatherParams.bFilterByLoopingCondition || (SequencePlayer->IsLooping() == GatherParams.bLoopingCondition);
 				if (bPassSyncGroupFilter && bPassLoopingFilter)
 				{
 					PCV_GatherAnimSequences(OutAnimSequences, SequencePlayer->GetSequence());

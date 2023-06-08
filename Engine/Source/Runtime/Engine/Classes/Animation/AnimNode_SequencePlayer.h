@@ -44,6 +44,10 @@ public:
 	// The animation sequence asset to play
 	virtual UAnimSequenceBase* GetSequence() const { return nullptr; }
 
+	// Should the animation loop back to the start when it reaches the end?
+	UE_DEPRECATED(5.3, "Please use IsLooping instead.")
+	virtual bool GetLoopAnimation() const final { return IsLooping(); }
+
 protected:
 	// Set the animation sequence asset to play
 	virtual bool SetSequence(UAnimSequenceBase* InSequence) { return false; }
@@ -64,9 +68,6 @@ protected:
 
 	// The start position [range: 0 - sequence length] to use when initializing. When looping, play will still jump back to the beginning when reaching the end.
 	virtual float GetStartPosition() const { return 0.0f; }
-
-	// Should the animation loop back to the start when it reaches the end?
-	virtual bool GetLoopAnimation() const { return true; }
 
 	// Use pose matching to choose the start position. Requires experimental PoseSearch plugin.
 	virtual bool GetStartFromMatchingPose() const { return false; }
@@ -151,7 +152,6 @@ public:
 	virtual float GetPlayRate() const override;
 	virtual const FInputScaleBiasClampConstants& GetPlayRateScaleBiasClampConstants() const override;
 	virtual float GetStartPosition() const override;
-	virtual bool GetLoopAnimation() const override;
 	virtual bool GetStartFromMatchingPose() const override;
 	virtual bool SetStartPosition(float InStartPosition) override;
 	virtual bool SetPlayRate(float InPlayRate) override;
@@ -160,6 +160,7 @@ public:
 	virtual FName GetGroupName() const override;
 	virtual EAnimGroupRole::Type GetGroupRole() const override;
 	virtual EAnimSyncMethod GetGroupMethod() const override;
+	virtual bool IsLooping() const override;
 	virtual bool GetIgnoreForRelevancyTest() const override;
 	virtual bool SetGroupName(FName InGroupName) override;
 	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
@@ -229,13 +230,13 @@ public:
 	virtual float GetPlayRate() const override { return PlayRate; }
 	virtual const FInputScaleBiasClampConstants& GetPlayRateScaleBiasClampConstants() const override { return PlayRateScaleBiasClampConstants; }
 	virtual float GetStartPosition() const override { return StartPosition; }
-	virtual bool GetLoopAnimation() const override { return bLoopAnimation; }
 	virtual bool GetStartFromMatchingPose() const override { return bStartFromMatchingPose; }
 
 	// FAnimNode_AssetPlayerBase interface
 	virtual FName GetGroupName() const override { return GroupName; }
 	virtual EAnimGroupRole::Type GetGroupRole() const override { return GroupRole; }
 	virtual EAnimSyncMethod GetGroupMethod() const override { return Method; }
+	virtual bool IsLooping() const override { return bLoopAnimation; }
 	virtual bool GetIgnoreForRelevancyTest() const override { return bIgnoreForRelevancyTest; }
 	virtual bool SetGroupName(FName InGroupName) override { GroupName = InGroupName; return true; }
 	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override { GroupRole = InRole; return true; }
