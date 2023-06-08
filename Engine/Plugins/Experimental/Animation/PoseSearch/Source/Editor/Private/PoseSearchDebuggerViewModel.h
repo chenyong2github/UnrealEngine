@@ -62,7 +62,7 @@ private:
 	struct FSkeleton
 	{
 		/** Actor object for the skeleton */
-		TObjectPtr<AActor> Actor;
+		TWeakObjectPtr<AActor> Actor;
 
 		/** Derived skeletal mesh for setting the skeleton in the scene */
 		TWeakObjectPtr<UPoseSearchMeshComponent> Component;
