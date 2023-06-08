@@ -152,9 +152,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 	const UNiagaraDecalRendererProperties* RendererProperties = CastChecked<const UNiagaraDecalRendererProperties>(InProperties);
 
 	const bool bUseLocalSpace = UseLocalSpace(Proxy);
-	const FTransform LocalToWorld = SystemInstance->GetWorldTransform();
-	const FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(bUseLocalSpace);
-	const FNiagaraPosition DefaultPos = bUseLocalSpace ? FVector::ZeroVector : LocalToWorld.GetLocation();
+	const FTransform SimToWorld = SystemInstance->GetLWCSimToWorld(bUseLocalSpace);
+	const FNiagaraPosition DefaultPos = bUseLocalSpace ? FVector::ZeroVector : SystemInstance->GetWorldTransform().GetLocation();
 	const FQuat4f DefaultRot = UNiagaraDecalRendererProperties::GetDefaultOrientation();
 	const FVector3f DefaultSize = UNiagaraDecalRendererProperties::GetDefaultDecalSize();
 	const FNiagaraBool DefaultVisible = UNiagaraDecalRendererProperties::GetDefaultDecalVisible();
@@ -217,8 +216,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 			// Grab Decal Attributes
 			const FVector3f SimPos = PositionReader.GetSafe(ParticleIndex, LocalDefaultSimPos);
 			const FQuat4f SimRot = RotationReader.GetSafe(ParticleIndex, LocalDefaultSimRot).GetNormalized();
-			const FVector Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
-			const FQuat Rotation = bUseLocalSpace ? LocalToWorld.TransformRotation(FQuat(SimRot)) : FQuat(SimRot);
+			const FVector Position = SimToWorld.TransformPosition(FVector(SimPos));
+			const FQuat Rotation = SimToWorld.TransformRotation(FQuat(SimRot));
 			const FVector Size = FVector(SizeReader.GetSafe(ParticleIndex, LocalDefaultSize) * 0.5f);
 			const FLinearColor DecalColor = ColorReader.GetSafe(ParticleIndex, LocalDefaultDecalColor);
 			const float Fade = FadeReader.GetSafe(ParticleIndex, LocalDefaultFade);
@@ -257,8 +256,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 		{
 			const FVector3f SimPos = LocalDefaultSimPos;
 			const FQuat4f SimRot = LocalDefaultSimRot;
-			const FVector Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
-			const FQuat Rotation = bUseLocalSpace ? LocalToWorld.TransformRotation(FQuat(SimRot)) : FQuat(SimRot);
+			const FVector Position = SimToWorld.TransformPosition(FVector(SimPos));
+			const FQuat Rotation = SimToWorld.TransformRotation(FQuat(SimRot));
 			const FVector Size = FVector(LocalDefaultSize * 0.5f);
 			const FLinearColor DecalColor = LocalDefaultDecalColor;
 			const float Fade = LocalDefaultFade;

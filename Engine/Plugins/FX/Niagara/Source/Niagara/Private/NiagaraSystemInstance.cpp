@@ -1247,6 +1247,17 @@ FNiagaraLWCConverter FNiagaraSystemInstance::GetLWCConverter(bool bLocalSpaceEmi
 	return FNiagaraLWCConverter(FVector(LWCTile) * FLargeWorldRenderScalar::GetTileSize());
 }
 
+FTransform FNiagaraSystemInstance::GetLWCSimToWorld(bool bLocalSpaceEmitter) const
+{
+	FTransform SimToWorld;
+	if (bLocalSpaceEmitter)
+	{
+		SimToWorld = WorldTransform;
+	}
+	SimToWorld.AddToTranslation(FVector(LWCTile) * FLargeWorldRenderScalar::GetTileSize());
+	return SimToWorld;
+}
+
 FNiagaraWorldManager* FNiagaraSystemInstance::GetWorldManager() const
 {
 	check(World);

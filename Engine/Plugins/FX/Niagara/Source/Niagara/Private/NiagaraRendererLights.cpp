@@ -16,7 +16,6 @@
 #include "PrimitiveViewRelevance.h"
 #include "SceneInterface.h"
 
-
 DECLARE_CYCLE_STAT(TEXT("Generate Particle Lights"), STAT_NiagaraGenLights, STATGROUP_Niagara);
 
 struct FNiagaraDynamicDataLights : public FNiagaraDynamicDataBase
@@ -98,13 +97,12 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 
 	// This used to use Proxy->GetLocalToWorld(), but that's a bad thing to do here, because the proxy gets updated on the render thread,
 	// and this function happens during EndOfFrame updates. So instead, use the most up-to-date transform here (fixes local-space frame-behind issues)
-	const FTransform LocalToWorld = SystemInstance->GetWorldTransform();
-
 	const bool bUseLocalSpace = UseLocalSpace(Proxy);
-	FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(bUseLocalSpace);
+	const FTransform SimToWorld = SystemInstance->GetLWCSimToWorld(bUseLocalSpace);
+	const FVector3f DefaultSimPos = bUseLocalSpace ? FVector3f::ZeroVector : FVector3f(SystemInstance->GetWorldTransform().GetLocation());
 
 	const FNiagaraParameterStore& ParameterStore = Emitter->GetRendererBoundVariables();
-	const FVector3f DefaultPos = ParameterStore.GetParameterValueOrDefault(Properties->PositionBinding.GetParamMapBindableVariable(), FVector3f::ZeroVector);
+	const FVector3f DefaultPos = ParameterStore.GetParameterValueOrDefault(Properties->PositionBinding.GetParamMapBindableVariable(), DefaultSimPos);
 	const FLinearColor DefaultColor = ParameterStore.GetParameterValueOrDefault(Properties->ColorBinding.GetParamMapBindableVariable(), Properties->ColorBinding.GetDefaultValue<FLinearColor>());
 	const float DefaultRadius = ParameterStore.GetParameterValueOrDefault(Properties->RadiusBinding.GetParamMapBindableVariable(), Properties->RadiusBinding.GetDefaultValue<float>());
 	const float DefaultScattering = ParameterStore.GetParameterValueOrDefault(Properties->VolumetricScatteringBinding.GetParamMapBindableVariable(), Properties->VolumetricScatteringBinding.GetDefaultValue<float>());
@@ -146,7 +144,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 				LightData.LightEntry.InverseExposureBlend = InverseExposureBlend;
 				LightData.LightEntry.bAffectTranslucency = Properties->bAffectsTranslucency;
 				LightData.LightEntry.VolumetricScatteringIntensity = ScatteringReader.GetSafe(ParticleIndex, DefaultScattering);
-				LightData.PerViewEntry.Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
+				LightData.PerViewEntry.Position = SimToWorld.TransformPosition(FVector(SimPos));
 			}
 		}
 	}
@@ -170,7 +168,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 			LightData.LightEntry.InverseExposureBlend = InverseExposureBlend;
 			LightData.LightEntry.bAffectTranslucency = Properties->bAffectsTranslucency;
 			LightData.LightEntry.VolumetricScatteringIntensity = LightScattering;
-			LightData.PerViewEntry.Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
+			LightData.PerViewEntry.Position = SimToWorld.TransformPosition(FVector(SimPos));
 		}
 	}
 

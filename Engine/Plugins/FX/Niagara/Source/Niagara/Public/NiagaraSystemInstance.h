@@ -137,6 +137,7 @@ public:
 
 	FORCEINLINE FNiagaraParameterStore& GetInstanceParameters() { return InstanceParameters; }
 	FNiagaraLWCConverter GetLWCConverter(bool bLocalSpaceEmitter = false) const;
+	FTransform GetLWCSimToWorld(bool bLocalSpaceEmitter = false) const;
 
 	FORCEINLINE uint32 GetParameterIndex(bool PreviousFrame = false) const
 	{
