@@ -773,7 +773,7 @@ namespace Horde.Agent.Execution
 				_logger.LogInformation("Created artifact {ArtifactId} with ref {RefName} in ns {Namespace}", artifact.Id, artifact.RefName, artifact.NamespaceId);
 
 				IStorageClient storage = _storageFactory.CreateStorageClient(_session, new NamespaceId(artifact.NamespaceId), artifact.Token);
-				using IStorageWriter writer = storage.CreateWriter(new RefName(artifact.RefName));
+				await using IStorageWriter writer = storage.CreateWriter(new RefName(artifact.RefName));
 
 				DirectoryNode dir = new DirectoryNode();
 				await dir.CopyFilesAsync(baseDir, files, new ChunkingOptions(), writer, new CopyStatsLogger(logger), cancellationToken);
@@ -955,7 +955,7 @@ namespace Horde.Agent.Execution
 				RefName refName = TempStorage.GetRefNameForNode(_storagePrefix, step.Name);
 
 				TreeOptions treeOptions = new TreeOptions();
-				using IStorageWriter treeWriter = storage.CreateWriter(refName, treeOptions);
+				await using IStorageWriter treeWriter = storage.CreateWriter(refName, treeOptions);
 
 				DirectoryNode outputNode = new DirectoryNode();
 

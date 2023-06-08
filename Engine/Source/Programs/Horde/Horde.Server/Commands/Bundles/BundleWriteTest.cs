@@ -47,7 +47,7 @@ namespace Horde.Server.Commands.Bundles
 
 			TreeOptions options = new TreeOptions();
 			options.CompressionFormat = BundleCompressionFormat.None;
-			using IStorageWriter writer = store.CreateWriter(options: options);
+			await using IStorageWriter writer = store.CreateWriter(options: options);
 
 			ChunkingOptions chunkingOptions = new ChunkingOptions();
 //			chunkingOptions.LeafOptions = new ChunkingOptionsForNodeType(64 * 1024);

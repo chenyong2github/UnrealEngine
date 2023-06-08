@@ -334,7 +334,7 @@ namespace Horde.Server.Perforce
 			_logger.LogInformation("Total sync size: {Size:n1}mb", totalSize / (1024.0 * 1024.0));
 
 			// Create the tree writer
-			using IStorageWriter writer = store.CreateWriter(refName, options.TreeOptions);
+			await using IStorageWriter writer = store.CreateWriter(refName, options.TreeOptions);
 
 			// Sync incrementally
 			long syncedSize = 0;

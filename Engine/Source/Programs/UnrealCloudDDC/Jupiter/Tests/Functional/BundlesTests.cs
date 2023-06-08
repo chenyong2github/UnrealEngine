@@ -397,7 +397,7 @@ public abstract class BundlesTests
     {
         // Generate a tree
         {
-            using IStorageWriter writer = store.CreateWriter(new RefName("test"), options);
+            await using IStorageWriter writer = store.CreateWriter(new RefName("test"), options);
 
             SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<NodeRef<SimpleNode>>());
             SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new NodeRef<SimpleNode>(node1) });

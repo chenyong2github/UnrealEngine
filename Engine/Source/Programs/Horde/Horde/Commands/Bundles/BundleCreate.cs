@@ -66,7 +66,7 @@ namespace Horde.Commands.Bundles
 			// Create the bundle
 			Stopwatch timer = Stopwatch.StartNew();
 
-			using (IStorageWriter writer = store.CreateWriter())
+			await using (IStorageWriter writer = store.CreateWriter())
 			{
 				ChunkingOptions options = new ChunkingOptions();
 				DirectoryNode node = await DirectoryNode.CreateAsync(baseDir, files, options, writer, null, CancellationToken.None);

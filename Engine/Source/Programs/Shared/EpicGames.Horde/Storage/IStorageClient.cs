@@ -195,7 +195,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Interface for writing new nodes to the store
 	/// </summary>
-	public interface IStorageWriter : IDisposable
+	public interface IStorageWriter : IAsyncDisposable
 	{
 		/// <summary>
 		/// Accessor for the store instance

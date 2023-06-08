@@ -136,7 +136,7 @@ namespace Horde.Agent.Utility
 
 			if (_writer != null)
 			{
-				_writer.Dispose();
+				await _writer.DisposeAsync();
 			}
 		}
 

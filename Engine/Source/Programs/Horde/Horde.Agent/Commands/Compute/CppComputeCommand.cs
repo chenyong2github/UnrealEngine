@@ -77,7 +77,7 @@ namespace Horde.Agent.Commands.Compute
 
 		static async Task<NodeLocator> CreateSandboxAsync(FileReference taskFile, IStorageClient storage, CancellationToken cancellationToken)
 		{
-			using IStorageWriter writer = storage.CreateWriter();
+			await using IStorageWriter writer = storage.CreateWriter();
 
 			DirectoryNode sandbox = new DirectoryNode();
 			await sandbox.CopyFromDirectoryAsync(taskFile.Directory.ToDirectoryInfo(), new ChunkingOptions(), writer, null, cancellationToken);

@@ -176,7 +176,7 @@ public class StorageClient : IStorageClientJupiter
             BlobLocator blobLocator = new BlobLocator(inlinePayload.BlobLocator);
             int exportId = inlinePayload.ExportId;
 
-            return new NodeHandle(_treeReader, nodeHash, new NodeLocator(blobLocator, exportId));
+            return new FlushedNodeHandle(_treeReader, nodeHash, new NodeLocator(blobLocator, exportId));
         }
         catch (ObjectNotFoundException )
         {
@@ -187,7 +187,7 @@ public class StorageClient : IStorageClientJupiter
     public async Task<NodeHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default)
     {
         BlobLocator locator = await this.WriteBundleAsync(bundle, prefix, cancellationToken);
-        NodeHandle target = new NodeHandle(_treeReader, bundle.Header.Exports[exportIdx].Hash, new NodeLocator(locator, exportIdx));
+        NodeHandle target = new FlushedNodeHandle(_treeReader, bundle.Header.Exports[exportIdx].Hash, new NodeLocator(locator, exportIdx));
         await WriteRefTargetAsync(name, target, options, cancellationToken);
 
         return target;

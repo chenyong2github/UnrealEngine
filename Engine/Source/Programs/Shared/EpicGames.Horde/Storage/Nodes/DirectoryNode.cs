@@ -626,7 +626,7 @@ namespace EpicGames.Horde.Storage.Nodes
 
 		static async ValueTask CreateLeafChunkNodesAsync(IStorageWriter writer, List<FileContent> files, CopyStats? copyStats, ChunkingOptions options, CancellationToken cancellationToken)
 		{
-			using IStorageWriter writerFork = writer.Fork();
+			await using IStorageWriter writerFork = writer.Fork();
 			foreach (FileContent file in files)
 			{
 				using (Stream stream = file.OpenRead())

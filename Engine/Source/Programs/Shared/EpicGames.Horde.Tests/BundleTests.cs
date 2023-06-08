@@ -69,7 +69,7 @@ namespace EpicGames.Horde.Tests
 		{
 			RefName refName = new RefName("test");
 			TreeReader reader = new TreeReader(_storage, null, NullLogger.Instance);
-			using IStorageWriter writer = _storage.CreateWriter(refName);
+			await using IStorageWriter writer = _storage.CreateWriter(refName);
 
 			ChunkingOptions options = new ChunkingOptions();
 			options.LeafOptions = new LeafChunkedDataNodeOptions(8, 8, 8);

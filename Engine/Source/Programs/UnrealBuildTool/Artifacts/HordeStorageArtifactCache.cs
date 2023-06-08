@@ -504,7 +504,7 @@ namespace UnrealBuildTool.Artifacts
 					node.MarkAsDirty();
 
 					// Save the artifact action file
-					using IStorageWriter writer = _store!.CreateWriter();
+					await using IStorageWriter writer = _store!.CreateWriter();
 					await hordeArtifactAction.WriteFilesAsync(writer, cancellationToken);
 
 					// Save the collection

@@ -815,14 +815,20 @@ namespace EpicGames.Horde.Storage
 		IStorageWriter IStorageWriter.Fork() => new TreeWriter(this);
 
 		/// <inheritdoc/>
-		public void Dispose()
+		public async ValueTask DisposeAsync()
 		{
-			if (_currentBundle != null)
+			if (!_disposed)
 			{
-				_currentBundle.Dispose();
-				_currentBundle = null;
+				await FlushAsync();
+
+				if (_currentBundle != null)
+				{
+					_currentBundle.Dispose();
+					_currentBundle = null;
+				}
+
+				_disposed = true;
 			}
-			_disposed = true;
 		}
 
 		/// <summary>

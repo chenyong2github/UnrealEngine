@@ -61,7 +61,7 @@ namespace EpicGames.Horde.Tests
 		static async Task<Bundle> CreateBundleNormalAsync()
 		{
 			MemoryStorageClient store = new MemoryStorageClient();
-			using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { CompressionFormat = BundleCompressionFormat.None });
+			await using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { CompressionFormat = BundleCompressionFormat.None });
 
 			TextNode node = new TextNode("Hello world");
 			NodeHandle handle = await writer.FlushAsync(node, CancellationToken.None);
@@ -143,7 +143,7 @@ namespace EpicGames.Horde.Tests
 		{
 			// Generate a tree
 			{
-				using IStorageWriter writer = store.CreateWriter(new RefName("test"), options);
+				await using IStorageWriter writer = store.CreateWriter(new RefName("test"), options);
 
 				SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<NodeRef<SimpleNode>>());
 				SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new NodeRef<SimpleNode>(node1) });
@@ -255,7 +255,7 @@ namespace EpicGames.Horde.Tests
 
 			// Generate a tree
 			{
-				using IStorageWriter writer = store.CreateWriter();
+				await using IStorageWriter writer = store.CreateWriter();
 
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 				DirectoryNode hello = root.AddDirectory("hello");
@@ -305,7 +305,7 @@ namespace EpicGames.Horde.Tests
 			// Generate a tree
 			NodeRef<ChunkedDataNode> nodeRef;
 			{
-				using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { MaxBlobSize = 1024 });
+				await using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { MaxBlobSize = 1024 });
 
 				ChunkingOptions options = new ChunkingOptions();
 				options.LeafOptions = new LeafChunkedDataNodeOptions(128, 256, 64 * 1024);
@@ -353,7 +353,7 @@ namespace EpicGames.Horde.Tests
 			// Generate a tree
 			DirectoryNode root;
 			{
-				using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { MaxBlobSize = 1024 });
+				await using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { MaxBlobSize = 1024 });
 
 				root = new DirectoryNode(DirectoryFlags.None);
 

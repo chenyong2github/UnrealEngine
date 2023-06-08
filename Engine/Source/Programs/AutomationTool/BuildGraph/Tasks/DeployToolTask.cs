@@ -151,7 +151,7 @@ namespace AutomationTool.Tasks
 			NodeHandle handle;
 
 			HttpStorageClient storageClient = new HttpStorageClient(CreateHttpClient, () => new HttpClient(), null, Logger);
-			using (IStorageWriter treeWriter = storageClient.CreateWriter())
+			await using (IStorageWriter treeWriter = storageClient.CreateWriter())
 			{
 				DirectoryNode sandbox = new DirectoryNode();
 				if (Parameters.File != null)

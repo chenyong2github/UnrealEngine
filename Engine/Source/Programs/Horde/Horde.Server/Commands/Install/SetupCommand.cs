@@ -67,7 +67,7 @@ namespace Horde.Server.Commands.Install
 			RefName refName = new RefName("latest");
 
 			FileStorageClient client = new FileStorageClient(bundleDir, logger);
-			using (IStorageWriter writer = client.CreateWriter(refName))
+			await using (IStorageWriter writer = client.CreateWriter(refName))
 			{
 				DirectoryNode dirNode = new DirectoryNode();
 				await dirNode.CopyFromDirectoryAsync(looseAgentDir.ToDirectoryInfo(), new ChunkingOptions(), writer, null);

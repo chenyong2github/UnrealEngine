@@ -525,7 +525,7 @@ namespace EpicGames.Horde.Storage
 		/// <returns>Location of node targetted by the ref</returns>
 		public static async Task<NodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, Node node, TreeOptions? options = null, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
 		{
-			using IStorageWriter writer = store.CreateWriter(name, options);
+			await using IStorageWriter writer = store.CreateWriter(name, options);
 			return await writer.WriteAsync(name, node, refOptions, cancellationToken);
 		}
 
