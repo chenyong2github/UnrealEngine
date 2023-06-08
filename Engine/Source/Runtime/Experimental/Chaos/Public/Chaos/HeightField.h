@@ -175,6 +175,58 @@ namespace Chaos
 			}
 		}
 
+		virtual void VisitOverlappingLeafObjectsImpl(
+			const FAABB3& QueryBounds,
+			const FRigidTransform3& ObjectTransform,
+			const int32 RootObjectIndex,
+			int32& ObjectIndex,
+			int32& LeafObjectIndex,
+			const FImplicitHierarchyVisitor& VisitorFunc) const override final
+		{
+			if (IsOverlappingAnyCells(QueryBounds))
+			{
+				VisitorFunc(this, ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex);
+			}
+			++ObjectIndex;
+			++LeafObjectIndex;
+		}
+
+		virtual bool IsOverlappingBoundsImpl(const FAABB3& QueryBounds) const override final
+		{
+			return IsOverlappingAnyCells(QueryBounds);
+		}
+
+		// Does the mesh-space QueryBounds overlap the bounds of any cells in the heightfield?
+		// @todo(chaos): we can return as soon as we overlap any cell so maybe use a 
+		// custom function rather than GetBoundsScaled. Also we only care about Z overlap.
+		bool IsOverlappingAnyCells(const FAABB3& QueryBounds) const
+		{
+			// Top-level bounds check
+			if (!BoundingBox().Intersects(QueryBounds))
+			{
+				return false;
+			}
+
+			// Find all the cells that overlap in the X/Y plane
+			FVec2 Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
+			const FBounds2D FlatBounds = GetFlatBounds();
+
+			FBounds2D GridQueryBounds;
+			GridQueryBounds.Min = FVec2(QueryBounds.Min()[0], QueryBounds.Min()[1]);
+			GridQueryBounds.Max = FVec2(QueryBounds.Max()[0], QueryBounds.Max()[1]);
+			GridQueryBounds = FBounds2D::FromPoints(FlatBounds.Clamp(GridQueryBounds.Min) / Scale2D, FlatBounds.Clamp(GridQueryBounds.Max) / Scale2D);
+
+			FAABBVectorized QueryBoundsSimd = FAABBVectorized(QueryBounds);
+
+			// We want to capture the first cell (delta == 0) as well
+			TVec2<int32> FirstCell = FlatGrid.Cell(GridQueryBounds.Min);
+			TVec2<int32> LastCell = FlatGrid.Cell(GridQueryBounds.Max);
+
+			FAABBVectorized RegionBounds;
+			GeomData.GetBoundsScaled(FirstCell, LastCell - FirstCell, RegionBounds);
+			return RegionBounds.Intersects(QueryBoundsSimd);
+		}
+
 		struct FClosestFaceData
 		{
 			int32 FaceIndex = INDEX_NONE;
@@ -571,7 +623,7 @@ namespace Chaos
 
 			FORCEINLINE void GetBoundsScaled(TVec2<int32> CellIdx, FAABBVectorized& OutBounds) const
 			{
-				GetBounds(CellIdx, OutBounds);
+				GetBounds(CellIdx, TVec2<int32>(1, 1), OutBounds);
 
 				VectorRegister4Float P0 = VectorMultiply(OutBounds.GetMin(), ScaleSimd);
 				VectorRegister4Float P1 = VectorMultiply(OutBounds.GetMax(), ScaleSimd);

@@ -251,7 +251,10 @@ namespace Chaos
 			}
 		}
 
-		return MakeShared<FImplicitObjectUnion>(MoveTemp(Objects));
+		FImplicitObjectUnion* NewGeometry = new FImplicitObjectUnion(MoveTemp(Objects));
+		NewGeometry->SetAllowBVH(true);
+
+		return TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(NewGeometry);
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::ClaimNextUnionIndex"), STAT_ClaimNextUnionIndex, STATGROUP_Chaos);

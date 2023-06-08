@@ -29,10 +29,12 @@ namespace Chaos
 			FCollisionContextAllocator(FPBDCollisionConstraints* InCollisionContainer, const int32 InNumCollisionsPerBlock, const int32 InCurrentEpoch)
 				: CollisionContainer(InCollisionContainer)
 				, CurrentEpoch(InCurrentEpoch)
-	#if CHAOS_COLLISION_OBJECTPOOL_ENABLED
+#if CHAOS_COLLISION_OBJECTPOOL_ENABLED
 				, ConstraintPool(InNumCollisionsPerBlock, 0)
+#endif
+#if CHAOS_MIDPHASE_OBJECTPOOL_ENABLED
 				, MidPhasePool(InNumCollisionsPerBlock, 0)
-	#endif
+#endif
 			{
 			}
 
@@ -67,12 +69,12 @@ namespace Chaos
 			 */
 			FPBDCollisionConstraintPtr CreateConstraint()
 			{
-	#if CHAOS_COLLISION_OBJECTPOOL_ENABLED 
+#if CHAOS_COLLISION_OBJECTPOOL_ENABLED 
 				FPBDCollisionConstraint* Constraint = ConstraintPool.Alloc();
 				return FPBDCollisionConstraintPtr(Constraint, FPBDCollisionConstraintDeleter(ConstraintPool));
-	#else
+#else
 				return MakeUnique<FPBDCollisionConstraint>();
-	#endif
+#endif
 			}
 
 			/**
@@ -131,10 +133,12 @@ namespace Chaos
 
 			void Reset()
 			{
-	#if CHAOS_COLLISION_OBJECTPOOL_ENABLED
+#if CHAOS_COLLISION_OBJECTPOOL_ENABLED
 				ConstraintPool.Reset();
+#endif
+#if CHAOS_MIDPHASE_OBJECTPOOL_ENABLED
 				MidPhasePool.Reset();
-	#endif
+#endif
 			}
 
 			void BeginDetectCollisions(const int32 InEpoch)
@@ -167,11 +171,11 @@ namespace Chaos
 				const FCollisionParticlePairKey Key = FCollisionParticlePairKey(Particle0, Particle1);
 
 				// We temporarily hold new midphases as raw pointers and wrap them in a unique ptr later in ProcessNewMidPhases
-	#if CHAOS_COLLISION_OBJECTPOOL_ENABLED 
+#if CHAOS_MIDPHASE_OBJECTPOOL_ENABLED 
 				FParticlePairMidPhase* MidPhase = MidPhasePool.Alloc();
-	#else
-				FParticlePairMidPhase* MidPhase = new FParticlePairMidPhase();
-	#endif
+#else
+				FParticlePairMidPhase* MidPhase = FParticlePairMidPhase::Make(Particle0, Particle1);
+#endif
 
 				NewMidPhases.Add(MidPhase);
 
@@ -185,10 +189,13 @@ namespace Chaos
 			TArray<FPBDCollisionConstraint*> NewActiveConstraints;
 			TArray<FParticlePairMidPhase*> NewMidPhases;
 
-	#if CHAOS_COLLISION_OBJECTPOOL_ENABLED
+#if CHAOS_COLLISION_OBJECTPOOL_ENABLED
 			FPBDCollisionConstraintPool ConstraintPool;
+#endif
+#if CHAOS_MIDPHASE_OBJECTPOOL_ENABLED
 			FParticlePairMidPhasePool MidPhasePool;
-	#endif
+			FParticlePairMidPhasePool MidPhasePool;
+#endif
 		};
 
 
@@ -619,105 +626,38 @@ namespace Chaos
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	template<typename TLambda>
-	inline ECollisionVisitorResult FMultiShapePairCollisionDetector::VisitCollisions(const TLambda& Visitor, const bool bOnlyActive)
-	{
-		for (auto& KVP : Constraints)
-		{
-			const FPBDCollisionConstraintPtr& Constraint = KVP.Value;
-
-			if (Constraint.IsValid() && (!bOnlyActive || !Constraint->GetDisabled()))
-			{
-				if (Visitor(*Constraint) == ECollisionVisitorResult::Stop)
-				{
-					return ECollisionVisitorResult::Stop;
-				}
-			}
-		}
-		return ECollisionVisitorResult::Continue;
-	}
-
-	template<typename TLambda>
-	inline ECollisionVisitorResult FMultiShapePairCollisionDetector::VisitConstCollisions(const TLambda& Visitor, const bool bOnlyActive) const
-	{
-		for (auto& KVP : Constraints)
-		{
-			const FPBDCollisionConstraintPtr& Constraint = KVP.Value;
-
-			if (Constraint.IsValid() && (!bOnlyActive || !Constraint->GetDisabled()))
-			{
-				if (!bOnlyActive || (Visitor(*Constraint) == ECollisionVisitorResult::Stop))
-				{
-					return ECollisionVisitorResult::Stop;
-				}
-			}
-		}
-		return ECollisionVisitorResult::Continue;
-	}
-
-	template<typename TLambda>
-	inline ECollisionVisitorResult FParticlePairCollisionDetector::VisitCollisions(const TLambda& Visitor, const bool bOnlyActive)
-	{
-		for (auto& KVP : Constraints)
-		{
-			const FPBDCollisionConstraintPtr& Constraint = KVP.Value;
-
-			if (Constraint.IsValid() && (!bOnlyActive || !Constraint->GetDisabled()))
-			{
-				if (Visitor(*Constraint) == ECollisionVisitorResult::Stop)
-				{
-					return ECollisionVisitorResult::Stop;
-				}
-			}
-		}
-		return ECollisionVisitorResult::Continue;
-	}
-
-	template<typename TLambda>
-	inline ECollisionVisitorResult FParticlePairCollisionDetector::VisitConstCollisions(const TLambda& Visitor, const bool bOnlyActive) const
-	{
-		for (auto& KVP : Constraints)
-		{
-			const FPBDCollisionConstraintPtr& Constraint = KVP.Value;
-
-			if (Constraint.IsValid() && (!bOnlyActive || !Constraint->GetDisabled()))
-			{
-				if (!bOnlyActive || (Visitor(*Constraint) == ECollisionVisitorResult::Stop))
-				{
-					return ECollisionVisitorResult::Stop;
-				}
-			}
-		}
-		return ECollisionVisitorResult::Continue;
-	}
 
 	template<typename TLambda>
 	inline ECollisionVisitorResult FParticlePairMidPhase::VisitCollisions(const TLambda& Visitor, const bool bOnlyActive)
 	{
-		for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
+		if (GetMidPhaseType() == EParticlePairMidPhaseType::ShapePair)
 		{
-			if ((ShapePair.GetConstraint() != nullptr) && (!bOnlyActive || !ShapePair.GetConstraint()->GetDisabled()))
+			FShapePairParticlePairMidPhase* This = static_cast<FShapePairParticlePairMidPhase*>(this);
+			for (FSingleShapePairCollisionDetector& ShapePair : This->ShapePairDetectors)
 			{
-				if (Visitor(*ShapePair.GetConstraint()) == ECollisionVisitorResult::Stop)
+				if ((ShapePair.GetConstraint() != nullptr) && (!bOnlyActive || !ShapePair.GetConstraint()->GetDisabled()))
 				{
-					return ECollisionVisitorResult::Stop;
+					if (Visitor(*ShapePair.GetConstraint()) == ECollisionVisitorResult::Stop)
+					{
+						return ECollisionVisitorResult::Stop;
+					}
 				}
 			}
 		}
 
-		for (FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
+		if (GetMidPhaseType() == EParticlePairMidPhaseType::Generic)
 		{
-			if (MultiShapePair.VisitCollisions(Visitor, bOnlyActive) == ECollisionVisitorResult::Stop)
+			FGenericParticlePairMidPhase* This = static_cast<FGenericParticlePairMidPhase*>(this);
+			for (auto& KVP : This->Constraints)
 			{
-				return ECollisionVisitorResult::Stop;
-			}
-		}
-
-		if (ParticlePairDetector.IsValid())
-		{
-			if (ParticlePairDetector->VisitCollisions(Visitor, bOnlyActive) == ECollisionVisitorResult::Stop)
-			{
-				return ECollisionVisitorResult::Stop;
+				FPBDCollisionConstraintPtr& Constraint = KVP.Value;
+				if (!bOnlyActive || Constraint->IsEnabled())
+				{
+					if (Visitor(*Constraint) == ECollisionVisitorResult::Stop)
+					{
+						return ECollisionVisitorResult::Stop;
+					}
+				}
 			}
 		}
 
@@ -728,30 +668,34 @@ namespace Chaos
 	template<typename TLambda>
 	inline ECollisionVisitorResult FParticlePairMidPhase::VisitConstCollisions(const TLambda& Visitor, const bool bOnlyActive) const
 	{
-		for (const FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
+		if (GetMidPhaseType() == EParticlePairMidPhaseType::ShapePair)
 		{
-			if ((ShapePair.GetConstraint() != nullptr) && (!bOnlyActive || !ShapePair.GetConstraint()->GetDisabled()))
+			const FShapePairParticlePairMidPhase* This = static_cast<const FShapePairParticlePairMidPhase*>(this);
+			for (const FSingleShapePairCollisionDetector& ShapePair : This->ShapePairDetectors)
 			{
-				if (Visitor(*ShapePair.GetConstraint()) == ECollisionVisitorResult::Stop)
+				if ((ShapePair.GetConstraint() != nullptr) && (!bOnlyActive || !ShapePair.GetConstraint()->GetDisabled()))
 				{
-					return ECollisionVisitorResult::Stop;
+					if (Visitor(*ShapePair.GetConstraint()) == ECollisionVisitorResult::Stop)
+					{
+						return ECollisionVisitorResult::Stop;
+					}
 				}
 			}
 		}
 
-		for (const FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
+		if (GetMidPhaseType() == EParticlePairMidPhaseType::Generic)
 		{
-			if (MultiShapePair.VisitConstCollisions(Visitor, bOnlyActive) == ECollisionVisitorResult::Stop)
+			const FGenericParticlePairMidPhase* This = static_cast<const FGenericParticlePairMidPhase*>(this);
+			for (const auto& KVP : This->Constraints)
 			{
-				return ECollisionVisitorResult::Stop;
-			}
-		}
-
-		if (ParticlePairDetector.IsValid())
-		{
-			if (ParticlePairDetector->VisitConstCollisions(Visitor, bOnlyActive) == ECollisionVisitorResult::Stop)
-			{
-				return ECollisionVisitorResult::Stop;
+				const FPBDCollisionConstraintPtr& Constraint = KVP.Value;
+				if (!bOnlyActive || Constraint->IsEnabled())
+				{
+					if (Visitor(*Constraint) == ECollisionVisitorResult::Stop)
+					{
+						return ECollisionVisitorResult::Stop;
+					}
+				}
 			}
 		}
 

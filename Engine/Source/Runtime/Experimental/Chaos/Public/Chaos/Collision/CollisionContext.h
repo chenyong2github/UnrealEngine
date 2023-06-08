@@ -9,8 +9,8 @@ namespace Chaos
 	{
 		class FCollisionContextAllocator;
 	}
-	class FMultiShapePairCollisionDetector;
-	class FParticlePairCollisionDetector;
+
+	class FParticlePairMidPhase;
 
 	class FCollisionDetectorSettings
 	{
@@ -64,8 +64,7 @@ namespace Chaos
 		FCollisionContext()
 			: Settings(nullptr)
 			, Allocator(nullptr)
-			, MultiShapeCollisionDetector(nullptr)
-			, ParticlePairCollisionDetector(nullptr)
+			, MidPhase(nullptr)
 		{
 		}
 
@@ -73,8 +72,7 @@ namespace Chaos
 		{
 			Settings = nullptr;
 			Allocator = nullptr;
-			MultiShapeCollisionDetector = nullptr;
-			ParticlePairCollisionDetector = nullptr;
+			MidPhase = nullptr;
 		}
 
 		const FCollisionDetectorSettings& GetSettings() const { return *Settings; }
@@ -90,7 +88,6 @@ namespace Chaos
 		// This is used in the older collision detection path which is still used for particles that do not flatten their implicit hierrarchies
 		// into the Particle's ShapesArray. Currently this is only Clusters.
 		// @todo(chaos): remove thsi from here and make it a parameter on ConstructCollisions and all inner functions.
-		FMultiShapePairCollisionDetector* MultiShapeCollisionDetector;
-		FParticlePairCollisionDetector* ParticlePairCollisionDetector;
+		FParticlePairMidPhase* MidPhase;
 	};
 }

@@ -4,6 +4,7 @@
 
 #include "Chaos/ImplicitObjectTransformed.h"
 #include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "Chaos/Framework/PhysicsSolverBase.h"
@@ -113,6 +114,18 @@ namespace Chaos
 
 	}
 
+	template <typename T, int d>
+	void Chaos::TGeometryParticle<T, d>::PrepareBVHImpl()
+	{
+		if (MNonFrequentData.IsDirty(MDirtyFlags))
+		{
+			if (const FImplicitObjectUnion* Union = MNonFrequentData.Read().Geometry()->GetObject<FImplicitObjectUnion>())
+			{
+				// This will rebuild the BVH if the geometry is new, otherwise do nothing
+				const_cast<FImplicitObjectUnion*>(Union)->SetAllowBVH(true);
+			}
+		}
+	}
 
 	template <typename T, int d>
 	void Chaos::TGeometryParticle<T, d>::SetIgnoreAnalyticCollisionsImp(FImplicitObject* Implicit, bool bIgnoreAnalyticCollisions)

@@ -15,6 +15,7 @@ namespace Chaos
 namespace Private
 {
 	class FImplicitBVH;
+	class FImplicitBVHObject;
 }
 
 namespace CVars
@@ -40,6 +41,12 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 
 	void Combine(TArray<TUniquePtr<FImplicitObject>>& Objects);
 	void RemoveAt(int32 RemoveIndex);
+
+	// The total number of root objects in the hierarchy (same as GetObjects().Num())
+	int32 GetNumRootObjects() const
+	{
+		return MObjects.Num();
+	}
 
 	// The total number of leaf objects in the hierarchy
 	int32 GetNumLeafObjects() const
@@ -208,6 +215,11 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		return Union;
 	}
 
+	const Private::FImplicitBVH* GetBVH() const
+	{
+		return BVH.Get();
+	}
+
 #if INTEL_ISPC
 	// See PerParticlePBDCollisionConstraint.cpp
 	// ISPC code has matching structs for interpreting FImplicitObjects.
@@ -256,17 +268,20 @@ protected:
 		int32& LeafObjectIndex,
 		const FImplicitHierarchyVisitor& VisitorFunc) const override final;
 
-	virtual void VisitObjectsImpl(
+	virtual bool VisitObjectsImpl(
 		const FRigidTransform3& ObjectTransform,
 		const int32 RootObjectIndex,
 		int32& ObjectIndex,
 		int32& LeafObjectIndex,
-		const FImplicitHierarchyVisitor& VisitorFunc) const override final;
+		const FImplicitHierarchyVisitorBool& VisitorFunc) const override final;
+
+	virtual bool IsOverlappingBoundsImpl(
+		const FAABB3& LocalBounds) const override final;
 
   protected:
-	//needed for serialization
+	// Needed for serialization
 	FImplicitObjectUnion();
-	friend FImplicitObject;	//needed for serialization
+	friend FImplicitObject;
 
 	void SetNumLeafObjects(const int32 InNumLeafObjects);
 	void CreateBVH();
@@ -326,7 +341,9 @@ public:
 		return ImplicitObjectType::UnionClustered;
 	}
 
-	void FindAllIntersectingClusteredObjects(TArray<FLargeUnionClusteredImplicitInfo>& Out, const FAABB3& LocalBounds) const;
+	UE_DEPRECATED(5.3, "Not supported")
+	void FindAllIntersectingClusteredObjects(TArray<FLargeUnionClusteredImplicitInfo>& Out, const FAABB3& LocalBounds) const {}
+
 	TArray<FPBDRigidParticleHandle*> FindAllIntersectingChildren(const FAABB3& LocalBounds) const;
 
 	// DO NOT USE!!

@@ -2,7 +2,12 @@
 #pragma once
 
 #include "Chaos/Core.h"
+#include "Chaos/ObjectPool.h"
 #include "Chaos/ParticleHandleFwd.h"
+
+// Whether to use a pool for MidPhases and Collision Constraints
+#define CHAOS_COLLISION_OBJECTPOOL_ENABLED 1
+#define CHAOS_MIDPHASE_OBJECTPOOL_ENABLED 0
 
 namespace Chaos
 {
@@ -70,7 +75,34 @@ namespace Chaos
 	//
 	//
 
-	//TODO: move into a better forward declare location
+	class FCollisionContext;
+	class FGenericParticlePairMidPhase;
+	class FParticlePairMidPhase;
+	class FPBDCollisionConstraints;
+	class FPBDCollisionConstraint;
 	class FPBDCollisionConstraintHandle;
+	class FPerShapeData;
+	class FShapePairParticlePairMidPhase;
 
+// Collision and MidPhases are stored in an ObjectPool (if CHAOS_COLLISION_OBJECTPOOL_ENABLED or CHAOS_MIDPHASE_OBJECTPOOL_ENABLED is set). 
+// @see FCollisionConstraintAllocator
+#if CHAOS_COLLISION_OBJECTPOOL_ENABLED 
+	using FPBDCollisionConstraintPool = TObjectPool<FPBDCollisionConstraint>;
+	using FPBDCollisionConstraintDeleter = TObjectPoolDeleter<FPBDCollisionConstraintPool>;
+	using FPBDCollisionConstraintPtr = TUniquePtr<FPBDCollisionConstraint, FPBDCollisionConstraintDeleter>;
+#else 
+	using FPBDCollisionConstraintPtr = TUniquePtr<FPBDCollisionConstraint>;
+#endif
+
+#if CHAOS_MIDPHASE_OBJECTPOOL_ENABLED
+	// Not yet supported due to awkwardness of defining a deleter for FParticlePairMidPhasePtr when we have pools of derived types.
+	// We probably need a custom deleter (not TObjectPoolDeleter) and to store a pointer to the CollisionConstraintAllocator.
+	static_assert(false, "CHAOS_MIDPHASE_OBJECTPOOL_ENABLED not supported yet")
+	using FGenericParticlePairMidPhasePool = TObjectPool<FGenericParticlePairMidPhase>;
+	using FShapePairParticlePairMidPhasePool = TObjectPool<FShapePairParticlePairMidPhase>;
+	using FParticlePairMidPhaseDeleter = TObjectPoolDeleter<???>;
+	using FParticlePairMidPhasePtr = TUniquePtr<FParticlePairMidPhase, FParticlePairMidPhaseDeleter>;
+#else
+	using FParticlePairMidPhasePtr = TUniquePtr<FParticlePairMidPhase>;
+#endif
 }

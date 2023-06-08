@@ -287,8 +287,10 @@ void UClusterUnionComponent::ForceRebuildGTParticleGeometry()
 		}
 	}
 
-	TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> NewGeometry = Objects.IsEmpty() ? MakeShared<Chaos::FImplicitObjectUnionClustered>() : MakeShared<Chaos::FImplicitObjectUnion>(MoveTemp(Objects));
-	PhysicsProxy->SetSharedGeometry_External(NewGeometry, Particles);
+	Chaos::FImplicitObjectUnion* NewGeometry = Objects.IsEmpty() ? new Chaos::FImplicitObjectUnionClustered() : new Chaos::FImplicitObjectUnion(MoveTemp(Objects));
+	NewGeometry->SetAllowBVH(true);
+
+	PhysicsProxy->SetSharedGeometry_External(TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>(NewGeometry), Particles);
 }
 
 TArray<UPrimitiveComponent*> UClusterUnionComponent::GetPrimitiveComponents()

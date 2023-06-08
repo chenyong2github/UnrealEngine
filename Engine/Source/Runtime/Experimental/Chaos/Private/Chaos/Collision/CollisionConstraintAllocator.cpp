@@ -49,11 +49,11 @@ namespace Chaos
 				Particle0->ParticleCollisions().AddMidPhase(Particle0, MidPhase);
 				Particle1->ParticleCollisions().AddMidPhase(Particle1, MidPhase);
 
-	#if CHAOS_COLLISION_OBJECTPOOL_ENABLED 
+#if CHAOS_MIDPHASE_OBJECTPOOL_ENABLED 
 				Allocator->AddMidPhase(FParticlePairMidPhasePtr(MidPhase, FParticlePairMidPhaseDeleter(MidPhasePool)));
-	#else
+#else
 				Allocator->AddMidPhase(FParticlePairMidPhasePtr(MidPhase));
-	#endif
+#endif
 			}
 			NewMidPhases.Reset();
 		}

@@ -167,10 +167,10 @@ namespace Chaos
 	{
 		friend class Private::FCollisionConstraintAllocator;
 		friend class Private::FCollisionContextAllocator;
-		friend class FMultiShapePairCollisionDetector;
-		friend class FParticlePairCollisionDetector;
+		friend class FGenericParticlePairMidPhase;
 		friend class FParticlePairMidPhase;
 		friend class FPBDCollisionConstraints;
+		friend class FShapePairParticlePairMidPhase;
 		friend class FSingleShapePairCollisionDetector;
 
 		friend CHAOS_API bool ContactConstraintSortPredicate(const FPBDCollisionConstraint& L, const FPBDCollisionConstraint& R);

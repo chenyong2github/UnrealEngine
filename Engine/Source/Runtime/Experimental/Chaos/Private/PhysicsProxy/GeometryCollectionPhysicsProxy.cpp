@@ -19,6 +19,7 @@
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/Convex.h"
 #include "Chaos/Serializable.h"
 #include "Chaos/ErrorReporter.h"
@@ -1072,6 +1073,20 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 			if ((ClusterHandle != nullptr) && !ClusterHandle->Disabled())
 			{
 				RigidsSolver->GetEvolution()->EnableParticle(ClusterHandle);
+
+				// Enable the BVH on the collision (if there are lots of shapes)
+				if (ClusterHandle->Geometry().Get() != nullptr)
+				{
+					if (const Chaos::FImplicitObjectUnion* Union = ClusterHandle->Geometry()->GetObject<Chaos::FImplicitObjectUnion>())
+					{
+						const_cast<Chaos::FImplicitObjectUnion*>(Union)->SetAllowBVH(true);
+					}
+					else if (const Chaos::FImplicitObjectUnion* UnionClustered = ClusterHandle->Geometry()->GetObject<Chaos::FImplicitObjectUnionClustered>())
+					{
+						const_cast<Chaos::FImplicitObjectUnion*>(UnionClustered)->SetAllowBVH(true);
+					}
+				}
+
 			}
 		}
 

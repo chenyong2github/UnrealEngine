@@ -726,9 +726,10 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 			else
 			{
 				// We always have a union so we can support any future welding operations. (Non-trivial converting the SharedPtr to UniquePtr).
-				// The root union always supports BVH and is the only Union in the hierarchy that is allowed to do so.
+				// NOTE: The root union always supports BVH (if there are enough shapes) and is the only Union in the hierarchy that is allowed 
+				// to do so, but we don't create it here because that makes welding even more expensive (bodies are welded one by one). 
+				// Search for SetAllowBVH to see where the BVH is enabled.
 				TUniquePtr<Chaos::FImplicitObjectUnion> Union = MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms));
-				Union->SetAllowBVH(true);
 				InActor->GetGameThreadAPI().SetGeometry(MoveTemp(Union));
 			}
 		}

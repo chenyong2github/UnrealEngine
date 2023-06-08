@@ -63,9 +63,19 @@ namespace Chaos
 		*/
 		bool CHAOS_API ShouldUseCCD(const FGeometryParticleHandle* Particle0, const FVec3& DeltaX0, const FGeometryParticleHandle* Particle1, const FVec3& DeltaX1, FVec3& Dir, FReal& Length);
 
-		// Create constraints for the particle pair. This could create multiple constraints: one for each potentially colliding shape pair in multi-shape particles.
-		// @param ImplicitID0 Used to differentiate contacts when an implicit is used multiple times in a geometry hierarchy
-		// @param ImplicitID1 Used to differentiate contacts when an implicit is used multiple times in a geometry hierarchy
+		// @todo(chaos): this should not be exposed but is currently used in tests
+		void UpdateLevelsetLevelsetConstraint(const FRigidTransform3& WorldTransform0, const FRigidTransform3& WorldTransform1, const FReal Dt, FPBDCollisionConstraint& Constraint);
+
+		// Reset per-frame collision stat counters
+		void CHAOS_API ResetChaosCollisionCounters();
+
+		//
+		//
+		// DEPRECATED STUFF
+		//
+		//
+
+		UE_DEPRECATED(5.3, "No longer needed or supported")
 		void CHAOS_API ConstructConstraints(
 			TGeometryParticleHandle<FReal, 3>* Particle0, 
 			TGeometryParticleHandle<FReal, 3>* Particle1, 
@@ -86,43 +96,15 @@ namespace Chaos
 			const bool bEnableSweep, 
 			const FCollisionContext& Context);
 
-		// @todo(chaos): this should not be exposed but is currently used in tests
-		void UpdateLevelsetLevelsetConstraint(const FRigidTransform3& WorldTransform0, const FRigidTransform3& WorldTransform1, const FReal Dt, FPBDCollisionConstraint& Constraint);
+		UE_DEPRECATED(5.3, "No longer needed or supported")
+		void CHAOS_API ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FPerShapeData* Shape0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FPerShapeData* Shape1, const FBVHParticles* Simplicial1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& Transform0, const FRigidTransform3& ParticleWorldTransform1, const FRigidTransform3& Transform1, const FReal CullDistance, const FReal Dt, const bool bEnableSweep, const FCollisionContext& Context);
 
-		// Reset per-frame collision stat counters
-		void CHAOS_API ResetChaosCollisionCounters();
-
-		//
-		//
-		// DEPRECATED STUFF (see above)
-		//
-		//
-
-		UE_DEPRECATED(5.3, "Replaced with a version that takes a ImplicitIDs")
-		inline void CHAOS_API ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FPerShapeData* Shape0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FPerShapeData* Shape1, const FBVHParticles* Simplicial1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& Transform0, const FRigidTransform3& ParticleWorldTransform1, const FRigidTransform3& Transform1, const FReal CullDistance, const FReal Dt, const bool bEnableSweep, const FCollisionContext& Context)
-		{
-			ConstructConstraints(Particle0, Particle1, Implicit0, Shape0, Simplicial0, 0, Implicit1, Shape1, Simplicial1, 0, ParticleWorldTransform0, Transform0, ParticleWorldTransform1, Transform1, CullDistance, Dt, bEnableSweep, Context);
-		}
-
-		UE_DEPRECATED(5.3, "Replaced with a version that takes a bEnableSweep flag")
-		inline void CHAOS_API ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FPerShapeData* Shape0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FPerShapeData* Shape1, const FBVHParticles* Simplicial1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& Transform0, const FRigidTransform3& ParticleWorldTransform1, const FRigidTransform3& Transform1, const FReal CullDistance, const FReal Dt, const FCollisionContext& Context)
-		{
-			ConstructConstraints(Particle0, Particle1, Implicit0, Shape0, Simplicial0, 0, Implicit1, Shape1, Simplicial1, 0, ParticleWorldTransform0, Transform0, ParticleWorldTransform1, Transform1, CullDistance, Dt, false, Context);
-		}
+		// See Above
+		UE_DEPRECATED(5.3, "No longer needed or supported")
+		void CHAOS_API ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FPerShapeData* Shape0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FPerShapeData* Shape1, const FBVHParticles* Simplicial1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& Transform0, const FRigidTransform3& ParticleWorldTransform1, const FRigidTransform3& Transform1, const FReal CullDistance, const FReal Dt, const FCollisionContext& Context);
 
 		template<ECollisionUpdateType UpdateType>
 		UE_DEPRECATED(5.3, "Use UpdateConstraint, but call Constraint.SetShapeWorldTransform first (see implementation)")
 		void CHAOS_API UpdateConstraintFromGeometry(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal Dt);
-
-		UE_DEPRECATED(5.3, "Use the version which takes a particle and an implicit")
-		inline EContactShapesType CHAOS_API CalculateShapePairType(const FImplicitObject* Implicit0, const FBVHParticles* BVHParticles0, const FImplicitObject* Implicit1, const FBVHParticles* BVHParticles1, bool& bOutSwap)
-		{
-			return EContactShapesType::Unknown;
-		}
-		UE_DEPRECATED(5.3, "Use the version which takes a particle and an implicit")
-		inline EContactShapesType CHAOS_API CalculateShapePairType(const EImplicitObjectType Implicit0Type, const EImplicitObjectType Implicit1Type, const bool bIsConvex0, const bool bIsConvex1, const bool bIsBVH0, const bool bIsBVH1, bool& bOutSwap)
-		{
-			return EContactShapesType::Unknown;
-		}
 	}
 }

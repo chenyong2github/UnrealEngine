@@ -2675,6 +2675,16 @@ public:
 		}
 	}
 
+	// Update the BVH in the geometry hierarchy if we have new geometry
+	// This exists so that we don't repeatedly rebuild the BVH when welding, for example,
+	// although ideally we would remove this and change the way welding works
+	void PrepareBVH()
+	{
+		if (MNonFrequentData.IsDirty(MDirtyFlags))
+		{
+			PrepareBVHImpl();
+		}
+	}
 
 	class IPhysicsProxyBase* GetProxy() const
 	{
@@ -2773,6 +2783,8 @@ protected:
 	void MarkDirty(const EChaosPropertyFlags DirtyBits, bool bInvalidate = true);
 
 	CHAOS_API void UpdateShapesArray();
+
+	void PrepareBVHImpl();
 
 	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData) const
 	{

@@ -1172,8 +1172,8 @@ namespace Chaos
 		}
 
 		bool DoParticleImplicitsOverlap(
-			TGeometryParticleHandle<FReal, 3>* Particle0,
-			TGeometryParticleHandle<FReal, 3>* Particle1,
+			const TGeometryParticleHandle<FReal, 3>* Particle0,
+			const TGeometryParticleHandle<FReal, 3>* Particle1,
 			const FImplicitObject* Implicit0,
 			const FImplicitObject* Implicit1,
 			const FRigidTransform3& ParticleWorldTransform0,
@@ -1274,16 +1274,9 @@ namespace Chaos
 
 			if (bDoOverlap)
 			{
-				if (Context.MultiShapeCollisionDetector != nullptr)
+				if (Context.MidPhase != nullptr)
 				{
-					Context.MultiShapeCollisionDetector->FindOrCreateConstraint(
-						Particle0, Implicit0, ImplicitID0, Shape0, Simplicial0, LocalTransform0,
-						Particle1, Implicit1, ImplicitID1, Shape1, Simplicial1, LocalTransform1,
-						CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds, bEnableSweep, Context);
-				}
-				else if (Context.ParticlePairCollisionDetector != nullptr)
-				{
-					Context.ParticlePairCollisionDetector->FindOrCreateConstraint(
+					Context.MidPhase->FindOrCreateConstraint(
 						Particle0, Implicit0, ImplicitID0, Shape0, Simplicial0, LocalTransform0,
 						Particle1, Implicit1, ImplicitID1, Shape1, Simplicial1, LocalTransform1,
 						CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds, bEnableSweep, Context);
@@ -1672,32 +1665,28 @@ namespace Chaos
 			return EContactShapesType::Unknown;
 		}
 
-		void ConstructConstraints(
-			FGeometryParticleHandle* Particle0, 
-			FGeometryParticleHandle* Particle1,
-			const FImplicitObject* Implicit0, 
-			const FPerShapeData* Shape0, 
-			const FBVHParticles* Simplicial0, 
-			const int32 ImplicitID0,
-			const FImplicitObject* Implicit1, 
-			const FPerShapeData* Shape1, 
-			const FBVHParticles* Simplicial1, 
-			const int32 ImplicitID1,
-			const FRigidTransform3& ParticleWorldTransform0,
-			const FRigidTransform3& LocalTransform0, 
-			const FRigidTransform3& ParticleWorldTransform1, 
-			const FRigidTransform3& LocalTransform1, 
-			const FReal CullDistance, 
-			const FReal dT, 
-			const bool bEnableSweep, 
-			const FCollisionContext& Context)
-		{
-			INC_DWORD_STAT(STAT_ChaosCollisionCounter_NumParticlePairs);
 
+		//
+		//
+		// DEPRECATED STUFF
+		//
+		//
+
+		void ConstructConstraints(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit0,  const FPerShapeData* Shape0,  const FBVHParticles* Simplicial0,  const int32 ImplicitID0, const FImplicitObject* Implicit1, const FPerShapeData* Shape1,  const FBVHParticles* Simplicial1,  const int32 ImplicitID1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& LocalTransform0,  const FRigidTransform3& ParticleWorldTransform1,  const FRigidTransform3& LocalTransform1, const FReal CullDistance,  const FReal dT,  const bool bEnableSweep,  const FCollisionContext& Context)
+		{
 			ConstructConstraintsRecursive(Particle0, Particle1, Implicit0, Shape0->AsShapeInstance(), Simplicial0, ImplicitID0, Implicit1, Shape1->AsShapeInstance(), Simplicial1, ImplicitID1, ParticleWorldTransform0, LocalTransform0, ParticleWorldTransform1, LocalTransform1, CullDistance, dT, bEnableSweep, Context);
 		}
 
-		// This is deprecated
+		void ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FPerShapeData* Shape0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FPerShapeData* Shape1, const FBVHParticles* Simplicial1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& Transform0, const FRigidTransform3& ParticleWorldTransform1, const FRigidTransform3& Transform1, const FReal CullDistance, const FReal Dt, const bool bEnableSweep, const FCollisionContext& Context)
+		{
+			ConstructConstraintsRecursive(Particle0, Particle1, Implicit0, Shape0->AsShapeInstance(), Simplicial0, 0, Implicit1, Shape1->AsShapeInstance(), Simplicial1, 0, ParticleWorldTransform0, Transform0, ParticleWorldTransform1, Transform1, CullDistance, Dt, bEnableSweep, Context);
+		}
+
+		void ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FPerShapeData* Shape0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FPerShapeData* Shape1, const FBVHParticles* Simplicial1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& Transform0, const FRigidTransform3& ParticleWorldTransform1, const FRigidTransform3& Transform1, const FReal CullDistance, const FReal Dt, const FCollisionContext& Context)
+		{
+			ConstructConstraintsRecursive(Particle0, Particle1, Implicit0, Shape0->AsShapeInstance(), Simplicial0, 0, Implicit1, Shape1->AsShapeInstance(), Simplicial1, 0, ParticleWorldTransform0, Transform0, ParticleWorldTransform1, Transform1, CullDistance, Dt, false, Context);
+		}
+
 		template<ECollisionUpdateType UpdateType>
 		void UpdateConstraintFromGeometry(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& ParticleWorldTransform1, const FReal Dt)
 		{

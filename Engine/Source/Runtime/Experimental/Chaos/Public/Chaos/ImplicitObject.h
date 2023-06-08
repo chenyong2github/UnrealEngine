@@ -68,6 +68,7 @@ struct TImplicitObjectPtrStorage<T, d, true>
 * @param LeafObjectIndex A counter tracking the current leaf index in the flattened hierarchy (pre-order, depth first). Used to differentiate between geometry when duplicated in the hierarchy. INDEX_NONE if not visiting a leaf.
 */
 using FImplicitHierarchyVisitor = TFunctionRef<void(const FImplicitObject* Implicit, const FRigidTransform3& Transform, const int32 RootObjectIndex, const int32 ObjectIndex, const int32 LeafObjectIndex)>;
+using FImplicitHierarchyVisitorBool = TFunctionRef<bool(const FImplicitObject* Implicit, const FRigidTransform3& Transform, const int32 RootObjectIndex, const int32 ObjectIndex, const int32 LeafObjectIndex)>;
 
 
 /*
@@ -370,12 +371,23 @@ public:
 	* Visit all the objects in the hierarchy, including inner nodes like Union and Transform
 	* @see FImplicitHierarchyVisitor for visitor notes
 	*/
-	void VisitObjects(const FImplicitHierarchyVisitor& Visitor) const
+	void VisitObjects(const FImplicitHierarchyVisitorBool& Visitor) const
 	{
 		int32 LeafObjectIndex = 0;
 		int32 ObjectIndex = 0;
 		const int32 RootObjectIndex = INDEX_NONE;
 		VisitObjectsImpl(FRigidTransform3::Identity, RootObjectIndex, ObjectIndex, LeafObjectIndex, Visitor);
+	}
+
+	/**
+	* Whether this implicit (possibly a hierarchy) overlaps the bounds. This is a deeper, more
+	* accurate test than simply checking BoundingBox() because it will query the BVH in Unions,
+	* Heightfields and Triangle Meshes, and only return true if we overlap the bounds of a leaf 
+	* node that contains some elements.
+	*/
+	bool IsOverlappingBounds(const FAABB3& LocalBounds) const
+	{
+		return IsOverlappingBoundsImpl(LocalBounds);
 	}
 
 //protected:
@@ -410,16 +422,22 @@ public:
 	}
 
 	// This should not be public, but it needs to be callable by derived classes on another instance
-	virtual void VisitObjectsImpl(
+	virtual bool VisitObjectsImpl(
 		const FRigidTransform3& ObjectTransform,
 		const int32 RootObjectIndex,
 		int32& ObjectIndex,
 		int32& LeafObjectIndex,
-		const FImplicitHierarchyVisitor& VisitorFunc) const
+		const FImplicitHierarchyVisitorBool& VisitorFunc) const
 	{
-		VisitorFunc(this, ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex);
+		return VisitorFunc(this, ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex);
 		++ObjectIndex;
 		++LeafObjectIndex;
+	}
+
+	// This should not be public, but it needs to be callable by derived classes on another instance
+	virtual bool IsOverlappingBoundsImpl(const FAABB3& LocalBounds) const
+	{
+		return (!HasBoundingBox() || LocalBounds.Intersects(BoundingBox()));
 	}
 
 protected:

@@ -423,9 +423,17 @@ namespace Chaos
 			Parent->SetLocalBounds(Implicit->BoundingBox());
 			const Chaos::FRigidTransform3 Xf(Parent->X(), Parent->R());
 			Parent->UpdateWorldSpaceState(Xf, FVec3(0));
-		}
 
-		
+			if (const FImplicitObjectUnion* ImplicitUnion = Implicit->GetObject<FImplicitObjectUnion>())
+			{
+				const_cast<FImplicitObjectUnion*>(ImplicitUnion)->SetAllowBVH(true);
+			}
+			else if (const FImplicitObjectUnion* ImplicitUnionClustered = Implicit->GetObject<FImplicitObjectUnionClustered>())
+			{
+				const_cast<FImplicitObjectUnion*>(ImplicitUnionClustered)->SetAllowBVH(true);
+			}
+		}
+	
 		// Update filter data on new shapes
 		const FRigidClustering::FRigidHandleArray& ChildrenArray = ChildrenMap[Parent];
 		UpdateClusterFilterDataFromChildren(Parent, ChildrenArray);

@@ -368,7 +368,7 @@ protected:
 		const int32 RootObjectIndex,
 		int32& ObjectIndex,
 		int32& LeafObjectIndex,
-		const FImplicitHierarchyVisitor& VisitorFunc) const override
+		const FImplicitHierarchyVisitor& VisitorFunc) const override final
 	{
 		// Skip self
 		++ObjectIndex;
@@ -383,7 +383,7 @@ protected:
 		const int32 RootObjectIndex,
 		int32& ObjectIndex,
 		int32& LeafObjectIndex,
-		const FImplicitHierarchyVisitor& VisitorFunc) const override
+		const FImplicitHierarchyVisitor& VisitorFunc) const override final
 	{
 		// Skip self
 		++ObjectIndex;
@@ -392,19 +392,30 @@ protected:
 		MObject->VisitLeafObjectsImpl(MTransform * ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex, VisitorFunc);
 	}
 
-	virtual void VisitObjectsImpl(
+	virtual bool VisitObjectsImpl(
 		const FRigidTransform3& ObjectTransform,
 		const int32 RootObjectIndex,
 		int32& ObjectIndex,
 		int32& LeafObjectIndex,
-		const FImplicitHierarchyVisitor& VisitorFunc) const override
+		const FImplicitHierarchyVisitorBool& VisitorFunc) const override final
 	{
 		// Visit self
-		VisitorFunc(this, ObjectTransform, RootObjectIndex, ObjectIndex, INDEX_NONE);
+		bool bContinue = VisitorFunc(this, ObjectTransform, RootObjectIndex, ObjectIndex, INDEX_NONE);
 		++ObjectIndex;
 
 		// Visit child
-		MObject->VisitObjectsImpl(MTransform * ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex, VisitorFunc);
+		if (bContinue)
+		{
+			bContinue = MObject->VisitObjectsImpl(MTransform * ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex, VisitorFunc);
+		}
+
+		return bContinue;
+	}
+
+	virtual bool IsOverlappingBoundsImpl(const FAABB3& InLocalBounds) const override final
+	{
+		const FAABB3 LocalBounds = InLocalBounds.InverseTransformedAABB(MTransform);
+		return MObject->IsOverlappingBoundsImpl(LocalBounds);
 	}
 
 private:

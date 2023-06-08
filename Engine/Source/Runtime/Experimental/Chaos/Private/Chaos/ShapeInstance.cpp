@@ -141,6 +141,15 @@ namespace Chaos
 					return GetInnerGeometryInstanceData(Instanced->GetInnerObject().Get(), OutRelativeTransformPtr);
 				}
 			}
+			else if ((ImplicitOuterType == FImplicitObjectUnion::StaticType()) || (ImplicitOuterType == FImplicitObjectUnionClustered::StaticType()))
+			{
+				// If the union only has one child, we keep recursing, otherwise we don't
+				const FImplicitObjectUnion* Union = static_cast<const FImplicitObjectUnion*>(Implicit);
+				if (Union->GetObjects().Num() == 1)
+				{
+					return GetInnerGeometryInstanceData(Union->GetObjects()[0].Get(), OutRelativeTransformPtr);
+				}
+			}
 			else if ((uint32)ImplicitOuterType & ImplicitObjectType::IsScaled)
 			{
 				// Scaled Implicit

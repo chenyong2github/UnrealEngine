@@ -13,9 +13,10 @@ namespace Chaos
 	namespace Private
 	{
 		class FImplicitBVH;
-		class FImplicitObjectUnion;
+		class FImplicitBVTree;
+		class FImplicitBVTreeNode;
 
-		// An entry in the ImplicitObject BVH that holds the leaf geometry and transform
+		// A item in a ImplicitBVH holding the leaf geometry and transform. Each FImplicitBVHNode node holds a set of these.
 		class FImplicitBVHObject
 		{
 		public:
@@ -34,11 +35,13 @@ namespace Chaos
 
 			const FAABB3f& GetBounds() const { return Bounds; }
 
+			const FVec3f GetBoundsCenter() const { return Bounds.Center(); }
+
 			FRigidTransform3f GetTransformf() const { return FRigidTransform3f(GetX(), GetR()); }
 
 			FRigidTransform3 GetTransform() const { return FRigidTransform3(FVec3(GetX()), FRotation3(GetR())); }
 
-			// A unique index for this object in the hierarchy. E.g., if the same FImplicirtObject is referenced 
+			// A unique index for this object in the hierarchy. E.g., if the same FImplicitObject is referenced 
 			// multiple times in the hierarchy in a union of transformed objects, each will have a different ObjectIndex 
 			// (it is the index into the pre-order depth first traversal).
 			int32 GetObjectIndex() const { return ObjectIndex; }
@@ -65,17 +68,43 @@ namespace Chaos
 			int32 ObjectIndex;
 		};
 
+		// A node in an FImplicitBVH
+		class FImplicitBVHNode
+		{
+		public:
+			FImplicitBVHNode(const FAABB3f& InBounds, const int32 InObjectBeginIndex, const int32 InObjectEndIndex)
+				: Bounds(InBounds)
+				, ObjectBeginIndex(InObjectBeginIndex)
+				, ObjectEndIndex(InObjectEndIndex)
+				, ChildNodeIndices{ INDEX_NONE, INDEX_NONE }
+			{
+			}
+
+			bool IsLeaf() const
+			{
+				// NOTE: We either have zero or two children
+				return ChildNodeIndices[0] == INDEX_NONE;
+			}
+
+		private:
+			friend class FImplicitBVH;
+
+			FAABB3f Bounds;
+			int32 ObjectBeginIndex;
+			int32 ObjectEndIndex;
+			int32 ChildNodeIndices[2];
+		};
+
+
 		// A Bounding Volume Hierarchy of a set of Implicit Objects
 		class FImplicitBVH
 		{
 		public:
 			using FObjects = TArray<FImplicitBVHObject>;
-			using FLeaf = TArray<int32>;
-			using FBVH = TBoundingVolumeHierarchy<FObjects, FLeaf>;
 
 			friend FChaosArchive& operator<<(FChaosArchive& Ar, FImplicitBVH& BVH);
 
-			// Amke an empty BVH (for serialization only)
+			// Make an empty BVH (for serialization only)
 			static TUniquePtr<FImplicitBVH> MakeEmpty();
 
 			// Utility for processing the hierarchy
@@ -89,7 +118,8 @@ namespace Chaos
 
 			~FImplicitBVH();
 
-			int32 NumObjects() const { return Objects.Num(); }
+			int32 GetNumObjects() const { return Objects.Num(); }
+			int32 GetDepth() const { return TreeDepth; }
 
 			const FImplicitBVHObject& GetObject(const int32 ObjectIndex) const { return Objects[ObjectIndex]; }
 
@@ -108,30 +138,66 @@ namespace Chaos
 			int32 GetRootObjectIndex(const int32 ObjectIndex) const { return Objects[ObjectIndex].GetRootObjectIndex(); }
 			int32 GetObjectIndex(const int32 ObjectIndex) const { return Objects[ObjectIndex].GetObjectIndex(); }
 
-			const FBVH& GetBVH() const { return BVH; }
-
-			// @param Visitor void<int ObjectIndex> where ObjectIndex is an index into the array of objects in the hierarchy
-			// for use with GetObject(ObjectIndex), GetGeometry(ObjectIndex), etc.
+			// Visit all the leaf objects that overlap the specified bounds.
+			// @param ObjectVisitor [](const FImplicitObject* Implicit, const FRigidTransform3f& RelativeTransformf, const FAABB3f& RelativeBoundsf, const int32 RootObjectIndex, const int32 LeafObjectIndex) -> void {}
 			template<typename TVisitor>
-			void VisitAllIntersections(const FAABB3& LocalBounds, const TVisitor& Visitor) const
+			void VisitAllIntersections(const FAABB3& LocalBounds, const TVisitor& ObjectVisitor) const
 			{
-				// Each objects can be in multiple leafs, so we keep track of whichones we have visited
-				TArray<bool> ObjectVisited;
-				ObjectVisited.AddZeroed(NumObjects());
-			
-				const auto& LeafVisitor = [this, &ObjectVisited, &Visitor](const TArray<int32>& Indices)
+				const auto& NodeVisitor = [this, &ObjectVisitor](const FImplicitBVHNode& Node)
 				{
-					for (const int32 Index : Indices)
+					if (Node.IsLeaf())
 					{
-						if (!ObjectVisited[Index])
-						{
-							ObjectVisited[Index] = true;
-							Visitor(Index);
-						}
+						VisitNodeObjects(Node, ObjectVisitor);
 					}
 				};
 
-				BVH.VisitAllIntersections(LocalBounds, LeafVisitor);
+				VisitOverlappingNodes(LocalBounds, NodeVisitor);
+			}
+
+			// Calls the visitor for every overlapping leaf.
+			// @tparam TVisitor void(const FImplicitBVHNode& Node)
+			template<typename TVisitor>
+			void VisitOverlappingNodes(const FAABB3& LocalBounds, const TVisitor& NodeVisitor) const
+			{
+				if (!Nodes.IsEmpty())
+				{
+					VisitOverlappingNodesRecursive(Nodes[0], FAABB3f(LocalBounds), NodeVisitor);
+				}
+			}
+
+			// Recursively visit all nodes in the hierarchy. Will stop visiting children
+			// if the visitor returns false. Leaf will be null when visiting an internal node.
+			// @param NodeVisitor (const FAABB3f& NodeBounds, const int32 NodeDepth, const FImplicitBVHNode& Node) -> void
+			template<typename TVisitor>
+			void VisitHierarchy(const TVisitor& NodeVisitor) const
+			{
+				if (!Nodes.IsEmpty())
+				{
+					VisitHierarchyRecursive(Nodes[0], 0, NodeVisitor);
+				}
+			}
+
+			// Visit all the items in the specified leaf node (which is probably obtained from VisitHierarchy)
+			// @param ObjectVisitor (const FImplicitObject* Implicit, const FRigidTransform3f& RelativeTransformf, const FAABB3f& RelativeBoundsf, const int32 RootObjectIndex, const int32 LeafObjectIndex) -> void
+			template<typename TVisitor>
+			void VisitNodeObjects(const FImplicitBVHNode& Node, const TVisitor& ObjectVisitor) const
+			{
+				for (int32 NodeObjectIndex = Node.ObjectBeginIndex; NodeObjectIndex < Node.ObjectEndIndex; ++NodeObjectIndex)
+				{
+					const FImplicitBVHObject& Object = Objects[NodeObjectIndices[NodeObjectIndex]];
+
+					ObjectVisitor(Object.GetGeometry(), Object.GetTransformf(), Object.GetBounds(), Object.GetRootObjectIndex(), Object.GetObjectIndex());
+				}
+			}
+
+			// Does the bounding box overlap any leaf nodes with items in it
+			bool IsOverlappingBounds(const FAABB3& LocalBounds) const
+			{
+				if (!Nodes.IsEmpty())
+				{
+					return IsOverlappingBoundsRecursive(Nodes[0], FAABB3f(LocalBounds));
+				}
+				return false;
 			}
 
 		private:
@@ -141,45 +207,85 @@ namespace Chaos
 
 			// Initialize the BVH from the specified set of children.
 			// NOTE: InChildren should be immediate children of the BVH owner, not further-removed descendents
-			void Init(FObjects&& InObjects, const int32 InMaxBVHDepth);
+			void Init(FObjects&& InObjects, const int32 MaxDepth, const int32 MaxLeafObjects);
+
+			template<typename TVisitor>
+			void VisitOverlappingNodesRecursive(const FImplicitBVHNode& Node, const FAABB3f& LocalBounds, const TVisitor& NodeVisitor) const
+			{
+				if (!Node.Bounds.Intersects(LocalBounds))
+				{
+					return;
+				}
+
+				if (Node.IsLeaf())
+				{
+					NodeVisitor(Node);
+				}
+				else
+				{
+					VisitOverlappingNodesRecursive(Nodes[Node.ChildNodeIndices[0]], LocalBounds, NodeVisitor);
+					VisitOverlappingNodesRecursive(Nodes[Node.ChildNodeIndices[1]], LocalBounds, NodeVisitor);
+				}
+			}
+
+			template<typename TVisitor>
+			void VisitHierarchyRecursive(const FImplicitBVHNode& Node, const int32 NodeDepth, const TVisitor& NodeVisitor) const
+			{
+				// Visit this (non-leaf) node
+				const bool bVisitChildren = NodeVisitor(Node.Bounds, NodeDepth, Node);
+
+				// Visit children
+				if (bVisitChildren && !Node.IsLeaf())
+				{
+					VisitHierarchyRecursive(Nodes[Node.ChildNodeIndices[0]], NodeDepth + 1, NodeVisitor);
+					VisitHierarchyRecursive(Nodes[Node.ChildNodeIndices[1]], NodeDepth + 1, NodeVisitor);
+				}
+			}
+
+			bool IsOverlappingBoundsRecursive(const FImplicitBVHNode& Node, const FAABB3f& LocalBounds) const
+			{
+				if (Node.Bounds.Intersects(LocalBounds))
+				{
+					// If we hit a leaf, we have an overlap
+					if (Node.IsLeaf())
+					{
+						return true;
+					}
+
+					// Check children, stopping if we get an overlap
+					if (IsOverlappingBoundsRecursive(Nodes[Node.ChildNodeIndices[0]], LocalBounds))
+					{
+						return true;
+					}
+					if (IsOverlappingBoundsRecursive(Nodes[Node.ChildNodeIndices[1]], LocalBounds))
+					{
+						return true;
+					}
+				}
+				return false;
+			}
+
+			struct FWorkData
+			{
+				TArray<FVec3f> ObjectCenters;
+				TArray<int32> NodeObjectIndices0;
+				TArray<int32> NodeObjectIndices1;
+			};
+
+			void BuildTree(const int32 MaxDepth, const int32 MaxLeafObjects);
+			int32 AddNodeRecursive(const FAABB3f& NodeBounds, const int32 ObjectBeginIndex, const int32 ObjectEndIndex, const int32 NodeDepth, const int32 MaxDepth, const int32 MaxLeafObjects, FWorkData& WorkData);
+			bool Partition(const FAABB3f& NodeBounds, const int32 ObjectBeginIndex, const int32 ObjectEndIndex, FAABB3f& OutChildNodeBounds0, FAABB3f& OutChildNodeBounds1, int32& OutPartitionIndex, FWorkData& WorkData);
 
 			// A BVH leaf holds an array of indices into the Objects array
 			FObjects Objects;
-			FBVH BVH;
-		};
-
-		class FImplicitCache
-		{
-		public:
-
-		private:
-			TUniquePtr<FImplicitBVH> BVH;
+			TArray<int32> NodeObjectIndices;
+			TArray<FImplicitBVHNode> Nodes;
+			int32 TreeDepth;
 		};
 	}
 
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	// 
-	// TBoundingVolumeHierarchy Template API
-	// 
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
-	template<>
-	inline bool HasBoundingBox(const TArray<Private::FImplicitBVHObject>& Objects, const int32 ObjectIndex)
-	{
-		return Objects[ObjectIndex].GetGeometry()->HasBoundingBox();
-	}
-
-	template<class T, int d>
-	inline const TAABB<T, d> GetWorldSpaceBoundingBox(const TArray<Private::FImplicitBVHObject>& Objects, const int32 ObjectIndex, const TMap<int32, TAABB<T, d>>& WorldSpaceBoxes)
-	{
-		return TAABB<T, d>(Objects[ObjectIndex].GetBounds());
-	}
-
-	template<class T, int d>
-	void ComputeAllWorldSpaceBoundingBoxes(const TArray<Private::FImplicitBVHObject>& Objects, const TArray<int32>& AllObjects, const bool bUseVelocity, const T Dt, TMap<int32, TAABB<T, d>>& WorldSpaceBoxes)
-	{
-	}
-
+	// DO NOT USE: This is only required for serializing the old BVH data
+	template<> inline bool HasBoundingBox(const TArray<Private::FImplicitBVHObject>& Objects, const int32 ObjectIndex) { return Objects[ObjectIndex].GetGeometry()->HasBoundingBox(); }
+	template<class T, int d> inline const TAABB<T, d> GetWorldSpaceBoundingBox(const TArray<Private::FImplicitBVHObject>& Objects, const int32 ObjectIndex, const TMap<int32, TAABB<T, d>>& WorldSpaceBoxes) { return TAABB<T, d>(Objects[ObjectIndex].GetBounds()); }
+	template<class T, int d> void ComputeAllWorldSpaceBoundingBoxes(const TArray<Private::FImplicitBVHObject>& Objects, const TArray<int32>& AllObjects, const bool bUseVelocity, const T Dt, TMap<int32, TAABB<T, d>>& WorldSpaceBoxes) { }
 }
