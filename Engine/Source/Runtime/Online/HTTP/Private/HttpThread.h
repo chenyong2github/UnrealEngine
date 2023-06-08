@@ -78,6 +78,13 @@ public:
 	 */
 	virtual void UpdateConfigs();
 
+	/**
+	 * Add task to be ran on the http thread next tick
+	 *
+	 * @param Task The task to be ran next tick
+	 */
+	void AddHttpThreadTask(TFunction<void()>&& Task);
+
 protected:
 
 	/**
@@ -163,6 +170,9 @@ protected:
 	 * Added to on HTTP thread, processed then cleared on game thread (Single producer, single consumer)
 	 */
 	TSpscQueue<IHttpThreadedRequest*> CompletedThreadedRequests;
+
+	/** Queue of tasks to run on the game thread */
+	TQueue<TFunction<void()>, EQueueMode::Mpsc> HttpThreadQueue;
 };
 
 class FLegacyHttpThread	: public FHttpThreadBase

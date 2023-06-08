@@ -62,6 +62,15 @@ namespace EHttpRequestStatus
 	}
 }
 
+/**
+ * Enumerates thread policy about which thread to complete the http request
+ */
+enum class EHttpRequestDelegateThreadPolicy : uint8
+{
+	CompleteOnGameThread = 0,
+	CompleteOnHttpThread,
+};
+
 class IHttpRequest;
 class IHttpResponse;
 
@@ -209,6 +218,7 @@ public:
 
 	/**
 	 * Sets the content of the request to stream directly from an archive.
+	 * NOTE: The Stream->Serialize will be called from another thread other than the game thread
 	 *
 	 * @param Stream - archive from which the payload should be streamed.
 	 * @return True if the archive can be used to stream the request. False otherwise.
@@ -217,6 +227,7 @@ public:
 
 	/**
 	 * Sets the content of the request to stream directly from an delegate.
+	 * NOTE: The delegate will be called from another thread other than the game thread
 	 *
 	 * @param StreamDelegate - delegate from which the payload should be streamed.
 	 * @return True if the delegate can be used to stream the request. False otherwise.
@@ -359,6 +370,18 @@ public:
 	 * @return elapsed time in seconds.
 	 */
 	virtual float GetElapsedTime() const = 0;
+
+	/**
+	 * Set thread policy about which thread to complete this request
+	 */
+	virtual void SetDelegateThreadPolicy(EHttpRequestDelegateThreadPolicy InThreadPolicy) = 0;
+
+	/**
+	 * Get thread policy about which thread to complete this request
+	 * 
+	 * @return The thread policy
+	 */
+	virtual EHttpRequestDelegateThreadPolicy GetDelegateThreadPolicy() const = 0;
 
 	/** 
 	 * Destructor for overrides 

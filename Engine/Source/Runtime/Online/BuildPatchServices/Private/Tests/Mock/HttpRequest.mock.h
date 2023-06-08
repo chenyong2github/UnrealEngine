@@ -189,6 +189,17 @@ namespace BuildPatchServices
 			return float();
 		}
 
+		virtual void SetDelegateThreadPolicy(EHttpRequestDelegateThreadPolicy InThreadPolicy) override
+		{
+			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::SetDelegateThreadPolicy");
+		}
+
+		virtual EHttpRequestDelegateThreadPolicy GetDelegateThreadPolicy() const override
+		{
+			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::GetDelegateThreadPolicy");
+			return EHttpRequestDelegateThreadPolicy::CompleteOnGameThread;
+		}
+
 	public:
 		FHttpRequestProgressDelegate HttpRequestProgressDelegate;
 		FHttpRequestCompleteDelegate HttpRequestCompleteDelegate;

@@ -354,12 +354,6 @@ private:
 	bool SetupRequest();
 
 	/**
-	 * Process state for a finished request that no longer needs to be ticked
-	 * Calls the completion delegate
-	 */
-	void FinishedRequest();
-
-	/**
 	 * Trigger the request progress delegate if progress has changed
 	 */
 	void CheckProgressDelegate();

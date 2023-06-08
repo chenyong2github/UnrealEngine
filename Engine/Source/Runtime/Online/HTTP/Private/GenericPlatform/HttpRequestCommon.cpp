@@ -42,3 +42,13 @@ bool FHttpRequestCommon::PreCheck() const
 	return true;
 }
 
+void FHttpRequestCommon::SetDelegateThreadPolicy(EHttpRequestDelegateThreadPolicy InDelegateThreadPolicy)
+{ 
+	DelegateThreadPolicy = InDelegateThreadPolicy; 
+}
+
+EHttpRequestDelegateThreadPolicy FHttpRequestCommon::GetDelegateThreadPolicy() const
+{ 
+	return DelegateThreadPolicy; 
+}
+

@@ -219,6 +219,13 @@ public:
 	void AddGameThreadTask(TFunction<void()>&& Task);
 
 	/**
+	 * Add task to be ran on the http thread next tick
+	 *
+	 * @param Task The task to be ran next tick
+	 */
+	void AddHttpThreadTask(TFunction<void()>&& Task);
+
+	/**
 	 * Set url request filter through code, instead of setting it through config.
 	 *
 	 * @param InURLRequestFilter The request filter to set

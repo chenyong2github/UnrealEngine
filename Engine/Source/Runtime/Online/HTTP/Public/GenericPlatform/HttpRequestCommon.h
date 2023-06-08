@@ -12,6 +12,8 @@ class HTTP_API FHttpRequestCommon : public FHttpRequestImpl
 public:
 	// IHttpRequest
 	virtual EHttpRequestStatus::Type GetStatus() const override;
+	virtual void SetDelegateThreadPolicy(EHttpRequestDelegateThreadPolicy InDelegateThreadPolicy) override;
+	virtual EHttpRequestDelegateThreadPolicy GetDelegateThreadPolicy() const override;
 
 protected:
 	/**
@@ -22,4 +24,7 @@ protected:
 protected:
 	/** Current status of request being processed */
 	EHttpRequestStatus::Type CompletionStatus = EHttpRequestStatus::NotStarted;
+
+	/** Thread policy about which thread to complete this request */
+	EHttpRequestDelegateThreadPolicy DelegateThreadPolicy = EHttpRequestDelegateThreadPolicy::CompleteOnGameThread;
 };

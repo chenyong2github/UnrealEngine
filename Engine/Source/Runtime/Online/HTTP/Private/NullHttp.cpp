@@ -195,6 +195,15 @@ void FNullHttpRequest::FinishedRequest()
 	OnProcessRequestComplete().ExecuteIfBound(Request, NULL, false);
 }
 
+void FNullHttpRequest::SetDelegateThreadPolicy(EHttpRequestDelegateThreadPolicy InThreadPolicy)
+{
+}
+
+EHttpRequestDelegateThreadPolicy FNullHttpRequest::GetDelegateThreadPolicy() const
+{
+	return EHttpRequestDelegateThreadPolicy::CompleteOnGameThread;
+}
+
 // FNullHttpResponse
 
 FString FNullHttpResponse::GetURL() const

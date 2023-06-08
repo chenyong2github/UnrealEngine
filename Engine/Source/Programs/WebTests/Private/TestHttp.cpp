@@ -3,6 +3,8 @@
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
 #include "HttpManager.h"
 #include "Http.h"
 #include "Misc/CommandLine.h"
@@ -116,7 +118,7 @@ public:
 
 	void WaitUntilAllHttpRequestsComplete()
 	{
-		while (OngoingRequests != 0)
+		while (!bRunningThreadRequest && OngoingRequests != 0)
 		{
 			HttpModule->GetHttpManager().Tick(TickFrequency);
 			FPlatformProcess::Sleep(TickFrequency);
@@ -125,6 +127,7 @@ public:
 
 	uint32 OngoingRequests = 0;
 	float TickFrequency = 1.0f / 60; /*60 FPS*/;
+	bool bRunningThreadRequest = false;
 };
 
 TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods", HTTP_TAG)
@@ -365,21 +368,140 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http upload - gold pa
 	HttpRequest->ProcessRequest();
 }
 
-TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Pre check http request", HTTP_TAG)
+class FWaitThreadedHttpFixture : public FWaitUntilCompleteHttpFixture, public FRunnable
+{
+public:
+	DECLARE_DELEGATE(FRunActualTestCodeDelegate);
+
+	FWaitThreadedHttpFixture()
+	{
+		bRunningThreadRequest = true;
+	}
+
+	// FRunnable interface
+	virtual uint32 Run() override
+	{
+		ThreadCallback.ExecuteIfBound();
+		bRunningThreadRequest = false;
+		return 0;
+	}
+
+	void StartTestHttpThread()
+	{
+		RunnableThread = TSharedPtr<FRunnableThread>(FRunnableThread::Create(this, TEXT("Test Http Thread")));
+	}
+
+	FRunActualTestCodeDelegate ThreadCallback;
+	TSharedPtr<FRunnableThread> RunnableThread;
+};
+
+TEST_CASE_METHOD(FWaitThreadedHttpFixture, "Http streaming download request can work in non game thread", HTTP_TAG)
+{
+	ThreadCallback.BindLambda([this]() {
+		TSharedRef<IHttpRequest> HttpRequest = HttpModule->CreateRequest();
+		HttpRequest->SetURL(FString::Format(TEXT("{0}/streaming_download/{1}/{2}/"), { *UrlHttpTests(), 3/*chunks*/, 1024/*chunk_size*/}));
+		HttpRequest->SetVerb(TEXT("GET"));
+		HttpRequest->SetDelegateThreadPolicy(EHttpRequestDelegateThreadPolicy::CompleteOnHttpThread);
+
+		class FTestHttpReceiveStream final : public FArchive
+		{
+		public:
+			virtual void Serialize(void* V, int64 Length) override
+			{
+				// No matter what's the thread policy, Serialize always get called in http thread.
+				CHECK(!IsInGameThread());
+			}
+		};
+		CHECK(HttpRequest->SetResponseBodyReceiveStream(MakeShared<FTestHttpReceiveStream>()));
+
+		HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			// EHttpRequestDelegateThreadPolicy::CompleteOnHttpThread was used, so not in game thread here
+			CHECK(!IsInGameThread());
+			CHECK(bSucceeded);
+			CHECK(HttpResponse->GetResponseCode() == 200);
+		});
+
+		HttpRequest->ProcessRequest();
+	});
+
+	StartTestHttpThread();
+}
+
+namespace UE
+{
+namespace TestHttp
+{
+
+void SetupURLRequestFilter(FHttpModule* HttpModule)
 {
 	// Pre check will fail when domain is not allowed
 	UE::Core::FURLRequestFilter::FRequestMap SchemeMap;
 	SchemeMap.Add(TEXT("http"), TArray<FString>{TEXT("epicgames.com")});
 	UE::Core::FURLRequestFilter Filter{SchemeMap};
 	HttpModule->GetHttpManager().SetURLRequestFilter(Filter);
+}
+
+}
+}
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http request pre check will fail", HTTP_TAG)
+{
+	// Pre check will fail when domain is not allowed
+	UE::TestHttp::SetupURLRequestFilter(HttpModule);
 
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
 	HttpRequest->SetVerb(TEXT("GET"));
-	HttpRequest->SetURL(UrlToTestMethods()); // Not in allowed domains: epicgames.com
-	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
-		CHECK(!bSucceeded);
-	});
+	HttpRequest->SetURL(UrlToTestMethods());
+
+	SECTION("on game thread")
+	{
+		HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(IsInGameThread());
+			CHECK(!bSucceeded);
+		});
+	}
+	SECTION("on http thread")
+	{
+		HttpRequest->SetDelegateThreadPolicy(EHttpRequestDelegateThreadPolicy::CompleteOnHttpThread);
+		HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(!IsInGameThread());
+			CHECK(!bSucceeded);
+		});
+	}
 
 	HttpRequest->ProcessRequest();
 }
 
+TEST_CASE_METHOD(FWaitThreadedHttpFixture, "Threaded http request pre check will fail", HTTP_TAG)
+{
+	ThreadCallback.BindLambda([this]() {
+		// Pre check will fail when domain is not allowed
+		UE::TestHttp::SetupURLRequestFilter(HttpModule);
+
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+		HttpRequest->SetVerb(TEXT("GET"));
+		HttpRequest->SetURL(UrlToTestMethods());
+
+		SECTION("on game thread")
+		{
+			HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+				CHECK(IsInGameThread());
+				CHECK(!bSucceeded);
+			});
+		}
+		SECTION("on http thread")
+		{
+			HttpRequest->SetDelegateThreadPolicy(EHttpRequestDelegateThreadPolicy::CompleteOnHttpThread);
+			HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+				CHECK(!IsInGameThread());
+				CHECK(!bSucceeded);
+			});
+		}
+
+		HttpRequest->ProcessRequest();
+	});
+
+	StartTestHttpThread();
+}
+
+// TODO: Add cancel test, with multiple cancel calls

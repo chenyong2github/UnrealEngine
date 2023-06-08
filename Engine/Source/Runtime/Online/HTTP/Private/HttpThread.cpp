@@ -109,6 +109,13 @@ uint32 FHttpThreadBase::Run()
 
 void FHttpThreadBase::Tick()
 {
+	// Run HttpThread tasks
+	TFunction<void()> Task = nullptr;
+	while (HttpThreadQueue.Dequeue(Task))
+	{
+		check(Task);
+		Task();
+	}
 }
 
 bool FHttpThreadBase::NeedsSingleThreadTick() const
@@ -129,6 +136,14 @@ void FHttpThreadBase::UpdateConfigs()
 		{
 			RunningThreadedRequestLimit = LocalRunningThreadedRequestLimit;
 		}
+	}
+}
+
+void FHttpThreadBase::AddHttpThreadTask(TFunction<void()>&& Task)
+{
+	if (Task)
+	{
+		HttpThreadQueue.Enqueue(MoveTemp(Task));
 	}
 }
 
@@ -277,6 +292,12 @@ void FHttpThreadBase::Process(TArray<IHttpThreadedRequest*>& RequestsToCancel, T
 			SCOPE_CYCLE_COUNTER(STAT_HTTPThread_CompleteThreadedRequest);
 
 			CompleteThreadedRequest(Request);
+
+			if (Request->GetDelegateThreadPolicy() == EHttpRequestDelegateThreadPolicy::CompleteOnHttpThread)
+			{
+				Request->FinishRequest();
+			}
+
 			CompletedThreadedRequests.Enqueue(Request);
 		}
 		RequestsToComplete.Reset();

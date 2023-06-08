@@ -281,6 +281,12 @@ void FHttpManager::AddGameThreadTask(TFunction<void()>&& Task)
 	}
 }
 
+void FHttpManager::AddHttpThreadTask(TFunction<void()>&& Task)
+{
+	check(Thread);
+	Thread->AddHttpThreadTask(MoveTemp(Task));
+}
+
 FHttpThreadBase* FHttpManager::CreateHttpThread()
 {
 	return new FLegacyHttpThread();
@@ -423,7 +429,10 @@ bool FHttpManager::Tick(float DeltaSeconds)
 		{
 			FHttpRequestRef CompletedRequestRef = CompletedRequest->AsShared();
 			Requests.Remove(CompletedRequestRef);
-			CompletedRequest->FinishRequest();
+			if (CompletedRequest->GetDelegateThreadPolicy() == EHttpRequestDelegateThreadPolicy::CompleteOnGameThread)
+			{
+				CompletedRequest->FinishRequest();
+			}
 			BroadcastHttpRequestCompleted(CompletedRequestRef);
 		}
 	}

@@ -1006,22 +1006,7 @@ bool FCurlHttpRequest::ProcessRequest()
 
 	if (!PreCheck() || !SetupRequest())
 	{
-		if (!IsInGameThread())
-		{
-			// Always finish on the game thread
-			FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FCurlHttpRequest>(AsShared())]()
-			{
-				StrongThis->FinishedRequest();
-			});
-			return true;
-		}
-		else
-		{
-			// Cleanup and call delegate
-			FinishedRequest();
-		}
-
-		return false;
+		return FinishRequestNotInHttpManager();
 	}
 
 	// Clear the info cache log so we don't output messages from previous requests when reusing/retrying a request
@@ -1053,11 +1038,6 @@ bool FCurlHttpRequest::StartThreadedRequest()
 	UE_LOG(LogHttp, Verbose, TEXT("%p: request (easy handle:%p) has started threaded processing"), this, EasyHandle);
 
 	return true;
-}
-
-void FCurlHttpRequest::FinishRequest()
-{
-	FinishedRequest();
 }
 
 bool FCurlHttpRequest::IsThreadedRequestComplete()
@@ -1115,18 +1095,9 @@ void FCurlHttpRequest::CancelRequest()
 	{
 		HttpManager.CancelThreadedRequest(SharedThis(this));
 	}
-	else if (!IsInGameThread())
-	{
-		// Always finish on the game thread
-		FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FCurlHttpRequest>(AsShared())]()
-		{
-			StrongThis->FinishedRequest();
-		});
-	}
 	else
 	{
-		// Finish immediately
-		FinishedRequest();
+		FinishRequestNotInHttpManager();
 	}
 }
 
@@ -1165,7 +1136,7 @@ void FCurlHttpRequest::CheckProgressDelegate()
 
 void FCurlHttpRequest::BroadcastNewlyReceivedHeaders()
 {
-	check(IsInGameThread());
+	check(IsInGameThread() || DelegateThreadPolicy == EHttpRequestDelegateThreadPolicy::CompleteOnHttpThread);
 	if (Response.IsValid())
 	{
 		// Process the headers received on the HTTP thread and merge them into the response's list of headers and then broadcast the new headers
@@ -1192,10 +1163,11 @@ void FCurlHttpRequest::BroadcastNewlyReceivedHeaders()
 	}
 }
 
-void FCurlHttpRequest::FinishedRequest()
+void FCurlHttpRequest::FinishRequest()
 {
-	check(IsInGameThread());
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_FinishedRequest);
+	check(IsInGameThread() || DelegateThreadPolicy == EHttpRequestDelegateThreadPolicy::CompleteOnHttpThread);
+
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_FinishRequest);
 
 	curl_easy_setopt(EasyHandle, CURLOPT_SHARE, nullptr);
 	
