@@ -1142,13 +1142,14 @@ void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCom
 	Job.bSucceeded = Job.Output.bSucceeded;
 	if (Job.Input.DumpDebugInfoEnabled())
 	{
-		// if the preprocessed cache is disabled, dump debug output here, since we don't serialize preprocess output 
-		// back to the cooker in this case (if enabled this will occur in the job OnComplete callback)
-		// pass an empty string for input hash; this is not available here but also not important if the preprocessed
-		// cache is disabled
-		if (Compiler->SupportsIndependentPreprocessing() && !Job.Input.bCachePreprocessed)
+		if (Compiler->SupportsIndependentPreprocessing())
 		{
-			Compiler->OutputDebugData(Job.Input, Job.PreprocessOutput, Job.Output);
+			// if the shader format supports independent preprocessing and preprocessed cache is disabled, dump debug output here, since we
+			// don't serialize preprocess output back to the cooker from SCW (if enabled this will occur in the job OnComplete callback)
+			if (!Job.Input.bCachePreprocessed)
+			{
+				Compiler->OutputDebugData(Job.Input, Job.PreprocessOutput, Job.Output);
+			}
 		}
 		else
 		{

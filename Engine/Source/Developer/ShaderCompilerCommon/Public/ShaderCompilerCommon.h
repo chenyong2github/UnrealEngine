@@ -72,12 +72,6 @@ extern SHADERCOMPILERCOMMON_API int16 GetNumUniformBuffersUsed(const FShaderComp
 
 namespace UE::ShaderCompilerCommon
 {
-	class FBaseShaderFormat : public IShaderFormat
-	{
-	public:
-		virtual SHADERCOMPILERCOMMON_API void OutputDebugData(const FShaderCompilerInput& Input, const FShaderPreprocessOutput& PreprocessOutput, const FShaderCompilerOutput& Output) const override;
-	};
-
 	UE_DEPRECATED(5.3, "Deprecated; use FShaderCompilerInput::ShouldUseStableContantBuffer directly")
 	inline bool ShouldUseStableConstantBuffer(const FShaderCompilerInput& Input)
 	{
@@ -124,18 +118,27 @@ namespace UE::ShaderCompilerCommon
 
 	struct FDebugShaderDataOptions
 	{
+		struct FAdditionalOutput
+		{
+			const TCHAR* BaseFileName;
+			const TCHAR* Data;
+		};
 		uint32 HlslCCFlags = 0;
 		const TCHAR* OverrideBaseFilename = nullptr;
 		const TCHAR* FilenamePrefix = nullptr;
 		TFunction<FString()> AppendPreSource{};
 		TFunction<FString()> AppendPostSource{};
+		TArray<FAdditionalOutput> AdditionalOutputs;
 		union
 		{
 			bool bSourceOnly = false; // if true, will only output source .usf as directed and skip all other debug data artifacts
 			UE_DEPRECATED(5.3, "bSkipDirectCompileTxt is deprecated, use bSourceOnly flag instead")
 			bool bSkipDirectCompileTxt;
 		};
+
+		SHADERCOMPILERCOMMON_API FString GetDebugShaderPath(const FShaderCompilerInput& Input) const;
 	};
+
 	/*
 	 * Dumps common debug information (preprocessed .usf as constructed by GetDebugShaderContents, and a directcompile.txt file 
 	 * containing the commandline for launching ShaderCompileWorker manually) for the given shader compile input
@@ -145,6 +148,22 @@ namespace UE::ShaderCompilerCommon
 	 * @param	Options Options which can change behaviour of the debug dump; see above.
 	 */
 	extern SHADERCOMPILERCOMMON_API void DumpDebugShaderData(const FShaderCompilerInput& Input, const FString& PreprocessedSource, const FDebugShaderDataOptions& Options = FDebugShaderDataOptions());
+
+	/*
+	 * Dumps extended debug information; including all outputs from DumpDebugShaderData as well as the following:
+	 *		- OutputHash.txt file containing the SHA hash of the shader job output
+	 *		- Diagnostics.txt file containing all errors/warnings encountered for the job
+	 *		  (if EShaderDebugInfoFlags::Diagnostics is set on Input.DebugInfoFlags)
+	 *		- InputHash.txt file containing the hash used as the key to the shader job cache
+	 *		  (if EShaderDebugInfoFlags::InputHash is set on Input.DebugInfoFlags and specified InputHash is non-empty)
+	 *		- any outputs specified on the AdditionalOutputs array in the Options struct
+	 * This is intended to be used by shader formats implementing the independent preprocessing API.
+	 */
+	extern SHADERCOMPILERCOMMON_API void DumpExtendedDebugShaderData(
+		const FShaderCompilerInput& Input,
+		const FShaderPreprocessOutput& PreprocessOutput,
+		const FShaderCompilerOutput& Output,
+		const UE::ShaderCompilerCommon::FDebugShaderDataOptions& Options = FDebugShaderDataOptions());
 
 	/*
 	 * Constructs the modified preprocessed source that would be dumped to a .usf file via DumpDebugShaderData, including the following additions:
@@ -157,6 +176,15 @@ namespace UE::ShaderCompilerCommon
 	 * @param	Options Options which can change behaviour of the debug dump; see above.
 	 */
 	extern SHADERCOMPILERCOMMON_API FString GetDebugShaderContents(const FShaderCompilerInput& Input, const FString& PreprocessedSource, const FDebugShaderDataOptions& Options = FDebugShaderDataOptions());
+
+	class FBaseShaderFormat : public IShaderFormat
+	{
+	public:
+		virtual SHADERCOMPILERCOMMON_API void OutputDebugData(
+			const FShaderCompilerInput& Input,
+			const FShaderPreprocessOutput& PreprocessOutput,
+			const FShaderCompilerOutput& Output) const override;
+	};
 }
 
 extern SHADERCOMPILERCOMMON_API void HandleReflectedGlobalConstantBufferMember(

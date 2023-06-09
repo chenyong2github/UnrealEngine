@@ -14,6 +14,7 @@
 #include "Misc/EnumClassFlags.h"
 #include "Misc/SecureHash.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Misc/CoreStats.h"
 #include "ShaderCore.h"
 #include "ShaderParameterMetadata.h"
@@ -312,6 +313,11 @@ struct FShaderCompilerInput
 		}
 
 		return Name;
+	}
+
+	FStringView GetSourceFilenameView() const
+	{
+		return FPathViews::GetCleanFilename(VirtualSourceFilePath);
 	}
 
 	FString GetSourceFilename() const

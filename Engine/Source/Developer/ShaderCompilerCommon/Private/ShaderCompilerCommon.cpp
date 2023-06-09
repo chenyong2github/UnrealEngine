@@ -1399,15 +1399,65 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 	}
 }
 
+// sensible default path size; TStringBuilder will allocate if it needs to
+const FString GetDebugFileName(
+	const FShaderCompilerInput& Input, 
+	const UE::ShaderCompilerCommon::FDebugShaderDataOptions& Options, 
+	const TCHAR* BaseFilename)
+{
+	TStringBuilder<512> PathBuilder;
+	const TCHAR* Prefix = (Options.FilenamePrefix && *Options.FilenamePrefix) ? Options.FilenamePrefix : TEXT("");
+	FStringView Filename = (BaseFilename && *BaseFilename) ? BaseFilename : Input.GetSourceFilenameView();
+	FPathViews::Append(PathBuilder, Input.DumpDebugInfoPath, Prefix);
+	PathBuilder << Filename;
+	return PathBuilder.ToString();
+}
+
 namespace UE::ShaderCompilerCommon
 {
-	void FBaseShaderFormat::OutputDebugData(const FShaderCompilerInput& Input, const FShaderPreprocessOutput& PreprocessOutput, const FShaderCompilerOutput& Output) const
+	FString FDebugShaderDataOptions::GetDebugShaderPath(const FShaderCompilerInput& Input) const
+	{
+		return GetDebugFileName(Input, *this, OverrideBaseFilename);
+	}
+
+	void FBaseShaderFormat::OutputDebugData(
+		const FShaderCompilerInput& Input,
+		const FShaderPreprocessOutput& PreprocessOutput,
+		const FShaderCompilerOutput& Output) const
+	{
+		DumpExtendedDebugShaderData(Input, PreprocessOutput, Output);
+	}
+
+	void DumpDebugShaderData(const FShaderCompilerInput& Input, const FString& PreprocessedSource, const FDebugShaderDataOptions& Options)
+	{
+		if (!Input.DumpDebugInfoEnabled())
+		{
+			return;
+		}
+
+		FString Contents = UE::ShaderCompilerCommon::GetDebugShaderContents(Input, PreprocessedSource, Options);
+		FFileHelper::SaveStringToFile(Contents, *Options.GetDebugShaderPath(Input));
+
+		if (EnumHasAnyFlags(Input.DebugInfoFlags, EShaderDebugInfoFlags::DirectCompileCommandLine) && !Options.bSourceOnly)
+		{
+			FFileHelper::SaveStringToFile(CreateShaderCompilerWorkerDirectCommandLine(Input), *GetDebugFileName(Input, Options, TEXT("DirectCompile.txt")));
+		}
+
+		for (const FDebugShaderDataOptions::FAdditionalOutput& AdditionalOutput : Options.AdditionalOutputs)
+		{
+			FFileHelper::SaveStringToFile(AdditionalOutput.Data, *GetDebugFileName(Input, Options, AdditionalOutput.BaseFileName));
+		}
+	}
+
+	void DumpExtendedDebugShaderData(
+		const FShaderCompilerInput& Input,
+		const FShaderPreprocessOutput& PreprocessOutput,
+		const FShaderCompilerOutput& Output,
+		const FDebugShaderDataOptions& Options)
 	{
 		const FString& SourceToDump = Output.ModifiedShaderSource.IsEmpty() ? PreprocessOutput.GetUnstrippedSource() : Output.ModifiedShaderSource;
-		DumpDebugShaderData(Input, SourceToDump);
-		
-		FString OutputHashFileName = FPaths::Combine(Input.DumpDebugInfoPath, TEXT("OutputHash.txt"));
-		FFileHelper::SaveStringToFile(Output.OutputHash.ToString(), *OutputHashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
+		DumpDebugShaderData(Input, SourceToDump, Options);
+		FFileHelper::SaveStringToFile(Output.OutputHash.ToString(), *GetDebugFileName(Input, Options, TEXT("OutputHash.txt")), FFileHelper::EEncodingOptions::ForceAnsi);
 
 		if (EnumHasAnyFlags(Input.DebugInfoFlags, EShaderDebugInfoFlags::Diagnostics))
 		{
@@ -1418,33 +1468,18 @@ namespace UE::ShaderCompilerCommon
 			}
 			if (!Merged.IsEmpty())
 			{
-				FFileHelper::SaveStringToFile(Merged, *(Input.DumpDebugInfoPath / TEXT("Diagnostics.txt")));
+				FFileHelper::SaveStringToFile(Merged, *GetDebugFileName(Input, Options, TEXT("Diagnostics.txt")), FFileHelper::EEncodingOptions::ForceAnsi);
 			}
 		}
 
 		if (EnumHasAnyFlags(Input.DebugInfoFlags, EShaderDebugInfoFlags::InputHash))
 		{
-			FString InputHashFileName = FPaths::Combine(Input.DumpDebugInfoPath, TEXT("InputHash.txt"));
-			FFileHelper::SaveStringToFile(LexToString(Input.Hash), *InputHashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
+			FFileHelper::SaveStringToFile(LexToString(Input.Hash), *GetDebugFileName(Input, Options, TEXT("InputHash.txt")), FFileHelper::EEncodingOptions::ForceAnsi);
 		}
-	}
 
-	void DumpDebugShaderData(const FShaderCompilerInput& Input, const FString& PreprocessedSource, const FDebugShaderDataOptions& Options)
-	{
-		if (Input.DumpDebugInfoEnabled())
+		for (const FDebugShaderDataOptions::FAdditionalOutput& AdditionalOutput : Options.AdditionalOutputs)
 		{
-			FString Prefix = (Options.FilenamePrefix && *Options.FilenamePrefix) ? Options.FilenamePrefix : FString();
-			FString BaseSourceFilename = Prefix + ((Options.OverrideBaseFilename && *Options.OverrideBaseFilename) ? Options.OverrideBaseFilename : *Input.GetSourceFilename());
-
-			UE::ShaderCompilerCommon::FDebugShaderDataOptions DebugDataOptions;
-			DebugDataOptions.HlslCCFlags = Options.HlslCCFlags;
-			FString Contents = UE::ShaderCompilerCommon::GetDebugShaderContents(Input, PreprocessedSource, DebugDataOptions);
-			FFileHelper::SaveStringToFile(Contents, *(Input.DumpDebugInfoPath / BaseSourceFilename));
-
-			if (EnumHasAnyFlags(Input.DebugInfoFlags, EShaderDebugInfoFlags::DirectCompileCommandLine) && !Options.bSourceOnly)
-			{
-				FFileHelper::SaveStringToFile(CreateShaderCompilerWorkerDirectCommandLine(Input), *(Input.DumpDebugInfoPath / FString::Printf(TEXT("%sDirectCompile.txt"), *Prefix)));
-			}
+			FFileHelper::SaveStringToFile(AdditionalOutput.Data, *GetDebugFileName(Input, Options, AdditionalOutput.BaseFileName), FFileHelper::EEncodingOptions::ForceAnsi);
 		}
 	}
 
