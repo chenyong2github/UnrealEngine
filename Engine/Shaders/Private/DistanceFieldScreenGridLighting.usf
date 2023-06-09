@@ -17,7 +17,7 @@ void ComputeDistanceFieldNormalPS(
 	out float4 OutColor : SV_Target0)
 {
 	// Sample from the center of the top left full resolution texel
-	float2 PixelCoord = floor(SVPos.xy) * DOWNSAMPLE_FACTOR + .5f;
+	float2 PixelCoord = floor(SVPos.xy) * DOWNSAMPLE_FACTOR + View.ViewRectMin.xy + .5f;
 	float2 ScreenUV = float2(PixelCoord * View.BufferSizeAndInvSize.zw);
 
 	float SceneDepth = CalcSceneDepth(ScreenUV);
@@ -50,8 +50,7 @@ void ComputeDistanceFieldNormalCS(
 	float3 WorldNormal = GetGBufferData(ScreenUV).WorldNormal.xyz;
 #endif
 
-	const uint2 DownsampledPixelCoords = DispatchThreadId.xy + uint2(floor(View.ViewRectMin.xy / DOWNSAMPLE_FACTOR));
-	RWDistanceFieldNormal[DownsampledPixelCoords] = EncodeDownsampledGBuffer(WorldNormal, SceneDepth);
+	RWDistanceFieldNormal[DispatchThreadId.xy] = EncodeDownsampledGBuffer(WorldNormal, SceneDepth);
 }
 
 Buffer<float4> TileConeDepthRanges;
