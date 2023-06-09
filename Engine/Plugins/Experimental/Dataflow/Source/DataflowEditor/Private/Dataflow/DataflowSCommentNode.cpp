@@ -91,7 +91,7 @@ UEdGraphNode* FAssetSchemaAction_Dataflow_DuplicateCommentNode_DataflowEdNode::P
 	CommentTemplate->bCommentBubbleVisible = false;
 	CommentTemplate->bCommentBubblePinned = false;
 
-	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "DataflowEditorNewNode", "Dataflow Editor: New Comment Node (by using Duplicate)"));
+//	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "DataflowEditorDuplicatedNode", "Dataflow Editor: New Comment Node (by using Duplicate)"));
 
 	ParentGraph->Modify();
 
