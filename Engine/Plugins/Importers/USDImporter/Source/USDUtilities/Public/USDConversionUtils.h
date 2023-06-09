@@ -349,6 +349,12 @@ namespace UsdUtils
 	USDUTILITIES_API bool HasInvisibleParent( const UE::FUsdPrim& Prim, const UE::FUsdPrim& RootPrim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
 
 	/**
+	 * Returns the prims in the subtree of Prim (potentially including Prim itself) that are visible due to the
+	 * visibility attribute and prim purpose
+	 */
+	USDUTILITIES_API TArray<UE::FUsdPrim> GetVisibleChildren(const UE::FUsdPrim& Prim, EUsdPurpose AllowedPurposes);
+
+	/**
 	 * Returns a path exactly like Prim.GetPrimPath(), except that if the prim is within variant sets, it will return the
 	 * full path with variant selections in it (i.e. the spec path), like "/Root/Child{Varset=Var}Inner" instead of just
 	 * "/Root/Child/Inner".

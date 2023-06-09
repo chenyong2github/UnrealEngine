@@ -1896,6 +1896,47 @@ bool UsdUtils::HasInvisibleParent( const UE::FUsdPrim& Prim, const UE::FUsdPrim&
 	return false;
 }
 
+TArray<UE::FUsdPrim> UsdUtils::GetVisibleChildren(const UE::FUsdPrim& Prim, EUsdPurpose AllowedPurposes)
+{
+	TArray<UE::FUsdPrim> VisiblePrims;
+
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	TFunction<void(const pxr::UsdPrim& Prim)> RecursivelyCollectVisibleMeshes;
+	RecursivelyCollectVisibleMeshes = [&RecursivelyCollectVisibleMeshes, &VisiblePrims, AllowedPurposes](const pxr::UsdPrim& Prim)
+	{
+		if (!Prim || !EnumHasAllFlags(AllowedPurposes, IUsdPrim::GetPurpose(Prim)))
+		{
+			return;
+		}
+
+		if (pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable(Prim))
+		{
+			if (pxr::UsdAttribute VisibilityAttr = UsdGeomImageable.GetVisibilityAttr())
+			{
+				pxr::TfToken VisibilityToken;
+				if (VisibilityAttr.Get(&VisibilityToken) && VisibilityToken == pxr::UsdGeomTokens->invisible)
+				{
+					// We don't propagate the (in)visibility token, we just flat out stop recursing instead
+					return;
+				}
+			}
+		}
+
+		VisiblePrims.Add(UE::FUsdPrim{Prim});
+
+		for (const pxr::UsdPrim& ChildPrim : Prim.GetFilteredChildren(pxr::UsdTraverseInstanceProxies()))
+		{
+			RecursivelyCollectVisibleMeshes(ChildPrim);
+		}
+	};
+	RecursivelyCollectVisibleMeshes(Prim);
+#endif // USE_USD_SDK
+
+	return VisiblePrims;
+}
+
 UE::FSdfPath UsdUtils::GetPrimSpecPathForLayer( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer )
 {
 	UE::FSdfPath Result;

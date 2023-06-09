@@ -651,30 +651,7 @@ namespace UsdGeometryCacheTranslatorImpl
 			OutMeshData.BatchesInfo.Add(BatchInfo);
 		}
 	}
-
-	bool IsPurposefullyVisible(const pxr::UsdPrim& Prim, EUsdPurpose Purpose)
-	{
-		FScopedUsdAllocs UsdAllocs;
-
-		if (!EnumHasAllFlags(Purpose, IUsdPrim::GetPurpose(Prim)))
-		{
-			return false;
-		}
-
-		if (pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable(Prim))
-		{
-			if (pxr::UsdAttribute VisibilityAttr = UsdGeomImageable.GetVisibilityAttr())
-			{
-				pxr::TfToken VisibilityToken;
-				if (VisibilityAttr.Get(&VisibilityToken) && VisibilityToken == pxr::UsdGeomTokens->invisible)
-				{
-					return false;
-				}
-			}
-		}
-		return true;
-	}
-}
+}	 // namespace UsdGeometryCacheTranslatorImpl
 
 class FGeometryCacheCreateAssetsTaskChain : public FBuildStaticMeshTaskChain
 {
@@ -746,14 +723,14 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 			{
 				// Collect the visible meshes, animated or not, under Prim to be processed into the GeometryCache
 				FScopedUsdAllocs UsdAllocs;
-				TArray<TUsdStore<pxr::UsdPrim>> ChildPrims = UsdUtils::GetAllPrimsOfType(GetPrim(), pxr::TfType::Find<pxr::UsdGeomMesh>());
+				TArray<UE::FUsdPrim> ChildVisiblePrims = UsdUtils::GetVisibleChildren(GetPrim(), Context->PurposesToLoad);
 
-				MeshPrimPaths.Reserve(ChildPrims.Num());
-				for (const TUsdStore<pxr::UsdPrim>& ChildPrim : ChildPrims)
+				MeshPrimPaths.Reserve(ChildVisiblePrims.Num());
+				for (const UE::FUsdPrim& ChildPrim : ChildVisiblePrims)
 				{
-					if (UsdGeometryCacheTranslatorImpl::IsPurposefullyVisible(ChildPrim.Get(), Context->PurposesToLoad))
+					if (ChildPrim.IsA(TEXT("Mesh")))
 					{
-						MeshPrimPaths.Add(UE::FSdfPath(ChildPrim.Get().GetPrimPath()));
+						MeshPrimPaths.Add(UE::FSdfPath(ChildPrim.GetPrimPath()));
 					}
 				}
 			}
@@ -1035,25 +1012,19 @@ TSet<UE::FSdfPath> FUsdGeometryCacheTranslator::CollectAuxiliaryPrims() const
 		return Super::CollectAuxiliaryPrims();
 	}
 
-	TSet<UE::FSdfPath> Result;
+	TSet<UE::FSdfPath> AuxPrims;
+
+	// Here, we collect all meshes even non-animated ones since they'll be collapse into the cache
+	TArray<UE::FUsdPrim> VisibleChildPrims = UsdUtils::GetVisibleChildren(GetPrim(), Context->PurposesToLoad);
+	AuxPrims.Reserve(VisibleChildPrims.Num());
+	for (const UE::FUsdPrim& VisibleChild : VisibleChildPrims)
 	{
-		FScopedUsdAllocs UsdAllocs;
-
-		// Here, we collect all meshes even non-animated ones since they'll be collapse into the cache
-		TArray<TUsdStore<pxr::UsdPrim>> ChildPrims = UsdUtils::GetAllPrimsOfType(GetPrim(), pxr::TfType::Find<pxr::UsdGeomMesh>());
-
-		Result.Reserve(ChildPrims.Num());
-		for (const TUsdStore<pxr::UsdPrim>& ChildPrim : ChildPrims)
+		if (VisibleChild.IsA(TEXT("Imageable")))
 		{
-			if (UsdGeometryCacheTranslatorImpl::IsPurposefullyVisible(ChildPrim.Get(), Context->PurposesToLoad))
-			{
-				Result.Add(UE::FSdfPath(ChildPrim.Get().GetPrimPath()));
-			}
-
-			// Should probably collect the Xformable as well
+			AuxPrims.Add(VisibleChild.GetPrimPath());
 		}
 	}
-	return Result;
+	return AuxPrims;
 }
 
 bool FUsdGeometryCacheTranslator::IsPotentialGeometryCacheRoot() const
