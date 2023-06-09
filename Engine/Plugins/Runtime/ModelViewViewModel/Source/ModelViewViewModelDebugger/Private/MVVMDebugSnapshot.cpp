@@ -36,25 +36,28 @@ FMVVMViewBindingDebugEntry CreateViewBindingDebugEntry(const UMVVMViewClass* Vie
 #if WITH_EDITOR
 	Result.BlueprintViewBindingId = Binding.GetEditorId();
 #endif
-	if (Binding.GetSourceFieldId().IsValid())
+	if (ViewClass->GetBindingLibrary().IsLoaded())
 	{
-		TValueOrError<UE::FieldNotification::FFieldId, void> FieldIdValue = ViewClass->GetBindingLibrary().GetFieldId(Binding.GetSourceFieldId());
-		Result.FieldId = FieldIdValue.HasValue() ? FieldIdValue.GetValue().GetName() : FName();
-	}
-	if (Binding.GetBinding().GetSourceFieldPath().IsValid())
-	{
-		TValueOrError<FString, FString> SourceFieldPathValue = ViewClass->GetBindingLibrary().FieldPathToString(Binding.GetBinding().GetSourceFieldPath(), false);
-		Result.SourceFieldPath = SourceFieldPathValue.HasValue() ? SourceFieldPathValue.StealValue() : SourceFieldPathValue.StealError();
-	}
-	if (Binding.GetBinding().GetDestinationFieldPath().IsValid())
-	{
-		TValueOrError<FString, FString> DestinationFieldPathValue = ViewClass->GetBindingLibrary().FieldPathToString(Binding.GetBinding().GetDestinationFieldPath(), false);
-		Result.DestinationFieldPath = DestinationFieldPathValue.HasValue() ? DestinationFieldPathValue.StealValue() : DestinationFieldPathValue.StealError();
-	}
-	if (Binding.GetBinding().GetConversionFunctionFieldPath().IsValid())
-	{
-		TValueOrError<FString, FString> ConversionFieldPathValue = ViewClass->GetBindingLibrary().FieldPathToString(Binding.GetBinding().GetConversionFunctionFieldPath(), false);
-		Result.ConversionFunctionFieldPath = ConversionFieldPathValue.HasValue() ? ConversionFieldPathValue.StealValue() : ConversionFieldPathValue.StealError();
+		if (Binding.GetSourceFieldId().IsValid())
+		{
+			TValueOrError<UE::FieldNotification::FFieldId, void> FieldIdValue = ViewClass->GetBindingLibrary().GetFieldId(Binding.GetSourceFieldId());
+			Result.FieldId = FieldIdValue.HasValue() ? FieldIdValue.GetValue().GetName() : FName();
+		}
+		if (Binding.GetBinding().GetSourceFieldPath().IsValid())
+		{
+			TValueOrError<FString, FString> SourceFieldPathValue = ViewClass->GetBindingLibrary().FieldPathToString(Binding.GetBinding().GetSourceFieldPath(), false);
+			Result.SourceFieldPath = SourceFieldPathValue.HasValue() ? SourceFieldPathValue.StealValue() : SourceFieldPathValue.StealError();
+		}
+		if (Binding.GetBinding().GetDestinationFieldPath().IsValid())
+		{
+			TValueOrError<FString, FString> DestinationFieldPathValue = ViewClass->GetBindingLibrary().FieldPathToString(Binding.GetBinding().GetDestinationFieldPath(), false);
+			Result.DestinationFieldPath = DestinationFieldPathValue.HasValue() ? DestinationFieldPathValue.StealValue() : DestinationFieldPathValue.StealError();
+		}
+		if (Binding.GetBinding().GetConversionFunctionFieldPath().IsValid())
+		{
+			TValueOrError<FString, FString> ConversionFieldPathValue = ViewClass->GetBindingLibrary().FieldPathToString(Binding.GetBinding().GetConversionFunctionFieldPath(), false);
+			Result.ConversionFunctionFieldPath = ConversionFieldPathValue.HasValue() ? ConversionFieldPathValue.StealValue() : ConversionFieldPathValue.StealError();
+		}
 	}
 	Result.CompiledBindingIndex = Index;
 	return Result;

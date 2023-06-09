@@ -116,6 +116,12 @@ void FMVVMCompiledBindingLibrary::Load()
 }
 
 
+bool FMVVMCompiledBindingLibrary::IsLoaded() const
+{
+	return LoadedProperties.Num() > 0 || LoadedFunctions.Num() > 0 || LoadedFieldIds.Num() > 0 || CompiledFields.Num() == 0;
+}
+
+
 void FMVVMCompiledBindingLibrary::Unload()
 {
 	LoadedProperties.Empty();
@@ -479,7 +485,6 @@ TValueOrError<FString, FString> FMVVMCompiledBindingLibrary::FieldPathToString(F
 			}
 			else
 			{
-				ensureMsgf(false, TEXT("The library is not loaded"));
 				StringBuilder << TEXT("<Invalid>");
 				bHasError = true;
 			}
@@ -510,7 +515,6 @@ TValueOrError<FString, FString> FMVVMCompiledBindingLibrary::FieldPathToString(F
 			}
 			else
 			{
-				ensureMsgf(false, TEXT("The library is not loaded"));
 				StringBuilder << TEXT("<Invalid>");
 				bHasError = true;
 			}
@@ -540,8 +544,11 @@ TValueOrError<UE::FieldNotification::FFieldId, void> FMVVMCompiledBindingLibrary
 	}
 #endif
 
-	check(LoadedFieldIds.IsValidIndex(InFieldId.FieldIdIndex));
-	return MakeValue(LoadedFieldIds[InFieldId.FieldIdIndex]);
+	if (LoadedFieldIds.IsValidIndex(InFieldId.FieldIdIndex))
+	{
+		return MakeValue(LoadedFieldIds[InFieldId.FieldIdIndex]);
+	}
+	return MakeError<>();
 }
 
 #undef LOCTEXT_NAMESPACE

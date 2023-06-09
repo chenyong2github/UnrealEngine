@@ -302,6 +302,8 @@ public:
 	void Load();
 	/** Release the acquired FProperty and UFunction. */
 	void Unload();
+	/** FProperty and UFunction are fetched. */
+	bool IsLoaded() const;
 
 	/**
 	 * Execute a binding, in one direction.
