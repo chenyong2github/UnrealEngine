@@ -122,7 +122,7 @@ public:
 	bool bExplicitlyLoaded;
 
 	/** If true, prevents other plugins from depending on this plugin */
-	UPROPERTY(VisibleAnywhere, Category = Details)
+	UPROPERTY(EditAnywhere, Category = Details)
 	bool bIsSealed;
 
 	/** Plugins used by this plugin */
