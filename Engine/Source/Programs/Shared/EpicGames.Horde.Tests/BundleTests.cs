@@ -247,7 +247,7 @@ namespace EpicGames.Horde.Tests
 			BundleOptions options = new BundleOptions();
 			options.MaxBlobSize = 1;
 
-			await using (BundleWriter writer = _storage.CreateWriter())
+			await using (BundleWriter writer = _storage.CreateWriter(options: options))
 			{
 				DirectoryNode root = new DirectoryNode();
 				for (int idx = 1; idx <= 3; idx++)
