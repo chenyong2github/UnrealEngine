@@ -197,6 +197,8 @@ void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InC
 				AccelerationStructure->RemoveElement(Payload);
 			}
 		}
+
+		PendingComponentSync.Remove(InComponent);
 	}
 
 	TSet<Chaos::FPhysicsObjectHandle> PhysicsObjectsToRemove;
@@ -358,6 +360,10 @@ void UClusterUnionComponent::OnCreatePhysicsState()
 	InitData.ActorId = GetOwner()->GetUniqueID();
 	InitData.ComponentId = GetUniqueID();
 	InitData.bNeedsClusterXRInitialization = GetOwner()->HasAuthority();
+
+	// Only need to check connectivity on the server and have the client rely on replication to get the memo on when to release from cluster union.
+	InitData.bCheckConnectivity = GetOwner()->HasAuthority();
+
 	bHasReceivedTransform = false;
 	PhysicsProxy = new Chaos::FClusterUnionPhysicsProxy{ this, Parameters, InitData };
 	PhysicsProxy->Initialize_External();
@@ -1136,11 +1142,11 @@ void UClusterUnionComponent::VisitAllCurrentChildComponentsForCollision(ECollisi
 					{
 						return true;
 					}
+				}
 
-					if (Owner->GetComponentsCollisionResponseToChannel(TraceChannel) == ECollisionResponse::ECR_Ignore)
-					{
-						return true;
-					}
+				if (Component->GetCollisionResponseToChannel(TraceChannel) == ECollisionResponse::ECR_Ignore)
+				{
+					return true;
 				}
 
 				Lambda(Component);

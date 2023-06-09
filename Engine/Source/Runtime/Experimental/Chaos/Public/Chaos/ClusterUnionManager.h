@@ -96,6 +96,9 @@ namespace Chaos
 		// Whether or not the anchor got set by the GT and we shouldn't try to recompute its value.
 		bool bAnchorLock = false;
 
+		// Whether or not we need to check for connectivity for this cluster union.
+		bool bCheckConnectivity = false;
+
 		// Pending particles that need to be added into the connectivity graph.
 		TArray<TPair<FPBDRigidParticleHandle*, EClusterUnionConnectivityOperation>> PendingConnectivityOperations;
 	};

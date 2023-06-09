@@ -29,6 +29,7 @@ namespace Chaos
 		uint32 ActorId = INDEX_NONE;
 		uint32 ComponentId = INDEX_NONE;
 		bool bNeedsClusterXRInitialization = true;
+		bool bCheckConnectivity = true;
 	};
 
 	/**

@@ -453,6 +453,13 @@ namespace Chaos
 			{
 				Cluster->PendingConnectivityOperations.Add({Particle, EClusterUnionConnectivityOperation ::Add});
 			}
+
+			if (!Cluster->ChildProperties.Contains(Particle))
+			{
+				FClusterUnionParticleProperties Properties;
+				Properties.bIsAuxiliaryParticle = false;
+				Cluster->ChildProperties.Add(Particle, Properties);
+			}
 		}
 
 		MClustering.AddParticlesToCluster(Cluster->InternalCluster, FinalParticlesToAdd, ChildToParentMap);

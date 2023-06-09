@@ -129,6 +129,7 @@ namespace Chaos
 
 			// On the client, we'd rather wait for the server to initialize the particle properly.
 			ClusterUnion->bNeedsXRInitialization = InitData.bNeedsClusterXRInitialization;
+			ClusterUnion->bCheckConnectivity = InitData.bCheckConnectivity;
 		}
 	}
 

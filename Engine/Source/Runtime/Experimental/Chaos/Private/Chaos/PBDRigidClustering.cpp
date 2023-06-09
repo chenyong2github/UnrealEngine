@@ -901,6 +901,7 @@ namespace Chaos
 		// Grab cluster union parent if there is one
 		FPBDRigidParticleHandle* ParentRigid = ClusteredParticle->ClusterIds().Id;
 		FPBDRigidClusteredParticleHandle* Parent = ParentRigid ? ParentRigid->CastToClustered() : nullptr;
+		TSet<FClusterUnionIndex> ClusterUnionsToConsiderForConnectivity;
 
 		for (int32 ChildIdx = Children.Num() - 1; ChildIdx >= 0; --ChildIdx)
 		{
@@ -933,7 +934,14 @@ namespace Chaos
 						}
 					}
 
-					ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ClusteredParticle }, EClusterUnionOperationTiming::Defer);
+					const FClusterUnionIndex ClusterUnionIndex = ClusterUnionManager.FindClusterUnionIndexFromParticle(ClusteredParticle);
+					if (ClusterUnionIndex != INDEX_NONE)
+					{
+						// Remove node connections here immediately just in case we need to manage connectivity on the cluster union.
+						RemoveNodeConnections(ClusteredParticle);
+						ClusterUnionsToConsiderForConnectivity.Add(ClusterUnionIndex);
+						ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ClusteredParticle }, EClusterUnionOperationTiming::Defer);
+					}
 					bFoundFirstRelease = true;
 				}
 
@@ -943,6 +951,7 @@ namespace Chaos
 
 				if (bIsInClusterUnion)
 				{
+					ClusterUnionsToConsiderForConnectivity.Add(ClusterUnionIndex);
 					DeferredRemoveFromClusterUnion.Add(Child);
 				}
 				else
@@ -1038,6 +1047,18 @@ namespace Chaos
 					RemoveNodeConnections(Child);
 				}
 				ActivatedChildren.Append(HandleConnectivityOnReleaseClusterParticle(ClusteredParticle, bCreateNewClusters));
+
+				// Every removal from a cluster union can trigger connectivity changes as well.
+				if (!bIsClusterUnion && bCheckForInterclusterEdgesOnRelease)
+				{
+					for (FClusterUnionIndex UnionIndex : ClusterUnionsToConsiderForConnectivity)
+					{
+						if (FClusterUnion* ClusterUnion = ClusterUnionManager.FindClusterUnion(UnionIndex))
+						{
+							ActivatedChildren.Append(HandleConnectivityOnReleaseClusterParticle(ClusterUnion->InternalCluster, false));
+						}
+					}
+				}
 			}
 
 			for (FPBDRigidParticleHandle* Child : ActivatedChildren)
@@ -1178,7 +1199,7 @@ namespace Chaos
 					ActivatedChildren.Append(MoveTemp(NewClusters));
 				}
 			}
-			else if (bCheckForInterclusterEdgesOnRelease)
+			else if (bCheckForInterclusterEdgesOnRelease && ParentClusterUnion->bCheckConnectivity)
 			{
 				// We know we're in an cluster union. There are pieces that we consider to be the "main body". There are certain pieces that we consider to be auxiliary as well.
 				// If an island is only made up of auxiliary pieces, then those pieces should fall off. Connectivity of main pieces should be handled by the GT.
